@@ -1,0 +1,8 @@
+LIBRARY xrt.dll
+
+EXPORTS
+xCore
+xCoreInit
+xCoreUnit
+xrtFree
+xrtRand
