@@ -929,7 +929,11 @@ XXAPI wstr xrtFormatW(wstr sFormat, ...)
 	if ( sFormat == NULL ) { return (wstr)xCore.sNull; }
 	va_list ip;
 	va_start(ip, sFormat);
-	int iSize = vsnwprintf(NULL, 0, sFormat, ip);
+	#if defined(_WIN32) || defined(_WIN64)
+		int iSize = vsnwprintf(NULL, 0, sFormat, ip);
+	#else
+		int iSize = vswprintf(NULL, 0, sFormat, ip);
+	#endif
 	va_end(ip);
 	if ( iSize >= 0 ) {
 		wstr sRet = xrtMalloc( (iSize + 1) * 2 );
@@ -939,7 +943,11 @@ XXAPI wstr xrtFormatW(wstr sFormat, ...)
 			return (wstr)xCore.sNull;
 		}
 		va_start(ip, sFormat);
-		iSize = vsnwprintf(sRet, iSize + 1, sFormat, ip);
+		#if defined(_WIN32) || defined(_WIN64)
+			iSize = vsnwprintf(sRet, iSize + 1, sFormat, ip);
+		#else
+			iSize = vswprintf(sRet, iSize + 1, sFormat, ip);
+		#endif
 		va_end(ip);
 		sRet[iSize] = 0;
 		xCore.iRet = iSize;

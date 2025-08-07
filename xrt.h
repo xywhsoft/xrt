@@ -3,9 +3,13 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <wchar.h>
+#include <ctype.h>
+#include <wctype.h>
 #include <time.h>
 
 

@@ -63,7 +63,7 @@ XXAPI xrtGlobalData* xrtInit()
 		memcpy(xCore.AppPath, xCore.AppFile, iSize * 2);
 		xCore.AppPath[iSize] = 0;
 	#else
-		astr sTemp = malloc(4096);
+		ustr sTemp = malloc(4096);
 		size_t iSize = readlink("/proc/self/exe", sTemp, 4096);
 		if ( iSize == -1 ) {
 			// 无法读取程序路径
