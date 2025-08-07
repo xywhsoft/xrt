@@ -1,32 +1,67 @@
 
 
 
-/* ------------------------------------ C 函数库 ------------------------------------ */
+// 申请内存
+XXAPI ptr xrtMalloc(size_t iSize)
+{
+	return xCore.malloc(iSize);
+}
 
 
 
-// 释放内存（ 释放 malloc 申请的内存，会先判断是否为 nullstring ）
+// 申请类内存
+XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
+{
+	return xCore.calloc(iNum, iSize);
+}
+
+
+
+// 重新申请内存
+XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
+{
+	return xCore.realloc(pMem, iSize);
+}
+
+
+
+// 释放内存（ 会先判断是否为 null ）
 XXAPI void xrtFree(ptr pmem)
 {
-	if ( pmem && (pmem != xCore.nullstring) ) { free(pmem); }
+	if ( pmem && (pmem != xCore.sNull) ) { xCore.free(pmem); }
 }
 
 
 
-// 随机数
-XXAPI int xrtRand(int min, int max)
+// 设置错误
+XXAPI void xrtSetError(str sError, int bFree)
 {
-	if ( min == max ) {
-		return min;
-	} else if ( min > max ) {
-		return max + (rand() % (min - max));
-	} else {
-		return min + (rand() % (max - min));
-	}
+	#ifdef DebugMode
+		#if defined(_WIN32) || defined(_WIN64)
+			printf("SetError : %S\n", sError);
+		#else
+			printf("SetError : %s\n", sError);
+		#endif
+	#endif
+	xCore.LastError = sError;
+	xCore.__pri_FreeError = bFree;
 }
 
 
 
+// 清除错误
+XXAPI void xrtClearError()
+{
+	if ( xCore.__pri_FreeError && xCore.LastError ) {
+		xrtFree(xCore.LastError);
+	}
+	xCore.LastError = xCore.sNull;
+	xCore.__pri_FreeError = FALSE;
+}
+
+
+
+/*
 // 运行程序
 XXAPI HANDLE xCore_RunW(wstr sPath, int iShow)
 {
@@ -118,7 +153,7 @@ XXAPI astr xShellA(astr sCMD)
 	char buffer[1024];
 	FILE *fp = popen(sCMD, "r");
 	if ( fp == NULL ) {
-		return xCore.nullstring;
+		return xCore.sNull;
 	}
 	MBMU_Object objBuf = MBMU_Create(16384, 16384);
 	while ( fgets(buffer, 1024, fp) != NULL ) {
@@ -136,7 +171,7 @@ XXAPI ustr xShellU(ustr sCMD)
 	char buffer[1024];
 	FILE *fp = popen(sCMD, "r");
 	if ( fp == NULL ) {
-		return xCore.nullstring;
+		return xCore.sNull;
 	}
 	MBMU_Object objBuf = MBMU_Create(16384, 16384);
 	while ( fgets(buffer, 1024, fp) != NULL ) {
@@ -152,7 +187,7 @@ XXAPI wstr xShellW(wstr sCMD)
 	char buffer[1024];
 	FILE *fp = wpopen(sCMD, L"r");
 	if ( fp == NULL ) {
-		return (wstr)xCore.nullstring;
+		return (wstr)xCore.sNull;
 	}
 	MBMU_Object objBuf = MBMU_Create(16384, 16384);
 	while ( fgets(buffer, 1024, fp) != NULL ) {
@@ -163,5 +198,6 @@ XXAPI wstr xShellW(wstr sCMD)
 	MBMU_Destroy(objBuf);
 	return sRet;
 }
+*/
 
 

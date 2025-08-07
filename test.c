@@ -2,44 +2,75 @@
 
 
 #include "xrt.h"
+#if defined(_WIN32) || defined(_WIN64)
+	#include <windows.h>
+#endif
 
 
-
-/*
-int ProcScanTable(pTableNode pNode)
-{
-	printf("Scan Node : %d	%d	%s	%s\n", pNode, pNode->Hash, pNode->Key, pNode->Val);
-	return 0;
-}
-*/
 
 
 
 int main(int argc, char** argv)
 {
-	xCoreInit();
-	printf("²âÊÔ¿ªÊ¼\n\n");
+	#if defined(_WIN32) || defined(_WIN64)
+		SetConsoleOutputCP(65001);
+	#endif
 	
-	/* Base ¿â²âÊÔ */
-	printf("\n\n\n------------------------------------\n\nBase ¿â²âÊÔ :\n\n");
-	printf("AppFile : %s\n", xCore.AppFile);
-	printf("AppPath : %s\n", xCore.AppPath);
+	xrtGlobalData* xCore = xrtInit();
+	printf("æµ‹è¯•å¼€å§‹\n\n");
+	
+	
+	
+	/* Base åº“æµ‹è¯• */
+	//*
+	printf("\n\n\n------------------------------------\n\nBase åº“æµ‹è¯• :\n\n");
+	#if defined(_WIN32) || defined(_WIN64)
+		printf("AppFile : %S\n", xCore->AppFile);
+		printf("AppPath : %S\n", xCore->AppPath);
+	#else
+		printf("AppFile : %s\n", xCore->AppFile);
+		printf("AppPath : %s\n", xCore->AppPath);
+	#endif
+	//*/
 	
 	//printf("%s\n", Path_GetRelA("c:\\123\\1.txt", "c:\\123"));
-	//printf("%d\n", xCore_InStrA("aBcDeFg", "CDE", true));
 	
-	/* String ¿â²âÊÔ */
+	
+	
+	/* Math åº“æµ‹è¯• */
 	/*
-	printf("------------------------------------\n\nString ¿â²âÊÔ :\n\n");
+	printf("\n\n\n------------------------------------\n\nMath åº“æµ‹è¯• :\n\n");
+	for ( int i = 0; i < 10; i++ ) {
+		printf("Rand 0 - 100 : %d\n", xrtRand(0, 100));
+	}
+	//*/
+	
+	
+	
+	/* String åº“æµ‹è¯• */
+	//*
+	printf("\n\n\n------------------------------------\n\nString åº“æµ‹è¯• :\n\n");
+	printf("xrtFormat : %s\n", xrtFormat("%s - %s", "Hello", "World ~!"));
+	printf("xrtFormatW : %S\n", xrtFormatW(L"%s - %s", L"Hello", L"World ~!"));
+	printf("xrtLCase : %s\n", xrtLCase("aBcDeFg", 0, FALSE));
+	printf("xrtLCaseW : %S\n", xrtLCaseW(L"aBcDeFg", 0, FALSE));
+	printf("xrtUCase : %s\n", xrtUCase("aBcDeFg", 0, FALSE));
+	printf("xrtUCaseW : %S\n", xrtUCaseW(L"aBcDeFg", 0, FALSE));
+	printf("xrtFindStr : %s\n", xrtFindStr("aBcDeFg", "CDE", TRUE));
+	printf("xrtInStr : %d\n", xrtInStr("aBcDeFg", "CDE", TRUE));
+	printf("xrtFindStrW : %S\n", xrtFindStrW(L"aBcDeFg", L"CDE", TRUE));
+	printf("xrtInStrW : %d\n", xrtInStrW(L"aBcDeFg", L"CDE", TRUE));
+	/*
 	printf("%s\n", xxLTrimA("|? *c:\\123\\456\\789\\file.ext| ?*", " |?*", TRUE));
 	printf("%s\n", xxRTrimA("|? *c:\\123\\456\\789\\file.ext| ?*", " |?*", TRUE));
 	printf("%s\n", xxTrimA("|? *c:\\123\\456\\789\\file.ext| ?*", " |?*", TRUE));
 	printf("%s\n", xxStringFilterA("|? *c:\\123\\456\\789\\file.ext| ?*", " |?*\\", TRUE));
+	*/
 	//*/
 	
-	/* Path ¿â²âÊÔ */
+	/* Path åº“æµ‹è¯• */
 	/*
-	printf("\n\n\n------------------------------------\n\nPath ¿â²âÊÔ :\n\n");
+	printf("\n\n\n------------------------------------\n\nPath åº“æµ‹è¯• :\n\n");
 	printf("%s\n", Path_FileNameExtA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_FileNameA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_FileExtA("c:\\123\\456\\789\\file.ext"));
@@ -57,46 +88,46 @@ int main(int argc, char** argv)
 	printf("%s\n", Path_JoinA(NULL, "file.ext"));
 	//*/
 	
-	/* Dialog ¿â²âÊÔ */
+	/* Dialog åº“æµ‹è¯• */
 	/*
-	printf("\n\n\n------------------------------------\n\nDialog ¿â²âÊÔ :\n\n");
-	//printf("%s\n", xCore_W2A(xxInputBoxW(0, L"ÊäÈëÒ»¸öÊı×Ö£º", L"ÇëÊäÈë", L"Ä¬ÈÏÖµ", -1, -1, 0), 0));
-	//printf("%s\n", xInputBoxA(0, "ÊäÈëÒ»¸öÊı×Ö£º", "ÇëÊäÈë", "Ä¬ÈÏÖµ", -1, -1, 0));
+	printf("\n\n\n------------------------------------\n\nDialog åº“æµ‹è¯• :\n\n");
+	//printf("%s\n", xCore_W2A(xxInputBoxW(0, L"è¾“å…¥ä¸€ä¸ªæ•°å­—ï¼š", L"è¯·è¾“å…¥", L"é»˜è®¤å€¼", -1, -1, 0), 0));
+	//printf("%s\n", xInputBoxA(0, "è¾“å…¥ä¸€ä¸ªæ•°å­—ï¼š", "è¯·è¾“å…¥", "é»˜è®¤å€¼", -1, -1, 0));
 	//printf("%s\n", xOpenFileDialogA(0, NULL, NULL, NULL, 0));
-	//printf("%s\n", xOpenFileDialogA(0, "c:\\*.txt", "ÎÄ±¾ÎÄµµ|*.txt|ËùÓĞÎÄ¼ş|*", "±êÌâ", 0));
-	//printf("%s\n", xSaveFileDialogA(0, "c:\\*.txt", "ÎÄ±¾ÎÄµµ|*.txt|ËùÓĞÎÄ¼ş|*", "±êÌâ", 0));
-	printf("%s\n", xSelectFolderDialogA(0, "c:\\windows", "±êÌâ"));
+	//printf("%s\n", xOpenFileDialogA(0, "c:\\*.txt", "æ–‡æœ¬æ–‡æ¡£|*.txt|æ‰€æœ‰æ–‡ä»¶|*", "æ ‡é¢˜", 0));
+	//printf("%s\n", xSaveFileDialogA(0, "c:\\*.txt", "æ–‡æœ¬æ–‡æ¡£|*.txt|æ‰€æœ‰æ–‡ä»¶|*", "æ ‡é¢˜", 0));
+	printf("%s\n", xSelectFolderDialogA(0, "c:\\windows", "æ ‡é¢˜"));
 	//*/
 	
-	/* xTable ¿â²âÊÔ */
+	/* xTable åº“æµ‹è¯• */
 	/*
-	printf("\n\n\n------------------------------------\n\nxTable ¿â²âÊÔ :\n\n");
+	printf("\n\n\n------------------------------------\n\nxTable åº“æµ‹è¯• :\n\n");
 	
 	xTableObject tblTest = xTable_Create();
 	printf("Create xTable Object : %d\n", tblTest);
 	
 	pTableNode objNode;
 	
-	objNode = xTable_InsertA(tblTest, "xTable", "xTable ¿â²âÊÔ");
+	objNode = xTable_InsertA(tblTest, "xTable", "xTable åº“æµ‹è¯•");
 	printf("Insert Node Object : %d\n", objNode);
 	
-	objNode = xTable_InsertA(tblTest, "String", "String ¿â²âÊÔ");
+	objNode = xTable_InsertA(tblTest, "String", "String åº“æµ‹è¯•");
 	printf("Insert Node Object : %d\n", objNode);
 	
-	objNode = xTable_InsertA(tblTest, "Path", "Path ¿â²âÊÔ");
+	objNode = xTable_InsertA(tblTest, "Path", "Path åº“æµ‹è¯•");
 	printf("Insert Node Object : %d\n", objNode);
 	
-	objNode = xTable_InsertA(tblTest, "Dialog", "Dialog ¿â²âÊÔ");
+	objNode = xTable_InsertA(tblTest, "Dialog", "Dialog åº“æµ‹è¯•");
 	printf("Insert Node Object : %d\n", objNode);
 	
-	printf("\n²éÕÒ Key = String µÄ Node £º\n");
+	printf("\næŸ¥æ‰¾ Key = String çš„ Node ï¼š\n");
 	objNode = xTable_SearchA(tblTest, "String");
 	printf("Scan Node : %d	%d	%s	%s\n", objNode, objNode->Hash, objNode->Key, objNode->Val);
 	
-	printf("\nÉ¾³ı Key = Path µÄ Node £º\n");
+	printf("\nåˆ é™¤ Key = Path çš„ Node ï¼š\n");
 	xTable_RemoveA(tblTest, "Path");
 	
-	printf("\nTable ±éÀú²âÊÔ£º\n");
+	printf("\nTable éå†æµ‹è¯•ï¼š\n");
 	xTable_Scan(tblTest, ProcScanTable);
 	
 	xTable_Destroy(tblTest);
@@ -104,8 +135,8 @@ int main(int argc, char** argv)
 	
 	
 	
-	printf("\n------------------------------------\n\n\n\n²âÊÔ½áÊø\n\n");
-	xCoreUnit();
+	printf("\n------------------------------------\n\n\n\næµ‹è¯•ç»“æŸ\n\n");
+	xrtUnit();
 	return 0;
 }
 

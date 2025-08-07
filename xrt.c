@@ -12,50 +12,65 @@
 
 
 
+// 全局数据
+const int sNullValue = 0;
+xrtGlobalData xCore = { FALSE };
+
+
+
+// 引入子库
 #include "lib/base.h"
+#include "lib/charset.h"
+#include "lib/math.h"
+#include "lib/string.h"
+#include "lib/time.h"
+#include "lib/path.h"
 
 
 
 // 初始化 xCore
-xCoreStruct xCore;
-XXAPI void xCoreInit(void)
+XXAPI xrtGlobalData* xrtInit()
 {
+	if ( xCore.bInit ) {
+		return &xCore;
+	}
 	
 	// 初始化数据
-	xCore.nullstring = (str)"\0\0\0";
-	xCore.sRet = xCore.nullstring;
+	xCore.bInit = TRUE;
+	xCore.sNull = (str)&sNullValue;
+	xCore.sRet = xCore.sNull;
 	xCore.iRet = 0;
-	xCore.dRet = 0.0;
-	xCore.LastErrorID = 0;
-	xCore.LastError = xCore.nullstring;
+	xCore.nRet = 0.0;
+	xCore.LastError = xCore.sNull;
+	xCore.__pri_FreeError = FALSE;
 	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)
-		astr sTemp = malloc(1024);
-		int iSize = GetModuleFileNameA(NULL, sTemp, 1024);
-		xCore.AppFile = malloc(iSize + 1);
-		memcpy(xCore.AppFile, sTemp, iSize);
+		str sTemp = malloc(8192);
+		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
+		xCore.AppFile = malloc((iSize + 1) * 2);
+		memcpy(xCore.AppFile, sTemp, iSize * 2);
 		xCore.AppFile[iSize] = 0;
-		xrtFree(sTemp);
-		sTemp = strrchr(xCore.AppFile, L'\\');
+		free(sTemp);
+		sTemp = wcsrchr(xCore.AppFile, L'\\');
 		iSize = (sTemp - xCore.AppFile);
-		xCore.AppPath = malloc(iSize + 1);
-		memcpy(xCore.AppPath, xCore.AppFile, iSize);
+		xCore.AppPath = malloc((iSize + 1) * 2);
+		memcpy(xCore.AppPath, xCore.AppFile, iSize * 2);
 		xCore.AppPath[iSize] = 0;
 	#else
-		astr sTemp = malloc(1024);
-		size_t iSize = readlink("/proc/self/exe", sTemp, 1024);
+		astr sTemp = malloc(4096);
+		size_t iSize = readlink("/proc/self/exe", sTemp, 4096);
 		if ( iSize == -1 ) {
 			// 无法读取程序路径
-			xrtFree(sTemp);
-			xCore.AppFile = xCore.nullstring;
-			xCore.AppPath = xCore.nullstring;
+			free(sTemp);
+			xCore.AppFile = xCore.sNull;
+			xCore.AppPath = xCore.sNull;
 		} else {
 			xCore.AppFile = malloc(iSize + 1);
 			memcpy(xCore.AppFile, sTemp, iSize);
 			xCore.AppFile[iSize] = 0;
-			xrtFree(sTemp);
-			sTemp = strrchr(xCore.AppFile, L'/');
+			free(sTemp);
+			sTemp = strrchr(xCore.AppFile, '/');
 			iSize = (sTemp - xCore.AppFile);
 			xCore.AppPath = malloc(iSize + 1);
 			memcpy(xCore.AppPath, xCore.AppFile, iSize);
@@ -63,17 +78,35 @@ XXAPI void xCoreInit(void)
 		}
 	#endif
 	
+	// 初始化内存函数
+	xCore.malloc = malloc;
+	xCore.calloc = calloc;
+	xCore.realloc = realloc;
+	xCore.free = free;
+	
 	// 初始化随机数序列
 	srand(time(NULL));
+	
+	return &xCore;
 }
 
 
 
 // 释放 xCore
-XXAPI void xCoreUnit(void)
+XXAPI void xrtUnit()
 {
-	xrtFree(xCore.AppFile);
-	xrtFree(xCore.AppPath);
+	if ( xCore.bInit ) {
+		xrtFree(xCore.AppFile);
+		xCore.AppFile = xCore.sNull;
+		xrtFree(xCore.AppPath);
+		xCore.AppPath = xCore.sNull;
+		if ( xCore.__pri_FreeError && xCore.LastError ) {
+			xrtFree(xCore.LastError);
+			xCore.LastError = xCore.sNull;
+			xCore.__pri_FreeError = FALSE;
+		}
+		xCore.bInit = FALSE;
+	}
 }
 
 
