@@ -258,7 +258,7 @@ XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize
 
 /*
 // 裁剪字符串（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
-XXAPI ustr xrtLTrim(ustr sText, ustr sSub, int bSrcRevise)
+XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise)
 {
 	wstr sTextW = xCore_M2W(sText, CP_UTF8, 0);
 	wstr sSubW = xCore_M2W(sSub, CP_UTF8, 0);
@@ -268,7 +268,7 @@ XXAPI ustr xrtLTrim(ustr sText, ustr sSub, int bSrcRevise)
 	xCore_free(sSubW);
 	return sRet;
 }
-XXAPI ustr xrtRTrim(ustr sText, ustr sSub, int bSrcRevise)
+XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise)
 {
 	wstr sTextW = xCore_M2W(sText, CP_UTF8, 0);
 	wstr sSubW = xCore_M2W(sSub, CP_UTF8, 0);
@@ -278,7 +278,7 @@ XXAPI ustr xrtRTrim(ustr sText, ustr sSub, int bSrcRevise)
 	xCore_free(sSubW);
 	return sRet;
 }
-XXAPI ustr xrtTrim(ustr sText, ustr sSub, int bSrcRevise)
+XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise)
 {
 	wstr sTextW = xCore_M2W(sText, CP_UTF8, 0);
 	wstr sSubW = xCore_M2W(sSub, CP_UTF8, 0);
@@ -287,12 +287,15 @@ XXAPI ustr xrtTrim(ustr sText, ustr sSub, int bSrcRevise)
 	xCore_free(sTextW);
 	xCore_free(sSubW);
 	return sRet;
-}
-XXAPI wstr xrtLTrimW(wstr sText, wstr sSub, int bSrcRevise)
+}*/
+XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSub == NULL ) { sSub = L" \t\r\n"; }
-	int iSize = wcslen(sText);
+	if ( sSub == NULL ) { sSub = L" \t\r\n"; iSubSize = 4; }
+	if ( iSize == 0 ) { iSize = wcslen(sText); }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
+	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
+	if ( iSubSize == 0 ) { sSub = L" \t\r\n"; iSubSize = 4; }
 	int iCount = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		if ( wcschr(sSub, sText[i]) != NULL ) {
@@ -312,7 +315,7 @@ XXAPI wstr xrtLTrimW(wstr sText, wstr sSub, int bSrcRevise)
 		return xrtCopyStringW(&sText[iCount], iSize - iCount);
 	}
 }
-XXAPI wstr xrtRTrimW(wstr sText, wstr sSub, int bSrcRevise)
+XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	if ( sSub == NULL ) { sSub = L" \t\r\n"; }
@@ -335,7 +338,7 @@ XXAPI wstr xrtRTrimW(wstr sText, wstr sSub, int bSrcRevise)
 		return xrtCopyStringW(sText, iSize - iCount);
 	}
 }
-XXAPI wstr xrtTrimW(wstr sText, wstr sSub, int bSrcRevise)
+XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	if ( sSub == NULL ) { sSub = L" \t\r\n"; }
@@ -368,7 +371,7 @@ XXAPI wstr xrtTrimW(wstr sText, wstr sSub, int bSrcRevise)
 		return xrtCopyStringW(&sText[iCountL], iSize - iCount);
 	}
 }
-*/
+
 
 
 // 过滤字符串（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
