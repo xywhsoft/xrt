@@ -965,12 +965,12 @@ XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, 
 	size_t iFindCount = 0;
 	ustr sTextPtr;
 	ustr sSubPos;
-	for ( sTextPtr = sText; (sSubPos = strstr(sTextPtr, sSubText)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		iFindCount++;
 	}
 	// 为新字符串分配内存
-	xCore.iRet = iSize + iFindCount * (iRepSize - iSubSize);
-	ustr sRet = (ustr)xrtMalloc(xCore.iRet + 1);
+	size_t iRetSize = iSize + iFindCount * (iRepSize - iSubSize);
+	ustr sRet = (ustr)xrtMalloc(iRetSize + 1);
 	if ( sRet == NULL ) {
 		xrtSetError(XRT_ERROR_MALLOC, FALSE);
 		xCore.iRet = 0;
@@ -978,7 +978,7 @@ XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, 
 	}
 	// 复制原始字符串, 替换需要改变的部分
 	ustr sRetPtr = sRet;
-	for ( sTextPtr = sText; (sSubPos = strstr(sTextPtr, sSubText)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		size_t iSkipSize = sSubPos - sTextPtr;
 		// 复制前面的部分，直到出现要查找的字符串
 		strncpy(sRetPtr, sTextPtr, iSkipSize);
@@ -988,7 +988,11 @@ XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, 
 		sRetPtr += iRepSize;
 	}
 	// 复制最后一段剩下的字符串
-	strcpy(sRetPtr, sTextPtr);
+	if ( &sText[iSize] > sTextPtr ) {
+		memcpy(sRetPtr, sTextPtr, &sText[iSize] - sTextPtr);
+	}
+	sRet[iRetSize] = 0;
+	xCore.iRet = iRetSize;
 	return sRet;
 }
 XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize)
@@ -1004,12 +1008,12 @@ XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize,
 	size_t iFindCount = 0;
 	wstr sTextPtr;
 	wstr sSubPos;
-	for ( sTextPtr = sText; (sSubPos = wcsstr(sTextPtr, sSubText)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, (iSize - (sTextPtr - sText) + 1) * sizeof(wchar_t), sSubText, iSubSize * sizeof(wchar_t))); sTextPtr = sSubPos + iSubSize ) {
 		iFindCount++;
 	}
 	// 为新字符串分配内存
-	xCore.iRet = iSize + iFindCount * (iRepSize - iSubSize);
-	wstr sRet = (wstr)xrtMalloc( (xCore.iRet + 1) * sizeof(wchar_t) );
+	size_t iRetSize = iSize + iFindCount * (iRepSize - iSubSize);
+	wstr sRet = (wstr)xrtMalloc( (iRetSize + 1) * sizeof(wchar_t) );
 	if ( sRet == NULL ) {
 		xrtSetError(XRT_ERROR_MALLOC, FALSE);
 		xCore.iRet = 0;
@@ -1017,7 +1021,7 @@ XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize,
 	}
 	// 复制原始字符串, 替换需要改变的部分
 	wstr sRetPtr = sRet;
-	for ( sTextPtr = sText; (sSubPos = wcsstr(sTextPtr, sSubText)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, (iSize - (sTextPtr - sText) + 1) * sizeof(wchar_t), sSubText, iSubSize * sizeof(wchar_t))); sTextPtr = sSubPos + iSubSize ) {
 		size_t iSkipSize = sSubPos - sTextPtr;
 		// 复制前面的部分，直到出现要查找的字符串
 		wcsncpy(sRetPtr, sTextPtr, iSkipSize);
@@ -1027,7 +1031,11 @@ XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize,
 		sRetPtr += iRepSize;
 	}
 	// 复制最后一段剩下的字符串
-	wcscpy(sRetPtr, sTextPtr);
+	if ( &sText[iSize] > sTextPtr ) {
+		memcpy(sRetPtr, sTextPtr, (&sText[iSize] - sTextPtr) * sizeof(wchar_t));
+	}
+	sRet[iRetSize] = 0;
+	xCore.iRet = iRetSize;
 	return sRet;
 }
 
