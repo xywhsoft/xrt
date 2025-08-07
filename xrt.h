@@ -205,8 +205,8 @@
 	XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize);
 	
 	// 字符串分割（需使用 xrtFree 释放）
-	XXAPI ustr* xrtSplit(ustr sText, ustr sSep, int bSrcRevise);
-	XXAPI wstr* xrtSplitW(wstr sText, wstr sSep, int bSrcRevise);
+	XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, int bSrcRevise);
+	XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise);
 	
 	
 	

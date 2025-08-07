@@ -1042,11 +1042,10 @@ XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize,
 
 
 // 字符串分割（需使用 xrtFree 释放）
-XXAPI ustr* xrtSplit(ustr sText, ustr sSep, int bSrcRevise)
+XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { sText = (ustr)xCore.sNull; }
-	if ( sSep == NULL ) { sSep = ","; }
-	size_t iSepSize = strlen(sSep);
+	if ( sSepText == NULL ) { sSepText = ","; }
 	int iPos = 0;
 	int iCount = 0;
 	// 统计分隔符出现的次数
@@ -1054,7 +1053,7 @@ XXAPI ustr* xrtSplit(ustr sText, ustr sSep, int bSrcRevise)
 		if ( sText[iPos] == 0 ) {
 			break;
 		}
-		if ( strncmp(&sText[iPos], sSep, iSepSize) == 0 ) {
+		if ( strncmp(&sText[iPos], sSepText, iSepSize) == 0 ) {
 			iCount++;
 		}
 		iPos++;
@@ -1076,7 +1075,7 @@ XXAPI ustr* xrtSplit(ustr sText, ustr sSep, int bSrcRevise)
 	// 开始分割数据
 	iCount = 0;
 	for (int i = 0; i < iPos; i++) {
-		if ( strncmp(&sText[i], sSep, iSepSize) == 0 ) {
+		if ( strncmp(&sText[i], sSepText, iSepSize) == 0 ) {
 			pData[i] = 0;
 			sRet[iCount] = pAddr;
 			pAddr = pData + i + iSepSize;
@@ -1088,11 +1087,10 @@ XXAPI ustr* xrtSplit(ustr sText, ustr sSep, int bSrcRevise)
 	xCore.iRet = iCount + 1;
 	return sRet;
 }
-XXAPI wstr* xrtSplitW(wstr sText, wstr sSep, int bSrcRevise)
+XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { sText = (wstr)xCore.sNull; }
-	if ( sSep == NULL ) { sSep = L","; }
-	size_t iSepSize = wcslen(sSep);
+	if ( sSepText == NULL ) { sSepText = L","; }
 	int iPos = 0;
 	int iCount = 0;
 	// 统计分隔符出现的次数
@@ -1100,7 +1098,7 @@ XXAPI wstr* xrtSplitW(wstr sText, wstr sSep, int bSrcRevise)
 		if ( sText[iPos] == 0 ) {
 			break;
 		}
-		if ( wcsncmp(&sText[iPos], sSep, iSepSize) == 0 ) {
+		if ( wcsncmp(&sText[iPos], sSepText, iSepSize) == 0 ) {
 			iCount++;
 		}
 		iPos++;
@@ -1122,7 +1120,7 @@ XXAPI wstr* xrtSplitW(wstr sText, wstr sSep, int bSrcRevise)
 	// 开始分割数据
 	iCount = 0;
 	for (int i = 0; i < iPos; i++) {
-		if ( wcsncmp(&sText[i], sSep, iSepSize) == 0 ) {
+		if ( wcsncmp(&sText[i], sSepText, iSepSize) == 0 ) {
 			pData[i] = 0;
 			sRet[iCount] = pAddr;
 			pAddr = pData + i + iSepSize;
