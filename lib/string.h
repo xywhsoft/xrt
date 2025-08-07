@@ -258,47 +258,47 @@ XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize
 
 /*
 // 裁剪字符串（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
-XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise)
+XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise)
 {
 	wstr sTextW = xCore_M2W(sText, CP_UTF8, 0);
-	wstr sSubW = xCore_M2W(sSub, CP_UTF8, 0);
+	wstr sSubW = xCore_M2W(sSubText, CP_UTF8, 0);
 	wstr sRetW = xxLTrimW(sTextW, sSubW, TRUE);
 	ustr sRet = xCore_W2M(sRetW, CP_UTF8, 0);
 	xCore_free(sTextW);
 	xCore_free(sSubW);
 	return sRet;
 }
-XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise)
+XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise)
 {
 	wstr sTextW = xCore_M2W(sText, CP_UTF8, 0);
-	wstr sSubW = xCore_M2W(sSub, CP_UTF8, 0);
+	wstr sSubW = xCore_M2W(sSubText, CP_UTF8, 0);
 	wstr sRetW = xxRTrimW(sTextW, sSubW, TRUE);
 	ustr sRet = xCore_W2M(sRetW, CP_UTF8, 0);
 	xCore_free(sTextW);
 	xCore_free(sSubW);
 	return sRet;
 }
-XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise)
+XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise)
 {
 	wstr sTextW = xCore_M2W(sText, CP_UTF8, 0);
-	wstr sSubW = xCore_M2W(sSub, CP_UTF8, 0);
+	wstr sSubW = xCore_M2W(sSubText, CP_UTF8, 0);
 	wstr sRetW = xxTrimW(sTextW, sSubW, TRUE);
 	ustr sRet = xCore_W2M(sRetW, CP_UTF8, 0);
 	xCore_free(sTextW);
 	xCore_free(sSubW);
 	return sRet;
 }*/
-XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise)
+XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSub == NULL ) { sSub = L" \t\r\n"; iSubSize = 4; }
+	if ( sSubText == NULL ) { sSubText = L" \t\r\n"; iSubSize = 4; }
 	if ( iSize == 0 ) { iSize = wcslen(sText); }
 	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { sSub = L" \t\r\n"; iSubSize = 4; }
+	if ( iSubSize == 0 ) { sSubText = L" \t\r\n"; iSubSize = 4; }
 	int iCount = 0;
 	for ( int i = 0; i < iSize; i++ ) {
-		if ( wcschr(sSub, sText[i]) != NULL ) {
+		if ( memmem(sSubText, iSubSize, &sText[i], sizeof(sText[i])) != NULL ) {
 			iCount++;
 		} else {
 			break;
@@ -315,14 +315,14 @@ XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int b
 		return xrtCopyStringW(&sText[iCount], iSize - iCount);
 	}
 }
-XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise)
+XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSub == NULL ) { sSub = L" \t\r\n"; }
+	if ( sSubText == NULL ) { sSubText = L" \t\r\n"; }
 	int iSize = wcslen(sText);
 	int iCount = 0;
 	for ( int i = iSize - 1; i >= 0; i-- ) {
-		if ( wcschr(sSub, sText[i]) != NULL ) {
+		if ( wcschr(sSubText, sText[i]) != NULL ) {
 			iCount++;
 		} else {
 			break;
@@ -338,22 +338,22 @@ XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int b
 		return xrtCopyStringW(sText, iSize - iCount);
 	}
 }
-XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise)
+XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSub == NULL ) { sSub = L" \t\r\n"; }
+	if ( sSubText == NULL ) { sSubText = L" \t\r\n"; }
 	int iSize = wcslen(sText);
 	int iCountL = 0;
 	int iCountR = 0;
 	for ( int i = 0; i < iSize; i++ ) {
-		if ( wcschr(sSub, sText[i]) != NULL ) {
+		if ( wcschr(sSubText, sText[i]) != NULL ) {
 			iCountL++;
 		} else {
 			break;
 		}
 	}
 	for ( int i = iSize - 1; i >= 0; i-- ) {
-		if ( wcschr(sSub, sText[i]) != NULL ) {
+		if ( wcschr(sSubText, sText[i]) != NULL ) {
 			iCountR++;
 		} else {
 			break;

@@ -176,12 +176,12 @@
 	XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize);
 	
 	// 裁剪字符串（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
-	XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise);
-	XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise);
-	XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSub, size_t iSubSize, int bSrcRevise);
-	XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise);
-	XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise);
-	XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSub, size_t iSubSize, int bSrcRevise);
+	XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	
 	// 字符串格式化（需使用 xrtFree 释放）
 	XXAPI ustr xrtFormat(ustr sFormat, ...);
