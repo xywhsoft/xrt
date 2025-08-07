@@ -154,24 +154,31 @@
 	/* ------------------------------------ String 函数库 ------------------------------------ */
 	
 	// 创建字符串副本（需使用 xrtFree 释放）
-	XXAPI ustr xrtCopyString(ustr sText, int iSize);
-	XXAPI wstr xrtCopyStringW(wstr sText, int iSize);
+	XXAPI ustr xrtCopyString(ustr sText, size_t iSize);
+	XXAPI wstr xrtCopyStringW(wstr sText, size_t iSize);
 	
 	// 字符串转为小写（bSrcRevise 为 false 时，需使用 xCore.free 释放内存）
-	XXAPI ustr xrtLCase(ustr sText, int iSize, int bSrcRevise);
-	XXAPI wstr xrtLCaseW(wstr sText, int iSize, int bSrcRevise);
+	XXAPI ustr xrtLCase(ustr sText, size_t iSize, int bSrcRevise);
+	XXAPI wstr xrtLCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
 	// 字符串转为大写（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
-	XXAPI ustr xrtUCase(ustr sText, int iSize, int bSrcRevise);
-	XXAPI wstr xrtUCaseW(wstr sText, int iSize, int bSrcRevise);
+	XXAPI ustr xrtUCase(ustr sText, size_t iSize, int bSrcRevise);
+	XXAPI wstr xrtUCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
 	// 搜索字符串（没找到字符串的情况下会返回 NULL）
-	XXAPI ustr xrtFindStr(ustr sText, ustr sSubText, int bCase);
-	XXAPI uint xrtInStr(ustr sText, ustr sSubText, int bCase);
-	XXAPI wstr xrtFindStrW(wstr sText, wstr sSubText, int bCase);
-	XXAPI uint xrtInStrW(wstr sText, wstr sSubText, int bCase);
+	XXAPI ustr xrtFindStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bCase);
+	XXAPI uint xrtInStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bCase);
+	XXAPI wstr xrtFindStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase);
+	XXAPI uint xrtInStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase);
+	
+	// 字符串检查（ sText 中是否包含 sSubText 列出的字符，支持 utf-8 mb6 编码 ）
+	XXAPI ustr xrtCheckStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize);
+	XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize);
 	
 	// 裁剪字符串（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
+	XXAPI ustr xrtLTrim(ustr sText, ustr sSub, int bSrcRevise);
+	XXAPI ustr xrtRTrim(ustr sText, ustr sSub, int bSrcRevise);
+	XXAPI ustr xrtTrim(ustr sText, ustr sSub, int bSrcRevise);
 	XXAPI wstr xrtLTrimW(wstr sText, wstr sSub, int bSrcRevise);
 	XXAPI wstr xrtRTrimW(wstr sText, wstr sSub, int bSrcRevise);
 	XXAPI wstr xrtTrimW(wstr sText, wstr sSub, int bSrcRevise);

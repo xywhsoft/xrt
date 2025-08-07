@@ -22,7 +22,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Base 库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\nBase 库测试 :\n\n");
 	#if defined(_WIN32) || defined(_WIN64)
 		printf("AppFile : %S\n", xCore->AppFile);
@@ -50,16 +50,19 @@ int main(int argc, char** argv)
 	/* String 库测试 */
 	//*
 	printf("\n\n\n------------------------------------\n\nString 库测试 :\n\n");
-	printf("xrtFormat : %s\n", xrtFormat("%s - %s", "Hello", "World ~!"));
-	printf("xrtFormatW : %S\n", xrtFormatW(L"%s - %s", L"Hello", L"World ~!"));
 	printf("xrtLCase : %s\n", xrtLCase("aBcDeFg", 0, FALSE));
 	printf("xrtLCaseW : %S\n", xrtLCaseW(L"aBcDeFg", 0, FALSE));
 	printf("xrtUCase : %s\n", xrtUCase("aBcDeFg", 0, FALSE));
 	printf("xrtUCaseW : %S\n", xrtUCaseW(L"aBcDeFg", 0, FALSE));
-	printf("xrtFindStr : %s\n", xrtFindStr("aBcDeFg", "CDE", TRUE));
-	printf("xrtInStr : %d\n", xrtInStr("aBcDeFg", "CDE", TRUE));
-	printf("xrtFindStrW : %S\n", xrtFindStrW(L"aBcDeFg", L"CDE", TRUE));
-	printf("xrtInStrW : %d\n", xrtInStrW(L"aBcDeFg", L"CDE", TRUE));
+	printf("xrtFindStr : %s\n", xrtFindStr("aBcDeFg", 0, "CDE", 0, TRUE));
+	printf("xrtInStr : %d\n", xrtInStr("aBcDeFg", 0, "CDE", 0, TRUE));
+	printf("xrtFindStrW : %S\n", xrtFindStrW(L"aBcDeFg", 0, L"CDE", 0, TRUE));
+	printf("xrtInStrW : %d\n", xrtInStrW(L"aBcDeFg", 0, L"CDE", 0, TRUE));
+	printf("xrtCheckStr : %s\n", xrtCheckStr("xrt?Library", 0, "\\/:*?\"<>|", 0));
+	printf("xrtCheckStrW : %S\n", xrtCheckStrW(L"xrt?Library", 0, L"\\/:*?\"<>|", 0));
+	
+	printf("xrtFormat : %s\n", xrtFormat("%s - %s", "Hello", "World ~!"));
+	printf("xrtFormatW : %S\n", xrtFormatW(L"%s - %s", L"Hello", L"World ~!"));
 	/*
 	printf("%s\n", xxLTrimA("|? *c:\\123\\456\\789\\file.ext| ?*", " |?*", TRUE));
 	printf("%s\n", xxRTrimA("|? *c:\\123\\456\\789\\file.ext| ?*", " |?*", TRUE));

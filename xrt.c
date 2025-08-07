@@ -18,6 +18,11 @@ xrtGlobalData xCore = { FALSE };
 
 
 
+// 引入补充依赖库
+#include "lib/suplib.h"
+
+
+
 // 引入子库
 #include "lib/base.h"
 #include "lib/charset.h"

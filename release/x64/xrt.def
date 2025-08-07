@@ -6,6 +6,8 @@ HexEncode
 UriDecode
 UriEncode
 xrtCalloc
+xrtCheckStr
+xrtCheckStrW
 xrtClearError
 xrtCopyString
 xrtCopyStringW
@@ -19,9 +21,7 @@ xrtInStrW
 xrtInit
 xrtLCase
 xrtLCaseW
-xrtLTrimW
 xrtMalloc
-xrtRTrimW
 xrtRand
 xrtRealloc
 xrtReplace
@@ -29,7 +29,6 @@ xrtReplaceW
 xrtSetError
 xrtSplit
 xrtSplitW
-xrtTrimW
 xrtUCase
 xrtUCaseW
 xrtUnit
