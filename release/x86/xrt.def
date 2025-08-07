@@ -11,6 +11,8 @@ xrtCheckStrW
 xrtClearError
 xrtCopyString
 xrtCopyStringW
+xrtFilterStr
+xrtFilterStrW
 xrtFindStr
 xrtFindStrW
 xrtFormat
@@ -21,7 +23,11 @@ xrtInStrW
 xrtInit
 xrtLCase
 xrtLCaseW
+xrtLTrim
+xrtLTrimW
 xrtMalloc
+xrtRTrim
+xrtRTrimW
 xrtRand
 xrtRealloc
 xrtReplace
@@ -29,7 +35,8 @@ xrtReplaceW
 xrtSetError
 xrtSplit
 xrtSplitW
+xrtTrim
+xrtTrimW
 xrtUCase
 xrtUCaseW
 xrtUnit
-xxStringFilterW

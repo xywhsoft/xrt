@@ -78,6 +78,15 @@
 	
 	
 	
+	// 错误描述
+	#if defined(_WIN32) || defined(_WIN64)
+		#define XRT_ERROR_MALLOC		L"malloc error !"
+	#else
+		#define XRT_ERROR_MALLOC		"malloc error !"
+	#endif
+	
+	
+	
 	// 全局
 	typedef struct {
 		
@@ -157,11 +166,11 @@
 	XXAPI ustr xrtCopyString(ustr sText, size_t iSize);
 	XXAPI wstr xrtCopyStringW(wstr sText, size_t iSize);
 	
-	// 字符串转为小写（bSrcRevise 为 false 时，需使用 xCore.free 释放内存）
+	// 字符串转为小写（bSrcRevise 为 false 时，需使用 xrtFree 释放内存）
 	XXAPI ustr xrtLCase(ustr sText, size_t iSize, int bSrcRevise);
 	XXAPI wstr xrtLCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
-	// 字符串转为大写（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
+	// 字符串转为大写（bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存）
 	XXAPI ustr xrtUCase(ustr sText, size_t iSize, int bSrcRevise);
 	XXAPI wstr xrtUCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
@@ -175,7 +184,7 @@
 	XXAPI ustr xrtCheckStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize);
 	XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize);
 	
-	// 裁剪字符串（bSrcRevise 为 FALSE 时，需使用 xCore.free 释放内存）
+	// 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
@@ -183,15 +192,19 @@
 	XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	
+	// 过滤字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtFilterStr(ustr sText, size_t iSize, ustr sFilter, size_t iSubSize, int bSrcRevise);
+	XXAPI wstr xrtFilterStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
+	
 	// 字符串格式化（需使用 xrtFree 释放）
 	XXAPI ustr xrtFormat(ustr sFormat, ...);
 	XXAPI wstr xrtFormatW(wstr sFormat, ...);
 	
-	// 字符串替换（需使用 xCore.free 释放）
-	XXAPI ustr xrtReplace(ustr original, ustr pattern, ustr replacement);
-	XXAPI wstr xrtReplaceW(wstr original, wstr pattern, wstr replacement);
+	// 字符串替换（需使用 xrtFree 释放）
+	XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, ustr sRepText, size_t iRepSize);
+	XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize);
 	
-	// 字符串分割（需使用 xCore.free 释放）
+	// 字符串分割（需使用 xrtFree 释放）
 	XXAPI ustr* xrtSplit(ustr sText, ustr sSep, int bSrcRevise);
 	XXAPI wstr* xrtSplitW(wstr sText, wstr sSep, int bSrcRevise);
 	

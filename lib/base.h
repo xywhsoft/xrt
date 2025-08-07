@@ -43,6 +43,9 @@ XXAPI void xrtSetError(str sError, int bFree)
 			printf("SetError : %s\n", sError);
 		#endif
 	#endif
+	if ( xCore.__pri_FreeError && xCore.LastError ) {
+		xrtFree(xCore.LastError);
+	}
 	xCore.LastError = sError;
 	xCore.__pri_FreeError = bFree;
 }
