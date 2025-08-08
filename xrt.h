@@ -167,8 +167,8 @@
 	/* ------------------------------------ String 函数库 ------------------------------------ */
 	
 	// 创建字符串副本（需使用 xrtFree 释放）
-	XXAPI ustr xrtCopyString(ustr sText, size_t iSize);
-	XXAPI wstr xrtCopyStringW(wstr sText, size_t iSize);
+	XXAPI ustr xrtCopyStr(ustr sText, size_t iSize);
+	XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize);
 	
 	// 字符串转为小写（bSrcRevise 为 false 时，需使用 xrtFree 释放内存）
 	XXAPI ustr xrtLCase(ustr sText, size_t iSize, int bSrcRevise);

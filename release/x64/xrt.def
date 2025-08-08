@@ -9,8 +9,8 @@ xrtCalloc
 xrtCheckStr
 xrtCheckStrW
 xrtClearError
-xrtCopyString
-xrtCopyStringW
+xrtCopyStr
+xrtCopyStrW
 xrtFilterStr
 xrtFilterStrW
 xrtFindStr
