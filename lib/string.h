@@ -1088,47 +1088,107 @@ XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize,
 // 字符串分割（任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据）
 XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, int bSrcRevise)
 {
-	if ( sText == NULL ) { sText = (ustr)xCore.sNull; }
-	if ( sSepText == NULL ) { sSepText = ","; }
-	int iPos = 0;
-	int iCount = 0;
+	if ( sText == NULL ) { goto return_nullstr; }
+	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { goto return_nullstr; }
+	if ( sSepText == NULL ) { goto return_nullsep; }
+	if ( iSepSize == 0 ) { iSize = strlen(sSepText); }
+	if ( iSepSize == 0 ) { goto return_nullsep; }
 	// 统计分隔符出现的次数
-	while (TRUE) {
-		if ( sText[iPos] == 0 ) {
-			break;
+	int iCount = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		ustr pPos = &sText[i];
+		int bOK = TRUE;
+		for ( int j = 0; j < iSepSize; j++ ) {
+			if ( pPos[j] != sSepText[j] ) {
+				bOK = FALSE;
+				break;
+			}
 		}
-		if ( strncmp(&sText[iPos], sSepText, iSepSize) == 0 ) {
+		if ( bOK ) {
 			iCount++;
+			i += iSepSize - 1;
 		}
-		iPos++;
+	}
+	// 如果字符串没有被分割，按照分隔符为空处理
+	if ( iCount == 0 ) {
+		goto return_nullsep;
 	}
 	// 准备返回的数据 [分割指针 + NULL + 字符串表 + \0]
 	ustr* sRet;
 	ustr pData;
 	if ( bSrcRevise ) {
-		sRet = xrtMalloc( (iCount + 2) * sizeof(void*) );
+		sRet = xrtMalloc( (iCount + 2) * sizeof(ptr) );
 		pData = sText;
 	} else {
-		sRet = xrtMalloc( ((iCount + 2) * sizeof(void*)) + iPos + 1);
+		sRet = xrtMalloc( ((iCount + 2) * sizeof(ptr)) + (iSize - ((iSepSize - 1) * iCount)) + 1 );
 		pData = (ustr)&sRet[iCount + 2];
-		memcpy(pData, sText, iPos);
-		pData[iPos] = 0;
 	}
-	sRet[iCount + 1] = NULL;
-	ustr pAddr = pData;
 	// 开始分割数据
 	iCount = 0;
-	for (int i = 0; i < iPos; i++) {
-		if ( strncmp(&sText[i], sSepText, iSepSize) == 0 ) {
-			pData[i] = 0;
+	int iPos = 0;
+	ustr pAddr = pData;
+	for ( int i = 0; i < iSize; i++ ) {
+		ustr pPos = &sText[i];
+		int bOK = TRUE;
+		for ( int j = 0; j < iSepSize; j++ ) {
+			if ( pPos[j] != sSepText[j] ) {
+				bOK = FALSE;
+				break;
+			}
+		}
+		if ( bOK ) {
+			// 找到分隔符
 			sRet[iCount] = pAddr;
-			pAddr = pData + i + iSepSize;
-			i += iSepSize - 1;
 			iCount++;
+			if ( bSrcRevise ) {
+				pData[i] = 0;
+				pAddr = pData + i + iSepSize;
+			} else {
+				pData[iPos] = 0;
+				iPos++;
+				pAddr = &pData[iPos];
+			}
+			i += iSepSize - 1;
+		} else {
+			// 没找到分隔符（不修改源数据时负责数据拷贝）
+			if ( bSrcRevise == FALSE ) {
+				pData[iPos] = sText[i];
+				iPos++;
+			}
 		}
 	}
+	if ( bSrcRevise == FALSE ) {
+		pData[iPos] = 0;
+	}
 	sRet[iCount] = pAddr;
-	xCore.iRet = iCount + 1;
+	iCount++;
+	sRet[iCount] = NULL;
+	xCore.iRet = iCount;
+	return sRet;
+	
+// 处理内容为 空字符串 或 NULL 的情况（只返回包含一个空元素的数组）
+return_nullstr:
+	sRet = xrtMalloc(2 * sizeof(void*));
+	sRet[0] = (ustr)xCore.sNull;
+	sRet[1] = NULL;
+	xCore.iRet = 1;
+	return sRet;
+	
+// 处理分隔符为 空字符串 或 NULL 的情况（只返回包含一个内容的数组）
+return_nullsep:
+	if ( bSrcRevise ) {
+		sRet = xrtMalloc(2 * sizeof(void*));
+		sRet[0] = sText;
+	} else {
+		sRet = xrtMalloc((2 * sizeof(void*)) + iSize + 1);
+		ustr sTextRef = (ustr)&sRet[2];
+		memcpy(sTextRef, sText, iSize);
+		sTextRef[iSize] = 0;
+		sRet[0] = sTextRef;
+	}
+	sRet[1] = NULL;
+	xCore.iRet = 1;
 	return sRet;
 }
 XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise)

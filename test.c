@@ -83,31 +83,58 @@ int main(int argc, char** argv)
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 9, "1", 0, "_", 0));
 	printf("xrtReplaceW : %S\n", xrtReplaceW(L"1a1b1c1d1e1f1g1", 9, L"1", 0, L"_", 0));
 	
-	wstr* arrRet = xrtSplitW(L"a1b1c1d1e1f1g", 0, L"1", 1, FALSE);
-	printf("\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet);
+	ustr* arrRet = xrtSplit("a1b1c1d1e1f1g", 0, "1", 1, FALSE);
+	printf("\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet[i], arrRet[i]);
+		printf("\n\t%d\t%p\t%s", i + 1, arrRet[i], arrRet[i]);
 	}
 	
-	wstr* arrRet2 = xrtSplitW(L"a123b1c123d1e123f1g", 0, L"123", 3, FALSE);
-	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet2);
+	ustr* arrRet2 = xrtSplit("a123b1c123d1e123f1g", 0, "123", 3, FALSE);
+	printf("\n\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet2);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet2[i], arrRet2[i]);
+		printf("\n\t%d\t%p\t%s", i + 1, arrRet2[i], arrRet2[i]);
 	}
 	
-	wstr sTemp = xrtCopyStrW(L"a1b1c1d1e1f1g", 0);
-	wstr* arrRet3 = xrtSplitW(sTemp, 0, L"1", 1, TRUE);
-	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet3);
+	ustr sTemp = xrtCopyStr("a1b1c1d1e1f1g", 0);
+	ustr* arrRet3 = xrtSplit(sTemp, 0, "1", 1, TRUE);
+	printf("\n\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet3);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet3[i], arrRet3[i]);
+		printf("\n\t%d\t%p\t%s", i + 1, arrRet3[i], arrRet3[i]);
 	}
 	
-	wstr sTemp2 = xrtCopyStrW(L"a123b1c123d1e123f1g", 0);
-	wstr* arrRet4 = xrtSplitW(sTemp2, 0, L"123", 3, TRUE);
-	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet4);
+	ustr sTemp2 = xrtCopyStr("a123b1c123d1e123f1g", 0);
+	ustr* arrRet4 = xrtSplit(sTemp2, 0, "123", 3, TRUE);
+	printf("\n\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet4);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet4[i], arrRet4[i]);
+		printf("\n\t%d\t%p\t%s", i + 1, arrRet4[i], arrRet4[i]);
 	}
+	
+	wstr* arrRet5 = xrtSplitW(L"a1b1c1d1e1f1g", 0, L"1", 1, FALSE);
+	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet5);
+	for ( int i = 0; i <= xCore->iRet; i++ ) {
+		printf("\n\t%d\t%p\t%S", i + 1, arrRet5[i], arrRet5[i]);
+	}
+	
+	wstr* arrRet6 = xrtSplitW(L"a123b1c123d1e123f1g", 0, L"123", 3, FALSE);
+	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet6);
+	for ( int i = 0; i <= xCore->iRet; i++ ) {
+		printf("\n\t%d\t%p\t%S", i + 1, arrRet6[i], arrRet6[i]);
+	}
+	
+	wstr sTemp3 = xrtCopyStrW(L"a1b1c1d1e1f1g", 0);
+	wstr* arrRet7 = xrtSplitW(sTemp3, 0, L"1", 1, TRUE);
+	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet7);
+	for ( int i = 0; i <= xCore->iRet; i++ ) {
+		printf("\n\t%d\t%p\t%S", i + 1, arrRet7[i], arrRet7[i]);
+	}
+	
+	wstr sTemp4 = xrtCopyStrW(L"a123b1c123d1e123f1g", 0);
+	wstr* arrRet8 = xrtSplitW(sTemp4, 0, L"123", 3, TRUE);
+	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet8);
+	for ( int i = 0; i <= xCore->iRet; i++ ) {
+		printf("\n\t%d\t%p\t%S", i + 1, arrRet8[i], arrRet8[i]);
+	}
+	
 	//*/
 	
 	/* Path 库测试 */
