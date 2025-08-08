@@ -1119,9 +1119,17 @@ XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, i
 	ustr pData;
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc( (iCount + 2) * sizeof(ptr) );
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_nullstr;
+		}
 		pData = sText;
 	} else {
 		sRet = xrtMalloc( ((iCount + 2) * sizeof(ptr)) + (iSize - ((iSepSize - 1) * iCount)) + 1 );
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_nullstr;
+		}
 		pData = (ustr)&sRet[iCount + 2];
 	}
 	// 开始分割数据
@@ -1170,6 +1178,10 @@ XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, i
 // 处理内容为 空字符串 或 NULL 的情况（只返回包含一个空元素的数组）
 return_nullstr:
 	sRet = xrtMalloc(2 * sizeof(void*));
+	if ( sRet == NULL ) {
+		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		goto return_error;
+	}
 	sRet[0] = (ustr)xCore.sNull;
 	sRet[1] = NULL;
 	xCore.iRet = 1;
@@ -1179,9 +1191,17 @@ return_nullstr:
 return_nullsep:
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc(2 * sizeof(void*));
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_error;
+		}
 		sRet[0] = sText;
 	} else {
 		sRet = xrtMalloc((2 * sizeof(void*)) + iSize + 1);
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_error;
+		}
 		ustr sTextRef = (ustr)&sRet[2];
 		memcpy(sTextRef, sText, iSize);
 		sTextRef[iSize] = 0;
@@ -1190,6 +1210,11 @@ return_nullsep:
 	sRet[1] = NULL;
 	xCore.iRet = 1;
 	return sRet;
+	
+// 内存申请异常返回
+return_error:
+	xCore.iRet = 0;
+	return (ustr*)xCore.sNull;
 }
 XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise)
 {
@@ -1224,9 +1249,17 @@ XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, 
 	wstr pData;
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc( (iCount + 2) * sizeof(ptr) );
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_nullstr;
+		}
 		pData = sText;
 	} else {
 		sRet = xrtMalloc( ((iCount + 2) * sizeof(ptr)) + ((iSize - ((iSepSize - 1) * iCount) + 1) * sizeof(wchar_t)) );
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_nullstr;
+		}
 		pData = (wstr)&sRet[iCount + 2];
 	}
 	// 开始分割数据
@@ -1275,6 +1308,10 @@ XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, 
 // 处理内容为 空字符串 或 NULL 的情况（只返回包含一个空元素的数组）
 return_nullstr:
 	sRet = xrtMalloc(2 * sizeof(void*));
+	if ( sRet == NULL ) {
+		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		goto return_error;
+	}
 	sRet[0] = (wstr)xCore.sNull;
 	sRet[1] = NULL;
 	xCore.iRet = 1;
@@ -1284,9 +1321,17 @@ return_nullstr:
 return_nullsep:
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc(2 * sizeof(void*));
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_error;
+		}
 		sRet[0] = sText;
 	} else {
 		sRet = xrtMalloc(2 * sizeof(void*) + (iSize + 1) * sizeof(wchar_t));
+		if ( sRet == NULL ) {
+			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			goto return_error;
+		}
 		wstr sTextRef = (wstr)&sRet[2];
 		memcpy(sTextRef, sText, iSize * sizeof(wchar_t));
 		sTextRef[iSize] = 0;
@@ -1295,134 +1340,59 @@ return_nullsep:
 	sRet[1] = NULL;
 	xCore.iRet = 1;
 	return sRet;
+	
+// 内存申请异常返回
+return_error:
+	xCore.iRet = 0;
+	return (wstr*)xCore.sNull;
 }
 
 
 
-int hex2dec(char c)
+// HEX 编码（需使用 xrtFree 释放）
+#define dec2hex(c) (c > 9 ? c + 55 : c + '0')
+XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize)
 {
-    if ('0' <= c && c <= '9') {
-        return c - '0';
-    } else if ('a' <= c && c <= 'f') {
-        return c - 'a' + 10;
-    } else if ('A' <= c && c <= 'F') {
-        return c - 'A' + 10;
-    } else {
-        return -1;
-    }
-}
-
-char dec2hex(short int c)
-{
-    if (0 <= c && c <= 9) {
-        return c + '0';
-    } else if (10 <= c && c <= 15) {
-        return c + 'A' - 10;
-    } else {
-        return -1;
-    }
-}
-
-
-
-// HEX 编码
-XXAPI char* HexEncode(char* sMem, uint32 iSize)
-{
-	if ( iSize == 0 ) {
-		iSize = strlen(sMem);
+	if ( pMem == NULL ) { return (ustr)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = strlen(pMem); }
+	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
+    ustr sRet = xrtMalloc((iSize * 2) + 1);
+	if ( sRet == NULL ) {
+		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		return (ustr)xCore.sNull;
 	}
-    char* sRet = xrtMalloc((iSize * 3) + 1);
+    uint8* pStr = pMem;
     int iPos = 0;
-    for ( int i = 0; i < iSize; ++i ) {
-        char c = sMem[i];
-		int j = (short int)c;
-		if (j < 0) { j += 256; }
-		int i1 = j / 16;
-		int i0 = j - i1 * 16;
+    for ( int i = 0; i < iSize; i++ ) {
+		int i1 = (pStr[i] & 0xF0) >> 4;
+		int i2 = pStr[i] & 0x0F;
 		sRet[iPos++] = dec2hex(i1);
-		sRet[iPos++] = dec2hex(i0);
+		sRet[iPos++] = dec2hex(i2);
     }
     sRet[iPos] = 0;
     return sRet;
 }
 
-// HEX 解码
-XXAPI char* HexDecode(char* sMem, uint32 iSize)
+
+
+// HEX 解码（需使用 xrtFree 释放）
+#define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
+XXAPI char* xrtHexDecode(ptr pMem, size_t iSize)
 {
-	if ( iSize == 0 ) {
-		iSize = strlen(sMem);
+	if ( pMem == NULL ) { return (ustr)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = strlen(pMem); }
+	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
+    char* sRet = xrtMalloc((iSize / 2) + 1);
+	if ( sRet == NULL ) {
+		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		return (ustr)xCore.sNull;
 	}
-    char* sRet = xrtMalloc(iSize + 1);
+    uint8* pStr = pMem;
     int iPos = 0;
-    for ( int i = 0; i < iSize; ++i ) {
-		char c1 = sMem[i++];
-		char c0 = sMem[i];
-		int iChar = hex2dec(c1) * 16 + hex2dec(c0);
-		printf("%d\n", iChar);
-		sRet[iPos++] = iChar;
-    }
-    sRet[iPos] = 0;
-    return sRet;
-}
-
-
-
-// URI 编码
-XXAPI char* UriEncode(char* sURL)
-{
-    uint32 iSize = strlen(sURL);
-    char* sRet = xrtMalloc((iSize * 3) + 1);
-    int iPos = 0;
-    for ( int i = 0; i < iSize; ++i ) {
-        char c = sURL[i];
-        // 无需编码的字符
-        if ( (('0' <= c) && (c <= '9')) || (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (c == '/') || (c == '.') || (c == '-') || (c == '_') ) {
-            sRet[iPos++] = c;
-        } else {
-			// 处理协议头，协议头部分不进行编码 [ *://*/ ]
-			if ( (c == ':') && (sURL[i+1] == '/') && (sURL[i+2] == '/') ) {
-				int iStrPos = 0;
-				for ( int j = i + 3; j < iSize; ++j ) {
-					if ( (sURL[j] == '/') || (sURL[j] == 0) ) {
-						iStrPos = j + 1;
-						strncpy(&sRet[iPos], &sURL[i], iStrPos - i);
-						iPos += iStrPos - i;
-						i = j;
-						break;
-					}
-				}
-				if ( iStrPos ) { continue; }
-			}
-			// 编码其他字符
-            int j = (short int)c;
-            if (j < 0) { j += 256; }
-            int i1 = j / 16;
-            int i0 = j - i1 * 16;
-            sRet[iPos++] = '%';
-            sRet[iPos++] = dec2hex(i1);
-            sRet[iPos++] = dec2hex(i0);
-        }
-    }
-    sRet[iPos] = 0;
-    return sRet;
-}
-
-// URI 解码
-XXAPI char* UriDecode(char* sURL)
-{
-    uint32 iSize = strlen(sURL);
-    char* sRet = xrtMalloc(iSize + 1);
-    int iPos = 0;
-    for ( int i = 0; i < iSize; ++i ) {
-        char c = sURL[i];
-        if (c != '%') {
-            sRet[iPos++] = c;
-        } else {
-            char c1 = sURL[++i];
-            char c0 = sURL[++i];
-            int iChar = hex2dec(c1) * 16 + hex2dec(c0);
-            sRet[iPos++] = iChar;
-        }
+    for ( int i = 0; i < iSize; i++ ) {
+		char c0 = pStr[i++];
+		char c1 = pStr[i];
+		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
     }
     sRet[iPos] = 0;
     return sRet;

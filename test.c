@@ -83,6 +83,11 @@ int main(int argc, char** argv)
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 9, "1", 0, "_", 0));
 	printf("xrtReplaceW : %S\n", xrtReplaceW(L"1a1b1c1d1e1f1g1", 9, L"1", 0, L"_", 0));
 	
+	ustr sRet = xrtHexEncode("HIJKLMN abcdefg 1234567890", 0);
+	printf("xrtHexEncode : %s\n", sRet);
+	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
+	
+	/*
 	ustr* arrRet = xrtSplit("a1b1c1d1e1f1g", 0, "1", 1, FALSE);
 	printf("\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
@@ -108,7 +113,10 @@ int main(int argc, char** argv)
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%s", i + 1, arrRet4[i], arrRet4[i]);
 	}
+	*/
 	
+	
+	/*
 	wstr* arrRet5 = xrtSplitW(L"a1b1c1d1e1f1g", 0, L"1", 1, FALSE);
 	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet5);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
@@ -134,7 +142,7 @@ int main(int argc, char** argv)
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%S", i + 1, arrRet8[i], arrRet8[i]);
 	}
-	
+	*/
 	//*/
 	
 	/* Path 库测试 */

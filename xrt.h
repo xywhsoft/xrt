@@ -208,9 +208,15 @@
 	XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, ustr sRepText, size_t iRepSize);
 	XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize);
 	
-	// 字符串分割（需使用 xrtFree 释放）
+	// 字符串分割（任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据）
 	XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, int bSrcRevise);
 	XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise);
+	
+	// HEX 编码（需使用 xrtFree 释放）
+	XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize);
+	
+	// HEX 解码（需使用 xrtFree 释放）
+	XXAPI char* xrtHexDecode(ptr pMem, size_t iSize);
 	
 	
 	
