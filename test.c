@@ -48,7 +48,7 @@ int main(int argc, char** argv)
 	
 	
 	/* String 库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\nString 库测试 :\n\n");
 	printf("xrtLCase : %s\n", xrtLCase("aBcDeFg", 0, FALSE));
 	printf("xrtLCaseW : %S\n", xrtLCaseW(L"aBcDeFg", 0, FALSE));
@@ -87,7 +87,6 @@ int main(int argc, char** argv)
 	printf("xrtHexEncode : %s\n", sRet);
 	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
 	
-	/*
 	ustr* arrRet = xrtSplit("a1b1c1d1e1f1g", 0, "1", 1, FALSE);
 	printf("\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
@@ -113,10 +112,7 @@ int main(int argc, char** argv)
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%s", i + 1, arrRet4[i], arrRet4[i]);
 	}
-	*/
 	
-	
-	/*
 	wstr* arrRet5 = xrtSplitW(L"a1b1c1d1e1f1g", 0, L"1", 1, FALSE);
 	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet5);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
@@ -142,13 +138,16 @@ int main(int argc, char** argv)
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%S", i + 1, arrRet8[i], arrRet8[i]);
 	}
-	*/
 	//*/
 	
+	
+	
 	/* Path 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\nPath 库测试 :\n\n");
-	printf("%s\n", Path_FileNameExtA("c:\\123\\456\\789\\file.ext"));
+	printf("xrtPath_NameExt : %s\n", xrtPath_NameExt("c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPath_NameExtW : %S\n", xrtPath_NameExtW(L"c:\\123\\456\\789\\file.ext", 0));
+	/*
 	printf("%s\n", Path_FileNameA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_FileExtA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_FilePathA("c:\\123\\456\\789\\file.ext"));

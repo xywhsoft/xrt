@@ -1,30 +1,42 @@
 
 
-/*
-// 通过路径获取文件名 + 扩展名
-XXAPI wstr Path_FileNameExtW(wstr sPath)
+
+// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtPath_NameExt(ustr sPath, size_t iSize)
+{
+	if ( sPath == NULL ) { return (ustr)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = strlen(sPath); }
+	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
+	for ( int i = iSize - 1; i >= 0; i-- ) {
+		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
+			if ( i >= (iSize - 1) ) {
+				return (ustr)xCore.sNull;
+			} else {
+				return xrtCopyStr(&sPath[i + 1], 0);
+			}
+		}
+	}
+	return xrtCopyStr(sPath, iSize);
+}
+XXAPI wstr xrtPath_NameExtW(wstr sPath, size_t iSize)
 {
 	if ( sPath == NULL ) { return (wstr)xCore.sNull; }
-	wstr sRet = wcsrchr(sPath, L'\\');
-	if ( sRet ) {
-		return xCore_CopyStringW(&sRet[1], 0);
-	} else {
-		return xCore_CopyStringW(sPath, 0);
+	if ( iSize == 0 ) { iSize = wcslen(sPath); }
+	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
+	for ( int i = iSize - 1; i >= 0; i-- ) {
+		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
+			if ( i >= (iSize - 1) ) {
+				return (wstr)xCore.sNull;
+			} else {
+				return xrtCopyStrW(&sPath[i + 1], 0);
+			}
+		}
 	}
-}
-XXAPI astr Path_FileNameExtA(astr sPath)
-{
-	if ( sPath == NULL ) { return (astr)xCore.sNull; }
-	astr sRet = strrchr(sPath, '\\');
-	if ( sRet ) {
-		return xCore_CopyStringA(&sRet[1], 0);
-	} else {
-		return xCore_CopyStringA(sPath, 0);
-	}
+	return xrtCopyStrW(sPath, iSize);
 }
 
 
-
+/*
 // 通过路径获取文件名
 XXAPI wstr Path_FileNameW(wstr sPath)
 {

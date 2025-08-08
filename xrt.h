@@ -226,6 +226,10 @@
 	
 	/* ------------------------------------ Path 函数库 ------------------------------------ */
 	
+	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtPath_NameExt(ustr sPath, size_t iSize);
+	XXAPI wstr xrtPath_NameExtW(wstr sPath, size_t iSize);
+	
 	
 	
 #endif
