@@ -253,17 +253,10 @@
 	#define XRT_TIME_INTERVAL_WEEKDAY		7				// 星期
 	#define XRT_TIME_INTERVAL_QUARTER		8				// 季度
 	
-	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtNowStr();
-	XXAPI wstr xrtNowStrW();
-	
-	// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtDateStr();
-	XXAPI wstr xrtDateStrW();
-	
-	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtTimeStr();
-	XXAPI wstr xrtTimeStrW();
+	// 转换格式
+	#define XRT_TIME_FORMAT_DATETIME		0
+	#define XRT_TIME_FORMAT_DATE			1
+	#define XRT_TIME_FORMAT_TIME			2
 	
 	// 判断是否为闰年
 	XXAPI int xrtIsLeapYear(int iYear);
@@ -318,6 +311,22 @@
 	
 	// 获取当前时间
 	XXAPI xtime xrtTime();
+	
+	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtNowStr();
+	XXAPI wstr xrtNowStrW();
+	
+	// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtDateStr();
+	XXAPI wstr xrtDateStrW();
+	
+	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtTimeStr();
+	XXAPI wstr xrtTimeStrW();
+	
+	// 转换日期 + 时间为字符串（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtTimeToStr(xtime iTime, int iFormat);
+	XXAPI wstr xrtTimeToStrW(xtime iTime, int iFormat);
 	
 	// 时间单位累加
 	XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);

@@ -1,54 +1,6 @@
 
 
 
-// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtNowStr()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%04d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
-}
-XXAPI wstr xrtNowStrW()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormatW(L"%04d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
-}
-
-
-
-// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtDateStr()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%04d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
-}
-XXAPI wstr xrtDateStrW()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormatW(L"%04d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
-}
-
-
-
-// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtTimeStr()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
-}
-XXAPI wstr xrtTimeStrW()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormatW(L"%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
-}
-
-
-
 // 判断是否为闰年
 XXAPI int xrtIsLeapYear(int iYear)
 {
@@ -398,6 +350,98 @@ XXAPI xtime xrtTime()
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
 	return xrtTimeSerial(pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+
+
+
+// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtNowStr()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormat("%d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+XXAPI wstr xrtNowStrW()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormatW(L"%d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+
+
+
+// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtDateStr()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormat("%d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
+}
+XXAPI wstr xrtDateStrW()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormatW(L"%d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
+}
+
+
+
+// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtTimeStr()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormat("%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+XXAPI wstr xrtTimeStrW()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormatW(L"%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+
+
+
+// 转换日期 + 时间为字符串（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtTimeToStr(xtime iTime, int iFormat)
+{
+	if ( iFormat == XRT_TIME_FORMAT_DATETIME ) {
+		int64 iYear;
+		int iMonth, iDay, iHour, iMinute, iSecond;
+		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
+		return xrtFormat("%d-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
+	} else if ( iFormat == XRT_TIME_FORMAT_DATE ) {
+		int64 iYear;
+		int iMonth, iDay;
+		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, NULL, NULL, NULL, NULL, NULL);
+		return xrtFormat("%d-%02d-%02d", iYear, iMonth, iDay);
+	} else if ( iFormat == XRT_TIME_FORMAT_TIME ) {
+		int iHour, iMinute, iSecond;
+		xrtDecodeSerial(iTime, NULL, NULL, NULL, &iHour, &iMinute, &iSecond, NULL, NULL);
+		return xrtFormat("%02d:%02d:%02d", iHour, iMinute, iSecond);
+	} else {
+		return (ustr)xCore.sNull;
+	}
+}
+XXAPI wstr xrtTimeToStrW(xtime iTime, int iFormat)
+{
+	if ( iFormat == XRT_TIME_FORMAT_DATETIME ) {
+		int64 iYear;
+		int iMonth, iDay, iHour, iMinute, iSecond;
+		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
+		return xrtFormatW(L"%d-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
+	} else if ( iFormat == XRT_TIME_FORMAT_DATE ) {
+		int64 iYear;
+		int iMonth, iDay;
+		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, NULL, NULL, NULL, NULL, NULL);
+		return xrtFormatW(L"%d-%02d-%02d", iYear, iMonth, iDay);
+	} else if ( iFormat == XRT_TIME_FORMAT_TIME ) {
+		int iHour, iMinute, iSecond;
+		xrtDecodeSerial(iTime, NULL, NULL, NULL, &iHour, &iMinute, &iSecond, NULL, NULL);
+		return xrtFormatW(L"%02d:%02d:%02d", iHour, iMinute, iSecond);
+	} else {
+		return (wstr)xCore.sNull;
+	}
 }
 
 

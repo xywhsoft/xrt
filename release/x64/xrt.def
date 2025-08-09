@@ -81,6 +81,8 @@ xrtTime
 xrtTimeSerial
 xrtTimeStr
 xrtTimeStrW
+xrtTimeToStr
+xrtTimeToStrW
 xrtTrim
 xrtTrimW
 xrtUCase

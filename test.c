@@ -201,6 +201,14 @@ int main(int argc, char** argv)
 	int iMonth, iDay, iHour, iMinute, iSecond, iWeekday, iDayOfYear;
 	xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, &iWeekday, &iDayOfYear);
 	printf("xrtDecodeSerial : %d-%d-%d %d:%d:%d ( %d - %d )\n", iYear, iMonth, iDay, iHour, iMinute, iSecond, iWeekday, iDayOfYear);
+	printf("xrtTimeToStr : %s\n", xrtTimeToStr(iTime, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtTimeToStrW : %S\n", xrtTimeToStrW(iTime, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtTimeToStr : %s\n", xrtTimeToStr(iTime, XRT_TIME_FORMAT_DATE));
+	printf("xrtTimeToStrW : %S\n", xrtTimeToStrW(iTime, XRT_TIME_FORMAT_DATE));
+	printf("xrtTimeToStr : %s\n", xrtTimeToStr(iTime, XRT_TIME_FORMAT_TIME));
+	printf("xrtTimeToStrW : %S\n", xrtTimeToStrW(iTime, XRT_TIME_FORMAT_TIME));
+	
+	
 	
 	//*/
 	
