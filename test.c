@@ -17,6 +17,7 @@ int main(int argc, char** argv)
 	#endif
 	
 	xrtGlobalData* xCore = xrtInit();
+	xCore->DebugMode = TRUE;
 	printf("测试开始\n\n");
 	
 	
@@ -149,7 +150,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Path 库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\nPath 库测试 :\n\n");
 	printf("xrtPathGetNameExt : %s\n", xrtPathGetNameExt("c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetNameExtW : %S\n", xrtPathGetNameExtW(L"c:\\123\\456\\789\\file.ext", 0));
@@ -165,68 +166,28 @@ int main(int argc, char** argv)
 	printf("xrtPathIsAbsW : %d\n", xrtPathIsAbsW(L"c:\\123\\456\\789\\", 0));
 	printf("xrtPathRandom : %s\n", xrtPathRandom("c:\\123\\456\\789\\Rand_", 0, ".jpg", 4, 32));
 	printf("xrtPathRandomW : %S\n", xrtPathRandomW(L"c:\\123\\456\\789\\Rand_", 0, L".jpg", 4, 32));
-	
 	printf("xrtPathJoin : %s\n", xrtPathJoin(4, "c:\\123", 0, "456", 0, "789", 0, "file.ext", 0));
 	printf("xrtPathJoinW : %S\n", xrtPathJoinW(4, L"c:\\123", 0, L"456", 0, L"789", 0, L"file.ext", 0));
-	
-	
-	/*
-	printf("%s\n", Path_GetAbsA("file.ext", xCore_AppPathA()));
-	printf("%s\n", Path_GetRelA(xCore_AppFileA(), xCore_AppPathA()));
-	printf("%s\n", Path_RandomFileA("c:\\123\\456\\789\\", ".ext", 8));
-	char sPath[] = "c:\\123\\456\\789.\\.file.ext ";
-	printf("%d\n", Path_SafeCheckA(sPath, TRUE));
-	printf("%s\n", sPath);
-	char sPath2[] = "c:\\123\\456\\789\\file.ext";
-	printf("%d\n", Path_SafeCheckA(sPath2, TRUE));
-	printf("%s\n", sPath2);
-	printf("%s\n", Path_JoinA("c:\\123\\456\\789", "file.ext"));
-	printf("%s\n", Path_JoinA(NULL, "file.ext"));
 	//*/
 	
-	/* Dialog 库测试 */
-	/*
-	printf("\n\n\n------------------------------------\n\nDialog 库测试 :\n\n");
-	//printf("%s\n", xCore_W2A(xxInputBoxW(0, L"输入一个数字：", L"请输入", L"默认值", -1, -1, 0), 0));
-	//printf("%s\n", xInputBoxA(0, "输入一个数字：", "请输入", "默认值", -1, -1, 0));
-	//printf("%s\n", xOpenFileDialogA(0, NULL, NULL, NULL, 0));
-	//printf("%s\n", xOpenFileDialogA(0, "c:\\*.txt", "文本文档|*.txt|所有文件|*", "标题", 0));
-	//printf("%s\n", xSaveFileDialogA(0, "c:\\*.txt", "文本文档|*.txt|所有文件|*", "标题", 0));
-	printf("%s\n", xSelectFolderDialogA(0, "c:\\windows", "标题"));
-	//*/
 	
-	/* xTable 库测试 */
-	/*
-	printf("\n\n\n------------------------------------\n\nxTable 库测试 :\n\n");
 	
-	xTableObject tblTest = xTable_Create();
-	printf("Create xTable Object : %d\n", tblTest);
-	
-	pTableNode objNode;
-	
-	objNode = xTable_InsertA(tblTest, "xTable", "xTable 库测试");
-	printf("Insert Node Object : %d\n", objNode);
-	
-	objNode = xTable_InsertA(tblTest, "String", "String 库测试");
-	printf("Insert Node Object : %d\n", objNode);
-	
-	objNode = xTable_InsertA(tblTest, "Path", "Path 库测试");
-	printf("Insert Node Object : %d\n", objNode);
-	
-	objNode = xTable_InsertA(tblTest, "Dialog", "Dialog 库测试");
-	printf("Insert Node Object : %d\n", objNode);
-	
-	printf("\n查找 Key = String 的 Node ：\n");
-	objNode = xTable_SearchA(tblTest, "String");
-	printf("Scan Node : %d	%d	%s	%s\n", objNode, objNode->Hash, objNode->Key, objNode->Val);
-	
-	printf("\n删除 Key = Path 的 Node ：\n");
-	xTable_RemoveA(tblTest, "Path");
-	
-	printf("\nTable 遍历测试：\n");
-	xTable_Scan(tblTest, ProcScanTable);
-	
-	xTable_Destroy(tblTest);
+	/* Time 库测试 */
+	//*
+	printf("\n\n\n------------------------------------\n\nPath 库测试 :\n\n");
+	for ( int i = 1; i <= 12; i++ ) {
+		printf("xrtDateSerial (0-%02d-01 00:00:00) : %d\n", i, xrtDateSerial(0, i, 1));
+	}
+	printf("xrtDateSerial (-5-01-01 00:00:00) : %d\n", xrtDateSerial(-5, 1, 1));
+	printf("xrtDateSerial (-2-01-01 00:00:00) : %d\n", xrtDateSerial(-2, 1, 1));
+	printf("xrtDateSerial (-1-01-01 00:00:00) : %d\n", xrtDateSerial(-1, 1, 1));
+	printf("xrtDateSerial (0-01-01 00:00:00) : %d\n", xrtDateSerial(0, 1, 1));
+	printf("xrtDateSerial (1-01-01 00:00:00) : %d\n", xrtDateSerial(1, 1, 1));
+	printf("xrtDateSerial (2-01-01 00:00:00) : %d\n", xrtDateSerial(2, 1, 1));
+	printf("xrtDateSerial (5-01-01 00:00:00) : %d\n", xrtDateSerial(5, 1, 1));
+	printf("xrtDateSerial (1970-01-01 00:00:00) : %lld\n", xrtDateSerial(1970, 1, 1));
+	printf("xrtTimeSerial (12:00:00) : %d\n", xrtTimeSerial(12, 0, 0));
+	printf("xrtDateTimeSerial (1970-01-01 12:00:00) : %lld\n", xrtDateTimeSerial(1970, 1, 1, 12, 0, 0));
 	//*/
 	
 	

@@ -119,6 +119,7 @@
 		// 内置错误描述
 		struct {
 			str MALLOC;
+			str MONTHRANGE;
 		} ERROR_DESC;
 		
 	} xrtGlobalData;
@@ -233,11 +234,14 @@
 	
 	/* ------------------------------------ Time 函数库 ------------------------------------ */
 	
-	// 判断是否为闰年
-	XXAPI int xrtIsLeapYear(int iYear);
-	
-	// 获取某年某月有多少天
-	XXAPI int xrtDaysInMonth(int iYear, int iMonth);
+	// 各种固定时间单位的数值
+	#define XRT_TIME_MINUTE			60
+	#define XRT_TIME_HOUR			3600
+	#define XRT_TIME_DAY			86400
+	#define XRT_TIME_YEAR			31536000
+	#define XRT_TIME_LEAPYEAR		31622400
+	#define XRT_TIME_400YEAR		12622780800				// 每隔 400 年有 97 个闰年 + 303 个平年
+	#define XRT_TIME_19700101		62167219200
 	
 	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtNowStr();
@@ -247,6 +251,33 @@
 	
 	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtNowTimeStr();
+	
+	// 判断是否为闰年
+	XXAPI int xrtIsLeapYear(int iYear);
+	
+	// 获取某年某月有多少天
+	XXAPI int xrtDaysInMonth(int iYear, int iMonth);
+	
+	// 获取某年有多少天
+	XXAPI int xrtDaysInYear(int iYear);
+	
+	// 构建时间
+	XXAPI xtime xrtTimeSerial(int iHour, int iMinute, int iSecond);
+	
+	// 构建日期
+	XXAPI xtime xrtDateSerial(int64 iYear, int iMonth, int iDay);
+	
+	// 构建日期 + 时间
+	XXAPI xtime xrtDateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
+	
+	// 获取时间中的秒
+	XXAPI int xrtSecond(xtime iTime);
+	
+	// 获取时间中的分钟
+	XXAPI int xrtMinute(xtime iTime);
+	
+	// 获取时间中的小时
+	XXAPI int xrtHour(xtime iTime);
 	
 	
 	

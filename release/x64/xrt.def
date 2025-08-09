@@ -8,7 +8,10 @@ xrtCheckStrW
 xrtClearError
 xrtCopyStr
 xrtCopyStrW
+xrtDateSerial
+xrtDateTimeSerial
 xrtDaysInMonth
+xrtDaysInYear
 xrtFilterStr
 xrtFilterStrW
 xrtFindStr
@@ -21,6 +24,7 @@ xrtHexDecode
 xrtHexDecodeW
 xrtHexEncode
 xrtHexEncodeW
+xrtHour
 xrtInStr
 xrtInStrW
 xrtInit
@@ -30,6 +34,7 @@ xrtLCaseW
 xrtLTrim
 xrtLTrimW
 xrtMalloc
+xrtMinute
 xrtNowDateStr
 xrtNowDateStrW
 xrtNowStr
@@ -61,10 +66,12 @@ xrtRealloc
 xrtReplace
 xrtReplaceW
 xrtRunW
+xrtSecond
 xrtSetError
 xrtSplit
 xrtSplitW
 xrtStartW
+xrtTimeSerial
 xrtTrim
 xrtTrimW
 xrtUCase

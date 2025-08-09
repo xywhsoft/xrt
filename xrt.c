@@ -103,8 +103,10 @@ XXAPI xrtGlobalData* xrtInit()
 	// 设置内置的错误描述（便于复用）
 	#if defined(_WIN32) || defined(_WIN64)
 		xCore.ERROR_DESC.MALLOC = L"Memory allocate error !";
+		xCore.ERROR_DESC.MONTHRANGE = L"Month range error !";
 	#else
 		xCore.ERROR_DESC.MALLOC = "Memory allocate error !";
+		xCore.ERROR_DESC.MONTHRANGE = "Month range error !";
 	#endif
 	
 	return &xCore;
