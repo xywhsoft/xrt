@@ -54,6 +54,8 @@
 	typedef intptr_t intptr;
 	typedef uintptr_t uintptr;
 	
+	typedef int64 xtime;
+	
 	/*
 	#ifndef bool
 		typedef int bool;
@@ -236,6 +238,15 @@
 	
 	// 获取某年某月有多少天
 	XXAPI int xrtDaysInMonth(int iYear, int iMonth);
+	
+	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtNowStr();
+	
+	// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtNowDateStr();
+	
+	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtNowTimeStr();
 	
 	
 	

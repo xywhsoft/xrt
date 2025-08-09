@@ -30,6 +30,9 @@ xrtLCaseW
 xrtLTrim
 xrtLTrimW
 xrtMalloc
+xrtNowDateStr
+xrtNowStr
+xrtNowTimeStr
 xrtPathGetDir
 xrtPathGetDirW
 xrtPathGetExt
@@ -59,7 +62,6 @@ xrtSetError
 xrtSplit
 xrtSplitW
 xrtStartW
-xrtTimeNowStr
 xrtTrim
 xrtTrimW
 xrtUCase

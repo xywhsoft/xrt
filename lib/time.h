@@ -40,9 +40,49 @@ XXAPI int xrtDaysInMonth(int iYear, int iMonth)
 
 
 
-XXAPI ustr xrtTimeNowStr()
+// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtNowStr()
 {
-	return NULL;
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormat("%04d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
 }
+
+
+
+// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtNowDateStr()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormat("%04d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
+}
+
+
+
+// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
+XXAPI ustr xrtNowTimeStr()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtFormat("%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+
+
+
+/*
+	Now
+	Time
+	Date
+	Year
+	Month
+	Day
+	Hour
+	Minute
+	Second
+	Weekday
+	DateAdd
+	DateDiff
+*/
 
 
