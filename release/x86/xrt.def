@@ -31,8 +31,11 @@ xrtLTrim
 xrtLTrimW
 xrtMalloc
 xrtNowDateStr
+xrtNowDateStrW
 xrtNowStr
+xrtNowStrW
 xrtNowTimeStr
+xrtNowTimeStrW
 xrtPathGetDir
 xrtPathGetDirW
 xrtPathGetExt
