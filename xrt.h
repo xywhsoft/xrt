@@ -10,6 +10,7 @@
 #include <wchar.h>
 #include <ctype.h>
 #include <wctype.h>
+#include <math.h>
 #include <time.h>
 
 
@@ -161,6 +162,9 @@
 	// 随机数
 	XXAPI int xrtRand(int min, int max);
 	
+	// 修剪 Double
+	XXAPI double xrtFixDouble(double x);
+	
 	
 	
 	/* ------------------------------------ String 函数库 ------------------------------------ */
@@ -226,6 +230,12 @@
 	
 	
 	/* ------------------------------------ Time 函数库 ------------------------------------ */
+	
+	// 判断是否为闰年
+	XXAPI int xrtIsLeapYear(int iYear);
+	
+	// 获取某年某月有多少天
+	XXAPI int xrtDaysInMonth(int iYear, int iMonth);
 	
 	
 	

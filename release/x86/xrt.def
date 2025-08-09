@@ -1,16 +1,19 @@
 LIBRARY xrt.dll
 
 EXPORTS
+xCore_ChainW
 xrtCalloc
 xrtCheckStr
 xrtCheckStrW
 xrtClearError
 xrtCopyStr
 xrtCopyStrW
+xrtDaysInMonth
 xrtFilterStr
 xrtFilterStrW
 xrtFindStr
 xrtFindStrW
+xrtFixDouble
 xrtFormat
 xrtFormatW
 xrtFree
@@ -21,6 +24,7 @@ xrtHexEncodeW
 xrtInStr
 xrtInStrW
 xrtInit
+xrtIsLeapYear
 xrtLCase
 xrtLCaseW
 xrtLTrim
@@ -50,9 +54,12 @@ xrtRandStrW
 xrtRealloc
 xrtReplace
 xrtReplaceW
+xrtRunW
 xrtSetError
 xrtSplit
 xrtSplitW
+xrtStartW
+xrtTimeNowStr
 xrtTrim
 xrtTrimW
 xrtUCase
