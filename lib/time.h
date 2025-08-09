@@ -283,6 +283,27 @@ XXAPI int xrtWeekday(xtime iTime)
 
 
 
+// 获取时间是当年的第几天
+XXAPI int xrtDayOfYear(xtime iTime)
+{
+	xtime iTimeAbs = llabs(iTime);
+	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
+	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
+	uint64 iYear = iYear400 * 400;
+	for ( int i = 0; i < 400; i++ ) {
+		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+			iYear++;
+		} else {
+			break;
+		}
+	}
+	return 1 + (iYearMod / XRT_TIME_DAY);
+}
+
+
+
 // 获取当前日期 + 时间
 XXAPI xtime xrtNow()
 {

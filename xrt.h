@@ -243,6 +243,16 @@
 	#define XRT_TIME_400YEAR		12622780800				// 每隔 400 年有 97 个闰年 + 303 个平年
 	#define XRT_TIME_19700101		62167219200
 	
+	// 时间单位
+	#define XRT_TIME_INTERVAL_YEAR           1				// 年
+	#define XRT_TIME_INTERVAL_MONTH          2				// 月
+	#define XRT_TIME_INTERVAL_DAY            3				// 日
+	#define XRT_TIME_INTERVAL_WEEKDAY        4				// 星期
+	#define XRT_TIME_INTERVAL_HOUR           5				// 时
+	#define XRT_TIME_INTERVAL_MINUTE         6				// 分
+	#define XRT_TIME_INTERVAL_SECOND         7				// 秒
+	#define XRT_TIME_INTERVAL_DAY_OF_YEAR    8				// 当年第几天
+	
 	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtNowStr();
 	XXAPI wstr xrtNowStrW();
@@ -293,6 +303,9 @@
 	
 	// 获取时间中的星期
 	XXAPI int xrtWeekday(xtime iTime);
+	
+	// 获取时间是当年的第几天
+	XXAPI int xrtDayOfYear(xtime iTime);
 	
 	// 获取当前日期 + 时间
 	XXAPI xtime xrtNow();
