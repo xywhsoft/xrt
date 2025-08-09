@@ -165,9 +165,6 @@
 	// 随机数
 	XXAPI int xrtRand(int min, int max);
 	
-	// 修剪 Double
-	XXAPI double xrtFixDouble(double x);
-	
 	
 	
 	/* ------------------------------------ String 函数库 ------------------------------------ */

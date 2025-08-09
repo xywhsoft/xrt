@@ -24,7 +24,6 @@ xrtFilterStr
 xrtFilterStrW
 xrtFindStr
 xrtFindStrW
-xrtFixDouble
 xrtFormat
 xrtFormatW
 xrtFree

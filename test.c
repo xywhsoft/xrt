@@ -174,7 +174,7 @@ int main(int argc, char** argv)
 	
 	/* Time 库测试 */
 	//*
-	printf("\n\n\n------------------------------------\n\nPath 库测试 :\n\n");
+	printf("\n\n\n------------------------------------\n\nTime 库测试 :\n\n");
 	for ( int i = 1; i <= 12; i++ ) {
 		printf("xrtDateSerial (0-%02d-01 00:00:00) : %d\n", i, xrtDateSerial(0, i, 1));
 	}
