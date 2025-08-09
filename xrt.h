@@ -265,6 +265,19 @@
 	
 	
 	
+	/* ------------------------------------ OS 函数库 ------------------------------------ */
+	
+	// 运行程序
+	XXAPI ptr xrtRunW(wstr sPath, int iShow);
+	
+	// 打开文件（ 仅支持 windows 系统 ）
+	XXAPI ptr xrtStartW(wstr sPath, int iShow);
+	
+	// 运行程序并等待程序运行结束
+	XXAPI int xCore_ChainW(wstr sPath, int iShow);
+	
+	
+	
 #endif
 
 

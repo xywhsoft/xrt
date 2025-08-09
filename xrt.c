@@ -7,6 +7,12 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include "windows.h"
+	#ifdef __TINYC__
+		#include <winapi/shellapi.h>
+	#else
+		#include <shellapi.h>
+	#endif
+	#pragma comment (lib, "shell32")
 #else
 #endif
 
@@ -30,6 +36,7 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/string.h"
 #include "lib/time.h"
 #include "lib/path.h"
+#include "lib/os.h"
 
 
 
