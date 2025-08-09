@@ -10,6 +10,8 @@ xrtCopyStr
 xrtCopyStrW
 xrtDate
 xrtDateSerial
+xrtDateStr
+xrtDateStrW
 xrtDateTimeSerial
 xrtDay
 xrtDaysInMonth
@@ -39,12 +41,8 @@ xrtMalloc
 xrtMinute
 xrtMonth
 xrtNow
-xrtNowDateStr
-xrtNowDateStrW
 xrtNowStr
 xrtNowStrW
-xrtNowTimeStr
-xrtNowTimeStrW
 xrtPathGetDir
 xrtPathGetDirW
 xrtPathGetExt
@@ -77,6 +75,8 @@ xrtSplitW
 xrtStartW
 xrtTime
 xrtTimeSerial
+xrtTimeStr
+xrtTimeStrW
 xrtTrim
 xrtTrimW
 xrtUCase

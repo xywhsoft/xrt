@@ -245,12 +245,15 @@
 	
 	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtNowStr();
+	XXAPI wstr xrtNowStrW();
 	
 	// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtNowDateStr();
+	XXAPI ustr xrtDateStr();
+	XXAPI wstr xrtDateStrW();
 	
 	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtNowTimeStr();
+	XXAPI ustr xrtTimeStr();
+	XXAPI wstr xrtTimeStrW();
 	
 	// 判断是否为闰年
 	XXAPI int xrtIsLeapYear(int iYear);

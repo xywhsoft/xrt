@@ -18,13 +18,13 @@ XXAPI wstr xrtNowStrW()
 
 
 // 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtNowDateStr()
+XXAPI ustr xrtDateStr()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
 	return xrtFormat("%04d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
 }
-XXAPI wstr xrtNowDateStrW()
+XXAPI wstr xrtDateStrW()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
@@ -34,13 +34,13 @@ XXAPI wstr xrtNowDateStrW()
 
 
 // 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtNowTimeStr()
+XXAPI ustr xrtTimeStr()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
 	return xrtFormat("%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
 }
-XXAPI wstr xrtNowTimeStrW()
+XXAPI wstr xrtTimeStrW()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
@@ -180,7 +180,39 @@ XXAPI int xrtHour(xtime iTime)
 // 获取时间中的日期
 XXAPI int xrtDay(xtime iTime)
 {
-	return 0;
+	xtime iTimeAbs = llabs(iTime);
+	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
+	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
+	uint64 iYear = 0;
+	for ( int i = 0; i < 400; i++ ) {
+		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+		} else {
+			iYear = i;
+			break;
+		}
+	}
+	int iMonth = 1;
+	for ( int i = 1; i <= 12; i++ ) {
+		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+		} else {
+			iMonth = i;
+			break;
+		}
+	}
+	int iDay = 1;
+	for ( int i = 1; i <= 31; i++ ) {
+		if ( iYearMod >= XRT_TIME_DAY ) {
+			iYearMod -= XRT_TIME_DAY;
+		} else {
+			iDay = i;
+			break;
+		}
+	}
+	return iDay;
 }
 
 
@@ -188,7 +220,30 @@ XXAPI int xrtDay(xtime iTime)
 // 获取时间中的月份
 XXAPI int xrtMonth(xtime iTime)
 {
-	return 0;
+	xtime iTimeAbs = llabs(iTime);
+	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
+	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
+	uint64 iYear = 0;
+	for ( int i = 0; i < 400; i++ ) {
+		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+		} else {
+			iYear = i;
+			break;
+		}
+	}
+	int iMonth = 1;
+	for ( int i = 1; i <= 12; i++ ) {
+		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+		} else {
+			iMonth = i;
+			break;
+		}
+	}
+	return iMonth;
 }
 
 
@@ -196,7 +251,24 @@ XXAPI int xrtMonth(xtime iTime)
 // 获取时间中的年份
 XXAPI int xrtYear(xtime iTime)
 {
-	return 0;
+	xtime iTimeAbs = llabs(iTime);
+	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
+	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
+	uint64 iYear = iYear400 * 400;
+	for ( int i = 0; i < 400; i++ ) {
+		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+			iYear++;
+		} else {
+			break;
+		}
+	}
+	if ( iTime < 0 ) {
+		return -iYear;
+	} else {
+		return iYear;
+	}
 }
 
 
@@ -204,7 +276,9 @@ XXAPI int xrtYear(xtime iTime)
 // 获取时间中的星期
 XXAPI int xrtWeekday(xtime iTime)
 {
-	return 0;
+	xtime iTimeAbs = llabs(iTime);
+	uint64 iDay = iTimeAbs / XRT_TIME_DAY;
+	return iDay % 7;
 }
 
 
