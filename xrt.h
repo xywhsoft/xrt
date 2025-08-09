@@ -21,9 +21,11 @@
 	
 	
 	// charset define
-	#define XCORE_CHARSET_ANSI		0
-	#define XCORE_CHARSET_UNICODE	1
-	#define XCORE_CHARSET_UTF8		2
+	#define XRT_CP_ANSI		0
+	#define XRT_CP_OEM		1
+	#define XRT_CP_UTF8		2
+	#define XRT_CP_UTF16
+	#define XRT_CP_UTF32
 	
 	
 	
@@ -379,6 +381,46 @@
 	
 	// 运行程序并等待程序运行结束
 	XXAPI int xCore_ChainW(wstr sPath, int iShow);
+	
+	
+	
+	/* ------------------------------------ Hash 函数库 ------------------------------------ */
+	
+	/*
+		Hash32 - nmhash32x [Ver2.0, Update : 2024/10/18 from https://github.com/rurban/smhasher]
+			使用协议注意事项：
+				BSD 2-Clause 协议
+				允许个人使用、商业使用
+				复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
+	*/
+	
+	// 默认 seed
+	#define HASH32_SEED		0
+	
+	// 计算 32 位哈希值
+	XXAPI unsigned int Hash32_WithSeed(void* key, size_t len, unsigned int seed);
+	XXAPI unsigned int Hash32(void* key, size_t len);
+	
+	// 内联 32 位哈希计算
+	#define Hash32Inline	NMHASH32X
+	
+	/*
+		Hash64 - rapidhash [Ver1.0, Update : 2024/10/18 from https://github.com/Nicoshev/rapidhash]
+			使用协议注意事项：
+				BSD 2-Clause 协议
+				允许个人使用、商业使用
+				复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
+	*/
+	
+	// 默认 seed
+	#define HASH64_SEED		(0xbdd89aa982704029ull)
+	
+	// 计算 64 位哈希值
+	XXAPI unsigned long long Hash64_WithSeed(void* key, size_t len, unsigned long long seed);
+	XXAPI unsigned long long Hash64(void* key, size_t len);
+	
+	// 内联 64 位哈希计算
+	#define Hash64Inline	rapidhash_withSeed
 	
 	
 	

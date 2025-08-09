@@ -37,6 +37,7 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/time.h"
 #include "lib/path.h"
 #include "lib/os.h"
+#include "lib/hash.h"
 
 
 

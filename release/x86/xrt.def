@@ -1,6 +1,16 @@
 LIBRARY xrt.dll
 
 EXPORTS
+Hash32
+Hash32_WithSeed
+Hash64
+Hash64_WithSeed
+xCore_A2U
+xCore_A2W
+xCore_U2A
+xCore_U2W
+xCore_W2A
+xCore_W2U
 xrtCalloc
 xrtChainW
 xrtCheckStr
@@ -40,6 +50,7 @@ xrtLCase
 xrtLCaseW
 xrtLTrim
 xrtLTrimW
+xrtM2W
 xrtMalloc
 xrtMinute
 xrtMonth
@@ -87,5 +98,6 @@ xrtTrimW
 xrtUCase
 xrtUCaseW
 xrtUnit
+xrtW2M
 xrtWeekday
 xrtYear
