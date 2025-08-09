@@ -160,6 +160,30 @@
 	
 	/* ------------------------------------ Charset 函数库 ------------------------------------ */
 	
+	// 多字节 转 Unicode
+	XXAPI wstr xrtM2W(ptr pStr, uint32 iCodePage, size_t iSize);
+	
+	// Unicode 转 多字节
+	XXAPI ustr xrtW2M(wstr pStr, uint32 iCodePage, size_t iSize);
+	
+	// ANSI 转 Unicode
+	XXAPI wstr xrtA2W(ustr pZStr, size_t iSize);
+	
+	// utf-8 转 Unicode
+	XXAPI wstr xrtU2W(ustr pUStr, size_t iSize);
+	
+	// Unicode 转 ANSI
+	XXAPI ustr xrtW2A(wstr pWStr, size_t iSize);
+	
+	// Unicode 转 utf-8
+	XXAPI ustr xrtW2U(wstr pWStr, size_t iSize);
+	
+	// ANSI 转 utf-8
+	XXAPI ustr xrtA2U(ustr pZStr, size_t iSize);
+	
+	// utf-8 转 ANSI
+	XXAPI ustr xrtU2A(ustr pUStr, size_t iSize);
+	
 	
 	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
@@ -398,8 +422,8 @@
 	#define HASH32_SEED		0
 	
 	// 计算 32 位哈希值
-	XXAPI unsigned int Hash32_WithSeed(void* key, size_t len, unsigned int seed);
-	XXAPI unsigned int Hash32(void* key, size_t len);
+	XXAPI uint32 xrtHash32_WithSeed(void* key, size_t len, unsigned int seed);
+	XXAPI uint32 xrtHash32(void* key, size_t len);
 	
 	// 内联 32 位哈希计算
 	#define Hash32Inline	NMHASH32X
@@ -416,8 +440,8 @@
 	#define HASH64_SEED		(0xbdd89aa982704029ull)
 	
 	// 计算 64 位哈希值
-	XXAPI unsigned long long Hash64_WithSeed(void* key, size_t len, unsigned long long seed);
-	XXAPI unsigned long long Hash64(void* key, size_t len);
+	XXAPI uint64 xrtHash64_WithSeed(void* key, size_t len, unsigned long long seed);
+	XXAPI uint64 xrtHash64(void* key, size_t len);
 	
 	// 内联 64 位哈希计算
 	#define Hash64Inline	rapidhash_withSeed

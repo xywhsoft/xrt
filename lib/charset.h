@@ -4,7 +4,7 @@
 /* ------------------------------------ C 函数库 ------------------------------------ */
 
 // 多字节 转 Unicode
-XXAPI wstr xrtM2W(ptr pStr, uint32 iCodePage, ulong iSize)
+XXAPI wstr xrtM2W(ptr pStr, uint32 iCodePage, size_t iSize)
 {
 	if ( pStr ) {
 		if (iSize == 0) { iSize = strlen(pStr); }
@@ -22,7 +22,7 @@ XXAPI wstr xrtM2W(ptr pStr, uint32 iCodePage, ulong iSize)
 }
 
 // Unicode 转 多字节
-XXAPI ustr xrtW2M(wstr pStr, uint32 iCodePage, ulong iSize)
+XXAPI ustr xrtW2M(wstr pStr, uint32 iCodePage, size_t iSize)
 {
     if ( pStr ) {
         if (iSize == 0) { iSize = wcslen(pStr); } else { iSize = iSize / sizeof(wchar_t); }
@@ -38,31 +38,31 @@ XXAPI ustr xrtW2M(wstr pStr, uint32 iCodePage, ulong iSize)
 }
 
 // ANSI 转 Unicode
-XXAPI wstr xCore_A2W(ustr pZStr, ulong iSize)
+XXAPI wstr xrtA2W(ustr pZStr, size_t iSize)
 {
 	return xrtM2W(pZStr, CP_ACP, iSize);
 }
 
 // utf-8 转 Unicode
-XXAPI wstr xCore_U2W(ustr pUStr, ulong iSize)
+XXAPI wstr xrtU2W(ustr pUStr, size_t iSize)
 {
     return xrtM2W(pUStr, CP_UTF8, iSize);
 }
 
 // Unicode 转 ANSI
-XXAPI ustr xCore_W2A(wstr pWStr, ulong iSize)
+XXAPI ustr xrtW2A(wstr pWStr, size_t iSize)
 {
     return xrtW2M(pWStr, CP_ACP, iSize);
 }
 
 // Unicode 转 utf-8
-XXAPI ustr xCore_W2U(wstr pWStr, ulong iSize)
+XXAPI ustr xrtW2U(wstr pWStr, size_t iSize)
 {
     return xrtW2M(pWStr, CP_UTF8, iSize);
 }
 
 // ANSI 转 utf-8
-XXAPI ustr xCore_A2U(ustr pZStr, ulong iSize)
+XXAPI ustr xrtA2U(ustr pZStr, size_t iSize)
 {
     if ( pZStr ) {
         wstr sTmp = xrtM2W(pZStr, CP_ACP , iSize * 2);
@@ -75,7 +75,7 @@ XXAPI ustr xCore_A2U(ustr pZStr, ulong iSize)
 }
 
 // utf-8 转 ANSI
-XXAPI ustr xCore_U2A(ustr pUStr, ulong iSize)
+XXAPI ustr xrtU2A(ustr pUStr, size_t iSize)
 {
     if ( pUStr ) {
         wstr sTmp = xrtM2W(pUStr, CP_UTF8, iSize);
