@@ -208,6 +208,38 @@ int main(int argc, char** argv)
 	printf("xrtTimeToStr : %s\n", xrtTimeToStr(iTime, XRT_TIME_FORMAT_TIME));
 	printf("xrtTimeToStrW : %S\n", xrtTimeToStrW(iTime, XRT_TIME_FORMAT_TIME));
 	
+	xtime tRet = xrtDateAdd(XRT_TIME_INTERVAL_SECOND, 30, iTime);
+	int64 iDiff = xrtDateDiff(XRT_TIME_INTERVAL_SECOND, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 sec : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 sec : %d\n", iDiff);
+	tRet = xrtDateAdd(XRT_TIME_INTERVAL_MINUTE, 30, iTime);
+	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_MINUTE, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 min : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 min : %d\n", iDiff);
+	tRet = xrtDateAdd(XRT_TIME_INTERVAL_HOUR, 30, iTime);
+	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_HOUR, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 hour : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 hour : %d\n", iDiff);
+	tRet = xrtDateAdd(XRT_TIME_INTERVAL_DAY, 30, iTime);
+	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_DAY, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 day : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 day : %d\n", iDiff);
+	tRet = xrtDateAdd(XRT_TIME_INTERVAL_MONTH, 30, iTime);
+	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_MONTH, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 mon : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 mon : %d\n", iDiff);
+	tRet = xrtDateAdd(XRT_TIME_INTERVAL_YEAR, 30, iTime);
+	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_YEAR, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 year : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 year : %d\n", iDiff);
+	tRet = xrtDateAdd(XRT_TIME_INTERVAL_WEEKDAY, 30, iTime);
+	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_DAY, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 week : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 week : %d (day)\n", iDiff);
+	tRet = xrtDateAdd(XRT_TIME_INTERVAL_QUARTER, 30, iTime);
+	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_QUARTER, iTime, tRet);
+	printf("xrtDateAdd (2012-03-15 12:20:40) 30 quar : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
+	printf("xrtDateDiff 30 quar : %d\n", iDiff);
 	
 	
 	//*/
