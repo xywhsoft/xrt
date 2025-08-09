@@ -163,9 +163,13 @@ int main(int argc, char** argv)
 	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\", 0));
 	printf("xrtPathIsAbs : %d\n", xrtPathIsAbs("c:\\123\\456\\789\\", 0));
 	printf("xrtPathIsAbsW : %d\n", xrtPathIsAbsW(L"c:\\123\\456\\789\\", 0));
-	
 	printf("xrtPathRandom : %s\n", xrtPathRandom("c:\\123\\456\\789\\Rand_", 0, ".jpg", 4, 32));
 	printf("xrtPathRandomW : %S\n", xrtPathRandomW(L"c:\\123\\456\\789\\Rand_", 0, L".jpg", 4, 32));
+	
+	printf("xrtPathJoin : %s\n", xrtPathJoin(4, "c:\\123", 0, "456", 0, "789", 0, "file.ext", 0));
+	printf("xrtPathJoinW : %S\n", xrtPathJoinW(4, L"c:\\123", 0, L"456", 0, L"789", 0, L"file.ext", 0));
+	
+	
 	/*
 	printf("%s\n", Path_GetAbsA("file.ext", xCore_AppPathA()));
 	printf("%s\n", Path_GetRelA(xCore_AppFileA(), xCore_AppPathA()));

@@ -272,47 +272,93 @@ XXAPI wstr xrtPathRandomW(wstr sHead, size_t iHeadSize, wstr sFoot, size_t iFoot
 }
 
 
+
+// 拼接路径（ 需要使用 xrtFree 释放内存 ）
+XXAPI ustr xrtPathJoin(uint iCount, ...)
+{
+	if ( iCount == 0 ) { return (ustr)xCore.sNull; }
+	ustr sRet = xrtMalloc(4096);
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return (ustr)xCore.sNull;
+	}
+	va_list args;
+	va_start(args, iCount);
+	size_t iPos = 0;
+	for ( int i = 0; i < iCount; i++ ) {
+		ustr sPath = va_arg(args, ustr);
+		size_t iSize = va_arg(args, size_t);
+		if ( sPath == NULL ) { continue; }
+		if ( iSize == 0 ) { iSize = strlen(sPath); }
+		if ( iSize == 0 ) { continue; }
+		if ( (iPos + iSize) > 4094 ) { xrtFree(sRet); return (ustr)xCore.sNull; }
+		memcpy(&sRet[iPos], sPath, iSize);
+		iPos += iSize;
+		if ( i < (iCount - 1) ) {
+			if ( (sRet[iPos-1] != L'\\') && (sRet[iSize-1] != L'/') ) {
+				#if defined(_WIN32) || defined(_WIN64)
+					sRet[iPos] = L'\\';
+				#else
+					sRet[iPos] = L'/';
+				#endif
+				iPos++;
+			}
+		}
+	}
+	va_end(args);
+	ustr sRetTrim = xrtMalloc(iPos + 1);
+	if ( sRetTrim == NULL ) {
+		return sRet;
+	}
+	memcpy(sRetTrim, sRet, iPos);
+	xrtFree(sRet);
+	sRetTrim[iPos] = 0;
+	return sRetTrim;
+}
+XXAPI wstr xrtPathJoinW(uint iCount, ...)
+{
+	if ( iCount == 0 ) { return (wstr)xCore.sNull; }
+	wstr sRet = xrtMalloc(4096 * sizeof(wchar_t));
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return (wstr)xCore.sNull;
+	}
+	va_list args;
+	va_start(args, iCount);
+	size_t iPos = 0;
+	for ( int i = 0; i < iCount; i++ ) {
+		wstr sPath = va_arg(args, wstr);
+		size_t iSize = va_arg(args, size_t);
+		if ( sPath == NULL ) { continue; }
+		if ( iSize == 0 ) { iSize = wcslen(sPath); }
+		if ( iSize == 0 ) { continue; }
+		if ( (iPos + iSize) > 4094 ) { xrtFree(sRet); return (wstr)xCore.sNull; }
+		memcpy(&sRet[iPos], sPath, iSize * sizeof(wchar_t));
+		iPos += iSize;
+		if ( i < (iCount - 1) ) {
+			if ( (sRet[iPos-1] != L'\\') && (sRet[iSize-1] != L'/') ) {
+				#if defined(_WIN32) || defined(_WIN64)
+					sRet[iPos] = L'\\';
+				#else
+					sRet[iPos] = L'/';
+				#endif
+				iPos++;
+			}
+		}
+	}
+	va_end(args);
+	wstr sRetTrim = xrtMalloc((iPos + 1) * sizeof(wchar_t));
+	if ( sRetTrim == NULL ) {
+		return sRet;
+	}
+	memcpy(sRetTrim, sRet, iPos * sizeof(wchar_t));
+	xrtFree(sRet);
+	sRetTrim[iPos] = 0;
+	return sRetTrim;
+}
+
+
 /*
-// 根据 文件夹 + 文件 合并完整的路径，自动补充文件夹末尾的斜杠（需要使用 xCore_free 释放内存）
-XXAPI wstr Path_JoinW(wstr sPath, wstr sFile)
-{
-	if ( sFile == NULL ) { xCore.iRet = 0; return (wstr)xCore.nullstring; }
-	wstr sRet;
-	int iSize = wcslen(sPath);
-	if ( (sPath == NULL) || (iSize == 0) ) {
-		sPath = xCore_AppPathW();
-		sRet = xCore_FormatW(L"%s%s", sPath, sFile);
-		xCore_free(sPath);
-	} else {
-		if ( (sPath[iSize - 1] == L'/') || (sPath[iSize - 1] == L'\\') ) {
-			sRet = xCore_FormatW(L"%s%s", sPath, sFile);
-		} else {
-			sRet = xCore_FormatW(L"%s\\%s", sPath, sFile);
-		}
-	}
-	return sRet;
-}
-XXAPI astr Path_JoinA(astr sPath, astr sFile)
-{
-	if ( sFile == NULL ) { xCore.iRet = 0; return (astr)xCore.nullstring; }
-	astr sRet;
-	int iSize = (sPath == NULL) ? 0 : strlen(sPath);
-	if ( iSize == 0 ) {
-		sPath = xCore_AppPathA();
-		sRet = xCore_FormatA("%s%s", sPath, sFile);
-		xCore_free(sPath);
-	} else {
-		if ( (sPath[iSize - 1] == '/') || (sPath[iSize - 1] == '\\') ) {
-			sRet = xCore_FormatA("%s%s", sPath, sFile);
-		} else {
-			sRet = xCore_FormatA("%s\\%s", sPath, sFile);
-		}
-	}
-	return sRet;
-}
-
-
-
 // 判断两个路径是否可以形成相对路径（不区分大小写，自动适配 / 和 \ 符号）
 XXAPI int Path_RelLikeW(wstr sPath, wstr sFile)
 {

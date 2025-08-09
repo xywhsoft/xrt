@@ -38,6 +38,8 @@ xrtPathIsAbs
 xrtPathIsAbsW
 xrtPathIsRel
 xrtPathIsRelW
+xrtPathJoin
+xrtPathJoinW
 xrtPathRandom
 xrtPathRandomW
 xrtRTrim
