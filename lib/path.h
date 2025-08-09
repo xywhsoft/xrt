@@ -181,7 +181,7 @@ XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize)
 
 
 
-// 获取随机不存在的路径
+// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
 XXAPI ustr xrtPathRandom(ustr sHead, size_t iHeadSize, ustr sFoot, size_t iFootSize, int iLen)
 {
 	if ( sHead ) {

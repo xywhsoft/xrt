@@ -48,6 +48,9 @@ int main(int argc, char** argv)
 	
 	
 	/* String 库测试 */
+	wstr sRetW = xrtHexEncodeW(L"HIJKLMN abcdefg 1234567890", 0);
+	printf("xrtHexEncodeW : %S\n", sRetW);
+	printf("xrtHexDecodeW : %S\n", xrtHexDecodeW(sRetW, 0));
 	/*
 	printf("\n\n\n------------------------------------\n\nString 库测试 :\n\n");
 	printf("xrtLCase : %s\n", xrtLCase("aBcDeFg", 0, FALSE));
@@ -86,6 +89,9 @@ int main(int argc, char** argv)
 	ustr sRet = xrtHexEncode("HIJKLMN abcdefg 1234567890", 0);
 	printf("xrtHexEncode : %s\n", sRet);
 	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
+	wstr sRetW = xrtHexEncodeW(L"HIJKLMN abcdefg 1234567890", 0);
+	printf("xrtHexEncodeW : %s\n", sRetW);
+	printf("xrtHexDecodeW : %s\n", xrtHexDecodeW(sRetW, 0));
 	
 	printf("xrtRandStr : %s\n", xrtRandStr(NULL, 0, 32));
 	printf("xrtRandStrW : %S\n", xrtRandStrW(NULL, 0, 32));

@@ -213,9 +213,11 @@
 	
 	// HEX 编码（需使用 xrtFree 释放）
 	XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize);
+	XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize);
 	
 	// HEX 解码（需使用 xrtFree 释放）
-	XXAPI char* xrtHexDecode(ptr pMem, size_t iSize);
+	XXAPI ustr xrtHexDecode(ptr pMem, size_t iSize);
+	XXAPI wstr xrtHexDecodeW(ptr pMem, size_t iSize);
 	
 	// 生成随机字符串（需使用 xrtFree 释放）
 	XXAPI ustr xrtRandStr(ustr sTemplate, size_t iSize, size_t iLen);
@@ -248,6 +250,10 @@
 	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
 	XXAPI int xrtPathIsAbs(ustr sPath, size_t iSize);
 	XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize);
+	
+	// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
+	XXAPI ustr xrtPathRandom(ustr sHead, size_t iHeadSize, ustr sFoot, size_t iFootSize, int iLen);
+	XXAPI wstr xrtPathRandomW(wstr sHead, size_t iHeadSize, wstr sFoot, size_t iFootSize, int iLen);
 	
 	
 	

@@ -15,7 +15,9 @@ xrtFormat
 xrtFormatW
 xrtFree
 xrtHexDecode
+xrtHexDecodeW
 xrtHexEncode
+xrtHexEncodeW
 xrtInStr
 xrtInStrW
 xrtInit

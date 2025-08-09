@@ -1372,6 +1372,27 @@ XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize)
     sRet[iPos] = 0;
     return sRet;
 }
+XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize)
+{
+	if ( pMem == NULL ) { return (wstr)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = wcslen(pMem) * sizeof(wchar_t); }
+	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
+    wstr sRet = xrtMalloc(((iSize * 2) + 1) * sizeof(wchar_t));
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return (wstr)xCore.sNull;
+	}
+    uint8* pStr = pMem;
+    int iPos = 0;
+    for ( int i = 0; i < iSize; i++ ) {
+		int i1 = (pStr[i] & 0xF0) >> 4;
+		int i2 = pStr[i] & 0x0F;
+		sRet[iPos++] = dec2hex(i1);
+		sRet[iPos++] = dec2hex(i2);
+    }
+    sRet[iPos] = 0;
+    return sRet;
+}
 
 
 
@@ -1382,20 +1403,40 @@ XXAPI ustr xrtHexDecode(ptr pMem, size_t iSize)
 	if ( pMem == NULL ) { return (ustr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
 	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
-    char* sRet = xrtMalloc((iSize / 2) + 1);
+	ustr sRet = xrtMalloc((iSize / 2) + 1);
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return (ustr)xCore.sNull;
 	}
-    uint8* pStr = pMem;
-    int iPos = 0;
-    for ( int i = 0; i < iSize; i++ ) {
-		char c0 = pStr[i++];
-		char c1 = pStr[i];
+	uint8* pStr = pMem;
+	int iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint8 c0 = pStr[i++];
+		uint8 c1 = pStr[i];
 		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
-    }
-    sRet[iPos] = 0;
-    return sRet;
+	}
+	sRet[iPos] = 0;
+	return sRet;
+}
+XXAPI wstr xrtHexDecodeW(ptr pMem, size_t iSize)
+{
+	if ( pMem == NULL ) { return (wstr)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = wcslen(pMem) * sizeof(wchar_t); }
+	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
+	ustr sRet = xrtMalloc(((iSize / 2) + 1) * sizeof(wchar_t));
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return (wstr)xCore.sNull;
+	}
+	uint16* pStr = pMem;
+	int iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint16 c0 = pStr[i++];
+		uint16 c1 = pStr[i];
+		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
+	}
+	sRet[iPos] = 0;
+	return (wstr)sRet;
 }
 
 
