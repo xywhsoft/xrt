@@ -249,7 +249,7 @@ XXAPI int xrtMonth(xtime iTime)
 
 
 // 获取时间中的年份
-XXAPI int xrtYear(xtime iTime)
+XXAPI int64 xrtYear(xtime iTime)
 {
 	xtime iTimeAbs = llabs(iTime);
 	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
@@ -343,16 +343,16 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 	if ( pMonth ) {
 		*pMonth = iMonth;
 	}
-	int iDay = 1;
-	for ( int i = 1; i <= 31; i++ ) {
-		if ( iYearMod >= XRT_TIME_DAY ) {
-			iYearMod -= XRT_TIME_DAY;
-		} else {
-			iDay = i;
-			break;
-		}
-	}
 	if ( pDay ) {
+		int iDay = 1;
+		for ( int i = 1; i <= 31; i++ ) {
+			if ( iYearMod >= XRT_TIME_DAY ) {
+				iYearMod -= XRT_TIME_DAY;
+			} else {
+				iDay = i;
+				break;
+			}
+		}
 		*pDay = iDay;
 	}
 	if ( pHour ) {
@@ -402,9 +402,89 @@ XXAPI xtime xrtTime()
 
 
 
-/*
-	DateAdd
-	DateDiff
-*/
+// 时间单位累加
+XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
+{
+	if ( interval == XRT_TIME_INTERVAL_YEAR ) {
+		int64 iYear;
+		int iMonth, iDay, iHour, iMinute, iSecond;
+		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
+		return xrtDateTimeSerial(iYear + iValue, iMonth, iDay, iHour, iMinute, iSecond);
+	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
+		xtime iValueAbs = llabs(iValue);
+		uint64 iAddYear = iValueAbs / 12;
+		uint64 iAddMonth = iValueAbs % 12;
+		int64 iYear;
+		int iMonth, iDay, iHour, iMinute, iSecond;
+		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
+		if ( iValue < 0 ) {
+			if ( iMonth - iAddMonth < 1 ) {
+				iYear = iYear - iAddYear - 1;
+				iMonth = 12 - (iAddMonth - iMonth);
+			} else {
+				iYear = iYear - iAddYear;
+				iMonth -= iAddMonth;
+			}
+		} else {
+			if ( iMonth + iAddMonth > 12 ) {
+				iYear = iYear + iAddYear + 1;
+				iMonth = (iMonth + iAddMonth) % 12;
+			} else {
+				iYear = iYear + iAddYear;
+				iMonth += iAddMonth;
+			}
+		}
+		xtime tRet = xrtDateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond);
+		return tRet;
+	} else if ( interval == XRT_TIME_INTERVAL_DAY ) {
+		return iTime + (iValue * XRT_TIME_DAY);
+	} else if ( interval == XRT_TIME_INTERVAL_HOUR ) {
+		return iTime + (iValue * XRT_TIME_HOUR);
+	} else if ( interval == XRT_TIME_INTERVAL_MINUTE ) {
+		return iTime + (iValue * XRT_TIME_MINUTE);
+	} else if ( interval == XRT_TIME_INTERVAL_SECOND ) {
+		return iTime + iValue;
+	} else if ( interval == XRT_TIME_INTERVAL_WEEKDAY ) {
+		return iTime + (iValue * XRT_TIME_DAY * 7);
+	} else if ( interval == XRT_TIME_INTERVAL_QUARTER ) {
+		return xrtDateAdd(XRT_TIME_INTERVAL_MONTH, iValue * 3, iTime);
+	} else {
+		return iTime;
+	}
+}
+
+
+
+// 单位时间差计算（ 不支持 XRT_TIME_INTERVAL_WEEKDAY ）
+XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
+{
+	if ( interval == XRT_TIME_INTERVAL_YEAR ) {
+		int64 iYear1 = xrtYear(iTime1);
+		int64 iYear2 = xrtYear(iTime2);
+		return iYear2 - iYear1;
+	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
+		int64 iYear1, iYear2;
+		int iMonth1, iMonth2;
+		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);
+		xrtDecodeSerial(iTime2, &iYear2, &iMonth2, NULL, NULL, NULL, NULL, NULL, NULL);
+		return ((iYear2 - iYear1) * 12) + (iMonth2 - iMonth1);
+	} else if ( interval == XRT_TIME_INTERVAL_DAY ) {
+		return (iTime2 - iTime1) / XRT_TIME_DAY;
+	} else if ( interval == XRT_TIME_INTERVAL_HOUR ) {
+		return (iTime2 - iTime1) / XRT_TIME_HOUR;
+	} else if ( interval == XRT_TIME_INTERVAL_MINUTE ) {
+		return (iTime2 - iTime1) / XRT_TIME_MINUTE;
+	} else if ( interval == XRT_TIME_INTERVAL_SECOND ) {
+		return iTime2 - iTime1;
+	} else if ( interval == XRT_TIME_INTERVAL_QUARTER ) {
+		int64 iYear1, iYear2;
+		int iMonth1, iMonth2;
+		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);
+		xrtDecodeSerial(iTime2, &iYear2, &iMonth2, NULL, NULL, NULL, NULL, NULL, NULL);
+		return (((iYear2 - iYear1) * 12) + (iMonth2 - iMonth1)) / 3;
+	} else {
+		return 0;
+	}
+}
 
 

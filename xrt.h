@@ -244,14 +244,14 @@
 	#define XRT_TIME_19700101		62167219200
 	
 	// 时间单位
-	#define XRT_TIME_INTERVAL_YEAR           1				// 年
-	#define XRT_TIME_INTERVAL_MONTH          2				// 月
-	#define XRT_TIME_INTERVAL_DAY            3				// 日
-	#define XRT_TIME_INTERVAL_WEEKDAY        4				// 星期
-	#define XRT_TIME_INTERVAL_HOUR           5				// 时
-	#define XRT_TIME_INTERVAL_MINUTE         6				// 分
-	#define XRT_TIME_INTERVAL_SECOND         7				// 秒
-	#define XRT_TIME_INTERVAL_DAY_OF_YEAR    8				// 当年第几天
+	#define XRT_TIME_INTERVAL_YEAR			1				// 年
+	#define XRT_TIME_INTERVAL_MONTH			2				// 月
+	#define XRT_TIME_INTERVAL_DAY			3				// 日
+	#define XRT_TIME_INTERVAL_HOUR			4				// 时
+	#define XRT_TIME_INTERVAL_MINUTE		5				// 分
+	#define XRT_TIME_INTERVAL_SECOND		6				// 秒
+	#define XRT_TIME_INTERVAL_WEEKDAY		7				// 星期
+	#define XRT_TIME_INTERVAL_QUARTER		8				// 季度
 	
 	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtNowStr();
@@ -299,7 +299,7 @@
 	XXAPI int xrtMonth(xtime iTime);
 	
 	// 获取时间中的年份
-	XXAPI int xrtYear(xtime iTime);
+	XXAPI int64 xrtYear(xtime iTime);
 	
 	// 获取时间中的星期
 	XXAPI int xrtWeekday(xtime iTime);
@@ -318,6 +318,12 @@
 	
 	// 获取当前时间
 	XXAPI xtime xrtTime();
+	
+	// 时间单位累加
+	XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);
+	
+	// 单位时间差计算（ 不支持 XRT_TIME_INTERVAL_WEEKDAY ）
+	XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2);
 	
 	
 	

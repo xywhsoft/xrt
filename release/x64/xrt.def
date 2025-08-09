@@ -9,6 +9,8 @@ xrtClearError
 xrtCopyStr
 xrtCopyStrW
 xrtDate
+xrtDateAdd
+xrtDateDiff
 xrtDateSerial
 xrtDateStr
 xrtDateStrW
