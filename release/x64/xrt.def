@@ -17,6 +17,7 @@ xrtDay
 xrtDayOfYear
 xrtDaysInMonth
 xrtDaysInYear
+xrtDecodeSerial
 xrtFilterStr
 xrtFilterStrW
 xrtFindStr

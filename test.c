@@ -197,6 +197,10 @@ int main(int argc, char** argv)
 	printf("xrtSecond (2012-03-15 12:20:40) : %d\n", xrtSecond(iTime));
 	printf("xrtWeekday (2012-03-15 12:20:40) : %d\n", xrtWeekday(iTime));
 	printf("xrtDayOfYear (2012-03-15 12:20:40) : %d\n", xrtDayOfYear(iTime));
+	int64 iYear;
+	int iMonth, iDay, iHour, iMinute, iSecond, iWeekday, iDayOfYear;
+	xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, &iWeekday, &iDayOfYear);
+	printf("xrtDecodeSerial : %d-%d-%d %d:%d:%d ( %d - %d )\n", iYear, iMonth, iDay, iHour, iMinute, iSecond, iWeekday, iDayOfYear);
 	
 	//*/
 	

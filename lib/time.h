@@ -304,6 +304,74 @@ XXAPI int xrtDayOfYear(xtime iTime)
 
 
 
+// 解码时间
+XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, int* pHour, int* pMinute, int* pSecond, int* pWeekday, int* pDayOfYear)
+{
+	xtime iTimeAbs = llabs(iTime);
+	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
+	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
+	uint64 iYear = iYear400 * 400;
+	for ( int i = 0; i < 400; i++ ) {
+		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+			iYear++;
+		} else {
+			break;
+		}
+	}
+	if ( pYear ) {
+		if ( iTime < 0 ) {
+			*pYear = -iYear;
+		} else {
+			*pYear = iYear;
+		}
+	}
+	if ( pDayOfYear ) {
+		*pDayOfYear = 1 + (iYearMod / XRT_TIME_DAY);
+	}
+	int iMonth = 1;
+	for ( int i = 1; i <= 12; i++ ) {
+		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
+		if ( iYearMod >= iSec ) {
+			iYearMod -= iSec;
+		} else {
+			iMonth = i;
+			break;
+		}
+	}
+	if ( pMonth ) {
+		*pMonth = iMonth;
+	}
+	int iDay = 1;
+	for ( int i = 1; i <= 31; i++ ) {
+		if ( iYearMod >= XRT_TIME_DAY ) {
+			iYearMod -= XRT_TIME_DAY;
+		} else {
+			iDay = i;
+			break;
+		}
+	}
+	if ( pDay ) {
+		*pDay = iDay;
+	}
+	if ( pHour ) {
+		*pHour = (iTimeAbs % XRT_TIME_DAY) / XRT_TIME_HOUR;
+	}
+	if ( pMinute ) {
+		*pMinute = (iTimeAbs % XRT_TIME_HOUR) / 60;
+	}
+	if ( pSecond ) {
+		*pSecond = iTimeAbs % XRT_TIME_MINUTE;
+	}
+	if ( pWeekday ) {
+		uint64 iDay = iTimeAbs / XRT_TIME_DAY;
+		*pWeekday = iDay % 7;
+	}
+}
+
+
+
 // 获取当前日期 + 时间
 XXAPI xtime xrtNow()
 {

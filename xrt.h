@@ -307,6 +307,9 @@
 	// 获取时间是当年的第几天
 	XXAPI int xrtDayOfYear(xtime iTime);
 	
+	// 解码时间
+	XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, int* pHour, int* pMinute, int* pSecond, int* pWeekday, int* pDayOfYear);
+	
 	// 获取当前日期 + 时间
 	XXAPI xtime xrtNow();
 	
