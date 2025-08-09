@@ -145,10 +145,17 @@ int main(int argc, char** argv)
 	/* Path 库测试 */
 	//*
 	printf("\n\n\n------------------------------------\n\nPath 库测试 :\n\n");
-	printf("xrtPath_NameExt : %s\n", xrtPath_NameExt("c:\\123\\456\\789\\file.ext", 0));
-	printf("xrtPath_NameExtW : %S\n", xrtPath_NameExtW(L"c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetNameExt : %s\n", xrtPathGetNameExt("c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetNameExtW : %S\n", xrtPathGetNameExtW(L"c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetName : %s\n", xrtPathGetName("c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetNameW : %S\n", xrtPathGetNameW(L"c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetExt : %s\n", xrtPathGetExt("c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetExtW : %S\n", xrtPathGetExtW(L"c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetDir : %s\n", xrtPathGetDir("c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\file.ext", 0));
+	printf("xrtPathGetDir : %s\n", xrtPathGetDir("c:\\123\\456\\789\\", 0));
+	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\", 0));
 	/*
-	printf("%s\n", Path_FileNameA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_FileExtA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_FilePathA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_GetAbsA("file.ext", xCore_AppPathA()));
