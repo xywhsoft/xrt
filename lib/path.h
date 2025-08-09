@@ -146,28 +146,32 @@ XXAPI wstr xrtPathGetDirW(wstr sPath, size_t iSize)
 }
 
 
-/*
+
 // 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
-XXAPI int Path_IsAbsA(astr sPath)
+XXAPI int xrtPathIsAbs(ustr sPath, size_t iSize)
 {
+	if ( sPath == NULL ) { return FALSE; }
+	if ( iSize == 0 ) { iSize = strlen(sPath); }
+	if ( iSize == 0 ) { return FALSE; }
 	if ( sPath[0] == '/' ) {
 		return TRUE;
 	}
-	int iCount = strlen(sPath);
-	for ( int i = 0; i < iCount; i++ ) {
+	for ( int i = 0; i < iSize; i++ ) {
 		if ( sPath[i] == ':' ) {
 			return TRUE;
 		}
 	}
 	return FALSE;
 }
-XXAPI int Path_IsAbsW(wstr sPath)
+XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize)
 {
+	if ( sPath == NULL ) { return FALSE; }
+	if ( iSize == 0 ) { iSize = wcslen(sPath); }
+	if ( iSize == 0 ) { return FALSE; }
 	if ( sPath[0] == L'/' ) {
 		return TRUE;
 	}
-	int iCount = wcslen(sPath);
-	for ( int i = 0; i < iCount; i++ ) {
+	for ( int i = 0; i < iSize; i++ ) {
 		if ( sPath[i] == L':' ) {
 			return TRUE;
 		}
@@ -176,7 +180,7 @@ XXAPI int Path_IsAbsW(wstr sPath)
 }
 
 
-
+/*
 // 获取随机不存在的路径
 XXAPI wstr Path_RandomW(wstr sHead, wstr sFoot, int iRand)
 {

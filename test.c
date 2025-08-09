@@ -155,9 +155,9 @@ int main(int argc, char** argv)
 	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetDir : %s\n", xrtPathGetDir("c:\\123\\456\\789\\", 0));
 	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\", 0));
+	printf("xrtPathIsAbs : %d\n", xrtPathIsAbs("c:\\123\\456\\789\\", 0));
+	printf("xrtPathIsAbsW : %d\n", xrtPathIsAbsW(L"c:\\123\\456\\789\\", 0));
 	/*
-	printf("%s\n", Path_FileExtA("c:\\123\\456\\789\\file.ext"));
-	printf("%s\n", Path_FilePathA("c:\\123\\456\\789\\file.ext"));
 	printf("%s\n", Path_GetAbsA("file.ext", xCore_AppPathA()));
 	printf("%s\n", Path_GetRelA(xCore_AppFileA(), xCore_AppPathA()));
 	printf("%s\n", Path_RandomFileA("c:\\123\\456\\789\\", ".ext", 8));

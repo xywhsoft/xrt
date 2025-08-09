@@ -241,6 +241,10 @@
 	XXAPI ustr xrtPathGetDir(ustr sPath, size_t iSize);
 	XXAPI wstr xrtPathGetDirW(wstr sPath, size_t iSize);
 	
+	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
+	XXAPI int xrtPathIsAbs(ustr sPath, size_t iSize);
+	XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize);
+	
 	
 	
 #endif
