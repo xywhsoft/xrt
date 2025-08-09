@@ -36,6 +36,8 @@ xrtPathGetNameExtW
 xrtPathGetNameW
 xrtPathIsAbs
 xrtPathIsAbsW
+xrtPathIsRel
+xrtPathIsRelW
 xrtPathRandom
 xrtPathRandomW
 xrtRTrim

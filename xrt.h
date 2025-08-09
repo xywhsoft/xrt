@@ -251,6 +251,10 @@
 	XXAPI int xrtPathIsAbs(ustr sPath, size_t iSize);
 	XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize);
 	
+	// 判断是否为相对路径
+	XXAPI int xrtPathIsRel(ustr sPath, size_t iSize);
+	XXAPI int xrtPathIsRelW(wstr sPath, size_t iSize);
+	
 	// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtPathRandom(ustr sHead, size_t iHeadSize, ustr sFoot, size_t iFootSize, int iLen);
 	XXAPI wstr xrtPathRandomW(wstr sHead, size_t iHeadSize, wstr sFoot, size_t iFootSize, int iLen);
