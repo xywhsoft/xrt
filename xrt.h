@@ -82,15 +82,6 @@
 	
 	
 	
-	// 错误描述
-	#if defined(_WIN32) || defined(_WIN64)
-		#define XRT_ERROR_MALLOC		L"malloc error !"
-	#else
-		#define XRT_ERROR_MALLOC		"malloc error !"
-	#endif
-	
-	
-	
 	// 全局
 	typedef struct {
 		
@@ -109,6 +100,9 @@
 		str LastError;
 		int __pri_FreeError;
 		
+		// 调试模式
+		int DebugMode;
+		
 		// 应用信息
 		str AppFile;
 		str AppPath;
@@ -118,6 +112,11 @@
 		ptr (*calloc)(size_t iNum, size_t iSize);
 		ptr (*realloc)(ptr pMem, size_t iSize);
 		void (*free)(ptr pMem);
+		
+		// 内置错误描述
+		struct {
+			str MALLOC;
+		} ERROR_DESC;
 		
 	} xrtGlobalData;
 	

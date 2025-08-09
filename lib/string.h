@@ -9,7 +9,7 @@ XXAPI ustr xrtCopyStr(ustr sText, size_t iSize)
 	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
 	ustr sRet = xrtMalloc(iSize + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return (ustr)xCore.sNull;
 	}
 	memcpy(sRet, sText, iSize);
@@ -23,7 +23,7 @@ XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize)
 	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
 	wstr sRet = xrtMalloc((iSize + 1) * sizeof(wchar_t));
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return (wstr)xCore.sNull;
 	}
 	memcpy(sRet, sText, iSize * sizeof(wchar_t));
@@ -909,7 +909,7 @@ XXAPI ustr xrtFormat(ustr sFormat, ...)
 	if ( iSize > 0 ) {
 		ustr sRet = xrtMalloc(iSize + 1);
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			xCore.iRet = 0;
 			return (ustr)xCore.sNull;
 		}
@@ -939,7 +939,7 @@ XXAPI wstr xrtFormatW(wstr sFormat, ...)
 		if ( iSize > 0 ) {
 			wstr sRet = xrtMalloc( (iSize + 1) * sizeof(wchar_t) );
 			if ( sRet == NULL ) {
-				xrtSetError(XRT_ERROR_MALLOC, FALSE);
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return (wstr)xCore.sNull;
 			}
@@ -962,7 +962,7 @@ XXAPI wstr xrtFormatW(wstr sFormat, ...)
 		// linux 版本无法预测缓冲区长度，因此目前写死最多处理 64K 字符，超过会直接返回 sNull
 		wstr sRet = xrtMalloc( 65536 * sizeof(wchar_t) );
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			xCore.iRet = 0;
 			return (wstr)xCore.sNull;
 		}
@@ -1016,7 +1016,7 @@ XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, 
 	size_t iRetSize = iSize + iFindCount * (iRepSize - iSubSize);
 	ustr sRet = (ustr)xrtMalloc(iRetSize + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (ustr)xCore.sNull;
 	}
@@ -1059,7 +1059,7 @@ XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize,
 	size_t iRetSize = iSize + iFindCount * (iRepSize - iSubSize);
 	wstr sRet = (wstr)xrtMalloc( (iRetSize + 1) * sizeof(wchar_t) );
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (wstr)xCore.sNull;
 	}
@@ -1120,14 +1120,14 @@ XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, i
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc( (iCount + 2) * sizeof(ptr) );
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_nullstr;
 		}
 		pData = sText;
 	} else {
 		sRet = xrtMalloc( ((iCount + 2) * sizeof(ptr)) + (iSize - ((iSepSize - 1) * iCount)) + 1 );
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_nullstr;
 		}
 		pData = (ustr)&sRet[iCount + 2];
@@ -1179,7 +1179,7 @@ XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, i
 return_nullstr:
 	sRet = xrtMalloc(2 * sizeof(void*));
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		goto return_error;
 	}
 	sRet[0] = (ustr)xCore.sNull;
@@ -1192,14 +1192,14 @@ return_nullsep:
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc(2 * sizeof(void*));
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_error;
 		}
 		sRet[0] = sText;
 	} else {
 		sRet = xrtMalloc((2 * sizeof(void*)) + iSize + 1);
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_error;
 		}
 		ustr sTextRef = (ustr)&sRet[2];
@@ -1250,14 +1250,14 @@ XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, 
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc( (iCount + 2) * sizeof(ptr) );
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_nullstr;
 		}
 		pData = sText;
 	} else {
 		sRet = xrtMalloc( ((iCount + 2) * sizeof(ptr)) + ((iSize - ((iSepSize - 1) * iCount) + 1) * sizeof(wchar_t)) );
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_nullstr;
 		}
 		pData = (wstr)&sRet[iCount + 2];
@@ -1309,7 +1309,7 @@ XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, 
 return_nullstr:
 	sRet = xrtMalloc(2 * sizeof(void*));
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		goto return_error;
 	}
 	sRet[0] = (wstr)xCore.sNull;
@@ -1322,14 +1322,14 @@ return_nullsep:
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc(2 * sizeof(void*));
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_error;
 		}
 		sRet[0] = sText;
 	} else {
 		sRet = xrtMalloc(2 * sizeof(void*) + (iSize + 1) * sizeof(wchar_t));
 		if ( sRet == NULL ) {
-			xrtSetError(XRT_ERROR_MALLOC, FALSE);
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_error;
 		}
 		wstr sTextRef = (wstr)&sRet[2];
@@ -1358,7 +1358,7 @@ XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize)
 	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
     ustr sRet = xrtMalloc((iSize * 2) + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return (ustr)xCore.sNull;
 	}
     uint8* pStr = pMem;
@@ -1384,7 +1384,7 @@ XXAPI char* xrtHexDecode(ptr pMem, size_t iSize)
 	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
     char* sRet = xrtMalloc((iSize / 2) + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(XRT_ERROR_MALLOC, FALSE);
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return (ustr)xCore.sNull;
 	}
     uint8* pStr = pMem;

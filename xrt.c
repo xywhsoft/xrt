@@ -48,6 +48,7 @@ XXAPI xrtGlobalData* xrtInit()
 	xCore.nRet = 0.0;
 	xCore.LastError = xCore.sNull;
 	xCore.__pri_FreeError = FALSE;
+	xCore.DebugMode = FALSE;
 	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)
@@ -91,6 +92,13 @@ XXAPI xrtGlobalData* xrtInit()
 	
 	// 初始化随机数序列
 	srand(time(NULL));
+	
+	// 设置内置的错误描述（便于复用）
+	#if defined(_WIN32) || defined(_WIN64)
+		xCore.ERROR_DESC.MALLOC = L"Memory allocate error !";
+	#else
+		xCore.ERROR_DESC.MALLOC = "Memory allocate error !";
+	#endif
 	
 	return &xCore;
 }
