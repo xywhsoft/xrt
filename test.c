@@ -187,7 +187,12 @@ int main(int argc, char** argv)
 	printf("xrtDateSerial (5-01-01 00:00:00) : %d\n", xrtDateSerial(5, 1, 1));
 	printf("xrtDateSerial (1970-01-01 00:00:00) : %lld\n", xrtDateSerial(1970, 1, 1));
 	printf("xrtTimeSerial (12:00:00) : %d\n", xrtTimeSerial(12, 0, 0));
-	printf("xrtDateTimeSerial (1970-01-01 12:00:00) : %lld\n", xrtDateTimeSerial(1970, 1, 1, 12, 0, 0));
+	xtime iTime = xrtDateTimeSerial(2012, 3, 15, 12, 20, 40);
+	printf("xrtDateTimeSerial (2012-03-15 12:20:40) : %lld\n", iTime);
+	printf("xrtSecond (2012-03-15 12:20:40) : %d\n", xrtSecond(iTime));
+	printf("xrtMinute (2012-03-15 12:20:40) : %d\n", xrtMinute(iTime));
+	printf("xrtHour (2012-03-15 12:20:40) : %d\n", xrtHour(iTime));
+	
 	//*/
 	
 	

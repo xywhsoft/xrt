@@ -279,6 +279,27 @@
 	// 获取时间中的小时
 	XXAPI int xrtHour(xtime iTime);
 	
+	// 获取时间中的日期
+	XXAPI int xrtDay(xtime iTime);
+	
+	// 获取时间中的月份
+	XXAPI int xrtMonth(xtime iTime);
+	
+	// 获取时间中的年份
+	XXAPI int xrtYear(xtime iTime);
+	
+	// 获取时间中的星期
+	XXAPI int xrtWeekday(xtime iTime);
+	
+	// 获取当前日期 + 时间
+	XXAPI xtime xrtNow();
+	
+	// 获取当前日期
+	XXAPI xtime xrtDate();
+	
+	// 获取当前时间
+	XXAPI xtime xrtTime();
+	
 	
 	
 	/* ------------------------------------ Path 函数库 ------------------------------------ */

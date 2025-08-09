@@ -1,15 +1,17 @@
 LIBRARY xrt.dll
 
 EXPORTS
-xCore_ChainW
 xrtCalloc
+xrtChainW
 xrtCheckStr
 xrtCheckStrW
 xrtClearError
 xrtCopyStr
 xrtCopyStrW
+xrtDate
 xrtDateSerial
 xrtDateTimeSerial
+xrtDay
 xrtDaysInMonth
 xrtDaysInYear
 xrtFilterStr
@@ -35,6 +37,8 @@ xrtLTrim
 xrtLTrimW
 xrtMalloc
 xrtMinute
+xrtMonth
+xrtNow
 xrtNowDateStr
 xrtNowDateStrW
 xrtNowStr
@@ -71,9 +75,12 @@ xrtSetError
 xrtSplit
 xrtSplitW
 xrtStartW
+xrtTime
 xrtTimeSerial
 xrtTrim
 xrtTrimW
 xrtUCase
 xrtUCaseW
 xrtUnit
+xrtWeekday
+xrtYear

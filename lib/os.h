@@ -31,7 +31,7 @@ XXAPI ptr xrtStartW(wstr sPath, int iShow)
 
 
 // 运行程序并等待程序运行结束
-XXAPI int xCore_ChainW(wstr sPath, int iShow)
+XXAPI int xrtChainW(wstr sPath, int iShow)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD iRet = 0;

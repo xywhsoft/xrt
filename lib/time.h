@@ -164,7 +164,7 @@ XXAPI int xrtSecond(xtime iTime)
 // 获取时间中的分钟
 XXAPI int xrtMinute(xtime iTime)
 {
-	return (iTime % XRT_TIME_HOUR) / XRT_TIME_MINUTE;
+	return (iTime % XRT_TIME_HOUR) / 60;
 }
 
 
@@ -177,20 +177,71 @@ XXAPI int xrtHour(xtime iTime)
 
 
 
+// 获取时间中的日期
+XXAPI int xrtDay(xtime iTime)
+{
+	return 0;
+}
+
+
+
+// 获取时间中的月份
+XXAPI int xrtMonth(xtime iTime)
+{
+	return 0;
+}
+
+
+
+// 获取时间中的年份
+XXAPI int xrtYear(xtime iTime)
+{
+	return 0;
+}
+
+
+
+// 获取时间中的星期
+XXAPI int xrtWeekday(xtime iTime)
+{
+	return 0;
+}
+
+
+
+// 获取当前日期 + 时间
+XXAPI xtime xrtNow()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtDateTimeSerial(1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+
+
+
+// 获取当前日期
+XXAPI xtime xrtDate()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtDateSerial(1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
+}
+
+
+
+// 获取当前时间
+XXAPI xtime xrtTime()
+{
+	time_t rawtime = time(NULL);
+	struct tm* pstm = localtime(&rawtime);
+	return xrtTimeSerial(pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+}
+
+
+
 /*
-	Now
-	Time
-	Date
-	Year
-	Month
-	Day
-	Weekday
 	DateAdd
 	DateDiff
-	
-	
-	
-	24 60 60 = 86400
 */
 
 
