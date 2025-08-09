@@ -32,9 +32,15 @@ xrtPathGetName
 xrtPathGetNameExt
 xrtPathGetNameExtW
 xrtPathGetNameW
+xrtPathIsAbs
+xrtPathIsAbsW
+xrtPathRandom
+xrtPathRandomW
 xrtRTrim
 xrtRTrimW
 xrtRand
+xrtRandStr
+xrtRandStrW
 xrtRealloc
 xrtReplace
 xrtReplaceW

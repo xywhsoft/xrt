@@ -1377,7 +1377,7 @@ XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize)
 
 // HEX 解码（需使用 xrtFree 释放）
 #define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
-XXAPI char* xrtHexDecode(ptr pMem, size_t iSize)
+XXAPI ustr xrtHexDecode(ptr pMem, size_t iSize)
 {
 	if ( pMem == NULL ) { return (ustr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
@@ -1396,6 +1396,50 @@ XXAPI char* xrtHexDecode(ptr pMem, size_t iSize)
     }
     sRet[iPos] = 0;
     return sRet;
+}
+
+
+
+// 生成随机字符串（需使用 xrtFree 释放）
+const ustr RandStringDefaultTemplate = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+const wstr RandStringDefaultTemplateW = L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+XXAPI ustr xrtRandStr(ustr sTemplate, size_t iSize, size_t iLen)
+{
+	if ( sTemplate == NULL ) { sTemplate = RandStringDefaultTemplate; iSize = 64; }
+	if ( iSize == 0 ) { iSize = strlen(sTemplate); }
+	if ( iSize == 0 ) { sTemplate = RandStringDefaultTemplate; iSize = 64; }
+	if ( iLen == 0 ) { return (ustr)xCore.sNull; }
+	iSize--;
+	ustr sRet = xrtMalloc(iLen + 1);
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return (ustr)xCore.sNull;
+	}
+	for ( int i = 0; i < iLen; i++ ) {
+		int idx = xrtRand(0, iSize);
+		sRet[i] = sTemplate[idx];
+	}
+	sRet[iLen] = 0;
+	return sRet;
+}
+XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen)
+{
+	if ( sTemplate == NULL ) { sTemplate = RandStringDefaultTemplateW; iSize = 64; }
+	if ( iSize == 0 ) { iSize = wcslen(sTemplate); }
+	if ( iSize == 0 ) { sTemplate = RandStringDefaultTemplateW; iSize = 64; }
+	if ( iLen == 0 ) { return (wstr)xCore.sNull; }
+	iSize--;
+	wstr sRet = xrtMalloc(iLen + 1);
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return (wstr)xCore.sNull;
+	}
+	for ( int i = 0; i < iLen; i++ ) {
+		int idx = xrtRand(0, iSize);
+		sRet[i] = sTemplate[idx];
+	}
+	sRet[iLen] = 0;
+	return sRet;
 }
 
 

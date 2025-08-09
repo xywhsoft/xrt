@@ -87,6 +87,9 @@ int main(int argc, char** argv)
 	printf("xrtHexEncode : %s\n", sRet);
 	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
 	
+	printf("xrtRandStr : %s\n", xrtRandStr(NULL, 0, 32));
+	printf("xrtRandStrW : %S\n", xrtRandStrW(NULL, 0, 32));
+	
 	ustr* arrRet = xrtSplit("a1b1c1d1e1f1g", 0, "1", 1, FALSE);
 	printf("\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
@@ -157,6 +160,9 @@ int main(int argc, char** argv)
 	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\", 0));
 	printf("xrtPathIsAbs : %d\n", xrtPathIsAbs("c:\\123\\456\\789\\", 0));
 	printf("xrtPathIsAbsW : %d\n", xrtPathIsAbsW(L"c:\\123\\456\\789\\", 0));
+	
+	printf("xrtPathRandom : %s\n", xrtPathRandom("c:\\123\\456\\789\\Rand_", 0, ".jpg", 4, 32));
+	printf("xrtPathRandomW : %S\n", xrtPathRandomW(L"c:\\123\\456\\789\\Rand_", 0, L".jpg", 4, 32));
 	/*
 	printf("%s\n", Path_GetAbsA("file.ext", xCore_AppPathA()));
 	printf("%s\n", Path_GetRelA(xCore_AppFileA(), xCore_AppPathA()));

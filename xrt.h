@@ -217,6 +217,10 @@
 	// HEX 解码（需使用 xrtFree 释放）
 	XXAPI char* xrtHexDecode(ptr pMem, size_t iSize);
 	
+	// 生成随机字符串（需使用 xrtFree 释放）
+	XXAPI ustr xrtRandStr(ustr sTemplate, size_t iSize, size_t iLen);
+	XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen);
+	
 	
 	
 	/* ------------------------------------ Time 函数库 ------------------------------------ */
