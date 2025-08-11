@@ -23,8 +23,8 @@ int main(int argc, char** argv)
 	
 	
 	/* Base 库测试 */
-	//*
-	printf("\n\n\n------------------------------------\n\nBase 库测试 :\n\n");
+	/*
+	printf("\n\n\n------------------------------------\n\n Base 库测试 :\n\n");
 	#if defined(_WIN32) || defined(_WIN64)
 		printf("AppFile : %S\n", xCore->AppFile);
 		printf("AppPath : %S\n", xCore->AppPath);
@@ -38,9 +38,48 @@ int main(int argc, char** argv)
 	
 	
 	
-	/* Math 库测试 */
+	/* Charset 库测试 */
 	//*
-	printf("\n\n\n------------------------------------\n\nMath 库测试 :\n\n");
+	printf("\n\n\n------------------------------------\n\n Charset 库测试 :\n\n");
+	
+	/* utf32 内容可通过 linux 系统进行测试（已验证通过）
+	str a = "aBcDeFg 我爱北京天安门 ✔ 1234567";
+	wstr b = L"aBcDeFg 我爱北京天安门 ✔ 1234567";
+	printf("utf8 : %s\n", a);
+	//printf("utf32 : %S\n", b);
+	
+	u32str c = xrtUTF8to32(a, 0);
+	
+	str d = xrtUTF32to8(b, 0);
+	str e = xrtUTF32to8(c, 0);
+	printf("conv utf8 1 : %s\n", d);
+	printf("conv utf8 2 : %s\n", e);
+	
+	str aHex = xrtHexEncode(a, 0);
+	str dHex = xrtHexEncode(d, 0);
+	str eHex = xrtHexEncode(e, 0);
+	printf("utf8 Hex a : %s\n", aHex);
+	printf("utf8 Hex d : %s\n", dHex);
+	printf("utf8 Hex e : %s\n", eHex);
+	
+	u32str c = xrtUTF8to32(a, 0);
+	printf("conv utf32 : %S\n", c);
+	
+	str aHex = xrtHexEncode(a, 0);
+	wstr bHex = xrtHexEncodeW(b, 0);
+	wstr cHex = xrtHexEncodeW(c, 0);
+	printf("utf8 Hex : %s\n", aHex);
+	printf("utf32 Hex : %S\n", bHex);
+	printf("conv  Hex : %S\n", cHex);
+	*/
+	
+	//*/
+	
+	
+	
+	/* Math 库测试 */
+	/*
+	printf("\n\n\n------------------------------------\n\n Math 库测试 :\n\n");
 	for ( int i = 0; i < 10; i++ ) {
 		printf("Rand 0 - 100 : %d\n", xrtRand(0, 100));
 	}
@@ -50,8 +89,8 @@ int main(int argc, char** argv)
 	
 	/* String 库测试 */
 	
-	//*
-	printf("\n\n\n------------------------------------\n\nString 库测试 :\n\n");
+	/*
+	printf("\n\n\n------------------------------------\n\n String 库测试 :\n\n");
 	printf("xrtLCase : %s\n", xrtLCase("aBcDeFg", 0, FALSE));
 	printf("xrtLCaseW : %S\n", xrtLCaseW(L"aBcDeFg", 0, FALSE));
 	printf("xrtUCase : %s\n", xrtUCase("aBcDeFg", 0, FALSE));
@@ -85,14 +124,14 @@ int main(int argc, char** argv)
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 9, "1", 0, "_", 0));
 	printf("xrtReplaceW : %S\n", xrtReplaceW(L"1a1b1c1d1e1f1g1", 9, L"1", 0, L"_", 0));
 	
-	ustr sRet = xrtHexEncode("HIJKLMN abcdefg 1234567890", 0);
+	str sRet = xrtHexEncode("HIJKLMN abcdefg 1234567890", 0);
 	printf("xrtHexEncode : %s\n", sRet);
 	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
 	wstr sRetW = xrtHexEncodeW(L"HIJKLMN abcdefg 1234567890", 0);
 	printf("xrtHexEncodeW : %S\n", sRetW);
 	printf("xrtHexDecodeW : %S\n", xrtHexDecodeW(sRetW, 0));
 	
-	ustr sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0);
+	str sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0);
 	printf("xrtBase64Encode : %s\n", sRet2);
 	printf("xrtBase64Decode : %s\n", xrtBase64Decode(sRet2, 0));
 	wstr sRet2W = xrtBase64EncodeW(L"HIJKLMN abcdefg 1234567890", 0);
@@ -102,27 +141,27 @@ int main(int argc, char** argv)
 	printf("xrtRandStr : %s\n", xrtRandStr(NULL, 0, 32));
 	printf("xrtRandStrW : %S\n", xrtRandStrW(NULL, 0, 32));
 	
-	ustr* arrRet = xrtSplit("a1b1c1d1e1f1g", 0, "1", 1, FALSE);
+	str* arrRet = xrtSplit("a1b1c1d1e1f1g", 0, "1", 1, FALSE);
 	printf("\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%s", i + 1, arrRet[i], arrRet[i]);
 	}
 	
-	ustr* arrRet2 = xrtSplit("a123b1c123d1e123f1g", 0, "123", 3, FALSE);
+	str* arrRet2 = xrtSplit("a123b1c123d1e123f1g", 0, "123", 3, FALSE);
 	printf("\n\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet2);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%s", i + 1, arrRet2[i], arrRet2[i]);
 	}
 	
-	ustr sTemp = xrtCopyStr("a1b1c1d1e1f1g", 0);
-	ustr* arrRet3 = xrtSplit(sTemp, 0, "1", 1, TRUE);
+	str sTemp = xrtCopyStr("a1b1c1d1e1f1g", 0);
+	str* arrRet3 = xrtSplit(sTemp, 0, "1", 1, TRUE);
 	printf("\n\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet3);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%s", i + 1, arrRet3[i], arrRet3[i]);
 	}
 	
-	ustr sTemp2 = xrtCopyStr("a123b1c123d1e123f1g", 0);
-	ustr* arrRet4 = xrtSplit(sTemp2, 0, "123", 3, TRUE);
+	str sTemp2 = xrtCopyStr("a123b1c123d1e123f1g", 0);
+	str* arrRet4 = xrtSplit(sTemp2, 0, "123", 3, TRUE);
 	printf("\n\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet4);
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%s", i + 1, arrRet4[i], arrRet4[i]);
@@ -158,8 +197,8 @@ int main(int argc, char** argv)
 	
 	
 	/* Path 库测试 */
-	//*
-	printf("\n\n\n------------------------------------\n\nPath 库测试 :\n\n");
+	/*
+	printf("\n\n\n------------------------------------\n\n Path 库测试 :\n\n");
 	printf("xrtPathGetNameExt : %s\n", xrtPathGetNameExt("c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetNameExtW : %S\n", xrtPathGetNameExtW(L"c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetName : %s\n", xrtPathGetName("c:\\123\\456\\789\\file.ext", 0));
@@ -181,8 +220,8 @@ int main(int argc, char** argv)
 	
 	
 	/* Time 库测试 */
-	//*
-	printf("\n\n\n------------------------------------\n\nTime 库测试 :\n\n");
+	/*
+	printf("\n\n\n------------------------------------\n\n Time 库测试 :\n\n");
 	for ( int i = 1; i <= 12; i++ ) {
 		printf("xrtDateSerial (0-%02d-01 00:00:00) : %d\n", i, xrtDateSerial(0, i, 1));
 	}

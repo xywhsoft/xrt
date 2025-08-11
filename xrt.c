@@ -60,19 +60,21 @@ XXAPI xrtGlobalData* xrtInit()
 	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)
-		str sTemp = malloc(8192);
+		/*
+		wstr sTemp = malloc(8192);
 		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
-		xCore.AppFile = malloc((iSize + 1) * 2);
-		memcpy(xCore.AppFile, sTemp, iSize * 2);
+		xCore.AppFile = malloc((iSize + 1) * sizeof(wchar_t));
+		memcpy(xCore.AppFile, sTemp, iSize * sizeof(wchar_t));
 		xCore.AppFile[iSize] = 0;
 		free(sTemp);
 		sTemp = wcsrchr(xCore.AppFile, L'\\');
 		iSize = (sTemp - xCore.AppFile);
-		xCore.AppPath = malloc((iSize + 1) * 2);
-		memcpy(xCore.AppPath, xCore.AppFile, iSize * 2);
+		xCore.AppPath = malloc((iSize + 1) * sizeof(wchar_t));
+		memcpy(xCore.AppPath, xCore.AppFile, iSize * sizeof(wchar_t));
 		xCore.AppPath[iSize] = 0;
+		*/
 	#else
-		ustr sTemp = malloc(4096);
+		str sTemp = malloc(4096);
 		size_t iSize = readlink("/proc/self/exe", sTemp, 4096);
 		if ( iSize == -1 ) {
 			// 无法读取程序路径
@@ -102,13 +104,8 @@ XXAPI xrtGlobalData* xrtInit()
 	srand(time(NULL));
 	
 	// 设置内置的错误描述（便于复用）
-	#if defined(_WIN32) || defined(_WIN64)
-		xCore.ERROR_DESC.MALLOC = L"Memory allocate error !";
-		xCore.ERROR_DESC.MONTHRANGE = L"Month range error !";
-	#else
-		xCore.ERROR_DESC.MALLOC = "Memory allocate error !";
-		xCore.ERROR_DESC.MONTHRANGE = "Month range error !";
-	#endif
+	xCore.ERROR_DESC.MALLOC = "Memory allocate error !";
+	xCore.ERROR_DESC.MONTHRANGE = "Month range error !";
 	
 	return &xCore;
 }

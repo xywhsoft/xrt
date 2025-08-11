@@ -355,7 +355,7 @@ XXAPI xtime xrtTime()
 
 
 // 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtNowStr()
+XXAPI str xrtNowStr()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
@@ -371,7 +371,7 @@ XXAPI wstr xrtNowStrW()
 
 
 // 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtDateStr()
+XXAPI str xrtDateStr()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
@@ -387,7 +387,7 @@ XXAPI wstr xrtDateStrW()
 
 
 // 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtTimeStr()
+XXAPI str xrtTimeStr()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
@@ -403,7 +403,7 @@ XXAPI wstr xrtTimeStrW()
 
 
 // 转换日期 + 时间为字符串（ 需使用 xrtFree 释放内存 ）
-XXAPI ustr xrtTimeToStr(xtime iTime, int iFormat)
+XXAPI str xrtTimeToStr(xtime iTime, int iFormat)
 {
 	if ( iFormat == XRT_TIME_FORMAT_DATETIME ) {
 		int64 iYear;
@@ -420,7 +420,7 @@ XXAPI ustr xrtTimeToStr(xtime iTime, int iFormat)
 		xrtDecodeSerial(iTime, NULL, NULL, NULL, &iHour, &iMinute, &iSecond, NULL, NULL);
 		return xrtFormat("%02d:%02d:%02d", iHour, iMinute, iSecond);
 	} else {
-		return (ustr)xCore.sNull;
+		return xCore.sNull;
 	}
 }
 XXAPI wstr xrtTimeToStrW(xtime iTime, int iFormat)

@@ -60,8 +60,6 @@ xrtPathGetNameExtW
 xrtPathGetNameW
 xrtPathIsAbs
 xrtPathIsAbsW
-xrtPathIsRel
-xrtPathIsRelW
 xrtPathJoin
 xrtPathJoinW
 xrtPathRandom
@@ -90,6 +88,12 @@ xrtTrim
 xrtTrimW
 xrtUCase
 xrtUCaseW
+xrtUTF16to32
+xrtUTF16to8
+xrtUTF32to16
+xrtUTF32to8
+xrtUTF8to16
+xrtUTF8to32
 xrtUnit
 xrtWeekday
 xrtYear

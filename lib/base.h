@@ -37,11 +37,7 @@ XXAPI void xrtFree(ptr pmem)
 XXAPI void xrtSetError(str sError, int bFree)
 {
 	if ( xCore.DebugMode ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			printf("X Runtime Error : %S\n", sError);
-		#else
-			printf("X Runtime Error : %s\n", sError);
-		#endif
+		printf("X Runtime Error : %s\n", sError);
 	}
 	if ( xCore.__pri_FreeError && xCore.LastError ) {
 		xrtFree(xCore.LastError);

@@ -30,15 +30,11 @@
 	
 	
 	// basic type define
-	typedef char* ustr;
+	typedef unsigned char* u8str;
+	typedef unsigned short* u16str;
+	typedef unsigned int* u32str;
+	typedef u8str str;
 	typedef wchar_t* wstr;
-	
-	// windows utf16 | linux utf8
-	#if defined(_WIN32) || defined(_WIN64)
-		typedef wstr str;
-	#else
-		typedef ustr str;
-	#endif
 	
 	typedef char int8;
 	typedef unsigned char uint8;
@@ -159,7 +155,7 @@
 	
 	
 	/* ------------------------------------ Charset 函数库 ------------------------------------ */
-	
+	/*
 	// 多字节 转 Unicode
 	XXAPI wstr xrtM2W(ptr pStr, uint32 iCodePage, size_t iSize);
 	
@@ -183,6 +179,13 @@
 	
 	// utf-8 转 ANSI
 	XXAPI ustr xrtU2A(ustr pUStr, size_t iSize);
+	*/
+	
+	// utf-8 转 utf-32
+	XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize);
+	
+	// utf-32 转 utf-8
+	XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize);
 	
 	
 	
@@ -196,69 +199,69 @@
 	/* ------------------------------------ String 函数库 ------------------------------------ */
 	
 	// 创建字符串副本（ 需使用 xrtFree 释放 ）
-	XXAPI ustr xrtCopyStr(ustr sText, size_t iSize);
+	XXAPI str xrtCopyStr(str sText, size_t iSize);
 	XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize);
 	
 	// 字符串转为小写（ bSrcRevise 为 false 时，需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtLCase(ustr sText, size_t iSize, int bSrcRevise);
+	XXAPI str xrtLCase(str sText, size_t iSize, int bSrcRevise);
 	XXAPI wstr xrtLCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
 	// 字符串转为大写（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtUCase(ustr sText, size_t iSize, int bSrcRevise);
+	XXAPI str xrtUCase(str sText, size_t iSize, int bSrcRevise);
 	XXAPI wstr xrtUCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
 	// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）
-	XXAPI ustr xrtFindStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bCase);
-	XXAPI uint xrtInStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bCase);
+	XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bCase);
+	XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bCase);
 	XXAPI wstr xrtFindStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase);
 	XXAPI uint xrtInStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase);
 	
 	// 字符串检查（ sText 中是否包含 sSubText 列出的字符，支持 utf-8 mb6 编码 ）
-	XXAPI ustr xrtCheckStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize);
+	XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize);
 	XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize);
 	
 	// 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
-	XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
-	XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise);
+	XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	
 	// 过滤字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtFilterStr(ustr sText, size_t iSize, ustr sFilter, size_t iSubSize, int bSrcRevise);
+	XXAPI str xrtFilterStr(str sText, size_t iSize, str sFilter, size_t iSubSize, int bSrcRevise);
 	XXAPI wstr xrtFilterStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	
 	// 字符串格式化（ 需使用 xrtFree 释放 ）
-	XXAPI ustr xrtFormat(ustr sFormat, ...);
+	XXAPI str xrtFormat(str sFormat, ...);
 	XXAPI wstr xrtFormatW(wstr sFormat, ...);
 	
 	// 字符串替换（ 需使用 xrtFree 释放 ）
-	XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, ustr sRepText, size_t iRepSize);
+	XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize);
 	XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize);
 	
 	// 字符串分割（ 任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据 ）
-	XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, int bSrcRevise);
+	XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, int bSrcRevise);
 	XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise);
 	
 	// 生成随机字符串（ 需使用 xrtFree 释放 ）
-	XXAPI ustr xrtRandStr(ustr sTemplate, size_t iSize, size_t iLen);
+	XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen);
 	XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen);
 	
 	// HEX 编码（ 需使用 xrtFree 释放 ）
-	XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize);
+	XXAPI str xrtHexEncode(ptr pMem, size_t iSize);
 	XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize);
 	
 	// HEX 解码（ 需使用 xrtFree 释放 ）
-	XXAPI ptr xrtHexDecode(ustr pText, size_t iSize);
+	XXAPI ptr xrtHexDecode(str pText, size_t iSize);
 	XXAPI ptr xrtHexDecodeW(wstr pText, size_t iSize);
 	
 	// Base64 编码（ 需使用 xrtFree 释放 ）
-	ustr xrtBase64Encode(ptr pMem, size_t iSize);
+	str xrtBase64Encode(ptr pMem, size_t iSize);
 	wstr xrtBase64EncodeW(ptr pMem, size_t iSize);
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
-	ptr xrtBase64Decode(ustr sText, size_t iSize);
+	ptr xrtBase64Decode(str sText, size_t iSize);
 	ptr xrtBase64DecodeW(wstr sText, size_t iSize);
 	
 	
@@ -344,19 +347,19 @@
 	XXAPI xtime xrtTime();
 	
 	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtNowStr();
+	XXAPI str xrtNowStr();
 	XXAPI wstr xrtNowStrW();
 	
 	// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtDateStr();
+	XXAPI str xrtDateStr();
 	XXAPI wstr xrtDateStrW();
 	
 	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtTimeStr();
+	XXAPI str xrtTimeStr();
 	XXAPI wstr xrtTimeStrW();
 	
 	// 转换日期 + 时间为字符串（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtTimeToStr(xtime iTime, int iFormat);
+	XXAPI str xrtTimeToStr(xtime iTime, int iFormat);
 	XXAPI wstr xrtTimeToStrW(xtime iTime, int iFormat);
 	
 	// 时间单位累加
@@ -370,35 +373,31 @@
 	/* ------------------------------------ Path 函数库 ------------------------------------ */
 	
 	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtPathGetNameExt(ustr sPath, size_t iSize);
+	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
 	XXAPI wstr xrtPathGetNameExtW(wstr sPath, size_t iSize);
 	
 	// 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtPathGetName(ustr sPath, size_t iSize);
+	XXAPI str xrtPathGetName(str sPath, size_t iSize);
 	XXAPI wstr xrtPathGetNameW(wstr sPath, size_t iSize);
 	
 	// 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtPathGetExt(ustr sPath, size_t iSize);
+	XXAPI str xrtPathGetExt(str sPath, size_t iSize);
 	XXAPI wstr xrtPathGetExtW(wstr sPath, size_t iSize);
 	
 	// 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtPathGetDir(ustr sPath, size_t iSize);
+	XXAPI str xrtPathGetDir(str sPath, size_t iSize);
 	XXAPI wstr xrtPathGetDirW(wstr sPath, size_t iSize);
 	
 	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
-	XXAPI int xrtPathIsAbs(ustr sPath, size_t iSize);
+	XXAPI int xrtPathIsAbs(str sPath, size_t iSize);
 	XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize);
 	
-	// 判断是否为相对路径
-	XXAPI int xrtPathIsRel(ustr sPath, size_t iSize);
-	XXAPI int xrtPathIsRelW(wstr sPath, size_t iSize);
-	
 	// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtPathRandom(ustr sHead, size_t iHeadSize, ustr sFoot, size_t iFootSize, size_t iLen);
+	XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize, size_t iLen);
 	XXAPI wstr xrtPathRandomW(wstr sHead, size_t iHeadSize, wstr sFoot, size_t iFootSize, size_t iLen);
 	
 	// 拼接路径（ 需要使用 xrtFree 释放内存 ）
-	XXAPI ustr xrtPathJoin(uint iCount, ...);
+	XXAPI str xrtPathJoin(uint iCount, ...);
 	XXAPI wstr xrtPathJoinW(uint iCount, ...);
 	
 	
