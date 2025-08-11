@@ -1,8 +1,6 @@
 LIBRARY xrt.dll
 
 EXPORTS
-xrtA2U
-xrtA2W
 xrtCalloc
 xrtChainW
 xrtCheckStr
@@ -46,7 +44,6 @@ xrtLCase
 xrtLCaseW
 xrtLTrim
 xrtLTrimW
-xrtM2W
 xrtMalloc
 xrtMinute
 xrtMonth
@@ -91,13 +88,8 @@ xrtTimeToStr
 xrtTimeToStrW
 xrtTrim
 xrtTrimW
-xrtU2A
-xrtU2W
 xrtUCase
 xrtUCaseW
 xrtUnit
-xrtW2A
-xrtW2M
-xrtW2U
 xrtWeekday
 xrtYear

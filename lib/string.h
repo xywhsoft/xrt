@@ -1378,7 +1378,7 @@ XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen)
 	if ( iSize == 0 ) { sTemplate = RandStringDefaultTemplateW; iSize = 64; }
 	if ( iLen == 0 ) { return (wstr)xCore.sNull; }
 	iSize--;
-	wstr sRet = xrtMalloc(iLen + 1);
+	wstr sRet = xrtMalloc((iLen + 1) * sizeof(wchar_t));
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return (wstr)xCore.sNull;
@@ -1583,7 +1583,11 @@ ptr xrtBase64Decode(ustr sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	// 计算输出缓冲区大小
 	if ( iSize % 4 != 0 ) {
-		xrtSetError(L"Base64 input length must be multiple of 4 !", FALSE);
+		#if defined(_WIN32) || defined(_WIN64)
+			xrtSetError(L"Base64 input length must be multiple of 4 !", FALSE);
+		#else
+			xrtSetError("Base64 input length must be multiple of 4 !", FALSE);
+		#endif
 		xCore.iRet = 0;
 		return (ustr)xCore.sNull;
 	}
@@ -1606,7 +1610,11 @@ ptr xrtBase64Decode(ustr sText, size_t iSize)
 		int8_t sextet_d = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
 		// 发现非法字符
 		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
-			xrtSetError(L"Base64 input contains invalid characters !", FALSE);
+			#if defined(_WIN32) || defined(_WIN64)
+				xrtSetError(L"Base64 input contains invalid characters !", FALSE);
+			#else
+				xrtSetError("Base64 input contains invalid characters !", FALSE);
+			#endif
 			xrtFree(sRet);
 			xCore.iRet = 0;
 			return (ustr)xCore.sNull;
@@ -1628,7 +1636,11 @@ ptr xrtBase64DecodeW(wstr sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	// 计算输出缓冲区大小
 	if ( iSize % 4 != 0 ) {
-		xrtSetError(L"Base64 input length must be multiple of 4 !", FALSE);
+		#if defined(_WIN32) || defined(_WIN64)
+			xrtSetError(L"Base64 input length must be multiple of 4 !", FALSE);
+		#else
+			xrtSetError("Base64 input length must be multiple of 4 !", FALSE);
+		#endif
 		xCore.iRet = 0;
 		return (ustr)xCore.sNull;
 	}
@@ -1651,7 +1663,11 @@ ptr xrtBase64DecodeW(wstr sText, size_t iSize)
 		int8_t sextet_d = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
 		// 发现非法字符
 		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
-			xrtSetError(L"Base64 input contains invalid characters !", FALSE);
+			#if defined(_WIN32) || defined(_WIN64)
+				xrtSetError(L"Base64 input contains invalid characters !", FALSE);
+			#else
+				xrtSetError("Base64 input contains invalid characters !", FALSE);
+			#endif
 			xrtFree(sRet);
 			xCore.iRet = 0;
 			return (ustr)xCore.sNull;

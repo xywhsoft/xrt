@@ -2,7 +2,7 @@
 
 
 /* ------------------------------------ C 函数库 ------------------------------------ */
-
+/*
 // 多字节 转 Unicode
 XXAPI wstr xrtM2W(ptr pStr, uint32 iCodePage, size_t iSize)
 {
@@ -86,5 +86,5 @@ XXAPI ustr xrtU2A(ustr pUStr, size_t iSize)
 	xCore.iRet = 0;
 	return (ustr)xCore.sNull;
 }
-
+*/
 
