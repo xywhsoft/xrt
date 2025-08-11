@@ -195,19 +195,19 @@
 	
 	/* ------------------------------------ String 函数库 ------------------------------------ */
 	
-	// 创建字符串副本（需使用 xrtFree 释放）
+	// 创建字符串副本（ 需使用 xrtFree 释放 ）
 	XXAPI ustr xrtCopyStr(ustr sText, size_t iSize);
 	XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize);
 	
-	// 字符串转为小写（bSrcRevise 为 false 时，需使用 xrtFree 释放内存）
+	// 字符串转为小写（ bSrcRevise 为 false 时，需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtLCase(ustr sText, size_t iSize, int bSrcRevise);
 	XXAPI wstr xrtLCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
-	// 字符串转为大写（bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存）
+	// 字符串转为大写（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI ustr xrtUCase(ustr sText, size_t iSize, int bSrcRevise);
 	XXAPI wstr xrtUCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
-	// 搜索字符串（没找到字符串的情况下会返回 NULL）
+	// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）
 	XXAPI ustr xrtFindStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bCase);
 	XXAPI uint xrtInStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int bCase);
 	XXAPI wstr xrtFindStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase);
@@ -229,29 +229,37 @@
 	XXAPI ustr xrtFilterStr(ustr sText, size_t iSize, ustr sFilter, size_t iSubSize, int bSrcRevise);
 	XXAPI wstr xrtFilterStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	
-	// 字符串格式化（需使用 xrtFree 释放）
+	// 字符串格式化（ 需使用 xrtFree 释放 ）
 	XXAPI ustr xrtFormat(ustr sFormat, ...);
 	XXAPI wstr xrtFormatW(wstr sFormat, ...);
 	
-	// 字符串替换（需使用 xrtFree 释放）
+	// 字符串替换（ 需使用 xrtFree 释放 ）
 	XXAPI ustr xrtReplace(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, ustr sRepText, size_t iRepSize);
 	XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize);
 	
-	// 字符串分割（任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据）
+	// 字符串分割（ 任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据 ）
 	XXAPI ustr* xrtSplit(ustr sText, size_t iSize, ustr sSepText, size_t iSepSize, int bSrcRevise);
 	XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise);
 	
-	// HEX 编码（需使用 xrtFree 释放）
+	// 生成随机字符串（ 需使用 xrtFree 释放 ）
+	XXAPI ustr xrtRandStr(ustr sTemplate, size_t iSize, size_t iLen);
+	XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen);
+	
+	// HEX 编码（ 需使用 xrtFree 释放 ）
 	XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize);
 	XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize);
 	
-	// HEX 解码（需使用 xrtFree 释放）
-	XXAPI ustr xrtHexDecode(ptr pMem, size_t iSize);
-	XXAPI wstr xrtHexDecodeW(ptr pMem, size_t iSize);
+	// HEX 解码（ 需使用 xrtFree 释放 ）
+	XXAPI ptr xrtHexDecode(ustr pText, size_t iSize);
+	XXAPI ptr xrtHexDecodeW(wstr pText, size_t iSize);
 	
-	// 生成随机字符串（需使用 xrtFree 释放）
-	XXAPI ustr xrtRandStr(ustr sTemplate, size_t iSize, size_t iLen);
-	XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen);
+	// Base64 编码（ 需使用 xrtFree 释放 ）
+	ustr xrtBase64Encode(ptr pMem, size_t iSize);
+	wstr xrtBase64EncodeW(ptr pMem, size_t iSize);
+	
+	// Base64 解码（ 需使用 xrtFree 释放 ）
+	ptr xrtBase64Decode(ustr sText, size_t iSize);
+	ptr xrtBase64DecodeW(wstr sText, size_t iSize);
 	
 	
 	

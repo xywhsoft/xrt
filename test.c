@@ -49,6 +49,7 @@ int main(int argc, char** argv)
 	
 	
 	/* String 库测试 */
+	
 	/*
 	printf("\n\n\n------------------------------------\n\nString 库测试 :\n\n");
 	printf("xrtLCase : %s\n", xrtLCase("aBcDeFg", 0, FALSE));
@@ -90,6 +91,13 @@ int main(int argc, char** argv)
 	wstr sRetW = xrtHexEncodeW(L"HIJKLMN abcdefg 1234567890", 0);
 	printf("xrtHexEncodeW : %s\n", sRetW);
 	printf("xrtHexDecodeW : %s\n", xrtHexDecodeW(sRetW, 0));
+	
+	ustr sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0);
+	printf("xrtBase64Encode : %s\n", sRet2);
+	printf("xrtBase64Decode : %s\n", xrtBase64Decode(sRet2, 0));
+	wstr sRet2W = xrtBase64EncodeW(L"HIJKLMN abcdefg 1234567890", 0);
+	printf("xrtBase64EncodeW : %S\n", sRet2W);
+	printf("xrtBase64DecodeW : %S\n", xrtBase64DecodeW(sRet2W, 0));
 	
 	printf("xrtRandStr : %s\n", xrtRandStr(NULL, 0, 32));
 	printf("xrtRandStrW : %S\n", xrtRandStrW(NULL, 0, 32));
@@ -173,7 +181,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Time 库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\nTime 库测试 :\n\n");
 	for ( int i = 1; i <= 12; i++ ) {
 		printf("xrtDateSerial (0-%02d-01 00:00:00) : %d\n", i, xrtDateSerial(0, i, 1));
@@ -240,7 +248,6 @@ int main(int argc, char** argv)
 	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_QUARTER, iTime, tRet);
 	printf("xrtDateAdd (2012-03-15 12:20:40) 30 quar : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
 	printf("xrtDateDiff 30 quar : %d\n", iDiff);
-	
 	
 	//*/
 	

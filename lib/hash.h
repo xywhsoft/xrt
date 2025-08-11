@@ -589,6 +589,8 @@ NMHASH32X(const void* const NMH_RESTRICT input, size_t const len, uint32_t seed)
 #  undef const
 #endif
 
+
+
 // 计算 32 位哈希值
 XXAPI uint32 xrtHash32_WithSeed(void* key, size_t len, unsigned int seed)
 {
@@ -598,6 +600,8 @@ XXAPI uint32 xrtHash32(void* key, size_t len)
 {
 	return xrtHash32_WithSeed(key, len, HASH32_SEED);
 }
+
+
 
 
 
@@ -938,6 +942,8 @@ RAPIDHASH_INLINE uint64_t rapidhash_withSeed(const void *key, size_t len, uint64
 RAPIDHASH_INLINE uint64_t rapidhash(const void *key, size_t len) RAPIDHASH_NOEXCEPT {
   return rapidhash_withSeed(key, len, RAPID_SEED);
 }
+
+
 
 // 计算 64 位哈希值
 XXAPI uint64 xrtHash64_WithSeed(void* key, size_t len, unsigned long long seed)
