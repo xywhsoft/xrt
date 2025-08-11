@@ -146,21 +146,27 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize)
 			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
 		} else if ( iExtraBytes == 3 ) {
 			// 四字节字符
-			uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
-			if ( c < 0x10000 ) {
-				// 原则上不会进入这个分支
-				sRet[iPos++] = c;
+			if ( sText[i] & 0b00000100 ) {
+				// 超出 utf16 支持的范围，使用替换字符 FFFD 代替
+				sRet[iPos++] = 0xFFFD;
+				i += iExtraBytes;
 			} else {
-				c -= 0x10000;
-				sRet[iPos++] = 0b1101100000000000 | ((c & 0b11111111110000000000) >> 10);
-				sRet[iPos++] = 0b1101110000000000 | (c & 0b00000000001111111111);
+				uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+				if ( c < 0x10000 ) {
+					// 原则上不会进入这个分支
+					sRet[iPos++] = c;
+				} else {
+					c -= 0x10000;
+					sRet[iPos++] = 0b1101100000000000 | ((c & 0b11111111110000000000) >> 10);
+					sRet[iPos++] = 0b1101110000000000 | (c & 0b00000000001111111111);
+				}
 			}
 		} else if ( iExtraBytes == 4 ) {
-			// 五字节字符（ 超出 utf16 支持的范围 ）
+			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
 			sRet[iPos++] = 0xFFFD;
 			i += iExtraBytes;
 		} else if ( iExtraBytes == 5 ) {
-			// 五字节字符（ 超出 utf16 支持的范围 ）
+			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
 			sRet[iPos++] = 0xFFFD;
 			i += iExtraBytes;
 		}
@@ -225,6 +231,85 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize)
 // utf-16 转 utf-8
 XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize)
 {
+	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	size_t iRetSize = 0;
+	// 计算数据长度和转换长度
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			uint16 iChar = sText[iSize];
+			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+				if ( (sText[iSize + 1] & 0b1111110000000000) == 0b1101110000000000 ) {
+					iRetSize += 4;
+				} else {
+					// 错误的代理对，使用替换字符 EFBFBD 代替
+					iRetSize += 3;
+				}
+				iSize += 2;
+			} else if ( iChar <= 0x7F ) {
+				iRetSize++;
+				iSize++;
+			} else if ( iChar <= 0x7FF ) {
+				iRetSize += 2;
+				iSize++;
+			} else {
+				iRetSize += 3;
+				iSize++;
+			}
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			uint16 iChar = sText[i];
+			if ( (iChar >= 0xD800) && (iChar <= 0xDBFF) ) {
+				iRetSize += 4;
+				i++;
+			} else if ( iChar <= 0x7F ) {
+				iRetSize++;
+			} else if ( iChar <= 0x7FF ) {
+				iRetSize += 2;
+			} else {
+				iRetSize += 3;
+			}
+		}
+	}
+	// 申请所需内存
+	u8str sRet = xrtMalloc(iRetSize + 1);
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
+		return xCore.sNull;
+	}
+	// 开始转换编码
+	size_t iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint16 iChar = sText[i];
+		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+			uint16 iNext = sText[++i];
+			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
+				uint32 cp = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
+				sRet[iPos++] = 0xF0 | ((cp >> 18) & 0x7);
+				sRet[iPos++] = 0x80 | ((cp >> 12) & 0x3F);
+				sRet[iPos++] = 0x80 | ((cp >> 6) & 0x3F);
+				sRet[iPos++] = 0x80 | (cp & 0x3F);
+			} else {
+				// 错误的代理对，使用替换字符 EFBFBD 代替
+				sRet[iPos++] = 0xEF;
+				sRet[iPos++] = 0xBF;
+				sRet[iPos++] = 0xBD;
+			}
+		} else if ( iChar <= 0x7F ) {
+			sRet[iPos++] = iChar;
+		} else if ( iChar <= 0x7FF ) {
+			sRet[iPos++] = 0xC0 | ((iChar & 0x7C0) >> 6);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		} else {
+			sRet[iPos++] = 0xE0 | ((iChar & 0xF000) >> 12);
+			sRet[iPos++] = 0x80 | ((iChar & 0xFC0) >> 6);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		}
+	}
+	sRet[iPos] = 0;
+	xCore.iRet = iPos;
+	return sRet;
 }
 
 

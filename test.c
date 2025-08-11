@@ -42,15 +42,23 @@ int main(int argc, char** argv)
 	//*
 	printf("\n\n\n------------------------------------\n\n Charset 库测试 :\n\n");
 	
-	str aa = "你😀";
-	wstr ab = L"你😀";
+	str aa = "1你😀�";
+	wstr ab = L"1你😀�";
 	u16str ac = xrtUTF8to16(aa, 0);
+	str ad = xrtUTF16to8(ac, 0);
+	
+	printf("conv utf16 : %S\n", ac);
+	printf("conv utf8 : %s\n", ad);
+	
+	
 	str aaHex = xrtHexEncode(aa, 0);
 	wstr abHex = xrtHexEncodeW(ab, 0);
 	wstr acHex = xrtHexEncodeW(ac, 0);
+	str adHex = xrtHexEncode(ad, 0);
 	printf("utf8 Hex a : %s\n", aaHex);
 	printf("utf16 Hex b : %S\n", abHex);
 	printf("utf16 Hex c : %S\n", acHex);
+	printf("utf16 Hex d : %s\n", adHex);
 	
 	
 	

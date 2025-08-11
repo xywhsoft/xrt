@@ -187,6 +187,9 @@
 	// utf-8 转 utf-32
 	XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize);
 	
+	// utf-16 转 utf-8
+	XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize);
+	
 	// utf-32 转 utf-8
 	XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize);
 	
