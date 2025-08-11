@@ -49,3 +49,59 @@ XXAPI int xrtChainW(wstr sPath, int iShow)
 }
 
 
+
+/*
+// 运行程序，返回控制台输出
+XXAPI astr xShellA(astr sCMD)
+{
+	char buffer[1024];
+	FILE *fp = popen(sCMD, "r");
+	if ( fp == NULL ) {
+		return xCore.sNull;
+	}
+	MBMU_Object objBuf = MBMU_Create(16384, 16384);
+	while ( fgets(buffer, 1024, fp) != NULL ) {
+		MBMU_Append(objBuf, buffer, 0, MBMU_UTF8);
+	}
+	pclose(fp);
+	astr sRet = malloc(objBuf->Length + 1);
+	memcpy(sRet, objBuf->Buffer, objBuf->Length);
+	sRet[objBuf->Length] = 0;
+	MBMU_Destroy(objBuf);
+	return sRet;
+}
+XXAPI ustr xShellU(ustr sCMD)
+{
+	char buffer[1024];
+	FILE *fp = popen(sCMD, "r");
+	if ( fp == NULL ) {
+		return xCore.sNull;
+	}
+	MBMU_Object objBuf = MBMU_Create(16384, 16384);
+	while ( fgets(buffer, 1024, fp) != NULL ) {
+		MBMU_Append(objBuf, buffer, 0, MBMU_UTF8);
+	}
+	pclose(fp);
+	ustr sRet = xCore_A2U(objBuf->Buffer, objBuf->Length);
+	MBMU_Destroy(objBuf);
+	return sRet;
+}
+XXAPI wstr xShellW(wstr sCMD)
+{
+	char buffer[1024];
+	FILE *fp = wpopen(sCMD, L"r");
+	if ( fp == NULL ) {
+		return (wstr)xCore.sNull;
+	}
+	MBMU_Object objBuf = MBMU_Create(16384, 16384);
+	while ( fgets(buffer, 1024, fp) != NULL ) {
+		MBMU_Append(objBuf, buffer, 0, MBMU_UTF8);
+	}
+	pclose(fp);
+	wstr sRet = xCore_A2W(objBuf->Buffer, objBuf->Length);
+	MBMU_Destroy(objBuf);
+	return sRet;
+}
+*/
+
+

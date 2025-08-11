@@ -338,7 +338,7 @@ XXAPI ustr xrtLTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, in
 			break;
 		}
 	}
-	xCore.iRet = iCount;
+	xCore.iRet = iSize - iCount;
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			memmove(sText, &sText[iCount], iSize - iCount);
@@ -431,7 +431,7 @@ XXAPI ustr xrtRTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, in
 			break;
 		}
 	}
-	xCore.iRet = iCount;
+	xCore.iRet = iSize - iCount;
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			sText[iSize - iCount] = 0;
@@ -527,7 +527,7 @@ XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int
 	}
 	// 全部裁剪需要特殊处理
 	if ( iCountL >= iSize ) {
-		xCore.iRet = iSize;
+		xCore.iRet = 0;
 		return (ustr)xCore.sNull;
 	}
 	// 裁剪右侧
@@ -605,7 +605,7 @@ XXAPI ustr xrtTrim(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize, int
 		}
 	}
 	int iCount = iCountL + iCountR;
-	xCore.iRet = iCount;
+	xCore.iRet = iSize - iCount;
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			memmove(sText, &sText[iCountL], iSize - iCount);
@@ -638,7 +638,7 @@ XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, i
 			break;
 		}
 	}
-	xCore.iRet = iCount;
+	xCore.iRet = iSize - iCount;
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			memmove(sText, &sText[iCount], (iSize - iCount) * sizeof(wchar_t));
@@ -671,7 +671,7 @@ XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, i
 			break;
 		}
 	}
-	xCore.iRet = iCount;
+	xCore.iRet = iSize - iCount;
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			sText[iSize - iCount] = 0;
@@ -707,7 +707,7 @@ XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, in
 	}
 	// 全部裁剪需要特殊处理
 	if ( iCountL >= iSize ) {
-		xCore.iRet = iSize;
+		xCore.iRet = 0;
 		return (wstr)xCore.sNull;
 	}
 	// 裁剪右侧
@@ -725,7 +725,7 @@ XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, in
 		}
 	}
 	int iCount = iCountL + iCountR;
-	xCore.iRet = iCount;
+	xCore.iRet = iSize - iCount;
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			memmove(sText, &sText[iCountL], (iSize - iCount) * sizeof(wchar_t));
@@ -745,9 +745,9 @@ XXAPI ustr xrtFilterStr(ustr sText, size_t iSize, ustr sSubText, size_t iSubSize
 	if ( sText == NULL ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
 	if ( iSize == 0 ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
-	if ( sSubText == NULL ) { if ( bSrcRevise ) { return sText; } else { return xrtCopyStr(sText, iSize); } }
+	if ( sSubText == NULL ) { if ( bSrcRevise ) { xCore.iRet = iSize; return sText; } else { xCore.iRet = iSize; return xrtCopyStr(sText, iSize); } }
 	if ( iSubSize == 0 ) { iSubSize = strlen(sSubText); }
-	if ( iSubSize == 0 ) { if ( bSrcRevise ) { return sText; } else { return xrtCopyStr(sText, iSize); } }
+	if ( iSubSize == 0 ) { if ( bSrcRevise ) { xCore.iRet = iSize; return sText; } else { xCore.iRet = iSize; return xrtCopyStr(sText, iSize); } }
 	// 不改动源数据时，直接创建副本
 	if ( bSrcRevise == FALSE ) {
 		sText = xrtCopyStr(sText, iSize);
@@ -870,9 +870,9 @@ XXAPI wstr xrtFilterStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSiz
 	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = wcslen(sText); }
 	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSubText == NULL ) { if ( bSrcRevise ) { return sText; } else { return xrtCopyStrW(sText, iSize); } }
+	if ( sSubText == NULL ) { if ( bSrcRevise ) { xCore.iRet = iSize; return sText; } else { xCore.iRet = iSize; return xrtCopyStrW(sText, iSize); } }
 	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { if ( bSrcRevise ) { return sText; } else { return xrtCopyStrW(sText, iSize); } }
+	if ( iSubSize == 0 ) { if ( bSrcRevise ) { xCore.iRet = iSize; return sText; } else { xCore.iRet = iSize; return xrtCopyStrW(sText, iSize); } }
 	// 不改动源数据时，直接创建副本
 	if ( bSrcRevise == FALSE ) {
 		sText = xrtCopyStrW(sText, iSize);
@@ -901,7 +901,7 @@ XXAPI wstr xrtFilterStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSiz
 // 字符串格式化（ 需使用 xrtFree 释放 ）
 XXAPI ustr xrtFormat(ustr sFormat, ...)
 {
-	if ( sFormat == NULL ) { return (ustr)xCore.sNull; }
+	if ( sFormat == NULL ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	va_list ip;
 	va_start(ip, sFormat);
 	int iSize = vsnprintf(NULL, 0, sFormat, ip);
@@ -926,7 +926,7 @@ XXAPI ustr xrtFormat(ustr sFormat, ...)
 }
 XXAPI wstr xrtFormatW(wstr sFormat, ...)
 {
-	if ( sFormat == NULL ) { return (wstr)xCore.sNull; }
+	if ( sFormat == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	va_list ip;
 	#if defined(_WIN32) || defined(_WIN64)
 		va_start(ip, sFormat);
@@ -1397,12 +1397,13 @@ XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen)
 #define dec2hex(c) (c > 9 ? c + 55 : c + '0')
 XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize)
 {
-	if ( pMem == NULL ) { return (ustr)xCore.sNull; }
+	if ( pMem == NULL ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
-	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	ustr sRet = xrtMalloc((iSize * 2) + 1);
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
 		return (ustr)xCore.sNull;
 	}
 	uint8* pStr = pMem;
@@ -1414,16 +1415,18 @@ XXAPI ustr xrtHexEncode(ptr pMem, size_t iSize)
 		sRet[iPos++] = dec2hex(i2);
 	}
 	sRet[iPos] = 0;
+	xCore.iRet = iPos;
 	return sRet;
 }
 XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize)
 {
-	if ( pMem == NULL ) { return (wstr)xCore.sNull; }
+	if ( pMem == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = wcslen(pMem) * sizeof(wchar_t); }
-	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	wstr sRet = xrtMalloc(((iSize * 2) + 1) * sizeof(wchar_t));
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
 		return (wstr)xCore.sNull;
 	}
 	uint8* pStr = pMem;
@@ -1435,6 +1438,7 @@ XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize)
 		sRet[iPos++] = dec2hex(i2);
 	}
 	sRet[iPos] = 0;
+	xCore.iRet = iPos;
 	return sRet;
 }
 
@@ -1444,12 +1448,13 @@ XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize)
 #define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
 XXAPI ptr xrtHexDecode(ustr sText, size_t iSize)
 {
-	if ( sText == NULL ) { return (ustr)xCore.sNull; }
+	if ( sText == NULL ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { return (ustr)xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (ustr)xCore.sNull; }
 	ustr sRet = xrtMalloc((iSize / 2) + 1);
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
 		return (ustr)xCore.sNull;
 	}
 	int iPos = 0;
@@ -1459,16 +1464,18 @@ XXAPI ptr xrtHexDecode(ustr sText, size_t iSize)
 		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
 	}
 	sRet[iPos] = 0;
+	xCore.iRet = iPos;
 	return sRet;
 }
 XXAPI ptr xrtHexDecodeW(wstr sText, size_t iSize)
 {
-	if ( sText == NULL ) { return (wstr)xCore.sNull; }
+	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	ustr sRet = xrtMalloc((iSize / 2) + 2);
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
 		return (wstr)xCore.sNull;
 	}
 	int iPos = 0;
@@ -1479,6 +1486,7 @@ XXAPI ptr xrtHexDecodeW(wstr sText, size_t iSize)
 	}
 	sRet[iPos] = 0;
 	sRet[iPos + 1] = 0;
+	xCore.iRet = iPos;
 	return sRet;
 }
 

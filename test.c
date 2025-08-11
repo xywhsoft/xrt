@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Base 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\nBase 库测试 :\n\n");
 	#if defined(_WIN32) || defined(_WIN64)
 		printf("AppFile : %S\n", xCore->AppFile);
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Math 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\nMath 库测试 :\n\n");
 	for ( int i = 0; i < 10; i++ ) {
 		printf("Rand 0 - 100 : %d\n", xrtRand(0, 100));
@@ -158,7 +158,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Path 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\nPath 库测试 :\n\n");
 	printf("xrtPathGetNameExt : %s\n", xrtPathGetNameExt("c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetNameExtW : %S\n", xrtPathGetNameExtW(L"c:\\123\\456\\789\\file.ext", 0));
@@ -181,7 +181,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Time 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\nTime 库测试 :\n\n");
 	for ( int i = 1; i <= 12; i++ ) {
 		printf("xrtDateSerial (0-%02d-01 00:00:00) : %d\n", i, xrtDateSerial(0, i, 1));
