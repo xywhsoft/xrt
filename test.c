@@ -42,6 +42,18 @@ int main(int argc, char** argv)
 	//*
 	printf("\n\n\n------------------------------------\n\n Charset 库测试 :\n\n");
 	
+	str aa = "你😀";
+	wstr ab = L"你😀";
+	u16str ac = xrtUTF8to16(aa, 0);
+	str aaHex = xrtHexEncode(aa, 0);
+	wstr abHex = xrtHexEncodeW(ab, 0);
+	wstr acHex = xrtHexEncodeW(ac, 0);
+	printf("utf8 Hex a : %s\n", aaHex);
+	printf("utf16 Hex b : %S\n", abHex);
+	printf("utf16 Hex c : %S\n", acHex);
+	
+	
+	
 	/* utf32 内容可通过 linux 系统进行测试（已验证通过）
 	str a = "aBcDeFg 我爱北京天安门 ✔ 1234567";
 	wstr b = L"aBcDeFg 我爱北京天安门 ✔ 1234567";

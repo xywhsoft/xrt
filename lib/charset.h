@@ -105,9 +105,69 @@ static char BytesExtraTableUTF8[256] = {
 // utf-8 转 utf-16
 XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize)
 {
-	if ( sText == NULL ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
+	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
+	// 计算转换长度
+	size_t iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		if ( iExtraBytes < 3 ) {
+			// 3 字节内的 utf8 会被编码为 2 字节的 utf16 字符
+			iPos++;
+		} else if ( iExtraBytes == 3 ) {
+			// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
+			iPos += 2;
+		} else {
+			// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
+			iPos++;
+		}
+		i += iExtraBytes;
+	}
+	// 申请所需内存
+	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
+		return (u16str)xCore.sNull;
+	}
+	// 开始转换编码
+	iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		if ( iExtraBytes == 0 ) {
+			// ASCII 兼容字符
+			sRet[iPos++] = sText[i];
+		} else if ( iExtraBytes == 1 ) {
+			// 双字节字符
+			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
+		} else if ( iExtraBytes == 2 ) {
+			// 三字节字符
+			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+		} else if ( iExtraBytes == 3 ) {
+			// 四字节字符
+			uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			if ( c < 0x10000 ) {
+				// 原则上不会进入这个分支
+				sRet[iPos++] = c;
+			} else {
+				c -= 0x10000;
+				sRet[iPos++] = 0b1101100000000000 | ((c & 0b11111111110000000000) >> 10);
+				sRet[iPos++] = 0b1101110000000000 | (c & 0b00000000001111111111);
+			}
+		} else if ( iExtraBytes == 4 ) {
+			// 五字节字符（ 超出 utf16 支持的范围 ）
+			sRet[iPos++] = 0xFFFD;
+			i += iExtraBytes;
+		} else if ( iExtraBytes == 5 ) {
+			// 五字节字符（ 超出 utf16 支持的范围 ）
+			sRet[iPos++] = 0xFFFD;
+			i += iExtraBytes;
+		}
+	}
+	sRet[iPos] = 0;
+	xCore.iRet = iPos;
+	return sRet;
 }
 
 
@@ -137,24 +197,23 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize)
 		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
-			sRet[iPos] = sText[i];
+			sRet[iPos++] = sText[i];
 		} else if ( iExtraBytes == 1 ) {
 			// 双字节字符
-			sRet[iPos] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
 		} else if ( iExtraBytes == 2 ) {
 			// 三字节字符
-			sRet[iPos] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
 		} else if ( iExtraBytes == 3 ) {
 			// 四字节字符
-			sRet[iPos] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
 		} else if ( iExtraBytes == 4 ) {
 			// 五字节字符
-			sRet[iPos] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0b00111111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0b00111111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
 		} else if ( iExtraBytes == 5 ) {
 			// 六字节字符
-			sRet[iPos] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0b00111111) << 24) | ((sText[++i] & 0b00111111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0b00111111) << 24) | ((sText[++i] & 0b00111111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
 		}
-		iPos++;
 	}
 	sRet[iPos] = 0;
 	xCore.iRet = iPos;
