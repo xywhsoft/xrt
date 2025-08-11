@@ -205,26 +205,6 @@ XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize)
 
 
 
-// 判断是否为相对路径
-XXAPI int xrtPathIsRel(ustr sPath, size_t iSize)
-{
-	if ( xrtPathIsAbs(sPath, iSize) ) {
-		return FALSE;
-	} else {
-		return TRUE;
-	}
-}
-XXAPI int xrtPathIsRelW(wstr sPath, size_t iSize)
-{
-	if ( xrtPathIsAbsW(sPath, iSize) ) {
-		return FALSE;
-	} else {
-		return TRUE;
-	}
-}
-
-
-
 // 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
 XXAPI ustr xrtPathRandom(ustr sHead, size_t iHeadSize, ustr sFoot, size_t iFootSize, size_t iLen)
 {
