@@ -377,54 +377,58 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize)
 // utf-32 转 utf-16
 XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 {
-	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
 	size_t iRetSize = 0;
 	// 计算数据长度和转换长度
 	if ( iSize == 0 ) {
-		u32str sPtr = sText;
-		while ( *sPtr != 0 ) {
-			if ( *sPtr <= 0x7F ) {
+		while ( sText[iSize] != 0 ) {
+			if ( sText[iSize] <= 0xFFFF ) {
 				iRetSize++;
-			} else if ( *sPtr <= 0x7FF ) {
+			} else if ( sText[iSize] <= 0x10FFFF ) {
 				iRetSize += 2;
-			} else if ( *sPtr <= 0xFFFF ) {
-				iRetSize += 3;
-			} else if ( *sPtr <= 0x1FFFFF ) {
-				iRetSize += 4;
-			} else if ( *sPtr <= 0x3FFFFFF ) {
-				iRetSize += 5;
-			} else if ( *sPtr <= 0x7FFFFFFF ) {
-				iRetSize += 6;
+			} else {
+				iRetSize++;
 			}
-			sPtr++;
 			iSize++;
 		}
 	} else {
 		for ( int i = 0; i < iSize; i++ ) {
 			uint32 iChar = sText[i];
-			if ( iChar <= 0x7F ) {
+			if ( iChar <= 0xFFFF ) {
 				iRetSize++;
-			} else if ( iChar <= 0x7FF ) {
+			} else if ( iChar <= 0x10FFFF ) {
 				iRetSize += 2;
-			} else if ( iChar <= 0xFFFF ) {
-				iRetSize += 3;
-			} else if ( iChar <= 0x1FFFFF ) {
-				iRetSize += 4;
-			} else if ( iChar <= 0x3FFFFFF ) {
-				iRetSize += 5;
-			} else if ( iChar <= 0x7FFFFFFF ) {
-				iRetSize += 6;
+			} else {
+				iRetSize++;
 			}
 		}
 	}
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
 	// 申请所需内存
-	u8str sRet = xrtMalloc(iRetSize + 1);
+	u16str sRet = xrtMalloc((iRetSize + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
-		return xCore.sNull;
+		return (u16str)xCore.sNull;
 	}
+	// 开始转换编码
+	size_t iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint16 iChar = sText[i];
+		if ( iChar <= 0xFFFF ) {
+			sRet[iPos++] = iChar;
+		} else if ( iChar <= 0x10FFFF ) {
+			iChar -= 0x10000;
+			sRet[iPos++] = 0b1101100000000000 | ((iChar & 0b11111111110000000000) >> 10);
+			sRet[iPos++] = 0b1101110000000000 | (iChar & 0b00000000001111111111);
+		} else {
+			// 超出 utf16 支持的范围，使用替换字符 FFFD 代替
+			sRet[iPos++] = 0xFFFD;
+		}
+	}
+	sRet[iPos] = 0;
+	xCore.iRet = iPos;
+	return sRet;
 }
 
 
