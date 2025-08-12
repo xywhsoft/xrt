@@ -399,6 +399,24 @@
 	
 	/* ------------------------------------ File 函数库 ------------------------------------ */
 	
+	#define XRT_CP_AUTO				-2				// 自动识别字符集（ 可自动识别是否为 utf8，自动识别失败则使用 XRT_CP_BINARY ）
+	#define XRT_CP_BINARY			-1				// 二进制文件
+	#define XRT_CP_OEM				0				// 本机 OEM 字符集 ( windows为OEM多字节编码，linux固定为utf8 )
+	#define XRT_CP_UTF8				65001			// UTF8
+	#define XRT_CP_UTF16			1200			// UTF16
+	#define XRT_CP_UTF16_BE			1201			// UTF16 big-endian
+	#define XRT_CP_UTF32			65005			// UTF32
+	#define XRT_CP_UTF32_BE			65006			// UTF32 big-endian
+	#define XRT_CP_BOM				0x40000000		// UTF* with BOM
+	
+	// 文件对象
+	typedef struct {
+		ptr obj;				// 文件对象
+		size_t Size;			// 文件大小
+		int Charset;			// 文件字符集
+		uint BOM;				// BOM大小
+	} xfile_struct, *xfile;
+	
 	
 	
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
