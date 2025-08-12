@@ -42,8 +42,8 @@ int main(int argc, char** argv)
 	//*
 	printf("\n\n\n------------------------------------\n\n Charset 库测试 :\n\n");
 	
-	str aa = "1你😀�";
-	wstr ab = L"1你😀�";
+	str aa = "𠀀😀�";
+	wstr ab = L"𠀀😀�";
 	u16str ac = xrtUTF8to16(aa, 0);
 	str ad = xrtUTF16to8(ac, 0);
 	

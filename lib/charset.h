@@ -1,6 +1,7 @@
 
 
 
+// utf8 字符长度码表
 static char BytesExtraTableUTF8[256] = {
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -14,28 +15,44 @@ static char BytesExtraTableUTF8[256] = {
 
 
 
-// utf-8 转 utf-16
+// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
 XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
-	// 计算转换长度
+	// 计算数据长度和转换长度
 	size_t iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
-		if ( iExtraBytes < 3 ) {
-			// 3 字节内的 utf8 会被编码为 2 字节的 utf16 字符
-			iPos++;
-		} else if ( iExtraBytes == 3 ) {
-			// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
-			iPos += 2;
-		} else {
-			// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
-			iPos++;
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			char iExtraBytes = BytesExtraTableUTF8[sText[iSize]];
+			if ( iExtraBytes < 3 ) {
+				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
+				iPos++;
+			} else if ( iExtraBytes == 3 ) {
+				// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
+				iPos += 2;
+			} else {
+				// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
+				iPos++;
+			}
+			iSize += iExtraBytes + 1;
 		}
-		i += iExtraBytes;
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+			if ( iExtraBytes < 3 ) {
+				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
+				iPos++;
+			} else if ( iExtraBytes == 3 ) {
+				// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
+				iPos += 2;
+			} else {
+				// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
+				iPos++;
+			}
+			i += iExtraBytes;
+		}
 	}
+	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
 	// 申请所需内存
 	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) {
@@ -65,7 +82,7 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize)
 			} else {
 				uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
 				if ( c < 0x10000 ) {
-					// 原则上不会进入这个分支
+					// 原则上不会进入这个分支，除非遇到错误的编码
 					sRet[iPos++] = c;
 				} else {
 					c -= 0x10000;
@@ -83,6 +100,7 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize)
 			i += iExtraBytes;
 		}
 	}
+	// 返回字符数和转换后数据
 	sRet[iPos] = 0;
 	xCore.iRet = iPos;
 	return sRet;
@@ -90,18 +108,24 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize)
 
 
 
-// utf-8 转 utf-32
+// utf-8 转 utf-32（ 需使用 xrtFree 释放 ）
 XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
-	// 计算转换长度
+	// 计算数据长度和转换长度
 	size_t iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		iPos++;
-		i += BytesExtraTableUTF8[sText[i]];
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			iPos++;
+			iSize += BytesExtraTableUTF8[sText[iSize]] + 1;
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			iPos++;
+			i += BytesExtraTableUTF8[sText[i]];
+		}
 	}
+	if ( iSize == 0 ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
 	// 申请所需内存
 	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) {
@@ -118,21 +142,22 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize)
 			sRet[iPos++] = sText[i];
 		} else if ( iExtraBytes == 1 ) {
 			// 双字节字符
-			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0x3F);
 		} else if ( iExtraBytes == 2 ) {
 			// 三字节字符
-			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
 		} else if ( iExtraBytes == 3 ) {
 			// 四字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
 		} else if ( iExtraBytes == 4 ) {
 			// 五字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0b00111111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
 		} else if ( iExtraBytes == 5 ) {
 			// 六字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0b00111111) << 24) | ((sText[++i] & 0b00111111) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			sRet[iPos++] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0x3F) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
 		}
 	}
+	// 返回字符数和转换后数据
 	sRet[iPos] = 0;
 	xCore.iRet = iPos;
 	return sRet;
@@ -140,31 +165,31 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize)
 
 
 
-// utf-16 转 utf-8
+// utf-16 转 utf-8（ 需使用 xrtFree 释放 ）
 XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
-	size_t iRetSize = 0;
+	size_t iPos = 0;
 	// 计算数据长度和转换长度
 	if ( iSize == 0 ) {
 		while ( sText[iSize] != 0 ) {
 			uint16 iChar = sText[iSize];
 			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
 				if ( (sText[iSize + 1] & 0b1111110000000000) == 0b1101110000000000 ) {
-					iRetSize += 4;
+					iPos += 4;
 				} else {
 					// 错误的代理对，使用替换字符 EFBFBD 代替
-					iRetSize += 3;
+					iPos += 3;
 				}
 				iSize += 2;
 			} else if ( iChar <= 0x7F ) {
-				iRetSize++;
+				iPos++;
 				iSize++;
 			} else if ( iChar <= 0x7FF ) {
-				iRetSize += 2;
+				iPos += 2;
 				iSize++;
 			} else {
-				iRetSize += 3;
+				iPos += 3;
 				iSize++;
 			}
 		}
@@ -172,27 +197,31 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize)
 		for ( int i = 0; i < iSize; i++ ) {
 			uint16 iChar = sText[i];
 			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				iRetSize += 4;
-				i++;
+				if ( (sText[++i] & 0b1111110000000000) == 0b1101110000000000 ) {
+					iPos += 4;
+				} else {
+					// 错误的代理对，使用替换字符 EFBFBD 代替
+					iPos += 3;
+				}
 			} else if ( iChar <= 0x7F ) {
-				iRetSize++;
+				iPos++;
 			} else if ( iChar <= 0x7FF ) {
-				iRetSize += 2;
+				iPos += 2;
 			} else {
-				iRetSize += 3;
+				iPos += 3;
 			}
 		}
 	}
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	// 申请所需内存
-	u8str sRet = xrtMalloc(iRetSize + 1);
+	u8str sRet = xrtMalloc(iPos + 1);
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
 	// 开始转换编码
-	size_t iPos = 0;
+	iPos = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		uint16 iChar = sText[i];
 		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
@@ -220,6 +249,7 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize)
 			sRet[iPos++] = 0x80 | (iChar & 0x3F);
 		}
 	}
+	// 返回字符数和转换后数据
 	sRet[iPos] = 0;
 	xCore.iRet = iPos;
 	return sRet;
@@ -227,11 +257,11 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize)
 
 
 
-// utf-16 转 utf-32
+// utf-16 转 utf-32（ 需使用 xrtFree 释放 ）
 XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
-	size_t iRetSize = 0;
+	size_t iPos = 0;
 	// 计算数据长度和转换长度
 	if ( iSize == 0 ) {
 		while ( sText[iSize] != 0 ) {
@@ -240,7 +270,7 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize)
 			} else {
 				iSize++;
 			}
-			iRetSize++;
+			iPos++;
 		}
 	} else {
 		for ( int i = 0; i < iSize; i++ ) {
@@ -248,28 +278,34 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize)
 			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
 				i++;
 			}
-			iRetSize++;
+			iPos++;
 		}
 	}
 	if ( iSize == 0 ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
 	// 申请所需内存
-	u32str sRet = xrtMalloc((iRetSize + 1) * sizeof(unsigned int));
+	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u32str)xCore.sNull;
 	}
 	// 开始转换编码
-	size_t iPos = 0;
+	iPos = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		uint16 iChar = sText[i];
 		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-			sRet[iPos++] = (((iChar & 0x3FF) << 10) | (sText[i] & 0x3FF)) + 0x10000;
-			i++;
+			uint16 iNext = sText[++i];
+			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
+				sRet[iPos++] = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
+			} else {
+				// 错误的代理对，使用替换字符 FFFD 代替
+				sRet[iPos++] = 0xFFFD;
+			}
 		} else {
 			sRet[iPos++] = iChar;
 		}
 	}
+	// 返回字符数和转换后数据
 	sRet[iPos] = 0;
 	xCore.iRet = iPos;
 	return sRet;
@@ -277,59 +313,57 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize)
 
 
 
-// utf-32 转 utf-8
+// utf-32 转 utf-8（ 需使用 xrtFree 释放 ）
 XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
-	size_t iRetSize = 0;
+	size_t iPos = 0;
 	// 计算数据长度和转换长度
 	if ( iSize == 0 ) {
-		u32str sPtr = sText;
-		while ( *sPtr != 0 ) {
-			if ( *sPtr <= 0x7F ) {
-				iRetSize++;
-			} else if ( *sPtr <= 0x7FF ) {
-				iRetSize += 2;
-			} else if ( *sPtr <= 0xFFFF ) {
-				iRetSize += 3;
-			} else if ( *sPtr <= 0x1FFFFF ) {
-				iRetSize += 4;
-			} else if ( *sPtr <= 0x3FFFFFF ) {
-				iRetSize += 5;
-			} else if ( *sPtr <= 0x7FFFFFFF ) {
-				iRetSize += 6;
+		while ( sText[iSize] != 0 ) {
+			uint32 iChar = sText[iSize++];
+			if ( iChar <= 0x7F ) {
+				iPos++;
+			} else if ( iChar <= 0x7FF ) {
+				iPos += 2;
+			} else if ( iChar <= 0xFFFF ) {
+				iPos += 3;
+			} else if ( iChar <= 0x1FFFFF ) {
+				iPos += 4;
+			} else if ( iChar <= 0x3FFFFFF ) {
+				iPos += 5;
+			} else if ( iChar <= 0x7FFFFFFF ) {
+				iPos += 6;
 			}
-			sPtr++;
-			iSize++;
 		}
 	} else {
 		for ( int i = 0; i < iSize; i++ ) {
 			uint32 iChar = sText[i];
 			if ( iChar <= 0x7F ) {
-				iRetSize++;
+				iPos++;
 			} else if ( iChar <= 0x7FF ) {
-				iRetSize += 2;
+				iPos += 2;
 			} else if ( iChar <= 0xFFFF ) {
-				iRetSize += 3;
+				iPos += 3;
 			} else if ( iChar <= 0x1FFFFF ) {
-				iRetSize += 4;
+				iPos += 4;
 			} else if ( iChar <= 0x3FFFFFF ) {
-				iRetSize += 5;
+				iPos += 5;
 			} else if ( iChar <= 0x7FFFFFFF ) {
-				iRetSize += 6;
+				iPos += 6;
 			}
 		}
 	}
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	// 申请所需内存
-	u8str sRet = xrtMalloc(iRetSize + 1);
+	u8str sRet = xrtMalloc(iPos + 1);
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
 	// 开始转换编码
-	size_t iPos = 0;
+	iPos = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		uint32 iChar = sText[i];
 		if ( iChar <= 0x7F ) {
@@ -367,6 +401,7 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize)
 			sRet[++iPos] = 0x80 | (iChar & 0x3F);
 		}
 	}
+	// 返回字符数和转换后数据
 	sRet[iPos] = 0;
 	xCore.iRet = iPos;
 	return sRet;
@@ -374,20 +409,20 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize)
 
 
 
-// utf-32 转 utf-16
+// utf-32 转 utf-16（ 需使用 xrtFree 释放 ）
 XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
-	size_t iRetSize = 0;
+	size_t iPos = 0;
 	// 计算数据长度和转换长度
 	if ( iSize == 0 ) {
 		while ( sText[iSize] != 0 ) {
 			if ( sText[iSize] <= 0xFFFF ) {
-				iRetSize++;
+				iPos++;
 			} else if ( sText[iSize] <= 0x10FFFF ) {
-				iRetSize += 2;
+				iPos += 2;
 			} else {
-				iRetSize++;
+				iPos++;
 			}
 			iSize++;
 		}
@@ -395,24 +430,24 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 		for ( int i = 0; i < iSize; i++ ) {
 			uint32 iChar = sText[i];
 			if ( iChar <= 0xFFFF ) {
-				iRetSize++;
+				iPos++;
 			} else if ( iChar <= 0x10FFFF ) {
-				iRetSize += 2;
+				iPos += 2;
 			} else {
-				iRetSize++;
+				iPos++;
 			}
 		}
 	}
 	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
 	// 申请所需内存
-	u16str sRet = xrtMalloc((iRetSize + 1) * sizeof(unsigned short));
+	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u16str)xCore.sNull;
 	}
 	// 开始转换编码
-	size_t iPos = 0;
+	iPos = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		uint16 iChar = sText[i];
 		if ( iChar <= 0xFFFF ) {
@@ -426,6 +461,7 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 			sRet[iPos++] = 0xFFFD;
 		}
 	}
+	// 返回字符数和转换后数据
 	sRet[iPos] = 0;
 	xCore.iRet = iPos;
 	return sRet;

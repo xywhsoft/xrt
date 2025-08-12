@@ -155,48 +155,23 @@
 	
 	
 	/* ------------------------------------ Charset 函数库 ------------------------------------ */
-	/*
-	// 多字节 转 Unicode
-	XXAPI wstr xrtM2W(ptr pStr, uint32 iCodePage, size_t iSize);
 	
-	// Unicode 转 多字节
-	XXAPI ustr xrtW2M(wstr pStr, uint32 iCodePage, size_t iSize);
-	
-	// ANSI 转 Unicode
-	XXAPI wstr xrtA2W(ustr pZStr, size_t iSize);
-	
-	// utf-8 转 Unicode
-	XXAPI wstr xrtU2W(ustr pUStr, size_t iSize);
-	
-	// Unicode 转 ANSI
-	XXAPI ustr xrtW2A(wstr pWStr, size_t iSize);
-	
-	// Unicode 转 utf-8
-	XXAPI ustr xrtW2U(wstr pWStr, size_t iSize);
-	
-	// ANSI 转 utf-8
-	XXAPI ustr xrtA2U(ustr pZStr, size_t iSize);
-	
-	// utf-8 转 ANSI
-	XXAPI ustr xrtU2A(ustr pUStr, size_t iSize);
-	*/
-	
-	// utf-8 转 utf-16
+	// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
 	XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize);
 	
-	// utf-8 转 utf-32
+	// utf-8 转 utf-32（ 需使用 xrtFree 释放 ）
 	XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize);
 	
-	// utf-16 转 utf-8
+	// utf-16 转 utf-8（ 需使用 xrtFree 释放 ）
 	XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize);
 	
-	// utf-16 转 utf-32
+	// utf-16 转 utf-32（ 需使用 xrtFree 释放 ）
 	XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize);
 	
-	// utf-32 转 utf-8
+	// utf-32 转 utf-8（ 需使用 xrtFree 释放 ）
 	XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize);
 	
-	// utf-32 转 utf-16
+	// utf-32 转 utf-16（ 需使用 xrtFree 释放 ）
 	XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize);
 	
 	
