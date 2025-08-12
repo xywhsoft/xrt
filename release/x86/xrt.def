@@ -2,6 +2,7 @@ LIBRARY xrt.dll
 
 EXPORTS
 xrtCalloc
+xrtChain
 xrtChainW
 xrtCheckStr
 xrtCheckStrW
@@ -72,6 +73,7 @@ xrtRandStrW
 xrtRealloc
 xrtReplace
 xrtReplaceW
+xrtRun
 xrtRunW
 xrtSecond
 xrtSetError
@@ -79,6 +81,7 @@ xrtSetErrorU16
 xrtSetErrorU32
 xrtSplit
 xrtSplitW
+xrtStart
 xrtStartW
 xrtTime
 xrtTimeSerial

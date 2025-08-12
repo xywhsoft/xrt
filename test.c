@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Charset 库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\n Charset 库测试（windows 测 utf16，linux 测 utf32） :\n\n");
 	
 	str stru8 = "𠀀𫝑😀�";
