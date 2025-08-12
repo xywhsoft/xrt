@@ -45,6 +45,22 @@ XXAPI void xrtSetError(str sError, int bFree)
 	xCore.LastError = sError;
 	xCore.__pri_FreeError = bFree;
 }
+XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, int bFree)
+{
+	str sErrorU8 = xrtUTF16to8(sError, iSize);
+	if ( bFree ) {
+		xrtFree(sError);
+	}
+	xrtSetError(sErrorU8, TRUE);
+}
+XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, int bFree)
+{
+	str sErrorU8 = xrtUTF32to8(sError, iSize);
+	if ( bFree ) {
+		xrtFree(sError);
+	}
+	xrtSetError(sErrorU8, TRUE);
+}
 
 
 

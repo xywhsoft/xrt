@@ -148,6 +148,8 @@
 	
 	// 设置错误
 	XXAPI void xrtSetError(str sError, int bFree);
+	XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, int bFree);
+	XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, int bFree);
 	
 	// 清除错误
 	XXAPI void xrtClearError();
