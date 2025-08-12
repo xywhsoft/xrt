@@ -368,37 +368,37 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize)
 		uint32 iChar = sText[i];
 		if ( iChar <= 0x7F ) {
 			// ASCII 兼容字符
-			sRet[++iPos] = iChar;
+			sRet[iPos++] = iChar;
 		} else if ( iChar <= 0x7FF ) {
 			// 双字节字符
-			sRet[++iPos] = 0xC0 | ((iChar >> 6) & 0x1F);
-			sRet[++iPos] = 0x80 | (iChar & 0x3F);
+			sRet[iPos++] = 0xC0 | ((iChar >> 6) & 0x1F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
 		} else if ( iChar <= 0xFFFF ) {
 			// 三字节字符
-			sRet[++iPos] = 0xE0 | ((iChar >> 12) & 0xF);
-			sRet[++iPos] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[++iPos] = 0x80 | (iChar & 0x3F);
+			sRet[iPos++] = 0xE0 | ((iChar >> 12) & 0xF);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
 		} else if ( iChar <= 0x1FFFFF ) {
 			// 四字节字符
-			sRet[++iPos] = 0xF0 | ((iChar >> 18) & 0x7);
-			sRet[++iPos] = 0x80 | ((iChar >> 12) & 0x3F);
-			sRet[++iPos] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[++iPos] = 0x80 | (iChar & 0x3F);
+			sRet[iPos++] = 0xF0 | ((iChar >> 18) & 0x7);
+			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
 		} else if ( iChar <= 0x3FFFFFF ) {
 			// 五字节字符
-			sRet[++iPos] = 0xF8 | ((iChar >> 24) & 0x3);
-			sRet[++iPos] = 0x80 | ((iChar >> 18) & 0x3F);
-			sRet[++iPos] = 0x80 | ((iChar >> 12) & 0x3F);
-			sRet[++iPos] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[++iPos] = 0x80 | (iChar & 0x3F);
+			sRet[iPos++] = 0xF8 | ((iChar >> 24) & 0x3);
+			sRet[iPos++] = 0x80 | ((iChar >> 18) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
 		} else if ( iChar <= 0x7FFFFFFF ) {
 			// 六字节字符
-			sRet[++iPos] = 0xFC | ((iChar >> 30) & 0x1);
-			sRet[++iPos] = 0x80 | ((iChar >> 24) & 0x3F);
-			sRet[++iPos] = 0x80 | ((iChar >> 18) & 0x3F);
-			sRet[++iPos] = 0x80 | ((iChar >> 12) & 0x3F);
-			sRet[++iPos] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[++iPos] = 0x80 | (iChar & 0x3F);
+			sRet[iPos++] = 0xFC | ((iChar >> 30) & 0x1);
+			sRet[iPos++] = 0x80 | ((iChar >> 24) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 18) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
 		}
 	}
 	// 返回字符数和转换后数据
@@ -449,7 +449,7 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 	// 开始转换编码
 	iPos = 0;
 	for ( int i = 0; i < iSize; i++ ) {
-		uint16 iChar = sText[i];
+		uint32 iChar = sText[i];
 		if ( iChar <= 0xFFFF ) {
 			sRet[iPos++] = iChar;
 		} else if ( iChar <= 0x10FFFF ) {

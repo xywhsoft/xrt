@@ -75,6 +75,8 @@ xrtReplaceW
 xrtRunW
 xrtSecond
 xrtSetError
+xrtSetErrorU16
+xrtSetErrorU32
 xrtSplit
 xrtSplitW
 xrtStartW

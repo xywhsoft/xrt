@@ -58,42 +58,6 @@ XXAPI xrtGlobalData* xrtInit()
 	xCore.__pri_FreeError = FALSE;
 	xCore.DebugMode = FALSE;
 	
-	// 获取程序文件名和路径
-	#if defined(_WIN32) || defined(_WIN64)
-		/*
-		wstr sTemp = malloc(8192);
-		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
-		xCore.AppFile = malloc((iSize + 1) * sizeof(wchar_t));
-		memcpy(xCore.AppFile, sTemp, iSize * sizeof(wchar_t));
-		xCore.AppFile[iSize] = 0;
-		free(sTemp);
-		sTemp = wcsrchr(xCore.AppFile, L'\\');
-		iSize = (sTemp - xCore.AppFile);
-		xCore.AppPath = malloc((iSize + 1) * sizeof(wchar_t));
-		memcpy(xCore.AppPath, xCore.AppFile, iSize * sizeof(wchar_t));
-		xCore.AppPath[iSize] = 0;
-		*/
-	#else
-		str sTemp = malloc(4096);
-		size_t iSize = readlink("/proc/self/exe", sTemp, 4096);
-		if ( iSize == -1 ) {
-			// 无法读取程序路径
-			free(sTemp);
-			xCore.AppFile = xCore.sNull;
-			xCore.AppPath = xCore.sNull;
-		} else {
-			xCore.AppFile = malloc(iSize + 1);
-			memcpy(xCore.AppFile, sTemp, iSize);
-			xCore.AppFile[iSize] = 0;
-			free(sTemp);
-			sTemp = strrchr(xCore.AppFile, '/');
-			iSize = (sTemp - xCore.AppFile);
-			xCore.AppPath = malloc(iSize + 1);
-			memcpy(xCore.AppPath, xCore.AppFile, iSize);
-			xCore.AppPath[iSize] = 0;
-		}
-	#endif
-	
 	// 初始化内存函数
 	xCore.malloc = malloc;
 	xCore.calloc = calloc;
@@ -105,7 +69,28 @@ XXAPI xrtGlobalData* xrtInit()
 	
 	// 设置内置的错误描述（便于复用）
 	xCore.ERROR_DESC.MALLOC = "Memory allocate error !";
-	xCore.ERROR_DESC.MONTHRANGE = "Month range error !";
+	
+	// 获取程序文件名和路径
+	#if defined(_WIN32) || defined(_WIN64)
+		wstr sTemp = malloc(4096 * sizeof(wchar_t));
+		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
+		xCore.AppFile = xrtUTF16to8(sTemp, iSize);
+		free(sTemp);
+		xCore.AppPath = xrtPathGetDir(xCore.AppFile, xCore.iRet);
+	#else
+		str sTemp = malloc(4096);
+		ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
+		if ( iSize == -1 ) {
+			// 无法读取程序路径
+			free(sTemp);
+			xCore.AppFile = xCore.sNull;
+			xCore.AppPath = xCore.sNull;
+		} else {
+			xCore.AppFile = xrtCopyStr(sTemp, iSize);
+			free(sTemp);
+			xCore.AppPath = xrtPathGetDir(xCore.AppFile, xCore.iRet);
+		}
+	#endif
 	
 	return &xCore;
 }

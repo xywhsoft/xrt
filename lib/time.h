@@ -64,7 +64,7 @@ XXAPI xtime xrtTimeSerial(int iHour, int iMinute, int iSecond)
 XXAPI xtime xrtDateSerial(int64 iYear, int iMonth, int iDay)
 {
 	if ( (iMonth < 1) || (iMonth > 12) ) {
-		xrtSetError(xCore.ERROR_DESC.MONTHRANGE, FALSE);
+		xrtSetError("Month range error !", FALSE);
 		return 0;
 	}
 	xtime iDate = (iDay - 1) * XRT_TIME_DAY;

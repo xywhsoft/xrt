@@ -25,13 +25,8 @@ int main(int argc, char** argv)
 	/* Base 库测试 */
 	/*
 	printf("\n\n\n------------------------------------\n\n Base 库测试 :\n\n");
-	#if defined(_WIN32) || defined(_WIN64)
-		printf("AppFile : %S\n", xCore->AppFile);
-		printf("AppPath : %S\n", xCore->AppPath);
-	#else
-		printf("AppFile : %s\n", xCore->AppFile);
-		printf("AppPath : %s\n", xCore->AppPath);
-	#endif
+	printf("AppFile : %s\n", xCore->AppFile);
+	printf("AppPath : %s\n", xCore->AppPath);
 	//*/
 	
 	//printf("%s\n", Path_GetRelA("c:\\123\\1.txt", "c:\\123"));
@@ -40,58 +35,60 @@ int main(int argc, char** argv)
 	
 	/* Charset 库测试 */
 	//*
-	printf("\n\n\n------------------------------------\n\n Charset 库测试 :\n\n");
+	printf("\n\n\n------------------------------------\n\n Charset 库测试（windows 测 utf16，linux 测 utf32） :\n\n");
 	
-	str aa = "𠀀😀�";
-	wstr ab = L"𠀀😀�";
-	u16str ac = xrtUTF8to16(aa, 0);
-	str ad = xrtUTF16to8(ac, 0);
+	str stru8 = "𠀀𫝑😀�";
 	
-	printf("conv utf16 : %S\n", ac);
-	printf("conv utf8 : %s\n", ad);
+	#if defined(_WIN32) || defined(_WIN64)
+		wstr stru16 = L"𠀀𫝑😀�";
+		
+		str sConv8 = xrtUTF16to8(stru16, 0);
+		wstr sConv16 = xrtUTF8to16(stru8, 0);
+		
+		str aHex = xrtHexEncode(stru8, 0);
+		wstr bHex = xrtHexEncodeW(stru16, 0);
+		str cHex = xrtHexEncode(sConv8, 0);
+		wstr dHex = xrtHexEncodeW(sConv16, 0);
+		
+		printf("src utf8 : %s", stru8);
+		printf("\nsrc utf16 : %S", stru16);
+		printf("\nconv utf8 : %s", sConv8);
+		printf("\nconv utf16 : %S", sConv16);
+		printf("\nsrc utf8 Hex : %s", aHex);
+		printf("\nsrc utf16 Hex : %S", bHex);
+		printf("\nconv utf8 Hex : %s", cHex);
+		printf("\nconv utf16 Hex : %S", dHex);
+	#else
+		wstr stru32 = L"𠀀𫝑😀�";
+		
+		str sConv8 = xrtUTF32to8(stru32, 0);
+		wstr sConv32 = xrtUTF8to32(stru8, 0);
+		
+		str aHex = xrtHexEncode(stru8, 0);
+		wstr bHex = xrtHexEncodeW(stru32, 0);
+		str cHex = xrtHexEncode(sConv8, 0);
+		wstr dHex = xrtHexEncodeW(sConv32, 0);
+		
+		printf("src utf8 : %s", stru8);
+		printf("\nsrc utf32 : %S", stru32);
+		printf("\nconv utf8 : %s", sConv8);
+		printf("\nconv utf32 : %S", sConv32);
+		printf("\nsrc utf8 Hex : %s", aHex);
+		printf("\nsrc utf32 Hex : %S", bHex);
+		printf("\nconv utf8 Hex : %s", cHex);
+		printf("\nconv utf32 Hex : %S", dHex);
+	#endif
 	
-	
-	str aaHex = xrtHexEncode(aa, 0);
-	wstr abHex = xrtHexEncodeW(ab, 0);
-	wstr acHex = xrtHexEncodeW(ac, 0);
-	str adHex = xrtHexEncode(ad, 0);
-	printf("utf8 Hex a : %s\n", aaHex);
-	printf("utf16 Hex b : %S\n", abHex);
-	printf("utf16 Hex c : %S\n", acHex);
-	printf("utf16 Hex d : %s\n", adHex);
-	
-	
-	
-	/* utf32 内容可通过 linux 系统进行测试（已验证通过）
-	str a = "aBcDeFg 我爱北京天安门 ✔ 1234567";
-	wstr b = L"aBcDeFg 我爱北京天安门 ✔ 1234567";
-	printf("utf8 : %s\n", a);
-	//printf("utf32 : %S\n", b);
-	
-	u32str c = xrtUTF8to32(a, 0);
-	
-	str d = xrtUTF32to8(b, 0);
-	str e = xrtUTF32to8(c, 0);
-	printf("conv utf8 1 : %s\n", d);
-	printf("conv utf8 2 : %s\n", e);
-	
-	str aHex = xrtHexEncode(a, 0);
-	str dHex = xrtHexEncode(d, 0);
-	str eHex = xrtHexEncode(e, 0);
-	printf("utf8 Hex a : %s\n", aHex);
-	printf("utf8 Hex d : %s\n", dHex);
-	printf("utf8 Hex e : %s\n", eHex);
-	
-	u32str c = xrtUTF8to32(a, 0);
-	printf("conv utf32 : %S\n", c);
-	
-	str aHex = xrtHexEncode(a, 0);
-	wstr bHex = xrtHexEncodeW(b, 0);
-	wstr cHex = xrtHexEncodeW(c, 0);
-	printf("utf8 Hex : %s\n", aHex);
-	printf("utf32 Hex : %S\n", bHex);
-	printf("conv  Hex : %S\n", cHex);
-	*/
+	// 补充，测试 utf16 和 utf32 互相转换
+	u16str su16 = xrtUTF8to16(stru8, 0);
+	u32str sRet32 = xrtUTF16to32(su16, 0);
+	int iSize32 = xCore->iRet;
+	u16str sRet16 = xrtUTF32to16(sRet32, 0);
+	int iSize16 = xCore->iRet;
+	str fHex = xrtHexEncode(sRet32, iSize32 * 4);
+	str eHex = xrtHexEncode(sRet16, iSize16 * 2);
+	printf("\nconv utf16 -> utf32 Hex : %s", fHex);
+	printf("\nconv utf32 -> utf16 Hex : %s", eHex);
 	
 	//*/
 	

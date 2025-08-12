@@ -20,21 +20,12 @@
 	
 	
 	
-	// charset define
-	#define XRT_CP_ANSI		0
-	#define XRT_CP_OEM		1
-	#define XRT_CP_UTF8		2
-	#define XRT_CP_UTF16
-	#define XRT_CP_UTF32
-	
-	
-	
 	// basic type define
 	typedef unsigned char* u8str;
 	typedef unsigned short* u16str;
 	typedef unsigned int* u32str;
 	typedef u8str str;
-	typedef wchar_t* wstr;
+	typedef wchar_t* wstr;			// windows 系统为 u16str，linux 系统为 u32str
 	
 	typedef char int8;
 	typedef unsigned char uint8;
@@ -74,7 +65,7 @@
 	#ifndef null
 		#define null 0
 	#endif
-
+	
 	#ifdef BUILD_DLL
 		#define XXAPI	__declspec(dllexport)
 	#else
@@ -114,10 +105,9 @@
 		ptr (*realloc)(ptr pMem, size_t iSize);
 		void (*free)(ptr pMem);
 		
-		// 内置错误描述
+		// 内置通用错误描述
 		struct {
 			str MALLOC;
-			str MONTHRANGE;
 		} ERROR_DESC;
 		
 	} xrtGlobalData;
