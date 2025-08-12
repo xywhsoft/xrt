@@ -4,30 +4,66 @@
 // 创建字符串副本（ 需使用 xrtFree 释放 ）
 XXAPI str xrtCopyStr(str sText, size_t iSize)
 {
-	if ( sText == NULL ) { return xCore.sNull; }
+	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { return xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	str sRet = xrtMalloc(iSize + 1);
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
 		return xCore.sNull;
 	}
 	memcpy(sRet, sText, iSize);
 	sRet[iSize] = 0;
+	xCore.iRet = iSize;
 	return sRet;
 }
 XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize)
 {
-	if ( sText == NULL ) { return (wstr)xCore.sNull; }
+	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
 	wstr sRet = xrtMalloc((iSize + 1) * sizeof(wchar_t));
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
 		return (wstr)xCore.sNull;
 	}
 	memcpy(sRet, sText, iSize * sizeof(wchar_t));
 	sRet[iSize] = 0;
+	xCore.iRet = iSize;
+	return sRet;
+}
+XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
+{
+	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = u16len(sText); }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
+	u16str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
+		return (u16str)xCore.sNull;
+	}
+	memcpy(sRet, sText, iSize * sizeof(unsigned short));
+	sRet[iSize] = 0;
+	xCore.iRet = iSize;
+	return sRet;
+}
+XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
+{
+	if ( sText == NULL ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = u32len(sText); }
+	if ( iSize == 0 ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
+	u32str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned int));
+	if ( sRet == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		xCore.iRet = 0;
+		return (u32str)xCore.sNull;
+	}
+	memcpy(sRet, sText, iSize * sizeof(unsigned int));
+	sRet[iSize] = 0;
+	xCore.iRet = iSize;
 	return sRet;
 }
 

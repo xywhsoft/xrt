@@ -122,6 +122,17 @@
 	
 	
 	
+	/* ------------------------------------ 基础功能补充 ------------------------------------ */
+	
+	// 内存查找
+	XXAPI ptr memmem(ptr pMem, size_t iMemSize, ptr pSub, size_t iSubSize);
+	
+	// 获取字符串长度 ( 补充 utf16 和 utf32 支持 )
+	XXAPI size_t u16len(u16str sText);
+	XXAPI size_t u32len(u32str sText);
+	
+	
+	
 	/* ------------------------------------ Base 函数库 ------------------------------------ */
 	
 	// 申请内存
@@ -147,6 +158,16 @@
 	
 	
 	/* ------------------------------------ Charset 函数库 ------------------------------------ */
+	
+	#define XRT_CP_AUTO				-2				// 自动识别字符集（ 可自动识别是否为 utf8，自动识别失败则使用 XRT_CP_BINARY ）
+	#define XRT_CP_BINARY			-1				// 二进制文件
+	#define XRT_CP_OEM				0				// 本机 OEM 字符集 ( windows为OEM多字节编码，linux固定为utf8 )
+	#define XRT_CP_UTF8				65001			// UTF8
+	#define XRT_CP_UTF16			1200			// UTF16
+	#define XRT_CP_UTF16_BE			1201			// UTF16 big-endian
+	#define XRT_CP_UTF32			65005			// UTF32
+	#define XRT_CP_UTF32_BE			65006			// UTF32 big-endian
+	#define XRT_CP_BOM				0x40000000		// UTF* with BOM
 	
 	// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
 	XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize);
@@ -180,6 +201,8 @@
 	// 创建字符串副本（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtCopyStr(str sText, size_t iSize);
 	XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize);
+	XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize);
+	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize);
 	
 	// 字符串转为小写（ bSrcRevise 为 false 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLCase(str sText, size_t iSize, int bSrcRevise);
@@ -398,16 +421,6 @@
 	
 	
 	/* ------------------------------------ File 函数库 ------------------------------------ */
-	
-	#define XRT_CP_AUTO				-2				// 自动识别字符集（ 可自动识别是否为 utf8，自动识别失败则使用 XRT_CP_BINARY ）
-	#define XRT_CP_BINARY			-1				// 二进制文件
-	#define XRT_CP_OEM				0				// 本机 OEM 字符集 ( windows为OEM多字节编码，linux固定为utf8 )
-	#define XRT_CP_UTF8				65001			// UTF8
-	#define XRT_CP_UTF16			1200			// UTF16
-	#define XRT_CP_UTF16_BE			1201			// UTF16 big-endian
-	#define XRT_CP_UTF32			65005			// UTF32
-	#define XRT_CP_UTF32_BE			65006			// UTF32 big-endian
-	#define XRT_CP_BOM				0x40000000		// UTF* with BOM
 	
 	// 文件对象
 	typedef struct {
