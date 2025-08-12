@@ -384,13 +384,20 @@
 	/* ------------------------------------ OS 函数库 ------------------------------------ */
 	
 	// 运行程序
-	XXAPI ptr xrtRunW(wstr sPath, int iShow);
+	XXAPI ptr xrtRun(str sPath, size_t iSize);
+	XXAPI ptr xrtRunW(wstr sPath, size_t iSize);
 	
 	// 打开文件（ 仅支持 windows 系统 ）
-	XXAPI ptr xrtStartW(wstr sPath, int iShow);
+	XXAPI ptr xrtStart(str sPath, size_t iSize);
+	XXAPI ptr xrtStartW(wstr sPath, size_t iSize);
 	
 	// 运行程序并等待程序运行结束
-	XXAPI int xCore_ChainW(wstr sPath, int iShow);
+	XXAPI int xrtChain(str sPath, size_t iSize);
+	XXAPI int xrtChainW(wstr sPath, size_t iSize);
+	
+	
+	
+	/* ------------------------------------ File 函数库 ------------------------------------ */
 	
 	
 	

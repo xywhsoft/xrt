@@ -2,13 +2,28 @@
 
 
 // 运行程序
-XXAPI ptr xrtRunW(wstr sPath, int iShow)
+XXAPI ptr xrtRun(str sPath, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		STARTUPINFOW si;
 		PROCESS_INFORMATION pi;
 		GetStartupInfoW(&si);
-		si.wShowWindow = iShow;
+		si.wShowWindow = SW_SHOW;
+		u16str sPathW = xrtUTF8to16(sPath, iSize);
+		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+		xrtFree(sPathW);
+		return (ptr)pi.hProcess;
+	#else
+		return NULL;
+	#endif
+}
+XXAPI ptr xrtRunW(wstr sPath, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		STARTUPINFOW si;
+		PROCESS_INFORMATION pi;
+		GetStartupInfoW(&si);
+		si.wShowWindow = SW_SHOW;
 		CreateProcessW(NULL, sPath, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 		return (ptr)pi.hProcess;
 	#else
@@ -19,10 +34,20 @@ XXAPI ptr xrtRunW(wstr sPath, int iShow)
 
 
 // 打开文件（ 仅支持 windows 系统 ）
-XXAPI ptr xrtStartW(wstr sPath, int iShow)
+XXAPI ptr xrtStart(str sPath, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
-		return (ptr)ShellExecuteW(0, NULL, sPath, NULL, NULL, iShow);
+		u16str sPathW = xrtUTF8to16(sPath, iSize);
+		return (ptr)ShellExecuteW(0, NULL, sPathW, NULL, NULL, SW_SHOW);
+		xrtFree(sPathW);
+	#else
+		return NULL;
+	#endif
+}
+XXAPI ptr xrtStartW(wstr sPath, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (ptr)ShellExecuteW(0, NULL, sPath, NULL, NULL, SW_SHOW);
 	#else
 		return NULL;
 	#endif
@@ -31,14 +56,32 @@ XXAPI ptr xrtStartW(wstr sPath, int iShow)
 
 
 // 运行程序并等待程序运行结束
-XXAPI int xrtChainW(wstr sPath, int iShow)
+XXAPI int xrtChain(str sPath, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD iRet = 0;
 		STARTUPINFOW si;
 		PROCESS_INFORMATION pi;
 		GetStartupInfoW(&si);
-		si.wShowWindow = iShow;
+		si.wShowWindow = SW_SHOW;
+		u16str sPathW = xrtUTF8to16(sPath, iSize);
+		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+		xrtFree(sPathW);
+		WaitForSingleObject(pi.hProcess, INFINITE);
+		GetExitCodeProcess(pi.hProcess, &iRet);
+		return iRet;
+	#else
+		return 0;
+	#endif
+}
+XXAPI int xrtChainW(wstr sPath, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iRet = 0;
+		STARTUPINFOW si;
+		PROCESS_INFORMATION pi;
+		GetStartupInfoW(&si);
+		si.wShowWindow = SW_SHOW;
 		CreateProcessW(NULL, sPath, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 		WaitForSingleObject(pi.hProcess, INFINITE);
 		GetExitCodeProcess(pi.hProcess, &iRet);
@@ -47,61 +90,5 @@ XXAPI int xrtChainW(wstr sPath, int iShow)
 		return 0;
 	#endif
 }
-
-
-
-/*
-// 运行程序，返回控制台输出
-XXAPI astr xShellA(astr sCMD)
-{
-	char buffer[1024];
-	FILE *fp = popen(sCMD, "r");
-	if ( fp == NULL ) {
-		return xCore.sNull;
-	}
-	MBMU_Object objBuf = MBMU_Create(16384, 16384);
-	while ( fgets(buffer, 1024, fp) != NULL ) {
-		MBMU_Append(objBuf, buffer, 0, MBMU_UTF8);
-	}
-	pclose(fp);
-	astr sRet = malloc(objBuf->Length + 1);
-	memcpy(sRet, objBuf->Buffer, objBuf->Length);
-	sRet[objBuf->Length] = 0;
-	MBMU_Destroy(objBuf);
-	return sRet;
-}
-XXAPI ustr xShellU(ustr sCMD)
-{
-	char buffer[1024];
-	FILE *fp = popen(sCMD, "r");
-	if ( fp == NULL ) {
-		return xCore.sNull;
-	}
-	MBMU_Object objBuf = MBMU_Create(16384, 16384);
-	while ( fgets(buffer, 1024, fp) != NULL ) {
-		MBMU_Append(objBuf, buffer, 0, MBMU_UTF8);
-	}
-	pclose(fp);
-	ustr sRet = xCore_A2U(objBuf->Buffer, objBuf->Length);
-	MBMU_Destroy(objBuf);
-	return sRet;
-}
-XXAPI wstr xShellW(wstr sCMD)
-{
-	char buffer[1024];
-	FILE *fp = wpopen(sCMD, L"r");
-	if ( fp == NULL ) {
-		return (wstr)xCore.sNull;
-	}
-	MBMU_Object objBuf = MBMU_Create(16384, 16384);
-	while ( fgets(buffer, 1024, fp) != NULL ) {
-		MBMU_Append(objBuf, buffer, 0, MBMU_UTF8);
-	}
-	pclose(fp);
-	wstr sRet = xCore_A2W(objBuf->Buffer, objBuf->Length);
-	MBMU_Destroy(objBuf);
-	return sRet;
-}
-*/
 
 
