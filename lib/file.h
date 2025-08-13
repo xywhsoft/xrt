@@ -16,54 +16,112 @@ XXAPI ptr xrtOpen(str sPath, size_t iSize, int bReadOnly, int iCharset)
 			CloseHandle(hFile);
 			return NULL;
 		}
+		DWORD iRetSize;
 		LARGE_INTEGER stuSize;
 		GetFileSizeEx(hFile, &stuSize);
 		objFile->obj = hFile;
 		objFile->Size = stuSize.QuadPart;
 		objFile->Charset = iCharset;
 		objFile->BOM = 0;
-		// 自动识别文件编码
 		if ( iCharset == XRT_CP_AUTO ) {
+			// 自动识别文件编码
 			if ( stuSize.QuadPart == 0 ) {
-				// 空文件设置为 utf8 编码 ( 无 BOM )
+				// 空文件默认使用 utf8 编码 ( 无 BOM )
 				objFile->Charset = XRT_CP_UTF8;
 			} else {
-				/*
-				char sBOM[4] = { 0, 0, 0, 0 };
-				SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
-				ReadFile(hFile, sBOM, 4, &xCore.iRet, NULL);
-				if ( (BOM[0] == 0xFF) && (BOM[1] == 0xFE) && (BOM[2] == 0x00) && (BOM[3] == 0x00) ) {
-					// UTF-32 LE (little-endian)
-					objFile->Charset = XRT_CP_UTF32 | XRT_CP_BOM;
-					objFile->BOM = 4;
-				} else if ( (BOM[0] == 0x00) && (BOM[1] == 0x00) && (BOM[2] == 0xFE) && (BOM[3] == 0xFF) ) {
-					// UTF-32 BE (big-endian)
-					objFile->Charset = XRT_CP_UTF32_BE | XRT_CP_BOM;
-					objFile->BOM = 4;
-				} else if ( (BOM[0] == 0xEF) && (BOM[1] == 0xBB) && (BOM[2] == 0xBF) ) {
-					// UTF-8
-					objFile->Charset = XRT_CP_UTF8 | XRT_CP_BOM;
-					objFile->BOM = 3;
-				} else if ( (BOM[0] == 0xFF) && (BOM[1] == 0xFE) ) {
-					// UTF-16 LE (little-endian)
-					objFile->Charset = XRT_CP_UTF16 | XRT_CP_BOM;
-					objFile->BOM = 2;
-				} else if ( (BOM[0] == 0xFE) && (BOM[1] == 0xFF) ) {
-					// UTF-16 BE (big-endian)
-					objFile->Charset = XRT_CP_UTF16_BE | XRT_CP_BOM;
-					objFile->BOM = 2;
-				} else {
-					// 无 BOM 文件猜测编码是否为 utf8、utf16、utf32（ 仅支持 little-endian ）
+				// 最多读取 64KB 数据做编码推测（数据越多推测准确性越高，数据越少推测速度越快）
+				size_t iReadSize = stuSize.QuadPart > 65536 ? 65536 : stuSize.QuadPart;
+				str sText = xrtMalloc(iReadSize);
+				if ( objFile == NULL ) {
+					xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+					CloseHandle(hFile);
+					return NULL;
 				}
-				*/
+				SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+				ReadFile(hFile, (ptr)sText, iReadSize, &iRetSize, NULL);
+				objFile->Charset = xrtDetectCharset(sText, iReadSize, TRUE);
+			}
+		} else {
+			// 手动指定编码时，检查 BOM 是否正确或提前写入 BOM
+			if ( (iCharset & XRT_CP_BOM) == XRT_CP_BOM ) {
+				int bErrorBOM = FALSE;
+				if ( stuSize.QuadPart == 0 ) {
+					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
+					if ( bReadOnly ) {
+						bErrorBOM = TRUE;
+					} else {
+						if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
+							uint8 sBOM[3] = { 0xEF, 0xBB, 0xBF };
+							WriteFile(hFile, (ptr)sBOM, 3, &iRetSize, NULL);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
+							unsigned short iBOM = 0xFFFE;
+							WriteFile(hFile, (ptr)&iBOM, 2, &iRetSize, NULL);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
+							unsigned short iBOM = 0xFEFF;
+							WriteFile(hFile, (ptr)&iBOM, 2, &iRetSize, NULL);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
+							unsigned int iBOM = 0xFFFE0000;
+							WriteFile(hFile, (ptr)&iBOM, 4, &iRetSize, NULL);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
+							unsigned int iBOM = 0x0000FEFF;
+							WriteFile(hFile, (ptr)&iBOM, 4, &iRetSize, NULL);
+						}
+					}
+				} else {
+					// 固定编码的文件检测并跳过 BOM ( BOM 与检测结果不符直接报错 )
+					uint8 sBOM[4] = { 0xA5, 0xA5, 0xA5, 0xA5 };
+					SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+					ReadFile(hFile, (ptr)sBOM, 4, &iRetSize, NULL);
+					if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
+						if ( (sBOM[0] != 0xEF) || (sBOM[1] != 0xBB) || (sBOM[2] != 0xBF) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
+						if ( (sBOM[0] != 0xFF) || (sBOM[1] != 0xFE) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
+						if ( (sBOM[0] != 0xFE) || (sBOM[1] != 0xFF) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
+						if ( (sBOM[0] != 0xFF) || (sBOM[1] != 0xFE) || (sBOM[2] != 0x00) || (sBOM[3] != 0x00) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
+						if ( (sBOM[0] != 0x00) || (sBOM[1] != 0x00) || (sBOM[2] != 0xFE) || (sBOM[3] != 0xFF) ) {
+							bErrorBOM = TRUE;
+						}
+					}
+				}
+				if ( bErrorBOM ) {
+					xrtSetError("Incorrect BOM data !", FALSE);
+					CloseHandle(hFile);
+					return NULL;
+				}
 			}
 		}
-	#elif defined(_WIN32) || defined(_WIN64) || defined(_WIN64)
-		// unix、linux 方案
+		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
+		if ( (iCharset & XRT_CP_BOM) == XRT_CP_BOM ) {
+			if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
+				objFile->BOM = 3;
+			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
+				objFile->BOM = 2;
+			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
+				objFile->BOM = 2;
+			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
+				objFile->BOM = 4;
+			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
+				objFile->BOM = 4;
+			}
+		}
+		// 游标跳过 BOM
+		SetFilePointer(hFile, objFile->BOM, NULL, FILE_BEGIN);
+		return objFile;
 	#else
-		// crt 方案 - 暂未实现
+		// 其他平台方案
+		
 	#endif
-	return NULL;
 }
 
 

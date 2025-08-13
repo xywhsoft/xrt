@@ -167,7 +167,9 @@
 	#define XRT_CP_UTF16_BE			1201			// UTF16 big-endian
 	#define XRT_CP_UTF32			65005			// UTF32
 	#define XRT_CP_UTF32_BE			65006			// UTF32 big-endian
-	#define XRT_CP_BOM				0x40000000		// UTF* with BOM
+	
+	#define XRT_CP_BOM				0x40000000		// with BOM
+	#define XRT_MASK_BOM			0xBFFFFFFF		// mask BOM
 	
 	// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
 	XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize);
@@ -440,8 +442,8 @@
 	// 文件对象
 	typedef struct {
 		ptr obj;				// 文件对象
-		size_t Size;			// 文件大小
 		int Charset;			// 文件字符集
+		size_t Size;			// 文件大小
 		uint BOM;				// BOM大小
 	} xfile_struct, *xfile;
 	
