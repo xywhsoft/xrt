@@ -409,7 +409,7 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize)
 
 
 
-// utf-32 转 utf-16（ 需使用 xrtFree 释放 ）
+// utf-32 转 utf-16 ( 需使用 xrtFree 释放 )
 XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
@@ -469,30 +469,270 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 
 
 
-// utf-16 大端序和小端序转换
+// utf-16 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, int bSrcRevise)
+{
+	if ( sText == NULL ) { return (u16str)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = u16len(sText); }
+	if ( iSize == 0 ) { return (u16str)xCore.sNull; }
+	u16str sRet;
+	if ( bSrcRevise ) {
+		sRet = sText;
+	} else {
+		sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
+		if ( sRet == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			return (u16str)xCore.sNull;
+		}
+	}
+	for ( int i = 0; i < iSize; i++ ) {
+		sText[i] = ((sText[i] & 0xFF) << 8) | ((sText[i] >> 8) & 0xFF);
+	}
+	return sRet;
+}
 
 
 
-// utf-32 大端序和小端序转换
+// utf-32 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, int bSrcRevise)
+{
+	if ( sText == NULL ) { return (u32str)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = u32len(sText); }
+	if ( iSize == 0 ) { return (u32str)xCore.sNull; }
+	u32str sRet;
+	if ( bSrcRevise ) {
+		sRet = sText;
+	} else {
+		sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
+		if ( sRet == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			return (u32str)xCore.sNull;
+		}
+	}
+	for ( int i = 0; i < iSize; i++ ) {
+		sText[i] = ((sText[i] >> 24) & 0xFF) | ((sText[i] >> 8) & 0xFF00) | ((sText[i] << 8) & 0xFF0000) | ((sText[i] << 24) & 0xFF000000);
+	}
+	return sRet;
+}
 
 
 
-// 任意编码转换
+// 任意编码转换 ( 需使用 xrtFree 释放 )
 XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 {
+	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	// windows 方案
 	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		return NULL;
+		// 如果编码相同，返回副本
+		if ( iInCP == iOutCP ) {
+			if ( (iInCP == XRT_CP_UTF16) || (iInCP == XRT_CP_UTF16_BE) ) {
+				return xrtCopyStrU16(sText, iSize);
+			} else if ( (iInCP == XRT_CP_UTF32) || (iInCP == XRT_CP_UTF32_BE) ) {
+				return xrtCopyStrU32(sText, iSize);
+			} else {
+				return xrtCopyStr(sText, iSize);
+			}
+		}
+		// 需要转换编码 - 排列组合 20 种情况 ( 内置支持的编码转换组合 )
+		if ( iInCP == XRT_CP_UTF8 ) {
+			if ( iOutCP == XRT_CP_UTF16 ) {
+				return xrtUTF8to16(sText, iSize);
+			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				u16str sRet = xrtUTF8to16(sText, iSize);
+				xrtUTF16LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
+			} else if ( iOutCP == XRT_CP_UTF32 ) {
+				return xrtUTF8to32(sText, iSize);
+			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				u32str sRet = xrtUTF8to32(sText, iSize);
+				xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
+			}
+		} else if ( iInCP == XRT_CP_UTF16 ) {
+			if ( iOutCP == XRT_CP_UTF8 ) {
+				return xrtUTF16to8(sText, iSize);
+			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				return xrtUTF16LEtoBE(sText, iSize, FALSE);
+			} else if ( iOutCP == XRT_CP_UTF32 ) {
+				return xrtUTF16to32(sText, iSize);
+			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				u32str sRet = xrtUTF16to32(sText, iSize);
+				xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
+			}
+		} else if ( iInCP == XRT_CP_UTF16_BE ) {
+			if ( iOutCP == XRT_CP_UTF8 ) {
+				u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+				str sRet = xrtUTF16to8(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
+			} else if ( iOutCP == XRT_CP_UTF16 ) {
+				return xrtUTF16LEtoBE(sText, iSize, FALSE);
+			} else if ( iOutCP == XRT_CP_UTF32 ) {
+				u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+				u32str sRet = xrtUTF16to32(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
+			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+				u32str sRet = xrtUTF16to32(sTemp, iSize);
+				xrtFree(sTemp);
+				xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
+			}
+		} else if ( iInCP == XRT_CP_UTF32 ) {
+			if ( iOutCP == XRT_CP_UTF8 ) {
+				return xrtUTF32to8(sText, iSize);
+			} else if ( iOutCP == XRT_CP_UTF16 ) {
+				return xrtUTF32to16(sText, iSize);
+			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				u16str sRet = xrtUTF32to16(sText, iSize);
+				xrtUTF16LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
+			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				return xrtUTF32LEtoBE(sText, iSize, FALSE);
+			}
+		} else if ( iInCP == XRT_CP_UTF32_BE ) {
+			if ( iOutCP == XRT_CP_UTF8 ) {
+				u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+				str sRet = xrtUTF32to8(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
+			} else if ( iOutCP == XRT_CP_UTF16 ) {
+				u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+				u16str sRet = xrtUTF32to16(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
+			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+				u16str sRet = xrtUTF32to16(sTemp, iSize);
+				xrtFree(sTemp);
+				xrtUTF16LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
+			} else if ( iOutCP == XRT_CP_UTF32 ) {
+				return xrtUTF32LEtoBE(sText, iSize, FALSE);
+			}
+		}
+		// 内置方案无法满足 - 调用 Win32SDK 转换 - 五种排列组合优化
+		if ( iInCP == XRT_CP_UTF16 ) {
+			// UTF16 转 多字节
+			if ( iSize == 0 ) { iSize = u16len(sText); }
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			size_t iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, NULL, 0, NULL, NULL);
+			if ( iRet == 0 ) {
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			str sRet = xrtMalloc(iRet + 1);
+			if ( sRet == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, sRet, iRet, NULL, NULL);
+			sRet[iRet] = 0;
+			return sRet;
+		} else if ( iInCP == XRT_CP_UTF16_BE ) {
+			// UTF16 BE 转 多字节
+			if ( iSize == 0 ) { iSize = u16len(sText); }
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			size_t iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, NULL, 0, NULL, NULL);
+			if ( iRet == 0 ) {
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			str sRet = xrtMalloc(iRet + 1);
+			if ( sRet == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, sRet, iRet, NULL, NULL);
+			xrtFree(sTemp);
+			sRet[iRet] = 0;
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16 ) {
+			// 多字节 转 UTF16
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
+			if ( iRet == 0 ) {
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
+			if ( sRet == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, sRet, iRet);
+			sRet[iRet] = 0;
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+			// 多字节 转 UTF16 BE
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
+			if ( iRet == 0 ) {
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
+			if ( sRet == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, sRet, iRet);
+			sRet[iRet] = 0;
+			xrtUTF16LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		} else {
+			// 多字节 转 多字节
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			// 先转换为 utf16
+			size_t iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
+			if ( iRetW == 0 ) {
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			u16str sRetW = xrtMalloc((iRetW + 1) * sizeof(unsigned short));
+			if ( sRetW == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, sRetW, iRetW);
+			sRetW[iRetW] = 0;
+			// 再转换为最终编码
+			size_t iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, NULL, 0, NULL, NULL);
+			if ( iRet == 0 ) {
+				xCore.iRet = 0;
+				xrtFree(sRetW);
+				return xCore.sNull;
+			}
+			str sRet = xrtMalloc(iRet + 1);
+			if ( sRet == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				xrtFree(sRetW);
+				return xCore.sNull;
+			}
+			iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, sRet, iRet, NULL, NULL);
+			xrtFree(sRetW);
+			sRet[iRet] = 0;
+			return sRet;
+		}
 	#else
-		// 其他平台方案 ( 仅支持 utf-8、utf-16、utf-32 )
+		// 其他平台方案 ( 仅支持 utf-8、utf-16、utf-32 三种编码互相转换 [ 含 LE、BE 字节序 ] )
 		static const str ErrorCP = "Unsupported charset !";
 		if ( iInCP == XRT_CP_OEM ) { iInCP = XRT_CP_UTF8; }
 		if ( iOutCP == XRT_CP_OEM ) { iOutCP = XRT_CP_UTF8; }
-		if ( (iInCP != XRT_CP_UTF8) && (iInCP != XRT_CP_UTF16) && (iInCP != XRT_CP_UTF16_BE) && (iInCP != XRT_CP_UTF32) && (iInCP != XRT_CP_UTF32_BE) ) {
-			xrtSetError(ErrorCP, FALSE);
-			return sNull;
-		}
-		if ( (iOutCP != XRT_CP_UTF8) && (iOutCP != XRT_CP_UTF16) && (iOutCP != XRT_CP_UTF16_BE) && (iOutCP != XRT_CP_UTF32) && (iOutCP != XRT_CP_UTF32_BE) ) {
+		if ( ((iInCP != XRT_CP_UTF8) && (iInCP != XRT_CP_UTF16) && (iInCP != XRT_CP_UTF16_BE) && (iInCP != XRT_CP_UTF32) && (iInCP != XRT_CP_UTF32_BE)) || 
+		((iOutCP != XRT_CP_UTF8) && (iOutCP != XRT_CP_UTF16) && (iOutCP != XRT_CP_UTF16_BE) && (iOutCP != XRT_CP_UTF32) && (iOutCP != XRT_CP_UTF32_BE)) ) {
 			xrtSetError(ErrorCP, FALSE);
 			return sNull;
 		}
@@ -506,28 +746,52 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 				return xrtCopyStrU32(sText, iSize);
 			}
 		}
-		// 需要转换编码 - 排列组合
+		// 需要转换编码 - 排列组合 20 种情况 ( 内置支持的编码转换组合 )
 		if ( iInCP == XRT_CP_UTF8 ) {
 			if ( iOutCP == XRT_CP_UTF16 ) {
 				return xrtUTF8to16(sText, iSize);
 			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				u16str sRet = xrtUTF8to16(sText, iSize);
+				xrtUTF16LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
 			} else if ( iOutCP == XRT_CP_UTF32 ) {
 				return xrtUTF8to32(sText, iSize);
 			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				u32str sRet = xrtUTF8to32(sText, iSize);
+				xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
 			}
 		} else if ( iInCP == XRT_CP_UTF16 ) {
 			if ( iOutCP == XRT_CP_UTF8 ) {
 				return xrtUTF16to8(sText, iSize);
 			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				return xrtUTF16LEtoBE(sText, iSize, FALSE);
 			} else if ( iOutCP == XRT_CP_UTF32 ) {
 				return xrtUTF16to32(sText, iSize);
 			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				u32str sRet = xrtUTF16to32(sText, iSize);
+				xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
 			}
 		} else if ( iInCP == XRT_CP_UTF16_BE ) {
 			if ( iOutCP == XRT_CP_UTF8 ) {
+				u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+				str sRet = xrtUTF16to8(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
 			} else if ( iOutCP == XRT_CP_UTF16 ) {
+				return xrtUTF16LEtoBE(sText, iSize, FALSE);
 			} else if ( iOutCP == XRT_CP_UTF32 ) {
+				u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+				u32str sRet = xrtUTF16to32(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
 			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+				u32str sRet = xrtUTF16to32(sTemp, iSize);
+				xrtFree(sTemp);
+				xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
 			}
 		} else if ( iInCP == XRT_CP_UTF32 ) {
 			if ( iOutCP == XRT_CP_UTF8 ) {
@@ -535,25 +799,40 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			} else if ( iOutCP == XRT_CP_UTF16 ) {
 				return xrtUTF32to16(sText, iSize);
 			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				u16str sRet = xrtUTF32to16(sText, iSize);
+				xrtUTF16LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
 			} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+				return xrtUTF32LEtoBE(sText, iSize, FALSE);
 			}
 		} else if ( iInCP == XRT_CP_UTF32_BE ) {
 			if ( iOutCP == XRT_CP_UTF8 ) {
+				u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+				str sRet = xrtUTF32to8(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
 			} else if ( iOutCP == XRT_CP_UTF16 ) {
+				u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+				u16str sRet = xrtUTF32to16(sTemp, iSize);
+				xrtFree(sTemp);
+				return sRet;
 			} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+				u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+				u16str sRet = xrtUTF32to16(sTemp, iSize);
+				xrtFree(sTemp);
+				xrtUTF16LEtoBE(sRet, xCore.iRet, TRUE);
+				return sRet;
 			} else if ( iOutCP == XRT_CP_UTF32 ) {
+				return xrtUTF32LEtoBE(sText, iSize, FALSE);
 			}
 		}
-		// 理论上不会执行到这里
-		xrtSetError(ErrorCP, FALSE);
-		return sNull;
 	#endif
 }
 
 
 
 // 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
-XXAPI int xrtDetCP(ptr sText, size_t iSize)
+XXAPI int xrtDetectCharset(ptr sText, size_t iSize)
 {
 	return XRT_CP_BINARY;
 }

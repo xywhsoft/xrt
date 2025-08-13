@@ -187,6 +187,18 @@
 	// utf-32 转 utf-16（ 需使用 xrtFree 释放 ）
 	XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize);
 	
+	// utf-16 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+	XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, int bSrcRevise);
+	
+	// utf-32 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+	XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, int bSrcRevise);
+	
+	// 任意编码转换 ( 需使用 xrtFree 释放 )
+	XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
+	
+	// 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
+	XXAPI int xrtDetectCharset(ptr sText, size_t iSize);
+	
 	
 	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */

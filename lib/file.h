@@ -17,7 +17,7 @@ XXAPI ptr xrtOpen(str sPath, size_t iSize, int bReadOnly, int iCharset)
 			return NULL;
 		}
 		LARGE_INTEGER stuSize;
-		GetFileSizeEx(hFile, &iSize);
+		GetFileSizeEx(hFile, &stuSize);
 		objFile->obj = hFile;
 		objFile->Size = stuSize.QuadPart;
 		objFile->Charset = iCharset;
@@ -28,6 +28,7 @@ XXAPI ptr xrtOpen(str sPath, size_t iSize, int bReadOnly, int iCharset)
 				// 空文件设置为 utf8 编码 ( 无 BOM )
 				objFile->Charset = XRT_CP_UTF8;
 			} else {
+				/*
 				char sBOM[4] = { 0, 0, 0, 0 };
 				SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 				ReadFile(hFile, sBOM, 4, &xCore.iRet, NULL);
@@ -54,6 +55,8 @@ XXAPI ptr xrtOpen(str sPath, size_t iSize, int bReadOnly, int iCharset)
 				} else {
 					// 无 BOM 文件猜测编码是否为 utf8、utf16、utf32（ 仅支持 little-endian ）
 				}
+				*/
+			}
 		}
 	#elif defined(_WIN32) || defined(_WIN64) || defined(_WIN64)
 		// unix、linux 方案

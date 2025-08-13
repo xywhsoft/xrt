@@ -1,6 +1,9 @@
 LIBRARY xrt.dll
 
 EXPORTS
+memmem
+u16len
+u32len
 xrtCalloc
 xrtChain
 xrtChainW
@@ -8,7 +11,10 @@ xrtCheckStr
 xrtCheckStrW
 xrtClearError
 xrtClose
+xrtConvCharset
 xrtCopyStr
+xrtCopyStrU16
+xrtCopyStrU32
 xrtCopyStrW
 xrtDate
 xrtDateAdd
@@ -22,13 +28,27 @@ xrtDayOfYear
 xrtDaysInMonth
 xrtDaysInYear
 xrtDecodeSerial
+xrtDetectCharset
+xrtDirCopy
+xrtDirCreate
+xrtDirDelete
 xrtDirExists
+xrtDirList
+xrtDirMove
+xrtDirScan
 xrtEOF
 xrtFileAppend
+xrtFileCopy
+xrtFileDelete
 xrtFileExists
 xrtFileGetAll
+xrtFileGetAttr
+xrtFileGetSize
+xrtFileMove
 xrtFilePutAll
 xrtFileReadAll
+xrtFileSetAttr
+xrtFileSetSize
 xrtFileWriteAll
 xrtFilterStr
 xrtFilterStrW
@@ -38,7 +58,6 @@ xrtFormat
 xrtFormatW
 xrtFree
 xrtGet
-xrtGetFileSize
 xrtHash32
 xrtHash32_WithSeed
 xrtHash64
@@ -96,7 +115,6 @@ xrtSetEOF
 xrtSetError
 xrtSetErrorU16
 xrtSetErrorU32
-xrtSetFileSize
 xrtSplit
 xrtSplitW
 xrtStart
@@ -112,8 +130,10 @@ xrtTrim
 xrtTrimW
 xrtUCase
 xrtUCaseW
+xrtUTF16LEtoBE
 xrtUTF16to32
 xrtUTF16to8
+xrtUTF32LEtoBE
 xrtUTF32to16
 xrtUTF32to8
 xrtUTF8to16
