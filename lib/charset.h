@@ -772,7 +772,7 @@ XXAPI int xrtIsUTF8(str sText, size_t iSize)
 
 
 // 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
-XXAPI int xrtDetectCharset(ptr sText, size_t iSize)
+XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 {
 	if ( sText == NULL ) { return XRT_CP_BINARY; }
 	if ( iSize == 0 ) { return XRT_CP_BINARY; }
@@ -784,6 +784,31 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize)
 	int bNoUTF32BE = FALSE;		// 是否不符合 UTF32 BE 标准
 	int iNullSize = 0;			// 遇到连续 \0 的次数
 	int iMaxNull = 0;			// 最多连续 \0 的数量
+	// 通过 BOM 判断字符串编码
+	if ( bBOM ) {
+		if ( iSize >= 3 ) {
+			if ( (sPtr[0] == 0xEF) && (sPtr[1] == 0xBB) && (sPtr[2] == 0xBF) ) {
+				return XRT_CP_UTF8 | XRT_CP_BOM;
+			}
+		}
+		if ( iSize >= 4 ) {
+			if ( (sPtr[0] == 0xFF) && (sPtr[1] == 0xFE) && (sPtr[2] == 0x00) && (sPtr[3] == 0x00) ) {
+				return XRT_CP_UTF32 | XRT_CP_BOM;
+			}
+			if ( (sPtr[0] == 0x00) && (sPtr[1] == 0x00) && (sPtr[2] == 0xFE) && (sPtr[3] == 0xFF) ) {
+				return XRT_CP_UTF32_BE | XRT_CP_BOM;
+			}
+		}
+		if ( iSize >= 2 ) {
+			if ( (sPtr[0] == 0xFF) && (sPtr[1] == 0xFE) ) {
+				return XRT_CP_UTF16 | XRT_CP_BOM;
+			}
+			if ( (sPtr[0] == 0xFE) && (sPtr[1] == 0xFF) ) {
+				return XRT_CP_UTF16_BE | XRT_CP_BOM;
+			}
+		}
+	}
+	// 开始推测字符串编码
 	for ( int i = 0; i < iSize; i++ ) {
 		// 检测 utf-8 不可能出现的字符
 		if ( (sPtr[i] == 0xFE) || (sPtr[i] == 0xFF) ) {

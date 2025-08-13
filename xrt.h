@@ -200,7 +200,7 @@
 	XXAPI int xrtIsUTF8(str sText, size_t iSize);
 	
 	// 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
-	XXAPI int xrtDetectCharset(ptr sText, size_t iSize);
+	XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM);
 	
 	
 	
