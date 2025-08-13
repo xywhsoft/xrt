@@ -1620,6 +1620,8 @@ static const int8_t Base64DecodeTable[256] = {
 	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 224-239
 	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 		// 240-255
 };
+static const str sErrorBase64_mul4 = "Base64 input length must be multiple of 4 !";
+static const str sErrorBase64_char = "Base64 input contains invalid characters !";
 ptr xrtBase64Decode(str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
@@ -1627,7 +1629,7 @@ ptr xrtBase64Decode(str sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	// 计算输出缓冲区大小
 	if ( iSize % 4 != 0 ) {
-		xrtSetError("Base64 input length must be multiple of 4 !", FALSE);
+		xrtSetError(sErrorBase64_mul4, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -1650,7 +1652,7 @@ ptr xrtBase64Decode(str sText, size_t iSize)
 		int8_t sextet_d = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
 		// 发现非法字符
 		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
-			xrtSetError("Base64 input contains invalid characters !", FALSE);
+			xrtSetError(sErrorBase64_char, FALSE);
 			xrtFree(sRet);
 			xCore.iRet = 0;
 			return xCore.sNull;
@@ -1672,7 +1674,7 @@ ptr xrtBase64DecodeW(wstr sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	// 计算输出缓冲区大小
 	if ( iSize % 4 != 0 ) {
-		xrtSetError("Base64 input length must be multiple of 4 !", FALSE);
+		xrtSetError(sErrorBase64_mul4, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -1695,7 +1697,7 @@ ptr xrtBase64DecodeW(wstr sText, size_t iSize)
 		int8_t sextet_d = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
 		// 发现非法字符
 		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
-			xrtSetError("Base64 input contains invalid characters !", FALSE);
+			xrtSetError(sErrorBase64_char, FALSE);
 			xrtFree(sRet);
 			xCore.iRet = 0;
 			return xCore.sNull;

@@ -83,6 +83,7 @@ xrtNow
 xrtNowStr
 xrtNowStrW
 xrtOpen
+xrtOpenW
 xrtPathExists
 xrtPathGetDir
 xrtPathGetDirW

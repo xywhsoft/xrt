@@ -447,6 +447,24 @@
 		uint BOM;				// BOM大小
 	} xfile_struct, *xfile;
 	
+	// 游标控制
+	#define XRT_IO_BEGIN	0
+	#define XRT_IO_CURRENT	1
+	#define XRT_IO_END		2
+	
+	// 打开文件
+	XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset);
+	XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset);
+	
+	// 关闭文件
+	XXAPI int xrtClose(xfile objFile);
+	
+	// 设置游标位置
+	XXAPI int xrtSeek(xfile objFile, long iOffset, int iMoveMethod);
+	
+	// 获取游标位置
+	XXAPI size_t xrtTell(xfile objFile);
+	
 	
 	
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
