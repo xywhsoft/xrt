@@ -71,6 +71,7 @@ xrtInStr
 xrtInStrW
 xrtInit
 xrtIsLeapYear
+xrtIsUTF8
 xrtLCase
 xrtLCaseW
 xrtLTrim

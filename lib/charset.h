@@ -743,14 +743,138 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 
 
 
+// 是否为 utf-8 字符串
+XXAPI int xrtIsUTF8(str sText, size_t iSize)
+{
+	// NULL 返回 FALSE，空字符串返回 TRUE
+	if ( sText == NULL ) { return FALSE; }
+	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { return TRUE; }
+	// 检测是否符合标准
+	for ( int i = 0; i < iSize; i++ ) {
+		// 遇到 \0、FE、FF 直接返回 FALSE
+		if ( (sText[i] == 0) || (sText[i] == 0xFE) || (sText[i] == 0xFF) ) {
+			return FALSE;
+		}
+		// 检查多字节字符是否已 0b10 开头
+		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		if ( iExtraBytes ) {
+			for ( int j = 0; (j < iExtraBytes) && (i < iSize); j++ ) {
+				if ( (sText[++i] & 0b11000000) != 0b10000000 ) {
+					return FALSE;
+				}
+			}
+		}
+	}
+	return TRUE;
+}
+
+
+
 // 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
 XXAPI int xrtDetectCharset(ptr sText, size_t iSize)
 {
-	str sPtr = sText;
+	if ( sText == NULL ) { return XRT_CP_BINARY; }
+	if ( iSize == 0 ) { return XRT_CP_BINARY; }
+	u8str sPtr = sText;
+	int bNoUTF8 = FALSE;		// 是否不符合 UTF8 标准
+	int bNoUTF16LE = FALSE;		// 是否不符合 UTF16 标准
+	int bNoUTF16BE = FALSE;		// 是否不符合 UTF16 BE 标准
+	int bNoUTF32LE = FALSE;		// 是否不符合 UTF32 标准
+	int bNoUTF32BE = FALSE;		// 是否不符合 UTF32 BE 标准
+	int iNullSize = 0;			// 遇到连续 \0 的次数
+	int iMaxNull = 0;			// 最多连续 \0 的数量
 	for ( int i = 0; i < iSize; i++ ) {
-		
+		// 检测 utf-8 不可能出现的字符
+		if ( (sPtr[i] == 0xFE) || (sPtr[i] == 0xFF) ) {
+			bNoUTF8 = TRUE;
+		}
+		// 检测 utf-8 多字符编码是否正确
+		char iExtraBytes = BytesExtraTableUTF8[sPtr[i]];
+		if ( iExtraBytes && (bNoUTF8 == FALSE) ) {
+			for ( int j = 1; (j <= iExtraBytes) && (i < iSize); j++ ) {
+				if ( (sPtr[i + j] & 0b11000000) != 0b10000000 ) {
+					bNoUTF8 == TRUE;
+					break;
+				}
+			}
+		}
+		// 检测 utf-16 代理区是否合规
+		if ( (i & 1) == 0 ) {
+			if ( (i + 2) < iSize ) {
+				if ( bNoUTF16LE == FALSE ) {
+					if ( (sPtr[i] & 0b11111100) == 0b11011000 ) {
+						if ( (sPtr[i + 2] & 0b11111100) != 0b11011100 ) {
+							bNoUTF16LE = TRUE;
+						}
+					}
+				}
+				if ( bNoUTF16BE == FALSE ) {
+					if ( (sPtr[i] & 0b11111100) == 0b11011100 ) {
+						if ( (sPtr[i + 2] & 0b11111100) != 0b11011000 ) {
+							bNoUTF16BE = TRUE;
+						}
+					}
+				}
+			}
+		}
+		// 检测是否符合 utf-32 范围 ( 0x10FFFF 以内‌ )
+		if ( (i & 3) == 0 ) {
+			if ( (i + 3) < iSize ) {
+				if ( bNoUTF32LE == FALSE ) {
+					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
+					if ( c > 0x10FFFF ) {
+						bNoUTF32LE = TRUE;
+					}
+				}
+				if ( bNoUTF32BE == FALSE ) {
+					uint32 c = (sPtr[i + 3] << 24) | (sPtr[i + 2] << 16) | (sPtr[i + 1] << 8) | sPtr[i];
+					if ( c > 0x10FFFF ) {
+						bNoUTF32BE = TRUE;
+					}
+				}
+			}
+		}
+		// 统计连续 \0 长度
+		if ( sPtr[i] == 0 ) {
+			iNullSize++;
+		} else {
+			if ( iNullSize > iMaxNull ) {
+				iMaxNull = iNullSize;
+			}
+			iNullSize = 0;
+		}
 	}
-	return XRT_CP_BINARY;
+	// 根据条件推测编码
+	if ( iMaxNull > 3 ) {
+		return XRT_CP_BINARY;
+	} else if ( iMaxNull > 1 ) {
+		if ( bNoUTF32LE == FALSE ) {
+			return XRT_CP_UTF32;
+		} else if ( bNoUTF32BE == FALSE ) {
+			return XRT_CP_UTF32_BE;
+		} else {
+			return XRT_CP_BINARY;
+		}
+	} else if ( iMaxNull == 1 ) {
+		if ( bNoUTF16LE == FALSE ) {
+			return XRT_CP_UTF16;
+		} else if ( bNoUTF16BE == FALSE ) {
+			return XRT_CP_UTF16_BE;
+		} else {
+			return XRT_CP_BINARY;
+		}
+	} else {
+		if ( bNoUTF8 == FALSE ) {
+			return XRT_CP_UTF8;
+		} else {
+			#if defined(_WIN32) || defined(_WIN64)
+				return XRT_CP_OEM;
+			#else
+				return XRT_CP_BINARY;
+			#endif
+		}
+	}
 }
 
 
