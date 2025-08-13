@@ -448,9 +448,9 @@
 	} xfile_struct, *xfile;
 	
 	// 游标控制
-	#define XRT_IO_BEGIN	0
-	#define XRT_IO_CURRENT	1
-	#define XRT_IO_END		2
+	#define XRT_SEEK_BEGIN		0
+	#define XRT_SEEK_CUR		1
+	#define XRT_SEEK_END		2
 	
 	// 打开文件
 	XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset);
@@ -460,10 +460,19 @@
 	XXAPI int xrtClose(xfile objFile);
 	
 	// 设置游标位置
-	XXAPI int xrtSeek(xfile objFile, long iOffset, int iMoveMethod);
+	XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod);
 	
 	// 获取游标位置
 	XXAPI size_t xrtTell(xfile objFile);
+	
+	// 获取文件末尾位置 ( 获取一打开文件的动态大小 )
+	XXAPI size_t xrtGetEOF(xfile objFile);
+	
+	// 是否已经读取到文件末尾
+	XXAPI int xrtEOF(xfile objFile);
+	
+	// 设置文件末尾
+	XXAPI int xrtSetEOF(xfile objFile);
 	
 	
 	

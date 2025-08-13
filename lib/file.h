@@ -168,24 +168,30 @@ XXAPI int xrtClose(xfile objFile)
 
 // 设置游标位置
 static const str sErrorFile_Handle = "Incorrect file handle !";
-XXAPI int xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
+XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
 			LARGE_INTEGER iPos_stu;
 			iPos_stu.QuadPart = iOffset;
-			if ( iMoveMethod == XRT_IO_BEGIN ) {
-				return SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_BEGIN);
-			} else if ( iMoveMethod == XRT_IO_CURRENT ) {
-				return SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_CURRENT);
-			} else if ( iMoveMethod == XRT_IO_END ) {
-				return SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_END);
+			if ( iMoveMethod == XRT_SEEK_BEGIN ) {
+				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_BEGIN);
+				return iPos_stu.QuadPart;
+			} else if ( iMoveMethod == XRT_SEEK_CUR ) {
+				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_CURRENT);
+				return iPos_stu.QuadPart;
+			} else if ( iMoveMethod == XRT_SEEK_END ) {
+				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_END);
+				return iPos_stu.QuadPart;
+			} else {
+				xrtSetError("Incorrect seek method !", FALSE);
+				return 0;
 			}
 		} else {
 			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
 		}
-		return FALSE;
 	#else
 		// 其他平台方案
 	#endif
@@ -205,12 +211,33 @@ XXAPI size_t xrtTell(xfile objFile)
 			return iPos_stu.QuadPart;
 		} else {
 			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
 		}
-		return 0;
 	#else
 		// 其他平台方案
 	#endif
-	return 0;
+}
+
+
+
+// 获取文件末尾位置 ( 获取一打开文件的动态大小 )
+XXAPI size_t xrtGetEOF(xfile objFile)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			size_t iPos = xrtTell(objFile);
+			xrtSeek(objFile, 0, XRT_SEEK_END);
+			size_t iSize = xrtTell(objFile);
+			xrtSeek(objFile, iPos, XRT_SEEK_BEGIN);
+			return iSize;
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
+	#else
+		// 其他平台方案
+	#endif
 }
 
 
@@ -220,10 +247,19 @@ XXAPI int xrtEOF(xfile objFile)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			size_t iPos = xrtTell(objFile);
+			xrtSeek(objFile, 0, XRT_SEEK_END);
+			size_t iEnd = xrtTell(objFile);
+			xrtSeek(objFile, iPos, XRT_SEEK_BEGIN);
+			return (iPos >= iEnd);
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return TRUE;
+		}
 	#else
 		// 其他平台方案
 	#endif
-	return FALSE;
 }
 
 
@@ -233,11 +269,17 @@ XXAPI int xrtSetEOF(xfile objFile)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			SetEndOfFile(objFile->obj);
+			return TRUE;
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return FALSE;
+		}
 	#else
 		// 其他平台方案
+		// ftruncate
 	#endif
-	// ftruncate
-	return FALSE;
 }
 
 
@@ -247,6 +289,42 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			str sBuff = xrtMalloc(iSize + 4);
+			if ( sBuff == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			// 读取数据
+			DWORD iRetSize;
+			if ( ReadFile(objFile->obj, sBuff, iSize, &iRetSize, NULL) ) {
+				// 读取到的文件可能是 utf-32 编码，留 4 个空字节做结尾
+				sBuff[iRetSize] = 0;
+				sBuff[iRetSize + 1] = 0;
+				sBuff[iRetSize + 2] = 0;
+				sBuff[iRetSize + 3] = 0;
+				// 转换编码 (将读取到的数据转换为 utf-8 编码)
+				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
+					str sRet = xrtConvCharset(sBuff, iRetSize, objFile->Charset, XRT_CP_UTF8);
+					xrtFree(sBuff);
+					return sRet;
+				} else {
+					xCore.iRet = iRetSize;
+					return sBuff;
+				}
+			} else {
+				xrtSetError("File read failure !", FALSE);
+				xrtFree(sBuff);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
 	#else
 		// 其他平台方案
 	#endif
@@ -256,14 +334,41 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 
 
 // 向已打开的文件写入数据
-XXAPI int xrtWrite(xfile objFile, str sText, size_t iSize)
+static const str sErrorFile_Write = "File write failure !";
+XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			if ( sText == NULL ) { return 0; }
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { return 0; }
+			DWORD iRetSize;
+			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
+				// 需要转换为目标文件的编码再写入
+				str sBuff = xrtConvCharset(sText, iSize, XRT_CP_UTF8, objFile->Charset);
+				if ( WriteFile(objFile->obj, sBuff, xCore.iRet, &iRetSize, NULL) ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			} else {
+				// 二进制或 utf-8 编码可以直接写入
+				if ( WriteFile(objFile->obj, sText, iSize, &iRetSize, NULL) ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#else
 		// 其他平台方案
 	#endif
-	return FALSE;
 }
 
 

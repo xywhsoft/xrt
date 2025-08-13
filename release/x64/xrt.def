@@ -58,6 +58,7 @@ xrtFormat
 xrtFormatW
 xrtFree
 xrtGet
+xrtGetEOF
 xrtHash32
 xrtHash32_WithSeed
 xrtHash64
