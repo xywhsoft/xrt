@@ -474,6 +474,12 @@
 	// 设置文件末尾
 	XXAPI int xrtSetEOF(xfile objFile);
 	
+	// 从已打开的文件读取数据
+	XXAPI str xrtRead(xfile objFile, size_t iSize);
+	
+	// 向已打开的文件写入数据
+	XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
+	
 	
 	
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
