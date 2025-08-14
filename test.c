@@ -34,7 +34,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Charset 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\n Charset 库测试（windows 测 utf16，linux 测 utf32） :\n\n");
 	
 	str stru8 = "𠀀𫝑😀�";
@@ -89,6 +89,45 @@ int main(int argc, char** argv)
 	str eHex = xrtHexEncode(sRet16, iSize16 * 2);
 	printf("\nconv utf16 -> utf32 Hex : %s", fHex);
 	printf("\nconv utf32 -> utf16 Hex : %s", eHex);
+	
+	// 猜测编码功能测试
+	printf("\n\n---------------- 编码猜测功能\n");
+	printf("xrtIsUTF8 (utf8): %d\n", xrtIsUTF8(stru8, 0));
+	printf("xrtIsUTF8 (utf16): %d\n", xrtIsUTF8((ptr)stru16, 0));
+	printf("xrtDetectCharset (utf8): %d\n", xrtDetectCharset(stru8, strlen(stru8), FALSE));
+	printf("xrtDetectCharset (utf16): %d\n", xrtDetectCharset(stru16, u16len(stru16), FALSE));
+	printf("xrtDetectCharset (utf32): %d\n", xrtDetectCharset(sRet32, u32len(sRet32), FALSE));
+	
+	// 任意编码组合转换功能
+	printf("\n---------------- 编码组合转换\n");
+	u16str cc1 = xrtConvCharset(stru8, strlen(stru8), XRT_CP_UTF8, XRT_CP_UTF16);
+	str ch1 = xrtHexEncode(cc1, u16len(cc1) * 2);
+	printf("xrtConvCharset (utf8 to utf16): %s\n", ch1);
+	u32str cc3 = xrtConvCharset(stru8, strlen(stru8), XRT_CP_UTF8, XRT_CP_UTF32);
+	str ch3 = xrtHexEncode(cc3, u32len(cc3) * 4);
+	printf("xrtConvCharset (utf8 to utf32): %s\n", ch3);
+	str cc4 = xrtConvCharset(cc1, u16len(cc1), XRT_CP_UTF16, XRT_CP_UTF8);
+	str ch4 = xrtHexEncode(cc4, strlen(cc4));
+	printf("xrtConvCharset (utf16 to utf8): %s\n", ch4);
+	u32str cc2 = xrtConvCharset(cc1, u16len(cc1), XRT_CP_UTF16, XRT_CP_UTF32);
+	str ch2 = xrtHexEncode(cc2, u32len(cc2) * 4);
+	printf("xrtConvCharset (utf16 to utf32): %s\n", ch2);
+	str cc5 = xrtConvCharset(cc2, u32len(cc2), XRT_CP_UTF32, XRT_CP_UTF8);
+	str ch5 = xrtHexEncode(cc5, strlen(cc5));
+	printf("xrtConvCharset (utf32 to utf8): %s\n", ch5);
+	u16str cc6 = xrtConvCharset(cc2, u32len(cc2), XRT_CP_UTF32, XRT_CP_UTF16);
+	str ch6 = xrtHexEncode(cc6, u16len(cc6) * 2);
+	printf("xrtConvCharset (utf32 to utf16): %s\n", ch6);
+	
+	u16str cc7 = xrtConvCharset(stru8, strlen(stru8), XRT_CP_UTF8, XRT_CP_UTF16_BE);
+	str ch7 = xrtHexEncode(cc7, u16len(cc7) * 2);
+	printf("xrtConvCharset (utf8 to utf16_be): %s\n", ch7);
+	u32str cc8 = xrtConvCharset(cc7, u16len(cc7), XRT_CP_UTF16_BE, XRT_CP_UTF32_BE);
+	str ch8 = xrtHexEncode(cc8, u32len(cc8) * 4);
+	printf("xrtConvCharset (utf16_be to utf32_be): %s\n", ch8);
+	u16str cc9 = xrtConvCharset(cc8, u32len(cc8), XRT_CP_UTF32_BE, XRT_CP_UTF16);
+	str ch9 = xrtHexEncode(cc9, u16len(cc9) * 2);
+	printf("xrtConvCharset (utf32_be to utf16): %s\n", ch9);
 	
 	//*/
 	
@@ -304,6 +343,16 @@ int main(int argc, char** argv)
 	iDiff = xrtDateDiff(XRT_TIME_INTERVAL_QUARTER, iTime, tRet);
 	printf("xrtDateAdd (2012-03-15 12:20:40) 30 quar : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
 	printf("xrtDateDiff 30 quar : %d\n", iDiff);
+	
+	//*/
+	
+	
+	
+	/* File 库测试 */
+	/*
+	printf("\n\n\n------------------------------------\n\n File 库测试 :\n\n");
+	
+	
 	
 	//*/
 	

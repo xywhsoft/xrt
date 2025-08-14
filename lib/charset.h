@@ -479,14 +479,10 @@ XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, int bSrcRevise)
 	if ( bSrcRevise ) {
 		sRet = sText;
 	} else {
-		sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
-		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			return (u16str)xCore.sNull;
-		}
+		sRet = xrtCopyStrU16(sText, iSize);
 	}
 	for ( int i = 0; i < iSize; i++ ) {
-		sText[i] = ((sText[i] & 0xFF) << 8) | ((sText[i] >> 8) & 0xFF);
+		sRet[i] = ((sRet[i] & 0xFF) << 8) | ((sRet[i] >> 8) & 0xFF);
 	}
 	return sRet;
 }
@@ -503,14 +499,10 @@ XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, int bSrcRevise)
 	if ( bSrcRevise ) {
 		sRet = sText;
 	} else {
-		sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
-		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			return (u32str)xCore.sNull;
-		}
+		sRet = xrtCopyStrU32(sText, iSize);
 	}
 	for ( int i = 0; i < iSize; i++ ) {
-		sText[i] = ((sText[i] >> 24) & 0xFF) | ((sText[i] >> 8) & 0xFF00) | ((sText[i] << 8) & 0xFF0000) | ((sText[i] << 24) & 0xFF000000);
+		sRet[i] = ((sRet[i] >> 24) & 0xFF) | ((sRet[i] >> 8) & 0xFF00) | ((sRet[i] << 8) & 0xFF0000) | ((sRet[i] << 24) & 0xFF000000);
 	}
 	return sRet;
 }
@@ -541,12 +533,12 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 	if ( iInCP == XRT_CP_UTF8 ) {
 		if ( iOutCP == XRT_CP_UTF16 ) {
 			return xrtUTF8to16(sText, iSize);
+		} else if ( iOutCP == XRT_CP_UTF32 ) {
+			return xrtUTF8to32(sText, iSize);
 		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
 			u16str sRet = xrtUTF8to16(sText, iSize);
 			xrtUTF16LEtoBE(sRet, xCore.iRet, TRUE);
 			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF32 ) {
-			return xrtUTF8to32(sText, iSize);
 		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
 			u32str sRet = xrtUTF8to32(sText, iSize);
 			xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
@@ -555,32 +547,12 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 	} else if ( iInCP == XRT_CP_UTF16 ) {
 		if ( iOutCP == XRT_CP_UTF8 ) {
 			return xrtUTF16to8(sText, iSize);
-		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
-			return xrtUTF16LEtoBE(sText, iSize, FALSE);
 		} else if ( iOutCP == XRT_CP_UTF32 ) {
 			return xrtUTF16to32(sText, iSize);
+		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+			return xrtUTF16LEtoBE(sText, iSize, FALSE);
 		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
 			u32str sRet = xrtUTF16to32(sText, iSize);
-			xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
-			return sRet;
-		}
-	} else if ( iInCP == XRT_CP_UTF16_BE ) {
-		if ( iOutCP == XRT_CP_UTF8 ) {
-			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
-			str sRet = xrtUTF16to8(sTemp, iSize);
-			xrtFree(sTemp);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF16 ) {
-			return xrtUTF16LEtoBE(sText, iSize, FALSE);
-		} else if ( iOutCP == XRT_CP_UTF32 ) {
-			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
-			u32str sRet = xrtUTF16to32(sTemp, iSize);
-			xrtFree(sTemp);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
-			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
-			u32str sRet = xrtUTF16to32(sTemp, iSize);
-			xrtFree(sTemp);
 			xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
 			return sRet;
 		}
@@ -595,6 +567,26 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			return sRet;
 		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
 			return xrtUTF32LEtoBE(sText, iSize, FALSE);
+		}
+	} else if ( iInCP == XRT_CP_UTF16_BE ) {
+		if ( iOutCP == XRT_CP_UTF8 ) {
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			str sRet = xrtUTF16to8(sTemp, iSize);
+			xrtFree(sTemp);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF32 ) {
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			u32str sRet = xrtUTF16to32(sTemp, iSize);
+			xrtFree(sTemp);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16 ) {
+			return xrtUTF16LEtoBE(sText, iSize, FALSE);
+		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			u32str sRet = xrtUTF16to32(sTemp, iSize);
+			xrtFree(sTemp);
+			xrtUTF32LEtoBE(sRet, xCore.iRet, TRUE);
+			return sRet;
 		}
 	} else if ( iInCP == XRT_CP_UTF32_BE ) {
 		if ( iOutCP == XRT_CP_UTF8 ) {

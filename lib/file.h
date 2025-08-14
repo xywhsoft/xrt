@@ -776,14 +776,7 @@ XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
 			DeleteFileW(sDstW);
 		}
 		// 移动文件
-		int iRet = MoveFileW(sSrcW, sDstW);
-		if ( iRet == FALSE ) {
-			// MoveFile 不支持跨盘移动，因此移动失败后，尝试复制再删除
-			iRet = CopyFileW(sSrcW, sDstW, bReWrite ? FALSE : TRUE);
-			if ( iRet ) {
-				iRet = DeleteFileW(sSrcW);
-			}
-		}
+		int iRet = MoveFileExW(sSrcW, sDstW, MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | (bReWrite ? MOVEFILE_REPLACE_EXISTING : 0));
 		xrtFree(sSrcW);
 		xrtFree(sDstW);
 		return iRet;
