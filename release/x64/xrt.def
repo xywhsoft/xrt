@@ -60,6 +60,7 @@ xrtFormat
 xrtFormatW
 xrtFree
 xrtGet
+xrtGetCharSize
 xrtGetEOF
 xrtHash32
 xrtHash32_WithSeed
@@ -110,6 +111,7 @@ xrtRand
 xrtRandStr
 xrtRandStrW
 xrtRead
+xrtReadW
 xrtRealloc
 xrtReplace
 xrtReplaceW
@@ -147,4 +149,5 @@ xrtUTF8to32
 xrtUnit
 xrtWeekday
 xrtWrite
+xrtWriteW
 xrtYear

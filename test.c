@@ -356,115 +356,156 @@ int main(int argc, char** argv)
 	str sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\ascii.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_a = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	str sText = xrtRead(f_a, f_a->Size - f_a->BOM);
+	size_t iFileSize = xrtGetEOF(f_a);
+	str sText = xrtRead(f_a, iFileSize - f_a->BOM);
 	printf("Charset (65501) : %d\n", f_a->Charset);
-	printf("Size : %d\n", f_a->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_a->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\gb2312.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_b = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_b, f_b->Size - f_b->BOM);
+	iFileSize = xrtGetEOF(f_b);
+	sText = xrtRead(f_b, iFileSize - f_b->BOM);
 	printf("Charset (0) : %d\n", f_b->Charset);
-	printf("Size : %d\n", f_b->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_b->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf8.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_c = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_c, f_c->Size - f_c->BOM);
+	iFileSize = xrtGetEOF(f_c);
+	sText = xrtRead(f_c, iFileSize - f_c->BOM);
 	printf("Charset (65501) : %d\n", f_c->Charset);
-	printf("Size : %d\n", f_c->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_c->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf8_bom.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_d = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_d, f_d->Size - f_d->BOM);
+	iFileSize = xrtGetEOF(f_d);
+	sText = xrtRead(f_d, iFileSize - f_d->BOM);
 	printf("Charset (65501) : %d\n", f_d->Charset);
-	printf("Size : %d\n", f_d->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_d->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf16.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_e = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_e, f_e->Size - f_e->BOM);
+	iFileSize = xrtGetEOF(f_e);
+	sText = xrtRead(f_e, iFileSize - f_e->BOM);
 	printf("Charset (1200) : %d\n", f_e->Charset);
-	printf("Size : %d\n", f_e->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_e->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf16_be.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_f = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_f, f_f->Size - f_f->BOM);
+	iFileSize = xrtGetEOF(f_f);
+	sText = xrtRead(f_f, iFileSize - f_f->BOM);
 	printf("Charset (1201) : %d\n", f_f->Charset);
-	printf("Size : %d\n", f_f->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_f->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf16_bom.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_g = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_g, f_g->Size - f_g->BOM);
+	iFileSize = xrtGetEOF(f_g);
+	sText = xrtRead(f_g, iFileSize - f_g->BOM);
 	printf("Charset (1200) : %d\n", f_g->Charset);
-	printf("Size : %d\n", f_g->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_g->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf16_be_bom.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_h = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_h, f_h->Size - f_h->BOM);
+	iFileSize = xrtGetEOF(f_h);
+	sText = xrtRead(f_h, iFileSize - f_h->BOM);
 	printf("Charset (1201) : %d\n", f_h->Charset);
-	printf("Size : %d\n", f_h->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_h->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf32.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_i = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_i, f_i->Size - f_i->BOM);
+	iFileSize = xrtGetEOF(f_i);
+	printf("Size : %d\n", iFileSize);
+	printf("BOM : %d\n", f_i->BOM);
+	printf("1\n");
+	sText = xrtRead(f_i, iFileSize - f_i->BOM);
 	printf("Charset (65005) : %d\n", f_i->Charset);
-	printf("Size : %d\n", f_i->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_i->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf32_be.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_j = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_j, f_j->Size - f_j->BOM);
+	iFileSize = xrtGetEOF(f_j);
+	sText = xrtRead(f_j, iFileSize - f_j->BOM);
 	printf("Charset (65006) : %d\n", f_j->Charset);
-	printf("Size : %d\n", f_j->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_j->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf32_bom.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_k = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_k, f_k->Size - f_k->BOM);
+	iFileSize = xrtGetEOF(f_k);
+	sText = xrtRead(f_k, iFileSize - f_k->BOM);
 	printf("Charset (65005) : %d\n", f_k->Charset);
-	printf("Size : %d\n", f_k->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_k->BOM);
 	printf("Text : %s\n\n", sText);
 	
 	sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\utf32_be_bom.txt", 0);
 	printf("test : %s\n", sPath);
 	xfile f_l = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
-	sText = xrtRead(f_l, f_l->Size - f_l->BOM);
+	iFileSize = xrtGetEOF(f_l);
+	sText = xrtRead(f_l, iFileSize - f_l->BOM);
 	printf("Charset (65006) : %d\n", f_l->Charset);
-	printf("Size : %d\n", f_l->Size);
+	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_l->BOM);
 	printf("Text : %s\n\n", sText);
 	//*/
 	
-	//*
+	/*
 	printf("---------------- 文件读取和写入\n");
-	//xfile objFile = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
+	str sPath2 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test.txt", 0);
+	printf("test : %s\n", sPath2);
+	xfile objFile = xrtOpen(sPath2, TRUE, XRT_CP_AUTO);
+	str sText2 = xrtRead(objFile, objFile->Size - objFile->BOM);
+	printf("Text : %s\n\n", sText2);
+	
+	str sPath3 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u16be.txt", 0);
+	xrtFileDelete(sPath3);
+	xfile objFile2 = xrtOpen(sPath3, FALSE, XRT_CP_UTF16_BE | XRT_CP_BOM);
+	printf("Charset (65006) : %d\n", objFile2->Charset);
+	printf("Size : %d\n", objFile2->Size);
+	printf("BOM : %d\n", objFile2->BOM);
+	xrtWrite(objFile2, sText2, 0);
+	xrtWrite(objFile2, "\n1234567", 0);
+	xrtClose(objFile2);
+	
+	str sPath4 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u16.txt", 0);
+	xrtFileDelete(sPath4);
+	xfile objFile3 = xrtOpen(sPath4, FALSE, XRT_CP_UTF16 | XRT_CP_BOM);
+	printf("Charset (65006) : %d\n", objFile3->Charset);
+	printf("Size : %d\n", objFile3->Size);
+	printf("BOM : %d\n", objFile3->BOM);
+	xrtWrite(objFile3, sText2, 0);
+	xrtWrite(objFile3, "\n7654321", 0);
+	xrtClose(objFile3);
+	
+	
 	
 	//*/
 	

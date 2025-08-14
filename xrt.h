@@ -204,6 +204,9 @@
 	// 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
 	XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM);
 	
+	// 获取不同字符集的字符大小
+	XXAPI int xrtGetCharSize(int iCP);
+	
 	
 	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
@@ -443,7 +446,6 @@
 	typedef struct {
 		ptr obj;				// 文件对象
 		int Charset;			// 文件字符集
-		size_t Size;			// 文件大小
 		uint BOM;				// BOM大小
 	} xfile_struct, *xfile;
 	
@@ -452,7 +454,7 @@
 	#define XRT_SEEK_CUR		1
 	#define XRT_SEEK_END		2
 	
-	// 打开文件
+	// 打开文件 ( 需要使用 xrtClose 关闭文件 )
 	XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset);
 	XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset);
 	
@@ -474,13 +476,15 @@
 	// 设置文件末尾
 	XXAPI int xrtSetEOF(xfile objFile);
 	
-	// 从已打开的文件读取数据
+	// 从已打开的文件读取数据 ( iSize 为要读取的字节数，需要使用 xrtFree 释放内存 )
 	XXAPI str xrtRead(xfile objFile, size_t iSize);
+	XXAPI wstr xrtReadW(xfile objFile, size_t iSize);
 	
-	// 向已打开的文件写入数据
+	// 向已打开的文件写入数据 ( iSize 为要写入的字节数 )
 	XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
+	XXAPI size_t xrtWriteW(xfile objFile, wstr sText, size_t iSize);
 	
-	// 从已打开的文件读取二进制数据
+	// 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
 	XXAPI ptr xrtGet(xfile objFile, size_t iSize);
 	
 	// 向已打开的文件写入二进制数据

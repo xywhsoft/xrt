@@ -914,3 +914,18 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 }
 
 
+
+// 获取不同字符集的字符大小
+XXAPI int xrtGetCharSize(int iCP)
+{
+	iCP &= XRT_MASK_BOM;
+	if ( (iCP == XRT_CP_UTF16) || (iCP == XRT_CP_UTF16_BE) ) {
+		return 2;
+	} else if ( (iCP == XRT_CP_UTF32) || (iCP == XRT_CP_UTF32_BE) ) {
+		return 4;
+	} else {
+		return 1;
+	}
+}
+
+

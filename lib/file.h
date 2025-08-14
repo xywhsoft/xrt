@@ -1,6 +1,17 @@
 
 
 
+// 错误描述定义
+static const str sErrorFile_Open = "Failed to open file !";
+static const str sErrorFile_Handle = "Incorrect file handle !";
+static const str sErrorFile_BOM = "Incorrect BOM data !";
+static const str sErrorFile_Seek = "Incorrect seek method !";
+static const str sErrorFile_Read = "File read failure !";
+static const str sErrorFile_Write = "File write failure !";
+
+
+
+
 // 打开文件
 XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 {
@@ -20,7 +31,10 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		HANDLE hFile = CreateFileW(sPath, bReadOnly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, bReadOnly ? OPEN_EXISTING : OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-		if ( hFile == INVALID_HANDLE_VALUE ) { return NULL; }
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return NULL;
+		}
 		xfile objFile = xrtMalloc(sizeof(xfile_struct));
 		if ( objFile == NULL ) {
 			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
@@ -31,7 +45,6 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 		LARGE_INTEGER stuSize;
 		GetFileSizeEx(hFile, &stuSize);
 		objFile->obj = hFile;
-		objFile->Size = stuSize.QuadPart;
 		objFile->Charset = iCharset;
 		objFile->BOM = 0;
 		if ( iCharset == XRT_CP_AUTO ) {
@@ -46,11 +59,13 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 				if ( objFile == NULL ) {
 					xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 					CloseHandle(hFile);
+					xrtFree(objFile);
 					return NULL;
 				}
 				SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 				ReadFile(hFile, (ptr)sText, iReadSize, &iRetSize, NULL);
 				objFile->Charset = xrtDetectCharset(sText, iReadSize, TRUE);
+				xrtFree(sText);
 			}
 		} else {
 			// 手动指定编码时，检查 BOM 是否正确或提前写入 BOM
@@ -65,10 +80,10 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 							uint8 sBOM[3] = { 0xEF, 0xBB, 0xBF };
 							WriteFile(hFile, (ptr)sBOM, 3, &iRetSize, NULL);
 						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
-							unsigned short iBOM = 0xFFFE;
+							unsigned short iBOM = 0xFEFF;
 							WriteFile(hFile, (ptr)&iBOM, 2, &iRetSize, NULL);
 						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
-							unsigned short iBOM = 0xFEFF;
+							unsigned short iBOM = 0xFFFE;
 							WriteFile(hFile, (ptr)&iBOM, 2, &iRetSize, NULL);
 						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
 							unsigned int iBOM = 0xFFFE0000;
@@ -106,8 +121,9 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 					}
 				}
 				if ( bErrorBOM ) {
-					xrtSetError("Incorrect BOM data !", FALSE);
+					xrtSetError(sErrorFile_BOM, FALSE);
 					CloseHandle(hFile);
+					xrtFree(objFile);
 					return NULL;
 				}
 			}
@@ -167,7 +183,6 @@ XXAPI int xrtClose(xfile objFile)
 
 
 // 设置游标位置
-static const str sErrorFile_Handle = "Incorrect file handle !";
 XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -185,7 +200,7 @@ XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
 				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_END);
 				return iPos_stu.QuadPart;
 			} else {
-				xrtSetError("Incorrect seek method !", FALSE);
+				xrtSetError(sErrorFile_Seek, FALSE);
 				return 0;
 			}
 		} else {
@@ -226,11 +241,9 @@ XXAPI size_t xrtGetEOF(xfile objFile)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
-			size_t iPos = xrtTell(objFile);
-			xrtSeek(objFile, 0, XRT_SEEK_END);
-			size_t iSize = xrtTell(objFile);
-			xrtSeek(objFile, iPos, XRT_SEEK_BEGIN);
-			return iSize;
+			LARGE_INTEGER stuSize;
+			GetFileSizeEx(objFile->obj, &stuSize);
+			return stuSize.QuadPart;
 		} else {
 			xrtSetError(sErrorFile_Handle, FALSE);
 			return 0;
@@ -249,9 +262,7 @@ XXAPI int xrtEOF(xfile objFile)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
 			size_t iPos = xrtTell(objFile);
-			xrtSeek(objFile, 0, XRT_SEEK_END);
-			size_t iEnd = xrtTell(objFile);
-			xrtSeek(objFile, iPos, XRT_SEEK_BEGIN);
+			size_t iEnd = xrtGetEOF(objFile);
 			return (iPos >= iEnd);
 		} else {
 			xrtSetError(sErrorFile_Handle, FALSE);
@@ -284,8 +295,7 @@ XXAPI int xrtSetEOF(xfile objFile)
 
 
 
-// 从已打开的文件读取数据
-static const str sErrorFile_Read = "File read failure !";
+// 从已打开的文件读取数据 ( iSize 为要读取的字节数，需要使用 xrtFree 释放内存 )
 XXAPI str xrtRead(xfile objFile, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -308,7 +318,8 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 				sBuff[iRetSize + 3] = 0;
 				// 转换编码 (将读取到的数据转换为 utf-8 编码)
 				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
-					str sRet = xrtConvCharset(sBuff, iRetSize, objFile->Charset, XRT_CP_UTF8);
+					int iCharSize = xrtGetCharSize(objFile->Charset);
+					str sRet = xrtConvCharset(sBuff, iRetSize / iCharSize, objFile->Charset, XRT_CP_UTF8);
 					xrtFree(sBuff);
 					return sRet;
 				} else {
@@ -329,13 +340,56 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 	#else
 		// 其他平台方案
 	#endif
-	return NULL;
+}
+XXAPI wstr xrtReadW(xfile objFile, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
+			str sBuff = xrtMalloc(iSize + 4);
+			if ( sBuff == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return (wstr)xCore.sNull;
+			}
+			// 读取数据
+			DWORD iRetSize;
+			if ( ReadFile(objFile->obj, sBuff, iSize, &iRetSize, NULL) ) {
+				// 读取到的文件可能是 utf-32 编码，留 4 个空字节做结尾
+				sBuff[iRetSize] = 0;
+				sBuff[iRetSize + 1] = 0;
+				sBuff[iRetSize + 2] = 0;
+				sBuff[iRetSize + 3] = 0;
+				// 转换编码 (将读取到的数据转换为 utf-8 编码)
+				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF16) ) {
+					int iCharSize = xrtGetCharSize(objFile->Charset);
+					u16str sRet = xrtConvCharset(sBuff, iRetSize / iCharSize, objFile->Charset, XRT_CP_UTF16);
+					xrtFree(sBuff);
+					return sRet;
+				} else {
+					xCore.iRet = iRetSize;
+					return (wstr)sBuff;
+				}
+			} else {
+				xrtSetError(sErrorFile_Read, FALSE);
+				xrtFree(sBuff);
+				xCore.iRet = 0;
+				return (wstr)xCore.sNull;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			xCore.iRet = 0;
+			return (wstr)xCore.sNull;
+		}
+	#else
+		// 其他平台方案
+	#endif
 }
 
 
 
-// 向已打开的文件写入数据
-static const str sErrorFile_Write = "File write failure !";
+// 向已打开的文件写入数据 ( iSize 为要写入的字节数 )
 XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -348,7 +402,48 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 				// 需要转换为目标文件的编码再写入
 				str sBuff = xrtConvCharset(sText, iSize, XRT_CP_UTF8, objFile->Charset);
-				if ( WriteFile(objFile->obj, sBuff, xCore.iRet, &iRetSize, NULL) ) {
+				int iCharSize = xrtGetCharSize(objFile->Charset);
+				int iRet = WriteFile(objFile->obj, sBuff, xCore.iRet * iCharSize, &iRetSize, NULL);
+				xrtFree(sBuff);
+				if ( iRet ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			} else {
+				// 二进制或 utf-8 编码可以直接写入
+				if ( WriteFile(objFile->obj, sText, iSize, &iRetSize, NULL) ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
+	#else
+		// 其他平台方案
+	#endif
+}
+XXAPI size_t xrtWriteW(xfile objFile, wstr sText, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			if ( sText == NULL ) { return 0; }
+			if ( iSize == 0 ) { iSize = wcslen(sText) * sizeof(wchar_t); }
+			if ( iSize == 0 ) { return 0; }
+			DWORD iRetSize;
+			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF16) ) {
+				// 需要转换为目标文件的编码再写入
+				str sBuff = xrtConvCharset(sText, iSize / sizeof(wchar_t), XRT_CP_UTF16, objFile->Charset);
+				int iCharSize = xrtGetCharSize(objFile->Charset);
+				int iRet = WriteFile(objFile->obj, sBuff, xCore.iRet * iCharSize, &iRetSize, NULL);
+				xrtFree(sBuff);
+				if ( iRet ) {
 					return iRetSize;
 				} else {
 					xrtSetError(sErrorFile_Write, FALSE);
@@ -374,14 +469,14 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 
 
 
-// 从已打开的文件读取二进制数据
+// 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
 XXAPI ptr xrtGet(xfile objFile, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
 			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
-			str sBuff = xrtMalloc(iSize + 4);
+			str sBuff = xrtMalloc(iSize);
 			if ( sBuff == NULL ) {
 				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
@@ -390,11 +485,6 @@ XXAPI ptr xrtGet(xfile objFile, size_t iSize)
 			// 读取数据
 			DWORD iRetSize;
 			if ( ReadFile(objFile->obj, sBuff, iSize, &iRetSize, NULL) ) {
-				// 读取到的文件可能是 utf-32 编码，留 4 个空字节做结尾
-				sBuff[iRetSize] = 0;
-				sBuff[iRetSize + 1] = 0;
-				sBuff[iRetSize + 2] = 0;
-				sBuff[iRetSize + 3] = 0;
 				xCore.iRet = iRetSize;
 				return sBuff;
 			} else {
@@ -421,7 +511,6 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
 			if ( pBuff == NULL ) { return 0; }
-			if ( iSize == 0 ) { iSize = strlen(pBuff); }
 			if ( iSize == 0 ) { return 0; }
 			DWORD iRetSize;
 			if ( WriteFile(objFile->obj, pBuff, iSize, &iRetSize, NULL) ) {
@@ -641,7 +730,7 @@ XXAPI str xrtFileReadAll(str sPath, int iCharset)
 		// windows 方案
 		xfile objFile = xrtOpen(sPath, TRUE, iCharset);
 		if ( objFile ) {
-			uint64 iSize = objFile->Size - objFile->BOM;
+			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
 			str sRet = xCore.sNull;
 			if ( iSize > 0 ) { sRet = xrtRead(objFile, iSize - objFile->BOM); }
 			xrtClose(objFile);
