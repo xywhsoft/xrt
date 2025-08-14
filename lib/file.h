@@ -454,6 +454,15 @@ XXAPI int xrtPathExists(str sPath)
 		// 其他平台方案
 	#endif
 }
+XXAPI int xrtPathExistsW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		return GetFileAttributesW(sPath) != INVALID_FILE_ATTRIBUTES;
+	#else
+		// 其他平台方案
+	#endif
+}
 
 
 
@@ -476,6 +485,22 @@ XXAPI int xrtFileExists(str sPath)
 		// 其他平台方案
 	#endif
 }
+XXAPI int xrtFileExistsW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		WIN32_FILE_ATTRIBUTE_DATA wfad = { 0 };
+		DWORD iRet = GetFileAttributesExW(sPath, GetFileExInfoStandard, &wfad);
+		if ( iRet == 0 ) { return FALSE; }
+		if ( wfad.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
+	#else
+		// 其他平台方案
+	#endif
+}
 
 
 
@@ -488,6 +513,22 @@ XXAPI int xrtDirExists(str sPath)
 		WIN32_FILE_ATTRIBUTE_DATA wfad = { 0 };
 		DWORD iRet = GetFileAttributesExW(sPathW, GetFileExInfoStandard, &wfad);
 		xrtFree(sPathW);
+		if ( iRet == 0 ) { return FALSE; }
+		if ( wfad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
+	#else
+		// 其他平台方案
+	#endif
+}
+XXAPI int xrtDirExistsW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		WIN32_FILE_ATTRIBUTE_DATA wfad = { 0 };
+		DWORD iRet = GetFileAttributesExW(sPath, GetFileExInfoStandard, &wfad);
 		if ( iRet == 0 ) { return FALSE; }
 		if ( wfad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) {
 			return TRUE;
@@ -673,6 +714,10 @@ XXAPI int xrtFileGetAttr(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		int iRet = GetFileAttributesW(sPathW);
+		xrtFree(sPathW);
+		return iRet;
 	#else
 		// 其他平台方案
 	#endif
@@ -682,10 +727,14 @@ XXAPI int xrtFileGetAttr(str sPath)
 
 
 // 设置文件属性
-XXAPI int xrtFileSetAttr(str sPath, int Attr)
+XXAPI int xrtFileSetAttr(str sPath, int iAttr)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		int iRet = SetFileAttributesW(sPathW, iAttr);
+		xrtFree(sPathW);
+		return iRet;
 	#else
 		// 其他平台方案
 	#endif
@@ -699,6 +748,12 @@ XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sSrcW = xrtUTF8to16(sSrc, 0);
+		wstr sDstW = xrtUTF8to16(sDst, 0);
+		int iRet = CopyFileW(sSrcW, sDstW, bReWrite ? FALSE : TRUE);
+		xrtFree(sSrcW);
+		xrtFree(sDstW);
+		return iRet;
 	#else
 		// 其他平台方案
 	#endif
@@ -712,6 +767,26 @@ XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sSrcW = xrtUTF8to16(sSrc, 0);
+		wstr sDstW = xrtUTF8to16(sDst, 0);
+		// 如果源文件和目标文件都存在，并且 bReWrite 为 TRUE，将目标文件删除
+		int bExistSrc = xrtFileExistsW(sSrcW);
+		int bExistDst = xrtFileExistsW(sDstW);
+		if ( bExistSrc && bExistDst && bReWrite ) {
+			DeleteFileW(sDstW);
+		}
+		// 移动文件
+		int iRet = MoveFileW(sSrcW, sDstW);
+		if ( iRet == FALSE ) {
+			// MoveFile 不支持跨盘移动，因此移动失败后，尝试复制再删除
+			iRet = CopyFileW(sSrcW, sDstW, bReWrite ? FALSE : TRUE);
+			if ( iRet ) {
+				iRet = DeleteFileW(sSrcW);
+			}
+		}
+		xrtFree(sSrcW);
+		xrtFree(sDstW);
+		return iRet;
 	#else
 		// 其他平台方案
 	#endif
@@ -725,6 +800,10 @@ XXAPI int xrtFileDelete(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		int iRet = DeleteFileW(sPathW);
+		xrtFree(sPathW);
+		return iRet;
 	#else
 		// 其他平台方案
 	#endif

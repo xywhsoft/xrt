@@ -33,6 +33,7 @@ xrtDirCopy
 xrtDirCreate
 xrtDirDelete
 xrtDirExists
+xrtDirExistsW
 xrtDirList
 xrtDirMove
 xrtDirScan
@@ -41,6 +42,7 @@ xrtFileAppend
 xrtFileCopy
 xrtFileDelete
 xrtFileExists
+xrtFileExistsW
 xrtFileGetAll
 xrtFileGetAttr
 xrtFileGetSize
@@ -86,6 +88,7 @@ xrtNowStrW
 xrtOpen
 xrtOpenW
 xrtPathExists
+xrtPathExistsW
 xrtPathGetDir
 xrtPathGetDirW
 xrtPathGetExt

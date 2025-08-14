@@ -480,6 +480,57 @@
 	// 向已打开的文件写入数据
 	XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
 	
+	// 从已打开的文件读取二进制数据
+	XXAPI ptr xrtGet(xfile objFile, size_t iSize);
+	
+	// 向已打开的文件写入二进制数据
+	XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize);
+	
+	// 判断路径是否存在
+	XXAPI int xrtPathExists(str sPath);
+	
+	// 判断文件是否存在
+	XXAPI int xrtFileExists(str sPath);
+	
+	// 判断目录是否存在
+	XXAPI int xrtDirExists(str sPath);
+	
+	// 获取文件长度
+	XXAPI size_t xrtFileGetSize(str sPath);
+	
+	// 设置文件长度
+	XXAPI int xrtFileSetSize(str sPath, size_t iSize);
+	
+	// 向文件追加写入数据
+	XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset);
+	
+	// 写入并覆盖文件内容
+	XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
+	
+	// 读取文件的全部内容
+	XXAPI str xrtFileReadAll(str sPath, int iCharset);
+	
+	// 写入并覆盖文件内容（二进制）
+	XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize);
+	
+	// 读取文件的全部内容（二进制）
+	XXAPI ptr xrtFileGetAll(str sPath);
+	
+	// 获取文件属性
+	XXAPI int xrtFileGetAttr(str sPath);
+	
+	// 设置文件属性
+	XXAPI int xrtFileSetAttr(str sPath, int iAttr);
+	
+	// 复制文件
+	XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite);
+	
+	// 移动文件（重命名）
+	XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite);
+	
+	// 删除文件
+	XXAPI int xrtFileDelete(str sPath);
+	
 	
 	
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
