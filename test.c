@@ -351,7 +351,7 @@ int main(int argc, char** argv)
 	/* File 库测试 */
 	printf("\n\n\n------------------------------------\n\n File 库测试 :\n\n");
 	
-	//*
+	/*
 	printf("---------------- 编码自动识别\n\n");
 	str sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\ascii.txt", 0);
 	printf("test : %s\n", sPath);
@@ -477,20 +477,17 @@ int main(int argc, char** argv)
 	printf("Text : %s\n\n", sText);
 	//*/
 	
-	/*
+	//*
 	printf("---------------- 文件读取和写入\n");
 	str sPath2 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test.txt", 0);
 	printf("test : %s\n", sPath2);
 	xfile objFile = xrtOpen(sPath2, TRUE, XRT_CP_AUTO);
-	str sText2 = xrtRead(objFile, objFile->Size - objFile->BOM);
+	str sText2 = xrtRead(objFile, xrtGetEOF(objFile) - objFile->BOM);
 	printf("Text : %s\n\n", sText2);
 	
 	str sPath3 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u16be.txt", 0);
 	xrtFileDelete(sPath3);
 	xfile objFile2 = xrtOpen(sPath3, FALSE, XRT_CP_UTF16_BE | XRT_CP_BOM);
-	printf("Charset (65006) : %d\n", objFile2->Charset);
-	printf("Size : %d\n", objFile2->Size);
-	printf("BOM : %d\n", objFile2->BOM);
 	xrtWrite(objFile2, sText2, 0);
 	xrtWrite(objFile2, "\n1234567", 0);
 	xrtClose(objFile2);
@@ -498,13 +495,15 @@ int main(int argc, char** argv)
 	str sPath4 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u16.txt", 0);
 	xrtFileDelete(sPath4);
 	xfile objFile3 = xrtOpen(sPath4, FALSE, XRT_CP_UTF16 | XRT_CP_BOM);
-	printf("Charset (65006) : %d\n", objFile3->Charset);
-	printf("Size : %d\n", objFile3->Size);
-	printf("BOM : %d\n", objFile3->BOM);
 	xrtWrite(objFile3, sText2, 0);
 	xrtWrite(objFile3, "\n7654321", 0);
 	xrtClose(objFile3);
 	
+	str sPath5 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u32.txt", 0);
+	xrtFileWriteAll(sPath5, "xxrpa.com 清浅池塘边，重生破土的冲动", 0, XRT_CP_UTF32 | XRT_CP_BOM);
+	xrtFileAppend(sPath5, "\nxdoc.online 天地正玲珑，殡葬了飞虫", 0, XRT_CP_UTF32 | XRT_CP_BOM);
+	str sRetPath5 = xrtFileReadAll(sPath5, XRT_CP_AUTO);
+	printf("xrtFileReadAll : %s\n", sRetPath5);
 	
 	
 	//*/

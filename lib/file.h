@@ -86,10 +86,10 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 							unsigned short iBOM = 0xFFFE;
 							WriteFile(hFile, (ptr)&iBOM, 2, &iRetSize, NULL);
 						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
-							unsigned int iBOM = 0xFFFE0000;
+							unsigned int iBOM = 0x0000FEFF;
 							WriteFile(hFile, (ptr)&iBOM, 4, &iRetSize, NULL);
 						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
-							unsigned int iBOM = 0x0000FEFF;
+							unsigned int iBOM = 0xFFFE0000;
 							WriteFile(hFile, (ptr)&iBOM, 4, &iRetSize, NULL);
 						}
 					}
@@ -622,14 +622,15 @@ XXAPI str xrtFileReadAll(str sPath, int iCharset)
 		xfile objFile = xrtOpen(sPath, TRUE, iCharset);
 		if ( objFile ) {
 			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
+			printf("%d\n", iSize);
 			if ( iSize > 0 ) {
-				xrtClose(objFile);
-				xCore.iRet = 0;
-				return xCore.sNull;
-			} else {
 				str sRet = xrtRead(objFile, iSize - objFile->BOM);
 				xrtClose(objFile);
 				return sRet;
+			} else {
+				xrtClose(objFile);
+				xCore.iRet = 0;
+				return xCore.sNull;
 			}
 		}
 		xCore.iRet = 0;
@@ -646,13 +647,13 @@ XXAPI wstr xrtFileReadAllW(wstr sPath, int iCharset)
 		if ( objFile ) {
 			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
 			if ( iSize > 0 ) {
-				xrtClose(objFile);
-				xCore.iRet = 0;
-				return (wstr)xCore.sNull;
-			} else {
 				wstr sRet = xrtReadW(objFile, iSize - objFile->BOM);
 				xrtClose(objFile);
 				return sRet;
+			} else {
+				xrtClose(objFile);
+				xCore.iRet = 0;
+				return (wstr)xCore.sNull;
 			}
 		}
 		xCore.iRet = 0;
