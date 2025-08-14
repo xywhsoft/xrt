@@ -512,33 +512,43 @@
 	
 	// 判断路径是否存在
 	XXAPI int xrtPathExists(str sPath);
+	XXAPI int xrtPathExistsW(wstr sPath);
 	
 	// 判断文件是否存在
 	XXAPI int xrtFileExists(str sPath);
+	XXAPI int xrtFileExistsW(wstr sPath);
 	
 	// 判断目录是否存在
 	XXAPI int xrtDirExists(str sPath);
+	XXAPI int xrtDirExistsW(wstr sPath);
 	
 	// 获取文件长度
 	XXAPI size_t xrtFileGetSize(str sPath);
+	XXAPI size_t xrtFileGetSizeW(wstr sPath);
 	
 	// 设置文件长度
 	XXAPI int xrtFileSetSize(str sPath, size_t iSize);
+	XXAPI int xrtFileSetSizeW(wstr sPath, size_t iSize);
 	
 	// 获取文件属性
 	XXAPI int xrtFileGetAttr(str sPath);
+	XXAPI int xrtFileGetAttrW(wstr sPath);
 	
 	// 设置文件属性
 	XXAPI int xrtFileSetAttr(str sPath, int iAttr);
+	XXAPI int xrtFileSetAttrW(wstr sPath, int iAttr);
 	
 	// 复制文件
 	XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite);
+	XXAPI int xrtFileCopyW(wstr sSrc, wstr sDst, int bReWrite);
 	
 	// 移动文件（重命名）
 	XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite);
+	XXAPI int xrtFileMoveW(wstr sSrc, wstr sDst, int bReWrite);
 	
 	// 删除文件
 	XXAPI int xrtFileDelete(str sPath);
+	XXAPI int xrtFileDeleteW(wstr sPath);
 	
 	
 	

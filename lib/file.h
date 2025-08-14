@@ -622,9 +622,8 @@ XXAPI str xrtFileReadAll(str sPath, int iCharset)
 		xfile objFile = xrtOpen(sPath, TRUE, iCharset);
 		if ( objFile ) {
 			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
-			printf("%d\n", iSize);
 			if ( iSize > 0 ) {
-				str sRet = xrtRead(objFile, iSize - objFile->BOM);
+				str sRet = xrtRead(objFile, iSize);
 				xrtClose(objFile);
 				return sRet;
 			} else {
@@ -647,7 +646,7 @@ XXAPI wstr xrtFileReadAllW(wstr sPath, int iCharset)
 		if ( objFile ) {
 			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
 			if ( iSize > 0 ) {
-				wstr sRet = xrtReadW(objFile, iSize - objFile->BOM);
+				wstr sRet = xrtReadW(objFile, iSize);
 				xrtClose(objFile);
 				return sRet;
 			} else {
@@ -899,6 +898,22 @@ XXAPI size_t xrtFileGetSize(str sPath)
 		// 其他平台方案
 	#endif
 }
+XXAPI size_t xrtFileGetSizeW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		HANDLE hFile = CreateFileW(sPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
+			LARGE_INTEGER iSize;
+			GetFileSizeEx(hFile, &iSize);
+			CloseHandle(hFile);
+			return iSize.QuadPart;
+		}
+		return 0;
+	#else
+		// 其他平台方案
+	#endif
+}
 
 
 
@@ -910,6 +925,24 @@ XXAPI int xrtFileSetSize(str sPath, size_t iSize)
 		wstr sPathW = xrtUTF8to16(sPath, 0);
 		HANDLE hFile = CreateFileW(sPathW, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
+		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
+			LARGE_INTEGER iPos_stu;
+			iPos_stu.QuadPart = iSize;
+			SetFilePointerEx(hFile, iPos_stu, NULL, FILE_BEGIN);
+			SetEndOfFile(hFile);
+			CloseHandle(hFile);
+			return TRUE;
+		}
+		return FALSE;
+	#else
+		// 其他平台方案
+	#endif
+}
+XXAPI int xrtFileSetSizeW(wstr sPath, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		HANDLE hFile = CreateFileW(sPath, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
 			LARGE_INTEGER iPos_stu;
 			iPos_stu.QuadPart = iSize;
@@ -940,6 +973,16 @@ XXAPI int xrtFileGetAttr(str sPath)
 	#endif
 	return 0;
 }
+XXAPI int xrtFileGetAttrW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		return GetFileAttributesW(sPath);
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
 
 
 
@@ -952,6 +995,16 @@ XXAPI int xrtFileSetAttr(str sPath, int iAttr)
 		int iRet = SetFileAttributesW(sPathW, iAttr);
 		xrtFree(sPathW);
 		return iRet;
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
+XXAPI int xrtFileSetAttrW(wstr sPath, int iAttr)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		return SetFileAttributesW(sPath, iAttr);
 	#else
 		// 其他平台方案
 	#endif
@@ -971,6 +1024,16 @@ XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite)
 		xrtFree(sSrcW);
 		xrtFree(sDstW);
 		return iRet;
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
+XXAPI int xrtFileCopyW(wstr sSrc, wstr sDst, int bReWrite)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		return CopyFileW(sSrc, sDst, bReWrite ? FALSE : TRUE);
 	#else
 		// 其他平台方案
 	#endif
@@ -1002,6 +1065,23 @@ XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
 	#endif
 	return 0;
 }
+XXAPI int xrtFileMoveW(wstr sSrc, wstr sDst, int bReWrite)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		// 如果源文件和目标文件都存在，并且 bReWrite 为 TRUE，将目标文件删除
+		int bExistSrc = xrtFileExistsW(sSrc);
+		int bExistDst = xrtFileExistsW(sDst);
+		if ( bExistSrc && bExistDst && bReWrite ) {
+			DeleteFileW(sDst);
+		}
+		// 移动文件
+		return MoveFileExW(sSrc, sDst, MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | (bReWrite ? MOVEFILE_REPLACE_EXISTING : 0));
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
 
 
 
@@ -1014,6 +1094,16 @@ XXAPI int xrtFileDelete(str sPath)
 		int iRet = DeleteFileW(sPathW);
 		xrtFree(sPathW);
 		return iRet;
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
+XXAPI int xrtFileDeleteW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		return DeleteFileW(sPath);
 	#else
 		// 其他平台方案
 	#endif
