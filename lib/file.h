@@ -843,6 +843,28 @@ XXAPI int xrtDirCreate(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( sPath == NULL ) { return FALSE; }
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		size_t iSize = xCore.iRet;
+		if ( iSize == 0 ) { return FALSE; }
+		wstr sCurPath = xrtMalloc((iSize + 1) * sizeof(wchar_t));
+		if ( sCurPath == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			xrtFree(sPathW);
+			return FALSE;
+		}
+		size_t iCurPos = 0;
+		for ( int i = 0; i < iSize; i++ ) {
+			if ( (sPathW[i] == L'/') || (sPathW[i] == L'\\') ) {
+				sCurPath[iCurPos] = 0;
+				CreateDirectoryW(sCurPath, NULL);
+				sCurPath[iCurPos++] = L'\\';
+			} else {
+				sCurPath[iCurPos++] = sPathW[i];
+			}
+		}
+		xrtFree(sCurPath);
+		xrtFree(sPathW);
 	#else
 		// 其他平台方案
 	#endif
