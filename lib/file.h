@@ -285,6 +285,7 @@ XXAPI int xrtSetEOF(xfile objFile)
 
 
 // 从已打开的文件读取数据
+static const str sErrorFile_Read = "File read failure !";
 XXAPI str xrtRead(xfile objFile, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -315,7 +316,7 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 					return sBuff;
 				}
 			} else {
-				xrtSetError("File read failure !", FALSE);
+				xrtSetError(sErrorFile_Read, FALSE);
 				xrtFree(sBuff);
 				xCore.iRet = 0;
 				return xCore.sNull;
@@ -378,10 +379,37 @@ XXAPI ptr xrtGet(xfile objFile, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			str sBuff = xrtMalloc(iSize + 4);
+			if ( sBuff == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			// 读取数据
+			DWORD iRetSize;
+			if ( ReadFile(objFile->obj, sBuff, iSize, &iRetSize, NULL) ) {
+				// 读取到的文件可能是 utf-32 编码，留 4 个空字节做结尾
+				sBuff[iRetSize] = 0;
+				sBuff[iRetSize + 1] = 0;
+				sBuff[iRetSize + 2] = 0;
+				sBuff[iRetSize + 3] = 0;
+				xCore.iRet = iRetSize;
+				return sBuff;
+			} else {
+				xrtSetError(sErrorFile_Read, FALSE);
+				xrtFree(sBuff);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#else
 		// 其他平台方案
 	#endif
-	return NULL;
 }
 
 
@@ -391,10 +419,24 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			if ( pBuff == NULL ) { return 0; }
+			if ( iSize == 0 ) { iSize = strlen(pBuff); }
+			if ( iSize == 0 ) { return 0; }
+			DWORD iRetSize;
+			if ( WriteFile(objFile->obj, pBuff, iSize, &iRetSize, NULL) ) {
+				return iRetSize;
+			} else {
+				xrtSetError(sErrorFile_Write, FALSE);
+				return 0;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#else
 		// 其他平台方案
 	#endif
-	return FALSE;
 }
 
 
@@ -404,10 +446,13 @@ XXAPI int xrtPathExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		int bRet = GetFileAttributesW(sPathW) != INVALID_FILE_ATTRIBUTES;
+		xrtFree(sPathW);
+		return bRet;
 	#else
 		// 其他平台方案
 	#endif
-	return FALSE;
 }
 
 
@@ -417,10 +462,19 @@ XXAPI int xrtFileExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		WIN32_FILE_ATTRIBUTE_DATA wfad = { 0 };
+		DWORD iRet = GetFileAttributesExW(sPathW, GetFileExInfoStandard, &wfad);
+		xrtFree(sPathW);
+		if ( iRet == 0 ) { return FALSE; }
+		if ( wfad.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#else
 		// 其他平台方案
 	#endif
-	return FALSE;
 }
 
 
@@ -430,10 +484,19 @@ XXAPI int xrtDirExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		WIN32_FILE_ATTRIBUTE_DATA wfad = { 0 };
+		DWORD iRet = GetFileAttributesExW(sPathW, GetFileExInfoStandard, &wfad);
+		xrtFree(sPathW);
+		if ( iRet == 0 ) { return FALSE; }
+		if ( wfad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#else
 		// 其他平台方案
 	#endif
-	return FALSE;
 }
 
 
