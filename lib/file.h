@@ -136,8 +136,8 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 		return objFile;
 	#else
 		// 其他平台方案
-		str sConvPath = xrtUTF16to8(sPath, 0);
-		xfile objFile = xrtOpenW(sConvPath, bReadOnly, iCharset);
+		str sConvPath = xrtUTF32to8(sPath, 0);
+		xfile objFile = xrtOpen(sConvPath, bReadOnly, iCharset);
 		xrtFree(sConvPath);
 		return objFile;
 	#endif

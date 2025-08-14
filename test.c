@@ -93,9 +93,9 @@ int main(int argc, char** argv)
 	// 猜测编码功能测试
 	printf("\n\n---------------- 编码猜测功能\n");
 	printf("xrtIsUTF8 (utf8): %d\n", xrtIsUTF8(stru8, 0));
-	printf("xrtIsUTF8 (utf16): %d\n", xrtIsUTF8((ptr)stru16, 0));
+	printf("xrtIsUTF8 (utf16): %d\n", xrtIsUTF8((ptr)su16, 0));
 	printf("xrtDetectCharset (utf8): %d\n", xrtDetectCharset(stru8, strlen(stru8), FALSE));
-	printf("xrtDetectCharset (utf16): %d\n", xrtDetectCharset(stru16, u16len(stru16), FALSE));
+	printf("xrtDetectCharset (utf16): %d\n", xrtDetectCharset(su16, u16len(su16), FALSE));
 	printf("xrtDetectCharset (utf32): %d\n", xrtDetectCharset(sRet32, u32len(sRet32), FALSE));
 	
 	// 任意编码组合转换功能
