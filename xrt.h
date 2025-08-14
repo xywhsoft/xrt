@@ -569,9 +569,6 @@
 	XXAPI uint32 xrtHash32_WithSeed(void* key, size_t len, unsigned int seed);
 	XXAPI uint32 xrtHash32(void* key, size_t len);
 	
-	// 内联 32 位哈希计算
-	#define Hash32Inline	NMHASH32X
-	
 	/*
 		Hash64 - rapidhash [Ver1.0, Update : 2024/10/18 from https://github.com/Nicoshev/rapidhash]
 			使用协议注意事项：
@@ -586,9 +583,10 @@
 	// 计算 64 位哈希值
 	XXAPI uint64 xrtHash64_WithSeed(void* key, size_t len, unsigned long long seed);
 	XXAPI uint64 xrtHash64(void* key, size_t len);
-	
-	// 内联 64 位哈希计算
-	#define Hash64Inline	rapidhash_withSeed
+	XXAPI uint64 xrtHash64_Micro_WithSeed(void* key, size_t len, unsigned long long seed);
+	XXAPI uint64 xrtHash64_Micro(void* key, size_t len);
+	XXAPI uint64 xrtHash64_Nano_WithSeed(void* key, size_t len, unsigned long long seed);
+	XXAPI uint64 xrtHash64_Nano(void* key, size_t len);
 	
 	
 	

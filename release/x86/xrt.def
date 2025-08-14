@@ -77,6 +77,10 @@ xrtGetEOF
 xrtHash32
 xrtHash32_WithSeed
 xrtHash64
+xrtHash64_Micro
+xrtHash64_Micro_WithSeed
+xrtHash64_Nano
+xrtHash64_Nano_WithSeed
 xrtHash64_WithSeed
 xrtHexDecode
 xrtHexDecodeW
