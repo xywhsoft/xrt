@@ -506,10 +506,19 @@ XXAPI size_t xrtFileGetSize(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		xrtFree(sPathW);
+		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
+			LARGE_INTEGER iSize;
+			GetFileSizeEx(hFile, &iSize);
+			CloseHandle(hFile);
+			return iSize.QuadPart;
+		}
+		return 0;
 	#else
 		// 其他平台方案
 	#endif
-	return 0;
 }
 
 
@@ -519,10 +528,21 @@ XXAPI int xrtFileSetSize(str sPath, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		xrtFree(sPathW);
+		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
+			LARGE_INTEGER iPos_stu;
+			iPos_stu.QuadPart = iSize;
+			SetFilePointerEx(hFile, iPos_stu, NULL, FILE_BEGIN);
+			SetEndOfFile(hFile);
+			CloseHandle(hFile);
+			return TRUE;
+		}
+		return FALSE;
 	#else
 		// 其他平台方案
 	#endif
-	return 0;
 }
 
 
@@ -532,10 +552,20 @@ XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( sText == NULL ) { return 0; }
+		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
+		if ( objFile ) {
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { xrtClose(objFile); return 0; }
+			xrtSeek(objFile, 0, FILE_END);
+			ulong iRet = xrtWrite(objFile, sText, iSize);
+			xrtClose(objFile);
+			return iRet;
+		}
+		return 0;
 	#else
 		// 其他平台方案
 	#endif
-	return 0;
 }
 
 
@@ -545,23 +575,42 @@ XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		if ( sText == NULL ) { return 0; }
+		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
+		if ( objFile ) {
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { return 0; }
+			ulong iRet = xrtWrite(objFile, sText, iSize);
+			xrtSetEOF(objFile);
+			xrtClose(objFile);
+			return iRet;
+		}
+		return 0;
 	#else
 		// 其他平台方案
 	#endif
-	return 0;
 }
 
 
 
 // 读取文件的全部内容
-XXAPI int xrtFileReadAll(str sPath, int iCharset)
+XXAPI str xrtFileReadAll(str sPath, int iCharset)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		xfile objFile = xrtOpen(sPath, TRUE, iCharset);
+		if ( objFile ) {
+			uint64 iSize = objFile->Size - objFile->BOM;
+			str sRet = xCore.sNull;
+			if ( iSize > 0 ) { sRet = xrtRead(objFile, iSize - objFile->BOM); }
+			xrtClose(objFile);
+			return sRet;
+		}
+		xCore.iRet = 0;
+		return xCore.sNull;
 	#else
 		// 其他平台方案
 	#endif
-	return 0;
 }
 
 
@@ -571,6 +620,16 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		xrtFree(sPathW);
+		if ( hFile == INVALID_HANDLE_VALUE ) { return 0; }
+		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+		DWORD iRetSize;
+		WriteFile(hFile, pBuff, iSize, &iRetSize, NULL);
+		SetEndOfFile(hFile);
+		CloseHandle(hFile);
+		return iRetSize;
 	#else
 		// 其他平台方案
 	#endif
@@ -580,10 +639,27 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 
 
 // 读取文件的全部内容（二进制）
-XXAPI int xrtFileGetAll(str sPath)
+XXAPI ptr xrtFileGetAll(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		xrtFree(sPathW);
+		if ( hFile == INVALID_HANDLE_VALUE ) { xCore.iRet = 0; return xCore.sNull; }
+		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+		DWORD iRetSize = GetFileSize(hFile, NULL);
+		ptr pBuff = xrtMalloc(iRetSize + 1);
+		if ( pBuff == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			CloseHandle(hFile);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		ReadFile(hFile, pBuff, iRetSize, &iRetSize, NULL);
+		CloseHandle(hFile);
+		xCore.iRet = iRetSize;
+		return pBuff;
 	#else
 		// 其他平台方案
 	#endif
