@@ -10,6 +10,34 @@
 
 
 
+// 扫描文件回调函数
+int FileScanProc(str sPath, int bDir, ptr pData, ptr Param)
+{
+	if ( bDir == 1 ) {
+		printf("\tdir+ : %s\n", sPath);
+	} else if ( bDir == 2 ) {
+		printf("\tdir- : %s\n", sPath);
+	} else {
+		printf("\tfile : %s\n", sPath);
+	}
+	return FALSE;
+}
+int FileScanProcW(wstr sPath, int bDir, ptr pData, ptr Param)
+{
+	if ( bDir == 1 ) {
+		printf("\tdir+ : %S\n", sPath);
+	} else if ( bDir == 2 ) {
+		printf("\tdir- : %S\n", sPath);
+	} else {
+		printf("\tfile : %S\n", sPath);
+	}
+	return FALSE;
+}
+
+
+
+
+
 int main(int argc, char** argv)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -506,8 +534,56 @@ int main(int argc, char** argv)
 	printf("xrtFileReadAll : %s\n", sRetPath5);
 	//*/
 	
-	//*
+	/*
 	printf("---------------- 文件操作测试\n");
+	str sPathA1 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test.txt", 0);
+	str sPathA2 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_copy.txt", 0);
+	str sPathA3 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_movesrc.txt", 0);
+	str sPathA4 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_move.txt", 0);
+	str sPathA5 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_delete.txt", 0);
+	str sPathA6 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test222.txt", 0);
+	str sPathA7 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_size.txt", 0);
+	str sPathAX = xrtPathJoin(2, xCore->AppPath, 0, "test", 0);
+	xrtFileCopy(sPathA1, sPathA2, TRUE);
+	xrtFileCopy(sPathA1, sPathA3, TRUE);
+	xrtFileCopy(sPathA1, sPathA7, TRUE);
+	xrtFileMove(sPathA3, sPathA4, TRUE);
+	xrtFileDelete(sPathA5);
+	xrtFileSetSize(sPathA7, 10 * 1024 * 1024);
+	printf("xrtPathExists : %s = %d\n", sPathA1, xrtPathExists(sPathA1));
+	printf("xrtPathExists : %s = %d\n", sPathA6, xrtPathExists(sPathA6));
+	printf("xrtPathExists : %s = %d\n", sPathAX, xrtPathExists(sPathAX));
+	printf("xrtFileExists : %s = %d\n", sPathA1, xrtFileExists(sPathA1));
+	printf("xrtFileExists : %s = %d\n", sPathA6, xrtFileExists(sPathA6));
+	printf("xrtFileExists : %s = %d\n", sPathAX, xrtFileExists(sPathAX));
+	printf("xrtDirExists : %s = %d\n", sPathA1, xrtDirExists(sPathA1));
+	printf("xrtDirExists : %s = %d\n", sPathA6, xrtDirExists(sPathA6));
+	printf("xrtDirExists : %s = %d\n", sPathAX, xrtDirExists(sPathAX));
+	printf("xrtFileGetSize : %s = %d\n", sPathA1, xrtFileGetSize(sPathA1));
+	printf("xrtFileSetSize : %s = 10MB\n", sPathA7);
+	printf("xrtFileGetSize : %s = %d\n", sPathA7, xrtFileGetSize(sPathA7));
+	printf("xrtFileGetAttr : %s = %d\n", sPathA1, xrtFileGetAttr(sPathA1));
+	printf("xrtFileCopy : %s\n", sPathA2);
+	printf("xrtFileMove : %s\n", sPathA4);
+	printf("xrtFileDelete : %s\n", sPathA5);
+	//*/
+	
+	/*
+	printf("---------------- 遍历文件测试\n");
+	printf("xrtDirScan : %s\n", xCore->AppPath);
+	printf("FileCount : %d\n\n", xrtDirScan(xCore->AppPath, FALSE, FileScanProc, NULL));
+	printf("xrtDirScan [Recu] : %s\n", xCore->AppPath);
+	printf("FileCount : %d\n\n", xrtDirScan(xCore->AppPath, TRUE, FileScanProc, NULL));
+	//*/
+	
+	/*
+	printf("---------------- 目录操作测试\n");
+	printf("xrtDirCopy : %s -> c:\\123\n", xCore->AppPath);
+	printf("FileCount : %d\n\n", xrtDirCopy(xCore->AppPath, "c:\\123", FALSE));
+	printf("xrtDirMove : c:\\123 -> c:\\456\n");
+	printf("FileCount : %d\n\n", xrtDirMove("c:\\123", "c:\\456", TRUE));
+	printf("xrtDirDelete : c:\\456\n");
+	printf("FileCount : %d\n\n", xrtDirDelete("c:\\456"));
 	//*/
 	
 	

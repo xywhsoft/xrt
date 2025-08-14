@@ -550,6 +550,30 @@
 	XXAPI int xrtFileDelete(str sPath);
 	XXAPI int xrtFileDeleteW(wstr sPath);
 	
+	// 扫描文件夹
+	XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);
+	XXAPI int xrtDirScanW(wstr sPath, int bRecu, ptr pProc, ptr Param);
+	
+	// 创建文件夹
+	XXAPI int xrtDirCreate(str sPath);
+	XXAPI int xrtDirCreateW(wstr sPath);
+	
+	// 创建多级文件夹
+	XXAPI int xrtDirCreateAll(str sPath);
+	XXAPI int xrtDirCreateAllW(wstr sPath);
+	
+	// 复制文件夹
+	XXAPI int xrtDirCopy(str sSrc, str sDst, int bReWrite);
+	XXAPI int xrtDirCopyW(wstr sSrc, wstr sDst, int bReWrite);
+	
+	// 移动文件夹
+	XXAPI int xrtDirMove(str sSrc, str sDst, int bReWrite);
+	XXAPI int xrtDirMoveW(wstr sSrc, wstr sDst, int bReWrite);
+	
+	// 删除文件夹
+	XXAPI int xrtDirDelete(str sPath);
+	XXAPI int xrtDirDeleteW(wstr sPath);
+	
 	
 	
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
