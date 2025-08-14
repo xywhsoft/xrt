@@ -349,9 +349,9 @@ int main(int argc, char** argv)
 	
 	
 	/* File 库测试 */
-	//*
 	printf("\n\n\n------------------------------------\n\n File 库测试 :\n\n");
 	
+	//*
 	printf("---------------- 编码自动识别\n\n");
 	str sPath = xrtPathJoin(2, xCore->AppPath, 0, "test\\ascii.txt", 0);
 	printf("test : %s\n", sPath);
@@ -460,8 +460,11 @@ int main(int argc, char** argv)
 	printf("Size : %d\n", f_l->Size);
 	printf("BOM : %d\n", f_l->BOM);
 	printf("Text : %s\n\n", sText);
+	//*/
 	
-	printf("---------------- 编码自动识别\n");
+	//*
+	printf("---------------- 文件读取和写入\n");
+	//xfile objFile = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	
 	//*/
 	

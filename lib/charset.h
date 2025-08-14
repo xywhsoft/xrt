@@ -774,6 +774,8 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 	int bNoUTF16BE = FALSE;		// 是否不符合 UTF16 BE 标准
 	int bNoUTF32LE = FALSE;		// 是否不符合 UTF32 标准
 	int bNoUTF32BE = FALSE;		// 是否不符合 UTF32 BE 标准
+	int iNullBE = 0;			// UTF16 大端序方向 \0 的数量
+	int iNullLE = 0;			// UTF16 小端序方向 \0 的数量
 	int iNullSize = 0;			// 遇到连续 \0 的次数
 	int iMaxNull = 0;			// 最多连续 \0 的数量
 	// 通过 BOM 判断字符串编码
@@ -855,6 +857,11 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 		// 统计连续 \0 长度
 		if ( sPtr[i] == 0 ) {
 			iNullSize++;
+			if ( i & 1 ) {
+				iNullLE++;		// LE 英文字符特征 : X0
+			} else {
+				iNullBE++;		// BE 英文字符特征 : 0X
+			}
 		} else {
 			if ( iNullSize > iMaxNull ) {
 				iMaxNull = iNullSize;
@@ -875,6 +882,14 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 		}
 	} else if ( iMaxNull == 1 ) {
 		if ( bNoUTF16LE == FALSE ) {
+			if ( bNoUTF16BE == FALSE ) {
+				// 当无法区分到底是 utf16 BE 还是 LE 时，根据 \0 出现较多的方向判断
+				if ( iNullBE > iNullLE ) {
+					return XRT_CP_UTF16_BE;
+				} else {
+					return XRT_CP_UTF16;
+				}
+			}
 			return XRT_CP_UTF16;
 		} else if ( bNoUTF16BE == FALSE ) {
 			return XRT_CP_UTF16_BE;
