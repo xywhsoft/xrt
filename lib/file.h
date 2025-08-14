@@ -530,6 +530,254 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 
 
 
+// 向文件追加写入数据
+XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( sText == NULL ) { return 0; }
+		if ( iSize == 0 ) { iSize = strlen(sText); }
+		if ( iSize == 0 ) { return 0; }
+		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
+		if ( objFile ) {
+			xrtSeek(objFile, 0, XRT_SEEK_END);
+			ulong iRet = xrtWrite(objFile, sText, iSize);
+			xrtClose(objFile);
+			return iRet;
+		}
+		return 0;
+	#else
+		// 其他平台方案
+	#endif
+}
+XXAPI int xrtFileAppendW(wstr sPath, wstr sText, size_t iSize, int iCharset)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( sText == NULL ) { return 0; }
+		if ( iSize == 0 ) { iSize = wcslen(sText); }
+		if ( iSize == 0 ) { return 0; }
+		xfile objFile = xrtOpenW(sPath, FALSE, iCharset);
+		if ( objFile ) {
+			xrtSeek(objFile, 0, XRT_SEEK_END);
+			ulong iRet = xrtWriteW(objFile, sText, iSize);
+			xrtClose(objFile);
+			return iRet;
+		}
+		return 0;
+	#else
+		// 其他平台方案
+	#endif
+}
+
+
+
+// 写入并覆盖文件内容
+XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( sText == NULL ) { return 0; }
+		if ( iSize == 0 ) { iSize = strlen(sText); }
+		if ( iSize == 0 ) { return 0; }
+		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
+		if ( objFile ) {
+			ulong iRet = xrtWrite(objFile, sText, iSize);
+			xrtSetEOF(objFile);
+			xrtClose(objFile);
+			return iRet;
+		}
+		return 0;
+	#else
+		// 其他平台方案
+	#endif
+}
+XXAPI int xrtFileWriteAllW(wstr sPath, wstr sText, size_t iSize, int iCharset)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( sText == NULL ) { return 0; }
+		if ( iSize == 0 ) { iSize = wcslen(sText); }
+		if ( iSize == 0 ) { return 0; }
+		xfile objFile = xrtOpenW(sPath, FALSE, iCharset);
+		if ( objFile ) {
+			ulong iRet = xrtWriteW(objFile, sText, iSize);
+			xrtSetEOF(objFile);
+			xrtClose(objFile);
+			return iRet;
+		}
+		return 0;
+	#else
+		// 其他平台方案
+	#endif
+}
+
+
+
+// 读取文件的全部内容 ( 需要使用 xrtFree 释放内存 )
+XXAPI str xrtFileReadAll(str sPath, int iCharset)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		xfile objFile = xrtOpen(sPath, TRUE, iCharset);
+		if ( objFile ) {
+			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
+			if ( iSize > 0 ) {
+				xrtClose(objFile);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			} else {
+				str sRet = xrtRead(objFile, iSize - objFile->BOM);
+				xrtClose(objFile);
+				return sRet;
+			}
+		}
+		xCore.iRet = 0;
+		return xCore.sNull;
+	#else
+		// 其他平台方案
+	#endif
+}
+XXAPI wstr xrtFileReadAllW(wstr sPath, int iCharset)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		xfile objFile = xrtOpenW(sPath, TRUE, iCharset);
+		if ( objFile ) {
+			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
+			if ( iSize > 0 ) {
+				xrtClose(objFile);
+				xCore.iRet = 0;
+				return (wstr)xCore.sNull;
+			} else {
+				wstr sRet = xrtReadW(objFile, iSize - objFile->BOM);
+				xrtClose(objFile);
+				return sRet;
+			}
+		}
+		xCore.iRet = 0;
+		return (wstr)xCore.sNull;
+	#else
+		// 其他平台方案
+	#endif
+}
+
+
+
+// 写入并覆盖文件内容 ( 二进制 )
+XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( iSize == 0 ) { return 0; }
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		xrtFree(sPathW);
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
+		}
+		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+		DWORD iRetSize;
+		WriteFile(hFile, pBuff, iSize, &iRetSize, NULL);
+		SetEndOfFile(hFile);
+		CloseHandle(hFile);
+		return iRetSize;
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
+XXAPI int xrtFilePutAllW(wstr sPath, ptr pBuff, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( iSize == 0 ) { return 0; }
+		HANDLE hFile = CreateFileW(sPath, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
+		}
+		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+		DWORD iRetSize;
+		WriteFile(hFile, pBuff, iSize, &iRetSize, NULL);
+		SetEndOfFile(hFile);
+		CloseHandle(hFile);
+		return iRetSize;
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
+
+
+
+// 读取文件的全部内容 ( 二进制，需要使用 xrtFree 释放内存 )
+XXAPI ptr xrtFileGetAll(str sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		wstr sPathW = xrtUTF8to16(sPath, 0);
+		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		xrtFree(sPathW);
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+		LARGE_INTEGER stuSize;
+		GetFileSizeEx(hFile, &stuSize);
+		ptr pBuff = xrtMalloc(stuSize.QuadPart + 1);
+		if ( pBuff == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			CloseHandle(hFile);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		DWORD iRetSize = 0;
+		ReadFile(hFile, pBuff, stuSize.QuadPart, &iRetSize, NULL);
+		CloseHandle(hFile);
+		xCore.iRet = iRetSize;
+		return pBuff;
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
+XXAPI ptr xrtFileGetAllW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		HANDLE hFile = CreateFileW(sPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+		LARGE_INTEGER stuSize;
+		GetFileSizeEx(hFile, &stuSize);
+		ptr pBuff = xrtMalloc(stuSize.QuadPart + 1);
+		if ( pBuff == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			CloseHandle(hFile);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		DWORD iRetSize = 0;
+		ReadFile(hFile, pBuff, stuSize.QuadPart, &iRetSize, NULL);
+		CloseHandle(hFile);
+		xCore.iRet = iRetSize;
+		return pBuff;
+	#else
+		// 其他平台方案
+	#endif
+	return 0;
+}
+
+
+
 // 判断路径是否存在
 XXAPI int xrtPathExists(str sPath)
 {
@@ -673,127 +921,6 @@ XXAPI int xrtFileSetSize(str sPath, size_t iSize)
 	#else
 		// 其他平台方案
 	#endif
-}
-
-
-
-// 向文件追加写入数据
-XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		if ( sText == NULL ) { return 0; }
-		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
-		if ( objFile ) {
-			if ( iSize == 0 ) { iSize = strlen(sText); }
-			if ( iSize == 0 ) { xrtClose(objFile); return 0; }
-			xrtSeek(objFile, 0, FILE_END);
-			ulong iRet = xrtWrite(objFile, sText, iSize);
-			xrtClose(objFile);
-			return iRet;
-		}
-		return 0;
-	#else
-		// 其他平台方案
-	#endif
-}
-
-
-
-// 写入并覆盖文件内容
-XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		if ( sText == NULL ) { return 0; }
-		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
-		if ( objFile ) {
-			if ( iSize == 0 ) { iSize = strlen(sText); }
-			if ( iSize == 0 ) { return 0; }
-			ulong iRet = xrtWrite(objFile, sText, iSize);
-			xrtSetEOF(objFile);
-			xrtClose(objFile);
-			return iRet;
-		}
-		return 0;
-	#else
-		// 其他平台方案
-	#endif
-}
-
-
-
-// 读取文件的全部内容
-XXAPI str xrtFileReadAll(str sPath, int iCharset)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		xfile objFile = xrtOpen(sPath, TRUE, iCharset);
-		if ( objFile ) {
-			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
-			str sRet = xCore.sNull;
-			if ( iSize > 0 ) { sRet = xrtRead(objFile, iSize - objFile->BOM); }
-			xrtClose(objFile);
-			return sRet;
-		}
-		xCore.iRet = 0;
-		return xCore.sNull;
-	#else
-		// 其他平台方案
-	#endif
-}
-
-
-
-// 写入并覆盖文件内容（二进制）
-XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		wstr sPathW = xrtUTF8to16(sPath, 0);
-		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-		xrtFree(sPathW);
-		if ( hFile == INVALID_HANDLE_VALUE ) { return 0; }
-		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
-		DWORD iRetSize;
-		WriteFile(hFile, pBuff, iSize, &iRetSize, NULL);
-		SetEndOfFile(hFile);
-		CloseHandle(hFile);
-		return iRetSize;
-	#else
-		// 其他平台方案
-	#endif
-	return 0;
-}
-
-
-
-// 读取文件的全部内容（二进制）
-XXAPI ptr xrtFileGetAll(str sPath)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		wstr sPathW = xrtUTF8to16(sPath, 0);
-		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-		xrtFree(sPathW);
-		if ( hFile == INVALID_HANDLE_VALUE ) { xCore.iRet = 0; return xCore.sNull; }
-		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
-		DWORD iRetSize = GetFileSize(hFile, NULL);
-		ptr pBuff = xrtMalloc(iRetSize + 1);
-		if ( pBuff == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			CloseHandle(hFile);
-			xCore.iRet = 0;
-			return xCore.sNull;
-		}
-		ReadFile(hFile, pBuff, iRetSize, &iRetSize, NULL);
-		CloseHandle(hFile);
-		xCore.iRet = iRetSize;
-		return pBuff;
-	#else
-		// 其他平台方案
-	#endif
-	return 0;
 }
 
 

@@ -490,6 +490,26 @@
 	// 向已打开的文件写入二进制数据
 	XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize);
 	
+	// 向文件追加写入数据
+	XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset);
+	XXAPI int xrtFileAppendW(wstr sPath, wstr sText, size_t iSize, int iCharset);
+	
+	// 写入并覆盖文件内容
+	XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
+	XXAPI int xrtFileWriteAllW(wstr sPath, wstr sText, size_t iSize, int iCharset);
+	
+	// 读取文件的全部内容 ( 需要使用 xrtFree 释放内存 )
+	XXAPI str xrtFileReadAll(str sPath, int iCharset);
+	XXAPI wstr xrtFileReadAllW(wstr sPath, int iCharset);
+	
+	// 写入并覆盖文件内容 ( 二进制 )
+	XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize);
+	XXAPI int xrtFilePutAllW(wstr sPath, ptr pBuff, size_t iSize);
+	
+	// 读取文件的全部内容 ( 二进制，需要使用 xrtFree 释放内存 )
+	XXAPI ptr xrtFileGetAll(str sPath);
+	XXAPI ptr xrtFileGetAllW(wstr sPath);
+	
 	// 判断路径是否存在
 	XXAPI int xrtPathExists(str sPath);
 	
@@ -504,21 +524,6 @@
 	
 	// 设置文件长度
 	XXAPI int xrtFileSetSize(str sPath, size_t iSize);
-	
-	// 向文件追加写入数据
-	XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset);
-	
-	// 写入并覆盖文件内容
-	XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
-	
-	// 读取文件的全部内容
-	XXAPI str xrtFileReadAll(str sPath, int iCharset);
-	
-	// 写入并覆盖文件内容（二进制）
-	XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize);
-	
-	// 读取文件的全部内容（二进制）
-	XXAPI ptr xrtFileGetAll(str sPath);
 	
 	// 获取文件属性
 	XXAPI int xrtFileGetAttr(str sPath);
