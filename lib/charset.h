@@ -807,11 +807,11 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 			bNoUTF8 = TRUE;
 		}
 		// 检测 utf-8 多字符编码是否正确
-		char iExtraBytes = BytesExtraTableUTF8[sPtr[i]];
-		if ( iExtraBytes && (bNoUTF8 == FALSE) ) {
-			for ( int j = 1; (j <= iExtraBytes) && (i < iSize); j++ ) {
+		if ( bNoUTF8 == FALSE ) {
+			char iExtraBytes = BytesExtraTableUTF8[sPtr[i]];
+			for ( int j = 1; (j <= iExtraBytes) && ((i + j) < iSize); j++ ) {
 				if ( (sPtr[i + j] & 0b11000000) != 0b10000000 ) {
-					bNoUTF8 == TRUE;
+					bNoUTF8 = TRUE;
 					break;
 				}
 			}
@@ -819,17 +819,17 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 		// 检测 utf-16 代理区是否合规
 		if ( (i & 1) == 0 ) {
 			if ( (i + 2) < iSize ) {
-				if ( bNoUTF16LE == FALSE ) {
+				if ( bNoUTF16BE == FALSE ) {
 					if ( (sPtr[i] & 0b11111100) == 0b11011000 ) {
 						if ( (sPtr[i + 2] & 0b11111100) != 0b11011100 ) {
-							bNoUTF16LE = TRUE;
+							bNoUTF16BE = TRUE;
 						}
 					}
 				}
-				if ( bNoUTF16BE == FALSE ) {
+				if ( bNoUTF16LE == FALSE ) {
 					if ( (sPtr[i] & 0b11111100) == 0b11011100 ) {
 						if ( (sPtr[i + 2] & 0b11111100) != 0b11011000 ) {
-							bNoUTF16BE = TRUE;
+							bNoUTF16LE = TRUE;
 						}
 					}
 				}
@@ -838,16 +838,16 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 		// 检测是否符合 utf-32 范围 ( 0x10FFFF 以内‌ )
 		if ( (i & 3) == 0 ) {
 			if ( (i + 3) < iSize ) {
-				if ( bNoUTF32LE == FALSE ) {
+				if ( bNoUTF32BE == FALSE ) {
 					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
 					if ( c > 0x10FFFF ) {
-						bNoUTF32LE = TRUE;
+						bNoUTF32BE = TRUE;
 					}
 				}
-				if ( bNoUTF32BE == FALSE ) {
+				if ( bNoUTF32LE == FALSE ) {
 					uint32 c = (sPtr[i + 3] << 24) | (sPtr[i + 2] << 16) | (sPtr[i + 1] << 8) | sPtr[i];
 					if ( c > 0x10FFFF ) {
-						bNoUTF32BE = TRUE;
+						bNoUTF32LE = TRUE;
 					}
 				}
 			}
@@ -878,6 +878,10 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, int bBOM)
 			return XRT_CP_UTF16;
 		} else if ( bNoUTF16BE == FALSE ) {
 			return XRT_CP_UTF16_BE;
+		} else if ( bNoUTF32LE == FALSE ) {
+			return XRT_CP_UTF32;
+		} else if ( bNoUTF32BE == FALSE ) {
+			return XRT_CP_UTF32_BE;
 		} else {
 			return XRT_CP_BINARY;
 		}

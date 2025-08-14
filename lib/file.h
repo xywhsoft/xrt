@@ -113,20 +113,20 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 			}
 		}
 		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
-		if ( (iCharset & XRT_CP_BOM) == XRT_CP_BOM ) {
-			if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
+		if ( (objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM ) {
+			if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
 				objFile->BOM = 3;
 				objFile->Charset = XRT_CP_UTF8;
-			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
 				objFile->BOM = 2;
 				objFile->Charset = XRT_CP_UTF16;
-			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
 				objFile->BOM = 2;
 				objFile->Charset = XRT_CP_UTF16_BE;
-			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
 				objFile->BOM = 4;
 				objFile->Charset = XRT_CP_UTF32;
-			} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
 				objFile->BOM = 4;
 				objFile->Charset = XRT_CP_UTF32_BE;
 			}
