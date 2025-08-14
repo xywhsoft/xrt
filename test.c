@@ -477,7 +477,7 @@ int main(int argc, char** argv)
 	printf("Text : %s\n\n", sText);
 	//*/
 	
-	//*
+	/*
 	printf("---------------- 文件读取和写入\n");
 	str sPath2 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test.txt", 0);
 	printf("test : %s\n", sPath2);
@@ -504,8 +504,10 @@ int main(int argc, char** argv)
 	xrtFileAppend(sPath5, "\nxdoc.online 天地正玲珑，殡葬了飞虫", 0, XRT_CP_UTF32 | XRT_CP_BOM);
 	str sRetPath5 = xrtFileReadAll(sPath5, XRT_CP_AUTO);
 	printf("xrtFileReadAll : %s\n", sRetPath5);
+	//*/
 	
-	
+	//*
+	printf("---------------- 文件操作测试\n");
 	//*/
 	
 	
