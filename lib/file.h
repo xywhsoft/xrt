@@ -1786,9 +1786,10 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 
 // 扫描文件夹
 #if defined(_WIN32) || defined(_WIN64)
+	// windows 方案
 	int __pri__DirScan_Proc(wstr sPath, size_t iSize, int bU8, int bRecu, ptr pProc, ptr Param)
 	{
-		int (*pCallBack)(ptr sPath, int bDir, ptr pData, ptr Param) = pProc;
+		int (*pCallBack)(ptr sPath, size_t iSize, int bDir, ptr pData, ptr Param) = pProc;
 		int iFileCount = 0;
 		WIN32_FIND_DATAW objFindData;
 		wstr sFindPath = xrtPathJoinW(2, sPath, iSize, "*", 1);
@@ -1811,10 +1812,10 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 					if ( pProc ) {
 						if ( bU8 ) {
 							str sDirU8 = xrtUTF16to8(sDir, iDirSize);
-							bExit = pCallBack(sDirU8, 1, &objFindData, Param);
+							bExit = pCallBack(sDirU8, xCore.iRet, 1, &objFindData, Param);
 							xrtFree(sDirU8);
 						} else {
-							bExit = pCallBack(sDir, 1, &objFindData, Param);
+							bExit = pCallBack(sDir, iDirSize, 1, &objFindData, Param);
 						}
 					}
 					// 递归子目录
@@ -1825,10 +1826,10 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 					if ( pProc ) {
 						if ( bU8 ) {
 							str sDirU8 = xrtUTF16to8(sDir, iDirSize);
-							bExit = pCallBack(sDirU8, 2, &objFindData, Param);
+							bExit = pCallBack(sDirU8, xCore.iRet, 2, &objFindData, Param);
 							xrtFree(sDirU8);
 						} else {
-							bExit = pCallBack(sDir, 2, &objFindData, Param);
+							bExit = pCallBack(sDir, iDirSize, 2, &objFindData, Param);
 						}
 					}
 					xrtFree(sDir);
@@ -1840,10 +1841,10 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 				if ( pProc ) {
 					if ( bU8 ) {
 						str sFileU8 = xrtUTF16to8(sFile, iFileSize);
-						bExit = pCallBack(sFileU8, 0, &objFindData, Param);
+						bExit = pCallBack(sFileU8, xCore.iRet, 0, &objFindData, Param);
 						xrtFree(sFileU8);
 					} else {
-						bExit = pCallBack(sFile, 0, &objFindData, Param);
+						bExit = pCallBack(sFile, iFileSize, 0, &objFindData, Param);
 					}
 				}
 				xrtFree(sFile);
@@ -1856,6 +1857,76 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 			bNext = FindNextFileW(hFind, &objFindData);
 		}
 		FindClose(hFind);
+		return iFileCount;
+	}
+#else
+	// 其他平台方案
+	int __pri__DirScan_Proc(str sPath, size_t iSize, int bU8, int bRecu, ptr pProc, ptr Param)
+	{
+		int (*pCallBack)(ptr sPath, size_t iSize, int bDir, ptr pData, ptr Param) = pProc;
+		int iFileCount = 0;
+		DIR* dir = opendir(sPath);
+		if ( dir == NULL ) {
+			xrtSetError(sErrorFile_OpenDir, FALSE);
+			return 0;
+		}
+		struct dirent* entry;
+		while ( (entry = readdir(dir)) != NULL ) {
+			int bExit = FALSE;
+			if ( entry->d_type == DT_DIR ) {
+				// 过滤 . 和 .. 目录
+				if ( (entry->d_name[0] == '.') && ((entry->d_name[1] == 0) || ((entry->d_name[1] == '.') && (entry->d_name[2] == 0))) ) {
+				} else {
+					str sDir = xrtPathJoin(2, sPath, iSize, entry->d_name, 0);
+					size_t iDirSize = xCore.iRet;
+					// 处理文件夹 - 进入
+					if ( pProc ) {
+						if ( bU8 ) {
+							bExit = pCallBack(sDir, iDirSize, 1, entry, Param);
+						} else {
+							u32str sDirU32 = xrtUTF8to32(sDir, iDirSize);
+							bExit = pCallBack(sDirU32, xCore.iRet, 1, entry, Param);
+							xrtFree(sDirU32);
+						}
+					}
+					// 递归子目录
+					if ( bRecu ) {
+						iFileCount += __pri__DirScan_Proc(sDir, iDirSize, bU8, bRecu, pProc, Param);
+					}
+					// 处理文件夹 - 离开
+					if ( pProc ) {
+						if ( bU8 ) {
+							bExit = pCallBack(sDir, iDirSize, 2, entry, Param);
+						} else {
+							u32str sDirU32 = xrtUTF8to32(sDir, iDirSize);
+							bExit = pCallBack(sDirU32, xCore.iRet, 2, entry, Param);
+							xrtFree(sDirU32);
+						}
+					}
+					xrtFree(sDir);
+				}
+			} else if ( entry->d_type == DT_REG ) {
+				// 处理文件
+				str sFile = xrtPathJoin(2, sPath, iSize, entry->d_name, 0);
+				size_t iFileSize = xCore.iRet;
+				if ( pProc ) {
+					if ( bU8 ) {
+						bExit = pCallBack(sFile, iFileSize, 0, entry, Param);
+					} else {
+						u32str sDirU32 = xrtUTF8to32(sFile, iFileSize);
+						bExit = pCallBack(sDirU32, xCore.iRet, 0, entry, Param);
+						xrtFree(sDirU32);
+					}
+				}
+				xrtFree(sFile);
+				iFileCount++;
+			}
+			// 中途停止扫描
+			if ( bExit ) {
+				break;
+			}
+		}
+		closedir(dir);
 		return iFileCount;
 	}
 #endif
@@ -1873,6 +1944,11 @@ XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param)
 		return iFileCount;
 	#else
 		// 其他平台方案
+		if ( sPath == NULL ) { return 0; }
+		size_t iSize = strlen(sPath);
+		if ( iSize == 0 ) { return 0; }
+		int iFileCount = __pri__DirScan_Proc(sPath, iSize, TRUE, bRecu, pProc, Param);
+		return iFileCount;
 	#endif
 }
 XXAPI int xrtDirScanW(wstr sPath, int bRecu, ptr pProc, ptr Param)
@@ -1886,6 +1962,14 @@ XXAPI int xrtDirScanW(wstr sPath, int bRecu, ptr pProc, ptr Param)
 		return iFileCount;
 	#else
 		// 其他平台方案
+		if ( sPath == NULL ) { return 0; }
+		size_t iSize = wcslen(sPath);
+		if ( iSize == 0 ) { return 0; }
+		str sPathU = xrtUTF32to8(sPath, iSize);
+		if ( xCore.iRet == 0 ) { return 0; }
+		int iFileCount = __pri__DirScan_Proc(sPathU, xCore.iRet, FALSE, bRecu, pProc, Param);
+		xrtFree(sPathU);
+		return iFileCount;
 	#endif
 }
 

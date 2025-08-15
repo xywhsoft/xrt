@@ -11,7 +11,7 @@
 
 
 // 扫描文件回调函数
-int FileScanProc(str sPath, int bDir, ptr pData, ptr Param)
+int FileScanProc(str sPath, size_t iSize, int bDir, ptr pData, ptr Param)
 {
 	if ( bDir == 1 ) {
 		printf("\tdir+ : %s\n", sPath);
@@ -22,7 +22,7 @@ int FileScanProc(str sPath, int bDir, ptr pData, ptr Param)
 	}
 	return FALSE;
 }
-int FileScanProcW(wstr sPath, int bDir, ptr pData, ptr Param)
+int FileScanProcW(wstr sPath, size_t iSize, int bDir, ptr pData, ptr Param)
 {
 	if ( bDir == 1 ) {
 		printf("\tdir+ : %S\n", sPath);
@@ -565,7 +565,7 @@ int main(int argc, char** argv)
 	printf("xrtFileDelete : %s\n", sPathA5);
 	//*/
 	
-	/*
+	//*
 	printf("---------------- 遍历文件测试\n");
 	printf("xrtDirScan : %s\n", xCore->AppPath);
 	printf("FileCount : %d\n\n", xrtDirScan(xCore->AppPath, FALSE, FileScanProc, NULL));
