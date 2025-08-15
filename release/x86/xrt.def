@@ -151,6 +151,7 @@ xrtSplitW
 xrtStart
 xrtStartW
 xrtTell
+xrtTempMemory
 xrtTime
 xrtTimeSerial
 xrtTimeStr

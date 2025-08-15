@@ -454,13 +454,16 @@
 	
 	// 文件对象
 	typedef struct {
-		ptr obj;				// 文件对象
+		union {
+			ptr obj;			// windows 文件对象
+			int idx;			// linux 文件句柄
+		};
 		int Charset;			// 文件字符集
 		uint BOM;				// BOM大小
 	} xfile_struct, *xfile;
 	
 	// 游标控制
-	#define XRT_SEEK_BEGIN		0
+	#define XRT_SEEK_SET		0
 	#define XRT_SEEK_CUR		1
 	#define XRT_SEEK_END		2
 	

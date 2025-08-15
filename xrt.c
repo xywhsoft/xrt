@@ -14,6 +14,8 @@
 	#endif
 	#pragma comment (lib, "shell32")
 #else
+	#include <fcntl.h>
+	#include <sys/stat.h>
 #endif
 
 

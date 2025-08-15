@@ -24,7 +24,125 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		return objFile;
 	#else
 		// 其他平台方案
-		
+		int fd = open(sPath, bReadOnly ? O_RDONLY : (O_RDWR | O_CREAT));
+		if ( fd == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return NULL;
+		}
+		xfile objFile = xrtMalloc(sizeof(xfile_struct));
+		if ( objFile == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			close(fd);
+			return NULL;
+		}
+		size_t iRetSize;
+		struct stat fileStat;
+		fstat(fd, &fileStat);
+		objFile->idx = fd;
+		objFile->Charset = iCharset;
+		objFile->BOM = 0;
+		lseek(fd, 0, SEEK_SET);
+		if ( iCharset == XRT_CP_AUTO ) {
+			// 自动识别文件编码
+			if ( fileStat.st_size == 0 ) {
+				// 空文件默认使用 utf8 编码 ( 无 BOM )
+				objFile->Charset = XRT_CP_UTF8;
+			} else {
+				// 最多读取 64KB 数据做编码推测（数据越多推测准确性越高，数据越少推测速度越快）
+				size_t iReadSize = fileStat.st_size > 65536 ? 65536 : fileStat.st_size;
+				str sText = xrtMalloc(iReadSize);
+				if ( objFile == NULL ) {
+					xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+					close(fd);
+					xrtFree(objFile);
+					return NULL;
+				}
+				read(fd, sText, iReadSize);
+				objFile->Charset = xrtDetectCharset(sText, iRetSize, TRUE);
+				xrtFree(sText);
+			}
+		} else {
+			// 手动指定编码时，检查 BOM 是否正确或提前写入 BOM
+			if ( (iCharset & XRT_CP_BOM) == XRT_CP_BOM ) {
+				int bErrorBOM = FALSE;
+				if ( fileStat.st_size == 0 ) {
+					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
+					if ( bReadOnly ) {
+						bErrorBOM = TRUE;
+					} else {
+						if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
+							uint8 sBOM[3] = { 0xEF, 0xBB, 0xBF };
+							write(fd, (ptr)sBOM, 3);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
+							unsigned short iBOM = 0xFEFF;
+							write(fd, (ptr)&iBOM, 2);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
+							unsigned short iBOM = 0xFFFE;
+							write(fd, (ptr)&iBOM, 2);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
+							unsigned int iBOM = 0x0000FEFF;
+							write(fd, (ptr)&iBOM, 4);
+						} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
+							unsigned int iBOM = 0xFFFE0000;
+							write(fd, (ptr)&iBOM, 4);
+						}
+					}
+				} else {
+					// 固定编码的文件检测并跳过 BOM ( BOM 与检测结果不符直接报错 )
+					uint8 sBOM[4] = { 0xA5, 0xA5, 0xA5, 0xA5 };
+					read(fd, (ptr)sBOM, 4);
+					if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
+						if ( (sBOM[0] != 0xEF) || (sBOM[1] != 0xBB) || (sBOM[2] != 0xBF) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
+						if ( (sBOM[0] != 0xFF) || (sBOM[1] != 0xFE) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
+						if ( (sBOM[0] != 0xFE) || (sBOM[1] != 0xFF) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
+						if ( (sBOM[0] != 0xFF) || (sBOM[1] != 0xFE) || (sBOM[2] != 0x00) || (sBOM[3] != 0x00) ) {
+							bErrorBOM = TRUE;
+						}
+					} else if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
+						if ( (sBOM[0] != 0x00) || (sBOM[1] != 0x00) || (sBOM[2] != 0xFE) || (sBOM[3] != 0xFF) ) {
+							bErrorBOM = TRUE;
+						}
+					}
+				}
+				if ( bErrorBOM ) {
+					xrtSetError(sErrorFile_BOM, FALSE);
+					close(fd);
+					xrtFree(objFile);
+					return NULL;
+				}
+			}
+		}
+		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
+		if ( (objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM ) {
+			if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
+				objFile->BOM = 3;
+				objFile->Charset = XRT_CP_UTF8;
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF16 ) {
+				objFile->BOM = 2;
+				objFile->Charset = XRT_CP_UTF16;
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF16_BE ) {
+				objFile->BOM = 2;
+				objFile->Charset = XRT_CP_UTF16_BE;
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF32 ) {
+				objFile->BOM = 4;
+				objFile->Charset = XRT_CP_UTF32;
+			} else if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF32_BE ) {
+				objFile->BOM = 4;
+				objFile->Charset = XRT_CP_UTF32_BE;
+			}
+		}
+		// 游标跳过 BOM
+		lseek(fd, objFile->BOM, SEEK_SET);
+		return objFile;
 	#endif
 }
 XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
@@ -48,6 +166,7 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 		objFile->obj = hFile;
 		objFile->Charset = iCharset;
 		objFile->BOM = 0;
+		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		if ( iCharset == XRT_CP_AUTO ) {
 			// 自动识别文件编码
 			if ( stuSize.QuadPart == 0 ) {
@@ -63,7 +182,6 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 					xrtFree(objFile);
 					return NULL;
 				}
-				SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 				ReadFile(hFile, (ptr)sText, iReadSize, &iRetSize, NULL);
 				objFile->Charset = xrtDetectCharset(sText, iReadSize, TRUE);
 				xrtFree(sText);
@@ -97,7 +215,6 @@ XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset)
 				} else {
 					// 固定编码的文件检测并跳过 BOM ( BOM 与检测结果不符直接报错 )
 					uint8 sBOM[4] = { 0xA5, 0xA5, 0xA5, 0xA5 };
-					SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 					ReadFile(hFile, (ptr)sBOM, 4, &iRetSize, NULL);
 					if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
 						if ( (sBOM[0] != 0xEF) || (sBOM[1] != 0xBB) || (sBOM[2] != 0xBF) ) {
@@ -172,12 +289,21 @@ XXAPI int xrtClose(xfile objFile)
 				CloseHandle(objFile->obj);
 				objFile->obj = NULL;
 			}
-			free(objFile);
+			xrtFree(objFile);
 			return TRUE;
 		}
 		return FALSE;
 	#else
 		// 其他平台方案
+		if ( objFile ) {
+			if ( objFile->idx != -1 ) {
+				close(objFile->idx);
+				objFile->idx = 0;
+			}
+			xrtFree(objFile);
+			return TRUE;
+		}
+		return FALSE;
 	#endif
 }
 
@@ -191,7 +317,7 @@ XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
 			LARGE_INTEGER iPos_stu;
 			iPos_stu.QuadPart = iOffset;
-			if ( iMoveMethod == XRT_SEEK_BEGIN ) {
+			if ( iMoveMethod == XRT_SEEK_SET ) {
 				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_BEGIN);
 				return iPos_stu.QuadPart;
 			} else if ( iMoveMethod == XRT_SEEK_CUR ) {
@@ -210,6 +336,21 @@ XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( iMoveMethod == XRT_SEEK_SET ) {
+				return lseek(objFile->idx, iOffset, SEEK_SET);
+			} else if ( iMoveMethod == XRT_SEEK_CUR ) {
+				return lseek(objFile->idx, iOffset, SEEK_CUR);
+			} else if ( iMoveMethod == XRT_SEEK_END ) {
+				return lseek(objFile->idx, iOffset, SEEK_END);
+			} else {
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return 0;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 
@@ -231,6 +372,12 @@ XXAPI size_t xrtTell(xfile objFile)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			return lseek(objFile->idx, 0, SEEK_CUR);
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 
@@ -251,6 +398,14 @@ XXAPI size_t xrtGetEOF(xfile objFile)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			struct stat fileStat;
+			fstat(objFile->idx, &fileStat);
+			return fileStat.st_size;
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 
@@ -271,6 +426,14 @@ XXAPI int xrtEOF(xfile objFile)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			size_t iPos = xrtTell(objFile);
+			size_t iEnd = xrtGetEOF(objFile);
+			return (iPos >= iEnd);
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 
@@ -290,7 +453,18 @@ XXAPI int xrtSetEOF(xfile objFile)
 		}
 	#else
 		// 其他平台方案
-		// ftruncate
+		if ( objFile && (objFile->idx != -1) ) {
+			size_t iPos = xrtTell(objFile);
+			int iRet = ftruncate(objFile->idx, iPos);
+			if ( iRet == 0 ) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 
