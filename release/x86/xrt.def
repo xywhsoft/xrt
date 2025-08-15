@@ -4,6 +4,7 @@ EXPORTS
 memmem
 u16len
 u32len
+xCore
 xrtCalloc
 xrtChain
 xrtChainW

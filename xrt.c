@@ -65,6 +65,12 @@ XXAPI xrtGlobalData* xrtInit()
 	xCore.realloc = realloc;
 	xCore.free = free;
 	
+	// 初始化环形临时内存
+	for ( int i = 0; i < 16; i++ ) {
+		xCore.TempMem[i] = NULL;
+	}
+	xCore.TempMemIdx = 0;
+	
 	// 初始化随机数序列
 	srand(time(NULL));
 	
@@ -102,15 +108,25 @@ XXAPI xrtGlobalData* xrtInit()
 XXAPI void xrtUnit()
 {
 	if ( xCore.bInit ) {
+		// 释放应用路径
 		xrtFree(xCore.AppFile);
 		xCore.AppFile = xCore.sNull;
 		xrtFree(xCore.AppPath);
 		xCore.AppPath = xCore.sNull;
+		// 释放错误描述
 		if ( xCore.__pri_FreeError && xCore.LastError ) {
 			xrtFree(xCore.LastError);
 			xCore.LastError = xCore.sNull;
 			xCore.__pri_FreeError = FALSE;
 		}
+		// 释放环形临时内存
+		for ( int i = 0; i < 16; i++ ) {
+			if ( xCore.TempMem[i] ) {
+				free(xCore.TempMem[i]);
+				xCore.TempMem[i] = NULL;
+			}
+		}
+		xCore.TempMemIdx = 0;
 		xCore.bInit = FALSE;
 	}
 }

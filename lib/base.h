@@ -33,6 +33,32 @@ XXAPI void xrtFree(ptr pmem)
 
 
 
+// 申请无需主动释放的临时内存
+XXAPI ptr xrtTempMemory(size_t iSize)
+{
+	// 申请内存
+	ptr pMem = xrtMalloc(iSize);
+	if ( pMem == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return NULL;
+	}
+	// 释放过期内存
+	if ( xCore.TempMem[xCore.TempMemIdx] ) {
+		free(xCore.TempMem[xCore.TempMemIdx]);
+		xCore.TempMem[xCore.TempMemIdx] = NULL;
+	}
+	// 处理环形临时内存数据
+	xCore.TempMem[xCore.TempMemIdx] = pMem;
+	xCore.TempMemIdx++;
+	if ( xCore.TempMemIdx > 31 ) {
+		xCore.TempMemIdx = 0;
+	}
+	// 返回内存指针
+	return pMem;
+}
+
+
+
 // 设置错误
 XXAPI void xrtSetError(str sError, int bFree)
 {

@@ -99,6 +99,10 @@
 		str AppFile;
 		str AppPath;
 		
+		// 环形临时内存（固定 32 个临时内存循环使用和释放）
+		void* TempMem[32];
+		uint32 TempMemIdx;
+		
 		// 内存函数
 		ptr (*malloc)(size_t iSize);
 		ptr (*calloc)(size_t iNum, size_t iSize);
@@ -111,6 +115,9 @@
 		} ERROR_DESC;
 		
 	} xrtGlobalData;
+	
+	// 全局数据
+	XXAPI extern xrtGlobalData xCore;
 	
 	
 	
@@ -146,6 +153,9 @@
 	
 	// 释放内存（ 会先判断是否为 null ）
 	XXAPI void xrtFree(ptr pmem);
+	
+	// 申请无需主动释放的临时内存
+	XXAPI ptr xrtTempMemory(size_t iSize);
 	
 	// 设置错误
 	XXAPI void xrtSetError(str sError, int bFree);
