@@ -24,7 +24,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		return objFile;
 	#else
 		// 其他平台方案
-		int fd = open(sPath, bReadOnly ? O_RDONLY : (O_RDWR | O_CREAT));
+		int fd = open(sPath, bReadOnly ? O_RDONLY : (O_RDWR | O_CREAT), 0644);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
 			return NULL;
@@ -1009,7 +1009,7 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 	#else
 		// 其他平台方案
 		if ( iSize == 0 ) { return 0; }
-		int fd = open(sPath, O_RDWR | O_CREAT);
+		int fd = open(sPath, O_RDWR | O_CREAT, 0644);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
 			return 0;
@@ -1053,7 +1053,7 @@ XXAPI int xrtFilePutAllW(wstr sPath, ptr pBuff, size_t iSize)
 		// 其他平台方案
 		if ( iSize == 0 ) { return 0; }
 		str sPathU = xrtUTF32to8(sPath, 0);
-		int fd = open(sPathU, O_RDWR | O_CREAT);
+		int fd = open(sPathU, O_RDWR | O_CREAT, 0644);
 		xrtFree(sPathU);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
@@ -1480,7 +1480,7 @@ XXAPI int xrtFileSetSize(str sPath, size_t iSize)
 		return TRUE;
 	#else
 		// 其他平台方案
-		int fd = open(sPath, O_RDWR | O_CREAT);
+		int fd = open(sPath, O_RDWR | O_CREAT, 0644);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
 			return 0;
@@ -1508,7 +1508,7 @@ XXAPI int xrtFileSetSizeW(wstr sPath, size_t iSize)
 	#else
 		// 其他平台方案
 		str sPathU = xrtUTF32to8(sPath, 0);
-		int fd = open(sPathU, O_RDWR | O_CREAT);
+		int fd = open(sPathU, O_RDWR | O_CREAT, 0644);
 		xrtFree(sPathU);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
@@ -1728,6 +1728,7 @@ XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
 			iRet = xrtFileCopy(sSrc, sDst, bReWrite);
 			if ( iRet ) {
 				remove(sSrc);
+				return TRUE;
 			} else {
 				return FALSE;
 			}
@@ -1770,6 +1771,8 @@ XXAPI int xrtFileDelete(str sPath)
 		return iRet;
 	#else
 		// 其他平台方案
+		int iRet = remove(sPath);
+		return iRet;
 	#endif
 }
 XXAPI int xrtFileDeleteW(wstr sPath)
@@ -1779,6 +1782,10 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 		return DeleteFileW(sPath);
 	#else
 		// 其他平台方案
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = remove(sPathU);
+		xrtFree(sPathU);
+		return iRet;
 	#endif
 }
 
@@ -1986,6 +1993,12 @@ XXAPI int xrtDirCreate(str sPath)
 		return iRet;
 	#else
 		// 其他平台方案
+		int iRet = mkdir(sPath, 0755);
+		if ( iRet == 0 ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 XXAPI int xrtDirCreateW(wstr sPath)
@@ -1995,6 +2008,14 @@ XXAPI int xrtDirCreateW(wstr sPath)
 		return CreateDirectoryW(sPath, NULL);
 	#else
 		// 其他平台方案
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = mkdir(sPathU, 0755);
+		xrtFree(sPathU);
+		if ( iRet == 0 ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 
@@ -2025,13 +2046,34 @@ XXAPI int xrtDirCreateAll(str sPath)
 				sCurPath[iCurPos++] = sPathW[i];
 			}
 		}
+		sCurPath[iSize] = 0;
 		CreateDirectoryW(sCurPath, NULL);
 		xrtFree(sCurPath);
 		xrtFree(sPathW);
 	#else
 		// 其他平台方案
+		if ( sPath == NULL ) { return FALSE; }
+		size_t iSize = strlen(sPath);
+		if ( iSize == 0 ) { return FALSE; }
+		str sCurPath = xrtMalloc(iSize + 1);
+		if ( sCurPath == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			return FALSE;
+		}
+		size_t iCurPos = 0;
+		for ( int i = 0; i < iSize; i++ ) {
+			if ( (sPath[i] == '/') || (sPath[i] == '\\') ) {
+				sCurPath[iCurPos] = 0;
+				mkdir(sCurPath, 0755);
+				sCurPath[iCurPos++] = '/';
+			} else {
+				sCurPath[iCurPos++] = sPath[i];
+			}
+		}
+		sCurPath[iSize] = 0;
+		mkdir(sCurPath, 0755);
+		xrtFree(sCurPath);
 	#endif
-	return 0;
 }
 XXAPI int xrtDirCreateAllW(wstr sPath)
 {
@@ -2049,7 +2091,6 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 		for ( int i = 0; i < iSize; i++ ) {
 			if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
 				sCurPath[iCurPos] = 0;
-				printf("create dir : %S\n", sCurPath);
 				CreateDirectoryW(sCurPath, NULL);
 				sCurPath[iCurPos++] = L'\\';
 			} else {
@@ -2060,22 +2101,43 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 		xrtFree(sCurPath);
 	#else
 		// 其他平台方案
+		if ( sPath == NULL ) { return FALSE; }
+		str sPathU = xrtUTF32to8(sPath, 0);
+		size_t iSize = xCore.iRet;
+		if ( iSize == 0 ) { return FALSE; }
+		str sCurPath = xrtMalloc(iSize + 1);
+		if ( sCurPath == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			return FALSE;
+		}
+		size_t iCurPos = 0;
+		for ( int i = 0; i < iSize; i++ ) {
+			if ( (sPathU[i] == '/') || (sPathU[i] == '\\') ) {
+				sCurPath[iCurPos] = 0;
+				mkdir(sCurPath, 0755);
+				sCurPath[iCurPos++] = L'\\';
+			} else {
+				sCurPath[iCurPos++] = sPathU[i];
+			}
+		}
+		mkdir(sCurPath, 0755);
+		xrtFree(sCurPath);
+		xrtFree(sPathU);
 	#endif
-	return 0;
 }
 
 
 
 // 复制文件夹
-typedef struct {
-	wstr DstPath;
-	size_t DstSize;
-	size_t SrcSize;
-	int ReWrite;
-	int MoveMode;			// 移动模式
-} xrtCopyFolder_Info;
 #if defined(_WIN32) || defined(_WIN64)
-	int __pri__DirCopyProc(wstr sPath, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
+	typedef struct {
+		wstr DstPath;
+		size_t DstSize;
+		size_t SrcSize;
+		int ReWrite;
+		int MoveMode;			// 移动模式
+	} xrtCopyFolder_Info;
+	int __pri__DirCopyProc(wstr sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		if ( bDir == 0 ) {
 			wstr sDstPath = xrtPathJoinW(2, pInfo->DstPath, pInfo->DstSize, &sPath[pInfo->SrcSize], 0);
@@ -2100,6 +2162,39 @@ typedef struct {
 		}
 		return FALSE;
 	}
+#else
+	typedef struct {
+		str DstPath;
+		size_t DstSize;
+		size_t SrcSize;
+		int ReWrite;
+		int MoveMode;			// 移动模式
+	} xrtCopyFolder_Info;
+	int __pri__DirCopyProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
+	{
+		if ( bDir == 0 ) {
+			str sDstPath = xrtPathJoin(2, pInfo->DstPath, pInfo->DstSize, &sPath[pInfo->SrcSize], 0);
+			//printf("\tcopy file   : %s -> %s\n", sPath, sDstPath);
+			if ( pInfo->MoveMode ) {
+				xrtFileMove(sPath, sDstPath, pInfo->ReWrite);
+			} else {
+				xrtFileCopy(sPath, sDstPath, pInfo->ReWrite);
+			}
+			xrtFree(sDstPath);
+		} else if ( bDir == 1 ) {
+			str sDstPath = xrtPathJoin(2, pInfo->DstPath, pInfo->DstSize, &sPath[pInfo->SrcSize], 0);
+			//printf("\tcreate dir  : %s\n", sDstPath);
+			xrtDirCreate(sDstPath);
+			xrtFree(sDstPath);
+		} else if ( bDir == 2 ) {
+			if ( pInfo->MoveMode ) {
+				// 移动模式离开文件夹时删除文件夹
+				//printf("\tremove dir  : %s\n", sPath);
+				rmdir(sPath);
+			}
+		}
+		return FALSE;
+	}
 #endif
 XXAPI int xrtDirCopy(str sSrc, str sDst, int bReWrite)
 {
@@ -2115,6 +2210,20 @@ XXAPI int xrtDirCopy(str sSrc, str sDst, int bReWrite)
 		return iRet;
 	#else
 		// 其他平台方案
+		if ( sSrc == NULL ) { return 0; }
+		size_t iSrcSize = strlen(sSrc);
+		if ( iSrcSize == 0 ) { return 0; }
+		if ( sDst == NULL ) { return 0; }
+		size_t iDstSize = strlen(sDst);
+		if ( iDstSize == 0 ) { return 0; }
+		xrtCopyFolder_Info stuInfo;
+		stuInfo.DstPath = sDst;
+		stuInfo.DstSize = iDstSize;
+		stuInfo.SrcSize = iSrcSize + 1;
+		stuInfo.ReWrite = bReWrite;
+		stuInfo.MoveMode = FALSE;
+		xrtDirCreateAll(sDst);
+		return xrtDirScan(sSrc, TRUE, __pri__DirCopyProc, &stuInfo);
 	#endif
 }
 XXAPI int xrtDirCopyW(wstr sSrc, wstr sDst, int bReWrite)
@@ -2137,6 +2246,14 @@ XXAPI int xrtDirCopyW(wstr sSrc, wstr sDst, int bReWrite)
 		return xrtDirScanW(sSrc, TRUE, __pri__DirCopyProc, &stuInfo);
 	#else
 		// 其他平台方案
+		if ( sSrc == NULL ) { return 0; }
+		if ( sDst == NULL ) { return 0; }
+		str sSrcU = xrtUTF32to8(sSrc, 0);
+		str sDstU = xrtUTF32to8(sDst, 0);
+		int iRet = xrtDirCopy(sSrcU, sDstU, bReWrite);
+		xrtFree(sSrcU);
+		xrtFree(sDstU);
+		return iRet;
 	#endif
 }
 
@@ -2157,6 +2274,22 @@ XXAPI int xrtDirMove(str sSrc, str sDst, int bReWrite)
 		return iRet;
 	#else
 		// 其他平台方案
+		if ( sSrc == NULL ) { return 0; }
+		size_t iSrcSize = strlen(sSrc);
+		if ( iSrcSize == 0 ) { return 0; }
+		if ( sDst == NULL ) { return 0; }
+		size_t iDstSize = strlen(sDst);
+		if ( iDstSize == 0 ) { return 0; }
+		xrtCopyFolder_Info stuInfo;
+		stuInfo.DstPath = sDst;
+		stuInfo.DstSize = iDstSize;
+		stuInfo.SrcSize = iSrcSize + 1;
+		stuInfo.ReWrite = bReWrite;
+		stuInfo.MoveMode = TRUE;
+		xrtDirCreateAll(sDst);
+		int iRet = xrtDirScan(sSrc, TRUE, __pri__DirCopyProc, &stuInfo);
+		rmdir(sSrc);
+		return iRet;
 	#endif
 }
 XXAPI int xrtDirMoveW(wstr sSrc, wstr sDst, int bReWrite)
@@ -2181,6 +2314,14 @@ XXAPI int xrtDirMoveW(wstr sSrc, wstr sDst, int bReWrite)
 		return iRet;
 	#else
 		// 其他平台方案
+		if ( sSrc == NULL ) { return 0; }
+		if ( sDst == NULL ) { return 0; }
+		str sSrcU = xrtUTF32to8(sSrc, 0);
+		str sDstU = xrtUTF32to8(sDst, 0);
+		int iRet = xrtDirMove(sSrcU, sDstU, bReWrite);
+		xrtFree(sSrcU);
+		xrtFree(sDstU);
+		return iRet;
 	#endif
 }
 
@@ -2188,7 +2329,7 @@ XXAPI int xrtDirMoveW(wstr sSrc, wstr sDst, int bReWrite)
 
 // 删除文件夹
 #if defined(_WIN32) || defined(_WIN64)
-	int __pri__DirDeleteProc(wstr sPath, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
+	int __pri__DirDeleteProc(wstr sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		if ( bDir == 0 ) {
 			//printf("\tremove file : %S\n", sPath);
@@ -2196,6 +2337,18 @@ XXAPI int xrtDirMoveW(wstr sSrc, wstr sDst, int bReWrite)
 		} else if ( bDir == 2 ) {
 			//printf("\tremove dir  : %S\n", sPath);
 			RemoveDirectoryW(sPath);
+		}
+		return FALSE;
+	}
+#else
+	int __pri__DirDeleteProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
+	{
+		if ( bDir == 0 ) {
+			//printf("\tremove file : %s\n", sPath);
+			xrtFileDelete(sPath);
+		} else if ( bDir == 2 ) {
+			//printf("\tremove dir  : %s\n", sPath);
+			rmdir(sPath);
 		}
 		return FALSE;
 	}
@@ -2211,6 +2364,12 @@ XXAPI int xrtDirDelete(str sPath)
 		return iRet;
 	#else
 		// 其他平台方案
+		if ( sPath == NULL ) { return 0; }
+		size_t iSize = strlen(sPath);
+		if ( iSize == 0 ) { return 0; }
+		int iRet = xrtDirScan(sPath, TRUE, __pri__DirDeleteProc, NULL);
+		rmdir(sPath);
+		return iRet;
 	#endif
 	return 0;
 }
@@ -2226,6 +2385,11 @@ XXAPI int xrtDirDeleteW(wstr sPath)
 		return iRet;
 	#else
 		// 其他平台方案
+		if ( sPath == NULL ) { return 0; }
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = xrtDirDelete(sPathU);
+		xrtFree(sPathU);
+		return iRet;
 	#endif
 	return 0;
 }

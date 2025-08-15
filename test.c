@@ -565,7 +565,7 @@ int main(int argc, char** argv)
 	printf("xrtFileDelete : %s\n", sPathA5);
 	//*/
 	
-	//*
+	/*
 	printf("---------------- 遍历文件测试\n");
 	printf("xrtDirScan : %s\n", xCore->AppPath);
 	printf("FileCount : %d\n\n", xrtDirScan(xCore->AppPath, FALSE, FileScanProc, NULL));
@@ -575,12 +575,27 @@ int main(int argc, char** argv)
 	
 	/*
 	printf("---------------- 目录操作测试\n");
-	printf("xrtDirCopy : %s -> c:\\123\n", xCore->AppPath);
-	printf("FileCount : %d\n\n", xrtDirCopy(xCore->AppPath, "c:\\123", FALSE));
-	printf("xrtDirMove : c:\\123 -> c:\\456\n");
-	printf("FileCount : %d\n\n", xrtDirMove("c:\\123", "c:\\456", TRUE));
-	printf("xrtDirDelete : c:\\456\n");
-	printf("FileCount : %d\n\n", xrtDirDelete("c:\\456"));
+	#if defined(_WIN32) || defined(_WIN64)
+		printf("xrtDirCopy : %s -> c:\\123\n", xCore->AppPath);
+		printf("FileCount : %d\n\n", xrtDirCopy(xCore->AppPath, "c:\\123", FALSE));
+		system("pause");
+		printf("xrtDirMove : c:\\123 -> c:\\456\n");
+		printf("FileCount : %d\n\n", xrtDirMove("c:\\123", "c:\\456", TRUE));
+		system("pause");
+		printf("xrtDirDelete : c:\\456\n");
+		printf("FileCount : %d\n\n", xrtDirDelete("c:\\456"));
+	#else
+		printf("xrtDirCopy : %s -> /home/123\n", xCore->AppPath);
+		printf("FileCount : %d\n\n", xrtDirCopy(xCore->AppPath, "/home/123", FALSE));
+		printf("Press any key to continue...\n");
+		getchar();
+		printf("xrtDirMove : /home/123 -> /home/456\n");
+		printf("FileCount : %d\n\n", xrtDirMove("/home/123", "/home/456", TRUE));
+		printf("Press any key to continue...\n");
+		getchar();
+		printf("xrtDirDelete : /home/456\n");
+		printf("FileCount : %d\n\n", xrtDirDelete("/home/456"));
+	#endif
 	//*/
 	
 	
