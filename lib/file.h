@@ -58,7 +58,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 					return NULL;
 				}
 				read(fd, sText, iReadSize);
-				objFile->Charset = xrtDetectCharset(sText, iRetSize, TRUE);
+				objFile->Charset = xrtDetectCharset(sText, iReadSize, TRUE);
 				xrtFree(sText);
 			}
 		} else {
