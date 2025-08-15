@@ -432,7 +432,7 @@ XXAPI int xrtEOF(xfile objFile)
 			return (iPos >= iEnd);
 		} else {
 			xrtSetError(sErrorFile_Handle, FALSE);
-			return 0;
+			return TRUE;
 		}
 	#endif
 }
@@ -463,7 +463,7 @@ XXAPI int xrtSetEOF(xfile objFile)
 			}
 		} else {
 			xrtSetError(sErrorFile_Handle, FALSE);
-			return 0;
+			return FALSE;
 		}
 	#endif
 }
@@ -514,6 +514,43 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			str sBuff = xrtMalloc(iSize + 4);
+			if ( sBuff == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			// 读取数据
+			size_t iRetSize = read(objFile->idx, sBuff, iSize);
+			if ( iRetSize > 0 ) {
+				// 读取到的文件可能是 utf-32 编码，留 4 个空字节做结尾
+				sBuff[iRetSize] = 0;
+				sBuff[iRetSize + 1] = 0;
+				sBuff[iRetSize + 2] = 0;
+				sBuff[iRetSize + 3] = 0;
+				// 转换编码 (将读取到的数据转换为 utf-8 编码)
+				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
+					int iCharSize = xrtGetCharSize(objFile->Charset);
+					str sRet = xrtConvCharset(sBuff, iRetSize / iCharSize, objFile->Charset, XRT_CP_UTF8);
+					xrtFree(sBuff);
+					return sRet;
+				} else {
+					xCore.iRet = iRetSize;
+					return sBuff;
+				}
+			} else {
+				xrtSetError(sErrorFile_Read, FALSE);
+				xrtFree(sBuff);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
 	#endif
 }
 XXAPI wstr xrtReadW(xfile objFile, size_t iSize)
@@ -559,6 +596,43 @@ XXAPI wstr xrtReadW(xfile objFile, size_t iSize)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
+			str sBuff = xrtMalloc(iSize + 4);
+			if ( sBuff == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return (wstr)xCore.sNull;
+			}
+			// 读取数据
+			size_t iRetSize = read(objFile->idx, sBuff, iSize);
+			if ( iRetSize > 0 ) {
+				// 读取到的文件可能是 utf-32 编码，留 4 个空字节做结尾
+				sBuff[iRetSize] = 0;
+				sBuff[iRetSize + 1] = 0;
+				sBuff[iRetSize + 2] = 0;
+				sBuff[iRetSize + 3] = 0;
+				// 转换编码 (将读取到的数据转换为 utf-8 编码)
+				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF32) ) {
+					int iCharSize = xrtGetCharSize(objFile->Charset);
+					u32str sRet = xrtConvCharset(sBuff, iRetSize / iCharSize, objFile->Charset, XRT_CP_UTF32);
+					xrtFree(sBuff);
+					return sRet;
+				} else {
+					xCore.iRet = iRetSize;
+					return (wstr)sBuff;
+				}
+			} else {
+				xrtSetError(sErrorFile_Read, FALSE);
+				xrtFree(sBuff);
+				xCore.iRet = 0;
+				return (wstr)xCore.sNull;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			xCore.iRet = 0;
+			return (wstr)xCore.sNull;
+		}
 	#endif
 }
 
@@ -601,6 +675,36 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( sText == NULL ) { return 0; }
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { return 0; }
+			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
+				// 需要转换为目标文件的编码再写入
+				str sBuff = xrtConvCharset(sText, iSize, XRT_CP_UTF8, objFile->Charset);
+				int iCharSize = xrtGetCharSize(objFile->Charset);
+				size_t iRetSize = write(objFile->idx, sBuff, xCore.iRet * iCharSize);
+				xrtFree(sBuff);
+				if ( iRetSize > 0 ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			} else {
+				// 二进制或 utf-8 编码可以直接写入
+				size_t iRetSize = write(objFile->idx, sText, iSize);
+				if ( iRetSize > 0 ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 XXAPI size_t xrtWriteW(xfile objFile, wstr sText, size_t iSize)
@@ -639,6 +743,36 @@ XXAPI size_t xrtWriteW(xfile objFile, wstr sText, size_t iSize)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( sText == NULL ) { return 0; }
+			if ( iSize == 0 ) { iSize = wcslen(sText); }
+			if ( iSize == 0 ) { return 0; }
+			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF32) ) {
+				// 需要转换为目标文件的编码再写入
+				str sBuff = xrtConvCharset(sText, iSize, XRT_CP_UTF32, objFile->Charset);
+				int iCharSize = xrtGetCharSize(objFile->Charset);
+				size_t iRetSize = write(objFile->idx, sBuff, xCore.iRet * iCharSize);
+				xrtFree(sBuff);
+				if ( iRetSize > 0 ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			} else {
+				// 二进制或 utf-8 编码可以直接写入
+				size_t iRetSize = write(objFile->idx, sText, iSize);
+				if ( iRetSize > 0 ) {
+					return iRetSize;
+				} else {
+					xrtSetError(sErrorFile_Write, FALSE);
+					return 0;
+				}
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 
@@ -670,10 +804,35 @@ XXAPI ptr xrtGet(xfile objFile, size_t iSize)
 			}
 		} else {
 			xrtSetError(sErrorFile_Handle, FALSE);
-			return 0;
+			xCore.iRet = 0;
+			return xCore.sNull;
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+			str sBuff = xrtMalloc(iSize);
+			if ( sBuff == NULL ) {
+				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+			// 读取数据
+			size_t iRetSize = read(objFile->idx, sBuff, iSize);
+			if ( iRetSize > 0 ) {
+				xCore.iRet = iRetSize;
+				return sBuff;
+			} else {
+				xrtSetError(sErrorFile_Read, FALSE);
+				xrtFree(sBuff);
+				xCore.iRet = 0;
+				return xCore.sNull;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
 	#endif
 }
 
@@ -700,6 +859,20 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 		}
 	#else
 		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( pBuff == NULL ) { return 0; }
+			if ( iSize == 0 ) { return 0; }
+			size_t iRetSize = write(objFile->idx, pBuff, iSize);
+			if ( iRetSize > 0 ) {
+				return iRetSize;
+			} else {
+				xrtSetError(sErrorFile_Write, FALSE);
+				return 0;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
 	#endif
 }
 
@@ -708,41 +881,31 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 // 向文件追加写入数据
 XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		if ( sText == NULL ) { return 0; }
-		if ( iSize == 0 ) { iSize = strlen(sText); }
-		if ( iSize == 0 ) { return 0; }
-		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
-		if ( objFile ) {
-			xrtSeek(objFile, 0, XRT_SEEK_END);
-			ulong iRet = xrtWrite(objFile, sText, iSize);
-			xrtClose(objFile);
-			return iRet;
-		}
-		return 0;
-	#else
-		// 其他平台方案
-	#endif
+	if ( sText == NULL ) { return 0; }
+	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { return 0; }
+	xfile objFile = xrtOpen(sPath, FALSE, iCharset);
+	if ( objFile ) {
+		xrtSeek(objFile, 0, XRT_SEEK_END);
+		ulong iRet = xrtWrite(objFile, sText, iSize);
+		xrtClose(objFile);
+		return iRet;
+	}
+	return 0;
 }
 XXAPI int xrtFileAppendW(wstr sPath, wstr sText, size_t iSize, int iCharset)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		if ( sText == NULL ) { return 0; }
-		if ( iSize == 0 ) { iSize = wcslen(sText); }
-		if ( iSize == 0 ) { return 0; }
-		xfile objFile = xrtOpenW(sPath, FALSE, iCharset);
-		if ( objFile ) {
-			xrtSeek(objFile, 0, XRT_SEEK_END);
-			ulong iRet = xrtWriteW(objFile, sText, iSize);
-			xrtClose(objFile);
-			return iRet;
-		}
-		return 0;
-	#else
-		// 其他平台方案
-	#endif
+	if ( sText == NULL ) { return 0; }
+	if ( iSize == 0 ) { iSize = wcslen(sText); }
+	if ( iSize == 0 ) { return 0; }
+	xfile objFile = xrtOpenW(sPath, FALSE, iCharset);
+	if ( objFile ) {
+		xrtSeek(objFile, 0, XRT_SEEK_END);
+		ulong iRet = xrtWriteW(objFile, sText, iSize);
+		xrtClose(objFile);
+		return iRet;
+	}
+	return 0;
 }
 
 
@@ -750,41 +913,31 @@ XXAPI int xrtFileAppendW(wstr sPath, wstr sText, size_t iSize, int iCharset)
 // 写入并覆盖文件内容
 XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		if ( sText == NULL ) { return 0; }
-		if ( iSize == 0 ) { iSize = strlen(sText); }
-		if ( iSize == 0 ) { return 0; }
-		xfile objFile = xrtOpen(sPath, FALSE, iCharset);
-		if ( objFile ) {
-			ulong iRet = xrtWrite(objFile, sText, iSize);
-			xrtSetEOF(objFile);
-			xrtClose(objFile);
-			return iRet;
-		}
-		return 0;
-	#else
-		// 其他平台方案
-	#endif
+	if ( sText == NULL ) { return 0; }
+	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { return 0; }
+	xfile objFile = xrtOpen(sPath, FALSE, iCharset);
+	if ( objFile ) {
+		ulong iRet = xrtWrite(objFile, sText, iSize);
+		xrtSetEOF(objFile);
+		xrtClose(objFile);
+		return iRet;
+	}
+	return 0;
 }
 XXAPI int xrtFileWriteAllW(wstr sPath, wstr sText, size_t iSize, int iCharset)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		if ( sText == NULL ) { return 0; }
-		if ( iSize == 0 ) { iSize = wcslen(sText); }
-		if ( iSize == 0 ) { return 0; }
-		xfile objFile = xrtOpenW(sPath, FALSE, iCharset);
-		if ( objFile ) {
-			ulong iRet = xrtWriteW(objFile, sText, iSize);
-			xrtSetEOF(objFile);
-			xrtClose(objFile);
-			return iRet;
-		}
-		return 0;
-	#else
-		// 其他平台方案
-	#endif
+	if ( sText == NULL ) { return 0; }
+	if ( iSize == 0 ) { iSize = wcslen(sText); }
+	if ( iSize == 0 ) { return 0; }
+	xfile objFile = xrtOpenW(sPath, FALSE, iCharset);
+	if ( objFile ) {
+		ulong iRet = xrtWriteW(objFile, sText, iSize);
+		xrtSetEOF(objFile);
+		xrtClose(objFile);
+		return iRet;
+	}
+	return 0;
 }
 
 
@@ -792,49 +945,39 @@ XXAPI int xrtFileWriteAllW(wstr sPath, wstr sText, size_t iSize, int iCharset)
 // 读取文件的全部内容 ( 需要使用 xrtFree 释放内存 )
 XXAPI str xrtFileReadAll(str sPath, int iCharset)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		xfile objFile = xrtOpen(sPath, TRUE, iCharset);
-		if ( objFile ) {
-			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
-			if ( iSize > 0 ) {
-				str sRet = xrtRead(objFile, iSize);
-				xrtClose(objFile);
-				return sRet;
-			} else {
-				xrtClose(objFile);
-				xCore.iRet = 0;
-				return xCore.sNull;
-			}
+	xfile objFile = xrtOpen(sPath, TRUE, iCharset);
+	if ( objFile ) {
+		uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
+		if ( iSize > 0 ) {
+			str sRet = xrtRead(objFile, iSize);
+			xrtClose(objFile);
+			return sRet;
+		} else {
+			xrtClose(objFile);
+			xCore.iRet = 0;
+			return xCore.sNull;
 		}
-		xCore.iRet = 0;
-		return xCore.sNull;
-	#else
-		// 其他平台方案
-	#endif
+	}
+	xCore.iRet = 0;
+	return xCore.sNull;
 }
 XXAPI wstr xrtFileReadAllW(wstr sPath, int iCharset)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-		xfile objFile = xrtOpenW(sPath, TRUE, iCharset);
-		if ( objFile ) {
-			uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
-			if ( iSize > 0 ) {
-				wstr sRet = xrtReadW(objFile, iSize);
-				xrtClose(objFile);
-				return sRet;
-			} else {
-				xrtClose(objFile);
-				xCore.iRet = 0;
-				return (wstr)xCore.sNull;
-			}
+	xfile objFile = xrtOpenW(sPath, TRUE, iCharset);
+	if ( objFile ) {
+		uint64 iSize = xrtGetEOF(objFile) - objFile->BOM;
+		if ( iSize > 0 ) {
+			wstr sRet = xrtReadW(objFile, iSize);
+			xrtClose(objFile);
+			return sRet;
+		} else {
+			xrtClose(objFile);
+			xCore.iRet = 0;
+			return (wstr)xCore.sNull;
 		}
-		xCore.iRet = 0;
-		return (wstr)xCore.sNull;
-	#else
-		// 其他平台方案
-	#endif
+	}
+	xCore.iRet = 0;
+	return (wstr)xCore.sNull;
 }
 
 
@@ -854,14 +997,36 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 		}
 		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		DWORD iRetSize;
-		WriteFile(hFile, pBuff, iSize, &iRetSize, NULL);
-		SetEndOfFile(hFile);
-		CloseHandle(hFile);
-		return iRetSize;
+		if ( WriteFile(hFile, pBuff, iSize, &iRetSize, NULL) ) {
+			SetEndOfFile(hFile);
+			CloseHandle(hFile);
+			return iRetSize;
+		} else {
+			xrtSetError(sErrorFile_Write, FALSE);
+			CloseHandle(hFile);
+			return 0;
+		}
 	#else
 		// 其他平台方案
+		if ( iSize == 0 ) { return 0; }
+		int fd = open(sPath, O_RDWR | O_CREAT);
+		if ( fd == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
+		}
+		lseek(fd, 0, SEEK_SET);
+		size_t iRetSize = write(fd, pBuff, iSize);
+		if ( iRetSize > 0 ) {
+			size_t iPos = lseek(fd, 0, SEEK_CUR);
+			ftruncate(fd, iPos);
+			close(fd);
+			return iRetSize;
+		} else {
+			xrtSetError(sErrorFile_Write, FALSE);
+			close(fd);
+			return 0;
+		}
 	#endif
-	return 0;
 }
 XXAPI int xrtFilePutAllW(wstr sPath, ptr pBuff, size_t iSize)
 {
@@ -875,14 +1040,38 @@ XXAPI int xrtFilePutAllW(wstr sPath, ptr pBuff, size_t iSize)
 		}
 		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		DWORD iRetSize;
-		WriteFile(hFile, pBuff, iSize, &iRetSize, NULL);
-		SetEndOfFile(hFile);
-		CloseHandle(hFile);
-		return iRetSize;
+		if ( WriteFile(hFile, pBuff, iSize, &iRetSize, NULL) ) {
+			SetEndOfFile(hFile);
+			CloseHandle(hFile);
+			return iRetSize;
+		} else {
+			xrtSetError(sErrorFile_Write, FALSE);
+			CloseHandle(hFile);
+			return 0;
+		}
 	#else
 		// 其他平台方案
+		if ( iSize == 0 ) { return 0; }
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int fd = open(sPathU, O_RDWR | O_CREAT);
+		xrtFree(sPathU);
+		if ( fd == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
+		}
+		lseek(fd, 0, SEEK_SET);
+		size_t iRetSize = write(fd, pBuff, iSize);
+		if ( iRetSize > 0 ) {
+			size_t iPos = lseek(fd, 0, SEEK_CUR);
+			ftruncate(fd, iPos);
+			close(fd);
+			return iRetSize;
+		} else {
+			xrtSetError(sErrorFile_Write, FALSE);
+			close(fd);
+			return 0;
+		}
 	#endif
-	return 0;
 }
 
 
@@ -903,7 +1092,12 @@ XXAPI ptr xrtFileGetAll(str sPath)
 		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		LARGE_INTEGER stuSize;
 		GetFileSizeEx(hFile, &stuSize);
-		ptr pBuff = xrtMalloc(stuSize.QuadPart + 1);
+		if ( stuSize.QuadPart == 0 ) {
+			CloseHandle(hFile);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		str pBuff = xrtMalloc(stuSize.QuadPart + 1);
 		if ( pBuff == NULL ) {
 			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			CloseHandle(hFile);
@@ -912,13 +1106,53 @@ XXAPI ptr xrtFileGetAll(str sPath)
 		}
 		DWORD iRetSize = 0;
 		ReadFile(hFile, pBuff, stuSize.QuadPart, &iRetSize, NULL);
+		if ( iRetSize == 0 ) {
+			xrtSetError(sErrorFile_Read, FALSE);
+			CloseHandle(hFile);
+			xrtFree(pBuff);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		pBuff[iRetSize] = 0;
 		CloseHandle(hFile);
 		xCore.iRet = iRetSize;
 		return pBuff;
 	#else
 		// 其他平台方案
+		int fd = open(sPath, O_RDONLY);
+		if ( fd == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		lseek(fd, 0, SEEK_SET);
+		struct stat fileStat;
+		fstat(fd, &fileStat);
+		if ( fileStat.st_size == 0 ) {
+			close(fd);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		str pBuff = xrtMalloc(fileStat.st_size + 1);
+		if ( pBuff == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			close(fd);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		size_t iRetSize = read(fd, pBuff, fileStat.st_size);
+		if ( iRetSize == 0 ) {
+			xrtSetError(sErrorFile_Read, FALSE);
+			close(fd);
+			xrtFree(pBuff);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		pBuff[iRetSize] = 0;
+		close(fd);
+		xCore.iRet = iRetSize;
+		return pBuff;
 	#endif
-	return 0;
 }
 XXAPI ptr xrtFileGetAllW(wstr sPath)
 {
@@ -933,7 +1167,12 @@ XXAPI ptr xrtFileGetAllW(wstr sPath)
 		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		LARGE_INTEGER stuSize;
 		GetFileSizeEx(hFile, &stuSize);
-		ptr pBuff = xrtMalloc(stuSize.QuadPart + 1);
+		if ( stuSize.QuadPart == 0 ) {
+			CloseHandle(hFile);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		str pBuff = xrtMalloc(stuSize.QuadPart + 1);
 		if ( pBuff == NULL ) {
 			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			CloseHandle(hFile);
@@ -942,13 +1181,55 @@ XXAPI ptr xrtFileGetAllW(wstr sPath)
 		}
 		DWORD iRetSize = 0;
 		ReadFile(hFile, pBuff, stuSize.QuadPart, &iRetSize, NULL);
+		if ( iRetSize == 0 ) {
+			xrtSetError(sErrorFile_Read, FALSE);
+			CloseHandle(hFile);
+			xrtFree(pBuff);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		pBuff[iRetSize] = 0;
 		CloseHandle(hFile);
 		xCore.iRet = iRetSize;
 		return pBuff;
 	#else
 		// 其他平台方案
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int fd = open(sPathU, O_RDONLY);
+		xrtFree(sPathU);
+		if ( fd == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		lseek(fd, 0, SEEK_SET);
+		struct stat fileStat;
+		fstat(fd, &fileStat);
+		if ( fileStat.st_size == 0 ) {
+			close(fd);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		str pBuff = xrtMalloc(fileStat.st_size + 1);
+		if ( pBuff == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			close(fd);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		size_t iRetSize = read(fd, pBuff, fileStat.st_size);
+		if ( iRetSize == 0 ) {
+			xrtSetError(sErrorFile_Read, FALSE);
+			close(fd);
+			xrtFree(pBuff);
+			xCore.iRet = 0;
+			return xCore.sNull;
+		}
+		pBuff[iRetSize] = 0;
+		close(fd);
+		xCore.iRet = iRetSize;
+		return pBuff;
 	#endif
-	return 0;
 }
 
 
@@ -964,6 +1245,11 @@ XXAPI int xrtPathExists(str sPath)
 		return bRet;
 	#else
 		// 其他平台方案
+		if ( access(sPath, F_OK) == 0 ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 XXAPI int xrtPathExistsW(wstr sPath)
@@ -973,6 +1259,14 @@ XXAPI int xrtPathExistsW(wstr sPath)
 		return GetFileAttributesW(sPath) != INVALID_FILE_ATTRIBUTES;
 	#else
 		// 其他平台方案
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = access(sPathU, F_OK);
+		xrtFree(sPathU);
+		if ( iRet == 0 ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 
@@ -995,6 +1289,19 @@ XXAPI int xrtFileExists(str sPath)
 		}
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		int iRet = stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			if ( fileStat.st_mode & S_IFDIR ) {
+				return FALSE;
+			} else if ( fileStat.st_mode & S_IFREG ) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 XXAPI int xrtFileExistsW(wstr sPath)
@@ -1011,6 +1318,21 @@ XXAPI int xrtFileExistsW(wstr sPath)
 		}
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = stat(sPathU, &fileStat);
+		xrtFree(sPathU);
+		if ( iRet == 0 ) {
+			if ( fileStat.st_mode & S_IFDIR ) {
+				return FALSE;
+			} else if ( fileStat.st_mode & S_IFREG ) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 
@@ -1033,6 +1355,19 @@ XXAPI int xrtDirExists(str sPath)
 		}
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		int iRet = stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			if ( fileStat.st_mode & S_IFDIR ) {
+				return TRUE;
+			} else if ( fileStat.st_mode & S_IFREG ) {
+				return FALSE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 XXAPI int xrtDirExistsW(wstr sPath)
@@ -1049,6 +1384,21 @@ XXAPI int xrtDirExistsW(wstr sPath)
 		}
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = stat(sPathU, &fileStat);
+		xrtFree(sPathU);
+		if ( iRet == 0 ) {
+			if ( fileStat.st_mode & S_IFDIR ) {
+				return TRUE;
+			} else if ( fileStat.st_mode & S_IFREG ) {
+				return FALSE;
+			} else {
+				return FALSE;
+			}
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 
@@ -1062,15 +1412,23 @@ XXAPI size_t xrtFileGetSize(str sPath)
 		wstr sPathW = xrtUTF8to16(sPath, 0);
 		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
-		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
-			LARGE_INTEGER iSize;
-			GetFileSizeEx(hFile, &iSize);
-			CloseHandle(hFile);
-			return iSize.QuadPart;
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
 		}
-		return 0;
+		LARGE_INTEGER iSize;
+		GetFileSizeEx(hFile, &iSize);
+		CloseHandle(hFile);
+		return iSize.QuadPart;
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		int iRet = stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_size;
+		} else {
+			return 0;
+		}
 	#endif
 }
 XXAPI size_t xrtFileGetSizeW(wstr sPath)
@@ -1078,15 +1436,25 @@ XXAPI size_t xrtFileGetSizeW(wstr sPath)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		HANDLE hFile = CreateFileW(sPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
-			LARGE_INTEGER iSize;
-			GetFileSizeEx(hFile, &iSize);
-			CloseHandle(hFile);
-			return iSize.QuadPart;
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
 		}
-		return 0;
+		LARGE_INTEGER iSize;
+		GetFileSizeEx(hFile, &iSize);
+		CloseHandle(hFile);
+		return iSize.QuadPart;
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = stat(sPathU, &fileStat);
+		xrtFree(sPathU);
+		if ( iRet == 0 ) {
+			return fileStat.st_size;
+		} else {
+			return 0;
+		}
 	#endif
 }
 
@@ -1100,17 +1468,26 @@ XXAPI int xrtFileSetSize(str sPath, size_t iSize)
 		wstr sPathW = xrtUTF8to16(sPath, 0);
 		HANDLE hFile = CreateFileW(sPathW, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
-		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
-			LARGE_INTEGER iPos_stu;
-			iPos_stu.QuadPart = iSize;
-			SetFilePointerEx(hFile, iPos_stu, NULL, FILE_BEGIN);
-			SetEndOfFile(hFile);
-			CloseHandle(hFile);
-			return TRUE;
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return FALSE;
 		}
-		return FALSE;
+		LARGE_INTEGER iPos_stu;
+		iPos_stu.QuadPart = iSize;
+		SetFilePointerEx(hFile, iPos_stu, NULL, FILE_BEGIN);
+		SetEndOfFile(hFile);
+		CloseHandle(hFile);
+		return TRUE;
 	#else
 		// 其他平台方案
+		int fd = open(sPath, O_RDWR | O_CREAT);
+		if ( fd == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
+		}
+		ftruncate(fd, iSize);
+		close(fd);
+		return TRUE;
 	#endif
 }
 XXAPI int xrtFileSetSizeW(wstr sPath, size_t iSize)
@@ -1118,17 +1495,28 @@ XXAPI int xrtFileSetSizeW(wstr sPath, size_t iSize)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		HANDLE hFile = CreateFileW(sPath, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-		if ( hFile && hFile != INVALID_HANDLE_VALUE ) {
-			LARGE_INTEGER iPos_stu;
-			iPos_stu.QuadPart = iSize;
-			SetFilePointerEx(hFile, iPos_stu, NULL, FILE_BEGIN);
-			SetEndOfFile(hFile);
-			CloseHandle(hFile);
-			return TRUE;
+		if ( hFile == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return FALSE;
 		}
-		return FALSE;
+		LARGE_INTEGER iPos_stu;
+		iPos_stu.QuadPart = iSize;
+		SetFilePointerEx(hFile, iPos_stu, NULL, FILE_BEGIN);
+		SetEndOfFile(hFile);
+		CloseHandle(hFile);
+		return TRUE;
 	#else
 		// 其他平台方案
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int fd = open(sPathU, O_RDWR | O_CREAT);
+		xrtFree(sPathU);
+		if ( fd == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return 0;
+		}
+		ftruncate(fd, iSize);
+		close(fd);
+		return TRUE;
 	#endif
 }
 
@@ -1145,6 +1533,13 @@ XXAPI int xrtFileGetAttr(str sPath)
 		return iRet;
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		int iRet = stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_mode;
+		} else {
+			return 0;
+		}
 	#endif
 }
 XXAPI int xrtFileGetAttrW(wstr sPath)
@@ -1154,6 +1549,15 @@ XXAPI int xrtFileGetAttrW(wstr sPath)
 		return GetFileAttributesW(sPath);
 	#else
 		// 其他平台方案
+		struct stat fileStat;
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = stat(sPathU, &fileStat);
+		xrtFree(sPathU);
+		if ( iRet == 0 ) {
+			return fileStat.st_mode;
+		} else {
+			return 0;
+		}
 	#endif
 }
 
@@ -1167,18 +1571,41 @@ XXAPI int xrtFileSetAttr(str sPath, int iAttr)
 		wstr sPathW = xrtUTF8to16(sPath, 0);
 		int iRet = SetFileAttributesW(sPathW, iAttr);
 		xrtFree(sPathW);
-		return iRet;
+		if ( iRet ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#else
 		// 其他平台方案
+		int iRet = chmod(sPath, iAttr);
+		if ( iRet == 0 ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 XXAPI int xrtFileSetAttrW(wstr sPath, int iAttr)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
-		return SetFileAttributesW(sPath, iAttr);
+		int iRet = SetFileAttributesW(sPath, iAttr);
+		if ( iRet ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#else
 		// 其他平台方案
+		str sPathU = xrtUTF32to8(sPath, 0);
+		int iRet = chmod(sPathU, iAttr);
+		xrtFree(sPathU);
+		if ( iRet == 0 ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#endif
 }
 
@@ -1197,6 +1624,57 @@ XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite)
 		return iRet;
 	#else
 		// 其他平台方案
+		if ( bReWrite == FALSE ) {
+			if ( access(sDst, F_OK) == 0 ) {
+				return FALSE;		// 文件已经存在
+			}
+		}
+		// 打开文件
+		int fsrc = open(sSrc, O_RDONLY);
+		if ( fsrc == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			return FALSE;
+		}
+		int fdst = open(sDst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if ( fdst == -1 ) {
+			xrtSetError(sErrorFile_Open, FALSE);
+			close(fsrc);
+			return FALSE;
+		}
+		// 申请内存
+		struct stat fileStat;
+		fstat(fsrc, &fileStat);
+		if ( fileStat.st_size == 0 ) {
+			close(fsrc);
+			close(fdst);
+			return TRUE;		// 0 字节大小的文件不需要复制
+		}
+		str sText = xrtMalloc(fileStat.st_size);
+		if ( sText == NULL ) {
+			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+			close(fsrc);
+			close(fdst);
+			return FALSE;
+		}
+		// 读取原始文件内容
+		size_t iRetSize = read(fsrc, sText, fileStat.st_size);
+		if ( iRetSize == 0 ) {
+			xrtSetError(sErrorFile_Read, FALSE);
+			close(fsrc);
+			close(fdst);
+			xrtFree(sText);
+			return FALSE;
+		}
+		// 写入目标文件
+		iRetSize = write(fdst, sText, fileStat.st_size);
+		if ( iRetSize == 0 ) {
+			xrtSetError(sErrorFile_Write, FALSE);
+			close(fsrc);
+			close(fdst);
+			xrtFree(sText);
+			return FALSE;
+		}
+		return TRUE;
 	#endif
 }
 XXAPI int xrtFileCopyW(wstr sSrc, wstr sDst, int bReWrite)
@@ -1206,6 +1684,12 @@ XXAPI int xrtFileCopyW(wstr sSrc, wstr sDst, int bReWrite)
 		return CopyFileW(sSrc, sDst, bReWrite ? FALSE : TRUE);
 	#else
 		// 其他平台方案
+		str sSrcU = xrtUTF32to8(sSrc, 0);
+		str sDstU = xrtUTF32to8(sDst, 0);
+		int iRet = xrtFileCopy(sSrcU, sDstU, bReWrite);
+		xrtFree(sSrcU);
+		xrtFree(sDstU);
+		return iRet;
 	#endif
 }
 
@@ -1231,6 +1715,23 @@ XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
 		return iRet;
 	#else
 		// 其他平台方案
+		int bExistSrc = xrtFileExists(sSrc);
+		int bExistDst = xrtFileExists(sDst);
+		if ( bExistSrc && bExistDst && bReWrite ) {
+			remove(sDst);
+		}
+		int iRet = rename(sSrc, sDst);
+		if ( iRet == 0 ) {
+			return TRUE;
+		} else {
+			// 无法移动文件时，使用复制 + 删除来实现文件移动
+			iRet = xrtFileCopy(sSrc, sDst, bReWrite);
+			if ( iRet ) {
+				remove(sSrc);
+			} else {
+				return FALSE;
+			}
+		}
 	#endif
 }
 XXAPI int xrtFileMoveW(wstr sSrc, wstr sDst, int bReWrite)
@@ -1247,6 +1748,12 @@ XXAPI int xrtFileMoveW(wstr sSrc, wstr sDst, int bReWrite)
 		return MoveFileExW(sSrc, sDst, MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | (bReWrite ? MOVEFILE_REPLACE_EXISTING : 0));
 	#else
 		// 其他平台方案
+		str sSrcU = xrtUTF32to8(sSrc, 0);
+		str sDstU = xrtUTF32to8(sDst, 0);
+		int iRet = xrtFileMove(sSrcU, sDstU, bReWrite);
+		xrtFree(sSrcU);
+		xrtFree(sDstU);
+		return iRet;
 	#endif
 }
 
