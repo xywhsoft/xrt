@@ -1895,7 +1895,7 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 		int (*pCallBack)(ptr sPath, size_t iSize, int bDir, ptr pData, ptr Param) = pProc;
 		int iFileCount = 0;
 		WIN32_FIND_DATAW objFindData;
-		wstr sFindPath = xrtPathJoinW(2, sPath, iSize, "*", 1);
+		wstr sFindPath = xrtPathJoinW(2, sPath, L"*");
 		HANDLE hFind = FindFirstFileW(sFindPath, &objFindData);
 		xrtFree(sFindPath);
 		if ( hFind == INVALID_HANDLE_VALUE ) {
@@ -1909,7 +1909,7 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 				// 过滤 . 和 .. 目录
 				if ( (objFindData.cFileName[0] == L'.') && ((objFindData.cFileName[1] == 0) || ((objFindData.cFileName[1] == L'.') && (objFindData.cFileName[2] == 0))) ) {
 				} else {
-					wstr sDir = xrtPathJoinW(2, sPath, iSize, objFindData.cFileName, 0);
+					wstr sDir = xrtPathJoinW(2, sPath, objFindData.cFileName);
 					size_t iDirSize = xCore.iRet;
 					// 处理文件夹 - 进入
 					if ( pProc ) {
@@ -1939,7 +1939,7 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 				}
 			} else {
 				// 处理文件
-				wstr sFile = xrtPathJoinW(2, sPath, iSize, objFindData.cFileName, 0);
+				wstr sFile = xrtPathJoinW(2, sPath, objFindData.cFileName);
 				size_t iFileSize = xCore.iRet;
 				if ( pProc ) {
 					if ( bU8 ) {
@@ -1980,7 +1980,7 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 				// 过滤 . 和 .. 目录
 				if ( (entry->d_name[0] == '.') && ((entry->d_name[1] == 0) || ((entry->d_name[1] == '.') && (entry->d_name[2] == 0))) ) {
 				} else {
-					str sDir = xrtPathJoin(2, sPath, iSize, entry->d_name, 0);
+					str sDir = xrtPathJoin(2, sPath, entry->d_name);
 					size_t iDirSize = xCore.iRet;
 					// 处理文件夹 - 进入
 					if ( pProc ) {
@@ -2010,7 +2010,7 @@ XXAPI int xrtFileDeleteW(wstr sPath)
 				}
 			} else if ( entry->d_type == DT_REG ) {
 				// 处理文件
-				str sFile = xrtPathJoin(2, sPath, iSize, entry->d_name, 0);
+				str sFile = xrtPathJoin(2, sPath, entry->d_name);
 				size_t iFileSize = xCore.iRet;
 				if ( pProc ) {
 					if ( bU8 ) {
@@ -2240,7 +2240,7 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 	int __pri__DirCopyProc(wstr sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		if ( bDir == 0 ) {
-			wstr sDstPath = xrtPathJoinW(2, pInfo->DstPath, pInfo->DstSize, &sPath[pInfo->SrcSize], 0);
+			wstr sDstPath = xrtPathJoinW(2, pInfo->DstPath, &sPath[pInfo->SrcSize]);
 			//printf("\tcopy file   : %S -> %S\n", sPath, sDstPath);
 			if ( pInfo->MoveMode ) {
 				xrtFileMoveW(sPath, sDstPath, pInfo->ReWrite);
@@ -2249,7 +2249,7 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 			}
 			xrtFree(sDstPath);
 		} else if ( bDir == 1 ) {
-			wstr sDstPath = xrtPathJoinW(2, pInfo->DstPath, pInfo->DstSize, &sPath[pInfo->SrcSize], 0);
+			wstr sDstPath = xrtPathJoinW(2, pInfo->DstPath, &sPath[pInfo->SrcSize]);
 			//printf("\tcreate dir  : %S\n", sDstPath);
 			xrtDirCreateW(sDstPath);
 			xrtFree(sDstPath);
@@ -2273,7 +2273,7 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 	int __pri__DirCopyProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		if ( bDir == 0 ) {
-			str sDstPath = xrtPathJoin(2, pInfo->DstPath, pInfo->DstSize, &sPath[pInfo->SrcSize], 0);
+			str sDstPath = xrtPathJoin(2, pInfo->DstPath, &sPath[pInfo->SrcSize]);
 			//printf("\tcopy file   : %s -> %s\n", sPath, sDstPath);
 			if ( pInfo->MoveMode ) {
 				xrtFileMove(sPath, sDstPath, pInfo->ReWrite);
@@ -2282,7 +2282,7 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 			}
 			xrtFree(sDstPath);
 		} else if ( bDir == 1 ) {
-			str sDstPath = xrtPathJoin(2, pInfo->DstPath, pInfo->DstSize, &sPath[pInfo->SrcSize], 0);
+			str sDstPath = xrtPathJoin(2, pInfo->DstPath, &sPath[pInfo->SrcSize]);
 			//printf("\tcreate dir  : %s\n", sDstPath);
 			xrtDirCreate(sDstPath);
 			xrtFree(sDstPath);

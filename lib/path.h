@@ -296,9 +296,8 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 	size_t iPos = 0;
 	for ( int i = 0; i < iCount; i++ ) {
 		str sPath = va_arg(args, str);
-		size_t iSize = va_arg(args, size_t);
 		if ( sPath == NULL ) { continue; }
-		if ( iSize == 0 ) { iSize = strlen(sPath); }
+		size_t iSize = strlen(sPath);
 		if ( iSize == 0 ) { continue; }
 		if ( (iPos + iSize) > 4094 ) { xrtFree(sRet); xCore.iRet = 0; return xCore.sNull; }
 		memcpy(&sRet[iPos], sPath, iSize);
@@ -348,9 +347,8 @@ XXAPI wstr xrtPathJoinW(uint iCount, ...)
 	size_t iPos = 0;
 	for ( int i = 0; i < iCount; i++ ) {
 		wstr sPath = va_arg(args, wstr);
-		size_t iSize = va_arg(args, size_t);
 		if ( sPath == NULL ) { continue; }
-		if ( iSize == 0 ) { iSize = wcslen(sPath); }
+		size_t iSize = wcslen(sPath);
 		if ( iSize == 0 ) { continue; }
 		if ( (iPos + iSize) > 4094 ) { xrtFree(sRet); xCore.iRet = 0; return (wstr)xCore.sNull; }
 		memcpy(&sRet[iPos], sPath, iSize * sizeof(wchar_t));

@@ -297,8 +297,8 @@ int main(int argc, char** argv)
 	printf("xrtPathIsAbsW : %d\n", xrtPathIsAbsW(L"c:\\123\\456\\789\\", 0));
 	printf("xrtPathRandom : %s\n", xrtPathRandom("c:\\123\\456\\789\\Rand_", 0, ".jpg", 4, 32));
 	printf("xrtPathRandomW : %S\n", xrtPathRandomW(L"c:\\123\\456\\789\\Rand_", 0, L".jpg", 4, 32));
-	printf("xrtPathJoin : %s\n", xrtPathJoin(4, "c:\\123", 0, "456", 0, "789", 0, "file.ext", 0));
-	printf("xrtPathJoinW : %S\n", xrtPathJoinW(4, L"c:\\123", 0, L"456", 0, L"789", 0, L"file.ext", 0));
+	printf("xrtPathJoin : %s\n", xrtPathJoin(4, "c:\\123", "456", "789", "file.ext"));
+	printf("xrtPathJoinW : %S\n", xrtPathJoinW(4, L"c:\\123", L"456", L"789", L"file.ext"));
 	//*/
 	
 	
@@ -377,11 +377,11 @@ int main(int argc, char** argv)
 	
 	
 	/* File 库测试 */
-	/*
 	printf("\n\n\n------------------------------------\n\n File 库测试 :\n\n");
 	
+	/*
 	printf("---------------- 编码自动识别\n\n");
-	str sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "ascii.txt", 0);
+	str sPath = xrtPathJoin(3, xCore->AppPath, "test", "ascii.txt");
 	printf("test : %s\n", sPath);
 	xfile f_a = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	size_t iFileSize = xrtGetEOF(f_a);
@@ -391,7 +391,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_a->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "gb2312.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "gb2312.txt");
 	printf("test : %s\n", sPath);
 	xfile f_b = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_b);
@@ -401,7 +401,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_b->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf8.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf8.txt");
 	printf("test : %s\n", sPath);
 	xfile f_c = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_c);
@@ -411,7 +411,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_c->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf8_bom.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf8_bom.txt");
 	printf("test : %s\n", sPath);
 	xfile f_d = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_d);
@@ -421,7 +421,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_d->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf16.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf16.txt");
 	printf("test : %s\n", sPath);
 	xfile f_e = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_e);
@@ -431,7 +431,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_e->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf16_be.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf16_be.txt");
 	printf("test : %s\n", sPath);
 	xfile f_f = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_f);
@@ -441,7 +441,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_f->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf16_bom.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf16_bom.txt");
 	printf("test : %s\n", sPath);
 	xfile f_g = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_g);
@@ -451,7 +451,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_g->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf16_be_bom.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf16_be_bom.txt");
 	printf("test : %s\n", sPath);
 	xfile f_h = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_h);
@@ -461,7 +461,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_h->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf32.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf32.txt");
 	printf("test : %s\n", sPath);
 	xfile f_i = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_i);
@@ -471,7 +471,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_i->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf32_be.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf32_be.txt");
 	printf("test : %s\n", sPath);
 	xfile f_j = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_j);
@@ -481,7 +481,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_j->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf32_bom.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf32_bom.txt");
 	printf("test : %s\n", sPath);
 	xfile f_k = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_k);
@@ -491,7 +491,7 @@ int main(int argc, char** argv)
 	printf("BOM : %d\n", f_k->BOM);
 	printf("Text : %s\n\n", sText);
 	
-	sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "utf32_be_bom.txt", 0);
+	sPath = xrtPathJoin(3, xCore->AppPath, "test", "utf32_be_bom.txt");
 	printf("test : %s\n", sPath);
 	xfile f_l = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_l);
@@ -504,27 +504,27 @@ int main(int argc, char** argv)
 	
 	/*
 	printf("---------------- 文件读取和写入\n");
-	str sPath2 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test.txt", 0);
+	str sPath2 = xrtPathJoin(3, xCore->AppPath, "test", "test.txt");
 	printf("test : %s\n", sPath2);
 	xfile objFile = xrtOpen(sPath2, TRUE, XRT_CP_AUTO);
 	str sText2 = xrtRead(objFile, xrtGetEOF(objFile) - objFile->BOM);
 	printf("Text : %s\n\n", sText2);
 	
-	str sPath3 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u16be.txt", 0);
+	str sPath3 = xrtPathJoin(3, xCore->AppPath, "test", "test_write_u16be.txt");
 	xrtFileDelete(sPath3);
 	xfile objFile2 = xrtOpen(sPath3, FALSE, XRT_CP_UTF16_BE | XRT_CP_BOM);
 	xrtWrite(objFile2, sText2, 0);
 	xrtWrite(objFile2, "\n1234567", 0);
 	xrtClose(objFile2);
 	
-	str sPath4 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u16.txt", 0);
+	str sPath4 = xrtPathJoin(3, xCore->AppPath, "test", "test_write_u16.txt");
 	xrtFileDelete(sPath4);
 	xfile objFile3 = xrtOpen(sPath4, FALSE, XRT_CP_UTF16 | XRT_CP_BOM);
 	xrtWrite(objFile3, sText2, 0);
 	xrtWrite(objFile3, "\n7654321", 0);
 	xrtClose(objFile3);
 	
-	str sPath5 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_write_u32.txt", 0);
+	str sPath5 = xrtPathJoin(3, xCore->AppPath, "test", "test_write_u32.txt");
 	xrtFileWriteAll(sPath5, "xxrpa.com 清浅池塘边，重生破土的冲动", 0, XRT_CP_UTF32 | XRT_CP_BOM);
 	xrtFileAppend(sPath5, "\nxdoc.online 天地正玲珑，殡葬了飞虫", 0, XRT_CP_UTF32 | XRT_CP_BOM);
 	str sRetPath5 = xrtFileReadAll(sPath5, XRT_CP_AUTO);
@@ -533,14 +533,14 @@ int main(int argc, char** argv)
 	
 	/*
 	printf("---------------- 文件操作测试\n");
-	str sPathA1 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test.txt", 0);
-	str sPathA2 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_copy.txt", 0);
-	str sPathA3 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_movesrc.txt", 0);
-	str sPathA4 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_move.txt", 0);
-	str sPathA5 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_delete.txt", 0);
-	str sPathA6 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test222.txt", 0);
-	str sPathA7 = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "test_size.txt", 0);
-	str sPathAX = xrtPathJoin(2, xCore->AppPath, 0, "test", 0);
+	str sPathA1 = xrtPathJoin(3, xCore->AppPath, "test", "test.txt");
+	str sPathA2 = xrtPathJoin(3, xCore->AppPath, "test", "test_copy.txt");
+	str sPathA3 = xrtPathJoin(3, xCore->AppPath, "test", "test_movesrc.txt");
+	str sPathA4 = xrtPathJoin(3, xCore->AppPath, "test", "test_move.txt");
+	str sPathA5 = xrtPathJoin(3, xCore->AppPath, "test", "test_delete.txt");
+	str sPathA6 = xrtPathJoin(3, xCore->AppPath, "test", "test222.txt");
+	str sPathA7 = xrtPathJoin(3, xCore->AppPath, "test", "test_size.txt");
+	str sPathAX = xrtPathJoin(2, xCore->AppPath, "test");
 	xrtFileCopy(sPathA1, sPathA2, TRUE);
 	xrtFileCopy(sPathA1, sPathA3, TRUE);
 	xrtFileCopy(sPathA1, sPathA7, TRUE);
@@ -572,6 +572,9 @@ int main(int argc, char** argv)
 	printf("xrtDirScan [Recu] : %s\n", xCore->AppPath);
 	printf("FileCount : %d\n\n", xrtDirScan(xCore->AppPath, TRUE, FileScanProc, NULL));
 	//*/
+	printf("---------------- 遍历文件测试\n");
+	printf("xrtDirScan : C:\\Users\\gaoweixiong\\Desktop\\xTask\\projects\n");
+	printf("FileCount : %d\n\n", xrtDirScan("C:\\Users\\gaoweixiong\\Desktop\\xTask\\projects", TRUE, FileScanProc, NULL));
 	
 	/*
 	printf("---------------- 目录操作测试\n");
