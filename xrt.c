@@ -12,10 +12,14 @@
 	#else
 		#include <shellapi.h>
 	#endif
+	#include <sys/types.h>
+	#include <sys/stat.h>
+	#include <wchar.h>
 	#pragma comment (lib, "shell32")
 #else
 	#include <fcntl.h>
 	#include <sys/stat.h>
+	#include <wchar.h>
 #endif
 
 

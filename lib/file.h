@@ -1611,6 +1611,102 @@ XXAPI int xrtFileSetAttrW(wstr sPath, int iAttr)
 
 
 
+// 获取文件最后一次访问时间
+XXAPI int64 xrtFileGetAccessTime(str sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		struct _stat fileStat;
+		int iRet = _stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_atime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#else
+		// 其他平台方案
+		struct stat fileStat;
+		int iRet = stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_atime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#endif
+}
+XXAPI int64 xrtFileGetAccessTimeW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		struct _stat fileStat;
+		int iRet = _wstat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_atime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#else
+		// 其他平台方案
+		struct stat fileStat;
+		int iRet = wstat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_atime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#endif
+}
+
+
+
+// 获取文件修改时间
+XXAPI int64 xrtFileGetChangeTime(str sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		struct _stat fileStat;
+		int iRet = _stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_mtime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#else
+		// 其他平台方案
+		struct stat fileStat;
+		int iRet = stat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_mtime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#endif
+}
+XXAPI int64 xrtFileGetChangeTimeW(wstr sPath)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		struct _stat fileStat;
+		int iRet = _wstat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_mtime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#else
+		// 其他平台方案
+		struct stat fileStat;
+		int iRet = wstat(sPath, &fileStat);
+		if ( iRet == 0 ) {
+			return fileStat.st_mtime + XRT_TIME_19700101;
+		} else {
+			return 0;
+		}
+	#endif
+}
+
+
+
 // 复制文件
 XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite)
 {
@@ -2050,6 +2146,7 @@ XXAPI int xrtDirCreateAll(str sPath)
 		CreateDirectoryW(sCurPath, NULL);
 		xrtFree(sCurPath);
 		xrtFree(sPathW);
+		return TRUE;
 	#else
 		// 其他平台方案
 		if ( sPath == NULL ) { return FALSE; }
@@ -2073,6 +2170,7 @@ XXAPI int xrtDirCreateAll(str sPath)
 		sCurPath[iSize] = 0;
 		mkdir(sCurPath, 0755);
 		xrtFree(sCurPath);
+		return TRUE;
 	#endif
 }
 XXAPI int xrtDirCreateAllW(wstr sPath)
@@ -2099,6 +2197,7 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 		}
 		CreateDirectoryW(sCurPath, NULL);
 		xrtFree(sCurPath);
+		return TRUE;
 	#else
 		// 其他平台方案
 		if ( sPath == NULL ) { return FALSE; }
@@ -2123,6 +2222,7 @@ XXAPI int xrtDirCreateAllW(wstr sPath)
 		mkdir(sCurPath, 0755);
 		xrtFree(sCurPath);
 		xrtFree(sPathU);
+		return TRUE;
 	#endif
 }
 

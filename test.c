@@ -377,9 +377,9 @@ int main(int argc, char** argv)
 	
 	
 	/* File 库测试 */
+	/*
 	printf("\n\n\n------------------------------------\n\n File 库测试 :\n\n");
 	
-	/*
 	printf("---------------- 编码自动识别\n\n");
 	str sPath = xrtPathJoin(3, xCore->AppPath, 0, "test", 0, "ascii.txt", 0);
 	printf("test : %s\n", sPath);

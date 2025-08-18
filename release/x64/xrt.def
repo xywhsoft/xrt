@@ -53,10 +53,14 @@ xrtFileDelete
 xrtFileDeleteW
 xrtFileExists
 xrtFileExistsW
+xrtFileGetAccessTime
+xrtFileGetAccessTimeW
 xrtFileGetAll
 xrtFileGetAllW
 xrtFileGetAttr
 xrtFileGetAttrW
+xrtFileGetChangeTime
+xrtFileGetChangeTimeW
 xrtFileGetSize
 xrtFileGetSizeW
 xrtFileMove

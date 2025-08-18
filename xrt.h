@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <wchar.h>
 #include <ctype.h>
 #include <wctype.h>
 #include <math.h>
@@ -551,6 +550,14 @@
 	// 设置文件属性
 	XXAPI int xrtFileSetAttr(str sPath, int iAttr);
 	XXAPI int xrtFileSetAttrW(wstr sPath, int iAttr);
+	
+	// 获取文件最后一次访问时间
+	XXAPI int64 xrtFileGetAccessTime(str sPath);
+	XXAPI int64 xrtFileGetAccessTimeW(wstr sPath);
+	
+	// 获取文件修改时间
+	XXAPI int64 xrtFileGetChangeTime(str sPath);
+	XXAPI int64 xrtFileGetChangeTimeW(wstr sPath);
 	
 	// 复制文件
 	XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite);
