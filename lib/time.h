@@ -1,6 +1,42 @@
 
 
 
+// 获取高精度时钟 Tick ( 返回秒数，便于计算时间间隔 )
+XXAPI double xrtTimer()
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( xCore.Frequency == 0.0 ) {
+			return (double)GetTickCount64() * 0.001;
+		} else {
+			LARGE_INTEGER QPC;
+			QueryPerformanceCounter(&QPC);
+			return (double)QPC.QuadPart / (double)xCore.Frequency;
+		}
+	#else
+		// 其他平台方案
+		struct timespec timer;
+		clock_gettime(CLOCK_MONOTONIC, &timer);
+		return timer.tv_sec + ((double)timer.tv_nsec * 0.000000001);
+	#endif
+}
+
+
+
+// 毫秒级延时
+XXAPI void xrtSleep(uint32 ms)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		Sleep(ms);
+	#else
+		// 其他平台方案
+		usleep(ms * 1000);
+	#endif
+}
+
+
+
 // 判断是否为闰年
 XXAPI int xrtIsLeapYear(int iYear)
 {

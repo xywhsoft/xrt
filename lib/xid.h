@@ -10,17 +10,33 @@ XXAPI str xrtXIDtoStr(xid pXID)
 
 
 // 获取 XID ( 需要使用 xrtFree 释放内存 )
-XXAPI xid xrtMakeXID(int32 iData)
+XXAPI xid xrtMakeXID(int32 iData, int32 iAddr)
 {
 	xid pXID = xrtMalloc(24);
 	if ( pXID == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return NULL;
 	}
+	// 获取高精度时钟
+	uint32 iTick;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( xCore.Frequency == 0.0 ) {
+			iTick = GetTickCount();
+		} else {
+			LARGE_INTEGER QPC;
+			QueryPerformanceCounter(&QPC);
+			iTick = QPC.LowPart;
+		}
+	#else
+		struct timespec timer;
+		clock_gettime(CLOCK_MONOTONIC, &timer);
+		iTick = ((timer.tv_sec & 3) << 30) | timer.tv_nsec;
+	#endif
+	// 生成 XID 数据
 	pXID->Data = iData;
-	pXID->Tick = 0;
+	pXID->Tick = iTick;
 	pXID->Time = xrtNow();
-	pXID->Addr = 0;
+	pXID->Addr = iAddr;
 	pXID->Rand = xrtRand32();
 	return pXID;
 }
@@ -28,9 +44,9 @@ XXAPI xid xrtMakeXID(int32 iData)
 
 
 // 获取 XID 字符串 ( 需要使用 xrtFree 释放内存 )
-XXAPI str xrtMakeXIDS(int32 iData)
+XXAPI str xrtMakeXIDS(int32 iData, int32 iAddr)
 {
-	xid pXID = xrtMakeXID(iData);
+	xid pXID = xrtMakeXID(iData, iAddr);
 	if ( pXID == NULL ) { return xCore.sNull; }
 	str sRet = xrtXIDtoStr(pXID);
 	xrtFree(pXID);

@@ -78,8 +78,31 @@ XXAPI xrtGlobalData* xrtInit()
 	}
 	xCore.TempMemIdx = 0;
 	
+	// 初始化高精度时钟频率单位
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER QPF;
+		if ( QueryPerformanceFrequency( &QPF ) ) {
+			xCore.Frequency = QPF.QuadPart;
+		} else {
+			xCore.Frequency = 0;
+		}
+	#endif
+	
 	// 初始化随机数序列
-	srand(time(NULL));
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( xCore.Frequency == 0.0 ) {
+			uint64 iTick = GetTickCount64();
+			xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ iTick);
+		} else {
+			LARGE_INTEGER QPC;
+			QueryPerformanceCounter(&QPC);
+			xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ QPC.QuadPart);
+		}
+	#else
+		struct timespec timer;
+		clock_gettime(CLOCK_MONOTONIC, &timer);
+		xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ ((timer.tv_sec << 30) | timer.tv_nsec));
+	#endif
 	
 	// 设置内置的错误描述（便于复用）
 	xCore.ERROR_DESC.MALLOC = "Memory allocate error !";

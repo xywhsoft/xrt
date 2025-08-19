@@ -373,6 +373,13 @@ int main(int argc, char** argv)
 	printf("xrtDateAdd (2012-03-15 12:20:40) 30 quar : %s\n", xrtTimeToStr(tRet, XRT_TIME_FORMAT_DATETIME));
 	printf("xrtDateDiff 30 quar : %d\n", iDiff);
 	
+	double st = xrtTimer();
+	printf("xrtTimer Start : %f\n", st);
+	xrtSleep(1000);
+	double et = xrtTimer();
+	printf("xrtTimer Stop : %f\n", et);
+	printf("time diff (s) : %f\n", et - st);
+	
 	//*/
 	
 	
@@ -597,6 +604,19 @@ int main(int argc, char** argv)
 		printf("xrtDirDelete : /home/456\n");
 		printf("FileCount : %d\n\n", xrtDirDelete("/home/456"));
 	#endif
+	//*/
+	
+	
+	
+	/* File 库测试 */
+	printf("\n\n\n------------------------------------\n\n XID 库测试 :\n\n");
+	xid xida = xrtMakeXID(xrtRand32(), xrtRand32());
+	printf("xrtMakeXID - Data : %d\n", xida->Data);
+	printf("xrtMakeXID - Tick : %d\n", xida->Tick);
+	printf("xrtMakeXID - Time : %lld\n", xida->Time);
+	printf("xrtMakeXID - Addr : %d\n", xida->Addr);
+	printf("xrtMakeXID - Rand : %d\n", xida->Rand);
+	printf("xrtMakeXIDS : %s\n", xrtMakeXIDS(xrtRand32(), xrtRand32()));
 	//*/
 	
 	
