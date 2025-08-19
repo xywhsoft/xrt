@@ -1648,7 +1648,9 @@ XXAPI int64 xrtFileGetAccessTimeW(wstr sPath)
 	#else
 		// 其他平台方案
 		struct stat fileStat;
-		int iRet = wstat(sPath, &fileStat);
+		str sPathU8 = xrtUTF32to8(sPath, 0);
+		int iRet = stat(sPathU8, &fileStat);
+		xrtFree(sPathU8);
 		if ( iRet == 0 ) {
 			return fileStat.st_atime + XRT_TIME_19700101;
 		} else {
@@ -1696,7 +1698,9 @@ XXAPI int64 xrtFileGetChangeTimeW(wstr sPath)
 	#else
 		// 其他平台方案
 		struct stat fileStat;
-		int iRet = wstat(sPath, &fileStat);
+		str sPathU8 = xrtUTF32to8(sPath, 0);
+		int iRet = stat(sPathU8, &fileStat);
+		xrtFree(sPathU8);
 		if ( iRet == 0 ) {
 			return fileStat.st_mtime + XRT_TIME_19700101;
 		} else {

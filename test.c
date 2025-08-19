@@ -164,8 +164,9 @@ int main(int argc, char** argv)
 	/* Math 库测试 */
 	/*
 	printf("\n\n\n------------------------------------\n\n Math 库测试 :\n\n");
+	xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL);
 	for ( int i = 0; i < 10; i++ ) {
-		printf("Rand 0 - 100 : %d\n", xrtRand(0, 100));
+		printf("Rand 0 - 100 : %d\n", xrtRandRange(0, 100));
 	}
 	//*/
 	
@@ -572,9 +573,6 @@ int main(int argc, char** argv)
 	printf("xrtDirScan [Recu] : %s\n", xCore->AppPath);
 	printf("FileCount : %d\n\n", xrtDirScan(xCore->AppPath, TRUE, FileScanProc, NULL));
 	//*/
-	printf("---------------- 遍历文件测试\n");
-	printf("xrtDirScan : C:\\Users\\gaoweixiong\\Desktop\\xTask\\projects\n");
-	printf("FileCount : %d\n\n", xrtDirScan("C:\\Users\\gaoweixiong\\Desktop\\xTask\\projects", TRUE, FileScanProc, NULL));
 	
 	/*
 	printf("---------------- 目录操作测试\n");

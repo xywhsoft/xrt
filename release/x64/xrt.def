@@ -134,7 +134,8 @@ xrtPathRandomW
 xrtPut
 xrtRTrim
 xrtRTrimW
-xrtRand
+xrtRand32
+xrtRandRange
 xrtRandStr
 xrtRandStrW
 xrtRead
@@ -150,6 +151,7 @@ xrtSetEOF
 xrtSetError
 xrtSetErrorU16
 xrtSetErrorU32
+xrtSetRandSeed
 xrtSplit
 xrtSplitW
 xrtStart

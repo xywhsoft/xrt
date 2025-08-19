@@ -232,7 +232,7 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 		memcpy(sRet, sHead, iHeadSize);
 	}
 	for ( int i = 0; i < iLen; i++ ) {
-		int idx = xrtRand(0, 61);		// 这里写 61，可以忽略 - 和 _ 字符
+		int idx = xrtRandRange(0, 61);		// 这里写 61，可以忽略 - 和 _ 字符
 		sRet[iHeadSize + i] = RandStringDefaultTemplateW[idx];
 	}
 	if ( sFoot ) {
@@ -268,7 +268,7 @@ XXAPI wstr xrtPathRandomW(wstr sHead, size_t iHeadSize, wstr sFoot, size_t iFoot
 		memcpy(sRet, sHead, iHeadSize * sizeof(wchar_t));
 	}
 	for ( int i = 0; i < iLen; i++ ) {
-		int idx = xrtRand(0, 61);		// 这里写 61，可以忽略 - 和 _ 字符
+		int idx = xrtRandRange(0, 61);		// 这里写 61，可以忽略 - 和 _ 字符
 		sRet[iHeadSize + i] = RandStringDefaultTemplateW[idx];
 	}
 	if ( sFoot ) {

@@ -1401,7 +1401,7 @@ XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 		return xCore.sNull;
 	}
 	for ( int i = 0; i < iLen; i++ ) {
-		int idx = xrtRand(0, iSize);
+		int idx = xrtRandRange(0, iSize);
 		sRet[i] = sTemplate[idx];
 	}
 	sRet[iLen] = 0;
@@ -1420,7 +1420,7 @@ XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen)
 		return (wstr)xCore.sNull;
 	}
 	for ( int i = 0; i < iLen; i++ ) {
-		int idx = xrtRand(0, iSize);
+		int idx = xrtRandRange(0, iSize);
 		sRet[i] = sTemplate[idx];
 	}
 	sRet[iLen] = 0;

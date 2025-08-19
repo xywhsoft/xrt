@@ -12,6 +12,7 @@
 #include <math.h>
 #include <time.h>
 #include <dirent.h>
+#include <inttypes.h>
 
 
 
@@ -221,8 +222,14 @@
 	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
 	
-	// 随机数
-	XXAPI int xrtRand(int min, int max);
+	// 获取 32 位随机数
+	XXAPI uint32 xrtRand32();
+	
+	// 设置 32 位随机数种子
+	XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq);
+	
+	// 获取范围随机数
+	XXAPI int xrtRandRange(int min, int max);
 	
 	
 	
