@@ -45,6 +45,7 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/os.h"
 #include "lib/file.h"
 #include "lib/hash.h"
+#include "lib/xid.h"
 
 
 

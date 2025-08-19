@@ -12,6 +12,7 @@ xrtCheckStr
 xrtCheckStrW
 xrtClearError
 xrtClose
+xrtCompXID
 xrtConvCharset
 xrtCopyStr
 xrtCopyStrU16
@@ -107,6 +108,8 @@ xrtLCase
 xrtLCaseW
 xrtLTrim
 xrtLTrimW
+xrtMakeXID
+xrtMakeXIDS
 xrtMalloc
 xrtMinute
 xrtMonth
@@ -151,7 +154,7 @@ xrtSetEOF
 xrtSetError
 xrtSetErrorU16
 xrtSetErrorU32
-xrtSetRandSeed
+xrtSetRandSeed32
 xrtSplit
 xrtSplitW
 xrtStart
@@ -180,4 +183,5 @@ xrtUnit
 xrtWeekday
 xrtWrite
 xrtWriteW
+xrtXIDtoStr
 xrtYear
