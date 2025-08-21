@@ -2,9 +2,17 @@
 
 
 // XID 转 字符串 ( 需要使用 xrtFree 释放内存 )
-XXAPI str xrtXIDtoStr(xid pXID)
+XXAPI str xrtEncodeXID(xid pXID)
 {
-	return xrtBase64Encode(pXID, 24);
+	return xrtBase64Encode(pXID, 24, RandStringDefaultTemplate);
+}
+
+
+
+// 字符串 转 XID ( 需要使用 xrtFree 释放内存 )
+XXAPI xid xrtDecodeXID(str sXID)
+{
+	return xrtBase64Decode(sXID, 32, RandStringDefaultTemplate);
 }
 
 
@@ -48,7 +56,7 @@ XXAPI str xrtMakeXIDS(int32 iData, int32 iAddr)
 {
 	xid pXID = xrtMakeXID(iData, iAddr);
 	if ( pXID == NULL ) { return xCore.sNull; }
-	str sRet = xrtXIDtoStr(pXID);
+	str sRet = xrtEncodeXID(pXID);
 	xrtFree(pXID);
 	return sRet;
 }

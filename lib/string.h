@@ -1387,7 +1387,6 @@ return_error:
 
 // 生成随机字符串（ 需使用 xrtFree 释放 ）
 static const str RandStringDefaultTemplate = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
-static const wstr RandStringDefaultTemplateW = L"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 {
 	if ( sTemplate == NULL ) { sTemplate = RandStringDefaultTemplate; iSize = 64; }
@@ -1399,25 +1398,6 @@ XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 	if ( sRet == NULL ) {
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return xCore.sNull;
-	}
-	for ( int i = 0; i < iLen; i++ ) {
-		int idx = xrtRandRange(0, iSize);
-		sRet[i] = sTemplate[idx];
-	}
-	sRet[iLen] = 0;
-	return sRet;
-}
-XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen)
-{
-	if ( sTemplate == NULL ) { sTemplate = RandStringDefaultTemplateW; iSize = 64; }
-	if ( iSize == 0 ) { iSize = wcslen(sTemplate); }
-	if ( iSize == 0 ) { sTemplate = RandStringDefaultTemplateW; iSize = 64; }
-	if ( iLen == 0 ) { return (wstr)xCore.sNull; }
-	iSize--;
-	wstr sRet = xrtMalloc((iLen + 1) * sizeof(wchar_t));
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		return (wstr)xCore.sNull;
 	}
 	for ( int i = 0; i < iLen; i++ ) {
 		int idx = xrtRandRange(0, iSize);
@@ -1441,29 +1421,6 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
-	}
-	uint8* pStr = pMem;
-	int iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		int i1 = (pStr[i] & 0xF0) >> 4;
-		int i2 = pStr[i] & 0x0F;
-		sRet[iPos++] = dec2hex(i1);
-		sRet[iPos++] = dec2hex(i2);
-	}
-	sRet[iPos] = 0;
-	xCore.iRet = iPos;
-	return sRet;
-}
-XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize)
-{
-	if ( pMem == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(pMem) * sizeof(wchar_t); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	wstr sRet = xrtMalloc(((iSize * 2) + 1) * sizeof(wchar_t));
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		xCore.iRet = 0;
-		return (wstr)xCore.sNull;
 	}
 	uint8* pStr = pMem;
 	int iPos = 0;
@@ -1503,38 +1460,17 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 	xCore.iRet = iPos;
 	return sRet;
 }
-XXAPI ptr xrtHexDecodeW(wstr sText, size_t iSize)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	str sRet = xrtMalloc((iSize / 2) + 2);
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		xCore.iRet = 0;
-		return (wstr)xCore.sNull;
-	}
-	int iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		uint16 c0 = sText[i++];
-		uint16 c1 = sText[i];
-		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
-	}
-	sRet[iPos] = 0;
-	sRet[iPos + 1] = 0;
-	xCore.iRet = iPos;
-	return sRet;
-}
 
 
 
 // Base64 编码（ 需使用 xrtFree 释放 ）
 static const str Base64EncodeTable = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-str xrtBase64Encode(ptr pMem, size_t iSize)
+str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 {
 	if ( pMem == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( sTable == NULL ) { sTable = Base64EncodeTable; }
 	// 申请返回值内存
 	size_t iRet= 4 * ((iSize + 2) / 3);
 	str sRet = xrtMalloc(iRet + 1);
@@ -1550,44 +1486,10 @@ str xrtBase64Encode(ptr pMem, size_t iSize)
 		uint32_t octet_b = i < iSize ? pStr[i++] : 0;
 		uint32_t octet_c = i < iSize ? pStr[i++] : 0;
 		uint32_t triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
-		sRet[j++] = Base64EncodeTable[(triple >> 3 * 6) & 0x3F];
-		sRet[j++] = Base64EncodeTable[(triple >> 2 * 6) & 0x3F];
-		sRet[j++] = Base64EncodeTable[(triple >> 1 * 6) & 0x3F];
-		sRet[j++] = Base64EncodeTable[(triple >> 0 * 6) & 0x3F];
-	}
-	// 添加填充字符 '='
-	for ( size_t i = 0; i < (3 - iSize % 3) % 3; i++ ) {
-		sRet[iRet - 1 - i] = '=';
-	}
-	// 返回编码后的数据
-	sRet[iRet] = 0;
-	xCore.iRet = iRet;
-	return sRet;
-}
-wstr xrtBase64EncodeW(ptr pMem, size_t iSize)
-{
-	if ( pMem == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(pMem) * sizeof(wchar_t); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	// 申请返回值内存
-	size_t iRet= 4 * ((iSize + 2) / 3);
-	wstr sRet = xrtMalloc((iRet + 1) * sizeof(wchar_t));
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		xCore.iRet = 0;
-		return (wstr)xCore.sNull;
-	}
-	// 开始编码
-	uint8* pStr = pMem;
-	for ( size_t i = 0, j = 0; i < iSize; ) {
-		uint32_t octet_a = i < iSize ? pStr[i++] : 0;
-		uint32_t octet_b = i < iSize ? pStr[i++] : 0;
-		uint32_t octet_c = i < iSize ? pStr[i++] : 0;
-		uint32_t triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
-		sRet[j++] = Base64EncodeTable[(triple >> 3 * 6) & 0x3F];
-		sRet[j++] = Base64EncodeTable[(triple >> 2 * 6) & 0x3F];
-		sRet[j++] = Base64EncodeTable[(triple >> 1 * 6) & 0x3F];
-		sRet[j++] = Base64EncodeTable[(triple >> 0 * 6) & 0x3F];
+		sRet[j++] = sTable[(triple >> 3 * 6) & 0x3F];
+		sRet[j++] = sTable[(triple >> 2 * 6) & 0x3F];
+		sRet[j++] = sTable[(triple >> 1 * 6) & 0x3F];
+		sRet[j++] = sTable[(triple >> 0 * 6) & 0x3F];
 	}
 	// 添加填充字符 '='
 	for ( size_t i = 0; i < (3 - iSize % 3) % 3; i++ ) {
@@ -1602,31 +1504,28 @@ wstr xrtBase64EncodeW(ptr pMem, size_t iSize)
 
 
 // Base64 解码（ 需使用 xrtFree 释放 ）
-static const int8_t Base64DecodeTable[256] = {
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 0-15
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 16-31
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,		// 32-47
-	52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,		// 48-63
-	-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,		// 64-79
-	15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,		// 80-95
-	-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,		// 96-111
-	41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,		// 112-127
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 128-143
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 144-159
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 160-175
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 176-191
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 192-207
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 208-223
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 224-239
-	-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1 		// 240-255
-};
 static const str sErrorBase64_mul4 = "Base64 input length must be multiple of 4 !";
 static const str sErrorBase64_char = "Base64 input contains invalid characters !";
-ptr xrtBase64Decode(str sText, size_t iSize)
+ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	int8_t Base64DecodeTable[128] = {
+		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 0-15
+		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 16-31
+		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,		// 32-47
+		52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,		// 48-63
+		-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,		// 64-79
+		15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,		// 80-95
+		-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,		// 96-111
+		41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1			// 112-127
+	};
+	if ( sTable != NULL ) {
+		for ( int i = 0; i < 64; i++ ) {
+			Base64DecodeTable[sTable[i]] = i;
+		}
+	}
 	// 计算输出缓冲区大小
 	if ( iSize % 4 != 0 ) {
 		xrtSetError(sErrorBase64_mul4, FALSE);
@@ -1664,52 +1563,6 @@ ptr xrtBase64Decode(str sText, size_t iSize)
 		if ( j < iRet ) { sRet[j++] = (triple >> 0 * 8) & 0xFF; }
 	}
 	sRet[iRet] = '\0';
-	xCore.iRet = iRet;
-	return sRet;
-}
-ptr xrtBase64DecodeW(wstr sText, size_t iSize)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
-	// 计算输出缓冲区大小
-	if ( iSize % 4 != 0 ) {
-		xrtSetError(sErrorBase64_mul4, FALSE);
-		xCore.iRet = 0;
-		return xCore.sNull;
-	}
-	// 计算返回长度
-	int iRet = iSize / 4 * 3;
-	if ( sText[iSize - 1] == '=' ) { iRet--; }
-	if ( sText[iSize - 2] == '=' ) { iRet--; }
-	// 申请返回值内存
-	str sRet = xrtMalloc(iRet + 2);
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		xCore.iRet = 0;
-		return xCore.sNull;
-	}
-	// 开始解码
-	for (size_t i = 0, j = 0; i < iSize;) {
-		int8_t sextet_a = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
-		int8_t sextet_b = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
-		int8_t sextet_c = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
-		int8_t sextet_d = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
-		// 发现非法字符
-		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
-			xrtSetError(sErrorBase64_char, FALSE);
-			xrtFree(sRet);
-			xCore.iRet = 0;
-			return xCore.sNull;
-		}
-		// 组合 4 个 6 位值为 3 个 8 位字节
-		uint32_t triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
-		if ( j < iRet ) { sRet[j++] = (triple >> 2 * 8) & 0xFF; }
-		if ( j < iRet ) { sRet[j++] = (triple >> 1 * 8) & 0xFF; }
-		if ( j < iRet ) { sRet[j++] = (triple >> 0 * 8) & 0xFF; }
-	}
-	sRet[iRet] = 0;
-	sRet[iRet + 1] = 0;
 	xCore.iRet = iRet;
 	return sRet;
 }

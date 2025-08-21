@@ -30,6 +30,7 @@ xrtDayOfYear
 xrtDaysInMonth
 xrtDaysInYear
 xrtDecodeSerial
+xrtDecodeXID
 xrtDetectCharset
 xrtDirCopy
 xrtDirCopyW
@@ -46,6 +47,7 @@ xrtDirMoveW
 xrtDirScan
 xrtDirScanW
 xrtEOF
+xrtEncodeXID
 xrtFileAppend
 xrtFileAppendW
 xrtFileCopy
@@ -95,9 +97,7 @@ xrtHash64_Nano
 xrtHash64_Nano_WithSeed
 xrtHash64_WithSeed
 xrtHexDecode
-xrtHexDecodeW
 xrtHexEncode
-xrtHexEncodeW
 xrtHour
 xrtInStr
 xrtInStrW
@@ -140,7 +140,6 @@ xrtRTrimW
 xrtRand32
 xrtRandRange
 xrtRandStr
-xrtRandStrW
 xrtRead
 xrtReadW
 xrtRealloc
@@ -185,5 +184,4 @@ xrtUnit
 xrtWeekday
 xrtWrite
 xrtWriteW
-xrtXIDtoStr
 xrtYear

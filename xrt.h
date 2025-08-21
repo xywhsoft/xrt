@@ -306,23 +306,18 @@
 	
 	// 生成随机字符串（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen);
-	XXAPI wstr xrtRandStrW(wstr sTemplate, size_t iSize, size_t iLen);
 	
 	// HEX 编码（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtHexEncode(ptr pMem, size_t iSize);
-	XXAPI wstr xrtHexEncodeW(ptr pMem, size_t iSize);
 	
 	// HEX 解码（ 需使用 xrtFree 释放 ）
 	XXAPI ptr xrtHexDecode(str pText, size_t iSize);
-	XXAPI ptr xrtHexDecodeW(wstr pText, size_t iSize);
 	
 	// Base64 编码（ 需使用 xrtFree 释放 ）
-	str xrtBase64Encode(ptr pMem, size_t iSize);
-	wstr xrtBase64EncodeW(ptr pMem, size_t iSize);
+	str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
-	ptr xrtBase64Decode(str sText, size_t iSize);
-	ptr xrtBase64DecodeW(wstr sText, size_t iSize);
+	ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
 	
 	
 	
@@ -681,7 +676,10 @@
 	} xid_struct, *xid;
 	
 	// XID 转 字符串 ( 需要使用 xrtFree 释放内存 )
-	XXAPI str xrtXIDtoStr(xid pXID);
+	XXAPI str xrtEncodeXID(xid pXID);
+	
+	// 字符串 转 XID ( 需要使用 xrtFree 释放内存 )
+	XXAPI xid xrtDecodeXID(str sXID);
 	
 	// 获取 XID ( 需要使用 xrtFree 释放内存 )
 	XXAPI xid xrtMakeXID(int32 iData, int32 iAddr);

@@ -609,7 +609,7 @@ int main(int argc, char** argv)
 	
 	
 	/* XID 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\n XID 库测试 :\n\n");
 	xid xida = xrtMakeXID(xrtRand32(), xrtRand32());
 	printf("xrtMakeXID - Data : %d\n", xida->Data);
@@ -617,7 +617,14 @@ int main(int argc, char** argv)
 	printf("xrtMakeXID - Time : %lld\n", xida->Time);
 	printf("xrtMakeXID - Addr : %d\n", xida->Addr);
 	printf("xrtMakeXID - Rand : %d\n", xida->Rand);
-	printf("xrtMakeXIDS : %s\n", xrtMakeXIDS(xrtRand32(), xrtRand32()));
+	str sXID = xrtEncodeXID(xida);
+	printf("xrtEncodeXID : %s\n", sXID);
+	xida = xrtDecodeXID(sXID);
+	printf("xrtDecodeXID - Data : %d\n", xida->Data);
+	printf("xrtDecodeXID - Tick : %d\n", xida->Tick);
+	printf("xrtDecodeXID - Time : %lld\n", xida->Time);
+	printf("xrtDecodeXID - Addr : %d\n", xida->Addr);
+	printf("xrtDecodeXID - Rand : %d\n", xida->Rand);
 	//*/
 	
 	
