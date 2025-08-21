@@ -25,20 +25,36 @@
 	typedef unsigned char* u8str;
 	typedef unsigned short* u16str;
 	typedef unsigned int* u32str;
+	typedef unsigned char* binary;
 	typedef u8str str;
 	typedef wchar_t* wstr;			// windows 系统为 u16str，linux 系统为 u32str
 	
+	typedef char i8;
 	typedef char int8;
+	typedef unsigned char u8;
 	typedef unsigned char uint8;
+	typedef short i16;
 	typedef short int16;
+	typedef unsigned short u16;
 	typedef unsigned short uint16;
 	typedef unsigned int uint;
+	typedef int i32;
 	typedef int int32;
+	typedef unsigned int u32;
 	typedef unsigned int uint32;
+	typedef long long i64;
 	typedef long long int64;
+	typedef unsigned long long u64;
 	typedef unsigned long long uint64;
 	// long = auto 32 / 64 bit integer
 	typedef unsigned long ulong;
+	
+	typedef float f32;
+	typedef float float32;
+	typedef double f64;
+	typedef double float64;
+	
+	typedef long long curr;
 	
 	typedef void* ptr;
 	typedef intptr_t intptr;
@@ -693,90 +709,99 @@
 	/* ------------------------------------ Value 函数库 ------------------------------------ */
 	
 	// 数据类型 - 主类型
-	#define XRT_VDT_EMPTY		0				// 不存在的数据
-	#define XRT_VDT_NULL		1				// null
-	#define XRT_VDT_BOOL		2				// bool : true | false
-	#define XRT_VDT_NUMBER		128				// 数字
-	#define XRT_VDT_STRING		64				// 字符串
-	#define XRT_VDT_TIME		3				// 时间
-	#define XRT_VDT_POINT		4				// 指针
-	#define XRT_VDT_STRUCT		5				// 结构体
-	#define XRT_VDT_COLLECT		6				// 集合
-	#define XRT_VDT_ARRAY		7				// 数组
-	#define XRT_VDT_TABLE		8				// 表
-	#define XRT_VDT_OBJECT		9				// 对象
-	#define XRT_VDT_FUNCTION	32				// 函数
-	#define XRT_VDT_CUSTOM		10				// 自定义
+	#define XRT_DT_EMPTY			0				// 不存在的数据
+	#define XRT_DT_NULL				1				// null
+	#define XRT_DT_BOOL				2				// bool : true | false
+	#define XRT_DT_NUM				3				// 数字
+	#define XRT_DT_TEXT				4				// 字符串
+	#define XRT_DT_TEMPLATE			5				// 模板
+	#define XRT_DT_TIME				6				// 时间
+	#define XRT_DT_POINT			7				// 指针
+	#define XRT_DT_STRUCT			8				// 结构体
+	#define XRT_DT_COLLECT			9				// 集合
+	#define XRT_DT_ARRAY			10				// 数组
+	#define XRT_DT_TABLE			11				// 表
+	#define XRT_DT_OBJECT			12				// 对象
+	#define XRT_DT_SHEET			13				// 数据表
+	#define XRT_DT_FUNCTION			14				// 函数
+	#define XRT_DT_CUSTOM			15				// 自定义
 	
-	// 数据类型 - 子类型 [ 数字 ( 低 5 位 ) ]
-	#define XRT_SDT_NUM_I8		0				// byte
-	#define XRT_SDT_NUM_U8		1				// ubyte
-	#define XRT_SDT_NUM_I16		2				// short
-	#define XRT_SDT_NUM_U16		3				// ushort
-	#define XRT_SDT_NUM_I32		4				// int
-	#define XRT_SDT_NUM_U32		5				// uint
-	#define XRT_SDT_NUM_I64		6				// longint
-	#define XRT_SDT_NUM_U64		7				// ulongint
-	#define XRT_SDT_NUM_I128	8				// int128 - 暂不支持
-	#define XRT_SDT_NUM_U128	9				// uint128 - 暂不支持
-	#define XRT_SDT_NUM_F32		10				// float
-	#define XRT_SDT_NUM_F64		11				// double
-	#define XRT_SDT_NUM_F128	12				// long double - 暂不支持
-	#define XRT_SDT_NUM_BIG		13				// big num - 暂不支持
-	#define XRT_SDT_NUM_CURR	14				// 货币 - 暂不支持
-	#define XRT_SDT_NUM_CURR128	15				// 货币 - 暂不支持
-	#define XRT_SDT_NUM_C32		16				// 32位复数 - 暂不支持
-	#define XRT_SDT_NUM_C64		17				// 64位复数 - 暂不支持
-	#define XRT_SDT_NUM_C128	18				// 128位复数 - 暂不支持
-	#define XRT_SDT_INT_MASK	31
+	// 数据类型 - 子类型 [ 逻辑 ]
+	#define XRT_SDT_BOOL_FALSE		0				// false
+	#define XRT_SDT_BOOL_TRUE		1				// true
 	
-	// 数据类型 - 子类型 [ 字符串 ( 6 - 7 位 ) ]
-	#define XRT_SDT_STR_U8		0				// utf-8 字符串
-	#define XRT_SDT_STR_U16		32				// utf-16 字符串
-	#define XRT_SDT_STR_U32		64				// utf-32 字符串
-	#define XRT_SDT_STR_BIN		96				// 二进制数据
-	#define XRT_SDT_STR_MASK	96
+	// 数据类型 - 子类型 [ 数字 ]
+	#define XRT_SDT_NUM_INT			0				// 整数 ( int64 )
+	#define XRT_SDT_NUM_FLOAT		1				// 浮点数 ( double )
 	
-	// 数据类型 - 子类型 [ 函数 ( 第 8 位 ) ]
-	#define XRT_SDT_FUNC_XL		0				// xlang 函数
-	#define XRT_SDT_FUNC_CL		128				// clang 函数
-	#define XRT_SDT_FUNC_MASK	128
+	// 数据类型 - 子类型 [ 字符串 ]
+	#define XRT_SDT_STR_U8			0				// utf-8 字符串
+	#define XRT_SDT_STR_U16			1				// utf-16 字符串
+	#define XRT_SDT_STR_U32			2				// utf-32 字符串
+	#define XRT_SDT_STR_BIN			3				// 二进制数据
+	
+	// 数据类型 - 子类型 [ 函数 ]
+	#define XRT_SDT_FUNC_XL			0				// xlang 函数
+	#define XRT_SDT_FUNC_CL			1				// clang 函数
 	
 	// 函数类型回调
 	typedef struct xvalue_struct xvalue_struct, *xvalue;
 	typedef struct xcustom_struct xcustom_struct, *xcustom;
 	typedef xvalue (*xfunction)(xvalue varENV, xvalue varParam);
 	
-	// 自定义数据类型结构
-	typedef struct xcustom_struct {
+	// Value 基类 [ 8 byte ]
+	struct xvalue_struct {
+		uint8 Type;					// 值的主类型
+		uint8 SubType;				// 值的子类型
+		uint16 Flag;				// 位标记
+		union {
+			uint32 Size;			// 字符串长度、结构体长度
+			uint32 RetCount;		// 引用计数 [ 集合、数组、表、对象、数据表 ]
+		};
+	};
+	
+	// Value 16 字节类 [ XRT_DT_NUM、XRT_DT_TEXT、XRT_DT_TIME、XRT_DT_POINT ]
+	struct {
+		uint8 Type;
+		uint8 SubType;
+		uint16 Flag;
+		union {
+			uint32 Size;
+			uint32 RetCount;
+		};
+		union {
+			int64 vInt;
+			double vFloat;
+			str vText;
+			ptr vTemplate;
+			xtime vTime;
+			ptr vPoint;
+			ptr vStruct;
+			ptr vCollect;
+			ptr vArray;
+			ptr vTable;
+			ptr vObject;
+			ptr vSheet;
+			xfunction vFunc;
+			ptr vFuncC;
+		};
+	} xvalue12_struct, *xvalue12;
+	
+	// Custom 类 [ 16 bytes ]
+	struct xcustom_struct {
+		uint8 Type;
+		uint8 SubType;
+		uint16 Flag;
+		union {
+			uint32 Size;
+			uint32 RetCount;
+		};
 		void (*construct)(xcustom var);
 		void (*destruct)(xcustom var);
-		int (*set)(xcustom var, str key, xvalue val);
+		int (*set)(xcustom var, str key, xcustom val);
 		xvalue (*get)(xcustom var, str key);
 		xvalue (*call)(xcustom var, str key, xvalue param);
 		ptr value;
-	};
-	
-	// 数据单元 [ 16 bytes ]
-	struct xvalue_struct {
-		uint8 MainType;
-		uint8 SubType;
-		uint16 RefCount;
-		union {
-			int vBool;
-			int64 vInt;
-			double vFloat;
-			struct {
-				uint iLen;
-				str sPtr;
-			} vText;
-			ptr vPoint;
-			ptr vArray;
-			ptr vList;
-			ptr vTable;
-			xfunction vFunc;
-			xcustom vCustom;
-		};
 	};
 	
 	

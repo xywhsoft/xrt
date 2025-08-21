@@ -1,12 +1,30 @@
 
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案
-	#elif defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__linux) || defined(__gnu_linux__)
-		// unix、linux 方案
-	#elif defined(__APPLE__) || defined(__MACH__)
-		// macos 方案
-	#elif defined(__ANDROID__)
-		// android 方案
-	#else
-		// 其他平台方案
-	#endif
+
+
+#if defined(_WIN32) || defined(_WIN64)
+	// windows 方案
+#elif defined(__unix__) || defined(__unix) || defined(__linux__) || defined(__linux) || defined(__gnu_linux__)
+	// unix、linux 方案
+#elif defined(__APPLE__) || defined(__MACH__)
+	// macos 方案
+#elif defined(__ANDROID__)
+	// android 方案
+#else
+	// 其他平台方案
+#endif
+
+
+
+#if defined(__TINYC__)
+	// TCC 编译器
+#if defined(__GNUC__)
+	// GCC 编译器
+#if defined(__clang__)
+	// clang 编译器
+#if defined(_MSC_VER)
+	// VC 编译器
+#else
+	// 其他编译器
+#endif
+
+

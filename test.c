@@ -608,7 +608,8 @@ int main(int argc, char** argv)
 	
 	
 	
-	/* File 库测试 */
+	/* XID 库测试 */
+	/*
 	printf("\n\n\n------------------------------------\n\n XID 库测试 :\n\n");
 	xid xida = xrtMakeXID(xrtRand32(), xrtRand32());
 	printf("xrtMakeXID - Data : %d\n", xida->Data);
@@ -617,6 +618,18 @@ int main(int argc, char** argv)
 	printf("xrtMakeXID - Addr : %d\n", xida->Addr);
 	printf("xrtMakeXID - Rand : %d\n", xida->Rand);
 	printf("xrtMakeXIDS : %s\n", xrtMakeXIDS(xrtRand32(), xrtRand32()));
+	//*/
+	
+	
+	
+	/* 自定义测试 */
+	//*
+	printf("\n\n\n------------------------------------\n\n 自定义测试 :\n\n");
+	
+	printf("xvalue_struct : %d\n", sizeof(xvalue_struct));
+	printf("xvalue12_struct : %d\n", sizeof(xvalue12_struct));
+	printf("xcustom_struct : %d\n", sizeof(xcustom_struct));
+	
 	//*/
 	
 	

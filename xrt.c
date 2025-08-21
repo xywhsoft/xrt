@@ -9,6 +9,7 @@
 	#include "windows.h"
 	#ifdef __TINYC__
 		#include <winapi/shellapi.h>
+		ULONGLONG GetTickCount64();
 	#else
 		#include <shellapi.h>
 	#endif
