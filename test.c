@@ -22,17 +22,6 @@ int FileScanProc(str sPath, size_t iSize, int bDir, ptr pData, ptr Param)
 	}
 	return FALSE;
 }
-int FileScanProcW(wstr sPath, size_t iSize, int bDir, ptr pData, ptr Param)
-{
-	if ( bDir == 1 ) {
-		printf("\tdir+ : %S\n", sPath);
-	} else if ( bDir == 2 ) {
-		printf("\tdir- : %S\n", sPath);
-	} else {
-		printf("\tfile : %S\n", sPath);
-	}
-	return FALSE;
-}
 
 
 
@@ -68,43 +57,43 @@ int main(int argc, char** argv)
 	str stru8 = "𠀀𫝑😀�";
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		wstr stru16 = L"𠀀𫝑😀�";
+		u16str stru16 = L"𠀀𫝑😀�";
 		
 		str sConv8 = xrtUTF16to8(stru16, 0);
-		wstr sConv16 = xrtUTF8to16(stru8, 0);
+		u16str sConv16 = xrtUTF8to16(stru8, 0);
 		
 		str aHex = xrtHexEncode(stru8, 0);
-		wstr bHex = xrtHexEncodeW(stru16, 0);
+		str bHex = xrtHexEncode(stru16, u16len(stru16) * 2);
 		str cHex = xrtHexEncode(sConv8, 0);
-		wstr dHex = xrtHexEncodeW(sConv16, 0);
+		str dHex = xrtHexEncode(sConv16, u16len(sConv16) * 2);
 		
 		printf("src utf8 : %s", stru8);
-		printf("\nsrc utf16 : %S", stru16);
+		printf("\nsrc utf16 : %s", stru16);
 		printf("\nconv utf8 : %s", sConv8);
-		printf("\nconv utf16 : %S", sConv16);
+		printf("\nconv utf16 : %s", sConv16);
 		printf("\nsrc utf8 Hex : %s", aHex);
-		printf("\nsrc utf16 Hex : %S", bHex);
+		printf("\nsrc utf16 Hex : %s", bHex);
 		printf("\nconv utf8 Hex : %s", cHex);
-		printf("\nconv utf16 Hex : %S", dHex);
+		printf("\nconv utf16 Hex : %s", dHex);
 	#else
-		wstr stru32 = L"𠀀𫝑😀�";
+		u32str stru32 = L"𠀀𫝑😀�";
 		
 		str sConv8 = xrtUTF32to8(stru32, 0);
-		wstr sConv32 = xrtUTF8to32(stru8, 0);
+		u32str sConv32 = xrtUTF8to32(stru8, 0);
 		
 		str aHex = xrtHexEncode(stru8, 0);
-		wstr bHex = xrtHexEncodeW(stru32, 0);
+		str bHex = xrtHexEncode(stru32, u32len(stru32) * 4);
 		str cHex = xrtHexEncode(sConv8, 0);
-		wstr dHex = xrtHexEncodeW(sConv32, 0);
+		str dHex = xrtHexEncode(sConv32, u32len(sConv32) * 4);
 		
 		printf("src utf8 : %s", stru8);
-		printf("\nsrc utf32 : %S", stru32);
+		printf("\nsrc utf32 : %s", stru32);
 		printf("\nconv utf8 : %s", sConv8);
-		printf("\nconv utf32 : %S", sConv32);
+		printf("\nconv utf32 : %s", sConv32);
 		printf("\nsrc utf8 Hex : %s", aHex);
-		printf("\nsrc utf32 Hex : %S", bHex);
+		printf("\nsrc utf32 Hex : %s", bHex);
 		printf("\nconv utf8 Hex : %s", cHex);
-		printf("\nconv utf32 Hex : %S", dHex);
+		printf("\nconv utf32 Hex : %s", dHex);
 	#endif
 	
 	// 补充，测试 utf16 和 utf32 互相转换
@@ -177,54 +166,29 @@ int main(int argc, char** argv)
 	/*
 	printf("\n\n\n------------------------------------\n\n String 库测试 :\n\n");
 	printf("xrtLCase : %s\n", xrtLCase("aBcDeFg", 0, FALSE));
-	printf("xrtLCaseW : %S\n", xrtLCaseW(L"aBcDeFg", 0, FALSE));
 	printf("xrtUCase : %s\n", xrtUCase("aBcDeFg", 0, FALSE));
-	printf("xrtUCaseW : %S\n", xrtUCaseW(L"aBcDeFg", 0, FALSE));
 	printf("xrtFindStr : %s\n", xrtFindStr("aBcDeFg", 0, "CDE", 0, TRUE));
 	printf("xrtInStr : %d\n", xrtInStr("aBcDeFg", 0, "CDE", 0, TRUE));
-	printf("xrtFindStrW : %S\n", xrtFindStrW(L"aBcDeFg", 0, L"CDE", 0, TRUE));
-	printf("xrtInStrW : %d\n", xrtInStrW(L"aBcDeFg", 0, L"CDE", 0, TRUE));
 	printf("xrtCheckStr : %s\n", xrtCheckStr("xrt?Library", 0, "\\/:*?\"<>|", 0));
-	printf("xrtCheckStrW : %S\n", xrtCheckStrW(L"xrt?Library", 0, L"\\/:*?\"<>|", 0));
 	printf("xrtLTrim : %s\n", xrtLTrim("12321abcdefg12321", 0, "123", 0, FALSE));
 	printf("xrtRTrim : %s\n", xrtRTrim("12321abcdefg12321", 0, "123", 0, FALSE));
 	printf("xrtTrim : %s\n", xrtTrim("12321abcdefg12321", 0, "123", 0, FALSE));
 	printf("xrtTrim : |%s|\t(应该返回空字符串)\n", xrtTrim("123212321", 0, "123", 0, FALSE));
-	printf("xrtLTrimW : %S\n", xrtLTrimW(L"12321abcdefg12321", 0, L"123", 0, FALSE));
-	printf("xrtRTrimW : %S\n", xrtRTrimW(L"12321abcdefg12321", 0, L"123", 0, FALSE));
-	printf("xrtTrimW : %S\n", xrtTrimW(L"12321abcdefg12321", 0, L"123", 0, FALSE));
-	printf("xrtTrimW : |%S|\t(应该返回空字符串)\n", xrtTrimW(L"123212321", 0, L"123", 0, FALSE));
 	printf("xrtFilterStr : %s\n", xrtFilterStr("1a2b3c1d2e3f1g2", 0, "123", 0, FALSE));
-	printf("xrtFilterStrW : %S\n", xrtFilterStrW(L"1a2b3c1d2e3f1g2", 0, L"123", 0, FALSE));
 	printf("xrtFormat : %s\n", xrtFormat("%s - %s", "Hello", "World ~!"));
-	#if defined(_WIN32) || defined(_WIN64)
-		printf("xrtFormatW : %S\n", xrtFormatW(L"%s - %s", L"Hello", L"World ~!"));
-	#else
-		printf("xrtFormatW : %S\n", xrtFormatW(L"%S - %S", L"Hello", L"World ~!"));
-	#endif
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 0, "1", 0, "_", 0));
-	printf("xrtReplaceW : %S\n", xrtReplaceW(L"1a1b1c1d1e1f1g1", 0, L"1", 0, L"_", 0));
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 8, "1", 0, "_", 0));
-	printf("xrtReplaceW : %S\n", xrtReplaceW(L"1a1b1c1d1e1f1g1", 8, L"1", 0, L"_", 0));
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 9, "1", 0, "_", 0));
-	printf("xrtReplaceW : %S\n", xrtReplaceW(L"1a1b1c1d1e1f1g1", 9, L"1", 0, L"_", 0));
 	
 	str sRet = xrtHexEncode("HIJKLMN abcdefg 1234567890", 0);
 	printf("xrtHexEncode : %s\n", sRet);
 	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
-	wstr sRetW = xrtHexEncodeW(L"HIJKLMN abcdefg 1234567890", 0);
-	printf("xrtHexEncodeW : %S\n", sRetW);
-	printf("xrtHexDecodeW : %S\n", xrtHexDecodeW(sRetW, 0));
 	
-	str sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0);
-	printf("xrtBase64Encode : %s\n", sRet2);
-	printf("xrtBase64Decode : %s\n", xrtBase64Decode(sRet2, 0));
-	wstr sRet2W = xrtBase64EncodeW(L"HIJKLMN abcdefg 1234567890", 0);
-	printf("xrtBase64EncodeW : %S\n", sRet2W);
-	printf("xrtBase64DecodeW : %S\n", xrtBase64DecodeW(sRet2W, 0));
+	str sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0, NULL);
+	printf("xrtBase64Encode : %s\n", sRet2, NULL);
+	printf("xrtBase64Decode : %s\n", xrtBase64Decode(sRet2, 0, NULL));
 	
 	printf("xrtRandStr : %s\n", xrtRandStr(NULL, 0, 32));
-	printf("xrtRandStrW : %S\n", xrtRandStrW(NULL, 0, 32));
 	
 	str* arrRet = xrtSplit("a1b1c1d1e1f1g", 0, "1", 1, FALSE);
 	printf("\nxrtSplit : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet);
@@ -251,32 +215,6 @@ int main(int argc, char** argv)
 	for ( int i = 0; i <= xCore->iRet; i++ ) {
 		printf("\n\t%d\t%p\t%s", i + 1, arrRet4[i], arrRet4[i]);
 	}
-	
-	wstr* arrRet5 = xrtSplitW(L"a1b1c1d1e1f1g", 0, L"1", 1, FALSE);
-	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet5);
-	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet5[i], arrRet5[i]);
-	}
-	
-	wstr* arrRet6 = xrtSplitW(L"a123b1c123d1e123f1g", 0, L"123", 3, FALSE);
-	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet6);
-	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet6[i], arrRet6[i]);
-	}
-	
-	wstr sTemp3 = xrtCopyStrW(L"a1b1c1d1e1f1g", 0);
-	wstr* arrRet7 = xrtSplitW(sTemp3, 0, L"1", 1, TRUE);
-	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet7);
-	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet7[i], arrRet7[i]);
-	}
-	
-	wstr sTemp4 = xrtCopyStrW(L"a123b1c123d1e123f1g", 0);
-	wstr* arrRet8 = xrtSplitW(sTemp4, 0, L"123", 3, TRUE);
-	printf("\n\nxrtSplitW : return array len = %d ( return ptr : %p )", xCore->iRet, arrRet8);
-	for ( int i = 0; i <= xCore->iRet; i++ ) {
-		printf("\n\t%d\t%p\t%S", i + 1, arrRet8[i], arrRet8[i]);
-	}
 	//*/
 	
 	
@@ -285,21 +223,13 @@ int main(int argc, char** argv)
 	/*
 	printf("\n\n\n------------------------------------\n\n Path 库测试 :\n\n");
 	printf("xrtPathGetNameExt : %s\n", xrtPathGetNameExt("c:\\123\\456\\789\\file.ext", 0));
-	printf("xrtPathGetNameExtW : %S\n", xrtPathGetNameExtW(L"c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetName : %s\n", xrtPathGetName("c:\\123\\456\\789\\file.ext", 0));
-	printf("xrtPathGetNameW : %S\n", xrtPathGetNameW(L"c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetExt : %s\n", xrtPathGetExt("c:\\123\\456\\789\\file.ext", 0));
-	printf("xrtPathGetExtW : %S\n", xrtPathGetExtW(L"c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetDir : %s\n", xrtPathGetDir("c:\\123\\456\\789\\file.ext", 0));
-	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\file.ext", 0));
 	printf("xrtPathGetDir : %s\n", xrtPathGetDir("c:\\123\\456\\789\\", 0));
-	printf("xrtPathGetDirW : %S\n", xrtPathGetDirW(L"c:\\123\\456\\789\\", 0));
 	printf("xrtPathIsAbs : %d\n", xrtPathIsAbs("c:\\123\\456\\789\\", 0));
-	printf("xrtPathIsAbsW : %d\n", xrtPathIsAbsW(L"c:\\123\\456\\789\\", 0));
 	printf("xrtPathRandom : %s\n", xrtPathRandom("c:\\123\\456\\789\\Rand_", 0, ".jpg", 4, 32));
-	printf("xrtPathRandomW : %S\n", xrtPathRandomW(L"c:\\123\\456\\789\\Rand_", 0, L".jpg", 4, 32));
 	printf("xrtPathJoin : %s\n", xrtPathJoin(4, "c:\\123", "456", "789", "file.ext"));
-	printf("xrtPathJoinW : %S\n", xrtPathJoinW(4, L"c:\\123", L"456", L"789", L"file.ext"));
 	//*/
 	
 	
@@ -334,11 +264,8 @@ int main(int argc, char** argv)
 	xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, &iWeekday, &iDayOfYear);
 	printf("xrtDecodeSerial : %d-%d-%d %d:%d:%d ( %d - %d )\n", iYear, iMonth, iDay, iHour, iMinute, iSecond, iWeekday, iDayOfYear);
 	printf("xrtTimeToStr : %s\n", xrtTimeToStr(iTime, XRT_TIME_FORMAT_DATETIME));
-	printf("xrtTimeToStrW : %S\n", xrtTimeToStrW(iTime, XRT_TIME_FORMAT_DATETIME));
 	printf("xrtTimeToStr : %s\n", xrtTimeToStr(iTime, XRT_TIME_FORMAT_DATE));
-	printf("xrtTimeToStrW : %S\n", xrtTimeToStrW(iTime, XRT_TIME_FORMAT_DATE));
 	printf("xrtTimeToStr : %s\n", xrtTimeToStr(iTime, XRT_TIME_FORMAT_TIME));
-	printf("xrtTimeToStrW : %S\n", xrtTimeToStrW(iTime, XRT_TIME_FORMAT_TIME));
 	
 	xtime tRet = xrtDateAdd(XRT_TIME_INTERVAL_SECOND, 30, iTime);
 	int64 iDiff = xrtDateDiff(XRT_TIME_INTERVAL_SECOND, iTime, tRet);
@@ -609,7 +536,7 @@ int main(int argc, char** argv)
 	
 	
 	/* XID 库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\n XID 库测试 :\n\n");
 	xid xida = xrtMakeXID(xrtRand32(), xrtRand32());
 	printf("xrtMakeXID - Data : %d\n", xida->Data);
@@ -630,7 +557,7 @@ int main(int argc, char** argv)
 	
 	
 	/* 自定义测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\n 自定义测试 :\n\n");
 	
 	printf("xvalue_struct : %d\n", sizeof(xvalue_struct));

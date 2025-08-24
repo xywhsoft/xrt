@@ -18,22 +18,6 @@ XXAPI str xrtCopyStr(str sText, size_t iSize)
 	xCore.iRet = iSize;
 	return sRet;
 }
-XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	wstr sRet = xrtMalloc((iSize + 1) * sizeof(wchar_t));
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		xCore.iRet = 0;
-		return (wstr)xCore.sNull;
-	}
-	memcpy(sRet, sText, iSize * sizeof(wchar_t));
-	sRet[iSize] = 0;
-	xCore.iRet = iSize;
-	return sRet;
-}
 XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
@@ -87,18 +71,6 @@ XXAPI str xrtLCase(str sText, size_t iSize, int bSrcRevise)
 	}
 	return sRet;
 }
-XXAPI wstr xrtLCaseW(wstr sText, size_t iSize, int bSrcRevise)
-{
-	if ( sText == NULL ) { return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
-	wstr sRet;
-	if ( bSrcRevise ) { sRet = sText; } else { sRet = xrtCopyStrW(sText, iSize); }
-	for ( int i = 0; i < iSize; i++ ) {
-		sRet[i] = towlower(sRet[i]);
-	}
-	return sRet;
-}
 
 
 
@@ -117,18 +89,6 @@ XXAPI str xrtUCase(str sText, size_t iSize, int bSrcRevise)
 		} else {
 			sRet[i] = toupper(sRet[i]);
 		}
-	}
-	return sRet;
-}
-XXAPI wstr xrtUCaseW(wstr sText, size_t iSize, int bSrcRevise)
-{
-	if ( sText == NULL ) { return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { return (wstr)xCore.sNull; }
-	wstr sRet;
-	if ( bSrcRevise != FALSE ) { sRet = sText; } else { sRet = xrtCopyStrW(sText, iSize); }
-	for ( int i = 0; i < iSize; i++ ) {
-		sRet[i] = towupper(sRet[i]);
 	}
 	return sRet;
 }
@@ -168,40 +128,6 @@ XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int
 XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bCase)
 {
 	xrtFindStr(sText, iSize, sSubText, iSubSize, bCase);
-	return xCore.iRet;
-}
-XXAPI wstr xrtFindStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return NULL; }
-	if ( sSubText == NULL ) { xCore.iRet = 0; return NULL; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return NULL; }
-	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { xCore.iRet = 0; return NULL; }
-	wstr sSub;
-	if ( bCase ) {
-		wstr sText1 = xrtLCaseW(sText, 0, FALSE);
-		wstr sText2 = xrtLCaseW(sSubText, 0, FALSE);
-		sSub = memmem(sText1, iSize * sizeof(wchar_t), sText2, iSubSize * sizeof(wchar_t));
-		if ( sSub ) {
-			sSub = &sText[sSub - sText1];
-		}
-		free(sText1);
-		free(sText2);
-	} else {
-		sSub = memmem(sText, iSize, sSubText, iSubSize);
-	}
-	if ( sSub ) {
-		xCore.iRet = (sSub - sText) + 1;
-		return sSub;
-	} else {
-		xCore.iRet = 0;
-		return NULL;
-	}
-}
-XXAPI uint xrtInStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase)
-{
-	xrtFindStrW(sText, iSize, sSubText, iSubSize, bCase);
 	return xCore.iRet;
 }
 
@@ -269,21 +195,6 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 			i += 5;
 		} else {
 			// 跳过异常字符（FE、FF）
-		}
-	}
-	return NULL;
-}
-XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize)
-{
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { return NULL; }
-	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { return NULL; }
-	for ( int i = 0; i < iSize; i++ ) {
-		for ( int j = 0; j < iSubSize; j++ ) {
-			if ( sText[i] == sSubText[j] ) {
-				return &sText[i];
-			}
 		}
 	}
 	return NULL;
@@ -652,126 +563,6 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bS
 		return xrtCopyStr(&sText[iCountL], iSize - iCount);
 	}
 }
-XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSubText == NULL ) { sSubText = L" \t\r\n"; iSubSize = 4; }
-	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { sSubText = L" \t\r\n"; iSubSize = 4; }
-	int iCount = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		int bBreak = TRUE;
-		for ( int j = 0; j < iSubSize; j++ ) {
-			if ( sText[i] == sSubText[j] ) {
-				iCount++;
-				bBreak = FALSE;
-				break;
-			}
-		}
-		if ( bBreak ) {
-			break;
-		}
-	}
-	xCore.iRet = iSize - iCount;
-	if ( bSrcRevise ) {
-		if ( iCount > 0 ) {
-			memmove(sText, &sText[iCount], (iSize - iCount) * sizeof(wchar_t));
-			sText[iSize - iCount] = 0;
-		}
-		return sText;
-	} else {
-		return xrtCopyStrW(&sText[iCount], iSize - iCount);
-	}
-}
-XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSubText == NULL ) { sSubText = L" \t\r\n"; iSubSize = 4; }
-	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { sSubText = L" \t\r\n"; iSubSize = 4; }
-	int iCount = 0;
-	for ( int i = iSize - 1; i >= 0; i-- ) {
-		int bBreak = TRUE;
-		for ( int j = 0; j < iSubSize; j++ ) {
-			if ( sText[i] == sSubText[j] ) {
-				iCount++;
-				bBreak = FALSE;
-				break;
-			}
-		}
-		if ( bBreak ) {
-			break;
-		}
-	}
-	xCore.iRet = iSize - iCount;
-	if ( bSrcRevise ) {
-		if ( iCount > 0 ) {
-			sText[iSize - iCount] = 0;
-		}
-		return sText;
-	} else {
-		return xrtCopyStrW(sText, iSize - iCount);
-	}
-}
-XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSubText == NULL ) { sSubText = L" \t\r\n"; iSubSize = 4; }
-	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { sSubText = L" \t\r\n"; iSubSize = 4; }
-	int iCountL = 0;
-	int iCountR = 0;
-	// 裁剪左侧
-	for ( int i = 0; i < iSize; i++ ) {
-		int bBreak = TRUE;
-		for ( int j = 0; j < iSubSize; j++ ) {
-			if ( sText[i] == sSubText[j] ) {
-				iCountL++;
-				bBreak = FALSE;
-				break;
-			}
-		}
-		if ( bBreak ) {
-			break;
-		}
-	}
-	// 全部裁剪需要特殊处理
-	if ( iCountL >= iSize ) {
-		xCore.iRet = 0;
-		return (wstr)xCore.sNull;
-	}
-	// 裁剪右侧
-	for ( int i = iSize - 1; i >= 0; i-- ) {
-		int bBreak = TRUE;
-		for ( int j = 0; j < iSubSize; j++ ) {
-			if ( sText[i] == sSubText[j] ) {
-				iCountR++;
-				bBreak = FALSE;
-				break;
-			}
-		}
-		if ( bBreak ) {
-			break;
-		}
-	}
-	int iCount = iCountL + iCountR;
-	xCore.iRet = iSize - iCount;
-	if ( bSrcRevise ) {
-		if ( iCount > 0 ) {
-			memmove(sText, &sText[iCountL], (iSize - iCount) * sizeof(wchar_t));
-			sText[iSize - iCount] = 0;
-		}
-		return sText;
-	} else {
-		return xrtCopyStrW(&sText[iCountL], iSize - iCount);
-	}
-}
 
 
 
@@ -901,36 +692,6 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, i
 	xCore.iRet = iCount;
 	return sText;
 }
-XXAPI wstr xrtFilterStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSubText == NULL ) { if ( bSrcRevise ) { xCore.iRet = iSize; return sText; } else { xCore.iRet = iSize; return xrtCopyStrW(sText, iSize); } }
-	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { if ( bSrcRevise ) { xCore.iRet = iSize; return sText; } else { xCore.iRet = iSize; return xrtCopyStrW(sText, iSize); } }
-	// 不改动源数据时，直接创建副本
-	if ( bSrcRevise == FALSE ) {
-		sText = xrtCopyStrW(sText, iSize);
-	}
-	int iCount = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		int bCopy = TRUE;
-		for ( int j = 0; j < iSubSize; j++ ) {
-			if ( sText[i] == sSubText[j] ) {
-				iCount++;
-				bCopy = FALSE;
-				break;
-			}
-		}
-		if ( bCopy ) {
-			sText[i - iCount] = sText[i];
-		}
-	}
-	sText[iSize - iCount] = 0;
-	xCore.iRet = iCount;
-	return sText;
-}
 
 
 
@@ -959,74 +720,6 @@ XXAPI str xrtFormat(str sFormat, ...)
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
-}
-XXAPI wstr xrtFormatW(wstr sFormat, ...)
-{
-	if ( sFormat == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	va_list ip;
-	#if defined(_WIN32) || defined(_WIN64)
-		va_start(ip, sFormat);
-		#if defined(_WIN32) || defined(_WIN64)
-			int iSize = vsnwprintf(NULL, 0, sFormat, ip);
-		#else
-			int iSize = vswprintf(NULL, 0, sFormat, ip);
-		#endif
-		va_end(ip);
-		if ( iSize > 0 ) {
-			wstr sRet = xrtMalloc( (iSize + 1) * sizeof(wchar_t) );
-			if ( sRet == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-				xCore.iRet = 0;
-				return (wstr)xCore.sNull;
-			}
-			va_start(ip, sFormat);
-			#if defined(_WIN32) || defined(_WIN64)
-				iSize = vsnwprintf(sRet, iSize + 1, sFormat, ip);
-			#else
-				iSize = vswprintf(sRet, iSize + 1, sFormat, ip);
-			#endif
-			va_end(ip);
-			sRet[iSize] = 0;
-			xCore.iRet = iSize;
-			return sRet;
-		} else {
-			xCore.iRet = 0;
-			return (wstr)xCore.sNull;
-		}
-	#else
-		// fuck linux vswprintf(NULL, 0, format, ...) return -1
-		// linux 版本无法预测缓冲区长度，因此目前写死最多处理 64K 字符，超过会直接返回 sNull
-		wstr sRet = xrtMalloc( 65536 * sizeof(wchar_t) );
-		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			xCore.iRet = 0;
-			return (wstr)xCore.sNull;
-		}
-		va_start(ip, sFormat);
-		int iSize = vswprintf(sRet, 65536, sFormat, ip);
-		va_end(ip);
-		xCore.iRet = iSize;
-		// 修剪数据长度，避免浪费内存
-		if ( iSize >= 65000 ) {
-			// 差不多够用的情况，就不修剪了，浪费不了多少
-			sRet[iSize] = 0;
-			return sRet;
-		} else if ( iSize > 0 ) {
-			// 需要修剪，不然会浪费大量内存
-			wstr sRetTrim = xrtCopyStrW(sRet, iSize);
-			xrtFree(sRet);
-			return sRetTrim;
-		} else if ( iSize == 0 ) {
-			// 缓冲区没有任何有效的数据，直接丢弃
-			xrtFree(sRet);
-			return (wstr)xCore.sNull;
-		} else {
-			// fuck linux，缓冲区不够用，我 TM 怎么知道需要多大的缓冲区，滚，不干了！
-			xrtFree(sRet);
-			xCore.iRet = 0;
-			return (wstr)xCore.sNull;
-		}
-	#endif
 }
 
 
@@ -1070,49 +763,6 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	// 复制最后一段剩下的字符串
 	if ( &sText[iSize] > sTextPtr ) {
 		memcpy(sRetPtr, sTextPtr, &sText[iSize] - sTextPtr);
-	}
-	sRet[iRetSize] = 0;
-	xCore.iRet = iRetSize;
-	return sRet;
-}
-XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize)
-{
-	if ( sText == NULL ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (wstr)xCore.sNull; }
-	if ( sSubText == NULL ) { xCore.iRet = iSize; return xrtCopyStrW(sText, iSize); }
-	if ( iSubSize == 0 ) { iSubSize = wcslen(sSubText); }
-	if ( iSubSize == 0 ) { xCore.iRet = iSize; return xrtCopyStrW(sText, iSize); }
-	if ( sRepText == NULL ) { iRepSize = 0; } else { if ( iRepSize == 0 ) { iRepSize = wcslen(sRepText); } }
-	// 计算 sSubText 在 sText 中出现的次数
-	size_t iFindCount = 0;
-	wstr sTextPtr;
-	wstr sSubPos;
-	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, (iSize - (sTextPtr - sText) + 1) * sizeof(wchar_t), sSubText, iSubSize * sizeof(wchar_t))); sTextPtr = sSubPos + iSubSize ) {
-		iFindCount++;
-	}
-	// 为新字符串分配内存
-	size_t iRetSize = iSize + iFindCount * (iRepSize - iSubSize);
-	wstr sRet = (wstr)xrtMalloc( (iRetSize + 1) * sizeof(wchar_t) );
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		xCore.iRet = 0;
-		return (wstr)xCore.sNull;
-	}
-	// 复制原始字符串, 替换需要改变的部分
-	wstr sRetPtr = sRet;
-	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, (iSize - (sTextPtr - sText) + 1) * sizeof(wchar_t), sSubText, iSubSize * sizeof(wchar_t))); sTextPtr = sSubPos + iSubSize ) {
-		size_t iSkipSize = sSubPos - sTextPtr;
-		// 复制前面的部分，直到出现要查找的字符串
-		wcsncpy(sRetPtr, sTextPtr, iSkipSize);
-		sRetPtr += iSkipSize;
-		// 复制要替换的字符串
-		wcsncpy(sRetPtr, sRepText, iRepSize);
-		sRetPtr += iRepSize;
-	}
-	// 复制最后一段剩下的字符串
-	if ( &sText[iSize] > sTextPtr ) {
-		memcpy(sRetPtr, sTextPtr, (&sText[iSize] - sTextPtr) * sizeof(wchar_t));
 	}
 	sRet[iRetSize] = 0;
 	xCore.iRet = iRetSize;
@@ -1251,136 +901,6 @@ return_nullsep:
 return_error:
 	xCore.iRet = 0;
 	return (str*)xCore.sNull;
-}
-XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise)
-{
-	if ( sText == NULL ) { goto return_nullstr; }
-	if ( iSize == 0 ) { iSize = wcslen(sText); }
-	if ( iSize == 0 ) { goto return_nullstr; }
-	if ( sSepText == NULL ) { goto return_nullsep; }
-	if ( iSepSize == 0 ) { iSize = wcslen(sSepText); }
-	if ( iSepSize == 0 ) { goto return_nullsep; }
-	// 统计分隔符出现的次数
-	int iCount = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		wstr pPos = &sText[i];
-		int bOK = TRUE;
-		for ( int j = 0; j < iSepSize; j++ ) {
-			if ( pPos[j] != sSepText[j] ) {
-				bOK = FALSE;
-				break;
-			}
-		}
-		if ( bOK ) {
-			iCount++;
-			i += iSepSize - 1;
-		}
-	}
-	// 如果字符串没有被分割，按照分隔符为空处理
-	if ( iCount == 0 ) {
-		goto return_nullsep;
-	}
-	// 准备返回的数据 [分割指针 + NULL + 字符串表 + \0]
-	wstr* sRet;
-	wstr pData;
-	if ( bSrcRevise ) {
-		sRet = xrtMalloc( (iCount + 2) * sizeof(ptr) );
-		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			goto return_nullstr;
-		}
-		pData = sText;
-	} else {
-		sRet = xrtMalloc( ((iCount + 2) * sizeof(ptr)) + ((iSize - ((iSepSize - 1) * iCount) + 1) * sizeof(wchar_t)) );
-		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			goto return_nullstr;
-		}
-		pData = (wstr)&sRet[iCount + 2];
-	}
-	// 开始分割数据
-	iCount = 0;
-	int iPos = 0;
-	wstr pAddr = pData;
-	for ( int i = 0; i < iSize; i++ ) {
-		wstr pPos = &sText[i];
-		int bOK = TRUE;
-		for ( int j = 0; j < iSepSize; j++ ) {
-			if ( pPos[j] != sSepText[j] ) {
-				bOK = FALSE;
-				break;
-			}
-		}
-		if ( bOK ) {
-			// 找到分隔符
-			sRet[iCount] = pAddr;
-			iCount++;
-			if ( bSrcRevise ) {
-				pData[i] = 0;
-				pAddr = pData + i + iSepSize;
-			} else {
-				pData[iPos] = 0;
-				iPos++;
-				pAddr = &pData[iPos];
-			}
-			i += iSepSize - 1;
-		} else {
-			// 没找到分隔符（不修改源数据时负责数据拷贝）
-			if ( bSrcRevise == FALSE ) {
-				pData[iPos] = sText[i];
-				iPos++;
-			}
-		}
-	}
-	if ( bSrcRevise == FALSE ) {
-		pData[iPos] = 0;
-	}
-	sRet[iCount] = pAddr;
-	iCount++;
-	sRet[iCount] = NULL;
-	xCore.iRet = iCount;
-	return sRet;
-	
-// 处理内容为 空字符串 或 NULL 的情况（只返回包含一个空元素的数组）
-return_nullstr:
-	sRet = xrtMalloc(2 * sizeof(void*));
-	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-		goto return_error;
-	}
-	sRet[0] = (wstr)xCore.sNull;
-	sRet[1] = NULL;
-	xCore.iRet = 1;
-	return sRet;
-	
-// 处理分隔符为 空字符串 或 NULL 的情况（只返回包含一个内容的数组）
-return_nullsep:
-	if ( bSrcRevise ) {
-		sRet = xrtMalloc(2 * sizeof(void*));
-		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			goto return_error;
-		}
-		sRet[0] = sText;
-	} else {
-		sRet = xrtMalloc(2 * sizeof(void*) + (iSize + 1) * sizeof(wchar_t));
-		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
-			goto return_error;
-		}
-		wstr sTextRef = (wstr)&sRet[2];
-		memcpy(sTextRef, sText, iSize * sizeof(wchar_t));
-		sTextRef[iSize] = 0;
-		sRet[0] = sTextRef;
-	}
-	sRet[1] = NULL;
-	xCore.iRet = 1;
-	return sRet;
-	
-// 内存申请异常返回
-return_error:
-	xCore.iRet = 0;
-	return (wstr*)xCore.sNull;
 }
 
 

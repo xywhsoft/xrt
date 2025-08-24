@@ -46,6 +46,7 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/os.h"
 #include "lib/file.h"
 #include "lib/hash.h"
+//#include "lib/network.h"
 #include "lib/xid.h"
 
 
@@ -110,7 +111,7 @@ XXAPI xrtGlobalData* xrtInit()
 	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)
-		wstr sTemp = malloc(4096 * sizeof(wchar_t));
+		u16str sTemp = malloc(4096 * sizeof(wchar_t));
 		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
 		xCore.AppFile = xrtUTF16to8(sTemp, iSize);
 		free(sTemp);

@@ -27,7 +27,6 @@
 	typedef unsigned int* u32str;
 	typedef unsigned char* binary;
 	typedef u8str str;
-	typedef wchar_t* wstr;			// windows 系统为 u16str，linux 系统为 u32str
 	
 	typedef char i8;
 	typedef char int8;
@@ -258,51 +257,38 @@
 	
 	// 创建字符串副本（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtCopyStr(str sText, size_t iSize);
-	XXAPI wstr xrtCopyStrW(wstr sText, size_t iSize);
 	XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize);
 	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize);
 	
 	// 字符串转为小写（ bSrcRevise 为 false 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLCase(str sText, size_t iSize, int bSrcRevise);
-	XXAPI wstr xrtLCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
 	// 字符串转为大写（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtUCase(str sText, size_t iSize, int bSrcRevise);
-	XXAPI wstr xrtUCaseW(wstr sText, size_t iSize, int bSrcRevise);
 	
 	// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）
 	XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bCase);
 	XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bCase);
-	XXAPI wstr xrtFindStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase);
-	XXAPI uint xrtInStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bCase);
 	
 	// 字符串检查（ sText 中是否包含 sSubText 列出的字符，支持 utf-8 mb6 编码 ）
 	XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize);
-	XXAPI wstr xrtCheckStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize);
 	
 	// 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise);
 	XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise);
-	XXAPI wstr xrtLTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
-	XXAPI wstr xrtRTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
-	XXAPI wstr xrtTrimW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	
 	// 过滤字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtFilterStr(str sText, size_t iSize, str sFilter, size_t iSubSize, int bSrcRevise);
-	XXAPI wstr xrtFilterStrW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, int bSrcRevise);
 	
 	// 字符串格式化（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtFormat(str sFormat, ...);
-	XXAPI wstr xrtFormatW(wstr sFormat, ...);
 	
 	// 字符串替换（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize);
-	XXAPI wstr xrtReplaceW(wstr sText, size_t iSize, wstr sSubText, size_t iSubSize, wstr sRepText, size_t iRepSize);
 	
 	// 字符串分割（ 任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据 ）
 	XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, int bSrcRevise);
-	XXAPI wstr* xrtSplitW(wstr sText, size_t iSize, wstr sSepText, size_t iSepSize, int bSrcRevise);
 	
 	// 生成随机字符串（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen);
@@ -409,19 +395,15 @@
 	
 	// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtNowStr();
-	XXAPI wstr xrtNowStrW();
 	
 	// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtDateStr();
-	XXAPI wstr xrtDateStrW();
 	
 	// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtTimeStr();
-	XXAPI wstr xrtTimeStrW();
 	
 	// 转换日期 + 时间为字符串（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtTimeToStr(xtime iTime, int iFormat);
-	XXAPI wstr xrtTimeToStrW(xtime iTime, int iFormat);
 	
 	// 时间单位累加
 	XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);
@@ -435,31 +417,24 @@
 	
 	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
-	XXAPI wstr xrtPathGetNameExtW(wstr sPath, size_t iSize);
 	
 	// 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetName(str sPath, size_t iSize);
-	XXAPI wstr xrtPathGetNameW(wstr sPath, size_t iSize);
 	
 	// 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetExt(str sPath, size_t iSize);
-	XXAPI wstr xrtPathGetExtW(wstr sPath, size_t iSize);
 	
 	// 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathGetDir(str sPath, size_t iSize);
-	XXAPI wstr xrtPathGetDirW(wstr sPath, size_t iSize);
 	
 	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
 	XXAPI int xrtPathIsAbs(str sPath, size_t iSize);
-	XXAPI int xrtPathIsAbsW(wstr sPath, size_t iSize);
 	
 	// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize, size_t iLen);
-	XXAPI wstr xrtPathRandomW(wstr sHead, size_t iHeadSize, wstr sFoot, size_t iFootSize, size_t iLen);
 	
 	// 拼接路径（ 需要使用 xrtFree 释放内存 ）
 	XXAPI str xrtPathJoin(uint iCount, ...);
-	XXAPI wstr xrtPathJoinW(uint iCount, ...);
 	
 	
 	
@@ -467,15 +442,12 @@
 	
 	// 运行程序
 	XXAPI ptr xrtRun(str sPath, size_t iSize);
-	XXAPI ptr xrtRunW(wstr sPath, size_t iSize);
 	
 	// 打开文件（ 仅支持 windows 系统 ）
 	XXAPI ptr xrtStart(str sPath, size_t iSize);
-	XXAPI ptr xrtStartW(wstr sPath, size_t iSize);
 	
 	// 运行程序并等待程序运行结束
 	XXAPI int xrtChain(str sPath, size_t iSize);
-	XXAPI int xrtChainW(wstr sPath, size_t iSize);
 	
 	
 	
@@ -498,7 +470,6 @@
 	
 	// 打开文件 ( 需要使用 xrtClose 关闭文件 )
 	XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset);
-	XXAPI xfile xrtOpenW(wstr sPath, int bReadOnly, int iCharset);
 	
 	// 关闭文件
 	XXAPI int xrtClose(xfile objFile);
@@ -520,11 +491,9 @@
 	
 	// 从已打开的文件读取数据 ( iSize 为要读取的字节数，需要使用 xrtFree 释放内存 )
 	XXAPI str xrtRead(xfile objFile, size_t iSize);
-	XXAPI wstr xrtReadW(xfile objFile, size_t iSize);
 	
 	// 向已打开的文件写入数据 ( iSize 为要写入的字节数 )
 	XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
-	XXAPI size_t xrtWriteW(xfile objFile, wstr sText, size_t iSize);
 	
 	// 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
 	XXAPI ptr xrtGet(xfile objFile, size_t iSize);
@@ -534,95 +503,72 @@
 	
 	// 向文件追加写入数据
 	XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset);
-	XXAPI int xrtFileAppendW(wstr sPath, wstr sText, size_t iSize, int iCharset);
 	
 	// 写入并覆盖文件内容
 	XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
-	XXAPI int xrtFileWriteAllW(wstr sPath, wstr sText, size_t iSize, int iCharset);
 	
 	// 读取文件的全部内容 ( 需要使用 xrtFree 释放内存 )
 	XXAPI str xrtFileReadAll(str sPath, int iCharset);
-	XXAPI wstr xrtFileReadAllW(wstr sPath, int iCharset);
 	
 	// 写入并覆盖文件内容 ( 二进制 )
 	XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize);
-	XXAPI int xrtFilePutAllW(wstr sPath, ptr pBuff, size_t iSize);
 	
 	// 读取文件的全部内容 ( 二进制，需要使用 xrtFree 释放内存 )
 	XXAPI ptr xrtFileGetAll(str sPath);
-	XXAPI ptr xrtFileGetAllW(wstr sPath);
 	
 	// 判断路径是否存在
 	XXAPI int xrtPathExists(str sPath);
-	XXAPI int xrtPathExistsW(wstr sPath);
 	
 	// 判断文件是否存在
 	XXAPI int xrtFileExists(str sPath);
-	XXAPI int xrtFileExistsW(wstr sPath);
 	
 	// 判断目录是否存在
 	XXAPI int xrtDirExists(str sPath);
-	XXAPI int xrtDirExistsW(wstr sPath);
 	
 	// 获取文件长度
 	XXAPI size_t xrtFileGetSize(str sPath);
-	XXAPI size_t xrtFileGetSizeW(wstr sPath);
 	
 	// 设置文件长度
 	XXAPI int xrtFileSetSize(str sPath, size_t iSize);
-	XXAPI int xrtFileSetSizeW(wstr sPath, size_t iSize);
 	
 	// 获取文件属性
 	XXAPI int xrtFileGetAttr(str sPath);
-	XXAPI int xrtFileGetAttrW(wstr sPath);
 	
 	// 设置文件属性
 	XXAPI int xrtFileSetAttr(str sPath, int iAttr);
-	XXAPI int xrtFileSetAttrW(wstr sPath, int iAttr);
 	
 	// 获取文件最后一次访问时间
 	XXAPI int64 xrtFileGetAccessTime(str sPath);
-	XXAPI int64 xrtFileGetAccessTimeW(wstr sPath);
 	
 	// 获取文件修改时间
 	XXAPI int64 xrtFileGetChangeTime(str sPath);
-	XXAPI int64 xrtFileGetChangeTimeW(wstr sPath);
 	
 	// 复制文件
 	XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite);
-	XXAPI int xrtFileCopyW(wstr sSrc, wstr sDst, int bReWrite);
 	
 	// 移动文件（重命名）
 	XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite);
-	XXAPI int xrtFileMoveW(wstr sSrc, wstr sDst, int bReWrite);
 	
 	// 删除文件
 	XXAPI int xrtFileDelete(str sPath);
-	XXAPI int xrtFileDeleteW(wstr sPath);
 	
 	// 扫描文件夹
 	XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);
-	XXAPI int xrtDirScanW(wstr sPath, int bRecu, ptr pProc, ptr Param);
 	
 	// 创建文件夹
 	XXAPI int xrtDirCreate(str sPath);
-	XXAPI int xrtDirCreateW(wstr sPath);
 	
 	// 创建多级文件夹
 	XXAPI int xrtDirCreateAll(str sPath);
-	XXAPI int xrtDirCreateAllW(wstr sPath);
 	
 	// 复制文件夹
 	XXAPI int xrtDirCopy(str sSrc, str sDst, int bReWrite);
-	XXAPI int xrtDirCopyW(wstr sSrc, wstr sDst, int bReWrite);
 	
 	// 移动文件夹
 	XXAPI int xrtDirMove(str sSrc, str sDst, int bReWrite);
-	XXAPI int xrtDirMoveW(wstr sSrc, wstr sDst, int bReWrite);
 	
 	// 删除文件夹
 	XXAPI int xrtDirDelete(str sPath);
-	XXAPI int xrtDirDeleteW(wstr sPath);
 	
 	
 	

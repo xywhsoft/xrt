@@ -397,12 +397,6 @@ XXAPI str xrtNowStr()
 	struct tm* pstm = localtime(&rawtime);
 	return xrtFormat("%d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
 }
-XXAPI wstr xrtNowStrW()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormatW(L"%d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
-}
 
 
 
@@ -413,12 +407,6 @@ XXAPI str xrtDateStr()
 	struct tm* pstm = localtime(&rawtime);
 	return xrtFormat("%d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
 }
-XXAPI wstr xrtDateStrW()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormatW(L"%d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
-}
 
 
 
@@ -428,12 +416,6 @@ XXAPI str xrtTimeStr()
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
 	return xrtFormat("%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
-}
-XXAPI wstr xrtTimeStrW()
-{
-	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormatW(L"%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
 }
 
 
@@ -457,26 +439,6 @@ XXAPI str xrtTimeToStr(xtime iTime, int iFormat)
 		return xrtFormat("%02d:%02d:%02d", iHour, iMinute, iSecond);
 	} else {
 		return xCore.sNull;
-	}
-}
-XXAPI wstr xrtTimeToStrW(xtime iTime, int iFormat)
-{
-	if ( iFormat == XRT_TIME_FORMAT_DATETIME ) {
-		int64 iYear;
-		int iMonth, iDay, iHour, iMinute, iSecond;
-		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
-		return xrtFormatW(L"%d-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
-	} else if ( iFormat == XRT_TIME_FORMAT_DATE ) {
-		int64 iYear;
-		int iMonth, iDay;
-		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, NULL, NULL, NULL, NULL, NULL);
-		return xrtFormatW(L"%d-%02d-%02d", iYear, iMonth, iDay);
-	} else if ( iFormat == XRT_TIME_FORMAT_TIME ) {
-		int iHour, iMinute, iSecond;
-		xrtDecodeSerial(iTime, NULL, NULL, NULL, &iHour, &iMinute, &iSecond, NULL, NULL);
-		return xrtFormatW(L"%02d:%02d:%02d", iHour, iMinute, iSecond);
-	} else {
-		return (wstr)xCore.sNull;
 	}
 }
 
