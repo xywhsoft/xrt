@@ -10,7 +10,7 @@ XXAPI ptr xrtRun(str sPath, size_t iSize)
 		GetStartupInfoW(&si);
 		si.wShowWindow = SW_SHOW;
 		u16str sPathW = xrtUTF8to16(sPath, iSize);
-		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
 		xrtFree(sPathW);
 		return (ptr)pi.hProcess;
 	#else
