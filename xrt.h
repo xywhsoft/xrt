@@ -117,7 +117,7 @@
 		int DebugMode;
 		
 		// 本机 IP 地址 ( 用于生成 XID )
-		uint ip;
+		uint LocalAddr;
 		
 		// 应用信息
 		str AppFile;
@@ -633,11 +633,10 @@
 	
 	// XID 数据结构 ( 192 bit )
 	typedef struct {
-		int32 Data;				// 自定义数据
-		int32 Tick;				// CPU 时钟 ( 低 32 位 )
 		xtime Time;				// 当前时间戳
 		int32 Addr;				// 本机 IP 地址
-		int32 Rand;				// 随机数
+		int32 Tick;				// CPU 时钟 ( 低 32 位 )
+		int64 Rand;				// 随机数
 	} xid_struct, *xid;
 	
 	// XID 转 字符串 ( 需要使用 xrtFree 释放内存 )
@@ -647,10 +646,10 @@
 	XXAPI xid xrtDecodeXID(str sXID);
 	
 	// 获取 XID ( 需要使用 xrtFree 释放内存 )
-	XXAPI xid xrtMakeXID(int32 iData, int32 iAddr);
+	XXAPI xid xrtMakeXID(int32 iData);
 	
 	// 获取 XID 字符串 ( 需要使用 xrtFree 释放内存 )
-	XXAPI str xrtMakeXIDS(int32 iData, int32 iAddr);
+	XXAPI str xrtMakeXIDS(int32 iData);
 	
 	// 比较两个 XID 是否相同
 	XXAPI int xrtCompXID(xid pXID1, xid pXID2);

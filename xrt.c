@@ -138,7 +138,7 @@ XXAPI xrtGlobalData* xrtInit()
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 	
 	// 获取本机 IP
-	xCore.ip = xrtGetLocalRawIP();
+	xCore.LocalAddr = xrtGetLocalRawIP();
 	
 	return &xCore;
 }

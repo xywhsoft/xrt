@@ -536,22 +536,20 @@ int main(int argc, char** argv)
 	
 	
 	/* XID 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\n XID 库测试 :\n\n");
-	xid xida = xrtMakeXID(xrtRand32(), xrtRand32());
-	printf("xrtMakeXID - Data : %d\n", xida->Data);
-	printf("xrtMakeXID - Tick : %d\n", xida->Tick);
+	xid xida = xrtMakeXID(xrtRand32());
 	printf("xrtMakeXID - Time : %lld\n", xida->Time);
-	printf("xrtMakeXID - Addr : %d\n", xida->Addr);
-	printf("xrtMakeXID - Rand : %d\n", xida->Rand);
+	printf("xrtMakeXID - Tick : %d\n", xida->Tick);
+	printf("xrtMakeXID - Addr : %x\n", xida->Addr);
+	printf("xrtMakeXID - Rand : %lld\n", xida->Rand);
 	str sXID = xrtEncodeXID(xida);
 	printf("xrtEncodeXID : %s\n", sXID);
 	xida = xrtDecodeXID(sXID);
-	printf("xrtDecodeXID - Data : %d\n", xida->Data);
-	printf("xrtDecodeXID - Tick : %d\n", xida->Tick);
 	printf("xrtDecodeXID - Time : %lld\n", xida->Time);
-	printf("xrtDecodeXID - Addr : %d\n", xida->Addr);
-	printf("xrtDecodeXID - Rand : %d\n", xida->Rand);
+	printf("xrtDecodeXID - Tick : %d\n", xida->Tick);
+	printf("xrtDecodeXID - Addr : %x\n", xida->Addr);
+	printf("xrtDecodeXID - Rand : %lld\n", xida->Rand);
 	//*/
 	
 	
@@ -562,7 +560,7 @@ int main(int argc, char** argv)
 	
 	printf("Local IP : %s\n", xrtGetLocalIP());
 	printf("Local IP [ int ] : %x\n", xrtGetLocalRawIP());
-	printf("Local IP [ int & g ] : %x\n", xCore->ip);
+	printf("Local IP [ int & g ] : %x\n", xCore->LocalAddr);
 	printf("Local Name : %s\n", xrtGetLocalName());
 	printf("Local Name : %s\n", xrtGetLocalMAC());
 	
