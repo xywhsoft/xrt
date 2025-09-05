@@ -237,7 +237,7 @@ int main(int argc, char** argv)
 	
 	
 	/* Time 库测试 */
-	/*
+	//*
 	printf("\n\n\n------------------------------------\n\n Time 库测试 :\n\n");
 	for ( int i = 1; i <= 12; i++ ) {
 		printf("xrtDateSerial (0-%02d-01 00:00:00) : %d\n", i, xrtDateSerial(0, i, 1));
@@ -308,6 +308,9 @@ int main(int argc, char** argv)
 	double et = xrtTimer();
 	printf("xrtTimer Stop : %f\n", et);
 	printf("time diff (s) : %f\n", et - st);
+	
+	printf("xrtNow : %s\n", xrtTimeToStr(xrtNow(), XRT_TIME_FORMAT_DATETIME));
+	printf("xrtNow : %s\n", xrtNowStr());
 	
 	//*/
 	
@@ -538,7 +541,7 @@ int main(int argc, char** argv)
 	
 	
 	/* XID 库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\n XID 库测试 :\n\n");
 	xid xida = xrtMakeXID(xrtRand32());
 	printf("xrtMakeXID - Time : %lld\n", xida->Time);
@@ -557,7 +560,7 @@ int main(int argc, char** argv)
 	
 	
 	/* 网络库测试 */
-	//*
+	/*
 	printf("\n\n\n------------------------------------\n\n 网络库测试 :\n\n");
 	
 	printf("Local IP : %s\n", xrtGetLocalIP());

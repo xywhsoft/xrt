@@ -365,7 +365,7 @@ XXAPI xtime xrtNow()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
-	return xrtDateTimeSerial(1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+	return xrtDateTimeSerial(1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
 }
 
 
@@ -375,7 +375,7 @@ XXAPI xtime xrtDate()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
-	return xrtDateSerial(1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
+	return xrtDateSerial(1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday);
 }
 
 
@@ -395,7 +395,7 @@ XXAPI str xrtNowStr()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+	return xrtFormat("%d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
 }
 
 
@@ -405,7 +405,7 @@ XXAPI str xrtDateStr()
 {
 	time_t rawtime = time(NULL);
 	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon, pstm->tm_mday);
+	return xrtFormat("%d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday);
 }
 
 
