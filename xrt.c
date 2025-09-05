@@ -93,20 +93,38 @@ XXAPI xrtGlobalData* xrtInit()
 	#endif
 	
 	// 初始化随机数序列
+	uint64 iTick = 0;
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( xCore.Frequency == 0.0 ) {
-			uint64 iTick = GetTickCount64();
+			iTick = GetTickCount64();
 			xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ iTick);
 		} else {
 			LARGE_INTEGER QPC;
 			QueryPerformanceCounter(&QPC);
-			xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ QPC.QuadPart);
+			iTick = QPC.QuadPart;
+			xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ iTick);
 		}
 	#else
 		struct timespec timer;
 		clock_gettime(CLOCK_MONOTONIC, &timer);
-		xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ ((timer.tv_sec << 30) | timer.tv_nsec));
+		iTick = (timer.tv_sec << 30) | timer.tv_nsec;
+		xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ iTick);
 	#endif
+	
+	// 初始化 64 位随机数序列 ( 这里打乱顺序生成，为了避免干扰，并使用不同的方式扰乱结果 )
+	uint32 highseed_low = xrtRand32() * iTick;
+	uint32 lowseed_high = xrtRand32() + xrtRand32();
+	uint32 highseq_high = xrtRand32() * xrtRand32();
+	uint32 lowseq_low = xrtRand32() ^ xrtRand32();
+	uint32 highseed_high = xrtRand32() ^ iTick;
+	uint32 lowseed_low = xrtRand32() * xrtRand32();
+	uint32 highseq_low = xrtRand32() ^ xrtRand32();
+	uint32 lowseq_high = xrtRand32() + xrtRand32();
+	uint64 lowseed = ((uint64)lowseed_high << 32) | (uint64)lowseed_low;
+	uint64 lowseq = ((uint64)lowseq_high << 32) | (uint64)lowseq_low;
+	uint64 highseed = ((uint64)highseed_high << 32) | (uint64)highseed_low;
+	uint64 highseq = ((uint64)highseq_high << 32) | (uint64)highseq_low;
+	xrtSetRandSeed64(lowseed, lowseq, highseed, highseq);
 	
 	// 设置内置的错误描述（便于复用）
 	xCore.ERROR_DESC.MALLOC = "Memory allocate error !";

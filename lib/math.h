@@ -146,7 +146,28 @@ XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq)
 
 
 
-// 获取范围随机数
+// 获取 64 位随机数
+static pcg32_random_t pcg32_global_64_low = PCG32_INITIALIZER;
+static pcg32_random_t pcg32_global_64_high = PCG32_INITIALIZER;
+XXAPI uint64 xrtRand64()
+{
+	uint32 iLow = pcg32_random_r(&pcg32_global_64_low);
+	uint32 iHigh = pcg32_random_r(&pcg32_global_64_high);
+	return ((uint64)iHigh << 32) | (uint64)iLow;
+}
+
+
+
+// 设置 64 位随机数种子
+XXAPI void xrtSetRandSeed64(uint64 lowseed, uint64 lowseq, uint64 highseed, uint64 highseq)
+{
+	pcg32_srandom_r(&pcg32_global_64_low, lowseed, lowseq);
+	pcg32_srandom_r(&pcg32_global_64_high, highseed, highseq);
+}
+
+
+
+// 获取 32 位范围随机数
 XXAPI int xrtRandRange(int min, int max)
 {
 	uint32 iRange = (max - min) + 1;

@@ -44,7 +44,7 @@ XXAPI xid xrtMakeXID()
 	pXID->Tick = iTick;
 	pXID->Time = xrtNow();
 	pXID->Addr = xCore.LocalAddr;
-	pXID->Rand = xrtRand32();
+	pXID->Rand = xrtRand64();
 	return pXID;
 }
 

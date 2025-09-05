@@ -251,7 +251,13 @@
 	// 设置 32 位随机数种子
 	XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq);
 	
-	// 获取范围随机数
+	// 获取 64 位随机数
+	XXAPI uint64 xrtRand64();
+	
+	// 设置 64 位随机数种子
+	XXAPI void xrtSetRandSeed64(uint64 lowseed, uint64 lowseq, uint64 highseed, uint64 highseq);
+	
+	// 获取 32 位范围随机数
 	XXAPI int xrtRandRange(int min, int max);
 	
 	
