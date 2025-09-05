@@ -95,6 +95,7 @@ xrtPathRandom
 xrtPut
 xrtRTrim
 xrtRand32
+xrtRand64
 xrtRandRange
 xrtRandStr
 xrtRead
@@ -108,6 +109,7 @@ xrtSetError
 xrtSetErrorU16
 xrtSetErrorU32
 xrtSetRandSeed32
+xrtSetRandSeed64
 xrtSleep
 xrtSplit
 xrtStart

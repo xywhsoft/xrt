@@ -1,4 +1,4 @@
-gcc -m64 test.c xrt.c -o release/x64/test.exe
+gcc -m64 test.c xrt.c -lWs2_32 -lIPHLPAPI -o release/x64/test.exe
 
 @echo;
 @echo off

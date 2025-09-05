@@ -6,22 +6,30 @@
 
 
 #if defined(_WIN32) || defined(_WIN64)
-	#include "windows.h"
 	#ifdef __TINYC__
-		#include <winapi/shellapi.h>
 		#include <winapi/winsock2.h>
+		#include "windows.h"
+		#include <winapi/shellapi.h>
+		#include <winapi/iphlpapi.h>
 		ULONGLONG GetTickCount64();
 	#else
+		#include <winsock2.h>
+		#include "windows.h"
 		#include <shellapi.h>
+		#include <iphlpapi.h>
 	#endif
 	#include <sys/types.h>
 	#include <sys/stat.h>
 	#include <wchar.h>
 	#pragma comment (lib, "shell32")
-	#pragma comment (lib, "ws2_32")
+	#pragma comment (lib, "Ws2_32")
+	#pragma comment (lib, "IPHLPAPI")
 #else
 	#include <fcntl.h>
 	#include <sys/stat.h>
+	#include <net/if.h>
+	#include <sys/ioctl.h>
+	#include <errno.h>
 	#include <wchar.h>
 	#include <netdb.h>
 #endif
