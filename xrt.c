@@ -9,6 +9,7 @@
 	#include "windows.h"
 	#ifdef __TINYC__
 		#include <winapi/shellapi.h>
+		#include <winapi/winsock2.h>
 		ULONGLONG GetTickCount64();
 	#else
 		#include <shellapi.h>
@@ -17,6 +18,7 @@
 	#include <sys/stat.h>
 	#include <wchar.h>
 	#pragma comment (lib, "shell32")
+	#pragma comment (lib, "ws2_32")
 #else
 	#include <fcntl.h>
 	#include <sys/stat.h>
@@ -46,7 +48,7 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/os.h"
 #include "lib/file.h"
 #include "lib/hash.h"
-//#include "lib/network.h"
+#include "lib/network.h"
 #include "lib/xid.h"
 
 
@@ -130,6 +132,13 @@ XXAPI xrtGlobalData* xrtInit()
 			xCore.AppPath = xrtPathGetDir(xCore.AppFile, xCore.iRet);
 		}
 	#endif
+	
+	// 初始化 socket
+	WSADATA wsaData;
+	WSAStartup(MAKEWORD(2, 2), &wsaData);
+	
+	// 获取本机 IP
+	xCore.ip = xrtGetLocalRawIP();
 	
 	return &xCore;
 }

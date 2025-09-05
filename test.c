@@ -556,6 +556,20 @@ int main(int argc, char** argv)
 	
 	
 	
+	/* 网络库测试 */
+	//*
+	printf("\n\n\n------------------------------------\n\n 网络库测试 :\n\n");
+	
+	printf("Local IP : %s\n", xrtGetLocalIP());
+	printf("Local IP [ int ] : %x\n", xrtGetLocalRawIP());
+	printf("Local IP [ int & g ] : %x\n", xCore->ip);
+	printf("Local Name : %s\n", xrtGetLocalName());
+	printf("Local Name : %s\n", xrtGetLocalMAC());
+	
+	//*/
+	
+	
+	
 	/* 自定义测试 */
 	/*
 	printf("\n\n\n------------------------------------\n\n 自定义测试 :\n\n");

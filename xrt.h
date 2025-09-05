@@ -116,6 +116,9 @@
 		// 调试模式
 		int DebugMode;
 		
+		// 本机 IP 地址 ( 用于生成 XID )
+		uint ip;
+		
 		// 应用信息
 		str AppFile;
 		str AppPath;
@@ -607,6 +610,22 @@
 	XXAPI uint64 xrtHash64_Micro(void* key, size_t len);
 	XXAPI uint64 xrtHash64_Nano_WithSeed(void* key, size_t len, unsigned long long seed);
 	XXAPI uint64 xrtHash64_Nano(void* key, size_t len);
+	
+	
+	
+	/* ------------------------------------ Network 函数库 ------------------------------------ */
+	
+	// 获取本机 IP ( 需使用 xrtFree 释放 )
+	str xrtGetLocalIP();
+	
+	// 获取本机 IP ( 返回 uint32 )
+	uint32 xrtGetLocalRawIP();
+	
+	// 获取本机 MAC 地址 ( 需使用 xrtFree 释放 )
+	str xrtGetLocalMAC();
+	
+	// 获取本机名称 ( 需使用 xrtFree 释放 )
+	str xrtGetLocalName();
 	
 	
 	
