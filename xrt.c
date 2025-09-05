@@ -23,6 +23,7 @@
 	#include <fcntl.h>
 	#include <sys/stat.h>
 	#include <wchar.h>
+	#include <netdb.h>
 #endif
 
 
@@ -152,8 +153,10 @@ XXAPI xrtGlobalData* xrtInit()
 	#endif
 	
 	// 初始化 socket
-	WSADATA wsaData;
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
+	#if defined(_WIN32) || defined(_WIN64)
+		WSADATA wsaData;
+		WSAStartup(MAKEWORD(2, 2), &wsaData);
+	#endif
 	
 	// 获取本机 IP
 	xCore.LocalAddr = xrtGetLocalRawIP();
@@ -187,6 +190,11 @@ XXAPI void xrtUnit()
 		}
 		xCore.TempMemIdx = 0;
 		xCore.bInit = FALSE;
+		
+		// 释放 socket
+		#if defined(_WIN32) || defined(_WIN64)
+			WSACleanup();
+		#endif
 	}
 }
 

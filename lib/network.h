@@ -9,7 +9,7 @@ str xrtGetLocalIP()
 	if ( gethostname(sLocalName, 260) == 0 ) {
 		struct hostent* host = gethostbyname(sLocalName);
 		if ( host ) {
-			sRet = xrtFormat("%d.%d.%d.%d", (uint8)host->h_addr_list[0][0], (uint8)host->h_addr_list[0][1], (uint8)host->h_addr_list[0][2], (uint8)host->h_addr_list[0][3]);
+			sRet = xrtFormat("%d.%d.%d.%d", (uint8)(host->h_addr_list[0][0]), (uint8)(host->h_addr_list[0][1]), (uint8)(host->h_addr_list[0][2]), (uint8)(host->h_addr_list[0][3]));
 		}
 	}
 	return sRet;
@@ -24,7 +24,7 @@ uint32 xrtGetLocalRawIP()
 	if ( gethostname(sLocalName, 260) == 0 ) {
 		struct hostent* host = gethostbyname(sLocalName);
 		if ( host ) {
-			return ((uint8)host->h_addr_list[0][0] << 24) | ((uint8)host->h_addr_list[0][1] << 16) | ((uint8)host->h_addr_list[0][2] << 8) | (uint8)host->h_addr_list[0][3];
+			return ((uint8)(host->h_addr_list[0][0]) << 24) | ((uint8)(host->h_addr_list[0][1]) << 16) | ((uint8)(host->h_addr_list[0][2]) << 8) | (uint8)(host->h_addr_list[0][3]);
 		}
 	}
 	return 0;

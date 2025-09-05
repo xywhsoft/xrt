@@ -652,10 +652,10 @@
 	XXAPI xid xrtDecodeXID(str sXID);
 	
 	// 获取 XID ( 需要使用 xrtFree 释放内存 )
-	XXAPI xid xrtMakeXID(int32 iData);
+	XXAPI xid xrtMakeXID();
 	
 	// 获取 XID 字符串 ( 需要使用 xrtFree 释放内存 )
-	XXAPI str xrtMakeXIDS(int32 iData);
+	XXAPI str xrtMakeXIDS();
 	
 	// 比较两个 XID 是否相同
 	XXAPI int xrtCompXID(xid pXID1, xid pXID2);
@@ -675,7 +675,7 @@
 	
 	
 	/* ------------------------------------ Value 函数库 ------------------------------------ */
-	
+	/*
 	// 数据类型 - 主类型
 	#define XRT_DT_EMPTY			0				// 不存在的数据
 	#define XRT_DT_NULL				1				// null
@@ -771,7 +771,7 @@
 		xvalue (*call)(xcustom var, str key, xvalue param);
 		ptr value;
 	};
-	
+	*/
 	
 	
 #endif
