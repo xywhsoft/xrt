@@ -1,0 +1,23 @@
+str				字符串
+u8str			utf8 字符串
+u16str			utf16 字符串
+u32str			utf32 字符串
+i8				8 位整数
+u8				无符号 8 位整数
+i16				16 位整数
+u16				无符号 16 位整数
+i32				32 位整数
+u32				无符号 32 位整数
+i64				64 位整数
+u64				无符号 64 位整数
+f32				float
+f64				double
+xtime			时间
+xvalue			变体值
+xfunc			函数
+xcollect		集合
+xarray			数组
+xlist			列表
+xtable			表
+xobject			对象
+xdatatable		数据表

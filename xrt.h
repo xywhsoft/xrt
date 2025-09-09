@@ -662,6 +662,10 @@
 	
 	
 	
+	/* ------------------------------------ Collect 函数库 ------------------------------------ */
+	
+	
+	
 	/* ------------------------------------ Array 函数库 ------------------------------------ */
 	
 	
@@ -680,19 +684,20 @@
 	#define XRT_DT_EMPTY			0				// 不存在的数据
 	#define XRT_DT_NULL				1				// null
 	#define XRT_DT_BOOL				2				// bool : true | false
-	#define XRT_DT_NUM				3				// 数字
-	#define XRT_DT_TEXT				4				// 字符串
-	#define XRT_DT_TEMPLATE			5				// 模板
+	#define XRT_DT_INT				3				// 整数（int64）
+	#define XRT_DT_FLOAT			4				// 浮点数（double）
+	#define XRT_DT_TEXT				5				// 字符串
 	#define XRT_DT_TIME				6				// 时间
 	#define XRT_DT_POINT			7				// 指针
 	#define XRT_DT_STRUCT			8				// 结构体
-	#define XRT_DT_COLLECT			9				// 集合
-	#define XRT_DT_ARRAY			10				// 数组
-	#define XRT_DT_TABLE			11				// 表
-	#define XRT_DT_OBJECT			12				// 对象
-	#define XRT_DT_SHEET			13				// 数据表
-	#define XRT_DT_FUNCTION			14				// 函数
-	#define XRT_DT_CUSTOM			15				// 自定义
+	#define XRT_DT_FUNCTION			9				// 函数
+	#define XRT_DT_COLLECT			10				// 集合
+	#define XRT_DT_ARRAY			11				// 数组
+	#define XRT_DT_LIST				12				// 列表
+	#define XRT_DT_TABLE			13				// 表
+	#define XRT_DT_OBJECT			14				// 对象
+	#define XRT_DT_SHEET			15				// 数据表
+	#define XRT_DT_CUSTOM			16				// 自定义
 	
 	// 数据类型 - 子类型 [ 逻辑 ]
 	#define XRT_SDT_BOOL_FALSE		0				// false
@@ -717,25 +722,21 @@
 	typedef struct xcustom_struct xcustom_struct, *xcustom;
 	typedef xvalue (*xfunction)(xvalue varENV, xvalue varParam);
 	
-	// Value 基类 [ 8 byte ]
-	struct xvalue_struct {
+	// Value 基类 [ 4 byte ]
+	struct {
 		uint8 Type;					// 值的主类型
 		uint8 SubType;				// 值的子类型
-		uint16 Flag;				// 位标记
-		union {
-			uint32 Size;			// 字符串长度、结构体长度
-			uint32 RetCount;		// 引用计数 [ 集合、数组、表、对象、数据表 ]
-		};
-	};
+		uint isStatic : 1;			// 是否为静态资源 ( 不会自动释放 )
+	} xvalue_base_struct, *xvalue_base;
 	
-	// Value 16 字节类 [ XRT_DT_NUM、XRT_DT_TEXT、XRT_DT_TIME、XRT_DT_POINT ]
+	// Value 标准数据类 [ XRT_DT_NUM、XRT_DT_TEXT、XRT_DT_TIME、XRT_DT_POINT ]
 	struct {
 		uint8 Type;
 		uint8 SubType;
 		uint16 Flag;
 		union {
-			uint32 Size;
-			uint32 RetCount;
+			uint32 Size;			// XRT_DT_TEXT、XRT_DT_STRUCT 使用
+			uint32 RetCount;		// XRT_DT_COLLECT、XRT_DT_ARRAY、XRT_DT_TABLE、
 		};
 		union {
 			int64 vInt;
@@ -753,17 +754,10 @@
 			xfunction vFunc;
 			ptr vFuncC;
 		};
-	} xvalue12_struct, *xvalue12;
+	} xvalue_struct, *xvalue;
 	
 	// Custom 类 [ 16 bytes ]
 	struct xcustom_struct {
-		uint8 Type;
-		uint8 SubType;
-		uint16 Flag;
-		union {
-			uint32 Size;
-			uint32 RetCount;
-		};
 		void (*construct)(xcustom var);
 		void (*destruct)(xcustom var);
 		int (*set)(xcustom var, str key, xcustom val);
