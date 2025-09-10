@@ -59,6 +59,14 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/hash.h"
 #include "lib/network.h"
 #include "lib/xid.h"
+#include "lib/collect.h"
+#include "lib/array.h"
+#include "lib/mempool.h"
+#include "lib/list.h"
+#include "lib/table.h"
+#include "lib/value.h"
+#include "lib/json.h"
+#include "lib/template.h"
 
 
 
