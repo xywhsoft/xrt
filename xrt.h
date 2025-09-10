@@ -668,6 +668,74 @@
 	
 	/* ------------------------------------ Array 函数库 ------------------------------------ */
 	
+	// 默认步长
+	#define XARRAY_PREASSIGNSTEP	256
+	
+	// 结构体数组内存管理器数据结构
+	typedef struct {
+		str Memory;						// 管理器内存指针
+		uint32 ItemLength;				// 成员占用内存长度
+		uint32 Count;					// 管理器中存在多少成员
+		uint32 AllocCount;				// 已经申请的结构数量
+		uint32 AllocStep;				// 预分配内存步长
+	} xarray_struct, *xarray;
+	
+	// 创建数组
+	XXAPI xarray xrtArrayCreate(uint32 iItemLength);
+	
+	// 销毁数组
+	XXAPI void xrtArrayDestroy(xarray pArr);
+	
+	// 初始化数组的数据结构 ( 用于内嵌数组的对象使用 )
+	XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength);
+	
+	// 释放数组的数据结构 ( 但不会释放数组结构体本身的内存，用于内嵌数组的对象使用 )
+	XXAPI void xrtArrayUnit(xarray pArr);
+	
+	// 分配内存
+	XXAPI int xrtArrayAlloc(xarray pArr, uint32 iCount);
+	
+	// 中间插入成员
+	XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount);
+	
+	// 末尾添加成员
+	XXAPI uint32 xrtArrayAppend(xarray pArr, uint32 iCount);
+	
+	// 交换成员
+	XXAPI int xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB);
+	
+	// 删除成员
+	XXAPI int xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount);
+	
+	// 删除所有成员
+	#define xrtArrayRemoveAll xrtArrayUnit
+	
+	// 清空管理器
+	#define xrtArrayClear xrtArrayUnit
+	
+	// 获取成员数据指针
+	XXAPI ptr xrtArrayGet(xarray pArr, uint32 iPos);
+	XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos);
+	static inline ptr xrtArrayGet_Inline(xarray pArr, uint32 iPos)
+	{
+		return &(pObject->Memory[(iPos - 1) * pObject->ItemLength]);
+	}
+	
+	// 直接插入指针数据
+	XXAPI uint32 xrtArrayInsertPtr(xarray pArr, uint32 iPos, ptr pData);
+	
+	// 直接末尾添加指针数据
+	XXAPI uint32 xrtArrayAppendPtr(xarray pArr, ptr pData);
+	
+	// 直接修改对应的指针数据
+	XXAPI int xrtArraySetPtr(xarray pArr, uint32 iPos, ptr pData);
+	
+	// 直接获取对应的指针数据
+	XXAPI ptr xrtArrayGetPtr(xarray pArr, uint32 iPos);
+	
+	// 成员排序
+	XXAPI int xrtArraySort(xarray pArr, ptr procCompar);
+	
 	
 	
 	/* ------------------------------------ List 函数库 ------------------------------------ */
