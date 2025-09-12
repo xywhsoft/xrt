@@ -581,6 +581,21 @@
 	
 	
 	
+	/* ------------------------------------ Thread 函数库 ------------------------------------ */
+	
+	// 线程数据结构
+	typedef struct {
+		ptr Handle;
+		uint32 TID;
+		uint32 (*Proc)(ptr param);
+		ptr Param;
+	} xthread_struct, *xthread;
+	
+	// 创建线程
+	XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize);
+	
+	
+	
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
 	
 	/*

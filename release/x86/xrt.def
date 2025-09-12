@@ -131,6 +131,8 @@ xrtSplit
 xrtStart
 xrtTell
 xrtTempMemory
+xrtThreadCreate
+xrtThreadWait
 xrtTime
 xrtTimeSerial
 xrtTimeStr

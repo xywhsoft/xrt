@@ -5,9 +5,11 @@
 XXAPI xarray xrtArrayCreate(uint32 iItemLength)
 {
 	xarray pArr = xrtMalloc(sizeof(xarray_struct));
-	if ( pArr ) {
-		xrtArrayInit(pArr, iItemLength);
+	if ( pArr == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return NULL;
 	}
+	xrtArrayInit(pArr, iItemLength);
 	return pArr;
 }
 
@@ -79,11 +81,7 @@ XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount)
 	if ( iCount == 0 ) { iCount = 1; }
 	// 分配内存
 	if ( (pArr->Count + iCount) > pArr->AllocCount ) {
-		int AddCount = pArr->AllocStep;
-		if ( iCount > AddCount ) {
-			AddCount += iCount;
-		}
-		if ( xrtArrayAlloc(pArr, pArr->Count + AddCount) == 0 ) {
+		if ( xrtArrayAlloc(pArr, pArr->Count + iCount + pArr->AllocStep) == FALSE ) {
 			return 0;
 		}
 	}
@@ -119,15 +117,16 @@ XXAPI int xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB)
 	// 交换成员
 	iPosA--;
 	iPosB--;
-	void* pStuA = xrtMalloc(pArr->ItemLength);
-	if ( pStuA ) {
-		memmove(pStuA, pArr->Memory + (iPosA * pArr->ItemLength), pArr->ItemLength);
-		memmove(pArr->Memory + (iPosA * pArr->ItemLength), pArr->Memory + (iPosB * pArr->ItemLength), pArr->ItemLength);
-		memmove(pArr->Memory + (iPosB * pArr->ItemLength), pStuA, pArr->ItemLength);
-		xrtFree(pStuA);
-		return TRUE;
+	void* pTemp = xrtMalloc(pArr->ItemLength);
+	if ( pTemp == NULL ) {
+		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
+		return FALSE;
 	}
-	return FALSE;
+	memmove(pTemp, pArr->Memory + (iPosA * pArr->ItemLength), pArr->ItemLength);
+	memmove(pArr->Memory + (iPosA * pArr->ItemLength), pArr->Memory + (iPosB * pArr->ItemLength), pArr->ItemLength);
+	memmove(pArr->Memory + (iPosB * pArr->ItemLength), pTemp, pArr->ItemLength);
+	xrtFree(pTemp);
+	return TRUE;
 }
 
 // 删除成员
@@ -171,25 +170,55 @@ XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 // 直接插入指针数据
 XXAPI uint32 xrtArrayInsertPtr(xarray pArr, uint32 iPos, ptr pData)
 {
-	return 0;
+	// 分配内存
+	if ( (pArr->Count + 1) > pArr->AllocCount ) {
+		if ( xrtArrayAlloc(pArr, pArr->Count + 1 + pArr->AllocStep) == FALSE ) {
+			return 0;
+		}
+	}
+	if ( iPos < pArr->Count ) {
+		// 插入模式（需要移动内存）
+		void* dst = pArr->Memory + ((iPos + 1) * pArr->ItemLength);
+		void* src = pArr->Memory + (iPos * pArr->ItemLength);
+		memmove(dst, src, (pArr->Count - iPos) * pArr->ItemLength);
+		ptr* pMEM = (ptr*)&(pArr->Memory[iPos * pArr->ItemLength]);
+		pMEM[0] = pData;
+		pArr->Count++;
+		return iPos + 1;
+	} else {
+		// 追加模式
+		ptr* pMEM = (ptr*)&(pArr->Memory[pArr->Count * pArr->ItemLength]);
+		pMEM[0] = pData;
+		pArr->Count++;
+		return pArr->Count;
+	}
 }
 
 // 直接末尾添加指针数据
 XXAPI uint32 xrtArrayAppendPtr(xarray pArr, ptr pData)
 {
-	return 0;
+	return xrtArrayInsertPtr(pArr, pArr->Count, pData);
 }
 
 // 直接修改对应的指针数据
 XXAPI int xrtArraySetPtr(xarray pArr, uint32 iPos, ptr pData)
 {
-	return 0;
+	if ( iPos == 0 ) { return FALSE; }
+	if ( iPos > pArr->Count ) { return FALSE; }
+	iPos--;
+	ptr* pMEM = (ptr*)&(pArr->Memory[iPos * pArr->ItemLength]);
+	pMEM[0] = pData;
+	return TRUE;
 }
 
 // 直接获取对应的指针数据
 XXAPI ptr xrtArrayGetPtr(xarray pArr, uint32 iPos)
 {
-	return NULL;
+	if ( iPos == 0 ) { return NULL; }
+	if ( iPos > pArr->Count ) { return NULL; }
+	iPos--;
+	ptr* pMEM = (ptr*)&(pArr->Memory[iPos * pArr->ItemLength]);
+	return pMEM[0];
 }
 
 // 成员排序
