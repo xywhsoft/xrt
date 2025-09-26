@@ -5,6 +5,11 @@ memmem
 u16len
 u32len
 xCore
+xrtAVLTB_Insert
+xrtAVLTB_Remove
+xrtAVLTB_Search
+xrtAVLTB_WalkExRecuProc
+xrtAVLTB_WalkRecuProc
 xrtArrayAlloc
 xrtArrayAppend
 xrtArrayAppendPtr
