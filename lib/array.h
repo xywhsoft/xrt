@@ -6,7 +6,6 @@ XXAPI xarray xrtArrayCreate(uint32 iItemLength)
 {
 	xarray pArr = xrtMalloc(sizeof(xarray_struct));
 	if ( pArr == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return NULL;
 	}
 	xrtArrayInit(pArr, iItemLength);
@@ -119,7 +118,6 @@ XXAPI int xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB)
 	iPosB--;
 	void* pTemp = xrtMalloc(pArr->ItemLength);
 	if ( pTemp == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return FALSE;
 	}
 	memmove(pTemp, pArr->Memory + (iPosA * pArr->ItemLength), pArr->ItemLength);

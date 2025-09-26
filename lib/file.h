@@ -27,7 +27,6 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		}
 		xfile objFile = xrtMalloc(sizeof(xfile_struct));
 		if ( objFile == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			CloseHandle(hFile);
 			return NULL;
 		}
@@ -48,7 +47,6 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				size_t iReadSize = stuSize.QuadPart > 65536 ? 65536 : stuSize.QuadPart;
 				str sText = xrtMalloc(iReadSize);
 				if ( objFile == NULL ) {
-					xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 					CloseHandle(hFile);
 					xrtFree(objFile);
 					return NULL;
@@ -148,7 +146,6 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		}
 		xfile objFile = xrtMalloc(sizeof(xfile_struct));
 		if ( objFile == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			close(fd);
 			return NULL;
 		}
@@ -169,7 +166,6 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				size_t iReadSize = fileStat.st_size > 65536 ? 65536 : fileStat.st_size;
 				str sText = xrtMalloc(iReadSize);
 				if ( objFile == NULL ) {
-					xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 					close(fd);
 					xrtFree(objFile);
 					return NULL;
@@ -465,7 +461,6 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 			str sBuff = xrtMalloc(iSize + 4);
 			if ( sBuff == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -504,7 +499,6 @@ XXAPI str xrtRead(xfile objFile, size_t iSize)
 			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 			str sBuff = xrtMalloc(iSize + 4);
 			if ( sBuff == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -623,7 +617,6 @@ XXAPI ptr xrtGet(xfile objFile, size_t iSize)
 			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 			str sBuff = xrtMalloc(iSize);
 			if ( sBuff == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -649,7 +642,6 @@ XXAPI ptr xrtGet(xfile objFile, size_t iSize)
 			if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 			str sBuff = xrtMalloc(iSize);
 			if ( sBuff == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -844,7 +836,6 @@ XXAPI ptr xrtFileGetAll(str sPath)
 		}
 		str pBuff = xrtMalloc(stuSize.QuadPart + 1);
 		if ( pBuff == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			CloseHandle(hFile);
 			xCore.iRet = 0;
 			return xCore.sNull;
@@ -880,7 +871,6 @@ XXAPI ptr xrtFileGetAll(str sPath)
 		}
 		str pBuff = xrtMalloc(fileStat.st_size + 1);
 		if ( pBuff == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			close(fd);
 			xCore.iRet = 0;
 			return xCore.sNull;
@@ -1197,7 +1187,6 @@ XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite)
 		}
 		str sText = xrtMalloc(fileStat.st_size);
 		if ( sText == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			close(fsrc);
 			close(fdst);
 			return FALSE;
@@ -1457,7 +1446,6 @@ XXAPI int xrtDirCreateAll(str sPath)
 		if ( iSize == 0 ) { return FALSE; }
 		u16str sCurPath = xrtMalloc((iSize + 1) * sizeof(wchar_t));
 		if ( sCurPath == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			xrtFree(sPathW);
 			return FALSE;
 		}
@@ -1483,7 +1471,6 @@ XXAPI int xrtDirCreateAll(str sPath)
 		if ( iSize == 0 ) { return FALSE; }
 		str sCurPath = xrtMalloc(iSize + 1);
 		if ( sCurPath == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			return FALSE;
 		}
 		size_t iCurPos = 0;

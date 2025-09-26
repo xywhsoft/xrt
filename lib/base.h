@@ -4,7 +4,11 @@
 // 申请内存
 XXAPI ptr xrtMalloc(size_t iSize)
 {
-	return xCore.malloc(iSize);
+	ptr mem = xCore.malloc(iSize);
+	if ( mem == NULL ) {
+		xrtSetError("memory allocate failed.", FALSE);
+	}
+	return mem;
 }
 
 
@@ -12,7 +16,11 @@ XXAPI ptr xrtMalloc(size_t iSize)
 // 申请类内存
 XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 {
-	return xCore.calloc(iNum, iSize);
+	ptr mem = xCore.calloc(iNum, iSize);
+	if ( mem == NULL ) {
+		xrtSetError("memory (class) allocate failed.", FALSE);
+	}
+	return mem;
 }
 
 
@@ -20,7 +28,11 @@ XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 // 重新申请内存
 XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 {
-	return xCore.realloc(pMem, iSize);
+	ptr mem = xCore.realloc(pMem, iSize);
+	if ( mem == NULL ) {
+		xrtSetError("memory reallocate failed.", FALSE);
+	}
+	return mem;
 }
 
 
@@ -39,7 +51,6 @@ XXAPI ptr xrtTempMemory(size_t iSize)
 	// 申请内存
 	ptr pMem = xrtMalloc(iSize);
 	if ( pMem == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return NULL;
 	}
 	// 释放过期内存

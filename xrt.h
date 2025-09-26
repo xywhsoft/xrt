@@ -133,11 +133,6 @@
 		ptr (*realloc)(ptr pMem, size_t iSize);
 		void (*free)(ptr pMem);
 		
-		// 内置通用错误描述
-		struct {
-			str MALLOC;
-		} ERROR_DESC;
-		
 	} xrtGlobalData;
 	
 	// 全局数据

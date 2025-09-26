@@ -56,7 +56,6 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize)
 	// 申请所需内存
 	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u16str)xCore.sNull;
 	}
@@ -129,7 +128,6 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize)
 	// 申请所需内存
 	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u32str)xCore.sNull;
 	}
@@ -216,7 +214,6 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize)
 	// 申请所需内存
 	u8str sRet = xrtMalloc(iPos + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -285,7 +282,6 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize)
 	// 申请所需内存
 	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u32str)xCore.sNull;
 	}
@@ -358,7 +354,6 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize)
 	// 申请所需内存
 	u8str sRet = xrtMalloc(iPos + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -442,7 +437,6 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize)
 	// 申请所需内存
 	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u16str)xCore.sNull;
 	}
@@ -623,7 +617,6 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			}
 			str sRet = xrtMalloc(iRet + 1);
 			if ( sRet == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -642,7 +635,6 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			}
 			str sRet = xrtMalloc(iRet + 1);
 			if ( sRet == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -661,7 +653,6 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			}
 			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
 			if ( sRet == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -679,7 +670,6 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			}
 			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
 			if ( sRet == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -699,7 +689,6 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			}
 			u16str sRetW = xrtMalloc((iRetW + 1) * sizeof(unsigned short));
 			if ( sRetW == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -714,7 +703,6 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP)
 			}
 			str sRet = xrtMalloc(iRet + 1);
 			if ( sRet == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				xrtFree(sRetW);
 				return xCore.sNull;

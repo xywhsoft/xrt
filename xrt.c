@@ -148,9 +148,6 @@ XXAPI xrtGlobalData* xrtInit()
 	uint64 highseq = ((uint64)highseq_high << 32) | (uint64)highseq_low;
 	xrtSetRandSeed64(lowseed, lowseq, highseed, highseq);
 	
-	// 设置内置的错误描述（便于复用）
-	xCore.ERROR_DESC.MALLOC = "Memory allocate error !";
-	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)
 		u16str sTemp = malloc(4096 * sizeof(wchar_t));

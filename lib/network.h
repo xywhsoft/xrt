@@ -40,7 +40,6 @@ str xrtGetLocalMAC()
 		ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
 		PIP_ADAPTER_INFO pAdapterInfo = xrtMalloc(sizeof(IP_ADAPTER_INFO));
 		if ( pAdapterInfo == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			xCore.iRet = 0;
 			return xCore.sNull;
 		}
@@ -49,7 +48,6 @@ str xrtGetLocalMAC()
 			xrtFree(pAdapterInfo);
 			pAdapterInfo = xrtMalloc(ulOutBufLen);
 			if ( pAdapterInfo == NULL ) {
-				xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 				xCore.iRet = 0;
 				return xCore.sNull;
 			}
@@ -119,7 +117,6 @@ void test()
 	ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
 	PIP_ADAPTER_INFO pAdapterInfo = xrtMalloc(sizeof(IP_ADAPTER_INFO));
 	if ( pAdapterInfo == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -128,7 +125,6 @@ void test()
 		xrtFree(pAdapterInfo);
 		pAdapterInfo = xrtMalloc(ulOutBufLen);
 		if ( pAdapterInfo == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			xCore.iRet = 0;
 			return xCore.sNull;
 		}

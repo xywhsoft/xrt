@@ -22,7 +22,6 @@ XXAPI xid xrtMakeXID()
 {
 	xid pXID = xrtMalloc(24);
 	if ( pXID == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return NULL;
 	}
 	// 获取高精度时钟

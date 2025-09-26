@@ -6,7 +6,6 @@ XXAPI xbuffer xrtBufferCreate(unsigned int iAllocLength, unsigned int iStep)
 {
 	xbuffer pBuf = xrtMalloc(sizeof(xbuffer_struct));
 	if ( pBuf == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return NULL;
 	}
 	xrtBufferInit(pBuf, iAllocLength, iStep);

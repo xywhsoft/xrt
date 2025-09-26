@@ -9,7 +9,6 @@ XXAPI str xrtCopyStr(str sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	str sRet = xrtMalloc(iSize + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -25,7 +24,6 @@ XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
 	u16str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u16str)xCore.sNull;
 	}
@@ -41,7 +39,6 @@ XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
 	u32str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (u32str)xCore.sNull;
 	}
@@ -706,7 +703,6 @@ XXAPI str xrtFormat(str sFormat, ...)
 	if ( iSize > 0 ) {
 		str sRet = xrtMalloc(iSize + 1);
 		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			xCore.iRet = 0;
 			return xCore.sNull;
 		}
@@ -745,7 +741,6 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	size_t iRetSize = iSize + iFindCount * (iRepSize - iSubSize);
 	str sRet = (str)xrtMalloc(iRetSize + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return (str)xCore.sNull;
 	}
@@ -806,14 +801,12 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, int 
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc( (iCount + 2) * sizeof(ptr) );
 		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_nullstr;
 		}
 		pData = sText;
 	} else {
 		sRet = xrtMalloc( ((iCount + 2) * sizeof(ptr)) + (iSize - ((iSepSize - 1) * iCount)) + 1 );
 		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_nullstr;
 		}
 		pData = (str)&sRet[iCount + 2];
@@ -865,7 +858,6 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, int 
 return_nullstr:
 	sRet = xrtMalloc(2 * sizeof(void*));
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		goto return_error;
 	}
 	sRet[0] = xCore.sNull;
@@ -878,14 +870,12 @@ return_nullsep:
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc(2 * sizeof(void*));
 		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_error;
 		}
 		sRet[0] = sText;
 	} else {
 		sRet = xrtMalloc((2 * sizeof(void*)) + iSize + 1);
 		if ( sRet == NULL ) {
-			xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 			goto return_error;
 		}
 		str sTextRef = (str)&sRet[2];
@@ -916,7 +906,6 @@ XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 	iSize--;
 	str sRet = xrtMalloc(iLen + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		return xCore.sNull;
 	}
 	for ( int i = 0; i < iLen; i++ ) {
@@ -938,7 +927,6 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	str sRet = xrtMalloc((iSize * 2) + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -966,7 +954,6 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	str sRet = xrtMalloc((iSize / 2) + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -995,7 +982,6 @@ str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 	size_t iRet= 4 * ((iSize + 2) / 3);
 	str sRet = xrtMalloc(iRet + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -1059,7 +1045,6 @@ ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 	// 申请返回值内存
 	str sRet = xrtMalloc(iRet + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}

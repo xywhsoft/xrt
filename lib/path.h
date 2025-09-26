@@ -132,7 +132,6 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	str sRet = xrtMalloc(iSize + 1);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
@@ -159,7 +158,6 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 	if ( iCount == 0 ) { xCore.iRet = 0; return xCore.sNull; }
 	str sRet = xrtMalloc(4096);
 	if ( sRet == NULL ) {
-		xrtSetError(xCore.ERROR_DESC.MALLOC, FALSE);
 		xCore.iRet = 0;
 		return xCore.sNull;
 	}
