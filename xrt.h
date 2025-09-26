@@ -683,6 +683,48 @@
 	
 	/* ------------------------------------ Buffer 函数库 ------------------------------------ */
 	
+	// 内容类型
+	#define XBUFFER_BINARY 0					// 二进制
+	#define XBUFFER_ANSI 1						// ANSI 字符串
+	#define XBUFFER_UTF8 1						// UTF8 字符串
+	#define XBUFFER_UTF16 2						// UTF16 字符串
+	#define XBUFFER_UTF32 4						// UTF32 字符串
+	
+	// 默认增量长度
+	#define XBUFFER_ALLOC_STEP 0x10000
+	
+	// 内存缓冲区管理单元数据结构
+	typedef struct {
+		char* Buffer;							// 内存缓冲区
+		unsigned int Length;					// 内存长度
+		unsigned int AllocLength;				// 已申请内存长度
+		unsigned int AllocStep;					// 预分配内存步长
+	} xbuffer_struct, *xbuffer;
+	
+	// 创建内存缓冲区管理器
+	XXAPI xbuffer xrtBufferCreate(unsigned int iAllocLength, unsigned int iStep);
+	
+	// 销毁内存缓冲区管理器
+	XXAPI void xrtBufferDestroy(xbuffer pBuf);
+	
+	// 初始化缓冲区管理器（对自维护结构体指针使用）
+	XXAPI void xrtBufferInit(xbuffer pBuf, unsigned int iAllocLength, unsigned int iStep);
+	
+	// 释放缓冲区管理器（对自维护结构体指针使用）
+	XXAPI void xrtBufferUnit(xbuffer pBuf);
+	
+	// 分配内存
+	XXAPI int xrtBufferMalloc(xbuffer pBuf, unsigned int iCount);
+	
+	// 中间添加数据（可以复制或者开辟新的数据区，不会自动将新开辟的数据区填充 \0）
+	XXAPI int xrtBufferInsert(xbuffer pBuf, unsigned int iPos, void* pData, unsigned int iSize, unsigned int bStrMode);
+	
+	// 末尾添加数据
+	XXAPI int xrtBufferAppend(xbuffer pBuf, void* pData, unsigned int iSize, unsigned int bStrMode);
+	
+	// 清空管理单元
+	#define xrtBufferClear xrtBufferUnit
+	
 	
 	
 	/* ------------------------------------ Array 函数库 ------------------------------------ */
