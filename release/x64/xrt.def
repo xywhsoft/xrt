@@ -12,6 +12,7 @@ xrtArrayCreate
 xrtArrayDestroy
 xrtArrayGet
 xrtArrayGetPtr
+xrtArrayGetPtr_Unsafe
 xrtArrayGet_Unsafe
 xrtArrayInit
 xrtArrayInsert

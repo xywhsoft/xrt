@@ -737,7 +737,7 @@
 	XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos);
 	static inline ptr xrtArrayGet_Inline(xarray pArr, uint32 iPos)
 	{
-		return &(pObject->Memory[(iPos - 1) * pObject->ItemLength]);
+		return &(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
 	}
 	
 	// 直接插入指针数据

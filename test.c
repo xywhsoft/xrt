@@ -19,7 +19,7 @@
 #include "test/test_network.h"
 #include "test/test_other.h"
 #include "test/test_array_ptr.h"
-//#include "test/test_array_struct.h"
+#include "test/test_array_struct.h"
 
 
 
@@ -65,7 +65,10 @@ int main(int argc, char** argv)
 	// Test_Network(xCore);
 	
 	/* 指针数组测试 */
-	Test_Array_Ptr(xCore);
+	// Test_Array_Ptr(xCore);
+	
+	/* 结构体数组测试 */
+	Test_Array_Struct(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
