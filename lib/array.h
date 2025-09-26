@@ -220,6 +220,11 @@ XXAPI ptr xrtArrayGetPtr(xarray pArr, uint32 iPos)
 	ptr* pMEM = (ptr*)&(pArr->Memory[iPos * pArr->ItemLength]);
 	return pMEM[0];
 }
+XXAPI ptr xrtArrayGetPtr_Unsafe(xarray pArr, uint32 iPos)
+{
+	ptr* pMEM = (ptr*)&(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
+	return pMEM[0];
+}
 
 // 成员排序
 XXAPI int xrtArraySort(xarray pArr, ptr procCompar)
