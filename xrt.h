@@ -672,117 +672,6 @@
 	
 	
 	
-	/* ------------------------------------ AVLTree Base 函数库 ------------------------------------ */
-	
-	// AVL树最大高度
-	#define AVLTree_MAX_HEIGHT  48
-	
-	// AVL树节点基础定义
-	typedef struct AVLTree_NodeBase {
-		struct AVLTree_NodeBase* left;
-		struct AVLTree_NodeBase* right;
-		int height;
-	} AVLTree_NodeBase;
-	
-	// 获取 AVLTree_NodeBase 结构体指针
-	#define xrtAVLTree_GetNodeBase(p) ((AVLTree_NodeBase*)((void*)p - sizeof(AVLTree_NodeBase)))
-	
-	// 获取 AVLTree_NodeBase 结构体指针对应的数据段
-	#define xrtAVLTree_GetNodeData(p) ((void*)(&p[1]))
-	
-	// 获取根节点数据段
-	#define xrtAVLTree_GetRootData(obj) AVLTree_GetNodeData(obj->RootNode)
-	
-	// 比较回调函数
-	typedef int (*AVLTree_CompProc)(void* pNode, void* pKey);
-	
-	// 遍历回调函数
-	typedef int (*AVLTree_EachProc)(void* pNode, void* pArg);
-	
-	// AVL树对象数据结构
-	typedef struct {
-		AVLTree_NodeBase* RootNode;
-		unsigned int Count;
-	} AVLTree_BaseStruct, *AVLTree_BaseObject;
-	
-	// 初始化 AVLTree
-	#define xrtAVLTB_Init(o) (o)->RootNode = NULL; (o)->Count = 0
-	
-	// 释放 AVLTree
-	#define xrtAVLTB_Unit AVLTB_Init
-	
-	// 向 AVLTree 中插入节点
-	XXAPI AVLTree_NodeBase* xrtAVLTB_Insert(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey, AVLTree_NodeBase* pNewNode);
-	
-	// 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
-	XXAPI AVLTree_NodeBase* xrtAVLTB_Remove(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey);
-	
-	// 在 AVLTree 中查找节点
-	XXAPI AVLTree_NodeBase* xrtAVLTB_Search(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey);
-	
-	// 删除所有成员
-	#define xrtAVLTB_RemoveAll xrtAVLTB_Unit
-	
-	// 清空管理器
-	#define xrtAVLTB_Clear xrtAVLTB_Unit
-	
-	// 遍历 AVLTree 所有节点
-	XXAPI int xrtAVLTB_WalkRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procEach, void* pArg);
-	XXAPI int xrtAVLTB_WalkExRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg);
-	#define xrtAVLTB_Walk(obj, p, a) AVLTB_WalkRecuProc(obj->RootNode, (void*)p, (void*)a)
-	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) AVLTB_WalkExRecuProc(obj->RootNode, (void*)p1, (void*)p2, (void*)p3, (void*)a)
-	
-	
-	
-	/* ------------------------------------ AVLTree 函数库 ------------------------------------ */
-	/*
-	// 值释放回调函数
-	typedef void (*AVLTree_FreeProc)(void* objTree, void* pNode);
-	
-	// AVL树对象数据结构
-	typedef struct {
-		AVLTree_NodeBase* RootNode;
-		unsigned int Count;
-		AVLTree_CompProc CompProc;
-		AVLTree_FreeProc FreeProc;
-		MM256_Struct objMM;
-		void* ExtData;
-		AVLTree_NodeBase* NodeCache;
-	} AVLTree_Struct, *AVLTree_Object;
-	
-	// 创建 AVLTree
-	XXAPI AVLTree_Object AVLTree_Create(unsigned int iItemLength, AVLTree_CompProc procComp);
-	
-	// 销毁 AVLTree
-	XXAPI void AVLTree_Destroy(AVLTree_Object objAVLT);
-	
-	// 初始化 AVLTree（对自维护结构体指针使用，和 AVLTree_Create 功能类似）
-	XXAPI void AVLTree_Init(AVLTree_Object objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp);
-	
-	// 释放 AVLTree（对自维护结构体指针使用，和 AVLTree_Destroy 功能类似）
-	XXAPI void AVLTree_Unit(AVLTree_Object objAVLT);
-	
-	// 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
-	XXAPI void* AVLTree_Insert(AVLTree_Object objAVLT, void* pKey, int* bNew);
-	
-	// 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
-	XXAPI int AVLTree_Remove(AVLTree_Object objAVLT, void* pKey);
-	
-	// 在 AVLTree 中查找节点
-	XXAPI void* AVLTree_Search(AVLTree_Object objAVLT, void* pKey);
-	
-	// 删除所有成员
-	#define AVLTree_RemoveAll AVLTree_Unit
-	
-	// 清空管理器
-	#define AVLTree_Clear AVLTree_Unit
-	
-	// 遍历 AVLTree 所有节点
-	#define AVLTree_Walk AVLTB_Walk
-	#define AVLTree_WalkEx AVLTB_WalkEx
-	*/
-	
-	
 	/* ------------------------------------ Buffer 函数库 ------------------------------------ */
 	
 	// 内容类型
@@ -907,7 +796,97 @@
 	
 	
 	
+	/* ------------------------------------ AVLTree Base 函数库 ------------------------------------ */
+	
+	// AVL树最大高度
+	#define AVLTree_MAX_HEIGHT  48
+	
+	// AVL树节点基础定义
+	typedef struct AVLTree_NodeBase {
+		struct AVLTree_NodeBase* left;
+		struct AVLTree_NodeBase* right;
+		int height;
+	} AVLTree_NodeBase;
+	
+	// AVL树对象数据结构
+	typedef struct {
+		AVLTree_NodeBase* RootNode;
+		unsigned int Count;
+	} AVLTree_BaseStruct, *AVLTree_BaseObject;
+	
+	// 比较回调函数
+	typedef int (*AVLTree_CompProc)(void* pNode, void* pKey);
+	
+	// 遍历回调函数
+	typedef int (*AVLTree_EachProc)(void* pNode, void* pArg);
+	
+	// 获取 AVLTree_NodeBase 结构体指针
+	#define xrtAVLTree_GetNodeBase(p) ((AVLTree_NodeBase*)((void*)p - sizeof(AVLTree_NodeBase)))
+	
+	// 获取 AVLTree_NodeBase 结构体指针对应的数据段
+	#define xrtAVLTree_GetNodeData(p) ((void*)(&p[1]))
+	
+	// 获取根节点数据段
+	#define xrtAVLTree_GetRootData(obj) xrtAVLTree_GetNodeData(obj->RootNode)
+	
+	// 初始化 AVLTree
+	#define xrtAVLTB_Init(o) (o)->RootNode = NULL; (o)->Count = 0
+	
+	// 释放 AVLTree
+	#define xrtAVLTB_Unit AVLTB_Init
+	
+	// 向 AVLTree 中插入节点
+	XXAPI AVLTree_NodeBase* xrtAVLTB_Insert(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey, AVLTree_NodeBase* pNewNode);
+	
+	// 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
+	XXAPI AVLTree_NodeBase* xrtAVLTB_Remove(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey);
+	
+	// 在 AVLTree 中查找节点
+	XXAPI AVLTree_NodeBase* xrtAVLTB_Search(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey);
+	
+	// 删除所有成员
+	#define xrtAVLTB_RemoveAll xrtAVLTB_Unit
+	
+	// 清空管理器
+	#define xrtAVLTB_Clear xrtAVLTB_Unit
+	
+	// 遍历 AVLTree 所有节点
+	XXAPI int xrtAVLTB_WalkRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procEach, void* pArg);
+	XXAPI int xrtAVLTB_WalkExRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg);
+	#define xrtAVLTB_Walk(obj, p, a) AVLTB_WalkRecuProc(obj->RootNode, (void*)p, (void*)a)
+	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) AVLTB_WalkExRecuProc(obj->RootNode, (void*)p1, (void*)p2, (void*)p3, (void*)a)
+	
+	
+	
 	/* ------------------------------------ Stack 函数库 ------------------------------------ */
+	
+	// 结构体静态栈数据结构
+	typedef struct {
+		char* Memory;						// 栈数据内存指针
+		unsigned int ItemLength;			// 栈成员占用内存长度
+		unsigned int MaxCount;				// 栈最大可以容纳多少成员（栈深度）
+		unsigned int Count;					// 栈中存在多少成员（栈顶位置）
+	} SSSTK_Struct, *SSSTK_Object;
+	
+	// 创建结构体静态栈
+	XXAPI SSSTK_Object SSSTK_Create(unsigned int iMaxCount, unsigned int iItemLength);
+	
+	// 销毁结构体静态栈
+	#define SSSTK_Destroy mmu_free
+	
+	// 压栈
+	XXAPI void* SSSTK_Push(SSSTK_Object objSTK);
+	XXAPI unsigned int SSSTK_PushData(SSSTK_Object objSTK, void* pData);
+	
+	// 出栈
+	XXAPI void* SSSTK_Pop(SSSTK_Object objSTK);
+	
+	// 获取栈顶对象
+	XXAPI void* SSSTK_Top(SSSTK_Object objSTK);
+	
+	// 获取任意位置对象
+	XXAPI void* SSSTK_GetPos(SSSTK_Object objSTK, unsigned int iPos);
+	XXAPI void* SSSTK_GetPos_Unsafe(SSSTK_Object objSTK, unsigned int iPos);
 	
 	
 	
@@ -916,6 +895,56 @@
 	
 	
 	/* ------------------------------------ Memory Pool 函数库 ------------------------------------ */
+	
+	
+	
+	/* ------------------------------------ AVLTree 函数库 ------------------------------------ */
+	/*
+	// 值释放回调函数
+	typedef void (*AVLTree_FreeProc)(void* objTree, void* pNode);
+	
+	// AVL树对象数据结构
+	typedef struct {
+		AVLTree_NodeBase* RootNode;
+		unsigned int Count;
+		AVLTree_CompProc CompProc;
+		AVLTree_FreeProc FreeProc;
+		MM256_Struct objMM;
+		void* ExtData;
+		AVLTree_NodeBase* NodeCache;
+	} AVLTree_Struct, *AVLTree_Object;
+	
+	// 创建 AVLTree
+	XXAPI AVLTree_Object AVLTree_Create(unsigned int iItemLength, AVLTree_CompProc procComp);
+	
+	// 销毁 AVLTree
+	XXAPI void AVLTree_Destroy(AVLTree_Object objAVLT);
+	
+	// 初始化 AVLTree（对自维护结构体指针使用，和 AVLTree_Create 功能类似）
+	XXAPI void AVLTree_Init(AVLTree_Object objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp);
+	
+	// 释放 AVLTree（对自维护结构体指针使用，和 AVLTree_Destroy 功能类似）
+	XXAPI void AVLTree_Unit(AVLTree_Object objAVLT);
+	
+	// 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
+	XXAPI void* AVLTree_Insert(AVLTree_Object objAVLT, void* pKey, int* bNew);
+	
+	// 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
+	XXAPI int AVLTree_Remove(AVLTree_Object objAVLT, void* pKey);
+	
+	// 在 AVLTree 中查找节点
+	XXAPI void* AVLTree_Search(AVLTree_Object objAVLT, void* pKey);
+	
+	// 删除所有成员
+	#define AVLTree_RemoveAll AVLTree_Unit
+	
+	// 清空管理器
+	#define AVLTree_Clear AVLTree_Unit
+	
+	// 遍历 AVLTree 所有节点
+	#define AVLTree_Walk AVLTB_Walk
+	#define AVLTree_WalkEx AVLTB_WalkEx
+	*/
 	
 	
 	

@@ -1,6 +1,13 @@
 LIBRARY xrt.dll
 
 EXPORTS
+SSSTK_Create
+SSSTK_GetPos
+SSSTK_GetPos_Unsafe
+SSSTK_Pop
+SSSTK_Push
+SSSTK_PushData
+SSSTK_Top
 memmem
 u16len
 u32len
