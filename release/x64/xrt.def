@@ -115,6 +115,11 @@ xrtLTrim
 xrtMakeXID
 xrtMakeXIDS
 xrtMalloc
+xrtMemUnitAlloc
+xrtMemUnitCreate
+xrtMemUnitFree
+xrtMemUnitFreeIdx
+xrtMemUnitGC
 xrtMinute
 xrtMonth
 xrtNow

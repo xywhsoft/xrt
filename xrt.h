@@ -894,6 +894,61 @@
 	
 	
 	
+	/* ------------------------------------ Memory Unit 函数库 ------------------------------------ */
+	
+	// 内存固定的前置数据（用于识别内存是哪个管理器分配的）
+	typedef struct {
+		unsigned int ItemFlag;
+	} MMU_Value, *MMU_ValuePtr;
+	
+	// MMU有效ID区间掩码
+	#define MMU_FLAG_MASK				0x3FFFFFFF
+	
+	// 结构体使用状态标记
+	#define MMU_FLAG_USE				0x80000000
+	
+	// GC回收标记位
+	#define MMU_FLAG_GC					0x40000000
+	
+	// 非内存管理器管理的内存
+	#define MMU_FLAG_EXT				0xBFFFFFFF
+	
+	// MM256 or MM64K GC标记
+	#define xrtMemUnitGC_Mark(p) ((MMU_ValuePtr)((void*)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC
+	
+	// 数据管理单元数据结构
+	typedef struct {
+		unsigned char FreeList[256];				// 已释放成员列表
+		unsigned int ItemLength;					// 成员占用内存长度
+		unsigned short Count;						// 成员数量
+		unsigned char FreeCount;					// 已释放成员数量
+		unsigned char FreeOffset;					// 首个已释放成员在列表中的偏移位置
+		unsigned int Flag;							// 值的 Flag 前缀（由上级管理器下发，0-255 区间会被 idx 覆盖）
+		char Memory[];								// 数据
+	} MMU_Struct, *MMU_Object;
+	
+	// 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
+	XXAPI MMU_Object xrtMemUnitCreate(unsigned int iItemLength);
+	
+	// 销毁内存管理单元
+	#define xrtMemUnitDestroy xrtFree
+	
+	// 从内存管理单元中申请一个元素
+	XXAPI void* xrtMemUnitAlloc(MMU_Object objUnit);
+	
+	// 释放内存管理单元中某个元素（FreeIdx不会清空 ItemFlag，建议由调用方负责清空）
+	XXAPI int xrtMemUnitFreeIdx(MMU_Object objUnit, unsigned char idx);
+	XXAPI int xrtMemUnitFree(MMU_Object objUnit, void* obj);
+	
+	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
+	XXAPI int xrtMemUnitGC(MMU_Object objUnit, int bFreeMark);
+	
+	
+	
+	/* ------------------------------------ Memory Manager 函数库 ------------------------------------ */
+	
+	
+	
 	/* ------------------------------------ Memory Pool 函数库 ------------------------------------ */
 	
 	

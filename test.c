@@ -20,6 +20,7 @@
 #include "test/test_other.h"
 #include "test/test_array_ptr.h"
 #include "test/test_array_struct.h"
+#include "test/test_memunit.h"
 
 
 
@@ -68,7 +69,10 @@ int main(int argc, char** argv)
 	// Test_Array_Ptr(xCore);
 	
 	/* 结构体数组测试 */
-	Test_Array_Struct(xCore);
+	// Test_Array_Struct(xCore);
+	
+	/* 内存管理单元测试 */
+	Test_MemUnit(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);

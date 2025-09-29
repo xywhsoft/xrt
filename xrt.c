@@ -67,6 +67,8 @@ xrtGlobalData xCore = { FALSE };
 //#include "lib/avltree.h"
 #include "lib/collect.h"
 #include "lib/array.h"
+#include "lib/memunit.h"
+#include "lib/mempool_fs.h"
 #include "lib/mempool.h"
 #include "lib/list.h"
 #include "lib/table.h"
