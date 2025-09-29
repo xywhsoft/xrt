@@ -12,6 +12,8 @@ XXAPI MMU_Object xrtMemUnitCreate(unsigned int iItemLength)
 		objUnit->FreeCount = 0;
 		objUnit->FreeOffset = 0;
 		objUnit->Flag = 0;
+		objUnit->Prev = NULL;
+		objUnit->Next = NULL;
 	}
 	return objUnit;
 }

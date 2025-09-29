@@ -72,7 +72,13 @@ int main(int argc, char** argv)
 	// Test_Array_Struct(xCore);
 	
 	/* 内存管理单元测试 */
-	Test_MemUnit(xCore);
+	// Test_MemUnit(xCore);
+	
+	/* 固定大小内存池测试 */
+	//Test_MemPoolFS(xCore);
+	
+	/* 内存池测试 */
+	// Test_MemPool(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
