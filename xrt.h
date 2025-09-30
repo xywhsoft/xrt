@@ -796,7 +796,13 @@
 	
 	
 	
-	/* ------------------------------------ Dynamic Array 函数库 ------------------------------------ */
+	/* ------------------------------------ Static Array 函数库 ------------------------------------ */
+	
+	// 内存指针单向链表数据结构
+	typedef struct MemPtr_LLNode {
+		void* Ptr;
+		struct MemPtr_LLNode* Next;
+	} MemPtr_LLNode;
 	
 	// 数据块结构内存管理器数据结构
 	typedef struct {
