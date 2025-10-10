@@ -127,6 +127,9 @@ xrtInit
 xrtIsLeapYear
 xrtIsUTF8
 xrtLCase
+xrtLLB_InsertNext
+xrtLLB_InsertPrev
+xrtLLB_Remove
 xrtLTrim
 xrtMakeXID
 xrtMakeXIDS

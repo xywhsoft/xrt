@@ -67,6 +67,10 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/memunit.h"
 #include "lib/stack.h"
 #include "lib/stack_dyn.h"
+#include "lib/llist_base.h"
+#include "lib/llist.h"
+#include "lib/avltree_base.h"
+//#include "lib/avltree.h"
 #include "lib/mempool_fs.h"
 #include "lib/mempool.h"
 
@@ -76,9 +80,6 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/json.h"
 #include "lib/template.h"
 
-#include "lib/llist.h"
-#include "lib/avltree_base.h"
-//#include "lib/avltree.h"
 #include "lib/collect.h"
 
 
