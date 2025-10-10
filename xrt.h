@@ -1021,7 +1021,7 @@
 		MMU_ValuePtr v = obj - 4;
 		unsigned char idx = v->ItemFlag & 0xFF;
 		v->ItemFlag = 0;
-		MMU256_FreeIdx_Inline(objUnit, idx);
+		xrtMemUnitFreeIdx_Inline(objUnit, idx);
 	}
 	XXAPI int xrtMemUnitFree(xmemunit objUnit, void* obj);
 	
