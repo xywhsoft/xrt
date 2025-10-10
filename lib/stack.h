@@ -35,13 +35,13 @@ XXAPI uint xrtStackPushData(xstack objSTK, ptr pData)
 XXAPI uint xrtStackPushPtr(xstack objSTK, ptr pVal)
 {
 	if ( objSTK->Count < objSTK->MaxCount ) {
-		objSTK->Count++;
 		if ( objSTK->ItemLength == sizeof(ptr) ) {
 			objSTK->PtrMem[objSTK->Count] = pVal;
 		} else {
-			ptr* pVal = (ptr*)&objSTK->Memory[objSTK->Count * objSTK->ItemLength];
-			pVal[0] = pVal;
+			ptr* pValPtr = (ptr*)&objSTK->Memory[objSTK->Count * objSTK->ItemLength];
+			pValPtr[0] = pVal;
 		}
+		objSTK->Count++;
 		return objSTK->Count;
 	}
 	return 0;

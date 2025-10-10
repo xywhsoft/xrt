@@ -1047,7 +1047,7 @@
 	XXAPI xstack xrtStackCreate(unsigned int iMaxCount, unsigned int iItemLength);
 	
 	// 销毁结构体静态栈
-	#define xrtStackDestroy mmu_free
+	#define xrtStackDestroy xrtFree
 	
 	// 压栈
 	XXAPI ptr xrtStackPush(xstack objSTK);
