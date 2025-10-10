@@ -165,65 +165,6 @@ XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 	return &(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
 }
 
-// 直接插入指针数据
-XXAPI uint32 xrtArrayInsertPtr(xarray pArr, uint32 iPos, ptr pData)
-{
-	// 分配内存
-	if ( (pArr->Count + 1) > pArr->AllocCount ) {
-		if ( xrtArrayAlloc(pArr, pArr->Count + 1 + pArr->AllocStep) == FALSE ) {
-			return 0;
-		}
-	}
-	if ( iPos < pArr->Count ) {
-		// 插入模式（需要移动内存）
-		void* dst = pArr->Memory + ((iPos + 1) * pArr->ItemLength);
-		void* src = pArr->Memory + (iPos * pArr->ItemLength);
-		memmove(dst, src, (pArr->Count - iPos) * pArr->ItemLength);
-		ptr* pMEM = (ptr*)&(pArr->Memory[iPos * pArr->ItemLength]);
-		pMEM[0] = pData;
-		pArr->Count++;
-		return iPos + 1;
-	} else {
-		// 追加模式
-		ptr* pMEM = (ptr*)&(pArr->Memory[pArr->Count * pArr->ItemLength]);
-		pMEM[0] = pData;
-		pArr->Count++;
-		return pArr->Count;
-	}
-}
-
-// 直接末尾添加指针数据
-XXAPI uint32 xrtArrayAppendPtr(xarray pArr, ptr pData)
-{
-	return xrtArrayInsertPtr(pArr, pArr->Count, pData);
-}
-
-// 直接修改对应的指针数据
-XXAPI int xrtArraySetPtr(xarray pArr, uint32 iPos, ptr pData)
-{
-	if ( iPos == 0 ) { return FALSE; }
-	if ( iPos > pArr->Count ) { return FALSE; }
-	iPos--;
-	ptr* pMEM = (ptr*)&(pArr->Memory[iPos * pArr->ItemLength]);
-	pMEM[0] = pData;
-	return TRUE;
-}
-
-// 直接获取对应的指针数据
-XXAPI ptr xrtArrayGetPtr(xarray pArr, uint32 iPos)
-{
-	if ( iPos == 0 ) { return NULL; }
-	if ( iPos > pArr->Count ) { return NULL; }
-	iPos--;
-	ptr* pMEM = (ptr*)&(pArr->Memory[iPos * pArr->ItemLength]);
-	return pMEM[0];
-}
-XXAPI ptr xrtArrayGetPtr_Unsafe(xarray pArr, uint32 iPos)
-{
-	ptr* pMEM = (ptr*)&(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
-	return pMEM[0];
-}
-
 // 成员排序
 XXAPI int xrtArraySort(xarray pArr, ptr procCompar)
 {

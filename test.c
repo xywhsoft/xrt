@@ -69,7 +69,7 @@ int main(int argc, char** argv)
 	// Test_Array_Ptr(xCore);
 	
 	/* 结构体数组测试 */
-	// Test_Array_Struct(xCore);
+	Test_Array_Struct(xCore);
 	
 	/* 内存管理单元测试 */
 	// Test_MemUnit(xCore);

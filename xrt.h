@@ -718,7 +718,91 @@
 	
 	
 	
+	/* ------------------------------------ Point Array 函数库 ------------------------------------ */
+	
+	/*
+		成员编号规则（0为不存在的成员编号）：
+			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
+			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
+			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
+	*/
+	
+	// 默认步长
+	#define XPARRAY_PREASSIGNSTEP	256
+	
+	// 指针数组内存管理器数据结构
+	typedef struct {
+		ptr* Memory;							// 管理器内存指针
+		uint Count;								// 管理器中存在多少成员
+		uint AllocCount;						// 已经申请的结构数量
+		uint AllocStep;							// 预分配内存步长
+	} xparray_struct, *xparray;
+	
+	// 创建指针内存管理器
+	XXAPI xparray xrtPtrArrayCreate();
+	
+	// 销毁指针内存管理器
+	XXAPI void xrtPtrArrayDestroy(xparray pObject);
+	
+	// 初始化内存管理器（对自维护结构体指针使用，和 PAMM_Create 功能类似）
+	XXAPI void xrtPtrArrayInit(xparray pObject);
+	
+	// 释放内存管理器（对自维护结构体指针使用，和 PAMM_Destroy 功能类似）
+	XXAPI void xrtPtrArrayUnit(xparray pObject);
+	
+	// 分配内存
+	XXAPI int xrtPtrArrayMalloc(xparray pObject, unsigned int iCount);
+	
+	// 中间插入成员(0为头部插入，pObject->Count为末尾插入)
+	XXAPI unsigned int xrtPtrArrayInsert(xparray pObject, unsigned int iPos, void* pVal);
+	
+	// 末尾添加成员
+	XXAPI unsigned int xrtPtrArrayAppend(xparray pObject, void* pVal);
+	
+	// 添加成员，自动查找空隙（替换为 NULL 的值）
+	XXAPI unsigned int xrtPtrArrayAddAlt(xparray pObject, void* pVal);
+	
+	// 交换成员
+	XXAPI int xrtPtrArraySwap(xparray pObject, unsigned int iPosA, unsigned int iPosB);
+	
+	// 删除成员
+	XXAPI int xrtPtrArrayRemove(xparray pObject, unsigned int iPos, unsigned int iCount);
+	
+	// 删除所有成员
+	#define xrtPtrArrayRemoveAll xrtPtrArrayUnit
+	
+	// 清空管理器
+	#define xrtPtrArrayClear xrtPtrArrayUnit
+	
+	// 获取成员指针
+	XXAPI void* xrtPtrArrayGet(xparray pObject, unsigned int iPos);
+	XXAPI void* xrtPtrArrayGet_Unsafe(xparray pObject, unsigned int iPos);
+	static inline void* xrtPtrArrayGet_Inline(xparray pObject, unsigned int iPos)
+	{
+		return pObject->Memory[iPos - 1];
+	}
+	
+	// 设置成员指针
+	XXAPI int xrtPtrArraySet(xparray pObject, unsigned int iPos, void* pVal);
+	XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, unsigned int iPos, void* pVal);
+	static inline void xrtPtrArraySet_Inline(xparray pObject, unsigned int iPos, void* pVal)
+	{
+		pObject->Memory[iPos - 1] = pVal;
+	}
+	
+	// 成员排序
+	XXAPI int xrtPtrArraySort(xparray pObject, void* procCompar);
+	
+	
+	
 	/* ------------------------------------ Array 函数库 ------------------------------------ */
+	
+	/*
+		成员编号规则（0为不存在的成员编号）：
+			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
+			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
+			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
+	*/
 	
 	// 默认步长
 	#define XARRAY_PREASSIGNSTEP	256
@@ -773,30 +857,20 @@
 		return &(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
 	}
 	
-	// 直接插入指针数据
-	XXAPI uint32 xrtArrayInsertPtr(xarray pArr, uint32 iPos, ptr pData);
-	
-	// 直接末尾添加指针数据
-	XXAPI uint32 xrtArrayAppendPtr(xarray pArr, ptr pData);
-	
-	// 直接修改对应的指针数据
-	XXAPI int xrtArraySetPtr(xarray pArr, uint32 iPos, ptr pData);
-	
-	// 直接获取对应的指针数据
-	XXAPI ptr xrtArrayGetPtr(xarray pArr, uint32 iPos);
-	XXAPI ptr xrtArrayGetPtr_Unsafe(xarray pArr, uint32 iPos);
-	static inline ptr xrtArrayGetPtr_Inline(xarray pArr, uint32 iPos)
-	{
-		ptr* pMEM = (ptr*)&(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
-		return pMEM[0];
-	}
-	
 	// 成员排序
 	XXAPI int xrtArraySort(xarray pArr, ptr procCompar);
 	
 	
 	
-	/* ------------------------------------ Static Array 函数库 ------------------------------------ */
+	/* ------------------------------------ BSMM 函数库 ------------------------------------ */
+	
+	/*
+		Blocks Struct Memory Management [数据块结构内存管理器]
+		成员编号规则（0为不存在的成员编号）：
+			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
+			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
+			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
+	*/
 	
 	// 内存指针单向链表数据结构
 	typedef struct MemPtr_LLNode {
@@ -808,30 +882,30 @@
 	typedef struct {
 		unsigned int ItemLength;			// 成员占用内存长度
 		unsigned int Count;					// 管理器中存在多少成员
-		xarray_struct PageMMU;				// 内存页管理器
+		xparray_struct PageMMU;				// 内存页管理器
 		MemPtr_LLNode* LL_Free;				// 已释放的内存块链表
-	} BSMM_Struct, *BSMM_Object;
+	} xbsmm_struct, *xbsmm;
 	
 	// 创建数据块结构内存管理器
-	XXAPI BSMM_Object BSMM_Create(unsigned int iItemLength);
+	XXAPI xbsmm xrtBSMM_Create(unsigned int iItemLength);
 	
 	// 销毁数据块结构内存管理器
-	XXAPI void BSMM_Destroy(BSMM_Object objBSMM);
+	XXAPI void xrtBSMM_Destroy(xbsmm objBSMM);
 	
 	// 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
-	XXAPI void BSMM_Init(BSMM_Object objBSMM, unsigned int iItemLength);
+	XXAPI void xrtBSMM_Init(xbsmm objBSMM, unsigned int iItemLength);
 	
 	// 释放数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Destroy 功能类似）
-	XXAPI void BSMM_Unit(BSMM_Object objBSMM);
+	XXAPI void xrtBSMM_Unit(xbsmm objBSMM);
 	
 	// 申请结构体内存
-	XXAPI void* BSMM_Alloc(BSMM_Object objBSMM);
+	XXAPI void* xrtBSMM_Alloc(xbsmm objBSMM);
 	
 	// 释放结构体内存
-	XXAPI void BSMM_Free(BSMM_Object objBSMM, void* Ptr);
+	XXAPI void xrtBSMM_Free(xbsmm objBSMM, void* Ptr);
 	
 	// 获取成员指针（非特殊需求不建议使用）
-	static inline void* BSMM_GetPtr_Inline(BSMM_Object objBSMM, unsigned int iIdx)
+	static inline void* xrtBSMM_GetPtr_Inline(xbsmm objBSMM, unsigned int iIdx)
 	{
 		unsigned int iBlock = iIdx >> 8;
 		unsigned int iPos = iIdx & 0xFF;
