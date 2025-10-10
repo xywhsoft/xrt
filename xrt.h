@@ -865,7 +865,7 @@
 	/* ------------------------------------ BSMM 函数库 ------------------------------------ */
 	
 	/*
-		Blocks Struct Memory Management [数据块结构内存管理器]
+		Blocks Struct Memory Management [块结构内存管理器]
 		成员编号规则（0为不存在的成员编号）：
 			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
 			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
@@ -909,13 +909,142 @@
 	{
 		unsigned int iBlock = iIdx >> 8;
 		unsigned int iPos = iIdx & 0xFF;
-		char* pBlock = PAMM_GetVal_Inline(&objBSMM->PageMMU, iBlock + 1);
+		char* pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
 		if ( pBlock ) {
 			return &pBlock[iPos * objBSMM->ItemLength];
 		} else {
 			return NULL;
 		}
 	}
+	
+	
+	
+	/* ------------------------------------ Memory Unit 函数库 ------------------------------------ */
+	
+	// 内存固定的前置数据（用于识别内存是哪个管理器分配的）
+	typedef struct {
+		unsigned int ItemFlag;
+	} MMU_Value, *MMU_ValuePtr;
+	
+	// MMU有效ID区间掩码
+	#define MMU_FLAG_MASK				0x3FFFFFFF
+	
+	// 结构体使用状态标记
+	#define MMU_FLAG_USE				0x80000000
+	
+	// GC回收标记位
+	#define MMU_FLAG_GC					0x40000000
+	
+	// 非内存管理器管理的内存
+	#define MMU_FLAG_EXT				0xBFFFFFFF
+	
+	// MM256 or MM64K GC标记
+	#define xrtMemUnitGC_Mark(p) ((MMU_ValuePtr)((void*)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC
+	
+	// 数据管理单元数据结构
+	typedef struct {
+		unsigned char FreeList[256];				// 已释放成员列表
+		unsigned int ItemLength;					// 成员占用内存长度
+		unsigned short Count;						// 成员数量
+		unsigned char FreeCount;					// 已释放成员数量
+		unsigned char FreeOffset;					// 首个已释放成员在列表中的偏移位置
+		unsigned int Flag;							// 值的 Flag 前缀（由上级管理器下发，0-255 区间会被 idx 覆盖）
+		char Memory[];								// 数据
+	} xmemunit_struct, *xmemunit;
+	
+	// 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
+	XXAPI xmemunit xrtMemUnitCreate(unsigned int iItemLength);
+	
+	// 销毁内存管理单元
+	#define xrtMemUnitDestroy xrtFree
+	
+	// 从内存管理单元中申请一个元素
+	static inline void* xrtMemUnitAlloc_Inline(xmemunit objUnit)
+	{
+		unsigned char idx = objUnit->Count;
+		// 优先复用已释放的数据
+		if ( objUnit->FreeCount > 0 ) {
+			idx = objUnit->FreeList[objUnit->FreeOffset];
+			objUnit->FreeOffset++;
+			objUnit->FreeCount--;
+		}
+		objUnit->Count++;
+		MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
+		v->ItemFlag = objUnit->Flag | idx;
+		return (void*)&v[1];
+	}
+	XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit);
+	
+	// 释放内存管理单元中某个元素（FreeIdx不会清空 ItemFlag，建议由调用方负责清空）
+	static inline void xrtMemUnitFreeIdx_Inline(xmemunit objUnit, unsigned char idx)
+	{
+		objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
+		objUnit->Count--;
+		if ( objUnit->Count ) {
+			objUnit->FreeCount++;
+		} else {
+			objUnit->FreeCount = 0;
+			objUnit->FreeOffset = 0;
+		}
+	}
+	XXAPI int xrtMemUnitFreeIdx(xmemunit objUnit, unsigned char idx);
+	static inline void xrtMemUnitFree_Inline(xmemunit objUnit, void* obj)
+	{
+		MMU_ValuePtr v = obj - 4;
+		unsigned char idx = v->ItemFlag & 0xFF;
+		v->ItemFlag = 0;
+		MMU256_FreeIdx_Inline(objUnit, idx);
+	}
+	XXAPI int xrtMemUnitFree(xmemunit objUnit, void* obj);
+	
+	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
+	XXAPI int xrtMemUnitGC(xmemunit objUnit, int bFreeMark);
+	
+	
+	
+	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */
+	
+	// 内存管理器链表结构
+	typedef struct MMU_LLNode {
+		unsigned int Flag;
+		xmemunit objMMU;
+		struct MMU_LLNode* Prev;
+		struct MMU_LLNode* Next;
+	} MMU_LLNode;
+	
+	// 256步进内存管理器数据结构
+	typedef struct {
+		unsigned int ItemLength;					// 成员占用内存长度
+		xbsmm_struct arrMMU;						// MMU 阵列
+		MMU_LLNode* LL_Idle;						// 有空闲的内存管理单元链表首元素 (优先分配内存的单元)
+		MMU_LLNode* LL_Full;						// 满载的内存管理单元链表首元素 (不会从这些单元中分配内存)
+		MMU_LLNode* LL_Null;						// 缓存的全空内存管理单元 (备用单元，最多只留一个)
+		MMU_LLNode* LL_Free;						// 已释放的内存管理单元 Flag 链表首元素 (申请新单元优先从这里找)
+	} xfsmempool_struct, *xfsmempool;
+	
+	// 创建内存管理器
+	XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength);
+	
+	// 销毁内存管理器
+	XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM);
+	
+	// 初始化内存管理器（对自维护结构体指针使用）
+	XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength);
+	
+	// 释放内存管理器（对自维护结构体指针使用）
+	XXAPI void xrtFSMemPoolUnit(xfsmempool objMM);
+	
+	// 从内存管理器中申请一块内存
+	XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM);
+	
+	// 将内存管理器申请的内存释放掉
+	XXAPI void xrtFSMemPoolFree(xfsmempool objMM, void* ptr);
+	
+	// 将一块内存标记为使用中
+	#define xrtFSMemPoolGC_Mark	MM_GC_Mark
+	
+	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
+	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, int bFreeMark);
 	
 	
 	
@@ -1014,107 +1143,6 @@
 	
 	
 	/* ------------------------------------ LList 函数库 ------------------------------------ */
-	
-	
-	
-	/* ------------------------------------ Memory Unit 函数库 ------------------------------------ */
-	
-	
-	
-	/* ------------------------------------ Memory Unit 函数库 ------------------------------------ */
-	
-	// 内存固定的前置数据（用于识别内存是哪个管理器分配的）
-	typedef struct {
-		unsigned int ItemFlag;
-	} MMU_Value, *MMU_ValuePtr;
-	
-	// MMU有效ID区间掩码
-	#define MMU_FLAG_MASK				0x3FFFFFFF
-	
-	// 结构体使用状态标记
-	#define MMU_FLAG_USE				0x80000000
-	
-	// GC回收标记位
-	#define MMU_FLAG_GC					0x40000000
-	
-	// 非内存管理器管理的内存
-	#define MMU_FLAG_EXT				0xBFFFFFFF
-	
-	// MM256 or MM64K GC标记
-	#define xrtMemUnitGC_Mark(p) ((MMU_ValuePtr)((void*)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC
-	
-	// 数据管理单元数据结构
-	typedef struct MMU_Struct {
-		unsigned char FreeList[256];				// 已释放成员列表
-		unsigned int ItemLength;					// 成员占用内存长度
-		unsigned short Count;						// 成员数量
-		unsigned char FreeCount;					// 已释放成员数量
-		unsigned char FreeOffset;					// 首个已释放成员在列表中的偏移位置
-		unsigned int Flag;							// 值的 Flag 前缀（由上级管理器下发，0-255 区间会被 idx 覆盖）
-		struct MMU_Struct* Prev;					// MMU 链表上一个元素（由上级管理器处理）
-		struct MMU_Struct* Next;					// MMU 链表下一个元素（由上级管理器处理）
-		char Memory[];								// 数据
-	} MMU_Struct, *MMU_Object;
-	
-	// 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
-	XXAPI MMU_Object xrtMemUnitCreate(unsigned int iItemLength);
-	
-	// 销毁内存管理单元
-	#define xrtMemUnitDestroy xrtFree
-	
-	// 从内存管理单元中申请一个元素
-	XXAPI void* xrtMemUnitAlloc(MMU_Object objUnit);
-	
-	// 释放内存管理单元中某个元素（FreeIdx不会清空 ItemFlag，建议由调用方负责清空）
-	XXAPI int xrtMemUnitFreeIdx(MMU_Object objUnit, unsigned char idx);
-	XXAPI int xrtMemUnitFree(MMU_Object objUnit, void* obj);
-	
-	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
-	XXAPI int xrtMemUnitGC(MMU_Object objUnit, int bFreeMark);
-	
-	
-	
-	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */
-	
-	// 已释放的 Flag 数据链表成员
-	typedef struct MP_FlagLL_Node {
-		unsigned int Flag;
-		struct MP_FlagLL_Node* Next;
-	} MP_FlagLL_Node;
-	
-	// 256步进内存管理器数据结构
-	typedef struct {
-		unsigned int ItemLength;					// 成员占用内存长度
-		unsigned int NextMMUID;						// 下一个内存管理单元的 ID
-		MMU_Object LL_Idle;							// 有空闲的内存管理单元链表首元素 (优先分配内存的单元)
-		MMU_Object LL_Full;							// 满载的内存管理单元链表首元素 (不会从这些单元中分配内存)
-		MMU_Object LL_Null;							// 缓存的全空内存管理单元 (备用单元，最多只留一个)
-		MP_FlagLL_Node* LL_Free;					// 已释放的内存管理单元 Flag 链表首元素 (申请新单元优先从这里找)
-	} FSMP_Struct, *FSMP_Object;
-	
-	// 创建内存管理器
-	XXAPI FSMP_Object xrtFixelSizeMemPoolCreate(unsigned int iItemLength);
-	
-	// 销毁内存管理器
-	XXAPI void xrtFixelSizeMemPoolDestroy(FSMP_Object objMM);
-	
-	// 初始化内存管理器（对自维护结构体指针使用）
-	XXAPI void xrtFixelSizeMemPoolInit(FSMP_Object objMM, unsigned int iItemLength);
-	
-	// 释放内存管理器（对自维护结构体指针使用）
-	XXAPI void xrtFixelSizeMemPoolUnit(FSMP_Object objMM);
-	
-	// 从内存管理器中申请一块内存
-	XXAPI void* xrtFixelSizeMemPoolAlloc(FSMP_Object objMM);
-	
-	// 将内存管理器申请的内存释放掉
-	XXAPI void xrtFixelSizeMemPoolFree(FSMP_Object objMM, void* ptr);
-	
-	// 将一块内存标记为使用中
-	#define xrtFixelSizeMemPoolGC_Mark	MM_GC_Mark
-	
-	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
-	XXAPI void xrtFixelSizeMemPoolGC(FSMP_Object objMM, int bFreeMark);
 	
 	
 	

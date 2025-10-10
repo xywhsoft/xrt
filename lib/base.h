@@ -7,6 +7,7 @@ XXAPI ptr xrtMalloc(size_t iSize)
 	ptr mem = xCore.malloc(iSize);
 	if ( mem == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
+		return NULL;
 	}
 	return mem;
 }

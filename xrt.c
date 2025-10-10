@@ -70,7 +70,7 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/array.h"
 #include "lib/bsmm.h"
 #include "lib/memunit.h"
-//#include "lib/mempool_fs.h"
+#include "lib/mempool_fs.h"
 #include "lib/mempool.h"
 #include "lib/list.h"
 #include "lib/table.h"

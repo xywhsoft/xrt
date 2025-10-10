@@ -74,6 +74,13 @@ xrtDirMove
 xrtDirScan
 xrtEOF
 xrtEncodeXID
+xrtFSMemPoolAlloc
+xrtFSMemPoolCreate
+xrtFSMemPoolDestroy
+xrtFSMemPoolFree
+xrtFSMemPoolGC
+xrtFSMemPoolInit
+xrtFSMemPoolUnit
 xrtFileAppend
 xrtFileCopy
 xrtFileDelete
