@@ -21,12 +21,16 @@
 #include "test/test_network.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
-#include "test/test_other.h"
 #include "test/test_array_ptr.h"
 #include "test/test_array_struct.h"
 #include "test/test_bsmm.h"
 #include "test/test_memunit.h"
+#include "test/test_stack_ptr.h"
+#include "test/test_stack.h"
+#include "test/test_dynstack_ptr.h"
+#include "test/test_dynstack.h"
 #include "test/test_mempool_fs.h"
+#include "test/test_other.h"
 
 
 
@@ -94,6 +98,18 @@ int main(int argc, char** argv)
 	
 	/* 内存管理单元测试 */
 	// Test_MemUnit(xCore);
+	
+	/* 内存管理单元测试 */
+	 Test_Stack_Ptr(xCore);
+	
+	/* 内存管理单元测试 */
+	// Test_Stack(xCore);
+	
+	/* 内存管理单元测试 */
+	// Test_DynStack_Ptr(xCore);
+	
+	/* 内存管理单元测试 */
+	// Test_DynStack(xCore);
 	
 	/* 固定大小内存池测试 */
 	// Test_MemPoolFS(xCore);

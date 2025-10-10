@@ -1030,6 +1030,50 @@
 	
 	
 	
+	/* ------------------------------------ Stack 函数库 ------------------------------------ */
+	
+	// 结构体静态栈数据结构
+	typedef struct {
+		union {
+			char* Memory;					// 栈数据内存 - 结构体
+			ptr* PtrMem;					// 栈数据内存 - 指针
+		};
+		unsigned int ItemLength;			// 栈成员占用内存长度
+		unsigned int MaxCount;				// 栈最大可以容纳多少成员（栈深度）
+		unsigned int Count;					// 栈中存在多少成员（栈顶位置）
+	} xstack_struct, *xstack;
+	
+	// 创建结构体静态栈
+	XXAPI xstack xrtStackCreate(unsigned int iMaxCount, unsigned int iItemLength);
+	
+	// 销毁结构体静态栈
+	#define xrtStackDestroy mmu_free
+	
+	// 压栈
+	XXAPI ptr xrtStackPush(xstack objSTK);
+	XXAPI uint xrtStackPushData(xstack objSTK, ptr pData);
+	XXAPI uint xrtStackPushPtr(xstack objSTK, ptr pVal);
+	
+	// 出栈
+	XXAPI ptr xrtStackPop(xstack objSTK);
+	XXAPI ptr xrtStackPopPtr(xstack objSTK);
+	
+	// 获取栈顶对象
+	XXAPI ptr xrtStackTop(xstack objSTK);
+	XXAPI ptr xrtStackTopPtr(xstack objSTK);
+	
+	// 获取任意位置对象
+	XXAPI ptr xrtStackGetPos(xstack objSTK, uint iPos);
+	XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint iPos);
+	XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint iPos);
+	XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint iPos);
+	
+	
+	
+	/* ------------------------------------ Dynamic Stack 函数库 ------------------------------------ */
+	
+	
+	
 	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */
 	
 	// 内存管理器链表结构
@@ -1073,38 +1117,6 @@
 	
 	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
 	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, int bFreeMark);
-	
-	
-	
-	/* ------------------------------------ Stack 函数库 ------------------------------------ */
-	
-	// 结构体静态栈数据结构
-	typedef struct {
-		char* Memory;						// 栈数据内存指针
-		unsigned int ItemLength;			// 栈成员占用内存长度
-		unsigned int MaxCount;				// 栈最大可以容纳多少成员（栈深度）
-		unsigned int Count;					// 栈中存在多少成员（栈顶位置）
-	} SSSTK_Struct, *SSSTK_Object;
-	
-	// 创建结构体静态栈
-	XXAPI SSSTK_Object SSSTK_Create(unsigned int iMaxCount, unsigned int iItemLength);
-	
-	// 销毁结构体静态栈
-	#define SSSTK_Destroy mmu_free
-	
-	// 压栈
-	XXAPI void* SSSTK_Push(SSSTK_Object objSTK);
-	XXAPI unsigned int SSSTK_PushData(SSSTK_Object objSTK, void* pData);
-	
-	// 出栈
-	XXAPI void* SSSTK_Pop(SSSTK_Object objSTK);
-	
-	// 获取栈顶对象
-	XXAPI void* SSSTK_Top(SSSTK_Object objSTK);
-	
-	// 获取任意位置对象
-	XXAPI void* SSSTK_GetPos(SSSTK_Object objSTK, unsigned int iPos);
-	XXAPI void* SSSTK_GetPos_Unsafe(SSSTK_Object objSTK, unsigned int iPos);
 	
 	
 	

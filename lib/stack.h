@@ -2,9 +2,9 @@
 
 
 // 创建结构体静态栈
-XXAPI SSSTK_Object SSSTK_Create(unsigned int iMaxCount, unsigned int iItemLength)
+XXAPI xstack xrtStackCreate(unsigned int iMaxCount, unsigned int iItemLength)
 {
-	SSSTK_Object objSTK = xrtMalloc(sizeof(SSSTK_Struct) + (iMaxCount * iItemLength));
+	xstack objSTK = xrtMalloc(sizeof(xstack_struct) + (iMaxCount * iItemLength));
 	if ( objSTK ) {
 		objSTK->Memory = (void*)&objSTK[1];
 		objSTK->ItemLength = iItemLength;
@@ -15,7 +15,7 @@ XXAPI SSSTK_Object SSSTK_Create(unsigned int iMaxCount, unsigned int iItemLength
 }
 
 // 压栈
-XXAPI void* SSSTK_Push(SSSTK_Object objSTK)
+XXAPI ptr xrtStackPush(xstack objSTK)
 {
 	if ( objSTK->Count < objSTK->MaxCount ) {
 		objSTK->Count++;
@@ -23,7 +23,7 @@ XXAPI void* SSSTK_Push(SSSTK_Object objSTK)
 	}
 	return NULL;
 }
-XXAPI unsigned int SSSTK_PushData(SSSTK_Object objSTK, void* pData)
+XXAPI uint xrtStackPushData(xstack objSTK, ptr pData)
 {
 	if ( objSTK->Count < objSTK->MaxCount ) {
 		memcpy(&objSTK->Memory[objSTK->Count * objSTK->ItemLength], pData, objSTK->ItemLength);
@@ -32,9 +32,23 @@ XXAPI unsigned int SSSTK_PushData(SSSTK_Object objSTK, void* pData)
 	}
 	return 0;
 }
+XXAPI uint xrtStackPushPtr(xstack objSTK, ptr pVal)
+{
+	if ( objSTK->Count < objSTK->MaxCount ) {
+		objSTK->Count++;
+		if ( objSTK->ItemLength == sizeof(ptr) ) {
+			objSTK->PtrMem[objSTK->Count] = pVal;
+		} else {
+			ptr* pVal = (ptr*)&objSTK->Memory[objSTK->Count * objSTK->ItemLength];
+			pVal[0] = pVal;
+		}
+		return objSTK->Count;
+	}
+	return 0;
+}
 
 // 出栈
-XXAPI void* SSSTK_Pop(SSSTK_Object objSTK)
+XXAPI ptr xrtStackPop(xstack objSTK)
 {
 	if ( objSTK->Count == 0 ) {
 		return NULL;
@@ -42,18 +56,43 @@ XXAPI void* SSSTK_Pop(SSSTK_Object objSTK)
 	objSTK->Count--;
 	return &objSTK->Memory[objSTK->Count * objSTK->ItemLength];
 }
+XXAPI ptr xrtStackPopPtr(xstack objSTK)
+{
+	if ( objSTK->Count == 0 ) {
+		return NULL;
+	}
+	objSTK->Count--;
+	if ( objSTK->ItemLength == sizeof(ptr) ) {
+		return objSTK->PtrMem[objSTK->Count];
+	} else {
+		ptr* pVal = (ptr*)&objSTK->Memory[objSTK->Count * objSTK->ItemLength];
+		return pVal[0];
+	}
+}
 
 // 获取栈顶对象
-XXAPI void* SSSTK_Top(SSSTK_Object objSTK)
+XXAPI ptr xrtStackTop(xstack objSTK)
 {
 	if ( objSTK->Count == 0 ) {
 		return NULL;
 	}
 	return &objSTK->Memory[(objSTK->Count - 1) * objSTK->ItemLength];
 }
+XXAPI ptr xrtStackTopPtr(xstack objSTK)
+{
+	if ( objSTK->Count == 0 ) {
+		return NULL;
+	}
+	if ( objSTK->ItemLength == sizeof(ptr) ) {
+		return objSTK->PtrMem[objSTK->Count - 1];
+	} else {
+		ptr* pVal = (ptr*)&objSTK->Memory[(objSTK->Count - 1) * objSTK->ItemLength];
+		return pVal[0];
+	}
+}
 
 // 获取任意位置对象
-XXAPI void* SSSTK_GetPos(SSSTK_Object objSTK, unsigned int iPos)
+XXAPI ptr xrtStackGetPos(xstack objSTK, uint iPos)
 {
 	if ( iPos > 0 ) {
 		iPos--;
@@ -63,9 +102,33 @@ XXAPI void* SSSTK_GetPos(SSSTK_Object objSTK, unsigned int iPos)
 	}
 	return NULL;
 }
-XXAPI void* SSSTK_GetPos_Unsafe(SSSTK_Object objSTK, unsigned int iPos)
+XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint iPos)
 {
 	return &objSTK->Memory[(iPos - 1) * objSTK->ItemLength];
+}
+XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint iPos)
+{
+	if ( iPos > 0 ) {
+		iPos--;
+		if ( iPos < objSTK->Count ) {
+			if ( objSTK->ItemLength == sizeof(ptr) ) {
+				return objSTK->PtrMem[iPos];
+			} else {
+				ptr* pVal = (ptr*)&objSTK->Memory[iPos * objSTK->ItemLength];
+				return pVal[0];
+			}
+		}
+	}
+	return NULL;
+}
+XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint iPos)
+{
+	if ( objSTK->ItemLength == sizeof(ptr) ) {
+		return objSTK->PtrMem[iPos - 1];
+	} else {
+		ptr* pVal = (ptr*)&objSTK->Memory[(iPos - 1) * objSTK->ItemLength];
+		return pVal[0];
+	}
 }
 
 

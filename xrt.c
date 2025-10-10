@@ -50,26 +50,23 @@ xrtGlobalData xCore = { FALSE };
 // 引入子库
 #include "lib/base.h"
 #include "lib/charset.h"
+#include "lib/os.h"
 #include "lib/math.h"
 #include "lib/string.h"
-#include "lib/time.h"
 #include "lib/path.h"
-#include "lib/os.h"
+#include "lib/time.h"
 #include "lib/file.h"
 #include "lib/thread.h"
 #include "lib/hash.h"
 #include "lib/network.h"
 #include "lib/xid.h"
 #include "lib/buffer.h"
-#include "lib/stack.h"
-#include "lib/llist.h"
-#include "lib/avltree_base.h"
-//#include "lib/avltree.h"
-#include "lib/collect.h"
 #include "lib/array_point.h"
 #include "lib/array.h"
 #include "lib/bsmm.h"
 #include "lib/memunit.h"
+#include "lib/stack.h"
+#include "lib/stack_dyn.h"
 #include "lib/mempool_fs.h"
 #include "lib/mempool.h"
 #include "lib/list.h"
@@ -79,6 +76,10 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/template.h"
 
 
+#include "lib/llist.h"
+#include "lib/avltree_base.h"
+//#include "lib/avltree.h"
+#include "lib/collect.h"
 
 // 初始化 xCore
 XXAPI xrtGlobalData* xrtInit()
