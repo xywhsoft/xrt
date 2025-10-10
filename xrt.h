@@ -1072,6 +1072,52 @@
 	
 	/* ------------------------------------ Dynamic Stack 函数库 ------------------------------------ */
 	
+	/*
+		结构体动态栈，结构体内存256个递增，栈最大深度不固定
+		成员编号规则（0为不存在的成员编号）：
+			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
+			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
+			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
+	*/
+	
+	// 结构体动态栈数据结构
+	typedef struct {
+		unsigned int ItemLength;					// 栈成员占用内存长度
+		unsigned int Count;							// 栈中存在多少成员（栈顶位置）
+		xparray_struct MMU;							// MMU 管理器
+	} xdynstack_struct, *xdynstack;
+	
+	// 创建结构体动态栈
+	XXAPI xdynstack xrtDynStackCreate(unsigned int iItemLength);
+	
+	// 销毁结构体动态栈
+	XXAPI void xrtDynStackDestroy(xdynstack objSTK);
+	
+	// 初始化结构体动态栈（对自维护结构体指针使用）
+	XXAPI void xrtDynStackInit(xdynstack objSTK, unsigned int iItemLength);
+	
+	// 释放结构体动态栈（对自维护结构体指针使用）
+	XXAPI void xrtDynStackUnit(xdynstack objSTK);
+	
+	// 压栈
+	XXAPI ptr xrtDynStackPush(xdynstack objSTK);
+	XXAPI uint xrtDynStackPushData(xdynstack objSTK, ptr pData);
+	XXAPI uint xrtDynStackPushPtr(xdynstack objSTK, ptr pVal);
+	
+	// 出栈
+	XXAPI ptr xrtDynStackPop(xdynstack objSTK);
+	XXAPI ptr xrtDynStackPopPtr(xdynstack objSTK);
+	
+	// 获取栈顶对象
+	XXAPI ptr xrtDynStackTop(xdynstack objSTK);
+	XXAPI ptr xrtDynStackTopPtr(xdynstack objSTK);
+	
+	// 获取任意位置对象
+	XXAPI ptr xrtDynStackGetPos(xdynstack objSTK, unsigned int iPos);
+	XXAPI ptr xrtDynStackGetPos_Unsafe(xdynstack objSTK, unsigned int iPos);
+	XXAPI ptr xrtDynStackGetPosPtr(xdynstack objSTK, unsigned int iPos);
+	XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, unsigned int iPos);
+	
 	
 	
 	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */

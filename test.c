@@ -99,17 +99,17 @@ int main(int argc, char** argv)
 	/* 内存管理单元测试 */
 	// Test_MemUnit(xCore);
 	
-	/* 内存管理单元测试 */
+	/* 静态指针栈测试 */
 	// Test_Stack_Ptr(xCore);
 	
-	/* 内存管理单元测试 */
-	 Test_Stack(xCore);
+	/* 静态结构体栈测试 */
+	// Test_Stack(xCore);
 	
-	/* 内存管理单元测试 */
+	/* 动态指针栈测试 */
 	// Test_DynStack_Ptr(xCore);
 	
-	/* 内存管理单元测试 */
-	// Test_DynStack(xCore);
+	/* 动态结构体栈测试 */
+	 Test_DynStack(xCore);
 	
 	/* 固定大小内存池测试 */
 	// Test_MemPoolFS(xCore);

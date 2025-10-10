@@ -69,17 +69,19 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/stack_dyn.h"
 #include "lib/mempool_fs.h"
 #include "lib/mempool.h"
+
 #include "lib/list.h"
 #include "lib/table.h"
 #include "lib/value.h"
 #include "lib/json.h"
 #include "lib/template.h"
 
-
 #include "lib/llist.h"
 #include "lib/avltree_base.h"
 //#include "lib/avltree.h"
 #include "lib/collect.h"
+
+
 
 // 初始化 xCore
 XXAPI xrtGlobalData* xrtInit()
