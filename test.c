@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 	// Test_MemUnit(xCore);
 	
 	/* 固定大小内存池测试 */
-	Test_MemPoolFS(xCore);
+	// Test_MemPoolFS(xCore);
 	
 	/* 内存池测试 */
 	// Test_MemPool(xCore);

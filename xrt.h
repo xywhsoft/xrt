@@ -1,6 +1,34 @@
 
 
 
+/*
+	
+	MIT License
+	
+	Copyright (c) 2025 xLeaves [xywhsoft] <xywhsoft@qq.com>
+	
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+	
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+	
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+	
+*/
+
+
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -1048,6 +1076,38 @@
 	
 	
 	
+	/* ------------------------------------ Stack 函数库 ------------------------------------ */
+	
+	// 结构体静态栈数据结构
+	typedef struct {
+		char* Memory;						// 栈数据内存指针
+		unsigned int ItemLength;			// 栈成员占用内存长度
+		unsigned int MaxCount;				// 栈最大可以容纳多少成员（栈深度）
+		unsigned int Count;					// 栈中存在多少成员（栈顶位置）
+	} SSSTK_Struct, *SSSTK_Object;
+	
+	// 创建结构体静态栈
+	XXAPI SSSTK_Object SSSTK_Create(unsigned int iMaxCount, unsigned int iItemLength);
+	
+	// 销毁结构体静态栈
+	#define SSSTK_Destroy mmu_free
+	
+	// 压栈
+	XXAPI void* SSSTK_Push(SSSTK_Object objSTK);
+	XXAPI unsigned int SSSTK_PushData(SSSTK_Object objSTK, void* pData);
+	
+	// 出栈
+	XXAPI void* SSSTK_Pop(SSSTK_Object objSTK);
+	
+	// 获取栈顶对象
+	XXAPI void* SSSTK_Top(SSSTK_Object objSTK);
+	
+	// 获取任意位置对象
+	XXAPI void* SSSTK_GetPos(SSSTK_Object objSTK, unsigned int iPos);
+	XXAPI void* SSSTK_GetPos_Unsafe(SSSTK_Object objSTK, unsigned int iPos);
+	
+	
+	
 	/* ------------------------------------ AVLTree Base 函数库 ------------------------------------ */
 	
 	// AVL树最大高度
@@ -1107,38 +1167,6 @@
 	XXAPI int xrtAVLTB_WalkExRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg);
 	#define xrtAVLTB_Walk(obj, p, a) AVLTB_WalkRecuProc(obj->RootNode, (void*)p, (void*)a)
 	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) AVLTB_WalkExRecuProc(obj->RootNode, (void*)p1, (void*)p2, (void*)p3, (void*)a)
-	
-	
-	
-	/* ------------------------------------ Stack 函数库 ------------------------------------ */
-	
-	// 结构体静态栈数据结构
-	typedef struct {
-		char* Memory;						// 栈数据内存指针
-		unsigned int ItemLength;			// 栈成员占用内存长度
-		unsigned int MaxCount;				// 栈最大可以容纳多少成员（栈深度）
-		unsigned int Count;					// 栈中存在多少成员（栈顶位置）
-	} SSSTK_Struct, *SSSTK_Object;
-	
-	// 创建结构体静态栈
-	XXAPI SSSTK_Object SSSTK_Create(unsigned int iMaxCount, unsigned int iItemLength);
-	
-	// 销毁结构体静态栈
-	#define SSSTK_Destroy mmu_free
-	
-	// 压栈
-	XXAPI void* SSSTK_Push(SSSTK_Object objSTK);
-	XXAPI unsigned int SSSTK_PushData(SSSTK_Object objSTK, void* pData);
-	
-	// 出栈
-	XXAPI void* SSSTK_Pop(SSSTK_Object objSTK);
-	
-	// 获取栈顶对象
-	XXAPI void* SSSTK_Top(SSSTK_Object objSTK);
-	
-	// 获取任意位置对象
-	XXAPI void* SSSTK_GetPos(SSSTK_Object objSTK, unsigned int iPos);
-	XXAPI void* SSSTK_GetPos_Unsafe(SSSTK_Object objSTK, unsigned int iPos);
 	
 	
 	
