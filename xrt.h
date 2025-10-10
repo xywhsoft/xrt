@@ -238,6 +238,19 @@
 	
 	
 	
+	/* ------------------------------------ OS 函数库 ------------------------------------ */
+	
+	// 运行程序
+	XXAPI ptr xrtRun(str sPath, size_t iSize);
+	
+	// 打开文件（ 仅支持 windows 系统 ）
+	XXAPI ptr xrtStart(str sPath, size_t iSize);
+	
+	// 运行程序并等待程序运行结束
+	XXAPI int xrtChain(str sPath, size_t iSize);
+	
+	
+	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
 	
 	// 获取 32 位随机数
@@ -308,6 +321,31 @@
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
 	ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
+	
+	
+	
+	/* ------------------------------------ Path 函数库 ------------------------------------ */
+	
+	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
+	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
+	
+	// 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
+	XXAPI str xrtPathGetName(str sPath, size_t iSize);
+	
+	// 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
+	XXAPI str xrtPathGetExt(str sPath, size_t iSize);
+	
+	// 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
+	XXAPI str xrtPathGetDir(str sPath, size_t iSize);
+	
+	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
+	XXAPI int xrtPathIsAbs(str sPath, size_t iSize);
+	
+	// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
+	XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize, size_t iLen);
+	
+	// 拼接路径（ 需要使用 xrtFree 释放内存 ）
+	XXAPI str xrtPathJoin(uint iCount, ...);
 	
 	
 	
@@ -414,44 +452,6 @@
 	
 	// 单位时间差计算（ 不支持 XRT_TIME_INTERVAL_WEEKDAY ）
 	XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2);
-	
-	
-	
-	/* ------------------------------------ Path 函数库 ------------------------------------ */
-	
-	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
-	
-	// 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetName(str sPath, size_t iSize);
-	
-	// 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetExt(str sPath, size_t iSize);
-	
-	// 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetDir(str sPath, size_t iSize);
-	
-	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
-	XXAPI int xrtPathIsAbs(str sPath, size_t iSize);
-	
-	// 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize, size_t iLen);
-	
-	// 拼接路径（ 需要使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathJoin(uint iCount, ...);
-	
-	
-	
-	/* ------------------------------------ OS 函数库 ------------------------------------ */
-	
-	// 运行程序
-	XXAPI ptr xrtRun(str sPath, size_t iSize);
-	
-	// 打开文件（ 仅支持 windows 系统 ）
-	XXAPI ptr xrtStart(str sPath, size_t iSize);
-	
-	// 运行程序并等待程序运行结束
-	XXAPI int xrtChain(str sPath, size_t iSize);
 	
 	
 	
@@ -887,30 +887,34 @@
 	} xbsmm_struct, *xbsmm;
 	
 	// 创建数据块结构内存管理器
-	XXAPI xbsmm xrtBSMM_Create(unsigned int iItemLength);
+	XXAPI xbsmm xrtBsmmCreate(unsigned int iItemLength);
 	
 	// 销毁数据块结构内存管理器
-	XXAPI void xrtBSMM_Destroy(xbsmm objBSMM);
+	XXAPI void xrtBsmmDestroy(xbsmm objBSMM);
 	
 	// 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
-	XXAPI void xrtBSMM_Init(xbsmm objBSMM, unsigned int iItemLength);
+	XXAPI void xrtBsmmInit(xbsmm objBSMM, unsigned int iItemLength);
 	
 	// 释放数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Destroy 功能类似）
-	XXAPI void xrtBSMM_Unit(xbsmm objBSMM);
+	XXAPI void xrtBsmmUnit(xbsmm objBSMM);
 	
 	// 申请结构体内存
-	XXAPI void* xrtBSMM_Alloc(xbsmm objBSMM);
+	XXAPI void* xrtBsmmAlloc(xbsmm objBSMM);
 	
 	// 释放结构体内存
-	XXAPI void xrtBSMM_Free(xbsmm objBSMM, void* Ptr);
+	XXAPI void xrtBsmmFree(xbsmm objBSMM, void* Ptr);
 	
 	// 获取成员指针（非特殊需求不建议使用）
-	static inline void* xrtBSMM_GetPtr_Inline(xbsmm objBSMM, unsigned int iIdx)
+	static inline void* xrtBsmmGetPtr_Inline(xbsmm objBSMM, unsigned int iIdx)
 	{
 		unsigned int iBlock = iIdx >> 8;
 		unsigned int iPos = iIdx & 0xFF;
 		char* pBlock = PAMM_GetVal_Inline(&objBSMM->PageMMU, iBlock + 1);
-		return &pBlock[iPos * objBSMM->ItemLength];
+		if ( pBlock ) {
+			return &pBlock[iPos * objBSMM->ItemLength];
+		} else {
+			return NULL;
+		}
 	}
 	
 	

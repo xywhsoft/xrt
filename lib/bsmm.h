@@ -1,34 +1,27 @@
-/*
-	Dynamic Array [动态数组]
-		成员编号规则（0为不存在的成员编号）：
-			┌──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬────┐
-			│01│02│03│04│05│06│07│08│09│10│11│12│ .. │
-			└──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴──┴────┘
-*/
 
 
 
 // 创建数据块结构内存管理器
-XXAPI xbsmm xrtBSMM_Create(unsigned int iItemLength)
+XXAPI xbsmm xrtBsmmCreate(unsigned int iItemLength)
 {
 	xbsmm objBSMM = xrtMalloc(sizeof(xbsmm_struct));
 	if ( objBSMM ) {
-		xrtBSMM_Init(objBSMM, iItemLength);
+		xrtBsmmInit(objBSMM, iItemLength);
 	}
 	return objBSMM;
 }
 
 // 销毁数据块结构内存管理器
-XXAPI void xrtBSMM_Destroy(xbsmm objBSMM)
+XXAPI void xrtBsmmDestroy(xbsmm objBSMM)
 {
 	if ( objBSMM ) {
-		xrtBSMM_Unit(objBSMM);
+		xrtBsmmUnit(objBSMM);
 		xrtFree(objBSMM);
 	}
 }
 
 // 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
-XXAPI void xrtBSMM_Init(xbsmm objBSMM, unsigned int iItemLength)
+XXAPI void xrtBsmmInit(xbsmm objBSMM, unsigned int iItemLength)
 {
 	objBSMM->ItemLength = iItemLength;
 	objBSMM->Count = 0;
@@ -37,7 +30,7 @@ XXAPI void xrtBSMM_Init(xbsmm objBSMM, unsigned int iItemLength)
 }
 
 // 释放数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Destroy 功能类似）
-XXAPI void xrtBSMM_Unit(xbsmm objBSMM)
+XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 {
 	objBSMM->Count = 0;
 	// 循环释放 PageMMU 中的内存页
@@ -56,7 +49,7 @@ XXAPI void xrtBSMM_Unit(xbsmm objBSMM)
 }
 
 // 申请结构体内存
-XXAPI void* xrtBSMM_Alloc(xbsmm objBSMM)
+XXAPI void* xrtBsmmAlloc(xbsmm objBSMM)
 {
 	if ( objBSMM->LL_Free ) {
 		// 有空闲内存块先用空闲的
@@ -89,7 +82,7 @@ XXAPI void* xrtBSMM_Alloc(xbsmm objBSMM)
 }
 
 // 释放结构体内存
-XXAPI void xrtBSMM_Free(xbsmm objBSMM, void* Ptr)
+XXAPI void xrtBsmmFree(xbsmm objBSMM, void* Ptr)
 {
 	MemPtr_LLNode* pNode = xrtMalloc(sizeof(MemPtr_LLNode));
 	pNode->Ptr = Ptr;

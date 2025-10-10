@@ -10,16 +10,21 @@
 
 #include "test/test_base.h"
 #include "test/test_charset.h"
+#include "test/test_os.h"
 #include "test/test_math.h"
 #include "test/test_string.h"
 #include "test/test_path.h"
 #include "test/test_time.h"
 #include "test/test_file.h"
-#include "test/test_xid.h"
+#include "test/test_thread.h"
+#include "test/test_hash.h"
 #include "test/test_network.h"
+#include "test/test_xid.h"
+#include "test/test_buffer.h"
 #include "test/test_other.h"
 #include "test/test_array_ptr.h"
 #include "test/test_array_struct.h"
+#include "test/test_bsmm.h"
 #include "test/test_memunit.h"
 
 
@@ -44,6 +49,9 @@ int main(int argc, char** argv)
 	/* Charset 库测试 */
 	// Test_Charset(xCore);
 	
+	/* OS 库测试 */
+	// Test_OS(xCore);
+	
 	/* Math 库测试 */
 	// Test_Math(xCore);
 	
@@ -59,17 +67,29 @@ int main(int argc, char** argv)
 	/* File 库测试 */
 	// Test_File(xCore);
 	
-	/* XID 库测试 */
-	// Test_XID(xCore);
+	/* Thread 库测试 */
+	// Test_Thread(xCore);
+	
+	/* Hash 库测试 */
+	// Test_Hash(xCore);
 	
 	/* 网络库测试 */
 	// Test_Network(xCore);
+	
+	/* XID 库测试 */
+	// Test_XID(xCore);
+	
+	/* Buffer 库测试 */
+	// Test_Buffer(xCore);
 	
 	/* 指针数组测试 */
 	// Test_Array_Ptr(xCore);
 	
 	/* 结构体数组测试 */
-	Test_Array_Struct(xCore);
+	// Test_Array_Struct(xCore);
+	
+	/* 块结构内存管理器测试 */
+	// Test_BSMM(xCore);
 	
 	/* 内存管理单元测试 */
 	// Test_MemUnit(xCore);
