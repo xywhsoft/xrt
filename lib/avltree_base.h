@@ -2,13 +2,13 @@
 
 
 // 平衡二叉树（内部函数）
-static inline void xrtAVLTree_Rebalance(AVLTree_NodeBase*** ancestors, int count)
+static inline void xrtAVLTree_Rebalance(xavltnode** ancestors, int count)
 {
 	while ( count > 0 ) {
-		AVLTree_NodeBase** ppNode = ancestors[--count];							// 指向当前子树根节点的指针地址
-		AVLTree_NodeBase* pNode = *ppNode;										// 指向当前子树的根节点
-		AVLTree_NodeBase* leftp = pNode->left;									// 指向左子树的根节点
-		AVLTree_NodeBase* rightp = pNode->right;								// 指向右子树的根节点
+		xavltnode* ppNode = ancestors[--count];							// 指向当前子树根节点的指针地址
+		xavltnode pNode = *ppNode;										// 指向当前子树的根节点
+		xavltnode leftp = pNode->left;									// 指向左子树的根节点
+		xavltnode rightp = pNode->right;								// 指向右子树的根节点
 		int lefth = (leftp != NULL) ? leftp->height : 0;						// 左子树的高度
 		int righth = (rightp != NULL) ? rightp->height : 0;						// 右子树的高度
 		// 找到当前根节点及其两个子树。通过构造，我们知道它们都符合AVL平衡规则
@@ -21,8 +21,8 @@ static inline void xrtAVLTree_Rebalance(AVLTree_NodeBase*** ancestors, int count
 			 * 当前子树左侧过高，违反了平衡规则。根据左子树的配置，我们必须使用两种不同的再平衡方法之一。
 			 * 请注意，left p不能为NULL，否则我们不会传递给它
 			 */
-			AVLTree_NodeBase* leftleftp = leftp->left;							// 指向左-左子树的根
-			AVLTree_NodeBase* leftrightp = leftp->right;						// 指向左-右子树的根
+			xavltnode leftleftp = leftp->left;							// 指向左-左子树的根
+			xavltnode leftrightp = leftp->right;						// 指向左-右子树的根
 			int leftrighth = (leftrightp != NULL) ? leftrightp->height : 0;		// 左右子树高度
 			if ( (leftleftp != NULL) && (leftleftp->height >= leftrighth) ) {
 				/*
@@ -75,8 +75,8 @@ static inline void xrtAVLTree_Rebalance(AVLTree_NodeBase*** ancestors, int count
 			 * 当前子树在右侧过高，违反了平衡规则。这与前一种情况完全对称。我们必须根据右子树的配置使用两种不同的再平衡方法之一。
 			 * 请注意，rightp不能为NULL，否则我们不会传递给它
 			 */
-			 AVLTree_NodeBase* rightleftp = rightp->left;						// 指向右-左子树的根
-			 AVLTree_NodeBase* rightrightp = rightp->right;						// 指向右-右子树的根
+			 xavltnode rightleftp = rightp->left;						// 指向右-左子树的根
+			 xavltnode rightrightp = rightp->right;						// 指向右-右子树的根
 			 int rightlefth = (rightleftp != NULL) ? rightleftp->height : 0;	// 右左子树高度
 			 if ( (rightrightp != NULL) && (rightrightp->height >= rightlefth) ) {
 				/*        <B>                             <D>
@@ -134,15 +134,15 @@ static inline void xrtAVLTree_Rebalance(AVLTree_NodeBase*** ancestors, int count
 }
 	
 // 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
-XXAPI AVLTree_NodeBase* xrtAVLTB_Insert(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey, AVLTree_NodeBase* pNewNode)
+XXAPI xavltnode xrtAVLTB_Insert(xavltbase objAVLT, AVLTree_CompProc procComp, void* pKey, xavltnode pNewNode)
 {
 	// 初始化数据
-	AVLTree_NodeBase** ppNode = &objAVLT->RootNode;
-	AVLTree_NodeBase** ancestor[AVLTree_MAX_HEIGHT];	// 上层节点列表
+	xavltnode* ppNode = &objAVLT->RootNode;
+	xavltnode* ancestor[AVLTree_MAX_HEIGHT];	// 上层节点列表
 	int ancestorCount = 0;								// 上层节点数量
 	// 找到要添加新节点的叶子节点
 	while ( ancestorCount < AVLTree_MAX_HEIGHT ) {
-		AVLTree_NodeBase* pNode = *ppNode;
+		xavltnode pNode = *ppNode;
 		if ( pNode == NULL ) { break; }
 		ancestor[ancestorCount++] = ppNode;
 		int delta = procComp(&pNode[1], pKey);
@@ -168,12 +168,12 @@ XXAPI AVLTree_NodeBase* xrtAVLTB_Insert(AVLTree_BaseObject objAVLT, AVLTree_Comp
 }
 
 // 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
-XXAPI AVLTree_NodeBase* xrtAVLTB_Remove(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey)
+XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, void* pKey)
 {
-	AVLTree_NodeBase** ppNode = &objAVLT->RootNode;
-	AVLTree_NodeBase** ancestor[AVLTree_MAX_HEIGHT];	// 上层节点列表
+	xavltnode* ppNode = &objAVLT->RootNode;
+	xavltnode* ancestor[AVLTree_MAX_HEIGHT];	// 上层节点列表
 	int ancestorCount = 0;								// 上层节点数量
-	AVLTree_NodeBase* pNode = NULL;
+	xavltnode pNode = NULL;
 	// 查找需要删除的节点
 	while ( ancestorCount < AVLTree_MAX_HEIGHT ) {
 		pNode = *ppNode;
@@ -192,7 +192,7 @@ XXAPI AVLTree_NodeBase* xrtAVLTB_Remove(AVLTree_BaseObject objAVLT, AVLTree_Comp
 	if ( ancestorCount == AVLTree_MAX_HEIGHT ) {
 		return NULL;
 	}
-	AVLTree_NodeBase* pDelete = pNode;
+	xavltnode pDelete = pNode;
 	if ( pNode->left == NULL ) {
 		// 删除节点的的左子树上没有节点。
 		// 要么在它的右子树上有子节点（根据平衡规则，只能有一个），它取代了要删除的节点，要么它没有子节点(被删除)
@@ -201,7 +201,7 @@ XXAPI AVLTree_NodeBase* xrtAVLTB_Remove(AVLTree_BaseObject objAVLT, AVLTree_Comp
 		ancestorCount--;
 	} else {
 		// 我们将在树的顺序中找到刚好在delNode之前的节点，并将其提升到树中delNode的位置
-		AVLTree_NodeBase** ppDelete = ppNode;			// 指向我们必须删除的节点
+		xavltnode* ppDelete = ppNode;			// 指向我们必须删除的节点
 		int deleteAncestorCount = ancestorCount;		// 替换节点必须插入到祖先列表中的位置
 		// 在树排序中搜索要删除节点之前的节点
 		ppNode = &(pNode->left);
@@ -235,9 +235,9 @@ XXAPI AVLTree_NodeBase* xrtAVLTB_Remove(AVLTree_BaseObject objAVLT, AVLTree_Comp
 }
 
 // 从 AVLTree 中查找节点
-XXAPI AVLTree_NodeBase* xrtAVLTB_Search(AVLTree_BaseObject objAVLT, AVLTree_CompProc procComp, void* pKey)
+XXAPI xavltnode xrtAVLTB_Search(xavltbase objAVLT, AVLTree_CompProc procComp, void* pKey)
 {
-	AVLTree_NodeBase* pNode = objAVLT->RootNode;
+	xavltnode pNode = objAVLT->RootNode;
 	while ( pNode != NULL ) {
 		int delta = procComp(&pNode[1], pKey);
 		if ( delta < 0 ) {
@@ -252,7 +252,7 @@ XXAPI AVLTree_NodeBase* xrtAVLTB_Search(AVLTree_BaseObject objAVLT, AVLTree_Comp
 }
 
 // 遍历 AVLTree 所有节点
-XXAPI int xrtAVLTB_WalkRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procEach, void* pArg)
+XXAPI int xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, void* pArg)
 {
 	if ( root ) {
 		// 递归左子树
@@ -276,7 +276,7 @@ XXAPI int xrtAVLTB_WalkRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procEac
 	}
 	return 0;
 }
-XXAPI int xrtAVLTB_WalkExRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg)
+XXAPI int xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg)
 {
 	if ( root ) {
 		// 调用回调函数(前置)

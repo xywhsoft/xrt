@@ -10,6 +10,13 @@ xrtAVLTB_Remove
 xrtAVLTB_Search
 xrtAVLTB_WalkExRecuProc
 xrtAVLTB_WalkRecuProc
+xrtAVLTreeCreate
+xrtAVLTreeDestroy
+xrtAVLTreeInit
+xrtAVLTreeInsert
+xrtAVLTreeRemove
+xrtAVLTreeSearch
+xrtAVLTreeUnit
 xrtArrayAlloc
 xrtArrayAppend
 xrtArrayCreate
