@@ -1030,6 +1030,52 @@
 	
 	
 	
+	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */
+	
+	// 内存管理器链表结构
+	typedef struct MMU_LLNode {
+		unsigned int Flag;
+		xmemunit objMMU;
+		struct MMU_LLNode* Prev;
+		struct MMU_LLNode* Next;
+	} MMU_LLNode;
+	
+	// 256步进内存管理器数据结构
+	typedef struct {
+		unsigned int ItemLength;					// 成员占用内存长度
+		xbsmm_struct arrMMU;						// MMU 阵列
+		MMU_LLNode* LL_Idle;						// 有空闲的内存管理单元链表首元素 (优先分配内存的单元)
+		MMU_LLNode* LL_Full;						// 满载的内存管理单元链表首元素 (不会从这些单元中分配内存)
+		MMU_LLNode* LL_Null;						// 缓存的全空内存管理单元 (备用单元，最多只留一个)
+		MMU_LLNode* LL_Free;						// 已释放的内存管理单元 Flag 链表首元素 (申请新单元优先从这里找)
+	} xfsmempool_struct, *xfsmempool;
+	
+	// 创建内存管理器
+	XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength);
+	
+	// 销毁内存管理器
+	XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM);
+	
+	// 初始化内存管理器（对自维护结构体指针使用）
+	XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength);
+	
+	// 释放内存管理器（对自维护结构体指针使用）
+	XXAPI void xrtFSMemPoolUnit(xfsmempool objMM);
+	
+	// 从内存管理器中申请一块内存
+	XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM);
+	
+	// 将内存管理器申请的内存释放掉
+	XXAPI void xrtFSMemPoolFree(xfsmempool objMM, void* ptr);
+	
+	// 将一块内存标记为使用中
+	#define xrtFSMemPoolGC_Mark	xrtMemUnitGC_Mark
+	
+	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
+	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, int bFreeMark);
+	
+	
+	
 	/* ------------------------------------ Stack 函数库 ------------------------------------ */
 	
 	// 结构体静态栈数据结构
@@ -1126,14 +1172,14 @@
 	typedef struct LList_NodeBase {
 		struct LList_NodeBase* Prev;
 		struct LList_NodeBase* Next;
-	} LList_NodeBase;
+	} xllistnode_struct, *xllistnode;
 	
 	// 链表对象数据结构
 	typedef struct {
-		LList_NodeBase* FirstNode;
-		LList_NodeBase* LastNode;
+		xllistnode FirstNode;
+		xllistnode LastNode;
 		unsigned int Count;
-	} LList_BaseStruct, *LList_BaseObject;
+	} xllistbase_struct, *xllistbase;
 	
 	// 初始化链表
 	#define xrtLLB_Init(o) (o)->FirstNode = NULL; (o)->LastNode = NULL; (o)->Count = 0
@@ -1142,19 +1188,58 @@
 	#define xrtLLB_Unit xrtLLB_Init
 	
 	// 节点前插入 (objNode为空则插入到FirstNode之前)
-	XXAPI void xrtLLB_InsertPrev(LList_BaseObject objLLB, LList_NodeBase* objNode, LList_NodeBase* objNewNode);
+	XXAPI void xrtLLB_InsertPrev(xllistbase objLLB, xllistnode objNode, xllistnode objNewNode);
 	
 	// 节点后插入 (objNode为空则插入到LastNode之后)
-	XXAPI void xrtLLB_InsertNext(LList_BaseObject objLLB, LList_NodeBase* objNode, LList_NodeBase* objNewNode);
+	XXAPI void xrtLLB_InsertNext(xllistbase objLLB, xllistnode objNode, xllistnode objNewNode);
 	
 	// 删除节点
-	XXAPI void xrtLLB_Remove(LList_BaseObject objLLB, LList_NodeBase* objNode);
+	XXAPI void xrtLLB_Remove(xllistbase objLLB, xllistnode objNode);
 	
 	// 删除所有成员
 	#define xrtLLB_RemoveAll LLB_Unit
 	
 	// 清空管理器
 	#define xrtLLB_Clear LLB_Unit
+	
+	
+	
+	/* ------------------------------------ Linked List 函数库 ------------------------------------ */
+	
+	// 链表对象数据结构
+	typedef struct {
+		xllistnode FirstNode;
+		xllistnode LastNode;
+		unsigned int Count;
+		xfsmempool_struct objMM;
+	} xllist_struct, *xllist;
+	
+	// 创建链表
+	XXAPI xllist xrtLListCreate(unsigned int iItemLength);
+	
+	// 销毁链表
+	XXAPI void xrtLListDestroy(xllist objLL);
+	
+	// 初始化链表（对自维护结构体指针使用）
+	XXAPI void xrtLListInit(xllist objLL, unsigned int iItemLength);
+	
+	// 释放链表（对自维护结构体指针使用）
+	XXAPI void xrtLListUnit(xllist objLL);
+	
+	// 节点前插入 (objNode为空则插入到FirstNode之前)
+	XXAPI xllistnode xrtLListInsertPrev(xllist objLL, xllistnode objNode);
+	
+	// 节点后插入 (objNode为空则插入到LastNode之后)
+	XXAPI xllistnode xrtLListInsertNext(xllist objLL, xllistnode objNode);
+	
+	// 删除节点
+	XXAPI void xrtLListRemove(xllist objLL, xllistnode objNode);
+	
+	// 删除所有成员
+	#define xrtLListRemoveAll xrtLListUnit
+	
+	// 清空管理器
+	#define xrtLListClear xrtLListUnit
 	
 	
 	
@@ -1217,56 +1302,6 @@
 	XXAPI int xrtAVLTB_WalkExRecuProc(AVLTree_NodeBase* root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg);
 	#define xrtAVLTB_Walk(obj, p, a) AVLTB_WalkRecuProc(obj->RootNode, (void*)p, (void*)a)
 	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) AVLTB_WalkExRecuProc(obj->RootNode, (void*)p1, (void*)p2, (void*)p3, (void*)a)
-	
-	
-	
-	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */
-	
-	// 内存管理器链表结构
-	typedef struct MMU_LLNode {
-		unsigned int Flag;
-		xmemunit objMMU;
-		struct MMU_LLNode* Prev;
-		struct MMU_LLNode* Next;
-	} MMU_LLNode;
-	
-	// 256步进内存管理器数据结构
-	typedef struct {
-		unsigned int ItemLength;					// 成员占用内存长度
-		xbsmm_struct arrMMU;						// MMU 阵列
-		MMU_LLNode* LL_Idle;						// 有空闲的内存管理单元链表首元素 (优先分配内存的单元)
-		MMU_LLNode* LL_Full;						// 满载的内存管理单元链表首元素 (不会从这些单元中分配内存)
-		MMU_LLNode* LL_Null;						// 缓存的全空内存管理单元 (备用单元，最多只留一个)
-		MMU_LLNode* LL_Free;						// 已释放的内存管理单元 Flag 链表首元素 (申请新单元优先从这里找)
-	} xfsmempool_struct, *xfsmempool;
-	
-	// 创建内存管理器
-	XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength);
-	
-	// 销毁内存管理器
-	XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM);
-	
-	// 初始化内存管理器（对自维护结构体指针使用）
-	XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength);
-	
-	// 释放内存管理器（对自维护结构体指针使用）
-	XXAPI void xrtFSMemPoolUnit(xfsmempool objMM);
-	
-	// 从内存管理器中申请一块内存
-	XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM);
-	
-	// 将内存管理器申请的内存释放掉
-	XXAPI void xrtFSMemPoolFree(xfsmempool objMM, void* ptr);
-	
-	// 将一块内存标记为使用中
-	#define xrtFSMemPoolGC_Mark	xrtMemUnitGC_Mark
-	
-	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
-	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, int bFreeMark);
-	
-	
-	
-	/* ------------------------------------ LList 函数库 ------------------------------------ */
 	
 	
 	

@@ -2,7 +2,7 @@
 
 
 // 节点前插入 (objNode为空则插入到FirstNode之前)
-XXAPI void xrtLLB_InsertPrev(LList_BaseObject objLLB, LList_NodeBase* objNode, LList_NodeBase* objNewNode)
+XXAPI void xrtLLB_InsertPrev(xllistbase objLLB, xllistnode objNode, xllistnode objNewNode)
 {
 	if ( objNode ) {
 		// 有参考节点（插入到参考节点前面）
@@ -29,7 +29,7 @@ XXAPI void xrtLLB_InsertPrev(LList_BaseObject objLLB, LList_NodeBase* objNode, L
 }
 
 // 节点后插入 (objNode为空则插入到LastNode之后)
-XXAPI void xrtLLB_InsertNext(LList_BaseObject objLLB, LList_NodeBase* objNode, LList_NodeBase* objNewNode)
+XXAPI void xrtLLB_InsertNext(xllistbase objLLB, xllistnode objNode, xllistnode objNewNode)
 {
 	if ( objNode ) {
 		// 有参考节点（插入到参考节点后面）
@@ -56,10 +56,10 @@ XXAPI void xrtLLB_InsertNext(LList_BaseObject objLLB, LList_NodeBase* objNode, L
 }
 
 // 删除节点
-XXAPI void xrtLLB_Remove(LList_BaseObject objLLB, LList_NodeBase* objNode)
+XXAPI void xrtLLB_Remove(xllistbase objLLB, xllistnode objNode)
 {
-	LList_NodeBase* pNext = objNode->Next;
-	LList_NodeBase* pPrev = objNode->Prev;
+	xllistnode pNext = objNode->Next;
+	xllistnode pPrev = objNode->Prev;
 	if ( pPrev ) {
 		pPrev->Next = pNext;
 	} else {
