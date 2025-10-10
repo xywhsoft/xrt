@@ -17,7 +17,7 @@ void Test_MemUnit(xrtGlobalData* xCore)
 	
 	// subject 1 : create object
 	printf("Memory Unit test subject 1 : create object\n\n");
-	MMU_Object objMMU = xrtMemUnitCreate (sizeof(MU_Test_Struct));
+	xmemunit objMMU = xrtMemUnitCreate(sizeof(MU_Test_Struct));
 	if ( objMMU ) {
 		objMMU->Flag = 0x10000;
 		printf("Memory Unit object : %p\t\t\t\tpass! √\n", objMMU);

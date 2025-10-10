@@ -1041,7 +1041,7 @@
 	XXAPI void xrtFSMemPoolFree(xfsmempool objMM, void* ptr);
 	
 	// 将一块内存标记为使用中
-	#define xrtFSMemPoolGC_Mark	MM_GC_Mark
+	#define xrtFSMemPoolGC_Mark	xrtMemUnitGC_Mark
 	
 	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
 	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, int bFreeMark);

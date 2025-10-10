@@ -26,6 +26,7 @@
 #include "test/test_array_struct.h"
 #include "test/test_bsmm.h"
 #include "test/test_memunit.h"
+#include "test/test_mempool_fs.h"
 
 
 
@@ -95,7 +96,7 @@ int main(int argc, char** argv)
 	// Test_MemUnit(xCore);
 	
 	/* 固定大小内存池测试 */
-	//Test_MemPoolFS(xCore);
+	Test_MemPoolFS(xCore);
 	
 	/* 内存池测试 */
 	// Test_MemPool(xCore);
