@@ -1420,10 +1420,10 @@
 	
 	// 字典 Key 数据结构
 	#if defined(__x86_64__) || defined(_M_X64)
-		// 64 bit
+		// 64 bit [ 只取 32 位 ]
 		typedef struct {
 			void* Key;
-			uint64 Hash;
+			uint32 Hash;
 			uint32 KeyLen;
 		} Dict_Key;
 	#elif defined(__i386__) || defined(_M_IX86)
@@ -1533,10 +1533,6 @@
 	
 	// 遍历表元素
 	XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg);
-	
-	
-	
-	/* ------------------------------------ Collect 函数库 ------------------------------------ */
 	
 	
 	

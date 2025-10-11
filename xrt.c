@@ -76,7 +76,6 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/dict.h"
 #include "lib/list.h"
 
-#include "lib/collect.h"
 #include "lib/value.h"
 #include "lib/json.h"
 #include "lib/template.h"
