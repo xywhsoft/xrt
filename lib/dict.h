@@ -5,7 +5,7 @@
 	// 64 bit
 	
 	// 哈希表比较函数（内部函数）
-	int HT_CompProc(Hash_Key* pNode, Hash_Key* pObjKey)
+	int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
 	{
 		if ( pNode->Hash == pObjKey->Hash ) {
 			if ( pNode->KeyLen == pObjKey->KeyLen ) {
@@ -21,13 +21,13 @@
 	}
 	
 	// 哈希值计算函数（内部函数）
-	#define HT_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash64(k, l)
+	#define Dict_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash64(k, l)
 	
 #elif defined(__i386__) || defined(_M_IX86)
 	// 32 bit
 	
 	// 哈希表比较函数（内部函数）
-	int HT_CompProc(Hash_Key* pNode, Hash_Key* pObjKey)
+	int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
 	{
 		if ( pNode->Hash == pObjKey->Hash ) {
 			if ( pNode->KeyLen == pObjKey->KeyLen ) {
@@ -43,7 +43,7 @@
 	}
 	
 	// 哈希值计算函数（内部函数）
-	#define HT_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash32(k, l)
+	#define Dict_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash32(k, l)
 	
 #endif
 
@@ -69,7 +69,7 @@ XXAPI void xrtDictDestroy(xdict objHT)
 }
 
 // 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
-void AVLHT32_FreeProc(xavltree objTree, Hash_Key* pNode)
+void AVLHT32_FreeProc(xavltree objTree, Dict_Key* pNode)
 {
 	#ifdef MMU_USE_MP256
 		if ( ((xdict)objTree->ExtData)->MP ) {
@@ -83,7 +83,7 @@ void AVLHT32_FreeProc(xavltree objTree, Hash_Key* pNode)
 }
 XXAPI void xrtDictInit(xdict objHT, unsigned int iItemLength)
 {
-	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Hash_Key), (void*)HT_CompProc);
+	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (void*)Dict_CompProc);
 	objHT->AVLT.FreeProc = (void*)AVLHT32_FreeProc;
 	objHT->AVLT.ExtData = objHT;
 	#ifdef MMU_USE_MP256
@@ -100,7 +100,7 @@ void AVLHT32_FreeKeysRecuProc(xdict objHT, xavltnode root)
 			AVLHT32_FreeKeysRecuProc(objHT, root->left);
 		}
 		// 释放 Key
-		Hash_Key* pNode = xrtAVLTreeGetNodeData(root);
+		Dict_Key* pNode = xrtAVLTreeGetNodeData(root);
 		#ifdef MMU_USE_MP256
 			if ( objHT->MP ) {
 				MP256_Free(objHT->MP, pNode->Key);
@@ -125,10 +125,10 @@ XXAPI void xrtDictUnit(xdict objHT)
 // 设置值
 XXAPI void* xrtDictSet(xdict objHT, void* sKey, unsigned int iKeyLen, int* bNewRet)
 {
-	Hash_Key objKey;
-	HT_EvalHash(objKey, sKey, iKeyLen);
+	Dict_Key objKey;
+	Dict_EvalHash(objKey, sKey, iKeyLen);
 	int bNew;
-	Hash_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
+	Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
 	if ( pNode ) {
 		if ( bNewRet ) {
 			*bNewRet = bNew;
@@ -156,10 +156,10 @@ XXAPI void* xrtDictSet(xdict objHT, void* sKey, unsigned int iKeyLen, int* bNewR
 // 设置值 - 当值为 void* 时直接修改指针内容
 XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVal, void** ppOldVal)
 {
-	Hash_Key objKey;
-	HT_EvalHash(objKey, sKey, iKeyLen);
+	Dict_Key objKey;
+	Dict_EvalHash(objKey, sKey, iKeyLen);
 	int bNew;
-	Hash_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
+	Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
 	if ( pNode ) {
 		if ( bNew ) {
 			#ifdef MMU_USE_MP256
@@ -198,9 +198,9 @@ XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVa
 // 获取值
 XXAPI void* xrtDictGet(xdict objHT, void* sKey, unsigned int iKeyLen)
 {
-	Hash_Key objKey;
-	HT_EvalHash(objKey, sKey, iKeyLen);
-	Hash_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
+	Dict_Key objKey;
+	Dict_EvalHash(objKey, sKey, iKeyLen);
+	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
 	if ( pNode ) {
 		return &pNode[1];
 	}
@@ -210,9 +210,9 @@ XXAPI void* xrtDictGet(xdict objHT, void* sKey, unsigned int iKeyLen)
 // 获取值 - 当值为 void* 时直接获取指针内容
 XXAPI void* xrtDictGetPtr(xdict objHT, void* sKey, unsigned int iKeyLen)
 {
-	Hash_Key objKey;
-	HT_EvalHash(objKey, sKey, iKeyLen);
-	Hash_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
+	Dict_Key objKey;
+	Dict_EvalHash(objKey, sKey, iKeyLen);
+	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
 	if ( pNode ) {
 		struct {
 			void* val;
@@ -225,17 +225,17 @@ XXAPI void* xrtDictGetPtr(xdict objHT, void* sKey, unsigned int iKeyLen)
 // 删除值
 XXAPI int xrtDictRemove(xdict objHT, void* sKey, unsigned int iKeyLen)
 {
-	Hash_Key objKey;
-	HT_EvalHash(objKey, sKey, iKeyLen);
+	Dict_Key objKey;
+	Dict_EvalHash(objKey, sKey, iKeyLen);
 	return xrtAVLTreeRemove(&objHT->AVLT, &objKey);
 }
 
 // 判断值是否存在
 XXAPI int xrtDictExists(xdict objHT, void* sKey, unsigned int iKeyLen)
 {
-	Hash_Key objKey;
-	HT_EvalHash(objKey, sKey, iKeyLen);
-	Hash_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
+	Dict_Key objKey;
+	Dict_EvalHash(objKey, sKey, iKeyLen);
+	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
 	if ( pNode ) {
 		return -1;
 	}
@@ -249,7 +249,7 @@ XXAPI unsigned int xrtDictCount(xdict objHT)
 }
 
 // 遍历表元素
-int AVLHT32_WalkRecuProc(xavltnode root, HT_EachProc procEach, void* pArg)
+int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, void* pArg)
 {
 	if ( root ) {
 		// 递归左子树
@@ -260,7 +260,7 @@ int AVLHT32_WalkRecuProc(xavltnode root, HT_EachProc procEach, void* pArg)
 		}
 		// 调用回调函数
 		if ( procEach ) {
-			if ( procEach(xrtAVLTreeGetNodeData(root), ((void*)root) + sizeof(xavltnode_struct) + sizeof(Hash_Key), pArg) ) {
+			if ( procEach(xrtAVLTreeGetNodeData(root), ((void*)root) + sizeof(xavltnode_struct) + sizeof(Dict_Key), pArg) ) {
 				return -1;
 			}
 		}
@@ -273,7 +273,7 @@ int AVLHT32_WalkRecuProc(xavltnode root, HT_EachProc procEach, void* pArg)
 	}
 	return 0;
 }
-XXAPI void xrtDictWalk(xdict objHT, HT_EachProc procEach, void* pArg)
+XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, void* pArg)
 {
 	AVLHT32_WalkRecuProc(objHT->AVLT.RootNode, procEach, pArg);
 }

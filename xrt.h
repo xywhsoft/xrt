@@ -1418,29 +1418,31 @@
 	
 	/* ------------------------------------ Dict 函数库 ------------------------------------ */
 	
-	// 哈希表遍历回调函数
+	// 字典 Key 数据结构
 	#if defined(__x86_64__) || defined(_M_X64)
 		// 64 bit
 		typedef struct {
 			void* Key;
 			uint64 Hash;
 			uint32 KeyLen;
-		} Hash_Key;
+		} Dict_Key;
 	#elif defined(__i386__) || defined(_M_IX86)
 		// 32 bit
 		typedef struct {
 			void* Key;
 			uint32 Hash;
 			uint32 KeyLen;
-		} Hash_Key;
+		} Dict_Key;
 	#endif
-	typedef int (*HT_EachProc)(Hash_Key* pKey, void* pVal, void* pArg);
 	
-	// 32位 AVLTree 哈希表对象数据结构
+	// 字典对象数据结构
 	typedef struct {
 		xavltree_struct AVLT;
 		xmempool MP;
 	} xdict_struct, *xdict;
+	
+	// 字典遍历回调函数
+	typedef int (*Dict_EachProc)(Dict_Key* pKey, void* pVal, void* pArg);
 	
 	// 创建哈希表
 	XXAPI xdict xrtDictCreate(unsigned int iItemLength);
@@ -1482,11 +1484,55 @@
 	XXAPI unsigned int xrtDictCount(xdict objHT);
 	
 	// 遍历表元素
-	XXAPI void xrtDictWalk(xdict objHT, HT_EachProc procEach, void* pArg);
+	XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, void* pArg);
 	
 	
 	
 	/* ------------------------------------ List 函数库 ------------------------------------ */
+	
+	// 列表对象数据结构
+	typedef struct {
+		xavltree_struct AVLT;
+	} xlist_struct, *xlist;
+	
+	// 列表遍历回调函数
+	typedef int (*List_EachProc)(int64 pKey, void* pVal, void* pArg);
+	
+	// 创建列表
+	XXAPI xlist xrtListCreate(unsigned int iItemLength);
+	
+	// 销毁列表
+	XXAPI void xrtListDestroy(xlist objList);
+	
+	// 初始化列表（对自维护结构体指针使用）
+	XXAPI void xrtListInit(xlist objList, unsigned int iItemLength);
+	
+	// 释放列表（对自维护结构体指针使用）
+	XXAPI void xrtListUnit(xlist objList);
+	
+	// 设置值
+	XXAPI ptr xrtListSet(xlist objList, int64 iKey, int* bNewRet);
+	
+	// 设置值 - 当值为 void* 时直接修改指针内容
+	XXAPI int xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal);
+	
+	// 获取值
+	XXAPI ptr xrtListGet(xlist objList, int64 iKey);
+	
+	// 获取值 - 当值为 void* 时直接获取指针内容
+	XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey);
+	
+	// 删除值
+	XXAPI int xrtListRemove(xlist objList, int64 iKey);
+	
+	// 判断值是否存在
+	XXAPI int xrtListExists(xlist objList, int64 iKey);
+	
+	// 获取表内元素数量
+	XXAPI unsigned int xrtListCount(xlist objList);
+	
+	// 遍历表元素
+	XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg);
 	
 	
 	

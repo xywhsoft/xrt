@@ -9,7 +9,7 @@ typedef struct {
 
 
 // each table
-int test_avlht32_eachproc(Hash_Key* pKey, AVLHT32_Test_Object pVal, void* pArg)
+int test_avlht32_eachproc(Dict_Key* pKey, AVLHT32_Test_Object pVal, void* pArg)
 {
 	printf("\t%s = %d (keylen:%d, Hash:%d)\n", pKey->Key, pVal->Val, pKey->KeyLen, pKey->Hash);
 	return 0;
@@ -35,7 +35,7 @@ void Test_Dict(xrtGlobalData* xCore)
 		objHT->MP = objMP;
 		printf("Dict object : %p\t\t\t\tpass! √\n", objHT);
 		printf("\tCount : %d\t\t\t\t=> 0\n", objHT->AVLT.Count);
-		printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Hash_Key) + sizeof(AVLHT32_Test_Struct));
+		printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Dict_Key) + sizeof(AVLHT32_Test_Struct));
 		printf("\tMM.arrMMU.ItemLength : %d\t\t=> %d\n", objHT->AVLT.objMM.arrMMU.ItemLength, sizeof(MMU_LLNode));
 		printf("\tMM.arrMMU.Count : %d\t\t\t=> 0\n", objHT->AVLT.objMM.arrMMU.Count);
 		printf("\tMM.arrMMU.PageMMU.Count : %d\t\t=> 0\n", objHT->AVLT.objMM.arrMMU.PageMMU.Count);
@@ -83,7 +83,7 @@ void Test_Dict(xrtGlobalData* xCore)
 	
 	printf("\nDict state : \n");
 	printf("\tCount : %d\t\t\t\t=> 10\n", objHT->AVLT.Count);
-	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Hash_Key) + sizeof(AVLHT32_Test_Struct));
+	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Dict_Key) + sizeof(AVLHT32_Test_Struct));
 	printf("\tMM.arrMMU.ItemLength : %d\t\t=> %d\n", objHT->AVLT.objMM.arrMMU.ItemLength, sizeof(MMU_LLNode));
 	printf("\tMM.arrMMU.Count : %d\t\t\t=> 1\n", objHT->AVLT.objMM.arrMMU.Count);
 	printf("\tMM.arrMMU.PageMMU.Count : %d\t\t=> 1\n", objHT->AVLT.objMM.arrMMU.PageMMU.Count);
@@ -120,7 +120,7 @@ void Test_Dict(xrtGlobalData* xCore)
 	
 	printf("\nDict state : \n");
 	printf("\tCount : %d\t\t\t\t=> 5\n", objHT->AVLT.Count);
-	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Hash_Key) + sizeof(AVLHT32_Test_Struct));
+	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Dict_Key) + sizeof(AVLHT32_Test_Struct));
 	printf("\tMM.arrMMU.ItemLength : %d\t\t=> %d\n", objHT->AVLT.objMM.arrMMU.ItemLength, sizeof(MMU_LLNode));
 	printf("\tMM.arrMMU.Count : %d\t\t\t=> 1\n", objHT->AVLT.objMM.arrMMU.Count);
 	printf("\tMM.arrMMU.PageMMU.Count : %d\t\t=> 1\n", objHT->AVLT.objMM.arrMMU.PageMMU.Count);
@@ -158,7 +158,7 @@ void Test_Dict(xrtGlobalData* xCore)
 	
 	printf("\nDict state : \n");
 	printf("\tCount : %d\t\t\t\t=> 1000000\n", objHT->AVLT.Count);
-	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Hash_Key) + sizeof(AVLHT32_Test_Struct));
+	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Dict_Key) + sizeof(AVLHT32_Test_Struct));
 	printf("\tMM.arrMMU.ItemLength : %d\t\t=> %d\n", objHT->AVLT.objMM.arrMMU.ItemLength, sizeof(MMU_LLNode));
 	printf("\tMM.arrMMU.Count : %d\t\t\t=> 3907\n", objHT->AVLT.objMM.arrMMU.Count);
 	printf("\tMM.arrMMU.PageMMU.Count : %d\t\t=> 16\n", objHT->AVLT.objMM.arrMMU.PageMMU.Count);
@@ -191,7 +191,7 @@ void Test_Dict(xrtGlobalData* xCore)
 	
 	printf("\nDict state : \n");
 	printf("\tCount : %d\t\t\t\t=> 1000000\n", objHT->AVLT.Count);
-	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Hash_Key) + sizeof(AVLHT32_Test_Struct));
+	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Dict_Key) + sizeof(AVLHT32_Test_Struct));
 	printf("\tMM.arrMMU.ItemLength : %d\t\t=> %d\n", objHT->AVLT.objMM.arrMMU.ItemLength, sizeof(MMU_LLNode));
 	printf("\tMM.arrMMU.Count : %d\t\t\t=> 3907\n", objHT->AVLT.objMM.arrMMU.Count);
 	printf("\tMM.arrMMU.PageMMU.Count : %d\t\t=> 16\n", objHT->AVLT.objMM.arrMMU.PageMMU.Count);
@@ -215,7 +215,7 @@ void Test_Dict(xrtGlobalData* xCore)
 	
 	printf("\nDict state : \n");
 	printf("\tCount : %d\t\t\t\t=> 0\n", objHT->AVLT.Count);
-	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Hash_Key) + sizeof(AVLHT32_Test_Struct));
+	printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objHT->AVLT.objMM.ItemLength, sizeof(xavltnode_struct) + sizeof(Dict_Key) + sizeof(AVLHT32_Test_Struct));
 	printf("\tMM.arrMMU.ItemLength : %d\t\t=> %d\n", objHT->AVLT.objMM.arrMMU.ItemLength, sizeof(MMU_LLNode));
 	printf("\tMM.arrMMU.Count : %d\t\t\t=> 0\n", objHT->AVLT.objMM.arrMMU.Count);
 	printf("\tMM.arrMMU.PageMMU.Count : %d\t\t=> 0\n", objHT->AVLT.objMM.arrMMU.PageMMU.Count);
