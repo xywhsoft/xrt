@@ -7,9 +7,9 @@ int List_CompProc(int64* pNode, int64* pObjKey)
 	if ( *pNode == *pObjKey ) {
 		return 0;
 	} else if ( *pNode > *pObjKey ) {
-		return 1;
-	} else {
 		return -1;
+	} else {
+		return 1;
 	}
 }
 

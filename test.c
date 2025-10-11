@@ -34,6 +34,7 @@
 #include "test/test_avltree.h"
 #include "test/test_mempool.h"
 #include "test/test_dict.h"
+#include "test/test_list.h"
 #include "test/test_other.h"
 
 
@@ -128,7 +129,10 @@ int main(int argc, char** argv)
 	// Test_MemPool(xCore);
 	
 	/* Dict 测试 */
-	 Test_Dict(xCore);
+	// Test_Dict(xCore);
+	
+	/* List 测试 */
+	 Test_List(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
