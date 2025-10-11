@@ -24,7 +24,7 @@ void avltree_print(xavltnode pRoot)
 		printf("    ");
 	}
 	if ( pRoot ) {
-		AVLT_Test_Object pData = xrtAVLTree_GetNodeData(pRoot);
+		AVLT_Test_Object pData = xrtAVLTreeGetNodeData(pRoot);
 		printf("Val : %d [Height:%d]\n", pData->Val, pRoot->height);
 		iHeigth++;
 		avltree_print(pRoot->left);
@@ -112,7 +112,7 @@ void Test_AVLTree(xrtGlobalData* xCore)
 	for ( int i = 0; i < 10; i++ ) {
 		AVLT_Test_Object objNode = xrtAVLTreeSearch(objTree, (void*)(intptr_t)iValArr1[i]);
 		if ( objNode ) {
-			printf("AVLTree search node , k&v = %d & %d (%d)\t\t\t\tpass! √\n", iValArr1[i], objNode->Val, xrtAVLTree_GetNodeBase(objNode)->height);
+			printf("AVLTree search node , k&v = %d & %d (%d)\t\t\t\tpass! √\n", iValArr1[i], objNode->Val, xrtAVLTreeGetNodeBase(objNode)->height);
 		} else {
 			printf("AVLTree search node , k&v = %d\t\t\t\tfail! ×\n", iValArr1[i]);
 		}

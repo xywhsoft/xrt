@@ -1268,13 +1268,13 @@
 	typedef int (*AVLTree_EachProc)(void* pNode, void* pArg);
 	
 	// 获取 xavltnode 对象
-	#define xrtAVLTree_GetNodeBase(p) ((xavltnode)((void*)p - sizeof(xavltnode_struct)))
+	#define xrtAVLTreeGetNodeBase(p) ((xavltnode)((void*)p - sizeof(xavltnode_struct)))
 	
 	// 获取 xavltnode 对应的数据段
-	#define xrtAVLTree_GetNodeData(p) ((void*)(&p[1]))
+	#define xrtAVLTreeGetNodeData(p) ((void*)(&p[1]))
 	
 	// 获取根节点数据段
-	#define xrtAVLTree_GetRootData(obj) xrtAVLTree_GetNodeData(obj->RootNode)
+	#define xrtAVLTreeGetRootData(obj) xrtAVLTreeGetNodeData(obj->RootNode)
 	
 	// 初始化 AVLTree
 	#define xrtAVLTB_Init(o) (o)->RootNode = NULL; (o)->Count = 0

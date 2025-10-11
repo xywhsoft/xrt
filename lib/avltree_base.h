@@ -2,7 +2,7 @@
 
 
 // 平衡二叉树（内部函数）
-static inline void xrtAVLTree_Rebalance(xavltnode** ancestors, int count)
+static inline void xrtAVLTreeRebalance(xavltnode** ancestors, int count)
 {
 	while ( count > 0 ) {
 		xavltnode* ppNode = ancestors[--count];							// 指向当前子树根节点的指针地址
@@ -161,7 +161,7 @@ XXAPI xavltnode xrtAVLTB_Insert(xavltbase objAVLT, AVLTree_CompProc procComp, vo
 	pNewNode->height = 1;
 	*ppNode = pNewNode;				// 替换掉空节点
 	// 平衡二叉树
-	xrtAVLTree_Rebalance(ancestor, ancestorCount);
+	xrtAVLTreeRebalance(ancestor, ancestorCount);
 	// 返回节点指针
 	objAVLT->Count++;
 	return pNewNode;
@@ -224,7 +224,7 @@ XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, vo
 		ancestor[deleteAncestorCount] = &(pNode->left);
 	}
 	// 平衡二叉树
-	xrtAVLTree_Rebalance(ancestor, ancestorCount);
+	xrtAVLTreeRebalance(ancestor, ancestorCount);
 	// 返回结果
 	if ( pDelete ) {
 		objAVLT->Count--;
@@ -263,7 +263,7 @@ XXAPI int xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, void*
 		}
 		// 调用回调函数
 		if ( procEach ) {
-			if ( procEach(xrtAVLTree_GetNodeData(root), pArg) ) {
+			if ( procEach(xrtAVLTreeGetNodeData(root), pArg) ) {
 				return -1;
 			}
 		}
@@ -281,7 +281,7 @@ XXAPI int xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLT
 	if ( root ) {
 		// 调用回调函数(前置)
 		if ( procPre ) {
-			if ( procPre(xrtAVLTree_GetNodeData(root), pArg) ) {
+			if ( procPre(xrtAVLTreeGetNodeData(root), pArg) ) {
 				return -1;
 			}
 		}
@@ -293,7 +293,7 @@ XXAPI int xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLT
 		}
 		// 调用回调函数
 		if ( procIn ) {
-			if ( procIn(xrtAVLTree_GetNodeData(root), pArg) ) {
+			if ( procIn(xrtAVLTreeGetNodeData(root), pArg) ) {
 				return -1;
 			}
 		}
@@ -305,7 +305,7 @@ XXAPI int xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLT
 		}
 		// 调用回调函数(后置)
 		if ( procPost ) {
-			if ( procPost(xrtAVLTree_GetNodeData(root), pArg) ) {
+			if ( procPost(xrtAVLTreeGetNodeData(root), pArg) ) {
 				return -1;
 			}
 		}
