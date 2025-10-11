@@ -41,6 +41,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <inttypes.h>
+#include <stdbool.h>
 
 
 
@@ -1624,6 +1625,62 @@
 		ptr value;
 	};
 	*/
+	
+	
+	
+	/* ------------------------------------ JNUM 函数库 ------------------------------------ */
+	
+	// 数值类型
+	typedef enum {
+		JNUM_NULL,
+		JNUM_BOOL,
+		JNUM_INT,
+		JNUM_HEX,
+		JNUM_LINT,
+		JNUM_LHEX,
+		JNUM_DOUBLE,
+	} jnum_type_t;
+	
+	// 数值
+	typedef union {
+		bool vbool;
+		int32_t vint;
+		uint32_t vhex;
+		int64_t vlint;
+		uint64_t vlhex;
+		double vdbl;
+	} jnum_value_t;
+	
+	// 数字转字符串
+	int jnum_itoa(int32_t num, char *buffer);
+	int jnum_ltoa(int64_t num, char *buffer);
+	int jnum_htoa(uint32_t num, char *buffer);
+	int jnum_lhtoa(uint64_t num, char *buffer);
+	int jnum_dtoa(double num, char *buffer);
+	
+	// 解析数字字符串
+	int jnum_parse_num(const char *str, jnum_type_t *type, jnum_value_t *value);
+	
+	// 解析字符串
+	static inline int jnum_parse(const char *str, jnum_type_t *type, jnum_value_t *value)
+	{
+		const char *s = str;
+		while (1) {
+			switch (*s) {
+			case '\b': case '\f': case '\n': case '\r': case '\t': case '\v': case ' ': ++s; break;
+			default: goto next;
+			}
+		}
+	next:
+		return (int)(jnum_parse_num(s, type, value) + (s - str));
+	}
+	
+	// 字符串转数字
+	int32_t jnum_atoi(const char *str);
+	int64_t jnum_atol(const char *str);
+	uint32_t jnum_atoh(const char *str);
+	uint64_t jnum_atolh(const char *str);
+	double jnum_atod(const char *str);
 	
 	
 	
