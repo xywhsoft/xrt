@@ -1652,14 +1652,14 @@
 	} jnum_value_t;
 	
 	// 数字转字符串
-	int jnum_itoa(int32_t num, char *buffer);
-	int jnum_ltoa(int64_t num, char *buffer);
-	int jnum_htoa(uint32_t num, char *buffer);
-	int jnum_lhtoa(uint64_t num, char *buffer);
-	int jnum_dtoa(double num, char *buffer);
+	XXAPI int xrtI32ToStr(int32_t num, char* buffer);
+	XXAPI int xrtI64ToStr(int64_t num, char* buffer);
+	XXAPI int xrtU32ToStr(uint32_t num, char* buffer);
+	XXAPI int xrtU64ToStr(uint64_t num, char* buffer);
+	XXAPI int xrtNumToStr(double num, char* buffer);
 	
 	// 解析数字字符串
-	int jnum_parse_num(const char *str, jnum_type_t *type, jnum_value_t *value);
+	XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
 	
 	// 解析字符串
 	static inline int jnum_parse(const char *str, jnum_type_t *type, jnum_value_t *value)
@@ -1672,15 +1672,15 @@
 			}
 		}
 	next:
-		return (int)(jnum_parse_num(s, type, value) + (s - str));
+		return (int)(xrtParseNum(s, type, value) + (s - str));
 	}
 	
 	// 字符串转数字
-	int32_t jnum_atoi(const char *str);
-	int64_t jnum_atol(const char *str);
-	uint32_t jnum_atoh(const char *str);
-	uint64_t jnum_atolh(const char *str);
-	double jnum_atod(const char *str);
+	XXAPI int32_t xrtStrToI32(const char* pStr);
+	XXAPI int64_t xrtStrToI64(const char* pStr);
+	XXAPI uint32_t xrtStrToU32(const char* pStr);
+	XXAPI uint64_t xrtStrToU64(const char* pStr);
+	XXAPI double xrtStrToNum(const char* pStr);
 	
 	
 	

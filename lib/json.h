@@ -1166,7 +1166,7 @@ static inline json_type_t _json_parse_number(const char **sstr, json_number_t *v
 #endif
 
     json_type_t type;
-    *sstr += jnum_parse_num(s, (jnum_type_t *)&type, (jnum_value_t *)(vnum));
+    *sstr += xrtParseNum(s, (jnum_type_t *)&type, (jnum_value_t *)(vnum));
     return type;
 }
 

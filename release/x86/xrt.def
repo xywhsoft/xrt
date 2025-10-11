@@ -141,6 +141,8 @@ xrtHash64_WithSeed
 xrtHexDecode
 xrtHexEncode
 xrtHour
+xrtI32ToStr
+xrtI64ToStr
 xrtInStr
 xrtInit
 xrtIsLeapYear
@@ -188,7 +190,9 @@ xrtMinute
 xrtMonth
 xrtNow
 xrtNowStr
+xrtNumToStr
 xrtOpen
+xrtParseNum
 xrtPathExists
 xrtPathGetDir
 xrtPathGetExt
@@ -245,6 +249,11 @@ xrtStackPushPtr
 xrtStackTop
 xrtStackTopPtr
 xrtStart
+xrtStrToI32
+xrtStrToI64
+xrtStrToNum
+xrtStrToU32
+xrtStrToU64
 xrtTell
 xrtTempMemory
 xrtThreadCreate
@@ -255,6 +264,8 @@ xrtTimeStr
 xrtTimeToStr
 xrtTimer
 xrtTrim
+xrtU32ToStr
+xrtU64ToStr
 xrtUCase
 xrtUTF16LEtoBE
 xrtUTF16to32

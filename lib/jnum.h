@@ -289,7 +289,7 @@ static inline int32_t fill_1_20_digits(char *buffer, uint64_t digits, int32_t *p
     return (int32_t)(s - buffer);
 }
 
-int jnum_itoa(int32_t num, char *buffer)
+XXAPI int xrtI32ToStr(int32_t num, char* buffer)
 {
     char *s = buffer;
     uint32_t n = 0;
@@ -335,7 +335,7 @@ int jnum_itoa(int32_t num, char *buffer)
     return (int)(s - buffer);
 }
 
-int jnum_ltoa(int64_t num, char *buffer)
+XXAPI int xrtI64ToStr(int64_t num, char* buffer)
 {
     char *s = buffer;
     uint64_t n = 0;
@@ -433,7 +433,7 @@ static inline int fill_1_8_hexs(char *buffer, uint32_t num)
     return (int)(s - buffer);
 }
 
-int jnum_htoa(uint32_t num, char *buffer)
+XXAPI int xrtU32ToStr(uint32_t num, char* buffer)
 {
     char *s = buffer;
 
@@ -445,7 +445,7 @@ int jnum_htoa(uint32_t num, char *buffer)
     return (int)(s - buffer);
 }
 
-int jnum_lhtoa(uint64_t num, char *buffer)
+XXAPI int xrtU64ToStr(uint64_t num, char* buffer)
 {
     char *s = buffer;
     uint32_t q = (uint32_t)(num >> 32);
@@ -998,7 +998,7 @@ static inline char* ldouble_format(char *buffer, int32_t num_digits, int32_t vnu
     return buffer;
 }
 
-int jnum_dtoa(double num, char *buffer)
+XXAPI int xrtNumToStr(double num, char* buffer)
 {
     diy_fp_t v;
     char *s = buffer;
@@ -1436,7 +1436,7 @@ static double ldouble_rconvert(uint64_t f, int32_t e)
     return d;
 }
 
-int jnum_parse_num(const char *str, jnum_type_t *type, jnum_value_t *value)
+XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value)
 {
 #define IS_DIGIT(c)     ((c) >= '0' && (c) <= '9')
     const char *s = str;
@@ -1640,12 +1640,12 @@ overflow2:
 }
 
 #define jnum_to_func(rtype, fname)                      \
-rtype fname(const char *str)                            \
+XXAPI rtype fname(const char* pStr)                            \
 {                                                       \
     jnum_type_t type;                                   \
     jnum_value_t value;                                 \
     rtype val = 0;                                      \
-    jnum_parse(str, &type, &value);                     \
+    jnum_parse(pStr, &type, &value);                     \
     switch (type) {                                     \
     case JNUM_BOOL:   val = (rtype)value.vbool;break;   \
     case JNUM_INT:    val = (rtype)value.vint; break;   \
@@ -1658,8 +1658,8 @@ rtype fname(const char *str)                            \
     return val;                                         \
 }
 
-jnum_to_func(int32_t, jnum_atoi)
-jnum_to_func(int64_t, jnum_atol)
-jnum_to_func(uint32_t, jnum_atoh)
-jnum_to_func(uint64_t, jnum_atolh)
-jnum_to_func(double, jnum_atod)
+jnum_to_func(int32_t, xrtStrToI32)
+jnum_to_func(int64_t, xrtStrToI64)
+jnum_to_func(uint32_t, xrtStrToU32)
+jnum_to_func(uint64_t, xrtStrToU64)
+jnum_to_func(double, xrtStrToNum)
