@@ -25,11 +25,13 @@
 #include "test/test_array_struct.h"
 #include "test/test_bsmm.h"
 #include "test/test_memunit.h"
+#include "test/test_mempool_fs.h"
 #include "test/test_stack_ptr.h"
 #include "test/test_stack.h"
 #include "test/test_dynstack_ptr.h"
 #include "test/test_dynstack.h"
-#include "test/test_mempool_fs.h"
+#include "test/test_llist.h"
+#include "test/test_avltree.h"
 #include "test/test_other.h"
 
 
@@ -99,6 +101,9 @@ int main(int argc, char** argv)
 	/* 内存管理单元测试 */
 	// Test_MemUnit(xCore);
 	
+	/* 固定大小内存池测试 */
+	// Test_MemPoolFS(xCore);
+	
 	/* 静态指针栈测试 */
 	// Test_Stack_Ptr(xCore);
 	
@@ -109,10 +114,13 @@ int main(int argc, char** argv)
 	// Test_DynStack_Ptr(xCore);
 	
 	/* 动态结构体栈测试 */
-	 Test_DynStack(xCore);
+	// Test_DynStack(xCore);
 	
-	/* 固定大小内存池测试 */
-	// Test_MemPoolFS(xCore);
+	/* LList 库测试 */
+	 Test_LList(xCore);
+	
+	/* AVLTree 库测试 */
+	// Test_AVLTree(xCore);
 	
 	/* 内存池测试 */
 	// Test_MemPool(xCore);
