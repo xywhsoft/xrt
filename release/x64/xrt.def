@@ -148,6 +148,13 @@ xrtLTrim
 xrtMakeXID
 xrtMakeXIDS
 xrtMalloc
+xrtMemPoolAlloc
+xrtMemPoolCreate
+xrtMemPoolDestroy
+xrtMemPoolFree
+xrtMemPoolGC
+xrtMemPoolInit
+xrtMemPoolUnit
 xrtMemUnitAlloc
 xrtMemUnitCreate
 xrtMemUnitFree

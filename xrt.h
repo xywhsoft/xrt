@@ -1356,6 +1356,134 @@
 	
 	/* ------------------------------------ Memory Pool 函数库 ------------------------------------ */
 	
+	// MP256 or MP64K 大内存结构体前置结构
+	typedef struct {
+		unsigned int Index;							// BigMM 的块索引
+		unsigned int Flag;							// 符合 MM256 标准的 Flag
+	} MP_MemHead;
+	
+	// MP256 or MP64K 大内存信息链表结构体（实际返回的内存地址相当于 Ptr + sizeof(MP_MemHead)）
+	typedef struct MP_BigInfoLL {
+		unsigned int Size;							// 申请内存的大小，可有可无（可开发辅助功能，如泄漏检测）
+		void* Ptr;									// 指针地址，使用 mmu_malloc 返回的地址
+		struct MP_BigInfoLL* Next;					// 下一个链表节点（用于释放链表）
+	} MP_BigInfoLL;
+	
+	// 单个长度区间的内存管理器结构
+	typedef struct FSB_Item {
+		unsigned int MinLength;						// 支持最小的内存长度
+		unsigned int MaxLength;						// 支持最大的内存长度
+		MMU_LLNode* LL_Idle;						// 空闲的 MMU 内存管理单元链表 (优先分配内存的单元)
+		MMU_LLNode* LL_Full;						// 满载的 MMU 内存管理单元链表 (不会从这些单元中分配内存)
+		MMU_LLNode* LL_Null;						// 全空的 MMU 内存管理单元 (备用单元，最多只留一个)
+		MMU_LLNode* LL_Free;						// 已释放的 MMU 内存管理单元链表 (申请新单元优先从这里找)
+		struct FSB_Item* left;						// 左子树
+		struct FSB_Item* right;						// 右子树
+	} FSB_Item;
+	
+	// 256步进内存池数据结构
+	typedef struct {
+		FSB_Item* FSB_Memory;						// fixed-size-blocks 内存（MP256_Create参数为 1 或 2 时自动创建，否则需要手动创建，不为空会调用 mmu_free 释放）
+		FSB_Item* FSB_RootNode;						// fixed-size-blocks 二叉树（固定大小区块内存管理器阵列）
+		xbsmm_struct arrMMU;						// MMU 阵列
+		xbsmm_struct BigMM;							// 大内存数组
+		MP_BigInfoLL* LL_BigFree;					// 大内存已释放的内存块链表
+	} xmempool_struct, *xmempool;
+	
+	// 创建内存池
+	XXAPI xmempool xrtMemPoolCreate(int bCustom);
+	
+	// 销毁内存池
+	XXAPI void xrtMemPoolDestroy(xmempool objMP);
+	
+	// 初始化内存池（对自维护结构体指针使用，和 MP256_Create 功能类似）
+	XXAPI void xrtMemPoolInit(xmempool objMP, int bCustom);
+	
+	// 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）
+	XXAPI void xrtMemPoolUnit(xmempool objMP);
+	
+	// 从内存池中申请一块内存
+	XXAPI void* xrtMemPoolAlloc(xmempool objMP, unsigned int iSize);
+	
+	// 将内存池申请的内存释放掉
+	XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr);
+	
+	// 将一块内存标记为使用中
+	#define xrtMemPoolGC_Mark	xrtMemUnitGC_Mark
+	
+	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
+	XXAPI void xrtMemPoolGC(xmempool objMP, int bFreeMark);
+	
+	
+	
+	/* ------------------------------------ Dict 函数库 ------------------------------------ */
+	
+	// 哈希表遍历回调函数
+	#if defined(__x86_64__) || defined(_M_X64)
+		// 64 bit
+		typedef struct {
+			void* Key;
+			uint64 Hash;
+			uint32 KeyLen;
+		} Hash_Key;
+	#elif defined(__i386__) || defined(_M_IX86)
+		// 32 bit
+		typedef struct {
+			void* Key;
+			uint32 Hash;
+			uint32 KeyLen;
+		} Hash_Key;
+	#endif
+	typedef int (*HT_EachProc)(Hash_Key* pKey, void* pVal, void* pArg);
+	
+	// 32位 AVLTree 哈希表对象数据结构
+	typedef struct {
+		xavltree_struct AVLT;
+		xmempool MP;
+	} AVLHT32_Struct, *AVLHT32_Object;
+	
+	// 创建哈希表
+	XXAPI AVLHT32_Object AVLHT32_Create(unsigned int iItemLength);
+	
+	// 销毁哈希表
+	XXAPI void AVLHT32_Destroy(AVLHT32_Object objHT);
+	
+	// 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
+	XXAPI void AVLHT32_Init(AVLHT32_Object objHT, unsigned int iItemLength);
+	
+	// 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
+	XXAPI void AVLHT32_Unit(AVLHT32_Object objHT);
+	
+	// 设置值
+	XXAPI void* AVLHT32_Set(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen, int* bNewRet);
+	
+	// 设置值 - 当值为 void* 时直接修改指针内容
+	XXAPI int AVLHT32_SetPtr(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen, void* pVal, void** ppOldVal);
+	
+	// 获取值
+	XXAPI void* AVLHT32_Get(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	
+	// 获取值 - 当值为 void* 时直接获取指针内容
+	XXAPI void* AVLHT32_GetPtr(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	
+	// 删除值
+	XXAPI int AVLHT32_Remove(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	
+	// 判断值是否存在
+	XXAPI int AVLHT32_Exists(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	
+	// 删除所有成员
+	#define AVLHT32_RemoveAll AVLHT32_Unit
+	
+	// 清空管理器
+	#define AVLHT32_Clear AVLHT32_Unit
+	
+	// 获取表内元素数量
+	XXAPI unsigned int AVLHT32_Count(AVLHT32_Object objHT);
+	
+	// 遍历表元素
+	XXAPI void AVLHT32_Walk(AVLHT32_Object objHT, HT_EachProc procEach, void* pArg);
+	
 	
 	
 	/* ------------------------------------ Collect 函数库 ------------------------------------ */
@@ -1363,10 +1491,6 @@
 	
 	
 	/* ------------------------------------ List 函数库 ------------------------------------ */
-	
-	
-	
-	/* ------------------------------------ Table 函数库 ------------------------------------ */
 	
 	
 	
