@@ -1662,7 +1662,7 @@
 	XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
 	
 	// 解析字符串
-	static inline int jnum_parse(const char *str, jnum_type_t *type, jnum_value_t *value)
+	static inline int xrtParseNumSkipSpace(const char *str, jnum_type_t *type, jnum_value_t *value)
 	{
 		const char *s = str;
 		while (1) {
