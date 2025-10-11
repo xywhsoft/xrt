@@ -1440,49 +1440,49 @@
 	typedef struct {
 		xavltree_struct AVLT;
 		xmempool MP;
-	} AVLHT32_Struct, *AVLHT32_Object;
+	} xdict_struct, *xdict;
 	
 	// 创建哈希表
-	XXAPI AVLHT32_Object AVLHT32_Create(unsigned int iItemLength);
+	XXAPI xdict xrtDictCreate(unsigned int iItemLength);
 	
 	// 销毁哈希表
-	XXAPI void AVLHT32_Destroy(AVLHT32_Object objHT);
+	XXAPI void xrtDictDestroy(xdict objHT);
 	
 	// 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
-	XXAPI void AVLHT32_Init(AVLHT32_Object objHT, unsigned int iItemLength);
+	XXAPI void xrtDictInit(xdict objHT, unsigned int iItemLength);
 	
 	// 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
-	XXAPI void AVLHT32_Unit(AVLHT32_Object objHT);
+	XXAPI void xrtDictUnit(xdict objHT);
 	
 	// 设置值
-	XXAPI void* AVLHT32_Set(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen, int* bNewRet);
+	XXAPI void* xrtDictSet(xdict objHT, void* sKey, unsigned int iKeyLen, int* bNewRet);
 	
 	// 设置值 - 当值为 void* 时直接修改指针内容
-	XXAPI int AVLHT32_SetPtr(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen, void* pVal, void** ppOldVal);
+	XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVal, void** ppOldVal);
 	
 	// 获取值
-	XXAPI void* AVLHT32_Get(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	XXAPI void* xrtDictGet(xdict objHT, void* sKey, unsigned int iKeyLen);
 	
 	// 获取值 - 当值为 void* 时直接获取指针内容
-	XXAPI void* AVLHT32_GetPtr(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	XXAPI void* xrtDictGetPtr(xdict objHT, void* sKey, unsigned int iKeyLen);
 	
 	// 删除值
-	XXAPI int AVLHT32_Remove(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	XXAPI int xrtDictRemove(xdict objHT, void* sKey, unsigned int iKeyLen);
 	
 	// 判断值是否存在
-	XXAPI int AVLHT32_Exists(AVLHT32_Object objHT, void* sKey, unsigned int iKeyLen);
+	XXAPI int xrtDictExists(xdict objHT, void* sKey, unsigned int iKeyLen);
 	
 	// 删除所有成员
-	#define AVLHT32_RemoveAll AVLHT32_Unit
+	#define xrtDictRemoveAll xrtDictUnit
 	
 	// 清空管理器
-	#define AVLHT32_Clear AVLHT32_Unit
+	#define xrtDictClear xrtDictUnit
 	
 	// 获取表内元素数量
-	XXAPI unsigned int AVLHT32_Count(AVLHT32_Object objHT);
+	XXAPI unsigned int xrtDictCount(xdict objHT);
 	
 	// 遍历表元素
-	XXAPI void AVLHT32_Walk(AVLHT32_Object objHT, HT_EachProc procEach, void* pArg);
+	XXAPI void xrtDictWalk(xdict objHT, HT_EachProc procEach, void* pArg);
 	
 	
 	
