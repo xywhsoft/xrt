@@ -125,10 +125,10 @@ int main(int argc, char** argv)
 	// Test_AVLTree(xCore);
 	
 	/* 内存池测试 */
-	 Test_MemPool(xCore);
+	// Test_MemPool(xCore);
 	
 	/* Dict 测试 */
-	// Test_Dict(xCore);
+	 Test_Dict(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
