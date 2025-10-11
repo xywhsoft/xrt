@@ -73,8 +73,8 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/avltree_base.h"
 #include "lib/avltree.h"
 #include "lib/mempool.h"
-#include "lib/list.h"
 #include "lib/dict.h"
+#include "lib/list.h"
 
 #include "lib/collect.h"
 #include "lib/value.h"

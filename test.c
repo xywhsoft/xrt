@@ -32,6 +32,8 @@
 #include "test/test_dynstack.h"
 #include "test/test_llist.h"
 #include "test/test_avltree.h"
+#include "test/test_mempool.h"
+#include "test/test_dict.h"
 #include "test/test_other.h"
 
 
@@ -120,10 +122,13 @@ int main(int argc, char** argv)
 	// Test_LList(xCore);
 	
 	/* AVLTree 库测试 */
-	 Test_AVLTree(xCore);
+	// Test_AVLTree(xCore);
 	
 	/* 内存池测试 */
-	// Test_MemPool(xCore);
+	 Test_MemPool(xCore);
+	
+	/* Dict 测试 */
+	// Test_Dict(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
