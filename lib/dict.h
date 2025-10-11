@@ -71,24 +71,18 @@ XXAPI void xrtDictDestroy(xdict objHT)
 // 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
 void AVLHT32_FreeProc(xavltree objTree, Dict_Key* pNode)
 {
-	#ifdef MMU_USE_MP256
-		if ( ((xdict)objTree->ExtData)->MP ) {
-			MP256_Free(((xdict)objTree->ExtData)->MP, pNode->Key);
-		} else {
-			xrtFree(pNode->Key);
-		}
-	#else
+	if ( ((xdict)objTree->ExtData)->MP ) {
+		xrtMemPoolFree(((xdict)objTree->ExtData)->MP, pNode->Key);
+	} else {
 		xrtFree(pNode->Key);
-	#endif
+	}
 }
 XXAPI void xrtDictInit(xdict objHT, unsigned int iItemLength)
 {
 	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (void*)Dict_CompProc);
 	objHT->AVLT.FreeProc = (void*)AVLHT32_FreeProc;
 	objHT->AVLT.ExtData = objHT;
-	#ifdef MMU_USE_MP256
-		objHT->MP = NULL;
-	#endif
+	objHT->MP = NULL;
 }
 
 // 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
@@ -101,15 +95,11 @@ void AVLHT32_FreeKeysRecuProc(xdict objHT, xavltnode root)
 		}
 		// 释放 Key
 		Dict_Key* pNode = xrtAVLTreeGetNodeData(root);
-		#ifdef MMU_USE_MP256
-			if ( objHT->MP ) {
-				MP256_Free(objHT->MP, pNode->Key);
-			} else {
-				xrtFree(pNode->Key);
-			}
-		#else
+		if ( objHT->MP ) {
+			xrtMemPoolFree(objHT->MP, pNode->Key);
+		} else {
 			xrtFree(pNode->Key);
-		#endif
+		}
 		// 递归右子树
 		if ( root->right != NULL ) {
 			AVLHT32_FreeKeysRecuProc(objHT, root->right);
@@ -134,15 +124,11 @@ XXAPI void* xrtDictSet(xdict objHT, void* sKey, unsigned int iKeyLen, int* bNewR
 			*bNewRet = bNew;
 		}
 		if ( bNew ) {
-			#ifdef MMU_USE_MP256
-				if ( objHT->MP ) {
-					pNode->Key = MP256_Alloc(objHT->MP, iKeyLen + 1);
-				} else {
-					pNode->Key = xrtMalloc(iKeyLen + 1);
-				}
-			#else
+			if ( objHT->MP ) {
+				pNode->Key = xrtMemPoolAlloc(objHT->MP, iKeyLen + 1);
+			} else {
 				pNode->Key = xrtMalloc(iKeyLen + 1);
-			#endif
+			}
 			pNode->KeyLen = iKeyLen;
 			pNode->Hash = objKey.Hash;
 			memcpy(pNode->Key, sKey, iKeyLen);
@@ -162,15 +148,11 @@ XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVa
 	Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
 	if ( pNode ) {
 		if ( bNew ) {
-			#ifdef MMU_USE_MP256
-				if ( objHT->MP ) {
-					pNode->Key = MP256_Alloc(objHT->MP, iKeyLen + 1);
-				} else {
-					pNode->Key = xrtMalloc(iKeyLen + 1);
-				}
-			#else
+			if ( objHT->MP ) {
+				pNode->Key = xrtMemPoolAlloc(objHT->MP, iKeyLen + 1);
+			} else {
 				pNode->Key = xrtMalloc(iKeyLen + 1);
-			#endif
+			}
 			pNode->KeyLen = iKeyLen;
 			pNode->Hash = objKey.Hash;
 			memcpy(pNode->Key, sKey, iKeyLen);
