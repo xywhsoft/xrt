@@ -117,10 +117,10 @@ int main(int argc, char** argv)
 	// Test_DynStack(xCore);
 	
 	/* LList 库测试 */
-	 Test_LList(xCore);
+	// Test_LList(xCore);
 	
 	/* AVLTree 库测试 */
-	// Test_AVLTree(xCore);
+	 Test_AVLTree(xCore);
 	
 	/* 内存池测试 */
 	// Test_MemPool(xCore);
