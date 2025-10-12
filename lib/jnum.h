@@ -6,9 +6,9 @@
 *******************************************/
 
 #if defined(__GNUC__) || defined(__clang__)
-#define FALLTHROUGH_ATTR            __attribute__((fallthrough))
+	#define FALLTHROUGH_ATTR            __attribute__((fallthrough))
 #else
-#define FALLTHROUGH_ATTR
+	#define FALLTHROUGH_ATTR
 #endif
 
 #define DIY_SIGNIFICAND_SIZE        64                  /* Symbol: 1 bit, Exponent, 11 bits, Mantissa, 52 bits */
@@ -20,22 +20,23 @@
 #define DP_HIDDEN_BIT               0x0010000000000000  /* Integer bit for Mantissa */
 
 #if (__WORDSIZE == 64) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6) || __clang_major__ >= 9)
-#define USING_U128_CALC             1
+	#define USING_U128_CALC             1
 #else
-#define USING_U128_CALC             0
+	#define USING_U128_CALC             0
 #endif
+
 #if USING_U128_CALC
-__extension__ typedef unsigned __int128 u128;
+	__extension__ typedef unsigned __int128 u128;
 #endif
 
 typedef struct {
-    uint64_t f;
-    int32_t e;
+	uint64_t f;
+	int32_t e;
 } diy_fp_t;
 
 typedef struct {
-    uint64_t hi;
-    uint64_t lo;
+	uint64_t hi;
+	uint64_t lo;
 } u64x2_t;
 
 #define FAST_DIV100(n)      (((n) * 5243) >> 19)                            /* 0 <= n < 10000 */
@@ -1640,12 +1641,12 @@ overflow2:
 }
 
 #define jnum_to_func(rtype, fname)                      \
-XXAPI rtype fname(const char* pStr)                            \
+XXAPI rtype fname(const char* pStr)                     \
 {                                                       \
     jnum_type_t type;                                   \
     jnum_value_t value;                                 \
     rtype val = 0;                                      \
-    jnum_parse(pStr, &type, &value);                     \
+    xrtParseNumSkipSpace(pStr, &type, &value);          \
     switch (type) {                                     \
     case JNUM_BOOL:   val = (rtype)value.vbool;break;   \
     case JNUM_INT:    val = (rtype)value.vint; break;   \
