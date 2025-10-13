@@ -1686,6 +1686,175 @@
 	
 	/* ------------------------------------ JSON 函数库 ------------------------------------ */
 	
+	// 链表节点
+	struct json_list {
+		struct json_list *next;
+	};
+	
+	// json对象的类型
+	typedef enum {
+		JSON_NULL = 0,              /* It doesn't has value variable: null */
+		JSON_BOOL,                  /* Its value variable is vbool: true, false */
+		JSON_INT,                   /* Its value variable is vint */
+		JSON_HEX,                   /* Its value variable is vhex */
+		JSON_LINT,                  /* Its value variable is vlint */
+		JSON_LHEX,                  /* Its value variable is vlhex */
+		JSON_DOUBLE,                /* Its value variable is vdbl */
+		JSON_STRING,                /* Its value variable is vstr */
+		JSON_ARRAY,                 /* Its value variable is head */
+		JSON_OBJECT                 /* Its value variable is head */
+	} json_type_t;
+	
+	/*
+	 * json_strinfo_t - json对象的键或字符串类型的值的信息
+	 * @type: json对象的类型，只在作为json对象的键时才有效
+	 * @escaped: 是否含转义字符
+	 * @alloced: 是否是在堆中分配，只在SAX接口中有效
+	 * @len: 字符串长度
+	 * @description: LJSON使用此结构就知道了字符串长度，可以加快数据处理
+	 */
+	typedef struct {
+		uint32_t type:4;
+		uint32_t escaped:1;
+		uint32_t alloced:1;
+		uint32_t reserved:2;
+		uint32_t len:24;
+	} json_strinfo_t;
+	
+	/*
+	 * json_string_t - 带信息的字符串
+	 * @str: 字符串数据
+	 * @info: 字符串信息
+	 * @description: LJSON使用此结构就知道了字符串长度，可以加快数据处理
+	 */
+	typedef struct {
+		char *str;
+		json_strinfo_t info;
+	} json_string_t;
+	
+	/*
+	 * json_number_t - json数字类型的值
+	 * @description: LJSON支持长整数和十六进制数
+	 */
+	typedef union {
+		bool vbool;
+		int32_t vint;
+		uint32_t vhex;
+		int64_t vlint;
+		uint64_t vlhex;
+		double vdbl;
+	} json_number_t;
+	
+	/*
+	 * json_value_t - json对象的值
+	 * @vnum: 数字类型的值
+	 * @vstr: 字符串类型的值
+	 * @head: 集合对象的子节点挂载的链表头，指向最后一个元素(非空时)或自己(空时)
+	 * @description: LJSON使用union管理对象的值从而节省内存空间
+	 */
+	typedef union {
+		json_number_t vnum;
+		char *vstr;
+		struct json_list head;
+	} json_value_t;
+	
+	/*
+	 * json_object - json对象
+	 * @list: 链表节点，指向下一个对象或父对象的链表头
+	 * @key: json对象的键值，只有JSON_OBJECT的子对象才有键值
+	 * @ikey: key字符串信息(含json类型)
+	 * @istr: value.str字符串信息
+	 * @value: json对象的值
+	 * @description: LJSON使用更紧凑的内存结构以节省内存
+	 */
+	typedef struct {
+		struct json_list list;
+		char *key;
+		json_strinfo_t ikey;
+		json_strinfo_t istr;
+		json_value_t value;
+	} json_object;
+	
+	/*
+	 * json_item_t - 包含json对象和hash值的结构
+	 * @hash: 只有JSON_OBJECT才有key值，才有key的hash值
+	 * @json: json对象
+	 * @description: LJSON使用hash值来加快获取JSON_OBJECT下的子对象
+	 */
+	typedef struct {
+		uint32_t hash;
+		json_object *json;
+	} json_item_t;
+	
+	/*
+	 * json_items_t - json_item_t 的管理结构
+	 * @conflicted: JSON_OBJECT下的子对象的key的hash值是否有冲突
+	 * @total: 数组的容量
+	 * @count: 数组的当前数量
+	 * @json: 存储json对象的数组
+	 * @description: LJSON使用它存储JSON_ARRAY或JSON_OBJECT下的所有子对象，使用json_get_items接口获取
+	 */
+	typedef struct {
+		uint32_t conflicted:1;
+		uint32_t reserved:31;
+		uint32_t total;
+		uint32_t count;
+		json_item_t *items;
+	} json_items_t;
+	
+	/*
+	 * json_sax_cmd_t - SAX APIs中指示JSON_ARRAY或JSON_OBJECT的开始和结束
+	 * @description: 集合类型是括号包起来的，JSON_SAX_START表示左边括号, JSON_SAX_FINISH指示右边括号
+	 */
+	typedef enum {
+		JSON_SAX_START = 0,
+		JSON_SAX_FINISH
+	} json_sax_cmd_t;
+	
+	/*
+	 * json_value_t - json对象的值
+	 * @vnum: 数字类型的值
+	 * @vstr: 字符串类型的值
+	 * @vcmd: SAX APIs指示集合对象的开始和结束
+	 * @description: LJSON使用union管理对象的值从而节省内存空间
+	 */
+	typedef union {
+		json_number_t vnum;
+		json_string_t vstr;
+		json_sax_cmd_t vcmd;
+	} json_sax_value_t;
+
+	/*
+	 * json_sax_parser_t - SAX解析选项
+	 * @read_size: IN, 从文件解析时的读取缓冲区大小，默认值为 `JSON_PARSE_READ_SIZE_DEF`(8192)
+	 * @str_len: IN, 从字符串解析时字符串的大小，最好在从字符串解析时设置
+	 * @str: IN, 要解析的字符串，`path` 和 `str` 只能有一个有值
+	 * @path: IN, 要解析的文件，当 path 设置时，边读取边解析数据，否则直接从字符串解析
+	 * @cb: IN, 处理 SAX 解析器传递结果的回调函数
+	 */
+	typedef struct {
+		int total;
+		int index;
+		json_string_t *array;
+		json_sax_value_t value;
+	} json_sax_parser_t;
+
+	/*
+	 * json_sax_parse_choice_t - SAX的回调函数
+	 * @description: 用户使用SAX接口时需要设置回调函数, 返回 `JSON_SAX_PARSE_CONTINUE` 表示继续解析；
+	 *   返回 `JSON_SAX_PARSE_STOP` 表示停止解析
+	 */
+	typedef enum {
+		JSON_SAX_PARSE_CONTINUE = 0,
+		JSON_SAX_PARSE_STOP
+	} json_sax_ret_t;
+
+	typedef json_sax_ret_t (*json_sax_cb_t)(json_sax_parser_t *parser);
+	
+	
+	
+	XXAPI int json_sax_parse_str(char *str, size_t str_len, json_sax_cb_t cb);
+	
 	
 	
 	/* ------------------------------------ Template 函数库 ------------------------------------ */

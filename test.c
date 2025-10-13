@@ -132,10 +132,10 @@ int main(int argc, char** argv)
 	// Test_Dict(xCore);
 	
 	/* List 测试 */
-	 Test_List(xCore);
+	// Test_List(xCore);
 	
 	/* 自定义测试 */
-	// Test_Other(xCore);
+	 Test_Other(xCore);
 	
 	
 	
