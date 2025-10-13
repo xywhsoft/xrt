@@ -1,6 +1,7 @@
 LIBRARY xrt.dll
 
 EXPORTS
+json_sax_parse_str
 memmem
 u16len
 u32len

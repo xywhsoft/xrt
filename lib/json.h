@@ -246,142 +246,6 @@ typedef struct {
     const char *path;
 } json_print_choice_t;
 
-/*
- * json_print_common - The common DOM printer
- * @json: IN, the json object to be printed
- * @choice: INOUT, the print choice
- * @return: NULL on failure, a pointer on success
- * @description: When printing to file, the pointer is `"ok"` on success, don't free it,
- *   when printing to string, the pointer is the printed string, use `json_memory_free` to free it.
- */
-/*
- * json_print_common - 通用的DOM打印器
- * @json: IN, 要打印的json对象
- * @choice: INOUT, 打印选项
- * @return: 失败返回NULL；成功返回指针
- * @description: 当打印到文件时，成功返回的指针是 `"ok"`，不要释放它；
- *   当打印到字符串时，成功返回的指针是打印的字符串，使用 `json_memory_free` 释放它或ptr->p
- */
-char *json_print_common(json_object *json, json_print_choice_t *choice);
-
-/*
- * json_print_format - Formatted DOM printer to string
- * @json: IN, the json object to be printed
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @length: OUT, the length of returned print string
- * @ptr: INOUT, pre-allocated memory for printing
- * @return: NULL on failure, a pointer on success
- */
-/*
- * json_print_format - 格式化 DOM 打印器，输出到字符串
- * @json: IN, 要打印的json对象
- * @item_total: IN, json对象的总数，最好由用户设置
- * @length: OUT, 返回的打印字符串的长度
- * @ptr: INOUT, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针
- */
-static inline char *json_print_format(json_object *json, int item_total, size_t *length, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-    char *str = NULL;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = true;
-    choice.item_total = item_total;
-    choice.ptr = ptr;
-    str = json_print_common(json, &choice);
-    if (length)
-        *length = choice.str_len;
-    return str;
-}
-
-/*
- * json_print_unformat - Compressed DOM printer to string
- * @json: IN, the json object to be printed
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @length: OUT, the length of returned print string
- * @ptr: INOUT, pre-allocated memory for printing
- * @return: NULL on failure, a pointer on success
- */
-/*
- * json_print_unformat - 压缩 DOM 打印器，输出到字符串
- * @json: IN, 要打印的json对象
- * @item_total: IN, json对象的总数，最好由用户设置
- * @length: OUT, 返回的打印字符串的长度
- * @ptr: INOUT, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针
- */
-static inline char *json_print_unformat(json_object *json, int item_total, size_t *length, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-    char *str = NULL;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = false;
-    choice.item_total = item_total;
-    choice.ptr = ptr;
-    str = json_print_common(json, &choice);
-    if (length)
-        *length = choice.str_len;
-    return str;
-}
-
-/*
- * json_fprint_format - Formatted DOM printer to file
- * @json: IN, the json object to be printed
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @path: IN, the file to store the printed string
- * @ptr: INOUT, pre-allocated memory for printing
- * @return: NULL on failure, a pointer on success
- */
-/*
- * json_fprint_format - 格式化 DOM 打印器，输出到文件
- * @json: IN, 要打印的json对象
- * @item_total: IN, json对象的总数，最好由用户设置
- * @path: IN, 存储打印字符串的文件路径
- * @ptr: INOUT, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针
- */
-static inline char *json_fprint_format(json_object *json, int item_total, const char *path, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = true;
-    choice.item_total = item_total;
-    choice.path = path;
-    choice.ptr = ptr;
-    return json_print_common(json, &choice);
-}
-
-/*
- * json_fprint_unformat - Compressed DOM printer to file
- * @json: IN, the json object to be printed
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @path: IN, the file to store the printed string
- * @ptr: INOUT, pre-allocated memory for printing
- * @return: NULL on failure, a pointer on success
- */
-/*
- * json_fprint_unformat - 压缩 DOM 打印器，输出到文件
- * @json: IN, 要打印的json对象
- * @item_total: IN, json对象的总数，最好由用户设置
- * @path: IN, 存储打印字符串的文件路径
- * @ptr: INOUT, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针
- */
-static inline char *json_fprint_unformat(json_object *json, int item_total, const char *path, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = false;
-    choice.item_total = item_total;
-    choice.path = path;
-    choice.ptr = ptr;
-    return json_print_common(json, &choice);
-}
-
 /**************** json pool editor / 内存块json的编辑接口 ****************/
 
 /*
@@ -454,181 +318,9 @@ typedef struct {
     json_mem_mgr_t str_mgr;
 } json_mem_t;
 
-/**************** json DOM parser / DOM解析器  ****************/
 
-/*
- * json_parse_choice_t - the choice to parse json
- * @mem_size: the default block memory size to allocate, its smallest value is
- *   (str_len / `JSON_STR_MULTIPLE_NUM`(8))
- * @read_size: IN, the read buffer size when parsing from file,
- *   its default value is `JSON_PARSE_READ_SIZE_DEF`(8192)
- * @str_len: IN, the size of string to be parsed when parsing from string,
- *   it's better to set it when parsing from string
- * @reuse_flag: IN, whether to use the `str` directly as the value of JSON_STRING object and key
- * @mem: IN, the block memory manager, users needn't to Initializate it first
- * @path: IN, the file to be parsed, when the path is set, it parses the data while reading,
- *   otherwise it directly parses from the string
- * @str: IN, the string to be parsed, only one of `path` and `str` has value
- */
-/*
- * json_parse_choice_t - 解析配置
- * @mem_size: 默认分配的块内存大小，最小值为 (str_len / `JSON_STR_MULTIPLE_NUM`(8))
- * @read_size: IN, 从文件解析时的读取缓冲区大小，默认值为 `JSON_PARSE_READ_SIZE_DEF`(8192)
- * @str_len: IN, 从字符串解析时字符串的大小，最好在从字符串解析时设置
- * @reuse_flag: IN, 是否直接使用 `str` 作为 `JSON_STRING` 对象和键的值
- * @mem: IN, 块内存管理器，用户无需预先初始化
- * @path: IN, 要解析的文件，当 path 设置时，边读取边解析数据，否则直接从字符串解析
- * @str: IN, 要解析的字符串，`path` 和 `str` 只能有一个有值
- */
-typedef struct {
-    size_t mem_size;
-    size_t read_size;
-    size_t str_len;
-    bool reuse_flag;
-    json_mem_t *mem;
-    const char *path;
-    char *str;
-} json_parse_choice_t;
 
-/*
- * json_parse_common - The common DOM parser
- * @choice: IN, the parse choice
- * @return: NULL on failure, a pointer on success
- */
-/*
- * json_parse_common - 通用的 DOM 解析器
- * @choice: IN, 解析选项
- * @return: 失败返回NULL；成功返回指针
- */
-json_object *json_parse_common(json_parse_choice_t *choice);
 
-/*
- * json_parse_str - The ordinary DOM parser from string
- * @str: IN, the string to be parsed
- * @str_len: IN, the length of str
- * @return: NULL on failure, a pointer on success
- * @description: Use `malloc` to allocate memory
- */
-/*
- * json_parse_str - 普通的 DOM 解析器，从字符串解析
- * @str: IN, 要解析的字符串
- * @str_len: IN, 字符串的长度
- * @return: 失败返回NULL；成功返回指针
- * @description: 使用 `malloc` 分配内存
- */
-static inline json_object *json_parse_str(char *str, size_t str_len)
-{
-    json_parse_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.str = str;
-    choice.str_len = str_len;
-    return json_parse_common(&choice);
-}
-
-/*
- * json_fast_parse_str - The fast DOM parser from string
- * @str: IN, the string to be parsed
- * @str_len: IN, the length of str
- * @mem: IN, the block memory manager
- * @return: NULL on failure, a pointer on success
- * @description: Use `pjson_memory_alloc` to allocate memory, it is faster.
- */
-/*
- * json_fast_parse_str - 快速的 DOM 解析器，从字符串解析
- * @str: IN, 要解析的字符串
- * @str_len: IN, 字符串的长度
- * @mem: IN, 块内存管理器
- * @return: 失败返回NULL；成功返回指针
- * @description: 使用 `pjson_memory_alloc` 分配内存，速度更快。
- */
-static inline json_object *json_fast_parse_str(char *str, size_t str_len, json_mem_t *mem)
-{
-    json_parse_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.str = str;
-    choice.mem = mem;
-    choice.str_len = str_len;
-    return json_parse_common(&choice);
-}
-
-/*
- * json_reuse_parse_str - The reused DOM parser from string
- * @str: IN, the string to be parsed
- * @str_len: IN, the length of str
- * @mem: IN, the block memory manager
- * @return: NULL on failure, a pointer on success
- * @description: Use `pjson_memory_alloc` to allocate memory for json object, it is faster,
- *  and it uses the parsed `str` directly as the value of JSON_STRING object and key,
- *  this means that it modifies the original string and saves memory.
- */
-/*
- * json_reuse_parse_str - 可复用的 DOM 解析器，从字符串解析
- * @str: IN, 要解析的字符串
- * @str_len: IN, 字符串的长度
- * @mem: IN, 块内存管理器
- * @return: 失败返回NULL；成功返回指针
- * @description: 使用 `pjson_memory_alloc` 分配内存，速度更快，
- *   并且直接使用解析的 `str` 作为 `JSON_STRING` 对象和键的值，
- *   这意味着它会修改原始字符串并节省内存。
- */
-static inline json_object *json_reuse_parse_str(char *str, size_t str_len, json_mem_t *mem)
-{
-    json_parse_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.str = str;
-    choice.mem = mem;
-    choice.str_len = str_len;
-    choice.reuse_flag = true;
-    return json_parse_common(&choice);
-}
-
-/*
- * json_parse_file - The ordinary DOM parser from file
- * @path: IN, the file to be parsed
- * @return: NULL on failure, a pointer on success
- * @description: It parses the data while reading, no need to read data all at once.
- */
-/*
- * json_parse_file - 普通的 DOM 解析器，从文件解析
- * @path: IN, 要解析的文件路径
- * @return: 失败返回NULL；成功返回指针
- * @description: 边读取边解析数据，无需一次性读取所有数据。
- */
-static inline json_object *json_parse_file(const char *path)
-{
-    json_parse_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.path = path;
-    return json_parse_common(&choice);
-}
-
-/*
- * json_fast_parse_file - The fast DOM parser from file
- * @path: IN, the file to be parsed
- * @mem: IN, the block memory manager
- * @return: NULL on failure, a pointer on success
- * @description: It parses the data while reading, no need to read data all at once.
- */
-/*
- * json_fast_parse_file - 快速的 DOM 解析器，从文件解析
- * @path: IN, 要解析的文件路径
- * @mem: IN, 块内存管理器
- * @return: 失败返回NULL；成功返回指针
- * @description: 边读取边解析数据，无需一次性读取所有数据。
- */
-static inline json_object *json_fast_parse_file(const char *path, json_mem_t *mem)
-{
-    json_parse_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.path = path;
-    choice.mem = mem;
-    return json_parse_common(&choice);
-}
 
 /**************** json SAX printer / SAX解析器 ****************/
 
@@ -847,6 +539,8 @@ json_string_t*  : json_sax_print_string)(handle, jkey, value)
  */
 char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
 
+
+
 /**************** json SAX parser / SAX解析器 ****************/
 
 /*
@@ -878,7 +572,7 @@ typedef union {
  * @description: LJSON SAX parsing will maintain a depth information used for state machine.
  */
 /*
- * json_sax_parse_choice_t - SAX解析选项
+ * json_sax_parser_t - SAX解析选项
  * @read_size: IN, 从文件解析时的读取缓冲区大小，默认值为 `JSON_PARSE_READ_SIZE_DEF`(8192)
  * @str_len: IN, 从字符串解析时字符串的大小，最好在从字符串解析时设置
  * @str: IN, 要解析的字符串，`path` 和 `str` 只能有一个有值
@@ -907,72 +601,6 @@ typedef enum {
     JSON_SAX_PARSE_STOP
 } json_sax_ret_t;
 typedef json_sax_ret_t (*json_sax_cb_t)(json_sax_parser_t *parser);
-
-/*
- * json_sax_parse_choice_t - the choice to parse
- * @read_size: IN, the read buffer size when parsing from file,
- *   its default value is `JSON_PARSE_READ_SIZE_DEF`(8192)
- * @str_len: IN, the size of string to be parsed when parsing from string,
- *   it's better to set it when parsing from string
- * @str: IN, the string to be parsed, only one of `path` and `str` has value
- * @path: IN, the file to be parsed, when the path is set, it parses the data while reading,
- *   otherwise it directly parses from the string
- * @cb: IN, the callback to process result passed by the SAX parser
- */
-/*
- * json_sax_parse_choice_t - 解析选项
- * @read_size: IN, 从文件解析时的读取缓冲区大小，默认值为 `JSON_PARSE_READ_SIZE_DEF`(8192)
- * @str_len: IN, 从字符串解析时的字符串大小，建议在从字符串解析时设置
- * @str: IN, 要解析的字符串，`path` 和 `str` 只能有一个有值
- * @path: IN, 要解析的文件，当设置了路径时，解析器会在读取时解析数据，否则直接从字符串解析
- * @cb: IN, 处理 SAX 解析器传递结果的回调函数
- */
-typedef struct {
-    size_t read_size;
-    size_t str_len;
-    char *str;
-    json_sax_cb_t cb;
-} json_sax_parse_choice_t;
-
-/*
- * json_sax_parse_common - The common SAX parser
- * @choice: IN, the parse choice
- * @return: -1 on failure, 0 on success
- */
-/*
- * json_sax_parse_common - 通用的SAX解析器
- * @choice: IN, 解析选项
- * @return: 失败返回-1；成功返回0
- */
-int json_sax_parse_common(json_sax_parse_choice_t *choice);
-
-/*
- * json_sax_parse_str - The SAX parser from string
- * @str: IN, the string to be parsed
- * @str_len: IN, the length of str
- * @cb: IN, the callback to process result passed by the SAX parser
- * @return: -1 on failure, 0 on success
- * description: LJSON directly parses the data from the string
- */
-/*
- * json_sax_parse_str - 从字符串进行SAX解析
- * @str: IN, 要解析的字符串
- * @str_len: IN, 字符串的长度
- * @cb: IN, 处理SAX解析器传递结果的回调函数
- * @return: 失败返回-1；成功返回0
- * @description: LJSON直接从字符串解析数据
- */
-static inline int json_sax_parse_str(char *str, size_t str_len, json_sax_cb_t cb)
-{
-    json_sax_parse_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.str = str;
-    choice.cb = cb;
-    choice.str_len = str_len;
-    return json_sax_parse_common(&choice);
-}
-
 
 
 
@@ -1114,11 +742,8 @@ static inline int json_sax_parse_str(char *str, size_t str_len, json_sax_cb_t cb
 
 
 typedef struct _json_parse_t {
-    int fd;
     size_t size;
     size_t offset;
-    size_t readed;
-    size_t read_size;
     bool reuse_flag;
 
     char *str;
@@ -1663,7 +1288,6 @@ err:
 
 
 
-static json_mem_node_t s_invalid_json_mem_node;
 static json_mem_t s_invalid_json_mem;
 
 
@@ -1687,7 +1311,7 @@ static inline int _json_sax_parse_string(json_parse_t *parse_ptr, char end_ch, c
     _get_parse_ptr(parse_ptr, 0, total, &str);
 
     if (likely(escaped != 1)) {
-        if (!(parse_ptr->fd >= 0 && mgr == &parse_ptr->mem->key_mgr)) {
+        if (!(mgr == &parse_ptr->mem->key_mgr)) {
             pinfo->escaped = escaped != 0;
             pinfo->alloced = 0;
             pinfo->len = len;
@@ -1885,21 +1509,37 @@ err:
     return -1;
 }
 
-int json_sax_parse_common(json_sax_parse_choice_t *choice)
+
+
+/*
+ * json_sax_parse_str - The SAX parser from string
+ * @str: IN, the string to be parsed
+ * @str_len: IN, the length of str
+ * @cb: IN, the callback to process result passed by the SAX parser
+ * @return: -1 on failure, 0 on success
+ * description: LJSON directly parses the data from the string
+ */
+/*
+ * json_sax_parse_str - 从字符串进行SAX解析
+ * @str: IN, 要解析的字符串
+ * @str_len: IN, 字符串的长度
+ * @cb: IN, 处理SAX解析器传递结果的回调函数
+ * @return: 失败返回-1；成功返回0
+ * @description: LJSON直接从字符串解析数据
+ */
+XXAPI int json_sax_parse_str(char *str, size_t str_len, json_sax_cb_t cb)
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-
-    parse_val.read_size = parse_val.read_size ? parse_val.read_size : JSON_PARSE_READ_SIZE_DEF;
+	
     parse_val.mem = &s_invalid_json_mem;
-    parse_val.fd = -1;
     
-	parse_val.str = choice->str;
-	parse_val.size = choice->str_len ? choice->str_len : strlen(choice->str);
+	parse_val.str = str;
+	parse_val.size = str_len ? str_len : strlen(str);
 	parse_val.skip_blank = _skip_blank_rapid;
     
     parse_val.parse_string = _json_sax_parse_string;
-    parse_val.cb = choice->cb;
+    parse_val.cb = cb;
 
 #if !JSON_PARSE_SINGLE_VALUE
     parse_val.skip_blank(&parse_val);
