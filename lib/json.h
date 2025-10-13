@@ -1,66 +1,6 @@
 
 
 
-/**************** json DOM printer / DOM打印器 ****************/
-
-/*
- * json_print_choice_t - the choice to print
- * @size: INOUT, the length of data
- * @p: INOUT, the data, it can be NULL while size is not 0
- * @description: it is used for reusing cache to accelerate printing speed
- */
-/*
- * json_print_ptr_t - 打印缓冲
- * @size: INOUT, 数据的长度
- * @p: INOUT, 数据指针，当size不为0时可以为 NULL
- * @description: 用于复用缓存以加速打印速度，此时LJSON内部可能都不会进行内存分配。
- *    打印到字符串时，开始时传入json_print_ptr_t，print结束时也传入json_print_ptr_t，此时不用释放
- *    打印返回的字符串，会一直复用json_print_ptr_t的p成员，最后不再使用时释放p成员一次即可。
- */
-typedef struct {
-    size_t size;
-    char *p;
-} json_print_ptr_t;
-
-/*
- * json_print_choice_t - the choice to print
- * @str_len: OUT, the length of returned printed string when printing to string
- * @plus_size: IN, increased memory size during reallocation when printing to string,
- *   or the write buffer size when printing to file,
- *   its default value is `JSON_PRINT_SIZE_PLUS_DEF`(1024)
- * @item_size: IN, the json object size when transfering to a string,
- *   its default value is `JSON_FORMAT_ITEM_SIZE_DEF`(32) when format_flag is true,
- *   or `JSON_UNFORMAT_ITEM_SIZE_DEF`(24) when format_flag is false
- * @item_total: IN, the total json objects, it will be calculated automatically in DOM print,
- *   it is better to set the value by users in SAX print
- * @format_flag: IN, set formatted printing (true) or compressed printing(false)
- * @ptr: INOUT, pre-allocated memory for printing
- * @path: IN, when the path is set, it prints to file while printing,
- *   otherwise it directly print to string
- */
-/*
- * json_print_choice_t - 打印参数设置
- * @str_len: OUT, 打印到字符串时返回的字符串长度
- * @plus_size: IN, 打印到字符串时重新分配内存时增加的内存大小，或打印到文件时的写入缓冲区大小，默认值为 `JSON_PRINT_SIZE_PLUS_DEF`(1024)
- * @item_size: IN, 将 JSON 对象转换为字符串时的大小，默认值为 `JSON_FORMAT_ITEM_SIZE_DEF`(32)（当 format_flag 为 true 时）或 `JSON_UNFORMAT_ITEM_SIZE_DEF`(24)（当 format_flag 为 false 时）
- * @item_total: IN, JSON 对象的总数，DOM 打印时会自动计算，SAX 打印时最好由用户设置
- * @format_flag: IN, 设置格式化打印（true）或压缩打印（false）
- * @ptr: INOUT, 预分配的内存用于打印
- * @path: IN, 当 path 设置时，打印到文件，否则直接打印到字符串
- * @description: 如果设置了ptr，外部缓冲进入打印内部函数后，将缓冲交给内部接口，自身置空；当打印完成后：
- *   如果打印到字符串，ptr被置为了返回的字符串的值，最后使用json_memory_free释放ptr->p或返回的字符串之一；
- *   如果打印到文件，ptr被置为了内部读写缓冲的值，最后使用json_memory_free释放ptr->p
- */
-typedef struct {
-    size_t str_len; /* return string length if it is printed to string. */
-    size_t plus_size;
-    size_t item_size;
-    int item_total;
-    bool format_flag;
-    json_print_ptr_t *ptr;
-    const char *path;
-} json_print_choice_t;
-
 /**************** json pool editor / 内存块json的编辑接口 ****************/
 
 /*
@@ -137,214 +77,7 @@ typedef struct {
 
 
 
-/*
- * json_sax_print_hd - the handle of SAX printer
- * @description: It is a pointer of `json_sax_print_t`
- */
-/*
- * json_sax_parser_t - SAX打印句柄
- * @description: 实际就是 `json_sax_print_t` 的指针
- */
-typedef void* json_sax_print_hd;
-
-/*
- * json_sax_print_start - Start the SAX printer
- * @choice: INOUT, the print choice
- * @return: NULL on failure, a pointer (the handle of SAX print) on success
- */
-/*
- * json_sax_print_start - 启动SAX打印器
- * @choice: INOUT, 打印选项
- * @return: 失败返回NULL；成功返回指针（SAX打印器的句柄）
- */
-json_sax_print_hd json_sax_print_start(json_print_choice_t *choice);
-
-/*
- * json_sax_print_format_start - Start the formatted SAX printer to string
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @ptr: IN, pre-allocated memory for printing
- * @return: NULL on failure, a pointer (the handle of SAX print) on success
- */
-/*
- * json_sax_print_format_start - 启动格式化的SAX打印器，输出到字符串
- * @item_total: IN, json对象的总数，最好由用户设置
- * @ptr: IN, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针（SAX打印器的句柄）
- */
-static inline json_sax_print_hd json_sax_print_format_start(int item_total, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = true;
-    choice.item_total = item_total;
-    choice.ptr = ptr;
-    return json_sax_print_start(&choice);
-}
-
-/*
- * json_sax_print_unformat_start - Start the compressed SAX printer to string
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @ptr: IN, pre-allocated memory for printing
- * @return: NULL on failure, a pointer (the handle of SAX print) on success
- */
-/*
- * json_sax_print_unformat_start - 启动压缩的SAX打印器，输出到字符串
- * @item_total: IN, json对象的总数，最好由用户设置
- * @ptr: IN, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针（SAX打印器的句柄）
- */
-static inline json_sax_print_hd json_sax_print_unformat_start(int item_total, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = false;
-    choice.item_total = item_total;
-    choice.ptr = ptr;
-    return json_sax_print_start(&choice);
-}
-
-/*
- * json_sax_fprint_format_start - Start the formatted SAX printer to file
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @path: IN, the file to store the printed string
- * @ptr: IN, pre-allocated memory for printing
- * @return: NULL on failure, a pointer (the handle of SAX print) on success
- */
-/*
- * json_sax_fprint_format_start - 启动格式化的SAX打印器，输出到文件
- * @item_total: IN, json对象的总数，最好由用户设置
- * @path: IN, 存储打印字符串的文件路径
- * @ptr: IN, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针（SAX打印器的句柄）
- */
-static inline json_sax_print_hd json_sax_fprint_format_start(int item_total, const char *path, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = true;
-    choice.item_total = item_total;
-    choice.path = path;
-    choice.ptr = ptr;
-    return json_sax_print_start(&choice);
-}
-
-/*
- * json_sax_fprint_unformat_start - Start the compressed SAX printer to file
- * @item_total: IN, the total json objects, it is better to set the value by users
- * @path: IN, the file to store the printed string
- * @ptr: IN, pre-allocated memory for printing
- * @return: NULL on failure, a pointer (the handle of SAX print) on success
- */
-/*
- * json_sax_fprint_unformat_start - 启动压缩的SAX打印器，输出到文件
- * @item_total: IN, json对象的总数，最好由用户设置
- * @path: IN, 存储打印字符串的文件路径
- * @ptr: IN, 预分配的内存用于打印
- * @return: 失败返回NULL；成功返回指针（SAX打印器的句柄）
- */
-static inline json_sax_print_hd json_sax_fprint_unformat_start(int item_total, const char *path, json_print_ptr_t *ptr)
-{
-    json_print_choice_t choice;
-
-    memset(&choice, 0, sizeof(choice));
-    choice.format_flag = false;
-    choice.item_total = item_total;
-    choice.path = path;
-    choice.ptr = ptr;
-    return json_sax_print_start(&choice);
-}
-
-/*
- * json_sax_print_value - SAX print the json object
- * @handle: IN, the handle of SAX printer
- * @type: the json object type
- * @jkey: IN, the LJSON key, allow length not to be set first by json_string_info_update
- * @value: IN, the json object value
- * @return: -1 on failure, 0 on success
- * @description: If the parent node of the node to be printed is an object, the key string must have a value;
- *   in other cases, the key string can be filled in or not.
- *   The JSON_ARRAY and JSON_OBJECT are printed twice, once the value is `JSON_SAX_START` to start,
- *   and once the value is `JSON_SAX_FINISH` to complete.
- */
-/*
- * json_sax_print_value - SAX打印json对象
- * @handle: IN, SAX打印器的句柄
- * @type: IN, json对象的类型
- * @jkey: IN, json对象的键，允许长度未预先设置
- * @value: IN, json对象的值
- * @return: 失败返回-1；成功返回0
- * @description: 如果要打印的节点的父节点是对象，则键字符串必须有值；其他情况下，键字符串可以填写或不填写
- *  JSON_ARRAY和JSON_OBJECT需要打印两次，一次值为 `JSON_SAX_START` 表示开始，一次值为 `JSON_SAX_FINISH` 表示完成
- */
-int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value);
-static inline int json_sax_print_null(json_sax_print_hd handle, json_string_t *jkey) { return json_sax_print_value(handle, JSON_NULL, jkey, NULL); }
-static inline int json_sax_print_bool(json_sax_print_hd handle, json_string_t *jkey, bool value) { return json_sax_print_value(handle, JSON_BOOL, jkey, &value); }
-static inline int json_sax_print_int(json_sax_print_hd handle, json_string_t *jkey, int32_t value) { return json_sax_print_value(handle, JSON_INT, jkey, &value); }
-static inline int json_sax_print_hex(json_sax_print_hd handle, json_string_t *jkey, uint32_t value) { return json_sax_print_value(handle, JSON_HEX, jkey, &value); }
-static inline int json_sax_print_lint(json_sax_print_hd handle, json_string_t *jkey, int64_t value) { return json_sax_print_value(handle, JSON_LINT, jkey, &value); }
-static inline int json_sax_print_lhex(json_sax_print_hd handle, json_string_t *jkey, uint64_t value) { return json_sax_print_value(handle, JSON_LHEX, jkey, &value); }
-static inline int json_sax_print_double(json_sax_print_hd handle, json_string_t *jkey, double value) { return json_sax_print_value(handle, JSON_DOUBLE, jkey, &value); }
-static inline int json_sax_print_string(json_sax_print_hd handle, json_string_t *jkey, json_string_t *value) { return json_sax_print_value(handle, JSON_STRING, jkey, value); }
-static inline int json_sax_print_array(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return json_sax_print_value(handle, JSON_ARRAY, jkey, &value); }
-static inline int json_sax_print_object(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return json_sax_print_value(handle, JSON_OBJECT, jkey, &value); }
-
-/* C11泛型选择(Generic selection) */
-#define json_sax_print_array_item(handle, value)  _Generic((value), \
-bool            : json_sax_print_bool                             , \
-int32_t         : json_sax_print_int                              , \
-uint32_t        : json_sax_print_hex                              , \
-int64_t         : json_sax_print_lint                             , \
-uint64_t        : json_sax_print_lhex                             , \
-double          : json_sax_print_double                           , \
-json_string_t*  : json_sax_print_string)(handle, NULL, value)
-
-#define json_sax_print_array_null(handle)         json_sax_print_null  (handle, NULL, NULL)
-#define json_sax_print_array_start(handle, jkey)  json_sax_print_array (handle, jkey, JSON_SAX_START)
-#define json_sax_print_array_finish(handle)       json_sax_print_array (handle, NULL, JSON_SAX_FINISH)
-
-/* C11泛型选择(Generic selection) */
-#define json_sax_print_object_item(handle, jkey, value)  _Generic((value), \
-bool            : json_sax_print_bool                             , \
-int32_t         : json_sax_print_int                              , \
-uint32_t        : json_sax_print_hex                              , \
-int64_t         : json_sax_print_lint                             , \
-uint64_t        : json_sax_print_lhex                             , \
-double          : json_sax_print_double                           , \
-json_string_t*  : json_sax_print_string)(handle, jkey, value)
-
-#define json_sax_print_object_null(handle, jkey)  json_sax_print_null  (handle, jkey, NULL)
-#define json_sax_print_object_start(handle, jkey) json_sax_print_object(handle, jkey, JSON_SAX_START)
-#define json_sax_print_object_finish(handle)      json_sax_print_object(handle, NULL, JSON_SAX_FINISH)
-
-/*
- * json_sax_print_finish - Finish the SAX printer
- * @handle: IN, the handle of SAX printer
- * @length: OUT, the length of returned printed string
- * @ptr: OUT, export internal allocated memory for printing
- * @return: NULL on failure, a pointer on success
- * @description: When printing to file, the pointer is `"ok"` on success, don't free it,
- *   when printing to string, the pointer is the printed string, use `json_memory_free` to free it or ptr->p.
- */
-/*
- * json_sax_print_finish - 结束SAX打印器
- * @handle: IN, SAX 打印器的句柄
- * @length: OUT, 返回的打印字符串的长度
- * @ptr: OUT, 导出内部分配的内存用于打印
- * @return: 失败返回NULL；成功时返回指针
- * @description: 当打印到文件时，成功时返回 "ok"，不要释放它；当打印到字符串时，返回打印的字符串，使用 `json_memory_free` 释放它或ptr->p
- */
-char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
-
-
-
-
-
 /**************** configuration ****************/
-
-#define json_dtoa                       jnum_dtoa
 
 /* Whether to use manual loop unfolding */
 #ifndef JSON_MANUAL_LOOP_UNFOLD
@@ -401,6 +134,8 @@ char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print
 #define JSON_PARSE_FINISHED_CHAR        0
 #endif
 
+
+
 /**************** debug ****************/
 
 /* error print */
@@ -427,6 +162,8 @@ char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print
 #define JsonPareseErr(s)      do {} while(0)
 #endif
 
+
+
 /**************** gcc builtin ****************/
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -446,6 +183,8 @@ char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print
 #else
 #define UNUSED_END_CH                   UNUSED_ATTR
 #endif
+
+
 
 /**************** definition ****************/
 
@@ -497,6 +236,575 @@ typedef struct _json_parse_t {
 
 #define IS_BLANK(c)      ((((c) + 0xdf) & 0xff) > 0xdf)
 #define IS_DIGIT(c)      ((c) >= '0' && (c) <= '9')
+
+
+
+
+
+/**************** json print apis ****************/
+
+json_strinfo_t json_string_info_get(const char *str, const json_strinfo_t *orig)
+{
+    json_strinfo_t info;
+    int i = 0;
+
+    if (orig) {
+        info = *orig;
+        info.escaped = 0;
+        info.len = 0;
+    } else {
+        memset(&info, 0, sizeof(info));
+    }
+
+    if (str) {
+        for (i = 0; str[i]; ++i) {
+            switch (str[i]) {
+            case '\"': case '\\': case '\b': case '\f': case '\n': case '\r': case '\t': case '\v':
+                info.escaped = 1;
+                break;
+            default:
+#if JSON_PRINT_UTF16_SUPPORT
+                if ((unsigned char)str[i] < ' ')
+                    info.escaped = 1;
+#endif
+                break;
+            }
+        }
+        info.len = i;
+    }
+
+    return info;
+}
+
+typedef struct _json_print_t {
+    int fd;
+    char *ptr;
+    char *cur;
+    int (*realloc)(struct _json_print_t *print_ptr, size_t slen);
+    size_t size;
+
+    size_t plus_size;
+    size_t item_size;
+    int item_total;
+    int item_count;
+    bool format_flag;
+} json_print_t;
+
+#define GET_BUF_USED_SIZE(bp) ((bp)->cur - (bp)->ptr)
+#define GET_BUF_FREE_SIZE(bp) ((bp)->size - ((bp)->cur - (bp)->ptr))
+
+static inline char _is_escape_char(uint8_t val)
+{
+#define ESCAPE_UTF16_VAL        1
+#if JSON_PRINT_UTF16_SUPPORT
+#define PRINT_STR_CMP_VAL       0
+#else
+#define PRINT_STR_CMP_VAL       ESCAPE_UTF16_VAL
+#endif
+
+    static const char char_escape_lut[256] = {
+        1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 98 , 116, 110, 118, 102, 114, 1  , 1  ,
+        1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  ,
+        0  , 0  , 34 , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 92 , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  ,
+        0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0
+    };
+
+    return char_escape_lut[val];
+}
+
+static int _print_str_ptr_realloc(json_print_t *print_ptr, size_t slen)
+{
+    size_t used = GET_BUF_USED_SIZE(print_ptr);
+    size_t len = used + slen + 1;
+
+    while (print_ptr->item_total < print_ptr->item_count) {
+        print_ptr->item_total += JSON_PRINT_NUM_PLUS_DEF;
+        print_ptr->size += print_ptr->plus_size >> 2;
+    }
+    if (print_ptr->item_total - print_ptr->item_count > print_ptr->item_count) {
+        print_ptr->size += print_ptr->size;
+    } else {
+        print_ptr->size += (uint64_t)print_ptr->size *
+            (print_ptr->item_total - print_ptr->item_count) / print_ptr->item_count;
+    }
+
+    while (print_ptr->size < len)
+        print_ptr->size += print_ptr->plus_size;
+
+    char *new_str = (char *)json_realloc(print_ptr->ptr, print_ptr->size);
+    if (likely(new_str)) {
+        print_ptr->ptr = new_str;
+        print_ptr->cur = print_ptr->ptr + used;
+    } else {
+        JsonErr("malloc failed!\n");
+        json_free(print_ptr->ptr);
+        print_ptr->ptr = NULL;
+        print_ptr->cur = print_ptr->ptr;
+        return -1;
+    }
+
+    return 0;
+}
+
+#define _PRINT_PTR_REALLOC(nz) do {                 \
+    if (unlikely(GET_BUF_FREE_SIZE(print_ptr) < (nz)\
+        && print_ptr->realloc(print_ptr, nz) < 0))  \
+        goto err;                                   \
+} while(0)
+
+#define _PRINT_PTR_NUMBER(fname, num) do {          \
+    _PRINT_PTR_REALLOC(64);                         \
+    print_ptr->cur += fname(num, print_ptr->cur);   \
+} while(0)
+
+#define _PRINT_PTR_STRNCAT(str, slen) do {          \
+    _PRINT_PTR_REALLOC((slen + 1));                 \
+    memcpy(print_ptr->cur, str, slen);              \
+    print_ptr->cur += slen;                         \
+} while(0)
+
+static inline int _print_addi_format(json_print_t *print_ptr, size_t depth)
+{
+    _PRINT_PTR_REALLOC((depth + 2));
+    *print_ptr->cur++ = '\n';
+    memset(print_ptr->cur, '\t', depth);
+    print_ptr->cur += depth;
+
+    return 0;
+err:
+    return -1;
+}
+#define _PRINT_ADDI_FORMAT(ptr, depth) do { if (unlikely(_print_addi_format(ptr, depth) < 0)) goto err; } while(0)
+
+static inline int _json_print_string(json_print_t *print_ptr, const char *val, json_strinfo_t *info)
+{
+#define _JSON_PRINT_SEGMENT()   do {  \
+    size = str - bak - 1;             \
+    memcpy(cur, bak, size);           \
+    cur += size;                      \
+    bak = str;                        \
+} while(0)
+
+
+    char c = '\0', ch = '\0';
+    size_t len = 0, size = 0, alloced = 0;
+    const char *str = NULL, *bak = NULL, *end = NULL;
+    char *cur = NULL;
+
+    str = val;
+    len = info->len;
+    end = str + len;
+    if (likely(!info->escaped)) {
+        alloced = len + 3;
+        _PRINT_PTR_REALLOC(alloced);
+        cur = print_ptr->cur;
+        *cur++ = '\"';
+        memcpy(cur, str, len);
+        cur += len;
+        *cur++ = '\"';
+        print_ptr->cur = cur;
+        return 0;
+    }
+
+#if JSON_PRINT_UTF16_SUPPORT
+    alloced = (len << 2) + (len << 1) + 3;
+#else
+    alloced = (len << 1) + 3;
+#endif
+    _PRINT_PTR_REALLOC(alloced);
+    cur = print_ptr->cur;
+    *cur++ = '\"';
+    bak = str;
+
+loop:
+#if JSON_MANUAL_LOOP_UNFOLD
+    while (end - str >= 8) {
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+    }
+#endif
+    while (end > str) {
+        c = *str++; ch = _is_escape_char((uint8_t)c); if (unlikely(ch > PRINT_STR_CMP_VAL)) goto next;
+    }
+    goto end;
+
+next:
+    _JSON_PRINT_SEGMENT();
+#if JSON_PRINT_UTF16_SUPPORT
+    if (unlikely(ch == ESCAPE_UTF16_VAL)) {
+        static const char hex_char_lut[] = {
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+        };
+        unsigned char uc = c;
+        memcpy(cur, "\\u00", 4);
+        cur += 4;
+        *cur++ = hex_char_lut[uc >> 4 & 0xf];
+        *cur++ = hex_char_lut[uc & 0xf];
+    }
+    else
+#endif
+    {
+        *cur++ = '\\';
+        *cur++ = ch;
+    }
+    goto loop;
+
+end:
+    ++str;
+    _JSON_PRINT_SEGMENT();
+    *cur++ = '\"';
+    print_ptr->cur = cur;
+    return 0;
+
+err:
+    JsonErr("malloc failed!\n");
+    return -1;
+}
+#define _JSON_PRINT_STRING(ptr, val, info) do { if (unlikely(_json_print_string(ptr, val, info) < 0)) goto err; } while(0)
+
+static int _print_val_release(json_print_t *print_ptr, bool free_all_flag, size_t *length, json_print_ptr_t *ptr)
+{
+#define _clear_free_ptr(ptr)    do { if (ptr) json_free(ptr); ptr = NULL; } while(0)
+#define _clear_close_fd(fd)     do { if (fd >= 0) close(fd); fd = -1; } while(0)
+    int ret = 0;
+    size_t used = GET_BUF_USED_SIZE(print_ptr);
+
+    if (print_ptr->fd >= 0) {
+        if (!free_all_flag && used > 0) {
+            if (used != (size_t)write(print_ptr->fd, print_ptr->ptr, used)) {
+                JsonErr("write failed!\n");
+                ret = -1;
+            }
+        }
+        _clear_close_fd(print_ptr->fd);
+        if (ptr) {
+            ptr->size = print_ptr->size;
+            ptr->p = print_ptr->ptr;
+        } else {
+            _clear_free_ptr(print_ptr->ptr);
+        }
+    } else {
+        if (free_all_flag) {
+            _clear_free_ptr(print_ptr->ptr);
+        } else {
+            if (length)
+                *length = print_ptr->cur - print_ptr->ptr;
+            *print_ptr->cur = '\0';
+
+            if (ptr) {
+                ptr->size = print_ptr->size;
+                ptr->p = print_ptr->ptr;
+            } else {
+                /* Reduce size, never fail */
+                print_ptr->ptr = (char *)json_realloc(print_ptr->ptr, used + 1);
+            }
+        }
+    }
+
+    return ret;
+}
+
+static int _print_val_init(json_print_t *print_ptr, json_print_choice_t *choice)
+{
+    print_ptr->format_flag = choice->format_flag;
+    print_ptr->plus_size = choice->plus_size ? choice->plus_size : JSON_PRINT_SIZE_PLUS_DEF;
+
+	size_t item_size = 0;
+	size_t total_size = 0;
+
+	print_ptr->realloc = _print_str_ptr_realloc;
+	item_size = (choice->format_flag) ? JSON_FORMAT_ITEM_SIZE_DEF : JSON_UNFORMAT_ITEM_SIZE_DEF;
+	if (choice->item_size > item_size)
+		item_size = choice->item_size;
+
+	total_size = print_ptr->item_total * item_size;
+	if (total_size < JSON_PRINT_SIZE_PLUS_DEF)
+		total_size = JSON_PRINT_SIZE_PLUS_DEF;
+	print_ptr->size = total_size;
+
+    if (choice->ptr && choice->ptr->p) {
+        print_ptr->size = choice->ptr->size;
+        print_ptr->ptr = choice->ptr->p;
+        choice->ptr->p = NULL;
+    } else {
+        if ((print_ptr->ptr = (char *)json_malloc(print_ptr->size)) == NULL) {
+            JsonErr("malloc failed!\n");
+            goto err;
+        }
+    }
+    print_ptr->cur = print_ptr->ptr;
+
+    return 0;
+err:
+    _print_val_release(print_ptr, true, NULL, NULL);
+    return -1;
+}
+
+
+
+
+
+typedef struct {
+    json_type_t type;
+    int num;
+} json_sax_print_depth_t;
+
+typedef struct {
+    int total;
+    int count;
+    json_sax_print_depth_t *array;
+
+    json_print_t print_val;
+    json_type_t last_type;
+    bool error_flag;
+} json_sax_print_t;
+
+int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value)
+{
+    json_sax_print_t *print_handle = (json_sax_print_t *)handle;
+    json_print_t *print_ptr = &print_handle->print_val;
+    json_string_t *jstr = NULL;
+    int cur_pos = print_handle->count - 1;
+
+    if (unlikely(print_handle->error_flag)) {
+        return -1;
+    }
+
+    if (likely(print_handle->count > 0
+        && !((type == JSON_ARRAY || type == JSON_OBJECT) && (*(json_sax_cmd_t*)value) == JSON_SAX_FINISH))) {
+        // add ","
+        if (print_handle->array[cur_pos].num > 0)
+            _PRINT_PTR_STRNCAT(",", 1);
+
+        // add key
+        if (print_handle->array[cur_pos].type == JSON_OBJECT) {
+            if (print_ptr->format_flag) {
+                if (unlikely(!jkey || !jkey->str || !jkey->str[0])) {
+#if !JSON_PARSE_EMPTY_KEY
+                    JsonErr("key is empty!\n");
+                    goto err;
+#else
+                    _PRINT_ADDI_FORMAT(print_ptr, print_handle->count);
+                    _PRINT_PTR_STRNCAT("\"\":\t", 4);
+#endif
+                } else {
+                    _PRINT_ADDI_FORMAT(print_ptr, print_handle->count);
+                    json_string_info_update(jkey);
+                    _JSON_PRINT_STRING(print_ptr, jkey->str, &jkey->info);
+                    _PRINT_PTR_STRNCAT(":\t", 2);
+                }
+            } else {
+                if (unlikely(!jkey || !jkey->str || !jkey->str[0])) {
+#if !JSON_PARSE_EMPTY_KEY
+                    JsonErr("key is empty!\n");
+                    goto err;
+#else
+                    _PRINT_PTR_STRNCAT("\"\":", 3);
+#endif
+                } else {
+                    json_string_info_update(jkey);
+                    _JSON_PRINT_STRING(print_ptr, jkey->str, &jkey->info);
+                    _PRINT_PTR_STRNCAT(":", 1);
+                }
+            }
+        } else {
+            if (print_ptr->format_flag) {
+                if (type == JSON_ARRAY) {
+                    _PRINT_ADDI_FORMAT(print_ptr, print_handle->count);
+                } else {
+                    if (print_handle->array[cur_pos].num > 0) {
+                        _PRINT_PTR_STRNCAT(" ", 1);
+                    } else {
+                        if (type == JSON_OBJECT)
+                            _PRINT_ADDI_FORMAT(print_ptr, print_handle->count);
+                    }
+                }
+            }
+        }
+    }
+
+    // add value
+    switch (type) {
+    case JSON_NULL:
+        _PRINT_PTR_STRNCAT("null", 4);
+        break;
+    case JSON_BOOL:
+        if ((*(bool*)value)) {
+            _PRINT_PTR_STRNCAT("true", 4);
+        } else {
+            _PRINT_PTR_STRNCAT("false", 5);
+        }
+        break;
+
+    case JSON_INT:
+        _PRINT_PTR_NUMBER(xrtI32ToStr, *(int32_t*)value);
+        break;
+    case JSON_HEX:
+        _PRINT_PTR_NUMBER(xrtU32ToStr, *(uint32_t*)value);
+        break;
+    case JSON_LINT:
+        _PRINT_PTR_NUMBER(xrtI64ToStr, *(int64_t*)value);
+        break;
+    case JSON_LHEX:
+        _PRINT_PTR_NUMBER(xrtU64ToStr, *(uint64_t*)value);
+        break;
+    case JSON_DOUBLE:
+        _PRINT_PTR_NUMBER(xrtNumToStr, *(double*)value);
+        break;
+    case JSON_STRING:
+        jstr = (json_string_t*)value;
+        if (unlikely(!jstr || !jstr->str || !jstr->str[0])) {
+            _PRINT_PTR_STRNCAT("\"\"", 2);
+        } else {
+            json_string_info_update(jstr);
+            _JSON_PRINT_STRING(print_ptr, jstr->str, &jstr->info);
+        }
+        break;
+
+    case JSON_ARRAY:
+    case JSON_OBJECT:
+        switch ((*(json_sax_cmd_t*)value)) {
+        case JSON_SAX_START:
+            if (unlikely(print_handle->count == print_handle->total)) {
+                print_handle->total += JSON_PRINT_DEPTH_DEF;
+                json_sax_print_depth_t *new_array = (json_sax_print_depth_t *)json_realloc(
+                    print_handle->array, print_handle->total * sizeof(json_sax_print_depth_t));
+                if (new_array) {
+                    print_handle->array = new_array;
+                } else {
+                    JsonErr("malloc failed!\n");
+                    json_free(print_handle->array);
+                    print_handle->array = NULL;
+                    goto err;
+                }
+            }
+            if (type == JSON_OBJECT) {
+                _PRINT_PTR_STRNCAT("{", 1);
+            } else {
+                _PRINT_PTR_STRNCAT("[", 1);
+            }
+            if (print_handle->count > 0)
+                ++print_handle->array[cur_pos].num;
+            print_handle->array[print_handle->count].type = type;
+            print_handle->array[print_handle->count].num = 0;
+            ++print_handle->count;
+            break;
+
+        case JSON_SAX_FINISH:
+            if (unlikely(print_handle->count == 0 || print_handle->array[cur_pos].type != type)) {
+                JsonErr("unexpected array or object finish!\n");
+                goto err;
+            }
+            if (print_ptr->format_flag) {
+                if (print_handle->count > 1) {
+                    if (print_handle->array[print_handle->count-1].num > 0) {
+                        if (type == JSON_OBJECT) {
+                            _PRINT_ADDI_FORMAT(print_ptr, cur_pos);
+                        } else {
+                            if (print_handle->last_type == JSON_OBJECT || print_handle->last_type == JSON_ARRAY)
+                                _PRINT_ADDI_FORMAT(print_ptr, cur_pos);
+                        }
+                    }
+                } else {
+                    _PRINT_PTR_STRNCAT("\n", 1);
+                }
+            }
+            if (type == JSON_OBJECT) {
+                _PRINT_PTR_STRNCAT("}", 1);
+            } else {
+                _PRINT_PTR_STRNCAT("]", 1);
+            }
+            --print_handle->count;
+            print_handle->last_type = type;
+            return 0;
+
+        default:
+            goto err;
+        }
+        break;
+
+    default:
+        goto err;
+    }
+
+    print_handle->last_type = type;
+    if (cur_pos >= 0)
+        ++print_handle->array[cur_pos].num;
+    ++print_ptr->item_count;
+
+    return 0;
+err:
+    print_handle->error_flag = true;
+    return -1;
+}
+
+json_sax_print_hd json_sax_print_start(json_print_choice_t *choice)
+{
+    json_sax_print_t *print_handle = NULL;
+
+    if ((print_handle = (json_sax_print_t *)json_calloc(1, sizeof(json_sax_print_t))) == NULL) {
+        JsonErr("malloc failed!\n");
+        return NULL;
+    }
+    print_handle->print_val.item_total = choice->item_total ? choice->item_total : JSON_PRINT_NUM_INIT_DEF;
+    if (_print_val_init(&print_handle->print_val, choice) < 0) {
+        json_free(print_handle);
+        return NULL;
+    }
+
+    print_handle->total = JSON_PRINT_DEPTH_DEF;
+    if ((print_handle->array = (json_sax_print_depth_t *)json_malloc(print_handle->total * sizeof(json_sax_print_depth_t))) == NULL) {
+        _print_val_release(&print_handle->print_val, true, NULL, NULL);
+        json_free(print_handle);
+        JsonErr("malloc failed!\n");
+        return NULL;
+    }
+
+    return print_handle;
+}
+
+char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr)
+{
+    char *ret = NULL;
+
+    json_sax_print_t *print_handle = (json_sax_print_t *)handle;
+    if (!print_handle)
+        return NULL;
+    if (print_handle->array)
+        json_free(print_handle->array);
+    if (print_handle->error_flag) {
+        _print_val_release(&print_handle->print_val, true, NULL, NULL);
+        json_free(print_handle);
+        return NULL;
+    }
+
+    ret = (print_handle->print_val.fd >= 0) ? (char *)"ok" : print_handle->print_val.ptr;
+    if (_print_val_release(&print_handle->print_val, false, length, ptr) < 0) {
+        json_free(print_handle);
+        return NULL;
+    }
+    json_free(print_handle);
+
+    return ret;
+}
 
 
 

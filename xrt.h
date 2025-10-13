@@ -1705,37 +1705,22 @@
 		JSON_OBJECT                 /* Its value variable is head */
 	} json_type_t;
 	
-	/*
-	 * json_strinfo_t - json对象的键或字符串类型的值的信息
-	 * @type: json对象的类型，只在作为json对象的键时才有效
-	 * @escaped: 是否含转义字符
-	 * @alloced: 是否是在堆中分配，只在SAX接口中有效
-	 * @len: 字符串长度
-	 * @description: LJSON使用此结构就知道了字符串长度，可以加快数据处理
-	 */
+	// json对象的键或字符串类型的值的信息（LJSON使用此结构就知道了字符串长度，可以加快数据处理）
 	typedef struct {
-		uint32_t type:4;
-		uint32_t escaped:1;
-		uint32_t alloced:1;
-		uint32_t reserved:2;
-		uint32_t len:24;
+		uint32_t type:4;			// json对象的类型，只在作为json对象的键时才有效
+		uint32_t escaped:1;			// 是否含转义字符
+		uint32_t alloced:1;			// 是否是在堆中分配，只在SAX接口中有效
+		uint32_t reserved:2;		// 保留位
+		uint32_t len:24;			// 字符串长度
 	} json_strinfo_t;
 	
-	/*
-	 * json_string_t - 带信息的字符串
-	 * @str: 字符串数据
-	 * @info: 字符串信息
-	 * @description: LJSON使用此结构就知道了字符串长度，可以加快数据处理
-	 */
+	// 带信息的字符串（LJSON使用此结构就知道了字符串长度，可以加快数据处理）
 	typedef struct {
-		char *str;
-		json_strinfo_t info;
+		char *str;					// 字符串数据
+		json_strinfo_t info;		// 字符串信息
 	} json_string_t;
 	
-	/*
-	 * json_number_t - json数字类型的值
-	 * @description: LJSON支持长整数和十六进制数
-	 */
+	// json数字类型的值（LJSON支持长整数和十六进制数）
 	typedef union {
 		bool vbool;
 		int32_t vint;
@@ -1745,115 +1730,152 @@
 		double vdbl;
 	} json_number_t;
 	
-	/*
-	 * json_value_t - json对象的值
-	 * @vnum: 数字类型的值
-	 * @vstr: 字符串类型的值
-	 * @head: 集合对象的子节点挂载的链表头，指向最后一个元素(非空时)或自己(空时)
-	 * @description: LJSON使用union管理对象的值从而节省内存空间
-	 */
+	// json对象的值（LJSON使用union管理对象的值从而节省内存空间）
 	typedef union {
-		json_number_t vnum;
-		char *vstr;
-		struct json_list head;
+		json_number_t vnum;			// 数字类型的值
+		char *vstr;					// 字符串类型的值
+		struct json_list head;		// 集合对象的子节点挂载的链表头，指向最后一个元素(非空时)或自己(空时)
 	} json_value_t;
 	
-	/*
-	 * json_object - json对象
-	 * @list: 链表节点，指向下一个对象或父对象的链表头
-	 * @key: json对象的键值，只有JSON_OBJECT的子对象才有键值
-	 * @ikey: key字符串信息(含json类型)
-	 * @istr: value.str字符串信息
-	 * @value: json对象的值
-	 * @description: LJSON使用更紧凑的内存结构以节省内存
-	 */
+	// json对象（LJSON使用更紧凑的内存结构以节省内存）
 	typedef struct {
-		struct json_list list;
-		char *key;
-		json_strinfo_t ikey;
-		json_strinfo_t istr;
-		json_value_t value;
+		struct json_list list;		// 链表节点，指向下一个对象或父对象的链表头
+		char *key;					// json对象的键值，只有JSON_OBJECT的子对象才有键值
+		json_strinfo_t ikey;		// key字符串信息(含json类型)
+		json_strinfo_t istr;		// value.str字符串信息
+		json_value_t value;			// json对象的值
 	} json_object;
 	
-	/*
-	 * json_item_t - 包含json对象和hash值的结构
-	 * @hash: 只有JSON_OBJECT才有key值，才有key的hash值
-	 * @json: json对象
-	 * @description: LJSON使用hash值来加快获取JSON_OBJECT下的子对象
-	 */
-	typedef struct {
-		uint32_t hash;
-		json_object *json;
-	} json_item_t;
-	
-	/*
-	 * json_items_t - json_item_t 的管理结构
-	 * @conflicted: JSON_OBJECT下的子对象的key的hash值是否有冲突
-	 * @total: 数组的容量
-	 * @count: 数组的当前数量
-	 * @json: 存储json对象的数组
-	 * @description: LJSON使用它存储JSON_ARRAY或JSON_OBJECT下的所有子对象，使用json_get_items接口获取
-	 */
-	typedef struct {
-		uint32_t conflicted:1;
-		uint32_t reserved:31;
-		uint32_t total;
-		uint32_t count;
-		json_item_t *items;
-	} json_items_t;
-	
-	/*
-	 * json_sax_cmd_t - SAX APIs中指示JSON_ARRAY或JSON_OBJECT的开始和结束
-	 * @description: 集合类型是括号包起来的，JSON_SAX_START表示左边括号, JSON_SAX_FINISH指示右边括号
-	 */
+	// SAX APIs中指示JSON_ARRAY或JSON_OBJECT的开始和结束（集合类型是括号包起来的，JSON_SAX_START表示左边括号, JSON_SAX_FINISH指示右边括号）
 	typedef enum {
 		JSON_SAX_START = 0,
 		JSON_SAX_FINISH
 	} json_sax_cmd_t;
 	
-	/*
-	 * json_value_t - json对象的值
-	 * @vnum: 数字类型的值
-	 * @vstr: 字符串类型的值
-	 * @vcmd: SAX APIs指示集合对象的开始和结束
-	 * @description: LJSON使用union管理对象的值从而节省内存空间
-	 */
+	// json对象的值（LJSON使用union管理对象的值从而节省内存空间）
 	typedef union {
-		json_number_t vnum;
-		json_string_t vstr;
-		json_sax_cmd_t vcmd;
+		json_number_t vnum;			// 数字类型的值
+		json_string_t vstr;			// 字符串类型的值
+		json_sax_cmd_t vcmd;		// SAX APIs指示集合对象的开始和结束
 	} json_sax_value_t;
-
-	/*
-	 * json_sax_parser_t - SAX解析选项
-	 * @read_size: IN, 从文件解析时的读取缓冲区大小，默认值为 `JSON_PARSE_READ_SIZE_DEF`(8192)
-	 * @str_len: IN, 从字符串解析时字符串的大小，最好在从字符串解析时设置
-	 * @str: IN, 要解析的字符串，`path` 和 `str` 只能有一个有值
-	 * @path: IN, 要解析的文件，当 path 设置时，边读取边解析数据，否则直接从字符串解析
-	 * @cb: IN, 处理 SAX 解析器传递结果的回调函数
-	 */
+	
+	// SAX解析器传递给回调函数的描述（LJSON SAX解析将维护用于状态机的深度信息。）
 	typedef struct {
-		int total;
-		int index;
-		json_string_t *array;
-		json_sax_value_t value;
+		int total;					// 数组深度的大小
+		int index;					// JSON类型和键的当前索引
+		json_string_t *array;		// 存储JSON对象类型和键的JSON深度信息
+		json_sax_value_t value;		// json对象值
 	} json_sax_parser_t;
-
-	/*
-	 * json_sax_parse_choice_t - SAX的回调函数
-	 * @description: 用户使用SAX接口时需要设置回调函数, 返回 `JSON_SAX_PARSE_CONTINUE` 表示继续解析；
-	 *   返回 `JSON_SAX_PARSE_STOP` 表示停止解析
-	 */
+	
+	// SAX的回调函数（返回 `JSON_SAX_PARSE_CONTINUE` 表示继续解析；返回 `JSON_SAX_PARSE_STOP` 表示停止解析）
 	typedef enum {
 		JSON_SAX_PARSE_CONTINUE = 0,
 		JSON_SAX_PARSE_STOP
 	} json_sax_ret_t;
-
 	typedef json_sax_ret_t (*json_sax_cb_t)(json_sax_parser_t *parser);
 	
+	// 获取json_string_t的信息（str含有 `"  \  \b  \f  \n  \r  \t  \v` 字符时会设置escaped）
+	json_strinfo_t json_string_info_get(const char *str, const json_strinfo_t *orig);
 	
+	// 更新json_string_t的信息（jstr->info.len是0时数据才会更新）
+	static inline void json_string_info_update(json_string_t *jstr)
+	{
+		if (!jstr->info.len)
+			jstr->info = json_string_info_get(jstr->str, &jstr->info);
+	}
 	
+	// 从字符串进行SAX解析（失败返回-1；成功返回0）
 	XXAPI int json_sax_parse_str(char *str, size_t str_len, json_sax_cb_t cb);
+	
+	// 打印缓冲
+	typedef struct {
+		size_t size;
+		char *p;
+	} json_print_ptr_t;
+	
+	// 打印参数设置
+	typedef struct {
+		size_t str_len;
+		size_t plus_size;
+		size_t item_size;
+		int item_total;
+		bool format_flag;
+		json_print_ptr_t *ptr;
+	} json_print_choice_t;
+	
+	// SAX打印句柄（实际就是 `json_sax_print_t` 的指针）
+	typedef void* json_sax_print_hd;
+	
+	// 启动SAX打印器；失败返回NULL，成功返回指针（SAX打印器的句柄）
+	json_sax_print_hd json_sax_print_start(json_print_choice_t *choice);
+	
+	// 启动格式化的SAX打印器，输出到字符串
+	static inline json_sax_print_hd json_sax_print_format_start(int item_total, json_print_ptr_t *ptr)
+	{
+		json_print_choice_t choice;
+
+		memset(&choice, 0, sizeof(choice));
+		choice.format_flag = true;
+		choice.item_total = item_total;
+		choice.ptr = ptr;
+		return json_sax_print_start(&choice);
+	}
+	
+	// 启动压缩的SAX打印器，输出到字符串
+	static inline json_sax_print_hd json_sax_print_unformat_start(int item_total, json_print_ptr_t *ptr)
+	{
+		json_print_choice_t choice;
+
+		memset(&choice, 0, sizeof(choice));
+		choice.format_flag = false;
+		choice.item_total = item_total;
+		choice.ptr = ptr;
+		return json_sax_print_start(&choice);
+	}
+	
+	// SAX打印json对象
+	int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value);
+	static inline int json_sax_print_null(json_sax_print_hd handle, json_string_t *jkey) { return json_sax_print_value(handle, JSON_NULL, jkey, NULL); }
+	static inline int json_sax_print_bool(json_sax_print_hd handle, json_string_t *jkey, bool value) { return json_sax_print_value(handle, JSON_BOOL, jkey, &value); }
+	static inline int json_sax_print_int(json_sax_print_hd handle, json_string_t *jkey, int32_t value) { return json_sax_print_value(handle, JSON_INT, jkey, &value); }
+	static inline int json_sax_print_hex(json_sax_print_hd handle, json_string_t *jkey, uint32_t value) { return json_sax_print_value(handle, JSON_HEX, jkey, &value); }
+	static inline int json_sax_print_lint(json_sax_print_hd handle, json_string_t *jkey, int64_t value) { return json_sax_print_value(handle, JSON_LINT, jkey, &value); }
+	static inline int json_sax_print_lhex(json_sax_print_hd handle, json_string_t *jkey, uint64_t value) { return json_sax_print_value(handle, JSON_LHEX, jkey, &value); }
+	static inline int json_sax_print_double(json_sax_print_hd handle, json_string_t *jkey, double value) { return json_sax_print_value(handle, JSON_DOUBLE, jkey, &value); }
+	static inline int json_sax_print_string(json_sax_print_hd handle, json_string_t *jkey, json_string_t *value) { return json_sax_print_value(handle, JSON_STRING, jkey, value); }
+	static inline int json_sax_print_array(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return json_sax_print_value(handle, JSON_ARRAY, jkey, &value); }
+	static inline int json_sax_print_object(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return json_sax_print_value(handle, JSON_OBJECT, jkey, &value); }
+
+	/* C11泛型选择(Generic selection) */
+	#define json_sax_print_array_item(handle, value)  _Generic((value), \
+	bool            : json_sax_print_bool                             , \
+	int32_t         : json_sax_print_int                              , \
+	uint32_t        : json_sax_print_hex                              , \
+	int64_t         : json_sax_print_lint                             , \
+	uint64_t        : json_sax_print_lhex                             , \
+	double          : json_sax_print_double                           , \
+	json_string_t*  : json_sax_print_string)(handle, NULL, value)
+
+	#define json_sax_print_array_null(handle)         json_sax_print_null  (handle, NULL, NULL)
+	#define json_sax_print_array_start(handle, jkey)  json_sax_print_array (handle, jkey, JSON_SAX_START)
+	#define json_sax_print_array_finish(handle)       json_sax_print_array (handle, NULL, JSON_SAX_FINISH)
+
+	/* C11泛型选择(Generic selection) */
+	#define json_sax_print_object_item(handle, jkey, value)  _Generic((value), \
+	bool            : json_sax_print_bool                             , \
+	int32_t         : json_sax_print_int                              , \
+	uint32_t        : json_sax_print_hex                              , \
+	int64_t         : json_sax_print_lint                             , \
+	uint64_t        : json_sax_print_lhex                             , \
+	double          : json_sax_print_double                           , \
+	json_string_t*  : json_sax_print_string)(handle, jkey, value)
+
+	#define json_sax_print_object_null(handle, jkey)  json_sax_print_null  (handle, jkey, NULL)
+	#define json_sax_print_object_start(handle, jkey) json_sax_print_object(handle, jkey, JSON_SAX_START)
+	#define json_sax_print_object_finish(handle)      json_sax_print_object(handle, NULL, JSON_SAX_FINISH)
+	
+	// 结束SAX打印器
+	char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
 	
 	
 	
