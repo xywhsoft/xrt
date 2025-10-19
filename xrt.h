@@ -1538,93 +1538,78 @@
 	
 	
 	/* ------------------------------------ Value 函数库 ------------------------------------ */
-	/*
+	
 	// 数据类型 - 主类型
-	#define XRT_DT_EMPTY			0				// 不存在的数据
-	#define XRT_DT_NULL				1				// null
-	#define XRT_DT_BOOL				2				// bool : true | false
-	#define XRT_DT_INT				3				// 整数（int64）
-	#define XRT_DT_FLOAT			4				// 浮点数（double）
-	#define XRT_DT_TEXT				5				// 字符串
-	#define XRT_DT_TIME				6				// 时间
-	#define XRT_DT_POINT			7				// 指针
-	#define XRT_DT_STRUCT			8				// 结构体
-	#define XRT_DT_FUNCTION			9				// 函数
-	#define XRT_DT_COLLECT			10				// 集合
-	#define XRT_DT_ARRAY			11				// 数组
-	#define XRT_DT_LIST				12				// 列表
-	#define XRT_DT_TABLE			13				// 表
-	#define XRT_DT_OBJECT			14				// 对象
-	#define XRT_DT_SHEET			15				// 数据表
-	#define XRT_DT_CUSTOM			16				// 自定义
-	
-	// 数据类型 - 子类型 [ 逻辑 ]
-	#define XRT_SDT_BOOL_FALSE		0				// false
-	#define XRT_SDT_BOOL_TRUE		1				// true
-	
-	// 数据类型 - 子类型 [ 数字 ]
-	#define XRT_SDT_NUM_INT			0				// 整数 ( int64 )
-	#define XRT_SDT_NUM_FLOAT		1				// 浮点数 ( double )
+	#define XVO_DT_EMPTY			0				// 不存在的数据
+	#define XVO_DT_NULL				1				// null
+	#define XVO_DT_BOOL				2				// bool : true | false
+	#define XVO_DT_INT				3				// 整数（int64）
+	#define XVO_DT_FLOAT			4				// 浮点数（double）
+	#define XVO_DT_TEXT				5				// 字符串
+	#define XVO_DT_TIME				6				// 时间
+	#define XVO_DT_POINT			7				// 指针
+	#define XVO_DT_FUNCTION			8				// 函数
+	#define XVO_DT_ARRAY			9				// 数组
+	#define XVO_DT_LIST				10				// 列表
+	#define XVO_DT_COLLECT			11				// 集合
+	#define XVO_DT_TABLE			12				// 表
+	#define XVO_DT_STRUCT			13				// 结构体
+	#define XVO_DT_OBJECT			14				// 对象
+	#define XVO_DT_CUSTOM			15				// 自定义
 	
 	// 数据类型 - 子类型 [ 字符串 ]
-	#define XRT_SDT_STR_U8			0				// utf-8 字符串
-	#define XRT_SDT_STR_U16			1				// utf-16 字符串
-	#define XRT_SDT_STR_U32			2				// utf-32 字符串
-	#define XRT_SDT_STR_BIN			3				// 二进制数据
+	#define XVO_SDT_STR_U8			0				// utf-8 字符串
+	#define XVO_SDT_STR_U16			1				// utf-16 字符串
+	#define XVO_SDT_STR_U32			2				// utf-32 字符串
+	#define XVO_SDT_STR_BIN			3				// 二进制数据
 	
 	// 数据类型 - 子类型 [ 函数 ]
-	#define XRT_SDT_FUNC_XL			0				// xlang 函数
-	#define XRT_SDT_FUNC_CL			1				// clang 函数
-	
-	// 函数类型回调
-	typedef struct xvalue_struct xvalue_struct, *xvalue;
-	typedef struct xcustom_struct xcustom_struct, *xcustom;
-	typedef xvalue (*xfunction)(xvalue varENV, xvalue varParam);
-	
-	// Value 基类 [ 4 byte ]
-	struct {
-		uint8 Type;					// 值的主类型
-		uint8 SubType;				// 值的子类型
-		uint isStatic : 1;			// 是否为静态资源 ( 不会自动释放 )
-	} xvalue_base_struct, *xvalue_base;
+	#define XVO_SDT_FUNC_XCALL		0				// xlang 脚本函数
+	#define XVO_SDT_FUNC_CDECL		1				// clang 函数
+	#define XVO_SDT_FUNC_STDCALL	2				// stdcall 函数
+	#define XVO_SDT_FUNC_FASECALL	3				// fastcall 函数
 	
 	// Value 标准数据类 [ XRT_DT_NUM、XRT_DT_TEXT、XRT_DT_TIME、XRT_DT_POINT ]
-	struct {
-		uint8 Type;
-		uint8 SubType;
-		uint16 Flag;
-		union {
-			uint32 Size;			// XRT_DT_TEXT、XRT_DT_STRUCT 使用
-			uint32 RetCount;		// XRT_DT_COLLECT、XRT_DT_ARRAY、XRT_DT_TABLE、
-		};
+	typedef struct {
+		uint32 Type:4;
+		uint32 SubType:3;
+		uint32 IsStatic:1;
+		uint32 IsFree:1;
+		uint32 IsReserve:1;
+		uint32 RefCount:22;
+		uint32 Size;
 		union {
 			int64 vInt;
 			double vFloat;
 			str vText;
-			ptr vTemplate;
 			xtime vTime;
 			ptr vPoint;
-			ptr vStruct;
-			ptr vCollect;
+			ptr vFunc;
 			ptr vArray;
+			ptr vList;
+			ptr vCollect;
 			ptr vTable;
+			ptr vStruct;
 			ptr vObject;
-			ptr vSheet;
-			xfunction vFunc;
-			ptr vFuncC;
 		};
 	} xvalue_struct, *xvalue;
 	
+	// 函数类型回调
+	typedef xvalue (*xfunction)(xvalue varENV, xvalue varParam);
+	
 	// Custom 类 [ 16 bytes ]
 	struct xcustom_struct {
-		void (*construct)(xcustom var);
-		void (*destruct)(xcustom var);
-		int (*set)(xcustom var, str key, xcustom val);
-		xvalue (*get)(xcustom var, str key);
-		xvalue (*call)(xcustom var, str key, xvalue param);
+		void (*construct)(xvalue var);
+		void (*destruct)(xvalue var);
+		int (*set)(xvalue var, str key, xvalue val);
+		xvalue (*get)(xvalue var, str key);
+		xvalue (*call)(xvalue var, str key, xvalue param);
 		ptr value;
 	};
-	*/
+	
+	// 引用计数操作
+	XXAPI void xvoRef(xvalue pVal);
+	XXAPI void xvoUnref(xvalue pVal);
 	
 	
 	

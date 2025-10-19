@@ -280,3 +280,9 @@ xrtUnit
 xrtWeekday
 xrtWrite
 xrtYear
+xvoCreateBool
+xvoCreateFloat
+xvoCreateInt
+xvoCreateNull
+xvoRef
+xvoUnref

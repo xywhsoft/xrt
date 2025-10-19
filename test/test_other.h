@@ -99,12 +99,20 @@ void Test_Other(xrtGlobalData* xCore)
 	
 	
 	
+	/*
 	str sFile = xrtPathJoin(3, xCore->AppPath, "test", "json.txt");
 	char* sText = xrtFileGetAll(sFile);
 	int iRet = json_sax_parse_str(sText, xCore->iRet, xte_private_ParseJSON_Proc);
 	if ( iRet < 0 ) {
 		printf("ok\n");
 	}
+	*/
+	
+	
+	
+	uint32 a = 0;
+	a--;
+	printf("%d\n", a);
 	
 	
 	
