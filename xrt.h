@@ -1553,7 +1553,7 @@
 	#define XVO_DT_FUNC				7				// 函数
 	#define XVO_DT_ARRAY			8				// 数组
 	#define XVO_DT_LIST				9				// 列表
-	#define XVO_DT_COLLECT			10				// 集合
+	#define XVO_DT_COLL				10				// 集合
 	#define XVO_DT_TABLE			11				// 表
 	#define XVO_DT_STRUCT			12				// 结构体
 	#define XVO_DT_OBJECT			13				// 对象
@@ -1569,7 +1569,7 @@
 	#define XVO_SDT_FUNC_XCALL		0				// xlang 脚本函数
 	#define XVO_SDT_FUNC_CDECL		1				// clang 函数
 	#define XVO_SDT_FUNC_STDCALL	2				// stdcall 函数
-	#define XVO_SDT_FUNC_FASECALL	3				// fastcall 函数
+	#define XVO_SDT_FUNC_FASTCALL	3				// fastcall 函数
 	
 	// Value 标准数据类 [ XRT_DT_NUM、XRT_DT_TEXT、XRT_DT_TIME、XRT_DT_POINT ]
 	typedef struct {
@@ -1585,14 +1585,14 @@
 			u16str vText16;
 			u32str vText32;
 			xtime vTime;
-			ptr vPoint;
 			ptr vFunc;
 			ptr vArray;
 			ptr vList;
-			ptr vCollect;
+			ptr vColl;
 			ptr vTable;
 			ptr vStruct;
 			ptr vObject;
+			ptr vPoint;
 		};
 	} xvalue_struct, *xvalue;
 	
@@ -1621,6 +1621,29 @@
 	XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, int iCharset, int bColloc);
 	XXAPI xvalue xvoCreateTime(xtime tVal);
 	XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
+	XXAPI xvalue xvoCreateFunc(ptr pFunc, int iType);
+	XXAPI xvalue xvoCreateArray();
+	XXAPI xvalue xvoCreateList();
+	XXAPI xvalue xvoCreateColl();
+	XXAPI xvalue xvoCreateTable();
+	XXAPI xvalue xvoCreateStruct(uint32 iSize);
+	XXAPI xvalue xvoCreateObject(uint32 iSize);
+	XXAPI xvalue xvoCreateCustom(ptr pObj);
+	
+	// 读取值
+	XXAPI int xvoGetBool(xvalue pVal);
+	XXAPI int64 xvoGetInt(xvalue pVal);
+	XXAPI double xvoGetFloat(xvalue pVal);
+	XXAPI str xvoGetText(xvalue pVal);
+	XXAPI xtime xvoGetTime(xvalue pVal);
+	XXAPI ptr xvoGetFunc(xvalue pVal, int* pType);
+	XXAPI ptr xvoGetArray(xvalue pVal);
+	XXAPI ptr xvoGetList(xvalue pVal);
+	XXAPI ptr xvoGetColl(xvalue pVal);
+	XXAPI ptr xvoGetTable(xvalue pVal);
+	XXAPI ptr xvoGetStruct(xvalue pVal);
+	XXAPI ptr xvoGetObject(xvalue pVal);
+	XXAPI ptr xvoGetCustom(xvalue pVal);
 	
 	
 	
