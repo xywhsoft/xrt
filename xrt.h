@@ -180,7 +180,9 @@
 	/* ------------------------------------ 基础功能补充 ------------------------------------ */
 	
 	// 内存查找
-	XXAPI ptr memmem(ptr pMem, size_t iMemSize, ptr pSub, size_t iSubSize);
+	#if defined(_WIN32) || defined(_WIN64)
+		XXAPI ptr memmem(ptr pMem, size_t iMemSize, ptr pSub, size_t iSubSize);
+	#endif
 	
 	// 获取字符串长度 ( 补充 utf16 和 utf32 支持 )
 	XXAPI size_t u16len(u16str sText);
