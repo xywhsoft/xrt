@@ -50,6 +50,7 @@ xrtClearError
 xrtClose
 xrtCompXID
 xrtConvCharset
+xrtCopyMem
 xrtCopyStr
 xrtCopyStrU16
 xrtCopyStrU32
@@ -280,9 +281,10 @@ xrtUnit
 xrtWeekday
 xrtWrite
 xrtYear
+xvoAddRef
 xvoCreateBool
 xvoCreateFloat
 xvoCreateInt
 xvoCreateNull
-xvoRef
+xvoCreateText
 xvoUnref

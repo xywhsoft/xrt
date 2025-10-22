@@ -47,6 +47,19 @@ XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 	xCore.iRet = iSize;
 	return sRet;
 }
+XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize)
+{
+	if ( pMem == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	ptr pRet = xrtMalloc(iSize);
+	if ( pRet == NULL ) {
+		xCore.iRet = 0;
+		return xCore.sNull;
+	}
+	memcpy(pRet, pMem, iSize);
+	xCore.iRet = iSize;
+	return pRet;
+}
 
 
 

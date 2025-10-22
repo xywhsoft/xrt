@@ -307,6 +307,7 @@
 	XXAPI str xrtCopyStr(str sText, size_t iSize);
 	XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize);
 	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize);
+	XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize);
 	
 	// 字符串转为小写（ bSrcRevise 为 false 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLCase(str sText, size_t iSize, int bSrcRevise);
@@ -1549,14 +1550,13 @@
 	#define XVO_DT_FLOAT			4				// 浮点数（double）
 	#define XVO_DT_TEXT				5				// 字符串
 	#define XVO_DT_TIME				6				// 时间
-	#define XVO_DT_POINT			7				// 指针
-	#define XVO_DT_FUNCTION			8				// 函数
-	#define XVO_DT_ARRAY			9				// 数组
-	#define XVO_DT_LIST				10				// 列表
-	#define XVO_DT_COLLECT			11				// 集合
-	#define XVO_DT_TABLE			12				// 表
-	#define XVO_DT_STRUCT			13				// 结构体
-	#define XVO_DT_OBJECT			14				// 对象
+	#define XVO_DT_FUNC				7				// 函数
+	#define XVO_DT_ARRAY			8				// 数组
+	#define XVO_DT_LIST				9				// 列表
+	#define XVO_DT_COLLECT			10				// 集合
+	#define XVO_DT_TABLE			11				// 表
+	#define XVO_DT_STRUCT			12				// 结构体
+	#define XVO_DT_OBJECT			13				// 对象
 	#define XVO_DT_CUSTOM			15				// 自定义
 	
 	// 数据类型 - 子类型 [ 字符串 ]
@@ -1576,14 +1576,14 @@
 		uint32 Type:4;
 		uint32 SubType:3;
 		uint32 IsStatic:1;
-		uint32 IsFree:1;
-		uint32 IsReserve:1;
-		uint32 RefCount:22;
+		uint32 RefCount:24;
 		uint32 Size;
 		union {
 			int64 vInt;
 			double vFloat;
 			str vText;
+			u16str vText16;
+			u32str vText32;
 			xtime vTime;
 			ptr vPoint;
 			ptr vFunc;
@@ -1612,6 +1612,15 @@
 	// 引用计数操作
 	XXAPI void xvoRef(xvalue pVal);
 	XXAPI void xvoUnref(xvalue pVal);
+	
+	// 创建值
+	XXAPI xvalue xvoCreateNull();
+	XXAPI xvalue xvoCreateBool(int bVal);
+	XXAPI xvalue xvoCreateInt(int64 iVal);
+	XXAPI xvalue xvoCreateFloat(double fVal);
+	XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, int iCharset, int bColloc);
+	XXAPI xvalue xvoCreateTime(xtime tVal);
+	XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
 	
 	
 	
