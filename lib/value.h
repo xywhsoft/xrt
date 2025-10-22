@@ -405,23 +405,38 @@ XXAPI double xvoGetFloat(xvalue pVal)
 		return 0;
 	}
 }
-XXAPI str xvoGetText(xvalue pVal)
+XXAPI str xvoGetText(xvalue pVal, int* pType)
 {
 	if ( pVal == NULL ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		return pVal->vInt ? "true" : "false";
 	} else if ( pVal->Type == XVO_DT_INT ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(24);
 		xrtI64ToStr(pVal->vInt, sRet);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FLOAT ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		xrtNumToStr(pVal->vFloat, sRet);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		if ( pType ) {
+			*pType = pVal->SubType;
+		}
 		return pVal->vText;
 	} else if ( pVal->Type == XVO_DT_TIME ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(24);
 		int64 iYear;
 		int iMonth, iDay, iHour, iMinute, iSecond;
@@ -429,34 +444,58 @@ XXAPI str xvoGetText(xvalue pVal)
 		sprintf(sRet, "%d-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FUNC ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[function:%x]", pVal->vFunc);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[array:%x]", pVal->vArray);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_LIST ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[list:%x]", pVal->vList);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_COLL ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[coll:%x]", pVal->vColl);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[table:%x]", pVal->vTable);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_STRUCT ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[struct:%x]", pVal->vStruct);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_OBJECT ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[object:%x]", pVal->vObject);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		if ( pType ) {
+			*pType = XVO_SDT_STR_U8;
+		}
 		str sRet = xrtTempMemory(32);
 		sprintf(sRet, "[custom:%x]", pVal->vPoint);
 		return sRet;

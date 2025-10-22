@@ -1634,7 +1634,7 @@
 	XXAPI int xvoGetBool(xvalue pVal);
 	XXAPI int64 xvoGetInt(xvalue pVal);
 	XXAPI double xvoGetFloat(xvalue pVal);
-	XXAPI str xvoGetText(xvalue pVal);
+	XXAPI str xvoGetText(xvalue pVal, int* pType);
 	XXAPI xtime xvoGetTime(xvalue pVal);
 	XXAPI ptr xvoGetFunc(xvalue pVal, int* pType);
 	XXAPI ptr xvoGetArray(xvalue pVal);
