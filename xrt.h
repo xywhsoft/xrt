@@ -1304,14 +1304,14 @@
 	// 遍历 AVLTree 所有节点
 	XXAPI int xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, void* pArg);
 	XXAPI int xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg);
-	#define xrtAVLTB_Walk(obj, p, a) AVLTB_WalkRecuProc(obj->RootNode, (void*)p, (void*)a)
-	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) AVLTB_WalkExRecuProc(obj->RootNode, (void*)p1, (void*)p2, (void*)p3, (void*)a)
+	#define xrtAVLTB_Walk(obj, p, a) xrtAVLTB_WalkRecuProc(obj->RootNode, (void*)p, (void*)a)
+	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) xrtAVLTB_WalkExRecuProc(obj->RootNode, (void*)p1, (void*)p2, (void*)p3, (void*)a)
 	
 	
 	
 	/* ------------------------------------ AVLTree 函数库 ------------------------------------ */
 	
-	// 值释放回调函数
+	// 键释放回调函数 ( 如果 key 中有额外需要释放的值时使用 )
 	typedef void (*AVLTree_FreeProc)(void* objTree, void* pNode);
 	
 	// AVL树对象数据结构
@@ -1321,7 +1321,6 @@
 		AVLTree_CompProc CompProc;
 		AVLTree_FreeProc FreeProc;
 		xfsmempool_struct objMM;
-		void* ExtData;
 		xavltnode NodeCache;
 	} xavltree_struct, *xavltree;
 	
@@ -1423,25 +1422,16 @@
 	/* ------------------------------------ Dict 函数库 ------------------------------------ */
 	
 	// 字典 Key 数据结构
-	#if defined(__x86_64__) || defined(_M_X64)
-		// 64 bit [ 只取 32 位 ]
-		typedef struct {
-			void* Key;
-			uint32 Hash;
-			uint32 KeyLen;
-		} Dict_Key;
-	#elif defined(__i386__) || defined(_M_IX86)
-		// 32 bit
-		typedef struct {
-			void* Key;
-			uint32 Hash;
-			uint32 KeyLen;
-		} Dict_Key;
-	#endif
+	typedef struct {
+		void* Key;
+		uint32 KeyLen;
+		uint32 Hash;
+	} Dict_Key;
 	
 	// 字典对象数据结构
-	typedef struct {
+	typedef struct xdict_struct {
 		xavltree_struct AVLT;
+		struct xdict_struct* Parent;
 		xmempool MP;
 	} xdict_struct, *xdict;
 	
@@ -1495,8 +1485,9 @@
 	/* ------------------------------------ List 函数库 ------------------------------------ */
 	
 	// 列表对象数据结构
-	typedef struct {
+	typedef struct xlist_struct {
 		xavltree_struct AVLT;
+		struct xlist_struct* Parent;
 	} xlist_struct, *xlist;
 	
 	// 列表遍历回调函数

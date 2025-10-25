@@ -39,7 +39,6 @@ XXAPI void xrtListInit(xlist objList, unsigned int iItemLength)
 {
 	xrtAVLTreeInit(&objList->AVLT, iItemLength + sizeof(int64), (void*)List_CompProc);
 	objList->AVLT.FreeProc = NULL;
-	objList->AVLT.ExtData = objList;
 }
 
 // 释放列表（对自维护结构体指针使用）

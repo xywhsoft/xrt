@@ -27,19 +27,33 @@ XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_Co
 	objAVLT->CompProc = procComp;
 	objAVLT->FreeProc = NULL;
 	xrtFSMemPoolInit(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength);
-	objAVLT->ExtData = NULL;
 	objAVLT->NodeCache = NULL;
 }
 
 // 释放 AVLTree（对自维护结构体指针使用，和 AVLTree_Destroy 功能类似）
+void xrtAVLTreeUnit_FreeKeysRecuProc(xavltree objAVLT, xavltnode root)
+{
+	if ( root ) {
+		// 递归左子树
+		if ( root->left != NULL ) {
+			xrtAVLTreeUnit_FreeKeysRecuProc(objAVLT, root->left);
+		}
+		// 释放 Key
+		Dict_Key* pNode = xrtAVLTreeGetNodeData(root);
+		objAVLT->FreeProc(objAVLT, pNode);
+		// 递归右子树
+		if ( root->right != NULL ) {
+			xrtAVLTreeUnit_FreeKeysRecuProc(objAVLT, root->right);
+		}
+	}
+}
 XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
 {
-	xrtAVLTB_Unit(objAVLT);
 	if (objAVLT->FreeProc ) {
-		
+		xrtAVLTreeUnit_FreeKeysRecuProc(objAVLT, objAVLT->RootNode);
 	}
+	xrtAVLTB_Unit(objAVLT);
 	xrtFSMemPoolUnit(&objAVLT->objMM);
-	objAVLT->ExtData = NULL;
 	objAVLT->NodeCache = NULL;
 }
 

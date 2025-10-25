@@ -1,51 +1,28 @@
 
 
 
+// 哈希值计算函数（内部函数）
 #if defined(__x86_64__) || defined(_M_X64)
-	// 64 bit
-	
-	// 哈希表比较函数（内部函数）
-	int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
-	{
-		if ( pNode->Hash == pObjKey->Hash ) {
-			if ( pNode->KeyLen == pObjKey->KeyLen ) {
-				return memcmp(pNode->Key, pObjKey->Key, pObjKey->KeyLen);
-			} else {
-				return pNode->KeyLen - pObjKey->KeyLen;
-			}
-		} else if ( pNode->Hash > pObjKey->Hash ) {
-			return 1;
-		} else {
-			return -1;
-		}
-	}
-	
-	// 哈希值计算函数（内部函数）
 	#define Dict_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash64(k, l)
-	
 #elif defined(__i386__) || defined(_M_IX86)
-	// 32 bit
-	
-	// 哈希表比较函数（内部函数）
-	int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
-	{
-		if ( pNode->Hash == pObjKey->Hash ) {
-			if ( pNode->KeyLen == pObjKey->KeyLen ) {
-				return memcmp(pNode->Key, pObjKey->Key, pObjKey->KeyLen);
-			} else {
-				return pNode->KeyLen - pObjKey->KeyLen;
-			}
-		} else if ( pNode->Hash > pObjKey->Hash ) {
-			return 1;
-		} else {
-			return -1;
-		}
-	}
-	
-	// 哈希值计算函数（内部函数）
 	#define Dict_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash32(k, l)
-	
 #endif
+
+// 哈希表比较函数（内部函数）
+int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
+{
+	if ( pNode->Hash == pObjKey->Hash ) {
+		if ( pNode->KeyLen == pObjKey->KeyLen ) {
+			return memcmp(pNode->Key, pObjKey->Key, pObjKey->KeyLen);
+		} else {
+			return pNode->KeyLen - pObjKey->KeyLen;
+		}
+	} else if ( pNode->Hash > pObjKey->Hash ) {
+		return 1;
+	} else {
+		return -1;
+	}
+}
 
 
 
@@ -69,10 +46,10 @@ XXAPI void xrtDictDestroy(xdict objHT)
 }
 
 // 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
-void AVLHT32_FreeProc(xavltree objTree, Dict_Key* pNode)
+void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 {
-	if ( ((xdict)objTree->ExtData)->MP ) {
-		xrtMemPoolFree(((xdict)objTree->ExtData)->MP, pNode->Key);
+	if ( objTree->MP ) {
+		xrtMemPoolFree(objTree->MP, pNode->Key);
 	} else {
 		xrtFree(pNode->Key);
 	}
@@ -81,34 +58,13 @@ XXAPI void xrtDictInit(xdict objHT, unsigned int iItemLength)
 {
 	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (void*)Dict_CompProc);
 	objHT->AVLT.FreeProc = (void*)AVLHT32_FreeProc;
-	objHT->AVLT.ExtData = objHT;
+	objHT->Parent = NULL;
 	objHT->MP = NULL;
 }
 
 // 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
-void AVLHT32_FreeKeysRecuProc(xdict objHT, xavltnode root)
-{
-	if ( root ) {
-		// 递归左子树
-		if ( root->left != NULL ) {
-			AVLHT32_FreeKeysRecuProc(objHT, root->left);
-		}
-		// 释放 Key
-		Dict_Key* pNode = xrtAVLTreeGetNodeData(root);
-		if ( objHT->MP ) {
-			xrtMemPoolFree(objHT->MP, pNode->Key);
-		} else {
-			xrtFree(pNode->Key);
-		}
-		// 递归右子树
-		if ( root->right != NULL ) {
-			AVLHT32_FreeKeysRecuProc(objHT, root->right);
-		}
-	}
-}
 XXAPI void xrtDictUnit(xdict objHT)
 {
-	AVLHT32_FreeKeysRecuProc(objHT, objHT->AVLT.RootNode);
 	xrtAVLTreeUnit(&objHT->AVLT);
 }
 

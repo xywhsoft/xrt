@@ -214,6 +214,7 @@ void Test_List(xrtGlobalData* xCore)
 	
 	xrtListDestroy(objList);
 	printf("\nList object (%p) already destroyed!\n", objList);
+	system("pause");
 	
 	
 	

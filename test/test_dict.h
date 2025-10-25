@@ -231,6 +231,7 @@ void Test_Dict(xrtGlobalData* xCore)
 	printf("\nDict object (%p) already destroyed!\n", objHT);
 	
 	xrtMemPoolDestroy(objMP);
+	system("pause");
 	
 	
 	
