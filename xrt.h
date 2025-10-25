@@ -1457,6 +1457,18 @@
 	XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVal, void** ppOldVal);
 	
 	// 获取值
+	static inline void* xrtDictGetWithKey(xdict objHT, Dict_Key* objKey)
+	{
+		Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, objKey);
+		if ( pNode ) {
+			return &pNode[1];
+		}
+		if ( objHT->Parent ) {
+			return xrtDictGetWithKey(objHT->Parent, objKey);
+		} else {
+			return NULL;
+		}
+	}
 	XXAPI void* xrtDictGet(xdict objHT, void* sKey, unsigned int iKeyLen);
 	
 	// 获取值 - 当值为 void* 时直接获取指针内容

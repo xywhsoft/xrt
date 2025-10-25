@@ -138,11 +138,7 @@ XXAPI void* xrtDictGet(xdict objHT, void* sKey, unsigned int iKeyLen)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
-	if ( pNode ) {
-		return &pNode[1];
-	}
-	return NULL;
+	return xrtDictGetWithKey(objHT, &objKey);
 }
 
 // 获取值 - 当值为 void* 时直接获取指针内容
@@ -150,11 +146,10 @@ XXAPI void* xrtDictGetPtr(xdict objHT, void* sKey, unsigned int iKeyLen)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
-	if ( pNode ) {
-		struct {
-			void* val;
-		} *pData = (void*)&pNode[1];
+	struct {
+		ptr val;
+	} *pData = xrtDictGetWithKey(objHT, &objKey);
+	if ( pData ) {
 		return pData->val;
 	}
 	return NULL;
