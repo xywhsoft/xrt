@@ -323,6 +323,7 @@ xvoGetFunc
 xvoGetInt
 xvoGetList
 xvoGetObject
+xvoGetSize
 xvoGetStruct
 xvoGetTable
 xvoGetText
@@ -333,10 +334,12 @@ xvoListGetValue
 xvoListRemove
 xvoListSetValue
 xvoListSize
+xvoSubType
 xvoTableClear
 xvoTableExists
 xvoTableGetValue
 xvoTableRemove
 xvoTableSetValue
 xvoTableSize
+xvoType
 xvoUnref

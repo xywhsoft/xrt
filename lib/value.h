@@ -1064,3 +1064,39 @@ XXAPI int xvoTableClear(xvalue pTbl)
 }
 
 
+
+// 函数调用
+
+
+
+// 类型操作
+XXAPI int xvoType(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return XVO_DT_EMPTY;
+	} else {
+		return pVal->Type;
+	}
+}
+XXAPI int xvoSubType(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return 0;
+	} else {
+		return pVal->SubType;
+	}
+}
+
+
+
+// 获取数据长度
+XXAPI uint32 xvoGetSize(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return 0;
+	} else {
+		return pVal->Size;
+	}
+}
+
+

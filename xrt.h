@@ -1836,6 +1836,19 @@
 	XXAPI int xvoTableSize(xvalue pTbl);
 	XXAPI int xvoTableClear(xvalue pTbl);
 	
+	// 类型操作
+	XXAPI int xvoType(xvalue pVal);
+	#define xvoArrayItemType(pArr, index)														xvoType(xvoArrayGetValue(pArr, index))
+	#define xvoListItemType(pList, index)														xvoType(xvoListGetValue(pList, index))
+	#define xvoTableItemType(pTbl, key, kl)														xvoType(xvoTableGetValue(pTbl, key, kl))
+	XXAPI int xvoSubType(xvalue pVal);
+	
+	// 获取数据长度
+	XXAPI uint32 xvoGetSize(xvalue pVal);
+	#define xvoArrayItemSize(pArr, index)														xvoGetSize(xvoArrayGetValue(pArr, index))
+	#define xvoListItemSize(pList, index)														xvoGetSize(xvoListGetValue(pList, index))
+	#define xvoTableItemSize(pTbl, key, kl)														xvoGetSize(xvoTableGetValue(pTbl, key, kl))
+	
 	
 	
 	/* ------------------------------------ JNUM 函数库 ------------------------------------ */
