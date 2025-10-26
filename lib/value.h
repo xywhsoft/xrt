@@ -807,7 +807,13 @@ XXAPI int xvoListRemove(xvalue pList, int64 index)
 	if ( pList->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
-	return xrtListRemove(pList->vList, index);
+	xvalue pOldVal = xrtListRemovePtr(pList->vList, index);
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }
 XXAPI int xvoListSize(xvalue pList)
 {
@@ -819,6 +825,11 @@ XXAPI int xvoListSize(xvalue pList)
 	}
 	return xrtListCount(pList->vList);
 }
+int xvoListClear_FreeProc(int64 pKey, xvalue pVal, xvalue pList)
+{
+	xvoUnref(pVal);
+	return FALSE;
+}
 XXAPI int xvoListClear(xvalue pList)
 {
 	if ( pList == NULL ) {
@@ -827,6 +838,7 @@ XXAPI int xvoListClear(xvalue pList)
 	if ( pList->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
+	xrtListWalk(pList->vList, (ptr)xvoListClear_FreeProc, pList);
 	xrtListClear(pList->vList);
 	return TRUE;
 }
@@ -911,7 +923,13 @@ XXAPI int xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 	if ( pTbl->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
-	return xrtDictRemove(pTbl->vTable, key, kl);
+	xvalue pOldVal = xrtDictRemovePtr(pTbl->vTable, key, kl);
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+		return TRUE;
+	} else {
+		return FALSE;
+	}
 }
 XXAPI int xvoTableSize(xvalue pTbl)
 {
@@ -923,6 +941,11 @@ XXAPI int xvoTableSize(xvalue pTbl)
 	}
 	return xrtDictCount(pTbl->vTable);
 }
+int xvoTableClear_FreeProc(Dict_Key* pKey, xvalue pVal, xvalue pTbl)
+{
+	xvoUnref(pVal);
+	return FALSE;
+}
 XXAPI int xvoTableClear(xvalue pTbl)
 {
 	if ( pTbl == NULL ) {
@@ -931,6 +954,7 @@ XXAPI int xvoTableClear(xvalue pTbl)
 	if ( pTbl->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
+	xrtDictWalk(pTbl->vTable, (ptr)xvoTableClear_FreeProc, pTbl);
 	xrtDictClear(pTbl->vTable);
 	return TRUE;
 }

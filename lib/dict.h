@@ -163,6 +163,25 @@ XXAPI int xrtDictRemove(xdict objHT, void* sKey, unsigned int iKeyLen)
 	return xrtAVLTreeRemove(&objHT->AVLT, &objKey);
 }
 
+// 删除值，当值为 ptr 时返回 ptr
+XXAPI ptr xrtDictRemovePtr(xdict objHT, void* sKey, unsigned int iKeyLen)
+{
+	Dict_Key objKey;
+	Dict_EvalHash(objKey, sKey, iKeyLen);
+	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)&objHT->AVLT, objHT->AVLT.CompProc, &objKey);
+	if ( pDelNode ) {
+		Dict_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
+		ptr* pData = (ptr*)&pKeyPtr[1];
+		if ( objHT->AVLT.FreeProc ) {
+			objHT->AVLT.FreeProc(&objHT->AVLT, &pDelNode[1]);
+		}
+		xrtFSMemPoolFree(&objHT->AVLT.objMM, pDelNode);
+		return pData[0];
+	} else {
+		return NULL;
+	}
+}
+
 // 判断值是否存在
 XXAPI int xrtDictExists(xdict objHT, void* sKey, unsigned int iKeyLen)
 {

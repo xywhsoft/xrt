@@ -130,6 +130,23 @@ XXAPI int xrtListRemove(xlist objList, int64 iKey)
 	return xrtAVLTreeRemove(&objList->AVLT, &iKey);
 }
 
+// 删除值，当值为 ptr 时返回 ptr
+XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey)
+{
+	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)&objList->AVLT, objList->AVLT.CompProc, &iKey);
+	if ( pDelNode ) {
+		Dict_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
+		ptr* pData = (ptr*)&pKeyPtr[1];
+		if ( objList->AVLT.FreeProc ) {
+			objList->AVLT.FreeProc(&objList->AVLT, &pDelNode[1]);
+		}
+		xrtFSMemPoolFree(&objList->AVLT.objMM, pDelNode);
+		return pData[0];
+	} else {
+		return NULL;
+	}
+}
+
 // 判断值是否存在
 XXAPI int xrtListExists(xlist objList, int64 iKey)
 {

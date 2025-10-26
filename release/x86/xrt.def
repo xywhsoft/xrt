@@ -75,6 +75,7 @@ xrtDictGet
 xrtDictGetPtr
 xrtDictInit
 xrtDictRemove
+xrtDictRemovePtr
 xrtDictSet
 xrtDictSetPtr
 xrtDictUnit
@@ -169,6 +170,7 @@ xrtListGet
 xrtListGetPtr
 xrtListInit
 xrtListRemove
+xrtListRemovePtr
 xrtListSet
 xrtListSetPtr
 xrtListUnit

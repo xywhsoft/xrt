@@ -1477,6 +1477,9 @@
 	// 删除值
 	XXAPI int xrtDictRemove(xdict objHT, void* sKey, unsigned int iKeyLen);
 	
+	// 删除值，当值为 ptr 时返回 ptr
+	XXAPI ptr xrtDictRemovePtr(xdict objHT, void* sKey, unsigned int iKeyLen);
+	
 	// 判断值是否存在
 	XXAPI int xrtDictExists(xdict objHT, void* sKey, unsigned int iKeyLen);
 	
@@ -1531,6 +1534,9 @@
 	
 	// 删除值
 	XXAPI int xrtListRemove(xlist objList, int64 iKey);
+	
+	// 删除值，当值为 ptr 时返回 ptr
+	XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey);
 	
 	// 判断值是否存在
 	XXAPI int xrtListExists(xlist objList, int64 iKey);
