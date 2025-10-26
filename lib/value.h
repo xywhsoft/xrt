@@ -230,7 +230,7 @@ XXAPI xvalue xvoCreateArray()
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xarray objArr = xrtArrayCreate(sizeof(xvalue));
+		xparray objArr = xrtPtrArrayCreate();
 		if ( objArr == NULL ) {
 			xrtFree(pVal);
 			return NULL;
@@ -408,7 +408,7 @@ XXAPI double xvoGetFloat(xvalue pVal)
 XXAPI str xvoGetText(xvalue pVal, int* pType)
 {
 	if ( pVal == NULL ) {
-		return NULL;
+		return xCore.sNull;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
 		if ( pType ) {
 			*pType = XVO_SDT_STR_U8;
@@ -500,7 +500,7 @@ XXAPI str xvoGetText(xvalue pVal, int* pType)
 		sprintf(sRet, "[custom:%x]", pVal->vPoint);
 		return sRet;
 	} else {
-		return NULL;
+		return xCore.sNull;
 	}
 }
 XXAPI xtime xvoGetTime(xvalue pVal)
@@ -598,5 +598,185 @@ XXAPI ptr xvoGetCustom(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+
+// Array 读数据
+XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index)
+{
+	if ( pArr == NULL ) {
+		return NULL;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return NULL;
+	}
+	return xrtPtrArrayGet(pArr->vArray, index + 1);
+}
+
+
+
+// Array 追加数据
+XXAPI int xvoArrayAppendValue(xvalue pArr, xvalue pVal, int bColloc)
+{
+	if ( (pArr || pVal) == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	uint32 index = xrtPtrArrayAppend(pArr->vArray, pVal);
+	if ( index == 0 ) {
+		return FALSE;
+	}
+	if ( bColloc == FALSE ) {
+		xvoAddRef(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Array 插入操作
+XXAPI int xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc)
+{
+	if ( (pArr || pVal) == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	uint32 idx = xrtPtrArrayInsert(pArr->vArray, index, pVal);
+	if ( idx == 0 ) {
+		return FALSE;
+	}
+	if ( bColloc == FALSE ) {
+		xvoAddRef(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Array 修改操作
+XXAPI int xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc)
+{
+	if ( (pArr || pVal) == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	xvalue pOldVal = xrtPtrArrayGet(pArr->vArray, index + 1);
+	if ( pOldVal == NULL ) {
+		return FALSE;
+	}
+	xvoUnref(pOldVal);
+	xrtPtrArraySet_Inline(pArr->vArray, index + 1, pVal);
+	if ( bColloc == FALSE ) {
+		xvoAddRef(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Array 操作
+XXAPI int xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	return xrtPtrArraySwap(pArr->vArray, index1, index2);
+}
+XXAPI int xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	return xrtPtrArrayRemove(pArr->vArray, index, count);
+}
+XXAPI uint32 xvoArraySize(xvalue pArr)
+{
+	if ( pArr == NULL ) {
+		return 0;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return 0;
+	}
+	return pArr->vArray->Count;
+}
+XXAPI uint32 xvoArrayClear(xvalue pArr)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	for ( int i = 1; i <= pArr->vArray->Count; i++ ) {
+		xvalue pVal = xrtPtrArrayGet_Inline(pArr->vArray, i);
+		xvoUnref(pVal);
+	}
+	xrtPtrArrayClear(pArr->vArray);
+	return TRUE;
+}
+XXAPI int xvoArrayAlloc(xvalue pArr, uint32 count)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	return xrtPtrArrayMalloc(pArr->vArray, count);
+}
+XXAPI int xvoArraySort(xvalue pArr, ptr proc)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	return xrtPtrArraySort(pArr->vArray, proc);
+}
+
+
+
+// List 读数据
+
+
+
+// List 写数据
+
+
+
+// List 操作
+
+
+
+// Coll 写数据
+
+
+
+// Coll 操作
+
+
+
+// Table 读数据
+
+
+
+// Table 写数据
+
+
+
+// Table 操作
 
 

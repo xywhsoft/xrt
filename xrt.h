@@ -786,16 +786,16 @@
 	XXAPI int xrtPtrArrayMalloc(xparray pObject, unsigned int iCount);
 	
 	// 中间插入成员(0为头部插入，pObject->Count为末尾插入)
-	XXAPI unsigned int xrtPtrArrayInsert(xparray pObject, unsigned int iPos, void* pVal);
+	XXAPI uint32 xrtPtrArrayInsert(xparray pObject, unsigned int iPos, void* pVal);
 	
 	// 末尾添加成员
-	XXAPI unsigned int xrtPtrArrayAppend(xparray pObject, void* pVal);
+	XXAPI uint32 xrtPtrArrayAppend(xparray pObject, void* pVal);
 	
 	// 添加成员，自动查找空隙（替换为 NULL 的值）
-	XXAPI unsigned int xrtPtrArrayAddAlt(xparray pObject, void* pVal);
+	XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, void* pVal);
 	
 	// 交换成员
-	XXAPI int xrtPtrArraySwap(xparray pObject, unsigned int iPosA, unsigned int iPosB);
+	XXAPI int xrtPtrArraySwap(xparray pObject, uint32 iPosA, uint32 iPosB);
 	
 	// 删除成员
 	XXAPI int xrtPtrArrayRemove(xparray pObject, unsigned int iPos, unsigned int iCount);
@@ -823,7 +823,7 @@
 	}
 	
 	// 成员排序
-	XXAPI int xrtPtrArraySort(xparray pObject, void* procCompar);
+	XXAPI int xrtPtrArraySort(xparray pObject, ptr procCompar);
 	
 	
 	
@@ -1589,7 +1589,7 @@
 			u32str vText32;
 			xtime vTime;
 			ptr vFunc;
-			ptr vArray;
+			xparray vArray;
 			ptr vList;
 			ptr vColl;
 			ptr vTable;
@@ -1613,7 +1613,7 @@
 	};
 	
 	// 引用计数操作
-	XXAPI void xvoRef(xvalue pVal);
+	XXAPI void xvoAddRef(xvalue pVal);
 	XXAPI void xvoUnref(xvalue pVal);
 	
 	// 创建值
@@ -1647,6 +1647,84 @@
 	XXAPI ptr xvoGetStruct(xvalue pVal);
 	XXAPI ptr xvoGetObject(xvalue pVal);
 	XXAPI ptr xvoGetCustom(xvalue pVal);
+	
+	// Array 读数据
+	XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index);
+	#define xvoArrayGetBool(pArr, index)														xvoGetBool(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetInt(pArr, index)															xvoGetInt(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetFloat(pArr, index)														xvoGetFloat(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetText(pArr, index)														xvoGetText(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetTime(pArr, index)														xvoGetTime(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetFunc(pArr, index)														xvoGetFunc(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetArray(pArr, index)														xvoGetArray(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetList(pArr, index)														xvoGetList(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetColl(pArr, index)														xvoGetColl(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetTable(pArr, index)														xvoGetTable(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetStruct(pArr, index)														xvoGetStruct(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetObject(pArr, index)														xvoGetObject(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetCustom(pArr, index)														xvoGetCustom(xvoArrayGetValue(pArr, index))
+	
+	// Array 追加数据
+	XXAPI int xvoArrayAppendValue(xvalue pArr, xvalue pVal, int bColloc);
+	#define xvoArrayAppendNull(pArr)															xvoArrayAppendValue(pArr, xvoCreateNull(), FALSE)
+	#define xvoArrayAppendBool(pArr, bVal)														xvoArrayAppendValue(pArr, xvoCreateBool(bVal), FALSE)
+	#define xvoArrayAppendInt(pArr, iVal)														xvoArrayAppendValue(pArr, xvoCreateInt(iVal), FALSE)
+	#define xvoArrayAppendFloat(pArr, fVal)														xvoArrayAppendValue(pArr, xvoCreateFloat(fVal), FALSE)
+	#define xvoArrayAppendText(pArr, sVal, iSize, iCharset, bColloc)							xvoArrayAppendValue(pArr, xvoCreateText(sVal, iSize, iCharset, bColloc), FALSE)
+	#define xvoArrayAppendTime(pArr, tVal)														xvoArrayAppendValue(pArr, xvoCreateTime(tVal), FALSE)
+	#define xvoArrayAppendTimeSerial(pArr, iYear, iMonth, iDay, iHour, iMinute, iSecond)		xvoArrayAppendValue(pArr, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), FALSE)
+	#define xvoArrayAppendFunc(pArr, func, type)												xvoArrayAppendValue(pArr, xvoCreateFunc(func, type), FALSE)
+	#define xvoArrayAppendArray(pArr)															xvoArrayAppendValue(pArr, xvoCreateArray(), FALSE)
+	#define xvoArrayAppendList(pArr)															xvoArrayAppendValue(pArr, xvoCreateList(), FALSE)
+	#define xvoArrayAppendColl(pArr)															xvoArrayAppendValue(pArr, xvoCreateColl(), FALSE)
+	#define xvoArrayAppendTable(pArr)															xvoArrayAppendValue(pArr, xvoCreateTable(), FALSE)
+	#define xvoArrayAppendStruct(pArr, size)													xvoArrayAppendValue(pArr, xvoCreateStruct(size), FALSE)
+	#define xvoArrayAppendObject(pArr, size)													xvoArrayAppendValue(pArr, xvoCreateObject(size), FALSE)
+	#define xvoArrayAppendCustom(pArr, point)													xvoArrayAppendValue(pArr, xvoCreateCustom(point), FALSE)
+	
+	// Array 插入操作
+	XXAPI int xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc);
+	#define xvoArrayInsertNull(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateNull(), FALSE)
+	#define xvoArrayInsertBool(pArr, idx, bVal)													xvoArrayInsertValue(pArr, idx, xvoCreateBool(bVal), FALSE)
+	#define xvoArrayInsertInt(pArr, idx, iVal)													xvoArrayInsertValue(pArr, idx, xvoCreateInt(iVal), FALSE)
+	#define xvoArrayInsertFloat(pArr, idx, fVal)												xvoArrayInsertValue(pArr, idx, xvoCreateFloat(fVal), FALSE)
+	#define xvoArrayInsertText(pArr, idx, sVal, iSize, iCharset, bColloc)						xvoArrayInsertValue(pArr, idx, xvoCreateText(sVal, iSize, iCharset, bColloc), FALSE)
+	#define xvoArrayInsertTime(pArr, idx, tVal)													xvoArrayInsertValue(pArr, idx, xvoCreateTime(tVal), FALSE)
+	#define xvoArrayInsertTimeSerial(pArr, idx, iYear, iMonth, iDay, iHour, iMinute, iSecond)	xvoArrayInsertValue(pArr, idx, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), FALSE)
+	#define xvoArrayInsertFunc(pArr, idx, func, type)											xvoArrayInsertValue(pArr, idx, xvoCreateFunc(func, type), FALSE)
+	#define xvoArrayInsertArray(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateArray(), FALSE)
+	#define xvoArrayInsertList(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateList(), FALSE)
+	#define xvoArrayInsertColl(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateColl(), FALSE)
+	#define xvoArrayInsertTable(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateTable(), FALSE)
+	#define xvoArrayInsertStruct(pArr, idx, size)												xvoArrayInsertValue(pArr, idx, xvoCreateStruct(size), FALSE)
+	#define xvoArrayInsertObject(pArr, idx, size)												xvoArrayInsertValue(pArr, idx, xvoCreateObject(size), FALSE)
+	#define xvoArrayInsertCustom(pArr, idx, point)												xvoArrayInsertValue(pArr, idx, xvoCreateCustom(point), FALSE)
+	
+	// Array 修改操作
+	XXAPI int xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc);
+	#define xvoArraySetNull(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateNull(), FALSE)
+	#define xvoArraySetBool(pArr, idx, bVal)													xvoArraySetValue(pArr, idx, xvoCreateBool(bVal), FALSE)
+	#define xvoArraySetInt(pArr, idx, iVal)														xvoArraySetValue(pArr, idx, xvoCreateInt(iVal), FALSE)
+	#define xvoArraySetFloat(pArr, idx, fVal)													xvoArraySetValue(pArr, idx, xvoCreateFloat(fVal), FALSE)
+	#define xvoArraySetText(pArr, idx, sVal, iSize, iCharset, bColloc)							xvoArraySetValue(pArr, idx, xvoCreateText(sVal, iSize, iCharset, bColloc), FALSE)
+	#define xvoArraySetTime(pArr, idx, tVal)													xvoArraySetValue(pArr, idx, xvoCreateTime(tVal), FALSE)
+	#define xvoArraySetTimeSerial(pArr, idx, iYear, iMonth, iDay, iHour, iMinute, iSecond)		xvoArraySetValue(pArr, idx, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), FALSE)
+	#define xvoArraySetFunc(pArr, idx, func, type)												xvoArraySetValue(pArr, idx, xvoCreateFunc(func, type), FALSE)
+	#define xvoArraySetArray(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateArray(), FALSE)
+	#define xvoArraySetList(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateList(), FALSE)
+	#define xvoArraySetColl(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateColl(), FALSE)
+	#define xvoArraySetTable(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateTable(), FALSE)
+	#define xvoArraySetStruct(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateStruct(size), FALSE)
+	#define xvoArraySetObject(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateObject(size), FALSE)
+	#define xvoArraySetCustom(pArr, idx, point)													xvoArraySetValue(pArr, idx, xvoCreateCustom(point), FALSE)
+	
+	// Array 操作
+	XXAPI int xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2);
+	XXAPI int xvoArrayRemove(xvalue pArr, uint32 index, uint32 count);
+	XXAPI uint32 xvoArraySize(xvalue pArr);
+	XXAPI uint32 xvoArrayClear(xvalue pArr);
+	XXAPI int xvoArrayAlloc(xvalue pArr, uint32 count);
+	XXAPI int xvoArraySort(xvalue pArr, ptr proc);
 	
 	
 	

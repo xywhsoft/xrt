@@ -282,6 +282,16 @@ xrtWeekday
 xrtWrite
 xrtYear
 xvoAddRef
+xvoArrayAlloc
+xvoArrayAppendValue
+xvoArrayClear
+xvoArrayGetValue
+xvoArrayInsertValue
+xvoArrayRemove
+xvoArraySetValue
+xvoArraySize
+xvoArraySort
+xvoArraySwap
 xvoCreateArray
 xvoCreateBool
 xvoCreateColl
