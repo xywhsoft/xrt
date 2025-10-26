@@ -326,4 +326,10 @@ xvoListGetValue
 xvoListRemove
 xvoListSetValue
 xvoListSize
+xvoTableClear
+xvoTableExists
+xvoTableGetValue
+xvoTableRemove
+xvoTableSetValue
+xvoTableSize
 xvoUnref

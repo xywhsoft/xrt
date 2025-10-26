@@ -1596,9 +1596,9 @@
 			xtime vTime;
 			ptr vFunc;
 			xparray vArray;
-			ptr vList;
+			xlist vList;
 			ptr vColl;
-			ptr vTable;
+			xdict vTable;
 			ptr vStruct;
 			ptr vObject;
 			ptr vPoint;
@@ -1734,19 +1734,19 @@
 	
 	// List 读数据
 	XXAPI xvalue xvoListGetValue(xvalue pList, int64 index);
-	#define xvoListGetBool(pArr, index)															xvoGetBool(xvoListGetValue(pArr, index))
-	#define xvoListGetInt(pArr, index)															xvoGetInt(xvoListGetValue(pArr, index))
-	#define xvoListGetFloat(pArr, index)														xvoGetFloat(xvoListGetValue(pArr, index))
-	#define xvoListGetText(pArr, index)															xvoGetText(xvoListGetValue(pArr, index))
-	#define xvoListGetTime(pArr, index)															xvoGetTime(xvoListGetValue(pArr, index))
-	#define xvoListGetFunc(pArr, index)															xvoGetFunc(xvoListGetValue(pArr, index))
-	#define xvoListGetArray(pArr, index)														xvoGetArray(xvoListGetValue(pArr, index))
-	#define xvoListGetList(pArr, index)															xvoGetList(xvoListGetValue(pArr, index))
-	#define xvoListGetColl(pArr, index)															xvoGetColl(xvoListGetValue(pArr, index))
-	#define xvoListGetTable(pArr, index)														xvoGetTable(xvoListGetValue(pArr, index))
-	#define xvoListGetStruct(pArr, index)														xvoGetStruct(xvoListGetValue(pArr, index))
-	#define xvoListGetObject(pArr, index)														xvoGetObject(xvoListGetValue(pArr, index))
-	#define xvoListGetCustom(pArr, index)														xvoGetCustom(xvoListGetValue(pArr, index))
+	#define xvoListGetBool(pList, index)														xvoGetBool(xvoListGetValue(pList, index))
+	#define xvoListGetInt(pList, index)															xvoGetInt(xvoListGetValue(pList, index))
+	#define xvoListGetFloat(pList, index)														xvoGetFloat(xvoListGetValue(pList, index))
+	#define xvoListGetText(pList, index)														xvoGetText(xvoListGetValue(pList, index))
+	#define xvoListGetTime(pList, index)														xvoGetTime(xvoListGetValue(pList, index))
+	#define xvoListGetFunc(pList, index)														xvoGetFunc(xvoListGetValue(pList, index))
+	#define xvoListGetArray(pList, index)														xvoGetArray(xvoListGetValue(pList, index))
+	#define xvoListGetList(pList, index)														xvoGetList(xvoListGetValue(pList, index))
+	#define xvoListGetColl(pList, index)														xvoGetColl(xvoListGetValue(pList, index))
+	#define xvoListGetTable(pList, index)														xvoGetTable(xvoListGetValue(pList, index))
+	#define xvoListGetStruct(pList, index)														xvoGetStruct(xvoListGetValue(pList, index))
+	#define xvoListGetObject(pList, index)														xvoGetObject(xvoListGetValue(pList, index))
+	#define xvoListGetCustom(pList, index)														xvoGetCustom(xvoListGetValue(pList, index))
 	
 	// List 写数据
 	XXAPI int xvoListSetValue(xvalue pList, int64 index, xvalue pVal, int bColloc);
@@ -1771,6 +1771,46 @@
 	XXAPI int xvoListRemove(xvalue pList, int64 index);
 	XXAPI int xvoListSize(xvalue pList);
 	XXAPI int xvoListClear(xvalue pList);
+	
+	// Table 读数据
+	XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl);
+	#define xvoTableGetBool(pTbl, key, kl)														xvoGetBool(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetInt(pTbl, key, kl)														xvoGetInt(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetFloat(pTbl, key, kl)														xvoGetFloat(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetText(pTbl, key, kl)														xvoGetText(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetTime(pTbl, key, kl)														xvoGetTime(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetFunc(pTbl, key, kl)														xvoGetFunc(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetArray(pTbl, key, kl)														xvoGetArray(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetList(pTbl, key, kl)														xvoGetList(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetColl(pTbl, key, kl)														xvoGetColl(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetTable(pTbl, key, kl)														xvoGetTable(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetStruct(pTbl, key, kl)													xvoGetStruct(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetObject(pTbl, key, kl)													xvoGetObject(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetCustom(pTbl, key, kl)													xvoGetCustom(xvoTableGetValue(pTbl, key, kl))
+	
+	// Table 写数据
+	XXAPI int xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, int bColloc);
+	#define xvoTableSetNull(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateNull(), FALSE)
+	#define xvoTableSetBool(pTbl, key, kl, bVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateBool(bVal), FALSE)
+	#define xvoTableSetInt(pTbl, key, kl, iVal)													xvoTableSetValue(pTbl, key, kl, xvoCreateInt(iVal), FALSE)
+	#define xvoTableSetFloat(pTbl, key, kl, fVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateFloat(fVal), FALSE)
+	#define xvoTableSetText(pTbl, key, kl, sVal, iSize, iCharset, bColloc)						xvoTableSetValue(pTbl, key, kl, xvoCreateText(sVal, iSize, iCharset, bColloc), FALSE)
+	#define xvoTableSetTime(pTbl, key, kl, tVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateTime(tVal), FALSE)
+	#define xvoTableSetTimeSerial(pTbl, key, kl, iYear, iMonth, iDay, iHour, iMinute, iSecond)	xvoTableSetValue(pTbl, key, kl, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), FALSE)
+	#define xvoTableSetFunc(pTbl, key, kl, func, type)											xvoTableSetValue(pTbl, key, kl, xvoCreateFunc(func, type), FALSE)
+	#define xvoTableSetArray(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateArray(), FALSE)
+	#define xvoTableSetList(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateList(), FALSE)
+	#define xvoTableSetColl(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateColl(), FALSE)
+	#define xvoTableSetTable(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateTable(), FALSE)
+	#define xvoTableSetStruct(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateStruct(size), FALSE)
+	#define xvoTableSetObject(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateObject(size), FALSE)
+	#define xvoTableSetCustom(pTbl, key, kl, point)												xvoTableSetValue(pTbl, key, kl, xvoCreateCustom(point), FALSE)
+	
+	// Table 操作
+	XXAPI int xvoTableExists(xvalue pTbl, str key, uint32 kl);
+	XXAPI int xvoTableRemove(xvalue pTbl, str key, uint32 kl);
+	XXAPI int xvoTableSize(xvalue pTbl);
+	XXAPI int xvoTableClear(xvalue pTbl);
 	
 	
 	

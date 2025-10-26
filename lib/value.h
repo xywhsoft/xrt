@@ -842,13 +842,97 @@ XXAPI int xvoListClear(xvalue pList)
 
 
 // Table 读数据
+XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl)
+{
+	if ( pTbl == NULL ) {
+		return NULL;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return NULL;
+	}
+	if ( key == NULL ) {
+		key = xCore.sNull;
+		kl = 0;
+	} else if ( kl == 0 ) {
+		kl = strlen(key);
+	}
+	return xrtDictGetPtr(pTbl->vTable, key, kl);
+}
 
 
 
 // Table 写数据
+XXAPI int xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, int bColloc)
+{
+	if ( (pTbl || pVal) == 0 ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	if ( key == NULL ) {
+		key = xCore.sNull;
+		kl = 0;
+	} else if ( kl == 0 ) {
+		kl = strlen(key);
+	}
+	xvalue pOldVal = NULL;
+	int iRet = xrtDictSetPtr(pTbl->vTable, key, kl, pVal, (ptr*)&pOldVal);
+	if ( iRet == FALSE ) {
+		return FALSE;
+	}
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+	}
+	if ( bColloc == FALSE ) {
+		xvoAddRef(pVal);
+	}
+	return TRUE;
+}
 
 
 
 // Table 操作
+XXAPI int xvoTableExists(xvalue pTbl, str key, uint32 kl)
+{
+	if ( pTbl == NULL ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	return xrtDictExists(pTbl->vTable, key, kl);
+}
+XXAPI int xvoTableRemove(xvalue pTbl, str key, uint32 kl)
+{
+	if ( pTbl == NULL ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	return xrtDictRemove(pTbl->vTable, key, kl);
+}
+XXAPI int xvoTableSize(xvalue pTbl)
+{
+	if ( pTbl == NULL ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	return xrtDictCount(pTbl->vTable);
+}
+XXAPI int xvoTableClear(xvalue pTbl)
+{
+	if ( pTbl == NULL ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	xrtDictClear(pTbl->vTable);
+	return TRUE;
+}
 
 
