@@ -71,6 +71,7 @@ XXAPI void xvoUnref(xvalue pVal)
 					xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
 					xrtListDestroy(pVal->vList);
 				} else if ( pVal->Type == XVO_DT_COLL ) {
+					
 				} else if ( pVal->Type == XVO_DT_TABLE ) {
 					xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
 					xrtDictDestroy(pVal->vTable);
@@ -859,11 +860,105 @@ XXAPI int xvoListClear(xvalue pList)
 
 
 
+// Coll 功能实现
+
+
+
 // Coll 写数据
+XXAPI int xvoCollSetValue(xvalue pColl, xvalue pVal, int bColloc)
+{
+	if ( (pColl || pVal) == 0 ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	int bNew = FALSE;
+	xvalue* ppVal = xrtAVLTreeInsert(pColl->vColl, pVal, &bNew);
+	if ( ppVal ) {
+		
+	}
+	/*
+	xvalue pOldVal = NULL;
+	int iRet = xrtDictSetPtr(pColl->vColl, key, kl, pVal, (ptr*)&pOldVal);
+	if ( iRet == FALSE ) {
+		return FALSE;
+	}
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+	}
+	if ( bColloc == FALSE ) {
+		xvoAddRef(pVal);
+	}
+	*/
+	return TRUE;
+}
+
+
+
+// Coll 集合操作
 
 
 
 // Coll 操作
+XXAPI int xvoCollExists(xvalue pColl, xvalue pVal)
+{
+	if ( pColl == NULL ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	xvalue pRetVal = xrtAVLTreeSearch(pColl->vColl, pVal);
+	if ( pRetVal ) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+XXAPI int xvoCollRemove(xvalue pColl, xvalue pVal)
+{
+	if ( pColl == NULL ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	/*
+	xvalue pOldVal = xrtDictRemovePtr(pColl->vColl, key, kl);
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+	*/
+	return FALSE;
+}
+XXAPI int xvoCollSize(xvalue pColl)
+{
+	if ( pColl == NULL ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	return pColl->vColl->Count;
+}
+XXAPI int xvoCollClear(xvalue pColl)
+{
+	if ( pColl == NULL ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	/*
+	xrtDictWalk(pColl->vColl, (ptr)xvoTableClear_FreeProc, pColl);
+	*/
+	xrtAVLTreeClear(pColl->vColl);
+	return TRUE;
+}
 
 
 

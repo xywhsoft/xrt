@@ -294,6 +294,11 @@ xvoArraySetValue
 xvoArraySize
 xvoArraySort
 xvoArraySwap
+xvoCollClear
+xvoCollExists
+xvoCollRemove
+xvoCollSetValue
+xvoCollSize
 xvoCreateArray
 xvoCreateBool
 xvoCreateColl
