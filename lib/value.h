@@ -618,7 +618,7 @@ XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index)
 // Array 追加数据
 XXAPI int xvoArrayAppendValue(xvalue pArr, xvalue pVal, int bColloc)
 {
-	if ( (pArr || pVal) == NULL ) {
+	if ( (pArr || pVal) == 0 ) {
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
@@ -639,7 +639,7 @@ XXAPI int xvoArrayAppendValue(xvalue pArr, xvalue pVal, int bColloc)
 // Array 插入操作
 XXAPI int xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc)
 {
-	if ( (pArr || pVal) == NULL ) {
+	if ( (pArr || pVal) == 0 ) {
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
@@ -660,7 +660,7 @@ XXAPI int xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, int bCollo
 // Array 修改操作
 XXAPI int xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc)
 {
-	if ( (pArr || pVal) == NULL ) {
+	if ( (pArr || pVal) == 0 ) {
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
@@ -750,14 +750,86 @@ XXAPI int xvoArraySort(xvalue pArr, ptr proc)
 
 
 // List 读数据
+XXAPI xvalue xvoListGetValue(xvalue pList, int64 index)
+{
+	if ( pList == NULL ) {
+		return NULL;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return NULL;
+	}
+	return xrtListGetPtr(pList->vList, index);
+}
 
 
 
 // List 写数据
+XXAPI int xvoListSetValue(xvalue pList, int64 index, xvalue pVal, int bColloc)
+{
+	if ( (pList || pVal) == 0 ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	xvalue pOldVal = NULL;
+	int iRet = xrtListSetPtr(pList->vList, index, pVal, (ptr*)&pOldVal);
+	if ( iRet == FALSE ) {
+		return FALSE;
+	}
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+	}
+	if ( bColloc == FALSE ) {
+		xvoAddRef(pVal);
+	}
+	return TRUE;
+}
 
 
 
 // List 操作
+XXAPI int xvoListExists(xvalue pList, int64 index)
+{
+	if ( pList == NULL ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	return xrtListExists(pList->vList, index);
+}
+XXAPI int xvoListRemove(xvalue pList, int64 index)
+{
+	if ( pList == NULL ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	return xrtListRemove(pList->vList, index);
+}
+XXAPI int xvoListSize(xvalue pList)
+{
+	if ( pList == NULL ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	return xrtListCount(pList->vList);
+}
+XXAPI int xvoListClear(xvalue pList)
+{
+	if ( pList == NULL ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	xrtListClear(pList->vList);
+	return TRUE;
+}
 
 
 

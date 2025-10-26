@@ -320,4 +320,10 @@ xvoGetStruct
 xvoGetTable
 xvoGetText
 xvoGetTime
+xvoListClear
+xvoListExists
+xvoListGetValue
+xvoListRemove
+xvoListSetValue
+xvoListSize
 xvoUnref

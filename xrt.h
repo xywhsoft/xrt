@@ -1535,6 +1535,12 @@
 	// 判断值是否存在
 	XXAPI int xrtListExists(xlist objList, int64 iKey);
 	
+	// 删除所有成员
+	#define xrtListRemoveAll xrtListUnit
+	
+	// 清空管理器
+	#define xrtListClear xrtListUnit
+	
 	// 获取表内元素数量
 	XXAPI unsigned int xrtListCount(xlist objList);
 	
@@ -1725,6 +1731,46 @@
 	XXAPI uint32 xvoArrayClear(xvalue pArr);
 	XXAPI int xvoArrayAlloc(xvalue pArr, uint32 count);
 	XXAPI int xvoArraySort(xvalue pArr, ptr proc);
+	
+	// List 读数据
+	XXAPI xvalue xvoListGetValue(xvalue pList, int64 index);
+	#define xvoListGetBool(pArr, index)															xvoGetBool(xvoListGetValue(pArr, index))
+	#define xvoListGetInt(pArr, index)															xvoGetInt(xvoListGetValue(pArr, index))
+	#define xvoListGetFloat(pArr, index)														xvoGetFloat(xvoListGetValue(pArr, index))
+	#define xvoListGetText(pArr, index)															xvoGetText(xvoListGetValue(pArr, index))
+	#define xvoListGetTime(pArr, index)															xvoGetTime(xvoListGetValue(pArr, index))
+	#define xvoListGetFunc(pArr, index)															xvoGetFunc(xvoListGetValue(pArr, index))
+	#define xvoListGetArray(pArr, index)														xvoGetArray(xvoListGetValue(pArr, index))
+	#define xvoListGetList(pArr, index)															xvoGetList(xvoListGetValue(pArr, index))
+	#define xvoListGetColl(pArr, index)															xvoGetColl(xvoListGetValue(pArr, index))
+	#define xvoListGetTable(pArr, index)														xvoGetTable(xvoListGetValue(pArr, index))
+	#define xvoListGetStruct(pArr, index)														xvoGetStruct(xvoListGetValue(pArr, index))
+	#define xvoListGetObject(pArr, index)														xvoGetObject(xvoListGetValue(pArr, index))
+	#define xvoListGetCustom(pArr, index)														xvoGetCustom(xvoListGetValue(pArr, index))
+	
+	// List 写数据
+	XXAPI int xvoListSetValue(xvalue pList, int64 index, xvalue pVal, int bColloc);
+	#define xvoListSetNull(pList, idx)															xvoListSetValue(pList, idx, xvoCreateNull(), FALSE)
+	#define xvoListSetBool(pList, idx, bVal)													xvoListSetValue(pList, idx, xvoCreateBool(bVal), FALSE)
+	#define xvoListSetInt(pList, idx, iVal)														xvoListSetValue(pList, idx, xvoCreateInt(iVal), FALSE)
+	#define xvoListSetFloat(pList, idx, fVal)													xvoListSetValue(pList, idx, xvoCreateFloat(fVal), FALSE)
+	#define xvoListSetText(pList, idx, sVal, iSize, iCharset, bColloc)							xvoListSetValue(pList, idx, xvoCreateText(sVal, iSize, iCharset, bColloc), FALSE)
+	#define xvoListSetTime(pList, idx, tVal)													xvoListSetValue(pList, idx, xvoCreateTime(tVal), FALSE)
+	#define xvoListSetTimeSerial(pList, idx, iYear, iMonth, iDay, iHour, iMinute, iSecond)		xvoListSetValue(pList, idx, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), FALSE)
+	#define xvoListSetFunc(pList, idx, func, type)												xvoListSetValue(pList, idx, xvoCreateFunc(func, type), FALSE)
+	#define xvoListSetArray(pList, idx)															xvoListSetValue(pList, idx, xvoCreateArray(), FALSE)
+	#define xvoListSetList(pList, idx)															xvoListSetValue(pList, idx, xvoCreateList(), FALSE)
+	#define xvoListSetColl(pList, idx)															xvoListSetValue(pList, idx, xvoCreateColl(), FALSE)
+	#define xvoListSetTable(pList, idx)															xvoListSetValue(pList, idx, xvoCreateTable(), FALSE)
+	#define xvoListSetStruct(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateStruct(size), FALSE)
+	#define xvoListSetObject(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateObject(size), FALSE)
+	#define xvoListSetCustom(pList, idx, point)													xvoListSetValue(pList, idx, xvoCreateCustom(point), FALSE)
+	
+	// List 操作
+	XXAPI int xvoListExists(xvalue pList, int64 index);
+	XXAPI int xvoListRemove(xvalue pList, int64 index);
+	XXAPI int xvoListSize(xvalue pList);
+	XXAPI int xvoListClear(xvalue pList);
 	
 	
 	
