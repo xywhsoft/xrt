@@ -243,7 +243,7 @@ typedef struct _json_parse_t {
 
 /**************** json print apis ****************/
 
-json_strinfo_t json_string_info_get(const char *str, const json_strinfo_t *orig)
+XXAPI json_strinfo_t xrtJsonGetStringInfo(const char *str, const json_strinfo_t *orig)
 {
     json_strinfo_t info;
     int i = 0;
@@ -577,7 +577,7 @@ typedef struct {
     bool error_flag;
 } json_sax_print_t;
 
-int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value)
+XXAPI int xrtJsonPrintValue(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value)
 {
     json_sax_print_t *print_handle = (json_sax_print_t *)handle;
     json_print_t *print_ptr = &print_handle->print_val;
@@ -607,7 +607,7 @@ int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string
 #endif
                 } else {
                     _PRINT_ADDI_FORMAT(print_ptr, print_handle->count);
-                    json_string_info_update(jkey);
+                    xrtJsonUpdateStringInfo(jkey);
                     _JSON_PRINT_STRING(print_ptr, jkey->str, &jkey->info);
                     _PRINT_PTR_STRNCAT(":\t", 2);
                 }
@@ -620,7 +620,7 @@ int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string
                     _PRINT_PTR_STRNCAT("\"\":", 3);
 #endif
                 } else {
-                    json_string_info_update(jkey);
+                    xrtJsonUpdateStringInfo(jkey);
                     _JSON_PRINT_STRING(print_ptr, jkey->str, &jkey->info);
                     _PRINT_PTR_STRNCAT(":", 1);
                 }
@@ -674,7 +674,7 @@ int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string
         if (unlikely(!jstr || !jstr->str || !jstr->str[0])) {
             _PRINT_PTR_STRNCAT("\"\"", 2);
         } else {
-            json_string_info_update(jstr);
+            xrtJsonUpdateStringInfo(jstr);
             _JSON_PRINT_STRING(print_ptr, jstr->str, &jstr->info);
         }
         break;
@@ -756,7 +756,7 @@ err:
     return -1;
 }
 
-json_sax_print_hd json_sax_print_start(json_print_choice_t *choice)
+XXAPI json_sax_print_hd xrtJsonPrintStart(json_print_choice_t *choice)
 {
     json_sax_print_t *print_handle = NULL;
 
@@ -781,7 +781,7 @@ json_sax_print_hd json_sax_print_start(json_print_choice_t *choice)
     return print_handle;
 }
 
-char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr)
+XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr)
 {
     char *ret = NULL;
 
@@ -1565,21 +1565,21 @@ err:
  */
 /*
  * json_sax_parse_str - 从字符串进行SAX解析
- * @str: IN, 要解析的字符串
+ * @text: IN, 要解析的字符串
  * @str_len: IN, 字符串的长度
  * @cb: IN, 处理SAX解析器传递结果的回调函数
  * @return: 失败返回-1；成功返回0
  * @description: LJSON直接从字符串解析数据
  */
-XXAPI int json_sax_parse_str(char *str, size_t str_len, json_sax_cb_t cb)
+XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb)
 {
     int ret = -1;
     json_parse_t parse_val = {0};
 	
     parse_val.mem = &s_invalid_json_mem;
     
-	parse_val.str = str;
-	parse_val.size = str_len ? str_len : strlen(str);
+	parse_val.str = text;
+	parse_val.size = str_len ? str_len : strlen(text);
 	parse_val.skip_blank = _skip_blank_rapid;
     
     parse_val.parse_string = _json_sax_parse_string;

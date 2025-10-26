@@ -1842,6 +1842,9 @@
 	#define xvoListItemType(pList, index)														xvoType(xvoListGetValue(pList, index))
 	#define xvoTableItemType(pTbl, key, kl)														xvoType(xvoTableGetValue(pTbl, key, kl))
 	XXAPI int xvoSubType(xvalue pVal);
+	#define xvoArrayItemSubType(pArr, index)													xvoSubType(xvoArrayGetValue(pArr, index))
+	#define xvoListItemSubType(pList, index)													xvoSubType(xvoListGetValue(pList, index))
+	#define xvoTableItemSubType(pTbl, key, kl)													xvoSubType(xvoTableGetValue(pTbl, key, kl))
 	
 	// 获取数据长度
 	XXAPI uint32 xvoGetSize(xvalue pVal);
@@ -1998,17 +2001,17 @@
 	typedef json_sax_ret_t (*json_sax_cb_t)(json_sax_parser_t *parser);
 	
 	// 获取json_string_t的信息（str含有 `"  \  \b  \f  \n  \r  \t  \v` 字符时会设置escaped）
-	json_strinfo_t json_string_info_get(const char *str, const json_strinfo_t *orig);
+	XXAPI json_strinfo_t xrtJsonGetStringInfo(const char *str, const json_strinfo_t *orig);
 	
 	// 更新json_string_t的信息（jstr->info.len是0时数据才会更新）
-	static inline void json_string_info_update(json_string_t *jstr)
+	static inline void xrtJsonUpdateStringInfo(json_string_t *jstr)
 	{
 		if (!jstr->info.len)
-			jstr->info = json_string_info_get(jstr->str, &jstr->info);
+			jstr->info = xrtJsonGetStringInfo(jstr->str, &jstr->info);
 	}
 	
 	// 从字符串进行SAX解析（失败返回-1；成功返回0）
-	XXAPI int json_sax_parse_str(char *str, size_t str_len, json_sax_cb_t cb);
+	XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb);
 	
 	// 打印缓冲
 	typedef struct {
@@ -2030,7 +2033,7 @@
 	typedef void* json_sax_print_hd;
 	
 	// 启动SAX打印器；失败返回NULL，成功返回指针（SAX打印器的句柄）
-	json_sax_print_hd json_sax_print_start(json_print_choice_t *choice);
+	XXAPI json_sax_print_hd xrtJsonPrintStart(json_print_choice_t *choice);
 	
 	// 启动格式化的SAX打印器，输出到字符串
 	static inline json_sax_print_hd json_sax_print_format_start(int item_total, json_print_ptr_t *ptr)
@@ -2041,7 +2044,7 @@
 		choice.format_flag = true;
 		choice.item_total = item_total;
 		choice.ptr = ptr;
-		return json_sax_print_start(&choice);
+		return xrtJsonPrintStart(&choice);
 	}
 	
 	// 启动压缩的SAX打印器，输出到字符串
@@ -2053,52 +2056,32 @@
 		choice.format_flag = false;
 		choice.item_total = item_total;
 		choice.ptr = ptr;
-		return json_sax_print_start(&choice);
+		return xrtJsonPrintStart(&choice);
 	}
 	
 	// SAX打印json对象
-	int json_sax_print_value(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value);
-	static inline int json_sax_print_null(json_sax_print_hd handle, json_string_t *jkey) { return json_sax_print_value(handle, JSON_NULL, jkey, NULL); }
-	static inline int json_sax_print_bool(json_sax_print_hd handle, json_string_t *jkey, bool value) { return json_sax_print_value(handle, JSON_BOOL, jkey, &value); }
-	static inline int json_sax_print_int(json_sax_print_hd handle, json_string_t *jkey, int32_t value) { return json_sax_print_value(handle, JSON_INT, jkey, &value); }
-	static inline int json_sax_print_hex(json_sax_print_hd handle, json_string_t *jkey, uint32_t value) { return json_sax_print_value(handle, JSON_HEX, jkey, &value); }
-	static inline int json_sax_print_lint(json_sax_print_hd handle, json_string_t *jkey, int64_t value) { return json_sax_print_value(handle, JSON_LINT, jkey, &value); }
-	static inline int json_sax_print_lhex(json_sax_print_hd handle, json_string_t *jkey, uint64_t value) { return json_sax_print_value(handle, JSON_LHEX, jkey, &value); }
-	static inline int json_sax_print_double(json_sax_print_hd handle, json_string_t *jkey, double value) { return json_sax_print_value(handle, JSON_DOUBLE, jkey, &value); }
-	static inline int json_sax_print_string(json_sax_print_hd handle, json_string_t *jkey, json_string_t *value) { return json_sax_print_value(handle, JSON_STRING, jkey, value); }
-	static inline int json_sax_print_array(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return json_sax_print_value(handle, JSON_ARRAY, jkey, &value); }
-	static inline int json_sax_print_object(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return json_sax_print_value(handle, JSON_OBJECT, jkey, &value); }
-
-	/* C11泛型选择(Generic selection) */
-	#define json_sax_print_array_item(handle, value)  _Generic((value), \
-	bool            : json_sax_print_bool                             , \
-	int32_t         : json_sax_print_int                              , \
-	uint32_t        : json_sax_print_hex                              , \
-	int64_t         : json_sax_print_lint                             , \
-	uint64_t        : json_sax_print_lhex                             , \
-	double          : json_sax_print_double                           , \
-	json_string_t*  : json_sax_print_string)(handle, NULL, value)
-
-	#define json_sax_print_array_null(handle)         json_sax_print_null  (handle, NULL, NULL)
-	#define json_sax_print_array_start(handle, jkey)  json_sax_print_array (handle, jkey, JSON_SAX_START)
-	#define json_sax_print_array_finish(handle)       json_sax_print_array (handle, NULL, JSON_SAX_FINISH)
-
-	/* C11泛型选择(Generic selection) */
-	#define json_sax_print_object_item(handle, jkey, value)  _Generic((value), \
-	bool            : json_sax_print_bool                             , \
-	int32_t         : json_sax_print_int                              , \
-	uint32_t        : json_sax_print_hex                              , \
-	int64_t         : json_sax_print_lint                             , \
-	uint64_t        : json_sax_print_lhex                             , \
-	double          : json_sax_print_double                           , \
-	json_string_t*  : json_sax_print_string)(handle, jkey, value)
-
-	#define json_sax_print_object_null(handle, jkey)  json_sax_print_null  (handle, jkey, NULL)
-	#define json_sax_print_object_start(handle, jkey) json_sax_print_object(handle, jkey, JSON_SAX_START)
-	#define json_sax_print_object_finish(handle)      json_sax_print_object(handle, NULL, JSON_SAX_FINISH)
+	XXAPI int xrtJsonPrintValue(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value);
+	static inline int xrtJsonPrintNull(json_sax_print_hd handle, json_string_t *jkey) { return xrtJsonPrintValue(handle, JSON_NULL, jkey, NULL); }
+	static inline int xrtJsonPrintBool(json_sax_print_hd handle, json_string_t *jkey, bool value) { return xrtJsonPrintValue(handle, JSON_BOOL, jkey, &value); }
+	static inline int xrtJsonPrintInt(json_sax_print_hd handle, json_string_t *jkey, int32_t value) { return xrtJsonPrintValue(handle, JSON_INT, jkey, &value); }
+	static inline int xrtJsonPrintHex(json_sax_print_hd handle, json_string_t *jkey, uint32_t value) { return xrtJsonPrintValue(handle, JSON_HEX, jkey, &value); }
+	static inline int xrtJsonPrintInt64(json_sax_print_hd handle, json_string_t *jkey, int64_t value) { return xrtJsonPrintValue(handle, JSON_LINT, jkey, &value); }
+	static inline int xrtJsonPrintHex64(json_sax_print_hd handle, json_string_t *jkey, uint64_t value) { return xrtJsonPrintValue(handle, JSON_LHEX, jkey, &value); }
+	static inline int xrtJsonPrintDouble(json_sax_print_hd handle, json_string_t *jkey, double value) { return xrtJsonPrintValue(handle, JSON_DOUBLE, jkey, &value); }
+	static inline int xrtJsonPrintString(json_sax_print_hd handle, json_string_t *jkey, json_string_t *value) { return xrtJsonPrintValue(handle, JSON_STRING, jkey, value); }
+	static inline int xrtJsonPrintArray(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return xrtJsonPrintValue(handle, JSON_ARRAY, jkey, &value); }
+	static inline int xrtJsonPrintObject(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return xrtJsonPrintValue(handle, JSON_OBJECT, jkey, &value); }
+	
+	#define xrtJsonPrintArrayNull(handle)         xrtJsonPrintNull  (handle, NULL, NULL)
+	#define xrtJsonPrintArrayStart(handle, jkey)  xrtJsonPrintArray (handle, jkey, JSON_SAX_START)
+	#define xrtJsonPrintArrayFinish(handle)       xrtJsonPrintArray (handle, NULL, JSON_SAX_FINISH)
+	
+	#define xrtJsonPrintObjectNull(handle, jkey)  xrtJsonPrintNull  (handle, jkey, NULL)
+	#define xrtJsonPrintObjectStart(handle, jkey) xrtJsonPrintObject(handle, jkey, JSON_SAX_START)
+	#define xrtJsonPrintObjectFinish(handle)      xrtJsonPrintObject(handle, NULL, JSON_SAX_FINISH)
 	
 	// 结束SAX打印器
-	char *json_sax_print_finish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
+	XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
 	
 	
 	
