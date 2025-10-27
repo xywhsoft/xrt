@@ -262,6 +262,7 @@ xrtStackPushPtr
 xrtStackTop
 xrtStackTopPtr
 xrtStart
+xrtStrComp
 xrtStrToI32
 xrtStrToI64
 xrtStrToNum

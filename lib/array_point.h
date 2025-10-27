@@ -19,7 +19,7 @@ XXAPI void xrtPtrArrayDestroy(xparray pObject)
 	}
 }
 
-// 初始化内存管理器（对自维护结构体指针使用，和 PAMM_Create 功能类似）
+// 初始化内存管理器（对自维护结构体指针使用）
 XXAPI void xrtPtrArrayInit(xparray pObject)
 {
 	pObject->Memory = NULL;
@@ -28,7 +28,7 @@ XXAPI void xrtPtrArrayInit(xparray pObject)
 	pObject->AllocStep = XPARRAY_PREASSIGNSTEP;
 }
 
-// 释放内存管理器（对自维护结构体指针使用，和 PAMM_Destroy 功能类似）
+// 释放内存管理器（对自维护结构体指针使用）
 XXAPI void xrtPtrArrayUnit(xparray pObject)
 {
 	if ( pObject->Memory ) { xrtFree(pObject->Memory); pObject->Memory = NULL; }
@@ -37,19 +37,19 @@ XXAPI void xrtPtrArrayUnit(xparray pObject)
 }
 
 // 分配内存
-XXAPI int xrtPtrArrayMalloc(xparray pObject, unsigned int iCount)
+XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount)
 {
 	if ( iCount > pObject->AllocCount ) {
 		// 增量
-		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(void*));
+		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(ptr));
 		if ( pNew ) {
 			pObject->AllocCount = iCount;
 			pObject->Memory = pNew;
-			return -1;
+			return TRUE;
 		}
 	} else if ( iCount < pObject->AllocCount ) {
 		// 裁剪
-		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(void*));
+		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(ptr));
 		if ( pNew ) {
 			pObject->AllocCount = iCount;
 			pObject->Memory = pNew;
@@ -57,21 +57,21 @@ XXAPI int xrtPtrArrayMalloc(xparray pObject, unsigned int iCount)
 				// 需要裁剪数据
 				pObject->Count = iCount;
 			}
-			return -1;
+			return TRUE;
 		}
 	} else if ( iCount = 0 ) {
 		// 清空
 		xrtPtrArrayUnit(pObject);
-		return -1;
+		return TRUE;
 	} else {
 		// 不变
-		return -1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 // 中间插入成员(0为头部插入，pObject->Count为末尾插入)
-XXAPI unsigned int xrtPtrArrayInsert(xparray pObject, unsigned int iPos, void* pVal)
+XXAPI uint32 xrtPtrArrayInsert(xparray pObject, uint32 iPos, ptr pVal)
 {
 	// 分配内存
 	if ( pObject->Count >= pObject->AllocCount ) {
@@ -81,8 +81,8 @@ XXAPI unsigned int xrtPtrArrayInsert(xparray pObject, unsigned int iPos, void* p
 	}
 	if ( iPos < pObject->Count ) {
 		// 插入模式（需要移动内存）
-		void** src = &(pObject->Memory[iPos]);
-		memmove(src + 1, src, (pObject->Count - iPos) * sizeof(void*));
+		ptr* src = &(pObject->Memory[iPos]);
+		memmove(src + 1, src, (pObject->Count - iPos) * sizeof(ptr));
 		pObject->Memory[iPos] = pVal;
 		pObject->Count++;
 		return iPos + 1;
@@ -95,13 +95,13 @@ XXAPI unsigned int xrtPtrArrayInsert(xparray pObject, unsigned int iPos, void* p
 }
 
 // 末尾添加成员
-XXAPI unsigned int xrtPtrArrayAppend(xparray pObject, void* pVal)
+XXAPI uint32 xrtPtrArrayAppend(xparray pObject, ptr pVal)
 {
 	return xrtPtrArrayInsert(pObject, pObject->Count, pVal);
 }
 
 // 添加成员，自动查找空隙（替换为 NULL 的值）
-XXAPI unsigned int xrtPtrArrayAddAlt(xparray pObject, void* pVal)
+XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal)
 {
 	for ( int i = 0; i < pObject->Count; i++ ) {
 		if ( pObject->Memory[i] == NULL ) {
@@ -113,46 +113,46 @@ XXAPI unsigned int xrtPtrArrayAddAlt(xparray pObject, void* pVal)
 }
 
 // 交换成员
-XXAPI int xrtPtrArraySwap(xparray pObject, unsigned int iPosA, unsigned int iPosB)
+XXAPI bool xrtPtrArraySwap(xparray pObject, uint32 iPosA, uint32 iPosB)
 {
 	// 范围检查
-	if ( iPosA == 0 ) { return 0; }
-	if ( iPosA > pObject->Count ) { return 0; }
-	if ( iPosB == 0 ) { return 0; }
-	if ( iPosB > pObject->Count ) { return 0; }
-	if ( iPosA == iPosB ) { return -1; }
+	if ( iPosA == 0 ) { return FALSE; }
+	if ( iPosA > pObject->Count ) { return FALSE; }
+	if ( iPosB == 0 ) { return FALSE; }
+	if ( iPosB > pObject->Count ) { return FALSE; }
+	if ( iPosA == iPosB ) { return TRUE; }
 	// 交换成员
 	iPosA--;
 	iPosB--;
-	void* pA = pObject->Memory[iPosB];
+	ptr pA = pObject->Memory[iPosB];
 	pObject->Memory[iPosB] = pObject->Memory[iPosA];
 	pObject->Memory[iPosA] = pA;
-	return -1;
+	return TRUE;
 }
 
 // 删除成员
-XXAPI int xrtPtrArrayRemove(xparray pObject, unsigned int iPos, unsigned int iCount)
+XXAPI bool xrtPtrArrayRemove(xparray pObject, uint32 iPos, uint32 iCount)
 {
 	// 不能添加 0 个成员、不能删除不存在的成员（0号成员也不存在）
-	if ( iCount == 0 ) { return 0; }
-	if ( iPos == 0 ) { return 0; }
-	if ( iPos > pObject->Count ) { return 0; }
+	if ( iCount == 0 ) { return FALSE; }
+	if ( iPos == 0 ) { return FALSE; }
+	if ( iPos > pObject->Count ) { return FALSE; }
 	// 删除成员（数量不足时删除后面的所有成员）
 	iPos--;
 	if ( iPos + iCount < pObject->Count ) {
 		// 中段删除
-		void** dst = &(pObject->Memory[iPos]);
-		memmove(dst, dst + iCount, (pObject->Count - (iPos + iCount)) * sizeof(void*));
+		ptr* dst = &(pObject->Memory[iPos]);
+		memmove(dst, dst + iCount, (pObject->Count - (iPos + iCount)) * sizeof(ptr));
 		pObject->Count -= iCount;
 	} else {
 		// 末尾删除
 		pObject->Count = iPos;
 	}
-	return -1;
+	return TRUE;
 }
 
 // 获取成员指针
-XXAPI void* xrtPtrArrayGet(xparray pObject, unsigned int iPos)
+XXAPI ptr xrtPtrArrayGet(xparray pObject, uint32 iPos)
 {
 	if ( iPos ) {
 		iPos--;
@@ -160,38 +160,38 @@ XXAPI void* xrtPtrArrayGet(xparray pObject, unsigned int iPos)
 			return pObject->Memory[iPos];
 		}
 	}
-	return 0;
+	return NULL;
 }
-XXAPI void* xrtPtrArrayGet_Unsafe(xparray pObject, unsigned int iPos)
+XXAPI ptr xrtPtrArrayGet_Unsafe(xparray pObject, uint32 iPos)
 {
 	return pObject->Memory[iPos - 1];
 }
 
 // 设置成员指针
-XXAPI int xrtPtrArraySet(xparray pObject, unsigned int iPos, void* pVal)
+XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal)
 {
 	if ( iPos ) {
 		iPos--;
 		if ( iPos < pObject->Count ) {
 			pObject->Memory[iPos] = pVal;
-			return -1;
+			return TRUE;
 		}
 	}
-	return 0;
+	return FALSE;
 }
-XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, unsigned int iPos, void* pVal)
+XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal)
 {
 	pObject->Memory[iPos - 1] = pVal;
 }
 
 // 成员排序
-XXAPI int xrtPtrArraySort(xparray pObject, void* procCompar)
+XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 {
 	if ( pObject ) {
-		qsort(pObject->Memory, pObject->Count, sizeof(void*), procCompar);
-		return -1;
+		qsort(pObject->Memory, pObject->Count, sizeof(ptr), procCompar);
+		return TRUE;
 	} else {
-		return 0;
+		return FALSE;
 	}
 }
 

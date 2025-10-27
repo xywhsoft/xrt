@@ -2,13 +2,12 @@
 
 
 // 创建内存缓冲区管理器
-XXAPI xbuffer xrtBufferCreate(uint32 iAllocLength, uint32 iStep)
+XXAPI xbuffer xrtBufferCreate(uint32 iStep)
 {
 	xbuffer pBuf = xrtMalloc(sizeof(xbuffer_struct));
-	if ( pBuf == NULL ) {
-		return NULL;
+	if ( pBuf ) {
+		xrtBufferInit(pBuf, iStep);
 	}
-	xrtBufferInit(pBuf, iAllocLength, iStep);
 	return pBuf;
 }
 
@@ -22,15 +21,12 @@ XXAPI void xrtBufferDestroy(xbuffer pBuf)
 }
 
 // 初始化缓冲区管理器（对自维护结构体指针使用）
-XXAPI void xrtBufferInit(xbuffer pBuf, uint32 iAllocLength, uint32 iStep)
+XXAPI void xrtBufferInit(xbuffer pBuf, uint32 iStep)
 {
 	pBuf->Buffer = NULL;
 	pBuf->Length = 0;
 	pBuf->AllocLength = 0;
 	pBuf->AllocStep = iStep ? iStep : XBUFFER_ALLOC_STEP;
-	if ( iAllocLength ) {
-		xrtBufferMalloc(pBuf, iAllocLength);
-	}
 }
 
 // 释放缓冲区管理器（对自维护结构体指针使用）
@@ -42,7 +38,7 @@ XXAPI void xrtBufferUnit(xbuffer pBuf)
 }
 
 // 分配内存
-XXAPI int xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
+XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 {
 	if ( iCount > pBuf->AllocLength ) {
 		// 增量
@@ -50,7 +46,7 @@ XXAPI int xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 		if ( pNew ) {
 			pBuf->AllocLength = iCount;
 			pBuf->Buffer = pNew;
-			return -1;
+			return TRUE;
 		}
 	} else if ( iCount < pBuf->AllocLength ) {
 		// 裁剪
@@ -62,21 +58,21 @@ XXAPI int xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 				// 需要裁剪数据
 				pBuf->Length = iCount;
 			}
-			return -1;
+			return TRUE;
 		}
 	} else if ( iCount = 0 ) {
 		// 清空
 		xrtBufferUnit(pBuf);
-		return -1;
+		return TRUE;
 	} else {
 		// 不变
-		return -1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 // 中间添加数据（可以复制或者开辟新的数据区，不会自动将新开辟的数据区填充 \0）
-XXAPI int xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, uint32 bStrMode)
+XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, uint32 bStrMode)
 {
 	// 长度为 0 时自动计算数据长度
 	if ( iSize == 0 ) {
@@ -86,12 +82,14 @@ XXAPI int xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, ui
 			iSize = u16len(pData) * XBUF_UTF16;
 		} else if ( bStrMode == XBUF_UTF32 ) {
 			iSize = u32len(pData) * XBUF_UTF32;
+		} else {
+			return FALSE;
 		}
 	}
 	// 分配内存
 	if ( (iPos + iSize + bStrMode) > pBuf->AllocLength ) {
 		if ( xrtBufferMalloc(pBuf, iPos + iSize + bStrMode + pBuf->AllocStep) == 0 ) {
-			return 0;
+			return FALSE;
 		}
 	}
 	// 复制数据
@@ -105,11 +103,11 @@ XXAPI int xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, ui
 			pBuf->Buffer[pBuf->Length + i] = 0;
 		}
 	}
-	return -1;
+	return TRUE;
 }
 
 // 末尾添加数据
-XXAPI int xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMode)
+XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMode)
 {
 	return xrtBufferInsert(pBuf, pBuf->Length, pData, iSize, bStrMode);
 }

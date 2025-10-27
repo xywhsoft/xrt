@@ -2,7 +2,7 @@
 
 
 // 创建数据块结构内存管理器
-XXAPI xbsmm xrtBsmmCreate(unsigned int iItemLength)
+XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength)
 {
 	xbsmm objBSMM = xrtMalloc(sizeof(xbsmm_struct));
 	if ( objBSMM ) {
@@ -21,7 +21,7 @@ XXAPI void xrtBsmmDestroy(xbsmm objBSMM)
 }
 
 // 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
-XXAPI void xrtBsmmInit(xbsmm objBSMM, unsigned int iItemLength)
+XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength)
 {
 	objBSMM->ItemLength = iItemLength;
 	objBSMM->Count = 0;
@@ -49,11 +49,11 @@ XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 }
 
 // 申请结构体内存
-XXAPI void* xrtBsmmAlloc(xbsmm objBSMM)
+XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM)
 {
 	if ( objBSMM->LL_Free ) {
 		// 有空闲内存块先用空闲的
-		void* Ptr = objBSMM->LL_Free->Ptr;
+		ptr Ptr = objBSMM->LL_Free->Ptr;
 		MemPtr_LLNode* pNext = objBSMM->LL_Free->Next;
 		xrtFree(objBSMM->LL_Free);
 		objBSMM->LL_Free = pNext;
@@ -61,7 +61,7 @@ XXAPI void* xrtBsmmAlloc(xbsmm objBSMM)
 	} else {
 		// 需要申请新的内存块
 		if ( objBSMM->Count >= (objBSMM->PageMMU.Count * 256) ) {
-			char* pBlock = xrtMalloc(objBSMM->ItemLength * 256);
+			ptr pBlock = xrtMalloc(objBSMM->ItemLength * 256);
 			if ( pBlock == NULL ) {
 				return NULL;
 			}
@@ -73,19 +73,19 @@ XXAPI void* xrtBsmmAlloc(xbsmm objBSMM)
 			}
 		}
 		// 从内存块中分配值
-		unsigned int iBlock = objBSMM->Count >> 8;
-		unsigned int iPos = objBSMM->Count & 0xFF;
-		char* pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
+		uint32 iBlock = objBSMM->Count >> 8;
+		uint32 iPos = objBSMM->Count & 0xFF;
+		ptr pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
 		objBSMM->Count++;
 		return &pBlock[iPos * objBSMM->ItemLength];
 	}
 }
 
 // 释放结构体内存
-XXAPI void xrtBsmmFree(xbsmm objBSMM, void* Ptr)
+XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 {
 	MemPtr_LLNode* pNode = xrtMalloc(sizeof(MemPtr_LLNode));
-	pNode->Ptr = Ptr;
+	pNode->Ptr = p;
 	pNode->Next = objBSMM->LL_Free;
 	objBSMM->LL_Free = pNode;
 }

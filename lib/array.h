@@ -40,7 +40,7 @@ XXAPI void xrtArrayUnit(xarray pArr)
 }
 
 // 分配内存
-XXAPI int xrtArrayAlloc(xarray pArr, uint32 iCount)
+XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount)
 {
 	if ( iCount > pArr->AllocCount ) {
 		// 增量
@@ -86,8 +86,8 @@ XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount)
 	}
 	if ( iPos < pArr->Count ) {
 		// 插入模式（需要移动内存）
-		void* dst = pArr->Memory + ((iPos + iCount) * pArr->ItemLength);
-		void* src = pArr->Memory + (iPos * pArr->ItemLength);
+		ptr dst = pArr->Memory + ((iPos + iCount) * pArr->ItemLength);
+		ptr src = pArr->Memory + (iPos * pArr->ItemLength);
 		memmove(dst, src, (pArr->Count - iPos) * pArr->ItemLength);
 		pArr->Count += iCount;
 		return iPos + 1;
@@ -105,7 +105,7 @@ XXAPI uint32 xrtArrayAppend(xarray pArr, uint32 iCount)
 }
 
 // 交换成员
-XXAPI int xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB)
+XXAPI bool xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB)
 {
 	// 范围检查
 	if ( iPosA == 0 ) { return FALSE; }
@@ -116,7 +116,7 @@ XXAPI int xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB)
 	// 交换成员
 	iPosA--;
 	iPosB--;
-	void* pTemp = xrtMalloc(pArr->ItemLength);
+	ptr pTemp = xrtMalloc(pArr->ItemLength);
 	if ( pTemp == NULL ) {
 		return FALSE;
 	}
@@ -128,7 +128,7 @@ XXAPI int xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB)
 }
 
 // 删除成员
-XXAPI int xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount)
+XXAPI bool xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount)
 {
 	// 不能添加 0 个成员、不能删除不存在的成员（0号成员也不存在）
 	if ( iCount == 0 ) { return FALSE; }
@@ -138,8 +138,8 @@ XXAPI int xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount)
 	iPos--;
 	if ( iPos + iCount < pArr->Count ) {
 		// 中段删除
-		void* dst = pArr->Memory + (iPos * pArr->ItemLength);
-		void* src = pArr->Memory + ((iPos + iCount) * pArr->ItemLength);
+		ptr dst = pArr->Memory + (iPos * pArr->ItemLength);
+		ptr src = pArr->Memory + ((iPos + iCount) * pArr->ItemLength);
 		memmove(dst, src, (pArr->Count - (iPos + iCount)) * pArr->ItemLength);
 		pArr->Count -= iCount;
 	} else {
@@ -166,13 +166,13 @@ XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 }
 
 // 成员排序
-XXAPI int xrtArraySort(xarray pArr, ptr procCompar)
+XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 {
 	if ( pArr ) {
 		qsort(pArr->Memory, pArr->Count, pArr->ItemLength, procCompar);
-		return -1;
+		return TRUE;
 	} else {
-		return 0;
+		return FALSE;
 	}
 }
 

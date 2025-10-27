@@ -38,7 +38,7 @@ XXAPI void xrtSleep(uint32 ms)
 
 
 // 判断是否为闰年
-XXAPI int xrtIsLeapYear(int iYear)
+XXAPI bool xrtIsLeapYear(int iYear)
 {
 	if ( (iYear % 400) == 0 ) {
 		return TRUE;

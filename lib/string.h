@@ -63,8 +63,64 @@ XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize)
 
 
 
+// 比较字符串
+XXAPI bool xrtStrComp(str s1, str s2, size_t iSize, bool bCase)
+{
+	if ( iSize > 0 ) {
+		if ( bCase ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				// windows 方案
+				if ( strnicmp(s1, s2, iSize) == 0 ) {
+					return TRUE;
+				} else {
+					return FALSE;
+				}
+			#else
+				// 其他平台方案
+				if ( strncasecmp(s1, s2, iSize) == 0 ) {
+					return TRUE;
+				} else {
+					return FALSE;
+				}
+			#endif
+		} else {
+			if ( strncmp(s1, s2, iSize) == 0 ) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		}
+	} else {
+		if ( bCase ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				// windows 方案
+				if ( stricmp(s1, s2) == 0 ) {
+					return TRUE;
+				} else {
+					return FALSE;
+				}
+			#else
+				// 其他平台方案
+				if ( strcasecmp(s1, s2) == 0 ) {
+					return TRUE;
+				} else {
+					return FALSE;
+				}
+			#endif
+		} else {
+			if ( strcmp(s1, s2) == 0 ) {
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		}
+	}
+}
+
+
+
 // 字符串转为小写（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-XXAPI str xrtLCase(str sText, size_t iSize, int bSrcRevise)
+XXAPI str xrtLCase(str sText, size_t iSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
@@ -85,7 +141,7 @@ XXAPI str xrtLCase(str sText, size_t iSize, int bSrcRevise)
 
 
 // 字符串转为大写（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-XXAPI str xrtUCase(str sText, size_t iSize, int bSrcRevise)
+XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
@@ -106,7 +162,7 @@ XXAPI str xrtUCase(str sText, size_t iSize, int bSrcRevise)
 
 
 // 搜索字符串（ 没找到字符串的情况下会返回 NULL ）
-XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bCase)
+XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return NULL; }
 	if ( sSubText == NULL ) { xCore.iRet = 0; return NULL; }
@@ -135,7 +191,7 @@ XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int
 		return NULL;
 	}
 }
-XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bCase)
+XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
 	xrtFindStr(sText, iSize, sSubText, iSubSize, bCase);
 	return xCore.iRet;
@@ -213,7 +269,7 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 
 
 // 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise)
+XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
@@ -306,7 +362,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int b
 		return xrtCopyStr(&sText[iCount], iSize - iCount);
 	}
 }
-XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise)
+XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
@@ -398,7 +454,7 @@ XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int b
 		return xrtCopyStr(sText, iSize - iCount);
 	}
 }
-XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise)
+XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
@@ -577,7 +633,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, int bS
 
 
 // 过滤字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, int bSrcRevise)
+XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
@@ -780,7 +836,7 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 
 
 // 字符串分割（ 任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据 ）
-XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, int bSrcRevise)
+XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { goto return_nullstr; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }

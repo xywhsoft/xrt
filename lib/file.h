@@ -262,7 +262,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 
 
 // 关闭文件
-XXAPI int xrtClose(xfile objFile)
+XXAPI void xrtClose(xfile objFile)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -272,9 +272,7 @@ XXAPI int xrtClose(xfile objFile)
 				objFile->obj = NULL;
 			}
 			xrtFree(objFile);
-			return TRUE;
 		}
-		return FALSE;
 	#else
 		// 其他平台方案
 		if ( objFile ) {
@@ -283,9 +281,7 @@ XXAPI int xrtClose(xfile objFile)
 				objFile->idx = 0;
 			}
 			xrtFree(objFile);
-			return TRUE;
 		}
-		return FALSE;
 	#endif
 }
 
@@ -394,7 +390,7 @@ XXAPI size_t xrtGetEOF(xfile objFile)
 
 
 // 是否已经读取到文件末尾
-XXAPI int xrtEOF(xfile objFile)
+XXAPI bool xrtEOF(xfile objFile)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -422,7 +418,7 @@ XXAPI int xrtEOF(xfile objFile)
 
 
 // 设置文件末尾
-XXAPI int xrtSetEOF(xfile objFile)
+XXAPI bool xrtSetEOF(xfile objFile)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -893,12 +889,12 @@ XXAPI ptr xrtFileGetAll(str sPath)
 
 
 // 判断路径是否存在
-XXAPI int xrtPathExists(str sPath)
+XXAPI bool xrtPathExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		u16str sPathW = xrtUTF8to16(sPath, 0);
-		int bRet = GetFileAttributesW(sPathW) != INVALID_FILE_ATTRIBUTES;
+		bool bRet = GetFileAttributesW(sPathW) != INVALID_FILE_ATTRIBUTES;
 		xrtFree(sPathW);
 		return bRet;
 	#else
@@ -914,7 +910,7 @@ XXAPI int xrtPathExists(str sPath)
 
 
 // 判断文件是否存在
-XXAPI int xrtFileExists(str sPath)
+XXAPI bool xrtFileExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -949,7 +945,7 @@ XXAPI int xrtFileExists(str sPath)
 
 
 // 判断目录是否存在
-XXAPI int xrtDirExists(str sPath)
+XXAPI bool xrtDirExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1014,7 +1010,7 @@ XXAPI size_t xrtFileGetSize(str sPath)
 
 
 // 设置文件长度
-XXAPI int xrtFileSetSize(str sPath, size_t iSize)
+XXAPI bool xrtFileSetSize(str sPath, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1036,7 +1032,7 @@ XXAPI int xrtFileSetSize(str sPath, size_t iSize)
 		int fd = open(sPath, O_RDWR | O_CREAT, 0644);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
-			return 0;
+			return FALSE;
 		}
 		ftruncate(fd, iSize);
 		close(fd);
@@ -1070,7 +1066,7 @@ XXAPI int xrtFileGetAttr(str sPath)
 
 
 // 设置文件属性
-XXAPI int xrtFileSetAttr(str sPath, int iAttr)
+XXAPI bool xrtFileSetAttr(str sPath, int iAttr)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1148,7 +1144,7 @@ XXAPI int64 xrtFileGetChangeTime(str sPath)
 
 
 // 复制文件
-XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite)
+XXAPI bool xrtFileCopy(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1216,7 +1212,7 @@ XXAPI int xrtFileCopy(str sSrc, str sDst, int bReWrite)
 
 
 // 移动文件（重命名）
-XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
+XXAPI bool xrtFileMove(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1232,7 +1228,11 @@ XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
 		int iRet = MoveFileExW(sSrcW, sDstW, MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH | (bReWrite ? MOVEFILE_REPLACE_EXISTING : 0));
 		xrtFree(sSrcW);
 		xrtFree(sDstW);
-		return iRet;
+		if ( iRet ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#else
 		// 其他平台方案
 		int bExistSrc = xrtFileExists(sSrc);
@@ -1259,24 +1259,32 @@ XXAPI int xrtFileMove(str sSrc, str sDst, int bReWrite)
 
 
 // 删除文件
-XXAPI int xrtFileDelete(str sPath)
+XXAPI bool xrtFileDelete(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		u16str sPathW = xrtUTF8to16(sPath, 0);
 		int iRet = DeleteFileW(sPathW);
 		xrtFree(sPathW);
-		return iRet;
+		if ( iRet ) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	#else
 		// 其他平台方案
 		int iRet = remove(sPath);
-		return iRet;
+		if ( iRet ) {
+			return FALSE;
+		} else {
+			return TRUE;
+		}
 	#endif
 }
 
 
 
-// 扫描文件夹
+// 扫描文件夹 ( 返回文件数量 )
 #if defined(_WIN32) || defined(_WIN64)
 	// windows 方案
 	int __pri__DirScan_Proc(str sPath, size_t iSize, int bRecu, ptr pProc, ptr Param)
@@ -1414,7 +1422,7 @@ XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param)
 
 
 // 创建文件夹
-XXAPI int xrtDirCreate(str sPath)
+XXAPI bool xrtDirCreate(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1436,7 +1444,7 @@ XXAPI int xrtDirCreate(str sPath)
 
 
 // 创建多级文件夹
-XXAPI int xrtDirCreateAll(str sPath)
+XXAPI bool xrtDirCreateAll(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1492,7 +1500,7 @@ XXAPI int xrtDirCreateAll(str sPath)
 
 
 
-// 复制文件夹
+// 复制文件夹 ( 返回操作的文件数量 )
 #if defined(_WIN32) || defined(_WIN64)
 	typedef struct {
 		str DstPath;
@@ -1562,7 +1570,7 @@ XXAPI int xrtDirCreateAll(str sPath)
 		return FALSE;
 	}
 #endif
-XXAPI int xrtDirCopy(str sSrc, str sDst, int bReWrite)
+XXAPI int xrtDirCopy(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1601,8 +1609,8 @@ XXAPI int xrtDirCopy(str sSrc, str sDst, int bReWrite)
 
 
 
-// 移动文件夹
-XXAPI int xrtDirMove(str sSrc, str sDst, int bReWrite)
+// 移动文件夹 ( 返回操作的文件数量 )
+XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
@@ -1647,7 +1655,7 @@ XXAPI int xrtDirMove(str sSrc, str sDst, int bReWrite)
 
 
 
-// 删除文件夹
+// 删除文件夹 ( 返回操作的文件数量 )
 #if defined(_WIN32) || defined(_WIN64)
 	int __pri__DirDeleteProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{

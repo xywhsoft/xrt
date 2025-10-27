@@ -2,7 +2,7 @@
 
 
 // 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
-XXAPI xmemunit xrtMemUnitCreate(unsigned int iItemLength)
+XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength)
 {
 	iItemLength += sizeof(MMU_Value);
 	xmemunit objUnit = xrtMalloc(sizeof(xmemunit_struct) + (256 * iItemLength));
@@ -27,7 +27,7 @@ XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit)
 	if ( objUnit->Count > 255 ) {
 		return NULL;
 	}
-	int idx = objUnit->Count;
+	uint8 idx = objUnit->Count;
 	// 优先复用已释放的数据
 	if ( objUnit->FreeCount > 0 ) {
 		idx = objUnit->FreeList[objUnit->FreeOffset];
@@ -41,7 +41,7 @@ XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit)
 }
 
 // 释放内存管理单元中某个元素
-XXAPI int xrtMemUnitFreeIdx(xmemunit objUnit, unsigned char idx)
+XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx)
 {
 	if ( objUnit == NULL ) {
 		return FALSE;
@@ -62,7 +62,7 @@ XXAPI int xrtMemUnitFreeIdx(xmemunit objUnit, unsigned char idx)
 	v->ItemFlag = 0;
 	return TRUE;
 }
-XXAPI int xrtMemUnitFree(xmemunit objUnit, void* obj)
+XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 {
 	if ( objUnit == NULL ) {
 		return FALSE;
@@ -71,7 +71,7 @@ XXAPI int xrtMemUnitFree(xmemunit objUnit, void* obj)
 	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
 		return FALSE;
 	}
-	unsigned char idx = v->ItemFlag & 0xFF;
+	uint8 idx = v->ItemFlag & 0xFF;
 	// 释放内存
 	objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
 	objUnit->Count--;
@@ -86,7 +86,7 @@ XXAPI int xrtMemUnitFree(xmemunit objUnit, void* obj)
 }
 
 // 进行一轮GC，将 标记 或 未标记 的内存全部回收
-XXAPI int xrtMemUnitGC(xmemunit objUnit, int bFreeMark)
+XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 {
 	if ( objUnit == NULL ) {
 		return 0;

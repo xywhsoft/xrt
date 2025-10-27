@@ -95,7 +95,7 @@ XXAPI str xrtPathGetDir(str sPath, size_t iSize)
 
 
 // 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
-XXAPI int xrtPathIsAbs(str sPath, size_t iSize)
+XXAPI bool xrtPathIsAbs(str sPath, size_t iSize)
 {
 	if ( sPath == NULL ) { return FALSE; }
 	if ( iSize == 0 ) { iSize = strlen(sPath); }

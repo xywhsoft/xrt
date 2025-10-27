@@ -238,7 +238,7 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 	size_t iLine = 1;
 	size_t iLinePos = 0;
 	// 创建临时缓冲区对象
-	xbuffer objBuf = xrtBufferCreate(0, 0x10000);
+	xbuffer objBuf = xrtBufferCreate(0);
 	if ( objBuf == NULL ) {
 		XTE_OnLexerError(1);
 	}
@@ -820,7 +820,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 		return NULL;
 	}
 	// 申请自增长缓冲区
-	xbuffer objBuf = xrtBufferCreate(65536, 65536);
+	xbuffer objBuf = xrtBufferCreate(0);
 	if ( objBuf == NULL ) {
 		return NULL;
 	}

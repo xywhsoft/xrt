@@ -62,7 +62,7 @@ XXAPI str xrtMakeXIDS()
 
 
 // 比较两个 XID 是否相同
-XXAPI int xrtCompXID(xid pXID1, xid pXID2)
+XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 {
 	if ( (pXID1->Time == pXID2->Time) && (pXID1->Tick == pXID2->Tick) && (pXID1->Addr == pXID2->Addr) && (pXID1->Rand == pXID2->Rand) ) {
 		return TRUE;
