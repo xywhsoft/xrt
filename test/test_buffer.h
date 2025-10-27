@@ -10,7 +10,8 @@ void Test_Buffer(xrtGlobalData* xCore)
 	
 	// subject 1 : create object
 	printf("Buffer test subject 1 : create object\n\n");
-	xbuffer objBuffer = xrtBufferCreate(5, 10);
+	xbuffer objBuffer = xrtBufferCreate(10);
+	xrtBufferMalloc(objBuffer, 5);
 	if ( objBuffer ) {
 		printf("Buffer object : %p\t\t\t\tpass! √\n", objBuffer);
 		if ( objBuffer->Buffer ) {

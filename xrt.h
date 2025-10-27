@@ -974,8 +974,8 @@
 	// 非内存管理器管理的内存
 	#define MMU_FLAG_EXT				0xBFFFFFFF
 	
-	// MM256 or MM64K GC标记
-	#define xrtMemUnitGC_Mark(p) ((MMU_ValuePtr)((ptr)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC
+	// GC标记
+	#define xrtMemUnitGC_Mark(p) (((MMU_ValuePtr)((void*)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
 	
 	// 数据管理单元数据结构
 	typedef struct {

@@ -41,6 +41,15 @@
 
 
 
+void OnError(str sError)
+{
+	printf("X Runtime Error : %s\n", sError);
+}
+
+
+
+
+
 int main(int argc, char** argv)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -48,7 +57,7 @@ int main(int argc, char** argv)
 	#endif
 	
 	xrtGlobalData* xCore = xrtInit();
-	xCore->DebugMode = TRUE;
+	xCore->OnError = OnError;
 	printf("测试开始\n\n");
 	
 	

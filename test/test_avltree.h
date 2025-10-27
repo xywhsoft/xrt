@@ -253,7 +253,7 @@ void Test_AVLTree(xrtGlobalData* xCore)
 	printf("AVLTree test subject 7 : add node\n\n");
 	int iValArr4[] = { 380, 241, 392, 270, 391, 208, 321, 293, 325, 227 };
 	for ( int i = 0; i < 10; i++ ) {
-		int bNew;
+		bool bNew;
 		AVLT_Test_Object objNode = xrtAVLTreeInsert(objTree, (void*)(intptr_t)iValArr4[i], &bNew);
 		if ( objNode ) {
 			objNode->Val = iValArr4[i];
@@ -294,7 +294,7 @@ void Test_AVLTree(xrtGlobalData* xCore)
 	printf("AVLTree test subject 8 : add node\n\n");
 	int iValArr5[] = { 380, 444, 453, 270, 391, 442, 486, 293, 497, 227, 552, 504, 516, 583, 565, 569, 597, 554, 543, 529, 662, 607, 642, 623, 689, 604, 666, 639, 677, 679 };
 	for ( int i = 0; i < 30; i++ ) {
-		int bNew;
+		bool bNew;
 		AVLT_Test_Object objNode = xrtAVLTreeInsert(objTree, (void*)(intptr_t)iValArr5[i], &bNew);
 		if ( objNode ) {
 			objNode->Val = iValArr5[i];
