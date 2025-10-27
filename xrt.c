@@ -75,7 +75,6 @@ xrtGlobalData xCore = { FALSE };
 #include "lib/mempool.h"
 #include "lib/dict.h"
 #include "lib/list.h"
-
 #include "lib/value.h"
 #include "lib/jnum.h"
 #include "lib/json.h"

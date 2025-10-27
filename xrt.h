@@ -2087,6 +2087,123 @@
 	
 	/* ------------------------------------ Template 函数库 ------------------------------------ */
 	
+	// 最大支持参数数量
+	#define XTE_PARAM_MAXCOUNT		6
+	
+	// Token 定义编号
+	#define XTE_TK_TEXT				0				// 文本内容
+	#define XTE_TK_COMMEN			1				// 注释				{! * }
+	#define XTE_TK_VAR				0x100			// 代入变量			{$ * : *}			参数：为 NULL 默认值
+	#define XTE_TK_NUM				0x101			// 代入数字变量		{% * : *}			参数：格式
+	#define XTE_TK_TIME				0x102			// 代入时间变量		{& * : *}			参数：格式
+	#define XTE_TK_BOOL				0x103			// 根据逻辑代入值		{? * : * : * }		参数：为真时的值和为假时的值
+	#define XTE_TK_ARR				0x104			// 代入数组			{* * : *}			参数：套用子模板
+	#define XTE_TK_PROC				0x105			// 代入函数或流程		{@ * : * ...}		参数：函数参数列表
+	#define XTE_TK_SUBTEMPLATE		0x106			// 代入子模板			{= * : * }			参数：子模板环境变量名
+	#define XTE_TK_SYMBOL			0xFFFF			// 预定义符号			{# * : * ...}		参数：语句参数列表
+	#define XTE_MODE_BLOCK			0xFFFE			// 特殊符号，表示进入数据块采集模式，以 {#end} 结尾
+	
+	// Token 扩展编号
+	#define XTE_TK_INCLUDE			0x10000			// 引用外部文件
+	#define XTE_TK_DEFINE			0x10001			// 定义子模板
+	#define XTE_TK_SCRIPT			0x10002			// 脚本块
+	#define XTE_TK_IF				0x20000			// 判断语句
+	#define XTE_TK_ELSEIF			0x20001			// 判断语句
+	#define XTE_TK_ELSE				0x20002			// 判断语句
+	#define XTE_TK_FOR				0x30000			// 循环语句
+	#define XTE_TK_FOREACH			0x30001			// 迭代循环语句
+	#define XTE_TK_END				0xFFFFFF		// 语句结束
+	#define XTE_TK_USER				0x1000000		// 大于这个编号的，XTE模板后续更新不会使用，可以安全的用于扩展
+	
+	#define XTE_IDTPE_DEFAULT		0				// 
+	#define XTE_IDTPE_BLOCK			1
+	
+	// Ident Info 数据结构（用于定义标识符）
+	typedef struct {
+		char* Ident;								// 标识符
+		unsigned int TokenIndex;					// 对应的 Token 编号
+		unsigned short Type;						// 0 = 单语句、1 = 独立语句块(以 {#end} 结尾)
+		unsigned short Size;						// 标识符长度
+		unsigned short MinParamCount;				// 最小参数数量
+		unsigned short MaxParamCount;				// 最大参数数量
+		unsigned int Hash;							// 标识符哈希值
+	} XTE_IdentInfo_Struct, *XTE_IdentInfo;
+	
+	// Token Item 数据结构
+	typedef struct {
+		unsigned int Type;							// Token 定义编号
+		char* Text;									// 关联文本
+		size_t Size;								// 关联文本长度
+		unsigned int ParamCount;					// 参数数量
+		char* ParamText[XTE_PARAM_MAXCOUNT];		// 参数文本
+		unsigned int ParamSize[XTE_PARAM_MAXCOUNT];	// 参数长度
+		XTE_IdentInfo IdentInfo;					// 标识符语句对应的标识符信息结构体指针
+		unsigned int RefLine;						// 语句在源文件中所在行
+		unsigned int RefLinePos;					// 语句在源文件中所在行的位置
+		unsigned int RefPos;						// 语句在源文件中所在的位置
+		unsigned int RefSize;						// 语句在源文件中的长度
+	} XTE_TokenItem_Struct, *XTE_TokenItem;
+	
+	// Token List 数据结构
+	typedef struct {
+		int Success;								// 解析是否成功
+		int ErrorCode;								// 错误代码（0=成功）
+		const char* ErrorDesc;						// 错误描述
+		unsigned int ErrorLine;						// 错误行号
+		unsigned int ErrorLinePos;					// 错误行位置
+		unsigned int ErrorPos;						// 错误位置
+		unsigned int ErrorRefLine;					// 出错参考行
+		unsigned int ErrorRefLinePos;				// 出错参考行位置
+		unsigned int ErrorRefPos;					// 错误参考位置
+		xarray_struct Tokens;						// Token 列表
+	} XTE_TokenList_Struct, *XTE_TokenList;
+	
+	// xTemplate Engine Lite 数据结构
+	typedef struct {
+		int Success;								// 解析是否成功
+		int ErrorCode;								// 错误代码（0=成功）
+		const char* ErrorDesc;						// 错误描述
+		unsigned int ErrorLine;						// 错误行号
+		unsigned int ErrorLinePos;					// 错误行位置
+		unsigned int ErrorPos;						// 错误位置
+		unsigned int ErrorRefLine;					// 出错参考行
+		unsigned int ErrorRefLinePos;				// 出错参考行位置
+		unsigned int ErrorRefPos;					// 错误参考位置
+		xarray Tokens;								// Token 列表
+		xparray_struct Actions;						// 编译后的动作列表
+		xdict_struct SubTemplates;					// 子模板列表（哈希表）
+	} XTE_LiteStruct, *XTE_LiteObject;
+	
+	// 创建关键字列表（失败返回 NULL）
+	XXAPI xarray xteCreateIdentList();
+	
+	// 销毁关键字列表
+	XXAPI void xteDestroyIdentList(xarray objList);
+	
+	// 添加一个关键字到列表
+	XXAPI int xteAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned int iIndex, unsigned int iType, unsigned int iMinParamCount, unsigned int iMaxParamCount);
+	
+	// 释放 XTE_TokenList
+	XXAPI void xteLexerFree(XTE_TokenList arrToken);
+	
+	// 解析模板文件为 Token 列表
+	XXAPI XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket);
+	
+	// 将 XTE_TokenList 转换为 XTE_LiteObject（XTE_TokenList将被释放）
+	XXAPI XTE_LiteObject xteLiteParseFromTokenList(XTE_TokenList objToks);
+	
+	// 解析返回语法列表
+	XXAPI XTE_LiteObject xteLiteParse(char* sText, size_t iSize, char* sBracket);
+	
+	// 释放 XTE_LiteObject 对象
+	XXAPI void xteLiteParseFree(XTE_LiteObject objLite);
+	
+	// 根据 XTE_LiteObject 模板对象生成文档
+	/*
+	XXAPI char* xteLiteMakeActions(PAMM_Object arrAction, XTE_LiteObject objTemplate, XTE_Value tblVal, XTE_Value tblRoot, XTE_Value tblENV, AVLHT32_Object tblInclude, size_t* pRetSize);
+	XXAPI char* xteLiteMake(XTE_LiteObject objTemplate, XTE_Value tblVal, XTE_Value tblENV, AVLHT32_Object tblInclude, size_t* pRetSize);
+	*/
+	
 	
 	
 #endif
