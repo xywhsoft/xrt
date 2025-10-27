@@ -2,7 +2,7 @@
 
 
 // 创建结构体动态栈
-XXAPI xdynstack xrtDynStackCreate(unsigned int iItemLength)
+XXAPI xdynstack xrtDynStackCreate(uint32 iItemLength)
 {
 	xdynstack objSTK = xrtMalloc(sizeof(xdynstack_struct));
 	if ( objSTK ) {
@@ -21,7 +21,7 @@ XXAPI void xrtDynStackDestroy(xdynstack objSTK)
 }
 
 // 初始化结构体动态栈（对自维护结构体指针使用，和 SDSTK_Create 功能类似）
-XXAPI void xrtDynStackInit(xdynstack objSTK, unsigned int iItemLength)
+XXAPI void xrtDynStackInit(xdynstack objSTK, uint32 iItemLength)
 {
 	objSTK->ItemLength = iItemLength;
 	objSTK->Count = 0;
@@ -43,8 +43,8 @@ XXAPI void xrtDynStackUnit(xdynstack objSTK)
 // 压栈
 XXAPI ptr xrtDynStackPush(xdynstack objSTK)
 {
-	char* pBlock = NULL;
-	unsigned int iBlock = objSTK->Count >> 8;
+	str pBlock = NULL;
+	uint32 iBlock = objSTK->Count >> 8;
 	if ( objSTK->MMU.Count > iBlock ) {
 		// 直接获取现有的内存块
 		pBlock = objSTK->MMU.Memory[iBlock];
@@ -54,7 +54,7 @@ XXAPI ptr xrtDynStackPush(xdynstack objSTK)
 		if ( pBlock == NULL ) {
 			return NULL;
 		}
-		unsigned int idx = xrtPtrArrayAppend(&objSTK->MMU, pBlock);
+		uint32 idx = xrtPtrArrayAppend(&objSTK->MMU, pBlock);
 		// !!! 错误处理 !!! 无法将内存添加到内存阵列
 		if ( idx == 0 ) {
 			xrtSetError("Dynamic Stack : add memory unit failed.", FALSE);
@@ -62,11 +62,11 @@ XXAPI ptr xrtDynStackPush(xdynstack objSTK)
 		}
 	}
 	// 数据压栈
-	unsigned int iPos = objSTK->Count & 0xFF;
+	uint32 iPos = objSTK->Count & 0xFF;
 	objSTK->Count++;
 	return &pBlock[iPos * objSTK->ItemLength];
 }
-XXAPI uint xrtDynStackPushData(xdynstack objSTK, ptr pData)
+XXAPI uint32 xrtDynStackPushData(xdynstack objSTK, ptr pData)
 {
 	ptr p = xrtDynStackPush(objSTK);
 	if ( p == NULL ) {
@@ -75,7 +75,7 @@ XXAPI uint xrtDynStackPushData(xdynstack objSTK, ptr pData)
 	memcpy(p, pData, objSTK->ItemLength);
 	return objSTK->Count;
 }
-XXAPI uint xrtDynStackPushPtr(xdynstack objSTK, ptr pVal)
+XXAPI uint32 xrtDynStackPushPtr(xdynstack objSTK, ptr pVal)
 {
 	ptr* p = (ptr*)xrtDynStackPush(objSTK);
 	if ( p == NULL ) {
@@ -121,39 +121,39 @@ XXAPI ptr xrtDynStackTopPtr(xdynstack objSTK)
 }
 
 // 获取任意位置对象
-XXAPI ptr xrtDynStackGetPos(xdynstack objSTK, unsigned int iPos)
+XXAPI ptr xrtDynStackGetPos(xdynstack objSTK, uint32 iPos)
 {
 	if ( iPos > 0 ) {
 		iPos--;
 		if ( iPos < objSTK->Count ) {
-			char* pBlock = objSTK->MMU.Memory[iPos >> 8];
+			str pBlock = objSTK->MMU.Memory[iPos >> 8];
 			return &pBlock[(iPos & 0xFF) * objSTK->ItemLength];
 		}
 	}
 	return NULL;
 }
-XXAPI ptr xrtDynStackGetPos_Unsafe(xdynstack objSTK, unsigned int iPos)
+XXAPI ptr xrtDynStackGetPos_Unsafe(xdynstack objSTK, uint32 iPos)
 {
 	iPos--;
-	char* pBlock = objSTK->MMU.Memory[iPos >> 8];
+	str pBlock = objSTK->MMU.Memory[iPos >> 8];
 	return &pBlock[(iPos & 0xFF) * objSTK->ItemLength];
 }
-XXAPI ptr xrtDynStackGetPosPtr(xdynstack objSTK, unsigned int iPos)
+XXAPI ptr xrtDynStackGetPosPtr(xdynstack objSTK, uint32 iPos)
 {
 	if ( iPos > 0 ) {
 		iPos--;
 		if ( iPos < objSTK->Count ) {
-			char* pBlock = objSTK->MMU.Memory[iPos >> 8];
+			str pBlock = objSTK->MMU.Memory[iPos >> 8];
 			ptr* p = (ptr*)&pBlock[(iPos & 0xFF) * objSTK->ItemLength];
 			return p[0];
 		}
 	}
 	return NULL;
 }
-XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, unsigned int iPos)
+XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 {
 	iPos--;
-	char* pBlock = objSTK->MMU.Memory[iPos >> 8];
+	str pBlock = objSTK->MMU.Memory[iPos >> 8];
 	ptr* p = (ptr*)&pBlock[(iPos & 0xFF) * objSTK->ItemLength];
 	return p[0];
 }

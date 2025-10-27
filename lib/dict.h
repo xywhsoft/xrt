@@ -27,7 +27,7 @@ int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
 
 
 // 创建哈希表
-XXAPI xdict xrtDictCreate(unsigned int iItemLength)
+XXAPI xdict xrtDictCreate(uint32 iItemLength)
 {
 	xdict objHT = xrtMalloc(sizeof(xdict_struct));
 	if ( objHT ) {
@@ -54,10 +54,10 @@ void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 		xrtFree(pNode->Key);
 	}
 }
-XXAPI void xrtDictInit(xdict objHT, unsigned int iItemLength)
+XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength)
 {
-	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (void*)Dict_CompProc);
-	objHT->AVLT.FreeProc = (void*)AVLHT32_FreeProc;
+	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc);
+	objHT->AVLT.FreeProc = (ptr)AVLHT32_FreeProc;
 	objHT->Parent = NULL;
 	objHT->MP = NULL;
 }
@@ -69,11 +69,11 @@ XXAPI void xrtDictUnit(xdict objHT)
 }
 
 // 设置值
-XXAPI void* xrtDictSet(xdict objHT, void* sKey, unsigned int iKeyLen, int* bNewRet)
+XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	int bNew;
+	bool bNew;
 	Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
 	if ( pNode ) {
 		if ( bNewRet ) {
@@ -95,12 +95,12 @@ XXAPI void* xrtDictSet(xdict objHT, void* sKey, unsigned int iKeyLen, int* bNewR
 	return NULL;
 }
 
-// 设置值 - 当值为 void* 时直接修改指针内容
-XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVal, void** ppOldVal)
+// 设置值 - 当值为 ptr 时直接修改指针内容
+XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	int bNew;
+	bool bNew;
 	Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
 	if ( pNode ) {
 		if ( bNew ) {
@@ -116,8 +116,8 @@ XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVa
 		}
 		// 获取单指针数据结构
 		struct {
-			void* val;
-		} *pData = (void*)&pNode[1];
+			ptr val;
+		} *pData = (ptr)&pNode[1];
 		// 传回旧值
 		if ( ppOldVal ) {
 			if ( bNew ) {
@@ -128,21 +128,21 @@ XXAPI int xrtDictSetPtr(xdict objHT, void* sKey, unsigned int iKeyLen, void* pVa
 		}
 		// 修改为新值
 		pData->val = pVal;
-		return 1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 // 获取值
-XXAPI void* xrtDictGet(xdict objHT, void* sKey, unsigned int iKeyLen)
+XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
 	return xrtDictGetWithKey(objHT, &objKey);
 }
 
-// 获取值 - 当值为 void* 时直接获取指针内容
-XXAPI void* xrtDictGetPtr(xdict objHT, void* sKey, unsigned int iKeyLen)
+// 获取值 - 当值为 ptr 时直接获取指针内容
+XXAPI ptr xrtDictGetPtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
@@ -156,7 +156,7 @@ XXAPI void* xrtDictGetPtr(xdict objHT, void* sKey, unsigned int iKeyLen)
 }
 
 // 删除值
-XXAPI int xrtDictRemove(xdict objHT, void* sKey, unsigned int iKeyLen)
+XXAPI bool xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
@@ -164,7 +164,7 @@ XXAPI int xrtDictRemove(xdict objHT, void* sKey, unsigned int iKeyLen)
 }
 
 // 删除值，当值为 ptr 时返回 ptr
-XXAPI ptr xrtDictRemovePtr(xdict objHT, void* sKey, unsigned int iKeyLen)
+XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
@@ -183,25 +183,25 @@ XXAPI ptr xrtDictRemovePtr(xdict objHT, void* sKey, unsigned int iKeyLen)
 }
 
 // 判断值是否存在
-XXAPI int xrtDictExists(xdict objHT, void* sKey, unsigned int iKeyLen)
+XXAPI bool xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
 	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
 	if ( pNode ) {
-		return -1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 // 获取表内元素数量
-XXAPI unsigned int xrtDictCount(xdict objHT)
+XXAPI uint32 xrtDictCount(xdict objHT)
 {
 	return objHT->AVLT.Count;
 }
 
 // 遍历表元素
-int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, void* pArg)
+int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, ptr pArg)
 {
 	if ( root ) {
 		// 递归左子树
@@ -212,7 +212,7 @@ int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, void* pArg)
 		}
 		// 调用回调函数
 		if ( procEach ) {
-			if ( procEach(xrtAVLTreeGetNodeData(root), ((void*)root) + sizeof(xavltnode_struct) + sizeof(Dict_Key), pArg) ) {
+			if ( procEach(xrtAVLTreeGetNodeData(root), ((ptr)root) + sizeof(xavltnode_struct) + sizeof(Dict_Key), pArg) ) {
 				return -1;
 			}
 		}
@@ -225,7 +225,7 @@ int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, void* pArg)
 	}
 	return 0;
 }
-XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, void* pArg)
+XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 {
 	AVLHT32_WalkRecuProc(objHT->AVLT.RootNode, procEach, pArg);
 }

@@ -75,7 +75,7 @@ XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM)
 		// 从内存块中分配值
 		uint32 iBlock = objBSMM->Count >> 8;
 		uint32 iPos = objBSMM->Count & 0xFF;
-		ptr pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
+		str pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
 		objBSMM->Count++;
 		return &pBlock[iPos * objBSMM->ItemLength];
 	}

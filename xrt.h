@@ -945,7 +945,7 @@
 	{
 		uint32 iBlock = iIdx >> 8;
 		uint32 iPos = iIdx & 0xFF;
-		ptr pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
+		str pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
 		if ( pBlock ) {
 			return &pBlock[iPos * objBSMM->ItemLength];
 		} else {
@@ -1074,13 +1074,13 @@
 	XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM);
 	
 	// 将内存管理器申请的内存释放掉
-	XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr ptr);
+	XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p);
 	
 	// 将一块内存标记为使用中
 	#define xrtFSMemPoolGC_Mark	xrtMemUnitGC_Mark
 	
 	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
-	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, int bFreeMark);
+	XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark);
 	
 	
 	
@@ -1105,8 +1105,8 @@
 	
 	// 压栈
 	XXAPI ptr xrtStackPush(xstack objSTK);
-	XXAPI uint xrtStackPushData(xstack objSTK, ptr pData);
-	XXAPI uint xrtStackPushPtr(xstack objSTK, ptr pVal);
+	XXAPI uint32 xrtStackPushData(xstack objSTK, ptr pData);
+	XXAPI uint32 xrtStackPushPtr(xstack objSTK, ptr pVal);
 	
 	// 出栈
 	XXAPI ptr xrtStackPop(xstack objSTK);
@@ -1117,10 +1117,10 @@
 	XXAPI ptr xrtStackTopPtr(xstack objSTK);
 	
 	// 获取任意位置对象
-	XXAPI ptr xrtStackGetPos(xstack objSTK, uint iPos);
-	XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint iPos);
-	XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint iPos);
-	XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint iPos);
+	XXAPI ptr xrtStackGetPos(xstack objSTK, uint32 iPos);
+	XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint32 iPos);
+	XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint32 iPos);
+	XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos);
 	
 	
 	
@@ -1155,8 +1155,8 @@
 	
 	// 压栈
 	XXAPI ptr xrtDynStackPush(xdynstack objSTK);
-	XXAPI uint xrtDynStackPushData(xdynstack objSTK, ptr pData);
-	XXAPI uint xrtDynStackPushPtr(xdynstack objSTK, ptr pVal);
+	XXAPI uint32 xrtDynStackPushData(xdynstack objSTK, ptr pData);
+	XXAPI uint32 xrtDynStackPushPtr(xdynstack objSTK, ptr pVal);
 	
 	// 出栈
 	XXAPI ptr xrtDynStackPop(xdynstack objSTK);
@@ -1273,7 +1273,7 @@
 	typedef int (*AVLTree_CompProc)(ptr pNode, ptr pKey);
 	
 	// 遍历回调函数
-	typedef int (*AVLTree_EachProc)(ptr pNode, ptr pArg);
+	typedef bool (*AVLTree_EachProc)(ptr pNode, ptr pArg);
 	
 	// 获取 xavltnode 对象
 	#define xrtAVLTreeGetNodeBase(p) ((xavltnode)((ptr)p - sizeof(xavltnode_struct)))
@@ -1306,8 +1306,8 @@
 	#define xrtAVLTB_Clear xrtAVLTB_Unit
 	
 	// 遍历 AVLTree 所有节点
-	XXAPI int xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, ptr pArg);
-	XXAPI int xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg);
+	XXAPI bool xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, ptr pArg);
+	XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg);
 	#define xrtAVLTB_Walk(obj, p, a) xrtAVLTB_WalkRecuProc(obj->RootNode, (ptr)p, (ptr)a)
 	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) xrtAVLTB_WalkExRecuProc(obj->RootNode, (ptr)p1, (ptr)p2, (ptr)p3, (ptr)a)
 	
@@ -1341,10 +1341,10 @@
 	XXAPI void xrtAVLTreeUnit(xavltree objAVLT);
 	
 	// 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
-	XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, int* bNew);
+	XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew);
 	
 	// 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
-	XXAPI int xrtAVLTreeRemove(xavltree objAVLT, ptr pKey);
+	XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey);
 	
 	// 在 AVLTree 中查找节点
 	XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey);
@@ -1398,13 +1398,13 @@
 	} xmempool_struct, *xmempool;
 	
 	// 创建内存池
-	XXAPI xmempool xrtMemPoolCreate(int bCustom);
+	XXAPI xmempool xrtMemPoolCreate(int iCustom);
 	
 	// 销毁内存池
 	XXAPI void xrtMemPoolDestroy(xmempool objMP);
 	
 	// 初始化内存池（对自维护结构体指针使用，和 MP256_Create 功能类似）
-	XXAPI void xrtMemPoolInit(xmempool objMP, int bCustom);
+	XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom);
 	
 	// 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）
 	XXAPI void xrtMemPoolUnit(xmempool objMP);
@@ -1419,7 +1419,7 @@
 	#define xrtMemPoolGC_Mark	xrtMemUnitGC_Mark
 	
 	// 进行一轮GC，将 标记 或 未标记 的内存全部回收
-	XXAPI void xrtMemPoolGC(xmempool objMP, int bFreeMark);
+	XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark);
 	
 	
 	
@@ -1440,7 +1440,7 @@
 	} xdict_struct, *xdict;
 	
 	// 字典遍历回调函数
-	typedef int (*Dict_EachProc)(Dict_Key* pKey, ptr pVal, ptr pArg);
+	typedef bool (*Dict_EachProc)(Dict_Key* pKey, ptr pVal, ptr pArg);
 	
 	// 创建哈希表
 	XXAPI xdict xrtDictCreate(uint32 iItemLength);
@@ -1455,10 +1455,10 @@
 	XXAPI void xrtDictUnit(xdict objHT);
 	
 	// 设置值
-	XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, int* bNewRet);
+	XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet);
 	
 	// 设置值 - 当值为 ptr 时直接修改指针内容
-	XXAPI int xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal);
+	XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal);
 	
 	// 获取值
 	static inline ptr xrtDictGetWithKey(xdict objHT, Dict_Key* objKey)
@@ -1479,13 +1479,13 @@
 	XXAPI ptr xrtDictGetPtr(xdict objHT, ptr sKey, uint32 iKeyLen);
 	
 	// 删除值
-	XXAPI int xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen);
+	XXAPI bool xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen);
 	
 	// 删除值，当值为 ptr 时返回 ptr
 	XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen);
 	
 	// 判断值是否存在
-	XXAPI int xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen);
+	XXAPI bool xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen);
 	
 	// 删除所有成员
 	#define xrtDictRemoveAll xrtDictUnit
@@ -1510,7 +1510,7 @@
 	} xlist_struct, *xlist;
 	
 	// 列表遍历回调函数
-	typedef int (*List_EachProc)(int64 pKey, ptr pVal, ptr pArg);
+	typedef bool (*List_EachProc)(int64 pKey, ptr pVal, ptr pArg);
 	
 	// 创建列表
 	XXAPI xlist xrtListCreate(uint32 iItemLength);
@@ -1525,10 +1525,10 @@
 	XXAPI void xrtListUnit(xlist objList);
 	
 	// 设置值
-	XXAPI ptr xrtListSet(xlist objList, int64 iKey, int* bNewRet);
+	XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet);
 	
 	// 设置值 - 当值为 ptr 时直接修改指针内容
-	XXAPI int xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal);
+	XXAPI bool xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal);
 	
 	// 获取值
 	XXAPI ptr xrtListGet(xlist objList, int64 iKey);
@@ -1537,13 +1537,13 @@
 	XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey);
 	
 	// 删除值
-	XXAPI int xrtListRemove(xlist objList, int64 iKey);
+	XXAPI bool xrtListRemove(xlist objList, int64 iKey);
 	
 	// 删除值，当值为 ptr 时返回 ptr
 	XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey);
 	
 	// 判断值是否存在
-	XXAPI int xrtListExists(xlist objList, int64 iKey);
+	XXAPI bool xrtListExists(xlist objList, int64 iKey);
 	
 	// 删除所有成员
 	#define xrtListRemoveAll xrtListUnit
@@ -1598,6 +1598,7 @@
 		uint32 RefCount:24;
 		uint32 Size;
 		union {
+			bool vBool;
 			int64 vInt;
 			double vFloat;
 			str vText;
@@ -1634,10 +1635,10 @@
 	
 	// 创建值
 	XXAPI xvalue xvoCreateNull();
-	XXAPI xvalue xvoCreateBool(int bVal);
+	XXAPI xvalue xvoCreateBool(bool bVal);
 	XXAPI xvalue xvoCreateInt(int64 iVal);
 	XXAPI xvalue xvoCreateFloat(double fVal);
-	XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, int iCharset, int bColloc);
+	XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, int iCharset, bool bColloc);
 	XXAPI xvalue xvoCreateTime(xtime tVal);
 	XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
 	XXAPI xvalue xvoCreateFunc(ptr pFunc, int iType);

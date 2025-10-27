@@ -58,7 +58,7 @@ XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
 }
 
 // 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
-XXAPI void* xrtAVLTreeInsert(xavltree objAVLT, void* pKey, int* bNew)
+XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew)
 {
 	// 创建缓存节点 [节点添加可能失败，缓存节点会留到下次添加节点时继续使用]
 	if ( objAVLT->NodeCache == NULL ) {
@@ -89,7 +89,7 @@ XXAPI void* xrtAVLTreeInsert(xavltree objAVLT, void* pKey, int* bNew)
 }
 
 // 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
-XXAPI int xrtAVLTreeRemove(xavltree objAVLT, void* pKey)
+XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey)
 {
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)objAVLT, objAVLT->CompProc, pKey);
 	if ( pDelNode ) {
@@ -97,14 +97,14 @@ XXAPI int xrtAVLTreeRemove(xavltree objAVLT, void* pKey)
 			objAVLT->FreeProc(objAVLT, &pDelNode[1]);
 		}
 		xrtFSMemPoolFree(&objAVLT->objMM, pDelNode);
-		return -1;
+		return TRUE;
 	} else {
-		return 0;
+		return FALSE;
 	}
 }
 
 // 从 AVLTree 中查找节点（返回 AVLTree 节点对象）
-XXAPI void* xrtAVLTreeSearch(xavltree objAVLT, void* pKey)
+XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 {
 	xavltnode pNode = xrtAVLTB_Search((xavltbase)objAVLT, objAVLT->CompProc, pKey);
 	if ( pNode ) {

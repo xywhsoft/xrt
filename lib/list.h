@@ -16,7 +16,7 @@ int List_CompProc(int64* pNode, int64* pObjKey)
 
 
 // 创建列表
-XXAPI xlist xrtListCreate(unsigned int iItemLength)
+XXAPI xlist xrtListCreate(uint32 iItemLength)
 {
 	xlist objList = xrtMalloc(sizeof(xlist_struct));
 	if ( objList ) {
@@ -35,9 +35,9 @@ XXAPI void xrtListDestroy(xlist objList)
 }
 
 // 初始化列表（对自维护结构体指针使用）
-XXAPI void xrtListInit(xlist objList, unsigned int iItemLength)
+XXAPI void xrtListInit(xlist objList, uint32 iItemLength)
 {
-	xrtAVLTreeInit(&objList->AVLT, iItemLength + sizeof(int64), (void*)List_CompProc);
+	xrtAVLTreeInit(&objList->AVLT, iItemLength + sizeof(int64), (ptr)List_CompProc);
 	objList->Parent = NULL;
 }
 
@@ -48,9 +48,9 @@ XXAPI void xrtListUnit(xlist objList)
 }
 
 // 设置值
-XXAPI ptr xrtListSet(xlist objList, int64 iKey, int* bNewRet)
+XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet)
 {
-	int bNew;
+	bool bNew;
 	int64* pNode = xrtAVLTreeInsert(&objList->AVLT, &iKey, &bNew);
 	if ( pNode == NULL ) {
 		return NULL;
@@ -64,21 +64,21 @@ XXAPI ptr xrtListSet(xlist objList, int64 iKey, int* bNewRet)
 	return &pNode[1];
 }
 
-// 设置值 - 当值为 void* 时直接修改指针内容
-XXAPI int xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal)
+// 设置值 - 当值为 ptr 时直接修改指针内容
+XXAPI bool xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal)
 {
-	int bNew;
+	bool bNew;
 	int64* pNode = xrtAVLTreeInsert(&objList->AVLT, &iKey, &bNew);
 	if ( pNode == NULL ) {
-		return 0;
+		return FALSE;
 	}
 	if ( bNew ) {
 		*pNode = iKey;
 	}
 	// 获取单指针数据结构
 	struct {
-		void* val;
-	} *pData = (void*)&pNode[1];
+		ptr val;
+	} *pData = (ptr)&pNode[1];
 	// 传回旧值
 	if ( ppOldVal ) {
 		if ( bNew ) {
@@ -89,7 +89,7 @@ XXAPI int xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal)
 	}
 	// 修改为新值
 	pData->val = pVal;
-	return 1;
+	return TRUE;
 }
 
 // 获取值
@@ -106,7 +106,7 @@ XXAPI ptr xrtListGet(xlist objList, int64 iKey)
 	}
 }
 
-// 获取值 - 当值为 void* 时直接获取指针内容
+// 获取值 - 当值为 ptr 时直接获取指针内容
 XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey)
 {
 	int64* pNode = xrtAVLTreeSearch(&objList->AVLT, &iKey);
@@ -125,7 +125,7 @@ XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey)
 }
 
 // 删除值
-XXAPI int xrtListRemove(xlist objList, int64 iKey)
+XXAPI bool xrtListRemove(xlist objList, int64 iKey)
 {
 	return xrtAVLTreeRemove(&objList->AVLT, &iKey);
 }
@@ -148,17 +148,17 @@ XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey)
 }
 
 // 判断值是否存在
-XXAPI int xrtListExists(xlist objList, int64 iKey)
+XXAPI bool xrtListExists(xlist objList, int64 iKey)
 {
 	int64* pNode = xrtAVLTreeSearch(&objList->AVLT, &iKey);
 	if ( pNode ) {
-		return -1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 // 获取表内元素数量
-XXAPI unsigned int xrtListCount(xlist objList)
+XXAPI uint32 xrtListCount(xlist objList)
 {
 	return objList->AVLT.Count;
 }
@@ -188,7 +188,7 @@ int List_WalkRecuProc(xavltnode root, List_EachProc procEach, ptr pArg)
 	}
 	return 0;
 }
-XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, void* pArg)
+XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 {
 	List_WalkRecuProc(objList->AVLT.RootNode, procEach, pArg);
 }

@@ -2,7 +2,7 @@
 
 
 // 创建链表
-XXAPI xllist xrtLListCreate(unsigned int iItemLength)
+XXAPI xllist xrtLListCreate(uint32 iItemLength)
 {
 	xllist objLL = xrtMalloc(sizeof(xllist_struct));
 	if ( objLL ) {
@@ -21,7 +21,7 @@ XXAPI void xrtLListDestroy(xllist objLL)
 }
 
 // 初始化链表（对自维护结构体指针使用）
-XXAPI void xrtLListInit(xllist objLL, unsigned int iItemLength)
+XXAPI void xrtLListInit(xllist objLL, uint32 iItemLength)
 {
 	xrtLLB_Init(objLL);
 	xrtFSMemPoolInit(&objLL->objMM, iItemLength);

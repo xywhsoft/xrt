@@ -2,11 +2,11 @@
 
 
 // 创建内存池
-XXAPI xmempool xrtMemPoolCreate(int bCustom)
+XXAPI xmempool xrtMemPoolCreate(int iCustom)
 {
 	xmempool objMP = xrtMalloc(sizeof(xmempool_struct));
 	if ( objMP ) {
-		xrtMemPoolInit(objMP, bCustom);
+		xrtMemPoolInit(objMP, iCustom);
 	}
 	return objMP;
 }
@@ -21,7 +21,7 @@ XXAPI void xrtMemPoolDestroy(xmempool objMP)
 }
 
 // 初始化内存池（对自维护结构体指针使用，和 MP256_Create 功能类似）
-void MP256_SetFSB(FSB_Item* FSB, int idx, unsigned int iSizeMin, unsigned int iSizeMax, FSB_Item* left, FSB_Item* right)
+void MP256_SetFSB(FSB_Item* FSB, int idx, uint32 iSizeMin, uint32 iSizeMax, FSB_Item* left, FSB_Item* right)
 {
 	FSB[idx].MinLength = iSizeMin;
 	FSB[idx].MaxLength = iSizeMax;
@@ -32,12 +32,12 @@ void MP256_SetFSB(FSB_Item* FSB, int idx, unsigned int iSizeMin, unsigned int iS
 	FSB[idx].left = left;
 	FSB[idx].right = right;
 }
-XXAPI void xrtMemPoolInit(xmempool objMP, int bCustom)
+XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 {
 	xrtBsmmInit(&objMP->arrMMU, sizeof(MMU_LLNode));
 	xrtBsmmInit(&objMP->BigMM, sizeof(MP_BigInfoLL));
 	objMP->LL_BigFree = NULL;
-	if ( bCustom == 1 ) {
+	if ( iCustom == 1 ) {
 		// 添加默认的区块区间 (4层树，针对小内存的方案)
 		//
 		// 二叉树视图 (根据建树顺序插入避免旋转产生额外开销)：
@@ -67,7 +67,7 @@ XXAPI void xrtMemPoolInit(xmempool objMP, int bCustom)
 		MP256_SetFSB(objMP->FSB_Memory, 13,	385,	448, &objMP->FSB_Memory[12], &objMP->FSB_Memory[14]);
 		MP256_SetFSB(objMP->FSB_Memory, 14,	449,	512, NULL, NULL);
 		objMP->FSB_RootNode = &objMP->FSB_Memory[7];
-	} else if ( bCustom == 2 ) {
+	} else if ( iCustom == 2 ) {
 		// 添加默认的区块区间 (5层树，针对大内存的方案)
 		//
 		// 二叉树视图 (根据建树顺序插入避免旋转产生额外开销)：
@@ -145,7 +145,7 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 }
 
 // 从内存池中申请一块内存
-XXAPI void* xrtMemPoolAlloc(xmempool objMP, unsigned int iSize)
+XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 {
 	if ( iSize == 0 ) { return NULL; }
 	// 查找符合条件的 FSB 信息
@@ -357,7 +357,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 			}
 			// 查找符合条件的 FSB 信息
 			FSB_Item* objFSB = objMP->FSB_RootNode;
-			unsigned int iMaxSize = pNode->objMMU->ItemLength - sizeof(MMU_Value);
+			uint32 iMaxSize = pNode->objMMU->ItemLength - sizeof(MMU_Value);
 			while ( objFSB ) {
 				if ( iMaxSize < objFSB->MinLength ) {
 					objFSB = objFSB->left;
@@ -385,7 +385,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 }
 
 // 进行一轮GC，将 标记 或 未标记 的内存全部回收
-void MP256_GC_RecuFSB(FSB_Item* objFSB, int bFreeMark)
+void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
 {
 	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objFSB->LL_Idle;
@@ -424,7 +424,7 @@ void MP256_GC_RecuFSB(FSB_Item* objFSB, int bFreeMark)
 		MP256_GC_RecuFSB(objFSB-> right, bFreeMark);
 	}
 }
-XXAPI void xrtMemPoolGC(xmempool objMP, int bFreeMark)
+XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
 	// 递归回收 FSB 标记的内存
 	MP256_GC_RecuFSB(objMP->FSB_RootNode, bFreeMark);

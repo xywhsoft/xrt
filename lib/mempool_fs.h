@@ -125,7 +125,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 }
 
 // 将内存管理器申请的内存释放掉
-static inline void MM256_LLNode_ClearCheck(xfsmempool objMM, MMU_LLNode* pNode, int bLL_Full)
+static inline void MM256_LLNode_ClearCheck(xfsmempool objMM, MMU_LLNode* pNode, bool bLL_Full)
 {
 	// 如果这个内存管理单元已经清空
 	if ( pNode->objMMU->Count == 0 ) {
@@ -196,12 +196,12 @@ static inline void MM256_LLNode_IdleCheck(xfsmempool objMM, MMU_LLNode* pNode)
 		objMM->LL_Idle = pNode;
 	}
 }
-XXAPI void xrtFSMemPoolFree(xfsmempool objMM, void* ptr)
+XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 {
-	MMU_ValuePtr v = ptr - sizeof(MMU_Value);
+	MMU_ValuePtr v = p - sizeof(MMU_Value);
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
-		unsigned char idx = v->ItemFlag & 0xFF;
+		uint8 idx = v->ItemFlag & 0xFF;
 		// 获取对应的内存管理器单元链表结构
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, iMMU);
 		if ( pNode->objMMU == NULL ) {
@@ -221,7 +221,7 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, void* ptr)
 }
 
 // 进行一轮GC，将未标记为使用中的内存全部回收
-XXAPI void xrtFSMemPoolGC(xfsmempool objMM, int bFreeMark)
+XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 {
 	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objMM->LL_Idle;

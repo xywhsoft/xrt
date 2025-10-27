@@ -134,7 +134,7 @@ static inline void xrtAVLTreeRebalance(xavltnode** ancestors, int count)
 }
 	
 // 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
-XXAPI xavltnode xrtAVLTB_Insert(xavltbase objAVLT, AVLTree_CompProc procComp, void* pKey, xavltnode pNewNode)
+XXAPI xavltnode xrtAVLTB_Insert(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey, xavltnode pNewNode)
 {
 	// 初始化数据
 	xavltnode* ppNode = &objAVLT->RootNode;
@@ -168,7 +168,7 @@ XXAPI xavltnode xrtAVLTB_Insert(xavltbase objAVLT, AVLTree_CompProc procComp, vo
 }
 
 // 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
-XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, void* pKey)
+XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey)
 {
 	xavltnode* ppNode = &objAVLT->RootNode;
 	xavltnode* ancestor[AVLTree_MAX_HEIGHT];	// 上层节点列表
@@ -235,7 +235,7 @@ XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, vo
 }
 
 // 从 AVLTree 中查找节点
-XXAPI xavltnode xrtAVLTB_Search(xavltbase objAVLT, AVLTree_CompProc procComp, void* pKey)
+XXAPI xavltnode xrtAVLTB_Search(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey)
 {
 	xavltnode pNode = objAVLT->RootNode;
 	while ( pNode != NULL ) {
@@ -252,65 +252,67 @@ XXAPI xavltnode xrtAVLTB_Search(xavltbase objAVLT, AVLTree_CompProc procComp, vo
 }
 
 // 遍历 AVLTree 所有节点
-XXAPI int xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, void* pArg)
+XXAPI bool xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, ptr pArg)
 {
 	if ( root ) {
 		// 递归左子树
 		if ( root->left != NULL ) {
 			if ( xrtAVLTB_WalkRecuProc(root->left, procEach, pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
 		// 调用回调函数
 		if ( procEach ) {
 			if ( procEach(xrtAVLTreeGetNodeData(root), pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
 		// 递归右子树
 		if ( root->right != NULL ) {
 			if ( xrtAVLTB_WalkRecuProc(root->right, procEach, pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
-XXAPI int xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, void* pArg)
+XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg)
 {
 	if ( root ) {
 		// 调用回调函数(前置)
 		if ( procPre ) {
 			if ( procPre(xrtAVLTreeGetNodeData(root), pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
 		// 递归左子树
 		if ( root->left != NULL ) {
 			if ( xrtAVLTB_WalkExRecuProc(root->left, procPre, procIn, procPost, pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
 		// 调用回调函数
 		if ( procIn ) {
 			if ( procIn(xrtAVLTreeGetNodeData(root), pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
 		// 递归右子树
 		if ( root->right != NULL ) {
 			if ( xrtAVLTB_WalkExRecuProc(root->right, procPre, procIn, procPost, pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
 		// 调用回调函数(后置)
 		if ( procPost ) {
 			if ( procPost(xrtAVLTreeGetNodeData(root), pArg) ) {
-				return -1;
+				return TRUE;
 			}
 		}
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
 

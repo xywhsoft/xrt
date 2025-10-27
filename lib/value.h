@@ -16,7 +16,7 @@ static xvalue_struct XVO_VALUE_TRUE = {
 	TRUE,
 	0,
 	8,
-	1
+	TRUE
 };
 static xvalue_struct XVO_VALUE_FALSE = {
 	XVO_DT_BOOL,
@@ -24,7 +24,7 @@ static xvalue_struct XVO_VALUE_FALSE = {
 	TRUE,
 	0,
 	8,
-	0
+	FALSE
 };
 
 
@@ -41,12 +41,12 @@ XXAPI void xvoAddRef(xvalue pVal)
 		}
 	}
 }
-int xvoListClear_FreeProc(int64 pKey, xvalue pVal, xvalue pList)
+bool xvoListClear_FreeProc(int64 pKey, xvalue pVal, xvalue pList)
 {
 	xvoUnref(pVal);
 	return FALSE;
 }
-int xvoTableClear_FreeProc(Dict_Key* pKey, xvalue pVal, xvalue pTbl)
+bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue pVal, xvalue pTbl)
 {
 	xvoUnref(pVal);
 	return FALSE;
@@ -93,7 +93,7 @@ XXAPI xvalue xvoCreateNull()
 {
 	return &XVO_VALUE_NULL;
 }
-XXAPI xvalue xvoCreateBool(int bVal)
+XXAPI xvalue xvoCreateBool(bool bVal)
 {
 	if ( bVal ) {
 		return &XVO_VALUE_TRUE;
@@ -127,7 +127,7 @@ XXAPI xvalue xvoCreateFloat(double fVal)
 	}
 	return pVal;
 }
-XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, int iCharset, int bColloc)
+XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, int iCharset, bool bColloc)
 {
 	if ( sVal == NULL ) {
 		sVal = xCore.sNull;
@@ -384,7 +384,7 @@ XXAPI int xvoGetBool(xvalue pVal)
 	} else if ( pVal->Type == XVO_DT_NULL ) {
 		return FALSE;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		return pVal->vInt;
+		return pVal->vBool;
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		return pVal->vInt != 0;
 	} else if ( pVal->Type == XVO_DT_FLOAT ) {
@@ -398,7 +398,7 @@ XXAPI int64 xvoGetInt(xvalue pVal)
 	if ( pVal == NULL ) {
 		return 0;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		return pVal->vInt ? 1 : 0;
+		return pVal->vBool ? 1 : 0;
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		return pVal->vInt;
 	} else if ( pVal->Type == XVO_DT_FLOAT ) {
@@ -414,7 +414,7 @@ XXAPI double xvoGetFloat(xvalue pVal)
 	if ( pVal == NULL ) {
 		return 0.0;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		return pVal->vInt ? 1.0 : 0.0;
+		return pVal->vBool ? 1.0 : 0.0;
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		return pVal->vInt;
 	} else if ( pVal->Type == XVO_DT_FLOAT ) {
@@ -433,7 +433,7 @@ XXAPI str xvoGetText(xvalue pVal, int* pType)
 		if ( pType ) {
 			*pType = XVO_SDT_STR_U8;
 		}
-		return pVal->vInt ? "true" : "false";
+		return pVal->vBool ? "true" : "false";
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		if ( pType ) {
 			*pType = XVO_SDT_STR_U8;
@@ -873,7 +873,7 @@ XXAPI int xvoCollSetValue(xvalue pColl, xvalue pVal, int bColloc)
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
-	int bNew = FALSE;
+	bool bNew;
 	xvalue* ppVal = xrtAVLTreeInsert(pColl->vColl, pVal, &bNew);
 	if ( ppVal ) {
 		

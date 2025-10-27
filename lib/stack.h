@@ -2,7 +2,7 @@
 
 
 // 创建结构体静态栈
-XXAPI xstack xrtStackCreate(unsigned int iMaxCount, unsigned int iItemLength)
+XXAPI xstack xrtStackCreate(uint32 iMaxCount, uint32 iItemLength)
 {
 	xstack objSTK = xrtMalloc(sizeof(xstack_struct) + (iMaxCount * iItemLength));
 	if ( objSTK ) {
@@ -23,7 +23,7 @@ XXAPI ptr xrtStackPush(xstack objSTK)
 	}
 	return NULL;
 }
-XXAPI uint xrtStackPushData(xstack objSTK, ptr pData)
+XXAPI uint32 xrtStackPushData(xstack objSTK, ptr pData)
 {
 	if ( objSTK->Count < objSTK->MaxCount ) {
 		memcpy(&objSTK->Memory[objSTK->Count * objSTK->ItemLength], pData, objSTK->ItemLength);
@@ -32,7 +32,7 @@ XXAPI uint xrtStackPushData(xstack objSTK, ptr pData)
 	}
 	return 0;
 }
-XXAPI uint xrtStackPushPtr(xstack objSTK, ptr pVal)
+XXAPI uint32 xrtStackPushPtr(xstack objSTK, ptr pVal)
 {
 	if ( objSTK->Count < objSTK->MaxCount ) {
 		if ( objSTK->ItemLength == sizeof(ptr) ) {
@@ -92,7 +92,7 @@ XXAPI ptr xrtStackTopPtr(xstack objSTK)
 }
 
 // 获取任意位置对象
-XXAPI ptr xrtStackGetPos(xstack objSTK, uint iPos)
+XXAPI ptr xrtStackGetPos(xstack objSTK, uint32 iPos)
 {
 	if ( iPos > 0 ) {
 		iPos--;
@@ -102,11 +102,11 @@ XXAPI ptr xrtStackGetPos(xstack objSTK, uint iPos)
 	}
 	return NULL;
 }
-XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint iPos)
+XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint32 iPos)
 {
 	return &objSTK->Memory[(iPos - 1) * objSTK->ItemLength];
 }
-XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint iPos)
+XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint32 iPos)
 {
 	if ( iPos > 0 ) {
 		iPos--;
@@ -121,7 +121,7 @@ XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint iPos)
 	}
 	return NULL;
 }
-XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint iPos)
+XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 {
 	if ( objSTK->ItemLength == sizeof(ptr) ) {
 		return objSTK->PtrMem[iPos - 1];
