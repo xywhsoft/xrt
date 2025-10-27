@@ -35,6 +35,7 @@
 #include "test/test_mempool.h"
 #include "test/test_dict.h"
 #include "test/test_list.h"
+#include "test/test_value.h"
 #include "test/test_other.h"
 
 
@@ -141,7 +142,10 @@ int main(int argc, char** argv)
 	// Test_Dict(xCore);
 	
 	/* List 测试 */
-	 Test_List(xCore);
+	// Test_List(xCore);
+	
+	/* Value 测试 */
+	 Test_Value(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);

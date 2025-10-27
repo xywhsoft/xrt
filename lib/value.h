@@ -81,6 +81,7 @@ XXAPI void xvoUnref(xvalue pVal)
 				}
 				// 释放变量本身
 				xrtFree(pVal);
+				printf("free value : %x\n", pVal);
 			}
 		}
 	}
@@ -1151,31 +1152,35 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKe
 			printf("Unknown data type\n");
 		}
 	} else {
-		if ( objVal->Type == XVO_DT_NULL ) {
-			printf("(null)\n");
+		if ( objVal == NULL ) {
+			printf("(empty)\n");
+		} else if ( objVal->Type == XVO_DT_NULL ) {
+			printf("(null ) [%x]\n", objVal);
 		} else if ( objVal->Type == XVO_DT_BOOL ) {
-			printf("%s (bool)\n", xvoGetText(objVal, NULL));
+			printf("(bool ) [%x] %s\n", objVal, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_INT ) {
-			printf("%lld (int)\n", xvoGetInt(objVal));
+			printf("( int ) [%x] %lld\n", objVal, xvoGetInt(objVal));
 		} else if ( objVal->Type == XVO_DT_FLOAT ) {
-			printf("%f (float)\n", xvoGetFloat(objVal));
+			printf("(float) [%x] %lf\n", objVal, xvoGetFloat(objVal));
 		} else if ( objVal->Type == XVO_DT_TEXT ) {
-			printf("%s (text)\n", xvoGetText(objVal, NULL));
+			printf("(text ) [%x] %s\n", objVal, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_ARRAY ) {
-			printf("(array: count[%d])\n", xvoArraySize(objVal));
+			printf("(array) [%x] count : %d\n", objVal, xvoArraySize(objVal));
 		} else if ( objVal->Type == XVO_DT_TABLE ) {
-			printf("(table)\n");
+			printf("(table) [%x] count : %d\n", objVal, xvoTableSize(objVal));
 		} else {
 			printf("Unknown data type\n");
 		}
 	}
-	if ( objVal->Type == XVO_DT_ARRAY ) {
-		for ( int i = 0; i < objVal->vArray->Count; i++ ) {
-			xvalue objItem = xvoArrayGetValue(objVal, i);
-			xvoPrintValue(objItem, iLevel + 1, 1, i, NULL);
+	if ( objVal ) {
+		if ( objVal->Type == XVO_DT_ARRAY ) {
+			for ( int i = 0; i < objVal->vArray->Count; i++ ) {
+				xvalue objItem = xvoArrayGetValue(objVal, i);
+				xvoPrintValue(objItem, iLevel + 1, 1, i, NULL);
+			}
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			xrtDictWalk(objVal->vTable, (void*)xvoPrintValue_TableItemProc, (void*)(intptr_t)(iLevel+1));
 		}
-	} else if ( objVal->Type == XVO_DT_TABLE ) {
-		xrtDictWalk(objVal->vTable, (void*)xvoPrintValue_TableItemProc, (void*)(intptr_t)(iLevel+1));
 	}
 }
 
