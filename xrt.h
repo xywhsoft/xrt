@@ -2087,12 +2087,12 @@
 	XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
 	
 	// 解析 JSON
-	XXAPI xvalue xvoParseJSON_File(char* sFile);
-	XXAPI xvalue xvoParseJSON(char* sText, size_t iSize);
+	XXAPI xvalue xrtParseJSON(str sText, size_t iSize);
+	XXAPI xvalue xrtParseJSON_File(str sFile);
 	
 	// 将 xvalue 转换为 JSON
-	XXAPI char* xteStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize);
-	XXAPI int xteStringifyJSON_File(char* sFile, xvalue varVal, int bFormat);
+	XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize);
+	XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat);
 	
 	
 	

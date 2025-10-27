@@ -200,6 +200,8 @@ xrtNow
 xrtNowStr
 xrtNumToStr
 xrtOpen
+xrtParseJSON
+xrtParseJSON_File
 xrtParseNum
 xrtPathExists
 xrtPathGetDir
@@ -262,6 +264,8 @@ xrtStrToI64
 xrtStrToNum
 xrtStrToU32
 xrtStrToU64
+xrtStringifyJSON
+xrtStringifyJSON_File
 xrtTell
 xrtTempMemory
 xrtThreadCreate
@@ -346,6 +350,7 @@ xvoListGetValue
 xvoListRemove
 xvoListSetValue
 xvoListSize
+xvoPrintValue
 xvoSubType
 xvoTableClear
 xvoTableExists

@@ -1794,21 +1794,7 @@ json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 	}
     return JSON_SAX_PARSE_CONTINUE;
 }
-XXAPI xvalue xvoParseJSON_File(char* sFile)
-{
-	varStack = xrtStackCreate(256, sizeof(ptr));
-	varRoot = NULL;
-	varCur = NULL;
-	//int iRet = json_sax_parse_file(sFile, xvo_private_ParseJSON_Proc);
-	char* sText = xrtFileGetAll(sFile);
-	int iRet = xrtJsonParseSAX(sText, xCore.iRet, xvo_private_ParseJSON_Proc);
-	if ( iRet < 0 ) {
-		return xvoCreateNull();
-	}
-	xrtStackDestroy(varStack);
-	return varRoot;
-}
-XXAPI xvalue xvoParseJSON(char* sText, size_t iSize)
+XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 {
 	varStack = xrtStackCreate(256, sizeof(ptr));
 	varRoot = NULL;
@@ -1817,6 +1803,20 @@ XXAPI xvalue xvoParseJSON(char* sText, size_t iSize)
 		iSize = strlen(sText);
 	}
 	int iRet = xrtJsonParseSAX(sText, iSize, xvo_private_ParseJSON_Proc);
+	if ( iRet < 0 ) {
+		return xvoCreateNull();
+	}
+	xrtStackDestroy(varStack);
+	return varRoot;
+}
+XXAPI xvalue xrtParseJSON_File(str sFile)
+{
+	varStack = xrtStackCreate(256, sizeof(ptr));
+	varRoot = NULL;
+	varCur = NULL;
+	//int iRet = json_sax_parse_file(sFile, xvo_private_ParseJSON_Proc);
+	str sText = xrtFileGetAll(sFile);
+	int iRet = xrtJsonParseSAX(sText, xCore.iRet, xvo_private_ParseJSON_Proc);
 	if ( iRet < 0 ) {
 		return xvoCreateNull();
 	}
@@ -1887,7 +1887,7 @@ void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_s
 	xrtDictWalk(varVal->vTable, (void*)xvo_private_Stringify_Table_Proc, (void*)handle);
 	xrtJsonPrintObject(handle, NULL, JSON_SAX_FINISH);
 }
-XXAPI char* xteStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
+XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 {
 	// 初始化 SAX 字符串输出
 	json_print_choice_t choice;
@@ -1918,10 +1918,10 @@ XXAPI char* xteStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
     // 返回结果
 	return xrtJsonPrintFinish(handle, pRetSize, NULL);
 }
-XXAPI int xteStringifyJSON_File(char* sFile, xvalue varVal, int bFormat)
+XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 {
 	size_t iSize = 0;
-	str sRet = xteStringifyJSON(varVal, bFormat, &iSize);
+	str sRet = xrtStringifyJSON(varVal, bFormat, &iSize);
 	if ( sRet ) {
 		xrtFilePutAll(sFile, sRet, iSize);
 		return TRUE;

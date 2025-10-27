@@ -776,3 +776,564 @@ void xteLiteParseFree(XTE_LiteObject objLite)
 	
 	
 #endif
+
+
+
+
+
+
+
+
+
+
+
+/*
+// 根据 XTE_LiteObject 模板对象生成文档
+int xte_private_Make_EachTableProc(Hash32_Key* pKey, XTE_Value* ppVal, void* pArg)
+{
+	struct {
+		MBMU_Object Buf;
+		XTE_TokenItem Tok;
+		XTE_Value RootEnv;
+		XTE_Value ENV;
+		PAMM_Object Action;
+		XTE_LiteObject Template;
+		AVLHT32_Object Include;
+	} *tblProcParam = pArg;
+	size_t iSizeRet = 0;
+	char* sEachPage = xteLiteMakeActions(tblProcParam->Action, tblProcParam->Template, *ppVal, tblProcParam->RootEnv, tblProcParam->ENV, tblProcParam->Include, &iSizeRet);
+	if ( sEachPage ) {
+		MBMU_Append(tblProcParam->Buf, sEachPage, iSizeRet, MBMU_UTF8);
+		xrtFree(sEachPage);
+	} else {
+		MBMU_Append(tblProcParam->Buf, "(foreach table generation failed : ", 0, MBMU_UTF8);
+		MBMU_Append(tblProcParam->Buf, tblProcParam->Tok->Text, tblProcParam->Tok->Size, MBMU_UTF8);
+		MBMU_Append(tblProcParam->Buf, " [", 2, MBMU_UTF8);
+		MBMU_Append(tblProcParam->Buf, pKey->Key, pKey->KeyLen, MBMU_UTF8);
+		MBMU_Append(tblProcParam->Buf, "])", 2, MBMU_UTF8);
+	}
+	return FALSE;
+}
+char* xteLiteMakeActions(PAMM_Object arrAction, XTE_LiteObject objTemplate, XTE_Value tblVal, XTE_Value tblRoot, XTE_Value tblENV, AVLHT32_Object tblInclude, size_t* pRetSize)
+{
+	// 检查环境表
+	if ( tblVal == NULL ) {
+		return NULL;
+	}
+	// 申请自增长缓冲区
+	MBMU_Object objBuf = MBMU_Create(65536, 65536);
+	if ( objBuf == NULL ) {
+		return NULL;
+	}
+	if ( (tblVal->MainType == XTE_DT_TABLE) || (tblVal->MainType == XTE_DT_ARRAY) ) {
+		// 表或数组（支持全功能）
+		
+		// 遍历模板 Action 生成内容
+		for ( int i = 1; i <= arrAction->Count; i++ ) {
+			XTE_TokenItem objTok = (XTE_TokenItem)PAMM_GetVal_Unsafe(arrAction, i);
+			if ( objTok->Type == XTE_TK_TEXT ) {
+				// 文本节点
+				MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+			} else if ( objTok->Type == XTE_TK_VAR ) {
+				// 代入变量 - 转为字符串
+				char* sTemp = xteTableGetText(tblVal, objTok->Text, objTok->Size);
+				if ( tblRoot && (sTemp == NULL) ) {
+					sTemp = xteTableGetText(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( sTemp == NULL ) {
+					sTemp = xteTableGetText(tblENV, objTok->Text, objTok->Size);
+				}
+				if ( sTemp ) {
+					MBMU_Append(objBuf, sTemp, 0, MBMU_UTF8);
+				}
+			} else if ( objTok->Type == XTE_TK_NUM ) {
+				// 代入数字 - 转为数字（目前与转为字符串采用相同方式处理）
+				char* sTemp = xteTableGetText(tblVal, objTok->Text, objTok->Size);
+				if ( tblRoot && (sTemp == NULL) ) {
+					sTemp = xteTableGetText(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( sTemp == NULL ) {
+					sTemp = xteTableGetText(tblENV, objTok->Text, objTok->Size);
+				}
+				if ( sTemp ) {
+					MBMU_Append(objBuf, sTemp, 0, MBMU_UTF8);
+				}
+			} else if ( objTok->Type == XTE_TK_TIME ) {
+				// 代入时间
+				XTE_Value varTime = xteTableGetValue(tblVal, objTok->Text, objTok->Size);
+				if ( tblRoot && (varTime == &XTE_VALUE_NULL) ) {
+					varTime = xteTableGetValue(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( varTime == &XTE_VALUE_NULL ) {
+					varTime = xteTableGetValue(tblENV, objTok->Text, objTok->Size);
+				}
+				if ( varTime != &XTE_VALUE_NULL ) {
+					if ( varTime->MainType == XTE_DT_INT ) {
+						str sTime = xrtTimeToStr(varTime->vInt, XRT_TIME_FORMAT_DATETIME);
+						MBMU_Append(objBuf, sTime, 0, MBMU_UTF8);
+						xrtFree(sTime);
+					} else if ( varTime->MainType == XTE_DT_TEXT ) {
+						if ( varTime->vText ) {
+							MBMU_Append(objBuf, varTime->vText, 0, MBMU_UTF8);
+						}
+					} else {
+						// 不支持其他类型转换为时间
+						MBMU_Append(objBuf, "(conv time error : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+					}
+				}
+			} else if ( objTok->Type == XTE_TK_BOOL ) {
+				// 根据逻辑结果决定代入什么内容
+				XTE_Value varBool = xteTableGetValue(tblVal, objTok->Text, objTok->Size);
+				if ( tblRoot && (varBool == &XTE_VALUE_NULL) ) {
+					varBool = xteTableGetValue(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( varBool == &XTE_VALUE_NULL ) {
+					varBool = xteTableGetValue(tblENV, objTok->Text, objTok->Size);
+				}
+				int bRet = xteValueGetBool(varBool);
+				int idx = 1;
+				if ( bRet ) {
+					idx = 0;
+				}
+				if ( (objTok->ParamCount > idx) && objTok->ParamText[idx] ) {
+					if ( objTok->ParamText[idx][0] == '=' ) {
+						// 参数首字符为 = 则作为模板生成
+						while ( 1 ) {
+							PAMM_Object arrSubAction = AVLHT32_Get(&objTemplate->SubTemplates, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+							if ( arrSubAction == NULL ) {
+								MBMU_Append(objBuf, "(cannot find sub template : ", 0, MBMU_UTF8);
+								MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+								MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+								MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+								MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								break;
+							}
+							// 根据参数决定是否代入子表
+							XTE_Value tblParam = tblVal;
+							for ( int j = 2; j < objTok->ParamCount; j++ ) {
+								if ( tblParam->MainType == XTE_DT_TABLE ) {
+									tblParam = xteTableGetValue(tblParam, objTok->ParamText[j], objTok->ParamSize[j]);
+								} else if ( tblParam->MainType == XTE_DT_ARRAY ) {
+									tblParam = xteArrayGetValue(tblParam, jnum_atoh(objTok->ParamText[j]));
+								} else {
+									MBMU_Append(objBuf, "(param type error : ", 0, MBMU_UTF8);
+									MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+									MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+									MBMU_Append(objBuf, objTok->ParamText[j], objTok->ParamSize[j], MBMU_UTF8);
+									MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								}
+							}
+							// 根据模板生成页面
+							XTE_Value tblRootEnv = tblParam == tblVal ? NULL : tblVal;
+							size_t iSizeRet = 0;
+							char* sSubPage = xteLiteMakeActions(arrSubAction, objTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+							if ( sSubPage == NULL ) {
+								MBMU_Append(objBuf, "(sub template generation failed : ", 0, MBMU_UTF8);
+								MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+								MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+								MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+								MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								break;
+							}
+							MBMU_Append(objBuf, sSubPage, iSizeRet, MBMU_UTF8);
+							xrtFree(sSubPage);
+							break;
+						}
+					} else if ( objTok->ParamText[idx][0] == '@' ) {
+						// 参数首字符为 @ 则作为函数调用参数
+						while ( 1 ) {
+							XTE_FUNC pFunc = xteTableGetFunc(tblVal, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+							if ( pFunc == NULL ) {
+								pFunc = xteTableGetFunc(tblENV, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+							}
+							if ( pFunc == NULL ) {
+								MBMU_Append(objBuf, "(cannot find function : ", 0, MBMU_UTF8);
+								MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+								MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+								MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+								MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								break;
+							}
+							// 传递参数，调用函数，代入返回值，参数首字符为 @ 则引用变量
+							XTE_Value varParam = xteValueCreateText(objTok->ParamText[2], FALSE);
+							XTE_Value varRet = pFunc(tblVal, varParam);
+							char* sTemp = xteValueGetText(varRet);
+							if ( sTemp ) {
+								MBMU_Append(objBuf, sTemp, 0, MBMU_UTF8);
+							}
+							break;
+						}
+					} else if ( objTok->ParamText[idx][0] == '$' ) {
+						// 参数首字符为 $ 则作为字符串获取内容
+						char* sRet = xteTableGetText(tblVal, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+						if ( sRet ) {
+							MBMU_Append(objBuf, sRet, 0, MBMU_UTF8);
+						} else {
+							sRet = xteTableGetText(tblENV, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+							if ( sRet ) {
+								MBMU_Append(objBuf, sRet, 0, MBMU_UTF8);
+							}
+						}
+					} else if ( objTok->ParamText[idx][0] == ' ' ) {
+						// 参数首字符为空格则跳过这个空格输出参数文本（忽略首空格）
+						MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+					} else if ( objTok->ParamText[idx][0] == 0 ) {
+						// 跳过参数
+					} else {
+						MBMU_Append(objBuf, objTok->ParamText[idx], objTok->ParamSize[idx], MBMU_UTF8);
+					}
+				}
+			} else if ( objTok->Type == XTE_TK_ARR ) {
+				// 遍历元素 表 or 数组，代入子模板
+				while ( 1 ) {
+					PAMM_Object arrSubAction = AVLHT32_Get(&objTemplate->SubTemplates, objTok->Text, objTok->Size);
+					if ( arrSubAction == NULL ) {
+						MBMU_Append(objBuf, "(cannot find sub template : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+						break;
+					}
+					// 根据参数决定是否代入子表（没有参数就代入自己）
+					XTE_Value tblParam = tblVal;
+					for ( int j = 0; j < objTok->ParamCount; j++ ) {
+						if ( tblParam->MainType == XTE_DT_TABLE ) {
+							tblParam = xteTableGetValue(tblParam, objTok->ParamText[j], objTok->ParamSize[j]);
+						} else if ( tblParam->MainType == XTE_DT_ARRAY ) {
+							tblParam = xteArrayGetValue(tblParam, jnum_atoh(objTok->ParamText[j]));
+						} else {
+							MBMU_Append(objBuf, "(param type error : ", 0, MBMU_UTF8);
+							MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+							MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+							MBMU_Append(objBuf, objTok->ParamText[j], objTok->ParamSize[j], MBMU_UTF8);
+							MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+						}
+					}
+					XTE_Value tblRootEnv = tblParam == tblVal ? NULL : tblVal;
+					// 根据模板生成页面
+					if ( tblParam->MainType == XTE_DT_TABLE ) {
+						// 遍历表
+						struct {
+							MBMU_Object Buf;
+							XTE_TokenItem Tok;
+							XTE_Value RootEnd;
+							XTE_Value ENV;
+							PAMM_Object Action;
+							XTE_LiteObject Template;
+							AVLHT32_Object Include;
+						} tblProcParam = { objBuf, objTok, tblRootEnv, tblENV, arrSubAction, objTemplate, tblInclude };
+						AVLHT32_Walk(tblParam->vTable, (void*)xte_private_Make_EachTableProc, &tblProcParam);
+					} else if ( tblParam->MainType == XTE_DT_ARRAY ) {
+						// 遍历数组
+						for ( int k = 0; k < tblParam->vArray->Count; k++ ) {
+							XTE_Value tblEachItem = xteArrayGetValue(tblParam, k);
+							size_t iSizeRet = 0;
+							char* sEachPage = xteLiteMakeActions(arrSubAction, objTemplate, tblEachItem, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+							if ( sEachPage ) {
+								MBMU_Append(objBuf, sEachPage, iSizeRet, MBMU_UTF8);
+								xrtFree(sEachPage);
+							} else {
+								MBMU_Append(objBuf, "(foreach array generation failed : ", 0, MBMU_UTF8);
+								MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+								MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+								char sk[8];
+								jnum_itoa(k, sk);
+								MBMU_Append(objBuf, sk, 0, MBMU_UTF8);
+								MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								break;
+							}
+						}
+					} else {
+						MBMU_Append(objBuf, "(param type error : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+					}
+					break;
+				}
+			} else if ( objTok->Type == XTE_TK_PROC ) {
+				// 调用函数（目前只支持传递一个参数）
+				while ( 1 ) {
+					XTE_FUNC pFunc = xteTableGetFunc(tblVal, objTok->Text, objTok->Size);
+					if ( tblRoot && (pFunc == NULL) ) {
+						pFunc = xteTableGetFunc(tblRoot, objTok->Text, objTok->Size);
+					}
+					if ( pFunc == NULL ) {
+						pFunc = xteTableGetFunc(tblENV, objTok->Text, objTok->Size);
+					}
+					if ( pFunc == NULL ) {
+						MBMU_Append(objBuf, "(cannot find function : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+						break;
+					}
+					// 传递参数，调用函数，代入返回值
+					XTE_Value varParam = xteValueCreateText(objTok->ParamText[0], FALSE);
+					XTE_Value varRet = pFunc(tblVal, varParam);
+					char* sTemp = xteValueGetText(varRet);
+					if ( sTemp ) {
+						MBMU_Append(objBuf, sTemp, 0, MBMU_UTF8);
+					}
+					break;
+				}
+			} else if ( objTok->Type == XTE_TK_SUBTEMPLATE ) {
+				// 代入子模板
+				while ( 1 ) {
+					PAMM_Object arrSubAction = AVLHT32_Get(&objTemplate->SubTemplates, objTok->Text, objTok->Size);
+					if ( arrSubAction == NULL ) {
+						MBMU_Append(objBuf, "(cannot find sub template : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+						break;
+					}
+					// 根据参数决定是否代入子表
+					XTE_Value tblParam = tblVal;
+					for ( int j = 0; j < objTok->ParamCount; j++ ) {
+						if ( tblParam->MainType == XTE_DT_TABLE ) {
+							tblParam = xteTableGetValue(tblParam, objTok->ParamText[j], objTok->ParamSize[j]);
+						} else if ( tblParam->MainType == XTE_DT_ARRAY ) {
+							tblParam = xteArrayGetValue(tblParam, jnum_atoh(objTok->ParamText[j]));
+						} else {
+							MBMU_Append(objBuf, "(param type error : ", 0, MBMU_UTF8);
+							MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+							MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+							MBMU_Append(objBuf, objTok->ParamText[j], objTok->ParamSize[j], MBMU_UTF8);
+							MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+						}
+					}
+					// 根据模板生成页面
+					XTE_Value tblRootEnv = tblParam == tblVal ? NULL : tblVal;
+					size_t iSizeRet = 0;
+					char* sSubPage = xteLiteMakeActions(arrSubAction, objTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+					if ( sSubPage == NULL ) {
+						MBMU_Append(objBuf, "(sub template generation failed : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+						break;
+					}
+					MBMU_Append(objBuf, sSubPage, iSizeRet, MBMU_UTF8);
+					xrtFree(sSubPage);
+					break;
+				}
+			} else if ( objTok->Type == XTE_TK_INCLUDE ) {
+				// 引用外部模板
+				while ( 1 ) {
+					XTE_LiteObject objIncTemplate = AVLHT32_GetPtr(tblInclude, objTok->ParamText[0], objTok->ParamSize[0]);
+					if ( objIncTemplate == NULL ) {
+						MBMU_Append(objBuf, "(cannot find file : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->ParamText[0], objTok->ParamSize[0], MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+						break;
+					}
+					// 根据参数决定是否代入子表
+					XTE_Value tblParam = tblVal;
+					for ( int j = 1; j < objTok->ParamCount; j++ ) {
+						if ( tblParam->MainType == XTE_DT_TABLE ) {
+							tblParam = xteTableGetValue(tblParam, objTok->ParamText[j], objTok->ParamSize[j]);
+						} else if ( tblParam->MainType == XTE_DT_ARRAY ) {
+							tblParam = xteArrayGetValue(tblParam, jnum_atoh(objTok->ParamText[j]));
+						} else {
+							MBMU_Append(objBuf, "(param type error : ", 0, MBMU_UTF8);
+							MBMU_Append(objBuf, objTok->ParamText[0], objTok->ParamSize[0], MBMU_UTF8);
+							MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+							MBMU_Append(objBuf, objTok->ParamText[j], objTok->ParamSize[j], MBMU_UTF8);
+							MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+						}
+					}
+					// 根据模板生成页面
+					XTE_Value tblRootEnv = tblParam == tblVal ? NULL : tblVal;
+					size_t iSizeRet = 0;
+					char* sIncPage = xteLiteMakeActions(&objIncTemplate->Actions, objIncTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+					if ( sIncPage == NULL ) {
+						MBMU_Append(objBuf, "(template generation failed : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->ParamText[0], objTok->ParamSize[0], MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+						break;
+					}
+					MBMU_Append(objBuf, sIncPage, iSizeRet, MBMU_UTF8);
+					xrtFree(sIncPage);
+					break;
+				}
+			} else if ( objTok->Type == XTE_TK_SCRIPT ) {
+				// 执行脚本
+				printf("\t★★★ Token Type [%d] : XTE_TK_SCRIPT (%d)\n", i, objTok->Type);
+			} else {
+				printf("\t★★★ Error : Unknown Token Type ID [%d] : %d\n", i, objTok->Type);
+			}
+		}
+	} else {
+		// 其他值（只支持代入 __self__ 值）
+		
+		// 遍历模板 Action 生成内容
+		for ( int i = 1; i <= arrAction->Count; i++ ) {
+			XTE_TokenItem objTok = (XTE_TokenItem)PAMM_GetVal_Unsafe(arrAction, i);
+			if ( objTok->Type == XTE_TK_TEXT ) {
+				// 文本节点
+				MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+			} else if ( objTok->Type == XTE_TK_VAR ) {
+				// 代入变量 - 转为字符串
+				char* sTemp = NULL;
+				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+					sTemp = xteValueGetText(tblVal);
+				}
+				if ( tblRoot && (sTemp == NULL) ) {
+					sTemp = xteTableGetText(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( sTemp == NULL ) {
+					sTemp = xteTableGetText(tblENV, objTok->Text, objTok->Size);
+				}
+				if ( sTemp ) {
+					MBMU_Append(objBuf, sTemp, 0, MBMU_UTF8);
+				}
+			} else if ( objTok->Type == XTE_TK_NUM ) {
+				// 代入数字 - 转为数字（目前与转为字符串采用相同方式处理）
+				char* sTemp = NULL;
+				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+					sTemp = xteValueGetText(tblVal);
+				}
+				if ( tblRoot && (sTemp == NULL) ) {
+					sTemp = xteTableGetText(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( sTemp == NULL ) {
+					sTemp = xteTableGetText(tblENV, objTok->Text, objTok->Size);
+				}
+				if ( sTemp ) {
+					MBMU_Append(objBuf, sTemp, 0, MBMU_UTF8);
+				}
+			} else if ( objTok->Type == XTE_TK_TIME ) {
+				// 代入时间
+				XTE_Value varTime = &XTE_VALUE_NULL;
+				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+					varTime = tblVal;
+				}
+				if ( tblRoot && (varTime == &XTE_VALUE_NULL) ) {
+					varTime = xteTableGetValue(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( varTime == &XTE_VALUE_NULL ) {
+					varTime = xteTableGetValue(tblENV, objTok->Text, objTok->Size);
+				}
+				if ( varTime != &XTE_VALUE_NULL ) {
+					if ( varTime->MainType == XTE_DT_INT ) {
+						str sTime = xrtTimeToStr(varTime->vInt, XRT_TIME_FORMAT_DATETIME);
+						MBMU_Append(objBuf, sTime, 0, MBMU_UTF8);
+						xrtFree(sTime);
+					} else if ( varTime->MainType == XTE_DT_TEXT ) {
+						if ( varTime->vText ) {
+							MBMU_Append(objBuf, varTime->vText, 0, MBMU_UTF8);
+						}
+					} else {
+						// 不支持其他类型转换为时间
+						MBMU_Append(objBuf, "(conv time error : ", 0, MBMU_UTF8);
+						MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+						MBMU_Append(objBuf, ")", 1, MBMU_UTF8);
+					}
+				}
+			} else if ( objTok->Type == XTE_TK_BOOL ) {
+				// 根据逻辑结果决定代入什么内容
+				XTE_Value varBool = &XTE_VALUE_NULL;
+				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+					varBool = tblVal;
+				}
+				if ( tblRoot && (varBool == &XTE_VALUE_NULL) ) {
+					varBool = xteTableGetValue(tblRoot, objTok->Text, objTok->Size);
+				}
+				if ( varBool == &XTE_VALUE_NULL ) {
+					varBool = xteTableGetValue(tblENV, objTok->Text, objTok->Size);
+				}
+				int bRet = xteValueGetBool(varBool);
+				int idx = 1;
+				if ( bRet ) {
+					idx = 0;
+				}
+				if ( objTok->ParamCount > idx ) {
+					if ( objTok->ParamText[idx][0] == '=' ) {
+						// 参数首字符为 = 则作为模板生成
+						while ( 1 ) {
+							PAMM_Object arrSubAction = AVLHT32_Get(&objTemplate->SubTemplates, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+							if ( arrSubAction == NULL ) {
+								MBMU_Append(objBuf, "(cannot find sub template : ", 0, MBMU_UTF8);
+								MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+								MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+								MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+								MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								break;
+							}
+							// 根据模板生成页面
+							size_t iSizeRet = 0;
+							char* sSubPage = xteLiteMakeActions(arrSubAction, objTemplate, tblVal, NULL, tblENV, tblInclude, &iSizeRet);
+							if ( sSubPage == NULL ) {
+								MBMU_Append(objBuf, "(sub template generation failed : ", 0, MBMU_UTF8);
+								MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+								MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+								MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+								MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								break;
+							}
+							MBMU_Append(objBuf, sSubPage, iSizeRet, MBMU_UTF8);
+							xrtFree(sSubPage);
+							break;
+						}
+					} else if ( objTok->ParamText[idx][0] == '@' ) {
+						// 参数首字符为 @ 则作为函数调用参数
+						while ( 1 ) {
+							XTE_FUNC pFunc = NULL;
+							if ( strcmp(&objTok->ParamText[idx][1], "__self__") == 0 ) {
+								pFunc = xteValueGetFunc(tblVal);
+							}
+							if ( pFunc == NULL ) {
+								pFunc = xteTableGetFunc(tblENV, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+							}
+							if ( pFunc == NULL ) {
+								MBMU_Append(objBuf, "(cannot find function : ", 0, MBMU_UTF8);
+								MBMU_Append(objBuf, objTok->Text, objTok->Size, MBMU_UTF8);
+								MBMU_Append(objBuf, " [", 2, MBMU_UTF8);
+								MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+								MBMU_Append(objBuf, "])", 2, MBMU_UTF8);
+								break;
+							}
+							// 传递参数，调用函数，代入返回值
+							XTE_Value varParam = xteValueCreateText(objTok->ParamText[2], FALSE);
+							XTE_Value varRet = pFunc(tblVal, varParam);
+							char* sTemp = xteValueGetText(varRet);
+							if ( sTemp ) {
+								MBMU_Append(objBuf, sTemp, 0, MBMU_UTF8);
+							}
+							break;
+						}
+					} else if ( objTok->ParamText[idx][0] == '$' ) {
+						// 参数首字符为 $ 则作为字符串获取内容
+						char* sRet = xteTableGetText(tblVal, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+						if ( sRet ) {
+							MBMU_Append(objBuf, sRet, 0, MBMU_UTF8);
+						} else {
+							sRet = xteTableGetText(tblENV, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
+							if ( sRet ) {
+								MBMU_Append(objBuf, sRet, 0, MBMU_UTF8);
+							}
+						}
+					} else if ( objTok->ParamText[idx][0] == ' ' ) {
+						// 参数首字符为空格则跳过这个空格输出参数文本（忽略首空格）
+						MBMU_Append(objBuf, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1, MBMU_UTF8);
+					} else {
+						MBMU_Append(objBuf, objTok->ParamText[idx], objTok->ParamSize[idx], MBMU_UTF8);
+					}
+				}
+			}
+		}
+	}
+	// 移出 objBuf->Buffer 返回，销毁 objBuf
+	char* sRet = objBuf->Buffer;
+	if ( pRetSize ) {
+		*pRetSize = objBuf->Length;
+	}
+	objBuf->Buffer = NULL;
+	MBMU_Destroy(objBuf);
+	return sRet;
+}
+char* xteLiteMake(XTE_LiteObject objTemplate, XTE_Value tblVal, XTE_Value tblENV, AVLHT32_Object tblInclude, size_t* pRetSize)
+{
+	return xteLiteMakeActions(&objTemplate->Actions, objTemplate, tblVal, NULL, tblENV, tblInclude, pRetSize);
+}
+*/
+
+
