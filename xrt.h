@@ -1665,7 +1665,7 @@
 	#define xvoArrayGetBool(pArr, index)														xvoGetBool(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetInt(pArr, index)															xvoGetInt(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetFloat(pArr, index)														xvoGetFloat(xvoArrayGetValue(pArr, index))
-	#define xvoArrayGetText(pArr, index)														xvoGetText(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetText(pArr, index)														xvoGetText(xvoArrayGetValue(pArr, index), NULL)
 	#define xvoArrayGetTime(pArr, index)														xvoGetTime(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetFunc(pArr, index)														xvoGetFunc(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetArray(pArr, index)														xvoGetArray(xvoArrayGetValue(pArr, index))
@@ -1743,7 +1743,7 @@
 	#define xvoListGetBool(pList, index)														xvoGetBool(xvoListGetValue(pList, index))
 	#define xvoListGetInt(pList, index)															xvoGetInt(xvoListGetValue(pList, index))
 	#define xvoListGetFloat(pList, index)														xvoGetFloat(xvoListGetValue(pList, index))
-	#define xvoListGetText(pList, index)														xvoGetText(xvoListGetValue(pList, index))
+	#define xvoListGetText(pList, index)														xvoGetText(xvoListGetValue(pList, index), NULL)
 	#define xvoListGetTime(pList, index)														xvoGetTime(xvoListGetValue(pList, index))
 	#define xvoListGetFunc(pList, index)														xvoGetFunc(xvoListGetValue(pList, index))
 	#define xvoListGetArray(pList, index)														xvoGetArray(xvoListGetValue(pList, index))
@@ -1801,7 +1801,7 @@
 	#define xvoTableGetBool(pTbl, key, kl)														xvoGetBool(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetInt(pTbl, key, kl)														xvoGetInt(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetFloat(pTbl, key, kl)														xvoGetFloat(xvoTableGetValue(pTbl, key, kl))
-	#define xvoTableGetText(pTbl, key, kl)														xvoGetText(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetText(pTbl, key, kl)														xvoGetText(xvoTableGetValue(pTbl, key, kl), NULL)
 	#define xvoTableGetTime(pTbl, key, kl)														xvoGetTime(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetFunc(pTbl, key, kl)														xvoGetFunc(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetArray(pTbl, key, kl)														xvoGetArray(xvoTableGetValue(pTbl, key, kl))
@@ -1851,6 +1851,9 @@
 	#define xvoArrayItemSize(pArr, index)														xvoGetSize(xvoArrayGetValue(pArr, index))
 	#define xvoListItemSize(pList, index)														xvoGetSize(xvoListGetValue(pList, index))
 	#define xvoTableItemSize(pTbl, key, kl)														xvoGetSize(xvoTableGetValue(pTbl, key, kl))
+	
+	// 输出 xte Value 的结构和值
+	void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKey);
 	
 	
 	

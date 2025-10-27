@@ -1100,3 +1100,83 @@ XXAPI uint32 xvoGetSize(xvalue pVal)
 }
 
 
+
+// 输出 xte Value 的结构和值
+int TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
+{
+	xvoPrintValue(*ppVal, iLevel, 2, 0, pKey->Key);
+	return FALSE;
+}
+void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKey)
+{
+	for ( int i = 0; i < iLevel; i++ ) {
+		printf("    ");
+	}
+	if ( iMode == 1 ) {
+		// 输出数组元素
+		if ( objVal->Type == XVO_DT_NULL ) {
+			printf("[%d] (null)\n", iKey);
+		} else if ( objVal->Type == XVO_DT_BOOL ) {
+			printf("[%d] %s (bool)\n", iKey, xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_INT ) {
+			printf("[%d] %lld (int)\n", iKey, xvoGetInt(objVal));
+		} else if ( objVal->Type == XVO_DT_FLOAT ) {
+			printf("[%d] %f (float)\n", iKey, xvoGetFloat(objVal));
+		} else if ( objVal->Type == XVO_DT_TEXT ) {
+			printf("[%d] %s (text)\n", iKey, xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_ARRAY ) {
+			printf("[%d] (array)\n", iKey);
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			printf("[%d] (table)\n", iKey);
+		} else {
+			printf("Unknown data type\n");
+		}
+	} else if ( iMode == 2 ) {
+		// 输出表元素
+		if ( objVal->Type == XVO_DT_NULL ) {
+			printf("[%s] (null)\n", sKey);
+		} else if ( objVal->Type == XVO_DT_BOOL ) {
+			printf("[%s] %s (bool)\n", sKey, xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_INT ) {
+			printf("[%s] %lld (int)\n", sKey, xvoGetInt(objVal));
+		} else if ( objVal->Type == XVO_DT_FLOAT ) {
+			printf("[%s] %f (float)\n", sKey, xvoGetFloat(objVal));
+		} else if ( objVal->Type == XVO_DT_TEXT ) {
+			printf("[%s] %s (text)\n", sKey, xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_ARRAY ) {
+			printf("[%s] (array)\n", sKey);
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			printf("[%s] (table)\n", sKey);
+		} else {
+			printf("Unknown data type\n");
+		}
+	} else {
+		if ( objVal->Type == XVO_DT_NULL ) {
+			printf("(null)\n");
+		} else if ( objVal->Type == XVO_DT_BOOL ) {
+			printf("%s (bool)\n", xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_INT ) {
+			printf("%lld (int)\n", xvoGetInt(objVal));
+		} else if ( objVal->Type == XVO_DT_FLOAT ) {
+			printf("%f (float)\n", xvoGetFloat(objVal));
+		} else if ( objVal->Type == XVO_DT_TEXT ) {
+			printf("%s (text)\n", xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_ARRAY ) {
+			printf("(array: count[%d])\n", xvoArraySize(objVal));
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			printf("(table)\n");
+		} else {
+			printf("Unknown data type\n");
+		}
+	}
+	if ( objVal->Type == XVO_DT_ARRAY ) {
+		for ( int i = 0; i < objVal->vArray->Count; i++ ) {
+			xvalue objItem = xvoArrayGetValue(objVal, i);
+			xvoPrintValue(objItem, iLevel + 1, 1, i, NULL);
+		}
+	} else if ( objVal->Type == XVO_DT_TABLE ) {
+		xrtDictWalk(objVal->vTable, (void*)TableItemProc, (void*)(intptr_t)(iLevel+1));
+	}
+}
+
+
