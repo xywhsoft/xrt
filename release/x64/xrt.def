@@ -29,6 +29,8 @@ xrtArrayRemove
 xrtArraySort
 xrtArraySwap
 xrtArrayUnit
+xrtBase64Decode
+xrtBase64Encode
 xrtBsmmAlloc
 xrtBsmmCreate
 xrtBsmmDestroy
@@ -129,6 +131,7 @@ xrtFilterStr
 xrtFindStr
 xrtFormat
 xrtFree
+xrtFreeTempMemory
 xrtGet
 xrtGetCharSize
 xrtGetEOF

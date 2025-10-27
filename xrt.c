@@ -97,7 +97,7 @@ XXAPI xrtGlobalData* xrtInit()
 	xCore.nRet = 0.0;
 	xCore.LastError = xCore.sNull;
 	xCore.__pri_FreeError = FALSE;
-	xCore.DebugMode = FALSE;
+	xCore.OnError = NULL;
 	
 	// 初始化内存函数
 	xCore.malloc = malloc;
@@ -106,7 +106,7 @@ XXAPI xrtGlobalData* xrtInit()
 	xCore.free = free;
 	
 	// 初始化环形临时内存
-	for ( int i = 0; i < 16; i++ ) {
+	for ( int i = 0; i < 32; i++ ) {
 		xCore.TempMem[i] = NULL;
 	}
 	xCore.TempMemIdx = 0;
@@ -207,13 +207,9 @@ XXAPI void xrtUnit()
 			xCore.__pri_FreeError = FALSE;
 		}
 		// 释放环形临时内存
-		for ( int i = 0; i < 16; i++ ) {
-			if ( xCore.TempMem[i] ) {
-				free(xCore.TempMem[i]);
-				xCore.TempMem[i] = NULL;
-			}
-		}
-		xCore.TempMemIdx = 0;
+		xrtFreeTempMemory();
+		
+		// 重置初始化标记
 		xCore.bInit = FALSE;
 		
 		// 释放 socket

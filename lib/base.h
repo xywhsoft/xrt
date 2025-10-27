@@ -19,7 +19,7 @@ XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 {
 	ptr mem = xCore.calloc(iNum, iSize);
 	if ( mem == NULL ) {
-		xrtSetError("memory (class) allocate failed.", FALSE);
+		xrtSetError("class memory allocate failed.", FALSE);
 	}
 	return mem;
 }
@@ -56,7 +56,7 @@ XXAPI ptr xrtTempMemory(size_t iSize)
 	}
 	// 释放过期内存
 	if ( xCore.TempMem[xCore.TempMemIdx] ) {
-		free(xCore.TempMem[xCore.TempMemIdx]);
+		xrtFree(xCore.TempMem[xCore.TempMemIdx]);
 		xCore.TempMem[xCore.TempMemIdx] = NULL;
 	}
 	// 处理环形临时内存数据
@@ -71,11 +71,25 @@ XXAPI ptr xrtTempMemory(size_t iSize)
 
 
 
+// 释放所有临时内存
+XXAPI void xrtFreeTempMemory()
+{
+	for ( int i = 0; i < 32; i++ ) {
+		if ( xCore.TempMem[i] ) {
+			xrtFree(xCore.TempMem[i]);
+			xCore.TempMem[i] = NULL;
+		}
+	}
+	xCore.TempMemIdx = 0;
+}
+
+
+
 // 设置错误
 XXAPI void xrtSetError(str sError, int bFree)
 {
-	if ( xCore.DebugMode ) {
-		printf("X Runtime Error : %s\n", sError);
+	if ( xCore.OnError ) {
+		xCore.OnError(sError);
 	}
 	if ( xCore.__pri_FreeError && xCore.LastError ) {
 		xrtFree(xCore.LastError);

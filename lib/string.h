@@ -985,7 +985,7 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 
 // Base64 编码（ 需使用 xrtFree 释放 ）
 static const str Base64EncodeTable = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
+XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 {
 	if ( pMem == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
@@ -1025,7 +1025,7 @@ str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 // Base64 解码（ 需使用 xrtFree 释放 ）
 static const str sErrorBase64_mul4 = "Base64 input length must be multiple of 4 !";
 static const str sErrorBase64_char = "Base64 input contains invalid characters !";
-ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
+XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 {
 	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }

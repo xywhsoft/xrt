@@ -136,14 +136,12 @@
 		// 错误信息
 		str LastError;
 		int __pri_FreeError;
+		void (*OnError)(str sError);
 		
 		// 高精度时钟频率单位
 		#if defined(_WIN32) || defined(_WIN64)
 			uint64 Frequency;
 		#endif
-		
-		// 调试模式
-		int DebugMode;
 		
 		// 本机 IP 地址 ( 用于生成 XID )
 		uint LocalAddr;
@@ -153,7 +151,7 @@
 		str AppPath;
 		
 		// 环形临时内存（固定 32 个临时内存循环使用和释放）
-		void* TempMem[32];
+		ptr TempMem[32];
 		uint32 TempMemIdx;
 		
 		// 内存函数
@@ -206,6 +204,9 @@
 	
 	// 申请无需主动释放的临时内存
 	XXAPI ptr xrtTempMemory(size_t iSize);
+	
+	// 释放所有临时内存
+	XXAPI void xrtFreeTempMemory();
 	
 	// 设置错误
 	XXAPI void xrtSetError(str sError, int bFree);
@@ -349,10 +350,10 @@
 	XXAPI ptr xrtHexDecode(str pText, size_t iSize);
 	
 	// Base64 编码（ 需使用 xrtFree 释放 ）
-	str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);
+	XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
-	ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
+	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
 	
 	
 	
@@ -637,8 +638,8 @@
 	#define HASH32_SEED		0
 	
 	// 计算 32 位哈希值
-	XXAPI uint32 xrtHash32_WithSeed(void* key, size_t len, unsigned int seed);
-	XXAPI uint32 xrtHash32(void* key, size_t len);
+	XXAPI uint32 xrtHash32_WithSeed(ptr key, size_t len, uint32 seed);
+	XXAPI uint32 xrtHash32(ptr key, size_t len);
 	
 	/*
 		Hash64 - rapidhash [Ver1.0, Update : 2024/10/18 from https://github.com/Nicoshev/rapidhash]
@@ -652,12 +653,12 @@
 	#define HASH64_SEED		(0xbdd89aa982704029ull)
 	
 	// 计算 64 位哈希值
-	XXAPI uint64 xrtHash64_WithSeed(void* key, size_t len, unsigned long long seed);
-	XXAPI uint64 xrtHash64(void* key, size_t len);
-	XXAPI uint64 xrtHash64_Micro_WithSeed(void* key, size_t len, unsigned long long seed);
-	XXAPI uint64 xrtHash64_Micro(void* key, size_t len);
-	XXAPI uint64 xrtHash64_Nano_WithSeed(void* key, size_t len, unsigned long long seed);
-	XXAPI uint64 xrtHash64_Nano(void* key, size_t len);
+	XXAPI uint64 xrtHash64_WithSeed(ptr key, size_t len, uint64 seed);
+	XXAPI uint64 xrtHash64(ptr key, size_t len);
+	XXAPI uint64 xrtHash64_Micro_WithSeed(ptr key, size_t len, uint64 seed);
+	XXAPI uint64 xrtHash64_Micro(ptr key, size_t len);
+	XXAPI uint64 xrtHash64_Nano_WithSeed(ptr key, size_t len, uint64 seed);
+	XXAPI uint64 xrtHash64_Nano(ptr key, size_t len);
 	
 	
 	
@@ -719,31 +720,31 @@
 	// 内存缓冲区管理单元数据结构
 	typedef struct {
 		char* Buffer;							// 内存缓冲区
-		unsigned int Length;					// 内存长度
-		unsigned int AllocLength;				// 已申请内存长度
-		unsigned int AllocStep;					// 预分配内存步长
+		uint32 Length;							// 内存长度
+		uint32 AllocLength;						// 已申请内存长度
+		uint32 AllocStep;						// 预分配内存步长
 	} xbuffer_struct, *xbuffer;
 	
 	// 创建内存缓冲区管理器
-	XXAPI xbuffer xrtBufferCreate(unsigned int iAllocLength, unsigned int iStep);
+	XXAPI xbuffer xrtBufferCreate(uint32 iAllocLength, uint32 iStep);
 	
 	// 销毁内存缓冲区管理器
 	XXAPI void xrtBufferDestroy(xbuffer pBuf);
 	
 	// 初始化缓冲区管理器（对自维护结构体指针使用）
-	XXAPI void xrtBufferInit(xbuffer pBuf, unsigned int iAllocLength, unsigned int iStep);
+	XXAPI void xrtBufferInit(xbuffer pBuf, uint32 iAllocLength, uint32 iStep);
 	
 	// 释放缓冲区管理器（对自维护结构体指针使用）
 	XXAPI void xrtBufferUnit(xbuffer pBuf);
 	
 	// 分配内存
-	XXAPI int xrtBufferMalloc(xbuffer pBuf, unsigned int iCount);
+	XXAPI int xrtBufferMalloc(xbuffer pBuf, uint32 iCount);
 	
 	// 中间添加数据（可以复制或者开辟新的数据区，不会自动将新开辟的数据区填充 \0）
-	XXAPI int xrtBufferInsert(xbuffer pBuf, unsigned int iPos, void* pData, unsigned int iSize, unsigned int bStrMode);
+	XXAPI int xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, uint32 bStrMode);
 	
 	// 末尾添加数据
-	XXAPI int xrtBufferAppend(xbuffer pBuf, void* pData, unsigned int iSize, unsigned int bStrMode);
+	XXAPI int xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMode);
 	
 	// 清空管理单元
 	#define xrtBufferClear xrtBufferUnit

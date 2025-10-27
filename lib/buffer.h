@@ -2,7 +2,7 @@
 
 
 // 创建内存缓冲区管理器
-XXAPI xbuffer xrtBufferCreate(unsigned int iAllocLength, unsigned int iStep)
+XXAPI xbuffer xrtBufferCreate(uint32 iAllocLength, uint32 iStep)
 {
 	xbuffer pBuf = xrtMalloc(sizeof(xbuffer_struct));
 	if ( pBuf == NULL ) {
@@ -22,7 +22,7 @@ XXAPI void xrtBufferDestroy(xbuffer pBuf)
 }
 
 // 初始化缓冲区管理器（对自维护结构体指针使用）
-XXAPI void xrtBufferInit(xbuffer pBuf, unsigned int iAllocLength, unsigned int iStep)
+XXAPI void xrtBufferInit(xbuffer pBuf, uint32 iAllocLength, uint32 iStep)
 {
 	pBuf->Buffer = NULL;
 	pBuf->Length = 0;
@@ -42,11 +42,11 @@ XXAPI void xrtBufferUnit(xbuffer pBuf)
 }
 
 // 分配内存
-XXAPI int xrtBufferMalloc(xbuffer pBuf, unsigned int iCount)
+XXAPI int xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 {
 	if ( iCount > pBuf->AllocLength ) {
 		// 增量
-		void* pNew = xrtRealloc(pBuf->Buffer, iCount);
+		ptr pNew = xrtRealloc(pBuf->Buffer, iCount);
 		if ( pNew ) {
 			pBuf->AllocLength = iCount;
 			pBuf->Buffer = pNew;
@@ -54,7 +54,7 @@ XXAPI int xrtBufferMalloc(xbuffer pBuf, unsigned int iCount)
 		}
 	} else if ( iCount < pBuf->AllocLength ) {
 		// 裁剪
-		void* pNew = xrtRealloc(pBuf->Buffer, iCount);
+		ptr pNew = xrtRealloc(pBuf->Buffer, iCount);
 		if ( pNew ) {
 			pBuf->AllocLength = iCount;
 			pBuf->Buffer = pNew;
@@ -76,7 +76,7 @@ XXAPI int xrtBufferMalloc(xbuffer pBuf, unsigned int iCount)
 }
 
 // 中间添加数据（可以复制或者开辟新的数据区，不会自动将新开辟的数据区填充 \0）
-XXAPI int xrtBufferInsert(xbuffer pBuf, unsigned int iPos, void* pData, unsigned int iSize, unsigned int bStrMode)
+XXAPI int xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, uint32 bStrMode)
 {
 	// 长度为 0 时自动计算数据长度
 	if ( iSize == 0 ) {
@@ -109,7 +109,7 @@ XXAPI int xrtBufferInsert(xbuffer pBuf, unsigned int iPos, void* pData, unsigned
 }
 
 // 末尾添加数据
-XXAPI int xrtBufferAppend(xbuffer pBuf, void* pData, unsigned int iSize, unsigned int bStrMode)
+XXAPI int xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMode)
 {
 	return xrtBufferInsert(pBuf, pBuf->Length, pData, iSize, bStrMode);
 }
