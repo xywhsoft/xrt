@@ -111,7 +111,7 @@ XTE_TokenList_Struct XTE_LEXER_ERROR_MALLOC = {
 
 
 // 创建关键字列表（失败返回 NULL）
-xarray xrtTemplateCreateIdentList()
+xarray xteCreateIdentList()
 {
 	return xrtArrayCreate(sizeof(XTE_IdentInfo_Struct));
 }
@@ -131,7 +131,7 @@ void xrtTemplateDestroyIdentList(xarray objList)
 }
 
 // 添加一个关键字到列表
-int xrtTemplateAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned int iIndex, unsigned int iType, unsigned int iMinParamCount, unsigned int iMaxParamCount)
+int xteAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned int iIndex, unsigned int iType, unsigned int iMinParamCount, unsigned int iMaxParamCount)
 {
 	// 自动计算关键字长度
 	if ( iSize == 0 ) {
@@ -192,7 +192,7 @@ void xte_private_free_tokenlist(xarray arrToken)
 		xrtArrayUnit(arrToken);
 	}
 }
-void xrtTemplateLexerFree(XTE_TokenList arrToken)
+void xteLexerFree(XTE_TokenList arrToken)
 {
 	if ( arrToken != &XTE_LEXER_ERROR_MALLOC ) {
 		xte_private_free_tokenlist(&arrToken->Tokens);
@@ -201,7 +201,7 @@ void xrtTemplateLexerFree(XTE_TokenList arrToken)
 }
 
 // 解析模板文件为 Token 列表
-XTE_TokenList xrtTemplateLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket)
+XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket)
 {
 	// 创建返回值结构体
 	XTE_TokenList objRet = xrtMalloc(sizeof(XTE_TokenList_Struct));
@@ -630,12 +630,12 @@ typedef struct {
 
 
 // 将 XTE_TokenList 转换为 XTE_LiteObject（XTE_TokenList将被释放）
-XTE_LiteObject xrtTemplateParseFromTokenList(XTE_TokenList objToks)
+XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks)
 {
 	// 创建返回值结构体
 	XTE_LiteObject objRet = xrtMalloc(sizeof(XTE_LiteStruct));
 	if ( objRet == NULL ) {
-		xrtTemplateLexerFree(objToks);							// 如果一开始就失败了，objToks 会被无条件释放
+		xteLexerFree(objToks);							// 如果一开始就失败了，objToks 会被无条件释放
 		return &XTE_LITE_ERROR_MALLOC;
 	}
 	// Token 必须解析成功，否则返回 Lexer 报告的错误
@@ -649,7 +649,7 @@ XTE_LiteObject xrtTemplateParseFromTokenList(XTE_TokenList objToks)
 		objRet->ErrorRefLine = objToks->ErrorRefLine;
 		objRet->ErrorRefLinePos = objToks->ErrorRefLinePos;
 		objRet->ErrorRefPos = objToks->ErrorRefPos;
-		xrtTemplateLexerFree(objToks);							// 如果一开始就失败了，objToks 会被无条件释放
+		xteLexerFree(objToks);							// 如果一开始就失败了，objToks 会被无条件释放
 		return objRet;
 	}
 	// 保存 objToks 的 Tokens，而 objToks 本体将被释放
@@ -712,23 +712,23 @@ XTE_LiteObject xrtTemplateParseFromTokenList(XTE_TokenList objToks)
 
 // 解析返回语法列表
 xarray XTE_LITE_IDENT_LIST = NULL;
-XTE_LiteObject xrtTemplateParse(char* sText, size_t iSize, char* sBracket)
+XTE_LiteObject xteParse(char* sText, size_t iSize, char* sBracket)
 {
 	// 创建可解析的标识符列表
 	if ( XTE_LITE_IDENT_LIST == NULL ) {
-		XTE_LITE_IDENT_LIST = xrtTemplateCreateIdentList();
+		XTE_LITE_IDENT_LIST = xteCreateIdentList();
 		if ( XTE_LITE_IDENT_LIST == NULL ) {
 			return &XTE_LITE_ERROR_MALLOC;
 		}
-		xrtTemplateAddIdentToList(XTE_LITE_IDENT_LIST, "end"	, 3, XTE_TK_END		, XTE_IDTPE_DEFAULT	, 0, 0);
-		xrtTemplateAddIdentToList(XTE_LITE_IDENT_LIST, "include", 7, XTE_TK_INCLUDE	, XTE_IDTPE_DEFAULT	, 1, 1);
-		xrtTemplateAddIdentToList(XTE_LITE_IDENT_LIST, "define"	, 6, XTE_TK_DEFINE	, XTE_IDTPE_DEFAULT	, 1, 1);
-		xrtTemplateAddIdentToList(XTE_LITE_IDENT_LIST, "script"	, 6, XTE_TK_SCRIPT	, XTE_IDTPE_BLOCK	, 1, 1);
+		xteAddIdentToList(XTE_LITE_IDENT_LIST, "end"	, 3, XTE_TK_END		, XTE_IDTPE_DEFAULT	, 0, 0);
+		xteAddIdentToList(XTE_LITE_IDENT_LIST, "include", 7, XTE_TK_INCLUDE	, XTE_IDTPE_DEFAULT	, 1, 1);
+		xteAddIdentToList(XTE_LITE_IDENT_LIST, "define"	, 6, XTE_TK_DEFINE	, XTE_IDTPE_DEFAULT	, 1, 1);
+		xteAddIdentToList(XTE_LITE_IDENT_LIST, "script"	, 6, XTE_TK_SCRIPT	, XTE_IDTPE_BLOCK	, 1, 1);
 	}
 	// 词法解析
-	XTE_TokenList objToks = xrtTemplateLexer(sText, iSize, XTE_LITE_IDENT_LIST, sBracket);
+	XTE_TokenList objToks = xteLexer(sText, iSize, XTE_LITE_IDENT_LIST, sBracket);
 	// 语法解析
-	return xrtTemplateParseFromTokenList(objToks);
+	return xteParseFromTokenList(objToks);
 }
 
 
@@ -739,7 +739,7 @@ int xte_private_free_subtemplate(Dict_Key* pKey, xparray objAction, void* pArg)
 	xrtPtrArrayUnit(objAction);
 	return 0;
 }
-void xrtTemplateParseFree(XTE_LiteObject objLite)
+void xteParseFree(XTE_LiteObject objLite)
 {
 	if ( objLite != &XTE_LITE_ERROR_MALLOC ) {
 		xrtDictWalk(&objLite->SubTemplates, (void*)xte_private_free_subtemplate, NULL);
@@ -800,7 +800,7 @@ int xte_private_Make_EachTableProc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 		xdict Include;
 	} *tblProcParam = pArg;
 	size_t iSizeRet = 0;
-	char* sEachPage = xrtTemplateMakeActions(tblProcParam->Action, tblProcParam->Template, *ppVal, tblProcParam->RootEnv, tblProcParam->ENV, tblProcParam->Include, &iSizeRet);
+	char* sEachPage = xteMakeActions(tblProcParam->Action, tblProcParam->Template, *ppVal, tblProcParam->RootEnv, tblProcParam->ENV, tblProcParam->Include, &iSizeRet);
 	if ( sEachPage ) {
 		xrtBufferAppend(tblProcParam->Buf, sEachPage, iSizeRet, XBUF_UTF8);
 		xrtFree(sEachPage);
@@ -813,7 +813,7 @@ int xte_private_Make_EachTableProc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 	}
 	return FALSE;
 }
-char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize)
+char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize)
 {
 	// 检查环境表
 	if ( tblVal == NULL ) {
@@ -927,7 +927,7 @@ char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xval
 							// 根据模板生成页面
 							xvalue tblRootEnv = tblParam == tblVal ? NULL : tblVal;
 							size_t iSizeRet = 0;
-							char* sSubPage = xrtTemplateMakeActions(arrSubAction, objTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+							char* sSubPage = xteMakeActions(arrSubAction, objTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
 							if ( sSubPage == NULL ) {
 								xrtBufferAppend(objBuf, "(sub template generation failed : ", 0, XBUF_UTF8);
 								xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
@@ -1030,7 +1030,7 @@ char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xval
 						for ( int k = 0; k < tblParam->vArray->Count; k++ ) {
 							xvalue tblEachItem = xvoArrayGetValue(tblParam, k);
 							size_t iSizeRet = 0;
-							char* sEachPage = xrtTemplateMakeActions(arrSubAction, objTemplate, tblEachItem, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+							char* sEachPage = xteMakeActions(arrSubAction, objTemplate, tblEachItem, tblRootEnv, tblENV, tblInclude, &iSizeRet);
 							if ( sEachPage ) {
 								xrtBufferAppend(objBuf, sEachPage, iSizeRet, XBUF_UTF8);
 								xrtFree(sEachPage);
@@ -1107,7 +1107,7 @@ char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xval
 					// 根据模板生成页面
 					xvalue tblRootEnv = tblParam == tblVal ? NULL : tblVal;
 					size_t iSizeRet = 0;
-					char* sSubPage = xrtTemplateMakeActions(arrSubAction, objTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+					char* sSubPage = xteMakeActions(arrSubAction, objTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
 					if ( sSubPage == NULL ) {
 						xrtBufferAppend(objBuf, "(sub template generation failed : ", 0, XBUF_UTF8);
 						xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
@@ -1146,7 +1146,7 @@ char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xval
 					// 根据模板生成页面
 					xvalue tblRootEnv = tblParam == tblVal ? NULL : tblVal;
 					size_t iSizeRet = 0;
-					char* sIncPage = xrtTemplateMakeActions(&objIncTemplate->Actions, objIncTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
+					char* sIncPage = xteMakeActions(&objIncTemplate->Actions, objIncTemplate, tblParam, tblRootEnv, tblENV, tblInclude, &iSizeRet);
 					if ( sIncPage == NULL ) {
 						xrtBufferAppend(objBuf, "(template generation failed : ", 0, XBUF_UTF8);
 						xrtBufferAppend(objBuf, objTok->ParamText[0], objTok->ParamSize[0], XBUF_UTF8);
@@ -1263,7 +1263,7 @@ char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xval
 							}
 							// 根据模板生成页面
 							size_t iSizeRet = 0;
-							char* sSubPage = xrtTemplateMakeActions(arrSubAction, objTemplate, tblVal, NULL, tblENV, tblInclude, &iSizeRet);
+							char* sSubPage = xteMakeActions(arrSubAction, objTemplate, tblVal, NULL, tblENV, tblInclude, &iSizeRet);
 							if ( sSubPage == NULL ) {
 								xrtBufferAppend(objBuf, "(sub template generation failed : ", 0, XBUF_UTF8);
 								xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
@@ -1335,9 +1335,9 @@ char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xval
 	xrtBufferDestroy(objBuf);
 	return sRet;
 }
-char* xrtTemplateMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize)
+char* xteMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize)
 {
-	return xrtTemplateMakeActions(&objTemplate->Actions, objTemplate, tblVal, NULL, tblENV, tblInclude, pRetSize);
+	return xteMakeActions(&objTemplate->Actions, objTemplate, tblVal, NULL, tblENV, tblInclude, pRetSize);
 }
 
 

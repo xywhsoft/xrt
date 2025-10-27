@@ -2186,32 +2186,32 @@
 	} XTE_LiteStruct, *XTE_LiteObject;
 	
 	// 创建关键字列表（失败返回 NULL）
-	XXAPI xarray xrtTemplateCreateIdentList();
+	XXAPI xarray xteCreateIdentList();
 	
 	// 销毁关键字列表
-	XXAPI void xrtTemplateDestroyIdentList(xarray objList);
+	XXAPI void xteDestroyIdentList(xarray objList);
 	
 	// 添加一个关键字到列表
-	XXAPI int xrtTemplateAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned int iIndex, unsigned int iType, unsigned int iMinParamCount, unsigned int iMaxParamCount);
+	XXAPI int xteAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned int iIndex, unsigned int iType, unsigned int iMinParamCount, unsigned int iMaxParamCount);
 	
 	// 释放 XTE_TokenList
-	XXAPI void xrtTemplateLexerFree(XTE_TokenList arrToken);
+	XXAPI void xteLexerFree(XTE_TokenList arrToken);
 	
 	// 解析模板文件为 Token 列表
-	XXAPI XTE_TokenList xrtTemplateLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket);
+	XXAPI XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket);
 	
 	// 将 XTE_TokenList 转换为 XTE_LiteObject（XTE_TokenList将被释放）
-	XXAPI XTE_LiteObject xrtTemplateParseFromTokenList(XTE_TokenList objToks);
+	XXAPI XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks);
 	
 	// 解析返回语法列表
-	XXAPI XTE_LiteObject xrtTemplateParse(char* sText, size_t iSize, char* sBracket);
+	XXAPI XTE_LiteObject xteParse(char* sText, size_t iSize, char* sBracket);
 	
 	// 释放 XTE_LiteObject 对象
-	XXAPI void xrtTemplateParseFree(XTE_LiteObject objLite);
+	XXAPI void xteParseFree(XTE_LiteObject objLite);
 	
 	// 根据 XTE_LiteObject 模板对象生成文档
-	XXAPI char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
-	XXAPI char* xrtTemplateMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
+	XXAPI char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
+	XXAPI char* xteMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
 	
 	
 	
