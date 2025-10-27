@@ -1102,12 +1102,12 @@ XXAPI uint32 xvoGetSize(xvalue pVal)
 
 
 // 输出 xte Value 的结构和值
-int TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
+int xvoPrintValue_TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
 {
 	xvoPrintValue(*ppVal, iLevel, 2, 0, pKey->Key);
 	return FALSE;
 }
-void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKey)
+XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKey)
 {
 	for ( int i = 0; i < iLevel; i++ ) {
 		printf("    ");
@@ -1175,7 +1175,7 @@ void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKey)
 			xvoPrintValue(objItem, iLevel + 1, 1, i, NULL);
 		}
 	} else if ( objVal->Type == XVO_DT_TABLE ) {
-		xrtDictWalk(objVal->vTable, (void*)TableItemProc, (void*)(intptr_t)(iLevel+1));
+		xrtDictWalk(objVal->vTable, (void*)xvoPrintValue_TableItemProc, (void*)(intptr_t)(iLevel+1));
 	}
 }
 

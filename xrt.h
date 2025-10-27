@@ -1853,7 +1853,7 @@
 	#define xvoTableItemSize(pTbl, key, kl)														xvoGetSize(xvoTableGetValue(pTbl, key, kl))
 	
 	// 输出 xte Value 的结构和值
-	void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKey);
+	XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int iKey, str sKey);
 	
 	
 	
@@ -2085,6 +2085,14 @@
 	
 	// 结束SAX打印器
 	XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr);
+	
+	// 解析 JSON
+	XXAPI xvalue xvoParseJSON_File(char* sFile);
+	XXAPI xvalue xvoParseJSON(char* sText, size_t iSize);
+	
+	// 将 xvalue 转换为 JSON
+	XXAPI char* xteStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize);
+	XXAPI int xteStringifyJSON_File(char* sFile, xvalue varVal, int bFormat);
 	
 	
 	

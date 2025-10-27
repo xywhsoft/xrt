@@ -295,6 +295,8 @@ xteLexerFree
 xteLiteParse
 xteLiteParseFree
 xteLiteParseFromTokenList
+xteStringifyJSON
+xteStringifyJSON_File
 xvoAddRef
 xvoArrayAlloc
 xvoArrayAppendValue
@@ -346,6 +348,9 @@ xvoListGetValue
 xvoListRemove
 xvoListSetValue
 xvoListSize
+xvoParseJSON
+xvoParseJSON_File
+xvoPrintValue
 xvoSubType
 xvoTableClear
 xvoTableExists

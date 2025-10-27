@@ -1794,7 +1794,7 @@ json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 	}
     return JSON_SAX_PARSE_CONTINUE;
 }
-xvalue xvoParseJSON_File(char* sFile)
+XXAPI xvalue xvoParseJSON_File(char* sFile)
 {
 	varStack = xrtStackCreate(256, sizeof(ptr));
 	varRoot = NULL;
@@ -1808,7 +1808,7 @@ xvalue xvoParseJSON_File(char* sFile)
 	xrtStackDestroy(varStack);
 	return varRoot;
 }
-xvalue xvoParseJSON(char* sText, size_t iSize)
+XXAPI xvalue xvoParseJSON(char* sText, size_t iSize)
 {
 	varStack = xrtStackCreate(256, sizeof(ptr));
 	varRoot = NULL;
@@ -1887,7 +1887,7 @@ void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_s
 	xrtDictWalk(varVal->vTable, (void*)xvo_private_Stringify_Table_Proc, (void*)handle);
 	xrtJsonPrintObject(handle, NULL, JSON_SAX_FINISH);
 }
-char* xteStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
+XXAPI char* xteStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 {
 	// 初始化 SAX 字符串输出
 	json_print_choice_t choice;
@@ -1918,7 +1918,7 @@ char* xteStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
     // 返回结果
 	return xrtJsonPrintFinish(handle, pRetSize, NULL);
 }
-int xteStringifyJSON_File(char* sFile, xvalue varVal, int bFormat)
+XXAPI int xteStringifyJSON_File(char* sFile, xvalue varVal, int bFormat)
 {
 	size_t iSize = 0;
 	str sRet = xteStringifyJSON(varVal, bFormat, &iSize);
