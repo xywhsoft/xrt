@@ -80,12 +80,12 @@ XXAPI int xrtBufferInsert(xbuffer pBuf, unsigned int iPos, void* pData, unsigned
 {
 	// 长度为 0 时自动计算数据长度
 	if ( iSize == 0 ) {
-		if ( bStrMode == XBUFFER_ANSI ) {
+		if ( bStrMode == XBUF_ANSI ) {
 			iSize = strlen(pData);
-		} else if ( bStrMode == XBUFFER_UTF16 ) {
-			iSize = u16len(pData) * XBUFFER_UTF16;
-		} else if ( bStrMode == XBUFFER_UTF32 ) {
-			iSize = u32len(pData) * XBUFFER_UTF32;
+		} else if ( bStrMode == XBUF_UTF16 ) {
+			iSize = u16len(pData) * XBUF_UTF16;
+		} else if ( bStrMode == XBUF_UTF32 ) {
+			iSize = u32len(pData) * XBUF_UTF32;
 		}
 	}
 	// 分配内存

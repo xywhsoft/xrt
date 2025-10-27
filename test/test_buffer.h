@@ -32,7 +32,7 @@ void Test_Buffer(xrtGlobalData* xCore)
 	
 	// subject 2 : append string
 	printf("Buffer test subject 2 : append string\n\n");
-	xrtBufferAppend(objBuffer, "012345", 4, XBUFFER_UTF8);
+	xrtBufferAppend(objBuffer, "012345", 4, XBUF_UTF8);
 	
 	printf("\nBuffer state : \n");
 	if ( objBuffer->Buffer ) {
@@ -55,7 +55,7 @@ void Test_Buffer(xrtGlobalData* xCore)
 	
 	// subject 3 : append string (auto length) & malloc
 	printf("Buffer test subject 3 : append string (auto length) & malloc\n\n");
-	xrtBufferAppend(objBuffer, "456789", 0, XBUFFER_UTF8);
+	xrtBufferAppend(objBuffer, "456789", 0, XBUF_UTF8);
 	
 	printf("\nBuffer state : \n");
 	if ( objBuffer->Buffer ) {
@@ -78,7 +78,7 @@ void Test_Buffer(xrtGlobalData* xCore)
 	
 	// subject 4 : insert string (rewrite)
 	printf("Buffer test subject 4 : insert string (rewrite)\n\n");
-	xrtBufferInsert(objBuffer, 0, "9876543210", 0, XBUFFER_UTF8);
+	xrtBufferInsert(objBuffer, 0, "9876543210", 0, XBUF_UTF8);
 	
 	printf("\nBuffer state : \n");
 	if ( objBuffer->Buffer ) {
@@ -102,16 +102,16 @@ void Test_Buffer(xrtGlobalData* xCore)
 	// subject 5 : Generate webpage
 	printf("Buffer test subject 5 : Generate webpage\n\n");
 	xrtBufferClear(objBuffer);
-	xrtBufferAppend(objBuffer, "<!DOCTYPE html>\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "<html>\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "<head>\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "<meta charset=\"utf-8\">\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "<title>The page was generated on buffer</title>\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "</head>\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "<body>\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "Hello World!\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "</body>\n", 0, XBUFFER_UTF8);
-	xrtBufferAppend(objBuffer, "</html>", 0, XBUFFER_UTF8);
+	xrtBufferAppend(objBuffer, "<!DOCTYPE html>\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "<html>\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "<head>\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "<meta charset=\"utf-8\">\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "<title>The page was generated on buffer</title>\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "</head>\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "<body>\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "Hello World!\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "</body>\n", 0, XBUF_UTF8);
+	xrtBufferAppend(objBuffer, "</html>", 0, XBUF_UTF8);
 	
 	printf("\nBuffer state : \n");
 	if ( objBuffer->Buffer ) {

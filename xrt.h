@@ -707,11 +707,11 @@
 	/* ------------------------------------ Buffer 函数库 ------------------------------------ */
 	
 	// 内容类型
-	#define XBUFFER_BINARY 0					// 二进制
-	#define XBUFFER_ANSI 1						// ANSI 字符串
-	#define XBUFFER_UTF8 1						// UTF8 字符串
-	#define XBUFFER_UTF16 2						// UTF16 字符串
-	#define XBUFFER_UTF32 4						// UTF32 字符串
+	#define XBUF_BINARY 0						// 二进制
+	#define XBUF_ANSI 1							// ANSI 字符串
+	#define XBUF_UTF8 1							// UTF8 字符串
+	#define XBUF_UTF16 2						// UTF16 字符串
+	#define XBUF_UTF32 4						// UTF32 字符串
 	
 	// 默认增量长度
 	#define XBUFFER_ALLOC_STEP 0x10000
@@ -2186,34 +2186,32 @@
 	} XTE_LiteStruct, *XTE_LiteObject;
 	
 	// 创建关键字列表（失败返回 NULL）
-	XXAPI xarray xteCreateIdentList();
+	XXAPI xarray xrtTemplateCreateIdentList();
 	
 	// 销毁关键字列表
-	XXAPI void xteDestroyIdentList(xarray objList);
+	XXAPI void xrtTemplateDestroyIdentList(xarray objList);
 	
 	// 添加一个关键字到列表
-	XXAPI int xteAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned int iIndex, unsigned int iType, unsigned int iMinParamCount, unsigned int iMaxParamCount);
+	XXAPI int xrtTemplateAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned int iIndex, unsigned int iType, unsigned int iMinParamCount, unsigned int iMaxParamCount);
 	
 	// 释放 XTE_TokenList
-	XXAPI void xteLexerFree(XTE_TokenList arrToken);
+	XXAPI void xrtTemplateLexerFree(XTE_TokenList arrToken);
 	
 	// 解析模板文件为 Token 列表
-	XXAPI XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket);
+	XXAPI XTE_TokenList xrtTemplateLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket);
 	
 	// 将 XTE_TokenList 转换为 XTE_LiteObject（XTE_TokenList将被释放）
-	XXAPI XTE_LiteObject xteLiteParseFromTokenList(XTE_TokenList objToks);
+	XXAPI XTE_LiteObject xrtTemplateParseFromTokenList(XTE_TokenList objToks);
 	
 	// 解析返回语法列表
-	XXAPI XTE_LiteObject xteLiteParse(char* sText, size_t iSize, char* sBracket);
+	XXAPI XTE_LiteObject xrtTemplateParse(char* sText, size_t iSize, char* sBracket);
 	
 	// 释放 XTE_LiteObject 对象
-	XXAPI void xteLiteParseFree(XTE_LiteObject objLite);
+	XXAPI void xrtTemplateParseFree(XTE_LiteObject objLite);
 	
 	// 根据 XTE_LiteObject 模板对象生成文档
-	/*
-	XXAPI char* xteLiteMakeActions(PAMM_Object arrAction, XTE_LiteObject objTemplate, XTE_Value tblVal, XTE_Value tblRoot, XTE_Value tblENV, AVLHT32_Object tblInclude, size_t* pRetSize);
-	XXAPI char* xteLiteMake(XTE_LiteObject objTemplate, XTE_Value tblVal, XTE_Value tblENV, AVLHT32_Object tblInclude, size_t* pRetSize);
-	*/
+	XXAPI char* xrtTemplateMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
+	XXAPI char* xrtTemplateMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
 	
 	
 	
