@@ -273,7 +273,6 @@ XXAPI bool xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, ptr 
 				return TRUE;
 			}
 		}
-		return TRUE;
 	}
 	return FALSE;
 }
@@ -310,7 +309,6 @@ XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVL
 				return TRUE;
 			}
 		}
-		return TRUE;
 	}
 	return FALSE;
 }

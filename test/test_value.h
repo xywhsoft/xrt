@@ -113,7 +113,7 @@ void Test_Value(xrtGlobalData* xCore)
 	*/
 	
 	
-	
+	/*
 	// subject 9 : print array
 	printf("Value test subject 9 : print array\n\n");
 	xvalue pValArray = xvoCreateArray();
@@ -173,13 +173,28 @@ void Test_Value(xrtGlobalData* xCore)
 	printf("\n\n\n");
 	system("pause");
 	system("cls");
-	
+	*/
 	
 	
 	// subject 13 : print coll
+	printf("Value test subject 13 : print coll\n\n");
+	xvalue pValColl = xvoCreateColl();
+	xvoCollSetNull(pValColl);
+	xvoCollSetBool(pValColl, TRUE);
+	xvoCollSetBool(pValColl, FALSE);
+	xvoCollSetInt(pValColl, 753951);
+	xvoCollSetFloat(pValColl, 3.1415926);
+	xvoCollSetText(pValColl, "莫等闲，白了少年头，空悲切", 0, XVO_SDT_STR_U8, FALSE);
+	xvoCollSetTime(pValColl, xrtNow());
+	xvoCollSetTimeSerial(pValColl, 2000, 10, 1, 12, 30, 30);
+	xvoPrintValue(pValColl, 0, 0, 0, NULL);
+	xvoUnref(pValColl);
+	printf("\n\n\n");
+	system("pause");
+	system("cls");
 	
 	
-	
+	/*
 	// subject 14 : print table
 	printf("Value test subject 14 : print table\n\n");
 	xvalue pValTable = xvoCreateTable();
@@ -196,7 +211,7 @@ void Test_Value(xrtGlobalData* xCore)
 	printf("\n\n\n");
 	system("pause");
 	system("cls");
-	
+	*/
 	
 	
 }

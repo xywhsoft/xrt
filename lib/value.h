@@ -46,6 +46,11 @@ bool xvoListClear_FreeProc(int64 pKey, xvalue* ppVal, xlist pList)
 	xvoUnref(*ppVal);
 	return FALSE;
 }
+bool xvoCollClear_FreeProc(Coll_Key* pKey, xavltree pColl)
+{
+	xvoUnref(pKey->Value);
+	return FALSE;
+}
 bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue* ppVal, xdict pTbl)
 {
 	xvoUnref(*ppVal);
@@ -72,7 +77,8 @@ XXAPI void xvoUnref(xvalue pVal)
 					xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
 					xrtListDestroy(pVal->vList);
 				} else if ( pVal->Type == XVO_DT_COLL ) {
-					
+					xrtAVLTreeWalk(pVal->vColl, (ptr)xvoCollClear_FreeProc, pVal->vColl);
+					xrtAVLTreeDestroy(pVal->vColl);
 				} else if ( pVal->Type == XVO_DT_TABLE ) {
 					xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
 					xrtDictDestroy(pVal->vTable);
@@ -288,7 +294,8 @@ XXAPI xvalue xvoCreateColl()
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xavltree objColl = xrtAVLTreeCreate(sizeof(xvalue), NULL);
+		int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey);	// 比较函数定义
+		xavltree objColl = xrtAVLTreeCreate(sizeof(Coll_Key), (ptr)Coll_CompProc);
 		if ( objColl == NULL ) {
 			xrtFree(pVal);
 			return NULL;
@@ -638,7 +645,7 @@ XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index)
 
 
 // Array 追加数据
-XXAPI int xvoArrayAppendValue(xvalue pArr, xvalue pVal, int bColloc)
+XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc)
 {
 	if ( (pArr || pVal) == 0 ) {
 		return FALSE;
@@ -659,7 +666,7 @@ XXAPI int xvoArrayAppendValue(xvalue pArr, xvalue pVal, int bColloc)
 
 
 // Array 插入操作
-XXAPI int xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc)
+XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc)
 {
 	if ( (pArr || pVal) == 0 ) {
 		return FALSE;
@@ -680,7 +687,7 @@ XXAPI int xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, int bCollo
 
 
 // Array 修改操作
-XXAPI int xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc)
+XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc)
 {
 	if ( (pArr || pVal) == 0 ) {
 		return FALSE;
@@ -703,7 +710,7 @@ XXAPI int xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc)
 
 
 // Array 操作
-XXAPI int xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
+XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
 {
 	if ( pArr == NULL ) {
 		return FALSE;
@@ -713,7 +720,7 @@ XXAPI int xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
 	}
 	return xrtPtrArraySwap(pArr->vArray, index1, index2);
 }
-XXAPI int xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
+XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
 {
 	if ( pArr == NULL ) {
 		return FALSE;
@@ -733,7 +740,7 @@ XXAPI uint32 xvoArraySize(xvalue pArr)
 	}
 	return pArr->vArray->Count;
 }
-XXAPI uint32 xvoArrayClear(xvalue pArr)
+XXAPI bool xvoArrayClear(xvalue pArr)
 {
 	if ( pArr == NULL ) {
 		return FALSE;
@@ -748,7 +755,7 @@ XXAPI uint32 xvoArrayClear(xvalue pArr)
 	xrtPtrArrayClear(pArr->vArray);
 	return TRUE;
 }
-XXAPI int xvoArrayAlloc(xvalue pArr, uint32 count)
+XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count)
 {
 	if ( pArr == NULL ) {
 		return FALSE;
@@ -758,7 +765,7 @@ XXAPI int xvoArrayAlloc(xvalue pArr, uint32 count)
 	}
 	return xrtPtrArrayMalloc(pArr->vArray, count);
 }
-XXAPI int xvoArraySort(xvalue pArr, ptr proc)
+XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
 {
 	if ( pArr == NULL ) {
 		return FALSE;
@@ -786,7 +793,7 @@ XXAPI xvalue xvoListGetValue(xvalue pList, int64 index)
 
 
 // List 写数据
-XXAPI int xvoListSetValue(xvalue pList, int64 index, xvalue pVal, int bColloc)
+XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
 {
 	if ( (pList || pVal) == 0 ) {
 		return FALSE;
@@ -811,7 +818,7 @@ XXAPI int xvoListSetValue(xvalue pList, int64 index, xvalue pVal, int bColloc)
 
 
 // List 操作
-XXAPI int xvoListExists(xvalue pList, int64 index)
+XXAPI bool xvoListExists(xvalue pList, int64 index)
 {
 	if ( pList == NULL ) {
 		return FALSE;
@@ -821,7 +828,7 @@ XXAPI int xvoListExists(xvalue pList, int64 index)
 	}
 	return xrtListExists(pList->vList, index);
 }
-XXAPI int xvoListRemove(xvalue pList, int64 index)
+XXAPI bool xvoListRemove(xvalue pList, int64 index)
 {
 	if ( pList == NULL ) {
 		return FALSE;
@@ -837,17 +844,17 @@ XXAPI int xvoListRemove(xvalue pList, int64 index)
 		return FALSE;
 	}
 }
-XXAPI int xvoListSize(xvalue pList)
+XXAPI uint32 xvoListSize(xvalue pList)
 {
 	if ( pList == NULL ) {
-		return FALSE;
+		return 0;
 	}
 	if ( pList->Type != XVO_DT_LIST ) {
-		return FALSE;
+		return 0;
 	}
 	return xrtListCount(pList->vList);
 }
-XXAPI int xvoListClear(xvalue pList)
+XXAPI bool xvoListClear(xvalue pList)
 {
 	if ( pList == NULL ) {
 		return FALSE;
@@ -862,12 +869,100 @@ XXAPI int xvoListClear(xvalue pList)
 
 
 
-// Coll 功能实现
+// 集合功能实现
+int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey)
+{
+	if ( pNode->Hash == pObjKey->Hash ) {
+		if ( pNode->Value->Type == XVO_DT_INT ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_FLOAT ) {
+			if ( pNode->Value->vFloat > pObjKey->Value->vFloat ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_TEXT ) {
+			if ( pNode->Value->Size == pObjKey->Value->Size ) {
+				return strcmp(pNode->Value->vText, pObjKey->Value->vText);
+			} else {
+				if ( pNode->Value->Size > pObjKey->Value->Size ) {
+					return 1;
+				} else {
+					return -1;
+				}
+			}
+		} else if ( pNode->Value->Type == XVO_DT_TIME ) {
+			if ( pNode->Value->vTime > pObjKey->Value->vTime ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_FUNC ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_ARRAY ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_LIST ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_COLL ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_TABLE ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_STRUCT ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_OBJECT ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else if ( pNode->Value->Type == XVO_DT_CUSTOM ) {
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return -1;
+			}
+		} else {
+			return 0;
+		}
+	} else if ( pNode->Hash > pObjKey->Hash ) {
+		return 1;
+	} else {
+		return -1;
+	}
+}
 
 
 
 // Coll 写数据
-XXAPI int xvoCollSetValue(xvalue pColl, xvalue pVal, int bColloc)
+XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc)
 {
 	if ( (pColl || pVal) == 0 ) {
 		return FALSE;
@@ -875,79 +970,117 @@ XXAPI int xvoCollSetValue(xvalue pColl, xvalue pVal, int bColloc)
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
+	Coll_Key objKey;
+	if ( pVal->Type == XVO_DT_TEXT ) {
+		#if defined(__x86_64__) || defined(_M_X64)
+			// 64 bit
+			uint64 iHash = xrtHash64(pVal->vText, pVal->Size);
+		#elif defined(__i386__) || defined(_M_IX86)
+			// 32 bit
+			uint32 iHash = xrtHash32(pVal->vText, pVal->Size);
+		#endif
+		objKey.Hash = ((uint64)pVal->Type << 60) | ((uint64)pVal->Size << 28) | (iHash & 0xFFFFFFF);
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		objKey.Hash = ((uint64)pVal->Type << 60) | pVal->vBool;
+	} else {
+		objKey.Hash = ((uint64)pVal->Type << 60) | (pVal->vInt & 0xFFFFFFFFFFFFFFF);
+	}
+	objKey.Value = pVal;
 	bool bNew;
-	xvalue* ppVal = xrtAVLTreeInsert(pColl->vColl, pVal, &bNew);
-	if ( ppVal ) {
-		
+	Coll_Key* pNode = xrtAVLTreeInsert(pColl->vColl, &objKey, &bNew);
+	if ( pNode ) {
+		if ( bNew ) {
+			pNode->Hash = objKey.Hash;
+			pNode->Value = pVal;
+			if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
+				pVal->RefCount++;
+			}
+		} else {
+			if ( bColloc ) {
+				xvoUnref(pVal);
+			}
+		}
+		return TRUE;
 	}
-	/*
-	xvalue pOldVal = NULL;
-	int iRet = xrtDictSetPtr(pColl->vColl, key, kl, pVal, (ptr*)&pOldVal);
-	if ( iRet == FALSE ) {
-		return FALSE;
-	}
-	if ( pOldVal ) {
-		xvoUnref(pOldVal);
-	}
-	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-		pVal->RefCount++;
-	}
-	*/
-	return TRUE;
+	return FALSE;
 }
-
-
-
-// Coll 集合操作
 
 
 
 // Coll 操作
-XXAPI int xvoCollExists(xvalue pColl, xvalue pVal)
+XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal)
 {
-	if ( pColl == NULL ) {
+	if ( (pColl || pVal) == 0 ) {
 		return FALSE;
 	}
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
-	xvalue pRetVal = xrtAVLTreeSearch(pColl->vColl, pVal);
-	if ( pRetVal ) {
-		return TRUE;
+	Coll_Key objKey;
+	if ( pVal->Type == XVO_DT_TEXT ) {
+		#if defined(__x86_64__) || defined(_M_X64)
+			// 64 bit
+			uint64 iHash = xrtHash64(pVal->vText, pVal->Size);
+		#elif defined(__i386__) || defined(_M_IX86)
+			// 32 bit
+			uint32 iHash = xrtHash32(pVal->vText, pVal->Size);
+		#endif
+		objKey.Hash = ((uint64)pVal->Type << 60) | ((uint64)pVal->Size << 28) | (iHash & 0xFFFFFFF);
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		objKey.Hash = ((uint64)pVal->Type << 60) | pVal->vBool;
 	} else {
-		return FALSE;
+		objKey.Hash = ((uint64)pVal->Type << 60) | (pVal->vInt & 0xFFFFFFFFFFFFFFF);
 	}
-}
-XXAPI int xvoCollRemove(xvalue pColl, xvalue pVal)
-{
-	if ( pColl == NULL ) {
-		return FALSE;
-	}
-	if ( pColl->Type != XVO_DT_COLL ) {
-		return FALSE;
-	}
-	/*
-	xvalue pOldVal = xrtDictRemovePtr(pColl->vColl, key, kl);
-	if ( pOldVal ) {
-		xvoUnref(pOldVal);
+	objKey.Value = pVal;
+	Coll_Key* pNode = xrtAVLTreeSearch(pColl->vColl, &objKey);
+	if ( pNode ) {
 		return TRUE;
-	} else {
-		return FALSE;
 	}
-	*/
 	return FALSE;
 }
-XXAPI int xvoCollSize(xvalue pColl)
+XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
 {
-	if ( pColl == NULL ) {
+	if ( (pColl || pVal) == 0 ) {
 		return FALSE;
 	}
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
+	}
+	Coll_Key objKey;
+	if ( pVal->Type == XVO_DT_TEXT ) {
+		#if defined(__x86_64__) || defined(_M_X64)
+			// 64 bit
+			uint64 iHash = xrtHash64(pVal->vText, pVal->Size);
+		#elif defined(__i386__) || defined(_M_IX86)
+			// 32 bit
+			uint32 iHash = xrtHash32(pVal->vText, pVal->Size);
+		#endif
+		objKey.Hash = ((uint64)pVal->Type << 60) | ((uint64)pVal->Size << 28) | (iHash & 0xFFFFFFF);
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		objKey.Hash = ((uint64)pVal->Type << 60) | pVal->vBool;
+	} else {
+		objKey.Hash = ((uint64)pVal->Type << 60) | (pVal->vInt & 0xFFFFFFFFFFFFFFF);
+	}
+	objKey.Value = pVal;
+	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)pColl->vColl, pColl->vColl->CompProc, &objKey);
+	if ( pDelNode ) {
+		Coll_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
+		xvoUnref(pKeyPtr->Value);
+		return TRUE;
+	}
+	return FALSE;
+}
+XXAPI uint32 xvoCollSize(xvalue pColl)
+{
+	if ( pColl == NULL ) {
+		return 0;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return 0;
 	}
 	return pColl->vColl->Count;
 }
-XXAPI int xvoCollClear(xvalue pColl)
+XXAPI bool xvoCollClear(xvalue pColl)
 {
 	if ( pColl == NULL ) {
 		return FALSE;
@@ -955,9 +1088,7 @@ XXAPI int xvoCollClear(xvalue pColl)
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
-	/*
-	xrtDictWalk(pColl->vColl, (ptr)xvoTableClear_FreeProc, pColl);
-	*/
+	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollClear_FreeProc, pColl);
 	xrtAVLTreeClear(pColl->vColl);
 	return TRUE;
 }
@@ -985,7 +1116,7 @@ XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl)
 
 
 // Table 写数据
-XXAPI int xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, int bColloc)
+XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool bColloc)
 {
 	if ( (pTbl || pVal) == 0 ) {
 		return FALSE;
@@ -1016,7 +1147,7 @@ XXAPI int xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, int bCo
 
 
 // Table 操作
-XXAPI int xvoTableExists(xvalue pTbl, str key, uint32 kl)
+XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl)
 {
 	if ( pTbl == NULL ) {
 		return FALSE;
@@ -1026,7 +1157,7 @@ XXAPI int xvoTableExists(xvalue pTbl, str key, uint32 kl)
 	}
 	return xrtDictExists(pTbl->vTable, key, kl);
 }
-XXAPI int xvoTableRemove(xvalue pTbl, str key, uint32 kl)
+XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 {
 	if ( pTbl == NULL ) {
 		return FALSE;
@@ -1042,17 +1173,17 @@ XXAPI int xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 		return FALSE;
 	}
 }
-XXAPI int xvoTableSize(xvalue pTbl)
+XXAPI uint32 xvoTableSize(xvalue pTbl)
 {
 	if ( pTbl == NULL ) {
-		return FALSE;
+		return 0;
 	}
 	if ( pTbl->Type != XVO_DT_TABLE ) {
-		return FALSE;
+		return 0;
 	}
 	return xrtDictCount(pTbl->vTable);
 }
-XXAPI int xvoTableClear(xvalue pTbl)
+XXAPI bool xvoTableClear(xvalue pTbl)
 {
 	if ( pTbl == NULL ) {
 		return FALSE;
@@ -1104,14 +1235,19 @@ XXAPI uint32 xvoGetSize(xvalue pVal)
 
 
 // 输出 value 的结构和值
-int xvoPrintValue_TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
+bool xvoPrintValue_TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
 {
 	xvoPrintValue(*ppVal, iLevel, 2, 0, pKey->Key);
 	return FALSE;
 }
-int xvoPrintValue_ListItemProc(int64 iKey, xvalue* ppVal, int iLevel)
+bool xvoPrintValue_ListItemProc(int64 iKey, xvalue* ppVal, int iLevel)
 {
 	xvoPrintValue(*ppVal, iLevel, 1, iKey, NULL);
+	return FALSE;
+}
+bool xvoPrintValue_CollItemProc(Coll_Key* pKey, int iLevel)
+{
+	xvoPrintValue(pKey->Value, iLevel, 3, 0, NULL);
 	return FALSE;
 }
 XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str sKey)
@@ -1173,6 +1309,33 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		} else {
 			printf("Unknown data type\n");
 		}
+	} else if ( iMode == 3 ) {
+		// 输出集合元素
+		if ( objVal == NULL ) {
+			printf("(empty) Coll : (empty)\n");
+		} else if ( objVal->Type == XVO_DT_NULL ) {
+			printf("(null ) [%x] Coll : (null)\n", objVal);
+		} else if ( objVal->Type == XVO_DT_BOOL ) {
+			printf("(bool ) [%x] Coll : (%s)\n", objVal, xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_INT ) {
+			printf("( int ) [%x] Coll : %lld\n", objVal, xvoGetInt(objVal));
+		} else if ( objVal->Type == XVO_DT_FLOAT ) {
+			printf("(float) [%x] Coll : %lf\n", objVal, xvoGetFloat(objVal));
+		} else if ( objVal->Type == XVO_DT_TEXT ) {
+			printf("(text ) [%x] Coll : \"%s\"\n", objVal, xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_TIME ) {
+			printf("(time ) [%x] Coll : < %s >\n", objVal, xvoGetText(objVal, NULL));
+		} else if ( objVal->Type == XVO_DT_ARRAY ) {
+			printf("(array) [%x] Coll : (array), count : %d\n", objVal, xvoArraySize(objVal));
+		} else if ( objVal->Type == XVO_DT_LIST ) {
+			printf("(list ) [%x] Coll : (list), count : %d\n", objVal, xvoListSize(objVal));
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			printf("(table) [%x] Coll : (table), count : %d\n", objVal, xvoTableSize(objVal));
+		} else if ( objVal->Type == XVO_DT_COLL ) {
+			printf("(coll ) [%x] Coll : (coll), count : %d\n", objVal, xvoCollSize(objVal));
+		} else {
+			printf("Unknown data type\n");
+		}
 	} else {
 		if ( objVal == NULL ) {
 			printf("(empty)\n");
@@ -1211,7 +1374,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		} else if ( objVal->Type == XVO_DT_TABLE ) {
 			xrtDictWalk(objVal->vTable, (ptr)xvoPrintValue_TableItemProc, (ptr)(intptr_t)(iLevel+1));
 		} else if ( objVal->Type == XVO_DT_COLL ) {
-			//xrtDictWalk(objVal->vTable, (ptr)xvoPrintValue_TableItemProc, (ptr)(intptr_t)(iLevel+1));
+			xrtAVLTreeWalk(objVal->vColl, (ptr)xvoPrintValue_CollItemProc, (ptr)(intptr_t)(iLevel+1));
 		}
 	}
 }

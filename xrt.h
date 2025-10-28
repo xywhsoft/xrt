@@ -1683,7 +1683,7 @@
 	#define xvoArrayGetCustom(pArr, index)														xvoGetCustom(xvoArrayGetValue(pArr, index))
 	
 	// Array 追加数据
-	XXAPI int xvoArrayAppendValue(xvalue pArr, xvalue pVal, int bColloc);
+	XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc);
 	#define xvoArrayAppendNull(pArr)															xvoArrayAppendValue(pArr, xvoCreateNull(), TRUE)
 	#define xvoArrayAppendBool(pArr, bVal)														xvoArrayAppendValue(pArr, xvoCreateBool(bVal), TRUE)
 	#define xvoArrayAppendInt(pArr, iVal)														xvoArrayAppendValue(pArr, xvoCreateInt(iVal), TRUE)
@@ -1701,7 +1701,7 @@
 	#define xvoArrayAppendCustom(pArr, point)													xvoArrayAppendValue(pArr, xvoCreateCustom(point), TRUE)
 	
 	// Array 插入操作
-	XXAPI int xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc);
+	XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc);
 	#define xvoArrayInsertNull(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateNull(), TRUE)
 	#define xvoArrayInsertBool(pArr, idx, bVal)													xvoArrayInsertValue(pArr, idx, xvoCreateBool(bVal), TRUE)
 	#define xvoArrayInsertInt(pArr, idx, iVal)													xvoArrayInsertValue(pArr, idx, xvoCreateInt(iVal), TRUE)
@@ -1719,7 +1719,7 @@
 	#define xvoArrayInsertCustom(pArr, idx, point)												xvoArrayInsertValue(pArr, idx, xvoCreateCustom(point), TRUE)
 	
 	// Array 修改操作
-	XXAPI int xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, int bColloc);
+	XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc);
 	#define xvoArraySetNull(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateNull(), TRUE)
 	#define xvoArraySetBool(pArr, idx, bVal)													xvoArraySetValue(pArr, idx, xvoCreateBool(bVal), TRUE)
 	#define xvoArraySetInt(pArr, idx, iVal)														xvoArraySetValue(pArr, idx, xvoCreateInt(iVal), TRUE)
@@ -1737,12 +1737,12 @@
 	#define xvoArraySetCustom(pArr, idx, point)													xvoArraySetValue(pArr, idx, xvoCreateCustom(point), TRUE)
 	
 	// Array 操作
-	XXAPI int xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2);
-	XXAPI int xvoArrayRemove(xvalue pArr, uint32 index, uint32 count);
+	XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2);
+	XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count);
 	XXAPI uint32 xvoArraySize(xvalue pArr);
-	XXAPI uint32 xvoArrayClear(xvalue pArr);
-	XXAPI int xvoArrayAlloc(xvalue pArr, uint32 count);
-	XXAPI int xvoArraySort(xvalue pArr, ptr proc);
+	XXAPI bool xvoArrayClear(xvalue pArr);
+	XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count);
+	XXAPI bool xvoArraySort(xvalue pArr, ptr proc);
 	
 	// List 读数据
 	XXAPI xvalue xvoListGetValue(xvalue pList, int64 index);
@@ -1761,7 +1761,7 @@
 	#define xvoListGetCustom(pList, index)														xvoGetCustom(xvoListGetValue(pList, index))
 	
 	// List 写数据
-	XXAPI int xvoListSetValue(xvalue pList, int64 index, xvalue pVal, int bColloc);
+	XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc);
 	#define xvoListSetNull(pList, idx)															xvoListSetValue(pList, idx, xvoCreateNull(), TRUE)
 	#define xvoListSetBool(pList, idx, bVal)													xvoListSetValue(pList, idx, xvoCreateBool(bVal), TRUE)
 	#define xvoListSetInt(pList, idx, iVal)														xvoListSetValue(pList, idx, xvoCreateInt(iVal), TRUE)
@@ -1779,13 +1779,19 @@
 	#define xvoListSetCustom(pList, idx, point)													xvoListSetValue(pList, idx, xvoCreateCustom(point), TRUE)
 	
 	// List 操作
-	XXAPI int xvoListExists(xvalue pList, int64 index);
-	XXAPI int xvoListRemove(xvalue pList, int64 index);
-	XXAPI int xvoListSize(xvalue pList);
-	XXAPI int xvoListClear(xvalue pList);
+	XXAPI bool xvoListExists(xvalue pList, int64 index);
+	XXAPI bool xvoListRemove(xvalue pList, int64 index);
+	XXAPI uint32 xvoListSize(xvalue pList);
+	XXAPI bool xvoListClear(xvalue pList);
+	
+	// Coll Key 数据结构
+	typedef struct {
+		uint64 Hash;
+		xvalue Value;
+	} Coll_Key;
 	
 	// Coll 写数据
-	XXAPI int xvoCollSetValue(xvalue pColl, xvalue pVal, int bColloc);
+	XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc);
 	#define xvoCollSetNull(pList)																xvoCollSetValue(pList, xvoCreateNull(), TRUE)
 	#define xvoCollSetBool(pList, bVal)															xvoCollSetValue(pList, xvoCreateBool(bVal), TRUE)
 	#define xvoCollSetInt(pList, iVal)															xvoCollSetValue(pList, xvoCreateInt(iVal), TRUE)
@@ -1797,10 +1803,10 @@
 	#define xvoCollSetCustom(pList, point)														xvoCollSetValue(pList, xvoCreateCustom(point), TRUE)
 	
 	// Coll 操作
-	XXAPI int xvoCollExists(xvalue pColl, xvalue pVal);
-	XXAPI int xvoCollRemove(xvalue pColl, xvalue pVal);
-	XXAPI int xvoCollSize(xvalue pColl);
-	XXAPI int xvoCollClear(xvalue pColl);
+	XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal);
+	XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal);
+	XXAPI uint32 xvoCollSize(xvalue pColl);
+	XXAPI bool xvoCollClear(xvalue pColl);
 	
 	// Table 读数据
 	XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl);
@@ -1819,7 +1825,7 @@
 	#define xvoTableGetCustom(pTbl, key, kl)													xvoGetCustom(xvoTableGetValue(pTbl, key, kl))
 	
 	// Table 写数据
-	XXAPI int xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, int bColloc);
+	XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool bColloc);
 	#define xvoTableSetNull(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateNull(), TRUE)
 	#define xvoTableSetBool(pTbl, key, kl, bVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateBool(bVal), TRUE)
 	#define xvoTableSetInt(pTbl, key, kl, iVal)													xvoTableSetValue(pTbl, key, kl, xvoCreateInt(iVal), TRUE)
@@ -1837,10 +1843,10 @@
 	#define xvoTableSetCustom(pTbl, key, kl, point)												xvoTableSetValue(pTbl, key, kl, xvoCreateCustom(point), TRUE)
 	
 	// Table 操作
-	XXAPI int xvoTableExists(xvalue pTbl, str key, uint32 kl);
-	XXAPI int xvoTableRemove(xvalue pTbl, str key, uint32 kl);
-	XXAPI int xvoTableSize(xvalue pTbl);
-	XXAPI int xvoTableClear(xvalue pTbl);
+	XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl);
+	XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl);
+	XXAPI uint32 xvoTableSize(xvalue pTbl);
+	XXAPI bool xvoTableClear(xvalue pTbl);
 	
 	// 类型操作
 	XXAPI int xvoType(xvalue pVal);

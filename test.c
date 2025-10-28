@@ -147,10 +147,10 @@ int main(int argc, char** argv)
 	// Test_List(xCore);
 	
 	/* Value 测试 */
-	// Test_Value(xCore);
+	 Test_Value(xCore);
 	
 	/* JSON 测试 */
-	 Test_JSON(xCore);
+	// Test_JSON(xCore);
 	
 	/* Template 测试 */
 	// Test_Template(xCore);
