@@ -277,7 +277,6 @@ XXAPI json_strinfo_t xrtJsonGetStringInfo(const char *str, const json_strinfo_t 
 }
 
 typedef struct _json_print_t {
-    int fd;
     char *ptr;
     char *cur;
     int (*realloc)(struct _json_print_t *print_ptr, size_t slen);
@@ -483,41 +482,24 @@ err:
 static int _print_val_release(json_print_t *print_ptr, bool free_all_flag, size_t *length, json_print_ptr_t *ptr)
 {
 #define _clear_free_ptr(ptr)    do { if (ptr) json_free(ptr); ptr = NULL; } while(0)
-#define _clear_close_fd(fd)     do { if (fd >= 0) close(fd); fd = -1; } while(0)
     int ret = 0;
     size_t used = GET_BUF_USED_SIZE(print_ptr);
 
-    if (print_ptr->fd >= 0) {
-        if (!free_all_flag && used > 0) {
-            if (used != (size_t)write(print_ptr->fd, print_ptr->ptr, used)) {
-                JsonErr("write failed!\n");
-                ret = -1;
-            }
-        }
-        _clear_close_fd(print_ptr->fd);
-        if (ptr) {
-            ptr->size = print_ptr->size;
-            ptr->p = print_ptr->ptr;
-        } else {
-            _clear_free_ptr(print_ptr->ptr);
-        }
-    } else {
-        if (free_all_flag) {
-            _clear_free_ptr(print_ptr->ptr);
-        } else {
-            if (length)
-                *length = print_ptr->cur - print_ptr->ptr;
-            *print_ptr->cur = '\0';
+	if (free_all_flag) {
+		_clear_free_ptr(print_ptr->ptr);
+	} else {
+		if (length)
+			*length = print_ptr->cur - print_ptr->ptr;
+		*print_ptr->cur = '\0';
 
-            if (ptr) {
-                ptr->size = print_ptr->size;
-                ptr->p = print_ptr->ptr;
-            } else {
-                /* Reduce size, never fail */
-                print_ptr->ptr = (char *)json_realloc(print_ptr->ptr, used + 1);
-            }
-        }
-    }
+		if (ptr) {
+			ptr->size = print_ptr->size;
+			ptr->p = print_ptr->ptr;
+		} else {
+			/* Reduce size, never fail */
+			print_ptr->ptr = (char *)json_realloc(print_ptr->ptr, used + 1);
+		}
+	}
 
     return ret;
 }
@@ -796,7 +778,7 @@ XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_pr
         return NULL;
     }
 
-    ret = (print_handle->print_val.fd >= 0) ? (char *)"ok" : print_handle->print_val.ptr;
+    ret = print_handle->print_val.ptr;
     if (_print_val_release(&print_handle->print_val, false, length, ptr) < 0) {
         json_free(print_handle);
         return NULL;

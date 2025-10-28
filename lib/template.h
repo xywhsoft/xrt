@@ -117,7 +117,7 @@ xarray xteCreateIdentList()
 }
 
 // 销毁关键字列表
-void xrtTemplateDestroyIdentList(xarray objList)
+void xteDestroyIdentList(xarray objList)
 {
 	if ( objList ) {
 		for ( int i = 1; i <= objList->Count; i++ ) {

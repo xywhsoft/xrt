@@ -36,6 +36,8 @@
 #include "test/test_dict.h"
 #include "test/test_list.h"
 #include "test/test_value.h"
+#include "test/test_json.h"
+#include "test/test_template.h"
 #include "test/test_other.h"
 
 
@@ -145,7 +147,13 @@ int main(int argc, char** argv)
 	// Test_List(xCore);
 	
 	/* Value 测试 */
-	 Test_Value(xCore);
+	// Test_Value(xCore);
+	
+	/* JSON 测试 */
+	 Test_JSON(xCore);
+	
+	/* Template 测试 */
+	// Test_Template(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);

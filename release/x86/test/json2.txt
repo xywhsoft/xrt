@@ -1,0 +1,27 @@
+[
+	{
+		"enabled": true,
+		"class": "http",
+		"name": "test HTTP Server",
+		"desc": "服务器描述",
+		"param": "启动参数",
+		"addr": "http://0.0.0.0:80",
+		"tls": false,
+		"addr_tls": "https://0.0.0.0:443",
+		"host_default": {
+			"enabled": true,
+			"name": "默认主机",
+			"desc": "主机描述",
+			"param": "启动参数",
+			"path": "wwwroot",
+			"tls_ca": null,
+			"tls_cert": "tls/cert.pem",
+			"tls_key": "tls/key.pem",
+			"devlang": "c",
+			"devfile": "script/main.c",
+			"session": "www$"
+		},
+		"hosts": [
+		]
+	}
+]
