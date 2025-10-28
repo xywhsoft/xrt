@@ -126,7 +126,6 @@ void Test_Value(xrtGlobalData* xCore)
 	xvoArrayAppendTime(pValArray, xrtNow());
 	xvoArrayAppendTimeSerial(pValArray, 2000, 10, 1, 12, 30, 30);
 	xvoPrintValue(pValArray, 0, 0, 0, NULL);
-	xvoUnref(pValArray);
 	printf("\n\n\n");
 	system("pause");
 	system("cls");
@@ -134,10 +133,27 @@ void Test_Value(xrtGlobalData* xCore)
 	
 	
 	// subject 10 : array insert
+	printf("Value test subject 10 : array insert\n\n");
+	xvoArrayInsertText(pValArray, 6, "插入到 6 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	xvoArrayInsertText(pValArray, 4, "插入到 4 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	xvoArrayInsertText(pValArray, 2, "插入到 2 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	xvoPrintValue(pValArray, 0, 0, 0, NULL);
+	printf("\n\n\n");
+	system("pause");
+	system("cls");
 	
 	
 	
 	// subject 11 : array set
+	printf("Value test subject 11 : array set\n\n");
+	xvoArraySetText(pValArray, 8, "修改后 8 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	xvoArraySetText(pValArray, 5, "修改后 5 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	xvoArraySetText(pValArray, 2, "修改后 2 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	xvoPrintValue(pValArray, 0, 0, 0, NULL);
+	xvoUnref(pValArray);
+	printf("\n\n\n");
+	system("pause");
+	system("cls");
 	
 	
 	

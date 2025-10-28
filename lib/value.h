@@ -56,7 +56,7 @@ XXAPI void xvoUnref(xvalue pVal)
 	if ( pVal ) {
 		if ( pVal->IsStatic == 0 ) {
 			pVal->RefCount--;
-			//printf("object : %x ref count = %d\n", pVal, pVal->RefCount);
+			// printf("object : %x ref count = %d\n", pVal, pVal->RefCount);
 			// 引用计数用完了就销毁对象
 			if ( pVal->RefCount == 0 ) {
 				// 释放值
@@ -82,7 +82,7 @@ XXAPI void xvoUnref(xvalue pVal)
 				}
 				// 释放变量本身
 				xrtFree(pVal);
-				//printf("free value : %x\n", pVal);
+				// printf("free value : %x\n", pVal);
 			}
 		}
 	}
@@ -1103,7 +1103,7 @@ XXAPI uint32 xvoGetSize(xvalue pVal)
 
 
 
-// 输出 xte Value 的结构和值
+// 输出 value 的结构和值
 int xvoPrintValue_TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
 {
 	xvoPrintValue(*ppVal, iLevel, 2, 0, pKey->Key);
@@ -1122,54 +1122,54 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 	if ( iMode == 1 ) {
 		// 输出数组元素
 		if ( objVal == NULL ) {
-			printf("(empty) [%d]\n", iKey);
+			printf("(empty) %d = (empty)\n", iKey);
 		} else if ( objVal->Type == XVO_DT_NULL ) {
-			printf("(null ) [%d] [%x]\n", iKey, objVal);
+			printf("(null ) [%x] %d = (null)\n", objVal, iKey);
 		} else if ( objVal->Type == XVO_DT_BOOL ) {
-			printf("(bool ) [%d] [%x] %s\n", iKey, objVal, xvoGetText(objVal, NULL));
+			printf("(bool ) [%x] %d = (%s)\n", objVal, iKey, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_INT ) {
-			printf("( int ) [%d] [%x] %lld\n", iKey, objVal, xvoGetInt(objVal));
+			printf("( int ) [%x] %d = %lld\n", objVal, iKey, xvoGetInt(objVal));
 		} else if ( objVal->Type == XVO_DT_FLOAT ) {
-			printf("(float) [%d] [%x] %lf\n", iKey, objVal, xvoGetFloat(objVal));
+			printf("(float) [%x] %d = %lf\n", objVal, iKey, xvoGetFloat(objVal));
 		} else if ( objVal->Type == XVO_DT_TEXT ) {
-			printf("(text ) [%d] [%x] %s\n", iKey, objVal, xvoGetText(objVal, NULL));
+			printf("(text ) [%x] %d = \"%s\"\n", objVal, iKey, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_TIME ) {
-			printf("(time ) [%d] [%x] %s\n", iKey, objVal, xvoGetText(objVal, NULL));
+			printf("(time ) [%x] %d = < %s >\n", objVal, iKey, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_ARRAY ) {
-			printf("(array) [%d] [%x] count : %d\n", iKey, objVal, xvoArraySize(objVal));
+			printf("(array) [%x] %d = (array), count : %d\n", objVal, iKey, xvoArraySize(objVal));
 		} else if ( objVal->Type == XVO_DT_LIST ) {
-			printf("(list ) [%d] [%x] count : %d\n", iKey, objVal, xvoListSize(objVal));
+			printf("(list ) [%x] %d = (list), count : %d\n", objVal, iKey, xvoListSize(objVal));
 		} else if ( objVal->Type == XVO_DT_TABLE ) {
-			printf("(table) [%d] [%x] count : %d\n", iKey, objVal, xvoTableSize(objVal));
+			printf("(table) [%x] %d = (table), count : %d\n", objVal, iKey, xvoTableSize(objVal));
 		} else if ( objVal->Type == XVO_DT_COLL ) {
-			printf("(coll ) [%d] [%x] count : %d\n", iKey, objVal, xvoCollSize(objVal));
+			printf("(coll ) [%x] %d = (coll), count : %d\n", objVal, iKey, xvoCollSize(objVal));
 		} else {
 			printf("Unknown data type\n");
 		}
 	} else if ( iMode == 2 ) {
 		// 输出表元素
 		if ( objVal == NULL ) {
-			printf("(empty) [%s]\n", sKey);
+			printf("(empty) \"%s\" = (empty)\n", sKey);
 		} else if ( objVal->Type == XVO_DT_NULL ) {
-			printf("(null ) [%s] [%x]\n", sKey, objVal);
+			printf("(null ) [%x] \"%s\" = (null)\n", objVal, sKey);
 		} else if ( objVal->Type == XVO_DT_BOOL ) {
-			printf("(bool ) [%s] [%x] %s\n", sKey, objVal, xvoGetText(objVal, NULL));
+			printf("(bool ) [%x] \"%s\" = (%s)\n", objVal, sKey, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_INT ) {
-			printf("( int ) [%s] [%x] %lld\n", sKey, objVal, xvoGetInt(objVal));
+			printf("( int ) [%x] \"%s\" = %lld\n", objVal, sKey, xvoGetInt(objVal));
 		} else if ( objVal->Type == XVO_DT_FLOAT ) {
-			printf("(float) [%s] [%x] %lf\n", sKey, objVal, xvoGetFloat(objVal));
+			printf("(float) [%x] \"%s\" = %lf\n", objVal, sKey, xvoGetFloat(objVal));
 		} else if ( objVal->Type == XVO_DT_TEXT ) {
-			printf("(text ) [%s] [%x] %s\n", sKey, objVal, xvoGetText(objVal, NULL));
+			printf("(text ) [%x] \"%s\" = \"%s\"\n", objVal, sKey, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_TIME ) {
-			printf("(time ) [%s] [%x] %s\n", sKey, objVal, xvoGetText(objVal, NULL));
+			printf("(time ) [%x] \"%s\" = < %s >\n", objVal, sKey, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_ARRAY ) {
-			printf("(array) [%s] [%x] count : %d\n", sKey, objVal, xvoArraySize(objVal));
+			printf("(array) [%x] \"%s\" = (array), count : %d\n", objVal, sKey, xvoArraySize(objVal));
 		} else if ( objVal->Type == XVO_DT_LIST ) {
-			printf("(list ) [%s] [%x] count : %d\n", sKey, objVal, xvoListSize(objVal));
+			printf("(list ) [%x] \"%s\" = (list), count : %d\n", objVal, sKey, xvoListSize(objVal));
 		} else if ( objVal->Type == XVO_DT_TABLE ) {
-			printf("(table) [%s] [%x] count : %d\n", sKey, objVal, xvoTableSize(objVal));
+			printf("(table) [%x] \"%s\" = (table), count : %d\n", objVal, sKey, xvoTableSize(objVal));
 		} else if ( objVal->Type == XVO_DT_COLL ) {
-			printf("(coll ) [%s] [%x] count : %d\n", sKey, objVal, xvoCollSize(objVal));
+			printf("(coll ) [%x] \"%s\" = (coll), count : %d\n", objVal, sKey, xvoCollSize(objVal));
 		} else {
 			printf("Unknown data type\n");
 		}
@@ -1179,15 +1179,15 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		} else if ( objVal->Type == XVO_DT_NULL ) {
 			printf("(null ) [%x]\n", objVal);
 		} else if ( objVal->Type == XVO_DT_BOOL ) {
-			printf("(bool ) [%x] %s\n", objVal, xvoGetText(objVal, NULL));
+			printf("(bool ) [%x] (%s)\n", objVal, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_INT ) {
 			printf("( int ) [%x] %lld\n", objVal, xvoGetInt(objVal));
 		} else if ( objVal->Type == XVO_DT_FLOAT ) {
 			printf("(float) [%x] %lf\n", objVal, xvoGetFloat(objVal));
 		} else if ( objVal->Type == XVO_DT_TEXT ) {
-			printf("(text ) [%x] %s\n", objVal, xvoGetText(objVal, NULL));
+			printf("(text ) [%x] \"%s\"\n", objVal, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_TIME ) {
-			printf("(time ) [%x] %s\n", objVal, xvoGetText(objVal, NULL));
+			printf("(time ) [%x] < %s >\n", objVal, xvoGetText(objVal, NULL));
 		} else if ( objVal->Type == XVO_DT_ARRAY ) {
 			printf("(array) [%x] count : %d\n", objVal, xvoArraySize(objVal));
 		} else if ( objVal->Type == XVO_DT_LIST ) {
