@@ -58,7 +58,6 @@ XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength)
 {
 	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc);
 	objHT->AVLT.FreeProc = (ptr)AVLHT32_FreeProc;
-	objHT->Parent = NULL;
 	objHT->MP = NULL;
 }
 

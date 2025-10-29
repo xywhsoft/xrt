@@ -24,6 +24,7 @@ XXAPI void xrtAVLTreeDestroy(xavltree objAVLT)
 XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp)
 {
 	xrtAVLTB_Init(objAVLT);
+	objAVLT->Parent = NULL;
 	objAVLT->CompProc = procComp;
 	objAVLT->FreeProc = NULL;
 	xrtFSMemPoolInit(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength);
@@ -110,7 +111,16 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 	if ( pNode ) {
 		return &pNode[1];
 	} else {
-		return NULL;
+		if ( objAVLT->Parent ) {
+			pNode = xrtAVLTB_Search((xavltbase)objAVLT, objAVLT->CompProc, pKey);
+			if ( pNode ) {
+				return &pNode[1];
+			} else {
+				return NULL;
+			}
+		} else {
+			return NULL;
+		}
 	}
 }
 

@@ -72,10 +72,10 @@ void Test_Value(xrtGlobalData* xCore)
 	
 	// subject 6 : print text
 	printf("Value test subject 6 : print text\n\n");
-	xvalue pValText = xvoCreateText("Hello World~!", 0, XVO_SDT_STR_U8, FALSE);
+	xvalue pValText = xvoCreateText("Hello World~!", 0, FALSE);
 	xvoPrintValue(pValText, 0, 0, 0, NULL);
 	xvoUnref(pValText);
-	pValText = xvoCreateText("壮志饥餐胡虏肉，笑谈渴饮匈奴血", 0, XVO_SDT_STR_U8, FALSE);
+	pValText = xvoCreateText("壮志饥餐胡虏肉，笑谈渴饮匈奴血", 0, FALSE);
 	xvoPrintValue(pValText, 0, 0, 0, NULL);
 	xvoUnref(pValText);
 	printf("\n\n\n");
@@ -95,16 +95,29 @@ void Test_Value(xrtGlobalData* xCore)
 	printf("\n\n\n");
 	system("pause");
 	system("cls");
-	*/
 	
 	
-	/* 暂不支持 function
-	// subject 8 : print function
-	printf("Value test subject 8 : print function\n\n");
-	xvalue pValFunc = xvoCreateTime(xrtNow());
+	
+	// subject 8 : print point
+	printf("Value test subject 8 : print point\n\n");
+	xvalue pValPtr = xvoCreatePoint((ptr)0x12345678);
+	xvoPrintValue(pValPtr, 0, 0, 0, NULL);
+	xvoUnref(pValPtr);
+	pValPtr = xvoCreatePoint((ptr)0x87654321);
+	xvoPrintValue(pValPtr, 0, 0, 0, NULL);
+	xvoUnref(pValPtr);
+	printf("\n\n\n");
+	system("pause");
+	system("cls");
+	
+	
+	
+	// subject 9 : print function
+	printf("Value test subject 9 : print function\n\n");
+	xvalue pValFunc = xvoCreateFunc((ptr)0x12345678);
 	xvoPrintValue(pValFunc, 0, 0, 0, NULL);
 	xvoUnref(pValFunc);
-	pValFunc = xvoCreateTimeSerial(2000, 10, 1, 12, 30, 30);
+	pValFunc = xvoCreateFunc((ptr)0x87654321);
 	xvoPrintValue(pValFunc, 0, 0, 0, NULL);
 	xvoUnref(pValFunc);
 	printf("\n\n\n");
@@ -113,18 +126,19 @@ void Test_Value(xrtGlobalData* xCore)
 	*/
 	
 	
-	/*
-	// subject 9 : print array
-	printf("Value test subject 9 : print array\n\n");
+	// subject 10 : print array
+	printf("Value test subject 10 : print array\n\n");
 	xvalue pValArray = xvoCreateArray();
 	xvoArrayAppendNull(pValArray);
 	xvoArrayAppendBool(pValArray, TRUE);
 	xvoArrayAppendBool(pValArray, FALSE);
 	xvoArrayAppendInt(pValArray, 753951);
 	xvoArrayAppendFloat(pValArray, 3.1415926);
-	xvoArrayAppendText(pValArray, "莫等闲，白了少年头，空悲切", 0, XVO_SDT_STR_U8, FALSE);
+	xvoArrayAppendText(pValArray, "莫等闲，白了少年头，空悲切", 0, FALSE);
 	xvoArrayAppendTime(pValArray, xrtNow());
 	xvoArrayAppendTimeSerial(pValArray, 2000, 10, 1, 12, 30, 30);
+	xvoArrayAppendPoint(pValArray, (ptr)0x12345678);
+	xvoArrayAppendFunc(pValArray, (ptr)0x87654321);
 	xvoPrintValue(pValArray, 0, 0, 0, NULL);
 	printf("\n\n\n");
 	system("pause");
@@ -132,11 +146,11 @@ void Test_Value(xrtGlobalData* xCore)
 	
 	
 	
-	// subject 10 : array insert
-	printf("Value test subject 10 : array insert\n\n");
-	xvoArrayInsertText(pValArray, 6, "插入到 6 位置的值", 0, XVO_SDT_STR_U8, FALSE);
-	xvoArrayInsertText(pValArray, 4, "插入到 4 位置的值", 0, XVO_SDT_STR_U8, FALSE);
-	xvoArrayInsertText(pValArray, 2, "插入到 2 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	// subject 11 : array insert
+	printf("Value test subject 11 : array insert\n\n");
+	xvoArrayInsertText(pValArray, 6, "插入到 6 位置的值", 0, FALSE);
+	xvoArrayInsertText(pValArray, 4, "插入到 4 位置的值", 0, FALSE);
+	xvoArrayInsertText(pValArray, 2, "插入到 2 位置的值", 0, FALSE);
 	xvoPrintValue(pValArray, 0, 0, 0, NULL);
 	printf("\n\n\n");
 	system("pause");
@@ -144,11 +158,11 @@ void Test_Value(xrtGlobalData* xCore)
 	
 	
 	
-	// subject 11 : array set
-	printf("Value test subject 11 : array set\n\n");
-	xvoArraySetText(pValArray, 8, "修改后 8 位置的值", 0, XVO_SDT_STR_U8, FALSE);
-	xvoArraySetText(pValArray, 5, "修改后 5 位置的值", 0, XVO_SDT_STR_U8, FALSE);
-	xvoArraySetText(pValArray, 2, "修改后 2 位置的值", 0, XVO_SDT_STR_U8, FALSE);
+	// subject 12 : array set
+	printf("Value test subject 12 : array set\n\n");
+	xvoArraySetText(pValArray, 8, "修改后 8 位置的值", 0, FALSE);
+	xvoArraySetText(pValArray, 5, "修改后 5 位置的值", 0, FALSE);
+	xvoArraySetText(pValArray, 2, "修改后 2 位置的值", 0, FALSE);
 	xvoPrintValue(pValArray, 0, 0, 0, NULL);
 	xvoUnref(pValArray);
 	printf("\n\n\n");
@@ -157,36 +171,40 @@ void Test_Value(xrtGlobalData* xCore)
 	
 	
 	
-	// subject 12 : print list
-	printf("Value test subject 12 : print list\n\n");
+	// subject 13 : print list
+	printf("Value test subject 13 : print list\n\n");
 	xvalue pValList = xvoCreateList();
 	xvoListSetNull(pValList, 1);
 	xvoListSetBool(pValList, 10, TRUE);
 	xvoListSetBool(pValList, 100, FALSE);
 	xvoListSetInt(pValList, 1000, 753951);
 	xvoListSetFloat(pValList, 10000, 3.1415926);
-	xvoListSetText(pValList, 100000, "莫等闲，白了少年头，空悲切", 0, XVO_SDT_STR_U8, FALSE);
+	xvoListSetText(pValList, 100000, "莫等闲，白了少年头，空悲切", 0, FALSE);
 	xvoListSetTime(pValList, 1000000, xrtNow());
 	xvoListSetTimeSerial(pValList, 10000000, 2000, 10, 1, 12, 30, 30);
+	xvoListSetPoint(pValList, 500, (ptr)0x12345678);
+	xvoListSetFunc(pValList, 50000, (ptr)0x87654321);
 	xvoPrintValue(pValList, 0, 0, 0, NULL);
 	xvoUnref(pValList);
 	printf("\n\n\n");
 	system("pause");
 	system("cls");
-	*/
 	
 	
-	// subject 13 : print coll
-	printf("Value test subject 13 : print coll\n\n");
+	
+	// subject 14 : print coll
+	printf("Value test subject 14 : print coll\n\n");
 	xvalue pValColl = xvoCreateColl();
 	xvoCollSetNull(pValColl);
 	xvoCollSetBool(pValColl, TRUE);
 	xvoCollSetBool(pValColl, FALSE);
 	xvoCollSetInt(pValColl, 753951);
 	xvoCollSetFloat(pValColl, 3.1415926);
-	xvoCollSetText(pValColl, "莫等闲，白了少年头，空悲切", 0, XVO_SDT_STR_U8, FALSE);
+	xvoCollSetText(pValColl, "莫等闲，白了少年头，空悲切", 0, FALSE);
 	xvoCollSetTime(pValColl, xrtNow());
 	xvoCollSetTimeSerial(pValColl, 2000, 10, 1, 12, 30, 30);
+	xvoCollSetPoint(pValColl, (ptr)0x12345678);
+	xvoCollSetFunc(pValColl, (ptr)0x87654321);
 	xvoPrintValue(pValColl, 0, 0, 0, NULL);
 	xvoUnref(pValColl);
 	printf("\n\n\n");
@@ -194,24 +212,26 @@ void Test_Value(xrtGlobalData* xCore)
 	system("cls");
 	
 	
-	/*
-	// subject 14 : print table
-	printf("Value test subject 14 : print table\n\n");
+	
+	// subject 15 : print table
+	printf("Value test subject 15 : print table\n\n");
 	xvalue pValTable = xvoCreateTable();
 	xvoTableSetNull(pValTable, "key-null ", 9);
 	xvoTableSetBool(pValTable, "key-true ", 9, TRUE);
 	xvoTableSetBool(pValTable, "key-false", 9, FALSE);
 	xvoTableSetInt(pValTable, "key-int  ", 9, 753951);
 	xvoTableSetFloat(pValTable, "key-float", 9, 3.1415926);
-	xvoTableSetText(pValTable, "key-text ", 9, "莫等闲，白了少年头，空悲切", 0, XVO_SDT_STR_U8, FALSE);
+	xvoTableSetText(pValTable, "key-text ", 9, "莫等闲，白了少年头，空悲切", 0, FALSE);
 	xvoTableSetTime(pValTable, "key-time1", 9, xrtNow());
 	xvoTableSetTimeSerial(pValTable, "key-time2", 9, 2000, 10, 1, 12, 30, 30);
+	xvoTableSetPoint(pValTable, "key-point", 9, (ptr)0x12345678);
+	xvoTableSetFunc(pValTable, "key-func ", 9, (ptr)0x87654321);
 	xvoPrintValue(pValTable, 0, 0, 0, NULL);
 	xvoUnref(pValTable);
 	printf("\n\n\n");
 	system("pause");
 	system("cls");
-	*/
+	
 	
 	
 }

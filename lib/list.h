@@ -38,7 +38,6 @@ XXAPI void xrtListDestroy(xlist objList)
 XXAPI void xrtListInit(xlist objList, uint32 iItemLength)
 {
 	xrtAVLTreeInit(&objList->AVLT, iItemLength + sizeof(int64), (ptr)List_CompProc);
-	objList->Parent = NULL;
 }
 
 // 释放列表（对自维护结构体指针使用）
@@ -99,11 +98,7 @@ XXAPI ptr xrtListGet(xlist objList, int64 iKey)
 	if ( pNode ) {
 		return &pNode[1];
 	}
-	if ( objList->Parent ) {
-		return xrtListGet(objList->Parent, iKey);
-	} else {
-		return NULL;
-	}
+	return NULL;
 }
 
 // 获取值 - 当值为 ptr 时直接获取指针内容
@@ -117,11 +112,7 @@ XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey)
 			return ((ptr*)&pNode[1])[0];
 		#endif
 	}
-	if ( objList->Parent ) {
-		return xrtListGetPtr(objList->Parent, iKey);
-	} else {
-		return NULL;
-	}
+	return NULL;
 }
 
 // 删除值

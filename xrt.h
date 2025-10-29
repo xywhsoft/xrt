@@ -1320,9 +1320,10 @@
 	typedef void (*AVLTree_FreeProc)(ptr objTree, ptr pNode);
 	
 	// AVL树对象数据结构
-	typedef struct {
+	typedef struct xavltree_struct {
 		xavltnode RootNode;
 		uint32 Count;
+		struct xavltree_struct* Parent;
 		AVLTree_CompProc CompProc;
 		AVLTree_FreeProc FreeProc;
 		xfsmempool_struct objMM;
@@ -1434,9 +1435,8 @@
 	} Dict_Key;
 	
 	// 字典对象数据结构
-	typedef struct xdict_struct {
+	typedef struct {
 		xavltree_struct AVLT;
-		struct xdict_struct* Parent;
 		xmempool MP;
 	} xdict_struct, *xdict;
 	
@@ -1468,11 +1468,7 @@
 		if ( pNode ) {
 			return &pNode[1];
 		}
-		if ( objHT->Parent ) {
-			return xrtDictGetWithKey(objHT->Parent, objKey);
-		} else {
-			return NULL;
-		}
+		return NULL;
 	}
 	XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen);
 	
@@ -1505,9 +1501,8 @@
 	/* ------------------------------------ List 函数库 ------------------------------------ */
 	
 	// 列表对象数据结构
-	typedef struct xlist_struct {
+	typedef struct {
 		xavltree_struct AVLT;
-		struct xlist_struct* Parent;
 	} xlist_struct, *xlist;
 	
 	// 列表遍历回调函数
@@ -1570,55 +1565,43 @@
 	#define XVO_DT_FLOAT			4				// 浮点数（double）
 	#define XVO_DT_TEXT				5				// 字符串
 	#define XVO_DT_TIME				6				// 时间
-	#define XVO_DT_FUNC				7				// 函数
-	#define XVO_DT_ARRAY			8				// 数组
-	#define XVO_DT_LIST				9				// 列表
-	#define XVO_DT_COLL				10				// 集合
-	#define XVO_DT_TABLE			11				// 表
-	#define XVO_DT_STRUCT			12				// 结构体
-	#define XVO_DT_OBJECT			13				// 对象
+	#define XVO_DT_POINT			7				// 指针
+	#define XVO_DT_FUNC				8				// 函数
+	#define XVO_DT_ARRAY			9				// 数组
+	#define XVO_DT_LIST				10				// 列表
+	#define XVO_DT_COLL				11				// 集合
+	#define XVO_DT_TABLE			12				// 表
+	#define XVO_DT_STRUCT			13				// 结构体
+	#define XVO_DT_OBJECT			14				// 对象
 	#define XVO_DT_CUSTOM			15				// 自定义
 	
-	// 数据类型 - 子类型 [ 字符串 ]
-	#define XVO_SDT_STR_U8			0				// utf-8 字符串
-	#define XVO_SDT_STR_U16			1				// utf-16 字符串
-	#define XVO_SDT_STR_U32			2				// utf-32 字符串
-	#define XVO_SDT_STR_BIN			3				// 二进制数据
-	
-	// 数据类型 - 子类型 [ 函数 ]
-	#define XVO_SDT_FUNC_XCALL		0				// xlang 脚本函数
-	#define XVO_SDT_FUNC_CDECL		1				// clang 函数
-	#define XVO_SDT_FUNC_STDCALL	2				// stdcall 函数
-	#define XVO_SDT_FUNC_FASTCALL	3				// fastcall 函数
-	
-	// Value 标准数据类 [ XRT_DT_NUM、XRT_DT_TEXT、XRT_DT_TIME、XRT_DT_POINT ]
-	typedef struct {
+	// Value 标准数据类 [ 16 Byte ]
+	typedef struct xvalue_struct {
 		uint32 Type:4;
-		uint32 SubType:3;
+		uint32 Reserve:1;
 		uint32 IsStatic:1;
-		uint32 RefCount:24;
+		uint32 RefCount:26;
 		uint32 Size;
 		union {
 			bool vBool;
 			int64 vInt;
 			double vFloat;
 			str vText;
-			u16str vText16;
-			u32str vText32;
 			xtime vTime;
-			ptr vFunc;
+			ptr vPoint;
+			struct xvalue_struct* (*vFunc)(struct xvalue_struct* varENV, struct xvalue_struct* varParam);
 			xparray vArray;
 			xlist vList;
 			xavltree vColl;
 			xdict vTable;
 			ptr vStruct;
 			ptr vObject;
-			ptr vPoint;
+			ptr vCustom;
 		};
 	} xvalue_struct, *xvalue;
 	
-	// 函数类型回调
-	typedef xvalue (*xfunction)(xvalue varENV, xvalue varParam);
+	// 函数指针类型定义
+	typedef xvalue (*xfunction)(xvalue pENV, xvalue arrParam);
 	
 	// Custom 类 [ 16 bytes ]
 	struct xcustom_struct {
@@ -1639,10 +1622,11 @@
 	XXAPI xvalue xvoCreateBool(bool bVal);
 	XXAPI xvalue xvoCreateInt(int64 iVal);
 	XXAPI xvalue xvoCreateFloat(double fVal);
-	XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, int iCharset, bool bColloc);
+	XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc);
 	XXAPI xvalue xvoCreateTime(xtime tVal);
 	XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
-	XXAPI xvalue xvoCreateFunc(ptr pFunc, int iType);
+	XXAPI xvalue xvoCreatePoint(ptr point);
+	XXAPI xvalue xvoCreateFunc(xfunction pFunc);
 	XXAPI xvalue xvoCreateArray();
 	XXAPI xvalue xvoCreateList();
 	XXAPI xvalue xvoCreateColl();
@@ -1652,16 +1636,17 @@
 	XXAPI xvalue xvoCreateCustom(ptr pObj);
 	
 	// 读取值
-	XXAPI int xvoGetBool(xvalue pVal);
+	XXAPI bool xvoGetBool(xvalue pVal);
 	XXAPI int64 xvoGetInt(xvalue pVal);
 	XXAPI double xvoGetFloat(xvalue pVal);
-	XXAPI str xvoGetText(xvalue pVal, int* pType);
+	XXAPI str xvoGetText(xvalue pVal);
 	XXAPI xtime xvoGetTime(xvalue pVal);
-	XXAPI ptr xvoGetFunc(xvalue pVal, int* pType);
-	XXAPI ptr xvoGetArray(xvalue pVal);
-	XXAPI ptr xvoGetList(xvalue pVal);
-	XXAPI ptr xvoGetColl(xvalue pVal);
-	XXAPI ptr xvoGetTable(xvalue pVal);
+	XXAPI ptr xvoGetPoint(xvalue pVal);
+	XXAPI xfunction xvoGetFunc(xvalue pVal);
+	XXAPI xparray xvoGetArray(xvalue pVal);
+	XXAPI xlist xvoGetList(xvalue pVal);
+	XXAPI xavltree xvoGetColl(xvalue pVal);
+	XXAPI xdict xvoGetTable(xvalue pVal);
 	XXAPI ptr xvoGetStruct(xvalue pVal);
 	XXAPI ptr xvoGetObject(xvalue pVal);
 	XXAPI ptr xvoGetCustom(xvalue pVal);
@@ -1671,8 +1656,9 @@
 	#define xvoArrayGetBool(pArr, index)														xvoGetBool(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetInt(pArr, index)															xvoGetInt(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetFloat(pArr, index)														xvoGetFloat(xvoArrayGetValue(pArr, index))
-	#define xvoArrayGetText(pArr, index)														xvoGetText(xvoArrayGetValue(pArr, index), NULL)
+	#define xvoArrayGetText(pArr, index)														xvoGetText(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetTime(pArr, index)														xvoGetTime(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetPoint(pArr, index)														xvoGetPoint(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetFunc(pArr, index)														xvoGetFunc(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetArray(pArr, index)														xvoGetArray(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetList(pArr, index)														xvoGetList(xvoArrayGetValue(pArr, index))
@@ -1688,10 +1674,11 @@
 	#define xvoArrayAppendBool(pArr, bVal)														xvoArrayAppendValue(pArr, xvoCreateBool(bVal), TRUE)
 	#define xvoArrayAppendInt(pArr, iVal)														xvoArrayAppendValue(pArr, xvoCreateInt(iVal), TRUE)
 	#define xvoArrayAppendFloat(pArr, fVal)														xvoArrayAppendValue(pArr, xvoCreateFloat(fVal), TRUE)
-	#define xvoArrayAppendText(pArr, sVal, iSize, iCharset, bColloc)							xvoArrayAppendValue(pArr, xvoCreateText(sVal, iSize, iCharset, bColloc), TRUE)
+	#define xvoArrayAppendText(pArr, sVal, iSize, bColloc)										xvoArrayAppendValue(pArr, xvoCreateText(sVal, iSize, bColloc), TRUE)
 	#define xvoArrayAppendTime(pArr, tVal)														xvoArrayAppendValue(pArr, xvoCreateTime(tVal), TRUE)
 	#define xvoArrayAppendTimeSerial(pArr, iYear, iMonth, iDay, iHour, iMinute, iSecond)		xvoArrayAppendValue(pArr, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), TRUE)
-	#define xvoArrayAppendFunc(pArr, func, type)												xvoArrayAppendValue(pArr, xvoCreateFunc(func, type), TRUE)
+	#define xvoArrayAppendPoint(pArr, pVal)														xvoArrayAppendValue(pArr, xvoCreatePoint(pVal), TRUE)
+	#define xvoArrayAppendFunc(pArr, func)														xvoArrayAppendValue(pArr, xvoCreateFunc(func), TRUE)
 	#define xvoArrayAppendArray(pArr)															xvoArrayAppendValue(pArr, xvoCreateArray(), TRUE)
 	#define xvoArrayAppendList(pArr)															xvoArrayAppendValue(pArr, xvoCreateList(), TRUE)
 	#define xvoArrayAppendColl(pArr)															xvoArrayAppendValue(pArr, xvoCreateColl(), TRUE)
@@ -1706,10 +1693,11 @@
 	#define xvoArrayInsertBool(pArr, idx, bVal)													xvoArrayInsertValue(pArr, idx, xvoCreateBool(bVal), TRUE)
 	#define xvoArrayInsertInt(pArr, idx, iVal)													xvoArrayInsertValue(pArr, idx, xvoCreateInt(iVal), TRUE)
 	#define xvoArrayInsertFloat(pArr, idx, fVal)												xvoArrayInsertValue(pArr, idx, xvoCreateFloat(fVal), TRUE)
-	#define xvoArrayInsertText(pArr, idx, sVal, iSize, iCharset, bColloc)						xvoArrayInsertValue(pArr, idx, xvoCreateText(sVal, iSize, iCharset, bColloc), TRUE)
+	#define xvoArrayInsertText(pArr, idx, sVal, iSize, bColloc)									xvoArrayInsertValue(pArr, idx, xvoCreateText(sVal, iSize, bColloc), TRUE)
 	#define xvoArrayInsertTime(pArr, idx, tVal)													xvoArrayInsertValue(pArr, idx, xvoCreateTime(tVal), TRUE)
 	#define xvoArrayInsertTimeSerial(pArr, idx, iYear, iMonth, iDay, iHour, iMinute, iSecond)	xvoArrayInsertValue(pArr, idx, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), TRUE)
-	#define xvoArrayInsertFunc(pArr, idx, func, type)											xvoArrayInsertValue(pArr, idx, xvoCreateFunc(func, type), TRUE)
+	#define xvoArrayInsertPoint(pArr, idx, pVal)												xvoArrayInsertValue(pArr, idx, xvoCreatePoint(pVal), TRUE)
+	#define xvoArrayInsertFunc(pArr, idx, func)													xvoArrayInsertValue(pArr, idx, xvoCreateFunc(func), TRUE)
 	#define xvoArrayInsertArray(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateArray(), TRUE)
 	#define xvoArrayInsertList(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateList(), TRUE)
 	#define xvoArrayInsertColl(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateColl(), TRUE)
@@ -1724,10 +1712,11 @@
 	#define xvoArraySetBool(pArr, idx, bVal)													xvoArraySetValue(pArr, idx, xvoCreateBool(bVal), TRUE)
 	#define xvoArraySetInt(pArr, idx, iVal)														xvoArraySetValue(pArr, idx, xvoCreateInt(iVal), TRUE)
 	#define xvoArraySetFloat(pArr, idx, fVal)													xvoArraySetValue(pArr, idx, xvoCreateFloat(fVal), TRUE)
-	#define xvoArraySetText(pArr, idx, sVal, iSize, iCharset, bColloc)							xvoArraySetValue(pArr, idx, xvoCreateText(sVal, iSize, iCharset, bColloc), TRUE)
+	#define xvoArraySetText(pArr, idx, sVal, iSize, bColloc)									xvoArraySetValue(pArr, idx, xvoCreateText(sVal, iSize, bColloc), TRUE)
 	#define xvoArraySetTime(pArr, idx, tVal)													xvoArraySetValue(pArr, idx, xvoCreateTime(tVal), TRUE)
 	#define xvoArraySetTimeSerial(pArr, idx, iYear, iMonth, iDay, iHour, iMinute, iSecond)		xvoArraySetValue(pArr, idx, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), TRUE)
-	#define xvoArraySetFunc(pArr, idx, func, type)												xvoArraySetValue(pArr, idx, xvoCreateFunc(func, type), TRUE)
+	#define xvoArraySetPoint(pArr, idx, pVal)													xvoArraySetValue(pArr, idx, xvoCreatePoint(pVal), TRUE)
+	#define xvoArraySetFunc(pArr, idx, func)													xvoArraySetValue(pArr, idx, xvoCreateFunc(func), TRUE)
 	#define xvoArraySetArray(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateArray(), TRUE)
 	#define xvoArraySetList(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateList(), TRUE)
 	#define xvoArraySetColl(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateColl(), TRUE)
@@ -1739,7 +1728,7 @@
 	// Array 操作
 	XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2);
 	XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count);
-	XXAPI uint32 xvoArraySize(xvalue pArr);
+	XXAPI uint32 xvoArrayItemCount(xvalue pArr);
 	XXAPI bool xvoArrayClear(xvalue pArr);
 	XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count);
 	XXAPI bool xvoArraySort(xvalue pArr, ptr proc);
@@ -1749,8 +1738,9 @@
 	#define xvoListGetBool(pList, index)														xvoGetBool(xvoListGetValue(pList, index))
 	#define xvoListGetInt(pList, index)															xvoGetInt(xvoListGetValue(pList, index))
 	#define xvoListGetFloat(pList, index)														xvoGetFloat(xvoListGetValue(pList, index))
-	#define xvoListGetText(pList, index)														xvoGetText(xvoListGetValue(pList, index), NULL)
+	#define xvoListGetText(pList, index)														xvoGetText(xvoListGetValue(pList, index))
 	#define xvoListGetTime(pList, index)														xvoGetTime(xvoListGetValue(pList, index))
+	#define xvoListGetPoint(pList, index)														xvoGetPoint(xvoListGetValue(pList, index))
 	#define xvoListGetFunc(pList, index)														xvoGetFunc(xvoListGetValue(pList, index))
 	#define xvoListGetArray(pList, index)														xvoGetArray(xvoListGetValue(pList, index))
 	#define xvoListGetList(pList, index)														xvoGetList(xvoListGetValue(pList, index))
@@ -1766,10 +1756,11 @@
 	#define xvoListSetBool(pList, idx, bVal)													xvoListSetValue(pList, idx, xvoCreateBool(bVal), TRUE)
 	#define xvoListSetInt(pList, idx, iVal)														xvoListSetValue(pList, idx, xvoCreateInt(iVal), TRUE)
 	#define xvoListSetFloat(pList, idx, fVal)													xvoListSetValue(pList, idx, xvoCreateFloat(fVal), TRUE)
-	#define xvoListSetText(pList, idx, sVal, iSize, iCharset, bColloc)							xvoListSetValue(pList, idx, xvoCreateText(sVal, iSize, iCharset, bColloc), TRUE)
+	#define xvoListSetText(pList, idx, sVal, iSize, bColloc)									xvoListSetValue(pList, idx, xvoCreateText(sVal, iSize, bColloc), TRUE)
 	#define xvoListSetTime(pList, idx, tVal)													xvoListSetValue(pList, idx, xvoCreateTime(tVal), TRUE)
 	#define xvoListSetTimeSerial(pList, idx, iYear, iMonth, iDay, iHour, iMinute, iSecond)		xvoListSetValue(pList, idx, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), TRUE)
-	#define xvoListSetFunc(pList, idx, func, type)												xvoListSetValue(pList, idx, xvoCreateFunc(func, type), TRUE)
+	#define xvoListSetPoint(pList, idx, pVal)													xvoListSetValue(pList, idx, xvoCreatePoint(pVal), TRUE)
+	#define xvoListSetFunc(pList, idx, func)													xvoListSetValue(pList, idx, xvoCreateFunc(func), TRUE)
 	#define xvoListSetArray(pList, idx)															xvoListSetValue(pList, idx, xvoCreateArray(), TRUE)
 	#define xvoListSetList(pList, idx)															xvoListSetValue(pList, idx, xvoCreateList(), TRUE)
 	#define xvoListSetColl(pList, idx)															xvoListSetValue(pList, idx, xvoCreateColl(), TRUE)
@@ -1781,8 +1772,9 @@
 	// List 操作
 	XXAPI bool xvoListExists(xvalue pList, int64 index);
 	XXAPI bool xvoListRemove(xvalue pList, int64 index);
-	XXAPI uint32 xvoListSize(xvalue pList);
+	XXAPI uint32 xvoListItemCount(xvalue pList);
 	XXAPI bool xvoListClear(xvalue pList);
+	XXAPI bool xvoListSetParent(xvalue pList, xvalue pParentList);
 	
 	// Coll Key 数据结构
 	typedef struct {
@@ -1796,25 +1788,28 @@
 	#define xvoCollSetBool(pList, bVal)															xvoCollSetValue(pList, xvoCreateBool(bVal), TRUE)
 	#define xvoCollSetInt(pList, iVal)															xvoCollSetValue(pList, xvoCreateInt(iVal), TRUE)
 	#define xvoCollSetFloat(pList, fVal)														xvoCollSetValue(pList, xvoCreateFloat(fVal), TRUE)
-	#define xvoCollSetText(pList, sVal, iSize, iCharset, bColloc)								xvoCollSetValue(pList, xvoCreateText(sVal, iSize, iCharset, bColloc), TRUE)
+	#define xvoCollSetText(pList, sVal, iSize, bColloc)											xvoCollSetValue(pList, xvoCreateText(sVal, iSize, bColloc), TRUE)
 	#define xvoCollSetTime(pList, tVal)															xvoCollSetValue(pList, xvoCreateTime(tVal), TRUE)
 	#define xvoCollSetTimeSerial(pList, iYear, iMonth, iDay, iHour, iMinute, iSecond)			xvoCollSetValue(pList, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), TRUE)
-	#define xvoCollSetFunc(pList, func, type)													xvoCollSetValue(pList, xvoCreateFunc(func, type), TRUE)
+	#define xvoCollSetPoint(pList, pVal)														xvoCollSetValue(pList, xvoCreatePoint(pVal), TRUE)
+	#define xvoCollSetFunc(pList, func)															xvoCollSetValue(pList, xvoCreateFunc(func), TRUE)
 	#define xvoCollSetCustom(pList, point)														xvoCollSetValue(pList, xvoCreateCustom(point), TRUE)
 	
 	// Coll 操作
 	XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal);
 	XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal);
-	XXAPI uint32 xvoCollSize(xvalue pColl);
+	XXAPI uint32 xvoCollItemCount(xvalue pColl);
 	XXAPI bool xvoCollClear(xvalue pColl);
+	XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl);
 	
 	// Table 读数据
 	XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl);
 	#define xvoTableGetBool(pTbl, key, kl)														xvoGetBool(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetInt(pTbl, key, kl)														xvoGetInt(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetFloat(pTbl, key, kl)														xvoGetFloat(xvoTableGetValue(pTbl, key, kl))
-	#define xvoTableGetText(pTbl, key, kl)														xvoGetText(xvoTableGetValue(pTbl, key, kl), NULL)
+	#define xvoTableGetText(pTbl, key, kl)														xvoGetText(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetTime(pTbl, key, kl)														xvoGetTime(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetPoint(pTbl, key, kl)														xvoGetPoint(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetFunc(pTbl, key, kl)														xvoGetFunc(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetArray(pTbl, key, kl)														xvoGetArray(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetList(pTbl, key, kl)														xvoGetList(xvoTableGetValue(pTbl, key, kl))
@@ -1830,10 +1825,11 @@
 	#define xvoTableSetBool(pTbl, key, kl, bVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateBool(bVal), TRUE)
 	#define xvoTableSetInt(pTbl, key, kl, iVal)													xvoTableSetValue(pTbl, key, kl, xvoCreateInt(iVal), TRUE)
 	#define xvoTableSetFloat(pTbl, key, kl, fVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateFloat(fVal), TRUE)
-	#define xvoTableSetText(pTbl, key, kl, sVal, iSize, iCharset, bColloc)						xvoTableSetValue(pTbl, key, kl, xvoCreateText(sVal, iSize, iCharset, bColloc), TRUE)
+	#define xvoTableSetText(pTbl, key, kl, sVal, iSize, bColloc)								xvoTableSetValue(pTbl, key, kl, xvoCreateText(sVal, iSize, bColloc), TRUE)
 	#define xvoTableSetTime(pTbl, key, kl, tVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateTime(tVal), TRUE)
 	#define xvoTableSetTimeSerial(pTbl, key, kl, iYear, iMonth, iDay, iHour, iMinute, iSecond)	xvoTableSetValue(pTbl, key, kl, xvoCreateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond), TRUE)
-	#define xvoTableSetFunc(pTbl, key, kl, func, type)											xvoTableSetValue(pTbl, key, kl, xvoCreateFunc(func, type), TRUE)
+	#define xvoTableSetPoint(pTbl, key, kl, pVal)												xvoTableSetValue(pTbl, key, kl, xvoCreatePoint(pVal), TRUE)
+	#define xvoTableSetFunc(pTbl, key, kl, func)												xvoTableSetValue(pTbl, key, kl, xvoCreateFunc(func), TRUE)
 	#define xvoTableSetArray(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateArray(), TRUE)
 	#define xvoTableSetList(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateList(), TRUE)
 	#define xvoTableSetColl(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateColl(), TRUE)
@@ -1845,18 +1841,16 @@
 	// Table 操作
 	XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl);
 	XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl);
-	XXAPI uint32 xvoTableSize(xvalue pTbl);
+	XXAPI uint32 xvoTableItemCount(xvalue pTbl);
 	XXAPI bool xvoTableClear(xvalue pTbl);
+	XXAPI bool xvoTableSetParent(xvalue pTbl, xvalue pParentTable);
 	
 	// 类型操作
+	XXAPI bool xvoIsNull(xvalue pVal);
 	XXAPI int xvoType(xvalue pVal);
 	#define xvoArrayItemType(pArr, index)														xvoType(xvoArrayGetValue(pArr, index))
 	#define xvoListItemType(pList, index)														xvoType(xvoListGetValue(pList, index))
 	#define xvoTableItemType(pTbl, key, kl)														xvoType(xvoTableGetValue(pTbl, key, kl))
-	XXAPI int xvoSubType(xvalue pVal);
-	#define xvoArrayItemSubType(pArr, index)													xvoSubType(xvoArrayGetValue(pArr, index))
-	#define xvoListItemSubType(pList, index)													xvoSubType(xvoListGetValue(pList, index))
-	#define xvoTableItemSubType(pTbl, key, kl)													xvoSubType(xvoTableGetValue(pTbl, key, kl))
 	
 	// 获取数据长度
 	XXAPI uint32 xvoGetSize(xvalue pVal);

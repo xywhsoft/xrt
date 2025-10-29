@@ -1753,15 +1753,15 @@ json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 		sText[parser->value.vstr.info.len] = 0;
         if ( varRoot ) {
 			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendText(varCur, sText, parser->value.vstr.info.len, XVO_SDT_STR_U8, TRUE);
+				xvoArrayAppendText(varCur, sText, parser->value.vstr.info.len, TRUE);
 			} else if ( varCur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetText(varCur, sKey, jkey->info.len, sText, parser->value.vstr.info.len, XVO_SDT_STR_U8, TRUE);
+				xvoTableSetText(varCur, sKey, jkey->info.len, sText, parser->value.vstr.info.len, TRUE);
 			}
         } else {
-			varRoot = xvoCreateText(sText, parser->value.vstr.info.len, XVO_SDT_STR_U8, TRUE);
+			varRoot = xvoCreateText(sText, parser->value.vstr.info.len, TRUE);
         }
 	} else if ( jkey->info.type == JSON_ARRAY ) {
 	} else if ( jkey->info.type == JSON_OBJECT ) {

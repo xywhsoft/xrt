@@ -590,6 +590,7 @@ XTE_LiteStruct XTE_LITE_ERROR_MALLOC = {
 			0,
 			NULL,
 			NULL,
+			NULL,
 			{
 				0,
 				{
@@ -610,7 +611,6 @@ XTE_LiteStruct XTE_LITE_ERROR_MALLOC = {
 			},
 			NULL
 		},
-		NULL,
 		NULL
 	}
 };
@@ -1177,7 +1177,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 				// 代入变量 - 转为字符串
 				char* sTemp = NULL;
 				if ( strcmp(objTok->Text, "__self__") == 0 ) {
-					sTemp = xvoGetText(tblVal, NULL);
+					sTemp = xvoGetText(tblVal);
 				}
 				if ( tblRoot && (sTemp == NULL) ) {
 					sTemp = xvoTableGetText(tblRoot, objTok->Text, objTok->Size);
@@ -1192,7 +1192,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 				// 代入数字 - 转为数字（目前与转为字符串采用相同方式处理）
 				char* sTemp = NULL;
 				if ( strcmp(objTok->Text, "__self__") == 0 ) {
-					sTemp = xvoGetText(tblVal, NULL);
+					sTemp = xvoGetText(tblVal);
 				}
 				if ( tblRoot && (sTemp == NULL) ) {
 					sTemp = xvoTableGetText(tblRoot, objTok->Text, objTok->Size);
@@ -1298,7 +1298,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 							// 传递参数，调用函数，代入返回值
 							xvalue varParam = xvoCreateText(objTok->ParamText[2], FALSE);
 							xvalue varRet = pFunc(tblVal, varParam);
-							char* sTemp = xvoGetText(varRet, NULL);
+							char* sTemp = xvoGetText(varRet);
 							if ( sTemp ) {
 								xrtBufferAppend(objBuf, sTemp, 0, XBUF_UTF8);
 							}
