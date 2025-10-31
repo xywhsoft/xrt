@@ -40,7 +40,6 @@
 #include <wctype.h>
 #include <math.h>
 #include <time.h>
-#include <dirent.h>
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -312,7 +311,7 @@
 	XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize);
 	
 	// 比较字符串
-	XXAPI bool xrtStrComp(str s1, str s2, size_t iSize, bool bCase);
+	XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase);
 	
 	// 字符串转为小写（ bSrcRevise 为 false 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLCase(str sText, size_t iSize, bool bSrcRevise);

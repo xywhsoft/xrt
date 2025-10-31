@@ -64,55 +64,31 @@ XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize)
 
 
 // 比较字符串
-XXAPI bool xrtStrComp(str s1, str s2, size_t iSize, bool bCase)
+XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase)
 {
 	if ( iSize > 0 ) {
 		if ( bCase ) {
 			#if defined(_WIN32) || defined(_WIN64)
 				// windows 方案
-				if ( strnicmp(s1, s2, iSize) == 0 ) {
-					return TRUE;
-				} else {
-					return FALSE;
-				}
+				return strnicmp(s1, s2, iSize);
 			#else
 				// 其他平台方案
-				if ( strncasecmp(s1, s2, iSize) == 0 ) {
-					return TRUE;
-				} else {
-					return FALSE;
-				}
+				return strncasecmp(s1, s2, iSize);
 			#endif
 		} else {
-			if ( strncmp(s1, s2, iSize) == 0 ) {
-				return TRUE;
-			} else {
-				return FALSE;
-			}
+			return strncmp(s1, s2, iSize);
 		}
 	} else {
 		if ( bCase ) {
 			#if defined(_WIN32) || defined(_WIN64)
 				// windows 方案
-				if ( stricmp(s1, s2) == 0 ) {
-					return TRUE;
-				} else {
-					return FALSE;
-				}
+				return stricmp(s1, s2);
 			#else
 				// 其他平台方案
-				if ( strcasecmp(s1, s2) == 0 ) {
-					return TRUE;
-				} else {
-					return FALSE;
-				}
+				return strcasecmp(s1, s2);
 			#endif
 		} else {
-			if ( strcmp(s1, s2) == 0 ) {
-				return TRUE;
-			} else {
-				return FALSE;
-			}
+			return strcmp(s1, s2);
 		}
 	}
 }

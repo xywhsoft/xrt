@@ -632,6 +632,11 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 
 
 
+// 数组合并
+XXAPI bool xvoArrayMerge
+
+
+
 // Array 操作
 XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
 {
@@ -885,6 +890,10 @@ XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc)
 	}
 	return FALSE;
 }
+
+
+
+// Coll 集合操作
 
 
 

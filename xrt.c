@@ -32,6 +32,7 @@
 	#include <errno.h>
 	#include <wchar.h>
 	#include <netdb.h>
+	#include <dirent.h>
 #endif
 
 
