@@ -633,7 +633,7 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 
 
 // 数组合并
-XXAPI bool xvoArrayMerge
+//XXAPI bool xvoArrayMerge
 
 
 
