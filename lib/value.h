@@ -1,7 +1,15 @@
 
 
 
-// 静态值 : null、true、false
+// 静态值 : empty、null、true、false
+static xvalue_struct XVO_VALUE_EMPTY = {
+	XVO_DT_EMPTY,
+	0,
+	TRUE,
+	0,
+	0,
+	0
+};
 static xvalue_struct XVO_VALUE_NULL = {
 	XVO_DT_NULL,
 	0,
@@ -339,7 +347,7 @@ XXAPI xvalue xvoCreateCustom(ptr pObj)
 // 读取值
 XXAPI bool xvoGetBool(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return FALSE;
 	} else if ( pVal->Type == XVO_DT_NULL ) {
 		return FALSE;
@@ -355,7 +363,7 @@ XXAPI bool xvoGetBool(xvalue pVal)
 }
 XXAPI int64 xvoGetInt(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return 0;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
 		return pVal->vBool ? 1 : 0;
@@ -371,7 +379,7 @@ XXAPI int64 xvoGetInt(xvalue pVal)
 }
 XXAPI double xvoGetFloat(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return 0.0;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
 		return pVal->vBool ? 1.0 : 0.0;
@@ -382,15 +390,17 @@ XXAPI double xvoGetFloat(xvalue pVal)
 	} else if ( pVal->Type == XVO_DT_TEXT ) {
 		return xrtStrToNum(pVal->vText);
 	} else {
-		return 0;
+		return 0.0;
 	}
 }
 XXAPI str xvoGetText(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return xCore.sNull;
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return pVal->vText;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		return pVal->vBool ? "true" : "false";
+		return (pVal->vBool ? "true" : "false");
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		str sRet = xrtTempMemory(24);
 		xrtI64ToStr(pVal->vInt, sRet);
@@ -399,8 +409,6 @@ XXAPI str xvoGetText(xvalue pVal)
 		str sRet = xrtTempMemory(32);
 		xrtNumToStr(pVal->vFloat, sRet);
 		return sRet;
-	} else if ( pVal->Type == XVO_DT_TEXT ) {
-		return pVal->vText;
 	} else if ( pVal->Type == XVO_DT_TIME ) {
 		str sRet = xrtTempMemory(24);
 		int64 iYear;
@@ -450,7 +458,7 @@ XXAPI str xvoGetText(xvalue pVal)
 }
 XXAPI xtime xvoGetTime(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return 0;
 	} else if ( pVal->Type == XVO_DT_TIME ) {
 		return pVal->vTime;
@@ -462,7 +470,7 @@ XXAPI xtime xvoGetTime(xvalue pVal)
 }
 XXAPI ptr xvoGetPoint(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_POINT ) {
 		return pVal->vPoint;
@@ -472,7 +480,7 @@ XXAPI ptr xvoGetPoint(xvalue pVal)
 }
 XXAPI xfunction xvoGetFunc(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_FUNC ) {
 		return pVal->vFunc;
@@ -482,7 +490,7 @@ XXAPI xfunction xvoGetFunc(xvalue pVal)
 }
 XXAPI xparray xvoGetArray(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
 		return pVal->vArray;
@@ -492,7 +500,7 @@ XXAPI xparray xvoGetArray(xvalue pVal)
 }
 XXAPI xlist xvoGetList(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_LIST ) {
 		return pVal->vList;
@@ -502,7 +510,7 @@ XXAPI xlist xvoGetList(xvalue pVal)
 }
 XXAPI xavltree xvoGetColl(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_COLL ) {
 		return pVal->vColl;
@@ -512,7 +520,7 @@ XXAPI xavltree xvoGetColl(xvalue pVal)
 }
 XXAPI xdict xvoGetTable(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
 		return pVal->vTable;
@@ -522,7 +530,7 @@ XXAPI xdict xvoGetTable(xvalue pVal)
 }
 XXAPI ptr xvoGetStruct(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_STRUCT ) {
 		return pVal->vStruct;
@@ -532,7 +540,7 @@ XXAPI ptr xvoGetStruct(xvalue pVal)
 }
 XXAPI ptr xvoGetObject(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_OBJECT ) {
 		return pVal->vObject;
@@ -542,7 +550,7 @@ XXAPI ptr xvoGetObject(xvalue pVal)
 }
 XXAPI ptr xvoGetCustom(xvalue pVal)
 {
-	if ( pVal == NULL ) {
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
 		return NULL;
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
 		return pVal->vCustom;
@@ -557,12 +565,17 @@ XXAPI ptr xvoGetCustom(xvalue pVal)
 XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index)
 {
 	if ( pArr == NULL ) {
-		return NULL;
+		return &XVO_VALUE_EMPTY;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
-		return NULL;
+		return &XVO_VALUE_EMPTY;
 	}
-	return xrtPtrArrayGet(pArr->vArray, index + 1);
+	xvalue pVal = xrtPtrArrayGet(pArr->vArray, index + 1);
+	if ( pVal ) {
+		return pVal;
+	} else {
+		return &XVO_VALUE_EMPTY;
+	}
 }
 
 
@@ -710,12 +723,17 @@ XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
 XXAPI xvalue xvoListGetValue(xvalue pList, int64 index)
 {
 	if ( pList == NULL ) {
-		return NULL;
+		return &XVO_VALUE_EMPTY;
 	}
 	if ( pList->Type != XVO_DT_LIST ) {
-		return NULL;
+		return &XVO_VALUE_EMPTY;
 	}
-	return xrtListGetPtr(pList->vList, index);
+	xvalue pVal = xrtListGetPtr(pList->vList, index);
+	if ( pVal ) {
+		return pVal;
+	} else {
+		return &XVO_VALUE_EMPTY;
+	}
 }
 
 
@@ -1003,10 +1021,10 @@ XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl)
 XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl)
 {
 	if ( pTbl == NULL ) {
-		return NULL;
+		return &XVO_VALUE_EMPTY;
 	}
 	if ( pTbl->Type != XVO_DT_TABLE ) {
-		return NULL;
+		return &XVO_VALUE_EMPTY;
 	}
 	if ( key == NULL ) {
 		key = xCore.sNull;
@@ -1014,7 +1032,12 @@ XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl)
 	} else if ( kl == 0 ) {
 		kl = strlen(key);
 	}
-	return xrtDictGetPtr(pTbl->vTable, key, kl);
+	xvalue pVal = xrtDictGetPtr(pTbl->vTable, key, kl);
+	if ( pVal ) {
+		return pVal;
+	} else {
+		return &XVO_VALUE_EMPTY;
+	}
 }
 
 
@@ -1123,6 +1146,8 @@ XXAPI bool xvoIsNull(xvalue pVal)
 		return TRUE;
 	} else if ( pVal->Type == XVO_DT_NULL ) {
 		return TRUE;
+	} else if ( pVal->Type == XVO_DT_EMPTY ) {
+		return TRUE;
 	} else {
 		return FALSE;
 	}
@@ -1174,31 +1199,31 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 	if ( iMode == 1 ) {
 		// 输出数组元素
 		if ( objVal == NULL ) {
-			printf("(empty) %d = (empty)\n", iKey);
+			printf("(empty) %lld = (empty)\n", iKey);
 		} else if ( objVal->Type == XVO_DT_NULL ) {
-			printf("(null ) [%x] %d = (null)\n", objVal, iKey);
+			printf("(null ) [%x] %lld = (null)\n", objVal, iKey);
 		} else if ( objVal->Type == XVO_DT_BOOL ) {
-			printf("(bool ) [%x] %d = (%s)\n", objVal, iKey, xvoGetText(objVal));
+			printf("(bool ) [%x] %lld = (%s)\n", objVal, iKey, xvoGetText(objVal));
 		} else if ( objVal->Type == XVO_DT_INT ) {
-			printf("( int ) [%x] %d = %lld\n", objVal, iKey, xvoGetInt(objVal));
+			printf("( int ) [%x] %lld = %lld\n", objVal, iKey, xvoGetInt(objVal));
 		} else if ( objVal->Type == XVO_DT_FLOAT ) {
-			printf("(float) [%x] %d = %lf\n", objVal, iKey, xvoGetFloat(objVal));
+			printf("(float) [%x] %lld = %lf\n", objVal, iKey, xvoGetFloat(objVal));
 		} else if ( objVal->Type == XVO_DT_TEXT ) {
-			printf("(text ) [%x] %d = \"%s\"\n", objVal, iKey, xvoGetText(objVal));
+			printf("(text ) [%x] %lld = \"%s\"\n", objVal, iKey, xvoGetText(objVal));
 		} else if ( objVal->Type == XVO_DT_TIME ) {
-			printf("(time ) [%x] %d = < %s >\n", objVal, iKey, xvoGetText(objVal));
+			printf("(time ) [%x] %lld = < %s >\n", objVal, iKey, xvoGetText(objVal));
 		} else if ( objVal->Type == XVO_DT_POINT ) {
-			printf("(point) [%x] %d = 0x%x\n", objVal, iKey, xvoGetPoint(objVal));
+			printf("(point) [%x] %lld = 0x%x\n", objVal, iKey, xvoGetPoint(objVal));
 		} else if ( objVal->Type == XVO_DT_FUNC ) {
-			printf("(func ) [%x] %d = address:0x%x\n", objVal, iKey, xvoGetFunc(objVal));
+			printf("(func ) [%x] %lld = address:0x%x\n", objVal, iKey, xvoGetFunc(objVal));
 		} else if ( objVal->Type == XVO_DT_ARRAY ) {
-			printf("(array) [%x] %d = (array), count : %d\n", objVal, iKey, xvoArrayItemCount(objVal));
+			printf("(array) [%x] %lld = (array), count : %d\n", objVal, iKey, xvoArrayItemCount(objVal));
 		} else if ( objVal->Type == XVO_DT_LIST ) {
-			printf("(list ) [%x] %d = (list), count : %d\n", objVal, iKey, xvoListItemCount(objVal));
+			printf("(list ) [%x] %lld = (list), count : %d\n", objVal, iKey, xvoListItemCount(objVal));
 		} else if ( objVal->Type == XVO_DT_TABLE ) {
-			printf("(table) [%x] %d = (table), count : %d\n", objVal, iKey, xvoTableItemCount(objVal));
+			printf("(table) [%x] %lld = (table), count : %d\n", objVal, iKey, xvoTableItemCount(objVal));
 		} else if ( objVal->Type == XVO_DT_COLL ) {
-			printf("(coll ) [%x] %d = (coll), count : %d\n", objVal, iKey, xvoCollItemCount(objVal));
+			printf("(coll ) [%x] %lld = (coll), count : %d\n", objVal, iKey, xvoCollItemCount(objVal));
 		} else {
 			printf("Unknown data type\n");
 		}
@@ -1267,7 +1292,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 	}
 	if ( objVal ) {
 		if ( objVal->Type == XVO_DT_ARRAY ) {
-			for ( int i = 0; i < objVal->vArray->Count; i++ ) {
+			for ( int64 i = 0; i < objVal->vArray->Count; i++ ) {
 				xvalue objItem = xvoArrayGetValue(objVal, i);
 				xvoPrintValue(objItem, iLevel + 1, 1, i, NULL);
 			}

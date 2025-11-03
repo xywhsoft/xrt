@@ -7,7 +7,7 @@ void Test_Value(xrtGlobalData* xCore)
 	printf("\n\n\n------------------------------------\n\n Value 库测试 :\n\n");
 	
 	
-	/*
+	
 	// subject 1 : print empty
 	printf("Value test subject 1 : print empty\n\n");
 	xvoPrintValue(NULL, 0, 0, 0, NULL);
@@ -41,7 +41,7 @@ void Test_Value(xrtGlobalData* xCore)
 	system("cls");
 	
 	
-	
+	/*
 	// subject 4 : print int
 	printf("Value test subject 4 : print int\n\n");
 	xvalue pValInt = xvoCreateInt(12345678);
