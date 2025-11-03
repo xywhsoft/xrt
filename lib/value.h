@@ -1198,7 +1198,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 	}
 	if ( iMode == 1 ) {
 		// 输出数组元素
-		if ( objVal == NULL ) {
+		if ( (objVal == NULL) || (objVal->Type == XVO_DT_EMPTY) ) {
 			printf("(empty) %lld = (empty)\n", iKey);
 		} else if ( objVal->Type == XVO_DT_NULL ) {
 			printf("(null ) [%x] %lld = (null)\n", objVal, iKey);
@@ -1229,7 +1229,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		}
 	} else if ( iMode == 2 ) {
 		// 输出表元素
-		if ( objVal == NULL ) {
+		if ( (objVal == NULL) || (objVal->Type == XVO_DT_EMPTY) ) {
 			printf("(empty) \"%s\" = (empty)\n", sKey);
 		} else if ( objVal->Type == XVO_DT_NULL ) {
 			printf("(null ) [%x] \"%s\" = (null)\n", objVal, sKey);
@@ -1260,7 +1260,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		}
 	} else {
 		// 输出集合元素
-		if ( objVal == NULL ) {
+		if ( (objVal == NULL) || (objVal->Type == XVO_DT_EMPTY) ) {
 			printf("(empty)\n");
 		} else if ( objVal->Type == XVO_DT_NULL ) {
 			printf("(null ) [%x] (null)\n", objVal);
@@ -1287,7 +1287,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		} else if ( objVal->Type == XVO_DT_COLL ) {
 			printf("(coll ) [%x] (coll), count : %d\n", objVal, xvoCollItemCount(objVal));
 		} else {
-			printf("Unknown data type\n");
+			printf("Unknown data type : %d\n", objVal->Type);
 		}
 	}
 	if ( objVal ) {
