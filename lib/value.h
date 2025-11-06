@@ -1141,9 +1141,8 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 // Table 合并
 bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 {
-/*
-	bool bNew = FALSE;
-	xvalue* ppOldVal = xrtListSet(objList, iKey, &bNew);
+	bool bNew;
+	xvalue* ppOldVal = xrtDictSetWithKey(objTbl, pKey, &bNew);
 	if ( ppOldVal ) {
 		// 只转移之前没有的值
 		if ( bNew ) {
@@ -1151,22 +1150,20 @@ bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 			ppOldVal[0] = *ppVal;
 		}
 	}
-	*/
 	return FALSE;
 }
 bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 {
-/*
-	xvalue pOldVal = NULL;
-	int iRet = xrtDictSetPtr(objTbl, iKey, *ppVal, (ptr*)&pOldVal);
-	if ( iRet ) {
-		xvoAddRef_Inline(*ppVal);
+	bool bNew = FALSE;
+	xvalue* ppOldVal = xrtDictSetWithKey(objTbl, pKey, &bNew);
+	if ( ppOldVal ) {
 		// 释放旧值
-		if ( pOldVal ) {
-			xvoUnRef(pOldVal);
+		if ( bNew == FALSE ) {
+			xvoUnref(*ppOldVal);
 		}
+		xvoAddRef_Inline(*ppVal);
+		ppOldVal[0] = *ppVal;
 	}
-	*/
 	return FALSE;
 }
 XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)

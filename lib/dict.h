@@ -72,26 +72,7 @@ XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet)
 {
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	bool bNew;
-	Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
-	if ( pNode ) {
-		if ( bNewRet ) {
-			*bNewRet = bNew;
-		}
-		if ( bNew ) {
-			if ( objHT->MP ) {
-				pNode->Key = xrtMemPoolAlloc(objHT->MP, iKeyLen + 1);
-			} else {
-				pNode->Key = xrtMalloc(iKeyLen + 1);
-			}
-			pNode->KeyLen = iKeyLen;
-			pNode->Hash = objKey.Hash;
-			memcpy(pNode->Key, sKey, iKeyLen);
-			((char*)pNode->Key)[iKeyLen] = 0;
-		}
-		return &pNode[1];
-	}
-	return NULL;
+	return xrtDictSetWithKey(objHT, &objKey, bNewRet);
 }
 
 // 设置值 - 当值为 ptr 时直接修改指针内容
@@ -100,36 +81,25 @@ XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* p
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
 	bool bNew;
-	Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, &objKey, &bNew);
-	if ( pNode ) {
-		if ( bNew ) {
-			if ( objHT->MP ) {
-				pNode->Key = xrtMemPoolAlloc(objHT->MP, iKeyLen + 1);
-			} else {
-				pNode->Key = xrtMalloc(iKeyLen + 1);
-			}
-			pNode->KeyLen = iKeyLen;
-			pNode->Hash = objKey.Hash;
-			memcpy(pNode->Key, sKey, iKeyLen);
-			((char*)pNode->Key)[iKeyLen] = 0;
-		}
-		// 获取单指针数据结构
-		struct {
-			ptr val;
-		} *pData = (ptr)&pNode[1];
+	ptr* ppVal = xrtDictSetWithKey(objHT, &objKey, &bNew);
+	if ( ppVal ) {
 		// 传回旧值
 		if ( ppOldVal ) {
 			if ( bNew ) {
 				*ppOldVal = NULL;
 			} else {
-				*ppOldVal = pData->val;
+				*ppOldVal = ppVal[0];
 			}
 		}
 		// 修改为新值
-		pData->val = pVal;
+		ppVal[0] = pVal;
 		return TRUE;
+	} else {
+		if ( ppOldVal ) {
+			*ppOldVal = NULL;
+		}
+		return FALSE;
 	}
-	return FALSE;
 }
 
 // 获取值

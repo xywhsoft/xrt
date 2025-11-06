@@ -1455,6 +1455,30 @@
 	XXAPI void xrtDictUnit(xdict objHT);
 	
 	// 设置值
+	static inline ptr xrtDictSetWithKey(xdict objHT, Dict_Key* objKey, bool* bNewRet)
+	{
+		bool bNew;
+		Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, objKey, &bNew);
+		if ( pNode ) {
+			if ( bNewRet ) {
+				*bNewRet = bNew;
+			}
+			if ( bNew ) {
+				uint32 iKeyLen = objKey->KeyLen;
+				if ( objHT->MP ) {
+					pNode->Key = xrtMemPoolAlloc(objHT->MP, iKeyLen + 1);
+				} else {
+					pNode->Key = xrtMalloc(iKeyLen + 1);
+				}
+				pNode->KeyLen = iKeyLen;
+				pNode->Hash = objKey->Hash;
+				memcpy(pNode->Key, objKey->Key, iKeyLen);
+				((char*)pNode->Key)[iKeyLen] = 0;
+			}
+			return &pNode[1];
+		}
+		return NULL;
+	}
 	XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet);
 	
 	// 设置值 - 当值为 ptr 时直接修改指针内容
@@ -1851,6 +1875,9 @@
 	#define xvoTableSetStruct(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateStruct(size), TRUE)
 	#define xvoTableSetObject(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateObject(size), TRUE)
 	#define xvoTableSetCustom(pTbl, key, kl, point)												xvoTableSetValue(pTbl, key, kl, xvoCreateCustom(point), TRUE)
+	
+	// Table 合并
+	XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite);
 	
 	// Table 操作
 	XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl);

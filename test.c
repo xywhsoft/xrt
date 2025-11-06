@@ -141,13 +141,13 @@ int main(int argc, char** argv)
 	// Test_MemPool(xCore);
 	
 	/* Dict 测试 */
-	// Test_Dict(xCore);
+	 Test_Dict(xCore);
 	
 	/* List 测试 */
 	// Test_List(xCore);
 	
 	/* Value 测试 */
-	 Test_Value(xCore);
+	// Test_Value(xCore);
 	
 	/* JSON 测试 */
 	// Test_JSON(xCore);
