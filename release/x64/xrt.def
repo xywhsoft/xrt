@@ -312,6 +312,7 @@ xvoArrayClear
 xvoArrayGetValue
 xvoArrayInsertValue
 xvoArrayItemCount
+xvoArrayMerge
 xvoArrayRemove
 xvoArraySetValue
 xvoArraySort
@@ -358,6 +359,7 @@ xvoListClear
 xvoListExists
 xvoListGetValue
 xvoListItemCount
+xvoListMerge
 xvoListRemove
 xvoListSetParent
 xvoListSetValue
@@ -366,6 +368,7 @@ xvoTableClear
 xvoTableExists
 xvoTableGetValue
 xvoTableItemCount
+xvoTableMerge
 xvoTableRemove
 xvoTableSetParent
 xvoTableSetValue

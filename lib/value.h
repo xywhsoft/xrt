@@ -41,7 +41,7 @@ static xvalue_struct XVO_VALUE_FALSE = {
 XXAPI void xvoAddRef(xvalue pVal)
 {
 	if ( pVal ) {
-		if ( pVal->RefCount >= 0x3FFFFF ) {
+		if ( pVal->RefCount >= 0x3FFFFFF ) {
 			// 引用计数太多，就转为静态值
 			pVal->IsStatic = 1;
 		} else {
@@ -594,7 +594,7 @@ XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc)
 		return FALSE;
 	}
 	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-		pVal->RefCount++;
+		xvoAddRef_Inline(pVal);
 	}
 	return TRUE;
 }
@@ -615,7 +615,7 @@ XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bCol
 		return FALSE;
 	}
 	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-		pVal->RefCount++;
+		xvoAddRef_Inline(pVal);
 	}
 	return TRUE;
 }
@@ -638,7 +638,7 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 	xvoUnref(pOldVal);
 	xrtPtrArraySet_Inline(pArr->vArray, index + 1, pVal);
 	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-		pVal->RefCount++;
+		xvoAddRef_Inline(pVal);
 	}
 	return TRUE;
 }
@@ -646,7 +646,24 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 
 
 // 数组合并
-//XXAPI bool xvoArrayMerge
+XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
+{
+	if ( (pArr1 || pArr2) == 0 ) {
+		return FALSE;
+	}
+	if ( pArr1->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( pArr2->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	for ( int i = 1; i <= pArr2->vArray->Count; i++ ) {
+		xvalue pVal = xrtPtrArrayGet_Inline(pArr2->vArray, i);
+		xvoAddRef_Inline(pVal);
+		xrtPtrArrayAppend(pArr1->vArray, pVal);
+	}
+	return TRUE;
+}
 
 
 
@@ -748,15 +765,63 @@ XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
 		return FALSE;
 	}
 	xvalue pOldVal = NULL;
-	int iRet = xrtListSetPtr(pList->vList, index, pVal, (ptr*)&pOldVal);
-	if ( iRet == FALSE ) {
+	bool bRet = xrtListSetPtr(pList->vList, index, pVal, (ptr*)&pOldVal);
+	if ( bRet == FALSE ) {
 		return FALSE;
 	}
 	if ( pOldVal ) {
 		xvoUnref(pOldVal);
 	}
 	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-		pVal->RefCount++;
+		xvoAddRef_Inline(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// List 合并
+bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, xlist objList)
+{
+	bool bNew = FALSE;
+	xvalue* ppOldVal = xrtListSet(objList, iKey, &bNew);
+	if ( ppOldVal ) {
+		// 只转移之前没有的值
+		if ( bNew ) {
+			xvoAddRef_Inline(*ppVal);
+			ppOldVal[0] = *ppVal;
+		}
+	}
+	return FALSE;
+}
+bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, xlist objList)
+{
+	xvalue pOldVal = NULL;
+	int iRet = xrtListSetPtr(objList, iKey, *ppVal, (ptr*)&pOldVal);
+	if ( iRet ) {
+		xvoAddRef_Inline(*ppVal);
+		// 释放旧值
+		if ( pOldVal ) {
+			xvoUnref(pOldVal);
+		}
+	}
+	return FALSE;
+}
+XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
+{
+	if ( (pList1 || pList2) == 0 ) {
+		return FALSE;
+	}
+	if ( pList1->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( pList2->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( bReWrite ) {
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc_ReWrite, pList1->vList);
+	} else {
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc, pList1->vList);
 	}
 	return TRUE;
 }
@@ -897,7 +962,7 @@ XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc)
 			pNode->Hash = objKey.Hash;
 			pNode->Value = pVal;
 			if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-				pVal->RefCount++;
+				xvoAddRef_Inline(pVal);
 			}
 		} else {
 			if ( bColloc ) {
@@ -1066,7 +1131,59 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 		xvoUnref(pOldVal);
 	}
 	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-		pVal->RefCount++;
+		xvoAddRef_Inline(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Table 合并
+bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+{
+/*
+	bool bNew = FALSE;
+	xvalue* ppOldVal = xrtListSet(objList, iKey, &bNew);
+	if ( ppOldVal ) {
+		// 只转移之前没有的值
+		if ( bNew ) {
+			xvoAddRef_Inline(*ppVal);
+			ppOldVal[0] = *ppVal;
+		}
+	}
+	*/
+	return FALSE;
+}
+bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+{
+/*
+	xvalue pOldVal = NULL;
+	int iRet = xrtDictSetPtr(objTbl, iKey, *ppVal, (ptr*)&pOldVal);
+	if ( iRet ) {
+		xvoAddRef_Inline(*ppVal);
+		// 释放旧值
+		if ( pOldVal ) {
+			xvoUnRef(pOldVal);
+		}
+	}
+	*/
+	return FALSE;
+}
+XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
+{
+	if ( (pTbl1 || pTbl2) == 0 ) {
+		return FALSE;
+	}
+	if ( pTbl1->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( pTbl2->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( bReWrite ) {
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc_ReWrite, pTbl1->vTable);
+	} else {
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc, pTbl1->vTable);
 	}
 	return TRUE;
 }

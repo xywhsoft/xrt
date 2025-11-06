@@ -1615,6 +1615,15 @@
 	// 引用计数操作
 	XXAPI void xvoAddRef(xvalue pVal);
 	XXAPI void xvoUnref(xvalue pVal);
+	static inline void xvoAddRef_Inline(xvalue pVal)
+	{
+		if ( pVal->RefCount >= 0x3FFFFFF ) {
+			// 引用计数太多，就转为静态值
+			pVal->IsStatic = 1;
+		} else {
+			pVal->RefCount++;
+		}
+	}
 	
 	// 创建值
 	XXAPI xvalue xvoCreateNull();
@@ -1724,6 +1733,9 @@
 	#define xvoArraySetObject(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateObject(size), TRUE)
 	#define xvoArraySetCustom(pArr, idx, point)													xvoArraySetValue(pArr, idx, xvoCreateCustom(point), TRUE)
 	
+	// 数组合并
+	XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2);
+	
 	// Array 操作
 	XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2);
 	XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count);
@@ -1767,6 +1779,9 @@
 	#define xvoListSetStruct(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateStruct(size), TRUE)
 	#define xvoListSetObject(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateObject(size), TRUE)
 	#define xvoListSetCustom(pList, idx, point)													xvoListSetValue(pList, idx, xvoCreateCustom(point), TRUE)
+	
+	// List 合并
+	XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite);
 	
 	// List 操作
 	XXAPI bool xvoListExists(xvalue pList, int64 index);
