@@ -1406,9 +1406,82 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 
 
 // 深拷贝
+bool xvoDeepCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
+{
+	xvalue pItemCopy = xvoDeepCopy(ppVal[0]);
+	xrtListSetPtr(objList, iKey, pItemCopy, NULL);
+	return FALSE;
+}
+bool xvoDeepCopy_CollProc(Coll_Key* pKey, xavltree objColl)
+{
+	xvalue pItemCopy = xvoDeepCopy(pKey->Value);
+	Coll_Key* pNode = xrtAVLTreeInsert(objColl, pKey, NULL);
+	if ( pNode ) {
+		pNode->Hash = pKey->Hash;
+		pNode->Value = pItemCopy;
+	}
+	return FALSE;
+}
+bool xvoDeepCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+{
+	xvalue pItemCopy = xvoDeepCopy(ppVal[0]);
+	xvalue* ppNTV = xrtDictSetWithKey(objTbl, pKey, NULL);
+	if ( ppNTV ) {
+		ppNTV[0] = pItemCopy;
+	}
+	return FALSE;
+}
 XXAPI xvalue xvoDeepCopy(xvalue pVal)
 {
-	return NULL;
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
+		return &XVO_VALUE_EMPTY;
+	} else if ( pVal->Type == XVO_DT_NULL ) {
+		return &XVO_VALUE_NULL;
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		if ( pVal->vBool ) {
+			return &XVO_VALUE_TRUE;
+		} else {
+			return &XVO_VALUE_FALSE;
+		}
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		xvalue arrRet = xvoCreateArray();
+		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
+			xvalue pItemCopy = xvoDeepCopy(pItem);
+			xrtPtrArrayAppend(arrRet->vArray, pItem);
+		}
+		return arrRet;
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		xvalue lstRet = xvoCreateList();
+		xrtListWalk(pVal->vList, (ptr)xvoDeepCopy_ListProc, lstRet->vList);
+		return lstRet;
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		xvalue setRet = xvoCreateColl();
+		xrtAVLTreeWalk(pVal->vColl, (ptr)xvoDeepCopy_CollProc, setRet->vColl);
+		return setRet;
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		xvalue tblRet = xvoCreateTable();
+		xrtDictWalk(pVal->vTable, (ptr)xvoDeepCopy_TableProc, tblRet->vTable);
+		return tblRet;
+	} else if ( pVal->Type == XVO_DT_STRUCT ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_OBJECT ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		return NULL;
+	} else {
+		// 其他类型直接 Copy 64 位数据
+		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
+		varRet->Type = pVal->Type;
+		varRet->Reserve = 0;
+		varRet->IsStatic = 0;
+		varRet->RefCount = 1;
+		varRet->Size = pVal->Size;
+		varRet->vInt = pVal->vInt;
+		return varRet;
+	}
 }
 
 
