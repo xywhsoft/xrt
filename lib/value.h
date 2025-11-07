@@ -1303,6 +1303,27 @@ bool xvoCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
 	}
 	return FALSE;
 }
+bool xvoCopy_CollProc(Coll_Key* pKey, xavltree objColl)
+{
+	if ( (pKey->Value->Type >= XVO_DT_ARRAY) ) {
+		// 复杂数据类型 - 直接引用
+		xvoAddRef_Inline(pKey->Value);
+		Coll_Key* pNode = xrtAVLTreeInsert(objColl, pKey, NULL);
+		if ( pNode ) {
+			pNode->Hash = pKey->Hash;
+			pNode->Value = pKey->Value;
+		}
+	} else {
+		// 基础数据类型 - 创建新值
+		xvalue pItemCopy = xvoCopy(pKey->Value);
+		Coll_Key* pNode = xrtAVLTreeInsert(objColl, pKey, NULL);
+		if ( pNode ) {
+			pNode->Hash = pKey->Hash;
+			pNode->Value = pItemCopy;
+		}
+	}
+	return FALSE;
+}
 bool xvoCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 {
 	if ( (ppVal[0]->Type >= XVO_DT_ARRAY) ) {
@@ -1357,7 +1378,7 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 		return lstRet;
 	} else if ( pVal->Type == XVO_DT_COLL ) {
 		xvalue setRet = xvoCreateColl();
-		
+		xrtAVLTreeWalk(pVal->vColl, (ptr)xvoCopy_CollProc, setRet->vColl);
 		return setRet;
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
 		xvalue tblRet = xvoCreateTable();
