@@ -648,7 +648,7 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 
 
 
-// 数组合并
+// Array 合并
 XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
 {
 	if ( (pArr1 || pArr2) == 0 ) {
@@ -897,7 +897,7 @@ XXAPI bool xvoListSetParent(xvalue pList, xvalue pParentList)
 
 
 
-// 集合功能实现
+// 集合功能实现 - 值对比函数
 int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey)
 {
 	if ( pNode->Hash == pObjKey->Hash ) {
@@ -941,45 +941,112 @@ XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc)
 		return FALSE;
 	}
 	Coll_Key objKey;
-	if ( pVal->Type == XVO_DT_TEXT ) {
-		#if defined(__x86_64__) || defined(_M_X64)
-			// 64 bit
-			uint64 iHash = xrtHash64(pVal->vText, pVal->Size);
-		#elif defined(__i386__) || defined(_M_IX86)
-			// 32 bit
-			uint32 iHash = xrtHash32(pVal->vText, pVal->Size);
-		#endif
-		objKey.Hash = ((uint64)pVal->Type << 60) | ((uint64)pVal->Size << 28) | (iHash & 0xFFFFFFF);
-	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		objKey.Hash = ((uint64)pVal->Type << 60) | pVal->vBool;
-	} else if ( pVal->Type == XVO_DT_NULL ) {
-		objKey.Hash = (uint64)pVal->Type << 60;
-	} else {
-		objKey.Hash = ((uint64)pVal->Type << 60) | (pVal->vInt & 0xFFFFFFFFFFFFFFF);
-	}
-	objKey.Value = pVal;
-	bool bNew;
-	Coll_Key* pNode = xrtAVLTreeInsert(pColl->vColl, &objKey, &bNew);
-	if ( pNode ) {
-		if ( bNew ) {
-			pNode->Hash = objKey.Hash;
-			pNode->Value = pVal;
-			if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
-				xvoAddRef_Inline(pVal);
-			}
-		} else {
-			if ( bColloc ) {
-				xvoUnref(pVal);
-			}
-		}
-		return TRUE;
-	}
-	return FALSE;
+	MAKE_COLL_KEY(objKey, pVal);
+	return xvoCollSetValueWithKey(pColl->vColl, &objKey, bColloc);
 }
 
 
 
-// Coll 集合操作
+// Coll 获取差集 [ pSelf 集合相对 pColl 集合没有的元素 ]
+struct CollProcParam {
+	xvalue pColl;
+	xvalue pRetVal;
+};
+bool xvoCollDifference_EachProc(Coll_Key* pKey, struct CollProcParam* param)
+{
+	Coll_Key* pNode = xrtAVLTreeSearch(param->pColl->vColl, pKey);
+	if ( pNode == NULL ) {
+		xvoCollSetValueWithKey(param->pRetVal->vColl, pKey, FALSE);
+	}
+	return FALSE;
+}
+XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf || pColl) == 0 ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	struct CollProcParam param = { pColl, pRetVal };
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollDifference_EachProc, &param);
+	return pRetVal;
+}
+
+
+
+// Coll 获取交集 [ pSelf 集合相对 pColl 集合存在的元素 ]
+bool xvoCollIntersection_EachProc(Coll_Key* pKey, struct CollProcParam* param)
+{
+	Coll_Key* pNode = xrtAVLTreeSearch(param->pColl->vColl, pKey);
+	if ( pNode ) {
+		xvoCollSetValueWithKey(param->pRetVal->vColl, pKey, FALSE);
+	}
+	return FALSE;
+}
+XXAPI xvalue xvoCollIntersection(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf || pColl) == 0 ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	struct CollProcParam param = { pColl, pRetVal };
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollIntersection_EachProc, &param);
+	return pRetVal;
+}
+
+
+
+// Coll 获取并集 [ 合并两个集合，返回和一个新的集合 ]
+bool xvoCollUnion_EachProc(Coll_Key* pKey, xavltree pColl)
+{
+	xvoCollSetValueWithKey(pColl, pKey, FALSE);
+	return FALSE;
+}
+XXAPI xvalue xvoCollUnion(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf || pColl) == 0 ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollUnion_EachProc, pRetVal->vColl);
+	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollUnion_EachProc, pRetVal->vColl);
+	return pRetVal;
+}
+
+
+
+// Coll 合并集合 [ 将 pColl 中的元素并入 pSelf ]
+XXAPI bool xvoCollMerge(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf || pColl) == 0 ) {
+		return FALSE;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollUnion_EachProc, pSelf->vColl);
+	return TRUE;
+}
 
 
 
@@ -993,21 +1060,7 @@ XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal)
 		return FALSE;
 	}
 	Coll_Key objKey;
-	if ( pVal->Type == XVO_DT_TEXT ) {
-		#if defined(__x86_64__) || defined(_M_X64)
-			// 64 bit
-			uint64 iHash = xrtHash64(pVal->vText, pVal->Size);
-		#elif defined(__i386__) || defined(_M_IX86)
-			// 32 bit
-			uint32 iHash = xrtHash32(pVal->vText, pVal->Size);
-		#endif
-		objKey.Hash = ((uint64)pVal->Type << 60) | ((uint64)pVal->Size << 28) | (iHash & 0xFFFFFFF);
-	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		objKey.Hash = ((uint64)pVal->Type << 60) | pVal->vBool;
-	} else {
-		objKey.Hash = ((uint64)pVal->Type << 60) | (pVal->vInt & 0xFFFFFFFFFFFFFFF);
-	}
-	objKey.Value = pVal;
+	MAKE_COLL_KEY(objKey, pVal);
 	Coll_Key* pNode = xrtAVLTreeSearch(pColl->vColl, &objKey);
 	if ( pNode ) {
 		return TRUE;
@@ -1023,21 +1076,7 @@ XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
 		return FALSE;
 	}
 	Coll_Key objKey;
-	if ( pVal->Type == XVO_DT_TEXT ) {
-		#if defined(__x86_64__) || defined(_M_X64)
-			// 64 bit
-			uint64 iHash = xrtHash64(pVal->vText, pVal->Size);
-		#elif defined(__i386__) || defined(_M_IX86)
-			// 32 bit
-			uint32 iHash = xrtHash32(pVal->vText, pVal->Size);
-		#endif
-		objKey.Hash = ((uint64)pVal->Type << 60) | ((uint64)pVal->Size << 28) | (iHash & 0xFFFFFFF);
-	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		objKey.Hash = ((uint64)pVal->Type << 60) | pVal->vBool;
-	} else {
-		objKey.Hash = ((uint64)pVal->Type << 60) | (pVal->vInt & 0xFFFFFFFFFFFFFFF);
-	}
-	objKey.Value = pVal;
+	MAKE_COLL_KEY(objKey, pVal);
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)pColl->vColl, pColl->vColl->CompProc, &objKey);
 	if ( pDelNode ) {
 		Coll_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
@@ -1310,20 +1349,12 @@ bool xvoCopy_CollProc(Coll_Key* pKey, xavltree objColl)
 {
 	if ( (pKey->Value->Type >= XVO_DT_ARRAY) ) {
 		// 复杂数据类型 - 直接引用
-		xvoAddRef_Inline(pKey->Value);
-		Coll_Key* pNode = xrtAVLTreeInsert(objColl, pKey, NULL);
-		if ( pNode ) {
-			pNode->Hash = pKey->Hash;
-			pNode->Value = pKey->Value;
-		}
+		xvoCollSetValueWithKey(objColl, pKey, FALSE);
 	} else {
 		// 基础数据类型 - 创建新值
 		xvalue pItemCopy = xvoCopy(pKey->Value);
-		Coll_Key* pNode = xrtAVLTreeInsert(objColl, pKey, NULL);
-		if ( pNode ) {
-			pNode->Hash = pKey->Hash;
-			pNode->Value = pItemCopy;
-		}
+		Coll_Key k = { pKey->Hash, pItemCopy };
+		xvoCollSetValueWithKey(objColl, &k, TRUE);
 	}
 	return FALSE;
 }
@@ -1418,11 +1449,8 @@ bool xvoDeepCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
 bool xvoDeepCopy_CollProc(Coll_Key* pKey, xavltree objColl)
 {
 	xvalue pItemCopy = xvoDeepCopy(pKey->Value);
-	Coll_Key* pNode = xrtAVLTreeInsert(objColl, pKey, NULL);
-	if ( pNode ) {
-		pNode->Hash = pKey->Hash;
-		pNode->Value = pItemCopy;
-	}
+	Coll_Key k = { pKey->Hash, pItemCopy };
+	xvoCollSetValueWithKey(objColl, &k, TRUE);
 	return FALSE;
 }
 bool xvoDeepCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)

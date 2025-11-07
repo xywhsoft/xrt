@@ -1757,7 +1757,7 @@
 	#define xvoArraySetObject(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateObject(size), TRUE)
 	#define xvoArraySetCustom(pArr, idx, point)													xvoArraySetValue(pArr, idx, xvoCreateCustom(point), TRUE)
 	
-	// 数组合并
+	// Array 合并
 	XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2);
 	
 	// Array 操作
@@ -1820,6 +1820,37 @@
 		xvalue Value;
 	} Coll_Key;
 	
+	// 构建 Coll_Key
+	#if defined(__x86_64__) || defined(_M_X64)
+		// 64 bit
+		#define MAKE_COLL_KEY(k, v) if ( v->Type == XVO_DT_TEXT ) { uint64 iHash = xrtHash64(v->vText, v->Size); k.Hash = ((uint64)v->Type << 60) | ((uint64)v->Size << 28) | (iHash & 0xFFFFFFF); } else if ( v->Type == XVO_DT_BOOL ) { k.Hash = ((uint64)v->Type << 60) | v->vBool; } else if ( v->Type == XVO_DT_NULL ) { k.Hash = (uint64)v->Type << 60; } else { k.Hash = ((uint64)v->Type << 60) | (v->vInt & 0xFFFFFFFFFFFFFFF); } k.Value = v;
+	#elif defined(__i386__) || defined(_M_IX86)
+		// 32 bit
+		#define MAKE_COLL_KEY(k, v) if ( v->Type == XVO_DT_TEXT ) { uint32 iHash = xrtHash32(v->vText, v->Size); k.Hash = ((uint64)v->Type << 60) | ((uint64)v->Size << 28) | (iHash & 0xFFFFFFF); } else if ( v->Type == XVO_DT_BOOL ) { k.Hash = ((uint64)v->Type << 60) | v->vBool; } else if ( v->Type == XVO_DT_NULL ) { k.Hash = (uint64)v->Type << 60; } else { k.Hash = ((uint64)v->Type << 60) | (v->vInt & 0xFFFFFFFFFFFFFFF); } k.Value = v;
+	#endif
+	
+	// Coll 内联写数据
+	static inline bool xvoCollSetValueWithKey(xavltree pColl, Coll_Key* objKey, bool bColloc)
+	{
+		bool bNew;
+		Coll_Key* pNode = xrtAVLTreeInsert(pColl, objKey, &bNew);
+		if ( pNode ) {
+			if ( bNew ) {
+				pNode->Hash = objKey->Hash;
+				pNode->Value = objKey->Value;
+				if ( bColloc == FALSE ) {
+					xvoAddRef_Inline(objKey->Value);
+				}
+			} else {
+				if ( bColloc ) {
+					xvoUnref(objKey->Value);
+				}
+			}
+			return TRUE;
+		}
+		return FALSE;
+	}
+	
 	// Coll 写数据
 	XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc);
 	#define xvoCollSetNull(pList)																xvoCollSetValue(pList, xvoCreateNull(), TRUE)
@@ -1832,6 +1863,18 @@
 	#define xvoCollSetPoint(pList, pVal)														xvoCollSetValue(pList, xvoCreatePoint(pVal), TRUE)
 	#define xvoCollSetFunc(pList, func)															xvoCollSetValue(pList, xvoCreateFunc(func), TRUE)
 	#define xvoCollSetCustom(pList, point)														xvoCollSetValue(pList, xvoCreateCustom(point), TRUE)
+	
+	// Coll 获取差集 [ pSelf 集合相对 pColl 集合不存在的元素 ]
+	XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl);
+	
+	// Coll 获取交集 [ pSelf 集合相对 pColl 集合存在的元素 ]
+	XXAPI xvalue xvoCollIntersection(xvalue pSelf, xvalue pColl);
+	
+	// Coll 获取并集 [ 合并两个集合，返回和一个新的集合 ]
+	XXAPI xvalue xvoCollUnion(xvalue pSelf, xvalue pColl);
+	
+	// Coll 合并集合 [ 将 pColl 中的元素并入 pSelf ]
+	XXAPI bool xvoCollMerge(xvalue pSelf, xvalue pColl);
 	
 	// Coll 操作
 	XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal);

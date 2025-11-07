@@ -318,11 +318,15 @@ xvoArraySetValue
 xvoArraySort
 xvoArraySwap
 xvoCollClear
+xvoCollDifference
 xvoCollExists
+xvoCollIntersection
 xvoCollItemCount
+xvoCollMerge
 xvoCollRemove
 xvoCollSetParent
 xvoCollSetValue
+xvoCollUnion
 xvoCopy
 xvoCreateArray
 xvoCreateBool
