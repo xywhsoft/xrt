@@ -1,4 +1,4 @@
-tcc -m32 test.c xrt.c -o release/x86/test.exe
+tcc -m32 test.c xrt.c -DDEBUG_TRACE -o release/x86/test.exe
 
 @echo;
 @echo off

@@ -69,7 +69,6 @@ XXAPI void xvoUnref(xvalue pVal)
 	if ( pVal ) {
 		if ( pVal->IsStatic == 0 ) {
 			pVal->RefCount--;
-			// printf("object : %x ref count = %d\n", pVal, pVal->RefCount);
 			// 引用计数用完了就销毁对象
 			if ( pVal->RefCount == 0 ) {
 				// 释放值
@@ -91,12 +90,16 @@ XXAPI void xvoUnref(xvalue pVal)
 					xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
 					xrtDictDestroy(pVal->vTable);
 				} else if ( pVal->Type == XVO_DT_STRUCT ) {
+					xrtFree(pVal->vStruct);
 				} else if ( pVal->Type == XVO_DT_OBJECT ) {
+					xrtFree(pVal->vObject);
 				} else if ( pVal->Type == XVO_DT_CUSTOM ) {
 				}
 				// 释放变量本身
 				xrtFree(pVal);
-				// printf("free value : %x\n", pVal);
+				#ifdef DEBUG_TRACE
+					printf("free value : %x\n", pVal);
+				#endif
 			}
 		}
 	}
@@ -1535,6 +1538,8 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 			printf("(table) [%x] %lld = (table), count : %d\n", objVal, iKey, xvoTableItemCount(objVal));
 		} else if ( objVal->Type == XVO_DT_COLL ) {
 			printf("(coll ) [%x] %lld = (coll), count : %d\n", objVal, iKey, xvoCollItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_STRUCT ) {
+			printf("(struc) [%x] %lld = (struct), size : %d\n", objVal, iKey, objVal->Size);
 		} else {
 			printf("Unknown data type\n");
 		}
@@ -1566,11 +1571,13 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 			printf("(table) [%x] \"%s\" = (table), count : %d\n", objVal, sKey, xvoTableItemCount(objVal));
 		} else if ( objVal->Type == XVO_DT_COLL ) {
 			printf("(coll ) [%x] \"%s\" = (coll), count : %d\n", objVal, sKey, xvoCollItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_STRUCT ) {
+			printf("(struc) [%x] \"%s\" = (struct), size : %d\n", objVal, sKey, objVal->Size);
 		} else {
 			printf("Unknown data type\n");
 		}
 	} else {
-		// 输出集合元素
+		// 输出元素
 		if ( (objVal == NULL) || (objVal->Type == XVO_DT_EMPTY) ) {
 			printf("(empty)\n");
 		} else if ( objVal->Type == XVO_DT_NULL ) {
@@ -1597,6 +1604,8 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 			printf("(table) [%x] (table), count : %d\n", objVal, xvoTableItemCount(objVal));
 		} else if ( objVal->Type == XVO_DT_COLL ) {
 			printf("(coll ) [%x] (coll), count : %d\n", objVal, xvoCollItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_STRUCT ) {
+			printf("(struc) [%x] (struct), size : %d\n", objVal, objVal->Size);
 		} else {
 			printf("Unknown data type : %d\n", objVal->Type);
 		}

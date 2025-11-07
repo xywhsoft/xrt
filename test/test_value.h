@@ -1,8 +1,17 @@
 
 
 
-// Value 库测试
-void Test_Value(xrtGlobalData* xCore)
+typedef struct MyDataStruct {
+	int64 iVal;
+	double fVal;
+	ptr pVal;
+	uint8 sVal[32];
+} MyDataStruct;
+
+
+
+// Value 库测试 - 基础功能测试
+void Test_Value_Basic(xrtGlobalData* xCore)
 {
 	printf("\n\n\n------------------------------------\n\n Value 库测试 :\n\n");
 	
@@ -41,7 +50,7 @@ void Test_Value(xrtGlobalData* xCore)
 	system("cls");
 	
 	
-	/*
+	
 	// subject 4 : print int
 	printf("Value test subject 4 : print int\n\n");
 	xvalue pValInt = xvoCreateInt(12345678);
@@ -123,7 +132,7 @@ void Test_Value(xrtGlobalData* xCore)
 	printf("\n\n\n");
 	system("pause");
 	system("cls");
-	*/
+	
 	
 	
 	// subject 10 : print array
@@ -233,6 +242,22 @@ void Test_Value(xrtGlobalData* xCore)
 	system("cls");
 	
 	
+	
+	// subject 16 : print stauct
+	printf("Value test subject 16 : print stauct\n\n");
+	xvalue pValStruct = xvoCreateStruct(sizeof(MyDataStruct));
+	MyDataStruct* pMDS = xvoGetStruct(pValStruct);
+	pMDS->iVal = 12345678;
+	pMDS->fVal = 3.1415926;
+	pMDS->pVal = (ptr)0x87654321;
+	sprintf(pMDS->sVal, "我吹过你吹过的晚风");
+	xvoPrintValue(pValStruct, 0, 0, 0, NULL);
+	pMDS = xvoGetStruct(pValStruct);
+	printf("\t iVal = %lld\n", pMDS->iVal);
+	printf("\t fVal = %llf\n", pMDS->fVal);
+	printf("\t pVal = %x\n", pMDS->pVal);
+	printf("\t sVal = %s\n", pMDS->sVal);
+	xvoUnref(pValStruct);
 	
 }
 

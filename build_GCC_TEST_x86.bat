@@ -1,4 +1,4 @@
-gcc -m32 test.c xrt.c -lWs2_32 -lIPHLPAPI -o release/x86/test.exe
+gcc -m32 test.c xrt.c -lWs2_32 -lIPHLPAPI -DDEBUG_TRACE -o release/x86/test.exe
 
 @echo;
 @echo off
