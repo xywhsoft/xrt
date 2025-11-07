@@ -1289,6 +1289,109 @@ XXAPI uint32 xvoGetSize(xvalue pVal)
 
 
 
+// 浅拷贝
+bool xvoCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
+{
+	if ( (ppVal[0]->Type >= XVO_DT_ARRAY) ) {
+		// 复杂数据类型 - 直接引用
+		xvoAddRef_Inline(ppVal[0]);
+		xrtListSetPtr(objList, iKey, ppVal[0], NULL);
+	} else {
+		// 基础数据类型 - 创建新值
+		xvalue pItemCopy = xvoCopy(ppVal[0]);
+		xrtListSetPtr(objList, iKey, pItemCopy, NULL);
+	}
+	return FALSE;
+}
+bool xvoCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+{
+	if ( (ppVal[0]->Type >= XVO_DT_ARRAY) ) {
+		// 复杂数据类型 - 直接引用
+		xvoAddRef_Inline(ppVal[0]);
+		xvalue* ppNTV = xrtDictSetWithKey(objTbl, pKey, NULL);
+		if ( ppNTV ) {
+			ppNTV[0] = ppVal[0];
+		}
+	} else {
+		// 基础数据类型 - 创建新值
+		xvalue pItemCopy = xvoCopy(ppVal[0]);
+		xvalue* ppNTV = xrtDictSetWithKey(objTbl, pKey, NULL);
+		if ( ppNTV ) {
+			ppNTV[0] = pItemCopy;
+		}
+	}
+	return FALSE;
+}
+XXAPI xvalue xvoCopy(xvalue pVal)
+{
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_EMPTY) ) {
+		return &XVO_VALUE_EMPTY;
+	} else if ( pVal->Type == XVO_DT_NULL ) {
+		return &XVO_VALUE_NULL;
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		if ( pVal->vBool ) {
+			return &XVO_VALUE_TRUE;
+		} else {
+			return &XVO_VALUE_FALSE;
+		}
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		xvalue arrRet = xvoCreateArray();
+		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
+			if ( (pItem->Type >= XVO_DT_ARRAY) ) {
+				// 复杂数据类型 - 直接引用
+				xvoAddRef_Inline(pItem);
+				xrtPtrArrayAppend(arrRet->vArray, pItem);
+			} else {
+				// 基础数据类型 - 创建新值
+				xvalue pItemCopy = xvoCopy(pItem);
+				xrtPtrArrayAppend(arrRet->vArray, pItem);
+			}
+		}
+		return arrRet;
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		xvalue lstRet = xvoCreateList();
+		xrtListWalk(pVal->vList, (ptr)xvoCopy_ListProc, lstRet->vList);
+		return lstRet;
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		xvalue setRet = xvoCreateColl();
+		
+		return setRet;
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		xvalue tblRet = xvoCreateTable();
+		xrtDictWalk(pVal->vTable, (ptr)xvoCopy_TableProc, tblRet->vTable);
+		return tblRet;
+	} else if ( pVal->Type == XVO_DT_STRUCT ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_OBJECT ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		return NULL;
+	} else {
+		// 其他类型直接 Copy 64 位数据
+		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
+		varRet->Type = pVal->Type;
+		varRet->Reserve = 0;
+		varRet->IsStatic = 0;
+		varRet->RefCount = 1;
+		varRet->Size = pVal->Size;
+		varRet->vInt = pVal->vInt;
+		return varRet;
+	}
+}
+
+
+
+// 深拷贝
+XXAPI xvalue xvoDeepCopy(xvalue pVal)
+{
+	return NULL;
+}
+
+
+
 // 输出 value 的结构和值
 bool xvoPrintValue_TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
 {

@@ -1899,6 +1899,12 @@
 	#define xvoListItemSize(pList, index)														xvoGetSize(xvoListGetValue(pList, index))
 	#define xvoTableItemSize(pTbl, key, kl)														xvoGetSize(xvoTableGetValue(pTbl, key, kl))
 	
+	// 浅拷贝
+	XXAPI xvalue xvoCopy(xvalue pVal);
+	
+	// 深拷贝
+	XXAPI xvalue xvoDeepCopy(xvalue pVal);
+	
 	// 输出 xte Value 的结构和值
 	XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str sKey);
 	

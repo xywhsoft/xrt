@@ -323,6 +323,7 @@ xvoCollItemCount
 xvoCollRemove
 xvoCollSetParent
 xvoCollSetValue
+xvoCopy
 xvoCreateArray
 xvoCreateBool
 xvoCreateColl
@@ -339,6 +340,7 @@ xvoCreateTable
 xvoCreateText
 xvoCreateTime
 xvoCreateTimeSerial
+xvoDeepCopy
 xvoGetArray
 xvoGetBool
 xvoGetColl
