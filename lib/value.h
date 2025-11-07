@@ -994,7 +994,7 @@ XXAPI xvalue xvoCollSymmetricDifference(xvalue pSelf, xvalue pColl)
 	xvalue pRetVal = xvoCreateColl();
 	struct CollProcParam param = { pColl, pRetVal };
 	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollDifference_EachProc, &param);
-	param.pColl = { pSelf, pRetVal };
+	param.pColl = pSelf;
 	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollDifference_EachProc, &param);
 	return pRetVal;
 }

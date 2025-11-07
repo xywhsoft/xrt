@@ -326,6 +326,7 @@ xvoCollMerge
 xvoCollRemove
 xvoCollSetParent
 xvoCollSetValue
+xvoCollSymmetricDifference
 xvoCollUnion
 xvoCopy
 xvoCreateArray
