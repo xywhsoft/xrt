@@ -1867,6 +1867,9 @@
 	// Coll 获取差集 [ pSelf 集合相对 pColl 集合不存在的元素 ]
 	XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl);
 	
+	// Coll 获取对称差集 [ 两个集合中不重复的元素 ]
+	XXAPI xvalue xvoCollSymmetricDifference(xvalue pSelf, xvalue pColl);
+	
 	// Coll 获取交集 [ pSelf 集合相对 pColl 集合存在的元素 ]
 	XXAPI xvalue xvoCollIntersection(xvalue pSelf, xvalue pColl);
 	

@@ -979,6 +979,28 @@ XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl)
 
 
 
+// Coll 获取对称差集 [ 两个集合中不重复的元素 ]
+XXAPI xvalue xvoCollSymmetricDifference(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf || pColl) == 0 ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_EMPTY;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	struct CollProcParam param = { pColl, pRetVal };
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollDifference_EachProc, &param);
+	param.pColl = { pSelf, pRetVal };
+	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollDifference_EachProc, &param);
+	return pRetVal;
+}
+
+
+
 // Coll 获取交集 [ pSelf 集合相对 pColl 集合存在的元素 ]
 bool xvoCollIntersection_EachProc(Coll_Key* pKey, struct CollProcParam* param)
 {
