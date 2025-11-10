@@ -8,121 +8,129 @@
 
 ## 📑 目录
 
-- [整数转换](#整数转换)
-- [浮点数转换](#浮点数转换)
+- [数字转字符串](#数字转字符串)
+- [字符串转数字](#字符串转数字)
+- [数字解析](#数字解析)
 
 ---
 
-## 整数转换
+## 数字转字符串
 
-### xjnumFromInt
+### xrtI32ToStr / xrtI64ToStr
 
 整数转字符串
 
 **函数原型：**
 ```c
-XXAPI str xjnumFromInt(int64 iVal);
+XXAPI int xrtI32ToStr(int32_t num, char* buffer);
+XXAPI int xrtI64ToStr(int64_t num, char* buffer);
 ```
 
 **参数：**
-- `iVal` - 整数值
+- `num` - 整数值
+- `buffer` - 输出缓冲区（需预分配足够空间）
 
 **返回值：**
-- 数字字符串
-
-**内存释放：** ✅ 需要 `xrtFree` 释放
+- 写入的字符数
 
 **示例：**
 ```c
-str s = xjnumFromInt(12345);
-printf("%s\n", s);  // "12345"
-xrtFree(s);
+char buf[32];
+int len = xrtI32ToStr(12345, buf);
+printf("%s (length: %d)\n", buf, len);  // "12345" (length: 5)
 
-str neg = xjnumFromInt(-999);
-printf("%s\n", neg);  // "-999"
-xrtFree(neg);
+len = xrtI64ToStr(-999, buf);
+printf("%s\n", buf);  // "-999"
 ```
 
 ---
 
-### xjnumToInt
+### xrtU32ToStr / xrtU64ToStr
+
+无符号整数转字符串
+
+**函数原型：**
+```c
+XXAPI int xrtU32ToStr(uint32_t num, char* buffer);
+XXAPI int xrtU64ToStr(uint64_t num, char* buffer);
+```
+
+---
+
+### xrtNumToStr
+
+浮点数转字符串
+
+**函数原型：**
+```c
+XXAPI int xrtNumToStr(double num, char* buffer);
+```
+
+**参数：**
+- `num` - 浮点数值
+- `buffer` - 输出缓冲区
+
+**返回值：**
+- 写入的字符数
+
+**示例：**
+```c
+char buf[64];
+int len = xrtNumToStr(3.14159, buf);
+printf("%s\n", buf);  // "3.14159"
+```
+
+---
+
+## 字符串转数字
+
+### xrtStrToI32 / xrtStrToI64
 
 字符串转整数
 
 **函数原型：**
 ```c
-XXAPI int64 xjnumToInt(str sVal, size_t iSize);
+XXAPI int32_t xrtStrToI32(const char* pStr);
+XXAPI int64_t xrtStrToI64(const char* pStr);
 ```
 
 **参数：**
-- `sVal` - 数字字符串
-- `iSize` - 长度（0自动）
+- `pStr` - 数字字符串
 
 **返回值：**
 - 整数值
 
 **示例：**
 ```c
-int64 n1 = xjnumToInt("12345", 0);    // 12345
-int64 n2 = xjnumToInt("-999", 0);     // -999
-int64 n3 = xjnumToInt("0xFF", 0);     // 255 (支持16进制)
+int32_t n1 = xrtStrToI32("12345");    // 12345
+int64_t n2 = xrtStrToI64("-999");     // -999
 ```
 
 ---
 
-## 浮点数转换
+### xrtStrToU32 / xrtStrToU64
 
-### xjnumFromFloat
-
-浮点数转字符串
+字符串转无符号整数
 
 **函数原型：**
 ```c
-XXAPI str xjnumFromFloat(double nVal);
-```
-
-**参数：**
-- `nVal` - 浮点数值
-
-**返回值：**
-- 数字字符串（智能精度）
-
-**内存释放：** ✅ 需要 `xrtFree` 释放
-
-**说明：**
-- 自动选择最佳精度
-- 去除无意义的尾随零
-- 支持科学计数法
-
-**示例：**
-```c
-str s1 = xjnumFromFloat(3.14159);
-printf("%s\n", s1);  // "3.14159"
-xrtFree(s1);
-
-str s2 = xjnumFromFloat(1000000.0);
-printf("%s\n", s2);  // "1000000" 或 "1e6"
-xrtFree(s2);
-
-str s3 = xjnumFromFloat(0.00001);
-printf("%s\n", s3);  // "0.00001" 或 "1e-5"
-xrtFree(s3);
+XXAPI uint32_t xrtStrToU32(const char* pStr);
+XXAPI uint64_t xrtStrToU64(const char* pStr);
 ```
 
 ---
 
-### xjnumToFloat
+### xrtStrToNum
 
 字符串转浮点数
 
 **函数原型：**
 ```c
-XXAPI double xjnumToFloat(str sVal, size_t iSize);
+XXAPI double xrtStrToNum(const char* pStr);
 ```
 
 **参数：**
-- `sVal` - 数字字符串
-- `iSize` - 长度（0自动）
+- `pStr` - 数字字符串
 
 **返回值：**
 - 浮点数值
@@ -134,66 +142,117 @@ XXAPI double xjnumToFloat(str sVal, size_t iSize);
 
 **示例：**
 ```c
-double n1 = xjnumToFloat("3.14159", 0);      // 3.14159
-double n2 = xjnumToFloat("-2.5", 0);         // -2.5
-double n3 = xjnumToFloat("1.23e10", 0);      // 12300000000.0
-double n4 = xjnumToFloat("4.56E-5", 0);      // 0.0000456
+double n1 = xrtStrToNum("3.14159");      // 3.14159
+double n2 = xrtStrToNum("-2.5");         // -2.5
+double n3 = xrtStrToNum("1.23e10");      // 12300000000.0
+```
+
+---
+
+## 数字解析
+
+### xrtParseNum
+
+解析数字字符串（带类型识别）
+
+**函数原型：**
+```c
+XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
+```
+
+**参数：**
+- `str` - 数字字符串
+- `type` - 输出：数字类型
+- `value` - 输出：数字值
+
+**类型枚举：**
+```c
+typedef enum {
+    JNUM_NULL,     // null
+    JNUM_BOOL,     // true/false
+    JNUM_INT,      // int32
+    JNUM_HEX,      // uint32十六进制
+    JNUM_LINT,     // int64
+    JNUM_LHEX,     // uint64十六进制
+    JNUM_DOUBLE,   // double
+} jnum_type_t;
+```
+
+**返回值：**
+- 解析的字符数
+
+**示例：**
+```c
+jnum_type_t type;
+jnum_value_t value;
+
+int len = xrtParseNum("12345", &type, &value);
+if (type == JNUM_INT) {
+    printf("Int: %d\n", value.vint);
+}
+
+len = xrtParseNum("0xFF", &type, &value);
+if (type == JNUM_HEX) {
+    printf("Hex: 0x%X\n", value.vhex);
+}
+
+len = xrtParseNum("3.14", &type, &value);
+if (type == JNUM_DOUBLE) {
+    printf("Double: %f\n", value.vdbl);
+}
 ```
 
 ---
 
 ## 使用场景
 
-### 1. JSON序列化
+### 1. 数字格式化
 
 ```c
-str SerializeNumber(xvalue val) {
-    if (xvoIsInt(val)) {
-        return xjnumFromInt(xvoGetInt(val));
-    } else if (xvoIsFloat(val)) {
-        return xjnumFromFloat(xvoGetFloat(val));
-    }
-    return NULL;
+void FormatNumber(int64_t num) {
+    char buf[32];
+    int len = xrtI64ToStr(num, buf);
+    printf("Number: %s\n", buf);
 }
 ```
 
 ---
 
-### 2. 配置文件解析
+### 2. 数字解析
 
 ```c
-void ParseConfigValue(str key, str value) {
-    // 尝试解析为整数
-    if (IsInteger(value)) {
-        int64 n = xjnumToInt(value, 0);
-        SetConfigInt(key, n);
-    }
-    // 尝试解析为浮点数
-    else if (IsFloat(value)) {
-        double n = xjnumToFloat(value, 0);
-        SetConfigFloat(key, n);
+void ParseNumber(const char* str) {
+    jnum_type_t type;
+    jnum_value_t value;
+    
+    xrtParseNum(str, &type, &value);
+    
+    switch (type) {
+        case JNUM_INT:
+            printf("Integer: %d\n", value.vint);
+            break;
+        case JNUM_DOUBLE:
+            printf("Double: %f\n", value.vdbl);
+            break;
+        default:
+            break;
     }
 }
 ```
 
 ---
 
-### 3. 数据交换
+### 3. 数据转换
 
 ```c
-// 发送数据
-void SendValue(double value) {
-    str text = xjnumFromFloat(value);
-    SendToNetwork(text);
-    xrtFree(text);
+// 整数转字符串
+void IntToString(int32_t value, char* output) {
+    xrtI32ToStr(value, output);
 }
 
-// 接收数据
-double ReceiveValue() {
-    str text = ReceiveFromNetwork();
-    double value = xjnumToFloat(text, 0);
-    xrtFree(text);
-    return value;
+// 字符串转整数
+int32_t StringToInt(const char* input) {
+    return xrtStrToI32(input);
 }
 ```
 
