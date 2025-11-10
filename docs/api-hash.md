@@ -21,12 +21,14 @@
 
 **函数原型：**
 ```c
-XXAPI uint32 xrtHash32(ptr pData, size_t iSize);
+XXAPI uint32 xrtHash32(ptr key, size_t len);
+XXAPI uint32 xrtHash32_WithSeed(ptr key, size_t len, uint32 seed);
 ```
 
 **参数：**
-- `pData` - 数据
-- `iSize` - 长度
+- `key` - 数据
+- `len` - 长度
+- `seed` - 种子（默认0）
 
 **返回值：**
 - 32位哈希值
@@ -36,22 +38,10 @@ XXAPI uint32 xrtHash32(ptr pData, size_t iSize);
 str text = "Hello";
 uint32 hash = xrtHash32(text, strlen(text));
 printf("Hash: %u\n", hash);
+
+// 使用自定义种子
+uint32 hash2 = xrtHash32_WithSeed(text, strlen(text), 12345);
 ```
-
----
-
-### xrtStrHash32
-
-字符串哈希（不区分大小写）
-
-**函数原型：**
-```c
-XXAPI uint32 xrtStrHash32(str sText, size_t iSize);
-```
-
-**说明：**
-- 自动转为小写后计算哈希
-- 适用于字典键比较
 
 ---
 
@@ -63,8 +53,23 @@ XXAPI uint32 xrtStrHash32(str sText, size_t iSize);
 
 **函数原型：**
 ```c
-XXAPI uint64 xrtHash64(ptr pData, size_t iSize);
+XXAPI uint64 xrtHash64(ptr key, size_t len);
+XXAPI uint64 xrtHash64_WithSeed(ptr key, size_t len, uint64 seed);
+XXAPI uint64 xrtHash64_Micro(ptr key, size_t len);
+XXAPI uint64 xrtHash64_Micro_WithSeed(ptr key, size_t len, uint64 seed);
+XXAPI uint64 xrtHash64_Nano(ptr key, size_t len);
+XXAPI uint64 xrtHash64_Nano_WithSeed(ptr key, size_t len, uint64 seed);
 ```
+
+**参数：**
+- `key` - 数据
+- `len` - 长度
+- `seed` - 种子
+
+**说明：**
+- xrtHash64: 标准版本（高质量）
+- xrtHash64_Micro: 微型版本
+- xrtHash64_Nano: 超小版本
 
 **返回值：**
 - 64位哈希值
@@ -72,17 +77,9 @@ XXAPI uint64 xrtHash64(ptr pData, size_t iSize);
 **示例：**
 ```c
 uint64 hash = xrtHash64(data, size);
-```
 
----
-
-### xrtStrHash64
-
-字符串64位哈希
-
-**函数原型：**
-```c
-XXAPI uint64 xrtStrHash64(str sText, size_t iSize);
+// 高性能版本
+uint64 hash_fast = xrtHash64_Nano(data, size);
 ```
 
 ---
@@ -93,7 +90,7 @@ XXAPI uint64 xrtStrHash64(str sText, size_t iSize);
 
 ```c
 uint32 GetHash(str key) {
-    return xrtStrHash32(key, 0);
+    return xrtHash32(key, strlen(key));
 }
 ```
 

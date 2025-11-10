@@ -44,13 +44,13 @@ xrtFree(dir);
 
 ---
 
-### xrtPathGetFile
+### xrtPathGetNameExt
 
 获取文件名（含扩展名）
 
 **函数原型：**
 ```c
-XXAPI str xrtPathGetFile(str sPath, size_t iSize);
+XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
 ```
 
 **返回值：**
@@ -60,7 +60,7 @@ XXAPI str xrtPathGetFile(str sPath, size_t iSize);
 
 **示例：**
 ```c
-str file = xrtPathGetFile("C:\\folder\\file.txt", 0);
+str file = xrtPathGetNameExt("C:\\folder\\file.txt", 0);
 printf("%s\n", file);  // "file.txt"
 xrtFree(file);
 ```
@@ -102,41 +102,6 @@ XXAPI str xrtPathGetExt(str sPath, size_t iSize);
 str ext = xrtPathGetExt("file.txt", 0);
 printf("%s\n", ext);  // ".txt"
 xrtFree(ext);
-```
-
----
-
-## 路径操作
-
-### xrtPathNorm
-
-规范化路径
-
-**函数原型：**
-```c
-XXAPI str xrtPathNorm(str sPath, size_t iSize, bool bSrcRevise);
-```
-
-**参数：**
-- `sPath` - 路径
-- `bSrcRevise` - 是否修改源
-
-**返回值：**
-- 规范化后的路径
-
-**内存释放：**
-- `bSrcRevise=FALSE` - ✅ 需要释放
-
-**功能：**
-- 将 `/` 转为平台分隔符
-- 移除重复的分隔符
-- 处理 `.` 和 `..`
-
-**示例：**
-```c
-str norm = xrtPathNorm("C:\\folder\\..\\file.txt", 0, FALSE);
-printf("%s\n", norm);  // "C:\\file.txt"
-xrtFree(norm);
 ```
 
 ---

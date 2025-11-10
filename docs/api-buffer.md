@@ -15,109 +15,96 @@
 
 ## 缓冲区操作
 
-### xbufCreate
+### xrtBufferCreate
 
 创建缓冲区
 
 **函数原型：**
 ```c
-XXAPI xbuffer xbufCreate(size_t iSize);
+XXAPI xbuffer xrtBufferCreate(uint32 iStep);
 ```
 
 **参数：**
-- `iSize` - 初始大小
+- `iStep` - 预分配步长（0使用默认）
 
 **返回值：**
 - 缓冲区对象
 
-**释放：** ✅ 需要 `xbufFree` 释放
+**释放：** ✅ 需要 `xrtBufferDestroy` 释放
 
 **示例：**
 ```c
-xbuffer buf = xbufCreate(1024);
+xbuffer buf = xrtBufferCreate(0);
 // 使用缓冲区
-xbufFree(buf);
+xrtBufferDestroy(buf);
 ```
 
 ---
 
-### xbufFree
+### xrtBufferDestroy
 
 释放缓冲区
 
 **函数原型：**
 ```c
-XXAPI void xbufFree(xbuffer objBuffer);
+XXAPI void xrtBufferDestroy(xbuffer pBuf);
 ```
 
 ---
 
-### xbufClear
+### xrtBufferUnit
 
-清空缓冲区
+清空缓冲区（不释放对象）
 
 **函数原型：**
 ```c
-XXAPI void xbufClear(xbuffer objBuffer);
+XXAPI void xrtBufferUnit(xbuffer pBuf);
 ```
 
 ---
 
 ## 数据读写
 
-### xbufWrite
+### xrtBufferAppend
 
 写入数据
 
 **函数原型：**
 ```c
-XXAPI size_t xbufWrite(xbuffer objBuffer, ptr pData, size_t iSize);
+XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMode);
 ```
+
+**参数：**
+- `pBuf` - 缓冲区对象
+- `pData` - 数据
+- `iSize` - 大小
+- `bStrMode` - 字符串模式（如果为0则复制数据）
 
 **说明：**
 - 自动扩展缓冲区
 
 **示例：**
 ```c
-xbuffer buf = xbufCreate(10);
-xbufWrite(buf, "Hello", 5);
-xbufWrite(buf, "World", 5);
+xbuffer buf = xrtBufferCreate(0);
+xrtBufferAppend(buf, "Hello", 5, 0);
+xrtBufferAppend(buf, "World", 5, 0);
+xrtBufferDestroy(buf);
 ```
 
 ---
 
-### xbufRead
+**注意：** xrt.h 中只提供了基本的缓冲区操作函数，没有 `xbufRead`, `xbufGetData`, `xbufGetSize` 等函数。
+可以直接访问 `xbuffer_struct` 结构体的字段：
 
-读取数据
-
-**函数原型：**
 ```c
-XXAPI size_t xbufRead(xbuffer objBuffer, ptr pData, size_t iSize);
-```
+xbuffer buf = xrtBufferCreate(0);
+xrtBufferAppend(buf, "data", 4, 0);
 
----
+// 访问数据
+ptr data = buf->Buffer;
+uint32 size = buf->Length;
 
-### xbufGetData
-
-获取数据指针
-
-**函数原型：**
-```c
-XXAPI ptr xbufGetData(xbuffer objBuffer);
-```
-
-**返回值：**
-- 内部数据指针（不要释放）
-
----
-
-### xbufGetSize
-
-获取数据大小
-
-**函数原型：**
-```c
-XXAPI size_t xbufGetSize(xbuffer objBuffer);
+xrtBufferDestroy(buf);
 ```
 
 ---
@@ -128,13 +115,13 @@ XXAPI size_t xbufGetSize(xbuffer objBuffer);
 
 ```c
 xbuffer BuildPacket() {
-    xbuffer buf = xbufCreate(128);
+    xbuffer buf = xrtBufferCreate(0);
     
     uint32 header = 0x12345678;
-    xbufWrite(buf, &header, 4);
+    xrtBufferAppend(buf, &header, 4, 0);
     
     str data = "payload";
-    xbufWrite(buf, data, strlen(data));
+    xrtBufferAppend(buf, data, strlen(data), 0);
     
     return buf;
 }

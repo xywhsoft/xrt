@@ -65,25 +65,35 @@ XXAPI void xrtClose(xfile objFile);
 
 **函数原型：**
 ```c
-XXAPI size_t xrtRead(xfile objFile, ptr pBuffer, size_t iSize);
+XXAPI str xrtRead(xfile objFile, size_t iSize);
 ```
 
+**参数：**
+- `objFile` - 文件对象
+- `iSize` - 要读取的字节数
+
 **返回值：**
-- 实际读取的字节数
+- 读取的字符串数据（按文件字符集转换）
+
+**内存释放：** ✅ 需要 `xrtFree` 释放
 
 ---
 
-### xrtReadLine
+### xrtGet
 
-读取一行
+读取二进制数据
 
 **函数原型：**
 ```c
-XXAPI str xrtReadLine(xfile objFile);
+XXAPI ptr xrtGet(xfile objFile, size_t iSize);
 ```
 
+**参数：**
+- `objFile` - 文件对象
+- `iSize` - 要读取的字节数
+
 **返回值：**
-- 行内容（自动转换为 UTF-8）
+- 二进制数据
 
 **内存释放：** ✅ 需要 `xrtFree` 释放
 
@@ -95,19 +105,35 @@ XXAPI str xrtReadLine(xfile objFile);
 
 **函数原型：**
 ```c
-XXAPI size_t xrtWrite(xfile objFile, ptr pBuffer, size_t iSize);
+XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
 ```
+
+**参数：**
+- `objFile` - 文件对象
+- `sText` - 要写入的字符串
+- `iSize` - 字节数（0表示自动计算）
+
+**返回值：**
+- 实际写入的字节数
 
 ---
 
-### xrtWriteLine
+### xrtPut
 
-写入一行
+写入二进制数据
 
 **函数原型：**
 ```c
-XXAPI bool xrtWriteLine(xfile objFile, str sText, size_t iSize);
+XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize);
 ```
+
+**参数：**
+- `objFile` - 文件对象
+- `pBuff` - 二进制数据
+- `iSize` - 字节数
+
+**返回值：**
+- 实际写入的字节数
 
 ---
 
@@ -149,7 +175,7 @@ if (content) {
 
 **函数原型：**
 ```c
-XXAPI bool xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
+XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
 ```
 
 **参数：**
@@ -159,8 +185,8 @@ XXAPI bool xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
 - `iCharset` - 字符集
 
 **返回值：**
-- `TRUE` - 成功
-- `FALSE` - 失败
+- 成功：非0值
+- 失败：0
 
 **示例：**
 ```c
@@ -193,8 +219,17 @@ XXAPI ptr xrtFileGetAll(str sPath);
 
 **函数原型：**
 ```c
-XXAPI bool xrtFilePutAll(str sPath, ptr pMem, size_t iSize);
+XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize);
 ```
+
+**参数：**
+- `sPath` - 文件路径
+- `pBuff` - 二进制数据
+- `iSize` - 字节数
+
+**返回值：**
+- 成功：非0值
+- 失败：0
 
 ---
 
@@ -218,42 +253,51 @@ if (xrtFileExists("config.ini")) {
 
 ---
 
-### xrtGetSize
+### xrtFileGetSize
 
 获取文件大小
 
 **函数原型：**
 ```c
-XXAPI int64 xrtGetSize(xfile objFile);
+XXAPI size_t xrtFileGetSize(str sPath);
 ```
+
+**参数：**
+- `sPath` - 文件路径
+
+**返回值：**
+- 文件大小（字节）
 
 ---
 
 ## 目录操作
 
-### xrtListDir
+### xrtDirScan
 
-列出目录内容
+扫描文件夹
 
 **函数原型：**
 ```c
-XXAPI str* xrtListDir(str sPath, size_t iSize);
+XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);
 ```
 
-**返回值：**
-- 文件名数组（以 `NULL` 结尾）
+**参数：**
+- `sPath` - 目录路径
+- `bRecu` - 是否递归扫描
+- `pProc` - 回调函数
+- `Param` - 回调参数
 
-**内存释放：** ✅ 需要 `xrtFree` 释放
+**返回值：**
+- 扫描到的文件数量
 
 **示例：**
 ```c
-str* files = xrtListDir("C:\\folder", 0);
-if (files) {
-    for (int i = 0; files[i]; i++) {
-        printf("%s\n", files[i]);
-    }
-    xrtFree(files);
+void OnFile(str sPath, ptr pParam) {
+    printf("%s\n", sPath);
 }
+
+int count = xrtDirScan("C:\\folder", FALSE, OnFile, NULL);
+printf("Total: %d files\n", count);
 ```
 
 ---
@@ -273,15 +317,11 @@ str LoadConfig(str path) {
 
 ---
 
-### 2. 日志写入
+### 2. 文件追加写入
 
 ```c
 void AppendLog(str message) {
-    xfile f = xrtOpen("app.log", FALSE, XRT_CP_UTF8);
-    if (f) {
-        xrtWriteLine(f, message, 0);
-        xrtClose(f);
-    }
+    xrtFileAppend("app.log", message, 0, XRT_CP_UTF8);
 }
 ```
 

@@ -15,13 +15,13 @@
 
 ## 数组操作
 
-### xaCreate
+### xrtArrayCreate
 
 创建结构体数组
 
 **函数原型：**
 ```c
-XXAPI xarray xaCreate(size_t iItemSize);
+XXAPI xarray xrtArrayCreate(uint32 iItemLength);
 ```
 
 **参数：**
@@ -39,91 +39,97 @@ typedef struct {
     str name;
 } Student;
 
-xarray arr = xaCreate(sizeof(Student));
+xarray arr = xrtArrayCreate(sizeof(Student));
 ```
 
 ---
 
-### xaFree
+### xrtArrayDestroy
 
 释放数组
 
 **函数原型：**
 ```c
-XXAPI void xaFree(xarray objArray);
+XXAPI void xrtArrayDestroy(xarray pArr);
 ```
 
 ---
 
-### xaAdd
+### xrtArrayAppend
 
 添加元素
 
 **函数原型：**
 ```c
-XXAPI ptr xaAdd(xarray objArray);
+XXAPI uint32 xrtArrayAppend(xarray pArr, uint32 iCount);
 ```
 
+**参数：**
+- `pArr` - 数组对象
+- `iCount` - 要添加的元素数量
+
 **返回值：**
-- 新元素的指针
+- 第一个新元素的位置索引
 
 **示例：**
 ```c
-Student* s = (Student*)xaAdd(arr);
+uint32 pos = xrtArrayAppend(arr, 1);
+Student* s = (Student*)xrtArrayGet(arr, pos);
 s->id = 1;
 s->name = "Tom";
 ```
 
 ---
 
-### xaInsert
+### xrtArrayInsert
 
 插入元素
 
 **函数原型：**
 ```c
-XXAPI ptr xaInsert(xarray objArray, uint iIndex);
+XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount);
 ```
 
 ---
 
-### xaRemove
+### xrtArrayRemove
 
 移除元素
 
 **函数原型：**
 ```c
-XXAPI void xaRemove(xarray objArray, uint iIndex);
+XXAPI bool xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount);
 ```
 
 ---
 
 ## 元素访问
 
-### xaGet
+### xrtArrayGet
 
 获取元素
 
 **函数原型：**
 ```c
-XXAPI ptr xaGet(xarray objArray, uint iIndex);
+XXAPI ptr xrtArrayGet(xarray pArr, uint32 iPos);
 ```
 
 **示例：**
 ```c
-Student* s = (Student*)xaGet(arr, 0);
+Student* s = (Student*)xrtArrayGet(arr, 1);  // 索引从1开始
 printf("%s\n", s->name);
 ```
 
 ---
 
-### xaCount
+### xrtArrayCount
 
 获取元素数量
 
 **函数原型：**
 ```c
-XXAPI uint xaCount(xarray objArray);
+// 直接访问结构体字段
+uint32 count = arr->Count;
 ```
 
 ---
@@ -133,21 +139,22 @@ XXAPI uint xaCount(xarray objArray);
 ### 1. 数据集合
 
 ```c
-xarray students = xaCreate(sizeof(Student));
+xarray students = xrtArrayCreate(sizeof(Student));
 
 for (int i = 0; i < 100; i++) {
-    Student* s = (Student*)xaAdd(students);
+    uint32 pos = xrtArrayAppend(students, 1);
+    Student* s = (Student*)xrtArrayGet(students, pos);
     s->id = i;
     s->name = xrtFormat("Student%d", i);
 }
 
-uint count = xaCount(students);
-for (uint i = 0; i < count; i++) {
-    Student* s = (Student*)xaGet(students, i);
+uint count = students->Count;
+for (uint i = 1; i <= count; i++) {
+    Student* s = (Student*)xrtArrayGet(students, i);
     printf("%d: %s\n", s->id, s->name);
 }
 
-xaFree(students);
+xrtArrayDestroy(students);
 ```
 
 ---

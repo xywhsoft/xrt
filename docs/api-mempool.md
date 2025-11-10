@@ -16,127 +16,127 @@
 
 ## BSMM 块内存管理
 
-### xbsmmCreate
+### xrtBSMMCreate
 
 创建块内存管理器
 
 **函数原型：**
 ```c
-XXAPI xbsmm xbsmmCreate(size_t iBlockSize, uint iBlockCount);
+XXAPI xbsmm xrtBSMMCreate(uint32 iCount);
 ```
 
 **参数：**
-- `iBlockSize` - 块大小
-- `iBlockCount` - 块数量
+- `iCount` - 块数量
 
-**释放：** ✅ 需要 `xbsmmFree` 释放
+**释放：** ✅ 需要 `xrtBSMMDestroy` 释放
 
 ---
 
-### xbsmmAlloc
+### xrtBSMMAlloc / xrtBSMMAllocClr
 
 分配块
 
 **函数原型：**
 ```c
-XXAPI ptr xbsmmAlloc(xbsmm objBSMM);
+XXAPI ptr xrtBSMMAlloc(xbsmm objBSMM);
+XXAPI ptr xrtBSMMAllocClr(xbsmm objBSMM);  // 带清零
 ```
 
 ---
 
-### xbsmmDealloc
+### xrtBSMMFree
 
 释放块
 
 **函数原型：**
 ```c
-XXAPI void xbsmmDealloc(xbsmm objBSMM, ptr pBlock);
+XXAPI bool xrtBSMMFree(xbsmm objBSMM, ptr pObj);
 ```
 
 ---
 
 ## MemUnit 内存单元
 
-### xmuCreate
+### xrtMemUnitCreate
 
 创建内存单元（256字节页）
 
 **函数原型：**
 ```c
-XXAPI xmemunit xmuCreate();
+XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength, uint32 iFlag);
 ```
 
-**释放：** ✅ 需要 `xmuFree` 释放
+**参数：**
+- `iItemLength` - 项大小
+- `iFlag` - 标志
+
+**释放：** ✅ 需要 `xrtMemUnitDestroy` 释放
 
 **示例：**
 ```c
-xmemunit mu = xmuCreate();
-ptr data = xmuAlloc(mu, 100);
-xmuFree(mu);
+xmemunit mu = xrtMemUnitCreate(32, 0);
+ptr data = xrtMemUnitAlloc(mu);
+xrtMemUnitDestroy(mu);
 ```
 
 ---
 
-### xmuAlloc
+### xrtMemUnitAlloc
 
 分配内存
 
 **函数原型：**
 ```c
-XXAPI ptr xmuAlloc(xmemunit objMemUnit, size_t iSize);
+XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit);
 ```
-
-**说明：**
-- 从256字节页中分配
-- 适合小内存频繁分配
 
 ---
 
 ## FSMemPool 固定内存池
 
-### xfmpCreate
+### xrtFSMemPoolCreate
 
 创建固定大小内存池
 
 **函数原型：**
 ```c
-XXAPI xfsmempool xfmpCreate(size_t iItemSize);
+XXAPI xfsmempool xrtFSMemPoolCreate(uint32 iItemLength);
 ```
 
 **参数：**
-- `iItemSize` - 固定项大小
+- `iItemLength` - 固定项大小
 
-**释放：** ✅ 需要 `xfmpFree` 释放
+**释放：** ✅ 需要 `xrtFSMemPoolDestroy` 释放
 
 **示例：**
 ```c
-xfsmempool pool = xfmpCreate(sizeof(MyStruct));
-MyStruct* item = xfmpAlloc(pool);
+xfsmempool pool = xrtFSMemPoolCreate(sizeof(MyStruct));
+MyStruct* item = xrtFSMemPoolAlloc(pool);
 // 使用item
-xfmpDealloc(pool, item);
-xfmpFree(pool);
+xrtFSMemPoolFree(pool, item);
+xrtFSMemPoolDestroy(pool);
 ```
 
 ---
 
-### xfmpAlloc
+### xrtFSMemPoolAlloc
 
 从池中分配
 
 **函数原型：**
 ```c
-XXAPI ptr xfmpAlloc(xfsmempool objPool);
+XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM);
 ```
 
 ---
 
-### xfmpDealloc
+### xrtFSMemPoolFree
 
 归还到池
 
 **函数原型：**
 ```c
-XXAPI void xfmpDealloc(xfsmempool objPool, ptr pItem);
+XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p);
 ```
 
 ---
@@ -151,17 +151,17 @@ typedef struct {
     str name;
 } Entity;
 
-xfsmempool entity_pool = xfmpCreate(sizeof(Entity));
+xfsmempool entity_pool = xrtFSMemPoolCreate(sizeof(Entity));
 
 // 分配
-Entity* e1 = xfmpAlloc(entity_pool);
-Entity* e2 = xfmpAlloc(entity_pool);
+Entity* e1 = xrtFSMemPoolAlloc(entity_pool);
+Entity* e2 = xrtFSMemPoolAlloc(entity_pool);
 
 // 使用后归还
-xfmpDealloc(entity_pool, e1);
-xfmpDealloc(entity_pool, e2);
+xrtFSMemPoolFree(entity_pool, e1);
+xrtFSMemPoolFree(entity_pool, e2);
 
-xfmpFree(entity_pool);
+xrtFSMemPoolDestroy(entity_pool);
 ```
 
 ---

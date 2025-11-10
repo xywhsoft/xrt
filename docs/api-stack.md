@@ -15,52 +15,62 @@
 
 ## Stack 静态栈
 
-### xstkCreate
+### xrtStackCreate
 
 创建固定深度栈
 
 **函数原型：**
 ```c
-XXAPI xstack xstkCreate(uint iMaxDepth);
+XXAPI xstack xrtStackCreate(uint32 iMaxCount, uint32 iItemLength);
 ```
 
 **参数：**
-- `iMaxDepth` - 最大深度
+- `iMaxCount` - 最大深度
+- `iItemLength` - 每个元素的字节数（0表示指针栈）
 
-**释放：** ✅ 需要 `xstkFree` 释放
+**释放：** ✅ 需要 `xrtFree` 释放
 
 **示例：**
 ```c
-xstack stk = xstkCreate(100);
-xstkPush(stk, ptr1);
-ptr item = xstkPop(stk);
-xstkFree(stk);
+// 指针栈
+xstack stk = xrtStackCreate(100, 0);
+xrtStackPushPtr(stk, ptr1);
+ptr item = xrtStackPopPtr(stk);
+xrtFree(stk);
+
+// 结构体栈
+xstack stk2 = xrtStackCreate(100, sizeof(MyStruct));
+MyStruct* s = (MyStruct*)xrtStackPush(stk2);
+s->value = 42;
+xrtFree(stk2);
 ```
 
 ---
 
-### xstkPush
+### xrtStackPush / xrtStackPushPtr
 
 入栈
 
 **函数原型：**
 ```c
-XXAPI bool xstkPush(xstack objStack, ptr pItem);
+XXAPI ptr xrtStackPush(xstack objSTK);  // 结构体栈，返回新元素指针
+XXAPI uint32 xrtStackPushPtr(xstack objSTK, ptr pVal);  // 指针栈
 ```
 
 **返回值：**
-- `TRUE` - 成功
-- `FALSE` - 栈满
+- xrtStackPush: 返回新元素的内存地址
+- xrtStackPushPtr: 返回新元素的索引
 
 ---
 
-### xstkPop
+### xrtStackPop / xrtStackPopPtr
 
 出栈
 
 **函数原型：**
 ```c
-XXAPI ptr xstkPop(xstack objStack);
+XXAPI ptr xrtStackPop(xstack objSTK);  // 结构体栈
+XXAPI ptr xrtStackPopPtr(xstack objSTK);  // 指针栈
 ```
 
 **返回值：**
@@ -71,16 +81,19 @@ XXAPI ptr xstkPop(xstack objStack);
 
 ## DynStack 动态栈
 
-### xdsCreate
+### xrtDynStackCreate
 
 创建动态栈
 
 **函数原型：**
 ```c
-XXAPI xdynstack xdsCreate();
+XXAPI xdynstack xrtDynStackCreate(uint32 iItemLength);
 ```
 
-**释放：** ✅ 需要 `xdsFree` 释放
+**参数：**
+- `iItemLength` - 每个元素的字节数（0表示指针栈）
+
+**释放：** ✅ 需要 `xrtDynStackDestroy` 释放
 
 **说明：**
 - 无深度限制
@@ -88,44 +101,46 @@ XXAPI xdynstack xdsCreate();
 
 **示例：**
 ```c
-xdynstack ds = xdsCreate();
-xdsPush(ds, ptr1);
-xdsPush(ds, ptr2);
-ptr item = xdsPop(ds);
-xdsFree(ds);
+xdynstack ds = xrtDynStackCreate(0);  // 指针栈
+xrtDynStackPushPtr(ds, ptr1);
+xrtDynStackPushPtr(ds, ptr2);
+ptr item = xrtDynStackPopPtr(ds);
+xrtDynStackDestroy(ds);
 ```
 
 ---
 
-### xdsPush
+### xrtDynStackPush / xrtDynStackPushPtr
 
 入栈
 
 **函数原型：**
 ```c
-XXAPI void xdsPush(xdynstack objStack, ptr pItem);
+XXAPI ptr xrtDynStackPush(xdynstack objSTK);  // 结构体栈
+XXAPI uint32 xrtDynStackPushPtr(xdynstack objSTK, ptr pVal);  // 指针栈
 ```
 
 ---
 
-### xdsPop
+### xrtDynStackPop / xrtDynStackPopPtr
 
 出栈
 
 **函数原型：**
 ```c
-XXAPI ptr xdsPop(xdynstack objStack);
+XXAPI ptr xrtDynStackPop(xdynstack objSTK);  // 结构体栈
+XXAPI ptr xrtDynStackPopPtr(xdynstack objSTK);  // 指针栈
 ```
 
 ---
 
-### xdsCount
+### xrtDynStackCount
 
 获取栈深度
 
-**函数原型：**
+**访问方式：**
 ```c
-XXAPI uint xdsCount(xdynstack objStack);
+uint32 count = ds->Count;  // 直接访问结构体字段
 ```
 
 ---
@@ -135,16 +150,16 @@ XXAPI uint xdsCount(xdynstack objStack);
 ### 1. 递归模拟
 
 ```c
-xdynstack call_stack = xdsCreate();
+xdynstack call_stack = xrtDynStackCreate(0);
 
 void ProcessRecursive(int level) {
-    xdsPush(call_stack, (ptr)(intptr)level);
+    xrtDynStackPushPtr(call_stack, (ptr)(intptr)level);
     
     if (level > 0) {
         ProcessRecursive(level - 1);
     }
     
-    xdsPop(call_stack);
+    xrtDynStackPopPtr(call_stack);
 }
 ```
 
@@ -153,17 +168,17 @@ void ProcessRecursive(int level) {
 ### 2. 撤销/重做
 
 ```c
-xdynstack undo_stack = xdsCreate();
-xdynstack redo_stack = xdsCreate();
+xdynstack undo_stack = xrtDynStackCreate(0);
+xdynstack redo_stack = xrtDynStackCreate(0);
 
 void DoAction(Action* action) {
-    xdsPush(undo_stack, action);
+    xrtDynStackPushPtr(undo_stack, action);
 }
 
 void Undo() {
-    Action* action = xdsPop(undo_stack);
+    Action* action = xrtDynStackPopPtr(undo_stack);
     if (action) {
-        xdsPush(redo_stack, action);
+        xrtDynStackPushPtr(redo_stack, action);
         ReverseAction(action);
     }
 }

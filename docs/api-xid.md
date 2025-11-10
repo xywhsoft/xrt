@@ -19,11 +19,11 @@
 ### 结构定义
 
 ```c
-typedef struct xid_struct {
-    uint32 Addr;        // 机器IP地址
-    uint32 PID;         // 进程ID
-    uint64 Time;        // 时间戳（微秒）
-    uint64 Count;       // 计数器
+typedef struct {
+    xtime Time;        // 当前时间戳
+    int32 Addr;        // 本机IP地址
+    int32 Tick;        // CPU时钟（低32位）
+    int64 Rand;        // 随机数
 } xid_struct, *xid;
 ```
 
@@ -37,13 +37,13 @@ typedef struct xid_struct {
 
 ## ID操作
 
-### xidCreate
+### xrtMakeXID
 
 创建新ID
 
 **函数原型：**
 ```c
-XXAPI xid xidCreate();
+XXAPI xid xrtMakeXID();
 ```
 
 **返回值：**
@@ -53,33 +53,41 @@ XXAPI xid xidCreate();
 
 **示例：**
 ```c
-xid id = xidCreate();
+xid id = xrtMakeXID();
 // 使用ID
 xrtFree(id);
 ```
 
 ---
 
-### xidCopy
+### xrtCompXID
 
-复制ID
+比较两个ID
 
 **函数原型：**
 ```c
-XXAPI xid xidCopy(xid pID);
+XXAPI bool xrtCompXID(xid pXID1, xid pXID2);
 ```
+
+**参数：**
+- `pXID1` - 第ID1
+- `pXID2` - 第ID2
+
+**返回值：**
+- `TRUE` - 相同
+- `FALSE` - 不同
 
 ---
 
 ## ID转换
 
-### xidToStr
+### xrtEncodeXID
 
 ID转字符串
 
 **函数原型：**
 ```c
-XXAPI str xidToStr(xid pID);
+XXAPI str xrtEncodeXID(xid pXID);
 ```
 
 **返回值：**
@@ -89,8 +97,8 @@ XXAPI str xidToStr(xid pID);
 
 **示例：**
 ```c
-xid id = xidCreate();
-str s = xidToStr(id);
+xid id = xrtMakeXID();
+str s = xrtEncodeXID(id);
 printf("ID: %s\n", s);
 xrtFree(s);
 xrtFree(id);
@@ -98,14 +106,17 @@ xrtFree(id);
 
 ---
 
-### xidFromStr
+### xrtDecodeXID
 
 字符串转ID
 
 **函数原型：**
 ```c
-XXAPI xid xidFromStr(str sID, size_t iSize);
+XXAPI xid xrtDecodeXID(str sXID);
 ```
+
+**参数：**
+- `sXID` - XID字符串
 
 **内存释放：** ✅ 需要 `xrtFree` 释放
 
@@ -117,8 +128,8 @@ XXAPI xid xidFromStr(str sID, size_t iSize);
 
 ```c
 str GenerateOrderID() {
-    xid id = xidCreate();
-    str order_id = xidToStr(id);
+    xid id = xrtMakeXID();
+    str order_id = xrtEncodeXID(id);
     xrtFree(id);
     return order_id;
 }

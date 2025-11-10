@@ -16,133 +16,95 @@
 
 ## 链表操作
 
-### xllCreate
+### xrtLListCreate
 
 创建链表
 
 **函数原型：**
 ```c
-XXAPI xllist xllCreate();
+XXAPI xllist xrtLListCreate(uint32 iItemLength);
 ```
 
-**释放：** ✅ 需要 `xllFree` 释放
+**参数：**
+- `iItemLength` - 节点数据大小
+
+**释放：** ✅ 需要 `xrtLListDestroy` 释放
 
 **示例：**
 ```c
-xllist list = xllCreate();
-xllAddTail(list, data1);
-xllAddTail(list, data2);
-xllFree(list);
+xllist list = xrtLListCreate(sizeof(MyData));
+xllistnode node = xrtLListInsertNext(list, NULL);
+MyData* data = (MyData*)&node[1];
+xrtLListDestroy(list);
 ```
 
 ---
 
-### xllFree
+### xrtLListDestroy
 
 释放链表
 
 **函数原型：**
 ```c
-XXAPI void xllFree(xllist objList);
+XXAPI void xrtLListDestroy(xllist objLL);
 ```
 
 ---
 
 ## 节点操作
 
-### xllAddHead
+### xrtLListInsertNext / xrtLListInsertPrev
 
-添加到头部
-
-**函数原型：**
-```c
-XXAPI void xllAddHead(xllist objList, ptr pData);
-```
-
----
-
-### xllAddTail
-
-添加到尾部
+插入节点
 
 **函数原型：**
 ```c
-XXAPI void xllAddTail(xllist objList, ptr pData);
+XXAPI xllistnode xrtLListInsertNext(xllist objLL, xllistnode objNode);
+XXAPI xllistnode xrtLListInsertPrev(xllist objLL, xllistnode objNode);
 ```
+
+**参数：**
+- `objNode` - 参考节点（NULL表示头/尾）
+
+**返回值：**
+- 新节点指针，数据位于 `&node[1]`
 
 **示例：**
 ```c
-xllist list = xllCreate();
-xllAddTail(list, "item1");
-xllAddTail(list, "item2");
-xllAddTail(list, "item3");
+xllist list = xrtLListCreate(sizeof(int));
+
+// 插入到末尾
+xllistnode n1 = xrtLListInsertNext(list, NULL);
+int* data1 = (int*)&n1[1];
+*data1 = 42;
 ```
 
 ---
 
-### xllRemoveHead
+### xrtLListRemove
 
-移除头节点
-
-**函数原型：**
-```c
-XXAPI ptr xllRemoveHead(xllist objList);
-```
-
-**返回值：**
-- 头节点数据
-- `NULL` - 链表空
-
----
-
-### xllRemoveTail
-
-移除尾节点
+移除节点
 
 **函数原型：**
 ```c
-XXAPI ptr xllRemoveTail(xllist objList);
+XXAPI void xrtLListRemove(xllist objLL, xllistnode objNode);
 ```
 
 ---
 
 ## 遍历
 
-### xllGetFirst
+### 遍历示例
 
-获取第一个节点
-
-**函数原型：**
+**直接访问结构体字段：**
 ```c
-XXAPI ptr xllGetFirst(xllist objList);
-```
-
----
-
-### xllGetNext
-
-获取下一个节点
-
-**函数原型：**
-```c
-XXAPI ptr xllGetNext(xllist objList, ptr pNode);
-```
-
----
-
-### xllCount
-
-获取节点数量
-
-**函数原型：**
-```c
-XXAPI uint xllCount(xllist objList);
-```
-
-**示例：**
-```c
-uint count = xllCount(list);
-printf("Count: %u\n", count);
+uint32 count = list->Count;
+xllistnode node = list->FirstNode;
+while (node) {
+    MyData* data = (MyData*)&node[1];
+    // 处理数据
+    node = node->Next;
+}
 ```
 
 ---
@@ -158,16 +120,23 @@ typedef struct {
 
 Queue* CreateQueue() {
     Queue* q = xrtMalloc(sizeof(Queue));
-    q->queue = xllCreate();
+    q->queue = xrtLListCreate(sizeof(ptr));
     return q;
 }
 
 void Enqueue(Queue* q, ptr item) {
-    xllAddTail(q->queue, item);
+    xllistnode node = xrtLListInsertNext(q->queue, NULL);
+    ptr* data = (ptr*)&node[1];
+    *data = item;
 }
 
 ptr Dequeue(Queue* q) {
-    return xllRemoveHead(q->queue);
+    if (!q->queue->FirstNode) return NULL;
+    xllistnode node = q->queue->FirstNode;
+    ptr* data = (ptr*)&node[1];
+    ptr item = *data;
+    xrtLListRemove(q->queue, node);
+    return item;
 }
 ```
 
@@ -176,16 +145,23 @@ ptr Dequeue(Queue* q) {
 ### 2. LRU缓存
 
 ```c
-xllist lru_list = xllCreate();
+xllist lru_list = xrtLListCreate(sizeof(ptr));
 
 void AccessItem(ptr item) {
-    // 移到链表头部
-    xllRemove(lru_list, item);
-    xllAddHead(lru_list, item);
+    // 移动到链表头部
+    // 需要手动实现：先删除旧节点，再在头部插入新节点
+    xllistnode node = xrtLListInsertPrev(lru_list, NULL);
+    ptr* data = (ptr*)&node[1];
+    *data = item;
 }
 
 ptr EvictOldest() {
-    return xllRemoveTail(lru_list);
+    if (!lru_list->LastNode) return NULL;
+    xllistnode node = lru_list->LastNode;
+    ptr* data = (ptr*)&node[1];
+    ptr item = *data;
+    xrtLListRemove(lru_list, node);
+    return item;
 }
 ```
 

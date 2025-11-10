@@ -15,13 +15,13 @@
 
 ## 数组操作
 
-### xpaCreate
+### xrtPtrArrayCreate
 
 创建指针数组
 
 **函数原型：**
 ```c
-XXAPI xparray xpaCreate();
+XXAPI xparray xrtPtrArrayCreate();
 ```
 
 **返回值：**
@@ -31,97 +31,98 @@ XXAPI xparray xpaCreate();
 
 **示例：**
 ```c
-xparray arr = xpaCreate();
-xpaAdd(arr, ptr1);
-xpaAdd(arr, ptr2);
-xpaFree(arr);
+xparray arr = xrtPtrArrayCreate();
+xrtPtrArrayAppend(arr, ptr1);
+xrtPtrArrayAppend(arr, ptr2);
+xrtPtrArrayDestroy(arr);
 ```
 
 ---
 
-### xpaFree
+### xrtPtrArrayDestroy
 
 释放指针数组
 
 **函数原型：**
 ```c
-XXAPI void xpaFree(xparray objArray);
+XXAPI void xrtPtrArrayDestroy(xparray pObject);
 ```
 
 ---
 
-### xpaAdd
+### xrtPtrArrayAppend
 
 添加元素
 
 **函数原型：**
 ```c
-XXAPI void xpaAdd(xparray objArray, ptr pItem);
+XXAPI uint32 xrtPtrArrayAppend(xparray pObject, ptr pVal);
 ```
 
 **示例：**
 ```c
-xparray arr = xpaCreate();
-xpaAdd(arr, "item1");
-xpaAdd(arr, "item2");
+xparray arr = xrtPtrArrayCreate();
+xrtPtrArrayAppend(arr, "item1");
+xrtPtrArrayAppend(arr, "item2");
 ```
 
 ---
 
-### xpaRemove
+### xrtPtrArrayRemove
 
 移除元素
 
 **函数原型：**
 ```c
-XXAPI void xpaRemove(xparray objArray, uint iIndex);
+XXAPI bool xrtPtrArrayRemove(xparray pObject, uint32 iPos, uint32 iCount);
 ```
 
 ---
 
 ## 元素访问
 
-### xpaGet
+### xrtPtrArrayGet
 
 获取元素
 
 **函数原型：**
 ```c
-XXAPI ptr xpaGet(xparray objArray, uint iIndex);
+XXAPI ptr xrtPtrArrayGet(xparray pObject, uint32 iPos);
 ```
 
 **示例：**
 ```c
-ptr item = xpaGet(arr, 0);
+ptr item = xrtPtrArrayGet(arr, 1);  // 注意：索引从1开始
 ```
 
 ---
 
-### xpaSet
+### xrtPtrArraySet
 
 设置元素
 
 **函数原型：**
 ```c
-XXAPI void xpaSet(xparray objArray, uint iIndex, ptr pItem);
+XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal);
 ```
 
 ---
 
-### xpaCount
+### xrtPtrArrayCount
 
 获取元素数量
 
 **函数原型：**
 ```c
-XXAPI uint xpaCount(xparray objArray);
+// 直接访问结构体字段
+uint32 count = arr->Count;
 ```
 
 **示例：**
 ```c
-uint count = xpaCount(arr);
-for (uint i = 0; i < count; i++) {
-    ptr item = xpaGet(arr, i);
+uint count = arr->Count;
+for (uint i = 1; i <= count; i++) {  // 索引从1开始
+    ptr item = xrtPtrArrayGet(arr, i);
     // 处理item
 }
 ```
@@ -133,21 +134,21 @@ for (uint i = 0; i < count; i++) {
 ### 1. 对象集合
 
 ```c
-xparray objects = xpaCreate();
+xparray objects = xrtPtrArrayCreate();
 
 for (int i = 0; i < 10; i++) {
     MyObject* obj = CreateObject();
-    xpaAdd(objects, obj);
+    xrtPtrArrayAppend(objects, obj);
 }
 
 // 遍历
-uint count = xpaCount(objects);
-for (uint i = 0; i < count; i++) {
-    MyObject* obj = xpaGet(objects, i);
+uint count = objects->Count;
+for (uint i = 1; i <= count; i++) {
+    MyObject* obj = xrtPtrArrayGet(objects, i);
     ProcessObject(obj);
 }
 
-xpaFree(objects);
+xrtPtrArrayDestroy(objects);
 ```
 
 ---

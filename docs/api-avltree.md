@@ -16,72 +16,87 @@
 
 ## 树操作
 
-### xatCreate
+### xrtAVLTreeCreate
 
 创建AVL树
 
 **函数原型：**
 ```c
-XXAPI xavltree xatCreate();
+XXAPI xavltree xrtAVLTreeCreate(uint32 iItemLength, AVLTree_CompProc procComp);
 ```
 
-**释放：** ✅ 需要 `xatFree` 释放
+**参数：**
+- `iItemLength` - 节点数据大小
+- `procComp` - 比较函数
+
+**释放：** ✅ 需要 `xrtAVLTreeDestroy` 释放
 
 **示例：**
 ```c
-xavltree tree = xatCreate();
-xatAdd(tree, "key", data);
-xatFree(tree);
+int CompareInt(ptr pNode, ptr pKey) {
+    int* a = (int*)pNode;
+    int* b = (int*)pKey;
+    return *a - *b;
+}
+
+xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+bool isNew;
+int key = 42;
+int* data = (int*)xrtAVLTreeInsert(tree, &key, &isNew);
+*data = key;
+xrtAVLTreeDestroy(tree);
 ```
 
 ---
 
-### xatFree
+### xrtAVLTreeDestroy
 
 释放AVL树
 
 **函数原型：**
 ```c
-XXAPI void xatFree(xavltree objTree);
+XXAPI void xrtAVLTreeDestroy(xavltree objAVLT);
 ```
 
 ---
 
 ## 节点操作
 
-### xatAdd
+### xrtAVLTreeInsert
 
-添加节点
+插入节点
 
 **函数原型：**
 ```c
-XXAPI bool xatAdd(xavltree objTree, str sKey, ptr pData);
+XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew);
 ```
 
 **参数：**
-- `sKey` - 键（字符串）
-- `pData` - 数据
+- `pKey` - 键指针
+- `bNew` - 输出参数，指示是否为新节点
 
 **返回值：**
-- `TRUE` - 成功
-- `FALSE` - 键已存在
+- 返回节点数据指针
 
 **示例：**
 ```c
-xavltree tree = xatCreate();
-xatAdd(tree, "name", "Tom");
-xatAdd(tree, "age", (ptr)25);
+bool isNew;
+int key = 100;
+int* data = (int*)xrtAVLTreeInsert(tree, &key, &isNew);
+if (isNew) {
+    *data = key;
+}
 ```
 
 ---
 
-### xatGet
+### xrtAVLTreeSearch
 
-获取数据
+查找数据
 
 **函数原型：**
 ```c
-XXAPI ptr xatGet(xavltree objTree, str sKey);
+XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey);
 ```
 
 **返回值：**
@@ -90,21 +105,22 @@ XXAPI ptr xatGet(xavltree objTree, str sKey);
 
 **示例：**
 ```c
-ptr data = xatGet(tree, "name");
-if (data) {
-    printf("Found: %s\n", (str)data);
+int search_key = 100;
+int* found = (int*)xrtAVLTreeSearch(tree, &search_key);
+if (found) {
+    printf("Found: %d\n", *found);
 }
 ```
 
 ---
 
-### xatRemove
+### xrtAVLTreeRemove
 
 移除节点
 
 **函数原型：**
 ```c
-XXAPI bool xatRemove(xavltree objTree, str sKey);
+XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey);
 ```
 
 **返回值：**
@@ -113,101 +129,76 @@ XXAPI bool xatRemove(xavltree objTree, str sKey);
 
 ---
 
-### xatExists
-
-检查键是否存在
-
-**函数原型：**
-```c
-XXAPI bool xatExists(xavltree objTree, str sKey);
-```
-
----
-
 ## 遍历
 
-### xatCount
+### 遍历示例
 
-获取节点数量
-
-**函数原型：**
+**直接访问结构体字段：**
 ```c
-XXAPI uint xatCount(xavltree objTree);
-```
+uint32 count = tree->Count;  // 节点数量
+xavltnode root = tree->RootNode;  // 根节点
 
----
-
-### xatGetFirst
-
-获取第一个节点
-
-**函数原型：**
-```c
-XXAPI ptr xatGetFirst(xavltree objTree, str* psKey);
-```
-
-**参数：**
-- `psKey` - 输出参数，接收键
-
-**返回值：**
-- 节点数据
-
----
-
-### xatGetNext
-
-获取下一个节点
-
-**函数原型：**
-```c
-XXAPI ptr xatGetNext(xavltree objTree, str* psKey);
-```
-
-**示例：**
-```c
-str key;
-ptr data = xatGetFirst(tree, &key);
-while (data) {
-    printf("%s = %s\n", key, (str)data);
-    data = xatGetNext(tree, &key);
-}
+// 遍历需要使用 xrtAVLTreeWalk 或自定义递归函数
 ```
 
 ---
 
 ## 使用场景
 
-### 1. 有序字典
+### 1. 整数索引
 
 ```c
-xavltree config = xatCreate();
-xatAdd(config, "host", "localhost");
-xatAdd(config, "port", "8080");
+int CompareInt(ptr pNode, ptr pKey) {
+    return *(int*)pNode - *(int*)pKey;
+}
 
-str host = xatGet(config, "host");
-printf("Host: %s\n", host);
+xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+
+int key = 100;
+bool isNew;
+int* data = (int*)xrtAVLTreeInsert(tree, &key, &isNew);
+*data = key;
+
+int search = 100;
+int* found = (int*)xrtAVLTreeSearch(tree, &search);
+if (found) {
+    printf("Found: %d\n", *found);
+}
+
+xrtAVLTreeDestroy(tree);
 ```
 
 ---
 
-### 2. 符号表
+### 2. 自定义结构
 
 ```c
 typedef struct {
+    int id;
     str name;
-    int type;
-    ptr value;
-} Symbol;
+} User;
 
-xavltree symbol_table = xatCreate();
-
-void AddSymbol(str name, Symbol* sym) {
-    xatAdd(symbol_table, name, sym);
+int CompareUser(ptr pNode, ptr pKey) {
+    return ((User*)pNode)->id - *(int*)pKey;
 }
 
-Symbol* LookupSymbol(str name) {
-    return (Symbol*)xatGet(symbol_table, name);
+xavltree users = xrtAVLTreeCreate(sizeof(User), CompareUser);
+
+int id = 1001;
+bool isNew;
+User* user = (User*)xrtAVLTreeInsert(users, &id, &isNew);
+if (isNew) {
+    user->id = id;
+    user->name = "Alice";
 }
+
+int search_id = 1001;
+User* found = (User*)xrtAVLTreeSearch(users, &search_id);
+if (found) {
+    printf("User: %s\n", found->name);
+}
+
+xrtAVLTreeDestroy(users);
 ```
 
 ---

@@ -16,133 +16,128 @@
 
 ## 列表操作
 
-### xlistCreate
+### xrtListCreate
 
 创建列表
 
 **函数原型：**
 ```c
-XXAPI xlist xlistCreate();
+XXAPI xlist xrtListCreate(uint32 iItemLength);
 ```
 
-**释放：** ✅ 需要 `xlistFree` 释放
+**参数：**
+- `iItemLength` - 值的大小（0表示存储指针）
+
+**释放：** ✅ 需要 `xrtListDestroy` 释放
 
 **示例：**
 ```c
-xlist list = xlistCreate();
-xlistSet(list, 0, "item0");
-xlistSet(list, 1, "item1");
-xlistFree(list);
+xlist list = xrtListCreate(sizeof(int));
+bool isNew;
+int* val = (int*)xrtListSet(list, 0, &isNew);
+*val = 100;
+xrtListDestroy(list);
 ```
 
 ---
 
-### xlistFree
+### xrtListDestroy
 
 释放列表
 
 **函数原型：**
 ```c
-XXAPI void xlistFree(xlist objList);
+XXAPI void xrtListDestroy(xlist objList);
 ```
 
 ---
 
 ## 元素操作
 
-### xlistSet
+### xrtListSet / xrtListSetPtr
 
 设置元素
 
 **函数原型：**
 ```c
-XXAPI void xlistSet(xlist objList, uint iIndex, ptr pValue);
+XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet);
+XXAPI bool xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal);
 ```
 
+**参数：**
+- `iKey` - 索引（int64类型）
+- `bNewRet` - 输出：是否为新键
+
 **说明：**
-- 自动扩展列表
-- 索引从0开始
+- 索引可以为负数
+- xrtListSet: 返回值指针
+- xrtListSetPtr: 直接设置指针值
 
 **示例：**
 ```c
-xlist list = xlistCreate();
-xlistSet(list, 0, "first");
-xlistSet(list, 10, "eleventh");  // 自动扩展
+xlist list = xrtListCreate(sizeof(int));
+
+bool isNew;
+int* val = (int*)xrtListSet(list, 0, &isNew);
+*val = 100;
+
+int* val2 = (int*)xrtListSet(list, 10, &isNew);  // 跳跃索引
+*val2 = 200;
 ```
 
 ---
 
-### xlistGet
+### xrtListGet / xrtListGetPtr
 
 获取元素
 
 **函数原型：**
 ```c
-XXAPI ptr xlistGet(xlist objList, uint iIndex);
+XXAPI ptr xrtListGet(xlist objList, int64 iKey);
+XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey);
 ```
 
 **返回值：**
-- 找到：返回值指针
-- 未找到：返回 `NULL`
+- xrtListGet: 返回值指针
+- xrtListGetPtr: 返回存储的指针值
 
 **示例：**
 ```c
-str item = (str)xlistGet(list, 0);
-if (item) {
-    printf("Item: %s\n", item);
+int* val = (int*)xrtListGet(list, 0);
+if (val) {
+    printf("Value: %d\n", *val);
 }
 ```
 
 ---
 
-### xlistAdd
-
-追加元素
-
-**函数原型：**
-```c
-XXAPI void xlistAdd(xlist objList, ptr pValue);
-```
-
-**示例：**
-```c
-xlist list = xlistCreate();
-xlistAdd(list, "item1");
-xlistAdd(list, "item2");
-xlistAdd(list, "item3");
-```
-
----
-
-### xlistRemove
+### xrtListRemove / xrtListRemovePtr
 
 移除元素
 
 **函数原型：**
 ```c
-XXAPI void xlistRemove(xlist objList, uint iIndex);
+XXAPI bool xrtListRemove(xlist objList, int64 iKey);
+XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey);
 ```
 
 ---
 
 ## 遍历
 
-### xlistCount
+### xrtListCount
 
 获取元素数量
 
 **函数原型：**
 ```c
-XXAPI uint xlistCount(xlist objList);
+XXAPI uint32 xrtListCount(xlist objList);
 ```
 
 **示例：**
 ```c
-uint count = xlistCount(list);
-for (uint i = 0; i < count; i++) {
-    str item = (str)xlistGet(list, i);
-    printf("%u: %s\n", i, item);
-}
+uint32 count = xrtListCount(list);
+printf("Count: %u\n", count);
 ```
 
 ---
@@ -152,18 +147,19 @@ for (uint i = 0; i < count; i++) {
 ### 1. 动态数组
 
 ```c
-xlist items = xlistCreate();
+xlist items = xrtListCreate(0);  // 存储指针
 
 void AddItem(str item) {
-    xlistAdd(items, xrtCopyStr(item, 0));
+    int64 idx = xrtListCount(items);
+    xrtListSetPtr(items, idx, xrtCopyStr(item, 0), NULL);
 }
 
-str GetItem(uint index) {
-    return (str)xlistGet(items, index);
+str GetItem(int64 index) {
+    return (str)xrtListGetPtr(items, index);
 }
 
-uint GetCount() {
-    return xlistCount(items);
+uint32 GetCount() {
+    return xrtListCount(items);
 }
 ```
 
@@ -172,16 +168,16 @@ uint GetCount() {
 ### 2. 命令行参数
 
 ```c
-xlist args = xlistCreate();
+xlist args = xrtListCreate(0);
 
 void ParseArgs(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
-        xlistAdd(args, argv[i]);
+        xrtListSetPtr(args, i-1, argv[i], NULL);
     }
 }
 
-str GetArg(uint index) {
-    return (str)xlistGet(args, index);
+str GetArg(int64 index) {
+    return (str)xrtListGetPtr(args, index);
 }
 ```
 

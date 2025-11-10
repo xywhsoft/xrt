@@ -16,92 +16,110 @@
 
 ## 字典操作
 
-### xdictCreate
+### xrtDictCreate
 
 创建字典
 
 **函数原型：**
 ```c
-XXAPI xdict xdictCreate();
+XXAPI xdict xrtDictCreate(uint32 iItemLength);
 ```
 
-**释放：** ✅ 需要 `xdictFree` 释放
+**参数：**
+- `iItemLength` - 值的大小（0表示存储指针）
+
+**释放：** ✅ 需要 `xrtDictDestroy` 释放
 
 **示例：**
 ```c
-xdict dict = xdictCreate();
-xdictSet(dict, "key", value);
-ptr val = xdictGet(dict, "key");
-xdictFree(dict);
+xdict dict = xrtDictCreate(sizeof(int));  // 存储int值
+bool isNew;
+int* val = (int*)xrtDictSet(dict, "key", 3, &isNew);
+*val = 100;
+xrtDictDestroy(dict);
 ```
 
 ---
 
-### xdictFree
+### xrtDictDestroy
 
 释放字典
 
 **函数原型：**
 ```c
-XXAPI void xdictFree(xdict objDict);
+XXAPI void xrtDictDestroy(xdict objHT);
 ```
 
 ---
 
 ## 键值操作
 
-### xdictSet
+### xrtDictSet / xrtDictSetPtr
 
 设置键值对
 
 **函数原型：**
 ```c
-XXAPI void xdictSet(xdict objDict, str sKey, ptr pValue);
+XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet);
+XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal);
 ```
+
+**参数：**
+- `sKey` - 键（任意二进制数据）
+- `iKeyLen` - 键长度
+- `bNewRet` - 输出：是否为新键
 
 **说明：**
-- 键已存在则更新
-- 键不存在则添加
+- xrtDictSet: 返回值指针，需要手动赋值
+- xrtDictSetPtr: 直接设置指针值
 
 **示例：**
 ```c
-xdict dict = xdictCreate();
-xdictSet(dict, "name", "Tom");
-xdictSet(dict, "age", (ptr)25);
-```
+xdict dict = xrtDictCreate(sizeof(int));
 
----
-
-### xdictGet
-
-获取值
-
-**函数原型：**
-```c
-XXAPI ptr xdictGet(xdict objDict, str sKey);
-```
-
-**返回值：**
-- 找到：返回值指针
-- 未找到：返回 `NULL`
-
-**示例：**
-```c
-str name = (str)xdictGet(dict, "name");
-if (name) {
-    printf("Name: %s\n", name);
+bool isNew;
+str key = "age";
+int* val = (int*)xrtDictSet(dict, key, strlen(key), &isNew);
+if (isNew) {
+    *val = 25;
 }
 ```
 
 ---
 
-### xdictRemove
+### xrtDictGet / xrtDictGetPtr
+
+获取值
+
+**函数原型：**
+```c
+XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen);
+XXAPI ptr xrtDictGetPtr(xdict objHT, ptr sKey, uint32 iKeyLen);
+```
+
+**返回值：**
+- xrtDictGet: 返回值指针
+- xrtDictGetPtr: 返回存储的指针值
+
+**示例：**
+```c
+str key = "age";
+int* val = (int*)xrtDictGet(dict, key, strlen(key));
+if (val) {
+    printf("Age: %d\n", *val);
+}
+```
+
+---
+
+### xrtDictRemove / xrtDictRemovePtr
 
 移除键值对
 
 **函数原型：**
 ```c
-XXAPI bool xdictRemove(xdict objDict, str sKey);
+XXAPI bool xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen);
+XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen);
 ```
 
 **返回值：**
@@ -110,18 +128,19 @@ XXAPI bool xdictRemove(xdict objDict, str sKey);
 
 ---
 
-### xdictExists
+### xrtDictExists
 
 检查键是否存在
 
 **函数原型：**
 ```c
-XXAPI bool xdictExists(xdict objDict, str sKey);
+XXAPI bool xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen);
 ```
 
 **示例：**
 ```c
-if (xdictExists(dict, "key")) {
+str key = "name";
+if (xrtDictExists(dict, key, strlen(key))) {
     printf("Key exists\n");
 }
 ```
@@ -130,51 +149,35 @@ if (xdictExists(dict, "key")) {
 
 ## 遍历
 
-### xdictCount
+### xrtDictCount
 
 获取键值对数量
 
 **函数原型：**
 ```c
-XXAPI uint xdictCount(xdict objDict);
+XXAPI uint32 xrtDictCount(xdict objHT);
 ```
 
 ---
 
-### xdictGetFirst
+### xrtDictWalk
 
-获取第一个键值对
-
-**函数原型：**
-```c
-XXAPI ptr xdictGetFirst(xdict objDict, str* psKey);
-```
-
-**参数：**
-- `psKey` - 输出参数，接收键
-
-**返回值：**
-- 值指针
-
----
-
-### xdictGetNext
-
-获取下一个键值对
+遍历字典
 
 **函数原型：**
 ```c
-XXAPI ptr xdictGetNext(xdict objDict, str* psKey);
+typedef bool (*Dict_EachProc)(Dict_Key* pKey, ptr pVal, ptr pArg);
+XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg);
 ```
 
 **示例：**
 ```c
-str key;
-ptr value = xdictGetFirst(dict, &key);
-while (value) {
-    printf("%s = %s\n", key, (str)value);
-    value = xdictGetNext(dict, &key);
+bool PrintItem(Dict_Key* pKey, ptr pVal, ptr pArg) {
+    printf("%.*s = %d\n", pKey->KeyLen, (str)pKey->Key, *(int*)pVal);
+    return true;  // 继续遍历
 }
+
+xrtDictWalk(dict, PrintItem, NULL);
 ```
 
 ---
@@ -184,7 +187,7 @@ while (value) {
 ### 1. 配置管理
 
 ```c
-xdict config = xdictCreate();
+xdict config = xrtDictCreate(0);  // 存储指针
 
 void LoadConfig(str filename) {
     str content = xrtFileReadAll(filename, XRT_CP_UTF8);
@@ -193,7 +196,8 @@ void LoadConfig(str filename) {
     for (int i = 0; lines[i]; i++) {
         str* parts = xrtSplit(lines[i], 0, "=", 0, FALSE);
         if (parts[0] && parts[1]) {
-            xdictSet(config, parts[0], parts[1]);
+            str key = parts[0];
+            xrtDictSetPtr(config, key, strlen(key), parts[1], NULL);
         }
         xrtFree(parts);
     }

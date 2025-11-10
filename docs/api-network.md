@@ -14,13 +14,13 @@
 
 ## 本机信息
 
-### xrtGetLocalAddr
+### xrtGetLocalRawIP
 
 获取本机IP地址
 
 **函数原型：**
 ```c
-XXAPI uint xrtGetLocalAddr();
+XXAPI uint32 xrtGetLocalRawIP();
 ```
 
 **返回值：**
@@ -32,7 +32,7 @@ XXAPI uint xrtGetLocalAddr();
 
 **示例：**
 ```c
-uint ip = xrtGetLocalAddr();
+uint32 ip = xrtGetLocalRawIP();
 printf("IP: %u.%u.%u.%u\n",
     (ip >> 24) & 0xFF,
     (ip >> 16) & 0xFF,
@@ -49,7 +49,7 @@ printf("IP: %u.%u.%u.%u\n",
 
 ```c
 // XID 使用本机IP作为机器标识
-xid id = xidCreate();
+xid id = xrtMakeXID();
 ```
 
 ---
