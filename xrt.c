@@ -33,6 +33,7 @@
 	#include <wchar.h>
 	#include <netdb.h>
 	#include <dirent.h>
+	#include <sys/wait.h>
 #endif
 
 

@@ -42,14 +42,10 @@
 
 
 
-
-
 void OnError(str sError)
 {
 	printf("X Runtime Error : %s\n", sError);
 }
-
-
 
 
 
