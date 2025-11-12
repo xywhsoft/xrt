@@ -189,11 +189,11 @@ typedef struct {
 /**************** definition ****************/
 
 /* head apis */
-#define json_malloc                     malloc
-#define json_calloc                     calloc
-#define json_realloc                    realloc
+#define json_malloc                     xrtMalloc
+#define json_calloc                     xrtCalloc
+#define json_realloc                    xrtRealloc
 #define json_strdup                     strdup
-#define json_free                       free
+#define json_free                       xrtFree
 
 #define JSON_ITEM_NUM_PLUS_DEF          16
 #define JSON_POOL_MEM_SIZE_DEF          8192
