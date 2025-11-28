@@ -72,7 +72,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 		if ( pid == 0 ) {
 			execl("/bin/sh", "sh", "-c", sPath, (char*)NULL);
 			// 如果这里继续执行，说明 execl 失败了
-			return NULL;
+			return -1;
 		} else if ( pid > 0 ) {
 			// 等待子进程运行结束
 			int status;
