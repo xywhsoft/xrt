@@ -57,7 +57,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			}
 		} else {
 			// 手动指定编码时，检查 BOM 是否正确或提前写入 BOM
-			if ( (iCharset & XRT_CP_BOM) == XRT_CP_BOM ) {
+			if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 				int bErrorBOM = FALSE;
 				if ( stuSize.QuadPart == 0 ) {
 					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
@@ -116,7 +116,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			}
 		}
 		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
-		if ( (objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM ) {
+		if ( (objFile->Charset > 0) && ((objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 			if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
 				objFile->BOM = 3;
 				objFile->Charset = XRT_CP_UTF8;
@@ -176,7 +176,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			}
 		} else {
 			// 手动指定编码时，检查 BOM 是否正确或提前写入 BOM
-			if ( (iCharset & XRT_CP_BOM) == XRT_CP_BOM ) {
+			if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 				int bErrorBOM = FALSE;
 				if ( fileStat.st_size == 0 ) {
 					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
@@ -235,7 +235,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			}
 		}
 		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
-		if ( (objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM ) {
+		if ( (iCharset > 0) && ((objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 			if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
 				objFile->BOM = 3;
 				objFile->Charset = XRT_CP_UTF8;
