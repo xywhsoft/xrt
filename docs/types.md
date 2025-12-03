@@ -8,6 +8,8 @@
 
 ## 📑 目录
 
+- [标准库依赖](#标准库依赖)
+- [保护宏定义](#保护宏定义)
 - [基础类型定义](#基础类型定义)
 - [字符串类型](#字符串类型)
 - [整数类型](#整数类型)
@@ -16,6 +18,62 @@
 - [特殊类型](#特殊类型)
 - [常量定义](#常量定义)
 - [全局数据结构](#全局数据结构)
+
+---
+
+## 标准库依赖
+
+XRT 库依赖以下 C 标准库头文件：
+
+```c
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <ctype.h>
+#include <wctype.h>
+#include <math.h>
+#include <time.h>
+#include <inttypes.h>
+#include <stdbool.h>
+```
+
+| 头文件 | 用途 |
+|--------|------|
+| `stdio.h` | 标准输入输出 |
+| `stdint.h` | 固定宽度整数类型 (`intptr_t`, `uintptr_t` 等) |
+| `stdarg.h` | 可变参数支持 (`va_list` 等) |
+| `stdlib.h` | 内存分配 (`malloc`, `free` 等) |
+| `unistd.h` | POSIX 系统调用 |
+| `string.h` | 字符串操作 (`memcpy`, `strlen` 等) |
+| `ctype.h` | 字符分类 (`isalpha`, `isdigit` 等) |
+| `wctype.h` | 宽字符分类 |
+| `math.h` | 数学函数 |
+| `time.h` | 时间处理 |
+| `inttypes.h` | 整数格式化宏 (`PRId64` 等) |
+| `stdbool.h` | 布尔类型 (`bool`, `true`, `false`) |
+
+**说明：**
+- `_GNU_SOURCE` 宏启用 GNU 扩展功能（如 `memmem` 函数在 Linux 上）
+- XRT 零外部依赖，仅依赖 C 标准库
+
+---
+
+## 保护宏定义
+
+### XXRTL_CORE
+
+头文件保护宏，防止重复包含：
+
+```c
+#ifndef XXRTL_CORE
+    #define XXRTL_CORE
+    // ... 所有类型定义和函数声明 ...
+#endif
+```
 
 ---
 
@@ -33,9 +91,28 @@
 
 **使用示例：**
 ```c
-str text = "Hello World";
-u16str wtext = xrtUTF8to16(text, 0);
-xrtFree(wtext);
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // UTF-8 字符串
+    str text = (str)"Hello World";
+    printf("UTF-8: %s\n", text);
+    
+    // 转换为 UTF-16
+    u16str wtext = xrtUTF8to16(text, 0);
+    printf("UTF-16 length: %zu\n", u16len(wtext));
+    xrtFree(wtext);
+    
+    // 二进制数据
+    binary data = (binary)"\x00\x01\x02\x03";
+    printf("Binary first byte: 0x%02X\n", data[0]);
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -98,8 +175,25 @@ xrtFree(wtext);
 
 **使用示例：**
 ```c
-f32 pi = 3.14159f;
-f64 e = 2.718281828459045;
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 单精度浮点数
+    f32 pi = 3.14159f;
+    float32 radius = 5.0f;
+    printf("圆周长: %.4f\n", 2 * pi * radius);
+    
+    // 双精度浮点数
+    f64 e = 2.718281828459045;
+    float64 x = 10.0;
+    printf("e^10 ≈ %.6f\n", pow(e, x));
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -114,9 +208,28 @@ f64 e = 2.718281828459045;
 
 **使用场景：**
 ```c
-ptr data = xrtMalloc(1024);
-intptr addr = (intptr)data;  // 指针转整数
-xrtFree(data);
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 通用指针
+    ptr data = xrtMalloc(1024);
+    printf("分配内存地址: %p\n", data);
+    
+    // 指针转整数
+    intptr addr = (intptr)data;
+    printf("指针整数值: %" PRIdPTR "\n", addr);
+    
+    // 无符号指针整数
+    uintptr uaddr = (uintptr)data;
+    printf("无符号指针值: %" PRIuPTR "\n", uaddr);
+    
+    xrtFree(data);
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -222,9 +335,24 @@ XXAPI extern xrtGlobalData xCore;
 
 **访问方式：**
 ```c
-xrtGlobalData* core = xrtInit();  // 初始化并获取指针
-// 或直接访问
-xCore.LastError = xCore.sNull;
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    // 初始化并获取指针
+    xrtGlobalData* core = xrtInit();
+    
+    // 通过指针访问
+    printf("App Path: %s\n", core->AppPath);
+    printf("App File: %s\n", core->AppFile);
+    
+    // 或直接访问全局变量
+    xCore.LastError = xCore.sNull;
+    printf("Error: %s\n", xCore.LastError);
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -255,9 +383,21 @@ xCore.LastError = xCore.sNull;
 
 **使用示例：**
 ```c
-str dir = xrtPathGetDir("C:\\test\\file.txt", 0);
-size_t len = xCore.iRet;  // 获取路径长度
-xrtFree(dir);
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 假设 xrtPathGetDir 返回路径并把长度存储在 xCore.iRet
+    str dir = xrtPathGetDir((str)"C:\\test\\file.txt", 0);
+    int64 len = xCore.iRet;  // 获取路径长度
+    printf("目录: %s (长度: %" PRId64 ")\n", dir, len);
+    xrtFree(dir);
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ### 错误处理
@@ -269,11 +409,31 @@ xrtFree(dir);
 
 **使用示例：**
 ```c
+#include "xrt.h"
+#include <stdio.h>
+
 void MyErrorHandler(str sError) {
-    fprintf(stderr, "Error: %s\n", sError);
+    fprintf(stderr, "[XRT ERROR] %s\n", sError);
 }
 
-xCore.OnError = MyErrorHandler;
+int main() {
+    xrtInit();
+    
+    // 设置错误回调
+    xCore.OnError = MyErrorHandler;
+    
+    // 模拟错误
+    xrtSetError((str)"Test error message", FALSE);
+    
+    // 检查错误
+    if (xCore.LastError != xCore.sNull) {
+        printf("当前错误: %s\n", xCore.LastError);
+        xrtClearError();
+    }
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ### 应用信息
@@ -301,11 +461,28 @@ XRT 提供32个临时内存槽位，循环使用：
 
 **使用示例：**
 ```c
-// 这些临时内存会自动管理，无需 xrtFree
-str temp1 = xrtTempMemory(100);
-str temp2 = xrtTempMemory(200);
-// ... 使用 temp1 和 temp2
-// 无需释放，会在循环32次后自动释放
+#include "xrt.h"
+#include <stdio.h>
+#include <string.h>
+
+int main() {
+    xrtInit();
+    
+    // 这些临时内存会自动管理，无需 xrtFree
+    str temp1 = xrtTempMemory(100);
+    strcpy((char*)temp1, "Temporary data 1");
+    printf("temp1: %s\n", temp1);
+    
+    str temp2 = xrtTempMemory(200);
+    strcpy((char*)temp2, "Temporary data 2");
+    printf("temp2: %s\n", temp2);
+    
+    // 无需释放，会在循环32次后自动释放
+    printf("当前临时内存索引: %u\n", xCore.TempMemIdx);
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ### 自定义内存函数
@@ -321,12 +498,42 @@ str temp2 = xrtTempMemory(200);
 
 **自定义示例：**
 ```c
+#include "xrt.h"
+#include <stdio.h>
+
+static size_t g_allocCount = 0;
+static size_t g_totalBytes = 0;
+
 ptr MyMalloc(size_t size) {
-    printf("Allocating %zu bytes\n", size);
+    g_allocCount++;
+    g_totalBytes += size;
+    printf("[分配 #%zu] %zu 字节\n", g_allocCount, size);
     return malloc(size);
 }
 
-xCore.malloc = MyMalloc;  // 使用自定义分配器
+void MyFree(ptr pMem) {
+    if (pMem) {
+        printf("[释放] 地址 %p\n", pMem);
+        free(pMem);
+    }
+}
+
+int main() {
+    xrtInit();
+    
+    // 使用自定义分配器
+    xCore.malloc = MyMalloc;
+    xCore.free = MyFree;
+    
+    // 现在所有 xrtMalloc/xrtFree 都会使用自定义函数
+    ptr data = xrtMalloc(256);
+    xrtFree(data);
+    
+    printf("\n统计: 分配 %zu 次, 共 %zu 字节\n", g_allocCount, g_totalBytes);
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -380,44 +587,124 @@ XRT 使用以下宏进行平台检测：
 ### 1. 使用类型别名
 
 ```c
-// ✅ 推荐
-i64 value = 1234567890;
-str text = "Hello";
+#include "xrt.h"
+#include <stdio.h>
 
-// ❌ 不推荐（虽然可以）
-long long value = 1234567890;
-unsigned char* text = "Hello";
+int main() {
+    xrtInit();
+    
+    // ✅ 推荐：使用 XRT 类型别名
+    i64 value = 1234567890123LL;
+    str text = (str)"Hello XRT";
+    u32 count = 100;
+    f64 ratio = 3.14159265359;
+    
+    printf("整数: %" PRId64 "\n", value);
+    printf("字符串: %s\n", text);
+    printf("计数: %u\n", count);
+    printf("比例: %.10f\n", ratio);
+    
+    // ❓ 不推荐（虽然可以）
+    // long long value = 1234567890123LL;
+    // unsigned char* text = "Hello";
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ### 2. 检查初始化状态
 
 ```c
-if (!xCore.bInit) {
-    xrtInit();
+#include "xrt.h"
+#include <stdio.h>
+
+void EnsureInit() {
+    if (!xCore.bInit) {
+        printf("初始化 XRT 库...\n");
+        xrtInit();
+    } else {
+        printf("XRT 已初始化\n");
+    }
+}
+
+int main() {
+    // 第一次调用会初始化
+    EnsureInit();
+    
+    // 第二次调用不会重复初始化
+    EnsureInit();
+    
+    xrtUnit();
+    return 0;
 }
 ```
 
 ### 3. 使用临时内存
 
 ```c
-// 对于临时使用的小内存，优先使用 xrtTempMemory
-str temp = xrtTempMemory(256);  // 自动管理
-strcpy(temp, "temporary data");
+#include "xrt.h"
+#include <stdio.h>
+#include <string.h>
 
-// 对于需要长期持有的内存，使用 xrtMalloc
-str permanent = xrtMalloc(1024);  // 需要 xrtFree
+int main() {
+    xrtInit();
+    
+    // 对于临时使用的小内存，优先使用 xrtTempMemory
+    str temp = xrtTempMemory(256);  // 自动管理
+    sprintf((char*)temp, "临时数据: %d", 12345);
+    printf("%s\n", temp);
+    // 无需 xrtFree
+    
+    // 对于需要长期持有的内存，使用 xrtMalloc
+    str permanent = xrtMalloc(1024);  // 需要 xrtFree
+    strcpy((char*)permanent, "持久数据");
+    printf("%s\n", permanent);
+    xrtFree(permanent);  // 必须释放
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ### 4. 错误处理
 
 ```c
+#include "xrt.h"
+#include <stdio.h>
+
 void MyErrorHandler(str sError) {
     fprintf(stderr, "[ERROR] %s\n", sError);
     // 可选：记录日志、发送通知等
 }
 
-xrtInit();
-xCore.OnError = MyErrorHandler;
+bool DoSomething(int value) {
+    if (value < 0) {
+        xrtSetError((str)"参数不能为负数", FALSE);
+        return false;
+    }
+    printf("处理值: %d\n", value);
+    return true;
+}
+
+int main() {
+    xrtInit();
+    xCore.OnError = MyErrorHandler;
+    
+    // 测试正常情况
+    if (DoSomething(10)) {
+        printf("成功\n");
+    }
+    
+    // 测试错误情况
+    if (!DoSomething(-5)) {
+        printf("失败: %s\n", xCore.LastError);
+        xrtClearError();
+    }
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---

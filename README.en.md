@@ -8,7 +8,7 @@
 
 **Lightweight, High-Performance C Runtime Library**
 
-[English](README.en.md) | [简体中文](README.md)
+English | [简体中文](README.md)
 
 </div>
 
@@ -16,18 +16,19 @@
 
 ## 📖 Project Overview
 
-**xrt** (X Runtime Library) is a full-featured C runtime library providing 30+ functional modules including memory management, character set conversion, file handling, data structures, dynamic type system, JSON processing, and more. The library features a single-header design, zero external dependencies, and cross-platform compilation support, aiming to provide modern, efficient infrastructure support for C language developers.
+**xrt** (X Runtime Library) is a full-featured C runtime library providing **32 functional modules** including memory management, character set conversion, file handling, data structures, dynamic type system, JSON processing, template engine and more. The library features a single-header design, zero external dependencies, and cross-platform compilation support, aiming to provide modern, efficient infrastructure support for C language developers.
 
 ### ✨ Core Features
 
 - 🚀 **Zero Dependencies**: No external dependencies except the standard C library
-- 📦 **Single Header**: All core APIs defined in `xrt.h`
-- 🔧 **Modular Design**: 30+ independent sub-libraries, use as needed
-- 🌍 **Cross-Platform**: Supports Windows, Linux, macOS
+- 📦 **Single Header**: All core APIs defined in `xrt.h`, 2300+ lines of complete declarations
+- 🔧 **Modular Design**: 32 independent sub-libraries, use as needed
+- 🌍 **Cross-Platform**: Supports Windows, Linux, macOS (x86/x64/ARM64)
 - 🔨 **Multi-Compiler**: Compatible with TCC, GCC, Clang, MSVC
 - ⚡ **High Performance**: Built-in multi-level memory pools, reference counting, inline optimization
-- 🎯 **Dynamic Types**: Script-like Value type system
-- 💾 **Smart Memory**: Ring buffer temporary memory, automatic GC support
+- 🎯 **Dynamic Types**: 16 data types Value system with 26-bit reference counting and auto-release
+- 💾 **Smart Memory**: 32-slot ring buffer temporary memory, GC mark-sweep support
+- 📝 **Template Engine**: Template system with variable substitution, conditionals, and loop iteration
 
 ---
 
@@ -35,62 +36,62 @@
 
 ### 🔹 Infrastructure Layer
 
-| Module | Description | Main API |
-|--------|-------------|----------|
-| **base** | Memory management | `xrtMalloc`, `xrtFree`, `xrtTempMemory` |
-| **charset** | Character set conversion | `xrtUTF8to16`, `xrtUTF16to8`, `xrtConvCharset` |
-| **hash** | Hash computation | `xrtHash32`, `xrtHash64` |
-| **math** | Mathematical operations | `xrtRand32`, `xrtRand64`, `xrtRandRange` |
-| **time** | Time handling | `xrtNow`, `xrtDateSerial`, `xrtDateAdd` |
+| Module | Header | Description | Main API |
+|--------|--------|-------------|----------|
+| **base** | `base.h` | Memory management, error handling | `xrtMalloc`, `xrtFree`, `xrtTempMemory` |
+| **charset** | `charset.h` | Character set conversion | `xrtUTF8to16`, `xrtUTF16to8`, `xrtConvCharset` |
+| **hash** | `hash.h` | Hash computation (nmhash32x/rapidhash) | `xrtHash32`, `xrtHash64`, `xrtHash64_Nano` |
+| **math** | `math.h` | Random number generation (PCG) | `xrtRand32`, `xrtRand64`, `xrtRandRange` |
+| **time** | `time.h` | Time handling | `xrtNow`, `xrtDateSerial`, `xrtDateAdd`, `xrtDateDiff` |
 
 ### 🔹 System Interaction Layer
 
-| Module | Description | Main API |
-|--------|-------------|----------|
-| **os** | System operations | `xrtRun`, `xrtStart`, `xrtChain` |
-| **file** | File operations | `xrtOpen`, `xrtFileReadAll`, `xrtDirScan` |
-| **path** | Path handling | `xrtPathGetName`, `xrtPathJoin` |
-| **network** | Network functions | `xrtGetLocalIP`, `xrtGetLocalMAC` |
-| **thread** | Thread management | `xrtThreadCreate` |
+| Module | Header | Description | Main API |
+|--------|--------|-------------|----------|
+| **os** | `os.h` | System operations | `xrtRun`, `xrtStart`, `xrtChain` |
+| **file** | `file.h` | File operations | `xrtOpen`, `xrtFileReadAll`, `xrtDirScan` |
+| **path** | `path.h` | Path handling | `xrtPathGetName`, `xrtPathGetDir`, `xrtPathJoin` |
+| **network** | `network.h` | Network functions | `xrtGetLocalIP`, `xrtGetLocalMAC`, `xrtGetLocalName` |
+| **thread** | `thread.h` | Thread management | `xrtThreadCreate` |
 
 ### 🔹 String Processing Layer
 
-| Module | Description | Main API |
-|--------|-------------|----------|
-| **string** | String operations | `xrtFindStr`, `xrtReplace`, `xrtSplit`, `xrtFormat` |
-| **jnum** | Number conversion | `xrtI64ToStr`, `xrtParseNum` |
-| **template** | Template engine | String template processing |
+| Module | Header | Description | Main API |
+|--------|--------|-------------|----------|
+| **string** | `string.h` | String operations | `xrtFindStr`, `xrtReplace`, `xrtSplit`, `xrtFormat` |
+| **jnum** | `jnum.h` | Number conversion | `xrtI64ToStr`, `xrtParseNum`, `xrtStrToNum` |
+| **template** | `template.h` | Template engine | `xteParse`, `xteMake`, `xteLexer` |
 
 ### 🔹 Data Structure Layer
 
-| Module | Description | Data Structure Type |
-|--------|-------------|-----------------|
-| **buffer** | Dynamic buffer | `xbuffer` |
-| **array** | Struct array | `xarray` |
-| **array_point** | Pointer array | `xparray` |
-| **stack** | Static stack | `xstack` |
-| **stack_dyn** | Dynamic stack | `xdynstack` |
-| **llist** | Doubly linked list | `xllist` |
-| **avltree** | AVL balanced tree | `xavltree` |
-| **dict** | Dictionary (key-value) | `xdict` |
-| **list** | List (integer index) | `xlist` |
+| Module | Header | Description | Data Structure Type |
+|--------|--------|-------------|---------------------|
+| **buffer** | `buffer.h` | Dynamic buffer | `xbuffer` |
+| **array** | `array.h` | Struct array | `xarray` |
+| **array_point** | `array_point.h` | Pointer array | `xparray` |
+| **stack** | `stack.h` | Static stack | `xstack` |
+| **stack_dyn** | `stack_dyn.h` | Dynamic stack (256-step expansion) | `xdynstack` |
+| **llist** | `llist.h` | Doubly linked list | `xllist` |
+| **avltree** | `avltree.h` | AVL balanced tree | `xavltree` |
+| **dict** | `dict.h` | Dictionary (string key-value) | `xdict` |
+| **list** | `list.h` | List (integer index) | `xlist` |
 
 ### 🔹 Memory Management Layer
 
-| Module | Description | Use Case |
-|--------|-------------|----------|
-| **bsmm** | Block struct memory mgmt | Fixed-size struct allocation |
-| **memunit** | Memory unit management | 256-byte page management |
-| **mempool_fs** | Fixed-size memory pool | High-frequency small object allocation |
-| **mempool** | General memory pool | Multi-level memory block management |
+| Module | Header | Description | Use Case |
+|--------|--------|-------------|----------|
+| **bsmm** | `bsmm.h` | Block struct memory management | Fixed-size struct allocation |
+| **memunit** | `memunit.h` | Memory unit management | 256-byte page management, GC mark support |
+| **mempool_fs** | `mempool_fs.h` | Fixed-size memory pool | High-frequency small object allocation |
+| **mempool** | `mempool.h` | General memory pool | Multi-level memory block management, GC support |
 
 ### 🔹 Advanced Features Layer
 
-| Module | Description | Features |
-|--------|-------------|----------|
-| **value** | Dynamic type system | 15 data types, reference counting, auto-release |
-| **json** | JSON processing | Parse, generate, serialize |
-| **xid** | Distributed ID | 192-bit unique ID generator |
+| Module | Header | Description | Features |
+|--------|--------|-------------|----------|
+| **value** | `value.h` | Dynamic type system | 16 data types, 26-bit ref counting, auto-release |
+| **json** | `json.h` | JSON processing | SAX parsing/generation, formatted output |
+| **xid** | `xid.h` | Distributed ID | 192-bit unique ID (timestamp+IP+clock+random) |
 
 ---
 
@@ -141,7 +142,7 @@ int main() {
     
     // Time handling
     xtime now = xrtNow();
-    str timeStr = xrtTimeToStr(now, 0);
+    str timeStr = xrtTimeToStr(now, XRT_TIME_FORMAT_DATETIME);
     printf("Current time: %s\n", timeStr);
     xrtFree(timeStr);
     
@@ -151,7 +152,7 @@ int main() {
 }
 ```
 
-#### Dynamic Type System
+#### Dynamic Type System (Value)
 
 ```c
 #include "xrt.h"
@@ -167,14 +168,15 @@ int main() {
     
     // Create table (dictionary)
     xvalue table = xvoCreateTable();
-    xvoTableSetText(table, "name", 4, "XRT", 0, FALSE);
-    xvoTableSetInt(table, "version", 7, 1);
+    xvoTableSetText(table, "name", 0, "XRT", 0, FALSE);
+    xvoTableSetInt(table, "version", 0, 1);
+    xvoTableSetBool(table, "active", 0, TRUE);
     
     // Get values
-    str name = xvoTableGetText(table, "name", 4);
+    str name = xvoTableGetText(table, "name", 0);
     printf("Name: %s\n", name);
     
-    // Release resources
+    // Release resources (reference counting auto-managed)
     xvoUnref(arr);
     xvoUnref(table);
     xrtUnit();
@@ -191,22 +193,55 @@ int main() {
     xrtInit();
     
     // Parse JSON
-    str jsonText = "{\"name\":\"xrt\",\"version\":1.0}";
-    xvalue json = xrtJSONParse(jsonText, 0);
+    str jsonText = "{\"name\":\"xrt\",\"version\":1.0,\"features\":[\"fast\",\"simple\"]}";
+    xvalue json = xrtParseJSON(jsonText, 0);
     
     // Read values
-    str name = xvoTableGetText(json, "name", 4);
+    str name = xvoTableGetText(json, "name", 0);
     printf("Project: %s\n", name);
     
-    // Generate JSON
+    // Generate JSON (formatted output)
     xvalue newJson = xvoCreateTable();
-    xvoTableSetText(newJson, "status", 6, "ok", 0, FALSE);
-    str output = xrtJSONStringify(newJson);
-    printf("%s\n", output);
+    xvoTableSetText(newJson, "status", 0, "ok", 0, FALSE);
+    xvoTableSetInt(newJson, "code", 0, 200);
     
+    size_t len = 0;
+    str output = xrtStringifyJSON(newJson, TRUE, &len);  // TRUE = formatted
+    printf("%s\n", output);
     xrtFree(output);
+    
     xvoUnref(json);
     xvoUnref(newJson);
+    xrtUnit();
+    return 0;
+}
+```
+
+#### Template Engine
+
+```c
+#include "xrt.h"
+
+int main() {
+    xrtInit();
+    
+    // Create template variables
+    xvalue vars = xvoCreateTable();
+    xvoTableSetText(vars, "title", 0, "XRT Library", 0, FALSE);
+    xvoTableSetInt(vars, "count", 0, 42);
+    
+    // Parse template
+    str template = "Welcome to {$title}! Count: {%count}";
+    XTE_LiteObject tpl = xteParse(template, 0, NULL);
+    
+    // Generate output
+    size_t len = 0;
+    str result = xteMake(tpl, vars, NULL, NULL, &len);
+    printf("%s\n", result);  // Welcome to XRT Library! Count: 42
+    xrtFree(result);
+    
+    xteParseFree(tpl);
+    xvoUnref(vars);
     xrtUnit();
     return 0;
 }
@@ -218,25 +253,34 @@ int main() {
 
 ```
 xrt/
-├── lib/                    # 30+ functional sub-libraries
+├── lib/                    # 32 functional sub-libraries
 │   ├── base.h             # Basic memory management
-│   ├── charset.h          # Character set conversion
+│   ├── charset.h          # Character set conversion (UTF-8/16/32)
 │   ├── string.h           # String processing
-│   ├── value.h            # Dynamic type system
-│   ├── json.h             # JSON processing
+│   ├── value.h            # Dynamic type system (16 types)
+│   ├── json.h             # JSON SAX parsing/generation
+│   ├── template.h         # Template engine
+│   ├── dict.h             # Dictionary (AVL tree implementation)
+│   ├── mempool.h          # General memory pool
 │   └── ...                # Other modules
-├── test/                   # Test files
+├── docs/                   # API documentation
+│   ├── api-base.md
+│   ├── api-value.md
+│   ├── api-json.md
+│   └── ...                # Module documentation
+├── test/                   # Test files (31 modules)
 │   ├── test_base.h
 │   ├── test_value.h
+│   ├── test_json.h
 │   └── ...
 ├── release/                # Build output directory
 │   ├── x64/
 │   └── x86/
-├── xrt.h                  # Main header file (API declarations)
-├── xrt.c                  # Main implementation file
+├── xrt.h                  # Main header file (API declarations, 2300+ lines)
+├── xrt.c                  # Main implementation file (includes all lib/*.h)
 ├── test.c                 # Test entry point
 ├── build_*.bat            # Windows build scripts
-├── build_test.sh          # Linux/macOS build script
+├── build*.sh              # Linux/macOS build scripts
 ├── README.md              # Chinese documentation
 └── README.en.md           # English documentation
 ```
@@ -272,48 +316,101 @@ xrt/
 
 ```c
 ptr xrtMalloc(size_t iSize);                    // Allocate memory
-ptr xrtCalloc(size_t iNum, size_t iSize);      // Allocate and zero
-ptr xrtRealloc(ptr pMem, size_t iSize);        // Reallocate
-void xrtFree(ptr pmem);                         // Free memory
-ptr xrtTempMemory(size_t iSize);               // Temporary memory (auto-free)
+ptr xrtCalloc(size_t iNum, size_t iSize);       // Allocate and zero
+ptr xrtRealloc(ptr pMem, size_t iSize);         // Reallocate
+void xrtFree(ptr pmem);                          // Free memory
+ptr xrtTempMemory(size_t iSize);                // Temporary memory (32-slot ring auto-free)
 ```
 
 ### Character Set Conversion
 
 ```c
-u16str xrtUTF8to16(u8str sText, size_t iSize);  // UTF-8 to UTF-16
-u8str xrtUTF16to8(u16str sText, size_t iSize);  // UTF-16 to UTF-8
-ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
-bool xrtIsUTF8(str sText, size_t iSize);        // Check if UTF-8
+u16str xrtUTF8to16(u8str sText, size_t iSize);   // UTF-8 to UTF-16
+u8str xrtUTF16to8(u16str sText, size_t iSize);   // UTF-16 to UTF-8
+u32str xrtUTF8to32(u8str sText, size_t iSize);   // UTF-8 to UTF-32
+ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);  // Any encoding conversion
+bool xrtIsUTF8(str sText, size_t iSize);         // Check if UTF-8
+int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM);  // Auto-detect encoding
 ```
 
 ### String Operations
 
 ```c
+str xrtCopyStr(str sText, size_t iSize);         // Copy string
 str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase);
 str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize);
 str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool bSrcRevise);
-str xrtFormat(str sFormat, ...);                // Format string
+str xrtFormat(str sFormat, ...);                 // Format string
+str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise);
+str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);  // Base64 encode
+ptr xrtBase64Decode(str sText, size_t iSize, str sTable);  // Base64 decode
 ```
 
 ### File Operations
 
 ```c
-xfile xrtOpen(str sPath, int bReadOnly, int iCharset);
-str xrtFileReadAll(str sPath, int iCharset);    // Read all content
-bool xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
-bool xrtFileExists(str sPath);                  // Check file existence
-int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);
+xfile xrtOpen(str sPath, int bReadOnly, int iCharset);  // Open file
+void xrtClose(xfile objFile);                    // Close file
+str xrtFileReadAll(str sPath, int iCharset);     // Read all content
+int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
+bool xrtFileExists(str sPath);                   // Check file existence
+bool xrtDirExists(str sPath);                    // Check directory existence
+int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);  // Scan directory
+bool xrtDirCreateAll(str sPath);                 // Create multi-level directory
 ```
 
 ### Time Handling
 
 ```c
-xtime xrtNow();                                  // Current date and time
-xtime xrtDateSerial(int64 iYear, int iMonth, int iDay);
-str xrtTimeToStr(xtime iTime, int iFormat);     // Time to string
-xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);
-int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2);
+xtime xrtNow();                                   // Current date and time
+xtime xrtDateSerial(int64 iYear, int iMonth, int iDay);  // Build date
+xtime xrtDateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
+str xrtTimeToStr(xtime iTime, int iFormat);      // Time to string
+xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);  // Add/subtract time
+int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2);  // Time difference
+int64 xrtYear(xtime iTime);                      // Get year
+int xrtMonth(xtime iTime);                       // Get month
+int xrtDay(xtime iTime);                         // Get day
+```
+
+### Value Dynamic Types
+
+```c
+// Create values
+xvalue xvoCreateNull();                          // Null
+xvalue xvoCreateBool(bool bVal);                 // Boolean
+xvalue xvoCreateInt(int64 iVal);                 // Integer
+xvalue xvoCreateFloat(double fVal);              // Float
+xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc);  // String
+xvalue xvoCreateTime(xtime tVal);                // Time
+xvalue xvoCreateArray();                         // Array
+xvalue xvoCreateList();                          // List
+xvalue xvoCreateColl();                          // Collection
+xvalue xvoCreateTable();                         // Table (dictionary)
+
+// Reference counting
+void xvoAddRef(xvalue pVal);                     // Add reference
+void xvoUnref(xvalue pVal);                      // Remove reference (auto-release at zero)
+
+// Array operations
+xvoArrayAppendInt(arr, value);                   // Append integer
+xvoArrayAppendText(arr, str, len, colloc);       // Append string
+xvalue xvoArrayGetValue(xvalue pArr, uint32 index);  // Get value
+uint32 xvoArrayItemCount(xvalue pArr);           // Get count
+
+// Table operations
+xvoTableSetInt(table, key, keylen, value);       // Set integer
+xvoTableSetText(table, key, keylen, str, len, colloc);  // Set string
+str xvoTableGetText(xvalue pTbl, str key, uint32 kl);  // Get string
+```
+
+### JSON Processing
+
+```c
+xvalue xrtParseJSON(str sText, size_t iSize);    // Parse JSON string
+xvalue xrtParseJSON_File(str sFile);             // Parse JSON file
+str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize);  // Generate JSON
+int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat);    // Save to file
 ```
 
 ---
@@ -330,9 +427,9 @@ str temp2 = xrtTempMemory(2048);  // Use slot 1
 // ... After cycling to slot 31, slot 0 is automatically freed
 ```
 
-### 2. Reference Counting
+### 2. Reference Counting GC
 
-Value type system uses reference counting for automatic memory management:
+Value type system uses 26-bit reference counting for automatic memory management:
 
 ```c
 xvalue v = xvoCreateInt(123);  // RefCount = 1
@@ -343,31 +440,85 @@ xvoUnref(v);                    // RefCount = 0, auto-release
 
 ### 3. Multi-Level Memory Pools
 
-- **MemUnit**: 256-byte page management
+- **BSMM**: Block struct memory management, 256 elements per page
+- **MemUnit**: 256-byte page management, supports GC mark-sweep
 - **FSMemPool**: Fixed-size memory pool
-- **MemPool**: General memory pool (supports multiple sizes)
+- **MemPool**: General memory pool, supports multiple sizes, GC recycling
 
 ### 4. Distributed ID Generation
 
-192-bit unique ID containing timestamp, IP address, CPU tick, and random number:
+192-bit unique ID containing timestamp, IP address, CPU clock, and random number:
 
 ```c
 str xid = xrtMakeXIDS();  // Generate globally unique ID
+xrtFree(xid);
+```
+
+### 5. 16 Value Data Types
+
+| Type | Description | Type | Description |
+|------|-------------|------|-------------|
+| Empty | Non-existent data | Null | Null value |
+| Bool | Boolean | Int | 64-bit integer |
+| Float | Double precision float | Text | String |
+| Time | Timestamp | Point | Pointer |
+| Func | Function pointer | Array | Array |
+| List | List | Coll | Collection |
+| Table | Table/Dictionary | Struct | Struct |
+| Object | Object | Custom | Custom |
+
+### 6. High-Performance Hashing
+
+- **32-bit**: nmhash32x (BSD-2 license)
+- **64-bit**: rapidhash (BSD-2 license), provides Micro/Nano variants
+
+### 7. JSON SAX Mode
+
+Event-driven SAX mode for parsing/generating JSON with high memory efficiency:
+
+```c
+// Parse: stream reading, parse with callbacks
+xrtJsonParseSAX(jsonText, len, callback);
+
+// Generate: incremental writing, smart expansion
+json_sax_print_hd hd = xrtJsonPrintStart(&choice);
+xrtJsonPrintObject(hd, NULL, JSON_SAX_START);
+xrtJsonPrintString(hd, &key, &value);
+xrtJsonPrintObject(hd, NULL, JSON_SAX_FINISH);
+str result = xrtJsonPrintFinish(hd, &len, NULL);
 ```
 
 ---
 
 ## 🧪 Testing
 
-The project includes 30+ test modules covering all functionality:
+The project includes 31 test modules covering all functionality:
 
 ```c
 // Enable modules to test in test.c
 Test_Base(xCore);        // Basic functionality test
+Test_Charset(xCore);     // Character set test
 Test_String(xCore);      // String test
+Test_File(xCore);        // File test
 Test_Value_Basic(xCore); // Value type test
 Test_JSON(xCore);        // JSON test
+Test_Template(xCore);    // Template engine test
+Test_Dict(xCore);        // Dictionary test
+Test_MemPool(xCore);     // Memory pool test
 // ...
+```
+
+Run tests:
+
+```batch
+# Windows
+build_TCC_TEST_x64.bat
+cd release\x64
+test.exe
+
+# Linux/macOS
+bash build_test.sh
+./test
 ```
 
 ---

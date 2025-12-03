@@ -73,14 +73,27 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize);
 
 **示例：**
 ```c
-str utf8 = "你好，世界！";
-u16str utf16 = xrtUTF8to16(utf8, 0);
-if (utf16) {
-    // 使用 UTF-16 字符串
-    wprintf(L"%ls\n", utf16);
-    xrtFree(utf16);
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    str utf8 = (str)"你好，世界！";
+    u16str utf16 = xrtUTF8to16(utf8, 0);
+    if (utf16) {
+        printf("UTF-16 字符数: %" PRId64 "\n", xCore.iRet);
+        xrtFree(utf16);
+    }
+    
+    xrtUnit();
+    return 0;
 }
 ```
+
+**补充说明：**
+- 转换后的字符数存储在 `xCore.iRet` 中
+- 超出 UTF-16 范围的字符（5-6字节 UTF-8）会被替换为 `0xFFFD`
 
 ---
 
@@ -105,13 +118,28 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize);
 
 **示例：**
 ```c
-str utf8 = "Hello";
-u32str utf32 = xrtUTF8to32(utf8, 0);
-if (utf32) {
-    // UTF-32 每个字符占4字节
-    xrtFree(utf32);
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    str utf8 = (str)"Hello 世界";
+    u32str utf32 = xrtUTF8to32(utf8, 0);
+    if (utf32) {
+        printf("UTF-32 字符数: %" PRId64 "\n", xCore.iRet);  // 8
+        // UTF-32 每个字符占 4 字节
+        xrtFree(utf32);
+    }
+    
+    xrtUnit();
+    return 0;
 }
 ```
+
+**补充说明：**
+- UTF-32 可以表示所有 Unicode 字符，包括 5-6 字节的 UTF-8 字符
+- 转换后的字符数存储在 `xCore.iRet` 中
 
 ---
 
@@ -136,13 +164,29 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize);
 
 **示例：**
 ```c
-u16str utf16 = L"你好";
-u8str utf8 = xrtUTF16to8(utf16, 0);
-if (utf8) {
-    printf("%s\n", utf8);
-    xrtFree(utf8);
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 注意：Windows 上 L"你好" 是 UTF-16
+    u16str utf16 = (u16str)L"你好世界";
+    u8str utf8 = xrtUTF16to8(utf16, 0);
+    if (utf8) {
+        printf("UTF-8: %s\n", utf8);
+        printf("UTF-8 字节数: %" PRId64 "\n", xCore.iRet);
+        xrtFree(utf8);
+    }
+    
+    xrtUnit();
+    return 0;
 }
 ```
+
+**补充说明：**
+- 转换后的字节数存储在 `xCore.iRet` 中
+- 错误的代理对会被替换为 `0xEFBFBD`（UTF-8 的替换字符）
 
 ---
 
@@ -237,17 +281,32 @@ XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise);
 
 **示例：**
 ```c
-// 不修改源数据
-u16str le_text = L"Hello";
-u16str be_text = xrtUTF16LEtoBE(le_text, 0, FALSE);
-// 使用 be_text
-xrtFree(be_text);
+#include "xrt.h"
+#include <stdio.h>
 
-// 直接修改源数据
-u16str text = xrtMalloc(100 * sizeof(u16));
-// ... 填充数据
-xrtUTF16LEtoBE(text, 0, TRUE);  // 直接转换
-xrtFree(text);
+int main() {
+    xrtInit();
+    
+    // 不修改源数据，创建新字符串
+    u16str le_text = (u16str)L"Hello";
+    u16str be_text = xrtUTF16LEtoBE(le_text, 0, FALSE);
+    printf("转换完成，原始数据不变\n");
+    xrtFree(be_text);
+    
+    // 直接修改源数据（需要是可写内存）
+    u16str text = xrtMalloc(10 * sizeof(u16));
+    text[0] = 0x4F60;  // '你'
+    text[1] = 0x597D;  // '好'
+    text[2] = 0;
+    
+    printf("转换前: 0x%04X 0x%04X\n", text[0], text[1]);
+    xrtUTF16LEtoBE(text, 2, TRUE);  // 原地转换
+    printf("转换后: 0x%04X 0x%04X\n", text[0], text[1]);
+    
+    xrtFree(text);
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -311,21 +370,44 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
 
 **示例：**
 ```c
-// UTF-8 转 UTF-16
-str utf8 = "你好";
-u16str utf16 = xrtConvCharset(utf8, 0, XRT_CP_UTF8, XRT_CP_UTF16);
-xrtFree(utf16);
+#include "xrt.h"
+#include <stdio.h>
 
-// 自动检测输入编码，转换为 UTF-8
-ptr data = ReadFile("unknown.txt");
-str utf8 = xrtConvCharset(data, 0, XRT_CP_AUTO, XRT_CP_UTF8);
-xrtFree(utf8);
-
-// 本机编码转 UTF-8
-str oem = "本机编码文本";
-str utf8 = xrtConvCharset(oem, 0, XRT_CP_OEM, XRT_CP_UTF8);
-xrtFree(utf8);
+int main() {
+    xrtInit();
+    
+    // UTF-8 转 UTF-16
+    str utf8 = (str)"你好";
+    u16str utf16 = xrtConvCharset(utf8, 0, XRT_CP_UTF8, XRT_CP_UTF16);
+    if (utf16) {
+        printf("转换成功\n");
+        xrtFree(utf16);
+    }
+    
+    // 本机编码转 UTF-8（Windows 上可能是 GBK）
+    str oem = (str)"本机编码文本";
+    str utf8_out = xrtConvCharset(oem, 0, XRT_CP_OEM, XRT_CP_UTF8);
+    if (utf8_out) {
+        printf("UTF-8: %s\n", utf8_out);
+        xrtFree(utf8_out);
+    }
+    
+    // UTF-16 转 UTF-32 BE
+    u16str src16 = (u16str)L"Test";
+    u32str dst32be = xrtConvCharset(src16, 0, XRT_CP_UTF16, XRT_CP_UTF32_BE);
+    if (dst32be) {
+        printf("UTF-32 BE 转换成功\n");
+        xrtFree(dst32be);
+    }
+    
+    xrtUnit();
+    return 0;
+}
 ```
+
+**平台说明：**
+- Windows：支持所有 Windows 代码页（通过 Win32 API）
+- Linux/macOS：仅支持 UTF-8/16/32 互转，OEM 固定为 UTF-8
 
 ---
 
@@ -350,12 +432,34 @@ XXAPI bool xrtIsUTF8(str sText, size_t iSize);
 
 **示例：**
 ```c
-str text1 = "Hello 世界";
-bool is_utf8 = xrtIsUTF8(text1, 0);  // TRUE
+#include "xrt.h"
+#include <stdio.h>
 
-char text2[] = {0xFF, 0xFE, 0x00};
-is_utf8 = xrtIsUTF8(text2, 3);       // FALSE
+int main() {
+    xrtInit();
+    
+    str text1 = (str)"Hello 世界";
+    bool is_utf8 = xrtIsUTF8(text1, 0);  // TRUE
+    printf("\"你好世界\" 是 UTF-8: %s\n", is_utf8 ? "true" : "false");
+    
+    // 非法 UTF-8 序列
+    unsigned char text2[] = {0xFF, 0xFE, 0x00};
+    is_utf8 = xrtIsUTF8((str)text2, 2);  // FALSE
+    printf("0xFF 0xFE 是 UTF-8: %s\n", is_utf8 ? "true" : "false");
+    
+    // 空字符串返回 TRUE
+    is_utf8 = xrtIsUTF8((str)"", 0);  // TRUE
+    printf("空字符串是 UTF-8: %s\n", is_utf8 ? "true" : "false");
+    
+    xrtUnit();
+    return 0;
+}
 ```
+
+**补充说明：**
+- `NULL` 输入返回 `FALSE`
+- 空字符串返回 `TRUE`
+- 检测规则：检查多字节序列是否以 `10xxxxxx` 开头，检查是否包含 `0xFE`/`0xFF`
 
 ---
 
@@ -392,44 +496,53 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM);
 
 **示例：**
 ```c
-ptr data = ReadFile("unknown.txt");
-size_t size = GetFileSize("unknown.txt");
+#include "xrt.h"
+#include <stdio.h>
 
-int charset = xrtDetectCharset(data, size, TRUE);
-
-// 检查是否有BOM
-if (charset & XRT_CP_BOM) {
-    printf("File has BOM\n");
-    charset &= XRT_MASK_BOM;  // 去除BOM标记
+int main() {
+    xrtInit();
+    
+    // 模拟文件数据（带 UTF-8 BOM）
+    unsigned char data_with_bom[] = {0xEF, 0xBB, 0xBF, 'H', 'e', 'l', 'l', 'o'};
+    size_t size = sizeof(data_with_bom);
+    
+    int charset = xrtDetectCharset(data_with_bom, size, TRUE);
+    
+    // 检查是否有 BOM
+    if (charset & XRT_CP_BOM) {
+        printf("检测到 BOM 标记\n");
+        int pure_charset = charset & XRT_MASK_BOM;  // 去除 BOM 标记
+        
+        switch (pure_charset) {
+            case XRT_CP_UTF8:
+                printf("编码: UTF-8 with BOM\n");
+                break;
+            case XRT_CP_UTF16:
+                printf("编码: UTF-16 LE with BOM\n");
+                break;
+            case XRT_CP_UTF16_BE:
+                printf("编码: UTF-16 BE with BOM\n");
+                break;
+        }
+    } else {
+        printf("无 BOM 标记\n");
+    }
+    
+    // 检测无 BOM 的文本
+    str plain_utf8 = (str)"你好世界";
+    charset = xrtDetectCharset(plain_utf8, 0, TRUE);
+    printf("纯 UTF-8 检测结果: %d (XRT_CP_UTF8=%d)\n", charset, XRT_CP_UTF8);
+    
+    xrtUnit();
+    return 0;
 }
-
-// 识别字符集
-switch (charset) {
-    case XRT_CP_UTF8:
-        printf("UTF-8 encoding\n");
-        break;
-    case XRT_CP_UTF16:
-        printf("UTF-16 LE encoding\n");
-        break;
-    case XRT_CP_UTF16_BE:
-        printf("UTF-16 BE encoding\n");
-        break;
-    case XRT_CP_UTF32:
-        printf("UTF-32 LE encoding\n");
-        break;
-    case XRT_CP_UTF32_BE:
-        printf("UTF-32 BE encoding\n");
-        break;
-    case XRT_CP_OEM:
-        printf("OEM/ANSI encoding\n");
-        break;
-    case XRT_CP_BINARY:
-        printf("Binary file\n");
-        break;
-}
-
-xrtFree(data);
 ```
+
+**检测策略：**
+1. 首先检测 BOM 标记
+2. 然后检测是否为合法的 UTF-8
+3. 根据 `\0` 的分布推测 UTF-16/UTF-32
+4. 都不符合则返回 `XRT_CP_OEM`（Windows）或 `XRT_CP_BINARY`（Linux）
 
 ---
 
@@ -446,20 +559,41 @@ XXAPI int xrtGetCharSize(int iCP);
 - `iCP` - 字符集代码页
 
 **返回值：**
-- 该字符集每个字符占用的字节数
-- `-1` 表示可变长度编码
+- `1` - 单字节编码（UTF-8、OEM 等）
+- `2` - 双字节编码（UTF-16、UTF-16 BE）
+- `4` - 四字节编码（UTF-32、UTF-32 BE）
 
-**字符大小：**
-- `XRT_CP_UTF8` → `-1` (可变: 1-6字节)
-- `XRT_CP_UTF16` → `2` (固定2字节，不考虑代理对)
-- `XRT_CP_UTF32` → `4` (固定4字节)
-- `XRT_CP_OEM` → `-1` (可变)
+**字符大小说明：**
+- `XRT_CP_UTF8` → `1`（注意：这是基本单位，实际字符可能 1-6 字节）
+- `XRT_CP_UTF16` / `XRT_CP_UTF16_BE` → `2`
+- `XRT_CP_UTF32` / `XRT_CP_UTF32_BE` → `4`
+- `XRT_CP_OEM` → `1`（基本单位）
+- 其他 → `1`
 
 **示例：**
 ```c
-int size_utf8 = xrtGetCharSize(XRT_CP_UTF8);    // -1
-int size_utf16 = xrtGetCharSize(XRT_CP_UTF16);  // 2
-int size_utf32 = xrtGetCharSize(XRT_CP_UTF32);  // 4
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    int size_utf8 = xrtGetCharSize(XRT_CP_UTF8);      // 1
+    int size_utf16 = xrtGetCharSize(XRT_CP_UTF16);    // 2
+    int size_utf32 = xrtGetCharSize(XRT_CP_UTF32);    // 4
+    int size_utf16be = xrtGetCharSize(XRT_CP_UTF16_BE); // 2
+    
+    printf("UTF-8 基本单位: %d 字节\n", size_utf8);
+    printf("UTF-16 单位: %d 字节\n", size_utf16);
+    printf("UTF-32 单位: %d 字节\n", size_utf32);
+    
+    // 带 BOM 的字符集也能正确处理（会自动去除 BOM 标记）
+    int size_with_bom = xrtGetCharSize(XRT_CP_UTF16 | XRT_CP_BOM);  // 2
+    printf("带BOM的UTF-16: %d 字节\n", size_with_bom);
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -494,15 +628,28 @@ size_t len32 = u32len(text32);  // 5
 ### 1. 跨平台文本处理
 
 ```c
-// Windows: 使用 UTF-16（宽字符）
-#ifdef _WIN32
-    u16str wtext = xrtUTF8to16("文本", 0);
-    MessageBoxW(NULL, wtext, L"Title", MB_OK);
+#include "xrt.h"
+#include <stdio.h>
+
+void DisplayMessage(str utf8_text) {
+#if defined(_WIN32) || defined(_WIN64)
+    // Windows: 转换为 UTF-16 用于 Win32 API
+    u16str wtext = xrtUTF8to16(utf8_text, 0);
+    // MessageBoxW(NULL, (LPCWSTR)wtext, L"Title", MB_OK);
+    printf("Windows: 已转换为 UTF-16\n");
     xrtFree(wtext);
 #else
     // Linux/macOS: 直接使用 UTF-8
-    printf("%s\n", "文本");
+    printf("%s\n", utf8_text);
 #endif
+}
+
+int main() {
+    xrtInit();
+    DisplayMessage((str)"你好世界");
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -510,24 +657,40 @@ size_t len32 = u32len(text32);  // 5
 ### 2. 文件编码转换
 
 ```c
-// 读取文件并自动检测编码
-ptr file_data = xrtFileGetAll("input.txt");
-size_t file_size = xCore.iRet;
+#include "xrt.h"
+#include <stdio.h>
 
-int detected = xrtDetectCharset(file_data, file_size, TRUE);
-int charset = detected & XRT_MASK_BOM;
-
-// 转换为 UTF-8
-str utf8_text = xrtConvCharset(
-    file_data, file_size,
-    charset, XRT_CP_UTF8
-);
-
-// 保存为 UTF-8
-xrtFileWriteAll("output.txt", utf8_text, 0, XRT_CP_UTF8);
-
-xrtFree(file_data);
-xrtFree(utf8_text);
+int main() {
+    xrtInit();
+    
+    // 读取文件
+    ptr file_data = xrtFileGetAll((str)"input.txt");
+    if (file_data == NULL) {
+        printf("文件读取失败\n");
+        xrtUnit();
+        return 1;
+    }
+    size_t file_size = xCore.iRet;
+    
+    // 检测编码
+    int detected = xrtDetectCharset(file_data, file_size, TRUE);
+    int charset = detected & XRT_MASK_BOM;
+    printf("检测到编码: %d\n", charset);
+    
+    // 转换为 UTF-8
+    str utf8_text = xrtConvCharset(file_data, file_size, charset, XRT_CP_UTF8);
+    if (utf8_text) {
+        printf("转换成功，UTF-8 内容:\n%s\n", utf8_text);
+        
+        // 保存为 UTF-8 文件
+        xrtFilePutAll((str)"output.txt", utf8_text, 0);
+        xrtFree(utf8_text);
+    }
+    
+    xrtFree(file_data);
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -535,14 +698,39 @@ xrtFree(utf8_text);
 ### 3. 网络数据处理
 
 ```c
-// 接收 UTF-16 数据并转换为 UTF-8
-u16str received_data = ReceiveFromNetwork();
-str utf8_data = xrtUTF16to8(received_data, 0);
+#include "xrt.h"
+#include <stdio.h>
 
-// 处理 UTF-8 数据
-ProcessText(utf8_data);
+// 模拟网络接收的 UTF-16 数据
+u16str SimulateReceiveFromNetwork() {
+    u16str data = xrtMalloc(20 * sizeof(u16));
+    data[0] = 0x4F60;  // '你'
+    data[1] = 0x597D;  // '好'
+    data[2] = 0;
+    return data;
+}
 
-xrtFree(utf8_data);
+void ProcessText(str text) {
+    printf("处理文本: %s\n", text);
+}
+
+int main() {
+    xrtInit();
+    
+    // 接收 UTF-16 数据
+    u16str received_data = SimulateReceiveFromNetwork();
+    
+    // 转换为 UTF-8 处理
+    str utf8_data = xrtUTF16to8(received_data, 0);
+    if (utf8_data) {
+        ProcessText(utf8_data);
+        xrtFree(utf8_data);
+    }
+    
+    xrtFree(received_data);
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -550,19 +738,40 @@ xrtFree(utf8_data);
 ### 4. 国际化字符串
 
 ```c
-// 多语言文本处理
-str chinese = "你好世界";
-str english = "Hello World";
+#include "xrt.h"
+#include <stdio.h>
 
-// 统一转换为 UTF-16 在 Windows 上显示
-u16str wchinese = xrtUTF8to16(chinese, 0);
-u16str wenglish = xrtUTF8to16(english, 0);
+void DisplayText(u16str wtext) {
+    // 转回 UTF-8 显示
+    str utf8 = xrtUTF16to8(wtext, 0);
+    printf("显示: %s\n", utf8);
+    xrtFree(utf8);
+}
 
-DisplayText(wchinese);
-DisplayText(wenglish);
-
-xrtFree(wchinese);
-xrtFree(wenglish);
+int main() {
+    xrtInit();
+    
+    // 多语言文本处理
+    str chinese = (str)"你好世界";
+    str english = (str)"Hello World";
+    str japanese = (str)"こんにちは";
+    
+    // 统一转换为 UTF-16
+    u16str wchinese = xrtUTF8to16(chinese, 0);
+    u16str wenglish = xrtUTF8to16(english, 0);
+    u16str wjapanese = xrtUTF8to16(japanese, 0);
+    
+    DisplayText(wchinese);
+    DisplayText(wenglish);
+    DisplayText(wjapanese);
+    
+    xrtFree(wchinese);
+    xrtFree(wenglish);
+    xrtFree(wjapanese);
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -572,15 +781,28 @@ xrtFree(wenglish);
 ### 1. 统一使用 UTF-8
 
 ```c
-// ✅ 推荐：内部统一使用 UTF-8
-str internal_text = "内部文本";
+#include "xrt.h"
+#include <stdio.h>
 
-// 只在需要时才转换
-#ifdef _WIN32
+int main() {
+    xrtInit();
+    
+    // ✅ 推荐：内部统一使用 UTF-8
+    str internal_text = (str)"内部文本";
+    
+    // 只在需要时才转换
+#if defined(_WIN32) || defined(_WIN64)
     u16str display_text = xrtUTF8to16(internal_text, 0);
-    // ... 使用 display_text
+    printf("已转换为 UTF-16 用于 Win32 API\n");
+    // ... 使用 display_text 调用 Windows API
     xrtFree(display_text);
+#else
+    printf("直接使用 UTF-8: %s\n", internal_text);
 #endif
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -588,17 +810,37 @@ str internal_text = "内部文本";
 ### 2. 自动编码检测
 
 ```c
-// ✅ 处理未知编码的文件
-ptr data = LoadFile("unknown.txt");
-size_t size = GetFileSize("unknown.txt");
+#include "xrt.h"
+#include <stdio.h>
 
-// 自动转换为 UTF-8
-str utf8 = xrtConvCharset(data, size, XRT_CP_AUTO, XRT_CP_UTF8);
-if (utf8) {
-    ProcessUTF8(utf8);
-    xrtFree(utf8);
+int main() {
+    xrtInit();
+    
+    // ✅ 处理未知编码的文件
+    ptr data = xrtFileGetAll((str)"unknown.txt");
+    if (data == NULL) {
+        printf("文件读取失败\n");
+        xrtUnit();
+        return 1;
+    }
+    size_t size = xCore.iRet;
+    
+    // 检测编码
+    int charset = xrtDetectCharset(data, size, TRUE);
+    int pure_charset = charset & XRT_MASK_BOM;
+    printf("检测到编码: %d\n", pure_charset);
+    
+    // 转换为 UTF-8
+    str utf8 = xrtConvCharset(data, size, pure_charset, XRT_CP_UTF8);
+    if (utf8) {
+        printf("UTF-8 内容:\n%s\n", utf8);
+        xrtFree(utf8);
+    }
+    
+    xrtFree(data);
+    xrtUnit();
+    return 0;
 }
-xrtFree(data);
 ```
 
 ---
@@ -606,24 +848,42 @@ xrtFree(data);
 ### 3. BOM 处理
 
 ```c
-// 检测并处理 BOM
-int charset = xrtDetectCharset(data, size, TRUE);
+#include "xrt.h"
+#include <stdio.h>
 
-if (charset & XRT_CP_BOM) {
-    // 有 BOM，跳过 BOM 字节
-    ptr text_start = data;
-    size_t bom_size = 0;
+int main() {
+    xrtInit();
     
-    switch (charset & XRT_MASK_BOM) {
-        case XRT_CP_UTF8:    bom_size = 3; break;  // EF BB BF
-        case XRT_CP_UTF16:   bom_size = 2; break;  // FF FE
-        case XRT_CP_UTF16_BE:bom_size = 2; break;  // FE FF
-        case XRT_CP_UTF32:   bom_size = 4; break;  // FF FE 00 00
-        case XRT_CP_UTF32_BE:bom_size = 4; break;  // 00 00 FE FF
+    // 模拟带 BOM 的文件数据
+    unsigned char data[] = {0xEF, 0xBB, 0xBF, 'H', 'e', 'l', 'l', 'o', '\0'};
+    size_t size = sizeof(data) - 1;
+    
+    // 检测编码
+    int charset = xrtDetectCharset(data, size, TRUE);
+    
+    if (charset & XRT_CP_BOM) {
+        printf("有 BOM 标记\n");
+        
+        // 跳过 BOM 字节
+        ptr text_start = data;
+        size_t bom_size = 0;
+        
+        switch (charset & XRT_MASK_BOM) {
+            case XRT_CP_UTF8:     bom_size = 3; break;  // EF BB BF
+            case XRT_CP_UTF16:    bom_size = 2; break;  // FF FE
+            case XRT_CP_UTF16_BE: bom_size = 2; break;  // FE FF
+            case XRT_CP_UTF32:    bom_size = 4; break;  // FF FE 00 00
+            case XRT_CP_UTF32_BE: bom_size = 4; break;  // 00 00 FE FF
+        }
+        
+        printf("BOM 大小: %zu 字节\n", bom_size);
+        printf("跳过 BOM 后的内容: %s\n", (char*)(text_start + bom_size));
+    } else {
+        printf("无 BOM 标记\n");
     }
     
-    text_start += bom_size;
-    size -= bom_size;
+    xrtUnit();
+    return 0;
 }
 ```
 
@@ -632,19 +892,45 @@ if (charset & XRT_CP_BOM) {
 ### 4. 字节序兼容性
 
 ```c
-// 网络传输：统一使用大端序
-u16str local_text = L"数据";
+#include "xrt.h"
+#include <stdio.h>
 
-// 转换为大端序后发送
-u16str be_text = xrtUTF16LEtoBE(local_text, 0, FALSE);
-SendToNetwork(be_text);
-xrtFree(be_text);
+void SendToNetwork(u16str data) {
+    printf("发送数据: 0x%04X 0x%04X\n", data[0], data[1]);
+}
 
-// 接收大端序数据并转换回本机序
-u16str received = ReceiveFromNetwork();
-u16str le_text = xrtUTF16LEtoBE(received, 0, FALSE);
-ProcessText(le_text);
-xrtFree(le_text);
+int main() {
+    xrtInit();
+    
+    // 模拟本地 UTF-16 数据
+    u16str local_text = xrtMalloc(10 * sizeof(u16));
+    local_text[0] = 0x4F60;  // '你' LE
+    local_text[1] = 0x597D;  // '好' LE
+    local_text[2] = 0;
+    
+    printf("本地数据 (LE): 0x%04X 0x%04X\n", local_text[0], local_text[1]);
+    
+    // 网络传输：统一使用大端序
+    u16str be_text = xrtUTF16LEtoBE(local_text, 2, FALSE);
+    printf("网络数据 (BE): 0x%04X 0x%04X\n", be_text[0], be_text[1]);
+    SendToNetwork(be_text);
+    xrtFree(be_text);
+    
+    // 接收大端序数据并转换回本机序
+    u16str received_be = xrtMalloc(10 * sizeof(u16));
+    received_be[0] = 0x604F;  // '你' BE
+    received_be[1] = 0x7D59;  // '好' BE
+    received_be[2] = 0;
+    
+    u16str le_text = xrtUTF16LEtoBE(received_be, 2, FALSE);
+    printf("转换后 (LE): 0x%04X 0x%04X\n", le_text[0], le_text[1]);
+    xrtFree(le_text);
+    xrtFree(received_be);
+    
+    xrtFree(local_text);
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -654,23 +940,53 @@ xrtFree(le_text);
 ### 1. 避免重复转换
 
 ```c
-// ❌ 低效：重复转换
-for (int i = 0; i < 1000; i++) {
-    u16str wtext = xrtUTF8to16(utf8_array[i], 0);
-    Display(wtext);
-    xrtFree(wtext);
+#include "xrt.h"
+#include <stdio.h>
+
+void Display(u16str text) {
+    str utf8 = xrtUTF16to8(text, 0);
+    printf("%s\n", utf8);
+    xrtFree(utf8);
 }
 
-// ✅ 高效：预转换
-u16str* wtext_array = xrtMalloc(1000 * sizeof(u16str));
-for (int i = 0; i < 1000; i++) {
-    wtext_array[i] = xrtUTF8to16(utf8_array[i], 0);
+int main() {
+    xrtInit();
+    
+    // 模拟数据
+    str utf8_array[3] = {
+        (str)"文本1",
+        (str)"文本2",
+        (str)"文本3"
+    };
+    int count = 3;
+    
+    // ❌ 低效：重复转换
+    printf("低效方式:\n");
+    for (int i = 0; i < count; i++) {
+        u16str wtext = xrtUTF8to16(utf8_array[i], 0);
+        Display(wtext);
+        xrtFree(wtext);
+    }
+    
+    // ✅ 高效：预转换
+    printf("高效方式:\n");
+    u16str* wtext_array = xrtMalloc(count * sizeof(u16str));
+    for (int i = 0; i < count; i++) {
+        wtext_array[i] = xrtUTF8to16(utf8_array[i], 0);
+    }
+    // 多次使用已转换的数据
+    for (int i = 0; i < count; i++) {
+        Display(wtext_array[i]);
+    }
+    // 统一释放
+    for (int i = 0; i < count; i++) {
+        xrtFree(wtext_array[i]);
+    }
+    xrtFree(wtext_array);
+    
+    xrtUnit();
+    return 0;
 }
-// ... 使用
-for (int i = 0; i < 1000; i++) {
-    xrtFree(wtext_array[i]);
-}
-xrtFree(wtext_array);
 ```
 
 ---
@@ -678,13 +994,32 @@ xrtFree(wtext_array);
 ### 2. 使用原地转换
 
 ```c
-// 字节序转换时，如果可以修改源数据
-u16str text = AllocateAndFillData();
+#include "xrt.h"
+#include <stdio.h>
 
-// 原地转换，无需额外内存
-xrtUTF16LEtoBE(text, 0, TRUE);
-// ... 使用
-xrtFree(text);
+int main() {
+    xrtInit();
+    
+    // 分配可写内存并填充数据
+    u16str text = xrtMalloc(10 * sizeof(u16));
+    text[0] = 0x0048;  // 'H'
+    text[1] = 0x0069;  // 'i'
+    text[2] = 0;
+    
+    printf("转换前: 0x%04X 0x%04X\n", text[0], text[1]);
+    
+    // ✅ 原地转换，无需额外内存
+    xrtUTF16LEtoBE(text, 2, TRUE);
+    printf("转换后: 0x%04X 0x%04X\n", text[0], text[1]);
+    
+    // 再转回来
+    xrtUTF16LEtoBE(text, 2, TRUE);
+    printf("转回后: 0x%04X 0x%04X\n", text[0], text[1]);
+    
+    xrtFree(text);
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -694,14 +1029,31 @@ xrtFree(text);
 ### 1. 忘记释放内存
 
 ```c
-// ❌ 内存泄漏
-u16str text = xrtUTF8to16("text", 0);
-// 忘记 xrtFree(text);
+#include "xrt.h"
+#include <stdio.h>
 
-// ✅ 正确
-u16str text = xrtUTF8to16("text", 0);
-UseText(text);
-xrtFree(text);
+void UseText(u16str text) {
+    str utf8 = xrtUTF16to8(text, 0);
+    printf("%s\n", utf8);
+    xrtFree(utf8);
+}
+
+int main() {
+    xrtInit();
+    
+    // ❌ 内存泄漏
+    u16str text1 = xrtUTF8to16((str)"text", 0);
+    UseText(text1);
+    // 忘记 xrtFree(text1);
+    
+    // ✅ 正确
+    u16str text2 = xrtUTF8to16((str)"text", 0);
+    UseText(text2);
+    xrtFree(text2);  // 记得释放
+    
+    xrtUnit();
+    return 0;
+}
 ```
 
 ---
@@ -709,13 +1061,38 @@ xrtFree(text);
 ### 2. 字符数与字节数混淆
 
 ```c
-// ❌ 错误：UTF-8 字节数不等于字符数
-str utf8 = "你好";  // 6字节，2个汉字
-u16str utf16 = xrtUTF8to16(utf8, 2);  // 错误！2是字节数
+#include "xrt.h"
+#include <stdio.h>
+#include <string.h>
 
-// ✅ 正确：UTF-8 转换时用字节数
-u16str utf16 = xrtUTF8to16(utf8, 6);  // 或用 0 自动计算
+int main() {
+    xrtInit();
+    
+    str utf8 = (str)"你好";  // 6字节，2个汉字
+    size_t byte_len = strlen((char*)utf8);
+    printf("UTF-8 字节数: %zu\n", byte_len);  // 6
+    
+    // ❌ 错误：把字符数当作字节数
+    // u16str wrong = xrtUTF8to16(utf8, 2);  // 错误！2是字节数，不是字符数
+    
+    // ✅ 正确：UTF-8 转换时用字节数，或用 0 自动计算
+    u16str correct1 = xrtUTF8to16(utf8, byte_len);  // 用字节数
+    u16str correct2 = xrtUTF8to16(utf8, 0);         // 自动计算
+    
+    printf("UTF-16 字符数: %" PRId64 "\n", xCore.iRet);  // 2
+    
+    xrtFree(correct1);
+    xrtFree(correct2);
+    
+    xrtUnit();
+    return 0;
+}
 ```
+
+**说明：**
+- UTF-8 转换函数的 `iSize` 参数是**字节数**
+- UTF-16/UTF-32 转换函数的 `iSize` 参数是**字符数**
+- 推荐使用 `0` 让函数自动计算长度
 
 ---
 
