@@ -143,6 +143,7 @@ xrtFreeTempMemory
 xrtGet
 xrtGetCharSize
 xrtGetEOF
+xrtGetTLS
 xrtHash32
 xrtHash32_WithSeed
 xrtHash64
@@ -158,6 +159,7 @@ xrtI32ToStr
 xrtI64ToStr
 xrtInStr
 xrtInit
+xrtInitTLS
 xrtIsLeapYear
 xrtIsUTF8
 xrtJsonGetStringInfo
@@ -327,6 +329,7 @@ xrtUTF32to8
 xrtUTF8to16
 xrtUTF8to32
 xrtUnit
+xrtUnitTLS
 xrtWeekday
 xrtWrite
 xrtYear

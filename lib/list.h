@@ -106,11 +106,10 @@ XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey)
 {
 	int64* pNode = xrtAVLTreeSearch(&objList->AVLT, &iKey);
 	if ( pNode ) {
-		#if defined(__x86_64__) || defined(_M_X64)
-			return (ptr)pNode[1];
-		#elif defined(__i386__) || defined(_M_IX86)
-			return ((ptr*)&pNode[1])[0];
-		#endif
+		// 指针大小可能为 4 或 8 字节，使用 memcpy 确保跨平台兼容性
+		ptr result;
+		memcpy(&result, &pNode[1], sizeof(ptr));
+		return result;
 	}
 	return NULL;
 }

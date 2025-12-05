@@ -46,7 +46,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				// 最多读取 64KB 数据做编码推测（数据越多推测准确性越高，数据越少推测速度越快）
 				size_t iReadSize = stuSize.QuadPart > 65536 ? 65536 : stuSize.QuadPart;
 				str sText = xrtMalloc(iReadSize);
-				if ( objFile == NULL ) {
+				if ( sText == NULL ) {
 					CloseHandle(hFile);
 					xrtFree(objFile);
 					return NULL;
@@ -165,7 +165,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				// 最多读取 64KB 数据做编码推测（数据越多推测准确性越高，数据越少推测速度越快）
 				size_t iReadSize = fileStat.st_size > 65536 ? 65536 : fileStat.st_size;
 				str sText = xrtMalloc(iReadSize);
-				if ( objFile == NULL ) {
+				if ( sText == NULL ) {
 					close(fd);
 					xrtFree(objFile);
 					return NULL;

@@ -123,8 +123,9 @@
 	
 	// TLS 关键字定义 ( 跨平台支持 )
 	#if defined(_WIN32) || defined(_WIN64)
-		#ifdef __TINYC__
-			// TCC 不支持 __declspec(thread)，使用 Windows TLS API
+		#if defined(__TINYC__) || defined(BUILD_DLL)
+			// TCC 不支持 __declspec(thread)
+			// Windows DLL 不支持静态 TLS (__thread / __declspec(thread))，必须使用 Windows TLS API
 			#define XRT_USE_WIN_TLS_API 1
 		#else
 			#define XRT_TLS __declspec(thread)

@@ -48,7 +48,7 @@ xrtGlobalData xCore = { FALSE };
 	static DWORD xrt_tls_key = TLS_OUT_OF_INDEXES;
 #else
 	// 其他编译器使用 TLS 关键字
-	XRT_TLS xrtThreadLocal* xrt_tls_data = NULL;
+	static XRT_TLS xrtThreadLocal* xrt_tls_data = NULL;
 #endif
 
 // 获取当前线程的 TLS 数据
@@ -385,7 +385,7 @@ XXAPI void xrtUnit()
 				
 			} else if ( fdwReason == DLL_THREAD_DETACH ) {
 				//当线程卸载dll时调用dllMain
-				
+				xrtUnitTLS();  // 释放线程的 TLS 数据
 			}
 			return (TRUE);
 		}

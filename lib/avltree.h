@@ -111,16 +111,14 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 	if ( pNode ) {
 		return &pNode[1];
 	} else {
+		// 如果有父树，尝试在父树中查找
 		if ( objAVLT->Parent ) {
-			pNode = xrtAVLTB_Search((xavltbase)objAVLT, objAVLT->CompProc, pKey);
+			pNode = xrtAVLTB_Search((xavltbase)objAVLT->Parent, objAVLT->Parent->CompProc, pKey);
 			if ( pNode ) {
 				return &pNode[1];
-			} else {
-				return NULL;
 			}
-		} else {
-			return NULL;
 		}
+		return NULL;
 	}
 }
 
