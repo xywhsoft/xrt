@@ -614,16 +614,158 @@
 	
 	/* ------------------------------------ Thread 函数库 ------------------------------------ */
 	
+	// 线程状态
+	#define XRT_THREAD_STOPPED		0			// 已停止
+	#define XRT_THREAD_RUNNING		1			// 运行中
+	#define XRT_THREAD_SUSPENDED	2			// 已挂起
+	
+	// 等待超时返回值
+	#define XRT_WAIT_OK				0			// 等待成功
+	#define XRT_WAIT_TIMEOUT		1			// 等待超时
+	#define XRT_WAIT_ERROR			-1			// 等待错误
+	
 	// 线程数据结构
 	typedef struct {
-		ptr Handle;
-		uint32 TID;
-		uint32 (*Proc)(ptr param);
-		ptr Param;
+		ptr Handle;								// 线程句柄
+		uint32 TID;								// 线程ID
+		uint32 (*Proc)(ptr param);				// 用户回调函数
+		ptr Param;								// 用户参数
+		volatile int StopFlag;					// 停止信号标志
 	} xthread_struct, *xthread;
+	
+	// 互斥体数据结构
+	typedef struct {
+		ptr Handle;								// 互斥体句柄
+	} xmutex_struct, *xmutex;
+	
+	// 信号量数据结构
+	typedef struct {
+		ptr Handle;								// 信号量句柄
+	} xsem_struct, *xsem;
+	
+	// 条件变量数据结构
+	typedef struct {
+		ptr Handle;								// 条件变量句柄
+	} xcond_struct, *xcond;
+	
+	/* ---------- 线程管理 ---------- */
 	
 	// 创建线程
 	XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize);
+	
+	// 销毁线程对象（不终止线程，仅释放管理结构）
+	XXAPI void xrtThreadDestroy(xthread pThread);
+	
+	// 等待线程结束
+	XXAPI void xrtThreadWait(xthread pThread);
+	
+	// 等待线程结束（带超时，毫秒）
+	XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout);
+	
+	// 发送停止信号（线程需要主动检查 xrtThreadShouldStop）
+	XXAPI void xrtThreadStop(xthread pThread);
+	
+	// 检查是否应该停止（线程内调用）
+	XXAPI bool xrtThreadShouldStop(xthread pThread);
+	
+	// 强制终止线程（危险操作，可能导致资源泄漏）
+	XXAPI bool xrtThreadKill(xthread pThread);
+	
+	// 挂起线程
+	XXAPI bool xrtThreadSuspend(xthread pThread);
+	
+	// 恢复线程
+	XXAPI bool xrtThreadResume(xthread pThread);
+	
+	// 获取线程状态
+	XXAPI int xrtThreadGetState(xthread pThread);
+	
+	// 获取线程退出码
+	XXAPI uint32 xrtThreadGetExitCode(xthread pThread);
+	
+	// 获取当前线程ID
+	XXAPI uint32 xrtThreadGetCurrentId();
+	
+	// 让出当前线程的时间片
+	XXAPI void xrtThreadYield();
+	
+	/* ---------- 互斥体 ---------- */
+	
+	// 创建互斥体
+	XXAPI xmutex xrtMutexCreate();
+	
+	// 销毁互斥体
+	XXAPI void xrtMutexDestroy(xmutex pMutex);
+	
+	// 初始化互斥体（对自维护结构体指针使用）
+	XXAPI void xrtMutexInit(xmutex pMutex);
+	
+	// 释放互斥体（对自维护结构体指针使用）
+	XXAPI void xrtMutexUnit(xmutex pMutex);
+	
+	// 锁定互斥体（阻塞）
+	XXAPI void xrtMutexLock(xmutex pMutex);
+	
+	// 尝试锁定互斥体（非阻塞）
+	XXAPI bool xrtMutexTryLock(xmutex pMutex);
+	
+	// 解锁互斥体
+	XXAPI void xrtMutexUnlock(xmutex pMutex);
+	
+	/* ---------- 信号量 ---------- */
+	
+	// 创建信号量
+	XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue);
+	
+	// 销毁信号量
+	XXAPI void xrtSemDestroy(xsem pSem);
+	
+	// 初始化信号量（对自维护结构体指针使用）
+	XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue);
+	
+	// 释放信号量（对自维护结构体指针使用）
+	XXAPI void xrtSemUnit(xsem pSem);
+	
+	// 等待信号量（阻塞，计数减1）
+	XXAPI void xrtSemWait(xsem pSem);
+	
+	// 尝试等待信号量（非阻塞）
+	XXAPI bool xrtSemTryWait(xsem pSem);
+	
+	// 等待信号量（带超时，毫秒）
+	XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout);
+	
+	// 释放信号量（计数加1）
+	XXAPI bool xrtSemPost(xsem pSem);
+	
+	// 释放信号量（计数加N）
+	XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount);
+	
+	/* ---------- 条件变量 ---------- */
+	
+	// 创建条件变量
+	XXAPI xcond xrtCondCreate();
+	
+	// 销毁条件变量
+	XXAPI void xrtCondDestroy(xcond pCond);
+	
+	// 初始化条件变量（对自维护结构体指针使用）
+	XXAPI void xrtCondInit(xcond pCond);
+	
+	// 释放条件变量（对自维护结构体指针使用）
+	XXAPI void xrtCondUnit(xcond pCond);
+	
+	// 等待条件变量（需要先锁定互斥体）
+	XXAPI void xrtCondWait(xcond pCond, xmutex pMutex);
+	
+	// 等待条件变量（带超时，毫秒）
+	XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout);
+	
+	// 唤醒一个等待的线程
+	XXAPI void xrtCondSignal(xcond pCond);
+	
+	// 唤醒所有等待的线程
+	XXAPI void xrtCondBroadcast(xcond pCond);
 	
 	
 	
