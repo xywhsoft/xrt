@@ -2,7 +2,7 @@
 
 > 文件读写、目录管理功能
 
-[返回索引](README.md)
+[English](api-file.en.md) | [中文](api-file.md) | [返回索引](README.md)
 
 ---
 

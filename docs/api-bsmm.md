@@ -2,7 +2,7 @@
 
 > Blocks Struct Memory Management - 高效的固定大小结构体内存池
 
-[返回索引](README.md)
+[English](api-bsmm.en.md) | [中文](api-bsmm.md) | [返回索引](README.md)
 
 ---
 

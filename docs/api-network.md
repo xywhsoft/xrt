@@ -2,7 +2,7 @@
 
 > 网络信息获取功能（本机IP、MAC地址、主机名）
 
-[返回索引](README.md)
+[English](api-network.en.md) | [中文](api-network.md) | [返回索引](README.md)
 
 ---
 

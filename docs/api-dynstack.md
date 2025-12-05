@@ -2,7 +2,7 @@
 
 > 无深度限制的动态栈，自动扩展容量
 
-[返回索引](README.md)
+[English](api-dynstack.en.md) | [中文](api-dynstack.md) | [返回索引](README.md)
 
 ---
 

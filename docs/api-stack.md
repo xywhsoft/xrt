@@ -2,7 +2,7 @@
 
 > 固定深度栈数据结构，支持结构体和指针两种模式
 
-[返回索引](README.md)
+[English](api-stack.en.md) | [中文](api-stack.md) | [返回索引](README.md)
 
 ---
 

@@ -2,7 +2,7 @@
 
 > 字符串操作、搜索、替换、编码解码功能
 
-[返回索引](README.md)
+[English](api-string.en.md) | [中文](api-string.md) | [返回索引](README.md)
 
 ---
 

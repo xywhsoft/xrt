@@ -2,7 +2,7 @@
 
 > 随机数生成和数学运算功能（基于 PCG 算法）
 
-[返回索引](README.md)
+[English](api-math.en.md) | [中文](api-math.md) | [返回索引](README.md)
 
 ---
 

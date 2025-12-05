@@ -2,7 +2,7 @@
 
 > XRT 核心基础功能：库初始化、内存管理、错误处理
 
-[返回索引](README.md)
+[English](api-base.en.md) | [中文](api-base.md) | [返回索引](README.md)
 
 ---
 

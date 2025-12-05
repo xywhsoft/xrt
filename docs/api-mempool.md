@@ -2,7 +2,7 @@
 
 > 可变大小内存池，支持多种大小的内存分配和 GC 回收
 
-[返回索引](README.md)
+[English](api-mempoll.en.md) | [中文](api-mempoll.md) | [返回索引](README.md)
 
 ---
 

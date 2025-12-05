@@ -2,7 +2,7 @@
 
 > 16种动态数据类型，引用计数自动管理，支持容器嵌套
 
-[返回索引](README.md)
+[English](api-value.en.md) | [中文](api-value.md) | [返回索引](README.md)
 
 ---
 

@@ -2,7 +2,7 @@
 
 > 高性能哈希函数库（基于 nmhash32x 和 rapidhash 算法）
 
-[返回索引](README.md)
+[English](api-hash.en.md) | [中文](api-hash.md) | [返回索引](README.md)
 
 ---
 

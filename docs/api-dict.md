@@ -2,7 +2,7 @@
 
 > 基于 AVL 树的键值对存储，支持任意二进制键
 
-[返回索引](README.md)
+[English](api-dict.en.md) | [中文](api-dict.md) | [返回索引](README.md)
 
 ---
 

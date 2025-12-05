@@ -2,7 +2,7 @@
 
 > 日期时间计算和格式化功能
 
-[返回索引](README.md)
+[English](api-time.en.md) | [中文](api-time.md) | [返回索引](README.md)
 
 ---
 

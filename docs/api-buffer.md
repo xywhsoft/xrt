@@ -2,7 +2,7 @@
 
 > 可变大小内存缓冲区，支持二进制数据和多种字符串编码
 
-[返回索引](README.md)
+[English](api-buffer.en.md) | [中文](api-buffer.md) | [返回索引](README.md)
 
 ---
 

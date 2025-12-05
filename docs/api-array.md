@@ -2,7 +2,7 @@
 
 > 动态结构体数组，支持任意大小的结构体元素
 
-[返回索引](README.md)
+[English](api-array.en.md) | [中文](api-array.md) | [返回索引](README.md)
 
 ---
 

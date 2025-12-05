@@ -2,7 +2,7 @@
 
 > 192位分布式唯一ID生成器
 
-[返回索引](README.md)
+[English](api-xid.en.md) | [中文](api-xid.md) | [返回索引](README.md)
 
 ---
 

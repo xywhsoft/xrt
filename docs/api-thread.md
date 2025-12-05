@@ -2,7 +2,7 @@
 
 > 多线程创建和管理功能
 
-[返回索引](README.md)
+[English](api-thread.en.md) | [中文](api-thread.md) | [返回索引](README.md)
 
 ---
 

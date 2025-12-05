@@ -2,7 +2,7 @@
 
 > 动态指针数组，支持插入、删除、排序等操作
 
-[返回索引](README.md)
+[English](api-ptrarray.en.md) | [中文](api-ptrarray.md) | [返回索引](README.md)
 
 ---
 

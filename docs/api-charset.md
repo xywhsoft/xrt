@@ -2,7 +2,7 @@
 
 > 字符编码转换、检测和处理功能
 
-[返回索引](README.md)
+[English](api-charset.en.md) | [中文](api-charset.md) | [返回索引](README.md)
 
 ---
 

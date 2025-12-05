@@ -2,7 +2,7 @@
 
 > 进程管理和系统调用功能
 
-[返回索引](README.md)
+[English](api-os.en.md) | [中文](api-os.md) | [返回索引](README.md)
 
 ---
 

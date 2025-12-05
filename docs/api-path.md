@@ -2,7 +2,7 @@
 
 > 文件路径操作和解析功能
 
-[返回索引](README.md)
+[English](api-path.en.md) | [中文](api-path.md) | [返回索引](README.md)
 
 ---
 

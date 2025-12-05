@@ -2,7 +2,7 @@
 
 > XRT 库的所有基础类型、宏定义和全局数据结构
 
-[返回索引](README.md)
+[English](api-types.en.md) | [中文](api-types.md) | [返回索引](README.md)
 
 ---
 
