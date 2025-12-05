@@ -42,6 +42,38 @@
 const int sNullValue = 0;
 xrtGlobalData xCore = { FALSE };
 
+// TLS 数据
+#ifdef XRT_USE_WIN_TLS_API
+	// TCC 使用 Windows TLS API
+	static DWORD xrt_tls_key = TLS_OUT_OF_INDEXES;
+#else
+	// 其他编译器使用 TLS 关键字
+	XRT_TLS xrtThreadLocal* xrt_tls_data = NULL;
+#endif
+
+// 获取当前线程的 TLS 数据
+XXAPI xrtThreadLocal* xrtGetTLS()
+{
+	#ifdef XRT_USE_WIN_TLS_API
+		if ( xrt_tls_key == TLS_OUT_OF_INDEXES ) {
+			return NULL;
+		}
+		xrtThreadLocal* tls = (xrtThreadLocal*)TlsGetValue(xrt_tls_key);
+		if ( tls == NULL ) {
+			// 线程未初始化 TLS，自动初始化
+			xrtInitTLS();
+			tls = (xrtThreadLocal*)TlsGetValue(xrt_tls_key);
+		}
+		return tls;
+	#else
+		if ( xrt_tls_data == NULL ) {
+			// 线程未初始化 TLS，自动初始化
+			xrtInitTLS();
+		}
+		return xrt_tls_data;
+	#endif
+}
+
 
 
 // 引入补充依赖库
@@ -84,12 +116,142 @@ xrtGlobalData xCore = { FALSE };
 
 
 
+// TLS 随机数初始化辅助函数
+static void xrt_pcg32_srandom(xrt_pcg32_t* rng, uint64 initstate, uint64 initseq)
+{
+	rng->state = 0U;
+	rng->inc = (initseq << 1u) | 1u;
+	// 运算一次
+	uint64 oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+	rng->state += initstate;
+	// 再运算一次
+	oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+}
+
+// 初始化当前线程的 TLS
+XXAPI void xrtInitTLS()
+{
+	xrtThreadLocal* tls = NULL;
+	
+	#ifdef XRT_USE_WIN_TLS_API
+		// TCC: 使用 Windows TLS API
+		if ( xrt_tls_key == TLS_OUT_OF_INDEXES ) {
+			return;
+		}
+		tls = (xrtThreadLocal*)TlsGetValue(xrt_tls_key);
+		if ( tls != NULL ) {
+			return; // 已经初始化
+		}
+		tls = (xrtThreadLocal*)malloc(sizeof(xrtThreadLocal));
+		if ( tls == NULL ) {
+			return;
+		}
+		TlsSetValue(xrt_tls_key, tls);
+	#else
+		// 其他编译器: 使用 TLS 关键字
+		if ( xrt_tls_data != NULL ) {
+			return; // 已经初始化
+		}
+		tls = (xrtThreadLocal*)malloc(sizeof(xrtThreadLocal));
+		if ( tls == NULL ) {
+			return;
+		}
+		xrt_tls_data = tls;
+	#endif
+	
+	// 初始化 TLS 数据
+	tls->bInit = TRUE;
+	tls->sRet = xCore.sNull;
+	tls->iRet = 0;
+	tls->nRet = 0.0;
+	tls->LastError = xCore.sNull;
+	tls->__pri_FreeError = FALSE;
+	
+	// 初始化环形临时内存
+	for ( int i = 0; i < 32; i++ ) {
+		tls->TempMem[i] = NULL;
+	}
+	tls->TempMemIdx = 0;
+	
+	// 初始化随机数生成器 (使用线程ID和时间戳作为种子)
+	uint64 iTick = 0;
+	#if defined(_WIN32) || defined(_WIN64)
+		iTick = GetTickCount64() ^ (uint64)GetCurrentThreadId();
+	#else
+		struct timespec timer;
+		clock_gettime(CLOCK_MONOTONIC, &timer);
+		iTick = ((uint64)timer.tv_sec << 30) | timer.tv_nsec;
+		iTick ^= (uint64)pthread_self();
+	#endif
+	
+	xrt_pcg32_srandom(&tls->Rand32, iTick, 0xda3e39cb94b95bdbULL ^ iTick);
+	xrt_pcg32_srandom(&tls->Rand64Low, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
+	xrt_pcg32_srandom(&tls->Rand64High, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
+}
+
+// 释放当前线程的 TLS
+XXAPI void xrtUnitTLS()
+{
+	xrtThreadLocal* tls = NULL;
+	
+	#ifdef XRT_USE_WIN_TLS_API
+		if ( xrt_tls_key == TLS_OUT_OF_INDEXES ) {
+			return;
+		}
+		tls = (xrtThreadLocal*)TlsGetValue(xrt_tls_key);
+		if ( tls == NULL ) {
+			return;
+		}
+	#else
+		tls = xrt_tls_data;
+		if ( tls == NULL ) {
+			return;
+		}
+	#endif
+	
+	// 释放错误信息
+	if ( tls->__pri_FreeError && tls->LastError && tls->LastError != xCore.sNull ) {
+		free(tls->LastError);
+		tls->LastError = xCore.sNull;
+	}
+	
+	// 释放环形临时内存
+	for ( int i = 0; i < 32; i++ ) {
+		if ( tls->TempMem[i] ) {
+			free(tls->TempMem[i]);
+			tls->TempMem[i] = NULL;
+		}
+	}
+	tls->TempMemIdx = 0;
+	
+	// 释放 TLS 结构
+	#ifdef XRT_USE_WIN_TLS_API
+		free(tls);
+		TlsSetValue(xrt_tls_key, NULL);
+	#else
+		free(tls);
+		xrt_tls_data = NULL;
+	#endif
+}
+
+
+
 // 初始化 xCore
 XXAPI xrtGlobalData* xrtInit()
 {
 	if ( xCore.bInit ) {
 		return &xCore;
 	}
+	
+	// 初始化 TLS 支持
+	#ifdef XRT_USE_WIN_TLS_API
+		xrt_tls_key = TlsAlloc();
+		if ( xrt_tls_key == TLS_OUT_OF_INDEXES ) {
+			return NULL; // TLS 初始化失败
+		}
+	#endif
 	
 	// 初始化数据
 	xCore.bInit = TRUE;
@@ -107,7 +269,7 @@ XXAPI xrtGlobalData* xrtInit()
 	xCore.realloc = realloc;
 	xCore.free = free;
 	
-	// 初始化环形临时内存
+	// 初始化环形临时内存 (兼容性保留)
 	for ( int i = 0; i < 32; i++ ) {
 		xCore.TempMem[i] = NULL;
 	}
@@ -123,39 +285,8 @@ XXAPI xrtGlobalData* xrtInit()
 		}
 	#endif
 	
-	// 初始化随机数序列
-	uint64 iTick = 0;
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( xCore.Frequency == 0.0 ) {
-			iTick = GetTickCount64();
-			xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ iTick);
-		} else {
-			LARGE_INTEGER QPC;
-			QueryPerformanceCounter(&QPC);
-			iTick = QPC.QuadPart;
-			xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ iTick);
-		}
-	#else
-		struct timespec timer;
-		clock_gettime(CLOCK_MONOTONIC, &timer);
-		iTick = (timer.tv_sec << 30) | timer.tv_nsec;
-		xrtSetRandSeed32(xrtNow(), 0xda3e39cb94b95bdbULL ^ iTick);
-	#endif
-	
-	// 初始化 64 位随机数序列 ( 这里打乱顺序生成，为了避免干扰，并使用不同的方式扰乱结果 )
-	uint32 highseed_low = xrtRand32() * iTick;
-	uint32 lowseed_high = xrtRand32() + xrtRand32();
-	uint32 highseq_high = xrtRand32() * xrtRand32();
-	uint32 lowseq_low = xrtRand32() ^ xrtRand32();
-	uint32 highseed_high = xrtRand32() ^ iTick;
-	uint32 lowseed_low = xrtRand32() * xrtRand32();
-	uint32 highseq_low = xrtRand32() ^ xrtRand32();
-	uint32 lowseq_high = xrtRand32() + xrtRand32();
-	uint64 lowseed = ((uint64)lowseed_high << 32) | (uint64)lowseed_low;
-	uint64 lowseq = ((uint64)lowseq_high << 32) | (uint64)lowseq_low;
-	uint64 highseed = ((uint64)highseed_high << 32) | (uint64)highseed_low;
-	uint64 highseq = ((uint64)highseq_high << 32) | (uint64)highseq_low;
-	xrtSetRandSeed64(lowseed, lowseq, highseed, highseq);
+	// 初始化主线程的 TLS
+	xrtInitTLS();
 	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)
@@ -197,18 +328,31 @@ XXAPI xrtGlobalData* xrtInit()
 XXAPI void xrtUnit()
 {
 	if ( xCore.bInit ) {
+		// 释放主线程的 TLS
+		xrtUnitTLS();
+		
+		// 释放 TLS 支持
+		#ifdef XRT_USE_WIN_TLS_API
+			if ( xrt_tls_key != TLS_OUT_OF_INDEXES ) {
+				TlsFree(xrt_tls_key);
+				xrt_tls_key = TLS_OUT_OF_INDEXES;
+			}
+		#endif
+		
 		// 释放应用路径
 		xrtFree(xCore.AppFile);
 		xCore.AppFile = xCore.sNull;
 		xrtFree(xCore.AppPath);
 		xCore.AppPath = xCore.sNull;
-		// 释放错误描述
+		
+		// 释放错误描述 (兼容性保留)
 		if ( xCore.__pri_FreeError && xCore.LastError ) {
 			xrtFree(xCore.LastError);
 			xCore.LastError = xCore.sNull;
 			xCore.__pri_FreeError = FALSE;
 		}
-		// 释放环形临时内存
+		
+		// 释放环形临时内存 (兼容性保留)
 		xrtFreeTempMemory();
 		
 		// 重置初始化标记

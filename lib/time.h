@@ -360,62 +360,92 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 
 
 
-// 获取当前日期 + 时间
+// 获取当前日期 + 时间 (线程安全)
 XXAPI xtime xrtNow()
 {
 	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtDateTimeSerial(1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+	struct tm stm;
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&stm, &rawtime);
+	#else
+		localtime_r(&rawtime, &stm);
+	#endif
+	return xrtDateTimeSerial(1900 + stm.tm_year, stm.tm_mon + 1, stm.tm_mday, stm.tm_hour, stm.tm_min, stm.tm_sec);
 }
 
 
 
-// 获取当前日期
+// 获取当前日期 (线程安全)
 XXAPI xtime xrtDate()
 {
 	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtDateSerial(1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday);
+	struct tm stm;
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&stm, &rawtime);
+	#else
+		localtime_r(&rawtime, &stm);
+	#endif
+	return xrtDateSerial(1900 + stm.tm_year, stm.tm_mon + 1, stm.tm_mday);
 }
 
 
 
-// 获取当前时间
+// 获取当前时间 (线程安全)
 XXAPI xtime xrtTime()
 {
 	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtTimeSerial(pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+	struct tm stm;
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&stm, &rawtime);
+	#else
+		localtime_r(&rawtime, &stm);
+	#endif
+	return xrtTimeSerial(stm.tm_hour, stm.tm_min, stm.tm_sec);
 }
 
 
 
-// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）
+// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）(线程安全)
 XXAPI str xrtNowStr()
 {
 	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%d-%02d-%02d %02d:%02d:%02d", 1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday, pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+	struct tm stm;
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&stm, &rawtime);
+	#else
+		localtime_r(&rawtime, &stm);
+	#endif
+	return xrtFormat("%d-%02d-%02d %02d:%02d:%02d", 1900 + stm.tm_year, stm.tm_mon + 1, stm.tm_mday, stm.tm_hour, stm.tm_min, stm.tm_sec);
 }
 
 
 
-// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）
+// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）(线程安全)
 XXAPI str xrtDateStr()
 {
 	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%d-%02d-%02d", 1900 + pstm->tm_year, pstm->tm_mon + 1, pstm->tm_mday);
+	struct tm stm;
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&stm, &rawtime);
+	#else
+		localtime_r(&rawtime, &stm);
+	#endif
+	return xrtFormat("%d-%02d-%02d", 1900 + stm.tm_year, stm.tm_mon + 1, stm.tm_mday);
 }
 
 
 
-// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）
+// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）(线程安全)
 XXAPI str xrtTimeStr()
 {
 	time_t rawtime = time(NULL);
-	struct tm* pstm = localtime(&rawtime);
-	return xrtFormat("%02d:%02d:%02d", pstm->tm_hour, pstm->tm_min, pstm->tm_sec);
+	struct tm stm;
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&stm, &rawtime);
+	#else
+		localtime_r(&rawtime, &stm);
+	#endif
+	return xrtFormat("%02d:%02d:%02d", stm.tm_hour, stm.tm_min, stm.tm_sec);
 }
 
 

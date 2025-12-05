@@ -1,63 +1,70 @@
 
 
 
-// 创建字符串副本（ 需使用 xrtFree 释放 ）
+// 辅助宏：同时更新 TLS 和全局的 iRet (线程安全)
+#define XRT_SET_IRET(val) do { \
+	xrtThreadLocal* _tls = xrtGetTLS(); \
+	if (_tls) { _tls->iRet = (val); } \
+	xCore.iRet = (val); \
+} while(0)
+
+// 创建字符串副本（ 需使用 xrtFree 释放 ）(线程安全)
 XXAPI str xrtCopyStr(str sText, size_t iSize)
 {
-	if ( sText == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( sText == NULL ) { XRT_SET_IRET(0); return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { XRT_SET_IRET(0); return xCore.sNull; }
 	str sRet = xrtMalloc(iSize + 1);
 	if ( sRet == NULL ) {
-		xCore.iRet = 0;
+		XRT_SET_IRET(0);
 		return xCore.sNull;
 	}
 	memcpy(sRet, sText, iSize);
 	sRet[iSize] = 0;
-	xCore.iRet = iSize;
+	XRT_SET_IRET(iSize);
 	return sRet;
 }
 XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 {
-	if ( sText == NULL ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
+	if ( sText == NULL ) { XRT_SET_IRET(0); return (u16str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u16len(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (u16str)xCore.sNull; }
+	if ( iSize == 0 ) { XRT_SET_IRET(0); return (u16str)xCore.sNull; }
 	u16str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) {
-		xCore.iRet = 0;
+		XRT_SET_IRET(0);
 		return (u16str)xCore.sNull;
 	}
 	memcpy(sRet, sText, iSize * sizeof(unsigned short));
 	sRet[iSize] = 0;
-	xCore.iRet = iSize;
+	XRT_SET_IRET(iSize);
 	return sRet;
 }
 XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 {
-	if ( sText == NULL ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
+	if ( sText == NULL ) { XRT_SET_IRET(0); return (u32str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u32len(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return (u32str)xCore.sNull; }
+	if ( iSize == 0 ) { XRT_SET_IRET(0); return (u32str)xCore.sNull; }
 	u32str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) {
-		xCore.iRet = 0;
+		XRT_SET_IRET(0);
 		return (u32str)xCore.sNull;
 	}
 	memcpy(sRet, sText, iSize * sizeof(unsigned int));
 	sRet[iSize] = 0;
-	xCore.iRet = iSize;
+	XRT_SET_IRET(iSize);
 	return sRet;
 }
 XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize)
 {
-	if ( pMem == NULL ) { xCore.iRet = 0; return xCore.sNull; }
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( pMem == NULL ) { XRT_SET_IRET(0); return xCore.sNull; }
+	if ( iSize == 0 ) { XRT_SET_IRET(0); return xCore.sNull; }
 	ptr pRet = xrtMalloc(iSize);
 	if ( pRet == NULL ) {
-		xCore.iRet = 0;
+		XRT_SET_IRET(0);
 		return xCore.sNull;
 	}
 	memcpy(pRet, pMem, iSize);
-	xCore.iRet = iSize;
+	XRT_SET_IRET(iSize);
 	return pRet;
 }
 
@@ -137,15 +144,15 @@ XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise)
 
 
 
-// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）
+// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）(线程安全)
 XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
-	if ( sText == NULL ) { xCore.iRet = 0; return NULL; }
-	if ( sSubText == NULL ) { xCore.iRet = 0; return NULL; }
+	if ( sText == NULL ) { XRT_SET_IRET(0); return NULL; }
+	if ( sSubText == NULL ) { XRT_SET_IRET(0); return NULL; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return NULL; }
+	if ( iSize == 0 ) { XRT_SET_IRET(0); return NULL; }
 	if ( iSubSize == 0 ) { iSubSize = strlen(sSubText); }
-	if ( iSubSize == 0 ) { xCore.iRet = 0; return NULL; }
+	if ( iSubSize == 0 ) { XRT_SET_IRET(0); return NULL; }
 	str sSub;
 	if ( bCase ) {
 		str sText1 = xrtLCase(sText, 0, FALSE);
@@ -160,17 +167,18 @@ XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, boo
 		sSub = memmem(sText, iSize, sSubText, iSubSize);
 	}
 	if ( sSub ) {
-		xCore.iRet = (sSub - sText) + 1;
+		XRT_SET_IRET((sSub - sText) + 1);
 		return sSub;
 	} else {
-		xCore.iRet = 0;
+		XRT_SET_IRET(0);
 		return NULL;
 	}
 }
 XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
 	xrtFindStr(sText, iSize, sSubText, iSubSize, bCase);
-	return xCore.iRet;
+	xrtThreadLocal* _tls = xrtGetTLS();
+	return _tls ? _tls->iRet : xCore.iRet;
 }
 
 
@@ -328,6 +336,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 		}
 	}
 	xCore.iRet = iSize - iCount;
+	XRT_SET_IRET(iSize - iCount);
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			memmove(sText, &sText[iCount], iSize - iCount);
@@ -421,6 +430,7 @@ XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 		}
 	}
 	xCore.iRet = iSize - iCount;
+	XRT_SET_IRET(iSize - iCount);
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			sText[iSize - iCount] = 0;
@@ -595,6 +605,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 	}
 	int iCount = iCountL + iCountR;
 	xCore.iRet = iSize - iCount;
+	XRT_SET_IRET(iSize - iCount);
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
 			memmove(sText, &sText[iCountL], iSize - iCount);

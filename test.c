@@ -143,10 +143,13 @@ int main(int argc, char** argv)
 	// Test_List(xCore);
 	
 	/* Value 测试 */
-	Test_Value_Basic(xCore);
+	// Test_Value_Basic(xCore);
 	
 	/* JSON 测试 */
 	// Test_JSON(xCore);
+	
+	/* Thread 库测试 */
+	// Test_Thread(xCore);
 	
 	/* Template 测试 */
 	// Test_Template(xCore);

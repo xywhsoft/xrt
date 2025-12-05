@@ -119,6 +119,65 @@
 	
 	
 	
+	/* ------------------------------------ 线程局部存储 (TLS) ------------------------------------ */
+	
+	// TLS 关键字定义 ( 跨平台支持 )
+	#if defined(_WIN32) || defined(_WIN64)
+		#ifdef __TINYC__
+			// TCC 不支持 __declspec(thread)，使用 Windows TLS API
+			#define XRT_USE_WIN_TLS_API 1
+		#else
+			#define XRT_TLS __declspec(thread)
+		#endif
+	#else
+		#define XRT_TLS __thread
+	#endif
+	
+	// PCG 随机数状态结构 ( 用于 TLS )
+	typedef struct {
+		uint64 state;
+		uint64 inc;
+	} xrt_pcg32_t;
+	
+	// 线程局部数据结构 ( 存储每个线程独立的数据 )
+	typedef struct {
+		
+		// 初始化标志
+		int bInit;
+		
+		// 临时性返回数据 (可以改变，用于多个返回值的情况做临时存储)
+		str sRet;
+		int64 iRet;
+		double nRet;
+		
+		// 错误信息
+		str LastError;
+		int __pri_FreeError;
+		
+		// 环形临时内存（固定 32 个临时内存循环使用和释放）
+		ptr TempMem[32];
+		uint32 TempMemIdx;
+		
+		// 随机数生成器状态 ( 每个线程独立 )
+		xrt_pcg32_t Rand32;
+		xrt_pcg32_t Rand64Low;
+		xrt_pcg32_t Rand64High;
+		
+	} xrtThreadLocal;
+	
+	// 获取当前线程的 TLS 数据
+	XXAPI xrtThreadLocal* xrtGetTLS();
+	
+	// 初始化当前线程的 TLS ( 主线程在 xrtInit 中自动调用 )
+	XXAPI void xrtInitTLS();
+	
+	// 释放当前线程的 TLS ( 主线程在 xrtUnit 中自动调用 )
+	XXAPI void xrtUnitTLS();
+	
+	
+	
+	/* ------------------------------------ 全局数据 ------------------------------------ */
+	
 	// 全局
 	typedef struct {
 		
@@ -128,12 +187,12 @@
 		// 全局数据 (不可改变)
 		str sNull;
 		
-		// 临时性全局数据 (可以改变，用于多个返回值的情况做临时存储)
+		// [已废弃 - 保留兼容] 临时性全局数据，请使用 xrtGetTLS() 获取线程安全版本
 		str sRet;
 		int64 iRet;
 		double nRet;
 		
-		// 错误信息
+		// [已废弃 - 保留兼容] 错误信息，请使用 xrtGetTLS() 获取线程安全版本
 		str LastError;
 		int __pri_FreeError;
 		void (*OnError)(str sError);
@@ -150,7 +209,7 @@
 		str AppFile;
 		str AppPath;
 		
-		// 环形临时内存（固定 32 个临时内存循环使用和释放）
+		// [已废弃 - 保留兼容] 环形临时内存，请使用 xrtGetTLS() 获取线程安全版本
 		ptr TempMem[32];
 		uint32 TempMemIdx;
 		
