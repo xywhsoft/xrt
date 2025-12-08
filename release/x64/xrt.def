@@ -369,6 +369,7 @@ xvoCollUnion
 xvoCopy
 xvoCreateArray
 xvoCreateBool
+xvoCreateClass
 xvoCreateColl
 xvoCreateCustom
 xvoCreateFloat
@@ -376,9 +377,7 @@ xvoCreateFunc
 xvoCreateInt
 xvoCreateList
 xvoCreateNull
-xvoCreateObject
 xvoCreatePoint
-xvoCreateStruct
 xvoCreateTable
 xvoCreateText
 xvoCreateTime
@@ -386,16 +385,15 @@ xvoCreateTimeSerial
 xvoDeepCopy
 xvoGetArray
 xvoGetBool
+xvoGetClass
 xvoGetColl
 xvoGetCustom
 xvoGetFloat
 xvoGetFunc
 xvoGetInt
 xvoGetList
-xvoGetObject
 xvoGetPoint
 xvoGetSize
-xvoGetStruct
 xvoGetTable
 xvoGetText
 xvoGetTime

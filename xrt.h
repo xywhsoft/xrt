@@ -1783,21 +1783,19 @@
 	/* ------------------------------------ Value 函数库 ------------------------------------ */
 	
 	// 数据类型 - 主类型
-	#define XVO_DT_EMPTY			0				// 不存在的数据
-	#define XVO_DT_NULL				1				// null
-	#define XVO_DT_BOOL				2				// bool : true | false
-	#define XVO_DT_INT				3				// 整数（int64）
-	#define XVO_DT_FLOAT			4				// 浮点数（double）
-	#define XVO_DT_TEXT				5				// 字符串
-	#define XVO_DT_TIME				6				// 时间
-	#define XVO_DT_POINT			7				// 指针
-	#define XVO_DT_FUNC				8				// 函数
-	#define XVO_DT_ARRAY			9				// 数组
-	#define XVO_DT_LIST				10				// 列表
-	#define XVO_DT_COLL				11				// 集合
-	#define XVO_DT_TABLE			12				// 表
-	#define XVO_DT_STRUCT			13				// 结构体
-	#define XVO_DT_OBJECT			14				// 对象
+	#define XVO_DT_NULL				0				// null
+	#define XVO_DT_BOOL				1				// bool : true | false
+	#define XVO_DT_INT				2				// 整数（int64）
+	#define XVO_DT_FLOAT			3				// 浮点数（double）
+	#define XVO_DT_TEXT				4				// 字符串
+	#define XVO_DT_TIME				5				// 时间
+	#define XVO_DT_POINT			6				// 指针
+	#define XVO_DT_FUNC				7				// 函数
+	#define XVO_DT_ARRAY			8				// 数组
+	#define XVO_DT_LIST				9				// 列表
+	#define XVO_DT_COLL				10				// 集合
+	#define XVO_DT_TABLE			11				// 表
+	#define XVO_DT_CLASS			12				// 结构体
 	#define XVO_DT_CUSTOM			15				// 自定义
 	
 	// Value 标准数据类 [ 16 Byte ]
@@ -1820,7 +1818,6 @@
 			xavltree vColl;
 			xdict vTable;
 			ptr vStruct;
-			ptr vObject;
 			ptr vCustom;
 		};
 	} xvalue_struct, *xvalue;
@@ -1865,8 +1862,7 @@
 	XXAPI xvalue xvoCreateList();
 	XXAPI xvalue xvoCreateColl();
 	XXAPI xvalue xvoCreateTable();
-	XXAPI xvalue xvoCreateStruct(uint32 iSize);
-	XXAPI xvalue xvoCreateObject(uint32 iSize);
+	XXAPI xvalue xvoCreateClass(uint32 iSize);
 	XXAPI xvalue xvoCreateCustom(ptr pObj);
 	
 	// 读取值
@@ -1881,8 +1877,7 @@
 	XXAPI xlist xvoGetList(xvalue pVal);
 	XXAPI xavltree xvoGetColl(xvalue pVal);
 	XXAPI xdict xvoGetTable(xvalue pVal);
-	XXAPI ptr xvoGetStruct(xvalue pVal);
-	XXAPI ptr xvoGetObject(xvalue pVal);
+	XXAPI ptr xvoGetClass(xvalue pVal);
 	XXAPI ptr xvoGetCustom(xvalue pVal);
 	
 	// Array 读数据
@@ -1898,8 +1893,7 @@
 	#define xvoArrayGetList(pArr, index)														xvoGetList(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetColl(pArr, index)														xvoGetColl(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetTable(pArr, index)														xvoGetTable(xvoArrayGetValue(pArr, index))
-	#define xvoArrayGetStruct(pArr, index)														xvoGetStruct(xvoArrayGetValue(pArr, index))
-	#define xvoArrayGetObject(pArr, index)														xvoGetObject(xvoArrayGetValue(pArr, index))
+	#define xvoArrayGetClass(pArr, index)														xvoGetClass(xvoArrayGetValue(pArr, index))
 	#define xvoArrayGetCustom(pArr, index)														xvoGetCustom(xvoArrayGetValue(pArr, index))
 	
 	// Array 追加数据
@@ -1917,8 +1911,7 @@
 	#define xvoArrayAppendList(pArr)															xvoArrayAppendValue(pArr, xvoCreateList(), TRUE)
 	#define xvoArrayAppendColl(pArr)															xvoArrayAppendValue(pArr, xvoCreateColl(), TRUE)
 	#define xvoArrayAppendTable(pArr)															xvoArrayAppendValue(pArr, xvoCreateTable(), TRUE)
-	#define xvoArrayAppendStruct(pArr, size)													xvoArrayAppendValue(pArr, xvoCreateStruct(size), TRUE)
-	#define xvoArrayAppendObject(pArr, size)													xvoArrayAppendValue(pArr, xvoCreateObject(size), TRUE)
+	#define xvoArrayAppendClass(pArr, size)														xvoArrayAppendValue(pArr, xvoCreateClass(size), TRUE)
 	#define xvoArrayAppendCustom(pArr, point)													xvoArrayAppendValue(pArr, xvoCreateCustom(point), TRUE)
 	
 	// Array 插入操作
@@ -1936,8 +1929,7 @@
 	#define xvoArrayInsertList(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateList(), TRUE)
 	#define xvoArrayInsertColl(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateColl(), TRUE)
 	#define xvoArrayInsertTable(pArr, idx)														xvoArrayInsertValue(pArr, idx, xvoCreateTable(), TRUE)
-	#define xvoArrayInsertStruct(pArr, idx, size)												xvoArrayInsertValue(pArr, idx, xvoCreateStruct(size), TRUE)
-	#define xvoArrayInsertObject(pArr, idx, size)												xvoArrayInsertValue(pArr, idx, xvoCreateObject(size), TRUE)
+	#define xvoArrayInsertClass(pArr, idx, size)												xvoArrayInsertValue(pArr, idx, xvoCreateClass(size), TRUE)
 	#define xvoArrayInsertCustom(pArr, idx, point)												xvoArrayInsertValue(pArr, idx, xvoCreateCustom(point), TRUE)
 	
 	// Array 修改操作
@@ -1955,8 +1947,7 @@
 	#define xvoArraySetList(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateList(), TRUE)
 	#define xvoArraySetColl(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateColl(), TRUE)
 	#define xvoArraySetTable(pArr, idx)															xvoArraySetValue(pArr, idx, xvoCreateTable(), TRUE)
-	#define xvoArraySetStruct(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateStruct(size), TRUE)
-	#define xvoArraySetObject(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateObject(size), TRUE)
+	#define xvoArraySetClass(pArr, idx, size)													xvoArraySetValue(pArr, idx, xvoCreateClass(size), TRUE)
 	#define xvoArraySetCustom(pArr, idx, point)													xvoArraySetValue(pArr, idx, xvoCreateCustom(point), TRUE)
 	
 	// Array 合并
@@ -1983,8 +1974,7 @@
 	#define xvoListGetList(pList, index)														xvoGetList(xvoListGetValue(pList, index))
 	#define xvoListGetColl(pList, index)														xvoGetColl(xvoListGetValue(pList, index))
 	#define xvoListGetTable(pList, index)														xvoGetTable(xvoListGetValue(pList, index))
-	#define xvoListGetStruct(pList, index)														xvoGetStruct(xvoListGetValue(pList, index))
-	#define xvoListGetObject(pList, index)														xvoGetObject(xvoListGetValue(pList, index))
+	#define xvoListGetClass(pList, index)														xvoGetClass(xvoListGetValue(pList, index))
 	#define xvoListGetCustom(pList, index)														xvoGetCustom(xvoListGetValue(pList, index))
 	
 	// List 写数据
@@ -2002,8 +1992,7 @@
 	#define xvoListSetList(pList, idx)															xvoListSetValue(pList, idx, xvoCreateList(), TRUE)
 	#define xvoListSetColl(pList, idx)															xvoListSetValue(pList, idx, xvoCreateColl(), TRUE)
 	#define xvoListSetTable(pList, idx)															xvoListSetValue(pList, idx, xvoCreateTable(), TRUE)
-	#define xvoListSetStruct(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateStruct(size), TRUE)
-	#define xvoListSetObject(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateObject(size), TRUE)
+	#define xvoListSetClass(pList, idx, size)													xvoListSetValue(pList, idx, xvoCreateClass(size), TRUE)
 	#define xvoListSetCustom(pList, idx, point)													xvoListSetValue(pList, idx, xvoCreateCustom(point), TRUE)
 	
 	// List 合并
@@ -2101,8 +2090,7 @@
 	#define xvoTableGetList(pTbl, key, kl)														xvoGetList(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetColl(pTbl, key, kl)														xvoGetColl(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetTable(pTbl, key, kl)														xvoGetTable(xvoTableGetValue(pTbl, key, kl))
-	#define xvoTableGetStruct(pTbl, key, kl)													xvoGetStruct(xvoTableGetValue(pTbl, key, kl))
-	#define xvoTableGetObject(pTbl, key, kl)													xvoGetObject(xvoTableGetValue(pTbl, key, kl))
+	#define xvoTableGetClass(pTbl, key, kl)														xvoGetClass(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetCustom(pTbl, key, kl)													xvoGetCustom(xvoTableGetValue(pTbl, key, kl))
 	
 	// Table 写数据
@@ -2120,8 +2108,7 @@
 	#define xvoTableSetList(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateList(), TRUE)
 	#define xvoTableSetColl(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateColl(), TRUE)
 	#define xvoTableSetTable(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateTable(), TRUE)
-	#define xvoTableSetStruct(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateStruct(size), TRUE)
-	#define xvoTableSetObject(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateObject(size), TRUE)
+	#define xvoTableSetClass(pTbl, key, kl, size)												xvoTableSetValue(pTbl, key, kl, xvoCreateClass(size), TRUE)
 	#define xvoTableSetCustom(pTbl, key, kl, point)												xvoTableSetValue(pTbl, key, kl, xvoCreateCustom(point), TRUE)
 	
 	// Table 合并
