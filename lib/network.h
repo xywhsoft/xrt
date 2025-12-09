@@ -40,7 +40,6 @@ str xrtGetLocalMAC()
 		ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
 		PIP_ADAPTER_INFO pAdapterInfo = xrtMalloc(sizeof(IP_ADAPTER_INFO));
 		if ( pAdapterInfo == NULL ) {
-			xCore.iRet = 0;
 			return xCore.sNull;
 		}
 		//空间不够，重新分配
@@ -48,7 +47,6 @@ str xrtGetLocalMAC()
 			xrtFree(pAdapterInfo);
 			pAdapterInfo = xrtMalloc(ulOutBufLen);
 			if ( pAdapterInfo == NULL ) {
-				xCore.iRet = 0;
 				return xCore.sNull;
 			}
 		}
@@ -69,7 +67,6 @@ str xrtGetLocalMAC()
 		if ( fd < 0 ) {
 			xrtSetError("socket error !", FALSE);
 			close(fd);
-			xCore.iRet = 0;
 			return xCore.sNull;
 		}
 		ifc.ifc_len = sizeof(buf);
@@ -77,14 +74,12 @@ str xrtGetLocalMAC()
 		if ( ioctl(fd, SIOCGIFCONF, (char*)&ifc) ) {
 			xrtSetError(xrtFormat("ioctl (SIOCGIFCONF) : %s [%s:%d]", strerror(errno), __FILE__, __LINE__), TRUE);
 			close(fd);
-			xCore.iRet = 0;
 			return xCore.sNull;
 		}
 		int interfaceNum = ifc.ifc_len / sizeof(struct ifreq);
 		if ( interfaceNum <= 0 ) {
 			xrtSetError("Network device not found !", FALSE);
 			close(fd);
-			xCore.iRet = 0;
 			return xCore.sNull;
 		}
 		interfaceNum--;
@@ -92,13 +87,11 @@ str xrtGetLocalMAC()
 		if ( ioctl(fd, SIOCGIFFLAGS, &ifrcopy) ) {
 			xrtSetError(xrtFormat("ioctl (SIOCGIFFLAGS) : %s [%s:%d]", strerror(errno), __FILE__, __LINE__), TRUE);
 			close(fd);
-			xCore.iRet = 0;
 			return xCore.sNull;
 		}
 		if ( ioctl(fd, SIOCGIFHWADDR, (char *)(&buf[interfaceNum])) ) {
 			xrtSetError(xrtFormat("ioctl (SIOCGIFHWADDR) : %s [%s:%d]", strerror(errno), __FILE__, __LINE__), TRUE);
 			close(fd);
-			xCore.iRet = 0;
 			return xCore.sNull;
 		}
 		str sRet = xrtHexEncode(buf[interfaceNum].ifr_hwaddr.sa_data, 6);
@@ -117,7 +110,6 @@ void test()
 	ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
 	PIP_ADAPTER_INFO pAdapterInfo = xrtMalloc(sizeof(IP_ADAPTER_INFO));
 	if ( pAdapterInfo == NULL ) {
-		xCore.iRet = 0;
 		return xCore.sNull;
 	}
 	//空间不够，重新分配
@@ -125,7 +117,6 @@ void test()
 		xrtFree(pAdapterInfo);
 		pAdapterInfo = xrtMalloc(ulOutBufLen);
 		if ( pAdapterInfo == NULL ) {
-			xCore.iRet = 0;
 			return xCore.sNull;
 		}
 	}

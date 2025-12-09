@@ -4,21 +4,21 @@
 // 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
 XXAPI str xrtPathGetNameExt(str sPath, size_t iSize)
 {
-	if ( sPath == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( sPath == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sPath); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
 			if ( i >= (iSize - 1) ) {
-				xCore.iRet = 0;
+				if ( iRetSize ) { *iRetSize = 0; }
 				return xCore.sNull;
 			} else {
-				xCore.iRet = iSize - i - 1;
+				if ( iRetSize ) { *iRetSize = iSize - i - 1; }
 				return xrtCopyStr(&sPath[i + 1], iSize - i - 1);
 			}
 		}
 	}
-	xCore.iRet = iSize;
+	if ( iRetSize ) { *iRetSize = iSize; }
 	return xrtCopyStr(sPath, iSize);
 }
 
@@ -27,24 +27,24 @@ XXAPI str xrtPathGetNameExt(str sPath, size_t iSize)
 // 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
 XXAPI str xrtPathGetName(str sPath, size_t iSize)
 {
-	if ( sPath == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( sPath == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sPath); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	uint iPointPos = 0;
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		if ( sPath[i] == L'.' ) {
 			iPointPos = iSize - i;
 		} else if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
 			if ( i >= (iSize - 1) ) {
-				xCore.iRet = 0;
+				if ( iRetSize ) { *iRetSize = 0; }
 				return xCore.sNull;
 			} else {
-				xCore.iRet = iSize - i - iPointPos - 1;
+				if ( iRetSize ) { *iRetSize = iSize - i - iPointPos - 1; }
 				return xrtCopyStr(&sPath[i + 1], iSize - i - iPointPos - 1);
 			}
 		}
 	}
-	xCore.iRet = iSize;
+	if ( iRetSize ) { *iRetSize = iSize; }
 	return xrtCopyStr(sPath, iSize);
 }
 
@@ -53,19 +53,19 @@ XXAPI str xrtPathGetName(str sPath, size_t iSize)
 // 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
 XXAPI str xrtPathGetExt(str sPath, size_t iSize)
 {
-	if ( sPath == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( sPath == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sPath); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		if ( sPath[i] == L'.' ) {
-			xCore.iRet = iSize - i - 1;
+			if ( iRetSize ) { *iRetSize = iSize - i - 1; }
 			return xrtCopyStr(&sPath[i + 1], iSize - i - 1);
 		} else if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
-			xCore.iRet = 0;
+			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
 	}
-	xCore.iRet = 0;
+	if ( iRetSize ) { *iRetSize = 0; }
 	return xCore.sNull;
 }
 
@@ -74,21 +74,21 @@ XXAPI str xrtPathGetExt(str sPath, size_t iSize)
 // 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
 XXAPI str xrtPathGetDir(str sPath, size_t iSize)
 {
-	if ( sPath == NULL ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( sPath == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sPath); }
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
 			if ( i >= (iSize - 1) ) {
-				xCore.iRet = iSize - 1;
+				if ( iRetSize ) { *iRetSize = iSize - 1; }
 				return xrtCopyStr(sPath, iSize - 1);
 			} else {
-				xCore.iRet = i;
+				if ( iRetSize ) { *iRetSize = i; }
 				return xrtCopyStr(sPath, i);
 			}
 		}
 	}
-	xCore.iRet = 0;
+	if ( iRetSize ) { *iRetSize = 0; }
 	return xCore.sNull;
 }
 
@@ -129,10 +129,10 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 		iFootSize = 0;
 	}
 	int iSize = iHeadSize + iFootSize + iLen;
-	if ( iSize == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	str sRet = xrtMalloc(iSize + 1);
 	if ( sRet == NULL ) {
-		xCore.iRet = 0;
+		if ( iRetSize ) { *iRetSize = 0; }
 		return xCore.sNull;
 	}
 	if ( sHead ) {
@@ -146,7 +146,7 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 		memcpy(&sRet[iHeadSize + iLen], sFoot, iFootSize);
 	}
 	sRet[iSize] = 0;
-	xCore.iRet = iSize;
+	if ( iRetSize ) { *iRetSize = iSize; }
 	return sRet;
 }
 
@@ -155,10 +155,10 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 // 拼接路径（ 需要使用 xrtFree 释放内存 ）
 XXAPI str xrtPathJoin(uint iCount, ...)
 {
-	if ( iCount == 0 ) { xCore.iRet = 0; return xCore.sNull; }
+	if ( iCount == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	str sRet = xrtMalloc(4096);
 	if ( sRet == NULL ) {
-		xCore.iRet = 0;
+		if ( iRetSize ) { *iRetSize = 0; }
 		return xCore.sNull;
 	}
 	va_list args;
@@ -169,7 +169,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 		if ( sPath == NULL ) { continue; }
 		size_t iSize = strlen(sPath);
 		if ( iSize == 0 ) { continue; }
-		if ( (iPos + iSize) > 4094 ) { xrtFree(sRet); xCore.iRet = 0; return xCore.sNull; }
+		if ( (iPos + iSize) > 4094 ) { xrtFree(sRet); if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 		memcpy(&sRet[iPos], sPath, iSize);
 		iPos += iSize;
 		if ( i < (iCount - 1) ) {
@@ -186,19 +186,19 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 	va_end(args);
 	if ( iPos > 4000 ) {
 		sRet[iPos] = 0;
-		xCore.iRet = iPos;
+		if ( iRetSize ) { *iRetSize = iPos; }
 		return sRet;
 	} else {
 		str sRetTrim = xrtMalloc(iPos + 1);
 		if ( sRetTrim == NULL ) {
 			sRet[iPos] = 0;
-			xCore.iRet = iPos;
+			if ( iRetSize ) { *iRetSize = iPos; }
 			return sRet;
 		} else {
 			memcpy(sRetTrim, sRet, iPos);
 			xrtFree(sRet);
 			sRetTrim[iPos] = 0;
-			xCore.iRet = iPos;
+			if ( iRetSize ) { *iRetSize = iPos; }
 			return sRetTrim;
 		}
 	}

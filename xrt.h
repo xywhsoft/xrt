@@ -293,22 +293,22 @@
 	#define XRT_MASK_BOM			0xBFFFFFFF		// mask BOM
 	
 	// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
-	XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize);
+	XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize);
 	
 	// utf-8 转 utf-32（ 需使用 xrtFree 释放 ）
-	XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize);
+	XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize);
 	
 	// utf-16 转 utf-8（ 需使用 xrtFree 释放 ）
-	XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize);
+	XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize);
 	
 	// utf-16 转 utf-32（ 需使用 xrtFree 释放 ）
-	XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize);
+	XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize);
 	
 	// utf-32 转 utf-8（ 需使用 xrtFree 释放 ）
-	XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize);
+	XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize);
 	
 	// utf-32 转 utf-16（ 需使用 xrtFree 释放 ）
-	XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize);
+	XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize);
 	
 	// utf-16 大端序和小端序转换 ( 需使用 xrtFree 释放 )
 	XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise);
@@ -317,7 +317,7 @@
 	XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise);
 	
 	// 任意编码转换 ( 需使用 xrtFree 释放 )
-	XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
+	XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t* iRetSize);
 	
 	// 是否为 utf-8 字符串
 	XXAPI bool xrtIsUTF8(str sText, size_t iSize);
@@ -365,10 +365,10 @@
 	/* ------------------------------------ String 函数库 ------------------------------------ */
 	
 	// 创建字符串副本（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtCopyStr(str sText, size_t iSize);
-	XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize);
-	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize);
-	XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize);
+	XXAPI str xrtCopyStr(str sText, size_t iSize, size_t* iRetSize);
+	XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize, size_t* iRetSize);
+	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize, size_t* iRetSize);
+	XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize, size_t* iRetSize);
 	
 	// 比较字符串
 	XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase);
@@ -387,36 +387,36 @@
 	XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize);
 	
 	// 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-	XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise);
-	XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise);
-	XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise);
+	XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
+	XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
+	XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
 	
 	// 过滤字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
-	XXAPI str xrtFilterStr(str sText, size_t iSize, str sFilter, size_t iSubSize, bool bSrcRevise);
+	XXAPI str xrtFilterStr(str sText, size_t iSize, str sFilter, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
 	
 	// 字符串格式化（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtFormat(str sFormat, ...);
+	XXAPI str xrtFormat(str sFormat, size_t* iRetSize, ...);
 	
 	// 字符串替换（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize);
+	XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize, size_t* iRetSize);
 	
 	// 字符串分割（ 任何情况返回值都必须使用 xrtFree 释放，bSrcRevise 设置为 TRUE 时会破坏原数据 ）
-	XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool bSrcRevise);
+	XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool bSrcRevise, size_t* iRetSize);
 	
 	// 生成随机字符串（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen);
 	
 	// HEX 编码（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtHexEncode(ptr pMem, size_t iSize);
+	XXAPI str xrtHexEncode(ptr pMem, size_t iSize, size_t* iRetSize);
 	
 	// HEX 解码（ 需使用 xrtFree 释放 ）
-	XXAPI ptr xrtHexDecode(str pText, size_t iSize);
+	XXAPI ptr xrtHexDecode(str pText, size_t iSize, size_t* iRetSize);
 	
 	// Base64 编码（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);
+	XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable, size_t* iRetSize);
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
-	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
+	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable, size_t* iRetSize);
 	
 	
 	
@@ -590,13 +590,13 @@
 	XXAPI bool xrtSetEOF(xfile objFile);
 	
 	// 从已打开的文件读取数据 ( iSize 为要读取的字节数，需要使用 xrtFree 释放内存 )
-	XXAPI str xrtRead(xfile objFile, size_t iSize);
+	XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize);
 	
 	// 向已打开的文件写入数据 ( iSize 为要写入的字节数 )
 	XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
 	
 	// 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
-	XXAPI ptr xrtGet(xfile objFile, size_t iSize);
+	XXAPI ptr xrtGet(xfile objFile, size_t iSize, size_t* iRetSize);
 	
 	// 向已打开的文件写入二进制数据
 	XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize);
@@ -608,13 +608,13 @@
 	XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
 	
 	// 读取文件的全部内容 ( 需要使用 xrtFree 释放内存 )
-	XXAPI str xrtFileReadAll(str sPath, int iCharset);
+	XXAPI str xrtFileReadAll(str sPath, int iCharset, size_t* iRetSize);
 	
 	// 写入并覆盖文件内容 ( 二进制 )
 	XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize);
 	
 	// 读取文件的全部内容 ( 二进制，需要使用 xrtFree 释放内存 )
-	XXAPI ptr xrtFileGetAll(str sPath);
+	XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize);
 	
 	// 判断路径是否存在
 	XXAPI bool xrtPathExists(str sPath);

@@ -256,9 +256,6 @@ XXAPI xrtGlobalData* xrtInit()
 	// 初始化数据
 	xCore.bInit = TRUE;
 	xCore.sNull = (str)&sNullValue;
-	xCore.sRet = xCore.sNull;
-	xCore.iRet = 0;
-	xCore.nRet = 0.0;
 	xCore.LastError = xCore.sNull;
 	xCore.__pri_FreeError = FALSE;
 	xCore.OnError = NULL;
