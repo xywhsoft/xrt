@@ -163,9 +163,6 @@ XXAPI void xrtInitTLS()
 	
 	// 初始化 TLS 数据
 	tls->bInit = TRUE;
-	tls->sRet = xCore.sNull;
-	tls->iRet = 0;
-	tls->nRet = 0.0;
 	tls->LastError = xCore.sNull;
 	tls->__pri_FreeError = FALSE;
 	

@@ -146,11 +146,6 @@
 		// 初始化标志
 		int bInit;
 		
-		// 临时性返回数据 (可以改变，用于多个返回值的情况做临时存储)
-		str sRet;
-		int64 iRet;
-		double nRet;
-		
 		// 错误信息
 		str LastError;
 		int __pri_FreeError;
@@ -187,11 +182,6 @@
 		
 		// 全局数据 (不可改变)
 		str sNull;
-		
-		// [已废弃 - 保留兼容] 临时性全局数据，请使用 xrtGetTLS() 获取线程安全版本
-		str sRet;
-		int64 iRet;
-		double nRet;
 		
 		// [已废弃 - 保留兼容] 错误信息，请使用 xrtGetTLS() 获取线程安全版本
 		str LastError;
