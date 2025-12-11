@@ -5,7 +5,8 @@
 	PCG Random Number Generation for C. [ Update : 2025/08/19 from https://github.com/imneme/pcg-c-basic ]
 	修改：
 		整合到 xrt 库
-		使用线程局部存储 (TLS) 实现线程安全
+		提供 Ex 版本 API（调用者管理状态，线程安全）
+		普通版本 API 使用全局状态（线程不安全，性能优先）
 	使用协议注意事项：
 		Apache License, Version 2.0 协议
 		允许个人使用、商业使用
@@ -54,8 +55,10 @@ typedef struct pcg_state_setseq_64 pcg32_random_t;
 
 
 
-// [已废弃] 全局随机数状态，保留仅为了兼容性
-static pcg32_random_t pcg32_global = PCG32_INITIALIZER;
+// 全局随机数状态（普通 API 使用，线程不安全）
+static xrand_t xrt_rand32_global = XRAND_INITIALIZER;
+static xrand_t xrt_rand64_low_global = XRAND_INITIALIZER;
+static xrand_t xrt_rand64_high_global = XRAND_INITIALIZER;
 
 
 
@@ -132,17 +135,28 @@ uint32_t pcg32_boundedrand_r(pcg32_random_t* rng, uint32_t bound)
 
 
 
-// 获取 32 位随机数 (线程安全)
-XXAPI uint32 xrtRand32()
+// ==================== Ex 版本 API（调用者管理状态，线程安全）====================
+
+// 初始化随机数生成器
+XXAPI void xrtRandSeedEx(xrand_t* rng, uint64 seed, uint64 seq)
 {
-	xrtThreadLocal* tls = xrtGetTLS();
-	if ( tls == NULL ) {
-		// TLS 未初始化，回退到全局模式
-		return pcg32_random_r(&pcg32_global);
-	}
-	// 使用 TLS 中的随机数状态
-	uint64 oldstate = tls->Rand32.state;
-	tls->Rand32.state = oldstate * 6364136223846793005ULL + tls->Rand32.inc;
+	rng->state = 0U;
+	rng->inc = (seq << 1u) | 1u;
+	// 运算两次
+	uint64 oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+	rng->state += seed;
+	oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+}
+
+
+
+// 生成 32 位随机数
+XXAPI uint32 xrtRand32Ex(xrand_t* rng)
+{
+	uint64 oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
 	uint32 xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
 	uint32 rot = oldstate >> 59u;
 	return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
@@ -150,102 +164,24 @@ XXAPI uint32 xrtRand32()
 
 
 
-// 设置 32 位随机数种子 (线程安全)
-XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq)
+// 生成 64 位随机数
+XXAPI uint64 xrtRand64Ex(xrand_t* rngLow, xrand_t* rngHigh)
 {
-	xrtThreadLocal* tls = xrtGetTLS();
-	if ( tls == NULL ) {
-		// TLS 未初始化，回退到全局模式
-		pcg32_srandom_r(&pcg32_global, seed, seq);
-		return;
-	}
-	// 初始化 TLS 中的随机数状态
-	tls->Rand32.state = 0U;
-	tls->Rand32.inc = (seq << 1u) | 1u;
-	// 运算两次
-	uint64 oldstate = tls->Rand32.state;
-	tls->Rand32.state = oldstate * 6364136223846793005ULL + tls->Rand32.inc;
-	tls->Rand32.state += seed;
-	oldstate = tls->Rand32.state;
-	tls->Rand32.state = oldstate * 6364136223846793005ULL + tls->Rand32.inc;
-}
-
-
-
-// 获取 64 位随机数 (线程安全)
-// [已废弃] 全局随机数状态，保留仅为了兼容性
-static pcg32_random_t pcg32_global_64_low = PCG32_INITIALIZER;
-static pcg32_random_t pcg32_global_64_high = PCG32_INITIALIZER;
-XXAPI uint64 xrtRand64()
-{
-	xrtThreadLocal* tls = xrtGetTLS();
-	if ( tls == NULL ) {
-		// TLS 未初始化，回退到全局模式
-		uint32 iLow = pcg32_random_r(&pcg32_global_64_low);
-		uint32 iHigh = pcg32_random_r(&pcg32_global_64_high);
-		return ((uint64)iHigh << 32) | (uint64)iLow;
-	}
-	// 使用 TLS 中的随机数状态
-	uint64 oldstate;
-	uint32 xorshifted, rot;
-	// Low 32 bits
-	oldstate = tls->Rand64Low.state;
-	tls->Rand64Low.state = oldstate * 6364136223846793005ULL + tls->Rand64Low.inc;
-	xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
-	rot = oldstate >> 59u;
-	uint32 iLow = (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
-	// High 32 bits
-	oldstate = tls->Rand64High.state;
-	tls->Rand64High.state = oldstate * 6364136223846793005ULL + tls->Rand64High.inc;
-	xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
-	rot = oldstate >> 59u;
-	uint32 iHigh = (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+	uint32 iLow = xrtRand32Ex(rngLow);
+	uint32 iHigh = xrtRand32Ex(rngHigh);
 	return ((uint64)iHigh << 32) | (uint64)iLow;
 }
 
 
 
-// 设置 64 位随机数种子 (线程安全)
-XXAPI void xrtSetRandSeed64(uint64 lowseed, uint64 lowseq, uint64 highseed, uint64 highseq)
-{
-	xrtThreadLocal* tls = xrtGetTLS();
-	if ( tls == NULL ) {
-		// TLS 未初始化，回退到全局模式
-		pcg32_srandom_r(&pcg32_global_64_low, lowseed, lowseq);
-		pcg32_srandom_r(&pcg32_global_64_high, highseed, highseq);
-		return;
-	}
-	// 初始化 TLS 中的 64 位随机数状态
-	uint64 oldstate;
-	// Low
-	tls->Rand64Low.state = 0U;
-	tls->Rand64Low.inc = (lowseq << 1u) | 1u;
-	oldstate = tls->Rand64Low.state;
-	tls->Rand64Low.state = oldstate * 6364136223846793005ULL + tls->Rand64Low.inc;
-	tls->Rand64Low.state += lowseed;
-	oldstate = tls->Rand64Low.state;
-	tls->Rand64Low.state = oldstate * 6364136223846793005ULL + tls->Rand64Low.inc;
-	// High
-	tls->Rand64High.state = 0U;
-	tls->Rand64High.inc = (highseq << 1u) | 1u;
-	oldstate = tls->Rand64High.state;
-	tls->Rand64High.state = oldstate * 6364136223846793005ULL + tls->Rand64High.inc;
-	tls->Rand64High.state += highseed;
-	oldstate = tls->Rand64High.state;
-	tls->Rand64High.state = oldstate * 6364136223846793005ULL + tls->Rand64High.inc;
-}
-
-
-
-// 获取 32 位范围随机数 (线程安全)
-XXAPI int xrtRandRange(int min, int max)
+// 生成范围随机数
+XXAPI int xrtRandRangeEx(xrand_t* rng, int min, int max)
 {
 	uint32 iRange = (max - min) + 1;
 	if ( iRange > 0 ) {
-		// 使用 xrtRand32 已经是线程安全的
 		uint32 threshold = -iRange % iRange;
 		for (;;) {
-			uint32 r = xrtRand32();
+			uint32 r = xrtRand32Ex(rng);
 			if (r >= threshold)
 				return (r % iRange) + min;
 		}
@@ -253,13 +189,55 @@ XXAPI int xrtRandRange(int min, int max)
 		iRange = (min - max) + 1;
 		uint32 threshold = -iRange % iRange;
 		for (;;) {
-			uint32 r = xrtRand32();
+			uint32 r = xrtRand32Ex(rng);
 			if (r >= threshold)
 				return (r % iRange) + max;
 		}
-	} else {
-		return 0;
 	}
+	return 0;
+}
+
+
+
+// ==================== 普通版本 API（使用全局状态，线程不安全）====================
+
+// 获取 32 位随机数
+XXAPI uint32 xrtRand32()
+{
+	return xrtRand32Ex(&xrt_rand32_global);
+}
+
+
+
+// 设置 32 位随机数种子
+XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq)
+{
+	xrtRandSeedEx(&xrt_rand32_global, seed, seq);
+}
+
+
+
+// 获取 64 位随机数
+XXAPI uint64 xrtRand64()
+{
+	return xrtRand64Ex(&xrt_rand64_low_global, &xrt_rand64_high_global);
+}
+
+
+
+// 设置 64 位随机数种子
+XXAPI void xrtSetRandSeed64(uint64 lowseed, uint64 lowseq, uint64 highseed, uint64 highseq)
+{
+	xrtRandSeedEx(&xrt_rand64_low_global, lowseed, lowseq);
+	xrtRandSeedEx(&xrt_rand64_high_global, highseed, highseq);
+}
+
+
+
+// 获取 32 位范围随机数
+XXAPI int xrtRandRange(int min, int max)
+{
+	return xrtRandRangeEx(&xrt_rand32_global, min, max);
 }
 
 

@@ -119,56 +119,13 @@
 	
 	
 	
-	/* ------------------------------------ 线程局部存储 (TLS) ------------------------------------ */
+	/* ------------------------------------ PCG 随机数状态结构 ------------------------------------ */
 	
-	// TLS 关键字定义 ( 跨平台支持 )
-	#if defined(_WIN32) || defined(_WIN64)
-		#if defined(__TINYC__) || defined(BUILD_DLL)
-			// TCC 不支持 __declspec(thread)
-			// Windows DLL 不支持静态 TLS (__thread / __declspec(thread))，必须使用 Windows TLS API
-			#define XRT_USE_WIN_TLS_API 1
-		#else
-			#define XRT_TLS __declspec(thread)
-		#endif
-	#else
-		#define XRT_TLS __thread
-	#endif
-	
-	// PCG 随机数状态结构 ( 用于 TLS )
+	// PCG 随机数状态结构
 	typedef struct {
 		uint64 state;
 		uint64 inc;
 	} xrt_pcg32_t;
-	
-	// 线程局部数据结构 ( 存储每个线程独立的数据 )
-	typedef struct {
-		
-		// 初始化标志
-		int bInit;
-		
-		// 错误信息
-		str LastError;
-		int __pri_FreeError;
-		
-		// 环形临时内存（固定 32 个临时内存循环使用和释放）
-		ptr TempMem[32];
-		uint32 TempMemIdx;
-		
-		// 随机数生成器状态 ( 每个线程独立 )
-		xrt_pcg32_t Rand32;
-		xrt_pcg32_t Rand64Low;
-		xrt_pcg32_t Rand64High;
-		
-	} xrtThreadLocal;
-	
-	// 获取当前线程的 TLS 数据
-	XXAPI xrtThreadLocal* xrtGetTLS();
-	
-	// 初始化当前线程的 TLS ( 主线程在 xrtInit 中自动调用 )
-	XXAPI void xrtInitTLS();
-	
-	// 释放当前线程的 TLS ( 主线程在 xrtUnit 中自动调用 )
-	XXAPI void xrtUnitTLS();
 	
 	
 	
@@ -183,7 +140,7 @@
 		// 全局数据 (不可改变)
 		str sNull;
 		
-		// [已废弃 - 保留兼容] 错误信息，请使用 xrtGetTLS() 获取线程安全版本
+		// 错误信息（线程不安全）
 		str LastError;
 		int __pri_FreeError;
 		void (*OnError)(str sError);
@@ -200,7 +157,7 @@
 		str AppFile;
 		str AppPath;
 		
-		// [已废弃 - 保留兼容] 环形临时内存，请使用 xrtGetTLS() 获取线程安全版本
+		// 环形临时内存（线程不安全）
 		ptr TempMem[32];
 		uint32 TempMemIdx;
 		
@@ -334,6 +291,28 @@
 	
 	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
+	
+	// 随机数生成器状态结构（用于 Ex 版本 API）
+	typedef xrt_pcg32_t xrand_t;
+	
+	// 静态初始化随机数生成器的推荐值
+	#define XRAND_INITIALIZER  { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
+	
+	// ===== Ex 版本 API（调用者管理状态，线程安全）=====
+	
+	// 初始化随机数生成器
+	XXAPI void xrtRandSeedEx(xrand_t* rng, uint64 seed, uint64 seq);
+	
+	// 生成 32 位随机数
+	XXAPI uint32 xrtRand32Ex(xrand_t* rng);
+	
+	// 生成 64 位随机数（需要两个状态：低32位和高32位）
+	XXAPI uint64 xrtRand64Ex(xrand_t* rngLow, xrand_t* rngHigh);
+	
+	// 生成范围随机数
+	XXAPI int xrtRandRangeEx(xrand_t* rng, int min, int max);
+	
+	// ===== 普通版本 API（使用全局状态，线程不安全）=====
 	
 	// 获取 32 位随机数
 	XXAPI uint32 xrtRand32();
