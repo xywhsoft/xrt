@@ -11,6 +11,8 @@
 - [数据类型](#数据类型)
 - [常量定义](#常量定义)
 - [随机数生成](#随机数生成)
+  - [普通 API（线程不安全）](#xrtrand32)
+  - [Ex 版本 API（线程安全）](#xrtrand32ex)
 - [使用场景](#使用场景)
 - [最佳实践](#最佳实践)
 - [性能提示](#性能提示)
@@ -21,40 +23,40 @@
 
 ## 数据类型
 
-### pcg32_random_t
+### xrand
 
-PCG 算法随机数生成器状态结构（内部使用）。
+PCG 算法随机数生成器状态结构。
 
 **定义：**
 ```c
-struct pcg_state_setseq_64 {
-    uint64_t state;  // RNG 状态，所有值都有效
-    uint64_t inc;    // 控制 RNG 序列（流），必须始终为奇数
-};
-typedef struct pcg_state_setseq_64 pcg32_random_t;
+typedef struct {
+    uint64 state;  // RNG 状态
+    uint64 inc;    // 控制 RNG 序列（流）
+} xrand;
 ```
 
 **说明：**
-- 这是 PCG 算法的内部状态结构
-- 通常不需要直接操作，由 `xrtSetRandSeed32` 等函数管理
-- 库内部维护全局实例用于 `xrtRand32`/`xrtRand64`
+- 用于 Ex 版本 API 中由调用者管理随机数状态
+- 普通 API 使用全局状态 `xCore.rand32`、`xCore.rand64_low`、`xCore.rand64_high`
+- 可使用 `XRAND_INITIALIZER` 宏进行静态初始化
 
 ---
 
 ## 常量定义
 
-### PCG32_INITIALIZER
+### XRAND_INITIALIZER
 
-静态初始化 PCG 随机数生成器的推荐值。
+静态初始化随机数生成器的推荐值。
 
 **定义：**
 ```c
-#define PCG32_INITIALIZER   { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
+#define XRAND_INITIALIZER  { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
 ```
 
 **说明：**
-- 如果需要静态初始化随机数生成器，推荐使用此值
-- 通常不需要直接使用，`xrtInit()` 会自动初始化
+- 用于静态初始化 `xrand` 结构体
+- 示例：`xrand rng = XRAND_INITIALIZER;`
+- 普通 API 使用的全局状态由 `xrtInit()` 自动初始化
 
 ---
 
@@ -103,73 +105,62 @@ int main() {
 
 ---
 
-### xrtSetRandSeed32
+### xrtRandSeed
 
-设置32位随机数种子。
+初始化随机数生成器。
 
 **函数原型：**
 ```c
-XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq);
+XXAPI void xrtRandSeed(xrand* rng, uint64 seed, uint64 seq);
 ```
 
 **参数：**
+- `rng` - 随机数生成器状态指针
 - `seed` - 随机数种子
-- `seq` - 序列号（用于生成不同序列，必须为奇数）
+- `seq` - 序列号（用于生成不同序列）
 
 **说明：**
 - 相同的种子和序列产生相同的随机数序列
-- `xrtInit()` 自动使用时间和 CPU 时钟初始化
 - 可用于可重现的随机序列（测试、调试）
+- `seq` 参数内部会被转换为奇数（`(seq << 1) | 1`）
 
 **示例：**
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
 
 int main() {
     xrtInit();
     
+    // 创建独立的随机数生成器
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 12345, 1);
+    
     // 使用固定种子（可重现）
-    xrtSetRandSeed32(12345, 1);
     printf("固定种子结果: ");
     for (int i = 0; i < 5; i++) {
-        printf("%u ", xrtRand32());
+        printf("%u ", xrtRand32Ex(&myRng));
     }
     printf("\n");
     
     // 重置种子，结果相同
-    xrtSetRandSeed32(12345, 1);
+    xrtRandSeed(&myRng, 12345, 1);
     printf("重置后结果: ");
     for (int i = 0; i < 5; i++) {
-        printf("%u ", xrtRand32());
+        printf("%u ", xrtRand32Ex(&myRng));
     }
     printf("\n");
-    
-    // 使用时间作为种子（不可重现）
-    xrtSetRandSeed32((uint64)time(NULL), 1);
-    printf("时间种子结果: %u\n", xrtRand32());
-    
-    // 不同序列号产生不同结果
-    xrtSetRandSeed32(12345, 1);  // 序列A
-    printf("序列A: %u\n", xrtRand32());
-    xrtSetRandSeed32(12345, 3);  // 序列B（序列号不同）
-    printf("序列B: %u\n", xrtRand32());
     
     xrtUnit();
     return 0;
 }
 ```
 
-**补充说明：**
-- `seq` 参数内部会被转换为奇数（`(seq << 1) | 1`）
-- 不同的 `seq` 值会产生完全不同的随机数序列
-
 ---
 
 ### xrtRand64
 
-生成64位随机数。
+生成64位随机数（线程不安全）。
 
 **函数原型：**
 ```c
@@ -183,7 +174,7 @@ XXAPI uint64 xrtRand64();
 - 内部通过组合两个 32 位随机数实现（高位 + 低位）
 - 自动在 `xrtInit()` 中初始化
 - 适用于需要更大范围的场景（如生成唯一ID）
-- 线程不安全
+- **线程不安全**，多线程环境请使用 `xrtRand64Ex`
 
 **示例：**
 ```c
@@ -195,84 +186,24 @@ int main() {
     
     // 生成64位随机数
     uint64 random = xrtRand64();
-    printf("Random64: %" PRIu64 "\n", random);
+    printf("Random64: %llu\n", random);
     
     // 生成大范围随机ID
     for (int i = 0; i < 5; i++) {
         uint64 id = xrtRand64();
-        printf("ID %d: 0x%016" PRIX64 "\n", i, id);
+        printf("ID %d: 0x%016llX\n", i, id);
     }
     
     xrtUnit();
     return 0;
 }
 ```
-
-**补充说明：**
-- 内部实现：`((uint64)高位32 << 32) | (uint64)低位32`
-- 使用两个独立的 PCG32 生成器，保证随机性
-
----
-
-### xrtSetRandSeed64
-
-设置64位随机数种子。
-
-**函数原型：**
-```c
-XXAPI void xrtSetRandSeed64(
-    uint64 lowseed, 
-    uint64 lowseq,
-    uint64 highseed, 
-    uint64 highseq
-);
-```
-
-**参数：**
-- `lowseed` - 低位种子
-- `lowseq` - 低位序列号
-- `highseed` - 高位种子
-- `highseq` - 高位序列号
-
-**说明：**
-- 64位随机数由两个独立的 32 位生成器组合，因此需要4个参数
-- `xrtInit()` 自动使用复杂算法初始化
-
-**示例：**
-```c
-#include "xrt.h"
-#include <stdio.h>
-
-int main() {
-    xrtInit();
-    
-    // 自定义64位种子
-    xrtSetRandSeed64(
-        0x123456789ABCDEF0ULL, 1,   // 低位种子和序列
-        0xFEDCBA9876543210ULL, 1    // 高位种子和序列
-    );
-    
-    // 生成可重现的 64 位随机数
-    printf("可重现的随机数: ");
-    for (int i = 0; i < 3; i++) {
-        printf("0x%016" PRIX64 " ", xrtRand64());
-    }
-    printf("\n");
-    
-    xrtUnit();
-    return 0;
-}
-```
-
-**补充说明：**
-- 序列号内部同样会被转换为奇数
-- 四个参数完全相同时才会产生相同的随机序列
 
 ---
 
 ### xrtRandRange
 
-生成指定范围的随机整数。
+生成指定范围的随机整数（线程不安全）。
 
 **函数原型：**
 ```c
@@ -330,8 +261,145 @@ int main() {
 ```
 
 **补充说明：**
-- 内部使用 `pcg32_boundedrand_r` 函数，避免模运算偏差
+- 内部使用无偏差算法
 - 平均情况下 82.25% 的调用只需一次循环
+- **线程不安全**，多线程环境请使用 `xrtRandRangeEx`
+
+---
+
+### xrtRand32Ex
+
+生成32位随机数（线程安全）。
+
+**函数原型：**
+```c
+XXAPI uint32 xrtRand32Ex(xrand* rng);
+```
+
+**参数：**
+- `rng` - 随机数生成器状态指针
+
+**返回值：**
+- 返回 0 ~ 4294967295 (2^32-1) 范围的随机数
+
+**说明：**
+- 由调用者管理状态，可在多线程环境下安全使用
+- 每个线程使用自己的 `xrand` 实例即可避免竞争
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 创建线程独立的随机数生成器
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 12345, 1);
+    
+    printf("生成10个32位随机数:\n");
+    for (int i = 0; i < 10; i++) {
+        printf("%u\n", xrtRand32Ex(&myRng));
+    }
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtRand64Ex
+
+生成64位随机数（线程安全）。
+
+**函数原型：**
+```c
+XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh);
+```
+
+**参数：**
+- `rngLow` - 低位随机数生成器状态指针
+- `rngHigh` - 高位随机数生成器状态指针
+
+**返回值：**
+- 返回 0 ~ 18446744073709551615 (2^64-1) 范围的随机数
+
+**说明：**
+- 由调用者管理状态，可在多线程环境下安全使用
+- 需要两个独立的 `xrand` 实例分别生成高位和低位
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 创建两个独立的生成器
+    xrand rngLow = XRAND_INITIALIZER;
+    xrand rngHigh = XRAND_INITIALIZER;
+    xrtRandSeed(&rngLow, 11111, 1);
+    xrtRandSeed(&rngHigh, 22222, 3);
+    
+    printf("生成5个64位随机数:\n");
+    for (int i = 0; i < 5; i++) {
+        printf("0x%016llX\n", xrtRand64Ex(&rngLow, &rngHigh));
+    }
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtRandRangeEx
+
+生成指定范围的随机整数（线程安全）。
+
+**函数原型：**
+```c
+XXAPI int xrtRandRangeEx(xrand* rng, int min, int max);
+```
+
+**参数：**
+- `rng` - 随机数生成器状态指针
+- `min` - 最小值（包含）
+- `max` - 最大值（包含）
+
+**返回值：**
+- 返回 [min, max] 范围内的随机整数
+
+**说明：**
+- 由调用者管理状态，可在多线程环境下安全使用
+- 支持负数范围
+- 如果 `min > max`，会自动交换
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 67890, 1);
+    
+    // 模拟掷骰子
+    printf("掷骰子10次:\n");
+    for (int i = 0; i < 10; i++) {
+        printf("%d ", xrtRandRangeEx(&myRng, 1, 6));
+    }
+    printf("\n");
+    
+    xrtUnit();
+    return 0;
+}
+```
 
 ---
 
@@ -631,23 +699,17 @@ int main() {
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
-
-#if !defined(_WIN32) && !defined(_WIN64)
-    #include <unistd.h>
-    #define GET_PID() getpid()
-#else
-    #include <process.h>
-    #define GET_PID() _getpid()
-#endif
 
 int main() {
     xrtInit();  // 自动初始化随机数种子
     
-    // 如需自定义种子（结合时间和进程ID）
-    xrtSetRandSeed32((uint64)time(NULL), (uint64)GET_PID());
-    
+    // 普通使用：直接调用（全局状态已由 xrtInit 初始化）
     printf("随机数: %u\n", xrtRand32());
+    
+    // Ex 版本：创建独立的生成器
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 12345, 1);
+    printf("Ex 版本: %u\n", xrtRand32Ex(&myRng));
     
     xrtUnit();
     return 0;
@@ -661,24 +723,25 @@ int main() {
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
 
 int main() {
     xrtInit();
     
+    // 使用固定种子创建可重现的随机序列
+    xrand rng = XRAND_INITIALIZER;
+    
 #ifdef DEBUG
     // 测试环境：使用固定种子，结果可重现
-    xrtSetRandSeed32(12345, 1);
+    xrtRandSeed(&rng, 12345, 1);
     printf("调试模式: 使用固定种子\n");
 #else
-    // 生产环境：使用时间种子
-    xrtSetRandSeed32((uint64)time(NULL), 1);
-    printf("生产模式: 使用时间种子\n");
+    // 生产环境：使用全局 API 或随机种子
+    printf("生产模式: 使用默认种子\n");
 #endif
     
     printf("随机序列: ");
     for (int i = 0; i < 5; i++) {
-        printf("%u ", xrtRand32());
+        printf("%u ", xrtRand32Ex(&rng));
     }
     printf("\n");
     
@@ -767,42 +830,41 @@ int main() {
 #include "xrt.h"
 #include <stdio.h>
 
-#if defined(_WIN32) || defined(_WIN64)
-    #include <windows.h>
-    static CRITICAL_SECTION rand_mutex;
-    #define MUTEX_INIT()    InitializeCriticalSection(&rand_mutex)
-    #define MUTEX_LOCK()    EnterCriticalSection(&rand_mutex)
-    #define MUTEX_UNLOCK()  LeaveCriticalSection(&rand_mutex)
-    #define MUTEX_DESTROY() DeleteCriticalSection(&rand_mutex)
-#else
-    #include <pthread.h>
-    static pthread_mutex_t rand_mutex = PTHREAD_MUTEX_INITIALIZER;
-    #define MUTEX_INIT()    pthread_mutex_init(&rand_mutex, NULL)
-    #define MUTEX_LOCK()    pthread_mutex_lock(&rand_mutex)
-    #define MUTEX_UNLOCK()  pthread_mutex_unlock(&rand_mutex)
-    #define MUTEX_DESTROY() pthread_mutex_destroy(&rand_mutex)
-#endif
-
-// 线程安全的随机数生成
-uint32 ThreadSafeRand32() {
-    MUTEX_LOCK();
-    uint32 result = xrtRand32();
-    MUTEX_UNLOCK();
-    return result;
+// 线程入口函数
+XRT_THREAD_PROC(ThreadFunc, param)
+{
+    // 每个线程使用自己的随机数生成器
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, (uint64)(size_t)param, 1);  // 使用线程参数作为种子
+    
+    for (int i = 0; i < 5; i++) {
+        uint32 r = xrtRand32Ex(&myRng);
+        printf("线程%lld: %u\n", (uint64)(size_t)param, r);
+    }
+    return 0;
 }
 
 int main() {
     xrtInit();
-    MUTEX_INIT();
     
-    // 在多线程环境中安全使用
-    printf("线程安全随机数: %u\n", ThreadSafeRand32());
+    // 创建多个线程
+    xrt_thread t1, t2;
+    xrtThreadCreate(&t1, ThreadFunc, (ptr)1);
+    xrtThreadCreate(&t2, ThreadFunc, (ptr)2);
     
-    MUTEX_DESTROY();
+    // 等待线程结束
+    xrtThreadJoin(&t1);
+    xrtThreadJoin(&t2);
+    
     xrtUnit();
     return 0;
 }
 ```
+
+**说明：**
+- 普通 API（`xrtRand32`/`xrtRand64`/`xrtRandRange`）使用全局状态，线程不安全
+- Ex 版本 API（`xrtRand32Ex`/`xrtRand64Ex`/`xrtRandRangeEx`）由调用者管理状态
+- 每个线程创建自己的 `xrand` 实例，即可实现线程安全
 
 ---
 
@@ -911,35 +973,42 @@ int main() {
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
 
-// ✗ 错误：每次都重置种子
+// ✗ 错误：每次都重置种子会导致结果相同
 uint32 BadRandom() {
-    xrtSetRandSeed32((uint64)time(NULL), 1);  // 同一秒内结果相同！
-    return xrtRand32();
+    xrand rng = XRAND_INITIALIZER;
+    xrtRandSeed(&rng, 12345, 1);  // 每次都用相同种子
+    return xrtRand32Ex(&rng);     // 每次返回的都是第一个随机数！
 }
 
 // ✓ 正确：只在开始时初始化一次
+static xrand g_rng;
+static int g_rng_init = 0;
+
 void Setup() {
-    xrtSetRandSeed32((uint64)time(NULL), 1);
+    if (!g_rng_init) {
+        g_rng = (xrand)XRAND_INITIALIZER;
+        xrtRandSeed(&g_rng, 12345, 1);
+        g_rng_init = 1;
+    }
 }
 
 uint32 GoodRandom() {
-    return xrtRand32();  // 每次调用结果不同
+    return xrtRand32Ex(&g_rng);  // 每次调用结果不同
 }
 
 int main() {
     xrtInit();
+    Setup();
     
-    // 演示错误用法：同一秒内结果相同
-    printf("错误用法 (同一秒内结果相同):\n");
+    // 演示错误用法
+    printf("错误用法 (结果相同):\n");
     for (int i = 0; i < 3; i++) {
         printf("  %u\n", BadRandom());
     }
     
     // 演示正确用法
     printf("\n正确用法 (每次不同):\n");
-    Setup();
     for (int i = 0; i < 3; i++) {
         printf("  %u\n", GoodRandom());
     }

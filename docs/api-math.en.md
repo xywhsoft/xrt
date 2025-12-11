@@ -11,6 +11,8 @@
 - [Data Types](#data-types)
 - [Constants](#constants)
 - [Random Number Generation](#random-number-generation)
+  - [Basic API (Not Thread-Safe)](#xrtrand32)
+  - [Ex Version API (Thread-Safe)](#xrtrand32ex)
 - [Usage Scenarios](#usage-scenarios)
 - [Best Practices](#best-practices)
 - [Performance Tips](#performance-tips)
@@ -21,40 +23,40 @@
 
 ## Data Types
 
-### pcg32_random_t
+### xrand
 
-PCG algorithm random number generator state structure (internal use).
+PCG algorithm random number generator state structure.
 
 **Definition:**
 ```c
-struct pcg_state_setseq_64 {
-    uint64_t state;  // RNG state, all values are valid
-    uint64_t inc;    // Controls RNG sequence (stream), must always be odd
-};
-typedef struct pcg_state_setseq_64 pcg32_random_t;
+typedef struct {
+    uint64 state;  // RNG state
+    uint64 inc;    // Controls RNG sequence (stream)
+} xrand;
 ```
 
 **Notes:**
-- This is the internal state structure of the PCG algorithm
-- Usually no need to operate directly, managed by `xrtSetRandSeed32` etc.
-- Library maintains global instance for `xrtRand32`/`xrtRand64`
+- Used for Ex version API where caller manages random number state
+- Basic API uses global state `xCore.rand32`, `xCore.rand64_low`, `xCore.rand64_high`
+- Can use `XRAND_INITIALIZER` macro for static initialization
 
 ---
 
 ## Constants
 
-### PCG32_INITIALIZER
+### XRAND_INITIALIZER
 
-Recommended value for static initialization of PCG random number generator.
+Recommended value for static initialization of random number generator.
 
 **Definition:**
 ```c
-#define PCG32_INITIALIZER   { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
+#define XRAND_INITIALIZER  { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
 ```
 
 **Notes:**
-- Use this value if you need to statically initialize random number generator
-- Usually not needed directly, `xrtInit()` auto-initializes
+- Used for statically initializing `xrand` struct
+- Example: `xrand rng = XRAND_INITIALIZER;`
+- Global state for basic API is auto-initialized by `xrtInit()`
 
 ---
 
@@ -103,73 +105,62 @@ int main() {
 
 ---
 
-### xrtSetRandSeed32
+### xrtRandSeed
 
-Set 32-bit random number seed.
+Initialize random number generator.
 
 **Function Prototype:**
 ```c
-XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq);
+XXAPI void xrtRandSeed(xrand* rng, uint64 seed, uint64 seq);
 ```
 
 **Parameters:**
+- `rng` - Pointer to random number generator state
 - `seed` - Random number seed
-- `seq` - Sequence number (for generating different sequences, must be odd)
+- `seq` - Sequence number (for generating different sequences)
 
 **Notes:**
 - Same seed and sequence produce same random number sequence
-- `xrtInit()` auto-initializes using time and CPU clock
 - Can be used for reproducible random sequences (testing, debugging)
+- `seq` parameter is internally converted to odd (`(seq << 1) | 1`)
 
 **Example:**
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
 
 int main() {
     xrtInit();
     
+    // Create independent random number generator
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 12345, 1);
+    
     // Use fixed seed (reproducible)
-    xrtSetRandSeed32(12345, 1);
     printf("Fixed seed result: ");
     for (int i = 0; i < 5; i++) {
-        printf("%u ", xrtRand32());
+        printf("%u ", xrtRand32Ex(&myRng));
     }
     printf("\n");
     
     // Reset seed, same result
-    xrtSetRandSeed32(12345, 1);
+    xrtRandSeed(&myRng, 12345, 1);
     printf("After reset result: ");
     for (int i = 0; i < 5; i++) {
-        printf("%u ", xrtRand32());
+        printf("%u ", xrtRand32Ex(&myRng));
     }
     printf("\n");
-    
-    // Use time as seed (non-reproducible)
-    xrtSetRandSeed32((uint64)time(NULL), 1);
-    printf("Time seed result: %u\n", xrtRand32());
-    
-    // Different sequence numbers produce different results
-    xrtSetRandSeed32(12345, 1);  // Sequence A
-    printf("Sequence A: %u\n", xrtRand32());
-    xrtSetRandSeed32(12345, 3);  // Sequence B (different sequence number)
-    printf("Sequence B: %u\n", xrtRand32());
     
     xrtUnit();
     return 0;
 }
 ```
 
-**Additional Notes:**
-- `seq` parameter is internally converted to odd (`(seq << 1) | 1`)
-- Different `seq` values produce completely different random number sequences
-
 ---
 
 ### xrtRand64
 
-Generate a 64-bit random number.
+Generate a 64-bit random number (not thread-safe).
 
 **Function Prototype:**
 ```c
@@ -183,7 +174,7 @@ XXAPI uint64 xrtRand64();
 - Internally implemented by combining two 32-bit random numbers (high + low)
 - Auto-initialized in `xrtInit()`
 - Suitable for scenarios needing larger range (e.g., generating unique IDs)
-- Not thread-safe
+- **Not thread-safe**, use `xrtRand64Ex` for multi-threading
 
 **Example:**
 ```c
@@ -195,84 +186,24 @@ int main() {
     
     // Generate 64-bit random number
     uint64 random = xrtRand64();
-    printf("Random64: %" PRIu64 "\n", random);
+    printf("Random64: %llu\n", random);
     
     // Generate large range random IDs
     for (int i = 0; i < 5; i++) {
         uint64 id = xrtRand64();
-        printf("ID %d: 0x%016" PRIX64 "\n", i, id);
+        printf("ID %d: 0x%016llX\n", i, id);
     }
     
     xrtUnit();
     return 0;
 }
 ```
-
-**Additional Notes:**
-- Internal implementation: `((uint64)high32 << 32) | (uint64)low32`
-- Uses two independent PCG32 generators to ensure randomness
-
----
-
-### xrtSetRandSeed64
-
-Set 64-bit random number seed.
-
-**Function Prototype:**
-```c
-XXAPI void xrtSetRandSeed64(
-    uint64 lowseed, 
-    uint64 lowseq,
-    uint64 highseed, 
-    uint64 highseq
-);
-```
-
-**Parameters:**
-- `lowseed` - Low-bits seed
-- `lowseq` - Low-bits sequence number
-- `highseed` - High-bits seed
-- `highseq` - High-bits sequence number
-
-**Notes:**
-- 64-bit random numbers are combined from two independent 32-bit generators, so 4 parameters needed
-- `xrtInit()` auto-initializes using complex algorithm
-
-**Example:**
-```c
-#include "xrt.h"
-#include <stdio.h>
-
-int main() {
-    xrtInit();
-    
-    // Custom 64-bit seed
-    xrtSetRandSeed64(
-        0x123456789ABCDEF0ULL, 1,   // Low-bits seed and sequence
-        0xFEDCBA9876543210ULL, 1    // High-bits seed and sequence
-    );
-    
-    // Generate reproducible 64-bit random numbers
-    printf("Reproducible random numbers: ");
-    for (int i = 0; i < 3; i++) {
-        printf("0x%016" PRIX64 " ", xrtRand64());
-    }
-    printf("\n");
-    
-    xrtUnit();
-    return 0;
-}
-```
-
-**Additional Notes:**
-- Sequence numbers are also internally converted to odd
-- All four parameters must be same to produce same random sequence
 
 ---
 
 ### xrtRandRange
 
-Generate a random integer within specified range.
+Generate a random integer within specified range (not thread-safe).
 
 **Function Prototype:**
 ```c
@@ -330,8 +261,145 @@ int main() {
 ```
 
 **Additional Notes:**
-- Internally uses `pcg32_boundedrand_r` function, avoids modulo bias
+- Internally uses unbiased algorithm
 - On average 82.25% of calls need only one loop iteration
+- **Not thread-safe**, use `xrtRandRangeEx` for multi-threading
+
+---
+
+### xrtRand32Ex
+
+Generate a 32-bit random number (thread-safe).
+
+**Function Prototype:**
+```c
+XXAPI uint32 xrtRand32Ex(xrand* rng);
+```
+
+**Parameters:**
+- `rng` - Pointer to random number generator state
+
+**Return Value:**
+- Returns a random number in range 0 ~ 4294967295 (2^32-1)
+
+**Notes:**
+- Caller manages state, safe to use in multi-threaded environment
+- Each thread using its own `xrand` instance avoids race conditions
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Create thread-independent random number generator
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 12345, 1);
+    
+    printf("Generate 10 32-bit random numbers:\n");
+    for (int i = 0; i < 10; i++) {
+        printf("%u\n", xrtRand32Ex(&myRng));
+    }
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtRand64Ex
+
+Generate a 64-bit random number (thread-safe).
+
+**Function Prototype:**
+```c
+XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh);
+```
+
+**Parameters:**
+- `rngLow` - Pointer to low-bits random number generator state
+- `rngHigh` - Pointer to high-bits random number generator state
+
+**Return Value:**
+- Returns a random number in range 0 ~ 18446744073709551615 (2^64-1)
+
+**Notes:**
+- Caller manages state, safe to use in multi-threaded environment
+- Requires two independent `xrand` instances for high and low bits
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Create two independent generators
+    xrand rngLow = XRAND_INITIALIZER;
+    xrand rngHigh = XRAND_INITIALIZER;
+    xrtRandSeed(&rngLow, 11111, 1);
+    xrtRandSeed(&rngHigh, 22222, 3);
+    
+    printf("Generate 5 64-bit random numbers:\n");
+    for (int i = 0; i < 5; i++) {
+        printf("0x%016llX\n", xrtRand64Ex(&rngLow, &rngHigh));
+    }
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtRandRangeEx
+
+Generate a random integer within specified range (thread-safe).
+
+**Function Prototype:**
+```c
+XXAPI int xrtRandRangeEx(xrand* rng, int min, int max);
+```
+
+**Parameters:**
+- `rng` - Pointer to random number generator state
+- `min` - Minimum value (inclusive)
+- `max` - Maximum value (inclusive)
+
+**Return Value:**
+- Returns a random integer in [min, max] range
+
+**Notes:**
+- Caller manages state, safe to use in multi-threaded environment
+- Supports negative ranges
+- If `min > max`, automatically swaps
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 67890, 1);
+    
+    // Dice simulation
+    printf("Roll dice 10 times:\n");
+    for (int i = 0; i < 10; i++) {
+        printf("%d ", xrtRandRangeEx(&myRng, 1, 6));
+    }
+    printf("\n");
+    
+    xrtUnit();
+    return 0;
+}
+```
 
 ---
 
@@ -631,23 +699,17 @@ int main() {
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
-
-#if !defined(_WIN32) && !defined(_WIN64)
-    #include <unistd.h>
-    #define GET_PID() getpid()
-#else
-    #include <process.h>
-    #define GET_PID() _getpid()
-#endif
 
 int main() {
     xrtInit();  // Auto-initialize random number seed
     
-    // For custom seed (combine time and process ID)
-    xrtSetRandSeed32((uint64)time(NULL), (uint64)GET_PID());
-    
+    // Basic usage: directly call (global state initialized by xrtInit)
     printf("Random number: %u\n", xrtRand32());
+    
+    // Ex version: create independent generator
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, 12345, 1);
+    printf("Ex version: %u\n", xrtRand32Ex(&myRng));
     
     xrtUnit();
     return 0;
@@ -661,24 +723,25 @@ int main() {
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
 
 int main() {
     xrtInit();
     
+    // Use fixed seed for reproducible random sequence
+    xrand rng = XRAND_INITIALIZER;
+    
 #ifdef DEBUG
     // Test environment: use fixed seed, reproducible results
-    xrtSetRandSeed32(12345, 1);
+    xrtRandSeed(&rng, 12345, 1);
     printf("Debug mode: using fixed seed\n");
 #else
-    // Production environment: use time seed
-    xrtSetRandSeed32((uint64)time(NULL), 1);
-    printf("Production mode: using time seed\n");
+    // Production environment: use global API or random seed
+    printf("Production mode: using default seed\n");
 #endif
     
     printf("Random sequence: ");
     for (int i = 0; i < 5; i++) {
-        printf("%u ", xrtRand32());
+        printf("%u ", xrtRand32Ex(&rng));
     }
     printf("\n");
     
@@ -767,42 +830,41 @@ int main() {
 #include "xrt.h"
 #include <stdio.h>
 
-#if defined(_WIN32) || defined(_WIN64)
-    #include <windows.h>
-    static CRITICAL_SECTION rand_mutex;
-    #define MUTEX_INIT()    InitializeCriticalSection(&rand_mutex)
-    #define MUTEX_LOCK()    EnterCriticalSection(&rand_mutex)
-    #define MUTEX_UNLOCK()  LeaveCriticalSection(&rand_mutex)
-    #define MUTEX_DESTROY() DeleteCriticalSection(&rand_mutex)
-#else
-    #include <pthread.h>
-    static pthread_mutex_t rand_mutex = PTHREAD_MUTEX_INITIALIZER;
-    #define MUTEX_INIT()    pthread_mutex_init(&rand_mutex, NULL)
-    #define MUTEX_LOCK()    pthread_mutex_lock(&rand_mutex)
-    #define MUTEX_UNLOCK()  pthread_mutex_unlock(&rand_mutex)
-    #define MUTEX_DESTROY() pthread_mutex_destroy(&rand_mutex)
-#endif
-
-// Thread-safe random number generation
-uint32 ThreadSafeRand32() {
-    MUTEX_LOCK();
-    uint32 result = xrtRand32();
-    MUTEX_UNLOCK();
-    return result;
+// Thread entry function
+XRT_THREAD_PROC(ThreadFunc, param)
+{
+    // Each thread uses its own random number generator
+    xrand myRng = XRAND_INITIALIZER;
+    xrtRandSeed(&myRng, (uint64)(size_t)param, 1);  // Use thread param as seed
+    
+    for (int i = 0; i < 5; i++) {
+        uint32 r = xrtRand32Ex(&myRng);
+        printf("Thread%lld: %u\n", (uint64)(size_t)param, r);
+    }
+    return 0;
 }
 
 int main() {
     xrtInit();
-    MUTEX_INIT();
     
-    // Safe to use in multi-threaded environment
-    printf("Thread-safe random number: %u\n", ThreadSafeRand32());
+    // Create multiple threads
+    xrt_thread t1, t2;
+    xrtThreadCreate(&t1, ThreadFunc, (ptr)1);
+    xrtThreadCreate(&t2, ThreadFunc, (ptr)2);
     
-    MUTEX_DESTROY();
+    // Wait for threads to complete
+    xrtThreadJoin(&t1);
+    xrtThreadJoin(&t2);
+    
     xrtUnit();
     return 0;
 }
 ```
+
+**Notes:**
+- Basic API (`xrtRand32`/`xrtRand64`/`xrtRandRange`) uses global state, not thread-safe
+- Ex version API (`xrtRand32Ex`/`xrtRand64Ex`/`xrtRandRangeEx`) caller manages state
+- Each thread creating its own `xrand` instance achieves thread safety
 
 ---
 
@@ -911,35 +973,42 @@ int main() {
 ```c
 #include "xrt.h"
 #include <stdio.h>
-#include <time.h>
 
-// ✗ Wrong: reset seed every time
+// ✗ Wrong: resetting seed every time causes same result
 uint32 BadRandom() {
-    xrtSetRandSeed32((uint64)time(NULL), 1);  // Same result within same second!
-    return xrtRand32();
+    xrand rng = XRAND_INITIALIZER;
+    xrtRandSeed(&rng, 12345, 1);  // Same seed every time
+    return xrtRand32Ex(&rng);     // Returns first random number each time!
 }
 
 // ✓ Correct: initialize only once at start
+static xrand g_rng;
+static int g_rng_init = 0;
+
 void Setup() {
-    xrtSetRandSeed32((uint64)time(NULL), 1);
+    if (!g_rng_init) {
+        g_rng = (xrand)XRAND_INITIALIZER;
+        xrtRandSeed(&g_rng, 12345, 1);
+        g_rng_init = 1;
+    }
 }
 
 uint32 GoodRandom() {
-    return xrtRand32();  // Different result each call
+    return xrtRand32Ex(&g_rng);  // Different result each call
 }
 
 int main() {
     xrtInit();
+    Setup();
     
-    // Demonstrate wrong usage: same result within same second
-    printf("Wrong usage (same result within same second):\n");
+    // Demonstrate wrong usage
+    printf("Wrong usage (same result):\n");
     for (int i = 0; i < 3; i++) {
         printf("  %u\n", BadRandom());
     }
     
     // Demonstrate correct usage
     printf("\nCorrect usage (different each time):\n");
-    Setup();
     for (int i = 0; i < 3; i++) {
         printf("  %u\n", GoodRandom());
     }
