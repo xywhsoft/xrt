@@ -286,9 +286,10 @@ XXAPI xrtGlobalData* xrtInit()
 	#if defined(_WIN32) || defined(_WIN64)
 		u16str sTemp = malloc(4096 * sizeof(wchar_t));
 		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
-		xCore.AppFile = xrtUTF16to8(sTemp, iSize);
+		size_t iRetSize = 0;
+		xCore.AppFile = xrtUTF16to8(sTemp, iSize, &iRetSize);
 		free(sTemp);
-		xCore.AppPath = xrtPathGetDir(xCore.AppFile, xCore.iRet);
+		xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize, NULL);
 	#else
 		str sTemp = malloc(4096);
 		ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
@@ -298,9 +299,10 @@ XXAPI xrtGlobalData* xrtInit()
 			xCore.AppFile = xCore.sNull;
 			xCore.AppPath = xCore.sNull;
 		} else {
-			xCore.AppFile = xrtCopyStr(sTemp, iSize);
+			size_t iRetSize = 0;
+			xCore.AppFile = xrtCopyStr(sTemp, iSize, &iRetSize);
 			free(sTemp);
-			xCore.AppPath = xrtPathGetDir(xCore.AppFile, xCore.iRet);
+			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize, NULL);
 		}
 	#endif
 	

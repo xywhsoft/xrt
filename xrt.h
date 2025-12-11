@@ -355,10 +355,10 @@
 	/* ------------------------------------ String 函数库 ------------------------------------ */
 	
 	// 创建字符串副本（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtCopyStr(str sText, size_t iSize, size_t* iRetSize);
-	XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize, size_t* iRetSize);
-	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize, size_t* iRetSize);
-	XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize, size_t* iRetSize);
+	XXAPI str xrtCopyStr(str sText, size_t iSize);
+	XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize);
+	XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize);
+	XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize);
 	
 	// 比较字符串
 	XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase);
@@ -385,7 +385,7 @@
 	XXAPI str xrtFilterStr(str sText, size_t iSize, str sFilter, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
 	
 	// 字符串格式化（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtFormat(str sFormat, size_t* iRetSize, ...);
+	XXAPI str xrtFormat(str sFormat, ...);
 	
 	// 字符串替换（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize, size_t* iRetSize);
@@ -413,16 +413,16 @@
 	/* ------------------------------------ Path 函数库 ------------------------------------ */
 	
 	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
+	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize, size_t* iRetSize);
 	
 	// 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetName(str sPath, size_t iSize);
+	XXAPI str xrtPathGetName(str sPath, size_t iSize, size_t* iRetSize);
 	
 	// 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetExt(str sPath, size_t iSize);
+	XXAPI str xrtPathGetExt(str sPath, size_t iSize, size_t* iRetSize);
 	
 	// 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetDir(str sPath, size_t iSize);
+	XXAPI str xrtPathGetDir(str sPath, size_t iSize, size_t* iRetSize);
 	
 	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
 	XXAPI bool xrtPathIsAbs(str sPath, size_t iSize);

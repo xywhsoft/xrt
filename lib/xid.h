@@ -4,7 +4,7 @@
 // XID 转 字符串 ( 需要使用 xrtFree 释放内存 )
 XXAPI str xrtEncodeXID(xid pXID)
 {
-	return xrtBase64Encode(pXID, 24, RandStringDefaultTemplate);
+	return xrtBase64Encode(pXID, 24, RandStringDefaultTemplate, NULL);
 }
 
 
@@ -12,7 +12,7 @@ XXAPI str xrtEncodeXID(xid pXID)
 // 字符串 转 XID ( 需要使用 xrtFree 释放内存 )
 XXAPI xid xrtDecodeXID(str sXID)
 {
-	return xrtBase64Decode(sXID, 32, RandStringDefaultTemplate);
+	return xrtBase64Decode(sXID, 32, RandStringDefaultTemplate, NULL);
 }
 
 

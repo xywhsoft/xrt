@@ -2,50 +2,46 @@
 
 
 // 创建字符串副本（ 需使用 xrtFree 释放 ）(线程安全)
-XXAPI str xrtCopyStr(str sText, size_t iSize, size_t* iRetSize)
+XXAPI str xrtCopyStr(str sText, size_t iSize)
 {
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( sText == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( iSize == 0 ) { return xCore.sNull; }
 	str sRet = xrtMalloc(iSize + 1);
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( sRet == NULL ) { return xCore.sNull; }
 	memcpy(sRet, sText, iSize);
 	sRet[iSize] = 0;
-	if ( iRetSize ) { *iRetSize = iSize; }
 	return sRet;
 }
-XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize, size_t* iRetSize)
+XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 {
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	if ( sText == NULL ) { return (u16str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u16len(sText); }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	if ( iSize == 0 ) { return (u16str)xCore.sNull; }
 	u16str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	if ( sRet == NULL ) { return (u16str)xCore.sNull; }
 	memcpy(sRet, sText, iSize * sizeof(unsigned short));
 	sRet[iSize] = 0;
-	if ( iRetSize ) { *iRetSize = iSize; }
 	return sRet;
 }
-XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize, size_t* iRetSize)
+XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 {
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	if ( sText == NULL ) { return (u32str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u32len(sText); }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	if ( iSize == 0 ) { return (u32str)xCore.sNull; }
 	u32str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned int));
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	if ( sRet == NULL ) { return (u32str)xCore.sNull; }
 	memcpy(sRet, sText, iSize * sizeof(unsigned int));
 	sRet[iSize] = 0;
-	if ( iRetSize ) { *iRetSize = iSize; }
 	return sRet;
 }
-XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize, size_t* iRetSize)
+XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize)
 {
-	if ( pMem == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( pMem == NULL ) { return xCore.sNull; }
+	if ( iSize == 0 ) { return xCore.sNull; }
 	ptr pRet = xrtMalloc(iSize);
-	if ( pRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( pRet == NULL ) { return xCore.sNull; }
 	memcpy(pRet, pMem, iSize);
-	if ( iRetSize ) { *iRetSize = iSize; }
 	return pRet;
 }
 
@@ -739,24 +735,22 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 
 
 // 字符串格式化（ 需使用 xrtFree 释放 ）
-XXAPI str xrtFormat(str sFormat, size_t* iRetSize, ...)
+XXAPI str xrtFormat(str sFormat, ...)
 {
-	if ( sFormat == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( sFormat == NULL ) { return xCore.sNull; }
 	va_list ip;
 	va_start(ip, sFormat);
 	int iSize = vsnprintf(NULL, 0, sFormat, ip);
 	va_end(ip);
 	if ( iSize > 0 ) {
 		str sRet = xrtMalloc(iSize + 1);
-		if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+		if ( sRet == NULL ) { return xCore.sNull; }
 		va_start(ip, sFormat);
 		iSize = vsnprintf(sRet, iSize + 1, sFormat, ip);
 		va_end(ip);
 		sRet[iSize] = 0;
-		if ( iRetSize ) { *iRetSize = iSize; }
 		return sRet;
 	} else {
-		if ( iRetSize ) { *iRetSize = 0; }
 		return xCore.sNull;
 	}
 }
@@ -781,8 +775,8 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 		iFindCount++;
 	}
 	// 为新字符串分配内存
-	size_t iRetSize = iSize + iFindCount * (iRepSize - iSubSize);
-	str sRet = (str)xrtMalloc(iRetSize + 1);
+	size_t iRet = iSize + iFindCount * (iRepSize - iSubSize);
+	str sRet = (str)xrtMalloc(iRet + 1);
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (str)xCore.sNull; }
 	// 复制原始字符串, 替换需要改变的部分
 	str sRetPtr = sRet;
@@ -799,8 +793,8 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	if ( &sText[iSize] > sTextPtr ) {
 		memcpy(sRetPtr, sTextPtr, &sText[iSize] - sTextPtr);
 	}
-	sRet[iRetSize] = 0;
-	if ( iRetSize ) { *iRetSize = iRetSize; }
+	sRet[iRet] = 0;
+	if ( iRetSize ) { *iRetSize = iRet; }
 	return sRet;
 }
 

@@ -9,7 +9,7 @@ XXAPI ptr xrtRun(str sPath, size_t iSize)
 		PROCESS_INFORMATION pi;
 		GetStartupInfoW(&si);
 		si.wShowWindow = SW_SHOW;
-		u16str sPathW = xrtUTF8to16(sPath, iSize);
+		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
 		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
 		xrtFree(sPathW);
 		return (ptr)pi.hProcess;
@@ -33,7 +33,7 @@ XXAPI ptr xrtRun(str sPath, size_t iSize)
 XXAPI ptr xrtStart(str sPath, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
-		u16str sPathW = xrtUTF8to16(sPath, iSize);
+		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
 		return (ptr)ShellExecuteW(0, NULL, sPathW, NULL, NULL, SW_SHOW);
 		xrtFree(sPathW);
 	#else
@@ -61,7 +61,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 		PROCESS_INFORMATION pi;
 		GetStartupInfoW(&si);
 		si.wShowWindow = SW_SHOW;
-		u16str sPathW = xrtUTF8to16(sPath, iSize);
+		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
 		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 		xrtFree(sPathW);
 		WaitForSingleObject(pi.hProcess, INFINITE);

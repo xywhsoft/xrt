@@ -148,7 +148,7 @@ XXAPI void xrtSetError(str sError, bool bFree)
 }
 XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree)
 {
-	str sErrorU8 = xrtUTF16to8(sError, iSize);
+	str sErrorU8 = xrtUTF16to8(sError, iSize, NULL);
 	if ( bFree ) {
 		xrtFree(sError);
 	}
@@ -156,7 +156,7 @@ XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree)
 }
 XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree)
 {
-	str sErrorU8 = xrtUTF32to8(sError, iSize);
+	str sErrorU8 = xrtUTF32to8(sError, iSize, NULL);
 	if ( bFree ) {
 		xrtFree(sError);
 	}

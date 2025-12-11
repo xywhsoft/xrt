@@ -1797,8 +1797,9 @@ XXAPI xvalue xrtParseJSON_File(str sFile)
 	varRoot = NULL;
 	varCur = NULL;
 	//int iRet = json_sax_parse_file(sFile, xvo_private_ParseJSON_Proc);
-	str sText = xrtFileGetAll(sFile);
-	int iRet = xrtJsonParseSAX(sText, xCore.iRet, xvo_private_ParseJSON_Proc);
+	size_t iSize = 0;
+	str sText = xrtFileGetAll(sFile, &iSize);
+	int iRet = xrtJsonParseSAX(sText, iSize, xvo_private_ParseJSON_Proc);
 	if ( iRet < 0 ) {
 		return xvoCreateNull();
 	}
