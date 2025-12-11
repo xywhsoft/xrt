@@ -119,17 +119,13 @@
 	
 	
 	
-	/* ------------------------------------ PCG 随机数状态结构 ------------------------------------ */
+	/* ------------------------------------ 全局数据 ------------------------------------ */
 	
 	// PCG 随机数状态结构
 	typedef struct {
 		uint64 state;
 		uint64 inc;
-	} xrt_pcg32_t;
-	
-	
-	
-	/* ------------------------------------ 全局数据 ------------------------------------ */
+	} xrand;
 	
 	// 全局
 	typedef struct {
@@ -166,6 +162,11 @@
 		ptr (*calloc)(size_t iNum, size_t iSize);
 		ptr (*realloc)(ptr pMem, size_t iSize);
 		void (*free)(ptr pMem);
+		
+		// 随机数全局状态（线程不安全）
+		xrand rand32;
+		xrand rand64_low;
+		xrand rand64_high;
 		
 	} xrtGlobalData;
 	
@@ -292,39 +293,26 @@
 	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
 	
-	// 随机数生成器状态结构（用于 Ex 版本 API）
-	typedef xrt_pcg32_t xrand_t;
-	
 	// 静态初始化随机数生成器的推荐值
 	#define XRAND_INITIALIZER  { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
 	
-	// ===== Ex 版本 API（调用者管理状态，线程安全）=====
-	
 	// 初始化随机数生成器
-	XXAPI void xrtRandSeedEx(xrand_t* rng, uint64 seed, uint64 seq);
+	XXAPI void xrtRandSeed(xrand* rng, uint64 seed, uint64 seq);
 	
-	// 生成 32 位随机数
-	XXAPI uint32 xrtRand32Ex(xrand_t* rng);
+	// 生成 32 位随机数 - 线程安全
+	XXAPI uint32 xrtRand32Ex(xrand* rng);
 	
-	// 生成 64 位随机数（需要两个状态：低32位和高32位）
-	XXAPI uint64 xrtRand64Ex(xrand_t* rngLow, xrand_t* rngHigh);
+	// 生成 64 位随机数 - 线程安全
+	XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh);
 	
-	// 生成范围随机数
-	XXAPI int xrtRandRangeEx(xrand_t* rng, int min, int max);
-	
-	// ===== 普通版本 API（使用全局状态，线程不安全）=====
+	// 生成范围随机数 - 线程安全
+	XXAPI int xrtRandRangeEx(xrand* rng, int min, int max);
 	
 	// 获取 32 位随机数
 	XXAPI uint32 xrtRand32();
 	
-	// 设置 32 位随机数种子
-	XXAPI void xrtSetRandSeed32(uint64 seed, uint64 seq);
-	
 	// 获取 64 位随机数
 	XXAPI uint64 xrtRand64();
-	
-	// 设置 64 位随机数种子
-	XXAPI void xrtSetRandSeed64(uint64 lowseed, uint64 lowseq, uint64 highseed, uint64 highseq);
 	
 	// 获取 32 位范围随机数
 	XXAPI int xrtRandRange(int min, int max);

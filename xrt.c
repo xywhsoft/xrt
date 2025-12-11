@@ -130,9 +130,9 @@ XXAPI xrtGlobalData* xrtInit()
 		iTick = ((uint64)timer.tv_sec << 30) | timer.tv_nsec;
 		iTick ^= (uint64)getpid();
 	#endif
-	xrtRandSeedEx(&xrt_rand32_global, iTick, 0xda3e39cb94b95bdbULL ^ iTick);
-	xrtRandSeedEx(&xrt_rand64_low_global, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
-	xrtRandSeedEx(&xrt_rand64_high_global, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
+	xrtRandSeed(&xCore.rand32, iTick, 0xda3e39cb94b95bdbULL ^ iTick);
+	xrtRandSeed(&xCore.rand64_low, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
+	xrtRandSeed(&xCore.rand64_high, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
 	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)
