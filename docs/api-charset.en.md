@@ -58,12 +58,13 @@ UTF-8 to UTF-16
 
 **Function Prototype:**
 ```c
-XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize);
+XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **Parameters:**
 - `sText` - UTF-8 string
 - `iSize` - Byte length (0 for auto-calculate to `\0`)
+- `iRetSize` - Output parameter, returns character count after conversion (can pass NULL)
 
 **Return Value:**
 - Success: Returns UTF-16 string pointer
@@ -80,9 +81,10 @@ int main() {
     xrtInit();
     
     str utf8 = (str)"Hello, World!";
-    u16str utf16 = xrtUTF8to16(utf8, 0);
+    size_t charCount = 0;
+    u16str utf16 = xrtUTF8to16(utf8, 0, &charCount);
     if (utf16) {
-        printf("UTF-16 character count: %" PRId64 "\n", xCore.iRet);
+        printf("UTF-16 character count: %zu\n", charCount);
         xrtFree(utf16);
     }
     
@@ -92,7 +94,7 @@ int main() {
 ```
 
 **Additional Notes:**
-- Character count after conversion is stored in `xCore.iRet`
+- Character count after conversion is returned via `iRetSize` parameter
 - Characters exceeding UTF-16 range (5-6 byte UTF-8) will be replaced with `0xFFFD`
 
 ---
@@ -103,12 +105,13 @@ UTF-8 to UTF-32
 
 **Function Prototype:**
 ```c
-XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize);
+XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **Parameters:**
 - `sText` - UTF-8 string
 - `iSize` - Byte length (0 for auto-calculate)
+- `iRetSize` - Output parameter, returns character count after conversion (can pass NULL)
 
 **Return Value:**
 - Success: Returns UTF-32 string pointer
@@ -125,9 +128,10 @@ int main() {
     xrtInit();
     
     str utf8 = (str)"Hello World";
-    u32str utf32 = xrtUTF8to32(utf8, 0);
+    size_t charCount = 0;
+    u32str utf32 = xrtUTF8to32(utf8, 0, &charCount);
     if (utf32) {
-        printf("UTF-32 character count: %" PRId64 "\n", xCore.iRet);  // 11
+        printf("UTF-32 character count: %zu\n", charCount);  // 11
         // UTF-32 each character takes 4 bytes
         xrtFree(utf32);
     }
@@ -139,7 +143,7 @@ int main() {
 
 **Additional Notes:**
 - UTF-32 can represent all Unicode characters, including 5-6 byte UTF-8 characters
-- Character count after conversion is stored in `xCore.iRet`
+- Character count after conversion is returned via `iRetSize` parameter
 
 ---
 
@@ -149,12 +153,13 @@ UTF-16 to UTF-8
 
 **Function Prototype:**
 ```c
-XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize);
+XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **Parameters:**
 - `sText` - UTF-16 string
 - `iSize` - Character count (0 for auto-calculate to `\0`)
+- `iRetSize` - Output parameter, returns byte count after conversion (can pass NULL)
 
 **Return Value:**
 - Success: Returns UTF-8 string pointer
@@ -172,10 +177,11 @@ int main() {
     
     // Note: On Windows L"Hello" is UTF-16
     u16str utf16 = (u16str)L"Hello World";
-    u8str utf8 = xrtUTF16to8(utf16, 0);
+    size_t byteCount = 0;
+    u8str utf8 = xrtUTF16to8(utf16, 0, &byteCount);
     if (utf8) {
         printf("UTF-8: %s\n", utf8);
-        printf("UTF-8 byte count: %" PRId64 "\n", xCore.iRet);
+        printf("UTF-8 byte count: %zu\n", byteCount);
         xrtFree(utf8);
     }
     
@@ -185,7 +191,7 @@ int main() {
 ```
 
 **Additional Notes:**
-- Byte count after conversion is stored in `xCore.iRet`
+- Byte count after conversion is returned via `iRetSize` parameter
 - Invalid surrogate pairs will be replaced with `0xEFBFBD` (UTF-8 replacement character)
 
 ---
@@ -196,7 +202,7 @@ UTF-16 to UTF-32
 
 **Function Prototype:**
 ```c
-XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize);
+XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **Parameters:**
@@ -217,7 +223,7 @@ UTF-32 to UTF-8
 
 **Function Prototype:**
 ```c
-XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize);
+XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **Parameters:**
@@ -238,7 +244,7 @@ UTF-32 to UTF-16
 
 **Function Prototype:**
 ```c
-XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize);
+XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **Parameters:**
@@ -343,7 +349,7 @@ Convert between any charsets
 
 **Function Prototype:**
 ```c
-XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
+XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t* iRetSize);
 ```
 
 **Parameters:**
@@ -351,6 +357,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
 - `iSize` - Source string byte length (0 for auto-calculate)
 - `iInCP` - Input charset code page
 - `iOutCP` - Output charset code page
+- `iRetSize` - Output parameter, returns converted length (can pass NULL)
 
 **Return Value:**
 - Success: Returns converted string
@@ -378,15 +385,16 @@ int main() {
     
     // UTF-8 to UTF-16
     str utf8 = (str)"Hello";
-    u16str utf16 = xrtConvCharset(utf8, 0, XRT_CP_UTF8, XRT_CP_UTF16);
+    size_t convSize = 0;
+    u16str utf16 = xrtConvCharset(utf8, 0, XRT_CP_UTF8, XRT_CP_UTF16, &convSize);
     if (utf16) {
-        printf("Conversion successful\n");
+        printf("Conversion successful, output length: %zu\n", convSize);
         xrtFree(utf16);
     }
     
     // Native encoding to UTF-8 (may be GBK on Windows)
     str oem = (str)"Native text";
-    str utf8_out = xrtConvCharset(oem, 0, XRT_CP_OEM, XRT_CP_UTF8);
+    str utf8_out = xrtConvCharset(oem, 0, XRT_CP_OEM, XRT_CP_UTF8, NULL);
     if (utf8_out) {
         printf("UTF-8: %s\n", utf8_out);
         xrtFree(utf8_out);
@@ -394,7 +402,7 @@ int main() {
     
     // UTF-16 to UTF-32 BE
     u16str src16 = (u16str)L"Test";
-    u32str dst32be = xrtConvCharset(src16, 0, XRT_CP_UTF16, XRT_CP_UTF32_BE);
+    u32str dst32be = xrtConvCharset(src16, 0, XRT_CP_UTF16, XRT_CP_UTF32_BE, NULL);
     if (dst32be) {
         printf("UTF-32 BE conversion successful\n");
         xrtFree(dst32be);
@@ -658,13 +666,13 @@ int main() {
     xrtInit();
     
     // Read file
-    ptr file_data = xrtFileGetAll((str)"input.txt");
+    size_t file_size = 0;
+    ptr file_data = xrtFileGetAll((str)"input.txt", &file_size);
     if (file_data == NULL) {
         printf("File read failed\n");
         xrtUnit();
         return 1;
     }
-    size_t file_size = xCore.iRet;
     
     // Detect encoding
     int detected = xrtDetectCharset(file_data, file_size, TRUE);
@@ -672,7 +680,7 @@ int main() {
     printf("Detected encoding: %d\n", charset);
     
     // Convert to UTF-8
-    str utf8_text = xrtConvCharset(file_data, file_size, charset, XRT_CP_UTF8);
+    str utf8_text = xrtConvCharset(file_data, file_size, charset, XRT_CP_UTF8, NULL);
     if (utf8_text) {
         printf("Conversion successful, UTF-8 content:\n%s\n", utf8_text);
         
@@ -811,13 +819,13 @@ int main() {
     xrtInit();
     
     // ✅ Handle files with unknown encoding
-    ptr data = xrtFileGetAll((str)"unknown.txt");
+    size_t size = 0;
+    ptr data = xrtFileGetAll((str)"unknown.txt", &size);
     if (data == NULL) {
         printf("File read failed\n");
         xrtUnit();
         return 1;
     }
-    size_t size = xCore.iRet;
     
     // Detect encoding
     int charset = xrtDetectCharset(data, size, TRUE);
@@ -825,7 +833,7 @@ int main() {
     printf("Detected encoding: %d\n", pure_charset);
     
     // Convert to UTF-8
-    str utf8 = xrtConvCharset(data, size, pure_charset, XRT_CP_UTF8);
+    str utf8 = xrtConvCharset(data, size, pure_charset, XRT_CP_UTF8, NULL);
     if (utf8) {
         printf("UTF-8 content:\n%s\n", utf8);
         xrtFree(utf8);
@@ -1070,10 +1078,11 @@ int main() {
     // u16str wrong = xrtUTF8to16(utf8, 2);  // Wrong! 2 is byte count, not char count
     
     // ✅ Correct: Use byte count for UTF-8 conversion, or use 0 for auto
-    u16str correct1 = xrtUTF8to16(utf8, byte_len);  // Use byte count
-    u16str correct2 = xrtUTF8to16(utf8, 0);         // Auto calculate
+    size_t charCount = 0;
+    u16str correct1 = xrtUTF8to16(utf8, byte_len, &charCount);  // Use byte count
+    u16str correct2 = xrtUTF8to16(utf8, 0, NULL);               // Auto calculate
     
-    printf("UTF-16 character count: %" PRId64 "\n", xCore.iRet);  // 5
+    printf("UTF-16 character count: %zu\n", charCount);  // 5
     
     xrtFree(correct1);
     xrtFree(correct2);

@@ -576,9 +576,10 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 			if ( iSize == 0 ) { return 0; }
 			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 				// 需要转换为目标文件的编码再写入
-				str sBuff = xrtConvCharset(sText, iSize, XRT_CP_UTF8, objFile->Charset);
+				size_t iConvSize = 0;
+				str sBuff = xrtConvCharset(sText, iSize, XRT_CP_UTF8, objFile->Charset, &iConvSize);
 				int iCharSize = xrtGetCharSize(objFile->Charset);
-				size_t iRetSize = write(objFile->idx, sBuff, xCore.iRet * iCharSize);
+				size_t iRetSize = write(objFile->idx, sBuff, iConvSize * iCharSize);
 				xrtFree(sBuff);
 				if ( iRetSize > 0 ) {
 					return iRetSize;

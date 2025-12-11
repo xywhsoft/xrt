@@ -343,16 +343,16 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI str xrtRead(xfile objFile, size_t iSize);
+XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
 - `objFile` - 文件对象
 - `iSize` - 要读取的字节数
+- `iRetSize` - 输出参数，返回实际读取的字节数（可传 NULL）
 
 **返回值：**
 - 读取的文本字符串（已转换为 UTF-8）
-- 实际读取长度存储在 `xCore.iRet`
 - 失败返回 `xCore.sNull`
 
 **内存释放：** ✅ 需要 `xrtFree` 释放
@@ -367,9 +367,10 @@ int main() {
     
     xfile f = xrtOpen((str)"data.txt", TRUE, XRT_CP_AUTO);
     if (f) {
-        str text = xrtRead(f, 100);
+        size_t readSize = 0;
+        str text = xrtRead(f, 100, &readSize);
         if (text && text != xCore.sNull) {
-            printf("读取了 %" PRId64 " 字节: %s\n", xCore.iRet, text);
+            printf("读取了 %zu 字节: %s\n", readSize, text);
             xrtFree(text);
         }
         xrtClose(f);
@@ -434,16 +435,16 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI ptr xrtGet(xfile objFile, size_t iSize);
+XXAPI ptr xrtGet(xfile objFile, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
 - `objFile` - 文件对象
 - `iSize` - 要读取的字节数
+- `iRetSize` - 输出参数，返回实际读取的字节数（可传 NULL）
 
 **返回值：**
 - 二进制数据指针
-- 实际读取长度存储在 `xCore.iRet`
 
 **内存释放：** ✅ 需要 `xrtFree` 释放
 
@@ -457,9 +458,10 @@ int main() {
     
     xfile f = xrtOpen((str)"image.bin", TRUE, -1);  // -1 表示二进制
     if (f) {
-        ptr data = xrtGet(f, 1024);
+        size_t readSize = 0;
+        ptr data = xrtGet(f, 1024, &readSize);
         if (data && data != xCore.sNull) {
-            printf("读取了 %" PRId64 " 字节\n", xCore.iRet);
+            printf("读取了 %zu 字节\n", readSize);
             // 处理二进制数据...
             xrtFree(data);
         }
@@ -525,16 +527,16 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI str xrtFileReadAll(str sPath, int iCharset);
+XXAPI str xrtFileReadAll(str sPath, int iCharset, size_t* iRetSize);
 ```
 
 **参数：**
 - `sPath` - 文件路径
 - `iCharset` - 字符集（`XRT_CP_AUTO` 自动检测）
+- `iRetSize` - 输出参数，返回文件大小（可传 NULL）
 
 **返回值：**
 - 文件内容（UTF-8 编码）
-- 文件大小存储在 `xCore.iRet`
 - 失败返回 `xCore.sNull`
 
 **内存释放：** ✅ 需要 `xrtFree` 释放
@@ -547,9 +549,10 @@ XXAPI str xrtFileReadAll(str sPath, int iCharset);
 int main() {
     xrtInit();
     
-    str content = xrtFileReadAll((str)"config.ini", XRT_CP_AUTO);
+    size_t fileSize = 0;
+    str content = xrtFileReadAll((str)"config.ini", XRT_CP_AUTO, &fileSize);
     if (content && content != xCore.sNull) {
-        printf("文件大小: %" PRId64 " 字节\n", xCore.iRet);
+        printf("文件大小: %zu 字节\n", fileSize);
         printf("内容:\n%s\n", content);
         xrtFree(content);
     } else {
@@ -653,15 +656,15 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI ptr xrtFileGetAll(str sPath);
+XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize);
 ```
 
 **参数：**
 - `sPath` - 文件路径
+- `iRetSize` - 输出参数，返回文件大小（可传 NULL）
 
 **返回值：**
 - 二进制数据指针
-- 文件大小存储在 `xCore.iRet`
 
 **内存释放：** ✅ 需要 `xrtFree` 释放
 
@@ -673,9 +676,10 @@ XXAPI ptr xrtFileGetAll(str sPath);
 int main() {
     xrtInit();
     
-    ptr data = xrtFileGetAll((str)"image.png");
+    size_t fileSize = 0;
+    ptr data = xrtFileGetAll((str)"image.png", &fileSize);
     if (data && data != xCore.sNull) {
-        printf("文件大小: %" PRId64 " 字节\n", xCore.iRet);
+        printf("文件大小: %zu 字节\n", fileSize);
         // 处理二进制数据...
         xrtFree(data);
     }

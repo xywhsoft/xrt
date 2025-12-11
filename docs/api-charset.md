@@ -58,12 +58,13 @@ UTF-8 转 UTF-16
 
 **函数原型：**
 ```c
-XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize);
+XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
 - `sText` - UTF-8 字符串
 - `iSize` - 字节长度（0表示自动计算到`\0`）
+- `iRetSize` - 输出参数，返回转换后的字符数（可传 NULL）
 
 **返回值：**
 - 成功：返回 UTF-16 字符串指针
@@ -80,9 +81,10 @@ int main() {
     xrtInit();
     
     str utf8 = (str)"你好，世界！";
-    u16str utf16 = xrtUTF8to16(utf8, 0);
+    size_t charCount = 0;
+    u16str utf16 = xrtUTF8to16(utf8, 0, &charCount);
     if (utf16) {
-        printf("UTF-16 字符数: %" PRId64 "\n", xCore.iRet);
+        printf("UTF-16 字符数: %zu\n", charCount);
         xrtFree(utf16);
     }
     
@@ -92,7 +94,7 @@ int main() {
 ```
 
 **补充说明：**
-- 转换后的字符数存储在 `xCore.iRet` 中
+- 转换后的字符数通过 `iRetSize` 参数返回
 - 超出 UTF-16 范围的字符（5-6字节 UTF-8）会被替换为 `0xFFFD`
 
 ---
@@ -103,12 +105,13 @@ UTF-8 转 UTF-32
 
 **函数原型：**
 ```c
-XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize);
+XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
 - `sText` - UTF-8 字符串
 - `iSize` - 字节长度（0表示自动计算）
+- `iRetSize` - 输出参数，返回转换后的字符数（可传 NULL）
 
 **返回值：**
 - 成功：返回 UTF-32 字符串指针
@@ -125,9 +128,10 @@ int main() {
     xrtInit();
     
     str utf8 = (str)"Hello 世界";
-    u32str utf32 = xrtUTF8to32(utf8, 0);
+    size_t charCount = 0;
+    u32str utf32 = xrtUTF8to32(utf8, 0, &charCount);
     if (utf32) {
-        printf("UTF-32 字符数: %" PRId64 "\n", xCore.iRet);  // 8
+        printf("UTF-32 字符数: %zu\n", charCount);  // 8
         // UTF-32 每个字符占 4 字节
         xrtFree(utf32);
     }
@@ -139,7 +143,7 @@ int main() {
 
 **补充说明：**
 - UTF-32 可以表示所有 Unicode 字符，包括 5-6 字节的 UTF-8 字符
-- 转换后的字符数存储在 `xCore.iRet` 中
+- 转换后的字符数通过 `iRetSize` 参数返回
 
 ---
 
@@ -149,12 +153,13 @@ UTF-16 转 UTF-8
 
 **函数原型：**
 ```c
-XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize);
+XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
 - `sText` - UTF-16 字符串
 - `iSize` - 字符数（0表示自动计算到`\0`）
+- `iRetSize` - 输出参数，返回转换后的字节数（可传 NULL）
 
 **返回值：**
 - 成功：返回 UTF-8 字符串指针
@@ -172,10 +177,11 @@ int main() {
     
     // 注意：Windows 上 L"你好" 是 UTF-16
     u16str utf16 = (u16str)L"你好世界";
-    u8str utf8 = xrtUTF16to8(utf16, 0);
+    size_t byteCount = 0;
+    u8str utf8 = xrtUTF16to8(utf16, 0, &byteCount);
     if (utf8) {
         printf("UTF-8: %s\n", utf8);
-        printf("UTF-8 字节数: %" PRId64 "\n", xCore.iRet);
+        printf("UTF-8 字节数: %zu\n", byteCount);
         xrtFree(utf8);
     }
     
@@ -185,7 +191,7 @@ int main() {
 ```
 
 **补充说明：**
-- 转换后的字节数存储在 `xCore.iRet` 中
+- 转换后的字节数通过 `iRetSize` 参数返回
 - 错误的代理对会被替换为 `0xEFBFBD`（UTF-8 的替换字符）
 
 ---
@@ -196,7 +202,7 @@ UTF-16 转 UTF-32
 
 **函数原型：**
 ```c
-XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize);
+XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
@@ -217,7 +223,7 @@ UTF-32 转 UTF-8
 
 **函数原型：**
 ```c
-XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize);
+XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
@@ -238,7 +244,7 @@ UTF-32 转 UTF-16
 
 **函数原型：**
 ```c
-XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize);
+XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize);
 ```
 
 **参数：**
@@ -343,7 +349,7 @@ XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise);
 
 **函数原型：**
 ```c
-XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
+XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t* iRetSize);
 ```
 
 **参数：**
@@ -351,6 +357,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);
 - `iSize` - 源字符串字节长度（0表示自动计算）
 - `iInCP` - 输入字符集代码页
 - `iOutCP` - 输出字符集代码页
+- `iRetSize` - 输出参数，返回转换后的长度（可传 NULL）
 
 **返回值：**
 - 成功：返回转换后的字符串
@@ -378,15 +385,16 @@ int main() {
     
     // UTF-8 转 UTF-16
     str utf8 = (str)"你好";
-    u16str utf16 = xrtConvCharset(utf8, 0, XRT_CP_UTF8, XRT_CP_UTF16);
+    size_t convSize = 0;
+    u16str utf16 = xrtConvCharset(utf8, 0, XRT_CP_UTF8, XRT_CP_UTF16, &convSize);
     if (utf16) {
-        printf("转换成功\n");
+        printf("转换成功，输出长度: %zu\n", convSize);
         xrtFree(utf16);
     }
     
     // 本机编码转 UTF-8（Windows 上可能是 GBK）
     str oem = (str)"本机编码文本";
-    str utf8_out = xrtConvCharset(oem, 0, XRT_CP_OEM, XRT_CP_UTF8);
+    str utf8_out = xrtConvCharset(oem, 0, XRT_CP_OEM, XRT_CP_UTF8, NULL);
     if (utf8_out) {
         printf("UTF-8: %s\n", utf8_out);
         xrtFree(utf8_out);
@@ -394,7 +402,7 @@ int main() {
     
     // UTF-16 转 UTF-32 BE
     u16str src16 = (u16str)L"Test";
-    u32str dst32be = xrtConvCharset(src16, 0, XRT_CP_UTF16, XRT_CP_UTF32_BE);
+    u32str dst32be = xrtConvCharset(src16, 0, XRT_CP_UTF16, XRT_CP_UTF32_BE, NULL);
     if (dst32be) {
         printf("UTF-32 BE 转换成功\n");
         xrtFree(dst32be);
@@ -664,13 +672,13 @@ int main() {
     xrtInit();
     
     // 读取文件
-    ptr file_data = xrtFileGetAll((str)"input.txt");
+    size_t file_size = 0;
+    ptr file_data = xrtFileGetAll((str)"input.txt", &file_size);
     if (file_data == NULL) {
         printf("文件读取失败\n");
         xrtUnit();
         return 1;
     }
-    size_t file_size = xCore.iRet;
     
     // 检测编码
     int detected = xrtDetectCharset(file_data, file_size, TRUE);
@@ -678,7 +686,7 @@ int main() {
     printf("检测到编码: %d\n", charset);
     
     // 转换为 UTF-8
-    str utf8_text = xrtConvCharset(file_data, file_size, charset, XRT_CP_UTF8);
+    str utf8_text = xrtConvCharset(file_data, file_size, charset, XRT_CP_UTF8, NULL);
     if (utf8_text) {
         printf("转换成功，UTF-8 内容:\n%s\n", utf8_text);
         
@@ -817,13 +825,13 @@ int main() {
     xrtInit();
     
     // ✅ 处理未知编码的文件
-    ptr data = xrtFileGetAll((str)"unknown.txt");
+    size_t size = 0;
+    ptr data = xrtFileGetAll((str)"unknown.txt", &size);
     if (data == NULL) {
         printf("文件读取失败\n");
         xrtUnit();
         return 1;
     }
-    size_t size = xCore.iRet;
     
     // 检测编码
     int charset = xrtDetectCharset(data, size, TRUE);
@@ -831,7 +839,7 @@ int main() {
     printf("检测到编码: %d\n", pure_charset);
     
     // 转换为 UTF-8
-    str utf8 = xrtConvCharset(data, size, pure_charset, XRT_CP_UTF8);
+    str utf8 = xrtConvCharset(data, size, pure_charset, XRT_CP_UTF8, NULL);
     if (utf8) {
         printf("UTF-8 内容:\n%s\n", utf8);
         xrtFree(utf8);
@@ -1076,10 +1084,11 @@ int main() {
     // u16str wrong = xrtUTF8to16(utf8, 2);  // 错误！2是字节数，不是字符数
     
     // ✅ 正确：UTF-8 转换时用字节数，或用 0 自动计算
-    u16str correct1 = xrtUTF8to16(utf8, byte_len);  // 用字节数
-    u16str correct2 = xrtUTF8to16(utf8, 0);         // 自动计算
+    size_t charCount = 0;
+    u16str correct1 = xrtUTF8to16(utf8, byte_len, &charCount);  // 用字节数
+    u16str correct2 = xrtUTF8to16(utf8, 0, NULL);               // 自动计算
     
-    printf("UTF-16 字符数: %" PRId64 "\n", xCore.iRet);  // 2
+    printf("UTF-16 字符数: %zu\n", charCount);  // 2
     
     xrtFree(correct1);
     xrtFree(correct2);

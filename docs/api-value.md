@@ -27,21 +27,19 @@
 ### Value类型常量
 
 ```c
-#define XVO_DT_EMPTY    0   // 不存在的数据
-#define XVO_DT_NULL     1   // null
-#define XVO_DT_BOOL     2   // bool : true | false
-#define XVO_DT_INT      3   // 整数（int64）
-#define XVO_DT_FLOAT    4   // 浮点数（double）
-#define XVO_DT_TEXT     5   // 字符串
-#define XVO_DT_TIME     6   // 时间
-#define XVO_DT_POINT    7   // 指针
-#define XVO_DT_FUNC     8   // 函数
-#define XVO_DT_ARRAY    9   // 数组
-#define XVO_DT_LIST     10  // 列表
-#define XVO_DT_COLL     11  // 集合
-#define XVO_DT_TABLE    12  // 表
-#define XVO_DT_STRUCT   13  // 结构体
-#define XVO_DT_OBJECT   14  // 对象
+#define XVO_DT_NULL     0   // null
+#define XVO_DT_BOOL     1   // bool : true | false
+#define XVO_DT_INT      2   // 整数（int64）
+#define XVO_DT_FLOAT    3   // 浮点数（double）
+#define XVO_DT_TEXT     4   // 字符串
+#define XVO_DT_TIME     5   // 时间
+#define XVO_DT_POINT    6   // 指针
+#define XVO_DT_FUNC     7   // 函数
+#define XVO_DT_ARRAY    8   // 数组
+#define XVO_DT_LIST     9   // 列表
+#define XVO_DT_COLL     10  // 集合
+#define XVO_DT_TABLE    11  // 表
+#define XVO_DT_CLASS    12  // 类（结构体容器）
 #define XVO_DT_CUSTOM   15  // 自定义
 ```
 
@@ -66,8 +64,7 @@ typedef struct xvalue_struct {
         xlist vList;        // 列表
         xavltree vColl;     // 集合
         xdict vTable;       // 表
-        ptr vStruct;        // 结构体
-        ptr vObject;        // 对象
+        ptr vStruct;        // 类实例数据
         ptr vCustom;        // 自定义数据
     };
 } xvalue_struct, *xvalue;
@@ -314,13 +311,13 @@ XXAPI xvalue xvoCreateTable();
 
 ---
 
-### xvoCreateStruct
+### xvoCreateClass
 
-创建结构体容器
+创建类容器（结构体容器）
 
 **函数原型：**
 ```c
-XXAPI xvalue xvoCreateStruct(uint32 iSize);
+XXAPI xvalue xvoCreateClass(uint32 iSize);
 ```
 
 **参数：**
@@ -329,15 +326,22 @@ XXAPI xvalue xvoCreateStruct(uint32 iSize);
 **返回值：**
 - 成功返回 xvalue，失败返回 NULL
 
----
-
-### xvoCreateObject
-
-创建对象容器
-
-**函数原型：**
+**示例：**
 ```c
-XXAPI xvalue xvoCreateObject(uint32 iSize);
+typedef struct {
+    int id;
+    char name[32];
+    double score;
+} Student;
+
+xvalue vStudent = xvoCreateClass(sizeof(Student));
+Student* pStudent = xvoGetClass(vStudent);
+pStudent->id = 1001;
+strcpy(pStudent->name, "张三");
+pStudent->score = 95.5;
+
+// 使用完毕后释放
+xvoUnref(vStudent);
 ```
 
 ---
@@ -365,7 +369,7 @@ XXAPI bool xvoGetBool(xvalue pVal);
 ```
 
 **转换规则：**
-- NULL/EMPTY → FALSE
+- NULL → FALSE
 - BOOL → 返回原值
 - INT → 非0为TRUE
 - FLOAT → 非0.0为TRUE
@@ -383,7 +387,7 @@ XXAPI int64 xvoGetInt(xvalue pVal);
 ```
 
 **转换规则：**
-- NULL/EMPTY → 0
+- NULL → 0
 - BOOL → 1 或 0
 - INT → 返回原值
 - FLOAT → 截断为整数
@@ -459,8 +463,7 @@ XXAPI xparray xvoGetArray(xvalue pVal);    // 获取数组
 XXAPI xlist xvoGetList(xvalue pVal);       // 获取列表
 XXAPI xavltree xvoGetColl(xvalue pVal);    // 获取集合
 XXAPI xdict xvoGetTable(xvalue pVal);      // 获取表
-XXAPI ptr xvoGetStruct(xvalue pVal);       // 获取结构体
-XXAPI ptr xvoGetObject(xvalue pVal);       // 获取对象
+XXAPI ptr xvoGetClass(xvalue pVal);        // 获取类实例
 XXAPI ptr xvoGetCustom(xvalue pVal);       // 获取自定义数据
 ```
 
@@ -470,14 +473,14 @@ XXAPI ptr xvoGetCustom(xvalue pVal);       // 获取自定义数据
 
 ### xvoIsNull
 
-检查是否为 NULL 或 EMPTY
+检查是否为 NULL
 
 **函数原型：**
 ```c
 XXAPI bool xvoIsNull(xvalue pVal);
 ```
 
-**说明：** 当 pVal==NULL 或 Type==NULL 或 Type==EMPTY 时返回 TRUE
+**说明：** 当 pVal==NULL 或 Type==NULL 时返回 TRUE
 
 ---
 
@@ -514,7 +517,7 @@ XXAPI uint32 xvoGetSize(xvalue pVal);
 
 **说明：**
 - TEXT 返回字符串长度
-- STRUCT/OBJECT 返回结构体大小
+- CLASS 返回结构体大小
 - 其他类型返回固定大小
 
 ---
@@ -552,7 +555,7 @@ XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index);
 | `pArr` | 数组 Value |
 | `index` | 索引（从0开始） |
 
-**返回值：** 元素 Value，不存在则返回 EMPTY 静态值
+**返回值：** 元素 Value，不存在则返回 NULL
 
 **便捷宏：**
 ```c
@@ -567,8 +570,7 @@ XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index);
 #define xvoArrayGetList(pArr, index)    xvoGetList(xvoArrayGetValue(pArr, index))
 #define xvoArrayGetColl(pArr, index)    xvoGetColl(xvoArrayGetValue(pArr, index))
 #define xvoArrayGetTable(pArr, index)   xvoGetTable(xvoArrayGetValue(pArr, index))
-#define xvoArrayGetStruct(pArr, index)  xvoGetStruct(xvoArrayGetValue(pArr, index))
-#define xvoArrayGetObject(pArr, index)  xvoGetObject(xvoArrayGetValue(pArr, index))
+#define xvoArrayGetClass(pArr, index)   xvoGetClass(xvoArrayGetValue(pArr, index))
 #define xvoArrayGetCustom(pArr, index)  xvoGetCustom(xvoArrayGetValue(pArr, index))
 ```
 
@@ -604,8 +606,7 @@ XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc);
 #define xvoArrayAppendList(pArr)                 xvoArrayAppendValue(pArr, xvoCreateList(), TRUE)
 #define xvoArrayAppendColl(pArr)                 xvoArrayAppendValue(pArr, xvoCreateColl(), TRUE)
 #define xvoArrayAppendTable(pArr)                xvoArrayAppendValue(pArr, xvoCreateTable(), TRUE)
-#define xvoArrayAppendStruct(pArr, size)         xvoArrayAppendValue(pArr, xvoCreateStruct(size), TRUE)
-#define xvoArrayAppendObject(pArr, size)         xvoArrayAppendValue(pArr, xvoCreateObject(size), TRUE)
+#define xvoArrayAppendClass(pArr, size)          xvoArrayAppendValue(pArr, xvoCreateClass(size), TRUE)
 #define xvoArrayAppendCustom(pArr, point)        xvoArrayAppendValue(pArr, xvoCreateCustom(point), TRUE)
 ```
 
@@ -916,8 +917,7 @@ XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl);
 #define xvoTableGetList(pTbl, key, kl)    xvoGetList(xvoTableGetValue(pTbl, key, kl))
 #define xvoTableGetColl(pTbl, key, kl)    xvoGetColl(xvoTableGetValue(pTbl, key, kl))
 #define xvoTableGetTable(pTbl, key, kl)   xvoGetTable(xvoTableGetValue(pTbl, key, kl))
-#define xvoTableGetStruct(pTbl, key, kl)  xvoGetStruct(xvoTableGetValue(pTbl, key, kl))
-#define xvoTableGetObject(pTbl, key, kl)  xvoGetObject(xvoTableGetValue(pTbl, key, kl))
+#define xvoTableGetClass(pTbl, key, kl)   xvoGetClass(xvoTableGetValue(pTbl, key, kl))
 #define xvoTableGetCustom(pTbl, key, kl)  xvoGetCustom(xvoTableGetValue(pTbl, key, kl))
 ```
 
@@ -946,8 +946,7 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 #define xvoTableSetList(pTbl, key, kl)           xvoTableSetValue(pTbl, key, kl, xvoCreateList(), TRUE)
 #define xvoTableSetColl(pTbl, key, kl)           xvoTableSetValue(pTbl, key, kl, xvoCreateColl(), TRUE)
 #define xvoTableSetTable(pTbl, key, kl)          xvoTableSetValue(pTbl, key, kl, xvoCreateTable(), TRUE)
-#define xvoTableSetStruct(pTbl, key, kl, size)   xvoTableSetValue(pTbl, key, kl, xvoCreateStruct(size), TRUE)
-#define xvoTableSetObject(pTbl, key, kl, size)   xvoTableSetValue(pTbl, key, kl, xvoCreateObject(size), TRUE)
+#define xvoTableSetClass(pTbl, key, kl, size)    xvoTableSetValue(pTbl, key, kl, xvoCreateClass(size), TRUE)
 #define xvoTableSetCustom(pTbl, key, kl, point)  xvoTableSetValue(pTbl, key, kl, xvoCreateCustom(point), TRUE)
 ```
 
@@ -1014,7 +1013,7 @@ XXAPI xvalue xvoCopy(xvalue pVal);
 - 基础类型（BOOL/INT/FLOAT/TEXT 等）：创建新值
 - 复杂类型（ARRAY/LIST/COLL/TABLE）：复制容器结构，子元素增加引用
 - NULL/BOOL 返回静态单例
-- STRUCT/OBJECT/CUSTOM 返回 NULL
+- CLASS/CUSTOM 返回 NULL
 
 ---
 

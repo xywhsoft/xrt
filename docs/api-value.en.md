@@ -27,21 +27,19 @@
 ### Value Type Constants
 
 ```c
-#define XVO_DT_EMPTY    0   // Non-existent data
-#define XVO_DT_NULL     1   // null
-#define XVO_DT_BOOL     2   // bool : true | false
-#define XVO_DT_INT      3   // Integer (int64)
-#define XVO_DT_FLOAT    4   // Floating point (double)
-#define XVO_DT_TEXT     5   // String
-#define XVO_DT_TIME     6   // Time
-#define XVO_DT_POINT    7   // Pointer
-#define XVO_DT_FUNC     8   // Function
-#define XVO_DT_ARRAY    9   // Array
-#define XVO_DT_LIST     10  // List
-#define XVO_DT_COLL     11  // Collection
-#define XVO_DT_TABLE    12  // Table
-#define XVO_DT_STRUCT   13  // Struct
-#define XVO_DT_OBJECT   14  // Object
+#define XVO_DT_NULL     0   // null
+#define XVO_DT_BOOL     1   // bool : true | false
+#define XVO_DT_INT      2   // Integer (int64)
+#define XVO_DT_FLOAT    3   // Floating point (double)
+#define XVO_DT_TEXT     4   // String
+#define XVO_DT_TIME     5   // Time
+#define XVO_DT_POINT    6   // Pointer
+#define XVO_DT_FUNC     7   // Function
+#define XVO_DT_ARRAY    8   // Array
+#define XVO_DT_LIST     9   // List
+#define XVO_DT_COLL     10  // Collection
+#define XVO_DT_TABLE    11  // Table
+#define XVO_DT_CLASS    12  // Class (struct container)
 #define XVO_DT_CUSTOM   15  // Custom
 ```
 
@@ -66,8 +64,7 @@ typedef struct xvalue_struct {
         xlist vList;        // List
         xavltree vColl;     // Collection
         xdict vTable;       // Table
-        ptr vStruct;        // Struct
-        ptr vObject;        // Object
+        ptr vStruct;        // Class instance data
         ptr vCustom;        // Custom data
     };
 } xvalue_struct, *xvalue;
@@ -314,13 +311,13 @@ XXAPI xvalue xvoCreateTable();
 
 ---
 
-### xvoCreateStruct
+### xvoCreateClass
 
-Create struct container
+Create class container (struct container)
 
 **Prototype:**
 ```c
-XXAPI xvalue xvoCreateStruct(uint32 iSize);
+XXAPI xvalue xvoCreateClass(uint32 iSize);
 ```
 
 **Parameters:**
@@ -329,15 +326,22 @@ XXAPI xvalue xvoCreateStruct(uint32 iSize);
 **Return Value:**
 - Returns xvalue on success, NULL on failure
 
----
-
-### xvoCreateObject
-
-Create object container
-
-**Prototype:**
+**Example:**
 ```c
-XXAPI xvalue xvoCreateObject(uint32 iSize);
+typedef struct {
+    int id;
+    char name[32];
+    double score;
+} Student;
+
+xvalue vStudent = xvoCreateClass(sizeof(Student));
+Student* pStudent = xvoGetClass(vStudent);
+pStudent->id = 1001;
+strcpy(pStudent->name, "John");
+pStudent->score = 95.5;
+
+// Release when done
+xvoUnref(vStudent);
 ```
 
 ---
@@ -365,7 +369,7 @@ XXAPI bool xvoGetBool(xvalue pVal);
 ```
 
 **Conversion Rules:**
-- NULL/EMPTY → FALSE
+- NULL → FALSE
 - BOOL → Returns original value
 - INT → Non-zero is TRUE
 - FLOAT → Non-zero is TRUE
@@ -383,7 +387,7 @@ XXAPI int64 xvoGetInt(xvalue pVal);
 ```
 
 **Conversion Rules:**
-- NULL/EMPTY → 0
+- NULL → 0
 - BOOL → 1 or 0
 - INT → Returns original value
 - FLOAT → Truncated to integer
@@ -459,8 +463,7 @@ XXAPI xparray xvoGetArray(xvalue pVal);    // Get array
 XXAPI xlist xvoGetList(xvalue pVal);       // Get list
 XXAPI xavltree xvoGetColl(xvalue pVal);    // Get collection
 XXAPI xdict xvoGetTable(xvalue pVal);      // Get table
-XXAPI ptr xvoGetStruct(xvalue pVal);       // Get struct
-XXAPI ptr xvoGetObject(xvalue pVal);       // Get object
+XXAPI ptr xvoGetClass(xvalue pVal);        // Get class instance
 XXAPI ptr xvoGetCustom(xvalue pVal);       // Get custom data
 ```
 
@@ -470,14 +473,14 @@ XXAPI ptr xvoGetCustom(xvalue pVal);       // Get custom data
 
 ### xvoIsNull
 
-Check if NULL or EMPTY
+Check if NULL
 
 **Prototype:**
 ```c
 XXAPI bool xvoIsNull(xvalue pVal);
 ```
 
-**Description:** Returns TRUE when pVal==NULL or Type==NULL or Type==EMPTY
+**Description:** Returns TRUE when pVal==NULL or Type==NULL
 
 ---
 
@@ -514,7 +517,7 @@ XXAPI uint32 xvoGetSize(xvalue pVal);
 
 **Description:**
 - TEXT returns string length
-- STRUCT/OBJECT returns struct size
+- CLASS returns struct size
 - Other types return fixed size
 
 ---
@@ -552,7 +555,7 @@ XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index);
 | `pArr` | Array Value |
 | `index` | Index (0-based) |
 
-**Return Value:** Element Value, returns EMPTY static value if not exists
+**Return Value:** Element Value, returns NULL if not exists
 
 **Convenience Macros:**
 ```c
@@ -567,8 +570,7 @@ XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index);
 #define xvoArrayGetList(pArr, index)    xvoGetList(xvoArrayGetValue(pArr, index))
 #define xvoArrayGetColl(pArr, index)    xvoGetColl(xvoArrayGetValue(pArr, index))
 #define xvoArrayGetTable(pArr, index)   xvoGetTable(xvoArrayGetValue(pArr, index))
-#define xvoArrayGetStruct(pArr, index)  xvoGetStruct(xvoArrayGetValue(pArr, index))
-#define xvoArrayGetObject(pArr, index)  xvoGetObject(xvoArrayGetValue(pArr, index))
+#define xvoArrayGetClass(pArr, index)   xvoGetClass(xvoArrayGetValue(pArr, index))
 #define xvoArrayGetCustom(pArr, index)  xvoGetCustom(xvoArrayGetValue(pArr, index))
 ```
 
@@ -604,8 +606,7 @@ XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc);
 #define xvoArrayAppendList(pArr)                 xvoArrayAppendValue(pArr, xvoCreateList(), TRUE)
 #define xvoArrayAppendColl(pArr)                 xvoArrayAppendValue(pArr, xvoCreateColl(), TRUE)
 #define xvoArrayAppendTable(pArr)                xvoArrayAppendValue(pArr, xvoCreateTable(), TRUE)
-#define xvoArrayAppendStruct(pArr, size)         xvoArrayAppendValue(pArr, xvoCreateStruct(size), TRUE)
-#define xvoArrayAppendObject(pArr, size)         xvoArrayAppendValue(pArr, xvoCreateObject(size), TRUE)
+#define xvoArrayAppendClass(pArr, size)          xvoArrayAppendValue(pArr, xvoCreateClass(size), TRUE)
 #define xvoArrayAppendCustom(pArr, point)        xvoArrayAppendValue(pArr, xvoCreateCustom(point), TRUE)
 ```
 
@@ -916,8 +917,7 @@ XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl);
 #define xvoTableGetList(pTbl, key, kl)    xvoGetList(xvoTableGetValue(pTbl, key, kl))
 #define xvoTableGetColl(pTbl, key, kl)    xvoGetColl(xvoTableGetValue(pTbl, key, kl))
 #define xvoTableGetTable(pTbl, key, kl)   xvoGetTable(xvoTableGetValue(pTbl, key, kl))
-#define xvoTableGetStruct(pTbl, key, kl)  xvoGetStruct(xvoTableGetValue(pTbl, key, kl))
-#define xvoTableGetObject(pTbl, key, kl)  xvoGetObject(xvoTableGetValue(pTbl, key, kl))
+#define xvoTableGetClass(pTbl, key, kl)   xvoGetClass(xvoTableGetValue(pTbl, key, kl))
 #define xvoTableGetCustom(pTbl, key, kl)  xvoGetCustom(xvoTableGetValue(pTbl, key, kl))
 ```
 
@@ -946,8 +946,7 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 #define xvoTableSetList(pTbl, key, kl)           xvoTableSetValue(pTbl, key, kl, xvoCreateList(), TRUE)
 #define xvoTableSetColl(pTbl, key, kl)           xvoTableSetValue(pTbl, key, kl, xvoCreateColl(), TRUE)
 #define xvoTableSetTable(pTbl, key, kl)          xvoTableSetValue(pTbl, key, kl, xvoCreateTable(), TRUE)
-#define xvoTableSetStruct(pTbl, key, kl, size)   xvoTableSetValue(pTbl, key, kl, xvoCreateStruct(size), TRUE)
-#define xvoTableSetObject(pTbl, key, kl, size)   xvoTableSetValue(pTbl, key, kl, xvoCreateObject(size), TRUE)
+#define xvoTableSetClass(pTbl, key, kl, size)    xvoTableSetValue(pTbl, key, kl, xvoCreateClass(size), TRUE)
 #define xvoTableSetCustom(pTbl, key, kl, point)  xvoTableSetValue(pTbl, key, kl, xvoCreateCustom(point), TRUE)
 ```
 
@@ -1014,7 +1013,7 @@ XXAPI xvalue xvoCopy(xvalue pVal);
 - Basic types (BOOL/INT/FLOAT/TEXT etc.): Creates new value
 - Complex types (ARRAY/LIST/COLL/TABLE): Copies container structure, child elements get reference incremented
 - NULL/BOOL returns static singleton
-- STRUCT/OBJECT/CUSTOM returns NULL
+- CLASS/CUSTOM returns NULL
 
 ---
 

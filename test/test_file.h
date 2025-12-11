@@ -27,7 +27,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_a = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	size_t iFileSize = xrtGetEOF(f_a);
-	str sText = xrtRead(f_a, iFileSize - f_a->BOM);
+	str sText = xrtRead(f_a, iFileSize - f_a->BOM, NULL);
 	printf("Charset (65501) : %d\n", f_a->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_a->BOM);
@@ -37,7 +37,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_b = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_b);
-	sText = xrtRead(f_b, iFileSize - f_b->BOM);
+	sText = xrtRead(f_b, iFileSize - f_b->BOM, NULL);
 	printf("Charset (0) : %d\n", f_b->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_b->BOM);
@@ -47,7 +47,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_c = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_c);
-	sText = xrtRead(f_c, iFileSize - f_c->BOM);
+	sText = xrtRead(f_c, iFileSize - f_c->BOM, NULL);
 	printf("Charset (65501) : %d\n", f_c->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_c->BOM);
@@ -57,7 +57,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_d = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_d);
-	sText = xrtRead(f_d, iFileSize - f_d->BOM);
+	sText = xrtRead(f_d, iFileSize - f_d->BOM, NULL);
 	printf("Charset (65501) : %d\n", f_d->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_d->BOM);
@@ -67,7 +67,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_e = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_e);
-	sText = xrtRead(f_e, iFileSize - f_e->BOM);
+	sText = xrtRead(f_e, iFileSize - f_e->BOM, NULL);
 	printf("Charset (1200) : %d\n", f_e->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_e->BOM);
@@ -77,7 +77,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_f = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_f);
-	sText = xrtRead(f_f, iFileSize - f_f->BOM);
+	sText = xrtRead(f_f, iFileSize - f_f->BOM, NULL);
 	printf("Charset (1201) : %d\n", f_f->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_f->BOM);
@@ -87,7 +87,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_g = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_g);
-	sText = xrtRead(f_g, iFileSize - f_g->BOM);
+	sText = xrtRead(f_g, iFileSize - f_g->BOM, NULL);
 	printf("Charset (1200) : %d\n", f_g->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_g->BOM);
@@ -97,7 +97,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_h = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_h);
-	sText = xrtRead(f_h, iFileSize - f_h->BOM);
+	sText = xrtRead(f_h, iFileSize - f_h->BOM, NULL);
 	printf("Charset (1201) : %d\n", f_h->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_h->BOM);
@@ -107,7 +107,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_i = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_i);
-	sText = xrtRead(f_i, iFileSize - f_i->BOM);
+	sText = xrtRead(f_i, iFileSize - f_i->BOM, NULL);
 	printf("Charset (65005) : %d\n", f_i->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_i->BOM);
@@ -117,7 +117,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_j = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_j);
-	sText = xrtRead(f_j, iFileSize - f_j->BOM);
+	sText = xrtRead(f_j, iFileSize - f_j->BOM, NULL);
 	printf("Charset (65006) : %d\n", f_j->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_j->BOM);
@@ -127,7 +127,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_k = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_k);
-	sText = xrtRead(f_k, iFileSize - f_k->BOM);
+	sText = xrtRead(f_k, iFileSize - f_k->BOM, NULL);
 	printf("Charset (65005) : %d\n", f_k->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_k->BOM);
@@ -137,7 +137,7 @@ void Test_File(xrtGlobalData* xCore)
 	printf("test : %s\n", sPath);
 	xfile f_l = xrtOpen(sPath, TRUE, XRT_CP_AUTO);
 	iFileSize = xrtGetEOF(f_l);
-	sText = xrtRead(f_l, iFileSize - f_l->BOM);
+	sText = xrtRead(f_l, iFileSize - f_l->BOM, NULL);
 	printf("Charset (65006) : %d\n", f_l->Charset);
 	printf("Size : %d\n", iFileSize);
 	printf("BOM : %d\n", f_l->BOM);
@@ -149,7 +149,7 @@ void Test_File(xrtGlobalData* xCore)
 	str sPath2 = xrtPathJoin(3, xCore->AppPath, "test", "test.txt");
 	printf("test : %s\n", sPath2);
 	xfile objFile = xrtOpen(sPath2, TRUE, XRT_CP_AUTO);
-	str sText2 = xrtRead(objFile, xrtGetEOF(objFile) - objFile->BOM);
+	str sText2 = xrtRead(objFile, xrtGetEOF(objFile) - objFile->BOM, NULL);
 	printf("Text : %s\n\n", sText2);
 	
 	str sPath3 = xrtPathJoin(3, xCore->AppPath, "test", "test_write_u16be.txt");
@@ -169,7 +169,7 @@ void Test_File(xrtGlobalData* xCore)
 	str sPath5 = xrtPathJoin(3, xCore->AppPath, "test", "test_write_u32.txt");
 	xrtFileWriteAll(sPath5, "xxrpa.com 清浅池塘边，重生破土的冲动", 0, XRT_CP_UTF32 | XRT_CP_BOM);
 	xrtFileAppend(sPath5, "\nxdoc.online 天地正玲珑，殡葬了飞虫", 0, XRT_CP_UTF32 | XRT_CP_BOM);
-	str sRetPath5 = xrtFileReadAll(sPath5, XRT_CP_AUTO);
+	str sRetPath5 = xrtFileReadAll(sPath5, XRT_CP_AUTO, NULL);
 	printf("xrtFileReadAll : %s\n", sRetPath5);
 	//*/
 	

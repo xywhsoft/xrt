@@ -243,21 +243,21 @@ void Test_Value_Basic(xrtGlobalData* xCore)
 	
 	
 	
-	// subject 16 : print stauct
-	printf("Value test subject 16 : print stauct\n\n");
-	xvalue pValStruct = xvoCreateStruct(sizeof(MyDataStruct));
-	MyDataStruct* pMDS = xvoGetStruct(pValStruct);
+	// subject 16 : print class
+	printf("Value test subject 16 : print class\n\n");
+	xvalue pValClass = xvoCreateClass(sizeof(MyDataStruct));
+	MyDataStruct* pMDS = xvoGetClass(pValClass);
 	pMDS->iVal = 12345678;
 	pMDS->fVal = 3.1415926;
 	pMDS->pVal = (ptr)0x87654321;
 	sprintf(pMDS->sVal, "我吹过你吹过的晚风");
-	xvoPrintValue(pValStruct, 0, 0, 0, NULL);
-	pMDS = xvoGetStruct(pValStruct);
+	xvoPrintValue(pValClass, 0, 0, 0, NULL);
+	pMDS = xvoGetClass(pValClass);
 	printf("\t iVal = %lld\n", pMDS->iVal);
 	printf("\t fVal = %llf\n", pMDS->fVal);
-	printf("\t pVal = %x\n", pMDS->pVal);
+	printf("\t pVal = %p\n", pMDS->pVal);
 	printf("\t sVal = %s\n", pMDS->sVal);
-	xvoUnref(pValStruct);
+	xvoUnref(pValClass);
 	
 }
 
