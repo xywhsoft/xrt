@@ -1566,6 +1566,7 @@ XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb)
     
     parse_val.parse_string = _json_sax_parse_string;
     parse_val.cb = cb;
+    parse_val.parser.userdata = NULL;
 
 #if !JSON_PARSE_SINGLE_VALUE
     parse_val.skip_blank(&parse_val);
@@ -1604,207 +1605,257 @@ end:
 
 
 // 解析 JSON 文件到 Value
-xstack varStack;
-xvalue varRoot;
-xvalue varCur;
-json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
+
+// JSON 解析上下文结构（线程安全）
+typedef struct {
+	xstack stack;
+	xvalue root;
+	xvalue cur;
+} xrtJsonParseContext;
+
+static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 {
+	xrtJsonParseContext *ctx = (xrtJsonParseContext *)parser->userdata;
 	json_string_t *jkey = &parser->array[parser->index];
 	// 新结构数据入栈
 	if ( ((jkey->info.type == JSON_ARRAY) || (jkey->info.type == JSON_OBJECT)) && (parser->value.vcmd == JSON_SAX_START) ) {
 		if ( jkey->info.type == JSON_ARRAY ) {
-			if ( varRoot ) {
-				if ( varCur->Type == XVO_DT_ARRAY ) {
+			if ( ctx->root ) {
+				if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 					xvalue arrNew = xvoCreateArray();
-					xvoArrayAppendValue(varCur, arrNew, TRUE);
-					xrtStackPushPtr(varStack, arrNew);
-					varCur = arrNew;
-				} else if ( varCur->Type == XVO_DT_TABLE ) {
+					xvoArrayAppendValue(ctx->cur, arrNew, TRUE);
+					xrtStackPushPtr(ctx->stack, arrNew);
+					ctx->cur = arrNew;
+				} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 					xvalue arrNew = xvoCreateArray();
 					char* sKey = xrtMalloc(jkey->info.len + 1);
 					memcpy(sKey, jkey->str, jkey->info.len);
 					sKey[jkey->info.len] = 0;
-					xvoTableSetValue(varCur, sKey, jkey->info.len, arrNew, TRUE);
-					xrtStackPushPtr(varStack, arrNew);
-					varCur = arrNew;
+					xvoTableSetValue(ctx->cur, sKey, jkey->info.len, arrNew, TRUE);
+					xrtStackPushPtr(ctx->stack, arrNew);
+					ctx->cur = arrNew;
 				}
 			} else {
-				varRoot = xvoCreateArray();
-				xrtStackPushPtr(varStack, varRoot);
-				varCur = varRoot;
+				ctx->root = xvoCreateArray();
+				xrtStackPushPtr(ctx->stack, ctx->root);
+				ctx->cur = ctx->root;
 			}
 		} else if ( jkey->info.type == JSON_OBJECT ) {
-			if ( varRoot ) {
-				if ( varCur->Type == XVO_DT_ARRAY ) {
+			if ( ctx->root ) {
+				if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 					xvalue tblNew = xvoCreateTable();
-					xvoArrayAppendValue(varCur, tblNew, TRUE);
-					xrtStackPushPtr(varStack, tblNew);
-					varCur = tblNew;
-				} else if ( varCur->Type == XVO_DT_TABLE ) {
+					xvoArrayAppendValue(ctx->cur, tblNew, TRUE);
+					xrtStackPushPtr(ctx->stack, tblNew);
+					ctx->cur = tblNew;
+				} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 					xvalue tblNew = xvoCreateTable();
 					char* sKey = xrtMalloc(jkey->info.len + 1);
 					memcpy(sKey, jkey->str, jkey->info.len);
 					sKey[jkey->info.len] = 0;
-					xvoTableSetValue(varCur, sKey, jkey->info.len, tblNew, TRUE);
-					xrtStackPushPtr(varStack, tblNew);
-					varCur = tblNew;
+					xvoTableSetValue(ctx->cur, sKey, jkey->info.len, tblNew, TRUE);
+					xrtStackPushPtr(ctx->stack, tblNew);
+					ctx->cur = tblNew;
 				}
 			} else {
-				varRoot = xvoCreateTable();
-				xrtStackPushPtr(varStack, varRoot);
-				varCur = varRoot;
+				ctx->root = xvoCreateTable();
+				xrtStackPushPtr(ctx->stack, ctx->root);
+				ctx->cur = ctx->root;
 			}
 		}
     }
 	if ( jkey->info.type == JSON_NULL ) {
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendNull(varCur);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendNull(ctx->cur);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetNull(varCur, sKey, jkey->info.len);
+				xvoTableSetNull(ctx->cur, sKey, jkey->info.len);
 			}
         } else {
-			varRoot = xvoCreateNull();
+			ctx->root = xvoCreateNull();
         }
 	} else if ( jkey->info.type == JSON_BOOL ) {
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendBool(varCur, parser->value.vnum.vbool);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendBool(ctx->cur, parser->value.vnum.vbool);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetBool(varCur, sKey, jkey->info.len, parser->value.vnum.vbool);
+				xvoTableSetBool(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vbool);
 			}
         } else {
-			varRoot = xvoCreateBool(parser->value.vnum.vbool);
+			ctx->root = xvoCreateBool(parser->value.vnum.vbool);
         }
 	} else if ( jkey->info.type == JSON_INT ) {
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendInt(varCur, parser->value.vnum.vint);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vint);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(varCur, sKey, jkey->info.len, parser->value.vnum.vint);
+				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vint);
 			}
         } else {
-			varRoot = xvoCreateInt(parser->value.vnum.vint);
+			ctx->root = xvoCreateInt(parser->value.vnum.vint);
         }
 	} else if ( jkey->info.type == JSON_HEX ) {
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendInt(varCur, parser->value.vnum.vhex);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vhex);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(varCur, sKey, jkey->info.len, parser->value.vnum.vhex);
+				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vhex);
 			}
         } else {
-			varRoot = xvoCreateInt(parser->value.vnum.vhex);
+			ctx->root = xvoCreateInt(parser->value.vnum.vhex);
         }
 	} else if ( jkey->info.type == JSON_LINT ) {
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendInt(varCur, parser->value.vnum.vlint);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vlint);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(varCur, sKey, jkey->info.len, parser->value.vnum.vlint);
+				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vlint);
 			}
         } else {
-			varRoot = xvoCreateInt(parser->value.vnum.vlint);
+			ctx->root = xvoCreateInt(parser->value.vnum.vlint);
         }
 	} else if ( jkey->info.type == JSON_LHEX ) {
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendInt(varCur, parser->value.vnum.vlhex);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vlhex);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(varCur, sKey, jkey->info.len, parser->value.vnum.vlhex);
+				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vlhex);
 			}
         } else {
-			varRoot = xvoCreateInt(parser->value.vnum.vlhex);
+			ctx->root = xvoCreateInt(parser->value.vnum.vlhex);
         }
 	} else if ( jkey->info.type == JSON_DOUBLE ) {
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendFloat(varCur, parser->value.vnum.vdbl);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendFloat(ctx->cur, parser->value.vnum.vdbl);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetFloat(varCur, sKey, jkey->info.len, parser->value.vnum.vdbl);
+				xvoTableSetFloat(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vdbl);
 			}
         } else {
-			varRoot = xvoCreateFloat(parser->value.vnum.vdbl);
+			ctx->root = xvoCreateFloat(parser->value.vnum.vdbl);
         }
 	} else if ( jkey->info.type == JSON_STRING ) {
 		char* sText = xrtMalloc(parser->value.vstr.info.len + 1);
 		memcpy(sText, parser->value.vstr.str, parser->value.vstr.info.len);
 		sText[parser->value.vstr.info.len] = 0;
-        if ( varRoot ) {
-			if ( varCur->Type == XVO_DT_ARRAY ) {
-				xvoArrayAppendText(varCur, sText, parser->value.vstr.info.len, TRUE);
-			} else if ( varCur->Type == XVO_DT_TABLE ) {
+        if ( ctx->root ) {
+			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
+				xvoArrayAppendText(ctx->cur, sText, parser->value.vstr.info.len, TRUE);
+			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 				char* sKey = xrtMalloc(jkey->info.len + 1);
 				memcpy(sKey, jkey->str, jkey->info.len);
 				sKey[jkey->info.len] = 0;
-				xvoTableSetText(varCur, sKey, jkey->info.len, sText, parser->value.vstr.info.len, TRUE);
+				xvoTableSetText(ctx->cur, sKey, jkey->info.len, sText, parser->value.vstr.info.len, TRUE);
 			}
         } else {
-			varRoot = xvoCreateText(sText, parser->value.vstr.info.len, TRUE);
+			ctx->root = xvoCreateText(sText, parser->value.vstr.info.len, TRUE);
         }
-	} else if ( jkey->info.type == JSON_ARRAY ) {
-	} else if ( jkey->info.type == JSON_OBJECT ) {
-	} else {
-		printf("Unknown data type\n");
 	}
     if ( ((jkey->info.type == JSON_ARRAY) || (jkey->info.type == JSON_OBJECT)) && (parser->value.vcmd == JSON_SAX_FINISH) ) {
-		if ( varStack > 0) {
-			xrtStackPopPtr(varStack);
-			varCur = xrtStackTopPtr(varStack);
+		if ( ctx->stack > 0) {
+			xrtStackPopPtr(ctx->stack);
+			ctx->cur = xrtStackTopPtr(ctx->stack);
 		}
 	}
     return JSON_SAX_PARSE_CONTINUE;
 }
+
+// 内部解析函数（支持 userdata）
+static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t cb, void *userdata)
+{
+    int ret = -1;
+    json_parse_t parse_val = {0};
+	
+    parse_val.mem = &s_invalid_json_mem;
+    parse_val.str = text;
+    parse_val.size = str_len ? str_len : strlen(text);
+    parse_val.skip_blank = _skip_blank_rapid;
+    parse_val.parse_string = _json_sax_parse_string;
+    parse_val.cb = cb;
+    parse_val.parser.userdata = userdata;
+
+#if !JSON_PARSE_SINGLE_VALUE
+    parse_val.skip_blank(&parse_val);
+    if (parse_val.str[parse_val.offset] != '{' && parse_val.str[parse_val.offset] != '[') {
+        JsonErr("The first object isn't object or array!\n");
+        goto end;
+    }
+#endif
+
+    ret = _json_sax_parse_value(&parse_val);
+#if !JSON_PARSE_FINISHED_CHAR
+    if (ret == 0) {
+        parse_val.skip_blank(&parse_val);
+        if (parse_val.str[parse_val.offset]) {
+            JsonErr("Extra trailing characters!\n%s\n", parse_val.str + parse_val.offset);
+            ret = -1;
+        }
+    }
+#endif
+
+#if !JSON_PARSE_SINGLE_VALUE
+end:
+#endif
+    return ret;
+}
+
 XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 {
-	varStack = xrtStackCreate(256, sizeof(ptr));
-	varRoot = NULL;
-	varCur = NULL;
+	xrtJsonParseContext ctx = {0};
+	ctx.stack = xrtStackCreate(256, sizeof(ptr));
+	ctx.root = NULL;
+	ctx.cur = NULL;
 	if ( iSize == 0 ) {
 		iSize = strlen(sText);
 	}
-	int iRet = xrtJsonParseSAX(sText, iSize, xvo_private_ParseJSON_Proc);
+	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
 	if ( iRet < 0 ) {
+		xrtStackDestroy(ctx.stack);
 		return xvoCreateNull();
 	}
-	xrtStackDestroy(varStack);
-	return varRoot;
+	xrtStackDestroy(ctx.stack);
+	return ctx.root;
 }
 XXAPI xvalue xrtParseJSON_File(str sFile)
 {
-	varStack = xrtStackCreate(256, sizeof(ptr));
-	varRoot = NULL;
-	varCur = NULL;
-	//int iRet = json_sax_parse_file(sFile, xvo_private_ParseJSON_Proc);
+	xrtJsonParseContext ctx = {0};
+	ctx.stack = xrtStackCreate(256, sizeof(ptr));
+	ctx.root = NULL;
+	ctx.cur = NULL;
 	size_t iSize = 0;
 	str sText = xrtFileGetAll(sFile, &iSize);
-	int iRet = xrtJsonParseSAX(sText, iSize, xvo_private_ParseJSON_Proc);
-	if ( iRet < 0 ) {
+	if ( sText == NULL ) {
+		xrtStackDestroy(ctx.stack);
 		return xvoCreateNull();
 	}
-	xrtStackDestroy(varStack);
-	return varRoot;
+	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
+	xrtFree(sText);  // 释放文件内容
+	if ( iRet < 0 ) {
+		xrtStackDestroy(ctx.stack);
+		return xvoCreateNull();
+	}
+	xrtStackDestroy(ctx.stack);
+	return ctx.root;
 }
 
 

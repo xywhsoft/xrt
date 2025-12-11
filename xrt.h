@@ -2239,6 +2239,7 @@
 		int index;					// JSON类型和键的当前索引
 		json_string_t *array;		// 存储JSON对象类型和键的JSON深度信息
 		json_sax_value_t value;		// json对象值
+		void *userdata;				// 用户数据指针
 	} json_sax_parser_t;
 	
 	// SAX的回调函数（返回 `JSON_SAX_PARSE_CONTINUE` 表示继续解析；返回 `JSON_SAX_PARSE_STOP` 表示停止解析）
