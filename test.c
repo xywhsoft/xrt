@@ -30,7 +30,6 @@
 #include "test/test_stack.h"
 #include "test/test_dynstack_ptr.h"
 #include "test/test_dynstack.h"
-#include "test/test_llist.h"
 #include "test/test_avltree.h"
 #include "test/test_mempool.h"
 #include "test/test_dict.h"
@@ -126,9 +125,6 @@ int main(int argc, char** argv)
 	
 	/* 动态结构体栈测试 */
 	// Test_DynStack(xCore);
-	
-	/* LList 库测试 */
-	// Test_LList(xCore);
 	
 	/* AVLTree 库测试 */
 	// Test_AVLTree(xCore);

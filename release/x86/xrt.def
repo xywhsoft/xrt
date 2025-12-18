@@ -166,16 +166,6 @@ xrtJsonPrintFinish
 xrtJsonPrintStart
 xrtJsonPrintValue
 xrtLCase
-xrtLLB_InsertNext
-xrtLLB_InsertPrev
-xrtLLB_Remove
-xrtLListCreate
-xrtLListDestroy
-xrtLListInit
-xrtLListInsertNext
-xrtLListInsertPrev
-xrtLListRemove
-xrtLListUnit
 xrtLTrim
 xrtListCount
 xrtListCreate
