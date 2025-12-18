@@ -954,16 +954,13 @@ XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 
 // HEX 编码（ 需使用 xrtFree 释放 ）
 #define dec2hex(c) (c > 9 ? c + 55 : c + '0')
-XXAPI str xrtHexEncode(ptr pMem, size_t iSize, size_t* iRetSize)
+XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 {
-	if ( pMem == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( pMem == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( iSize == 0 ) { return xCore.sNull; }
 	str sRet = xrtMalloc((iSize * 2) + 1);
-	if ( sRet == NULL ) {
-		if ( iRetSize ) { *iRetSize = 0; }
-		return xCore.sNull;
-	}
+	if ( sRet == NULL ) { return xCore.sNull; }
 	uint8* pStr = pMem;
 	int iPos = 0;
 	for ( int i = 0; i < iSize; i++ ) {
@@ -973,7 +970,6 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize, size_t* iRetSize)
 		sRet[iPos++] = dec2hex(i2);
 	}
 	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
 	return sRet;
 }
 
@@ -981,13 +977,13 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize, size_t* iRetSize)
 
 // HEX 解码（ 需使用 xrtFree 释放 ）
 #define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
-XXAPI ptr xrtHexDecode(str sText, size_t iSize, size_t* iRetSize)
+XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 {
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( sText == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( iSize == 0 ) { return xCore.sNull; }
 	str sRet = xrtMalloc((iSize / 2) + 1);
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( sRet == NULL ) { return xCore.sNull; }
 	int iPos = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		uint8 c0 = sText[i++];
@@ -995,7 +991,6 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize, size_t* iRetSize)
 		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
 	}
 	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
 	return sRet;
 }
 
@@ -1003,16 +998,16 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize, size_t* iRetSize)
 
 // Base64 编码（ 需使用 xrtFree 释放 ）
 static const str Base64EncodeTable = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable, size_t* iRetSize)
+XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 {
-	if ( pMem == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( pMem == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( iSize == 0 ) { return xCore.sNull; }
 	if ( sTable == NULL ) { sTable = Base64EncodeTable; }
 	// 申请返回值内存
 	size_t iRet= 4 * ((iSize + 2) / 3);
 	str sRet = xrtMalloc(iRet + 1);
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( sRet == NULL ) { return xCore.sNull; }
 	// 开始编码
 	uint8* pStr = pMem;
 	for ( size_t i = 0, j = 0; i < iSize; ) {
@@ -1031,7 +1026,6 @@ XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable, size_t* iRetSize)
 	}
 	// 返回编码后的数据
 	sRet[iRet] = 0;
-	if ( iRetSize ) { *iRetSize = iRet; }
 	return sRet;
 }
 
@@ -1040,11 +1034,11 @@ XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable, size_t* iRetSize)
 // Base64 解码（ 需使用 xrtFree 释放 ）
 static const str sErrorBase64_mul4 = "Base64 input length must be multiple of 4 !";
 static const str sErrorBase64_char = "Base64 input contains invalid characters !";
-XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable, size_t* iRetSize)
+XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 {
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( sText == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	if ( iSize == 0 ) { return xCore.sNull; }
 	int8_t Base64DecodeTable[128] = {
 		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 0-15
 		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,		// 16-31
@@ -1063,7 +1057,6 @@ XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable, size_t* iRetSize)
 	// 计算输出缓冲区大小
 	if ( iSize % 4 != 0 ) {
 		xrtSetError(sErrorBase64_mul4, FALSE);
-		if ( iRetSize ) { *iRetSize = 0; }
 		return xCore.sNull;
 	}
 	// 计算返回长度
@@ -1073,7 +1066,6 @@ XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable, size_t* iRetSize)
 	// 申请返回值内存
 	str sRet = xrtMalloc(iRet + 1);
 	if ( sRet == NULL ) {
-		if ( iRetSize ) { *iRetSize = 0; }
 		return xCore.sNull;
 	}
 	// 开始解码
@@ -1086,7 +1078,6 @@ XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable, size_t* iRetSize)
 		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
 			xrtSetError(sErrorBase64_char, FALSE);
 			xrtFree(sRet);
-			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
 		// 组合 4 个 6 位值为 3 个 8 位字节
@@ -1096,7 +1087,6 @@ XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable, size_t* iRetSize)
 		if ( j < iRet ) { sRet[j++] = (triple >> 0 * 8) & 0xFF; }
 	}
 	sRet[iRet] = '\0';
-	if ( iRetSize ) { *iRetSize = iRet; }
 	return sRet;
 }
 

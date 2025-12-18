@@ -20,13 +20,13 @@ void Test_String(xrtGlobalData* xCore)
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 8, "1", 0, "_", 0, NULL));
 	printf("xrtReplace : %s\n", xrtReplace("1a1b1c1d1e1f1g1", 9, "1", 0, "_", 0, NULL));
 	
-	str sRet = xrtHexEncode("HIJKLMN abcdefg 1234567890", 0, NULL);
+	str sRet = xrtHexEncode("HIJKLMN abcdefg 1234567890", 0);
 	printf("xrtHexEncode : %s\n", sRet);
-	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0, NULL));
+	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
 	
-	str sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0, NULL, NULL);
+	str sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0, NULL);
 	printf("xrtBase64Encode : %s\n", sRet2, NULL);
-	printf("xrtBase64Decode : %s\n", xrtBase64Decode(sRet2, 0, NULL, NULL));
+	printf("xrtBase64Decode : %s\n", xrtBase64Decode(sRet2, 0, NULL));
 	
 	printf("xrtRandStr : %s\n", xrtRandStr(NULL, 0, 32));
 	

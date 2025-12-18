@@ -143,7 +143,6 @@ xrtFreeTempMemory
 xrtGet
 xrtGetCharSize
 xrtGetEOF
-xrtGetTLS
 xrtHash32
 xrtHash32_WithSeed
 xrtHash64
@@ -159,7 +158,6 @@ xrtI32ToStr
 xrtI64ToStr
 xrtInStr
 xrtInit
-xrtInitTLS
 xrtIsLeapYear
 xrtIsUTF8
 xrtJsonGetStringInfo
@@ -249,8 +247,12 @@ xrtPtrArrayUnit
 xrtPut
 xrtRTrim
 xrtRand32
+xrtRand32Ex
 xrtRand64
+xrtRand64Ex
 xrtRandRange
+xrtRandRangeEx
+xrtRandSeed
 xrtRandStr
 xrtRead
 xrtRealloc
@@ -271,8 +273,6 @@ xrtSetEOF
 xrtSetError
 xrtSetErrorU16
 xrtSetErrorU32
-xrtSetRandSeed32
-xrtSetRandSeed64
 xrtSleep
 xrtSplit
 xrtStackCreate
@@ -329,7 +329,6 @@ xrtUTF32to8
 xrtUTF8to16
 xrtUTF8to32
 xrtUnit
-xrtUnitTLS
 xrtWeekday
 xrtWrite
 xrtYear

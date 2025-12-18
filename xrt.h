@@ -364,32 +364,32 @@
 	XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen);
 	
 	// HEX 编码（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtHexEncode(ptr pMem, size_t iSize, size_t* iRetSize);
+	XXAPI str xrtHexEncode(ptr pMem, size_t iSize);
 	
 	// HEX 解码（ 需使用 xrtFree 释放 ）
-	XXAPI ptr xrtHexDecode(str pText, size_t iSize, size_t* iRetSize);
+	XXAPI ptr xrtHexDecode(str pText, size_t iSize);
 	
 	// Base64 编码（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable, size_t* iRetSize);
+	XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
-	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable, size_t* iRetSize);
+	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
 	
 	
 	
 	/* ------------------------------------ Path 函数库 ------------------------------------ */
 	
 	// 通过路径获取文件名 + 扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize, size_t* iRetSize);
+	XXAPI str xrtPathGetNameExt(str sPath, size_t iSize);
 	
 	// 通过路径获取文件名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetName(str sPath, size_t iSize, size_t* iRetSize);
+	XXAPI str xrtPathGetName(str sPath, size_t iSize);
 	
 	// 通过路径获取扩展名（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetExt(str sPath, size_t iSize, size_t* iRetSize);
+	XXAPI str xrtPathGetExt(str sPath, size_t iSize);
 	
 	// 通过路径获取文件夹（ 需使用 xrtFree 释放内存 ）
-	XXAPI str xrtPathGetDir(str sPath, size_t iSize, size_t* iRetSize);
+	XXAPI str xrtPathGetDir(str sPath, size_t iSize);
 	
 	// 判断是否为绝对路径（Linux 系统以 / 开头为绝对路径，Windows系统含 : 为绝对路径）
 	XXAPI bool xrtPathIsAbs(str sPath, size_t iSize);

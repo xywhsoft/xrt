@@ -54,7 +54,7 @@ str xrtGetLocalMAC()
 		str sRet = xCore.sNull;
 		DWORD errValue = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen);
 		if ( errValue == NO_ERROR ) {
-			sRet = xrtHexEncode(pAdapterInfo->Address, 6, NULL);
+			sRet = xrtHexEncode(pAdapterInfo->Address, 6);
 		}
 		if ( pAdapterInfo ) {
 			xrtFree(pAdapterInfo);
@@ -94,7 +94,7 @@ str xrtGetLocalMAC()
 			close(fd);
 			return xCore.sNull;
 		}
-		str sRet = xrtHexEncode(buf[interfaceNum].ifr_hwaddr.sa_data, 6, NULL);
+		str sRet = xrtHexEncode(buf[interfaceNum].ifr_hwaddr.sa_data, 6);
 		close(fd);
 		return sRet;
 	#endif

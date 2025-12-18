@@ -148,9 +148,6 @@ int main(int argc, char** argv)
 	/* JSON 测试 */
 	// Test_JSON(xCore);
 	
-	/* Thread 库测试 */
-	// Test_Thread(xCore);
-	
 	/* Template 测试 */
 	// Test_Template(xCore);
 	

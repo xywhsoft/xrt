@@ -10,7 +10,7 @@ void Test_Network(xrtGlobalData* xCore)
 	printf("Local IP [ int ] : %x\n", xrtGetLocalRawIP());
 	printf("Local IP [ int & g ] : %x\n", xCore->LocalAddr);
 	printf("Local Name : %s\n", xrtGetLocalName());
-	printf("Local Name : %s\n", xrtGetLocalMAC());
+	printf("Local MAC : %s\n", xrtGetLocalMAC());
 }
 
 

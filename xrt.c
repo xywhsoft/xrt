@@ -141,7 +141,7 @@ XXAPI xrtGlobalData* xrtInit()
 		size_t iRetSize = 0;
 		xCore.AppFile = xrtUTF16to8(sTemp, iSize, &iRetSize);
 		free(sTemp);
-		xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize, NULL);
+		xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
 	#else
 		str sTemp = malloc(4096);
 		ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
@@ -154,7 +154,7 @@ XXAPI xrtGlobalData* xrtInit()
 			size_t iRetSize = 0;
 			xCore.AppFile = xrtCopyStr(sTemp, iSize, &iRetSize);
 			free(sTemp);
-			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize, NULL);
+			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
 		}
 	#endif
 	
