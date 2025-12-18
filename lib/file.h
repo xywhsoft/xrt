@@ -471,8 +471,10 @@ XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize)
 				// 转换编码 (将读取到的数据转换为 utf-8 编码)
 				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 					int iCharSize = xrtGetCharSize(objFile->Charset);
-					str sRet = xrtConvCharset(sBuff, iRet / iCharSize, objFile->Charset, XRT_CP_UTF8, NULL);
+					size_t iTextSize = 0;
+					str sRet = xrtConvCharset(sBuff, iRet / iCharSize, objFile->Charset, XRT_CP_UTF8, &iTextSize);
 					xrtFree(sBuff);
+					if ( iRetSize ) { *iRetSize = iTextSize; }
 					return sRet;
 				} else {
 					if ( iRetSize ) { *iRetSize = iRet; }
@@ -509,8 +511,10 @@ XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize)
 				// 转换编码 (将读取到的数据转换为 utf-8 编码)
 				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 					int iCharSize = xrtGetCharSize(objFile->Charset);
-					str sRet = xrtConvCharset(sBuff, iRet / iCharSize, objFile->Charset, XRT_CP_UTF8);
+					size_t iTextSize = 0;
+					str sRet = xrtConvCharset(sBuff, iRet / iCharSize, objFile->Charset, XRT_CP_UTF8, &iTextSize);
 					xrtFree(sBuff);
+					if ( iRetSize ) { *iRetSize = iTextSize; }
 					return sRet;
 				} else {
 					if ( iRetSize ) { *iRetSize = iRet; }

@@ -149,10 +149,9 @@ XXAPI xrtGlobalData* xrtInit()
 			xCore.AppFile = xCore.sNull;
 			xCore.AppPath = xCore.sNull;
 		} else {
-			size_t iRetSize = 0;
-			xCore.AppFile = xrtCopyStr(sTemp, iSize, &iRetSize);
+			xCore.AppFile = xrtCopyStr(sTemp, iSize);
 			free(sTemp);
-			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
+			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iSize);
 		}
 	#endif
 	
