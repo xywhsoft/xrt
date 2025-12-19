@@ -778,11 +778,12 @@ XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_pr
         return NULL;
     }
 
-    ret = print_handle->print_val.ptr;
     if (_print_val_release(&print_handle->print_val, false, length, ptr) < 0) {
         json_free(print_handle);
         return NULL;
     }
+    // Get pointer after _print_val_release, because realloc may change the address
+    ret = print_handle->print_val.ptr;
     json_free(print_handle);
 
     return ret;
