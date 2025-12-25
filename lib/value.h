@@ -1449,7 +1449,7 @@ XXAPI xvalue xvoDeepCopy(xvalue pVal)
 		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			xvalue pItemCopy = xvoDeepCopy(pItem);
-			xrtPtrArrayAppend(arrRet->vArray, pItem);
+			xrtPtrArrayAppend(arrRet->vArray, pItemCopy);
 		}
 		return arrRet;
 	} else if ( pVal->Type == XVO_DT_LIST ) {
