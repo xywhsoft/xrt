@@ -172,7 +172,7 @@ void Test_Template(xrtGlobalData* xCore)
 	// 测试比较运算
 	printf("测试 'age = 25': %s\n", xteExprEvalBool("age = 25", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
 	printf("测试 'age > 20': %s\n", xteExprEvalBool("age > 20", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
-	printf("测试 'age < 20': %s\n", xteExprEvalBool("age < 20", 0, exprData, NULL, NULL) ? "✓ false" : "✗ true");
+	printf("测试 'age < 20': %s\n", xteExprEvalBool("age < 20", 0, exprData, NULL, NULL) ? "✗ true" : "✓ false");
 	printf("测试 'score >= 85.5': %s\n", xteExprEvalBool("score >= 85.5", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
 	
 	// 测试字符串比较
@@ -251,7 +251,7 @@ void Test_Template(xrtGlobalData* xCore)
 	
 	// 测试 for 计次循环
 	printf("\n[测试 for 计次循环]\n");
-	const char* tplFor = "{#for:1:3:1}{% __index__ }{#end}";
+	const char* tplFor = "{#for:1:3:1}{%__index__} {#end}";
 	XTE_LiteObject objFor = xteParse((char*)tplFor, 0, NULL);
 	if ( objFor->Success ) {
 		xvalue dataFor = xvoCreateTable();
@@ -262,6 +262,7 @@ void Test_Template(xrtGlobalData* xCore)
 			printf("模板: %s\n", tplFor);
 			printf("输出: %s\n", result);
 			printf("期望: 1 2 3 \n");
+			printf("结果: %s\n", strcmp(result, "1 2 3 ") == 0 ? "✓ 通过" : "✗ 失败");
 			xrtFree(result);
 		}
 		xvoUnref(dataFor);
@@ -310,8 +311,13 @@ void Test_Template(xrtGlobalData* xCore)
 	
 	// 测试嵌套控制语句
 	printf("\n[测试嵌套控制语句]\n");
+	fflush(stdout);
 	const char* tplNested = "{#foreach:users}{#if:active}{$ name } {#end}{#end}";
+	printf("模板: %s\n", tplNested);
+	fflush(stdout);
 	XTE_LiteObject objNested = xteParse((char*)tplNested, 0, NULL);
+	printf("解析结果: %s\n", objNested->Success ? "成功" : "失败");
+	fflush(stdout);
 	if ( objNested->Success ) {
 		xvalue dataNested = xvoCreateTable();
 		xvalue usersArr = xvoCreateArray();
@@ -333,8 +339,12 @@ void Test_Template(xrtGlobalData* xCore)
 		
 		xvoTableSetValue(dataNested, "users", 0, usersArr, TRUE);
 		
+		printf("开始执行模板...\n");
+		fflush(stdout);
 		size_t retSize = 0;
 		char* result = xteMake(objNested, dataNested, NULL, NULL, &retSize);
+		printf("模板执行完成\n");
+		fflush(stdout);
 		if ( result ) {
 			printf("模板: %s\n", tplNested);
 			printf("输出: [%s]\n", result);
@@ -484,6 +494,134 @@ void Test_Template(xrtGlobalData* xCore)
 	xteParseFree(objForeachContinue);
 	
 	printf("\n模板引擎 Phase 4 (break/continue) 测试完成\n");
+	
+	// ==================== 测试 7: 循环次数限制 (Phase 5) ====================
+	printf("\n--- 测试循环次数限制和其他优化 (Phase 5) ---\n");
+	
+	// 测试 for 反向循环
+	printf("\n[测试 for 反向循环]\n");
+	const char* tplForReverse = "{#for:5:1:-1}{%__index__},{#end}";
+	XTE_LiteObject objForReverse = xteParse((char*)tplForReverse, 0, NULL);
+	if ( objForReverse->Success ) {
+		xvalue dataForReverse = xvoCreateTable();
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForReverse, dataForReverse, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForReverse);
+			printf("输出: [%s]\n", result);
+			printf("期望: [5,4,3,2,1,]\n");
+			printf("结果: %s\n", strcmp(result, "5,4,3,2,1,") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataForReverse);
+	} else {
+		printf("✗ for反向循环模板解析失败: %s\n", objForReverse->ErrorDesc);
+	}
+	xteParseFree(objForReverse);
+	
+	// 测试步长为0的修复（应自动设置为1）
+	printf("\n[测试 for 步长为0修复]\n");
+	const char* tplForZeroStep = "{#for:1:3:0}{%__index__},{#end}";
+	XTE_LiteObject objForZeroStep = xteParse((char*)tplForZeroStep, 0, NULL);
+	if ( objForZeroStep->Success ) {
+		xvalue dataZeroStep = xvoCreateTable();
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForZeroStep, dataZeroStep, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForZeroStep);
+			printf("输出: [%s]\n", result);
+			printf("期望: [1,2,3,] (步长0自动修正为1)\n");
+			printf("结果: %s\n", strcmp(result, "1,2,3,") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataZeroStep);
+	} else {
+		printf("✗ for步长为0模板解析失败: %s\n", objForZeroStep->ErrorDesc);
+	}
+	xteParseFree(objForZeroStep);
+	
+	// 测试循环次数限制（使用大范围循环，应被截断）
+	printf("\n[测试循环次数限制]\n");
+	const char* tplLoopLimit = "{#for:1:200000:1}x{#end}";
+	XTE_LiteObject objLoopLimit = xteParse((char*)tplLoopLimit, 0, NULL);
+	if ( objLoopLimit->Success ) {
+		xvalue dataLoopLimit = xvoCreateTable();
+		
+		size_t retSize = 0;
+		char* result = xteMake(objLoopLimit, dataLoopLimit, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplLoopLimit);
+			printf("输出长度: %zu\n", retSize);
+			printf("期望: <= 100000 (默认最大迭代次数)\n");
+			printf("结果: %s\n", retSize <= 100000 ? "✓ 通过 (循环被正确限制)" : "✗ 失败 (超出限制)");
+			xrtFree(result);
+		}
+		xvoUnref(dataLoopLimit);
+	} else {
+		printf("✗ 循环次数限制模板解析失败: %s\n", objLoopLimit->ErrorDesc);
+	}
+	xteParseFree(objLoopLimit);
+	
+	// 测试表达式缓存（相同表达式多次调用）
+	printf("\n[测试表达式 AST 缓存]\n");
+	xvalue cacheTestData = xvoCreateTable();
+	xvoTableSetInt(cacheTestData, "x", 0, 10);
+	
+	// 调用多次相同表达式，验证缓存功能正常
+	int cacheOK = 1;
+	for ( int ci = 0; ci < 100; ci++ ) {
+		if ( !xteExprEvalBool("x > 5", 0, cacheTestData, NULL, NULL) ) {
+			cacheOK = 0;
+			break;
+		}
+	}
+	printf("相同表达式调用100次: %s\n", cacheOK ? "✓ 通过" : "✗ 失败");
+	xvoUnref(cacheTestData);
+	
+	// 测试 define 块未闭合检测
+	printf("\n[测试 define 块未闭合检测]\n");
+	const char* tplDefineUnclosed = "{#define:test}hello";
+	XTE_LiteObject objDefineUnclosed = xteParse((char*)tplDefineUnclosed, 0, NULL);
+	printf("模板: %s\n", tplDefineUnclosed);
+	printf("解析结果: %s\n", objDefineUnclosed->Success ? "成功 (异常)" : "失败 (预期)");
+	printf("错误信息: %s\n", objDefineUnclosed->ErrorDesc ? objDefineUnclosed->ErrorDesc : "(无)");
+	printf("结果: %s\n", !objDefineUnclosed->Success ? "✓ 通过 (正确检测未闭合)" : "✗ 失败");
+	xteParseFree(objDefineUnclosed);
+	
+	// 测试 foreach 表迭代
+	printf("\n[测试 foreach 表迭代]\n");
+	const char* tplForeachTable = "{#foreach:data}{$__key__}={$__value__};{#end}";
+	XTE_LiteObject objForeachTable = xteParse((char*)tplForeachTable, 0, NULL);
+	if ( objForeachTable->Success ) {
+		xvalue dataTable = xvoCreateTable();
+		xvalue innerTable = xvoCreateTable();
+		xvoTableSetText(innerTable, "a", 0, "1", 0, FALSE);
+		xvoTableSetText(innerTable, "b", 0, "2", 0, FALSE);
+		xvoTableSetText(innerTable, "c", 0, "3", 0, FALSE);
+		xvoTableSetValue(dataTable, "data", 0, innerTable, TRUE);
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForeachTable, dataTable, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForeachTable);
+			printf("输出: [%s]\n", result);
+			printf("期望: 包含 a=1; b=2; c=3; (顺序可能不同)\n");
+			// 检查包含关键内容
+			int hasA = strstr(result, "a=1;") != NULL;
+			int hasB = strstr(result, "b=2;") != NULL;
+			int hasC = strstr(result, "c=3;") != NULL;
+			printf("结果: %s\n", (hasA && hasB && hasC) ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataTable);
+	} else {
+		printf("✗ foreach表迭代模板解析失败: %s\n", objForeachTable->ErrorDesc);
+	}
+	xteParseFree(objForeachTable);
+	
+	printf("\n模板引擎 Phase 5 (循环限制/缓存/优化) 测试完成\n");
 }
 
 

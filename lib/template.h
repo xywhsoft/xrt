@@ -59,6 +59,11 @@
 // 字符串对比函数（strncmp）
 #define XTE_STRNCMP		strncasecmp
 
+// 循环最大迭代次数（防止无限循环攻击）
+#ifndef XTE_LOOP_MAX_ITERATIONS
+#define XTE_LOOP_MAX_ITERATIONS 100000
+#endif
+
 
 
 // 错误列表
@@ -937,6 +942,23 @@ XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks)
 			}
 		}
 	}
+	// 检查 define 块是否未闭合
+	if ( objCurTemplate != NULL ) {
+		// define 块未闭合，报错
+		objRet->Success = 0;
+		objRet->ErrorCode = 6;  // statement not ended
+		objRet->ErrorDesc = XTE_ERROR_DESC[6];
+		if ( objRefTok ) {
+			objRet->ErrorLine = objRefTok->RefLine;
+			objRet->ErrorLinePos = objRefTok->RefLinePos;
+			objRet->ErrorPos = objRefTok->RefPos;
+			objRet->ErrorRefLine = objRefTok->RefLine;
+			objRet->ErrorRefLinePos = objRefTok->RefLinePos;
+			objRet->ErrorRefPos = objRefTok->RefPos;
+		}
+		return objRet;
+	}
+	
 	// 返回 Token 列表
 	objRet->Success = -1;
 	objRet->ErrorCode = 0;
@@ -947,7 +969,9 @@ XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks)
 
 
 // 模板引擎全局状态（静态初始化方案）
+// 注: XTE_IDENT_LIST 在 xrtInit 时初始化一次，后续只读，无需线程同步
 static xarray XTE_IDENT_LIST = NULL;
+static xdict XTE_EXPR_CACHE = NULL;  // 表达式 AST 缓存
 static int XTE_INITIALIZED = 0;
 
 // 初始化模板引擎（由 xrtInit 调用，用户无感）
@@ -977,8 +1001,25 @@ static int xte_private_init(void)
 	xteAddIdentToList(XTE_IDENT_LIST, "break"   , 5, XTE_TK_BREAK   , XTE_IDTPE_DEFAULT, 0, 0);
 	xteAddIdentToList(XTE_IDENT_LIST, "continue", 8, XTE_TK_CONTINUE, XTE_IDTPE_DEFAULT, 0, 0);
 	
+	// 创建表达式 AST 缓存
+	XTE_EXPR_CACHE = xrtDictCreate(sizeof(ptr));  // 存储指针需要 sizeof(ptr) 空间
+	if ( XTE_EXPR_CACHE == NULL ) {
+		xteDestroyIdentList(XTE_IDENT_LIST);
+		XTE_IDENT_LIST = NULL;
+		return 0;
+	}
+	
 	XTE_INITIALIZED = 1;
 	return 1;
+}
+
+// 缓存的表达式 AST 清理回调
+static int xte_private_free_expr_cache(Dict_Key* pKey, XTE_ExprResult result, void* pArg)
+{
+	if ( result ) {
+		xteExprFree(result);
+	}
+	return 0;
 }
 
 // 清理模板引擎（由 xrtUnit 调用，用户无感）
@@ -989,8 +1030,15 @@ static void xte_private_unit(void)
 	}
 	
 	if ( XTE_IDENT_LIST ) {
-		xrtArrayDestroy(XTE_IDENT_LIST);
+		xteDestroyIdentList(XTE_IDENT_LIST);  // 修复: 使用正确的销毁函数避免内存泄漏
 		XTE_IDENT_LIST = NULL;
+	}
+	
+	// 清理表达式 AST 缓存
+	if ( XTE_EXPR_CACHE ) {
+		xrtDictWalk(XTE_EXPR_CACHE, (void*)xte_private_free_expr_cache, NULL);
+		xrtDictDestroy(XTE_EXPR_CACHE);
+		XTE_EXPR_CACHE = NULL;
 	}
 	
 	XTE_INITIALIZED = 0;
@@ -1170,12 +1218,16 @@ typedef struct {
 	int Index;
 	int* BreakFlag;      // 指向外层循环的 break 标志
 	int* ContinueFlag;   // 指向外层循环的 continue 标志
+	int MaxIterations;   // 最大迭代次数限制
 } XTE_ForeachTableCtx;
 
 // foreach 表迭代回调函数
-static int xte_foreach_table_proc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
+// 注意: Dict_EachProc 传递的是存储区域地址，字典存储的是 xvalue 指针，所以 pVal 是 xvalue* 类型
+static int xte_foreach_table_proc(Dict_Key* pKey, ptr pVal, void* pArg)
 {
-	if ( pKey == NULL || ppVal == NULL || *ppVal == NULL || pArg == NULL ) {
+	xvalue* ppVal = (xvalue*)pVal;  // pVal 是指向 xvalue 指针的地址
+	xvalue itemVal = *ppVal;        // 解引用获取真正的 xvalue
+	if ( pKey == NULL || itemVal == NULL || pArg == NULL ) {
 		return FALSE;
 	}
 	XTE_ForeachTableCtx* ctx = (XTE_ForeachTableCtx*)pArg;
@@ -1185,9 +1237,14 @@ static int xte_foreach_table_proc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 		return TRUE;  // 停止遍历
 	}
 	
+	// 检查迭代次数限制
+	if ( ctx->Index >= ctx->MaxIterations ) {
+		return TRUE;  // 超出最大迭代次数，停止遍历
+	}
+	
 	xvalue loopEnv = xvoCreateTable();
 	xvoTableSetInt(loopEnv, "__index__", 0, ctx->Index);
-	xvoTableSetValue(loopEnv, "__value__", 0, *ppVal, FALSE);
+	xvoTableSetValue(loopEnv, "__value__", 0, itemVal, FALSE);
 	xvoTableSetText(loopEnv, "__key__", 0, pKey->Key, pKey->KeyLen, FALSE);
 	
 	// 重置 continue 标志（每次迭代开始时清除）
@@ -1196,7 +1253,7 @@ static int xte_foreach_table_proc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 	}
 	
 	size_t loopSize = 0;
-	char* loopResult = xteMakeActions_ex(ctx->Action, ctx->Template, *ppVal, ctx->RootVal, loopEnv, ctx->Include, &loopSize, ctx->BreakFlag, ctx->ContinueFlag);
+	char* loopResult = xteMakeActions_ex(ctx->Action, ctx->Template, itemVal, ctx->RootVal, loopEnv, ctx->Include, &loopSize, ctx->BreakFlag, ctx->ContinueFlag);
 	if ( loopResult ) {
 		xrtBufferAppend(ctx->Buf, loopResult, loopSize, XBUF_UTF8);
 		xrtFree(loopResult);
@@ -1212,8 +1269,11 @@ static int xte_foreach_table_proc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 }
 
 // 根据 XTE_LiteObject 模板对象生成文档
-int xte_private_Make_EachTableProc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
+// 注意: Dict_EachProc 传递的是存储区域地址，字典存储的是 xvalue 指针，所以 pVal 是 xvalue* 类型
+int xte_private_Make_EachTableProc(Dict_Key* pKey, ptr pVal, void* pArg)
 {
+	xvalue* ppVal = (xvalue*)pVal;  // pVal 是指向 xvalue 指针的地址
+	xvalue itemVal = *ppVal;        // 解引用获取真正的 xvalue
 	struct {
 		xbuffer Buf;
 		XTE_TokenItem Tok;
@@ -1224,7 +1284,7 @@ int xte_private_Make_EachTableProc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 		xdict Include;
 	} *tblProcParam = pArg;
 	size_t iSizeRet = 0;
-	char* sEachPage = xteMakeActions(tblProcParam->Action, tblProcParam->Template, *ppVal, tblProcParam->RootEnv, tblProcParam->ENV, tblProcParam->Include, &iSizeRet);
+	char* sEachPage = xteMakeActions(tblProcParam->Action, tblProcParam->Template, itemVal, tblProcParam->RootEnv, tblProcParam->ENV, tblProcParam->Include, &iSizeRet);
 	if ( sEachPage ) {
 		xrtBufferAppend(tblProcParam->Buf, sEachPage, iSizeRet, XBUF_UTF8);
 		xrtFree(sEachPage);
@@ -1730,8 +1790,10 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 					int loopBreak = 0, loopContinue = 0;
 					
 					// 执行循环
+					int loopIterations = 0;  // 迭代计数器
 					if ( forStep > 0 ) {
 						for ( int64 idx = forStart; idx <= forEnd; idx += forStep ) {
+							if ( ++loopIterations > XTE_LOOP_MAX_ITERATIONS ) break;  // 超出最大迭代次数
 							loopContinue = 0;  // 每次迭代重置 continue
 							xvoTableSetInt(loopEnv, "__index__", 0, idx);
 							size_t loopSize = 0;
@@ -1745,6 +1807,7 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 						}
 					} else {
 						for ( int64 idx = forStart; idx >= forEnd; idx += forStep ) {
+							if ( ++loopIterations > XTE_LOOP_MAX_ITERATIONS ) break;  // 超出最大迭代次数
 							loopContinue = 0;  // 每次迭代重置 continue
 							xvoTableSetInt(loopEnv, "__index__", 0, idx);
 							size_t loopSize = 0;
@@ -1779,7 +1842,8 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 						if ( iterObj->Type == XVO_DT_ARRAY ) {
 						// 迭代数组
 						int loopBreak = 0, loopContinue = 0;
-						for ( int idx = 0; idx < iterObj->vArray->Count; idx++ ) {
+						int loopLimit = (iterObj->vArray->Count > XTE_LOOP_MAX_ITERATIONS) ? XTE_LOOP_MAX_ITERATIONS : iterObj->vArray->Count;
+						for ( int idx = 0; idx < loopLimit; idx++ ) {
 							loopContinue = 0;  // 每次迭代重置 continue
 							xvalue itemVal = xvoArrayGetValue(iterObj, idx);
 							// 创建循环环境
@@ -1799,7 +1863,7 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 					} else {
 						// 迭代表（使用 xrtDictWalk）
 						int loopBreak = 0, loopContinue = 0;
-						XTE_ForeachTableCtx foreachCtx = { objBuf, &loopAction, objTemplate, tblVal, tblInclude, 0, &loopBreak, &loopContinue };
+						XTE_ForeachTableCtx foreachCtx = { objBuf, &loopAction, objTemplate, tblVal, tblInclude, 0, &loopBreak, &loopContinue, XTE_LOOP_MAX_ITERATIONS };
 						xrtDictWalk(iterObj->vTable, (void*)xte_foreach_table_proc, &foreachCtx);
 					}
 						
@@ -1841,18 +1905,22 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 				xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
 			} else if ( objTok->Type == XTE_TK_VAR ) {
 				// 代入变量 - 转为字符串
-				char* sTemp = NULL;
+				// 注: 使用 xvoTableGetValue 检查键是否存在，避免 xvoGetText 返回空字符串导致搜索停止
+				xvalue varVal = &XVO_VALUE_NULL;
 				if ( objTok->Text && objTok->Size == 8 && memcmp(objTok->Text, "__self__", 8) == 0 ) {
-					sTemp = xvoGetText(tblVal);
+					varVal = tblVal;
 				}
-				if ( tblRoot && (sTemp == NULL) ) {
-					sTemp = xvoTableGetText(tblRoot, objTok->Text, objTok->Size);
+				if ( tblRoot && (varVal == &XVO_VALUE_NULL) ) {
+					varVal = xvoTableGetValue(tblRoot, objTok->Text, objTok->Size);
 				}
-				if ( sTemp == NULL ) {
-					sTemp = xvoTableGetText(tblENV, objTok->Text, objTok->Size);
+				if ( varVal == &XVO_VALUE_NULL ) {
+					varVal = xvoTableGetValue(tblENV, objTok->Text, objTok->Size);
 				}
-				if ( sTemp ) {
-					xrtBufferAppend(objBuf, sTemp, 0, XBUF_UTF8);
+				if ( varVal != &XVO_VALUE_NULL ) {
+					char* sTemp = xvoGetText(varVal);
+					if ( sTemp ) {
+						xrtBufferAppend(objBuf, sTemp, 0, XBUF_UTF8);
+					}
 				}
 			} else if ( objTok->Type == XTE_TK_NUM ) {
 				// 代入数字 - 支持格式化
@@ -1952,7 +2020,8 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 				if ( bRet ) {
 					idx = 0;
 				}
-				if ( objTok->ParamCount > idx ) {
+				// 修复: 添加 ParamText[idx] 空指针检查
+				if ( objTok->ParamCount > idx && objTok->ParamText[idx] ) {
 					if ( objTok->ParamText[idx][0] == '=' ) {
 						// 参数首字符为 = 则作为模板生成
 						do {
@@ -2869,19 +2938,50 @@ xvalue xteExprEval(XTE_ASTNode ast, xvalue tblVal, xvalue tblRoot, xvalue tblENV
 	}
 }
 
-// 便捷函数：解析并求值表达式，返回布尔结果
+// 便捷函数：解析并求值表达式，返回布尔结果（带 AST 缓存）
 int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot, xvalue tblENV)
 {
-	XTE_ExprResult result = xteExprParse(expr, len);
-	if ( result == NULL || !result->Success ) {
-		xteExprFree(result);
+	if ( expr == NULL ) {
 		return 0;
 	}
+	if ( len == 0 ) {
+		len = strlen(expr);
+	}
 	
+	XTE_ExprResult result = NULL;
+	
+	// 尝试从缓存获取
+	if ( XTE_EXPR_CACHE ) {
+		result = (XTE_ExprResult)xrtDictGetPtr(XTE_EXPR_CACHE, expr, len);
+	}
+	
+	if ( result == NULL ) {
+		// 缓存未命中，解析表达式
+		result = xteExprParse(expr, len);
+		if ( result == NULL || !result->Success ) {
+			xteExprFree(result);
+			return 0;
+		}
+		// 存入缓存
+		if ( XTE_EXPR_CACHE ) {
+			XTE_ExprResult oldResult = NULL;
+			xrtDictSetPtr(XTE_EXPR_CACHE, expr, len, result, (ptr*)&oldResult);
+			// 如果有旧值（理论上不会发生），释放它
+			if ( oldResult ) {
+				xteExprFree(oldResult);
+			}
+		}
+	}
+	
+	// 求值并返回布尔结果
 	xvalue val = xteExprEval(result->Root, tblVal, tblRoot, tblENV);
 	int boolVal = xte_value_to_bool(val);
 	xvoUnref(val);
-	xteExprFree(result);
+	
+	// 如果未缓存，释放 result
+	if ( !XTE_EXPR_CACHE ) {
+		xteExprFree(result);
+	}
 	return boolVal;
 }
 
