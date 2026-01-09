@@ -17,6 +17,7 @@
 - [字符串裁剪](#字符串裁剪)
 - [字符串过滤](#字符串过滤)
 - [字符串操作](#字符串操作)
+- [数值格式化](#数值格式化)
 - [编码解码](#编码解码)
 - [UTF-8 工具函数](#utf-8-工具函数)
 - [使用场景](#使用场景)
@@ -1053,6 +1054,189 @@ int main() {
 **补充说明：**
 - `sTemplate` 为 `NULL` 时使用默认模板（64字符：数字+大小写字母+-_）
 - 内部使用 `xrtRandRange` 生成随机索引
+
+---
+
+## 数值格式化
+
+### xrtIntFormat
+
+整数格式化。
+
+**函数原型：**
+```c
+XXAPI str xrtIntFormat(int64 value, str format);
+```
+
+**参数：**
+- `value` - 要格式化的 64 位整数
+- `format` - 格式字符串（`NULL` 表示默认格式）
+
+**格式符：**
+| 格式符 | 说明 | 示例 |
+|--------|------|------|
+| `,` | 千分位分隔 | `1,234,567` |
+| `0N` | 前导零填充至 N 位 | `00000042` |
+| `+` | 始终显示正号 | `+123` |
+| `x` | 十六进制（小写） | `ff` |
+| `X` | 十六进制（大写） | `FF` |
+| `o` | 八进制 | `100` |
+| `b` | 二进制 | `1010` |
+
+**返回值：**
+- 格式化后的字符串
+- 失败返回 `xCore.sNull`
+
+**内存释放：** ✅ 需要 `xrtFree` 释放
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 基础转换
+    str s1 = xrtIntFormat(1234567, NULL);
+    printf("%s\n", s1);  // "1234567"
+    xrtFree(s1);
+    
+    // 千分位
+    str s2 = xrtIntFormat(1234567, (str)",");
+    printf("%s\n", s2);  // "1,234,567"
+    xrtFree(s2);
+    
+    // 前导零
+    str s3 = xrtIntFormat(42, (str)"08");
+    printf("%s\n", s3);  // "00000042"
+    xrtFree(s3);
+    
+    // 正号
+    str s4 = xrtIntFormat(123, (str)"+");
+    printf("%s\n", s4);  // "+123"
+    xrtFree(s4);
+    
+    // 十六进制
+    str s5 = xrtIntFormat(255, (str)"X");
+    printf("%s\n", s5);  // "FF"
+    xrtFree(s5);
+    
+    // 十六进制 + 前导零
+    str s6 = xrtIntFormat(255, (str)"08X");
+    printf("%s\n", s6);  // "000000FF"
+    xrtFree(s6);
+    
+    // 八进制
+    str s7 = xrtIntFormat(64, (str)"o");
+    printf("%s\n", s7);  // "100"
+    xrtFree(s7);
+    
+    // 二进制
+    str s8 = xrtIntFormat(10, (str)"b");
+    printf("%s\n", s8);  // "1010"
+    xrtFree(s8);
+    
+    // 负数 + 千分位
+    str s9 = xrtIntFormat(-1234567, (str)",");
+    printf("%s\n", s9);  // "-1,234,567"
+    xrtFree(s9);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- 非十进制不支持千分位和符号显示
+- 格式符可以组合使用，如 `+08` 表示正号 + 8位前导零
+
+---
+
+### xrtNumFormat
+
+浮点数格式化。
+
+**函数原型：**
+```c
+XXAPI str xrtNumFormat(double value, str format);
+```
+
+**参数：**
+- `value` - 要格式化的双精度浮点数
+- `format` - 格式字符串（`NULL` 表示默认 6 位小数）
+
+**格式符：**
+| 格式符 | 说明 | 示例 |
+|--------|------|------|
+| `,` | 千分位分隔（整数部分） | `1,234,567.89` |
+| `.N` | N 位小数 | `3.14` |
+| `+` | 始终显示正号 | `+3.14` |
+| `%` | 百分比（自动×100） | `12.34%` |
+
+**返回值：**
+- 格式化后的字符串
+- 失败返回 `xCore.sNull`
+
+**内存释放：** ✅ 需要 `xrtFree` 释放
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 默认格式（6位小数）
+    str s1 = xrtNumFormat(3.14159, NULL);
+    printf("%s\n", s1);  // "3.141590"
+    xrtFree(s1);
+    
+    // 指定小数位数
+    str s2 = xrtNumFormat(3.14159, (str)".2");
+    printf("%s\n", s2);  // "3.14"
+    xrtFree(s2);
+    
+    // 补零
+    str s3 = xrtNumFormat(3.1, (str)".3");
+    printf("%s\n", s3);  // "3.100"
+    xrtFree(s3);
+    
+    // 千分位 + 小数
+    str s4 = xrtNumFormat(1234567.89, (str)",.2");
+    printf("%s\n", s4);  // "1,234,567.89"
+    xrtFree(s4);
+    
+    // 百分比
+    str s5 = xrtNumFormat(0.1234, (str)".2%");
+    printf("%s\n", s5);  // "12.34%"
+    xrtFree(s5);
+    
+    // 百分比（不带小数）
+    str s6 = xrtNumFormat(0.75, (str)".0%");
+    printf("%s\n", s6);  // "75%"
+    xrtFree(s6);
+    
+    // 正号
+    str s7 = xrtNumFormat(3.14, (str)"+.2");
+    printf("%s\n", s7);  // "+3.14"
+    xrtFree(s7);
+    
+    // 负数
+    str s8 = xrtNumFormat(-1234.56, (str)",.2");
+    printf("%s\n", s8);  // "-1,234.56"
+    xrtFree(s8);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- 小数位数最大支持 15 位
+- 特殊值处理：`NaN`、`Inf`、`-Inf`
+- 格式符可以组合使用，如 `,.2%` 表示千分位 + 2位小数 + 百分比
 
 ---
 

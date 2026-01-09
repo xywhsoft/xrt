@@ -13,6 +13,9 @@
 - [随机数生成](#随机数生成)
   - [普通 API（线程不安全）](#xrtrand32)
   - [Ex 版本 API（线程安全）](#xrtrand32ex)
+- [约等于比较](#约等于比较)
+  - [xrtIntApprox](#xrtintapprox)
+  - [xrtNumApprox](#xrtnumapprox)
 - [使用场景](#使用场景)
 - [最佳实践](#最佳实践)
 - [性能提示](#性能提示)
@@ -395,6 +398,128 @@ int main() {
         printf("%d ", xrtRandRangeEx(&myRng, 1, 6));
     }
     printf("\n");
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+## 约等于比较
+
+约等于函数用于判断两个数值在允许的容差范围内是否相等。比较规则通过全局 `xCore` 配置。
+
+### 配置字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `xCore.iApproxIntMode` | `int` | 整数比较模式：`XRT_APPROX_DIFF`(差值) 或 `XRT_APPROX_PERCENT`(百分比) |
+| `xCore.fApproxIntTol` | `double` | 整数容差值（差值模式为绝对值，百分比模式为小数如 0.01=1%） |
+| `xCore.iApproxNumMode` | `int` | 浮点数比较模式：`XRT_APPROX_DIFF`(差值) 或 `XRT_APPROX_PERCENT`(百分比) |
+| `xCore.fApproxNumTol` | `double` | 浮点数容差值 |
+
+### 模式常量
+
+```c
+#define XRT_APPROX_DIFF     0   // 差值模式：|a - b| <= tolerance
+#define XRT_APPROX_PERCENT  1   // 百分比模式：|a - b| / max(|a|, |b|) <= tolerance
+```
+
+---
+
+### xrtIntApprox
+
+判断两个整数是否约等于。
+
+**函数原型：**
+```c
+XXAPI bool xrtIntApprox(int64 a, int64 b);
+```
+
+**参数：**
+- `a` - 第一个整数
+- `b` - 第二个整数
+
+**返回值：**
+- `TRUE` - 两数在容差范围内
+- `FALSE` - 两数超出容差范围
+
+**说明：**
+- 使用 `xCore.iApproxIntMode` 和 `xCore.fApproxIntTol` 配置
+- 百分比模式以两数绝对值的较大者为基准
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 百分比模式：1% 容差
+    xCore.iApproxIntMode = XRT_APPROX_PERCENT;
+    xCore.fApproxIntTol = 0.01;  // 1%
+    
+    printf("10000 ~ 9900: %s\n", xrtIntApprox(10000, 9900) ? "TRUE" : "FALSE");  // TRUE (差 1%)
+    printf("10000 ~ 9000: %s\n", xrtIntApprox(10000, 9000) ? "TRUE" : "FALSE");  // FALSE (差 10%)
+    
+    // 差值模式：容差 10
+    xCore.iApproxIntMode = XRT_APPROX_DIFF;
+    xCore.fApproxIntTol = 10.0;
+    
+    printf("100 ~ 108: %s\n", xrtIntApprox(100, 108) ? "TRUE" : "FALSE");  // TRUE (差 8)
+    printf("100 ~ 120: %s\n", xrtIntApprox(100, 120) ? "TRUE" : "FALSE");  // FALSE (差 20)
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtNumApprox
+
+判断两个浮点数是否约等于。
+
+**函数原型：**
+```c
+XXAPI bool xrtNumApprox(double a, double b);
+```
+
+**参数：**
+- `a` - 第一个浮点数
+- `b` - 第二个浮点数
+
+**返回值：**
+- `TRUE` - 两数在容差范围内
+- `FALSE` - 两数超出容差范围
+
+**说明：**
+- 使用 `xCore.iApproxNumMode` 和 `xCore.fApproxNumTol` 配置
+- 适用于浮点数精度比较场景
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 差值模式：容差 0.001
+    xCore.iApproxNumMode = XRT_APPROX_DIFF;
+    xCore.fApproxNumTol = 0.001;
+    
+    printf("3.14159 ~ 3.14160: %s\n", xrtNumApprox(3.14159, 3.14160) ? "TRUE" : "FALSE");  // TRUE
+    printf("3.14159 ~ 3.15000: %s\n", xrtNumApprox(3.14159, 3.15000) ? "TRUE" : "FALSE");  // FALSE
+    
+    // 百分比模式：0.1% 容差
+    xCore.iApproxNumMode = XRT_APPROX_PERCENT;
+    xCore.fApproxNumTol = 0.001;  // 0.1%
+    
+    printf("100.0 ~ 99.95: %s\n", xrtNumApprox(100.0, 99.95) ? "TRUE" : "FALSE");  // TRUE (差 0.05%)
+    printf("100.0 ~ 99.00: %s\n", xrtNumApprox(100.0, 99.00) ? "TRUE" : "FALSE");  // FALSE (差 1%)
     
     xrtUnit();
     return 0;

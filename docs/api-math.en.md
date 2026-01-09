@@ -13,6 +13,9 @@
 - [Random Number Generation](#random-number-generation)
   - [Basic API (Not Thread-Safe)](#xrtrand32)
   - [Ex Version API (Thread-Safe)](#xrtrand32ex)
+- [Approximate Comparison](#approximate-comparison)
+  - [xrtIntApprox](#xrtintapprox)
+  - [xrtNumApprox](#xrtnumapprox)
 - [Usage Scenarios](#usage-scenarios)
 - [Best Practices](#best-practices)
 - [Performance Tips](#performance-tips)
@@ -395,6 +398,128 @@ int main() {
         printf("%d ", xrtRandRangeEx(&myRng, 1, 6));
     }
     printf("\n");
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+## Approximate Comparison
+
+Approximate comparison functions determine if two values are equal within an allowed tolerance. Comparison rules are configured via global `xCore`.
+
+### Configuration Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `xCore.iApproxIntMode` | `int` | Integer comparison mode: `XRT_APPROX_DIFF`(difference) or `XRT_APPROX_PERCENT`(percentage) |
+| `xCore.fApproxIntTol` | `double` | Integer tolerance (absolute value for diff mode, decimal like 0.01=1% for percent mode) |
+| `xCore.iApproxNumMode` | `int` | Float comparison mode: `XRT_APPROX_DIFF`(difference) or `XRT_APPROX_PERCENT`(percentage) |
+| `xCore.fApproxNumTol` | `double` | Float tolerance |
+
+### Mode Constants
+
+```c
+#define XRT_APPROX_DIFF     0   // Difference mode: |a - b| <= tolerance
+#define XRT_APPROX_PERCENT  1   // Percentage mode: |a - b| / max(|a|, |b|) <= tolerance
+```
+
+---
+
+### xrtIntApprox
+
+Determine if two integers are approximately equal.
+
+**Function Prototype:**
+```c
+XXAPI bool xrtIntApprox(int64 a, int64 b);
+```
+
+**Parameters:**
+- `a` - First integer
+- `b` - Second integer
+
+**Return Value:**
+- `TRUE` - Two numbers are within tolerance
+- `FALSE` - Two numbers exceed tolerance
+
+**Notes:**
+- Uses `xCore.iApproxIntMode` and `xCore.fApproxIntTol` configuration
+- Percentage mode uses the larger absolute value as the base
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Percentage mode: 1% tolerance
+    xCore.iApproxIntMode = XRT_APPROX_PERCENT;
+    xCore.fApproxIntTol = 0.01;  // 1%
+    
+    printf("10000 ~ 9900: %s\n", xrtIntApprox(10000, 9900) ? "TRUE" : "FALSE");  // TRUE (1% diff)
+    printf("10000 ~ 9000: %s\n", xrtIntApprox(10000, 9000) ? "TRUE" : "FALSE");  // FALSE (10% diff)
+    
+    // Difference mode: tolerance 10
+    xCore.iApproxIntMode = XRT_APPROX_DIFF;
+    xCore.fApproxIntTol = 10.0;
+    
+    printf("100 ~ 108: %s\n", xrtIntApprox(100, 108) ? "TRUE" : "FALSE");  // TRUE (diff 8)
+    printf("100 ~ 120: %s\n", xrtIntApprox(100, 120) ? "TRUE" : "FALSE");  // FALSE (diff 20)
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtNumApprox
+
+Determine if two floating-point numbers are approximately equal.
+
+**Function Prototype:**
+```c
+XXAPI bool xrtNumApprox(double a, double b);
+```
+
+**Parameters:**
+- `a` - First floating-point number
+- `b` - Second floating-point number
+
+**Return Value:**
+- `TRUE` - Two numbers are within tolerance
+- `FALSE` - Two numbers exceed tolerance
+
+**Notes:**
+- Uses `xCore.iApproxNumMode` and `xCore.fApproxNumTol` configuration
+- Suitable for floating-point precision comparison scenarios
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Difference mode: tolerance 0.001
+    xCore.iApproxNumMode = XRT_APPROX_DIFF;
+    xCore.fApproxNumTol = 0.001;
+    
+    printf("3.14159 ~ 3.14160: %s\n", xrtNumApprox(3.14159, 3.14160) ? "TRUE" : "FALSE");  // TRUE
+    printf("3.14159 ~ 3.15000: %s\n", xrtNumApprox(3.14159, 3.15000) ? "TRUE" : "FALSE");  // FALSE
+    
+    // Percentage mode: 0.1% tolerance
+    xCore.iApproxNumMode = XRT_APPROX_PERCENT;
+    xCore.fApproxNumTol = 0.001;  // 0.1%
+    
+    printf("100.0 ~ 99.95: %s\n", xrtNumApprox(100.0, 99.95) ? "TRUE" : "FALSE");  // TRUE (0.05% diff)
+    printf("100.0 ~ 99.00: %s\n", xrtNumApprox(100.0, 99.00) ? "TRUE" : "FALSE");  // FALSE (1% diff)
     
     xrtUnit();
     return 0;

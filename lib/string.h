@@ -1184,3 +1184,297 @@ XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize
 	return p == iPatSize;
 }
 
+
+
+// ============================================================================
+// 数值格式化函数
+// ============================================================================
+
+// 查表法: 十六进制字符表
+static const char xrt_digit_table[] = "0123456789abcdef0123456789ABCDEF";
+
+// 内部函数: 解析格式字符串
+typedef struct {
+	bool showSign;      // 显示正号
+	bool thousands;     // 千分位
+	bool percent;       // 百分比
+	bool uppercase;     // 大写十六进制
+	int base;           // 进制 (10, 16, 8, 2)
+	int width;          // 前导零宽度
+	int precision;      // 小数位数 (-1 表示未指定)
+} XrtNumFmtOpts;
+
+static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
+{
+	opts->showSign = FALSE;
+	opts->thousands = FALSE;
+	opts->percent = FALSE;
+	opts->uppercase = FALSE;
+	opts->base = 10;
+	opts->width = 0;
+	opts->precision = -1;
+	
+	if ( format == NULL || *format == '\0' ) { return; }
+	
+	const char* p = format;
+	while ( *p ) {
+		char c = *p++;
+		switch ( c ) {
+			case '+': opts->showSign = TRUE; break;
+			case ',': opts->thousands = TRUE; break;
+			case '%': opts->percent = TRUE; break;
+			case 'x': opts->base = 16; opts->uppercase = FALSE; break;
+			case 'X': opts->base = 16; opts->uppercase = TRUE; break;
+			case 'o': opts->base = 8; break;
+			case 'b': case 'B': opts->base = 2; break;
+			case '.':
+				// 解析小数位数
+				opts->precision = 0;
+				while ( *p >= '0' && *p <= '9' ) {
+					opts->precision = opts->precision * 10 + (*p++ - '0');
+				}
+				break;
+			case '0':
+				// 解析前导零宽度
+				while ( *p >= '0' && *p <= '9' ) {
+					opts->width = opts->width * 10 + (*p++ - '0');
+				}
+				break;
+			default:
+				if ( c >= '1' && c <= '9' ) {
+					// 数字开头也解析为宽度
+					opts->width = c - '0';
+					while ( *p >= '0' && *p <= '9' ) {
+						opts->width = opts->width * 10 + (*p++ - '0');
+					}
+				}
+				break;
+		}
+	}
+}
+
+// 内部函数: uint64 转非十进制字符串（从 buffer 末尾往前写）
+static inline char* xrt_u64_to_base(char* bufEnd, uint64 value, int base, bool upper)
+{
+	char* p = bufEnd;
+	const char* digits = upper ? &xrt_digit_table[16] : xrt_digit_table;
+	
+	if ( base == 16 ) {
+		do {
+			*--p = digits[value & 0xF];
+			value >>= 4;
+		} while ( value );
+	} else if ( base == 8 ) {
+		do {
+			*--p = '0' + (char)(value & 0x7);
+			value >>= 3;
+		} while ( value );
+	} else {
+		// 二进制
+		do {
+			*--p = '0' + (char)(value & 0x1);
+			value >>= 1;
+		} while ( value );
+	}
+	
+	return p;
+}
+
+// 内部函数: 添加千分位分隔符
+static inline int xrt_add_thousands(char* dst, const char* src, int srcLen)
+{
+	int commas = (srcLen - 1) / 3;  // 需要插入的逗号数量
+	int totalLen = srcLen + commas;
+	int pos = totalLen;
+	int cnt = 0;
+	
+	for ( int i = srcLen - 1; i >= 0; i-- ) {
+		dst[--pos] = src[i];
+		if ( ++cnt == 3 && i > 0 ) {
+			dst[--pos] = ',';
+			cnt = 0;
+		}
+	}
+	
+	return totalLen;
+}
+
+// 整数格式化
+XXAPI str xrtIntFormat(int64 value, str format)
+{
+	// 解析格式
+	XrtNumFmtOpts opts;
+	xrt_parse_format(format, &opts);
+	
+	// 处理符号
+	bool negative = (value < 0);
+	uint64 absVal = negative ? (uint64)(-(value + 1)) + 1 : (uint64)value;
+	
+	// 转换为字符串
+	char tmpBuf[96];
+	char* numStart;
+	int numLen;
+	
+	if ( opts.base == 10 ) {
+		// 十进制: 使用 xrtI64ToStr
+		numLen = xrtI64ToStr(negative ? value : (int64)absVal, tmpBuf);
+		numStart = tmpBuf;
+		if ( negative ) {
+			numStart++;  // 跳过负号
+			numLen--;
+		}
+	} else {
+		// 非十进制
+		char* tmpEnd = tmpBuf + sizeof(tmpBuf);
+		numStart = xrt_u64_to_base(tmpEnd, absVal, opts.base, opts.uppercase);
+		numLen = (int)(tmpEnd - numStart);
+		opts.showSign = FALSE;
+		opts.thousands = FALSE;
+		negative = FALSE;
+	}
+	
+	// 计算所需总长度
+	int signLen = (negative || opts.showSign) ? 1 : 0;
+	int digitLen = numLen;
+	if ( opts.thousands && digitLen > 3 ) {
+		digitLen += (digitLen - 1) / 3;
+	}
+	int padLen = (opts.width > digitLen) ? (opts.width - digitLen) : 0;
+	int totalLen = signLen + padLen + digitLen;
+	
+	// 分配缓冲区
+	str buffer = xrtMalloc(totalLen + 1);
+	if ( buffer == NULL ) { return xCore.sNull; }
+	
+	char* out = buffer;
+	
+	// 写入符号
+	if ( signLen ) {
+		*out++ = negative ? '-' : '+';
+	}
+	
+	// 写入前导零
+	while ( padLen-- > 0 ) { *out++ = '0'; }
+	
+	// 写入数字
+	if ( opts.thousands && numLen > 3 ) {
+		xrt_add_thousands(out, numStart, numLen);
+		out += digitLen;
+	} else {
+		memcpy(out, numStart, numLen);
+		out += numLen;
+	}
+	
+	*out = '\0';
+	return buffer;
+}
+
+// 浮点数格式化
+XXAPI str xrtNumFormat(double value, str format)
+{
+	// 解析格式
+	XrtNumFmtOpts opts;
+	xrt_parse_format(format, &opts);
+	
+	// 处理百分比
+	if ( opts.percent ) {
+		value *= 100.0;
+	}
+	
+	// 处理特殊值
+	if ( value != value ) {  // NaN
+		str ret = xrtMalloc(4);
+		if ( ret == NULL ) { return xCore.sNull; }
+		memcpy(ret, "NaN", 4);
+		return ret;
+	}
+	if ( value > 1e308 ) {
+		str ret = xrtMalloc(4);
+		if ( ret == NULL ) { return xCore.sNull; }
+		memcpy(ret, "Inf", 4);
+		return ret;
+	}
+	if ( value < -1e308 ) {
+		str ret = xrtMalloc(5);
+		if ( ret == NULL ) { return xCore.sNull; }
+		memcpy(ret, "-Inf", 5);
+		return ret;
+	}
+	
+	// 处理符号
+	bool negative = (value < 0);
+	if ( negative ) { value = -value; }
+	
+	// 确定小数位数
+	int precision = (opts.precision >= 0) ? opts.precision : 6;
+	if ( precision > 15 ) { precision = 15; }
+	
+	// 四舍五入
+	static const double roundTable[] = {
+		0.5, 0.05, 0.005, 0.0005, 0.00005, 0.000005, 0.0000005, 0.00000005,
+		0.000000005, 0.0000000005, 0.00000000005, 0.000000000005,
+		0.0000000000005, 0.00000000000005, 0.000000000000005, 0.0000000000000005
+	};
+	value += roundTable[precision];
+	
+	// 分离整数部分和小数部分
+	uint64 intPart = (uint64)value;
+	double fracPart = value - (double)intPart;
+	
+	// 转换整数部分: 使用 xrtI64ToStr
+	char tmpBuf[32];
+	int intLen = xrtI64ToStr((int64)intPart, tmpBuf);
+	char* intStart = tmpBuf;
+	
+	// 计算所需总长度
+	int signLen = (negative || opts.showSign) ? 1 : 0;
+	int intDigitLen = intLen;
+	if ( opts.thousands && intDigitLen > 3 ) {
+		intDigitLen += (intDigitLen - 1) / 3;
+	}
+	int fracLen = (precision > 0) ? (1 + precision) : 0;
+	int percentLen = opts.percent ? 1 : 0;
+	int totalLen = signLen + intDigitLen + fracLen + percentLen;
+	
+	// 分配缓冲区
+	str buffer = xrtMalloc(totalLen + 1);
+	if ( buffer == NULL ) { return xCore.sNull; }
+	
+	char* out = buffer;
+	
+	// 写入符号
+	if ( negative ) {
+		*out++ = '-';
+	} else if ( opts.showSign ) {
+		*out++ = '+';
+	}
+	
+	// 写入整数部分
+	if ( opts.thousands && intLen > 3 ) {
+		xrt_add_thousands(out, intStart, intLen);
+		out += intDigitLen;
+	} else {
+		memcpy(out, intStart, intLen);
+		out += intLen;
+	}
+	
+	// 写入小数部分
+	if ( precision > 0 ) {
+		*out++ = '.';
+		for ( int i = 0; i < precision; i++ ) {
+			fracPart *= 10.0;
+			int digit = (int)fracPart;
+			*out++ = '0' + digit;
+			fracPart -= digit;
+		}
+	}
+	
+	// 写入百分号
+	if ( opts.percent ) {
+		*out++ = '%';
+	}
+	
+	*out = '\0';
+	return buffer;
+}
+

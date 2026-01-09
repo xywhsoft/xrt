@@ -17,6 +17,7 @@
 - [Time Formatting](#time-formatting)
 - [Custom Formatting](#custom-formatting)
 - [Time Comparison](#time-comparison)
+  - [xrtTimeApprox](#xrttimeapprox)
 - [Boundary Dates](#boundary-dates)
 - [Week Functions](#week-functions)
 - [Timezone Handling](#timezone-handling)
@@ -838,6 +839,61 @@ int main() {
     return 0;
 }
 ```
+
+---
+
+### xrtTimeApprox
+
+Determine if two times are approximately equal (within tolerance).
+
+**Prototype:**
+```c
+XXAPI bool xrtTimeApprox(xtime a, xtime b);
+```
+
+**Parameters:**
+- `a` - First timestamp
+- `b` - Second timestamp
+
+**Return Value:**
+- `TRUE` - Time difference is within tolerance
+- `FALSE` - Time difference exceeds tolerance
+
+**Configuration:**
+- Uses `xCore.iApproxTimeTol` to configure tolerance (seconds)
+- Time comparison only supports difference mode
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t1 = xrtDateTimeSerial(2026, 1, 10, 12, 0, 0);
+    xtime t2 = xrtDateTimeSerial(2026, 1, 10, 12, 0, 3);
+    xtime t3 = xrtDateTimeSerial(2026, 1, 10, 12, 0, 10);
+    
+    // Tolerance 5 seconds
+    xCore.iApproxTimeTol = 5;
+    
+    printf("12:00:00 ~ 12:00:03: %s\n", xrtTimeApprox(t1, t2) ? "TRUE" : "FALSE");  // TRUE (diff 3 sec)
+    printf("12:00:00 ~ 12:00:10: %s\n", xrtTimeApprox(t1, t3) ? "TRUE" : "FALSE");  // FALSE (diff 10 sec)
+    
+    // Tolerance 1 minute
+    xCore.iApproxTimeTol = 60;
+    printf("12:00:00 ~ 12:00:10 (1min tolerance): %s\n", xrtTimeApprox(t1, t3) ? "TRUE" : "FALSE");  // TRUE
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Use Cases:**
+- Log time comparison (allowing small errors)
+- Scheduled task checking (approximate time judgment)
+- Cache expiration checking (approximately equal to timeout)
 
 ---
 

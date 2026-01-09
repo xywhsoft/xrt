@@ -1378,3 +1378,13 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 }
 
 
+
+// 时间约等于
+XXAPI bool xrtTimeApprox(xtime a, xtime b)
+{
+	if ( a == b ) { return TRUE; }
+	
+	xtime diff = (a > b) ? (a - b) : (b - a);
+	return (diff <= xCore.iApproxTimeTol);
+}
+

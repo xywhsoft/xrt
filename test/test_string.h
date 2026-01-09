@@ -89,6 +89,67 @@ void Test_String(xrtGlobalData* xCore)
 	printf("xrtStrLike(\"\", \"*\") = %d (应为1)\n", xrtStrLike("", 0, "*", 0, FALSE));
 	printf("xrtStrLike(\"a\", \"\") = %d (应为0)\n", xrtStrLike("a", 0, "", 0, FALSE));
 	printf("xrtStrLike(\"\", \"?\") = %d (应为0)\n", xrtStrLike("", 0, "?", 0, FALSE));
+	
+	// xrtIntFormat 整数格式化测试
+	printf("\n--- xrtIntFormat 整数格式化测试 ---\n");
+	
+	// 基础测试
+	printf("xrtIntFormat(1234567, NULL) = \"%s\"\n", xrtIntFormat(1234567, NULL));
+	
+	// 千分位
+	printf("xrtIntFormat(1234567, \",\") = \"%s\" (应为 1,234,567)\n", xrtIntFormat(1234567, ","));
+	printf("xrtIntFormat(1234567890, \",\") = \"%s\" (应为 1,234,567,890)\n", xrtIntFormat(1234567890, ","));
+	
+	// 前导零
+	printf("xrtIntFormat(42, \"08\") = \"%s\" (应为 00000042)\n", xrtIntFormat(42, "08"));
+	
+	// 正号
+	printf("xrtIntFormat(123, \"+\") = \"%s\" (应为 +123)\n", xrtIntFormat(123, "+"));
+	printf("xrtIntFormat(-123, \"+\") = \"%s\" (应为 -123)\n", xrtIntFormat(-123, "+"));
+	
+	// 组合: 正号 + 前导零
+	printf("xrtIntFormat(42, \"+08\") = \"%s\" (应为 +00000042)\n", xrtIntFormat(42, "+08"));
+	
+	// 十六进制
+	printf("xrtIntFormat(255, \"x\") = \"%s\" (应为 ff)\n", xrtIntFormat(255, "x"));
+	printf("xrtIntFormat(255, \"X\") = \"%s\" (应为 FF)\n", xrtIntFormat(255, "X"));
+	printf("xrtIntFormat(255, \"08X\") = \"%s\" (应为 000000FF)\n", xrtIntFormat(255, "08X"));
+	
+	// 八进制
+	printf("xrtIntFormat(64, \"o\") = \"%s\" (应为 100)\n", xrtIntFormat(64, "o"));
+	
+	// 二进制
+	printf("xrtIntFormat(10, \"b\") = \"%s\" (应为 1010)\n", xrtIntFormat(10, "b"));
+	
+	// 负数 + 千分位
+	printf("xrtIntFormat(-1234567, \",\") = \"%s\" (应为 -1,234,567)\n", xrtIntFormat(-1234567, ","));
+	
+	// xrtNumFormat 浮点数格式化测试
+	printf("\n--- xrtNumFormat 浮点数格式化测试 ---\n");
+	
+	// 基础测试
+	printf("xrtNumFormat(3.14159, NULL) = \"%s\"\n", xrtNumFormat(3.14159, NULL));
+	
+	// 指定小数位
+	printf("xrtNumFormat(3.14159, \".2\") = \"%s\" (应为 3.14)\n", xrtNumFormat(3.14159, ".2"));
+	printf("xrtNumFormat(3.1, \".3\") = \"%s\" (应为 3.100)\n", xrtNumFormat(3.1, ".3"));
+	
+	// 千分位 + 小数
+	printf("xrtNumFormat(1234567.89, \",.2\") = \"%s\" (应为 1,234,567.89)\n", xrtNumFormat(1234567.89, ",.2"));
+	
+	// 百分比
+	printf("xrtNumFormat(0.1234, \".2%%\") = \"%s\" (应为 12.34%%)\n", xrtNumFormat(0.1234, ".2%"));
+	printf("xrtNumFormat(0.75, \"%%\") = \"%s\" (应为 75.000000%%)\n", xrtNumFormat(0.75, "%"));
+	printf("xrtNumFormat(0.75, \".0%%\") = \"%s\" (应为 75%%)\n", xrtNumFormat(0.75, ".0%"));
+	
+	// 正号
+	printf("xrtNumFormat(3.14, \"+.2\") = \"%s\" (应为 +3.14)\n", xrtNumFormat(3.14, "+.2"));
+	
+	// 负数
+	printf("xrtNumFormat(-1234.56, \",.2\") = \"%s\" (应为 -1,234.56)\n", xrtNumFormat(-1234.56, ",.2"));
+	
+	// 零
+	printf("xrtNumFormat(0.0, \".2\") = \"%s\" (应为 0.00)\n", xrtNumFormat(0.0, ".2"));
 }
 
 

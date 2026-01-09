@@ -17,6 +17,7 @@
 - [时间格式化](#时间格式化)
 - [自定义格式化](#自定义格式化)
 - [时间比较](#时间比较)
+  - [xrtTimeApprox](#xrttimeapprox)
 - [边界日期](#边界日期)
 - [周相关函数](#周相关函数)
 - [时区处理](#时区处理)
@@ -924,6 +925,61 @@ int main() {
     return 0;
 }
 ```
+
+---
+
+### xrtTimeApprox
+
+判断两个时间是否约等于（在容差范围内）。
+
+**函数原型：**
+```c
+XXAPI bool xrtTimeApprox(xtime a, xtime b);
+```
+
+**参数：**
+- `a` - 第一个时间戳
+- `b` - 第二个时间戳
+
+**返回值：**
+- `TRUE` - 两时间差值在容差范围内
+- `FALSE` - 两时间差值超出容差
+
+**配置：**
+- 使用 `xCore.iApproxTimeTol` 配置容差（秒）
+- 时间约等于仅支持差值模式
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t1 = xrtDateTimeSerial(2026, 1, 10, 12, 0, 0);
+    xtime t2 = xrtDateTimeSerial(2026, 1, 10, 12, 0, 3);
+    xtime t3 = xrtDateTimeSerial(2026, 1, 10, 12, 0, 10);
+    
+    // 容差 5 秒
+    xCore.iApproxTimeTol = 5;
+    
+    printf("12:00:00 ~ 12:00:03: %s\n", xrtTimeApprox(t1, t2) ? "TRUE" : "FALSE");  // TRUE (差 3 秒)
+    printf("12:00:00 ~ 12:00:10: %s\n", xrtTimeApprox(t1, t3) ? "TRUE" : "FALSE");  // FALSE (差 10 秒)
+    
+    // 容差 1 分钟
+    xCore.iApproxTimeTol = 60;
+    printf("12:00:00 ~ 12:00:10 (1分钟容差): %s\n", xrtTimeApprox(t1, t3) ? "TRUE" : "FALSE");  // TRUE
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+- 日志时间比对（允许小误差）
+- 定时任务检查（近似时间判断）
+- 缓存过期检查（约等于超时时间）
 
 ---
 

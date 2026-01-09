@@ -168,6 +168,13 @@
 		xrand rand64_low;
 		xrand rand64_high;
 		
+		// 约等于配置
+		int iApproxIntMode;       // 整数模式: 0=差值, 1=百分比
+		double fApproxIntTol;     // 整数容差
+		int iApproxNumMode;       // 浮点模式: 0=差值, 1=百分比
+		double fApproxNumTol;     // 浮点容差
+		int64 iApproxTimeTol;     // 时间容差(xtime单位)
+		
 	} xrtGlobalData;
 	
 	// 全局数据
@@ -293,6 +300,10 @@
 	
 	/* ------------------------------------ Math 函数库 ------------------------------------ */
 	
+	// 约等于模式常量
+	#define XRT_APPROX_DIFF     0   // 差值模式
+	#define XRT_APPROX_PERCENT  1   // 百分比模式
+	
 	// 静态初始化随机数生成器的推荐值
 	#define XRAND_INITIALIZER  { 0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL }
 	
@@ -316,6 +327,12 @@
 	
 	// 获取 32 位范围随机数
 	XXAPI int xrtRandRange(int min, int max);
+	
+	// 整数约等于（使用 xCore 配置）
+	XXAPI bool xrtIntApprox(int64 a, int64 b);
+	
+	// 浮点数约等于（使用 xCore 配置）
+	XXAPI bool xrtNumApprox(double a, double b);
 	
 	
 	
@@ -377,6 +394,12 @@
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
 	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
+	
+	// 整数格式化（格式符: , 千分位 | 0N 前导零 | + 正号 | x/X 十六进制 | o 八进制 | b 二进制）（ 需使用 xrtFree 释放 ）
+	XXAPI str xrtIntFormat(int64 value, str format);
+	
+	// 浮点数格式化（格式符: , 千分位 | .N 小数位 | + 正号 | % 百分比）（ 需使用 xrtFree 释放 ）
+	XXAPI str xrtNumFormat(double value, str format);
 	
 	// 获取 UTF-8 字符的字节数（根据首字节判断）
 	static inline int xrtCharLenU8(unsigned char c)
@@ -604,6 +627,9 @@
 	// 格式占位符同 xrtTimeFormat，另支持: *(跳过任意非数字), .(至少1个非数字), ?(跳过1字符), 空格(跳过空白)
 	// 解析时自动跳过前缀冗余文本
 	XXAPI xtime xrtTimeParse(str sTime, str sFormat);
+	
+	// 时间约等于（使用 xCore.iApproxTimeTol 容差）
+	XXAPI bool xrtTimeApprox(xtime a, xtime b);
 	
 	
 	

@@ -72,6 +72,9 @@ int main(int argc, char** argv)
 	/* Math 库测试 */
 	// Test_Math(xCore);
 	
+	/* 约等于函数测试 */
+	// Test_Approx(xCore);
+	
 	/* String 库测试 */
 	// Test_String(xCore);
 	

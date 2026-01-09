@@ -17,6 +17,7 @@
 - [String Trimming](#string-trimming)
 - [String Filtering](#string-filtering)
 - [String Operations](#string-operations)
+- [Number Formatting](#number-formatting)
 - [Encoding and Decoding](#encoding-and-decoding)
 - [UTF-8 Utility Functions](#utf-8-utility-functions)
 - [Use Cases](#use-cases)
@@ -1053,6 +1054,189 @@ int main() {
 **Additional Notes:**
 - When `sTemplate` is `NULL`, uses default template (64 characters: digits+uppercase+lowercase+-_)
 - Internally uses `xrtRandRange` to generate random indices
+
+---
+
+## Number Formatting
+
+### xrtIntFormat
+
+Integer formatting.
+
+**Prototype:**
+```c
+XXAPI str xrtIntFormat(int64 value, str format);
+```
+
+**Parameters:**
+- `value` - 64-bit integer to format
+- `format` - Format string (`NULL` for default format)
+
+**Format Specifiers:**
+| Specifier | Description | Example |
+|-----------|-------------|--------|
+| `,` | Thousands separator | `1,234,567` |
+| `0N` | Pad with leading zeros to N digits | `00000042` |
+| `+` | Always show sign | `+123` |
+| `x` | Hexadecimal (lowercase) | `ff` |
+| `X` | Hexadecimal (uppercase) | `FF` |
+| `o` | Octal | `100` |
+| `b` | Binary | `1010` |
+
+**Return Value:**
+- Formatted string
+- Returns `xCore.sNull` on failure
+
+**Memory Release:** ✅ Requires `xrtFree` to release
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Basic conversion
+    str s1 = xrtIntFormat(1234567, NULL);
+    printf("%s\n", s1);  // "1234567"
+    xrtFree(s1);
+    
+    // Thousands separator
+    str s2 = xrtIntFormat(1234567, (str)",");
+    printf("%s\n", s2);  // "1,234,567"
+    xrtFree(s2);
+    
+    // Leading zeros
+    str s3 = xrtIntFormat(42, (str)"08");
+    printf("%s\n", s3);  // "00000042"
+    xrtFree(s3);
+    
+    // Positive sign
+    str s4 = xrtIntFormat(123, (str)"+");
+    printf("%s\n", s4);  // "+123"
+    xrtFree(s4);
+    
+    // Hexadecimal
+    str s5 = xrtIntFormat(255, (str)"X");
+    printf("%s\n", s5);  // "FF"
+    xrtFree(s5);
+    
+    // Hexadecimal + leading zeros
+    str s6 = xrtIntFormat(255, (str)"08X");
+    printf("%s\n", s6);  // "000000FF"
+    xrtFree(s6);
+    
+    // Octal
+    str s7 = xrtIntFormat(64, (str)"o");
+    printf("%s\n", s7);  // "100"
+    xrtFree(s7);
+    
+    // Binary
+    str s8 = xrtIntFormat(10, (str)"b");
+    printf("%s\n", s8);  // "1010"
+    xrtFree(s8);
+    
+    // Negative + thousands
+    str s9 = xrtIntFormat(-1234567, (str)",");
+    printf("%s\n", s9);  // "-1,234,567"
+    xrtFree(s9);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Additional Notes:**
+- Non-decimal bases don't support thousands separator or sign display
+- Format specifiers can be combined, e.g., `+08` for positive sign + 8-digit zero padding
+
+---
+
+### xrtNumFormat
+
+Floating-point number formatting.
+
+**Prototype:**
+```c
+XXAPI str xrtNumFormat(double value, str format);
+```
+
+**Parameters:**
+- `value` - Double precision floating-point number to format
+- `format` - Format string (`NULL` for default 6 decimal places)
+
+**Format Specifiers:**
+| Specifier | Description | Example |
+|-----------|-------------|--------|
+| `,` | Thousands separator (integer part) | `1,234,567.89` |
+| `.N` | N decimal places | `3.14` |
+| `+` | Always show sign | `+3.14` |
+| `%` | Percentage (auto ×100) | `12.34%` |
+
+**Return Value:**
+- Formatted string
+- Returns `xCore.sNull` on failure
+
+**Memory Release:** ✅ Requires `xrtFree` to release
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Default format (6 decimal places)
+    str s1 = xrtNumFormat(3.14159, NULL);
+    printf("%s\n", s1);  // "3.141590"
+    xrtFree(s1);
+    
+    // Specify decimal places
+    str s2 = xrtNumFormat(3.14159, (str)".2");
+    printf("%s\n", s2);  // "3.14"
+    xrtFree(s2);
+    
+    // Zero padding
+    str s3 = xrtNumFormat(3.1, (str)".3");
+    printf("%s\n", s3);  // "3.100"
+    xrtFree(s3);
+    
+    // Thousands + decimals
+    str s4 = xrtNumFormat(1234567.89, (str)",.2");
+    printf("%s\n", s4);  // "1,234,567.89"
+    xrtFree(s4);
+    
+    // Percentage
+    str s5 = xrtNumFormat(0.1234, (str)".2%");
+    printf("%s\n", s5);  // "12.34%"
+    xrtFree(s5);
+    
+    // Percentage (no decimals)
+    str s6 = xrtNumFormat(0.75, (str)".0%");
+    printf("%s\n", s6);  // "75%"
+    xrtFree(s6);
+    
+    // Positive sign
+    str s7 = xrtNumFormat(3.14, (str)"+.2");
+    printf("%s\n", s7);  // "+3.14"
+    xrtFree(s7);
+    
+    // Negative number
+    str s8 = xrtNumFormat(-1234.56, (str)",.2");
+    printf("%s\n", s8);  // "-1,234.56"
+    xrtFree(s8);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Additional Notes:**
+- Maximum 15 decimal places supported
+- Special value handling: `NaN`, `Inf`, `-Inf`
+- Format specifiers can be combined, e.g., `,.2%` for thousands + 2 decimals + percentage
 
 ---
 

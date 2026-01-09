@@ -125,3 +125,50 @@ XXAPI int xrtRandRange(int min, int max)
 }
 
 
+
+// 整数约等于
+XXAPI bool xrtIntApprox(int64 a, int64 b)
+{
+	if ( a == b ) { return TRUE; }
+	
+	int64 diff = (a > b) ? (a - b) : (b - a);
+	
+	if ( xCore.iApproxIntMode == XRT_APPROX_PERCENT ) {
+		// 百分比模式
+		if ( xCore.fApproxIntTol <= 0.0 ) { return FALSE; }
+		int64 maxAbs = (a >= 0 ? a : -a);
+		int64 bAbs = (b >= 0 ? b : -b);
+		if ( bAbs > maxAbs ) { maxAbs = bAbs; }
+		if ( maxAbs == 0 ) { return TRUE; }
+		double ratio = (double)diff / (double)maxAbs;
+		return (ratio <= xCore.fApproxIntTol);
+	} else {
+		// 差值模式
+		return (diff <= (int64)xCore.fApproxIntTol);
+	}
+}
+
+
+
+// 浮点数约等于
+XXAPI bool xrtNumApprox(double a, double b)
+{
+	if ( a == b ) { return TRUE; }
+	
+	double diff = (a > b) ? (a - b) : (b - a);
+	
+	if ( xCore.iApproxNumMode == XRT_APPROX_PERCENT ) {
+		// 百分比模式
+		if ( xCore.fApproxNumTol <= 0.0 ) { return FALSE; }
+		double maxAbs = (a >= 0.0 ? a : -a);
+		double bAbs = (b >= 0.0 ? b : -b);
+		if ( bAbs > maxAbs ) { maxAbs = bAbs; }
+		if ( maxAbs == 0.0 ) { return TRUE; }
+		double ratio = diff / maxAbs;
+		return (ratio <= xCore.fApproxNumTol);
+	} else {
+		// 差值模式
+		return (diff <= xCore.fApproxNumTol);
+	}
+}
+
