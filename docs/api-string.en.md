@@ -18,6 +18,8 @@
 - [String Filtering](#string-filtering)
 - [String Operations](#string-operations)
 - [Number Formatting](#number-formatting)
+- [String Similarity](#string-similarity)
+- [String Approximate Equal](#string-approximate-equal)
 - [Encoding and Decoding](#encoding-and-decoding)
 - [UTF-8 Utility Functions](#utf-8-utility-functions)
 - [Use Cases](#use-cases)
@@ -1237,6 +1239,220 @@ int main() {
 - Maximum 15 decimal places supported
 - Special value handling: `NaN`, `Inf`, `-Inf`
 - Format specifiers can be combined, e.g., `,.2%` for thousands + 2 decimals + percentage
+
+---
+
+## String Similarity
+
+### xrtStrSim
+
+Calculate similarity between two strings (based on Levenshtein edit distance).
+
+**Prototype:**
+```c
+XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2);
+```
+
+**Parameters:**
+- `s1` - First string
+- `len1` - First string length (0 for auto-calculate)
+- `s2` - Second string
+- `len2` - Second string length (0 for auto-calculate)
+
+**Return Value:**
+- Similarity between `0.0` and `1.0`
+  - `1.0` - Identical
+  - `0.0` - Completely different
+
+**Algorithm Characteristics:**
+- Based on Levenshtein edit distance algorithm
+- Time complexity: O(m*n)
+- Space complexity: O(min(m,n)) (optimized 1D DP array)
+- Similarity formula: `1 - (editDistance / maxLength)`
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Identical strings
+    printf("%.4f\n", xrtStrSim("hello", 0, "hello", 0));  // 1.0000
+    
+    // One character difference
+    printf("%.4f\n", xrtStrSim("hello", 0, "helo", 0));   // 0.8000
+    
+    // Completely different
+    printf("%.4f\n", xrtStrSim("abc", 0, "xyz", 0));      // 0.0000
+    
+    // Classic test case: kitten -> sitting
+    printf("%.4f\n", xrtStrSim("kitten", 0, "sitting", 0)); // 0.5714
+    
+    // Empty strings
+    printf("%.4f\n", xrtStrSim("", 0, "", 0));            // 1.0000
+    printf("%.4f\n", xrtStrSim("abc", 0, "", 0));         // 0.0000
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Application Scenarios:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// Fuzzy search: find similar words
+bool FuzzyMatch(str input, str target, double threshold) {
+    return xrtStrSim(input, 0, target, 0) >= threshold;
+}
+
+int main() {
+    xrtInit();
+    
+    str words[] = {"apple", "application", "apply", "banana", "orange"};
+    str search = "appla";  // User input (possible typo)
+    
+    printf("Searching: %s\n", search);
+    for (int i = 0; i < 5; i++) {
+        double sim = xrtStrSim(search, 0, words[i], 0);
+        if (sim >= 0.6) {
+            printf("  Match: %s (similarity: %.2f)\n", words[i], sim);
+        }
+    }
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Additional Notes:**
+- `NULL` pointers are treated as empty strings
+- Not suitable for very long strings (>10KB), consider using Dice/SimHash algorithms instead
+
+---
+
+## String Approximate Equal
+
+### Configuration Constants
+
+String approximate equal mode constants.
+
+```c
+#define XRT_STR_APPROX_LIKE     0   // Wildcard mode (s2 is pattern)
+#define XRT_STR_APPROX_SIM      1   // Similarity threshold mode
+```
+
+### xCore Configuration
+
+String approximate equal is configured through the `xCore` global variable.
+
+| Config Item | Type | Description | Default Value |
+|-------------|------|-------------|---------------|
+| `xCore.iApproxStrMode` | int | Mode selection | `XRT_STR_APPROX_SIM` (1) |
+| `xCore.fApproxStrTol` | double | Similarity threshold | `0.95` (95%) |
+| `xCore.bApproxStrCase` | bool | Wildcard case-sensitivity | `FALSE` (case-sensitive) |
+
+### xrtStrApprox
+
+String approximate equality check (uses xCore configuration).
+
+**Prototype:**
+```c
+XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2);
+```
+
+**Parameters:**
+- `s1` - First string
+- `len1` - First string length (0 for auto-calculate)
+- `s2` - Second string (pattern string in wildcard mode)
+- `len2` - Second string length (0 for auto-calculate)
+
+**Return Value:**
+- `TRUE` - Approximately equal
+- `FALSE` - Not equal
+
+**Mode Description:**
+- **Wildcard mode** (`XRT_STR_APPROX_LIKE`): Uses `xrtStrLike` matching, `s2` is pattern
+- **Similarity mode** (`XRT_STR_APPROX_SIM`): Uses `xrtStrSim` calculation, result >= threshold means approximately equal
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // === Similarity mode (default) ===
+    // Default 95% threshold
+    printf("%d\n", xrtStrApprox("hello", 0, "hello", 0));  // 1 (identical)
+    printf("%d\n", xrtStrApprox("hello", 0, "helo", 0));   // 0 (80% < 95%)
+    
+    // Adjust threshold to 80%
+    xCore.fApproxStrTol = 0.80;
+    printf("%d\n", xrtStrApprox("hello", 0, "helo", 0));   // 1 (80% >= 80%)
+    
+    // === Wildcard mode ===
+    xCore.iApproxStrMode = XRT_STR_APPROX_LIKE;
+    printf("%d\n", xrtStrApprox("hello", 0, "h*o", 0));    // 1
+    printf("%d\n", xrtStrApprox("hello", 0, "h???o", 0));  // 1
+    printf("%d\n", xrtStrApprox("hello", 0, "world", 0));  // 0
+    
+    // Case-insensitive
+    xCore.bApproxStrCase = TRUE;
+    printf("%d\n", xrtStrApprox("HELLO", 0, "h*o", 0));    // 1
+    
+    // Restore default configuration
+    xCore.iApproxStrMode = XRT_STR_APPROX_SIM;
+    xCore.fApproxStrTol = 0.95;
+    xCore.bApproxStrCase = FALSE;
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Application Scenarios:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// Setup for filename fuzzy matching mode
+void SetupFileMatch() {
+    xCore.iApproxStrMode = XRT_STR_APPROX_LIKE;
+    xCore.bApproxStrCase = TRUE;  // Filenames usually case-insensitive
+}
+
+// Setup for text similarity detection mode
+void SetupTextSimilarity(double threshold) {
+    xCore.iApproxStrMode = XRT_STR_APPROX_SIM;
+    xCore.fApproxStrTol = threshold;
+}
+
+int main() {
+    xrtInit();
+    
+    // Filename matching
+    SetupFileMatch();
+    printf("Match *.txt: %d\n", xrtStrApprox("readme.txt", 0, "*.txt", 0));
+    printf("Match *.txt: %d\n", xrtStrApprox("README.TXT", 0, "*.txt", 0));
+    
+    // Spell checking (90% similarity)
+    SetupTextSimilarity(0.90);
+    printf("Spell check: %d\n", xrtStrApprox("receive", 0, "recieve", 0));
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Additional Notes:**
+- Consistent style with `xrtIntApprox`, `xrtNumApprox`, `xrtTimeApprox`
+- Configuration initialized to default values in `xrtInit()`
+- Configuration changes affect all subsequent calls
 
 ---
 

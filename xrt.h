@@ -174,6 +174,9 @@
 		int iApproxNumMode;       // 浮点模式: 0=差值, 1=百分比
 		double fApproxNumTol;     // 浮点容差
 		int64 iApproxTimeTol;     // 时间容差(xtime单位)
+		int iApproxStrMode;       // 字符串模式: 0=通配符, 1=相似度
+		double fApproxStrTol;     // 字符串相似度阈值(0.0-1.0)
+		bool bApproxStrCase;      // 通配符模式大小写开关(TRUE=忽略)
 		
 	} xrtGlobalData;
 	
@@ -400,6 +403,16 @@
 	
 	// 浮点数格式化（格式符: , 千分位 | .N 小数位 | + 正号 | % 百分比）（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtNumFormat(double value, str format);
+	
+	// 字符串相似度（基于 Levenshtein 编辑距离，返回 0.0-1.0）
+	XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2);
+	
+	// 字符串约等于模式常量
+	#define XRT_STR_APPROX_LIKE     0   // 通配符模式（s2为模式串）
+	#define XRT_STR_APPROX_SIM      1   // 相似度阈值模式
+	
+	// 字符串约等于（使用 xCore 配置）
+	XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2);
 	
 	// 获取 UTF-8 字符的字节数（根据首字节判断）
 	static inline int xrtCharLenU8(unsigned char c)

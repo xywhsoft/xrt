@@ -132,12 +132,15 @@ XXAPI xrtGlobalData* xrtInit()
 	xrtRandSeed(&xCore.rand64_low, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
 	xrtRandSeed(&xCore.rand64_high, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
 	
-	// 初始化约等于配置（整数容差万分之一、小数容差0.01、时间容差 10 秒）
+	// 初始化约等于配置（整数容差万分之一、小数容差0.01、时间容差 10 秒、字符串相似度95%）
 	xCore.iApproxIntMode = XRT_APPROX_PERCENT;
 	xCore.fApproxIntTol = 0.0001;
 	xCore.iApproxNumMode = XRT_APPROX_DIFF;
 	xCore.fApproxNumTol = 0.01;
 	xCore.iApproxTimeTol = 10;
+	xCore.iApproxStrMode = XRT_STR_APPROX_SIM;  // 默认相似度模式
+	xCore.fApproxStrTol = 0.95;                 // 默认95%相似度
+	xCore.bApproxStrCase = FALSE;               // 默认区分大小写
 	
 	// 获取程序文件名和路径
 	#if defined(_WIN32) || defined(_WIN64)

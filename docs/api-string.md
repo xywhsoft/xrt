@@ -18,6 +18,8 @@
 - [字符串过滤](#字符串过滤)
 - [字符串操作](#字符串操作)
 - [数值格式化](#数值格式化)
+- [字符串相似度](#字符串相似度)
+- [字符串约等于](#字符串约等于)
 - [编码解码](#编码解码)
 - [UTF-8 工具函数](#utf-8-工具函数)
 - [使用场景](#使用场景)
@@ -1237,6 +1239,220 @@ int main() {
 - 小数位数最大支持 15 位
 - 特殊值处理：`NaN`、`Inf`、`-Inf`
 - 格式符可以组合使用，如 `,.2%` 表示千分位 + 2位小数 + 百分比
+
+---
+
+## 字符串相似度
+
+### xrtStrSim
+
+计算两个字符串的相似度（基于 Levenshtein 编辑距离）。
+
+**函数原型：**
+```c
+XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2);
+```
+
+**参数：**
+- `s1` - 第一个字符串
+- `len1` - 第一个字符串长度（0表示自动计算）
+- `s2` - 第二个字符串
+- `len2` - 第二个字符串长度（0表示自动计算）
+
+**返回值：**
+- `0.0` - `1.0` 之间的相似度
+  - `1.0` - 完全相同
+  - `0.0` - 完全不同
+
+**算法特性：**
+- 基于 Levenshtein 编辑距离算法
+- 时间复杂度：O(m*n)
+- 空间复杂度：O(min(m,n))（优化的一维 DP 数组）
+- 相似度计算：`1 - (editDistance / maxLength)`
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 完全相同
+    printf("%.4f\n", xrtStrSim("hello", 0, "hello", 0));  // 1.0000
+    
+    // 差一个字符
+    printf("%.4f\n", xrtStrSim("hello", 0, "helo", 0));   // 0.8000
+    
+    // 完全不同
+    printf("%.4f\n", xrtStrSim("abc", 0, "xyz", 0));      // 0.0000
+    
+    // 经典测试用例：kitten -> sitting
+    printf("%.4f\n", xrtStrSim("kitten", 0, "sitting", 0)); // 0.5714
+    
+    // 空字符串
+    printf("%.4f\n", xrtStrSim("", 0, "", 0));            // 1.0000
+    printf("%.4f\n", xrtStrSim("abc", 0, "", 0));         // 0.0000
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// 模糊搜索：查找相似的单词
+bool FuzzyMatch(str input, str target, double threshold) {
+    return xrtStrSim(input, 0, target, 0) >= threshold;
+}
+
+int main() {
+    xrtInit();
+    
+    str words[] = {"apple", "application", "apply", "banana", "orange"};
+    str search = "appla";  // 用户输入（可能有拼写错误）
+    
+    printf("搜索: %s\n", search);
+    for (int i = 0; i < 5; i++) {
+        double sim = xrtStrSim(search, 0, words[i], 0);
+        if (sim >= 0.6) {
+            printf("  匹配: %s (相似度: %.2f)\n", words[i], sim);
+        }
+    }
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- `NULL` 指针视为空字符串
+- 不适合超长字符串（>10KB），建议使用其他算法如 Dice/SimHash
+
+---
+
+## 字符串约等于
+
+### 配置常量
+
+字符串约等于模式常量。
+
+```c
+#define XRT_STR_APPROX_LIKE     0   // 通配符模式（s2为模式串）
+#define XRT_STR_APPROX_SIM      1   // 相似度阈值模式
+```
+
+### xCore 配置项
+
+字符串约等于通过 `xCore` 全局变量配置。
+
+| 配置项 | 类型 | 说明 | 默认值 |
+|--------|------|------|--------|
+| `xCore.iApproxStrMode` | int | 模式选择 | `XRT_STR_APPROX_SIM` (1) |
+| `xCore.fApproxStrTol` | double | 相似度阈值 | `0.95` (95%) |
+| `xCore.bApproxStrCase` | bool | 通配符大小写开关 | `FALSE` (区分) |
+
+### xrtStrApprox
+
+字符串约等于判断（使用 xCore 配置）。
+
+**函数原型：**
+```c
+XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2);
+```
+
+**参数：**
+- `s1` - 第一个字符串
+- `len1` - 第一个字符串长度（0表示自动计算）
+- `s2` - 第二个字符串（通配符模式下为模式串）
+- `len2` - 第二个字符串长度（0表示自动计算）
+
+**返回值：**
+- `TRUE` - 约等于
+- `FALSE` - 不等
+
+**模式说明：**
+- **通配符模式** (`XRT_STR_APPROX_LIKE`): 使用 `xrtStrLike` 匹配，`s2` 为模式串
+- **相似度模式** (`XRT_STR_APPROX_SIM`): 使用 `xrtStrSim` 计算，结果 >= 阈值则约等
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // === 相似度模式（默认） ===
+    // 默认 95% 阈值
+    printf("%d\n", xrtStrApprox("hello", 0, "hello", 0));  // 1 (完全相同)
+    printf("%d\n", xrtStrApprox("hello", 0, "helo", 0));   // 0 (80% < 95%)
+    
+    // 调整阈值到 80%
+    xCore.fApproxStrTol = 0.80;
+    printf("%d\n", xrtStrApprox("hello", 0, "helo", 0));   // 1 (80% >= 80%)
+    
+    // === 通配符模式 ===
+    xCore.iApproxStrMode = XRT_STR_APPROX_LIKE;
+    printf("%d\n", xrtStrApprox("hello", 0, "h*o", 0));    // 1
+    printf("%d\n", xrtStrApprox("hello", 0, "h???o", 0));  // 1
+    printf("%d\n", xrtStrApprox("hello", 0, "world", 0));  // 0
+    
+    // 忽略大小写
+    xCore.bApproxStrCase = TRUE;
+    printf("%d\n", xrtStrApprox("HELLO", 0, "h*o", 0));    // 1
+    
+    // 恢复默认配置
+    xCore.iApproxStrMode = XRT_STR_APPROX_SIM;
+    xCore.fApproxStrTol = 0.95;
+    xCore.bApproxStrCase = FALSE;
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// 设置为文件名模糊匹配模式
+void SetupFileMatch() {
+    xCore.iApproxStrMode = XRT_STR_APPROX_LIKE;
+    xCore.bApproxStrCase = TRUE;  // 文件名通常不区分大小写
+}
+
+// 设置为文本相似度检测模式
+void SetupTextSimilarity(double threshold) {
+    xCore.iApproxStrMode = XRT_STR_APPROX_SIM;
+    xCore.fApproxStrTol = threshold;
+}
+
+int main() {
+    xrtInit();
+    
+    // 文件名匹配
+    SetupFileMatch();
+    printf("匹配 *.txt: %d\n", xrtStrApprox("readme.txt", 0, "*.txt", 0));
+    printf("匹配 *.txt: %d\n", xrtStrApprox("README.TXT", 0, "*.txt", 0));
+    
+    // 拼写检查（90% 相似度）
+    SetupTextSimilarity(0.90);
+    printf("拼写检查: %d\n", xrtStrApprox("receive", 0, "recieve", 0));
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- 与 `xrtIntApprox`、`xrtNumApprox`、`xrtTimeApprox` 风格一致
+- 配置在 `xrtInit()` 时初始化为默认值
+- 修改配置后影响后续所有调用
 
 ---
 

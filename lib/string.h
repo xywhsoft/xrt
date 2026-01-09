@@ -1478,3 +1478,102 @@ XXAPI str xrtNumFormat(double value, str format)
 	return buffer;
 }
 
+
+
+// 字符串相似度（基于 Levenshtein 编辑距离，返回 0.0-1.0）
+// 高性能优化：一维数组 O(min(m,n)) 空间，内联 min 计算
+XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2)
+{
+	// 空指针检查
+	if ( s1 == NULL ) { s1 = ""; len1 = 0; }
+	if ( s2 == NULL ) { s2 = ""; len2 = 0; }
+	
+	// 自动计算长度
+	if ( len1 == 0 ) { len1 = strlen(s1); }
+	if ( len2 == 0 ) { len2 = strlen(s2); }
+	
+	// 快速路径：空字符串
+	if ( len1 == 0 && len2 == 0 ) { return 1.0; }
+	if ( len1 == 0 ) { return 0.0; }
+	if ( len2 == 0 ) { return 0.0; }
+	
+	// 快速路径：完全相同
+	if ( len1 == len2 && memcmp(s1, s2, len1) == 0 ) { return 1.0; }
+	
+	// 确保 s1 是较长的字符串（优化内存访问）
+	if ( len1 < len2 ) {
+		str ts = s1; s1 = s2; s2 = ts;
+		size_t tl = len1; len1 = len2; len2 = tl;
+	}
+	
+	// 分配一维 DP 数组（只需要较短字符串的长度+1）
+	size_t dpSize = len2 + 1;
+	int* dp = (int*)xrtMalloc(dpSize * sizeof(int));
+	if ( dp == NULL ) { return 0.0; }
+	
+	// 初始化第一行：dp[j] = j
+	for ( size_t j = 0; j <= len2; j++ ) {
+		dp[j] = (int)j;
+	}
+	
+	// DP 计算（行优先遍历，对缓存友好）
+	for ( size_t i = 1; i <= len1; i++ ) {
+		int prev = dp[0];  // 保存 dp[i-1][j-1]
+		dp[0] = (int)i;    // dp[i][0] = i
+		
+		unsigned char c1 = (unsigned char)s1[i - 1];
+		
+		for ( size_t j = 1; j <= len2; j++ ) {
+			int temp = dp[j];  // 保存当前值，作为下一次迭代的 prev
+			
+			if ( c1 == (unsigned char)s2[j - 1] ) {
+				// 字符相同，无需操作
+				dp[j] = prev;
+			} else {
+				// 字符不同，取 min(删除, 插入, 替换) + 1
+				int del = dp[j];      // dp[i-1][j] + 1
+				int ins = dp[j - 1];  // dp[i][j-1] + 1
+				int rep = prev;       // dp[i-1][j-1] + 1
+				
+				// 内联 min3 计算
+				int minVal = del;
+				if ( ins < minVal ) { minVal = ins; }
+				if ( rep < minVal ) { minVal = rep; }
+				
+				dp[j] = minVal + 1;
+			}
+			
+			prev = temp;
+		}
+	}
+	
+	// 获取编辑距离
+	int distance = dp[len2];
+	xrtFree(dp);
+	
+	// 计算相似度：1 - distance / maxLen
+	size_t maxLen = len1;  // len1 >= len2
+	return 1.0 - (double)distance / (double)maxLen;
+}
+
+
+
+// 字符串约等于（使用 xCore 配置）
+// iApproxStrMode=0: 通配符模式（使用 xrtStrLike，s2 为模式串）
+// iApproxStrMode=1: 相似度模式（使用 xrtStrSim 和 fApproxStrTol 阈值）
+XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
+{
+	if ( xCore.iApproxStrMode == XRT_STR_APPROX_LIKE ) {
+		// 通配符模式
+		return xrtStrLike(s1, len1, s2, len2, xCore.bApproxStrCase);
+	} else {
+		// 相似度模式
+		double threshold = xCore.fApproxStrTol;
+		if ( threshold <= 0.0 || threshold > 1.0 ) {
+			threshold = 0.95;  // 无效阈值使用默认值
+		}
+		double sim = xrtStrSim(s1, len1, s2, len2);
+		return sim >= threshold;
+	}
+}
+

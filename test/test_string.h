@@ -150,6 +150,40 @@ void Test_String(xrtGlobalData* xCore)
 	
 	// 零
 	printf("xrtNumFormat(0.0, \".2\") = \"%s\" (应为 0.00)\n", xrtNumFormat(0.0, ".2"));
+	
+	// xrtStrSim 字符串相似度测试
+	printf("\n--- xrtStrSim 字符串相似度测试 ---\n");
+	printf("xrtStrSim(\"hello\", \"hello\") = %.4f (应为 1.0)\n", xrtStrSim("hello", 0, "hello", 0));
+	printf("xrtStrSim(\"hello\", \"helo\") = %.4f (应为 0.8)\n", xrtStrSim("hello", 0, "helo", 0));
+	printf("xrtStrSim(\"abc\", \"xyz\") = %.4f (应为 0.0)\n", xrtStrSim("abc", 0, "xyz", 0));
+	printf("xrtStrSim(\"kitten\", \"sitting\") = %.4f (应为 ~0.57)\n", xrtStrSim("kitten", 0, "sitting", 0));
+	printf("xrtStrSim(\"\", \"\") = %.4f (应为 1.0)\n", xrtStrSim("", 0, "", 0));
+	printf("xrtStrSim(\"abc\", \"ab\") = %.4f (应为 ~0.67)\n", xrtStrSim("abc", 0, "ab", 0));
+	
+	// xrtStrApprox 字符串约等于测试
+	printf("\n--- xrtStrApprox 字符串约等于测试 ---\n");
+	
+	// 相似度模式测试 (默认模式 95%%)
+	xCore->iApproxStrMode = XRT_STR_APPROX_SIM;
+	xCore->fApproxStrTol = 0.95;
+	printf("[相似度模式, 阈值 95%%]\n");
+	printf("xrtStrApprox(\"hello\", \"hello\") = %d (应为 1)\n", xrtStrApprox("hello", 0, "hello", 0));
+	printf("xrtStrApprox(\"hello\", \"helo\") = %d (应为 0)\n", xrtStrApprox("hello", 0, "helo", 0));
+	
+	xCore->fApproxStrTol = 0.80;  // 降低阈值到 80%%
+	printf("[相似度模式, 阈值 80%%]\n");
+	printf("xrtStrApprox(\"hello\", \"helo\") = %d (应为 1)\n", xrtStrApprox("hello", 0, "helo", 0));
+	
+	// 通配符模式测试
+	xCore->iApproxStrMode = XRT_STR_APPROX_LIKE;
+	printf("[通配符模式]\n");
+	printf("xrtStrApprox(\"hello\", \"h*o\") = %d (应为 1)\n", xrtStrApprox("hello", 0, "h*o", 0));
+	printf("xrtStrApprox(\"hello\", \"h???o\") = %d (应为 1)\n", xrtStrApprox("hello", 0, "h???o", 0));
+	printf("xrtStrApprox(\"hello\", \"world\") = %d (应为 0)\n", xrtStrApprox("hello", 0, "world", 0));
+	
+	// 恢复默认配置
+	xCore->iApproxStrMode = XRT_STR_APPROX_SIM;
+	xCore->fApproxStrTol = 0.95;
 }
 
 

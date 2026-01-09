@@ -331,8 +331,13 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 							XTE_OnLexerError(3);
 						}
 					} else {
-						// 无法识别的 Token 类型
-						XTE_OnLexerError(3);
+						// 无法识别的 Token 类型 - 将 { 回归到文本 buffer 中
+						objRet->Tokens.Count--;  // 回退刚刚创建的 token
+						xrtBufferAppend(objBuf, &sBracket[0], 1, XBUF_UTF8);  // 将 { 追加到 buffer
+						// 回到文本采集模式，继续从下一个字符解析
+						iMode = XTE_TK_TEXT;
+						iPos = i + 1;
+						continue;
 					}
 					// 切换为对应的 Token 信息采集模式
 					iMode = objCurTok->Type;
@@ -846,19 +851,53 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					xrtBufferAppend(objBuf, sTemp, 0, XBUF_UTF8);
 				}
 			} else if ( objTok->Type == XTE_TK_NUM ) {
-				// 代入数字 - 转为数字（目前与转为字符串采用相同方式处理）
-				char* sTemp = xvoTableGetText(tblVal, objTok->Text, objTok->Size);
-				if ( tblRoot && (sTemp == NULL) ) {
-					sTemp = xvoTableGetText(tblRoot, objTok->Text, objTok->Size);
+				// 代入数字 - 支持格式化
+				xvalue varNum = xvoTableGetValue(tblVal, objTok->Text, objTok->Size);
+				if ( tblRoot && (varNum == &XVO_VALUE_NULL) ) {
+					varNum = xvoTableGetValue(tblRoot, objTok->Text, objTok->Size);
 				}
-				if ( sTemp == NULL ) {
-					sTemp = xvoTableGetText(tblENV, objTok->Text, objTok->Size);
+				if ( varNum == &XVO_VALUE_NULL ) {
+					varNum = xvoTableGetValue(tblENV, objTok->Text, objTok->Size);
 				}
-				if ( sTemp ) {
-					xrtBufferAppend(objBuf, sTemp, 0, XBUF_UTF8);
+				str sFormat = (objTok->ParamCount > 0 && objTok->ParamText[0]) ? objTok->ParamText[0] : NULL;
+				str sResult = NULL;
+				if ( varNum == &XVO_VALUE_NULL || varNum->Type == XVO_DT_NULL ) {
+					// NULL - 作为 0 处理
+					sResult = xrtIntFormat(0, sFormat);
+				} else if ( varNum->Type == XVO_DT_BOOL ) {
+					// BOOL - TRUE=1, FALSE=0
+					sResult = xrtIntFormat(varNum->vBool ? 1 : 0, sFormat);
+				} else if ( varNum->Type == XVO_DT_INT ) {
+					sResult = xrtIntFormat(varNum->vInt, sFormat);
+				} else if ( varNum->Type == XVO_DT_FLOAT ) {
+					sResult = xrtNumFormat(varNum->vFloat, sFormat);
+				} else if ( varNum->Type == XVO_DT_TEXT && varNum->vText ) {
+					// 字符串类型 - 使用 xrtParseNumSkipSpace 解析
+					jnum_type_t numType = JNUM_NULL;
+					jnum_value_t numValue;
+					int parsed = xrtParseNumSkipSpace(varNum->vText, &numType, &numValue);
+					if ( parsed > 0 ) {
+						switch ( numType ) {
+							case JNUM_INT: sResult = xrtIntFormat((int64)numValue.vint, sFormat); break;
+							case JNUM_HEX: sResult = xrtIntFormat((int64)numValue.vhex, sFormat); break;
+							case JNUM_LINT: sResult = xrtIntFormat(numValue.vlint, sFormat); break;
+							case JNUM_LHEX: sResult = xrtIntFormat((int64)numValue.vlhex, sFormat); break;
+							case JNUM_DOUBLE: sResult = xrtNumFormat(numValue.vdbl, sFormat); break;
+							case JNUM_BOOL: sResult = xrtIntFormat(numValue.vbool ? 1 : 0, sFormat); break;
+							default: sResult = xrtIntFormat(0, sFormat); break;
+						}
+					} else {
+						sResult = xrtIntFormat(0, sFormat);
+					}
+				} else {
+					sResult = xrtIntFormat(0, sFormat);
+				}
+				if ( sResult ) {
+					xrtBufferAppend(objBuf, sResult, 0, XBUF_UTF8);
+					xrtFree(sResult);
 				}
 			} else if ( objTok->Type == XTE_TK_TIME ) {
-				// 代入时间
+				// 代入时间 - 支持自定义格式
 				xvalue varTime = xvoTableGetValue(tblVal, objTok->Text, objTok->Size);
 				if ( tblRoot && (varTime == &XVO_VALUE_NULL) ) {
 					varTime = xvoTableGetValue(tblRoot, objTok->Text, objTok->Size);
@@ -867,19 +906,23 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					varTime = xvoTableGetValue(tblENV, objTok->Text, objTok->Size);
 				}
 				if ( varTime != &XVO_VALUE_NULL ) {
+					xtime iTime = 0;
 					if ( varTime->Type == XVO_DT_INT ) {
-						str sTime = xrtTimeToStr(varTime->vInt, XRT_TIME_FORMAT_DATETIME);
-						xrtBufferAppend(objBuf, sTime, 0, XBUF_UTF8);
-						xrtFree(sTime);
-					} else if ( varTime->Type == XVO_DT_TEXT ) {
-						if ( varTime->vText ) {
-							xrtBufferAppend(objBuf, varTime->vText, 0, XBUF_UTF8);
-						}
+						iTime = varTime->vInt;
+					} else if ( varTime->Type == XVO_DT_TEXT && varTime->vText ) {
+						iTime = xrtStrToI64(varTime->vText);
+					}
+					str sResult = NULL;
+					if ( objTok->ParamCount > 0 && objTok->ParamText[0] && objTok->ParamSize[0] > 0 ) {
+						// 使用自定义格式
+						sResult = xrtTimeFormat(iTime, objTok->ParamText[0]);
 					} else {
-						// 不支持其他类型转换为时间
-						xrtBufferAppend(objBuf, "(conv time error : ", 0, XBUF_UTF8);
-						xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
-						xrtBufferAppend(objBuf, ")", 1, XBUF_UTF8);
+						// 默认格式
+						sResult = xrtTimeToStr(iTime, XRT_TIME_FORMAT_DATETIME);
+					}
+					if ( sResult ) {
+						xrtBufferAppend(objBuf, sResult, 0, XBUF_UTF8);
+						xrtFree(sResult);
 					}
 				}
 			} else if ( objTok->Type == XTE_TK_BOOL ) {
@@ -1189,22 +1232,56 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					xrtBufferAppend(objBuf, sTemp, 0, XBUF_UTF8);
 				}
 			} else if ( objTok->Type == XTE_TK_NUM ) {
-				// 代入数字 - 转为数字（目前与转为字符串采用相同方式处理）
-				char* sTemp = NULL;
+				// 代入数字 - 支持格式化
+				xvalue varNum = &XVO_VALUE_NULL;
 				if ( strcmp(objTok->Text, "__self__") == 0 ) {
-					sTemp = xvoGetText(tblVal);
+					varNum = tblVal;
 				}
-				if ( tblRoot && (sTemp == NULL) ) {
-					sTemp = xvoTableGetText(tblRoot, objTok->Text, objTok->Size);
+				if ( tblRoot && (varNum == &XVO_VALUE_NULL) ) {
+					varNum = xvoTableGetValue(tblRoot, objTok->Text, objTok->Size);
 				}
-				if ( sTemp == NULL ) {
-					sTemp = xvoTableGetText(tblENV, objTok->Text, objTok->Size);
+				if ( varNum == &XVO_VALUE_NULL ) {
+					varNum = xvoTableGetValue(tblENV, objTok->Text, objTok->Size);
 				}
-				if ( sTemp ) {
-					xrtBufferAppend(objBuf, sTemp, 0, XBUF_UTF8);
+				str sFormat = (objTok->ParamCount > 0 && objTok->ParamText[0]) ? objTok->ParamText[0] : NULL;
+				str sResult = NULL;
+				if ( varNum == &XVO_VALUE_NULL || varNum->Type == XVO_DT_NULL ) {
+					// NULL - 作为 0 处理
+					sResult = xrtIntFormat(0, sFormat);
+				} else if ( varNum->Type == XVO_DT_BOOL ) {
+					// BOOL - TRUE=1, FALSE=0
+					sResult = xrtIntFormat(varNum->vBool ? 1 : 0, sFormat);
+				} else if ( varNum->Type == XVO_DT_INT ) {
+					sResult = xrtIntFormat(varNum->vInt, sFormat);
+				} else if ( varNum->Type == XVO_DT_FLOAT ) {
+					sResult = xrtNumFormat(varNum->vFloat, sFormat);
+				} else if ( varNum->Type == XVO_DT_TEXT && varNum->vText ) {
+					// 字符串类型 - 使用 xrtParseNumSkipSpace 解析
+					jnum_type_t numType = JNUM_NULL;
+					jnum_value_t numValue;
+					int parsed = xrtParseNumSkipSpace(varNum->vText, &numType, &numValue);
+					if ( parsed > 0 ) {
+						switch ( numType ) {
+							case JNUM_INT: sResult = xrtIntFormat((int64)numValue.vint, sFormat); break;
+							case JNUM_HEX: sResult = xrtIntFormat((int64)numValue.vhex, sFormat); break;
+							case JNUM_LINT: sResult = xrtIntFormat(numValue.vlint, sFormat); break;
+							case JNUM_LHEX: sResult = xrtIntFormat((int64)numValue.vlhex, sFormat); break;
+							case JNUM_DOUBLE: sResult = xrtNumFormat(numValue.vdbl, sFormat); break;
+							case JNUM_BOOL: sResult = xrtIntFormat(numValue.vbool ? 1 : 0, sFormat); break;
+							default: sResult = xrtIntFormat(0, sFormat); break;
+						}
+					} else {
+						sResult = xrtIntFormat(0, sFormat);
+					}
+				} else {
+					sResult = xrtIntFormat(0, sFormat);
+				}
+				if ( sResult ) {
+					xrtBufferAppend(objBuf, sResult, 0, XBUF_UTF8);
+					xrtFree(sResult);
 				}
 			} else if ( objTok->Type == XTE_TK_TIME ) {
-				// 代入时间
+				// 代入时间 - 支持自定义格式
 				xvalue varTime = &XVO_VALUE_NULL;
 				if ( strcmp(objTok->Text, "__self__") == 0 ) {
 					varTime = tblVal;
@@ -1216,19 +1293,23 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					varTime = xvoTableGetValue(tblENV, objTok->Text, objTok->Size);
 				}
 				if ( varTime != &XVO_VALUE_NULL ) {
+					xtime iTime = 0;
 					if ( varTime->Type == XVO_DT_INT ) {
-						str sTime = xrtTimeToStr(varTime->vInt, XRT_TIME_FORMAT_DATETIME);
-						xrtBufferAppend(objBuf, sTime, 0, XBUF_UTF8);
-						xrtFree(sTime);
-					} else if ( varTime->Type == XVO_DT_TEXT ) {
-						if ( varTime->vText ) {
-							xrtBufferAppend(objBuf, varTime->vText, 0, XBUF_UTF8);
-						}
+						iTime = varTime->vInt;
+					} else if ( varTime->Type == XVO_DT_TEXT && varTime->vText ) {
+						iTime = xrtStrToI64(varTime->vText);
+					}
+					str sResult = NULL;
+					if ( objTok->ParamCount > 0 && objTok->ParamText[0] && objTok->ParamSize[0] > 0 ) {
+						// 使用自定义格式
+						sResult = xrtTimeFormat(iTime, objTok->ParamText[0]);
 					} else {
-						// 不支持其他类型转换为时间
-						xrtBufferAppend(objBuf, "(conv time error : ", 0, XBUF_UTF8);
-						xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
-						xrtBufferAppend(objBuf, ")", 1, XBUF_UTF8);
+						// 默认格式
+						sResult = xrtTimeToStr(iTime, XRT_TIME_FORMAT_DATETIME);
+					}
+					if ( sResult ) {
+						xrtBufferAppend(objBuf, sResult, 0, XBUF_UTF8);
+						xrtFree(sResult);
 					}
 				}
 			} else if ( objTok->Type == XTE_TK_BOOL ) {
