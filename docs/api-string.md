@@ -13,10 +13,12 @@
 - [字符串比较](#字符串比较)
 - [大小写转换](#大小写转换)
 - [字符串搜索](#字符串搜索)
+- [通配符匹配](#通配符匹配)
 - [字符串裁剪](#字符串裁剪)
 - [字符串过滤](#字符串过滤)
 - [字符串操作](#字符串操作)
 - [编码解码](#编码解码)
+- [UTF-8 工具函数](#utf-8-工具函数)
 - [使用场景](#使用场景)
 - [最佳实践](#最佳实践)
 
@@ -499,6 +501,121 @@ int main() {
     return 0;
 }
 ```
+
+---
+
+## 通配符匹配
+
+### xrtStrLike
+
+通配符模式匹配。
+
+**函数原型：**
+```c
+XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize, bool bCase);
+```
+
+**参数：**
+- `sText` - 待匹配的字符串
+- `iTextSize` - 字符串长度（0表示自动计算）
+- `sPattern` - 通配符模式
+- `iPatSize` - 模式长度（0表示自动计算）
+- `bCase` - 是否忽略大小写
+  - `TRUE` - **忽略**大小写（case-insensitive）
+  - `FALSE` - **区分**大小写（case-sensitive）
+
+**通配符说明：**
+- `*` - 匹配任意字符序列（包括空序列）
+- `?` - 匹配单个 UTF-8 字符（支持多字节字符）
+
+**返回值：**
+- `TRUE` - 匹配成功
+- `FALSE` - 匹配失败
+
+**算法特性：**
+- 使用贪婪匹配算法
+- 时间复杂度：O(n*m) 最坏情况
+- 空间复杂度：O(1)
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 基础匹配
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"hello", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"world", 0, FALSE));  // 0
+    
+    // * 通配符：匹配任意字符序列
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"*", 0, FALSE));      // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"h*", 0, FALSE));     // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"*o", 0, FALSE));     // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"h*o", 0, FALSE));    // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"*ll*", 0, FALSE));   // 1
+    
+    // ? 通配符：匹配单个字符
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"h?llo", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"?????", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"??????", 0, FALSE)); // 0
+    
+    // 混合使用
+    printf("%d\n", xrtStrLike((str)"hello world", 0, (str)"h*o ?orld", 0, FALSE));  // 1
+    
+    // 大小写不敏感
+    printf("%d\n", xrtStrLike((str)"HELLO", 0, (str)"hello", 0, FALSE));  // 0
+    printf("%d\n", xrtStrLike((str)"HELLO", 0, (str)"hello", 0, TRUE));   // 1
+    printf("%d\n", xrtStrLike((str)"HeLLo", 0, (str)"h*O", 0, TRUE));     // 1
+    
+    // UTF-8 支持（? 匹配完整的 UTF-8 字符）
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"*测试", 0, FALSE));    // 1
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"中?测试", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"????", 0, FALSE));     // 1
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"?????", 0, FALSE));    // 0
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// 文件名匹配
+bool MatchFileName(str filename, str pattern) {
+    return xrtStrLike(filename, 0, pattern, 0, TRUE);  // 文件名通常不区分大小写
+}
+
+int main() {
+    xrtInit();
+    
+    // 匹配所有 .txt 文件
+    printf("%d\n", MatchFileName((str)"readme.txt", (str)"*.txt"));      // 1
+    printf("%d\n", MatchFileName((str)"README.TXT", (str)"*.txt"));      // 1
+    printf("%d\n", MatchFileName((str)"document.pdf", (str)"*.txt"));    // 0
+    
+    // 匹配 test 开头的文件
+    printf("%d\n", MatchFileName((str)"test_main.c", (str)"test*"));     // 1
+    printf("%d\n", MatchFileName((str)"main_test.c", (str)"test*"));     // 0
+    
+    // 匹配单字符变化
+    printf("%d\n", MatchFileName((str)"file1.log", (str)"file?.log"));   // 1
+    printf("%d\n", MatchFileName((str)"file10.log", (str)"file?.log"));  // 0
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- `?` 匹配一个完整的 UTF-8 字符，而非单个字节
+- 空模式只能匹配空字符串
+- 空字符串只能被全是 `*` 的模式匹配
+- 大小写转换仅对 ASCII 字母有效
 
 ---
 
@@ -1148,6 +1265,127 @@ int main() {
 - 输入长度必须是 4 的倍数，否则返回错误
 - 包含非法字符时返回错误并设置 `xCore.LastError`
 - 解码后长度存储在 `xCore.iRet`
+
+---
+
+## UTF-8 工具函数
+
+### xrtCharLenU8
+
+获取 UTF-8 字符的字节数。
+
+**函数原型：**
+```c
+static inline int xrtCharLenU8(unsigned char c);
+```
+
+**参数：**
+- `c` - UTF-8 字符的首字节
+
+**返回值：**
+- 该 UTF-8 字符占用的字节数（1-6）
+
+**UTF-8 编码规则：**
+| 首字节模式 | 字节数 | Unicode 范围 |
+|--------------|--------|---------------|
+| `0xxxxxxx` | 1 | U+0000 - U+007F (ASCII) |
+| `110xxxxx` | 2 | U+0080 - U+07FF |
+| `1110xxxx` | 3 | U+0800 - U+FFFF |
+| `11110xxx` | 4 | U+10000 - U+1FFFFF |
+| `111110xx` | 5 | U+200000 - U+3FFFFFF |
+| `1111110x` | 6 | U+4000000 - U+7FFFFFFF |
+
+**特性：**
+- 内联函数，零开销
+- 异常字节返回 1
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // ASCII 字符（1 字节）
+    printf("%d\n", xrtCharLenU8('A'));         // 1
+    printf("%d\n", xrtCharLenU8('0'));         // 1
+    printf("%d\n", xrtCharLenU8(' '));         // 1
+    
+    // 中文字符（3 字节）
+    str chinese = (str)"中文";
+    printf("%d\n", xrtCharLenU8(chinese[0]));  // 3
+    
+    // 表情符号（4 字节）
+    str emoji = (str)"😀";
+    printf("%d\n", xrtCharLenU8(emoji[0]));    // 4
+    
+    // 遍历 UTF-8 字符串
+    str text = (str)"Hello中文";
+    size_t i = 0;
+    int charCount = 0;
+    while (text[i]) {
+        int len = xrtCharLenU8(text[i]);
+        printf("字符 %d: 字节数=%d\n", charCount, len);
+        i += len;
+        charCount++;
+    }
+    // 输出: 字符 0-6 分别为 1,1,1,1,1,3,3 字节
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// 计算 UTF-8 字符串的字符数（非字节数）
+size_t Utf8CharCount(str text) {
+    if (!text) return 0;
+    size_t count = 0;
+    size_t i = 0;
+    while (text[i]) {
+        i += xrtCharLenU8(text[i]);
+        count++;
+    }
+    return count;
+}
+
+// 截取 UTF-8 字符串的前 N 个字符
+str Utf8Substring(str text, size_t n) {
+    if (!text || n == 0) return xCore.sNull;
+    size_t i = 0;
+    size_t count = 0;
+    while (text[i] && count < n) {
+        i += xrtCharLenU8(text[i]);
+        count++;
+    }
+    return xrtCopyStr(text, i);
+}
+
+int main() {
+    xrtInit();
+    
+    str text = (str)"Hello中文World";
+    printf("字符数: %zu\n", Utf8CharCount(text));  // 12
+    printf("字节数: %zu\n", strlen((char*)text));   // 16
+    
+    str sub = Utf8Substring(text, 7);
+    printf("前7个字符: %s\n", sub);  // "Hello中文"
+    xrtFree(sub);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- 这是一个 `static inline` 函数，可在多处调用而无函数调用开销
+- 用于正确遍历 UTF-8 字符串
+- `xrtStrLike` 内部使用此函数处理 `?` 通配符
 
 ---
 

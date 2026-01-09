@@ -1091,3 +1091,96 @@ XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 }
 
 
+
+// 通配符匹配（ * 匹配任意字符序列，? 匹配单个UTF-8字符，bCase 为 TRUE 时忽略大小写 ）
+// 使用贪婪匹配算法：O(n*m) 最坏时间复杂度，O(1) 空间复杂度
+XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize, bool bCase)
+{
+	// 参数检查
+	if ( sPattern == NULL ) { return FALSE; }
+	if ( iPatSize == 0 ) { iPatSize = strlen(sPattern); }
+	
+	// 空模式只匹配空字符串
+	if ( iPatSize == 0 ) {
+		if ( sText == NULL ) { return TRUE; }
+		if ( iTextSize == 0 ) { iTextSize = strlen(sText); }
+		return iTextSize == 0;
+	}
+	
+	// 处理空文本
+	if ( sText == NULL ) {
+		// 空文本只能匹配全是 * 的模式
+		for ( size_t i = 0; i < iPatSize; i++ ) {
+			if ( sPattern[i] != '*' ) { return FALSE; }
+		}
+		return TRUE;
+	}
+	if ( iTextSize == 0 ) { iTextSize = strlen(sText); }
+	if ( iTextSize == 0 ) {
+		for ( size_t i = 0; i < iPatSize; i++ ) {
+			if ( sPattern[i] != '*' ) { return FALSE; }
+		}
+		return TRUE;
+	}
+	
+	// 贪婪匹配算法
+	size_t t = 0;           // 文本位置
+	size_t p = 0;           // 模式位置
+	size_t starP = (size_t)-1;   // 最近的 * 在模式中的位置
+	size_t starT = 0;       // 遇到 * 时文本的位置
+	
+	while ( t < iTextSize ) {
+		if ( p < iPatSize && sPattern[p] == '*' ) {
+			// 记录 * 的位置，先假定它匹配 0 个字符
+			starP = p;
+			starT = t;
+			p++;
+		} else if ( p < iPatSize && sPattern[p] == '?' ) {
+			// ? 匹配一个完整的 UTF-8 字符
+			int charLen = xrtCharLenU8((unsigned char)sText[t]);
+			// 检查剩余长度是否足够
+			if ( t + charLen > iTextSize ) {
+				// 字符不完整，尝试回溯
+				if ( starP == (size_t)-1 ) { return FALSE; }
+				p = starP + 1;
+				starT += xrtCharLenU8((unsigned char)sText[starT]);
+				t = starT;
+			} else {
+				t += charLen;
+				p++;
+			}
+		} else {
+			// 普通字符匹配（内联字符比较）
+			unsigned char c1 = (unsigned char)sText[t];
+			unsigned char c2 = (unsigned char)sPattern[p];
+			bool bMatch = (c1 == c2);
+			if ( !bMatch && bCase ) {
+				// 大小写不敏感：只对 ASCII 字母转换
+				if ( c1 >= 'A' && c1 <= 'Z' ) { c1 += 32; }
+				if ( c2 >= 'A' && c2 <= 'Z' ) { c2 += 32; }
+				bMatch = (c1 == c2);
+			}
+			if ( p < iPatSize && bMatch ) {
+				t++;
+				p++;
+			} else {
+				// 匹配失败，回溯到上一个 *
+				if ( starP == (size_t)-1 ) { return FALSE; }
+				// 让 * 多匹配一个 UTF-8 字符
+				p = starP + 1;
+				starT += xrtCharLenU8((unsigned char)sText[starT]);
+				t = starT;
+				// 如果 starT 已超出文本范围，则匹配失败
+				if ( starT > iTextSize ) { return FALSE; }
+			}
+		}
+	}
+	
+	// 文本已匹配完，检查模式剩余部分是否全是 *
+	while ( p < iPatSize && sPattern[p] == '*' ) {
+		p++;
+	}
+	
+	return p == iPatSize;
+}
+

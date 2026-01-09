@@ -343,6 +343,9 @@
 	// 字符串检查（ sText 中是否包含 sSubText 列出的字符，支持 utf-8 mb6 编码 ）
 	XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize);
 	
+	// 通配符匹配（ * 匹配任意字符序列，? 匹配单个UTF-8字符，bCase 为 TRUE 时忽略大小写 ）
+	XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize, bool bCase);
+	
 	// 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 	XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
 	XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
@@ -374,6 +377,18 @@
 	
 	// Base64 解码（ 需使用 xrtFree 释放 ）
 	XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable);
+	
+	// 获取 UTF-8 字符的字节数（根据首字节判断）
+	static inline int xrtCharLenU8(unsigned char c)
+	{
+		if ( (c & 0x80) == 0 ) { return 1; }            // 0xxxxxxx - ASCII
+		if ( (c & 0xE0) == 0xC0 ) { return 2; }         // 110xxxxx - 2字节
+		if ( (c & 0xF0) == 0xE0 ) { return 3; }         // 1110xxxx - 3字节
+		if ( (c & 0xF8) == 0xF0 ) { return 4; }         // 11110xxx - 4字节
+		if ( (c & 0xFC) == 0xF8 ) { return 5; }         // 111110xx - 5字节
+		if ( (c & 0xFE) == 0xFC ) { return 6; }         // 1111110x - 6字节
+		return 1; // 异常字符按单字节处理
+	}
 	
 	
 	

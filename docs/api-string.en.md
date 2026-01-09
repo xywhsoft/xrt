@@ -13,10 +13,12 @@
 - [String Comparison](#string-comparison)
 - [Case Conversion](#case-conversion)
 - [String Search](#string-search)
+- [Wildcard Matching](#wildcard-matching)
 - [String Trimming](#string-trimming)
 - [String Filtering](#string-filtering)
 - [String Operations](#string-operations)
 - [Encoding and Decoding](#encoding-and-decoding)
+- [UTF-8 Utility Functions](#utf-8-utility-functions)
 - [Use Cases](#use-cases)
 - [Best Practices](#best-practices)
 
@@ -499,6 +501,121 @@ int main() {
     return 0;
 }
 ```
+
+---
+
+## Wildcard Matching
+
+### xrtStrLike
+
+Wildcard pattern matching.
+
+**Prototype:**
+```c
+XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize, bool bCase);
+```
+
+**Parameters:**
+- `sText` - String to match
+- `iTextSize` - String length (0 for auto-calculate)
+- `sPattern` - Wildcard pattern
+- `iPatSize` - Pattern length (0 for auto-calculate)
+- `bCase` - Whether to ignore case
+  - `TRUE` - **Ignore** case (case-insensitive)
+  - `FALSE` - **Distinguish** case (case-sensitive)
+
+**Wildcard Description:**
+- `*` - Matches any character sequence (including empty sequence)
+- `?` - Matches a single UTF-8 character (supports multi-byte characters)
+
+**Return Value:**
+- `TRUE` - Match successful
+- `FALSE` - Match failed
+
+**Algorithm Characteristics:**
+- Uses greedy matching algorithm
+- Time complexity: O(n*m) worst case
+- Space complexity: O(1)
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // Basic matching
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"hello", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"world", 0, FALSE));  // 0
+    
+    // * wildcard: matches any character sequence
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"*", 0, FALSE));      // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"h*", 0, FALSE));     // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"*o", 0, FALSE));     // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"h*o", 0, FALSE));    // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"*ll*", 0, FALSE));   // 1
+    
+    // ? wildcard: matches single character
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"h?llo", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"?????", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"hello", 0, (str)"??????", 0, FALSE)); // 0
+    
+    // Mixed usage
+    printf("%d\n", xrtStrLike((str)"hello world", 0, (str)"h*o ?orld", 0, FALSE));  // 1
+    
+    // Case-insensitive
+    printf("%d\n", xrtStrLike((str)"HELLO", 0, (str)"hello", 0, FALSE));  // 0
+    printf("%d\n", xrtStrLike((str)"HELLO", 0, (str)"hello", 0, TRUE));   // 1
+    printf("%d\n", xrtStrLike((str)"HeLLo", 0, (str)"h*O", 0, TRUE));     // 1
+    
+    // UTF-8 support (? matches complete UTF-8 character)
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"*测试", 0, FALSE));    // 1
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"中?测试", 0, FALSE));  // 1
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"????", 0, FALSE));     // 1
+    printf("%d\n", xrtStrLike((str)"中文测试", 0, (str)"?????", 0, FALSE));    // 0
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Use Case:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// Filename matching
+bool MatchFileName(str filename, str pattern) {
+    return xrtStrLike(filename, 0, pattern, 0, TRUE);  // Filenames usually case-insensitive
+}
+
+int main() {
+    xrtInit();
+    
+    // Match all .txt files
+    printf("%d\n", MatchFileName((str)"readme.txt", (str)"*.txt"));      // 1
+    printf("%d\n", MatchFileName((str)"README.TXT", (str)"*.txt"));      // 1
+    printf("%d\n", MatchFileName((str)"document.pdf", (str)"*.txt"));    // 0
+    
+    // Match files starting with test
+    printf("%d\n", MatchFileName((str)"test_main.c", (str)"test*"));     // 1
+    printf("%d\n", MatchFileName((str)"main_test.c", (str)"test*"));     // 0
+    
+    // Match single character variations
+    printf("%d\n", MatchFileName((str)"file1.log", (str)"file?.log"));   // 1
+    printf("%d\n", MatchFileName((str)"file10.log", (str)"file?.log"));  // 0
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Additional Notes:**
+- `?` matches a complete UTF-8 character, not a single byte
+- Empty pattern only matches empty string
+- Empty string can only be matched by patterns consisting entirely of `*`
+- Case conversion only effective for ASCII letters
 
 ---
 
@@ -1148,6 +1265,127 @@ int main() {
 - Input length must be multiple of 4, otherwise returns error
 - Returns error and sets `xCore.LastError` when containing illegal characters
 - Decoded length stored in `xCore.iRet`
+
+---
+
+## UTF-8 Utility Functions
+
+### xrtCharLenU8
+
+Get the byte count of a UTF-8 character.
+
+**Prototype:**
+```c
+static inline int xrtCharLenU8(unsigned char c);
+```
+
+**Parameters:**
+- `c` - First byte of UTF-8 character
+
+**Return Value:**
+- Number of bytes the UTF-8 character occupies (1-6)
+
+**UTF-8 Encoding Rules:**
+| First Byte Pattern | Bytes | Unicode Range |
+|--------------------|-------|---------------|
+| `0xxxxxxx` | 1 | U+0000 - U+007F (ASCII) |
+| `110xxxxx` | 2 | U+0080 - U+07FF |
+| `1110xxxx` | 3 | U+0800 - U+FFFF |
+| `11110xxx` | 4 | U+10000 - U+1FFFFF |
+| `111110xx` | 5 | U+200000 - U+3FFFFFF |
+| `1111110x` | 6 | U+4000000 - U+7FFFFFFF |
+
+**Characteristics:**
+- Inline function, zero overhead
+- Returns 1 for invalid bytes
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // ASCII characters (1 byte)
+    printf("%d\n", xrtCharLenU8('A'));         // 1
+    printf("%d\n", xrtCharLenU8('0'));         // 1
+    printf("%d\n", xrtCharLenU8(' '));         // 1
+    
+    // Chinese characters (3 bytes)
+    str chinese = (str)"中文";
+    printf("%d\n", xrtCharLenU8(chinese[0]));  // 3
+    
+    // Emoji (4 bytes)
+    str emoji = (str)"😀";
+    printf("%d\n", xrtCharLenU8(emoji[0]));    // 4
+    
+    // Iterate through UTF-8 string
+    str text = (str)"Hello中文";
+    size_t i = 0;
+    int charCount = 0;
+    while (text[i]) {
+        int len = xrtCharLenU8(text[i]);
+        printf("Char %d: bytes=%d\n", charCount, len);
+        i += len;
+        charCount++;
+    }
+    // Output: Char 0-6 are 1,1,1,1,1,3,3 bytes respectively
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Use Case:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// Count UTF-8 string characters (not bytes)
+size_t Utf8CharCount(str text) {
+    if (!text) return 0;
+    size_t count = 0;
+    size_t i = 0;
+    while (text[i]) {
+        i += xrtCharLenU8(text[i]);
+        count++;
+    }
+    return count;
+}
+
+// Get first N characters of UTF-8 string
+str Utf8Substring(str text, size_t n) {
+    if (!text || n == 0) return xCore.sNull;
+    size_t i = 0;
+    size_t count = 0;
+    while (text[i] && count < n) {
+        i += xrtCharLenU8(text[i]);
+        count++;
+    }
+    return xrtCopyStr(text, i);
+}
+
+int main() {
+    xrtInit();
+    
+    str text = (str)"Hello中文World";
+    printf("Char count: %zu\n", Utf8CharCount(text));  // 12
+    printf("Byte count: %zu\n", strlen((char*)text));   // 16
+    
+    str sub = Utf8Substring(text, 7);
+    printf("First 7 chars: %s\n", sub);  // "Hello中文"
+    xrtFree(sub);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**Additional Notes:**
+- This is a `static inline` function, can be called in multiple places without function call overhead
+- Used to correctly iterate through UTF-8 strings
+- `xrtStrLike` internally uses this function to handle `?` wildcard
 
 ---
 

@@ -79,7 +79,7 @@ int main(int argc, char** argv)
 	// Test_Path(xCore);
 	
 	/* Time 库测试 */
-	 Test_Time(xCore);
+	// Test_Time(xCore);
 	
 	/* File 库测试 */
 	// Test_File(xCore);
