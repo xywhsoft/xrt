@@ -1,6 +1,6 @@
 # Time 时间处理库
 
-> 日期时间计算和格式化功能
+> 日期时间计算、格式化、解析和时区处理功能
 
 [English](api-time.en.md) | [中文](api-time.md) | [返回索引](README.md)
 
@@ -15,6 +15,13 @@
 - [时间解码](#时间解码)
 - [时间计算](#时间计算)
 - [时间格式化](#时间格式化)
+- [自定义格式化](#自定义格式化)
+- [时间比较](#时间比较)
+- [边界日期](#边界日期)
+- [周相关函数](#周相关函数)
+- [时区处理](#时区处理)
+- [Unix时间戳](#unix时间戳)
+- [相对时间](#相对时间)
 - [日期工具](#日期工具)
 - [使用场景](#使用场景)
 
@@ -582,6 +589,344 @@ xrtFree(s0); xrtFree(s1); xrtFree(s2); xrtFree(s3);
 
 ---
 
+### xrtStrToTime
+
+字符串解析为时间。
+
+**函数原型：**
+```c
+XXAPI xtime xrtStrToTime(str sTime, size_t iSize);
+```
+
+**参数：**
+- `sTime` - 时间字符串
+- `iSize` - 字符串长度（0 表示自动计算）
+
+**返回值：**
+- 解析出的时间戳
+- 解析失败返回 0
+
+**支持的格式：**
+- `YYYY-MM-DD HH:MM:SS`
+- `YYYY-MM-DD`
+- `YYYYMMDDHHMMSS`
+- `YYYYMMDD`
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 解析完整日期时间
+    xtime t1 = xrtStrToTime("2025-01-10 15:30:45", 0);
+    str s1 = xrtTimeToStr(t1, XRT_TIME_FORMAT_DATETIME);
+    printf("解析1: %s\n", s1);  // "2025-01-10 15:30:45"
+    xrtFree(s1);
+    
+    // 解析仅日期
+    xtime t2 = xrtStrToTime("2025-01-10", 0);
+    str s2 = xrtTimeToStr(t2, XRT_TIME_FORMAT_DATE);
+    printf("解析2: %s\n", s2);  // "2025-01-10"
+    xrtFree(s2);
+    
+    // 解析紧凑格式
+    xtime t3 = xrtStrToTime("20250110153045", 0);
+    str s3 = xrtTimeToStr(t3, XRT_TIME_FORMAT_DATETIME);
+    printf("解析3: %s\n", s3);  // "2025-01-10 15:30:45"
+    xrtFree(s3);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+## 自定义格式化
+
+### xrtTimeFormat
+
+使用自定义格式将时间转换为字符串。
+
+**函数原型：**
+```c
+XXAPI str xrtTimeFormat(xtime iTime, str sFormat);
+```
+
+**参数：**
+- `iTime` - 时间戳
+- `sFormat` - 格式字符串
+
+**返回值：**
+- 格式化后的字符串
+
+**内存释放：** ✅ 需要 `xrtFree` 释放
+
+**格式占位符：**
+
+| 占位符 | 说明 | 示例 |
+|--------|------|------|
+| `yyyy` | 四位年份 | 2025 |
+| `yy` | 两位年份 | 25 |
+| `mm` | 两位月份（补零） | 01-12 |
+| `m` | 月份（不补零） | 1-12 |
+| `mmm` | 英文月份缩写 | Jan, Feb, ... |
+| `mmmm` | 英文月份全称 | January, February, ... |
+| `dd` | 两位日期（补零） | 01-31 |
+| `d` | 日期（不补零） | 1-31 |
+| `hh` | 24小时制小时（补零） | 00-23 |
+| `h` | 24小时制小时（不补零） | 0-23 |
+| `HH` | 12小时制小时（补零） | 01-12 |
+| `H` | 12小时制小时（不补零） | 1-12 |
+| `nn` | 分钟（补零） | 00-59 |
+| `n` | 分钟（不补零） | 0-59 |
+| `ss` | 秒（补零） | 00-59 |
+| `s` | 秒（不补零） | 0-59 |
+| `ap` | 小写上下午 | am, pm |
+| `AP` | 大写上下午 | AM, PM |
+| `w` | 星期数字 | 0-6 (0=周日) |
+| `ww` | 英文星期缩写 | Sun, Mon, ... |
+| `www` | 英文星期全称 | Sunday, Monday, ... |
+| `q` | 季度 | 1-4 |
+
+**特殊说明：**
+- `mm` 在 `h` 或 `hh` 之后表示**分钟**，否则表示**月份**（兼容 VB 风格）
+- 若需明确表示分钟，推荐使用 `nn` 或 `n`
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t = xrtDateTimeSerial(2025, 3, 15, 14, 30, 45);
+    
+    // 基本格式
+    str s1 = xrtTimeFormat(t, "yyyy-mm-dd hh:nn:ss");
+    printf("%s\n", s1);  // "2025-03-15 14:30:45"
+    xrtFree(s1);
+    
+    // 12小时制
+    str s2 = xrtTimeFormat(t, "yyyy/mm/dd HH:nn:ss AP");
+    printf("%s\n", s2);  // "2025/03/15 02:30:45 PM"
+    xrtFree(s2);
+    
+    // 英文月份
+    str s3 = xrtTimeFormat(t, "mmm d, yyyy");
+    printf("%s\n", s3);  // "Mar 15, 2025"
+    xrtFree(s3);
+    
+    // 完整英文格式
+    str s4 = xrtTimeFormat(t, "mmmm d, yyyy");
+    printf("%s\n", s4);  // "March 15, 2025"
+    xrtFree(s4);
+    
+    // 带星期
+    str s5 = xrtTimeFormat(t, "www, mmm d");
+    printf("%s\n", s5);  // "Saturday, Mar 15"
+    xrtFree(s5);
+    
+    // 季度信息
+    str s6 = xrtTimeFormat(t, "yyyy年Q第q季度");
+    printf("%s\n", s6);  // "2025年Q第1季度"
+    xrtFree(s6);
+    
+    // 紧凑格式
+    str s7 = xrtTimeFormat(t, "yyyymmddhhnnss");
+    printf("%s\n", s7);  // "20250315143045"
+    xrtFree(s7);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**mm 上下文判断示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t = xrtDateTimeSerial(2025, 3, 15, 14, 30, 45);
+    
+    // mm 在 hh 后表示分钟
+    str s1 = xrtTimeFormat(t, "hh:mm:ss");
+    printf("%s\n", s1);  // "14:30:45"
+    xrtFree(s1);
+    
+    // mm 在开头表示月份
+    str s2 = xrtTimeFormat(t, "mm/dd/yyyy");
+    printf("%s\n", s2);  // "03/15/2025"
+    xrtFree(s2);
+    
+    // 明确使用 nn 表示分钟
+    str s3 = xrtTimeFormat(t, "yyyy-mm-dd hh:nn:ss");
+    printf("%s\n", s3);  // "2025-03-15 14:30:45"
+    xrtFree(s3);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtTimeParse
+
+使用自定义格式将字符串解析为时间。
+
+**函数原型：**
+```c
+XXAPI xtime xrtTimeParse(str sTime, str sFormat);
+```
+
+**参数：**
+- `sTime` - 要解析的字符串
+- `sFormat` - 格式字符串
+
+**返回值：**
+- 解析出的时间戳
+- 解析失败返回 0
+
+**格式占位符：**
+
+除了 `xrtTimeFormat` 的所有占位符外，还支持以下特殊匹配符：
+
+| 匹配符 | 说明 |
+|--------|------|
+| `*` | 跳过任意非数字字符 |
+| `.` | 匹配至少1个非数字字符 |
+| `?` | 跳过1个字符 |
+| 空格 | 跳过任意空白字符 |
+
+**高容错特性：**
+- 自动跳过前缀冗余文本
+- 支持锚点定位（通过固定文本定位时间部分）
+- 智能识别常见时间模式
+
+**基本示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 解析标准格式
+    xtime t1 = xrtTimeParse("2025-03-15 14:30:45", "yyyy-mm-dd hh:nn:ss");
+    str s1 = xrtTimeToStr(t1, XRT_TIME_FORMAT_DATETIME);
+    printf("%s\n", s1);  // "2025-03-15 14:30:45"
+    xrtFree(s1);
+    
+    // 解析12小时制
+    xtime t2 = xrtTimeParse("03/15/2025 02:30:45 PM", "mm/dd/yyyy HH:nn:ss AP");
+    str s2 = xrtTimeToStr(t2, XRT_TIME_FORMAT_DATETIME);
+    printf("%s\n", s2);  // "2025-03-15 14:30:45"
+    xrtFree(s2);
+    
+    // 解析英文月份
+    xtime t3 = xrtTimeParse("Mar 15, 2025", "mmm d, yyyy");
+    str s3 = xrtTimeToStr(t3, XRT_TIME_FORMAT_DATE);
+    printf("%s\n", s3);  // "2025-03-15"
+    xrtFree(s3);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**冗余文本处理示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 自动跳过前缀冗余文本
+    xtime t1 = xrtTimeParse("当前时间为：2025年3月15日 14:30:45", 
+                            "yyyy年m月d日 hh:nn:ss");
+    str s1 = xrtTimeToStr(t1, XRT_TIME_FORMAT_DATETIME);
+    printf("解析1: %s\n", s1);  // "2025-03-15 14:30:45"
+    xrtFree(s1);
+    
+    // 使用锚点定位
+    xtime t2 = xrtTimeParse("中国北京时间 UTC+8  14:30:45", "UTC+8  hh:nn:ss");
+    str s2 = xrtTimeToStr(t2, XRT_TIME_FORMAT_TIME);
+    printf("解析2: %s\n", s2);  // "14:30:45"
+    xrtFree(s2);
+    
+    // 解析日志格式
+    xtime t3 = xrtTimeParse("[2025-03-15 14:30:45] INFO: 系统启动", 
+                            "[yyyy-mm-dd hh:nn:ss]");
+    str s3 = xrtTimeToStr(t3, XRT_TIME_FORMAT_DATETIME);
+    printf("解析3: %s\n", s3);  // "2025-03-15 14:30:45"
+    xrtFree(s3);
+    
+    // 使用通配符
+    xtime t4 = xrtTimeParse("Date: 2025/03/15", "Date: yyyy/mm/dd");
+    str s4 = xrtTimeToStr(t4, XRT_TIME_FORMAT_DATE);
+    printf("解析4: %s\n", s4);  // "2025-03-15"
+    xrtFree(s4);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// 解析网站采集的时间
+xtime ParseWebTime(str rawText) {
+    // 尝试多种格式
+    xtime t = xrtTimeParse(rawText, "yyyy-mm-dd hh:nn:ss");
+    if (t > 0) return t;
+    
+    t = xrtTimeParse(rawText, "yyyy/mm/dd hh:nn:ss");
+    if (t > 0) return t;
+    
+    t = xrtTimeParse(rawText, "mmm d, yyyy");
+    if (t > 0) return t;
+    
+    return 0;  // 解析失败
+}
+
+int main() {
+    xrtInit();
+    
+    // 各种采集来源
+    const char* samples[] = {
+        "发布时间：2025-03-15 14:30:45",
+        "Posted on: 2025/03/15 14:30:45",
+        "Last updated: Mar 15, 2025"
+    };
+    
+    for (int i = 0; i < 3; i++) {
+        xtime t = ParseWebTime((str)samples[i]);
+        if (t > 0) {
+            str s = xrtTimeToStr(t, XRT_TIME_FORMAT_DATETIME);
+            printf("%s -> %s\n", samples[i], s);
+            xrtFree(s);
+        }
+    }
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
 ## 时间提取
 
 ### xrtYear
@@ -774,6 +1119,138 @@ int main() {
 }
 ```
 
+---
+
+### xrtQuarter
+
+获取时间的季度。
+
+**函数原型：**
+```c
+XXAPI int xrtQuarter(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 季度（1-4）
+  - 1-3月 → 第1季度
+  - 4-6月 → 第2季度
+  - 7-9月 → 第3季度
+  - 10-12月 → 第4季度
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime now = xrtNow();
+    int quarter = xrtQuarter(now);
+    printf("当前是第 %d 季度\n", quarter);
+    
+    // 各季度示例
+    printf("1月: Q%d\n", xrtQuarter(xrtDateSerial(2025, 1, 15)));   // Q1
+    printf("5月: Q%d\n", xrtQuarter(xrtDateSerial(2025, 5, 15)));   // Q2
+    printf("8月: Q%d\n", xrtQuarter(xrtDateSerial(2025, 8, 15)));   // Q3
+    printf("11月: Q%d\n", xrtQuarter(xrtDateSerial(2025, 11, 15))); // Q4
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtDatePart
+
+获取日期部分（去除时间）。
+
+**函数原型：**
+```c
+XXAPI xtime xrtDatePart(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 仅包含日期的时间戳（时分秒为 00:00:00）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime now = xrtNow();  // 例如: 2025-01-10 15:30:45
+    xtime datePart = xrtDatePart(now);  // 2025-01-10 00:00:00
+    
+    str s1 = xrtTimeToStr(now, XRT_TIME_FORMAT_DATETIME);
+    str s2 = xrtTimeToStr(datePart, XRT_TIME_FORMAT_DATETIME);
+    
+    printf("原始时间: %s\n", s1);
+    printf("日期部分: %s\n", s2);
+    
+    xrtFree(s1);
+    xrtFree(s2);
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- 等效于 `iTime - (iTime % XRT_TIME_DAY)`
+- 常用于日期比较（忽略时间部分）
+
+---
+
+### xrtTimePart
+
+获取时间部分（去除日期）。
+
+**函数原型：**
+```c
+XXAPI xtime xrtTimePart(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 当日已过的秒数（0-86399）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime now = xrtNow();  // 例如: 2025-01-10 15:30:45
+    xtime timePart = xrtTimePart(now);  // 55845秒 (15*3600 + 30*60 + 45)
+    
+    printf("当日已过秒数: %" PRId64 "\n", timePart);
+    
+    str timeStr = xrtTimeToStr(timePart, XRT_TIME_FORMAT_TIME);
+    printf("时间部分: %s\n", timeStr);  // "15:30:45"
+    xrtFree(timeStr);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- 等效于 `iTime % XRT_TIME_DAY`
+- 常用于时间比较（忽略日期部分）
+
 **完整时间提取示例：**
 ```c
 #include "xrt.h"
@@ -789,6 +1266,7 @@ int main() {
     printf("%02d:%02d:%02d\n", xrtHour(now), xrtMinute(now), xrtSecond(now));
     printf("星期: %d\n", xrtWeekday(now));
     printf("年内第: %d 天\n", xrtDayOfYear(now));
+    printf("季度: Q%d\n", xrtQuarter(now));
     
     xrtUnit();
     return 0;
@@ -856,6 +1334,895 @@ int main() {
 **补充说明：**
 - 比多次调用单独的提取函数效率更高
 - 不需要的字段可传 `NULL`
+
+---
+
+## 时间比较
+
+### xrtIsSameDay
+
+判断两个时间是否是同一天。
+
+**函数原型：**
+```c
+XXAPI bool xrtIsSameDay(xtime iTime1, xtime iTime2);
+```
+
+**参数：**
+- `iTime1` - 时间戳1
+- `iTime2` - 时间戳2
+
+**返回值：**
+- `TRUE` - 同一天
+- `FALSE` - 不同天
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t1 = xrtDateTimeSerial(2025, 3, 15, 8, 0, 0);
+    xtime t2 = xrtDateTimeSerial(2025, 3, 15, 20, 0, 0);
+    xtime t3 = xrtDateTimeSerial(2025, 3, 16, 8, 0, 0);
+    
+    printf("t1和t2同一天: %s\n", xrtIsSameDay(t1, t2) ? "是" : "否");  // 是
+    printf("t1和t3同一天: %s\n", xrtIsSameDay(t1, t3) ? "是" : "否");  // 否
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtIsSameMonth
+
+判断两个时间是否是同一月。
+
+**函数原型：**
+```c
+XXAPI bool xrtIsSameMonth(xtime iTime1, xtime iTime2);
+```
+
+**参数：**
+- `iTime1` - 时间戳1
+- `iTime2` - 时间戳2
+
+**返回值：**
+- `TRUE` - 同一月（同年同月）
+- `FALSE` - 不同月
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t1 = xrtDateSerial(2025, 3, 1);
+    xtime t2 = xrtDateSerial(2025, 3, 31);
+    xtime t3 = xrtDateSerial(2025, 4, 1);
+    xtime t4 = xrtDateSerial(2024, 3, 15);
+    
+    printf("3月1日和3月31日: %s\n", xrtIsSameMonth(t1, t2) ? "同月" : "不同");  // 同月
+    printf("3月31日和4月1日: %s\n", xrtIsSameMonth(t2, t3) ? "同月" : "不同");  // 不同
+    printf("2025年3月和2024年3月: %s\n", xrtIsSameMonth(t1, t4) ? "同月" : "不同");  // 不同
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtIsSameYear
+
+判断两个时间是否是同一年。
+
+**函数原型：**
+```c
+XXAPI bool xrtIsSameYear(xtime iTime1, xtime iTime2);
+```
+
+**参数：**
+- `iTime1` - 时间戳1
+- `iTime2` - 时间戳2
+
+**返回值：**
+- `TRUE` - 同一年
+- `FALSE` - 不同年
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t1 = xrtDateSerial(2025, 1, 1);
+    xtime t2 = xrtDateSerial(2025, 12, 31);
+    xtime t3 = xrtDateSerial(2026, 1, 1);
+    
+    printf("2025/1/1和2025/12/31: %s\n", xrtIsSameYear(t1, t2) ? "同年" : "不同");  // 同年
+    printf("2025/12/31和2026/1/1: %s\n", xrtIsSameYear(t2, t3) ? "同年" : "不同");  // 不同
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtTimeInRange
+
+判断时间是否在指定区间内。
+
+**函数原型：**
+```c
+XXAPI bool xrtTimeInRange(xtime iTime, xtime iStart, xtime iEnd);
+```
+
+**参数：**
+- `iTime` - 要判断的时间
+- `iStart` - 区间开始时间
+- `iEnd` - 区间结束时间
+
+**返回值：**
+- `TRUE` - 在区间内（包含边界）
+- `FALSE` - 不在区间内
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime start = xrtDateTimeSerial(2025, 3, 1, 9, 0, 0);
+    xtime end = xrtDateTimeSerial(2025, 3, 1, 18, 0, 0);
+    
+    xtime t1 = xrtDateTimeSerial(2025, 3, 1, 12, 0, 0);  // 中午
+    xtime t2 = xrtDateTimeSerial(2025, 3, 1, 20, 0, 0);  // 晚上
+    xtime t3 = xrtDateTimeSerial(2025, 3, 1, 9, 0, 0);   // 正好开始
+    
+    printf("12:00 在工作时间内: %s\n", xrtTimeInRange(t1, start, end) ? "是" : "否");  // 是
+    printf("20:00 在工作时间内: %s\n", xrtTimeInRange(t2, start, end) ? "是" : "否");  // 否
+    printf("09:00 在工作时间内: %s\n", xrtTimeInRange(t3, start, end) ? "是" : "否");  // 是
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtTimeRangeOverlap
+
+判断两个时间区间是否重叠。
+
+**函数原型：**
+```c
+XXAPI bool xrtTimeRangeOverlap(xtime iStart1, xtime iEnd1, xtime iStart2, xtime iEnd2);
+```
+
+**参数：**
+- `iStart1`, `iEnd1` - 第一个时间区间
+- `iStart2`, `iEnd2` - 第二个时间区间
+
+**返回值：**
+- `TRUE` - 两个区间有重叠
+- `FALSE` - 两个区间不重叠
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 会议1: 9:00 - 11:00
+    xtime m1_start = xrtDateTimeSerial(2025, 3, 1, 9, 0, 0);
+    xtime m1_end = xrtDateTimeSerial(2025, 3, 1, 11, 0, 0);
+    
+    // 会议2: 10:00 - 12:00 （与会议1重叠）
+    xtime m2_start = xrtDateTimeSerial(2025, 3, 1, 10, 0, 0);
+    xtime m2_end = xrtDateTimeSerial(2025, 3, 1, 12, 0, 0);
+    
+    // 会议3: 14:00 - 16:00 （与会议1不重叠）
+    xtime m3_start = xrtDateTimeSerial(2025, 3, 1, 14, 0, 0);
+    xtime m3_end = xrtDateTimeSerial(2025, 3, 1, 16, 0, 0);
+    
+    bool overlap12 = xrtTimeRangeOverlap(m1_start, m1_end, m2_start, m2_end);
+    bool overlap13 = xrtTimeRangeOverlap(m1_start, m1_end, m3_start, m3_end);
+    
+    printf("会议1和会议2冲突: %s\n", overlap12 ? "是" : "否");  // 是
+    printf("会议1和会议3冲突: %s\n", overlap13 ? "是" : "否");  // 否
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+- 会议室预约冲突检测
+- 资源占用时间冲突检查
+- 日程安排合理性验证
+
+---
+
+## 边界日期
+
+### xrtFirstDayOfMonth
+
+获取月份的第一天。
+
+**函数原型：**
+```c
+XXAPI xtime xrtFirstDayOfMonth(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 该月第一天的时间戳（00:00:00）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t = xrtDateSerial(2025, 3, 15);
+    xtime first = xrtFirstDayOfMonth(t);
+    
+    str s = xrtTimeToStr(first, XRT_TIME_FORMAT_DATE);
+    printf("月初: %s\n", s);  // "2025-03-01"
+    xrtFree(s);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtLastDayOfMonth
+
+获取月份的最后一天。
+
+**函数原型：**
+```c
+XXAPI xtime xrtLastDayOfMonth(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 该月最后一天的时间戳（00:00:00）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 平年2月
+    xtime t1 = xrtDateSerial(2025, 2, 15);
+    xtime last1 = xrtLastDayOfMonth(t1);
+    str s1 = xrtTimeToStr(last1, XRT_TIME_FORMAT_DATE);
+    printf("2025年2月月底: %s\n", s1);  // "2025-02-28"
+    xrtFree(s1);
+    
+    // 闰年2月
+    xtime t2 = xrtDateSerial(2024, 2, 15);
+    xtime last2 = xrtLastDayOfMonth(t2);
+    str s2 = xrtTimeToStr(last2, XRT_TIME_FORMAT_DATE);
+    printf("2024年2月月底: %s\n", s2);  // "2024-02-29"
+    xrtFree(s2);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtFirstDayOfYear
+
+获取年份的第一天。
+
+**函数原型：**
+```c
+XXAPI xtime xrtFirstDayOfYear(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 该年1月1日的时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t = xrtDateSerial(2025, 7, 15);
+    xtime first = xrtFirstDayOfYear(t);
+    
+    str s = xrtTimeToStr(first, XRT_TIME_FORMAT_DATE);
+    printf("年初: %s\n", s);  // "2025-01-01"
+    xrtFree(s);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtLastDayOfYear
+
+获取年份的最后一天。
+
+**函数原型：**
+```c
+XXAPI xtime xrtLastDayOfYear(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 该年12月31日的时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t = xrtDateSerial(2025, 7, 15);
+    xtime last = xrtLastDayOfYear(t);
+    
+    str s = xrtTimeToStr(last, XRT_TIME_FORMAT_DATE);
+    printf("年底: %s\n", s);  // "2025-12-31"
+    xrtFree(s);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtFirstDayOfWeek
+
+获取周的第一天。
+
+**函数原型：**
+```c
+XXAPI xtime xrtFirstDayOfWeek(xtime iTime, int iStartDay);
+```
+
+**参数：**
+- `iTime` - 时间戳
+- `iStartDay` - 一周的开始日（0=周日, 1=周一, ...）
+
+**返回值：**
+- 本周第一天的时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 假设今天是 2025-03-12 (周三)
+    xtime t = xrtDateSerial(2025, 3, 12);
+    
+    // 一周从周日开始
+    xtime first_sun = xrtFirstDayOfWeek(t, 0);
+    str s1 = xrtTimeToStr(first_sun, XRT_TIME_FORMAT_DATE);
+    printf("本周开始(周日): %s\n", s1);  // "2025-03-09"
+    xrtFree(s1);
+    
+    // 一周从周一开始 (ISO标准)
+    xtime first_mon = xrtFirstDayOfWeek(t, 1);
+    str s2 = xrtTimeToStr(first_mon, XRT_TIME_FORMAT_DATE);
+    printf("本周开始(周一): %s\n", s2);  // "2025-03-10"
+    xrtFree(s2);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtLastDayOfWeek
+
+获取周的最后一天。
+
+**函数原型：**
+```c
+XXAPI xtime xrtLastDayOfWeek(xtime iTime, int iStartDay);
+```
+
+**参数：**
+- `iTime` - 时间戳
+- `iStartDay` - 一周的开始日（0=周日, 1=周一, ...）
+
+**返回值：**
+- 本周最后一天的时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 假设今天是 2025-03-12 (周三)
+    xtime t = xrtDateSerial(2025, 3, 12);
+    
+    // 一周从周日开始，结束于周六
+    xtime last_sat = xrtLastDayOfWeek(t, 0);
+    str s1 = xrtTimeToStr(last_sat, XRT_TIME_FORMAT_DATE);
+    printf("本周结束(周六): %s\n", s1);  // "2025-03-15"
+    xrtFree(s1);
+    
+    // 一周从周一开始，结束于周日 (ISO标准)
+    xtime last_sun = xrtLastDayOfWeek(t, 1);
+    str s2 = xrtTimeToStr(last_sun, XRT_TIME_FORMAT_DATE);
+    printf("本周结束(周日): %s\n", s2);  // "2025-03-16"
+    xrtFree(s2);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+## 周相关函数
+
+### xrtWeekOfYear
+
+获取当年第几周（ISO周数，周一为一周开始）。
+
+**函数原型：**
+```c
+XXAPI int xrtWeekOfYear(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 周数（1-53）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t1 = xrtDateSerial(2025, 1, 1);
+    xtime t2 = xrtDateSerial(2025, 6, 15);
+    xtime t3 = xrtDateSerial(2025, 12, 31);
+    
+    printf("2025-01-01 是第 %d 周\n", xrtWeekOfYear(t1));
+    printf("2025-06-15 是第 %d 周\n", xrtWeekOfYear(t2));
+    printf("2025-12-31 是第 %d 周\n", xrtWeekOfYear(t3));
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtWeekOfMonth
+
+获取当月第几周（周一为一周开始）。
+
+**函数原型：**
+```c
+XXAPI int xrtWeekOfMonth(xtime iTime);
+```
+
+**参数：**
+- `iTime` - 时间戳
+
+**返回值：**
+- 周数（1-6）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t1 = xrtDateSerial(2025, 3, 1);
+    xtime t2 = xrtDateSerial(2025, 3, 15);
+    xtime t3 = xrtDateSerial(2025, 3, 31);
+    
+    printf("3月1日 是本月第 %d 周\n", xrtWeekOfMonth(t1));
+    printf("3月15日 是本月第 %d 周\n", xrtWeekOfMonth(t2));
+    printf("3月31日 是本月第 %d 周\n", xrtWeekOfMonth(t3));
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+## 时区处理
+
+### xrtNowUTC
+
+获取当前UTC时间。
+
+**函数原型：**
+```c
+XXAPI xtime xrtNowUTC();
+```
+
+**返回值：**
+- 当前UTC时间的时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime local = xrtNow();
+    xtime utc = xrtNowUTC();
+    
+    str s1 = xrtTimeToStr(local, XRT_TIME_FORMAT_DATETIME);
+    str s2 = xrtTimeToStr(utc, XRT_TIME_FORMAT_DATETIME);
+    
+    printf("本地时间: %s\n", s1);
+    printf("UTC时间:  %s\n", s2);
+    
+    xrtFree(s1);
+    xrtFree(s2);
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtTimezoneOffset
+
+获取本地时区偏移（秒）。
+
+**函数原型：**
+```c
+XXAPI int xrtTimezoneOffset();
+```
+
+**返回值：**
+- 时区偏移秒数（东时区为正，西时区为负）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    int offset = xrtTimezoneOffset();
+    int hours = offset / 3600;
+    int minutes = (offset % 3600) / 60;
+    
+    printf("时区偏移: UTC%+d:%02d\n", hours, minutes);
+    // 中国时区: "UTC+8:00"
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtUTCToLocal
+
+UTC时间转换为本地时间。
+
+**函数原型：**
+```c
+XXAPI xtime xrtUTCToLocal(xtime utc);
+```
+
+**参数：**
+- `utc` - UTC时间戳
+
+**返回值：**
+- 本地时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // UTC 2025-03-15 06:00:00
+    xtime utc = xrtDateTimeSerial(2025, 3, 15, 6, 0, 0);
+    xtime local = xrtUTCToLocal(utc);
+    
+    str s1 = xrtTimeToStr(utc, XRT_TIME_FORMAT_DATETIME);
+    str s2 = xrtTimeToStr(local, XRT_TIME_FORMAT_DATETIME);
+    
+    printf("UTC:  %s\n", s1);    // "2025-03-15 06:00:00"
+    printf("本地: %s\n", s2);   // "2025-03-15 14:00:00" (中国UTC+8)
+    
+    xrtFree(s1);
+    xrtFree(s2);
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtLocalToUTC
+
+本地时间转换为UTC时间。
+
+**函数原型：**
+```c
+XXAPI xtime xrtLocalToUTC(xtime local);
+```
+
+**参数：**
+- `local` - 本地时间戳
+
+**返回值：**
+- UTC时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 本地 2025-03-15 14:00:00
+    xtime local = xrtDateTimeSerial(2025, 3, 15, 14, 0, 0);
+    xtime utc = xrtLocalToUTC(local);
+    
+    str s1 = xrtTimeToStr(local, XRT_TIME_FORMAT_DATETIME);
+    str s2 = xrtTimeToStr(utc, XRT_TIME_FORMAT_DATETIME);
+    
+    printf("本地: %s\n", s1);   // "2025-03-15 14:00:00"
+    printf("UTC:  %s\n", s2);    // "2025-03-15 06:00:00" (中国UTC+8)
+    
+    xrtFree(s1);
+    xrtFree(s2);
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+## Unix时间戳
+
+### xrtToUnixTime
+
+xtime转换为Unix时间戳。
+
+**函数原型：**
+```c
+XXAPI int64 xrtToUnixTime(xtime iTime);
+```
+
+**参数：**
+- `iTime` - xtime时间戳
+
+**返回值：**
+- Unix时间戳（1970年1月1日以来的秒数）
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime t = xrtDateTimeSerial(2025, 3, 15, 12, 0, 0);
+    int64 unix_ts = xrtToUnixTime(t);
+    
+    printf("Unix时间戳: %" PRId64 "\n", unix_ts);
+    
+    // 验证: 1970-01-01 00:00:00 应该是 0
+    xtime epoch = xrtDateTimeSerial(1970, 1, 1, 0, 0, 0);
+    printf("Epoch: %" PRId64 "\n", xrtToUnixTime(epoch));  // 0
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtFromUnixTime
+
+Unix时间戳转换为xtime。
+
+**函数原型：**
+```c
+XXAPI xtime xrtFromUnixTime(int64 unixTime);
+```
+
+**参数：**
+- `unixTime` - Unix时间戳
+
+**返回值：**
+- xtime时间戳
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 将Unix时间戳转换为xtime
+    int64 unix_ts = 1742025600;  // 某个时间点
+    xtime t = xrtFromUnixTime(unix_ts);
+    
+    str s = xrtTimeToStr(t, XRT_TIME_FORMAT_DATETIME);
+    printf("时间: %s\n", s);
+    xrtFree(s);
+    
+    // 验证双向转换
+    xtime now = xrtNow();
+    int64 unix_now = xrtToUnixTime(now);
+    xtime back = xrtFromUnixTime(unix_now);
+    printf("双向转换验证: %s\n", (now == back) ? "通过" : "失败");
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**补充说明：**
+- xtime基于公元元年，Unix时间戳基于1970年
+- 内部使用 `XRT_TIME_19700101` 常量进行转换
+
+---
+
+## 相对时间
+
+### xrtRelativeTime
+
+获取相对时间描述（如“3天前”、“2小时后”）。
+
+**函数原型：**
+```c
+XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime);
+```
+
+**参数：**
+- `iTime` - 目标时间
+- `iBaseTime` - 基准时间（通常传 `xrtNow()`）
+
+**返回值：**
+- 相对时间描述字符串
+
+**内存释放：** ✅ 需要 `xrtFree` 释放
+
+**输出格式：**
+- `刚刚` - 60秒内
+- `N分钟前/后` - 60分钟内
+- `N小时前/后` - 24小时内
+- `N天前/后` - 30天内
+- `N个月前/后` - 12个月内
+- `N年前/后` - 超过12个月
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    xtime now = xrtNow();
+    
+    // 30分钟前
+    xtime t1 = xrtDateAdd(XRT_TIME_INTERVAL_MINUTE, -30, now);
+    str s1 = xrtRelativeTime(t1, now);
+    printf("%s\n", s1);  // "30分钟前"
+    xrtFree(s1);
+    
+    // 3天后
+    xtime t2 = xrtDateAdd(XRT_TIME_INTERVAL_DAY, 3, now);
+    str s2 = xrtRelativeTime(t2, now);
+    printf("%s\n", s2);  // "3天后"
+    xrtFree(s2);
+    
+    // 2年前
+    xtime t3 = xrtDateAdd(XRT_TIME_INTERVAL_YEAR, -2, now);
+    str s3 = xrtRelativeTime(t3, now);
+    printf("%s\n", s3);  // "2年前"
+    xrtFree(s3);
+    
+    // 刚刚
+    str s4 = xrtRelativeTime(now, now);
+    printf("%s\n", s4);  // "刚刚"
+    xrtFree(s4);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+**应用场景：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// 文章发布时间显示
+void PrintArticleTime(xtime publishTime) {
+    str relative = xrtRelativeTime(publishTime, xrtNow());
+    printf("发布于: %s\n", relative);
+    xrtFree(relative);
+}
+
+int main() {
+    xrtInit();
+    
+    // 模拟不同时间发布的文章
+    xtime now = xrtNow();
+    
+    PrintArticleTime(xrtDateAdd(XRT_TIME_INTERVAL_MINUTE, -5, now));   // "发布于: 5分钟前"
+    PrintArticleTime(xrtDateAdd(XRT_TIME_INTERVAL_HOUR, -3, now));     // "发布于: 3小时前"
+    PrintArticleTime(xrtDateAdd(XRT_TIME_INTERVAL_DAY, -7, now));      // "发布于: 7天前"
+    
+    xrtUnit();
+    return 0;
+}
+```
 
 ---
 
@@ -1134,6 +2501,132 @@ int main() {
     
     int workdays = CountWorkdays(start, end);
     printf("2025年1月工作日: %d 天\n", workdays);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### 6. 自定义日志格式
+
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+void LogMessage(str level, str message) {
+    xtime now = xrtNow();
+    str timestamp = xrtTimeFormat(now, "yyyy-mm-dd hh:nn:ss");
+    printf("[%s] [%s] %s\n", timestamp, level, message);
+    xrtFree(timestamp);
+}
+
+int main() {
+    xrtInit();
+    
+    LogMessage("INFO", "应用程序启动");
+    xrtSleep(500);
+    LogMessage("DEBUG", "加载配置文件");
+    xrtSleep(300);
+    LogMessage("WARN", "配置项缺失，使用默认值");
+    LogMessage("INFO", "应用程序就绪");
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### 7. 时区转换
+
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+    xrtInit();
+    
+    // 获取当前时间
+    xtime local_now = xrtNow();
+    xtime utc_now = xrtNowUTC();
+    
+    str s1 = xrtTimeToStr(local_now, XRT_TIME_FORMAT_DATETIME);
+    str s2 = xrtTimeToStr(utc_now, XRT_TIME_FORMAT_DATETIME);
+    
+    printf("本地时间: %s\n", s1);
+    printf("UTC时间:  %s\n", s2);
+    printf("时区偏移: UTC%+d\n", xrtTimezoneOffset() / 3600);
+    
+    xrtFree(s1);
+    xrtFree(s2);
+    
+    // 时间转换应用: 假设有一个约定的UTC时间
+    xtime meeting_utc = xrtDateTimeSerial(2025, 3, 15, 14, 0, 0);  // UTC 14:00
+    xtime meeting_local = xrtUTCToLocal(meeting_utc);
+    
+    str s3 = xrtTimeFormat(meeting_local, "yyyy年m月d日 HH:nn AP");
+    printf("会议本地时间: %s\n", s3);
+    xrtFree(s3);
+    
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### 8. 解析网页采集的时间
+
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+// 尝试多种格式解析时间
+xtime ParseFlexibleTime(str timeText) {
+    // 尝试常见格式
+    static const char* formats[] = {
+        "yyyy-mm-dd hh:nn:ss",
+        "yyyy/mm/dd hh:nn:ss",
+        "yyyy年m月d日 hh:nn:ss",
+        "yyyy年m月d日",
+        "mmm d, yyyy",
+        "mmmm d, yyyy",
+        "mm/dd/yyyy",
+        "dd/mm/yyyy"
+    };
+    
+    int numFormats = sizeof(formats) / sizeof(formats[0]);
+    for (int i = 0; i < numFormats; i++) {
+        xtime t = xrtTimeParse(timeText, (str)formats[i]);
+        if (t > 0) return t;
+    }
+    
+    return 0;  // 解析失败
+}
+
+int main() {
+    xrtInit();
+    
+    const char* samples[] = {
+        "发布时间: 2025年3月15日 14:30:00",
+        "Published: March 15, 2025",
+        "Date: 2025-03-15 14:30:00",
+        "更新于: Mar 15, 2025"
+    };
+    
+    int numSamples = sizeof(samples) / sizeof(samples[0]);
+    for (int i = 0; i < numSamples; i++) {
+        xtime t = ParseFlexibleTime((str)samples[i]);
+        if (t > 0) {
+            str s = xrtTimeToStr(t, XRT_TIME_FORMAT_DATETIME);
+            printf("\"%s\" -> %s\n", samples[i], s);
+            xrtFree(s);
+        } else {
+            printf("\"%s\" -> 解析失败\n", samples[i]);
+        }
+    }
     
     xrtUnit();
     return 0;
