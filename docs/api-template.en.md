@@ -128,6 +128,7 @@ Conditional statements support full expression evaluation:
 
 #### Iteration Loop (foreach)
 
+**Iterating Arrays:**
 ```
 {#foreach:users}
   {$ name} - {$ email}
@@ -138,6 +139,15 @@ Conditional statements support full expression evaluation:
   Current element property: {$ name}
 {#end}
 ```
+
+**Iterating Tables (Key-Value Pairs):**
+```
+{#foreach:config}
+  {$__key__} = {$__value__}
+{#end}
+```
+
+When iterating tables, `__key__` and `__value__` represent the key name and corresponding value respectively.
 
 ---
 
@@ -197,14 +207,23 @@ Output: 1,2,4,5, (skipped 3)
 | `__value__` | Current iteration value | Inside `foreach` loop |
 | `__key__` | Current iteration key (when iterating table) | Inside `foreach` loop |
 
+**Note:** Loop iteration has a maximum limit (default 100,000 iterations). Loops exceeding this limit will automatically stop to prevent infinite loops.
+
 **Example:**
 ```
-{#define:item}
-  Current value: {$ __self__}
-{#end}
-
+{! Iterating arrays }
 {#foreach:items}
   Index: {% __index__}, Value: {$ name}
+{#end}
+
+{! Iterating tables - output all key-value pairs }
+{#foreach:settings}
+  {$__key__}={$__value__};
+{#end}
+
+{! Using __self__ in sub-template }
+{#define item}
+  Current value: {$ __self__}
 {#end}
 ```
 
@@ -877,7 +896,50 @@ xteParseFree(tpl);
 
 ---
 
-### 3. Nested Control Statements
+### 3. Iterating Tables (Key-Value Pairs)
+
+When using `foreach` to iterate table type data, you can access key names and values through `__key__` and `__value__`.
+
+```c
+str template_text = 
+    "Configuration:\n"
+    "{#foreach:config}"
+    "  {$__key__} = {$__value__}\n"
+    "{#end}";
+
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+
+// Prepare table data
+xvalue data = xvoCreateTable();
+xvalue config = xvoCreateTable();
+xvoTableSetText(config, "host", 0, "localhost", 0, FALSE);
+xvoTableSetText(config, "port", 0, "8080", 0, FALSE);
+xvoTableSetText(config, "debug", 0, "true", 0, FALSE);
+xvoTableSetValue(data, "config", 0, config, TRUE);
+
+// Generate
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+printf("%s", result);
+
+xrtFree(result);
+xvoUnref(data);
+xteParseFree(tpl);
+```
+
+**Output example (key order is determined by dictionary implementation):**
+```
+Configuration:
+  debug = true
+  host = localhost
+  port = 8080
+```
+
+**Note:** When iterating tables, the output order of keys is determined by the internal dictionary implementation and is not guaranteed to match the insertion order.
+
+---
+
+### 4. Nested Control Statements
 
 ```
 str template_text = 
@@ -924,7 +986,7 @@ xteParseFree(tpl);
 
 ---
 
-### 4. Sub-templates
+### 5. Sub-templates
 
 ```
 str template_text = 
@@ -949,7 +1011,7 @@ XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
 
 ---
 
-### 5. Including External Templates
+### 6. Including External Templates
 
 ```
 // Main template
@@ -1152,7 +1214,7 @@ str RenderUserCard(User* user) {
 
 ### 1. Reuse Template Objects
 
-```
+```c
 // ❌ Inefficient: Parse every time
 for (int i = 0; i < 1000; i++) {
     XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
@@ -1173,7 +1235,26 @@ xteParseFree(tpl);
 
 ---
 
-### 2. Pre-compile Templates
+### 2. Expression AST Caching
+
+The template engine internally caches the Abstract Syntax Tree (AST) of expressions. Identical expressions only need to be parsed once across multiple executions.
+
+```c
+// When evaluating the same expression multiple times in a loop, the engine automatically caches the AST
+for (int i = 0; i < 1000; i++) {
+    // Expression "age > 18 and active" is only parsed on the first call
+    int result = xteExprEvalBool("age > 18 and active", 0, data[i], NULL, NULL);
+}
+
+// Conditional expressions in templates are also cached
+// {#if:score >= 90}, {#elseif:score >= 60}, etc.
+```
+
+**Note:** The cache is valid throughout the application lifecycle and requires no manual management.
+
+---
+
+### 3. Pre-compile Templates
 
 ```
 // Pre-compile at startup
@@ -1189,6 +1270,25 @@ str RenderUser(xvalue data) {
     return xteMake(g_user_template, data, NULL, NULL, &size);
 }
 ```
+
+---
+
+### 4. Loop Iteration Limit
+
+To prevent infinite loops or unexpectedly large loops, `for` and `foreach` loops have a maximum iteration limit (default 100,000 iterations).
+
+```c
+// Loops exceeding the limit will be automatically truncated
+str template_text = "{#for:1:999999:1}x{#end}";
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+xvalue data = xvoCreateTable();
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+// Actual output will not exceed 100,000 'x' characters
+printf("Actual output length: %zu\n", size);  // Output: 100000
+```
+
+**Note:** This limit is a safety mechanism and does not affect normal usage.
 
 ---
 

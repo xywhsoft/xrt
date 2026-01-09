@@ -128,6 +128,7 @@
 
 #### 迭代循环 (foreach)
 
+**遍历数组：**
 ```
 {#foreach:users}
   {$ name} - {$ email}
@@ -138,6 +139,15 @@
   当前元素属性: {$ name}
 {#end}
 ```
+
+**遍历表（键值对）：**
+```
+{#foreach:config}
+  {$__key__} = {$__value__}
+{#end}
+```
+
+遍历表时，`__key__` 和 `__value__` 分别代表键名和对应的值。
 
 ---
 
@@ -197,14 +207,23 @@
 | `__value__` | 当前迭代值 | `foreach` 循环内部 |
 | `__key__` | 当前迭代键名（遍历表时） | `foreach` 循环内部 |
 
+**注意：** 循环迭代有最大次数限制（默认 100,000 次），超过限制将自动停止，防止无限循环。
+
 **示例：**
 ```
-{#define item}
-  当前值：{$ __self__}
-{#end}
-
+{! 遍历数组 }
 {#foreach:items}
   索引：{% __index__}，值：{$ name}
+{#end}
+
+{! 遍历表 - 输出所有键值对 }
+{#foreach:settings}
+  {$__key__}={$__value__};
+{#end}
+
+{! 子模板中使用 __self__ }
+{#define item}
+  当前值：{$ __self__}
 {#end}
 ```
 
@@ -877,7 +896,50 @@ xteParseFree(tpl);
 
 ---
 
-### 3. 嵌套控制语句
+### 3. 遍历表（键值对）
+
+使用 `foreach` 遍历表类型数据时，可以通过 `__key__` 和 `__value__` 访问键名和值。
+
+```c
+str template_text = 
+    "配置项：\n"
+    "{#foreach:config}"
+    "  {$__key__} = {$__value__}\n"
+    "{#end}";
+
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+
+// 准备表数据
+xvalue data = xvoCreateTable();
+xvalue config = xvoCreateTable();
+xvoTableSetText(config, "host", 0, "localhost", 0, FALSE);
+xvoTableSetText(config, "port", 0, "8080", 0, FALSE);
+xvoTableSetText(config, "debug", 0, "true", 0, FALSE);
+xvoTableSetValue(data, "config", 0, config, TRUE);
+
+// 生成
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+printf("%s", result);
+
+xrtFree(result);
+xvoUnref(data);
+xteParseFree(tpl);
+```
+
+**输出示例（键的顺序由字典实现决定）：**
+```
+配置项：
+  debug = true
+  host = localhost
+  port = 8080
+```
+
+**注意：** 遍历表时键的输出顺序由内部字典实现决定，不保证与插入顺序一致。
+
+---
+
+### 4. 嵌套控制语句
 
 ```c
 str template_text = 
@@ -924,7 +986,7 @@ xteParseFree(tpl);
 
 ---
 
-### 4. 子模板
+### 5. 子模板
 
 ```c
 str template_text = 
@@ -949,7 +1011,7 @@ XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
 
 ---
 
-### 5. 包含外部模板
+### 6. 包含外部模板
 
 ```c
 // 主模板
@@ -1095,7 +1157,7 @@ xteParseFree(tpl);
 
 ---
 
-### 2. 模板缓存
+### 5. 模板缓存
 
 ```c
 typedef struct {
@@ -1122,7 +1184,7 @@ XTE_LiteObject GetTemplate(TemplateCache* cache, str name, str text) {
 
 ---
 
-### 3. 数据准备
+### 6. 数据准备
 
 ```c
 xvalue PrepareUserData(User* user) {
@@ -1173,7 +1235,26 @@ xteParseFree(tpl);
 
 ---
 
-### 2. 预编译模板
+### 2. 表达式 AST 缓存
+
+模板引擎内部对表达式的抽象语法树（AST）进行缓存，相同的表达式在多次执行时只需解析一次。
+
+```c
+// 在循环中多次计算相同表达式，引擎会自动缓存 AST
+for (int i = 0; i < 1000; i++) {
+    // 表达式 "age > 18 and active" 只在第一次解析
+    int result = xteExprEvalBool("age > 18 and active", 0, data[i], NULL, NULL);
+}
+
+// 模板中的条件表达式也会被缓存
+// {#if:score >= 90}、{#elseif:score >= 60} 等
+```
+
+**注意：** 缓存在应用程序生命周期内有效，无需手动管理。
+
+---
+
+### 3. 预编译模板
 
 ```c
 // 启动时预编译
@@ -1189,6 +1270,25 @@ str RenderUser(xvalue data) {
     return xteMake(g_user_template, data, NULL, NULL, &size);
 }
 ```
+
+---
+
+### 4. 循环次数限制
+
+为防止无限循环或意外的巨大循环，`for` 和 `foreach` 循环有最大迭代次数限制（默认 100,000 次）。
+
+```c
+// 超出限制的循环将自动截断
+str template_text = "{#for:1:999999:1}x{#end}";
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+xvalue data = xvoCreateTable();
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+// 实际输出不会超过 100,000 个 'x'
+printf("实际输出长度: %zu\n", size);  // 输出: 100000
+```
+
+**注意：** 此限制是安全机制，不影响正常使用。
 
 ---
 
