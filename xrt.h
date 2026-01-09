@@ -500,11 +500,95 @@
 	// 转换日期 + 时间为字符串（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtTimeToStr(xtime iTime, int iFormat);
 	
+	// 字符串转时间（智能解析，支持多种格式）
+	// 支持: YYYY-MM-DD HH:MM:SS, YYYY/MM/DD, YYYYMMDD, YYYYMMDDHHMMSS, HH:MM:SS 等
+	XXAPI xtime xrtStrToTime(str sTime, size_t iSize);
+	
 	// 时间单位累加
 	XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);
 	
 	// 单位时间差计算（ 不支持 XRT_TIME_INTERVAL_WEEKDAY ）
 	XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2);
+	
+	// 获取季度（1-4）
+	XXAPI int xrtQuarter(xtime iTime);
+	
+	// 获取日期部分（去除时间）
+	XXAPI xtime xrtDatePart(xtime iTime);
+	
+	// 获取时间部分（去除日期）
+	XXAPI xtime xrtTimePart(xtime iTime);
+	
+	// 是否同一天
+	XXAPI bool xrtIsSameDay(xtime iTime1, xtime iTime2);
+	
+	// 是否同一月
+	XXAPI bool xrtIsSameMonth(xtime iTime1, xtime iTime2);
+	
+	// 是否同一年
+	XXAPI bool xrtIsSameYear(xtime iTime1, xtime iTime2);
+	
+	// 判断时间是否在区间内
+	XXAPI bool xrtTimeInRange(xtime iTime, xtime iStart, xtime iEnd);
+	
+	// 判断两个时间区间是否重叠
+	XXAPI bool xrtTimeRangeOverlap(xtime iStart1, xtime iEnd1, xtime iStart2, xtime iEnd2);
+	
+	// 与Unix时间戳互转 - xtime转Unix时间戳
+	XXAPI int64 xrtToUnixTime(xtime iTime);
+	
+	// 与Unix时间戳互转 - Unix时间戳转xtime
+	XXAPI xtime xrtFromUnixTime(int64 unixTime);
+	
+	// 获取月份的第一天
+	XXAPI xtime xrtFirstDayOfMonth(xtime iTime);
+	
+	// 获取月份的最后一天
+	XXAPI xtime xrtLastDayOfMonth(xtime iTime);
+	
+	// 获取年份的第一天
+	XXAPI xtime xrtFirstDayOfYear(xtime iTime);
+	
+	// 获取年份的最后一天
+	XXAPI xtime xrtLastDayOfYear(xtime iTime);
+	
+	// 获取周的第一天（iStartDay: 0=周日, 1=周一, ...）
+	XXAPI xtime xrtFirstDayOfWeek(xtime iTime, int iStartDay);
+	
+	// 获取周的最后一天（iStartDay: 0=周日, 1=周一, ...）
+	XXAPI xtime xrtLastDayOfWeek(xtime iTime, int iStartDay);
+	
+	// 获取当年第几周（ISO周数，周一为一周开始）
+	XXAPI int xrtWeekOfYear(xtime iTime);
+	
+	// 获取当月第几周（周一为一周开始）
+	XXAPI int xrtWeekOfMonth(xtime iTime);
+	
+	// 获取UTC时间
+	XXAPI xtime xrtNowUTC();
+	
+	// 获取本地时区偏移（秒）
+	XXAPI int xrtTimezoneOffset();
+	
+	// UTC转本地时间
+	XXAPI xtime xrtUTCToLocal(xtime utc);
+	
+	// 本地时间转UTC
+	XXAPI xtime xrtLocalToUTC(xtime local);
+	
+	// 获取相对时间描述（如"3天前"、"2小时后"）（ 需使用 xrtFree 释放内存 ）
+	XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime);
+	
+	// 时间格式化为字符串（ 需使用 xrtFree 释放内存 ）
+	// 格式占位符: yyyy/yy(年), mm/m(月,h后=分钟), mmm/mmmm(英文月份),
+	//             dd/d(日), hh/h(24时), HH/H(12时), nn/n(分钟),
+	//             ss/s(秒), ap/AP(am/pm), w/ww/www(星期), q(季度)
+	XXAPI str xrtTimeFormat(xtime iTime, str sFormat);
+	
+	// 字符串解析为时间
+	// 格式占位符同 xrtTimeFormat，另支持: *(跳过任意非数字), .(至少1个非数字), ?(跳过1字符), 空格(跳过空白)
+	// 解析时自动跳过前缀冗余文本
+	XXAPI xtime xrtTimeParse(str sTime, str sFormat);
 	
 	
 	
