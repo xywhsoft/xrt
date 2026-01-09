@@ -159,7 +159,195 @@ void Test_Template(xrtGlobalData* xCore)
 	}
 	xteParseFree(obj3);
 	
-	printf("\n模板引擎 Phase 1 测试完成\n");
+	// ==================== 测试 4: 表达式解析器 ====================
+	printf("\n--- 测试表达式解析器 ---\n");
+	
+	// 创建测试数据
+	xvalue exprData = xvoCreateTable();
+	xvoTableSetInt(exprData, "age", 0, 25);
+	xvoTableSetText(exprData, "name", 0, "Alice", 0, FALSE);
+	xvoTableSetBool(exprData, "active", 0, TRUE);
+	xvoTableSetFloat(exprData, "score", 0, 85.5);
+	
+	// 测试比较运算
+	printf("测试 'age = 25': %s\n", xteExprEvalBool("age = 25", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	printf("测试 'age > 20': %s\n", xteExprEvalBool("age > 20", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	printf("测试 'age < 20': %s\n", xteExprEvalBool("age < 20", 0, exprData, NULL, NULL) ? "✓ false" : "✗ true");
+	printf("测试 'score >= 85.5': %s\n", xteExprEvalBool("score >= 85.5", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	
+	// 测试字符串比较
+	printf("测试 'name = \"Alice\"': %s\n", xteExprEvalBool("name = \"Alice\"", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	printf("测试 'name != \"Bob\"': %s\n", xteExprEvalBool("name != \"Bob\"", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	
+	// 测试布尔运算
+	printf("测试 'active': %s\n", xteExprEvalBool("active", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	printf("测试 'not active': %s\n", xteExprEvalBool("not active", 0, exprData, NULL, NULL) ? "✗ true" : "✓ false");
+	
+	// 测试逻辑运算
+	printf("测试 'age > 20 and active': %s\n", xteExprEvalBool("age > 20 and active", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	printf("测试 'age < 20 or active': %s\n", xteExprEvalBool("age < 20 or active", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	printf("测试 'age < 20 and active': %s\n", xteExprEvalBool("age < 20 and active", 0, exprData, NULL, NULL) ? "✗ true" : "✓ false");
+	
+	// 测试括号
+	printf("测试 '(age > 20) and (score > 80)': %s\n", xteExprEvalBool("(age > 20) and (score > 80)", 0, exprData, NULL, NULL) ? "✓ true" : "✗ false");
+	
+	// 测试字面量
+	printf("测试 'true': %s\n", xteExprEvalBool("true", 0, NULL, NULL, NULL) ? "✓ true" : "✗ false");
+	printf("测试 'false': %s\n", xteExprEvalBool("false", 0, NULL, NULL, NULL) ? "✗ true" : "✓ false");
+	printf("测试 '100 > 50': %s\n", xteExprEvalBool("100 > 50", 0, NULL, NULL, NULL) ? "✓ true" : "✗ false");
+	
+	xvoUnref(exprData);
+	
+	printf("\n模板引擎 Phase 2 测试完成\n");
+	
+	// ==================== 测试 5: 控制语句 (Phase 3) ====================
+	printf("\n--- 测试控制语句 (Phase 3) ---\n");
+	
+	// 测试 if 条件语句
+	printf("\n[测试 if 语句]\n");
+	const char* tplIf = "{#if:age > 18}Adult{#else}Minor{#end}";
+	XTE_LiteObject objIf = xteParse((char*)tplIf, 0, NULL);
+	if ( objIf->Success ) {
+		xvalue dataIf = xvoCreateTable();
+		xvoTableSetInt(dataIf, "age", 0, 25);
+		
+		size_t retSize = 0;
+		char* result = xteMake(objIf, dataIf, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplIf);
+			printf("输出: %s\n", result);
+			printf("期望: Adult\n");
+			printf("结果: %s\n", strcmp(result, "Adult") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataIf);
+	} else {
+		printf("✗ if 模板解析失败: %s\n", objIf->ErrorDesc);
+	}
+	xteParseFree(objIf);
+	
+	// 测试 if/elseif/else
+	printf("\n[测试 if/elseif/else]\n");
+	const char* tplIfElse = "{#if:score >= 90}A{#elseif:score >= 60}B{#else}C{#end}";
+	XTE_LiteObject objIfElse = xteParse((char*)tplIfElse, 0, NULL);
+	if ( objIfElse->Success ) {
+		xvalue dataIfElse = xvoCreateTable();
+		xvoTableSetInt(dataIfElse, "score", 0, 75);
+		
+		size_t retSize = 0;
+		char* result = xteMake(objIfElse, dataIfElse, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplIfElse);
+			printf("输出: %s\n", result);
+			printf("期望: B\n");
+			printf("结果: %s\n", strcmp(result, "B") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataIfElse);
+	} else {
+		printf("✗ if/elseif/else 模板解析失败: %s\n", objIfElse->ErrorDesc);
+	}
+	xteParseFree(objIfElse);
+	
+	// 测试 for 计次循环
+	printf("\n[测试 for 计次循环]\n");
+	const char* tplFor = "{#for:1:3:1}{% __index__ }{#end}";
+	XTE_LiteObject objFor = xteParse((char*)tplFor, 0, NULL);
+	if ( objFor->Success ) {
+		xvalue dataFor = xvoCreateTable();
+		
+		size_t retSize = 0;
+		char* result = xteMake(objFor, dataFor, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplFor);
+			printf("输出: %s\n", result);
+			printf("期望: 1 2 3 \n");
+			xrtFree(result);
+		}
+		xvoUnref(dataFor);
+	} else {
+		printf("✗ for 模板解析失败: %s\n", objFor->ErrorDesc);
+	}
+	xteParseFree(objFor);
+	
+	// 测试 foreach 数组迭代
+	printf("\n[测试 foreach 数组迭代]\n");
+	const char* tplForeach = "{#foreach:items}{$ name },{#end}";
+	XTE_LiteObject objForeach = xteParse((char*)tplForeach, 0, NULL);
+	if ( objForeach->Success ) {
+		// 创建数组数据
+		xvalue dataForeach = xvoCreateTable();
+		xvalue itemsArr = xvoCreateArray();
+		
+		xvalue item0 = xvoCreateTable();
+		xvoTableSetText(item0, "name", 0, "Alice", 0, FALSE);
+		xvoArrayAppendValue(itemsArr, item0, TRUE);
+		
+		xvalue item1 = xvoCreateTable();
+		xvoTableSetText(item1, "name", 0, "Bob", 0, FALSE);
+		xvoArrayAppendValue(itemsArr, item1, TRUE);
+		
+		xvalue item2 = xvoCreateTable();
+		xvoTableSetText(item2, "name", 0, "Charlie", 0, FALSE);
+		xvoArrayAppendValue(itemsArr, item2, TRUE);
+		
+		xvoTableSetValue(dataForeach, "items", 0, itemsArr, TRUE);
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForeach, dataForeach, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForeach);
+			printf("输出: %s\n", result);
+			printf("期望: Alice,Bob,Charlie,\n");
+			printf("结果: %s\n", strcmp(result, "Alice,Bob,Charlie,") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataForeach);
+	} else {
+		printf("✗ foreach 模板解析失败: %s\n", objForeach->ErrorDesc);
+	}
+	xteParseFree(objForeach);
+	
+	// 测试嵌套控制语句
+	printf("\n[测试嵌套控制语句]\n");
+	const char* tplNested = "{#foreach:users}{#if:active}{$ name } {#end}{#end}";
+	XTE_LiteObject objNested = xteParse((char*)tplNested, 0, NULL);
+	if ( objNested->Success ) {
+		xvalue dataNested = xvoCreateTable();
+		xvalue usersArr = xvoCreateArray();
+		
+		xvalue u0 = xvoCreateTable();
+		xvoTableSetText(u0, "name", 0, "Alice", 0, FALSE);
+		xvoTableSetBool(u0, "active", 0, TRUE);
+		xvoArrayAppendValue(usersArr, u0, TRUE);
+		
+		xvalue u1 = xvoCreateTable();
+		xvoTableSetText(u1, "name", 0, "Bob", 0, FALSE);
+		xvoTableSetBool(u1, "active", 0, FALSE);
+		xvoArrayAppendValue(usersArr, u1, TRUE);
+		
+		xvalue u2 = xvoCreateTable();
+		xvoTableSetText(u2, "name", 0, "Charlie", 0, FALSE);
+		xvoTableSetBool(u2, "active", 0, TRUE);
+		xvoArrayAppendValue(usersArr, u2, TRUE);
+		
+		xvoTableSetValue(dataNested, "users", 0, usersArr, TRUE);
+		
+		size_t retSize = 0;
+		char* result = xteMake(objNested, dataNested, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplNested);
+			printf("输出: [%s]\n", result);
+			printf("期望: [Alice Charlie ]\n");
+			xrtFree(result);
+		}
+		xvoUnref(dataNested);
+	} else {
+		printf("✗ 嵌套模板解析失败: %s\n", objNested->ErrorDesc);
+	}
+	xteParseFree(objNested);
+	
+	printf("\n模板引擎 Phase 3 测试完成\n");
 }
 
 

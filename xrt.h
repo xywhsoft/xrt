@@ -2531,6 +2531,117 @@
 	
 	
 	
+	/* -------------------- 表达式解析器 (Expression Parser) -------------------- */
+	
+	// 表达式 Token 类型
+	#define XTE_ETK_EOF			0			// 结束
+	#define XTE_ETK_NUM			1			// 数字（整数或浮点数）
+	#define XTE_ETK_STR			2			// 字符串字面量
+	#define XTE_ETK_BOOL		3			// 布尔值 (true/false)
+	#define XTE_ETK_IDENT		4			// 标识符/变量名（支持路径）
+	#define XTE_ETK_LPAREN		10			// (
+	#define XTE_ETK_RPAREN		11			// )
+	// 运算符
+	#define XTE_ETK_OP_EQ		20			// =
+	#define XTE_ETK_OP_NE		21			// !=
+	#define XTE_ETK_OP_AE		22			// ~= (约等于)
+	#define XTE_ETK_OP_GT		23			// >
+	#define XTE_ETK_OP_LT		24			// <
+	#define XTE_ETK_OP_GE		25			// >=
+	#define XTE_ETK_OP_LE		26			// <=
+	#define XTE_ETK_OP_AND		30			// and
+	#define XTE_ETK_OP_OR		31			// or
+	#define XTE_ETK_OP_NOT		32			// not
+	
+	// 表达式 Token 结构体
+	typedef struct {
+		uint32 Type;						// Token 类型
+		union {
+			int64 IntVal;					// 整数值
+			double NumVal;					// 浮点数值
+			int BoolVal;						// 布尔值
+			struct {
+				const char* Ptr;			// 字符串/标识符指针
+				size_t Len;					// 长度
+			} Str;
+		} Value;
+		int IsFloat;							// 数字是否为浮点数
+		size_t Pos;							// 在表达式中的位置
+	} XTE_ExprToken_Struct, *XTE_ExprToken;
+	
+	// AST 节点类型
+	#define XTE_AST_LITERAL		1			// 字面量（数字、字符串、布尔）
+	#define XTE_AST_VARIABLE	2			// 变量引用
+	#define XTE_AST_UNARY		3			// 一元运算 (not)
+	#define XTE_AST_BINARY		4			// 二元运算
+	
+	// 字面量类型
+	#define XTE_LIT_INT			1			// 整数
+	#define XTE_LIT_FLOAT		2			// 浮点数
+	#define XTE_LIT_STRING		3			// 字符串
+	#define XTE_LIT_BOOL		4			// 布尔
+	
+	// AST 节点结构体（前向声明）
+	typedef struct XTE_ASTNode_Struct XTE_ASTNode_Struct;
+	typedef XTE_ASTNode_Struct* XTE_ASTNode;
+	
+	struct XTE_ASTNode_Struct {
+		uint32 Type;						// 节点类型
+		union {
+			// 字面量节点
+			struct {
+				uint32 LitType;			// 字面量类型
+				union {
+					int64 IntVal;
+					double NumVal;
+					int BoolVal;
+					struct {
+						char* Ptr;			// 已复制的字符串
+						size_t Len;
+					} Str;
+				} Val;
+			} Literal;
+			// 变量节点
+			struct {
+				char* Path;					// 路径字符串（已复制）
+				size_t PathLen;
+			} Variable;
+			// 一元运算节点
+			struct {
+				uint32 Op;				// 运算符
+				XTE_ASTNode Operand;		// 操作数
+			} Unary;
+			// 二元运算节点
+			struct {
+				uint32 Op;				// 运算符
+				XTE_ASTNode Left;			// 左操作数
+				XTE_ASTNode Right;			// 右操作数
+			} Binary;
+		} Data;
+	};
+	
+	// 表达式解析结果
+	typedef struct {
+		int Success;							// 解析是否成功
+		const char* ErrorDesc;					// 错误描述
+		size_t ErrorPos;						// 错误位置
+		XTE_ASTNode Root;						// AST 根节点
+	} XTE_ExprResult_Struct, *XTE_ExprResult;
+	
+	// 解析表达式字符串，返回 AST
+	XXAPI XTE_ExprResult xteExprParse(const char* expr, size_t len);
+	
+	// 释放表达式解析结果
+	XXAPI void xteExprFree(XTE_ExprResult result);
+	
+	// 求值表达式，返回 xvalue 结果（调用者负责 unref）
+	XXAPI xvalue xteExprEval(XTE_ASTNode ast, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
+	
+	// 便捷函数：解析并求值表达式，返回布尔结果
+	XXAPI int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
+	
+	
+	
 #endif
 
 
