@@ -2487,7 +2487,7 @@
 		uint32 ErrorRefLine;					// 出错参考行
 		uint32 ErrorRefLinePos;				// 出错参考行位置
 		uint32 ErrorRefPos;					// 错误参考位置
-		xarray Tokens;								// Token 列表
+		xarray_struct Tokens;								// Token 列表
 		xparray_struct Actions;						// 编译后的动作列表
 		xdict_struct SubTemplates;					// 子模板列表（哈希表）
 	} XTE_LiteStruct, *XTE_LiteObject;
@@ -2519,6 +2519,15 @@
 	// 根据 XTE_LiteObject 模板对象生成文档
 	XXAPI char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
 	XXAPI char* xteMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
+	
+	// 路径解析器：支持 a.b.c 和 arr[0] 语法
+	// path: 路径字符串（如 "user.profile.name" 或 "items[0].title"）
+	// pathLen: 路径长度（传0则自动计算）
+	// tblVal: 当前作用域
+	// tblRoot: 根作用域
+	// tblENV: 环境变量
+	// 返回: 解析到的 xvalue，失败返回 &XVO_VALUE_NULL
+	XXAPI xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
 	
 	
 	

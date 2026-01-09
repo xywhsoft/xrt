@@ -148,7 +148,7 @@ int main(int argc, char** argv)
 	// Test_JSON(xCore);
 	
 	/* Template 测试 */
-	// Test_Template(xCore);
+	Test_Template(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);

@@ -169,6 +169,37 @@ int xteAddIdentToList(xarray objList, char* sID, unsigned int iSize, unsigned in
 
 
 
+// Trim buffer 前后空白字符（原地修改）
+static void xte_private_trim_buffer(xbuffer objBuf)
+{
+	if ( objBuf == NULL || objBuf->Length == 0 ) return;
+	
+	char* buf = objBuf->Buffer;
+	size_t len = objBuf->Length;
+	size_t start = 0;
+	size_t end = len;
+	
+	// 跳过前导空白
+	while ( start < len && (buf[start] == ' ' || buf[start] == '\t') ) {
+		start++;
+	}
+	
+	// 跳过尾部空白
+	while ( end > start && (buf[end - 1] == ' ' || buf[end - 1] == '\t') ) {
+		end--;
+	}
+	
+	// 如果有变化，移动数据
+	if ( start > 0 || end < len ) {
+		size_t newLen = end - start;
+		if ( start > 0 && newLen > 0 ) {
+			memmove(buf, buf + start, newLen);
+		}
+		objBuf->Length = newLen;
+		buf[newLen] = '\0';
+	}
+}
+
 // 构建分词器解析错误
 #define XTE_OnLexerError(id) { objRet->Success=0; objRet->ErrorCode=id; objRet->ErrorDesc=XTE_ERROR_DESC[id]; objRet->ErrorLine=iLine; objRet->ErrorLinePos=iLinePos; objRet->ErrorPos=i; objRet->ErrorRefLine=iRefLine; objRet->ErrorRefLinePos=iRefLinePos; objRet->ErrorRefPos=iRefPos; if(objBuf){xrtBufferDestroy(objBuf);}; xte_private_free_tokenlist(&objRet->Tokens); return objRet; }
 
@@ -427,7 +458,8 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 								XTE_OnLexerError(5);
 							}
 						}
-						// 更新参数数据
+						// 更新参数数据（先 trim 空格）
+						xte_private_trim_buffer(objBuf);
 						objCurTok->ParamSize[objCurTok->ParamCount] = objBuf->Length;
 						if ( objBuf->Length > 0 ) {
 							objCurTok->ParamText[objCurTok->ParamCount] = xrtMalloc(objBuf->Length + 1);
@@ -443,6 +475,8 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 						XTE_OnLexerError(5);
 					}
 				} else {
+					// 先 trim 空格
+					xte_private_trim_buffer(objBuf);
 					if ( objBuf->Length > 0 ) {
 						// 如果是 {# xxx } 语句，先判断是否支持对应关键字
 						if ( objCurTok->Type == XTE_TK_SYMBOL ) {
@@ -549,6 +583,191 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 
 
 
+// ==================== 路径解析器 ====================
+
+/*
+	支持的路径语法：
+		- a.b.c          通过点号访问嵌套属性
+		- arr[0]         通过数字索引访问数组
+		- obj["key"]     通过字符串键访问表
+		- arr[0].name    组合访问
+*/
+
+// 路径解析器：支持 a.b.c 和 arr[0] 语法
+// 返回解析到的 xvalue，失败返回 &XVO_VALUE_NULL
+xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tblRoot, xvalue tblENV)
+{
+	// 空路径检查
+	if ( path == NULL || pathLen == 0 ) {
+		if ( path != NULL ) {
+			pathLen = strlen(path);
+		}
+		if ( pathLen == 0 ) {
+			return &XVO_VALUE_NULL;
+		}
+	}
+	
+	// 快速路径：如果没有 . 和 [ 则直接查找
+	int hasAccessor = 0;
+	for ( size_t i = 0; i < pathLen; i++ ) {
+		if ( path[i] == '.' || path[i] == '[' ) {
+			hasAccessor = 1;
+			break;
+		}
+	}
+	
+	if ( !hasAccessor ) {
+		// 简单路径，直接查找
+		xvalue result = &XVO_VALUE_NULL;
+		if ( tblVal && tblVal->Type == XVO_DT_TABLE ) {
+			result = xvoTableGetValue(tblVal, path, pathLen);
+		}
+		if ( result == &XVO_VALUE_NULL && tblRoot && tblRoot->Type == XVO_DT_TABLE ) {
+			result = xvoTableGetValue(tblRoot, path, pathLen);
+		}
+		if ( result == &XVO_VALUE_NULL && tblENV && tblENV->Type == XVO_DT_TABLE ) {
+			result = xvoTableGetValue(tblENV, path, pathLen);
+		}
+		return result;
+	}
+	
+	// 复杂路径解析
+	xvalue current = NULL;
+	size_t pos = 0;
+	size_t segStart = 0;
+	int isFirst = 1;
+	
+	while ( pos <= pathLen ) {
+		char ch = (pos < pathLen) ? path[pos] : '\0';
+		
+		// 到达分隔符或结尾
+		if ( ch == '.' || ch == '[' || ch == '\0' ) {
+			// 提取当前段
+			size_t segLen = pos - segStart;
+			
+			if ( segLen > 0 ) {
+				const char* seg = path + segStart;
+				
+				if ( isFirst ) {
+					// 第一段：从三个表中查找
+					isFirst = 0;
+					if ( tblVal && tblVal->Type == XVO_DT_TABLE ) {
+						current = xvoTableGetValue(tblVal, seg, segLen);
+					}
+					if ( (current == NULL || current == &XVO_VALUE_NULL) && tblRoot && tblRoot->Type == XVO_DT_TABLE ) {
+						current = xvoTableGetValue(tblRoot, seg, segLen);
+					}
+					if ( (current == NULL || current == &XVO_VALUE_NULL) && tblENV && tblENV->Type == XVO_DT_TABLE ) {
+						current = xvoTableGetValue(tblENV, seg, segLen);
+					}
+				} else {
+					// 后续段：从当前值中查找
+					if ( current == NULL || current == &XVO_VALUE_NULL ) {
+						return &XVO_VALUE_NULL;
+					}
+					if ( current->Type == XVO_DT_TABLE ) {
+						current = xvoTableGetValue(current, seg, segLen);
+					} else {
+						return &XVO_VALUE_NULL;
+					}
+				}
+			}
+			
+			// 处理 [ ] 索引访问
+			if ( ch == '[' ) {
+				pos++;
+				size_t idxStart = pos;
+				
+				// 查找匹配的 ]
+				while ( pos < pathLen && path[pos] != ']' ) {
+					pos++;
+				}
+				
+				if ( pos >= pathLen ) {
+					// 没有找到 ]
+					return &XVO_VALUE_NULL;
+				}
+				
+				size_t idxLen = pos - idxStart;
+				const char* idxStr = path + idxStart;
+				
+				// 确保 current 有效
+				if ( current == NULL || current == &XVO_VALUE_NULL ) {
+					// 第一个 [] 之前没有标识符，错误
+					return &XVO_VALUE_NULL;
+				}
+				
+				if ( idxLen > 0 ) {
+					// 判断是数字索引还是字符串键
+					if ( (idxStr[0] == '"' || idxStr[0] == '\'') && idxLen >= 2 ) {
+						// 字符串键: ["key"] 或 ['key']
+						const char* key = idxStr + 1;
+						size_t keyLen = idxLen - 2;
+						if ( current->Type == XVO_DT_TABLE ) {
+							current = xvoTableGetValue(current, key, keyLen);
+						} else {
+							return &XVO_VALUE_NULL;
+						}
+					} else {
+						// 数字索引: [0]
+						int index = 0;
+						for ( size_t k = 0; k < idxLen; k++ ) {
+							if ( idxStr[k] >= '0' && idxStr[k] <= '9' ) {
+								index = index * 10 + (idxStr[k] - '0');
+							} else {
+								// 非数字，尝试作为键名处理
+								if ( current->Type == XVO_DT_TABLE ) {
+									current = xvoTableGetValue(current, idxStr, idxLen);
+								} else {
+									return &XVO_VALUE_NULL;
+								}
+								goto next_segment;
+							}
+						}
+						// 数字索引访问
+						if ( current->Type == XVO_DT_ARRAY ) {
+							current = xvoArrayGetValue(current, index);
+						} else if ( current->Type == XVO_DT_LIST ) {
+							current = xvoListGetValue(current, index);
+						} else if ( current->Type == XVO_DT_TABLE ) {
+							// 表也可以用数字作为键
+							current = xvoTableGetValue(current, idxStr, idxLen);
+						} else {
+							return &XVO_VALUE_NULL;
+						}
+					}
+				}
+				
+				next_segment:
+				pos++; // 跳过 ]
+				segStart = pos;
+				
+				// 跳过 ] 后的 .
+				if ( pos < pathLen && path[pos] == '.' ) {
+					pos++;
+					segStart = pos;
+				}
+				continue;
+			}
+			
+			// 跳过 .
+			if ( ch == '.' ) {
+				pos++;
+				segStart = pos;
+				continue;
+			}
+			
+			// 结尾
+			break;
+		}
+		
+		pos++;
+	}
+	
+	return (current != NULL) ? current : &XVO_VALUE_NULL;
+}
+
+
 
 
 
@@ -582,13 +801,8 @@ XTE_LiteStruct XTE_LITE_ERROR_MALLOC = {
 	0,
 	0,
 	0,
-	NULL,
-	{
-		NULL,
-		0,
-		0,
-		0
-	},
+	{ NULL, 0, 0, 0 },							// Tokens (xarray_struct)
+	{ NULL, 0, 0, 0 },							// Actions (xparray_struct)
 	{
 		{
 			NULL,
@@ -657,19 +871,18 @@ XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks)
 		xteLexerFree(objToks);							// 如果一开始就失败了，objToks 会被无条件释放
 		return objRet;
 	}
-	// 保存 objToks 的 Tokens，而 objToks 本体将被释放
-	objRet->Tokens = &objToks->Tokens;
-	if ( objToks != &XTE_LEXER_ERROR_MALLOC ) {
-		xrtFree(objToks);
-	}
+	// 转移 Token 数组所有权（结构体复制）
+	objRet->Tokens = objToks->Tokens;
+	objToks->Tokens.Memory = NULL;		// 防止 xteLexerFree 释放数组
+	xteLexerFree(objToks);				// 安全释放 TokenList 外壳
 	// 初始化数据结构
 	xrtPtrArrayInit(&objRet->Actions);
 	xrtDictInit(&objRet->SubTemplates, sizeof(xparray_struct));
 	// 遍历 Token 列表，添加到 Actions 列表
 	XTE_TokenItem objRefTok = NULL;
 	xparray objCurTemplate = NULL;
-	for ( int i = 1; i <= objToks->Tokens.Count; i++ ) {
-		XTE_TokenItem objTok = xrtArrayGet_Inline(&objToks->Tokens, i);
+	for ( int i = 1; i <= objRet->Tokens.Count; i++ ) {
+		XTE_TokenItem objTok = xrtArrayGet_Inline(&objRet->Tokens, i);
 		if ( objTok->Type == XTE_TK_DEFINE ) {
 			// 定义子模板语句开始
 			if ( objCurTemplate ) {
@@ -750,7 +963,7 @@ void xteParseFree(XTE_LiteObject objLite)
 		xrtDictWalk(&objLite->SubTemplates, (void*)xte_private_free_subtemplate, NULL);
 		xrtDictUnit(&objLite->SubTemplates);
 		xrtPtrArrayUnit(&objLite->Actions);
-		xte_private_free_tokenlist(objLite->Tokens);
+		xrtArrayUnit(&objLite->Tokens);
 		xrtFree(objLite);
 	}
 }
