@@ -141,11 +141,12 @@ XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 	if ( pDelNode ) {
 		Dict_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
 		ptr* pData = (ptr*)&pKeyPtr[1];
+		ptr result = pData[0];  // 先保存返回值
 		if ( objHT->AVLT.FreeProc ) {
 			objHT->AVLT.FreeProc(&objHT->AVLT, &pDelNode[1]);
 		}
 		xrtFSMemPoolFree(&objHT->AVLT.objMM, pDelNode);
-		return pData[0];
+		return result;  // 返回保存的值
 	} else {
 		return NULL;
 	}

@@ -125,13 +125,14 @@ XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey)
 {
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)&objList->AVLT, objList->AVLT.CompProc, &iKey);
 	if ( pDelNode ) {
-		Dict_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
+		int64* pKeyPtr = (int64*)xrtAVLTreeGetNodeData(pDelNode);  // List 使用 int64 作为键
 		ptr* pData = (ptr*)&pKeyPtr[1];
+		ptr result = pData[0];  // 先保存返回值
 		if ( objList->AVLT.FreeProc ) {
 			objList->AVLT.FreeProc(&objList->AVLT, &pDelNode[1]);
 		}
 		xrtFSMemPoolFree(&objList->AVLT.objMM, pDelNode);
-		return pData[0];
+		return result;  // 返回保存的值
 	} else {
 		return NULL;
 	}

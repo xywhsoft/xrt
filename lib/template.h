@@ -2952,7 +2952,7 @@ int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot,
 	
 	// 尝试从缓存获取
 	if ( XTE_EXPR_CACHE ) {
-		result = (XTE_ExprResult)xrtDictGetPtr(XTE_EXPR_CACHE, expr, len);
+		result = (XTE_ExprResult)xrtDictGetPtr(XTE_EXPR_CACHE, (str)expr, len);
 	}
 	
 	if ( result == NULL ) {
@@ -2965,7 +2965,7 @@ int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot,
 		// 存入缓存
 		if ( XTE_EXPR_CACHE ) {
 			XTE_ExprResult oldResult = NULL;
-			xrtDictSetPtr(XTE_EXPR_CACHE, expr, len, result, (ptr*)&oldResult);
+			xrtDictSetPtr(XTE_EXPR_CACHE, (str)expr, len, result, (ptr*)&oldResult);
 			// 如果有旧值（理论上不会发生），释放它
 			if ( oldResult ) {
 				xteExprFree(oldResult);

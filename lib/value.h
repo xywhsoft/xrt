@@ -385,11 +385,11 @@ XXAPI str xvoGetText(xvalue pVal)
 		int64 iYear;
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(pVal->vTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
-		sprintf(sRet, "%d-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
+		sprintf(sRet, "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_POINT ) {
 		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[point:%x]", pVal->vPoint);
+		sprintf(sRet, "[point:%p]", pVal->vPoint);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FUNC ) {
 		str sRet = xrtTempMemory(32);
@@ -540,7 +540,7 @@ XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index)
 // Array 追加数据
 XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc)
 {
-	if ( (pArr || pVal) == 0 ) {
+	if ( (pArr == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
@@ -561,7 +561,7 @@ XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc)
 // Array 插入操作
 XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc)
 {
-	if ( (pArr || pVal) == 0 ) {
+	if ( (pArr == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
@@ -582,7 +582,7 @@ XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bCol
 // Array 修改操作
 XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc)
 {
-	if ( (pArr || pVal) == 0 ) {
+	if ( (pArr == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
@@ -605,7 +605,7 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 // Array 合并
 XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
 {
-	if ( (pArr1 || pArr2) == 0 ) {
+	if ( (pArr1 == NULL) || (pArr2 == NULL) ) {
 		return FALSE;
 	}
 	if ( pArr1->Type != XVO_DT_ARRAY ) {
@@ -633,7 +633,7 @@ XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
-	return xrtPtrArraySwap(pArr->vArray, index1, index2);
+	return xrtPtrArraySwap(pArr->vArray, index1 + 1, index2 + 1);
 }
 XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
 {
@@ -643,7 +643,14 @@ XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
-	return xrtPtrArrayRemove(pArr->vArray, index, count);
+	// 先释放被删除元素的引用
+	for ( uint32 i = 0; i < count; i++ ) {
+		xvalue pVal = xrtPtrArrayGet(pArr->vArray, index + 1 + i);
+		if ( pVal ) {
+			xvoUnref(pVal);
+		}
+	}
+	return xrtPtrArrayRemove(pArr->vArray, index + 1, count);
 }
 XXAPI uint32 xvoArrayItemCount(xvalue pArr)
 {
@@ -715,7 +722,7 @@ XXAPI xvalue xvoListGetValue(xvalue pList, int64 index)
 // List 写数据
 XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
 {
-	if ( (pList || pVal) == 0 ) {
+	if ( (pList == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pList->Type != XVO_DT_LIST ) {
@@ -766,13 +773,13 @@ bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, xlist objList)
 }
 XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
 {
-	if ( (pList1 || pList2) == 0 ) {
+	if ( (pList1 == NULL) || (pList2 == NULL) ) {
 		return FALSE;
 	}
-	if ( pList1->Type != XVO_DT_ARRAY ) {
+	if ( pList1->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
-	if ( pList2->Type != XVO_DT_ARRAY ) {
+	if ( pList2->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
 	if ( bReWrite ) {
@@ -836,13 +843,13 @@ XXAPI bool xvoListClear(xvalue pList)
 }
 XXAPI bool xvoListSetParent(xvalue pList, xvalue pParentList)
 {
-	if ( (pList || pParentList) == 0 ) {
+	if ( (pList == NULL) || (pParentList == NULL) ) {
 		return FALSE;
 	}
-	if ( pList->Type != XVO_DT_TABLE ) {
+	if ( pList->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
-	if ( pParentList->Type != XVO_DT_TABLE ) {
+	if ( pParentList->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
 	pList->vList->AVLT.Parent = &pParentList->vList->AVLT;
@@ -870,10 +877,13 @@ int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey)
 				}
 			}
 		} else {
+			// 其他类型比较 vInt
 			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
 				return -1;
-			} else {
+			} else if ( pNode->Value->vInt < pObjKey->Value->vInt ) {
 				return 1;
+			} else {
+				return 0;  // 相等时返回 0
 			}
 		}
 	} else if ( pNode->Hash > pObjKey->Hash ) {
@@ -888,7 +898,7 @@ int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey)
 // Coll 写数据
 XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc)
 {
-	if ( (pColl || pVal) == 0 ) {
+	if ( (pColl == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pColl->Type != XVO_DT_COLL ) {
@@ -916,7 +926,7 @@ bool xvoCollDifference_EachProc(Coll_Key* pKey, struct CollProcParam* param)
 }
 XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl)
 {
-	if ( (pSelf || pColl) == 0 ) {
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
 		return &XVO_VALUE_NULL;
 	}
 	if ( pSelf->Type != XVO_DT_COLL ) {
@@ -936,7 +946,7 @@ XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl)
 // Coll 获取对称差集 [ 两个集合中不重复的元素 ]
 XXAPI xvalue xvoCollSymmetricDifference(xvalue pSelf, xvalue pColl)
 {
-	if ( (pSelf || pColl) == 0 ) {
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
 		return &XVO_VALUE_NULL;
 	}
 	if ( pSelf->Type != XVO_DT_COLL ) {
@@ -966,7 +976,7 @@ bool xvoCollIntersection_EachProc(Coll_Key* pKey, struct CollProcParam* param)
 }
 XXAPI xvalue xvoCollIntersection(xvalue pSelf, xvalue pColl)
 {
-	if ( (pSelf || pColl) == 0 ) {
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
 		return &XVO_VALUE_NULL;
 	}
 	if ( pSelf->Type != XVO_DT_COLL ) {
@@ -991,7 +1001,7 @@ bool xvoCollUnion_EachProc(Coll_Key* pKey, xavltree pColl)
 }
 XXAPI xvalue xvoCollUnion(xvalue pSelf, xvalue pColl)
 {
-	if ( (pSelf || pColl) == 0 ) {
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
 		return &XVO_VALUE_NULL;
 	}
 	if ( pSelf->Type != XVO_DT_COLL ) {
@@ -1011,7 +1021,7 @@ XXAPI xvalue xvoCollUnion(xvalue pSelf, xvalue pColl)
 // Coll 合并集合 [ 将 pColl 中的元素并入 pSelf ]
 XXAPI bool xvoCollMerge(xvalue pSelf, xvalue pColl)
 {
-	if ( (pSelf || pColl) == 0 ) {
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
 		return FALSE;
 	}
 	if ( pSelf->Type != XVO_DT_COLL ) {
@@ -1029,7 +1039,7 @@ XXAPI bool xvoCollMerge(xvalue pSelf, xvalue pColl)
 // Coll 操作
 XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal)
 {
-	if ( (pColl || pVal) == 0 ) {
+	if ( (pColl == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pColl->Type != XVO_DT_COLL ) {
@@ -1045,7 +1055,7 @@ XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal)
 }
 XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
 {
-	if ( (pColl || pVal) == 0 ) {
+	if ( (pColl == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pColl->Type != XVO_DT_COLL ) {
@@ -1085,13 +1095,13 @@ XXAPI bool xvoCollClear(xvalue pColl)
 }
 XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl)
 {
-	if ( (pColl || pParentColl) == 0 ) {
+	if ( (pColl == NULL) || (pParentColl == NULL) ) {
 		return FALSE;
 	}
-	if ( pColl->Type != XVO_DT_TABLE ) {
+	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
-	if ( pParentColl->Type != XVO_DT_TABLE ) {
+	if ( pParentColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
 	pColl->vColl->Parent = pParentColl->vColl;
@@ -1128,7 +1138,7 @@ XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl)
 // Table 写数据
 XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool bColloc)
 {
-	if ( (pTbl || pVal) == 0 ) {
+	if ( (pTbl == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pTbl->Type != XVO_DT_TABLE ) {
@@ -1186,13 +1196,13 @@ bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 }
 XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
 {
-	if ( (pTbl1 || pTbl2) == 0 ) {
+	if ( (pTbl1 == NULL) || (pTbl2 == NULL) ) {
 		return FALSE;
 	}
-	if ( pTbl1->Type != XVO_DT_ARRAY ) {
+	if ( pTbl1->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
-	if ( pTbl2->Type != XVO_DT_ARRAY ) {
+	if ( pTbl2->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
 	if ( bReWrite ) {
@@ -1214,6 +1224,9 @@ XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl)
 	if ( pTbl->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
+	if ( (key != NULL) && (kl == 0) ) {
+		kl = strlen(key);
+	}
 	return xrtDictExists(pTbl->vTable, key, kl);
 }
 XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
@@ -1223,6 +1236,9 @@ XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 	}
 	if ( pTbl->Type != XVO_DT_TABLE ) {
 		return FALSE;
+	}
+	if ( (key != NULL) && (kl == 0) ) {
+		kl = strlen(key);
 	}
 	xvalue pOldVal = xrtDictRemovePtr(pTbl->vTable, key, kl);
 	if ( pOldVal ) {
@@ -1256,7 +1272,7 @@ XXAPI bool xvoTableClear(xvalue pTbl)
 }
 XXAPI bool xvoTableSetParent(xvalue pTbl, xvalue pParentTable)
 {
-	if ( (pTbl || pParentTable) == 0 ) {
+	if ( (pTbl == NULL) || (pParentTable == NULL) ) {
 		return FALSE;
 	}
 	if ( pTbl->Type != XVO_DT_TABLE ) {
@@ -1374,7 +1390,7 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 			} else {
 				// 基础数据类型 - 创建新值
 				xvalue pItemCopy = xvoCopy(pItem);
-				xrtPtrArrayAppend(arrRet->vArray, pItem);
+				xrtPtrArrayAppend(arrRet->vArray, pItemCopy);
 			}
 		}
 		return arrRet;
