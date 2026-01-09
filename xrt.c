@@ -174,6 +174,9 @@ XXAPI xrtGlobalData* xrtInit()
 	// 获取本机 IP
 	xCore.LocalAddr = xrtGetLocalRawIP();
 	
+	// 初始化模板引擎
+	xte_private_init();
+	
 	return &xCore;
 }
 
@@ -183,6 +186,8 @@ XXAPI xrtGlobalData* xrtInit()
 XXAPI void xrtUnit()
 {
 	if ( xCore.bInit ) {
+		// 清理模板引擎
+		xte_private_unit();
 		// 释放应用路径
 		xrtFree(xCore.AppFile);
 		xCore.AppFile = xCore.sNull;

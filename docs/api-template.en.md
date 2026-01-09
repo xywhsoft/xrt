@@ -9,8 +9,11 @@
 ## 📑 Table of Contents
 
 - [Template Syntax](#template-syntax)
+- [Expression Syntax](#expression-syntax)
 - [Data Structures](#data-structures)
 - [Lexical Analysis](#lexical-analysis)
+- [Path Resolution](#path-resolution)
+- [Expression Evaluation](#expression-evaluation)
 - [Template Parsing](#template-parsing)
 - [Template Generation](#template-generation)
 - [Advanced Features](#advanced-features)
@@ -21,7 +24,7 @@
 
 ### Token Types
 
-```c
+```
 // Maximum supported parameter count
 #define XTE_PARAM_MAXCOUNT  6
 
@@ -47,6 +50,8 @@
 #define XTE_TK_ELSE         0x20002 // {#else}
 #define XTE_TK_FOR          0x30000 // Loop statement: {#for *}
 #define XTE_TK_FOREACH      0x30001 // Iteration loop statement: {#foreach *}
+#define XTE_TK_BREAK        0x30002 // Break from loop: {#break}
+#define XTE_TK_CONTINUE     0x30003 // Continue to next iteration: {#continue}
 #define XTE_TK_END          0xFFFFFF // Statement end: {#end}
 #define XTE_TK_USER         0x1000000 // User-defined extension starting number
 
@@ -76,29 +81,110 @@ Time: {& createTime : YYYY-MM-DD}
 
 #### Conditional Statements
 
+Conditional statements support full expression evaluation:
+
 ```
-{#if active}
-  User is activated
-{#elseif pending}
-  Pending activation
+{#if:age > 18}
+  User is an adult
+{#elseif:age > 12}
+  Teenager
 {#else}
-  Not activated
+  Child
+{#end}
+
+{#if:score >= 90}
+  Grade A
+{#elseif:score >= 60}
+  Passing
+{#else}
+  Failing
+{#end}
+```
+
+**Supported operators:**
+- Comparison: `=`, `!=`, `~=` (approximately equal), `>`, `<`, `>=`, `<=`
+- Logical: `and`, `or`, `not`
+- Parentheses: `(`, `)`
+
+---
+
+#### Counting Loop (for)
+
+```
+{#for:start:end:step}
+  {$ __index__}
+{#end}
+
+{#for:1:5:1}
+  Item {% __index__ }
+{#end}
+
+{#for:10:1:-1}
+  Countdown: {% __index__ }
 {#end}
 ```
 
 ---
 
-#### Loops
+#### Iteration Loop (foreach)
 
 ```
-{#foreach users}
+{#foreach:users}
   {$ name} - {$ email}
 {#end}
 
-{#for i 0 10}
-  Item {% i}
+{#foreach:items}
+  Index: {% __index__ }
+  Current element property: {$ name}
 {#end}
 ```
+
+---
+
+#### Loop Control (break/continue)
+
+Control statements can be used within `for` and `foreach` loops:
+
+- `{#break}` - Immediately exit the current loop
+- `{#continue}` - Skip the current iteration and proceed to the next
+
+```
+{! Using break in for loop }
+{#for:1:10:1}
+  {#if:__index__ > 3}
+    {#break}
+  {#end}
+  {%__index__} 
+{#end}
+Output: 1 2 3
+
+{! Using continue in for loop }
+{#for:1:5:1}
+  {#if:__index__ = 3}
+    {#continue}
+  {#end}
+  {%__index__},
+{#end}
+Output: 1,2,4,5, (skipped 3)
+
+{! Using break in foreach loop }
+{#foreach:items}
+  {#if:__index__ = 2}
+    {#break}
+  {#end}
+  {$ name},
+{#end}
+
+{! Using continue in foreach loop }
+{#foreach:items}
+  {#if:skip = 1}
+    {#continue}
+  {#end}
+  [{$ name}]
+{#end}
+```
+
+**Note:** `{#break}` and `{#continue}` can only be used inside loops and only affect the innermost loop.
 
 ---
 
@@ -106,18 +192,19 @@ Time: {& createTime : YYYY-MM-DD}
 
 | Variable | Description | Available Scope |
 |----------|-------------|-----------------|
-| `__self` | Current substitution value | Inside sub-template |
-| `__index` | Current loop index | Inside `for`, `foreach` loops |
-| `__value` | Current iteration value (for string type) | Inside `foreach` loop |
+| `__self__` | Current substitution value | Inside sub-template |
+| `__index__` | Current loop index | Inside `for`, `foreach` loops |
+| `__value__` | Current iteration value | Inside `foreach` loop |
+| `__key__` | Current iteration key (when iterating table) | Inside `foreach` loop |
 
 **Example:**
 ```
-{#define item}
-  Current value: {$ __self}
+{#define:item}
+  Current value: {$ __self__}
 {#end}
 
-{#foreach items}
-  Index: {% __index}, Value: {$ __value}
+{#foreach:items}
+  Index: {% __index__}, Value: {$ name}
 {#end}
 ```
 
@@ -127,6 +214,81 @@ Time: {& createTime : YYYY-MM-DD}
 
 ```
 {! This is a comment, will not output }
+```
+
+---
+
+#### Whitespace in Tags
+
+The template parser supports whitespace inside tags and automatically trims:
+
+```
+{$  name  }           equivalent to {$name}
+{%  price  :  .2  }   equivalent to {%price:.2}
+{&  time  :  yyyy-mm-dd  }   equivalent to {&time:yyyy-mm-dd}
+```
+
+**Note:** The opening symbol and type character (like `{$`, `{%`, `{#`) must be written together.
+
+---
+
+## Expression Syntax
+
+Conditional statements `{#if}`, `{#elseif}` support full expression evaluation.
+
+### Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `=` | Equal | `age = 18` |
+| `!=` | Not equal | `status != "active"` |
+| `~=` | Approximately equal (number/string/time) | `price ~= 100` |
+| `>` | Greater than | `score > 60` |
+| `<` | Less than | `count < 10` |
+| `>=` | Greater than or equal | `level >= 5` |
+| `<=` | Less than or equal | `age <= 65` |
+| `and` | Logical AND | `age > 18 and vip` |
+| `or` | Logical OR | `admin or manager` |
+| `not` | Logical NOT | `not disabled` |
+| `(` `)` | Parentheses grouping | `(a or b) and c` |
+
+### Literals
+
+```
+Number:   100, 3.14, -50
+String:   "hello", 'world'
+Boolean:  true, false
+```
+
+### Variable Paths
+
+Supports dot notation and array indexing:
+
+```
+user.name           Nested property access
+user.profile.age    Multi-level nesting
+items[0]            Array indexing
+items[0].title      Array element property
+```
+
+### Expression Examples
+
+```
+{#if:age >= 18 and active}
+  Adult active user
+{#end}
+
+{#if:score >= 90 or vip}
+  Excellent user
+{#end}
+
+{#if:not disabled and (role = "admin" or role = "manager")}
+  Administrator
+{#end}
+
+{#if:user.profile.level > 5}
+  Premium user
+{#end}
 ```
 
 ---
@@ -343,6 +505,136 @@ XXAPI XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks);
 
 ---
 
+## Path Resolution
+
+### xteResolvePath
+
+Resolve variable path, supporting dot notation and array indexing.
+
+**Prototype:**
+```c
+XXAPI xvalue xteResolvePath(
+    const char* path,
+    size_t pathLen,
+    xvalue tblVal,
+    xvalue tblRoot,
+    xvalue tblENV
+);
+```
+
+**Parameters:**
+- `path` - Path string (e.g., `"user.profile.name"` or `"items[0].title"`)
+- `pathLen` - Path length (0 for auto-calculate)
+- `tblVal` - Current scope
+- `tblRoot` - Root scope (can pass `NULL`)
+- `tblENV` - Environment variables (can pass `NULL`)
+
+**Return Value:**
+- Success: Resolved `xvalue`
+- Failure: `&XVO_VALUE_NULL`
+
+**Path lookup order:**
+1. First search in `tblVal`
+2. If not found and `tblRoot != NULL`, search in `tblRoot`
+3. If not found and `tblENV != NULL`, search in `tblENV`
+
+**Example:**
+```c
+// Create data structure
+xvalue data = xvoCreateTable();
+xvalue user = xvoCreateTable();
+xvalue profile = xvoCreateTable();
+
+xvoTableSetText(profile, "name", 0, "John", 0, FALSE);
+xvoTableSetInt(profile, "age", 0, 25);
+xvoTableSetValue(user, "profile", 0, profile, TRUE);
+xvoTableSetValue(data, "user", 0, user, TRUE);
+
+// Simple path
+xvalue v1 = xteResolvePath("user", 0, data, NULL, NULL);
+// v1 -> user table
+
+// Dot notation
+xvalue v2 = xteResolvePath("user.profile.name", 0, data, NULL, NULL);
+str name = xvoGetText(v2);  // "John"
+
+// Array indexing
+xvalue items = xvoCreateArray();
+xvalue item0 = xvoCreateTable();
+xvoTableSetText(item0, "title", 0, "First Item", 0, FALSE);
+xvoArrayAppendValue(items, item0, TRUE);
+xvoTableSetValue(data, "items", 0, items, TRUE);
+
+xvalue v3 = xteResolvePath("items[0].title", 0, data, NULL, NULL);
+str title = xvoGetText(v3);  // "First Item"
+
+xvoUnref(data);
+```
+
+---
+
+## Expression Evaluation
+
+### xteExprEvalBool
+
+Parse and evaluate expression, returning boolean result.
+
+**Prototype:**
+```c
+XXAPI int xteExprEvalBool(
+    const char* expr,
+    size_t len,
+    xvalue tblVal,
+    xvalue tblRoot,
+    xvalue tblENV
+);
+```
+
+**Parameters:**
+- `expr` - Expression string
+- `len` - Expression length (0 for auto-calculate)
+- `tblVal` - Current scope (for variable lookup)
+- `tblRoot` - Root scope (can pass `NULL`)
+- `tblENV` - Environment variables (can pass `NULL`)
+
+**Return Value:**
+- True: Non-zero value
+- False: 0
+
+**Example:**
+```c
+xvalue data = xvoCreateTable();
+xvoTableSetInt(data, "age", 0, 25);
+xvoTableSetText(data, "name", 0, "Alice", 0, FALSE);
+xvoTableSetBool(data, "active", 0, TRUE);
+xvoTableSetFloat(data, "score", 0, 85.5);
+
+// Comparison operations
+int r1 = xteExprEvalBool("age = 25", 0, data, NULL, NULL);      // 1
+int r2 = xteExprEvalBool("age > 18", 0, data, NULL, NULL);      // 1
+int r3 = xteExprEvalBool("score >= 90", 0, data, NULL, NULL);   // 0
+
+// String comparison
+int r4 = xteExprEvalBool("name = \"Alice\"", 0, data, NULL, NULL); // 1
+int r5 = xteExprEvalBool("name != \"Bob\"", 0, data, NULL, NULL);  // 1
+
+// Logical operations
+int r6 = xteExprEvalBool("age > 18 and active", 0, data, NULL, NULL);   // 1
+int r7 = xteExprEvalBool("age < 18 or active", 0, data, NULL, NULL);    // 1
+int r8 = xteExprEvalBool("not active", 0, data, NULL, NULL);            // 0
+
+// Parentheses
+int r9 = xteExprEvalBool("(age > 20) and (score > 80)", 0, data, NULL, NULL); // 1
+
+// Literals
+int r10 = xteExprEvalBool("true", 0, NULL, NULL, NULL);   // 1
+int r11 = xteExprEvalBool("100 > 50", 0, NULL, NULL, NULL); // 1
+
+xvoUnref(data);
+```
+
+---
+
 ## Template Parsing
 
 ### xteParse
@@ -369,7 +661,7 @@ XXAPI XTE_LiteObject xteParse(char* sText, size_t iSize, char* sBracket);
 ```c
 str template_text = 
     "Hello {$ name}!\n"
-    "{#if vip}\n"
+    "{#if:vip}\n"
     "  You are a VIP user\n"
     "{#end}";
 
@@ -467,7 +759,7 @@ str template_text =
     "User Information:\n"
     "Name: {$ name : Unknown}\n"
     "Age: {% age : 0}\n"
-    "{#if vip}\n"
+    "{#if:vip}\n"
     "VIP Level: {% vipLevel}\n"
     "{#end}";
 
@@ -514,7 +806,7 @@ VIP Level: 5
 
 ```c
 str template_text = 
-    "{#foreach users}\n"
+    "{#foreach:users}\n"
     "  {$ name} - {$ email}\n"
     "{#end}";
 
@@ -524,17 +816,17 @@ XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
 xvalue users = xvoCreateArray();
 
 xvalue user1 = xvoCreateTable();
-xvoTableSet(user1, "name", xvoCreateText("Alice", 0, FALSE));
-xvoTableSet(user1, "email", xvoCreateText("alice@example.com", 0, FALSE));
-xvoArrayAdd(users, user1);
+xvoTableSetText(user1, "name", 0, "Alice", 0, FALSE);
+xvoTableSetText(user1, "email", 0, "alice@example.com", 0, FALSE);
+xvoArrayAppendValue(users, user1, TRUE);
 
 xvalue user2 = xvoCreateTable();
-xvoTableSet(user2, "name", xvoCreateText("Bob", 0, FALSE));
-xvoTableSet(user2, "email", xvoCreateText("bob@example.com", 0, FALSE));
-xvoArrayAdd(users, user2);
+xvoTableSetText(user2, "name", 0, "Bob", 0, FALSE);
+xvoTableSetText(user2, "email", 0, "bob@example.com", 0, FALSE);
+xvoArrayAppendValue(users, user2, TRUE);
 
 xvalue data = xvoCreateTable();
-xvoTableSet(data, "users", users);
+xvoTableSetValue(data, "users", 0, users, TRUE);
 
 // Generate
 size_t size;
@@ -554,16 +846,94 @@ xteParseFree(tpl);
 
 ---
 
-### 2. Sub-templates
+### 2. Counting Loop
 
-```c
+```
 str template_text = 
-    "{#define userCard}\n"
+    "{#for:1:5:1}\n"
+    "  Item {% __index__}\n"
+    "{#end}";
+
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+xvalue data = xvoCreateTable();
+
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+printf("%s", result);
+
+xrtFree(result);
+xvoUnref(data);
+xteParseFree(tpl);
+```
+
+**Output:**
+```
+  Item 1
+  Item 2
+  Item 3
+  Item 4
+  Item 5
+```
+
+---
+
+### 3. Nested Control Statements
+
+```
+str template_text = 
+    "{#foreach:users}\n"
+    "  {#if:active}\n"
+    "    {$ name} (active)\n"
+    "  {#else}\n"
+    "    {$ name} (inactive)\n"
+    "  {#end}\n"
+    "{#end}";
+
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+
+// Prepare data
+xvalue users = xvoCreateArray();
+
+xvalue u1 = xvoCreateTable();
+xvoTableSetText(u1, "name", 0, "Alice", 0, FALSE);
+xvoTableSetBool(u1, "active", 0, TRUE);
+xvoArrayAppendValue(users, u1, TRUE);
+
+xvalue u2 = xvoCreateTable();
+xvoTableSetText(u2, "name", 0, "Bob", 0, FALSE);
+xvoTableSetBool(u2, "active", 0, FALSE);
+xvoArrayAppendValue(users, u2, TRUE);
+
+xvalue data = xvoCreateTable();
+xvoTableSetValue(data, "users", 0, users, TRUE);
+
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+printf("%s", result);
+
+xrtFree(result);
+xvoUnref(data);
+xteParseFree(tpl);
+```
+
+**Output:**
+```
+    Alice (active)
+    Bob (inactive)
+```
+
+---
+
+### 4. Sub-templates
+
+```
+str template_text = 
+    "{#define:userCard}\n"
     "  Name: {$ name}\n"
     "  Age: {% age}\n"
     "{#end}\n"
     "\n"
-    "{#foreach users}\n"
+    "{#foreach:users}\n"
     "  {= userCard}\n"
     "{#end}";
 
@@ -574,19 +944,19 @@ XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
 ```
 
 **Sub-template Special Variables:**
-- Inside sub-template, use `{$ __self}` to access substitution value
+- Inside sub-template, use `{$ __self__}` to access substitution value
 - Sub-templates cannot be nested
 
 ---
 
-### 3. Including External Templates
+### 5. Including External Templates
 
-```c
+```
 // Main template
 str main_template = 
-    "{#include header}\n"
+    "{#include:header}\n"
     "Main content\n"
-    "{#include footer}";
+    "{#include:footer}";
 
 // Prepare included templates
 xdict includes = xdictCreate();
@@ -622,7 +992,7 @@ xdictFree(includes);
 
 ### 1. HTML Generation
 
-```c
+```
 str html_template = 
     "<!DOCTYPE html>\n"
     "<html>\n"
@@ -630,7 +1000,7 @@ str html_template =
     "<body>\n"
     "  <h1>{$ title}</h1>\n"
     "  <ul>\n"
-    "  {#foreach items}\n"
+    "  {#foreach:items}\n"
     "    <li>{$ name}: {$ value}</li>\n"
     "  {#end}\n"
     "  </ul>\n"
@@ -644,13 +1014,13 @@ str html_template =
 
 ### 2. Email Template
 
-```c
+```
 str email_template = 
     "Dear {$ name},\n"
     "\n"
     "Your order {$ orderId} has been {$ status}.\n"
     "\n"
-    "{#if hasTracking}\n"
+    "{#if:hasTracking}\n"
     "Tracking number: {$ trackingNumber}\n"
     "{#end}\n"
     "\n"
@@ -663,14 +1033,14 @@ str email_template =
 
 ### 3. Code Generation
 
-```c
+```
 str code_template = 
     "class {$ className} {\n"
-    "{#foreach fields}\n"
+    "{#foreach:fields}\n"
     "    private {% type} {$ name};\n"
     "{#end}\n"
     "\n"
-    "{#foreach fields}\n"
+    "{#foreach:fields}\n"
     "    public {% type} get{$ Name}() {\n"
     "        return this.{$ name};\n"
     "    }\n"
@@ -684,11 +1054,11 @@ str code_template =
 
 ### 4. Report Generation
 
-```c
+```
 str report_template = 
     "Sales Report - {& date : YYYY-MM-DD}\n"
     "=====================================\n"
-    "{#foreach items}\n"
+    "{#foreach:items}\n"
     "{$ product}: {% quantity} units, Amount {% amount}\n"
     "{#end}\n"
     "-------------------------------------\n"
@@ -703,7 +1073,7 @@ str report_template =
 
 ### 1. Error Handling
 
-```c
+```
 XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
 if (!tpl) {
     fprintf(stderr, "Template allocation failed\n");
@@ -727,7 +1097,7 @@ xteParseFree(tpl);
 
 ### 2. Template Caching
 
-```c
+```
 typedef struct {
     xdict templates;
 } TemplateCache;
@@ -754,7 +1124,7 @@ XTE_LiteObject GetTemplate(TemplateCache* cache, str name, str text) {
 
 ### 3. Data Preparation
 
-```c
+```
 xvalue PrepareUserData(User* user) {
     xvalue data = xvoCreateTable();
     xvoTableSet(data, "id", xvoCreateInt(user->id));
@@ -782,7 +1152,7 @@ str RenderUserCard(User* user) {
 
 ### 1. Reuse Template Objects
 
-```c
+```
 // ❌ Inefficient: Parse every time
 for (int i = 0; i < 1000; i++) {
     XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
@@ -805,7 +1175,7 @@ xteParseFree(tpl);
 
 ### 2. Pre-compile Templates
 
-```c
+```
 // Pre-compile at startup
 void InitTemplates() {
     g_user_template = xteParse(LoadFile("user.tpl"), 0, NULL);
@@ -826,7 +1196,7 @@ str RenderUser(xvalue data) {
 
 ### 1. Forgetting to Release
 
-```c
+```
 // ❌ Memory leak
 XTE_LiteObject tpl = xteParse(text, 0, NULL);
 str result = xteMake(tpl, data, NULL, NULL, &size);
@@ -844,16 +1214,16 @@ xteParseFree(tpl);
 
 ### 2. Syntax Errors
 
-```c
+```
 // ❌ Forgot {#end}
 str bad_template = 
-    "{#if condition}\n"
+    "{#if:condition}\n"
     "  Content\n";
     // Missing {#end}
 
 // ✅ Correct
 str good_template = 
-    "{#if condition}\n"
+    "{#if:condition}\n"
     "  Content\n"
     "{#end}";
 ```

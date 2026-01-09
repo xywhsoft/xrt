@@ -348,6 +348,142 @@ void Test_Template(xrtGlobalData* xCore)
 	xteParseFree(objNested);
 	
 	printf("\n模板引擎 Phase 3 测试完成\n");
+	
+	// ==================== 测试 6: break 和 continue (Phase 4) ====================
+	printf("\n--- 测试 break 和 continue (Phase 4) ---\n");
+	
+	// 测试 for 循环中的 break
+	printf("\n[测试 for + break]\n");
+	const char* tplForBreak = "{#for:1:10:1}{#if:__index__ > 3}{#break}{#end}{%__index__} {#end}";
+	XTE_LiteObject objForBreak = xteParse((char*)tplForBreak, 0, NULL);
+	if ( objForBreak->Success ) {
+		xvalue dataForBreak = xvoCreateTable();
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForBreak, dataForBreak, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForBreak);
+			printf("输出: [%s]\n", result);
+			printf("期望: [1 2 3 ]\n");
+			printf("结果: %s\n", strcmp(result, "1 2 3 ") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataForBreak);
+	} else {
+		printf("✗ for+break 模板解析失败: %s\n", objForBreak->ErrorDesc);
+	}
+	xteParseFree(objForBreak);
+	
+	// 测试 for 循环中的 continue
+	printf("\n[测试 for + continue]\n");
+	const char* tplForContinue = "{#for:1:5:1}{#if:__index__ = 3}{#continue}{#end}{%__index__},{#end}";
+	XTE_LiteObject objForContinue = xteParse((char*)tplForContinue, 0, NULL);
+	if ( objForContinue->Success ) {
+		xvalue dataForContinue = xvoCreateTable();
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForContinue, dataForContinue, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForContinue);
+			printf("输出: [%s]\n", result);
+			printf("期望: [1,2,4,5,] (跳过了3)\n");
+			printf("结果: %s\n", strcmp(result, "1,2,4,5,") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataForContinue);
+	} else {
+		printf("✗ for+continue 模板解析失败: %s\n", objForContinue->ErrorDesc);
+	}
+	xteParseFree(objForContinue);
+	
+	// 测试 foreach 数组中的 break
+	printf("\n[测试 foreach + break]\n");
+	const char* tplForeachBreak = "{#foreach:items}{#if:__index__ = 2}{#break}{#end}{$ name },{#end}";
+	XTE_LiteObject objForeachBreak = xteParse((char*)tplForeachBreak, 0, NULL);
+	if ( objForeachBreak->Success ) {
+		xvalue dataForeachBreak = xvoCreateTable();
+		xvalue itemsBreak = xvoCreateArray();
+		
+		for ( int i = 0; i < 5; i++ ) {
+			xvalue item = xvoCreateTable();
+			char name[16];
+			sprintf(name, "Item%d", i);
+			xvoTableSetText(item, "name", 0, name, 0, FALSE);
+			xvoArrayAppendValue(itemsBreak, item, TRUE);
+		}
+		xvoTableSetValue(dataForeachBreak, "items", 0, itemsBreak, TRUE);
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForeachBreak, dataForeachBreak, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForeachBreak);
+			printf("输出: [%s]\n", result);
+			printf("期望: [Item0,Item1,] (在index=2时break)\n");
+			printf("结果: %s\n", strcmp(result, "Item0,Item1,") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataForeachBreak);
+	} else {
+		printf("✗ foreach+break 模板解析失败: %s\n", objForeachBreak->ErrorDesc);
+	}
+	xteParseFree(objForeachBreak);
+	
+	// 测试 foreach 数组中的 continue
+	printf("\n[测试 foreach + continue]\n");
+	const char* tplForeachContinue = "{#foreach:items}{#if:skip = 1}{#continue}{#end}[{$ name }]{#end}";
+	XTE_LiteObject objForeachContinue = xteParse((char*)tplForeachContinue, 0, NULL);
+	if ( objForeachContinue->Success ) {
+		xvalue dataForeachContinue = xvoCreateTable();
+		xvalue itemsContinue = xvoCreateArray();
+		
+		// Item0: skip=0
+		xvalue it0 = xvoCreateTable();
+		xvoTableSetText(it0, "name", 0, "A", 0, FALSE);
+		xvoTableSetInt(it0, "skip", 0, 0);
+		xvoArrayAppendValue(itemsContinue, it0, TRUE);
+		
+		// Item1: skip=1 (跳过)
+		xvalue it1 = xvoCreateTable();
+		xvoTableSetText(it1, "name", 0, "B", 0, FALSE);
+		xvoTableSetInt(it1, "skip", 0, 1);
+		xvoArrayAppendValue(itemsContinue, it1, TRUE);
+		
+		// Item2: skip=0
+		xvalue it2 = xvoCreateTable();
+		xvoTableSetText(it2, "name", 0, "C", 0, FALSE);
+		xvoTableSetInt(it2, "skip", 0, 0);
+		xvoArrayAppendValue(itemsContinue, it2, TRUE);
+		
+		// Item3: skip=1 (跳过)
+		xvalue it3 = xvoCreateTable();
+		xvoTableSetText(it3, "name", 0, "D", 0, FALSE);
+		xvoTableSetInt(it3, "skip", 0, 1);
+		xvoArrayAppendValue(itemsContinue, it3, TRUE);
+		
+		// Item4: skip=0
+		xvalue it4 = xvoCreateTable();
+		xvoTableSetText(it4, "name", 0, "E", 0, FALSE);
+		xvoTableSetInt(it4, "skip", 0, 0);
+		xvoArrayAppendValue(itemsContinue, it4, TRUE);
+		
+		xvoTableSetValue(dataForeachContinue, "items", 0, itemsContinue, TRUE);
+		
+		size_t retSize = 0;
+		char* result = xteMake(objForeachContinue, dataForeachContinue, NULL, NULL, &retSize);
+		if ( result ) {
+			printf("模板: %s\n", tplForeachContinue);
+			printf("输出: [%s]\n", result);
+			printf("期望: [[A][C][E]] (跳过B和D)\n");
+			printf("结果: %s\n", strcmp(result, "[A][C][E]") == 0 ? "✓ 通过" : "✗ 失败");
+			xrtFree(result);
+		}
+		xvoUnref(dataForeachContinue);
+	} else {
+		printf("✗ foreach+continue 模板解析失败: %s\n", objForeachContinue->ErrorDesc);
+	}
+	xteParseFree(objForeachContinue);
+	
+	printf("\n模板引擎 Phase 4 (break/continue) 测试完成\n");
 }
 
 

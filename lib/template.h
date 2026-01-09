@@ -293,7 +293,7 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 		// Token 扫描逻辑
 		if ( iMode == XTE_TK_TEXT ) {
 			// XTE_TK_TEXT 采集模式
-			if ( sText[i] == sBracket[0] ) {
+			if ( sText[i] == sBracket[0] && (i + 1 < iSize) ) {
 				if ( sText[i + 1] == sBracket[0] ) {
 					// 处理 {{ 转义符
 					xrtBufferAppend(objBuf, &sText[iPos], (i - iPos) + 1, XBUF_UTF8);
@@ -389,7 +389,7 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 			}
 		} else if ( iMode == XTE_MODE_BLOCK ) {
 			// XTE_MODE_BLOCK 采集模式（只在遇到 {#end} 时退出）
-			if ( (sText[i] == sBracket[0]) && (sText[i+1] == '#') && (sText[i+2] == 'e') && (sText[i+3] == 'n') && (sText[i+4] == 'd') && (sText[i+5] == sBracket[1]) ) {
+			if ( (i + 5 < iSize) && (sText[i] == sBracket[0]) && (sText[i+1] == '#') && (sText[i+2] == 'e') && (sText[i+3] == 'n') && (sText[i+4] == 'd') && (sText[i+5] == sBracket[1]) ) {
 				objCurTok->Size = i - iPos;
 				objCurTok->Text = xrtMalloc(objCurTok->Size + 1);
 				if ( objCurTok->Text == NULL ) {
@@ -620,13 +620,13 @@ xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tb
 		// 简单路径，直接查找
 		xvalue result = &XVO_VALUE_NULL;
 		if ( tblVal && tblVal->Type == XVO_DT_TABLE ) {
-			result = xvoTableGetValue(tblVal, path, pathLen);
+			result = xvoTableGetValue(tblVal, (str)path, pathLen);
 		}
 		if ( result == &XVO_VALUE_NULL && tblRoot && tblRoot->Type == XVO_DT_TABLE ) {
-			result = xvoTableGetValue(tblRoot, path, pathLen);
+			result = xvoTableGetValue(tblRoot, (str)path, pathLen);
 		}
 		if ( result == &XVO_VALUE_NULL && tblENV && tblENV->Type == XVO_DT_TABLE ) {
-			result = xvoTableGetValue(tblENV, path, pathLen);
+			result = xvoTableGetValue(tblENV, (str)path, pathLen);
 		}
 		return result;
 	}
@@ -652,13 +652,13 @@ xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tb
 					// 第一段：从三个表中查找
 					isFirst = 0;
 					if ( tblVal && tblVal->Type == XVO_DT_TABLE ) {
-						current = xvoTableGetValue(tblVal, seg, segLen);
+						current = xvoTableGetValue(tblVal, (str)seg, segLen);
 					}
 					if ( (current == NULL || current == &XVO_VALUE_NULL) && tblRoot && tblRoot->Type == XVO_DT_TABLE ) {
-						current = xvoTableGetValue(tblRoot, seg, segLen);
+						current = xvoTableGetValue(tblRoot, (str)seg, segLen);
 					}
 					if ( (current == NULL || current == &XVO_VALUE_NULL) && tblENV && tblENV->Type == XVO_DT_TABLE ) {
-						current = xvoTableGetValue(tblENV, seg, segLen);
+						current = xvoTableGetValue(tblENV, (str)seg, segLen);
 					}
 				} else {
 					// 后续段：从当前值中查找
@@ -666,7 +666,7 @@ xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tb
 						return &XVO_VALUE_NULL;
 					}
 					if ( current->Type == XVO_DT_TABLE ) {
-						current = xvoTableGetValue(current, seg, segLen);
+						current = xvoTableGetValue(current, (str)seg, segLen);
 					} else {
 						return &XVO_VALUE_NULL;
 					}
@@ -704,7 +704,7 @@ xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tb
 						const char* key = idxStr + 1;
 						size_t keyLen = idxLen - 2;
 						if ( current->Type == XVO_DT_TABLE ) {
-							current = xvoTableGetValue(current, key, keyLen);
+							current = xvoTableGetValue(current, (str)key, keyLen);
 						} else {
 							return &XVO_VALUE_NULL;
 						}
@@ -717,7 +717,7 @@ xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tb
 							} else {
 								// 非数字，尝试作为键名处理
 								if ( current->Type == XVO_DT_TABLE ) {
-									current = xvoTableGetValue(current, idxStr, idxLen);
+									current = xvoTableGetValue(current, (str)idxStr, idxLen);
 								} else {
 									return &XVO_VALUE_NULL;
 								}
@@ -731,7 +731,7 @@ xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tb
 							current = xvoListGetValue(current, index);
 						} else if ( current->Type == XVO_DT_TABLE ) {
 							// 表也可以用数字作为键
-							current = xvoTableGetValue(current, idxStr, idxLen);
+							current = xvoTableGetValue(current, (str)idxStr, idxLen);
 						} else {
 							return &XVO_VALUE_NULL;
 						}
@@ -946,29 +946,68 @@ XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks)
 
 
 
+// 模板引擎全局状态（静态初始化方案）
+static xarray XTE_IDENT_LIST = NULL;
+static int XTE_INITIALIZED = 0;
+
+// 初始化模板引擎（由 xrtInit 调用，用户无感）
+static int xte_private_init(void)
+{
+	if ( XTE_INITIALIZED ) {
+		return 1;  // 已初始化
+	}
+	
+	// 创建标识符列表
+	XTE_IDENT_LIST = xteCreateIdentList();
+	if ( XTE_IDENT_LIST == NULL ) {
+		return 0;
+	}
+	
+	// 注册内置标识符
+	xteAddIdentToList(XTE_IDENT_LIST, "end"     , 3, XTE_TK_END     , XTE_IDTPE_DEFAULT, 0, 0);
+	xteAddIdentToList(XTE_IDENT_LIST, "include" , 7, XTE_TK_INCLUDE , XTE_IDTPE_DEFAULT, 1, 1);
+	xteAddIdentToList(XTE_IDENT_LIST, "define"  , 6, XTE_TK_DEFINE  , XTE_IDTPE_DEFAULT, 1, 1);
+	xteAddIdentToList(XTE_IDENT_LIST, "script"  , 6, XTE_TK_SCRIPT  , XTE_IDTPE_BLOCK  , 1, 1);
+	// 控制语句
+	xteAddIdentToList(XTE_IDENT_LIST, "if"      , 2, XTE_TK_IF      , XTE_IDTPE_DEFAULT, 1, 1);
+	xteAddIdentToList(XTE_IDENT_LIST, "elseif"  , 6, XTE_TK_ELSEIF  , XTE_IDTPE_DEFAULT, 1, 1);
+	xteAddIdentToList(XTE_IDENT_LIST, "else"    , 4, XTE_TK_ELSE    , XTE_IDTPE_DEFAULT, 0, 0);
+	xteAddIdentToList(XTE_IDENT_LIST, "for"     , 3, XTE_TK_FOR     , XTE_IDTPE_DEFAULT, 3, 4);
+	xteAddIdentToList(XTE_IDENT_LIST, "foreach" , 7, XTE_TK_FOREACH , XTE_IDTPE_DEFAULT, 1, 2);
+	xteAddIdentToList(XTE_IDENT_LIST, "break"   , 5, XTE_TK_BREAK   , XTE_IDTPE_DEFAULT, 0, 0);
+	xteAddIdentToList(XTE_IDENT_LIST, "continue", 8, XTE_TK_CONTINUE, XTE_IDTPE_DEFAULT, 0, 0);
+	
+	XTE_INITIALIZED = 1;
+	return 1;
+}
+
+// 清理模板引擎（由 xrtUnit 调用，用户无感）
+static void xte_private_unit(void)
+{
+	if ( !XTE_INITIALIZED ) {
+		return;
+	}
+	
+	if ( XTE_IDENT_LIST ) {
+		xrtArrayDestroy(XTE_IDENT_LIST);
+		XTE_IDENT_LIST = NULL;
+	}
+	
+	XTE_INITIALIZED = 0;
+}
+
 // 解析返回语法列表
-xarray XTE_LITE_IDENT_LIST = NULL;
 XTE_LiteObject xteParse(char* sText, size_t iSize, char* sBracket)
 {
-	// 创建可解析的标识符列表
-	if ( XTE_LITE_IDENT_LIST == NULL ) {
-		XTE_LITE_IDENT_LIST = xteCreateIdentList();
-		if ( XTE_LITE_IDENT_LIST == NULL ) {
+	// 检查是否已初始化
+	if ( !XTE_INITIALIZED ) {
+		// 自动初始化（兼容未调用 xrtInit 的情况）
+		if ( !xte_private_init() ) {
 			return &XTE_LITE_ERROR_MALLOC;
 		}
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "end"		, 3, XTE_TK_END		, XTE_IDTPE_DEFAULT	, 0, 0);
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "include"	, 7, XTE_TK_INCLUDE	, XTE_IDTPE_DEFAULT	, 1, 1);
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "define"	, 6, XTE_TK_DEFINE	, XTE_IDTPE_DEFAULT	, 1, 1);
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "script"	, 6, XTE_TK_SCRIPT	, XTE_IDTPE_BLOCK	, 1, 1);
-		// Phase 3: 控制语句
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "if"		, 2, XTE_TK_IF		, XTE_IDTPE_DEFAULT	, 1, 1);
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "elseif"	, 6, XTE_TK_ELSEIF	, XTE_IDTPE_DEFAULT	, 1, 1);
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "else"	, 4, XTE_TK_ELSE	, XTE_IDTPE_DEFAULT	, 0, 0);
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "for"		, 3, XTE_TK_FOR		, XTE_IDTPE_DEFAULT	, 3, 4);
-		xteAddIdentToList(XTE_LITE_IDENT_LIST, "foreach", 7, XTE_TK_FOREACH	, XTE_IDTPE_DEFAULT	, 1, 2);
 	}
 	// 词法解析
-	XTE_TokenList objToks = xteLexer(sText, iSize, XTE_LITE_IDENT_LIST, sBracket);
+	XTE_TokenList objToks = xteLexer(sText, iSize, XTE_IDENT_LIST, sBracket);
 	// 语法解析
 	return xteParseFromTokenList(objToks);
 }
@@ -1116,8 +1155,8 @@ static void xte_exec_range(xparray arrAction, int startIdx, int endIdx,
                            XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, 
                            xdict tblInclude, xbuffer objBuf);
 
-// 前向声明 xteMakeActions
-char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
+// 前向声明 xteMakeActions (内部版本，支持 break/continue)
+static char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize, int* pBreakFlag, int* pContinueFlag);
 
 
 
@@ -1129,26 +1168,46 @@ typedef struct {
 	xvalue RootVal;
 	xdict Include;
 	int Index;
+	int* BreakFlag;      // 指向外层循环的 break 标志
+	int* ContinueFlag;   // 指向外层循环的 continue 标志
 } XTE_ForeachTableCtx;
 
 // foreach 表迭代回调函数
 static int xte_foreach_table_proc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 {
+	if ( pKey == NULL || ppVal == NULL || *ppVal == NULL || pArg == NULL ) {
+		return FALSE;
+	}
 	XTE_ForeachTableCtx* ctx = (XTE_ForeachTableCtx*)pArg;
+	
+	// 检查是否已经要求 break
+	if ( ctx->BreakFlag && *ctx->BreakFlag ) {
+		return TRUE;  // 停止遍历
+	}
 	
 	xvalue loopEnv = xvoCreateTable();
 	xvoTableSetInt(loopEnv, "__index__", 0, ctx->Index);
 	xvoTableSetValue(loopEnv, "__value__", 0, *ppVal, FALSE);
 	xvoTableSetText(loopEnv, "__key__", 0, pKey->Key, pKey->KeyLen, FALSE);
 	
+	// 重置 continue 标志（每次迭代开始时清除）
+	if ( ctx->ContinueFlag ) {
+		*ctx->ContinueFlag = 0;
+	}
+	
 	size_t loopSize = 0;
-	char* loopResult = xteMakeActions(ctx->Action, ctx->Template, *ppVal, ctx->RootVal, loopEnv, ctx->Include, &loopSize);
+	char* loopResult = xteMakeActions_ex(ctx->Action, ctx->Template, *ppVal, ctx->RootVal, loopEnv, ctx->Include, &loopSize, ctx->BreakFlag, ctx->ContinueFlag);
 	if ( loopResult ) {
 		xrtBufferAppend(ctx->Buf, loopResult, loopSize, XBUF_UTF8);
 		xrtFree(loopResult);
 	}
 	xvoUnref(loopEnv);
 	ctx->Index++;
+	
+	// 检查 break 标志，如果设置了则停止遍历
+	if ( ctx->BreakFlag && *ctx->BreakFlag ) {
+		return TRUE;
+	}
 	return FALSE;
 }
 
@@ -1178,7 +1237,7 @@ int xte_private_Make_EachTableProc(Dict_Key* pKey, xvalue* ppVal, void* pArg)
 	}
 	return FALSE;
 }
-char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize)
+char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize, int* pBreakFlag, int* pContinueFlag)
 {
 	// 检查环境表
 	if ( tblVal == NULL ) {
@@ -1194,6 +1253,10 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 		
 		// 遍历模板 Action 生成内容
 		for ( int i = 1; i <= arrAction->Count; i++ ) {
+			// 检查 break/continue 标志，如果已设置则立即跳出
+			if ( (pBreakFlag && *pBreakFlag) || (pContinueFlag && *pContinueFlag) ) {
+				break;
+			}
 			XTE_TokenItem objTok = (XTE_TokenItem)xrtPtrArrayGet_Inline(arrAction, i);
 			if ( objTok->Type == XTE_TK_TEXT ) {
 				// 文本节点
@@ -1302,7 +1365,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 				if ( (objTok->ParamCount > idx) && objTok->ParamText[idx] ) {
 					if ( objTok->ParamText[idx][0] == '=' ) {
 						// 参数首字符为 = 则作为模板生成
-						while ( 1 ) {
+						do {
 							xparray arrSubAction = xrtDictGet(&objTemplate->SubTemplates, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
 							if ( arrSubAction == NULL ) {
 								xrtBufferAppend(objBuf, "(cannot find sub template : ", 0, XBUF_UTF8);
@@ -1341,8 +1404,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 							}
 							xrtBufferAppend(objBuf, sSubPage, iSizeRet, XBUF_UTF8);
 							xrtFree(sSubPage);
-							break;
-						}
+						} while (0);
 					} else if ( objTok->ParamText[idx][0] == '@' ) {
 						// 参数首字符为 @ 则作为函数调用参数
 						/*
@@ -1391,7 +1453,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 				}
 			} else if ( objTok->Type == XTE_TK_ARR ) {
 				// 遍历元素 表 or 数组，代入子模板
-				while ( 1 ) {
+				do {
 					xparray arrSubAction = xrtDictGet(&objTemplate->SubTemplates, objTok->Text, objTok->Size);
 					if ( arrSubAction == NULL ) {
 						xrtBufferAppend(objBuf, "(cannot find sub template : ", 0, XBUF_UTF8);
@@ -1438,6 +1500,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 								xrtBufferAppend(objBuf, sEachPage, iSizeRet, XBUF_UTF8);
 								xrtFree(sEachPage);
 							} else {
+								// 数组元素生成失败，记录错误但继续处理其他元素
 								xrtBufferAppend(objBuf, "(foreach array generation failed : ", 0, XBUF_UTF8);
 								xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
 								xrtBufferAppend(objBuf, " [", 2, XBUF_UTF8);
@@ -1445,7 +1508,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 								xrtI32ToStr(k, sk);
 								xrtBufferAppend(objBuf, sk, 0, XBUF_UTF8);
 								xrtBufferAppend(objBuf, "])", 2, XBUF_UTF8);
-								break;
+								// 不再 break，继续处理其他元素
 							}
 						}
 					} else {
@@ -1453,8 +1516,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 						xrtBufferAppend(objBuf, objTok->Text, objTok->Size, XBUF_UTF8);
 						xrtBufferAppend(objBuf, ")", 1, XBUF_UTF8);
 					}
-					break;
-				}
+				} while (0);
 			} else if ( objTok->Type == XTE_TK_PROC ) {
 				// 调用函数（目前只支持传递一个参数）
 				/*
@@ -1484,7 +1546,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 				*/
 			} else if ( objTok->Type == XTE_TK_SUBTEMPLATE ) {
 				// 代入子模板
-				while ( 1 ) {
+				do {
 					xparray arrSubAction = xrtDictGet(&objTemplate->SubTemplates, objTok->Text, objTok->Size);
 					if ( arrSubAction == NULL ) {
 						xrtBufferAppend(objBuf, "(cannot find sub template : ", 0, XBUF_UTF8);
@@ -1519,11 +1581,10 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					}
 					xrtBufferAppend(objBuf, sSubPage, iSizeRet, XBUF_UTF8);
 					xrtFree(sSubPage);
-					break;
-				}
+				} while (0);
 			} else if ( objTok->Type == XTE_TK_INCLUDE ) {
 				// 引用外部模板
-				while ( 1 ) {
+				do {
 					XTE_LiteObject objIncTemplate = xrtDictGetPtr(tblInclude, objTok->ParamText[0], objTok->ParamSize[0]);
 					if ( objIncTemplate == NULL ) {
 						xrtBufferAppend(objBuf, "(cannot find file : ", 0, XBUF_UTF8);
@@ -1558,8 +1619,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					}
 					xrtBufferAppend(objBuf, sIncPage, iSizeRet, XBUF_UTF8);
 					xrtFree(sIncPage);
-					break;
-				}
+				} while (0);
 			} else if ( objTok->Type == XTE_TK_IF ) {
 				// if/elseif/else 条件语句
 				XTE_IfBranch branches[XTE_PARAM_MAXCOUNT];
@@ -1581,20 +1641,24 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 							// 执行该分支的内容
 							for ( int j = branches[b].startIdx; j <= branches[b].endIdx; j++ ) {
 								XTE_TokenItem subTok = (XTE_TokenItem)xrtPtrArrayGet_Inline(arrAction, j);
+								// 检查 break/continue 标志，如果已设置则跳出分支执行
+								if ( (pBreakFlag && *pBreakFlag) || (pContinueFlag && *pContinueFlag) ) {
+									break;
+								}
 								// 递归调用主逻辑处理各种 Token
 								if ( subTok->Type == XTE_TK_TEXT ) {
 									xrtBufferAppend(objBuf, subTok->Text, subTok->Size, XBUF_UTF8);
 								} else if ( subTok->Type == XTE_TK_IF || subTok->Type == XTE_TK_FOR || subTok->Type == XTE_TK_FOREACH ) {
 									// 嵌套控制语句，构建临时 Action 列表并递归执行
 									int nestedEnd = xte_find_matching_end(arrAction, j + 1);
-									if ( nestedEnd > 0 ) {
+									if ( nestedEnd > 0 && nestedEnd <= arrAction->Count ) {
 										xparray_struct tempAction = { 0, 0, 0 };
 										xrtPtrArrayInit(&tempAction);
 										for ( int k = j; k <= nestedEnd; k++ ) {
 											xrtPtrArrayAppend(&tempAction, xrtPtrArrayGet_Inline(arrAction, k));
 										}
 										size_t nestedSize = 0;
-										char* nestedResult = xteMakeActions(&tempAction, objTemplate, tblVal, tblRoot, tblENV, tblInclude, &nestedSize);
+										char* nestedResult = xteMakeActions_ex(&tempAction, objTemplate, tblVal, tblRoot, tblENV, tblInclude, &nestedSize, pBreakFlag, pContinueFlag);
 										if ( nestedResult ) {
 											xrtBufferAppend(objBuf, nestedResult, nestedSize, XBUF_UTF8);
 											xrtFree(nestedResult);
@@ -1602,13 +1666,25 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 										xrtPtrArrayUnit(&tempAction);
 										j = nestedEnd; // 跳过嵌套块
 									}
+								} else if ( subTok->Type == XTE_TK_BREAK ) {
+									// 直接处理 break
+									if ( pBreakFlag ) {
+										*pBreakFlag = 1;
+									}
+									break;
+								} else if ( subTok->Type == XTE_TK_CONTINUE ) {
+									// 直接处理 continue
+									if ( pContinueFlag ) {
+										*pContinueFlag = 1;
+									}
+									break;
 								} else {
 									// 其他 Token，构建单元素 Action 列表执行
 									xparray_struct singleAction = { 0, 0, 0 };
 									xrtPtrArrayInit(&singleAction);
 									xrtPtrArrayAppend(&singleAction, subTok);
 									size_t singleSize = 0;
-									char* singleResult = xteMakeActions(&singleAction, objTemplate, tblVal, tblRoot, tblENV, tblInclude, &singleSize);
+									char* singleResult = xteMakeActions_ex(&singleAction, objTemplate, tblVal, tblRoot, tblENV, tblInclude, &singleSize, pBreakFlag, pContinueFlag);
 									if ( singleResult ) {
 										xrtBufferAppend(objBuf, singleResult, singleSize, XBUF_UTF8);
 										xrtFree(singleResult);
@@ -1628,7 +1704,17 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					int64 forStart = xrtStrToI64(objTok->ParamText[0]);
 					int64 forEnd = xrtStrToI64(objTok->ParamText[1]);
 					int64 forStep = (objTok->ParamCount >= 3) ? xrtStrToI64(objTok->ParamText[2]) : 1;
-					if ( forStep == 0 ) forStep = 1;
+					
+					// 修复步长为0的无限循环问题
+					if ( forStep == 0 ) {
+						forStep = (forStart <= forEnd) ? 1 : -1;
+					}
+					// 修复步长方向不匹配的问题（防止无限循环）
+					if ( (forStart < forEnd && forStep < 0) || (forStart > forEnd && forStep > 0) ) {
+						// 方向不匹配，跳过循环体
+						i = endIdx;
+						continue;
+					}
 					
 					// 构建循环体 Action 列表
 					xparray_struct loopAction = { 0, 0, 0 };
@@ -1640,26 +1726,34 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 					// 创建循环环境变量
 					xvalue loopEnv = xvoCreateTable();
 					
+					// 循环内部的 break/continue 标志
+					int loopBreak = 0, loopContinue = 0;
+					
 					// 执行循环
 					if ( forStep > 0 ) {
 						for ( int64 idx = forStart; idx <= forEnd; idx += forStep ) {
+							loopContinue = 0;  // 每次迭代重置 continue
 							xvoTableSetInt(loopEnv, "__index__", 0, idx);
 							size_t loopSize = 0;
-							char* loopResult = xteMakeActions(&loopAction, objTemplate, tblVal, tblRoot, loopEnv, tblInclude, &loopSize);
+							char* loopResult = xteMakeActions_ex(&loopAction, objTemplate, tblVal, tblRoot, loopEnv, tblInclude, &loopSize, &loopBreak, &loopContinue);
 							if ( loopResult ) {
 								xrtBufferAppend(objBuf, loopResult, loopSize, XBUF_UTF8);
 								xrtFree(loopResult);
 							}
+							if ( loopBreak ) break;  // break 跳出循环
+							// continue 已在下一次迭代开始时重置
 						}
 					} else {
 						for ( int64 idx = forStart; idx >= forEnd; idx += forStep ) {
+							loopContinue = 0;  // 每次迭代重置 continue
 							xvoTableSetInt(loopEnv, "__index__", 0, idx);
 							size_t loopSize = 0;
-							char* loopResult = xteMakeActions(&loopAction, objTemplate, tblVal, tblRoot, loopEnv, tblInclude, &loopSize);
+							char* loopResult = xteMakeActions_ex(&loopAction, objTemplate, tblVal, tblRoot, loopEnv, tblInclude, &loopSize, &loopBreak, &loopContinue);
 							if ( loopResult ) {
 								xrtBufferAppend(objBuf, loopResult, loopSize, XBUF_UTF8);
 								xrtFree(loopResult);
 							}
+							if ( loopBreak ) break;  // break 跳出循环
 						}
 					}
 					
@@ -1683,32 +1777,48 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 						}
 						
 						if ( iterObj->Type == XVO_DT_ARRAY ) {
-							// 迭代数组
-							for ( int idx = 0; idx < iterObj->vArray->Count; idx++ ) {
-								xvalue itemVal = xvoArrayGetValue(iterObj, idx);
-								// 创建循环环境
-								xvalue loopEnv = xvoCreateTable();
-								xvoTableSetInt(loopEnv, "__index__", 0, idx);
-								xvoTableSetValue(loopEnv, "__value__", 0, itemVal, FALSE);
-								
-								size_t loopSize = 0;
-								char* loopResult = xteMakeActions(&loopAction, objTemplate, itemVal, tblVal, loopEnv, tblInclude, &loopSize);
-								if ( loopResult ) {
-									xrtBufferAppend(objBuf, loopResult, loopSize, XBUF_UTF8);
-									xrtFree(loopResult);
-								}
-								xvoUnref(loopEnv);
+						// 迭代数组
+						int loopBreak = 0, loopContinue = 0;
+						for ( int idx = 0; idx < iterObj->vArray->Count; idx++ ) {
+							loopContinue = 0;  // 每次迭代重置 continue
+							xvalue itemVal = xvoArrayGetValue(iterObj, idx);
+							// 创建循环环境
+							xvalue loopEnv = xvoCreateTable();
+							xvoTableSetInt(loopEnv, "__index__", 0, idx);
+							xvoTableSetValue(loopEnv, "__value__", 0, itemVal, FALSE);
+							
+							size_t loopSize = 0;
+							char* loopResult = xteMakeActions_ex(&loopAction, objTemplate, itemVal, tblVal, loopEnv, tblInclude, &loopSize, &loopBreak, &loopContinue);
+							if ( loopResult ) {
+								xrtBufferAppend(objBuf, loopResult, loopSize, XBUF_UTF8);
+								xrtFree(loopResult);
 							}
-						} else {
-							// 迭代表（使用 xrtDictWalk）
-							XTE_ForeachTableCtx foreachCtx = { objBuf, &loopAction, objTemplate, tblVal, tblInclude, 0 };
-							xrtDictWalk(iterObj->vTable, (void*)xte_foreach_table_proc, &foreachCtx);
+							xvoUnref(loopEnv);
+							if ( loopBreak ) break;  // break 跳出循环
 						}
+					} else {
+						// 迭代表（使用 xrtDictWalk）
+						int loopBreak = 0, loopContinue = 0;
+						XTE_ForeachTableCtx foreachCtx = { objBuf, &loopAction, objTemplate, tblVal, tblInclude, 0, &loopBreak, &loopContinue };
+						xrtDictWalk(iterObj->vTable, (void*)xte_foreach_table_proc, &foreachCtx);
+					}
 						
 						xrtPtrArrayUnit(&loopAction);
 					}
 					i = endIdx; // 跳过循环体
 				}
+			} else if ( objTok->Type == XTE_TK_BREAK ) {
+				// {#break} - 跳出循环
+				if ( pBreakFlag ) {
+					*pBreakFlag = 1;
+				}
+				break;  // 立即跳出当前 Action 遍历
+			} else if ( objTok->Type == XTE_TK_CONTINUE ) {
+				// {#continue} - 继续下一轮循环
+				if ( pContinueFlag ) {
+					*pContinueFlag = 1;
+				}
+				break;  // 跳出当前 Action 遍历，由上层循环检查 continue 标志
 			} else if ( objTok->Type == XTE_TK_SCRIPT ) {
 				// 执行脚本
 				printf("\t★★★ Token Type [%d] : XTE_TK_SCRIPT (%d)\n", i, objTok->Type);
@@ -1721,6 +1831,10 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 		
 		// 遍历模板 Action 生成内容
 		for ( int i = 1; i <= arrAction->Count; i++ ) {
+			// 检查 break/continue 标志，如果已设置则立即跳出
+			if ( (pBreakFlag && *pBreakFlag) || (pContinueFlag && *pContinueFlag) ) {
+				break;
+			}
 			XTE_TokenItem objTok = (XTE_TokenItem)xrtPtrArrayGet_Inline(arrAction, i);
 			if ( objTok->Type == XTE_TK_TEXT ) {
 				// 文本节点
@@ -1728,7 +1842,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 			} else if ( objTok->Type == XTE_TK_VAR ) {
 				// 代入变量 - 转为字符串
 				char* sTemp = NULL;
-				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+				if ( objTok->Text && objTok->Size == 8 && memcmp(objTok->Text, "__self__", 8) == 0 ) {
 					sTemp = xvoGetText(tblVal);
 				}
 				if ( tblRoot && (sTemp == NULL) ) {
@@ -1743,7 +1857,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 			} else if ( objTok->Type == XTE_TK_NUM ) {
 				// 代入数字 - 支持格式化
 				xvalue varNum = &XVO_VALUE_NULL;
-				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+				if ( objTok->Text && objTok->Size == 8 && memcmp(objTok->Text, "__self__", 8) == 0 ) {
 					varNum = tblVal;
 				}
 				if ( tblRoot && (varNum == &XVO_VALUE_NULL) ) {
@@ -1792,7 +1906,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 			} else if ( objTok->Type == XTE_TK_TIME ) {
 				// 代入时间 - 支持自定义格式
 				xvalue varTime = &XVO_VALUE_NULL;
-				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+				if ( objTok->Text && objTok->Size == 8 && memcmp(objTok->Text, "__self__", 8) == 0 ) {
 					varTime = tblVal;
 				}
 				if ( tblRoot && (varTime == &XVO_VALUE_NULL) ) {
@@ -1824,7 +1938,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 			} else if ( objTok->Type == XTE_TK_BOOL ) {
 				// 根据逻辑结果决定代入什么内容
 				xvalue varBool = &XVO_VALUE_NULL;
-				if ( strcmp(objTok->Text, "__self__") == 0 ) {
+				if ( objTok->Text && objTok->Size == 8 && memcmp(objTok->Text, "__self__", 8) == 0 ) {
 					varBool = tblVal;
 				}
 				if ( tblRoot && (varBool == &XVO_VALUE_NULL) ) {
@@ -1841,7 +1955,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 				if ( objTok->ParamCount > idx ) {
 					if ( objTok->ParamText[idx][0] == '=' ) {
 						// 参数首字符为 = 则作为模板生成
-						while ( 1 ) {
+						do {
 							xparray arrSubAction = xrtDictGet(&objTemplate->SubTemplates, &objTok->ParamText[idx][1], objTok->ParamSize[idx] - 1);
 							if ( arrSubAction == NULL ) {
 								xrtBufferAppend(objBuf, "(cannot find sub template : ", 0, XBUF_UTF8);
@@ -1864,8 +1978,7 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 							}
 							xrtBufferAppend(objBuf, sSubPage, iSizeRet, XBUF_UTF8);
 							xrtFree(sSubPage);
-							break;
-						}
+						} while (0);
 					} else if ( objTok->ParamText[idx][0] == '@' ) {
 						// 参数首字符为 @ 则作为函数调用参数
 						/*
@@ -1925,6 +2038,13 @@ char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVa
 	xrtBufferDestroy(objBuf);
 	return sRet;
 }
+
+// 公共接口：生成模板内容
+char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize)
+{
+	return xteMakeActions_ex(arrAction, objTemplate, tblVal, tblRoot, tblENV, tblInclude, pRetSize, NULL, NULL);
+}
+
 char* xteMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize)
 {
 	return xteMakeActions(&objTemplate->Actions, objTemplate, tblVal, NULL, tblENV, tblInclude, pRetSize);
@@ -2409,6 +2529,10 @@ static XTE_ASTNode xte_expr_parse_atom(XTE_ExprLexer lex)
 					return NULL;
 				}
 				node = xte_ast_create_unary(XTE_ETK_OP_NOT, operand);
+				if ( node == NULL ) {
+					xte_ast_free_node(operand);
+					return NULL;
+				}
 			}
 			break;
 		
@@ -2420,9 +2544,18 @@ static XTE_ASTNode xte_expr_parse_atom(XTE_ExprLexer lex)
 	return node;
 }
 
-// 解析表达式（优先级爬升法）
-static XTE_ASTNode xte_expr_parse_expression(XTE_ExprLexer lex, int minPrec)
+// 表达式解析最大递归深度
+#define XTE_EXPR_MAX_DEPTH 64
+
+// 解析表达式（优先级爬升法）- 带深度限制
+static XTE_ASTNode xte_expr_parse_expression_depth(XTE_ExprLexer lex, int minPrec, int depth)
 {
+	// 检查递归深度，防止栈溢出
+	if ( depth > XTE_EXPR_MAX_DEPTH ) {
+		lex->Error = "expression too deeply nested";
+		return NULL;
+	}
+	
 	XTE_ASTNode left = xte_expr_parse_atom(lex);
 	if ( left == NULL ) {
 		return NULL;
@@ -2439,20 +2572,28 @@ static XTE_ASTNode xte_expr_parse_expression(XTE_ExprLexer lex, int minPrec)
 		
 		xte_expr_next_token(lex);	// 跳过运算符
 		
-		XTE_ASTNode right = xte_expr_parse_expression(lex, prec + 1);
+		XTE_ASTNode right = xte_expr_parse_expression_depth(lex, prec + 1, depth + 1);
 		if ( right == NULL ) {
 			xte_ast_free_node(left);
 			return NULL;
 		}
 		
-		left = xte_ast_create_binary(op, left, right);
-		if ( left == NULL ) {
+		XTE_ASTNode newNode = xte_ast_create_binary(op, left, right);
+		if ( newNode == NULL ) {
+			xte_ast_free_node(left);
 			xte_ast_free_node(right);
 			return NULL;
 		}
+		left = newNode;
 	}
 	
 	return left;
+}
+
+// 解析表达式（优先级爬升法）
+static XTE_ASTNode xte_expr_parse_expression(XTE_ExprLexer lex, int minPrec)
+{
+	return xte_expr_parse_expression_depth(lex, minPrec, 0);
 }
 
 // 解析表达式字符串，返回解析结果
@@ -2590,7 +2731,7 @@ static int xte_value_compare(xvalue left, xvalue right, uint32 op)
 			case XTE_ETK_OP_NE:
 				return (llen != rlen) || (memcmp(ls, rs, llen) != 0);
 			case XTE_ETK_OP_AE:
-				return xrtStrApprox(ls, llen, rs, rlen);
+				return xrtStrApprox((str)ls, llen, (str)rs, rlen);
 			case XTE_ETK_OP_GT:
 				return strcmp(ls, rs) > 0;
 			case XTE_ETK_OP_LT:

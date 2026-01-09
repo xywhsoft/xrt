@@ -9,8 +9,11 @@
 ## 📑 目录
 
 - [模板语法](#模板语法)
+- [表达式语法](#表达式语法)
 - [数据结构](#数据结构)
 - [词法分析](#词法分析)
+- [路径解析](#路径解析)
+- [表达式解析](#表达式解析)
 - [模板解析](#模板解析)
 - [模板生成](#模板生成)
 - [高级特性](#高级特性)
@@ -47,6 +50,8 @@
 #define XTE_TK_ELSE         0x20002 // {#else}
 #define XTE_TK_FOR          0x30000 // 循环语句: {#for *}
 #define XTE_TK_FOREACH      0x30001 // 迭代循环语句: {#foreach *}
+#define XTE_TK_BREAK        0x30002 // 跳出循环: {#break}
+#define XTE_TK_CONTINUE     0x30003 // 继续下一轮: {#continue}
 #define XTE_TK_END          0xFFFFFF // 语句结束: {#end}
 #define XTE_TK_USER         0x1000000 // 用户自定义扩展起始编号
 
@@ -76,29 +81,110 @@
 
 #### 条件判断
 
+条件语句支持完整的表达式计算：
+
 ```
-{#if active}
-  用户已激活
-{#elseif pending}
-  等待激活
+{#if:age > 18}
+  用户已成年
+{#elseif:age > 12}
+  青少年
 {#else}
-  未激活
+  儿童
+{#end}
+
+{#if:score >= 90}
+  A等级
+{#elseif:score >= 60}
+  及格
+{#else}
+  不及格
+{#end}
+```
+
+**支持的运算符：**
+- 比较: `=`, `!=`, `~=`(约等于), `>`, `<`, `>=`, `<=`
+- 逻辑: `and`, `or`, `not`
+- 括号: `(`, `)`
+
+---
+
+#### 计次循环 (for)
+
+```
+{#for:起始:结束:步长}
+  {$ __index__}
+{#end}
+
+{#for:1:5:1}
+  第 {% __index__ } 项
+{#end}
+
+{#for:10:1:-1}
+  倒计时: {% __index__ }
 {#end}
 ```
 
 ---
 
-#### 循环
+#### 迭代循环 (foreach)
 
 ```
-{#foreach users}
+{#foreach:users}
   {$ name} - {$ email}
 {#end}
 
-{#for i 0 10}
-  第 {% i} 项
+{#foreach:items}
+  索引: {% __index__ }
+  当前元素属性: {$ name}
 {#end}
 ```
+
+---
+
+#### 循环控制 (break/continue)
+
+在 `for` 和 `foreach` 循环中可以使用控制语句：
+
+- `{#break}` - 立即跳出当前循环
+- `{#continue}` - 跳过本次迭代，进入下一轮循环
+
+```
+{! for 循环中使用 break }
+{#for:1:10:1}
+  {#if:__index__ > 3}
+    {#break}
+  {#end}
+  {%__index__} 
+{#end}
+输出: 1 2 3
+
+{! for 循环中使用 continue }
+{#for:1:5:1}
+  {#if:__index__ = 3}
+    {#continue}
+  {#end}
+  {%__index__},
+{#end}
+输出: 1,2,4,5, (跳过了3)
+
+{! foreach 循环中使用 break }
+{#foreach:items}
+  {#if:__index__ = 2}
+    {#break}
+  {#end}
+  {$ name},
+{#end}
+
+{! foreach 循环中使用 continue }
+{#foreach:items}
+  {#if:skip = 1}
+    {#continue}
+  {#end}
+  [{$ name}]
+{#end}
+```
+
+**注意：** `{#break}` 和 `{#continue}` 只能在循环内部使用，且仅影响最内层循环。
 
 ---
 
@@ -106,18 +192,19 @@
 
 | 变量 | 说明 | 可用范围 |
 |------|------|----------|
-| `__self` | 当前代入值 | 子模板内部 |
-| `__index` | 当前循环索引 | `for`、`foreach` 循环内部 |
-| `__value` | 当前迭代值（字符串类型时） | `foreach` 循环内部 |
+| `__self__` | 当前代入值 | 子模板内部 |
+| `__index__` | 当前循环索引 | `for`、`foreach` 循环内部 |
+| `__value__` | 当前迭代值 | `foreach` 循环内部 |
+| `__key__` | 当前迭代键名（遍历表时） | `foreach` 循环内部 |
 
 **示例：**
 ```
 {#define item}
-  当前值：{$ __self}
+  当前值：{$ __self__}
 {#end}
 
-{#foreach items}
-  索引：{% __index}，值：{$ __value}
+{#foreach:items}
+  索引：{% __index__}，值：{$ name}
 {#end}
 ```
 
@@ -127,6 +214,81 @@
 
 ```
 {! 这是注释，不会输出 }
+```
+
+---
+
+#### 标签内空格
+
+模板标签内部支持空格，解析器会自动 trim：
+
+```
+{$  name  }           等价于 {$name}
+{%  price  :  .2  }   等价于 {%price:.2}
+{&  time  :  yyyy-mm-dd  }   等价于 {&time:yyyy-mm-dd}
+```
+
+**注意：** 起始符与类型符（如 `{$`、`{%`、`{#`）必须连写。
+
+---
+
+## 表达式语法
+
+条件语句 `{#if}`、`{#elseif}` 支持完整的表达式计算。
+
+### 运算符
+
+| 运算符 | 说明 | 示例 |
+|--------|------|------|
+| `=` | 等于 | `age = 18` |
+| `!=` | 不等于 | `status != "active"` |
+| `~=` | 约等于（数字/字符串/时间） | `price ~= 100` |
+| `>` | 大于 | `score > 60` |
+| `<` | 小于 | `count < 10` |
+| `>=` | 大于等于 | `level >= 5` |
+| `<=` | 小于等于 | `age <= 65` |
+| `and` | 逻辑与 | `age > 18 and vip` |
+| `or` | 逻辑或 | `admin or manager` |
+| `not` | 逻辑非 | `not disabled` |
+| `(` `)` | 括号分组 | `(a or b) and c` |
+
+### 字面量
+
+```
+数字：   100, 3.14, -50
+字符串： "hello", 'world'
+布尔值： true, false
+```
+
+### 变量路径
+
+支持点号访问和数组索引：
+
+```
+user.name           嵌套属性访问
+user.profile.age    多层嵌套
+items[0]            数组索引
+items[0].title      数组元素属性
+```
+
+### 表达式示例
+
+```
+{#if:age >= 18 and active}
+  成年活跃用户
+{#end}
+
+{#if:score >= 90 or vip}
+  优秀用户
+{#end}
+
+{#if:not disabled and (role = "admin" or role = "manager")}
+  管理员
+{#end}
+
+{#if:user.profile.level > 5}
+  高级用户
+{#end}
 ```
 
 ---
@@ -343,6 +505,136 @@ XXAPI XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks);
 
 ---
 
+## 路径解析
+
+### xteResolvePath
+
+解析变量路径，支持点号嵌套和数组索引。
+
+**函数原型：**
+```c
+XXAPI xvalue xteResolvePath(
+    const char* path,
+    size_t pathLen,
+    xvalue tblVal,
+    xvalue tblRoot,
+    xvalue tblENV
+);
+```
+
+**参数：**
+- `path` - 路径字符串（如 `"user.profile.name"` 或 `"items[0].title"`）
+- `pathLen` - 路径长度（传0则自动计算）
+- `tblVal` - 当前作用域
+- `tblRoot` - 根作用域（可传 `NULL`）
+- `tblENV` - 环境变量（可传 `NULL`）
+
+**返回值：**
+- 成功：解析到的 `xvalue`
+- 失败：`&XVO_VALUE_NULL`
+
+**路径查找顺序：**
+1. 先在 `tblVal` 中查找
+2. 如未找到且 `tblRoot != NULL`，在 `tblRoot` 中查找
+3. 如未找到且 `tblENV != NULL`，在 `tblENV` 中查找
+
+**示例：**
+```c
+// 创建数据结构
+xvalue data = xvoCreateTable();
+xvalue user = xvoCreateTable();
+xvalue profile = xvoCreateTable();
+
+xvoTableSetText(profile, "name", 0, "张三", 0, FALSE);
+xvoTableSetInt(profile, "age", 0, 25);
+xvoTableSetValue(user, "profile", 0, profile, TRUE);
+xvoTableSetValue(data, "user", 0, user, TRUE);
+
+// 简单路径
+xvalue v1 = xteResolvePath("user", 0, data, NULL, NULL);
+// v1 -> user 表
+
+// 点号访问
+xvalue v2 = xteResolvePath("user.profile.name", 0, data, NULL, NULL);
+str name = xvoGetText(v2);  // "张三"
+
+// 数组索引
+xvalue items = xvoCreateArray();
+xvalue item0 = xvoCreateTable();
+xvoTableSetText(item0, "title", 0, "第一项", 0, FALSE);
+xvoArrayAppendValue(items, item0, TRUE);
+xvoTableSetValue(data, "items", 0, items, TRUE);
+
+xvalue v3 = xteResolvePath("items[0].title", 0, data, NULL, NULL);
+str title = xvoGetText(v3);  // "第一项"
+
+xvoUnref(data);
+```
+
+---
+
+## 表达式解析
+
+### xteExprEvalBool
+
+解析并求值表达式，返回布尔结果。
+
+**函数原型：**
+```c
+XXAPI int xteExprEvalBool(
+    const char* expr,
+    size_t len,
+    xvalue tblVal,
+    xvalue tblRoot,
+    xvalue tblENV
+);
+```
+
+**参数：**
+- `expr` - 表达式字符串
+- `len` - 表达式长度（传0则自动计算）
+- `tblVal` - 当前作用域（用于变量查找）
+- `tblRoot` - 根作用域（可传 `NULL`）
+- `tblENV` - 环境变量（可传 `NULL`）
+
+**返回值：**
+- 真：非0值
+- 假：0
+
+**示例：**
+```c
+xvalue data = xvoCreateTable();
+xvoTableSetInt(data, "age", 0, 25);
+xvoTableSetText(data, "name", 0, "Alice", 0, FALSE);
+xvoTableSetBool(data, "active", 0, TRUE);
+xvoTableSetFloat(data, "score", 0, 85.5);
+
+// 比较运算
+int r1 = xteExprEvalBool("age = 25", 0, data, NULL, NULL);      // 1
+int r2 = xteExprEvalBool("age > 18", 0, data, NULL, NULL);      // 1
+int r3 = xteExprEvalBool("score >= 90", 0, data, NULL, NULL);   // 0
+
+// 字符串比较
+int r4 = xteExprEvalBool("name = \"Alice\"", 0, data, NULL, NULL); // 1
+int r5 = xteExprEvalBool("name != \"Bob\"", 0, data, NULL, NULL);  // 1
+
+// 逻辑运算
+int r6 = xteExprEvalBool("age > 18 and active", 0, data, NULL, NULL);   // 1
+int r7 = xteExprEvalBool("age < 18 or active", 0, data, NULL, NULL);    // 1
+int r8 = xteExprEvalBool("not active", 0, data, NULL, NULL);            // 0
+
+// 括号
+int r9 = xteExprEvalBool("(age > 20) and (score > 80)", 0, data, NULL, NULL); // 1
+
+// 字面量
+int r10 = xteExprEvalBool("true", 0, NULL, NULL, NULL);   // 1
+int r11 = xteExprEvalBool("100 > 50", 0, NULL, NULL, NULL); // 1
+
+xvoUnref(data);
+```
+
+---
+
 ## 模板解析
 
 ### xteParse
@@ -514,7 +806,7 @@ VIP等级：5
 
 ```c
 str template_text = 
-    "{#foreach users}\n"
+    "{#foreach:users}\n"
     "  {$ name} - {$ email}\n"
     "{#end}";
 
@@ -524,17 +816,17 @@ XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
 xvalue users = xvoCreateArray();
 
 xvalue user1 = xvoCreateTable();
-xvoTableSet(user1, "name", xvoCreateText("Alice", 0, FALSE));
-xvoTableSet(user1, "email", xvoCreateText("alice@example.com", 0, FALSE));
-xvoArrayAdd(users, user1);
+xvoTableSetText(user1, "name", 0, "Alice", 0, FALSE);
+xvoTableSetText(user1, "email", 0, "alice@example.com", 0, FALSE);
+xvoArrayAppendValue(users, user1, TRUE);
 
 xvalue user2 = xvoCreateTable();
-xvoTableSet(user2, "name", xvoCreateText("Bob", 0, FALSE));
-xvoTableSet(user2, "email", xvoCreateText("bob@example.com", 0, FALSE));
-xvoArrayAdd(users, user2);
+xvoTableSetText(user2, "name", 0, "Bob", 0, FALSE);
+xvoTableSetText(user2, "email", 0, "bob@example.com", 0, FALSE);
+xvoArrayAppendValue(users, user2, TRUE);
 
 xvalue data = xvoCreateTable();
-xvoTableSet(data, "users", users);
+xvoTableSetValue(data, "users", 0, users, TRUE);
 
 // 生成
 size_t size;
@@ -554,16 +846,94 @@ xteParseFree(tpl);
 
 ---
 
-### 2. 子模板
+### 2. 计次循环
 
 ```c
 str template_text = 
-    "{#define userCard}\n"
+    "{#for:1:5:1}\n"
+    "  第 {% __index__} 项\n"
+    "{#end}";
+
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+xvalue data = xvoCreateTable();
+
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+printf("%s", result);
+
+xrtFree(result);
+xvoUnref(data);
+xteParseFree(tpl);
+```
+
+**输出：**
+```
+  第 1 项
+  第 2 项
+  第 3 项
+  第 4 项
+  第 5 项
+```
+
+---
+
+### 3. 嵌套控制语句
+
+```c
+str template_text = 
+    "{#foreach:users}\n"
+    "  {#if:active}\n"
+    "    {$ name} (活跃)\n"
+    "  {#else}\n"
+    "    {$ name} (非活跃)\n"
+    "  {#end}\n"
+    "{#end}";
+
+XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
+
+// 准备数据
+xvalue users = xvoCreateArray();
+
+xvalue u1 = xvoCreateTable();
+xvoTableSetText(u1, "name", 0, "Alice", 0, FALSE);
+xvoTableSetBool(u1, "active", 0, TRUE);
+xvoArrayAppendValue(users, u1, TRUE);
+
+xvalue u2 = xvoCreateTable();
+xvoTableSetText(u2, "name", 0, "Bob", 0, FALSE);
+xvoTableSetBool(u2, "active", 0, FALSE);
+xvoArrayAppendValue(users, u2, TRUE);
+
+xvalue data = xvoCreateTable();
+xvoTableSetValue(data, "users", 0, users, TRUE);
+
+size_t size;
+str result = xteMake(tpl, data, NULL, NULL, &size);
+printf("%s", result);
+
+xrtFree(result);
+xvoUnref(data);
+xteParseFree(tpl);
+```
+
+**输出：**
+```
+    Alice (活跃)
+    Bob (非活跃)
+```
+
+---
+
+### 4. 子模板
+
+```c
+str template_text = 
+    "{#define:userCard}\n"
     "  姓名：{$ name}\n"
     "  年龄：{% age}\n"
     "{#end}\n"
     "\n"
-    "{#foreach users}\n"
+    "{#foreach:users}\n"
     "  {= userCard}\n"
     "{#end}";
 
@@ -574,19 +944,19 @@ XTE_LiteObject tpl = xteParse(template_text, 0, NULL);
 ```
 
 **子模板特殊变量：**
-- 在子模板内部可以使用 `{$ __self}` 访问代入值
+- 在子模板内部可以使用 `{$ __self__}` 访问代入值
 - 子模板不可嵌套定义
 
 ---
 
-### 3. 包含外部模板
+### 5. 包含外部模板
 
 ```c
 // 主模板
 str main_template = 
-    "{#include header}\n"
+    "{#include:header}\n"
     "主要内容\n"
-    "{#include footer}";
+    "{#include:footer}";
 
 // 准备包含的模板
 xdict includes = xdictCreate();
@@ -630,7 +1000,7 @@ str html_template =
     "<body>\n"
     "  <h1>{$ title}</h1>\n"
     "  <ul>\n"
-    "  {#foreach items}\n"
+    "  {#foreach:items}\n"
     "    <li>{$ name}: {$ value}</li>\n"
     "  {#end}\n"
     "  </ul>\n"
@@ -650,7 +1020,7 @@ str email_template =
     "\n"
     "您的订单 {$ orderId} 已{$ status}。\n"
     "\n"
-    "{#if hasTracking}\n"
+    "{#if:hasTracking}\n"
     "物流单号：{$ trackingNumber}\n"
     "{#end}\n"
     "\n"
@@ -666,11 +1036,11 @@ str email_template =
 ```c
 str code_template = 
     "class {$ className} {\n"
-    "{#foreach fields}\n"
+    "{#foreach:fields}\n"
     "    private {% type} {$ name};\n"
     "{#end}\n"
     "\n"
-    "{#foreach fields}\n"
+    "{#foreach:fields}\n"
     "    public {% type} get{$ Name}() {\n"
     "        return this.{$ name};\n"
     "    }\n"
@@ -688,7 +1058,7 @@ str code_template =
 str report_template = 
     "销售报表 - {& date : YYYY-MM-DD}\n"
     "=====================================\n"
-    "{#foreach items}\n"
+    "{#foreach:items}\n"
     "{$ product}: {% quantity} 件，金额 {% amount} 元\n"
     "{#end}\n"
     "-------------------------------------\n"
@@ -847,13 +1217,13 @@ xteParseFree(tpl);
 ```c
 // ❌ 忘记 {#end}
 str bad_template = 
-    "{#if condition}\n"
+    "{#if:condition}\n"
     "  内容\n";
     // 缺少 {#end}
 
 // ✅ 正确
 str good_template = 
-    "{#if condition}\n"
+    "{#if:condition}\n"
     "  内容\n"
     "{#end}";
 ```

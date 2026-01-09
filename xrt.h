@@ -2430,6 +2430,8 @@
 	#define XTE_TK_ELSE				0x20002			// 判断语句
 	#define XTE_TK_FOR				0x30000			// 循环语句
 	#define XTE_TK_FOREACH			0x30001			// 迭代循环语句
+	#define XTE_TK_BREAK			0x30002			// 跳出循环
+	#define XTE_TK_CONTINUE			0x30003			// 继续下一轮循环
 	#define XTE_TK_END				0xFFFFFF		// 语句结束
 	#define XTE_TK_USER				0x1000000		// 大于这个编号的，XTE模板后续更新不会使用，可以安全的用于扩展
 	
