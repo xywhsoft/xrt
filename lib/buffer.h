@@ -60,7 +60,7 @@ XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 			}
 			return TRUE;
 		}
-	} else if ( iCount = 0 ) {
+	} else if ( iCount == 0 ) {
 		// 清空
 		xrtBufferUnit(pBuf);
 		return TRUE;

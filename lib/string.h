@@ -88,12 +88,27 @@ XXAPI str xrtLCase(str sText, size_t iSize, bool bSrcRevise)
 	str sRet;
 	if ( bSrcRevise ) { sRet = sText; } else { sRet = xrtCopyStr(sText, iSize); }
 	for ( int i = 0; i < iSize; i++ ) {
-		if ( sRet[i] & 0x80 ) {
-			// 跳过 OEM 编码字符
-			i++;
-		} else {
+		unsigned char c = (unsigned char)sRet[i];
+		if ( (c & 0x80) == 0 ) {
+			// ASCII 字符
 			sRet[i] = tolower(sRet[i]);
+		} else if ( (c & 0xE0) == 0xC0 ) {
+			// UTF-8 双字节字符，跳过
+			i++;
+		} else if ( (c & 0xF0) == 0xE0 ) {
+			// UTF-8 三字节字符，跳过
+			i += 2;
+		} else if ( (c & 0xF8) == 0xF0 ) {
+			// UTF-8 四字节字符，跳过
+			i += 3;
+		} else if ( (c & 0xFC) == 0xF8 ) {
+			// UTF-8 五字节字符，跳过
+			i += 4;
+		} else if ( (c & 0xFE) == 0xFC ) {
+			// UTF-8 六字节字符，跳过
+			i += 5;
 		}
+		// 其他情况（单独的续字节或异常字符）跳过
 	}
 	return sRet;
 }
@@ -109,12 +124,27 @@ XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise)
 	str sRet;
 	if ( bSrcRevise != FALSE ) { sRet = sText; } else { sRet = xrtCopyStr(sText, iSize); }
 	for ( int i = 0; i < iSize; i++ ) {
-		if ( sRet[i] & 0x80 ) {
-			// 跳过 OEM 编码字符
-			i++;
-		} else {
+		unsigned char c = (unsigned char)sRet[i];
+		if ( (c & 0x80) == 0 ) {
+			// ASCII 字符
 			sRet[i] = toupper(sRet[i]);
+		} else if ( (c & 0xE0) == 0xC0 ) {
+			// UTF-8 双字节字符，跳过
+			i++;
+		} else if ( (c & 0xF0) == 0xE0 ) {
+			// UTF-8 三字节字符，跳过
+			i += 2;
+		} else if ( (c & 0xF8) == 0xF0 ) {
+			// UTF-8 四字节字符，跳过
+			i += 3;
+		} else if ( (c & 0xFC) == 0xF8 ) {
+			// UTF-8 五字节字符，跳过
+			i += 4;
+		} else if ( (c & 0xFE) == 0xFC ) {
+			// UTF-8 六字节字符，跳过
+			i += 5;
 		}
+		// 其他情况（单独的续字节或异常字符）跳过
 	}
 	return sRet;
 }
@@ -358,63 +388,34 @@ XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 					break;
 				}
 			}
-		} else if ( (sText[i] & 0b11000000) == 0b11000000 ) {
-			// 双字节字符
-			size_t iLen = iSubSize - 1;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) ) {
-					iCount += 2;
-					bBreak = FALSE;
-					break;
+		} else if ( (sText[i] & 0b11000000) == 0b10000000 ) {
+			// UTF-8 续字节，向前查找首字节
+			int iEnd = i;
+			while ( (i > 0) && ((sText[i] & 0b11000000) == 0b10000000) ) {
+				i--;
+			}
+			// 现在 i 指向首字节
+			int iCharLen = iEnd - i + 1;
+			if ( iCharLen <= iSubSize ) {
+				size_t iLen = iSubSize - iCharLen + 1;
+				for ( int j = 0; j < iLen; j++ ) {
+					bool bMatch = TRUE;
+					for ( int k = 0; k < iCharLen; k++ ) {
+						if ( sSubText[j + k] != sText[i + k] ) {
+							bMatch = FALSE;
+							break;
+						}
+					}
+					if ( bMatch ) {
+						iCount += iCharLen;
+						bBreak = FALSE;
+						break;
+					}
 				}
 			}
-			i++;
-		} else if ( (sText[i] & 0b11100000) == 0b11100000 ) {
-			// 三字节字符
-			size_t iLen = iSubSize - 2;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) ) {
-					iCount += 3;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 2;
-		} else if ( (sText[i] & 0b11110000) == 0b11110000 ) {
-			// 四字节字符
-			size_t iLen = iSubSize - 3;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) ) {
-					iCount += 4;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 3;
-		} else if ( (sText[i] & 0b11111000) == 0b11111000 ) {
-			// 五字节字符
-			size_t iLen = iSubSize - 4;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) ) {
-					iCount += 5;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 4;
-		} else if ( (sText[i] & 0b11111100) == 0b11111100 ) {
-			// 六字节字符
-			size_t iLen = iSubSize - 5;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) && (sSubText[j+5] == sText[i+5]) ) {
-					iCount += 6;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 5;
+			// i 已经在首字节，循环会 i-- 移到前一个字符末尾
 		} else {
-			// 跳过异常字符（FE、FF）
+			// 孤立的首字节或异常字符（FE、FF），跳过
 		}
 		if ( bBreak ) {
 			break;
@@ -528,63 +529,34 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 					break;
 				}
 			}
-		} else if ( (sText[i] & 0b11000000) == 0b11000000 ) {
-			// 双字节字符
-			size_t iLen = iSubSize - 1;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) ) {
-					iCountR += 2;
-					bBreak = FALSE;
-					break;
+		} else if ( (sText[i] & 0b11000000) == 0b10000000 ) {
+			// UTF-8 续字节，向前查找首字节
+			int iEnd = i;
+			while ( (i > 0) && ((sText[i] & 0b11000000) == 0b10000000) ) {
+				i--;
+			}
+			// 现在 i 指向首字节
+			int iCharLen = iEnd - i + 1;
+			if ( iCharLen <= iSubSize ) {
+				size_t iLen = iSubSize - iCharLen + 1;
+				for ( int j = 0; j < iLen; j++ ) {
+					bool bMatch = TRUE;
+					for ( int k = 0; k < iCharLen; k++ ) {
+						if ( sSubText[j + k] != sText[i + k] ) {
+							bMatch = FALSE;
+							break;
+						}
+					}
+					if ( bMatch ) {
+						iCountR += iCharLen;
+						bBreak = FALSE;
+						break;
+					}
 				}
 			}
-			i++;
-		} else if ( (sText[i] & 0b11100000) == 0b11100000 ) {
-			// 三字节字符
-			size_t iLen = iSubSize - 2;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) ) {
-					iCountR += 3;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 2;
-		} else if ( (sText[i] & 0b11110000) == 0b11110000 ) {
-			// 四字节字符
-			size_t iLen = iSubSize - 3;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) ) {
-					iCountR += 4;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 3;
-		} else if ( (sText[i] & 0b11111000) == 0b11111000 ) {
-			// 五字节字符
-			size_t iLen = iSubSize - 4;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) ) {
-					iCountR += 5;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 4;
-		} else if ( (sText[i] & 0b11111100) == 0b11111100 ) {
-			// 六字节字符
-			size_t iLen = iSubSize - 5;
-			for ( int j = 0; j < iLen; j++ ) {
-				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) && (sSubText[j+5] == sText[i+5]) ) {
-					iCountR += 6;
-					bBreak = FALSE;
-					break;
-				}
-			}
-			i += 5;
+			// i 已经在首字节，循环会 i-- 移到前一个字符末尾
 		} else {
-			// 跳过异常字符（FE、FF）
+			// 孤立的首字节或异常字符（FE、FF），跳过
 		}
 		if ( bBreak ) {
 			break;

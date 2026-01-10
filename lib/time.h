@@ -749,10 +749,7 @@ XXAPI xtime xrtNowUTC()
 	time_t rawtime = time(NULL);
 	struct tm stm;
 	#if defined(_WIN32) || defined(_WIN64)
-		struct tm* pstm = gmtime(&rawtime);
-		if ( pstm ) {
-			stm = *pstm;
-		} else {
+		if ( gmtime_s(&stm, &rawtime) != 0 ) {
 			return 0;
 		}
 	#else
@@ -770,10 +767,7 @@ XXAPI int xrtTimezoneOffset()
 	struct tm stmLocal, stmUTC;
 	#if defined(_WIN32) || defined(_WIN64)
 		localtime_s(&stmLocal, &rawtime);
-		struct tm* pstm = gmtime(&rawtime);
-		if ( pstm ) {
-			stmUTC = *pstm;
-		} else {
+		if ( gmtime_s(&stmUTC, &rawtime) != 0 ) {
 			return 0;
 		}
 	#else

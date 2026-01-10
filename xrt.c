@@ -225,10 +225,10 @@ XXAPI void xrtUnit()
 		{
 			if ( fdwReason == DLL_PROCESS_ATTACH ) {
 				//当进程加载dll时调用dllMain
-				xCoreInit();
+				xrtInit();
 			} else if ( fdwReason == DLL_PROCESS_DETACH ) {
 				//当进程卸载dll时调用dllMain
-				xCoreUnit();
+				xrtUnit();
 			}
 			return (TRUE);
 		}

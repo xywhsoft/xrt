@@ -381,43 +381,43 @@ XXAPI str xvoGetText(xvalue pVal)
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
 		return (pVal->vBool ? "true" : "false");
 	} else if ( pVal->Type == XVO_DT_TIME ) {
-		str sRet = xrtTempMemory(24);
+		str sRet = xrtTempMemory(32);
 		int64 iYear;
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(pVal->vTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		sprintf(sRet, "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_POINT ) {
-		str sRet = xrtTempMemory(32);
+		str sRet = xrtTempMemory(48);
 		sprintf(sRet, "[point:%p]", pVal->vPoint);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FUNC ) {
-		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[function:%x]", pVal->vFunc);
+		str sRet = xrtTempMemory(48);
+		sprintf(sRet, "[function:%p]", pVal->vFunc);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
-		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[array:%x]", pVal->vArray);
+		str sRet = xrtTempMemory(48);
+		sprintf(sRet, "[array:%p]", pVal->vArray);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_LIST ) {
-		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[list:%x]", pVal->vList);
+		str sRet = xrtTempMemory(48);
+		sprintf(sRet, "[list:%p]", pVal->vList);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_COLL ) {
-		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[coll:%x]", pVal->vColl);
+		str sRet = xrtTempMemory(48);
+		sprintf(sRet, "[coll:%p]", pVal->vColl);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
-		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[table:%x]", pVal->vTable);
+		str sRet = xrtTempMemory(48);
+		sprintf(sRet, "[table:%p]", pVal->vTable);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_CLASS ) {
-		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[class:%x]", pVal->vStruct);
+		str sRet = xrtTempMemory(48);
+		sprintf(sRet, "[class:%p]", pVal->vStruct);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
-		str sRet = xrtTempMemory(32);
-		sprintf(sRet, "[custom:%x]", pVal->vCustom);
+		str sRet = xrtTempMemory(48);
+		sprintf(sRet, "[custom:%p]", pVal->vCustom);
 		return sRet;
 	} else {
 		return xCore.sNull;

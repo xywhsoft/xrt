@@ -62,7 +62,7 @@ XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount)
 			}
 			return TRUE;
 		}
-	} else if ( iCount = 0 ) {
+	} else if ( iCount == 0 ) {
 		// 清空
 		xrtArrayUnit(pArr);
 		return TRUE;
