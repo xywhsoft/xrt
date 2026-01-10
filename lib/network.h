@@ -7,21 +7,29 @@ str xrtGetLocalIP()
 	str sRet = xCore.sNull;
 	char sLocalName[260];
 	if ( gethostname(sLocalName, 260) == 0 ) {
-		struct addrinfo hints, *res, *p;
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_INET;  // IPv4
-		hints.ai_socktype = SOCK_STREAM;
-		if ( getaddrinfo(sLocalName, NULL, &hints, &res) == 0 ) {
-			for ( p = res; p != NULL; p = p->ai_next ) {
-				if ( p->ai_family == AF_INET ) {
-					struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
-					uint8* addr = (uint8*)&ipv4->sin_addr;
-					sRet = xrtFormat("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
-					break;
-				}
+		#ifdef __TINYC__
+			// TCC 不支持 getaddrinfo，使用 gethostbyname
+			struct hostent* host = gethostbyname(sLocalName);
+			if ( host ) {
+				sRet = xrtFormat("%d.%d.%d.%d", (uint8)(host->h_addr_list[0][0]), (uint8)(host->h_addr_list[0][1]), (uint8)(host->h_addr_list[0][2]), (uint8)(host->h_addr_list[0][3]));
 			}
-			freeaddrinfo(res);
-		}
+		#else
+			struct addrinfo hints, *res, *p;
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = AF_INET;  // IPv4
+			hints.ai_socktype = SOCK_STREAM;
+			if ( getaddrinfo(sLocalName, NULL, &hints, &res) == 0 ) {
+				for ( p = res; p != NULL; p = p->ai_next ) {
+					if ( p->ai_family == AF_INET ) {
+						struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
+						uint8* addr = (uint8*)&ipv4->sin_addr;
+						sRet = xrtFormat("%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
+						break;
+					}
+				}
+				freeaddrinfo(res);
+			}
+		#endif
 	}
 	return sRet;
 }
@@ -33,22 +41,30 @@ uint32 xrtGetLocalRawIP()
 {
 	char sLocalName[260];
 	if ( gethostname(sLocalName, 260) == 0 ) {
-		struct addrinfo hints, *res, *p;
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_INET;  // IPv4
-		hints.ai_socktype = SOCK_STREAM;
-		if ( getaddrinfo(sLocalName, NULL, &hints, &res) == 0 ) {
-			for ( p = res; p != NULL; p = p->ai_next ) {
-				if ( p->ai_family == AF_INET ) {
-					struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
-					uint8* addr = (uint8*)&ipv4->sin_addr;
-					uint32 result = (addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3];
-					freeaddrinfo(res);
-					return result;
-				}
+		#ifdef __TINYC__
+			// TCC 不支持 getaddrinfo，使用 gethostbyname
+			struct hostent* host = gethostbyname(sLocalName);
+			if ( host ) {
+				return ((uint8)(host->h_addr_list[0][0]) << 24) | ((uint8)(host->h_addr_list[0][1]) << 16) | ((uint8)(host->h_addr_list[0][2]) << 8) | (uint8)(host->h_addr_list[0][3]);
 			}
-			freeaddrinfo(res);
-		}
+		#else
+			struct addrinfo hints, *res, *p;
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = AF_INET;  // IPv4
+			hints.ai_socktype = SOCK_STREAM;
+			if ( getaddrinfo(sLocalName, NULL, &hints, &res) == 0 ) {
+				for ( p = res; p != NULL; p = p->ai_next ) {
+					if ( p->ai_family == AF_INET ) {
+						struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
+						uint8* addr = (uint8*)&ipv4->sin_addr;
+						uint32 result = (addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3];
+						freeaddrinfo(res);
+						return result;
+					}
+				}
+				freeaddrinfo(res);
+			}
+		#endif
 	}
 	return 0;
 }

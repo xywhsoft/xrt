@@ -749,9 +749,19 @@ XXAPI xtime xrtNowUTC()
 	time_t rawtime = time(NULL);
 	struct tm stm;
 	#if defined(_WIN32) || defined(_WIN64)
-		if ( gmtime_s(&stm, &rawtime) != 0 ) {
-			return 0;
-		}
+		#ifdef __TINYC__
+			// TCC 不支持 gmtime_s，使用 gmtime
+			struct tm* pstm = gmtime(&rawtime);
+			if ( pstm ) {
+				stm = *pstm;
+			} else {
+				return 0;
+			}
+		#else
+			if ( gmtime_s(&stm, &rawtime) != 0 ) {
+				return 0;
+			}
+		#endif
 	#else
 		gmtime_r(&rawtime, &stm);
 	#endif
@@ -766,10 +776,18 @@ XXAPI int xrtTimezoneOffset()
 	time_t rawtime = time(NULL);
 	struct tm stmLocal, stmUTC;
 	#if defined(_WIN32) || defined(_WIN64)
-		localtime_s(&stmLocal, &rawtime);
-		if ( gmtime_s(&stmUTC, &rawtime) != 0 ) {
-			return 0;
-		}
+		#ifdef __TINYC__
+			// TCC 不支持 localtime_s/gmtime_s，使用普通版本
+			struct tm* pLocal = localtime(&rawtime);
+			if ( pLocal ) { stmLocal = *pLocal; } else { return 0; }
+			struct tm* pUTC = gmtime(&rawtime);
+			if ( pUTC ) { stmUTC = *pUTC; } else { return 0; }
+		#else
+			localtime_s(&stmLocal, &rawtime);
+			if ( gmtime_s(&stmUTC, &rawtime) != 0 ) {
+				return 0;
+			}
+		#endif
 	#else
 		localtime_r(&rawtime, &stmLocal);
 		gmtime_r(&rawtime, &stmUTC);
