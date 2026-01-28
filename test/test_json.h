@@ -15,8 +15,17 @@ void Test_JSON(xrtGlobalData* xCore)
 	xvoPrintValue(varJSON, 0, 0, 0, NULL);
 	xvoUnref(varJSON);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -27,8 +36,17 @@ void Test_JSON(xrtGlobalData* xCore)
 	xvoPrintValue(varJSON2, 0, 0, 0, NULL);
 	xvoUnref(varJSON2);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -38,8 +56,17 @@ void Test_JSON(xrtGlobalData* xCore)
 	xvalue varJSON3 = xrtParseJSON_File(sPath);
 	xvoPrintValue(varJSON3, 0, 0, 0, NULL);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -49,8 +76,17 @@ void Test_JSON(xrtGlobalData* xCore)
 	printf("[format] json save as : %s\n", sPath);
 	xrtStringifyJSON_File(sPath, varJSON3, TRUE);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	

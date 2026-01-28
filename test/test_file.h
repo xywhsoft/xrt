@@ -220,10 +220,20 @@ void Test_File(xrtGlobalData* xCore)
 	#if defined(_WIN32) || defined(_WIN64)
 		printf("xrtDirCopy : %s -> c:\\123\n", xCore->AppPath);
 		printf("FileCount : %d\n\n", xrtDirCopy(xCore->AppPath, "c:\\123", FALSE));
-		system("pause");
+		#if defined(_WIN32) || defined(_WIN64)
+			system("pause");
+		#else
+			printf("Press Enter to continue...");
+			getchar();
+		#endif
 		printf("xrtDirMove : c:\\123 -> c:\\456\n");
 		printf("FileCount : %d\n\n", xrtDirMove("c:\\123", "c:\\456", TRUE));
-		system("pause");
+		#if defined(_WIN32) || defined(_WIN64)
+			system("pause");
+		#else
+			printf("Press Enter to continue...");
+			getchar();
+		#endif
 		printf("xrtDirDelete : c:\\456\n");
 		printf("FileCount : %d\n\n", xrtDirDelete("c:\\456"));
 	#else

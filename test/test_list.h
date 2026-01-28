@@ -45,8 +45,17 @@ void Test_List(xrtGlobalData* xCore)
 		printf("List object : %p\t\t\t\tfail! ×\n", objList);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -89,8 +98,17 @@ void Test_List(xrtGlobalData* xCore)
 	printf("\nList List : \n");
 	xrtListWalk(objList, (void*)test_list_eachproc, NULL);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -124,8 +142,17 @@ void Test_List(xrtGlobalData* xCore)
 	printf("\nList List : \n");
 	xrtListWalk(objList, (void*)test_list_eachproc, NULL);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -157,8 +184,17 @@ void Test_List(xrtGlobalData* xCore)
 		printf("\tMM.arrMMU.PageMMU.Memory : %p\t\tfail! ×\n", objList->AVLT.objMM.arrMMU.PageMMU.Memory);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -188,8 +224,17 @@ void Test_List(xrtGlobalData* xCore)
 		printf("\tMM.arrMMU.PageMMU.Memory : %p\t\tfail! ×\n", objList->AVLT.objMM.arrMMU.PageMMU.Memory);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -214,7 +259,12 @@ void Test_List(xrtGlobalData* xCore)
 	
 	xrtListDestroy(objList);
 	printf("\nList object (%p) already destroyed!\n", objList);
-	system("pause");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
 	
 	
 	
