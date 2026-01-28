@@ -50,8 +50,17 @@ void Test_Dict(xrtGlobalData* xCore)
 		printf("Dict object : %p\t\t\t\tfail! ×\n", objHT);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -98,8 +107,17 @@ void Test_Dict(xrtGlobalData* xCore)
 	printf("\nDict List : \n");
 	xrtDictWalk(objHT, (void*)test_avlht32_eachproc, NULL);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -135,8 +153,17 @@ void Test_Dict(xrtGlobalData* xCore)
 	printf("\nDict List : \n");
 	xrtDictWalk(objHT, (void*)test_avlht32_eachproc, NULL);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -170,8 +197,17 @@ void Test_Dict(xrtGlobalData* xCore)
 		printf("\tMM.arrMMU.PageMMU.Memory : %p\t\tfail! ×\n", objHT->AVLT.objMM.arrMMU.PageMMU.Memory);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -203,8 +239,17 @@ void Test_Dict(xrtGlobalData* xCore)
 		printf("\tMM.arrMMU.PageMMU.Memory : %p\t\tfail! ×\n", objHT->AVLT.objMM.arrMMU.PageMMU.Memory);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -231,7 +276,12 @@ void Test_Dict(xrtGlobalData* xCore)
 	printf("\nDict object (%p) already destroyed!\n", objHT);
 	
 	xrtMemPoolDestroy(objMP);
-	system("pause");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
 	
 	
 	

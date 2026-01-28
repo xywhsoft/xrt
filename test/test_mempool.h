@@ -44,8 +44,17 @@ void Test_MemPool(xrtGlobalData* xCore)
 	mp256_treeprint(objMP->FSB_RootNode);
 	xrtMemPoolDestroy(objMP);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -65,8 +74,17 @@ void Test_MemPool(xrtGlobalData* xCore)
 	mp256_treeprint(objMP->FSB_RootNode);
 	xrtMemPoolDestroy(objMP);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -81,8 +99,17 @@ void Test_MemPool(xrtGlobalData* xCore)
 		printf("MemPool object : %p\t\t\t\t\tfail! ×\n", objMP);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -100,8 +127,17 @@ void Test_MemPool(xrtGlobalData* xCore)
 	printf("\tBigMM.Count : %d\t\t\t\t=> 2\n", objMP->BigMM.Count);
 	
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -117,8 +153,17 @@ void Test_MemPool(xrtGlobalData* xCore)
 	printf("\tBigMM.Count : %d\t\t\t\t=> 2\n", objMP->BigMM.Count);
 	
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	

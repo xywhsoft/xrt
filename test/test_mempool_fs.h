@@ -61,8 +61,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		printf("Fixed-Size Memory Pool object : %p\t\t\t\t\tfail! ×\n", objMM);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -144,8 +153,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -232,8 +250,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -309,8 +336,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -382,8 +418,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		printf("\tLL_Null : null\n");
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -444,8 +489,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		printf("\tLL_Null : null\n");
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -527,8 +581,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		printf("\tLL_Null : null\n");
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -611,8 +674,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		printf("\t%d\t%p\t% 8x\t%d\t%s\n", i, ptr[i], mvp->ItemFlag, ptr[i]->iVal, ptr[i]->sVal);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -695,8 +767,17 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 		printf("\t%d\t%p\t% 8x\t%d\t%s\n", i, ptr[i], mvp->ItemFlag, ptr[i]->iVal, ptr[i]->sVal);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	

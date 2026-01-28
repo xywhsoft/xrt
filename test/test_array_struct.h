@@ -38,8 +38,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 		printf("array object : %p\t\t\t\t\tfail! ×\n", arr);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -54,8 +63,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 	printf("\tAllocCount : %d\t\t\t\t=> 0\n", stuArr.AllocCount);
 	printf("\tAllocStep : %d\t\t\t\t=> 16\n", stuArr.AllocStep);
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -73,8 +91,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 		printf("array memory ptr : %p\t\t\t\tfail! ×\n", stuArr.Memory);
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -110,8 +137,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -148,8 +184,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -211,8 +256,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -252,8 +306,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
@@ -279,8 +342,17 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 		}
 	}
 	printf("\n\n\n");
-	system("pause");
-	system("cls");
+	#if defined(_WIN32) || defined(_WIN64)
+		system("pause");
+	#else
+		printf("Press Enter to continue...");
+		getchar();
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+		system("cls");
+	#else
+		printf("\033[2J\033[H");
+	#endif
 	
 	
 	
