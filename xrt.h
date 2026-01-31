@@ -656,6 +656,7 @@
 		};
 		int Charset;			// 文件字符集
 		uint BOM;				// BOM大小
+		int ReadOnly;			// 只读模式
 	} xfile_struct, *xfile;
 	
 	// 游标控制

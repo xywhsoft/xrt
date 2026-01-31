@@ -36,6 +36,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		objFile->obj = hFile;
 		objFile->Charset = iCharset;
 		objFile->BOM = 0;
+		objFile->ReadOnly = bReadOnly;
 		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		if ( iCharset == XRT_CP_AUTO ) {
 			// 自动识别文件编码
@@ -54,10 +55,16 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				ReadFile(hFile, (ptr)sText, iReadSize, &iRetSize, NULL);
 				objFile->Charset = xrtDetectCharset(sText, iReadSize, TRUE);
 				xrtFree(sText);
+				// 重置文件指针到开头
+				SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 			}
 		} else {
 			// 手动指定编码时，检查 BOM 是否正确或提前写入 BOM
-			if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
+			if ( iCharset == XRT_CP_BINARY ) {
+				// BINARY 模式不处理 BOM，确保文件指针在开头
+				objFile->BOM = 0;
+				SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
+			} else if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 				int bErrorBOM = FALSE;
 				if ( stuSize.QuadPart == 0 ) {
 					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
@@ -134,8 +141,10 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				objFile->Charset = XRT_CP_UTF32_BE;
 			}
 		}
-		// 游标跳过 BOM
-		SetFilePointer(hFile, objFile->BOM, NULL, FILE_BEGIN);
+		// 游标跳过 BOM (BINARY 模式已经在前面重置过文件指针)
+		if (objFile->Charset != XRT_CP_BINARY) {
+			SetFilePointer(hFile, objFile->BOM, NULL, FILE_BEGIN);
+		}
 		return objFile;
 	#else
 		// 其他平台方案
@@ -155,6 +164,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		objFile->idx = fd;
 		objFile->Charset = iCharset;
 		objFile->BOM = 0;
+		objFile->ReadOnly = bReadOnly;
 		lseek(fd, 0, SEEK_SET);
 		if ( iCharset == XRT_CP_AUTO ) {
 			// 自动识别文件编码
@@ -173,10 +183,16 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				read(fd, sText, iReadSize);
 				objFile->Charset = xrtDetectCharset(sText, iReadSize, TRUE);
 				xrtFree(sText);
+				// 重置文件指针到开头
+				lseek(fd, 0, SEEK_SET);
 			}
 		} else {
 			// 手动指定编码时，检查 BOM 是否正确或提前写入 BOM
-			if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
+			if ( iCharset == XRT_CP_BINARY ) {
+				// BINARY 模式不处理 BOM，确保文件指针在开头
+				objFile->BOM = 0;
+				lseek(fd, 0, SEEK_SET);
+			} else if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 				int bErrorBOM = FALSE;
 				if ( fileStat.st_size == 0 ) {
 					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
@@ -253,8 +269,10 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				objFile->Charset = XRT_CP_UTF32_BE;
 			}
 		}
-		// 游标跳过 BOM
-		lseek(fd, objFile->BOM, SEEK_SET);
+		// 游标跳过 BOM (BINARY 模式已经在前面重置过文件指针)
+		if (objFile->Charset != XRT_CP_BINARY) {
+			lseek(fd, objFile->BOM, SEEK_SET);
+		}
 		return objFile;
 	#endif
 }
@@ -268,6 +286,9 @@ XXAPI void xrtClose(xfile objFile)
 		// windows 方案
 		if ( objFile ) {
 			if ( objFile->obj != INVALID_HANDLE_VALUE ) {
+				if ( !objFile->ReadOnly ) {
+					FlushFileBuffers(objFile->obj);
+				}
 				CloseHandle(objFile->obj);
 				objFile->obj = NULL;
 			}
@@ -277,6 +298,9 @@ XXAPI void xrtClose(xfile objFile)
 		// 其他平台方案
 		if ( objFile ) {
 			if ( objFile->idx != -1 ) {
+				if ( !objFile->ReadOnly ) {
+					fsync(objFile->idx);
+				}
 				close(objFile->idx);
 				objFile->idx = 0;
 			}
