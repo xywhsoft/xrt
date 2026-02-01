@@ -42,6 +42,7 @@
 // 全局数据
 const int sNullValue = 0;
 xrtGlobalData xCore = { FALSE };
+static int __xrt_RefCount = 0;  // 引用计数
 
 
 
@@ -86,6 +87,9 @@ xrtGlobalData xCore = { FALSE };
 // 初始化 xCore
 XXAPI xrtGlobalData* xrtInit()
 {
+	// 增加引用计数
+	__xrt_RefCount++;
+	
 	if ( xCore.bInit ) {
 		return &xCore;
 	}
@@ -186,7 +190,13 @@ XXAPI xrtGlobalData* xrtInit()
 // 释放 xCore
 XXAPI void xrtUnit()
 {
-	if ( xCore.bInit ) {
+	// 减少引用计数
+	if ( __xrt_RefCount > 0 ) {
+		__xrt_RefCount--;
+	}
+	
+	// 只有引用计数为 0 时才真正释放资源
+	if ( (__xrt_RefCount == 0) && (xCore.bInit) ) {
 		// 清理模板引擎
 		xte_private_unit();
 		// 释放应用路径
