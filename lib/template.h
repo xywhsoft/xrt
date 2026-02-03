@@ -815,6 +815,7 @@ XTE_LiteStruct XTE_LITE_ERROR_MALLOC = {
 			NULL,
 			NULL,
 			NULL,
+			NULL,
 			{
 				0,
 				{

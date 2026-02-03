@@ -136,10 +136,12 @@ static inline void xrtAVLTreeRebalance(xavltnode** ancestors, int count)
 // 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
 XXAPI xavltnode xrtAVLTB_Insert(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey, xavltnode pNewNode)
 {
+	// AVL 树最大只允许存储 4G 个元素
+	if ( objAVLT->Count == 0xFFFFFFFF ) { return NULL; }
 	// 初始化数据
 	xavltnode* ppNode = &objAVLT->RootNode;
 	xavltnode* ancestor[AVLTree_MAX_HEIGHT];	// 上层节点列表
-	int ancestorCount = 0;								// 上层节点数量
+	int ancestorCount = 0;						// 上层节点数量
 	// 找到要添加新节点的叶子节点
 	while ( ancestorCount < AVLTree_MAX_HEIGHT ) {
 		xavltnode pNode = *ppNode;
@@ -319,72 +321,102 @@ XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVL
 
 /* ------------------------------------ AVLTree Base 迭代器实现 ------------------------------------ */
 
-XXAPI xavliterator_base xrtAVLTB_IteratorCreate(xavltbase objAVLT)
+// 启动迭代器（按需创建迭代器对象）
+XXAPI void xrtAVLTB_IteratorBegin(xavltbase objAVLT)
 {
-	if (objAVLT == NULL) {
-		return NULL;
+	if ( objAVLT == NULL ) { return; }
+	
+	// 如果已有迭代器，先清理
+	if ( objAVLT->Iterator ) {
+		xrtFree(objAVLT->Iterator);
+		objAVLT->Iterator = NULL;
 	}
 	
-	xavliterator_base objIter = (xavliterator_base)xrtMalloc(sizeof(xavliterator_base_struct));
-	if (objIter == NULL) {
-		return NULL;
+	// 空树不需要创建迭代器
+	if ( objAVLT->RootNode == NULL ) { return; }
+	if ( objAVLT->Count == 0 ) { return; }
+	
+	// 创建新的迭代器对象
+	xavltree_iterator iter = (xavltree_iterator)xrtMalloc(sizeof(xavltree_iterator_struct));
+	if ( iter == NULL ) {
+		return;
 	}
 	
-	objIter->Depth = -1;
-	objIter->Current = NULL;
+	// 初始化迭代器状态
+	iter->Depth = -1;
+	iter->Current = NULL;
+	objAVLT->Iterator = iter;
 	
 	// 定位到第一个节点（最左节点）并压入栈
 	xavltnode node = objAVLT->RootNode;
 	while (node != NULL) {
-		objIter->Path[++objIter->Depth] = node;
+		iter->Path[++iter->Depth] = node;
 		node = node->left;
 	}
 	
 	// 设置当前节点（栈顶节点）
-	if (objIter->Depth >= 0) {
-		objIter->Current = xrtAVLTreeGetNodeData(objIter->Path[objIter->Depth]);
+	if (iter->Depth >= 0) {
+		iter->Current = xrtAVLTreeGetNodeData(iter->Path[iter->Depth]);
 	}
-	
-	return objIter;
 }
 
-XXAPI ptr xrtAVLTB_IteratorNext(xavliterator_base objIter)
+// 获取下一个节点，返回 NULL 表示迭代结束
+XXAPI ptr xrtAVLTB_IteratorNext(xavltbase objAVLT)
 {
-	if (objIter == NULL || objIter->Current == NULL) {
+	if ( (objAVLT == NULL) || (objAVLT->Iterator == NULL) ) {
 		return NULL;
 	}
 	
-	// 保存当前节点
-	ptr result = objIter->Current;
+	xavltree_iterator iter = objAVLT->Iterator;
+	
+	// 如果当前节点为空，说明已经到达末尾
+	if ( iter->Current == NULL ) {
+		xrtFree(iter);
+		objAVLT->Iterator = NULL;
+		return NULL;
+	}
+	
+	// 保存当前节点作为返回值
+	ptr result = iter->Current;
 	
 	// 移动到下一个节点：弹出当前节点
-	if (objIter->Depth >= 0) {
-		xavltnode node = objIter->Path[objIter->Depth];
-		objIter->Depth--;
+	if ( iter->Depth >= 0 ) {
+		xavltnode node = iter->Path[iter->Depth];
+		iter->Depth--;
 		
 		// 处理右子树：如果有右子树，遍历右子树的最左路径
-		if (node->right != NULL) {
+		if ( node->right != NULL ) {
 			node = node->right;
-			while (node != NULL && objIter->Depth < 47) {
-				objIter->Path[++objIter->Depth] = node;
+			while ( node != NULL && iter->Depth < AVLTree_MAX_HEIGHT ) {
+				iter->Path[++iter->Depth] = node;
 				node = node->left;
 			}
 		}
 	}
 	
 	// 设置新的当前节点（栈顶节点）
-	if (objIter->Depth >= 0) {
-		objIter->Current = xrtAVLTreeGetNodeData(objIter->Path[objIter->Depth]);
+	if ( iter->Depth >= 0 ) {
+		iter->Current = xrtAVLTreeGetNodeData(iter->Path[iter->Depth]);
 	} else {
-		objIter->Current = NULL;
+		iter->Current = NULL;
+	}
+	
+	// 如果没有下一个节点，销毁迭代器
+	if ( iter->Current == NULL ) {
+		xrtFree(iter);
+		objAVLT->Iterator = NULL;
 	}
 	
 	return result;
 }
 
-XXAPI bool xrtAVLTB_IteratorEnd(xavliterator_base objIter)
+// 手动结束迭代器（提前释放迭代器对象）
+XXAPI void xrtAVLTB_IteratorEnd(xavltbase objAVLT)
 {
-	return (objIter == NULL || objIter->Depth < 0);
+	if ( (objAVLT != NULL) && (objAVLT->Iterator != NULL) ) {
+		xrtFree(objAVLT->Iterator);
+		objAVLT->Iterator = NULL;
+	}
 }
 
 

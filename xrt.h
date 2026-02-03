@@ -1475,7 +1475,7 @@
 	/* ------------------------------------ AVLTree Base 函数库 ------------------------------------ */
 	
 	// AVL树最大高度
-	#define AVLTree_MAX_HEIGHT  48
+	#define AVLTree_MAX_HEIGHT  46
 	
 	// AVL树节点基础定义
 	typedef struct xavltnode_struct {
@@ -1484,10 +1484,18 @@
 		int height;
 	} xavltnode_struct, *xavltnode;
 	
+	// AVL树迭代器结构（按需分配，无需存储树对象）
+	typedef struct xavltree_iterator_struct {
+		xavltnode Path[AVLTree_MAX_HEIGHT];		// 遍历路径栈
+		int32 Depth;							// 当前栈深度（-1表示未激活）
+		ptr Current;							// 当前节点数据
+	} xavltree_iterator_struct, *xavltree_iterator;
+	
 	// AVL树对象数据结构
 	typedef struct {
 		xavltnode RootNode;
 		uint32 Count;
+		xavltree_iterator Iterator;		// 当前激活的迭代器对象
 	} xavltbase_struct, *xavltbase;
 	
 	// 比较回调函数
@@ -1506,7 +1514,11 @@
 	#define xrtAVLTreeGetRootData(obj) xrtAVLTreeGetNodeData(obj->RootNode)
 	
 	// 初始化 AVLTree
-	#define xrtAVLTB_Init(o) (o)->RootNode = NULL; (o)->Count = 0
+	#define xrtAVLTB_Init(o) do { \
+		(o)->RootNode = NULL; \
+		(o)->Count = 0; \
+		(o)->Iterator = NULL; \
+	} while(0)
 	
 	// 释放 AVLTree
 	#define xrtAVLTB_Unit xrtAVLTB_Init
@@ -1536,65 +1548,27 @@
 	
 	/* ------------------------------------ AVLTree Base 迭代器 ------------------------------------ */
 	
-	// Base 迭代器结构（仅支持中序，使用栈上数组）
-	typedef struct {
-		xavltnode Path[48];         // 遍历路径栈（栈上分配）
-		int Depth;
-		ptr Current;
-	} xavliterator_base_struct, *xavliterator_base;
+	// 启动迭代器（按需创建迭代器对象）
+	XXAPI void xrtAVLTB_IteratorBegin(xavltbase objAVLT);
 	
-	// 创建 Base 迭代器
-	XXAPI xavliterator_base xrtAVLTB_IteratorCreate(xavltbase objAVLT);
+	// 获取下一个节点，返回 NULL 表示迭代结束
+	XXAPI ptr xrtAVLTB_IteratorNext(xavltbase objAVLT);
 	
-	// 获取下一个节点
-	XXAPI ptr xrtAVLTB_IteratorNext(xavliterator_base objIter);
+	// 手动结束迭代器（提前释放迭代器对象）
+	XXAPI void xrtAVLTB_IteratorEnd(xavltbase objAVLT);
 	
-	// 检查是否结束
-	XXAPI bool xrtAVLTB_IteratorEnd(xavliterator_base objIter);
+	// 基础遍历宏
+	#define FOREACH_AVLTBASE(tree, var) \
+		xrtAVLTB_IteratorBegin((xavltbase)tree); \
+		for ( ptr var = xrtAVLTB_IteratorNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IteratorNext((xavltbase)tree) )
 	
+	// 带类型转换的遍历宏
+	#define FOREACH_AVLTBASE_TYPE(tree, var, type) \
+		xrtAVLTB_IteratorBegin((xavltbase)tree); \
+		for ( type var = xrtAVLTB_IteratorNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IteratorNext((xavltbase)tree) )
 	
-	
-	/* ------------------------------------ AVLTree Base 迭代器便利宏 ------------------------------------ */
-	
-	// 基础遍历宏（自动类型转换）
-	#define XRT_FOREACH_AVLTREE_BASE(tree, type, var) \
-		for (xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
-		     !xrtAVLTB_IteratorEnd(__iter);) \
-			if ((var = (type*)xrtAVLTB_IteratorNext(__iter)), 0) {} \
-			else for (int __cnt = 1; __cnt; __cnt = 0)
-	
-	// 带索引的遍历宏（修复 TCC 编译器 bug）
-	#define XRT_FOREACH_AVLTREE_BASE_INDEX(tree, type, var, idx) \
-		for (int _X_ITER_INIT = 0; _X_ITER_INIT == 0; _X_ITER_INIT++) \
-			for (xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
-			     __iter != NULL && !xrtAVLTB_IteratorEnd(__iter); \
-			     xrtFree(__iter), __iter = NULL) \
-				for (idx = 0; !xrtAVLTB_IteratorEnd(__iter); idx++) \
-					if (((var = (type*)xrtAVLTB_IteratorNext(__iter)), 0)) {} \
-					else for (int __cnt = 1; __cnt; __cnt = 0)
-	
-	// 带提前退出的遍历宏
-	#define XRT_FOREACH_AVLTREE_BASE_BREAK(tree, type, var, break_cond) \
-		for (xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
-		     !xrtAVLTB_IteratorEnd(__iter) && !(break_cond);) \
-			for (type var = (type*)xrtAVLTB_IteratorNext(__iter); \
-			     (ptr)var != (ptr)NULL; \
-			     var = NULL)
-	
-	// 仅获取第 N 个元素（1-based）
-	#define XRT_FOREACH_AVLTREE_BASE_GET(tree, type, var, n) \
-		({ \
-			type var = NULL; \
-			xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
-			int __i; \
-			for (__i = 1; __i < n && !xrtAVLTB_IteratorEnd(__iter); __i++) { \
-				xrtAVLTB_IteratorNext(__iter); \
-			} \
-			if (__i == n && !xrtAVLTB_IteratorEnd(__iter)) { \
-				var = (type*)xrtAVLTB_IteratorNext(__iter); \
-			} \
-			var; \
-		})
+	// 跳出迭代器
+	#define BREAK_AVLTBASE(tree) xrtAVLTB_IteratorEnd((xavltbase)tree); break;
 	
 	
 	
@@ -1607,6 +1581,7 @@
 	typedef struct xavltree_struct {
 		xavltnode RootNode;
 		uint32 Count;
+		xavltree_iterator Iterator;		// 当前激活的迭代器对象
 		struct xavltree_struct* Parent;
 		AVLTree_CompProc CompProc;
 		AVLTree_FreeProc FreeProc;
