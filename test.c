@@ -31,6 +31,7 @@
 #include "test/test_dynstack_ptr.h"
 #include "test/test_dynstack.h"
 #include "test/test_avltree.h"
+#include "test/test_avltree_iterator.h"
 #include "test/test_mempool.h"
 #include "test/test_dict.h"
 #include "test/test_list.h"
@@ -132,6 +133,9 @@ int main(int argc, char** argv)
 	/* AVLTree 库测试 */
 	// Test_AVLTree(xCore);
 	
+	/* AVLTree Iterator 测试 */
+	Test_AVLTree_Iterator(xCore);
+	
 	/* 内存池测试 */
 	// Test_MemPool(xCore);
 	
@@ -144,7 +148,7 @@ int main(int argc, char** argv)
 	/* Value 测试 */
 	// Test_Value_Basic(xCore);
 	// Test_Value_Operations(xCore);
-	Test_Value_Full(xCore);
+	// Test_Value_Full(xCore);
 	
 	/* JSON 测试 */
 	// Test_JSON(xCore);

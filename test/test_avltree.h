@@ -9,9 +9,9 @@ typedef struct {
 
 
 // AVLTree compear function
-int avltree_comp_proc(AVLT_Test_Object pNode, intptr_t iKey)
+int avltree_comp_proc(AVLT_Test_Object pNode, ptr pKey)
 {
-	return pNode->Val - iKey;
+	return (intptr_t)pKey - pNode->Val;
 }
 
 

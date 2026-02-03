@@ -6,6 +6,9 @@ u16len
 u32len
 xCore
 xrtAVLTB_Insert
+xrtAVLTB_IteratorCreate
+xrtAVLTB_IteratorEnd
+xrtAVLTB_IteratorNext
 xrtAVLTB_Remove
 xrtAVLTB_Search
 xrtAVLTB_WalkExRecuProc
