@@ -314,3 +314,77 @@ XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVL
 }
 
 
+
+
+
+/* ------------------------------------ AVLTree Base 迭代器实现 ------------------------------------ */
+
+XXAPI xavliterator_base xrtAVLTB_IteratorCreate(xavltbase objAVLT)
+{
+	if (objAVLT == NULL) {
+		return NULL;
+	}
+	
+	xavliterator_base objIter = (xavliterator_base)xrtMalloc(sizeof(xavliterator_base_struct));
+	if (objIter == NULL) {
+		return NULL;
+	}
+	
+	objIter->Depth = -1;
+	objIter->Current = NULL;
+	
+	// 定位到第一个节点（最左节点）并压入栈
+	xavltnode node = objAVLT->RootNode;
+	while (node != NULL) {
+		objIter->Path[++objIter->Depth] = node;
+		node = node->left;
+	}
+	
+	// 设置当前节点（栈顶节点）
+	if (objIter->Depth >= 0) {
+		objIter->Current = xrtAVLTreeGetNodeData(objIter->Path[objIter->Depth]);
+	}
+	
+	return objIter;
+}
+
+XXAPI ptr xrtAVLTB_IteratorNext(xavliterator_base objIter)
+{
+	if (objIter == NULL || objIter->Current == NULL) {
+		return NULL;
+	}
+	
+	// 保存当前节点
+	ptr result = objIter->Current;
+	
+	// 移动到下一个节点：弹出当前节点
+	if (objIter->Depth >= 0) {
+		xavltnode node = objIter->Path[objIter->Depth];
+		objIter->Depth--;
+		
+		// 处理右子树：如果有右子树，遍历右子树的最左路径
+		if (node->right != NULL) {
+			node = node->right;
+			while (node != NULL && objIter->Depth < 47) {
+				objIter->Path[++objIter->Depth] = node;
+				node = node->left;
+			}
+		}
+	}
+	
+	// 设置新的当前节点（栈顶节点）
+	if (objIter->Depth >= 0) {
+		objIter->Current = xrtAVLTreeGetNodeData(objIter->Path[objIter->Depth]);
+	} else {
+		objIter->Current = NULL;
+	}
+	
+	return result;
+}
+
+XXAPI bool xrtAVLTB_IteratorEnd(xavliterator_base objIter)
+{
+	return (objIter == NULL || objIter->Depth < 0);
+}
+
+

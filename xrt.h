@@ -1534,6 +1534,70 @@
 	
 	
 	
+	/* ------------------------------------ AVLTree Base 迭代器 ------------------------------------ */
+	
+	// Base 迭代器结构（仅支持中序，使用栈上数组）
+	typedef struct {
+		xavltnode Path[48];         // 遍历路径栈（栈上分配）
+		int Depth;
+		ptr Current;
+	} xavliterator_base_struct, *xavliterator_base;
+	
+	// 创建 Base 迭代器
+	XXAPI xavliterator_base xrtAVLTB_IteratorCreate(xavltbase objAVLT);
+	
+	// 获取下一个节点
+	XXAPI ptr xrtAVLTB_IteratorNext(xavliterator_base objIter);
+	
+	// 检查是否结束
+	XXAPI bool xrtAVLTB_IteratorEnd(xavliterator_base objIter);
+	
+	
+	
+	/* ------------------------------------ AVLTree Base 迭代器便利宏 ------------------------------------ */
+	
+	// 基础遍历宏（自动类型转换）
+	#define XRT_FOREACH_AVLTREE_BASE(tree, type, var) \
+		for (xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
+		     !xrtAVLTB_IteratorEnd(__iter);) \
+			if ((var = (type*)xrtAVLTB_IteratorNext(__iter)), 0) {} \
+			else for (int __cnt = 1; __cnt; __cnt = 0)
+	
+	// 带索引的遍历宏（修复 TCC 编译器 bug）
+	#define XRT_FOREACH_AVLTREE_BASE_INDEX(tree, type, var, idx) \
+		for (int _X_ITER_INIT = 0; _X_ITER_INIT == 0; _X_ITER_INIT++) \
+			for (xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
+			     __iter != NULL && !xrtAVLTB_IteratorEnd(__iter); \
+			     xrtFree(__iter), __iter = NULL) \
+				for (idx = 0; !xrtAVLTB_IteratorEnd(__iter); idx++) \
+					if (((var = (type*)xrtAVLTB_IteratorNext(__iter)), 0)) {} \
+					else for (int __cnt = 1; __cnt; __cnt = 0)
+	
+	// 带提前退出的遍历宏
+	#define XRT_FOREACH_AVLTREE_BASE_BREAK(tree, type, var, break_cond) \
+		for (xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
+		     !xrtAVLTB_IteratorEnd(__iter) && !(break_cond);) \
+			for (type var = (type*)xrtAVLTB_IteratorNext(__iter); \
+			     (ptr)var != (ptr)NULL; \
+			     var = NULL)
+	
+	// 仅获取第 N 个元素（1-based）
+	#define XRT_FOREACH_AVLTREE_BASE_GET(tree, type, var, n) \
+		({ \
+			type var = NULL; \
+			xavliterator_base __iter = xrtAVLTB_IteratorCreate(tree); \
+			int __i; \
+			for (__i = 1; __i < n && !xrtAVLTB_IteratorEnd(__iter); __i++) { \
+				xrtAVLTB_IteratorNext(__iter); \
+			} \
+			if (__i == n && !xrtAVLTB_IteratorEnd(__iter)) { \
+				var = (type*)xrtAVLTB_IteratorNext(__iter); \
+			} \
+			var; \
+		})
+	
+	
+	
 	/* ------------------------------------ AVLTree 函数库 ------------------------------------ */
 	
 	// 键释放回调函数 ( 如果 key 中有额外需要释放的值时使用 )
