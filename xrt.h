@@ -1544,31 +1544,27 @@
 	#define xrtAVLTB_Walk(obj, p, a) xrtAVLTB_WalkRecuProc(obj->RootNode, (ptr)p, (ptr)a)
 	#define xrtAVLTB_WalkEx(obj, p1, p2, p3, a) xrtAVLTB_WalkExRecuProc(obj->RootNode, (ptr)p1, (ptr)p2, (ptr)p3, (ptr)a)
 	
-	
-	
-	/* ------------------------------------ AVLTree Base 迭代器 ------------------------------------ */
-	
 	// 启动迭代器（按需创建迭代器对象）
-	XXAPI void xrtAVLTB_IteratorBegin(xavltbase objAVLT);
+	XXAPI void xrtAVLTB_IterBegin(xavltbase objAVLT);
 	
 	// 获取下一个节点，返回 NULL 表示迭代结束
-	XXAPI ptr xrtAVLTB_IteratorNext(xavltbase objAVLT);
+	XXAPI ptr xrtAVLTB_IterNext(xavltbase objAVLT);
 	
 	// 手动结束迭代器（提前释放迭代器对象）
-	XXAPI void xrtAVLTB_IteratorEnd(xavltbase objAVLT);
+	XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT);
 	
 	// 基础遍历宏
-	#define FOREACH_AVLTBASE(tree, var) \
-		xrtAVLTB_IteratorBegin((xavltbase)tree); \
-		for ( ptr var = xrtAVLTB_IteratorNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IteratorNext((xavltbase)tree) )
+	#define AVLTBASE_FOREACH(tree, var) \
+		xrtAVLTB_IterBegin((xavltbase)tree); \
+		for ( ptr var = xrtAVLTB_IterNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IterNext((xavltbase)tree) )
 	
 	// 带类型转换的遍历宏
-	#define FOREACH_AVLTBASE_TYPE(tree, var, type) \
-		xrtAVLTB_IteratorBegin((xavltbase)tree); \
-		for ( type var = xrtAVLTB_IteratorNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IteratorNext((xavltbase)tree) )
+	#define AVLTBASE_FOREACH_TYPE(tree, var, type) \
+		xrtAVLTB_IterBegin((xavltbase)tree); \
+		for ( type var = xrtAVLTB_IterNext((xavltbase)tree); var != NULL; var = xrtAVLTB_IterNext((xavltbase)tree) )
 	
 	// 跳出迭代器
-	#define BREAK_AVLTBASE(tree) xrtAVLTB_IteratorEnd((xavltbase)tree); break;
+	#define AVLTBASE_BREAK(tree) xrtAVLTB_IterEnd((xavltbase)tree); break;
 	
 	
 	
@@ -1619,6 +1615,14 @@
 	// 遍历 AVLTree 所有节点
 	#define xrtAVLTreeWalk xrtAVLTB_Walk
 	#define xrtAVLTreeWalkEx xrtAVLTB_WalkEx
+	
+	// 迭代器操作
+	#define xrtAVLTreeIterBegin(obj) xrtAVLTB_IterBegin((xavltbase)obj)
+	#define xrtAVLTreeIterNext(obj) xrtAVLTB_IterNext((xavltbase)obj)
+	#define xrtAVLTreeIterEnd(obj) xrtAVLTB_IterEnd((xavltbase)obj)
+	#define AVLTREE_FOREACH AVLTBASE_FOREACH
+	#define AVLTREE_FOREACH_TYPE AVLTBASE_FOREACH_TYPE
+	#define AVLTREE_BREAK AVLTBASE_BREAK
 	
 	
 	

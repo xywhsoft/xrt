@@ -79,7 +79,7 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 		printf("\tIterator (macro): ");
 		
 		printCount = 0;
-		FOREACH_AVLTBASE(objTree, var) {
+		AVLTREE_FOREACH(objTree, var) {
 			AVLT_Test_Iter_Struct* pData = (AVLT_Test_Iter_Struct*)var;
 			printf("%d ", pData->Val);
 			printCount++;
@@ -93,7 +93,7 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 		printf("\tIterator (macro): ");
 		
 		printCount = 0;
-		FOREACH_AVLTBASE_TYPE(objTree, pData, AVLT_Test_Iter_Struct*) {
+		AVLTREE_FOREACH_TYPE(objTree, pData, AVLT_Test_Iter_Struct*) {
 			printf("%d ", pData->Val);
 			printCount++;
 		}
@@ -105,9 +105,9 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 		printf("AVLTree Iterator test subject 5 : iterator manually\n");
 		printf("\tIterator (manual): ");
 		
-		xrtAVLTB_IteratorBegin((xavltbase)objTree);
+		xrtAVLTreeIterBegin(objTree);
 		printCount = 0;
-		for (ptr var = xrtAVLTB_IteratorNext((xavltbase)objTree); var != NULL; var = xrtAVLTB_IteratorNext((xavltbase)objTree)) {
+		for ( ptr var = xrtAVLTreeIterNext(objTree); var != NULL; var = xrtAVLTreeIterNext(objTree) ) {
 			AVLT_Test_Iter_Struct* pData = (AVLT_Test_Iter_Struct*)var;
 			printf("%d ", pData->Val);
 			printCount++;
@@ -122,8 +122,8 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 		if (emptyTree) {
 			printf("\tEmpty tree count: %u\n", emptyTree->Count);
 			
-			xrtAVLTB_IteratorBegin((xavltbase)emptyTree);
-			ptr result = xrtAVLTB_IteratorNext((xavltbase)emptyTree);
+			xrtAVLTreeIterBegin(emptyTree);
+			ptr result = xrtAVLTreeIterNext(emptyTree);
 			if (result == NULL) {
 				printf("\tEmpty iterator correctly returns NULL\n");
 			}
@@ -139,14 +139,14 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 		printf("AVLTree Iterator test subject 7 : iterator early end\n");
 		printf("\tIterator (early end): ");
 		
-		xrtAVLTB_IteratorBegin((xavltbase)objTree);
+		xrtAVLTreeIterBegin(objTree);
 		printCount = 0;
-		for (ptr var = xrtAVLTB_IteratorNext((xavltbase)objTree); var != NULL; var = xrtAVLTB_IteratorNext((xavltbase)objTree)) {
+		for (ptr var = xrtAVLTreeIterNext(objTree); var != NULL; var = xrtAVLTreeIterNext(objTree)) {
 			AVLT_Test_Iter_Struct* pData = (AVLT_Test_Iter_Struct*)var;
 			printf("%d ", pData->Val);
 			printCount++;
 			if (printCount >= 5) {
-				BREAK_AVLTBASE(objTree);
+				AVLTREE_BREAK(objTree);
 			}
 		}
 		printf("  [Count: %d, early break]\n\n", printCount);
@@ -159,9 +159,9 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 		
 		xrtAVLTreeRemove(objTree, (ptr)(intptr_t)5);
 		
-		xrtAVLTB_IteratorBegin((xavltbase)objTree);
+		xrtAVLTreeIterBegin(objTree);
 		printCount = 0;
-		for (ptr var = xrtAVLTB_IteratorNext((xavltbase)objTree); var != NULL; var = xrtAVLTB_IteratorNext((xavltbase)objTree)) {
+		for (ptr var = xrtAVLTreeIterNext(objTree); var != NULL; var = xrtAVLTreeIterNext(objTree)) {
 			AVLT_Test_Iter_Struct* pData = (AVLT_Test_Iter_Struct*)var;
 			printf("%d ", pData->Val);
 			printCount++;

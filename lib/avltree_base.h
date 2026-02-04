@@ -322,7 +322,7 @@ XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVL
 /* ------------------------------------ AVLTree Base 迭代器实现 ------------------------------------ */
 
 // 启动迭代器（按需创建迭代器对象）
-XXAPI void xrtAVLTB_IteratorBegin(xavltbase objAVLT)
+XXAPI void xrtAVLTB_IterBegin(xavltbase objAVLT)
 {
 	if ( objAVLT == NULL ) { return; }
 	
@@ -361,7 +361,7 @@ XXAPI void xrtAVLTB_IteratorBegin(xavltbase objAVLT)
 }
 
 // 获取下一个节点，返回 NULL 表示迭代结束
-XXAPI ptr xrtAVLTB_IteratorNext(xavltbase objAVLT)
+XXAPI ptr xrtAVLTB_IterNext(xavltbase objAVLT)
 {
 	if ( (objAVLT == NULL) || (objAVLT->Iterator == NULL) ) {
 		return NULL;
@@ -411,7 +411,7 @@ XXAPI ptr xrtAVLTB_IteratorNext(xavltbase objAVLT)
 }
 
 // 手动结束迭代器（提前释放迭代器对象）
-XXAPI void xrtAVLTB_IteratorEnd(xavltbase objAVLT)
+XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 {
 	if ( (objAVLT != NULL) && (objAVLT->Iterator != NULL) ) {
 		xrtFree(objAVLT->Iterator);
