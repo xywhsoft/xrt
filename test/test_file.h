@@ -206,6 +206,81 @@ void Test_File(xrtGlobalData* xCore)
 	printf("xrtFileMove : %s\n", sPathA4);
 	printf("xrtFileDelete : %s\n", sPathA5);
 	//*/
+
+	//*
+	printf("---------------- 文件指针操作测试\n");
+	str sPathPtr1 = xrtPathJoin(3, xCore->AppPath, "test", "test_ptr.txt");
+	xfile fPtr1 = xrtOpen(sPathPtr1, FALSE, XRT_CP_UTF8);
+	xrtWrite(fPtr1, "Hello World!", 0);
+	xrtWrite(fPtr1, "\nXRT File Test", 0);
+	printf("xrtSeek : seek to position 6\n");
+	xrtSeek(fPtr1, 6, XRT_SEEK_SET);
+	printf("xrtTell : current position = %d\n", xrtTell(fPtr1));
+	printf("xrtEOF : EOF = %d\n", xrtEOF(fPtr1));
+	printf("xrtGetEOF : file size = %d\n", xrtGetEOF(fPtr1));
+	xrtClose(fPtr1);
+
+	printf("xrtGet : read from file\n");
+	xfile fPtr2 = xrtOpen(sPathPtr1, TRUE, XRT_CP_UTF8);
+	size_t iReadSize = 0;
+	ptr pRead = xrtGet(fPtr2, 100, &iReadSize);
+	printf("Read %d bytes\n", (int)iReadSize);
+	if ( pRead != NULL && iReadSize > 0 ) {
+		printf("Content : %s\n", (str)pRead);
+		xrtFree(pRead);
+	}
+	xrtClose(fPtr2);
+
+	printf("xrtPut : write buffer to file\n");
+	str sPathPtr2 = xrtPathJoin(3, xCore->AppPath, "test", "test_put.txt");
+	xfile fPtr3 = xrtOpen(sPathPtr2, FALSE, XRT_CP_UTF8);
+	str sWrite = "Test Buffer Write";
+	xrtPut(fPtr3, sWrite, strlen(sWrite));
+	xrtClose(fPtr3);
+
+	printf("xrtFilePutAll : write binary data\n");
+	str sPathPtr3 = xrtPathJoin(3, xCore->AppPath, "test", "test_putall.txt");
+	uint8 u8Data[] = { 0x01, 0x02, 0x03, 0x04, 0x05 };
+	xrtFilePutAll(sPathPtr3, u8Data, sizeof(u8Data));
+
+	printf("xrtFileGetAll : read binary data\n");
+	ptr pReadData = xrtFileGetAll(sPathPtr3, NULL);
+	if ( pReadData ) {
+		uint8* pU8 = (uint8*)pReadData;
+		printf("Read data: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n", pU8[0], pU8[1], pU8[2], pU8[3], pU8[4]);
+		xrtFree(pReadData);
+	}
+
+	printf("xrtFileGetAccessTime : get file access time\n");
+	xtime tAccess = xrtFileGetAccessTime(sPathA1);
+	printf("Access time: %lld\n", tAccess);
+
+	printf("xrtFileGetChangeTime : get file change time\n");
+	xtime tChange = xrtFileGetChangeTime(sPathA1);
+	printf("Change time: %lld\n", tChange);
+
+	printf("xrtFileSetAttr : set file attributes\n");
+	int iOldAttr = xrtFileGetAttr(sPathA7);
+	printf("Old attr: %d\n", iOldAttr);
+	xrtFileSetAttr(sPathA7, 32);
+	int iNewAttr = xrtFileGetAttr(sPathA7);
+	printf("New attr: %d\n", iNewAttr);
+
+	printf("xrtDirCreate : create directory\n");
+	str sPathDir1 = xrtPathJoin(3, xCore->AppPath, "test", "newdir");
+	xrtDirCreate(sPathDir1);
+	printf("xrtDirCreate : %s\n", sPathDir1);
+	printf("xrtDirExists : %d\n", xrtDirExists(sPathDir1));
+
+	printf("xrtDirCreateAll : create nested directories\n");
+	str sPathDir2 = xrtPathJoin(3, xCore->AppPath, "test", "nested/dir/path");
+	xrtDirCreateAll(sPathDir2);
+	printf("xrtDirCreateAll : %s\n", sPathDir2);
+	printf("xrtDirExists : %d\n", xrtDirExists(sPathDir2));
+
+	xrtDirDelete(sPathDir1);
+	xrtDirDelete(sPathDir2);
+	//*/
 	
 	//*
 	printf("---------------- 遍历文件测试\n");

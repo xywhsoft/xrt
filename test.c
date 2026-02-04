@@ -7,7 +7,8 @@
 #endif
 
 
-
+#include "test/test_jnum.h"
+#include "test/test_suplib.h"
 #include "test/test_base.h"
 #include "test/test_charset.h"
 #include "test/test_os.h"
@@ -66,7 +67,13 @@ int main(int argc, char** argv)
 	fflush(stdout);
 	
 	
-	
+
+	/* JNum 库测试 */
+	// Test_JNum(xCore);
+
+	/* SupLib 库测试 */
+	Test_SupLib(xCore);
+
 	/* Base 库测试 */
 	// Test_Base(xCore);
 	
@@ -155,7 +162,7 @@ int main(int argc, char** argv)
 	// Test_List(xCore);
 
 	/* List Iterator 测试 */
-	Test_List_Iterator(xCore);
+	// Test_List_Iterator(xCore);
 
 	/* Value 测试 */
 	// Test_Value_Basic(xCore);

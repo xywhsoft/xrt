@@ -746,6 +746,24 @@ void Test_Value_Full(xrtGlobalData* xCore)
 	xvalue before = xvoArrayGetValue(arrSort, 0);
 	if ( xvoGetInt(before) == 50 ) { printf("  ✓ 排序前第一个=50\n"); passed++; }
 	else { printf("  × 排序前\n"); failed++; }
+
+	// 执行排序（使用默认比较函数，传入 NULL）
+	xvoArraySort(arrSort, NULL);
+
+	// 排序后应该是 [10, 20, 30, 40, 50]
+	xvalue after1 = xvoArrayGetValue(arrSort, 0);
+	xvalue after2 = xvoArrayGetValue(arrSort, 1);
+	xvalue after3 = xvoArrayGetValue(arrSort, 2);
+	xvalue after4 = xvoArrayGetValue(arrSort, 3);
+	xvalue after5 = xvoArrayGetValue(arrSort, 4);
+	if ( xvoGetInt(after1) == 10 && xvoGetInt(after2) == 20 && xvoGetInt(after3) == 30 && xvoGetInt(after4) == 40 && xvoGetInt(after5) == 50 ) {
+		printf("  ✓ 排序后数组正确: [10, 20, 30, 40, 50]\n");
+		passed++;
+	} else {
+		printf("  × 排序后数组错误\n");
+		failed++;
+	}
+
 	xvoUnref(arrSort);
 	printf("\n");
 	
