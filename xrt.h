@@ -1783,6 +1783,30 @@
 	// 遍历表元素
 	XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg);
 	
+	// 迭代器操作
+	#define xrtDictIterBegin(obj) xrtAVLTB_IterBegin((xdict)obj)
+	#define xrtDictIterNext(obj)  xrtAVLTB_IterNext((xdict)obj)
+	#define xrtDictIterEnd(obj)   xrtAVLTB_IterEnd((xdict)obj)
+	#define DICT_BREAK AVLTBASE_BREAK
+	
+	// 迭代器辅助宏，强制展开 __LINE__
+	#define __XRT_CONCAT(a, b) a##b
+	#define __XRT_CONCATLINE(a, b) __XRT_CONCAT(a, b)
+	
+	// 基础遍历宏
+	#define DICT_FOREACH(tree, key, val) \
+		xrtAVLTB_IterBegin((xavltbase)tree); \
+		bool __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); \
+		for ( Dict_Key* key = xrtAVLTB_IterNext((xavltbase)tree); key != NULL; key = xrtAVLTB_IterNext((xavltbase)tree), __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1 ) \
+			for ( ptr val = (ptr)(&key[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
+	
+	// 带类型转换的遍历宏
+	#define DICT_FOREACH_TYPE(tree, key, val, type) \
+		xrtAVLTB_IterBegin((xavltbase)tree); \
+		bool __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); \
+		for ( Dict_Key* key = xrtAVLTB_IterNext((xavltbase)tree); key != NULL; key = xrtAVLTB_IterNext((xavltbase)tree), __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1 ) \
+			for ( type val = (ptr)(&key[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
+	
 	
 	
 	/* ------------------------------------ List 函数库 ------------------------------------ */

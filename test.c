@@ -34,6 +34,7 @@
 #include "test/test_avltree_iterator.h"
 #include "test/test_mempool.h"
 #include "test/test_dict.h"
+#include "test/test_dict_iterator.h"
 #include "test/test_list.h"
 #include "test/test_value.h"
 #include "test/test_json.h"
@@ -134,13 +135,16 @@ int main(int argc, char** argv)
 	// Test_AVLTree(xCore);
 	
 	/* AVLTree Iterator 测试 */
-	Test_AVLTree_Iterator(xCore);
+	// Test_AVLTree_Iterator(xCore);
 	
 	/* 内存池测试 */
 	// Test_MemPool(xCore);
 	
 	/* Dict 测试 */
 	// Test_Dict(xCore);
+	
+	/* Dict Iterator 测试 */
+	Test_Dict_Iterator(xCore);
 	
 	/* List 测试 */
 	// Test_List(xCore);
