@@ -36,6 +36,7 @@
 #include "test/test_dict.h"
 #include "test/test_dict_iterator.h"
 #include "test/test_list.h"
+#include "test/test_list_iterator.h"
 #include "test/test_value.h"
 #include "test/test_json.h"
 #include "test/test_template.h"
@@ -55,10 +56,14 @@ int main(int argc, char** argv)
 	#if defined(_WIN32) || defined(_WIN64)
 		SetConsoleOutputCP(65001);
 	#endif
-	
+
+	printf("开始初始化...\n");
+	fflush(stdout);
+
 	xrtGlobalData* xCore = xrtInit();
 	xCore->OnError = OnError;
-	printf("测试开始\n\n");
+	printf("初始化完成，测试开始\n\n");
+	fflush(stdout);
 	
 	
 	
@@ -144,11 +149,14 @@ int main(int argc, char** argv)
 	// Test_Dict(xCore);
 	
 	/* Dict Iterator 测试 */
-	Test_Dict_Iterator(xCore);
+	// Test_Dict_Iterator(xCore);
 	
 	/* List 测试 */
 	// Test_List(xCore);
-	
+
+	/* List Iterator 测试 */
+	Test_List_Iterator(xCore);
+
 	/* Value 测试 */
 	// Test_Value_Basic(xCore);
 	// Test_Value_Operations(xCore);
