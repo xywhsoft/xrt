@@ -7,15 +7,12 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
-		#include <winapi/winsock2.h>
-		#include "windows.h"
 		#include <winapi/shellapi.h>
 		#include <winapi/iphlpapi.h>
+		
+		// 声明函数（从 kernel32.dll 加载）
 		ULONGLONG GetTickCount64();
 	#else
-		#include <winsock2.h>
-		#include <ws2tcpip.h>
-		#include "windows.h"
 		#include <shellapi.h>
 		#include <iphlpapi.h>
 	#endif

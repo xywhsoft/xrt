@@ -8,6 +8,9 @@
 	#include <signal.h>
 #endif
 
+#include <string.h>
+
+
 // TCC 编译器兼容性：定义 CONDITION_VARIABLE 相关
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
@@ -25,6 +28,14 @@
 				PCRITICAL_SECTION CriticalSection,
 				DWORD dwMilliseconds
 			);
+			
+			void WINAPI InitializeSRWLock(PSRWLOCK SRWLock);
+			void WINAPI AcquireSRWLockExclusive(PSRWLOCK SRWLock);
+			void WINAPI ReleaseSRWLockExclusive(PSRWLOCK SRWLock);
+			void WINAPI AcquireSRWLockShared(PSRWLOCK SRWLock);
+			void WINAPI ReleaseSRWLockShared(PSRWLOCK SRWLock);
+			BOOL WINAPI TryAcquireSRWLockExclusive(PSRWLOCK SRWLock);
+			BOOL WINAPI TryAcquireSRWLockShared(PSRWLOCK SRWLock);
 		#endif
 	#endif
 #endif
@@ -744,5 +755,389 @@ XXAPI void xrtCondBroadcast(xcond pCond)
 		pthread_cond_broadcast((pthread_cond_t*)pCond->Handle);
 	#endif
 }
+
+
+/* ================================ 读写锁实现 ================================ */
+
+#ifdef DEBUG_TRACE
+	#include <stdio.h>
+	
+	// 获取当前线程ID
+	static inline uint64 GetCurrentThreadID_RW() {
+		#if defined(_WIN32) || defined(_WIN64)
+			return (uint64)GetCurrentThreadId();
+		#else
+			return (uint64)pthread_self();
+		#endif
+	}
+	
+	// 检查递归写锁
+	static inline bool CheckRecursiveWriteLock_RW(xrwlock pRWLock) {
+		if ( !pRWLock ) return FALSE;
+		return (pRWLock->WriterCount > 0) && (pRWLock->WriterThreadID == GetCurrentThreadID_RW());
+	}
+#endif
+
+// 创建读写锁
+XXAPI xrwlock xrtRWLockCreate()
+{
+	xrwlock pRWLock = xrtMalloc(sizeof(xrwlock_struct));
+	if ( !pRWLock ) return NULL;
+	
+	xrtRWLockInit(pRWLock);
+	
+	#ifdef DEBUG_TRACE
+		pRWLock->LockFileName = NULL;
+		pRWLock->LockLineNumber = 0;
+	#endif
+	
+	return pRWLock;
+}
+
+
+// 销毁读写锁
+XXAPI void xrtRWLockDestroy(xrwlock pRWLock)
+{
+	if ( pRWLock ) {
+		#ifdef DEBUG_TRACE
+			if ( pRWLock->ReaderCount > 0 || pRWLock->WriterCount > 0 ) {
+				fprintf(stderr, "[WARNING] RWLock destroyed while still locked!\n");
+				fprintf(stderr, "  Readers: %u, Writers: %u\n", 
+					pRWLock->ReaderCount, pRWLock->WriterCount);
+			}
+		#endif
+		
+		xrtRWLockUnit(pRWLock);
+		xrtFree(pRWLock);
+	}
+}
+
+
+// 初始化读写锁（对自维护结构体指针使用）
+XXAPI void xrtRWLockInit(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return;
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		InitializeSRWLock(&pRWLock->Lock.WinLock);
+	#else
+		pthread_rwlockattr_t attr;
+		pthread_rwlockattr_init(&attr);
+		pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP);
+		pthread_rwlock_init(&pRWLock->Lock.UnixLock, &attr);
+		pthread_rwlockattr_destroy(&attr);
+	#endif
+	
+	#ifdef DEBUG_TRACE
+		memset((void*)&pRWLock->ReaderCount, 0, sizeof(xrwlock_struct) - offsetof(xrwlock_struct, ReaderCount));
+	#endif
+}
+
+
+// 释放读写锁（对自维护结构体指针使用）
+XXAPI void xrtRWLockUnit(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return;
+	
+	#if defined(_WIN32) || defined(_WIN64)
+	#else
+		pthread_rwlock_destroy(&pRWLock->Lock.UnixLock);
+	#endif
+}
+
+
+// 获取读锁（阻塞）
+XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return;
+	
+	#ifdef DEBUG_TRACE
+		pRWLock->WaitingReaders++;
+	#endif
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		AcquireSRWLockShared(&pRWLock->Lock.WinLock);
+	#else
+		pthread_rwlock_rdlock(&pRWLock->Lock.UnixLock);
+	#endif
+	
+	#ifdef DEBUG_TRACE
+		pRWLock->WaitingReaders--;
+		pRWLock->ReaderCount++;
+	#endif
+}
+
+
+// 尝试获取读锁（非阻塞）
+XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return FALSE;
+	
+	#ifdef DEBUG_TRACE
+		pRWLock->WaitingReaders++;
+	#endif
+	
+	BOOL bResult;
+	#if defined(_WIN32) || defined(_WIN64)
+		bResult = TryAcquireSRWLockShared(&pRWLock->Lock.WinLock);
+	#else
+		bResult = pthread_rwlock_tryrdlock(&pRWLock->Lock.UnixLock) == 0;
+	#endif
+	
+	#ifdef DEBUG_TRACE
+		if ( bResult ) {
+			pRWLock->ReaderCount++;
+		}
+		pRWLock->WaitingReaders--;
+	#endif
+	
+	return bResult != FALSE;
+}
+
+
+// 释放读锁
+XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return;
+	
+	#ifdef DEBUG_TRACE
+		if ( pRWLock->ReaderCount == 0 ) {
+			fprintf(stderr, "[ERROR] RWLock read unlock without lock!\n");
+		}
+		pRWLock->ReaderCount--;
+	#endif
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		ReleaseSRWLockShared(&pRWLock->Lock.WinLock);
+	#else
+		pthread_rwlock_unlock(&pRWLock->Lock.UnixLock);
+	#endif
+}
+
+
+// 获取写锁（阻塞）
+XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return;
+	
+	#ifdef DEBUG_TRACE
+		uint64 tid = GetCurrentThreadID_RW();
+		pRWLock->WaitingWriters++;
+		
+		if ( CheckRecursiveWriteLock_RW(pRWLock) ) {
+			fprintf(stderr, "[WARNING] Recursive write lock detected! Thread: %llu\n", tid);
+		}
+	#endif
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		AcquireSRWLockExclusive(&pRWLock->Lock.WinLock);
+	#else
+		pthread_rwlock_wrlock(&pRWLock->Lock.UnixLock);
+	#endif
+	
+	#ifdef DEBUG_TRACE
+		pRWLock->WaitingWriters--;
+		pRWLock->WriterCount++;
+		pRWLock->WriterThreadID = tid;
+		pRWLock->WriterDepth++;
+	#endif
+}
+
+
+// 尝试获取写锁（非阻塞）
+XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return FALSE;
+	
+	#ifdef DEBUG_TRACE
+		uint64 tid = GetCurrentThreadID_RW();
+		pRWLock->WaitingWriters++;
+		
+		if ( CheckRecursiveWriteLock_RW(pRWLock) ) {
+			fprintf(stderr, "[WARNING] Recursive try write lock detected! Thread: %llu\n", tid);
+		}
+	#endif
+	
+	BOOL bResult;
+	#if defined(_WIN32) || defined(_WIN64)
+		bResult = TryAcquireSRWLockExclusive(&pRWLock->Lock.WinLock);
+	#else
+		bResult = pthread_rwlock_trywrlock(&pRWLock->Lock.UnixLock) == 0;
+	#endif
+	
+	#ifdef DEBUG_TRACE
+		if ( bResult ) {
+			pRWLock->WriterCount++;
+			pRWLock->WriterThreadID = tid;
+			pRWLock->WriterDepth++;
+		}
+		pRWLock->WaitingWriters--;
+	#endif
+	
+	return bResult != FALSE;
+}
+
+
+// 释放写锁
+XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return;
+	
+	#ifdef DEBUG_TRACE
+		if ( pRWLock->WriterCount == 0 ) {
+			fprintf(stderr, "[ERROR] RWLock write unlock without lock!\n");
+			return;
+		}
+		
+		uint64 tid = GetCurrentThreadID_RW();
+		if ( pRWLock->WriterThreadID != tid ) {
+			fprintf(stderr, "[ERROR] RWLock write unlock from wrong thread!\n");
+			fprintf(stderr, "  Holder: %llu, Unlocker: %llu\n", pRWLock->WriterThreadID, tid);
+		}
+		
+		pRWLock->WriterDepth--;
+		if ( pRWLock->WriterDepth == 0 ) {
+			pRWLock->WriterCount--;
+			pRWLock->WriterThreadID = 0;
+		}
+	#endif
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		ReleaseSRWLockExclusive(&pRWLock->Lock.WinLock);
+	#else
+		pthread_rwlock_unlock(&pRWLock->Lock.UnixLock);
+	#endif
+}
+
+
+// 写锁降级为读锁（保持锁状态）
+XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return;
+	
+	#ifdef DEBUG_TRACE
+		if ( pRWLock->WriterCount == 0 ) {
+			fprintf(stderr, "[ERROR] RWLock downgrade without write lock!\n");
+			return;
+		}
+		
+		uint64 tid = GetCurrentThreadID_RW();
+		if ( pRWLock->WriterThreadID != tid ) {
+			fprintf(stderr, "[ERROR] RWLock downgrade from wrong thread!\n");
+			return;
+		}
+	#endif
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		ReleaseSRWLockExclusive(&pRWLock->Lock.WinLock);
+		AcquireSRWLockShared(&pRWLock->Lock.WinLock);
+	#else
+		pthread_rwlock_unlock(&pRWLock->Lock.UnixLock);
+		pthread_rwlock_rdlock(&pRWLock->Lock.UnixLock);
+	#endif
+	
+	#ifdef DEBUG_TRACE
+		pRWLock->WriterCount--;
+		pRWLock->WriterDepth = 0;
+		pRWLock->WriterThreadID = 0;
+		pRWLock->ReaderCount++;
+	#endif
+}
+
+
+// 读锁升级为写锁（可能失败，需要释放后重新获取）
+XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return FALSE;
+	
+	#ifdef DEBUG_TRACE
+		if ( pRWLock->ReaderCount == 0 ) {
+			fprintf(stderr, "[ERROR] RWLock upgrade without read lock!\n");
+			return FALSE;
+		}
+		
+		pRWLock->ReaderCount--;
+	#endif
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		ReleaseSRWLockShared(&pRWLock->Lock.WinLock);
+		
+		if ( TryAcquireSRWLockExclusive(&pRWLock->Lock.WinLock) ) {
+			#ifdef DEBUG_TRACE
+				pRWLock->WriterCount++;
+				pRWLock->WriterThreadID = GetCurrentThreadID_RW();
+				pRWLock->WriterDepth = 1;
+			#endif
+			return TRUE;
+		} else {
+			AcquireSRWLockShared(&pRWLock->Lock.WinLock);
+			#ifdef DEBUG_TRACE
+				pRWLock->ReaderCount++;
+			#endif
+			return FALSE;
+		}
+	#else
+		pthread_rwlock_unlock(&pRWLock->Lock.UnixLock);
+		
+		if ( pthread_rwlock_trywrlock(&pRWLock->Lock.UnixLock) == 0 ) {
+			#ifdef DEBUG_TRACE
+				pRWLock->WriterCount++;
+				pRWLock->WriterThreadID = GetCurrentThreadID_RW();
+				pRWLock->WriterDepth = 1;
+			#endif
+			return TRUE;
+		} else {
+			pthread_rwlock_rdlock(&pRWLock->Lock.UnixLock);
+			#ifdef DEBUG_TRACE
+				pRWLock->ReaderCount++;
+			#endif
+			return FALSE;
+		}
+	#endif
+}
+
+
+#ifdef DEBUG_TRACE
+
+// 检查是否持有读锁
+XXAPI bool xrtRWLockIsReadLocked(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return FALSE;
+	return pRWLock->ReaderCount > 0;
+}
+
+
+// 检查是否持有写锁
+XXAPI bool xrtRWLockIsWriteLocked(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return FALSE;
+	return pRWLock->WriterCount > 0;
+}
+
+
+// 获取当前读者数量
+XXAPI uint32 xrtRWLockGetReaderCount(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return 0;
+	return pRWLock->ReaderCount;
+}
+
+
+// 获取等待读锁的线程数
+XXAPI uint32 xrtRWLockGetWaitingReaders(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return 0;
+	return pRWLock->WaitingReaders;
+}
+
+
+// 获取等待写锁的线程数
+XXAPI uint32 xrtRWLockGetWaitingWriters(xrwlock pRWLock)
+{
+	if ( !pRWLock ) return 0;
+	return pRWLock->WaitingWriters;
+}
+
+#endif // DEBUG_TRACE
 
 

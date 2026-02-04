@@ -18,6 +18,7 @@
 #include "test/test_time.h"
 #include "test/test_file.h"
 #include "test/test_thread.h"
+#include "test/test_rwlock.h"
 #include "test/test_hash.h"
 #include "test/test_network.h"
 #include "test/test_xid.h"
@@ -72,7 +73,7 @@ int main(int argc, char** argv)
 	// Test_JNum(xCore);
 
 	/* SupLib 库测试 */
-	Test_SupLib(xCore);
+	// Test_SupLib(xCore);
 
 	/* Base 库测试 */
 	// Test_Base(xCore);
@@ -103,6 +104,9 @@ int main(int argc, char** argv)
 	
 	/* Thread 库测试 */
 	// Test_Thread(xCore);
+	
+	/* RWLock 库测试 */
+	Test_RWLock(xCore);
 	
 	/* Hash 库测试 */
 	// Test_Hash(xCore);
