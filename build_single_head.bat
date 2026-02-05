@@ -30,13 +30,13 @@ echo.
 
 cd /d "%TOOLS_DIR%"
 
-if exist "single_head_maker.exe" (
-    del /f /q "single_head_maker.exe"
+if exist "%OUTPUT_DIR%\single_head_maker.exe" (
+    del /f /q "%OUTPUT_DIR%\single_head_maker.exe"
 )
 
 echo Compiling single_head_maker.c...
 
-tcc single_head_maker.c -o single_head_maker.exe
+tcc single_head_maker.c -o "%OUTPUT_DIR%\single_head_maker.exe"
 
 if errorlevel 1 (
     echo.
@@ -51,7 +51,7 @@ echo.
 echo Step 2: Generating single header file...
 echo.
 
-single_head_maker.exe -o "%OUTPUT_DIR%\xrt.h" -s "%SOURCE_DIR%"
+%OUTPUT_DIR%\single_head_maker.exe
 
 if errorlevel 1 (
     echo.

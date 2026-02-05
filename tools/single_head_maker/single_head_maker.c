@@ -1,57 +1,86 @@
 
 
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#define XRT_IMPLEMENTATION
+#include "xrt.h"
 
 
-#define MAX_PATH 4096
+#define MAKER_MAX_PATH 4096
+#define MAX_FILES 100
 
 
 typedef struct {
-	char path[MAX_PATH];
+	char path[MAKER_MAX_PATH];
 	char* name;
 } FileEntry;
 
 
-FileEntry g_Files[] = {
-	{ "xrt.h", "xrt.h" },
-	{ "lib/suplib.h", "lib/suplib.h" },
-	{ "lib/base.h", "lib/base.h" },
-	{ "lib/charset.h", "lib/charset.h" },
-	{ "lib/os.h", "lib/os.h" },
-	{ "lib/math.h", "lib/math.h" },
-	{ "lib/string.h", "lib/string.h" },
-	{ "lib/path.h", "lib/path.h" },
-	{ "lib/time.h", "lib/time.h" },
-	{ "lib/file.h", "lib/file.h" },
-	{ "lib/thread.h", "lib/thread.h" },
-	{ "lib/hash.h", "lib/hash.h" },
-	{ "lib/network.h", "lib/network.h" },
-	{ "lib/xid.h", "lib/xid.h" },
-	{ "lib/buffer.h", "lib/buffer.h" },
-	{ "lib/array_point.h", "lib/array_point.h" },
-	{ "lib/array.h", "lib/array.h" },
-	{ "lib/bsmm.h", "lib/bsmm.h" },
-	{ "lib/memunit.h", "lib/memunit.h" },
-	{ "lib/mempool_fs.h", "lib/mempool_fs.h" },
-	{ "lib/stack.h", "lib/stack.h" },
-	{ "lib/stack_dyn.h", "lib/stack_dyn.h" },
-	{ "lib/avltree_base.h", "lib/avltree_base.h" },
-	{ "lib/avltree.h", "lib/avltree.h" },
-	{ "lib/mempool.h", "lib/mempool.h" },
-	{ "lib/dict.h", "lib/dict.h" },
-	{ "lib/list.h", "lib/list.h" },
-	{ "lib/value.h", "lib/value.h" },
-	{ "lib/jnum.h", "lib/jnum.h" },
-	{ "lib/json.h", "lib/json.h" },
-	{ "lib/template.h", "lib/template.h" },
-};
+int FileExists(const char* path)
+{
+	FILE* fp = fopen(path, "rb");
+	if ( fp ) {
+		fclose(fp);
+		return 1;
+	}
+	return 0;
+}
 
 
-int g_FileCount = sizeof(g_Files) / sizeof(FileEntry);
+str FindXrtCRecursive(str startPath)
+{
+	if ( !startPath || startPath[0] == '\0' ) {
+		return xCore.sNull;
+	}
+	
+	char path[MAKER_MAX_PATH];
+	strcpy(path, startPath);
+	
+	int maxDepth = 20;
+	for ( int depth = 0; depth < maxDepth; depth++ ) {
+		char xrtCPath[MAKER_MAX_PATH];
+		strcpy(xrtCPath, path);
+		strcat(xrtCPath, "/xrt.c");
+		
+		if ( FileExists(xrtCPath) ) {
+			str result = xrtCopyStr(xrtCPath, 0);
+			return result;
+		}
+		
+		str parentDir = xrtPathGetDir(path, strlen(path));
+		if ( !parentDir || parentDir[0] == '\0' || strcmp(parentDir, path) == 0 ) {
+			break;
+		}
+		
+		strcpy(path, parentDir);
+	}
+	
+	return xCore.sNull;
+}
+
+
+void AutoDetectPaths(char* xrtCPath, char* outputFile)
+{
+	str exePath = xCore.AppFile;
+	str exeDir = xrtPathGetDir(exePath, strlen(exePath));
+	
+	str foundXrtC = FindXrtCRecursive(exeDir);
+	
+	if ( foundXrtC != xCore.sNull ) {
+		strcpy(xrtCPath, foundXrtC);
+		
+		str xrtDir = xrtPathGetDir(foundXrtC, strlen(foundXrtC));
+		strcpy(outputFile, xrtDir);
+		strcat(outputFile, "/singlehead/xrt.h");
+		
+		printf("Auto-detected paths:\n");
+		printf("  xrt.c: %s\n", xrtCPath);
+		printf("  Output: %s\n", outputFile);
+	} else {
+		fprintf(stderr, "Error: Could not find xrt.c file\n");
+		fprintf(stderr, "Searched starting from: %s\n", exeDir);
+		xrtUnit();
+		exit(1);
+	}
+}
 
 
 void PrintBanner()
@@ -66,11 +95,13 @@ void PrintUsage()
 {
 	printf("Usage: single_head_maker [options]\n\n");
 	printf("Options:\n");
-	printf("  -o <output>   Output file path (default: xrt.h)\n");
-	printf("  -s <source>   Source directory (default: ..)\n");
+	printf("  -o <output>   Output file path (default: auto-detect)\n");
+	printf("  -c <xrt.c>    Path to xrt.c file (default: auto-detect)\n");
+	printf("  -s <source>   Source directory for includes (default: auto-detect)\n");
 	printf("  -h            Show this help\n\n");
-	printf("Example:\n");
-	printf("  single_head_maker -o xrt.h\n\n");
+	printf("Examples:\n");
+	printf("  single_head_maker\n");
+	printf("  single_head_maker -o xrt.h -c ../xrt.c\n\n");
 }
 
 
@@ -108,51 +139,185 @@ char* ReadFileContent(const char* path)
 }
 
 
-int ShouldSkipLine(const char* line, int isFirstFile)
+char g_ProcessedFiles[MAX_FILES][MAKER_MAX_PATH];
+int g_ProcessedCount = 0;
+
+
+int IsFileProcessed(const char* path)
 {
-	char trimmed[8192] = {0};
-	const char* src = line;
-	char* dst = trimmed;
-	
-	while ( *src == ' ' || *src == '\t' ) {
-		src++;
-	}
-	
-	while ( *src && *src != '\r' && *src != '\n' && dst < trimmed + sizeof(trimmed) - 1 ) {
-		*dst++ = *src++;
-	}
-	*dst = '\0';
-	
-	if ( strncmp(trimmed, "#include", 8) == 0 ) {
-		const char* includeTarget = trimmed + 8;
-		while ( *includeTarget == ' ' || *includeTarget == '\t' ) {
-			includeTarget++;
+	for ( int i = 0; i < g_ProcessedCount; i++ ) {
+		if ( strcmp(g_ProcessedFiles[i], path) == 0 ) {
+			return 1;
 		}
+	}
+	return 0;
+}
+
+
+void AddProcessedFile(const char* path)
+{
+	if ( g_ProcessedCount < MAX_FILES ) {
+		strcpy(g_ProcessedFiles[g_ProcessedCount++], path);
+	}
+}
+
+
+void NormalizePath(char* path)
+{
+	char* p = path;
+	while ( *p ) {
+		if ( *p == '\\' ) {
+			*p = '/';
+		}
+		p++;
+	}
+}
+
+
+void ResolvePath(const char* baseFile, const char* includePath, char* result, const char* sourceDir)
+{
+	if ( includePath[0] == '/' || (includePath[0] && includePath[1] == ':') ) {
+		strcpy(result, includePath);
+	} else {
+		char baseDir[MAKER_MAX_PATH];
+		strcpy(baseDir, baseFile);
 		
-		if ( *includeTarget == '"' ) {
-			if ( strstr(includeTarget, "lib/") != NULL ) {
-				return 1;
-			}
-			
-			if ( strstr(includeTarget, "xrt.h") != NULL && !isFirstFile ) {
-				return 1;
-			}
+		char* lastSlash = strrchr(baseDir, '/');
+		if ( lastSlash ) {
+			*lastSlash = '\0';
+			sprintf(result, "%s/%s", baseDir, includePath);
+		} else {
+			sprintf(result, "%s/%s", sourceDir, includePath);
 		}
 	}
 	
-	if ( strncmp(trimmed, "#ifndef XXRTL_CORE", 18) == 0 ) {
-		return 1;
-	}
-	
-	if ( strncmp(trimmed, "#define XXRTL_CORE", 18) == 0 ) {
+	NormalizePath(result);
+}
+
+
+int ShouldSkipInclude(const char* includePath, const char* skipInclude)
+{
+	if ( !skipInclude || skipInclude[0] == '\0' ) {
 		return 0;
 	}
 	
-	if ( strstr(line, "XXRTL_CORE") != NULL && strncmp(trimmed, "#endif", 6) == 0 ) {
-		return 1;
+	char normalizedInclude[MAKER_MAX_PATH];
+	strcpy(normalizedInclude, includePath);
+	NormalizePath(normalizedInclude);
+	
+	char normalizedSkip[MAKER_MAX_PATH];
+	strcpy(normalizedSkip, skipInclude);
+	NormalizePath(normalizedSkip);
+	
+	char* lastSlash = strrchr(normalizedSkip, '/');
+	if ( lastSlash ) {
+		if ( strcmp(normalizedInclude, lastSlash + 1) == 0 ) {
+			return 1;
+		}
+	} else {
+		if ( strcmp(normalizedInclude, normalizedSkip) == 0 ) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+void ProcessIncludes(FILE* out, const char* filePath, int depth, int* totalLines, const char* sourceDir, const char* skipInclude)
+{
+	if ( depth > 50 ) {
+		fprintf(stderr, "Error: Include depth too deep (possible circular reference)\n");
+		return;
+	}
+
+	char normalizedPath[MAKER_MAX_PATH];
+	strcpy(normalizedPath, filePath);
+	NormalizePath(normalizedPath);
+
+	if ( IsFileProcessed(normalizedPath) ) {
+		fprintf(out, "// (skipped duplicate include: %s)\n", filePath);
+		return;
+	}
+	AddProcessedFile(normalizedPath);
+
+	char* content = ReadFileContent(filePath);
+	if ( !content ) {
+		return;
 	}
 	
-	return 0;
+	fprintf(out, "\n");
+	fprintf(out, "// ========================================\n");
+	fprintf(out, "// File: %s\n", filePath);
+	fprintf(out, "// ========================================\n");
+	fprintf(out, "\n");
+	
+	const char* lineStart = content;
+	
+	while ( *lineStart ) {
+		const char* lineEnd = lineStart;
+		while ( *lineEnd && *lineEnd != '\r' && *lineEnd != '\n' ) {
+			lineEnd++;
+		}
+		
+		int lineLen = (int)(lineEnd - lineStart);
+		char line[8192] = {0};
+		strncpy(line, lineStart, lineLen);
+		
+		char trimmed[8192] = {0};
+		const char* src = line;
+		char* dst = trimmed;
+		
+		while ( *src == ' ' || *src == '\t' ) {
+			src++;
+		}
+		
+		while ( *src && *src != '\r' && *src != '\n' && dst < trimmed + sizeof(trimmed) - 1 ) {
+			*dst++ = *src++;
+		}
+		*dst = '\0';
+
+		if ( strncmp(trimmed, "#include", 8) == 0 ) {
+			const char* includeTarget = trimmed + 8;
+			while ( *includeTarget == ' ' || *includeTarget == '\t' ) {
+				includeTarget++;
+			}
+			
+			if ( *includeTarget == '"' ) {
+				includeTarget++;
+				char includePath[MAKER_MAX_PATH] = {0};
+				char* p = includePath;
+				while ( *includeTarget && *includeTarget != '"' && p < includePath + MAKER_MAX_PATH - 1 ) {
+					*p++ = *includeTarget++;
+				}
+				*p = '\0';
+
+				if ( ShouldSkipInclude(includePath, skipInclude) ) {
+					fprintf(out, "// (skipped include: %s)\n", line);
+				} else {
+					char fullPath[MAKER_MAX_PATH];
+					ResolvePath(filePath, includePath, fullPath, sourceDir);
+					
+					ProcessIncludes(out, fullPath, depth + 1, totalLines, sourceDir, skipInclude);
+				}
+			} else {
+				fwrite(line, 1, lineLen, out);
+				fprintf(out, "\n");
+				(*totalLines)++;
+			}
+		} else {
+			fwrite(line, 1, lineLen, out);
+			fprintf(out, "\n");
+			(*totalLines)++;
+		}
+
+		while ( *lineEnd == '\r' || *lineEnd == '\n' ) {
+			lineEnd++;
+		}
+		
+		lineStart = lineEnd;
+	}
+	
+	free(content);
 }
 
 
@@ -173,7 +338,7 @@ int WriteHeader(FILE* out)
 	fprintf(out, "\n");
 	fprintf(out, "    Permission is hereby granted, free of charge, to any person obtaining a copy\n");
 	fprintf(out, "    of this software and associated documentation files (the \"Software\"), to deal\n");
-	fprintf(out, "    in the Software without restriction, including without limitation the rights\n");
+	fprintf(out, "    in Software without restriction, including without limitation the rights\n");
 	fprintf(out, "    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n");
 	fprintf(out, "    copies of the Software, and to permit persons to whom the Software is\n");
 	fprintf(out, "    furnished to do so, subject to the following conditions:\n");
@@ -196,12 +361,16 @@ int WriteHeader(FILE* out)
 	fprintf(out, "// ========================================\n");
 	fprintf(out, "//\n");
 	fprintf(out, "// Usage:\n");
+	fprintf(out, "//   // In exactly ONE source file:\n");
 	fprintf(out, "//   #define XRT_IMPLEMENTATION\n");
+	fprintf(out, "//   #include \"xrt.h\"\n");
+	fprintf(out, "//\n");
+	fprintf(out, "//   // In all other files:\n");
 	fprintf(out, "//   #include \"xrt.h\"\n");
 	fprintf(out, "//\n");
 	fprintf(out, "// Note:\n");
 	fprintf(out, "//   - Define XRT_IMPLEMENTATION in exactly one source file\n");
-	fprintf(out, "//   - Include this header in all other files\n");
+	fprintf(out, "//   - Include this header in all other files without XRT_IMPLEMENTATION\n");
 	fprintf(out, "//   - No need to link against xrt library\n");
 	fprintf(out, "//\n");
 	fprintf(out, "// ========================================\n");
@@ -210,42 +379,28 @@ int WriteHeader(FILE* out)
 	fprintf(out, "#define XRT_SINGLE_HEADER\n");
 	fprintf(out, "\n");
 	
-	fprintf(out, "// ========================================\n");
-	fprintf(out, "// Additional headers from xrt.c (must be included first)\n");
-	fprintf(out, "// ========================================\n");
-	fprintf(out, "\n");
-	fprintf(out, "#if defined(_WIN32) || defined(_WIN64)\n");
-	fprintf(out, "\t#ifdef __TINYC__\n");
-	fprintf(out, "\t\t#include <winapi/shellapi.h>\n");
-	fprintf(out, "\t\t#include <winapi/iphlpapi.h>\n");
-	fprintf(out, "\t\t\n");
-	fprintf(out, "\t\t// Declare function (load from kernel32.dll)\n");
-	fprintf(out, "\t\tULONGLONG GetTickCount64();\n");
-	fprintf(out, "\t#else\n");
-	fprintf(out, "\t\t#include <shellapi.h>\n");
-	fprintf(out, "\t\t#include <iphlpapi.h>\n");
-	fprintf(out, "\t#endif\n");
-	fprintf(out, "\t#include <sys/types.h>\n");
-	fprintf(out, "\t#include <sys/stat.h>\n");
-	fprintf(out, "\t#include <wchar.h>\n");
-	fprintf(out, "\t#pragma comment (lib, \"shell32\")\n");
-	fprintf(out, "\t#pragma comment (lib, \"Ws2_32\")\n");
-	fprintf(out, "\t#pragma comment (lib, \"IPHLPAPI\")\n");
-	fprintf(out, "#else\n");
-	fprintf(out, "\t#include <fcntl.h>\n");
-	fprintf(out, "\t#include <sys/stat.h>\n");
-	fprintf(out, "\t#include <net/if.h>\n");
-	fprintf(out, "\t#include <sys/ioctl.h>\n");
-	fprintf(out, "\t#include <errno.h>\n");
-	fprintf(out, "\t#include <wchar.h>\n");
-	fprintf(out, "\t#include <netdb.h>\n");
-	fprintf(out, "\t#include <dirent.h>\n");
-	fprintf(out, "\t#include <sys/wait.h>\n");
-	fprintf(out, "#endif\n");
+	return 1;
+}
+
+
+int WriteImplementationHeader(FILE* out)
+{
 	fprintf(out, "\n");
 	fprintf(out, "// ========================================\n");
-	fprintf(out, "// End of additional headers\n");
+	fprintf(out, "// Implementation\n");
 	fprintf(out, "// ========================================\n");
+	fprintf(out, "\n");
+	fprintf(out, "#ifdef XRT_IMPLEMENTATION\n");
+	fprintf(out, "\n");
+	
+	return 1;
+}
+
+
+int WriteImplementationFooter(FILE* out)
+{
+	fprintf(out, "\n");
+	fprintf(out, "#endif // XRT_IMPLEMENTATION\n");
 	fprintf(out, "\n");
 	
 	return 1;
@@ -265,55 +420,7 @@ int WriteFooter(FILE* out)
 }
 
 
-int ProcessFile(FILE* out, const char* filePath, const char* fileName, int isFirstFile)
-{
-	char* content = ReadFileContent(filePath);
-	if ( !content ) {
-		return 0;
-	}
-	
-	fprintf(out, "\n");
-	fprintf(out, "// ========================================\n");
-	fprintf(out, "// File: %s\n", fileName);
-	fprintf(out, "// ========================================\n");
-	fprintf(out, "\n");
-	
-	const char* lineStart = content;
-	int lineCount = 0;
-	
-	while ( *lineStart ) {
-		const char* lineEnd = lineStart;
-		while ( *lineEnd && *lineEnd != '\r' && *lineEnd != '\n' ) {
-			lineEnd++;
-		}
-		
-		int lineLen = (int)(lineEnd - lineStart);
-		char line[8192] = {0};
-		strncpy(line, lineStart, lineLen);
-		
-		if ( !ShouldSkipLine(line, isFirstFile) ) {
-			fwrite(line, 1, lineLen, out);
-		} else {
-			fprintf(out, "// %s\n", line);
-		}
-		
-		fprintf(out, "\n");
-		
-		while ( *lineEnd == '\r' || *lineEnd == '\n' ) {
-			lineEnd++;
-		}
-		
-		lineStart = lineEnd;
-		lineCount++;
-	}
-	
-	free(content);
-	
-	return lineCount;
-}
-
-
-int MergeFiles(const char* sourceDir, const char* outputFile)
+int MergeFiles(const char* xrtCPath, const char* sourceDir, const char* outputFile)
 {
 	FILE* out = fopen(outputFile, "wb");
 	if ( !out ) {
@@ -326,23 +433,32 @@ int MergeFiles(const char* sourceDir, const char* outputFile)
 		return 0;
 	}
 	
+	g_ProcessedCount = 0;
 	int totalLines = 0;
-	int totalFiles = 0;
 	
-	for ( int i = 0; i < g_FileCount; i++ ) {
-		char fullPath[MAX_PATH];
-		sprintf(fullPath, "%s/%s", sourceDir, g_Files[i].path);
-		
-		int lines = ProcessFile(out, fullPath, g_Files[i].name, i == 0);
-		if ( lines <= 0 ) {
-			fclose(out);
-			return 0;
-		}
-		
-		totalLines += lines;
-		totalFiles++;
-		
-		printf("  [%2d/%2d] Merged: %s (%d lines)\n", i + 1, g_FileCount, g_Files[i].name, lines);
+	char xrtHPath[MAKER_MAX_PATH];
+	ResolvePath(xrtCPath, "xrt.h", xrtHPath, sourceDir);
+	
+	printf("Processing header file...\n");
+	ProcessIncludes(out, xrtHPath, 0, &totalLines, sourceDir, NULL);
+	printf("  Header processed: %d lines\n\n", totalLines);
+	
+	if ( !WriteImplementationHeader(out) ) {
+		fclose(out);
+		return 0;
+	}
+	
+	g_ProcessedCount = 0;
+	int implLines = 0;
+	
+	printf("Processing implementation file...\n");
+	ProcessIncludes(out, xrtCPath, 0, &implLines, sourceDir, "xrt.h");
+	printf("  Implementation processed: %d lines\n", implLines);
+	printf("  Files processed: %d\n\n", g_ProcessedCount);
+	
+	if ( !WriteImplementationFooter(out) ) {
+		fclose(out);
+		return 0;
 	}
 	
 	if ( !WriteFooter(out) ) {
@@ -352,9 +468,10 @@ int MergeFiles(const char* sourceDir, const char* outputFile)
 	
 	fclose(out);
 	
-	printf("\n");
-	printf("✅ Successfully merged %d files\n", totalFiles);
-	printf("   Total lines: %d\n", totalLines);
+	totalLines += implLines;
+	
+	printf("✅ Successfully generated single header file\n");
+	printf("   Total lines: %d (header: %d, implementation: %d)\n", totalLines, totalLines - implLines, implLines);
 	printf("   Output: %s\n\n", outputFile);
 	
 	return 1;
@@ -363,37 +480,57 @@ int MergeFiles(const char* sourceDir, const char* outputFile)
 
 int main(int argc, char* argv[])
 {
+	xrtInit();
+	
 	PrintBanner();
 	
-	char sourceDir[MAX_PATH] = "..";
-	char outputFile[MAX_PATH] = "xrt.h";
+	char sourceDir[MAKER_MAX_PATH] = "";
+	char xrtCPath[MAKER_MAX_PATH] = "";
+	char outputFile[MAKER_MAX_PATH] = "";
+	
+	int useAutoDetect = 1;
 	
 	for ( int i = 1; i < argc; i++ ) {
 		if ( strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0 ) {
 			PrintUsage();
+			xrtUnit();
 			return 0;
 		}
 		else if ( strcmp(argv[i], "-o") == 0 && i + 1 < argc ) {
 			strcpy(outputFile, argv[++i]);
+			useAutoDetect = 0;
+		}
+		else if ( strcmp(argv[i], "-c") == 0 && i + 1 < argc ) {
+			strcpy(xrtCPath, argv[++i]);
+			useAutoDetect = 0;
 		}
 		else if ( strcmp(argv[i], "-s") == 0 && i + 1 < argc ) {
 			strcpy(sourceDir, argv[++i]);
+			useAutoDetect = 0;
 		}
 	}
 	
+	if ( useAutoDetect ) {
+		printf("No arguments provided, auto-detecting paths...\n\n");
+		AutoDetectPaths(xrtCPath, outputFile);
+		
+		strcpy(sourceDir, xrtPathGetDir(xrtCPath, strlen(xrtCPath)));
+	}
+	
 	printf("Configuration:\n");
+	printf("  xrt.c: %s\n", xrtCPath);
 	printf("  Source: %s\n", sourceDir);
 	printf("  Output: %s\n\n", outputFile);
 	
-	printf("Merging files...\n\n");
-	
-	int result = MergeFiles(sourceDir, outputFile);
+	int result = MergeFiles(xrtCPath, sourceDir, outputFile);
 	
 	if ( result ) {
 		printf("✅ Single header file generated successfully!\n\n");
+		xrtUnit();
 		return 0;
 	} else {
 		printf("❌ Failed to generate single header file!\n\n");
+		xrtUnit();
 		return 1;
 	}
 }

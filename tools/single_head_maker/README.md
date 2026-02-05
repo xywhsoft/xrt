@@ -4,13 +4,13 @@
 
 ## 功能特性
 
-- 自动合并 xrt.h 和所有 lib/*.h 文件
-- 自动处理 include 依赖关系
-- 移除重复的 include 指令
-- 移除头文件保护（XXRTL_CORE）
-- 添加生成时间戳和版本信息
-- 保持原有代码格式和缩进
-- 支持 XRT_IMPLEMENTATION 宏
+- ✅ 自动合并 xrt.h 和所有 lib/*.h 文件
+- ✅ 动态展开 #include 依赖关系
+- ✅ 支持 XRT_IMPLEMENTATION 宏（单头文件标准模式）
+- ✅ 自动检测 xrt.c 路径（从当前目录向上搜索）
+- ✅ 自动创建输出目录
+- ✅ 添加生成时间戳和 MIT 许可证
+- ✅ 保持原有代码格式和缩进
 
 ## 文件结构
 
@@ -18,6 +18,8 @@
 tools/
 └── single_head_maker/
     ├── single_head_maker.c    # 工具源代码
+    ├── single_head_maker.exe  # 编译后的可执行文件
+    ├── xrt.h                 # 单头文件版本的 XRT（用于编译工具）
     └── README.md              # 说明文档
 
 build_single_head.bat         # 构建脚本（项目根目录）
@@ -28,35 +30,45 @@ singlehead/                   # 输出目录
 
 ## 使用方法
 
-### 方法 1：使用批处理脚本（推荐）
+### 方法 1：自动检测模式（推荐）
 
-在项目根目录运行：
+直接运行，无需任何参数：
 
 ```bash
-build_single_head.bat
+cd tools/single_head_maker
+./single_head_maker.exe
 ```
 
-### 方法 2：手动编译和运行
+工具将：
+1. 从当前可执行文件所在目录开始
+2. 逐级向上搜索 xrt.c 文件
+3. 找到后在 xrt.c 所在目录的 `singlehead/` 子目录生成单头文件
+
+### 方法 2：指定参数模式
 
 ```bash
 cd tools/single_head_maker
 tcc single_head_maker.c -o single_head_maker.exe
-single_head_maker.exe -o singlehead/xrt.h -s ..
+single_head_maker.exe -o singlehead/xrt.h -c ../xrt.c -s ..
 ```
 
-### 方法 3：命令行选项
+### 命令行选项
 
 ```bash
 single_head_maker [options]
 
 Options:
-  -o <output>   输出文件路径（默认：singlehead/xrt.h）
-  -s <source>   源代码目录（默认：..）
+  -o <output>   输出文件路径（默认：自动检测）
+  -c <xrt.c>    xrt.c 文件路径（默认：自动检测）
+  -s <source>   源代码目录（默认：自动检测）
   -h            显示帮助信息
 
 示例：
-  single_head_maker -o singlehead/xrt.h
-  single_head_maker -o output/xrt.h -s /path/to/xrt
+  # 自动检测（推荐）
+  single_head_maker
+  
+  # 手动指定所有路径
+  single_head_maker -o singlehead/xrt.h -c ../xrt.c -s ..
 ```
 
 ## 使用单头文件
@@ -70,73 +82,79 @@ Options:
 
 int main() {
     xrtInit();
+    
+    // 使用 XRT 函数
+    str s = xrtCopyStr("Hello, XRT!", 0);
+    printf("%s\n", s);
+    
     xrtUnit();
     return 0;
 }
 ```
 
-### 在其他头文件中包含
+### 在其他源文件中包含
 
 ```c
 // other.c
 #include "xrt.h"
 
 void my_function() {
-    str s = xrtStrCreate("Hello, XRT!");
+    str s = xrtCopyStr("Hello, XRT!", 0);
 }
 ```
 
-## 文件合并顺序
+## 生成文件结构
 
-工具严格按照以下顺序合并文件（与 xrt.c 中的 include 顺序一致）：
+生成的单头文件结构：
 
-1. xrt.h - 主头文件
-2. lib/suplib.h - 补充依赖库
-3. lib/base.h - 基础模块
-4. lib/charset.h - 字符集转换
-5. lib/os.h - 操作系统接口
-6. lib/math.h - 数学运算
-7. lib/string.h - 字符串处理
-8. lib/path.h - 路径处理
-9. lib/time.h - 时间处理
-10. lib/file.h - 文件操作
-11. lib/thread.h - 线程管理
-12. lib/hash.h - 哈希算法
-13. lib/network.h - 网络接口
-14. lib/xid.h - 分布式 ID
-15. lib/buffer.h - 动态缓冲区
-16. lib/array_point.h - 指针数组
-17. lib/array.h - 结构体数组
-18. lib/bsmm.h - 块结构内存管理
-19. lib/memunit.h - 内存单元管理
-20. lib/mempool_fs.h - 固定大小内存池
-21. lib/stack.h - 静态栈
-22. lib/stack_dyn.h - 动态栈
-23. lib/avltree_base.h - AVL 树基础
-24. lib/avltree.h - AVL 树
-25. lib/mempool.h - 通用内存池
-26. lib/dict.h - 字典
-27. lib/list.h - 列表
-28. lib/value.h - 动态类型系统
-29. lib/jnum.h - JSON 数字
-30. lib/json.h - JSON 处理
-31. lib/template.h - 模板引擎
+```c
+// MIT License 说明
+// 使用说明
+
+#ifndef XRT_SINGLE_HEADER
+#define XRT_SINGLE_HEADER
+
+// ========================================
+// 头文件部分（声明和类型定义）
+// ========================================
+// xrt.h 的内容（包含所有 lib/*.h 的声明）
+
+#ifdef XRT_IMPLEMENTATION
+// ========================================
+// 实现部分（函数实现）
+// ========================================
+// xrt.c 的内容（不包含 xrt.h 的 include）
+#endif
+
+#endif // XRT_SINGLE_HEADER
+```
+
+## 原理说明
+
+### 自动搜索机制
+
+当不提供任何参数时，工具会：
+
+1. 获取当前可执行文件所在路径（xCore->AppPath）
+2. 从该路径开始，逐级向上搜索 `xrt.c` 文件
+3. 找到 xrt.c 后，在其所在目录的 `singlehead/` 子目录生成单头文件
+
+### XRT_IMPLEMENTATION 宏
+
+- **定义 XRT_IMPLEMENTATION**：包含函数实现
+- **不定义 XRT_IMPLEMENTATION**：仅包含声明和类型定义
+
+这样可以在多个源文件中包含同一个头文件，而只在一个文件中定义实现，避免了链接错误。
 
 ## 处理规则
 
 工具会自动处理以下情况：
 
-1. **移除 lib/ 的 include**：将 `#include "lib/xxx.h"` 转换为注释
-2. **移除 xrt.h 的 include**：将 `#include "xrt.h"` 转换为注释（除了第一个文件）
-3. **移除头文件保护**：移除 `#ifndef XXRTL_CORE`、`#define XXRTL_CORE` 和 `#endif`
-4. **保留条件编译**：保留所有 `#ifdef`、`#if defined` 等条件编译指令
-
-## 注意事项
-
-1. **编译器要求**：支持 C99 或更高版本的编译器
-2. **TCC 兼容性**：工具使用 TCC 编译，但也支持 GCC/Clang
-3. **路径问题**：确保从正确的目录运行工具
-4. **文件编码**：输入文件必须是 UTF-8 编码（不带 BOM）
+1. **跳过 xrt.h 的 include**：在处理 xrt.c 时自动跳过 `#include "xrt.h"`
+2. **展开 lib/ 的 include**：将 `#include "lib/xxx.h"` 替换为实际内容
+3. **保留系统头文件**：`#include <stdio.h>` 等保持不变
+4. **防重复引用**：已处理的文件会自动跳过，避免循环包含
+5. **保持代码格式**：原有代码的缩进和格式不变
 
 ## 优势
 
@@ -158,33 +176,39 @@ void my_function() {
 
 ## 故障排除
 
+### 问题：找不到 xrt.c
+
+**原因**：从当前目录向上搜索不到 xrt.c 文件
+
+**解决**：
+- 确保在 xrt 项目目录树内运行工具
+- 或者使用 `-c` 参数手动指定 xrt.c 路径
+
 ### 问题：编译失败
 
-**原因**：源文件路径不正确
+**原因**：生成的单头文件有问题
 
 **解决**：
-- 确保从项目根目录运行工具
-- 检查 `-s` 参数指定的源目录路径
+- 确保只在一个源文件中定义 `XRT_IMPLEMENTATION`
+- 其他文件只包含 `#include "xrt.h"` 而不定义 `XRT_IMPLEMENTATION`
 
-### 问题：生成的文件无法编译
+### 问题：输出目录创建失败
 
-**原因**：可能存在依赖顺序问题
-
-**解决**：
-- 检查文件合并顺序是否正确
-- 确保所有必要的文件都已包含
-
-### 问题：找不到头文件
-
-**原因**：生成的文件路径不正确
+**原因**：没有权限创建 singlehead 目录
 
 **解决**：
-- 检查 `-o` 参数指定的输出路径
-- 确保编译器的 include 路径包含输出目录
+- 确保有写入权限
+- 或者使用 `-o` 参数手动指定输出路径
 
 ## 版本历史
 
-- v1.0.0 (2026-02-05)
+- v2.0.0 (2026-02-05)
+  - 新增：支持 XRT_IMPLEMENTATION 宏
+  - 新增：自动检测 xrt.c 路径
+  - 优化：文件结构分离声明和实现
+  - 重构：动态展开 #include，不再依赖硬编码文件列表
+
+- v1.0.0 (2026-02-04)
   - 初始版本
   - 支持基本的文件合并功能
   - 自动处理 include 依赖

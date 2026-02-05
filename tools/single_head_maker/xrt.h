@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-02-05 11:38:33
+    Generated: 2026-02-05 11:08:48
 
     MIT License
 
@@ -9,7 +9,7 @@
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
-    in Software without restriction, including without limitation the rights
+    in the Software without restriction, including without limitation the rights
     to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
     copies of the Software, and to permit persons to whom the Software is
     furnished to do so, subject to the following conditions:
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/git/xrt/xrt.h
+// File: ../../xrt.h
 // ========================================
 
 
@@ -2879,7 +2879,7 @@
 
 
 // ========================================
-// File: D:\git\xrt/xrt.c
+// File: ../../xrt.c
 // ========================================
 
 
@@ -2919,7 +2919,7 @@ static int __xrt_RefCount = 0;  // 引用计数
 // 引入补充依赖库
 
 // ========================================
-// File: D:/git/xrt/lib/suplib.h
+// File: ../../lib/suplib.h
 // ========================================
 
 
@@ -2972,7 +2972,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库
 
 // ========================================
-// File: D:/git/xrt/lib/base.h
+// File: ../../lib/base.h
 // ========================================
 
 
@@ -3083,7 +3083,7 @@ XXAPI void xrtClearError()
 }
 
 // ========================================
-// File: D:/git/xrt/lib/charset.h
+// File: ../../lib/charset.h
 // ========================================
 
 
@@ -3955,7 +3955,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/os.h
+// File: ../../lib/os.h
 // ========================================
 
 
@@ -4042,7 +4042,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/math.h
+// File: ../../lib/math.h
 // ========================================
 
 
@@ -4188,7 +4188,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/string.h
+// File: ../../lib/string.h
 // ========================================
 
 
@@ -5677,7 +5677,7 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/path.h
+// File: ../../lib/path.h
 // ========================================
 
 
@@ -5849,7 +5849,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/time.h
+// File: ../../lib/time.h
 // ========================================
 
 
@@ -7086,7 +7086,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/file.h
+// File: ../../lib/file.h
 // ========================================
 
 
@@ -8726,7 +8726,7 @@ XXAPI int xrtDirDelete(str sPath)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/thread.h
+// File: ../../lib/thread.h
 // ========================================
 
 
@@ -9714,7 +9714,7 @@ XXAPI uint32 xrtRWLockGetWaitingWriters(xrwlock pRWLock)
 #endif // DEBUG_TRACE
 
 // ========================================
-// File: D:/git/xrt/lib/hash.h
+// File: ../../lib/hash.h
 // ========================================
 
 
@@ -10880,7 +10880,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/network.h
+// File: ../../lib/network.h
 // ========================================
 
 
@@ -11082,7 +11082,7 @@ str xrtGetLocalName()
 }
 
 // ========================================
-// File: D:/git/xrt/lib/xid.h
+// File: ../../lib/xid.h
 // ========================================
 
 
@@ -11145,7 +11145,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/buffer.h
+// File: ../../lib/buffer.h
 // ========================================
 
 
@@ -11255,7 +11255,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 }
 
 // ========================================
-// File: D:/git/xrt/lib/array_point.h
+// File: ../../lib/array_point.h
 // ========================================
 
 
@@ -11443,7 +11443,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/array.h
+// File: ../../lib/array.h
 // ========================================
 
 
@@ -11613,7 +11613,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/bsmm.h
+// File: ../../lib/bsmm.h
 // ========================================
 
 
@@ -11702,7 +11702,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/memunit.h
+// File: ../../lib/memunit.h
 // ========================================
 
 
@@ -11842,7 +11842,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/mempool_fs.h
+// File: ../../lib/mempool_fs.h
 // ========================================
 
 
@@ -12093,7 +12093,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/stack.h
+// File: ../../lib/stack.h
 // ========================================
 
 
@@ -12224,7 +12224,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/stack_dyn.h
+// File: ../../lib/stack_dyn.h
 // ========================================
 
 
@@ -12379,7 +12379,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/avltree_base.h
+// File: ../../lib/avltree_base.h
 // ========================================
 
 
@@ -12791,7 +12791,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/avltree.h
+// File: ../../lib/avltree.h
 // ========================================
 
 
@@ -12911,7 +12911,7 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/mempool.h
+// File: ../../lib/mempool.h
 // ========================================
 
 
@@ -13373,7 +13373,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/dict.h
+// File: ../../lib/dict.h
 // ========================================
 
 
@@ -13561,7 +13561,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/list.h
+// File: ../../lib/list.h
 // ========================================
 
 
@@ -13734,7 +13734,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/value.h
+// File: ../../lib/value.h
 // ========================================
 
 
@@ -15284,7 +15284,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 }
 
 // ========================================
-// File: D:/git/xrt/lib/jnum.h
+// File: ../../lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -16782,7 +16782,7 @@ jnum_to_func(uint64_t, xrtStrToU64)
 jnum_to_func(double, xrtStrToNum)
 
 // ========================================
-// File: D:/git/xrt/lib/json.h
+// File: ../../lib/json.h
 // ========================================
 
 
@@ -18527,7 +18527,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/template.h
+// File: ../../lib/template.h
 // ========================================
 
 

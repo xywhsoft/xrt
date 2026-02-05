@@ -15,10 +15,10 @@ int main()
 	
 	printf("\nTesting basic functions...\n");
 	
-	str s = xrtStrCreate("Hello, XRT Single Header!");
+	str s = xrtCopyStr("Hello, XRT Single Header!", 0);
 	printf("  String: %s\n", s);
 	
-	int len = xrtStrLen(s);
+	int len = strlen(s);
 	printf("  Length: %d\n", len);
 	
 	printf("\nTesting memory pool...\n");
@@ -35,16 +35,22 @@ int main()
 	printf("  Memory pool destroyed\n");
 	
 	printf("\nTesting array...\n");
-	xarray arr = xrtArrayCreate(10, sizeof(int));
+	xarray arr = xrtArrayCreate(sizeof(int));
 	printf("  Array created\n");
 	
 	for ( int i = 0; i < 5; i++ ) {
 		int val = i * 10;
-		xrtArrayAdd(arr, &val);
-		printf("  Added: %d\n", val);
+		uint32 pos = xrtArrayInsert(arr, arr->Count, 1);
+		if ( pos > 0 ) {
+			int* pItem = (int*)xrtArrayGet(arr, pos - 1);
+			if ( pItem ) {
+				*pItem = val;
+				printf("  Added: %d\n", val);
+			}
+		}
 	}
 	
-	int count = xrtArrayCount(arr);
+	int count = arr->Count;
 	printf("  Array count: %d\n", count);
 	
 	xrtArrayDestroy(arr);
