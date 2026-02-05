@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-02-05 11:38:33
+    Generated: 2026-02-05 17:51:43
 
     MIT License
 
@@ -13027,6 +13027,10 @@ XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 		MP256_SetFSB(objMP->FSB_Memory, 29,	3585,	3840, &objMP->FSB_Memory[28], &objMP->FSB_Memory[30]);
 		MP256_SetFSB(objMP->FSB_Memory, 30,	3841,	4096, NULL, NULL);
 		objMP->FSB_RootNode = &objMP->FSB_Memory[15];
+	} else {
+		// 未提供方案（回退为 xrtMalloc）
+		objMP->FSB_Memory = NULL;
+		objMP->FSB_RootNode = NULL;
 	}
 }
 // 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）

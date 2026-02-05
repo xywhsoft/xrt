@@ -22,7 +22,7 @@ int main()
 	printf("  Length: %d\n", len);
 	
 	printf("\nTesting memory pool...\n");
-	xmempool pool = xrtMemPoolCreate(1024);
+	xmempool pool = xrtMemPoolCreate(1);
 	printf("  Memory pool created\n");
 	
 	ptr p = xrtMemPoolAlloc(pool, 100);
