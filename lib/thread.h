@@ -302,7 +302,7 @@ XXAPI xmutex xrtMutexCreate()
 		pthread_mutexattr_t attr;
 		pthread_mutexattr_init(&attr);
 		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
-		int ret = pthread_mutex_init(&pMutex->UnixLock, &attr);
+		int ret = pthread_mutex_init(&pMutex->objLock, &attr);
 		pthread_mutexattr_destroy(&attr);
 		if ( ret != 0 ) {
 			xrtFree(pMutex);
