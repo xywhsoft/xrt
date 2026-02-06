@@ -49,9 +49,33 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
 		#include <winapi/winsock2.h>
-		#ifndef SRWLOCK_INIT
+		#ifndef XRT_THREAD_INIT
+			#define XRT_THREAD_INIT
 			typedef struct { PVOID Ptr; } SRWLOCK, *PSRWLOCK;
-			#define SRWLOCK_INIT {0}
+			typedef struct { PVOID Ptr; } CONDITION_VARIABLE, *PCONDITION_VARIABLE;
+			
+			void WINAPI InitializeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
+			void WINAPI WakeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
+			void WINAPI WakeAllConditionVariable(PCONDITION_VARIABLE ConditionVariable);
+			BOOL WINAPI SleepConditionVariableCS(
+				PCONDITION_VARIABLE ConditionVariable,
+				PCRITICAL_SECTION CriticalSection,
+				DWORD dwMilliseconds
+			);
+			BOOL WINAPI SleepConditionVariableSRW(
+				PCONDITION_VARIABLE ConditionVariable,
+				PSRWLOCK SRWLock,
+				DWORD dwMilliseconds,
+				ULONG Flags
+			);
+			
+			void WINAPI InitializeSRWLock(PSRWLOCK SRWLock);
+			void WINAPI AcquireSRWLockExclusive(PSRWLOCK SRWLock);
+			void WINAPI ReleaseSRWLockExclusive(PSRWLOCK SRWLock);
+			void WINAPI AcquireSRWLockShared(PSRWLOCK SRWLock);
+			void WINAPI ReleaseSRWLockShared(PSRWLOCK SRWLock);
+			BOOL WINAPI TryAcquireSRWLockExclusive(PSRWLOCK SRWLock);
+			BOOL WINAPI TryAcquireSRWLockShared(PSRWLOCK SRWLock);
 		#endif
 	#else
 		#include <winsock2.h>
@@ -61,6 +85,8 @@
 	#include <windows.h>
 #else
 	#include <pthread.h>
+	#include <semaphore.h>
+	#include <signal.h>
 #endif
 
 
@@ -811,39 +837,37 @@
 	
 	// 互斥体数据结构
 	typedef struct {
-		ptr Handle;								// 互斥体句柄
+		#if defined(_WIN32) || defined(_WIN64)
+			SRWLOCK objLock;					// Windows SRWLOCK（最高性能，无递归锁支持）
+		#else
+			pthread_mutex_t objLock;			// Linux pthread_mutex（非递归模式）
+		#endif
 	} xmutex_struct, *xmutex;
 	
 	// 信号量数据结构
 	typedef struct {
-		ptr Handle;								// 信号量句柄
+		#if defined(_WIN32) || defined(_WIN64)
+			HANDLE objSem;					// Windows：内核信号量句柄（直接嵌入）
+		#else
+			sem_t objSem;					// POSIX：sem_t 对象（直接嵌入，无需额外 malloc）
+		#endif
 	} xsem_struct, *xsem;
 	
 	// 条件变量数据结构
 	typedef struct {
-		ptr Handle;								// 条件变量句柄
+		#if defined(_WIN32) || defined(_WIN64)
+			CONDITION_VARIABLE objCond;		// Windows：条件变量对象（直接嵌入）
+		#else
+			pthread_cond_t objCond;			// POSIX：条件变量对象（直接嵌入，无需额外 malloc）
+		#endif
 	} xcond_struct, *xcond;
 	
 	// 读写锁数据结构
 	typedef struct {
-		union {
-			#if defined(_WIN32) || defined(_WIN64)
-				SRWLOCK WinLock;					// Windows SRWLOCK（最高性能）
-			#else
-				pthread_rwlock_t UnixLock;			// Linux pthread_rwlock
-			#endif
-		} Lock;
-		#ifdef DEBUG_TRACE
-			uint32 ReaderCount;					// 当前读者数量
-			uint32 WriterCount;					// 当前写者数量（应该 <= 1）
-			uint64 WriterThreadID;				// 写锁持有者线程ID
-			uint32 WriterDepth;					// 写锁递归深度
-			uint32 WaitingReaders;				// 等待读锁的线程数
-			uint32 WaitingWriters;				// 等待写锁的线程数
-			const char* LockFileName;			// 锁创建位置（文件名）
-			int LockLineNumber;					// 锁创建位置（行号）
-			const char* LastLockFileName;		// 最后一次锁操作位置
-			int LastLockLineNumber;
+		#if defined(_WIN32) || defined(_WIN64)
+			SRWLOCK objLock;					// Windows SRWLOCK（最高性能）
+		#else
+			pthread_rwlock_t objLock;			// Linux pthread_rwlock
 		#endif
 	} xrwlock_struct, *xrwlock;
 	
@@ -883,7 +907,7 @@
 	XXAPI uint32 xrtThreadGetExitCode(xthread pThread);
 	
 	// 获取当前线程ID
-	XXAPI uint32 xrtThreadGetCurrentId();
+	XXAPI uint64 xrtThreadGetCurrentId();
 	
 	// 让出当前线程的时间片
 	XXAPI void xrtThreadYield();
@@ -966,8 +990,6 @@
 	// 唤醒所有等待的线程
 	XXAPI void xrtCondBroadcast(xcond pCond);
 	
-	
-	
 	/* ---------- 读写锁 ---------- */
 	
 	// 创建读写锁
@@ -1005,15 +1027,6 @@
 	
 	// 读锁升级为写锁（可能失败，需要释放后重新获取）
 	XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock);
-	
-	#ifdef DEBUG_TRACE
-		// 检查锁状态（用于调试）
-		XXAPI bool xrtRWLockIsReadLocked(xrwlock pRWLock);
-		XXAPI bool xrtRWLockIsWriteLocked(xrwlock pRWLock);
-		XXAPI uint32 xrtRWLockGetReaderCount(xrwlock pRWLock);
-		XXAPI uint32 xrtRWLockGetWaitingReaders(xrwlock pRWLock);
-		XXAPI uint32 xrtRWLockGetWaitingWriters(xrwlock pRWLock);
-	#endif
 	
 	
 	

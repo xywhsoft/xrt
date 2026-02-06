@@ -39,6 +39,7 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
+			pNode->objMMU = NULL;
 		}
 	}
 	xrtBsmmUnit(&objMM->arrMMU);

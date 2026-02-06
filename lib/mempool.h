@@ -51,6 +51,10 @@ XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 		//	16		48		80		128		192		256		384		512
 		//
 		objMP->FSB_Memory = xrtMalloc(sizeof(FSB_Item) * 15);
+		if ( objMP->FSB_Memory == NULL ) {
+			objMP->FSB_RootNode = NULL;
+			return;
+		}
 		MP256_SetFSB(objMP->FSB_Memory, 0,	1,		16, NULL, NULL);
 		MP256_SetFSB(objMP->FSB_Memory, 1,	17,		32, &objMP->FSB_Memory[0], &objMP->FSB_Memory[2]);
 		MP256_SetFSB(objMP->FSB_Memory, 2,	33,		48, NULL, NULL);
@@ -83,6 +87,10 @@ XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 		//	16		48		80		128		192		256		384		512		768		1024	1536	2048	2560	3072	3584	4096
 		//
 		objMP->FSB_Memory = xrtMalloc(sizeof(FSB_Item) * 31);
+		if ( objMP->FSB_Memory == NULL ) {
+			objMP->FSB_RootNode = NULL;
+			return;
+		}
 		MP256_SetFSB(objMP->FSB_Memory, 0,	1,		16, NULL, NULL);
 		MP256_SetFSB(objMP->FSB_Memory, 1,	17,		32, &objMP->FSB_Memory[0], &objMP->FSB_Memory[2]);
 		MP256_SetFSB(objMP->FSB_Memory, 2,	33,		48, NULL, NULL);

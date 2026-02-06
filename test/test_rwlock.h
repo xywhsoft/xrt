@@ -328,30 +328,5 @@ void Test_RWLock(xrtGlobalData* xCore)
 	
 	
 	
-	#ifdef DEBUG_TRACE
-		// Test 9: 调试信息
-		printf("Test 9: 调试信息\n\n");
-		
-		rwlock = xrtRWLockCreate();
-		
-		xrtRWLockReadLock(rwlock);
-		printf("  读锁状态: %s\n", xrtRWLockIsReadLocked(rwlock) ? "已锁定" : "未锁定");
-		printf("  读者数量: %u\n", xrtRWLockGetReaderCount(rwlock));
-		
-		xrtRWLockReadUnlock(rwlock);
-		
-		xrtRWLockWriteLock(rwlock);
-		printf("  写锁状态: %s\n", xrtRWLockIsWriteLocked(rwlock) ? "已锁定" : "未锁定");
-		xrtRWLockWriteUnlock(rwlock);
-		
-		xrtRWLockDestroy(rwlock);
-		
-		printf("\n\n");
-		system("pause");
-		system("cls");
-	#endif
-	
-	
-	
 	printf("\n RWLock 库测试完成\n");
 }

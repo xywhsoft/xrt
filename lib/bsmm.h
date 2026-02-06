@@ -36,6 +36,7 @@ XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 	// 循环释放 PageMMU 中的内存页
 	for ( int i = 0; i < objBSMM->PageMMU.Count; i++ ) {
 		xrtFree(objBSMM->PageMMU.Memory[i]);
+		objBSMM->PageMMU.Memory[i] = NULL;
 	}
 	xrtPtrArrayUnit(&objBSMM->PageMMU);
 	// 循环释放空闲内存块链表
@@ -85,6 +86,10 @@ XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM)
 XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 {
 	MemPtr_LLNode* pNode = xrtMalloc(sizeof(MemPtr_LLNode));
+	if ( pNode == NULL ) {
+		xrtSetError("BSMM free failed: out of memory.", FALSE);
+		return;
+	}
 	pNode->Ptr = p;
 	pNode->Next = objBSMM->LL_Free;
 	objBSMM->LL_Free = pNode;
