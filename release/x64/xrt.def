@@ -5,6 +5,8 @@ memmem
 u16len
 u32len
 xCore
+xrtAES128GCMDecrypt
+xrtAES128GCMEncrypt
 xrtAVLTB_Insert
 xrtAVLTB_IterBegin
 xrtAVLTB_IterEnd
@@ -48,6 +50,9 @@ xrtBufferInsert
 xrtBufferMalloc
 xrtBufferUnit
 xrtCalloc
+xrtChaCha20
+xrtChaCha20Poly1305Decrypt
+xrtChaCha20Poly1305Encrypt
 xrtChain
 xrtCheckStr
 xrtClearError
@@ -115,7 +120,9 @@ xrtDynStackPushPtr
 xrtDynStackTop
 xrtDynStackTopPtr
 xrtDynStackUnit
+xrtECDSAVerify
 xrtEOF
+xrtEd25519Verify
 xrtEncodeXID
 xrtFSMemPoolAlloc
 xrtFSMemPoolCreate
@@ -151,6 +158,9 @@ xrtFromUnixTime
 xrtGet
 xrtGetCharSize
 xrtGetEOF
+xrtHKDFExpand
+xrtHKDFExtract
+xrtHMAC_SHA256
 xrtHash32
 xrtHash32_WithSeed
 xrtHash64
@@ -277,11 +287,16 @@ xrtRandRange
 xrtRandRangeEx
 xrtRandSeed
 xrtRandStr
+xrtRandomBytes
 xrtRead
 xrtRealloc
 xrtRelativeTime
 xrtReplace
 xrtRun
+xrtSHA256
+xrtSHA256Final
+xrtSHA256Init
+xrtSHA256Update
 xrtSecond
 xrtSeek
 xrtSemCreate
@@ -370,6 +385,8 @@ xrtWeekOfMonth
 xrtWeekOfYear
 xrtWeekday
 xrtWrite
+xrtX25519Keypair
+xrtX25519SharedSecret
 xrtYear
 xteAddIdentToList
 xteCreateIdentList

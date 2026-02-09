@@ -21,6 +21,7 @@
 #include "test/test_rwlock.h"
 #include "test/test_hash.h"
 #include "test/test_network.h"
+#include "test/test_crypto.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
 #include "test/test_array_ptr.h"
@@ -113,6 +114,9 @@ int main(int argc, char** argv)
 	
 	/* 网络库测试 */
 	// Test_Network(xCore);
+	
+	/* Crypto 加密算法库测试 */
+	Test_Crypto(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);

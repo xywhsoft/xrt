@@ -1084,6 +1084,66 @@
 	
 	
 	
+	/* ------------------------------------ Crypto 加密算法库 ------------------------------------ */
+	
+	/*
+		基于 mongoose 内建 TLS 移植，提供独立可用的加密原语
+		算法来源：
+			SHA-256:            Brad Conte (Public Domain)
+			ChaCha20-Poly1305:  portable8439 (CC0-1.0) + poly1305-donna (Public Domain)
+			AES-128-GCM:        Steven M. Gibson / GRC.com (Public Domain)
+			X25519:             Mike Hamburg / STROBE (MIT License)
+	*/
+	
+	// SHA-256 上下文结构
+	typedef struct {
+		uint32 state[8];
+		uint8 buffer[64];
+		uint32 len;
+		uint64 bits;
+	} xsha256_ctx;
+	
+	// SHA-256 哈希
+	XXAPI void xrtSHA256(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA256Init(xsha256_ctx *pCtx);
+	XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen);
+	XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut);
+	
+	// HMAC-SHA256
+	XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
+	
+	// ChaCha20 流加密 (RFC 8439)
+	XXAPI void xrtChaCha20(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, uint32 iCounter, const uint8 *pIn, size_t iLen);
+	
+	// ChaCha20-Poly1305 AEAD 加密/解密 (RFC 8439)
+	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
+	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
+	XXAPI bool xrtChaCha20Poly1305Encrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	XXAPI bool xrtChaCha20Poly1305Decrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	
+	// AES-128-GCM AEAD 加密/解密
+	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
+	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
+	XXAPI bool xrtAES128GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	
+	// X25519 密钥交换 (RFC 7748)
+	XXAPI void xrtX25519Keypair(uint8 *pPrivKey, uint8 *pPubKey);              // 生成密钥对 (各 32 字节)
+	XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
+	
+	// ECDSA / Ed25519 签名验证 (用于 TLS 证书验证)
+	XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey);
+	XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen);
+	
+	// HKDF 密钥派生 (RFC 5869)
+	XXAPI void xrtHKDFExtract(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
+	XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
+	
+	// 加密安全随机数 (Windows: RtlGenRandom, Linux: /dev/urandom)
+	XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen);
+	
+	
+	
 	/* ------------------------------------ XID 函数库 ------------------------------------ */
 	
 	// XID 数据结构 ( 192 bit )

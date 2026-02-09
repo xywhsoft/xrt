@@ -60,6 +60,7 @@ static int __xrt_RefCount = 0;  // 引用计数
 #include "lib/thread.h"
 #include "lib/hash.h"
 #include "lib/network.h"
+#include "lib/crypto.h"
 #include "lib/xid.h"
 #include "lib/buffer.h"
 #include "lib/array_point.h"
