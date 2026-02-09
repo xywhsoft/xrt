@@ -287,6 +287,8 @@ xrtPtrArraySwap
 xrtPtrArrayUnit
 xrtPut
 xrtQuarter
+xrtRSAModPow
+xrtRSAPSSVerify
 xrtRTrim
 xrtRWLockCreate
 xrtRWLockDestroy

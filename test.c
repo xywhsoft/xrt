@@ -24,6 +24,7 @@
 #include "test/test_crypto.h"
 #include "test/test_netsock.h"
 #include "test/test_nettcp.h"
+#include "test/test_nettls.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
 #include "test/test_array_ptr.h"
@@ -125,6 +126,9 @@ int main(int argc, char** argv)
 	
 	/* TCP/UDP 网络通信测试 */
 	Test_NetTCPUDP(xCore);
+	
+	/* TLS 1.3 测试 */
+	Test_NetTLS(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);

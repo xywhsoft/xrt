@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-02-06 12:18:34
+    Generated: 2026-02-09 17:03:04
 
     MIT License
 
@@ -1126,6 +1126,286 @@
 	
 	// 获取本机名称 ( 需使用 xrtFree 释放 )
 	str xrtGetLocalName();
+	
+	
+	
+	/* ------------------------------------ Crypto 加密算法库 ------------------------------------ */
+	
+	/*
+		基于 mongoose 内建 TLS 移植，提供独立可用的加密原语
+		算法来源：
+			SHA-256:            Brad Conte (Public Domain)
+			ChaCha20-Poly1305:  portable8439 (CC0-1.0) + poly1305-donna (Public Domain)
+			AES-128-GCM:        Steven M. Gibson / GRC.com (Public Domain)
+			X25519:             Mike Hamburg / STROBE (MIT License)
+	*/
+	
+	// SHA-256 上下文结构
+	typedef struct {
+		uint32 state[8];
+		uint8 buffer[64];
+		uint32 len;
+		uint64 bits;
+	} xsha256_ctx;
+	
+	// SHA-256 哈希
+	XXAPI void xrtSHA256(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA256Init(xsha256_ctx *pCtx);
+	XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen);
+	XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut);
+	
+	// HMAC-SHA256
+	XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
+	
+	// ChaCha20 流加密 (RFC 8439)
+	XXAPI void xrtChaCha20(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, uint32 iCounter, const uint8 *pIn, size_t iLen);
+	
+	// ChaCha20-Poly1305 AEAD 加密/解密 (RFC 8439)
+	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
+	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
+	XXAPI bool xrtChaCha20Poly1305Encrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	XXAPI bool xrtChaCha20Poly1305Decrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	
+	// AES-128-GCM AEAD 加密/解密
+	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
+	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
+	XXAPI bool xrtAES128GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	
+	// X25519 密钥交换 (RFC 7748)
+	XXAPI void xrtX25519Keypair(uint8 *pPrivKey, uint8 *pPubKey);              // 生成密钥对 (各 32 字节)
+	XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
+	
+	// ECDSA / Ed25519 签名验证 (用于 TLS 证书验证)
+	XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey);
+	XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen);
+	
+	// HKDF 密钥派生 (RFC 5869)
+	XXAPI void xrtHKDFExtract(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
+	XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
+	
+	// 加密安全随机数 (Windows: RtlGenRandom, Linux: /dev/urandom)
+	XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen);
+	
+	
+	
+	/* ------------------------------------ 网络通信基础类型 ------------------------------------ */
+	
+	/* ---- 网络结果码 ---- */
+	typedef enum {
+		XRT_NET_OK        =  0,
+		XRT_NET_ERROR     = -1,
+		XRT_NET_AGAIN     = -2,   // 非阻塞操作需重试
+		XRT_NET_TIMEOUT   = -3,
+		XRT_NET_CLOSED    = -4,
+	} xnet_result;
+	
+	/* ---- Socket 类型 ---- */
+	#if defined(_WIN32) || defined(_WIN64)
+		typedef SOCKET xsocket;
+		#define XSOCKET_INVALID  INVALID_SOCKET
+	#else
+		typedef int xsocket;
+		#define XSOCKET_INVALID  -1
+	#endif
+	
+	/* ---- 网络地址 (IPv4) ---- */
+	typedef struct {
+		uint32 iAddr;         // IP 地址 (网络字节序)
+		uint16 iPort;         // 端口号 (主机字节序)
+		char sAddr[16];       // IP 字符串缓存 "xxx.xxx.xxx.xxx"
+	} xnetaddr;
+	
+	/* ---- 网络缓冲区 ---- */
+	typedef struct {
+		char* pData;
+		size_t iSize;
+		size_t iCapacity;
+	} xnetbuf;
+	
+	/* ---- 连接对象 ---- */
+	typedef struct {
+		int iId;
+		xsocket hSocket;
+		xnetaddr tLocalAddr;
+		xnetaddr tRemoteAddr;
+		int iType;            // 0=TCP, 1=UDP
+		ptr pUserData;
+		ptr pTlsCtx;
+		bool bTlsEnabled;
+	} xnetconn;
+	
+	/* ---- 事件回调 ---- */
+	typedef struct {
+		void (*OnAccept)(ptr pServer, xnetconn* pConn);
+		void (*OnConnect)(ptr pServer, xnetconn* pConn, bool bSuccess);
+		void (*OnRecv)(ptr pServer, xnetconn* pConn, const char* pData, size_t iLen);
+		void (*OnRecvFrom)(ptr pServer, xnetconn* pConn, const xnetaddr* pFromAddr, const char* pData, size_t iLen);
+		void (*OnSend)(ptr pServer, xnetconn* pConn, size_t iLen);
+		void (*OnClose)(ptr pServer, xnetconn* pConn);
+		void (*OnError)(ptr pServer, xnetconn* pConn, int iErrorCode);
+	} xnetevents;
+	
+	/* ---- 网络配置 ---- */
+	typedef struct {
+		size_t iRecvBufSize;    // 默认 8192
+		size_t iSendBufSize;    // 默认 8192
+		int iMaxClients;        // 最大客户端数（0=不限）
+		int iPollTimeoutMs;     // 轮询超时(毫秒)
+	} xnetconfig;
+	
+	/* ---- TLS 配置 ---- */
+	typedef struct {
+		const char* sCertFile;    // 证书文件路径
+		const char* sKeyFile;     // 私钥文件路径
+		const char* sCaFile;      // CA 证书路径
+		const char* sHostName;    // 主机名 (SNI)
+		bool bVerifyPeer;         // 是否验证对端证书
+	} xtlsconfig;
+	
+	/* ---- TLS 上下文 (不透明) ---- */
+	typedef struct xrt_tls_context xtlsctx;
+	
+	/* ---- IO Poller (不透明) ---- */
+	typedef struct xrt_net_poller xnetpoller;
+	
+	/* ---- TCP 服务器/客户端 (不透明) ---- */
+	typedef struct xrt_tcp_server xtcpserver;
+	typedef struct xrt_tcp_client xtcpclient;
+	
+	/* ---- UDP 服务器/客户端 (不透明) ---- */
+	typedef struct xrt_udp_server xudpserver;
+	typedef struct xrt_udp_client xudpclient;
+	
+	
+	
+	/* ------------------------------------ Socket 基础操作 ------------------------------------ */
+	
+	// Socket 生命周期
+	XXAPI xnet_result xrtSockCreate(xnetconn* pConn, int iType);    // 0=TCP, 1=UDP
+	XXAPI void xrtSockClose(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetNonBlock(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetReuseAddr(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetTimeout(xnetconn* pConn, int iRecvMs, int iSendMs);
+	XXAPI xnet_result xrtSockSetNoDelay(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetKeepAlive(xnetconn* pConn, int iIdleSec, int iIntervalSec, int iCount);
+	
+	// 地址操作
+	XXAPI void xrtNetAddrInit(xnetaddr* pAddr, const char* sIP, uint16 iPort);
+	XXAPI void xrtNetAddrFromSockAddr(xnetaddr* pAddr, struct sockaddr_in* pSA);
+	XXAPI void xrtNetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_in* pSA);
+	XXAPI uint32 xrtNetIPFromStr(const char* sIP);
+	XXAPI const char* xrtNetIPToStr(uint32 iIP);
+	
+	// 连接操作
+	XXAPI xnet_result xrtSockBind(xnetconn* pConn, const xnetaddr* pAddr);
+	XXAPI xnet_result xrtSockListen(xnetconn* pConn, int iBacklog);
+	XXAPI xnet_result xrtSockAccept(xnetconn* pServer, xnetconn* pClient);
+	XXAPI xnet_result xrtSockConnect(xnetconn* pConn, const xnetaddr* pAddr);
+	
+	// 数据收发
+	XXAPI xnet_result xrtSockSend(xnetconn* pConn, const char* pData, size_t iLen, size_t* pSent);
+	XXAPI xnet_result xrtSockRecv(xnetconn* pConn, char* pBuf, size_t iLen, size_t* pReceived);
+	XXAPI xnet_result xrtSockSendTo(xnetconn* pConn, const char* pData, size_t iLen, const xnetaddr* pAddr, size_t* pSent);
+	XXAPI xnet_result xrtSockRecvFrom(xnetconn* pConn, char* pBuf, size_t iLen, xnetaddr* pAddr, size_t* pReceived);
+	
+	// DNS 解析
+	XXAPI xnet_result xrtNetResolve(const char* sHostname, xnetaddr* pAddr);
+	
+	// 网络缓冲区
+	XXAPI bool xrtNetBufInit(xnetbuf* pBuf, size_t iCapacity);
+	XXAPI void xrtNetBufFree(xnetbuf* pBuf);
+	XXAPI bool xrtNetBufAppend(xnetbuf* pBuf, const char* pData, size_t iLen);
+	XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen);
+	XXAPI void xrtNetBufClear(xnetbuf* pBuf);
+	
+	
+	
+	/* ------------------------------------ IO 模型 (Poller) ------------------------------------ */
+	
+	#define XRT_POLL_READ   0x01
+	#define XRT_POLL_WRITE  0x02
+	#define XRT_POLL_ERROR  0x04
+	#define XRT_POLL_ACCEPT 0x08
+	#define XRT_POLL_CLOSE  0x10
+	
+	// Poller 事件回调函数类型
+	// iEvent: XRT_POLL_READ/WRITE/ERROR/ACCEPT/CLOSE
+	// pData: 完成的数据 (READ 事件时有效)
+	// iLen: 数据长度
+	typedef void (*xpoll_fn)(xnetpoller* pPoller, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
+	
+	XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData);
+	XXAPI void xrtPollDestroy(xnetpoller* pPoller);
+	XXAPI xnet_result xrtPollAdd(xnetpoller* pPoller, xnetconn* pConn, int iEvents);
+	XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn);
+	XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn);
+	XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient);
+	XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs);
+	XXAPI void xrtPollWakeup(xnetpoller* pPoller);
+	XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller);
+	
+	
+	
+	/* ------------------------------------ TLS 1.3 ------------------------------------ */
+	
+	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
+	XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
+	XXAPI xnet_result xrtTlsHandshake(xtlsctx* pCtx, xnetconn* pConn);
+	XXAPI xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
+	XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
+	XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
+	XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
+	
+	
+	
+	/* ------------------------------------ TCP 服务器/客户端 ------------------------------------ */
+	
+	// TCP 服务器
+	XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtTcpServerDestroy(xtcpserver* pServer);
+	XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer);
+	XXAPI void xrtTcpServerStop(xtcpserver* pServer);
+	XXAPI xnet_result xrtTcpServerSend(xtcpserver* pServer, int iClientId, const char* pData, size_t iLen);
+	XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId);
+	XXAPI xnet_result xrtTcpServerEnableTLS(xtcpserver* pServer, const xtlsconfig* pConfig);
+	XXAPI int xrtTcpServerGetClientCount(xtcpserver* pServer);
+	XXAPI void xrtTcpServerSetUserData(xtcpserver* pServer, ptr pData);
+	XXAPI ptr xrtTcpServerGetUserData(xtcpserver* pServer);
+	
+	// TCP 客户端
+	XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtTcpClientDestroy(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient);
+	XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientSend(xtcpclient* pClient, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtTcpClientEnableTLS(xtcpclient* pClient, const xtlsconfig* pConfig);
+	XXAPI bool xrtTcpClientIsConnected(xtcpclient* pClient);
+	XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData);
+	XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient);
+	
+	
+	
+	/* ------------------------------------ UDP 服务器/客户端 ------------------------------------ */
+	
+	// UDP 服务器
+	XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtUdpServerDestroy(xudpserver* pServer);
+	XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer);
+	XXAPI void xrtUdpServerStop(xudpserver* pServer);
+	XXAPI xnet_result xrtUdpServerSendTo(xudpserver* pServer, const xnetaddr* pAddr, const char* pData, size_t iLen);
+	XXAPI void xrtUdpServerSetUserData(xudpserver* pServer, ptr pData);
+	XXAPI ptr xrtUdpServerGetUserData(xudpserver* pServer);
+	
+	// UDP 客户端
+	XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtUdpClientDestroy(xudpclient* pClient);
+	XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient);
+	XXAPI void xrtUdpClientStop(xudpclient* pClient);
+	XXAPI xnet_result xrtUdpClientSendTo(xudpclient* pClient, const xnetaddr* pAddr, const char* pData, size_t iLen);
+	XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData);
+	XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient);
 	
 	
 	
@@ -10851,6 +11131,4425 @@ str xrtGetLocalName()
 		return xrtCopyStr(sLocalName, 0);
 	}
 	return xCore.sNull;
+}
+
+// ========================================
+// File: D:/git/xrt/lib/crypto.h
+// ========================================
+
+
+/*
+	Crypto - 加密算法模块 [Ver1.0]
+	
+	基于 mongoose 内建 TLS 的加密原语移植
+	提供 SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
+	
+	算法来源与授权：
+		SHA-256:            Brad Conte (Public Domain)
+		ChaCha20-Poly1305:  portable8439 (CC0-1.0) + poly1305-donna (Public Domain)
+		AES-128-GCM:        Steven M. Gibson / GRC.com (Public Domain)
+		X25519:             Mike Hamburg / STROBE (MIT License)
+*/
+/* ============================== SHA-256 ============================== */
+// xsha256_ctx 已在 xrt.h 中定义
+// SHA-256 常量表
+static const uint32 __xrt_sha256_k[64] = {
+	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+	0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+	0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+	0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+	0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+	0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+	0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+	0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+	0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+	0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+	0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+	0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+	0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+	0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+	0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+};
+#define __XRT_SHA256_ROR(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
+#define __XRT_SHA256_CH(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
+#define __XRT_SHA256_MAJ(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define __XRT_SHA256_EP0(x) (__XRT_SHA256_ROR(x, 2) ^ __XRT_SHA256_ROR(x, 13) ^ __XRT_SHA256_ROR(x, 22))
+#define __XRT_SHA256_EP1(x) (__XRT_SHA256_ROR(x, 6) ^ __XRT_SHA256_ROR(x, 11) ^ __XRT_SHA256_ROR(x, 25))
+#define __XRT_SHA256_SIG0(x) (__XRT_SHA256_ROR(x, 7) ^ __XRT_SHA256_ROR(x, 18) ^ ((x) >> 3))
+#define __XRT_SHA256_SIG1(x) (__XRT_SHA256_ROR(x, 17) ^ __XRT_SHA256_ROR(x, 19) ^ ((x) >> 10))
+static void __xrt_sha256_chunk(xsha256_ctx *pCtx)
+{
+	int i, j;
+	uint32 a, b, c, d, e, f, g, h;
+	uint32 m[64];
+	
+	for ( i = 0, j = 0; i < 16; ++i, j += 4 ) {
+		m[i] = ((uint32)pCtx->buffer[j] << 24) |
+		       ((uint32)pCtx->buffer[j + 1] << 16) |
+		       ((uint32)pCtx->buffer[j + 2] << 8) |
+		       ((uint32)pCtx->buffer[j + 3]);
+	}
+	for ( ; i < 64; ++i ) {
+		m[i] = __XRT_SHA256_SIG1(m[i - 2]) + m[i - 7] + __XRT_SHA256_SIG0(m[i - 15]) + m[i - 16];
+	}
+	
+	a = pCtx->state[0];
+	b = pCtx->state[1];
+	c = pCtx->state[2];
+	d = pCtx->state[3];
+	e = pCtx->state[4];
+	f = pCtx->state[5];
+	g = pCtx->state[6];
+	h = pCtx->state[7];
+	
+	for ( i = 0; i < 64; ++i ) {
+		uint32 t1 = h + __XRT_SHA256_EP1(e) + __XRT_SHA256_CH(e, f, g) + __xrt_sha256_k[i] + m[i];
+		uint32 t2 = __XRT_SHA256_EP0(a) + __XRT_SHA256_MAJ(a, b, c);
+		h = g;
+		g = f;
+		f = e;
+		e = d + t1;
+		d = c;
+		c = b;
+		b = a;
+		a = t1 + t2;
+	}
+	
+	pCtx->state[0] += a;
+	pCtx->state[1] += b;
+	pCtx->state[2] += c;
+	pCtx->state[3] += d;
+	pCtx->state[4] += e;
+	pCtx->state[5] += f;
+	pCtx->state[6] += g;
+	pCtx->state[7] += h;
+}
+XXAPI void xrtSHA256Init(xsha256_ctx *pCtx)
+{
+	pCtx->len = 0;
+	pCtx->bits = 0;
+	pCtx->state[0] = 0x6a09e667;
+	pCtx->state[1] = 0xbb67ae85;
+	pCtx->state[2] = 0x3c6ef372;
+	pCtx->state[3] = 0xa54ff53a;
+	pCtx->state[4] = 0x510e527f;
+	pCtx->state[5] = 0x9b05688c;
+	pCtx->state[6] = 0x1f83d9ab;
+	pCtx->state[7] = 0x5be0cd19;
+}
+XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen)
+{
+	const uint8 *pBytes = (const uint8 *)pData;
+	size_t i;
+	for ( i = 0; i < iLen; i++ ) {
+		pCtx->buffer[pCtx->len] = pBytes[i];
+		if ( (++(pCtx->len)) == 64 ) {
+			__xrt_sha256_chunk(pCtx);
+			pCtx->bits += 512;
+			pCtx->len = 0;
+		}
+	}
+}
+XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut)
+{
+	uint32 i = pCtx->len;
+	
+	if ( i < 56 ) {
+		pCtx->buffer[i++] = 0x80;
+		while ( i < 56 ) {
+			pCtx->buffer[i++] = 0x00;
+		}
+	} else {
+		pCtx->buffer[i++] = 0x80;
+		while ( i < 64 ) {
+			pCtx->buffer[i++] = 0x00;
+		}
+		__xrt_sha256_chunk(pCtx);
+		memset(pCtx->buffer, 0, 56);
+	}
+	
+	pCtx->bits += pCtx->len * 8;
+	pCtx->buffer[63] = (uint8)((pCtx->bits) & 0xff);
+	pCtx->buffer[62] = (uint8)((pCtx->bits >> 8) & 0xff);
+	pCtx->buffer[61] = (uint8)((pCtx->bits >> 16) & 0xff);
+	pCtx->buffer[60] = (uint8)((pCtx->bits >> 24) & 0xff);
+	pCtx->buffer[59] = (uint8)((pCtx->bits >> 32) & 0xff);
+	pCtx->buffer[58] = (uint8)((pCtx->bits >> 40) & 0xff);
+	pCtx->buffer[57] = (uint8)((pCtx->bits >> 48) & 0xff);
+	pCtx->buffer[56] = (uint8)((pCtx->bits >> 56) & 0xff);
+	__xrt_sha256_chunk(pCtx);
+	
+	for ( i = 0; i < 4; ++i ) {
+		pOut[i]      = (uint8)((pCtx->state[0] >> (24 - i * 8)) & 0xff);
+		pOut[i + 4]  = (uint8)((pCtx->state[1] >> (24 - i * 8)) & 0xff);
+		pOut[i + 8]  = (uint8)((pCtx->state[2] >> (24 - i * 8)) & 0xff);
+		pOut[i + 12] = (uint8)((pCtx->state[3] >> (24 - i * 8)) & 0xff);
+		pOut[i + 16] = (uint8)((pCtx->state[4] >> (24 - i * 8)) & 0xff);
+		pOut[i + 20] = (uint8)((pCtx->state[5] >> (24 - i * 8)) & 0xff);
+		pOut[i + 24] = (uint8)((pCtx->state[6] >> (24 - i * 8)) & 0xff);
+		pOut[i + 28] = (uint8)((pCtx->state[7] >> (24 - i * 8)) & 0xff);
+	}
+}
+XXAPI void xrtSHA256(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	xsha256_ctx tCtx;
+	xrtSHA256Init(&tCtx);
+	xrtSHA256Update(&tCtx, pData, iLen);
+	xrtSHA256Final(&tCtx, pOut);
+}
+XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
+{
+	xsha256_ctx tCtx;
+	uint8 k[64] = {0};
+	uint8 o_pad[64], i_pad[64];
+	unsigned int i;
+	
+	memset(i_pad, 0x36, sizeof(i_pad));
+	memset(o_pad, 0x5c, sizeof(o_pad));
+	
+	if ( iKeyLen <= 64 ) {
+		if ( iKeyLen > 0 ) {
+			memmove(k, pKey, iKeyLen);
+		}
+	} else {
+		xrtSHA256Init(&tCtx);
+		xrtSHA256Update(&tCtx, (ptr)pKey, iKeyLen);
+		xrtSHA256Final(&tCtx, k);
+	}
+	
+	for ( i = 0; i < sizeof(k); i++ ) {
+		i_pad[i] ^= k[i];
+		o_pad[i] ^= k[i];
+	}
+	
+	xrtSHA256Init(&tCtx);
+	xrtSHA256Update(&tCtx, i_pad, sizeof(i_pad));
+	xrtSHA256Update(&tCtx, (ptr)pMsg, iMsgLen);
+	xrtSHA256Final(&tCtx, pOut);
+	
+	xrtSHA256Init(&tCtx);
+	xrtSHA256Update(&tCtx, o_pad, sizeof(o_pad));
+	xrtSHA256Update(&tCtx, pOut, 32);
+	xrtSHA256Final(&tCtx, pOut);
+}
+/* ============================== ChaCha20-Poly1305 (RFC 8439) ============================== */
+#define __XRT_CHACHA20_KEY_SIZE 32
+#define __XRT_CHACHA20_NONCE_SIZE 12
+#define __XRT_CHACHA20_BLOCK_SIZE 64
+#define __XRT_CHACHA20_STATE_WORDS 16
+#define __XRT_ROTL32(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
+static inline uint32 __xrt_load32_le(const uint8 *p)
+{
+	return ((uint32)p[0]) | ((uint32)p[1] << 8) | ((uint32)p[2] << 16) | ((uint32)p[3] << 24);
+}
+static inline void __xrt_store32_le(uint8 *p, uint32 v)
+{
+	p[0] = (uint8)(v & 0xff);
+	p[1] = (uint8)((v >> 8) & 0xff);
+	p[2] = (uint8)((v >> 16) & 0xff);
+	p[3] = (uint8)((v >> 24) & 0xff);
+}
+static inline void __xrt_store64_le(uint8 *p, uint64 v)
+{
+	__xrt_store32_le(p, (uint32)v);
+	__xrt_store32_le(p + 4, (uint32)(v >> 32));
+}
+#define __XRT_QR(a, b, c, d) \
+	a += b; d ^= a; d = __XRT_ROTL32(d, 16); \
+	c += d; b ^= c; b = __XRT_ROTL32(b, 12); \
+	a += b; d ^= a; d = __XRT_ROTL32(d, 8); \
+	c += d; b ^= c; b = __XRT_ROTL32(b, 7);
+static void __xrt_chacha20_block(const uint32 *pState, uint32 *pOut)
+{
+	int i;
+	uint32 s0 = pState[0], s1 = pState[1], s2 = pState[2], s3 = pState[3];
+	uint32 s4 = pState[4], s5 = pState[5], s6 = pState[6], s7 = pState[7];
+	uint32 s8 = pState[8], s9 = pState[9], s10 = pState[10], s11 = pState[11];
+	uint32 s12 = pState[12], s13 = pState[13], s14 = pState[14], s15 = pState[15];
+	
+	for ( i = 0; i < 10; i++ ) {
+		__XRT_QR(s0, s4, s8, s12);
+		__XRT_QR(s1, s5, s9, s13);
+		__XRT_QR(s2, s6, s10, s14);
+		__XRT_QR(s3, s7, s11, s15);
+		__XRT_QR(s0, s5, s10, s15);
+		__XRT_QR(s1, s6, s11, s12);
+		__XRT_QR(s2, s7, s8, s13);
+		__XRT_QR(s3, s4, s9, s14);
+	}
+	
+	pOut[0] = pState[0] + s0;
+	pOut[1] = pState[1] + s1;
+	pOut[2] = pState[2] + s2;
+	pOut[3] = pState[3] + s3;
+	pOut[4] = pState[4] + s4;
+	pOut[5] = pState[5] + s5;
+	pOut[6] = pState[6] + s6;
+	pOut[7] = pState[7] + s7;
+	pOut[8] = pState[8] + s8;
+	pOut[9] = pState[9] + s9;
+	pOut[10] = pState[10] + s10;
+	pOut[11] = pState[11] + s11;
+	pOut[12] = pState[12] + s12;
+	pOut[13] = pState[13] + s13;
+	pOut[14] = pState[14] + s14;
+	pOut[15] = pState[15] + s15;
+}
+XXAPI void xrtChaCha20(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, uint32 iCounter, const uint8 *pIn, size_t iLen)
+{
+	uint32 tState[__XRT_CHACHA20_STATE_WORDS];
+	uint32 tBlock[__XRT_CHACHA20_STATE_WORDS];
+	size_t i, iFullBlocks, iLastBlock;
+	
+	// “constant” = "expand 32-byte k"
+	tState[0] = 0x61707865;
+	tState[1] = 0x3320646e;
+	tState[2] = 0x79622d32;
+	tState[3] = 0x6b206574;
+	// key
+	for ( i = 0; i < 8; i++ ) {
+		tState[4 + i] = __xrt_load32_le(pKey + i * 4);
+	}
+	// counter + nonce
+	tState[12] = iCounter;
+	tState[13] = __xrt_load32_le(pNonce);
+	tState[14] = __xrt_load32_le(pNonce + 4);
+	tState[15] = __xrt_load32_le(pNonce + 8);
+	
+	iFullBlocks = iLen / __XRT_CHACHA20_BLOCK_SIZE;
+	for ( i = 0; i < iFullBlocks; i++ ) {
+		size_t j;
+		__xrt_chacha20_block(tState, tBlock);
+		for ( j = 0; j < __XRT_CHACHA20_STATE_WORDS; j++ ) {
+			uint32 iVal = __xrt_load32_le(pIn + i * __XRT_CHACHA20_BLOCK_SIZE + j * 4);
+			__xrt_store32_le(pOut + i * __XRT_CHACHA20_BLOCK_SIZE + j * 4, iVal ^ tBlock[j]);
+		}
+		tState[12]++;
+	}
+	
+	iLastBlock = iLen % __XRT_CHACHA20_BLOCK_SIZE;
+	if ( iLastBlock > 0 ) {
+		size_t iOff = iFullBlocks * __XRT_CHACHA20_BLOCK_SIZE;
+		uint8 arrKs[__XRT_CHACHA20_BLOCK_SIZE];
+		size_t j;
+		__xrt_chacha20_block(tState, tBlock);
+		for ( j = 0; j < __XRT_CHACHA20_STATE_WORDS; j++ ) {
+			__xrt_store32_le(arrKs + j * 4, tBlock[j]);
+		}
+		for ( j = 0; j < iLastBlock; j++ ) {
+			pOut[iOff + j] = pIn[iOff + j] ^ arrKs[j];
+		}
+	}
+}
+// Poly1305 实现 (based on poly1305-donna, Public Domain)
+typedef struct {
+	uint32 r[5];
+	uint32 h[5];
+	uint32 pad[4];
+	size_t leftover;
+	uint8 buffer[16];
+	uint8 final;
+} __xrt_poly1305_ctx;
+static void __xrt_poly1305_init(__xrt_poly1305_ctx *pCtx, const uint8 pKey[32])
+{
+	memset(pCtx, 0, sizeof(__xrt_poly1305_ctx));
+	// r
+	pCtx->r[0] = (__xrt_load32_le(pKey + 0)) & 0x3ffffff;
+	pCtx->r[1] = (__xrt_load32_le(pKey + 3) >> 2) & 0x3ffff03;
+	pCtx->r[2] = (__xrt_load32_le(pKey + 6) >> 4) & 0x3ffc0ff;
+	pCtx->r[3] = (__xrt_load32_le(pKey + 9) >> 6) & 0x3f03fff;
+	pCtx->r[4] = (__xrt_load32_le(pKey + 12) >> 8) & 0x00fffff;
+	// pad
+	pCtx->pad[0] = __xrt_load32_le(pKey + 16);
+	pCtx->pad[1] = __xrt_load32_le(pKey + 20);
+	pCtx->pad[2] = __xrt_load32_le(pKey + 24);
+	pCtx->pad[3] = __xrt_load32_le(pKey + 28);
+}
+static void __xrt_poly1305_blocks(__xrt_poly1305_ctx *pCtx, const uint8 *pMsg, size_t iLen)
+{
+	uint32 hibit = pCtx->final ? 0 : (1 << 24);
+	uint32 r0 = pCtx->r[0], r1 = pCtx->r[1], r2 = pCtx->r[2], r3 = pCtx->r[3], r4 = pCtx->r[4];
+	uint32 s1 = r1 * 5, s2 = r2 * 5, s3 = r3 * 5, s4 = r4 * 5;
+	uint32 h0 = pCtx->h[0], h1 = pCtx->h[1], h2 = pCtx->h[2], h3 = pCtx->h[3], h4 = pCtx->h[4];
+	uint64 d0, d1, d2, d3, d4;
+	uint32 c;
+	
+	while ( iLen >= 16 ) {
+		h0 += (__xrt_load32_le(pMsg + 0)) & 0x3ffffff;
+		h1 += (__xrt_load32_le(pMsg + 3) >> 2) & 0x3ffffff;
+		h2 += (__xrt_load32_le(pMsg + 6) >> 4) & 0x3ffffff;
+		h3 += (__xrt_load32_le(pMsg + 9) >> 6) & 0x3ffffff;
+		h4 += (__xrt_load32_le(pMsg + 12) >> 8) | hibit;
+		
+		d0 = ((uint64)h0 * r0) + ((uint64)h1 * s4) + ((uint64)h2 * s3) + ((uint64)h3 * s2) + ((uint64)h4 * s1);
+		d1 = ((uint64)h0 * r1) + ((uint64)h1 * r0) + ((uint64)h2 * s4) + ((uint64)h3 * s3) + ((uint64)h4 * s2);
+		d2 = ((uint64)h0 * r2) + ((uint64)h1 * r1) + ((uint64)h2 * r0) + ((uint64)h3 * s4) + ((uint64)h4 * s3);
+		d3 = ((uint64)h0 * r3) + ((uint64)h1 * r2) + ((uint64)h2 * r1) + ((uint64)h3 * r0) + ((uint64)h4 * s4);
+		d4 = ((uint64)h0 * r4) + ((uint64)h1 * r3) + ((uint64)h2 * r2) + ((uint64)h3 * r1) + ((uint64)h4 * r0);
+		
+		c = (uint32)(d0 >> 26); h0 = (uint32)d0 & 0x3ffffff;
+		d1 += c; c = (uint32)(d1 >> 26); h1 = (uint32)d1 & 0x3ffffff;
+		d2 += c; c = (uint32)(d2 >> 26); h2 = (uint32)d2 & 0x3ffffff;
+		d3 += c; c = (uint32)(d3 >> 26); h3 = (uint32)d3 & 0x3ffffff;
+		d4 += c; c = (uint32)(d4 >> 26); h4 = (uint32)d4 & 0x3ffffff;
+		h0 += c * 5; c = h0 >> 26; h0 = h0 & 0x3ffffff;
+		h1 += c;
+		
+		pMsg += 16;
+		iLen -= 16;
+	}
+	
+	pCtx->h[0] = h0;
+	pCtx->h[1] = h1;
+	pCtx->h[2] = h2;
+	pCtx->h[3] = h3;
+	pCtx->h[4] = h4;
+}
+static void __xrt_poly1305_update(__xrt_poly1305_ctx *pCtx, const uint8 *pMsg, size_t iLen)
+{
+	size_t i;
+	if ( pCtx->leftover ) {
+		size_t iWant = 16 - pCtx->leftover;
+		if ( iWant > iLen ) { iWant = iLen; }
+		for ( i = 0; i < iWant; i++ ) {
+			pCtx->buffer[pCtx->leftover + i] = pMsg[i];
+		}
+		iLen -= iWant;
+		pMsg += iWant;
+		pCtx->leftover += iWant;
+		if ( pCtx->leftover < 16 ) { return; }
+		__xrt_poly1305_blocks(pCtx, pCtx->buffer, 16);
+		pCtx->leftover = 0;
+	}
+	
+	if ( iLen >= 16 ) {
+		size_t iWant = iLen & ~(size_t)15;
+		__xrt_poly1305_blocks(pCtx, pMsg, iWant);
+		pMsg += iWant;
+		iLen -= iWant;
+	}
+	
+	if ( iLen ) {
+		for ( i = 0; i < iLen; i++ ) {
+			pCtx->buffer[pCtx->leftover + i] = pMsg[i];
+		}
+		pCtx->leftover += iLen;
+	}
+}
+static void __xrt_poly1305_finish(__xrt_poly1305_ctx *pCtx, uint8 pMac[16])
+{
+	uint32 h0, h1, h2, h3, h4, c;
+	uint32 g0, g1, g2, g3, g4;
+	uint64 f;
+	uint32 mask;
+	
+	if ( pCtx->leftover ) {
+		size_t i = pCtx->leftover;
+		pCtx->buffer[i++] = 1;
+		for ( ; i < 16; i++ ) {
+			pCtx->buffer[i] = 0;
+		}
+		pCtx->final = 1;
+		__xrt_poly1305_blocks(pCtx, pCtx->buffer, 16);
+	}
+	
+	h0 = pCtx->h[0]; h1 = pCtx->h[1]; h2 = pCtx->h[2]; h3 = pCtx->h[3]; h4 = pCtx->h[4];
+	
+	c = h1 >> 26; h1 = h1 & 0x3ffffff;
+	h2 += c; c = h2 >> 26; h2 = h2 & 0x3ffffff;
+	h3 += c; c = h3 >> 26; h3 = h3 & 0x3ffffff;
+	h4 += c; c = h4 >> 26; h4 = h4 & 0x3ffffff;
+	h0 += c * 5; c = h0 >> 26; h0 = h0 & 0x3ffffff;
+	h1 += c;
+	
+	g0 = h0 + 5; c = g0 >> 26; g0 &= 0x3ffffff;
+	g1 = h1 + c; c = g1 >> 26; g1 &= 0x3ffffff;
+	g2 = h2 + c; c = g2 >> 26; g2 &= 0x3ffffff;
+	g3 = h3 + c; c = g3 >> 26; g3 &= 0x3ffffff;
+	g4 = h4 + c - (1 << 26);
+	
+	mask = (g4 >> 31) - 1;
+	g0 &= mask; g1 &= mask; g2 &= mask; g3 &= mask; g4 &= mask;
+	mask = ~mask;
+	h0 = (h0 & mask) | g0;
+	h1 = (h1 & mask) | g1;
+	h2 = (h2 & mask) | g2;
+	h3 = (h3 & mask) | g3;
+	h4 = (h4 & mask) | g4;
+	
+	h0 = ((h0) | (h1 << 26)) & 0xffffffff;
+	h1 = ((h1 >> 6) | (h2 << 20)) & 0xffffffff;
+	h2 = ((h2 >> 12) | (h3 << 14)) & 0xffffffff;
+	h3 = ((h3 >> 18) | (h4 << 8)) & 0xffffffff;
+	
+	f = (uint64)h0 + pCtx->pad[0]; h0 = (uint32)f;
+	f = (uint64)h1 + pCtx->pad[1] + (f >> 32); h1 = (uint32)f;
+	f = (uint64)h2 + pCtx->pad[2] + (f >> 32); h2 = (uint32)f;
+	f = (uint64)h3 + pCtx->pad[3] + (f >> 32); h3 = (uint32)f;
+	
+	__xrt_store32_le(pMac + 0, h0);
+	__xrt_store32_le(pMac + 4, h1);
+	__xrt_store32_le(pMac + 8, h2);
+	__xrt_store32_le(pMac + 12, h3);
+}
+// 生成 Poly1305 密钥 (使用 ChaCha20 counter=0 输出的前 32 字节)
+static void __xrt_chacha20_poly1305_keygen(uint8 pPolyKey[32], const uint8 pKey[32], const uint8 pNonce[12])
+{
+	uint32 tState[__XRT_CHACHA20_STATE_WORDS];
+	uint32 tBlock[__XRT_CHACHA20_STATE_WORDS];
+	size_t i;
+	
+	tState[0] = 0x61707865;
+	tState[1] = 0x3320646e;
+	tState[2] = 0x79622d32;
+	tState[3] = 0x6b206574;
+	for ( i = 0; i < 8; i++ ) {
+		tState[4 + i] = __xrt_load32_le(pKey + i * 4);
+	}
+	tState[12] = 0;
+	tState[13] = __xrt_load32_le(pNonce);
+	tState[14] = __xrt_load32_le(pNonce + 4);
+	tState[15] = __xrt_load32_le(pNonce + 8);
+	
+	__xrt_chacha20_block(tState, tBlock);
+	for ( i = 0; i < 8; i++ ) {
+		__xrt_store32_le(pPolyKey + i * 4, tBlock[i]);
+	}
+}
+static void __xrt_poly1305_pad16(__xrt_poly1305_ctx *pCtx, size_t iLen)
+{
+	uint8 arrZeros[16] = {0};
+	size_t iPad = iLen % 16;
+	if ( iPad > 0 ) {
+		__xrt_poly1305_update(pCtx, arrZeros, 16 - iPad);
+	}
+}
+XXAPI bool xrtChaCha20Poly1305Encrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	uint8 arrPolyKey[32];
+	uint8 arrLens[16];
+	__xrt_poly1305_ctx tPoly;
+	
+	// 生成 Poly1305 密钥
+	__xrt_chacha20_poly1305_keygen(arrPolyKey, pKey, pNonce);
+	
+	// 加密（counter 从 1 开始）
+	xrtChaCha20(pOut, pKey, pNonce, 1, pIn, iLen);
+	
+	// 计算 tag
+	__xrt_poly1305_init(&tPoly, arrPolyKey);
+	__xrt_poly1305_update(&tPoly, pAAD, iAADLen);
+	__xrt_poly1305_pad16(&tPoly, iAADLen);
+	__xrt_poly1305_update(&tPoly, pOut, iLen);
+	__xrt_poly1305_pad16(&tPoly, iLen);
+	__xrt_store64_le(arrLens, (uint64)iAADLen);
+	__xrt_store64_le(arrLens + 8, (uint64)iLen);
+	__xrt_poly1305_update(&tPoly, arrLens, 16);
+	__xrt_poly1305_finish(&tPoly, pOut + iLen);  // 16 字节 tag 追加在密文后
+	
+	return true;
+}
+XXAPI bool xrtChaCha20Poly1305Decrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	uint8 arrPolyKey[32];
+	uint8 arrLens[16];
+	uint8 arrTag[16];
+	__xrt_poly1305_ctx tPoly;
+	size_t iCipherLen;
+	uint8 iDiff;
+	int i;
+	
+	if ( iLen < 16 ) {
+		return false;  // 至少需要 16 字节 tag
+	}
+	iCipherLen = iLen - 16;
+	
+	// 生成 Poly1305 密钥
+	__xrt_chacha20_poly1305_keygen(arrPolyKey, pKey, pNonce);
+	
+	// 验证 tag
+	__xrt_poly1305_init(&tPoly, arrPolyKey);
+	__xrt_poly1305_update(&tPoly, pAAD, iAADLen);
+	__xrt_poly1305_pad16(&tPoly, iAADLen);
+	__xrt_poly1305_update(&tPoly, pIn, iCipherLen);
+	__xrt_poly1305_pad16(&tPoly, iCipherLen);
+	__xrt_store64_le(arrLens, (uint64)iAADLen);
+	__xrt_store64_le(arrLens + 8, (uint64)iCipherLen);
+	__xrt_poly1305_update(&tPoly, arrLens, 16);
+	__xrt_poly1305_finish(&tPoly, arrTag);
+	
+	// 常量时间比较
+	iDiff = 0;
+	for ( i = 0; i < 16; i++ ) {
+		iDiff |= arrTag[i] ^ pIn[iCipherLen + i];
+	}
+	if ( iDiff != 0 ) {
+		return false;  // tag 验证失败
+	}
+	
+	// 解密
+	xrtChaCha20(pOut, pKey, pNonce, 1, pIn, iCipherLen);
+	return true;
+}
+/* ============================== AES-128-GCM ============================== */
+/*
+	AES Rijndael 128-bit block cipher (Public Domain)
+	Source: Steven M. Gibson / GRC.com
+*/
+typedef struct {
+	int iDirection;
+	int iRounds;
+	uint32 arrRK[60];
+} __xrt_aes_ctx;
+typedef struct {
+	int iMode;
+	uint64 iLen;
+	uint64 iAddLen;
+	uint64 arrHL[16];
+	uint64 arrHH[16];
+	uint8 arrBaseEctr[16];
+	uint8 arrY[16];
+	uint8 arrBuf[16];
+	__xrt_aes_ctx tAes;
+} __xrt_gcm_ctx;
+static int __xrt_aes_tables_inited = 0;
+static uint8 __xrt_aes_FSb[256];
+static uint32 __xrt_aes_FT0[256], __xrt_aes_FT1[256], __xrt_aes_FT2[256], __xrt_aes_FT3[256];
+#if 1 /* AES decryption support */
+static uint8 __xrt_aes_RSb[256];
+static uint32 __xrt_aes_RT0[256], __xrt_aes_RT1[256], __xrt_aes_RT2[256], __xrt_aes_RT3[256];
+#endif
+static uint32 __xrt_aes_RCON[10];
+#define __XRT_AES_ENCRYPT 1
+#define __XRT_AES_DECRYPT 0
+#define __XRT_AES_GET_UINT32(n, b, i) (n) = ((uint32)(b)[(i)] << 24) | ((uint32)(b)[(i)+1] << 16) | ((uint32)(b)[(i)+2] << 8) | ((uint32)(b)[(i)+3])
+#define __XRT_AES_PUT_UINT32(n, b, i) { (b)[(i)] = (uint8)((n) >> 24); (b)[(i)+1] = (uint8)((n) >> 16); (b)[(i)+2] = (uint8)((n) >> 8); (b)[(i)+3] = (uint8)(n); }
+// GF(2^8) 乘法
+static uint8 __xrt_mul_gf(uint8 a, uint8 b)
+{
+	uint8 r = 0;
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		if ( b & 1 ) { r ^= a; }
+		if ( a & 0x80 ) { a = (uint8)((a << 1) ^ 0x1B); }
+		else { a <<= 1; }
+		b >>= 1;
+	}
+	return r;
+}
+static void __xrt_aes_init_tables(void)
+{
+	int i;
+	uint8 x, y, z;
+	uint8 pow_tab[256], log_tab[256];
+	
+	pow_tab[0] = 1;
+	for ( i = 1; i < 256; i++ ) {
+		pow_tab[i] = pow_tab[i - 1] ^ (uint8)((pow_tab[i - 1] << 1) ^ ((pow_tab[i - 1] & 0x80) ? 0x1B : 0));
+	}
+	for ( i = 0; i < 255; i++ ) {
+		log_tab[pow_tab[i]] = (uint8)i;
+	}
+	log_tab[0] = 0;
+	
+	for ( i = 0; i < 256; i++ ) {
+		x = (uint8)i;
+		if ( x ) {
+			x = pow_tab[255 - log_tab[x]];
+		}
+		y = (uint8)((x << 1) | (x >> 7));
+		x ^= y;
+		y = (uint8)((y << 1) | (y >> 7));
+		x ^= y;
+		y = (uint8)((y << 1) | (y >> 7));
+		x ^= y;
+		y = (uint8)((y << 1) | (y >> 7));
+		x ^= y ^ 0x63;
+		__xrt_aes_FSb[i] = x;
+		__xrt_aes_RSb[x] = (uint8)i;
+	}
+	
+	for ( i = 0; i < 256; i++ ) {
+		x = __xrt_aes_FSb[i];
+		y = (uint8)((x << 1) ^ ((x & 0x80) ? 0x1B : 0));
+		z = (uint8)(y ^ x);
+		__xrt_aes_FT0[i] = ((uint32)y << 24) | ((uint32)x << 16) | ((uint32)x << 8) | (uint32)z;
+		__xrt_aes_FT1[i] = (__xrt_aes_FT0[i] >> 8) | (__xrt_aes_FT0[i] << 24);
+		__xrt_aes_FT2[i] = (__xrt_aes_FT1[i] >> 8) | (__xrt_aes_FT1[i] << 24);
+		__xrt_aes_FT3[i] = (__xrt_aes_FT2[i] >> 8) | (__xrt_aes_FT2[i] << 24);
+		
+		x = __xrt_aes_RSb[i];
+		__xrt_aes_RT0[i] = ((uint32)__xrt_mul_gf(0x0E, x) << 24) |
+		                     ((uint32)__xrt_mul_gf(0x09, x) << 16) |
+		                     ((uint32)__xrt_mul_gf(0x0D, x) << 8) |
+		                     (uint32)__xrt_mul_gf(0x0B, x);
+		__xrt_aes_RT1[i] = (__xrt_aes_RT0[i] >> 8) | (__xrt_aes_RT0[i] << 24);
+		__xrt_aes_RT2[i] = (__xrt_aes_RT1[i] >> 8) | (__xrt_aes_RT1[i] << 24);
+		__xrt_aes_RT3[i] = (__xrt_aes_RT2[i] >> 8) | (__xrt_aes_RT2[i] << 24);
+	}
+	
+	__xrt_aes_RCON[0] = 0x01000000;
+	for ( i = 1; i < 10; i++ ) {
+		__xrt_aes_RCON[i] = __xrt_aes_RCON[i - 1] << 1;
+		if ( __xrt_aes_RCON[i - 1] & 0x80000000 ) {
+			__xrt_aes_RCON[i] ^= 0x1B000000;
+		}
+	}
+	__xrt_aes_tables_inited = 1;
+}
+static int __xrt_aes_setkey(__xrt_aes_ctx *pCtx, int iMode, const uint8 *pKey, uint32 iKeySize)
+{
+	uint32 *pRK;
+	int i;
+	
+	if ( !__xrt_aes_tables_inited ) {
+		__xrt_aes_init_tables();
+	}
+	
+	pCtx->iRounds = 10;  // AES-128
+	pCtx->iDirection = iMode;
+	pRK = pCtx->arrRK;
+	
+	for ( i = 0; i < 4; i++ ) {
+		__XRT_AES_GET_UINT32(pRK[i], pKey, i * 4);
+	}
+	
+	for ( i = 0; i < 10; i++ ) {
+		pRK[4] = pRK[0] ^ __xrt_aes_RCON[i] ^
+		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 16) & 0xFF] << 24) ^
+		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 8) & 0xFF] << 16) ^
+		         ((uint32)__xrt_aes_FSb[(pRK[3]) & 0xFF] << 8) ^
+		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 24) & 0xFF]);
+		pRK[5] = pRK[1] ^ pRK[4];
+		pRK[6] = pRK[2] ^ pRK[5];
+		pRK[7] = pRK[3] ^ pRK[6];
+		pRK += 4;
+	}
+	
+	if ( iMode == __XRT_AES_DECRYPT ) {
+		__xrt_aes_ctx tEnc;
+		uint32 *pSK;
+		__xrt_aes_setkey(&tEnc, __XRT_AES_ENCRYPT, pKey, iKeySize);
+		pSK = tEnc.arrRK + 40;
+		pRK = pCtx->arrRK;
+		
+		pRK[0] = pSK[0]; pRK[1] = pSK[1]; pRK[2] = pSK[2]; pRK[3] = pSK[3];
+		pRK += 4; pSK -= 4;
+		
+		for ( i = 1; i < 10; i++ ) {
+			pRK[0] = __xrt_aes_RT0[__xrt_aes_FSb[(pSK[0] >> 24) & 0xFF]] ^
+			         __xrt_aes_RT1[__xrt_aes_FSb[(pSK[0] >> 16) & 0xFF]] ^
+			         __xrt_aes_RT2[__xrt_aes_FSb[(pSK[0] >> 8) & 0xFF]] ^
+			         __xrt_aes_RT3[__xrt_aes_FSb[(pSK[0]) & 0xFF]];
+			pRK[1] = __xrt_aes_RT0[__xrt_aes_FSb[(pSK[1] >> 24) & 0xFF]] ^
+			         __xrt_aes_RT1[__xrt_aes_FSb[(pSK[1] >> 16) & 0xFF]] ^
+			         __xrt_aes_RT2[__xrt_aes_FSb[(pSK[1] >> 8) & 0xFF]] ^
+			         __xrt_aes_RT3[__xrt_aes_FSb[(pSK[1]) & 0xFF]];
+			pRK[2] = __xrt_aes_RT0[__xrt_aes_FSb[(pSK[2] >> 24) & 0xFF]] ^
+			         __xrt_aes_RT1[__xrt_aes_FSb[(pSK[2] >> 16) & 0xFF]] ^
+			         __xrt_aes_RT2[__xrt_aes_FSb[(pSK[2] >> 8) & 0xFF]] ^
+			         __xrt_aes_RT3[__xrt_aes_FSb[(pSK[2]) & 0xFF]];
+			pRK[3] = __xrt_aes_RT0[__xrt_aes_FSb[(pSK[3] >> 24) & 0xFF]] ^
+			         __xrt_aes_RT1[__xrt_aes_FSb[(pSK[3] >> 16) & 0xFF]] ^
+			         __xrt_aes_RT2[__xrt_aes_FSb[(pSK[3] >> 8) & 0xFF]] ^
+			         __xrt_aes_RT3[__xrt_aes_FSb[(pSK[3]) & 0xFF]];
+			pRK += 4; pSK -= 4;
+		}
+		
+		pRK[0] = pSK[0]; pRK[1] = pSK[1]; pRK[2] = pSK[2]; pRK[3] = pSK[3];
+	}
+	
+	return 0;
+}
+#define __XRT_AES_FROUND(X0, X1, X2, X3, Y0, Y1, Y2, Y3) \
+	X0 = *pRK++ ^ __xrt_aes_FT0[(Y0 >> 24) & 0xFF] ^ __xrt_aes_FT1[(Y1 >> 16) & 0xFF] ^ __xrt_aes_FT2[(Y2 >> 8) & 0xFF] ^ __xrt_aes_FT3[Y3 & 0xFF]; \
+	X1 = *pRK++ ^ __xrt_aes_FT0[(Y1 >> 24) & 0xFF] ^ __xrt_aes_FT1[(Y2 >> 16) & 0xFF] ^ __xrt_aes_FT2[(Y3 >> 8) & 0xFF] ^ __xrt_aes_FT3[Y0 & 0xFF]; \
+	X2 = *pRK++ ^ __xrt_aes_FT0[(Y2 >> 24) & 0xFF] ^ __xrt_aes_FT1[(Y3 >> 16) & 0xFF] ^ __xrt_aes_FT2[(Y0 >> 8) & 0xFF] ^ __xrt_aes_FT3[Y1 & 0xFF]; \
+	X3 = *pRK++ ^ __xrt_aes_FT0[(Y3 >> 24) & 0xFF] ^ __xrt_aes_FT1[(Y0 >> 16) & 0xFF] ^ __xrt_aes_FT2[(Y1 >> 8) & 0xFF] ^ __xrt_aes_FT3[Y2 & 0xFF];
+#define __XRT_AES_RROUND(X0, X1, X2, X3, Y0, Y1, Y2, Y3) \
+	X0 = *pRK++ ^ __xrt_aes_RT0[(Y0 >> 24) & 0xFF] ^ __xrt_aes_RT1[(Y3 >> 16) & 0xFF] ^ __xrt_aes_RT2[(Y2 >> 8) & 0xFF] ^ __xrt_aes_RT3[Y1 & 0xFF]; \
+	X1 = *pRK++ ^ __xrt_aes_RT0[(Y1 >> 24) & 0xFF] ^ __xrt_aes_RT1[(Y0 >> 16) & 0xFF] ^ __xrt_aes_RT2[(Y3 >> 8) & 0xFF] ^ __xrt_aes_RT3[Y2 & 0xFF]; \
+	X2 = *pRK++ ^ __xrt_aes_RT0[(Y2 >> 24) & 0xFF] ^ __xrt_aes_RT1[(Y1 >> 16) & 0xFF] ^ __xrt_aes_RT2[(Y0 >> 8) & 0xFF] ^ __xrt_aes_RT3[Y3 & 0xFF]; \
+	X3 = *pRK++ ^ __xrt_aes_RT0[(Y3 >> 24) & 0xFF] ^ __xrt_aes_RT1[(Y2 >> 16) & 0xFF] ^ __xrt_aes_RT2[(Y1 >> 8) & 0xFF] ^ __xrt_aes_RT3[Y0 & 0xFF];
+static int __xrt_aes_cipher(__xrt_aes_ctx *pCtx, const uint8 pIn[16], uint8 pOut[16])
+{
+	uint32 *pRK = pCtx->arrRK;
+	uint32 X0, X1, X2, X3, Y0, Y1, Y2, Y3;
+	
+	__XRT_AES_GET_UINT32(X0, pIn, 0);
+	__XRT_AES_GET_UINT32(X1, pIn, 4);
+	__XRT_AES_GET_UINT32(X2, pIn, 8);
+	__XRT_AES_GET_UINT32(X3, pIn, 12);
+	
+	X0 ^= *pRK++; X1 ^= *pRK++; X2 ^= *pRK++; X3 ^= *pRK++;
+	
+	if ( pCtx->iDirection == __XRT_AES_ENCRYPT ) {
+		int i;
+		for ( i = (pCtx->iRounds >> 1) - 1; i > 0; i-- ) {
+			__XRT_AES_FROUND(Y0, Y1, Y2, Y3, X0, X1, X2, X3);
+			__XRT_AES_FROUND(X0, X1, X2, X3, Y0, Y1, Y2, Y3);
+		}
+		__XRT_AES_FROUND(Y0, Y1, Y2, Y3, X0, X1, X2, X3);
+		
+		X0 = *pRK++ ^ ((uint32)__xrt_aes_FSb[(Y0 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_FSb[(Y1 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_FSb[(Y2 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_FSb[Y3 & 0xFF]);
+		X1 = *pRK++ ^ ((uint32)__xrt_aes_FSb[(Y1 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_FSb[(Y2 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_FSb[(Y3 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_FSb[Y0 & 0xFF]);
+		X2 = *pRK++ ^ ((uint32)__xrt_aes_FSb[(Y2 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_FSb[(Y3 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_FSb[(Y0 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_FSb[Y1 & 0xFF]);
+		X3 = *pRK++ ^ ((uint32)__xrt_aes_FSb[(Y3 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_FSb[(Y0 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_FSb[(Y1 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_FSb[Y2 & 0xFF]);
+	} else {
+		int i;
+		for ( i = (pCtx->iRounds >> 1) - 1; i > 0; i-- ) {
+			__XRT_AES_RROUND(Y0, Y1, Y2, Y3, X0, X1, X2, X3);
+			__XRT_AES_RROUND(X0, X1, X2, X3, Y0, Y1, Y2, Y3);
+		}
+		__XRT_AES_RROUND(Y0, Y1, Y2, Y3, X0, X1, X2, X3);
+		
+		X0 = *pRK++ ^ ((uint32)__xrt_aes_RSb[(Y0 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_RSb[(Y3 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_RSb[(Y2 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_RSb[Y1 & 0xFF]);
+		X1 = *pRK++ ^ ((uint32)__xrt_aes_RSb[(Y1 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_RSb[(Y0 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_RSb[(Y3 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_RSb[Y2 & 0xFF]);
+		X2 = *pRK++ ^ ((uint32)__xrt_aes_RSb[(Y2 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_RSb[(Y1 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_RSb[(Y0 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_RSb[Y3 & 0xFF]);
+		X3 = *pRK++ ^ ((uint32)__xrt_aes_RSb[(Y3 >> 24) & 0xFF] << 24) ^
+		               ((uint32)__xrt_aes_RSb[(Y2 >> 16) & 0xFF] << 16) ^
+		               ((uint32)__xrt_aes_RSb[(Y1 >> 8) & 0xFF] << 8) ^
+		               ((uint32)__xrt_aes_RSb[Y0 & 0xFF]);
+	}
+	
+	__XRT_AES_PUT_UINT32(X0, pOut, 0);
+	__XRT_AES_PUT_UINT32(X1, pOut, 4);
+	__XRT_AES_PUT_UINT32(X2, pOut, 8);
+	__XRT_AES_PUT_UINT32(X3, pOut, 12);
+	
+	return 0;
+}
+// GCM 实现
+static void __xrt_gcm_mult(__xrt_gcm_ctx *pCtx, uint8 pX[16])
+{
+	uint64 zh, zl, v;
+	int i;
+	
+	zh = zl = 0;
+	for ( i = 0; i < 16; i++ ) {
+		uint8 lo = pX[i] & 0x0f;
+		uint8 hi = pX[i] >> 4;
+		
+		if ( i != 0 ) {
+			v = (uint64)zl & 0x0f;
+			zl = (zl >> 4) | (zh << 60);
+			zh >>= 4;
+			zh ^= (uint64)(0xe100 * v) << 48;
+		}
+		zh ^= pCtx->arrHH[lo];
+		zl ^= pCtx->arrHL[lo];
+		
+		v = (uint64)zl & 0x0f;
+		zl = (zl >> 4) | (zh << 60);
+		zh >>= 4;
+		zh ^= (uint64)(0xe100 * v) << 48;
+		zh ^= pCtx->arrHH[hi];
+		zl ^= pCtx->arrHL[hi];
+	}
+	
+	// 存储结果 (big-endian)
+	for ( i = 0; i < 8; i++ ) {
+		pX[i] = (uint8)(zh >> (56 - i * 8));
+		pX[i + 8] = (uint8)(zl >> (56 - i * 8));
+	}
+}
+static int __xrt_gcm_setkey(__xrt_gcm_ctx *pCtx, const uint8 *pKey, uint32 iKeySize)
+{
+	uint8 h[16] = {0};
+	uint64 vh, vl;
+	int i, j;
+	
+	memset(pCtx, 0, sizeof(__xrt_gcm_ctx));
+	__xrt_aes_setkey(&pCtx->tAes, __XRT_AES_ENCRYPT, pKey, iKeySize);
+	__xrt_aes_cipher(&pCtx->tAes, h, h);
+	
+	// H 存储为 big-endian
+	vh = ((uint64)h[0] << 56) | ((uint64)h[1] << 48) | ((uint64)h[2] << 40) | ((uint64)h[3] << 32) |
+	     ((uint64)h[4] << 24) | ((uint64)h[5] << 16) | ((uint64)h[6] << 8) | (uint64)h[7];
+	vl = ((uint64)h[8] << 56) | ((uint64)h[9] << 48) | ((uint64)h[10] << 40) | ((uint64)h[11] << 32) |
+	     ((uint64)h[12] << 24) | ((uint64)h[13] << 16) | ((uint64)h[14] << 8) | (uint64)h[15];
+	
+	pCtx->arrHL[0] = 0;
+	pCtx->arrHH[0] = 0;
+	pCtx->arrHH[8] = vh;
+	pCtx->arrHL[8] = vl;
+	
+	for ( i = 4; i > 0; i >>= 1 ) {
+		uint32 T = (uint32)(vl & 1) * 0xe1000000U;
+		vl = (vl >> 1) | (vh << 63);
+		vh = (vh >> 1) ^ ((uint64)T << 32);
+		pCtx->arrHH[i] = vh;
+		pCtx->arrHL[i] = vl;
+	}
+	
+	for ( i = 2; i < 16; i <<= 1 ) {
+		uint64 *pHH = pCtx->arrHH + i;
+		uint64 *pHL = pCtx->arrHL + i;
+		vh = *pHH;
+		vl = *pHL;
+		for ( j = 1; j < i; j++ ) {
+			pHH[j] = vh ^ pCtx->arrHH[j];
+			pHL[j] = vl ^ pCtx->arrHL[j];
+		}
+	}
+	
+	return 0;
+}
+static int __xrt_gcm_crypt_and_tag(__xrt_gcm_ctx *pCtx, int iMode,
+	const uint8 *pIV, size_t iIVLen,
+	const uint8 *pAdd, size_t iAddLen,
+	const uint8 *pInput, uint8 *pOutput, size_t iLen,
+	uint8 *pTag, size_t iTagLen)
+{
+	size_t i;
+	uint8 arrWork[16], arrEctr[16];
+	uint32 iCtr;
+	
+	// 初始化 Y = IV || 0^31 || 1 (when IV is 12 bytes)
+	memset(pCtx->arrY, 0, 16);
+	if ( iIVLen == 12 ) {
+		memcpy(pCtx->arrY, pIV, 12);
+		pCtx->arrY[15] = 1;
+	} else {
+		// 处理非标准长度 IV
+		for ( i = 0; i < iIVLen / 16; i++ ) {
+			size_t j;
+			for ( j = 0; j < 16; j++ ) {
+				pCtx->arrY[j] ^= pIV[i * 16 + j];
+			}
+			__xrt_gcm_mult(pCtx, pCtx->arrY);
+		}
+		if ( iIVLen % 16 ) {
+			size_t j;
+			for ( j = 0; j < iIVLen % 16; j++ ) {
+				pCtx->arrY[j] ^= pIV[(iIVLen / 16) * 16 + j];
+			}
+			__xrt_gcm_mult(pCtx, pCtx->arrY);
+		}
+		{
+			uint8 arrLenBuf[16] = {0};
+			uint64 iIVBits = (uint64)iIVLen * 8;
+			size_t j;
+			for ( j = 0; j < 8; j++ ) {
+				arrLenBuf[8 + j] = (uint8)(iIVBits >> (56 - j * 8));
+			}
+			for ( j = 0; j < 16; j++ ) {
+				pCtx->arrY[j] ^= arrLenBuf[j];
+			}
+			__xrt_gcm_mult(pCtx, pCtx->arrY);
+		}
+	}
+	
+	// base_ectr = AES(K, Y0)
+	__xrt_aes_cipher(&pCtx->tAes, pCtx->arrY, pCtx->arrBaseEctr);
+	
+	// 处理 AAD
+	memset(pCtx->arrBuf, 0, 16);
+	pCtx->iAddLen = iAddLen;
+	for ( i = 0; i < iAddLen; i++ ) {
+		pCtx->arrBuf[i % 16] ^= pAdd[i];
+		if ( ((i + 1) % 16 == 0) || (i + 1 == iAddLen) ) {
+			__xrt_gcm_mult(pCtx, pCtx->arrBuf);
+		}
+	}
+	
+	// 处理密文/明文
+	pCtx->iLen = iLen;
+	iCtr = ((uint32)pCtx->arrY[12] << 24) | ((uint32)pCtx->arrY[13] << 16) |
+	       ((uint32)pCtx->arrY[14] << 8) | (uint32)pCtx->arrY[15];
+	
+	for ( i = 0; i < iLen; i++ ) {
+		if ( (i % 16) == 0 ) {
+			iCtr++;
+			pCtx->arrY[12] = (uint8)(iCtr >> 24);
+			pCtx->arrY[13] = (uint8)(iCtr >> 16);
+			pCtx->arrY[14] = (uint8)(iCtr >> 8);
+			pCtx->arrY[15] = (uint8)(iCtr);
+			__xrt_aes_cipher(&pCtx->tAes, pCtx->arrY, arrEctr);
+		}
+		
+		if ( iMode == __XRT_AES_ENCRYPT ) {
+			pOutput[i] = pInput[i] ^ arrEctr[i % 16];
+			pCtx->arrBuf[i % 16] ^= pOutput[i];
+		} else {
+			pCtx->arrBuf[i % 16] ^= pInput[i];
+			pOutput[i] = pInput[i] ^ arrEctr[i % 16];
+		}
+		
+		if ( ((i + 1) % 16 == 0) || (i + 1 == iLen) ) {
+			__xrt_gcm_mult(pCtx, pCtx->arrBuf);
+		}
+	}
+	
+	// 计算 tag
+	{
+		uint8 arrLenBuf[16] = {0};
+		uint64 iAddBits = (uint64)iAddLen * 8;
+		uint64 iCipherBits = (uint64)iLen * 8;
+		
+		for ( i = 0; i < 8; i++ ) {
+			arrLenBuf[i] = (uint8)(iAddBits >> (56 - i * 8));
+			arrLenBuf[8 + i] = (uint8)(iCipherBits >> (56 - i * 8));
+		}
+		for ( i = 0; i < 16; i++ ) {
+			pCtx->arrBuf[i] ^= arrLenBuf[i];
+		}
+		__xrt_gcm_mult(pCtx, pCtx->arrBuf);
+		
+		for ( i = 0; i < iTagLen; i++ ) {
+			pTag[i] = pCtx->arrBuf[i] ^ pCtx->arrBaseEctr[i];
+		}
+	}
+	
+	return 0;
+}
+XXAPI bool xrtAES128GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	__xrt_gcm_ctx tCtx;
+	__xrt_gcm_setkey(&tCtx, pKey, 16);
+	__xrt_gcm_crypt_and_tag(&tCtx, __XRT_AES_ENCRYPT, pNonce, iNonceLen, pAAD, iAADLen, pIn, pOut, iLen, pOut + iLen, 16);
+	return true;
+}
+XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	__xrt_gcm_ctx tCtx;
+	uint8 arrTag[16];
+	uint8 iDiff;
+	int i;
+	size_t iCipherLen;
+	
+	if ( iLen < 16 ) {
+		return false;
+	}
+	iCipherLen = iLen - 16;
+	
+	__xrt_gcm_setkey(&tCtx, pKey, 16);
+	__xrt_gcm_crypt_and_tag(&tCtx, __XRT_AES_DECRYPT, pNonce, iNonceLen, pAAD, iAADLen, pIn, pOut, iCipherLen, arrTag, 16);
+	
+	// 常量时间比较
+	iDiff = 0;
+	for ( i = 0; i < 16; i++ ) {
+		iDiff |= arrTag[i] ^ pIn[iCipherLen + i];
+	}
+	
+	return (iDiff == 0);
+}
+/* ============================== 安全随机数 ============================== */
+XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// Windows: 使用 RtlGenRandom (SystemFunction036)
+		// RtlGenRandom 在 advapi32.dll 中, 无需额外链接
+		typedef BOOLEAN (WINAPI *RtlGenRandom_t)(PVOID, ULONG);
+		static RtlGenRandom_t procRtlGenRandom = NULL;
+		if ( !procRtlGenRandom ) {
+			HMODULE hLib = LoadLibraryA("advapi32.dll");
+			if ( hLib ) {
+				procRtlGenRandom = (RtlGenRandom_t)GetProcAddress(hLib, "SystemFunction036");
+			}
+		}
+		if ( procRtlGenRandom ) {
+			procRtlGenRandom(pBuf, (ULONG)iLen);
+		} else {
+			// fallback: 使用 xrt 随机数（非加密安全，仅作为最后手段）
+			size_t i;
+			for ( i = 0; i < iLen; i++ ) {
+				pBuf[i] = (uint8)(xrtRand32() & 0xFF);
+			}
+		}
+	#else
+		// Linux: 使用 /dev/urandom
+		FILE *fp = fopen("/dev/urandom", "rb");
+		if ( fp ) {
+			size_t iRead = fread(pBuf, 1, iLen, fp);
+			fclose(fp);
+			if ( iRead == iLen ) {
+				return;
+			}
+		}
+		// fallback
+		{
+			size_t i;
+			for ( i = 0; i < iLen; i++ ) {
+				pBuf[i] = (uint8)(xrtRand32() & 0xFF);
+			}
+		}
+	#endif
+}
+/* ============================== HKDF (RFC 5869) ============================== */
+XXAPI void xrtHKDFExtract(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen)
+{
+	uint8 arrDefaultSalt[32] = {0};
+	if ( (pSalt == NULL) || (iSaltLen == 0) ) {
+		pSalt = arrDefaultSalt;
+		iSaltLen = 32;
+	}
+	xrtHMAC_SHA256(pSalt, iSaltLen, pIKM, iIKMLen, pPRK);
+}
+XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen)
+{
+	uint8 T[32] = {0};
+	size_t iTLen = 0;
+	uint8 iCounter = 1;
+	size_t iOffset = 0;
+	
+	while ( iOffset < iOKMLen ) {
+		xsha256_ctx tCtx;
+		uint8 k[64] = {0};
+		uint8 o_pad[64], i_pad[64];
+		unsigned int i;
+		size_t iCopyLen;
+		
+		// HMAC-SHA256(PRK, T || Info || counter)
+		// 手动构建 HMAC 以避免分配临时缓冲区
+		memset(i_pad, 0x36, sizeof(i_pad));
+		memset(o_pad, 0x5c, sizeof(o_pad));
+		
+		if ( iPRKLen <= 64 ) {
+			if ( iPRKLen > 0 ) {
+				memmove(k, pPRK, iPRKLen);
+			}
+		} else {
+			xrtSHA256Init(&tCtx);
+			xrtSHA256Update(&tCtx, (ptr)pPRK, iPRKLen);
+			xrtSHA256Final(&tCtx, k);
+		}
+		
+		for ( i = 0; i < sizeof(k); i++ ) {
+			i_pad[i] ^= k[i];
+			o_pad[i] ^= k[i];
+		}
+		
+		// inner hash: H(i_pad || T(prev) || info || counter)
+		xrtSHA256Init(&tCtx);
+		xrtSHA256Update(&tCtx, i_pad, sizeof(i_pad));
+		if ( iTLen > 0 ) {
+			xrtSHA256Update(&tCtx, T, iTLen);
+		}
+		if ( (pInfo != NULL) && (iInfoLen > 0) ) {
+			xrtSHA256Update(&tCtx, (ptr)pInfo, iInfoLen);
+		}
+		xrtSHA256Update(&tCtx, &iCounter, 1);
+		xrtSHA256Final(&tCtx, T);
+		
+		// outer hash: H(o_pad || inner_hash)
+		xrtSHA256Init(&tCtx);
+		xrtSHA256Update(&tCtx, o_pad, sizeof(o_pad));
+		xrtSHA256Update(&tCtx, T, 32);
+		xrtSHA256Final(&tCtx, T);
+		
+		iTLen = 32;
+		iCopyLen = iOKMLen - iOffset;
+		if ( iCopyLen > 32 ) {
+			iCopyLen = 32;
+		}
+		memcpy(pOKM + iOffset, T, iCopyLen);
+		iOffset += iCopyLen;
+		iCounter++;
+	}
+}
+/* ============================== X25519 密钥交换 (RFC 7748) ============================== */
+/*
+	基于 mongoose / STROBE 的 X25519 实现
+	Copyright (c) 2015-2016 Cryptography Research, Inc.
+	Author: Mike Hamburg
+	License: MIT License
+*/
+#define __XRT_X25519_BYTES 32
+#define __XRT_X25519_WBITS 32
+#define __XRT_X25519_NLIMBS (256 / __XRT_X25519_WBITS)
+typedef uint32 __xrt_x25519_limb;
+typedef uint64 __xrt_x25519_dlimb;
+typedef int64 __xrt_x25519_sdlimb;
+typedef __xrt_x25519_limb __xrt_x25519_fe[__XRT_X25519_NLIMBS];
+static const uint8 __xrt_x25519_base_point[__XRT_X25519_BYTES] = {9};
+static __xrt_x25519_limb __xrt_x25519_umaal(__xrt_x25519_limb *pCarry, __xrt_x25519_limb acc, __xrt_x25519_limb mand, __xrt_x25519_limb mier)
+{
+	__xrt_x25519_dlimb tmp = (__xrt_x25519_dlimb)mand * mier + acc + *pCarry;
+	*pCarry = (__xrt_x25519_limb)(tmp >> __XRT_X25519_WBITS);
+	return (__xrt_x25519_limb)tmp;
+}
+static __xrt_x25519_limb __xrt_x25519_adc(__xrt_x25519_limb *pCarry, __xrt_x25519_limb acc, __xrt_x25519_limb mand)
+{
+	__xrt_x25519_dlimb total = (__xrt_x25519_dlimb)*pCarry + acc + mand;
+	*pCarry = (__xrt_x25519_limb)(total >> __XRT_X25519_WBITS);
+	return (__xrt_x25519_limb)total;
+}
+static __xrt_x25519_limb __xrt_x25519_adc0(__xrt_x25519_limb *pCarry, __xrt_x25519_limb acc)
+{
+	__xrt_x25519_dlimb total = (__xrt_x25519_dlimb)*pCarry + acc;
+	*pCarry = (__xrt_x25519_limb)(total >> __XRT_X25519_WBITS);
+	return (__xrt_x25519_limb)total;
+}
+static void __xrt_x25519_propagate(__xrt_x25519_fe x, __xrt_x25519_limb over)
+{
+	unsigned i;
+	__xrt_x25519_limb carry;
+	over = x[__XRT_X25519_NLIMBS - 1] >> (__XRT_X25519_WBITS - 1) | over << 1;
+	x[__XRT_X25519_NLIMBS - 1] &= ~((__xrt_x25519_limb)1 << (__XRT_X25519_WBITS - 1));
+	carry = over * 19;
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		x[i] = __xrt_x25519_adc0(&carry, x[i]);
+	}
+}
+static void __xrt_x25519_add(__xrt_x25519_fe out, const __xrt_x25519_fe a, const __xrt_x25519_fe b)
+{
+	unsigned i;
+	__xrt_x25519_limb carry = 0;
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		out[i] = __xrt_x25519_adc(&carry, a[i], b[i]);
+	}
+	__xrt_x25519_propagate(out, carry);
+}
+static void __xrt_x25519_sub(__xrt_x25519_fe out, const __xrt_x25519_fe a, const __xrt_x25519_fe b)
+{
+	unsigned i;
+	__xrt_x25519_sdlimb carry = -38;
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		carry = carry + a[i] - b[i];
+		out[i] = (__xrt_x25519_limb)carry;
+		carry >>= __XRT_X25519_WBITS;
+	}
+	__xrt_x25519_propagate(out, (__xrt_x25519_limb)(1 + carry));
+}
+static void __xrt_x25519_mul(__xrt_x25519_fe out, const __xrt_x25519_fe a, const __xrt_x25519_limb *b, unsigned nb)
+{
+	__xrt_x25519_limb accum[2 * __XRT_X25519_NLIMBS] = {0};
+	unsigned i, j;
+	__xrt_x25519_limb carry2;
+	
+	for ( i = 0; i < nb; i++ ) {
+		__xrt_x25519_limb mand = b[i];
+		carry2 = 0;
+		for ( j = 0; j < __XRT_X25519_NLIMBS; j++ ) {
+			__xrt_x25519_limb tmp;
+			memcpy(&tmp, &a[j], sizeof(tmp));
+			accum[i + j] = __xrt_x25519_umaal(&carry2, accum[i + j], mand, tmp);
+		}
+		accum[i + j] = carry2;
+	}
+	
+	carry2 = 0;
+	for ( j = 0; j < __XRT_X25519_NLIMBS; j++ ) {
+		out[j] = __xrt_x25519_umaal(&carry2, accum[j], 38, accum[j + __XRT_X25519_NLIMBS]);
+	}
+	__xrt_x25519_propagate(out, carry2);
+}
+static void __xrt_x25519_sqr(__xrt_x25519_fe out, const __xrt_x25519_fe a)
+{
+	__xrt_x25519_mul(out, a, a, __XRT_X25519_NLIMBS);
+}
+static void __xrt_x25519_mul1(__xrt_x25519_fe out, const __xrt_x25519_fe a)
+{
+	__xrt_x25519_mul(out, a, out, __XRT_X25519_NLIMBS);
+}
+static void __xrt_x25519_sqr1(__xrt_x25519_fe a)
+{
+	__xrt_x25519_mul1(a, a);
+}
+static void __xrt_x25519_condswap(__xrt_x25519_limb a[2 * __XRT_X25519_NLIMBS], __xrt_x25519_limb b[2 * __XRT_X25519_NLIMBS], __xrt_x25519_limb doswap)
+{
+	unsigned i;
+	for ( i = 0; i < 2 * __XRT_X25519_NLIMBS; i++ ) {
+		__xrt_x25519_limb xor_ab = (a[i] ^ b[i]) & doswap;
+		a[i] ^= xor_ab;
+		b[i] ^= xor_ab;
+	}
+}
+static __xrt_x25519_limb __xrt_x25519_canon(__xrt_x25519_fe x)
+{
+	unsigned i;
+	__xrt_x25519_limb carry0 = 19, res;
+	__xrt_x25519_sdlimb carry;
+	
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		x[i] = __xrt_x25519_adc0(&carry0, x[i]);
+	}
+	__xrt_x25519_propagate(x, carry0);
+	
+	carry = -19;
+	res = 0;
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		carry += x[i];
+		res |= x[i] = (__xrt_x25519_limb)carry;
+		carry >>= __XRT_X25519_WBITS;
+	}
+	return (__xrt_x25519_limb)(((__xrt_x25519_dlimb)res - 1) >> __XRT_X25519_WBITS);
+}
+static const __xrt_x25519_limb __xrt_x25519_a24[1] = {121665};
+static void __xrt_x25519_ladder_part1(__xrt_x25519_fe xs[5])
+{
+	__xrt_x25519_limb *x2 = xs[0], *z2 = xs[1], *x3 = xs[2], *z3 = xs[3], *t1 = xs[4];
+	__xrt_x25519_add(t1, x2, z2);
+	__xrt_x25519_sub(z2, x2, z2);
+	__xrt_x25519_add(x2, x3, z3);
+	__xrt_x25519_sub(z3, x3, z3);
+	__xrt_x25519_mul1(z3, t1);
+	__xrt_x25519_mul1(x2, z2);
+	__xrt_x25519_add(x3, z3, x2);
+	__xrt_x25519_sub(z3, z3, x2);
+	__xrt_x25519_sqr1(t1);
+	__xrt_x25519_sqr1(z2);
+	__xrt_x25519_sub(x2, t1, z2);
+	__xrt_x25519_mul(z2, x2, __xrt_x25519_a24, sizeof(__xrt_x25519_a24) / sizeof(__xrt_x25519_a24[0]));
+	__xrt_x25519_add(z2, z2, t1);
+}
+static void __xrt_x25519_ladder_part2(__xrt_x25519_fe xs[5], const __xrt_x25519_fe x1)
+{
+	__xrt_x25519_limb *x2 = xs[0], *z2 = xs[1], *x3 = xs[2], *z3 = xs[3], *t1 = xs[4];
+	__xrt_x25519_sqr1(z3);
+	__xrt_x25519_mul1(z3, x1);
+	__xrt_x25519_sqr1(x3);
+	__xrt_x25519_mul1(z2, x2);
+	__xrt_x25519_sub(x2, t1, x2);
+	__xrt_x25519_mul1(x2, t1);
+}
+#define __XRT_MG_U32(a, b, c, d) ((uint32)(a) << 24 | (uint32)(b) << 16 | (uint32)(c) << 8 | (uint32)(d))
+static void __xrt_x25519_core(__xrt_x25519_fe xs[5], const uint8 scalar[__XRT_X25519_BYTES], const uint8 *x1, int clamp)
+{
+	int i;
+	__xrt_x25519_fe x1_limbs;
+	__xrt_x25519_limb swap = 0;
+	__xrt_x25519_limb *x2 = xs[0], *x3 = xs[2], *z3 = xs[3];
+	
+	memset(xs, 0, 4 * sizeof(__xrt_x25519_fe));
+	x2[0] = z3[0] = 1;
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		x3[i] = x1_limbs[i] = __XRT_MG_U32(x1[i * 4 + 3], x1[i * 4 + 2], x1[i * 4 + 1], x1[i * 4]);
+	}
+	
+	for ( i = 255; i >= 0; i-- ) {
+		uint8 bytei = scalar[i / 8];
+		__xrt_x25519_limb doswap;
+		if ( clamp ) {
+			if ( i / 8 == 0 ) {
+				bytei &= (uint8)~7U;
+			} else if ( i / 8 == __XRT_X25519_BYTES - 1 ) {
+				bytei &= 0x7F;
+				bytei |= 0x40;
+			}
+		}
+		doswap = 0 - (__xrt_x25519_limb)((bytei >> (i % 8)) & 1);
+		__xrt_x25519_condswap(x2, x3, swap ^ doswap);
+		swap = doswap;
+		
+		__xrt_x25519_ladder_part1(xs);
+		__xrt_x25519_ladder_part2(xs, (const __xrt_x25519_limb *)x1_limbs);
+	}
+	__xrt_x25519_condswap(x2, x3, swap);
+}
+static int __xrt_x25519_compute(uint8 out[__XRT_X25519_BYTES], const uint8 scalar[__XRT_X25519_BYTES], const uint8 x1[__XRT_X25519_BYTES], int clamp)
+{
+	int i, ret;
+	__xrt_x25519_fe xs[5], out_limbs;
+	__xrt_x25519_limb *x2, *z2, *z3, *prev;
+	static const struct { uint8 a, c, n; } steps[13] = {
+		{2, 1, 1}, {2, 1, 1}, {4, 2, 3}, {2, 4, 6}, {3, 1, 1},
+		{3, 2, 12}, {4, 3, 25}, {2, 3, 25}, {2, 4, 50}, {3, 2, 125},
+		{3, 1, 2}, {3, 1, 2}, {3, 1, 1}
+	};
+	
+	__xrt_x25519_core(xs, scalar, x1, clamp);
+	
+	x2 = xs[0];
+	z2 = xs[1];
+	z3 = xs[3];
+	
+	prev = z2;
+	for ( i = 0; i < 13; i++ ) {
+		int j;
+		__xrt_x25519_limb *a = xs[steps[i].a];
+		for ( j = steps[i].n; j > 0; j-- ) {
+			__xrt_x25519_sqr(a, prev);
+			prev = a;
+		}
+		__xrt_x25519_mul1(a, xs[steps[i].c]);
+	}
+	
+	__xrt_x25519_mul(out_limbs, x2, z3, __XRT_X25519_NLIMBS);
+	ret = (int)__xrt_x25519_canon(out_limbs);
+	if ( !clamp ) { ret = 0; }
+	
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		uint32 n = out_limbs[i];
+		out[i * 4] = (uint8)(n & 0xff);
+		out[i * 4 + 1] = (uint8)((n >> 8) & 0xff);
+		out[i * 4 + 2] = (uint8)((n >> 16) & 0xff);
+		out[i * 4 + 3] = (uint8)((n >> 24) & 0xff);
+	}
+	return ret;
+}
+XXAPI void xrtX25519Keypair(uint8 *pPrivKey, uint8 *pPubKey)
+{
+	xrtRandomBytes(pPrivKey, 32);
+	__xrt_x25519_compute(pPubKey, pPrivKey, __xrt_x25519_base_point, 1);
+}
+XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey)
+{
+	__xrt_x25519_compute(pOut, pPrivKey, pPubKey, 1);
+}
+/* ============================== ECDSA / Ed25519 签名验证 ============================== */
+/*
+	ECDSA (secp256r1) 和 Ed25519 签名验证
+	用于 TLS 1.3 证书验证
+	实现将在 Phase 4 (TLS 模块) 中完成
+*/
+XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey)
+{
+	// TODO: 在 TLS 模块中实现 Ed25519 签名验证
+	(void)pMsg; (void)iMsgLen; (void)pSig; (void)pPubKey;
+	return false;
+}
+XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen)
+{
+	// TODO: 在 TLS 模块中实现 ECDSA (secp256r1) 签名验证
+	(void)pHash; (void)iHashLen; (void)pSig; (void)iSigLen; (void)pPubKey; (void)iPubKeyLen;
+	return false;
+}
+
+// ========================================
+// File: D:/git/xrt/lib/netsock.h
+// ========================================
+
+
+/*
+	NetSock - 跨平台 Socket 基础操作 [Ver1.0]
+	
+	提供 Socket 创建/绑定/监听/接受/连接/收发/关闭/选项设置
+	仅 IPv4，跨平台 (Windows / Linux)
+*/
+#if defined(_WIN32) || defined(_WIN64)
+	#ifndef _SOCKLEN_T_DEFINED
+		#define _SOCKLEN_T_DEFINED
+		typedef int socklen_t;
+	#endif
+#endif
+/* ============================== 地址操作 ============================== */
+XXAPI void xrtNetAddrInit(xnetaddr* pAddr, const char* sIP, uint16 iPort)
+{
+	if ( !pAddr ) return;
+	memset(pAddr, 0, sizeof(xnetaddr));
+	pAddr->iPort = iPort;
+	if ( sIP && sIP[0] ) {
+		pAddr->iAddr = inet_addr(sIP);
+		strncpy(pAddr->sAddr, sIP, 15);
+		pAddr->sAddr[15] = '\0';
+	} else {
+		pAddr->iAddr = INADDR_ANY;
+		strcpy(pAddr->sAddr, "0.0.0.0");
+	}
+}
+XXAPI void xrtNetAddrFromSockAddr(xnetaddr* pAddr, struct sockaddr_in* pSA)
+{
+	if ( !pAddr || !pSA ) return;
+	pAddr->iAddr = pSA->sin_addr.s_addr;
+	pAddr->iPort = ntohs(pSA->sin_port);
+	// inet_ntoa 返回静态缓冲区，需复制
+	const char* sIP = inet_ntoa(pSA->sin_addr);
+	if ( sIP ) {
+		strncpy(pAddr->sAddr, sIP, 15);
+		pAddr->sAddr[15] = '\0';
+	}
+}
+XXAPI void xrtNetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_in* pSA)
+{
+	if ( !pAddr || !pSA ) return;
+	memset(pSA, 0, sizeof(struct sockaddr_in));
+	pSA->sin_family = AF_INET;
+	pSA->sin_addr.s_addr = pAddr->iAddr;
+	pSA->sin_port = htons(pAddr->iPort);
+}
+XXAPI uint32 xrtNetIPFromStr(const char* sIP)
+{
+	if ( !sIP ) return 0;
+	return (uint32)inet_addr(sIP);
+}
+XXAPI const char* xrtNetIPToStr(uint32 iIP)
+{
+	struct in_addr tAddr;
+	tAddr.s_addr = iIP;
+	// 使用 xrt 环形临时内存
+	char* sResult = (char*)inet_ntoa(tAddr);
+	if ( !sResult ) return "";
+	str sCopy = xrtCopyStr(sResult, strlen(sResult));
+	return (const char*)sCopy;
+}
+/* ============================== Socket 生命周期 ============================== */
+XXAPI xnet_result xrtSockCreate(xnetconn* pConn, int iType)
+{
+	if ( !pConn ) return XRT_NET_ERROR;
+	
+	memset(pConn, 0, sizeof(xnetconn));
+	pConn->hSocket = XSOCKET_INVALID;
+	pConn->iType = iType;
+	
+	int iSockType = (iType == 0) ? SOCK_STREAM : SOCK_DGRAM;
+	int iProtocol = (iType == 0) ? IPPROTO_TCP : IPPROTO_UDP;
+	
+	pConn->hSocket = socket(AF_INET, iSockType, iProtocol);
+	if ( pConn->hSocket == XSOCKET_INVALID ) {
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI void xrtSockClose(xnetconn* pConn)
+{
+	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return;
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		closesocket(pConn->hSocket);
+	#else
+		close(pConn->hSocket);
+	#endif
+	
+	pConn->hSocket = XSOCKET_INVALID;
+}
+XXAPI xnet_result xrtSockSetNonBlock(xnetconn* pConn)
+{
+	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		u_long iMode = 1;
+		if ( ioctlsocket(pConn->hSocket, FIONBIO, &iMode) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+	#else
+		int iFlags = fcntl(pConn->hSocket, F_GETFL, 0);
+		if ( iFlags == -1 ) return XRT_NET_ERROR;
+		if ( fcntl(pConn->hSocket, F_SETFL, iFlags | O_NONBLOCK) == -1 ) {
+			return XRT_NET_ERROR;
+		}
+	#endif
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockSetReuseAddr(xnetconn* pConn)
+{
+	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	int iOpt = 1;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+	#else
+		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_REUSEADDR, &iOpt, sizeof(iOpt)) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+	#endif
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockSetTimeout(xnetconn* pConn, int iRecvMs, int iSendMs)
+{
+	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iRecvTimeout = (DWORD)iRecvMs;
+		DWORD iSendTimeout = (DWORD)iSendMs;
+		if ( iRecvMs > 0 ) {
+			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&iRecvTimeout, sizeof(iRecvTimeout)) != 0 ) {
+				return XRT_NET_ERROR;
+			}
+		}
+		if ( iSendMs > 0 ) {
+			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_SNDTIMEO, (char*)&iSendTimeout, sizeof(iSendTimeout)) != 0 ) {
+				return XRT_NET_ERROR;
+			}
+		}
+	#else
+		if ( iRecvMs > 0 ) {
+			struct timeval tRecvTV;
+			tRecvTV.tv_sec = iRecvMs / 1000;
+			tRecvTV.tv_usec = (iRecvMs % 1000) * 1000;
+			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_RCVTIMEO, &tRecvTV, sizeof(tRecvTV)) != 0 ) {
+				return XRT_NET_ERROR;
+			}
+		}
+		if ( iSendMs > 0 ) {
+			struct timeval tSendTV;
+			tSendTV.tv_sec = iSendMs / 1000;
+			tSendTV.tv_usec = (iSendMs % 1000) * 1000;
+			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_SNDTIMEO, &tSendTV, sizeof(tSendTV)) != 0 ) {
+				return XRT_NET_ERROR;
+			}
+		}
+	#endif
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockSetNoDelay(xnetconn* pConn)
+{
+	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	int iOpt = 1;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_NODELAY, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+	#else
+		if ( setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_NODELAY, &iOpt, sizeof(iOpt)) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+	#endif
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockSetKeepAlive(xnetconn* pConn, int iIdleSec, int iIntervalSec, int iCount)
+{
+	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	int iOpt = 1;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+		// Windows: 使用 tcp_keepalive 结构 (需要 WSAIoctl)
+		// 简化版本只启用 keepalive
+	#else
+		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, &iOpt, sizeof(iOpt)) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+		if ( iIdleSec > 0 ) {
+			setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_KEEPIDLE, &iIdleSec, sizeof(iIdleSec));
+		}
+		if ( iIntervalSec > 0 ) {
+			setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_KEEPINTVL, &iIntervalSec, sizeof(iIntervalSec));
+		}
+		if ( iCount > 0 ) {
+			setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_KEEPCNT, &iCount, sizeof(iCount));
+		}
+	#endif
+	
+	return XRT_NET_OK;
+}
+/* ============================== 连接操作 ============================== */
+XXAPI xnet_result xrtSockBind(xnetconn* pConn, const xnetaddr* pAddr)
+{
+	if ( !pConn || !pAddr || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	struct sockaddr_in tSA;
+	xrtNetAddrToSockAddr(pAddr, &tSA);
+	
+	if ( bind(pConn->hSocket, (struct sockaddr*)&tSA, sizeof(tSA)) != 0 ) {
+		return XRT_NET_ERROR;
+	}
+	
+	pConn->tLocalAddr = *pAddr;
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockListen(xnetconn* pConn, int iBacklog)
+{
+	if ( !pConn || pConn->hSocket == XSOCKET_INVALID || pConn->iType != 0 ) {
+		return XRT_NET_ERROR;
+	}
+	
+	if ( listen(pConn->hSocket, iBacklog) != 0 ) {
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockAccept(xnetconn* pServer, xnetconn* pClient)
+{
+	if ( !pServer || !pClient || pServer->hSocket == XSOCKET_INVALID ) {
+		return XRT_NET_ERROR;
+	}
+	
+	struct sockaddr_in tSA;
+	socklen_t iSALen = sizeof(tSA);
+	
+	memset(pClient, 0, sizeof(xnetconn));
+	pClient->hSocket = accept(pServer->hSocket, (struct sockaddr*)&tSA, &iSALen);
+	
+	if ( pClient->hSocket == XSOCKET_INVALID ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			int iErr = WSAGetLastError();
+			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
+		#else
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
+		#endif
+		return XRT_NET_ERROR;
+	}
+	
+	xrtNetAddrFromSockAddr(&pClient->tRemoteAddr, &tSA);
+	pClient->iType = pServer->iType;
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockConnect(xnetconn* pConn, const xnetaddr* pAddr)
+{
+	if ( !pConn || !pAddr || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	struct sockaddr_in tSA;
+	xrtNetAddrToSockAddr(pAddr, &tSA);
+	
+	int iResult = connect(pConn->hSocket, (struct sockaddr*)&tSA, sizeof(tSA));
+	if ( iResult != 0 ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			int iErr = WSAGetLastError();
+			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
+			if ( iErr == WSAEISCONN ) return XRT_NET_OK;
+		#else
+			if ( errno == EINPROGRESS ) return XRT_NET_AGAIN;
+			if ( errno == EISCONN ) return XRT_NET_OK;
+		#endif
+		return XRT_NET_ERROR;
+	}
+	
+	pConn->tRemoteAddr = *pAddr;
+	return XRT_NET_OK;
+}
+/* ============================== 数据收发 ============================== */
+XXAPI xnet_result xrtSockSend(xnetconn* pConn, const char* pData, size_t iLen, size_t* pSent)
+{
+	if ( !pConn || !pData || iLen == 0 || pConn->hSocket == XSOCKET_INVALID ) {
+		return XRT_NET_ERROR;
+	}
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		int iResult = send(pConn->hSocket, pData, (int)iLen, 0);
+	#else
+		ssize_t iResult = send(pConn->hSocket, pData, iLen, MSG_NOSIGNAL);
+	#endif
+	
+	if ( iResult < 0 ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			int iErr = WSAGetLastError();
+			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
+		#else
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
+		#endif
+		return XRT_NET_ERROR;
+	}
+	
+	if ( pSent ) *pSent = (size_t)iResult;
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockRecv(xnetconn* pConn, char* pBuf, size_t iLen, size_t* pReceived)
+{
+	if ( !pConn || !pBuf || iLen == 0 || pConn->hSocket == XSOCKET_INVALID ) {
+		return XRT_NET_ERROR;
+	}
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		int iResult = recv(pConn->hSocket, pBuf, (int)iLen, 0);
+	#else
+		ssize_t iResult = recv(pConn->hSocket, pBuf, iLen, 0);
+	#endif
+	
+	if ( iResult < 0 ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			int iErr = WSAGetLastError();
+			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
+		#else
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
+		#endif
+		return XRT_NET_ERROR;
+	}
+	
+	if ( iResult == 0 ) return XRT_NET_CLOSED;
+	
+	if ( pReceived ) *pReceived = (size_t)iResult;
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockSendTo(xnetconn* pConn, const char* pData, size_t iLen, const xnetaddr* pAddr, size_t* pSent)
+{
+	if ( !pConn || !pData || iLen == 0 || !pAddr || pConn->hSocket == XSOCKET_INVALID ) {
+		return XRT_NET_ERROR;
+	}
+	
+	struct sockaddr_in tSA;
+	xrtNetAddrToSockAddr(pAddr, &tSA);
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		int iResult = sendto(pConn->hSocket, pData, (int)iLen, 0, (struct sockaddr*)&tSA, sizeof(tSA));
+	#else
+		ssize_t iResult = sendto(pConn->hSocket, pData, iLen, 0, (struct sockaddr*)&tSA, sizeof(tSA));
+	#endif
+	
+	if ( iResult < 0 ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			int iErr = WSAGetLastError();
+			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
+		#else
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
+		#endif
+		return XRT_NET_ERROR;
+	}
+	
+	if ( pSent ) *pSent = (size_t)iResult;
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtSockRecvFrom(xnetconn* pConn, char* pBuf, size_t iLen, xnetaddr* pAddr, size_t* pReceived)
+{
+	if ( !pConn || !pBuf || iLen == 0 || pConn->hSocket == XSOCKET_INVALID ) {
+		return XRT_NET_ERROR;
+	}
+	
+	struct sockaddr_in tSA;
+	socklen_t iSALen = sizeof(tSA);
+	
+	#if defined(_WIN32) || defined(_WIN64)
+		int iResult = recvfrom(pConn->hSocket, pBuf, (int)iLen, 0, (struct sockaddr*)&tSA, &iSALen);
+	#else
+		ssize_t iResult = recvfrom(pConn->hSocket, pBuf, iLen, 0, (struct sockaddr*)&tSA, &iSALen);
+	#endif
+	
+	if ( iResult < 0 ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			int iErr = WSAGetLastError();
+			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
+		#else
+			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
+		#endif
+		return XRT_NET_ERROR;
+	}
+	
+	if ( pAddr ) {
+		xrtNetAddrFromSockAddr(pAddr, &tSA);
+	}
+	
+	if ( iResult == 0 ) return XRT_NET_CLOSED;
+	
+	if ( pReceived ) *pReceived = (size_t)iResult;
+	return XRT_NET_OK;
+}
+/* ============================== DNS 解析 ============================== */
+XXAPI xnet_result xrtNetResolve(const char* sHostname, xnetaddr* pAddr)
+{
+	if ( !sHostname || !pAddr ) return XRT_NET_ERROR;
+	
+	struct hostent* pHost = gethostbyname(sHostname);
+	if ( !pHost || pHost->h_addrtype != AF_INET || !pHost->h_addr_list[0] ) {
+		return XRT_NET_ERROR;
+	}
+	
+	struct in_addr tInAddr;
+	memcpy(&tInAddr, pHost->h_addr_list[0], sizeof(struct in_addr));
+	
+	pAddr->iAddr = tInAddr.s_addr;
+	const char* sIP = inet_ntoa(tInAddr);
+	if ( sIP ) {
+		strncpy(pAddr->sAddr, sIP, 15);
+		pAddr->sAddr[15] = '\0';
+	}
+	
+	return XRT_NET_OK;
+}
+/* ============================== 网络缓冲区 ============================== */
+XXAPI bool xrtNetBufInit(xnetbuf* pBuf, size_t iCapacity)
+{
+	if ( !pBuf ) return false;
+	pBuf->pData = (char*)xrtMalloc(iCapacity);
+	if ( !pBuf->pData ) return false;
+	pBuf->iSize = 0;
+	pBuf->iCapacity = iCapacity;
+	return true;
+}
+XXAPI void xrtNetBufFree(xnetbuf* pBuf)
+{
+	if ( !pBuf ) return;
+	if ( pBuf->pData ) {
+		xrtFree(pBuf->pData);
+		pBuf->pData = NULL;
+	}
+	pBuf->iSize = 0;
+	pBuf->iCapacity = 0;
+}
+XXAPI bool xrtNetBufAppend(xnetbuf* pBuf, const char* pData, size_t iLen)
+{
+	if ( !pBuf || !pData || iLen == 0 ) return false;
+	
+	// 需要扩容
+	if ( pBuf->iSize + iLen > pBuf->iCapacity ) {
+		size_t iNewCap = pBuf->iCapacity * 2;
+		if ( iNewCap < pBuf->iSize + iLen ) {
+			iNewCap = pBuf->iSize + iLen;
+		}
+		char* pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
+		if ( !pNew ) return false;
+		pBuf->pData = pNew;
+		pBuf->iCapacity = iNewCap;
+	}
+	
+	memcpy(pBuf->pData + pBuf->iSize, pData, iLen);
+	pBuf->iSize += iLen;
+	return true;
+}
+XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen)
+{
+	if ( !pBuf || iLen == 0 ) return;
+	if ( iLen >= pBuf->iSize ) {
+		pBuf->iSize = 0;
+	} else {
+		memmove(pBuf->pData, pBuf->pData + iLen, pBuf->iSize - iLen);
+		pBuf->iSize -= iLen;
+	}
+}
+XXAPI void xrtNetBufClear(xnetbuf* pBuf)
+{
+	if ( !pBuf ) return;
+	pBuf->iSize = 0;
+}
+
+// ========================================
+// File: D:/git/xrt/lib/netpoll.h
+// ========================================
+
+
+/*
+	NetPoll - IO 模型抽象层 [Ver1.0]
+	
+	Windows: IOCP (I/O Completion Port)
+	Linux:   io_uring (内核 >= 5.1, 无 epoll 回退)
+	
+	基于完成端口模型的统一异步 IO 接口
+*/
+/* ============================== 通用定义 ============================== */
+#define __XRT_POLL_OP_RECV    1
+#define __XRT_POLL_OP_SEND    2
+#define __XRT_POLL_OP_ACCEPT  3
+#define __XRT_POLL_MAX_OPS    4096
+#define __XRT_POLL_RECV_SIZE  8192
+/* ============================== Windows IOCP 实现 ============================== */
+#if defined(_WIN32) || defined(_WIN64)
+// IOCP 操作结构
+typedef struct {
+	WSAOVERLAPPED tOverlapped;
+	xnetconn* pConn;
+	xnetconn* pAcceptConn;       // 用于 accept 操作的客户端连接
+	char aRecvBuf[__XRT_POLL_RECV_SIZE];
+	WSABUF tWSABuf;
+	DWORD iBytes;
+	DWORD iFlags;
+	int iOpType;
+	bool bInUse;
+} __xrt_iocp_op;
+// Poller 结构定义
+struct xrt_net_poller {
+	HANDLE hIOCP;
+	__xrt_iocp_op* pOps;
+	int iOpCount;
+	int iOpCapacity;
+	CRITICAL_SECTION tLock;
+	xpoll_fn pfnCallback;
+	ptr pUserData;
+	size_t iRecvBufSize;
+};
+static __xrt_iocp_op* __xrt_iocp_alloc_op(xnetpoller* pPoller)
+{
+	EnterCriticalSection(&pPoller->tLock);
+	
+	// 先找空闲的
+	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+		if ( !pPoller->pOps[i].bInUse ) {
+			pPoller->pOps[i].bInUse = true;
+			LeaveCriticalSection(&pPoller->tLock);
+			return &pPoller->pOps[i];
+		}
+	}
+	
+	// 没有空闲的，追加
+	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
+		__xrt_iocp_op* pOp = &pPoller->pOps[pPoller->iOpCount++];
+		memset(pOp, 0, sizeof(__xrt_iocp_op));
+		pOp->bInUse = true;
+		LeaveCriticalSection(&pPoller->tLock);
+		return pOp;
+	}
+	
+	LeaveCriticalSection(&pPoller->tLock);
+	return NULL;
+}
+XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
+{
+	xnetpoller* pPoller = (xnetpoller*)xrtCalloc(1, sizeof(xnetpoller));
+	if ( !pPoller ) return NULL;
+	
+	pPoller->hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+	if ( !pPoller->hIOCP ) {
+		xrtFree(pPoller);
+		return NULL;
+	}
+	
+	pPoller->iOpCapacity = __XRT_POLL_MAX_OPS;
+	pPoller->pOps = (__xrt_iocp_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_iocp_op));
+	if ( !pPoller->pOps ) {
+		CloseHandle(pPoller->hIOCP);
+		xrtFree(pPoller);
+		return NULL;
+	}
+	
+	InitializeCriticalSection(&pPoller->tLock);
+	pPoller->pfnCallback = pfnCallback;
+	pPoller->pUserData = pUserData;
+	pPoller->iRecvBufSize = (pConfig && pConfig->iRecvBufSize > 0) ? pConfig->iRecvBufSize : __XRT_POLL_RECV_SIZE;
+	
+	return pPoller;
+}
+XXAPI void xrtPollDestroy(xnetpoller* pPoller)
+{
+	if ( !pPoller ) return;
+	
+	if ( pPoller->hIOCP ) {
+		CloseHandle(pPoller->hIOCP);
+	}
+	if ( pPoller->pOps ) {
+		xrtFree(pPoller->pOps);
+	}
+	DeleteCriticalSection(&pPoller->tLock);
+	xrtFree(pPoller);
+}
+XXAPI xnet_result xrtPollAdd(xnetpoller* pPoller, xnetconn* pConn, int iEvents)
+{
+	if ( !pPoller || !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	
+	HANDLE hResult = CreateIoCompletionPort((HANDLE)pConn->hSocket, pPoller->hIOCP, (ULONG_PTR)pConn, 0);
+	if ( !hResult ) {
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
+{
+	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
+	
+	EnterCriticalSection(&pPoller->tLock);
+	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
+			pPoller->pOps[i].bInUse = false;
+		}
+	}
+	LeaveCriticalSection(&pPoller->tLock);
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
+{
+	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
+	
+	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
+	if ( !pOp ) return XRT_NET_ERROR;
+	
+	memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
+	pOp->pConn = pConn;
+	pOp->tWSABuf.buf = pOp->aRecvBuf;
+	pOp->tWSABuf.len = __XRT_POLL_RECV_SIZE;
+	pOp->iOpType = __XRT_POLL_OP_RECV;
+	pOp->iFlags = 0;
+	
+	int iResult = WSARecv(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags, &pOp->tOverlapped, NULL);
+	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
+		pOp->bInUse = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen)
+{
+	if ( !pPoller || !pConn || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	
+	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
+	if ( !pOp ) return XRT_NET_ERROR;
+	
+	// 复制数据到操作缓冲区，解决 buffer 生命周期问题
+	size_t iCopyLen = (iLen > __XRT_POLL_RECV_SIZE) ? __XRT_POLL_RECV_SIZE : iLen;
+	memcpy(pOp->aRecvBuf, pData, iCopyLen);
+	
+	memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
+	pOp->pConn = pConn;
+	pOp->tWSABuf.buf = pOp->aRecvBuf;
+	pOp->tWSABuf.len = (ULONG)iCopyLen;
+	pOp->iOpType = __XRT_POLL_OP_SEND;
+	pOp->iFlags = 0;
+	
+	DWORD iBytesSent;
+	int iResult = WSASend(pConn->hSocket, &pOp->tWSABuf, 1, &iBytesSent, 0, &pOp->tOverlapped, NULL);
+	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
+		pOp->bInUse = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
+{
+	// IOCP accept: 使用非阻塞 accept 方式（不使用 AcceptEx 以简化实现）
+	// AcceptEx 需要额外的 Winsock 扩展函数加载，简化版使用 completion notification
+	(void)pPoller; (void)pServer; (void)pClient;
+	// Accept 将在 PollWait 的用户回调中通过 xrtSockAccept 同步处理
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
+{
+	if ( !pPoller ) return XRT_NET_ERROR;
+	
+	DWORD iBytesTransferred;
+	ULONG_PTR iCompletionKey;
+	LPOVERLAPPED pOverlapped;
+	
+	BOOL bSuccess = GetQueuedCompletionStatus(
+		pPoller->hIOCP,
+		&iBytesTransferred,
+		&iCompletionKey,
+		&pOverlapped,
+		(DWORD)iTimeoutMs
+	);
+	
+	if ( !bSuccess && !pOverlapped ) {
+		if ( GetLastError() == WAIT_TIMEOUT ) {
+			return XRT_NET_TIMEOUT;
+		}
+		return XRT_NET_ERROR;
+	}
+	
+	// Wakeup 信号 (completion key = 0, overlapped = NULL)
+	if ( !pOverlapped ) {
+		return XRT_NET_OK;
+	}
+	
+	__xrt_iocp_op* pOp = (__xrt_iocp_op*)pOverlapped;
+	xnetconn* pConn = pOp->pConn;
+	
+	if ( !pOp->bInUse ) {
+		return XRT_NET_OK;
+	}
+	
+	// 连接关闭
+	if ( iBytesTransferred == 0 && pOp->iOpType != __XRT_POLL_OP_ACCEPT ) {
+		if ( pPoller->pfnCallback ) {
+			pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+		}
+		pOp->bInUse = false;
+		return XRT_NET_CLOSED;
+	}
+	
+	// 分发事件
+	switch ( pOp->iOpType ) {
+		case __XRT_POLL_OP_RECV:
+			if ( pPoller->pfnCallback ) {
+				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)iBytesTransferred);
+			}
+			break;
+		
+		case __XRT_POLL_OP_SEND:
+			if ( pPoller->pfnCallback ) {
+				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)iBytesTransferred);
+			}
+			break;
+		
+		case __XRT_POLL_OP_ACCEPT:
+			if ( pPoller->pfnCallback ) {
+				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_ACCEPT, NULL, 0);
+			}
+			break;
+	}
+	
+	pOp->bInUse = false;
+	return XRT_NET_OK;
+}
+XXAPI void xrtPollWakeup(xnetpoller* pPoller)
+{
+	if ( !pPoller || !pPoller->hIOCP ) return;
+	PostQueuedCompletionStatus(pPoller->hIOCP, 0, 0, NULL);
+}
+XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
+{
+	if ( !pPoller ) return NULL;
+	return pPoller->pUserData;
+}
+/* ============================== Linux io_uring 实现 ============================== */
+#else  /* Linux */
+/*
+	io_uring 零依赖实现 (不使用 liburing)
+	直接通过 syscall 调用内核接口
+	最低要求: Linux 5.1+ (io_uring_setup, io_uring_enter, io_uring_register)
+*/
+#include <sys/syscall.h>
+#include <sys/mman.h>
+#include <linux/io_uring.h>
+#define __XRT_URING_ENTRIES  256
+// io_uring syscall 封装
+static inline int __xrt_io_uring_setup(unsigned iEntries, struct io_uring_params* pParams)
+{
+	return (int)syscall(SYS_io_uring_setup, iEntries, pParams);
+}
+static inline int __xrt_io_uring_enter(int iFd, unsigned iToSubmit, unsigned iMinComplete, unsigned iFlags, void* pSig)
+{
+	return (int)syscall(SYS_io_uring_enter, iFd, iToSubmit, iMinComplete, iFlags, pSig, 0);
+}
+// io_uring 环形缓冲区
+typedef struct {
+	unsigned* pHead;
+	unsigned* pTail;
+	unsigned* pRingMask;
+	unsigned* pRingEntries;
+	unsigned* pFlags;
+	unsigned* pArray;
+	struct io_uring_sqe* pSQEs;
+	size_t iRingSize;
+	void* pRingPtr;
+} __xrt_uring_sq;
+typedef struct {
+	unsigned* pHead;
+	unsigned* pTail;
+	unsigned* pRingMask;
+	unsigned* pRingEntries;
+	struct io_uring_cqe* pCQEs;
+	size_t iRingSize;
+	void* pRingPtr;
+} __xrt_uring_cq;
+// io_uring 操作结构
+typedef struct {
+	xnetconn* pConn;
+	xnetconn* pAcceptConn;
+	char aRecvBuf[__XRT_POLL_RECV_SIZE];
+	int iOpType;
+	bool bInUse;
+	struct sockaddr_in tAcceptAddr;
+	socklen_t iAcceptAddrLen;
+} __xrt_uring_op;
+// Poller 结构定义
+struct xrt_net_poller {
+	int iFd;                      // io_uring fd
+	__xrt_uring_sq tSQ;
+	__xrt_uring_cq tCQ;
+	__xrt_uring_op* pOps;
+	int iOpCount;
+	int iOpCapacity;
+	int iWakeupFd;                // eventfd 用于唤醒
+	xpoll_fn pfnCallback;
+	ptr pUserData;
+	size_t iRecvBufSize;
+	pthread_mutex_t tLock;
+};
+static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
+{
+	pthread_mutex_lock(&pPoller->tLock);
+	
+	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+		if ( !pPoller->pOps[i].bInUse ) {
+			pPoller->pOps[i].bInUse = true;
+			pthread_mutex_unlock(&pPoller->tLock);
+			return &pPoller->pOps[i];
+		}
+	}
+	
+	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
+		__xrt_uring_op* pOp = &pPoller->pOps[pPoller->iOpCount++];
+		memset(pOp, 0, sizeof(__xrt_uring_op));
+		pOp->bInUse = true;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return pOp;
+	}
+	
+	pthread_mutex_unlock(&pPoller->tLock);
+	return NULL;
+}
+static struct io_uring_sqe* __xrt_uring_get_sqe(xnetpoller* pPoller)
+{
+	__xrt_uring_sq* pSQ = &pPoller->tSQ;
+	unsigned iHead = __atomic_load_n(pSQ->pHead, __ATOMIC_ACQUIRE);
+	unsigned iTail = *pSQ->pTail;
+	unsigned iMask = *pSQ->pRingMask;
+	
+	if ( iTail - iHead >= *pSQ->pRingEntries ) {
+		return NULL;  // SQ 已满
+	}
+	
+	struct io_uring_sqe* pSQE = &pSQ->pSQEs[iTail & iMask];
+	memset(pSQE, 0, sizeof(struct io_uring_sqe));
+	return pSQE;
+}
+static void __xrt_uring_submit_sqe(xnetpoller* pPoller)
+{
+	__xrt_uring_sq* pSQ = &pPoller->tSQ;
+	unsigned iTail = *pSQ->pTail;
+	unsigned iMask = *pSQ->pRingMask;
+	
+	pSQ->pArray[iTail & iMask] = iTail & iMask;
+	__atomic_store_n(pSQ->pTail, iTail + 1, __ATOMIC_RELEASE);
+}
+XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
+{
+	xnetpoller* pPoller = (xnetpoller*)xrtCalloc(1, sizeof(xnetpoller));
+	if ( !pPoller ) return NULL;
+	
+	// 初始化 io_uring
+	struct io_uring_params tParams;
+	memset(&tParams, 0, sizeof(tParams));
+	
+	pPoller->iFd = __xrt_io_uring_setup(__XRT_URING_ENTRIES, &tParams);
+	if ( pPoller->iFd < 0 ) {
+		xrtFree(pPoller);
+		return NULL;
+	}
+	
+	// 映射 SQ ring
+	size_t iSQSize = tParams.sq_off.array + tParams.sq_entries * sizeof(unsigned);
+	void* pSQPtr = mmap(NULL, iSQSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pPoller->iFd, IORING_OFF_SQ_RING);
+	if ( pSQPtr == MAP_FAILED ) {
+		close(pPoller->iFd);
+		xrtFree(pPoller);
+		return NULL;
+	}
+	
+	pPoller->tSQ.pRingPtr = pSQPtr;
+	pPoller->tSQ.iRingSize = iSQSize;
+	pPoller->tSQ.pHead = (unsigned*)((char*)pSQPtr + tParams.sq_off.head);
+	pPoller->tSQ.pTail = (unsigned*)((char*)pSQPtr + tParams.sq_off.tail);
+	pPoller->tSQ.pRingMask = (unsigned*)((char*)pSQPtr + tParams.sq_off.ring_mask);
+	pPoller->tSQ.pRingEntries = (unsigned*)((char*)pSQPtr + tParams.sq_off.ring_entries);
+	pPoller->tSQ.pFlags = (unsigned*)((char*)pSQPtr + tParams.sq_off.flags);
+	pPoller->tSQ.pArray = (unsigned*)((char*)pSQPtr + tParams.sq_off.array);
+	
+	// 映射 SQEs
+	size_t iSQESize = tParams.sq_entries * sizeof(struct io_uring_sqe);
+	pPoller->tSQ.pSQEs = (struct io_uring_sqe*)mmap(NULL, iSQESize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pPoller->iFd, IORING_OFF_SQES);
+	if ( pPoller->tSQ.pSQEs == MAP_FAILED ) {
+		munmap(pSQPtr, iSQSize);
+		close(pPoller->iFd);
+		xrtFree(pPoller);
+		return NULL;
+	}
+	
+	// 映射 CQ ring
+	size_t iCQSize = tParams.cq_off.cqes + tParams.cq_entries * sizeof(struct io_uring_cqe);
+	void* pCQPtr = mmap(NULL, iCQSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pPoller->iFd, IORING_OFF_CQ_RING);
+	if ( pCQPtr == MAP_FAILED ) {
+		munmap(pPoller->tSQ.pSQEs, iSQESize);
+		munmap(pSQPtr, iSQSize);
+		close(pPoller->iFd);
+		xrtFree(pPoller);
+		return NULL;
+	}
+	
+	pPoller->tCQ.pRingPtr = pCQPtr;
+	pPoller->tCQ.iRingSize = iCQSize;
+	pPoller->tCQ.pHead = (unsigned*)((char*)pCQPtr + tParams.cq_off.head);
+	pPoller->tCQ.pTail = (unsigned*)((char*)pCQPtr + tParams.cq_off.tail);
+	pPoller->tCQ.pRingMask = (unsigned*)((char*)pCQPtr + tParams.cq_off.ring_mask);
+	pPoller->tCQ.pRingEntries = (unsigned*)((char*)pCQPtr + tParams.cq_off.ring_entries);
+	pPoller->tCQ.pCQEs = (struct io_uring_cqe*)((char*)pCQPtr + tParams.cq_off.cqes);
+	
+	// 分配操作池
+	pPoller->iOpCapacity = __XRT_POLL_MAX_OPS;
+	pPoller->pOps = (__xrt_uring_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_uring_op));
+	if ( !pPoller->pOps ) {
+		munmap(pCQPtr, iCQSize);
+		munmap(pPoller->tSQ.pSQEs, iSQESize);
+		munmap(pSQPtr, iSQSize);
+		close(pPoller->iFd);
+		xrtFree(pPoller);
+		return NULL;
+	}
+	
+	// 创建 eventfd 用于唤醒
+	pPoller->iWakeupFd = eventfd(0, EFD_NONBLOCK);
+	
+	pthread_mutex_init(&pPoller->tLock, NULL);
+	pPoller->pfnCallback = pfnCallback;
+	pPoller->pUserData = pUserData;
+	pPoller->iRecvBufSize = (pConfig && pConfig->iRecvBufSize > 0) ? pConfig->iRecvBufSize : __XRT_POLL_RECV_SIZE;
+	
+	return pPoller;
+}
+XXAPI void xrtPollDestroy(xnetpoller* pPoller)
+{
+	if ( !pPoller ) return;
+	
+	if ( pPoller->pOps ) {
+		xrtFree(pPoller->pOps);
+	}
+	
+	if ( pPoller->iWakeupFd >= 0 ) {
+		close(pPoller->iWakeupFd);
+	}
+	
+	// 释放 mmap 映射
+	if ( pPoller->tCQ.pRingPtr && pPoller->tCQ.pRingPtr != MAP_FAILED ) {
+		munmap(pPoller->tCQ.pRingPtr, pPoller->tCQ.iRingSize);
+	}
+	if ( pPoller->tSQ.pSQEs && (void*)pPoller->tSQ.pSQEs != MAP_FAILED ) {
+		// SQEs 的大小需要重新计算，这里用近似值
+		munmap(pPoller->tSQ.pSQEs, __XRT_URING_ENTRIES * sizeof(struct io_uring_sqe));
+	}
+	if ( pPoller->tSQ.pRingPtr && pPoller->tSQ.pRingPtr != MAP_FAILED ) {
+		munmap(pPoller->tSQ.pRingPtr, pPoller->tSQ.iRingSize);
+	}
+	
+	if ( pPoller->iFd >= 0 ) {
+		close(pPoller->iFd);
+	}
+	
+	pthread_mutex_destroy(&pPoller->tLock);
+	xrtFree(pPoller);
+}
+XXAPI xnet_result xrtPollAdd(xnetpoller* pPoller, xnetconn* pConn, int iEvents)
+{
+	// io_uring 不需要显式注册 socket，操作在 Post 时提交
+	(void)pPoller; (void)pConn; (void)iEvents;
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
+{
+	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
+	
+	pthread_mutex_lock(&pPoller->tLock);
+	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
+			// 提交 cancel 请求
+			struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+			if ( pSQE ) {
+				pSQE->opcode = IORING_OP_ASYNC_CANCEL;
+				pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->pOps[i];
+				__xrt_uring_submit_sqe(pPoller);
+			}
+			pPoller->pOps[i].bInUse = false;
+		}
+	}
+	pthread_mutex_unlock(&pPoller->tLock);
+	
+	// 提交取消请求
+	__xrt_io_uring_enter(pPoller->iFd, 1, 0, IORING_ENTER_GETEVENTS, NULL);
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
+{
+	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
+	
+	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
+	if ( !pOp ) return XRT_NET_ERROR;
+	
+	pOp->pConn = pConn;
+	pOp->iOpType = __XRT_POLL_OP_RECV;
+	
+	pthread_mutex_lock(&pPoller->tLock);
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( !pSQE ) {
+		pOp->bInUse = false;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return XRT_NET_ERROR;
+	}
+	
+	pSQE->opcode = IORING_OP_RECV;
+	pSQE->fd = pConn->hSocket;
+	pSQE->addr = (unsigned long long)(uintptr_t)pOp->aRecvBuf;
+	pSQE->len = __XRT_POLL_RECV_SIZE;
+	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
+	
+	__xrt_uring_submit_sqe(pPoller);
+	pthread_mutex_unlock(&pPoller->tLock);
+	
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
+	if ( iRet < 0 ) {
+		pOp->bInUse = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen)
+{
+	if ( !pPoller || !pConn || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	
+	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
+	if ( !pOp ) return XRT_NET_ERROR;
+	
+	// 复制数据解决生命周期问题
+	size_t iCopyLen = (iLen > __XRT_POLL_RECV_SIZE) ? __XRT_POLL_RECV_SIZE : iLen;
+	memcpy(pOp->aRecvBuf, pData, iCopyLen);
+	
+	pOp->pConn = pConn;
+	pOp->iOpType = __XRT_POLL_OP_SEND;
+	
+	pthread_mutex_lock(&pPoller->tLock);
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( !pSQE ) {
+		pOp->bInUse = false;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return XRT_NET_ERROR;
+	}
+	
+	pSQE->opcode = IORING_OP_SEND;
+	pSQE->fd = pConn->hSocket;
+	pSQE->addr = (unsigned long long)(uintptr_t)pOp->aRecvBuf;
+	pSQE->len = (unsigned)iCopyLen;
+	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
+	
+	__xrt_uring_submit_sqe(pPoller);
+	pthread_mutex_unlock(&pPoller->tLock);
+	
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
+	if ( iRet < 0 ) {
+		pOp->bInUse = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
+{
+	if ( !pPoller || !pServer || !pClient ) return XRT_NET_ERROR;
+	
+	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
+	if ( !pOp ) return XRT_NET_ERROR;
+	
+	pOp->pConn = pServer;
+	pOp->pAcceptConn = pClient;
+	pOp->iOpType = __XRT_POLL_OP_ACCEPT;
+	pOp->iAcceptAddrLen = sizeof(struct sockaddr_in);
+	
+	pthread_mutex_lock(&pPoller->tLock);
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( !pSQE ) {
+		pOp->bInUse = false;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return XRT_NET_ERROR;
+	}
+	
+	pSQE->opcode = IORING_OP_ACCEPT;
+	pSQE->fd = pServer->hSocket;
+	pSQE->addr = (unsigned long long)(uintptr_t)&pOp->tAcceptAddr;
+	pSQE->addr2 = (unsigned long long)(uintptr_t)&pOp->iAcceptAddrLen;
+	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
+	
+	__xrt_uring_submit_sqe(pPoller);
+	pthread_mutex_unlock(&pPoller->tLock);
+	
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
+	if ( iRet < 0 ) {
+		pOp->bInUse = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
+{
+	if ( !pPoller ) return XRT_NET_ERROR;
+	
+	// 等待至少一个完成事件
+	struct __kernel_timespec tTimeout;
+	struct __kernel_timespec* pTimeout = NULL;
+	if ( iTimeoutMs >= 0 ) {
+		tTimeout.tv_sec = iTimeoutMs / 1000;
+		tTimeout.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
+		pTimeout = &tTimeout;
+	}
+	
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, 0, 1, IORING_ENTER_GETEVENTS, pTimeout);
+	if ( iRet < 0 ) {
+		if ( errno == ETIME || errno == EINTR ) {
+			return XRT_NET_TIMEOUT;
+		}
+		return XRT_NET_ERROR;
+	}
+	
+	// 处理 CQ 事件
+	__xrt_uring_cq* pCQ = &pPoller->tCQ;
+	unsigned iHead = __atomic_load_n(pCQ->pHead, __ATOMIC_ACQUIRE);
+	unsigned iTail = __atomic_load_n(pCQ->pTail, __ATOMIC_ACQUIRE);
+	
+	if ( iHead == iTail ) {
+		return XRT_NET_TIMEOUT;
+	}
+	
+	unsigned iMask = *pCQ->pRingMask;
+	
+	while ( iHead != iTail ) {
+		struct io_uring_cqe* pCQE = &pCQ->pCQEs[iHead & iMask];
+		__xrt_uring_op* pOp = (__xrt_uring_op*)(uintptr_t)pCQE->user_data;
+		
+		if ( pOp && pOp->bInUse ) {
+			xnetconn* pConn = pOp->pConn;
+			
+			if ( pOp->iOpType == __XRT_POLL_OP_ACCEPT ) {
+				if ( pCQE->res >= 0 && pOp->pAcceptConn ) {
+					pOp->pAcceptConn->hSocket = pCQE->res;
+					xrtNetAddrFromSockAddr(&pOp->pAcceptConn->tRemoteAddr, &pOp->tAcceptAddr);
+					pOp->pAcceptConn->iType = 0;  // TCP
+					if ( pPoller->pfnCallback ) {
+						pPoller->pfnCallback(pPoller, pOp->pAcceptConn, XRT_POLL_ACCEPT, NULL, 0);
+					}
+				}
+			} else if ( pCQE->res <= 0 ) {
+				// 连接关闭或错误
+				if ( pCQE->res == 0 || pCQE->res == -ECONNRESET ) {
+					if ( pPoller->pfnCallback ) {
+						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+					}
+				} else {
+					if ( pPoller->pfnCallback ) {
+						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_ERROR, NULL, 0);
+					}
+				}
+			} else {
+				switch ( pOp->iOpType ) {
+					case __XRT_POLL_OP_RECV:
+						if ( pPoller->pfnCallback ) {
+							pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)pCQE->res);
+						}
+						break;
+					
+					case __XRT_POLL_OP_SEND:
+						if ( pPoller->pfnCallback ) {
+							pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)pCQE->res);
+						}
+						break;
+				}
+			}
+			
+			pOp->bInUse = false;
+		}
+		
+		iHead++;
+	}
+	
+	__atomic_store_n(pCQ->pHead, iHead, __ATOMIC_RELEASE);
+	
+	return XRT_NET_OK;
+}
+XXAPI void xrtPollWakeup(xnetpoller* pPoller)
+{
+	if ( !pPoller || pPoller->iWakeupFd < 0 ) return;
+	uint64 iVal = 1;
+	write(pPoller->iWakeupFd, &iVal, sizeof(iVal));
+}
+XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
+{
+	if ( !pPoller ) return NULL;
+	return pPoller->pUserData;
+}
+#endif /* Linux */
+
+// ========================================
+// File: D:/git/xrt/lib/nettls.h
+// ========================================
+
+
+/*
+	NetTLS - TLS 1.3 实现 [Ver1.0]
+	
+	基于 mongoose 内建 TLS 移植，零外部依赖
+	使用 lib/crypto.h 提供的加密原语:
+		SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
+	
+	支持:
+		- TLS 1.3 (RFC 8446) only
+		- 密码套件: TLS_CHACHA20_POLY1305_SHA256 (0x1303), TLS_AES_128_GCM_SHA256 (0x1301)
+		- 密钥交换: X25519
+		- 客户端/服务端模式
+*/
+/* ============================== 常量定义 ============================== */
+// TLS 记录类型 (RFC 8446 B.1)
+#define __XRT_TLS_CHANGE_CIPHER  20
+#define __XRT_TLS_ALERT          21
+#define __XRT_TLS_HANDSHAKE      22
+#define __XRT_TLS_APP_DATA       23
+// TLS 握手消息类型 (RFC 8446 B.3)
+#define __XRT_TLS_CLIENT_HELLO          1
+#define __XRT_TLS_SERVER_HELLO          2
+#define __XRT_TLS_ENCRYPTED_EXTENSIONS  8
+#define __XRT_TLS_CERTIFICATE           11
+#define __XRT_TLS_CERTIFICATE_VERIFY    15
+#define __XRT_TLS_FINISHED              20
+// 记录头大小
+#define __XRT_TLS_RECHDR_SIZE  5   // 1 type + 2 version + 2 length
+#define __XRT_TLS_MSGHDR_SIZE  4   // 1 type + 3 length
+// 密码套件 ID
+#define __XRT_TLS_AES_128_GCM_SHA256        0x1301
+#define __XRT_TLS_CHACHA20_POLY1305_SHA256  0x1303
+// TLS 版本
+#define __XRT_TLS_VERSION_1_2  0x0303  // 记录层兼容
+#define __XRT_TLS_VERSION_1_3  0x0304
+// 最大记录大小
+#define __XRT_TLS_MAX_RECORD   16384
+/* ============================== 辅助函数 ============================== */
+static inline uint16 __xrt_tls_load_be16(const uint8 *p)
+{
+	return (uint16)((uint16)p[0] << 8 | p[1]);
+}
+static inline uint32 __xrt_tls_load_be24(const uint8 *p)
+{
+	return ((uint32)p[0] << 16) | ((uint32)p[1] << 8) | p[2];
+}
+static inline void __xrt_tls_store_be16(uint8 *p, uint16 v)
+{
+	p[0] = (uint8)(v >> 8);
+	p[1] = (uint8)(v);
+}
+static inline void __xrt_tls_store_be24(uint8 *p, uint32 v)
+{
+	p[0] = (uint8)(v >> 16);
+	p[1] = (uint8)(v >> 8);
+	p[2] = (uint8)(v);
+}
+/* ============================== TLS 上下文结构 ============================== */
+// 握手状态机
+enum __xrt_tls_state {
+	// 客户端状态
+	XRT_TLS_CLIENT_START = 0,
+	XRT_TLS_CLIENT_WAIT_SH,
+	XRT_TLS_CLIENT_WAIT_EE,
+	XRT_TLS_CLIENT_WAIT_CERT,
+	XRT_TLS_CLIENT_WAIT_CV,
+	XRT_TLS_CLIENT_WAIT_FINISH,
+	XRT_TLS_CLIENT_CONNECTED,
+	// 服务端状态
+	XRT_TLS_SERVER_START,
+	XRT_TLS_SERVER_NEGOTIATED,
+	XRT_TLS_SERVER_CONNECTED
+};
+// 加密密钥集
+struct __xrt_tls_enc {
+	uint32 iServerSeq;
+	uint32 iClientSeq;
+	uint8 aHandshakeSecret[32];
+	uint8 aServerWriteKey[32];
+	uint8 aServerWriteIV[12];
+	uint8 aServerFinishedKey[32];
+	uint8 aClientWriteKey[32];
+	uint8 aClientWriteIV[12];
+	uint8 aClientFinishedKey[32];
+};
+// TLS 上下文 (不透明结构)
+struct xrt_tls_context {
+	enum __xrt_tls_state iState;
+	bool bIsServer;
+	bool bHandshakeDone;
+	uint16 iCipherSuite;
+	
+	// 握手数据
+	xsha256_ctx tSHA256;           // 握手消息的 SHA-256 增量哈希
+	uint8 aRandom[32];            // client random
+	uint8 aSessionId[32];         // session ID
+	uint8 aX25519Priv[32];        // X25519 私钥
+	uint8 aX25519Pub[32];         // X25519 公钥
+	uint8 aX25519Secret[32];      // X25519 共享密钥
+	
+	// 加密密钥
+	struct __xrt_tls_enc tEnc;
+	struct __xrt_tls_enc tAppKeys;  // 应用数据密钥
+	
+	// 配置
+	bool bSkipVerify;
+	char sHostname[254];
+	
+	// 证书数据
+	uint8 *pCertDer;
+	size_t iCertDerLen;
+	uint8 *pKeyDer;
+	size_t iKeyDerLen;
+	uint8 aECKey[32];             // EC 私钥
+	
+	// IO 缓冲区
+	xnetbuf tSendBuf;
+	xnetbuf tRecvBuf;
+	size_t iRecvOffset;
+	size_t iRecvMsgLen;
+	uint8 iContentType;
+};
+// SHA-256("") 预计算
+static const uint8 __xrt_tls_zeros_sha256[32] = {
+	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4,
+	0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b,
+	0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
+};
+/* ============================== TLS 密钥派生 ============================== */
+// TLS 1.3 密钥派生: HKDF-Expand-Label (RFC 8446 Section 7.1)
+static void __xrt_tls_expand_label(uint8 *pOut, size_t iOutLen,
+	const uint8 *pSecret, size_t iSecretLen,
+	const char *sLabel, size_t iLabelLen,
+	const uint8 *pHash, size_t iHashLen)
+{
+	// HkdfLabel 结构:
+	//   uint16 length
+	//   opaque label<7..255> = "tls13 " + Label
+	//   opaque context<0..255> = Hash
+	uint8 aInfo[256];
+	size_t iInfoLen = 0;
+	
+	aInfo[iInfoLen++] = (uint8)(iOutLen >> 8);
+	aInfo[iInfoLen++] = (uint8)(iOutLen);
+	
+	size_t iFullLabelLen = 6 + iLabelLen;  // "tls13 " + label
+	aInfo[iInfoLen++] = (uint8)iFullLabelLen;
+	memcpy(aInfo + iInfoLen, "tls13 ", 6);
+	iInfoLen += 6;
+	memcpy(aInfo + iInfoLen, sLabel, iLabelLen);
+	iInfoLen += iLabelLen;
+	
+	aInfo[iInfoLen++] = (uint8)iHashLen;
+	if ( iHashLen > 0 && pHash ) {
+		memcpy(aInfo + iInfoLen, pHash, iHashLen);
+		iInfoLen += iHashLen;
+	}
+	
+	xrtHKDFExpand(pOut, iOutLen, pSecret, iSecretLen, aInfo, iInfoLen);
+}
+// 派生密钥
+static void __xrt_tls_derive_secret(uint8 *pOut, const uint8 *pSecret,
+	const char *sLabel, size_t iLabelLen, const uint8 *pMsgsHash)
+{
+	__xrt_tls_expand_label(pOut, 32, pSecret, 32, sLabel, iLabelLen, pMsgsHash, 32);
+}
+// 从握手密钥派生流量密钥
+static void __xrt_tls_derive_traffic_keys(struct __xrt_tls_enc *pEnc,
+	const uint8 *pSecret, bool bIsServer)
+{
+	uint8 aHash[32];
+	// 获取当前的 transcript hash 需要从外部传入
+	// 这里 pSecret 已经是 traffic secret
+	
+	// 派生 write key
+	__xrt_tls_expand_label(bIsServer ? pEnc->aServerWriteKey : pEnc->aClientWriteKey,
+		32, pSecret, 32, "key", 3, NULL, 0);
+	
+	// 派生 write IV
+	__xrt_tls_expand_label(bIsServer ? pEnc->aServerWriteIV : pEnc->aClientWriteIV,
+		12, pSecret, 32, "iv", 2, NULL, 0);
+	
+	// 派生 finished key
+	__xrt_tls_expand_label(bIsServer ? pEnc->aServerFinishedKey : pEnc->aClientFinishedKey,
+		32, pSecret, 32, "finished", 8, NULL, 0);
+}
+/* ============================== TLS 记录层 ============================== */
+// 加密并发送一条 TLS 记录
+static void __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
+	const uint8 *pData, size_t iLen, bool bUseServerKeys)
+{
+	struct __xrt_tls_enc *pEnc = (pCtx->bHandshakeDone) ? &pCtx->tAppKeys : &pCtx->tEnc;
+	
+	uint8 *pKey, *pIV;
+	uint32 *pSeq;
+	
+	if ( bUseServerKeys ) {
+		pKey = pEnc->aServerWriteKey;
+		pIV = pEnc->aServerWriteIV;
+		pSeq = &pEnc->iServerSeq;
+	} else {
+		pKey = pEnc->aClientWriteKey;
+		pIV = pEnc->aClientWriteIV;
+		pSeq = &pEnc->iClientSeq;
+	}
+	
+	// 构造 nonce: IV XOR 序列号
+	uint8 aNonce[12];
+	memcpy(aNonce, pIV, 12);
+	aNonce[8]  ^= (uint8)((*pSeq) >> 24);
+	aNonce[9]  ^= (uint8)((*pSeq) >> 16);
+	aNonce[10] ^= (uint8)((*pSeq) >> 8);
+	aNonce[11] ^= (uint8)((*pSeq));
+	
+	// 构建内层 plaintext: data + content_type
+	size_t iInnerLen = iLen + 1;
+	uint8 *pInner = (uint8*)xrtMalloc(iInnerLen);
+	if ( !pInner ) return;
+	memcpy(pInner, pData, iLen);
+	pInner[iLen] = iType;  // content type 放在 plaintext 末尾
+	
+	// 构建记录头 (TLS_APP_DATA 0x17, version 0x0303, length)
+	size_t iCipherLen = iInnerLen + 16;  // plaintext + AEAD tag
+	uint8 aHdr[5];
+	aHdr[0] = __XRT_TLS_APP_DATA;
+	__xrt_tls_store_be16(aHdr + 1, __XRT_TLS_VERSION_1_2);
+	__xrt_tls_store_be16(aHdr + 3, (uint16)iCipherLen);
+	
+	// AEAD 加密 (AAD = 记录头)
+	uint8 *pCipher = (uint8*)xrtMalloc(iCipherLen);
+	if ( !pCipher ) { xrtFree(pInner); return; }
+	
+	if ( pCtx->iCipherSuite == __XRT_TLS_CHACHA20_POLY1305_SHA256 ) {
+		xrtChaCha20Poly1305Encrypt(pCipher, pKey, aNonce, aHdr, 5, pInner, iInnerLen);
+	} else {
+		xrtAES128GCMEncrypt(pCipher, pKey, aNonce, 12, aHdr, 5, pInner, iInnerLen);
+	}
+	
+	// 写入发送缓冲区: 记录头 + 密文
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aHdr, 5);
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)pCipher, iCipherLen);
+	
+	xrtFree(pCipher);
+	xrtFree(pInner);
+	
+	(*pSeq)++;
+}
+// 解密一条 TLS 记录
+static bool __xrt_tls_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
+	size_t iRecordLen, uint8 *pOut, size_t *pOutLen, uint8 *pType,
+	bool bUseServerKeys)
+{
+	if ( iRecordLen < __XRT_TLS_RECHDR_SIZE + 16 ) return false;
+	
+	struct __xrt_tls_enc *pEnc = (pCtx->bHandshakeDone) ? &pCtx->tAppKeys : &pCtx->tEnc;
+	
+	uint8 *pKey, *pIV;
+	uint32 *pSeq;
+	
+	if ( bUseServerKeys ) {
+		pKey = pEnc->aServerWriteKey;
+		pIV = pEnc->aServerWriteIV;
+		pSeq = &pEnc->iServerSeq;
+	} else {
+		pKey = pEnc->aClientWriteKey;
+		pIV = pEnc->aClientWriteIV;
+		pSeq = &pEnc->iClientSeq;
+	}
+	
+	// 构造 nonce
+	uint8 aNonce[12];
+	memcpy(aNonce, pIV, 12);
+	aNonce[8]  ^= (uint8)((*pSeq) >> 24);
+	aNonce[9]  ^= (uint8)((*pSeq) >> 16);
+	aNonce[10] ^= (uint8)((*pSeq) >> 8);
+	aNonce[11] ^= (uint8)((*pSeq));
+	
+	uint16 iCipherLen = __xrt_tls_load_be16(pRecord + 3);
+	const uint8 *pCipher = pRecord + __XRT_TLS_RECHDR_SIZE;
+	
+	// AAD = 记录头
+	uint8 aAAD[5];
+	memcpy(aAAD, pRecord, 5);
+	
+	bool bOK;
+	if ( pCtx->iCipherSuite == __XRT_TLS_CHACHA20_POLY1305_SHA256 ) {
+		bOK = xrtChaCha20Poly1305Decrypt(pOut, pKey, aNonce, aAAD, 5, pCipher, iCipherLen);
+	} else {
+		bOK = xrtAES128GCMDecrypt(pOut, pKey, aNonce, 12, aAAD, 5, pCipher, iCipherLen);
+	}
+	
+	if ( !bOK ) return false;
+	
+	// 去除填充，找到 content type（从末尾向前找非零字节）
+	size_t iPlainLen = iCipherLen - 16;
+	while ( iPlainLen > 0 && pOut[iPlainLen - 1] == 0 ) {
+		iPlainLen--;
+	}
+	if ( iPlainLen == 0 ) return false;
+	
+	*pType = pOut[iPlainLen - 1];
+	*pOutLen = iPlainLen - 1;
+	
+	(*pSeq)++;
+	return true;
+}
+/* ============================== 握手消息构造 ============================== */
+// 构造 ClientHello 消息
+static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
+{
+	uint8 aBuf[512];
+	size_t iPos = 0;
+	
+	// 生成随机数和 X25519 密钥对
+	xrtRandomBytes(pCtx->aRandom, 32);
+	xrtRandomBytes(pCtx->aSessionId, 32);
+	xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
+	
+	// Handshake: ClientHello (type=1)
+	aBuf[iPos++] = __XRT_TLS_CLIENT_HELLO;
+	size_t iLenPos = iPos;
+	iPos += 3;  // 预留长度
+	
+	// client version = 0x0303 (TLS 1.2 兼容)
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
+	iPos += 2;
+	
+	// client random (32 bytes)
+	memcpy(aBuf + iPos, pCtx->aRandom, 32);
+	iPos += 32;
+	
+	// session ID (32 bytes)
+	aBuf[iPos++] = 32;
+	memcpy(aBuf + iPos, pCtx->aSessionId, 32);
+	iPos += 32;
+	
+	// cipher suites
+	__xrt_tls_store_be16(aBuf + iPos, 4);  // 2 suites * 2 bytes
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_CHACHA20_POLY1305_SHA256);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_128_GCM_SHA256);
+	iPos += 2;
+	
+	// compression methods
+	aBuf[iPos++] = 1;   // length
+	aBuf[iPos++] = 0;   // null compression
+	
+	// --- Extensions ---
+	size_t iExtPos = iPos;
+	iPos += 2;  // 预留扩展总长度
+	
+	// Extension: supported_versions (0x002b)
+	__xrt_tls_store_be16(aBuf + iPos, 0x002b);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 3);  // ext data length
+	iPos += 2;
+	aBuf[iPos++] = 2;   // version list length
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
+	iPos += 2;
+	
+	// Extension: supported_groups (0x000a) - X25519
+	__xrt_tls_store_be16(aBuf + iPos, 0x000a);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 4);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 2);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x001d);  // x25519
+	iPos += 2;
+	
+	// Extension: signature_algorithms (0x000d)
+	__xrt_tls_store_be16(aBuf + iPos, 0x000d);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 8);   // 扩展数据长度
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 6);   // 签名算法列表长度
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0403);  // ECDSA-SECP256R1-SHA256
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0807);  // ED25519
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0401);  // RSA-PKCS1-SHA256
+	iPos += 2;
+	
+	// Extension: key_share (0x0033) - X25519 public key
+	__xrt_tls_store_be16(aBuf + iPos, 0x0033);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 38);   // ext data length
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 36);   // key share entries length
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x001d);  // x25519 group
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 32);   // key length
+	iPos += 2;
+	memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
+	iPos += 32;
+	
+	// Extension: server_name (SNI) - 如果设置了主机名
+	if ( pCtx->sHostname[0] ) {
+		size_t iHostLen = strlen(pCtx->sHostname);
+		__xrt_tls_store_be16(aBuf + iPos, 0x0000);  // SNI extension
+		iPos += 2;
+		__xrt_tls_store_be16(aBuf + iPos, (uint16)(iHostLen + 5));
+		iPos += 2;
+		__xrt_tls_store_be16(aBuf + iPos, (uint16)(iHostLen + 3));
+		iPos += 2;
+		aBuf[iPos++] = 0;  // host_name type
+		__xrt_tls_store_be16(aBuf + iPos, (uint16)iHostLen);
+		iPos += 2;
+		memcpy(aBuf + iPos, pCtx->sHostname, iHostLen);
+		iPos += iHostLen;
+	}
+	
+	// 填充扩展总长度
+	__xrt_tls_store_be16(aBuf + iExtPos, (uint16)(iPos - iExtPos - 2));
+	
+	// 填充握手消息长度
+	__xrt_tls_store_be24(aBuf + iLenPos, (uint32)(iPos - iLenPos - 3));
+	
+	// 更新握手哈希
+	xrtSHA256Update(&pCtx->tSHA256, aBuf, iPos);
+	
+	// 包装为 TLS record (plaintext)
+	uint8 aRec[5];
+	aRec[0] = __XRT_TLS_HANDSHAKE;
+	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
+	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
+	
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+}
+// 解析 ServerHello 消息
+static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
+{
+	if ( iLen < 2 + 32 + 1 ) return false;
+	
+	size_t iPos = 0;
+	
+	// server version (ignored for TLS 1.3, use supported_versions ext)
+	iPos += 2;
+	
+	// server random
+	uint8 aServerRandom[32];
+	memcpy(aServerRandom, pMsg + iPos, 32);
+	iPos += 32;
+	
+	// session ID
+	uint8 iSessLen = pMsg[iPos++];
+	iPos += iSessLen;
+	
+	// cipher suite
+	if ( iPos + 2 > iLen ) return false;
+	pCtx->iCipherSuite = __xrt_tls_load_be16(pMsg + iPos);
+	iPos += 2;
+	
+	// compression
+	iPos += 1;
+	
+	// 解析扩展
+	if ( iPos + 2 > iLen ) return true;  // 没有扩展也行
+	uint16 iExtLen = __xrt_tls_load_be16(pMsg + iPos);
+	iPos += 2;
+	
+	size_t iExtEnd = iPos + iExtLen;
+	while ( iPos + 4 <= iExtEnd ) {
+		uint16 iExtType = __xrt_tls_load_be16(pMsg + iPos);
+		iPos += 2;
+		uint16 iExtDataLen = __xrt_tls_load_be16(pMsg + iPos);
+		iPos += 2;
+		
+		if ( iExtType == 0x0033 ) {  // key_share
+			// 解析服务器的 X25519 公钥
+			if ( iExtDataLen >= 36 ) {
+				uint16 iGroup = __xrt_tls_load_be16(pMsg + iPos);
+				uint16 iKeyLen = __xrt_tls_load_be16(pMsg + iPos + 2);
+				if ( iGroup == 0x001d && iKeyLen == 32 ) {
+					// 计算共享密钥
+					xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pMsg + iPos + 4);
+				}
+			}
+		}
+		
+		iPos += iExtDataLen;
+	}
+	
+	return true;
+}
+// 发送 Finished 消息
+static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer)
+{
+	uint8 aHash[32];
+	xsha256_ctx tCtxCopy = pCtx->tSHA256;
+	xrtSHA256Final(&tCtxCopy, aHash);
+	
+	// finished_key 已在密钥派生时计算
+	uint8 *pFinKey = bAsServer ? pCtx->tEnc.aServerFinishedKey : pCtx->tEnc.aClientFinishedKey;
+	
+	// verify_data = HMAC-SHA256(finished_key, transcript_hash)
+	uint8 aVerifyData[32];
+	xrtHMAC_SHA256(pFinKey, 32, aHash, 32, aVerifyData);
+	
+	// 构造 Finished 握手消息
+	uint8 aMsg[36];
+	aMsg[0] = __XRT_TLS_FINISHED;
+	__xrt_tls_store_be24(aMsg + 1, 32);
+	memcpy(aMsg + 4, aVerifyData, 32);
+	
+	// 更新握手哈希
+	xrtSHA256Update(&pCtx->tSHA256, aMsg, 36);
+	
+	// 加密发送
+	__xrt_tls_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, aMsg, 36, bAsServer);
+}
+/* ============================== TLS 密钥调度 ============================== */
+// 执行 TLS 1.3 密钥调度 (在收到 ServerHello 后)
+static void __xrt_tls_derive_handshake_keys(xtlsctx *pCtx)
+{
+	uint8 aEarlySecret[32];
+	uint8 aZeros[32];
+	memset(aZeros, 0, 32);
+	
+	// Early Secret = HKDF-Extract(salt=0, IKM=0)
+	xrtHKDFExtract(aEarlySecret, aZeros, 32, aZeros, 32);
+	
+	// Derive-Secret(early_secret, "derived", "")
+	uint8 aDerived[32];
+	__xrt_tls_derive_secret(aDerived, aEarlySecret, "derived", 7, __xrt_tls_zeros_sha256);
+	
+	// Handshake Secret = HKDF-Extract(salt=derived, IKM=shared_secret)
+	uint8 aHandshakeSecret[32];
+	xrtHKDFExtract(aHandshakeSecret, aDerived, 32, pCtx->aX25519Secret, 32);
+	
+	// 获取当前握手哈希 (包含 ClientHello + ServerHello)
+	uint8 aTranscriptHash[32];
+	xsha256_ctx tCtxCopy = pCtx->tSHA256;
+	xrtSHA256Final(&tCtxCopy, aTranscriptHash);
+	
+	// client_handshake_traffic_secret
+	uint8 aCHTS[32];
+	__xrt_tls_derive_secret(aCHTS, aHandshakeSecret, "c hs traffic", 12, aTranscriptHash);
+	__xrt_tls_derive_traffic_keys(&pCtx->tEnc, aCHTS, false);
+	
+	// server_handshake_traffic_secret
+	uint8 aSHTS[32];
+	__xrt_tls_derive_secret(aSHTS, aHandshakeSecret, "s hs traffic", 12, aTranscriptHash);
+	__xrt_tls_derive_traffic_keys(&pCtx->tEnc, aSHTS, true);
+	
+	// 保存 handshake secret 用于后续推导 master secret
+	memcpy(pCtx->tEnc.aHandshakeSecret, aHandshakeSecret, 32);
+}
+// 在握手完成后推导应用数据密钥
+static void __xrt_tls_derive_application_keys(xtlsctx *pCtx)
+{
+	uint8 aZeros[32];
+	memset(aZeros, 0, 32);
+	
+	// Derive-Secret(handshake_secret, "derived", "")
+	uint8 aDerived[32];
+	__xrt_tls_derive_secret(aDerived, pCtx->tEnc.aHandshakeSecret, "derived", 7, __xrt_tls_zeros_sha256);
+	
+	// Master Secret = HKDF-Extract(salt=derived, IKM=0)
+	uint8 aMasterSecret[32];
+	xrtHKDFExtract(aMasterSecret, aDerived, 32, aZeros, 32);
+	
+	// 获取包含所有握手消息的哈希
+	uint8 aTranscriptHash[32];
+	xsha256_ctx tCtxCopy = pCtx->tSHA256;
+	xrtSHA256Final(&tCtxCopy, aTranscriptHash);
+	
+	// client_application_traffic_secret_0
+	uint8 aCATS[32];
+	__xrt_tls_derive_secret(aCATS, aMasterSecret, "c ap traffic", 12, aTranscriptHash);
+	__xrt_tls_derive_traffic_keys(&pCtx->tAppKeys, aCATS, false);
+	
+	// server_application_traffic_secret_0
+	uint8 aSATS[32];
+	__xrt_tls_derive_secret(aSATS, aMasterSecret, "s ap traffic", 12, aTranscriptHash);
+	__xrt_tls_derive_traffic_keys(&pCtx->tAppKeys, aSATS, true);
+}
+/* ============================== 公共 API ============================== */
+XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
+{
+	xtlsctx *pCtx = (xtlsctx*)xrtCalloc(1, sizeof(xtlsctx));
+	if ( !pCtx ) return NULL;
+	
+	pCtx->bIsServer = bIsServer;
+	pCtx->bHandshakeDone = false;
+	pCtx->iCipherSuite = __XRT_TLS_CHACHA20_POLY1305_SHA256;  // 默认首选
+	pCtx->iState = bIsServer ? XRT_TLS_SERVER_START : XRT_TLS_CLIENT_START;
+	
+	// 初始化 SHA-256 上下文
+	xrtSHA256Init(&pCtx->tSHA256);
+	
+	// 初始化 IO 缓冲区
+	xrtNetBufInit(&pCtx->tSendBuf, 8192);
+	xrtNetBufInit(&pCtx->tRecvBuf, 8192);
+	
+	if ( pConfig ) {
+		pCtx->bSkipVerify = !pConfig->bVerifyPeer;
+		if ( pConfig->sHostName ) {
+			strncpy(pCtx->sHostname, pConfig->sHostName, sizeof(pCtx->sHostname) - 1);
+		}
+		// TODO: 加载证书和密钥文件 (PEM/DER)
+	} else {
+		pCtx->bSkipVerify = true;
+	}
+	
+	return pCtx;
+}
+XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
+{
+	if ( !pCtx ) return;
+	
+	xrtNetBufFree(&pCtx->tSendBuf);
+	xrtNetBufFree(&pCtx->tRecvBuf);
+	
+	if ( pCtx->pCertDer ) xrtFree(pCtx->pCertDer);
+	if ( pCtx->pKeyDer ) xrtFree(pCtx->pKeyDer);
+	
+	// 清零敏感数据
+	memset(pCtx->aX25519Priv, 0, 32);
+	memset(pCtx->aX25519Secret, 0, 32);
+	memset(&pCtx->tEnc, 0, sizeof(struct __xrt_tls_enc));
+	memset(&pCtx->tAppKeys, 0, sizeof(struct __xrt_tls_enc));
+	
+	xrtFree(pCtx);
+}
+XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
+{
+	if ( !pCtx || !pConn ) return XRT_NET_ERROR;
+	
+	// 如果有待发送数据，先发送
+	if ( pCtx->tSendBuf.iSize > 0 ) {
+		size_t iSent = 0;
+		xnet_result iRes = xrtSockSend(pConn, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
+		if ( iRes == XRT_NET_OK && iSent > 0 ) {
+			xrtNetBufConsume(&pCtx->tSendBuf, iSent);
+		}
+		if ( pCtx->tSendBuf.iSize > 0 ) {
+			return XRT_NET_AGAIN;  // 还有数据要发
+		}
+	}
+	
+	switch ( pCtx->iState ) {
+		case XRT_TLS_CLIENT_START:
+			__xrt_tls_send_client_hello(pCtx);
+			pCtx->iState = XRT_TLS_CLIENT_WAIT_SH;
+			return XRT_NET_AGAIN;
+		
+		case XRT_TLS_CLIENT_WAIT_SH: {
+			// 尝试接收 ServerHello
+			char aBuf[4096];
+			size_t iRecvd = 0;
+			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+			if ( iRes == XRT_NET_AGAIN || iRecvd == 0 ) return XRT_NET_AGAIN;
+			if ( iRes != XRT_NET_OK ) return XRT_NET_ERROR;
+			
+			xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			
+			// 检查是否有完整记录
+			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) return XRT_NET_AGAIN;
+			
+			uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
+			if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) return XRT_NET_AGAIN;
+			
+			const uint8 *pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
+			
+			// 更新握手哈希 (ServerHello 消息)
+			xrtSHA256Update(&pCtx->tSHA256, (ptr)pRecData, iRecLen);
+			
+			// 解析 ServerHello (跳过握手头)
+			if ( pRecData[0] == __XRT_TLS_SERVER_HELLO ) {
+				if ( !__xrt_tls_parse_server_hello(pCtx, pRecData + __XRT_TLS_MSGHDR_SIZE,
+					iRecLen - __XRT_TLS_MSGHDR_SIZE) ) {
+					return XRT_NET_ERROR;
+				}
+			}
+			
+			xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+			
+			// 推导握手密钥
+			__xrt_tls_derive_handshake_keys(pCtx);
+			
+			pCtx->iState = XRT_TLS_CLIENT_WAIT_EE;
+			return XRT_NET_AGAIN;
+		}
+		
+		case XRT_TLS_CLIENT_WAIT_EE:
+		case XRT_TLS_CLIENT_WAIT_CERT:
+		case XRT_TLS_CLIENT_WAIT_CV:
+		case XRT_TLS_CLIENT_WAIT_FINISH: {
+			// 接收并解密加密握手消息
+			char aBuf[4096];
+			size_t iRecvd = 0;
+			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+			if ( iRes == XRT_NET_AGAIN || iRecvd == 0 ) return XRT_NET_AGAIN;
+			if ( iRes != XRT_NET_OK ) return XRT_NET_ERROR;
+			
+			xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			
+			// 处理所有完整记录
+			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
+				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
+				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
+				
+				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
+				
+				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
+					// ChangeCipherSpec: 忽略 (TLS 1.3 兼容)
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					continue;
+				}
+				
+				if ( iRecType == __XRT_TLS_APP_DATA ) {
+					// 解密记录
+					uint8 aPlain[__XRT_TLS_MAX_RECORD];
+					size_t iPlainLen = 0;
+					uint8 iContentType = 0;
+					
+					if ( !__xrt_tls_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
+						__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, true) ) {
+						return XRT_NET_ERROR;
+					}
+					
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					
+					if ( iContentType == __XRT_TLS_HANDSHAKE ) {
+						// 更新握手哈希
+						xrtSHA256Update(&pCtx->tSHA256, aPlain, iPlainLen);
+						
+						// 解析握手消息类型
+						if ( iPlainLen >= 1 ) {
+							uint8 iMsgType = aPlain[0];
+							
+							if ( iMsgType == __XRT_TLS_ENCRYPTED_EXTENSIONS ) {
+								pCtx->iState = XRT_TLS_CLIENT_WAIT_CERT;
+							} else if ( iMsgType == __XRT_TLS_CERTIFICATE ) {
+								pCtx->iState = XRT_TLS_CLIENT_WAIT_CV;
+							} else if ( iMsgType == __XRT_TLS_CERTIFICATE_VERIFY ) {
+								pCtx->iState = XRT_TLS_CLIENT_WAIT_FINISH;
+							} else if ( iMsgType == __XRT_TLS_FINISHED ) {
+								// 验证 Finished
+								// 推导应用密钥
+								__xrt_tls_derive_application_keys(pCtx);
+								
+								// 发送客户端 Finished
+								__xrt_tls_send_finished(pCtx, false);
+								
+								pCtx->bHandshakeDone = true;
+								pCtx->iState = XRT_TLS_CLIENT_CONNECTED;
+								return XRT_NET_AGAIN;  // 还需要发送 Finished
+							}
+						}
+					} else if ( iContentType == __XRT_TLS_ALERT ) {
+						return XRT_NET_ERROR;
+					}
+				} else {
+					// 未知记录类型
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				}
+			}
+			
+			return XRT_NET_AGAIN;
+		}
+		
+		case XRT_TLS_CLIENT_CONNECTED:
+			// 发送剩余数据
+			if ( pCtx->tSendBuf.iSize > 0 ) {
+				size_t iSent = 0;
+				xrtSockSend(pConn, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
+				if ( iSent > 0 ) xrtNetBufConsume(&pCtx->tSendBuf, iSent);
+				if ( pCtx->tSendBuf.iSize > 0 ) return XRT_NET_AGAIN;
+			}
+			return XRT_NET_OK;
+		
+		case XRT_TLS_SERVER_START:
+		case XRT_TLS_SERVER_NEGOTIATED:
+			// TODO: 服务端握手 (类似但反向)
+			return XRT_NET_ERROR;
+		
+		case XRT_TLS_SERVER_CONNECTED:
+			return XRT_NET_OK;
+		
+		default:
+			return XRT_NET_ERROR;
+	}
+}
+XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
+{
+	if ( !pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
+	if ( !pCtx->bHandshakeDone ) return XRT_NET_AGAIN;
+	
+	// 检查是否有已解密的数据
+	// 如果接收缓冲区有数据，尝试解密
+	if ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
+		uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
+		
+		if ( pCtx->tRecvBuf.iSize >= (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) {
+			uint8 aPlain[__XRT_TLS_MAX_RECORD];
+			size_t iPlainLen = 0;
+			uint8 iContentType = 0;
+			
+			bool bUseServerKeys = !pCtx->bIsServer;
+			
+			if ( __xrt_tls_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
+				__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, bUseServerKeys) ) {
+				
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				
+				if ( iContentType == __XRT_TLS_APP_DATA ) {
+					size_t iCopy = (iPlainLen < iLen) ? iPlainLen : iLen;
+					memcpy(pBuf, aPlain, iCopy);
+					if ( pRead ) *pRead = iCopy;
+					return XRT_NET_OK;
+				} else if ( iContentType == __XRT_TLS_ALERT ) {
+					return XRT_NET_CLOSED;
+				}
+			} else {
+				return XRT_NET_ERROR;
+			}
+		}
+	}
+	
+	return XRT_NET_AGAIN;
+}
+XXAPI xnet_result xrtTlsWrite(xtlsctx *pCtx, const char *pData, size_t iLen, size_t *pWritten)
+{
+	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	if ( !pCtx->bHandshakeDone ) return XRT_NET_AGAIN;
+	
+	bool bUseServerKeys = pCtx->bIsServer;
+	__xrt_tls_encrypt_record(pCtx, __XRT_TLS_APP_DATA, (const uint8*)pData, iLen, bUseServerKeys);
+	
+	if ( pWritten ) *pWritten = iLen;
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtTlsClose(xtlsctx *pCtx)
+{
+	if ( !pCtx ) return XRT_NET_ERROR;
+	
+	// 发送 close_notify alert
+	uint8 aAlert[2] = { 1, 0 };  // warning, close_notify
+	bool bUseServerKeys = pCtx->bIsServer;
+	__xrt_tls_encrypt_record(pCtx, __XRT_TLS_ALERT, aAlert, 2, bUseServerKeys);
+	
+	return XRT_NET_OK;
+}
+XXAPI bool xrtTlsIsReady(xtlsctx *pCtx)
+{
+	if ( !pCtx ) return false;
+	return pCtx->bHandshakeDone;
+}
+
+// ========================================
+// File: D:/git/xrt/lib/nettcp.h
+// ========================================
+
+
+/*
+	NetTCP - TCP 服务器/客户端封装 [Ver1.0]
+	
+	基于 netsock.h (Socket 基础) + netpoll.h (IO 模型) + nettls.h (TLS 1.3)
+	使用 xrt 线程库 (thread.h) 创建事件循环线程
+	使用指针数组 (xparray) 管理动态客户端列表
+	
+	仅 IPv4，跨平台 (Windows / Linux)
+*/
+/* ============================== 内部客户端数据结构 ============================== */
+typedef struct __xrt_tcp_client_slot {
+	xnetconn tConn;
+	xnetbuf tRecvBuf;
+	xnetbuf tSendBuf;
+	xtlsctx* pTlsCtx;
+	bool bInUse;
+} __xrt_tcp_client_slot;
+/* ============================== TCP 服务器结构 ============================== */
+struct xrt_tcp_server {
+	xnetconn tListenConn;           // 监听 socket
+	xnetpoller* pPoller;            // IO poller
+	xnetconfig tConfig;             // 配置
+	xnetevents tEvents;             // 事件回调
+	xtlsconfig tTlsConfig;         // TLS 配置
+	bool bTlsEnabled;              // 是否启用 TLS
+	
+	// 客户端管理
+	__xrt_tcp_client_slot** arrClients;  // 客户端槽位数组
+	int iMaxClients;               // 最大客户端数
+	int iClientCount;              // 当前客户端数
+	
+	// 线程
+	xthread pThread;               // 事件循环线程
+	volatile bool bRunning;        // 运行标志
+	
+	// 用户数据
+	ptr pUserData;
+};
+/* ============================== TCP 客户端结构 ============================== */
+struct xrt_tcp_client {
+	xnetconn tConn;                // 连接 socket
+	xnetbuf tRecvBuf;              // 接收缓冲区
+	xnetbuf tSendBuf;              // 发送缓冲区
+	xnetconfig tConfig;            // 配置
+	xnetevents tEvents;            // 事件回调
+	xtlsconfig tTlsConfig;        // TLS 配置
+	xtlsctx* pTlsCtx;             // TLS 上下文
+	bool bTlsEnabled;             // 是否启用 TLS
+	
+	xnetaddr tServerAddr;          // 服务器地址
+	
+	// 线程
+	xthread pThread;               // 事件循环线程
+	volatile bool bRunning;        // 运行标志
+	volatile bool bConnected;      // 连接状态
+	
+	// 用户数据
+	ptr pUserData;
+};
+/* ============================== TCP 服务器 - 事件循环 ============================== */
+// 服务器事件循环：轮询 accept + recv
+static uint32 __xrt_tcp_server_loop(ptr pParam)
+{
+	xtcpserver* pServer = (xtcpserver*)pParam;
+	char aBuf[8192];
+	
+	while ( pServer->bRunning ) {
+		// 1. 尝试 accept 新连接
+		xnetconn tNewConn;
+		memset(&tNewConn, 0, sizeof(xnetconn));
+		xnet_result iRes = xrtSockAccept(&pServer->tListenConn, &tNewConn);
+		
+		if ( iRes == XRT_NET_OK ) {
+			// 找到空槽位
+			int iSlot = -1;
+			for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+				if ( !pServer->arrClients[i]->bInUse ) {
+					iSlot = i;
+					break;
+				}
+			}
+			
+			if ( iSlot >= 0 ) {
+				__xrt_tcp_client_slot* pSlot = pServer->arrClients[iSlot];
+				pSlot->tConn = tNewConn;
+				pSlot->tConn.iId = iSlot;
+				pSlot->tConn.iType = 0;  // TCP
+				pSlot->bInUse = true;
+				xrtNetBufClear(&pSlot->tRecvBuf);
+				xrtNetBufClear(&pSlot->tSendBuf);
+				
+				// 设置非阻塞
+				xrtSockSetNonBlock(&pSlot->tConn);
+				
+				pServer->iClientCount++;
+				
+				// TLS 握手（如果启用）
+				if ( pServer->bTlsEnabled ) {
+					pSlot->pTlsCtx = xrtTlsCreate(&pServer->tTlsConfig, true);
+					if ( pSlot->pTlsCtx ) {
+						pSlot->tConn.bTlsEnabled = true;
+						pSlot->tConn.pTlsCtx = pSlot->pTlsCtx;
+						// TODO: 服务端 TLS 握手循环
+					}
+				}
+				
+				// 触发 OnAccept 回调
+				if ( pServer->tEvents.OnAccept ) {
+					pServer->tEvents.OnAccept(pServer, &pSlot->tConn);
+				}
+			} else {
+				// 没有空槽位，拒绝连接
+				xrtSockClose(&tNewConn);
+			}
+		}
+		
+		// 2. 轮询所有客户端的 recv
+		for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+			__xrt_tcp_client_slot* pSlot = pServer->arrClients[i];
+			if ( !pSlot->bInUse ) continue;
+			
+			size_t iRecvd = 0;
+			xnet_result iRecvRes;
+			
+			if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
+				// TLS 读取
+				// 先从 socket 读到 TLS 接收缓冲区
+				char aTlsBuf[4096];
+				size_t iTlsRecvd = 0;
+				xnet_result iTlsRes = xrtSockRecv(&pSlot->tConn, aTlsBuf, sizeof(aTlsBuf), &iTlsRecvd);
+				if ( iTlsRes == XRT_NET_OK && iTlsRecvd > 0 ) {
+					xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, aTlsBuf, iTlsRecvd);
+				}
+				iRecvRes = xrtTlsRead(pSlot->pTlsCtx, aBuf, sizeof(aBuf), &iRecvd);
+			} else {
+				iRecvRes = xrtSockRecv(&pSlot->tConn, aBuf, sizeof(aBuf), &iRecvd);
+			}
+			
+			if ( iRecvRes == XRT_NET_OK && iRecvd > 0 ) {
+				if ( pServer->tEvents.OnRecv ) {
+					pServer->tEvents.OnRecv(pServer, &pSlot->tConn, aBuf, iRecvd);
+				}
+			} else if ( iRecvRes == XRT_NET_CLOSED || iRecvRes == XRT_NET_ERROR ) {
+				// 客户端断开
+				if ( pServer->tEvents.OnClose ) {
+					pServer->tEvents.OnClose(pServer, &pSlot->tConn);
+				}
+				if ( pSlot->pTlsCtx ) {
+					xrtTlsDestroy(pSlot->pTlsCtx);
+					pSlot->pTlsCtx = NULL;
+				}
+				xrtSockClose(&pSlot->tConn);
+				pSlot->bInUse = false;
+				pServer->iClientCount--;
+			}
+			// XRT_NET_AGAIN: 无数据可读，继续下一个
+		}
+		
+		// 3. 短暂休眠避免忙等
+		int iTimeout = pServer->tConfig.iPollTimeoutMs > 0 ? pServer->tConfig.iPollTimeoutMs : 10;
+		#if defined(_WIN32) || defined(_WIN64)
+			Sleep(iTimeout);
+		#else
+			usleep(iTimeout * 1000);
+		#endif
+	}
+	
+	return 0;
+}
+/* ============================== TCP 服务器 API ============================== */
+XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort,
+	const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xtcpserver* pServer = (xtcpserver*)xrtCalloc(1, sizeof(xtcpserver));
+	if ( !pServer ) return NULL;
+	
+	// 配置
+	if ( pConfig ) {
+		pServer->tConfig = *pConfig;
+	} else {
+		pServer->tConfig.iRecvBufSize = 8192;
+		pServer->tConfig.iSendBufSize = 8192;
+		pServer->tConfig.iMaxClients = 256;
+		pServer->tConfig.iPollTimeoutMs = 10;
+	}
+	
+	if ( pEvents ) {
+		pServer->tEvents = *pEvents;
+	}
+	
+	pServer->iMaxClients = pServer->tConfig.iMaxClients > 0 ? pServer->tConfig.iMaxClients : 256;
+	
+	// 分配客户端槽位数组
+	pServer->arrClients = (__xrt_tcp_client_slot**)xrtCalloc(pServer->iMaxClients, sizeof(__xrt_tcp_client_slot*));
+	if ( !pServer->arrClients ) {
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	size_t iRecvSize = pServer->tConfig.iRecvBufSize > 0 ? pServer->tConfig.iRecvBufSize : 8192;
+	size_t iSendSize = pServer->tConfig.iSendBufSize > 0 ? pServer->tConfig.iSendBufSize : 8192;
+	
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		pServer->arrClients[i] = (__xrt_tcp_client_slot*)xrtCalloc(1, sizeof(__xrt_tcp_client_slot));
+		if ( !pServer->arrClients[i] ) {
+			// 清理已分配
+			for ( int j = 0; j < i; j++ ) {
+				xrtNetBufFree(&pServer->arrClients[j]->tRecvBuf);
+				xrtNetBufFree(&pServer->arrClients[j]->tSendBuf);
+				xrtFree(pServer->arrClients[j]);
+			}
+			xrtFree(pServer->arrClients);
+			xrtFree(pServer);
+			return NULL;
+		}
+		xrtNetBufInit(&pServer->arrClients[i]->tRecvBuf, iRecvSize);
+		xrtNetBufInit(&pServer->arrClients[i]->tSendBuf, iSendSize);
+		pServer->arrClients[i]->bInUse = false;
+		pServer->arrClients[i]->tConn.iId = i;
+	}
+	
+	// 创建监听 socket
+	memset(&pServer->tListenConn, 0, sizeof(xnetconn));
+	if ( xrtSockCreate(&pServer->tListenConn, 0) != XRT_NET_OK ) {  // TCP
+		goto error_cleanup;
+	}
+	
+	xrtSockSetReuseAddr(&pServer->tListenConn);
+	xrtSockSetNonBlock(&pServer->tListenConn);
+	
+	xnetaddr tAddr;
+	xrtNetAddrInit(&tAddr, sIP, iPort);
+	
+	if ( xrtSockBind(&pServer->tListenConn, &tAddr) != XRT_NET_OK ) {
+		goto error_cleanup;
+	}
+	
+	if ( xrtSockListen(&pServer->tListenConn, SOMAXCONN) != XRT_NET_OK ) {
+		goto error_cleanup;
+	}
+	
+	return pServer;
+error_cleanup:
+	xrtSockClose(&pServer->tListenConn);
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		if ( pServer->arrClients[i] ) {
+			xrtNetBufFree(&pServer->arrClients[i]->tRecvBuf);
+			xrtNetBufFree(&pServer->arrClients[i]->tSendBuf);
+			xrtFree(pServer->arrClients[i]);
+		}
+	}
+	xrtFree(pServer->arrClients);
+	xrtFree(pServer);
+	return NULL;
+}
+XXAPI void xrtTcpServerDestroy(xtcpserver* pServer)
+{
+	if ( !pServer ) return;
+	
+	xrtTcpServerStop(pServer);
+	
+	// 关闭所有客户端
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		if ( pServer->arrClients[i] ) {
+			if ( pServer->arrClients[i]->bInUse ) {
+				xrtSockClose(&pServer->arrClients[i]->tConn);
+			}
+			if ( pServer->arrClients[i]->pTlsCtx ) {
+				xrtTlsDestroy(pServer->arrClients[i]->pTlsCtx);
+			}
+			xrtNetBufFree(&pServer->arrClients[i]->tRecvBuf);
+			xrtNetBufFree(&pServer->arrClients[i]->tSendBuf);
+			xrtFree(pServer->arrClients[i]);
+		}
+	}
+	xrtFree(pServer->arrClients);
+	
+	// 关闭监听 socket
+	xrtSockClose(&pServer->tListenConn);
+	
+	xrtFree(pServer);
+}
+XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer)
+{
+	if ( !pServer ) return XRT_NET_ERROR;
+	if ( pServer->bRunning ) return XRT_NET_OK;
+	
+	pServer->bRunning = true;
+	pServer->pThread = xrtThreadCreate((ptr)__xrt_tcp_server_loop, pServer, 0);
+	
+	if ( !pServer->pThread ) {
+		pServer->bRunning = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI void xrtTcpServerStop(xtcpserver* pServer)
+{
+	if ( !pServer || !pServer->bRunning ) return;
+	
+	pServer->bRunning = false;
+	
+	if ( pServer->pThread ) {
+		xrtThreadWait(pServer->pThread);
+		xrtThreadDestroy(pServer->pThread);
+		pServer->pThread = NULL;
+	}
+	
+	// 关闭所有客户端连接
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		if ( pServer->arrClients[i] && pServer->arrClients[i]->bInUse ) {
+			if ( pServer->tEvents.OnClose ) {
+				pServer->tEvents.OnClose(pServer, &pServer->arrClients[i]->tConn);
+			}
+			xrtSockClose(&pServer->arrClients[i]->tConn);
+			pServer->arrClients[i]->bInUse = false;
+		}
+	}
+	pServer->iClientCount = 0;
+}
+XXAPI xnet_result xrtTcpServerSend(xtcpserver* pServer, int iClientId,
+	const char* pData, size_t iLen)
+{
+	if ( !pServer || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return XRT_NET_ERROR;
+	
+	__xrt_tcp_client_slot* pSlot = pServer->arrClients[iClientId];
+	if ( !pSlot || !pSlot->bInUse ) return XRT_NET_ERROR;
+	
+	if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
+		size_t iWritten = 0;
+		xnet_result iRes = xrtTlsWrite(pSlot->pTlsCtx, pData, iLen, &iWritten);
+		if ( iRes != XRT_NET_OK ) return iRes;
+		// 发送 TLS 缓冲区数据
+		if ( pSlot->pTlsCtx->tSendBuf.iSize > 0 ) {
+			size_t iSent = 0;
+			xrtSockSend(&pSlot->tConn, pSlot->pTlsCtx->tSendBuf.pData,
+				pSlot->pTlsCtx->tSendBuf.iSize, &iSent);
+			if ( iSent > 0 ) xrtNetBufConsume(&pSlot->pTlsCtx->tSendBuf, iSent);
+		}
+		return XRT_NET_OK;
+	} else {
+		size_t iSent = 0;
+		return xrtSockSend(&pSlot->tConn, pData, iLen, &iSent);
+	}
+}
+XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId)
+{
+	if ( !pServer ) return;
+	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
+	
+	__xrt_tcp_client_slot* pSlot = pServer->arrClients[iClientId];
+	if ( !pSlot || !pSlot->bInUse ) return;
+	
+	if ( pServer->tEvents.OnClose ) {
+		pServer->tEvents.OnClose(pServer, &pSlot->tConn);
+	}
+	
+	if ( pSlot->pTlsCtx ) {
+		xrtTlsClose(pSlot->pTlsCtx);
+		xrtTlsDestroy(pSlot->pTlsCtx);
+		pSlot->pTlsCtx = NULL;
+	}
+	
+	xrtSockClose(&pSlot->tConn);
+	pSlot->bInUse = false;
+	pServer->iClientCount--;
+}
+XXAPI xnet_result xrtTcpServerEnableTLS(xtcpserver* pServer, const xtlsconfig* pConfig)
+{
+	if ( !pServer || !pConfig ) return XRT_NET_ERROR;
+	pServer->tTlsConfig = *pConfig;
+	pServer->bTlsEnabled = true;
+	return XRT_NET_OK;
+}
+XXAPI int xrtTcpServerGetClientCount(xtcpserver* pServer)
+{
+	return pServer ? pServer->iClientCount : 0;
+}
+XXAPI void xrtTcpServerSetUserData(xtcpserver* pServer, ptr pData)
+{
+	if ( pServer ) pServer->pUserData = pData;
+}
+XXAPI ptr xrtTcpServerGetUserData(xtcpserver* pServer)
+{
+	return pServer ? pServer->pUserData : NULL;
+}
+/* ============================== TCP 客户端 - 事件循环 ============================== */
+static uint32 __xrt_tcp_client_loop(ptr pParam)
+{
+	xtcpclient* pClient = (xtcpclient*)pParam;
+	char aBuf[8192];
+	
+	while ( pClient->bRunning ) {
+		size_t iRecvd = 0;
+		xnet_result iRes;
+		
+		if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
+			// TLS: 先从 socket 读数据到 TLS 缓冲区
+			char aTlsBuf[4096];
+			size_t iTlsRecvd = 0;
+			xnet_result iTlsRes = xrtSockRecv(&pClient->tConn, aTlsBuf, sizeof(aTlsBuf), &iTlsRecvd);
+			if ( iTlsRes == XRT_NET_OK && iTlsRecvd > 0 ) {
+				xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, aTlsBuf, iTlsRecvd);
+			}
+			iRes = xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iRecvd);
+		} else {
+			iRes = xrtSockRecv(&pClient->tConn, aBuf, sizeof(aBuf), &iRecvd);
+		}
+		
+		if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+			if ( pClient->tEvents.OnRecv ) {
+				pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iRecvd);
+			}
+		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
+			pClient->bConnected = false;
+			if ( pClient->tEvents.OnClose ) {
+				pClient->tEvents.OnClose(pClient, &pClient->tConn);
+			}
+			break;
+		}
+		
+		// 短暂休眠
+		int iTimeout = pClient->tConfig.iPollTimeoutMs > 0 ? pClient->tConfig.iPollTimeoutMs : 10;
+		#if defined(_WIN32) || defined(_WIN64)
+			Sleep(iTimeout);
+		#else
+			usleep(iTimeout * 1000);
+		#endif
+	}
+	
+	return 0;
+}
+/* ============================== TCP 客户端 API ============================== */
+XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort,
+	const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xtcpclient* pClient = (xtcpclient*)xrtCalloc(1, sizeof(xtcpclient));
+	if ( !pClient ) return NULL;
+	
+	// 配置
+	if ( pConfig ) {
+		pClient->tConfig = *pConfig;
+	} else {
+		pClient->tConfig.iRecvBufSize = 8192;
+		pClient->tConfig.iSendBufSize = 8192;
+		pClient->tConfig.iMaxClients = 0;
+		pClient->tConfig.iPollTimeoutMs = 10;
+	}
+	
+	if ( pEvents ) {
+		pClient->tEvents = *pEvents;
+	}
+	
+	// 保存服务器地址
+	xrtNetAddrInit(&pClient->tServerAddr, sIP, iPort);
+	
+	// 初始化缓冲区
+	size_t iRecvSize = pClient->tConfig.iRecvBufSize > 0 ? pClient->tConfig.iRecvBufSize : 8192;
+	size_t iSendSize = pClient->tConfig.iSendBufSize > 0 ? pClient->tConfig.iSendBufSize : 8192;
+	xrtNetBufInit(&pClient->tRecvBuf, iRecvSize);
+	xrtNetBufInit(&pClient->tSendBuf, iSendSize);
+	
+	return pClient;
+}
+XXAPI void xrtTcpClientDestroy(xtcpclient* pClient)
+{
+	if ( !pClient ) return;
+	
+	xrtTcpClientDisconnect(pClient);
+	
+	xrtNetBufFree(&pClient->tRecvBuf);
+	xrtNetBufFree(&pClient->tSendBuf);
+	
+	xrtFree(pClient);
+}
+XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
+{
+	if ( !pClient ) return XRT_NET_ERROR;
+	if ( pClient->bConnected ) return XRT_NET_OK;
+	
+	// 创建 socket
+	memset(&pClient->tConn, 0, sizeof(xnetconn));
+	if ( xrtSockCreate(&pClient->tConn, 0) != XRT_NET_OK ) {  // TCP
+		return XRT_NET_ERROR;
+	}
+	
+	// 阻塞连接
+	xnet_result iRes = xrtSockConnect(&pClient->tConn, &pClient->tServerAddr);
+	if ( iRes != XRT_NET_OK && iRes != XRT_NET_AGAIN ) {
+		xrtSockClose(&pClient->tConn);
+		return XRT_NET_ERROR;
+	}
+	
+	// 如果是 AGAIN (非阻塞连接)，等待连接完成
+	if ( iRes == XRT_NET_AGAIN ) {
+		// 使用 select 等待连接完成
+		fd_set tWriteSet;
+		FD_ZERO(&tWriteSet);
+		FD_SET(pClient->tConn.hSocket, &tWriteSet);
+		struct timeval tTimeout;
+		tTimeout.tv_sec = 5;
+		tTimeout.tv_usec = 0;
+		int iSelRes = select((int)pClient->tConn.hSocket + 1, NULL, &tWriteSet, NULL, &tTimeout);
+		if ( iSelRes <= 0 ) {
+			xrtSockClose(&pClient->tConn);
+			return XRT_NET_TIMEOUT;
+		}
+	}
+	
+	// TLS 握手
+	if ( pClient->bTlsEnabled ) {
+		pClient->pTlsCtx = xrtTlsCreate(&pClient->tTlsConfig, false);
+		if ( !pClient->pTlsCtx ) {
+			xrtSockClose(&pClient->tConn);
+			return XRT_NET_ERROR;
+		}
+		
+		// TLS 握手循环
+		xnet_result iTlsRes;
+		int iRetries = 0;
+		while ( (iTlsRes = xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn)) == XRT_NET_AGAIN ) {
+			// 发送待发数据
+			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
+				size_t iSent = 0;
+				xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
+					pClient->pTlsCtx->tSendBuf.iSize, &iSent);
+				if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
+			}
+			
+			iRetries++;
+			if ( iRetries > 100 ) {
+				xrtTlsDestroy(pClient->pTlsCtx);
+				pClient->pTlsCtx = NULL;
+				xrtSockClose(&pClient->tConn);
+				return XRT_NET_TIMEOUT;
+			}
+			
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(10);
+			#else
+				usleep(10000);
+			#endif
+		}
+		
+		if ( iTlsRes != XRT_NET_OK ) {
+			xrtTlsDestroy(pClient->pTlsCtx);
+			pClient->pTlsCtx = NULL;
+			xrtSockClose(&pClient->tConn);
+			return XRT_NET_ERROR;
+		}
+		
+		pClient->tConn.bTlsEnabled = true;
+		pClient->tConn.pTlsCtx = pClient->pTlsCtx;
+	}
+	
+	// 设置非阻塞（连接后）
+	xrtSockSetNonBlock(&pClient->tConn);
+	
+	pClient->bConnected = true;
+	pClient->bRunning = true;
+	
+	// 启动接收线程
+	pClient->pThread = xrtThreadCreate((ptr)__xrt_tcp_client_loop, pClient, 0);
+	if ( !pClient->pThread ) {
+		pClient->bRunning = false;
+		pClient->bConnected = false;
+		xrtSockClose(&pClient->tConn);
+		return XRT_NET_ERROR;
+	}
+	
+	// 触发连接回调
+	if ( pClient->tEvents.OnConnect ) {
+		pClient->tEvents.OnConnect(pClient, &pClient->tConn, true);
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient)
+{
+	if ( !pClient || !pClient->bRunning ) return;
+	
+	pClient->bRunning = false;
+	pClient->bConnected = false;
+	
+	if ( pClient->pThread ) {
+		xrtThreadWait(pClient->pThread);
+		xrtThreadDestroy(pClient->pThread);
+		pClient->pThread = NULL;
+	}
+	
+	if ( pClient->pTlsCtx ) {
+		xrtTlsClose(pClient->pTlsCtx);
+		// 发送 close_notify
+		if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
+			size_t iSent = 0;
+			xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
+				pClient->pTlsCtx->tSendBuf.iSize, &iSent);
+		}
+		xrtTlsDestroy(pClient->pTlsCtx);
+		pClient->pTlsCtx = NULL;
+	}
+	
+	xrtSockClose(&pClient->tConn);
+}
+XXAPI xnet_result xrtTcpClientSend(xtcpclient* pClient, const char* pData, size_t iLen)
+{
+	if ( !pClient || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	if ( !pClient->bConnected ) return XRT_NET_ERROR;
+	
+	if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
+		size_t iWritten = 0;
+		xnet_result iRes = xrtTlsWrite(pClient->pTlsCtx, pData, iLen, &iWritten);
+		if ( iRes != XRT_NET_OK ) return iRes;
+		// 发送 TLS 缓冲区
+		if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
+			size_t iSent = 0;
+			xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
+				pClient->pTlsCtx->tSendBuf.iSize, &iSent);
+			if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
+		}
+		return XRT_NET_OK;
+	} else {
+		size_t iSent = 0;
+		return xrtSockSend(&pClient->tConn, pData, iLen, &iSent);
+	}
+}
+XXAPI xnet_result xrtTcpClientEnableTLS(xtcpclient* pClient, const xtlsconfig* pConfig)
+{
+	if ( !pClient || !pConfig ) return XRT_NET_ERROR;
+	pClient->tTlsConfig = *pConfig;
+	pClient->bTlsEnabled = true;
+	return XRT_NET_OK;
+}
+XXAPI bool xrtTcpClientIsConnected(xtcpclient* pClient)
+{
+	return pClient ? pClient->bConnected : false;
+}
+XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData)
+{
+	if ( pClient ) pClient->pUserData = pData;
+}
+XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient)
+{
+	return pClient ? pClient->pUserData : NULL;
+}
+
+// ========================================
+// File: D:/git/xrt/lib/netudp.h
+// ========================================
+
+
+/*
+	NetUDP - UDP 服务器/客户端封装 [Ver1.0]
+	
+	基于 netsock.h (Socket 基础)
+	使用 xrt 线程库 (thread.h) 创建事件循环线程
+	
+	仅 IPv4，跨平台 (Windows / Linux)
+	
+	与 TCP 不同，UDP 的 OnRecv 回调提供远端地址信息 (OnRecvFrom)
+*/
+/* ============================== UDP 服务器结构 ============================== */
+struct xrt_udp_server {
+	xnetconn tConn;                // UDP socket
+	xnetconfig tConfig;            // 配置
+	xnetevents tEvents;            // 事件回调
+	
+	// 线程
+	xthread pThread;               // 事件循环线程
+	volatile bool bRunning;        // 运行标志
+	
+	// 用户数据
+	ptr pUserData;
+};
+/* ============================== UDP 客户端结构 ============================== */
+struct xrt_udp_client {
+	xnetconn tConn;                // UDP socket
+	xnetconfig tConfig;            // 配置
+	xnetevents tEvents;            // 事件回调
+	
+	// 线程
+	xthread pThread;               // 事件循环线程
+	volatile bool bRunning;        // 运行标志
+	
+	// 用户数据
+	ptr pUserData;
+};
+/* ============================== UDP 服务器 - 事件循环 ============================== */
+static uint32 __xrt_udp_server_loop(ptr pParam)
+{
+	xudpserver* pServer = (xudpserver*)pParam;
+	char aBuf[8192];
+	
+	while ( pServer->bRunning ) {
+		xnetaddr tFromAddr;
+		size_t iRecvd = 0;
+		xnet_result iRes = xrtSockRecvFrom(&pServer->tConn, aBuf, sizeof(aBuf), &tFromAddr, &iRecvd);
+		
+		if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+			// UDP OnRecv 传递远端地址（通过 conn 的 tRemoteAddr 字段）
+			pServer->tConn.tRemoteAddr = tFromAddr;
+			if ( pServer->tEvents.OnRecv ) {
+				pServer->tEvents.OnRecv(pServer, &pServer->tConn, aBuf, iRecvd);
+			}
+		} else if ( iRes == XRT_NET_AGAIN ) {
+			// 无数据可读，短暂休眠
+			int iTimeout = pServer->tConfig.iPollTimeoutMs > 0 ? pServer->tConfig.iPollTimeoutMs : 10;
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(iTimeout);
+			#else
+				usleep(iTimeout * 1000);
+			#endif
+		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
+			if ( pServer->tEvents.OnError ) {
+				pServer->tEvents.OnError(pServer, &pServer->tConn, (int)iRes);
+			}
+			break;
+		}
+	}
+	
+	return 0;
+}
+/* ============================== UDP 服务器 API ============================== */
+XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort,
+	const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xudpserver* pServer = (xudpserver*)xrtCalloc(1, sizeof(xudpserver));
+	if ( !pServer ) return NULL;
+	
+	// 配置
+	if ( pConfig ) {
+		pServer->tConfig = *pConfig;
+	} else {
+		pServer->tConfig.iRecvBufSize = 8192;
+		pServer->tConfig.iSendBufSize = 8192;
+		pServer->tConfig.iMaxClients = 0;
+		pServer->tConfig.iPollTimeoutMs = 10;
+	}
+	
+	if ( pEvents ) {
+		pServer->tEvents = *pEvents;
+	}
+	
+	// 创建 UDP socket
+	memset(&pServer->tConn, 0, sizeof(xnetconn));
+	pServer->tConn.iType = 1;  // UDP
+	
+	if ( xrtSockCreate(&pServer->tConn, 1) != XRT_NET_OK ) {  // UDP
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	xrtSockSetReuseAddr(&pServer->tConn);
+	xrtSockSetNonBlock(&pServer->tConn);
+	
+	xnetaddr tAddr;
+	xrtNetAddrInit(&tAddr, sIP, iPort);
+	
+	if ( xrtSockBind(&pServer->tConn, &tAddr) != XRT_NET_OK ) {
+		xrtSockClose(&pServer->tConn);
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	return pServer;
+}
+XXAPI void xrtUdpServerDestroy(xudpserver* pServer)
+{
+	if ( !pServer ) return;
+	
+	xrtUdpServerStop(pServer);
+	xrtSockClose(&pServer->tConn);
+	xrtFree(pServer);
+}
+XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer)
+{
+	if ( !pServer ) return XRT_NET_ERROR;
+	if ( pServer->bRunning ) return XRT_NET_OK;
+	
+	pServer->bRunning = true;
+	pServer->pThread = xrtThreadCreate((ptr)__xrt_udp_server_loop, pServer, 0);
+	
+	if ( !pServer->pThread ) {
+		pServer->bRunning = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI void xrtUdpServerStop(xudpserver* pServer)
+{
+	if ( !pServer || !pServer->bRunning ) return;
+	
+	pServer->bRunning = false;
+	
+	if ( pServer->pThread ) {
+		xrtThreadWait(pServer->pThread);
+		xrtThreadDestroy(pServer->pThread);
+		pServer->pThread = NULL;
+	}
+}
+XXAPI xnet_result xrtUdpServerSendTo(xudpserver* pServer, const xnetaddr* pAddr,
+	const char* pData, size_t iLen)
+{
+	if ( !pServer || !pAddr || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	
+	size_t iSent = 0;
+	return xrtSockSendTo(&pServer->tConn, pData, iLen, pAddr, &iSent);
+}
+XXAPI void xrtUdpServerSetUserData(xudpserver* pServer, ptr pData)
+{
+	if ( pServer ) pServer->pUserData = pData;
+}
+XXAPI ptr xrtUdpServerGetUserData(xudpserver* pServer)
+{
+	return pServer ? pServer->pUserData : NULL;
+}
+/* ============================== UDP 客户端 - 事件循环 ============================== */
+static uint32 __xrt_udp_client_loop(ptr pParam)
+{
+	xudpclient* pClient = (xudpclient*)pParam;
+	char aBuf[8192];
+	
+	while ( pClient->bRunning ) {
+		xnetaddr tFromAddr;
+		size_t iRecvd = 0;
+		xnet_result iRes = xrtSockRecvFrom(&pClient->tConn, aBuf, sizeof(aBuf), &tFromAddr, &iRecvd);
+		
+		if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+			pClient->tConn.tRemoteAddr = tFromAddr;
+			if ( pClient->tEvents.OnRecv ) {
+				pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iRecvd);
+			}
+		} else if ( iRes == XRT_NET_AGAIN ) {
+			int iTimeout = pClient->tConfig.iPollTimeoutMs > 0 ? pClient->tConfig.iPollTimeoutMs : 10;
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(iTimeout);
+			#else
+				usleep(iTimeout * 1000);
+			#endif
+		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
+			if ( pClient->tEvents.OnError ) {
+				pClient->tEvents.OnError(pClient, &pClient->tConn, (int)iRes);
+			}
+			break;
+		}
+	}
+	
+	return 0;
+}
+/* ============================== UDP 客户端 API ============================== */
+XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xudpclient* pClient = (xudpclient*)xrtCalloc(1, sizeof(xudpclient));
+	if ( !pClient ) return NULL;
+	
+	// 配置
+	if ( pConfig ) {
+		pClient->tConfig = *pConfig;
+	} else {
+		pClient->tConfig.iRecvBufSize = 8192;
+		pClient->tConfig.iSendBufSize = 8192;
+		pClient->tConfig.iMaxClients = 0;
+		pClient->tConfig.iPollTimeoutMs = 10;
+	}
+	
+	if ( pEvents ) {
+		pClient->tEvents = *pEvents;
+	}
+	
+	// 创建 UDP socket
+	memset(&pClient->tConn, 0, sizeof(xnetconn));
+	pClient->tConn.iType = 1;  // UDP
+	
+	if ( xrtSockCreate(&pClient->tConn, 1) != XRT_NET_OK ) {  // UDP
+		xrtFree(pClient);
+		return NULL;
+	}
+	
+	xrtSockSetNonBlock(&pClient->tConn);
+	
+	return pClient;
+}
+XXAPI void xrtUdpClientDestroy(xudpclient* pClient)
+{
+	if ( !pClient ) return;
+	
+	xrtUdpClientStop(pClient);
+	xrtSockClose(&pClient->tConn);
+	xrtFree(pClient);
+}
+XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient)
+{
+	if ( !pClient ) return XRT_NET_ERROR;
+	if ( pClient->bRunning ) return XRT_NET_OK;
+	
+	pClient->bRunning = true;
+	pClient->pThread = xrtThreadCreate((ptr)__xrt_udp_client_loop, pClient, 0);
+	
+	if ( !pClient->pThread ) {
+		pClient->bRunning = false;
+		return XRT_NET_ERROR;
+	}
+	
+	return XRT_NET_OK;
+}
+XXAPI void xrtUdpClientStop(xudpclient* pClient)
+{
+	if ( !pClient || !pClient->bRunning ) return;
+	
+	pClient->bRunning = false;
+	
+	if ( pClient->pThread ) {
+		xrtThreadWait(pClient->pThread);
+		xrtThreadDestroy(pClient->pThread);
+		pClient->pThread = NULL;
+	}
+}
+XXAPI xnet_result xrtUdpClientSendTo(xudpclient* pClient, const xnetaddr* pAddr,
+	const char* pData, size_t iLen)
+{
+	if ( !pClient || !pAddr || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	
+	size_t iSent = 0;
+	return xrtSockSendTo(&pClient->tConn, pData, iLen, pAddr, &iSent);
+}
+XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData)
+{
+	if ( pClient ) pClient->pUserData = pData;
+}
+XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient)
+{
+	return pClient ? pClient->pUserData : NULL;
 }
 
 // ========================================

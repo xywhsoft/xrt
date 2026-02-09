@@ -555,6 +555,9 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 	
 	// TLS 握手
 	if ( pClient->bTlsEnabled ) {
+		// 设置非阻塞，避免握手循环中 recv 阻塞
+		xrtSockSetNonBlock(&pClient->tConn);
+		
 		pClient->pTlsCtx = xrtTlsCreate(&pClient->tTlsConfig, false);
 		if ( !pClient->pTlsCtx ) {
 			xrtSockClose(&pClient->tConn);
@@ -568,13 +571,20 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 			// 发送待发数据
 			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
 				size_t iSent = 0;
-				xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
+				xnet_result iSendRes = xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
 					pClient->pTlsCtx->tSendBuf.iSize, &iSent);
+				#ifdef DEBUG_TRACE
+					printf("    [TCP] TLS send: wanted=%d sent=%d res=%d\n",
+						(int)pClient->pTlsCtx->tSendBuf.iSize, (int)iSent, (int)iSendRes);
+				#endif
 				if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
 			}
 			
 			iRetries++;
-			if ( iRetries > 100 ) {
+			if ( iRetries > 500 ) {
+				#ifdef DEBUG_TRACE
+					printf("    [TCP] TLS handshake timeout after %d retries\n", iRetries);
+				#endif
 				xrtTlsDestroy(pClient->pTlsCtx);
 				pClient->pTlsCtx = NULL;
 				xrtSockClose(&pClient->tConn);

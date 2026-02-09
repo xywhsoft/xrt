@@ -1464,6 +1464,743 @@ XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8
 
 
 
+/* ============================== RSA 大整数运算 ============================== */
+
+/*
+	基于 axTLS bignum library (Cameron Rich, BSD License)
+	经 mongoose tls_rsa.c 验证，仅用于 RSA 签名验证
+	使用 classical reduction (最简单可靠的模式)
+*/
+
+// 大整数组件类型 (32-bit 组件, 支持最大 4096-bit RSA)
+typedef uint32 __xrt_bi_comp;
+typedef uint64 __xrt_bi_long_comp;
+typedef int64  __xrt_bi_slong_comp;
+
+#define __XRT_BI_COMP_RADIX       4294967296ULL
+#define __XRT_BI_COMP_MAX         0xFFFFFFFFFFFFFFFFULL
+#define __XRT_BI_COMP_BIT_SIZE    32
+#define __XRT_BI_COMP_BYTE_SIZE   4
+#define __XRT_BI_COMP_NUM_NIBBLES 8
+
+#define __XRT_BI_M_OFFSET   0
+#define __XRT_BI_NUM_MODS   1   // 验签仅需 1 个 modulus slot
+
+#define __XRT_BI_PERMANENT  0x7FFF55AA
+
+struct __xrt_bigint {
+	struct __xrt_bigint *pNext;
+	short iSize;
+	short iMaxComps;
+	int iRefs;
+	__xrt_bi_comp *pComps;
+};
+
+struct __xrt_bi_ctx {
+	struct __xrt_bigint *pActiveList;
+	struct __xrt_bigint *pFreeList;
+	struct __xrt_bigint *pMod[__XRT_BI_NUM_MODS];
+	struct __xrt_bigint *pNormMod[__XRT_BI_NUM_MODS];
+	struct __xrt_bigint **pG;            // sliding window 预计算表
+	int iWindow;
+	int iActiveCount;
+	int iFreeCount;
+	uint8 iModOffset;
+};
+
+// --- 大整数内存管理 ---
+
+static struct __xrt_bigint* __xrt_bi_alloc(struct __xrt_bi_ctx *pCtx, int iCount)
+{
+	struct __xrt_bigint *pBi;
+
+	// 先从 free list 找一个够大的
+	if ( pCtx->pFreeList != NULL ) {
+		pBi = pCtx->pFreeList;
+		pCtx->pFreeList = pBi->pNext;
+		pCtx->iFreeCount--;
+
+		if ( pBi->iMaxComps < iCount ) {
+			pBi->pComps = (__xrt_bi_comp*)xrtRealloc(pBi->pComps, iCount * __XRT_BI_COMP_BYTE_SIZE);
+			pBi->iMaxComps = (short)iCount;
+		}
+	} else {
+		pBi = (struct __xrt_bigint*)xrtMalloc(sizeof(struct __xrt_bigint));
+		pBi->pComps = (__xrt_bi_comp*)xrtMalloc(iCount * __XRT_BI_COMP_BYTE_SIZE);
+		pBi->iMaxComps = (short)iCount;
+	}
+
+	pBi->pNext = pCtx->pActiveList;
+	pCtx->pActiveList = pBi;
+	pCtx->iActiveCount++;
+	pBi->iSize = (short)iCount;
+	pBi->iRefs = 1;
+	memset(pBi->pComps, 0, iCount * __XRT_BI_COMP_BYTE_SIZE);
+	return pBi;
+}
+
+static struct __xrt_bigint* __xrt_bi_copy(struct __xrt_bigint *pBi)
+{
+	if ( pBi->iRefs != __XRT_BI_PERMANENT ) {
+		pBi->iRefs++;
+	}
+	return pBi;
+}
+
+static void __xrt_bi_free(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi)
+{
+	struct __xrt_bigint *pPrev, *pCur;
+
+	if ( pBi == NULL ) return;
+	if ( pBi->iRefs == __XRT_BI_PERMANENT ) return;
+	if ( --(pBi->iRefs) > 0 ) return;
+
+	// 从 active list 移除
+	pPrev = NULL;
+	for ( pCur = pCtx->pActiveList; pCur != NULL; pCur = pCur->pNext ) {
+		if ( pCur == pBi ) {
+			if ( pPrev ) pPrev->pNext = pCur->pNext;
+			else pCtx->pActiveList = pCur->pNext;
+			pCtx->iActiveCount--;
+			break;
+		}
+		pPrev = pCur;
+	}
+
+	// 加入 free list
+	pBi->pNext = pCtx->pFreeList;
+	pCtx->pFreeList = pBi;
+	pCtx->iFreeCount++;
+}
+
+static struct __xrt_bi_ctx* __xrt_bi_initialize(void)
+{
+	struct __xrt_bi_ctx *pCtx = (struct __xrt_bi_ctx*)xrtCalloc(1, sizeof(struct __xrt_bi_ctx));
+	return pCtx;
+}
+
+static void __xrt_bi_terminate(struct __xrt_bi_ctx *pCtx)
+{
+	struct __xrt_bigint *pBi, *pNext;
+
+	// 释放 active list
+	for ( pBi = pCtx->pActiveList; pBi != NULL; pBi = pNext ) {
+		pNext = pBi->pNext;
+		xrtFree(pBi->pComps);
+		xrtFree(pBi);
+	}
+
+	// 释放 free list
+	for ( pBi = pCtx->pFreeList; pBi != NULL; pBi = pNext ) {
+		pNext = pBi->pNext;
+		xrtFree(pBi->pComps);
+		xrtFree(pBi);
+	}
+
+	xrtFree(pCtx);
+}
+
+static void __xrt_bi_permanent(struct __xrt_bigint *pBi)
+{
+	pBi->iRefs = __XRT_BI_PERMANENT;
+}
+
+static void __xrt_bi_depermanent(struct __xrt_bigint *pBi)
+{
+	pBi->iRefs = 1;
+}
+
+// 去除高位零
+static struct __xrt_bigint* __xrt_bi_trim(struct __xrt_bigint *pBi)
+{
+	while ( (pBi->iSize > 1) && (pBi->pComps[pBi->iSize - 1] == 0) ) {
+		pBi->iSize--;
+	}
+	return pBi;
+}
+
+static struct __xrt_bigint* __xrt_bi_clone(struct __xrt_bi_ctx *pCtx, const struct __xrt_bigint *pSrc)
+{
+	struct __xrt_bigint *pDst = __xrt_bi_alloc(pCtx, pSrc->iSize);
+	memcpy(pDst->pComps, pSrc->pComps, pSrc->iSize * __XRT_BI_COMP_BYTE_SIZE);
+	return pDst;
+}
+
+// --- 大整数导入导出 ---
+
+static struct __xrt_bigint* __xrt_bi_import(struct __xrt_bi_ctx *pCtx, const uint8 *pData, int iLen)
+{
+	struct __xrt_bigint *pBi;
+	int iNumComps = (iLen + __XRT_BI_COMP_BYTE_SIZE - 1) / __XRT_BI_COMP_BYTE_SIZE;
+	int i, j, iOffset;
+
+	pBi = __xrt_bi_alloc(pCtx, iNumComps);
+
+	for ( i = iLen - 1, j = 0, iOffset = 0; i >= 0; i-- ) {
+		pBi->pComps[iOffset] += (__xrt_bi_comp)pData[i] << (j * 8);
+		if ( ++j == __XRT_BI_COMP_BYTE_SIZE ) {
+			j = 0;
+			iOffset++;
+		}
+	}
+
+	return __xrt_bi_trim(pBi);
+}
+
+static void __xrt_bi_export(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, uint8 *pData, int iSize)
+{
+	int i, j, k;
+	(void)pCtx;
+
+	memset(pData, 0, iSize);
+
+	for ( i = 0, k = iSize - 1; i < pBi->iSize && k >= 0; i++ ) {
+		__xrt_bi_comp v = pBi->pComps[i];
+		for ( j = 0; j < __XRT_BI_COMP_BYTE_SIZE && k >= 0; j++ ) {
+			pData[k--] = (uint8)(v & 0xFF);
+			v >>= 8;
+		}
+	}
+
+	__xrt_bi_free(pCtx, pBi);
+}
+
+static struct __xrt_bigint* __xrt_bi_int_to_bi(struct __xrt_bi_ctx *pCtx, __xrt_bi_comp iVal)
+{
+	struct __xrt_bigint *pBi = __xrt_bi_alloc(pCtx, 1);
+	pBi->pComps[0] = iVal;
+	return pBi;
+}
+
+// --- 大整数比较 ---
+
+static int __xrt_bi_compare(struct __xrt_bigint *pA, struct __xrt_bigint *pB)
+{
+	int i;
+
+	if ( pA->iSize > pB->iSize ) return 1;
+	if ( pA->iSize < pB->iSize ) return -1;
+
+	for ( i = pA->iSize - 1; i >= 0; i-- ) {
+		if ( pA->pComps[i] > pB->pComps[i] ) return 1;
+		if ( pA->pComps[i] < pB->pComps[i] ) return -1;
+	}
+
+	return 0;
+}
+
+// --- 大整数加法 ---
+
+static struct __xrt_bigint* __xrt_bi_add(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA, struct __xrt_bigint *pB)
+{
+	int iMaxSize = (pA->iSize > pB->iSize) ? pA->iSize : pB->iSize;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iMaxSize + 1);
+	__xrt_bi_long_comp iCarry = 0;
+	int i;
+
+	for ( i = 0; i < iMaxSize; i++ ) {
+		__xrt_bi_long_comp iSum = iCarry;
+		if ( i < pA->iSize ) iSum += pA->pComps[i];
+		if ( i < pB->iSize ) iSum += pB->pComps[i];
+		pR->pComps[i] = (__xrt_bi_comp)iSum;
+		iCarry = iSum >> __XRT_BI_COMP_BIT_SIZE;
+	}
+
+	pR->pComps[iMaxSize] = (__xrt_bi_comp)iCarry;
+
+	__xrt_bi_free(pCtx, pA);
+	__xrt_bi_free(pCtx, pB);
+	return __xrt_bi_trim(pR);
+}
+
+// --- 大整数减法 (pA >= pB 时) ---
+
+static struct __xrt_bigint* __xrt_bi_subtract(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA, struct __xrt_bigint *pB, int *pIsNeg)
+{
+	int iMaxSize = (pA->iSize > pB->iSize) ? pA->iSize : pB->iSize;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iMaxSize);
+	__xrt_bi_slong_comp iBorrow = 0;
+	int i;
+
+	if ( pIsNeg ) *pIsNeg = 0;
+
+	for ( i = 0; i < iMaxSize; i++ ) {
+		__xrt_bi_slong_comp iDiff = iBorrow;
+		if ( i < pA->iSize ) iDiff += (__xrt_bi_slong_comp)pA->pComps[i];
+		if ( i < pB->iSize ) iDiff -= (__xrt_bi_slong_comp)pB->pComps[i];
+
+		if ( iDiff < 0 ) {
+			pR->pComps[i] = (__xrt_bi_comp)(iDiff + (__xrt_bi_slong_comp)__XRT_BI_COMP_RADIX);
+			iBorrow = -1;
+		} else {
+			pR->pComps[i] = (__xrt_bi_comp)iDiff;
+			iBorrow = 0;
+		}
+	}
+
+	if ( iBorrow < 0 && pIsNeg ) *pIsNeg = 1;
+
+	__xrt_bi_free(pCtx, pA);
+	__xrt_bi_free(pCtx, pB);
+	return __xrt_bi_trim(pR);
+}
+
+// --- 大整数乘法 ---
+
+static struct __xrt_bigint* __xrt_bi_multiply(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA, struct __xrt_bigint *pB)
+{
+	int iRSize = pA->iSize + pB->iSize;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iRSize);
+	int i, j;
+
+	for ( i = 0; i < pA->iSize; i++ ) {
+		__xrt_bi_long_comp iCarry = 0;
+		__xrt_bi_comp iMand = pA->pComps[i];
+
+		for ( j = 0; j < pB->iSize; j++ ) {
+			__xrt_bi_long_comp iProd = (__xrt_bi_long_comp)iMand * pB->pComps[j]
+				+ pR->pComps[i + j] + iCarry;
+			pR->pComps[i + j] = (__xrt_bi_comp)iProd;
+			iCarry = iProd >> __XRT_BI_COMP_BIT_SIZE;
+		}
+
+		pR->pComps[i + j] += (__xrt_bi_comp)iCarry;
+	}
+
+	__xrt_bi_free(pCtx, pA);
+	__xrt_bi_free(pCtx, pB);
+	return __xrt_bi_trim(pR);
+}
+
+// --- 大整数平方 ---
+
+static struct __xrt_bigint* __xrt_bi_square(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA)
+{
+	return __xrt_bi_multiply(pCtx, __xrt_bi_copy(pA), pA);
+}
+
+// --- 大整数除法/取模 (classical) ---
+
+// 左移 n 个 component 位置 (乘以 RADIX^n)
+static struct __xrt_bigint* __xrt_bi_comp_left_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
+{
+	int iNewSize = pBi->iSize + iShift;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iNewSize);
+	memcpy(&pR->pComps[iShift], pBi->pComps, pBi->iSize * __XRT_BI_COMP_BYTE_SIZE);
+	__xrt_bi_free(pCtx, pBi);
+	return pR;
+}
+
+// 右移 n 个 component 位置 (除以 RADIX^n)
+static struct __xrt_bigint* __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
+{
+	int iNewSize = pBi->iSize - iShift;
+	if ( iNewSize <= 0 ) {
+		__xrt_bi_free(pCtx, pBi);
+		return __xrt_bi_int_to_bi(pCtx, 0);
+	}
+	{
+		struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iNewSize);
+		memcpy(pR->pComps, &pBi->pComps[iShift], iNewSize * __XRT_BI_COMP_BYTE_SIZE);
+		__xrt_bi_free(pCtx, pBi);
+		return __xrt_bi_trim(pR);
+	}
+}
+
+// 除法: pA / pM, is_mod=1 返回余数, is_mod=0 返回商
+static struct __xrt_bigint* __xrt_bi_divide(struct __xrt_bi_ctx *pCtx,
+	struct __xrt_bigint *pU, struct __xrt_bigint *pV, int bIsMod)
+{
+	int iCmp = __xrt_bi_compare(pU, pV);
+	int n, m, j;
+	struct __xrt_bigint *pQ, *pInnerV;
+	__xrt_bi_comp d;
+
+	if ( iCmp < 0 ) {
+		if ( bIsMod ) {
+			__xrt_bi_free(pCtx, pV);
+			return pU;
+		} else {
+			__xrt_bi_free(pCtx, pU);
+			__xrt_bi_free(pCtx, pV);
+			return __xrt_bi_int_to_bi(pCtx, 0);
+		}
+	}
+
+	if ( iCmp == 0 ) {
+		__xrt_bi_free(pCtx, pU);
+		__xrt_bi_free(pCtx, pV);
+		return bIsMod ? __xrt_bi_int_to_bi(pCtx, 0) : __xrt_bi_int_to_bi(pCtx, 1);
+	}
+
+	// 单组件除数快速路径 (n=1, Knuth Algorithm D 要求 n>=2)
+	if ( pV->iSize == 1 ) {
+		__xrt_bi_comp iDenom = pV->pComps[0];
+		__xrt_bi_long_comp iRem = 0;
+		int i;
+
+		pQ = __xrt_bi_alloc(pCtx, pU->iSize);
+		for ( i = pU->iSize - 1; i >= 0; i-- ) {
+			iRem = (iRem << __XRT_BI_COMP_BIT_SIZE) + pU->pComps[i];
+			pQ->pComps[i] = (__xrt_bi_comp)(iRem / iDenom);
+			iRem %= iDenom;
+		}
+
+		__xrt_bi_free(pCtx, pU);
+		__xrt_bi_free(pCtx, pV);
+
+		if ( bIsMod ) {
+			__xrt_bi_free(pCtx, pQ);
+			return __xrt_bi_int_to_bi(pCtx, (__xrt_bi_comp)iRem);
+		} else {
+			return __xrt_bi_trim(pQ);
+		}
+	}
+
+	// Knuth's Algorithm D (n >= 2)
+	n = pV->iSize;
+	m = pU->iSize - n;
+
+	pQ = __xrt_bi_alloc(pCtx, m + 1);
+
+	// 正规化: 计算 d 使得 v[n-1] >= RADIX/2
+	d = (__xrt_bi_comp)((__xrt_bi_long_comp)__XRT_BI_COMP_RADIX / ((__xrt_bi_long_comp)pV->pComps[n - 1] + 1));
+	if ( d == 0 ) d = 1;
+
+	if ( d > 1 ) {
+		struct __xrt_bigint *pD = __xrt_bi_int_to_bi(pCtx, d);
+		pU = __xrt_bi_multiply(pCtx, pU, __xrt_bi_copy(pD));
+		pV = __xrt_bi_multiply(pCtx, pV, pD);
+		// 正规化乘法可能改变位数，必须重新计算 n 和 m
+		n = pV->iSize;
+		m = pU->iSize - n;
+		if ( m < 0 ) m = 0;
+		// 重新分配商
+		__xrt_bi_free(pCtx, pQ);
+		pQ = __xrt_bi_alloc(pCtx, m + 1);
+	}
+
+	// 确保 pU 有足够的空间 (但保持正确的 iSize)
+	if ( pU->iSize <= m + n ) {
+		struct __xrt_bigint *pE = __xrt_bi_alloc(pCtx, m + n + 1);
+		memcpy(pE->pComps, pU->pComps, pU->iSize * __XRT_BI_COMP_BYTE_SIZE);
+		__xrt_bi_free(pCtx, pU);
+		pU = __xrt_bi_trim(pE);
+	}
+
+	pInnerV = __xrt_bi_comp_left_shift(pCtx, __xrt_bi_copy(pV), m);
+
+	if ( __xrt_bi_compare(pU, pInnerV) >= 0 ) {
+		pQ->pComps[m] = 1;
+		pU = __xrt_bi_subtract(pCtx, pU, pInnerV, NULL);
+	} else {
+		__xrt_bi_free(pCtx, pInnerV);
+	}
+
+	for ( j = m - 1; j >= 0; j-- ) {
+		__xrt_bi_long_comp iQhat;
+		struct __xrt_bigint *pQBi;
+		struct __xrt_bigint *pProd;
+
+		// 估算 q_hat
+		if ( pU->iSize > j + n ) {
+			iQhat = ((__xrt_bi_long_comp)pU->pComps[j + n] << __XRT_BI_COMP_BIT_SIZE)
+				+ ((j + n - 1 < pU->iSize) ? pU->pComps[j + n - 1] : 0);
+		} else {
+			iQhat = (j + n - 1 < pU->iSize) ? pU->pComps[j + n - 1] : 0;
+		}
+
+		iQhat /= pV->pComps[n - 1];
+		if ( iQhat >= (__xrt_bi_long_comp)__XRT_BI_COMP_RADIX ) {
+			iQhat = __XRT_BI_COMP_RADIX - 1;
+		}
+
+		pQBi = __xrt_bi_int_to_bi(pCtx, (__xrt_bi_comp)iQhat);
+		pProd = __xrt_bi_multiply(pCtx, pQBi, __xrt_bi_copy(pV));
+		pProd = __xrt_bi_comp_left_shift(pCtx, pProd, j);
+
+		// 修正: 先比较, 避免负数减法导致二进制补码增长
+		while ( __xrt_bi_compare(pU, pProd) < 0 ) {
+			struct __xrt_bigint *pFix = __xrt_bi_comp_left_shift(pCtx, __xrt_bi_copy(pV), j);
+			pU = __xrt_bi_add(pCtx, pU, pFix);
+			iQhat--;
+		}
+		pU = __xrt_bi_subtract(pCtx, pU, pProd, NULL);
+
+		pQ->pComps[j] = (__xrt_bi_comp)iQhat;
+	}
+
+	__xrt_bi_free(pCtx, pV);
+
+	if ( bIsMod ) {
+		__xrt_bi_free(pCtx, pQ);
+		if ( d > 1 ) {
+			struct __xrt_bigint *pD2 = __xrt_bi_int_to_bi(pCtx, d);
+			pU = __xrt_bi_divide(pCtx, pU, pD2, 0);  // 去正规化
+		}
+		return __xrt_bi_trim(pU);
+	} else {
+		__xrt_bi_free(pCtx, pU);
+		return __xrt_bi_trim(pQ);
+	}
+}
+
+// bi_mod 宏: 对已设置的 modulus 取模
+#define __xrt_bi_mod(ctx, bi) __xrt_bi_divide(ctx, bi, __xrt_bi_copy((ctx)->pMod[(ctx)->iModOffset]), 1)
+
+static void __xrt_bi_set_mod(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pMod, int iModOffset)
+{
+	pCtx->pMod[iModOffset] = pMod;
+	__xrt_bi_permanent(pMod);
+	pCtx->iModOffset = (uint8)iModOffset;
+
+	// 保存正规化副本
+	pCtx->pNormMod[iModOffset] = __xrt_bi_clone(pCtx, pMod);
+	__xrt_bi_permanent(pCtx->pNormMod[iModOffset]);
+}
+
+static void __xrt_bi_free_mod(struct __xrt_bi_ctx *pCtx, int iModOffset)
+{
+	if ( pCtx->pMod[iModOffset] ) {
+		__xrt_bi_depermanent(pCtx->pMod[iModOffset]);
+		__xrt_bi_free(pCtx, pCtx->pMod[iModOffset]);
+		pCtx->pMod[iModOffset] = NULL;
+	}
+	if ( pCtx->pNormMod[iModOffset] ) {
+		__xrt_bi_depermanent(pCtx->pNormMod[iModOffset]);
+		__xrt_bi_free(pCtx, pCtx->pNormMod[iModOffset]);
+		pCtx->pNormMod[iModOffset] = NULL;
+	}
+}
+
+// --- 模幂运算 (sliding window) ---
+
+static struct __xrt_bigint* __xrt_bi_mod_power(struct __xrt_bi_ctx *pCtx,
+	struct __xrt_bigint *pBase, struct __xrt_bigint *pExp)
+{
+	int i, j;
+	int iNumBits;
+	struct __xrt_bigint *pResult;
+
+	// 确定指数的位数
+	{
+		__xrt_bi_comp iTopComp = pExp->pComps[pExp->iSize - 1];
+		iNumBits = (pExp->iSize - 1) * __XRT_BI_COMP_BIT_SIZE;
+		while ( iTopComp ) {
+			iNumBits++;
+			iTopComp >>= 1;
+		}
+	}
+
+	// 简单的 square-and-multiply (right-to-left 二进制法)
+	pResult = __xrt_bi_clone(pCtx, pBase);
+
+	// 对 pBase 取模
+	pResult = __xrt_bi_mod(pCtx, pResult);
+
+	// 存储 base mod m
+	{
+		struct __xrt_bigint *pBaseMod = __xrt_bi_clone(pCtx, pResult);
+		struct __xrt_bigint *pR = __xrt_bi_int_to_bi(pCtx, 1);
+
+		for ( i = iNumBits - 1; i >= 0; i-- ) {
+			int iBitIdx = i % __XRT_BI_COMP_BIT_SIZE;
+			int iCompIdx = i / __XRT_BI_COMP_BIT_SIZE;
+
+			// r = r * r mod m
+			pR = __xrt_bi_square(pCtx, pR);
+			pR = __xrt_bi_mod(pCtx, pR);
+
+			// 如果 exp 的第 i 位为 1: r = r * base mod m
+			if ( (iCompIdx < pExp->iSize) && (pExp->pComps[iCompIdx] & ((__xrt_bi_comp)1 << iBitIdx)) ) {
+				pR = __xrt_bi_multiply(pCtx, pR, __xrt_bi_copy(pBaseMod));
+				pR = __xrt_bi_mod(pCtx, pR);
+			}
+		}
+
+		__xrt_bi_free(pCtx, pBaseMod);
+		__xrt_bi_free(pCtx, pResult);
+		__xrt_bi_free(pCtx, pExp);
+		__xrt_bi_free(pCtx, pBase);
+		return pR;
+	}
+}
+
+// --- 公共 API: RSA 模幂运算 ---
+
+XXAPI int xrtRSAModPow(const uint8 *pMod, size_t iModSz,
+	const uint8 *pExp, size_t iExpSz,
+	const uint8 *pMsg, size_t iMsgSz,
+	uint8 *pOut, size_t iOutSz)
+{
+	struct __xrt_bi_ctx *pCtx = __xrt_bi_initialize();
+	struct __xrt_bigint *pBiMod, *pBiExp, *pBiMsg, *pBiResult;
+
+	if ( !pCtx ) return -1;
+
+	pBiMod = __xrt_bi_import(pCtx, pMod, (int)iModSz);
+	pBiExp = __xrt_bi_import(pCtx, pExp, (int)iExpSz);
+	pBiMsg = __xrt_bi_import(pCtx, pMsg, (int)iMsgSz);
+
+	__xrt_bi_set_mod(pCtx, pBiMod, __XRT_BI_M_OFFSET);
+	pBiResult = __xrt_bi_mod_power(pCtx, pBiMsg, pBiExp);
+	__xrt_bi_export(pCtx, pBiResult, pOut, (int)iOutSz);
+
+	__xrt_bi_free_mod(pCtx, __XRT_BI_M_OFFSET);
+	__xrt_bi_terminate(pCtx);
+
+	return 0;
+}
+
+
+
+/* ============================== RSA-PSS 签名验证 (RFC 8017) ============================== */
+
+// MGF1 掩码生成函数 (RFC 8017 B.2.1, 基于 SHA-256)
+static void __xrt_mgf1_sha256(uint8 *pOut, size_t iOutLen, const uint8 *pSeed, size_t iSeedLen)
+{
+	uint8 aCounter[4];
+	uint8 aHash[32];
+	size_t iOffset = 0;
+	uint32 iCtr = 0;
+
+	while ( iOffset < iOutLen ) {
+		xsha256_ctx tCtx;
+		size_t iCopyLen;
+
+		aCounter[0] = (uint8)(iCtr >> 24);
+		aCounter[1] = (uint8)(iCtr >> 16);
+		aCounter[2] = (uint8)(iCtr >> 8);
+		aCounter[3] = (uint8)(iCtr);
+
+		xrtSHA256Init(&tCtx);
+		xrtSHA256Update(&tCtx, (ptr)pSeed, iSeedLen);
+		xrtSHA256Update(&tCtx, aCounter, 4);
+		xrtSHA256Final(&tCtx, aHash);
+
+		iCopyLen = iOutLen - iOffset;
+		if ( iCopyLen > 32 ) iCopyLen = 32;
+		memcpy(pOut + iOffset, aHash, iCopyLen);
+
+		iOffset += iCopyLen;
+		iCtr++;
+	}
+}
+
+// EMSA-PSS-VERIFY (RFC 8017 Section 9.1.2)
+// pHash: 被签名的消息哈希 (SHA-256, 32 bytes)
+// pEM: RSA 解密后的编码消息
+// iEMLen: EM 长度 (等于 RSA modulus 字节数)
+// iSaltLen: 盐长度 (通常等于 hash 长度 = 32)
+static bool __xrt_emsa_pss_verify(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pEM, size_t iEMLen, size_t iSaltLen)
+{
+	size_t iDBLen;
+	size_t i;
+	const uint8 *pH;
+	uint8 *pDBMask;
+	uint8 *pDB;
+	uint8 aHP[32];  // H'
+	xsha256_ctx tCtx;
+	uint8 iDiff;
+	const uint8 aPad8[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+	// 检查 EM 最后一个字节为 0xbc
+	if ( iEMLen < iHashLen + iSaltLen + 2 ) return false;
+	if ( pEM[iEMLen - 1] != 0xbc ) return false;
+
+	// 分离 maskedDB 和 H
+	iDBLen = iEMLen - iHashLen - 1;  // maskedDB 长度
+	pH = pEM + iDBLen;               // H 起始位置
+
+	// 检查高位为零 (emBits = 8*emLen - 1 的情况)
+	if ( pEM[0] & 0x80 ) return false;
+
+	// 生成 dbMask = MGF1(H, dbLen)
+	pDBMask = (uint8*)xrtMalloc(iDBLen);
+	pDB = (uint8*)xrtMalloc(iDBLen);
+	if ( !pDBMask || !pDB ) {
+		if ( pDBMask ) xrtFree(pDBMask);
+		if ( pDB ) xrtFree(pDB);
+		return false;
+	}
+
+	__xrt_mgf1_sha256(pDBMask, iDBLen, pH, iHashLen);
+
+	// DB = maskedDB XOR dbMask
+	for ( i = 0; i < iDBLen; i++ ) {
+		pDB[i] = pEM[i] ^ pDBMask[i];
+	}
+
+	// 清除 DB 的最高位
+	pDB[0] &= 0x7f;
+
+	// 验证 DB 格式: 0x00...00 || 0x01 || salt
+	{
+		size_t iPadLen = iDBLen - iSaltLen - 1;
+		for ( i = 0; i < iPadLen; i++ ) {
+			if ( pDB[i] != 0x00 ) {
+				xrtFree(pDBMask);
+				xrtFree(pDB);
+				return false;
+			}
+		}
+		if ( pDB[iPadLen] != 0x01 ) {
+			xrtFree(pDBMask);
+			xrtFree(pDB);
+			return false;
+		}
+	}
+
+	// H' = SHA-256(0x00*8 || mHash || salt)
+	xrtSHA256Init(&tCtx);
+	xrtSHA256Update(&tCtx, (ptr)aPad8, 8);
+	xrtSHA256Update(&tCtx, (ptr)pHash, iHashLen);
+	xrtSHA256Update(&tCtx, (ptr)(pDB + iDBLen - iSaltLen), iSaltLen);
+	xrtSHA256Final(&tCtx, aHP);
+
+	// 常量时间比较 H == H'
+	iDiff = 0;
+	for ( i = 0; i < iHashLen; i++ ) {
+		iDiff |= pH[i] ^ aHP[i];
+	}
+
+	xrtFree(pDBMask);
+	xrtFree(pDB);
+
+	return (iDiff == 0);
+}
+
+// RSA-PSS-RSAE-SHA256 签名验证
+XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pSig, size_t iSigLen,
+	const uint8 *pMod, size_t iModSz,
+	const uint8 *pExp, size_t iExpSz)
+{
+	uint8 *pEM;
+	bool bResult;
+
+	if ( (iHashLen != 32) || (iSigLen != iModSz) ) return false;
+
+	// 分配 EM 缓冲区
+	pEM = (uint8*)xrtMalloc(iModSz);
+	if ( !pEM ) return false;
+
+	// RSA 原始操作: EM = sig^e mod n
+	if ( xrtRSAModPow(pMod, iModSz, pExp, iExpSz, pSig, iSigLen, pEM, iModSz) != 0 ) {
+		xrtFree(pEM);
+		return false;
+	}
+
+	// EMSA-PSS-VERIFY
+	bResult = __xrt_emsa_pss_verify(pHash, iHashLen, pEM, iModSz, iHashLen);
+
+	xrtFree(pEM);
+	return bResult;
+}
+
+
+
 /* ============================== ECDSA / Ed25519 签名验证 ============================== */
 
 /*
