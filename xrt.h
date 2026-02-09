@@ -1144,6 +1144,226 @@
 	
 	
 	
+	/* ------------------------------------ 网络通信基础类型 ------------------------------------ */
+	
+	/* ---- 网络结果码 ---- */
+	typedef enum {
+		XRT_NET_OK        =  0,
+		XRT_NET_ERROR     = -1,
+		XRT_NET_AGAIN     = -2,   // 非阻塞操作需重试
+		XRT_NET_TIMEOUT   = -3,
+		XRT_NET_CLOSED    = -4,
+	} xnet_result;
+	
+	/* ---- Socket 类型 ---- */
+	#if defined(_WIN32) || defined(_WIN64)
+		typedef SOCKET xsocket;
+		#define XSOCKET_INVALID  INVALID_SOCKET
+	#else
+		typedef int xsocket;
+		#define XSOCKET_INVALID  -1
+	#endif
+	
+	/* ---- 网络地址 (IPv4) ---- */
+	typedef struct {
+		uint32 iAddr;         // IP 地址 (网络字节序)
+		uint16 iPort;         // 端口号 (主机字节序)
+		char sAddr[16];       // IP 字符串缓存 "xxx.xxx.xxx.xxx"
+	} xnetaddr;
+	
+	/* ---- 网络缓冲区 ---- */
+	typedef struct {
+		char* pData;
+		size_t iSize;
+		size_t iCapacity;
+	} xnetbuf;
+	
+	/* ---- 连接对象 ---- */
+	typedef struct {
+		int iId;
+		xsocket hSocket;
+		xnetaddr tLocalAddr;
+		xnetaddr tRemoteAddr;
+		int iType;            // 0=TCP, 1=UDP
+		ptr pUserData;
+		ptr pTlsCtx;
+		bool bTlsEnabled;
+	} xnetconn;
+	
+	/* ---- 事件回调 ---- */
+	typedef struct {
+		void (*OnAccept)(ptr pServer, xnetconn* pConn);
+		void (*OnConnect)(ptr pServer, xnetconn* pConn, bool bSuccess);
+		void (*OnRecv)(ptr pServer, xnetconn* pConn, const char* pData, size_t iLen);
+		void (*OnRecvFrom)(ptr pServer, xnetconn* pConn, const xnetaddr* pFromAddr, const char* pData, size_t iLen);
+		void (*OnSend)(ptr pServer, xnetconn* pConn, size_t iLen);
+		void (*OnClose)(ptr pServer, xnetconn* pConn);
+		void (*OnError)(ptr pServer, xnetconn* pConn, int iErrorCode);
+	} xnetevents;
+	
+	/* ---- 网络配置 ---- */
+	typedef struct {
+		size_t iRecvBufSize;    // 默认 8192
+		size_t iSendBufSize;    // 默认 8192
+		int iMaxClients;        // 最大客户端数（0=不限）
+		int iPollTimeoutMs;     // 轮询超时(毫秒)
+	} xnetconfig;
+	
+	/* ---- TLS 配置 ---- */
+	typedef struct {
+		const char* sCertFile;    // 证书文件路径
+		const char* sKeyFile;     // 私钥文件路径
+		const char* sCaFile;      // CA 证书路径
+		const char* sHostName;    // 主机名 (SNI)
+		bool bVerifyPeer;         // 是否验证对端证书
+	} xtlsconfig;
+	
+	/* ---- TLS 上下文 (不透明) ---- */
+	typedef struct xrt_tls_context xtlsctx;
+	
+	/* ---- IO Poller (不透明) ---- */
+	typedef struct xrt_net_poller xnetpoller;
+	
+	/* ---- TCP 服务器/客户端 (不透明) ---- */
+	typedef struct xrt_tcp_server xtcpserver;
+	typedef struct xrt_tcp_client xtcpclient;
+	
+	/* ---- UDP 服务器/客户端 (不透明) ---- */
+	typedef struct xrt_udp_server xudpserver;
+	typedef struct xrt_udp_client xudpclient;
+	
+	
+	
+	/* ------------------------------------ Socket 基础操作 ------------------------------------ */
+	
+	// Socket 生命周期
+	XXAPI xnet_result xrtSockCreate(xnetconn* pConn, int iType);    // 0=TCP, 1=UDP
+	XXAPI void xrtSockClose(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetNonBlock(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetReuseAddr(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetTimeout(xnetconn* pConn, int iRecvMs, int iSendMs);
+	XXAPI xnet_result xrtSockSetNoDelay(xnetconn* pConn);
+	XXAPI xnet_result xrtSockSetKeepAlive(xnetconn* pConn, int iIdleSec, int iIntervalSec, int iCount);
+	
+	// 地址操作
+	XXAPI void xrtNetAddrInit(xnetaddr* pAddr, const char* sIP, uint16 iPort);
+	XXAPI void xrtNetAddrFromSockAddr(xnetaddr* pAddr, struct sockaddr_in* pSA);
+	XXAPI void xrtNetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_in* pSA);
+	XXAPI uint32 xrtNetIPFromStr(const char* sIP);
+	XXAPI const char* xrtNetIPToStr(uint32 iIP);
+	
+	// 连接操作
+	XXAPI xnet_result xrtSockBind(xnetconn* pConn, const xnetaddr* pAddr);
+	XXAPI xnet_result xrtSockListen(xnetconn* pConn, int iBacklog);
+	XXAPI xnet_result xrtSockAccept(xnetconn* pServer, xnetconn* pClient);
+	XXAPI xnet_result xrtSockConnect(xnetconn* pConn, const xnetaddr* pAddr);
+	
+	// 数据收发
+	XXAPI xnet_result xrtSockSend(xnetconn* pConn, const char* pData, size_t iLen, size_t* pSent);
+	XXAPI xnet_result xrtSockRecv(xnetconn* pConn, char* pBuf, size_t iLen, size_t* pReceived);
+	XXAPI xnet_result xrtSockSendTo(xnetconn* pConn, const char* pData, size_t iLen, const xnetaddr* pAddr, size_t* pSent);
+	XXAPI xnet_result xrtSockRecvFrom(xnetconn* pConn, char* pBuf, size_t iLen, xnetaddr* pAddr, size_t* pReceived);
+	
+	// DNS 解析
+	XXAPI xnet_result xrtNetResolve(const char* sHostname, xnetaddr* pAddr);
+	
+	// 网络缓冲区
+	XXAPI bool xrtNetBufInit(xnetbuf* pBuf, size_t iCapacity);
+	XXAPI void xrtNetBufFree(xnetbuf* pBuf);
+	XXAPI bool xrtNetBufAppend(xnetbuf* pBuf, const char* pData, size_t iLen);
+	XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen);
+	XXAPI void xrtNetBufClear(xnetbuf* pBuf);
+	
+	
+	
+	/* ------------------------------------ IO 模型 (Poller) ------------------------------------ */
+	
+	#define XRT_POLL_READ   0x01
+	#define XRT_POLL_WRITE  0x02
+	#define XRT_POLL_ERROR  0x04
+	#define XRT_POLL_ACCEPT 0x08
+	#define XRT_POLL_CLOSE  0x10
+	
+	// Poller 事件回调函数类型
+	// iEvent: XRT_POLL_READ/WRITE/ERROR/ACCEPT/CLOSE
+	// pData: 完成的数据 (READ 事件时有效)
+	// iLen: 数据长度
+	typedef void (*xpoll_fn)(xnetpoller* pPoller, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
+	
+	XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData);
+	XXAPI void xrtPollDestroy(xnetpoller* pPoller);
+	XXAPI xnet_result xrtPollAdd(xnetpoller* pPoller, xnetconn* pConn, int iEvents);
+	XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn);
+	XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn);
+	XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient);
+	XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs);
+	XXAPI void xrtPollWakeup(xnetpoller* pPoller);
+	XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller);
+	
+	
+	
+	/* ------------------------------------ TLS 1.3 ------------------------------------ */
+	
+	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
+	XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
+	XXAPI xnet_result xrtTlsHandshake(xtlsctx* pCtx, xnetconn* pConn);
+	XXAPI xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
+	XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
+	XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
+	XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
+	
+	
+	
+	/* ------------------------------------ TCP 服务器/客户端 ------------------------------------ */
+	
+	// TCP 服务器
+	XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtTcpServerDestroy(xtcpserver* pServer);
+	XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer);
+	XXAPI void xrtTcpServerStop(xtcpserver* pServer);
+	XXAPI xnet_result xrtTcpServerSend(xtcpserver* pServer, int iClientId, const char* pData, size_t iLen);
+	XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId);
+	XXAPI xnet_result xrtTcpServerEnableTLS(xtcpserver* pServer, const xtlsconfig* pConfig);
+	XXAPI int xrtTcpServerGetClientCount(xtcpserver* pServer);
+	XXAPI void xrtTcpServerSetUserData(xtcpserver* pServer, ptr pData);
+	XXAPI ptr xrtTcpServerGetUserData(xtcpserver* pServer);
+	
+	// TCP 客户端
+	XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtTcpClientDestroy(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient);
+	XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientSend(xtcpclient* pClient, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtTcpClientEnableTLS(xtcpclient* pClient, const xtlsconfig* pConfig);
+	XXAPI bool xrtTcpClientIsConnected(xtcpclient* pClient);
+	XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData);
+	XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient);
+	
+	
+	
+	/* ------------------------------------ UDP 服务器/客户端 ------------------------------------ */
+	
+	// UDP 服务器
+	XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtUdpServerDestroy(xudpserver* pServer);
+	XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer);
+	XXAPI void xrtUdpServerStop(xudpserver* pServer);
+	XXAPI xnet_result xrtUdpServerSendTo(xudpserver* pServer, const xnetaddr* pAddr, const char* pData, size_t iLen);
+	XXAPI void xrtUdpServerSetUserData(xudpserver* pServer, ptr pData);
+	XXAPI ptr xrtUdpServerGetUserData(xudpserver* pServer);
+	
+	// UDP 客户端
+	XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI void xrtUdpClientDestroy(xudpclient* pClient);
+	XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient);
+	XXAPI void xrtUdpClientStop(xudpclient* pClient);
+	XXAPI xnet_result xrtUdpClientSendTo(xudpclient* pClient, const xnetaddr* pAddr, const char* pData, size_t iLen);
+	XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData);
+	XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient);
+	
+	
+	
 	/* ------------------------------------ XID 函数库 ------------------------------------ */
 	
 	// XID 数据结构 ( 192 bit )

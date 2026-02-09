@@ -22,6 +22,8 @@
 #include "test/test_hash.h"
 #include "test/test_network.h"
 #include "test/test_crypto.h"
+#include "test/test_netsock.h"
+#include "test/test_nettcp.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
 #include "test/test_array_ptr.h"
@@ -107,7 +109,7 @@ int main(int argc, char** argv)
 	// Test_Thread(xCore);
 	
 	/* RWLock 库测试 */
-	Test_RWLock(xCore);
+	// Test_RWLock(xCore);
 	
 	/* Hash 库测试 */
 	// Test_Hash(xCore);
@@ -117,6 +119,12 @@ int main(int argc, char** argv)
 	
 	/* Crypto 加密算法库测试 */
 	Test_Crypto(xCore);
+	
+	/* Socket 基础操作测试 */
+	Test_NetSock(xCore);
+	
+	/* TCP/UDP 网络通信测试 */
+	Test_NetTCPUDP(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);
