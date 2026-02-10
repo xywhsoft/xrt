@@ -212,6 +212,276 @@ XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, 
 
 
 
+/* ============================== SHA-512 / SHA-384 ============================== */
+
+// xsha512_ctx 已在 xrt.h 中定义 (同时用作 SHA-384 上下文)
+
+// SHA-512 常量表 (80 个 uint64)
+static const uint64 __xrt_sha512_k[80] = {
+	0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
+	0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL, 0x923f82a4af194f9bULL, 0xab1c5ed5da6d8118ULL,
+	0xd807aa98a3030242ULL, 0x12835b0145706fbeULL, 0x243185be4ee4b28cULL, 0x550c7dc3d5ffb4e2ULL,
+	0x72be5d74f27b896fULL, 0x80deb1fe3b1696b1ULL, 0x9bdc06a725c71235ULL, 0xc19bf174cf692694ULL,
+	0xe49b69c19ef14ad2ULL, 0xefbe4786384f25e3ULL, 0x0fc19dc68b8cd5b5ULL, 0x240ca1cc77ac9c65ULL,
+	0x2de92c6f592b0275ULL, 0x4a7484aa6ea6e483ULL, 0x5cb0a9dcbd41fbd4ULL, 0x76f988da831153b5ULL,
+	0x983e5152ee66dfabULL, 0xa831c66d2db43210ULL, 0xb00327c898fb213fULL, 0xbf597fc7beef0ee4ULL,
+	0xc6e00bf33da88fc2ULL, 0xd5a79147930aa725ULL, 0x06ca6351e003826fULL, 0x142929670a0e6e70ULL,
+	0x27b70a8546d22ffcULL, 0x2e1b21385c26c926ULL, 0x4d2c6dfc5ac42aedULL, 0x53380d139d95b3dfULL,
+	0x650a73548baf63deULL, 0x766a0abb3c77b2a8ULL, 0x81c2c92e47edaee6ULL, 0x92722c851482353bULL,
+	0xa2bfe8a14cf10364ULL, 0xa81a664bbc423001ULL, 0xc24b8b70d0f89791ULL, 0xc76c51a30654be30ULL,
+	0xd192e819d6ef5218ULL, 0xd69906245565a910ULL, 0xf40e35855771202aULL, 0x106aa07032bbd1b8ULL,
+	0x19a4c116b8d2d0c8ULL, 0x1e376c085141ab53ULL, 0x2748774cdf8eeb99ULL, 0x34b0bcb5e19b48a8ULL,
+	0x391c0cb3c5c95a63ULL, 0x4ed8aa4ae3418acbULL, 0x5b9cca4f7763e373ULL, 0x682e6ff3d6b2b8a3ULL,
+	0x748f82ee5defb2fcULL, 0x78a5636f43172f60ULL, 0x84c87814a1f0ab72ULL, 0x8cc702081a6439ecULL,
+	0x90befffa23631e28ULL, 0xa4506cebde82bde9ULL, 0xbef9a3f7b2c67915ULL, 0xc67178f2e372532bULL,
+	0xca273eceea26619cULL, 0xd186b8c721c0c207ULL, 0xeada7dd6cde0eb1eULL, 0xf57d4f7fee6ed178ULL,
+	0x06f067aa72176fbaULL, 0x0a637dc5a2c898a6ULL, 0x113f9804bef90daeULL, 0x1b710b35131c471bULL,
+	0x28db77f523047d84ULL, 0x32caab7b40c72493ULL, 0x3c9ebe0a15c9bebcULL, 0x431d67c49c100d4cULL,
+	0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL, 0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL
+};
+
+#define __XRT_SHA512_ROR64(x, n) (((x) >> (n)) | ((x) << (64 - (n))))
+#define __XRT_SHA512_CH(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
+#define __XRT_SHA512_MAJ(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define __XRT_SHA512_EP0(x) (__XRT_SHA512_ROR64(x, 28) ^ __XRT_SHA512_ROR64(x, 34) ^ __XRT_SHA512_ROR64(x, 39))
+#define __XRT_SHA512_EP1(x) (__XRT_SHA512_ROR64(x, 14) ^ __XRT_SHA512_ROR64(x, 18) ^ __XRT_SHA512_ROR64(x, 41))
+#define __XRT_SHA512_SIG0(x) (__XRT_SHA512_ROR64(x, 1) ^ __XRT_SHA512_ROR64(x, 8) ^ ((x) >> 7))
+#define __XRT_SHA512_SIG1(x) (__XRT_SHA512_ROR64(x, 19) ^ __XRT_SHA512_ROR64(x, 61) ^ ((x) >> 6))
+
+static void __xrt_sha512_chunk(xsha512_ctx *pCtx)
+{
+	int i, j;
+	uint64 a, b, c, d, e, f, g, h;
+	uint64 m[80];
+	
+	for ( i = 0, j = 0; i < 16; ++i, j += 8 ) {
+		m[i] = ((uint64)pCtx->buffer[j] << 56) |
+		       ((uint64)pCtx->buffer[j + 1] << 48) |
+		       ((uint64)pCtx->buffer[j + 2] << 40) |
+		       ((uint64)pCtx->buffer[j + 3] << 32) |
+		       ((uint64)pCtx->buffer[j + 4] << 24) |
+		       ((uint64)pCtx->buffer[j + 5] << 16) |
+		       ((uint64)pCtx->buffer[j + 6] << 8) |
+		       ((uint64)pCtx->buffer[j + 7]);
+	}
+	for ( ; i < 80; ++i ) {
+		m[i] = __XRT_SHA512_SIG1(m[i - 2]) + m[i - 7] + __XRT_SHA512_SIG0(m[i - 15]) + m[i - 16];
+	}
+	
+	a = pCtx->state[0];
+	b = pCtx->state[1];
+	c = pCtx->state[2];
+	d = pCtx->state[3];
+	e = pCtx->state[4];
+	f = pCtx->state[5];
+	g = pCtx->state[6];
+	h = pCtx->state[7];
+	
+	for ( i = 0; i < 80; ++i ) {
+		uint64 t1 = h + __XRT_SHA512_EP1(e) + __XRT_SHA512_CH(e, f, g) + __xrt_sha512_k[i] + m[i];
+		uint64 t2 = __XRT_SHA512_EP0(a) + __XRT_SHA512_MAJ(a, b, c);
+		h = g;
+		g = f;
+		f = e;
+		e = d + t1;
+		d = c;
+		c = b;
+		b = a;
+		a = t1 + t2;
+	}
+	
+	pCtx->state[0] += a;
+	pCtx->state[1] += b;
+	pCtx->state[2] += c;
+	pCtx->state[3] += d;
+	pCtx->state[4] += e;
+	pCtx->state[5] += f;
+	pCtx->state[6] += g;
+	pCtx->state[7] += h;
+}
+
+XXAPI void xrtSHA512Init(xsha512_ctx *pCtx)
+{
+	pCtx->len = 0;
+	pCtx->bits = 0;
+	pCtx->state[0] = 0x6a09e667f3bcc908ULL;
+	pCtx->state[1] = 0xbb67ae8584caa73bULL;
+	pCtx->state[2] = 0x3c6ef372fe94f82bULL;
+	pCtx->state[3] = 0xa54ff53a5f1d36f1ULL;
+	pCtx->state[4] = 0x510e527fade682d1ULL;
+	pCtx->state[5] = 0x9b05688c2b3e6c1fULL;
+	pCtx->state[6] = 0x1f83d9abfb41bd6bULL;
+	pCtx->state[7] = 0x5be0cd19137e2179ULL;
+}
+
+XXAPI void xrtSHA384Init(xsha512_ctx *pCtx)
+{
+	pCtx->len = 0;
+	pCtx->bits = 0;
+	pCtx->state[0] = 0xcbbb9d5dc1059ed8ULL;
+	pCtx->state[1] = 0x629a292a367cd507ULL;
+	pCtx->state[2] = 0x9159015a3070dd17ULL;
+	pCtx->state[3] = 0x152fecd8f70e5939ULL;
+	pCtx->state[4] = 0x67332667ffc00b31ULL;
+	pCtx->state[5] = 0x8eb44a8768581511ULL;
+	pCtx->state[6] = 0xdb0c2e0d64f98fa7ULL;
+	pCtx->state[7] = 0x47b5481dbefa4fa4ULL;
+}
+
+XXAPI void xrtSHA512Update(xsha512_ctx *pCtx, const ptr pData, size_t iLen)
+{
+	const uint8 *pBytes = (const uint8 *)pData;
+	size_t i;
+	for ( i = 0; i < iLen; i++ ) {
+		pCtx->buffer[pCtx->len] = pBytes[i];
+		if ( (++(pCtx->len)) == 128 ) {
+			__xrt_sha512_chunk(pCtx);
+			pCtx->bits += 1024;
+			pCtx->len = 0;
+		}
+	}
+}
+
+XXAPI void xrtSHA512Final(xsha512_ctx *pCtx, uint8 *pOut)
+{
+	uint32 i = pCtx->len;
+	
+	if ( i < 112 ) {
+		pCtx->buffer[i++] = 0x80;
+		while ( i < 112 ) {
+			pCtx->buffer[i++] = 0x00;
+		}
+	} else {
+		pCtx->buffer[i++] = 0x80;
+		while ( i < 128 ) {
+			pCtx->buffer[i++] = 0x00;
+		}
+		__xrt_sha512_chunk(pCtx);
+		memset(pCtx->buffer, 0, 112);
+	}
+	
+	pCtx->bits += pCtx->len * 8;
+	// SHA-512 使用 128-bit 长度字段, 高 64 位为 0 (我们不处理超大消息)
+	memset(pCtx->buffer + 112, 0, 8);
+	pCtx->buffer[127] = (uint8)((pCtx->bits) & 0xff);
+	pCtx->buffer[126] = (uint8)((pCtx->bits >> 8) & 0xff);
+	pCtx->buffer[125] = (uint8)((pCtx->bits >> 16) & 0xff);
+	pCtx->buffer[124] = (uint8)((pCtx->bits >> 24) & 0xff);
+	pCtx->buffer[123] = (uint8)((pCtx->bits >> 32) & 0xff);
+	pCtx->buffer[122] = (uint8)((pCtx->bits >> 40) & 0xff);
+	pCtx->buffer[121] = (uint8)((pCtx->bits >> 48) & 0xff);
+	pCtx->buffer[120] = (uint8)((pCtx->bits >> 56) & 0xff);
+	__xrt_sha512_chunk(pCtx);
+	
+	for ( i = 0; i < 8; ++i ) {
+		pOut[i * 8]     = (uint8)(pCtx->state[i] >> 56);
+		pOut[i * 8 + 1] = (uint8)(pCtx->state[i] >> 48);
+		pOut[i * 8 + 2] = (uint8)(pCtx->state[i] >> 40);
+		pOut[i * 8 + 3] = (uint8)(pCtx->state[i] >> 32);
+		pOut[i * 8 + 4] = (uint8)(pCtx->state[i] >> 24);
+		pOut[i * 8 + 5] = (uint8)(pCtx->state[i] >> 16);
+		pOut[i * 8 + 6] = (uint8)(pCtx->state[i] >> 8);
+		pOut[i * 8 + 7] = (uint8)(pCtx->state[i]);
+	}
+}
+
+XXAPI void xrtSHA384Final(xsha512_ctx *pCtx, uint8 *pOut)
+{
+	uint8 aFull[64];
+	xrtSHA512Final(pCtx, aFull);
+	memcpy(pOut, aFull, 48);  // SHA-384 截取前 48 字节
+}
+
+XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	xrtSHA512Init(&tCtx);
+	xrtSHA512Update(&tCtx, pData, iLen);
+	xrtSHA512Final(&tCtx, pOut);
+}
+
+XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	xrtSHA384Init(&tCtx);
+	xrtSHA512Update(&tCtx, pData, iLen);
+	xrtSHA384Final(&tCtx, pOut);
+}
+
+XXAPI void xrtHMAC_SHA384(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	uint8 k[128] = {0};
+	uint8 o_pad[128], i_pad[128];
+	unsigned int i;
+	
+	memset(i_pad, 0x36, sizeof(i_pad));
+	memset(o_pad, 0x5c, sizeof(o_pad));
+	
+	if ( iKeyLen <= 128 ) {
+		if ( iKeyLen > 0 ) {
+			memmove(k, pKey, iKeyLen);
+		}
+	} else {
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
+		xrtSHA384Final(&tCtx, k);
+	}
+	
+	for ( i = 0; i < sizeof(k); i++ ) {
+		i_pad[i] ^= k[i];
+		o_pad[i] ^= k[i];
+	}
+	
+	xrtSHA384Init(&tCtx);
+	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+	xrtSHA384Final(&tCtx, pOut);
+	
+	xrtSHA384Init(&tCtx);
+	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+	xrtSHA512Update(&tCtx, pOut, 48);
+	xrtSHA384Final(&tCtx, pOut);
+}
+
+XXAPI void xrtHMAC_SHA512(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	uint8 k[128] = {0};
+	uint8 o_pad[128], i_pad[128];
+	unsigned int i;
+	
+	memset(i_pad, 0x36, sizeof(i_pad));
+	memset(o_pad, 0x5c, sizeof(o_pad));
+	
+	if ( iKeyLen <= 128 ) {
+		if ( iKeyLen > 0 ) {
+			memmove(k, pKey, iKeyLen);
+		}
+	} else {
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
+		xrtSHA512Final(&tCtx, k);
+	}
+	
+	for ( i = 0; i < sizeof(k); i++ ) {
+		i_pad[i] ^= k[i];
+		o_pad[i] ^= k[i];
+	}
+	
+	xrtSHA512Init(&tCtx);
+	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+	xrtSHA512Final(&tCtx, pOut);
+	
+	xrtSHA512Init(&tCtx);
+	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+	xrtSHA512Update(&tCtx, pOut, 64);
+	xrtSHA512Final(&tCtx, pOut);
+}
+
+
+
 /* ============================== ChaCha20-Poly1305 (RFC 8439) ============================== */
 
 #define __XRT_CHACHA20_KEY_SIZE 32
@@ -711,42 +981,76 @@ static int __xrt_aes_setkey(__xrt_aes_ctx *pCtx, int iMode, const uint8 *pKey, u
 {
 	uint32 *pRK;
 	int i;
+	int iNk;  // 密钥字数: AES-128=4, AES-256=8
 	
 	if ( !__xrt_aes_tables_inited ) {
 		__xrt_aes_init_tables();
 	}
 	
-	pCtx->iRounds = 10;  // AES-128
+	if ( iKeySize == 32 ) {
+		pCtx->iRounds = 14;  // AES-256
+		iNk = 8;
+	} else {
+		pCtx->iRounds = 10;  // AES-128
+		iNk = 4;
+	}
 	pCtx->iDirection = iMode;
 	pRK = pCtx->arrRK;
 	
-	for ( i = 0; i < 4; i++ ) {
+	for ( i = 0; i < iNk; i++ ) {
 		__XRT_AES_GET_UINT32(pRK[i], pKey, i * 4);
 	}
 	
-	for ( i = 0; i < 10; i++ ) {
-		pRK[4] = pRK[0] ^ __xrt_aes_RCON[i] ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 16) & 0xFF] << 24) ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 8) & 0xFF] << 16) ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3]) & 0xFF] << 8) ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 24) & 0xFF]);
-		pRK[5] = pRK[1] ^ pRK[4];
-		pRK[6] = pRK[2] ^ pRK[5];
-		pRK[7] = pRK[3] ^ pRK[6];
-		pRK += 4;
+	if ( iNk == 4 ) {
+		// AES-128 密钥扩展
+		for ( i = 0; i < 10; i++ ) {
+			pRK[4] = pRK[0] ^ __xrt_aes_RCON[i] ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3] >> 16) & 0xFF] << 24) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3] >> 8) & 0xFF] << 16) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3]) & 0xFF] << 8) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3] >> 24) & 0xFF]);
+			pRK[5] = pRK[1] ^ pRK[4];
+			pRK[6] = pRK[2] ^ pRK[5];
+			pRK[7] = pRK[3] ^ pRK[6];
+			pRK += 4;
+		}
+	} else {
+		// AES-256 密钥扩展
+		for ( i = 0; i < 7; i++ ) {
+			pRK[8] = pRK[0] ^ __xrt_aes_RCON[i] ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7] >> 16) & 0xFF] << 24) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7] >> 8) & 0xFF] << 16) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7]) & 0xFF] << 8) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7] >> 24) & 0xFF]);
+			pRK[9]  = pRK[1] ^ pRK[8];
+			pRK[10] = pRK[2] ^ pRK[9];
+			pRK[11] = pRK[3] ^ pRK[10];
+			if ( i < 6 ) {
+				pRK[12] = pRK[4] ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11] >> 24) & 0xFF] << 24) ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11] >> 16) & 0xFF] << 16) ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11] >> 8) & 0xFF] << 8) ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11]) & 0xFF]);
+				pRK[13] = pRK[5] ^ pRK[12];
+				pRK[14] = pRK[6] ^ pRK[13];
+				pRK[15] = pRK[7] ^ pRK[14];
+			}
+			pRK += 8;
+		}
 	}
 	
 	if ( iMode == __XRT_AES_DECRYPT ) {
 		__xrt_aes_ctx tEnc;
 		uint32 *pSK;
+		int iNrk = pCtx->iRounds * 4;
 		__xrt_aes_setkey(&tEnc, __XRT_AES_ENCRYPT, pKey, iKeySize);
-		pSK = tEnc.arrRK + 40;
+		pSK = tEnc.arrRK + iNrk;
 		pRK = pCtx->arrRK;
 		
 		pRK[0] = pSK[0]; pRK[1] = pSK[1]; pRK[2] = pSK[2]; pRK[3] = pSK[3];
 		pRK += 4; pSK -= 4;
 		
-		for ( i = 1; i < 10; i++ ) {
+		for ( i = 1; i < pCtx->iRounds; i++ ) {
 			pRK[0] = __xrt_aes_RT0[__xrt_aes_FSb[(pSK[0] >> 24) & 0xFF]] ^
 			         __xrt_aes_RT1[__xrt_aes_FSb[(pSK[0] >> 16) & 0xFF]] ^
 			         __xrt_aes_RT2[__xrt_aes_FSb[(pSK[0] >> 8) & 0xFF]] ^
@@ -855,29 +1159,43 @@ static int __xrt_aes_cipher(__xrt_aes_ctx *pCtx, const uint8 pIn[16], uint8 pOut
 }
 
 // GCM 实现
+// GF(2^128) 约简查找表: last4[x] = x * P^128 in GF(2^128)
+// 其中 P(x) = x^128 + x^7 + x^2 + x + 1
+static const uint64 __xrt_gcm_last4[16] = {
+	0x0000, 0x1c20, 0x3840, 0x2460,
+	0x7080, 0x6ca0, 0x48c0, 0x54e0,
+	0xe100, 0xfd20, 0xd940, 0xc560,
+	0x9180, 0x8da0, 0xa9c0, 0xb5e0
+};
+
 static void __xrt_gcm_mult(__xrt_gcm_ctx *pCtx, uint8 pX[16])
 {
 	uint64 zh, zl, v;
 	int i;
+	uint8 lo, hi;
 	
-	zh = zl = 0;
-	for ( i = 0; i < 16; i++ ) {
-		uint8 lo = pX[i] & 0x0f;
-		uint8 hi = pX[i] >> 4;
+	lo = pX[15] & 0x0f;
+	
+	zh = pCtx->arrHH[lo];
+	zl = pCtx->arrHL[lo];
+	
+	for ( i = 15; i >= 0; i-- ) {
+		lo = pX[i] & 0x0f;
+		hi = pX[i] >> 4;
 		
-		if ( i != 0 ) {
+		if ( i != 15 ) {
 			v = (uint64)zl & 0x0f;
 			zl = (zl >> 4) | (zh << 60);
 			zh >>= 4;
-			zh ^= (uint64)(0xe100 * v) << 48;
+			zh ^= __xrt_gcm_last4[v] << 48;
+			zh ^= pCtx->arrHH[lo];
+			zl ^= pCtx->arrHL[lo];
 		}
-		zh ^= pCtx->arrHH[lo];
-		zl ^= pCtx->arrHL[lo];
 		
 		v = (uint64)zl & 0x0f;
 		zl = (zl >> 4) | (zh << 60);
 		zh >>= 4;
-		zh ^= (uint64)(0xe100 * v) << 48;
+		zh ^= __xrt_gcm_last4[v] << 48;
 		zh ^= pCtx->arrHH[hi];
 		zl ^= pCtx->arrHL[hi];
 	}
@@ -1074,6 +1392,39 @@ XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNon
 	return (iDiff == 0);
 }
 
+XXAPI bool xrtAES256GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	__xrt_gcm_ctx tCtx;
+	__xrt_gcm_setkey(&tCtx, pKey, 32);
+	__xrt_gcm_crypt_and_tag(&tCtx, __XRT_AES_ENCRYPT, pNonce, iNonceLen, pAAD, iAADLen, pIn, pOut, iLen, pOut + iLen, 16);
+	return true;
+}
+
+XXAPI bool xrtAES256GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	__xrt_gcm_ctx tCtx;
+	uint8 arrTag[16];
+	uint8 iDiff;
+	int i;
+	size_t iCipherLen;
+	
+	if ( iLen < 16 ) {
+		return false;
+	}
+	iCipherLen = iLen - 16;
+	
+	__xrt_gcm_setkey(&tCtx, pKey, 32);
+	__xrt_gcm_crypt_and_tag(&tCtx, __XRT_AES_DECRYPT, pNonce, iNonceLen, pAAD, iAADLen, pIn, pOut, iCipherLen, arrTag, 16);
+	
+	// 常量时间比较
+	iDiff = 0;
+	for ( i = 0; i < 16; i++ ) {
+		iDiff |= arrTag[i] ^ pIn[iCipherLen + i];
+	}
+	
+	return (iDiff == 0);
+}
+
 
 
 /* ============================== 安全随机数 ============================== */
@@ -1190,6 +1541,82 @@ XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t 
 		iCopyLen = iOKMLen - iOffset;
 		if ( iCopyLen > 32 ) {
 			iCopyLen = 32;
+		}
+		memcpy(pOKM + iOffset, T, iCopyLen);
+		iOffset += iCopyLen;
+		iCounter++;
+	}
+}
+
+
+
+/* ============================== HKDF-SHA384 (RFC 5869) ============================== */
+
+XXAPI void xrtHKDFExtract_SHA384(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen)
+{
+	uint8 arrDefaultSalt[48] = {0};
+	if ( (pSalt == NULL) || (iSaltLen == 0) ) {
+		pSalt = arrDefaultSalt;
+		iSaltLen = 48;
+	}
+	xrtHMAC_SHA384(pSalt, iSaltLen, pIKM, iIKMLen, pPRK);
+}
+
+XXAPI void xrtHKDFExpand_SHA384(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen)
+{
+	uint8 T[48] = {0};
+	size_t iTLen = 0;
+	uint8 iCounter = 1;
+	size_t iOffset = 0;
+	
+	while ( iOffset < iOKMLen ) {
+		xsha512_ctx tCtx;
+		uint8 k[128] = {0};
+		uint8 o_pad[128], i_pad[128];
+		unsigned int i;
+		size_t iCopyLen;
+		
+		// HMAC-SHA384(PRK, T || Info || counter)
+		memset(i_pad, 0x36, sizeof(i_pad));
+		memset(o_pad, 0x5c, sizeof(o_pad));
+		
+		if ( iPRKLen <= 128 ) {
+			if ( iPRKLen > 0 ) {
+				memmove(k, pPRK, iPRKLen);
+			}
+		} else {
+			xrtSHA384Init(&tCtx);
+			xrtSHA512Update(&tCtx, (ptr)pPRK, iPRKLen);
+			xrtSHA384Final(&tCtx, k);
+		}
+		
+		for ( i = 0; i < sizeof(k); i++ ) {
+			i_pad[i] ^= k[i];
+			o_pad[i] ^= k[i];
+		}
+		
+		// inner hash: H(i_pad || T(prev) || info || counter)
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+		if ( iTLen > 0 ) {
+			xrtSHA512Update(&tCtx, T, iTLen);
+		}
+		if ( (pInfo != NULL) && (iInfoLen > 0) ) {
+			xrtSHA512Update(&tCtx, (ptr)pInfo, iInfoLen);
+		}
+		xrtSHA512Update(&tCtx, &iCounter, 1);
+		xrtSHA384Final(&tCtx, T);
+		
+		// outer hash: H(o_pad || inner_hash)
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+		xrtSHA512Update(&tCtx, T, 48);
+		xrtSHA384Final(&tCtx, T);
+		
+		iTLen = 48;
+		iCopyLen = iOKMLen - iOffset;
+		if ( iCopyLen > 48 ) {
+			iCopyLen = 48;
 		}
 		memcpy(pOKM + iOffset, T, iCopyLen);
 		iOffset += iCopyLen;
@@ -2201,26 +2628,765 @@ XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen,
 
 
 
-/* ============================== ECDSA / Ed25519 签名验证 ============================== */
+/* ============================== RSA PKCS#1 v1.5 签名验证 (RFC 8017) ============================== */
+
+// DigestInfo DER 前缀 (RFC 8017 Section 9.2 Note 1)
+// SHA-256: 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20
+static const uint8 __xrt_pkcs1_sha256_prefix[] = {
+	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+	0x00, 0x04, 0x20
+};
+// SHA-384: 30 41 30 0d 06 09 60 86 48 01 65 03 04 02 02 05 00 04 30
+static const uint8 __xrt_pkcs1_sha384_prefix[] = {
+	0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
+	0x00, 0x04, 0x30
+};
+// SHA-512: 30 51 30 0d 06 09 60 86 48 01 65 03 04 02 03 05 00 04 40
+static const uint8 __xrt_pkcs1_sha512_prefix[] = {
+	0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
+	0x00, 0x04, 0x40
+};
+
+// EMSA-PKCS1-v1_5 验证 (RFC 8017 Section 9.2)
+// 格式: 0x00 || 0x01 || PS (0xFF padding) || 0x00 || DigestInfo
+XXAPI bool xrtRSAPKCS1Verify(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pSig, size_t iSigLen,
+	const uint8 *pMod, size_t iModSz,
+	const uint8 *pExp, size_t iExpSz)
+{
+	uint8 *pEM;
+	const uint8 *pPrefix;
+	size_t iPrefixLen;
+	size_t iPos;
+	size_t iTLen;
+	uint8 iDiff;
+	size_t i;
+	
+	if ( (iSigLen != iModSz) || (iModSz < 11) ) return false;
+	
+	// 确定 DigestInfo 前缀
+	if ( iHashLen == 32 ) {
+		pPrefix = __xrt_pkcs1_sha256_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha256_prefix);
+	} else if ( iHashLen == 48 ) {
+		pPrefix = __xrt_pkcs1_sha384_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha384_prefix);
+	} else if ( iHashLen == 64 ) {
+		pPrefix = __xrt_pkcs1_sha512_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha512_prefix);
+	} else {
+		return false;
+	}
+	
+	iTLen = iPrefixLen + iHashLen;  // DigestInfo 总长度
+	if ( iModSz < iTLen + 11 ) return false;  // 至少需要 0x00+0x01+8字节PS+0x00+DigestInfo
+	
+	// RSA 解密: EM = sig^e mod n
+	pEM = (uint8*)xrtMalloc(iModSz);
+	if ( !pEM ) return false;
+	
+	if ( xrtRSAModPow(pMod, iModSz, pExp, iExpSz, pSig, iSigLen, pEM, iModSz) != 0 ) {
+		xrtFree(pEM);
+		return false;
+	}
+	
+	// 验证格式: 0x00 || 0x01 || PS || 0x00 || DigestInfo
+	iPos = 0;
+	if ( pEM[iPos++] != 0x00 ) { xrtFree(pEM); return false; }
+	if ( pEM[iPos++] != 0x01 ) { xrtFree(pEM); return false; }
+	
+	// PS: 至少 8 字节的 0xFF
+	{
+		size_t iPsLen = iModSz - 3 - iTLen;
+		for ( i = 0; i < iPsLen; i++ ) {
+			if ( pEM[iPos++] != 0xFF ) { xrtFree(pEM); return false; }
+		}
+	}
+	if ( pEM[iPos++] != 0x00 ) { xrtFree(pEM); return false; }
+	
+	// 比较 DigestInfo 前缀
+	if ( memcmp(pEM + iPos, pPrefix, iPrefixLen) != 0 ) {
+		xrtFree(pEM);
+		return false;
+	}
+	iPos += iPrefixLen;
+	
+	// 常量时间比较哈希值
+	iDiff = 0;
+	for ( i = 0; i < iHashLen; i++ ) {
+		iDiff |= pEM[iPos + i] ^ pHash[i];
+	}
+	
+	xrtFree(pEM);
+	return (iDiff == 0);
+}
+
+
+
+/* ============================== secp256r1 (NIST P-256) ECDH + ECDSA ============================== */
 
 /*
-	ECDSA (secp256r1) 和 Ed25519 签名验证
-	用于 TLS 1.3 证书验证
-	实现将在 Phase 4 (TLS 模块) 中完成
+	secp256r1 (P-256) 椭圆曲线: ECDH 密钥交换 + ECDSA 签名验证
+	参考: NIST FIPS 186-4, SEC 2 v2
+	
+	内部表示: uint32[8], 小端字序 ([0]=最低 32-bit)
+	p  = FFFFFFFF 00000001 00000000 00000000 00000000 FFFFFFFF FFFFFFFF FFFFFFFF
+	n  = FFFFFFFF 00000000 FFFFFFFF FFFFFFFF BCE6FAAD A7179E84 F3B9CAC2 FC632551
+	Gx = 6B17D1F2 E12C4247 F8BCE6E5 63A440F2 77037D81 2DEB33A0 F4A13945 D898C296
+	Gy = 4FE342E2 FE1A7F9B 8EE7EB4A 7C0F9E16 2BCE3357 6B315ECE CBB64068 37BF51F5
+	a  = -3 (mod p)
 */
+
+/* ---- 256-bit 整数基本运算 (uint32[8], 小端字序) ---- */
+
+static void __xrt_u256_from_be(uint32 *r, const uint8 *b)
+{
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		r[7 - i] = ((uint32)b[i*4] << 24) | ((uint32)b[i*4+1] << 16) |
+		           ((uint32)b[i*4+2] << 8)  | (uint32)b[i*4+3];
+	}
+}
+
+static void __xrt_u256_to_be(uint8 *b, const uint32 *a)
+{
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		b[i*4]   = (uint8)(a[7-i] >> 24);
+		b[i*4+1] = (uint8)(a[7-i] >> 16);
+		b[i*4+2] = (uint8)(a[7-i] >> 8);
+		b[i*4+3] = (uint8)(a[7-i]);
+	}
+}
+
+static void __xrt_u256_copy(uint32 *r, const uint32 *a) { memcpy(r, a, 32); }
+static void __xrt_u256_zero(uint32 *r) { memset(r, 0, 32); }
+
+static int __xrt_u256_is_zero(const uint32 *a)
+{
+	uint32 v = 0;
+	int i;
+	for ( i = 0; i < 8; i++ ) v |= a[i];
+	return v == 0;
+}
+
+static uint32 __xrt_u256_add(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint64 c = 0;
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		c += (uint64)a[i] + b[i];
+		r[i] = (uint32)c;
+		c >>= 32;
+	}
+	return (uint32)c;
+}
+
+static uint32 __xrt_u256_sub(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	int64 c = 0;
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		c += (int64)(uint64)a[i] - (int64)(uint64)b[i];
+		r[i] = (uint32)c;
+		c >>= 32;
+	}
+	return (c < 0) ? 1 : 0;  // 1 = borrow
+}
+
+// 返回 1 如果 a >= b, 0 如果 a < b
+static int __xrt_u256_gte(const uint32 *a, const uint32 *b)
+{
+	int i;
+	for ( i = 7; i >= 0; i-- ) {
+		if ( a[i] > b[i] ) return 1;
+		if ( a[i] < b[i] ) return 0;
+	}
+	return 1; // 相等
+}
+
+static int __xrt_u256_cmp(const uint32 *a, const uint32 *b)
+{
+	int i;
+	for ( i = 7; i >= 0; i-- ) {
+		if ( a[i] > b[i] ) return 1;
+		if ( a[i] < b[i] ) return -1;
+	}
+	return 0;
+}
+
+/* ---- P-256 曲线参数 (uint32[8] 小端字序) ---- */
+
+// p = FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
+static const uint32 __xrt_p256_P[8] = {
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000,
+	0x00000000, 0x00000000, 0x00000001, 0xFFFFFFFF
+};
+
+// n = FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+static const uint32 __xrt_p256_N[8] = {
+	0xFC632551, 0xF3B9CAC2, 0xA7179E84, 0xBCE6FAAD,
+	0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF
+};
+
+// Gx
+static const uint32 __xrt_p256_Gx[8] = {
+	0xD898C296, 0xF4A13945, 0x2DEB33A0, 0x77037D81,
+	0x63A440F2, 0xF8BCE6E5, 0xE12C4247, 0x6B17D1F2
+};
+
+// Gy
+static const uint32 __xrt_p256_Gy[8] = {
+	0x37BF51F5, 0xCBB64068, 0x6B315ECE, 0x2BCE3357,
+	0x7C0F9E16, 0x8EE7EB4A, 0xFE1A7F9B, 0x4FE342E2
+};
+
+/* ---- NIST P-256 模约简 ---- */
+
+/*
+	512-bit 乘法结果 c[0..15] 对 p 取模
+	使用 2^256 mod p = (2^256 - p) 进行迭代约简
+	2^256 - p = 2^224 - 2^192 - 2^96 + 1
+*/
+
+// 256x256 -> 512 bit 乘法
+static void __xrt_u256_mul512(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint64 t[16];
+	int i, j;
+	memset(t, 0, sizeof(t));
+	for ( i = 0; i < 8; i++ ) {
+		uint64 carry = 0;
+		for ( j = 0; j < 8; j++ ) {
+			uint64 uv = t[i+j] + (uint64)a[i] * b[j] + carry;
+			t[i+j] = uv & 0xFFFFFFFF;
+			carry = uv >> 32;
+		}
+		t[i+8] = carry;
+	}
+	for ( i = 0; i < 16; i++ ) r[i] = (uint32)t[i];
+}
+
+// 2^256 - p 的 uint32[8] 表示 (硬编码, 避免运行时计算错误)
+static const uint32 __xrt_p256_C[8] = {
+	0x00000001, 0x00000000, 0x00000000, 0xFFFFFFFF,
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFE, 0x00000000
+};
+
+static void __xrt_p256_mod_p(uint32 *r, const uint32 *c)
+{
+	// NIST FIPS 186-4, Section D.2: Fast reduction for P-256
+	// p = 2^256 - 2^224 + 2^192 + 2^96 - 1
+	// Input: c[0..15] (512-bit), Output: r[0..7] (256-bit, reduced mod p)
+	int64 acc[9] = {0};  // 9 words to handle overflow
+	int i;
+	
+	// s1 = T: (c7, c6, c5, c4, c3, c2, c1, c0)
+	for (i = 0; i < 8; i++) acc[i] = (int64)(uint64)c[i];
+	
+	// +2*s2: 2*(c15, c14, c13, c12, c11, 0, 0, 0)
+	acc[3] += 2*(int64)(uint64)c[11];
+	acc[4] += 2*(int64)(uint64)c[12];
+	acc[5] += 2*(int64)(uint64)c[13];
+	acc[6] += 2*(int64)(uint64)c[14];
+	acc[7] += 2*(int64)(uint64)c[15];
+	
+	// +2*s3: 2*(0, c15, c14, c13, c12, 0, 0, 0)
+	acc[3] += 2*(int64)(uint64)c[12];
+	acc[4] += 2*(int64)(uint64)c[13];
+	acc[5] += 2*(int64)(uint64)c[14];
+	acc[6] += 2*(int64)(uint64)c[15];
+	
+	// +s4: (c15, c14, 0, 0, 0, c10, c9, c8)
+	acc[0] += (int64)(uint64)c[8];
+	acc[1] += (int64)(uint64)c[9];
+	acc[2] += (int64)(uint64)c[10];
+	acc[6] += (int64)(uint64)c[14];
+	acc[7] += (int64)(uint64)c[15];
+	
+	// +s5: (c8, c13, c15, c14, c13, c11, c10, c9)
+	acc[0] += (int64)(uint64)c[9];
+	acc[1] += (int64)(uint64)c[10];
+	acc[2] += (int64)(uint64)c[11];
+	acc[3] += (int64)(uint64)c[13];
+	acc[4] += (int64)(uint64)c[14];
+	acc[5] += (int64)(uint64)c[15];
+	acc[6] += (int64)(uint64)c[13];
+	acc[7] += (int64)(uint64)c[8];
+	
+	// -s6: (c10, c8, 0, 0, 0, c13, c12, c11)
+	acc[0] -= (int64)(uint64)c[11];
+	acc[1] -= (int64)(uint64)c[12];
+	acc[2] -= (int64)(uint64)c[13];
+	acc[6] -= (int64)(uint64)c[8];
+	acc[7] -= (int64)(uint64)c[10];
+	
+	// -s7: (c11, c9, 0, 0, c15, c14, c13, c12)
+	acc[0] -= (int64)(uint64)c[12];
+	acc[1] -= (int64)(uint64)c[13];
+	acc[2] -= (int64)(uint64)c[14];
+	acc[3] -= (int64)(uint64)c[15];
+	acc[6] -= (int64)(uint64)c[9];
+	acc[7] -= (int64)(uint64)c[11];
+	
+	// -s8: (c12, 0, c10, c9, c8, c15, c14, c13)
+	acc[0] -= (int64)(uint64)c[13];
+	acc[1] -= (int64)(uint64)c[14];
+	acc[2] -= (int64)(uint64)c[15];
+	acc[3] -= (int64)(uint64)c[8];
+	acc[4] -= (int64)(uint64)c[9];
+	acc[5] -= (int64)(uint64)c[10];
+	acc[7] -= (int64)(uint64)c[12];
+	
+	// -s9: (c13, 0, c11, c10, c9, 0, c15, c14)
+	acc[0] -= (int64)(uint64)c[14];
+	acc[1] -= (int64)(uint64)c[15];
+	acc[3] -= (int64)(uint64)c[9];
+	acc[4] -= (int64)(uint64)c[10];
+	acc[5] -= (int64)(uint64)c[11];
+	acc[7] -= (int64)(uint64)c[13];
+	
+	// Carry propagation (signed)
+	for (i = 0; i < 8; i++) {
+		acc[i+1] += (acc[i] >> 32);
+		r[i] = (uint32)((uint64)acc[i] & 0xFFFFFFFF);
+	}
+	
+	// acc[8] is the residual carry (can be positive or negative)
+	int64 carry = acc[8];
+	while ( carry < 0 ) {
+		__xrt_u256_add(r, r, __xrt_p256_P);
+		carry++;
+	}
+	while ( carry > 0 ) {
+		__xrt_u256_sub(r, r, __xrt_p256_P);
+		carry--;
+	}
+	while ( __xrt_u256_gte(r, __xrt_p256_P) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_P);
+	}
+}
+
+/* ---- 模 p 算术 ---- */
+
+static void __xrt_p256_add_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 carry = __xrt_u256_add(r, a, b);
+	if ( carry || __xrt_u256_gte(r, __xrt_p256_P) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_P);
+	}
+}
+
+static void __xrt_p256_sub_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 borrow = __xrt_u256_sub(r, a, b);
+	if ( borrow ) {
+		__xrt_u256_add(r, r, __xrt_p256_P);
+	}
+}
+
+static void __xrt_p256_mul_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 t[16];
+	__xrt_u256_mul512(t, a, b);
+	__xrt_p256_mod_p(r, t);
+}
+
+static void __xrt_p256_sqr_mod_p(uint32 *r, const uint32 *a)
+{
+	__xrt_p256_mul_mod_p(r, a, a);
+}
+
+// 模 p 逆元: r = a^(p-2) mod p (费马小定理)
+static void __xrt_p256_inv_mod_p(uint32 *r, const uint32 *a)
+{
+	uint32 exp[8], base[8], result[8];
+	int bit;
+	
+	// exp = p - 2
+	__xrt_u256_copy(exp, __xrt_p256_P);
+	exp[0] -= 2;
+	__xrt_u256_copy(base, a);
+	__xrt_u256_zero(result);
+	result[0] = 1;
+	
+	for ( bit = 0; bit < 256; bit++ ) {
+		if ( exp[bit / 32] & ((uint32)1 << (bit % 32)) ) {
+			__xrt_p256_mul_mod_p(result, result, base);
+		}
+		__xrt_p256_sqr_mod_p(base, base);
+	}
+	__xrt_u256_copy(r, result);
+}
+
+/* ---- 模 n (曲线阶) 算术 ---- */
+
+// 512-bit 对 n 取模 (通用方法, n 没有特殊结构)
+static void __xrt_p256_mod_n(uint32 *r, const uint32 *c)
+{
+	// 使用 2^256 mod n = 2^256 - n 进行约简
+	uint32 hi[8], c256[8], prod[16];
+	uint32 carry = 0;
+	int i;
+	uint32 hi_nz = 0;
+	
+	for ( i = 0; i < 8; i++ ) r[i] = c[i];
+	for ( i = 0; i < 8; i++ ) { hi[i] = c[i+8]; hi_nz |= hi[i]; }
+	
+	// 计算 c256 = 2^256 - n
+	__xrt_u256_zero(c256);
+	__xrt_u256_sub(c256, c256, __xrt_p256_N);  // c256 = 0 - n (mod 2^256) = 2^256 - n
+	
+	// 迭代约简 (与 mod_p 相同的逻辑)
+	while ( hi_nz ) {
+		__xrt_u256_mul512(prod, hi, c256);
+		carry += __xrt_u256_add(r, r, prod);
+		hi_nz = 0;
+		for ( i = 0; i < 8; i++ ) { hi[i] = prod[i+8]; hi_nz |= hi[i]; }
+	}
+	// 最后确保 r < n
+	while ( carry ) {
+		uint32 borrow = __xrt_u256_sub(r, r, __xrt_p256_N);
+		if ( borrow ) carry--;
+	}
+	while ( __xrt_u256_gte(r, __xrt_p256_N) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_N);
+	}
+}
+
+static void __xrt_p256_mul_mod_n(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 t[16];
+	__xrt_u256_mul512(t, a, b);
+	__xrt_p256_mod_n(r, t);
+}
+
+static void __xrt_p256_add_mod_n(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 carry = __xrt_u256_add(r, a, b);
+	if ( carry || __xrt_u256_gte(r, __xrt_p256_N) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_N);
+	}
+}
+
+static void __xrt_p256_inv_mod_n(uint32 *r, const uint32 *a)
+{
+	uint32 exp[8], base[8], result[8];
+	int bit;
+	
+	__xrt_u256_copy(exp, __xrt_p256_N);
+	exp[0] -= 2;  // n - 2
+	__xrt_u256_copy(base, a);
+	__xrt_u256_zero(result);
+	result[0] = 1;
+	
+	for ( bit = 0; bit < 256; bit++ ) {
+		if ( exp[bit / 32] & ((uint32)1 << (bit % 32)) ) {
+			__xrt_p256_mul_mod_n(result, result, base);
+		}
+		__xrt_p256_mul_mod_n(base, base, base);
+	}
+	__xrt_u256_copy(r, result);
+}
+
+/* ---- Jacobian 坐标点运算 ---- */
+
+// Jacobian 坐标点 (X, Y, Z)
+// 仿射坐标 x = X/Z^2, y = Y/Z^3
+// 无穷远点表示为 Z=0
+typedef struct {
+	uint32 x[8];
+	uint32 y[8];
+	uint32 z[8];
+} __xrt_p256_jpt;
+
+// 点倍乘: R = 2*P
+// 安全支持 pR == pP (就地操作)
+// 算法: 完整公式 (a=-3 优化)
+// M = 3*(X + Z^2)*(X - Z^2)
+// S = 4*X*Y^2
+// X' = M^2 - 2*S
+// Y' = M*(S - X') - 8*Y^4
+// Z' = 2*Y*Z
+static void __xrt_p256_pt_dbl(__xrt_p256_jpt *pR, const __xrt_p256_jpt *pP)
+{
+	uint32 m[8], s[8], t1[8], t2[8], y2[8], z_save[8], y_save[8];
+	
+	if ( __xrt_u256_is_zero(pP->z) ) {
+		memset(pR, 0, sizeof(*pR));
+		return;
+	}
+	
+	// 保存原始 Y, Z (防止 aliasing)
+	__xrt_u256_copy(y_save, pP->y);
+	__xrt_u256_copy(z_save, pP->z);
+	
+	// Y^2
+	__xrt_p256_sqr_mod_p(y2, y_save);
+	
+	// S = 4*X*Y^2
+	__xrt_p256_mul_mod_p(s, pP->x, y2);
+	__xrt_p256_add_mod_p(s, s, s);
+	__xrt_p256_add_mod_p(s, s, s);
+	
+	// M = 3*(X + Z^2)*(X - Z^2) = 3*X^2 + a*Z^4, a=-3
+	__xrt_p256_sqr_mod_p(t1, z_save);       // Z^2
+	__xrt_p256_add_mod_p(t2, pP->x, t1);   // X + Z^2
+	__xrt_p256_sub_mod_p(t1, pP->x, t1);   // X - Z^2
+	__xrt_p256_mul_mod_p(m, t2, t1);        // (X+Z^2)(X-Z^2)
+	__xrt_p256_add_mod_p(t1, m, m);          // 2*(...)
+	__xrt_p256_add_mod_p(m, m, t1);          // 3*(...)
+	
+	// 8*Y^4
+	__xrt_p256_sqr_mod_p(t1, y2);           // Y^4
+	__xrt_p256_add_mod_p(t1, t1, t1);       // 2*Y^4
+	__xrt_p256_add_mod_p(t1, t1, t1);       // 4*Y^4
+	__xrt_p256_add_mod_p(t1, t1, t1);       // 8*Y^4
+	
+	// Z' = 2*Y*Z (必须在写入 pR 之前计算)
+	__xrt_p256_mul_mod_p(pR->z, y_save, z_save);
+	__xrt_p256_add_mod_p(pR->z, pR->z, pR->z);
+	
+	// X' = M^2 - 2*S
+	__xrt_p256_sqr_mod_p(pR->x, m);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, s);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, s);
+	
+	// Y' = M*(S - X') - 8*Y^4
+	__xrt_p256_sub_mod_p(t2, s, pR->x);
+	__xrt_p256_mul_mod_p(pR->y, m, t2);
+	__xrt_p256_sub_mod_p(pR->y, pR->y, t1);
+}
+
+// 混合点加法: R = P + Q
+// P: Jacobian, Q: 仿射 (qx, qy), 即 Q 的 Z=1
+// 安全支持 pR == pP
+static void __xrt_p256_pt_add_aff(__xrt_p256_jpt *pR, const __xrt_p256_jpt *pP, const uint32 *qx, const uint32 *qy)
+{
+	uint32 u1[8], u2[8], s1[8], s2[8], h[8], hh[8], hhh[8], rr[8], t[8];
+	__xrt_p256_jpt P_save;
+	
+	if ( __xrt_u256_is_zero(pP->z) ) {
+		__xrt_u256_copy(pR->x, qx);
+		__xrt_u256_copy(pR->y, qy);
+		__xrt_u256_zero(pR->z);
+		pR->z[0] = 1;
+		return;
+	}
+	
+	// 保存 P (防止 pR == pP 时的 aliasing)
+	memcpy(&P_save, pP, sizeof(P_save));
+	
+	// U1 = X1, U2 = X2*Z1^2, S1 = Y1, S2 = Y2*Z1^3
+	__xrt_p256_sqr_mod_p(t, P_save.z);       // Z1^2
+	__xrt_p256_mul_mod_p(u2, qx, t);         // X2*Z1^2
+	__xrt_u256_copy(u1, P_save.x);
+	
+	__xrt_p256_mul_mod_p(s2, t, P_save.z);   // Z1^3
+	__xrt_p256_mul_mod_p(s2, s2, qy);        // Y2*Z1^3
+	__xrt_u256_copy(s1, P_save.y);
+	
+	// H = U2 - U1, R = S2 - S1
+	__xrt_p256_sub_mod_p(h, u2, u1);
+	__xrt_p256_sub_mod_p(rr, s2, s1);
+	
+	if ( __xrt_u256_is_zero(h) ) {
+		#ifdef DEBUG_TRACE
+		printf("  [P256] pt_add_aff: H==0! rr_zero=%d\n", __xrt_u256_is_zero(rr));
+		#endif
+		if ( __xrt_u256_is_zero(rr) ) {
+			__xrt_p256_pt_dbl(pR, &P_save);
+		} else {
+			memset(pR, 0, sizeof(*pR)); // 无穷远点
+		}
+		return;
+	}
+	
+	__xrt_p256_sqr_mod_p(hh, h);              // H^2
+	__xrt_p256_mul_mod_p(hhh, hh, h);         // H^3
+	__xrt_p256_mul_mod_p(t, u1, hh);          // U1*H^2
+	
+	// X3 = R^2 - H^3 - 2*U1*H^2
+	__xrt_p256_sqr_mod_p(pR->x, rr);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, hhh);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, t);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, t);
+	
+	// Y3 = R*(U1*H^2 - X3) - S1*H^3
+	__xrt_p256_sub_mod_p(t, t, pR->x);        // U1*H^2 - X3
+	__xrt_p256_mul_mod_p(pR->y, rr, t);
+	__xrt_p256_mul_mod_p(t, s1, hhh);
+	__xrt_p256_sub_mod_p(pR->y, pR->y, t);
+	
+	// Z3 = Z1 * H
+	__xrt_p256_mul_mod_p(pR->z, P_save.z, h);
+}
+
+// 标量乘法: R = k * (px, py)
+// 左到右二进制方法
+static void __xrt_p256_scalar_mult(__xrt_p256_jpt *pR, const uint32 *k, const uint32 *px, const uint32 *py)
+{
+	int i;
+	memset(pR, 0, sizeof(*pR));  // 无穷远点 (Z=0)
+	
+	for ( i = 255; i >= 0; i-- ) {
+		__xrt_p256_pt_dbl(pR, pR);
+		if ( k[i / 32] & ((uint32)1 << (i % 32)) ) {
+			__xrt_p256_pt_add_aff(pR, pR, px, py);
+		}
+	}
+}
+
+// Jacobian -> 仿射坐标
+static void __xrt_p256_to_affine(uint32 *ax, uint32 *ay, const __xrt_p256_jpt *pP)
+{
+	uint32 zinv[8], zinv2[8], zinv3[8];
+	
+	if ( __xrt_u256_is_zero(pP->z) ) {
+		__xrt_u256_zero(ax);
+		__xrt_u256_zero(ay);
+		return;
+	}
+	
+	__xrt_p256_inv_mod_p(zinv, pP->z);
+	__xrt_p256_sqr_mod_p(zinv2, zinv);
+	__xrt_p256_mul_mod_p(zinv3, zinv2, zinv);
+	__xrt_p256_mul_mod_p(ax, pP->x, zinv2);
+	__xrt_p256_mul_mod_p(ay, pP->y, zinv3);
+}
+
+/* ============================== ECDH secp256r1 + ECDSA 公共 API ============================== */
+
+XXAPI void xrtECDHSecp256r1Keypair(uint8 *pPrivKey, uint8 *pPubKey)
+{
+	uint32 k[8], rx[8], ry[8];
+	__xrt_p256_jpt tR;
+	
+	// 生成随机私钥 (1 < k < n)
+	do {
+		xrtRandomBytes(pPrivKey, 32);
+		__xrt_u256_from_be(k, pPrivKey);
+	} while ( __xrt_u256_is_zero(k) || __xrt_u256_gte(k, __xrt_p256_N) );
+	
+	// Q = k * G
+	__xrt_p256_scalar_mult(&tR, k, __xrt_p256_Gx, __xrt_p256_Gy);
+	__xrt_p256_to_affine(rx, ry, &tR);
+	
+	// 输出未压缩公钥: 0x04 || X || Y (65 字节)
+	pPubKey[0] = 0x04;
+	__xrt_u256_to_be(pPubKey + 1, rx);
+	__xrt_u256_to_be(pPubKey + 33, ry);
+}
+
+XXAPI void xrtECDHSecp256r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey)
+{
+	uint32 k[8], px[8], py[8], rx[8], ry[8];
+	__xrt_p256_jpt tR;
+	
+	__xrt_u256_from_be(k, pPrivKey);
+	
+	if ( pPubKey[0] == 0x04 ) {
+		__xrt_u256_from_be(px, pPubKey + 1);
+		__xrt_u256_from_be(py, pPubKey + 33);
+	} else {
+		memset(pOut, 0, 32);
+		return;
+	}
+	
+	// S = k * PeerPub
+	__xrt_p256_scalar_mult(&tR, k, px, py);
+	__xrt_p256_to_affine(rx, ry, &tR);
+	
+	// 输出 X 坐标
+	__xrt_u256_to_be(pOut, rx);
+}
+
+// ECDSA secp256r1 签名验证
+// pSig: DER 编码的签名 (SEQUENCE { INTEGER r, INTEGER s })
+// pPubKey: 未压缩公钥 (0x04 || X || Y, 65 字节)
+XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen)
+{
+	uint32 r_u[8], s_u[8], z[8], sinv[8], u1[8], u2[8];
+	uint32 px[8], py[8], rx[8], ry[8];
+	__xrt_p256_jpt tR1, tR2;
+	const uint8 *p;
+	size_t rLen, sLen;
+	uint8 rBuf[33], sBuf[33];
+	
+	// 解析公钥
+	if ( (iPubKeyLen < 65) || (pPubKey[0] != 0x04) ) return false;
+	__xrt_u256_from_be(px, pPubKey + 1);
+	__xrt_u256_from_be(py, pPubKey + 33);
+	
+	// 解析 DER 签名
+	p = pSig;
+	if ( (iSigLen < 8) || (*p++ != 0x30) ) return false;
+	{ size_t iSeqLen = *p++; (void)iSeqLen; }
+	
+	if ( *p++ != 0x02 ) return false;
+	rLen = *p++;
+	if ( rLen > 33 ) return false;
+	memset(rBuf, 0, sizeof(rBuf));
+	memcpy(rBuf + (33 - rLen), p, rLen);
+	p += rLen;
+	{ const uint8 *rS = rBuf; if ( rBuf[0] == 0 ) rS = rBuf + 1; __xrt_u256_from_be(r_u, rS); }
+	
+	if ( *p++ != 0x02 ) return false;
+	sLen = *p++;
+	if ( sLen > 33 ) return false;
+	memset(sBuf, 0, sizeof(sBuf));
+	memcpy(sBuf + (33 - sLen), p, sLen);
+	{ const uint8 *sS = sBuf; if ( sBuf[0] == 0 ) sS = sBuf + 1; __xrt_u256_from_be(s_u, sS); }
+	
+	// 检查 r, s 在 [1, n-1]
+	if ( __xrt_u256_is_zero(r_u) || __xrt_u256_gte(r_u, __xrt_p256_N) ) return false;
+	if ( __xrt_u256_is_zero(s_u) || __xrt_u256_gte(s_u, __xrt_p256_N) ) return false;
+	
+	// z = hash 截取前 32 字节
+	{
+		uint8 zBuf[32] = {0};
+		size_t iCopy = iHashLen > 32 ? 32 : iHashLen;
+		memcpy(zBuf, pHash, iCopy);
+		__xrt_u256_from_be(z, zBuf);
+	}
+	
+	// s^(-1) mod n
+	__xrt_p256_inv_mod_n(sinv, s_u);
+	// u1 = z * s^(-1) mod n
+	__xrt_p256_mul_mod_n(u1, z, sinv);
+	// u2 = r * s^(-1) mod n
+	__xrt_p256_mul_mod_n(u2, r_u, sinv);
+	
+	// R = u1*G + u2*Q
+	__xrt_p256_scalar_mult(&tR1, u1, __xrt_p256_Gx, __xrt_p256_Gy);
+	__xrt_p256_scalar_mult(&tR2, u2, px, py);
+	
+	// R = R1 + R2
+	{
+		uint32 ax[8], ay[8];
+		__xrt_p256_to_affine(ax, ay, &tR2);
+		if ( !__xrt_u256_is_zero(ax) || !__xrt_u256_is_zero(ay) ) {
+			__xrt_p256_pt_add_aff(&tR1, &tR1, ax, ay);
+		}
+	}
+	
+	// 获取 R 的 x 坐标
+	__xrt_p256_to_affine(rx, ry, &tR1);
+	
+	// 验证: r == rx mod n
+	if ( __xrt_u256_gte(rx, __xrt_p256_N) ) {
+		__xrt_u256_sub(rx, rx, __xrt_p256_N);
+	}
+	
+	return (__xrt_u256_cmp(rx, r_u) == 0);
+}
 
 XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey)
 {
-	// TODO: 在 TLS 模块中实现 Ed25519 签名验证
+	// TODO: Ed25519 签名验证待实现
 	(void)pMsg; (void)iMsgLen; (void)pSig; (void)pPubKey;
 	return false;
 }
-
-XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen)
-{
-	// TODO: 在 TLS 模块中实现 ECDSA (secp256r1) 签名验证
-	(void)pHash; (void)iHashLen; (void)pSig; (void)iSigLen; (void)pPubKey; (void)iPubKeyLen;
-	return false;
-}
-
-

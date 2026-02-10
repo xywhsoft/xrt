@@ -1090,9 +1090,13 @@
 		基于 mongoose 内建 TLS 移植，提供独立可用的加密原语
 		算法来源：
 			SHA-256:            Brad Conte (Public Domain)
+			SHA-512/384:        原创实现 (FIPS 180-4)
 			ChaCha20-Poly1305:  portable8439 (CC0-1.0) + poly1305-donna (Public Domain)
-			AES-128-GCM:        Steven M. Gibson / GRC.com (Public Domain)
+			AES-128/256-GCM:    Steven M. Gibson / GRC.com (Public Domain)
 			X25519:             Mike Hamburg / STROBE (MIT License)
+			ECDH/ECDSA P-256:   原创实现 (FIPS 186-4 / SEC 2)
+			RSA:                axTLS bignum (BSD License)
+			HKDF:               原创实现 (RFC 5869)
 	*/
 	
 	// SHA-256 上下文结构
@@ -1103,14 +1107,39 @@
 		uint64 bits;
 	} xsha256_ctx;
 	
+	// SHA-512 上下文结构 (同时用作 SHA-384 上下文)
+	typedef struct {
+		uint64 state[8];
+		uint8 buffer[128];
+		uint32 len;
+		uint64 bits;
+	} xsha512_ctx;
+	
 	// SHA-256 哈希
 	XXAPI void xrtSHA256(const ptr pData, size_t iLen, uint8 *pOut);
 	XXAPI void xrtSHA256Init(xsha256_ctx *pCtx);
 	XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen);
 	XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut);
 	
+	// SHA-384 哈希 (基于 SHA-512, 截取 48 字节)
+	XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA384Init(xsha512_ctx *pCtx);
+	XXAPI void xrtSHA384Final(xsha512_ctx *pCtx, uint8 *pOut);
+	
+	// SHA-512 哈希
+	XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA512Init(xsha512_ctx *pCtx);
+	XXAPI void xrtSHA512Update(xsha512_ctx *pCtx, const ptr pData, size_t iLen);
+	XXAPI void xrtSHA512Final(xsha512_ctx *pCtx, uint8 *pOut);
+	
 	// HMAC-SHA256
 	XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
+	
+	// HMAC-SHA384
+	XXAPI void xrtHMAC_SHA384(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
+	
+	// HMAC-SHA512
+	XXAPI void xrtHMAC_SHA512(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
 	
 	// ChaCha20 流加密 (RFC 8439)
 	XXAPI void xrtChaCha20(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, uint32 iCounter, const uint8 *pIn, size_t iLen);
@@ -1127,9 +1156,19 @@
 	XXAPI bool xrtAES128GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
 	XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
 	
+	// AES-256-GCM AEAD 加密/解密
+	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
+	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
+	XXAPI bool xrtAES256GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	XXAPI bool xrtAES256GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	
 	// X25519 密钥交换 (RFC 7748)
 	XXAPI void xrtX25519Keypair(uint8 *pPrivKey, uint8 *pPubKey);              // 生成密钥对 (各 32 字节)
 	XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
+	
+	// ECDH secp256r1 (P-256) 密钥交换 (TLS 1.2 ECDHE)
+	XXAPI void xrtECDHSecp256r1Keypair(uint8 *pPrivKey, uint8 *pPubKey);       // 生成密钥对 (私钥 32 字节, 公钥 65 字节: 0x04||X||Y)
+	XXAPI void xrtECDHSecp256r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
 	
 	// ECDSA / Ed25519 签名验证 (用于 TLS 证书验证)
 	XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey);
@@ -1139,9 +1178,16 @@
 	XXAPI int  xrtRSAModPow(const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz, const uint8 *pMsg, size_t iMsgSz, uint8 *pOut, size_t iOutSz);
 	XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz);
 	
-	// HKDF 密钥派生 (RFC 5869)
+	// RSA PKCS#1 v1.5 签名验证 (TLS 1.2 证书链)
+	XXAPI bool xrtRSAPKCS1Verify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz);
+	
+	// HKDF 密钥派生 (RFC 5869, 基于 SHA-256)
 	XXAPI void xrtHKDFExtract(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
 	XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
+	
+	// HKDF-SHA384 密钥派生 (RFC 5869, 基于 SHA-384)
+	XXAPI void xrtHKDFExtract_SHA384(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
+	XXAPI void xrtHKDFExpand_SHA384(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
 	
 	// 加密安全随机数 (Windows: RtlGenRandom, Linux: /dev/urandom)
 	XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen);
@@ -1213,17 +1259,20 @@
 		int iPollTimeoutMs;     // 轮询超时(毫秒)
 	} xnetconfig;
 	
+	/* ---- TLS 上下文 (不透明) ---- */
+	typedef struct xrt_tls_context xtlsctx;
+	
 	/* ---- TLS 配置 ---- */
 	typedef struct {
 		const char* sCertFile;    // 证书文件路径
 		const char* sKeyFile;     // 私钥文件路径
 		const char* sCaFile;      // CA 证书路径
-		const char* sHostName;    // 主机名 (SNI)
+		const char* sHostName;    // 主机名 (SNI, 客户端)
 		bool bVerifyPeer;         // 是否验证对端证书
+		// 服务端 SNI 回调 (虚拟主机支持)
+		void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
+		ptr pSNIUserData;
 	} xtlsconfig;
-	
-	/* ---- TLS 上下文 (不透明) ---- */
-	typedef struct xrt_tls_context xtlsctx;
 	
 	/* ---- IO Poller (不透明) ---- */
 	typedef struct xrt_net_poller xnetpoller;
@@ -1307,7 +1356,7 @@
 	
 	
 	
-	/* ------------------------------------ TLS 1.3 ------------------------------------ */
+	/* ------------------------------------ TLS ------------------------------------ */
 	
 	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
 	XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
@@ -1316,6 +1365,8 @@
 	XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
 	XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
 	XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
+	XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);                   // 获取客户端请求的 SNI 主机名 (服务端模式)
+	XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);  // SNI 回调后配置证书
 	
 	
 	

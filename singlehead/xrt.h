@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-02-09 17:03:04
+    Generated: 2026-02-10 19:35:13
 
     MIT License
 
@@ -1135,9 +1135,13 @@
 		基于 mongoose 内建 TLS 移植，提供独立可用的加密原语
 		算法来源：
 			SHA-256:            Brad Conte (Public Domain)
+			SHA-512/384:        原创实现 (FIPS 180-4)
 			ChaCha20-Poly1305:  portable8439 (CC0-1.0) + poly1305-donna (Public Domain)
-			AES-128-GCM:        Steven M. Gibson / GRC.com (Public Domain)
+			AES-128/256-GCM:    Steven M. Gibson / GRC.com (Public Domain)
 			X25519:             Mike Hamburg / STROBE (MIT License)
+			ECDH/ECDSA P-256:   原创实现 (FIPS 186-4 / SEC 2)
+			RSA:                axTLS bignum (BSD License)
+			HKDF:               原创实现 (RFC 5869)
 	*/
 	
 	// SHA-256 上下文结构
@@ -1148,14 +1152,39 @@
 		uint64 bits;
 	} xsha256_ctx;
 	
+	// SHA-512 上下文结构 (同时用作 SHA-384 上下文)
+	typedef struct {
+		uint64 state[8];
+		uint8 buffer[128];
+		uint32 len;
+		uint64 bits;
+	} xsha512_ctx;
+	
 	// SHA-256 哈希
 	XXAPI void xrtSHA256(const ptr pData, size_t iLen, uint8 *pOut);
 	XXAPI void xrtSHA256Init(xsha256_ctx *pCtx);
 	XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen);
 	XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut);
 	
+	// SHA-384 哈希 (基于 SHA-512, 截取 48 字节)
+	XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA384Init(xsha512_ctx *pCtx);
+	XXAPI void xrtSHA384Final(xsha512_ctx *pCtx, uint8 *pOut);
+	
+	// SHA-512 哈希
+	XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA512Init(xsha512_ctx *pCtx);
+	XXAPI void xrtSHA512Update(xsha512_ctx *pCtx, const ptr pData, size_t iLen);
+	XXAPI void xrtSHA512Final(xsha512_ctx *pCtx, uint8 *pOut);
+	
 	// HMAC-SHA256
 	XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
+	
+	// HMAC-SHA384
+	XXAPI void xrtHMAC_SHA384(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
+	
+	// HMAC-SHA512
+	XXAPI void xrtHMAC_SHA512(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut);
 	
 	// ChaCha20 流加密 (RFC 8439)
 	XXAPI void xrtChaCha20(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, uint32 iCounter, const uint8 *pIn, size_t iLen);
@@ -1172,17 +1201,38 @@
 	XXAPI bool xrtAES128GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
 	XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
 	
+	// AES-256-GCM AEAD 加密/解密
+	// 加密: pOut 需要 iLen + 16 字节空间 (密文 + 16字节tag)
+	// 解密: iLen 包含 16 字节 tag，返回 false 表示验证失败
+	XXAPI bool xrtAES256GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	XXAPI bool xrtAES256GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen);
+	
 	// X25519 密钥交换 (RFC 7748)
 	XXAPI void xrtX25519Keypair(uint8 *pPrivKey, uint8 *pPubKey);              // 生成密钥对 (各 32 字节)
 	XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
+	
+	// ECDH secp256r1 (P-256) 密钥交换 (TLS 1.2 ECDHE)
+	XXAPI void xrtECDHSecp256r1Keypair(uint8 *pPrivKey, uint8 *pPubKey);       // 生成密钥对 (私钥 32 字节, 公钥 65 字节: 0x04||X||Y)
+	XXAPI void xrtECDHSecp256r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey);  // 计算共享密钥 (32 字节)
 	
 	// ECDSA / Ed25519 签名验证 (用于 TLS 证书验证)
 	XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey);
 	XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen);
 	
-	// HKDF 密钥派生 (RFC 5869)
+	// RSA 模幂运算 + RSA-PSS 签名验证 (axTLS bignum, BSD License)
+	XXAPI int  xrtRSAModPow(const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz, const uint8 *pMsg, size_t iMsgSz, uint8 *pOut, size_t iOutSz);
+	XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz);
+	
+	// RSA PKCS#1 v1.5 签名验证 (TLS 1.2 证书链)
+	XXAPI bool xrtRSAPKCS1Verify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pMod, size_t iModSz, const uint8 *pExp, size_t iExpSz);
+	
+	// HKDF 密钥派生 (RFC 5869, 基于 SHA-256)
 	XXAPI void xrtHKDFExtract(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
 	XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
+	
+	// HKDF-SHA384 密钥派生 (RFC 5869, 基于 SHA-384)
+	XXAPI void xrtHKDFExtract_SHA384(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen);
+	XXAPI void xrtHKDFExpand_SHA384(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen);
 	
 	// 加密安全随机数 (Windows: RtlGenRandom, Linux: /dev/urandom)
 	XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen);
@@ -1254,17 +1304,20 @@
 		int iPollTimeoutMs;     // 轮询超时(毫秒)
 	} xnetconfig;
 	
+	/* ---- TLS 上下文 (不透明) ---- */
+	typedef struct xrt_tls_context xtlsctx;
+	
 	/* ---- TLS 配置 ---- */
 	typedef struct {
 		const char* sCertFile;    // 证书文件路径
 		const char* sKeyFile;     // 私钥文件路径
 		const char* sCaFile;      // CA 证书路径
-		const char* sHostName;    // 主机名 (SNI)
+		const char* sHostName;    // 主机名 (SNI, 客户端)
 		bool bVerifyPeer;         // 是否验证对端证书
+		// 服务端 SNI 回调 (虚拟主机支持)
+		void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
+		ptr pSNIUserData;
 	} xtlsconfig;
-	
-	/* ---- TLS 上下文 (不透明) ---- */
-	typedef struct xrt_tls_context xtlsctx;
 	
 	/* ---- IO Poller (不透明) ---- */
 	typedef struct xrt_net_poller xnetpoller;
@@ -1348,7 +1401,7 @@
 	
 	
 	
-	/* ------------------------------------ TLS 1.3 ------------------------------------ */
+	/* ------------------------------------ TLS ------------------------------------ */
 	
 	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
 	XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
@@ -1357,6 +1410,8 @@
 	XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
 	XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
 	XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
+	XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);                   // 获取客户端请求的 SNI 主机名 (服务端模式)
+	XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);  // SNI 回调后配置证书
 	
 	
 	
@@ -11333,6 +11388,260 @@ XXAPI void xrtHMAC_SHA256(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, 
 	xrtSHA256Update(&tCtx, pOut, 32);
 	xrtSHA256Final(&tCtx, pOut);
 }
+/* ============================== SHA-512 / SHA-384 ============================== */
+// xsha512_ctx 已在 xrt.h 中定义 (同时用作 SHA-384 上下文)
+// SHA-512 常量表 (80 个 uint64)
+static const uint64 __xrt_sha512_k[80] = {
+	0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
+	0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL, 0x923f82a4af194f9bULL, 0xab1c5ed5da6d8118ULL,
+	0xd807aa98a3030242ULL, 0x12835b0145706fbeULL, 0x243185be4ee4b28cULL, 0x550c7dc3d5ffb4e2ULL,
+	0x72be5d74f27b896fULL, 0x80deb1fe3b1696b1ULL, 0x9bdc06a725c71235ULL, 0xc19bf174cf692694ULL,
+	0xe49b69c19ef14ad2ULL, 0xefbe4786384f25e3ULL, 0x0fc19dc68b8cd5b5ULL, 0x240ca1cc77ac9c65ULL,
+	0x2de92c6f592b0275ULL, 0x4a7484aa6ea6e483ULL, 0x5cb0a9dcbd41fbd4ULL, 0x76f988da831153b5ULL,
+	0x983e5152ee66dfabULL, 0xa831c66d2db43210ULL, 0xb00327c898fb213fULL, 0xbf597fc7beef0ee4ULL,
+	0xc6e00bf33da88fc2ULL, 0xd5a79147930aa725ULL, 0x06ca6351e003826fULL, 0x142929670a0e6e70ULL,
+	0x27b70a8546d22ffcULL, 0x2e1b21385c26c926ULL, 0x4d2c6dfc5ac42aedULL, 0x53380d139d95b3dfULL,
+	0x650a73548baf63deULL, 0x766a0abb3c77b2a8ULL, 0x81c2c92e47edaee6ULL, 0x92722c851482353bULL,
+	0xa2bfe8a14cf10364ULL, 0xa81a664bbc423001ULL, 0xc24b8b70d0f89791ULL, 0xc76c51a30654be30ULL,
+	0xd192e819d6ef5218ULL, 0xd69906245565a910ULL, 0xf40e35855771202aULL, 0x106aa07032bbd1b8ULL,
+	0x19a4c116b8d2d0c8ULL, 0x1e376c085141ab53ULL, 0x2748774cdf8eeb99ULL, 0x34b0bcb5e19b48a8ULL,
+	0x391c0cb3c5c95a63ULL, 0x4ed8aa4ae3418acbULL, 0x5b9cca4f7763e373ULL, 0x682e6ff3d6b2b8a3ULL,
+	0x748f82ee5defb2fcULL, 0x78a5636f43172f60ULL, 0x84c87814a1f0ab72ULL, 0x8cc702081a6439ecULL,
+	0x90befffa23631e28ULL, 0xa4506cebde82bde9ULL, 0xbef9a3f7b2c67915ULL, 0xc67178f2e372532bULL,
+	0xca273eceea26619cULL, 0xd186b8c721c0c207ULL, 0xeada7dd6cde0eb1eULL, 0xf57d4f7fee6ed178ULL,
+	0x06f067aa72176fbaULL, 0x0a637dc5a2c898a6ULL, 0x113f9804bef90daeULL, 0x1b710b35131c471bULL,
+	0x28db77f523047d84ULL, 0x32caab7b40c72493ULL, 0x3c9ebe0a15c9bebcULL, 0x431d67c49c100d4cULL,
+	0x4cc5d4becb3e42b6ULL, 0x597f299cfc657e2aULL, 0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL
+};
+#define __XRT_SHA512_ROR64(x, n) (((x) >> (n)) | ((x) << (64 - (n))))
+#define __XRT_SHA512_CH(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
+#define __XRT_SHA512_MAJ(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define __XRT_SHA512_EP0(x) (__XRT_SHA512_ROR64(x, 28) ^ __XRT_SHA512_ROR64(x, 34) ^ __XRT_SHA512_ROR64(x, 39))
+#define __XRT_SHA512_EP1(x) (__XRT_SHA512_ROR64(x, 14) ^ __XRT_SHA512_ROR64(x, 18) ^ __XRT_SHA512_ROR64(x, 41))
+#define __XRT_SHA512_SIG0(x) (__XRT_SHA512_ROR64(x, 1) ^ __XRT_SHA512_ROR64(x, 8) ^ ((x) >> 7))
+#define __XRT_SHA512_SIG1(x) (__XRT_SHA512_ROR64(x, 19) ^ __XRT_SHA512_ROR64(x, 61) ^ ((x) >> 6))
+static void __xrt_sha512_chunk(xsha512_ctx *pCtx)
+{
+	int i, j;
+	uint64 a, b, c, d, e, f, g, h;
+	uint64 m[80];
+	
+	for ( i = 0, j = 0; i < 16; ++i, j += 8 ) {
+		m[i] = ((uint64)pCtx->buffer[j] << 56) |
+		       ((uint64)pCtx->buffer[j + 1] << 48) |
+		       ((uint64)pCtx->buffer[j + 2] << 40) |
+		       ((uint64)pCtx->buffer[j + 3] << 32) |
+		       ((uint64)pCtx->buffer[j + 4] << 24) |
+		       ((uint64)pCtx->buffer[j + 5] << 16) |
+		       ((uint64)pCtx->buffer[j + 6] << 8) |
+		       ((uint64)pCtx->buffer[j + 7]);
+	}
+	for ( ; i < 80; ++i ) {
+		m[i] = __XRT_SHA512_SIG1(m[i - 2]) + m[i - 7] + __XRT_SHA512_SIG0(m[i - 15]) + m[i - 16];
+	}
+	
+	a = pCtx->state[0];
+	b = pCtx->state[1];
+	c = pCtx->state[2];
+	d = pCtx->state[3];
+	e = pCtx->state[4];
+	f = pCtx->state[5];
+	g = pCtx->state[6];
+	h = pCtx->state[7];
+	
+	for ( i = 0; i < 80; ++i ) {
+		uint64 t1 = h + __XRT_SHA512_EP1(e) + __XRT_SHA512_CH(e, f, g) + __xrt_sha512_k[i] + m[i];
+		uint64 t2 = __XRT_SHA512_EP0(a) + __XRT_SHA512_MAJ(a, b, c);
+		h = g;
+		g = f;
+		f = e;
+		e = d + t1;
+		d = c;
+		c = b;
+		b = a;
+		a = t1 + t2;
+	}
+	
+	pCtx->state[0] += a;
+	pCtx->state[1] += b;
+	pCtx->state[2] += c;
+	pCtx->state[3] += d;
+	pCtx->state[4] += e;
+	pCtx->state[5] += f;
+	pCtx->state[6] += g;
+	pCtx->state[7] += h;
+}
+XXAPI void xrtSHA512Init(xsha512_ctx *pCtx)
+{
+	pCtx->len = 0;
+	pCtx->bits = 0;
+	pCtx->state[0] = 0x6a09e667f3bcc908ULL;
+	pCtx->state[1] = 0xbb67ae8584caa73bULL;
+	pCtx->state[2] = 0x3c6ef372fe94f82bULL;
+	pCtx->state[3] = 0xa54ff53a5f1d36f1ULL;
+	pCtx->state[4] = 0x510e527fade682d1ULL;
+	pCtx->state[5] = 0x9b05688c2b3e6c1fULL;
+	pCtx->state[6] = 0x1f83d9abfb41bd6bULL;
+	pCtx->state[7] = 0x5be0cd19137e2179ULL;
+}
+XXAPI void xrtSHA384Init(xsha512_ctx *pCtx)
+{
+	pCtx->len = 0;
+	pCtx->bits = 0;
+	pCtx->state[0] = 0xcbbb9d5dc1059ed8ULL;
+	pCtx->state[1] = 0x629a292a367cd507ULL;
+	pCtx->state[2] = 0x9159015a3070dd17ULL;
+	pCtx->state[3] = 0x152fecd8f70e5939ULL;
+	pCtx->state[4] = 0x67332667ffc00b31ULL;
+	pCtx->state[5] = 0x8eb44a8768581511ULL;
+	pCtx->state[6] = 0xdb0c2e0d64f98fa7ULL;
+	pCtx->state[7] = 0x47b5481dbefa4fa4ULL;
+}
+XXAPI void xrtSHA512Update(xsha512_ctx *pCtx, const ptr pData, size_t iLen)
+{
+	const uint8 *pBytes = (const uint8 *)pData;
+	size_t i;
+	for ( i = 0; i < iLen; i++ ) {
+		pCtx->buffer[pCtx->len] = pBytes[i];
+		if ( (++(pCtx->len)) == 128 ) {
+			__xrt_sha512_chunk(pCtx);
+			pCtx->bits += 1024;
+			pCtx->len = 0;
+		}
+	}
+}
+XXAPI void xrtSHA512Final(xsha512_ctx *pCtx, uint8 *pOut)
+{
+	uint32 i = pCtx->len;
+	
+	if ( i < 112 ) {
+		pCtx->buffer[i++] = 0x80;
+		while ( i < 112 ) {
+			pCtx->buffer[i++] = 0x00;
+		}
+	} else {
+		pCtx->buffer[i++] = 0x80;
+		while ( i < 128 ) {
+			pCtx->buffer[i++] = 0x00;
+		}
+		__xrt_sha512_chunk(pCtx);
+		memset(pCtx->buffer, 0, 112);
+	}
+	
+	pCtx->bits += pCtx->len * 8;
+	// SHA-512 使用 128-bit 长度字段, 高 64 位为 0 (我们不处理超大消息)
+	memset(pCtx->buffer + 112, 0, 8);
+	pCtx->buffer[127] = (uint8)((pCtx->bits) & 0xff);
+	pCtx->buffer[126] = (uint8)((pCtx->bits >> 8) & 0xff);
+	pCtx->buffer[125] = (uint8)((pCtx->bits >> 16) & 0xff);
+	pCtx->buffer[124] = (uint8)((pCtx->bits >> 24) & 0xff);
+	pCtx->buffer[123] = (uint8)((pCtx->bits >> 32) & 0xff);
+	pCtx->buffer[122] = (uint8)((pCtx->bits >> 40) & 0xff);
+	pCtx->buffer[121] = (uint8)((pCtx->bits >> 48) & 0xff);
+	pCtx->buffer[120] = (uint8)((pCtx->bits >> 56) & 0xff);
+	__xrt_sha512_chunk(pCtx);
+	
+	for ( i = 0; i < 8; ++i ) {
+		pOut[i * 8]     = (uint8)(pCtx->state[i] >> 56);
+		pOut[i * 8 + 1] = (uint8)(pCtx->state[i] >> 48);
+		pOut[i * 8 + 2] = (uint8)(pCtx->state[i] >> 40);
+		pOut[i * 8 + 3] = (uint8)(pCtx->state[i] >> 32);
+		pOut[i * 8 + 4] = (uint8)(pCtx->state[i] >> 24);
+		pOut[i * 8 + 5] = (uint8)(pCtx->state[i] >> 16);
+		pOut[i * 8 + 6] = (uint8)(pCtx->state[i] >> 8);
+		pOut[i * 8 + 7] = (uint8)(pCtx->state[i]);
+	}
+}
+XXAPI void xrtSHA384Final(xsha512_ctx *pCtx, uint8 *pOut)
+{
+	uint8 aFull[64];
+	xrtSHA512Final(pCtx, aFull);
+	memcpy(pOut, aFull, 48);  // SHA-384 截取前 48 字节
+}
+XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	xrtSHA512Init(&tCtx);
+	xrtSHA512Update(&tCtx, pData, iLen);
+	xrtSHA512Final(&tCtx, pOut);
+}
+XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	xrtSHA384Init(&tCtx);
+	xrtSHA512Update(&tCtx, pData, iLen);
+	xrtSHA384Final(&tCtx, pOut);
+}
+XXAPI void xrtHMAC_SHA384(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	uint8 k[128] = {0};
+	uint8 o_pad[128], i_pad[128];
+	unsigned int i;
+	
+	memset(i_pad, 0x36, sizeof(i_pad));
+	memset(o_pad, 0x5c, sizeof(o_pad));
+	
+	if ( iKeyLen <= 128 ) {
+		if ( iKeyLen > 0 ) {
+			memmove(k, pKey, iKeyLen);
+		}
+	} else {
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
+		xrtSHA384Final(&tCtx, k);
+	}
+	
+	for ( i = 0; i < sizeof(k); i++ ) {
+		i_pad[i] ^= k[i];
+		o_pad[i] ^= k[i];
+	}
+	
+	xrtSHA384Init(&tCtx);
+	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+	xrtSHA384Final(&tCtx, pOut);
+	
+	xrtSHA384Init(&tCtx);
+	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+	xrtSHA512Update(&tCtx, pOut, 48);
+	xrtSHA384Final(&tCtx, pOut);
+}
+XXAPI void xrtHMAC_SHA512(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	uint8 k[128] = {0};
+	uint8 o_pad[128], i_pad[128];
+	unsigned int i;
+	
+	memset(i_pad, 0x36, sizeof(i_pad));
+	memset(o_pad, 0x5c, sizeof(o_pad));
+	
+	if ( iKeyLen <= 128 ) {
+		if ( iKeyLen > 0 ) {
+			memmove(k, pKey, iKeyLen);
+		}
+	} else {
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
+		xrtSHA512Final(&tCtx, k);
+	}
+	
+	for ( i = 0; i < sizeof(k); i++ ) {
+		i_pad[i] ^= k[i];
+		o_pad[i] ^= k[i];
+	}
+	
+	xrtSHA512Init(&tCtx);
+	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+	xrtSHA512Final(&tCtx, pOut);
+	
+	xrtSHA512Init(&tCtx);
+	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+	xrtSHA512Update(&tCtx, pOut, 64);
+	xrtSHA512Final(&tCtx, pOut);
+}
 /* ============================== ChaCha20-Poly1305 (RFC 8439) ============================== */
 #define __XRT_CHACHA20_KEY_SIZE 32
 #define __XRT_CHACHA20_NONCE_SIZE 12
@@ -11802,42 +12111,76 @@ static int __xrt_aes_setkey(__xrt_aes_ctx *pCtx, int iMode, const uint8 *pKey, u
 {
 	uint32 *pRK;
 	int i;
+	int iNk;  // 密钥字数: AES-128=4, AES-256=8
 	
 	if ( !__xrt_aes_tables_inited ) {
 		__xrt_aes_init_tables();
 	}
 	
-	pCtx->iRounds = 10;  // AES-128
+	if ( iKeySize == 32 ) {
+		pCtx->iRounds = 14;  // AES-256
+		iNk = 8;
+	} else {
+		pCtx->iRounds = 10;  // AES-128
+		iNk = 4;
+	}
 	pCtx->iDirection = iMode;
 	pRK = pCtx->arrRK;
 	
-	for ( i = 0; i < 4; i++ ) {
+	for ( i = 0; i < iNk; i++ ) {
 		__XRT_AES_GET_UINT32(pRK[i], pKey, i * 4);
 	}
 	
-	for ( i = 0; i < 10; i++ ) {
-		pRK[4] = pRK[0] ^ __xrt_aes_RCON[i] ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 16) & 0xFF] << 24) ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 8) & 0xFF] << 16) ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3]) & 0xFF] << 8) ^
-		         ((uint32)__xrt_aes_FSb[(pRK[3] >> 24) & 0xFF]);
-		pRK[5] = pRK[1] ^ pRK[4];
-		pRK[6] = pRK[2] ^ pRK[5];
-		pRK[7] = pRK[3] ^ pRK[6];
-		pRK += 4;
+	if ( iNk == 4 ) {
+		// AES-128 密钥扩展
+		for ( i = 0; i < 10; i++ ) {
+			pRK[4] = pRK[0] ^ __xrt_aes_RCON[i] ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3] >> 16) & 0xFF] << 24) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3] >> 8) & 0xFF] << 16) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3]) & 0xFF] << 8) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[3] >> 24) & 0xFF]);
+			pRK[5] = pRK[1] ^ pRK[4];
+			pRK[6] = pRK[2] ^ pRK[5];
+			pRK[7] = pRK[3] ^ pRK[6];
+			pRK += 4;
+		}
+	} else {
+		// AES-256 密钥扩展
+		for ( i = 0; i < 7; i++ ) {
+			pRK[8] = pRK[0] ^ __xrt_aes_RCON[i] ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7] >> 16) & 0xFF] << 24) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7] >> 8) & 0xFF] << 16) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7]) & 0xFF] << 8) ^
+			         ((uint32)__xrt_aes_FSb[(pRK[7] >> 24) & 0xFF]);
+			pRK[9]  = pRK[1] ^ pRK[8];
+			pRK[10] = pRK[2] ^ pRK[9];
+			pRK[11] = pRK[3] ^ pRK[10];
+			if ( i < 6 ) {
+				pRK[12] = pRK[4] ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11] >> 24) & 0xFF] << 24) ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11] >> 16) & 0xFF] << 16) ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11] >> 8) & 0xFF] << 8) ^
+				          ((uint32)__xrt_aes_FSb[(pRK[11]) & 0xFF]);
+				pRK[13] = pRK[5] ^ pRK[12];
+				pRK[14] = pRK[6] ^ pRK[13];
+				pRK[15] = pRK[7] ^ pRK[14];
+			}
+			pRK += 8;
+		}
 	}
 	
 	if ( iMode == __XRT_AES_DECRYPT ) {
 		__xrt_aes_ctx tEnc;
 		uint32 *pSK;
+		int iNrk = pCtx->iRounds * 4;
 		__xrt_aes_setkey(&tEnc, __XRT_AES_ENCRYPT, pKey, iKeySize);
-		pSK = tEnc.arrRK + 40;
+		pSK = tEnc.arrRK + iNrk;
 		pRK = pCtx->arrRK;
 		
 		pRK[0] = pSK[0]; pRK[1] = pSK[1]; pRK[2] = pSK[2]; pRK[3] = pSK[3];
 		pRK += 4; pSK -= 4;
 		
-		for ( i = 1; i < 10; i++ ) {
+		for ( i = 1; i < pCtx->iRounds; i++ ) {
 			pRK[0] = __xrt_aes_RT0[__xrt_aes_FSb[(pSK[0] >> 24) & 0xFF]] ^
 			         __xrt_aes_RT1[__xrt_aes_FSb[(pSK[0] >> 16) & 0xFF]] ^
 			         __xrt_aes_RT2[__xrt_aes_FSb[(pSK[0] >> 8) & 0xFF]] ^
@@ -11942,29 +12285,42 @@ static int __xrt_aes_cipher(__xrt_aes_ctx *pCtx, const uint8 pIn[16], uint8 pOut
 	return 0;
 }
 // GCM 实现
+// GF(2^128) 约简查找表: last4[x] = x * P^128 in GF(2^128)
+// 其中 P(x) = x^128 + x^7 + x^2 + x + 1
+static const uint64 __xrt_gcm_last4[16] = {
+	0x0000, 0x1c20, 0x3840, 0x2460,
+	0x7080, 0x6ca0, 0x48c0, 0x54e0,
+	0xe100, 0xfd20, 0xd940, 0xc560,
+	0x9180, 0x8da0, 0xa9c0, 0xb5e0
+};
 static void __xrt_gcm_mult(__xrt_gcm_ctx *pCtx, uint8 pX[16])
 {
 	uint64 zh, zl, v;
 	int i;
+	uint8 lo, hi;
 	
-	zh = zl = 0;
-	for ( i = 0; i < 16; i++ ) {
-		uint8 lo = pX[i] & 0x0f;
-		uint8 hi = pX[i] >> 4;
+	lo = pX[15] & 0x0f;
+	
+	zh = pCtx->arrHH[lo];
+	zl = pCtx->arrHL[lo];
+	
+	for ( i = 15; i >= 0; i-- ) {
+		lo = pX[i] & 0x0f;
+		hi = pX[i] >> 4;
 		
-		if ( i != 0 ) {
+		if ( i != 15 ) {
 			v = (uint64)zl & 0x0f;
 			zl = (zl >> 4) | (zh << 60);
 			zh >>= 4;
-			zh ^= (uint64)(0xe100 * v) << 48;
+			zh ^= __xrt_gcm_last4[v] << 48;
+			zh ^= pCtx->arrHH[lo];
+			zl ^= pCtx->arrHL[lo];
 		}
-		zh ^= pCtx->arrHH[lo];
-		zl ^= pCtx->arrHL[lo];
 		
 		v = (uint64)zl & 0x0f;
 		zl = (zl >> 4) | (zh << 60);
 		zh >>= 4;
-		zh ^= (uint64)(0xe100 * v) << 48;
+		zh ^= __xrt_gcm_last4[v] << 48;
 		zh ^= pCtx->arrHH[hi];
 		zl ^= pCtx->arrHL[hi];
 	}
@@ -12156,6 +12512,37 @@ XXAPI bool xrtAES128GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNon
 	
 	return (iDiff == 0);
 }
+XXAPI bool xrtAES256GCMEncrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	__xrt_gcm_ctx tCtx;
+	__xrt_gcm_setkey(&tCtx, pKey, 32);
+	__xrt_gcm_crypt_and_tag(&tCtx, __XRT_AES_ENCRYPT, pNonce, iNonceLen, pAAD, iAADLen, pIn, pOut, iLen, pOut + iLen, 16);
+	return true;
+}
+XXAPI bool xrtAES256GCMDecrypt(uint8 *pOut, const uint8 *pKey, const uint8 *pNonce, size_t iNonceLen, const uint8 *pAAD, size_t iAADLen, const uint8 *pIn, size_t iLen)
+{
+	__xrt_gcm_ctx tCtx;
+	uint8 arrTag[16];
+	uint8 iDiff;
+	int i;
+	size_t iCipherLen;
+	
+	if ( iLen < 16 ) {
+		return false;
+	}
+	iCipherLen = iLen - 16;
+	
+	__xrt_gcm_setkey(&tCtx, pKey, 32);
+	__xrt_gcm_crypt_and_tag(&tCtx, __XRT_AES_DECRYPT, pNonce, iNonceLen, pAAD, iAADLen, pIn, pOut, iCipherLen, arrTag, 16);
+	
+	// 常量时间比较
+	iDiff = 0;
+	for ( i = 0; i < 16; i++ ) {
+		iDiff |= arrTag[i] ^ pIn[iCipherLen + i];
+	}
+	
+	return (iDiff == 0);
+}
 /* ============================== 安全随机数 ============================== */
 XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen)
 {
@@ -12264,6 +12651,77 @@ XXAPI void xrtHKDFExpand(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t 
 		iCopyLen = iOKMLen - iOffset;
 		if ( iCopyLen > 32 ) {
 			iCopyLen = 32;
+		}
+		memcpy(pOKM + iOffset, T, iCopyLen);
+		iOffset += iCopyLen;
+		iCounter++;
+	}
+}
+/* ============================== HKDF-SHA384 (RFC 5869) ============================== */
+XXAPI void xrtHKDFExtract_SHA384(uint8 *pPRK, const uint8 *pSalt, size_t iSaltLen, const uint8 *pIKM, size_t iIKMLen)
+{
+	uint8 arrDefaultSalt[48] = {0};
+	if ( (pSalt == NULL) || (iSaltLen == 0) ) {
+		pSalt = arrDefaultSalt;
+		iSaltLen = 48;
+	}
+	xrtHMAC_SHA384(pSalt, iSaltLen, pIKM, iIKMLen, pPRK);
+}
+XXAPI void xrtHKDFExpand_SHA384(uint8 *pOKM, size_t iOKMLen, const uint8 *pPRK, size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen)
+{
+	uint8 T[48] = {0};
+	size_t iTLen = 0;
+	uint8 iCounter = 1;
+	size_t iOffset = 0;
+	
+	while ( iOffset < iOKMLen ) {
+		xsha512_ctx tCtx;
+		uint8 k[128] = {0};
+		uint8 o_pad[128], i_pad[128];
+		unsigned int i;
+		size_t iCopyLen;
+		
+		// HMAC-SHA384(PRK, T || Info || counter)
+		memset(i_pad, 0x36, sizeof(i_pad));
+		memset(o_pad, 0x5c, sizeof(o_pad));
+		
+		if ( iPRKLen <= 128 ) {
+			if ( iPRKLen > 0 ) {
+				memmove(k, pPRK, iPRKLen);
+			}
+		} else {
+			xrtSHA384Init(&tCtx);
+			xrtSHA512Update(&tCtx, (ptr)pPRK, iPRKLen);
+			xrtSHA384Final(&tCtx, k);
+		}
+		
+		for ( i = 0; i < sizeof(k); i++ ) {
+			i_pad[i] ^= k[i];
+			o_pad[i] ^= k[i];
+		}
+		
+		// inner hash: H(i_pad || T(prev) || info || counter)
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+		if ( iTLen > 0 ) {
+			xrtSHA512Update(&tCtx, T, iTLen);
+		}
+		if ( (pInfo != NULL) && (iInfoLen > 0) ) {
+			xrtSHA512Update(&tCtx, (ptr)pInfo, iInfoLen);
+		}
+		xrtSHA512Update(&tCtx, &iCounter, 1);
+		xrtSHA384Final(&tCtx, T);
+		
+		// outer hash: H(o_pad || inner_hash)
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+		xrtSHA512Update(&tCtx, T, 48);
+		xrtSHA384Final(&tCtx, T);
+		
+		iTLen = 48;
+		iCopyLen = iOKMLen - iOffset;
+		if ( iCopyLen > 48 ) {
+			iCopyLen = 48;
 		}
 		memcpy(pOKM + iOffset, T, iCopyLen);
 		iOffset += iCopyLen;
@@ -12510,22 +12968,1318 @@ XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8
 {
 	__xrt_x25519_compute(pOut, pPrivKey, pPubKey, 1);
 }
-/* ============================== ECDSA / Ed25519 签名验证 ============================== */
+/* ============================== RSA 大整数运算 ============================== */
 /*
-	ECDSA (secp256r1) 和 Ed25519 签名验证
-	用于 TLS 1.3 证书验证
-	实现将在 Phase 4 (TLS 模块) 中完成
+	基于 axTLS bignum library (Cameron Rich, BSD License)
+	经 mongoose tls_rsa.c 验证，仅用于 RSA 签名验证
+	使用 classical reduction (最简单可靠的模式)
 */
-XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey)
+// 大整数组件类型 (32-bit 组件, 支持最大 4096-bit RSA)
+typedef uint32 __xrt_bi_comp;
+typedef uint64 __xrt_bi_long_comp;
+typedef int64  __xrt_bi_slong_comp;
+#define __XRT_BI_COMP_RADIX       4294967296ULL
+#define __XRT_BI_COMP_MAX         0xFFFFFFFFFFFFFFFFULL
+#define __XRT_BI_COMP_BIT_SIZE    32
+#define __XRT_BI_COMP_BYTE_SIZE   4
+#define __XRT_BI_COMP_NUM_NIBBLES 8
+#define __XRT_BI_M_OFFSET   0
+#define __XRT_BI_NUM_MODS   1   // 验签仅需 1 个 modulus slot
+#define __XRT_BI_PERMANENT  0x7FFF55AA
+struct __xrt_bigint {
+	struct __xrt_bigint *pNext;
+	short iSize;
+	short iMaxComps;
+	int iRefs;
+	__xrt_bi_comp *pComps;
+};
+struct __xrt_bi_ctx {
+	struct __xrt_bigint *pActiveList;
+	struct __xrt_bigint *pFreeList;
+	struct __xrt_bigint *pMod[__XRT_BI_NUM_MODS];
+	struct __xrt_bigint *pNormMod[__XRT_BI_NUM_MODS];
+	struct __xrt_bigint **pG;            // sliding window 预计算表
+	int iWindow;
+	int iActiveCount;
+	int iFreeCount;
+	uint8 iModOffset;
+};
+// --- 大整数内存管理 ---
+static struct __xrt_bigint* __xrt_bi_alloc(struct __xrt_bi_ctx *pCtx, int iCount)
 {
-	// TODO: 在 TLS 模块中实现 Ed25519 签名验证
-	(void)pMsg; (void)iMsgLen; (void)pSig; (void)pPubKey;
-	return false;
+	struct __xrt_bigint *pBi;
+	// 先从 free list 找一个够大的
+	if ( pCtx->pFreeList != NULL ) {
+		pBi = pCtx->pFreeList;
+		pCtx->pFreeList = pBi->pNext;
+		pCtx->iFreeCount--;
+		if ( pBi->iMaxComps < iCount ) {
+			pBi->pComps = (__xrt_bi_comp*)xrtRealloc(pBi->pComps, iCount * __XRT_BI_COMP_BYTE_SIZE);
+			pBi->iMaxComps = (short)iCount;
+		}
+	} else {
+		pBi = (struct __xrt_bigint*)xrtMalloc(sizeof(struct __xrt_bigint));
+		pBi->pComps = (__xrt_bi_comp*)xrtMalloc(iCount * __XRT_BI_COMP_BYTE_SIZE);
+		pBi->iMaxComps = (short)iCount;
+	}
+	pBi->pNext = pCtx->pActiveList;
+	pCtx->pActiveList = pBi;
+	pCtx->iActiveCount++;
+	pBi->iSize = (short)iCount;
+	pBi->iRefs = 1;
+	memset(pBi->pComps, 0, iCount * __XRT_BI_COMP_BYTE_SIZE);
+	return pBi;
 }
+static struct __xrt_bigint* __xrt_bi_copy(struct __xrt_bigint *pBi)
+{
+	if ( pBi->iRefs != __XRT_BI_PERMANENT ) {
+		pBi->iRefs++;
+	}
+	return pBi;
+}
+static void __xrt_bi_free(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi)
+{
+	struct __xrt_bigint *pPrev, *pCur;
+	if ( pBi == NULL ) return;
+	if ( pBi->iRefs == __XRT_BI_PERMANENT ) return;
+	if ( --(pBi->iRefs) > 0 ) return;
+	// 从 active list 移除
+	pPrev = NULL;
+	for ( pCur = pCtx->pActiveList; pCur != NULL; pCur = pCur->pNext ) {
+		if ( pCur == pBi ) {
+			if ( pPrev ) pPrev->pNext = pCur->pNext;
+			else pCtx->pActiveList = pCur->pNext;
+			pCtx->iActiveCount--;
+			break;
+		}
+		pPrev = pCur;
+	}
+	// 加入 free list
+	pBi->pNext = pCtx->pFreeList;
+	pCtx->pFreeList = pBi;
+	pCtx->iFreeCount++;
+}
+static struct __xrt_bi_ctx* __xrt_bi_initialize(void)
+{
+	struct __xrt_bi_ctx *pCtx = (struct __xrt_bi_ctx*)xrtCalloc(1, sizeof(struct __xrt_bi_ctx));
+	return pCtx;
+}
+static void __xrt_bi_terminate(struct __xrt_bi_ctx *pCtx)
+{
+	struct __xrt_bigint *pBi, *pNext;
+	// 释放 active list
+	for ( pBi = pCtx->pActiveList; pBi != NULL; pBi = pNext ) {
+		pNext = pBi->pNext;
+		xrtFree(pBi->pComps);
+		xrtFree(pBi);
+	}
+	// 释放 free list
+	for ( pBi = pCtx->pFreeList; pBi != NULL; pBi = pNext ) {
+		pNext = pBi->pNext;
+		xrtFree(pBi->pComps);
+		xrtFree(pBi);
+	}
+	xrtFree(pCtx);
+}
+static void __xrt_bi_permanent(struct __xrt_bigint *pBi)
+{
+	pBi->iRefs = __XRT_BI_PERMANENT;
+}
+static void __xrt_bi_depermanent(struct __xrt_bigint *pBi)
+{
+	pBi->iRefs = 1;
+}
+// 去除高位零
+static struct __xrt_bigint* __xrt_bi_trim(struct __xrt_bigint *pBi)
+{
+	while ( (pBi->iSize > 1) && (pBi->pComps[pBi->iSize - 1] == 0) ) {
+		pBi->iSize--;
+	}
+	return pBi;
+}
+static struct __xrt_bigint* __xrt_bi_clone(struct __xrt_bi_ctx *pCtx, const struct __xrt_bigint *pSrc)
+{
+	struct __xrt_bigint *pDst = __xrt_bi_alloc(pCtx, pSrc->iSize);
+	memcpy(pDst->pComps, pSrc->pComps, pSrc->iSize * __XRT_BI_COMP_BYTE_SIZE);
+	return pDst;
+}
+// --- 大整数导入导出 ---
+static struct __xrt_bigint* __xrt_bi_import(struct __xrt_bi_ctx *pCtx, const uint8 *pData, int iLen)
+{
+	struct __xrt_bigint *pBi;
+	int iNumComps = (iLen + __XRT_BI_COMP_BYTE_SIZE - 1) / __XRT_BI_COMP_BYTE_SIZE;
+	int i, j, iOffset;
+	pBi = __xrt_bi_alloc(pCtx, iNumComps);
+	for ( i = iLen - 1, j = 0, iOffset = 0; i >= 0; i-- ) {
+		pBi->pComps[iOffset] += (__xrt_bi_comp)pData[i] << (j * 8);
+		if ( ++j == __XRT_BI_COMP_BYTE_SIZE ) {
+			j = 0;
+			iOffset++;
+		}
+	}
+	return __xrt_bi_trim(pBi);
+}
+static void __xrt_bi_export(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, uint8 *pData, int iSize)
+{
+	int i, j, k;
+	(void)pCtx;
+	memset(pData, 0, iSize);
+	for ( i = 0, k = iSize - 1; i < pBi->iSize && k >= 0; i++ ) {
+		__xrt_bi_comp v = pBi->pComps[i];
+		for ( j = 0; j < __XRT_BI_COMP_BYTE_SIZE && k >= 0; j++ ) {
+			pData[k--] = (uint8)(v & 0xFF);
+			v >>= 8;
+		}
+	}
+	__xrt_bi_free(pCtx, pBi);
+}
+static struct __xrt_bigint* __xrt_bi_int_to_bi(struct __xrt_bi_ctx *pCtx, __xrt_bi_comp iVal)
+{
+	struct __xrt_bigint *pBi = __xrt_bi_alloc(pCtx, 1);
+	pBi->pComps[0] = iVal;
+	return pBi;
+}
+// --- 大整数比较 ---
+static int __xrt_bi_compare(struct __xrt_bigint *pA, struct __xrt_bigint *pB)
+{
+	int i;
+	if ( pA->iSize > pB->iSize ) return 1;
+	if ( pA->iSize < pB->iSize ) return -1;
+	for ( i = pA->iSize - 1; i >= 0; i-- ) {
+		if ( pA->pComps[i] > pB->pComps[i] ) return 1;
+		if ( pA->pComps[i] < pB->pComps[i] ) return -1;
+	}
+	return 0;
+}
+// --- 大整数加法 ---
+static struct __xrt_bigint* __xrt_bi_add(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA, struct __xrt_bigint *pB)
+{
+	int iMaxSize = (pA->iSize > pB->iSize) ? pA->iSize : pB->iSize;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iMaxSize + 1);
+	__xrt_bi_long_comp iCarry = 0;
+	int i;
+	for ( i = 0; i < iMaxSize; i++ ) {
+		__xrt_bi_long_comp iSum = iCarry;
+		if ( i < pA->iSize ) iSum += pA->pComps[i];
+		if ( i < pB->iSize ) iSum += pB->pComps[i];
+		pR->pComps[i] = (__xrt_bi_comp)iSum;
+		iCarry = iSum >> __XRT_BI_COMP_BIT_SIZE;
+	}
+	pR->pComps[iMaxSize] = (__xrt_bi_comp)iCarry;
+	__xrt_bi_free(pCtx, pA);
+	__xrt_bi_free(pCtx, pB);
+	return __xrt_bi_trim(pR);
+}
+// --- 大整数减法 (pA >= pB 时) ---
+static struct __xrt_bigint* __xrt_bi_subtract(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA, struct __xrt_bigint *pB, int *pIsNeg)
+{
+	int iMaxSize = (pA->iSize > pB->iSize) ? pA->iSize : pB->iSize;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iMaxSize);
+	__xrt_bi_slong_comp iBorrow = 0;
+	int i;
+	if ( pIsNeg ) *pIsNeg = 0;
+	for ( i = 0; i < iMaxSize; i++ ) {
+		__xrt_bi_slong_comp iDiff = iBorrow;
+		if ( i < pA->iSize ) iDiff += (__xrt_bi_slong_comp)pA->pComps[i];
+		if ( i < pB->iSize ) iDiff -= (__xrt_bi_slong_comp)pB->pComps[i];
+		if ( iDiff < 0 ) {
+			pR->pComps[i] = (__xrt_bi_comp)(iDiff + (__xrt_bi_slong_comp)__XRT_BI_COMP_RADIX);
+			iBorrow = -1;
+		} else {
+			pR->pComps[i] = (__xrt_bi_comp)iDiff;
+			iBorrow = 0;
+		}
+	}
+	if ( iBorrow < 0 && pIsNeg ) *pIsNeg = 1;
+	__xrt_bi_free(pCtx, pA);
+	__xrt_bi_free(pCtx, pB);
+	return __xrt_bi_trim(pR);
+}
+// --- 大整数乘法 ---
+static struct __xrt_bigint* __xrt_bi_multiply(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA, struct __xrt_bigint *pB)
+{
+	int iRSize = pA->iSize + pB->iSize;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iRSize);
+	int i, j;
+	for ( i = 0; i < pA->iSize; i++ ) {
+		__xrt_bi_long_comp iCarry = 0;
+		__xrt_bi_comp iMand = pA->pComps[i];
+		for ( j = 0; j < pB->iSize; j++ ) {
+			__xrt_bi_long_comp iProd = (__xrt_bi_long_comp)iMand * pB->pComps[j]
+				+ pR->pComps[i + j] + iCarry;
+			pR->pComps[i + j] = (__xrt_bi_comp)iProd;
+			iCarry = iProd >> __XRT_BI_COMP_BIT_SIZE;
+		}
+		pR->pComps[i + j] += (__xrt_bi_comp)iCarry;
+	}
+	__xrt_bi_free(pCtx, pA);
+	__xrt_bi_free(pCtx, pB);
+	return __xrt_bi_trim(pR);
+}
+// --- 大整数平方 ---
+static struct __xrt_bigint* __xrt_bi_square(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pA)
+{
+	return __xrt_bi_multiply(pCtx, __xrt_bi_copy(pA), pA);
+}
+// --- 大整数除法/取模 (classical) ---
+// 左移 n 个 component 位置 (乘以 RADIX^n)
+static struct __xrt_bigint* __xrt_bi_comp_left_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
+{
+	int iNewSize = pBi->iSize + iShift;
+	struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iNewSize);
+	memcpy(&pR->pComps[iShift], pBi->pComps, pBi->iSize * __XRT_BI_COMP_BYTE_SIZE);
+	__xrt_bi_free(pCtx, pBi);
+	return pR;
+}
+// 右移 n 个 component 位置 (除以 RADIX^n)
+static struct __xrt_bigint* __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
+{
+	int iNewSize = pBi->iSize - iShift;
+	if ( iNewSize <= 0 ) {
+		__xrt_bi_free(pCtx, pBi);
+		return __xrt_bi_int_to_bi(pCtx, 0);
+	}
+	{
+		struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iNewSize);
+		memcpy(pR->pComps, &pBi->pComps[iShift], iNewSize * __XRT_BI_COMP_BYTE_SIZE);
+		__xrt_bi_free(pCtx, pBi);
+		return __xrt_bi_trim(pR);
+	}
+}
+// 除法: pA / pM, is_mod=1 返回余数, is_mod=0 返回商
+static struct __xrt_bigint* __xrt_bi_divide(struct __xrt_bi_ctx *pCtx,
+	struct __xrt_bigint *pU, struct __xrt_bigint *pV, int bIsMod)
+{
+	int iCmp = __xrt_bi_compare(pU, pV);
+	int n, m, j;
+	struct __xrt_bigint *pQ, *pInnerV;
+	__xrt_bi_comp d;
+	if ( iCmp < 0 ) {
+		if ( bIsMod ) {
+			__xrt_bi_free(pCtx, pV);
+			return pU;
+		} else {
+			__xrt_bi_free(pCtx, pU);
+			__xrt_bi_free(pCtx, pV);
+			return __xrt_bi_int_to_bi(pCtx, 0);
+		}
+	}
+	if ( iCmp == 0 ) {
+		__xrt_bi_free(pCtx, pU);
+		__xrt_bi_free(pCtx, pV);
+		return bIsMod ? __xrt_bi_int_to_bi(pCtx, 0) : __xrt_bi_int_to_bi(pCtx, 1);
+	}
+	// 单组件除数快速路径 (n=1, Knuth Algorithm D 要求 n>=2)
+	if ( pV->iSize == 1 ) {
+		__xrt_bi_comp iDenom = pV->pComps[0];
+		__xrt_bi_long_comp iRem = 0;
+		int i;
+		pQ = __xrt_bi_alloc(pCtx, pU->iSize);
+		for ( i = pU->iSize - 1; i >= 0; i-- ) {
+			iRem = (iRem << __XRT_BI_COMP_BIT_SIZE) + pU->pComps[i];
+			pQ->pComps[i] = (__xrt_bi_comp)(iRem / iDenom);
+			iRem %= iDenom;
+		}
+		__xrt_bi_free(pCtx, pU);
+		__xrt_bi_free(pCtx, pV);
+		if ( bIsMod ) {
+			__xrt_bi_free(pCtx, pQ);
+			return __xrt_bi_int_to_bi(pCtx, (__xrt_bi_comp)iRem);
+		} else {
+			return __xrt_bi_trim(pQ);
+		}
+	}
+	// Knuth's Algorithm D (n >= 2)
+	n = pV->iSize;
+	m = pU->iSize - n;
+	pQ = __xrt_bi_alloc(pCtx, m + 1);
+	// 正规化: 计算 d 使得 v[n-1] >= RADIX/2
+	d = (__xrt_bi_comp)((__xrt_bi_long_comp)__XRT_BI_COMP_RADIX / ((__xrt_bi_long_comp)pV->pComps[n - 1] + 1));
+	if ( d == 0 ) d = 1;
+	if ( d > 1 ) {
+		struct __xrt_bigint *pD = __xrt_bi_int_to_bi(pCtx, d);
+		pU = __xrt_bi_multiply(pCtx, pU, __xrt_bi_copy(pD));
+		pV = __xrt_bi_multiply(pCtx, pV, pD);
+		// 正规化乘法可能改变位数，必须重新计算 n 和 m
+		n = pV->iSize;
+		m = pU->iSize - n;
+		if ( m < 0 ) m = 0;
+		// 重新分配商
+		__xrt_bi_free(pCtx, pQ);
+		pQ = __xrt_bi_alloc(pCtx, m + 1);
+	}
+	// 确保 pU 有足够的空间 (但保持正确的 iSize)
+	if ( pU->iSize <= m + n ) {
+		struct __xrt_bigint *pE = __xrt_bi_alloc(pCtx, m + n + 1);
+		memcpy(pE->pComps, pU->pComps, pU->iSize * __XRT_BI_COMP_BYTE_SIZE);
+		__xrt_bi_free(pCtx, pU);
+		pU = __xrt_bi_trim(pE);
+	}
+	pInnerV = __xrt_bi_comp_left_shift(pCtx, __xrt_bi_copy(pV), m);
+	if ( __xrt_bi_compare(pU, pInnerV) >= 0 ) {
+		pQ->pComps[m] = 1;
+		pU = __xrt_bi_subtract(pCtx, pU, pInnerV, NULL);
+	} else {
+		__xrt_bi_free(pCtx, pInnerV);
+	}
+	for ( j = m - 1; j >= 0; j-- ) {
+		__xrt_bi_long_comp iQhat;
+		struct __xrt_bigint *pQBi;
+		struct __xrt_bigint *pProd;
+		// 估算 q_hat
+		if ( pU->iSize > j + n ) {
+			iQhat = ((__xrt_bi_long_comp)pU->pComps[j + n] << __XRT_BI_COMP_BIT_SIZE)
+				+ ((j + n - 1 < pU->iSize) ? pU->pComps[j + n - 1] : 0);
+		} else {
+			iQhat = (j + n - 1 < pU->iSize) ? pU->pComps[j + n - 1] : 0;
+		}
+		iQhat /= pV->pComps[n - 1];
+		if ( iQhat >= (__xrt_bi_long_comp)__XRT_BI_COMP_RADIX ) {
+			iQhat = __XRT_BI_COMP_RADIX - 1;
+		}
+		pQBi = __xrt_bi_int_to_bi(pCtx, (__xrt_bi_comp)iQhat);
+		pProd = __xrt_bi_multiply(pCtx, pQBi, __xrt_bi_copy(pV));
+		pProd = __xrt_bi_comp_left_shift(pCtx, pProd, j);
+		// 修正: 先比较, 避免负数减法导致二进制补码增长
+		while ( __xrt_bi_compare(pU, pProd) < 0 ) {
+			struct __xrt_bigint *pFix = __xrt_bi_comp_left_shift(pCtx, __xrt_bi_copy(pV), j);
+			pU = __xrt_bi_add(pCtx, pU, pFix);
+			iQhat--;
+		}
+		pU = __xrt_bi_subtract(pCtx, pU, pProd, NULL);
+		pQ->pComps[j] = (__xrt_bi_comp)iQhat;
+	}
+	__xrt_bi_free(pCtx, pV);
+	if ( bIsMod ) {
+		__xrt_bi_free(pCtx, pQ);
+		if ( d > 1 ) {
+			struct __xrt_bigint *pD2 = __xrt_bi_int_to_bi(pCtx, d);
+			pU = __xrt_bi_divide(pCtx, pU, pD2, 0);  // 去正规化
+		}
+		return __xrt_bi_trim(pU);
+	} else {
+		__xrt_bi_free(pCtx, pU);
+		return __xrt_bi_trim(pQ);
+	}
+}
+// bi_mod 宏: 对已设置的 modulus 取模
+#define __xrt_bi_mod(ctx, bi) __xrt_bi_divide(ctx, bi, __xrt_bi_copy((ctx)->pMod[(ctx)->iModOffset]), 1)
+static void __xrt_bi_set_mod(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pMod, int iModOffset)
+{
+	pCtx->pMod[iModOffset] = pMod;
+	__xrt_bi_permanent(pMod);
+	pCtx->iModOffset = (uint8)iModOffset;
+	// 保存正规化副本
+	pCtx->pNormMod[iModOffset] = __xrt_bi_clone(pCtx, pMod);
+	__xrt_bi_permanent(pCtx->pNormMod[iModOffset]);
+}
+static void __xrt_bi_free_mod(struct __xrt_bi_ctx *pCtx, int iModOffset)
+{
+	if ( pCtx->pMod[iModOffset] ) {
+		__xrt_bi_depermanent(pCtx->pMod[iModOffset]);
+		__xrt_bi_free(pCtx, pCtx->pMod[iModOffset]);
+		pCtx->pMod[iModOffset] = NULL;
+	}
+	if ( pCtx->pNormMod[iModOffset] ) {
+		__xrt_bi_depermanent(pCtx->pNormMod[iModOffset]);
+		__xrt_bi_free(pCtx, pCtx->pNormMod[iModOffset]);
+		pCtx->pNormMod[iModOffset] = NULL;
+	}
+}
+// --- 模幂运算 (sliding window) ---
+static struct __xrt_bigint* __xrt_bi_mod_power(struct __xrt_bi_ctx *pCtx,
+	struct __xrt_bigint *pBase, struct __xrt_bigint *pExp)
+{
+	int i, j;
+	int iNumBits;
+	struct __xrt_bigint *pResult;
+	// 确定指数的位数
+	{
+		__xrt_bi_comp iTopComp = pExp->pComps[pExp->iSize - 1];
+		iNumBits = (pExp->iSize - 1) * __XRT_BI_COMP_BIT_SIZE;
+		while ( iTopComp ) {
+			iNumBits++;
+			iTopComp >>= 1;
+		}
+	}
+	// 简单的 square-and-multiply (right-to-left 二进制法)
+	pResult = __xrt_bi_clone(pCtx, pBase);
+	// 对 pBase 取模
+	pResult = __xrt_bi_mod(pCtx, pResult);
+	// 存储 base mod m
+	{
+		struct __xrt_bigint *pBaseMod = __xrt_bi_clone(pCtx, pResult);
+		struct __xrt_bigint *pR = __xrt_bi_int_to_bi(pCtx, 1);
+		for ( i = iNumBits - 1; i >= 0; i-- ) {
+			int iBitIdx = i % __XRT_BI_COMP_BIT_SIZE;
+			int iCompIdx = i / __XRT_BI_COMP_BIT_SIZE;
+			// r = r * r mod m
+			pR = __xrt_bi_square(pCtx, pR);
+			pR = __xrt_bi_mod(pCtx, pR);
+			// 如果 exp 的第 i 位为 1: r = r * base mod m
+			if ( (iCompIdx < pExp->iSize) && (pExp->pComps[iCompIdx] & ((__xrt_bi_comp)1 << iBitIdx)) ) {
+				pR = __xrt_bi_multiply(pCtx, pR, __xrt_bi_copy(pBaseMod));
+				pR = __xrt_bi_mod(pCtx, pR);
+			}
+		}
+		__xrt_bi_free(pCtx, pBaseMod);
+		__xrt_bi_free(pCtx, pResult);
+		__xrt_bi_free(pCtx, pExp);
+		__xrt_bi_free(pCtx, pBase);
+		return pR;
+	}
+}
+// --- 公共 API: RSA 模幂运算 ---
+XXAPI int xrtRSAModPow(const uint8 *pMod, size_t iModSz,
+	const uint8 *pExp, size_t iExpSz,
+	const uint8 *pMsg, size_t iMsgSz,
+	uint8 *pOut, size_t iOutSz)
+{
+	struct __xrt_bi_ctx *pCtx = __xrt_bi_initialize();
+	struct __xrt_bigint *pBiMod, *pBiExp, *pBiMsg, *pBiResult;
+	if ( !pCtx ) return -1;
+	pBiMod = __xrt_bi_import(pCtx, pMod, (int)iModSz);
+	pBiExp = __xrt_bi_import(pCtx, pExp, (int)iExpSz);
+	pBiMsg = __xrt_bi_import(pCtx, pMsg, (int)iMsgSz);
+	__xrt_bi_set_mod(pCtx, pBiMod, __XRT_BI_M_OFFSET);
+	pBiResult = __xrt_bi_mod_power(pCtx, pBiMsg, pBiExp);
+	__xrt_bi_export(pCtx, pBiResult, pOut, (int)iOutSz);
+	__xrt_bi_free_mod(pCtx, __XRT_BI_M_OFFSET);
+	__xrt_bi_terminate(pCtx);
+	return 0;
+}
+/* ============================== RSA-PSS 签名验证 (RFC 8017) ============================== */
+// MGF1 掩码生成函数 (RFC 8017 B.2.1, 基于 SHA-256)
+static void __xrt_mgf1_sha256(uint8 *pOut, size_t iOutLen, const uint8 *pSeed, size_t iSeedLen)
+{
+	uint8 aCounter[4];
+	uint8 aHash[32];
+	size_t iOffset = 0;
+	uint32 iCtr = 0;
+	while ( iOffset < iOutLen ) {
+		xsha256_ctx tCtx;
+		size_t iCopyLen;
+		aCounter[0] = (uint8)(iCtr >> 24);
+		aCounter[1] = (uint8)(iCtr >> 16);
+		aCounter[2] = (uint8)(iCtr >> 8);
+		aCounter[3] = (uint8)(iCtr);
+		xrtSHA256Init(&tCtx);
+		xrtSHA256Update(&tCtx, (ptr)pSeed, iSeedLen);
+		xrtSHA256Update(&tCtx, aCounter, 4);
+		xrtSHA256Final(&tCtx, aHash);
+		iCopyLen = iOutLen - iOffset;
+		if ( iCopyLen > 32 ) iCopyLen = 32;
+		memcpy(pOut + iOffset, aHash, iCopyLen);
+		iOffset += iCopyLen;
+		iCtr++;
+	}
+}
+// EMSA-PSS-VERIFY (RFC 8017 Section 9.1.2)
+// pHash: 被签名的消息哈希 (SHA-256, 32 bytes)
+// pEM: RSA 解密后的编码消息
+// iEMLen: EM 长度 (等于 RSA modulus 字节数)
+// iSaltLen: 盐长度 (通常等于 hash 长度 = 32)
+static bool __xrt_emsa_pss_verify(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pEM, size_t iEMLen, size_t iSaltLen)
+{
+	size_t iDBLen;
+	size_t i;
+	const uint8 *pH;
+	uint8 *pDBMask;
+	uint8 *pDB;
+	uint8 aHP[32];  // H'
+	xsha256_ctx tCtx;
+	uint8 iDiff;
+	const uint8 aPad8[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+	// 检查 EM 最后一个字节为 0xbc
+	if ( iEMLen < iHashLen + iSaltLen + 2 ) return false;
+	if ( pEM[iEMLen - 1] != 0xbc ) return false;
+	// 分离 maskedDB 和 H
+	iDBLen = iEMLen - iHashLen - 1;  // maskedDB 长度
+	pH = pEM + iDBLen;               // H 起始位置
+	// 检查高位为零 (emBits = 8*emLen - 1 的情况)
+	if ( pEM[0] & 0x80 ) return false;
+	// 生成 dbMask = MGF1(H, dbLen)
+	pDBMask = (uint8*)xrtMalloc(iDBLen);
+	pDB = (uint8*)xrtMalloc(iDBLen);
+	if ( !pDBMask || !pDB ) {
+		if ( pDBMask ) xrtFree(pDBMask);
+		if ( pDB ) xrtFree(pDB);
+		return false;
+	}
+	__xrt_mgf1_sha256(pDBMask, iDBLen, pH, iHashLen);
+	// DB = maskedDB XOR dbMask
+	for ( i = 0; i < iDBLen; i++ ) {
+		pDB[i] = pEM[i] ^ pDBMask[i];
+	}
+	// 清除 DB 的最高位
+	pDB[0] &= 0x7f;
+	// 验证 DB 格式: 0x00...00 || 0x01 || salt
+	{
+		size_t iPadLen = iDBLen - iSaltLen - 1;
+		for ( i = 0; i < iPadLen; i++ ) {
+			if ( pDB[i] != 0x00 ) {
+				xrtFree(pDBMask);
+				xrtFree(pDB);
+				return false;
+			}
+		}
+		if ( pDB[iPadLen] != 0x01 ) {
+			xrtFree(pDBMask);
+			xrtFree(pDB);
+			return false;
+		}
+	}
+	// H' = SHA-256(0x00*8 || mHash || salt)
+	xrtSHA256Init(&tCtx);
+	xrtSHA256Update(&tCtx, (ptr)aPad8, 8);
+	xrtSHA256Update(&tCtx, (ptr)pHash, iHashLen);
+	xrtSHA256Update(&tCtx, (ptr)(pDB + iDBLen - iSaltLen), iSaltLen);
+	xrtSHA256Final(&tCtx, aHP);
+	// 常量时间比较 H == H'
+	iDiff = 0;
+	for ( i = 0; i < iHashLen; i++ ) {
+		iDiff |= pH[i] ^ aHP[i];
+	}
+	xrtFree(pDBMask);
+	xrtFree(pDB);
+	return (iDiff == 0);
+}
+// RSA-PSS-RSAE-SHA256 签名验证
+XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pSig, size_t iSigLen,
+	const uint8 *pMod, size_t iModSz,
+	const uint8 *pExp, size_t iExpSz)
+{
+	uint8 *pEM;
+	bool bResult;
+	if ( (iHashLen != 32) || (iSigLen != iModSz) ) return false;
+	// 分配 EM 缓冲区
+	pEM = (uint8*)xrtMalloc(iModSz);
+	if ( !pEM ) return false;
+	// RSA 原始操作: EM = sig^e mod n
+	if ( xrtRSAModPow(pMod, iModSz, pExp, iExpSz, pSig, iSigLen, pEM, iModSz) != 0 ) {
+		xrtFree(pEM);
+		return false;
+	}
+	// EMSA-PSS-VERIFY
+	bResult = __xrt_emsa_pss_verify(pHash, iHashLen, pEM, iModSz, iHashLen);
+	xrtFree(pEM);
+	return bResult;
+}
+/* ============================== RSA PKCS#1 v1.5 签名验证 (RFC 8017) ============================== */
+// DigestInfo DER 前缀 (RFC 8017 Section 9.2 Note 1)
+// SHA-256: 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20
+static const uint8 __xrt_pkcs1_sha256_prefix[] = {
+	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+	0x00, 0x04, 0x20
+};
+// SHA-384: 30 41 30 0d 06 09 60 86 48 01 65 03 04 02 02 05 00 04 30
+static const uint8 __xrt_pkcs1_sha384_prefix[] = {
+	0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05,
+	0x00, 0x04, 0x30
+};
+// SHA-512: 30 51 30 0d 06 09 60 86 48 01 65 03 04 02 03 05 00 04 40
+static const uint8 __xrt_pkcs1_sha512_prefix[] = {
+	0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+	0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05,
+	0x00, 0x04, 0x40
+};
+// EMSA-PKCS1-v1_5 验证 (RFC 8017 Section 9.2)
+// 格式: 0x00 || 0x01 || PS (0xFF padding) || 0x00 || DigestInfo
+XXAPI bool xrtRSAPKCS1Verify(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pSig, size_t iSigLen,
+	const uint8 *pMod, size_t iModSz,
+	const uint8 *pExp, size_t iExpSz)
+{
+	uint8 *pEM;
+	const uint8 *pPrefix;
+	size_t iPrefixLen;
+	size_t iPos;
+	size_t iTLen;
+	uint8 iDiff;
+	size_t i;
+	
+	if ( (iSigLen != iModSz) || (iModSz < 11) ) return false;
+	
+	// 确定 DigestInfo 前缀
+	if ( iHashLen == 32 ) {
+		pPrefix = __xrt_pkcs1_sha256_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha256_prefix);
+	} else if ( iHashLen == 48 ) {
+		pPrefix = __xrt_pkcs1_sha384_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha384_prefix);
+	} else if ( iHashLen == 64 ) {
+		pPrefix = __xrt_pkcs1_sha512_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha512_prefix);
+	} else {
+		return false;
+	}
+	
+	iTLen = iPrefixLen + iHashLen;  // DigestInfo 总长度
+	if ( iModSz < iTLen + 11 ) return false;  // 至少需要 0x00+0x01+8字节PS+0x00+DigestInfo
+	
+	// RSA 解密: EM = sig^e mod n
+	pEM = (uint8*)xrtMalloc(iModSz);
+	if ( !pEM ) return false;
+	
+	if ( xrtRSAModPow(pMod, iModSz, pExp, iExpSz, pSig, iSigLen, pEM, iModSz) != 0 ) {
+		xrtFree(pEM);
+		return false;
+	}
+	
+	// 验证格式: 0x00 || 0x01 || PS || 0x00 || DigestInfo
+	iPos = 0;
+	if ( pEM[iPos++] != 0x00 ) { xrtFree(pEM); return false; }
+	if ( pEM[iPos++] != 0x01 ) { xrtFree(pEM); return false; }
+	
+	// PS: 至少 8 字节的 0xFF
+	{
+		size_t iPsLen = iModSz - 3 - iTLen;
+		for ( i = 0; i < iPsLen; i++ ) {
+			if ( pEM[iPos++] != 0xFF ) { xrtFree(pEM); return false; }
+		}
+	}
+	if ( pEM[iPos++] != 0x00 ) { xrtFree(pEM); return false; }
+	
+	// 比较 DigestInfo 前缀
+	if ( memcmp(pEM + iPos, pPrefix, iPrefixLen) != 0 ) {
+		xrtFree(pEM);
+		return false;
+	}
+	iPos += iPrefixLen;
+	
+	// 常量时间比较哈希值
+	iDiff = 0;
+	for ( i = 0; i < iHashLen; i++ ) {
+		iDiff |= pEM[iPos + i] ^ pHash[i];
+	}
+	
+	xrtFree(pEM);
+	return (iDiff == 0);
+}
+/* ============================== secp256r1 (NIST P-256) ECDH + ECDSA ============================== */
+/*
+	secp256r1 (P-256) 椭圆曲线: ECDH 密钥交换 + ECDSA 签名验证
+	参考: NIST FIPS 186-4, SEC 2 v2
+	
+	内部表示: uint32[8], 小端字序 ([0]=最低 32-bit)
+	p  = FFFFFFFF 00000001 00000000 00000000 00000000 FFFFFFFF FFFFFFFF FFFFFFFF
+	n  = FFFFFFFF 00000000 FFFFFFFF FFFFFFFF BCE6FAAD A7179E84 F3B9CAC2 FC632551
+	Gx = 6B17D1F2 E12C4247 F8BCE6E5 63A440F2 77037D81 2DEB33A0 F4A13945 D898C296
+	Gy = 4FE342E2 FE1A7F9B 8EE7EB4A 7C0F9E16 2BCE3357 6B315ECE CBB64068 37BF51F5
+	a  = -3 (mod p)
+*/
+/* ---- 256-bit 整数基本运算 (uint32[8], 小端字序) ---- */
+static void __xrt_u256_from_be(uint32 *r, const uint8 *b)
+{
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		r[7 - i] = ((uint32)b[i*4] << 24) | ((uint32)b[i*4+1] << 16) |
+		           ((uint32)b[i*4+2] << 8)  | (uint32)b[i*4+3];
+	}
+}
+static void __xrt_u256_to_be(uint8 *b, const uint32 *a)
+{
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		b[i*4]   = (uint8)(a[7-i] >> 24);
+		b[i*4+1] = (uint8)(a[7-i] >> 16);
+		b[i*4+2] = (uint8)(a[7-i] >> 8);
+		b[i*4+3] = (uint8)(a[7-i]);
+	}
+}
+static void __xrt_u256_copy(uint32 *r, const uint32 *a) { memcpy(r, a, 32); }
+static void __xrt_u256_zero(uint32 *r) { memset(r, 0, 32); }
+static int __xrt_u256_is_zero(const uint32 *a)
+{
+	uint32 v = 0;
+	int i;
+	for ( i = 0; i < 8; i++ ) v |= a[i];
+	return v == 0;
+}
+static uint32 __xrt_u256_add(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint64 c = 0;
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		c += (uint64)a[i] + b[i];
+		r[i] = (uint32)c;
+		c >>= 32;
+	}
+	return (uint32)c;
+}
+static uint32 __xrt_u256_sub(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	int64 c = 0;
+	int i;
+	for ( i = 0; i < 8; i++ ) {
+		c += (int64)(uint64)a[i] - (int64)(uint64)b[i];
+		r[i] = (uint32)c;
+		c >>= 32;
+	}
+	return (c < 0) ? 1 : 0;  // 1 = borrow
+}
+// 返回 1 如果 a >= b, 0 如果 a < b
+static int __xrt_u256_gte(const uint32 *a, const uint32 *b)
+{
+	int i;
+	for ( i = 7; i >= 0; i-- ) {
+		if ( a[i] > b[i] ) return 1;
+		if ( a[i] < b[i] ) return 0;
+	}
+	return 1; // 相等
+}
+static int __xrt_u256_cmp(const uint32 *a, const uint32 *b)
+{
+	int i;
+	for ( i = 7; i >= 0; i-- ) {
+		if ( a[i] > b[i] ) return 1;
+		if ( a[i] < b[i] ) return -1;
+	}
+	return 0;
+}
+/* ---- P-256 曲线参数 (uint32[8] 小端字序) ---- */
+// p = FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
+static const uint32 __xrt_p256_P[8] = {
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000,
+	0x00000000, 0x00000000, 0x00000001, 0xFFFFFFFF
+};
+// n = FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+static const uint32 __xrt_p256_N[8] = {
+	0xFC632551, 0xF3B9CAC2, 0xA7179E84, 0xBCE6FAAD,
+	0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF
+};
+// Gx
+static const uint32 __xrt_p256_Gx[8] = {
+	0xD898C296, 0xF4A13945, 0x2DEB33A0, 0x77037D81,
+	0x63A440F2, 0xF8BCE6E5, 0xE12C4247, 0x6B17D1F2
+};
+// Gy
+static const uint32 __xrt_p256_Gy[8] = {
+	0x37BF51F5, 0xCBB64068, 0x6B315ECE, 0x2BCE3357,
+	0x7C0F9E16, 0x8EE7EB4A, 0xFE1A7F9B, 0x4FE342E2
+};
+/* ---- NIST P-256 模约简 ---- */
+/*
+	512-bit 乘法结果 c[0..15] 对 p 取模
+	使用 2^256 mod p = (2^256 - p) 进行迭代约简
+	2^256 - p = 2^224 - 2^192 - 2^96 + 1
+*/
+// 256x256 -> 512 bit 乘法
+static void __xrt_u256_mul512(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint64 t[16];
+	int i, j;
+	memset(t, 0, sizeof(t));
+	for ( i = 0; i < 8; i++ ) {
+		uint64 carry = 0;
+		for ( j = 0; j < 8; j++ ) {
+			uint64 uv = t[i+j] + (uint64)a[i] * b[j] + carry;
+			t[i+j] = uv & 0xFFFFFFFF;
+			carry = uv >> 32;
+		}
+		t[i+8] = carry;
+	}
+	for ( i = 0; i < 16; i++ ) r[i] = (uint32)t[i];
+}
+// 2^256 - p 的 uint32[8] 表示 (硬编码, 避免运行时计算错误)
+static const uint32 __xrt_p256_C[8] = {
+	0x00000001, 0x00000000, 0x00000000, 0xFFFFFFFF,
+	0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFE, 0x00000000
+};
+static void __xrt_p256_mod_p(uint32 *r, const uint32 *c)
+{
+	// NIST FIPS 186-4, Section D.2: Fast reduction for P-256
+	// p = 2^256 - 2^224 + 2^192 + 2^96 - 1
+	// Input: c[0..15] (512-bit), Output: r[0..7] (256-bit, reduced mod p)
+	int64 acc[9] = {0};  // 9 words to handle overflow
+	int i;
+	
+	// s1 = T: (c7, c6, c5, c4, c3, c2, c1, c0)
+	for (i = 0; i < 8; i++) acc[i] = (int64)(uint64)c[i];
+	
+	// +2*s2: 2*(c15, c14, c13, c12, c11, 0, 0, 0)
+	acc[3] += 2*(int64)(uint64)c[11];
+	acc[4] += 2*(int64)(uint64)c[12];
+	acc[5] += 2*(int64)(uint64)c[13];
+	acc[6] += 2*(int64)(uint64)c[14];
+	acc[7] += 2*(int64)(uint64)c[15];
+	
+	// +2*s3: 2*(0, c15, c14, c13, c12, 0, 0, 0)
+	acc[3] += 2*(int64)(uint64)c[12];
+	acc[4] += 2*(int64)(uint64)c[13];
+	acc[5] += 2*(int64)(uint64)c[14];
+	acc[6] += 2*(int64)(uint64)c[15];
+	
+	// +s4: (c15, c14, 0, 0, 0, c10, c9, c8)
+	acc[0] += (int64)(uint64)c[8];
+	acc[1] += (int64)(uint64)c[9];
+	acc[2] += (int64)(uint64)c[10];
+	acc[6] += (int64)(uint64)c[14];
+	acc[7] += (int64)(uint64)c[15];
+	
+	// +s5: (c8, c13, c15, c14, c13, c11, c10, c9)
+	acc[0] += (int64)(uint64)c[9];
+	acc[1] += (int64)(uint64)c[10];
+	acc[2] += (int64)(uint64)c[11];
+	acc[3] += (int64)(uint64)c[13];
+	acc[4] += (int64)(uint64)c[14];
+	acc[5] += (int64)(uint64)c[15];
+	acc[6] += (int64)(uint64)c[13];
+	acc[7] += (int64)(uint64)c[8];
+	
+	// -s6: (c10, c8, 0, 0, 0, c13, c12, c11)
+	acc[0] -= (int64)(uint64)c[11];
+	acc[1] -= (int64)(uint64)c[12];
+	acc[2] -= (int64)(uint64)c[13];
+	acc[6] -= (int64)(uint64)c[8];
+	acc[7] -= (int64)(uint64)c[10];
+	
+	// -s7: (c11, c9, 0, 0, c15, c14, c13, c12)
+	acc[0] -= (int64)(uint64)c[12];
+	acc[1] -= (int64)(uint64)c[13];
+	acc[2] -= (int64)(uint64)c[14];
+	acc[3] -= (int64)(uint64)c[15];
+	acc[6] -= (int64)(uint64)c[9];
+	acc[7] -= (int64)(uint64)c[11];
+	
+	// -s8: (c12, 0, c10, c9, c8, c15, c14, c13)
+	acc[0] -= (int64)(uint64)c[13];
+	acc[1] -= (int64)(uint64)c[14];
+	acc[2] -= (int64)(uint64)c[15];
+	acc[3] -= (int64)(uint64)c[8];
+	acc[4] -= (int64)(uint64)c[9];
+	acc[5] -= (int64)(uint64)c[10];
+	acc[7] -= (int64)(uint64)c[12];
+	
+	// -s9: (c13, 0, c11, c10, c9, 0, c15, c14)
+	acc[0] -= (int64)(uint64)c[14];
+	acc[1] -= (int64)(uint64)c[15];
+	acc[3] -= (int64)(uint64)c[9];
+	acc[4] -= (int64)(uint64)c[10];
+	acc[5] -= (int64)(uint64)c[11];
+	acc[7] -= (int64)(uint64)c[13];
+	
+	// Carry propagation (signed)
+	for (i = 0; i < 8; i++) {
+		acc[i+1] += (acc[i] >> 32);
+		r[i] = (uint32)((uint64)acc[i] & 0xFFFFFFFF);
+	}
+	
+	// acc[8] is the residual carry (can be positive or negative)
+	int64 carry = acc[8];
+	while ( carry < 0 ) {
+		__xrt_u256_add(r, r, __xrt_p256_P);
+		carry++;
+	}
+	while ( carry > 0 ) {
+		__xrt_u256_sub(r, r, __xrt_p256_P);
+		carry--;
+	}
+	while ( __xrt_u256_gte(r, __xrt_p256_P) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_P);
+	}
+}
+/* ---- 模 p 算术 ---- */
+static void __xrt_p256_add_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 carry = __xrt_u256_add(r, a, b);
+	if ( carry || __xrt_u256_gte(r, __xrt_p256_P) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_P);
+	}
+}
+static void __xrt_p256_sub_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 borrow = __xrt_u256_sub(r, a, b);
+	if ( borrow ) {
+		__xrt_u256_add(r, r, __xrt_p256_P);
+	}
+}
+static void __xrt_p256_mul_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 t[16];
+	__xrt_u256_mul512(t, a, b);
+	__xrt_p256_mod_p(r, t);
+}
+static void __xrt_p256_sqr_mod_p(uint32 *r, const uint32 *a)
+{
+	__xrt_p256_mul_mod_p(r, a, a);
+}
+// 模 p 逆元: r = a^(p-2) mod p (费马小定理)
+static void __xrt_p256_inv_mod_p(uint32 *r, const uint32 *a)
+{
+	uint32 exp[8], base[8], result[8];
+	int bit;
+	
+	// exp = p - 2
+	__xrt_u256_copy(exp, __xrt_p256_P);
+	exp[0] -= 2;
+	__xrt_u256_copy(base, a);
+	__xrt_u256_zero(result);
+	result[0] = 1;
+	
+	for ( bit = 0; bit < 256; bit++ ) {
+		if ( exp[bit / 32] & ((uint32)1 << (bit % 32)) ) {
+			__xrt_p256_mul_mod_p(result, result, base);
+		}
+		__xrt_p256_sqr_mod_p(base, base);
+	}
+	__xrt_u256_copy(r, result);
+}
+/* ---- 模 n (曲线阶) 算术 ---- */
+// 512-bit 对 n 取模 (通用方法, n 没有特殊结构)
+static void __xrt_p256_mod_n(uint32 *r, const uint32 *c)
+{
+	// 使用 2^256 mod n = 2^256 - n 进行约简
+	uint32 hi[8], c256[8], prod[16];
+	uint32 carry = 0;
+	int i;
+	uint32 hi_nz = 0;
+	
+	for ( i = 0; i < 8; i++ ) r[i] = c[i];
+	for ( i = 0; i < 8; i++ ) { hi[i] = c[i+8]; hi_nz |= hi[i]; }
+	
+	// 计算 c256 = 2^256 - n
+	__xrt_u256_zero(c256);
+	__xrt_u256_sub(c256, c256, __xrt_p256_N);  // c256 = 0 - n (mod 2^256) = 2^256 - n
+	
+	// 迭代约简 (与 mod_p 相同的逻辑)
+	while ( hi_nz ) {
+		__xrt_u256_mul512(prod, hi, c256);
+		carry += __xrt_u256_add(r, r, prod);
+		hi_nz = 0;
+		for ( i = 0; i < 8; i++ ) { hi[i] = prod[i+8]; hi_nz |= hi[i]; }
+	}
+	// 最后确保 r < n
+	while ( carry ) {
+		uint32 borrow = __xrt_u256_sub(r, r, __xrt_p256_N);
+		if ( borrow ) carry--;
+	}
+	while ( __xrt_u256_gte(r, __xrt_p256_N) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_N);
+	}
+}
+static void __xrt_p256_mul_mod_n(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 t[16];
+	__xrt_u256_mul512(t, a, b);
+	__xrt_p256_mod_n(r, t);
+}
+static void __xrt_p256_add_mod_n(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 carry = __xrt_u256_add(r, a, b);
+	if ( carry || __xrt_u256_gte(r, __xrt_p256_N) ) {
+		__xrt_u256_sub(r, r, __xrt_p256_N);
+	}
+}
+static void __xrt_p256_inv_mod_n(uint32 *r, const uint32 *a)
+{
+	uint32 exp[8], base[8], result[8];
+	int bit;
+	
+	__xrt_u256_copy(exp, __xrt_p256_N);
+	exp[0] -= 2;  // n - 2
+	__xrt_u256_copy(base, a);
+	__xrt_u256_zero(result);
+	result[0] = 1;
+	
+	for ( bit = 0; bit < 256; bit++ ) {
+		if ( exp[bit / 32] & ((uint32)1 << (bit % 32)) ) {
+			__xrt_p256_mul_mod_n(result, result, base);
+		}
+		__xrt_p256_mul_mod_n(base, base, base);
+	}
+	__xrt_u256_copy(r, result);
+}
+/* ---- Jacobian 坐标点运算 ---- */
+// Jacobian 坐标点 (X, Y, Z)
+// 仿射坐标 x = X/Z^2, y = Y/Z^3
+// 无穷远点表示为 Z=0
+typedef struct {
+	uint32 x[8];
+	uint32 y[8];
+	uint32 z[8];
+} __xrt_p256_jpt;
+// 点倍乘: R = 2*P
+// 安全支持 pR == pP (就地操作)
+// 算法: 完整公式 (a=-3 优化)
+// M = 3*(X + Z^2)*(X - Z^2)
+// S = 4*X*Y^2
+// X' = M^2 - 2*S
+// Y' = M*(S - X') - 8*Y^4
+// Z' = 2*Y*Z
+static void __xrt_p256_pt_dbl(__xrt_p256_jpt *pR, const __xrt_p256_jpt *pP)
+{
+	uint32 m[8], s[8], t1[8], t2[8], y2[8], z_save[8], y_save[8];
+	
+	if ( __xrt_u256_is_zero(pP->z) ) {
+		memset(pR, 0, sizeof(*pR));
+		return;
+	}
+	
+	// 保存原始 Y, Z (防止 aliasing)
+	__xrt_u256_copy(y_save, pP->y);
+	__xrt_u256_copy(z_save, pP->z);
+	
+	// Y^2
+	__xrt_p256_sqr_mod_p(y2, y_save);
+	
+	// S = 4*X*Y^2
+	__xrt_p256_mul_mod_p(s, pP->x, y2);
+	__xrt_p256_add_mod_p(s, s, s);
+	__xrt_p256_add_mod_p(s, s, s);
+	
+	// M = 3*(X + Z^2)*(X - Z^2) = 3*X^2 + a*Z^4, a=-3
+	__xrt_p256_sqr_mod_p(t1, z_save);       // Z^2
+	__xrt_p256_add_mod_p(t2, pP->x, t1);   // X + Z^2
+	__xrt_p256_sub_mod_p(t1, pP->x, t1);   // X - Z^2
+	__xrt_p256_mul_mod_p(m, t2, t1);        // (X+Z^2)(X-Z^2)
+	__xrt_p256_add_mod_p(t1, m, m);          // 2*(...)
+	__xrt_p256_add_mod_p(m, m, t1);          // 3*(...)
+	
+	// 8*Y^4
+	__xrt_p256_sqr_mod_p(t1, y2);           // Y^4
+	__xrt_p256_add_mod_p(t1, t1, t1);       // 2*Y^4
+	__xrt_p256_add_mod_p(t1, t1, t1);       // 4*Y^4
+	__xrt_p256_add_mod_p(t1, t1, t1);       // 8*Y^4
+	
+	// Z' = 2*Y*Z (必须在写入 pR 之前计算)
+	__xrt_p256_mul_mod_p(pR->z, y_save, z_save);
+	__xrt_p256_add_mod_p(pR->z, pR->z, pR->z);
+	
+	// X' = M^2 - 2*S
+	__xrt_p256_sqr_mod_p(pR->x, m);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, s);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, s);
+	
+	// Y' = M*(S - X') - 8*Y^4
+	__xrt_p256_sub_mod_p(t2, s, pR->x);
+	__xrt_p256_mul_mod_p(pR->y, m, t2);
+	__xrt_p256_sub_mod_p(pR->y, pR->y, t1);
+}
+// 混合点加法: R = P + Q
+// P: Jacobian, Q: 仿射 (qx, qy), 即 Q 的 Z=1
+// 安全支持 pR == pP
+static void __xrt_p256_pt_add_aff(__xrt_p256_jpt *pR, const __xrt_p256_jpt *pP, const uint32 *qx, const uint32 *qy)
+{
+	uint32 u1[8], u2[8], s1[8], s2[8], h[8], hh[8], hhh[8], rr[8], t[8];
+	__xrt_p256_jpt P_save;
+	
+	if ( __xrt_u256_is_zero(pP->z) ) {
+		__xrt_u256_copy(pR->x, qx);
+		__xrt_u256_copy(pR->y, qy);
+		__xrt_u256_zero(pR->z);
+		pR->z[0] = 1;
+		return;
+	}
+	
+	// 保存 P (防止 pR == pP 时的 aliasing)
+	memcpy(&P_save, pP, sizeof(P_save));
+	
+	// U1 = X1, U2 = X2*Z1^2, S1 = Y1, S2 = Y2*Z1^3
+	__xrt_p256_sqr_mod_p(t, P_save.z);       // Z1^2
+	__xrt_p256_mul_mod_p(u2, qx, t);         // X2*Z1^2
+	__xrt_u256_copy(u1, P_save.x);
+	
+	__xrt_p256_mul_mod_p(s2, t, P_save.z);   // Z1^3
+	__xrt_p256_mul_mod_p(s2, s2, qy);        // Y2*Z1^3
+	__xrt_u256_copy(s1, P_save.y);
+	
+	// H = U2 - U1, R = S2 - S1
+	__xrt_p256_sub_mod_p(h, u2, u1);
+	__xrt_p256_sub_mod_p(rr, s2, s1);
+	
+	if ( __xrt_u256_is_zero(h) ) {
+		#ifdef DEBUG_TRACE
+		printf("  [P256] pt_add_aff: H==0! rr_zero=%d\n", __xrt_u256_is_zero(rr));
+		#endif
+		if ( __xrt_u256_is_zero(rr) ) {
+			__xrt_p256_pt_dbl(pR, &P_save);
+		} else {
+			memset(pR, 0, sizeof(*pR)); // 无穷远点
+		}
+		return;
+	}
+	
+	__xrt_p256_sqr_mod_p(hh, h);              // H^2
+	__xrt_p256_mul_mod_p(hhh, hh, h);         // H^3
+	__xrt_p256_mul_mod_p(t, u1, hh);          // U1*H^2
+	
+	// X3 = R^2 - H^3 - 2*U1*H^2
+	__xrt_p256_sqr_mod_p(pR->x, rr);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, hhh);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, t);
+	__xrt_p256_sub_mod_p(pR->x, pR->x, t);
+	
+	// Y3 = R*(U1*H^2 - X3) - S1*H^3
+	__xrt_p256_sub_mod_p(t, t, pR->x);        // U1*H^2 - X3
+	__xrt_p256_mul_mod_p(pR->y, rr, t);
+	__xrt_p256_mul_mod_p(t, s1, hhh);
+	__xrt_p256_sub_mod_p(pR->y, pR->y, t);
+	
+	// Z3 = Z1 * H
+	__xrt_p256_mul_mod_p(pR->z, P_save.z, h);
+}
+// 标量乘法: R = k * (px, py)
+// 左到右二进制方法
+static void __xrt_p256_scalar_mult(__xrt_p256_jpt *pR, const uint32 *k, const uint32 *px, const uint32 *py)
+{
+	int i;
+	memset(pR, 0, sizeof(*pR));  // 无穷远点 (Z=0)
+	
+	for ( i = 255; i >= 0; i-- ) {
+		__xrt_p256_pt_dbl(pR, pR);
+		if ( k[i / 32] & ((uint32)1 << (i % 32)) ) {
+			__xrt_p256_pt_add_aff(pR, pR, px, py);
+		}
+	}
+}
+// Jacobian -> 仿射坐标
+static void __xrt_p256_to_affine(uint32 *ax, uint32 *ay, const __xrt_p256_jpt *pP)
+{
+	uint32 zinv[8], zinv2[8], zinv3[8];
+	
+	if ( __xrt_u256_is_zero(pP->z) ) {
+		__xrt_u256_zero(ax);
+		__xrt_u256_zero(ay);
+		return;
+	}
+	
+	__xrt_p256_inv_mod_p(zinv, pP->z);
+	__xrt_p256_sqr_mod_p(zinv2, zinv);
+	__xrt_p256_mul_mod_p(zinv3, zinv2, zinv);
+	__xrt_p256_mul_mod_p(ax, pP->x, zinv2);
+	__xrt_p256_mul_mod_p(ay, pP->y, zinv3);
+}
+/* ============================== ECDH secp256r1 + ECDSA 公共 API ============================== */
+XXAPI void xrtECDHSecp256r1Keypair(uint8 *pPrivKey, uint8 *pPubKey)
+{
+	uint32 k[8], rx[8], ry[8];
+	__xrt_p256_jpt tR;
+	
+	// 生成随机私钥 (1 < k < n)
+	do {
+		xrtRandomBytes(pPrivKey, 32);
+		__xrt_u256_from_be(k, pPrivKey);
+	} while ( __xrt_u256_is_zero(k) || __xrt_u256_gte(k, __xrt_p256_N) );
+	
+	// Q = k * G
+	__xrt_p256_scalar_mult(&tR, k, __xrt_p256_Gx, __xrt_p256_Gy);
+	__xrt_p256_to_affine(rx, ry, &tR);
+	
+	// 输出未压缩公钥: 0x04 || X || Y (65 字节)
+	pPubKey[0] = 0x04;
+	__xrt_u256_to_be(pPubKey + 1, rx);
+	__xrt_u256_to_be(pPubKey + 33, ry);
+}
+XXAPI void xrtECDHSecp256r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey)
+{
+	uint32 k[8], px[8], py[8], rx[8], ry[8];
+	__xrt_p256_jpt tR;
+	
+	__xrt_u256_from_be(k, pPrivKey);
+	
+	if ( pPubKey[0] == 0x04 ) {
+		__xrt_u256_from_be(px, pPubKey + 1);
+		__xrt_u256_from_be(py, pPubKey + 33);
+	} else {
+		memset(pOut, 0, 32);
+		return;
+	}
+	
+	// S = k * PeerPub
+	__xrt_p256_scalar_mult(&tR, k, px, py);
+	__xrt_p256_to_affine(rx, ry, &tR);
+	
+	// 输出 X 坐标
+	__xrt_u256_to_be(pOut, rx);
+}
+// ECDSA secp256r1 签名验证
+// pSig: DER 编码的签名 (SEQUENCE { INTEGER r, INTEGER s })
+// pPubKey: 未压缩公钥 (0x04 || X || Y, 65 字节)
 XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey, size_t iPubKeyLen)
 {
-	// TODO: 在 TLS 模块中实现 ECDSA (secp256r1) 签名验证
-	(void)pHash; (void)iHashLen; (void)pSig; (void)iSigLen; (void)pPubKey; (void)iPubKeyLen;
+	uint32 r_u[8], s_u[8], z[8], sinv[8], u1[8], u2[8];
+	uint32 px[8], py[8], rx[8], ry[8];
+	__xrt_p256_jpt tR1, tR2;
+	const uint8 *p;
+	size_t rLen, sLen;
+	uint8 rBuf[33], sBuf[33];
+	
+	// 解析公钥
+	if ( (iPubKeyLen < 65) || (pPubKey[0] != 0x04) ) return false;
+	__xrt_u256_from_be(px, pPubKey + 1);
+	__xrt_u256_from_be(py, pPubKey + 33);
+	
+	// 解析 DER 签名
+	p = pSig;
+	if ( (iSigLen < 8) || (*p++ != 0x30) ) return false;
+	{ size_t iSeqLen = *p++; (void)iSeqLen; }
+	
+	if ( *p++ != 0x02 ) return false;
+	rLen = *p++;
+	if ( rLen > 33 ) return false;
+	memset(rBuf, 0, sizeof(rBuf));
+	memcpy(rBuf + (33 - rLen), p, rLen);
+	p += rLen;
+	{ const uint8 *rS = rBuf; if ( rBuf[0] == 0 ) rS = rBuf + 1; __xrt_u256_from_be(r_u, rS); }
+	
+	if ( *p++ != 0x02 ) return false;
+	sLen = *p++;
+	if ( sLen > 33 ) return false;
+	memset(sBuf, 0, sizeof(sBuf));
+	memcpy(sBuf + (33 - sLen), p, sLen);
+	{ const uint8 *sS = sBuf; if ( sBuf[0] == 0 ) sS = sBuf + 1; __xrt_u256_from_be(s_u, sS); }
+	
+	// 检查 r, s 在 [1, n-1]
+	if ( __xrt_u256_is_zero(r_u) || __xrt_u256_gte(r_u, __xrt_p256_N) ) return false;
+	if ( __xrt_u256_is_zero(s_u) || __xrt_u256_gte(s_u, __xrt_p256_N) ) return false;
+	
+	// z = hash 截取前 32 字节
+	{
+		uint8 zBuf[32] = {0};
+		size_t iCopy = iHashLen > 32 ? 32 : iHashLen;
+		memcpy(zBuf, pHash, iCopy);
+		__xrt_u256_from_be(z, zBuf);
+	}
+	
+	// s^(-1) mod n
+	__xrt_p256_inv_mod_n(sinv, s_u);
+	// u1 = z * s^(-1) mod n
+	__xrt_p256_mul_mod_n(u1, z, sinv);
+	// u2 = r * s^(-1) mod n
+	__xrt_p256_mul_mod_n(u2, r_u, sinv);
+	
+	// R = u1*G + u2*Q
+	__xrt_p256_scalar_mult(&tR1, u1, __xrt_p256_Gx, __xrt_p256_Gy);
+	__xrt_p256_scalar_mult(&tR2, u2, px, py);
+	
+	// R = R1 + R2
+	{
+		uint32 ax[8], ay[8];
+		__xrt_p256_to_affine(ax, ay, &tR2);
+		if ( !__xrt_u256_is_zero(ax) || !__xrt_u256_is_zero(ay) ) {
+			__xrt_p256_pt_add_aff(&tR1, &tR1, ax, ay);
+		}
+	}
+	
+	// 获取 R 的 x 坐标
+	__xrt_p256_to_affine(rx, ry, &tR1);
+	
+	// 验证: r == rx mod n
+	if ( __xrt_u256_gte(rx, __xrt_p256_N) ) {
+		__xrt_u256_sub(rx, rx, __xrt_p256_N);
+	}
+	
+	return (__xrt_u256_cmp(rx, r_u) == 0);
+}
+XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey)
+{
+	// TODO: Ed25519 签名验证待实现
+	(void)pMsg; (void)iMsgLen; (void)pSig; (void)pPubKey;
 	return false;
 }
 
@@ -13774,19 +15528,29 @@ XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
 #define __XRT_TLS_ALERT          21
 #define __XRT_TLS_HANDSHAKE      22
 #define __XRT_TLS_APP_DATA       23
-// TLS 握手消息类型 (RFC 8446 B.3)
+// TLS 握手消息类型 (RFC 8446 B.3 + RFC 5246)
 #define __XRT_TLS_CLIENT_HELLO          1
 #define __XRT_TLS_SERVER_HELLO          2
 #define __XRT_TLS_ENCRYPTED_EXTENSIONS  8
 #define __XRT_TLS_CERTIFICATE           11
+#define __XRT_TLS_SERVER_KEY_EXCHANGE   12   // TLS 1.2 only
+#define __XRT_TLS_SERVER_HELLO_DONE     14   // TLS 1.2 only
 #define __XRT_TLS_CERTIFICATE_VERIFY    15
+#define __XRT_TLS_CLIENT_KEY_EXCHANGE   16   // TLS 1.2 only
 #define __XRT_TLS_FINISHED              20
 // 记录头大小
 #define __XRT_TLS_RECHDR_SIZE  5   // 1 type + 2 version + 2 length
 #define __XRT_TLS_MSGHDR_SIZE  4   // 1 type + 3 length
-// 密码套件 ID
+// TLS 1.3 密码套件 ID
 #define __XRT_TLS_AES_128_GCM_SHA256        0x1301
 #define __XRT_TLS_CHACHA20_POLY1305_SHA256  0x1303
+// TLS 1.2 密码套件 ID
+#define __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256  0xC02B
+#define __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256    0xC02F
+#define __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384  0xC02C
+#define __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384    0xC030
+#define __XRT_TLS12_RSA_AES128_GCM_SHA256          0x009C
+#define __XRT_TLS12_RSA_AES256_GCM_SHA384          0x009D
 // TLS 版本
 #define __XRT_TLS_VERSION_1_2  0x0303  // 记录层兼容
 #define __XRT_TLS_VERSION_1_3  0x0304
@@ -13812,10 +15576,193 @@ static inline void __xrt_tls_store_be24(uint8 *p, uint32 v)
 	p[1] = (uint8)(v >> 8);
 	p[2] = (uint8)(v);
 }
+/* ============================== ASN.1/DER 解析 ============================== */
+// DER TLV 节点
+struct __xrt_der_tlv {
+	uint8 iType;
+	uint32 iLen;
+	uint8 *pValue;
+};
+// 解析一个 DER TLV 节点
+static int __xrt_der_parse(uint8 *pDer, size_t iDerSz, struct __xrt_der_tlv *pTlv)
+{
+	size_t iHeaderLen = 2;
+	uint32 iLen;
+	if ( iDerSz < 2 ) return -1;
+	pTlv->iType = pDer[0];
+	iLen = pDer[1];
+	if ( iLen > 0x7F ) {  // long-form length
+		uint8 iLenBytes = iLen & 0x7F;
+		uint8 k;
+		if ( iDerSz < (size_t)(2 + iLenBytes) ) return -1;
+		iLen = 0;
+		for ( k = 0; k < iLenBytes; k++ ) {
+			iLen = (iLen << 8) | pDer[2 + k];
+		}
+		iHeaderLen += iLenBytes;
+	}
+	if ( iDerSz < iHeaderLen + iLen ) return -1;
+	pTlv->iLen = iLen;
+	pTlv->pValue = pDer + iHeaderLen;
+	return (int)(iHeaderLen + iLen);
+}
+// 遍历下一个子 TLV
+static int __xrt_der_next(struct __xrt_der_tlv *pParent, struct __xrt_der_tlv *pChild)
+{
+	int iConsumed;
+	if ( pParent->iLen == 0 ) return 0;
+	iConsumed = __xrt_der_parse(pParent->pValue, pParent->iLen, pChild);
+	if ( iConsumed < 0 ) return -1;
+	pParent->pValue += iConsumed;
+	pParent->iLen -= (uint32)iConsumed;
+	return 1;
+}
+// 在 DER 结构中递归查找 OID
+static int __xrt_der_find_oid(struct __xrt_der_tlv *pTlv, const uint8 *pOid,
+	size_t iOidLen, struct __xrt_der_tlv *pFound)
+{
+	struct __xrt_der_tlv tParent, tChild;
+	tParent = *pTlv;
+	while ( __xrt_der_next(&tParent, &tChild) > 0 ) {
+		if ( (tChild.iType == 0x06) && (tChild.iLen == iOidLen) &&
+			(memcmp(tChild.pValue, pOid, iOidLen) == 0) ) {
+			return __xrt_der_next(&tParent, pFound);
+		} else if ( tChild.iType & 0x20 ) {
+			struct __xrt_der_tlv tSub = tChild;
+			if ( __xrt_der_find_oid(&tSub, pOid, iOidLen, pFound) ) return 1;
+		}
+	}
+	return 0;
+}
+// rsaEncryption OID: 1.2.840.113549.1.1.1
+static const uint8 __xrt_oid_rsa_encryption[] = {
+	0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01
+};
+// ecPublicKey OID: 1.2.840.10045.2.1
+static const uint8 __xrt_oid_ec_public_key[] = {
+	0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01
+};
+// 从 X.509 证书 DER 中提取 EC 公钥 (uncompressed P-256, 65 字节)
+static bool __xrt_tls_extract_ec_pubkey(uint8 *pCert, size_t iCertLen,
+	uint8 **ppPubKey, size_t *pPubKeySz)
+{
+	struct __xrt_der_tlv tRoot, tRoot2, tCert, tTbsCert, tChild;
+	
+	if ( __xrt_der_parse(pCert, iCertLen, &tRoot) < 0 ) return false;
+	
+	// 查找 ecPublicKey OID
+	struct __xrt_der_tlv tFound;
+	if ( !__xrt_der_find_oid(&tRoot, __xrt_oid_ec_public_key,
+		sizeof(__xrt_oid_ec_public_key), &tFound) ) {
+		return false;
+	}
+	
+	// 重新遍历找 SubjectPublicKeyInfo 中的 BIT STRING
+	if ( __xrt_der_parse(pCert, iCertLen, &tRoot2) < 0 ) return false;
+	if ( __xrt_der_next(&tRoot2, &tCert) <= 0 ) return false;
+	tTbsCert = tCert;
+	
+	while ( __xrt_der_next(&tTbsCert, &tChild) > 0 ) {
+		if ( tChild.iType == 0x30 ) {  // SEQUENCE
+			struct __xrt_der_tlv tSeq = tChild;
+			if ( __xrt_der_find_oid(&tSeq, __xrt_oid_ec_public_key,
+				sizeof(__xrt_oid_ec_public_key), &tFound) ) {
+				// 找到 SubjectPublicKeyInfo
+				struct __xrt_der_tlv tSPKI = tChild;
+				struct __xrt_der_tlv tAlgId, tBitStr;
+				
+				if ( __xrt_der_next(&tSPKI, &tAlgId) <= 0 ) return false;
+				if ( __xrt_der_next(&tSPKI, &tBitStr) <= 0 ) return false;
+				if ( tBitStr.iType != 0x03 ) return false;
+				if ( tBitStr.iLen < 2 ) return false;  // unused bits + at least 1 byte
+				
+				// BIT STRING 第一个字节是 unused bits (should be 0)
+				*ppPubKey = tBitStr.pValue + 1;
+				*pPubKeySz = tBitStr.iLen - 1;
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+// 从 X.509 证书 DER 中提取 RSA 公钥 (modulus n, exponent e)
+// 成功返回 true, pMod/pExp 指向证书数据内部 (零拷贝)
+static bool __xrt_tls_extract_rsa_pubkey(uint8 *pCert, size_t iCertLen,
+	uint8 **ppMod, size_t *pModSz, uint8 **ppExp, size_t *pExpSz)
+{
+	struct __xrt_der_tlv tRoot, tFound;
+	// 解析证书根 SEQUENCE
+	if ( __xrt_der_parse(pCert, iCertLen, &tRoot) < 0 ) return false;
+	// 查找 rsaEncryption OID
+	if ( !__xrt_der_find_oid(&tRoot, __xrt_oid_rsa_encryption,
+		sizeof(__xrt_oid_rsa_encryption), &tFound) ) {
+		return false;
+	}
+	// tFound 现在指向 OID 后的下一个元素
+	// 需要重新遍历找到 SubjectPublicKeyInfo -> BIT STRING -> RSA key SEQUENCE
+	{
+		struct __xrt_der_tlv tRoot2, tCert, tTbsCert, tChild;
+		int iRet;
+		if ( __xrt_der_parse(pCert, iCertLen, &tRoot2) < 0 ) return false;
+		// Certificate -> SEQUENCE
+		if ( __xrt_der_next(&tRoot2, &tCert) <= 0 ) return false;
+		// TBSCertificate -> first child SEQUENCE
+		tTbsCert = tCert;
+		// 遍历 TBSCertificate 的子元素找 SubjectPublicKeyInfo
+		// 它是一个 SEQUENCE, 其第一个子元素是 AlgorithmIdentifier SEQUENCE
+		// 包含 rsaEncryption OID
+		while ( __xrt_der_next(&tTbsCert, &tChild) > 0 ) {
+			if ( tChild.iType == 0x30 ) {  // SEQUENCE
+				struct __xrt_der_tlv tSeq = tChild;
+				struct __xrt_der_tlv tFirst;
+				// 检查这个 SEQUENCE 是否包含 rsaEncryption OID
+				if ( __xrt_der_find_oid(&tSeq, __xrt_oid_rsa_encryption,
+					sizeof(__xrt_oid_rsa_encryption), &tFirst) ) {
+					// 找到 SubjectPublicKeyInfo
+					// 结构: SEQUENCE { AlgorithmIdentifier, BIT STRING { SEQUENCE { INTEGER(n), INTEGER(e) } } }
+					struct __xrt_der_tlv tSPKI = tChild;
+					struct __xrt_der_tlv tAlgId, tBitStr, tKeySeq, tMod, tExp;
+					// 跳过 AlgorithmIdentifier
+					if ( __xrt_der_next(&tSPKI, &tAlgId) <= 0 ) return false;
+					// BIT STRING
+					if ( __xrt_der_next(&tSPKI, &tBitStr) <= 0 ) return false;
+					if ( tBitStr.iType != 0x03 ) return false;
+					// BIT STRING 第一个字节是 unused bits (should be 0)
+					if ( tBitStr.iLen < 1 ) return false;
+					{
+						uint8 *pKeyData = tBitStr.pValue + 1;
+						size_t iKeyDataLen = tBitStr.iLen - 1;
+						// 解析 RSA 公钥 SEQUENCE { INTEGER(n), INTEGER(e) }
+						if ( __xrt_der_parse(pKeyData, iKeyDataLen, &tKeySeq) < 0 ) return false;
+						if ( tKeySeq.iType != 0x30 ) return false;
+						// modulus (n)
+						if ( __xrt_der_next(&tKeySeq, &tMod) <= 0 ) return false;
+						if ( tMod.iType != 0x02 ) return false;
+						// 跳过前导零字节
+						*ppMod = tMod.pValue;
+						*pModSz = tMod.iLen;
+						if ( (*pModSz > 0) && ((*ppMod)[0] == 0x00) ) {
+							(*ppMod)++;
+							(*pModSz)--;
+						}
+						// exponent (e)
+						if ( __xrt_der_next(&tKeySeq, &tExp) <= 0 ) return false;
+						if ( tExp.iType != 0x02 ) return false;
+						*ppExp = tExp.pValue;
+						*pExpSz = tExp.iLen;
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
 /* ============================== TLS 上下文结构 ============================== */
 // 握手状态机
 enum __xrt_tls_state {
-	// 客户端状态
+	// TLS 1.3 客户端状态
 	XRT_TLS_CLIENT_START = 0,
 	XRT_TLS_CLIENT_WAIT_SH,
 	XRT_TLS_CLIENT_WAIT_EE,
@@ -13823,6 +15770,13 @@ enum __xrt_tls_state {
 	XRT_TLS_CLIENT_WAIT_CV,
 	XRT_TLS_CLIENT_WAIT_FINISH,
 	XRT_TLS_CLIENT_CONNECTED,
+	// TLS 1.2 客户端状态
+	XRT_TLS12_CLIENT_WAIT_CERT,
+	XRT_TLS12_CLIENT_WAIT_SKE,
+	XRT_TLS12_CLIENT_WAIT_SHD,
+	XRT_TLS12_CLIENT_WAIT_CCS,
+	XRT_TLS12_CLIENT_WAIT_FINISH,
+	XRT_TLS12_CLIENT_CONNECTED,
 	// 服务端状态
 	XRT_TLS_SERVER_START,
 	XRT_TLS_SERVER_NEGOTIATED,
@@ -13844,10 +15798,11 @@ struct __xrt_tls_enc {
 struct xrt_tls_context {
 	enum __xrt_tls_state iState;
 	bool bIsServer;
+	bool bIsTls12;             // 标记 TLS 1.2 模式
 	bool bHandshakeDone;
 	uint16 iCipherSuite;
 	
-	// 握手数据
+	// TLS 1.3 握手数据
 	xsha256_ctx tSHA256;           // 握手消息的 SHA-256 增量哈希
 	uint8 aRandom[32];            // client random
 	uint8 aSessionId[32];         // session ID
@@ -13855,13 +15810,37 @@ struct xrt_tls_context {
 	uint8 aX25519Pub[32];         // X25519 公钥
 	uint8 aX25519Secret[32];      // X25519 共享密钥
 	
-	// 加密密钥
+	// TLS 1.3 加密密钥
 	struct __xrt_tls_enc tEnc;
 	struct __xrt_tls_enc tAppKeys;  // 应用数据密钥
+	
+	// TLS 1.2 特有字段
+	uint8 aServerRandom[32];      // 服务器随机数
+	uint8 aMasterSecret[48];      // 主密钥
+	uint8 aP256Priv[32];          // ECDHE P-256 私钥
+	uint8 aP256Pub[65];           // ECDHE P-256 公钥
+	uint8 aPreMaster[48];         // RSA 模式 pre_master_secret
+	uint8 aSharedSecret[32];      // ECDHE 共享密钥
+	uint8 aClientWriteKey12[32];  // 客户端写密钥 (16 or 32)
+	uint8 aServerWriteKey12[32];  // 服务端写密钥 (16 or 32)
+	uint8 aClientWriteIV12[4];    // 客户端隐式 IV (GCM)
+	uint8 aServerWriteIV12[4];    // 服务端隐式 IV (GCM)
+	uint16 iKeyLen;               // 密钥长度 (16=AES128, 32=AES256)
+	uint32 iClientSeq12;          // TLS 1.2 客户端序列号
+	uint32 iServerSeq12;          // TLS 1.2 服务端序列号
+	xsha256_ctx tSHA256_12;       // TLS 1.2 握手 SHA-256 哈希
+	xsha512_ctx tSHA384_12;       // TLS 1.2 握手 SHA-384 哈希
+	bool bUseSHA384;              // 当前套件是否使用 SHA-384
+	bool bIsECDHE;                // 是否为 ECDHE 密钥交换
 	
 	// 配置
 	bool bSkipVerify;
 	char sHostname[254];
+	
+	// 服务端 SNI
+	char sClientSNI[254];         // 服务端: 客户端请求的 SNI hostname
+	void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
+	ptr pSNIUserData;
 	
 	// 证书数据
 	uint8 *pCertDer;
@@ -13869,6 +15848,13 @@ struct xrt_tls_context {
 	uint8 *pKeyDer;
 	size_t iKeyDerLen;
 	uint8 aECKey[32];             // EC 私钥
+	
+	// 服务器证书公钥 (RSA 或 EC)
+	bool bIsECPubKey;             // true=EC, false=RSA
+	uint8 aPubKey[512 + 16];      // RSA 公钥 (modulus + exp) 或 EC 公钥
+	size_t iPubKeySz;             // 公钥总大小
+	size_t iPubKeyModSz;          // RSA modulus 大小
+	uint8 aSigHash[32];           // CertificateVerify 签名哈希
 	
 	// IO 缓冲区
 	xnetbuf tSendBuf;
@@ -13883,6 +15869,89 @@ static const uint8 __xrt_tls_zeros_sha256[32] = {
 	0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b,
 	0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
 };
+/* ============================== TLS 1.2 PRF ============================== */
+// TLS 1.2 PRF (RFC 5246 Section 5):
+// A(0) = seed, A(i) = HMAC(secret, A(i-1))
+// P_hash = HMAC(secret, A(1)+seed) || HMAC(secret, A(2)+seed) || ...
+static void __xrt_tls12_prf_sha256(uint8 *pOut, size_t iOutLen,
+	const uint8 *pSecret, size_t iSecretLen,
+	const char *pLabel, size_t iLabelLen,
+	const uint8 *pSeed, size_t iSeedLen)
+{
+	uint8 aA[32];  // A(i), SHA-256 输出 32 字节
+	uint8 aP[32];  // P_hash 当前块
+	
+	// 组合 seed = label + seed
+	uint8 aFullSeed[256];
+	size_t iFullLen = iLabelLen + iSeedLen;
+	memcpy(aFullSeed, pLabel, iLabelLen);
+	memcpy(aFullSeed + iLabelLen, pSeed, iSeedLen);
+	
+	// A(1) = HMAC(secret, A(0)) = HMAC(secret, full_seed)
+	xrtHMAC_SHA256(pSecret, iSecretLen, aFullSeed, iFullLen, aA);
+	
+	size_t iDone = 0;
+	while ( iDone < iOutLen ) {
+		// HMAC(secret, A(i) + full_seed)
+		uint8 aBuf[32 + 256];  // A(i)(32) + full_seed
+		memcpy(aBuf, aA, 32);
+		memcpy(aBuf + 32, aFullSeed, iFullLen);
+		xrtHMAC_SHA256(pSecret, iSecretLen, aBuf, 32 + iFullLen, aP);
+		
+		size_t iCopy = iOutLen - iDone;
+		if ( iCopy > 32 ) iCopy = 32;
+		memcpy(pOut + iDone, aP, iCopy);
+		iDone += iCopy;
+		
+		// A(i+1) = HMAC(secret, A(i))
+		xrtHMAC_SHA256(pSecret, iSecretLen, aA, 32, aA);
+	}
+}
+static void __xrt_tls12_prf_sha384(uint8 *pOut, size_t iOutLen,
+	const uint8 *pSecret, size_t iSecretLen,
+	const char *pLabel, size_t iLabelLen,
+	const uint8 *pSeed, size_t iSeedLen)
+{
+	uint8 aA[48];  // A(i), SHA-384 输出 48 字节
+	uint8 aP[48];  // P_hash 当前块
+	
+	// 组合 seed = label + seed
+	uint8 aFullSeed[256];
+	size_t iFullLen = iLabelLen + iSeedLen;
+	memcpy(aFullSeed, pLabel, iLabelLen);
+	memcpy(aFullSeed + iLabelLen, pSeed, iSeedLen);
+	
+	// A(1) = HMAC(secret, full_seed)
+	xrtHMAC_SHA384(pSecret, iSecretLen, aFullSeed, iFullLen, aA);
+	
+	size_t iDone = 0;
+	while ( iDone < iOutLen ) {
+		uint8 aBuf[48 + 256];  // A(i)(48) + full_seed
+		memcpy(aBuf, aA, 48);
+		memcpy(aBuf + 48, aFullSeed, iFullLen);
+		xrtHMAC_SHA384(pSecret, iSecretLen, aBuf, 48 + iFullLen, aP);
+		
+		size_t iCopy = iOutLen - iDone;
+		if ( iCopy > 48 ) iCopy = 48;
+		memcpy(pOut + iDone, aP, iCopy);
+		iDone += iCopy;
+		
+		// A(i+1) = HMAC(secret, A(i))
+		xrtHMAC_SHA384(pSecret, iSecretLen, aA, 48, aA);
+	}
+}
+// 统一 PRF 入口: 根据 bUseSHA384 选择 SHA-256 或 SHA-384
+static void __xrt_tls12_prf(xtlsctx *pCtx, uint8 *pOut, size_t iOutLen,
+	const uint8 *pSecret, size_t iSecretLen,
+	const char *pLabel, size_t iLabelLen,
+	const uint8 *pSeed, size_t iSeedLen)
+{
+	if ( pCtx->bUseSHA384 ) {
+		__xrt_tls12_prf_sha384(pOut, iOutLen, pSecret, iSecretLen, pLabel, iLabelLen, pSeed, iSeedLen);
+	} else {
+		__xrt_tls12_prf_sha256(pOut, iOutLen, pSecret, iSecretLen, pLabel, iLabelLen, pSeed, iSeedLen);
+	}
+}
 /* ============================== TLS 密钥派生 ============================== */
 // TLS 1.3 密钥派生: HKDF-Expand-Label (RFC 8446 Section 7.1)
 static void __xrt_tls_expand_label(uint8 *pOut, size_t iOutLen,
@@ -14061,17 +16130,165 @@ static bool __xrt_tls_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 	(*pSeq)++;
 	return true;
 }
+// TLS 1.2 GCM 加密记录
+// Nonce = implicit_iv(4) + explicit_nonce(8), AAD = seq(8)+type(1)+ver(2)+len(2)
+// 输出: record_hdr(5) + explicit_nonce(8) + ciphertext + tag(16)
+static void __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
+	const uint8 *pData, size_t iLen)
+{
+	// 12 字节 nonce = implicit_iv(4) + explicit_nonce(8)
+	uint8 aNonce[12];
+	uint8 *pImplicitIV = pCtx->bIsServer ? pCtx->aServerWriteIV12 : pCtx->aClientWriteIV12;
+	uint8 *pKey = pCtx->bIsServer ? pCtx->aServerWriteKey12 : pCtx->aClientWriteKey12;
+	uint32 *pSeq = pCtx->bIsServer ? &pCtx->iServerSeq12 : &pCtx->iClientSeq12;
+	
+	memcpy(aNonce, pImplicitIV, 4);
+	// explicit nonce = 序列号 (8 字节 big-endian)
+	memset(aNonce + 4, 0, 4);
+	aNonce[8]  = (uint8)((*pSeq) >> 24);
+	aNonce[9]  = (uint8)((*pSeq) >> 16);
+	aNonce[10] = (uint8)((*pSeq) >> 8);
+	aNonce[11] = (uint8)((*pSeq));
+	
+	// 13 字节 AAD = seq_num(8) + type(1) + version(2) + plaintext_length(2)
+	uint8 aAAD[13];
+	memset(aAAD, 0, 8);
+	aAAD[4] = (uint8)((*pSeq) >> 24);
+	aAAD[5] = (uint8)((*pSeq) >> 16);
+	aAAD[6] = (uint8)((*pSeq) >> 8);
+	aAAD[7] = (uint8)((*pSeq));
+	aAAD[8] = iType;
+	__xrt_tls_store_be16(aAAD + 9, __XRT_TLS_VERSION_1_2);
+	__xrt_tls_store_be16(aAAD + 11, (uint16)iLen);
+	
+	// 记录头: type(1) + version(2) + length(2)
+	// length = explicit_nonce(8) + ciphertext(iLen) + tag(16)
+	uint8 aHdr[5];
+	aHdr[0] = iType;
+	__xrt_tls_store_be16(aHdr + 1, __XRT_TLS_VERSION_1_2);
+	__xrt_tls_store_be16(aHdr + 3, (uint16)(8 + iLen + 16));
+	
+	// 加密
+	uint8 *pCipher = (uint8*)xrtMalloc(iLen + 16);
+	if ( !pCipher ) return;
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] Encrypt: type=%d len=%d seq=%d keyLen=%d\n", iType, (int)iLen, *pSeq, pCtx->iKeyLen);
+		printf("    [TLS12]   Key: ");
+		for (int i = 0; i < (int)pCtx->iKeyLen; i++) printf("%02x", pKey[i]);
+		printf("\n    [TLS12]   Nonce: ");
+		for (int i = 0; i < 12; i++) printf("%02x", aNonce[i]);
+		printf("\n    [TLS12]   AAD: ");
+		for (int i = 0; i < 13; i++) printf("%02x", aAAD[i]);
+		printf("\n    [TLS12]   Plaintext: ");
+		for (int i = 0; i < (int)(iLen < 32 ? iLen : 32); i++) printf("%02x", pData[i]);
+		printf("\n");
+	#endif
+	
+	if ( pCtx->iKeyLen == 32 ) {
+		xrtAES256GCMEncrypt(pCipher, pKey, aNonce, 12, aAAD, 13, pData, iLen);
+	} else {
+		xrtAES128GCMEncrypt(pCipher, pKey, aNonce, 12, aAAD, 13, pData, iLen);
+	}
+	
+	// 写入发送缓冲区: hdr + explicit_nonce + ciphertext + tag
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aHdr, 5);
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)(aNonce + 4), 8);  // explicit nonce
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)pCipher, iLen + 16);
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12]   Ciphertext+Tag: ");
+		for (int i = 0; i < (int)(iLen + 16); i++) printf("%02x", pCipher[i]);
+		printf("\n    [TLS12]   RecHdr: ");
+		for (int i = 0; i < 5; i++) printf("%02x", aHdr[i]);
+		printf("\n");
+		// Self-decrypt test
+		{
+			uint8 aDecrypt[64];
+			bool bOK;
+			if ( pCtx->iKeyLen == 32 ) {
+				bOK = xrtAES256GCMDecrypt(aDecrypt, pKey, aNonce, 12, aAAD, 13, pCipher, iLen + 16);
+			} else {
+				bOK = xrtAES128GCMDecrypt(aDecrypt, pKey, aNonce, 12, aAAD, 13, pCipher, iLen + 16);
+			}
+			printf("    [TLS12]   SelfDecrypt: %s\n", bOK ? "OK" : "FAIL");
+			if (bOK) {
+				int match = (memcmp(aDecrypt, pData, iLen) == 0);
+				printf("    [TLS12]   PlaintextMatch: %s\n", match ? "OK" : "MISMATCH");
+			}
+		}
+	#endif
+	
+	xrtFree(pCipher);
+	(*pSeq)++;
+}
+// TLS 1.2 GCM 解密记录
+// pRecord 指向完整记录 (hdr + payload), pOut 接收明文
+static bool __xrt_tls12_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
+	size_t iRecordLen, uint8 *pOut, size_t *pOutLen, uint8 *pType)
+{
+	if ( iRecordLen < __XRT_TLS_RECHDR_SIZE + 8 + 16 ) return false;  // hdr + nonce + tag
+	
+	uint8 *pImplicitIV = pCtx->bIsServer ? pCtx->aClientWriteIV12 : pCtx->aServerWriteIV12;
+	uint8 *pKey = pCtx->bIsServer ? pCtx->aClientWriteKey12 : pCtx->aServerWriteKey12;
+	uint32 *pSeq = pCtx->bIsServer ? &pCtx->iClientSeq12 : &pCtx->iServerSeq12;
+	
+	uint16 iPayloadLen = __xrt_tls_load_be16(pRecord + 3);
+	if ( iPayloadLen < 8 + 16 ) return false;  // 至少 explicit_nonce + tag
+	
+	const uint8 *pPayload = pRecord + __XRT_TLS_RECHDR_SIZE;
+	size_t iCipherLen = iPayloadLen - 8;  // ciphertext + tag (GCM 包含 tag)
+	size_t iPlainLen = iCipherLen - 16;   // 减去 tag
+	
+	// 12 字节 nonce = implicit_iv(4) + explicit_nonce(8)
+	uint8 aNonce[12];
+	memcpy(aNonce, pImplicitIV, 4);
+	memcpy(aNonce + 4, pPayload, 8);  // explicit nonce from record
+	
+	// 13 字节 AAD
+	uint8 aAAD[13];
+	memset(aAAD, 0, 8);
+	aAAD[4] = (uint8)((*pSeq) >> 24);
+	aAAD[5] = (uint8)((*pSeq) >> 16);
+	aAAD[6] = (uint8)((*pSeq) >> 8);
+	aAAD[7] = (uint8)((*pSeq));
+	aAAD[8] = pRecord[0];  // content type
+	memcpy(aAAD + 9, pRecord + 1, 2);  // version
+	__xrt_tls_store_be16(aAAD + 11, (uint16)iPlainLen);
+	
+	bool bOK;
+	if ( pCtx->iKeyLen == 32 ) {
+		bOK = xrtAES256GCMDecrypt(pOut, pKey, aNonce, 12, aAAD, 13, pPayload + 8, iCipherLen);
+	} else {
+		bOK = xrtAES128GCMDecrypt(pOut, pKey, aNonce, 12, aAAD, 13, pPayload + 8, iCipherLen);
+	}
+	
+	if ( !bOK ) return false;
+	
+	*pOutLen = iPlainLen;
+	*pType = pRecord[0];  // TLS 1.2: content type 在记录头明文中
+	(*pSeq)++;
+	return true;
+}
 /* ============================== 握手消息构造 ============================== */
+// 前向声明: TLS 1.2 握手哈希更新 (定义在 TLS 1.2 握手函数区)
+static void __xrt_tls12_update_hash(xtlsctx *pCtx, const uint8 *pData, size_t iLen);
 // 构造 ClientHello 消息
 static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 {
-	uint8 aBuf[512];
+	uint8 aBuf[640];
 	size_t iPos = 0;
 	
 	// 生成随机数和 X25519 密钥对
 	xrtRandomBytes(pCtx->aRandom, 32);
 	xrtRandomBytes(pCtx->aSessionId, 32);
 	xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS] ClientHello: aRandom generated: ");
+		for (int i = 0; i < 32; i++) printf("%02x", pCtx->aRandom[i]);
+		printf("\n");
+	#endif
 	
 	// Handshake: ClientHello (type=1)
 	aBuf[iPos++] = __XRT_TLS_CLIENT_HELLO;
@@ -14091,12 +16308,24 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	memcpy(aBuf + iPos, pCtx->aSessionId, 32);
 	iPos += 32;
 	
-	// cipher suites
-	__xrt_tls_store_be16(aBuf + iPos, 4);  // 2 suites * 2 bytes
+	// cipher suites (TLS 1.3 + TLS 1.2, 8 套件)
+	__xrt_tls_store_be16(aBuf + iPos, 16);  // 8 suites * 2 bytes
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_CHACHA20_POLY1305_SHA256);
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_CHACHA20_POLY1305_SHA256);  // TLS 1.3
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_128_GCM_SHA256);
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_128_GCM_SHA256);        // TLS 1.3
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256);  // TLS 1.2
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256);    // TLS 1.2
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384);  // TLS 1.2
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384);    // TLS 1.2
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_RSA_AES128_GCM_SHA256);           // TLS 1.2 RSA
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_RSA_AES256_GCM_SHA384);           // TLS 1.2 RSA
 	iPos += 2;
 	
 	// compression methods
@@ -14107,37 +16336,51 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	size_t iExtPos = iPos;
 	iPos += 2;  // 预留扩展总长度
 	
-	// Extension: supported_versions (0x002b)
+	// Extension: supported_versions (0x002b) — TLS 1.3 preferred, TLS 1.2 fallback
 	__xrt_tls_store_be16(aBuf + iPos, 0x002b);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 3);  // ext data length
+	__xrt_tls_store_be16(aBuf + iPos, 5);  // ext data length
 	iPos += 2;
-	aBuf[iPos++] = 2;   // version list length
+	aBuf[iPos++] = 4;   // version list length (2 versions * 2 bytes)
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
 	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
+	iPos += 2;
 	
-	// Extension: supported_groups (0x000a) - X25519
+	// Extension: supported_groups (0x000a) - X25519 + secp256r1
 	__xrt_tls_store_be16(aBuf + iPos, 0x000a);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 4);
+	__xrt_tls_store_be16(aBuf + iPos, 6);   // ext data length
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 2);
+	__xrt_tls_store_be16(aBuf + iPos, 4);   // named group list length
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x001d);  // x25519
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0017);  // secp256r1
 	iPos += 2;
 	
 	// Extension: signature_algorithms (0x000d)
 	__xrt_tls_store_be16(aBuf + iPos, 0x000d);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 8);   // 扩展数据长度
+	__xrt_tls_store_be16(aBuf + iPos, 18);   // 扩展数据长度 (8 algorithms * 2 + 2)
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 6);   // 签名算法列表长度
+	__xrt_tls_store_be16(aBuf + iPos, 16);   // 签名算法列表长度 (8 * 2)
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0804);  // RSA-PSS-RSAE-SHA256 (TLS 1.3 必须)
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0403);  // ECDSA-SECP256R1-SHA256
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0807);  // ED25519
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 0x0401);  // RSA-PKCS1-SHA256
+	__xrt_tls_store_be16(aBuf + iPos, 0x0805);  // RSA-PSS-RSAE-SHA384
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0806);  // RSA-PSS-RSAE-SHA512
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0401);  // RSA-PKCS1-SHA256 (TLS 1.2 兼容)
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0501);  // RSA-PKCS1-SHA384 (TLS 1.2 兼容)
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0503);  // ECDSA-SECP384R1-SHA384 (TLS 1.2 兼容)
 	iPos += 2;
 	
 	// Extension: key_share (0x0033) - X25519 public key
@@ -14153,6 +16396,22 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
 	iPos += 32;
+	
+	// Extension: psk_key_exchange_modes (0x002d) — 许多服务器要求此扩展
+	__xrt_tls_store_be16(aBuf + iPos, 0x002d);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 2);  // ext data length
+	iPos += 2;
+	aBuf[iPos++] = 1;   // modes list length
+	aBuf[iPos++] = 1;   // psk_dhe_ke
+	
+	// Extension: ec_point_formats (0x000b) — TLS 1.2 兼容
+	__xrt_tls_store_be16(aBuf + iPos, 0x000b);
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 2);  // ext data length
+	iPos += 2;
+	aBuf[iPos++] = 1;   // formats length
+	aBuf[iPos++] = 0;   // uncompressed
 	
 	// Extension: server_name (SNI) - 如果设置了主机名
 	if ( pCtx->sHostname[0] ) {
@@ -14178,29 +16437,45 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	
 	// 更新握手哈希
 	xrtSHA256Update(&pCtx->tSHA256, aBuf, iPos);
+	__xrt_tls12_update_hash(pCtx, aBuf, iPos);
 	
 	// 包装为 TLS record (plaintext)
+	// RFC 8446: initial ClientHello record version SHOULD be 0x0301 for compatibility
 	uint8 aRec[5];
 	aRec[0] = __XRT_TLS_HANDSHAKE;
-	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
+	__xrt_tls_store_be16(aRec + 1, 0x0303);  // TLS 1.2 record version for compatibility
 	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
 	
 	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
 	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS] ClientHello: total=%d bytes, msg=%d bytes\n",
+			(int)(5 + iPos), (int)iPos);
+		printf("    [TLS] Record: ");
+		for ( size_t _i = 0; _i < 5; _i++ ) printf("%02x ", aRec[_i]);
+		printf("\n");
+		printf("    [TLS] Full ClientHello hex:\n    ");
+		for ( size_t _i = 0; _i < iPos; _i++ ) {
+			printf("%02x ", aBuf[_i]);
+			if ( (_i + 1) % 32 == 0 ) printf("\n    ");
+		}
+		printf("\n");
+	#endif
 }
-// 解析 ServerHello 消息
+// 解析 ServerHello 消息 (支持 TLS 1.3 和 TLS 1.2)
 static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
 	if ( iLen < 2 + 32 + 1 ) return false;
 	
 	size_t iPos = 0;
 	
-	// server version (ignored for TLS 1.3, use supported_versions ext)
+	// legacy server version
+	uint16 iLegacyVer = __xrt_tls_load_be16(pMsg + iPos);
 	iPos += 2;
 	
 	// server random
-	uint8 aServerRandom[32];
-	memcpy(aServerRandom, pMsg + iPos, 32);
+	memcpy(pCtx->aServerRandom, pMsg + iPos, 32);
 	iPos += 32;
 	
 	// session ID
@@ -14216,33 +16491,98 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	iPos += 1;
 	
 	// 解析扩展
-	if ( iPos + 2 > iLen ) return true;  // 没有扩展也行
-	uint16 iExtLen = __xrt_tls_load_be16(pMsg + iPos);
-	iPos += 2;
-	
-	size_t iExtEnd = iPos + iExtLen;
-	while ( iPos + 4 <= iExtEnd ) {
-		uint16 iExtType = __xrt_tls_load_be16(pMsg + iPos);
-		iPos += 2;
-		uint16 iExtDataLen = __xrt_tls_load_be16(pMsg + iPos);
+	bool bFoundTls13 = false;
+	if ( iPos + 2 <= iLen ) {
+		uint16 iExtLen = __xrt_tls_load_be16(pMsg + iPos);
 		iPos += 2;
 		
-		if ( iExtType == 0x0033 ) {  // key_share
-			// 解析服务器的 X25519 公钥
-			if ( iExtDataLen >= 36 ) {
-				uint16 iGroup = __xrt_tls_load_be16(pMsg + iPos);
-				uint16 iKeyLen = __xrt_tls_load_be16(pMsg + iPos + 2);
-				if ( iGroup == 0x001d && iKeyLen == 32 ) {
-					// 计算共享密钥
-					xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pMsg + iPos + 4);
+		size_t iExtEnd = iPos + iExtLen;
+		while ( iPos + 4 <= iExtEnd ) {
+			uint16 iExtType = __xrt_tls_load_be16(pMsg + iPos);
+			iPos += 2;
+			uint16 iExtDataLen = __xrt_tls_load_be16(pMsg + iPos);
+			iPos += 2;
+			
+			if ( iExtType == 0x002b ) {  // supported_versions
+				if ( iExtDataLen >= 2 ) {
+					uint16 iSelectedVer = __xrt_tls_load_be16(pMsg + iPos);
+					if ( iSelectedVer == __XRT_TLS_VERSION_1_3 ) {
+						bFoundTls13 = true;
+					}
+				}
+			} else if ( iExtType == 0x0033 ) {  // key_share
+				// 解析服务器的 X25519 公钥 (TLS 1.3)
+				if ( iExtDataLen >= 36 ) {
+					uint16 iGroup = __xrt_tls_load_be16(pMsg + iPos);
+					uint16 iKeyLen = __xrt_tls_load_be16(pMsg + iPos + 2);
+					if ( iGroup == 0x001d && iKeyLen == 32 ) {
+						xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pMsg + iPos + 4);
+					}
 				}
 			}
+			
+			iPos += iExtDataLen;
 		}
-		
-		iPos += iExtDataLen;
 	}
 	
-	return true;
+	if ( bFoundTls13 ) {
+		// TLS 1.3 协商成功
+		pCtx->bIsTls12 = false;
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] ServerHello: TLS 1.3, cipher=0x%04x\n", pCtx->iCipherSuite);
+		#endif
+		return true;
+	}
+	
+	// 没有 supported_versions 扩展 + legacy version == 0x0303 → TLS 1.2
+	if ( iLegacyVer == __XRT_TLS_VERSION_1_2 ) {
+		pCtx->bIsTls12 = true;
+		
+		// 验证密码套件是否受支持
+		switch ( pCtx->iCipherSuite ) {
+			case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256:
+			case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256:
+			case __XRT_TLS12_RSA_AES128_GCM_SHA256:
+				pCtx->bUseSHA384 = false;
+				pCtx->iKeyLen = 16;
+				break;
+			case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384:
+			case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384:
+			case __XRT_TLS12_RSA_AES256_GCM_SHA384:
+				pCtx->bUseSHA384 = true;
+				pCtx->iKeyLen = 32;
+				break;
+			default:
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] ServerHello: unsupported TLS 1.2 cipher 0x%04x\n", pCtx->iCipherSuite);
+				#endif
+				return false;
+		}
+		
+		// 确定密钥交换类型
+		switch ( pCtx->iCipherSuite ) {
+			case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256:
+			case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256:
+			case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384:
+			case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384:
+				pCtx->bIsECDHE = true;
+				break;
+			default:
+				pCtx->bIsECDHE = false;
+				break;
+		}
+		
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] ServerHello: TLS 1.2, cipher=0x%04x, sha384=%d, ecdhe=%d, keyLen=%d\n",
+				pCtx->iCipherSuite, pCtx->bUseSHA384, pCtx->bIsECDHE, pCtx->iKeyLen);
+		#endif
+		return true;
+	}
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS] ServerHello: unsupported version 0x%04x\n", iLegacyVer);
+	#endif
+	return false;
 }
 // 发送 Finished 消息
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer)
@@ -14336,6 +16676,468 @@ static void __xrt_tls_derive_application_keys(xtlsctx *pCtx)
 	__xrt_tls_derive_secret(aSATS, aMasterSecret, "s ap traffic", 12, aTranscriptHash);
 	__xrt_tls_derive_traffic_keys(&pCtx->tAppKeys, aSATS, true);
 }
+/* ============================== TLS 1.2 握手函数 ============================== */
+// 更新 TLS 1.2 握手哈希 (同时更新 SHA-256 和 SHA-384)
+static void __xrt_tls12_update_hash(xtlsctx *pCtx, const uint8 *pData, size_t iLen)
+{
+	xrtSHA256Update(&pCtx->tSHA256_12, (ptr)pData, iLen);
+	xrtSHA512Update(&pCtx->tSHA384_12, (const ptr)pData, iLen);
+}
+// 获取 TLS 1.2 握手哈希快照 (根据套件选择 SHA-256 或 SHA-384)
+static void __xrt_tls12_get_hash(xtlsctx *pCtx, uint8 *pOut)
+{
+	if ( pCtx->bUseSHA384 ) {
+		xsha512_ctx tCopy = pCtx->tSHA384_12;
+		xrtSHA384Final(&tCopy, pOut);
+	} else {
+		xsha256_ctx tCopy = pCtx->tSHA256_12;
+		xrtSHA256Final(&tCopy, pOut);
+	}
+}
+// Step 5: 解析 TLS 1.2 Certificate 消息
+// TLS 1.2 格式: cert_list_len(3) + [cert_len(3) + cert]*  (无 request_context, 无 extensions)
+static bool __xrt_tls12_parse_certificate(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
+{
+	if ( iLen < 3 ) return false;
+	
+	uint32 iCertListLen = __xrt_tls_load_be24(pMsg);
+	size_t iOff = 3;
+	(void)iCertListLen;
+	
+	// 解析第一个证书 (叶子证书)
+	if ( iOff + 3 > iLen ) return false;
+	uint32 iCertLen = __xrt_tls_load_be24(pMsg + iOff);
+	iOff += 3;
+	
+	if ( iOff + iCertLen > iLen || iCertLen == 0 ) return false;
+	
+	uint8 *pCertData = (uint8*)(pMsg + iOff);
+	
+	// 尝试提取 RSA 公钥
+	uint8 *pMod = NULL, *pExp = NULL;
+	size_t iModSz = 0, iExpSz = 0;
+	
+	if ( __xrt_tls_extract_rsa_pubkey(pCertData, iCertLen, &pMod, &iModSz, &pExp, &iExpSz) ) {
+		pCtx->bIsECPubKey = false;
+		if ( iModSz + iExpSz <= sizeof(pCtx->aPubKey) ) {
+			memcpy(pCtx->aPubKey, pMod, iModSz);
+			memcpy(pCtx->aPubKey + iModSz, pExp, iExpSz);
+			pCtx->iPubKeyModSz = iModSz;
+			pCtx->iPubKeySz = iModSz + iExpSz;
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] Certificate: RSA key, mod=%d exp=%d\n", (int)iModSz, (int)iExpSz);
+			#endif
+		}
+		return true;
+	}
+	
+	// 尝试提取 EC 公钥
+	uint8 *pECPub = NULL;
+	size_t iECPubSz = 0;
+	if ( __xrt_tls_extract_ec_pubkey(pCertData, iCertLen, &pECPub, &iECPubSz) ) {
+		pCtx->bIsECPubKey = true;
+		if ( iECPubSz <= sizeof(pCtx->aPubKey) ) {
+			memcpy(pCtx->aPubKey, pECPub, iECPubSz);
+			pCtx->iPubKeySz = iECPubSz;
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] Certificate: EC key, size=%d\n", (int)iECPubSz);
+			#endif
+		}
+		return true;
+	}
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] Certificate: failed to extract public key\n");
+	#endif
+	return false;
+}
+// Step 6: 解析 ServerKeyExchange (ECDHE 套件)
+static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
+{
+	size_t iOff = 0;
+	
+	// ECParameters: curve_type(1) + named_curve(2)
+	if ( iOff + 3 > iLen ) return false;
+	if ( pMsg[iOff] != 3 ) return false;  // named_curve
+	uint16 iCurve = __xrt_tls_load_be16(pMsg + iOff + 1);
+	if ( iCurve != 0x0017 ) return false;  // secp256r1
+	iOff += 3;
+	
+	// EC point: point_len(1) + point(65)
+	if ( iOff + 1 > iLen ) return false;
+	uint8 iPointLen = pMsg[iOff++];
+	if ( iPointLen != 65 || pMsg[iOff] != 0x04 ) return false;  // uncompressed
+	if ( iOff + 65 > iLen ) return false;
+	
+	const uint8 *pServerPub = pMsg + iOff;  // 服务器 P-256 公钥
+	iOff += 65;
+	
+	// 保存 server_params 的位置和长度 (用于签名验证)
+	size_t iParamsLen = iOff;  // curve_type(1) + named_curve(2) + point_len(1) + point(65)
+	
+	// 解析签名: sig_hash_alg(2) + sig_len(2) + signature
+	if ( iOff + 4 > iLen ) return false;
+	uint16 iSigAlg = __xrt_tls_load_be16(pMsg + iOff);
+	iOff += 2;
+	uint16 iSigLen = __xrt_tls_load_be16(pMsg + iOff);
+	iOff += 2;
+	if ( iOff + iSigLen > iLen ) return false;
+	const uint8 *pSig = pMsg + iOff;
+	
+	// 验证签名: 对 client_random(32) + server_random(32) + server_params 进行验签
+	if ( !pCtx->bSkipVerify ) {
+		uint8 aSigBuf[128];
+		size_t iSigBufLen = 32 + 32 + iParamsLen;
+		uint8 *pSigData = (iSigBufLen <= sizeof(aSigBuf)) ? aSigBuf : (uint8*)xrtMalloc(iSigBufLen);
+		if ( !pSigData ) return false;
+		
+		memcpy(pSigData, pCtx->aRandom, 32);          // client_random
+		memcpy(pSigData + 32, pCtx->aServerRandom, 32); // server_random
+		memcpy(pSigData + 64, pMsg, iParamsLen);         // server_params
+		
+		// 计算哈希
+		uint8 aHash[48];
+		size_t iHashLen;
+		uint16 iHashAlg = (iSigAlg >> 8) & 0xFF;  // hash algorithm
+		
+		if ( iHashAlg == 4 ) {  // SHA-256
+			xrtSHA256((const ptr)pSigData, iSigBufLen, aHash);
+			iHashLen = 32;
+		} else if ( iHashAlg == 5 ) {  // SHA-384
+			xrtSHA384((const ptr)pSigData, iSigBufLen, aHash);
+			iHashLen = 48;
+		} else {
+			// 默认使用 SHA-256
+			xrtSHA256((const ptr)pSigData, iSigBufLen, aHash);
+			iHashLen = 32;
+		}
+		
+		if ( pSigData != aSigBuf ) xrtFree(pSigData);
+		
+		// 根据密码套件类型验证签名
+		bool bVerifyOK = false;
+		
+		uint8 iSigType = iSigAlg & 0xFF;  // signature algorithm type
+		
+		if ( iSigAlg == 0x0804 || iSigAlg == 0x0805 || iSigAlg == 0x0806 ) {
+			// RSA-PSS (TLS 1.3 style sig algs used in TLS 1.2)
+			bVerifyOK = xrtRSAPSSVerify(aHash, iHashLen, pSig, iSigLen,
+				pCtx->aPubKey, pCtx->iPubKeyModSz,
+				pCtx->aPubKey + pCtx->iPubKeyModSz,
+				pCtx->iPubKeySz - pCtx->iPubKeyModSz);
+		} else if ( iSigType == 1 ) {  // RSA-PKCS1
+			bVerifyOK = xrtRSAPKCS1Verify(aHash, iHashLen, pSig, iSigLen,
+				pCtx->aPubKey, pCtx->iPubKeyModSz,
+				pCtx->aPubKey + pCtx->iPubKeyModSz,
+				pCtx->iPubKeySz - pCtx->iPubKeyModSz);
+		} else if ( iSigType == 3 ) {  // ECDSA
+			bVerifyOK = xrtECDSAVerify(aHash, iHashLen, pSig, iSigLen,
+				pCtx->aPubKey, pCtx->iPubKeySz);
+		}
+		
+		if ( !bVerifyOK ) {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] ServerKeyExchange: signature verify FAILED (alg=0x%04x)\n", iSigAlg);
+			#endif
+			return false;
+		}
+		#ifdef DEBUG_TRACE
+			printf("    [TLS12] ServerKeyExchange: signature verify OK (alg=0x%04x)\n", iSigAlg);
+		#endif
+	}
+	
+	// 生成 ECDH P-256 密钥对
+	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
+	
+	// 计算共享密钥
+	xrtECDHSecp256r1SharedSecret(pCtx->aSharedSecret, pCtx->aP256Priv, pServerPub);
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] ServerKeyExchange: ECDH shared secret computed\n");
+		printf("    [TLS12]   ServerPub: ");
+		for (int i = 0; i < 65; i++) printf("%02x", pServerPub[i]);
+		printf("\n    [TLS12]   ClientPub: ");
+		for (int i = 0; i < 65; i++) printf("%02x", pCtx->aP256Pub[i]);
+		printf("\n    [TLS12]   SharedSecret: ");
+		for (int i = 0; i < 32; i++) printf("%02x", pCtx->aSharedSecret[i]);
+		printf("\n");
+		// Self-test: verify our own pub key round-trip
+		{
+			uint8 aTestPriv[32], aTestPub[65], aTestPriv2[32], aTestPub2[65];
+			uint8 aSecret1[32], aSecret2[32];
+			xrtECDHSecp256r1Keypair(aTestPriv, aTestPub);
+			xrtECDHSecp256r1Keypair(aTestPriv2, aTestPub2);
+			xrtECDHSecp256r1SharedSecret(aSecret1, aTestPriv, aTestPub2);
+			xrtECDHSecp256r1SharedSecret(aSecret2, aTestPriv2, aTestPub);
+			printf("    [TLS12]   P256 ECDH self-test: %s\n", 
+				memcmp(aSecret1, aSecret2, 32) == 0 ? "PASS" : "FAIL");
+		}
+		// NIST ECDH test vector
+		{
+			uint8 nPrivA[] = {0x7d,0x7d,0xc5,0xf7,0x1e,0xb2,0x9d,0xda,0xf8,0x0d,0x62,0x14,0x63,0x2e,0xea,0xe0,
+				0x3d,0x90,0x58,0xaf,0x1f,0xb6,0xd2,0x2e,0xd8,0x0b,0xad,0xb6,0x2b,0xc1,0xa5,0x34};
+			uint8 nPubB[65] = {0x04,
+				0x80,0x9f,0x04,0x28,0x9c,0x64,0x34,0x8c,0x01,0x51,0x5e,0xb0,0x3d,0x5c,0xe7,0xac,
+				0x1a,0x8c,0xb9,0x49,0x8f,0x5c,0xaa,0x50,0x19,0x7e,0x58,0xd4,0x3a,0x86,0xa7,0xae,
+				0xb2,0x9d,0x84,0xe8,0x11,0x19,0x7f,0x25,0xeb,0xa8,0xf5,0x19,0x40,0x92,0xcb,0x6f,
+				0xf4,0x40,0xe2,0x6d,0x44,0x21,0x01,0x13,0x72,0x46,0x1f,0x57,0x92,0x71,0xcd,0xa3};
+			uint8 nExpected[] = {0xc4,0x24,0xdb,0x57,0xe2,0xc1,0x53,0x55,0xb3,0xc9,0xe1,0x00,0x00,0x9b,0x6f,0xf4,
+				0x05,0xe0,0x03,0x90,0x69,0x1b,0xbd,0xba,0xf3,0xe6,0xab,0xd7,0x45,0xaf,0x99,0x34};
+			uint8 nOut[32];
+			xrtECDHSecp256r1SharedSecret(nOut, nPrivA, nPubB);
+			printf("    [TLS12]   NIST P256 ECDH test: %s\n", memcmp(nOut, nExpected, 32) == 0 ? "PASS" : "FAIL");
+			if (memcmp(nOut, nExpected, 32) != 0) {
+				printf("    [TLS12]     Got:      ");
+				for (int i = 0; i < 32; i++) printf("%02x", nOut[i]);
+				printf("\n    [TLS12]     Expected: ");
+				for (int i = 0; i < 32; i++) printf("%02x", nExpected[i]);
+				printf("\n");
+			}
+		}
+	#endif
+	return true;
+}
+// Step 7: 构造并发送 ClientKeyExchange
+static void __xrt_tls12_send_client_key_exchange(xtlsctx *pCtx)
+{
+	uint8 aBuf[512];
+	size_t iPos = 0;
+	
+	// 握手消息头: type=16(ClientKeyExchange)
+	aBuf[iPos++] = __XRT_TLS_CLIENT_KEY_EXCHANGE;
+	size_t iLenPos = iPos;
+	iPos += 3;  // 预留长度
+	
+	if ( pCtx->bIsECDHE ) {
+		// ECDHE: 发送客户端 P-256 公钥 (1 + 65 字节)
+		aBuf[iPos++] = 65;  // point length
+		memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
+		iPos += 65;
+	} else {
+		// RSA: 生成 pre_master_secret, PKCS#1 v1.5 加密后发送
+		// pre_master_secret = version(2) + random(46)
+		pCtx->aPreMaster[0] = 0x03;
+		pCtx->aPreMaster[1] = 0x03;  // TLS 1.2 version
+		xrtRandomBytes(pCtx->aPreMaster + 2, 46);
+		
+		// PKCS#1 v1.5 加密: 0x00 0x02 [random non-zero padding] 0x00 [data]
+		size_t iModSz = pCtx->iPubKeyModSz;
+		uint8 *pPadded = (uint8*)xrtMalloc(iModSz);
+		if ( !pPadded ) return;
+		
+		pPadded[0] = 0x00;
+		pPadded[1] = 0x02;
+		size_t iPadLen = iModSz - 3 - 48;  // padding length
+		xrtRandomBytes(pPadded + 2, iPadLen);
+		// 确保 padding 无零字节
+		for ( size_t i = 0; i < iPadLen; i++ ) {
+			while ( pPadded[2 + i] == 0 ) xrtRandomBytes(pPadded + 2 + i, 1);
+		}
+		pPadded[2 + iPadLen] = 0x00;
+		memcpy(pPadded + 3 + iPadLen, pCtx->aPreMaster, 48);
+		
+		// RSA 幂运算
+		uint8 *pEncrypted = (uint8*)xrtMalloc(iModSz);
+		if ( !pEncrypted ) { xrtFree(pPadded); return; }
+		
+		xrtRSAModPow(pCtx->aPubKey, iModSz,
+			pCtx->aPubKey + pCtx->iPubKeyModSz,
+			pCtx->iPubKeySz - pCtx->iPubKeyModSz,
+			pPadded, iModSz,
+			pEncrypted, iModSz);
+		
+		// 写入: encrypted_len(2) + encrypted_data
+		__xrt_tls_store_be16(aBuf + iPos, (uint16)iModSz);
+		iPos += 2;
+		memcpy(aBuf + iPos, pEncrypted, iModSz);
+		iPos += iModSz;
+		
+		xrtFree(pPadded);
+		xrtFree(pEncrypted);
+	}
+	
+	// 填充消息长度
+	__xrt_tls_store_be24(aBuf + iLenPos, (uint32)(iPos - iLenPos - 3));
+	
+	// 更新握手哈希
+	__xrt_tls12_update_hash(pCtx, aBuf, iPos);
+	
+	// 包装为 TLS record (明文)
+	uint8 aRec[5];
+	aRec[0] = __XRT_TLS_HANDSHAKE;
+	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
+	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
+	
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+}
+// Step 8: TLS 1.2 密钥派生
+static void __xrt_tls12_derive_keys(xtlsctx *pCtx)
+{
+	const uint8 *pPreMaster;
+	size_t iPMLen;
+	
+	if ( pCtx->bIsECDHE ) {
+		pPreMaster = pCtx->aSharedSecret;
+		iPMLen = 32;
+	} else {
+		pPreMaster = pCtx->aPreMaster;
+		iPMLen = 48;
+	}
+	
+	// master_secret = PRF(pre_master, "master secret", client_random + server_random)[0..47]
+	uint8 aSeed[64];
+	memcpy(aSeed, pCtx->aRandom, 32);          // client_random
+	memcpy(aSeed + 32, pCtx->aServerRandom, 32); // server_random
+	
+	__xrt_tls12_prf(pCtx, pCtx->aMasterSecret, 48,
+		pPreMaster, iPMLen,
+		"master secret", 13, aSeed, 64);
+	
+	// key_block = PRF(master, "key expansion", server_random + client_random)
+	uint8 aSeed2[64];
+	memcpy(aSeed2, pCtx->aServerRandom, 32);     // server_random 先
+	memcpy(aSeed2 + 32, pCtx->aRandom, 32);      // client_random 后
+	
+	// AES-GCM: key_block = client_write_key + server_write_key + client_IV + server_IV
+	size_t iBlockLen = pCtx->iKeyLen * 2 + 4 * 2;  // 2 keys + 2 IVs (4 bytes each)
+	uint8 aKeyBlock[72];  // max: 32*2 + 4*2 = 72
+	
+	__xrt_tls12_prf(pCtx, aKeyBlock, iBlockLen,
+		pCtx->aMasterSecret, 48,
+		"key expansion", 13, aSeed2, 64);
+	
+	// 拆分 key_block
+	size_t iOff = 0;
+	memcpy(pCtx->aClientWriteKey12, aKeyBlock + iOff, pCtx->iKeyLen); iOff += pCtx->iKeyLen;
+	memcpy(pCtx->aServerWriteKey12, aKeyBlock + iOff, pCtx->iKeyLen); iOff += pCtx->iKeyLen;
+	memcpy(pCtx->aClientWriteIV12, aKeyBlock + iOff, 4); iOff += 4;
+	memcpy(pCtx->aServerWriteIV12, aKeyBlock + iOff, 4);
+	
+	// 重置序列号
+	pCtx->iClientSeq12 = 0;
+	pCtx->iServerSeq12 = 0;
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] Keys derived: keyLen=%d\n", pCtx->iKeyLen);
+		
+		// PRF test vector verification
+		{
+			uint8 tSecret[] = {0x9b,0xbe,0x43,0x6b,0xa9,0x40,0xf0,0x17,0xb1,0x76,0x52,0x84,0x9a,0x71,0xdb,0x35};
+			uint8 tSeed[] = {0xa0,0xba,0x9f,0x93,0x6c,0xda,0x31,0x18,0x27,0xa6,0xf7,0x96,0xff,0xd5,0x19,0x8c};
+			uint8 tExpected[] = {0xe3,0xf2,0x29,0xba,0x72,0x7b,0xe1,0x7b,0x8d,0x12,0x26,0x20,0x55,0x7c,0xd4,0x53,
+				0xc2,0xaa,0xb2,0x1d,0x07,0xc3,0xd4,0x95,0x32,0x9b,0x52,0xd4,0xe6,0x1e,0xdb,0x5a};
+			uint8 tOut[32];
+			__xrt_tls12_prf_sha256(tOut, 32, tSecret, 16, "test label", 10, tSeed, 16);
+			printf("    [TLS12]   PRF test vector: %s\n", memcmp(tOut, tExpected, 32) == 0 ? "PASS" : "FAIL");
+			if (memcmp(tOut, tExpected, 32) != 0) {
+				printf("    [TLS12]     Got:      ");
+				for (int i = 0; i < 32; i++) printf("%02x", tOut[i]);
+				printf("\n    [TLS12]     Expected: ");
+				for (int i = 0; i < 32; i++) printf("%02x", tExpected[i]);
+				printf("\n");
+			}
+		}
+		printf("    [TLS12]   PreMaster: ");
+		for (int i = 0; i < (int)iPMLen; i++) printf("%02x", pPreMaster[i]);
+		printf("\n    [TLS12]   MasterSecret: ");
+		for (int i = 0; i < 48; i++) printf("%02x", pCtx->aMasterSecret[i]);
+		printf("\n    [TLS12]   ClientWriteKey: ");
+		for (int i = 0; i < (int)pCtx->iKeyLen; i++) printf("%02x", pCtx->aClientWriteKey12[i]);
+		printf("\n    [TLS12]   ServerWriteKey: ");
+		for (int i = 0; i < (int)pCtx->iKeyLen; i++) printf("%02x", pCtx->aServerWriteKey12[i]);
+		printf("\n    [TLS12]   ClientIV: ");
+		for (int i = 0; i < 4; i++) printf("%02x", pCtx->aClientWriteIV12[i]);
+		printf("\n    [TLS12]   ServerIV: ");
+		for (int i = 0; i < 4; i++) printf("%02x", pCtx->aServerWriteIV12[i]);
+		printf("\n    [TLS12]   ClientRandom: ");
+		for (int i = 0; i < 32; i++) printf("%02x", pCtx->aRandom[i]);
+		printf("\n    [TLS12]   ServerRandom: ");
+		for (int i = 0; i < 32; i++) printf("%02x", pCtx->aServerRandom[i]);
+		printf("\n");
+	#endif
+	
+	// 清零临时数据
+	memset(aKeyBlock, 0, sizeof(aKeyBlock));
+}
+// Step 9: 发送 ChangeCipherSpec + Finished
+static void __xrt_tls12_send_ccs_finished(xtlsctx *pCtx)
+{
+	// 1. 发送 ChangeCipherSpec 记录 (明文, 1字节 0x01)
+	uint8 aCCS[6];
+	aCCS[0] = __XRT_TLS_CHANGE_CIPHER;
+	__xrt_tls_store_be16(aCCS + 1, __XRT_TLS_VERSION_1_2);
+	__xrt_tls_store_be16(aCCS + 3, 1);
+	aCCS[5] = 0x01;
+	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aCCS, 6);
+	
+	// 2. 计算 verify_data = PRF(master_secret, "client finished", Hash(handshake_messages))[0..11]
+	uint8 aHash[48];
+	__xrt_tls12_get_hash(pCtx, aHash);
+	
+	uint8 aVerifyData[12];
+	size_t iHashLen = pCtx->bUseSHA384 ? 48 : 32;
+	__xrt_tls12_prf(pCtx, aVerifyData, 12,
+		pCtx->aMasterSecret, 48,
+		"client finished", 15, aHash, iHashLen);
+	
+	// 3. 构造 Finished 握手消息
+	uint8 aMsg[16];
+	aMsg[0] = __XRT_TLS_FINISHED;
+	__xrt_tls_store_be24(aMsg + 1, 12);
+	memcpy(aMsg + 4, aVerifyData, 12);
+	
+	// 更新握手哈希 (包含客户端 Finished)
+	__xrt_tls12_update_hash(pCtx, aMsg, 16);
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] Finished hash: ");
+		for (int i = 0; i < (int)iHashLen; i++) printf("%02x", aHash[i]);
+		printf("\n    [TLS12] VerifyData: ");
+		for (int i = 0; i < 12; i++) printf("%02x", aVerifyData[i]);
+		printf("\n    [TLS12] FinishedMsg: ");
+		for (int i = 0; i < 16; i++) printf("%02x", aMsg[i]);
+		printf("\n");
+	#endif
+	
+	// 4. 用 TLS 1.2 GCM 加密发送 Finished
+	__xrt_tls12_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, aMsg, 16);
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] Sent CCS + Finished\n");
+		// Dump entire send buffer
+		printf("    [TLS12] SendBuf (%d bytes):\n    ", (int)pCtx->tSendBuf.iSize);
+		for (int i = 0; i < (int)pCtx->tSendBuf.iSize; i++) {
+			printf("%02x ", (uint8)pCtx->tSendBuf.pData[i]);
+			if ((i+1) % 32 == 0) printf("\n    ");
+		}
+		printf("\n");
+	#endif
+}
+// 验证服务端 Finished
+static bool __xrt_tls12_verify_finished(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
+{
+	if ( iLen < 12 ) return false;
+	
+	// 计算 expected = PRF(master_secret, "server finished", Hash(handshake_messages))[0..11]
+	uint8 aHash[48];
+	__xrt_tls12_get_hash(pCtx, aHash);
+	
+	uint8 aExpected[12];
+	size_t iHashLen = pCtx->bUseSHA384 ? 48 : 32;
+	__xrt_tls12_prf(pCtx, aExpected, 12,
+		pCtx->aMasterSecret, 48,
+		"server finished", 15, aHash, iHashLen);
+	
+	// 安全比较
+	uint8 iDiff = 0;
+	for ( int i = 0; i < 12; i++ ) iDiff |= aExpected[i] ^ pMsg[i];
+	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] Verify server Finished: %s\n", iDiff ? "FAILED" : "OK");
+	#endif
+	return (iDiff == 0);
+}
 /* ============================== 公共 API ============================== */
 XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 {
@@ -14350,6 +17152,10 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	// 初始化 SHA-256 上下文
 	xrtSHA256Init(&pCtx->tSHA256);
 	
+	// 初始化 TLS 1.2 哈希上下文 (两个都初始化, 待协商后再选择)
+	xrtSHA256Init(&pCtx->tSHA256_12);
+	xrtSHA384Init(&pCtx->tSHA384_12);
+	
 	// 初始化 IO 缓冲区
 	xrtNetBufInit(&pCtx->tSendBuf, 8192);
 	xrtNetBufInit(&pCtx->tRecvBuf, 8192);
@@ -14359,6 +17165,8 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 		if ( pConfig->sHostName ) {
 			strncpy(pCtx->sHostname, pConfig->sHostName, sizeof(pCtx->sHostname) - 1);
 		}
+		pCtx->OnSNI = pConfig->OnSNI;
+		pCtx->pSNIUserData = pConfig->pSNIUserData;
 		// TODO: 加载证书和密钥文件 (PEM/DER)
 	} else {
 		pCtx->bSkipVerify = true;
@@ -14381,6 +17189,11 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	memset(pCtx->aX25519Secret, 0, 32);
 	memset(&pCtx->tEnc, 0, sizeof(struct __xrt_tls_enc));
 	memset(&pCtx->tAppKeys, 0, sizeof(struct __xrt_tls_enc));
+	memset(pCtx->aMasterSecret, 0, 48);
+	memset(pCtx->aP256Priv, 0, 32);
+	memset(pCtx->aSharedSecret, 0, 32);
+	memset(pCtx->aClientWriteKey12, 0, 32);
+	memset(pCtx->aServerWriteKey12, 0, 32);
 	
 	xrtFree(pCtx);
 }
@@ -14400,6 +17213,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 		}
 	}
 	
+	#ifdef DEBUG_TRACE
+		printf("    [TLS] state=%d recvBuf=%d sendBuf=%d\n",
+			pCtx->iState, (int)pCtx->tRecvBuf.iSize, (int)pCtx->tSendBuf.iSize);
+	#endif
+	
 	switch ( pCtx->iState ) {
 		case XRT_TLS_CLIENT_START:
 			__xrt_tls_send_client_hello(pCtx);
@@ -14407,14 +17225,18 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			return XRT_NET_AGAIN;
 		
 		case XRT_TLS_CLIENT_WAIT_SH: {
-			// 尝试接收 ServerHello
+			// 尝试接收更多数据
 			char aBuf[4096];
 			size_t iRecvd = 0;
 			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
-			if ( iRes == XRT_NET_AGAIN || iRecvd == 0 ) return XRT_NET_AGAIN;
-			if ( iRes != XRT_NET_OK ) return XRT_NET_ERROR;
-			
-			xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			} else if ( iRes == XRT_NET_CLOSED ) {
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_SH: connection closed\n");
+				#endif
+				return XRT_NET_ERROR;
+			}
 			
 			// 检查是否有完整记录
 			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) return XRT_NET_AGAIN;
@@ -14424,23 +17246,60 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			
 			const uint8 *pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
 			
+			#ifdef DEBUG_TRACE
+				printf("    [TLS] WAIT_SH: got record type=0x%02x len=%d, msg_type=0x%02x\n",
+					(uint8)pCtx->tRecvBuf.pData[0], (int)iRecLen, pRecData[0]);
+			#endif
+			
+			// 检查记录类型
+			uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
+			if ( iRecType == __XRT_TLS_ALERT ) {
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_SH: server alert level=%d desc=%d\n",
+						pRecData[0], (iRecLen >= 2) ? pRecData[1] : -1);
+				#endif
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				return XRT_NET_ERROR;
+			}
+			if ( iRecType != __XRT_TLS_HANDSHAKE ) {
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				return XRT_NET_ERROR;
+			}
+			
 			// 更新握手哈希 (ServerHello 消息)
 			xrtSHA256Update(&pCtx->tSHA256, (ptr)pRecData, iRecLen);
+			__xrt_tls12_update_hash(pCtx, pRecData, iRecLen);
 			
 			// 解析 ServerHello (跳过握手头)
 			if ( pRecData[0] == __XRT_TLS_SERVER_HELLO ) {
 				if ( !__xrt_tls_parse_server_hello(pCtx, pRecData + __XRT_TLS_MSGHDR_SIZE,
 					iRecLen - __XRT_TLS_MSGHDR_SIZE) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] WAIT_SH: parse_server_hello FAILED\n");
+					#endif
 					return XRT_NET_ERROR;
 				}
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_SH: ServerHello parsed, cipher=0x%04x, tls12=%d\n",
+						pCtx->iCipherSuite, pCtx->bIsTls12);
+				#endif
 			}
 			
 			xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			
-			// 推导握手密钥
-			__xrt_tls_derive_handshake_keys(pCtx);
-			
-			pCtx->iState = XRT_TLS_CLIENT_WAIT_EE;
+			if ( pCtx->bIsTls12 ) {
+				// TLS 1.2: 不派生握手密钥, 后续消息仍为明文
+				pCtx->iState = XRT_TLS12_CLIENT_WAIT_CERT;
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] After ServerHello: aRandom: ");
+					for (int i = 0; i < 32; i++) printf("%02x", pCtx->aRandom[i]);
+					printf("\n");
+				#endif
+			} else {
+				// TLS 1.3: 推导握手密钥
+				__xrt_tls_derive_handshake_keys(pCtx);
+				pCtx->iState = XRT_TLS_CLIENT_WAIT_EE;
+			}
 			return XRT_NET_AGAIN;
 		}
 		
@@ -14448,14 +17307,24 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 		case XRT_TLS_CLIENT_WAIT_CERT:
 		case XRT_TLS_CLIENT_WAIT_CV:
 		case XRT_TLS_CLIENT_WAIT_FINISH: {
-			// 接收并解密加密握手消息
+			// 尝试接收更多数据（非阻塞，可能无新数据）
 			char aBuf[4096];
 			size_t iRecvd = 0;
 			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
-			if ( iRes == XRT_NET_AGAIN || iRecvd == 0 ) return XRT_NET_AGAIN;
-			if ( iRes != XRT_NET_OK ) return XRT_NET_ERROR;
+			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_EE+: recv %d bytes, recvBuf=%d\n", (int)iRecvd, (int)pCtx->tRecvBuf.iSize);
+				#endif
+			} else if ( iRes == XRT_NET_CLOSED ) {
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_EE+: connection closed\n");
+				#endif
+				return XRT_NET_ERROR;
+			}
 			
-			xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			// 检查缓冲区是否有可处理的记录
+			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) return XRT_NET_AGAIN;
 			
 			// 处理所有完整记录
 			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
@@ -14478,37 +17347,144 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					
 					if ( !__xrt_tls_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
 						__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, true) ) {
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] WAIT_EE+: decrypt_record FAILED (recLen=%d, cipher=0x%04x)\n",
+								(int)iRecLen, pCtx->iCipherSuite);
+						#endif
 						return XRT_NET_ERROR;
 					}
 					
 					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					
 					if ( iContentType == __XRT_TLS_HANDSHAKE ) {
-						// 更新握手哈希
-						xrtSHA256Update(&pCtx->tSHA256, aPlain, iPlainLen);
-						
-						// 解析握手消息类型
-						if ( iPlainLen >= 1 ) {
-							uint8 iMsgType = aPlain[0];
+						// 遍历解密后明文中所有握手消息 (TLS 1.3 允许单条记录含多个消息)
+						size_t iMsgOff = 0;
+						while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= iPlainLen ) {
+							uint8 iMsgType = aPlain[iMsgOff];
+							uint32 iMsgBodyLen = __xrt_tls_load_be24(aPlain + iMsgOff + 1);
+							size_t iTotalMsgLen = __XRT_TLS_MSGHDR_SIZE + iMsgBodyLen;
+							
+							if ( iMsgOff + iTotalMsgLen > iPlainLen ) break;
+							
+							uint8 *pMsg = aPlain + iMsgOff;
+							
+							// 对于 CertificateVerify, 在 update SHA256 之前保存 transcript hash
+							if ( iMsgType == __XRT_TLS_CERTIFICATE_VERIFY ) {
+								xsha256_ctx tCopy = pCtx->tSHA256;
+								xrtSHA256Final(&tCopy, pCtx->aSigHash);
+							}
+							
+							// 更新握手哈希 (仅当前消息)
+							xrtSHA256Update(&pCtx->tSHA256, pMsg, iTotalMsgLen);
 							
 							if ( iMsgType == __XRT_TLS_ENCRYPTED_EXTENSIONS ) {
 								pCtx->iState = XRT_TLS_CLIENT_WAIT_CERT;
 							} else if ( iMsgType == __XRT_TLS_CERTIFICATE ) {
+								// 解析证书, 提取 RSA 公钥
+								if ( iMsgBodyLen >= 1 ) {
+									size_t iCertOff = __XRT_TLS_MSGHDR_SIZE;
+									uint8 iReqCtxLen = pMsg[iCertOff];
+									iCertOff += 1 + iReqCtxLen;
+									
+									if ( iCertOff + 3 <= iTotalMsgLen ) {
+										uint32 iCertListLen = __xrt_tls_load_be24(pMsg + iCertOff);
+										iCertOff += 3;
+										(void)iCertListLen;
+										
+										if ( iCertOff + 3 <= iTotalMsgLen ) {
+											uint32 iCertLen = __xrt_tls_load_be24(pMsg + iCertOff);
+											iCertOff += 3;
+											
+											if ( (iCertOff + iCertLen <= iTotalMsgLen) && (iCertLen > 0) ) {
+												uint8 *pCertData = pMsg + iCertOff;
+												uint8 *pMod = NULL, *pExp = NULL;
+												size_t iModSz = 0, iExpSz = 0;
+												
+												if ( __xrt_tls_extract_rsa_pubkey(pCertData, iCertLen,
+													&pMod, &iModSz, &pExp, &iExpSz) ) {
+													pCtx->bIsECPubKey = false;
+													if ( iModSz + iExpSz <= sizeof(pCtx->aPubKey) ) {
+														memcpy(pCtx->aPubKey, pMod, iModSz);
+														memcpy(pCtx->aPubKey + iModSz, pExp, iExpSz);
+														pCtx->iPubKeyModSz = iModSz;
+														pCtx->iPubKeySz = iModSz + iExpSz;
+														#ifdef DEBUG_TRACE
+															printf("    [TLS] Certificate: RSA key, mod=%d exp=%d\n",
+																(int)iModSz, (int)iExpSz);
+														#endif
+													}
+												} else {
+													pCtx->bIsECPubKey = true;
+													#ifdef DEBUG_TRACE
+														printf("    [TLS] Certificate: EC key (not RSA)\n");
+													#endif
+												}
+											}
+										}
+									}
+								}
+								
 								pCtx->iState = XRT_TLS_CLIENT_WAIT_CV;
 							} else if ( iMsgType == __XRT_TLS_CERTIFICATE_VERIFY ) {
+								// 验证 CertificateVerify 签名
+								if ( !pCtx->bSkipVerify && !pCtx->bIsECPubKey && pCtx->iPubKeyModSz > 0 ) {
+									if ( iMsgBodyLen >= 4 ) {
+										uint16 iSigAlg = __xrt_tls_load_be16(pMsg + __XRT_TLS_MSGHDR_SIZE);
+										uint16 iSigLen = __xrt_tls_load_be16(pMsg + __XRT_TLS_MSGHDR_SIZE + 2);
+										const uint8 *pSig = pMsg + __XRT_TLS_MSGHDR_SIZE + 4;
+										
+										if ( (iSigAlg == 0x0804) && (4 + iSigLen <= iMsgBodyLen) ) {
+											uint8 aSigContent[130];
+											xsha256_ctx tHash;
+											uint8 aContentHash[32];
+											size_t iContentLen = 0;
+											
+											memset(aSigContent, 0x20, 64);
+											iContentLen = 64;
+											memcpy(aSigContent + iContentLen, "TLS 1.3, server CertificateVerify", 34);
+											iContentLen += 34;
+											memcpy(aSigContent + iContentLen, pCtx->aSigHash, 32);
+											iContentLen += 32;
+											
+											xrtSHA256Init(&tHash);
+											xrtSHA256Update(&tHash, aSigContent, iContentLen);
+											xrtSHA256Final(&tHash, aContentHash);
+											
+											#ifdef DEBUG_TRACE
+												printf("    [TLS] CertificateVerify: RSA-PSS sig_alg=0x%04x sig_len=%d\n",
+													iSigAlg, iSigLen);
+											#endif
+											
+											if ( !xrtRSAPSSVerify(aContentHash, 32, pSig, iSigLen,
+												pCtx->aPubKey, pCtx->iPubKeyModSz,
+												pCtx->aPubKey + pCtx->iPubKeyModSz,
+												pCtx->iPubKeySz - pCtx->iPubKeyModSz) ) {
+												#ifdef DEBUG_TRACE
+													printf("    [TLS] CertificateVerify: RSA-PSS verify FAILED\n");
+												#endif
+												return XRT_NET_ERROR;
+											}
+											#ifdef DEBUG_TRACE
+												printf("    [TLS] CertificateVerify: RSA-PSS verify OK\n");
+											#endif
+										}
+									}
+								} else {
+									#ifdef DEBUG_TRACE
+										printf("    [TLS] CertificateVerify: skip verify\n");
+									#endif
+								}
+								
 								pCtx->iState = XRT_TLS_CLIENT_WAIT_FINISH;
 							} else if ( iMsgType == __XRT_TLS_FINISHED ) {
-								// 验证 Finished
-								// 推导应用密钥
 								__xrt_tls_derive_application_keys(pCtx);
-								
-								// 发送客户端 Finished
 								__xrt_tls_send_finished(pCtx, false);
-								
 								pCtx->bHandshakeDone = true;
 								pCtx->iState = XRT_TLS_CLIENT_CONNECTED;
-								return XRT_NET_AGAIN;  // 还需要发送 Finished
+								return XRT_NET_AGAIN;
 							}
+							
+							iMsgOff += iTotalMsgLen;
 						}
 					} else if ( iContentType == __XRT_TLS_ALERT ) {
 						return XRT_NET_ERROR;
@@ -14522,7 +17498,257 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			return XRT_NET_AGAIN;
 		}
 		
+		// ==================== TLS 1.2 客户端状态处理 ====================
+		case XRT_TLS12_CLIENT_WAIT_CERT:
+		case XRT_TLS12_CLIENT_WAIT_SKE:
+		case XRT_TLS12_CLIENT_WAIT_SHD: {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] CERT/SKE/SHD entry: aRandom: ");
+				for (int i = 0; i < 32; i++) printf("%02x", pCtx->aRandom[i]);
+				printf("\n");
+			#endif
+			// TLS 1.2 握手消息在 CCS 前是明文传输
+			char aBuf[4096];
+			size_t iRecvd = 0;
+			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			} else if ( iRes == XRT_NET_CLOSED ) {
+				return XRT_NET_ERROR;
+			}
+			
+			// 处理所有完整记录
+			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
+				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
+				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
+				
+				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
+				
+				if ( iRecType == __XRT_TLS_ALERT ) {
+					#ifdef DEBUG_TRACE
+						const uint8 *pA = (const uint8*)pCtx->tRecvBuf.pData + 5;
+						printf("    [TLS12] Alert: level=%d desc=%d\n", pA[0], (iRecLen >= 2) ? pA[1] : -1);
+					#endif
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					return XRT_NET_ERROR;
+				}
+				
+				if ( iRecType != __XRT_TLS_HANDSHAKE ) {
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					continue;
+				}
+				
+				// 明文握手记录: 可能包含多个握手消息
+				const uint8 *pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
+				size_t iMsgOff = 0;
+				
+				while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= iRecLen ) {
+					uint8 iMsgType = pRecData[iMsgOff];
+					uint32 iMsgBodyLen = __xrt_tls_load_be24(pRecData + iMsgOff + 1);
+					size_t iTotalMsgLen = __XRT_TLS_MSGHDR_SIZE + iMsgBodyLen;
+					
+					if ( iMsgOff + iTotalMsgLen > iRecLen ) break;
+					
+					const uint8 *pFullMsg = pRecData + iMsgOff;
+					const uint8 *pMsgBody = pFullMsg + __XRT_TLS_MSGHDR_SIZE;
+					
+					// 更新 TLS 1.2 握手哈希
+					__xrt_tls12_update_hash(pCtx, pFullMsg, iTotalMsgLen);
+					
+					switch ( iMsgType ) {
+						case __XRT_TLS_CERTIFICATE: {
+							#ifdef DEBUG_TRACE
+								printf("    [TLS12] Got Certificate, len=%d\n", (int)iMsgBodyLen);
+							#endif
+							if ( !__xrt_tls12_parse_certificate(pCtx, pMsgBody, iMsgBodyLen) ) {
+								return XRT_NET_ERROR;
+							}
+							if ( pCtx->bIsECDHE ) {
+								pCtx->iState = XRT_TLS12_CLIENT_WAIT_SKE;
+							} else {
+								// RSA 套件: 无 ServerKeyExchange, 直接等 ServerHelloDone
+								pCtx->iState = XRT_TLS12_CLIENT_WAIT_SHD;
+							}
+							break;
+						}
+						case __XRT_TLS_SERVER_KEY_EXCHANGE: {
+							#ifdef DEBUG_TRACE
+								printf("    [TLS12] Got ServerKeyExchange, len=%d\n", (int)iMsgBodyLen);
+							#endif
+							if ( !__xrt_tls12_parse_server_key_exchange(pCtx, pMsgBody, iMsgBodyLen) ) {
+								return XRT_NET_ERROR;
+							}
+							pCtx->iState = XRT_TLS12_CLIENT_WAIT_SHD;
+							break;
+						}
+						case __XRT_TLS_SERVER_HELLO_DONE: {
+							#ifdef DEBUG_TRACE
+								printf("    [TLS12] Got ServerHelloDone\n");
+							#endif
+							// 发送 ClientKeyExchange + CCS + Finished
+							__xrt_tls12_send_client_key_exchange(pCtx);
+							__xrt_tls12_derive_keys(pCtx);
+							__xrt_tls12_send_ccs_finished(pCtx);
+							pCtx->iState = XRT_TLS12_CLIENT_WAIT_CCS;
+							break;
+						}
+						default:
+							#ifdef DEBUG_TRACE
+								printf("    [TLS12] Unknown handshake msg type=%d\n", iMsgType);
+							#endif
+							break;
+					}
+					
+					iMsgOff += iTotalMsgLen;
+				}
+				
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				
+				// 如果状态已过渡到 WAIT_CCS, 停止处理更多记录
+				if ( pCtx->iState == XRT_TLS12_CLIENT_WAIT_CCS ) break;
+			}
+			
+			return XRT_NET_AGAIN;
+		}
+		
+		case XRT_TLS12_CLIENT_WAIT_CCS: {
+			// 等待服务端 ChangeCipherSpec
+			char aBuf[4096];
+			size_t iRecvd = 0;
+			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] WAIT_CCS: recv res=%d recvd=%d\n", (int)iRes, (int)iRecvd);
+			#endif
+			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			} else if ( iRes == XRT_NET_CLOSED ) {
+				return XRT_NET_ERROR;
+			}
+			
+			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
+				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
+				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
+				
+				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
+				
+				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS12] Got server CCS\n");
+					#endif
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					pCtx->iState = XRT_TLS12_CLIENT_WAIT_FINISH;
+					break;
+				} else if ( iRecType == __XRT_TLS_ALERT ) {
+					#ifdef DEBUG_TRACE
+						const uint8 *pA = (const uint8*)pCtx->tRecvBuf.pData + 5;
+						printf("    [TLS12] WAIT_CCS: Alert level=%d desc=%d\n", pA[0], (iRecLen >= 2) ? pA[1] : -1);
+					#endif
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					return XRT_NET_ERROR;
+				}
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+			}
+			return XRT_NET_AGAIN;
+		}
+		
+		case XRT_TLS12_CLIENT_WAIT_FINISH: {
+			// 解密验证服务端 Finished
+			char aBuf[4096];
+			size_t iRecvd = 0;
+			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+			} else if ( iRes == XRT_NET_CLOSED ) {
+				return XRT_NET_ERROR;
+			}
+			
+			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) return XRT_NET_AGAIN;
+			
+			uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
+			if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) return XRT_NET_AGAIN;
+			
+			uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
+			
+			if ( iRecType == __XRT_TLS_ALERT ) {
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				return XRT_NET_ERROR;
+			}
+			
+			// 服务端 Finished 是加密的 (在 CCS 之后)
+			if ( iRecType == __XRT_TLS_APP_DATA ) {
+				// TLS 1.2 GCM 解密
+				uint8 aPlain[__XRT_TLS_MAX_RECORD];
+				size_t iPlainLen = 0;
+				uint8 iContentType = 0;
+				
+				if ( !__xrt_tls12_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
+					__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS12] Failed to decrypt server Finished\n");
+					#endif
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					return XRT_NET_ERROR;
+				}
+				
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				
+				// 解析 Finished 握手消息
+				if ( iPlainLen >= __XRT_TLS_MSGHDR_SIZE && aPlain[0] == __XRT_TLS_FINISHED ) {
+					uint32 iFinLen = __xrt_tls_load_be24(aPlain + 1);
+					if ( iFinLen >= 12 ) {
+						if ( !__xrt_tls12_verify_finished(pCtx, aPlain + __XRT_TLS_MSGHDR_SIZE, iFinLen) ) {
+							#ifdef DEBUG_TRACE
+								printf("    [TLS12] Server Finished verify FAILED\n");
+							#endif
+							return XRT_NET_ERROR;
+						}
+						
+						pCtx->bHandshakeDone = true;
+						pCtx->iState = XRT_TLS12_CLIENT_CONNECTED;
+						#ifdef DEBUG_TRACE
+							printf("    [TLS12] Handshake complete!\n");
+						#endif
+						return XRT_NET_AGAIN;
+					}
+				}
+				return XRT_NET_ERROR;
+			}
+			
+			// 也可能是 Handshake 类型 (某些服务器发送加密后的 Handshake 记录)
+			if ( iRecType == __XRT_TLS_HANDSHAKE ) {
+				// 解密
+				uint8 aPlain[__XRT_TLS_MAX_RECORD];
+				size_t iPlainLen = 0;
+				uint8 iContentType = 0;
+				
+				if ( !__xrt_tls12_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
+					__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType) ) {
+					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					return XRT_NET_ERROR;
+				}
+				
+				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				
+				if ( iPlainLen >= __XRT_TLS_MSGHDR_SIZE && aPlain[0] == __XRT_TLS_FINISHED ) {
+					uint32 iFinLen = __xrt_tls_load_be24(aPlain + 1);
+					if ( iFinLen >= 12 ) {
+						if ( !__xrt_tls12_verify_finished(pCtx, aPlain + __XRT_TLS_MSGHDR_SIZE, iFinLen) ) {
+							return XRT_NET_ERROR;
+						}
+						pCtx->bHandshakeDone = true;
+						pCtx->iState = XRT_TLS12_CLIENT_CONNECTED;
+						return XRT_NET_AGAIN;
+					}
+				}
+				return XRT_NET_ERROR;
+			}
+			
+			xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+			return XRT_NET_AGAIN;
+		}
+		
 		case XRT_TLS_CLIENT_CONNECTED:
+		case XRT_TLS12_CLIENT_CONNECTED:
 			// 发送剩余数据
 			if ( pCtx->tSendBuf.iSize > 0 ) {
 				size_t iSent = 0;
@@ -14559,11 +17785,17 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 			size_t iPlainLen = 0;
 			uint8 iContentType = 0;
 			
-			bool bUseServerKeys = !pCtx->bIsServer;
+			bool bOK;
+			if ( pCtx->bIsTls12 ) {
+				bOK = __xrt_tls12_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
+					__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType);
+			} else {
+				bool bUseServerKeys = !pCtx->bIsServer;
+				bOK = __xrt_tls_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
+					__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, bUseServerKeys);
+			}
 			
-			if ( __xrt_tls_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
-				__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, bUseServerKeys) ) {
-				
+			if ( bOK ) {
 				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				
 				if ( iContentType == __XRT_TLS_APP_DATA ) {
@@ -14587,8 +17819,12 @@ XXAPI xnet_result xrtTlsWrite(xtlsctx *pCtx, const char *pData, size_t iLen, siz
 	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	if ( !pCtx->bHandshakeDone ) return XRT_NET_AGAIN;
 	
-	bool bUseServerKeys = pCtx->bIsServer;
-	__xrt_tls_encrypt_record(pCtx, __XRT_TLS_APP_DATA, (const uint8*)pData, iLen, bUseServerKeys);
+	if ( pCtx->bIsTls12 ) {
+		__xrt_tls12_encrypt_record(pCtx, __XRT_TLS_APP_DATA, (const uint8*)pData, iLen);
+	} else {
+		bool bUseServerKeys = pCtx->bIsServer;
+		__xrt_tls_encrypt_record(pCtx, __XRT_TLS_APP_DATA, (const uint8*)pData, iLen, bUseServerKeys);
+	}
 	
 	if ( pWritten ) *pWritten = iLen;
 	return XRT_NET_OK;
@@ -14599,8 +17835,12 @@ XXAPI xnet_result xrtTlsClose(xtlsctx *pCtx)
 	
 	// 发送 close_notify alert
 	uint8 aAlert[2] = { 1, 0 };  // warning, close_notify
-	bool bUseServerKeys = pCtx->bIsServer;
-	__xrt_tls_encrypt_record(pCtx, __XRT_TLS_ALERT, aAlert, 2, bUseServerKeys);
+	if ( pCtx->bIsTls12 ) {
+		__xrt_tls12_encrypt_record(pCtx, __XRT_TLS_ALERT, aAlert, 2);
+	} else {
+		bool bUseServerKeys = pCtx->bIsServer;
+		__xrt_tls_encrypt_record(pCtx, __XRT_TLS_ALERT, aAlert, 2, bUseServerKeys);
+	}
 	
 	return XRT_NET_OK;
 }
@@ -14609,6 +17849,309 @@ XXAPI bool xrtTlsIsReady(xtlsctx *pCtx)
 	if ( !pCtx ) return false;
 	return pCtx->bHandshakeDone;
 }
+// Step 12: 服务端 ClientHello 解析 (提取 SNI)
+static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
+{
+	size_t iPos = 0;
+	
+	// client_version(2)
+	if ( iPos + 2 > iLen ) return false;
+	iPos += 2;
+	
+	// client_random(32) — 保存到上下文
+	if ( iPos + 32 > iLen ) return false;
+	memcpy(pCtx->aRandom, pMsg + iPos, 32);
+	iPos += 32;
+	
+	// session_id
+	if ( iPos + 1 > iLen ) return false;
+	uint8 iSessLen = pMsg[iPos++];
+	if ( iPos + iSessLen > iLen ) return false;
+	if ( iSessLen <= 32 ) {
+		memcpy(pCtx->aSessionId, pMsg + iPos, iSessLen);
+	}
+	iPos += iSessLen;
+	
+	// cipher_suites
+	if ( iPos + 2 > iLen ) return false;
+	uint16 iSuitesLen = __xrt_tls_load_be16(pMsg + iPos);
+	iPos += 2;
+	if ( iPos + iSuitesLen > iLen ) return false;
+	iPos += iSuitesLen;
+	
+	// compression_methods
+	if ( iPos + 1 > iLen ) return false;
+	uint8 iCompLen = pMsg[iPos++];
+	if ( iPos + iCompLen > iLen ) return false;
+	iPos += iCompLen;
+	
+	// 解析扩展
+	if ( iPos + 2 > iLen ) return true;  // 无扩展也可以
+	uint16 iExtTotalLen = __xrt_tls_load_be16(pMsg + iPos);
+	iPos += 2;
+	
+	size_t iExtEnd = iPos + iExtTotalLen;
+	if ( iExtEnd > iLen ) iExtEnd = iLen;
+	
+	while ( iPos + 4 <= iExtEnd ) {
+		uint16 iExtType = __xrt_tls_load_be16(pMsg + iPos);
+		iPos += 2;
+		uint16 iExtDataLen = __xrt_tls_load_be16(pMsg + iPos);
+		iPos += 2;
+		
+		if ( iPos + iExtDataLen > iExtEnd ) break;
+		
+		if ( iExtType == 0x0000 ) {  // server_name (SNI)
+			// server_name_list_length(2) + server_name_type(1) + host_name_length(2) + host_name
+			if ( iExtDataLen >= 5 ) {
+				size_t iSNIOff = iPos;
+				uint16 iNameListLen = __xrt_tls_load_be16(pMsg + iSNIOff);
+				iSNIOff += 2;
+				(void)iNameListLen;
+				
+				uint8 iNameType = pMsg[iSNIOff++];
+				if ( iNameType == 0 ) {  // host_name
+					uint16 iHostLen = __xrt_tls_load_be16(pMsg + iSNIOff);
+					iSNIOff += 2;
+					
+					if ( iHostLen > 0 && iHostLen < sizeof(pCtx->sClientSNI) && iSNIOff + iHostLen <= iExtEnd ) {
+						memcpy(pCtx->sClientSNI, pMsg + iSNIOff, iHostLen);
+						pCtx->sClientSNI[iHostLen] = '\0';
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] ClientHello SNI: %s\n", pCtx->sClientSNI);
+						#endif
+					}
+				}
+			}
+		}
+		
+		iPos += iExtDataLen;
+	}
+	
+	return true;
+}
+// Step 13: SNI 相关公共 API
+XXAPI const char* xrtTlsGetSNI(xtlsctx *pCtx)
+{
+	if ( !pCtx ) return NULL;
+	if ( pCtx->sClientSNI[0] == '\0' ) return NULL;
+	return pCtx->sClientSNI;
+}
+XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile)
+{
+	if ( !pCtx ) return XRT_NET_ERROR;
+	// TODO: 加载 PEM/DER 证书和私钥文件到 pCtx->pCertDer / pCtx->pKeyDer
+	// 这个 API 主要用于 SNI 回调中根据域名动态配置证书
+	(void)sCertFile;
+	(void)sKeyFile;
+	return XRT_NET_OK;
+}
+#ifdef DEBUG_TRACE
+// Debug: P-256 arithmetic self-tests
+XXAPI void xrtP256ArithTest(void)
+{
+	printf("  --- P-256 Arithmetic Self-Tests ---\n");
+	uint32 r[8], t1[8], t2[8];
+	uint32 one[8] = {1,0,0,0,0,0,0,0};
+	uint32 pm1[8], pm2[8];
+	__xrt_u256_copy(pm1, __xrt_p256_P);
+	pm1[0] -= 1;  // p-1
+	__xrt_u256_copy(pm2, __xrt_p256_P);
+	pm2[0] -= 2;  // p-2
+	
+	// Test 1: (p-1)^2 mod p should == 1
+	__xrt_p256_mul_mod_p(r, pm1, pm1);
+	printf("  (p-1)^2 mod p == 1: %s\n", memcmp(r, one, 32) == 0 ? "PASS" : "FAIL");
+	if (memcmp(r, one, 32) != 0) {
+		uint8 aR[32]; __xrt_u256_to_be(aR, r);
+		printf("    got: "); for(int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
+	}
+	
+	// Test 2: (p-1) * 2 mod p should == p-2
+	uint32 two[8] = {2,0,0,0,0,0,0,0};
+	__xrt_p256_mul_mod_p(r, pm1, two);
+	printf("  (p-1)*2 mod p == p-2: %s\n", memcmp(r, pm2, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 3: sqr_mod_p(p-1) should == 1
+	__xrt_p256_sqr_mod_p(r, pm1);
+	printf("  sqr(p-1) mod p == 1: %s\n", memcmp(r, one, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 4: add_mod_p(p-1, 1) should == 0
+	uint32 zero[8] = {0};
+	__xrt_p256_add_mod_p(r, pm1, one);
+	printf("  (p-1)+1 mod p == 0: %s\n", memcmp(r, zero, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 5: sub_mod_p(0, 1) should == p-1
+	__xrt_p256_sub_mod_p(r, zero, one);
+	printf("  0-1 mod p == p-1: %s\n", memcmp(r, pm1, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 6: inv(2) * 2 mod p should == 1
+	uint32 inv2[8];
+	__xrt_p256_inv_mod_p(inv2, two);
+	__xrt_p256_mul_mod_p(r, inv2, two);
+	printf("  inv(2)*2 mod p == 1: %s\n", memcmp(r, one, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 7: mul(Gx, Gx) == sqr(Gx)
+	__xrt_p256_mul_mod_p(t1, __xrt_p256_Gx, __xrt_p256_Gx);
+	__xrt_p256_sqr_mod_p(t2, __xrt_p256_Gx);
+	printf("  mul(Gx,Gx)==sqr(Gx): %s\n", memcmp(t1, t2, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 8: verify (a+b)^2 = a^2 + 2ab + b^2 for Gx, Gy
+	uint32 apb[8], apb2[8], a2[8], b2[8], ab[8], t[8];
+	__xrt_p256_add_mod_p(apb, __xrt_p256_Gx, __xrt_p256_Gy);
+	__xrt_p256_sqr_mod_p(apb2, apb);
+	__xrt_p256_sqr_mod_p(a2, __xrt_p256_Gx);
+	__xrt_p256_sqr_mod_p(b2, __xrt_p256_Gy);
+	__xrt_p256_mul_mod_p(ab, __xrt_p256_Gx, __xrt_p256_Gy);
+	__xrt_p256_add_mod_p(t, a2, b2);
+	__xrt_p256_add_mod_p(r, ab, ab);
+	__xrt_p256_add_mod_p(r, r, t);
+	printf("  (Gx+Gy)^2 == Gx^2+2*Gx*Gy+Gy^2: %s\n", memcmp(apb2, r, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 9: Compute Gy^2 and Gx^3-3*Gx+b, print raw values  
+	static const uint32 p256_b[8] = {
+		0x27D2604B, 0x3BCE3C3E, 0xCC53B0F6, 0x651D06B0,
+		0x769886BC, 0xB3EBBD55, 0xAA3A93E7, 0x5AC635D8
+	};
+	__xrt_p256_sqr_mod_p(t1, __xrt_p256_Gy); // Gy^2
+	__xrt_p256_sqr_mod_p(t2, __xrt_p256_Gx); // Gx^2
+	__xrt_p256_mul_mod_p(t2, t2, __xrt_p256_Gx); // Gx^3
+	uint32 three_gx[8];
+	__xrt_p256_add_mod_p(three_gx, __xrt_p256_Gx, __xrt_p256_Gx);
+	__xrt_p256_add_mod_p(three_gx, three_gx, __xrt_p256_Gx);
+	__xrt_p256_sub_mod_p(r, t2, three_gx);
+	__xrt_p256_add_mod_p(r, r, p256_b);
+	printf("  Gy^2 == Gx^3-3Gx+b: %s\n", memcmp(t1, r, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 10: Use 256x256 multiply to verify small muls
+	// 3 * 5 = 15
+	uint32 three[8] = {3,0,0,0,0,0,0,0};
+	uint32 five[8] = {5,0,0,0,0,0,0,0};
+	uint32 fifteen[8] = {15,0,0,0,0,0,0,0};
+	__xrt_p256_mul_mod_p(r, three, five);
+	printf("  3*5 mod p == 15: %s\n", memcmp(r, fifteen, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Test 11: Large multiply: C * C mod p (where C = 2^256 - p)
+	// C^2 mod p
+	uint32 c_sq[8];
+	__xrt_p256_mul_mod_p(c_sq, __xrt_p256_C, __xrt_p256_C);
+	// Since C = 2^256 mod p, C^2 = 2^512 mod p = (2^256)^2 mod p = C^2 mod p
+	// But we can verify: C * (C+1) = C^2 + C vs (C+1)^2 - (2*C+1)
+	uint32 cp1[8];
+	__xrt_p256_add_mod_p(cp1, __xrt_p256_C, one);
+	__xrt_p256_mul_mod_p(t1, __xrt_p256_C, cp1); // C*(C+1)
+	__xrt_p256_add_mod_p(t2, c_sq, __xrt_p256_C); // C^2 + C
+	printf("  C*(C+1) == C^2+C: %s\n", memcmp(t1, t2, 32) == 0 ? "PASS" : "FAIL");
+}
+// Debug: P-256 ECDH diagnostic test
+XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8 *pExpected32)
+{
+	uint32 k[8], px[8], py[8];
+	__xrt_u256_from_be(k, pPriv);
+	__xrt_u256_from_be(px, pPub65 + 1);
+	__xrt_u256_from_be(py, pPub65 + 33);
+	
+	// Verify point is on curve: y^2 == x^3 - 3x + b (mod p)
+	uint32 lhs[8], rhs[8], t1[8], t2[8];
+	static const uint32 p256_b[8] = {
+		0x27D2604B, 0x3BCE3C3E, 0xCC53B0F6, 0x651D06B0,
+		0x769886BC, 0xB3EBBD55, 0xAA3A93E7, 0x5AC635D8
+	};
+	
+	// First verify G is on curve
+	__xrt_p256_sqr_mod_p(lhs, __xrt_p256_Gy);
+	__xrt_p256_sqr_mod_p(t1, __xrt_p256_Gx);
+	__xrt_p256_mul_mod_p(t1, t1, __xrt_p256_Gx);
+	__xrt_p256_add_mod_p(t2, __xrt_p256_Gx, __xrt_p256_Gx);
+	__xrt_p256_add_mod_p(t2, t2, __xrt_p256_Gx);
+	__xrt_p256_sub_mod_p(rhs, t1, t2);
+	__xrt_p256_add_mod_p(rhs, rhs, p256_b);
+	printf("  G on curve: %s\n", memcmp(lhs, rhs, 32) == 0 ? "PASS" : "FAIL");
+	if (memcmp(lhs, rhs, 32) != 0) {
+		uint8 aL[32], aR[32];
+		__xrt_u256_to_be(aL, lhs); __xrt_u256_to_be(aR, rhs);
+		printf("    Gy^2:         "); for(int i=0;i<32;i++) printf("%02x",aL[i]); printf("\n");
+		printf("    Gx^3-3Gx+b:  "); for(int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
+	}
+	
+	// Now check input point
+	__xrt_p256_sqr_mod_p(lhs, py);
+	__xrt_p256_sqr_mod_p(t1, px);
+	__xrt_p256_mul_mod_p(t1, t1, px);
+	__xrt_p256_add_mod_p(t2, px, px);
+	__xrt_p256_add_mod_p(t2, t2, px);
+	__xrt_p256_sub_mod_p(rhs, t1, t2);
+	__xrt_p256_add_mod_p(rhs, rhs, p256_b);
+	printf("  Point on curve: %s\n", memcmp(lhs, rhs, 32) == 0 ? "PASS" : "FAIL");
+	if (memcmp(lhs, rhs, 32) != 0) {
+		uint8 aL[32], aR[32];
+		__xrt_u256_to_be(aL, lhs); __xrt_u256_to_be(aR, rhs);
+		printf("    y^2:         "); for(int i=0;i<32;i++) printf("%02x",aL[i]); printf("\n");
+		printf("    x^3-3x+b:    "); for(int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
+	}
+	
+	// Compute i*G and verify Y against the provided point's Y
+	// (verifying if the Y in the test vector is correct)
+	__xrt_p256_jpt tIG;
+	__xrt_p256_scalar_mult(&tIG, k, __xrt_p256_Gx, __xrt_p256_Gy);
+	uint32 ig_ax[8], ig_ay[8];
+	__xrt_p256_to_affine(ig_ax, ig_ay, &tIG);
+	printf("  k*G.x matches input pub.x: %s\n", memcmp(ig_ax, px, 32) == 0 ? "PASS" : "FAIL");
+	printf("  k*G.y matches input pub.y: %s\n", memcmp(ig_ay, py, 32) == 0 ? "PASS" : "FAIL");
+	if (memcmp(ig_ay, py, 32) != 0) {
+		uint8 aActY[32], aExpY[32];
+		__xrt_u256_to_be(aActY, ig_ay); __xrt_u256_to_be(aExpY, py);
+		printf("    Computed Y: "); for(int i=0;i<32;i++) printf("%02x",aActY[i]); printf("\n");
+		printf("    Expected Y: "); for(int i=0;i<32;i++) printf("%02x",aExpY[i]); printf("\n");
+		// Check if computed point is on curve
+		__xrt_p256_sqr_mod_p(lhs, ig_ay);
+		__xrt_p256_sqr_mod_p(t1, ig_ax);
+		__xrt_p256_mul_mod_p(t1, t1, ig_ax);
+		__xrt_p256_add_mod_p(t2, ig_ax, ig_ax);
+		__xrt_p256_add_mod_p(t2, t2, ig_ax);
+		__xrt_p256_sub_mod_p(rhs, t1, t2);
+		__xrt_p256_add_mod_p(rhs, rhs, p256_b);
+		printf("  k*G on curve: %s\n", memcmp(lhs, rhs, 32) == 0 ? "PASS" : "FAIL");
+	}
+	
+	// Scalar mult
+	__xrt_p256_jpt tR;
+	__xrt_p256_scalar_mult(&tR, k, px, py);
+	printf("  Result Z non-zero: %s\n", !__xrt_u256_is_zero(tR.z) ? "PASS" : "FAIL");
+	
+	// Verify inverse
+	uint32 zinv[8], zinv2[8], zinv3[8], check[8];
+	__xrt_p256_inv_mod_p(zinv, tR.z);
+	__xrt_p256_mul_mod_p(check, tR.z, zinv);
+	uint32 one[8] = {1,0,0,0,0,0,0,0};
+	printf("  Z * Z^(-1) == 1: %s\n", memcmp(check, one, 32) == 0 ? "PASS" : "FAIL");
+	
+	// Affine conversion
+	uint32 ax[8], ay[8];
+	__xrt_p256_sqr_mod_p(zinv2, zinv);
+	__xrt_p256_mul_mod_p(zinv3, zinv2, zinv);
+	__xrt_p256_mul_mod_p(ax, tR.x, zinv2);
+	__xrt_p256_mul_mod_p(ay, tR.y, zinv3);
+	
+	// Result on curve check
+	__xrt_p256_sqr_mod_p(lhs, ay);
+	__xrt_p256_sqr_mod_p(t1, ax);
+	__xrt_p256_mul_mod_p(t1, t1, ax);
+	__xrt_p256_add_mod_p(t2, ax, ax);
+	__xrt_p256_add_mod_p(t2, t2, ax);
+	__xrt_p256_sub_mod_p(rhs, t1, t2);
+	__xrt_p256_add_mod_p(rhs, rhs, p256_b);
+	printf("  Result on curve: %s\n", memcmp(lhs, rhs, 32) == 0 ? "PASS" : "FAIL");
+	
+	uint8 aRes[32];
+	__xrt_u256_to_be(aRes, ax);
+	printf("  Result X: "); for (int i=0;i<32;i++) printf("%02x",aRes[i]); printf("\n");
+	if ( pExpected32 ) {
+		printf("  Expect X: "); for (int i=0;i<32;i++) printf("%02x",pExpected32[i]); printf("\n");
+		printf("  Match: %s\n", memcmp(aRes, pExpected32, 32) == 0 ? "PASS" : "FAIL");
+	}
+}
+#endif
 
 // ========================================
 // File: D:/git/xrt/lib/nettcp.h
@@ -15128,6 +18671,9 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 	
 	// TLS 握手
 	if ( pClient->bTlsEnabled ) {
+		// 设置非阻塞，避免握手循环中 recv 阻塞
+		xrtSockSetNonBlock(&pClient->tConn);
+		
 		pClient->pTlsCtx = xrtTlsCreate(&pClient->tTlsConfig, false);
 		if ( !pClient->pTlsCtx ) {
 			xrtSockClose(&pClient->tConn);
@@ -15141,13 +18687,20 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 			// 发送待发数据
 			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
 				size_t iSent = 0;
-				xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
+				xnet_result iSendRes = xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
 					pClient->pTlsCtx->tSendBuf.iSize, &iSent);
+				#ifdef DEBUG_TRACE
+					printf("    [TCP] TLS send: wanted=%d sent=%d res=%d\n",
+						(int)pClient->pTlsCtx->tSendBuf.iSize, (int)iSent, (int)iSendRes);
+				#endif
 				if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
 			}
 			
 			iRetries++;
-			if ( iRetries > 100 ) {
+			if ( iRetries > 500 ) {
+				#ifdef DEBUG_TRACE
+					printf("    [TCP] TLS handshake timeout after %d retries\n", iRetries);
+				#endif
 				xrtTlsDestroy(pClient->pTlsCtx);
 				pClient->pTlsCtx = NULL;
 				xrtSockClose(&pClient->tConn);

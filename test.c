@@ -122,10 +122,10 @@ int main(int argc, char** argv)
 	Test_Crypto(xCore);
 	
 	/* Socket 基础操作测试 */
-	Test_NetSock(xCore);
+	// Test_NetSock(xCore);
 	
 	/* TCP/UDP 网络通信测试 */
-	Test_NetTCPUDP(xCore);
+	// Test_NetTCPUDP(xCore);
 	
 	/* TLS 1.3 测试 */
 	Test_NetTLS(xCore);

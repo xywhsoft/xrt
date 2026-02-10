@@ -7,6 +7,8 @@ u32len
 xCore
 xrtAES128GCMDecrypt
 xrtAES128GCMEncrypt
+xrtAES256GCMDecrypt
+xrtAES256GCMEncrypt
 xrtAVLTB_Insert
 xrtAVLTB_IterBegin
 xrtAVLTB_IterEnd
@@ -120,6 +122,8 @@ xrtDynStackPushPtr
 xrtDynStackTop
 xrtDynStackTopPtr
 xrtDynStackUnit
+xrtECDHSecp256r1Keypair
+xrtECDHSecp256r1SharedSecret
 xrtECDSAVerify
 xrtEOF
 xrtEd25519Verify
@@ -159,8 +163,12 @@ xrtGet
 xrtGetCharSize
 xrtGetEOF
 xrtHKDFExpand
+xrtHKDFExpand_SHA384
 xrtHKDFExtract
+xrtHKDFExtract_SHA384
 xrtHMAC_SHA256
+xrtHMAC_SHA384
+xrtHMAC_SHA512
 xrtHash32
 xrtHash32_WithSeed
 xrtHash64
@@ -288,6 +296,7 @@ xrtPtrArrayUnit
 xrtPut
 xrtQuarter
 xrtRSAModPow
+xrtRSAPKCS1Verify
 xrtRSAPSSVerify
 xrtRTrim
 xrtRWLockCreate
@@ -320,6 +329,13 @@ xrtSHA256
 xrtSHA256Final
 xrtSHA256Init
 xrtSHA256Update
+xrtSHA384
+xrtSHA384Final
+xrtSHA384Init
+xrtSHA512
+xrtSHA512Final
+xrtSHA512Init
+xrtSHA512Update
 xrtSecond
 xrtSeek
 xrtSemCreate
@@ -426,9 +442,11 @@ xrtTimezoneOffset
 xrtTlsClose
 xrtTlsCreate
 xrtTlsDestroy
+xrtTlsGetSNI
 xrtTlsHandshake
 xrtTlsIsReady
 xrtTlsRead
+xrtTlsSetCert
 xrtTlsWrite
 xrtToUnixTime
 xrtTrim
