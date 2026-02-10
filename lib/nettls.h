@@ -775,17 +775,20 @@ static void __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 		printf("\n");
 		// Self-decrypt test
 		{
-			uint8 aDecrypt[64];
-			bool bOK;
-			if ( pCtx->iKeyLen == 32 ) {
-				bOK = xrtAES256GCMDecrypt(aDecrypt, pKey, aNonce, 12, aAAD, 13, pCipher, iLen + 16);
-			} else {
-				bOK = xrtAES128GCMDecrypt(aDecrypt, pKey, aNonce, 12, aAAD, 13, pCipher, iLen + 16);
-			}
-			printf("    [TLS12]   SelfDecrypt: %s\n", bOK ? "OK" : "FAIL");
-			if (bOK) {
-				int match = (memcmp(aDecrypt, pData, iLen) == 0);
-				printf("    [TLS12]   PlaintextMatch: %s\n", match ? "OK" : "MISMATCH");
+			uint8 *aDecrypt = (uint8*)xrtMalloc(iLen);
+			if ( aDecrypt ) {
+				bool bOK;
+				if ( pCtx->iKeyLen == 32 ) {
+					bOK = xrtAES256GCMDecrypt(aDecrypt, pKey, aNonce, 12, aAAD, 13, pCipher, iLen + 16);
+				} else {
+					bOK = xrtAES128GCMDecrypt(aDecrypt, pKey, aNonce, 12, aAAD, 13, pCipher, iLen + 16);
+				}
+				printf("    [TLS12]   SelfDecrypt: %s\n", bOK ? "OK" : "FAIL");
+				if (bOK) {
+					int match = (memcmp(aDecrypt, pData, iLen) == 0);
+					printf("    [TLS12]   PlaintextMatch: %s\n", match ? "OK" : "MISMATCH");
+				}
+				xrtFree(aDecrypt);
 			}
 		}
 	#endif

@@ -1549,3 +1549,74 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 	}
 }
 
+
+
+// URL 编码（ 需使用 xrtFree 释放 ）
+XXAPI str xrtUrlEncode(str sSrc, size_t iLen)
+{
+	static const char sHex[] = "0123456789ABCDEF";
+	if ( !sSrc ) return NULL;
+	if ( iLen == 0 ) iLen = strlen(sSrc);
+	if ( iLen == 0 ) return xrtCopyStr("", 0);
+	
+	// 最坏情况每个字节变 3 字节
+	str sRet = xrtMalloc(iLen * 3 + 1);
+	if ( !sRet ) return NULL;
+	
+	size_t j = 0;
+	for ( size_t i = 0; i < iLen; i++ ) {
+		unsigned char c = (unsigned char)sSrc[i];
+		if ( (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			 (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~' ) {
+			sRet[j++] = (char)c;
+		} else {
+			sRet[j++] = '%';
+			sRet[j++] = sHex[c >> 4];
+			sRet[j++] = sHex[c & 0x0F];
+		}
+	}
+	sRet[j] = '\0';
+	return sRet;
+}
+
+// URL 解码（ 需使用 xrtFree 释放 ）
+XXAPI str xrtUrlDecode(str sSrc, size_t iLen)
+{
+	if ( !sSrc ) return NULL;
+	if ( iLen == 0 ) iLen = strlen(sSrc);
+	if ( iLen == 0 ) return xrtCopyStr("", 0);
+	
+	str sRet = xrtMalloc(iLen + 1);
+	if ( !sRet ) return NULL;
+	
+	size_t j = 0;
+	for ( size_t i = 0; i < iLen; i++ ) {
+		if ( sSrc[i] == '%' && (i + 2) < iLen ) {
+			unsigned char hi = (unsigned char)sSrc[i + 1];
+			unsigned char lo = (unsigned char)sSrc[i + 2];
+			// 解析高 4 位
+			int iHi = -1, iLo = -1;
+			if ( hi >= '0' && hi <= '9' ) iHi = hi - '0';
+			else if ( hi >= 'A' && hi <= 'F' ) iHi = hi - 'A' + 10;
+			else if ( hi >= 'a' && hi <= 'f' ) iHi = hi - 'a' + 10;
+			// 解析低 4 位
+			if ( lo >= '0' && lo <= '9' ) iLo = lo - '0';
+			else if ( lo >= 'A' && lo <= 'F' ) iLo = lo - 'A' + 10;
+			else if ( lo >= 'a' && lo <= 'f' ) iLo = lo - 'a' + 10;
+			
+			if ( iHi >= 0 && iLo >= 0 ) {
+				sRet[j++] = (char)((iHi << 4) | iLo);
+				i += 2;
+			} else {
+				sRet[j++] = sSrc[i];
+			}
+		} else if ( sSrc[i] == '+' ) {
+			sRet[j++] = ' ';
+		} else {
+			sRet[j++] = sSrc[i];
+		}
+	}
+	sRet[j] = '\0';
+	return sRet;
+}
+

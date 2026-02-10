@@ -68,6 +68,7 @@ static int __xrt_RefCount = 0;  // 引用计数
 #include "lib/netudp.h"
 #include "lib/xid.h"
 #include "lib/buffer.h"
+#include "lib/nethttp.h"
 #include "lib/array_point.h"
 #include "lib/array.h"
 #include "lib/bsmm.h"

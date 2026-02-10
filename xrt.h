@@ -460,6 +460,12 @@
 	// 字符串约等于（使用 xCore 配置）
 	XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2);
 	
+	// URL 编码（ 需使用 xrtFree 释放 ）
+	XXAPI str xrtUrlEncode(str sSrc, size_t iLen);
+	
+	// URL 解码（ 需使用 xrtFree 释放 ）
+	XXAPI str xrtUrlDecode(str sSrc, size_t iLen);
+	
 	// 获取 UTF-8 字符的字节数（根据首字节判断）
 	static inline int xrtCharLenU8(unsigned char c)
 	{
@@ -1416,6 +1422,7 @@
 	XXAPI xnet_result xrtUdpClientSendTo(xudpclient* pClient, const xnetaddr* pAddr, const char* pData, size_t iLen);
 	XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData);
 	XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient);
+	
 	
 	
 	
@@ -2930,6 +2937,129 @@
 	// 将 xvalue 转换为 JSON
 	XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize);
 	XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat);
+	
+	
+	
+	/* ------------------------------------ HTTP Client ------------------------------------ */
+	
+	/* ---- URL 解析结构 ---- */
+	typedef struct {
+		bool bHttps;                    // 是否为 HTTPS
+		char sHost[256];                // 主机名
+		uint16 iPort;                   // 端口 (80/443 默认)
+		char sPath[2048];               // 路径 + 查询字符串
+	} xurl_struct, *xurl;
+	
+	// 解析 URL (支持 http:// 和 https://)
+	XXAPI bool xrtUrlParse(str sURL, xurl pOut);
+	
+	/* ---- HTTP 方法 ---- */
+	typedef enum {
+		XHTTP_GET = 0, XHTTP_POST, XHTTP_PUT, XHTTP_DELETE, XHTTP_PATCH, XHTTP_HEAD
+	} xhttp_method;
+	
+	/* ---- HTTP 回调函数 ---- */
+	// pBuf: 自增缓冲区，包含截至目前已接收的全部数据
+	// iTotal: Content-Length (已知时为正数，未知时为 0)
+	// iReceived: 已接收字节数
+	// 返回值: true 继续, false 中止传输
+	typedef bool (*xhttp_proc)(xbuffer pBuf, size_t iTotal, size_t iReceived);
+	
+	/* ---- HTTP 响应对象 ---- */
+	typedef struct {
+		int iStatusCode;              // HTTP 状态码 (200, 404, ...)
+		xbuffer_struct tBody;         // 响应正文 (xbuffer 自增缓冲区)
+		xbuffer_struct tRawHeaders;   // 原始响应头 (完整文本)
+		char sVersion[16];            // "HTTP/1.1"
+		char sStatusText[64];         // "OK", "Not Found" 等
+		char sContentType[128];       // Content-Type 值
+		size_t iContentLength;        // Content-Length (-1 表示未知)
+	} xhttpresp_struct, *xhttpresp;
+	
+	/* ---- HTTP 请求对象 ---- */
+	typedef struct {
+		xhttp_method iMethod;           // 请求方法
+		char sURL[2048];                // 完整 URL
+		xbuffer_struct tHeaders;        // 自定义请求头 (Key: Value\r\n 格式追加)
+		xbuffer_struct tBody;           // 请求正文
+		int iMaxRedirects;              // 最大重定向次数 (默认 5)
+		int iTimeoutSec;                // 超时秒数 (默认 10)
+		bool bVerifySSL;                // SSL 证书验证 (默认 true)
+		xhttp_proc procOnData;          // 流式数据回调
+		ptr pUserData;                  // 用户自定义数据
+		bool bIsMultipart;              // 是否为 multipart 请求
+		xbuffer_struct tMultipart;      // multipart body 构建缓冲区
+		char sBoundary[64];             // multipart boundary
+		xdict pCookies;                 // Cookie 字典 (始终用于 cookies 管理)
+		bool bCookiePersist;            // 持久化标志 (TRUE=jar 模式, 自动保存 Set-Cookie)
+	} xhttpreq_struct, *xhttpreq;
+	
+	/* ---- 极简 API ---- */
+	
+	// GET 请求 - 返回响应对象，sHeaders 可为 NULL，pProc 可为 NULL
+	XXAPI xhttpresp xrtHttpGet(str sURL, str sHeaders, xhttp_proc pProc);
+	
+	// POST 请求 - sBody 为请求正文 (默认 application/x-www-form-urlencoded)
+	XXAPI xhttpresp xrtHttpPost(str sURL, str sBody, str sHeaders, xhttp_proc pProc);
+	
+	// GET 下载文件 - 数据写入 sFilePath，sHeaders 可为 NULL，pProc 用于进度回调
+	XXAPI bool xrtHttpGetFile(str sURL, str sFilePath, str sHeaders, xhttp_proc pProc);
+	
+	// POST 下载文件 - sHeaders 可为 NULL
+	XXAPI bool xrtHttpPostFile(str sURL, str sBody,
+		str sFilePath, str sHeaders, xhttp_proc pProc);
+	
+	// 释放响应对象
+	XXAPI void xrtHttpRespFree(xhttpresp pResp);
+	
+	/* ---- 完整 API ---- */
+	
+	// 创建/销毁请求对象
+	XXAPI xhttpreq xrtHttpReqCreate(xhttp_method iMethod, str sURL);
+	XXAPI void xrtHttpReqFree(xhttpreq pReq);
+	
+	// 设置请求头 (可多次调用追加不同 Header)
+	XXAPI void xrtHttpReqSetHeader(xhttpreq pReq, str sName, str sValue);
+	
+	// 设置请求正文 (原始 body)
+	XXAPI void xrtHttpReqSetBody(xhttpreq pReq, str pData, size_t iLen, str sContentType);
+	
+	// 添加表单字段 (application/x-www-form-urlencoded)
+	XXAPI void xrtHttpReqAddField(xhttpreq pReq, str sName, str sValue);
+	
+	// 添加 Multipart 表单字段
+	XXAPI void xrtHttpReqAddFormField(xhttpreq pReq, str sName, str sValue);
+	
+	// 添加 Multipart 文件
+	XXAPI void xrtHttpReqAddFormFile(xhttpreq pReq, str sFieldName,
+		str sFilePath, str sMimeType);
+	
+	// 添加 Multipart 内存数据 (作为文件上传)
+	XXAPI void xrtHttpReqAddFormData(xhttpreq pReq, str sFieldName,
+		str sFileName, str pData, size_t iLen, str sMimeType);
+	
+	// 配置选项
+	XXAPI void xrtHttpReqSetTimeout(xhttpreq pReq, int iTimeoutSec);
+	XXAPI void xrtHttpReqSetRedirect(xhttpreq pReq, int iMaxRedirects);
+	XXAPI void xrtHttpReqSetVerifySSL(xhttpreq pReq, bool bVerify);
+	XXAPI void xrtHttpReqSetCallback(xhttpreq pReq, xhttp_proc pProc);
+	XXAPI void xrtHttpReqSetUserData(xhttpreq pReq, ptr pData);
+	
+	// Cookie 管理
+	XXAPI void xrtHttpReqEnableCookies(xhttpreq pReq, bool bEnable);
+	XXAPI void xrtHttpReqSetCookie(xhttpreq pReq, str sName, str sValue);
+	XXAPI void xrtHttpReqRemoveCookie(xhttpreq pReq, str sName);
+	
+	// 执行请求 (阻塞, 返回响应对象)
+	XXAPI xhttpresp xrtHttpReqExecute(xhttpreq pReq);
+	
+	// 响应对象读取函数
+	XXAPI int xrtHttpRespCode(xhttpresp pResp);
+	XXAPI str xrtHttpRespBody(xhttpresp pResp);
+	XXAPI size_t xrtHttpRespBodyLen(xhttpresp pResp);
+	XXAPI str xrtHttpRespHeader(xhttpresp pResp, str sName);
+	XXAPI str xrtHttpRespCookie(xhttpresp pResp, str sName);
+	XXAPI str xrtHttpRespContentType(xhttpresp pResp);
 	
 	
 	

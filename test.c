@@ -25,6 +25,8 @@
 #include "test/test_netsock.h"
 #include "test/test_nettcp.h"
 #include "test/test_nettls.h"
+#include "test/tls_comprehensive_test.h"
+#include "test/test_nethttp.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
 #include "test/test_array_ptr.h"
@@ -64,12 +66,10 @@ int main(int argc, char** argv)
 	#endif
 
 	printf("开始初始化...\n");
-	fflush(stdout);
 
 	xrtGlobalData* xCore = xrtInit();
 	xCore->OnError = OnError;
 	printf("初始化完成，测试开始\n\n");
-	fflush(stdout);
 	
 	
 
@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 	// Test_Network(xCore);
 	
 	/* Crypto 加密算法库测试 */
-	Test_Crypto(xCore);
+	// Test_Crypto(xCore);
 	
 	/* Socket 基础操作测试 */
 	// Test_NetSock(xCore);
@@ -128,7 +128,7 @@ int main(int argc, char** argv)
 	// Test_NetTCPUDP(xCore);
 	
 	/* TLS 1.3 测试 */
-	Test_NetTLS(xCore);
+	// Test_NetTLS(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);
@@ -194,6 +194,21 @@ int main(int argc, char** argv)
 	
 	/* Template 测试 */
 	// Test_Template(xCore);
+	
+	/* TLS 综合测试 */
+	// Test_TLS_Comprehensive();
+	
+	/* TLS 算法套件测试 */
+	// Test_TLS_CipherSuites();
+	
+	/* TLS 边界条件测试 */
+	// Test_TLS_EdgeCases();
+	
+	/* TLS 性能测试 */
+	// Test_TLS_Performance();
+	
+	/* HTTP Client 测试 */
+	Test_HTTP();
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
