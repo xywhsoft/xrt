@@ -45,45 +45,129 @@ static int __xrt_RefCount = 0;  // 引用计数
 
 
 
-// 引入子库
-#include "lib/base.h"
-#include "lib/charset.h"
-#include "lib/os.h"
-#include "lib/math.h"
-#include "lib/string.h"
-#include "lib/path.h"
+// 引入子库 - 按依赖关系和裁剪支持重新组织
+#include "lib/base.h"           // 核心基础，始终包含
+#include "lib/string.h"         // 字符串处理，始终包含
+#include "lib/os.h"             // 操作系统接口，始终包含
+#include "lib/hash.h"           // 哈希算法，始终包含
+#include "lib/charset.h"		// 编码转换，始终包含
+#include "lib/math.h"			// 数学库，随机数很多地方都用到了，始终包含
+#include "lib/path.h"			// 路径处理库，xCore 初始化使用，始终包含
+
+#ifndef XRT_NO_TIME
 #include "lib/time.h"
+#endif
+
+#ifndef XRT_NO_FILE
 #include "lib/file.h"
+#endif
+
+#ifndef XRT_NO_THREAD
 #include "lib/thread.h"
+#endif
+
+#ifndef XRT_NO_COROUTINE
 #include "lib/coroutine.h"
-#include "lib/hash.h"
+#endif
+
+#ifndef XRT_NO_NETWORK
 #include "lib/network.h"
+#endif
+
+#ifndef XRT_NO_CRYPTO
 #include "lib/crypto.h"
+#endif
+
+#ifndef XRT_NO_NETSOCK
 #include "lib/netsock.h"
+#endif
+
+#ifndef XRT_NO_NETPOLL
 #include "lib/netpoll.h"
+#endif
+
+#ifndef XRT_NO_NETTLS
 #include "lib/nettls.h"
+#endif
+
+#ifndef XRT_NO_NETLOOP
 #include "lib/netloop.h"
+#endif
+
+#ifndef XRT_NO_NETTCP
 #include "lib/nettcp.h"
+#endif
+
+#ifndef XRT_NO_NETUDP
 #include "lib/netudp.h"
+#endif
+
+#ifndef XRT_NO_XID
 #include "lib/xid.h"
+#endif
+
+#ifndef XRT_NO_BUFFER
 #include "lib/buffer.h"
+#endif
+
+#ifndef XRT_NO_NETHTTP
 #include "lib/nethttp.h"
+#endif
+
+#ifndef XRT_NO_ARRAY
 #include "lib/array_point.h"
 #include "lib/array.h"
+#endif
+
+#ifndef XRT_NO_BSMN
 #include "lib/bsmm.h"
+#endif
+
+#ifndef XRT_NO_MEMUNIT
 #include "lib/memunit.h"
+#endif
+
+#ifndef XRT_NO_MEMPOOL_FS
 #include "lib/mempool_fs.h"
+#endif
+
+#ifndef XRT_NO_STACK
 #include "lib/stack.h"
 #include "lib/stack_dyn.h"
+#endif
+
+#ifndef XRT_NO_AVLTREE
 #include "lib/avltree_base.h"
 #include "lib/avltree.h"
+#endif
+
+#ifndef XRT_NO_MEMPOOL
 #include "lib/mempool.h"
+#endif
+
+#ifndef XRT_NO_DICT
 #include "lib/dict.h"
+#endif
+
+#ifndef XRT_NO_LIST
 #include "lib/list.h"
+#endif
+
+#ifndef XRT_NO_VALUE
 #include "lib/value.h"
+#endif
+
+#ifndef XRT_NO_JNUM
 #include "lib/jnum.h"
+#endif
+
+#ifndef XRT_NO_JSON
 #include "lib/json.h"
+#endif
+
+#ifndef XRT_NO_TEMPLATE
 #include "lib/template.h"
+#endif
 
 
 
@@ -180,10 +264,16 @@ XXAPI xrtGlobalData* xrtInit()
 	#endif
 	
 	// 获取本机 IP
-	xCore.LocalAddr = xrtGetLocalRawIP();
+	#ifndef XRT_NO_NETWORK
+		xCore.LocalAddr = xrtGetLocalRawIP();
+	#else
+		xCore.LocalAddr = 0;
+	#endif
 	
 	// 初始化模板引擎
-	xte_private_init();
+	#ifndef XRT_NO_TEMPLATE
+		xte_private_init();
+	#endif
 	
 	return &xCore;
 }
@@ -200,8 +290,12 @@ XXAPI void xrtUnit()
 	
 	// 只有引用计数为 0 时才真正释放资源
 	if ( (__xrt_RefCount == 0) && (xCore.bInit) ) {
+		
 		// 清理模板引擎
-		xte_private_unit();
+		#ifndef XRT_NO_TEMPLATE
+			xte_private_unit();
+		#endif
+		
 		// 释放应用路径
 		xrtFree(xCore.AppFile);
 		xCore.AppFile = xCore.sNull;

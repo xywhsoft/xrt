@@ -1,5 +1,37 @@
 
 
+
+// 可通过定义对 xrt 库进行裁剪
+#define XRT_NO_TIME
+#define XRT_NO_FILE
+#define XRT_NO_THREAD
+#define XRT_NO_COROUTINE
+#define XRT_NO_NETWORK
+#define XRT_NO_CRYPTO
+#define XRT_NO_NETSOCK
+#define XRT_NO_NETPOLL
+#define XRT_NO_NETTLS
+#define XRT_NO_NETLOOP
+#define XRT_NO_NETTCP
+#define XRT_NO_NETUDP
+#define XRT_NO_XID
+#define XRT_NO_BUFFER
+#define XRT_NO_NETHTTP
+#define XRT_NO_STACK
+#define XRT_NO_BSMN
+#define XRT_NO_MEMUNIT
+#define XRT_NO_MEMPOOL_FS
+#define XRT_NO_STACK
+#define XRT_NO_AVLTREE
+#define XRT_NO_DICT
+#define XRT_NO_LIST
+#define XRT_NO_VALUE
+#define XRT_NO_JSON
+#define XRT_NO_TEMPLATE
+
+
+
+// 定义 XRT_IMPLEMENTATION 导入功能实现
 #define XRT_IMPLEMENTATION
 #include "xrt.h"
 

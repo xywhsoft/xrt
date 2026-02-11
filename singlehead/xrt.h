@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-02-11 16:56:11
+    Generated: 2026-02-11 19:08:59
 
     MIT License
 
@@ -207,6 +207,107 @@
 	#include <semaphore.h>
 	#include <signal.h>
 #endif
+// ========================================
+// XRT 模块裁剪支持
+// ========================================
+// 模板引擎启用时，自动启用完整依赖链
+#if !defined(XRT_NO_TEMPLATE)
+	#undef XRT_NO_VALUE
+	#undef XRT_NO_JNUM
+	#undef XRT_NO_DICT
+	#undef XRT_NO_LIST
+	#undef XRT_NO_AVLTREE
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+	#undef XRT_NO_MEMPOOL_FS
+#endif
+// JSON启用时，自动启用依赖链
+#if !defined(XRT_NO_JSON)
+	#undef XRT_NO_VALUE
+	#undef XRT_NO_DICT
+	#undef XRT_NO_LIST
+	#undef XRT_NO_AVLTREE
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+	#undef XRT_NO_MEMPOOL_FS
+#endif
+// VALUE系统启用时，自动启用依赖链
+#if !defined(XRT_NO_VALUE)
+	#undef XRT_NO_DICT
+	#undef XRT_NO_LIST
+	#undef XRT_NO_AVLTREE
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+	#undef XRT_NO_MEMPOOL_FS
+#endif
+// MemPool启用时，自动启用依赖链
+#if !defined(XRT_NO_MEMPOOL)
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+#endif
+// FSMemPool启用时，自动启用依赖链
+#if !defined(XRT_NO_MEMPOOL_FS)
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+#endif
+// DICT/LIST启用时，自动启用AVLTree依赖
+#if (!defined(XRT_NO_DICT) || !defined(XRT_NO_LIST))
+	#undef XRT_NO_AVLTREE
+#endif
+// VALUE系统依赖检查
+#if defined(XRT_NO_VALUE) && (!defined(XRT_NO_TEMPLATE) || !defined(XRT_NO_JSON))
+	#error "错误: VALUE系统被禁用，但TEMPLATE或JSON模块需要它。请启用XRT_VALUE或禁用相关高级模块。"
+#endif
+// DICT/LIST依赖检查
+#if (defined(XRT_NO_DICT) || defined(XRT_NO_LIST)) && !defined(XRT_NO_VALUE)
+	#error "错误: DICT或LIST被禁用，但VALUE系统需要它们。请启用这些模块或禁用XRT_VALUE。"
+#endif
+// AVLTree依赖检查
+#if defined(XRT_NO_AVLTREE) && (!defined(XRT_NO_DICT) || !defined(XRT_NO_LIST))
+	#error "错误: AVLTree被禁用，但DICT/LIST模块需要它。请启用AVLTREE或禁用相关容器模块。"
+#endif
+// 内存管理层依赖检查
+#if defined(XRT_NO_BSMN) && !defined(XRT_NO_MEMPOOL_FS)
+	#error "错误: BSMM被禁用，但FSMemPool需要它。请启用BSMM或禁用XRT_NO_MEMPOOL_FS。"
+#endif
+#if defined(XRT_NO_MEMUNIT) && !defined(XRT_NO_MEMPOOL_FS)
+	#error "错误: MEMUNIT被禁用，但FSMemPool需要它。请启用MEMUNIT或禁用XRT_NO_MEMPOOL_FS。"
+#endif
+// 基础功能组
+#if defined(XRT_MINIMAL)
+	#define XRT_NO_TIME
+	#define XRT_NO_FILE
+	#define XRT_NO_THREAD
+	#define XRT_NO_COROUTINE
+	#define XRT_NO_NETWORK
+	#define XRT_NO_CRYPTO
+	#define XRT_NO_NETSOCK
+	#define XRT_NO_NETPOLL
+	#define XRT_NO_NETTLS
+	#define XRT_NO_NETLOOP
+	#define XRT_NO_NETTCP
+	#define XRT_NO_NETUDP
+	#define XRT_NO_XID
+	#define XRT_NO_BUFFER
+	#define XRT_NO_NETHTTP
+	#define XRT_NO_ARRAY
+	#define XRT_NO_STACK
+	#define XRT_NO_BSMN
+	#define XRT_NO_MEMUNIT
+	#define XRT_NO_MEMPOOL_FS
+	#define XRT_NO_STACK
+	#define XRT_NO_AVLTREE
+	#define XRT_NO_MEMPOOL
+	#define XRT_NO_DICT
+	#define XRT_NO_LIST
+	#define XRT_NO_VALUE
+	#define XRT_NO_JNUM
+	#define XRT_NO_JSON
+	#define XRT_NO_TEMPLATE
+#endif
+// ========================================
+// XRT 头文件声明
+// ========================================
 #ifndef XXRTL_CORE
 	#define XXRTL_CORE
 	
@@ -3660,7 +3761,7 @@ XXAPI size_t u32len(u32str sText)
 	}
 	return iSize;
 }
-// 引入子库
+// 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
 // File: D:/git/xrt/lib/base.h
@@ -3771,1111 +3872,6 @@ XXAPI void xrtClearError()
 	}
 	xCore.LastError = xCore.sNull;
 	xCore.__pri_FreeError = FALSE;
-}
-
-// ========================================
-// File: D:/git/xrt/lib/charset.h
-// ========================================
-
-
-// utf8 字符长度码表
-static char BytesExtraTableUTF8[256] = {
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5
-};
-// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
-XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
-{
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
-	// 计算数据长度和转换长度
-	size_t iPos = 0;
-	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			char iExtraBytes = BytesExtraTableUTF8[sText[iSize]];
-			if ( iExtraBytes < 3 ) {
-				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
-				iPos++;
-			} else if ( iExtraBytes == 3 ) {
-				// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
-				iPos += 2;
-			} else {
-				// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
-				iPos++;
-			}
-			iSize += iExtraBytes + 1;
-		}
-	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			char iExtraBytes = BytesExtraTableUTF8[sText[i]];
-			if ( iExtraBytes < 3 ) {
-				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
-				iPos++;
-			} else if ( iExtraBytes == 3 ) {
-				// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
-				iPos += 2;
-			} else {
-				// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
-				iPos++;
-			}
-			i += iExtraBytes;
-		}
-	}
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
-	// 申请所需内存
-	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
-	// 开始转换编码
-	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
-		if ( iExtraBytes == 0 ) {
-			// ASCII 兼容字符
-			sRet[iPos++] = sText[i];
-		} else if ( iExtraBytes == 1 ) {
-			// 双字节字符
-			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
-		} else if ( iExtraBytes == 2 ) {
-			// 三字节字符
-			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
-		} else if ( iExtraBytes == 3 ) {
-			// 四字节字符
-			if ( sText[i] & 0b00000100 ) {
-				// 超出 utf16 支持的范围，使用替换字符 FFFD 代替
-				sRet[iPos++] = 0xFFFD;
-				i += iExtraBytes;
-			} else {
-				uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
-				if ( c < 0x10000 ) {
-					// 原则上不会进入这个分支，除非遇到错误的编码
-					sRet[iPos++] = c;
-				} else {
-					c -= 0x10000;
-					sRet[iPos++] = 0b1101100000000000 | ((c & 0b11111111110000000000) >> 10);
-					sRet[iPos++] = 0b1101110000000000 | (c & 0b00000000001111111111);
-				}
-			}
-		} else if ( iExtraBytes == 4 ) {
-			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
-			sRet[iPos++] = 0xFFFD;
-			i += iExtraBytes;
-		} else if ( iExtraBytes == 5 ) {
-			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
-			sRet[iPos++] = 0xFFFD;
-			i += iExtraBytes;
-		}
-	}
-	// 返回字符数和转换后数据
-	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
-	return sRet;
-}
-// utf-8 转 utf-32（ 需使用 xrtFree 释放 ）
-XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
-{
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
-	// 计算数据长度和转换长度
-	size_t iPos = 0;
-	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			iPos++;
-			iSize += BytesExtraTableUTF8[sText[iSize]] + 1;
-		}
-	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			iPos++;
-			i += BytesExtraTableUTF8[sText[i]];
-		}
-	}
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
-	// 申请所需内存
-	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
-	// 开始转换编码
-	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
-		if ( iExtraBytes == 0 ) {
-			// ASCII 兼容字符
-			sRet[iPos++] = sText[i];
-		} else if ( iExtraBytes == 1 ) {
-			// 双字节字符
-			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0x3F);
-		} else if ( iExtraBytes == 2 ) {
-			// 三字节字符
-			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
-		} else if ( iExtraBytes == 3 ) {
-			// 四字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
-		} else if ( iExtraBytes == 4 ) {
-			// 五字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
-		} else if ( iExtraBytes == 5 ) {
-			// 六字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0x3F) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
-		}
-	}
-	// 返回字符数和转换后数据
-	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
-	return sRet;
-}
-// utf-16 转 utf-8（ 需使用 xrtFree 释放 ）
-XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
-{
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	size_t iPos = 0;
-	// 计算数据长度和转换长度
-	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			uint16 iChar = sText[iSize];
-			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				if ( (sText[iSize + 1] & 0b1111110000000000) == 0b1101110000000000 ) {
-					iPos += 4;
-				} else {
-					// 错误的代理对，使用替换字符 EFBFBD 代替
-					iPos += 3;
-				}
-				iSize += 2;
-			} else if ( iChar <= 0x7F ) {
-				iPos++;
-				iSize++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-				iSize++;
-			} else {
-				iPos += 3;
-				iSize++;
-			}
-		}
-	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			uint16 iChar = sText[i];
-			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				if ( (sText[++i] & 0b1111110000000000) == 0b1101110000000000 ) {
-					iPos += 4;
-				} else {
-					// 错误的代理对，使用替换字符 EFBFBD 代替
-					iPos += 3;
-				}
-			} else if ( iChar <= 0x7F ) {
-				iPos++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-			} else {
-				iPos += 3;
-			}
-		}
-	}
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	// 申请所需内存
-	u8str sRet = xrtMalloc(iPos + 1);
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	// 开始转换编码
-	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		uint16 iChar = sText[i];
-		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-			uint16 iNext = sText[++i];
-			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
-				uint32 cp = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
-				sRet[iPos++] = 0xF0 | ((cp >> 18) & 0x7);
-				sRet[iPos++] = 0x80 | ((cp >> 12) & 0x3F);
-				sRet[iPos++] = 0x80 | ((cp >> 6) & 0x3F);
-				sRet[iPos++] = 0x80 | (cp & 0x3F);
-			} else {
-				// 错误的代理对，使用替换字符 EFBFBD 代替
-				sRet[iPos++] = 0xEF;
-				sRet[iPos++] = 0xBF;
-				sRet[iPos++] = 0xBD;
-			}
-		} else if ( iChar <= 0x7F ) {
-			sRet[iPos++] = iChar;
-		} else if ( iChar <= 0x7FF ) {
-			sRet[iPos++] = 0xC0 | ((iChar & 0x7C0) >> 6);
-			sRet[iPos++] = 0x80 | (iChar & 0x3F);
-		} else {
-			sRet[iPos++] = 0xE0 | ((iChar & 0xF000) >> 12);
-			sRet[iPos++] = 0x80 | ((iChar & 0xFC0) >> 6);
-			sRet[iPos++] = 0x80 | (iChar & 0x3F);
-		}
-	}
-	// 返回字符数和转换后数据
-	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
-	return sRet;
-}
-// utf-16 转 utf-32（ 需使用 xrtFree 释放 ）
-XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize)
-{
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
-	size_t iPos = 0;
-	// 计算数据长度和转换长度
-	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			if ( (sText[iSize] & 0b1111110000000000) == 0b1101100000000000 ) {
-				iSize += 2;
-			} else {
-				iSize++;
-			}
-			iPos++;
-		}
-	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			uint16 iChar = sText[i];
-			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				i++;
-			}
-			iPos++;
-		}
-	}
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
-	// 申请所需内存
-	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
-	// 开始转换编码
-	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		uint16 iChar = sText[i];
-		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-			uint16 iNext = sText[++i];
-			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
-				sRet[iPos++] = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
-			} else {
-				// 错误的代理对，使用替换字符 FFFD 代替
-				sRet[iPos++] = 0xFFFD;
-			}
-		} else {
-			sRet[iPos++] = iChar;
-		}
-	}
-	// 返回字符数和转换后数据
-	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
-	return sRet;
-}
-// utf-32 转 utf-8（ 需使用 xrtFree 释放 ）
-XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize)
-{
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	size_t iPos = 0;
-	// 计算数据长度和转换长度
-	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			uint32 iChar = sText[iSize++];
-			if ( iChar <= 0x7F ) {
-				iPos++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-			} else if ( iChar <= 0xFFFF ) {
-				iPos += 3;
-			} else if ( iChar <= 0x1FFFFF ) {
-				iPos += 4;
-			} else if ( iChar <= 0x3FFFFFF ) {
-				iPos += 5;
-			} else if ( iChar <= 0x7FFFFFFF ) {
-				iPos += 6;
-			}
-		}
-	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			uint32 iChar = sText[i];
-			if ( iChar <= 0x7F ) {
-				iPos++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-			} else if ( iChar <= 0xFFFF ) {
-				iPos += 3;
-			} else if ( iChar <= 0x1FFFFF ) {
-				iPos += 4;
-			} else if ( iChar <= 0x3FFFFFF ) {
-				iPos += 5;
-			} else if ( iChar <= 0x7FFFFFFF ) {
-				iPos += 6;
-			}
-		}
-	}
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	// 申请所需内存
-	u8str sRet = xrtMalloc(iPos + 1);
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	// 开始转换编码
-	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		uint32 iChar = sText[i];
-		if ( iChar <= 0x7F ) {
-			// ASCII 兼容字符
-			sRet[iPos++] = iChar;
-		} else if ( iChar <= 0x7FF ) {
-			// 双字节字符
-			sRet[iPos++] = 0xC0 | ((iChar >> 6) & 0x1F);
-			sRet[iPos++] = 0x80 | (iChar & 0x3F);
-		} else if ( iChar <= 0xFFFF ) {
-			// 三字节字符
-			sRet[iPos++] = 0xE0 | ((iChar >> 12) & 0xF);
-			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[iPos++] = 0x80 | (iChar & 0x3F);
-		} else if ( iChar <= 0x1FFFFF ) {
-			// 四字节字符
-			sRet[iPos++] = 0xF0 | ((iChar >> 18) & 0x7);
-			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
-			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[iPos++] = 0x80 | (iChar & 0x3F);
-		} else if ( iChar <= 0x3FFFFFF ) {
-			// 五字节字符
-			sRet[iPos++] = 0xF8 | ((iChar >> 24) & 0x3);
-			sRet[iPos++] = 0x80 | ((iChar >> 18) & 0x3F);
-			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
-			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[iPos++] = 0x80 | (iChar & 0x3F);
-		} else if ( iChar <= 0x7FFFFFFF ) {
-			// 六字节字符
-			sRet[iPos++] = 0xFC | ((iChar >> 30) & 0x1);
-			sRet[iPos++] = 0x80 | ((iChar >> 24) & 0x3F);
-			sRet[iPos++] = 0x80 | ((iChar >> 18) & 0x3F);
-			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
-			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
-			sRet[iPos++] = 0x80 | (iChar & 0x3F);
-		}
-	}
-	// 返回字符数和转换后数据
-	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
-	return sRet;
-}
-// utf-32 转 utf-16 ( 需使用 xrtFree 释放 )
-XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
-{
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
-	size_t iPos = 0;
-	// 计算数据长度和转换长度
-	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			if ( sText[iSize] <= 0xFFFF ) {
-				iPos++;
-			} else if ( sText[iSize] <= 0x10FFFF ) {
-				iPos += 2;
-			} else {
-				iPos++;
-			}
-			iSize++;
-		}
-	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			uint32 iChar = sText[i];
-			if ( iChar <= 0xFFFF ) {
-				iPos++;
-			} else if ( iChar <= 0x10FFFF ) {
-				iPos += 2;
-			} else {
-				iPos++;
-			}
-		}
-	}
-	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
-	// 申请所需内存
-	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
-	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
-	// 开始转换编码
-	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		uint32 iChar = sText[i];
-		if ( iChar <= 0xFFFF ) {
-			sRet[iPos++] = iChar;
-		} else if ( iChar <= 0x10FFFF ) {
-			iChar -= 0x10000;
-			sRet[iPos++] = 0b1101100000000000 | ((iChar & 0b11111111110000000000) >> 10);
-			sRet[iPos++] = 0b1101110000000000 | (iChar & 0b00000000001111111111);
-		} else {
-			// 超出 utf16 支持的范围，使用替换字符 FFFD 代替
-			sRet[iPos++] = 0xFFFD;
-		}
-	}
-	// 返回字符数和转换后数据
-	sRet[iPos] = 0;
-	if ( iRetSize ) { *iRetSize = iPos; }
-	return sRet;
-}
-// utf-16 大端序和小端序转换 ( 需使用 xrtFree 释放 )
-XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise)
-{
-	if ( sText == NULL ) { return (u16str)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = u16len(sText); }
-	if ( iSize == 0 ) { return (u16str)xCore.sNull; }
-	u16str sRet;
-	if ( bSrcRevise ) {
-		sRet = sText;
-	} else {
-		sRet = xrtCopyStrU16(sText, iSize);
-	}
-	for ( int i = 0; i < iSize; i++ ) {
-		sRet[i] = ((sRet[i] & 0xFF) << 8) | ((sRet[i] >> 8) & 0xFF);
-	}
-	return sRet;
-}
-// utf-32 大端序和小端序转换 ( 需使用 xrtFree 释放 )
-XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise)
-{
-	if ( sText == NULL ) { return (u32str)xCore.sNull; }
-	if ( iSize == 0 ) { iSize = u32len(sText); }
-	if ( iSize == 0 ) { return (u32str)xCore.sNull; }
-	u32str sRet;
-	if ( bSrcRevise ) {
-		sRet = sText;
-	} else {
-		sRet = xrtCopyStrU32(sText, iSize);
-	}
-	for ( int i = 0; i < iSize; i++ ) {
-		sRet[i] = ((sRet[i] >> 24) & 0xFF) | ((sRet[i] >> 8) & 0xFF00) | ((sRet[i] << 8) & 0xFF0000) | ((sRet[i] << 24) & 0xFF000000);
-	}
-	return sRet;
-}
-// 任意编码转换 ( 需使用 xrtFree 释放 )
-XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t* iRetSize)
-{
-	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	// 非 windows 平台 ( 仅支持 utf-8、utf-16、utf-32 三种编码互相转换 [ 含 LE、BE 字节序 ]，oem 编码固定为 utf-8 )
-	#if defined(_WIN32) || defined(_WIN64)
-	#else
-		if ( iInCP == XRT_CP_OEM ) { iInCP = XRT_CP_UTF8; }
-		if ( iOutCP == XRT_CP_OEM ) { iOutCP = XRT_CP_UTF8; }
-	#endif
-	// 如果编码相同，返回副本
-	if ( iInCP == iOutCP ) {
-		if ( (iInCP == XRT_CP_UTF16) || (iInCP == XRT_CP_UTF16_BE) ) {
-			return xrtCopyStrU16(sText, iSize);
-		} else if ( (iInCP == XRT_CP_UTF32) || (iInCP == XRT_CP_UTF32_BE) ) {
-			return xrtCopyStrU32(sText, iSize);
-		} else {
-			return xrtCopyStr(sText, iSize);
-		}
-	}
-	// 需要转换编码 - 排列组合 20 种情况 ( 内置支持的编码转换组合 )
-	if ( iInCP == XRT_CP_UTF8 ) {
-		if ( iOutCP == XRT_CP_UTF16 ) {
-			return xrtUTF8to16(sText, iSize, NULL);
-		} else if ( iOutCP == XRT_CP_UTF32 ) {
-			return xrtUTF8to32(sText, iSize, NULL);
-		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
-			size_t iRet = 0;
-			u16str sRet = xrtUTF8to16(sText, iSize, &iRet);
-			xrtUTF16LEtoBE(sRet, iRet, TRUE);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
-			size_t iRet = 0;
-			u32str sRet = xrtUTF8to32(sText, iSize, &iRet);
-			xrtUTF32LEtoBE(sRet, iRet, TRUE);
-			return sRet;
-		}
-	} else if ( iInCP == XRT_CP_UTF16 ) {
-		if ( iOutCP == XRT_CP_UTF8 ) {
-			return xrtUTF16to8(sText, iSize, NULL);
-		} else if ( iOutCP == XRT_CP_UTF32 ) {
-			return xrtUTF16to32(sText, iSize, NULL);
-		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
-			return xrtUTF16LEtoBE(sText, iSize, FALSE);
-		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
-			size_t iRet = 0;
-			u32str sRet = xrtUTF16to32(sText, iSize, &iRet);
-			xrtUTF32LEtoBE(sRet, iRet, TRUE);
-			return sRet;
-		}
-	} else if ( iInCP == XRT_CP_UTF32 ) {
-		if ( iOutCP == XRT_CP_UTF8 ) {
-			return xrtUTF32to8(sText, iSize, NULL);
-		} else if ( iOutCP == XRT_CP_UTF16 ) {
-			return xrtUTF32to16(sText, iSize, NULL);
-		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
-			size_t iRet = 0;
-			u16str sRet = xrtUTF32to16(sText, iSize, &iRet);
-			xrtUTF16LEtoBE(sRet, iRet, TRUE);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
-			return xrtUTF32LEtoBE(sText, iSize, FALSE);
-		}
-	} else if ( iInCP == XRT_CP_UTF16_BE ) {
-		if ( iOutCP == XRT_CP_UTF8 ) {
-			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
-			str sRet = xrtUTF16to8(sTemp, iSize, NULL);
-			xrtFree(sTemp);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF32 ) {
-			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
-			u32str sRet = xrtUTF16to32(sTemp, iSize, NULL);
-			xrtFree(sTemp);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF16 ) {
-			return xrtUTF16LEtoBE(sText, iSize, FALSE);
-		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
-			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
-			size_t iRet = 0;
-			u32str sRet = xrtUTF16to32(sTemp, iSize, &iRet);
-			xrtFree(sTemp);
-			xrtUTF32LEtoBE(sRet, iRet, TRUE);
-			return sRet;
-		}
-	} else if ( iInCP == XRT_CP_UTF32_BE ) {
-		if ( iOutCP == XRT_CP_UTF8 ) {
-			u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
-			str sRet = xrtUTF32to8(sTemp, iSize, NULL);
-			xrtFree(sTemp);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF16 ) {
-			u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
-			u16str sRet = xrtUTF32to16(sTemp, iSize, NULL);
-			xrtFree(sTemp);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
-			u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
-			size_t iRet = 0;
-			u16str sRet = xrtUTF32to16(sTemp, iSize, &iRet);
-			xrtFree(sTemp);
-			xrtUTF16LEtoBE(sRet, iRet, TRUE);
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF32 ) {
-			return xrtUTF32LEtoBE(sText, iSize, FALSE);
-		}
-	}
-	// 内置方案无法满足时的扩展方案
-	#if defined(_WIN32) || defined(_WIN64)
-		// windows 方案 - 调用 Win32SDK 转换 - 五种排列组合优化
-		if ( iInCP == XRT_CP_UTF16 ) {
-			// UTF16 转 多字节
-			if ( iSize == 0 ) { iSize = u16len(sText); }
-			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-			size_t iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, NULL, 0, NULL, NULL);
-			if ( iRet == 0 ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			str sRet = xrtMalloc(iRet + 1);
-			if ( sRet == NULL ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, sRet, iRet, NULL, NULL);
-			sRet[iRet] = 0;
-			return sRet;
-		} else if ( iInCP == XRT_CP_UTF16_BE ) {
-			// UTF16 BE 转 多字节
-			if ( iSize == 0 ) { iSize = u16len(sText); }
-			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
-			size_t iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, NULL, 0, NULL, NULL);
-			if ( iRet == 0 ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			str sRet = xrtMalloc(iRet + 1);
-			if ( sRet == NULL ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, sRet, iRet, NULL, NULL);
-			xrtFree(sTemp);
-			sRet[iRet] = 0;
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF16 ) {
-			// 多字节 转 UTF16
-			if ( iSize == 0 ) { iSize = strlen(sText); }
-			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
-			if ( iRet == 0 ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
-			if ( sRet == NULL ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, sRet, iRet);
-			sRet[iRet] = 0;
-			return sRet;
-		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
-			// 多字节 转 UTF16 BE
-			if ( iSize == 0 ) { iSize = strlen(sText); }
-			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
-			if ( iRet == 0 ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
-			if ( sRet == NULL ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, sRet, iRet);
-			sRet[iRet] = 0;
-			xrtUTF16LEtoBE(sRet, iRet, TRUE);
-			return sRet;
-		} else {
-			// 多字节 转 多字节
-			if ( iSize == 0 ) { iSize = strlen(sText); }
-			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-			// 先转换为 utf16
-			size_t iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
-			if ( iRetW == 0 ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			u16str sRetW = xrtMalloc((iRetW + 1) * sizeof(unsigned short));
-			if ( sRetW == NULL ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				return xCore.sNull;
-			}
-			iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, sRetW, iRetW);
-			sRetW[iRetW] = 0;
-			// 再转换为最终编码
-			size_t iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, NULL, 0, NULL, NULL);
-			if ( iRet == 0 ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				xrtFree(sRetW);
-				return xCore.sNull;
-			}
-			str sRet = xrtMalloc(iRet + 1);
-			if ( sRet == NULL ) {
-				if ( iRetSize ) { *iRetSize = 0; }
-				xrtFree(sRetW);
-				return xCore.sNull;
-			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, sRet, iRet, NULL, NULL);
-			xrtFree(sRetW);
-			sRet[iRet] = 0;
-			return sRet;
-		}
-	#else
-		// 其他平台方案 - 暂无 ( 可使用 libiconv 等库，但是太大了 )
-	#endif
-	// 无法处理的编码转换组合
-	xrtSetError("Unsupported charset !", FALSE);
-	if ( iRetSize ) { *iRetSize = 0; }
-	return xCore.sNull;
-}
-// 是否为 utf-8 字符串
-XXAPI bool xrtIsUTF8(str sText, size_t iSize)
-{
-	// NULL 返回 FALSE，空字符串返回 TRUE
-	if ( sText == NULL ) { return FALSE; }
-	if ( iSize == 0 ) { iSize = strlen(sText); }
-	if ( iSize == 0 ) { return TRUE; }
-	// 检测是否符合标准
-	for ( int i = 0; i < iSize; i++ ) {
-		// 遇到 \0、FE、FF 直接返回 FALSE
-		if ( (sText[i] == 0) || (sText[i] == 0xFE) || (sText[i] == 0xFF) ) {
-			return FALSE;
-		}
-		// 检查多字节字符是否已 0b10 开头
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
-		if ( iExtraBytes ) {
-			for ( int j = 0; (j < iExtraBytes) && (i < iSize); j++ ) {
-				if ( (sText[++i] & 0b11000000) != 0b10000000 ) {
-					return FALSE;
-				}
-			}
-		}
-	}
-	return TRUE;
-}
-// 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
-XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
-{
-	if ( sText == NULL ) { return XRT_CP_BINARY; }
-	if ( iSize == 0 ) { return XRT_CP_BINARY; }
-	u8str sPtr = sText;
-	int bNoUTF8 = FALSE;		// 是否不符合 UTF8 标准
-	int bNoUTF16LE = FALSE;		// 是否不符合 UTF16 标准
-	int bNoUTF16BE = FALSE;		// 是否不符合 UTF16 BE 标准
-	int bNoUTF32LE = FALSE;		// 是否不符合 UTF32 标准
-	int bNoUTF32BE = FALSE;		// 是否不符合 UTF32 BE 标准
-	int iNullBE = 0;			// UTF16 大端序方向 \0 的数量
-	int iNullLE = 0;			// UTF16 小端序方向 \0 的数量
-	int iNullSize = 0;			// 遇到连续 \0 的次数
-	int iMaxNull = 0;			// 最多连续 \0 的数量
-	// 通过 BOM 判断字符串编码
-	if ( bBOM ) {
-		if ( iSize >= 3 ) {
-			if ( (sPtr[0] == 0xEF) && (sPtr[1] == 0xBB) && (sPtr[2] == 0xBF) ) {
-				return XRT_CP_UTF8 | XRT_CP_BOM;
-			}
-		}
-		if ( iSize >= 4 ) {
-			if ( (sPtr[0] == 0xFF) && (sPtr[1] == 0xFE) && (sPtr[2] == 0x00) && (sPtr[3] == 0x00) ) {
-				return XRT_CP_UTF32 | XRT_CP_BOM;
-			}
-			if ( (sPtr[0] == 0x00) && (sPtr[1] == 0x00) && (sPtr[2] == 0xFE) && (sPtr[3] == 0xFF) ) {
-				return XRT_CP_UTF32_BE | XRT_CP_BOM;
-			}
-		}
-		if ( iSize >= 2 ) {
-			if ( (sPtr[0] == 0xFF) && (sPtr[1] == 0xFE) ) {
-				return XRT_CP_UTF16 | XRT_CP_BOM;
-			}
-			if ( (sPtr[0] == 0xFE) && (sPtr[1] == 0xFF) ) {
-				return XRT_CP_UTF16_BE | XRT_CP_BOM;
-			}
-		}
-	}
-	// 开始推测字符串编码
-	for ( int i = 0; i < iSize; i++ ) {
-		// 检测 utf-8 不可能出现的字符
-		if ( (sPtr[i] == 0xFE) || (sPtr[i] == 0xFF) ) {
-			bNoUTF8 = TRUE;
-		}
-		// 检测 utf-8 多字符编码是否正确
-		if ( bNoUTF8 == FALSE ) {
-			char iExtraBytes = BytesExtraTableUTF8[sPtr[i]];
-			for ( int j = 1; (j <= iExtraBytes) && ((i + j) < iSize); j++ ) {
-				if ( (sPtr[i + j] & 0b11000000) != 0b10000000 ) {
-					bNoUTF8 = TRUE;
-					break;
-				}
-			}
-		}
-		// 检测 utf-16 代理区是否合规
-		if ( (i & 1) == 0 ) {
-			if ( (i + 2) < iSize ) {
-				if ( bNoUTF16BE == FALSE ) {
-					if ( (sPtr[i] & 0b11111100) == 0b11011000 ) {
-						if ( (sPtr[i + 2] & 0b11111100) != 0b11011100 ) {
-							bNoUTF16BE = TRUE;
-						}
-					}
-				}
-				if ( bNoUTF16LE == FALSE ) {
-					if ( (sPtr[i] & 0b11111100) == 0b11011100 ) {
-						if ( (sPtr[i + 2] & 0b11111100) != 0b11011000 ) {
-							bNoUTF16LE = TRUE;
-						}
-					}
-				}
-			}
-		}
-		// 检测是否符合 utf-32 范围 ( 0x10FFFF 以内‌ )
-		if ( (i & 3) == 0 ) {
-			if ( (i + 3) < iSize ) {
-				if ( bNoUTF32BE == FALSE ) {
-					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
-					if ( c > 0x10FFFF ) {
-						bNoUTF32BE = TRUE;
-					}
-				}
-				if ( bNoUTF32LE == FALSE ) {
-					uint32 c = (sPtr[i + 3] << 24) | (sPtr[i + 2] << 16) | (sPtr[i + 1] << 8) | sPtr[i];
-					if ( c > 0x10FFFF ) {
-						bNoUTF32LE = TRUE;
-					}
-				}
-			}
-		}
-		// 统计连续 \0 长度
-		if ( sPtr[i] == 0 ) {
-			iNullSize++;
-			if ( i & 1 ) {
-				iNullLE++;		// LE 英文字符特征 : X0
-			} else {
-				iNullBE++;		// BE 英文字符特征 : 0X
-			}
-		} else {
-			if ( iNullSize > iMaxNull ) {
-				iMaxNull = iNullSize;
-			}
-			iNullSize = 0;
-		}
-	}
-	// 根据条件推测编码
-	if ( iMaxNull > 3 ) {
-		return XRT_CP_BINARY;
-	} else if ( iMaxNull > 1 ) {
-		if ( bNoUTF32LE == FALSE ) {
-			return XRT_CP_UTF32;
-		} else if ( bNoUTF32BE == FALSE ) {
-			return XRT_CP_UTF32_BE;
-		} else {
-			return XRT_CP_BINARY;
-		}
-	} else if ( iMaxNull == 1 ) {
-		if ( bNoUTF16LE == FALSE ) {
-			if ( bNoUTF16BE == FALSE ) {
-				// 当无法区分到底是 utf16 BE 还是 LE 时，根据 \0 出现较多的方向判断
-				if ( iNullBE > iNullLE ) {
-					return XRT_CP_UTF16_BE;
-				} else {
-					return XRT_CP_UTF16;
-				}
-			}
-			return XRT_CP_UTF16;
-		} else if ( bNoUTF16BE == FALSE ) {
-			return XRT_CP_UTF16_BE;
-		} else if ( bNoUTF32LE == FALSE ) {
-			return XRT_CP_UTF32;
-		} else if ( bNoUTF32BE == FALSE ) {
-			return XRT_CP_UTF32_BE;
-		} else {
-			return XRT_CP_BINARY;
-		}
-	} else {
-		if ( bNoUTF8 == FALSE ) {
-			return XRT_CP_UTF8;
-		} else {
-			#if defined(_WIN32) || defined(_WIN64)
-				return XRT_CP_OEM;
-			#else
-				return XRT_CP_BINARY;
-			#endif
-		}
-	}
-}
-// 获取不同字符集的字符大小
-XXAPI int xrtGetCharSize(int iCP)
-{
-	iCP &= XRT_MASK_BOM;
-	if ( (iCP == XRT_CP_UTF16) || (iCP == XRT_CP_UTF16_BE) ) {
-		return 2;
-	} else if ( (iCP == XRT_CP_UTF32) || (iCP == XRT_CP_UTF32_BE) ) {
-		return 4;
-	} else {
-		return 1;
-	}
-}
-
-// ========================================
-// File: D:/git/xrt/lib/os.h
-// ========================================
-
-
-// 运行程序
-XXAPI ptr xrtRun(str sPath, size_t iSize)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		STARTUPINFOW si;
-		PROCESS_INFORMATION pi;
-		GetStartupInfoW(&si);
-		si.wShowWindow = SW_SHOW;
-		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
-		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
-		xrtFree(sPathW);
-		return (ptr)pi.hProcess;
-	#else
-		pid_t pid = fork();
-		if ( pid == 0 ) {
-			execl("/bin/sh", "sh", "-c", sPath, (char*)NULL);
-			// 如果这里继续执行，说明 execl 失败了
-			return NULL;
-		} else if (pid > 0) {
-			return (ptr)(intptr_t)pid;
-		} else {
-			return NULL;
-		}
-	#endif
-}
-// 打开文件（ Windows 系统使用 ShellExecute，Linux 系统使用 xdg-open ）
-XXAPI ptr xrtStart(str sPath, size_t iSize)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
-		return (ptr)ShellExecuteW(0, NULL, sPathW, NULL, NULL, SW_SHOW);
-		xrtFree(sPathW);
-	#else
-		pid_t pid = fork();
-		if ( pid == 0 ) {
-			execlp("xdg-open", "xdg-open", sPath, (char*)NULL);
-			// 如果这里继续执行，说明 execlp 失败了
-			return NULL;
-		} else if (pid > 0) {
-			return (ptr)(intptr_t)pid;
-		} else {
-			return NULL;
-		}
-	#endif
-}
-// 运行程序并等待程序运行结束
-XXAPI int xrtChain(str sPath, size_t iSize)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		DWORD iRet = 0;
-		STARTUPINFOW si;
-		PROCESS_INFORMATION pi;
-		GetStartupInfoW(&si);
-		si.wShowWindow = SW_SHOW;
-		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
-		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
-		xrtFree(sPathW);
-		WaitForSingleObject(pi.hProcess, INFINITE);
-		GetExitCodeProcess(pi.hProcess, &iRet);
-		return iRet;
-	#else
-		pid_t pid = fork();
-		if ( pid == 0 ) {
-			execl("/bin/sh", "sh", "-c", sPath, (char*)NULL);
-			// 如果这里继续执行，说明 execl 失败了
-			return -1;
-		} else if ( pid > 0 ) {
-			// 等待子进程运行结束
-			int status;
-			waitpid(pid, &status, 0);
-			if ( WIFEXITED(status) ) {
-				return WEXITSTATUS(status);
-			} else {
-				// 异常退出
-				return -1;
-			}
-		} else {
-			return -1;
-		}
-	#endif
-}
-
-// ========================================
-// File: D:/git/xrt/lib/math.h
-// ========================================
-
-
-/*
-	PCG Random Number Generation for C. [ Update : 2025/08/19 from https://github.com/imneme/pcg-c-basic ]
-	修改：
-		整合到 xrt 库
-		提供 Ex 版本 API（调用者管理状态，线程安全）
-		普通版本 API 使用全局状态（线程不安全，性能优先）
-	使用协议注意事项：
-		Apache License, Version 2.0 协议
-		允许个人使用、商业使用
-		复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
-*/
-/*
- * PCG Random Number Generation for C.
- *
- * Copyright 2014 Melissa O'Neill <oneill@pcg-random.org>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * For additional information about the PCG random number generation scheme,
- * including its license and other licensing options, visit
- *
- *       http://www.pcg-random.org
- */
-// 初始化随机数生成器
-XXAPI void xrtRandSeed(xrand* rng, uint64 seed, uint64 seq)
-{
-	rng->state = 0U;
-	rng->inc = (seq << 1u) | 1u;
-	// 运算两次
-	uint64 oldstate = rng->state;
-	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
-	rng->state += seed;
-	oldstate = rng->state;
-	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
-}
-// 生成 32 位随机数 - 线程安全
-XXAPI uint32 xrtRand32Ex(xrand* rng)
-{
-	uint64 oldstate = rng->state;
-	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
-	uint32 xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
-	uint32 rot = oldstate >> 59u;
-	return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
-}
-// 生成 64 位随机数 - 线程安全
-XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh)
-{
-	uint32 iLow = xrtRand32Ex(rngLow);
-	uint32 iHigh = xrtRand32Ex(rngHigh);
-	return ((uint64)iHigh << 32) | (uint64)iLow;
-}
-// 生成范围随机数 - 线程安全
-XXAPI int xrtRandRangeEx(xrand* rng, int min, int max)
-{
-	uint32 iRange = (max - min) + 1;
-	if ( iRange > 0 ) {
-		uint32 threshold = -iRange % iRange;
-		for (;;) {
-			uint32 r = xrtRand32Ex(rng);
-			if (r >= threshold)
-				return (r % iRange) + min;
-		}
-	} else if ( iRange < 0 ) {
-		iRange = (min - max) + 1;
-		uint32 threshold = -iRange % iRange;
-		for (;;) {
-			uint32 r = xrtRand32Ex(rng);
-			if (r >= threshold)
-				return (r % iRange) + max;
-		}
-	}
-	return 0;
-}
-// 获取 32 位随机数
-XXAPI uint32 xrtRand32()
-{
-	return xrtRand32Ex(&xCore.rand32);
-}
-// 获取 64 位随机数
-XXAPI uint64 xrtRand64()
-{
-	return xrtRand64Ex(&xCore.rand64_low, &xCore.rand64_high);
-}
-// 获取 32 位范围随机数
-XXAPI int xrtRandRange(int min, int max)
-{
-	return xrtRandRangeEx(&xCore.rand32, min, max);
-}
-// 整数约等于
-XXAPI bool xrtIntApprox(int64 a, int64 b)
-{
-	if ( a == b ) { return TRUE; }
-	
-	int64 diff = (a > b) ? (a - b) : (b - a);
-	
-	if ( xCore.iApproxIntMode == XRT_APPROX_PERCENT ) {
-		// 百分比模式
-		if ( xCore.fApproxIntTol <= 0.0 ) { return FALSE; }
-		int64 maxAbs = (a >= 0 ? a : -a);
-		int64 bAbs = (b >= 0 ? b : -b);
-		if ( bAbs > maxAbs ) { maxAbs = bAbs; }
-		if ( maxAbs == 0 ) { return TRUE; }
-		double ratio = (double)diff / (double)maxAbs;
-		return (ratio <= xCore.fApproxIntTol);
-	} else {
-		// 差值模式
-		return (diff <= (int64)xCore.fApproxIntTol);
-	}
-}
-// 浮点数约等于
-XXAPI bool xrtNumApprox(double a, double b)
-{
-	if ( a == b ) { return TRUE; }
-	
-	double diff = (a > b) ? (a - b) : (b - a);
-	
-	if ( xCore.iApproxNumMode == XRT_APPROX_PERCENT ) {
-		// 百分比模式
-		if ( xCore.fApproxNumTol <= 0.0 ) { return FALSE; }
-		double maxAbs = (a >= 0.0 ? a : -a);
-		double bAbs = (b >= 0.0 ? b : -b);
-		if ( bAbs > maxAbs ) { maxAbs = bAbs; }
-		if ( maxAbs == 0.0 ) { return TRUE; }
-		double ratio = diff / maxAbs;
-		return (ratio <= xCore.fApproxNumTol);
-	} else {
-		// 差值模式
-		return (diff <= xCore.fApproxNumTol);
-	}
 }
 
 // ========================================
@@ -6435,6 +5431,2277 @@ XXAPI str xrtUrlDecode(str sSrc, size_t iLen)
 }
 
 // ========================================
+// File: D:/git/xrt/lib/os.h
+// ========================================
+
+
+// 运行程序
+XXAPI ptr xrtRun(str sPath, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		STARTUPINFOW si;
+		PROCESS_INFORMATION pi;
+		GetStartupInfoW(&si);
+		si.wShowWindow = SW_SHOW;
+		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
+		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+		xrtFree(sPathW);
+		return (ptr)pi.hProcess;
+	#else
+		pid_t pid = fork();
+		if ( pid == 0 ) {
+			execl("/bin/sh", "sh", "-c", sPath, (char*)NULL);
+			// 如果这里继续执行，说明 execl 失败了
+			return NULL;
+		} else if (pid > 0) {
+			return (ptr)(intptr_t)pid;
+		} else {
+			return NULL;
+		}
+	#endif
+}
+// 打开文件（ Windows 系统使用 ShellExecute，Linux 系统使用 xdg-open ）
+XXAPI ptr xrtStart(str sPath, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
+		return (ptr)ShellExecuteW(0, NULL, sPathW, NULL, NULL, SW_SHOW);
+		xrtFree(sPathW);
+	#else
+		pid_t pid = fork();
+		if ( pid == 0 ) {
+			execlp("xdg-open", "xdg-open", sPath, (char*)NULL);
+			// 如果这里继续执行，说明 execlp 失败了
+			return NULL;
+		} else if (pid > 0) {
+			return (ptr)(intptr_t)pid;
+		} else {
+			return NULL;
+		}
+	#endif
+}
+// 运行程序并等待程序运行结束
+XXAPI int xrtChain(str sPath, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		DWORD iRet = 0;
+		STARTUPINFOW si;
+		PROCESS_INFORMATION pi;
+		GetStartupInfoW(&si);
+		si.wShowWindow = SW_SHOW;
+		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);
+		CreateProcessW(NULL, sPathW, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+		xrtFree(sPathW);
+		WaitForSingleObject(pi.hProcess, INFINITE);
+		GetExitCodeProcess(pi.hProcess, &iRet);
+		return iRet;
+	#else
+		pid_t pid = fork();
+		if ( pid == 0 ) {
+			execl("/bin/sh", "sh", "-c", sPath, (char*)NULL);
+			// 如果这里继续执行，说明 execl 失败了
+			return -1;
+		} else if ( pid > 0 ) {
+			// 等待子进程运行结束
+			int status;
+			waitpid(pid, &status, 0);
+			if ( WIFEXITED(status) ) {
+				return WEXITSTATUS(status);
+			} else {
+				// 异常退出
+				return -1;
+			}
+		} else {
+			return -1;
+		}
+	#endif
+}
+
+// ========================================
+// File: D:/git/xrt/lib/hash.h
+// ========================================
+
+
+/*
+	Hash32 - nmhash32x [Ver2.0, Update : 2024/10/18 from https://github.com/rurban/smhasher]
+		修改：
+			删除函数：NMHASH32_0to8（仅NMHASH32依赖，只保留NMHASH32X）
+			删除函数：NMHASH32_9to255（仅NMHASH32依赖，只保留NMHASH32X）
+			删除定义：NMHASH32_9to32（仅NMHASH32依赖，只保留NMHASH32X）
+			删除定义：NMHASH32_33to255（仅NMHASH32依赖，只保留NMHASH32X）
+			删除函数：NMHASH32_avalanche32（仅NMHASH32依赖，只保留NMHASH32X）
+			删除函数：NMHASH32（只保留NMHASH32X）
+			添加部分条件编译分支：判断 __TINYC__ 以区分是否使用 TCC 编译
+			删除头文件引入：<stdint.h> 和 <string.h>（最上面已经引入）
+		使用协议注意事项：
+			BSD 2-Clause 协议
+			允许个人使用、商业使用
+			复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
+*/
+/*
+	BSD 2-Clause License
+	Copyright (c) 2021, James Z.M. Gao 
+	All rights reserved.
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met:
+	1. Redistributions of source code must retain the above copyright notice, this
+	   list of conditions and the following disclaimer.
+	2. Redistributions in binary form must reproduce the above copyright notice,
+	   this list of conditions and the following disclaimer in the documentation
+	   and/or other materials provided with the distribution.
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+	FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+	DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+	OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+#define NMH_VERSION 2
+#ifdef _MSC_VER
+#  pragma warning(push, 3)
+#endif
+#if defined(__cplusplus) && __cplusplus < 201103L
+#  define __STDC_CONSTANT_MACROS 1
+#endif
+#if defined(__GNUC__)
+#  if defined(__AVX2__)
+#    include <immintrin.h>
+#  elif defined(__SSE2__)
+#    include <emmintrin.h>
+#  endif
+#elif defined(_MSC_VER)
+#  include <intrin.h>
+#endif
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+#if (defined(__GNUC__) && (__GNUC__ >= 3))  \
+  || (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 800)) \
+  || defined(__clang__)
+#    define NMH_likely(x) __builtin_expect(x, 1)
+#else
+#    define NMH_likely(x) (x)
+#endif
+#if defined(__has_builtin)
+#  if __has_builtin(__builtin_rotateleft32)
+#    define NMH_rotl32 __builtin_rotateleft32 /* clang */
+#  endif
+#endif
+#if !defined(NMH_rotl32)
+#  if defined(_MSC_VER)
+	 /* Note: although _rotl exists for minGW (GCC under windows), performance seems poor */
+#    define NMH_rotl32(x,r) _rotl(x,r)
+#  else
+#    define NMH_rotl32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
+#  endif
+#endif
+#ifdef __TINYC__
+#  define NMH_RESTRICT   restrict
+#  define NMH_VECTOR NMH_SCALAR
+#elif ((defined(sun) || defined(__sun)) && __cplusplus) /* Solaris includes __STDC_VERSION__ with C++. Tested with GCC 5.5 */
+#  define NMH_RESTRICT   /* disable */
+#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* >= C99 */
+#  define NMH_RESTRICT   restrict
+#elif defined(__cplusplus) && (defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER))
+#  define NMH_RESTRICT __restrict__
+#elif defined(__cplusplus) && defined(_MSC_VER)
+#  define NMH_RESTRICT __restrict
+#else
+#  define NMH_RESTRICT   /* disable */
+#endif
+/* endian macros */
+#ifndef NMHASH_LITTLE_ENDIAN
+#  if defined(_WIN32) || defined(__LITTLE_ENDIAN__) || defined(__x86_64__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || defined(__SDCC)
+#    define NMHASH_LITTLE_ENDIAN 1
+#  elif defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+#    define NMHASH_LITTLE_ENDIAN 0
+#  else
+#    warning could not determine endianness! Falling back to little endian.
+#    define NMHASH_LITTLE_ENDIAN 1
+#  endif
+#endif
+/* vector macros */
+#define NMH_SCALAR 0
+#define NMH_SSE2   1
+#define NMH_AVX2   2
+#define NMH_AVX512 3
+#ifndef NMH_VECTOR    /* can be defined on command line */
+#  if defined(__AVX512BW__)
+#    define NMH_VECTOR NMH_AVX512 /* _mm512_mullo_epi16 requires AVX512BW */
+#  elif defined(__AVX2__)
+#    define NMH_VECTOR NMH_AVX2  /* add '-mno-avx256-split-unaligned-load' and '-mn-oavx256-split-unaligned-store' for gcc */
+#  elif defined(__SSE2__) || defined(_M_AMD64) || defined(_M_X64) || (defined(_M_IX86_FP) && (_M_IX86_FP == 2))
+#    define NMH_VECTOR NMH_SSE2
+#  else
+#    define NMH_VECTOR NMH_SCALAR
+#  endif
+#endif
+/* align macros */
+#if defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)   /* C11+ */
+#  include <stdalign.h>
+#  define NMH_ALIGN(n)      alignas(n)
+#elif defined(__GNUC__)
+#  define NMH_ALIGN(n)      __attribute__ ((aligned(n)))
+#elif defined(_MSC_VER)
+#  define NMH_ALIGN(n)      __declspec(align(n))
+#else
+#  define NMH_ALIGN(n)   /* disabled */
+#endif
+#if NMH_VECTOR > 0
+#  define NMH_ACC_ALIGN 64
+#elif defined(__BIGGEST_ALIGNMENT__)
+#  define NMH_ACC_ALIGN __BIGGEST_ALIGNMENT__
+#elif defined(__SDCC)
+#  define NMH_ACC_ALIGN 1
+#else
+#  define NMH_ACC_ALIGN 16
+#endif
+/* constants */
+/* primes from xxh */
+#define NMH_PRIME32_1  UINT32_C(0x9E3779B1)
+#define NMH_PRIME32_2  UINT32_C(0x85EBCA77)
+#define NMH_PRIME32_3  UINT32_C(0xC2B2AE3D)
+#define NMH_PRIME32_4  UINT32_C(0x27D4EB2F)
+/*! Pseudorandom secret taken directly from FARSH. */
+NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t NMH_ACC_INIT[32] = {
+	UINT32_C(0xB8FE6C39), UINT32_C(0x23A44BBE), UINT32_C(0x7C01812C), UINT32_C(0xF721AD1C),
+	UINT32_C(0xDED46DE9), UINT32_C(0x839097DB), UINT32_C(0x7240A4A4), UINT32_C(0xB7B3671F),
+	UINT32_C(0xCB79E64E), UINT32_C(0xCCC0E578), UINT32_C(0x825AD07D), UINT32_C(0xCCFF7221),
+	UINT32_C(0xB8084674), UINT32_C(0xF743248E), UINT32_C(0xE03590E6), UINT32_C(0x813A264C),
+	UINT32_C(0x3C2852BB), UINT32_C(0x91C300CB), UINT32_C(0x88D0658B), UINT32_C(0x1B532EA3),
+	UINT32_C(0x71644897), UINT32_C(0xA20DF94E), UINT32_C(0x3819EF46), UINT32_C(0xA9DEACD8),
+	UINT32_C(0xA8FA763F), UINT32_C(0xE39C343F), UINT32_C(0xF9DCBBC7), UINT32_C(0xC70B4F1D),
+	UINT32_C(0x8A51E04B), UINT32_C(0xCDB45931), UINT32_C(0xC89F7EC9), UINT32_C(0xD9787364),
+};
+#if defined(_MSC_VER) && _MSC_VER >= 1914
+#  pragma warning(push)
+#  pragma warning(disable: 5045)
+#endif
+#ifdef __SDCC
+#  define const
+#  pragma save
+#  pragma disable_warning 110
+#  pragma disable_warning 126
+#endif
+/* read functions */
+static inline
+uint32_t
+NMH_readLE32(const void *const p)
+{
+	uint32_t v;
+	memcpy(&v, p, 4);
+#	if (NMHASH_LITTLE_ENDIAN)
+	return v;
+#	elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
+	return __builtin_bswap32(v);
+#	elif defined(_MSC_VER)
+	return _byteswap_ulong(v);
+#	else
+	return ((v >> 24) & 0xff) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | ((v << 24) & 0xff000000);
+#	endif
+}
+static inline
+uint16_t
+NMH_readLE16(const void *const p)
+{
+	uint16_t v;
+	memcpy(&v, p, 2);
+#	if (NMHASH_LITTLE_ENDIAN)
+	return v;
+#	else
+	return (uint16_t)((v << 8) | (v >> 8));
+#	endif
+}
+#define __NMH_M1 UINT32_C(0xF0D9649B)
+#define __NMH_M2 UINT32_C(0x29A7935D)
+#define __NMH_M3 UINT32_C(0x55D35831)
+NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t __NMH_M1_V[32] = {
+	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
+	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
+	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
+	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
+};
+NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t __NMH_M2_V[32] = {
+	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
+	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
+	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
+	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
+};
+NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t __NMH_M3_V[32] = {
+	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
+	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
+	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
+	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
+};
+#undef __NMH_M1
+#undef __NMH_M2
+#undef __NMH_M3
+#if NMH_VECTOR == NMH_SCALAR
+#define NMHASH32_long_round NMHASH32_long_round_scalar
+static inline
+void
+NMHASH32_long_round_scalar(uint32_t *const NMH_RESTRICT accX, uint32_t *const NMH_RESTRICT accY, const uint8_t* const NMH_RESTRICT p)
+{
+	/* breadth first calculation will hint some compiler to auto vectorize the code
+	 * on gcc, the performance becomes 10x than the depth first, and about 80% of the manually vectorized code
+	 */
+	const size_t nbGroups = sizeof(NMH_ACC_INIT) / sizeof(*NMH_ACC_INIT);
+	size_t i;
+	
+	for (i = 0; i < nbGroups; ++i) {
+		accX[i] ^= NMH_readLE32(p + i * 4);
+	}
+	for (i = 0; i < nbGroups; ++i) {
+		accY[i] ^= NMH_readLE32(p + i * 4 + sizeof(NMH_ACC_INIT));
+	}
+	for (i = 0; i < nbGroups; ++i) {
+		accX[i] += accY[i];
+	}
+	for (i = 0; i < nbGroups; ++i) {
+		accY[i] ^= accX[i] >> 1;
+	}
+	for (i = 0; i < nbGroups * 2; ++i) {
+		((uint16_t*)accX)[i] *= ((uint16_t*)__NMH_M1_V)[i];
+	}
+	for (i = 0; i < nbGroups; ++i) {
+		accX[i] ^= accX[i] << 5 ^ accX[i] >> 13;
+	}
+	for (i = 0; i < nbGroups * 2; ++i) {
+		((uint16_t*)accX)[i] *= ((uint16_t*)__NMH_M2_V)[i];
+	}
+	for (i = 0; i < nbGroups; ++i) {
+		accX[i] ^= accY[i];
+	}
+	for (i = 0; i < nbGroups; ++i) {
+		accX[i] ^= accX[i] << 11 ^ accX[i] >> 9;
+	}
+	for (i = 0; i < nbGroups * 2; ++i) {
+		((uint16_t*)accX)[i] *= ((uint16_t*)__NMH_M3_V)[i];
+	}
+	for (i = 0; i < nbGroups; ++i) {
+		accX[i] ^= accX[i] >> 10 ^ accX[i] >> 20;
+	}
+}
+#endif
+#if NMH_VECTOR == NMH_SSE2
+#  define _NMH_MM_(F) _mm_ ## F
+#  define _NMH_MMW_(F) _mm_ ## F ## 128
+#  define _NMH_MM_T __m128i
+#elif NMH_VECTOR == NMH_AVX2
+#  define _NMH_MM_(F) _mm256_ ## F
+#  define _NMH_MMW_(F) _mm256_ ## F ## 256
+#  define _NMH_MM_T __m256i
+#elif NMH_VECTOR == NMH_AVX512
+#  define _NMH_MM_(F) _mm512_ ## F
+#  define _NMH_MMW_(F) _mm512_ ## F ## 512
+#  define _NMH_MM_T __m512i
+#endif
+#if NMH_VECTOR == NMH_SSE2 || NMH_VECTOR == NMH_AVX2 || NMH_VECTOR == NMH_AVX512
+#  define NMHASH32_long_round NMHASH32_long_round_sse
+#  define NMH_VECTOR_NB_GROUP (sizeof(NMH_ACC_INIT) / sizeof(*NMH_ACC_INIT) / (sizeof(_NMH_MM_T) / sizeof(*NMH_ACC_INIT)))
+static inline
+void
+NMHASH32_long_round_sse(uint32_t* const NMH_RESTRICT accX, uint32_t* const NMH_RESTRICT accY, const uint8_t* const NMH_RESTRICT p)
+{
+	const _NMH_MM_T *const NMH_RESTRICT m1    = (const _NMH_MM_T * NMH_RESTRICT)__NMH_M1_V;
+	const _NMH_MM_T *const NMH_RESTRICT m2    = (const _NMH_MM_T * NMH_RESTRICT)__NMH_M2_V;
+	const _NMH_MM_T *const NMH_RESTRICT m3    = (const _NMH_MM_T * NMH_RESTRICT)__NMH_M3_V;
+		  _NMH_MM_T *const              xaccX = (      _NMH_MM_T *             )accX;
+		  _NMH_MM_T *const              xaccY = (      _NMH_MM_T *             )accY;
+		  _NMH_MM_T *const              xp    = (      _NMH_MM_T *             )p;
+	size_t i;
+	
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MMW_(xor_si)(xaccX[i], _NMH_MMW_(loadu_si)(xp + i));
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccY[i] = _NMH_MMW_(xor_si)(xaccY[i], _NMH_MMW_(loadu_si)(xp + i + NMH_VECTOR_NB_GROUP));
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MM_(add_epi32)(xaccX[i], xaccY[i]);
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccY[i] = _NMH_MMW_(xor_si)(xaccY[i], _NMH_MM_(srli_epi32)(xaccX[i], 1));
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MM_(mullo_epi16)(xaccX[i], *m1);
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MMW_(xor_si)(_NMH_MMW_(xor_si)(xaccX[i], _NMH_MM_(slli_epi32)(xaccX[i], 5)), _NMH_MM_(srli_epi32)(xaccX[i], 13));
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MM_(mullo_epi16)(xaccX[i], *m2);
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MMW_(xor_si)(xaccX[i], xaccY[i]);
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MMW_(xor_si)(_NMH_MMW_(xor_si)(xaccX[i], _NMH_MM_(slli_epi32)(xaccX[i], 11)), _NMH_MM_(srli_epi32)(xaccX[i], 9));
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MM_(mullo_epi16)(xaccX[i], *m3);
+	}
+	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
+		xaccX[i] = _NMH_MMW_(xor_si)(_NMH_MMW_(xor_si)(xaccX[i], _NMH_MM_(srli_epi32)(xaccX[i], 10)), _NMH_MM_(srli_epi32)(xaccX[i], 20));
+	}
+}
+#  undef _NMH_MM_
+#  undef _NMH_MMW_
+#  undef _NMH_MM_T
+#  undef NMH_VECTOR_NB_GROUP
+#endif
+static
+uint32_t
+NMHASH32_long(const uint8_t* const NMH_RESTRICT p, size_t const len, uint32_t const seed)
+{
+	NMH_ALIGN(NMH_ACC_ALIGN) uint32_t accX[sizeof(NMH_ACC_INIT)/sizeof(*NMH_ACC_INIT)];
+	NMH_ALIGN(NMH_ACC_ALIGN) uint32_t accY[sizeof(accX)/sizeof(*accX)];
+	size_t const nbRounds = (len - 1) / (sizeof(accX) + sizeof(accY));
+	size_t i;
+	uint32_t sum = 0;
+	
+	/* init */
+	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) accX[i] = NMH_ACC_INIT[i];
+	for (i = 0; i < sizeof(accY)/sizeof(*accY); ++i) accY[i] = seed;
+	
+	for (i = 0; i < nbRounds; ++i) {
+		NMHASH32_long_round(accX, accY, p + i * (sizeof(accX) + sizeof(accY)));
+	}
+	NMHASH32_long_round(accX, accY, p + len - (sizeof(accX) + sizeof(accY)));
+	
+	/* merge acc */
+	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) accX[i] ^= NMH_ACC_INIT[i];
+	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) sum += accX[i];
+	
+#	if SIZE_MAX > UINT32_C(-1)
+	sum += (uint32_t)(len >> 32);
+#	endif
+	return sum ^ (uint32_t)len;
+}
+static inline
+uint32_t
+NMHASH32X_0to4(uint32_t x, uint32_t const seed)
+{
+	/* [bdab1ea9 18 a7896a1b 12 83796a2d 16] = 0.092922873297662509 */
+	x ^= seed;
+	x *= UINT32_C(0xBDAB1EA9);
+	x += NMH_rotl32(seed, 31);
+	x ^= x >> 18;
+	x *= UINT32_C(0xA7896A1B);
+	x ^= x >> 12;
+	x *= UINT32_C(0x83796A2D);
+	x ^= x >> 16;
+	return x;
+}
+static inline
+uint32_t
+NMHASH32X_5to8(const uint8_t* const NMH_RESTRICT p, size_t const len, uint32_t const seed)
+{
+	/* - 5 to 9 bytes
+	 * - mixer: [11049a7d 23 bcccdc7b 12 065e9dad 12] = 0.16577596555667246 */
+	
+	uint32_t       x = NMH_readLE32(p) ^ NMH_PRIME32_3;
+	uint32_t const y = NMH_readLE32(p + len - 4) ^ seed;
+	x += y;
+	x ^= x >> len;
+	x *= UINT32_C(0x11049A7D);
+	x ^= x >> 23;
+	x *= UINT32_C(0xBCCCDC7B);
+	x ^= NMH_rotl32(y, 3);
+	x ^= x >> 12;
+	x *= UINT32_C(0x065E9DAD);
+	x ^= x >> 12;
+	return x;
+}
+static inline
+uint32_t
+NMHASH32X_9to255(const uint8_t* const NMH_RESTRICT p, size_t const len, uint32_t const seed)
+{
+	/* - at least 9 bytes
+	 * - base mixer: [11049a7d 23 bcccdc7b 12 065e9dad 12] = 0.16577596555667246
+	 * - tail mixer: [16 a52fb2cd 15 551e4d49 16] = 0.17162579707098322
+	 */
+	
+	uint32_t x = NMH_PRIME32_3;
+	uint32_t y = seed;
+	uint32_t a = NMH_PRIME32_4;
+	uint32_t b = seed;
+	size_t i, r = (len - 1) / 16;
+	
+	for (i = 0; i < r; ++i) {
+		x ^= NMH_readLE32(p + i * 16 + 0);
+		y ^= NMH_readLE32(p + i * 16 + 4);
+		x ^= y;
+		x *= UINT32_C(0x11049A7D);
+		x ^= x >> 23;
+		x *= UINT32_C(0xBCCCDC7B);
+		y  = NMH_rotl32(y, 4);
+		x ^= y;
+		x ^= x >> 12;
+		x *= UINT32_C(0x065E9DAD);
+		x ^= x >> 12;
+		a ^= NMH_readLE32(p + i * 16 + 8);
+		b ^= NMH_readLE32(p + i * 16 + 12);
+		a ^= b;
+		a *= UINT32_C(0x11049A7D);
+		a ^= a >> 23;
+		a *= UINT32_C(0xBCCCDC7B);
+		b  = NMH_rotl32(b, 3);
+		a ^= b;
+		a ^= a >> 12;
+		a *= UINT32_C(0x065E9DAD);
+		a ^= a >> 12;
+	}
+	
+	if (NMH_likely(((uint8_t)len-1) & 8)) {
+		if (NMH_likely(((uint8_t)len-1) & 4)) {
+			a ^= NMH_readLE32(p + r * 16 + 0);
+			b ^= NMH_readLE32(p + r * 16 + 4);
+			a ^= b;
+			a *= UINT32_C(0x11049A7D);
+			a ^= a >> 23;
+			a *= UINT32_C(0xBCCCDC7B);
+			a ^= NMH_rotl32(b, 4);
+			a ^= a >> 12;
+			a *= UINT32_C(0x065E9DAD);
+		} else {
+			a ^= NMH_readLE32(p + r * 16) + b;
+			a ^= a >> 16;
+			a *= UINT32_C(0xA52FB2CD);
+			a ^= a >> 15;
+			a *= UINT32_C(0x551E4D49);
+		}
+		
+		x ^= NMH_readLE32(p + len - 8);
+		y ^= NMH_readLE32(p + len - 4);
+		x ^= y;
+		x *= UINT32_C(0x11049A7D);
+		x ^= x >> 23;
+		x *= UINT32_C(0xBCCCDC7B);
+		x ^= NMH_rotl32(y, 3);
+		x ^= x >> 12;
+		x *= UINT32_C(0x065E9DAD);
+	} else {
+		if (NMH_likely(((uint8_t)len-1) & 4)) {
+			a ^= NMH_readLE32(p + r * 16) + b;
+			a ^= a >> 16;
+			a *= UINT32_C(0xA52FB2CD);
+			a ^= a >> 15;
+			a *= UINT32_C(0x551E4D49);
+		}
+		x ^= NMH_readLE32(p + len - 4) + y;
+		x ^= x >> 16;
+		x *= UINT32_C(0xA52FB2CD);
+		x ^= x >> 15;
+		x *= UINT32_C(0x551E4D49);
+	}
+	
+	x ^= (uint32_t)len;
+	x ^= NMH_rotl32(a, 27); /* rotate one lane to pass Diff test */
+	x ^= x >> 14;
+	x *= UINT32_C(0x141CC535);
+	
+	return x;
+}
+static inline
+uint32_t
+NMHASH32X_avalanche32(uint32_t x)
+{
+	/* mixer with 2 mul from skeeto/hash-prospector:
+	 * [15 d168aaad 15 af723597 15] = 0.15983776156606694
+	 */
+	x ^= x >> 15;
+	x *= UINT32_C(0xD168AAAD);
+	x ^= x >> 15;
+	x *= UINT32_C(0xAF723597);
+	x ^= x >> 15;
+	return x;
+}
+/* use 32*32->32 multiplication for short hash */
+static inline
+uint32_t
+NMHASH32X(const void* const NMH_RESTRICT input, size_t const len, uint32_t seed)
+{
+	const uint8_t *const p = (const uint8_t *)input;
+	if (NMH_likely(len <= 8)) {
+		if (NMH_likely(len > 4)) {
+			return NMHASH32X_5to8(p, len, seed);
+		} else {
+			/* 0-4 bytes */
+			union { uint32_t u32; uint16_t u16[2]; uint8_t u8[4]; } data;
+			switch (len) {
+				case 0: seed += NMH_PRIME32_2;
+					data.u32 = 0;
+					break;
+				case 1: seed += NMH_PRIME32_2 + (UINT32_C(1) << 24) + (1 << 1);
+					data.u32 = p[0];
+					break;
+				case 2: seed += NMH_PRIME32_2 + (UINT32_C(2) << 24) + (2 << 1);
+					data.u32 = NMH_readLE16(p);
+					break;
+				case 3: seed += NMH_PRIME32_2 + (UINT32_C(3) << 24) + (3 << 1);
+					data.u16[1] = p[2];
+					data.u16[0] = NMH_readLE16(p);
+					break;
+				case 4: seed += NMH_PRIME32_1;
+					data.u32 = NMH_readLE32(p);
+					break;
+				default: return 0;
+			}
+			return NMHASH32X_0to4(data.u32, seed);
+		}
+	}
+	if (NMH_likely(len < 256)) {
+		return NMHASH32X_9to255(p, len, seed);
+	}
+	return NMHASH32X_avalanche32(NMHASH32_long(p, len, seed));
+}
+#if defined(_MSC_VER) && _MSC_VER >= 1914
+#  pragma warning(pop)
+#endif
+#ifdef __SDCC
+#  pragma restore
+#  undef const
+#endif
+// 计算 32 位哈希值
+XXAPI uint32 xrtHash32_WithSeed(ptr key, size_t len, uint32 seed)
+{
+	return NMHASH32X(key, len, seed);
+}
+XXAPI uint32 xrtHash32(ptr key, size_t len)
+{
+	return xrtHash32_WithSeed(key, len, HASH32_SEED);
+}
+/*
+Hash64 - rapidhash [Ver3.0, Update : 2025/08/14 from https://github.com/Nicoshev/rapidhash]
+	修改：
+		删除头文件引入：<stdint.h> 和 <string.h>（最上面已经引入）
+	使用协议注意事项：
+		BSD 2-Clause 协议
+		允许个人使用、商业使用
+		复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
+*/
+/*
+ * rapidhash - Very fast, high quality, platform-independent hashing algorithm.
+ * Copyright (C) 2024 Nicolas De Carli
+ *
+ * Based on 'wyhash', by Wang Yi <godspeed_china@yeah.net>
+ *
+ * BSD 2-Clause License (https://www.opensource.org/licenses/bsd-license.php)
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above
+ *      copyright notice, this list of conditions and the following disclaimer
+ *      in the documentation and/or other materials provided with the
+ *      distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * You can contact the author at:
+ *   - rapidhash source repository: https://github.com/Nicoshev/rapidhash
+ */
+/*
+ *  Includes.
+ */
+ #if defined(_MSC_VER)
+ # include <intrin.h>
+ # if defined(_M_X64) && !defined(_M_ARM64EC)
+ #   pragma intrinsic(_umul128)
+ # endif
+ #endif
+ 
+ /*
+  *  C/C++ macros.
+  */
+ 
+ #ifdef _MSC_VER
+ # define RAPIDHASH_ALWAYS_INLINE __forceinline
+ #elif defined(__GNUC__)
+ # define RAPIDHASH_ALWAYS_INLINE inline __attribute__((__always_inline__))
+ #else
+ # define RAPIDHASH_ALWAYS_INLINE inline
+ #endif
+ 
+ #ifdef __cplusplus
+ # define RAPIDHASH_NOEXCEPT noexcept
+ # define RAPIDHASH_CONSTEXPR constexpr
+ # ifndef RAPIDHASH_INLINE
+ #   define RAPIDHASH_INLINE RAPIDHASH_ALWAYS_INLINE
+ # endif
+ # if __cplusplus >= 201402L && !defined(_MSC_VER)
+ #   define RAPIDHASH_INLINE_CONSTEXPR RAPIDHASH_ALWAYS_INLINE constexpr
+ # else
+ #   define RAPIDHASH_INLINE_CONSTEXPR RAPIDHASH_ALWAYS_INLINE
+ # endif
+ #else
+ # define RAPIDHASH_NOEXCEPT
+ # define RAPIDHASH_CONSTEXPR static const
+ # ifndef RAPIDHASH_INLINE
+ #   define RAPIDHASH_INLINE static RAPIDHASH_ALWAYS_INLINE
+ # endif
+ # define RAPIDHASH_INLINE_CONSTEXPR RAPIDHASH_INLINE
+ #endif
+ /*
+  *  Unrolled macro.
+  *  Improves large input speed, but increases code size and worsens small input speed.
+  *
+  *  RAPIDHASH_COMPACT: Normal behavior.
+  *  RAPIDHASH_UNROLLED: 
+  *
+  */
+  #ifndef RAPIDHASH_UNROLLED
+  # define RAPIDHASH_COMPACT
+  #elif defined(RAPIDHASH_COMPACT)
+  # error "cannot define RAPIDHASH_COMPACT and RAPIDHASH_UNROLLED simultaneously."
+  #endif
+ 
+ /*
+  *  Protection macro, alters behaviour of rapid_mum multiplication function.
+  *
+  *  RAPIDHASH_FAST: Normal behavior, max speed.
+  *  RAPIDHASH_PROTECTED: Extra protection against entropy loss.
+  */
+ #ifndef RAPIDHASH_PROTECTED
+ # define RAPIDHASH_FAST
+ #elif defined(RAPIDHASH_FAST)
+ # error "cannot define RAPIDHASH_PROTECTED and RAPIDHASH_FAST simultaneously."
+ #endif
+ 
+ /*
+  *  Likely and unlikely macros.
+  */
+ #if defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
+ # define _likely_(x)  __builtin_expect(x,1)
+ # define _unlikely_(x)  __builtin_expect(x,0)
+ #else
+ # define _likely_(x) (x)
+ # define _unlikely_(x) (x)
+ #endif
+ 
+ /*
+  *  Endianness macros.
+  */
+ #ifndef RAPIDHASH_LITTLE_ENDIAN
+ # if defined(_WIN32) || defined(__LITTLE_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+ #   define RAPIDHASH_LITTLE_ENDIAN
+ # elif defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+ #   define RAPIDHASH_BIG_ENDIAN
+ # else
+ #   warning "could not determine endianness! Falling back to little endian."
+ #   define RAPIDHASH_LITTLE_ENDIAN
+ # endif
+ #endif
+ 
+ /*
+  *  Default secret parameters.
+  */
+   RAPIDHASH_CONSTEXPR uint64_t rapid_secret[8] = {
+     0x2d358dccaa6c78a5ull,
+     0x8bb84b93962eacc9ull,
+     0x4b33a62ed433d4a3ull,
+     0x4d5a2da51de1aa47ull,
+     0xa0761d6478bd642full,
+     0xe7037ed1a0b428dbull,
+     0x90ed1765281c388cull,
+     0xaaaaaaaaaaaaaaaaull};
+ 
+ /*
+  *  64*64 -> 128bit multiply function.
+  *
+  *  @param A  Address of 64-bit number.
+  *  @param B  Address of 64-bit number.
+  *
+  *  Calculates 128-bit C = *A * *B.
+  *
+  *  When RAPIDHASH_FAST is defined:
+  *  Overwrites A contents with C's low 64 bits.
+  *  Overwrites B contents with C's high 64 bits.
+  *
+  *  When RAPIDHASH_PROTECTED is defined:
+  *  Xors and overwrites A contents with C's low 64 bits.
+  *  Xors and overwrites B contents with C's high 64 bits.
+  */
+ RAPIDHASH_INLINE_CONSTEXPR void rapid_mum(uint64_t *A, uint64_t *B) RAPIDHASH_NOEXCEPT {
+ #if defined(__SIZEOF_INT128__)
+   __uint128_t r=*A; r*=*B;
+   #ifdef RAPIDHASH_PROTECTED
+   *A^=(uint64_t)r; *B^=(uint64_t)(r>>64);
+   #else
+   *A=(uint64_t)r; *B=(uint64_t)(r>>64);
+   #endif
+ #elif defined(_MSC_VER) && (defined(_WIN64) || defined(_M_HYBRID_CHPE_ARM64))
+   #if defined(_M_X64)
+     #ifdef RAPIDHASH_PROTECTED
+     uint64_t a, b;
+     a=_umul128(*A,*B,&b);
+     *A^=a;  *B^=b;
+     #else
+     *A=_umul128(*A,*B,B);
+     #endif
+   #else
+     #ifdef RAPIDHASH_PROTECTED
+     uint64_t a, b;
+     b = __umulh(*A, *B);
+     a = *A * *B;
+     *A^=a;  *B^=b;
+     #else
+     uint64_t c = __umulh(*A, *B);
+     *A = *A * *B;
+     *B = c;
+     #endif
+   #endif
+ #else
+   uint64_t ha=*A>>32, hb=*B>>32, la=(uint32_t)*A, lb=(uint32_t)*B;
+   uint64_t rh=ha*hb, rm0=ha*lb, rm1=hb*la, rl=la*lb, t=rl+(rm0<<32), c=t<rl;
+   uint64_t lo=t+(rm1<<32); 
+   c+=lo<t; 
+   uint64_t hi=rh+(rm0>>32)+(rm1>>32)+c;
+   #ifdef RAPIDHASH_PROTECTED
+   *A^=lo;  *B^=hi;
+   #else
+   *A=lo;  *B=hi;
+   #endif
+ #endif
+ }
+ 
+ /*
+  *  Multiply and xor mix function.
+  *
+  *  @param A  64-bit number.
+  *  @param B  64-bit number.
+  *
+  *  Calculates 128-bit C = A * B.
+  *  Returns 64-bit xor between high and low 64 bits of C.
+  */
+  RAPIDHASH_INLINE_CONSTEXPR uint64_t rapid_mix(uint64_t A, uint64_t B) RAPIDHASH_NOEXCEPT { rapid_mum(&A,&B); return A^B; }
+ 
+ /*
+  *  Read functions.
+  */
+ #ifdef RAPIDHASH_LITTLE_ENDIAN
+ RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint64_t v; memcpy(&v, p, sizeof(uint64_t)); return v;}
+ RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint32_t v; memcpy(&v, p, sizeof(uint32_t)); return v;}
+ #elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
+ RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint64_t v; memcpy(&v, p, sizeof(uint64_t)); return __builtin_bswap64(v);}
+ RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint32_t v; memcpy(&v, p, sizeof(uint32_t)); return __builtin_bswap32(v);}
+ #elif defined(_MSC_VER)
+ RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint64_t v; memcpy(&v, p, sizeof(uint64_t)); return _byteswap_uint64(v);}
+ RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint32_t v; memcpy(&v, p, sizeof(uint32_t)); return _byteswap_ulong(v);}
+ #else
+ RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT {
+   uint64_t v; memcpy(&v, p, 8);
+   return (((v >> 56) & 0xff)| ((v >> 40) & 0xff00)| ((v >> 24) & 0xff0000)| ((v >>  8) & 0xff000000)| ((v <<  8) & 0xff00000000)| ((v << 24) & 0xff0000000000)| ((v << 40) & 0xff000000000000)| ((v << 56) & 0xff00000000000000));
+ }
+ RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT {
+   uint32_t v; memcpy(&v, p, 4);
+   return (((v >> 24) & 0xff)| ((v >>  8) & 0xff00)| ((v <<  8) & 0xff0000)| ((v << 24) & 0xff000000));
+ }
+ #endif
+ 
+ /*
+  *  rapidhash main function.
+  *
+  *  @param key     Buffer to be hashed.
+  *  @param len     @key length, in bytes.
+  *  @param seed    64-bit seed used to alter the hash result predictably.
+  *  @param secret  Triplet of 64-bit secrets used to alter hash result predictably.
+  *
+  *  Returns a 64-bit hash.
+  */
+RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhash_internal(const void *key, size_t len, uint64_t seed, const uint64_t* secret) RAPIDHASH_NOEXCEPT {
+  const uint8_t *p=(const uint8_t *)key;
+  seed ^= rapid_mix(seed ^ secret[2], secret[1]);
+  uint64_t a=0, b=0;
+  size_t i = len;
+  if (_likely_(len <= 16)) {
+    if (len >= 4) {
+      seed ^= len;
+      if (len >= 8) {
+        const uint8_t* plast = p + len - 8;
+        a = rapid_read64(p);
+        b = rapid_read64(plast);
+      } else {
+        const uint8_t* plast = p + len - 4;
+        a = rapid_read32(p);
+        b = rapid_read32(plast);
+      }
+    } else if (len > 0) {
+      a = (((uint64_t)p[0])<<45)|p[len-1];
+      b = p[len>>1];
+    } else
+      a = b = 0;
+  } else {
+    uint64_t see1 = seed, see2 = seed;
+    uint64_t see3 = seed, see4 = seed;
+    uint64_t see5 = seed, see6 = seed;
+#ifdef RAPIDHASH_COMPACT
+    if (i > 112) {
+      do {
+        seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
+        see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
+        see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
+        see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
+        see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
+        see5 = rapid_mix(rapid_read64(p + 80) ^ secret[5], rapid_read64(p + 88) ^ see5);
+        see6 = rapid_mix(rapid_read64(p + 96) ^ secret[6], rapid_read64(p + 104) ^ see6);
+        p += 112;
+        i -= 112;
+      } while(i > 112);
+      seed ^= see1;
+      see2 ^= see3;
+      see4 ^= see5;
+      seed ^= see6;
+      see2 ^= see4;
+      seed ^= see2;
+    }
+#else 
+    if (i > 224) {
+      do {
+          seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
+          see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
+          see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
+          see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
+          see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
+          see5 = rapid_mix(rapid_read64(p + 80) ^ secret[5], rapid_read64(p + 88) ^ see5);
+          see6 = rapid_mix(rapid_read64(p + 96) ^ secret[6], rapid_read64(p + 104) ^ see6);
+          seed = rapid_mix(rapid_read64(p + 112) ^ secret[0], rapid_read64(p + 120) ^ seed);
+          see1 = rapid_mix(rapid_read64(p + 128) ^ secret[1], rapid_read64(p + 136) ^ see1);
+          see2 = rapid_mix(rapid_read64(p + 144) ^ secret[2], rapid_read64(p + 152) ^ see2);
+          see3 = rapid_mix(rapid_read64(p + 160) ^ secret[3], rapid_read64(p + 168) ^ see3);
+          see4 = rapid_mix(rapid_read64(p + 176) ^ secret[4], rapid_read64(p + 184) ^ see4);
+          see5 = rapid_mix(rapid_read64(p + 192) ^ secret[5], rapid_read64(p + 200) ^ see5);
+          see6 = rapid_mix(rapid_read64(p + 208) ^ secret[6], rapid_read64(p + 216) ^ see6);
+          p += 224;
+          i -= 224;
+      } while (i > 224);
+    }
+    if (i > 112) {
+      seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
+      see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
+      see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
+      see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
+      see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
+      see5 = rapid_mix(rapid_read64(p + 80) ^ secret[5], rapid_read64(p + 88) ^ see5);
+      see6 = rapid_mix(rapid_read64(p + 96) ^ secret[6], rapid_read64(p + 104) ^ see6);
+      p += 112;
+      i -= 112;
+    }
+    seed ^= see1;
+    see2 ^= see3;
+    see4 ^= see5;
+    seed ^= see6;
+    see2 ^= see4;
+    seed ^= see2;
+#endif
+    if (i > 16) {
+      seed = rapid_mix(rapid_read64(p) ^ secret[2], rapid_read64(p + 8) ^ seed);
+      if (i > 32) {
+          seed = rapid_mix(rapid_read64(p + 16) ^ secret[2], rapid_read64(p + 24) ^ seed);
+          if (i > 48) {
+              seed = rapid_mix(rapid_read64(p + 32) ^ secret[1], rapid_read64(p + 40) ^ seed);
+              if (i > 64) {
+                  seed = rapid_mix(rapid_read64(p + 48) ^ secret[1], rapid_read64(p + 56) ^ seed);
+                  if (i > 80) {
+                      seed = rapid_mix(rapid_read64(p + 64) ^ secret[2], rapid_read64(p + 72) ^ seed);
+                      if (i > 96) {
+                          seed = rapid_mix(rapid_read64(p + 80) ^ secret[1], rapid_read64(p + 88) ^ seed);
+                      }
+                  }
+              }
+          }
+      }
+    }
+    a=rapid_read64(p+i-16) ^ i;  b=rapid_read64(p+i-8);
+  }
+  a ^= secret[1];
+  b ^= seed;
+  rapid_mum(&a, &b);
+  return rapid_mix(a ^ secret[7], b ^ secret[1] ^ i);
+}
+ /*
+  *  rapidhashMicro main function.
+  *
+  *  @param key     Buffer to be hashed.
+  *  @param len     @key length, in bytes.
+  *  @param seed    64-bit seed used to alter the hash result predictably.
+  *  @param secret  Triplet of 64-bit secrets used to alter hash result predictably.
+  *
+  *  Returns a 64-bit hash.
+  */
+  RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashMicro_internal(const void *key, size_t len, uint64_t seed, const uint64_t* secret) RAPIDHASH_NOEXCEPT {
+    const uint8_t *p=(const uint8_t *)key;
+    seed ^= rapid_mix(seed ^ secret[2], secret[1]);
+    uint64_t a=0, b=0;
+    size_t i = len;
+    if (_likely_(len <= 16)) {
+      if (len >= 4) {
+        seed ^= len;
+        if (len >= 8) {
+          const uint8_t* plast = p + len - 8;
+          a = rapid_read64(p);
+          b = rapid_read64(plast);
+        } else {
+          const uint8_t* plast = p + len - 4;
+          a = rapid_read32(p);
+          b = rapid_read32(plast);
+        }
+      } else if (len > 0) {
+        a = (((uint64_t)p[0])<<45)|p[len-1];
+        b = p[len>>1];
+      } else
+        a = b = 0;
+    } else {
+      if (i > 80) {
+        uint64_t see1 = seed, see2 = seed;
+        uint64_t see3 = seed, see4 = seed;
+        do {
+          seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
+          see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
+          see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
+          see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
+          see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
+          p += 80;
+          i -= 80;
+        } while(i > 80);
+        seed ^= see1;
+        see2 ^= see3;
+        seed ^= see4;
+        seed ^= see2;
+      }
+      if (i > 16) {
+        seed = rapid_mix(rapid_read64(p) ^ secret[2], rapid_read64(p + 8) ^ seed);
+        if (i > 32) {
+            seed = rapid_mix(rapid_read64(p + 16) ^ secret[2], rapid_read64(p + 24) ^ seed);
+            if (i > 48) {
+                seed = rapid_mix(rapid_read64(p + 32) ^ secret[1], rapid_read64(p + 40) ^ seed);
+                if (i > 64) {
+                    seed = rapid_mix(rapid_read64(p + 48) ^ secret[1], rapid_read64(p + 56) ^ seed);
+                }
+            }
+        }
+      }
+      a=rapid_read64(p+i-16) ^ i;  b=rapid_read64(p+i-8);
+    }
+    a ^= secret[1];
+    b ^= seed;
+    rapid_mum(&a, &b);
+    return rapid_mix(a ^ secret[7], b ^ secret[1] ^ i);
+  }
+  /*
+  *  rapidhashNano main function.
+  *
+  *  @param key     Buffer to be hashed.
+  *  @param len     @key length, in bytes.
+  *  @param seed    64-bit seed used to alter the hash result predictably.
+  *  @param secret  Triplet of 64-bit secrets used to alter hash result predictably.
+  *
+  *  Returns a 64-bit hash.
+  */
+  RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashNano_internal(const void *key, size_t len, uint64_t seed, const uint64_t* secret) RAPIDHASH_NOEXCEPT {
+    const uint8_t *p=(const uint8_t *)key;
+    seed ^= rapid_mix(seed ^ secret[2], secret[1]);
+    uint64_t a=0, b=0;
+    size_t i = len;
+    if (_likely_(len <= 16)) {
+      if (len >= 4) {
+        seed ^= len;
+        if (len >= 8) {
+          const uint8_t* plast = p + len - 8;
+          a = rapid_read64(p);
+          b = rapid_read64(plast);
+        } else {
+          const uint8_t* plast = p + len - 4;
+          a = rapid_read32(p);
+          b = rapid_read32(plast);
+        }
+      } else if (len > 0) {
+        a = (((uint64_t)p[0])<<45)|p[len-1];
+        b = p[len>>1];
+      } else
+        a = b = 0;
+    } else {
+      if (i > 48) {
+        uint64_t see1 = seed, see2 = seed;
+        do {
+          seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
+          see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
+          see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
+          p += 48;
+          i -= 48;
+        } while(i > 48);
+        seed ^= see1;
+        seed ^= see2;
+      }
+      if (i > 16) {
+        seed = rapid_mix(rapid_read64(p) ^ secret[2], rapid_read64(p + 8) ^ seed);
+        if (i > 32) {
+            seed = rapid_mix(rapid_read64(p + 16) ^ secret[2], rapid_read64(p + 24) ^ seed);
+        }
+      }
+      a=rapid_read64(p+i-16) ^ i;  b=rapid_read64(p+i-8);
+    }
+    a ^= secret[1];
+    b ^= seed;
+    rapid_mum(&a, &b);
+    return rapid_mix(a ^ secret[7], b ^ secret[1] ^ i);
+  }
+ 
+/*
+ *  rapidhash seeded hash function.
+ *
+ *  @param key     Buffer to be hashed.
+ *  @param len     @key length, in bytes.
+ *  @param seed    64-bit seed used to alter the hash result predictably.
+ *
+ *  Calls rapidhash_internal using provided parameters and default secrets.
+ *
+ *  Returns a 64-bit hash.
+ */
+RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhash_withSeed(const void *key, size_t len, uint64_t seed) RAPIDHASH_NOEXCEPT {
+  return rapidhash_internal(key, len, seed, rapid_secret);
+}
+ 
+/*
+ *  rapidhash general purpose hash function.
+ *
+ *  @param key     Buffer to be hashed.
+ *  @param len     @key length, in bytes.
+ *
+ *  Calls rapidhash_withSeed using provided parameters and the default seed.
+ *
+ *  Returns a 64-bit hash.
+ */
+RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhash(const void *key, size_t len) RAPIDHASH_NOEXCEPT {
+  return rapidhash_withSeed(key, len, 0);
+}
+/*
+ *  rapidhashMicro seeded hash function.
+ *
+ *  Designed for HPC and server applications, where cache misses make a noticeable performance detriment.
+ *  Clang-18+ compiles it to ~140 instructions without stack usage, both on x86-64 and aarch64.
+ *  Faster for sizes up to 512 bytes, just 15%-20% slower for inputs above 1kb.
+ *
+ *  @param key     Buffer to be hashed.
+ *  @param len     @key length, in bytes.
+ *  @param seed    64-bit seed used to alter the hash result predictably.
+ *
+ *  Calls rapidhash_internal using provided parameters and default secrets.
+ *
+ *  Returns a 64-bit hash.
+ */
+ RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashMicro_withSeed(const void *key, size_t len, uint64_t seed) RAPIDHASH_NOEXCEPT {
+  return rapidhashMicro_internal(key, len, seed, rapid_secret);
+}
+ 
+/*
+ *  rapidhashMicro hash function.
+ *
+ *  @param key     Buffer to be hashed.
+ *  @param len     @key length, in bytes.
+ *
+ *  Calls rapidhash_withSeed using provided parameters and the default seed.
+ *
+ *  Returns a 64-bit hash.
+ */
+RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashMicro(const void *key, size_t len) RAPIDHASH_NOEXCEPT {
+  return rapidhashMicro_withSeed(key, len, 0);
+}
+/*
+ *  rapidhashNano seeded hash function.
+ *
+ *  @param key     Buffer to be hashed.
+ *  @param len     @key length, in bytes.
+ *  @param seed    64-bit seed used to alter the hash result predictably.
+ *
+ *  Calls rapidhash_internal using provided parameters and default secrets.
+ *
+ *  Returns a 64-bit hash.
+ */
+ RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashNano_withSeed(const void *key, size_t len, uint64_t seed) RAPIDHASH_NOEXCEPT {
+  return rapidhashNano_internal(key, len, seed, rapid_secret);
+}
+ 
+/*
+ *  rapidhashNano hash function.
+ *
+ *  Designed for Mobile and embedded applications, where keeping a small code size is a top priority.
+ *  Clang-18+ compiles it to less than 100 instructions without stack usage, both on x86-64 and aarch64.
+ *  The fastest for sizes up to 48 bytes, but may be considerably slower for larger inputs.
+ *
+ *  @param key     Buffer to be hashed.
+ *  @param len     @key length, in bytes.
+ *
+ *  Calls rapidhash_withSeed using provided parameters and the default seed.
+ *
+ *  Returns a 64-bit hash.
+ */
+RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashNano(const void *key, size_t len) RAPIDHASH_NOEXCEPT {
+  return rapidhashNano_withSeed(key, len, 0);
+}
+// 计算 64 位哈希值
+XXAPI uint64 xrtHash64_WithSeed(ptr key, size_t len, uint64 seed)
+{
+	return rapidhash_internal(key, len, seed, rapid_secret);
+}
+XXAPI uint64 xrtHash64(ptr key, size_t len)
+{
+	return xrtHash64_WithSeed(key, len, 0);
+}
+XXAPI uint64 xrtHash64_Micro_WithSeed(ptr key, size_t len, uint64 seed)
+{
+	return rapidhashMicro_internal(key, len, seed, rapid_secret);
+}
+XXAPI uint64 xrtHash64_Micro(ptr key, size_t len)
+{
+	return xrtHash64_Micro_WithSeed(key, len, 0);
+}
+XXAPI uint64 xrtHash64_Nano_WithSeed(ptr key, size_t len, uint64 seed)
+{
+	return rapidhashNano_internal(key, len, seed, rapid_secret);
+}
+XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
+{
+	return xrtHash64_Nano_WithSeed(key, len, 0);
+}
+
+// ========================================
+// File: D:/git/xrt/lib/charset.h
+// ========================================
+
+
+// utf8 字符长度码表
+static char BytesExtraTableUTF8[256] = {
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, 3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5
+};
+// utf-8 转 utf-16（ 需使用 xrtFree 释放 ）
+XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
+{
+	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	// 计算数据长度和转换长度
+	size_t iPos = 0;
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			char iExtraBytes = BytesExtraTableUTF8[sText[iSize]];
+			if ( iExtraBytes < 3 ) {
+				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
+				iPos++;
+			} else if ( iExtraBytes == 3 ) {
+				// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
+				iPos += 2;
+			} else {
+				// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
+				iPos++;
+			}
+			iSize += iExtraBytes + 1;
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+			if ( iExtraBytes < 3 ) {
+				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
+				iPos++;
+			} else if ( iExtraBytes == 3 ) {
+				// 4 字节的 utf8 会被编码为 4 字节的 utf16 字符
+				iPos += 2;
+			} else {
+				// 超过 4 字节的 utf8 会被替换为 FFFD 替换码点（ 超出 utf16 支持的范围 ）
+				iPos++;
+			}
+			i += iExtraBytes;
+		}
+	}
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	// 申请所需内存
+	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
+	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	// 开始转换编码
+	iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		if ( iExtraBytes == 0 ) {
+			// ASCII 兼容字符
+			sRet[iPos++] = sText[i];
+		} else if ( iExtraBytes == 1 ) {
+			// 双字节字符
+			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
+		} else if ( iExtraBytes == 2 ) {
+			// 三字节字符
+			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+		} else if ( iExtraBytes == 3 ) {
+			// 四字节字符
+			if ( sText[i] & 0b00000100 ) {
+				// 超出 utf16 支持的范围，使用替换字符 FFFD 代替
+				sRet[iPos++] = 0xFFFD;
+				i += iExtraBytes;
+			} else {
+				uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+				if ( c < 0x10000 ) {
+					// 原则上不会进入这个分支，除非遇到错误的编码
+					sRet[iPos++] = c;
+				} else {
+					c -= 0x10000;
+					sRet[iPos++] = 0b1101100000000000 | ((c & 0b11111111110000000000) >> 10);
+					sRet[iPos++] = 0b1101110000000000 | (c & 0b00000000001111111111);
+				}
+			}
+		} else if ( iExtraBytes == 4 ) {
+			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
+			sRet[iPos++] = 0xFFFD;
+			i += iExtraBytes;
+		} else if ( iExtraBytes == 5 ) {
+			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
+			sRet[iPos++] = 0xFFFD;
+			i += iExtraBytes;
+		}
+	}
+	// 返回字符数和转换后数据
+	sRet[iPos] = 0;
+	if ( iRetSize ) { *iRetSize = iPos; }
+	return sRet;
+}
+// utf-8 转 utf-32（ 需使用 xrtFree 释放 ）
+XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
+{
+	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	// 计算数据长度和转换长度
+	size_t iPos = 0;
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			iPos++;
+			iSize += BytesExtraTableUTF8[sText[iSize]] + 1;
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			iPos++;
+			i += BytesExtraTableUTF8[sText[i]];
+		}
+	}
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	// 申请所需内存
+	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
+	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	// 开始转换编码
+	iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		if ( iExtraBytes == 0 ) {
+			// ASCII 兼容字符
+			sRet[iPos++] = sText[i];
+		} else if ( iExtraBytes == 1 ) {
+			// 双字节字符
+			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0x3F);
+		} else if ( iExtraBytes == 2 ) {
+			// 三字节字符
+			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+		} else if ( iExtraBytes == 3 ) {
+			// 四字节字符
+			sRet[iPos++] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+		} else if ( iExtraBytes == 4 ) {
+			// 五字节字符
+			sRet[iPos++] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+		} else if ( iExtraBytes == 5 ) {
+			// 六字节字符
+			sRet[iPos++] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0x3F) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+		}
+	}
+	// 返回字符数和转换后数据
+	sRet[iPos] = 0;
+	if ( iRetSize ) { *iRetSize = iPos; }
+	return sRet;
+}
+// utf-16 转 utf-8（ 需使用 xrtFree 释放 ）
+XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
+{
+	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	size_t iPos = 0;
+	// 计算数据长度和转换长度
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			uint16 iChar = sText[iSize];
+			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+				if ( (sText[iSize + 1] & 0b1111110000000000) == 0b1101110000000000 ) {
+					iPos += 4;
+				} else {
+					// 错误的代理对，使用替换字符 EFBFBD 代替
+					iPos += 3;
+				}
+				iSize += 2;
+			} else if ( iChar <= 0x7F ) {
+				iPos++;
+				iSize++;
+			} else if ( iChar <= 0x7FF ) {
+				iPos += 2;
+				iSize++;
+			} else {
+				iPos += 3;
+				iSize++;
+			}
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			uint16 iChar = sText[i];
+			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+				if ( (sText[++i] & 0b1111110000000000) == 0b1101110000000000 ) {
+					iPos += 4;
+				} else {
+					// 错误的代理对，使用替换字符 EFBFBD 代替
+					iPos += 3;
+				}
+			} else if ( iChar <= 0x7F ) {
+				iPos++;
+			} else if ( iChar <= 0x7FF ) {
+				iPos += 2;
+			} else {
+				iPos += 3;
+			}
+		}
+	}
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	// 申请所需内存
+	u8str sRet = xrtMalloc(iPos + 1);
+	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	// 开始转换编码
+	iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint16 iChar = sText[i];
+		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+			uint16 iNext = sText[++i];
+			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
+				uint32 cp = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
+				sRet[iPos++] = 0xF0 | ((cp >> 18) & 0x7);
+				sRet[iPos++] = 0x80 | ((cp >> 12) & 0x3F);
+				sRet[iPos++] = 0x80 | ((cp >> 6) & 0x3F);
+				sRet[iPos++] = 0x80 | (cp & 0x3F);
+			} else {
+				// 错误的代理对，使用替换字符 EFBFBD 代替
+				sRet[iPos++] = 0xEF;
+				sRet[iPos++] = 0xBF;
+				sRet[iPos++] = 0xBD;
+			}
+		} else if ( iChar <= 0x7F ) {
+			sRet[iPos++] = iChar;
+		} else if ( iChar <= 0x7FF ) {
+			sRet[iPos++] = 0xC0 | ((iChar & 0x7C0) >> 6);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		} else {
+			sRet[iPos++] = 0xE0 | ((iChar & 0xF000) >> 12);
+			sRet[iPos++] = 0x80 | ((iChar & 0xFC0) >> 6);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		}
+	}
+	// 返回字符数和转换后数据
+	sRet[iPos] = 0;
+	if ( iRetSize ) { *iRetSize = iPos; }
+	return sRet;
+}
+// utf-16 转 utf-32（ 需使用 xrtFree 释放 ）
+XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize)
+{
+	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	size_t iPos = 0;
+	// 计算数据长度和转换长度
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			if ( (sText[iSize] & 0b1111110000000000) == 0b1101100000000000 ) {
+				iSize += 2;
+			} else {
+				iSize++;
+			}
+			iPos++;
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			uint16 iChar = sText[i];
+			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+				i++;
+			}
+			iPos++;
+		}
+	}
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	// 申请所需内存
+	u32str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned int));
+	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
+	// 开始转换编码
+	iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint16 iChar = sText[i];
+		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+			uint16 iNext = sText[++i];
+			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
+				sRet[iPos++] = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
+			} else {
+				// 错误的代理对，使用替换字符 FFFD 代替
+				sRet[iPos++] = 0xFFFD;
+			}
+		} else {
+			sRet[iPos++] = iChar;
+		}
+	}
+	// 返回字符数和转换后数据
+	sRet[iPos] = 0;
+	if ( iRetSize ) { *iRetSize = iPos; }
+	return sRet;
+}
+// utf-32 转 utf-8（ 需使用 xrtFree 释放 ）
+XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize)
+{
+	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	size_t iPos = 0;
+	// 计算数据长度和转换长度
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			uint32 iChar = sText[iSize++];
+			if ( iChar <= 0x7F ) {
+				iPos++;
+			} else if ( iChar <= 0x7FF ) {
+				iPos += 2;
+			} else if ( iChar <= 0xFFFF ) {
+				iPos += 3;
+			} else if ( iChar <= 0x1FFFFF ) {
+				iPos += 4;
+			} else if ( iChar <= 0x3FFFFFF ) {
+				iPos += 5;
+			} else if ( iChar <= 0x7FFFFFFF ) {
+				iPos += 6;
+			}
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			uint32 iChar = sText[i];
+			if ( iChar <= 0x7F ) {
+				iPos++;
+			} else if ( iChar <= 0x7FF ) {
+				iPos += 2;
+			} else if ( iChar <= 0xFFFF ) {
+				iPos += 3;
+			} else if ( iChar <= 0x1FFFFF ) {
+				iPos += 4;
+			} else if ( iChar <= 0x3FFFFFF ) {
+				iPos += 5;
+			} else if ( iChar <= 0x7FFFFFFF ) {
+				iPos += 6;
+			}
+		}
+	}
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	// 申请所需内存
+	u8str sRet = xrtMalloc(iPos + 1);
+	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	// 开始转换编码
+	iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint32 iChar = sText[i];
+		if ( iChar <= 0x7F ) {
+			// ASCII 兼容字符
+			sRet[iPos++] = iChar;
+		} else if ( iChar <= 0x7FF ) {
+			// 双字节字符
+			sRet[iPos++] = 0xC0 | ((iChar >> 6) & 0x1F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		} else if ( iChar <= 0xFFFF ) {
+			// 三字节字符
+			sRet[iPos++] = 0xE0 | ((iChar >> 12) & 0xF);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		} else if ( iChar <= 0x1FFFFF ) {
+			// 四字节字符
+			sRet[iPos++] = 0xF0 | ((iChar >> 18) & 0x7);
+			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		} else if ( iChar <= 0x3FFFFFF ) {
+			// 五字节字符
+			sRet[iPos++] = 0xF8 | ((iChar >> 24) & 0x3);
+			sRet[iPos++] = 0x80 | ((iChar >> 18) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		} else if ( iChar <= 0x7FFFFFFF ) {
+			// 六字节字符
+			sRet[iPos++] = 0xFC | ((iChar >> 30) & 0x1);
+			sRet[iPos++] = 0x80 | ((iChar >> 24) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 18) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 12) & 0x3F);
+			sRet[iPos++] = 0x80 | ((iChar >> 6) & 0x3F);
+			sRet[iPos++] = 0x80 | (iChar & 0x3F);
+		}
+	}
+	// 返回字符数和转换后数据
+	sRet[iPos] = 0;
+	if ( iRetSize ) { *iRetSize = iPos; }
+	return sRet;
+}
+// utf-32 转 utf-16 ( 需使用 xrtFree 释放 )
+XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
+{
+	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	size_t iPos = 0;
+	// 计算数据长度和转换长度
+	if ( iSize == 0 ) {
+		while ( sText[iSize] != 0 ) {
+			if ( sText[iSize] <= 0xFFFF ) {
+				iPos++;
+			} else if ( sText[iSize] <= 0x10FFFF ) {
+				iPos += 2;
+			} else {
+				iPos++;
+			}
+			iSize++;
+		}
+	} else {
+		for ( int i = 0; i < iSize; i++ ) {
+			uint32 iChar = sText[i];
+			if ( iChar <= 0xFFFF ) {
+				iPos++;
+			} else if ( iChar <= 0x10FFFF ) {
+				iPos += 2;
+			} else {
+				iPos++;
+			}
+		}
+	}
+	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	// 申请所需内存
+	u16str sRet = xrtMalloc((iPos + 1) * sizeof(unsigned short));
+	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
+	// 开始转换编码
+	iPos = 0;
+	for ( int i = 0; i < iSize; i++ ) {
+		uint32 iChar = sText[i];
+		if ( iChar <= 0xFFFF ) {
+			sRet[iPos++] = iChar;
+		} else if ( iChar <= 0x10FFFF ) {
+			iChar -= 0x10000;
+			sRet[iPos++] = 0b1101100000000000 | ((iChar & 0b11111111110000000000) >> 10);
+			sRet[iPos++] = 0b1101110000000000 | (iChar & 0b00000000001111111111);
+		} else {
+			// 超出 utf16 支持的范围，使用替换字符 FFFD 代替
+			sRet[iPos++] = 0xFFFD;
+		}
+	}
+	// 返回字符数和转换后数据
+	sRet[iPos] = 0;
+	if ( iRetSize ) { *iRetSize = iPos; }
+	return sRet;
+}
+// utf-16 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise)
+{
+	if ( sText == NULL ) { return (u16str)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = u16len(sText); }
+	if ( iSize == 0 ) { return (u16str)xCore.sNull; }
+	u16str sRet;
+	if ( bSrcRevise ) {
+		sRet = sText;
+	} else {
+		sRet = xrtCopyStrU16(sText, iSize);
+	}
+	for ( int i = 0; i < iSize; i++ ) {
+		sRet[i] = ((sRet[i] & 0xFF) << 8) | ((sRet[i] >> 8) & 0xFF);
+	}
+	return sRet;
+}
+// utf-32 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise)
+{
+	if ( sText == NULL ) { return (u32str)xCore.sNull; }
+	if ( iSize == 0 ) { iSize = u32len(sText); }
+	if ( iSize == 0 ) { return (u32str)xCore.sNull; }
+	u32str sRet;
+	if ( bSrcRevise ) {
+		sRet = sText;
+	} else {
+		sRet = xrtCopyStrU32(sText, iSize);
+	}
+	for ( int i = 0; i < iSize; i++ ) {
+		sRet[i] = ((sRet[i] >> 24) & 0xFF) | ((sRet[i] >> 8) & 0xFF00) | ((sRet[i] << 8) & 0xFF0000) | ((sRet[i] << 24) & 0xFF000000);
+	}
+	return sRet;
+}
+// 任意编码转换 ( 需使用 xrtFree 释放 )
+XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t* iRetSize)
+{
+	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	// 非 windows 平台 ( 仅支持 utf-8、utf-16、utf-32 三种编码互相转换 [ 含 LE、BE 字节序 ]，oem 编码固定为 utf-8 )
+	#if defined(_WIN32) || defined(_WIN64)
+	#else
+		if ( iInCP == XRT_CP_OEM ) { iInCP = XRT_CP_UTF8; }
+		if ( iOutCP == XRT_CP_OEM ) { iOutCP = XRT_CP_UTF8; }
+	#endif
+	// 如果编码相同，返回副本
+	if ( iInCP == iOutCP ) {
+		if ( (iInCP == XRT_CP_UTF16) || (iInCP == XRT_CP_UTF16_BE) ) {
+			return xrtCopyStrU16(sText, iSize);
+		} else if ( (iInCP == XRT_CP_UTF32) || (iInCP == XRT_CP_UTF32_BE) ) {
+			return xrtCopyStrU32(sText, iSize);
+		} else {
+			return xrtCopyStr(sText, iSize);
+		}
+	}
+	// 需要转换编码 - 排列组合 20 种情况 ( 内置支持的编码转换组合 )
+	if ( iInCP == XRT_CP_UTF8 ) {
+		if ( iOutCP == XRT_CP_UTF16 ) {
+			return xrtUTF8to16(sText, iSize, NULL);
+		} else if ( iOutCP == XRT_CP_UTF32 ) {
+			return xrtUTF8to32(sText, iSize, NULL);
+		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+			size_t iRet = 0;
+			u16str sRet = xrtUTF8to16(sText, iSize, &iRet);
+			xrtUTF16LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+			size_t iRet = 0;
+			u32str sRet = xrtUTF8to32(sText, iSize, &iRet);
+			xrtUTF32LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		}
+	} else if ( iInCP == XRT_CP_UTF16 ) {
+		if ( iOutCP == XRT_CP_UTF8 ) {
+			return xrtUTF16to8(sText, iSize, NULL);
+		} else if ( iOutCP == XRT_CP_UTF32 ) {
+			return xrtUTF16to32(sText, iSize, NULL);
+		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+			return xrtUTF16LEtoBE(sText, iSize, FALSE);
+		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+			size_t iRet = 0;
+			u32str sRet = xrtUTF16to32(sText, iSize, &iRet);
+			xrtUTF32LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		}
+	} else if ( iInCP == XRT_CP_UTF32 ) {
+		if ( iOutCP == XRT_CP_UTF8 ) {
+			return xrtUTF32to8(sText, iSize, NULL);
+		} else if ( iOutCP == XRT_CP_UTF16 ) {
+			return xrtUTF32to16(sText, iSize, NULL);
+		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+			size_t iRet = 0;
+			u16str sRet = xrtUTF32to16(sText, iSize, &iRet);
+			xrtUTF16LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+			return xrtUTF32LEtoBE(sText, iSize, FALSE);
+		}
+	} else if ( iInCP == XRT_CP_UTF16_BE ) {
+		if ( iOutCP == XRT_CP_UTF8 ) {
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			str sRet = xrtUTF16to8(sTemp, iSize, NULL);
+			xrtFree(sTemp);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF32 ) {
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			u32str sRet = xrtUTF16to32(sTemp, iSize, NULL);
+			xrtFree(sTemp);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16 ) {
+			return xrtUTF16LEtoBE(sText, iSize, FALSE);
+		} else if ( iOutCP == XRT_CP_UTF32_BE ) {
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			size_t iRet = 0;
+			u32str sRet = xrtUTF16to32(sTemp, iSize, &iRet);
+			xrtFree(sTemp);
+			xrtUTF32LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		}
+	} else if ( iInCP == XRT_CP_UTF32_BE ) {
+		if ( iOutCP == XRT_CP_UTF8 ) {
+			u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+			str sRet = xrtUTF32to8(sTemp, iSize, NULL);
+			xrtFree(sTemp);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16 ) {
+			u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+			u16str sRet = xrtUTF32to16(sTemp, iSize, NULL);
+			xrtFree(sTemp);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+			u32str sTemp = xrtUTF32LEtoBE(sText, iSize, FALSE);
+			size_t iRet = 0;
+			u16str sRet = xrtUTF32to16(sTemp, iSize, &iRet);
+			xrtFree(sTemp);
+			xrtUTF16LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF32 ) {
+			return xrtUTF32LEtoBE(sText, iSize, FALSE);
+		}
+	}
+	// 内置方案无法满足时的扩展方案
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案 - 调用 Win32SDK 转换 - 五种排列组合优化
+		if ( iInCP == XRT_CP_UTF16 ) {
+			// UTF16 转 多字节
+			if ( iSize == 0 ) { iSize = u16len(sText); }
+			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+			size_t iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, NULL, 0, NULL, NULL);
+			if ( iRet == 0 ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			str sRet = xrtMalloc(iRet + 1);
+			if ( sRet == NULL ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, sRet, iRet, NULL, NULL);
+			sRet[iRet] = 0;
+			return sRet;
+		} else if ( iInCP == XRT_CP_UTF16_BE ) {
+			// UTF16 BE 转 多字节
+			if ( iSize == 0 ) { iSize = u16len(sText); }
+			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+			u16str sTemp = xrtUTF16LEtoBE(sText, iSize, FALSE);
+			size_t iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, NULL, 0, NULL, NULL);
+			if ( iRet == 0 ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			str sRet = xrtMalloc(iRet + 1);
+			if ( sRet == NULL ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, sRet, iRet, NULL, NULL);
+			xrtFree(sTemp);
+			sRet[iRet] = 0;
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16 ) {
+			// 多字节 转 UTF16
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
+			if ( iRet == 0 ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
+			if ( sRet == NULL ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, sRet, iRet);
+			sRet[iRet] = 0;
+			return sRet;
+		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
+			// 多字节 转 UTF16 BE
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
+			if ( iRet == 0 ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			u16str sRet = xrtMalloc((iRet + 1) * sizeof(unsigned short));
+			if ( sRet == NULL ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, sRet, iRet);
+			sRet[iRet] = 0;
+			xrtUTF16LEtoBE(sRet, iRet, TRUE);
+			return sRet;
+		} else {
+			// 多字节 转 多字节
+			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+			// 先转换为 utf16
+			size_t iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
+			if ( iRetW == 0 ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			u16str sRetW = xrtMalloc((iRetW + 1) * sizeof(unsigned short));
+			if ( sRetW == NULL ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				return xCore.sNull;
+			}
+			iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, sRetW, iRetW);
+			sRetW[iRetW] = 0;
+			// 再转换为最终编码
+			size_t iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, NULL, 0, NULL, NULL);
+			if ( iRet == 0 ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				xrtFree(sRetW);
+				return xCore.sNull;
+			}
+			str sRet = xrtMalloc(iRet + 1);
+			if ( sRet == NULL ) {
+				if ( iRetSize ) { *iRetSize = 0; }
+				xrtFree(sRetW);
+				return xCore.sNull;
+			}
+			iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, sRet, iRet, NULL, NULL);
+			xrtFree(sRetW);
+			sRet[iRet] = 0;
+			return sRet;
+		}
+	#else
+		// 其他平台方案 - 暂无 ( 可使用 libiconv 等库，但是太大了 )
+	#endif
+	// 无法处理的编码转换组合
+	xrtSetError("Unsupported charset !", FALSE);
+	if ( iRetSize ) { *iRetSize = 0; }
+	return xCore.sNull;
+}
+// 是否为 utf-8 字符串
+XXAPI bool xrtIsUTF8(str sText, size_t iSize)
+{
+	// NULL 返回 FALSE，空字符串返回 TRUE
+	if ( sText == NULL ) { return FALSE; }
+	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { return TRUE; }
+	// 检测是否符合标准
+	for ( int i = 0; i < iSize; i++ ) {
+		// 遇到 \0、FE、FF 直接返回 FALSE
+		if ( (sText[i] == 0) || (sText[i] == 0xFE) || (sText[i] == 0xFF) ) {
+			return FALSE;
+		}
+		// 检查多字节字符是否已 0b10 开头
+		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		if ( iExtraBytes ) {
+			for ( int j = 0; (j < iExtraBytes) && (i < iSize); j++ ) {
+				if ( (sText[++i] & 0b11000000) != 0b10000000 ) {
+					return FALSE;
+				}
+			}
+		}
+	}
+	return TRUE;
+}
+// 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
+XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
+{
+	if ( sText == NULL ) { return XRT_CP_BINARY; }
+	if ( iSize == 0 ) { return XRT_CP_BINARY; }
+	u8str sPtr = sText;
+	int bNoUTF8 = FALSE;		// 是否不符合 UTF8 标准
+	int bNoUTF16LE = FALSE;		// 是否不符合 UTF16 标准
+	int bNoUTF16BE = FALSE;		// 是否不符合 UTF16 BE 标准
+	int bNoUTF32LE = FALSE;		// 是否不符合 UTF32 标准
+	int bNoUTF32BE = FALSE;		// 是否不符合 UTF32 BE 标准
+	int iNullBE = 0;			// UTF16 大端序方向 \0 的数量
+	int iNullLE = 0;			// UTF16 小端序方向 \0 的数量
+	int iNullSize = 0;			// 遇到连续 \0 的次数
+	int iMaxNull = 0;			// 最多连续 \0 的数量
+	// 通过 BOM 判断字符串编码
+	if ( bBOM ) {
+		if ( iSize >= 3 ) {
+			if ( (sPtr[0] == 0xEF) && (sPtr[1] == 0xBB) && (sPtr[2] == 0xBF) ) {
+				return XRT_CP_UTF8 | XRT_CP_BOM;
+			}
+		}
+		if ( iSize >= 4 ) {
+			if ( (sPtr[0] == 0xFF) && (sPtr[1] == 0xFE) && (sPtr[2] == 0x00) && (sPtr[3] == 0x00) ) {
+				return XRT_CP_UTF32 | XRT_CP_BOM;
+			}
+			if ( (sPtr[0] == 0x00) && (sPtr[1] == 0x00) && (sPtr[2] == 0xFE) && (sPtr[3] == 0xFF) ) {
+				return XRT_CP_UTF32_BE | XRT_CP_BOM;
+			}
+		}
+		if ( iSize >= 2 ) {
+			if ( (sPtr[0] == 0xFF) && (sPtr[1] == 0xFE) ) {
+				return XRT_CP_UTF16 | XRT_CP_BOM;
+			}
+			if ( (sPtr[0] == 0xFE) && (sPtr[1] == 0xFF) ) {
+				return XRT_CP_UTF16_BE | XRT_CP_BOM;
+			}
+		}
+	}
+	// 开始推测字符串编码
+	for ( int i = 0; i < iSize; i++ ) {
+		// 检测 utf-8 不可能出现的字符
+		if ( (sPtr[i] == 0xFE) || (sPtr[i] == 0xFF) ) {
+			bNoUTF8 = TRUE;
+		}
+		// 检测 utf-8 多字符编码是否正确
+		if ( bNoUTF8 == FALSE ) {
+			char iExtraBytes = BytesExtraTableUTF8[sPtr[i]];
+			for ( int j = 1; (j <= iExtraBytes) && ((i + j) < iSize); j++ ) {
+				if ( (sPtr[i + j] & 0b11000000) != 0b10000000 ) {
+					bNoUTF8 = TRUE;
+					break;
+				}
+			}
+		}
+		// 检测 utf-16 代理区是否合规
+		if ( (i & 1) == 0 ) {
+			if ( (i + 2) < iSize ) {
+				if ( bNoUTF16BE == FALSE ) {
+					if ( (sPtr[i] & 0b11111100) == 0b11011000 ) {
+						if ( (sPtr[i + 2] & 0b11111100) != 0b11011100 ) {
+							bNoUTF16BE = TRUE;
+						}
+					}
+				}
+				if ( bNoUTF16LE == FALSE ) {
+					if ( (sPtr[i] & 0b11111100) == 0b11011100 ) {
+						if ( (sPtr[i + 2] & 0b11111100) != 0b11011000 ) {
+							bNoUTF16LE = TRUE;
+						}
+					}
+				}
+			}
+		}
+		// 检测是否符合 utf-32 范围 ( 0x10FFFF 以内‌ )
+		if ( (i & 3) == 0 ) {
+			if ( (i + 3) < iSize ) {
+				if ( bNoUTF32BE == FALSE ) {
+					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
+					if ( c > 0x10FFFF ) {
+						bNoUTF32BE = TRUE;
+					}
+				}
+				if ( bNoUTF32LE == FALSE ) {
+					uint32 c = (sPtr[i + 3] << 24) | (sPtr[i + 2] << 16) | (sPtr[i + 1] << 8) | sPtr[i];
+					if ( c > 0x10FFFF ) {
+						bNoUTF32LE = TRUE;
+					}
+				}
+			}
+		}
+		// 统计连续 \0 长度
+		if ( sPtr[i] == 0 ) {
+			iNullSize++;
+			if ( i & 1 ) {
+				iNullLE++;		// LE 英文字符特征 : X0
+			} else {
+				iNullBE++;		// BE 英文字符特征 : 0X
+			}
+		} else {
+			if ( iNullSize > iMaxNull ) {
+				iMaxNull = iNullSize;
+			}
+			iNullSize = 0;
+		}
+	}
+	// 根据条件推测编码
+	if ( iMaxNull > 3 ) {
+		return XRT_CP_BINARY;
+	} else if ( iMaxNull > 1 ) {
+		if ( bNoUTF32LE == FALSE ) {
+			return XRT_CP_UTF32;
+		} else if ( bNoUTF32BE == FALSE ) {
+			return XRT_CP_UTF32_BE;
+		} else {
+			return XRT_CP_BINARY;
+		}
+	} else if ( iMaxNull == 1 ) {
+		if ( bNoUTF16LE == FALSE ) {
+			if ( bNoUTF16BE == FALSE ) {
+				// 当无法区分到底是 utf16 BE 还是 LE 时，根据 \0 出现较多的方向判断
+				if ( iNullBE > iNullLE ) {
+					return XRT_CP_UTF16_BE;
+				} else {
+					return XRT_CP_UTF16;
+				}
+			}
+			return XRT_CP_UTF16;
+		} else if ( bNoUTF16BE == FALSE ) {
+			return XRT_CP_UTF16_BE;
+		} else if ( bNoUTF32LE == FALSE ) {
+			return XRT_CP_UTF32;
+		} else if ( bNoUTF32BE == FALSE ) {
+			return XRT_CP_UTF32_BE;
+		} else {
+			return XRT_CP_BINARY;
+		}
+	} else {
+		if ( bNoUTF8 == FALSE ) {
+			return XRT_CP_UTF8;
+		} else {
+			#if defined(_WIN32) || defined(_WIN64)
+				return XRT_CP_OEM;
+			#else
+				return XRT_CP_BINARY;
+			#endif
+		}
+	}
+}
+// 获取不同字符集的字符大小
+XXAPI int xrtGetCharSize(int iCP)
+{
+	iCP &= XRT_MASK_BOM;
+	if ( (iCP == XRT_CP_UTF16) || (iCP == XRT_CP_UTF16_BE) ) {
+		return 2;
+	} else if ( (iCP == XRT_CP_UTF32) || (iCP == XRT_CP_UTF32_BE) ) {
+		return 4;
+	} else {
+		return 1;
+	}
+}
+
+// ========================================
+// File: D:/git/xrt/lib/math.h
+// ========================================
+
+
+/*
+	PCG Random Number Generation for C. [ Update : 2025/08/19 from https://github.com/imneme/pcg-c-basic ]
+	修改：
+		整合到 xrt 库
+		提供 Ex 版本 API（调用者管理状态，线程安全）
+		普通版本 API 使用全局状态（线程不安全，性能优先）
+	使用协议注意事项：
+		Apache License, Version 2.0 协议
+		允许个人使用、商业使用
+		复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
+*/
+/*
+ * PCG Random Number Generation for C.
+ *
+ * Copyright 2014 Melissa O'Neill <oneill@pcg-random.org>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For additional information about the PCG random number generation scheme,
+ * including its license and other licensing options, visit
+ *
+ *       http://www.pcg-random.org
+ */
+// 初始化随机数生成器
+XXAPI void xrtRandSeed(xrand* rng, uint64 seed, uint64 seq)
+{
+	rng->state = 0U;
+	rng->inc = (seq << 1u) | 1u;
+	// 运算两次
+	uint64 oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+	rng->state += seed;
+	oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+}
+// 生成 32 位随机数 - 线程安全
+XXAPI uint32 xrtRand32Ex(xrand* rng)
+{
+	uint64 oldstate = rng->state;
+	rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+	uint32 xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
+	uint32 rot = oldstate >> 59u;
+	return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+}
+// 生成 64 位随机数 - 线程安全
+XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh)
+{
+	uint32 iLow = xrtRand32Ex(rngLow);
+	uint32 iHigh = xrtRand32Ex(rngHigh);
+	return ((uint64)iHigh << 32) | (uint64)iLow;
+}
+// 生成范围随机数 - 线程安全
+XXAPI int xrtRandRangeEx(xrand* rng, int min, int max)
+{
+	uint32 iRange = (max - min) + 1;
+	if ( iRange > 0 ) {
+		uint32 threshold = -iRange % iRange;
+		for (;;) {
+			uint32 r = xrtRand32Ex(rng);
+			if (r >= threshold)
+				return (r % iRange) + min;
+		}
+	} else if ( iRange < 0 ) {
+		iRange = (min - max) + 1;
+		uint32 threshold = -iRange % iRange;
+		for (;;) {
+			uint32 r = xrtRand32Ex(rng);
+			if (r >= threshold)
+				return (r % iRange) + max;
+		}
+	}
+	return 0;
+}
+// 获取 32 位随机数
+XXAPI uint32 xrtRand32()
+{
+	return xrtRand32Ex(&xCore.rand32);
+}
+// 获取 64 位随机数
+XXAPI uint64 xrtRand64()
+{
+	return xrtRand64Ex(&xCore.rand64_low, &xCore.rand64_high);
+}
+// 获取 32 位范围随机数
+XXAPI int xrtRandRange(int min, int max)
+{
+	return xrtRandRangeEx(&xCore.rand32, min, max);
+}
+// 整数约等于
+XXAPI bool xrtIntApprox(int64 a, int64 b)
+{
+	if ( a == b ) { return TRUE; }
+	
+	int64 diff = (a > b) ? (a - b) : (b - a);
+	
+	if ( xCore.iApproxIntMode == XRT_APPROX_PERCENT ) {
+		// 百分比模式
+		if ( xCore.fApproxIntTol <= 0.0 ) { return FALSE; }
+		int64 maxAbs = (a >= 0 ? a : -a);
+		int64 bAbs = (b >= 0 ? b : -b);
+		if ( bAbs > maxAbs ) { maxAbs = bAbs; }
+		if ( maxAbs == 0 ) { return TRUE; }
+		double ratio = (double)diff / (double)maxAbs;
+		return (ratio <= xCore.fApproxIntTol);
+	} else {
+		// 差值模式
+		return (diff <= (int64)xCore.fApproxIntTol);
+	}
+}
+// 浮点数约等于
+XXAPI bool xrtNumApprox(double a, double b)
+{
+	if ( a == b ) { return TRUE; }
+	
+	double diff = (a > b) ? (a - b) : (b - a);
+	
+	if ( xCore.iApproxNumMode == XRT_APPROX_PERCENT ) {
+		// 百分比模式
+		if ( xCore.fApproxNumTol <= 0.0 ) { return FALSE; }
+		double maxAbs = (a >= 0.0 ? a : -a);
+		double bAbs = (b >= 0.0 ? b : -b);
+		if ( bAbs > maxAbs ) { maxAbs = bAbs; }
+		if ( maxAbs == 0.0 ) { return TRUE; }
+		double ratio = diff / maxAbs;
+		return (ratio <= xCore.fApproxNumTol);
+	} else {
+		// 差值模式
+		return (diff <= xCore.fApproxNumTol);
+	}
+}
+
+// ========================================
 // File: D:/git/xrt/lib/path.h
 // ========================================
 
@@ -6605,6 +7872,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 		}
 	}
 }
+#ifndef XRT_NO_TIME
 
 // ========================================
 // File: D:/git/xrt/lib/time.h
@@ -7842,6 +9110,8 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 	xtime diff = (a > b) ? (a - b) : (b - a);
 	return (diff <= xCore.iApproxTimeTol);
 }
+#endif
+#ifndef XRT_NO_FILE
 
 // ========================================
 // File: D:/git/xrt/lib/file.h
@@ -9482,6 +10752,8 @@ XXAPI int xrtDirDelete(str sPath)
 	#endif
 	return 0;
 }
+#endif
+#ifndef XRT_NO_THREAD
 
 // ========================================
 // File: D:/git/xrt/lib/thread.h
@@ -10229,6 +11501,8 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 		}
 	#endif
 }
+#endif
+#ifndef XRT_NO_COROUTINE
 
 // ========================================
 // File: D:/git/xrt/lib/coroutine.h
@@ -10795,1172 +12069,8 @@ XXAPI void xrtCoSleep(uint32 iMs)
 	pCo->__iWakeTime = __xrt_co_time_ms() + (int64)iMs;
 	xrtCoYield();
 }
-
-// ========================================
-// File: D:/git/xrt/lib/hash.h
-// ========================================
-
-
-/*
-	Hash32 - nmhash32x [Ver2.0, Update : 2024/10/18 from https://github.com/rurban/smhasher]
-		修改：
-			删除函数：NMHASH32_0to8（仅NMHASH32依赖，只保留NMHASH32X）
-			删除函数：NMHASH32_9to255（仅NMHASH32依赖，只保留NMHASH32X）
-			删除定义：NMHASH32_9to32（仅NMHASH32依赖，只保留NMHASH32X）
-			删除定义：NMHASH32_33to255（仅NMHASH32依赖，只保留NMHASH32X）
-			删除函数：NMHASH32_avalanche32（仅NMHASH32依赖，只保留NMHASH32X）
-			删除函数：NMHASH32（只保留NMHASH32X）
-			添加部分条件编译分支：判断 __TINYC__ 以区分是否使用 TCC 编译
-			删除头文件引入：<stdint.h> 和 <string.h>（最上面已经引入）
-		使用协议注意事项：
-			BSD 2-Clause 协议
-			允许个人使用、商业使用
-			复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
-*/
-/*
-	BSD 2-Clause License
-	Copyright (c) 2021, James Z.M. Gao 
-	All rights reserved.
-	Redistribution and use in source and binary forms, with or without
-	modification, are permitted provided that the following conditions are met:
-	1. Redistributions of source code must retain the above copyright notice, this
-	   list of conditions and the following disclaimer.
-	2. Redistributions in binary form must reproduce the above copyright notice,
-	   this list of conditions and the following disclaimer in the documentation
-	   and/or other materials provided with the distribution.
-	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-	FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-	DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-	OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-#define NMH_VERSION 2
-#ifdef _MSC_VER
-#  pragma warning(push, 3)
 #endif
-#if defined(__cplusplus) && __cplusplus < 201103L
-#  define __STDC_CONSTANT_MACROS 1
-#endif
-#if defined(__GNUC__)
-#  if defined(__AVX2__)
-#    include <immintrin.h>
-#  elif defined(__SSE2__)
-#    include <emmintrin.h>
-#  endif
-#elif defined(_MSC_VER)
-#  include <intrin.h>
-#endif
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
-#if (defined(__GNUC__) && (__GNUC__ >= 3))  \
-  || (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 800)) \
-  || defined(__clang__)
-#    define NMH_likely(x) __builtin_expect(x, 1)
-#else
-#    define NMH_likely(x) (x)
-#endif
-#if defined(__has_builtin)
-#  if __has_builtin(__builtin_rotateleft32)
-#    define NMH_rotl32 __builtin_rotateleft32 /* clang */
-#  endif
-#endif
-#if !defined(NMH_rotl32)
-#  if defined(_MSC_VER)
-	 /* Note: although _rotl exists for minGW (GCC under windows), performance seems poor */
-#    define NMH_rotl32(x,r) _rotl(x,r)
-#  else
-#    define NMH_rotl32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
-#  endif
-#endif
-#ifdef __TINYC__
-#  define NMH_RESTRICT   restrict
-#  define NMH_VECTOR NMH_SCALAR
-#elif ((defined(sun) || defined(__sun)) && __cplusplus) /* Solaris includes __STDC_VERSION__ with C++. Tested with GCC 5.5 */
-#  define NMH_RESTRICT   /* disable */
-#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* >= C99 */
-#  define NMH_RESTRICT   restrict
-#elif defined(__cplusplus) && (defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER))
-#  define NMH_RESTRICT __restrict__
-#elif defined(__cplusplus) && defined(_MSC_VER)
-#  define NMH_RESTRICT __restrict
-#else
-#  define NMH_RESTRICT   /* disable */
-#endif
-/* endian macros */
-#ifndef NMHASH_LITTLE_ENDIAN
-#  if defined(_WIN32) || defined(__LITTLE_ENDIAN__) || defined(__x86_64__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || defined(__SDCC)
-#    define NMHASH_LITTLE_ENDIAN 1
-#  elif defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-#    define NMHASH_LITTLE_ENDIAN 0
-#  else
-#    warning could not determine endianness! Falling back to little endian.
-#    define NMHASH_LITTLE_ENDIAN 1
-#  endif
-#endif
-/* vector macros */
-#define NMH_SCALAR 0
-#define NMH_SSE2   1
-#define NMH_AVX2   2
-#define NMH_AVX512 3
-#ifndef NMH_VECTOR    /* can be defined on command line */
-#  if defined(__AVX512BW__)
-#    define NMH_VECTOR NMH_AVX512 /* _mm512_mullo_epi16 requires AVX512BW */
-#  elif defined(__AVX2__)
-#    define NMH_VECTOR NMH_AVX2  /* add '-mno-avx256-split-unaligned-load' and '-mn-oavx256-split-unaligned-store' for gcc */
-#  elif defined(__SSE2__) || defined(_M_AMD64) || defined(_M_X64) || (defined(_M_IX86_FP) && (_M_IX86_FP == 2))
-#    define NMH_VECTOR NMH_SSE2
-#  else
-#    define NMH_VECTOR NMH_SCALAR
-#  endif
-#endif
-/* align macros */
-#if defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)   /* C11+ */
-#  include <stdalign.h>
-#  define NMH_ALIGN(n)      alignas(n)
-#elif defined(__GNUC__)
-#  define NMH_ALIGN(n)      __attribute__ ((aligned(n)))
-#elif defined(_MSC_VER)
-#  define NMH_ALIGN(n)      __declspec(align(n))
-#else
-#  define NMH_ALIGN(n)   /* disabled */
-#endif
-#if NMH_VECTOR > 0
-#  define NMH_ACC_ALIGN 64
-#elif defined(__BIGGEST_ALIGNMENT__)
-#  define NMH_ACC_ALIGN __BIGGEST_ALIGNMENT__
-#elif defined(__SDCC)
-#  define NMH_ACC_ALIGN 1
-#else
-#  define NMH_ACC_ALIGN 16
-#endif
-/* constants */
-/* primes from xxh */
-#define NMH_PRIME32_1  UINT32_C(0x9E3779B1)
-#define NMH_PRIME32_2  UINT32_C(0x85EBCA77)
-#define NMH_PRIME32_3  UINT32_C(0xC2B2AE3D)
-#define NMH_PRIME32_4  UINT32_C(0x27D4EB2F)
-/*! Pseudorandom secret taken directly from FARSH. */
-NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t NMH_ACC_INIT[32] = {
-	UINT32_C(0xB8FE6C39), UINT32_C(0x23A44BBE), UINT32_C(0x7C01812C), UINT32_C(0xF721AD1C),
-	UINT32_C(0xDED46DE9), UINT32_C(0x839097DB), UINT32_C(0x7240A4A4), UINT32_C(0xB7B3671F),
-	UINT32_C(0xCB79E64E), UINT32_C(0xCCC0E578), UINT32_C(0x825AD07D), UINT32_C(0xCCFF7221),
-	UINT32_C(0xB8084674), UINT32_C(0xF743248E), UINT32_C(0xE03590E6), UINT32_C(0x813A264C),
-	UINT32_C(0x3C2852BB), UINT32_C(0x91C300CB), UINT32_C(0x88D0658B), UINT32_C(0x1B532EA3),
-	UINT32_C(0x71644897), UINT32_C(0xA20DF94E), UINT32_C(0x3819EF46), UINT32_C(0xA9DEACD8),
-	UINT32_C(0xA8FA763F), UINT32_C(0xE39C343F), UINT32_C(0xF9DCBBC7), UINT32_C(0xC70B4F1D),
-	UINT32_C(0x8A51E04B), UINT32_C(0xCDB45931), UINT32_C(0xC89F7EC9), UINT32_C(0xD9787364),
-};
-#if defined(_MSC_VER) && _MSC_VER >= 1914
-#  pragma warning(push)
-#  pragma warning(disable: 5045)
-#endif
-#ifdef __SDCC
-#  define const
-#  pragma save
-#  pragma disable_warning 110
-#  pragma disable_warning 126
-#endif
-/* read functions */
-static inline
-uint32_t
-NMH_readLE32(const void *const p)
-{
-	uint32_t v;
-	memcpy(&v, p, 4);
-#	if (NMHASH_LITTLE_ENDIAN)
-	return v;
-#	elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
-	return __builtin_bswap32(v);
-#	elif defined(_MSC_VER)
-	return _byteswap_ulong(v);
-#	else
-	return ((v >> 24) & 0xff) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | ((v << 24) & 0xff000000);
-#	endif
-}
-static inline
-uint16_t
-NMH_readLE16(const void *const p)
-{
-	uint16_t v;
-	memcpy(&v, p, 2);
-#	if (NMHASH_LITTLE_ENDIAN)
-	return v;
-#	else
-	return (uint16_t)((v << 8) | (v >> 8));
-#	endif
-}
-#define __NMH_M1 UINT32_C(0xF0D9649B)
-#define __NMH_M2 UINT32_C(0x29A7935D)
-#define __NMH_M3 UINT32_C(0x55D35831)
-NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t __NMH_M1_V[32] = {
-	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
-	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
-	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
-	__NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1, __NMH_M1,
-};
-NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t __NMH_M2_V[32] = {
-	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
-	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
-	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
-	__NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2, __NMH_M2,
-};
-NMH_ALIGN(NMH_ACC_ALIGN) static const uint32_t __NMH_M3_V[32] = {
-	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
-	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
-	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
-	__NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3, __NMH_M3,
-};
-#undef __NMH_M1
-#undef __NMH_M2
-#undef __NMH_M3
-#if NMH_VECTOR == NMH_SCALAR
-#define NMHASH32_long_round NMHASH32_long_round_scalar
-static inline
-void
-NMHASH32_long_round_scalar(uint32_t *const NMH_RESTRICT accX, uint32_t *const NMH_RESTRICT accY, const uint8_t* const NMH_RESTRICT p)
-{
-	/* breadth first calculation will hint some compiler to auto vectorize the code
-	 * on gcc, the performance becomes 10x than the depth first, and about 80% of the manually vectorized code
-	 */
-	const size_t nbGroups = sizeof(NMH_ACC_INIT) / sizeof(*NMH_ACC_INIT);
-	size_t i;
-	
-	for (i = 0; i < nbGroups; ++i) {
-		accX[i] ^= NMH_readLE32(p + i * 4);
-	}
-	for (i = 0; i < nbGroups; ++i) {
-		accY[i] ^= NMH_readLE32(p + i * 4 + sizeof(NMH_ACC_INIT));
-	}
-	for (i = 0; i < nbGroups; ++i) {
-		accX[i] += accY[i];
-	}
-	for (i = 0; i < nbGroups; ++i) {
-		accY[i] ^= accX[i] >> 1;
-	}
-	for (i = 0; i < nbGroups * 2; ++i) {
-		((uint16_t*)accX)[i] *= ((uint16_t*)__NMH_M1_V)[i];
-	}
-	for (i = 0; i < nbGroups; ++i) {
-		accX[i] ^= accX[i] << 5 ^ accX[i] >> 13;
-	}
-	for (i = 0; i < nbGroups * 2; ++i) {
-		((uint16_t*)accX)[i] *= ((uint16_t*)__NMH_M2_V)[i];
-	}
-	for (i = 0; i < nbGroups; ++i) {
-		accX[i] ^= accY[i];
-	}
-	for (i = 0; i < nbGroups; ++i) {
-		accX[i] ^= accX[i] << 11 ^ accX[i] >> 9;
-	}
-	for (i = 0; i < nbGroups * 2; ++i) {
-		((uint16_t*)accX)[i] *= ((uint16_t*)__NMH_M3_V)[i];
-	}
-	for (i = 0; i < nbGroups; ++i) {
-		accX[i] ^= accX[i] >> 10 ^ accX[i] >> 20;
-	}
-}
-#endif
-#if NMH_VECTOR == NMH_SSE2
-#  define _NMH_MM_(F) _mm_ ## F
-#  define _NMH_MMW_(F) _mm_ ## F ## 128
-#  define _NMH_MM_T __m128i
-#elif NMH_VECTOR == NMH_AVX2
-#  define _NMH_MM_(F) _mm256_ ## F
-#  define _NMH_MMW_(F) _mm256_ ## F ## 256
-#  define _NMH_MM_T __m256i
-#elif NMH_VECTOR == NMH_AVX512
-#  define _NMH_MM_(F) _mm512_ ## F
-#  define _NMH_MMW_(F) _mm512_ ## F ## 512
-#  define _NMH_MM_T __m512i
-#endif
-#if NMH_VECTOR == NMH_SSE2 || NMH_VECTOR == NMH_AVX2 || NMH_VECTOR == NMH_AVX512
-#  define NMHASH32_long_round NMHASH32_long_round_sse
-#  define NMH_VECTOR_NB_GROUP (sizeof(NMH_ACC_INIT) / sizeof(*NMH_ACC_INIT) / (sizeof(_NMH_MM_T) / sizeof(*NMH_ACC_INIT)))
-static inline
-void
-NMHASH32_long_round_sse(uint32_t* const NMH_RESTRICT accX, uint32_t* const NMH_RESTRICT accY, const uint8_t* const NMH_RESTRICT p)
-{
-	const _NMH_MM_T *const NMH_RESTRICT m1    = (const _NMH_MM_T * NMH_RESTRICT)__NMH_M1_V;
-	const _NMH_MM_T *const NMH_RESTRICT m2    = (const _NMH_MM_T * NMH_RESTRICT)__NMH_M2_V;
-	const _NMH_MM_T *const NMH_RESTRICT m3    = (const _NMH_MM_T * NMH_RESTRICT)__NMH_M3_V;
-		  _NMH_MM_T *const              xaccX = (      _NMH_MM_T *             )accX;
-		  _NMH_MM_T *const              xaccY = (      _NMH_MM_T *             )accY;
-		  _NMH_MM_T *const              xp    = (      _NMH_MM_T *             )p;
-	size_t i;
-	
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MMW_(xor_si)(xaccX[i], _NMH_MMW_(loadu_si)(xp + i));
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccY[i] = _NMH_MMW_(xor_si)(xaccY[i], _NMH_MMW_(loadu_si)(xp + i + NMH_VECTOR_NB_GROUP));
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MM_(add_epi32)(xaccX[i], xaccY[i]);
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccY[i] = _NMH_MMW_(xor_si)(xaccY[i], _NMH_MM_(srli_epi32)(xaccX[i], 1));
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MM_(mullo_epi16)(xaccX[i], *m1);
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MMW_(xor_si)(_NMH_MMW_(xor_si)(xaccX[i], _NMH_MM_(slli_epi32)(xaccX[i], 5)), _NMH_MM_(srli_epi32)(xaccX[i], 13));
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MM_(mullo_epi16)(xaccX[i], *m2);
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MMW_(xor_si)(xaccX[i], xaccY[i]);
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MMW_(xor_si)(_NMH_MMW_(xor_si)(xaccX[i], _NMH_MM_(slli_epi32)(xaccX[i], 11)), _NMH_MM_(srli_epi32)(xaccX[i], 9));
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MM_(mullo_epi16)(xaccX[i], *m3);
-	}
-	for (i = 0; i < NMH_VECTOR_NB_GROUP; ++i) {
-		xaccX[i] = _NMH_MMW_(xor_si)(_NMH_MMW_(xor_si)(xaccX[i], _NMH_MM_(srli_epi32)(xaccX[i], 10)), _NMH_MM_(srli_epi32)(xaccX[i], 20));
-	}
-}
-#  undef _NMH_MM_
-#  undef _NMH_MMW_
-#  undef _NMH_MM_T
-#  undef NMH_VECTOR_NB_GROUP
-#endif
-static
-uint32_t
-NMHASH32_long(const uint8_t* const NMH_RESTRICT p, size_t const len, uint32_t const seed)
-{
-	NMH_ALIGN(NMH_ACC_ALIGN) uint32_t accX[sizeof(NMH_ACC_INIT)/sizeof(*NMH_ACC_INIT)];
-	NMH_ALIGN(NMH_ACC_ALIGN) uint32_t accY[sizeof(accX)/sizeof(*accX)];
-	size_t const nbRounds = (len - 1) / (sizeof(accX) + sizeof(accY));
-	size_t i;
-	uint32_t sum = 0;
-	
-	/* init */
-	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) accX[i] = NMH_ACC_INIT[i];
-	for (i = 0; i < sizeof(accY)/sizeof(*accY); ++i) accY[i] = seed;
-	
-	for (i = 0; i < nbRounds; ++i) {
-		NMHASH32_long_round(accX, accY, p + i * (sizeof(accX) + sizeof(accY)));
-	}
-	NMHASH32_long_round(accX, accY, p + len - (sizeof(accX) + sizeof(accY)));
-	
-	/* merge acc */
-	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) accX[i] ^= NMH_ACC_INIT[i];
-	for (i = 0; i < sizeof(accX)/sizeof(*accX); ++i) sum += accX[i];
-	
-#	if SIZE_MAX > UINT32_C(-1)
-	sum += (uint32_t)(len >> 32);
-#	endif
-	return sum ^ (uint32_t)len;
-}
-static inline
-uint32_t
-NMHASH32X_0to4(uint32_t x, uint32_t const seed)
-{
-	/* [bdab1ea9 18 a7896a1b 12 83796a2d 16] = 0.092922873297662509 */
-	x ^= seed;
-	x *= UINT32_C(0xBDAB1EA9);
-	x += NMH_rotl32(seed, 31);
-	x ^= x >> 18;
-	x *= UINT32_C(0xA7896A1B);
-	x ^= x >> 12;
-	x *= UINT32_C(0x83796A2D);
-	x ^= x >> 16;
-	return x;
-}
-static inline
-uint32_t
-NMHASH32X_5to8(const uint8_t* const NMH_RESTRICT p, size_t const len, uint32_t const seed)
-{
-	/* - 5 to 9 bytes
-	 * - mixer: [11049a7d 23 bcccdc7b 12 065e9dad 12] = 0.16577596555667246 */
-	
-	uint32_t       x = NMH_readLE32(p) ^ NMH_PRIME32_3;
-	uint32_t const y = NMH_readLE32(p + len - 4) ^ seed;
-	x += y;
-	x ^= x >> len;
-	x *= UINT32_C(0x11049A7D);
-	x ^= x >> 23;
-	x *= UINT32_C(0xBCCCDC7B);
-	x ^= NMH_rotl32(y, 3);
-	x ^= x >> 12;
-	x *= UINT32_C(0x065E9DAD);
-	x ^= x >> 12;
-	return x;
-}
-static inline
-uint32_t
-NMHASH32X_9to255(const uint8_t* const NMH_RESTRICT p, size_t const len, uint32_t const seed)
-{
-	/* - at least 9 bytes
-	 * - base mixer: [11049a7d 23 bcccdc7b 12 065e9dad 12] = 0.16577596555667246
-	 * - tail mixer: [16 a52fb2cd 15 551e4d49 16] = 0.17162579707098322
-	 */
-	
-	uint32_t x = NMH_PRIME32_3;
-	uint32_t y = seed;
-	uint32_t a = NMH_PRIME32_4;
-	uint32_t b = seed;
-	size_t i, r = (len - 1) / 16;
-	
-	for (i = 0; i < r; ++i) {
-		x ^= NMH_readLE32(p + i * 16 + 0);
-		y ^= NMH_readLE32(p + i * 16 + 4);
-		x ^= y;
-		x *= UINT32_C(0x11049A7D);
-		x ^= x >> 23;
-		x *= UINT32_C(0xBCCCDC7B);
-		y  = NMH_rotl32(y, 4);
-		x ^= y;
-		x ^= x >> 12;
-		x *= UINT32_C(0x065E9DAD);
-		x ^= x >> 12;
-		a ^= NMH_readLE32(p + i * 16 + 8);
-		b ^= NMH_readLE32(p + i * 16 + 12);
-		a ^= b;
-		a *= UINT32_C(0x11049A7D);
-		a ^= a >> 23;
-		a *= UINT32_C(0xBCCCDC7B);
-		b  = NMH_rotl32(b, 3);
-		a ^= b;
-		a ^= a >> 12;
-		a *= UINT32_C(0x065E9DAD);
-		a ^= a >> 12;
-	}
-	
-	if (NMH_likely(((uint8_t)len-1) & 8)) {
-		if (NMH_likely(((uint8_t)len-1) & 4)) {
-			a ^= NMH_readLE32(p + r * 16 + 0);
-			b ^= NMH_readLE32(p + r * 16 + 4);
-			a ^= b;
-			a *= UINT32_C(0x11049A7D);
-			a ^= a >> 23;
-			a *= UINT32_C(0xBCCCDC7B);
-			a ^= NMH_rotl32(b, 4);
-			a ^= a >> 12;
-			a *= UINT32_C(0x065E9DAD);
-		} else {
-			a ^= NMH_readLE32(p + r * 16) + b;
-			a ^= a >> 16;
-			a *= UINT32_C(0xA52FB2CD);
-			a ^= a >> 15;
-			a *= UINT32_C(0x551E4D49);
-		}
-		
-		x ^= NMH_readLE32(p + len - 8);
-		y ^= NMH_readLE32(p + len - 4);
-		x ^= y;
-		x *= UINT32_C(0x11049A7D);
-		x ^= x >> 23;
-		x *= UINT32_C(0xBCCCDC7B);
-		x ^= NMH_rotl32(y, 3);
-		x ^= x >> 12;
-		x *= UINT32_C(0x065E9DAD);
-	} else {
-		if (NMH_likely(((uint8_t)len-1) & 4)) {
-			a ^= NMH_readLE32(p + r * 16) + b;
-			a ^= a >> 16;
-			a *= UINT32_C(0xA52FB2CD);
-			a ^= a >> 15;
-			a *= UINT32_C(0x551E4D49);
-		}
-		x ^= NMH_readLE32(p + len - 4) + y;
-		x ^= x >> 16;
-		x *= UINT32_C(0xA52FB2CD);
-		x ^= x >> 15;
-		x *= UINT32_C(0x551E4D49);
-	}
-	
-	x ^= (uint32_t)len;
-	x ^= NMH_rotl32(a, 27); /* rotate one lane to pass Diff test */
-	x ^= x >> 14;
-	x *= UINT32_C(0x141CC535);
-	
-	return x;
-}
-static inline
-uint32_t
-NMHASH32X_avalanche32(uint32_t x)
-{
-	/* mixer with 2 mul from skeeto/hash-prospector:
-	 * [15 d168aaad 15 af723597 15] = 0.15983776156606694
-	 */
-	x ^= x >> 15;
-	x *= UINT32_C(0xD168AAAD);
-	x ^= x >> 15;
-	x *= UINT32_C(0xAF723597);
-	x ^= x >> 15;
-	return x;
-}
-/* use 32*32->32 multiplication for short hash */
-static inline
-uint32_t
-NMHASH32X(const void* const NMH_RESTRICT input, size_t const len, uint32_t seed)
-{
-	const uint8_t *const p = (const uint8_t *)input;
-	if (NMH_likely(len <= 8)) {
-		if (NMH_likely(len > 4)) {
-			return NMHASH32X_5to8(p, len, seed);
-		} else {
-			/* 0-4 bytes */
-			union { uint32_t u32; uint16_t u16[2]; uint8_t u8[4]; } data;
-			switch (len) {
-				case 0: seed += NMH_PRIME32_2;
-					data.u32 = 0;
-					break;
-				case 1: seed += NMH_PRIME32_2 + (UINT32_C(1) << 24) + (1 << 1);
-					data.u32 = p[0];
-					break;
-				case 2: seed += NMH_PRIME32_2 + (UINT32_C(2) << 24) + (2 << 1);
-					data.u32 = NMH_readLE16(p);
-					break;
-				case 3: seed += NMH_PRIME32_2 + (UINT32_C(3) << 24) + (3 << 1);
-					data.u16[1] = p[2];
-					data.u16[0] = NMH_readLE16(p);
-					break;
-				case 4: seed += NMH_PRIME32_1;
-					data.u32 = NMH_readLE32(p);
-					break;
-				default: return 0;
-			}
-			return NMHASH32X_0to4(data.u32, seed);
-		}
-	}
-	if (NMH_likely(len < 256)) {
-		return NMHASH32X_9to255(p, len, seed);
-	}
-	return NMHASH32X_avalanche32(NMHASH32_long(p, len, seed));
-}
-#if defined(_MSC_VER) && _MSC_VER >= 1914
-#  pragma warning(pop)
-#endif
-#ifdef __SDCC
-#  pragma restore
-#  undef const
-#endif
-// 计算 32 位哈希值
-XXAPI uint32 xrtHash32_WithSeed(ptr key, size_t len, uint32 seed)
-{
-	return NMHASH32X(key, len, seed);
-}
-XXAPI uint32 xrtHash32(ptr key, size_t len)
-{
-	return xrtHash32_WithSeed(key, len, HASH32_SEED);
-}
-/*
-Hash64 - rapidhash [Ver3.0, Update : 2025/08/14 from https://github.com/Nicoshev/rapidhash]
-	修改：
-		删除头文件引入：<stdint.h> 和 <string.h>（最上面已经引入）
-	使用协议注意事项：
-		BSD 2-Clause 协议
-		允许个人使用、商业使用
-		复制、分发、修改，除了加上作者的版权信息，还必须保留免责声明，免除作者的责任
-*/
-/*
- * rapidhash - Very fast, high quality, platform-independent hashing algorithm.
- * Copyright (C) 2024 Nicolas De Carli
- *
- * Based on 'wyhash', by Wang Yi <godspeed_china@yeah.net>
- *
- * BSD 2-Clause License (https://www.opensource.org/licenses/bsd-license.php)
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
- *    * Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following disclaimer
- *      in the documentation and/or other materials provided with the
- *      distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * You can contact the author at:
- *   - rapidhash source repository: https://github.com/Nicoshev/rapidhash
- */
-/*
- *  Includes.
- */
- #if defined(_MSC_VER)
- # include <intrin.h>
- # if defined(_M_X64) && !defined(_M_ARM64EC)
- #   pragma intrinsic(_umul128)
- # endif
- #endif
- 
- /*
-  *  C/C++ macros.
-  */
- 
- #ifdef _MSC_VER
- # define RAPIDHASH_ALWAYS_INLINE __forceinline
- #elif defined(__GNUC__)
- # define RAPIDHASH_ALWAYS_INLINE inline __attribute__((__always_inline__))
- #else
- # define RAPIDHASH_ALWAYS_INLINE inline
- #endif
- 
- #ifdef __cplusplus
- # define RAPIDHASH_NOEXCEPT noexcept
- # define RAPIDHASH_CONSTEXPR constexpr
- # ifndef RAPIDHASH_INLINE
- #   define RAPIDHASH_INLINE RAPIDHASH_ALWAYS_INLINE
- # endif
- # if __cplusplus >= 201402L && !defined(_MSC_VER)
- #   define RAPIDHASH_INLINE_CONSTEXPR RAPIDHASH_ALWAYS_INLINE constexpr
- # else
- #   define RAPIDHASH_INLINE_CONSTEXPR RAPIDHASH_ALWAYS_INLINE
- # endif
- #else
- # define RAPIDHASH_NOEXCEPT
- # define RAPIDHASH_CONSTEXPR static const
- # ifndef RAPIDHASH_INLINE
- #   define RAPIDHASH_INLINE static RAPIDHASH_ALWAYS_INLINE
- # endif
- # define RAPIDHASH_INLINE_CONSTEXPR RAPIDHASH_INLINE
- #endif
- /*
-  *  Unrolled macro.
-  *  Improves large input speed, but increases code size and worsens small input speed.
-  *
-  *  RAPIDHASH_COMPACT: Normal behavior.
-  *  RAPIDHASH_UNROLLED: 
-  *
-  */
-  #ifndef RAPIDHASH_UNROLLED
-  # define RAPIDHASH_COMPACT
-  #elif defined(RAPIDHASH_COMPACT)
-  # error "cannot define RAPIDHASH_COMPACT and RAPIDHASH_UNROLLED simultaneously."
-  #endif
- 
- /*
-  *  Protection macro, alters behaviour of rapid_mum multiplication function.
-  *
-  *  RAPIDHASH_FAST: Normal behavior, max speed.
-  *  RAPIDHASH_PROTECTED: Extra protection against entropy loss.
-  */
- #ifndef RAPIDHASH_PROTECTED
- # define RAPIDHASH_FAST
- #elif defined(RAPIDHASH_FAST)
- # error "cannot define RAPIDHASH_PROTECTED and RAPIDHASH_FAST simultaneously."
- #endif
- 
- /*
-  *  Likely and unlikely macros.
-  */
- #if defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
- # define _likely_(x)  __builtin_expect(x,1)
- # define _unlikely_(x)  __builtin_expect(x,0)
- #else
- # define _likely_(x) (x)
- # define _unlikely_(x) (x)
- #endif
- 
- /*
-  *  Endianness macros.
-  */
- #ifndef RAPIDHASH_LITTLE_ENDIAN
- # if defined(_WIN32) || defined(__LITTLE_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
- #   define RAPIDHASH_LITTLE_ENDIAN
- # elif defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
- #   define RAPIDHASH_BIG_ENDIAN
- # else
- #   warning "could not determine endianness! Falling back to little endian."
- #   define RAPIDHASH_LITTLE_ENDIAN
- # endif
- #endif
- 
- /*
-  *  Default secret parameters.
-  */
-   RAPIDHASH_CONSTEXPR uint64_t rapid_secret[8] = {
-     0x2d358dccaa6c78a5ull,
-     0x8bb84b93962eacc9ull,
-     0x4b33a62ed433d4a3ull,
-     0x4d5a2da51de1aa47ull,
-     0xa0761d6478bd642full,
-     0xe7037ed1a0b428dbull,
-     0x90ed1765281c388cull,
-     0xaaaaaaaaaaaaaaaaull};
- 
- /*
-  *  64*64 -> 128bit multiply function.
-  *
-  *  @param A  Address of 64-bit number.
-  *  @param B  Address of 64-bit number.
-  *
-  *  Calculates 128-bit C = *A * *B.
-  *
-  *  When RAPIDHASH_FAST is defined:
-  *  Overwrites A contents with C's low 64 bits.
-  *  Overwrites B contents with C's high 64 bits.
-  *
-  *  When RAPIDHASH_PROTECTED is defined:
-  *  Xors and overwrites A contents with C's low 64 bits.
-  *  Xors and overwrites B contents with C's high 64 bits.
-  */
- RAPIDHASH_INLINE_CONSTEXPR void rapid_mum(uint64_t *A, uint64_t *B) RAPIDHASH_NOEXCEPT {
- #if defined(__SIZEOF_INT128__)
-   __uint128_t r=*A; r*=*B;
-   #ifdef RAPIDHASH_PROTECTED
-   *A^=(uint64_t)r; *B^=(uint64_t)(r>>64);
-   #else
-   *A=(uint64_t)r; *B=(uint64_t)(r>>64);
-   #endif
- #elif defined(_MSC_VER) && (defined(_WIN64) || defined(_M_HYBRID_CHPE_ARM64))
-   #if defined(_M_X64)
-     #ifdef RAPIDHASH_PROTECTED
-     uint64_t a, b;
-     a=_umul128(*A,*B,&b);
-     *A^=a;  *B^=b;
-     #else
-     *A=_umul128(*A,*B,B);
-     #endif
-   #else
-     #ifdef RAPIDHASH_PROTECTED
-     uint64_t a, b;
-     b = __umulh(*A, *B);
-     a = *A * *B;
-     *A^=a;  *B^=b;
-     #else
-     uint64_t c = __umulh(*A, *B);
-     *A = *A * *B;
-     *B = c;
-     #endif
-   #endif
- #else
-   uint64_t ha=*A>>32, hb=*B>>32, la=(uint32_t)*A, lb=(uint32_t)*B;
-   uint64_t rh=ha*hb, rm0=ha*lb, rm1=hb*la, rl=la*lb, t=rl+(rm0<<32), c=t<rl;
-   uint64_t lo=t+(rm1<<32); 
-   c+=lo<t; 
-   uint64_t hi=rh+(rm0>>32)+(rm1>>32)+c;
-   #ifdef RAPIDHASH_PROTECTED
-   *A^=lo;  *B^=hi;
-   #else
-   *A=lo;  *B=hi;
-   #endif
- #endif
- }
- 
- /*
-  *  Multiply and xor mix function.
-  *
-  *  @param A  64-bit number.
-  *  @param B  64-bit number.
-  *
-  *  Calculates 128-bit C = A * B.
-  *  Returns 64-bit xor between high and low 64 bits of C.
-  */
-  RAPIDHASH_INLINE_CONSTEXPR uint64_t rapid_mix(uint64_t A, uint64_t B) RAPIDHASH_NOEXCEPT { rapid_mum(&A,&B); return A^B; }
- 
- /*
-  *  Read functions.
-  */
- #ifdef RAPIDHASH_LITTLE_ENDIAN
- RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint64_t v; memcpy(&v, p, sizeof(uint64_t)); return v;}
- RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint32_t v; memcpy(&v, p, sizeof(uint32_t)); return v;}
- #elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
- RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint64_t v; memcpy(&v, p, sizeof(uint64_t)); return __builtin_bswap64(v);}
- RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint32_t v; memcpy(&v, p, sizeof(uint32_t)); return __builtin_bswap32(v);}
- #elif defined(_MSC_VER)
- RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint64_t v; memcpy(&v, p, sizeof(uint64_t)); return _byteswap_uint64(v);}
- RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint32_t v; memcpy(&v, p, sizeof(uint32_t)); return _byteswap_ulong(v);}
- #else
- RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT {
-   uint64_t v; memcpy(&v, p, 8);
-   return (((v >> 56) & 0xff)| ((v >> 40) & 0xff00)| ((v >> 24) & 0xff0000)| ((v >>  8) & 0xff000000)| ((v <<  8) & 0xff00000000)| ((v << 24) & 0xff0000000000)| ((v << 40) & 0xff000000000000)| ((v << 56) & 0xff00000000000000));
- }
- RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT {
-   uint32_t v; memcpy(&v, p, 4);
-   return (((v >> 24) & 0xff)| ((v >>  8) & 0xff00)| ((v <<  8) & 0xff0000)| ((v << 24) & 0xff000000));
- }
- #endif
- 
- /*
-  *  rapidhash main function.
-  *
-  *  @param key     Buffer to be hashed.
-  *  @param len     @key length, in bytes.
-  *  @param seed    64-bit seed used to alter the hash result predictably.
-  *  @param secret  Triplet of 64-bit secrets used to alter hash result predictably.
-  *
-  *  Returns a 64-bit hash.
-  */
-RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhash_internal(const void *key, size_t len, uint64_t seed, const uint64_t* secret) RAPIDHASH_NOEXCEPT {
-  const uint8_t *p=(const uint8_t *)key;
-  seed ^= rapid_mix(seed ^ secret[2], secret[1]);
-  uint64_t a=0, b=0;
-  size_t i = len;
-  if (_likely_(len <= 16)) {
-    if (len >= 4) {
-      seed ^= len;
-      if (len >= 8) {
-        const uint8_t* plast = p + len - 8;
-        a = rapid_read64(p);
-        b = rapid_read64(plast);
-      } else {
-        const uint8_t* plast = p + len - 4;
-        a = rapid_read32(p);
-        b = rapid_read32(plast);
-      }
-    } else if (len > 0) {
-      a = (((uint64_t)p[0])<<45)|p[len-1];
-      b = p[len>>1];
-    } else
-      a = b = 0;
-  } else {
-    uint64_t see1 = seed, see2 = seed;
-    uint64_t see3 = seed, see4 = seed;
-    uint64_t see5 = seed, see6 = seed;
-#ifdef RAPIDHASH_COMPACT
-    if (i > 112) {
-      do {
-        seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
-        see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
-        see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
-        see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
-        see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
-        see5 = rapid_mix(rapid_read64(p + 80) ^ secret[5], rapid_read64(p + 88) ^ see5);
-        see6 = rapid_mix(rapid_read64(p + 96) ^ secret[6], rapid_read64(p + 104) ^ see6);
-        p += 112;
-        i -= 112;
-      } while(i > 112);
-      seed ^= see1;
-      see2 ^= see3;
-      see4 ^= see5;
-      seed ^= see6;
-      see2 ^= see4;
-      seed ^= see2;
-    }
-#else 
-    if (i > 224) {
-      do {
-          seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
-          see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
-          see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
-          see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
-          see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
-          see5 = rapid_mix(rapid_read64(p + 80) ^ secret[5], rapid_read64(p + 88) ^ see5);
-          see6 = rapid_mix(rapid_read64(p + 96) ^ secret[6], rapid_read64(p + 104) ^ see6);
-          seed = rapid_mix(rapid_read64(p + 112) ^ secret[0], rapid_read64(p + 120) ^ seed);
-          see1 = rapid_mix(rapid_read64(p + 128) ^ secret[1], rapid_read64(p + 136) ^ see1);
-          see2 = rapid_mix(rapid_read64(p + 144) ^ secret[2], rapid_read64(p + 152) ^ see2);
-          see3 = rapid_mix(rapid_read64(p + 160) ^ secret[3], rapid_read64(p + 168) ^ see3);
-          see4 = rapid_mix(rapid_read64(p + 176) ^ secret[4], rapid_read64(p + 184) ^ see4);
-          see5 = rapid_mix(rapid_read64(p + 192) ^ secret[5], rapid_read64(p + 200) ^ see5);
-          see6 = rapid_mix(rapid_read64(p + 208) ^ secret[6], rapid_read64(p + 216) ^ see6);
-          p += 224;
-          i -= 224;
-      } while (i > 224);
-    }
-    if (i > 112) {
-      seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
-      see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
-      see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
-      see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
-      see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
-      see5 = rapid_mix(rapid_read64(p + 80) ^ secret[5], rapid_read64(p + 88) ^ see5);
-      see6 = rapid_mix(rapid_read64(p + 96) ^ secret[6], rapid_read64(p + 104) ^ see6);
-      p += 112;
-      i -= 112;
-    }
-    seed ^= see1;
-    see2 ^= see3;
-    see4 ^= see5;
-    seed ^= see6;
-    see2 ^= see4;
-    seed ^= see2;
-#endif
-    if (i > 16) {
-      seed = rapid_mix(rapid_read64(p) ^ secret[2], rapid_read64(p + 8) ^ seed);
-      if (i > 32) {
-          seed = rapid_mix(rapid_read64(p + 16) ^ secret[2], rapid_read64(p + 24) ^ seed);
-          if (i > 48) {
-              seed = rapid_mix(rapid_read64(p + 32) ^ secret[1], rapid_read64(p + 40) ^ seed);
-              if (i > 64) {
-                  seed = rapid_mix(rapid_read64(p + 48) ^ secret[1], rapid_read64(p + 56) ^ seed);
-                  if (i > 80) {
-                      seed = rapid_mix(rapid_read64(p + 64) ^ secret[2], rapid_read64(p + 72) ^ seed);
-                      if (i > 96) {
-                          seed = rapid_mix(rapid_read64(p + 80) ^ secret[1], rapid_read64(p + 88) ^ seed);
-                      }
-                  }
-              }
-          }
-      }
-    }
-    a=rapid_read64(p+i-16) ^ i;  b=rapid_read64(p+i-8);
-  }
-  a ^= secret[1];
-  b ^= seed;
-  rapid_mum(&a, &b);
-  return rapid_mix(a ^ secret[7], b ^ secret[1] ^ i);
-}
- /*
-  *  rapidhashMicro main function.
-  *
-  *  @param key     Buffer to be hashed.
-  *  @param len     @key length, in bytes.
-  *  @param seed    64-bit seed used to alter the hash result predictably.
-  *  @param secret  Triplet of 64-bit secrets used to alter hash result predictably.
-  *
-  *  Returns a 64-bit hash.
-  */
-  RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashMicro_internal(const void *key, size_t len, uint64_t seed, const uint64_t* secret) RAPIDHASH_NOEXCEPT {
-    const uint8_t *p=(const uint8_t *)key;
-    seed ^= rapid_mix(seed ^ secret[2], secret[1]);
-    uint64_t a=0, b=0;
-    size_t i = len;
-    if (_likely_(len <= 16)) {
-      if (len >= 4) {
-        seed ^= len;
-        if (len >= 8) {
-          const uint8_t* plast = p + len - 8;
-          a = rapid_read64(p);
-          b = rapid_read64(plast);
-        } else {
-          const uint8_t* plast = p + len - 4;
-          a = rapid_read32(p);
-          b = rapid_read32(plast);
-        }
-      } else if (len > 0) {
-        a = (((uint64_t)p[0])<<45)|p[len-1];
-        b = p[len>>1];
-      } else
-        a = b = 0;
-    } else {
-      if (i > 80) {
-        uint64_t see1 = seed, see2 = seed;
-        uint64_t see3 = seed, see4 = seed;
-        do {
-          seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
-          see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
-          see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
-          see3 = rapid_mix(rapid_read64(p + 48) ^ secret[3], rapid_read64(p + 56) ^ see3);
-          see4 = rapid_mix(rapid_read64(p + 64) ^ secret[4], rapid_read64(p + 72) ^ see4);
-          p += 80;
-          i -= 80;
-        } while(i > 80);
-        seed ^= see1;
-        see2 ^= see3;
-        seed ^= see4;
-        seed ^= see2;
-      }
-      if (i > 16) {
-        seed = rapid_mix(rapid_read64(p) ^ secret[2], rapid_read64(p + 8) ^ seed);
-        if (i > 32) {
-            seed = rapid_mix(rapid_read64(p + 16) ^ secret[2], rapid_read64(p + 24) ^ seed);
-            if (i > 48) {
-                seed = rapid_mix(rapid_read64(p + 32) ^ secret[1], rapid_read64(p + 40) ^ seed);
-                if (i > 64) {
-                    seed = rapid_mix(rapid_read64(p + 48) ^ secret[1], rapid_read64(p + 56) ^ seed);
-                }
-            }
-        }
-      }
-      a=rapid_read64(p+i-16) ^ i;  b=rapid_read64(p+i-8);
-    }
-    a ^= secret[1];
-    b ^= seed;
-    rapid_mum(&a, &b);
-    return rapid_mix(a ^ secret[7], b ^ secret[1] ^ i);
-  }
-  /*
-  *  rapidhashNano main function.
-  *
-  *  @param key     Buffer to be hashed.
-  *  @param len     @key length, in bytes.
-  *  @param seed    64-bit seed used to alter the hash result predictably.
-  *  @param secret  Triplet of 64-bit secrets used to alter hash result predictably.
-  *
-  *  Returns a 64-bit hash.
-  */
-  RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashNano_internal(const void *key, size_t len, uint64_t seed, const uint64_t* secret) RAPIDHASH_NOEXCEPT {
-    const uint8_t *p=(const uint8_t *)key;
-    seed ^= rapid_mix(seed ^ secret[2], secret[1]);
-    uint64_t a=0, b=0;
-    size_t i = len;
-    if (_likely_(len <= 16)) {
-      if (len >= 4) {
-        seed ^= len;
-        if (len >= 8) {
-          const uint8_t* plast = p + len - 8;
-          a = rapid_read64(p);
-          b = rapid_read64(plast);
-        } else {
-          const uint8_t* plast = p + len - 4;
-          a = rapid_read32(p);
-          b = rapid_read32(plast);
-        }
-      } else if (len > 0) {
-        a = (((uint64_t)p[0])<<45)|p[len-1];
-        b = p[len>>1];
-      } else
-        a = b = 0;
-    } else {
-      if (i > 48) {
-        uint64_t see1 = seed, see2 = seed;
-        do {
-          seed = rapid_mix(rapid_read64(p) ^ secret[0], rapid_read64(p + 8) ^ seed);
-          see1 = rapid_mix(rapid_read64(p + 16) ^ secret[1], rapid_read64(p + 24) ^ see1);
-          see2 = rapid_mix(rapid_read64(p + 32) ^ secret[2], rapid_read64(p + 40) ^ see2);
-          p += 48;
-          i -= 48;
-        } while(i > 48);
-        seed ^= see1;
-        seed ^= see2;
-      }
-      if (i > 16) {
-        seed = rapid_mix(rapid_read64(p) ^ secret[2], rapid_read64(p + 8) ^ seed);
-        if (i > 32) {
-            seed = rapid_mix(rapid_read64(p + 16) ^ secret[2], rapid_read64(p + 24) ^ seed);
-        }
-      }
-      a=rapid_read64(p+i-16) ^ i;  b=rapid_read64(p+i-8);
-    }
-    a ^= secret[1];
-    b ^= seed;
-    rapid_mum(&a, &b);
-    return rapid_mix(a ^ secret[7], b ^ secret[1] ^ i);
-  }
- 
-/*
- *  rapidhash seeded hash function.
- *
- *  @param key     Buffer to be hashed.
- *  @param len     @key length, in bytes.
- *  @param seed    64-bit seed used to alter the hash result predictably.
- *
- *  Calls rapidhash_internal using provided parameters and default secrets.
- *
- *  Returns a 64-bit hash.
- */
-RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhash_withSeed(const void *key, size_t len, uint64_t seed) RAPIDHASH_NOEXCEPT {
-  return rapidhash_internal(key, len, seed, rapid_secret);
-}
- 
-/*
- *  rapidhash general purpose hash function.
- *
- *  @param key     Buffer to be hashed.
- *  @param len     @key length, in bytes.
- *
- *  Calls rapidhash_withSeed using provided parameters and the default seed.
- *
- *  Returns a 64-bit hash.
- */
-RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhash(const void *key, size_t len) RAPIDHASH_NOEXCEPT {
-  return rapidhash_withSeed(key, len, 0);
-}
-/*
- *  rapidhashMicro seeded hash function.
- *
- *  Designed for HPC and server applications, where cache misses make a noticeable performance detriment.
- *  Clang-18+ compiles it to ~140 instructions without stack usage, both on x86-64 and aarch64.
- *  Faster for sizes up to 512 bytes, just 15%-20% slower for inputs above 1kb.
- *
- *  @param key     Buffer to be hashed.
- *  @param len     @key length, in bytes.
- *  @param seed    64-bit seed used to alter the hash result predictably.
- *
- *  Calls rapidhash_internal using provided parameters and default secrets.
- *
- *  Returns a 64-bit hash.
- */
- RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashMicro_withSeed(const void *key, size_t len, uint64_t seed) RAPIDHASH_NOEXCEPT {
-  return rapidhashMicro_internal(key, len, seed, rapid_secret);
-}
- 
-/*
- *  rapidhashMicro hash function.
- *
- *  @param key     Buffer to be hashed.
- *  @param len     @key length, in bytes.
- *
- *  Calls rapidhash_withSeed using provided parameters and the default seed.
- *
- *  Returns a 64-bit hash.
- */
-RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashMicro(const void *key, size_t len) RAPIDHASH_NOEXCEPT {
-  return rapidhashMicro_withSeed(key, len, 0);
-}
-/*
- *  rapidhashNano seeded hash function.
- *
- *  @param key     Buffer to be hashed.
- *  @param len     @key length, in bytes.
- *  @param seed    64-bit seed used to alter the hash result predictably.
- *
- *  Calls rapidhash_internal using provided parameters and default secrets.
- *
- *  Returns a 64-bit hash.
- */
- RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashNano_withSeed(const void *key, size_t len, uint64_t seed) RAPIDHASH_NOEXCEPT {
-  return rapidhashNano_internal(key, len, seed, rapid_secret);
-}
- 
-/*
- *  rapidhashNano hash function.
- *
- *  Designed for Mobile and embedded applications, where keeping a small code size is a top priority.
- *  Clang-18+ compiles it to less than 100 instructions without stack usage, both on x86-64 and aarch64.
- *  The fastest for sizes up to 48 bytes, but may be considerably slower for larger inputs.
- *
- *  @param key     Buffer to be hashed.
- *  @param len     @key length, in bytes.
- *
- *  Calls rapidhash_withSeed using provided parameters and the default seed.
- *
- *  Returns a 64-bit hash.
- */
-RAPIDHASH_INLINE_CONSTEXPR uint64_t rapidhashNano(const void *key, size_t len) RAPIDHASH_NOEXCEPT {
-  return rapidhashNano_withSeed(key, len, 0);
-}
-// 计算 64 位哈希值
-XXAPI uint64 xrtHash64_WithSeed(ptr key, size_t len, uint64 seed)
-{
-	return rapidhash_internal(key, len, seed, rapid_secret);
-}
-XXAPI uint64 xrtHash64(ptr key, size_t len)
-{
-	return xrtHash64_WithSeed(key, len, 0);
-}
-XXAPI uint64 xrtHash64_Micro_WithSeed(ptr key, size_t len, uint64 seed)
-{
-	return rapidhashMicro_internal(key, len, seed, rapid_secret);
-}
-XXAPI uint64 xrtHash64_Micro(ptr key, size_t len)
-{
-	return xrtHash64_Micro_WithSeed(key, len, 0);
-}
-XXAPI uint64 xrtHash64_Nano_WithSeed(ptr key, size_t len, uint64 seed)
-{
-	return rapidhashNano_internal(key, len, seed, rapid_secret);
-}
-XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
-{
-	return xrtHash64_Nano_WithSeed(key, len, 0);
-}
+#ifndef XRT_NO_NETWORK
 
 // ========================================
 // File: D:/git/xrt/lib/network.h
@@ -12163,6 +12273,8 @@ str xrtGetLocalName()
 	}
 	return xCore.sNull;
 }
+#endif
+#ifndef XRT_NO_CRYPTO
 
 // ========================================
 // File: D:/git/xrt/lib/crypto.h
@@ -15258,6 +15370,8 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 	(void)pMsg; (void)iMsgLen; (void)pSig; (void)pPubKey;
 	return false;
 }
+#endif
+#ifndef XRT_NO_NETSOCK
 
 // ========================================
 // File: D:/git/xrt/lib/netsock.h
@@ -15891,6 +16005,8 @@ XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen)
 	if ( iLen > iReadable ) iLen = iReadable;
 	pBuf->iReadPos += iLen;
 }
+#endif
+#ifndef XRT_NO_NETPOLL
 
 // ========================================
 // File: D:/git/xrt/lib/netpoll.h
@@ -17034,6 +17150,8 @@ XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
 	return pPoller->pUserData;
 }
 #endif /* Linux */
+#endif
+#ifndef XRT_NO_NETTLS
 
 // ========================================
 // File: D:/git/xrt/lib/nettls.h
@@ -19717,6 +19835,8 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 	}
 }
 #endif
+#endif
+#ifndef XRT_NO_NETLOOP
 
 // ========================================
 // File: D:/git/xrt/lib/netloop.h
@@ -19815,6 +19935,8 @@ XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop)
 	if ( !pLoop ) return NULL;
 	return pLoop->pPoller;
 }
+#endif
+#ifndef XRT_NO_NETTCP
 
 // ========================================
 // File: D:/git/xrt/lib/nettcp.h
@@ -20736,6 +20858,8 @@ XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient)
 {
 	return pClient ? pClient->pUserData : NULL;
 }
+#endif
+#ifndef XRT_NO_NETUDP
 
 // ========================================
 // File: D:/git/xrt/lib/netudp.h
@@ -21205,6 +21329,8 @@ XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient)
 {
 	return pClient ? pClient->pUserData : NULL;
 }
+#endif
+#ifndef XRT_NO_XID
 
 // ========================================
 // File: D:/git/xrt/lib/xid.h
@@ -21268,6 +21394,8 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 		return FALSE;
 	}
 }
+#endif
+#ifndef XRT_NO_BUFFER
 
 // ========================================
 // File: D:/git/xrt/lib/buffer.h
@@ -21378,6 +21506,8 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 {
 	return xrtBufferInsert(pBuf, pBuf->Length, pData, iSize, bStrMode);
 }
+#endif
+#ifndef XRT_NO_NETHTTP
 
 // ========================================
 // File: D:/git/xrt/lib/nethttp.h
@@ -22699,6 +22829,8 @@ XXAPI str xrtHttpRespContentType(xhttpresp pResp)
 {
 	return (pResp && pResp->sContentType[0]) ? pResp->sContentType : NULL;
 }
+#endif
+#ifndef XRT_NO_ARRAY
 
 // ========================================
 // File: D:/git/xrt/lib/array_point.h
@@ -23057,6 +23189,8 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 		return FALSE;
 	}
 }
+#endif
+#ifndef XRT_NO_BSMN
 
 // ========================================
 // File: D:/git/xrt/lib/bsmm.h
@@ -23151,6 +23285,8 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 	pNode->Next = objBSMM->LL_Free;
 	objBSMM->LL_Free = pNode;
 }
+#endif
+#ifndef XRT_NO_MEMUNIT
 
 // ========================================
 // File: D:/git/xrt/lib/memunit.h
@@ -23291,6 +23427,8 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 	}
 	return iCount;
 }
+#endif
+#ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
 // File: D:/git/xrt/lib/mempool_fs.h
@@ -23543,6 +23681,8 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 		pNode = pNext;
 	}
 }
+#endif
+#ifndef XRT_NO_STACK
 
 // ========================================
 // File: D:/git/xrt/lib/stack.h
@@ -23829,6 +23969,8 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 	ptr* p = (ptr*)&pBlock[(iPos & 0xFF) * objSTK->ItemLength];
 	return p[0];
 }
+#endif
+#ifndef XRT_NO_AVLTREE
 
 // ========================================
 // File: D:/git/xrt/lib/avltree_base.h
@@ -24361,6 +24503,8 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 		return NULL;
 	}
 }
+#endif
+#ifndef XRT_NO_MEMPOOL
 
 // ========================================
 // File: D:/git/xrt/lib/mempool.h
@@ -24835,6 +24979,8 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 		}
 	}
 }
+#endif
+#ifndef XRT_NO_DICT
 
 // ========================================
 // File: D:/git/xrt/lib/dict.h
@@ -25023,6 +25169,8 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 {
 	AVLHT32_WalkRecuProc(objHT->AVLT.RootNode, procEach, pArg);
 }
+#endif
+#ifndef XRT_NO_LIST
 
 // ========================================
 // File: D:/git/xrt/lib/list.h
@@ -25196,6 +25344,8 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 {
 	List_WalkRecuProc(objList->AVLT.RootNode, procEach, pArg);
 }
+#endif
+#ifndef XRT_NO_VALUE
 
 // ========================================
 // File: D:/git/xrt/lib/value.h
@@ -26746,6 +26896,8 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		}
 	}
 }
+#endif
+#ifndef XRT_NO_JNUM
 
 // ========================================
 // File: D:/git/xrt/lib/jnum.h
@@ -28244,6 +28396,8 @@ jnum_to_func(int64_t, xrtStrToI64)
 jnum_to_func(uint32_t, xrtStrToU32)
 jnum_to_func(uint64_t, xrtStrToU64)
 jnum_to_func(double, xrtStrToNum)
+#endif
+#ifndef XRT_NO_JSON
 
 // ========================================
 // File: D:/git/xrt/lib/json.h
@@ -29989,6 +30143,8 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 		return FALSE;
 	}
 }
+#endif
+#ifndef XRT_NO_TEMPLATE
 
 // ========================================
 // File: D:/git/xrt/lib/template.h
@@ -32852,6 +33008,7 @@ int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot,
 	}
 	return boolVal;
 }
+#endif
 // 初始化 xCore
 XXAPI xrtGlobalData* xrtInit()
 {
@@ -32945,10 +33102,16 @@ XXAPI xrtGlobalData* xrtInit()
 	#endif
 	
 	// 获取本机 IP
-	xCore.LocalAddr = xrtGetLocalRawIP();
+	#ifndef XRT_NO_NETWORK
+		xCore.LocalAddr = xrtGetLocalRawIP();
+	#else
+		xCore.LocalAddr = 0;
+	#endif
 	
 	// 初始化模板引擎
-	xte_private_init();
+	#ifndef XRT_NO_TEMPLATE
+		xte_private_init();
+	#endif
 	
 	return &xCore;
 }
@@ -32962,8 +33125,12 @@ XXAPI void xrtUnit()
 	
 	// 只有引用计数为 0 时才真正释放资源
 	if ( (__xrt_RefCount == 0) && (xCore.bInit) ) {
+		
 		// 清理模板引擎
-		xte_private_unit();
+		#ifndef XRT_NO_TEMPLATE
+			xte_private_unit();
+		#endif
+		
 		// 释放应用路径
 		xrtFree(xCore.AppFile);
 		xCore.AppFile = xCore.sNull;

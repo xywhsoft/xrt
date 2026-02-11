@@ -162,6 +162,127 @@
 
 
 
+
+
+// ========================================
+// XRT 模块裁剪支持
+// ========================================
+
+// 模板引擎启用时，自动启用完整依赖链
+#if !defined(XRT_NO_TEMPLATE)
+	#undef XRT_NO_VALUE
+	#undef XRT_NO_JNUM
+	#undef XRT_NO_DICT
+	#undef XRT_NO_LIST
+	#undef XRT_NO_AVLTREE
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+	#undef XRT_NO_MEMPOOL_FS
+#endif
+
+// JSON启用时，自动启用依赖链
+#if !defined(XRT_NO_JSON)
+	#undef XRT_NO_VALUE
+	#undef XRT_NO_DICT
+	#undef XRT_NO_LIST
+	#undef XRT_NO_AVLTREE
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+	#undef XRT_NO_MEMPOOL_FS
+#endif
+
+// VALUE系统启用时，自动启用依赖链
+#if !defined(XRT_NO_VALUE)
+	#undef XRT_NO_DICT
+	#undef XRT_NO_LIST
+	#undef XRT_NO_AVLTREE
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+	#undef XRT_NO_MEMPOOL_FS
+#endif
+
+// MemPool启用时，自动启用依赖链
+#if !defined(XRT_NO_MEMPOOL)
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+#endif
+
+// FSMemPool启用时，自动启用依赖链
+#if !defined(XRT_NO_MEMPOOL_FS)
+	#undef XRT_NO_BSMN
+	#undef XRT_NO_MEMUNIT
+#endif
+
+// DICT/LIST启用时，自动启用AVLTree依赖
+#if (!defined(XRT_NO_DICT) || !defined(XRT_NO_LIST))
+	#undef XRT_NO_AVLTREE
+#endif
+
+// VALUE系统依赖检查
+#if defined(XRT_NO_VALUE) && (!defined(XRT_NO_TEMPLATE) || !defined(XRT_NO_JSON))
+	#error "错误: VALUE系统被禁用，但TEMPLATE或JSON模块需要它。请启用XRT_VALUE或禁用相关高级模块。"
+#endif
+
+// DICT/LIST依赖检查
+#if (defined(XRT_NO_DICT) || defined(XRT_NO_LIST)) && !defined(XRT_NO_VALUE)
+	#error "错误: DICT或LIST被禁用，但VALUE系统需要它们。请启用这些模块或禁用XRT_VALUE。"
+#endif
+
+// AVLTree依赖检查
+#if defined(XRT_NO_AVLTREE) && (!defined(XRT_NO_DICT) || !defined(XRT_NO_LIST))
+	#error "错误: AVLTree被禁用，但DICT/LIST模块需要它。请启用AVLTREE或禁用相关容器模块。"
+#endif
+
+// 内存管理层依赖检查
+#if defined(XRT_NO_BSMN) && !defined(XRT_NO_MEMPOOL_FS)
+	#error "错误: BSMM被禁用，但FSMemPool需要它。请启用BSMM或禁用XRT_NO_MEMPOOL_FS。"
+#endif
+
+#if defined(XRT_NO_MEMUNIT) && !defined(XRT_NO_MEMPOOL_FS)
+	#error "错误: MEMUNIT被禁用，但FSMemPool需要它。请启用MEMUNIT或禁用XRT_NO_MEMPOOL_FS。"
+#endif
+
+// 基础功能组
+#if defined(XRT_MINIMAL)
+	#define XRT_NO_TIME
+	#define XRT_NO_FILE
+	#define XRT_NO_THREAD
+	#define XRT_NO_COROUTINE
+	#define XRT_NO_NETWORK
+	#define XRT_NO_CRYPTO
+	#define XRT_NO_NETSOCK
+	#define XRT_NO_NETPOLL
+	#define XRT_NO_NETTLS
+	#define XRT_NO_NETLOOP
+	#define XRT_NO_NETTCP
+	#define XRT_NO_NETUDP
+	#define XRT_NO_XID
+	#define XRT_NO_BUFFER
+	#define XRT_NO_NETHTTP
+	#define XRT_NO_ARRAY
+	#define XRT_NO_STACK
+	#define XRT_NO_BSMN
+	#define XRT_NO_MEMUNIT
+	#define XRT_NO_MEMPOOL_FS
+	#define XRT_NO_STACK
+	#define XRT_NO_AVLTREE
+	#define XRT_NO_MEMPOOL
+	#define XRT_NO_DICT
+	#define XRT_NO_LIST
+	#define XRT_NO_VALUE
+	#define XRT_NO_JNUM
+	#define XRT_NO_JSON
+	#define XRT_NO_TEMPLATE
+#endif
+
+
+
+
+
+// ========================================
+// XRT 头文件声明
+// ========================================
+
 #ifndef XXRTL_CORE
 	#define XXRTL_CORE
 	
