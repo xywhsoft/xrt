@@ -54,6 +54,8 @@
 			typedef struct { PVOID Ptr; } SRWLOCK, *PSRWLOCK;
 			typedef struct { PVOID Ptr; } CONDITION_VARIABLE, *PCONDITION_VARIABLE;
 			
+			ULONGLONG GetTickCount64();
+			
 			void WINAPI InitializeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
 			void WINAPI WakeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
 			void WINAPI WakeAllConditionVariable(PCONDITION_VARIABLE ConditionVariable);
@@ -1033,6 +1035,101 @@
 	
 	// 读锁升级为写锁（可能失败，需要释放后重新获取）
 	XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock);
+	
+	
+	
+	/* ------------------------------------ Coroutine 协程库 ------------------------------------ */
+	
+	// 协程状态
+	#define XRT_CO_READY         0      // 已创建，尚未运行
+	#define XRT_CO_RUNNING       1      // 正在运行
+	#define XRT_CO_SUSPENDED     2      // 已挂起 (yield)
+	#define XRT_CO_DEAD          3      // 已结束
+	
+	// 默认栈大小
+	#define XRT_CO_STACK_DEFAULT (64 * 1024)        // 64 KB
+	#define XRT_CO_STACK_MIN     (8 * 1024)         // 8 KB (最小值保护)
+	#define XRT_CO_STACK_MAX     (8 * 1024 * 1024)  // 8 MB (最大值保护)
+	
+	// 协程入口函数类型
+	typedef void (*xco_entry)(ptr pParam);
+	
+	// 协程上下文（内部使用）
+	typedef struct {
+		ptr arrReg[16];   // 保存的寄存器（各后端按需使用）
+	} __xrt_co_ctx;
+	
+	// 协程数据结构
+	typedef struct {
+		int iState;             // 当前状态 (XRT_CO_*)
+		xco_entry pfnEntry;     // 入口函数
+		ptr pParam;             // 用户传入参数
+		ptr pUserData;          // 用户自定义数据
+		size_t iStackSize;      // 栈大小
+		ptr __pStack;           // 分配的栈内存
+		__xrt_co_ctx __tCtx;    // 上下文（汇编/ucontext 后端使用）
+		ptr __hFiber;           // Windows Fiber 句柄
+		ptr __pSched;           // 所属调度器指针（NULL=无调度器）
+		int64 __iWakeTime;      // 唤醒时间戳（调度器用，0=不等待）
+	} xcoro_struct, *xcoro;
+	
+	// 调度器（不透明结构）
+	typedef struct xrt_co_scheduler xcosched;
+	
+	/* ---------- 协程生命周期 ---------- */
+	
+	// 创建协程
+	XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize);
+	
+	// 销毁协程（协程必须处于 READY 或 DEAD 状态）
+	XXAPI void xrtCoDestroy(xcoro pCo);
+	
+	/* ---------- 协程切换 ---------- */
+	
+	// 恢复协程（从调用方切换到协程执行）
+	XXAPI bool xrtCoResume(xcoro pCo);
+	
+	// 挂起当前协程（从协程内部调用）
+	XXAPI void xrtCoYield();
+	
+	/* ---------- 协程状态查询 ---------- */
+	
+	// 获取协程状态
+	XXAPI int xrtCoGetState(xcoro pCo);
+	
+	// 获取当前正在运行的协程（不在协程中返回 NULL）
+	XXAPI xcoro xrtCoGetCurrent();
+	
+	/* ---------- 用户数据 ---------- */
+	
+	// 设置协程的用户自定义数据
+	XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData);
+	
+	// 获取协程的用户自定义数据
+	XXAPI ptr xrtCoGetUserData(xcoro pCo);
+	
+	/* ---------- 协程调度器 ---------- */
+	
+	// 创建调度器
+	XXAPI xcosched* xrtCoSchedCreate();
+	
+	// 销毁调度器（会自动销毁所有关联的协程）
+	XXAPI void xrtCoSchedDestroy(xcosched* pSched);
+	
+	// 向调度器添加一个协程
+	XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, size_t iStackSize);
+	
+	// 执行一轮调度（返回 true=还有存活协程）
+	XXAPI bool xrtCoSchedStep(xcosched* pSched);
+	
+	// 持续运行调度器直到所有协程结束
+	XXAPI void xrtCoSchedRun(xcosched* pSched);
+	
+	// 获取调度器中存活的协程数量
+	XXAPI int xrtCoSchedGetAlive(xcosched* pSched);
+	
+	// 协程休眠（挂起当前协程，等待指定毫秒后自动恢复，需配合调度器使用）
+	XXAPI void xrtCoSleep(uint32 iMs);
 	
 	
 	

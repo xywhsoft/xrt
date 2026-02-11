@@ -18,6 +18,7 @@
 #include "test/test_time.h"
 #include "test/test_file.h"
 #include "test/test_thread.h"
+#include "test/test_coroutine.h"
 #include "test/test_rwlock.h"
 #include "test/test_hash.h"
 #include "test/test_network.h"
@@ -208,7 +209,10 @@ int main(int argc, char** argv)
 	// Test_TLS_Performance();
 	
 	/* HTTP Client 测试 */
-	Test_HTTP();
+	// Test_HTTP();
+	
+	/* Coroutine 协程库测试 */
+	Test_Coroutine(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);

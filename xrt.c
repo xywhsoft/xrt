@@ -9,9 +9,6 @@
 	#ifdef __TINYC__
 		#include <winapi/shellapi.h>
 		#include <winapi/iphlpapi.h>
-		
-		// 声明函数（从 kernel32.dll 加载）
-		ULONGLONG GetTickCount64();
 	#else
 		#include <shellapi.h>
 		#include <iphlpapi.h>
@@ -58,6 +55,7 @@ static int __xrt_RefCount = 0;  // 引用计数
 #include "lib/time.h"
 #include "lib/file.h"
 #include "lib/thread.h"
+#include "lib/coroutine.h"
 #include "lib/hash.h"
 #include "lib/network.h"
 #include "lib/crypto.h"
