@@ -27,6 +27,7 @@
 #define __XRT_POLL_OP_SEND    2
 #define __XRT_POLL_OP_ACCEPT  3
 
+#define __XRT_POLL_INIT_OPS   64
 #define __XRT_POLL_MAX_OPS    4096
 #define __XRT_POLL_RECV_SIZE  8192
 
@@ -102,6 +103,41 @@ static __xrt_iocp_op* __xrt_iocp_alloc_op(xnetpoller* pPoller)
 		return pOp;
 	}
 	
+	// 容量已满，尝试动态扩容（最大4096）
+	if ( pPoller->iOpCapacity < __XRT_POLL_MAX_OPS ) {
+		int iNewCapacity = pPoller->iOpCapacity * 2;
+		if ( iNewCapacity > __XRT_POLL_MAX_OPS ) {
+			iNewCapacity = __XRT_POLL_MAX_OPS;
+		}
+		
+		__xrt_iocp_op* pNewOps = (__xrt_iocp_op*)xrtRealloc(pPoller->pOps, 
+			iNewCapacity * sizeof(__xrt_iocp_op));
+		if ( !pNewOps ) {
+			LeaveCriticalSection(&pPoller->tLock);
+			return NULL;
+		}
+		
+		// 更新容量和指针
+		pPoller->pOps = pNewOps;
+		pPoller->iOpCapacity = iNewCapacity;
+		
+		// 将新增的槽位串入空闲链表
+		for ( int i = pPoller->iOpCount; i < pPoller->iOpCapacity; i++ ) {
+			pPoller->pOps[i].bInUse = false;
+			pPoller->pOps[i].iNextFree = (i + 1 < pPoller->iOpCapacity) ? (i + 1) : pPoller->iFreeHead;
+		}
+		pPoller->iFreeHead = pPoller->iOpCount;
+		
+		// 分配第一个新增的槽位
+		int iIdx = pPoller->iOpCount++;
+		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
+		memset(pOp, 0, sizeof(__xrt_iocp_op));
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		LeaveCriticalSection(&pPoller->tLock);
+		return pOp;
+	}
+	
 	LeaveCriticalSection(&pPoller->tLock);
 	return NULL;
 }
@@ -160,7 +196,7 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 		return NULL;
 	}
 	
-	pPoller->iOpCapacity = __XRT_POLL_MAX_OPS;
+	pPoller->iOpCapacity = __XRT_POLL_INIT_OPS;
 	pPoller->pOps = (__xrt_iocp_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_iocp_op));
 	if ( !pPoller->pOps ) {
 		CloseHandle(pPoller->hIOCP);
@@ -583,6 +619,41 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 		return pOp;
 	}
 	
+	// 容量已满，尝试动态扩容（最大4096）
+	if ( pPoller->iOpCapacity < __XRT_POLL_MAX_OPS ) {
+		int iNewCapacity = pPoller->iOpCapacity * 2;
+		if ( iNewCapacity > __XRT_POLL_MAX_OPS ) {
+			iNewCapacity = __XRT_POLL_MAX_OPS;
+		}
+		
+		__xrt_uring_op* pNewOps = (__xrt_uring_op*)xrtRealloc(pPoller->pOps, 
+			iNewCapacity * sizeof(__xrt_uring_op));
+		if ( !pNewOps ) {
+			pthread_mutex_unlock(&pPoller->tLock);
+			return NULL;
+		}
+		
+		// 更新容量和指针
+		pPoller->pOps = pNewOps;
+		pPoller->iOpCapacity = iNewCapacity;
+		
+		// 将新增的槽位串入空闲链表
+		for ( int i = pPoller->iOpCount; i < pPoller->iOpCapacity; i++ ) {
+			pPoller->pOps[i].bInUse = false;
+			pPoller->pOps[i].iNextFree = (i + 1 < pPoller->iOpCapacity) ? (i + 1) : pPoller->iFreeHead;
+		}
+		pPoller->iFreeHead = pPoller->iOpCount;
+		
+		// 分配第一个新增的槽位
+		int iIdx = pPoller->iOpCount++;
+		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
+		memset(pOp, 0, sizeof(__xrt_uring_op));
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return pOp;
+	}
+	
 	pthread_mutex_unlock(&pPoller->tLock);
 	return NULL;
 }
@@ -706,7 +777,7 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 	pPoller->tCQ.pCQEs = (struct io_uring_cqe*)((char*)pCQPtr + tParams.cq_off.cqes);
 	
 	// 分配操作池
-	pPoller->iOpCapacity = __XRT_POLL_MAX_OPS;
+	pPoller->iOpCapacity = __XRT_POLL_INIT_OPS;
 	pPoller->pOps = (__xrt_uring_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_uring_op));
 	if ( !pPoller->pOps ) {
 		munmap(pCQPtr, iCQSize);
