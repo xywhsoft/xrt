@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-02-11 01:03:02
+    Generated: 2026-02-11 15:53:28
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/Git/xrt/xrt.h
+// File: D:/git/xrt/xrt.h
 // ========================================
 
 
@@ -102,6 +102,8 @@
 			typedef struct { PVOID Ptr; } SRWLOCK, *PSRWLOCK;
 			typedef struct { PVOID Ptr; } CONDITION_VARIABLE, *PCONDITION_VARIABLE;
 			
+			ULONGLONG GetTickCount64();
+			
 			void WINAPI InitializeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
 			void WINAPI WakeConditionVariable(PCONDITION_VARIABLE ConditionVariable);
 			void WINAPI WakeAllConditionVariable(PCONDITION_VARIABLE ConditionVariable);
@@ -124,10 +126,79 @@
 			void WINAPI ReleaseSRWLockShared(PSRWLOCK SRWLock);
 			BOOL WINAPI TryAcquireSRWLockExclusive(PSRWLOCK SRWLock);
 			BOOL WINAPI TryAcquireSRWLockShared(PSRWLOCK SRWLock);
+			
+			/* IOCP 批量收割支持 */
+			typedef struct _OVERLAPPED_ENTRY {
+				ULONG_PTR lpCompletionKey;
+				LPOVERLAPPED lpOverlapped;
+				ULONG_PTR Internal;
+				DWORD dwNumberOfBytesTransferred;
+			} OVERLAPPED_ENTRY, *LPOVERLAPPED_ENTRY;
+			
+			BOOL WINAPI GetQueuedCompletionStatusEx(
+				HANDLE CompletionPort,
+				LPOVERLAPPED_ENTRY lpCompletionPortEntries,
+				ULONG ulCount,
+				PULONG ulNumEntriesRemoved,
+				DWORD dwMilliseconds,
+				BOOL fAlertable
+			);
+			
+			/* AcceptEx 支持 */
+			typedef BOOL (WINAPI *LPFN_ACCEPTEX)(
+				SOCKET sListenSocket,
+				SOCKET sAcceptSocket,
+				PVOID lpOutputBuffer,
+				DWORD dwReceiveDataLength,
+				DWORD dwLocalAddressLength,
+				DWORD dwRemoteAddressLength,
+				LPDWORD lpdwBytesReceived,
+				LPOVERLAPPED lpOverlapped
+			);
+			
+			typedef void (WINAPI *LPFN_GETACCEPTEXSOCKADDRS)(
+				PVOID lpOutputBuffer,
+				DWORD dwReceiveDataLength,
+				DWORD dwLocalAddressLength,
+				DWORD dwRemoteAddressLength,
+				struct sockaddr **LocalSockaddr,
+				LPINT LocalSockaddrLength,
+				struct sockaddr **RemoteSockaddr,
+				LPINT RemoteSockaddrLength
+			);
+			
+			#define WSAID_ACCEPTEX \
+				{0xb5367df1,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
+			#define WSAID_GETACCEPTEXSOCKADDRS \
+				{0xb5367df2,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
+			
+			#ifndef SIO_GET_EXTENSION_FUNCTION_POINTER
+				#define SIO_GET_EXTENSION_FUNCTION_POINTER 0xC8000006
+			#endif
+			
+			#ifndef SO_UPDATE_ACCEPT_CONTEXT
+				#define SO_UPDATE_ACCEPT_CONTEXT 0x700B
+			#endif
+			
+			#ifndef SIO_KEEPALIVE_VALS
+				#define SIO_KEEPALIVE_VALS 0x98000004
+			#endif
+			
+			struct tcp_keepalive {
+				ULONG onoff;
+				ULONG keepalivetime;
+				ULONG keepaliveinterval;
+			};
+			
+			const char* WSAAPI inet_ntop(int af, const void* src, char* dst, int size);
+			#define InetNtopA inet_ntop
+					
+			BOOL WINAPI CancelIoEx(HANDLE hFile, LPOVERLAPPED lpOverlapped);
 		#endif
 	#else
 		#include <winsock2.h>
 		#include <ws2tcpip.h>
+		#include <mswsock.h>
 	#endif
 	
 	#include <windows.h>
@@ -1081,6 +1152,101 @@
 	
 	
 	
+	/* ------------------------------------ Coroutine 协程库 ------------------------------------ */
+	
+	// 协程状态
+	#define XRT_CO_READY         0      // 已创建，尚未运行
+	#define XRT_CO_RUNNING       1      // 正在运行
+	#define XRT_CO_SUSPENDED     2      // 已挂起 (yield)
+	#define XRT_CO_DEAD          3      // 已结束
+	
+	// 默认栈大小
+	#define XRT_CO_STACK_DEFAULT (64 * 1024)        // 64 KB
+	#define XRT_CO_STACK_MIN     (8 * 1024)         // 8 KB (最小值保护)
+	#define XRT_CO_STACK_MAX     (8 * 1024 * 1024)  // 8 MB (最大值保护)
+	
+	// 协程入口函数类型
+	typedef void (*xco_entry)(ptr pParam);
+	
+	// 协程上下文（内部使用）
+	typedef struct {
+		ptr arrReg[16];   // 保存的寄存器（各后端按需使用）
+	} __xrt_co_ctx;
+	
+	// 协程数据结构
+	typedef struct {
+		int iState;             // 当前状态 (XRT_CO_*)
+		xco_entry pfnEntry;     // 入口函数
+		ptr pParam;             // 用户传入参数
+		ptr pUserData;          // 用户自定义数据
+		size_t iStackSize;      // 栈大小
+		ptr __pStack;           // 分配的栈内存
+		__xrt_co_ctx __tCtx;    // 上下文（汇编/ucontext 后端使用）
+		ptr __hFiber;           // Windows Fiber 句柄
+		ptr __pSched;           // 所属调度器指针（NULL=无调度器）
+		int64 __iWakeTime;      // 唤醒时间戳（调度器用，0=不等待）
+	} xcoro_struct, *xcoro;
+	
+	// 调度器（不透明结构）
+	typedef struct xrt_co_scheduler xcosched;
+	
+	/* ---------- 协程生命周期 ---------- */
+	
+	// 创建协程
+	XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize);
+	
+	// 销毁协程（协程必须处于 READY 或 DEAD 状态）
+	XXAPI void xrtCoDestroy(xcoro pCo);
+	
+	/* ---------- 协程切换 ---------- */
+	
+	// 恢复协程（从调用方切换到协程执行）
+	XXAPI bool xrtCoResume(xcoro pCo);
+	
+	// 挂起当前协程（从协程内部调用）
+	XXAPI void xrtCoYield();
+	
+	/* ---------- 协程状态查询 ---------- */
+	
+	// 获取协程状态
+	XXAPI int xrtCoGetState(xcoro pCo);
+	
+	// 获取当前正在运行的协程（不在协程中返回 NULL）
+	XXAPI xcoro xrtCoGetCurrent();
+	
+	/* ---------- 用户数据 ---------- */
+	
+	// 设置协程的用户自定义数据
+	XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData);
+	
+	// 获取协程的用户自定义数据
+	XXAPI ptr xrtCoGetUserData(xcoro pCo);
+	
+	/* ---------- 协程调度器 ---------- */
+	
+	// 创建调度器
+	XXAPI xcosched* xrtCoSchedCreate();
+	
+	// 销毁调度器（会自动销毁所有关联的协程）
+	XXAPI void xrtCoSchedDestroy(xcosched* pSched);
+	
+	// 向调度器添加一个协程
+	XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, size_t iStackSize);
+	
+	// 执行一轮调度（返回 true=还有存活协程）
+	XXAPI bool xrtCoSchedStep(xcosched* pSched);
+	
+	// 持续运行调度器直到所有协程结束
+	XXAPI void xrtCoSchedRun(xcosched* pSched);
+	
+	// 获取调度器中存活的协程数量
+	XXAPI int xrtCoSchedGetAlive(xcosched* pSched);
+	
+	// 协程休眠（挂起当前协程，等待指定毫秒后自动恢复，需配合调度器使用）
+	XXAPI void xrtCoSleep(uint32 iMs);
+	
+	
+	
 	/* ------------------------------------ Hash 函数库 ------------------------------------ */
 	
 	/*
@@ -1279,6 +1445,15 @@
 		size_t iCapacity;
 	} xnetbuf;
 	
+	/* ---- 环形网络缓冲区 (高性能, 无 memmove) ---- */
+	typedef struct {
+		char* pData;
+		size_t iCapacity;     // 总容量 (向上对齐为 2 的幂)
+		size_t iMask;         // iCapacity - 1, 用位与代替取模
+		size_t iReadPos;      // 读位置
+		size_t iWritePos;     // 写位置
+	} xnetringbuf;
+	
 	/* ---- 连接对象 ---- */
 	typedef struct {
 		int iId;
@@ -1308,7 +1483,20 @@
 		size_t iSendBufSize;    // 默认 8192
 		int iMaxClients;        // 最大客户端数（0=不限）
 		int iPollTimeoutMs;     // 轮询超时(毫秒)
+		int iConnectTimeoutMs;  // 连接超时(毫秒)，默认 5000
+		bool bNoDelay;          // TCP_NODELAY，默认 true
 	} xnetconfig;
+	
+	/* 初始化 xnetconfig 的默认值 */
+	static void xrtNetConfigInit(xnetconfig* pConfig)
+	{
+		pConfig->iRecvBufSize = 8192;
+		pConfig->iSendBufSize = 8192;
+		pConfig->iMaxClients = 0;
+		pConfig->iPollTimeoutMs = 1000;
+		pConfig->iConnectTimeoutMs = 5000;
+		pConfig->bNoDelay = true;
+	}
 	
 	/* ---- TLS 上下文 (不透明) ---- */
 	typedef struct xrt_tls_context xtlsctx;
@@ -1327,6 +1515,9 @@
 	
 	/* ---- IO Poller (不透明) ---- */
 	typedef struct xrt_net_poller xnetpoller;
+	
+	/* ---- Event Loop 事件循环 (不透明) ---- */
+	typedef struct xrt_event_loop xeventloop;
 	
 	/* ---- TCP 服务器/客户端 (不透明) ---- */
 	typedef struct xrt_tcp_server xtcpserver;
@@ -1378,6 +1569,16 @@
 	XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen);
 	XXAPI void xrtNetBufClear(xnetbuf* pBuf);
 	
+	// 环形网络缓冲区
+	XXAPI bool xrtNetRingBufInit(xnetringbuf* pBuf, size_t iCapacity);
+	XXAPI void xrtNetRingBufFree(xnetringbuf* pBuf);
+	XXAPI size_t xrtNetRingBufWrite(xnetringbuf* pBuf, const char* pData, size_t iLen);
+	XXAPI size_t xrtNetRingBufRead(xnetringbuf* pBuf, char* pOut, size_t iLen);
+	XXAPI size_t xrtNetRingBufPeek(xnetringbuf* pBuf, char* pOut, size_t iLen);
+	XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen);
+	XXAPI size_t xrtNetRingBufReadable(const xnetringbuf* pBuf);
+	XXAPI size_t xrtNetRingBufWritable(const xnetringbuf* pBuf);
+	
 	
 	
 	/* ------------------------------------ IO 模型 (Poller) ------------------------------------ */
@@ -1407,6 +1608,17 @@
 	
 	
 	
+	/* ------------------------------------ Event Loop (事件循环) ------------------------------------ */
+	
+	XXAPI xeventloop* xrtEventLoopCreate();
+	XXAPI void xrtEventLoopDestroy(xeventloop* pLoop);
+	XXAPI void xrtEventLoopRun(xeventloop* pLoop);                              // 阻塞直到 Stop
+	XXAPI void xrtEventLoopStop(xeventloop* pLoop);
+	XXAPI xnet_result xrtEventLoopRunOnce(xeventloop* pLoop, int iTimeoutMs);   // 单次迭代
+	XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop);
+	
+	
+	
 	/* ------------------------------------ TLS ------------------------------------ */
 	
 	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
@@ -1425,6 +1637,7 @@
 	
 	// TCP 服务器
 	XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xtcpserver* xrtTcpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtTcpServerDestroy(xtcpserver* pServer);
 	XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer);
 	XXAPI void xrtTcpServerStop(xtcpserver* pServer);
@@ -1437,6 +1650,7 @@
 	
 	// TCP 客户端
 	XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xtcpclient* xrtTcpClientCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtTcpClientDestroy(xtcpclient* pClient);
 	XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient);
 	XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient);
@@ -1452,6 +1666,7 @@
 	
 	// UDP 服务器
 	XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xudpserver* xrtUdpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtUdpServerDestroy(xudpserver* pServer);
 	XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer);
 	XXAPI void xrtUdpServerStop(xudpserver* pServer);
@@ -1461,6 +1676,7 @@
 	
 	// UDP 客户端
 	XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xudpclient* xrtUdpClientCreateEx(xeventloop* pLoop, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtUdpClientDestroy(xudpclient* pClient);
 	XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient);
 	XXAPI void xrtUdpClientStop(xudpclient* pClient);
@@ -3357,7 +3573,7 @@
 
 
 // ========================================
-// File: D:\Git\xrt/xrt.c
+// File: D:\git\xrt/xrt.c
 // ========================================
 
 
@@ -3366,9 +3582,6 @@
 	#ifdef __TINYC__
 		#include <winapi/shellapi.h>
 		#include <winapi/iphlpapi.h>
-		
-		// 声明函数（从 kernel32.dll 加载）
-		ULONGLONG GetTickCount64();
 	#else
 		#include <shellapi.h>
 		#include <iphlpapi.h>
@@ -3397,7 +3610,7 @@ static int __xrt_RefCount = 0;  // 引用计数
 // 引入补充依赖库
 
 // ========================================
-// File: D:/Git/xrt/lib/suplib.h
+// File: D:/git/xrt/lib/suplib.h
 // ========================================
 
 
@@ -3450,7 +3663,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库
 
 // ========================================
-// File: D:/Git/xrt/lib/base.h
+// File: D:/git/xrt/lib/base.h
 // ========================================
 
 
@@ -3561,7 +3774,7 @@ XXAPI void xrtClearError()
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/charset.h
+// File: D:/git/xrt/lib/charset.h
 // ========================================
 
 
@@ -4433,7 +4646,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/os.h
+// File: D:/git/xrt/lib/os.h
 // ========================================
 
 
@@ -4520,7 +4733,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/math.h
+// File: D:/git/xrt/lib/math.h
 // ========================================
 
 
@@ -4666,7 +4879,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/string.h
+// File: D:/git/xrt/lib/string.h
 // ========================================
 
 
@@ -6222,7 +6435,7 @@ XXAPI str xrtUrlDecode(str sSrc, size_t iLen)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/path.h
+// File: D:/git/xrt/lib/path.h
 // ========================================
 
 
@@ -6394,7 +6607,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/time.h
+// File: D:/git/xrt/lib/time.h
 // ========================================
 
 
@@ -7631,7 +7844,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/file.h
+// File: D:/git/xrt/lib/file.h
 // ========================================
 
 
@@ -9271,7 +9484,7 @@ XXAPI int xrtDirDelete(str sPath)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/thread.h
+// File: D:/git/xrt/lib/thread.h
 // ========================================
 
 
@@ -10018,7 +10231,573 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/hash.h
+// File: D:/git/xrt/lib/coroutine.h
+// ========================================
+
+
+/* ================================ 协程后端自动选择 ================================ */
+#if defined(_WIN32) || defined(_WIN64)
+	// Windows: 全部编译器统一用 Fiber API
+	#define __XRT_CO_FIBER
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+	// Linux: GCC / Clang 用内联汇编
+	#if defined(__x86_64__) || defined(_M_X64)
+		#define __XRT_CO_ASM_X64
+	#elif defined(__aarch64__)
+		#define __XRT_CO_ASM_ARM64
+	#elif defined(__riscv) && (__riscv_xlen == 64)
+		#define __XRT_CO_ASM_RV64
+	#elif defined(__loongarch64)
+		#define __XRT_CO_ASM_LA64
+	#else
+		#define __XRT_CO_UCONTEXT
+	#endif
+#else
+	// TCC / 其他编译器: ucontext 兜底
+	#define __XRT_CO_UCONTEXT
+#endif
+#ifdef __XRT_CO_UCONTEXT
+	#include <ucontext.h>
+#endif
+/* ================================ 线程局部协程状态 ================================ */
+#ifdef __XRT_CO_FIBER
+	static ptr __xrt_co_main_fiber = NULL;
+	static int __xrt_co_fiber_converted = 0;
+#elif defined(__XRT_CO_UCONTEXT)
+	static ucontext_t __xrt_co_main_uctx;
+#else
+	static __xrt_co_ctx __xrt_co_main_ctx;
+#endif
+// 当前正在运行的协程
+static xcoro __xrt_co_current = NULL;
+/* ================================ 时间辅助函数 ================================ */
+static int64 __xrt_co_time_ms()
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (int64)GetTickCount64();
+	#else
+		struct timespec ts;
+		clock_gettime(CLOCK_MONOTONIC, &ts);
+		return (int64)ts.tv_sec * 1000 + (int64)ts.tv_nsec / 1000000;
+	#endif
+}
+static void __xrt_co_sleep_ms(int iMs)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		Sleep(iMs);
+	#else
+		struct timespec ts;
+		ts.tv_sec = iMs / 1000;
+		ts.tv_nsec = (iMs % 1000) * 1000000L;
+		nanosleep(&ts, NULL);
+	#endif
+}
+/* ================================ 后端实现: Windows Fiber ================================ */
+#ifdef __XRT_CO_FIBER
+static void CALLBACK __xrt_co_fiber_entry(LPVOID lpParameter)
+{
+	xcoro pCo = (xcoro)lpParameter;
+	pCo->pfnEntry(pCo->pParam);
+	pCo->iState = XRT_CO_DEAD;
+	SwitchToFiber(__xrt_co_main_fiber);
+}
+static void __xrt_co_init_ctx(xcoro pCo)
+{
+	pCo->__hFiber = CreateFiber(pCo->iStackSize, __xrt_co_fiber_entry, pCo);
+}
+static void __xrt_co_swap_to_co(xcoro pCo)
+{
+	if ( !__xrt_co_fiber_converted ) {
+		__xrt_co_main_fiber = ConvertThreadToFiber(NULL);
+		__xrt_co_fiber_converted = 1;
+	}
+	SwitchToFiber(pCo->__hFiber);
+}
+static void __xrt_co_swap_to_main()
+{
+	SwitchToFiber(__xrt_co_main_fiber);
+}
+#endif
+/* ================================ 后端实现: x86_64 内联汇编 ================================ */
+#ifdef __XRT_CO_ASM_X64
+/*
+	x86_64 System V ABI callee-saved 寄存器:
+	arrReg[0] = 恢复点地址 (rip)
+	arrReg[1] = rsp
+	arrReg[2] = rbp
+	arrReg[3] = rbx
+	arrReg[4] = r12
+	arrReg[5] = r13
+	arrReg[6] = r14
+	arrReg[7] = r15
+*/
+static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
+{
+	__asm__ volatile (
+		"leaq 1f(%%rip), %%rax\n\t"
+		"movq %%rax, 0x00(%0)\n\t"
+		"movq %%rsp, 0x08(%0)\n\t"
+		"movq %%rbp, 0x10(%0)\n\t"
+		"movq %%rbx, 0x18(%0)\n\t"
+		"movq %%r12, 0x20(%0)\n\t"
+		"movq %%r13, 0x28(%0)\n\t"
+		"movq %%r14, 0x30(%0)\n\t"
+		"movq %%r15, 0x38(%0)\n\t"
+		"movq 0x38(%1), %%r15\n\t"
+		"movq 0x30(%1), %%r14\n\t"
+		"movq 0x28(%1), %%r13\n\t"
+		"movq 0x20(%1), %%r12\n\t"
+		"movq 0x18(%1), %%rbx\n\t"
+		"movq 0x10(%1), %%rbp\n\t"
+		"movq 0x08(%1), %%rsp\n\t"
+		"jmpq *0x00(%1)\n\t"
+		"1:\n\t"
+		: : "r"(pFrom), "r"(pTo)
+		: "memory", "rax", "rcx", "rdx", "rsi", "rdi",
+		  "r8", "r9", "r10", "r11"
+	);
+}
+#endif
+/* ================================ 后端实现: ARM64 内联汇编 ================================ */
+#ifdef __XRT_CO_ASM_ARM64
+/*
+	ARM64 AAPCS64 callee-saved 寄存器:
+	arrReg[0] = 恢复点地址
+	arrReg[1] = sp
+	arrReg[2..3] = x19, x20
+	arrReg[4..5] = x21, x22
+	arrReg[6..7] = x23, x24
+	arrReg[8..9] = x25, x26
+	arrReg[10..11] = x27, x28
+	arrReg[12..13] = x29 (fp), x30 (lr)
+*/
+static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
+{
+	__asm__ volatile (
+		"adr x2, 1f\n\t"
+		"mov x3, sp\n\t"
+		"stp x2,  x3,  [%0, #0x00]\n\t"
+		"stp x19, x20, [%0, #0x10]\n\t"
+		"stp x21, x22, [%0, #0x20]\n\t"
+		"stp x23, x24, [%0, #0x30]\n\t"
+		"stp x25, x26, [%0, #0x40]\n\t"
+		"stp x27, x28, [%0, #0x50]\n\t"
+		"stp x29, x30, [%0, #0x60]\n\t"
+		"ldp x29, x30, [%1, #0x60]\n\t"
+		"ldp x27, x28, [%1, #0x50]\n\t"
+		"ldp x25, x26, [%1, #0x40]\n\t"
+		"ldp x23, x24, [%1, #0x30]\n\t"
+		"ldp x21, x22, [%1, #0x20]\n\t"
+		"ldp x19, x20, [%1, #0x10]\n\t"
+		"ldp x2,  x3,  [%1, #0x00]\n\t"
+		"mov sp, x3\n\t"
+		"br x2\n\t"
+		"1:\n\t"
+		: : "r"(pFrom), "r"(pTo)
+		: "memory", "x2", "x3"
+	);
+}
+#endif
+/* ================================ 后端实现: RISC-V 64 内联汇编 ================================ */
+#ifdef __XRT_CO_ASM_RV64
+/*
+	RISC-V LP64 callee-saved 寄存器:
+	arrReg[0] = 恢复点地址 (ra/pc)
+	arrReg[1] = sp
+	arrReg[2] = s0 (fp)
+	arrReg[3..13] = s1 ~ s11
+*/
+static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
+{
+	__asm__ volatile (
+		"la t0, 1f\n\t"
+		"sd t0,  0x00(%0)\n\t"
+		"sd sp,  0x08(%0)\n\t"
+		"sd s0,  0x10(%0)\n\t"
+		"sd s1,  0x18(%0)\n\t"
+		"sd s2,  0x20(%0)\n\t"
+		"sd s3,  0x28(%0)\n\t"
+		"sd s4,  0x30(%0)\n\t"
+		"sd s5,  0x38(%0)\n\t"
+		"sd s6,  0x40(%0)\n\t"
+		"sd s7,  0x48(%0)\n\t"
+		"sd s8,  0x50(%0)\n\t"
+		"sd s9,  0x58(%0)\n\t"
+		"sd s10, 0x60(%0)\n\t"
+		"sd s11, 0x68(%0)\n\t"
+		"ld s11, 0x68(%1)\n\t"
+		"ld s10, 0x60(%1)\n\t"
+		"ld s9,  0x58(%1)\n\t"
+		"ld s8,  0x50(%1)\n\t"
+		"ld s7,  0x48(%1)\n\t"
+		"ld s6,  0x40(%1)\n\t"
+		"ld s5,  0x38(%1)\n\t"
+		"ld s4,  0x30(%1)\n\t"
+		"ld s3,  0x28(%1)\n\t"
+		"ld s2,  0x20(%1)\n\t"
+		"ld s1,  0x18(%1)\n\t"
+		"ld s0,  0x10(%1)\n\t"
+		"ld sp,  0x08(%1)\n\t"
+		"ld t0,  0x00(%1)\n\t"
+		"jr t0\n\t"
+		"1:\n\t"
+		: : "r"(pFrom), "r"(pTo)
+		: "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
+		  "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"
+	);
+}
+#endif
+/* ================================ 后端实现: LoongArch64 内联汇编 ================================ */
+#ifdef __XRT_CO_ASM_LA64
+/*
+	LoongArch64 LP64 callee-saved 寄存器:
+	arrReg[0] = 恢复点地址 (ra)
+	arrReg[1] = sp ($r3)
+	arrReg[2] = fp ($r22)
+	arrReg[3..11] = s0~s8 ($r23~$r31)
+*/
+static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
+{
+	__asm__ volatile (
+		"la.local $t0, 1f\n\t"
+		"st.d $t0,  %0, 0x00\n\t"
+		"st.d $sp,  %0, 0x08\n\t"
+		"st.d $fp,  %0, 0x10\n\t"
+		"st.d $s0,  %0, 0x18\n\t"
+		"st.d $s1,  %0, 0x20\n\t"
+		"st.d $s2,  %0, 0x28\n\t"
+		"st.d $s3,  %0, 0x30\n\t"
+		"st.d $s4,  %0, 0x38\n\t"
+		"st.d $s5,  %0, 0x40\n\t"
+		"st.d $s6,  %0, 0x48\n\t"
+		"st.d $s7,  %0, 0x50\n\t"
+		"st.d $s8,  %0, 0x58\n\t"
+		"ld.d $s8,  %1, 0x58\n\t"
+		"ld.d $s7,  %1, 0x50\n\t"
+		"ld.d $s6,  %1, 0x48\n\t"
+		"ld.d $s5,  %1, 0x40\n\t"
+		"ld.d $s4,  %1, 0x38\n\t"
+		"ld.d $s3,  %1, 0x30\n\t"
+		"ld.d $s2,  %1, 0x28\n\t"
+		"ld.d $s1,  %1, 0x20\n\t"
+		"ld.d $s0,  %1, 0x18\n\t"
+		"ld.d $fp,  %1, 0x10\n\t"
+		"ld.d $sp,  %1, 0x08\n\t"
+		"ld.d $t0,  %1, 0x00\n\t"
+		"jr $t0\n\t"
+		"1:\n\t"
+		: : "r"(pFrom), "r"(pTo)
+		: "memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
+	);
+}
+#endif
+/* ================================ 汇编后端: 入口 + 初始化 + swap 包装 ================================ */
+#if defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
+// 协程入口包装（不接收参数，从全局状态读取当前协程）
+static void __xrt_co_asm_entry()
+{
+	xcoro pCo = __xrt_co_current;
+	pCo->pfnEntry(pCo->pParam);
+	pCo->iState = XRT_CO_DEAD;
+	__xrt_co_swap(&pCo->__tCtx, &__xrt_co_main_ctx);
+}
+static void __xrt_co_init_ctx(xcoro pCo)
+{
+	uint8* pStackTop = (uint8*)pCo->__pStack + pCo->iStackSize;
+	
+	// 对齐到 16 字节边界
+	pStackTop = (uint8*)((uintptr)pStackTop & ~(uintptr)0x0F);
+	
+	#ifdef __XRT_CO_ASM_X64
+		// x86_64: 模拟 call 指令压入返回地址的效果 (rsp mod 16 == 8)
+		pStackTop -= 8;
+	#endif
+	
+	memset(&pCo->__tCtx, 0, sizeof(__xrt_co_ctx));
+	
+	// arrReg[0] = 入口点, arrReg[1] = 栈顶
+	pCo->__tCtx.arrReg[0] = (ptr)__xrt_co_asm_entry;
+	pCo->__tCtx.arrReg[1] = (ptr)pStackTop;
+}
+static void __xrt_co_swap_to_co(xcoro pCo)
+{
+	__xrt_co_swap(&__xrt_co_main_ctx, &pCo->__tCtx);
+}
+static void __xrt_co_swap_to_main()
+{
+	__xrt_co_swap(&__xrt_co_current->__tCtx, &__xrt_co_main_ctx);
+}
+#endif
+/* ================================ ucontext 后端: 入口 + 初始化 + swap 包装 ================================ */
+#ifdef __XRT_CO_UCONTEXT
+static void __xrt_co_ucontext_entry()
+{
+	xcoro pCo = __xrt_co_current;
+	pCo->pfnEntry(pCo->pParam);
+	pCo->iState = XRT_CO_DEAD;
+	swapcontext((ucontext_t*)pCo->__hFiber, &__xrt_co_main_uctx);
+}
+static void __xrt_co_init_ctx(xcoro pCo)
+{
+	// ucontext_t 体积较大，动态分配并将指针存入 __hFiber
+	ucontext_t* pCtx = (ucontext_t*)xrtMalloc(sizeof(ucontext_t));
+	pCo->__hFiber = pCtx;
+	getcontext(pCtx);
+	pCtx->uc_stack.ss_sp = pCo->__pStack;
+	pCtx->uc_stack.ss_size = pCo->iStackSize;
+	pCtx->uc_link = NULL;
+	makecontext(pCtx, (void(*)())__xrt_co_ucontext_entry, 0);
+}
+static void __xrt_co_swap_to_co(xcoro pCo)
+{
+	swapcontext(&__xrt_co_main_uctx, (ucontext_t*)pCo->__hFiber);
+}
+static void __xrt_co_swap_to_main()
+{
+	swapcontext((ucontext_t*)__xrt_co_current->__hFiber, &__xrt_co_main_uctx);
+}
+#endif
+/* ================================ 基础协程 API ================================ */
+XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize)
+{
+	if ( !pfnEntry ) return NULL;
+	
+	// 栈大小处理
+	if ( iStackSize == 0 ) iStackSize = XRT_CO_STACK_DEFAULT;
+	if ( iStackSize < XRT_CO_STACK_MIN ) iStackSize = XRT_CO_STACK_MIN;
+	if ( iStackSize > XRT_CO_STACK_MAX ) iStackSize = XRT_CO_STACK_MAX;
+	
+	// 分配协程结构体
+	xcoro pCo = (xcoro)xrtMalloc(sizeof(xcoro_struct));
+	if ( !pCo ) return NULL;
+	
+	memset(pCo, 0, sizeof(xcoro_struct));
+	pCo->iState = XRT_CO_READY;
+	pCo->pfnEntry = pfnEntry;
+	pCo->pParam = pParam;
+	pCo->iStackSize = iStackSize;
+	
+	// 分配栈内存（Fiber 后端由系统分配栈，不需要手动分配）
+	#ifndef __XRT_CO_FIBER
+		pCo->__pStack = xrtMalloc(iStackSize);
+		if ( !pCo->__pStack ) {
+			xrtFree(pCo);
+			return NULL;
+		}
+	#endif
+	
+	// 初始化上下文
+	__xrt_co_init_ctx(pCo);
+	
+	return pCo;
+}
+XXAPI void xrtCoDestroy(xcoro pCo)
+{
+	if ( !pCo ) return;
+	
+	#ifdef __XRT_CO_FIBER
+		if ( pCo->__hFiber ) {
+			DeleteFiber(pCo->__hFiber);
+		}
+	#elif defined(__XRT_CO_UCONTEXT)
+		if ( pCo->__hFiber ) {
+			xrtFree(pCo->__hFiber);  // 释放 ucontext_t
+		}
+		if ( pCo->__pStack ) {
+			xrtFree(pCo->__pStack);
+		}
+	#else
+		if ( pCo->__pStack ) {
+			xrtFree(pCo->__pStack);
+		}
+	#endif
+	
+	xrtFree(pCo);
+}
+XXAPI bool xrtCoResume(xcoro pCo)
+{
+	if ( !pCo ) return false;
+	
+	// 只能恢复 READY 或 SUSPENDED 状态的协程
+	if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_SUSPENDED) ) return false;
+	
+	// 不能在协程内部调用 Resume（不支持嵌套）
+	if ( __xrt_co_current != NULL ) return false;
+	
+	pCo->__iWakeTime = 0;
+	__xrt_co_current = pCo;
+	pCo->iState = XRT_CO_RUNNING;
+	
+	__xrt_co_swap_to_co(pCo);
+	
+	// 从这里恢复意味着协程 yield 了或者结束了
+	__xrt_co_current = NULL;
+	return true;
+}
+XXAPI void xrtCoYield()
+{
+	xcoro pCo = __xrt_co_current;
+	if ( !pCo ) return;
+	
+	pCo->iState = XRT_CO_SUSPENDED;
+	__xrt_co_swap_to_main();
+}
+XXAPI int xrtCoGetState(xcoro pCo)
+{
+	if ( !pCo ) return XRT_CO_DEAD;
+	return pCo->iState;
+}
+XXAPI xcoro xrtCoGetCurrent()
+{
+	return __xrt_co_current;
+}
+XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData)
+{
+	if ( pCo ) pCo->pUserData = pData;
+}
+XXAPI ptr xrtCoGetUserData(xcoro pCo)
+{
+	if ( !pCo ) return NULL;
+	return pCo->pUserData;
+}
+/* ================================ 协程调度器 ================================ */
+#define __XRT_CO_SCHED_INIT_CAP  16
+struct xrt_co_scheduler {
+	xcoro* arrCoros;
+	int iCount;
+	int iCapacity;
+	int iAlive;
+};
+XXAPI xcosched* xrtCoSchedCreate()
+{
+	xcosched* pSched = (xcosched*)xrtMalloc(sizeof(xcosched));
+	if ( !pSched ) return NULL;
+	
+	pSched->arrCoros = (xcoro*)xrtMalloc(sizeof(xcoro) * __XRT_CO_SCHED_INIT_CAP);
+	if ( !pSched->arrCoros ) {
+		xrtFree(pSched);
+		return NULL;
+	}
+	
+	pSched->iCount = 0;
+	pSched->iCapacity = __XRT_CO_SCHED_INIT_CAP;
+	pSched->iAlive = 0;
+	return pSched;
+}
+XXAPI void xrtCoSchedDestroy(xcosched* pSched)
+{
+	if ( !pSched ) return;
+	
+	// 销毁所有协程
+	for ( int i = 0; i < pSched->iCount; i++ ) {
+		if ( pSched->arrCoros[i] ) {
+			xrtCoDestroy(pSched->arrCoros[i]);
+		}
+	}
+	
+	xrtFree(pSched->arrCoros);
+	xrtFree(pSched);
+}
+XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, size_t iStackSize)
+{
+	if ( !pSched ) return NULL;
+	
+	// 扩容检查
+	if ( pSched->iCount >= pSched->iCapacity ) {
+		int iNewCap = pSched->iCapacity * 2;
+		xcoro* pNewArr = (xcoro*)xrtRealloc(pSched->arrCoros, sizeof(xcoro) * iNewCap);
+		if ( !pNewArr ) return NULL;
+		pSched->arrCoros = pNewArr;
+		pSched->iCapacity = iNewCap;
+	}
+	
+	xcoro pCo = xrtCoCreate(pfnEntry, pParam, iStackSize);
+	if ( !pCo ) return NULL;
+	
+	pCo->__pSched = pSched;
+	pSched->arrCoros[pSched->iCount] = pCo;
+	pSched->iCount++;
+	pSched->iAlive++;
+	
+	return pCo;
+}
+XXAPI bool xrtCoSchedStep(xcosched* pSched)
+{
+	if ( !pSched ) return false;
+	if ( pSched->iAlive <= 0 ) return false;
+	
+	int64 iNow = __xrt_co_time_ms();
+	
+	for ( int i = 0; i < pSched->iCount; i++ ) {
+		xcoro pCo = pSched->arrCoros[i];
+		if ( !pCo ) continue;
+		
+		// 已结束的协程: 更新计数
+		if ( pCo->iState == XRT_CO_DEAD ) {
+			pSched->iAlive--;
+			xrtCoDestroy(pCo);
+			pSched->arrCoros[i] = NULL;
+			continue;
+		}
+		
+		// 只处理可恢复的协程
+		if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_SUSPENDED) ) continue;
+		
+		// 检查休眠定时器
+		if ( (pCo->__iWakeTime > 0) && (iNow < pCo->__iWakeTime) ) continue;
+		
+		// 恢复协程
+		xrtCoResume(pCo);
+		
+		// Resume 返回后，如果协程已结束，下一轮 Step 会清理
+	}
+	
+	return pSched->iAlive > 0;
+}
+XXAPI void xrtCoSchedRun(xcosched* pSched)
+{
+	if ( !pSched ) return;
+	
+	while ( pSched->iAlive > 0 ) {
+		int iAliveBefore = pSched->iAlive;
+		bool bResult = xrtCoSchedStep(pSched);
+		if ( !bResult ) break;
+		
+		// 检查是否所有存活协程都在休眠
+		// 如果 Step 没有减少存活数且还有存活协程，可能都在等待
+		// 短暂休眠避免空转
+		int64 iNow = __xrt_co_time_ms();
+		bool bAllSleeping = true;
+		for ( int i = 0; i < pSched->iCount; i++ ) {
+			xcoro pCo = pSched->arrCoros[i];
+			if ( !pCo ) continue;
+			if ( pCo->iState == XRT_CO_DEAD ) continue;
+			if ( (pCo->__iWakeTime <= 0) || (iNow >= pCo->__iWakeTime) ) {
+				bAllSleeping = false;
+				break;
+			}
+		}
+		if ( bAllSleeping ) {
+			__xrt_co_sleep_ms(1);
+		}
+	}
+}
+XXAPI int xrtCoSchedGetAlive(xcosched* pSched)
+{
+	if ( !pSched ) return 0;
+	return pSched->iAlive;
+}
+XXAPI void xrtCoSleep(uint32 iMs)
+{
+	xcoro pCo = __xrt_co_current;
+	if ( !pCo ) return;
+	
+	pCo->__iWakeTime = __xrt_co_time_ms() + (int64)iMs;
+	xrtCoYield();
+}
+
+// ========================================
+// File: D:/git/xrt/lib/hash.h
 // ========================================
 
 
@@ -11184,7 +11963,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/network.h
+// File: D:/git/xrt/lib/network.h
 // ========================================
 
 
@@ -11386,7 +12165,7 @@ str xrtGetLocalName()
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/crypto.h
+// File: D:/git/xrt/lib/crypto.h
 // ========================================
 
 
@@ -14481,7 +15260,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/netsock.h
+// File: D:/git/xrt/lib/netsock.h
 // ========================================
 
 
@@ -14517,12 +15296,12 @@ XXAPI void xrtNetAddrFromSockAddr(xnetaddr* pAddr, struct sockaddr_in* pSA)
 	if ( !pAddr || !pSA ) return;
 	pAddr->iAddr = pSA->sin_addr.s_addr;
 	pAddr->iPort = ntohs(pSA->sin_port);
-	// inet_ntoa 返回静态缓冲区，需复制
-	const char* sIP = inet_ntoa(pSA->sin_addr);
-	if ( sIP ) {
-		strncpy(pAddr->sAddr, sIP, 15);
-		pAddr->sAddr[15] = '\0';
-	}
+	// 线程安全: 使用 inet_ntop 代替 inet_ntoa
+	#if defined(_WIN32) || defined(_WIN64)
+		InetNtopA(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+	#else
+		inet_ntop(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+	#endif
 }
 XXAPI void xrtNetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_in* pSA)
 {
@@ -14541,10 +15320,14 @@ XXAPI const char* xrtNetIPToStr(uint32 iIP)
 {
 	struct in_addr tAddr;
 	tAddr.s_addr = iIP;
-	// 使用 xrt 环形临时内存
-	char* sResult = (char*)inet_ntoa(tAddr);
-	if ( !sResult ) return "";
-	str sCopy = xrtCopyStr(sResult, strlen(sResult));
+	// 线程安全: 使用 inet_ntop + xrt 环形临时内存
+	char aTmp[16];
+	#if defined(_WIN32) || defined(_WIN64)
+		InetNtopA(AF_INET, &tAddr, aTmp, sizeof(aTmp));
+	#else
+		inet_ntop(AF_INET, &tAddr, aTmp, sizeof(aTmp));
+	#endif
+	str sCopy = xrtCopyStr(aTmp, strlen(aTmp));
 	return (const char*)sCopy;
 }
 /* ============================== Socket 生命周期 ============================== */
@@ -14678,8 +15461,16 @@ XXAPI xnet_result xrtSockSetKeepAlive(xnetconn* pConn, int iIdleSec, int iInterv
 		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
 			return XRT_NET_ERROR;
 		}
-		// Windows: 使用 tcp_keepalive 结构 (需要 WSAIoctl)
-		// 简化版本只启用 keepalive
+		// Windows: 使用 SIO_KEEPALIVE_VALS 配置完整参数
+		if ( iIdleSec > 0 || iIntervalSec > 0 ) {
+			struct tcp_keepalive tKA;
+			tKA.onoff = 1;
+			tKA.keepalivetime = (iIdleSec > 0 ? iIdleSec : 7200) * 1000;  // 默认7200秒
+			tKA.keepaliveinterval = (iIntervalSec > 0 ? iIntervalSec : 75) * 1000;  // 默认75秒
+			DWORD dwRet;
+			WSAIoctl(pConn->hSocket, SIO_KEEPALIVE_VALS,
+				&tKA, sizeof(tKA), NULL, 0, &dwRet, NULL, NULL);
+		}
 	#else
 		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, &iOpt, sizeof(iOpt)) != 0 ) {
 			return XRT_NET_ERROR;
@@ -14894,20 +15685,39 @@ XXAPI xnet_result xrtNetResolve(const char* sHostname, xnetaddr* pAddr)
 {
 	if ( !sHostname || !pAddr ) return XRT_NET_ERROR;
 	
-	struct hostent* pHost = gethostbyname(sHostname);
-	if ( !pHost || pHost->h_addrtype != AF_INET || !pHost->h_addr_list[0] ) {
-		return XRT_NET_ERROR;
-	}
-	
-	struct in_addr tInAddr;
-	memcpy(&tInAddr, pHost->h_addr_list[0], sizeof(struct in_addr));
-	
-	pAddr->iAddr = tInAddr.s_addr;
-	const char* sIP = inet_ntoa(tInAddr);
-	if ( sIP ) {
-		strncpy(pAddr->sAddr, sIP, 15);
-		pAddr->sAddr[15] = '\0';
-	}
+	#ifdef __TINYC__
+		// TCC 不支持 getaddrinfo，使用 gethostbyname
+		struct hostent* pHost = gethostbyname(sHostname);
+		if ( !pHost || pHost->h_addrtype != AF_INET || !pHost->h_addr_list[0] ) {
+			return XRT_NET_ERROR;
+		}
+		struct in_addr tInAddr;
+		memcpy(&tInAddr, pHost->h_addr_list[0], sizeof(struct in_addr));
+		pAddr->iAddr = tInAddr.s_addr;
+		#if defined(_WIN32) || defined(_WIN64)
+			InetNtopA(AF_INET, &tInAddr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#else
+			inet_ntop(AF_INET, &tInAddr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#endif
+	#else
+		// 线程安全: 使用 getaddrinfo + inet_ntop
+		struct addrinfo tHints, *pRes;
+		memset(&tHints, 0, sizeof(tHints));
+		tHints.ai_family = AF_INET;
+		tHints.ai_socktype = SOCK_STREAM;
+		if ( getaddrinfo(sHostname, NULL, &tHints, &pRes) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+		if ( !pRes ) return XRT_NET_ERROR;
+		struct sockaddr_in* pSA = (struct sockaddr_in*)pRes->ai_addr;
+		pAddr->iAddr = pSA->sin_addr.s_addr;
+		#if defined(_WIN32) || defined(_WIN64)
+			InetNtopA(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#else
+			inet_ntop(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#endif
+		freeaddrinfo(pRes);
+	#endif
 	
 	return XRT_NET_OK;
 }
@@ -14966,39 +15776,153 @@ XXAPI void xrtNetBufClear(xnetbuf* pBuf)
 	if ( !pBuf ) return;
 	pBuf->iSize = 0;
 }
+/* ============================== 环形网络缓冲区 ============================== */
+// 向上对齐到 2 的幂
+static inline size_t __xrt_ringbuf_next_pow2(size_t v)
+{
+	v--;
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || defined(__LP64__)
+		v |= v >> 32;
+	#endif
+	v++;
+	return v;
+}
+XXAPI bool xrtNetRingBufInit(xnetringbuf* pBuf, size_t iCapacity)
+{
+	if ( !pBuf || iCapacity == 0 ) return false;
+	size_t iAligned = __xrt_ringbuf_next_pow2(iCapacity);
+	if ( iAligned < 16 ) iAligned = 16;
+	pBuf->pData = (char*)xrtMalloc(iAligned);
+	if ( !pBuf->pData ) return false;
+	pBuf->iCapacity = iAligned;
+	pBuf->iMask = iAligned - 1;
+	pBuf->iReadPos = 0;
+	pBuf->iWritePos = 0;
+	return true;
+}
+XXAPI void xrtNetRingBufFree(xnetringbuf* pBuf)
+{
+	if ( !pBuf ) return;
+	if ( pBuf->pData ) {
+		xrtFree(pBuf->pData);
+		pBuf->pData = NULL;
+	}
+	pBuf->iCapacity = 0;
+	pBuf->iMask = 0;
+	pBuf->iReadPos = 0;
+	pBuf->iWritePos = 0;
+}
+XXAPI size_t xrtNetRingBufReadable(const xnetringbuf* pBuf)
+{
+	if ( !pBuf ) return 0;
+	return pBuf->iWritePos - pBuf->iReadPos;
+}
+XXAPI size_t xrtNetRingBufWritable(const xnetringbuf* pBuf)
+{
+	if ( !pBuf ) return 0;
+	return pBuf->iCapacity - (pBuf->iWritePos - pBuf->iReadPos);
+}
+XXAPI size_t xrtNetRingBufWrite(xnetringbuf* pBuf, const char* pData, size_t iLen)
+{
+	if ( !pBuf || !pData || iLen == 0 ) return 0;
+	size_t iAvail = xrtNetRingBufWritable(pBuf);
+	if ( iLen > iAvail ) iLen = iAvail;
+	if ( iLen == 0 ) return 0;
+	
+	size_t iPos = pBuf->iWritePos & pBuf->iMask;
+	size_t iFirstChunk = pBuf->iCapacity - iPos;
+	if ( iFirstChunk >= iLen ) {
+		memcpy(pBuf->pData + iPos, pData, iLen);
+	} else {
+		memcpy(pBuf->pData + iPos, pData, iFirstChunk);
+		memcpy(pBuf->pData, pData + iFirstChunk, iLen - iFirstChunk);
+	}
+	pBuf->iWritePos += iLen;
+	return iLen;
+}
+XXAPI size_t xrtNetRingBufPeek(xnetringbuf* pBuf, char* pOut, size_t iLen)
+{
+	if ( !pBuf || !pOut || iLen == 0 ) return 0;
+	size_t iReadable = xrtNetRingBufReadable(pBuf);
+	if ( iLen > iReadable ) iLen = iReadable;
+	if ( iLen == 0 ) return 0;
+	
+	size_t iPos = pBuf->iReadPos & pBuf->iMask;
+	size_t iFirstChunk = pBuf->iCapacity - iPos;
+	if ( iFirstChunk >= iLen ) {
+		memcpy(pOut, pBuf->pData + iPos, iLen);
+	} else {
+		memcpy(pOut, pBuf->pData + iPos, iFirstChunk);
+		memcpy(pOut + iFirstChunk, pBuf->pData, iLen - iFirstChunk);
+	}
+	return iLen;
+}
+XXAPI size_t xrtNetRingBufRead(xnetringbuf* pBuf, char* pOut, size_t iLen)
+{
+	size_t iRead = xrtNetRingBufPeek(pBuf, pOut, iLen);
+	pBuf->iReadPos += iRead;
+	return iRead;
+}
+XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen)
+{
+	if ( !pBuf ) return;
+	size_t iReadable = xrtNetRingBufReadable(pBuf);
+	if ( iLen > iReadable ) iLen = iReadable;
+	pBuf->iReadPos += iLen;
+}
 
 // ========================================
-// File: D:/Git/xrt/lib/netpoll.h
+// File: D:/git/xrt/lib/netpoll.h
 // ========================================
 
 
 /*
-	NetPoll - IO 模型抽象层 [Ver1.0]
+	NetPoll - IO 模型抽象层 [Ver2.0]
 	
 	Windows: IOCP (I/O Completion Port)
 	Linux:   io_uring (内核 >= 5.1, 无 epoll 回退)
 	
 	基于完成端口模型的统一异步 IO 接口
+	
+	Ver2.0 变更:
+	  - 操作池空闲链表 O(1) 分配/释放
+	  - Windows: GetQueuedCompletionStatusEx 批量收割
+	  - Windows: AcceptEx 异步 accept
+	  - Linux: io_uring 批量 SQE 提交
+	  - 发送路径支持大消息 (>8KB 动态缓冲区)
+	  - per-operation 用户数据 (事件路由)
 */
 /* ============================== 通用定义 ============================== */
 #define __XRT_POLL_OP_RECV    1
 #define __XRT_POLL_OP_SEND    2
 #define __XRT_POLL_OP_ACCEPT  3
+#define __XRT_POLL_INIT_OPS   64
 #define __XRT_POLL_MAX_OPS    4096
 #define __XRT_POLL_RECV_SIZE  8192
 /* ============================== Windows IOCP 实现 ============================== */
 #if defined(_WIN32) || defined(_WIN64)
+#define __XRT_IOCP_BATCH_SIZE 64
 // IOCP 操作结构
 typedef struct {
 	WSAOVERLAPPED tOverlapped;
 	xnetconn* pConn;
 	xnetconn* pAcceptConn;       // 用于 accept 操作的客户端连接
 	char aRecvBuf[__XRT_POLL_RECV_SIZE];
+	char* pDynamicBuf;           // 动态发送缓冲区 (>8KB)
+	bool bDynamicBuf;            // 是否使用动态缓冲区
 	WSABUF tWSABuf;
 	DWORD iBytes;
 	DWORD iFlags;
 	int iOpType;
 	bool bInUse;
+	int iNextFree;               // 空闲链表下一个索引, -1 = 尾
+	ptr pOpUserData;             // per-operation 用户数据
+	SOCKET hAcceptSocket;        // AcceptEx 预创建的 socket
 } __xrt_iocp_op;
 // Poller 结构定义
 struct xrt_net_poller {
@@ -15006,35 +15930,123 @@ struct xrt_net_poller {
 	__xrt_iocp_op* pOps;
 	int iOpCount;
 	int iOpCapacity;
+	int iFreeHead;               // 空闲链表头索引
 	CRITICAL_SECTION tLock;
 	xpoll_fn pfnCallback;
 	ptr pUserData;
 	size_t iRecvBufSize;
+	LPFN_ACCEPTEX pfnAcceptEx;
+	LPFN_GETACCEPTEXSOCKADDRS pfnGetAcceptExSockAddrs;
 };
+// O(1) 操作池分配
 static __xrt_iocp_op* __xrt_iocp_alloc_op(xnetpoller* pPoller)
 {
 	EnterCriticalSection(&pPoller->tLock);
 	
-	// 先找空闲的
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( !pPoller->pOps[i].bInUse ) {
-			pPoller->pOps[i].bInUse = true;
-			LeaveCriticalSection(&pPoller->tLock);
-			return &pPoller->pOps[i];
-		}
+	if ( pPoller->iFreeHead >= 0 ) {
+		// 从空闲链表头取
+		int iIdx = pPoller->iFreeHead;
+		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
+		pPoller->iFreeHead = pOp->iNextFree;
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		pOp->pDynamicBuf = NULL;
+		pOp->bDynamicBuf = false;
+		pOp->pOpUserData = NULL;
+		pOp->hAcceptSocket = INVALID_SOCKET;
+		LeaveCriticalSection(&pPoller->tLock);
+		return pOp;
 	}
 	
-	// 没有空闲的，追加
+	// 空闲链表为空，尝试追加
 	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
-		__xrt_iocp_op* pOp = &pPoller->pOps[pPoller->iOpCount++];
+		int iIdx = pPoller->iOpCount++;
+		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
 		memset(pOp, 0, sizeof(__xrt_iocp_op));
 		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		LeaveCriticalSection(&pPoller->tLock);
+		return pOp;
+	}
+	
+	// 容量已满，尝试动态扩容（最大4096）
+	if ( pPoller->iOpCapacity < __XRT_POLL_MAX_OPS ) {
+		int iNewCapacity = pPoller->iOpCapacity * 2;
+		if ( iNewCapacity > __XRT_POLL_MAX_OPS ) {
+			iNewCapacity = __XRT_POLL_MAX_OPS;
+		}
+		
+		__xrt_iocp_op* pNewOps = (__xrt_iocp_op*)xrtRealloc(pPoller->pOps, 
+			iNewCapacity * sizeof(__xrt_iocp_op));
+		if ( !pNewOps ) {
+			LeaveCriticalSection(&pPoller->tLock);
+			return NULL;
+		}
+		
+		// 更新容量和指针
+		pPoller->pOps = pNewOps;
+		pPoller->iOpCapacity = iNewCapacity;
+		
+		// 将新增的槽位串入空闲链表
+		for ( int i = pPoller->iOpCount; i < pPoller->iOpCapacity; i++ ) {
+			pPoller->pOps[i].bInUse = false;
+			pPoller->pOps[i].iNextFree = (i + 1 < pPoller->iOpCapacity) ? (i + 1) : pPoller->iFreeHead;
+		}
+		pPoller->iFreeHead = pPoller->iOpCount;
+		
+		// 分配第一个新增的槽位
+		int iIdx = pPoller->iOpCount++;
+		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
+		memset(pOp, 0, sizeof(__xrt_iocp_op));
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
 		LeaveCriticalSection(&pPoller->tLock);
 		return pOp;
 	}
 	
 	LeaveCriticalSection(&pPoller->tLock);
 	return NULL;
+}
+// O(1) 操作池释放
+static void __xrt_iocp_free_op(xnetpoller* pPoller, __xrt_iocp_op* pOp)
+{
+	if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
+		xrtFree(pOp->pDynamicBuf);
+		pOp->pDynamicBuf = NULL;
+	}
+	pOp->bDynamicBuf = false;
+	pOp->bInUse = false;
+	
+	EnterCriticalSection(&pPoller->tLock);
+	int iIdx = (int)(pOp - pPoller->pOps);
+	pOp->iNextFree = pPoller->iFreeHead;
+	pPoller->iFreeHead = iIdx;
+	LeaveCriticalSection(&pPoller->tLock);
+}
+// 加载 AcceptEx 扩展函数
+static void __xrt_iocp_load_acceptex(xnetpoller* pPoller)
+{
+	pPoller->pfnAcceptEx = NULL;
+	pPoller->pfnGetAcceptExSockAddrs = NULL;
+	
+	// 创建临时 socket 加载扩展函数
+	SOCKET hTmp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if ( hTmp == INVALID_SOCKET ) return;
+	
+	DWORD dwBytes = 0;
+	GUID guidAcceptEx = WSAID_ACCEPTEX;
+	WSAIoctl(hTmp, SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&guidAcceptEx, sizeof(guidAcceptEx),
+		&pPoller->pfnAcceptEx, sizeof(pPoller->pfnAcceptEx),
+		&dwBytes, NULL, NULL);
+	
+	GUID guidGetAddr = WSAID_GETACCEPTEXSOCKADDRS;
+	WSAIoctl(hTmp, SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&guidGetAddr, sizeof(guidGetAddr),
+		&pPoller->pfnGetAcceptExSockAddrs, sizeof(pPoller->pfnGetAcceptExSockAddrs),
+		&dwBytes, NULL, NULL);
+	
+	closesocket(hTmp);
 }
 XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
 {
@@ -15047,7 +16059,7 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 		return NULL;
 	}
 	
-	pPoller->iOpCapacity = __XRT_POLL_MAX_OPS;
+	pPoller->iOpCapacity = __XRT_POLL_INIT_OPS;
 	pPoller->pOps = (__xrt_iocp_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_iocp_op));
 	if ( !pPoller->pOps ) {
 		CloseHandle(pPoller->hIOCP);
@@ -15055,10 +16067,16 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 		return NULL;
 	}
 	
+	// 初始化空闲链表 (所有槽位串成链表)
+	pPoller->iFreeHead = -1;  // 初始为空, 通过 alloc_op 按需追加
+	
 	InitializeCriticalSection(&pPoller->tLock);
 	pPoller->pfnCallback = pfnCallback;
 	pPoller->pUserData = pUserData;
 	pPoller->iRecvBufSize = (pConfig && pConfig->iRecvBufSize > 0) ? pConfig->iRecvBufSize : __XRT_POLL_RECV_SIZE;
+	
+	// 加载 AcceptEx 扩展函数
+	__xrt_iocp_load_acceptex(pPoller);
 	
 	return pPoller;
 }
@@ -15066,11 +16084,20 @@ XXAPI void xrtPollDestroy(xnetpoller* pPoller)
 {
 	if ( !pPoller ) return;
 	
+	// 释放所有动态缓冲区
+	if ( pPoller->pOps ) {
+		for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+			if ( pPoller->pOps[i].bDynamicBuf && pPoller->pOps[i].pDynamicBuf ) {
+				xrtFree(pPoller->pOps[i].pDynamicBuf);
+			}
+			if ( pPoller->pOps[i].hAcceptSocket != INVALID_SOCKET && pPoller->pOps[i].hAcceptSocket != 0 ) {
+				closesocket(pPoller->pOps[i].hAcceptSocket);
+			}
+		}
+		xrtFree(pPoller->pOps);
+	}
 	if ( pPoller->hIOCP ) {
 		CloseHandle(pPoller->hIOCP);
-	}
-	if ( pPoller->pOps ) {
-		xrtFree(pPoller->pOps);
 	}
 	DeleteCriticalSection(&pPoller->tLock);
 	xrtFree(pPoller);
@@ -15090,13 +16117,8 @@ XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
 {
 	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
 	
-	EnterCriticalSection(&pPoller->tLock);
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
-			pPoller->pOps[i].bInUse = false;
-		}
-	}
-	LeaveCriticalSection(&pPoller->tLock);
+	// 直接调用 CancelIoEx 取消该 socket 上的所有 IO
+	CancelIoEx((HANDLE)pConn->hSocket, NULL);
 	
 	return XRT_NET_OK;
 }
@@ -15113,10 +16135,11 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 	pOp->tWSABuf.len = __XRT_POLL_RECV_SIZE;
 	pOp->iOpType = __XRT_POLL_OP_RECV;
 	pOp->iFlags = 0;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	int iResult = WSARecv(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags, &pOp->tOverlapped, NULL);
 	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
-		pOp->bInUse = false;
+		__xrt_iocp_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -15129,21 +16152,33 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
 	if ( !pOp ) return XRT_NET_ERROR;
 	
-	// 复制数据到操作缓冲区，解决 buffer 生命周期问题
-	size_t iCopyLen = (iLen > __XRT_POLL_RECV_SIZE) ? __XRT_POLL_RECV_SIZE : iLen;
-	memcpy(pOp->aRecvBuf, pData, iCopyLen);
+	// 大消息: 动态分配缓冲区
+	if ( iLen > __XRT_POLL_RECV_SIZE ) {
+		pOp->pDynamicBuf = (char*)xrtMalloc(iLen);
+		if ( !pOp->pDynamicBuf ) {
+			__xrt_iocp_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		pOp->bDynamicBuf = true;
+		memcpy(pOp->pDynamicBuf, pData, iLen);
+		pOp->tWSABuf.buf = pOp->pDynamicBuf;
+		pOp->tWSABuf.len = (ULONG)iLen;
+	} else {
+		memcpy(pOp->aRecvBuf, pData, iLen);
+		pOp->tWSABuf.buf = pOp->aRecvBuf;
+		pOp->tWSABuf.len = (ULONG)iLen;
+	}
 	
 	memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
 	pOp->pConn = pConn;
-	pOp->tWSABuf.buf = pOp->aRecvBuf;
-	pOp->tWSABuf.len = (ULONG)iCopyLen;
 	pOp->iOpType = __XRT_POLL_OP_SEND;
 	pOp->iFlags = 0;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	DWORD iBytesSent;
 	int iResult = WSASend(pConn->hSocket, &pOp->tWSABuf, 1, &iBytesSent, 0, &pOp->tOverlapped, NULL);
 	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
-		pOp->bInUse = false;
+		__xrt_iocp_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -15151,78 +16186,162 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 }
 XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
 {
-	// IOCP accept: 使用非阻塞 accept 方式（不使用 AcceptEx 以简化实现）
-	// AcceptEx 需要额外的 Winsock 扩展函数加载，简化版使用 completion notification
-	(void)pPoller; (void)pServer; (void)pClient;
-	// Accept 将在 PollWait 的用户回调中通过 xrtSockAccept 同步处理
+	if ( !pPoller || !pServer ) return XRT_NET_ERROR;
+	
+	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
+	if ( !pOp ) return XRT_NET_ERROR;
+	
+	pOp->pConn = pServer;
+	pOp->pAcceptConn = pClient;
+	pOp->iOpType = __XRT_POLL_OP_ACCEPT;
+	pOp->pOpUserData = pServer->pUserData;
+	
+	// AcceptEx 可用时使用异步 accept
+	if ( pPoller->pfnAcceptEx ) {
+		SOCKET hAccept = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if ( hAccept == INVALID_SOCKET ) {
+			__xrt_iocp_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		pOp->hAcceptSocket = hAccept;
+		
+		memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
+		DWORD dwBytes = 0;
+		BOOL bResult = pPoller->pfnAcceptEx(
+			pServer->hSocket, hAccept,
+			pOp->aRecvBuf,                     // 输出缓冲区 (地址信息)
+			0,                                  // 不接收首包数据
+			sizeof(struct sockaddr_in) + 16,    // 本地地址长度
+			sizeof(struct sockaddr_in) + 16,    // 远端地址长度
+			&dwBytes,
+			&pOp->tOverlapped
+		);
+		
+		if ( !bResult && WSAGetLastError() != ERROR_IO_PENDING ) {
+			closesocket(hAccept);
+			pOp->hAcceptSocket = INVALID_SOCKET;
+			__xrt_iocp_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		
+		return XRT_NET_OK;
+	}
+	
+	// AcceptEx 不可用: 回退到非阻塞 accept (在 PollWait 通知中处理)
+	__xrt_iocp_free_op(pPoller, pOp);
 	return XRT_NET_OK;
 }
 XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 {
 	if ( !pPoller ) return XRT_NET_ERROR;
 	
-	DWORD iBytesTransferred;
-	ULONG_PTR iCompletionKey;
-	LPOVERLAPPED pOverlapped;
+	// 批量收割完成事件
+	OVERLAPPED_ENTRY aEntries[__XRT_IOCP_BATCH_SIZE];
+	ULONG iRemoved = 0;
 	
-	BOOL bSuccess = GetQueuedCompletionStatus(
+	BOOL bSuccess = GetQueuedCompletionStatusEx(
 		pPoller->hIOCP,
-		&iBytesTransferred,
-		&iCompletionKey,
-		&pOverlapped,
-		(DWORD)iTimeoutMs
+		aEntries,
+		__XRT_IOCP_BATCH_SIZE,
+		&iRemoved,
+		(DWORD)iTimeoutMs,
+		FALSE
 	);
 	
-	if ( !bSuccess && !pOverlapped ) {
+	if ( !bSuccess ) {
 		if ( GetLastError() == WAIT_TIMEOUT ) {
 			return XRT_NET_TIMEOUT;
 		}
 		return XRT_NET_ERROR;
 	}
 	
-	// Wakeup 信号 (completion key = 0, overlapped = NULL)
-	if ( !pOverlapped ) {
-		return XRT_NET_OK;
-	}
-	
-	__xrt_iocp_op* pOp = (__xrt_iocp_op*)pOverlapped;
-	xnetconn* pConn = pOp->pConn;
-	
-	if ( !pOp->bInUse ) {
-		return XRT_NET_OK;
-	}
-	
-	// 连接关闭
-	if ( iBytesTransferred == 0 && pOp->iOpType != __XRT_POLL_OP_ACCEPT ) {
-		if ( pPoller->pfnCallback ) {
-			pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+	// 分发所有完成事件
+	for ( ULONG i = 0; i < iRemoved; i++ ) {
+		LPOVERLAPPED pOverlapped = aEntries[i].lpOverlapped;
+		DWORD iBytesTransferred = aEntries[i].dwNumberOfBytesTransferred;
+		
+		// Wakeup 信号
+		if ( !pOverlapped ) continue;
+		
+		__xrt_iocp_op* pOp = (__xrt_iocp_op*)pOverlapped;
+		if ( !pOp->bInUse ) continue;
+		
+		xnetconn* pConn = pOp->pConn;
+		
+		// AcceptEx 完成
+		if ( pOp->iOpType == __XRT_POLL_OP_ACCEPT ) {
+			if ( pOp->hAcceptSocket != INVALID_SOCKET && pOp->hAcceptSocket != 0 ) {
+				// AcceptEx 成功: 从缓冲区提取地址
+				if ( pOp->pAcceptConn ) {
+					pOp->pAcceptConn->hSocket = pOp->hAcceptSocket;
+					pOp->pAcceptConn->iType = 0;  // TCP
+					
+					// 用 GetAcceptExSockaddrs 提取地址
+					if ( pPoller->pfnGetAcceptExSockAddrs ) {
+						struct sockaddr* pLocal = NULL;
+						struct sockaddr* pRemote = NULL;
+						int iLocalLen = 0, iRemoteLen = 0;
+						pPoller->pfnGetAcceptExSockAddrs(
+							pOp->aRecvBuf, 0,
+							sizeof(struct sockaddr_in) + 16,
+							sizeof(struct sockaddr_in) + 16,
+							&pLocal, &iLocalLen,
+							&pRemote, &iRemoteLen
+						);
+						if ( pRemote ) {
+							xrtNetAddrFromSockAddr(&pOp->pAcceptConn->tRemoteAddr, (struct sockaddr_in*)pRemote);
+						}
+					}
+					
+					// 继承监听 socket 的上下文
+					setsockopt(pOp->hAcceptSocket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+						(char*)&pConn->hSocket, sizeof(pConn->hSocket));
+				}
+				pOp->hAcceptSocket = INVALID_SOCKET;  // 所有权转移
+			}
+			
+			if ( pPoller->pfnCallback ) {
+				// 继承监听 socket 的 pUserData 用于事件路由
+				if ( pOp->pAcceptConn && pConn ) {
+					pOp->pAcceptConn->pUserData = pConn->pUserData;
+				}
+				pPoller->pfnCallback(pPoller, pOp->pAcceptConn ? pOp->pAcceptConn : pConn,
+					XRT_POLL_ACCEPT, NULL, 0);
+			}
+			__xrt_iocp_free_op(pPoller, pOp);
+			continue;
 		}
-		pOp->bInUse = false;
-		return XRT_NET_CLOSED;
+		
+		// 连接关闭 - 仅TCP RECV 0字节才视为关闭
+		if ( iBytesTransferred == 0 && pOp->iOpType == __XRT_POLL_OP_RECV ) {
+			if ( pConn && pConn->iType == 0 ) {  // 仅TCP连接判close
+				if ( pPoller->pfnCallback ) {
+					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+				}
+				__xrt_iocp_free_op(pPoller, pOp);
+				continue;
+			}
+			// UDP 0字节是合法数据，走正常READ分发
+		}
+		
+		// 分发 RECV / SEND
+		switch ( pOp->iOpType ) {
+			case __XRT_POLL_OP_RECV:
+				if ( pPoller->pfnCallback ) {
+					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)iBytesTransferred);
+				}
+				break;
+			
+			case __XRT_POLL_OP_SEND:
+				if ( pPoller->pfnCallback ) {
+					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)iBytesTransferred);
+				}
+				break;
+		}
+		
+		__xrt_iocp_free_op(pPoller, pOp);
 	}
 	
-	// 分发事件
-	switch ( pOp->iOpType ) {
-		case __XRT_POLL_OP_RECV:
-			if ( pPoller->pfnCallback ) {
-				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)iBytesTransferred);
-			}
-			break;
-		
-		case __XRT_POLL_OP_SEND:
-			if ( pPoller->pfnCallback ) {
-				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)iBytesTransferred);
-			}
-			break;
-		
-		case __XRT_POLL_OP_ACCEPT:
-			if ( pPoller->pfnCallback ) {
-				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_ACCEPT, NULL, 0);
-			}
-			break;
-	}
-	
-	pOp->bInUse = false;
 	return XRT_NET_OK;
 }
 XXAPI void xrtPollWakeup(xnetpoller* pPoller)
@@ -15244,6 +16363,7 @@ XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
 */
 #include <sys/syscall.h>
 #include <sys/mman.h>
+#include <sys/eventfd.h>
 #include <linux/io_uring.h>
 #define __XRT_URING_ENTRIES  256
 // io_uring syscall 封装
@@ -15281,8 +16401,12 @@ typedef struct {
 	xnetconn* pConn;
 	xnetconn* pAcceptConn;
 	char aRecvBuf[__XRT_POLL_RECV_SIZE];
+	char* pDynamicBuf;           // 动态发送缓冲区 (>8KB)
+	bool bDynamicBuf;
 	int iOpType;
 	bool bInUse;
+	int iNextFree;               // 空闲链表
+	ptr pOpUserData;             // per-operation 用户数据
 	struct sockaddr_in tAcceptAddr;
 	socklen_t iAcceptAddrLen;
 } __xrt_uring_op;
@@ -15294,34 +16418,109 @@ struct xrt_net_poller {
 	__xrt_uring_op* pOps;
 	int iOpCount;
 	int iOpCapacity;
+	int iFreeHead;                // 空闲链表头
+	unsigned iPendingSQE;         // 待提交的 SQE 计数
 	int iWakeupFd;                // eventfd 用于唤醒
+	uint64 iWakeupVal;            // eventfd 读缓冲区
 	xpoll_fn pfnCallback;
 	ptr pUserData;
 	size_t iRecvBufSize;
 	pthread_mutex_t tLock;
 };
+// O(1) 操作池分配
 static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 {
 	pthread_mutex_lock(&pPoller->tLock);
 	
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( !pPoller->pOps[i].bInUse ) {
-			pPoller->pOps[i].bInUse = true;
-			pthread_mutex_unlock(&pPoller->tLock);
-			return &pPoller->pOps[i];
-		}
+	if ( pPoller->iFreeHead >= 0 ) {
+		int iIdx = pPoller->iFreeHead;
+		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
+		pPoller->iFreeHead = pOp->iNextFree;
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		pOp->pDynamicBuf = NULL;
+		pOp->bDynamicBuf = false;
+		pOp->pOpUserData = NULL;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return pOp;
 	}
 	
 	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
-		__xrt_uring_op* pOp = &pPoller->pOps[pPoller->iOpCount++];
+		int iIdx = pPoller->iOpCount++;
+		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
 		memset(pOp, 0, sizeof(__xrt_uring_op));
 		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return pOp;
+	}
+	
+	// 容量已满，尝试动态扩容（最大4096）
+	if ( pPoller->iOpCapacity < __XRT_POLL_MAX_OPS ) {
+		int iNewCapacity = pPoller->iOpCapacity * 2;
+		if ( iNewCapacity > __XRT_POLL_MAX_OPS ) {
+			iNewCapacity = __XRT_POLL_MAX_OPS;
+		}
+		
+		__xrt_uring_op* pNewOps = (__xrt_uring_op*)xrtRealloc(pPoller->pOps, 
+			iNewCapacity * sizeof(__xrt_uring_op));
+		if ( !pNewOps ) {
+			pthread_mutex_unlock(&pPoller->tLock);
+			return NULL;
+		}
+		
+		// 更新容量和指针
+		pPoller->pOps = pNewOps;
+		pPoller->iOpCapacity = iNewCapacity;
+		
+		// 将新增的槽位串入空闲链表
+		for ( int i = pPoller->iOpCount; i < pPoller->iOpCapacity; i++ ) {
+			pPoller->pOps[i].bInUse = false;
+			pPoller->pOps[i].iNextFree = (i + 1 < pPoller->iOpCapacity) ? (i + 1) : pPoller->iFreeHead;
+		}
+		pPoller->iFreeHead = pPoller->iOpCount;
+		
+		// 分配第一个新增的槽位
+		int iIdx = pPoller->iOpCount++;
+		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
+		memset(pOp, 0, sizeof(__xrt_uring_op));
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
 		pthread_mutex_unlock(&pPoller->tLock);
 		return pOp;
 	}
 	
 	pthread_mutex_unlock(&pPoller->tLock);
 	return NULL;
+}
+// 注册 wakeup read 事件
+static void __xrt_uring_post_wakeup_read(xnetpoller* pPoller)
+{
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( !pSQE ) return;
+	
+	pSQE->opcode = IORING_OP_READ;
+	pSQE->fd = pPoller->iWakeupFd;
+	pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->iWakeupVal;
+	pSQE->len = sizeof(uint64);
+	pSQE->user_data = 0;  // 特殊标记表示wakeup事件
+	__xrt_uring_submit_sqe(pPoller);
+}
+// O(1) 操作池释放
+static void __xrt_uring_free_op(xnetpoller* pPoller, __xrt_uring_op* pOp)
+{
+	if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
+		xrtFree(pOp->pDynamicBuf);
+		pOp->pDynamicBuf = NULL;
+	}
+	pOp->bDynamicBuf = false;
+	pOp->bInUse = false;
+	
+	pthread_mutex_lock(&pPoller->tLock);
+	int iIdx = (int)(pOp - pPoller->pOps);
+	pOp->iNextFree = pPoller->iFreeHead;
+	pPoller->iFreeHead = iIdx;
+	pthread_mutex_unlock(&pPoller->tLock);
 }
 static struct io_uring_sqe* __xrt_uring_get_sqe(xnetpoller* pPoller)
 {
@@ -15346,6 +16545,18 @@ static void __xrt_uring_submit_sqe(xnetpoller* pPoller)
 	
 	pSQ->pArray[iTail & iMask] = iTail & iMask;
 	__atomic_store_n(pSQ->pTail, iTail + 1, __ATOMIC_RELEASE);
+	pPoller->iPendingSQE++;
+}
+// 批量提交所有待提交 SQE
+static xnet_result __xrt_uring_flush(xnetpoller* pPoller)
+{
+	if ( pPoller->iPendingSQE == 0 ) return XRT_NET_OK;
+	
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, pPoller->iPendingSQE, 0, 0, NULL);
+	pPoller->iPendingSQE = 0;
+	
+	if ( iRet < 0 ) return XRT_NET_ERROR;
+	return XRT_NET_OK;
 }
 XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
 {
@@ -15410,7 +16621,7 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 	pPoller->tCQ.pCQEs = (struct io_uring_cqe*)((char*)pCQPtr + tParams.cq_off.cqes);
 	
 	// 分配操作池
-	pPoller->iOpCapacity = __XRT_POLL_MAX_OPS;
+	pPoller->iOpCapacity = __XRT_POLL_INIT_OPS;
 	pPoller->pOps = (__xrt_uring_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_uring_op));
 	if ( !pPoller->pOps ) {
 		munmap(pCQPtr, iCQSize);
@@ -15421,8 +16632,14 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 		return NULL;
 	}
 	
+	pPoller->iFreeHead = -1;
+	pPoller->iPendingSQE = 0;
+	
 	// 创建 eventfd 用于唤醒
 	pPoller->iWakeupFd = eventfd(0, EFD_NONBLOCK);
+	
+	// 注册 wakeup read 事件
+	__xrt_uring_post_wakeup_read(pPoller);
 	
 	pthread_mutex_init(&pPoller->tLock, NULL);
 	pPoller->pfnCallback = pfnCallback;
@@ -15436,6 +16653,11 @@ XXAPI void xrtPollDestroy(xnetpoller* pPoller)
 	if ( !pPoller ) return;
 	
 	if ( pPoller->pOps ) {
+		for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+			if ( pPoller->pOps[i].bDynamicBuf && pPoller->pOps[i].pDynamicBuf ) {
+				xrtFree(pPoller->pOps[i].pDynamicBuf);
+			}
+		}
 		xrtFree(pPoller->pOps);
 	}
 	
@@ -15448,7 +16670,6 @@ XXAPI void xrtPollDestroy(xnetpoller* pPoller)
 		munmap(pPoller->tCQ.pRingPtr, pPoller->tCQ.iRingSize);
 	}
 	if ( pPoller->tSQ.pSQEs && (void*)pPoller->tSQ.pSQEs != MAP_FAILED ) {
-		// SQEs 的大小需要重新计算，这里用近似值
 		munmap(pPoller->tSQ.pSQEs, __XRT_URING_ENTRIES * sizeof(struct io_uring_sqe));
 	}
 	if ( pPoller->tSQ.pRingPtr && pPoller->tSQ.pRingPtr != MAP_FAILED ) {
@@ -15472,23 +16693,17 @@ XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
 {
 	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
 	
-	pthread_mutex_lock(&pPoller->tLock);
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
-			// 提交 cancel 请求
-			struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-			if ( pSQE ) {
-				pSQE->opcode = IORING_OP_ASYNC_CANCEL;
-				pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->pOps[i];
-				__xrt_uring_submit_sqe(pPoller);
-			}
-			pPoller->pOps[i].bInUse = false;
-		}
+	// 直接使用 IORING_OP_ASYNC_CANCEL 取消该 socket 上的所有 IO
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( pSQE ) {
+		pSQE->opcode = IORING_OP_ASYNC_CANCEL;
+		pSQE->fd = pConn->hSocket;
+		#ifdef IORING_ASYNC_CANCEL_FD  // kernel 5.19+
+			pSQE->cancel_flags = IORING_ASYNC_CANCEL_FD;
+		#endif
+		__xrt_uring_submit_sqe(pPoller);
+		__xrt_uring_flush(pPoller);
 	}
-	pthread_mutex_unlock(&pPoller->tLock);
-	
-	// 提交取消请求
-	__xrt_io_uring_enter(pPoller->iFd, 1, 0, IORING_ENTER_GETEVENTS, NULL);
 	
 	return XRT_NET_OK;
 }
@@ -15501,12 +16716,13 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 	
 	pOp->pConn = pConn;
 	pOp->iOpType = __XRT_POLL_OP_RECV;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	pthread_mutex_lock(&pPoller->tLock);
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 	if ( !pSQE ) {
-		pOp->bInUse = false;
 		pthread_mutex_unlock(&pPoller->tLock);
+		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -15519,12 +16735,7 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 	__xrt_uring_submit_sqe(pPoller);
 	pthread_mutex_unlock(&pPoller->tLock);
 	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
-	if ( iRet < 0 ) {
-		pOp->bInUse = false;
-		return XRT_NET_ERROR;
-	}
-	
+	// 不立即提交, 等 PollWait 批量提交
 	return XRT_NET_OK;
 }
 XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen)
@@ -15534,41 +16745,47 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
 	if ( !pOp ) return XRT_NET_ERROR;
 	
-	// 复制数据解决生命周期问题
-	size_t iCopyLen = (iLen > __XRT_POLL_RECV_SIZE) ? __XRT_POLL_RECV_SIZE : iLen;
-	memcpy(pOp->aRecvBuf, pData, iCopyLen);
+	char* pBuf;
+	if ( iLen > __XRT_POLL_RECV_SIZE ) {
+		pOp->pDynamicBuf = (char*)xrtMalloc(iLen);
+		if ( !pOp->pDynamicBuf ) {
+			__xrt_uring_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		pOp->bDynamicBuf = true;
+		memcpy(pOp->pDynamicBuf, pData, iLen);
+		pBuf = pOp->pDynamicBuf;
+	} else {
+		memcpy(pOp->aRecvBuf, pData, iLen);
+		pBuf = pOp->aRecvBuf;
+	}
 	
 	pOp->pConn = pConn;
 	pOp->iOpType = __XRT_POLL_OP_SEND;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	pthread_mutex_lock(&pPoller->tLock);
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 	if ( !pSQE ) {
-		pOp->bInUse = false;
 		pthread_mutex_unlock(&pPoller->tLock);
+		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
 	pSQE->opcode = IORING_OP_SEND;
 	pSQE->fd = pConn->hSocket;
-	pSQE->addr = (unsigned long long)(uintptr_t)pOp->aRecvBuf;
-	pSQE->len = (unsigned)iCopyLen;
+	pSQE->addr = (unsigned long long)(uintptr_t)pBuf;
+	pSQE->len = (unsigned)iLen;
 	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
 	
 	__xrt_uring_submit_sqe(pPoller);
 	pthread_mutex_unlock(&pPoller->tLock);
 	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
-	if ( iRet < 0 ) {
-		pOp->bInUse = false;
-		return XRT_NET_ERROR;
-	}
-	
 	return XRT_NET_OK;
 }
 XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
 {
-	if ( !pPoller || !pServer || !pClient ) return XRT_NET_ERROR;
+	if ( !pPoller || !pServer ) return XRT_NET_ERROR;
 	
 	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
 	if ( !pOp ) return XRT_NET_ERROR;
@@ -15577,12 +16794,13 @@ XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnet
 	pOp->pAcceptConn = pClient;
 	pOp->iOpType = __XRT_POLL_OP_ACCEPT;
 	pOp->iAcceptAddrLen = sizeof(struct sockaddr_in);
+	pOp->pOpUserData = pServer->pUserData;
 	
 	pthread_mutex_lock(&pPoller->tLock);
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 	if ( !pSQE ) {
-		pOp->bInUse = false;
 		pthread_mutex_unlock(&pPoller->tLock);
+		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -15595,28 +16813,31 @@ XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnet
 	__xrt_uring_submit_sqe(pPoller);
 	pthread_mutex_unlock(&pPoller->tLock);
 	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
-	if ( iRet < 0 ) {
-		pOp->bInUse = false;
-		return XRT_NET_ERROR;
-	}
-	
 	return XRT_NET_OK;
 }
 XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 {
 	if ( !pPoller ) return XRT_NET_ERROR;
 	
-	// 等待至少一个完成事件
-	struct __kernel_timespec tTimeout;
-	struct __kernel_timespec* pTimeout = NULL;
+	// 批量提交所有待提交 SQE
+	__xrt_uring_flush(pPoller);
+	
+	// 投递 TIMEOUT SQE（替代io_uring_enter的timeout参数）
 	if ( iTimeoutMs >= 0 ) {
-		tTimeout.tv_sec = iTimeoutMs / 1000;
-		tTimeout.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
-		pTimeout = &tTimeout;
+		struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+		if ( pSQE ) {
+			pSQE->opcode = IORING_OP_TIMEOUT;
+			struct __kernel_timespec tTimeoutSpec;
+			tTimeoutSpec.tv_sec = iTimeoutMs / 1000;
+			tTimeoutSpec.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
+			pSQE->addr = (unsigned long long)(uintptr_t)&tTimeoutSpec;
+			pSQE->len = 1;  // 等到 1 个事件或超时
+			__xrt_uring_submit_sqe(pPoller);
+		}
 	}
 	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 0, 1, IORING_ENTER_GETEVENTS, pTimeout);
+	// 不带超时调用 io_uring_enter
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, 0, 1, IORING_ENTER_GETEVENTS, NULL);
 	if ( iRet < 0 ) {
 		if ( errno == ETIME || errno == EINTR ) {
 			return XRT_NET_TIMEOUT;
@@ -15637,6 +16858,14 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 	
 	while ( iHead != iTail ) {
 		struct io_uring_cqe* pCQE = &pCQ->pCQEs[iHead & iMask];
+		
+		// 处理 wakeup 事件
+		if ( pCQE->user_data == 0 ) {
+			__xrt_uring_post_wakeup_read(pPoller);  // 重新投递wakeup read
+			iHead++;
+			continue;
+		}
+		
 		__xrt_uring_op* pOp = (__xrt_uring_op*)(uintptr_t)pCQE->user_data;
 		
 		if ( pOp && pOp->bInUse ) {
@@ -15647,10 +16876,13 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 					pOp->pAcceptConn->hSocket = pCQE->res;
 					xrtNetAddrFromSockAddr(&pOp->pAcceptConn->tRemoteAddr, &pOp->tAcceptAddr);
 					pOp->pAcceptConn->iType = 0;  // TCP
+					// 继承监听 socket 的 pUserData 用于事件路由
+					pOp->pAcceptConn->pUserData = pOp->pConn->pUserData;
 					if ( pPoller->pfnCallback ) {
 						pPoller->pfnCallback(pPoller, pOp->pAcceptConn, XRT_POLL_ACCEPT, NULL, 0);
 					}
 				}
+				__xrt_uring_free_op(pPoller, pOp);
 			} else if ( pCQE->res <= 0 ) {
 				// 连接关闭或错误
 				if ( pCQE->res == 0 || pCQE->res == -ECONNRESET ) {
@@ -15662,6 +16894,7 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_ERROR, NULL, 0);
 					}
 				}
+				__xrt_uring_free_op(pPoller, pOp);
 			} else {
 				switch ( pOp->iOpType ) {
 					case __XRT_POLL_OP_RECV:
@@ -15676,9 +16909,8 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 						}
 						break;
 				}
+				__xrt_uring_free_op(pPoller, pOp);
 			}
-			
-			pOp->bInUse = false;
 		}
 		
 		iHead++;
@@ -15702,7 +16934,7 @@ XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
 #endif /* Linux */
 
 // ========================================
-// File: D:/Git/xrt/lib/nettls.h
+// File: D:/git/xrt/lib/nettls.h
 // ========================================
 
 
@@ -18354,185 +19586,375 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/nettcp.h
+// File: D:/git/xrt/lib/netloop.h
 // ========================================
 
 
 /*
-	NetTCP - TCP 服务器/客户端封装 [Ver1.0]
+	NetLoop - 事件循环 [Ver1.0]
 	
-	基于 netsock.h (Socket 基础) + netpoll.h (IO 模型) + nettls.h (TLS 1.3)
-	使用 xrt 线程库 (thread.h) 创建事件循环线程
-	使用指针数组 (xparray) 管理动态客户端列表
+	统一管理 IO 轮询器，驱动 TCP/UDP 服务器/客户端
+	通过 __xrt_conn_handler 实现事件路由:
+	  xnetconn->pUserData -> __xrt_conn_handler -> pfnHandler(pOwner, ...)
+	
+	多个服务器可共享同一个事件循环 (共享底层 poller)
+*/
+/* ============================== 事件路由处理器 ============================== */
+// 连接事件处理器 (每个 TCP/UDP 服务器/客户端 注册自己的处理器)
+typedef struct {
+	void (*pfnHandler)(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
+	ptr pOwner;    // 指向 TCP/UDP server 或 client 宿主
+} __xrt_conn_handler;
+/* ============================== 事件循环结构 ============================== */
+struct xrt_event_loop {
+	xnetpoller* pPoller;
+	volatile bool bRunning;
+	int iPollTimeoutMs;         // 默认 100ms
+};
+/* ============================== 事件路由回调 ============================== */
+// poller 全局回调: 将事件路由到具体的 TCP/UDP 处理函数
+static void __xrt_eventloop_dispatch(xnetpoller* pPoller, xnetconn* pConn,
+	int iEvent, const char* pData, size_t iLen)
+{
+	if ( !pConn ) return;
+	__xrt_conn_handler* pHandler = (__xrt_conn_handler*)pConn->pUserData;
+	if ( pHandler && pHandler->pfnHandler ) {
+		pHandler->pfnHandler(pHandler->pOwner, pConn, iEvent, pData, iLen);
+	}
+}
+/* ============================== 事件循环 API ============================== */
+XXAPI xeventloop* xrtEventLoopCreate()
+{
+	xeventloop* pLoop = (xeventloop*)xrtCalloc(1, sizeof(xeventloop));
+	if ( !pLoop ) return NULL;
+	
+	pLoop->pPoller = xrtPollCreate(NULL, __xrt_eventloop_dispatch, pLoop);
+	if ( !pLoop->pPoller ) {
+		xrtFree(pLoop);
+		return NULL;
+	}
+	
+	pLoop->bRunning = false;
+	pLoop->iPollTimeoutMs = 100;
+	
+	return pLoop;
+}
+XXAPI void xrtEventLoopDestroy(xeventloop* pLoop)
+{
+	if ( !pLoop ) return;
+	
+	pLoop->bRunning = false;
+	if ( pLoop->pPoller ) {
+		xrtPollDestroy(pLoop->pPoller);
+		pLoop->pPoller = NULL;
+	}
+	xrtFree(pLoop);
+}
+XXAPI void xrtEventLoopRun(xeventloop* pLoop)
+{
+	if ( !pLoop ) return;
+	pLoop->bRunning = true;
+	while ( pLoop->bRunning ) {
+		xnet_result iRes = xrtPollWait(pLoop->pPoller, pLoop->iPollTimeoutMs);
+		if ( iRes == XRT_NET_ERROR ) {
+			// 防止 busy-loop，出错时短暂休眠
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(1);
+			#else
+				usleep(1000);
+			#endif
+		}
+	}
+}
+XXAPI void xrtEventLoopStop(xeventloop* pLoop)
+{
+	if ( !pLoop ) return;
+	pLoop->bRunning = false;
+	xrtPollWakeup(pLoop->pPoller);
+}
+XXAPI xnet_result xrtEventLoopRunOnce(xeventloop* pLoop, int iTimeoutMs)
+{
+	if ( !pLoop ) return XRT_NET_ERROR;
+	return xrtPollWait(pLoop->pPoller, iTimeoutMs);
+}
+XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop)
+{
+	if ( !pLoop ) return NULL;
+	return pLoop->pPoller;
+}
+
+// ========================================
+// File: D:/git/xrt/lib/nettcp.h
+// ========================================
+
+
+/*
+	NetTCP - TCP 服务器/客户端封装 [Ver2.0]
+	
+	基于 netsock.h (Socket) + netpoll.h (IO) + netloop.h (事件循环) + nettls.h (TLS)
+	
+	Ver2.0 变更:
+	  - 事件驱动架构 (IOCP/io_uring 完成端口模型)
+	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
+	  - 客户端槽位空闲栈 O(1) 分配/回收
+	  - 环形接收缓冲区
+	  - TLS 握手事件驱动化 (依赖 poller recv 事件)
 	
 	仅 IPv4，跨平台 (Windows / Linux)
 */
 /* ============================== 内部客户端数据结构 ============================== */
-typedef struct __xrt_tcp_client_slot {
+typedef struct {
 	xnetconn tConn;
-	xnetbuf tRecvBuf;
-	xnetbuf tSendBuf;
+	xnetringbuf tRecvRing;         // 环形接收缓冲区
 	xtlsctx* pTlsCtx;
+	__xrt_conn_handler tHandler;   // 事件路由
 	bool bInUse;
+	bool bTlsHandshaking;         // TLS 握手中
 } __xrt_tcp_client_slot;
 /* ============================== TCP 服务器结构 ============================== */
 struct xrt_tcp_server {
-	xnetconn tListenConn;           // 监听 socket
-	xnetpoller* pPoller;            // IO poller
-	xnetconfig tConfig;             // 配置
-	xnetevents tEvents;             // 事件回调
-	xtlsconfig tTlsConfig;         // TLS 配置
-	bool bTlsEnabled;              // 是否启用 TLS
+	xeventloop* pLoop;            // 事件循环 (自有或借用)
+	bool bOwnLoop;                // 是否拥有 event loop
+	xthread pThread;              // 简易模式内部线程
 	
-	// 客户端管理
-	__xrt_tcp_client_slot** arrClients;  // 客户端槽位数组
-	int iMaxClients;               // 最大客户端数
-	int iClientCount;              // 当前客户端数
+	xnetconn tListenConn;
+	__xrt_conn_handler tListenHandler;
+	xnetconn tAcceptConn;          // 预分配 accept 连接缓冲区
+	xnetconfig tConfig;
+	xnetevents tEvents;
+	xtlsconfig tTlsConfig;
+	bool bTlsEnabled;
 	
-	// 线程
-	xthread pThread;               // 事件循环线程
-	volatile bool bRunning;        // 运行标志
+	// 客户端管理 (空闲索引栈)
+	__xrt_tcp_client_slot* arrSlots;
+	int iMaxClients;
+	int iClientCount;
+	int* arrFreeStack;             // 空闲索引栈
+	int iFreeTop;                  // 栈顶 (-1=空)
 	
-	// 用户数据
 	ptr pUserData;
+	volatile bool bRunning;
 };
 /* ============================== TCP 客户端结构 ============================== */
 struct xrt_tcp_client {
-	xnetconn tConn;                // 连接 socket
-	xnetbuf tRecvBuf;              // 接收缓冲区
-	xnetbuf tSendBuf;              // 发送缓冲区
-	xnetconfig tConfig;            // 配置
-	xnetevents tEvents;            // 事件回调
-	xtlsconfig tTlsConfig;        // TLS 配置
-	xtlsctx* pTlsCtx;             // TLS 上下文
-	bool bTlsEnabled;             // 是否启用 TLS
+	xeventloop* pLoop;            // 事件循环 (自有或借用)
+	bool bOwnLoop;
+	xthread pThread;
 	
-	xnetaddr tServerAddr;          // 服务器地址
+	xnetconn tConn;
+	__xrt_conn_handler tHandler;
+	xnetconfig tConfig;
+	xnetevents tEvents;
+	xtlsconfig tTlsConfig;
+	xtlsctx* pTlsCtx;
+	bool bTlsEnabled;
+	bool bTlsHandshaking;
 	
-	// 线程
-	xthread pThread;               // 事件循环线程
-	volatile bool bRunning;        // 运行标志
-	volatile bool bConnected;      // 连接状态
+	xnetaddr tServerAddr;
 	
-	// 用户数据
+	volatile bool bRunning;
+	volatile bool bConnected;
+	
 	ptr pUserData;
 };
-/* ============================== TCP 服务器 - 事件循环 ============================== */
-// 服务器事件循环：轮询 accept + recv
-static uint32 __xrt_tcp_server_loop(ptr pParam)
+/* ============================== TCP 服务器 - 槽位管理 ============================== */
+// 从空闲栈 pop 槽位 O(1)
+static int __xrt_tcp_server_alloc_slot(xtcpserver* pServer)
 {
-	xtcpserver* pServer = (xtcpserver*)pParam;
-	char aBuf[8192];
+	if ( pServer->iFreeTop < 0 ) return -1;
+	int iSlot = pServer->arrFreeStack[pServer->iFreeTop];
+	pServer->iFreeTop--;
+	return iSlot;
+}
+// 归还槽位到空闲栈 O(1)
+static void __xrt_tcp_server_free_slot(xtcpserver* pServer, int iSlot)
+{
+	pServer->iFreeTop++;
+	pServer->arrFreeStack[pServer->iFreeTop] = iSlot;
+}
+/* ============================== TCP 服务器 - 事件处理 ============================== */
+// Forward declarations
+static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
+static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
+// 客户端槽位 事件处理 (READ/WRITE/CLOSE)
+static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
+{
+	xtcpserver* pServer = (xtcpserver*)pOwner;
+	int iSlot = pConn->iId;
+	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
+	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iSlot];
+	if ( !pSlot->bInUse ) return;
 	
-	while ( pServer->bRunning ) {
-		// 1. 尝试 accept 新连接
-		xnetconn tNewConn;
-		memset(&tNewConn, 0, sizeof(xnetconn));
-		xnet_result iRes = xrtSockAccept(&pServer->tListenConn, &tNewConn);
-		
-		if ( iRes == XRT_NET_OK ) {
-			// 找到空槽位
-			int iSlot = -1;
-			for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-				if ( !pServer->arrClients[i]->bInUse ) {
-					iSlot = i;
-					break;
-				}
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
+	
+	if ( iEvent == XRT_POLL_READ ) {
+		// TLS 握手进行中
+		if ( pSlot->bTlsHandshaking && pSlot->pTlsCtx ) {
+			// 将 poller 收到的数据送入 TLS 接收缓冲区
+			xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, pData, iLen);
+			xnet_result iRes = xrtTlsHandshake(pSlot->pTlsCtx, &pSlot->tConn);
+			
+			// 将 TLS 输出通过 poller 发送
+			if ( pSlot->pTlsCtx->tSendBuf.iSize > 0 ) {
+				xrtPollPostSend(pPoller, &pSlot->tConn,
+					pSlot->pTlsCtx->tSendBuf.pData, pSlot->pTlsCtx->tSendBuf.iSize);
+				xrtNetBufConsume(&pSlot->pTlsCtx->tSendBuf, pSlot->pTlsCtx->tSendBuf.iSize);
 			}
 			
-			if ( iSlot >= 0 ) {
-				__xrt_tcp_client_slot* pSlot = pServer->arrClients[iSlot];
-				pSlot->tConn = tNewConn;
-				pSlot->tConn.iId = iSlot;
-				pSlot->tConn.iType = 0;  // TCP
-				pSlot->bInUse = true;
-				xrtNetBufClear(&pSlot->tRecvBuf);
-				xrtNetBufClear(&pSlot->tSendBuf);
-				
-				// 设置非阻塞
-				xrtSockSetNonBlock(&pSlot->tConn);
-				
-				pServer->iClientCount++;
-				
-				// TLS 握手（如果启用）
-				if ( pServer->bTlsEnabled ) {
-					pSlot->pTlsCtx = xrtTlsCreate(&pServer->tTlsConfig, true);
-					if ( pSlot->pTlsCtx ) {
-						pSlot->tConn.bTlsEnabled = true;
-						pSlot->tConn.pTlsCtx = pSlot->pTlsCtx;
-						// TODO: 服务端 TLS 握手循环
-					}
-				}
-				
-				// 触发 OnAccept 回调
-				if ( pServer->tEvents.OnAccept ) {
-					pServer->tEvents.OnAccept(pServer, &pSlot->tConn);
-				}
-			} else {
-				// 没有空槽位，拒绝连接
-				xrtSockClose(&tNewConn);
+			if ( iRes == XRT_NET_OK ) {
+				// 握手完成
+				pSlot->bTlsHandshaking = false;
+				pSlot->tConn.bTlsEnabled = true;
+				pSlot->tConn.pTlsCtx = pSlot->pTlsCtx;
+			} else if ( iRes == XRT_NET_ERROR ) {
+				// 握手失败，关闭连接
+				goto close_slot;
 			}
+			// XRT_NET_AGAIN: 等待更多数据
+			xrtPollPostRecv(pPoller, &pSlot->tConn);
+			return;
 		}
 		
-		// 2. 轮询所有客户端的 recv
-		for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-			__xrt_tcp_client_slot* pSlot = pServer->arrClients[i];
-			if ( !pSlot->bInUse ) continue;
-			
-			size_t iRecvd = 0;
-			xnet_result iRecvRes;
-			
-			if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
-				// TLS 读取
-				// 先从 socket 读到 TLS 接收缓冲区
-				char aTlsBuf[4096];
-				size_t iTlsRecvd = 0;
-				xnet_result iTlsRes = xrtSockRecv(&pSlot->tConn, aTlsBuf, sizeof(aTlsBuf), &iTlsRecvd);
-				if ( iTlsRes == XRT_NET_OK && iTlsRecvd > 0 ) {
-					xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, aTlsBuf, iTlsRecvd);
-				}
-				iRecvRes = xrtTlsRead(pSlot->pTlsCtx, aBuf, sizeof(aBuf), &iRecvd);
-			} else {
-				iRecvRes = xrtSockRecv(&pSlot->tConn, aBuf, sizeof(aBuf), &iRecvd);
-			}
-			
-			if ( iRecvRes == XRT_NET_OK && iRecvd > 0 ) {
+		// 正常数据
+		if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
+			// TLS: 将原始数据送入 TLS 解密
+			xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, pData, iLen);
+			char aBuf[8192];
+			size_t iDecrypted = 0;
+			while ( xrtTlsRead(pSlot->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
 				if ( pServer->tEvents.OnRecv ) {
-					pServer->tEvents.OnRecv(pServer, &pSlot->tConn, aBuf, iRecvd);
+					pServer->tEvents.OnRecv(pServer, &pSlot->tConn, aBuf, iDecrypted);
 				}
-			} else if ( iRecvRes == XRT_NET_CLOSED || iRecvRes == XRT_NET_ERROR ) {
-				// 客户端断开
-				if ( pServer->tEvents.OnClose ) {
-					pServer->tEvents.OnClose(pServer, &pSlot->tConn);
-				}
-				if ( pSlot->pTlsCtx ) {
-					xrtTlsDestroy(pSlot->pTlsCtx);
-					pSlot->pTlsCtx = NULL;
-				}
-				xrtSockClose(&pSlot->tConn);
-				pSlot->bInUse = false;
-				pServer->iClientCount--;
+				iDecrypted = 0;
 			}
-			// XRT_NET_AGAIN: 无数据可读，继续下一个
+		} else {
+			// 明文数据
+			if ( pServer->tEvents.OnRecv ) {
+				pServer->tEvents.OnRecv(pServer, &pSlot->tConn, pData, iLen);
+			}
 		}
 		
-		// 3. 短暂休眠避免忙等
-		int iTimeout = pServer->tConfig.iPollTimeoutMs > 0 ? pServer->tConfig.iPollTimeoutMs : 10;
-		#if defined(_WIN32) || defined(_WIN64)
-			Sleep(iTimeout);
-		#else
-			usleep(iTimeout * 1000);
-		#endif
+		// 投递下一次 recv
+		xrtPollPostRecv(pPoller, &pSlot->tConn);
+		return;
 	}
 	
+	if ( iEvent == XRT_POLL_WRITE ) {
+		if ( pServer->tEvents.OnSend ) {
+			pServer->tEvents.OnSend(pServer, &pSlot->tConn, iLen);
+		}
+		return;
+	}
+	
+	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
+close_slot:
+		if ( pServer->tEvents.OnClose ) {
+			pServer->tEvents.OnClose(pServer, &pSlot->tConn);
+		}
+		
+		xrtPollRemove(pPoller, &pSlot->tConn);
+		
+		if ( pSlot->pTlsCtx ) {
+			xrtTlsDestroy(pSlot->pTlsCtx);
+			pSlot->pTlsCtx = NULL;
+		}
+		xrtSockClose(&pSlot->tConn);
+		xrtNetRingBufFree(&pSlot->tRecvRing);
+		pSlot->bInUse = false;
+		pSlot->bTlsHandshaking = false;
+		pServer->iClientCount--;
+		__xrt_tcp_server_free_slot(pServer, iSlot);
+		return;
+	}
+}
+// 服务器监听 事件处理 (ACCEPT)
+static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
+{
+	xtcpserver* pServer = (xtcpserver*)pOwner;
+	
+	if ( iEvent != XRT_POLL_ACCEPT ) return;
+	
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
+	
+	// 分配槽位
+	int iSlot = __xrt_tcp_server_alloc_slot(pServer);
+	if ( iSlot < 0 ) {
+		// 无空闲槽位，拒绝连接
+		xrtSockClose(pConn);
+		// 继续投递 accept
+		memset(&pServer->tAcceptConn, 0, sizeof(xnetconn));
+		xrtPollPostAccept(pPoller, &pServer->tListenConn, &pServer->tAcceptConn);
+		return;
+	}
+	
+	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iSlot];
+	
+	// 拷贝 accept 连接信息
+	pSlot->tConn = *pConn;
+	pSlot->tConn.iId = iSlot;
+	pSlot->tConn.iType = 0;  // TCP
+	pSlot->bInUse = true;
+	pSlot->bTlsHandshaking = false;
+	pSlot->pTlsCtx = NULL;
+	
+	// 设置事件处理器
+	pSlot->tHandler.pfnHandler = __xrt_tcp_client_slot_on_event;
+	pSlot->tHandler.pOwner = pServer;
+	pSlot->tConn.pUserData = &pSlot->tHandler;
+	
+	// 初始化环形缓冲区
+	size_t iRecvSize = pServer->tConfig.iRecvBufSize > 0 ? pServer->tConfig.iRecvBufSize : 8192;
+	xrtNetRingBufInit(&pSlot->tRecvRing, iRecvSize);
+	
+	// 设置非阻塞
+	xrtSockSetNonBlock(&pSlot->tConn);
+	
+	pServer->iClientCount++;
+	
+	// 注册到 poller
+	xrtPollAdd(pPoller, &pSlot->tConn, XRT_POLL_READ);
+	
+	// Accept后设置TCP_NODELAY（如果配置启用）
+	if ( pServer->tConfig.bNoDelay ) {
+		xrtSockSetNoDelay(&pSlot->tConn);
+	}
+	
+	// TLS 握手 (如果启用)
+	if ( pServer->bTlsEnabled ) {
+		pSlot->pTlsCtx = xrtTlsCreate(&pServer->tTlsConfig, true);
+		if ( pSlot->pTlsCtx ) {
+			pSlot->bTlsHandshaking = true;
+		}
+	}
+	
+	// 触发 OnAccept 回调
+	if ( pServer->tEvents.OnAccept ) {
+		pServer->tEvents.OnAccept(pServer, &pSlot->tConn);
+	}
+	
+	// 投递 recv
+	xrtPollPostRecv(pPoller, &pSlot->tConn);
+	
+	// 投递下一个 accept
+	memset(&pServer->tAcceptConn, 0, sizeof(xnetconn));
+	xrtPollPostAccept(pPoller, &pServer->tListenConn, &pServer->tAcceptConn);
+}
+// 服务器内部线程 (简易模式)
+static uint32 __xrt_tcp_server_thread(ptr pParam)
+{
+	xtcpserver* pServer = (xtcpserver*)pParam;
+	xrtEventLoopRun(pServer->pLoop);
 	return 0;
 }
 /* ============================== TCP 服务器 API ============================== */
-XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort,
+// 内部初始化 (Ex 和普通版共用)
+static xtcpserver* __xrt_tcp_server_init(xeventloop* pLoop, const char* sIP, uint16 iPort,
 	const xnetconfig* pConfig, const xnetevents* pEvents)
 {
 	xtcpserver* pServer = (xtcpserver*)xrtCalloc(1, sizeof(xtcpserver));
 	if ( !pServer ) return NULL;
+	
+	pServer->pLoop = pLoop;
 	
 	// 配置
 	if ( pConfig ) {
@@ -18550,38 +19972,32 @@ XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort,
 	
 	pServer->iMaxClients = pServer->tConfig.iMaxClients > 0 ? pServer->tConfig.iMaxClients : 256;
 	
-	// 分配客户端槽位数组
-	pServer->arrClients = (__xrt_tcp_client_slot**)xrtCalloc(pServer->iMaxClients, sizeof(__xrt_tcp_client_slot*));
-	if ( !pServer->arrClients ) {
+	// 分配客户端槽位数组 (连续内存)
+	pServer->arrSlots = (__xrt_tcp_client_slot*)xrtCalloc(pServer->iMaxClients, sizeof(__xrt_tcp_client_slot));
+	if ( !pServer->arrSlots ) {
 		xrtFree(pServer);
 		return NULL;
 	}
 	
-	size_t iRecvSize = pServer->tConfig.iRecvBufSize > 0 ? pServer->tConfig.iRecvBufSize : 8192;
-	size_t iSendSize = pServer->tConfig.iSendBufSize > 0 ? pServer->tConfig.iSendBufSize : 8192;
+	// 分配空闲索引栈
+	pServer->arrFreeStack = (int*)xrtMalloc(pServer->iMaxClients * sizeof(int));
+	if ( !pServer->arrFreeStack ) {
+		xrtFree(pServer->arrSlots);
+		xrtFree(pServer);
+		return NULL;
+	}
 	
+	// 初始化空闲栈 (倒序压入, 使得 slot 0 先被分配)
+	pServer->iFreeTop = pServer->iMaxClients - 1;
 	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		pServer->arrClients[i] = (__xrt_tcp_client_slot*)xrtCalloc(1, sizeof(__xrt_tcp_client_slot));
-		if ( !pServer->arrClients[i] ) {
-			// 清理已分配
-			for ( int j = 0; j < i; j++ ) {
-				xrtNetBufFree(&pServer->arrClients[j]->tRecvBuf);
-				xrtNetBufFree(&pServer->arrClients[j]->tSendBuf);
-				xrtFree(pServer->arrClients[j]);
-			}
-			xrtFree(pServer->arrClients);
-			xrtFree(pServer);
-			return NULL;
-		}
-		xrtNetBufInit(&pServer->arrClients[i]->tRecvBuf, iRecvSize);
-		xrtNetBufInit(&pServer->arrClients[i]->tSendBuf, iSendSize);
-		pServer->arrClients[i]->bInUse = false;
-		pServer->arrClients[i]->tConn.iId = i;
+		pServer->arrFreeStack[i] = pServer->iMaxClients - 1 - i;
+		pServer->arrSlots[i].bInUse = false;
+		pServer->arrSlots[i].tConn.iId = i;
 	}
 	
 	// 创建监听 socket
 	memset(&pServer->tListenConn, 0, sizeof(xnetconn));
-	if ( xrtSockCreate(&pServer->tListenConn, 0) != XRT_NET_OK ) {  // TCP
+	if ( xrtSockCreate(&pServer->tListenConn, 0) != XRT_NET_OK ) {
 		goto error_cleanup;
 	}
 	
@@ -18599,19 +20015,54 @@ XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort,
 		goto error_cleanup;
 	}
 	
+	// 设置监听 handler
+	pServer->tListenHandler.pfnHandler = __xrt_tcp_server_on_event;
+	pServer->tListenHandler.pOwner = pServer;
+	pServer->tListenConn.pUserData = &pServer->tListenHandler;
+	
+	// 注册监听 socket 到 poller
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
+	xrtPollAdd(pPoller, &pServer->tListenConn, XRT_POLL_ACCEPT);
+	
+	// 投递第一个异步 accept
+	memset(&pServer->tAcceptConn, 0, sizeof(xnetconn));
+	xrtPollPostAccept(pPoller, &pServer->tListenConn, &pServer->tAcceptConn);
+	
 	return pServer;
 error_cleanup:
 	xrtSockClose(&pServer->tListenConn);
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		if ( pServer->arrClients[i] ) {
-			xrtNetBufFree(&pServer->arrClients[i]->tRecvBuf);
-			xrtNetBufFree(&pServer->arrClients[i]->tSendBuf);
-			xrtFree(pServer->arrClients[i]);
-		}
-	}
-	xrtFree(pServer->arrClients);
+	xrtFree(pServer->arrFreeStack);
+	xrtFree(pServer->arrSlots);
 	xrtFree(pServer);
 	return NULL;
+}
+// 高级版: 绑定共享事件循环
+XXAPI xtcpserver* xrtTcpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
+	const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	if ( !pLoop ) return NULL;
+	
+	xtcpserver* pServer = __xrt_tcp_server_init(pLoop, sIP, iPort, pConfig, pEvents);
+	if ( !pServer ) return NULL;
+	
+	pServer->bOwnLoop = false;
+	return pServer;
+}
+// 简易版: 内部创建事件循环 + 线程
+XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort,
+	const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xeventloop* pLoop = xrtEventLoopCreate();
+	if ( !pLoop ) return NULL;
+	
+	xtcpserver* pServer = __xrt_tcp_server_init(pLoop, sIP, iPort, pConfig, pEvents);
+	if ( !pServer ) {
+		xrtEventLoopDestroy(pLoop);
+		return NULL;
+	}
+	
+	pServer->bOwnLoop = true;
+	return pServer;
 }
 XXAPI void xrtTcpServerDestroy(xtcpserver* pServer)
 {
@@ -18621,22 +20072,27 @@ XXAPI void xrtTcpServerDestroy(xtcpserver* pServer)
 	
 	// 关闭所有客户端
 	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		if ( pServer->arrClients[i] ) {
-			if ( pServer->arrClients[i]->bInUse ) {
-				xrtSockClose(&pServer->arrClients[i]->tConn);
+		__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[i];
+		if ( pSlot->bInUse ) {
+			if ( pSlot->pTlsCtx ) {
+				xrtTlsDestroy(pSlot->pTlsCtx);
+				pSlot->pTlsCtx = NULL;
 			}
-			if ( pServer->arrClients[i]->pTlsCtx ) {
-				xrtTlsDestroy(pServer->arrClients[i]->pTlsCtx);
-			}
-			xrtNetBufFree(&pServer->arrClients[i]->tRecvBuf);
-			xrtNetBufFree(&pServer->arrClients[i]->tSendBuf);
-			xrtFree(pServer->arrClients[i]);
+			xrtSockClose(&pSlot->tConn);
+			xrtNetRingBufFree(&pSlot->tRecvRing);
 		}
 	}
-	xrtFree(pServer->arrClients);
 	
 	// 关闭监听 socket
 	xrtSockClose(&pServer->tListenConn);
+	
+	// 释放资源
+	xrtFree(pServer->arrFreeStack);
+	xrtFree(pServer->arrSlots);
+	
+	if ( pServer->bOwnLoop && pServer->pLoop ) {
+		xrtEventLoopDestroy(pServer->pLoop);
+	}
 	
 	xrtFree(pServer);
 }
@@ -18646,12 +20102,16 @@ XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer)
 	if ( pServer->bRunning ) return XRT_NET_OK;
 	
 	pServer->bRunning = true;
-	pServer->pThread = xrtThreadCreate((ptr)__xrt_tcp_server_loop, pServer, 0);
 	
-	if ( !pServer->pThread ) {
-		pServer->bRunning = false;
-		return XRT_NET_ERROR;
+	// 简易模式: 启动内部线程驱动事件循环
+	if ( pServer->bOwnLoop ) {
+		pServer->pThread = xrtThreadCreate((ptr)__xrt_tcp_server_thread, pServer, 0);
+		if ( !pServer->pThread ) {
+			pServer->bRunning = false;
+			return XRT_NET_ERROR;
+		}
 	}
+	// 高级模式: 事件循环由用户的 EventLoopRun 驱动
 	
 	return XRT_NET_OK;
 }
@@ -18661,6 +20121,10 @@ XXAPI void xrtTcpServerStop(xtcpserver* pServer)
 	
 	pServer->bRunning = false;
 	
+	if ( pServer->bOwnLoop && pServer->pLoop ) {
+		xrtEventLoopStop(pServer->pLoop);
+	}
+	
 	if ( pServer->pThread ) {
 		xrtThreadWait(pServer->pThread);
 		xrtThreadDestroy(pServer->pThread);
@@ -18669,15 +20133,38 @@ XXAPI void xrtTcpServerStop(xtcpserver* pServer)
 	
 	// 关闭所有客户端连接
 	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		if ( pServer->arrClients[i] && pServer->arrClients[i]->bInUse ) {
+		__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[i];
+		if ( pSlot->bInUse ) {
+			// Stop前先PollRemove
+			xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
+			xrtPollRemove(pPoller, &pSlot->tConn);
+			
+			// Graceful Shutdown
+			#if defined(_WIN32) || defined(_WIN64)
+				shutdown(pSlot->tConn.hSocket, SD_SEND);
+			#else
+				shutdown(pSlot->tConn.hSocket, SHUT_WR);
+			#endif
+			
 			if ( pServer->tEvents.OnClose ) {
-				pServer->tEvents.OnClose(pServer, &pServer->arrClients[i]->tConn);
+				pServer->tEvents.OnClose(pServer, &pSlot->tConn);
 			}
-			xrtSockClose(&pServer->arrClients[i]->tConn);
-			pServer->arrClients[i]->bInUse = false;
+			if ( pSlot->pTlsCtx ) {
+				xrtTlsDestroy(pSlot->pTlsCtx);
+				pSlot->pTlsCtx = NULL;
+			}
+			xrtSockClose(&pSlot->tConn);
+			xrtNetRingBufFree(&pSlot->tRecvRing);
+			pSlot->bInUse = false;
 		}
 	}
 	pServer->iClientCount = 0;
+	
+	// 重建空闲栈
+	pServer->iFreeTop = pServer->iMaxClients - 1;
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		pServer->arrFreeStack[i] = pServer->iMaxClients - 1 - i;
+	}
 }
 XXAPI xnet_result xrtTcpServerSend(xtcpserver* pServer, int iClientId,
 	const char* pData, size_t iLen)
@@ -18685,24 +20172,24 @@ XXAPI xnet_result xrtTcpServerSend(xtcpserver* pServer, int iClientId,
 	if ( !pServer || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return XRT_NET_ERROR;
 	
-	__xrt_tcp_client_slot* pSlot = pServer->arrClients[iClientId];
-	if ( !pSlot || !pSlot->bInUse ) return XRT_NET_ERROR;
+	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iClientId];
+	if ( !pSlot->bInUse ) return XRT_NET_ERROR;
+	
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
 	
 	if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
 		size_t iWritten = 0;
 		xnet_result iRes = xrtTlsWrite(pSlot->pTlsCtx, pData, iLen, &iWritten);
 		if ( iRes != XRT_NET_OK ) return iRes;
-		// 发送 TLS 缓冲区数据
+		// 通过 poller 发送加密数据
 		if ( pSlot->pTlsCtx->tSendBuf.iSize > 0 ) {
-			size_t iSent = 0;
-			xrtSockSend(&pSlot->tConn, pSlot->pTlsCtx->tSendBuf.pData,
-				pSlot->pTlsCtx->tSendBuf.iSize, &iSent);
-			if ( iSent > 0 ) xrtNetBufConsume(&pSlot->pTlsCtx->tSendBuf, iSent);
+			xrtPollPostSend(pPoller, &pSlot->tConn,
+				pSlot->pTlsCtx->tSendBuf.pData, pSlot->pTlsCtx->tSendBuf.iSize);
+			xrtNetBufConsume(&pSlot->pTlsCtx->tSendBuf, pSlot->pTlsCtx->tSendBuf.iSize);
 		}
 		return XRT_NET_OK;
 	} else {
-		size_t iSent = 0;
-		return xrtSockSend(&pSlot->tConn, pData, iLen, &iSent);
+		return xrtPollPostSend(pPoller, &pSlot->tConn, pData, iLen);
 	}
 }
 XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId)
@@ -18710,12 +20197,15 @@ XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId)
 	if ( !pServer ) return;
 	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
 	
-	__xrt_tcp_client_slot* pSlot = pServer->arrClients[iClientId];
-	if ( !pSlot || !pSlot->bInUse ) return;
+	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iClientId];
+	if ( !pSlot->bInUse ) return;
 	
 	if ( pServer->tEvents.OnClose ) {
 		pServer->tEvents.OnClose(pServer, &pSlot->tConn);
 	}
+	
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
+	xrtPollRemove(pPoller, &pSlot->tConn);
 	
 	if ( pSlot->pTlsCtx ) {
 		xrtTlsClose(pSlot->pTlsCtx);
@@ -18724,8 +20214,11 @@ XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId)
 	}
 	
 	xrtSockClose(&pSlot->tConn);
+	xrtNetRingBufFree(&pSlot->tRecvRing);
 	pSlot->bInUse = false;
+	pSlot->bTlsHandshaking = false;
 	pServer->iClientCount--;
+	__xrt_tcp_server_free_slot(pServer, iClientId);
 }
 XXAPI xnet_result xrtTcpServerEnableTLS(xtcpserver* pServer, const xtlsconfig* pConfig)
 {
@@ -18746,60 +20239,96 @@ XXAPI ptr xrtTcpServerGetUserData(xtcpserver* pServer)
 {
 	return pServer ? pServer->pUserData : NULL;
 }
-/* ============================== TCP 客户端 - 事件循环 ============================== */
-static uint32 __xrt_tcp_client_loop(ptr pParam)
+/* ============================== TCP 客户端 - 事件处理 ============================== */
+// 客户端 事件处理 (READ/WRITE/CLOSE)
+static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
 {
-	xtcpclient* pClient = (xtcpclient*)pParam;
-	char aBuf[8192];
+	xtcpclient* pClient = (xtcpclient*)pOwner;
+	if ( !pClient->bConnected && !pClient->bTlsHandshaking ) return;
 	
-	while ( pClient->bRunning ) {
-		size_t iRecvd = 0;
-		xnet_result iRes;
-		
-		if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
-			// TLS: 先从 socket 读数据到 TLS 缓冲区
-			char aTlsBuf[4096];
-			size_t iTlsRecvd = 0;
-			xnet_result iTlsRes = xrtSockRecv(&pClient->tConn, aTlsBuf, sizeof(aTlsBuf), &iTlsRecvd);
-			if ( iTlsRes == XRT_NET_OK && iTlsRecvd > 0 ) {
-				xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, aTlsBuf, iTlsRecvd);
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
+	
+	if ( iEvent == XRT_POLL_READ ) {
+		// TLS 握手进行中
+		if ( pClient->bTlsHandshaking && pClient->pTlsCtx ) {
+			xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, pData, iLen);
+			xnet_result iRes = xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn);
+			
+			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
+				xrtPollPostSend(pPoller, &pClient->tConn,
+					pClient->pTlsCtx->tSendBuf.pData, pClient->pTlsCtx->tSendBuf.iSize);
+				xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, pClient->pTlsCtx->tSendBuf.iSize);
 			}
-			iRes = xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iRecvd);
+			
+			if ( iRes == XRT_NET_OK ) {
+				pClient->bTlsHandshaking = false;
+				pClient->tConn.bTlsEnabled = true;
+				pClient->tConn.pTlsCtx = pClient->pTlsCtx;
+			} else if ( iRes == XRT_NET_ERROR ) {
+				goto close_client;
+			}
+			xrtPollPostRecv(pPoller, &pClient->tConn);
+			return;
+		}
+		
+		// 正常数据
+		if ( pClient->tConn.bTlsEnabled && pClient->pTlsCtx ) {
+			xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, pData, iLen);
+			char aBuf[8192];
+			size_t iDecrypted = 0;
+			while ( xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+				if ( pClient->tEvents.OnRecv ) {
+					pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iDecrypted);
+				}
+				iDecrypted = 0;
+			}
 		} else {
-			iRes = xrtSockRecv(&pClient->tConn, aBuf, sizeof(aBuf), &iRecvd);
-		}
-		
-		if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
 			if ( pClient->tEvents.OnRecv ) {
-				pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iRecvd);
+				pClient->tEvents.OnRecv(pClient, &pClient->tConn, pData, iLen);
 			}
-		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
-			pClient->bConnected = false;
-			if ( pClient->tEvents.OnClose ) {
-				pClient->tEvents.OnClose(pClient, &pClient->tConn);
-			}
-			break;
 		}
 		
-		// 短暂休眠
-		int iTimeout = pClient->tConfig.iPollTimeoutMs > 0 ? pClient->tConfig.iPollTimeoutMs : 10;
-		#if defined(_WIN32) || defined(_WIN64)
-			Sleep(iTimeout);
-		#else
-			usleep(iTimeout * 1000);
-		#endif
+		xrtPollPostRecv(pPoller, &pClient->tConn);
+		return;
 	}
 	
+	if ( iEvent == XRT_POLL_WRITE ) {
+		if ( pClient->tEvents.OnSend ) {
+			pClient->tEvents.OnSend(pClient, &pClient->tConn, iLen);
+		}
+		return;
+	}
+	
+	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
+close_client:
+		pClient->bConnected = false;
+		pClient->bTlsHandshaking = false;
+		if ( pClient->tEvents.OnClose ) {
+			pClient->tEvents.OnClose(pClient, &pClient->tConn);
+		}
+		return;
+	}
+}
+// 客户端内部线程 (简易模式)
+static uint32 __xrt_tcp_client_thread(ptr pParam)
+{
+	xtcpclient* pClient = (xtcpclient*)pParam;
+	xrtEventLoopRun(pClient->pLoop);
 	return 0;
 }
 /* ============================== TCP 客户端 API ============================== */
-XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort,
+// 高级版: 绑定共享事件循环
+XXAPI xtcpclient* xrtTcpClientCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
 	const xnetconfig* pConfig, const xnetevents* pEvents)
 {
+	if ( !pLoop ) return NULL;
+	
 	xtcpclient* pClient = (xtcpclient*)xrtCalloc(1, sizeof(xtcpclient));
 	if ( !pClient ) return NULL;
 	
-	// 配置
+	pClient->pLoop = pLoop;
+	pClient->bOwnLoop = false;
+	
 	if ( pConfig ) {
 		pClient->tConfig = *pConfig;
 	} else {
@@ -18813,15 +20342,24 @@ XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort,
 		pClient->tEvents = *pEvents;
 	}
 	
-	// 保存服务器地址
 	xrtNetAddrInit(&pClient->tServerAddr, sIP, iPort);
 	
-	// 初始化缓冲区
-	size_t iRecvSize = pClient->tConfig.iRecvBufSize > 0 ? pClient->tConfig.iRecvBufSize : 8192;
-	size_t iSendSize = pClient->tConfig.iSendBufSize > 0 ? pClient->tConfig.iSendBufSize : 8192;
-	xrtNetBufInit(&pClient->tRecvBuf, iRecvSize);
-	xrtNetBufInit(&pClient->tSendBuf, iSendSize);
+	return pClient;
+}
+// 简易版: 内部创建事件循环 + 线程
+XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort,
+	const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xeventloop* pLoop = xrtEventLoopCreate();
+	if ( !pLoop ) return NULL;
 	
+	xtcpclient* pClient = xrtTcpClientCreateEx(pLoop, sIP, iPort, pConfig, pEvents);
+	if ( !pClient ) {
+		xrtEventLoopDestroy(pLoop);
+		return NULL;
+	}
+	
+	pClient->bOwnLoop = true;
 	return pClient;
 }
 XXAPI void xrtTcpClientDestroy(xtcpclient* pClient)
@@ -18830,8 +20368,10 @@ XXAPI void xrtTcpClientDestroy(xtcpclient* pClient)
 	
 	xrtTcpClientDisconnect(pClient);
 	
-	xrtNetBufFree(&pClient->tRecvBuf);
-	xrtNetBufFree(&pClient->tSendBuf);
+	if ( pClient->bOwnLoop && pClient->pLoop ) {
+		xrtEventLoopDestroy(pClient->pLoop);
+		pClient->pLoop = NULL;
+	}
 	
 	xrtFree(pClient);
 }
@@ -18842,7 +20382,7 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 	
 	// 创建 socket
 	memset(&pClient->tConn, 0, sizeof(xnetconn));
-	if ( xrtSockCreate(&pClient->tConn, 0) != XRT_NET_OK ) {  // TCP
+	if ( xrtSockCreate(&pClient->tConn, 0) != XRT_NET_OK ) {
 		return XRT_NET_ERROR;
 	}
 	
@@ -18853,15 +20393,16 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		return XRT_NET_ERROR;
 	}
 	
-	// 如果是 AGAIN (非阻塞连接)，等待连接完成
+	// 非阻塞 connect 等待
 	if ( iRes == XRT_NET_AGAIN ) {
-		// 使用 select 等待连接完成
 		fd_set tWriteSet;
 		FD_ZERO(&tWriteSet);
 		FD_SET(pClient->tConn.hSocket, &tWriteSet);
 		struct timeval tTimeout;
-		tTimeout.tv_sec = 5;
-		tTimeout.tv_usec = 0;
+		int iTimeoutMs = pClient->tConfig.iConnectTimeoutMs > 0 ? 
+			pClient->tConfig.iConnectTimeoutMs : 5000;
+		tTimeout.tv_sec = iTimeoutMs / 1000;
+		tTimeout.tv_usec = (iTimeoutMs % 1000) * 1000;
 		int iSelRes = select((int)pClient->tConn.hSocket + 1, NULL, &tWriteSet, NULL, &tTimeout);
 		if ( iSelRes <= 0 ) {
 			xrtSockClose(&pClient->tConn);
@@ -18869,49 +20410,48 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		}
 	}
 	
-	// TLS 握手
+	// 设置非阻塞
+	xrtSockSetNonBlock(&pClient->tConn);
+	
+	// TLS 握手 (同步)
 	if ( pClient->bTlsEnabled ) {
-		// 设置非阻塞，避免握手循环中 recv 阻塞
-		xrtSockSetNonBlock(&pClient->tConn);
-		
 		pClient->pTlsCtx = xrtTlsCreate(&pClient->tTlsConfig, false);
 		if ( !pClient->pTlsCtx ) {
 			xrtSockClose(&pClient->tConn);
 			return XRT_NET_ERROR;
 		}
 		
-		// TLS 握手循环
 		xnet_result iTlsRes;
 		int iRetries = 0;
+		int iMaxRetries = (pClient->tConfig.iConnectTimeoutMs > 0 ? 
+			pClient->tConfig.iConnectTimeoutMs : 5000) / 100;  // 100ms per retry
 		while ( (iTlsRes = xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn)) == XRT_NET_AGAIN ) {
-			// 发送待发数据
+			// 发送 TLS 输出
 			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
 				size_t iSent = 0;
-				xnet_result iSendRes = xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
+				xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
 					pClient->pTlsCtx->tSendBuf.iSize, &iSent);
-				#ifdef DEBUG_TRACE
-					printf("    [TCP] TLS send: wanted=%d sent=%d res=%d\n",
-						(int)pClient->pTlsCtx->tSendBuf.iSize, (int)iSent, (int)iSendRes);
-				#endif
 				if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
 			}
 			
+			// select 等待事件驱动，替代 Sleep(10)
+			fd_set tReadSet, tWriteSet;
+			FD_ZERO(&tReadSet); FD_ZERO(&tWriteSet);
+			FD_SET(pClient->tConn.hSocket, &tReadSet);
+			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
+				FD_SET(pClient->tConn.hSocket, &tWriteSet);
+			}
+			struct timeval tSelTimeout = {0, 100000};  // 100ms
+			select((int)pClient->tConn.hSocket + 1, &tReadSet, 
+				pClient->pTlsCtx->tSendBuf.iSize > 0 ? &tWriteSet : NULL, NULL, &tSelTimeout);
+			
 			iRetries++;
-			if ( iRetries > 500 ) {
-				#ifdef DEBUG_TRACE
-					printf("    [TCP] TLS handshake timeout after %d retries\n", iRetries);
-				#endif
+			if ( iRetries > iMaxRetries ) {
 				xrtTlsDestroy(pClient->pTlsCtx);
 				pClient->pTlsCtx = NULL;
 				xrtSockClose(&pClient->tConn);
 				return XRT_NET_TIMEOUT;
 			}
-			
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(10);
-			#else
-				usleep(10000);
-			#endif
 		}
 		
 		if ( iTlsRes != XRT_NET_OK ) {
@@ -18925,24 +20465,33 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		pClient->tConn.pTlsCtx = pClient->pTlsCtx;
 	}
 	
-	// 设置非阻塞（连接后）
-	xrtSockSetNonBlock(&pClient->tConn);
-	
 	pClient->bConnected = true;
 	pClient->bRunning = true;
 	
-	// 启动接收线程
-	pClient->pThread = xrtThreadCreate((ptr)__xrt_tcp_client_loop, pClient, 0);
-	if ( !pClient->pThread ) {
-		pClient->bRunning = false;
-		pClient->bConnected = false;
-		xrtSockClose(&pClient->tConn);
-		return XRT_NET_ERROR;
-	}
+	// 设置事件处理器
+	pClient->tHandler.pfnHandler = __xrt_tcp_client_on_event;
+	pClient->tHandler.pOwner = pClient;
+	pClient->tConn.pUserData = &pClient->tHandler;
+	
+	// 注册到 poller
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
+	xrtPollAdd(pPoller, &pClient->tConn, XRT_POLL_READ);
+	xrtPollPostRecv(pPoller, &pClient->tConn);
 	
 	// 触发连接回调
 	if ( pClient->tEvents.OnConnect ) {
 		pClient->tEvents.OnConnect(pClient, &pClient->tConn, true);
+	}
+	
+	// 简易模式: 启动内部线程
+	if ( pClient->bOwnLoop ) {
+		pClient->pThread = xrtThreadCreate((ptr)__xrt_tcp_client_thread, pClient, 0);
+		if ( !pClient->pThread ) {
+			pClient->bRunning = false;
+			pClient->bConnected = false;
+			xrtSockClose(&pClient->tConn);
+			return XRT_NET_ERROR;
+		}
 	}
 	
 	return XRT_NET_OK;
@@ -18954,6 +20503,10 @@ XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient)
 	pClient->bRunning = false;
 	pClient->bConnected = false;
 	
+	if ( pClient->bOwnLoop && pClient->pLoop ) {
+		xrtEventLoopStop(pClient->pLoop);
+	}
+	
 	if ( pClient->pThread ) {
 		xrtThreadWait(pClient->pThread);
 		xrtThreadDestroy(pClient->pThread);
@@ -18962,7 +20515,6 @@ XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient)
 	
 	if ( pClient->pTlsCtx ) {
 		xrtTlsClose(pClient->pTlsCtx);
-		// 发送 close_notify
 		if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
 			size_t iSent = 0;
 			xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
@@ -18979,21 +20531,20 @@ XXAPI xnet_result xrtTcpClientSend(xtcpclient* pClient, const char* pData, size_
 	if ( !pClient || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	if ( !pClient->bConnected ) return XRT_NET_ERROR;
 	
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
+	
 	if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
 		size_t iWritten = 0;
 		xnet_result iRes = xrtTlsWrite(pClient->pTlsCtx, pData, iLen, &iWritten);
 		if ( iRes != XRT_NET_OK ) return iRes;
-		// 发送 TLS 缓冲区
 		if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
-			size_t iSent = 0;
-			xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
-				pClient->pTlsCtx->tSendBuf.iSize, &iSent);
-			if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
+			xrtPollPostSend(pPoller, &pClient->tConn,
+				pClient->pTlsCtx->tSendBuf.pData, pClient->pTlsCtx->tSendBuf.iSize);
+			xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, pClient->pTlsCtx->tSendBuf.iSize);
 		}
 		return XRT_NET_OK;
 	} else {
-		size_t iSent = 0;
-		return xrtSockSend(&pClient->tConn, pData, iLen, &iSent);
+		return xrtPollPostSend(pPoller, &pClient->tConn, pData, iLen);
 	}
 }
 XXAPI xnet_result xrtTcpClientEnableTLS(xtcpclient* pClient, const xtlsconfig* pConfig)
@@ -19017,47 +20568,78 @@ XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/netudp.h
+// File: D:/git/xrt/lib/netudp.h
 // ========================================
 
 
 /*
-	NetUDP - UDP 服务器/客户端封装 [Ver1.0]
+	NetUDP - UDP 服务器/客户端封装 [Ver2.0]
 	
-	基于 netsock.h (Socket 基础)
-	使用 xrt 线程库 (thread.h) 创建事件循环线程
+	基于 netsock.h (Socket) + netpoll.h (IO) + netloop.h (事件循环)
+	
+	Ver2.0 变更:
+	  - 事件驱动架构 (IOCP/io_uring)
+	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
 	
 	仅 IPv4，跨平台 (Windows / Linux)
 	
-	与 TCP 不同，UDP 的 OnRecv 回调提供远端地址信息 (OnRecvFrom)
+	与 TCP 不同，UDP 无连接管理，通过 conn 的 tRemoteAddr 传递远端地址
 */
 /* ============================== UDP 服务器结构 ============================== */
 struct xrt_udp_server {
+	xeventloop* pLoop;            // 事件循环 (自有或借用)
+	bool bOwnLoop;
+	xthread pThread;
+	
 	xnetconn tConn;                // UDP socket
-	xnetconfig tConfig;            // 配置
-	xnetevents tEvents;            // 事件回调
+	__xrt_conn_handler tHandler;
+	xnetconfig tConfig;
+	xnetevents tEvents;
 	
-	// 线程
-	xthread pThread;               // 事件循环线程
-	volatile bool bRunning;        // 运行标志
-	
-	// 用户数据
+	volatile bool bRunning;
 	ptr pUserData;
 };
 /* ============================== UDP 客户端结构 ============================== */
 struct xrt_udp_client {
+	xeventloop* pLoop;            // 事件循环 (自有或借用)
+	bool bOwnLoop;
+	xthread pThread;
+	
 	xnetconn tConn;                // UDP socket
-	xnetconfig tConfig;            // 配置
-	xnetevents tEvents;            // 事件回调
+	__xrt_conn_handler tHandler;
+	xnetconfig tConfig;
+	xnetevents tEvents;
 	
-	// 线程
-	xthread pThread;               // 事件循环线程
-	volatile bool bRunning;        // 运行标志
-	
-	// 用户数据
+	volatile bool bRunning;
 	ptr pUserData;
 };
-/* ============================== UDP 服务器 - 事件循环 ============================== */
+/* ============================== UDP 服务器 - 事件处理 ============================== */
+// UDP 服务器事件处理
+static void __xrt_udp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
+{
+	xudpserver* pServer = (xudpserver*)pOwner;
+	
+	if ( iEvent == XRT_POLL_READ ) {
+		// UDP 数据到达 - poller recv 提供数据，远端地址通过 recvfrom 获取
+		// 注: 在 IOCP/io_uring 的当前实现中，UDP recv 使用标准 recv
+		// 远端地址需要通过额外机制获取 (此处保持简单模式兼容)
+		if ( pServer->tEvents.OnRecv ) {
+			pServer->tEvents.OnRecv(pServer, &pServer->tConn, pData, iLen);
+		}
+		
+		// 投递下一次 recv
+		xrtPollPostRecv(xrtEventLoopGetPoller(pServer->pLoop), &pServer->tConn);
+		return;
+	}
+	
+	if ( iEvent == XRT_POLL_ERROR ) {
+		if ( pServer->tEvents.OnError ) {
+			pServer->tEvents.OnError(pServer, &pServer->tConn, -1);
+		}
+		return;
+	}
+}
+// 服务器内部线程 (简易模式使用轮询接收, 更好的 UDP 远端地址支持)
 static uint32 __xrt_udp_server_loop(ptr pParam)
 {
 	xudpserver* pServer = (xudpserver*)pParam;
@@ -19069,13 +20651,11 @@ static uint32 __xrt_udp_server_loop(ptr pParam)
 		xnet_result iRes = xrtSockRecvFrom(&pServer->tConn, aBuf, sizeof(aBuf), &tFromAddr, &iRecvd);
 		
 		if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-			// UDP OnRecv 传递远端地址（通过 conn 的 tRemoteAddr 字段）
 			pServer->tConn.tRemoteAddr = tFromAddr;
 			if ( pServer->tEvents.OnRecv ) {
 				pServer->tEvents.OnRecv(pServer, &pServer->tConn, aBuf, iRecvd);
 			}
 		} else if ( iRes == XRT_NET_AGAIN ) {
-			// 无数据可读，短暂休眠
 			int iTimeout = pServer->tConfig.iPollTimeoutMs > 0 ? pServer->tConfig.iPollTimeoutMs : 10;
 			#if defined(_WIN32) || defined(_WIN64)
 				Sleep(iTimeout);
@@ -19093,13 +20673,18 @@ static uint32 __xrt_udp_server_loop(ptr pParam)
 	return 0;
 }
 /* ============================== UDP 服务器 API ============================== */
-XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort,
+// 高级版: 绑定共享事件循环
+XXAPI xudpserver* xrtUdpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
 	const xnetconfig* pConfig, const xnetevents* pEvents)
 {
+	if ( !pLoop ) return NULL;
+	
 	xudpserver* pServer = (xudpserver*)xrtCalloc(1, sizeof(xudpserver));
 	if ( !pServer ) return NULL;
 	
-	// 配置
+	pServer->pLoop = pLoop;
+	pServer->bOwnLoop = false;
+	
 	if ( pConfig ) {
 		pServer->tConfig = *pConfig;
 	} else {
@@ -19117,7 +20702,63 @@ XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort,
 	memset(&pServer->tConn, 0, sizeof(xnetconn));
 	pServer->tConn.iType = 1;  // UDP
 	
-	if ( xrtSockCreate(&pServer->tConn, 1) != XRT_NET_OK ) {  // UDP
+	if ( xrtSockCreate(&pServer->tConn, 1) != XRT_NET_OK ) {
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	xrtSockSetReuseAddr(&pServer->tConn);
+	xrtSockSetNonBlock(&pServer->tConn);
+	
+	xnetaddr tAddr;
+	xrtNetAddrInit(&tAddr, sIP, iPort);
+	
+	if ( xrtSockBind(&pServer->tConn, &tAddr) != XRT_NET_OK ) {
+		xrtSockClose(&pServer->tConn);
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	// 设置事件处理器
+	pServer->tHandler.pfnHandler = __xrt_udp_server_on_event;
+	pServer->tHandler.pOwner = pServer;
+	pServer->tConn.pUserData = &pServer->tHandler;
+	
+	// 注册到 poller
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
+	xrtPollAdd(pPoller, &pServer->tConn, XRT_POLL_READ);
+	xrtPollPostRecv(pPoller, &pServer->tConn);
+	
+	return pServer;
+}
+// 简易版: 内部创建线程 (使用 recvfrom 轮询, 保留远端地址支持)
+XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort,
+	const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xudpserver* pServer = (xudpserver*)xrtCalloc(1, sizeof(xudpserver));
+	if ( !pServer ) return NULL;
+	
+	pServer->pLoop = NULL;  // 简易模式不使用事件循环
+	pServer->bOwnLoop = true;
+	
+	if ( pConfig ) {
+		pServer->tConfig = *pConfig;
+	} else {
+		pServer->tConfig.iRecvBufSize = 8192;
+		pServer->tConfig.iSendBufSize = 8192;
+		pServer->tConfig.iMaxClients = 0;
+		pServer->tConfig.iPollTimeoutMs = 10;
+	}
+	
+	if ( pEvents ) {
+		pServer->tEvents = *pEvents;
+	}
+	
+	// 创建 UDP socket
+	memset(&pServer->tConn, 0, sizeof(xnetconn));
+	pServer->tConn.iType = 1;
+	
+	if ( xrtSockCreate(&pServer->tConn, 1) != XRT_NET_OK ) {
 		xrtFree(pServer);
 		return NULL;
 	}
@@ -19150,12 +20791,16 @@ XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer)
 	if ( pServer->bRunning ) return XRT_NET_OK;
 	
 	pServer->bRunning = true;
-	pServer->pThread = xrtThreadCreate((ptr)__xrt_udp_server_loop, pServer, 0);
 	
-	if ( !pServer->pThread ) {
-		pServer->bRunning = false;
-		return XRT_NET_ERROR;
+	if ( pServer->bOwnLoop && !pServer->pLoop ) {
+		// 简易模式: 使用 recvfrom 轮询线程
+		pServer->pThread = xrtThreadCreate((ptr)__xrt_udp_server_loop, pServer, 0);
+		if ( !pServer->pThread ) {
+			pServer->bRunning = false;
+			return XRT_NET_ERROR;
+		}
 	}
+	// 高级模式: 事件由 EventLoopRun 驱动
 	
 	return XRT_NET_OK;
 }
@@ -19187,7 +20832,27 @@ XXAPI ptr xrtUdpServerGetUserData(xudpserver* pServer)
 {
 	return pServer ? pServer->pUserData : NULL;
 }
-/* ============================== UDP 客户端 - 事件循环 ============================== */
+/* ============================== UDP 客户端 - 事件处理 ============================== */
+static void __xrt_udp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
+{
+	xudpclient* pClient = (xudpclient*)pOwner;
+	
+	if ( iEvent == XRT_POLL_READ ) {
+		if ( pClient->tEvents.OnRecv ) {
+			pClient->tEvents.OnRecv(pClient, &pClient->tConn, pData, iLen);
+		}
+		xrtPollPostRecv(xrtEventLoopGetPoller(pClient->pLoop), &pClient->tConn);
+		return;
+	}
+	
+	if ( iEvent == XRT_POLL_ERROR ) {
+		if ( pClient->tEvents.OnError ) {
+			pClient->tEvents.OnError(pClient, &pClient->tConn, -1);
+		}
+		return;
+	}
+}
+// 简易模式轮询线程
 static uint32 __xrt_udp_client_loop(ptr pParam)
 {
 	xudpclient* pClient = (xudpclient*)pParam;
@@ -19221,12 +20886,17 @@ static uint32 __xrt_udp_client_loop(ptr pParam)
 	return 0;
 }
 /* ============================== UDP 客户端 API ============================== */
-XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents)
+// 高级版
+XXAPI xudpclient* xrtUdpClientCreateEx(xeventloop* pLoop, const xnetconfig* pConfig, const xnetevents* pEvents)
 {
+	if ( !pLoop ) return NULL;
+	
 	xudpclient* pClient = (xudpclient*)xrtCalloc(1, sizeof(xudpclient));
 	if ( !pClient ) return NULL;
 	
-	// 配置
+	pClient->pLoop = pLoop;
+	pClient->bOwnLoop = false;
+	
 	if ( pConfig ) {
 		pClient->tConfig = *pConfig;
 	} else {
@@ -19242,14 +20912,65 @@ XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents
 	
 	// 创建 UDP socket
 	memset(&pClient->tConn, 0, sizeof(xnetconn));
-	pClient->tConn.iType = 1;  // UDP
+	pClient->tConn.iType = 1;
 	
-	if ( xrtSockCreate(&pClient->tConn, 1) != XRT_NET_OK ) {  // UDP
+	if ( xrtSockCreate(&pClient->tConn, 1) != XRT_NET_OK ) {
 		xrtFree(pClient);
 		return NULL;
 	}
 	
 	xrtSockSetNonBlock(&pClient->tConn);
+	
+	// 设置事件处理器
+	pClient->tHandler.pfnHandler = __xrt_udp_client_on_event;
+	pClient->tHandler.pOwner = pClient;
+	pClient->tConn.pUserData = &pClient->tHandler;
+	
+	// 注册到 poller
+	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
+	xrtPollAdd(pPoller, &pClient->tConn, XRT_POLL_READ);
+	xrtPollPostRecv(pPoller, &pClient->tConn);
+	
+	return pClient;
+}
+// 简易版
+XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents)
+{
+	xudpclient* pClient = (xudpclient*)xrtCalloc(1, sizeof(xudpclient));
+	if ( !pClient ) return NULL;
+	
+	pClient->pLoop = NULL;
+	pClient->bOwnLoop = true;
+	
+	if ( pConfig ) {
+		pClient->tConfig = *pConfig;
+	} else {
+		pClient->tConfig.iRecvBufSize = 8192;
+		pClient->tConfig.iSendBufSize = 8192;
+		pClient->tConfig.iMaxClients = 0;
+		pClient->tConfig.iPollTimeoutMs = 10;
+	}
+	
+	if ( pEvents ) {
+		pClient->tEvents = *pEvents;
+	}
+	
+	// 创建 UDP socket
+	memset(&pClient->tConn, 0, sizeof(xnetconn));
+	pClient->tConn.iType = 1;
+	
+	if ( xrtSockCreate(&pClient->tConn, 1) != XRT_NET_OK ) {
+		xrtFree(pClient);
+		return NULL;
+	}
+	
+	xrtSockSetNonBlock(&pClient->tConn);
+	
+	// 绑定到 0.0.0.0:0 让系统分配随机端口
+	// 必须在 Start 之前绑定，否则 recvfrom 在 Windows 上返回 WSAEINVAL 导致轮询线程退出
+	xnetaddr tBindAddr;
+	xrtNetAddrInit(&tBindAddr, "0.0.0.0", 0);
+	xrtSockBind(&pClient->tConn, &tBindAddr);
 	
 	return pClient;
 }
@@ -19267,11 +20988,14 @@ XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient)
 	if ( pClient->bRunning ) return XRT_NET_OK;
 	
 	pClient->bRunning = true;
-	pClient->pThread = xrtThreadCreate((ptr)__xrt_udp_client_loop, pClient, 0);
 	
-	if ( !pClient->pThread ) {
-		pClient->bRunning = false;
-		return XRT_NET_ERROR;
+	if ( pClient->bOwnLoop && !pClient->pLoop ) {
+		// 简易模式: recvfrom 轮询线程
+		pClient->pThread = xrtThreadCreate((ptr)__xrt_udp_client_loop, pClient, 0);
+		if ( !pClient->pThread ) {
+			pClient->bRunning = false;
+			return XRT_NET_ERROR;
+		}
 	}
 	
 	return XRT_NET_OK;
@@ -19306,7 +21030,7 @@ XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/xid.h
+// File: D:/git/xrt/lib/xid.h
 // ========================================
 
 
@@ -19369,7 +21093,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/buffer.h
+// File: D:/git/xrt/lib/buffer.h
 // ========================================
 
 
@@ -19479,7 +21203,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/nethttp.h
+// File: D:/git/xrt/lib/nethttp.h
 // ========================================
 
 
@@ -20794,7 +22518,7 @@ XXAPI str xrtHttpRespContentType(xhttpresp pResp)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/array_point.h
+// File: D:/git/xrt/lib/array_point.h
 // ========================================
 
 
@@ -20982,7 +22706,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/array.h
+// File: D:/git/xrt/lib/array.h
 // ========================================
 
 
@@ -21152,7 +22876,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/bsmm.h
+// File: D:/git/xrt/lib/bsmm.h
 // ========================================
 
 
@@ -21246,7 +22970,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/memunit.h
+// File: D:/git/xrt/lib/memunit.h
 // ========================================
 
 
@@ -21386,7 +23110,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool_fs.h
+// File: D:/git/xrt/lib/mempool_fs.h
 // ========================================
 
 
@@ -21638,7 +23362,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/stack.h
+// File: D:/git/xrt/lib/stack.h
 // ========================================
 
 
@@ -21769,7 +23493,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/stack_dyn.h
+// File: D:/git/xrt/lib/stack_dyn.h
 // ========================================
 
 
@@ -21924,7 +23648,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree_base.h
+// File: D:/git/xrt/lib/avltree_base.h
 // ========================================
 
 
@@ -22336,7 +24060,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree.h
+// File: D:/git/xrt/lib/avltree.h
 // ========================================
 
 
@@ -22456,7 +24180,7 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool.h
+// File: D:/git/xrt/lib/mempool.h
 // ========================================
 
 
@@ -22930,7 +24654,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/dict.h
+// File: D:/git/xrt/lib/dict.h
 // ========================================
 
 
@@ -23118,7 +24842,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/list.h
+// File: D:/git/xrt/lib/list.h
 // ========================================
 
 
@@ -23291,7 +25015,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/value.h
+// File: D:/git/xrt/lib/value.h
 // ========================================
 
 
@@ -24841,7 +26565,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/jnum.h
+// File: D:/git/xrt/lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -26339,7 +28063,7 @@ jnum_to_func(uint64_t, xrtStrToU64)
 jnum_to_func(double, xrtStrToNum)
 
 // ========================================
-// File: D:/Git/xrt/lib/json.h
+// File: D:/git/xrt/lib/json.h
 // ========================================
 
 
@@ -28084,7 +29808,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/template.h
+// File: D:/git/xrt/lib/template.h
 // ========================================
 
 

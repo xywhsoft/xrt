@@ -205,7 +205,7 @@ int main(int argc, char** argv)
 	// Test_Template(xCore);
 	
 	/* TLS 综合测试 */
-	Test_TLS_Comprehensive();
+	// Test_TLS_Comprehensive();
 	
 	/* TLS 算法套件测试 */
 	// Test_TLS_CipherSuites();
@@ -220,7 +220,7 @@ int main(int argc, char** argv)
 	// Test_HTTP();
 	
 	/* Coroutine 协程库测试 */
-	// Test_Coroutine(xCore);
+	Test_Coroutine(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);

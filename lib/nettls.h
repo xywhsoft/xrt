@@ -580,7 +580,7 @@ static void __xrt_tls_derive_traffic_keys(struct __xrt_tls_enc *pEnc,
 
 /* ============================== TLS 记录层 ============================== */
 
-// 加密并发送一条 TLS 记录
+// 加密并发送一条 TLS 记录 (栈缓冲区优化, 消除 heap 分配)
 static void __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	const uint8 *pData, size_t iLen, bool bUseServerKeys)
 {
@@ -607,23 +607,28 @@ static void __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	aNonce[10] ^= (uint8)((*pSeq) >> 8);
 	aNonce[11] ^= (uint8)((*pSeq));
 	
-	// 构建内层 plaintext: data + content_type
+	// 内层 plaintext: data + content_type (栈缓冲区, 消除 malloc)
 	size_t iInnerLen = iLen + 1;
-	uint8 *pInner = (uint8*)xrtMalloc(iInnerLen);
+	uint8 aInnerStack[__XRT_TLS_MAX_RECORD + 1];
+	uint8 *pInner = (iInnerLen <= sizeof(aInnerStack)) ? aInnerStack : (uint8*)xrtMalloc(iInnerLen);
 	if ( !pInner ) return;
 	memcpy(pInner, pData, iLen);
-	pInner[iLen] = iType;  // content type 放在 plaintext 末尾
+	pInner[iLen] = iType;
 	
-	// 构建记录头 (TLS_APP_DATA 0x17, version 0x0303, length)
+	// 记录头 (TLS_APP_DATA 0x17, version 0x0303, length)
 	size_t iCipherLen = iInnerLen + 16;  // plaintext + AEAD tag
 	uint8 aHdr[5];
 	aHdr[0] = __XRT_TLS_APP_DATA;
 	__xrt_tls_store_be16(aHdr + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aHdr + 3, (uint16)iCipherLen);
 	
-	// AEAD 加密 (AAD = 记录头)
-	uint8 *pCipher = (uint8*)xrtMalloc(iCipherLen);
-	if ( !pCipher ) { xrtFree(pInner); return; }
+	// AEAD 加密 (栈缓冲区, 消除 malloc)
+	uint8 aCipherStack[__XRT_TLS_MAX_RECORD + 17];
+	uint8 *pCipher = (iCipherLen <= sizeof(aCipherStack)) ? aCipherStack : (uint8*)xrtMalloc(iCipherLen);
+	if ( !pCipher ) {
+		if ( pInner != aInnerStack ) xrtFree(pInner);
+		return;
+	}
 	
 	if ( pCtx->iCipherSuite == __XRT_TLS_CHACHA20_POLY1305_SHA256 ) {
 		xrtChaCha20Poly1305Encrypt(pCipher, pKey, aNonce, aHdr, 5, pInner, iInnerLen);
@@ -631,12 +636,16 @@ static void __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 		xrtAES128GCMEncrypt(pCipher, pKey, aNonce, 12, aHdr, 5, pInner, iInnerLen);
 	}
 	
-	// 写入发送缓冲区: 记录头 + 密文
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aHdr, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)pCipher, iCipherLen);
+	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
+	size_t iTotalLen = 5 + iCipherLen;
+	if ( xrtNetBufEnsure(&pCtx->tSendBuf, iTotalLen) ) {
+		memcpy(pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize, aHdr, 5);
+		memcpy(pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize + 5, pCipher, iCipherLen);
+		pCtx->tSendBuf.iSize += iTotalLen;
+	}
 	
-	xrtFree(pCipher);
-	xrtFree(pInner);
+	if ( pCipher != aCipherStack ) xrtFree(pCipher);
+	if ( pInner != aInnerStack ) xrtFree(pInner);
 	
 	(*pSeq)++;
 }
@@ -739,8 +748,9 @@ static void __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	__xrt_tls_store_be16(aHdr + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aHdr + 3, (uint16)(8 + iLen + 16));
 	
-	// 加密
-	uint8 *pCipher = (uint8*)xrtMalloc(iLen + 16);
+	// 加密 (栈缓冲区, 消除 malloc)
+	uint8 aCipherStack[__XRT_TLS_MAX_RECORD + 16];
+	uint8 *pCipher = (iLen + 16 <= sizeof(aCipherStack)) ? aCipherStack : (uint8*)xrtMalloc(iLen + 16);
 	if ( !pCipher ) return;
 	
 	#ifdef DEBUG_TRACE
@@ -762,10 +772,15 @@ static void __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 		xrtAES128GCMEncrypt(pCipher, pKey, aNonce, 12, aAAD, 13, pData, iLen);
 	}
 	
-	// 写入发送缓冲区: hdr + explicit_nonce + ciphertext + tag
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aHdr, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)(aNonce + 4), 8);  // explicit nonce
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)pCipher, iLen + 16);
+	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
+	size_t iTotalLen = 5 + 8 + iLen + 16;
+	if ( xrtNetBufEnsure(&pCtx->tSendBuf, iTotalLen) ) {
+		char *pDst = pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize;
+		memcpy(pDst, aHdr, 5);
+		memcpy(pDst + 5, aNonce + 4, 8);  // explicit nonce
+		memcpy(pDst + 13, pCipher, iLen + 16);
+		pCtx->tSendBuf.iSize += iTotalLen;
+	}
 	
 	#ifdef DEBUG_TRACE
 		printf("    [TLS12]   Ciphertext+Tag: ");
@@ -793,7 +808,7 @@ static void __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 		}
 	#endif
 	
-	xrtFree(pCipher);
+	if ( pCipher != aCipherStack ) xrtFree(pCipher);
 	(*pSeq)++;
 }
 
@@ -1741,6 +1756,13 @@ static bool __xrt_tls12_verify_finished(xtlsctx *pCtx, const uint8 *pMsg, size_t
 
 /* ============================== 公共 API ============================== */
 
+static inline bool __xrt_tls_have_record(xtlsctx *pCtx)
+{
+	if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) return false;
+	uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
+	return pCtx->tRecvBuf.iSize >= (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen);
+}
+
 XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 {
 	xtlsctx *pCtx = (xtlsctx*)xrtCalloc(1, sizeof(xtlsctx));
@@ -1829,17 +1851,19 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			return XRT_NET_AGAIN;
 		
 		case XRT_TLS_CLIENT_WAIT_SH: {
-			// 尝试接收更多数据
-			char aBuf[4096];
-			size_t iRecvd = 0;
-			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
-			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
-			} else if ( iRes == XRT_NET_CLOSED ) {
-				#ifdef DEBUG_TRACE
-					printf("    [TLS] WAIT_SH: connection closed\n");
-				#endif
-				return XRT_NET_ERROR;
+			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
+			if ( !__xrt_tls_have_record(pCtx) ) {
+				char aBuf[4096];
+				size_t iRecvd = 0;
+				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+				} else if ( iRes == XRT_NET_CLOSED ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] WAIT_SH: connection closed\n");
+					#endif
+					return XRT_NET_ERROR;
+				}
 			}
 			
 			// 检查是否有完整记录
@@ -1911,20 +1935,22 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 		case XRT_TLS_CLIENT_WAIT_CERT:
 		case XRT_TLS_CLIENT_WAIT_CV:
 		case XRT_TLS_CLIENT_WAIT_FINISH: {
-			// 尝试接收更多数据（非阻塞，可能无新数据）
-			char aBuf[4096];
-			size_t iRecvd = 0;
-			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
-			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
-				#ifdef DEBUG_TRACE
-					printf("    [TLS] WAIT_EE+: recv %d bytes, recvBuf=%d\n", (int)iRecvd, (int)pCtx->tRecvBuf.iSize);
-				#endif
-			} else if ( iRes == XRT_NET_CLOSED ) {
-				#ifdef DEBUG_TRACE
-					printf("    [TLS] WAIT_EE+: connection closed\n");
-				#endif
-				return XRT_NET_ERROR;
+			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
+			if ( !__xrt_tls_have_record(pCtx) ) {
+				char aBuf[4096];
+				size_t iRecvd = 0;
+				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] WAIT_EE+: recv %d bytes, recvBuf=%d\n", (int)iRecvd, (int)pCtx->tRecvBuf.iSize);
+					#endif
+				} else if ( iRes == XRT_NET_CLOSED ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] WAIT_EE+: connection closed\n");
+					#endif
+					return XRT_NET_ERROR;
+				}
 			}
 			
 			// 检查缓冲区是否有可处理的记录
@@ -2111,14 +2137,16 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				for (int i = 0; i < 32; i++) printf("%02x", pCtx->aRandom[i]);
 				printf("\n");
 			#endif
-			// TLS 1.2 握手消息在 CCS 前是明文传输
-			char aBuf[4096];
-			size_t iRecvd = 0;
-			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
-			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
-			} else if ( iRes == XRT_NET_CLOSED ) {
-				return XRT_NET_ERROR;
+			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
+			if ( !__xrt_tls_have_record(pCtx) ) {
+				char aBuf[4096];
+				size_t iRecvd = 0;
+				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+				} else if ( iRes == XRT_NET_CLOSED ) {
+					return XRT_NET_ERROR;
+				}
 			}
 			
 			// 处理所有完整记录
@@ -2216,17 +2244,19 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 		}
 		
 		case XRT_TLS12_CLIENT_WAIT_CCS: {
-			// 等待服务端 ChangeCipherSpec
-			char aBuf[4096];
-			size_t iRecvd = 0;
-			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
-			#ifdef DEBUG_TRACE
-				printf("    [TLS12] WAIT_CCS: recv res=%d recvd=%d\n", (int)iRes, (int)iRecvd);
-			#endif
-			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
-			} else if ( iRes == XRT_NET_CLOSED ) {
-				return XRT_NET_ERROR;
+			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
+			if ( !__xrt_tls_have_record(pCtx) ) {
+				char aBuf[4096];
+				size_t iRecvd = 0;
+				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				#ifdef DEBUG_TRACE
+					printf("    [TLS12] WAIT_CCS: recv res=%d recvd=%d\n", (int)iRes, (int)iRecvd);
+				#endif
+				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+				} else if ( iRes == XRT_NET_CLOSED ) {
+					return XRT_NET_ERROR;
+				}
 			}
 			
 			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
@@ -2256,14 +2286,16 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 		}
 		
 		case XRT_TLS12_CLIENT_WAIT_FINISH: {
-			// 解密验证服务端 Finished
-			char aBuf[4096];
-			size_t iRecvd = 0;
-			xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
-			if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-				xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
-			} else if ( iRes == XRT_NET_CLOSED ) {
-				return XRT_NET_ERROR;
+			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
+			if ( !__xrt_tls_have_record(pCtx) ) {
+				char aBuf[4096];
+				size_t iRecvd = 0;
+				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
+					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+				} else if ( iRes == XRT_NET_CLOSED ) {
+					return XRT_NET_ERROR;
+				}
 			}
 			
 			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) return XRT_NET_AGAIN;

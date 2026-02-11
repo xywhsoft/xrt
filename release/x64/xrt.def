@@ -294,6 +294,7 @@ xrtNetAddrToSockAddr
 xrtNetBufAppend
 xrtNetBufClear
 xrtNetBufConsume
+xrtNetBufEnsure
 xrtNetBufFree
 xrtNetBufInit
 xrtNetIPFromStr

@@ -543,6 +543,23 @@ XXAPI bool xrtNetBufAppend(xnetbuf* pBuf, const char* pData, size_t iLen)
 	return true;
 }
 
+// 预留容量, 确保可写入 iLen 字节 (不改变 iSize)
+XXAPI bool xrtNetBufEnsure(xnetbuf* pBuf, size_t iLen)
+{
+	if ( !pBuf ) return false;
+	if ( pBuf->iSize + iLen <= pBuf->iCapacity ) return true;
+	
+	size_t iNewCap = pBuf->iCapacity * 2;
+	if ( iNewCap < pBuf->iSize + iLen ) {
+		iNewCap = pBuf->iSize + iLen;
+	}
+	char* pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
+	if ( !pNew ) return false;
+	pBuf->pData = pNew;
+	pBuf->iCapacity = iNewCap;
+	return true;
+}
+
 XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen)
 {
 	if ( !pBuf || iLen == 0 ) return;

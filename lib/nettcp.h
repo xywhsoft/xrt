@@ -622,7 +622,14 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 				pClient->bTlsHandshaking = false;
 				pClient->tConn.bTlsEnabled = true;
 				pClient->tConn.pTlsCtx = pClient->pTlsCtx;
+				pClient->bConnected = true;
+				if ( pClient->tEvents.OnConnect ) {
+					pClient->tEvents.OnConnect(pClient, &pClient->tConn, true);
+				}
 			} else if ( iRes == XRT_NET_ERROR ) {
+				if ( pClient->tEvents.OnConnect ) {
+					pClient->tEvents.OnConnect(pClient, &pClient->tConn, false);
+				}
 				goto close_client;
 			}
 			xrtPollPostRecv(pPoller, &pClient->tConn);
@@ -779,7 +786,7 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 	// 设置非阻塞
 	xrtSockSetNonBlock(&pClient->tConn);
 	
-	// TLS 握手 (同步)
+	// TLS 握手
 	if ( pClient->bTlsEnabled ) {
 		pClient->pTlsCtx = xrtTlsCreate(&pClient->tTlsConfig, false);
 		if ( !pClient->pTlsCtx ) {
@@ -787,6 +794,36 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 			return XRT_NET_ERROR;
 		}
 		
+		if ( !pClient->bOwnLoop ) {
+			// Ex 模式: 事件驱动 TLS 握手 (非阻塞)
+			// 调用初始握手生成 ClientHello
+			xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn);
+			
+			// 设置事件处理器
+			pClient->tHandler.pfnHandler = __xrt_tcp_client_on_event;
+			pClient->tHandler.pOwner = pClient;
+			pClient->tConn.pUserData = &pClient->tHandler;
+			
+			// 注册到 poller
+			xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
+			xrtPollAdd(pPoller, &pClient->tConn, XRT_POLL_READ);
+			
+			// 通过 poller 发送 ClientHello
+			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
+				xrtPollPostSend(pPoller, &pClient->tConn,
+					pClient->pTlsCtx->tSendBuf.pData, pClient->pTlsCtx->tSendBuf.iSize);
+				xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, pClient->pTlsCtx->tSendBuf.iSize);
+			}
+			
+			// 投递 recv 等待 ServerHello
+			xrtPollPostRecv(pPoller, &pClient->tConn);
+			
+			pClient->bTlsHandshaking = true;
+			pClient->bRunning = true;
+			return XRT_NET_AGAIN;  // 握手进行中，通过 OnConnect 通知完成
+		}
+		
+		// Simple 模式: 同步 TLS 握手 (select 等待)
 		xnet_result iTlsRes;
 		int iRetries = 0;
 		int iMaxRetries = (pClient->tConfig.iConnectTimeoutMs > 0 ? 
@@ -800,7 +837,7 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 				if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
 			}
 			
-			// select 等待事件驱动，替代 Sleep(10)
+			// select 等待 IO 就绪
 			fd_set tReadSet, tWriteSet;
 			FD_ZERO(&tReadSet); FD_ZERO(&tWriteSet);
 			FD_SET(pClient->tConn.hSocket, &tReadSet);

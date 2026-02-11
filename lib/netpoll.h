@@ -26,6 +26,7 @@
 #define __XRT_POLL_OP_RECV    1
 #define __XRT_POLL_OP_SEND    2
 #define __XRT_POLL_OP_ACCEPT  3
+#define __XRT_POLL_OP_RECVFROM 4
 
 #define __XRT_POLL_INIT_OPS   64
 #define __XRT_POLL_MAX_OPS    4096
@@ -55,6 +56,8 @@ typedef struct {
 	int iNextFree;               // 空闲链表下一个索引, -1 = 尾
 	ptr pOpUserData;             // per-operation 用户数据
 	SOCKET hAcceptSocket;        // AcceptEx 预创建的 socket
+	struct sockaddr_in tRemoteAddr;  // UDP recvfrom 远端地址
+	int iRemoteAddrLen;
 } __xrt_iocp_op;
 
 // Poller 结构定义
@@ -274,11 +277,21 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 	pOp->pConn = pConn;
 	pOp->tWSABuf.buf = pOp->aRecvBuf;
 	pOp->tWSABuf.len = __XRT_POLL_RECV_SIZE;
-	pOp->iOpType = __XRT_POLL_OP_RECV;
 	pOp->iFlags = 0;
 	pOp->pOpUserData = pConn->pUserData;
 	
-	int iResult = WSARecv(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags, &pOp->tOverlapped, NULL);
+	int iResult;
+	if ( pConn->iType == 1 ) {
+		// UDP: WSARecvFrom 获取远端地址
+		pOp->iOpType = __XRT_POLL_OP_RECVFROM;
+		pOp->iRemoteAddrLen = sizeof(struct sockaddr_in);
+		iResult = WSARecvFrom(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags,
+			(struct sockaddr*)&pOp->tRemoteAddr, &pOp->iRemoteAddrLen, &pOp->tOverlapped, NULL);
+	} else {
+		// TCP: WSARecv
+		pOp->iOpType = __XRT_POLL_OP_RECV;
+		iResult = WSARecv(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags, &pOp->tOverlapped, NULL);
+	}
 	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
 		__xrt_iocp_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
@@ -468,8 +481,14 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 			// UDP 0字节是合法数据，走正常READ分发
 		}
 		
-		// 分发 RECV / SEND
+		// 分发 RECV / RECVFROM / SEND
 		switch ( pOp->iOpType ) {
+			case __XRT_POLL_OP_RECVFROM:
+				// UDP: 将远端地址拷贝到 conn
+				if ( pConn ) {
+					xrtNetAddrFromSockAddr(&pConn->tRemoteAddr, &pOp->tRemoteAddr);
+				}
+				// fall through
 			case __XRT_POLL_OP_RECV:
 				if ( pPoller->pfnCallback ) {
 					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)iBytesTransferred);
@@ -519,6 +538,7 @@ XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
 #include <linux/io_uring.h>
 
 #define __XRT_URING_ENTRIES  256
+#define __XRT_URING_TIMEOUT_MARKER  ((unsigned long long)-1)
 
 // io_uring syscall 封装
 static inline int __xrt_io_uring_setup(unsigned iEntries, struct io_uring_params* pParams)
@@ -567,6 +587,9 @@ typedef struct {
 	ptr pOpUserData;             // per-operation 用户数据
 	struct sockaddr_in tAcceptAddr;
 	socklen_t iAcceptAddrLen;
+	struct msghdr tMsgHdr;       // UDP recvmsg 消息头
+	struct iovec tIov;           // UDP recvmsg IO 向量
+	struct sockaddr_in tRemoteAddr;  // UDP recvfrom 远端地址
 } __xrt_uring_op;
 
 // Poller 结构定义
@@ -585,13 +608,12 @@ struct xrt_net_poller {
 	ptr pUserData;
 	size_t iRecvBufSize;
 	pthread_mutex_t tLock;
+	struct __kernel_timespec tTimeoutSpec;  // PollWait TIMEOUT 持久存储
 };
 
-// O(1) 操作池分配
-static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
+// O(1) 操作池分配 (无锁版本, 调用方需持有 tLock)
+static __xrt_uring_op* __xrt_uring_alloc_op_unlocked(xnetpoller* pPoller)
 {
-	pthread_mutex_lock(&pPoller->tLock);
-	
 	if ( pPoller->iFreeHead >= 0 ) {
 		int iIdx = pPoller->iFreeHead;
 		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
@@ -601,7 +623,6 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 		pOp->pDynamicBuf = NULL;
 		pOp->bDynamicBuf = false;
 		pOp->pOpUserData = NULL;
-		pthread_mutex_unlock(&pPoller->tLock);
 		return pOp;
 	}
 	
@@ -611,7 +632,6 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 		memset(pOp, 0, sizeof(__xrt_uring_op));
 		pOp->bInUse = true;
 		pOp->iNextFree = -1;
-		pthread_mutex_unlock(&pPoller->tLock);
 		return pOp;
 	}
 	
@@ -624,10 +644,7 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 		
 		__xrt_uring_op* pNewOps = (__xrt_uring_op*)xrtRealloc(pPoller->pOps, 
 			iNewCapacity * sizeof(__xrt_uring_op));
-		if ( !pNewOps ) {
-			pthread_mutex_unlock(&pPoller->tLock);
-			return NULL;
-		}
+		if ( !pNewOps ) return NULL;
 		
 		// 更新容量和指针
 		pPoller->pOps = pNewOps;
@@ -646,12 +663,19 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 		memset(pOp, 0, sizeof(__xrt_uring_op));
 		pOp->bInUse = true;
 		pOp->iNextFree = -1;
-		pthread_mutex_unlock(&pPoller->tLock);
 		return pOp;
 	}
 	
-	pthread_mutex_unlock(&pPoller->tLock);
 	return NULL;
+}
+
+// O(1) 操作池分配 (带锁版本)
+static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
+{
+	pthread_mutex_lock(&pPoller->tLock);
+	__xrt_uring_op* pOp = __xrt_uring_alloc_op_unlocked(pPoller);
+	pthread_mutex_unlock(&pPoller->tLock);
+	return pOp;
 }
 
 // 注册 wakeup read 事件
@@ -881,31 +905,57 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 {
 	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
 	
-	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
-	if ( !pOp ) return XRT_NET_ERROR;
-	
-	pOp->pConn = pConn;
-	pOp->iOpType = __XRT_POLL_OP_RECV;
-	pOp->pOpUserData = pConn->pUserData;
-	
+	// 单次加锁: 分配 op + 填充 SQE
 	pthread_mutex_lock(&pPoller->tLock);
-	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-	if ( !pSQE ) {
+	
+	__xrt_uring_op* pOp = __xrt_uring_alloc_op_unlocked(pPoller);
+	if ( !pOp ) {
 		pthread_mutex_unlock(&pPoller->tLock);
-		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
-	pSQE->opcode = IORING_OP_RECV;
-	pSQE->fd = pConn->hSocket;
-	pSQE->addr = (unsigned long long)(uintptr_t)pOp->aRecvBuf;
-	pSQE->len = __XRT_POLL_RECV_SIZE;
+	pOp->pConn = pConn;
+	pOp->pOpUserData = pConn->pUserData;
+	
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( !pSQE ) {
+		// 归还 op (无锁, 已持有 tLock)
+		pOp->bInUse = false;
+		int iIdx = (int)(pOp - pPoller->pOps);
+		pOp->iNextFree = pPoller->iFreeHead;
+		pPoller->iFreeHead = iIdx;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return XRT_NET_ERROR;
+	}
+	
+	if ( pConn->iType == 1 ) {
+		// UDP: RECVMSG 获取远端地址
+		pOp->iOpType = __XRT_POLL_OP_RECVFROM;
+		memset(&pOp->tMsgHdr, 0, sizeof(struct msghdr));
+		memset(&pOp->tRemoteAddr, 0, sizeof(struct sockaddr_in));
+		pOp->tIov.iov_base = pOp->aRecvBuf;
+		pOp->tIov.iov_len = __XRT_POLL_RECV_SIZE;
+		pOp->tMsgHdr.msg_name = &pOp->tRemoteAddr;
+		pOp->tMsgHdr.msg_namelen = sizeof(struct sockaddr_in);
+		pOp->tMsgHdr.msg_iov = &pOp->tIov;
+		pOp->tMsgHdr.msg_iovlen = 1;
+		pSQE->opcode = IORING_OP_RECVMSG;
+		pSQE->fd = pConn->hSocket;
+		pSQE->addr = (unsigned long long)(uintptr_t)&pOp->tMsgHdr;
+		pSQE->len = 1;  // msg_iovlen
+	} else {
+		// TCP: RECV
+		pOp->iOpType = __XRT_POLL_OP_RECV;
+		pSQE->opcode = IORING_OP_RECV;
+		pSQE->fd = pConn->hSocket;
+		pSQE->addr = (unsigned long long)(uintptr_t)pOp->aRecvBuf;
+		pSQE->len = __XRT_POLL_RECV_SIZE;
+	}
 	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
 	
 	__xrt_uring_submit_sqe(pPoller);
 	pthread_mutex_unlock(&pPoller->tLock);
 	
-	// 不立即提交, 等 PollWait 批量提交
 	return XRT_NET_OK;
 }
 
@@ -913,19 +963,29 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 {
 	if ( !pPoller || !pConn || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	
-	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
-	if ( !pOp ) return XRT_NET_ERROR;
+	// 大消息: 在加锁前完成内存分配和拷贝 (减少持锁时间)
+	char* pDynamicBuf = NULL;
+	if ( iLen > __XRT_POLL_RECV_SIZE ) {
+		pDynamicBuf = (char*)xrtMalloc(iLen);
+		if ( !pDynamicBuf ) return XRT_NET_ERROR;
+		memcpy(pDynamicBuf, pData, iLen);
+	}
+	
+	// 单次加锁: 分配 op + 填充 SQE
+	pthread_mutex_lock(&pPoller->tLock);
+	
+	__xrt_uring_op* pOp = __xrt_uring_alloc_op_unlocked(pPoller);
+	if ( !pOp ) {
+		pthread_mutex_unlock(&pPoller->tLock);
+		if ( pDynamicBuf ) xrtFree(pDynamicBuf);
+		return XRT_NET_ERROR;
+	}
 	
 	char* pBuf;
-	if ( iLen > __XRT_POLL_RECV_SIZE ) {
-		pOp->pDynamicBuf = (char*)xrtMalloc(iLen);
-		if ( !pOp->pDynamicBuf ) {
-			__xrt_uring_free_op(pPoller, pOp);
-			return XRT_NET_ERROR;
-		}
+	if ( pDynamicBuf ) {
+		pOp->pDynamicBuf = pDynamicBuf;
 		pOp->bDynamicBuf = true;
-		memcpy(pOp->pDynamicBuf, pData, iLen);
-		pBuf = pOp->pDynamicBuf;
+		pBuf = pDynamicBuf;
 	} else {
 		memcpy(pOp->aRecvBuf, pData, iLen);
 		pBuf = pOp->aRecvBuf;
@@ -935,11 +995,18 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 	pOp->iOpType = __XRT_POLL_OP_SEND;
 	pOp->pOpUserData = pConn->pUserData;
 	
-	pthread_mutex_lock(&pPoller->tLock);
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 	if ( !pSQE ) {
+		if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
+			xrtFree(pOp->pDynamicBuf);
+			pOp->pDynamicBuf = NULL;
+		}
+		pOp->bDynamicBuf = false;
+		pOp->bInUse = false;
+		int iIdx = (int)(pOp - pPoller->pOps);
+		pOp->iNextFree = pPoller->iFreeHead;
+		pPoller->iFreeHead = iIdx;
 		pthread_mutex_unlock(&pPoller->tLock);
-		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -992,25 +1059,25 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 {
 	if ( !pPoller ) return XRT_NET_ERROR;
 	
-	// 批量提交所有待提交 SQE
-	__xrt_uring_flush(pPoller);
-	
-	// 投递 TIMEOUT SQE（替代io_uring_enter的timeout参数）
+	// 投递 TIMEOUT SQE（使用 poller 持久成员避免栈变量生命周期问题）
 	if ( iTimeoutMs >= 0 ) {
 		struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 		if ( pSQE ) {
 			pSQE->opcode = IORING_OP_TIMEOUT;
-			struct __kernel_timespec tTimeoutSpec;
-			tTimeoutSpec.tv_sec = iTimeoutMs / 1000;
-			tTimeoutSpec.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
-			pSQE->addr = (unsigned long long)(uintptr_t)&tTimeoutSpec;
+			pPoller->tTimeoutSpec.tv_sec = iTimeoutMs / 1000;
+			pPoller->tTimeoutSpec.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
+			pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->tTimeoutSpec;
 			pSQE->len = 1;  // 等到 1 个事件或超时
+			pSQE->user_data = __XRT_URING_TIMEOUT_MARKER;
 			__xrt_uring_submit_sqe(pPoller);
 		}
 	}
 	
-	// 不带超时调用 io_uring_enter
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 0, 1, IORING_ENTER_GETEVENTS, NULL);
+	// 单次 io_uring_enter: 同时提交所有待提交 SQE 并等待完成事件
+	unsigned iToSubmit = pPoller->iPendingSQE;
+	pPoller->iPendingSQE = 0;
+	
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, iToSubmit, 1, IORING_ENTER_GETEVENTS, NULL);
 	if ( iRet < 0 ) {
 		if ( errno == ETIME || errno == EINTR ) {
 			return XRT_NET_TIMEOUT;
@@ -1031,6 +1098,12 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 	
 	while ( iHead != iTail ) {
 		struct io_uring_cqe* pCQE = &pCQ->pCQEs[iHead & iMask];
+		
+		// 跳过 TIMEOUT 完成事件
+		if ( pCQE->user_data == __XRT_URING_TIMEOUT_MARKER ) {
+			iHead++;
+			continue;
+		}
 		
 		// 处理 wakeup 事件
 		if ( pCQE->user_data == 0 ) {
@@ -1057,8 +1130,16 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 				}
 				__xrt_uring_free_op(pPoller, pOp);
 			} else if ( pCQE->res <= 0 ) {
-				// 连接关闭或错误
-				if ( pCQE->res == 0 || pCQE->res == -ECONNRESET ) {
+				// 连接关闭或错误 (UDP 0字节是合法数据, 不视为关闭)
+				if ( pCQE->res == 0 && pOp->iOpType == __XRT_POLL_OP_RECVFROM ) {
+					// UDP 空数据报: 正常分发
+					if ( pConn ) {
+						xrtNetAddrFromSockAddr(&pConn->tRemoteAddr, &pOp->tRemoteAddr);
+					}
+					if ( pPoller->pfnCallback ) {
+						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, 0);
+					}
+				} else if ( pCQE->res == 0 || pCQE->res == -ECONNRESET ) {
 					if ( pPoller->pfnCallback ) {
 						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
 					}
@@ -1070,6 +1151,12 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 				__xrt_uring_free_op(pPoller, pOp);
 			} else {
 				switch ( pOp->iOpType ) {
+					case __XRT_POLL_OP_RECVFROM:
+						// UDP: 将远端地址拷贝到 conn
+						if ( pConn ) {
+							xrtNetAddrFromSockAddr(&pConn->tRemoteAddr, &pOp->tRemoteAddr);
+						}
+						// fall through
 					case __XRT_POLL_OP_RECV:
 						if ( pPoller->pfnCallback ) {
 							pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)pCQE->res);

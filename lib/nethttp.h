@@ -173,9 +173,10 @@ static bool __xrt_http_connect(__xrt_http_conn* pConn, const xurl pURL, int iTim
 			return false;
 		}
 		
-		// TLS 握手循环 (参考 nettcp.h)
+		// TLS 握手循环 (select 等待 IO 就绪)
 		xnet_result iTlsRes;
 		int iRetries = 0;
+		int iMaxRetries = (iTimeoutSec > 0 ? iTimeoutSec : 10) * 10;  // 100ms per retry
 		while ( (iTlsRes = xrtTlsHandshake(pConn->pTlsCtx, &pConn->tConn)) == XRT_NET_AGAIN ) {
 			// 发送待发数据
 			if ( pConn->pTlsCtx->tSendBuf.iSize > 0 ) {
@@ -185,8 +186,19 @@ static bool __xrt_http_connect(__xrt_http_conn* pConn, const xurl pURL, int iTim
 				if ( iSent > 0 ) xrtNetBufConsume(&pConn->pTlsCtx->tSendBuf, iSent);
 			}
 			
+			// select 等待 IO 就绪，替代 Sleep(10)
+			fd_set tReadSet, tWriteSet;
+			FD_ZERO(&tReadSet); FD_ZERO(&tWriteSet);
+			FD_SET(pConn->tConn.hSocket, &tReadSet);
+			if ( pConn->pTlsCtx->tSendBuf.iSize > 0 ) {
+				FD_SET(pConn->tConn.hSocket, &tWriteSet);
+			}
+			struct timeval tSelTimeout = {0, 100000};  // 100ms
+			select((int)pConn->tConn.hSocket + 1, &tReadSet,
+				pConn->pTlsCtx->tSendBuf.iSize > 0 ? &tWriteSet : NULL, NULL, &tSelTimeout);
+			
 			iRetries++;
-			if ( iRetries > 500 ) {
+			if ( iRetries > iMaxRetries ) {
 				#ifdef DEBUG_TRACE
 					printf("    [HTTP] TLS handshake timeout after %d retries\n", iRetries);
 				#endif
@@ -195,12 +207,6 @@ static bool __xrt_http_connect(__xrt_http_conn* pConn, const xurl pURL, int iTim
 				xrtSockClose(&pConn->tConn);
 				return false;
 			}
-			
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(10);
-			#else
-				usleep(10000);
-			#endif
 		}
 		
 		// 发送残余 TLS 数据

@@ -62,10 +62,10 @@ static void __xrt_udp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 	xudpserver* pServer = (xudpserver*)pOwner;
 	
 	if ( iEvent == XRT_POLL_READ ) {
-		// UDP 数据到达 - poller recv 提供数据，远端地址通过 recvfrom 获取
-		// 注: 在 IOCP/io_uring 的当前实现中，UDP recv 使用标准 recv
-		// 远端地址需要通过额外机制获取 (此处保持简单模式兼容)
-		if ( pServer->tEvents.OnRecv ) {
+		// 优先使用 OnRecvFrom (传入远端地址), 回退到 OnRecv
+		if ( pServer->tEvents.OnRecvFrom ) {
+			pServer->tEvents.OnRecvFrom(pServer, &pServer->tConn, &pServer->tConn.tRemoteAddr, pData, iLen);
+		} else if ( pServer->tEvents.OnRecv ) {
 			pServer->tEvents.OnRecv(pServer, &pServer->tConn, pData, iLen);
 		}
 		
@@ -100,11 +100,13 @@ static uint32 __xrt_udp_server_loop(ptr pParam)
 			}
 		} else if ( iRes == XRT_NET_AGAIN ) {
 			int iTimeout = pServer->tConfig.iPollTimeoutMs > 0 ? pServer->tConfig.iPollTimeoutMs : 10;
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(iTimeout);
-			#else
-				usleep(iTimeout * 1000);
-			#endif
+			fd_set tReadSet;
+			FD_ZERO(&tReadSet);
+			FD_SET(pServer->tConn.hSocket, &tReadSet);
+			struct timeval tSelTimeout;
+			tSelTimeout.tv_sec = iTimeout / 1000;
+			tSelTimeout.tv_usec = (iTimeout % 1000) * 1000;
+			select((int)pServer->tConn.hSocket + 1, &tReadSet, NULL, NULL, &tSelTimeout);
 		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
 			if ( pServer->tEvents.OnError ) {
 				pServer->tEvents.OnError(pServer, &pServer->tConn, (int)iRes);
@@ -296,7 +298,10 @@ static void __xrt_udp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 	xudpclient* pClient = (xudpclient*)pOwner;
 	
 	if ( iEvent == XRT_POLL_READ ) {
-		if ( pClient->tEvents.OnRecv ) {
+		// 优先使用 OnRecvFrom (传入远端地址), 回退到 OnRecv
+		if ( pClient->tEvents.OnRecvFrom ) {
+			pClient->tEvents.OnRecvFrom(pClient, &pClient->tConn, &pClient->tConn.tRemoteAddr, pData, iLen);
+		} else if ( pClient->tEvents.OnRecv ) {
 			pClient->tEvents.OnRecv(pClient, &pClient->tConn, pData, iLen);
 		}
 		xrtPollPostRecv(xrtEventLoopGetPoller(pClient->pLoop), &pClient->tConn);
@@ -329,11 +334,13 @@ static uint32 __xrt_udp_client_loop(ptr pParam)
 			}
 		} else if ( iRes == XRT_NET_AGAIN ) {
 			int iTimeout = pClient->tConfig.iPollTimeoutMs > 0 ? pClient->tConfig.iPollTimeoutMs : 10;
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(iTimeout);
-			#else
-				usleep(iTimeout * 1000);
-			#endif
+			fd_set tReadSet;
+			FD_ZERO(&tReadSet);
+			FD_SET(pClient->tConn.hSocket, &tReadSet);
+			struct timeval tSelTimeout;
+			tSelTimeout.tv_sec = iTimeout / 1000;
+			tSelTimeout.tv_usec = (iTimeout % 1000) * 1000;
+			select((int)pClient->tConn.hSocket + 1, &tReadSet, NULL, NULL, &tSelTimeout);
 		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
 			if ( pClient->tEvents.OnError ) {
 				pClient->tEvents.OnError(pClient, &pClient->tConn, (int)iRes);
