@@ -62,6 +62,7 @@ static int __xrt_RefCount = 0;  // 引用计数
 #include "lib/netsock.h"
 #include "lib/netpoll.h"
 #include "lib/nettls.h"
+#include "lib/netloop.h"
 #include "lib/nettcp.h"
 #include "lib/netudp.h"
 #include "lib/xid.h"

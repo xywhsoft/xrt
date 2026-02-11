@@ -143,6 +143,12 @@ xrtECDSAVerify
 xrtEOF
 xrtEd25519Verify
 xrtEncodeXID
+xrtEventLoopCreate
+xrtEventLoopDestroy
+xrtEventLoopGetPoller
+xrtEventLoopRun
+xrtEventLoopRunOnce
+xrtEventLoopStop
 xrtFSMemPoolAlloc
 xrtFSMemPoolCreate
 xrtFSMemPoolDestroy
@@ -293,6 +299,14 @@ xrtNetBufInit
 xrtNetIPFromStr
 xrtNetIPToStr
 xrtNetResolve
+xrtNetRingBufConsume
+xrtNetRingBufFree
+xrtNetRingBufInit
+xrtNetRingBufPeek
+xrtNetRingBufRead
+xrtNetRingBufReadable
+xrtNetRingBufWritable
+xrtNetRingBufWrite
 xrtNow
 xrtNowStr
 xrtNowUTC
@@ -438,6 +452,7 @@ xrtStringifyJSON
 xrtStringifyJSON_File
 xrtTcpClientConnect
 xrtTcpClientCreate
+xrtTcpClientCreateEx
 xrtTcpClientDestroy
 xrtTcpClientDisconnect
 xrtTcpClientEnableTLS
@@ -446,6 +461,7 @@ xrtTcpClientIsConnected
 xrtTcpClientSend
 xrtTcpClientSetUserData
 xrtTcpServerCreate
+xrtTcpServerCreateEx
 xrtTcpServerDestroy
 xrtTcpServerDisconnect
 xrtTcpServerEnableTLS
@@ -506,6 +522,7 @@ xrtUTF32to8
 xrtUTF8to16
 xrtUTF8to32
 xrtUdpClientCreate
+xrtUdpClientCreateEx
 xrtUdpClientDestroy
 xrtUdpClientGetUserData
 xrtUdpClientSendTo
@@ -513,6 +530,7 @@ xrtUdpClientSetUserData
 xrtUdpClientStart
 xrtUdpClientStop
 xrtUdpServerCreate
+xrtUdpServerCreateEx
 xrtUdpServerDestroy
 xrtUdpServerGetUserData
 xrtUdpServerSendTo

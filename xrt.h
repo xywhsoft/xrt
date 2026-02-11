@@ -78,10 +78,69 @@
 			void WINAPI ReleaseSRWLockShared(PSRWLOCK SRWLock);
 			BOOL WINAPI TryAcquireSRWLockExclusive(PSRWLOCK SRWLock);
 			BOOL WINAPI TryAcquireSRWLockShared(PSRWLOCK SRWLock);
+			
+			/* IOCP 批量收割支持 */
+			typedef struct _OVERLAPPED_ENTRY {
+				ULONG_PTR lpCompletionKey;
+				LPOVERLAPPED lpOverlapped;
+				ULONG_PTR Internal;
+				DWORD dwNumberOfBytesTransferred;
+			} OVERLAPPED_ENTRY, *LPOVERLAPPED_ENTRY;
+			
+			BOOL WINAPI GetQueuedCompletionStatusEx(
+				HANDLE CompletionPort,
+				LPOVERLAPPED_ENTRY lpCompletionPortEntries,
+				ULONG ulCount,
+				PULONG ulNumEntriesRemoved,
+				DWORD dwMilliseconds,
+				BOOL fAlertable
+			);
+			
+			/* AcceptEx 支持 */
+			typedef BOOL (WINAPI *LPFN_ACCEPTEX)(
+				SOCKET sListenSocket,
+				SOCKET sAcceptSocket,
+				PVOID lpOutputBuffer,
+				DWORD dwReceiveDataLength,
+				DWORD dwLocalAddressLength,
+				DWORD dwRemoteAddressLength,
+				LPDWORD lpdwBytesReceived,
+				LPOVERLAPPED lpOverlapped
+			);
+			
+			typedef void (WINAPI *LPFN_GETACCEPTEXSOCKADDRS)(
+				PVOID lpOutputBuffer,
+				DWORD dwReceiveDataLength,
+				DWORD dwLocalAddressLength,
+				DWORD dwRemoteAddressLength,
+				struct sockaddr **LocalSockaddr,
+				LPINT LocalSockaddrLength,
+				struct sockaddr **RemoteSockaddr,
+				LPINT RemoteSockaddrLength
+			);
+			
+			#define WSAID_ACCEPTEX \
+				{0xb5367df1,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
+			#define WSAID_GETACCEPTEXSOCKADDRS \
+				{0xb5367df2,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
+			
+			#ifndef SIO_GET_EXTENSION_FUNCTION_POINTER
+				#define SIO_GET_EXTENSION_FUNCTION_POINTER 0xC8000006
+			#endif
+			
+			#ifndef SO_UPDATE_ACCEPT_CONTEXT
+				#define SO_UPDATE_ACCEPT_CONTEXT 0x700B
+			#endif
+			
+			const char* WSAAPI inet_ntop(int af, const void* src, char* dst, int size);
+			#define InetNtopA inet_ntop
+			
+			BOOL WINAPI CancelIoEx(HANDLE hFile, LPOVERLAPPED lpOverlapped);
 		#endif
 	#else
 		#include <winsock2.h>
 		#include <ws2tcpip.h>
+		#include <mswsock.h>
 	#endif
 	
 	#include <windows.h>
@@ -1331,6 +1390,15 @@
 		size_t iCapacity;
 	} xnetbuf;
 	
+	/* ---- 环形网络缓冲区 (高性能, 无 memmove) ---- */
+	typedef struct {
+		char* pData;
+		size_t iCapacity;     // 总容量 (向上对齐为 2 的幂)
+		size_t iMask;         // iCapacity - 1, 用位与代替取模
+		size_t iReadPos;      // 读位置
+		size_t iWritePos;     // 写位置
+	} xnetringbuf;
+	
 	/* ---- 连接对象 ---- */
 	typedef struct {
 		int iId;
@@ -1379,6 +1447,9 @@
 	
 	/* ---- IO Poller (不透明) ---- */
 	typedef struct xrt_net_poller xnetpoller;
+	
+	/* ---- Event Loop 事件循环 (不透明) ---- */
+	typedef struct xrt_event_loop xeventloop;
 	
 	/* ---- TCP 服务器/客户端 (不透明) ---- */
 	typedef struct xrt_tcp_server xtcpserver;
@@ -1430,6 +1501,16 @@
 	XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen);
 	XXAPI void xrtNetBufClear(xnetbuf* pBuf);
 	
+	// 环形网络缓冲区
+	XXAPI bool xrtNetRingBufInit(xnetringbuf* pBuf, size_t iCapacity);
+	XXAPI void xrtNetRingBufFree(xnetringbuf* pBuf);
+	XXAPI size_t xrtNetRingBufWrite(xnetringbuf* pBuf, const char* pData, size_t iLen);
+	XXAPI size_t xrtNetRingBufRead(xnetringbuf* pBuf, char* pOut, size_t iLen);
+	XXAPI size_t xrtNetRingBufPeek(xnetringbuf* pBuf, char* pOut, size_t iLen);
+	XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen);
+	XXAPI size_t xrtNetRingBufReadable(const xnetringbuf* pBuf);
+	XXAPI size_t xrtNetRingBufWritable(const xnetringbuf* pBuf);
+	
 	
 	
 	/* ------------------------------------ IO 模型 (Poller) ------------------------------------ */
@@ -1459,6 +1540,17 @@
 	
 	
 	
+	/* ------------------------------------ Event Loop (事件循环) ------------------------------------ */
+	
+	XXAPI xeventloop* xrtEventLoopCreate();
+	XXAPI void xrtEventLoopDestroy(xeventloop* pLoop);
+	XXAPI void xrtEventLoopRun(xeventloop* pLoop);                              // 阻塞直到 Stop
+	XXAPI void xrtEventLoopStop(xeventloop* pLoop);
+	XXAPI xnet_result xrtEventLoopRunOnce(xeventloop* pLoop, int iTimeoutMs);   // 单次迭代
+	XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop);
+	
+	
+	
 	/* ------------------------------------ TLS ------------------------------------ */
 	
 	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
@@ -1477,6 +1569,7 @@
 	
 	// TCP 服务器
 	XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xtcpserver* xrtTcpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtTcpServerDestroy(xtcpserver* pServer);
 	XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer);
 	XXAPI void xrtTcpServerStop(xtcpserver* pServer);
@@ -1489,6 +1582,7 @@
 	
 	// TCP 客户端
 	XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xtcpclient* xrtTcpClientCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtTcpClientDestroy(xtcpclient* pClient);
 	XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient);
 	XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient);
@@ -1504,6 +1598,7 @@
 	
 	// UDP 服务器
 	XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xudpserver* xrtUdpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtUdpServerDestroy(xudpserver* pServer);
 	XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer);
 	XXAPI void xrtUdpServerStop(xudpserver* pServer);
@@ -1513,6 +1608,7 @@
 	
 	// UDP 客户端
 	XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents);
+	XXAPI xudpclient* xrtUdpClientCreateEx(xeventloop* pLoop, const xnetconfig* pConfig, const xnetevents* pEvents);
 	XXAPI void xrtUdpClientDestroy(xudpclient* pClient);
 	XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient);
 	XXAPI void xrtUdpClientStop(xudpclient* pClient);

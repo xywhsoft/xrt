@@ -40,12 +40,12 @@ XXAPI void xrtNetAddrFromSockAddr(xnetaddr* pAddr, struct sockaddr_in* pSA)
 	if ( !pAddr || !pSA ) return;
 	pAddr->iAddr = pSA->sin_addr.s_addr;
 	pAddr->iPort = ntohs(pSA->sin_port);
-	// inet_ntoa 返回静态缓冲区，需复制
-	const char* sIP = inet_ntoa(pSA->sin_addr);
-	if ( sIP ) {
-		strncpy(pAddr->sAddr, sIP, 15);
-		pAddr->sAddr[15] = '\0';
-	}
+	// 线程安全: 使用 inet_ntop 代替 inet_ntoa
+	#if defined(_WIN32) || defined(_WIN64)
+		InetNtopA(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+	#else
+		inet_ntop(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+	#endif
 }
 
 XXAPI void xrtNetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_in* pSA)
@@ -67,10 +67,14 @@ XXAPI const char* xrtNetIPToStr(uint32 iIP)
 {
 	struct in_addr tAddr;
 	tAddr.s_addr = iIP;
-	// 使用 xrt 环形临时内存
-	char* sResult = (char*)inet_ntoa(tAddr);
-	if ( !sResult ) return "";
-	str sCopy = xrtCopyStr(sResult, strlen(sResult));
+	// 线程安全: 使用 inet_ntop + xrt 环形临时内存
+	char aTmp[16];
+	#if defined(_WIN32) || defined(_WIN64)
+		InetNtopA(AF_INET, &tAddr, aTmp, sizeof(aTmp));
+	#else
+		inet_ntop(AF_INET, &tAddr, aTmp, sizeof(aTmp));
+	#endif
+	str sCopy = xrtCopyStr(aTmp, strlen(aTmp));
 	return (const char*)sCopy;
 }
 
@@ -448,20 +452,39 @@ XXAPI xnet_result xrtNetResolve(const char* sHostname, xnetaddr* pAddr)
 {
 	if ( !sHostname || !pAddr ) return XRT_NET_ERROR;
 	
-	struct hostent* pHost = gethostbyname(sHostname);
-	if ( !pHost || pHost->h_addrtype != AF_INET || !pHost->h_addr_list[0] ) {
-		return XRT_NET_ERROR;
-	}
-	
-	struct in_addr tInAddr;
-	memcpy(&tInAddr, pHost->h_addr_list[0], sizeof(struct in_addr));
-	
-	pAddr->iAddr = tInAddr.s_addr;
-	const char* sIP = inet_ntoa(tInAddr);
-	if ( sIP ) {
-		strncpy(pAddr->sAddr, sIP, 15);
-		pAddr->sAddr[15] = '\0';
-	}
+	#ifdef __TINYC__
+		// TCC 不支持 getaddrinfo，使用 gethostbyname
+		struct hostent* pHost = gethostbyname(sHostname);
+		if ( !pHost || pHost->h_addrtype != AF_INET || !pHost->h_addr_list[0] ) {
+			return XRT_NET_ERROR;
+		}
+		struct in_addr tInAddr;
+		memcpy(&tInAddr, pHost->h_addr_list[0], sizeof(struct in_addr));
+		pAddr->iAddr = tInAddr.s_addr;
+		#if defined(_WIN32) || defined(_WIN64)
+			InetNtopA(AF_INET, &tInAddr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#else
+			inet_ntop(AF_INET, &tInAddr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#endif
+	#else
+		// 线程安全: 使用 getaddrinfo + inet_ntop
+		struct addrinfo tHints, *pRes;
+		memset(&tHints, 0, sizeof(tHints));
+		tHints.ai_family = AF_INET;
+		tHints.ai_socktype = SOCK_STREAM;
+		if ( getaddrinfo(sHostname, NULL, &tHints, &pRes) != 0 ) {
+			return XRT_NET_ERROR;
+		}
+		if ( !pRes ) return XRT_NET_ERROR;
+		struct sockaddr_in* pSA = (struct sockaddr_in*)pRes->ai_addr;
+		pAddr->iAddr = pSA->sin_addr.s_addr;
+		#if defined(_WIN32) || defined(_WIN64)
+			InetNtopA(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#else
+			inet_ntop(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
+		#endif
+		freeaddrinfo(pRes);
+	#endif
 	
 	return XRT_NET_OK;
 }
@@ -527,6 +550,117 @@ XXAPI void xrtNetBufClear(xnetbuf* pBuf)
 {
 	if ( !pBuf ) return;
 	pBuf->iSize = 0;
+}
+
+
+
+/* ============================== 环形网络缓冲区 ============================== */
+
+// 向上对齐到 2 的幂
+static inline size_t __xrt_ringbuf_next_pow2(size_t v)
+{
+	v--;
+	v |= v >> 1;
+	v |= v >> 2;
+	v |= v >> 4;
+	v |= v >> 8;
+	v |= v >> 16;
+	#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || defined(__LP64__)
+		v |= v >> 32;
+	#endif
+	v++;
+	return v;
+}
+
+XXAPI bool xrtNetRingBufInit(xnetringbuf* pBuf, size_t iCapacity)
+{
+	if ( !pBuf || iCapacity == 0 ) return false;
+	size_t iAligned = __xrt_ringbuf_next_pow2(iCapacity);
+	if ( iAligned < 16 ) iAligned = 16;
+	pBuf->pData = (char*)xrtMalloc(iAligned);
+	if ( !pBuf->pData ) return false;
+	pBuf->iCapacity = iAligned;
+	pBuf->iMask = iAligned - 1;
+	pBuf->iReadPos = 0;
+	pBuf->iWritePos = 0;
+	return true;
+}
+
+XXAPI void xrtNetRingBufFree(xnetringbuf* pBuf)
+{
+	if ( !pBuf ) return;
+	if ( pBuf->pData ) {
+		xrtFree(pBuf->pData);
+		pBuf->pData = NULL;
+	}
+	pBuf->iCapacity = 0;
+	pBuf->iMask = 0;
+	pBuf->iReadPos = 0;
+	pBuf->iWritePos = 0;
+}
+
+XXAPI size_t xrtNetRingBufReadable(const xnetringbuf* pBuf)
+{
+	if ( !pBuf ) return 0;
+	return pBuf->iWritePos - pBuf->iReadPos;
+}
+
+XXAPI size_t xrtNetRingBufWritable(const xnetringbuf* pBuf)
+{
+	if ( !pBuf ) return 0;
+	return pBuf->iCapacity - (pBuf->iWritePos - pBuf->iReadPos);
+}
+
+XXAPI size_t xrtNetRingBufWrite(xnetringbuf* pBuf, const char* pData, size_t iLen)
+{
+	if ( !pBuf || !pData || iLen == 0 ) return 0;
+	size_t iAvail = xrtNetRingBufWritable(pBuf);
+	if ( iLen > iAvail ) iLen = iAvail;
+	if ( iLen == 0 ) return 0;
+	
+	size_t iPos = pBuf->iWritePos & pBuf->iMask;
+	size_t iFirstChunk = pBuf->iCapacity - iPos;
+	if ( iFirstChunk >= iLen ) {
+		memcpy(pBuf->pData + iPos, pData, iLen);
+	} else {
+		memcpy(pBuf->pData + iPos, pData, iFirstChunk);
+		memcpy(pBuf->pData, pData + iFirstChunk, iLen - iFirstChunk);
+	}
+	pBuf->iWritePos += iLen;
+	return iLen;
+}
+
+XXAPI size_t xrtNetRingBufPeek(xnetringbuf* pBuf, char* pOut, size_t iLen)
+{
+	if ( !pBuf || !pOut || iLen == 0 ) return 0;
+	size_t iReadable = xrtNetRingBufReadable(pBuf);
+	if ( iLen > iReadable ) iLen = iReadable;
+	if ( iLen == 0 ) return 0;
+	
+	size_t iPos = pBuf->iReadPos & pBuf->iMask;
+	size_t iFirstChunk = pBuf->iCapacity - iPos;
+	if ( iFirstChunk >= iLen ) {
+		memcpy(pOut, pBuf->pData + iPos, iLen);
+	} else {
+		memcpy(pOut, pBuf->pData + iPos, iFirstChunk);
+		memcpy(pOut + iFirstChunk, pBuf->pData, iLen - iFirstChunk);
+	}
+	return iLen;
+}
+
+XXAPI size_t xrtNetRingBufRead(xnetringbuf* pBuf, char* pOut, size_t iLen)
+{
+	size_t iRead = xrtNetRingBufPeek(pBuf, pOut, iLen);
+	pBuf->iReadPos += iRead;
+	return iRead;
+}
+
+XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen)
+{
+	if ( !pBuf ) return;
+	size_t iReadable = xrtNetRingBufReadable(pBuf);
+	if ( iLen > iReadable ) iLen = iReadable;
+	pBuf->iReadPos += iLen;
 }
 
 

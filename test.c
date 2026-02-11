@@ -24,6 +24,8 @@
 #include "test/test_network.h"
 #include "test/test_crypto.h"
 #include "test/test_netsock.h"
+#include "test/test_netringbuf.h"
+#include "test/test_netloop.h"
 #include "test/test_nettcp.h"
 #include "test/test_nettls.h"
 #include "test/tls_comprehensive_test.h"
@@ -125,6 +127,12 @@ int main(int argc, char** argv)
 	/* Socket 基础操作测试 */
 	// Test_NetSock(xCore);
 	
+	/* 环形缓冲区测试 */
+	// Test_NetRingBuf(xCore);
+	
+	/* 事件循环测试 */
+	// Test_NetEventLoop(xCore);
+	
 	/* TCP/UDP 网络通信测试 */
 	// Test_NetTCPUDP(xCore);
 	
@@ -197,7 +205,7 @@ int main(int argc, char** argv)
 	// Test_Template(xCore);
 	
 	/* TLS 综合测试 */
-	// Test_TLS_Comprehensive();
+	Test_TLS_Comprehensive();
 	
 	/* TLS 算法套件测试 */
 	// Test_TLS_CipherSuites();
@@ -212,7 +220,7 @@ int main(int argc, char** argv)
 	// Test_HTTP();
 	
 	/* Coroutine 协程库测试 */
-	Test_Coroutine(xCore);
+	// Test_Coroutine(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);

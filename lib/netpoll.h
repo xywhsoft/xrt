@@ -3,12 +3,20 @@
 
 
 /*
-	NetPoll - IO 模型抽象层 [Ver1.0]
+	NetPoll - IO 模型抽象层 [Ver2.0]
 	
 	Windows: IOCP (I/O Completion Port)
 	Linux:   io_uring (内核 >= 5.1, 无 epoll 回退)
 	
 	基于完成端口模型的统一异步 IO 接口
+	
+	Ver2.0 变更:
+	  - 操作池空闲链表 O(1) 分配/释放
+	  - Windows: GetQueuedCompletionStatusEx 批量收割
+	  - Windows: AcceptEx 异步 accept
+	  - Linux: io_uring 批量 SQE 提交
+	  - 发送路径支持大消息 (>8KB 动态缓冲区)
+	  - per-operation 用户数据 (事件路由)
 */
 
 
@@ -28,17 +36,24 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 
+#define __XRT_IOCP_BATCH_SIZE 64
+
 // IOCP 操作结构
 typedef struct {
 	WSAOVERLAPPED tOverlapped;
 	xnetconn* pConn;
 	xnetconn* pAcceptConn;       // 用于 accept 操作的客户端连接
 	char aRecvBuf[__XRT_POLL_RECV_SIZE];
+	char* pDynamicBuf;           // 动态发送缓冲区 (>8KB)
+	bool bDynamicBuf;            // 是否使用动态缓冲区
 	WSABUF tWSABuf;
 	DWORD iBytes;
 	DWORD iFlags;
 	int iOpType;
 	bool bInUse;
+	int iNextFree;               // 空闲链表下一个索引, -1 = 尾
+	ptr pOpUserData;             // per-operation 用户数据
+	SOCKET hAcceptSocket;        // AcceptEx 预创建的 socket
 } __xrt_iocp_op;
 
 // Poller 结构定义
@@ -47,36 +62,91 @@ struct xrt_net_poller {
 	__xrt_iocp_op* pOps;
 	int iOpCount;
 	int iOpCapacity;
+	int iFreeHead;               // 空闲链表头索引
 	CRITICAL_SECTION tLock;
 	xpoll_fn pfnCallback;
 	ptr pUserData;
 	size_t iRecvBufSize;
+	LPFN_ACCEPTEX pfnAcceptEx;
+	LPFN_GETACCEPTEXSOCKADDRS pfnGetAcceptExSockAddrs;
 };
 
+// O(1) 操作池分配
 static __xrt_iocp_op* __xrt_iocp_alloc_op(xnetpoller* pPoller)
 {
 	EnterCriticalSection(&pPoller->tLock);
 	
-	// 先找空闲的
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( !pPoller->pOps[i].bInUse ) {
-			pPoller->pOps[i].bInUse = true;
-			LeaveCriticalSection(&pPoller->tLock);
-			return &pPoller->pOps[i];
-		}
+	if ( pPoller->iFreeHead >= 0 ) {
+		// 从空闲链表头取
+		int iIdx = pPoller->iFreeHead;
+		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
+		pPoller->iFreeHead = pOp->iNextFree;
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		pOp->pDynamicBuf = NULL;
+		pOp->bDynamicBuf = false;
+		pOp->pOpUserData = NULL;
+		pOp->hAcceptSocket = INVALID_SOCKET;
+		LeaveCriticalSection(&pPoller->tLock);
+		return pOp;
 	}
 	
-	// 没有空闲的，追加
+	// 空闲链表为空，尝试追加
 	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
-		__xrt_iocp_op* pOp = &pPoller->pOps[pPoller->iOpCount++];
+		int iIdx = pPoller->iOpCount++;
+		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
 		memset(pOp, 0, sizeof(__xrt_iocp_op));
 		pOp->bInUse = true;
+		pOp->iNextFree = -1;
 		LeaveCriticalSection(&pPoller->tLock);
 		return pOp;
 	}
 	
 	LeaveCriticalSection(&pPoller->tLock);
 	return NULL;
+}
+
+// O(1) 操作池释放
+static void __xrt_iocp_free_op(xnetpoller* pPoller, __xrt_iocp_op* pOp)
+{
+	if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
+		xrtFree(pOp->pDynamicBuf);
+		pOp->pDynamicBuf = NULL;
+	}
+	pOp->bDynamicBuf = false;
+	pOp->bInUse = false;
+	
+	EnterCriticalSection(&pPoller->tLock);
+	int iIdx = (int)(pOp - pPoller->pOps);
+	pOp->iNextFree = pPoller->iFreeHead;
+	pPoller->iFreeHead = iIdx;
+	LeaveCriticalSection(&pPoller->tLock);
+}
+
+// 加载 AcceptEx 扩展函数
+static void __xrt_iocp_load_acceptex(xnetpoller* pPoller)
+{
+	pPoller->pfnAcceptEx = NULL;
+	pPoller->pfnGetAcceptExSockAddrs = NULL;
+	
+	// 创建临时 socket 加载扩展函数
+	SOCKET hTmp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if ( hTmp == INVALID_SOCKET ) return;
+	
+	DWORD dwBytes = 0;
+	GUID guidAcceptEx = WSAID_ACCEPTEX;
+	WSAIoctl(hTmp, SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&guidAcceptEx, sizeof(guidAcceptEx),
+		&pPoller->pfnAcceptEx, sizeof(pPoller->pfnAcceptEx),
+		&dwBytes, NULL, NULL);
+	
+	GUID guidGetAddr = WSAID_GETACCEPTEXSOCKADDRS;
+	WSAIoctl(hTmp, SIO_GET_EXTENSION_FUNCTION_POINTER,
+		&guidGetAddr, sizeof(guidGetAddr),
+		&pPoller->pfnGetAcceptExSockAddrs, sizeof(pPoller->pfnGetAcceptExSockAddrs),
+		&dwBytes, NULL, NULL);
+	
+	closesocket(hTmp);
 }
 
 XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
@@ -98,10 +168,16 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 		return NULL;
 	}
 	
+	// 初始化空闲链表 (所有槽位串成链表)
+	pPoller->iFreeHead = -1;  // 初始为空, 通过 alloc_op 按需追加
+	
 	InitializeCriticalSection(&pPoller->tLock);
 	pPoller->pfnCallback = pfnCallback;
 	pPoller->pUserData = pUserData;
 	pPoller->iRecvBufSize = (pConfig && pConfig->iRecvBufSize > 0) ? pConfig->iRecvBufSize : __XRT_POLL_RECV_SIZE;
+	
+	// 加载 AcceptEx 扩展函数
+	__xrt_iocp_load_acceptex(pPoller);
 	
 	return pPoller;
 }
@@ -110,11 +186,20 @@ XXAPI void xrtPollDestroy(xnetpoller* pPoller)
 {
 	if ( !pPoller ) return;
 	
+	// 释放所有动态缓冲区
+	if ( pPoller->pOps ) {
+		for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+			if ( pPoller->pOps[i].bDynamicBuf && pPoller->pOps[i].pDynamicBuf ) {
+				xrtFree(pPoller->pOps[i].pDynamicBuf);
+			}
+			if ( pPoller->pOps[i].hAcceptSocket != INVALID_SOCKET && pPoller->pOps[i].hAcceptSocket != 0 ) {
+				closesocket(pPoller->pOps[i].hAcceptSocket);
+			}
+		}
+		xrtFree(pPoller->pOps);
+	}
 	if ( pPoller->hIOCP ) {
 		CloseHandle(pPoller->hIOCP);
-	}
-	if ( pPoller->pOps ) {
-		xrtFree(pPoller->pOps);
 	}
 	DeleteCriticalSection(&pPoller->tLock);
 	xrtFree(pPoller);
@@ -139,10 +224,13 @@ XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
 	EnterCriticalSection(&pPoller->tLock);
 	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
 		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
-			pPoller->pOps[i].bInUse = false;
+			// CancelIoEx 取消该 socket 上的所有 IO
+			break;
 		}
 	}
 	LeaveCriticalSection(&pPoller->tLock);
+	
+	CancelIoEx((HANDLE)pConn->hSocket, NULL);
 	
 	return XRT_NET_OK;
 }
@@ -160,10 +248,11 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 	pOp->tWSABuf.len = __XRT_POLL_RECV_SIZE;
 	pOp->iOpType = __XRT_POLL_OP_RECV;
 	pOp->iFlags = 0;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	int iResult = WSARecv(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags, &pOp->tOverlapped, NULL);
 	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
-		pOp->bInUse = false;
+		__xrt_iocp_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -177,21 +266,33 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
 	if ( !pOp ) return XRT_NET_ERROR;
 	
-	// 复制数据到操作缓冲区，解决 buffer 生命周期问题
-	size_t iCopyLen = (iLen > __XRT_POLL_RECV_SIZE) ? __XRT_POLL_RECV_SIZE : iLen;
-	memcpy(pOp->aRecvBuf, pData, iCopyLen);
+	// 大消息: 动态分配缓冲区
+	if ( iLen > __XRT_POLL_RECV_SIZE ) {
+		pOp->pDynamicBuf = (char*)xrtMalloc(iLen);
+		if ( !pOp->pDynamicBuf ) {
+			__xrt_iocp_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		pOp->bDynamicBuf = true;
+		memcpy(pOp->pDynamicBuf, pData, iLen);
+		pOp->tWSABuf.buf = pOp->pDynamicBuf;
+		pOp->tWSABuf.len = (ULONG)iLen;
+	} else {
+		memcpy(pOp->aRecvBuf, pData, iLen);
+		pOp->tWSABuf.buf = pOp->aRecvBuf;
+		pOp->tWSABuf.len = (ULONG)iLen;
+	}
 	
 	memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
 	pOp->pConn = pConn;
-	pOp->tWSABuf.buf = pOp->aRecvBuf;
-	pOp->tWSABuf.len = (ULONG)iCopyLen;
 	pOp->iOpType = __XRT_POLL_OP_SEND;
 	pOp->iFlags = 0;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	DWORD iBytesSent;
 	int iResult = WSASend(pConn->hSocket, &pOp->tWSABuf, 1, &iBytesSent, 0, &pOp->tOverlapped, NULL);
 	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
-		pOp->bInUse = false;
+		__xrt_iocp_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -200,10 +301,49 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 
 XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
 {
-	// IOCP accept: 使用非阻塞 accept 方式（不使用 AcceptEx 以简化实现）
-	// AcceptEx 需要额外的 Winsock 扩展函数加载，简化版使用 completion notification
-	(void)pPoller; (void)pServer; (void)pClient;
-	// Accept 将在 PollWait 的用户回调中通过 xrtSockAccept 同步处理
+	if ( !pPoller || !pServer ) return XRT_NET_ERROR;
+	
+	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
+	if ( !pOp ) return XRT_NET_ERROR;
+	
+	pOp->pConn = pServer;
+	pOp->pAcceptConn = pClient;
+	pOp->iOpType = __XRT_POLL_OP_ACCEPT;
+	pOp->pOpUserData = pServer->pUserData;
+	
+	// AcceptEx 可用时使用异步 accept
+	if ( pPoller->pfnAcceptEx ) {
+		SOCKET hAccept = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if ( hAccept == INVALID_SOCKET ) {
+			__xrt_iocp_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		pOp->hAcceptSocket = hAccept;
+		
+		memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
+		DWORD dwBytes = 0;
+		BOOL bResult = pPoller->pfnAcceptEx(
+			pServer->hSocket, hAccept,
+			pOp->aRecvBuf,                     // 输出缓冲区 (地址信息)
+			0,                                  // 不接收首包数据
+			sizeof(struct sockaddr_in) + 16,    // 本地地址长度
+			sizeof(struct sockaddr_in) + 16,    // 远端地址长度
+			&dwBytes,
+			&pOp->tOverlapped
+		);
+		
+		if ( !bResult && WSAGetLastError() != ERROR_IO_PENDING ) {
+			closesocket(hAccept);
+			pOp->hAcceptSocket = INVALID_SOCKET;
+			__xrt_iocp_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		
+		return XRT_NET_OK;
+	}
+	
+	// AcceptEx 不可用: 回退到非阻塞 accept (在 PollWait 通知中处理)
+	__xrt_iocp_free_op(pPoller, pOp);
 	return XRT_NET_OK;
 }
 
@@ -211,68 +351,110 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 {
 	if ( !pPoller ) return XRT_NET_ERROR;
 	
-	DWORD iBytesTransferred;
-	ULONG_PTR iCompletionKey;
-	LPOVERLAPPED pOverlapped;
+	// 批量收割完成事件
+	OVERLAPPED_ENTRY aEntries[__XRT_IOCP_BATCH_SIZE];
+	ULONG iRemoved = 0;
 	
-	BOOL bSuccess = GetQueuedCompletionStatus(
+	BOOL bSuccess = GetQueuedCompletionStatusEx(
 		pPoller->hIOCP,
-		&iBytesTransferred,
-		&iCompletionKey,
-		&pOverlapped,
-		(DWORD)iTimeoutMs
+		aEntries,
+		__XRT_IOCP_BATCH_SIZE,
+		&iRemoved,
+		(DWORD)iTimeoutMs,
+		FALSE
 	);
 	
-	if ( !bSuccess && !pOverlapped ) {
+	if ( !bSuccess ) {
 		if ( GetLastError() == WAIT_TIMEOUT ) {
 			return XRT_NET_TIMEOUT;
 		}
 		return XRT_NET_ERROR;
 	}
 	
-	// Wakeup 信号 (completion key = 0, overlapped = NULL)
-	if ( !pOverlapped ) {
-		return XRT_NET_OK;
-	}
-	
-	__xrt_iocp_op* pOp = (__xrt_iocp_op*)pOverlapped;
-	xnetconn* pConn = pOp->pConn;
-	
-	if ( !pOp->bInUse ) {
-		return XRT_NET_OK;
-	}
-	
-	// 连接关闭
-	if ( iBytesTransferred == 0 && pOp->iOpType != __XRT_POLL_OP_ACCEPT ) {
-		if ( pPoller->pfnCallback ) {
-			pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+	// 分发所有完成事件
+	for ( ULONG i = 0; i < iRemoved; i++ ) {
+		LPOVERLAPPED pOverlapped = aEntries[i].lpOverlapped;
+		DWORD iBytesTransferred = aEntries[i].dwNumberOfBytesTransferred;
+		
+		// Wakeup 信号
+		if ( !pOverlapped ) continue;
+		
+		__xrt_iocp_op* pOp = (__xrt_iocp_op*)pOverlapped;
+		if ( !pOp->bInUse ) continue;
+		
+		xnetconn* pConn = pOp->pConn;
+		
+		// AcceptEx 完成
+		if ( pOp->iOpType == __XRT_POLL_OP_ACCEPT ) {
+			if ( pOp->hAcceptSocket != INVALID_SOCKET && pOp->hAcceptSocket != 0 ) {
+				// AcceptEx 成功: 从缓冲区提取地址
+				if ( pOp->pAcceptConn ) {
+					pOp->pAcceptConn->hSocket = pOp->hAcceptSocket;
+					pOp->pAcceptConn->iType = 0;  // TCP
+					
+					// 用 GetAcceptExSockaddrs 提取地址
+					if ( pPoller->pfnGetAcceptExSockAddrs ) {
+						struct sockaddr* pLocal = NULL;
+						struct sockaddr* pRemote = NULL;
+						int iLocalLen = 0, iRemoteLen = 0;
+						pPoller->pfnGetAcceptExSockAddrs(
+							pOp->aRecvBuf, 0,
+							sizeof(struct sockaddr_in) + 16,
+							sizeof(struct sockaddr_in) + 16,
+							&pLocal, &iLocalLen,
+							&pRemote, &iRemoteLen
+						);
+						if ( pRemote ) {
+							xrtNetAddrFromSockAddr(&pOp->pAcceptConn->tRemoteAddr, (struct sockaddr_in*)pRemote);
+						}
+					}
+					
+					// 继承监听 socket 的上下文
+					setsockopt(pOp->hAcceptSocket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+						(char*)&pConn->hSocket, sizeof(pConn->hSocket));
+				}
+				pOp->hAcceptSocket = INVALID_SOCKET;  // 所有权转移
+			}
+			
+			if ( pPoller->pfnCallback ) {
+				// 继承监听 socket 的 pUserData 用于事件路由
+				if ( pOp->pAcceptConn && pConn ) {
+					pOp->pAcceptConn->pUserData = pConn->pUserData;
+				}
+				pPoller->pfnCallback(pPoller, pOp->pAcceptConn ? pOp->pAcceptConn : pConn,
+					XRT_POLL_ACCEPT, NULL, 0);
+			}
+			__xrt_iocp_free_op(pPoller, pOp);
+			continue;
 		}
-		pOp->bInUse = false;
-		return XRT_NET_CLOSED;
+		
+		// 连接关闭
+		if ( iBytesTransferred == 0 ) {
+			if ( pPoller->pfnCallback ) {
+				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+			}
+			__xrt_iocp_free_op(pPoller, pOp);
+			continue;
+		}
+		
+		// 分发 RECV / SEND
+		switch ( pOp->iOpType ) {
+			case __XRT_POLL_OP_RECV:
+				if ( pPoller->pfnCallback ) {
+					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)iBytesTransferred);
+				}
+				break;
+			
+			case __XRT_POLL_OP_SEND:
+				if ( pPoller->pfnCallback ) {
+					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)iBytesTransferred);
+				}
+				break;
+		}
+		
+		__xrt_iocp_free_op(pPoller, pOp);
 	}
 	
-	// 分发事件
-	switch ( pOp->iOpType ) {
-		case __XRT_POLL_OP_RECV:
-			if ( pPoller->pfnCallback ) {
-				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)iBytesTransferred);
-			}
-			break;
-		
-		case __XRT_POLL_OP_SEND:
-			if ( pPoller->pfnCallback ) {
-				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)iBytesTransferred);
-			}
-			break;
-		
-		case __XRT_POLL_OP_ACCEPT:
-			if ( pPoller->pfnCallback ) {
-				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_ACCEPT, NULL, 0);
-			}
-			break;
-	}
-	
-	pOp->bInUse = false;
 	return XRT_NET_OK;
 }
 
@@ -302,6 +484,7 @@ XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
 
 #include <sys/syscall.h>
 #include <sys/mman.h>
+#include <sys/eventfd.h>
 #include <linux/io_uring.h>
 
 #define __XRT_URING_ENTRIES  256
@@ -345,8 +528,12 @@ typedef struct {
 	xnetconn* pConn;
 	xnetconn* pAcceptConn;
 	char aRecvBuf[__XRT_POLL_RECV_SIZE];
+	char* pDynamicBuf;           // 动态发送缓冲区 (>8KB)
+	bool bDynamicBuf;
 	int iOpType;
 	bool bInUse;
+	int iNextFree;               // 空闲链表
+	ptr pOpUserData;             // per-operation 用户数据
 	struct sockaddr_in tAcceptAddr;
 	socklen_t iAcceptAddrLen;
 } __xrt_uring_op;
@@ -359,6 +546,8 @@ struct xrt_net_poller {
 	__xrt_uring_op* pOps;
 	int iOpCount;
 	int iOpCapacity;
+	int iFreeHead;                // 空闲链表头
+	unsigned iPendingSQE;         // 待提交的 SQE 计数
 	int iWakeupFd;                // eventfd 用于唤醒
 	xpoll_fn pfnCallback;
 	ptr pUserData;
@@ -366,28 +555,53 @@ struct xrt_net_poller {
 	pthread_mutex_t tLock;
 };
 
+// O(1) 操作池分配
 static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 {
 	pthread_mutex_lock(&pPoller->tLock);
 	
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( !pPoller->pOps[i].bInUse ) {
-			pPoller->pOps[i].bInUse = true;
-			pthread_mutex_unlock(&pPoller->tLock);
-			return &pPoller->pOps[i];
-		}
+	if ( pPoller->iFreeHead >= 0 ) {
+		int iIdx = pPoller->iFreeHead;
+		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
+		pPoller->iFreeHead = pOp->iNextFree;
+		pOp->bInUse = true;
+		pOp->iNextFree = -1;
+		pOp->pDynamicBuf = NULL;
+		pOp->bDynamicBuf = false;
+		pOp->pOpUserData = NULL;
+		pthread_mutex_unlock(&pPoller->tLock);
+		return pOp;
 	}
 	
 	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
-		__xrt_uring_op* pOp = &pPoller->pOps[pPoller->iOpCount++];
+		int iIdx = pPoller->iOpCount++;
+		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
 		memset(pOp, 0, sizeof(__xrt_uring_op));
 		pOp->bInUse = true;
+		pOp->iNextFree = -1;
 		pthread_mutex_unlock(&pPoller->tLock);
 		return pOp;
 	}
 	
 	pthread_mutex_unlock(&pPoller->tLock);
 	return NULL;
+}
+
+// O(1) 操作池释放
+static void __xrt_uring_free_op(xnetpoller* pPoller, __xrt_uring_op* pOp)
+{
+	if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
+		xrtFree(pOp->pDynamicBuf);
+		pOp->pDynamicBuf = NULL;
+	}
+	pOp->bDynamicBuf = false;
+	pOp->bInUse = false;
+	
+	pthread_mutex_lock(&pPoller->tLock);
+	int iIdx = (int)(pOp - pPoller->pOps);
+	pOp->iNextFree = pPoller->iFreeHead;
+	pPoller->iFreeHead = iIdx;
+	pthread_mutex_unlock(&pPoller->tLock);
 }
 
 static struct io_uring_sqe* __xrt_uring_get_sqe(xnetpoller* pPoller)
@@ -414,6 +628,19 @@ static void __xrt_uring_submit_sqe(xnetpoller* pPoller)
 	
 	pSQ->pArray[iTail & iMask] = iTail & iMask;
 	__atomic_store_n(pSQ->pTail, iTail + 1, __ATOMIC_RELEASE);
+	pPoller->iPendingSQE++;
+}
+
+// 批量提交所有待提交 SQE
+static xnet_result __xrt_uring_flush(xnetpoller* pPoller)
+{
+	if ( pPoller->iPendingSQE == 0 ) return XRT_NET_OK;
+	
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, pPoller->iPendingSQE, 0, 0, NULL);
+	pPoller->iPendingSQE = 0;
+	
+	if ( iRet < 0 ) return XRT_NET_ERROR;
+	return XRT_NET_OK;
 }
 
 XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
@@ -490,6 +717,9 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 		return NULL;
 	}
 	
+	pPoller->iFreeHead = -1;
+	pPoller->iPendingSQE = 0;
+	
 	// 创建 eventfd 用于唤醒
 	pPoller->iWakeupFd = eventfd(0, EFD_NONBLOCK);
 	
@@ -506,6 +736,11 @@ XXAPI void xrtPollDestroy(xnetpoller* pPoller)
 	if ( !pPoller ) return;
 	
 	if ( pPoller->pOps ) {
+		for ( int i = 0; i < pPoller->iOpCount; i++ ) {
+			if ( pPoller->pOps[i].bDynamicBuf && pPoller->pOps[i].pDynamicBuf ) {
+				xrtFree(pPoller->pOps[i].pDynamicBuf);
+			}
+		}
 		xrtFree(pPoller->pOps);
 	}
 	
@@ -518,7 +753,6 @@ XXAPI void xrtPollDestroy(xnetpoller* pPoller)
 		munmap(pPoller->tCQ.pRingPtr, pPoller->tCQ.iRingSize);
 	}
 	if ( pPoller->tSQ.pSQEs && (void*)pPoller->tSQ.pSQEs != MAP_FAILED ) {
-		// SQEs 的大小需要重新计算，这里用近似值
 		munmap(pPoller->tSQ.pSQEs, __XRT_URING_ENTRIES * sizeof(struct io_uring_sqe));
 	}
 	if ( pPoller->tSQ.pRingPtr && pPoller->tSQ.pRingPtr != MAP_FAILED ) {
@@ -547,7 +781,6 @@ XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
 	pthread_mutex_lock(&pPoller->tLock);
 	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
 		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
-			// 提交 cancel 请求
 			struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 			if ( pSQE ) {
 				pSQE->opcode = IORING_OP_ASYNC_CANCEL;
@@ -560,7 +793,7 @@ XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
 	pthread_mutex_unlock(&pPoller->tLock);
 	
 	// 提交取消请求
-	__xrt_io_uring_enter(pPoller->iFd, 1, 0, IORING_ENTER_GETEVENTS, NULL);
+	__xrt_uring_flush(pPoller);
 	
 	return XRT_NET_OK;
 }
@@ -574,12 +807,13 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 	
 	pOp->pConn = pConn;
 	pOp->iOpType = __XRT_POLL_OP_RECV;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	pthread_mutex_lock(&pPoller->tLock);
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 	if ( !pSQE ) {
-		pOp->bInUse = false;
 		pthread_mutex_unlock(&pPoller->tLock);
+		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -592,12 +826,7 @@ XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
 	__xrt_uring_submit_sqe(pPoller);
 	pthread_mutex_unlock(&pPoller->tLock);
 	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
-	if ( iRet < 0 ) {
-		pOp->bInUse = false;
-		return XRT_NET_ERROR;
-	}
-	
+	// 不立即提交, 等 PollWait 批量提交
 	return XRT_NET_OK;
 }
 
@@ -608,42 +837,48 @@ XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const ch
 	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
 	if ( !pOp ) return XRT_NET_ERROR;
 	
-	// 复制数据解决生命周期问题
-	size_t iCopyLen = (iLen > __XRT_POLL_RECV_SIZE) ? __XRT_POLL_RECV_SIZE : iLen;
-	memcpy(pOp->aRecvBuf, pData, iCopyLen);
+	char* pBuf;
+	if ( iLen > __XRT_POLL_RECV_SIZE ) {
+		pOp->pDynamicBuf = (char*)xrtMalloc(iLen);
+		if ( !pOp->pDynamicBuf ) {
+			__xrt_uring_free_op(pPoller, pOp);
+			return XRT_NET_ERROR;
+		}
+		pOp->bDynamicBuf = true;
+		memcpy(pOp->pDynamicBuf, pData, iLen);
+		pBuf = pOp->pDynamicBuf;
+	} else {
+		memcpy(pOp->aRecvBuf, pData, iLen);
+		pBuf = pOp->aRecvBuf;
+	}
 	
 	pOp->pConn = pConn;
 	pOp->iOpType = __XRT_POLL_OP_SEND;
+	pOp->pOpUserData = pConn->pUserData;
 	
 	pthread_mutex_lock(&pPoller->tLock);
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 	if ( !pSQE ) {
-		pOp->bInUse = false;
 		pthread_mutex_unlock(&pPoller->tLock);
+		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
 	pSQE->opcode = IORING_OP_SEND;
 	pSQE->fd = pConn->hSocket;
-	pSQE->addr = (unsigned long long)(uintptr_t)pOp->aRecvBuf;
-	pSQE->len = (unsigned)iCopyLen;
+	pSQE->addr = (unsigned long long)(uintptr_t)pBuf;
+	pSQE->len = (unsigned)iLen;
 	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
 	
 	__xrt_uring_submit_sqe(pPoller);
 	pthread_mutex_unlock(&pPoller->tLock);
-	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
-	if ( iRet < 0 ) {
-		pOp->bInUse = false;
-		return XRT_NET_ERROR;
-	}
 	
 	return XRT_NET_OK;
 }
 
 XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
 {
-	if ( !pPoller || !pServer || !pClient ) return XRT_NET_ERROR;
+	if ( !pPoller || !pServer ) return XRT_NET_ERROR;
 	
 	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
 	if ( !pOp ) return XRT_NET_ERROR;
@@ -652,12 +887,13 @@ XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnet
 	pOp->pAcceptConn = pClient;
 	pOp->iOpType = __XRT_POLL_OP_ACCEPT;
 	pOp->iAcceptAddrLen = sizeof(struct sockaddr_in);
+	pOp->pOpUserData = pServer->pUserData;
 	
 	pthread_mutex_lock(&pPoller->tLock);
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
 	if ( !pSQE ) {
-		pOp->bInUse = false;
 		pthread_mutex_unlock(&pPoller->tLock);
+		__xrt_uring_free_op(pPoller, pOp);
 		return XRT_NET_ERROR;
 	}
 	
@@ -670,18 +906,15 @@ XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnet
 	__xrt_uring_submit_sqe(pPoller);
 	pthread_mutex_unlock(&pPoller->tLock);
 	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 1, 0, 0, NULL);
-	if ( iRet < 0 ) {
-		pOp->bInUse = false;
-		return XRT_NET_ERROR;
-	}
-	
 	return XRT_NET_OK;
 }
 
 XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 {
 	if ( !pPoller ) return XRT_NET_ERROR;
+	
+	// 批量提交所有待提交 SQE
+	__xrt_uring_flush(pPoller);
 	
 	// 等待至少一个完成事件
 	struct __kernel_timespec tTimeout;
@@ -723,10 +956,13 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 					pOp->pAcceptConn->hSocket = pCQE->res;
 					xrtNetAddrFromSockAddr(&pOp->pAcceptConn->tRemoteAddr, &pOp->tAcceptAddr);
 					pOp->pAcceptConn->iType = 0;  // TCP
+					// 继承监听 socket 的 pUserData 用于事件路由
+					pOp->pAcceptConn->pUserData = pOp->pConn->pUserData;
 					if ( pPoller->pfnCallback ) {
 						pPoller->pfnCallback(pPoller, pOp->pAcceptConn, XRT_POLL_ACCEPT, NULL, 0);
 					}
 				}
+				__xrt_uring_free_op(pPoller, pOp);
 			} else if ( pCQE->res <= 0 ) {
 				// 连接关闭或错误
 				if ( pCQE->res == 0 || pCQE->res == -ECONNRESET ) {
@@ -738,6 +974,7 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_ERROR, NULL, 0);
 					}
 				}
+				__xrt_uring_free_op(pPoller, pOp);
 			} else {
 				switch ( pOp->iOpType ) {
 					case __XRT_POLL_OP_RECV:
@@ -752,9 +989,8 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 						}
 						break;
 				}
+				__xrt_uring_free_op(pPoller, pOp);
 			}
-			
-			pOp->bInUse = false;
 		}
 		
 		iHead++;
