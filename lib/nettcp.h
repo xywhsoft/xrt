@@ -251,6 +251,11 @@ static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 	// 注册到 poller
 	xrtPollAdd(pPoller, &pSlot->tConn, XRT_POLL_READ);
 	
+	// Accept后设置TCP_NODELAY（如果配置启用）
+	if ( pServer->tConfig.bNoDelay ) {
+		xrtSockSetNoDelay(&pSlot->tConn);
+	}
+	
 	// TLS 握手 (如果启用)
 	if ( pServer->bTlsEnabled ) {
 		pSlot->pTlsCtx = xrtTlsCreate(&pServer->tTlsConfig, true);
@@ -478,6 +483,17 @@ XXAPI void xrtTcpServerStop(xtcpserver* pServer)
 	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
 		__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[i];
 		if ( pSlot->bInUse ) {
+			// Stop前先PollRemove
+			xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
+			xrtPollRemove(pPoller, &pSlot->tConn);
+			
+			// Graceful Shutdown
+			#if defined(_WIN32) || defined(_WIN64)
+				shutdown(pSlot->tConn.hSocket, SD_SEND);
+			#else
+				shutdown(pSlot->tConn.hSocket, SHUT_WR);
+			#endif
+			
 			if ( pServer->tEvents.OnClose ) {
 				pServer->tEvents.OnClose(pServer, &pSlot->tConn);
 			}
@@ -749,8 +765,10 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		FD_ZERO(&tWriteSet);
 		FD_SET(pClient->tConn.hSocket, &tWriteSet);
 		struct timeval tTimeout;
-		tTimeout.tv_sec = 5;
-		tTimeout.tv_usec = 0;
+		int iTimeoutMs = pClient->tConfig.iConnectTimeoutMs > 0 ? 
+			pClient->tConfig.iConnectTimeoutMs : 5000;
+		tTimeout.tv_sec = iTimeoutMs / 1000;
+		tTimeout.tv_usec = (iTimeoutMs % 1000) * 1000;
 		int iSelRes = select((int)pClient->tConn.hSocket + 1, NULL, &tWriteSet, NULL, &tTimeout);
 		if ( iSelRes <= 0 ) {
 			xrtSockClose(&pClient->tConn);
@@ -771,7 +789,10 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		
 		xnet_result iTlsRes;
 		int iRetries = 0;
+		int iMaxRetries = (pClient->tConfig.iConnectTimeoutMs > 0 ? 
+			pClient->tConfig.iConnectTimeoutMs : 5000) / 100;  // 100ms per retry
 		while ( (iTlsRes = xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn)) == XRT_NET_AGAIN ) {
+			// 发送 TLS 输出
 			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
 				size_t iSent = 0;
 				xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
@@ -779,19 +800,24 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 				if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
 			}
 			
+			// select 等待事件驱动，替代 Sleep(10)
+			fd_set tReadSet, tWriteSet;
+			FD_ZERO(&tReadSet); FD_ZERO(&tWriteSet);
+			FD_SET(pClient->tConn.hSocket, &tReadSet);
+			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
+				FD_SET(pClient->tConn.hSocket, &tWriteSet);
+			}
+			struct timeval tSelTimeout = {0, 100000};  // 100ms
+			select((int)pClient->tConn.hSocket + 1, &tReadSet, 
+				pClient->pTlsCtx->tSendBuf.iSize > 0 ? &tWriteSet : NULL, NULL, &tSelTimeout);
+			
 			iRetries++;
-			if ( iRetries > 500 ) {
+			if ( iRetries > iMaxRetries ) {
 				xrtTlsDestroy(pClient->pTlsCtx);
 				pClient->pTlsCtx = NULL;
 				xrtSockClose(&pClient->tConn);
 				return XRT_NET_TIMEOUT;
 			}
-			
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(10);
-			#else
-				usleep(10000);
-			#endif
 		}
 		
 		if ( iTlsRes != XRT_NET_OK ) {

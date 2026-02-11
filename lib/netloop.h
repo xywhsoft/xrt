@@ -85,7 +85,15 @@ XXAPI void xrtEventLoopRun(xeventloop* pLoop)
 	if ( !pLoop ) return;
 	pLoop->bRunning = true;
 	while ( pLoop->bRunning ) {
-		xrtPollWait(pLoop->pPoller, pLoop->iPollTimeoutMs);
+		xnet_result iRes = xrtPollWait(pLoop->pPoller, pLoop->iPollTimeoutMs);
+		if ( iRes == XRT_NET_ERROR ) {
+			// 防止 busy-loop，出错时短暂休眠
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(1);
+			#else
+				usleep(1000);
+			#endif
+		}
 	}
 }
 

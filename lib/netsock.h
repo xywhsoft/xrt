@@ -218,8 +218,16 @@ XXAPI xnet_result xrtSockSetKeepAlive(xnetconn* pConn, int iIdleSec, int iInterv
 		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
 			return XRT_NET_ERROR;
 		}
-		// Windows: 使用 tcp_keepalive 结构 (需要 WSAIoctl)
-		// 简化版本只启用 keepalive
+		// Windows: 使用 SIO_KEEPALIVE_VALS 配置完整参数
+		if ( iIdleSec > 0 || iIntervalSec > 0 ) {
+			struct tcp_keepalive tKA;
+			tKA.onoff = 1;
+			tKA.keepalivetime = (iIdleSec > 0 ? iIdleSec : 7200) * 1000;  // 默认7200秒
+			tKA.keepaliveinterval = (iIntervalSec > 0 ? iIntervalSec : 75) * 1000;  // 默认75秒
+			DWORD dwRet;
+			WSAIoctl(pConn->hSocket, SIO_KEEPALIVE_VALS,
+				&tKA, sizeof(tKA), NULL, 0, &dwRet, NULL, NULL);
+		}
 	#else
 		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, &iOpt, sizeof(iOpt)) != 0 ) {
 			return XRT_NET_ERROR;

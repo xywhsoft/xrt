@@ -257,15 +257,7 @@ XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
 {
 	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
 	
-	EnterCriticalSection(&pPoller->tLock);
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
-			// CancelIoEx 取消该 socket 上的所有 IO
-			break;
-		}
-	}
-	LeaveCriticalSection(&pPoller->tLock);
-	
+	// 直接调用 CancelIoEx 取消该 socket 上的所有 IO
 	CancelIoEx((HANDLE)pConn->hSocket, NULL);
 	
 	return XRT_NET_OK;
@@ -464,13 +456,16 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 			continue;
 		}
 		
-		// 连接关闭
-		if ( iBytesTransferred == 0 ) {
-			if ( pPoller->pfnCallback ) {
-				pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+		// 连接关闭 - 仅TCP RECV 0字节才视为关闭
+		if ( iBytesTransferred == 0 && pOp->iOpType == __XRT_POLL_OP_RECV ) {
+			if ( pConn && pConn->iType == 0 ) {  // 仅TCP连接判close
+				if ( pPoller->pfnCallback ) {
+					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
+				}
+				__xrt_iocp_free_op(pPoller, pOp);
+				continue;
 			}
-			__xrt_iocp_free_op(pPoller, pOp);
-			continue;
+			// UDP 0字节是合法数据，走正常READ分发
 		}
 		
 		// 分发 RECV / SEND
@@ -585,6 +580,7 @@ struct xrt_net_poller {
 	int iFreeHead;                // 空闲链表头
 	unsigned iPendingSQE;         // 待提交的 SQE 计数
 	int iWakeupFd;                // eventfd 用于唤醒
+	uint64 iWakeupVal;            // eventfd 读缓冲区
 	xpoll_fn pfnCallback;
 	ptr pUserData;
 	size_t iRecvBufSize;
@@ -656,6 +652,20 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 	
 	pthread_mutex_unlock(&pPoller->tLock);
 	return NULL;
+}
+
+// 注册 wakeup read 事件
+static void __xrt_uring_post_wakeup_read(xnetpoller* pPoller)
+{
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( !pSQE ) return;
+	
+	pSQE->opcode = IORING_OP_READ;
+	pSQE->fd = pPoller->iWakeupFd;
+	pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->iWakeupVal;
+	pSQE->len = sizeof(uint64);
+	pSQE->user_data = 0;  // 特殊标记表示wakeup事件
+	__xrt_uring_submit_sqe(pPoller);
 }
 
 // O(1) 操作池释放
@@ -794,6 +804,9 @@ XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr p
 	// 创建 eventfd 用于唤醒
 	pPoller->iWakeupFd = eventfd(0, EFD_NONBLOCK);
 	
+	// 注册 wakeup read 事件
+	__xrt_uring_post_wakeup_read(pPoller);
+	
 	pthread_mutex_init(&pPoller->tLock, NULL);
 	pPoller->pfnCallback = pfnCallback;
 	pPoller->pUserData = pUserData;
@@ -849,22 +862,17 @@ XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
 {
 	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
 	
-	pthread_mutex_lock(&pPoller->tLock);
-	for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-		if ( pPoller->pOps[i].pConn == pConn && pPoller->pOps[i].bInUse ) {
-			struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-			if ( pSQE ) {
-				pSQE->opcode = IORING_OP_ASYNC_CANCEL;
-				pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->pOps[i];
-				__xrt_uring_submit_sqe(pPoller);
-			}
-			pPoller->pOps[i].bInUse = false;
-		}
+	// 直接使用 IORING_OP_ASYNC_CANCEL 取消该 socket 上的所有 IO
+	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+	if ( pSQE ) {
+		pSQE->opcode = IORING_OP_ASYNC_CANCEL;
+		pSQE->fd = pConn->hSocket;
+		#ifdef IORING_ASYNC_CANCEL_FD  // kernel 5.19+
+			pSQE->cancel_flags = IORING_ASYNC_CANCEL_FD;
+		#endif
+		__xrt_uring_submit_sqe(pPoller);
+		__xrt_uring_flush(pPoller);
 	}
-	pthread_mutex_unlock(&pPoller->tLock);
-	
-	// 提交取消请求
-	__xrt_uring_flush(pPoller);
 	
 	return XRT_NET_OK;
 }
@@ -987,16 +995,22 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 	// 批量提交所有待提交 SQE
 	__xrt_uring_flush(pPoller);
 	
-	// 等待至少一个完成事件
-	struct __kernel_timespec tTimeout;
-	struct __kernel_timespec* pTimeout = NULL;
+	// 投递 TIMEOUT SQE（替代io_uring_enter的timeout参数）
 	if ( iTimeoutMs >= 0 ) {
-		tTimeout.tv_sec = iTimeoutMs / 1000;
-		tTimeout.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
-		pTimeout = &tTimeout;
+		struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
+		if ( pSQE ) {
+			pSQE->opcode = IORING_OP_TIMEOUT;
+			struct __kernel_timespec tTimeoutSpec;
+			tTimeoutSpec.tv_sec = iTimeoutMs / 1000;
+			tTimeoutSpec.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
+			pSQE->addr = (unsigned long long)(uintptr_t)&tTimeoutSpec;
+			pSQE->len = 1;  // 等到 1 个事件或超时
+			__xrt_uring_submit_sqe(pPoller);
+		}
 	}
 	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, 0, 1, IORING_ENTER_GETEVENTS, pTimeout);
+	// 不带超时调用 io_uring_enter
+	int iRet = __xrt_io_uring_enter(pPoller->iFd, 0, 1, IORING_ENTER_GETEVENTS, NULL);
 	if ( iRet < 0 ) {
 		if ( errno == ETIME || errno == EINTR ) {
 			return XRT_NET_TIMEOUT;
@@ -1017,6 +1031,14 @@ XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
 	
 	while ( iHead != iTail ) {
 		struct io_uring_cqe* pCQE = &pCQ->pCQEs[iHead & iMask];
+		
+		// 处理 wakeup 事件
+		if ( pCQE->user_data == 0 ) {
+			__xrt_uring_post_wakeup_read(pPoller);  // 重新投递wakeup read
+			iHead++;
+			continue;
+		}
+		
 		__xrt_uring_op* pOp = (__xrt_uring_op*)(uintptr_t)pCQE->user_data;
 		
 		if ( pOp && pOp->bInUse ) {
