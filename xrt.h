@@ -132,9 +132,19 @@
 				#define SO_UPDATE_ACCEPT_CONTEXT 0x700B
 			#endif
 			
+			#ifndef SIO_KEEPALIVE_VALS
+				#define SIO_KEEPALIVE_VALS 0x98000004
+			#endif
+			
+			struct tcp_keepalive {
+				ULONG onoff;
+				ULONG keepalivetime;
+				ULONG keepaliveinterval;
+			};
+			
 			const char* WSAAPI inet_ntop(int af, const void* src, char* dst, int size);
 			#define InetNtopA inet_ntop
-			
+					
 			BOOL WINAPI CancelIoEx(HANDLE hFile, LPOVERLAPPED lpOverlapped);
 		#endif
 	#else
@@ -1428,7 +1438,20 @@
 		size_t iSendBufSize;    // 默认 8192
 		int iMaxClients;        // 最大客户端数（0=不限）
 		int iPollTimeoutMs;     // 轮询超时(毫秒)
+		int iConnectTimeoutMs;  // 连接超时(毫秒)，默认 5000
+		bool bNoDelay;          // TCP_NODELAY，默认 true
 	} xnetconfig;
+	
+	/* 初始化 xnetconfig 的默认值 */
+	static void xrtNetConfigInit(xnetconfig* pConfig)
+	{
+		pConfig->iRecvBufSize = 8192;
+		pConfig->iSendBufSize = 8192;
+		pConfig->iMaxClients = 0;
+		pConfig->iPollTimeoutMs = 1000;
+		pConfig->iConnectTimeoutMs = 5000;
+		pConfig->bNoDelay = true;
+	}
 	
 	/* ---- TLS 上下文 (不透明) ---- */
 	typedef struct xrt_tls_context xtlsctx;

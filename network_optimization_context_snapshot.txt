@@ -1,0 +1,160 @@
+==========================================
+XRT 网络库优化上下文快照
+创建时间: 2025-04-05
+==========================================
+
+【项目状态】
+已完成: Round 1 全面事件驱动重构 (11个步骤)
+进行中: Round 2 深度优化 (16个问题待解决)
+
+【Round 1 成果回顾】
+架构升级:
+- 引入 xeventloop 事件循环统一管理 IO
+- 基于 IOCP/io_uring 的完成端口模型
+- 双模式 API: 简易版(内部线程) + 高级版(共享事件循环)
+- 事件路由机制: xnetconn->pUserData -> __xrt_conn_handler
+
+性能提升:
+- 操作池空闲链表 O(1) 分配/释放
+- IOCP 批量收割 GetQueuedCompletionStatusEx
+- io_uring 批量 SQE 提交
+- AcceptEx 异步 accept
+- 环形缓冲区 (2的幂 + 位掩码)
+- 大消息动态缓冲区 (>8KB)
+
+模块重写:
+- netsock.h: 环形缓冲区 + 线程安全修复
+- netpoll.h: 全面升级 IO 模型
+- netloop.h: 新建事件循环
+- nettcp.h: 完全重写 TCP 服务器/客户端
+- netudp.h: 重写 UDP 服务器/客户端
+- xrt.h: 新增类型定义和 API 声明
+
+【当前发现的 16 个优化点】
+
+--- P0 关键问题 (4项) ---
+P0.1 io_uring Wakeup 机制无效
+- 问题: eventfd 创建但未注册到 io_uring
+- 后果: Linux 下 xrtEventLoopStop() 无法及时唤醒
+- 位置: netpoll.h L724, L1004
+
+P0.2 IOCP 0 字节完成事件误判
+- 问题: UDP 0 字节被错误判定为连接关闭
+- 后果: UDP 通信异常终止
+- 位置: netpoll.h L432
+
+P0.3 操作池巨额内存浪费
+- 问题: 固定 calloc(4096, sizeof(op)) ≈ 32MB
+- 后果: 内存浪费 + 页面触碰开销
+- 位置: netpoll.h L164
+
+P0.4 TLS 客户端握手 Sleep(10) 轮询
+- 问题: 最坏等 5 秒，每 10ms 轮询
+- 后果: 握手延迟高，CPU 空转
+- 位置: nettcp.h L774
+
+--- P1 性能优化 (4项) ---
+P1.5 PollRemove 线性扫描 O(n)
+P1.6 TCP 未默认启用 NODELAY
+P1.7 xnetbuf Consume memmove 瓶颈
+P1.8 io_uring 超时兼容性
+
+--- P2 健壮性增强 (5项) ---
+P2.9 Stop 未先 PollRemove
+P2.10 Windows KeepAlive 参数缺失
+P2.11 连接超时硬编码
+P2.12 无 Graceful Shutdown
+P2.13 UDP Ex 模式无远端地址
+
+--- P3 增强项 (3项) ---
+P3.14 操作池无动态扩容上限
+P3.15 SO_RCVBUF/SNDBUF 未配置
+P3.16 HTTP Client 同步阻塞模型
+
+【实施计划概览 (12步)】
+
+Step 1: xrt.h — 扩展配置 + TCC 兼容
+  - 新增 iConnectTimeoutMs, bNoDelay
+  - TCC 兼容: SIO_KEEPALIVE_VALS, tcp_keepalive
+
+Step 2: netpoll.h — 操作池动态扩容 (P0.3)
+  - 初始 64，满时 2x 扩容至 4096
+
+Step 3: netpoll.h — IOCP 0 字节修复 (P0.2)
+  - 仅 TCP RECV 才判 close
+
+Step 4: netpoll.h — PollRemove 去线性扫描 (P1.5)
+  - 直接调 CancelIoEx / IORING_OP_ASYNC_CANCEL
+
+Step 5: netpoll.h — io_uring Wakeup 修复 (P0.1)
+  - 用 IORING_OP_READ 注册 eventfd
+
+Step 6: netpoll.h — io_uring 超时兼容 (P1.8)
+  - 改用 IORING_OP_TIMEOUT SQE
+
+Step 7: netsock.h — Windows KeepAlive 完整配置 (P2.10)
+  - 用 SIO_KEEPALIVE_VALS 配置参数
+
+Step 8: nettcp.h — TCP 增强 (P1.6, P2.9, P2.11, P2.12)
+  - Accept 后设 NoDelay
+  - 连接超时可配置
+  - Graceful Shutdown
+  - Stop 前先 PollRemove
+
+Step 9: nettcp.h — TLS 握手去 Sleep (P0.4)
+  - 用 select 替代 Sleep(10) 轮询
+
+Step 10: netudp.h — Ex 模式远端地址支持 (P2.13)
+  - IOCP 用 WSARecvFrom
+  - io_uring 用 IORING_OP_RECVMSG
+
+Step 11: netloop.h + netsock.h — 小修
+  - EventLoop 防 busy-loop
+
+Step 12: 编译验证 + 测试
+
+【依赖关系】
+Step 1 → Steps 2-11 (提供新配置字段)
+Steps 2-11 可并行开发
+Step 12 依赖全部完成
+
+【文件变更清单】
+修改:
+- xrt.h
+- lib/netpoll.h
+- lib/nettcp.h
+- lib/netudp.h
+- lib/netsock.h
+- lib/netloop.h
+
+测试:
+- test/test_nettcp.h
+
+【编译命令】
+gcc -m64 -DDEBUG_TRACE test.c xrt.c -lWs2_32 -lIPHLPAPI -O0 -o test_run.exe
+tcc -m64 -shared xrt.c -std=c99 -DBUILD_DLL -o release/x64/xrt.dll
+
+【重点测试用例】
+- Test_TLS_Comprehensive() - TLS 握手改造验证
+- Test_NetTCPUDP() - TCP/UDP 功能验证
+- Linux 下 xrtEventLoopStop() 响应速度
+
+【注意事项】
+1. 所有改动保持向后兼容
+2. API 接口不变
+3. Linux 需 kernel 5.1+ (io_uring)
+4. Windows TCC 兼容性已保障
+5. P1.7 TLS xnetbuf 改 ringbuf 风险高，本轮不处理
+6. P3.16 HTTP 异步化 范围过大，需独立项目
+
+【相关文件位置】
+详细实施计划: network_optimization_round2_spec.md
+当前上下文: network_optimization_context_snapshot.txt (本文件)
+代码基线: d:\git\xrt\
+测试入口: test.c (Test_TLS_Comprehensive 已启用)
+
+【下一步建议】
+按 Step 1-12 顺序实施，每步完成后运行测试验证。
+建议优先处理 P0 级问题，再处理 P1/P2。
+
+==========================================

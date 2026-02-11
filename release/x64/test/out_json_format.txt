@@ -1,0 +1,66 @@
+{
+	"logo":	{
+		"title":	"Pear Admin",
+		"image":	"admin/images/logo.png"
+	},
+	"theme":	{
+		"defaultColor":	"2",
+		"defaultMenu":	"dark-theme",
+		"defaultHeader":	"light-theme",
+		"banner":	false,
+		"allowCustom":	true
+	},
+	"header":	{
+		"message":	"admin/data/message.json"
+	},
+	"menu":	{
+		"async":	true,
+		"method":	"GET",
+		"data":	"admin/data/menu.json",
+		"select":	"10",
+		"collapse":	false,
+		"controlWidth":	500,
+		"control":	false,
+		"accordion":	true
+	},
+	"tab":	{
+		"keepState":	true,
+		"preload":	false,
+		"enable":	true,
+		"max":	"30",
+		"session":	true,
+		"index":	{
+			"href":	"view/console/console1.html",
+			"id":	"10",
+			"title":	"首页"
+		}
+	},
+	"other":	{
+		"footer":	false,
+		"autoHead":	false,
+		"keepLoad":	"1200"
+	},
+	"colors":	[
+		{
+			"id":	"1",
+			"color":	"#2d8cf0",
+			"second":	"#ecf5ff"
+		}, {
+			"id":	"2",
+			"color":	"#36b368",
+			"second":	"#f0f9eb"
+		}, {
+			"id":	"3",
+			"color":	"#f6ad55",
+			"second":	"#fdf6ec"
+		}, {
+			"id":	"4",
+			"color":	"#f56c6c",
+			"second":	"#fef0f0"
+		}, {
+			"id":	"5",
+			"color":	"#3963bc",
+			"second":	"#ecf5ff"
+		}
+	]
+}

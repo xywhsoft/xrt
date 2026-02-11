@@ -1,0 +1,95 @@
+==========================================
+XRT 网络库优化 - 快速恢复提示卡
+==========================================
+
+🎯【核心目标】
+完成 Round 2 深度优化，解决 16 个遗留问题
+
+📂【关键文件】
+1. network_optimization_round2_spec.md     ← 详细实施计划
+2. network_optimization_context_snapshot.txt ← 项目上下文
+3. RECOVERY_GUIDE.md                        ← 完整恢复指南
+4. test.c                                   ← 测试入口（TLS 测试已启用）
+
+📋【12步实施计划速查】
+
+Step 1: xrt.h 扩展配置字段
+  - 新增: iConnectTimeoutMs, bNoDelay
+  - TCC兼容: SIO_KEEPALIVE_VALS, tcp_keepalive
+
+Step 2: netpoll.h 操作池动态扩容 (P0.3)
+  - 初始64，满时2x扩容至4096
+  - 解决32MB固定内存浪费
+
+Step 3: netpoll.h IOCP 0字节修复 (P0.2)
+  - 仅TCP RECV才判close
+  - 修复UDP 0字节误判
+
+Step 4: netpoll.h PollRemove去扫描 (P1.5)
+  - 删除O(n)线性扫描
+  - 直接调CancelIoEx/ASYNC_CANCEL
+
+Step 5: netpoll.h io_uring wakeup (P0.1)
+  - 用IORING_OP_READ注册eventfd
+  - 解决Linux无法及时唤醒
+
+Step 6: netpoll.h io_uring超时 (P1.8)
+  - 改用IORING_OP_TIMEOUT
+  - 兼容kernel 5.1+
+
+Step 7: netsock.h Windows KeepAlive (P2.10)
+  - 用SIO_KEEPALIVE_VALS配置参数
+  - 替代默认7200秒idle
+
+Step 8: nettcp.h TCP增强 (P1.6,P2.9,P2.11,P2.12)
+  - Accept后设NoDelay
+  - 连接超时可配置
+  - Graceful Shutdown
+  - Stop前先PollRemove
+
+Step 9: nettcp.h TLS去Sleep (P0.4)
+  - 用select替代Sleep(10)轮询
+  - 握手延迟从5s降至秒级
+
+Step 10: netudp.h UDP远端地址 (P2.13) [可选]
+  - IOCP用WSARecvFrom
+  - io_uring用IORING_OP_RECVMSG
+
+Step 11: 小修优化
+  - EventLoop防busy-loop
+
+Step 12: 编译测试验证
+
+⚡【必测用例】
+✓ Test_TLS_Comprehensive()  - TLS握手改造验证
+✓ Test_NetTCPUDP()          - TCP/UDP功能验证
+✓ Linux xrtEventLoopStop()响应速度
+
+🔧【常用命令】
+# 编译
+gcc -m64 -DDEBUG_TRACE test.c xrt.c -lWs2_32 -lIPHLPAPI -O0 -o test_run.exe
+tcc -m64 -shared xrt.c -std=c99 -DBUILD_DLL -o release/x64/xrt.dll
+
+# 测试
+./test_run.exe
+
+# Git
+git add . && git commit -m "Step X: 说明"
+
+⚠️【注意事项】
+• 保持向后兼容，API不变
+• 每步完成后必须测试
+• Linux需kernel 5.1+ (io_uring)
+• Windows需支持TCC编译器
+• P1.7和P3.16本轮不处理
+
+✅【完成标志】
+• 12步全部完成
+• P0级问题全部解决
+• 两个核心测试通过
+• Linux/Windows均可正常编译运行
+
+📖【详细文档】
+完整实施细节请查看: network_optimization_round2_spec.md
+
+==========================================
