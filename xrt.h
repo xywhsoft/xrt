@@ -3343,8 +3343,7 @@
 	XXAPI bool xrtHttpGetFile(str sURL, str sFilePath, str sHeaders, xhttp_proc pProc);
 	
 	// POST 下载文件 - sHeaders 可为 NULL
-	XXAPI bool xrtHttpPostFile(str sURL, str sBody,
-		str sFilePath, str sHeaders, xhttp_proc pProc);
+	XXAPI bool xrtHttpPostFile(str sURL, str sBody, str sFilePath, str sHeaders, xhttp_proc pProc);
 	
 	// 释放响应对象
 	XXAPI void xrtHttpRespFree(xhttpresp pResp);
@@ -3368,12 +3367,10 @@
 	XXAPI void xrtHttpReqAddFormField(xhttpreq pReq, str sName, str sValue);
 	
 	// 添加 Multipart 文件
-	XXAPI void xrtHttpReqAddFormFile(xhttpreq pReq, str sFieldName,
-		str sFilePath, str sMimeType);
+	XXAPI void xrtHttpReqAddFormFile(xhttpreq pReq, str sFieldName, str sFilePath, str sMimeType);
 	
 	// 添加 Multipart 内存数据 (作为文件上传)
-	XXAPI void xrtHttpReqAddFormData(xhttpreq pReq, str sFieldName,
-		str sFileName, str pData, size_t iLen, str sMimeType);
+	XXAPI void xrtHttpReqAddFormData(xhttpreq pReq, str sFieldName, str sFileName, str pData, size_t iLen, str sMimeType);
 	
 	// 配置选项
 	XXAPI void xrtHttpReqSetTimeout(xhttpreq pReq, int iTimeoutSec);

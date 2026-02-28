@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 	// Test_Hash(xCore);
 	
 	/* 网络库测试 */
-	// Test_Network(xCore);
+	Test_Network(xCore);
 	
 	/* Crypto 加密算法库测试 */
 	// Test_Crypto(xCore);
@@ -220,7 +220,7 @@ int main(int argc, char** argv)
 	// Test_HTTP();
 	
 	/* Coroutine 协程库测试 */
-	Test_Coroutine(xCore);
+	// Test_Coroutine(xCore);
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
