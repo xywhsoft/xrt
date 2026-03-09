@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-09 21:53:39
+    Generated: 2026-03-09 22:21:10
 
     MIT License
 
@@ -3968,8 +3968,6 @@
 // ========================================
 
 
-// 临时启用 TLS 调试
-#define DEBUG_TRACE
 // (skipped include: #include "xrt.h")
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
