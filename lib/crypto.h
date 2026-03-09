@@ -6,14 +6,141 @@
 	Crypto - 加密算法模块 [Ver1.0]
 	
 	基于 mongoose 内建 TLS 的加密原语移植
-	提供 SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
+	提供 SHA-1, SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
 	
 	算法来源与授权：
+		SHA-1:              原创实现 (RFC 3174, Public Domain)
 		SHA-256:            Brad Conte (Public Domain)
 		ChaCha20-Poly1305:  portable8439 (CC0-1.0) + poly1305-donna (Public Domain)
 		AES-128-GCM:        Steven M. Gibson / GRC.com (Public Domain)
 		X25519:             Mike Hamburg / STROBE (MIT License)
 */
+
+
+
+/* ============================== SHA-1 ============================== */
+
+// SHA-1 用于 WebSocket 握手 (RFC 6455)
+
+#define __XRT_SHA1_ROTL(n, x) (((x) << (n)) | ((x) >> (32 - (n))))
+
+static void __xrt_sha1_chunk(xsha1_ctx *pCtx)
+{
+	uint32 w[80];
+	uint32 a, b, c, d, e;
+	const uint8 *p = pCtx->buffer;
+	
+	// 载入消息块
+	for ( int i = 0; i < 16; i++ ) {
+		w[i] = ((uint32)p[0] << 24) | ((uint32)p[1] << 16) | ((uint32)p[2] << 8) | p[3];
+		p += 4;
+	}
+	
+	// 扩展
+	for ( int i = 16; i < 80; i++ ) {
+		w[i] = __XRT_SHA1_ROTL(1, w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16]);
+	}
+	
+	a = pCtx->state[0];
+	b = pCtx->state[1];
+	c = pCtx->state[2];
+	d = pCtx->state[3];
+	e = pCtx->state[4];
+	
+	for ( int i = 0; i < 80; i++ ) {
+		uint32 f, k;
+		if ( i < 20 ) {
+			f = (b & c) | ((~b) & d);
+			k = 0x5A827999;
+		} else if ( i < 40 ) {
+			f = b ^ c ^ d;
+			k = 0x6ED9EBA1;
+		} else if ( i < 60 ) {
+			f = (b & c) | (b & d) | (c & d);
+			k = 0x8F1BBCDC;
+		} else {
+			f = b ^ c ^ d;
+			k = 0xCA62C1D6;
+		}
+		uint32 temp = __XRT_SHA1_ROTL(5, a) + f + e + k + w[i];
+		e = d;
+		d = c;
+		c = __XRT_SHA1_ROTL(30, b);
+		b = a;
+		a = temp;
+	}
+	
+	pCtx->state[0] += a;
+	pCtx->state[1] += b;
+	pCtx->state[2] += c;
+	pCtx->state[3] += d;
+	pCtx->state[4] += e;
+}
+
+XXAPI void xrtSHA1Init(xsha1_ctx *pCtx)
+{
+	pCtx->len = 0;
+	pCtx->bits = 0;
+	pCtx->state[0] = 0x67452301;
+	pCtx->state[1] = 0xEFCDAB89;
+	pCtx->state[2] = 0x98BADCFE;
+	pCtx->state[3] = 0x10325476;
+	pCtx->state[4] = 0xC3D2E1F0;
+}
+
+XXAPI void xrtSHA1Update(xsha1_ctx *pCtx, const ptr pData, size_t iLen)
+{
+	const uint8 *pBytes = (const uint8 *)pData;
+	pCtx->bits += iLen * 8;
+	while ( iLen-- ) {
+		pCtx->buffer[pCtx->len++] = *pBytes++;
+		if ( pCtx->len == 64 ) {
+			__xrt_sha1_chunk(pCtx);
+			pCtx->len = 0;
+		}
+	}
+}
+
+XXAPI void xrtSHA1Final(xsha1_ctx *pCtx, uint8 *pOut)
+{
+	uint32 i = pCtx->len;
+	
+	// 填充
+	pCtx->buffer[i++] = 0x80;
+	if ( i > 56 ) {
+		while ( i < 64 ) pCtx->buffer[i++] = 0;
+		__xrt_sha1_chunk(pCtx);
+		i = 0;
+	}
+	while ( i < 56 ) pCtx->buffer[i++] = 0;
+	
+	// 长度 (big-endian)
+	pCtx->buffer[56] = (uint8)(pCtx->bits >> 56);
+	pCtx->buffer[57] = (uint8)(pCtx->bits >> 48);
+	pCtx->buffer[58] = (uint8)(pCtx->bits >> 40);
+	pCtx->buffer[59] = (uint8)(pCtx->bits >> 32);
+	pCtx->buffer[60] = (uint8)(pCtx->bits >> 24);
+	pCtx->buffer[61] = (uint8)(pCtx->bits >> 16);
+	pCtx->buffer[62] = (uint8)(pCtx->bits >> 8);
+	pCtx->buffer[63] = (uint8)(pCtx->bits);
+	__xrt_sha1_chunk(pCtx);
+	
+	// 输出 (big-endian)
+	for ( i = 0; i < 5; i++ ) {
+		pOut[i*4]     = (uint8)(pCtx->state[i] >> 24);
+		pOut[i*4 + 1] = (uint8)(pCtx->state[i] >> 16);
+		pOut[i*4 + 2] = (uint8)(pCtx->state[i] >> 8);
+		pOut[i*4 + 3] = (uint8)(pCtx->state[i]);
+	}
+}
+
+XXAPI void xrtSHA1(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	xsha1_ctx tCtx;
+	xrtSHA1Init(&tCtx);
+	xrtSHA1Update(&tCtx, pData, iLen);
+	xrtSHA1Final(&tCtx, pOut);
+}
 
 
 

@@ -30,6 +30,7 @@
 #include "test/test_nettls.h"
 #include "test/tls_comprehensive_test.h"
 #include "test/test_nethttp.h"
+#include "test/test_netws.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
 #include "test/test_array_ptr.h"
@@ -138,6 +139,9 @@ int main(int argc, char** argv)
 	
 	/* TLS 1.3 测试 */
 	Test_NetTLS(xCore);
+	
+	/* WebSocket 测试 */
+	Test_NetWS(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);

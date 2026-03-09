@@ -1404,6 +1404,14 @@
 		uint64 bits;
 	} xsha256_ctx;
 	
+	// SHA-1 上下文结构 (用于 WebSocket 握手等)
+	typedef struct {
+		uint32 state[5];
+		uint8 buffer[64];
+		uint32 len;
+		uint64 bits;
+	} xsha1_ctx;
+	
 	// SHA-512 上下文结构 (同时用作 SHA-384 上下文)
 	typedef struct {
 		uint64 state[8];
@@ -1417,6 +1425,12 @@
 	XXAPI void xrtSHA256Init(xsha256_ctx *pCtx);
 	XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen);
 	XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut);
+	
+	// SHA-1 哈希 (用于 WebSocket 握手)
+	XXAPI void xrtSHA1(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA1Init(xsha1_ctx *pCtx);
+	XXAPI void xrtSHA1Update(xsha1_ctx *pCtx, const ptr pData, size_t iLen);
+	XXAPI void xrtSHA1Final(xsha1_ctx *pCtx, uint8 *pOut);
 	
 	// SHA-384 哈希 (基于 SHA-512, 截取 48 字节)
 	XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut);
@@ -1557,6 +1571,47 @@
 		void (*OnError)(ptr pServer, xnetconn* pConn, int iErrorCode);
 	} xnetevents;
 	
+	/* ---- WebSocket 事件回调 ---- */
+	typedef struct {
+		void (*OnOpen)(ptr pOwner, xnetconn* pConn);
+		void (*OnMessage)(ptr pOwner, xnetconn* pConn, int iOpcode, const char* pData, size_t iLen);
+		void (*OnClose)(ptr pOwner, xnetconn* pConn, uint16 iCode, const char* sReason);
+		void (*OnPing)(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
+		void (*OnPong)(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
+		void (*OnError)(ptr pOwner, xnetconn* pConn, int iErrorCode);
+	} xwsevents;
+	
+	/* ---- WebSocket 配置 ---- */
+	typedef struct {
+		const char* sPath;          // 请求路径，默认 "/"
+		const char* sProtocol;      // 子协议，可选
+		const char* sOrigin;        // Origin 头，可选
+		int iMaxMessageSize;        // 最大消息大小，默认 1MB
+		int iPingIntervalSec;       // Ping 间隔秒数，0=禁用
+		int iHandshakeTimeoutSec;   // 握手超时，默认 10秒
+	} xwsconfig;
+	
+	/* ---- WebSocket 操作码 ---- */
+	#define XRT_WS_OP_CONTINUATION  0x00
+	#define XRT_WS_OP_TEXT          0x01
+	#define XRT_WS_OP_BINARY        0x02
+	#define XRT_WS_OP_CLOSE         0x08
+	#define XRT_WS_OP_PING          0x09
+	#define XRT_WS_OP_PONG          0x0A
+	
+	/* ---- WebSocket 关闭状态码 ---- */
+	#define XRT_WS_CLOSE_NORMAL     1000
+	#define XRT_WS_CLOSE_GOING_AWAY 1001
+	#define XRT_WS_CLOSE_PROTOCOL   1002
+	#define XRT_WS_CLOSE_INVALID    1003
+	#define XRT_WS_CLOSE_NO_STATUS  1005
+	#define XRT_WS_CLOSE_ABNORMAL   1006
+	#define XRT_WS_CLOSE_INVALID_DATA 1007
+	#define XRT_WS_CLOSE_POLICY     1008
+	#define XRT_WS_CLOSE_TOO_BIG    1009
+	#define XRT_WS_CLOSE_EXTENSION  1010
+	#define XRT_WS_CLOSE_UNEXPECTED 1011
+	
 	/* ---- 代理配置 ---- */
 	#define XRT_PROXY_NONE         0   // 无代理
 	#define XRT_PROXY_SOCKS5       1   // SOCKS5 代理
@@ -1626,6 +1681,10 @@
 	/* ---- UDP 服务器/客户端 (不透明) ---- */
 	typedef struct xrt_udp_server xudpserver;
 	typedef struct xrt_udp_client xudpclient;
+	
+	/* ---- WebSocket 服务器/客户端 (不透明) ---- */
+	typedef struct xrt_ws_server xwsserver;
+	typedef struct xrt_ws_client xwsclient;
 	
 	
 	
@@ -1891,6 +1950,41 @@
 	XXAPI xnet_result xrtUdpClientSendTo(xudpclient* pClient, const xnetaddr* pAddr, const char* pData, size_t iLen);
 	XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData);
 	XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient);
+	
+	
+	
+	/* ------------------------------------ WebSocket 服务器/客户端 ------------------------------------ */
+	
+	// WebSocket 客户端
+	XXAPI xwsclient* xrtWsClientCreate(const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI xwsclient* xrtWsClientCreateEx(xeventloop* pLoop, const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI void xrtWsClientDestroy(xwsclient* pClient);
+	XXAPI xnet_result xrtWsClientConnect(xwsclient* pClient);
+	XXAPI void xrtWsClientDisconnect(xwsclient* pClient);
+	XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
+	XXAPI bool xrtWsClientIsConnected(xwsclient* pClient);
+	XXAPI void xrtWsClientSetUserData(xwsclient* pClient, ptr pData);
+	XXAPI ptr xrtWsClientGetUserData(xwsclient* pClient);
+	
+	// WebSocket 服务器
+	XXAPI xwsserver* xrtWsServerCreate(const char* sIP, uint16 iPort, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI xwsserver* xrtWsServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI void xrtWsServerDestroy(xwsserver* pServer);
+	XXAPI xnet_result xrtWsServerStart(xwsserver* pServer);
+	XXAPI void xrtWsServerStop(xwsserver* pServer);
+	XXAPI xnet_result xrtWsServerEnableTLS(xwsserver* pServer, const xtlsconfig* pTlsConfig);
+	XXAPI xnet_result xrtWsServerSendText(xwsserver* pServer, int iClientId, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsServerSendBinary(xwsserver* pServer, int iClientId, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsServerPing(xwsserver* pServer, int iClientId, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsServerBroadcastText(xwsserver* pServer, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsServerBroadcastBinary(xwsserver* pServer, const char* pData, size_t iLen);
+	XXAPI void xrtWsServerDisconnect(xwsserver* pServer, int iClientId, uint16 iCode, const char* sReason);
+	XXAPI int xrtWsServerGetClientCount(xwsserver* pServer);
+	XXAPI void xrtWsServerSetUserData(xwsserver* pServer, ptr pData);
+	XXAPI ptr xrtWsServerGetUserData(xwsserver* pServer);
 	
 	
 	
