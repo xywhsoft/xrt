@@ -1,6 +1,26 @@
 LIBRARY xrt.dll
 
 EXPORTS
+bbre_builder_destroy
+bbre_builder_flags
+bbre_builder_init
+bbre_captures
+bbre_clone
+bbre_destroy
+bbre_find
+bbre_init
+bbre_init_pattern
+bbre_is_match
+bbre_set_builder_add
+bbre_set_builder_destroy
+bbre_set_builder_init
+bbre_set_clone
+bbre_set_destroy
+bbre_set_init
+bbre_set_init_patterns
+bbre_set_is_match
+bbre_set_matches
+bbre_version
 memmem
 u16len
 u32len

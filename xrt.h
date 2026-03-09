@@ -230,8 +230,11 @@
 
 // AVLTree依赖检查
 #if defined(XRT_NO_AVLTREE) && (!defined(XRT_NO_DICT) || !defined(XRT_NO_LIST))
-	#error "错误: AVLTree被禁用，但DICT/LIST模块需要它。请启用AVLTREE或禁用相关容器模块。"
+	#error "错误：AVLTree 被禁用，但 DICT/LIST 模块需要它。请启用AVLTREE 或禁用相关容器模块。"
 #endif
+
+// Regex 模块依赖检查（新增）
+// Regex 是独立模块，没有依赖关系，可以安全禁用
 
 // 内存管理层依赖检查
 #if defined(XRT_NO_BSMN) && !defined(XRT_NO_MEMPOOL_FS)
@@ -273,6 +276,7 @@
 	#define XRT_NO_JNUM
 	#define XRT_NO_JSON
 	#define XRT_NO_TEMPLATE
+	#define XRT_NO_REGEX		// 禁用正则表达式模块
 #endif
 
 
@@ -1694,7 +1698,92 @@
 	XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop);
 	
 	
+
+	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
 	
+#ifndef XRT_NO_REGEX
+	// bbre 错误码
+	#define BBRE_ERR_MEM   (-1)  // 内存不足
+	#define BBRE_ERR_PARSE (-2)  // 解析失败
+	#define BBRE_ERR_LIMIT (-3)  // 超出限制
+	
+	// 正则表达式标志
+	typedef enum bbre_flags {
+	  BBRE_FLAG_INSENSITIVE = 1,  // (?i) 不区分大小写
+	  BBRE_FLAG_MULTILINE = 2,    // (?m) 多行模式（^$匹配行首尾）
+	  BBRE_FLAG_DOTNEWLINE = 4,   // (?s) . 匹配换行符
+	  BBRE_FLAG_UNGREEDY = 8      // (?U) 量词变为非贪婪
+	} bbre_flags;
+	
+	// 内存分配器回调
+	typedef void *(*bbre_alloc_cb)(void *user, void *ptr, size_t prev, size_t next);
+	
+	typedef struct bbre_alloc {
+	  void *user;       // 用户上下文
+	  bbre_alloc_cb cb; // 分配器回调
+	} bbre_alloc;
+	
+	// 匹配跨度（用于捕获组）
+	typedef struct bbre_span {
+	  size_t begin;  // 起始位置
+	  size_t end;    // 结束位置
+	} bbre_span;
+	
+	// 前向声明
+	typedef struct bbre bbre;
+	typedef struct bbre_builder bbre_builder;
+	typedef struct bbre_set bbre_set;
+	typedef struct bbre_set_builder bbre_set_builder;
+	
+	// 快速创建 API（null-terminated 字符串）
+	XXAPI bbre *bbre_init_pattern(const char *pat_nt);
+	
+	// 完整初始化 API（从 builder 创建）
+	XXAPI int bbre_init(
+	  bbre **preg, const bbre_builder *build, const bbre_alloc *alloc);
+	
+	// 销毁 regex 对象
+	XXAPI void bbre_destroy(bbre *reg);
+	
+	// 匹配函数
+	XXAPI int bbre_is_match(bbre *reg, const char *text, size_t text_size);
+	XXAPI int bbre_find(
+	  bbre *reg, const char *text, size_t text_size, bbre_span *out_bounds);
+	XXAPI int bbre_captures(
+	  bbre *reg, const char *text, size_t text_size, bbre_span *out_captures,
+	  unsigned int out_captures_size);
+	
+	// Builder API（高级用法）
+	XXAPI int bbre_builder_init(
+	  bbre_builder **pbuild, const char *pat, size_t pat_size,
+	  const bbre_alloc *alloc);
+	XXAPI void bbre_builder_destroy(bbre_builder *build);
+	XXAPI void bbre_builder_flags(bbre_builder *build, bbre_flags flags);
+	
+	// 克隆 API（多线程安全）
+	XXAPI int bbre_clone(bbre **pout, const bbre *reg, const bbre_alloc *alloc);
+	
+	// bbre_set API（多模式匹配）
+	XXAPI int bbre_set_builder_init(bbre_set_builder **pbuild, const bbre_alloc *alloc);
+	XXAPI void bbre_set_builder_destroy(bbre_set_builder *build);
+	XXAPI int bbre_set_builder_add(bbre_set_builder *build, const bbre *reg);
+	XXAPI bbre_set *bbre_set_init_patterns(const char *const *ppats_nt, size_t num_pats);
+	XXAPI int bbre_set_init(
+	  bbre_set **pset, const bbre_set_builder *build, const bbre_alloc *alloc);
+	XXAPI void bbre_set_destroy(bbre_set *set);
+	XXAPI int bbre_set_is_match(bbre_set *set, const char *text, size_t text_size);
+	XXAPI int bbre_set_matches(
+	  bbre_set *set, const char *text, size_t text_size, unsigned int *out_idxs,
+	  unsigned int out_idxs_size, unsigned int *out_num_idxs);
+	XXAPI int bbre_set_clone(
+	  bbre_set **pout, const bbre_set *set, const bbre_alloc *alloc);
+	
+	// 版本号
+	XXAPI const char *bbre_version(void);
+#endif // XRT_NO_REGEX
+
+
+
 	/* ------------------------------------ TLS ------------------------------------ */
 	
 	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);

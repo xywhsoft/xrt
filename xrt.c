@@ -153,6 +153,10 @@ static int __xrt_RefCount = 0;  // 引用计数
 #include "lib/list.h"
 #endif
 
+#ifndef XRT_NO_REGEX
+#include "lib/regex.h"
+#endif
+
 #ifndef XRT_NO_VALUE
 #include "lib/value.h"
 #endif

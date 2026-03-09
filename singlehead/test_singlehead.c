@@ -5,6 +5,7 @@
 #define XRT_NO_TIME
 #define XRT_NO_FILE
 #define XRT_NO_THREAD
+#define XRT_NO_REGEX
 #define XRT_NO_COROUTINE
 #define XRT_NO_NETWORK
 #define XRT_NO_CRYPTO
