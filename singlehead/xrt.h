@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-09 18:59:25
+    Generated: 2026-03-09 21:09:45
 
     MIT License
 
@@ -1428,6 +1428,14 @@
 		uint64 bits;
 	} xsha256_ctx;
 	
+	// SHA-1 上下文结构 (用于 WebSocket 握手等)
+	typedef struct {
+		uint32 state[5];
+		uint8 buffer[64];
+		uint32 len;
+		uint64 bits;
+	} xsha1_ctx;
+	
 	// SHA-512 上下文结构 (同时用作 SHA-384 上下文)
 	typedef struct {
 		uint64 state[8];
@@ -1441,6 +1449,12 @@
 	XXAPI void xrtSHA256Init(xsha256_ctx *pCtx);
 	XXAPI void xrtSHA256Update(xsha256_ctx *pCtx, const ptr pData, size_t iLen);
 	XXAPI void xrtSHA256Final(xsha256_ctx *pCtx, uint8 *pOut);
+	
+	// SHA-1 哈希 (用于 WebSocket 握手)
+	XXAPI void xrtSHA1(const ptr pData, size_t iLen, uint8 *pOut);
+	XXAPI void xrtSHA1Init(xsha1_ctx *pCtx);
+	XXAPI void xrtSHA1Update(xsha1_ctx *pCtx, const ptr pData, size_t iLen);
+	XXAPI void xrtSHA1Final(xsha1_ctx *pCtx, uint8 *pOut);
 	
 	// SHA-384 哈希 (基于 SHA-512, 截取 48 字节)
 	XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut);
@@ -1581,6 +1595,83 @@
 		void (*OnError)(ptr pServer, xnetconn* pConn, int iErrorCode);
 	} xnetevents;
 	
+	/* ---- WebSocket 事件回调 ---- */
+	typedef struct {
+		void (*OnOpen)(ptr pOwner, xnetconn* pConn);
+		void (*OnMessage)(ptr pOwner, xnetconn* pConn, int iOpcode, const char* pData, size_t iLen);
+		void (*OnClose)(ptr pOwner, xnetconn* pConn, uint16 iCode, const char* sReason);
+		void (*OnPing)(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
+		void (*OnPong)(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
+		void (*OnError)(ptr pOwner, xnetconn* pConn, int iErrorCode);
+	} xwsevents;
+	
+	/* ---- WebSocket 配置 ---- */
+	typedef struct {
+		const char* sPath;          // 请求路径，默认 "/"
+		const char* sProtocol;      // 子协议，可选
+		const char* sOrigin;        // Origin 头，可选
+		int iMaxMessageSize;        // 最大消息大小，默认 1MB
+		int iPingIntervalSec;       // Ping 间隔秒数，0=禁用
+		int iHandshakeTimeoutSec;   // 握手超时，默认 10秒
+	} xwsconfig;
+	
+	/* ---- WebSocket 操作码 ---- */
+	#define XRT_WS_OP_CONTINUATION  0x00
+	#define XRT_WS_OP_TEXT          0x01
+	#define XRT_WS_OP_BINARY        0x02
+	#define XRT_WS_OP_CLOSE         0x08
+	#define XRT_WS_OP_PING          0x09
+	#define XRT_WS_OP_PONG          0x0A
+	
+	/* ---- WebSocket 关闭状态码 ---- */
+	#define XRT_WS_CLOSE_NORMAL     1000
+	#define XRT_WS_CLOSE_GOING_AWAY 1001
+	#define XRT_WS_CLOSE_PROTOCOL   1002
+	#define XRT_WS_CLOSE_INVALID    1003
+	#define XRT_WS_CLOSE_NO_STATUS  1005
+	#define XRT_WS_CLOSE_ABNORMAL   1006
+	#define XRT_WS_CLOSE_INVALID_DATA 1007
+	#define XRT_WS_CLOSE_POLICY     1008
+	#define XRT_WS_CLOSE_TOO_BIG    1009
+	#define XRT_WS_CLOSE_EXTENSION  1010
+	#define XRT_WS_CLOSE_UNEXPECTED 1011
+	
+	/* ---- HTTP 服务器请求结构 (传递给回调) ---- */
+	typedef struct {
+		int iMethod;                  // 请求方法 (使用 xhttp_method 枚举值)
+		char sMethod[16];             // 原始方法字符串
+		char sUri[2048];              // 请求 URI (如 /api/user?id=1)
+		char sPath[1024];             // URI 路径部分 (如 /api/user)
+		char sQuery[1024];            // 查询字符串 (如 id=1)
+		char sVersion[16];            // HTTP/1.0 或 HTTP/1.1
+		void* pHeaders;               // 请求头字典 (内部使用 xdict_struct)
+		char* pBody;                  // 请求正文
+		size_t iBodyLen;              // 正文长度
+		size_t iContentLength;        // Content-Length 值
+		bool bKeepAlive;              // Connection: keep-alive
+		// 内部使用
+		void* pParams;                // 解析后的查询参数 (内部 xdict_struct)
+		void* pCookies;               // 解析后的 Cookie (内部 xdict_struct)
+	} xhttpdreq;
+	
+	/* ---- HTTP 服务器事件回调 ---- */
+	typedef struct {
+		void (*OnRequest)(ptr pOwner, xnetconn* pConn, xhttpdreq* pReq);
+		bool (*OnUpgrade)(ptr pOwner, xnetconn* pConn, xhttpdreq* pReq);
+		void (*OnClose)(ptr pOwner, xnetconn* pConn);
+		void (*OnError)(ptr pOwner, xnetconn* pConn, int iErrorCode);
+	} xhttpsrvevents;
+	
+	/* ---- HTTP 服务器配置 ---- */
+	typedef struct {
+		const char* sRootDir;         // 静态文件根目录 (NULL=禁用)
+		const char* sIndexFile;       // 默认索引文件 (默认 "index.html")
+		int iMaxHeaderSize;           // 最大请求头大小 (默认 8KB)
+		int iMaxBodySize;             // 最大请求正文 (默认 1MB)
+		int iKeepAliveTimeout;        // Keep-Alive 超时秒数 (默认 60)
+		int iMaxClients;              // 最大并发连接 (默认 256)
+	} xhttpsrvconfig;
+	
 	/* ---- 代理配置 ---- */
 	#define XRT_PROXY_NONE         0   // 无代理
 	#define XRT_PROXY_SOCKS5       1   // SOCKS5 代理
@@ -1650,6 +1741,13 @@
 	/* ---- UDP 服务器/客户端 (不透明) ---- */
 	typedef struct xrt_udp_server xudpserver;
 	typedef struct xrt_udp_client xudpclient;
+	
+	/* ---- WebSocket 服务器/客户端 (不透明) ---- */
+	typedef struct xrt_ws_server xwsserver;
+	typedef struct xrt_ws_client xwsclient;
+	
+	/* ---- HTTP 服务器 (不透明) ---- */
+	typedef struct xrt_http_server xhttpserver;
 	
 	
 	
@@ -1912,6 +2010,74 @@
 	XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData);
 	XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient);
 	
+	
+	
+	/* ------------------------------------ WebSocket 服务器/客户端 ------------------------------------ */
+	
+	// WebSocket 客户端
+	XXAPI xwsclient* xrtWsClientCreate(const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI xwsclient* xrtWsClientCreateEx(xeventloop* pLoop, const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI void xrtWsClientDestroy(xwsclient* pClient);
+	XXAPI xnet_result xrtWsClientConnect(xwsclient* pClient);
+	XXAPI void xrtWsClientDisconnect(xwsclient* pClient);
+	XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
+	XXAPI bool xrtWsClientIsConnected(xwsclient* pClient);
+	XXAPI void xrtWsClientSetUserData(xwsclient* pClient, ptr pData);
+	XXAPI ptr xrtWsClientGetUserData(xwsclient* pClient);
+	
+	// WebSocket 服务器
+	XXAPI xwsserver* xrtWsServerCreate(const char* sIP, uint16 iPort, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI xwsserver* xrtWsServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xwsconfig* pConfig, const xwsevents* pEvents);
+	XXAPI void xrtWsServerDestroy(xwsserver* pServer);
+	XXAPI xnet_result xrtWsServerStart(xwsserver* pServer);
+	XXAPI void xrtWsServerStop(xwsserver* pServer);
+	XXAPI xnet_result xrtWsServerEnableTLS(xwsserver* pServer, const xtlsconfig* pTlsConfig);
+	XXAPI xnet_result xrtWsServerSendText(xwsserver* pServer, int iClientId, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsServerSendBinary(xwsserver* pServer, int iClientId, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsServerPing(xwsserver* pServer, int iClientId, const char* pData, size_t iLen);
+	XXAPI xnet_result xrtWsServerBroadcastText(xwsserver* pServer, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsServerBroadcastBinary(xwsserver* pServer, const char* pData, size_t iLen);
+	XXAPI void xrtWsServerDisconnect(xwsserver* pServer, int iClientId, uint16 iCode, const char* sReason);
+	XXAPI int xrtWsServerGetClientCount(xwsserver* pServer);
+	XXAPI void xrtWsServerSetUserData(xwsserver* pServer, ptr pData);
+	XXAPI ptr xrtWsServerGetUserData(xwsserver* pServer);
+	
+	
+	/* ------------------------------------ HTTP 服务器 ------------------------------------ */
+	
+	// HTTP 服务器生命周期
+	XXAPI xhttpserver* xrtHttpServerCreate(const char* sIP, uint16 iPort, const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents);
+	XXAPI xhttpserver* xrtHttpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents);
+	XXAPI void xrtHttpServerDestroy(xhttpserver* pServer);
+	XXAPI xnet_result xrtHttpServerStart(xhttpserver* pServer);
+	XXAPI void xrtHttpServerStop(xhttpserver* pServer);
+	XXAPI xnet_result xrtHttpServerEnableTLS(xhttpserver* pServer, const xtlsconfig* pTlsConfig);
+	XXAPI void xrtHttpServerSetUserData(xhttpserver* pServer, ptr pData);
+	XXAPI ptr xrtHttpServerGetUserData(xhttpserver* pServer);
+	
+	// HTTP 请求读取
+	XXAPI const char* xrtHttpReqGetHeader(xhttpdreq* pReq, const char* sName);
+	XXAPI const char* xrtHttpReqGetParam(xhttpdreq* pReq, const char* sName);
+	XXAPI const char* xrtHttpReqGetCookie(xhttpdreq* pReq, const char* sName);
+	XXAPI bool xrtHttpReqMatch(xhttpdreq* pReq, const char* sPattern);
+	
+	// HTTP 响应发送
+	XXAPI void xrtHttpReply(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sBody);
+	XXAPI void xrtHttpReplyFmt(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sFmt, ...);
+	XXAPI void xrtHttpReplyJSON(xnetconn* pConn, int iStatusCode, const char* sJSON);
+	XXAPI void xrtHttpReplyFile(xnetconn* pConn, const char* sFilePath, const char* sMimeType);
+	XXAPI void xrtHttpReplyStart(xnetconn* pConn, int iStatusCode, const char* sHeaders);
+	XXAPI void xrtHttpReplyChunk(xnetconn* pConn, const char* pData, size_t iLen);
+	XXAPI void xrtHttpReplyEnd(xnetconn* pConn);
+	XXAPI void xrtHttpRedirect(xnetconn* pConn, int iStatusCode, const char* sLocation);
+	XXAPI void xrtHttpUpgradeWebSocket(xnetconn* pConn, xhttpdreq* pReq, const xwsevents* pEvents);
+	
+	// HTTP 静态文件服务
+	XXAPI void xrtHttpServeDir(xnetconn* pConn, xhttpdreq* pReq, const char* sRootDir);
+	XXAPI void xrtHttpServeFile(xnetconn* pConn, const char* sFilePath);
 	
 	
 	
@@ -12411,14 +12577,131 @@ str xrtGetLocalName()
 	Crypto - 加密算法模块 [Ver1.0]
 	
 	基于 mongoose 内建 TLS 的加密原语移植
-	提供 SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
+	提供 SHA-1, SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
 	
 	算法来源与授权：
+		SHA-1:              原创实现 (RFC 3174, Public Domain)
 		SHA-256:            Brad Conte (Public Domain)
 		ChaCha20-Poly1305:  portable8439 (CC0-1.0) + poly1305-donna (Public Domain)
 		AES-128-GCM:        Steven M. Gibson / GRC.com (Public Domain)
 		X25519:             Mike Hamburg / STROBE (MIT License)
 */
+/* ============================== SHA-1 ============================== */
+// SHA-1 用于 WebSocket 握手 (RFC 6455)
+#define __XRT_SHA1_ROTL(n, x) (((x) << (n)) | ((x) >> (32 - (n))))
+static void __xrt_sha1_chunk(xsha1_ctx *pCtx)
+{
+	uint32 w[80];
+	uint32 a, b, c, d, e;
+	const uint8 *p = pCtx->buffer;
+	
+	// 载入消息块
+	for ( int i = 0; i < 16; i++ ) {
+		w[i] = ((uint32)p[0] << 24) | ((uint32)p[1] << 16) | ((uint32)p[2] << 8) | p[3];
+		p += 4;
+	}
+	
+	// 扩展
+	for ( int i = 16; i < 80; i++ ) {
+		w[i] = __XRT_SHA1_ROTL(1, w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16]);
+	}
+	
+	a = pCtx->state[0];
+	b = pCtx->state[1];
+	c = pCtx->state[2];
+	d = pCtx->state[3];
+	e = pCtx->state[4];
+	
+	for ( int i = 0; i < 80; i++ ) {
+		uint32 f, k;
+		if ( i < 20 ) {
+			f = (b & c) | ((~b) & d);
+			k = 0x5A827999;
+		} else if ( i < 40 ) {
+			f = b ^ c ^ d;
+			k = 0x6ED9EBA1;
+		} else if ( i < 60 ) {
+			f = (b & c) | (b & d) | (c & d);
+			k = 0x8F1BBCDC;
+		} else {
+			f = b ^ c ^ d;
+			k = 0xCA62C1D6;
+		}
+		uint32 temp = __XRT_SHA1_ROTL(5, a) + f + e + k + w[i];
+		e = d;
+		d = c;
+		c = __XRT_SHA1_ROTL(30, b);
+		b = a;
+		a = temp;
+	}
+	
+	pCtx->state[0] += a;
+	pCtx->state[1] += b;
+	pCtx->state[2] += c;
+	pCtx->state[3] += d;
+	pCtx->state[4] += e;
+}
+XXAPI void xrtSHA1Init(xsha1_ctx *pCtx)
+{
+	pCtx->len = 0;
+	pCtx->bits = 0;
+	pCtx->state[0] = 0x67452301;
+	pCtx->state[1] = 0xEFCDAB89;
+	pCtx->state[2] = 0x98BADCFE;
+	pCtx->state[3] = 0x10325476;
+	pCtx->state[4] = 0xC3D2E1F0;
+}
+XXAPI void xrtSHA1Update(xsha1_ctx *pCtx, const ptr pData, size_t iLen)
+{
+	const uint8 *pBytes = (const uint8 *)pData;
+	pCtx->bits += iLen * 8;
+	while ( iLen-- ) {
+		pCtx->buffer[pCtx->len++] = *pBytes++;
+		if ( pCtx->len == 64 ) {
+			__xrt_sha1_chunk(pCtx);
+			pCtx->len = 0;
+		}
+	}
+}
+XXAPI void xrtSHA1Final(xsha1_ctx *pCtx, uint8 *pOut)
+{
+	uint32 i = pCtx->len;
+	
+	// 填充
+	pCtx->buffer[i++] = 0x80;
+	if ( i > 56 ) {
+		while ( i < 64 ) pCtx->buffer[i++] = 0;
+		__xrt_sha1_chunk(pCtx);
+		i = 0;
+	}
+	while ( i < 56 ) pCtx->buffer[i++] = 0;
+	
+	// 长度 (big-endian)
+	pCtx->buffer[56] = (uint8)(pCtx->bits >> 56);
+	pCtx->buffer[57] = (uint8)(pCtx->bits >> 48);
+	pCtx->buffer[58] = (uint8)(pCtx->bits >> 40);
+	pCtx->buffer[59] = (uint8)(pCtx->bits >> 32);
+	pCtx->buffer[60] = (uint8)(pCtx->bits >> 24);
+	pCtx->buffer[61] = (uint8)(pCtx->bits >> 16);
+	pCtx->buffer[62] = (uint8)(pCtx->bits >> 8);
+	pCtx->buffer[63] = (uint8)(pCtx->bits);
+	__xrt_sha1_chunk(pCtx);
+	
+	// 输出 (big-endian)
+	for ( i = 0; i < 5; i++ ) {
+		pOut[i*4]     = (uint8)(pCtx->state[i] >> 24);
+		pOut[i*4 + 1] = (uint8)(pCtx->state[i] >> 16);
+		pOut[i*4 + 2] = (uint8)(pCtx->state[i] >> 8);
+		pOut[i*4 + 3] = (uint8)(pCtx->state[i]);
+	}
+}
+XXAPI void xrtSHA1(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	xsha1_ctx tCtx;
+	xrtSHA1Init(&tCtx);
+	xrtSHA1Update(&tCtx, pData, iLen);
+	xrtSHA1Final(&tCtx, pOut);
+}
 /* ============================== SHA-256 ============================== */
 // xsha256_ctx 已在 xrt.h 中定义
 // SHA-256 常量表
@@ -19873,6 +20156,11 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 		iPos += iExtDataLen;
 	}
 	
+	// 解析完成后调用 SNI 回调 (允许用户根据域名切换证书)
+	if ( pCtx->sClientSNI[0] != '\0' && pCtx->OnSNI ) {
+		pCtx->OnSNI(pCtx, pCtx->sClientSNI, pCtx->pSNIUserData);
+	}
+	
 	return true;
 }
 // Step 13: SNI 相关公共 API
@@ -19885,10 +20173,139 @@ XXAPI const char* xrtTlsGetSNI(xtlsctx *pCtx)
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile)
 {
 	if ( !pCtx ) return XRT_NET_ERROR;
-	// TODO: 加载 PEM/DER 证书和私钥文件到 pCtx->pCertDer / pCtx->pKeyDer
-	// 这个 API 主要用于 SNI 回调中根据域名动态配置证书
-	(void)sCertFile;
-	(void)sKeyFile;
+	
+	// 释放旧证书数据
+	if ( pCtx->pCertDer ) {
+		xrtFree(pCtx->pCertDer);
+		pCtx->pCertDer = NULL;
+		pCtx->iCertDerLen = 0;
+	}
+	if ( pCtx->pKeyDer ) {
+		xrtFree(pCtx->pKeyDer);
+		pCtx->pKeyDer = NULL;
+		pCtx->iKeyDerLen = 0;
+	}
+	
+	// 加载证书文件
+	if ( sCertFile && sCertFile[0] ) {
+		size_t iFileSize = 0;
+		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sCertFile, &iFileSize);
+		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+			return XRT_NET_ERROR;
+		}
+		
+		// 检测是否为 PEM 格式
+		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
+			// PEM 格式: 找到 Base64 内容区域
+			const char *pStart = strstr((char*)pFileData, "\n");
+			if ( pStart ) {
+				pStart++;  // 跳过 -----BEGIN xxx-----\n
+				const char *pEnd = strstr(pStart, "-----END ");
+				if ( pEnd ) {
+					// 复制 Base64 内容 (去除换行符)
+					size_t iB64Len = pEnd - pStart;
+					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
+					if ( !pB64 ) {
+						xrtFree(pFileData);
+						return XRT_NET_ERROR;
+					}
+					
+					size_t j = 0;
+					for ( size_t i = 0; i < iB64Len; i++ ) {
+						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
+							pB64[j++] = pStart[i];
+						}
+					}
+					pB64[j] = '\0';
+					
+					// Base64 解码
+					// 补齐 Base64 长度为 4 的倍数
+					while ( j % 4 != 0 ) {
+						pB64[j++] = '=';
+					}
+					pB64[j] = '\0';
+					
+					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
+					if ( pDer && pDer != (uint8*)xCore.sNull ) {
+						pCtx->pCertDer = pDer;
+						pCtx->iCertDerLen = (j / 4) * 3;
+						// 去除填充字节
+						while ( pCtx->iCertDerLen > 0 && pCtx->pCertDer[pCtx->iCertDerLen - 1] == 0 ) {
+							pCtx->iCertDerLen--;
+						}
+					}
+					xrtFree(pB64);
+				}
+			}
+		} else {
+			// DER 格式: 直接复制
+			pCtx->pCertDer = (uint8*)xrtMalloc(iFileSize);
+			if ( pCtx->pCertDer ) {
+				memcpy(pCtx->pCertDer, pFileData, iFileSize);
+				pCtx->iCertDerLen = iFileSize;
+			}
+		}
+		xrtFree(pFileData);
+	}
+	
+	// 加载私钥文件
+	if ( sKeyFile && sKeyFile[0] ) {
+		size_t iFileSize = 0;
+		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sKeyFile, &iFileSize);
+		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+			return XRT_NET_ERROR;
+		}
+		
+		// 检测是否为 PEM 格式
+		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
+			// PEM 格式
+			const char *pStart = strstr((char*)pFileData, "\n");
+			if ( pStart ) {
+				pStart++;
+				const char *pEnd = strstr(pStart, "-----END ");
+				if ( pEnd ) {
+					size_t iB64Len = pEnd - pStart;
+					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
+					if ( !pB64 ) {
+						xrtFree(pFileData);
+						return XRT_NET_ERROR;
+					}
+					
+					size_t j = 0;
+					for ( size_t i = 0; i < iB64Len; i++ ) {
+						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
+							pB64[j++] = pStart[i];
+						}
+					}
+					pB64[j] = '\0';
+					
+					while ( j % 4 != 0 ) {
+						pB64[j++] = '=';
+					}
+					pB64[j] = '\0';
+					
+					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
+					if ( pDer && pDer != (uint8*)xCore.sNull ) {
+						pCtx->pKeyDer = pDer;
+						pCtx->iKeyDerLen = (j / 4) * 3;
+						while ( pCtx->iKeyDerLen > 0 && pCtx->pKeyDer[pCtx->iKeyDerLen - 1] == 0 ) {
+							pCtx->iKeyDerLen--;
+						}
+					}
+					xrtFree(pB64);
+				}
+			}
+		} else {
+			// DER 格式
+			pCtx->pKeyDer = (uint8*)xrtMalloc(iFileSize);
+			if ( pCtx->pKeyDer ) {
+				memcpy(pCtx->pKeyDer, pFileData, iFileSize);
+				pCtx->iKeyDerLen = iFileSize;
+			}
+		}
+		xrtFree(pFileData);
+	}
+	
 	return XRT_NET_OK;
 }
 #ifdef DEBUG_TRACE
@@ -23713,6 +24130,2294 @@ XXAPI str xrtHttpRespCookie(xhttpresp pResp, str sName)
 XXAPI str xrtHttpRespContentType(xhttpresp pResp)
 {
 	return (pResp && pResp->sContentType[0]) ? pResp->sContentType : NULL;
+}
+#endif
+#ifndef XRT_NO_NETWS
+
+// ========================================
+// File: D:/git/xrt/lib/netws.h
+// ========================================
+
+
+/*
+	NetWS - WebSocket 客户端/服务器封装 [Ver1.0]
+	
+	基于 nettcp.h (TCP) + nettls.h (TLS) + crypto.h (SHA-1, Base64)
+	
+	特性:
+	  - 支持 WS/WSS 协议
+	  - 客户端和服务器双模式
+	  - 事件驱动架构
+	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
+	  - 自动 Ping/Pong 心跳
+	  - 分片消息重组
+	
+	仅 IPv4，跨平台 (Windows / Linux)
+*/
+/* ============================== 内部常量定义 ============================== */
+#define __XRT_WS_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define __XRT_WS_MAX_HEADER_SIZE 4096
+#define __XRT_WS_DEFAULT_MAX_MSG_SIZE (1024 * 1024)  // 1MB
+#define __XRT_WS_DEFAULT_HANDSHAKE_TIMEOUT 10
+#define __XRT_WS_KEY_LEN 16
+/* ============================== WebSocket 帧结构 ============================== */
+typedef struct {
+	uint8 iOpcode;      // 操作码
+	bool bFin;          // 是否最后一帧
+	bool bMasked;       // 是否掩码
+	uint8 aMask[4];     // 掩码键
+	size_t iPayloadLen; // 载荷长度
+	size_t iHeaderLen;  // 帧头长度
+} __xrt_ws_frame;
+/* ============================== WebSocket 客户端槽位结构 ============================== */
+typedef struct {
+	xnetconn* pConn;           // 底层连接
+	int iClientId;             // 客户端 ID
+	bool bInUse;               // 是否使用中
+	bool bHandshakeDone;       // 握手是否完成
+	xnetbuf tRecvBuf;          // 接收缓冲区
+	xnetbuf tMsgBuf;           // 消息重组缓冲区
+	uint8 iMsgOpcode;          // 消息操作码
+	bool bFragmented;          // 是否正在接收分片消息
+} __xrt_ws_client_slot;
+/* ============================== WebSocket 客户端结构 ============================== */
+struct xrt_ws_client {
+	xtcpclient* pTcpClient;   // 底层 TCP 客户端
+	
+	xwsconfig tConfig;
+	xwsevents tEvents;
+	
+	char sHost[256];          // 目标主机名
+	uint16 iPort;             // 目标端口
+	char sPath[512];          // 请求路径
+	bool bSecure;             // 是否 WSS
+	
+	char sKey[32];            // Sec-WebSocket-Key (Base64)
+	char sExpectedAccept[32]; // 期望的 Sec-WebSocket-Accept
+	
+	xnetbuf tRecvBuf;         // 接收缓冲区
+	xnetbuf tMsgBuf;          // 消息重组缓冲区
+	uint8 iMsgOpcode;         // 消息操作码
+	bool bFragmented;         // 是否正在接收分片消息
+	
+	volatile bool bConnected;
+	volatile bool bHandshakeDone;
+	
+	ptr pUserData;
+};
+/* ============================== WebSocket 服务器结构 ============================== */
+struct xrt_ws_server {
+	xtcpserver* pTcpServer;   // 底层 TCP 服务器
+	
+	xwsconfig tConfig;
+	xwsevents tEvents;
+	
+	// 客户端槽位管理
+	__xrt_ws_client_slot* arrSlots;
+	int iMaxClients;
+	int iClientCount;
+	
+	volatile bool bRunning;
+	
+	ptr pUserData;
+};
+/* ============================== 内部工具函数 ============================== */
+// 生成随机 WebSocket Key
+static void __xrt_ws_generate_key(char* sKey)
+{
+	uint8 aRandom[__XRT_WS_KEY_LEN];
+	xrtRandomBytes(aRandom, __XRT_WS_KEY_LEN);
+	str sEncoded = xrtBase64Encode(aRandom, __XRT_WS_KEY_LEN, NULL);
+	if ( sEncoded && sEncoded != xCore.sNull ) {
+		strcpy(sKey, sEncoded);
+		xrtFree(sEncoded);
+	}
+}
+// 计算 Sec-WebSocket-Accept
+static void __xrt_ws_compute_accept(const char* sKey, char* sAccept)
+{
+	char sCombined[128];
+	snprintf(sCombined, sizeof(sCombined), "%s%s", sKey, __XRT_WS_GUID);
+	uint8 aSha1[20];
+	xrtSHA1((uint8*)sCombined, strlen(sCombined), aSha1);
+	str sEncoded = xrtBase64Encode(aSha1, 20, NULL);
+	if ( sEncoded && sEncoded != xCore.sNull ) {
+		strcpy(sAccept, sEncoded);
+		xrtFree(sEncoded);
+	}
+}
+// 掩码/解掩码数据
+static void __xrt_ws_mask_data(uint8* pData, size_t iLen, const uint8* pMask)
+{
+	for ( size_t i = 0; i < iLen; i++ ) {
+		pData[i] ^= pMask[i % 4];
+	}
+}
+// 解析 WebSocket 帧头
+// 返回: 0=需要更多数据, >0=帧头长度, -1=错误
+static int __xrt_ws_parse_frame_header(const uint8* pData, size_t iLen, __xrt_ws_frame* pFrame)
+{
+	if ( iLen < 2 ) return 0;
+	
+	// 第一字节: FIN + RSV + Opcode
+	pFrame->bFin = (pData[0] & 0x80) != 0;
+	pFrame->iOpcode = pData[0] & 0x0F;
+	
+	// 第二字节: MASK + Payload Length
+	pFrame->bMasked = (pData[1] & 0x80) != 0;
+	uint8 iLen7 = pData[1] & 0x7F;
+	
+	size_t iHeaderLen = 2;
+	
+	if ( iLen7 == 126 ) {
+		// 16-bit 长度
+		if ( iLen < 4 ) return 0;
+		pFrame->iPayloadLen = ((size_t)pData[2] << 8) | pData[3];
+		iHeaderLen = 4;
+	} else if ( iLen7 == 127 ) {
+		// 64-bit 长度
+		if ( iLen < 10 ) return 0;
+		pFrame->iPayloadLen = 
+			((size_t)pData[2] << 56) | ((size_t)pData[3] << 48) |
+			((size_t)pData[4] << 40) | ((size_t)pData[5] << 32) |
+			((size_t)pData[6] << 24) | ((size_t)pData[7] << 16) |
+			((size_t)pData[8] << 8)  | pData[9];
+		iHeaderLen = 10;
+	} else {
+		pFrame->iPayloadLen = iLen7;
+	}
+	
+	// 掩码键
+	if ( pFrame->bMasked ) {
+		if ( iLen < iHeaderLen + 4 ) return 0;
+		memcpy(pFrame->aMask, pData + iHeaderLen, 4);
+		iHeaderLen += 4;
+	}
+	
+	pFrame->iHeaderLen = iHeaderLen;
+	return (int)iHeaderLen;
+}
+// 编码 WebSocket 帧
+// 返回: 帧总长度
+static size_t __xrt_ws_encode_frame(uint8* pOut, uint8 iOpcode, bool bFin, bool bMask,
+	const uint8* pPayload, size_t iPayloadLen)
+{
+	size_t iIdx = 0;
+	
+	// 第一字节: FIN + Opcode
+	pOut[iIdx++] = (bFin ? 0x80 : 0x00) | (iOpcode & 0x0F);
+	
+	// 第二字节 + 扩展长度
+	uint8 iMaskBit = bMask ? 0x80 : 0x00;
+	if ( iPayloadLen < 126 ) {
+		pOut[iIdx++] = iMaskBit | (uint8)iPayloadLen;
+	} else if ( iPayloadLen <= 0xFFFF ) {
+		pOut[iIdx++] = iMaskBit | 126;
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 8);
+		pOut[iIdx++] = (uint8)(iPayloadLen & 0xFF);
+	} else {
+		pOut[iIdx++] = iMaskBit | 127;
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 56);
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 48);
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 40);
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 32);
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 24);
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 16);
+		pOut[iIdx++] = (uint8)(iPayloadLen >> 8);
+		pOut[iIdx++] = (uint8)(iPayloadLen & 0xFF);
+	}
+	
+	// 掩码键
+	uint8 aMask[4] = {0};
+	if ( bMask ) {
+		xrtRandomBytes(aMask, 4);
+		memcpy(pOut + iIdx, aMask, 4);
+		iIdx += 4;
+	}
+	
+	// 载荷数据
+	if ( pPayload && iPayloadLen > 0 ) {
+		memcpy(pOut + iIdx, pPayload, iPayloadLen);
+		if ( bMask ) {
+			__xrt_ws_mask_data(pOut + iIdx, iPayloadLen, aMask);
+		}
+		iIdx += iPayloadLen;
+	}
+	
+	return iIdx;
+}
+// 计算编码帧需要的缓冲区大小
+static size_t __xrt_ws_frame_size(size_t iPayloadLen, bool bMask)
+{
+	size_t iSize = 2;  // 基本头
+	if ( iPayloadLen >= 126 && iPayloadLen <= 0xFFFF ) {
+		iSize += 2;
+	} else if ( iPayloadLen > 0xFFFF ) {
+		iSize += 8;
+	}
+	if ( bMask ) {
+		iSize += 4;
+	}
+	iSize += iPayloadLen;
+	return iSize;
+}
+/* ============================== 内部 HTTP 头解析 ============================== */
+// 从 HTTP 响应中提取指定头的值
+static bool __xrt_ws_get_header_value(const char* sHeaders, const char* sName, char* sValue, size_t iMaxLen)
+{
+	if ( !sHeaders || !sName || !sValue ) return false;
+	
+	size_t iNameLen = strlen(sName);
+	const char* p = sHeaders;
+	
+	while ( *p ) {
+		// 跳过空白
+		while ( *p == ' ' || *p == '\t' ) p++;
+		
+		// 检查是否匹配头名
+		if ( strncasecmp(p, sName, iNameLen) == 0 && p[iNameLen] == ':' ) {
+			p += iNameLen + 1;
+			// 跳过冒号后的空白
+			while ( *p == ' ' || *p == '\t' ) p++;
+			// 提取值直到行尾
+			size_t iIdx = 0;
+			while ( *p && *p != '\r' && *p != '\n' && iIdx < iMaxLen - 1 ) {
+				sValue[iIdx++] = *p++;
+			}
+			sValue[iIdx] = '\0';
+			return true;
+		}
+		
+		// 跳到下一行
+		while ( *p && *p != '\n' ) p++;
+		if ( *p == '\n' ) p++;
+	}
+	
+	return false;
+}
+// 检查 HTTP 响应状态码
+static int __xrt_ws_get_status_code(const char* sResponse)
+{
+	// HTTP/1.1 101 Switching Protocols
+	if ( strncmp(sResponse, "HTTP/", 5) != 0 ) return -1;
+	const char* p = sResponse + 5;
+	// 跳过版本号
+	while ( *p && *p != ' ' ) p++;
+	if ( !*p ) return -1;
+	// 跳过空格
+	while ( *p == ' ' ) p++;
+	// 解析状态码
+	return atoi(p);
+}
+/* ============================== WebSocket 客户端 TCP 事件回调 ============================== */
+// 前向声明
+static void __xrt_ws_client_process_data(xwsclient* pClient, const char* pData, size_t iLen);
+static void __xrt_ws_client_on_connect(ptr pOwner, xnetconn* pConn, bool bSuccess)
+{
+	xwsclient* pClient = (xwsclient*)xrtTcpClientGetUserData((xtcpclient*)pOwner);
+	if ( !pClient ) return;
+	
+	if ( !bSuccess ) {
+		pClient->bConnected = false;
+		if ( pClient->tEvents.OnError ) {
+			pClient->tEvents.OnError(pClient, pConn, -1);
+		}
+		return;
+	}
+	
+	// TCP 连接成功，发送 WebSocket 握手请求
+	char sRequest[1024];
+	int iLen = snprintf(sRequest, sizeof(sRequest),
+		"GET %s HTTP/1.1\r\n"
+		"Host: %s:%d\r\n"
+		"Upgrade: websocket\r\n"
+		"Connection: Upgrade\r\n"
+		"Sec-WebSocket-Key: %s\r\n"
+		"Sec-WebSocket-Version: 13\r\n",
+		pClient->sPath,
+		pClient->sHost, pClient->iPort,
+		pClient->sKey);
+	
+	// 可选头
+	if ( pClient->tConfig.sProtocol && pClient->tConfig.sProtocol[0] ) {
+		iLen += snprintf(sRequest + iLen, sizeof(sRequest) - iLen,
+			"Sec-WebSocket-Protocol: %s\r\n", pClient->tConfig.sProtocol);
+	}
+	if ( pClient->tConfig.sOrigin && pClient->tConfig.sOrigin[0] ) {
+		iLen += snprintf(sRequest + iLen, sizeof(sRequest) - iLen,
+			"Origin: %s\r\n", pClient->tConfig.sOrigin);
+	}
+	
+	// 结束头
+	iLen += snprintf(sRequest + iLen, sizeof(sRequest) - iLen, "\r\n");
+	
+	// 计算期望的 Accept 值
+	__xrt_ws_compute_accept(pClient->sKey, pClient->sExpectedAccept);
+	
+	// 发送握手请求
+	xrtTcpClientSend(pClient->pTcpClient, sRequest, iLen);
+}
+static void __xrt_ws_client_on_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen)
+{
+	xwsclient* pClient = (xwsclient*)xrtTcpClientGetUserData((xtcpclient*)pOwner);
+	if ( !pClient ) return;
+	
+	__xrt_ws_client_process_data(pClient, pData, iLen);
+}
+static void __xrt_ws_client_on_close(ptr pOwner, xnetconn* pConn)
+{
+	xwsclient* pClient = (xwsclient*)xrtTcpClientGetUserData((xtcpclient*)pOwner);
+	if ( !pClient ) return;
+	
+	pClient->bConnected = false;
+	pClient->bHandshakeDone = false;
+	
+	if ( pClient->tEvents.OnClose ) {
+		pClient->tEvents.OnClose(pClient, pConn, XRT_WS_CLOSE_ABNORMAL, "Connection closed");
+	}
+}
+// 处理接收到的数据
+static void __xrt_ws_client_process_data(xwsclient* pClient, const char* pData, size_t iLen)
+{
+	// 追加到接收缓冲区
+	xrtNetBufAppend(&pClient->tRecvBuf, pData, iLen);
+	
+	if ( !pClient->bHandshakeDone ) {
+		// 等待握手响应
+		char* pBuf = (char*)pClient->tRecvBuf.pData;
+		size_t iBufLen = pClient->tRecvBuf.iSize;
+		
+		// 查找 HTTP 响应结束标记
+		char* pEnd = strstr(pBuf, "\r\n\r\n");
+		if ( !pEnd ) return;  // 还没收到完整响应
+		
+		// 检查状态码
+		int iStatus = __xrt_ws_get_status_code(pBuf);
+		if ( iStatus != 101 ) {
+			// 握手失败
+			if ( pClient->tEvents.OnError ) {
+				pClient->tEvents.OnError(pClient, NULL, iStatus);
+			}
+			xrtWsClientDisconnect(pClient);
+			return;
+		}
+		
+		// 验证 Sec-WebSocket-Accept
+		char sAccept[64] = {0};
+		if ( !__xrt_ws_get_header_value(pBuf, "Sec-WebSocket-Accept", sAccept, sizeof(sAccept)) ) {
+			if ( pClient->tEvents.OnError ) {
+				pClient->tEvents.OnError(pClient, NULL, -2);
+			}
+			xrtWsClientDisconnect(pClient);
+			return;
+		}
+		
+		if ( strcmp(sAccept, pClient->sExpectedAccept) != 0 ) {
+			if ( pClient->tEvents.OnError ) {
+				pClient->tEvents.OnError(pClient, NULL, -3);
+			}
+			xrtWsClientDisconnect(pClient);
+			return;
+		}
+		
+		// 握手成功
+		pClient->bHandshakeDone = true;
+		pClient->bConnected = true;
+		
+		// 消费 HTTP 响应
+		size_t iHeaderLen = (size_t)(pEnd - pBuf) + 4;
+		xrtNetBufConsume(&pClient->tRecvBuf, iHeaderLen);
+		
+		// 触发 OnOpen 回调
+		if ( pClient->tEvents.OnOpen ) {
+			pClient->tEvents.OnOpen(pClient, NULL);
+		}
+	}
+	
+	// 处理 WebSocket 帧
+	while ( pClient->tRecvBuf.iSize > 0 ) {
+		__xrt_ws_frame tFrame;
+		int iHeaderLen = __xrt_ws_parse_frame_header(
+			(uint8*)pClient->tRecvBuf.pData, pClient->tRecvBuf.iSize, &tFrame);
+		
+		if ( iHeaderLen <= 0 ) break;  // 需要更多数据
+		
+		size_t iFrameLen = tFrame.iHeaderLen + tFrame.iPayloadLen;
+		if ( pClient->tRecvBuf.iSize < iFrameLen ) break;  // 需要更多数据
+		
+		// 获取载荷
+		uint8* pPayload = (uint8*)pClient->tRecvBuf.pData + tFrame.iHeaderLen;
+		
+		// 解掩码 (服务器发送的数据通常不掩码)
+		if ( tFrame.bMasked ) {
+			__xrt_ws_mask_data(pPayload, tFrame.iPayloadLen, tFrame.aMask);
+		}
+		
+		// 处理控制帧
+		if ( tFrame.iOpcode >= 0x08 ) {
+			switch ( tFrame.iOpcode ) {
+				case XRT_WS_OP_CLOSE:
+					{
+						uint16 iCode = XRT_WS_CLOSE_NO_STATUS;
+						const char* sReason = "";
+						if ( tFrame.iPayloadLen >= 2 ) {
+							iCode = ((uint16)pPayload[0] << 8) | pPayload[1];
+							if ( tFrame.iPayloadLen > 2 ) {
+								sReason = (const char*)(pPayload + 2);
+							}
+						}
+						if ( pClient->tEvents.OnClose ) {
+							pClient->tEvents.OnClose(pClient, NULL, iCode, sReason);
+						}
+						xrtNetBufConsume(&pClient->tRecvBuf, iFrameLen);
+						xrtWsClientDisconnect(pClient);
+						return;
+					}
+				case XRT_WS_OP_PING:
+					// 自动回复 Pong
+					xrtWsClientSendBinary(pClient, (char*)pPayload, tFrame.iPayloadLen);
+					if ( pClient->tEvents.OnPing ) {
+						pClient->tEvents.OnPing(pClient, NULL, (char*)pPayload, tFrame.iPayloadLen);
+					}
+					break;
+				case XRT_WS_OP_PONG:
+					if ( pClient->tEvents.OnPong ) {
+						pClient->tEvents.OnPong(pClient, NULL, (char*)pPayload, tFrame.iPayloadLen);
+					}
+					break;
+			}
+		} else {
+			// 数据帧
+			if ( tFrame.iOpcode != XRT_WS_OP_CONTINUATION ) {
+				// 新消息开始
+				pClient->iMsgOpcode = tFrame.iOpcode;
+				xrtNetBufClear(&pClient->tMsgBuf);
+			}
+			
+			// 追加到消息缓冲区
+			xrtNetBufAppend(&pClient->tMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
+			
+			if ( tFrame.bFin ) {
+				// 消息完成
+				if ( pClient->tEvents.OnMessage ) {
+					pClient->tEvents.OnMessage(pClient, NULL, pClient->iMsgOpcode,
+						(char*)pClient->tMsgBuf.pData, pClient->tMsgBuf.iSize);
+				}
+				xrtNetBufClear(&pClient->tMsgBuf);
+			} else {
+				pClient->bFragmented = true;
+			}
+		}
+		
+		xrtNetBufConsume(&pClient->tRecvBuf, iFrameLen);
+	}
+}
+/* ============================== WebSocket 客户端 API ============================== */
+// 解析 WebSocket URL: ws://host:port/path 或 wss://host:port/path
+static bool __xrt_ws_parse_url(const char* sURL, char* sHost, uint16* pPort, char* sPath, bool* pSecure)
+{
+	if ( !sURL ) return false;
+	
+	const char* p = sURL;
+	
+	// 解析协议
+	if ( strncmp(p, "wss://", 6) == 0 ) {
+		*pSecure = true;
+		*pPort = 443;
+		p += 6;
+	} else if ( strncmp(p, "ws://", 5) == 0 ) {
+		*pSecure = false;
+		*pPort = 80;
+		p += 5;
+	} else {
+		return false;
+	}
+	
+	// 解析主机名和端口
+	const char* pHostStart = p;
+	const char* pPortStart = NULL;
+	
+	while ( *p && *p != '/' && *p != '?' ) {
+		if ( *p == ':' ) {
+			pPortStart = p + 1;
+		}
+		p++;
+	}
+	
+	if ( pPortStart ) {
+		size_t iHostLen = (size_t)(pPortStart - 1 - pHostStart);
+		if ( iHostLen >= 256 ) iHostLen = 255;
+		memcpy(sHost, pHostStart, iHostLen);
+		sHost[iHostLen] = '\0';
+		*pPort = (uint16)atoi(pPortStart);
+	} else {
+		size_t iHostLen = (size_t)(p - pHostStart);
+		if ( iHostLen >= 256 ) iHostLen = 255;
+		memcpy(sHost, pHostStart, iHostLen);
+		sHost[iHostLen] = '\0';
+	}
+	
+	// 解析路径
+	if ( *p == '/' || *p == '?' ) {
+		size_t iPathLen = strlen(p);
+		if ( iPathLen >= 512 ) iPathLen = 511;
+		memcpy(sPath, p, iPathLen);
+		sPath[iPathLen] = '\0';
+	} else {
+		strcpy(sPath, "/");
+	}
+	
+	return (sHost[0] != '\0');
+}
+// 内部初始化
+static xwsclient* __xrt_ws_client_init(xeventloop* pLoop, const char* sURL,
+	const xwsconfig* pConfig, const xwsevents* pEvents)
+{
+	xwsclient* pClient = (xwsclient*)xrtCalloc(1, sizeof(xwsclient));
+	if ( !pClient ) return NULL;
+	
+	// 解析 URL
+	if ( !__xrt_ws_parse_url(sURL, pClient->sHost, &pClient->iPort, pClient->sPath, &pClient->bSecure) ) {
+		xrtFree(pClient);
+		return NULL;
+	}
+	
+	// 复制配置
+	if ( pConfig ) {
+		pClient->tConfig = *pConfig;
+	}
+	if ( !pClient->tConfig.sPath || !pClient->tConfig.sPath[0] ) {
+		pClient->tConfig.sPath = pClient->sPath;
+	}
+	if ( pClient->tConfig.iMaxMessageSize <= 0 ) {
+		pClient->tConfig.iMaxMessageSize = __XRT_WS_DEFAULT_MAX_MSG_SIZE;
+	}
+	if ( pClient->tConfig.iHandshakeTimeoutSec <= 0 ) {
+		pClient->tConfig.iHandshakeTimeoutSec = __XRT_WS_DEFAULT_HANDSHAKE_TIMEOUT;
+	}
+	
+	// 复制事件
+	if ( pEvents ) {
+		pClient->tEvents = *pEvents;
+	}
+	
+	// 生成 WebSocket Key
+	__xrt_ws_generate_key(pClient->sKey);
+	
+	// 创建底层 TCP 客户端
+	xnetevents tTcpEvents = {0};
+	tTcpEvents.OnConnect = __xrt_ws_client_on_connect;
+	tTcpEvents.OnRecv = __xrt_ws_client_on_recv;
+	tTcpEvents.OnClose = __xrt_ws_client_on_close;
+	
+	if ( pLoop ) {
+		pClient->pTcpClient = xrtTcpClientCreateEx(pLoop, pClient->sHost, pClient->iPort, NULL, &tTcpEvents);
+	} else {
+		pClient->pTcpClient = xrtTcpClientCreate(pClient->sHost, pClient->iPort, NULL, &tTcpEvents);
+	}
+	
+	if ( !pClient->pTcpClient ) {
+		xrtFree(pClient);
+		return NULL;
+	}
+	
+	xrtTcpClientSetUserData(pClient->pTcpClient, pClient);
+	
+	// 启用 TLS (WSS)
+	if ( pClient->bSecure ) {
+		xtlsconfig tTlsConfig = {0};
+		tTlsConfig.sHostName = pClient->sHost;
+		tTlsConfig.bVerifyPeer = false;
+		xrtTcpClientEnableTLS(pClient->pTcpClient, &tTlsConfig);
+	}
+	
+	return pClient;
+}
+XXAPI xwsclient* xrtWsClientCreate(const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents)
+{
+	return __xrt_ws_client_init(NULL, sURL, pConfig, pEvents);
+}
+XXAPI xwsclient* xrtWsClientCreateEx(xeventloop* pLoop, const char* sURL,
+	const xwsconfig* pConfig, const xwsevents* pEvents)
+{
+	return __xrt_ws_client_init(pLoop, sURL, pConfig, pEvents);
+}
+XXAPI void xrtWsClientDestroy(xwsclient* pClient)
+{
+	if ( !pClient ) return;
+	
+	if ( pClient->pTcpClient ) {
+		xrtTcpClientDestroy(pClient->pTcpClient);
+	}
+	
+	xrtNetBufFree(&pClient->tRecvBuf);
+	xrtNetBufFree(&pClient->tMsgBuf);
+	
+	xrtFree(pClient);
+}
+XXAPI xnet_result xrtWsClientConnect(xwsclient* pClient)
+{
+	if ( !pClient || !pClient->pTcpClient ) return XRT_NET_ERROR;
+	return xrtTcpClientConnect(pClient->pTcpClient);
+}
+XXAPI void xrtWsClientDisconnect(xwsclient* pClient)
+{
+	if ( !pClient ) return;
+	
+	pClient->bConnected = false;
+	pClient->bHandshakeDone = false;
+	
+	if ( pClient->pTcpClient ) {
+		xrtTcpClientDisconnect(pClient->pTcpClient);
+	}
+}
+// 发送帧 (内部)
+static xnet_result __xrt_ws_client_send_frame(xwsclient* pClient, uint8 iOpcode,
+	const char* pData, size_t iLen)
+{
+	if ( !pClient || !pClient->bHandshakeDone ) return XRT_NET_ERROR;
+	
+	// 计算帧大小 (客户端必须掩码)
+	size_t iFrameSize = __xrt_ws_frame_size(iLen, true);
+	uint8* pFrame = (uint8*)xrtMalloc(iFrameSize);
+	if ( !pFrame ) return XRT_NET_ERROR;
+	
+	// 编码帧
+	size_t iActualSize = __xrt_ws_encode_frame(pFrame, iOpcode, true, true, (uint8*)pData, iLen);
+	
+	// 发送
+	xnet_result iRes = xrtTcpClientSend(pClient->pTcpClient, (char*)pFrame, iActualSize);
+	
+	xrtFree(pFrame);
+	return iRes;
+}
+XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen)
+{
+	return __xrt_ws_client_send_frame(pClient, XRT_WS_OP_TEXT, sText, iLen);
+}
+XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const char* pData, size_t iLen)
+{
+	return __xrt_ws_client_send_frame(pClient, XRT_WS_OP_BINARY, pData, iLen);
+}
+XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const char* pData, size_t iLen)
+{
+	return __xrt_ws_client_send_frame(pClient, XRT_WS_OP_PING, pData, iLen);
+}
+XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason)
+{
+	if ( !pClient || !pClient->bHandshakeDone ) return XRT_NET_ERROR;
+	
+	// 构造 Close 帧载荷
+	size_t iReasonLen = sReason ? strlen(sReason) : 0;
+	size_t iPayloadLen = 2 + iReasonLen;
+	uint8* pPayload = (uint8*)xrtMalloc(iPayloadLen);
+	if ( !pPayload ) return XRT_NET_ERROR;
+	
+	pPayload[0] = (uint8)(iCode >> 8);
+	pPayload[1] = (uint8)(iCode & 0xFF);
+	if ( iReasonLen > 0 ) {
+		memcpy(pPayload + 2, sReason, iReasonLen);
+	}
+	
+	xnet_result iRes = __xrt_ws_client_send_frame(pClient, XRT_WS_OP_CLOSE, (char*)pPayload, iPayloadLen);
+	
+	xrtFree(pPayload);
+	return iRes;
+}
+XXAPI bool xrtWsClientIsConnected(xwsclient* pClient)
+{
+	return pClient && pClient->bConnected && pClient->bHandshakeDone;
+}
+XXAPI void xrtWsClientSetUserData(xwsclient* pClient, ptr pData)
+{
+	if ( pClient ) pClient->pUserData = pData;
+}
+XXAPI ptr xrtWsClientGetUserData(xwsclient* pClient)
+{
+	return pClient ? pClient->pUserData : NULL;
+}
+/* ============================== WebSocket 服务器 TCP 事件回调 ============================== */
+// 前向声明
+static void __xrt_ws_server_process_client_data(xwsserver* pServer, int iClientId,
+	const char* pData, size_t iLen);
+static void __xrt_ws_server_on_accept(ptr pOwner, xnetconn* pConn)
+{
+	xwsserver* pServer = (xwsserver*)xrtTcpServerGetUserData((xtcpserver*)pOwner);
+	if ( !pServer ) return;
+	
+	// 查找空闲槽位
+	int iSlot = -1;
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		if ( !pServer->arrSlots[i].bInUse ) {
+			iSlot = i;
+			break;
+		}
+	}
+	
+	if ( iSlot < 0 ) {
+		// 无空闲槽位，拒绝连接
+		return;
+	}
+	
+	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iSlot];
+	memset(pSlot, 0, sizeof(__xrt_ws_client_slot));
+	pSlot->bInUse = true;
+	pSlot->iClientId = pConn->iId;
+	pSlot->pConn = pConn;
+	pServer->iClientCount++;
+}
+static void __xrt_ws_server_on_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen)
+{
+	xwsserver* pServer = (xwsserver*)xrtTcpServerGetUserData((xtcpserver*)pOwner);
+	if ( !pServer ) return;
+	
+	// 查找客户端槽位
+	int iClientId = pConn->iId;
+	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
+	
+	__xrt_ws_server_process_client_data(pServer, iClientId, pData, iLen);
+}
+static void __xrt_ws_server_on_close(ptr pOwner, xnetconn* pConn)
+{
+	xwsserver* pServer = (xwsserver*)xrtTcpServerGetUserData((xtcpserver*)pOwner);
+	if ( !pServer ) return;
+	
+	int iClientId = pConn->iId;
+	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
+	
+	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
+	if ( !pSlot->bInUse ) return;
+	
+	if ( pSlot->bHandshakeDone && pServer->tEvents.OnClose ) {
+		pServer->tEvents.OnClose(pServer, pConn, XRT_WS_CLOSE_ABNORMAL, "Connection closed");
+	}
+	
+	// 清理槽位
+	xrtNetBufFree(&pSlot->tRecvBuf);
+	xrtNetBufFree(&pSlot->tMsgBuf);
+	pSlot->bInUse = false;
+	pServer->iClientCount--;
+}
+// 处理客户端数据
+static void __xrt_ws_server_process_client_data(xwsserver* pServer, int iClientId,
+	const char* pData, size_t iLen)
+{
+	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
+	if ( !pSlot->bInUse ) return;
+	
+	// 追加到接收缓冲区
+	xrtNetBufAppend(&pSlot->tRecvBuf, pData, iLen);
+	
+	if ( !pSlot->bHandshakeDone ) {
+		// 处理 WebSocket 握手请求
+		char* pBuf = (char*)pSlot->tRecvBuf.pData;
+		size_t iBufLen = pSlot->tRecvBuf.iSize;
+		
+		// 查找 HTTP 请求结束标记
+		char* pEnd = strstr(pBuf, "\r\n\r\n");
+		if ( !pEnd ) return;
+		
+		// 验证是 WebSocket 升级请求
+		char sUpgrade[32] = {0};
+		char sConnection[64] = {0};
+		char sKey[64] = {0};
+		
+		__xrt_ws_get_header_value(pBuf, "Upgrade", sUpgrade, sizeof(sUpgrade));
+		__xrt_ws_get_header_value(pBuf, "Connection", sConnection, sizeof(sConnection));
+		__xrt_ws_get_header_value(pBuf, "Sec-WebSocket-Key", sKey, sizeof(sKey));
+		
+		if ( strcasecmp(sUpgrade, "websocket") != 0 || !strstr(sConnection, "Upgrade") || !sKey[0] ) {
+			// 无效请求
+			xrtTcpServerDisconnect(pServer->pTcpServer, iClientId);
+			return;
+		}
+		
+		// 计算 Accept 密钥
+		char sAccept[64];
+		__xrt_ws_compute_accept(sKey, sAccept);
+		
+		// 发送握手响应
+		char sResponse[512];
+		int iRespLen = snprintf(sResponse, sizeof(sResponse),
+			"HTTP/1.1 101 Switching Protocols\r\n"
+			"Upgrade: websocket\r\n"
+			"Connection: Upgrade\r\n"
+			"Sec-WebSocket-Accept: %s\r\n"
+			"\r\n",
+			sAccept);
+		
+		xrtTcpServerSend(pServer->pTcpServer, iClientId, sResponse, iRespLen);
+		
+		// 握手完成
+		pSlot->bHandshakeDone = true;
+		
+		// 消费 HTTP 请求
+		size_t iHeaderLen = (size_t)(pEnd - pBuf) + 4;
+		xrtNetBufConsume(&pSlot->tRecvBuf, iHeaderLen);
+		
+		// 触发 OnOpen 回调
+		if ( pServer->tEvents.OnOpen ) {
+			pServer->tEvents.OnOpen(pServer, pSlot->pConn);
+		}
+	}
+	
+	// 处理 WebSocket 帧
+	while ( pSlot->tRecvBuf.iSize > 0 ) {
+		__xrt_ws_frame tFrame;
+		int iHeaderLen = __xrt_ws_parse_frame_header(
+			(uint8*)pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &tFrame);
+		
+		if ( iHeaderLen <= 0 ) break;
+		
+		size_t iFrameLen = tFrame.iHeaderLen + tFrame.iPayloadLen;
+		if ( pSlot->tRecvBuf.iSize < iFrameLen ) break;
+		
+		// 获取载荷
+		uint8* pPayload = (uint8*)pSlot->tRecvBuf.pData + tFrame.iHeaderLen;
+		
+		// 解掩码 (客户端发送的数据必须掩码)
+		if ( tFrame.bMasked ) {
+			__xrt_ws_mask_data(pPayload, tFrame.iPayloadLen, tFrame.aMask);
+		}
+		
+		// 处理控制帧
+		if ( tFrame.iOpcode >= 0x08 ) {
+			switch ( tFrame.iOpcode ) {
+				case XRT_WS_OP_CLOSE:
+					{
+						uint16 iCode = XRT_WS_CLOSE_NO_STATUS;
+						const char* sReason = "";
+						if ( tFrame.iPayloadLen >= 2 ) {
+							iCode = ((uint16)pPayload[0] << 8) | pPayload[1];
+							if ( tFrame.iPayloadLen > 2 ) {
+								sReason = (const char*)(pPayload + 2);
+							}
+						}
+						if ( pServer->tEvents.OnClose ) {
+							pServer->tEvents.OnClose(pServer, pSlot->pConn, iCode, sReason);
+						}
+						// 发送 Close 响应
+						xrtWsServerDisconnect(pServer, iClientId, iCode, sReason);
+						return;
+					}
+				case XRT_WS_OP_PING:
+					// 自动回复 Pong (服务器不掩码)
+					{
+						size_t iPongSize = __xrt_ws_frame_size(tFrame.iPayloadLen, false);
+						uint8* pPong = (uint8*)xrtMalloc(iPongSize);
+						if ( pPong ) {
+							size_t iActual = __xrt_ws_encode_frame(pPong, XRT_WS_OP_PONG, true, false,
+								pPayload, tFrame.iPayloadLen);
+							xrtTcpServerSend(pServer->pTcpServer, iClientId, (char*)pPong, iActual);
+							xrtFree(pPong);
+						}
+					}
+					if ( pServer->tEvents.OnPing ) {
+						pServer->tEvents.OnPing(pServer, pSlot->pConn, (char*)pPayload, tFrame.iPayloadLen);
+					}
+					break;
+				case XRT_WS_OP_PONG:
+					if ( pServer->tEvents.OnPong ) {
+						pServer->tEvents.OnPong(pServer, pSlot->pConn, (char*)pPayload, tFrame.iPayloadLen);
+					}
+					break;
+			}
+		} else {
+			// 数据帧
+			if ( tFrame.iOpcode != XRT_WS_OP_CONTINUATION ) {
+				pSlot->iMsgOpcode = tFrame.iOpcode;
+				xrtNetBufClear(&pSlot->tMsgBuf);
+			}
+			
+			xrtNetBufAppend(&pSlot->tMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
+			
+			if ( tFrame.bFin ) {
+				if ( pServer->tEvents.OnMessage ) {
+					pServer->tEvents.OnMessage(pServer, pSlot->pConn, pSlot->iMsgOpcode,
+						(char*)pSlot->tMsgBuf.pData, pSlot->tMsgBuf.iSize);
+				}
+				xrtNetBufClear(&pSlot->tMsgBuf);
+				pSlot->bFragmented = false;
+			} else {
+				pSlot->bFragmented = true;
+			}
+		}
+		
+		xrtNetBufConsume(&pSlot->tRecvBuf, iFrameLen);
+	}
+}
+/* ============================== WebSocket 服务器 API ============================== */
+static xwsserver* __xrt_ws_server_init(xeventloop* pLoop, const char* sIP, uint16 iPort,
+	const xwsconfig* pConfig, const xwsevents* pEvents)
+{
+	xwsserver* pServer = (xwsserver*)xrtCalloc(1, sizeof(xwsserver));
+	if ( !pServer ) return NULL;
+	
+	// 复制配置
+	if ( pConfig ) {
+		pServer->tConfig = *pConfig;
+	}
+	if ( pServer->tConfig.iMaxMessageSize <= 0 ) {
+		pServer->tConfig.iMaxMessageSize = __XRT_WS_DEFAULT_MAX_MSG_SIZE;
+	}
+	
+	// 复制事件
+	if ( pEvents ) {
+		pServer->tEvents = *pEvents;
+	}
+	
+	// 创建底层 TCP 服务器
+	xnetevents tTcpEvents = {0};
+	tTcpEvents.OnAccept = __xrt_ws_server_on_accept;
+	tTcpEvents.OnRecv = __xrt_ws_server_on_recv;
+	tTcpEvents.OnClose = __xrt_ws_server_on_close;
+	
+	xnetconfig tNetConfig = {0};
+	tNetConfig.iRecvBufSize = 8192;
+	tNetConfig.iSendBufSize = 8192;
+	tNetConfig.iMaxClients = 256;
+	
+	if ( pLoop ) {
+		pServer->pTcpServer = xrtTcpServerCreateEx(pLoop, sIP, iPort, &tNetConfig, &tTcpEvents);
+	} else {
+		pServer->pTcpServer = xrtTcpServerCreate(sIP, iPort, &tNetConfig, &tTcpEvents);
+	}
+	
+	if ( !pServer->pTcpServer ) {
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	xrtTcpServerSetUserData(pServer->pTcpServer, pServer);
+	
+	// 分配客户端槽位
+	pServer->iMaxClients = tNetConfig.iMaxClients;
+	pServer->arrSlots = (__xrt_ws_client_slot*)xrtCalloc(pServer->iMaxClients, sizeof(__xrt_ws_client_slot));
+	if ( !pServer->arrSlots ) {
+		xrtTcpServerDestroy(pServer->pTcpServer);
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	return pServer;
+}
+XXAPI xwsserver* xrtWsServerCreate(const char* sIP, uint16 iPort,
+	const xwsconfig* pConfig, const xwsevents* pEvents)
+{
+	return __xrt_ws_server_init(NULL, sIP, iPort, pConfig, pEvents);
+}
+XXAPI xwsserver* xrtWsServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
+	const xwsconfig* pConfig, const xwsevents* pEvents)
+{
+	return __xrt_ws_server_init(pLoop, sIP, iPort, pConfig, pEvents);
+}
+XXAPI void xrtWsServerDestroy(xwsserver* pServer)
+{
+	if ( !pServer ) return;
+	
+	// 清理所有槽位
+	if ( pServer->arrSlots ) {
+		for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+			if ( pServer->arrSlots[i].bInUse ) {
+				xrtNetBufFree(&pServer->arrSlots[i].tRecvBuf);
+				xrtNetBufFree(&pServer->arrSlots[i].tMsgBuf);
+			}
+		}
+		xrtFree(pServer->arrSlots);
+	}
+	
+	if ( pServer->pTcpServer ) {
+		xrtTcpServerDestroy(pServer->pTcpServer);
+	}
+	
+	xrtFree(pServer);
+}
+XXAPI xnet_result xrtWsServerStart(xwsserver* pServer)
+{
+	if ( !pServer || !pServer->pTcpServer ) return XRT_NET_ERROR;
+	pServer->bRunning = true;
+	return xrtTcpServerStart(pServer->pTcpServer);
+}
+XXAPI void xrtWsServerStop(xwsserver* pServer)
+{
+	if ( !pServer ) return;
+	pServer->bRunning = false;
+	if ( pServer->pTcpServer ) {
+		xrtTcpServerStop(pServer->pTcpServer);
+	}
+}
+XXAPI xnet_result xrtWsServerEnableTLS(xwsserver* pServer, const xtlsconfig* pTlsConfig)
+{
+	if ( !pServer || !pServer->pTcpServer ) return XRT_NET_ERROR;
+	return xrtTcpServerEnableTLS(pServer->pTcpServer, pTlsConfig);
+}
+// 发送帧 (内部)
+static xnet_result __xrt_ws_server_send_frame(xwsserver* pServer, int iClientId,
+	uint8 iOpcode, const char* pData, size_t iLen)
+{
+	if ( !pServer || iClientId < 0 || iClientId >= pServer->iMaxClients ) return XRT_NET_ERROR;
+	
+	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
+	if ( !pSlot->bInUse || !pSlot->bHandshakeDone ) return XRT_NET_ERROR;
+	
+	// 服务器不掩码
+	size_t iFrameSize = __xrt_ws_frame_size(iLen, false);
+	uint8* pFrame = (uint8*)xrtMalloc(iFrameSize);
+	if ( !pFrame ) return XRT_NET_ERROR;
+	
+	size_t iActualSize = __xrt_ws_encode_frame(pFrame, iOpcode, true, false, (uint8*)pData, iLen);
+	
+	xnet_result iRes = xrtTcpServerSend(pServer->pTcpServer, iClientId, (char*)pFrame, iActualSize);
+	
+	xrtFree(pFrame);
+	return iRes;
+}
+XXAPI xnet_result xrtWsServerSendText(xwsserver* pServer, int iClientId, const char* sText, size_t iLen)
+{
+	return __xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_TEXT, sText, iLen);
+}
+XXAPI xnet_result xrtWsServerSendBinary(xwsserver* pServer, int iClientId, const char* pData, size_t iLen)
+{
+	return __xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_BINARY, pData, iLen);
+}
+XXAPI xnet_result xrtWsServerPing(xwsserver* pServer, int iClientId, const char* pData, size_t iLen)
+{
+	return __xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_PING, pData, iLen);
+}
+XXAPI xnet_result xrtWsServerBroadcastText(xwsserver* pServer, const char* sText, size_t iLen)
+{
+	if ( !pServer ) return XRT_NET_ERROR;
+	
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		if ( pServer->arrSlots[i].bInUse && pServer->arrSlots[i].bHandshakeDone ) {
+			xrtWsServerSendText(pServer, i, sText, iLen);
+		}
+	}
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtWsServerBroadcastBinary(xwsserver* pServer, const char* pData, size_t iLen)
+{
+	if ( !pServer ) return XRT_NET_ERROR;
+	
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		if ( pServer->arrSlots[i].bInUse && pServer->arrSlots[i].bHandshakeDone ) {
+			xrtWsServerSendBinary(pServer, i, pData, iLen);
+		}
+	}
+	return XRT_NET_OK;
+}
+XXAPI void xrtWsServerDisconnect(xwsserver* pServer, int iClientId, uint16 iCode, const char* sReason)
+{
+	if ( !pServer || iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
+	
+	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
+	if ( !pSlot->bInUse ) return;
+	
+	if ( pSlot->bHandshakeDone ) {
+		// 发送 Close 帧
+		size_t iReasonLen = sReason ? strlen(sReason) : 0;
+		size_t iPayloadLen = 2 + iReasonLen;
+		uint8* pPayload = (uint8*)xrtMalloc(iPayloadLen);
+		if ( pPayload ) {
+			pPayload[0] = (uint8)(iCode >> 8);
+			pPayload[1] = (uint8)(iCode & 0xFF);
+			if ( iReasonLen > 0 ) {
+				memcpy(pPayload + 2, sReason, iReasonLen);
+			}
+			__xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_CLOSE, (char*)pPayload, iPayloadLen);
+			xrtFree(pPayload);
+		}
+	}
+	
+	// 断开底层 TCP 连接
+	xrtTcpServerDisconnect(pServer->pTcpServer, iClientId);
+}
+XXAPI int xrtWsServerGetClientCount(xwsserver* pServer)
+{
+	return pServer ? pServer->iClientCount : 0;
+}
+XXAPI void xrtWsServerSetUserData(xwsserver* pServer, ptr pData)
+{
+	if ( pServer ) pServer->pUserData = pData;
+}
+XXAPI ptr xrtWsServerGetUserData(xwsserver* pServer)
+{
+	return pServer ? pServer->pUserData : NULL;
+}
+#endif
+#ifndef XRT_NO_NETHTTPD
+
+// ========================================
+// File: D:/git/xrt/lib/nethttpd.h
+// ========================================
+
+
+/*
+	NetHTTPD - HTTP 服务器封装 [Ver1.0]
+	
+	基于 nettcp.h (TCP 服务器) + nettls.h (HTTPS TLS 支持)
+	
+	特性:
+	  - HTTP/1.0 和 HTTP/1.1 支持
+	  - Keep-Alive 连接复用
+	  - 事件驱动架构
+	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
+	  - 静态文件服务
+	  - 简单 URI 模式匹配
+	  - WebSocket 升级支持
+	
+	仅 IPv4，跨平台 (Windows / Linux)
+*/
+/* ============================== 内部常量定义 ============================== */
+#define __XRT_HTTPD_DEFAULT_MAX_HEADER   8192       // 默认最大请求头 8KB
+#define __XRT_HTTPD_DEFAULT_MAX_BODY     1048576    // 默认最大请求正文 1MB
+#define __XRT_HTTPD_DEFAULT_KEEPALIVE    60         // 默认 Keep-Alive 超时 60 秒
+#define __XRT_HTTPD_DEFAULT_MAX_CLIENTS  256        // 默认最大连接数
+#define __XRT_HTTPD_RECV_BUF_SIZE        8192       // 接收缓冲区大小
+/* ============================== HTTP 状态码文本 ============================== */
+static const char* __xrt_httpd_status_text(int iStatusCode)
+{
+	switch ( iStatusCode ) {
+		case 100: return "Continue";
+		case 101: return "Switching Protocols";
+		case 200: return "OK";
+		case 201: return "Created";
+		case 204: return "No Content";
+		case 206: return "Partial Content";
+		case 301: return "Moved Permanently";
+		case 302: return "Found";
+		case 303: return "See Other";
+		case 304: return "Not Modified";
+		case 307: return "Temporary Redirect";
+		case 308: return "Permanent Redirect";
+		case 400: return "Bad Request";
+		case 401: return "Unauthorized";
+		case 403: return "Forbidden";
+		case 404: return "Not Found";
+		case 405: return "Method Not Allowed";
+		case 408: return "Request Timeout";
+		case 411: return "Length Required";
+		case 413: return "Payload Too Large";
+		case 414: return "URI Too Long";
+		case 415: return "Unsupported Media Type";
+		case 500: return "Internal Server Error";
+		case 501: return "Not Implemented";
+		case 502: return "Bad Gateway";
+		case 503: return "Service Unavailable";
+		case 505: return "HTTP Version Not Supported";
+		default: return "Unknown";
+	}
+}
+/* ============================== MIME 类型映射 ============================== */
+static const char* __xrt_httpd_get_mime_type(const char* sPath)
+{
+	// 获取扩展名
+	const char* pDot = strrchr(sPath, '.');
+	if ( !pDot || pDot == sPath ) return "application/octet-stream";
+	pDot++;
+	
+	// 常见 MIME 类型
+	if ( strcasecmp(pDot, "html") == 0 || strcasecmp(pDot, "htm") == 0 ) return "text/html; charset=utf-8";
+	if ( strcasecmp(pDot, "css") == 0 ) return "text/css; charset=utf-8";
+	if ( strcasecmp(pDot, "js") == 0 ) return "application/javascript; charset=utf-8";
+	if ( strcasecmp(pDot, "json") == 0 ) return "application/json; charset=utf-8";
+	if ( strcasecmp(pDot, "xml") == 0 ) return "application/xml; charset=utf-8";
+	if ( strcasecmp(pDot, "txt") == 0 ) return "text/plain; charset=utf-8";
+	if ( strcasecmp(pDot, "csv") == 0 ) return "text/csv; charset=utf-8";
+	
+	// 图片
+	if ( strcasecmp(pDot, "png") == 0 ) return "image/png";
+	if ( strcasecmp(pDot, "jpg") == 0 || strcasecmp(pDot, "jpeg") == 0 ) return "image/jpeg";
+	if ( strcasecmp(pDot, "gif") == 0 ) return "image/gif";
+	if ( strcasecmp(pDot, "ico") == 0 ) return "image/x-icon";
+	if ( strcasecmp(pDot, "svg") == 0 ) return "image/svg+xml";
+	if ( strcasecmp(pDot, "webp") == 0 ) return "image/webp";
+	if ( strcasecmp(pDot, "bmp") == 0 ) return "image/bmp";
+	
+	// 字体
+	if ( strcasecmp(pDot, "woff") == 0 ) return "font/woff";
+	if ( strcasecmp(pDot, "woff2") == 0 ) return "font/woff2";
+	if ( strcasecmp(pDot, "ttf") == 0 ) return "font/ttf";
+	if ( strcasecmp(pDot, "otf") == 0 ) return "font/otf";
+	if ( strcasecmp(pDot, "eot") == 0 ) return "application/vnd.ms-fontobject";
+	
+	// 音视频
+	if ( strcasecmp(pDot, "mp3") == 0 ) return "audio/mpeg";
+	if ( strcasecmp(pDot, "wav") == 0 ) return "audio/wav";
+	if ( strcasecmp(pDot, "ogg") == 0 ) return "audio/ogg";
+	if ( strcasecmp(pDot, "mp4") == 0 ) return "video/mp4";
+	if ( strcasecmp(pDot, "webm") == 0 ) return "video/webm";
+	if ( strcasecmp(pDot, "avi") == 0 ) return "video/x-msvideo";
+	
+	// 压缩文件
+	if ( strcasecmp(pDot, "zip") == 0 ) return "application/zip";
+	if ( strcasecmp(pDot, "gz") == 0 || strcasecmp(pDot, "gzip") == 0 ) return "application/gzip";
+	if ( strcasecmp(pDot, "tar") == 0 ) return "application/x-tar";
+	if ( strcasecmp(pDot, "rar") == 0 ) return "application/vnd.rar";
+	if ( strcasecmp(pDot, "7z") == 0 ) return "application/x-7z-compressed";
+	
+	// 文档
+	if ( strcasecmp(pDot, "pdf") == 0 ) return "application/pdf";
+	if ( strcasecmp(pDot, "doc") == 0 ) return "application/msword";
+	if ( strcasecmp(pDot, "docx") == 0 ) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	if ( strcasecmp(pDot, "xls") == 0 ) return "application/vnd.ms-excel";
+	if ( strcasecmp(pDot, "xlsx") == 0 ) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	if ( strcasecmp(pDot, "ppt") == 0 ) return "application/vnd.ms-powerpoint";
+	if ( strcasecmp(pDot, "pptx") == 0 ) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+	
+	// 默认二进制
+	return "application/octet-stream";
+}
+/* ============================== HTTP 客户端槽位结构 ============================== */
+typedef struct {
+	xnetconn* pConn;              // 底层连接
+	int iClientId;                // 客户端 ID
+	bool bInUse;                  // 是否使用中
+	xnetbuf tRecvBuf;             // 接收缓冲区
+	xhttpdreq tReq;               // 当前请求
+	bool bHeaderParsed;           // 请求头是否解析完成
+	bool bBodyComplete;           // 请求正文是否接收完成
+	bool bKeepAlive;              // 是否 Keep-Alive 连接
+	xtime tLastActive;            // 最后活跃时间
+	// WebSocket 升级状态
+	bool bUpgraded;               // 是否已升级为 WebSocket
+	xwsevents* pWsEvents;         // WebSocket 事件回调 (升级后使用)
+	xnetbuf tWsMsgBuf;            // WebSocket 消息重组缓冲区
+	uint8 iWsMsgOpcode;           // WebSocket 消息操作码
+	bool bWsFragmented;           // 是否正在接收 WebSocket 分片消息
+} __xrt_httpd_client_slot;
+/* ============================== HTTP 服务器结构 ============================== */
+struct xrt_http_server {
+	xtcpserver* pTcpServer;       // 底层 TCP 服务器
+	
+	xhttpsrvconfig tConfig;
+	xhttpsrvevents tEvents;
+	
+	// 客户端槽位管理
+	__xrt_httpd_client_slot* arrSlots;
+	int iMaxClients;
+	int iClientCount;
+	
+	volatile bool bRunning;
+	
+	ptr pUserData;
+};
+/* ============================== HTTP 请求解析 ============================== */
+// 解析 HTTP 方法
+static xhttp_method __xrt_httpd_parse_method(const char* sMethod)
+{
+	if ( strcmp(sMethod, "GET") == 0 ) return XHTTP_GET;
+	if ( strcmp(sMethod, "POST") == 0 ) return XHTTP_POST;
+	if ( strcmp(sMethod, "PUT") == 0 ) return XHTTP_PUT;
+	if ( strcmp(sMethod, "DELETE") == 0 ) return XHTTP_DELETE;
+	if ( strcmp(sMethod, "PATCH") == 0 ) return XHTTP_PATCH;
+	if ( strcmp(sMethod, "HEAD") == 0 ) return XHTTP_HEAD;
+	return XHTTP_GET;  // 默认 GET
+}
+// 解析请求行: GET /path HTTP/1.1
+// 返回: 0=需要更多数据, >0=请求行长度 (含 \r\n), -1=错误
+static int __xrt_httpd_parse_request_line(const char* pData, size_t iLen, xhttpdreq* pReq)
+{
+	// 查找 \r\n
+	const char* pEnd = (const char*)memmem(pData, iLen, "\r\n", 2);
+	if ( !pEnd ) return 0;
+	
+	size_t iLineLen = pEnd - pData;
+	if ( iLineLen < 14 ) return -1;  // 最短: "GET / HTTP/1.0"
+	
+	// 解析方法
+	const char* p = pData;
+	const char* pSpace = memchr(p, ' ', pEnd - p);
+	if ( !pSpace || pSpace - p >= 16 ) return -1;
+	
+	size_t iMethodLen = pSpace - p;
+	memcpy(pReq->sMethod, p, iMethodLen);
+	pReq->sMethod[iMethodLen] = '\0';
+	pReq->iMethod = __xrt_httpd_parse_method(pReq->sMethod);
+	
+	// 解析 URI
+	p = pSpace + 1;
+	pSpace = memchr(p, ' ', pEnd - p);
+	if ( !pSpace ) return -1;
+	
+	size_t iUriLen = pSpace - p;
+	if ( iUriLen >= sizeof(pReq->sUri) ) iUriLen = sizeof(pReq->sUri) - 1;
+	memcpy(pReq->sUri, p, iUriLen);
+	pReq->sUri[iUriLen] = '\0';
+	
+	// 分离 Path 和 Query
+	char* pQuery = strchr(pReq->sUri, '?');
+	if ( pQuery ) {
+		size_t iPathLen = pQuery - pReq->sUri;
+		memcpy(pReq->sPath, pReq->sUri, iPathLen);
+		pReq->sPath[iPathLen] = '\0';
+		strncpy(pReq->sQuery, pQuery + 1, sizeof(pReq->sQuery) - 1);
+		pReq->sQuery[sizeof(pReq->sQuery) - 1] = '\0';
+	} else {
+		strncpy(pReq->sPath, pReq->sUri, sizeof(pReq->sPath) - 1);
+		pReq->sPath[sizeof(pReq->sPath) - 1] = '\0';
+		pReq->sQuery[0] = '\0';
+	}
+	
+	// 解析 HTTP 版本
+	p = pSpace + 1;
+	size_t iVerLen = pEnd - p;
+	if ( iVerLen >= sizeof(pReq->sVersion) ) iVerLen = sizeof(pReq->sVersion) - 1;
+	memcpy(pReq->sVersion, p, iVerLen);
+	pReq->sVersion[iVerLen] = '\0';
+	
+	// HTTP/1.1 默认 Keep-Alive
+	pReq->bKeepAlive = (strcmp(pReq->sVersion, "HTTP/1.1") == 0);
+	
+	return (int)(iLineLen + 2);
+}
+// 解析请求头
+// 返回: 0=需要更多数据, >0=头部总长度 (含空行 \r\n\r\n), -1=错误
+static int __xrt_httpd_parse_headers(const char* pData, size_t iLen, xhttpdreq* pReq)
+{
+	// 查找 \r\n\r\n
+	const char* pEnd = (const char*)memmem(pData, iLen, "\r\n\r\n", 4);
+	if ( !pEnd ) return 0;
+	
+	// 初始化头部字典
+	if ( !pReq->pHeaders ) {
+		pReq->pHeaders = xrtDictCreate(sizeof(char*));
+	}
+	
+	const char* p = pData;
+	while ( p < pEnd ) {
+		// 查找行尾
+		const char* pLineEnd = (const char*)memmem(p, pEnd - p, "\r\n", 2);
+		if ( !pLineEnd ) break;
+		
+		// 空行表示头部结束
+		if ( pLineEnd == p ) break;
+		
+		// 解析 "Key: Value"
+		const char* pColon = memchr(p, ':', pLineEnd - p);
+		if ( pColon ) {
+			// 转小写 Key
+			char sKey[256];
+			size_t iKeyLen = pColon - p;
+			if ( iKeyLen >= sizeof(sKey) ) iKeyLen = sizeof(sKey) - 1;
+			for ( size_t i = 0; i < iKeyLen; i++ ) {
+				sKey[i] = (char)tolower((unsigned char)p[i]);
+			}
+			sKey[iKeyLen] = '\0';
+			
+			// 跳过冒号后的空格
+			const char* pValue = pColon + 1;
+			while ( pValue < pLineEnd && *pValue == ' ' ) pValue++;
+			
+			// 复制值
+			size_t iValueLen = pLineEnd - pValue;
+			char* sValue = (char*)xrtMalloc(iValueLen + 1);
+			if ( sValue ) {
+				memcpy(sValue, pValue, iValueLen);
+				sValue[iValueLen] = '\0';
+				
+				// 存入字典
+				char** ppOld = NULL;
+				xrtDictSetPtr((xdict)pReq->pHeaders, sKey, (uint32)iKeyLen, sValue, (ptr*)&ppOld);
+				if ( ppOld && *ppOld ) xrtFree(*ppOld);
+				
+				// 解析特殊头部
+				if ( strcmp(sKey, "content-length") == 0 ) {
+					pReq->iContentLength = (size_t)atoll(sValue);
+				} else if ( strcmp(sKey, "connection") == 0 ) {
+					if ( strcasecmp(sValue, "close") == 0 ) {
+						pReq->bKeepAlive = false;
+					} else if ( strcasecmp(sValue, "keep-alive") == 0 ) {
+						pReq->bKeepAlive = true;
+					}
+				}
+			}
+		}
+		
+		p = pLineEnd + 2;
+	}
+	
+	return (int)(pEnd - pData + 4);
+}
+// 解析查询参数 (延迟解析)
+static void __xrt_httpd_parse_params(xhttpdreq* pReq)
+{
+	if ( pReq->sQuery[0] == '\0' ) return;
+	if ( pReq->pParams && xrtDictCount((xdict)pReq->pParams) > 0 ) return;  // 已解析
+	
+	if ( !pReq->pParams ) {
+		pReq->pParams = xrtDictCreate(sizeof(char*));
+	}
+	
+	char* p = pReq->sQuery;
+	while ( *p ) {
+		// 找 '=' 和 '&'
+		char* pEq = strchr(p, '=');
+		char* pAmp = strchr(p, '&');
+		
+		if ( !pEq || (pAmp && pAmp < pEq) ) {
+			// 没有值的参数或格式错误，跳过
+			if ( pAmp ) {
+				p = pAmp + 1;
+				continue;
+			}
+			break;
+		}
+		
+		// 提取 key
+		size_t iKeyLen = pEq - p;
+		char sKey[256];
+		if ( iKeyLen >= sizeof(sKey) ) iKeyLen = sizeof(sKey) - 1;
+		memcpy(sKey, p, iKeyLen);
+		sKey[iKeyLen] = '\0';
+		
+		// 提取 value
+		char* pValueEnd = pAmp ? pAmp : p + strlen(p);
+		size_t iValueLen = pValueEnd - (pEq + 1);
+		char* sValue = (char*)xrtMalloc(iValueLen + 1);
+		if ( sValue ) {
+			memcpy(sValue, pEq + 1, iValueLen);
+			sValue[iValueLen] = '\0';
+			// TODO: URL 解码
+			xrtDictSetPtr((xdict)pReq->pParams, sKey, (uint32)iKeyLen, sValue, NULL);
+		}
+		
+		if ( !pAmp ) break;
+		p = pAmp + 1;
+	}
+}
+// 解析 Cookie (延迟解析)
+static void __xrt_httpd_parse_cookies(xhttpdreq* pReq)
+{
+	if ( pReq->pCookies && xrtDictCount((xdict)pReq->pCookies) > 0 ) return;  // 已解析
+	
+	const char* sCookie = xrtHttpReqGetHeader(pReq, "cookie");
+	if ( !sCookie ) return;
+	
+	if ( !pReq->pCookies ) {
+		pReq->pCookies = xrtDictCreate(sizeof(char*));
+	}
+	
+	const char* p = sCookie;
+	while ( *p ) {
+		// 跳过空格
+		while ( *p == ' ' ) p++;
+		
+		// 找 '=' 和 ';'
+		const char* pEq = strchr(p, '=');
+		const char* pSemi = strchr(p, ';');
+		
+		if ( !pEq || (pSemi && pSemi < pEq) ) {
+			if ( pSemi ) {
+				p = pSemi + 1;
+				continue;
+			}
+			break;
+		}
+		
+		// 提取 key
+		size_t iKeyLen = pEq - p;
+		char sKey[256];
+		if ( iKeyLen >= sizeof(sKey) ) iKeyLen = sizeof(sKey) - 1;
+		memcpy(sKey, p, iKeyLen);
+		sKey[iKeyLen] = '\0';
+		
+		// 提取 value
+		const char* pValueEnd = pSemi ? pSemi : p + strlen(p);
+		size_t iValueLen = pValueEnd - (pEq + 1);
+		char* sValue = (char*)xrtMalloc(iValueLen + 1);
+		if ( sValue ) {
+			memcpy(sValue, pEq + 1, iValueLen);
+			sValue[iValueLen] = '\0';
+			xrtDictSetPtr((xdict)pReq->pCookies, sKey, (uint32)iKeyLen, sValue, NULL);
+		}
+		
+		if ( !pSemi ) break;
+		p = pSemi + 1;
+	}
+}
+// 清理请求结构
+static void __xrt_httpd_req_cleanup(xhttpdreq* pReq)
+{
+	// 释放字典
+	if ( pReq->pHeaders ) {
+		xrtDictDestroy((xdict)pReq->pHeaders);
+		pReq->pHeaders = NULL;
+	}
+	if ( pReq->pParams ) {
+		xrtDictDestroy((xdict)pReq->pParams);
+		pReq->pParams = NULL;
+	}
+	if ( pReq->pCookies ) {
+		xrtDictDestroy((xdict)pReq->pCookies);
+		pReq->pCookies = NULL;
+	}
+	
+	if ( pReq->pBody ) {
+		xrtFree(pReq->pBody);
+		pReq->pBody = NULL;
+	}
+	pReq->iBodyLen = 0;
+}
+/* ============================== HTTP 响应发送 ============================== */
+// 发送数据 (自动处理 TLS)
+static void __xrt_httpd_send(xnetconn* pConn, const char* pData, size_t iLen)
+{
+	if ( pConn->bTlsEnabled && pConn->pTlsCtx ) {
+		size_t iWritten = 0;
+		xrtTlsWrite(pConn->pTlsCtx, pData, iLen, &iWritten);
+	} else {
+		size_t iSent = 0;
+		xrtSockSend(pConn, pData, iLen, &iSent);
+	}
+}
+// 快速响应 (一次性发送)
+XXAPI void xrtHttpReply(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sBody)
+{
+	size_t iBodyLen = sBody ? strlen(sBody) : 0;
+	
+	// 构建响应头
+	char sRespHeader[4096];
+	int iHeaderLen = snprintf(sRespHeader, sizeof(sRespHeader),
+		"HTTP/1.1 %d %s\r\n"
+		"Content-Length: %zu\r\n"
+		"Server: xrt/1.0\r\n"
+		"%s"
+		"\r\n",
+		iStatusCode, __xrt_httpd_status_text(iStatusCode),
+		iBodyLen,
+		sHeaders ? sHeaders : "");
+	
+	// 发送头部
+	__xrt_httpd_send(pConn, sRespHeader, iHeaderLen);
+	
+	// 发送正文
+	if ( sBody && iBodyLen > 0 ) {
+		__xrt_httpd_send(pConn, sBody, iBodyLen);
+	}
+}
+// 格式化响应
+XXAPI void xrtHttpReplyFmt(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sFmt, ...)
+{
+	char sBody[16384];
+	va_list args;
+	va_start(args, sFmt);
+	vsnprintf(sBody, sizeof(sBody), sFmt, args);
+	va_end(args);
+	
+	xrtHttpReply(pConn, iStatusCode, sHeaders, sBody);
+}
+// 发送 JSON 响应
+XXAPI void xrtHttpReplyJSON(xnetconn* pConn, int iStatusCode, const char* sJSON)
+{
+	xrtHttpReply(pConn, iStatusCode, "Content-Type: application/json; charset=utf-8\r\n", sJSON);
+}
+// 发送文件响应
+XXAPI void xrtHttpReplyFile(xnetconn* pConn, const char* sFilePath, const char* sMimeType)
+{
+	// 读取文件
+	size_t iFileSize = 0;
+	char* pFileData = xrtFileReadAll((str)sFilePath, XRT_CP_BINARY, &iFileSize);
+	
+	if ( !pFileData ) {
+		xrtHttpReply(pConn, 404, "Content-Type: text/plain\r\n", "File Not Found");
+		return;
+	}
+	
+	// 确定 MIME 类型
+	const char* sMime = sMimeType ? sMimeType : __xrt_httpd_get_mime_type(sFilePath);
+	
+	// 构建响应头
+	char sRespHeader[4096];
+	int iHeaderLen = snprintf(sRespHeader, sizeof(sRespHeader),
+		"HTTP/1.1 200 OK\r\n"
+		"Content-Type: %s\r\n"
+		"Content-Length: %zu\r\n"
+		"Server: xrt/1.0\r\n"
+		"\r\n",
+		sMime, iFileSize);
+	
+	// 发送头部
+	__xrt_httpd_send(pConn, sRespHeader, iHeaderLen);
+	
+	// 发送正文
+	if ( iFileSize > 0 ) {
+		__xrt_httpd_send(pConn, pFileData, iFileSize);
+	}
+	
+	xrtFree(pFileData);
+}
+// 分块响应开始
+XXAPI void xrtHttpReplyStart(xnetconn* pConn, int iStatusCode, const char* sHeaders)
+{
+	char sRespHeader[4096];
+	int iHeaderLen = snprintf(sRespHeader, sizeof(sRespHeader),
+		"HTTP/1.1 %d %s\r\n"
+		"Transfer-Encoding: chunked\r\n"
+		"Server: xrt/1.0\r\n"
+		"%s"
+		"\r\n",
+		iStatusCode, __xrt_httpd_status_text(iStatusCode),
+		sHeaders ? sHeaders : "");
+	
+	__xrt_httpd_send(pConn, sRespHeader, iHeaderLen);
+}
+// 发送分块数据
+XXAPI void xrtHttpReplyChunk(xnetconn* pConn, const char* pData, size_t iLen)
+{
+	if ( iLen == 0 ) return;
+	
+	// 发送块大小
+	char sChunkHeader[32];
+	int iChunkHeaderLen = snprintf(sChunkHeader, sizeof(sChunkHeader), "%zx\r\n", iLen);
+	__xrt_httpd_send(pConn, sChunkHeader, iChunkHeaderLen);
+	
+	// 发送块数据
+	__xrt_httpd_send(pConn, pData, iLen);
+	
+	// 发送块结束
+	__xrt_httpd_send(pConn, "\r\n", 2);
+}
+// 结束分块响应
+XXAPI void xrtHttpReplyEnd(xnetconn* pConn)
+{
+	__xrt_httpd_send(pConn, "0\r\n\r\n", 5);
+}
+// 重定向
+XXAPI void xrtHttpRedirect(xnetconn* pConn, int iStatusCode, const char* sLocation)
+{
+	char sHeaders[2048];
+	snprintf(sHeaders, sizeof(sHeaders), "Location: %s\r\n", sLocation);
+	xrtHttpReply(pConn, iStatusCode, sHeaders, NULL);
+}
+/* ============================== URI 模式匹配 ============================== */
+// 简单模式匹配
+// 模式语法:
+//   *   - 匹配任意字符 (不含 /)
+//   **  - 匹配任意字符 (含 /)
+//   :name - 路径参数占位符 (匹配到下一个 / 或结尾)
+XXAPI bool xrtHttpReqMatch(xhttpdreq* pReq, const char* sPattern)
+{
+	const char* pPath = pReq->sPath;
+	const char* pPat = sPattern;
+	
+	while ( *pPath && *pPat ) {
+		if ( *pPat == '*' ) {
+			if ( *(pPat + 1) == '*' ) {
+				// ** 匹配任意字符 (含 /)
+				pPat += 2;
+				if ( *pPat == '\0' ) return true;
+				// 尝试匹配剩余部分
+				while ( *pPath ) {
+					if ( xrtHttpReqMatch(&(xhttpdreq){ .sPath = {0} }, pPat) ) {
+						// 需要复制 path 进行递归检查
+						xhttpdreq tTempReq = {0};
+						strncpy(tTempReq.sPath, pPath, sizeof(tTempReq.sPath) - 1);
+						if ( xrtHttpReqMatch(&tTempReq, pPat) ) return true;
+					}
+					pPath++;
+				}
+				return false;
+			} else {
+				// * 匹配任意字符 (不含 /)
+				pPat++;
+				while ( *pPath && *pPath != '/' ) {
+					pPath++;
+				}
+			}
+		} else if ( *pPat == ':' ) {
+			// :name 匹配路径段
+			pPat++;
+			while ( *pPat && *pPat != '/' ) pPat++;
+			while ( *pPath && *pPath != '/' ) pPath++;
+		} else {
+			// 精确匹配
+			if ( *pPath != *pPat ) return false;
+			pPath++;
+			pPat++;
+		}
+	}
+	
+	// 跳过结尾的通配符
+	while ( *pPat == '*' ) pPat++;
+	
+	return (*pPath == '\0' && *pPat == '\0');
+}
+/* ============================== HTTP 请求读取 API ============================== */
+// 获取请求头
+XXAPI const char* xrtHttpReqGetHeader(xhttpdreq* pReq, const char* sName)
+{
+	if ( !pReq->pHeaders ) return NULL;
+	
+	// 转小写
+	char sKey[256];
+	size_t iLen = strlen(sName);
+	if ( iLen >= sizeof(sKey) ) iLen = sizeof(sKey) - 1;
+	for ( size_t i = 0; i < iLen; i++ ) {
+		sKey[i] = (char)tolower((unsigned char)sName[i]);
+	}
+	sKey[iLen] = '\0';
+	
+	return (const char*)xrtDictGetPtr((xdict)pReq->pHeaders, sKey, (uint32)iLen);
+}
+// 获取查询参数
+XXAPI const char* xrtHttpReqGetParam(xhttpdreq* pReq, const char* sName)
+{
+	__xrt_httpd_parse_params(pReq);
+	if ( !pReq->pParams ) return NULL;
+	return (const char*)xrtDictGetPtr((xdict)pReq->pParams, (ptr)sName, (uint32)strlen(sName));
+}
+// 获取 Cookie
+XXAPI const char* xrtHttpReqGetCookie(xhttpdreq* pReq, const char* sName)
+{
+	__xrt_httpd_parse_cookies(pReq);
+	if ( !pReq->pCookies ) return NULL;
+	return (const char*)xrtDictGetPtr((xdict)pReq->pCookies, (ptr)sName, (uint32)strlen(sName));
+}
+/* ============================== 静态文件服务 ============================== */
+// 路径安全检查 (防止路径遍历攻击)
+static bool __xrt_httpd_is_path_safe(const char* sPath)
+{
+	// 检查 .. 路径遍历
+	if ( strstr(sPath, "..") ) return false;
+	
+	// 检查绝对路径
+	if ( sPath[0] == '/' || sPath[0] == '\\' ) return true;
+	#if defined(_WIN32) || defined(_WIN64)
+	if ( strlen(sPath) >= 2 && sPath[1] == ':' ) return false;
+	#endif
+	
+	return true;
+}
+// 服务静态文件目录
+XXAPI void xrtHttpServeDir(xnetconn* pConn, xhttpdreq* pReq, const char* sRootDir)
+{
+	// 安全检查
+	if ( !__xrt_httpd_is_path_safe(pReq->sPath) ) {
+		xrtHttpReply(pConn, 403, "Content-Type: text/plain\r\n", "Forbidden");
+		return;
+	}
+	
+	// 构建文件路径
+	char sFilePath[2048];
+	snprintf(sFilePath, sizeof(sFilePath), "%s%s", sRootDir, pReq->sPath);
+	
+	// 如果是目录，尝试 index.html
+	size_t iPathLen = strlen(sFilePath);
+	if ( iPathLen > 0 && (sFilePath[iPathLen - 1] == '/' || sFilePath[iPathLen - 1] == '\\') ) {
+		snprintf(sFilePath + iPathLen, sizeof(sFilePath) - iPathLen, "index.html");
+	} else if ( xrtDirExists(sFilePath) ) {
+		snprintf(sFilePath, sizeof(sFilePath), "%s%s/index.html", sRootDir, pReq->sPath);
+	}
+	
+	// 检查文件是否存在
+	if ( !xrtFileExists(sFilePath) ) {
+		xrtHttpReply(pConn, 404, "Content-Type: text/plain\r\n", "Not Found");
+		return;
+	}
+	
+	// 发送文件
+	xrtHttpReplyFile(pConn, sFilePath, NULL);
+}
+// 服务单个文件
+XXAPI void xrtHttpServeFile(xnetconn* pConn, const char* sFilePath)
+{
+	xrtHttpReplyFile(pConn, sFilePath, NULL);
+}
+/* ============================== WebSocket 升级支持 ============================== */
+// WebSocket 升级响应
+XXAPI void xrtHttpUpgradeWebSocket(xnetconn* pConn, xhttpdreq* pReq, const xwsevents* pEvents)
+{
+	// 获取 Sec-WebSocket-Key
+	const char* sKey = xrtHttpReqGetHeader(pReq, "sec-websocket-key");
+	if ( !sKey ) {
+		xrtHttpReply(pConn, 400, "Content-Type: text/plain\r\n", "Missing Sec-WebSocket-Key");
+		return;
+	}
+	
+	// 计算 Accept
+	char sAccept[64];
+	__xrt_ws_compute_accept(sKey, sAccept);
+	
+	// 发送升级响应
+	char sResponse[512];
+	int iLen = snprintf(sResponse, sizeof(sResponse),
+		"HTTP/1.1 101 Switching Protocols\r\n"
+		"Upgrade: websocket\r\n"
+		"Connection: Upgrade\r\n"
+		"Sec-WebSocket-Accept: %s\r\n"
+		"\r\n",
+		sAccept);
+	
+	__xrt_httpd_send(pConn, sResponse, iLen);
+	
+	// 标记连接已升级 (后续数据按 WebSocket 处理)
+	// 槽位状态由调用者更新
+}
+/* ============================== HTTP 服务器 - 槽位管理 ============================== */
+// 分配槽位
+static int __xrt_httpd_alloc_slot(xhttpserver* pServer)
+{
+	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+		if ( !pServer->arrSlots[i].bInUse ) {
+			pServer->arrSlots[i].bInUse = true;
+			pServer->arrSlots[i].iClientId = i;
+			pServer->iClientCount++;
+			return i;
+		}
+	}
+	return -1;
+}
+// 释放槽位
+static void __xrt_httpd_free_slot(xhttpserver* pServer, int iSlot)
+{
+	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
+	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
+	
+	// 清理
+	xrtNetBufFree(&pSlot->tRecvBuf);
+	xrtNetBufFree(&pSlot->tWsMsgBuf);
+	__xrt_httpd_req_cleanup(&pSlot->tReq);
+	
+	memset(pSlot, 0, sizeof(__xrt_httpd_client_slot));
+	pServer->iClientCount--;
+}
+/* ============================== HTTP 服务器 - WebSocket 帧处理 ============================== */
+// 处理 WebSocket 数据 (从 HTTP 服务器槽位调用)
+static void __xrt_httpd_process_ws_data(xhttpserver* pServer, __xrt_httpd_client_slot* pSlot)
+{
+	while ( pSlot->tRecvBuf.iSize > 0 ) {
+		__xrt_ws_frame tFrame;
+		int iHeaderLen = __xrt_ws_parse_frame_header(
+			(uint8*)pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &tFrame);
+		
+		if ( iHeaderLen == 0 ) break;  // 需要更多数据
+		if ( iHeaderLen < 0 ) {
+			// 错误，关闭连接
+			if ( pSlot->pWsEvents && pSlot->pWsEvents->OnError ) {
+				pSlot->pWsEvents->OnError(pServer->pUserData, pSlot->pConn, -1);
+			}
+			return;
+		}
+		
+		// 检查是否有完整的帧
+		size_t iTotalLen = tFrame.iHeaderLen + tFrame.iPayloadLen;
+		if ( pSlot->tRecvBuf.iSize < iTotalLen ) break;
+		
+		// 提取载荷
+		uint8* pPayload = (uint8*)pSlot->tRecvBuf.pData + tFrame.iHeaderLen;
+		
+		// 解掩码 (客户端发送的数据必须掩码)
+		if ( tFrame.bMasked ) {
+			__xrt_ws_mask_data(pPayload, tFrame.iPayloadLen, tFrame.aMask);
+		}
+		
+		// 处理帧
+		switch ( tFrame.iOpcode ) {
+			case XRT_WS_OP_CONTINUATION:
+				// 分片续帧
+				if ( pSlot->bWsFragmented ) {
+					xrtNetBufAppend(&pSlot->tWsMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
+					if ( tFrame.bFin ) {
+						// 分片消息完成
+						if ( pSlot->pWsEvents && pSlot->pWsEvents->OnMessage ) {
+							pSlot->pWsEvents->OnMessage(pServer->pUserData, pSlot->pConn,
+								pSlot->iWsMsgOpcode, pSlot->tWsMsgBuf.pData, pSlot->tWsMsgBuf.iSize);
+						}
+						xrtNetBufClear(&pSlot->tWsMsgBuf);
+						pSlot->bWsFragmented = false;
+					}
+				}
+				break;
+				
+			case XRT_WS_OP_TEXT:
+			case XRT_WS_OP_BINARY:
+				if ( tFrame.bFin ) {
+					// 完整消息
+					if ( pSlot->pWsEvents && pSlot->pWsEvents->OnMessage ) {
+						pSlot->pWsEvents->OnMessage(pServer->pUserData, pSlot->pConn,
+							tFrame.iOpcode, (char*)pPayload, tFrame.iPayloadLen);
+					}
+				} else {
+					// 分片消息开始
+					pSlot->bWsFragmented = true;
+					pSlot->iWsMsgOpcode = tFrame.iOpcode;
+					xrtNetBufClear(&pSlot->tWsMsgBuf);
+					xrtNetBufAppend(&pSlot->tWsMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
+				}
+				break;
+				
+			case XRT_WS_OP_CLOSE:
+				{
+					uint16 iCode = 1000;
+					const char* sReason = "";
+					if ( tFrame.iPayloadLen >= 2 ) {
+						iCode = ((uint16)pPayload[0] << 8) | pPayload[1];
+						if ( tFrame.iPayloadLen > 2 ) {
+							sReason = (char*)(pPayload + 2);
+						}
+					}
+					if ( pSlot->pWsEvents && pSlot->pWsEvents->OnClose ) {
+						pSlot->pWsEvents->OnClose(pServer->pUserData, pSlot->pConn, iCode, sReason);
+					}
+				}
+				break;
+				
+			case XRT_WS_OP_PING:
+				// 自动回复 Pong
+				{
+					uint8 aPong[256];
+					size_t iPongLen = __xrt_ws_encode_frame(aPong, XRT_WS_OP_PONG, true, false,
+						pPayload, tFrame.iPayloadLen < 125 ? tFrame.iPayloadLen : 125);
+					__xrt_httpd_send(pSlot->pConn, (char*)aPong, iPongLen);
+					
+					if ( pSlot->pWsEvents && pSlot->pWsEvents->OnPing ) {
+						pSlot->pWsEvents->OnPing(pServer->pUserData, pSlot->pConn,
+							(char*)pPayload, tFrame.iPayloadLen);
+					}
+				}
+				break;
+				
+			case XRT_WS_OP_PONG:
+				if ( pSlot->pWsEvents && pSlot->pWsEvents->OnPong ) {
+					pSlot->pWsEvents->OnPong(pServer->pUserData, pSlot->pConn,
+						(char*)pPayload, tFrame.iPayloadLen);
+				}
+				break;
+		}
+		
+		// 消费数据
+		xrtNetBufConsume(&pSlot->tRecvBuf, iTotalLen);
+	}
+}
+/* ============================== HTTP 服务器 - 事件处理 ============================== */
+// 前向声明
+static void __xrt_httpd_on_tcp_accept(ptr pOwner, xnetconn* pConn);
+static void __xrt_httpd_on_tcp_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
+static void __xrt_httpd_on_tcp_close(ptr pOwner, xnetconn* pConn);
+// TCP Accept 回调
+static void __xrt_httpd_on_tcp_accept(ptr pOwner, xnetconn* pConn)
+{
+	xhttpserver* pServer = (xhttpserver*)pOwner;
+	
+	// 分配槽位
+	int iSlot = __xrt_httpd_alloc_slot(pServer);
+	if ( iSlot < 0 ) {
+		// 槽位已满，拒绝连接
+		return;
+	}
+	
+	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
+	pSlot->pConn = pConn;
+	pSlot->iClientId = iSlot;
+	pSlot->tLastActive = xrtNow();
+	
+	// 初始化接收缓冲区
+	xrtNetBufInit(&pSlot->tRecvBuf, __XRT_HTTPD_RECV_BUF_SIZE);
+	
+	// 关联槽位 ID 到连接
+	pConn->iId = iSlot;
+}
+// TCP Recv 回调
+static void __xrt_httpd_on_tcp_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen)
+{
+	xhttpserver* pServer = (xhttpserver*)pOwner;
+	int iSlot = pConn->iId;
+	
+	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
+	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
+	if ( !pSlot->bInUse ) return;
+	
+	// 更新活跃时间
+	pSlot->tLastActive = xrtNow();
+	
+	// 追加到接收缓冲区
+	xrtNetBufAppend(&pSlot->tRecvBuf, pData, iLen);
+	
+	// WebSocket 模式
+	if ( pSlot->bUpgraded ) {
+		__xrt_httpd_process_ws_data(pServer, pSlot);
+		return;
+	}
+	
+	// HTTP 模式 - 解析请求
+	if ( !pSlot->bHeaderParsed ) {
+		// 解析请求行
+		int iLineLen = __xrt_httpd_parse_request_line(
+			pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &pSlot->tReq);
+		
+		if ( iLineLen < 0 ) {
+			// 解析错误
+			xrtHttpReply(pConn, 400, "Content-Type: text/plain\r\n", "Bad Request");
+			if ( pServer->tEvents.OnError ) {
+				pServer->tEvents.OnError(pServer->pUserData, pConn, 400);
+			}
+			return;
+		}
+		if ( iLineLen == 0 ) return;  // 需要更多数据
+		
+		// 消费请求行
+		xrtNetBufConsume(&pSlot->tRecvBuf, iLineLen);
+		
+		// 解析请求头
+		int iHeaderLen = __xrt_httpd_parse_headers(
+			pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &pSlot->tReq);
+		
+		if ( iHeaderLen < 0 ) {
+			xrtHttpReply(pConn, 400, "Content-Type: text/plain\r\n", "Bad Request");
+			if ( pServer->tEvents.OnError ) {
+				pServer->tEvents.OnError(pServer->pUserData, pConn, 400);
+			}
+			return;
+		}
+		if ( iHeaderLen == 0 ) return;  // 需要更多数据
+		
+		// 消费头部
+		xrtNetBufConsume(&pSlot->tRecvBuf, iHeaderLen);
+		pSlot->bHeaderParsed = true;
+		pSlot->bKeepAlive = pSlot->tReq.bKeepAlive;
+	}
+	
+	// 接收请求正文
+	if ( pSlot->tReq.iContentLength > 0 ) {
+		if ( pSlot->tRecvBuf.iSize < pSlot->tReq.iContentLength ) {
+			return;  // 需要更多数据
+		}
+		
+		// 分配正文缓冲区
+		pSlot->tReq.pBody = (char*)xrtMalloc(pSlot->tReq.iContentLength + 1);
+		if ( pSlot->tReq.pBody ) {
+			memcpy(pSlot->tReq.pBody, pSlot->tRecvBuf.pData, pSlot->tReq.iContentLength);
+			pSlot->tReq.pBody[pSlot->tReq.iContentLength] = '\0';
+			pSlot->tReq.iBodyLen = pSlot->tReq.iContentLength;
+		}
+		xrtNetBufConsume(&pSlot->tRecvBuf, pSlot->tReq.iContentLength);
+	}
+	
+	pSlot->bBodyComplete = true;
+	
+	// 检查 WebSocket 升级请求
+	const char* sUpgrade = xrtHttpReqGetHeader(&pSlot->tReq, "upgrade");
+	if ( sUpgrade && strcasecmp(sUpgrade, "websocket") == 0 ) {
+		if ( pServer->tEvents.OnUpgrade ) {
+			bool bAccept = pServer->tEvents.OnUpgrade(pServer->pUserData, pConn, &pSlot->tReq);
+			if ( bAccept ) {
+				// 标记为已升级
+				pSlot->bUpgraded = true;
+				xrtNetBufInit(&pSlot->tWsMsgBuf, 4096);
+			}
+		}
+	}
+	
+	// 调用请求回调 (非 WebSocket)
+	if ( !pSlot->bUpgraded && pServer->tEvents.OnRequest ) {
+		pServer->tEvents.OnRequest(pServer->pUserData, pConn, &pSlot->tReq);
+	}
+	
+	// 清理请求状态 (准备下一个请求)
+	if ( !pSlot->bUpgraded ) {
+		__xrt_httpd_req_cleanup(&pSlot->tReq);
+		memset(&pSlot->tReq, 0, sizeof(xhttpdreq));
+		pSlot->bHeaderParsed = false;
+		pSlot->bBodyComplete = false;
+	}
+}
+// TCP Close 回调
+static void __xrt_httpd_on_tcp_close(ptr pOwner, xnetconn* pConn)
+{
+	xhttpserver* pServer = (xhttpserver*)pOwner;
+	int iSlot = pConn->iId;
+	
+	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
+	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
+	if ( !pSlot->bInUse ) return;
+	
+	// 调用关闭回调
+	if ( pServer->tEvents.OnClose ) {
+		pServer->tEvents.OnClose(pServer->pUserData, pConn);
+	}
+	
+	// 释放槽位
+	__xrt_httpd_free_slot(pServer, iSlot);
+}
+/* ============================== HTTP 服务器 - 生命周期 ============================== */
+// 创建 (简易版)
+XXAPI xhttpserver* xrtHttpServerCreate(const char* sIP, uint16 iPort,
+	const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents)
+{
+	xhttpserver* pServer = (xhttpserver*)xrtMalloc(sizeof(xhttpserver));
+	if ( !pServer ) return NULL;
+	memset(pServer, 0, sizeof(xhttpserver));
+	
+	// 复制配置
+	if ( pConfig ) {
+		memcpy(&pServer->tConfig, pConfig, sizeof(xhttpsrvconfig));
+	}
+	
+	// 设置默认值
+	if ( pServer->tConfig.iMaxHeaderSize <= 0 )
+		pServer->tConfig.iMaxHeaderSize = __XRT_HTTPD_DEFAULT_MAX_HEADER;
+	if ( pServer->tConfig.iMaxBodySize <= 0 )
+		pServer->tConfig.iMaxBodySize = __XRT_HTTPD_DEFAULT_MAX_BODY;
+	if ( pServer->tConfig.iKeepAliveTimeout <= 0 )
+		pServer->tConfig.iKeepAliveTimeout = __XRT_HTTPD_DEFAULT_KEEPALIVE;
+	if ( pServer->tConfig.iMaxClients <= 0 )
+		pServer->tConfig.iMaxClients = __XRT_HTTPD_DEFAULT_MAX_CLIENTS;
+	
+	// 复制事件回调
+	if ( pEvents ) {
+		memcpy(&pServer->tEvents, pEvents, sizeof(xhttpsrvevents));
+	}
+	
+	// 分配客户端槽位
+	pServer->iMaxClients = pServer->tConfig.iMaxClients;
+	pServer->arrSlots = (__xrt_httpd_client_slot*)xrtMalloc(
+		pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
+	if ( !pServer->arrSlots ) {
+		xrtFree(pServer);
+		return NULL;
+	}
+	memset(pServer->arrSlots, 0, pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
+	
+	// 创建底层 TCP 服务器
+	xnetconfig tNetConfig = {0};
+	tNetConfig.iRecvBufSize = __XRT_HTTPD_RECV_BUF_SIZE;
+	tNetConfig.iMaxClients = pServer->iMaxClients;
+	
+	xnetevents tNetEvents = {0};
+	tNetEvents.OnAccept = __xrt_httpd_on_tcp_accept;
+	tNetEvents.OnRecv = __xrt_httpd_on_tcp_recv;
+	tNetEvents.OnClose = __xrt_httpd_on_tcp_close;
+	
+	pServer->pTcpServer = xrtTcpServerCreate(sIP, iPort, &tNetConfig, &tNetEvents);
+	if ( !pServer->pTcpServer ) {
+		xrtFree(pServer->arrSlots);
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	// 设置 TCP 服务器的 Owner 为 HTTP 服务器
+	xrtTcpServerSetUserData(pServer->pTcpServer, pServer);
+	
+	return pServer;
+}
+// 创建 (高级版: 共享事件循环)
+XXAPI xhttpserver* xrtHttpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
+	const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents)
+{
+	xhttpserver* pServer = (xhttpserver*)xrtMalloc(sizeof(xhttpserver));
+	if ( !pServer ) return NULL;
+	memset(pServer, 0, sizeof(xhttpserver));
+	
+	// 复制配置
+	if ( pConfig ) {
+		memcpy(&pServer->tConfig, pConfig, sizeof(xhttpsrvconfig));
+	}
+	
+	// 设置默认值
+	if ( pServer->tConfig.iMaxHeaderSize <= 0 )
+		pServer->tConfig.iMaxHeaderSize = __XRT_HTTPD_DEFAULT_MAX_HEADER;
+	if ( pServer->tConfig.iMaxBodySize <= 0 )
+		pServer->tConfig.iMaxBodySize = __XRT_HTTPD_DEFAULT_MAX_BODY;
+	if ( pServer->tConfig.iKeepAliveTimeout <= 0 )
+		pServer->tConfig.iKeepAliveTimeout = __XRT_HTTPD_DEFAULT_KEEPALIVE;
+	if ( pServer->tConfig.iMaxClients <= 0 )
+		pServer->tConfig.iMaxClients = __XRT_HTTPD_DEFAULT_MAX_CLIENTS;
+	
+	// 复制事件回调
+	if ( pEvents ) {
+		memcpy(&pServer->tEvents, pEvents, sizeof(xhttpsrvevents));
+	}
+	
+	// 分配客户端槽位
+	pServer->iMaxClients = pServer->tConfig.iMaxClients;
+	pServer->arrSlots = (__xrt_httpd_client_slot*)xrtMalloc(
+		pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
+	if ( !pServer->arrSlots ) {
+		xrtFree(pServer);
+		return NULL;
+	}
+	memset(pServer->arrSlots, 0, pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
+	
+	// 创建底层 TCP 服务器 (共享事件循环版)
+	xnetconfig tNetConfig = {0};
+	tNetConfig.iRecvBufSize = __XRT_HTTPD_RECV_BUF_SIZE;
+	tNetConfig.iMaxClients = pServer->iMaxClients;
+	
+	xnetevents tNetEvents = {0};
+	tNetEvents.OnAccept = __xrt_httpd_on_tcp_accept;
+	tNetEvents.OnRecv = __xrt_httpd_on_tcp_recv;
+	tNetEvents.OnClose = __xrt_httpd_on_tcp_close;
+	
+	pServer->pTcpServer = xrtTcpServerCreateEx(pLoop, sIP, iPort, &tNetConfig, &tNetEvents);
+	if ( !pServer->pTcpServer ) {
+		xrtFree(pServer->arrSlots);
+		xrtFree(pServer);
+		return NULL;
+	}
+	
+	// 设置 TCP 服务器的 Owner 为 HTTP 服务器
+	xrtTcpServerSetUserData(pServer->pTcpServer, pServer);
+	
+	return pServer;
+}
+// 销毁
+XXAPI void xrtHttpServerDestroy(xhttpserver* pServer)
+{
+	if ( !pServer ) return;
+	
+	// 停止服务器
+	xrtHttpServerStop(pServer);
+	
+	// 销毁 TCP 服务器
+	if ( pServer->pTcpServer ) {
+		xrtTcpServerDestroy(pServer->pTcpServer);
+	}
+	
+	// 释放槽位
+	if ( pServer->arrSlots ) {
+		for ( int i = 0; i < pServer->iMaxClients; i++ ) {
+			if ( pServer->arrSlots[i].bInUse ) {
+				__xrt_httpd_free_slot(pServer, i);
+			}
+		}
+		xrtFree(pServer->arrSlots);
+	}
+	
+	xrtFree(pServer);
+}
+// 启动
+XXAPI xnet_result xrtHttpServerStart(xhttpserver* pServer)
+{
+	if ( !pServer || !pServer->pTcpServer ) return XRT_NET_ERROR;
+	
+	pServer->bRunning = true;
+	return xrtTcpServerStart(pServer->pTcpServer);
+}
+// 停止
+XXAPI void xrtHttpServerStop(xhttpserver* pServer)
+{
+	if ( !pServer ) return;
+	
+	pServer->bRunning = false;
+	if ( pServer->pTcpServer ) {
+		xrtTcpServerStop(pServer->pTcpServer);
+	}
+}
+// 启用 TLS (HTTPS)
+XXAPI xnet_result xrtHttpServerEnableTLS(xhttpserver* pServer, const xtlsconfig* pTlsConfig)
+{
+	if ( !pServer || !pServer->pTcpServer || !pTlsConfig ) return XRT_NET_ERROR;
+	return xrtTcpServerEnableTLS(pServer->pTcpServer, pTlsConfig);
+}
+// 用户数据
+XXAPI void xrtHttpServerSetUserData(xhttpserver* pServer, ptr pData)
+{
+	if ( pServer ) pServer->pUserData = pData;
+}
+XXAPI ptr xrtHttpServerGetUserData(xhttpserver* pServer)
+{
+	return pServer ? pServer->pUserData : NULL;
 }
 #endif
 #ifndef XRT_NO_ARRAY
