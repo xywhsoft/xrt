@@ -165,15 +165,15 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 			char aBuf[8192];
 			size_t iDecrypted = 0;
 			while ( xrtTlsRead(pSlot->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
-				if ( pServer->tEvents.OnRecv ) {
-					pServer->tEvents.OnRecv(pServer, &pSlot->tConn, aBuf, iDecrypted);
+					if ( pServer->tEvents.OnRecv ) {
+						pServer->tEvents.OnRecv(pServer->pUserData, &pSlot->tConn, aBuf, iDecrypted);
 				}
 				iDecrypted = 0;
 			}
 		} else {
 			// 明文数据
 			if ( pServer->tEvents.OnRecv ) {
-				pServer->tEvents.OnRecv(pServer, &pSlot->tConn, pData, iLen);
+				pServer->tEvents.OnRecv(pServer->pUserData, &pSlot->tConn, pData, iLen);
 			}
 		}
 		
@@ -184,7 +184,7 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 	
 	if ( iEvent == XRT_POLL_WRITE ) {
 		if ( pServer->tEvents.OnSend ) {
-			pServer->tEvents.OnSend(pServer, &pSlot->tConn, iLen);
+			pServer->tEvents.OnSend(pServer->pUserData, &pSlot->tConn, iLen);
 		}
 		return;
 	}
@@ -192,7 +192,7 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
 close_slot:
 		if ( pServer->tEvents.OnClose ) {
-			pServer->tEvents.OnClose(pServer, &pSlot->tConn);
+			pServer->tEvents.OnClose(pServer->pUserData, &pSlot->tConn);
 		}
 		
 		xrtPollRemove(pPoller, &pSlot->tConn);
@@ -273,7 +273,7 @@ static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 	
 	// 触发 OnAccept 回调
 	if ( pServer->tEvents.OnAccept ) {
-		pServer->tEvents.OnAccept(pServer, &pSlot->tConn);
+		pServer->tEvents.OnAccept(pServer->pUserData, &pSlot->tConn);
 	}
 	
 	// 投递 recv
@@ -502,7 +502,7 @@ XXAPI void xrtTcpServerStop(xtcpserver* pServer)
 			#endif
 			
 			if ( pServer->tEvents.OnClose ) {
-				pServer->tEvents.OnClose(pServer, &pSlot->tConn);
+				pServer->tEvents.OnClose(pServer->pUserData, &pSlot->tConn);
 			}
 			if ( pSlot->pTlsCtx ) {
 				xrtTlsDestroy(pSlot->pTlsCtx);
@@ -558,7 +558,7 @@ XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId)
 	if ( !pSlot->bInUse ) return;
 	
 	if ( pServer->tEvents.OnClose ) {
-		pServer->tEvents.OnClose(pServer, &pSlot->tConn);
+		pServer->tEvents.OnClose(pServer->pUserData, &pSlot->tConn);
 	}
 	
 	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
