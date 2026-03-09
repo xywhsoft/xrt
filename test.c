@@ -119,7 +119,7 @@ int main(int argc, char** argv)
 	// Test_Hash(xCore);
 	
 	/* 网络库测试 */
-	Test_Network(xCore);
+	// Test_Network(xCore);
 	
 	/* Crypto 加密算法库测试 */
 	// Test_Crypto(xCore);
@@ -199,7 +199,7 @@ int main(int argc, char** argv)
 	// Test_Value_Full(xCore);
 	
 	/* JSON 测试 */
-	// Test_JSON(xCore);
+	Test_JSON(xCore);
 	
 	/* Template 测试 */
 	// Test_Template(xCore);

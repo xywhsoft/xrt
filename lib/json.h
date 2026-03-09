@@ -1,82 +1,5 @@
 
 
-
-/**************** json pool editor / 内存块json的编辑接口 ****************/
-
-/*
- * json_mem_node_t - the block memory node
- * @list: the list value, LJSON associates `list` to the `head` of json_mem_mgr_t
- *   or the `list` of brother json_mem_node_t
- * @size: the memory size
- * @ptr: the memory pointer
- * @cur: the current memory pointer
- * @description: LJSON can use the block memory to accelerate memory allocation and save memory space.
- */
-/*
- * json_mem_node_t - 块内存节点
- * @list: 链表节点，LJSON将 `list` 关联到 `json_mem_mgr_t` 的 `head` 或兄弟 `json_mem_node_t` 的 `list`
- * @size: 内存大小
- * @ptr: 内存指针
- * @cur: 当前内存指针
- * @description: LJSON使用块内存来加速内存分配并节省内存空间，内存块只能统一申请统一释放，无法单独释放某个对象
- */
-typedef struct {
-    struct json_list list;
-    size_t size;
-    char *ptr;
-    char *cur;
-} json_mem_node_t;
-
-/*
- * json_mem_mgr_t - the node to manage block memory node
- * @head: the list head, LJSON manages block memory nodes through the list head
- * @mem_size: the default memory size to allocate, its default value is JSON_POOL_MEM_SIZE_DEF(8192)
- * @cur_node: the current block memory node
- * @description: the manage node manages a group of block memory nodes.
- */
-/*
- * json_mem_mgr_t - 管理块内存节点的结构
- * @head: 链表头，LJSON通过链表头管理块内存节点
- * @mem_size: 默认分配的内存大小，默认值为 `JSON_POOL_MEM_SIZE_DEF`(8192)
- * @cur_node: 当前块内存节点
- * @description: 该管理节点管理一组块内存节点
- */
-typedef struct {
-    struct json_list head;
-    size_t mem_size;
-    json_mem_node_t *cur_node;
-} json_mem_mgr_t;
-
-/*
- * json_mem_t - the head to manage all types of block memory
- * @valid: IN, is there already memory allocation available to speed up
- *   frequent parsing of small JSON files
- * @obj_mgr: the node to manage json_object
- * @key_mgr: the node to manage the value of key
- * @str_mgr: the node to manage the value of JSON_STRING object
- * @description: The reason for dividing into multiple management nodes is that
- * there is a memory address alignment requirement for json_object.
- */
-/*
- * json_mem_t - 管理所有类型块内存的结构
- * @valid: IN, 是否已经有内存分配可用于加速频繁解析小型JSON文件
- * @obj_mgr: 管理 `json_object` 的节点
- * @key_mgr: 管理键值的节点
- * @str_mgr: 管理 `JSON_STRING` 对象值的节点
- * @description: 划分为多个管理节点的原因是 `json_object` 有内存地址对齐要求
- *   valid设为false时，JSON解析函数内部会重新初始化mem，所以此时mem一定不要有挂载内存节点
- */
-typedef struct {
-    bool valid;
-    json_mem_mgr_t obj_mgr;
-    json_mem_mgr_t key_mgr;
-    json_mem_mgr_t str_mgr;
-} json_mem_t;
-
-
-
-
-
 /**************** configuration ****************/
 
 /* Whether to use manual loop unfolding */
@@ -196,7 +119,6 @@ typedef struct {
 #define json_free                       xrtFree
 
 #define JSON_ITEM_NUM_PLUS_DEF          16
-#define JSON_POOL_MEM_SIZE_DEF          8192
 
 /* print choice size */
 #define JSON_PRINT_UTF16_SUPPORT        0
@@ -222,11 +144,10 @@ typedef struct _json_parse_t {
     bool reuse_flag;
 
     char *str;
-    json_mem_t *mem;
 
     void (*skip_blank)(struct _json_parse_t *parse_ptr);
     int (*parse_string)(struct _json_parse_t *parse_ptr, char end_ch, char **ppstr,
-        json_strinfo_t *pinfo, json_mem_mgr_t *mgr);
+        json_strinfo_t *pinfo, bool is_key);
     int (*parse_value)(struct _json_parse_t *parse_ptr, json_object **root);
 
     json_sax_parser_t parser;
@@ -939,7 +860,7 @@ static int _json_parse_key(json_parse_t *parse_ptr, json_string_t *jkey)
             end_ch = *str;
             _UPDATE_PARSE_OFFSET(1);
             if (unlikely(parse_ptr->parse_string(parse_ptr, end_ch, &jkey->str, &jkey->info,
-                &parse_ptr->mem->key_mgr) < 0)) {
+                true) < 0)) {
                 goto err;
             }
             _UPDATE_PARSE_OFFSET(1);
@@ -965,7 +886,7 @@ static int _json_parse_key(json_parse_t *parse_ptr, json_string_t *jkey)
         } else {
             end_ch = ':';
             if (unlikely(parse_ptr->parse_string(parse_ptr, end_ch, &jkey->str, &jkey->info,
-                &parse_ptr->mem->key_mgr) < 0)) {
+                true) < 0)) {
                 goto err;
             }
             _UPDATE_PARSE_OFFSET(1);
@@ -1005,7 +926,7 @@ static int _json_parse_single_value(json_parse_t *parse_ptr, char *str, json_str
             end_ch = *str;
             _UPDATE_PARSE_OFFSET(1);
             if (unlikely(parse_ptr->parse_string(parse_ptr, end_ch, ppstr, pinfo,
-                &parse_ptr->mem->str_mgr) < 0)) {
+                false) < 0)) {
                 goto err;
             }
             _UPDATE_PARSE_OFFSET(1);
@@ -1315,14 +1236,9 @@ err:
 
 
 
-static json_mem_t s_invalid_json_mem;
-
-
-
-
 
 static inline int _json_sax_parse_string(json_parse_t *parse_ptr, char end_ch, char **ppstr,
-    json_strinfo_t *pinfo, json_mem_mgr_t *mgr)
+    json_strinfo_t *pinfo, bool is_key)
 {
     char *ptr = NULL, *str = NULL;
     int len = 0, total = 0;
@@ -1338,7 +1254,7 @@ static inline int _json_sax_parse_string(json_parse_t *parse_ptr, char end_ch, c
     _get_parse_ptr(parse_ptr, 0, total, &str);
 
     if (likely(escaped != 1)) {
-        if (!(mgr == &parse_ptr->mem->key_mgr)) {
+        if (!is_key) {
             pinfo->escaped = escaped != 0;
             pinfo->alloced = 0;
             pinfo->len = len;
@@ -1558,9 +1474,6 @@ XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb)
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-	
-    parse_val.mem = &s_invalid_json_mem;
-    
 	parse_val.str = text;
 	parse_val.size = str_len ? str_len : strlen(text);
 	parse_val.skip_blank = _skip_blank_rapid;
@@ -1629,10 +1542,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 					ctx->cur = arrNew;
 				} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 					xvalue arrNew = xvoCreateArray();
-					char* sKey = xrtMalloc(jkey->info.len + 1);
-					memcpy(sKey, jkey->str, jkey->info.len);
-					sKey[jkey->info.len] = 0;
-					xvoTableSetValue(ctx->cur, sKey, jkey->info.len, arrNew, TRUE);
+					xvoTableSetValue(ctx->cur, jkey->str, jkey->info.len, arrNew, TRUE);
 					xrtStackPushPtr(ctx->stack, arrNew);
 					ctx->cur = arrNew;
 				}
@@ -1650,10 +1560,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 					ctx->cur = tblNew;
 				} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 					xvalue tblNew = xvoCreateTable();
-					char* sKey = xrtMalloc(jkey->info.len + 1);
-					memcpy(sKey, jkey->str, jkey->info.len);
-					sKey[jkey->info.len] = 0;
-					xvoTableSetValue(ctx->cur, sKey, jkey->info.len, tblNew, TRUE);
+					xvoTableSetValue(ctx->cur, jkey->str, jkey->info.len, tblNew, TRUE);
 					xrtStackPushPtr(ctx->stack, tblNew);
 					ctx->cur = tblNew;
 				}
@@ -1669,10 +1576,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendNull(ctx->cur);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetNull(ctx->cur, sKey, jkey->info.len);
+				xvoTableSetNull(ctx->cur, jkey->str, jkey->info.len);
 			}
         } else {
 			ctx->root = xvoCreateNull();
@@ -1682,10 +1586,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendBool(ctx->cur, parser->value.vnum.vbool);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetBool(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vbool);
+				xvoTableSetBool(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vbool);
 			}
         } else {
 			ctx->root = xvoCreateBool(parser->value.vnum.vbool);
@@ -1695,10 +1596,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vint);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vint);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vint);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vint);
@@ -1708,10 +1606,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vhex);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vhex);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vhex);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vhex);
@@ -1721,10 +1616,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vlint);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vlint);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vlint);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vlint);
@@ -1734,10 +1626,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vlhex);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vlhex);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vlhex);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vlhex);
@@ -1747,10 +1636,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendFloat(ctx->cur, parser->value.vnum.vdbl);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetFloat(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vdbl);
+				xvoTableSetFloat(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vdbl);
 			}
         } else {
 			ctx->root = xvoCreateFloat(parser->value.vnum.vdbl);
@@ -1763,10 +1649,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendText(ctx->cur, sText, parser->value.vstr.info.len, TRUE);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetText(ctx->cur, sKey, jkey->info.len, sText, parser->value.vstr.info.len, TRUE);
+				xvoTableSetText(ctx->cur, jkey->str, jkey->info.len, sText, parser->value.vstr.info.len, TRUE);
 			}
         } else {
 			ctx->root = xvoCreateText(sText, parser->value.vstr.info.len, TRUE);
@@ -1786,8 +1669,6 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-	
-    parse_val.mem = &s_invalid_json_mem;
     parse_val.str = text;
     parse_val.size = str_len ? str_len : strlen(text);
     parse_val.skip_blank = _skip_blank_rapid;

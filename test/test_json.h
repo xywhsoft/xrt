@@ -111,7 +111,7 @@ void Test_JSON(xrtGlobalData* xCore)
 	xvoTableSetValue(obj, "count", 0, xvoCreateInt(42), TRUE);
 	xvoTableSetValue(obj, "bigNum", 0, xvoCreateInt(9007199254740991LL), TRUE);
 	xvoTableSetValue(obj, "price", 0, xvoCreateFloat(19.99), TRUE);
-	xvoTableSetValue(obj, "product", 0, xvoCreateText("XRT Library", 13, TRUE), TRUE);
+	xvoTableSetValue(obj, "product", 0, xvoCreateText("XRT Library", 0, FALSE), TRUE);
 	xvoTableSetValue(obj, "inStock", 0, xvoCreateBool(TRUE), TRUE);
 	xvoTableSetValue(obj, "discount", 0, xvoCreateNull(), TRUE);
 	printf("Created object:\n");
@@ -124,7 +124,7 @@ void Test_JSON(xrtGlobalData* xCore)
 	xvoArrayAppendValue(arr, xvoCreateInt(10), TRUE);
 	xvoArrayAppendValue(arr, xvoCreateInt(20), TRUE);
 	xvoArrayAppendValue(arr, xvoCreateInt(30), TRUE);
-	xvoArrayAppendValue(arr, xvoCreateText("forty", 5, TRUE), TRUE);
+	xvoArrayAppendValue(arr, xvoCreateText("forty", 0, FALSE), TRUE);
 	xvoArrayAppendValue(arr, xvoCreateFloat(50.5), TRUE);
 	xvoArrayAppendValue(arr, xvoCreateBool(TRUE), TRUE);
 	xvoArrayAppendValue(arr, xvoCreateNull(), TRUE);
@@ -135,16 +135,16 @@ void Test_JSON(xrtGlobalData* xCore)
 	// subject 9 : Nested JSON structures
 	printf("\nValue test subject 9 : Nested JSON structures\n\n");
 	xvalue nested = xvoCreateTable();
-	xvoTableSetValue(nested, "name", 0, xvoCreateText("Root", 4, TRUE), TRUE);
+	xvoTableSetValue(nested, "name", 0, xvoCreateText("Root", 0, FALSE), TRUE);
 	
 	xvalue child1 = xvoCreateTable();
-	xvoTableSetValue(child1, "type", 0, xvoCreateText("Folder", 6, TRUE), TRUE);
+	xvoTableSetValue(child1, "type", 0, xvoCreateText("Folder", 0, FALSE), TRUE);
 	xvoTableSetValue(child1, "size", 0, xvoCreateInt(1024), TRUE);
 	xvoTableSetValue(nested, "folder1", 0, child1, TRUE);
 	
 	xvalue child2 = xvoCreateArray();
-	xvoArrayAppendValue(child2, xvoCreateText("file1.txt", 8, TRUE), TRUE);
-	xvoArrayAppendValue(child2, xvoCreateText("file2.txt", 8, TRUE), TRUE);
+	xvoArrayAppendValue(child2, xvoCreateText("file1.txt", 0, FALSE), TRUE);
+	xvoArrayAppendValue(child2, xvoCreateText("file2.txt", 0, FALSE), TRUE);
 	xvoTableSetValue(nested, "files", 0, child2, TRUE);
 	
 	printf("Nested structure:\n");
@@ -154,7 +154,7 @@ void Test_JSON(xrtGlobalData* xCore)
 	// subject 10 : JSON stringification
 	printf("\nValue test subject 10 : JSON stringification\n\n");
 	xvalue testObj = xvoCreateTable();
-	xvoTableSetValue(testObj, "string", 0, xvoCreateText("Hello World", 11, TRUE), TRUE);
+	xvoTableSetValue(testObj, "string", 0, xvoCreateText("Hello World", 0, FALSE), TRUE);
 	xvoTableSetValue(testObj, "number", 0, xvoCreateInt(123), TRUE);
 	xvoTableSetValue(testObj, "boolean", 0, xvoCreateBool(FALSE), TRUE);
 	
@@ -182,7 +182,7 @@ void Test_JSON(xrtGlobalData* xCore)
 	// subject 12 : JSON value type checking
 	printf("\nValue test subject 12 : JSON value type checking\n\n");
 	xvalue typeTest = xvoCreateTable();
-	xvoTableSetValue(typeTest, "strKey", 0, xvoCreateText("text", 4, TRUE), TRUE);
+	xvoTableSetValue(typeTest, "strKey", 0, xvoCreateText("text", 0, FALSE), TRUE);
 	xvoTableSetValue(typeTest, "intKey", 0, xvoCreateInt(42), TRUE);
 	xvoTableSetValue(typeTest, "boolKey", 0, xvoCreateBool(TRUE), TRUE);
 	xvoTableSetValue(typeTest, "nullKey", 0, xvoCreateNull(), TRUE);
