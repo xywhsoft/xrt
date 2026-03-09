@@ -1612,6 +1612,42 @@
 	#define XRT_WS_CLOSE_EXTENSION  1010
 	#define XRT_WS_CLOSE_UNEXPECTED 1011
 	
+	/* ---- HTTP 服务器请求结构 (传递给回调) ---- */
+	typedef struct {
+		int iMethod;                  // 请求方法 (使用 xhttp_method 枚举值)
+		char sMethod[16];             // 原始方法字符串
+		char sUri[2048];              // 请求 URI (如 /api/user?id=1)
+		char sPath[1024];             // URI 路径部分 (如 /api/user)
+		char sQuery[1024];            // 查询字符串 (如 id=1)
+		char sVersion[16];            // HTTP/1.0 或 HTTP/1.1
+		void* pHeaders;               // 请求头字典 (内部使用 xdict_struct)
+		char* pBody;                  // 请求正文
+		size_t iBodyLen;              // 正文长度
+		size_t iContentLength;        // Content-Length 值
+		bool bKeepAlive;              // Connection: keep-alive
+		// 内部使用
+		void* pParams;                // 解析后的查询参数 (内部 xdict_struct)
+		void* pCookies;               // 解析后的 Cookie (内部 xdict_struct)
+	} xhttpdreq;
+	
+	/* ---- HTTP 服务器事件回调 ---- */
+	typedef struct {
+		void (*OnRequest)(ptr pOwner, xnetconn* pConn, xhttpdreq* pReq);
+		bool (*OnUpgrade)(ptr pOwner, xnetconn* pConn, xhttpdreq* pReq);
+		void (*OnClose)(ptr pOwner, xnetconn* pConn);
+		void (*OnError)(ptr pOwner, xnetconn* pConn, int iErrorCode);
+	} xhttpsrvevents;
+	
+	/* ---- HTTP 服务器配置 ---- */
+	typedef struct {
+		const char* sRootDir;         // 静态文件根目录 (NULL=禁用)
+		const char* sIndexFile;       // 默认索引文件 (默认 "index.html")
+		int iMaxHeaderSize;           // 最大请求头大小 (默认 8KB)
+		int iMaxBodySize;             // 最大请求正文 (默认 1MB)
+		int iKeepAliveTimeout;        // Keep-Alive 超时秒数 (默认 60)
+		int iMaxClients;              // 最大并发连接 (默认 256)
+	} xhttpsrvconfig;
+	
 	/* ---- 代理配置 ---- */
 	#define XRT_PROXY_NONE         0   // 无代理
 	#define XRT_PROXY_SOCKS5       1   // SOCKS5 代理
@@ -1685,6 +1721,9 @@
 	/* ---- WebSocket 服务器/客户端 (不透明) ---- */
 	typedef struct xrt_ws_server xwsserver;
 	typedef struct xrt_ws_client xwsclient;
+	
+	/* ---- HTTP 服务器 (不透明) ---- */
+	typedef struct xrt_http_server xhttpserver;
 	
 	
 	
@@ -1986,6 +2025,39 @@
 	XXAPI void xrtWsServerSetUserData(xwsserver* pServer, ptr pData);
 	XXAPI ptr xrtWsServerGetUserData(xwsserver* pServer);
 	
+	
+	/* ------------------------------------ HTTP 服务器 ------------------------------------ */
+	
+	// HTTP 服务器生命周期
+	XXAPI xhttpserver* xrtHttpServerCreate(const char* sIP, uint16 iPort, const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents);
+	XXAPI xhttpserver* xrtHttpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents);
+	XXAPI void xrtHttpServerDestroy(xhttpserver* pServer);
+	XXAPI xnet_result xrtHttpServerStart(xhttpserver* pServer);
+	XXAPI void xrtHttpServerStop(xhttpserver* pServer);
+	XXAPI xnet_result xrtHttpServerEnableTLS(xhttpserver* pServer, const xtlsconfig* pTlsConfig);
+	XXAPI void xrtHttpServerSetUserData(xhttpserver* pServer, ptr pData);
+	XXAPI ptr xrtHttpServerGetUserData(xhttpserver* pServer);
+	
+	// HTTP 请求读取
+	XXAPI const char* xrtHttpReqGetHeader(xhttpdreq* pReq, const char* sName);
+	XXAPI const char* xrtHttpReqGetParam(xhttpdreq* pReq, const char* sName);
+	XXAPI const char* xrtHttpReqGetCookie(xhttpdreq* pReq, const char* sName);
+	XXAPI bool xrtHttpReqMatch(xhttpdreq* pReq, const char* sPattern);
+	
+	// HTTP 响应发送
+	XXAPI void xrtHttpReply(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sBody);
+	XXAPI void xrtHttpReplyFmt(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sFmt, ...);
+	XXAPI void xrtHttpReplyJSON(xnetconn* pConn, int iStatusCode, const char* sJSON);
+	XXAPI void xrtHttpReplyFile(xnetconn* pConn, const char* sFilePath, const char* sMimeType);
+	XXAPI void xrtHttpReplyStart(xnetconn* pConn, int iStatusCode, const char* sHeaders);
+	XXAPI void xrtHttpReplyChunk(xnetconn* pConn, const char* pData, size_t iLen);
+	XXAPI void xrtHttpReplyEnd(xnetconn* pConn);
+	XXAPI void xrtHttpRedirect(xnetconn* pConn, int iStatusCode, const char* sLocation);
+	XXAPI void xrtHttpUpgradeWebSocket(xnetconn* pConn, xhttpdreq* pReq, const xwsevents* pEvents);
+	
+	// HTTP 静态文件服务
+	XXAPI void xrtHttpServeDir(xnetconn* pConn, xhttpdreq* pReq, const char* sRootDir);
+	XXAPI void xrtHttpServeFile(xnetconn* pConn, const char* sFilePath);
 	
 	
 	

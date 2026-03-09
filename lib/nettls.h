@@ -2705,6 +2705,11 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 		iPos += iExtDataLen;
 	}
 	
+	// 解析完成后调用 SNI 回调 (允许用户根据域名切换证书)
+	if ( pCtx->sClientSNI[0] != '\0' && pCtx->OnSNI ) {
+		pCtx->OnSNI(pCtx, pCtx->sClientSNI, pCtx->pSNIUserData);
+	}
+	
 	return true;
 }
 
@@ -2720,10 +2725,139 @@ XXAPI const char* xrtTlsGetSNI(xtlsctx *pCtx)
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile)
 {
 	if ( !pCtx ) return XRT_NET_ERROR;
-	// TODO: 加载 PEM/DER 证书和私钥文件到 pCtx->pCertDer / pCtx->pKeyDer
-	// 这个 API 主要用于 SNI 回调中根据域名动态配置证书
-	(void)sCertFile;
-	(void)sKeyFile;
+	
+	// 释放旧证书数据
+	if ( pCtx->pCertDer ) {
+		xrtFree(pCtx->pCertDer);
+		pCtx->pCertDer = NULL;
+		pCtx->iCertDerLen = 0;
+	}
+	if ( pCtx->pKeyDer ) {
+		xrtFree(pCtx->pKeyDer);
+		pCtx->pKeyDer = NULL;
+		pCtx->iKeyDerLen = 0;
+	}
+	
+	// 加载证书文件
+	if ( sCertFile && sCertFile[0] ) {
+		size_t iFileSize = 0;
+		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sCertFile, &iFileSize);
+		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+			return XRT_NET_ERROR;
+		}
+		
+		// 检测是否为 PEM 格式
+		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
+			// PEM 格式: 找到 Base64 内容区域
+			const char *pStart = strstr((char*)pFileData, "\n");
+			if ( pStart ) {
+				pStart++;  // 跳过 -----BEGIN xxx-----\n
+				const char *pEnd = strstr(pStart, "-----END ");
+				if ( pEnd ) {
+					// 复制 Base64 内容 (去除换行符)
+					size_t iB64Len = pEnd - pStart;
+					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
+					if ( !pB64 ) {
+						xrtFree(pFileData);
+						return XRT_NET_ERROR;
+					}
+					
+					size_t j = 0;
+					for ( size_t i = 0; i < iB64Len; i++ ) {
+						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
+							pB64[j++] = pStart[i];
+						}
+					}
+					pB64[j] = '\0';
+					
+					// Base64 解码
+					// 补齐 Base64 长度为 4 的倍数
+					while ( j % 4 != 0 ) {
+						pB64[j++] = '=';
+					}
+					pB64[j] = '\0';
+					
+					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
+					if ( pDer && pDer != (uint8*)xCore.sNull ) {
+						pCtx->pCertDer = pDer;
+						pCtx->iCertDerLen = (j / 4) * 3;
+						// 去除填充字节
+						while ( pCtx->iCertDerLen > 0 && pCtx->pCertDer[pCtx->iCertDerLen - 1] == 0 ) {
+							pCtx->iCertDerLen--;
+						}
+					}
+					xrtFree(pB64);
+				}
+			}
+		} else {
+			// DER 格式: 直接复制
+			pCtx->pCertDer = (uint8*)xrtMalloc(iFileSize);
+			if ( pCtx->pCertDer ) {
+				memcpy(pCtx->pCertDer, pFileData, iFileSize);
+				pCtx->iCertDerLen = iFileSize;
+			}
+		}
+		xrtFree(pFileData);
+	}
+	
+	// 加载私钥文件
+	if ( sKeyFile && sKeyFile[0] ) {
+		size_t iFileSize = 0;
+		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sKeyFile, &iFileSize);
+		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+			return XRT_NET_ERROR;
+		}
+		
+		// 检测是否为 PEM 格式
+		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
+			// PEM 格式
+			const char *pStart = strstr((char*)pFileData, "\n");
+			if ( pStart ) {
+				pStart++;
+				const char *pEnd = strstr(pStart, "-----END ");
+				if ( pEnd ) {
+					size_t iB64Len = pEnd - pStart;
+					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
+					if ( !pB64 ) {
+						xrtFree(pFileData);
+						return XRT_NET_ERROR;
+					}
+					
+					size_t j = 0;
+					for ( size_t i = 0; i < iB64Len; i++ ) {
+						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
+							pB64[j++] = pStart[i];
+						}
+					}
+					pB64[j] = '\0';
+					
+					while ( j % 4 != 0 ) {
+						pB64[j++] = '=';
+					}
+					pB64[j] = '\0';
+					
+					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
+					if ( pDer && pDer != (uint8*)xCore.sNull ) {
+						pCtx->pKeyDer = pDer;
+						pCtx->iKeyDerLen = (j / 4) * 3;
+						while ( pCtx->iKeyDerLen > 0 && pCtx->pKeyDer[pCtx->iKeyDerLen - 1] == 0 ) {
+							pCtx->iKeyDerLen--;
+						}
+					}
+					xrtFree(pB64);
+				}
+			}
+		} else {
+			// DER 格式
+			pCtx->pKeyDer = (uint8*)xrtMalloc(iFileSize);
+			if ( pCtx->pKeyDer ) {
+				memcpy(pCtx->pKeyDer, pFileData, iFileSize);
+				pCtx->iKeyDerLen = iFileSize;
+			}
+		}
+		xrtFree(pFileData);
+	}
+	
 	return XRT_NET_OK;
 }
 

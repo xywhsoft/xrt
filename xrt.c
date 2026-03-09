@@ -125,6 +125,10 @@ static int __xrt_RefCount = 0;  // 引用计数
 #include "lib/netws.h"
 #endif
 
+#ifndef XRT_NO_NETHTTPD
+#include "lib/nethttpd.h"
+#endif
+
 #ifndef XRT_NO_ARRAY
 #include "lib/array_point.h"
 #include "lib/array.h"

@@ -28,9 +28,11 @@
 #include "test/test_netloop.h"
 #include "test/test_nettcp.h"
 #include "test/test_nettls.h"
+#include "test/test_tls_sni.h"
 #include "test/tls_comprehensive_test.h"
 #include "test/test_nethttp.h"
 #include "test/test_netws.h"
+#include "test/test_nethttpd.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
 #include "test/test_array_ptr.h"
@@ -140,8 +142,14 @@ int main(int argc, char** argv)
 	/* TLS 1.3 测试 */
 	Test_NetTLS(xCore);
 	
+	/* TLS SNI 测试 */
+	Test_TLS_SNI();
+	
 	/* WebSocket 测试 */
 	Test_NetWS(xCore);
+	
+	/* HTTP 服务器测试 */
+	Test_NetHTTPD(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);
