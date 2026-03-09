@@ -1557,6 +1557,19 @@
 		void (*OnError)(ptr pServer, xnetconn* pConn, int iErrorCode);
 	} xnetevents;
 	
+	/* ---- 代理配置 ---- */
+	#define XRT_PROXY_NONE         0   // 无代理
+	#define XRT_PROXY_SOCKS5       1   // SOCKS5 代理
+	#define XRT_PROXY_HTTP_CONNECT 2   // HTTP CONNECT 代理
+	
+	typedef struct {
+		int iType;           // 代理类型: XRT_PROXY_NONE / XRT_PROXY_SOCKS5 / XRT_PROXY_HTTP_CONNECT
+		char sHost[64];      // 代理服务器地址
+		uint16 iPort;        // 代理服务器端口
+		char sUser[64];      // 用户名 (可选，空字符串=无认证)
+		char sPass[64];      // 密码 (可选)
+	} xproxyconfig;
+	
 	/* ---- 网络配置 ---- */
 	typedef struct {
 		size_t iRecvBufSize;    // 默认 8192
@@ -1565,6 +1578,7 @@
 		int iPollTimeoutMs;     // 轮询超时(毫秒)
 		int iConnectTimeoutMs;  // 连接超时(毫秒)，默认 5000
 		bool bNoDelay;          // TCP_NODELAY，默认 true
+		xproxyconfig tProxy;    // 代理配置
 	} xnetconfig;
 	
 	/* 初始化 xnetconfig 的默认值 */
@@ -1576,6 +1590,12 @@
 		pConfig->iPollTimeoutMs = 1000;
 		pConfig->iConnectTimeoutMs = 5000;
 		pConfig->bNoDelay = true;
+		// 代理默认禁用
+		pConfig->tProxy.iType = XRT_PROXY_NONE;
+		pConfig->tProxy.sHost[0] = '\0';
+		pConfig->tProxy.iPort = 0;
+		pConfig->tProxy.sUser[0] = '\0';
+		pConfig->tProxy.sPass[0] = '\0';
 	}
 	
 	/* ---- TLS 上下文 (不透明) ---- */
@@ -1798,6 +1818,22 @@
 	
 	
 	
+	/* ------------------------------------ 代理连接 ------------------------------------ */
+	
+	// SOCKS5 代理握手 + CONNECT (同步阻塞，pConn 需已连接到代理服务器)
+	XXAPI xnet_result xrtProxySocks5Connect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
+		const char* sUser, const char* sPass, int iTimeoutMs);
+	
+	// HTTP CONNECT 代理握手 (同步阻塞，pConn 需已连接到代理服务器)
+	XXAPI xnet_result xrtProxyHttpConnect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
+		const char* sUser, const char* sPass, int iTimeoutMs);
+	
+	// 通用代理连接 (根据配置自动选择协议)
+	XXAPI xnet_result xrtProxyConnect(xnetconn* pConn, const xproxyconfig* pProxy,
+		const char* sTargetHost, uint16 iTargetPort, int iTimeoutMs);
+	
+	
+	
 	/* ------------------------------------ TCP 服务器/客户端 ------------------------------------ */
 	
 	// TCP 服务器
@@ -1824,6 +1860,13 @@
 	XXAPI bool xrtTcpClientIsConnected(xtcpclient* pClient);
 	XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData);
 	XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient);
+	
+	// TCP 客户端 - 同步接收 API
+	XXAPI void xrtTcpClientEnableSyncRecv(xtcpclient* pClient);
+	XXAPI void xrtTcpClientDisableSyncRecv(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientRecvSync(xtcpclient* pClient, char* pBuf, size_t iBufSize, size_t* pRecvLen, int iTimeoutMs);
+	XXAPI size_t xrtTcpClientSyncAvailable(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientWaitData(xtcpclient* pClient, int iTimeoutMs);
 	
 	
 	

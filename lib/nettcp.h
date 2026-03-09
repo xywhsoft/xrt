@@ -77,9 +77,16 @@ struct xrt_tcp_client {
 	bool bTlsHandshaking;
 	
 	xnetaddr tServerAddr;
+	char sTargetHost[256];        // 目标主机名 (用于代理和SNI)
+	uint16 iTargetPort;           // 目标端口
 	
 	volatile bool bRunning;
 	volatile bool bConnected;
+	
+	// 同步接收缓冲区
+	xnetbuf tSyncRecvBuf;         // 同步接收缓冲区
+	volatile bool bSyncRecvReady; // 同步接收数据就绪标志
+	volatile bool bSyncRecvMode;  // 是否启用同步接收模式
 	
 	ptr pUserData;
 };
@@ -642,12 +649,24 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 			char aBuf[8192];
 			size_t iDecrypted = 0;
 			while ( xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+				// 同步模式：写入同步缓冲区
+				if ( pClient->bSyncRecvMode ) {
+					xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iDecrypted);
+					pClient->bSyncRecvReady = true;
+				}
+				// 异步模式：调用用户回调
 				if ( pClient->tEvents.OnRecv ) {
 					pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iDecrypted);
 				}
 				iDecrypted = 0;
 			}
 		} else {
+			// 同步模式：写入同步缓冲区
+			if ( pClient->bSyncRecvMode ) {
+				xrtNetBufAppend(&pClient->tSyncRecvBuf, pData, iLen);
+				pClient->bSyncRecvReady = true;
+			}
+			// 异步模式：调用用户回调
 			if ( pClient->tEvents.OnRecv ) {
 				pClient->tEvents.OnRecv(pClient, &pClient->tConn, pData, iLen);
 			}
@@ -666,6 +685,58 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 	
 	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
 close_client:
+		;  // label 后需要语句
+		// 关闭前尝试读取剩余数据（优雅关闭）
+		int iTotalRead = 0;
+		if ( iEvent == XRT_POLL_CLOSE ) {
+			char aBuf[4096];
+			int iRemaining;
+			while ( (iRemaining = recv(pClient->tConn.hSocket, aBuf, sizeof(aBuf), 0)) > 0 ) {
+				iTotalRead += iRemaining;
+				if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
+					// TLS: 先放入 TLS 接收缓冲区，再解密读取
+					xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, aBuf, iRemaining);
+					size_t iDecrypted = 0;
+					char aTlsBuf[4096];
+					while ( xrtTlsRead(pClient->pTlsCtx, aTlsBuf, sizeof(aTlsBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+						if ( pClient->bSyncRecvMode ) {
+							xrtNetBufAppend(&pClient->tSyncRecvBuf, aTlsBuf, iDecrypted);
+							pClient->bSyncRecvReady = true;
+						}
+						if ( pClient->tEvents.OnRecv ) {
+							pClient->tEvents.OnRecv(pClient, &pClient->tConn, aTlsBuf, iDecrypted);
+						}
+						iDecrypted = 0;
+					}
+				} else {
+					// 非 TLS: 直接处理
+					if ( pClient->bSyncRecvMode ) {
+						xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iRemaining);
+						pClient->bSyncRecvReady = true;
+					}
+					if ( pClient->tEvents.OnRecv ) {
+						pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iRemaining);
+					}
+				}
+			}
+			
+			// 即使 recv() 没有返回数据，也要尝试解密 TLS 缓冲区中的剩余数据
+			if ( pClient->bTlsEnabled && pClient->pTlsCtx && pClient->pTlsCtx->tRecvBuf.iSize > 0 ) {
+				size_t iDecrypted = 0;
+				char aTlsBuf[4096];
+				while ( xrtTlsRead(pClient->pTlsCtx, aTlsBuf, sizeof(aTlsBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+					if ( pClient->bSyncRecvMode ) {
+						xrtNetBufAppend(&pClient->tSyncRecvBuf, aTlsBuf, iDecrypted);
+						pClient->bSyncRecvReady = true;
+					}
+					if ( pClient->tEvents.OnRecv ) {
+						pClient->tEvents.OnRecv(pClient, &pClient->tConn, aTlsBuf, iDecrypted);
+					}
+					iDecrypted = 0;
+				}
+			}
+		}
+		
 		pClient->bConnected = false;
 		pClient->bTlsHandshaking = false;
 		if ( pClient->tEvents.OnClose ) {
@@ -711,6 +782,11 @@ XXAPI xtcpclient* xrtTcpClientCreateEx(xeventloop* pLoop, const char* sIP, uint1
 	if ( pEvents ) {
 		pClient->tEvents = *pEvents;
 	}
+	
+	// 保存目标主机名和端口 (用于代理连接和SNI)
+	strncpy(pClient->sTargetHost, sIP, sizeof(pClient->sTargetHost) - 1);
+	pClient->sTargetHost[sizeof(pClient->sTargetHost) - 1] = '\0';
+	pClient->iTargetPort = iPort;
 	
 	xrtNetAddrInit(&pClient->tServerAddr, sIP, iPort);
 	
@@ -759,8 +835,39 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		return XRT_NET_ERROR;
 	}
 	
-	// 阻塞连接
-	xnet_result iRes = xrtSockConnect(&pClient->tConn, &pClient->tServerAddr);
+	int iTimeoutMs = pClient->tConfig.iConnectTimeoutMs > 0 ? 
+		pClient->tConfig.iConnectTimeoutMs : 5000;
+	
+	// ========== 代理连接处理 ==========
+	xnetaddr tConnectAddr;
+	bool bUseProxy = (pClient->tConfig.tProxy.iType > 0 && pClient->tConfig.tProxy.sHost[0]);
+	
+	if ( bUseProxy ) {
+		// 使用代理：先解析代理服务器地址
+		xnet_result iDnsRes = xrtNetResolve(pClient->tConfig.tProxy.sHost, &tConnectAddr);
+		if ( iDnsRes != XRT_NET_OK ) {
+			xrtSockClose(&pClient->tConn);
+			return XRT_NET_ERROR;
+		}
+		tConnectAddr.iPort = pClient->tConfig.tProxy.iPort;
+	} else {
+		// 直连：检查 tServerAddr 是否有效，无效则尝试 DNS 解析
+		if ( pClient->tServerAddr.iAddr == INADDR_NONE || pClient->tServerAddr.iAddr == 0 ) {
+			// tServerAddr 无效（可能传入的是域名），尝试 DNS 解析
+			xnet_result iDnsRes = xrtNetResolve(pClient->sTargetHost, &tConnectAddr);
+			if ( iDnsRes != XRT_NET_OK ) {
+				xrtSockClose(&pClient->tConn);
+				return XRT_NET_ERROR;
+			}
+			tConnectAddr.iPort = pClient->iTargetPort;
+		} else {
+			// tServerAddr 有效，直接使用
+			tConnectAddr = pClient->tServerAddr;
+		}
+	}
+	
+	// 阻塞连接 (到代理或目标)
+	xnet_result iRes = xrtSockConnect(&pClient->tConn, &tConnectAddr);
 	if ( iRes != XRT_NET_OK && iRes != XRT_NET_AGAIN ) {
 		xrtSockClose(&pClient->tConn);
 		return XRT_NET_ERROR;
@@ -772,14 +879,23 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		FD_ZERO(&tWriteSet);
 		FD_SET(pClient->tConn.hSocket, &tWriteSet);
 		struct timeval tTimeout;
-		int iTimeoutMs = pClient->tConfig.iConnectTimeoutMs > 0 ? 
-			pClient->tConfig.iConnectTimeoutMs : 5000;
 		tTimeout.tv_sec = iTimeoutMs / 1000;
 		tTimeout.tv_usec = (iTimeoutMs % 1000) * 1000;
 		int iSelRes = select((int)pClient->tConn.hSocket + 1, NULL, &tWriteSet, NULL, &tTimeout);
 		if ( iSelRes <= 0 ) {
 			xrtSockClose(&pClient->tConn);
 			return XRT_NET_TIMEOUT;
+		}
+	}
+	
+	// ========== 代理握手 ==========
+	if ( bUseProxy ) {
+		// 使用原始目标主机名和端口进行代理握手
+		xnet_result iProxyRes = xrtProxyConnect(&pClient->tConn, &pClient->tConfig.tProxy,
+			pClient->sTargetHost, pClient->iTargetPort, iTimeoutMs);
+		if ( iProxyRes != XRT_NET_OK ) {
+			xrtSockClose(&pClient->tConn);
+			return iProxyRes;
 		}
 	}
 	
@@ -974,5 +1090,154 @@ XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData)
 XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient)
 {
 	return pClient ? pClient->pUserData : NULL;
+}
+
+
+
+/* ============================== TCP 客户端 - 同步接收 API ============================== */
+
+// 启用同步接收模式
+XXAPI void xrtTcpClientEnableSyncRecv(xtcpclient* pClient)
+{
+	if ( !pClient ) return;
+	if ( !pClient->tSyncRecvBuf.pData ) {
+		xrtNetBufInit(&pClient->tSyncRecvBuf, 16384);  // 16KB 初始缓冲区
+	}
+	pClient->bSyncRecvMode = true;
+	pClient->bSyncRecvReady = false;
+}
+
+// 禁用同步接收模式
+XXAPI void xrtTcpClientDisableSyncRecv(xtcpclient* pClient)
+{
+	if ( !pClient ) return;
+	pClient->bSyncRecvMode = false;
+	pClient->bSyncRecvReady = false;
+	xrtNetBufFree(&pClient->tSyncRecvBuf);
+}
+
+// 同步阻塞接收数据
+// 返回: XRT_NET_OK 成功, XRT_NET_TIMEOUT 超时, XRT_NET_ERROR 错误/连接断开
+XXAPI xnet_result xrtTcpClientRecvSync(xtcpclient* pClient, char* pBuf, size_t iBufSize, size_t* pRecvLen, int iTimeoutMs)
+{
+	if ( !pClient || !pBuf || iBufSize == 0 ) return XRT_NET_ERROR;
+	if ( !pClient->bSyncRecvMode ) return XRT_NET_ERROR;  // 需要先启用同步模式
+	
+	if ( pRecvLen ) *pRecvLen = 0;
+	
+	// 优先检查：如果缓冲区已有数据，立即返回（即使连接已关闭）
+	if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
+		goto read_buffer;
+	}
+	
+	// 连接已断开且无数据
+	if ( !pClient->bConnected ) return XRT_NET_ERROR;
+	
+	// 计算超时
+	int iElapsedMs = 0;
+	int iSleepMs = 10;  // 每次睡眠 10ms
+	if ( iTimeoutMs <= 0 ) iTimeoutMs = 30000;  // 默认 30 秒超时
+	
+	// 等待数据到达
+	while ( !pClient->bSyncRecvReady ) {
+		// 驱动事件循环，让数据能够到达
+		if ( pClient->pLoop ) {
+			xrtEventLoopRunOnce(pClient->pLoop, iSleepMs);
+		} else {
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(iSleepMs);
+			#else
+				usleep(iSleepMs * 1000);
+			#endif
+		}
+		
+		// 再次检查：数据可能在 Poll 期间到达
+		if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
+			goto read_buffer;
+		}
+		
+		// 连接断开：再给一点时间等待剩余数据
+		if ( !pClient->bConnected ) {
+			// 连接关闭后额外等待 500ms，让可能在途的数据到达
+			for ( int i = 0; i < 50; i++ ) {
+				if ( pClient->pLoop ) {
+					xrtEventLoopRunOnce(pClient->pLoop, 10);
+				} else {
+					#if defined(_WIN32) || defined(_WIN64)
+						Sleep(10);
+					#else
+						usleep(10000);
+					#endif
+				}
+				if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
+					goto read_buffer;
+				}
+			}
+			return XRT_NET_ERROR;
+		}
+		
+		iElapsedMs += iSleepMs;
+		if ( iElapsedMs >= iTimeoutMs ) {
+			return XRT_NET_TIMEOUT;
+		}
+	}
+	
+read_buffer:
+	;  // label 后需要语句
+	// 从同步缓冲区读取数据
+	{
+		size_t iAvailable = pClient->tSyncRecvBuf.iSize;
+		if ( iAvailable == 0 ) {
+			pClient->bSyncRecvReady = false;
+			return XRT_NET_AGAIN;  // 没有数据
+		}
+		
+		size_t iCopyLen = iAvailable < iBufSize ? iAvailable : iBufSize;
+		memcpy(pBuf, pClient->tSyncRecvBuf.pData, iCopyLen);
+		xrtNetBufConsume(&pClient->tSyncRecvBuf, iCopyLen);
+		
+		if ( pRecvLen ) *pRecvLen = iCopyLen;
+		
+		// 如果缓冲区空了，清除就绪标志
+		if ( pClient->tSyncRecvBuf.iSize == 0 ) {
+			pClient->bSyncRecvReady = false;
+		}
+		
+		return XRT_NET_OK;
+	}
+}
+
+// 检查同步缓冲区是否有数据（非阻塞）
+XXAPI size_t xrtTcpClientSyncAvailable(xtcpclient* pClient)
+{
+	if ( !pClient || !pClient->bSyncRecvMode ) return 0;
+	return pClient->tSyncRecvBuf.iSize;
+}
+
+// 等待同步数据到达（不读取，仅等待）
+XXAPI xnet_result xrtTcpClientWaitData(xtcpclient* pClient, int iTimeoutMs)
+{
+	if ( !pClient ) return XRT_NET_ERROR;
+	if ( !pClient->bConnected ) return XRT_NET_ERROR;
+	if ( !pClient->bSyncRecvMode ) return XRT_NET_ERROR;
+	
+	int iElapsedMs = 0;
+	int iSleepMs = 10;
+	if ( iTimeoutMs <= 0 ) iTimeoutMs = 30000;
+	
+	while ( !pClient->bSyncRecvReady ) {
+		if ( !pClient->bConnected ) return XRT_NET_ERROR;
+		
+		#if defined(_WIN32) || defined(_WIN64)
+			Sleep(iSleepMs);
+		#else
+			usleep(iSleepMs * 1000);
+		#endif
+		
+		iElapsedMs += iSleepMs;
+		if ( iElapsedMs >= iTimeoutMs ) return XRT_NET_TIMEOUT;
+	}
+	
+	return XRT_NET_OK;
 }
 

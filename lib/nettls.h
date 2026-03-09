@@ -359,7 +359,8 @@ struct xrt_tls_context {
 	uint8 aSessionId[32];         // session ID
 	uint8 aX25519Priv[32];        // X25519 私钥
 	uint8 aX25519Pub[32];         // X25519 公钥
-	uint8 aX25519Secret[32];      // X25519 共享密钥
+	uint8 aX25519Secret[32];      // TLS 1.3 共享密钥 (X25519 或 P-256 ECDH)
+	uint16 iTls13Group;           // TLS 1.3 协商的密钥组 (0x001d=X25519, 0x0017=P-256)
 	
 	// TLS 1.3 加密密钥
 	struct __xrt_tls_enc tEnc;
@@ -871,13 +872,14 @@ static void __xrt_tls12_update_hash(xtlsctx *pCtx, const uint8 *pData, size_t iL
 // 构造 ClientHello 消息
 static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 {
-	uint8 aBuf[640];
+	uint8 aBuf[768];  // 增大缓冲区以容纳 P-256 key_share
 	size_t iPos = 0;
 	
-	// 生成随机数和 X25519 密钥对
+	// 生成随机数和密钥对 (X25519 + P-256)
 	xrtRandomBytes(pCtx->aRandom, 32);
 	xrtRandomBytes(pCtx->aSessionId, 32);
 	xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
+	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);  // 同时生成 P-256 密钥对
 	
 	#ifdef DEBUG_TRACE
 		printf("    [TLS] ClientHello: aRandom generated: ");
@@ -978,19 +980,30 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aBuf + iPos, 0x0503);  // ECDSA-SECP384R1-SHA384 (TLS 1.2 兼容)
 	iPos += 2;
 	
-	// Extension: key_share (0x0033) - X25519 public key
+	// Extension: key_share (0x0033) - X25519 + P-256 public keys
+	// 提供两个 key_share 以避免 HelloRetryRequest
 	__xrt_tls_store_be16(aBuf + iPos, 0x0033);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 38);   // ext data length
+	// ext data length: key_share_entries_len(2) + X25519(2+2+32=36) + P-256(2+2+65=69) = 107
+	__xrt_tls_store_be16(aBuf + iPos, 107);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 36);   // key share entries length
+	// key share entries length: X25519(36) + P-256(69) = 105
+	__xrt_tls_store_be16(aBuf + iPos, 105);
 	iPos += 2;
+	// X25519 key share entry
 	__xrt_tls_store_be16(aBuf + iPos, 0x001d);  // x25519 group
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 32);   // key length
 	iPos += 2;
 	memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
 	iPos += 32;
+	// P-256 (secp256r1) key share entry
+	__xrt_tls_store_be16(aBuf + iPos, 0x0017);  // secp256r1 group
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 65);   // key length (uncompressed point)
+	iPos += 2;
+	memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
+	iPos += 65;
 	
 	// Extension: psk_key_exchange_modes (0x002d) — 许多服务器要求此扩展
 	__xrt_tls_store_be16(aBuf + iPos, 0x002d);
@@ -1107,12 +1120,24 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 					}
 				}
 			} else if ( iExtType == 0x0033 ) {  // key_share
-				// 解析服务器的 X25519 公钥 (TLS 1.3)
-				if ( iExtDataLen >= 36 ) {
+				// 解析服务器的密钥共享 (TLS 1.3)
+				if ( iExtDataLen >= 4 ) {
 					uint16 iGroup = __xrt_tls_load_be16(pMsg + iPos);
 					uint16 iKeyLen = __xrt_tls_load_be16(pMsg + iPos + 2);
 					if ( iGroup == 0x001d && iKeyLen == 32 ) {
+						// X25519: 32 字节公钥
 						xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pMsg + iPos + 4);
+						pCtx->iTls13Group = 0x001d;
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] ServerHello key_share: X25519\n");
+						#endif
+					} else if ( iGroup == 0x0017 && iKeyLen == 65 && iExtDataLen >= 69 ) {
+						// P-256 (secp256r1): 65 字节 uncompressed 公钥
+						xrtECDHSecp256r1SharedSecret(pCtx->aX25519Secret, pCtx->aP256Priv, pMsg + iPos + 4);
+						pCtx->iTls13Group = 0x0017;
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] ServerHello key_share: P-256\n");
+						#endif
 					}
 				}
 			}

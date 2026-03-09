@@ -199,13 +199,13 @@ int main(int argc, char** argv)
 	// Test_Value_Full(xCore);
 	
 	/* JSON 测试 */
-	Test_JSON(xCore);
+	// Test_JSON(xCore);
 	
 	/* Template 测试 */
 	// Test_Template(xCore);
 	
 	/* TLS 综合测试 */
-	// Test_TLS_Comprehensive();
+	Test_TLS_Comprehensive();
 	
 	/* TLS 算法套件测试 */
 	// Test_TLS_CipherSuites();
