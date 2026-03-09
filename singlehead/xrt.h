@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-09 11:05:23
+    Generated: 2026-03-09 18:30:35
 
     MIT License
 
@@ -1581,6 +1581,19 @@
 		void (*OnError)(ptr pServer, xnetconn* pConn, int iErrorCode);
 	} xnetevents;
 	
+	/* ---- 代理配置 ---- */
+	#define XRT_PROXY_NONE         0   // 无代理
+	#define XRT_PROXY_SOCKS5       1   // SOCKS5 代理
+	#define XRT_PROXY_HTTP_CONNECT 2   // HTTP CONNECT 代理
+	
+	typedef struct {
+		int iType;           // 代理类型: XRT_PROXY_NONE / XRT_PROXY_SOCKS5 / XRT_PROXY_HTTP_CONNECT
+		char sHost[64];      // 代理服务器地址
+		uint16 iPort;        // 代理服务器端口
+		char sUser[64];      // 用户名 (可选，空字符串=无认证)
+		char sPass[64];      // 密码 (可选)
+	} xproxyconfig;
+	
 	/* ---- 网络配置 ---- */
 	typedef struct {
 		size_t iRecvBufSize;    // 默认 8192
@@ -1589,6 +1602,7 @@
 		int iPollTimeoutMs;     // 轮询超时(毫秒)
 		int iConnectTimeoutMs;  // 连接超时(毫秒)，默认 5000
 		bool bNoDelay;          // TCP_NODELAY，默认 true
+		xproxyconfig tProxy;    // 代理配置
 	} xnetconfig;
 	
 	/* 初始化 xnetconfig 的默认值 */
@@ -1600,6 +1614,12 @@
 		pConfig->iPollTimeoutMs = 1000;
 		pConfig->iConnectTimeoutMs = 5000;
 		pConfig->bNoDelay = true;
+		// 代理默认禁用
+		pConfig->tProxy.iType = XRT_PROXY_NONE;
+		pConfig->tProxy.sHost[0] = '\0';
+		pConfig->tProxy.iPort = 0;
+		pConfig->tProxy.sUser[0] = '\0';
+		pConfig->tProxy.sPass[0] = '\0';
 	}
 	
 	/* ---- TLS 上下文 (不透明) ---- */
@@ -1818,6 +1838,22 @@
 	
 	
 	
+	/* ------------------------------------ 代理连接 ------------------------------------ */
+	
+	// SOCKS5 代理握手 + CONNECT (同步阻塞，pConn 需已连接到代理服务器)
+	XXAPI xnet_result xrtProxySocks5Connect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
+		const char* sUser, const char* sPass, int iTimeoutMs);
+	
+	// HTTP CONNECT 代理握手 (同步阻塞，pConn 需已连接到代理服务器)
+	XXAPI xnet_result xrtProxyHttpConnect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
+		const char* sUser, const char* sPass, int iTimeoutMs);
+	
+	// 通用代理连接 (根据配置自动选择协议)
+	XXAPI xnet_result xrtProxyConnect(xnetconn* pConn, const xproxyconfig* pProxy,
+		const char* sTargetHost, uint16 iTargetPort, int iTimeoutMs);
+	
+	
+	
 	/* ------------------------------------ TCP 服务器/客户端 ------------------------------------ */
 	
 	// TCP 服务器
@@ -1844,6 +1880,13 @@
 	XXAPI bool xrtTcpClientIsConnected(xtcpclient* pClient);
 	XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData);
 	XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient);
+	
+	// TCP 客户端 - 同步接收 API
+	XXAPI void xrtTcpClientEnableSyncRecv(xtcpclient* pClient);
+	XXAPI void xrtTcpClientDisableSyncRecv(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientRecvSync(xtcpclient* pClient, char* pBuf, size_t iBufSize, size_t* pRecvLen, int iTimeoutMs);
+	XXAPI size_t xrtTcpClientSyncAvailable(xtcpclient* pClient);
+	XXAPI xnet_result xrtTcpClientWaitData(xtcpclient* pClient, int iTimeoutMs);
 	
 	
 	
@@ -3759,6 +3802,8 @@
 // ========================================
 
 
+// 临时启用 TLS 调试
+#define DEBUG_TRACE
 // (skipped include: #include "xrt.h")
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
@@ -17538,7 +17583,8 @@ struct xrt_tls_context {
 	uint8 aSessionId[32];         // session ID
 	uint8 aX25519Priv[32];        // X25519 私钥
 	uint8 aX25519Pub[32];         // X25519 公钥
-	uint8 aX25519Secret[32];      // X25519 共享密钥
+	uint8 aX25519Secret[32];      // TLS 1.3 共享密钥 (X25519 或 P-256 ECDH)
+	uint16 iTls13Group;           // TLS 1.3 协商的密钥组 (0x001d=X25519, 0x0017=P-256)
 	
 	// TLS 1.3 加密密钥
 	struct __xrt_tls_enc tEnc;
@@ -17562,6 +17608,7 @@ struct xrt_tls_context {
 	xsha512_ctx tSHA384_12;       // TLS 1.2 握手 SHA-384 哈希
 	bool bUseSHA384;              // 当前套件是否使用 SHA-384
 	bool bIsECDHE;                // 是否为 ECDHE 密钥交换
+	uint16 iTls12Curve;           // TLS 1.2 ECDHE 曲线类型 (0x0017=P-256, 0x001d=X25519)
 	
 	// 配置
 	bool bSkipVerify;
@@ -17589,6 +17636,7 @@ struct xrt_tls_context {
 	// IO 缓冲区
 	xnetbuf tSendBuf;
 	xnetbuf tRecvBuf;
+	xnetbuf tHandshakeBuf;        // TLS 1.3 握手消息重组缓冲区 (用于跨记录的大消息)
 	size_t iRecvOffset;
 	size_t iRecvMsgLen;
 	uint8 iContentType;
@@ -17722,21 +17770,22 @@ static void __xrt_tls_derive_secret(uint8 *pOut, const uint8 *pSecret,
 }
 // 从握手密钥派生流量密钥
 static void __xrt_tls_derive_traffic_keys(struct __xrt_tls_enc *pEnc,
-	const uint8 *pSecret, bool bIsServer)
+	const uint8 *pSecret, bool bIsServer, uint16 iCipherSuite)
 {
-	uint8 aHash[32];
-	// 获取当前的 transcript hash 需要从外部传入
-	// 这里 pSecret 已经是 traffic secret
+	// 根据 cipher suite 确定密钥长度
+	// TLS_AES_128_GCM_SHA256 (0x1301): 16 字节
+	// TLS_CHACHA20_POLY1305_SHA256 (0x1303): 32 字节
+	size_t iKeyLen = (iCipherSuite == __XRT_TLS_AES_128_GCM_SHA256) ? 16 : 32;
 	
 	// 派生 write key
 	__xrt_tls_expand_label(bIsServer ? pEnc->aServerWriteKey : pEnc->aClientWriteKey,
-		32, pSecret, 32, "key", 3, NULL, 0);
+		iKeyLen, pSecret, 32, "key", 3, NULL, 0);
 	
-	// 派生 write IV
+	// 派生 write IV (始终 12 字节)
 	__xrt_tls_expand_label(bIsServer ? pEnc->aServerWriteIV : pEnc->aClientWriteIV,
 		12, pSecret, 32, "iv", 2, NULL, 0);
 	
-	// 派生 finished key
+	// 派生 finished key (始终 32 字节)
 	__xrt_tls_expand_label(bIsServer ? pEnc->aServerFinishedKey : pEnc->aClientFinishedKey,
 		32, pSecret, 32, "finished", 8, NULL, 0);
 }
@@ -18024,13 +18073,14 @@ static void __xrt_tls12_update_hash(xtlsctx *pCtx, const uint8 *pData, size_t iL
 // 构造 ClientHello 消息
 static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 {
-	uint8 aBuf[640];
+	uint8 aBuf[768];  // 增大缓冲区以容纳 P-256 key_share
 	size_t iPos = 0;
 	
-	// 生成随机数和 X25519 密钥对
+	// 生成随机数和密钥对 (X25519 + P-256)
 	xrtRandomBytes(pCtx->aRandom, 32);
 	xrtRandomBytes(pCtx->aSessionId, 32);
 	xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
+	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);  // 同时生成 P-256 密钥对
 	
 	#ifdef DEBUG_TRACE
 		printf("    [TLS] ClientHello: aRandom generated: ");
@@ -18131,19 +18181,30 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aBuf + iPos, 0x0503);  // ECDSA-SECP384R1-SHA384 (TLS 1.2 兼容)
 	iPos += 2;
 	
-	// Extension: key_share (0x0033) - X25519 public key
+	// Extension: key_share (0x0033) - X25519 + P-256 public keys
+	// 提供两个 key_share 以避免 HelloRetryRequest
 	__xrt_tls_store_be16(aBuf + iPos, 0x0033);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 38);   // ext data length
+	// ext data length: key_share_entries_len(2) + X25519(2+2+32=36) + P-256(2+2+65=69) = 107
+	__xrt_tls_store_be16(aBuf + iPos, 107);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 36);   // key share entries length
+	// key share entries length: X25519(36) + P-256(69) = 105
+	__xrt_tls_store_be16(aBuf + iPos, 105);
 	iPos += 2;
+	// X25519 key share entry
 	__xrt_tls_store_be16(aBuf + iPos, 0x001d);  // x25519 group
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 32);   // key length
 	iPos += 2;
 	memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
 	iPos += 32;
+	// P-256 (secp256r1) key share entry
+	__xrt_tls_store_be16(aBuf + iPos, 0x0017);  // secp256r1 group
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 65);   // key length (uncompressed point)
+	iPos += 2;
+	memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
+	iPos += 65;
 	
 	// Extension: psk_key_exchange_modes (0x002d) — 许多服务器要求此扩展
 	__xrt_tls_store_be16(aBuf + iPos, 0x002d);
@@ -18259,12 +18320,24 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 					}
 				}
 			} else if ( iExtType == 0x0033 ) {  // key_share
-				// 解析服务器的 X25519 公钥 (TLS 1.3)
-				if ( iExtDataLen >= 36 ) {
+				// 解析服务器的密钥共享 (TLS 1.3)
+				if ( iExtDataLen >= 4 ) {
 					uint16 iGroup = __xrt_tls_load_be16(pMsg + iPos);
 					uint16 iKeyLen = __xrt_tls_load_be16(pMsg + iPos + 2);
 					if ( iGroup == 0x001d && iKeyLen == 32 ) {
+						// X25519: 32 字节公钥
 						xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pMsg + iPos + 4);
+						pCtx->iTls13Group = 0x001d;
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] ServerHello key_share: X25519\n");
+						#endif
+					} else if ( iGroup == 0x0017 && iKeyLen == 65 && iExtDataLen >= 69 ) {
+						// P-256 (secp256r1): 65 字节 uncompressed 公钥
+						xrtECDHSecp256r1SharedSecret(pCtx->aX25519Secret, pCtx->aP256Priv, pMsg + iPos + 4);
+						pCtx->iTls13Group = 0x0017;
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] ServerHello key_share: P-256\n");
+						#endif
 					}
 				}
 			}
@@ -18385,12 +18458,12 @@ static void __xrt_tls_derive_handshake_keys(xtlsctx *pCtx)
 	// client_handshake_traffic_secret
 	uint8 aCHTS[32];
 	__xrt_tls_derive_secret(aCHTS, aHandshakeSecret, "c hs traffic", 12, aTranscriptHash);
-	__xrt_tls_derive_traffic_keys(&pCtx->tEnc, aCHTS, false);
+	__xrt_tls_derive_traffic_keys(&pCtx->tEnc, aCHTS, false, pCtx->iCipherSuite);
 	
 	// server_handshake_traffic_secret
 	uint8 aSHTS[32];
 	__xrt_tls_derive_secret(aSHTS, aHandshakeSecret, "s hs traffic", 12, aTranscriptHash);
-	__xrt_tls_derive_traffic_keys(&pCtx->tEnc, aSHTS, true);
+	__xrt_tls_derive_traffic_keys(&pCtx->tEnc, aSHTS, true, pCtx->iCipherSuite);
 	
 	// 保存 handshake secret 用于后续推导 master secret
 	memcpy(pCtx->tEnc.aHandshakeSecret, aHandshakeSecret, 32);
@@ -18417,12 +18490,12 @@ static void __xrt_tls_derive_application_keys(xtlsctx *pCtx)
 	// client_application_traffic_secret_0
 	uint8 aCATS[32];
 	__xrt_tls_derive_secret(aCATS, aMasterSecret, "c ap traffic", 12, aTranscriptHash);
-	__xrt_tls_derive_traffic_keys(&pCtx->tAppKeys, aCATS, false);
+	__xrt_tls_derive_traffic_keys(&pCtx->tAppKeys, aCATS, false, pCtx->iCipherSuite);
 	
 	// server_application_traffic_secret_0
 	uint8 aSATS[32];
 	__xrt_tls_derive_secret(aSATS, aMasterSecret, "s ap traffic", 12, aTranscriptHash);
-	__xrt_tls_derive_traffic_keys(&pCtx->tAppKeys, aSATS, true);
+	__xrt_tls_derive_traffic_keys(&pCtx->tAppKeys, aSATS, true, pCtx->iCipherSuite);
 }
 /* ============================== TLS 1.2 握手函数 ============================== */
 // 更新 TLS 1.2 握手哈希 (同时更新 SHA-256 和 SHA-384)
@@ -18505,23 +18578,63 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 	size_t iOff = 0;
 	
 	// ECParameters: curve_type(1) + named_curve(2)
-	if ( iOff + 3 > iLen ) return false;
-	if ( pMsg[iOff] != 3 ) return false;  // named_curve
+	if ( iOff + 3 > iLen ) {
+		#ifdef DEBUG_TRACE
+		printf("    [TLS12] SKE: too short for ECParameters\n");
+		#endif
+		return false;
+	}
+	if ( pMsg[iOff] != 3 ) {
+		#ifdef DEBUG_TRACE
+		printf("    [TLS12] SKE: curve_type=%d (expected 3)\n", pMsg[iOff]);
+		#endif
+		return false;  // named_curve
+	}
 	uint16 iCurve = __xrt_tls_load_be16(pMsg + iOff + 1);
-	if ( iCurve != 0x0017 ) return false;  // secp256r1
+	#ifdef DEBUG_TRACE
+	printf("    [TLS12] SKE: curve=0x%04x\n", iCurve);
+	#endif
+	if ( iCurve != 0x0017 && iCurve != 0x001d ) {
+		#ifdef DEBUG_TRACE
+		printf("    [TLS12] SKE: unsupported curve 0x%04x\n", iCurve);
+		#endif
+		return false;  // secp256r1 (0x0017) or x25519 (0x001d)
+	}
+	pCtx->iTls12Curve = iCurve;
 	iOff += 3;
 	
-	// EC point: point_len(1) + point(65)
+	// EC point: point_len(1) + point
+	// P-256: 65 bytes (0x04 + 32X + 32Y uncompressed)
+	// X25519: 32 bytes
 	if ( iOff + 1 > iLen ) return false;
 	uint8 iPointLen = pMsg[iOff++];
-	if ( iPointLen != 65 || pMsg[iOff] != 0x04 ) return false;  // uncompressed
-	if ( iOff + 65 > iLen ) return false;
 	
-	const uint8 *pServerPub = pMsg + iOff;  // 服务器 P-256 公钥
-	iOff += 65;
+	const uint8 *pServerPub = pMsg + iOff;
+	size_t iExpectedLen;
+	
+	if ( iCurve == 0x0017 ) {  // P-256
+		iExpectedLen = 65;
+		if ( iPointLen != 65 || pMsg[iOff] != 0x04 ) {
+			#ifdef DEBUG_TRACE
+			printf("    [TLS12] SKE: P-256 invalid point (len=%d, format=0x%02x)\n", iPointLen, pMsg[iOff]);
+			#endif
+			return false;  // uncompressed format required
+		}
+	} else {  // X25519
+		iExpectedLen = 32;
+		if ( iPointLen != 32 ) {
+			#ifdef DEBUG_TRACE
+			printf("    [TLS12] SKE: X25519 invalid point (len=%d, expected 32)\n", iPointLen);
+			#endif
+			return false;
+		}
+	}
+	
+	if ( iOff + iExpectedLen > iLen ) return false;
+	iOff += iExpectedLen;
 	
 	// 保存 server_params 的位置和长度 (用于签名验证)
-	size_t iParamsLen = iOff;  // curve_type(1) + named_curve(2) + point_len(1) + point(65)
+	size_t iParamsLen = iOff;  // curve_type(1) + named_curve(2) + point_len(1) + point
 	
 	// 解析签名: sig_hash_alg(2) + sig_len(2) + signature
 	if ( iOff + 4 > iLen ) return false;
@@ -18594,55 +18707,39 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 		#endif
 	}
 	
-	// 生成 ECDH P-256 密钥对
-	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
+	// 根据曲线类型生成密钥对并计算共享密钥
+	if ( iCurve == 0x0017 ) {  // P-256
+		// 生成 ECDH P-256 密钥对
+		xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
+		// 计算共享密钥
+		xrtECDHSecp256r1SharedSecret(pCtx->aSharedSecret, pCtx->aP256Priv, pServerPub);
+		#ifdef DEBUG_TRACE
+			printf("    [TLS12] ServerKeyExchange: P-256 ECDH shared secret computed\n");
+			printf("    [TLS12]   ServerPub: ");
+			for (int i = 0; i < 65; i++) printf("%02x", pServerPub[i]);
+			printf("\n    [TLS12]   ClientPub: ");
+			for (int i = 0; i < 65; i++) printf("%02x", pCtx->aP256Pub[i]);
+			printf("\n    [TLS12]   SharedSecret: ");
+			for (int i = 0; i < 32; i++) printf("%02x", pCtx->aSharedSecret[i]);
+			printf("\n");
+		#endif
+	} else {  // X25519
+		// 生成 X25519 密钥对
+		xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
+		// 计算共享密钥
+		xrtX25519SharedSecret(pCtx->aSharedSecret, pCtx->aX25519Priv, pServerPub);
+		#ifdef DEBUG_TRACE
+			printf("    [TLS12] ServerKeyExchange: X25519 ECDH shared secret computed\n");
+			printf("    [TLS12]   ServerPub: ");
+			for (int i = 0; i < 32; i++) printf("%02x", pServerPub[i]);
+			printf("\n    [TLS12]   ClientPub: ");
+			for (int i = 0; i < 32; i++) printf("%02x", pCtx->aX25519Pub[i]);
+			printf("\n    [TLS12]   SharedSecret: ");
+			for (int i = 0; i < 32; i++) printf("%02x", pCtx->aSharedSecret[i]);
+			printf("\n");
+		#endif
+	}
 	
-	// 计算共享密钥
-	xrtECDHSecp256r1SharedSecret(pCtx->aSharedSecret, pCtx->aP256Priv, pServerPub);
-	
-	#ifdef DEBUG_TRACE
-		printf("    [TLS12] ServerKeyExchange: ECDH shared secret computed\n");
-		printf("    [TLS12]   ServerPub: ");
-		for (int i = 0; i < 65; i++) printf("%02x", pServerPub[i]);
-		printf("\n    [TLS12]   ClientPub: ");
-		for (int i = 0; i < 65; i++) printf("%02x", pCtx->aP256Pub[i]);
-		printf("\n    [TLS12]   SharedSecret: ");
-		for (int i = 0; i < 32; i++) printf("%02x", pCtx->aSharedSecret[i]);
-		printf("\n");
-		// Self-test: verify our own pub key round-trip
-		{
-			uint8 aTestPriv[32], aTestPub[65], aTestPriv2[32], aTestPub2[65];
-			uint8 aSecret1[32], aSecret2[32];
-			xrtECDHSecp256r1Keypair(aTestPriv, aTestPub);
-			xrtECDHSecp256r1Keypair(aTestPriv2, aTestPub2);
-			xrtECDHSecp256r1SharedSecret(aSecret1, aTestPriv, aTestPub2);
-			xrtECDHSecp256r1SharedSecret(aSecret2, aTestPriv2, aTestPub);
-			printf("    [TLS12]   P256 ECDH self-test: %s\n", 
-				memcmp(aSecret1, aSecret2, 32) == 0 ? "PASS" : "FAIL");
-		}
-		// NIST ECDH test vector
-		{
-			uint8 nPrivA[] = {0x7d,0x7d,0xc5,0xf7,0x1e,0xb2,0x9d,0xda,0xf8,0x0d,0x62,0x14,0x63,0x2e,0xea,0xe0,
-				0x3d,0x90,0x58,0xaf,0x1f,0xb6,0xd2,0x2e,0xd8,0x0b,0xad,0xb6,0x2b,0xc1,0xa5,0x34};
-			uint8 nPubB[65] = {0x04,
-				0x80,0x9f,0x04,0x28,0x9c,0x64,0x34,0x8c,0x01,0x51,0x5e,0xb0,0x3d,0x5c,0xe7,0xac,
-				0x1a,0x8c,0xb9,0x49,0x8f,0x5c,0xaa,0x50,0x19,0x7e,0x58,0xd4,0x3a,0x86,0xa7,0xae,
-				0xb2,0x9d,0x84,0xe8,0x11,0x19,0x7f,0x25,0xeb,0xa8,0xf5,0x19,0x40,0x92,0xcb,0x6f,
-				0xf4,0x40,0xe2,0x6d,0x44,0x21,0x01,0x13,0x72,0x46,0x1f,0x57,0x92,0x71,0xcd,0xa3};
-			uint8 nExpected[] = {0xc4,0x24,0xdb,0x57,0xe2,0xc1,0x53,0x55,0xb3,0xc9,0xe1,0x00,0x00,0x9b,0x6f,0xf4,
-				0x05,0xe0,0x03,0x90,0x69,0x1b,0xbd,0xba,0xf3,0xe6,0xab,0xd7,0x45,0xaf,0x99,0x34};
-			uint8 nOut[32];
-			xrtECDHSecp256r1SharedSecret(nOut, nPrivA, nPubB);
-			printf("    [TLS12]   NIST P256 ECDH test: %s\n", memcmp(nOut, nExpected, 32) == 0 ? "PASS" : "FAIL");
-			if (memcmp(nOut, nExpected, 32) != 0) {
-				printf("    [TLS12]     Got:      ");
-				for (int i = 0; i < 32; i++) printf("%02x", nOut[i]);
-				printf("\n    [TLS12]     Expected: ");
-				for (int i = 0; i < 32; i++) printf("%02x", nExpected[i]);
-				printf("\n");
-			}
-		}
-	#endif
 	return true;
 }
 // Step 7: 构造并发送 ClientKeyExchange
@@ -18657,10 +18754,16 @@ static void __xrt_tls12_send_client_key_exchange(xtlsctx *pCtx)
 	iPos += 3;  // 预留长度
 	
 	if ( pCtx->bIsECDHE ) {
-		// ECDHE: 发送客户端 P-256 公钥 (1 + 65 字节)
-		aBuf[iPos++] = 65;  // point length
-		memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
-		iPos += 65;
+		// ECDHE: 发送客户端公钥
+		if ( pCtx->iTls12Curve == 0x0017 ) {  // P-256
+			aBuf[iPos++] = 65;  // point length
+			memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
+			iPos += 65;
+		} else {  // X25519
+			aBuf[iPos++] = 32;  // point length
+			memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
+			iPos += 32;
+		}
 	} else {
 		// RSA: 生成 pre_master_secret, PKCS#1 v1.5 加密后发送
 		// pre_master_secret = version(2) + random(46)
@@ -19068,6 +19171,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_EE+: xrtSockRecv returned res=%d, recvd=%d\n", iRes, (int)iRecvd);
+				#endif
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
 					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
 					#ifdef DEBUG_TRACE
@@ -19082,14 +19188,30 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			}
 			
 			// 检查缓冲区是否有可处理的记录
-			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) return XRT_NET_AGAIN;
+			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) {
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_EE+: recvBuf too small (%d), need recv\n", (int)pCtx->tRecvBuf.iSize);
+				#endif
+				return XRT_NET_AGAIN;
+			}
 			
 			// 处理所有完整记录
 			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
 				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 				
-				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] WAIT_EE+: check record type=0x%02x len=%d, have=%d\n", 
+						iRecType, iRecLen, (int)pCtx->tRecvBuf.iSize);
+				#endif
+				
+				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] WAIT_EE+: incomplete record, need %d more bytes\n", 
+							(int)(__XRT_TLS_RECHDR_SIZE + iRecLen - pCtx->tRecvBuf.iSize));
+					#endif
+					break;
+				}
 				
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
 					// ChangeCipherSpec: 忽略 (TLS 1.3 兼容)
@@ -19103,6 +19225,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					size_t iPlainLen = 0;
 					uint8 iContentType = 0;
 					
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] WAIT_EE+: decrypting APP_DATA record len=%d\n", iRecLen);
+					#endif
+					
 					if ( !__xrt_tls_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
 						__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, true) ) {
 						#ifdef DEBUG_TRACE
@@ -19112,19 +19238,46 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						return XRT_NET_ERROR;
 					}
 					
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] WAIT_EE+: decrypt OK, plainLen=%d, contentType=0x%02x\n", 
+							(int)iPlainLen, iContentType);
+					#endif
+					
 					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					
 					if ( iContentType == __XRT_TLS_HANDSHAKE ) {
-						// 遍历解密后明文中所有握手消息 (TLS 1.3 允许单条记录含多个消息)
+						// 将解密后的握手明文追加到重组缓冲区 (支持跨记录的大消息)
+						xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+						
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] WAIT_EE+: appended %d bytes to handshakeBuf, total=%d\n",
+								(int)iPlainLen, (int)pCtx->tHandshakeBuf.iSize);
+						#endif
+						
+						// 从重组缓冲区中解析完整的握手消息
+						uint8 *pHsBuf = (uint8*)pCtx->tHandshakeBuf.pData;
+						size_t iHsBufLen = pCtx->tHandshakeBuf.iSize;
 						size_t iMsgOff = 0;
-						while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= iPlainLen ) {
-							uint8 iMsgType = aPlain[iMsgOff];
-							uint32 iMsgBodyLen = __xrt_tls_load_be24(aPlain + iMsgOff + 1);
+						
+						while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= iHsBufLen ) {
+							uint8 iMsgType = pHsBuf[iMsgOff];
+							uint32 iMsgBodyLen = __xrt_tls_load_be24(pHsBuf + iMsgOff + 1);
 							size_t iTotalMsgLen = __XRT_TLS_MSGHDR_SIZE + iMsgBodyLen;
 							
-							if ( iMsgOff + iTotalMsgLen > iPlainLen ) break;
+							#ifdef DEBUG_TRACE
+								printf("    [TLS] WAIT_EE+: msg type=%d, bodyLen=%d, totalLen=%d, available=%d\n",
+									iMsgType, (int)iMsgBodyLen, (int)iTotalMsgLen, (int)(iHsBufLen - iMsgOff));
+							#endif
 							
-							uint8 *pMsg = aPlain + iMsgOff;
+							if ( iMsgOff + iTotalMsgLen > iHsBufLen ) {
+								#ifdef DEBUG_TRACE
+									printf("    [TLS] WAIT_EE+: message incomplete, need %d more bytes\n",
+										(int)(iMsgOff + iTotalMsgLen - iHsBufLen));
+								#endif
+								break;
+							}
+							
+							uint8 *pMsg = pHsBuf + iMsgOff;
 							
 							// 对于 CertificateVerify, 在 update SHA256 之前保存 transcript hash
 							if ( iMsgType == __XRT_TLS_CERTIFICATE_VERIFY ) {
@@ -19243,6 +19396,15 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 							}
 							
 							iMsgOff += iTotalMsgLen;
+						}
+						
+						// 消费已处理的握手消息
+						if ( iMsgOff > 0 ) {
+							xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff);
+							#ifdef DEBUG_TRACE
+								printf("    [TLS] WAIT_EE+: consumed %d bytes from handshakeBuf, remaining=%d\n",
+									(int)iMsgOff, (int)pCtx->tHandshakeBuf.iSize);
+							#endif
 						}
 					} else if ( iContentType == __XRT_TLS_ALERT ) {
 						return XRT_NET_ERROR;
@@ -20017,6 +20179,373 @@ XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop)
 	return pLoop->pPoller;
 }
 #endif
+#ifndef XRT_NO_NETPROXY
+
+// ========================================
+// File: D:/git/xrt/lib/netproxy.h
+// ========================================
+
+
+/*
+	NetProxy - 代理协议支持 [Ver1.0]
+	
+	支持 SOCKS5 和 HTTP CONNECT 代理协议
+	同步阻塞式 API，用于 TCP 客户端代理连接
+	
+	SOCKS5: RFC 1928 + RFC 1929 (用户名/密码认证)
+	HTTP CONNECT: RFC 7231
+*/
+/* ============================== 内部工具函数 ============================== */
+// 阻塞发送全部数据
+static xnet_result __xrt_proxy_send_all(xnetconn* pConn, const char* pData, size_t iLen)
+{
+	size_t iSent = 0;
+	while ( iSent < iLen ) {
+		size_t iThisSent = 0;
+		xnet_result iRes = xrtSockSend(pConn, pData + iSent, iLen - iSent, &iThisSent);
+		if ( iRes != XRT_NET_OK ) {
+			if ( iRes == XRT_NET_AGAIN ) continue;
+			return iRes;
+		}
+		iSent += iThisSent;
+	}
+	return XRT_NET_OK;
+}
+// 阻塞接收指定长度数据 (带超时)
+static xnet_result __xrt_proxy_recv_exact(xnetconn* pConn, char* pBuf, size_t iLen, int iTimeoutMs)
+{
+	size_t iReceived = 0;
+	int iElapsed = 0;
+	int iInterval = 50;  // 50ms 轮询间隔
+	
+	while ( iReceived < iLen ) {
+		size_t iThisRecv = 0;
+		xnet_result iRes = xrtSockRecv(pConn, pBuf + iReceived, iLen - iReceived, &iThisRecv);
+		if ( iRes == XRT_NET_OK ) {
+			iReceived += iThisRecv;
+		} else if ( iRes == XRT_NET_AGAIN ) {
+			// 等待数据
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(iInterval);
+			#else
+				usleep(iInterval * 1000);
+			#endif
+			iElapsed += iInterval;
+			if ( iTimeoutMs > 0 && iElapsed >= iTimeoutMs ) {
+				return XRT_NET_TIMEOUT;
+			}
+		} else if ( iRes == XRT_NET_CLOSED ) {
+			return XRT_NET_CLOSED;
+		} else {
+			return XRT_NET_ERROR;
+		}
+	}
+	return XRT_NET_OK;
+}
+// 阻塞接收数据直到有数据 (带超时，返回实际接收长度)
+static xnet_result __xrt_proxy_recv_some(xnetconn* pConn, char* pBuf, size_t iMaxLen, size_t* pReceived, int iTimeoutMs)
+{
+	int iElapsed = 0;
+	int iInterval = 50;
+	
+	while ( 1 ) {
+		size_t iThisRecv = 0;
+		xnet_result iRes = xrtSockRecv(pConn, pBuf, iMaxLen, &iThisRecv);
+		if ( iRes == XRT_NET_OK ) {
+			if ( pReceived ) *pReceived = iThisRecv;
+			return XRT_NET_OK;
+		} else if ( iRes == XRT_NET_AGAIN ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(iInterval);
+			#else
+				usleep(iInterval * 1000);
+			#endif
+			iElapsed += iInterval;
+			if ( iTimeoutMs > 0 && iElapsed >= iTimeoutMs ) {
+				return XRT_NET_TIMEOUT;
+			}
+		} else {
+			return iRes;
+		}
+	}
+}
+/* ============================== SOCKS5 协议实现 ============================== */
+/*
+	SOCKS5 握手流程:
+	1. 客户端发送: VER(1) | NMETHODS(1) | METHODS(1-255)
+	2. 服务端响应: VER(1) | METHOD(1)
+	3. 如果需要认证 (METHOD=0x02):
+	   - 客户端发送: VER(1) | ULEN(1) | UNAME(1-255) | PLEN(1) | PASSWD(1-255)
+	   - 服务端响应: VER(1) | STATUS(1)
+	4. 客户端发送 CONNECT 请求: VER(1) | CMD(1) | RSV(1) | ATYP(1) | DST.ADDR | DST.PORT(2)
+	5. 服务端响应: VER(1) | REP(1) | RSV(1) | ATYP(1) | BND.ADDR | BND.PORT(2)
+*/
+XXAPI xnet_result xrtProxySocks5Connect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
+	const char* sUser, const char* sPass, int iTimeoutMs)
+{
+	if ( !pConn || !sTargetHost || iTargetPort == 0 ) return XRT_NET_ERROR;
+	
+	uint8 aBuf[512];
+	xnet_result iRes;
+	bool bNeedAuth = (sUser && sUser[0] && sPass && sPass[0]);
+	
+	// ========== Step 1: 发送认证方法协商 ==========
+	// VER=0x05, NMETHODS=1或2, METHODS=0x00(无认证) [0x02(用户名/密码)]
+	aBuf[0] = 0x05;  // SOCKS5
+	if ( bNeedAuth ) {
+		aBuf[1] = 0x02;  // 2种方法
+		aBuf[2] = 0x00;  // 无认证
+		aBuf[3] = 0x02;  // 用户名/密码
+		iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, 4);
+	} else {
+		aBuf[1] = 0x01;  // 1种方法
+		aBuf[2] = 0x00;  // 无认证
+		iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, 3);
+	}
+	if ( iRes != XRT_NET_OK ) return iRes;
+	
+	// ========== Step 2: 接收服务端选择的认证方法 ==========
+	iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 2, iTimeoutMs);
+	if ( iRes != XRT_NET_OK ) return iRes;
+	
+	if ( aBuf[0] != 0x05 ) return XRT_NET_ERROR;  // 版本错误
+	
+	uint8 iMethod = aBuf[1];
+	if ( iMethod == 0xFF ) return XRT_NET_ERROR;  // 无可接受的方法
+	
+	// ========== Step 3: 如果需要用户名/密码认证 ==========
+	if ( iMethod == 0x02 ) {
+		if ( !bNeedAuth ) return XRT_NET_ERROR;  // 服务端要求认证但未提供凭证
+		
+		size_t iUserLen = strlen(sUser);
+		size_t iPassLen = strlen(sPass);
+		if ( iUserLen > 255 || iPassLen > 255 ) return XRT_NET_ERROR;
+		
+		// VER=0x01, ULEN, UNAME, PLEN, PASSWD
+		size_t iPos = 0;
+		aBuf[iPos++] = 0x01;
+		aBuf[iPos++] = (uint8)iUserLen;
+		memcpy(aBuf + iPos, sUser, iUserLen);
+		iPos += iUserLen;
+		aBuf[iPos++] = (uint8)iPassLen;
+		memcpy(aBuf + iPos, sPass, iPassLen);
+		iPos += iPassLen;
+		
+		iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, iPos);
+		if ( iRes != XRT_NET_OK ) return iRes;
+		
+		// 接收认证结果
+		iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 2, iTimeoutMs);
+		if ( iRes != XRT_NET_OK ) return iRes;
+		
+		if ( aBuf[1] != 0x00 ) return XRT_NET_ERROR;  // 认证失败
+	} else if ( iMethod != 0x00 ) {
+		return XRT_NET_ERROR;  // 不支持的认证方法
+	}
+	
+	// ========== Step 4: 发送 CONNECT 请求 (域名模式) ==========
+	// VER=0x05, CMD=0x01(CONNECT), RSV=0x00, ATYP=0x03(域名), DST.ADDR, DST.PORT
+	size_t iHostLen = strlen(sTargetHost);
+	if ( iHostLen > 255 ) return XRT_NET_ERROR;
+	
+	size_t iPos = 0;
+	aBuf[iPos++] = 0x05;              // VER
+	aBuf[iPos++] = 0x01;              // CMD: CONNECT
+	aBuf[iPos++] = 0x00;              // RSV
+	aBuf[iPos++] = 0x03;              // ATYP: 域名
+	aBuf[iPos++] = (uint8)iHostLen;   // 域名长度
+	memcpy(aBuf + iPos, sTargetHost, iHostLen);
+	iPos += iHostLen;
+	aBuf[iPos++] = (uint8)(iTargetPort >> 8);    // 端口高字节
+	aBuf[iPos++] = (uint8)(iTargetPort & 0xFF);  // 端口低字节
+	
+	iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, iPos);
+	if ( iRes != XRT_NET_OK ) return iRes;
+	
+	// ========== Step 5: 接收 CONNECT 响应 ==========
+	// 先读取固定头部: VER, REP, RSV, ATYP (4字节)
+	iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 4, iTimeoutMs);
+	if ( iRes != XRT_NET_OK ) return iRes;
+	
+	if ( aBuf[0] != 0x05 ) return XRT_NET_ERROR;  // 版本错误
+	if ( aBuf[1] != 0x00 ) return XRT_NET_ERROR;  // CONNECT 失败 (REP != 0)
+	
+	// 根据 ATYP 读取剩余数据
+	uint8 iAtyp = aBuf[3];
+	size_t iAddrLen = 0;
+	if ( iAtyp == 0x01 ) {
+		iAddrLen = 4;   // IPv4: 4字节
+	} else if ( iAtyp == 0x03 ) {
+		// 域名: 先读取长度
+		iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 1, iTimeoutMs);
+		if ( iRes != XRT_NET_OK ) return iRes;
+		iAddrLen = aBuf[0];
+	} else if ( iAtyp == 0x04 ) {
+		iAddrLen = 16;  // IPv6: 16字节
+	} else {
+		return XRT_NET_ERROR;
+	}
+	
+	// 读取地址 + 端口 (2字节)
+	iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, iAddrLen + 2, iTimeoutMs);
+	if ( iRes != XRT_NET_OK ) return iRes;
+	
+	// SOCKS5 隧道建立成功
+	return XRT_NET_OK;
+}
+/* ============================== HTTP CONNECT 协议实现 ============================== */
+/*
+	HTTP CONNECT 握手流程:
+	1. 客户端发送: CONNECT host:port HTTP/1.1\r
+Host: host:port\r
+[Proxy-Authorization: Basic base64]\r
+\r
+	2. 服务端响应: HTTP/1.x 200 ...\r\n\r\n
+*/
+XXAPI xnet_result xrtProxyHttpConnect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
+	const char* sUser, const char* sPass, int iTimeoutMs)
+{
+	if ( !pConn || !sTargetHost || iTargetPort == 0 ) return XRT_NET_ERROR;
+	
+	char aBuf[1024];
+	char aResp[1024];
+	xnet_result iRes;
+	bool bNeedAuth = (sUser && sUser[0] && sPass && sPass[0]);
+	
+	// ========== Step 1: 构造 CONNECT 请求 ==========
+	size_t iLen;
+	if ( bNeedAuth ) {
+		// 构造 Basic 认证字符串: base64(user:pass)
+		char aCredentials[256];
+		snprintf(aCredentials, sizeof(aCredentials), "%s:%s", sUser, sPass);
+		
+		// Base64 编码
+		char aBase64[512];
+		size_t iCredLen = strlen(aCredentials);
+		size_t iBase64Len = 0;
+		
+		// 简单的 Base64 编码
+		static const char* sBase64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+		size_t i;
+		for ( i = 0; i + 2 < iCredLen; i += 3 ) {
+			aBase64[iBase64Len++] = sBase64Chars[(aCredentials[i] >> 2) & 0x3F];
+			aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i] & 0x03) << 4) | ((aCredentials[i+1] >> 4) & 0x0F)];
+			aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i+1] & 0x0F) << 2) | ((aCredentials[i+2] >> 6) & 0x03)];
+			aBase64[iBase64Len++] = sBase64Chars[aCredentials[i+2] & 0x3F];
+		}
+		if ( i < iCredLen ) {
+			aBase64[iBase64Len++] = sBase64Chars[(aCredentials[i] >> 2) & 0x3F];
+			if ( i + 1 < iCredLen ) {
+				aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i] & 0x03) << 4) | ((aCredentials[i+1] >> 4) & 0x0F)];
+				aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i+1] & 0x0F) << 2)];
+				aBase64[iBase64Len++] = '=';
+			} else {
+				aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i] & 0x03) << 4)];
+				aBase64[iBase64Len++] = '=';
+				aBase64[iBase64Len++] = '=';
+			}
+		}
+		aBase64[iBase64Len] = '\0';
+		
+		iLen = snprintf(aBuf, sizeof(aBuf),
+			"CONNECT %s:%u HTTP/1.1\r\n"
+			"Host: %s:%u\r\n"
+			"Proxy-Authorization: Basic %s\r\n"
+			"Proxy-Connection: Keep-Alive\r\n"
+			"\r\n",
+			sTargetHost, iTargetPort,
+			sTargetHost, iTargetPort,
+			aBase64);
+	} else {
+		iLen = snprintf(aBuf, sizeof(aBuf),
+			"CONNECT %s:%u HTTP/1.1\r\n"
+			"Host: %s:%u\r\n"
+			"Proxy-Connection: Keep-Alive\r\n"
+			"\r\n",
+			sTargetHost, iTargetPort,
+			sTargetHost, iTargetPort);
+	}
+	
+	// ========== Step 2: 发送 CONNECT 请求 ==========
+	iRes = __xrt_proxy_send_all(pConn, aBuf, iLen);
+	if ( iRes != XRT_NET_OK ) return iRes;
+	
+	// ========== Step 3: 接收响应 ==========
+	// 读取 HTTP 响应直到 \r\n\r\n
+	size_t iRespLen = 0;
+	int iElapsed = 0;
+	int iInterval = 50;
+	
+	while ( iRespLen < sizeof(aResp) - 1 ) {
+		size_t iRecv = 0;
+		iRes = xrtSockRecv(pConn, aResp + iRespLen, 1, &iRecv);
+		if ( iRes == XRT_NET_OK && iRecv > 0 ) {
+			iRespLen++;
+			// 检查是否收到 \r\n\r\n
+			if ( iRespLen >= 4 &&
+				aResp[iRespLen-4] == '\r' && aResp[iRespLen-3] == '\n' &&
+				aResp[iRespLen-2] == '\r' && aResp[iRespLen-1] == '\n' ) {
+				break;
+			}
+		} else if ( iRes == XRT_NET_AGAIN ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(iInterval);
+			#else
+				usleep(iInterval * 1000);
+			#endif
+			iElapsed += iInterval;
+			if ( iTimeoutMs > 0 && iElapsed >= iTimeoutMs ) {
+				return XRT_NET_TIMEOUT;
+			}
+		} else {
+			return iRes;
+		}
+	}
+	aResp[iRespLen] = '\0';
+	
+	// ========== Step 4: 解析响应 ==========
+	// 检查是否为 HTTP/1.x 200
+	if ( iRespLen < 12 ) return XRT_NET_ERROR;
+	if ( strncmp(aResp, "HTTP/1.", 7) != 0 ) return XRT_NET_ERROR;
+	
+	// 找状态码
+	char* pStatus = strchr(aResp, ' ');
+	if ( !pStatus ) return XRT_NET_ERROR;
+	pStatus++;
+	
+	int iStatusCode = atoi(pStatus);
+	if ( iStatusCode != 200 ) {
+		// 407 = Proxy Authentication Required
+		return XRT_NET_ERROR;
+	}
+	
+	// HTTP CONNECT 隧道建立成功
+	return XRT_NET_OK;
+}
+/* ============================== 通用代理连接 ============================== */
+XXAPI xnet_result xrtProxyConnect(xnetconn* pConn, const xproxyconfig* pProxy,
+	const char* sTargetHost, uint16 iTargetPort, int iTimeoutMs)
+{
+	if ( !pConn || !pProxy || !sTargetHost || iTargetPort == 0 ) return XRT_NET_ERROR;
+	
+	switch ( pProxy->iType ) {
+		case XRT_PROXY_SOCKS5:
+			return xrtProxySocks5Connect(pConn, sTargetHost, iTargetPort,
+				pProxy->sUser[0] ? pProxy->sUser : NULL,
+				pProxy->sPass[0] ? pProxy->sPass : NULL,
+				iTimeoutMs);
+		
+		case XRT_PROXY_HTTP_CONNECT:
+			return xrtProxyHttpConnect(pConn, sTargetHost, iTargetPort,
+				pProxy->sUser[0] ? pProxy->sUser : NULL,
+				pProxy->sPass[0] ? pProxy->sPass : NULL,
+				iTimeoutMs);
+		
+		default:
+			return XRT_NET_ERROR;
+	}
+}
+#endif
 #ifndef XRT_NO_NETTCP
 
 // ========================================
@@ -20087,9 +20616,16 @@ struct xrt_tcp_client {
 	bool bTlsHandshaking;
 	
 	xnetaddr tServerAddr;
+	char sTargetHost[256];        // 目标主机名 (用于代理和SNI)
+	uint16 iTargetPort;           // 目标端口
 	
 	volatile bool bRunning;
 	volatile bool bConnected;
+	
+	// 同步接收缓冲区
+	xnetbuf tSyncRecvBuf;         // 同步接收缓冲区
+	volatile bool bSyncRecvReady; // 同步接收数据就绪标志
+	volatile bool bSyncRecvMode;  // 是否启用同步接收模式
 	
 	ptr pUserData;
 };
@@ -20620,12 +21156,24 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 			char aBuf[8192];
 			size_t iDecrypted = 0;
 			while ( xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+				// 同步模式：写入同步缓冲区
+				if ( pClient->bSyncRecvMode ) {
+					xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iDecrypted);
+					pClient->bSyncRecvReady = true;
+				}
+				// 异步模式：调用用户回调
 				if ( pClient->tEvents.OnRecv ) {
 					pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iDecrypted);
 				}
 				iDecrypted = 0;
 			}
 		} else {
+			// 同步模式：写入同步缓冲区
+			if ( pClient->bSyncRecvMode ) {
+				xrtNetBufAppend(&pClient->tSyncRecvBuf, pData, iLen);
+				pClient->bSyncRecvReady = true;
+			}
+			// 异步模式：调用用户回调
 			if ( pClient->tEvents.OnRecv ) {
 				pClient->tEvents.OnRecv(pClient, &pClient->tConn, pData, iLen);
 			}
@@ -20644,6 +21192,58 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 	
 	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
 close_client:
+		;  // label 后需要语句
+		// 关闭前尝试读取剩余数据（优雅关闭）
+		int iTotalRead = 0;
+		if ( iEvent == XRT_POLL_CLOSE ) {
+			char aBuf[4096];
+			int iRemaining;
+			while ( (iRemaining = recv(pClient->tConn.hSocket, aBuf, sizeof(aBuf), 0)) > 0 ) {
+				iTotalRead += iRemaining;
+				if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
+					// TLS: 先放入 TLS 接收缓冲区，再解密读取
+					xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, aBuf, iRemaining);
+					size_t iDecrypted = 0;
+					char aTlsBuf[4096];
+					while ( xrtTlsRead(pClient->pTlsCtx, aTlsBuf, sizeof(aTlsBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+						if ( pClient->bSyncRecvMode ) {
+							xrtNetBufAppend(&pClient->tSyncRecvBuf, aTlsBuf, iDecrypted);
+							pClient->bSyncRecvReady = true;
+						}
+						if ( pClient->tEvents.OnRecv ) {
+							pClient->tEvents.OnRecv(pClient, &pClient->tConn, aTlsBuf, iDecrypted);
+						}
+						iDecrypted = 0;
+					}
+				} else {
+					// 非 TLS: 直接处理
+					if ( pClient->bSyncRecvMode ) {
+						xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iRemaining);
+						pClient->bSyncRecvReady = true;
+					}
+					if ( pClient->tEvents.OnRecv ) {
+						pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iRemaining);
+					}
+				}
+			}
+			
+			// 即使 recv() 没有返回数据，也要尝试解密 TLS 缓冲区中的剩余数据
+			if ( pClient->bTlsEnabled && pClient->pTlsCtx && pClient->pTlsCtx->tRecvBuf.iSize > 0 ) {
+				size_t iDecrypted = 0;
+				char aTlsBuf[4096];
+				while ( xrtTlsRead(pClient->pTlsCtx, aTlsBuf, sizeof(aTlsBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+					if ( pClient->bSyncRecvMode ) {
+						xrtNetBufAppend(&pClient->tSyncRecvBuf, aTlsBuf, iDecrypted);
+						pClient->bSyncRecvReady = true;
+					}
+					if ( pClient->tEvents.OnRecv ) {
+						pClient->tEvents.OnRecv(pClient, &pClient->tConn, aTlsBuf, iDecrypted);
+					}
+					iDecrypted = 0;
+				}
+			}
+		}
+		
 		pClient->bConnected = false;
 		pClient->bTlsHandshaking = false;
 		if ( pClient->tEvents.OnClose ) {
@@ -20684,6 +21284,11 @@ XXAPI xtcpclient* xrtTcpClientCreateEx(xeventloop* pLoop, const char* sIP, uint1
 	if ( pEvents ) {
 		pClient->tEvents = *pEvents;
 	}
+	
+	// 保存目标主机名和端口 (用于代理连接和SNI)
+	strncpy(pClient->sTargetHost, sIP, sizeof(pClient->sTargetHost) - 1);
+	pClient->sTargetHost[sizeof(pClient->sTargetHost) - 1] = '\0';
+	pClient->iTargetPort = iPort;
 	
 	xrtNetAddrInit(&pClient->tServerAddr, sIP, iPort);
 	
@@ -20729,8 +21334,39 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		return XRT_NET_ERROR;
 	}
 	
-	// 阻塞连接
-	xnet_result iRes = xrtSockConnect(&pClient->tConn, &pClient->tServerAddr);
+	int iTimeoutMs = pClient->tConfig.iConnectTimeoutMs > 0 ? 
+		pClient->tConfig.iConnectTimeoutMs : 5000;
+	
+	// ========== 代理连接处理 ==========
+	xnetaddr tConnectAddr;
+	bool bUseProxy = (pClient->tConfig.tProxy.iType > 0 && pClient->tConfig.tProxy.sHost[0]);
+	
+	if ( bUseProxy ) {
+		// 使用代理：先解析代理服务器地址
+		xnet_result iDnsRes = xrtNetResolve(pClient->tConfig.tProxy.sHost, &tConnectAddr);
+		if ( iDnsRes != XRT_NET_OK ) {
+			xrtSockClose(&pClient->tConn);
+			return XRT_NET_ERROR;
+		}
+		tConnectAddr.iPort = pClient->tConfig.tProxy.iPort;
+	} else {
+		// 直连：检查 tServerAddr 是否有效，无效则尝试 DNS 解析
+		if ( pClient->tServerAddr.iAddr == INADDR_NONE || pClient->tServerAddr.iAddr == 0 ) {
+			// tServerAddr 无效（可能传入的是域名），尝试 DNS 解析
+			xnet_result iDnsRes = xrtNetResolve(pClient->sTargetHost, &tConnectAddr);
+			if ( iDnsRes != XRT_NET_OK ) {
+				xrtSockClose(&pClient->tConn);
+				return XRT_NET_ERROR;
+			}
+			tConnectAddr.iPort = pClient->iTargetPort;
+		} else {
+			// tServerAddr 有效，直接使用
+			tConnectAddr = pClient->tServerAddr;
+		}
+	}
+	
+	// 阻塞连接 (到代理或目标)
+	xnet_result iRes = xrtSockConnect(&pClient->tConn, &tConnectAddr);
 	if ( iRes != XRT_NET_OK && iRes != XRT_NET_AGAIN ) {
 		xrtSockClose(&pClient->tConn);
 		return XRT_NET_ERROR;
@@ -20742,14 +21378,23 @@ XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
 		FD_ZERO(&tWriteSet);
 		FD_SET(pClient->tConn.hSocket, &tWriteSet);
 		struct timeval tTimeout;
-		int iTimeoutMs = pClient->tConfig.iConnectTimeoutMs > 0 ? 
-			pClient->tConfig.iConnectTimeoutMs : 5000;
 		tTimeout.tv_sec = iTimeoutMs / 1000;
 		tTimeout.tv_usec = (iTimeoutMs % 1000) * 1000;
 		int iSelRes = select((int)pClient->tConn.hSocket + 1, NULL, &tWriteSet, NULL, &tTimeout);
 		if ( iSelRes <= 0 ) {
 			xrtSockClose(&pClient->tConn);
 			return XRT_NET_TIMEOUT;
+		}
+	}
+	
+	// ========== 代理握手 ==========
+	if ( bUseProxy ) {
+		// 使用原始目标主机名和端口进行代理握手
+		xnet_result iProxyRes = xrtProxyConnect(&pClient->tConn, &pClient->tConfig.tProxy,
+			pClient->sTargetHost, pClient->iTargetPort, iTimeoutMs);
+		if ( iProxyRes != XRT_NET_OK ) {
+			xrtSockClose(&pClient->tConn);
+			return iProxyRes;
 		}
 	}
 	
@@ -20938,6 +21583,147 @@ XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData)
 XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient)
 {
 	return pClient ? pClient->pUserData : NULL;
+}
+/* ============================== TCP 客户端 - 同步接收 API ============================== */
+// 启用同步接收模式
+XXAPI void xrtTcpClientEnableSyncRecv(xtcpclient* pClient)
+{
+	if ( !pClient ) return;
+	if ( !pClient->tSyncRecvBuf.pData ) {
+		xrtNetBufInit(&pClient->tSyncRecvBuf, 16384);  // 16KB 初始缓冲区
+	}
+	pClient->bSyncRecvMode = true;
+	pClient->bSyncRecvReady = false;
+}
+// 禁用同步接收模式
+XXAPI void xrtTcpClientDisableSyncRecv(xtcpclient* pClient)
+{
+	if ( !pClient ) return;
+	pClient->bSyncRecvMode = false;
+	pClient->bSyncRecvReady = false;
+	xrtNetBufFree(&pClient->tSyncRecvBuf);
+}
+// 同步阻塞接收数据
+// 返回: XRT_NET_OK 成功, XRT_NET_TIMEOUT 超时, XRT_NET_ERROR 错误/连接断开
+XXAPI xnet_result xrtTcpClientRecvSync(xtcpclient* pClient, char* pBuf, size_t iBufSize, size_t* pRecvLen, int iTimeoutMs)
+{
+	if ( !pClient || !pBuf || iBufSize == 0 ) return XRT_NET_ERROR;
+	if ( !pClient->bSyncRecvMode ) return XRT_NET_ERROR;  // 需要先启用同步模式
+	
+	if ( pRecvLen ) *pRecvLen = 0;
+	
+	// 优先检查：如果缓冲区已有数据，立即返回（即使连接已关闭）
+	if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
+		goto read_buffer;
+	}
+	
+	// 连接已断开且无数据
+	if ( !pClient->bConnected ) return XRT_NET_ERROR;
+	
+	// 计算超时
+	int iElapsedMs = 0;
+	int iSleepMs = 10;  // 每次睡眠 10ms
+	if ( iTimeoutMs <= 0 ) iTimeoutMs = 30000;  // 默认 30 秒超时
+	
+	// 等待数据到达
+	while ( !pClient->bSyncRecvReady ) {
+		// 驱动事件循环，让数据能够到达
+		if ( pClient->pLoop ) {
+			xrtEventLoopRunOnce(pClient->pLoop, iSleepMs);
+		} else {
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(iSleepMs);
+			#else
+				usleep(iSleepMs * 1000);
+			#endif
+		}
+		
+		// 再次检查：数据可能在 Poll 期间到达
+		if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
+			goto read_buffer;
+		}
+		
+		// 连接断开：再给一点时间等待剩余数据
+		if ( !pClient->bConnected ) {
+			// 连接关闭后额外等待 500ms，让可能在途的数据到达
+			for ( int i = 0; i < 50; i++ ) {
+				if ( pClient->pLoop ) {
+					xrtEventLoopRunOnce(pClient->pLoop, 10);
+				} else {
+					#if defined(_WIN32) || defined(_WIN64)
+						Sleep(10);
+					#else
+						usleep(10000);
+					#endif
+				}
+				if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
+					goto read_buffer;
+				}
+			}
+			return XRT_NET_ERROR;
+		}
+		
+		iElapsedMs += iSleepMs;
+		if ( iElapsedMs >= iTimeoutMs ) {
+			return XRT_NET_TIMEOUT;
+		}
+	}
+	
+read_buffer:
+	;  // label 后需要语句
+	// 从同步缓冲区读取数据
+	{
+		size_t iAvailable = pClient->tSyncRecvBuf.iSize;
+		if ( iAvailable == 0 ) {
+			pClient->bSyncRecvReady = false;
+			return XRT_NET_AGAIN;  // 没有数据
+		}
+		
+		size_t iCopyLen = iAvailable < iBufSize ? iAvailable : iBufSize;
+		memcpy(pBuf, pClient->tSyncRecvBuf.pData, iCopyLen);
+		xrtNetBufConsume(&pClient->tSyncRecvBuf, iCopyLen);
+		
+		if ( pRecvLen ) *pRecvLen = iCopyLen;
+		
+		// 如果缓冲区空了，清除就绪标志
+		if ( pClient->tSyncRecvBuf.iSize == 0 ) {
+			pClient->bSyncRecvReady = false;
+		}
+		
+		return XRT_NET_OK;
+	}
+}
+// 检查同步缓冲区是否有数据（非阻塞）
+XXAPI size_t xrtTcpClientSyncAvailable(xtcpclient* pClient)
+{
+	if ( !pClient || !pClient->bSyncRecvMode ) return 0;
+	return pClient->tSyncRecvBuf.iSize;
+}
+// 等待同步数据到达（不读取，仅等待）
+XXAPI xnet_result xrtTcpClientWaitData(xtcpclient* pClient, int iTimeoutMs)
+{
+	if ( !pClient ) return XRT_NET_ERROR;
+	if ( !pClient->bConnected ) return XRT_NET_ERROR;
+	if ( !pClient->bSyncRecvMode ) return XRT_NET_ERROR;
+	
+	int iElapsedMs = 0;
+	int iSleepMs = 10;
+	if ( iTimeoutMs <= 0 ) iTimeoutMs = 30000;
+	
+	while ( !pClient->bSyncRecvReady ) {
+		if ( !pClient->bConnected ) return XRT_NET_ERROR;
+		
+		#if defined(_WIN32) || defined(_WIN64)
+			Sleep(iSleepMs);
+		#else
+			usleep(iSleepMs * 1000);
+		#endif
+		
+		iElapsedMs += iSleepMs;
+		if ( iElapsedMs >= iTimeoutMs ) return XRT_NET_TIMEOUT;
+	}
+	
+	return XRT_NET_OK;
 }
 #endif
 #ifndef XRT_NO_NETUDP
@@ -34028,74 +34814,6 @@ jnum_to_func(double, xrtStrToNum)
 // ========================================
 
 
-/**************** json pool editor / 内存块json的编辑接口 ****************/
-/*
- * json_mem_node_t - the block memory node
- * @list: the list value, LJSON associates `list` to the `head` of json_mem_mgr_t
- *   or the `list` of brother json_mem_node_t
- * @size: the memory size
- * @ptr: the memory pointer
- * @cur: the current memory pointer
- * @description: LJSON can use the block memory to accelerate memory allocation and save memory space.
- */
-/*
- * json_mem_node_t - 块内存节点
- * @list: 链表节点，LJSON将 `list` 关联到 `json_mem_mgr_t` 的 `head` 或兄弟 `json_mem_node_t` 的 `list`
- * @size: 内存大小
- * @ptr: 内存指针
- * @cur: 当前内存指针
- * @description: LJSON使用块内存来加速内存分配并节省内存空间，内存块只能统一申请统一释放，无法单独释放某个对象
- */
-typedef struct {
-    struct json_list list;
-    size_t size;
-    char *ptr;
-    char *cur;
-} json_mem_node_t;
-/*
- * json_mem_mgr_t - the node to manage block memory node
- * @head: the list head, LJSON manages block memory nodes through the list head
- * @mem_size: the default memory size to allocate, its default value is JSON_POOL_MEM_SIZE_DEF(8192)
- * @cur_node: the current block memory node
- * @description: the manage node manages a group of block memory nodes.
- */
-/*
- * json_mem_mgr_t - 管理块内存节点的结构
- * @head: 链表头，LJSON通过链表头管理块内存节点
- * @mem_size: 默认分配的内存大小，默认值为 `JSON_POOL_MEM_SIZE_DEF`(8192)
- * @cur_node: 当前块内存节点
- * @description: 该管理节点管理一组块内存节点
- */
-typedef struct {
-    struct json_list head;
-    size_t mem_size;
-    json_mem_node_t *cur_node;
-} json_mem_mgr_t;
-/*
- * json_mem_t - the head to manage all types of block memory
- * @valid: IN, is there already memory allocation available to speed up
- *   frequent parsing of small JSON files
- * @obj_mgr: the node to manage json_object
- * @key_mgr: the node to manage the value of key
- * @str_mgr: the node to manage the value of JSON_STRING object
- * @description: The reason for dividing into multiple management nodes is that
- * there is a memory address alignment requirement for json_object.
- */
-/*
- * json_mem_t - 管理所有类型块内存的结构
- * @valid: IN, 是否已经有内存分配可用于加速频繁解析小型JSON文件
- * @obj_mgr: 管理 `json_object` 的节点
- * @key_mgr: 管理键值的节点
- * @str_mgr: 管理 `JSON_STRING` 对象值的节点
- * @description: 划分为多个管理节点的原因是 `json_object` 有内存地址对齐要求
- *   valid设为false时，JSON解析函数内部会重新初始化mem，所以此时mem一定不要有挂载内存节点
- */
-typedef struct {
-    bool valid;
-    json_mem_mgr_t obj_mgr;
-    json_mem_mgr_t key_mgr;
-    json_mem_mgr_t str_mgr;
-} json_mem_t;
 /**************** configuration ****************/
 /* Whether to use manual loop unfolding */
 #ifndef JSON_MANUAL_LOOP_UNFOLD
@@ -34187,7 +34905,6 @@ typedef struct {
 #define json_strdup                     strdup
 #define json_free                       xrtFree
 #define JSON_ITEM_NUM_PLUS_DEF          16
-#define JSON_POOL_MEM_SIZE_DEF          8192
 /* print choice size */
 #define JSON_PRINT_UTF16_SUPPORT        0
 #define JSON_PRINT_NUM_INIT_DEF         1024
@@ -34205,10 +34922,9 @@ typedef struct _json_parse_t {
     size_t offset;
     bool reuse_flag;
     char *str;
-    json_mem_t *mem;
     void (*skip_blank)(struct _json_parse_t *parse_ptr);
     int (*parse_string)(struct _json_parse_t *parse_ptr, char end_ch, char **ppstr,
-        json_strinfo_t *pinfo, json_mem_mgr_t *mgr);
+        json_strinfo_t *pinfo, bool is_key);
     int (*parse_value)(struct _json_parse_t *parse_ptr, json_object **root);
     json_sax_parser_t parser;
     json_sax_cb_t cb;
@@ -34827,7 +35543,7 @@ static int _json_parse_key(json_parse_t *parse_ptr, json_string_t *jkey)
             end_ch = *str;
             _UPDATE_PARSE_OFFSET(1);
             if (unlikely(parse_ptr->parse_string(parse_ptr, end_ch, &jkey->str, &jkey->info,
-                &parse_ptr->mem->key_mgr) < 0)) {
+                true) < 0)) {
                 goto err;
             }
             _UPDATE_PARSE_OFFSET(1);
@@ -34852,7 +35568,7 @@ static int _json_parse_key(json_parse_t *parse_ptr, json_string_t *jkey)
         } else {
             end_ch = ':';
             if (unlikely(parse_ptr->parse_string(parse_ptr, end_ch, &jkey->str, &jkey->info,
-                &parse_ptr->mem->key_mgr) < 0)) {
+                true) < 0)) {
                 goto err;
             }
             _UPDATE_PARSE_OFFSET(1);
@@ -34889,7 +35605,7 @@ static int _json_parse_single_value(json_parse_t *parse_ptr, char *str, json_str
             end_ch = *str;
             _UPDATE_PARSE_OFFSET(1);
             if (unlikely(parse_ptr->parse_string(parse_ptr, end_ch, ppstr, pinfo,
-                &parse_ptr->mem->str_mgr) < 0)) {
+                false) < 0)) {
                 goto err;
             }
             _UPDATE_PARSE_OFFSET(1);
@@ -35173,9 +35889,8 @@ err:
     JsonPareseErr("str format err!");
     return -1;
 }
-static json_mem_t s_invalid_json_mem;
 static inline int _json_sax_parse_string(json_parse_t *parse_ptr, char end_ch, char **ppstr,
-    json_strinfo_t *pinfo, json_mem_mgr_t *mgr)
+    json_strinfo_t *pinfo, bool is_key)
 {
     char *ptr = NULL, *str = NULL;
     int len = 0, total = 0;
@@ -35188,7 +35903,7 @@ static inline int _json_sax_parse_string(json_parse_t *parse_ptr, char end_ch, c
     len = total;
     _get_parse_ptr(parse_ptr, 0, total, &str);
     if (likely(escaped != 1)) {
-        if (!(mgr == &parse_ptr->mem->key_mgr)) {
+        if (!is_key) {
             pinfo->escaped = escaped != 0;
             pinfo->alloced = 0;
             pinfo->len = len;
@@ -35387,9 +36102,6 @@ XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb)
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-	
-    parse_val.mem = &s_invalid_json_mem;
-    
 	parse_val.str = text;
 	parse_val.size = str_len ? str_len : strlen(text);
 	parse_val.skip_blank = _skip_blank_rapid;
@@ -35441,10 +36153,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 					ctx->cur = arrNew;
 				} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 					xvalue arrNew = xvoCreateArray();
-					char* sKey = xrtMalloc(jkey->info.len + 1);
-					memcpy(sKey, jkey->str, jkey->info.len);
-					sKey[jkey->info.len] = 0;
-					xvoTableSetValue(ctx->cur, sKey, jkey->info.len, arrNew, TRUE);
+					xvoTableSetValue(ctx->cur, jkey->str, jkey->info.len, arrNew, TRUE);
 					xrtStackPushPtr(ctx->stack, arrNew);
 					ctx->cur = arrNew;
 				}
@@ -35462,10 +36171,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 					ctx->cur = tblNew;
 				} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
 					xvalue tblNew = xvoCreateTable();
-					char* sKey = xrtMalloc(jkey->info.len + 1);
-					memcpy(sKey, jkey->str, jkey->info.len);
-					sKey[jkey->info.len] = 0;
-					xvoTableSetValue(ctx->cur, sKey, jkey->info.len, tblNew, TRUE);
+					xvoTableSetValue(ctx->cur, jkey->str, jkey->info.len, tblNew, TRUE);
 					xrtStackPushPtr(ctx->stack, tblNew);
 					ctx->cur = tblNew;
 				}
@@ -35481,10 +36187,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendNull(ctx->cur);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetNull(ctx->cur, sKey, jkey->info.len);
+				xvoTableSetNull(ctx->cur, jkey->str, jkey->info.len);
 			}
         } else {
 			ctx->root = xvoCreateNull();
@@ -35494,10 +36197,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendBool(ctx->cur, parser->value.vnum.vbool);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetBool(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vbool);
+				xvoTableSetBool(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vbool);
 			}
         } else {
 			ctx->root = xvoCreateBool(parser->value.vnum.vbool);
@@ -35507,10 +36207,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vint);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vint);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vint);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vint);
@@ -35520,10 +36217,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vhex);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vhex);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vhex);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vhex);
@@ -35533,10 +36227,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vlint);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vlint);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vlint);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vlint);
@@ -35546,10 +36237,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendInt(ctx->cur, parser->value.vnum.vlhex);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetInt(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vlhex);
+				xvoTableSetInt(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vlhex);
 			}
         } else {
 			ctx->root = xvoCreateInt(parser->value.vnum.vlhex);
@@ -35559,10 +36247,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendFloat(ctx->cur, parser->value.vnum.vdbl);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetFloat(ctx->cur, sKey, jkey->info.len, parser->value.vnum.vdbl);
+				xvoTableSetFloat(ctx->cur, jkey->str, jkey->info.len, parser->value.vnum.vdbl);
 			}
         } else {
 			ctx->root = xvoCreateFloat(parser->value.vnum.vdbl);
@@ -35575,10 +36260,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 			if ( ctx->cur->Type == XVO_DT_ARRAY ) {
 				xvoArrayAppendText(ctx->cur, sText, parser->value.vstr.info.len, TRUE);
 			} else if ( ctx->cur->Type == XVO_DT_TABLE ) {
-				char* sKey = xrtMalloc(jkey->info.len + 1);
-				memcpy(sKey, jkey->str, jkey->info.len);
-				sKey[jkey->info.len] = 0;
-				xvoTableSetText(ctx->cur, sKey, jkey->info.len, sText, parser->value.vstr.info.len, TRUE);
+				xvoTableSetText(ctx->cur, jkey->str, jkey->info.len, sText, parser->value.vstr.info.len, TRUE);
 			}
         } else {
 			ctx->root = xvoCreateText(sText, parser->value.vstr.info.len, TRUE);
@@ -35597,8 +36279,6 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-	
-    parse_val.mem = &s_invalid_json_mem;
     parse_val.str = text;
     parse_val.size = str_len ? str_len : strlen(text);
     parse_val.skip_blank = _skip_blank_rapid;

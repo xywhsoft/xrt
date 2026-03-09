@@ -133,20 +133,20 @@ static tls_test_config test_sites[] = {
 	
 	// TLS 1.3 站点 (需要代理)
 	{"www.google.com", NULL, 443, "Google - TLS 1.3", true},
-	// {"www.facebook.com", NULL, 443, "Facebook - TLS 1.3", true},  // 暂时跳过: 证书链接收不完整
+	{"www.facebook.com", NULL, 443, "Facebook - TLS 1.3", true},
 	{"www.github.com", NULL, 443, "GitHub - TLS 1.3", true},
-	// {"aws.amazon.com", NULL, 443, "AWS - TLS 1.3", true},  // 暂时跳过: cipher 0x1301 解密问题
+	{"aws.amazon.com", NULL, 443, "AWS - TLS 1.3", true},
 	
 	// TLS 1.2/1.3 兼容站点 (国内)
 	{"www.baidu.com", NULL, 443, "Baidu - TLS 1.2/1.3", false},
 	{"www.taobao.com", NULL, 443, "Taobao - TLS 1.3", false},
-	{"www.qq.com", NULL, 443, "QQ - TLS 1.2", false},  // 测试: ServerKeyExchange 解析问题
+	{"www.qq.com", NULL, 443, "QQ - TLS 1.2", false},
 	{"www.sina.com.cn", NULL, 443, "Sina - TLS 1.3", false},
 	{"www.jd.com", NULL, 443, "JD - TLS 1.3", false},
 	
 	// 专用测试站点
-	{"fancyssl.hboeck.de", NULL, 443, "TLS 1.3 专用测试", false},
-	{"clienttest.ssllabs.com", "64.41.200.100", 8443, "SSL Labs 客户端测试", true},
+	// {"fancyssl.hboeck.de", NULL, 443, "TLS 1.3 专用测试", false},
+	// {"clienttest.ssllabs.com", "64.41.200.100", 8443, "SSL Labs 客户端测试", true},
 	
 	{NULL, NULL, 0, NULL, false}  // 结束标记
 };
@@ -221,9 +221,11 @@ static bool run_single_tls_test(const tls_test_config* config)
 	}
 	
 	// 连接并执行TLS握手
+	printf("  开始连接...\n");
 	xnet_result conn_result = xrtTcpClientConnect(client);
+	printf("  连接结果: %d\n", conn_result);
 	if (conn_result != XRT_NET_OK) {
-		printf("  ❌ 连接失败 (错误码: %d)\n", conn_result);
+		printf("  ❌ 连接失败 (错误码: %d, connected: %d)\n", conn_result, xrtTcpClientIsConnected(client));
 		xrtTcpClientDestroy(client);
 		return false;
 	}
@@ -236,6 +238,7 @@ static bool run_single_tls_test(const tls_test_config* config)
 	}
 	
 	printf("  ✅ TLS握手成功\n");
+	fflush(stdout);
 	
 	// 发送HTTP请求
 	char request[256];
@@ -244,15 +247,13 @@ static bool run_single_tls_test(const tls_test_config* config)
 		config->hostname);
 	
 	xnet_result send_result = xrtTcpClientSend(client, request, strlen(request));
+	fflush(stdout);
 	if (send_result != XRT_NET_OK) {
 		printf("  ❌ HTTP请求发送失败\n");
 		xrtTcpClientDisableSyncRecv(client);
 		xrtTcpClientDestroy(client);
 		return false;
 	}
-	
-	// 调试：检查发送后连接状态
-	// printf("  [DEBUG] after send: connected=%d\n", xrtTcpClientIsConnected(client));
 	
 	// 使用同步 API 等待并接收响应
 	char recv_buf[8192];

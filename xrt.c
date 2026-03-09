@@ -1,6 +1,9 @@
 
 
 
+// 临时启用 TLS 调试
+#define DEBUG_TRACE
+
 #include "xrt.h"
 
 

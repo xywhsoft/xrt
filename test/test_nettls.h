@@ -158,7 +158,7 @@ void Test_NetTLS(xrtGlobalData* xCore)
 			printf("  ++ Testing r*Qi (failing case):\n");
 			xrtP256DebugTest(aPrivR, aPubI, aExpected);
 			printf("\n  ++ Testing i*G (should produce Qi):\n");
-			xrtP256DebugTest(aPrivI, aGPub, aPubI_expected_x);
+			xrtP256DebugTest(aPrivI, aPubI, aPubI_expected_x);
 			#endif
 		}
 	}

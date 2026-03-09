@@ -137,7 +137,7 @@ int main(int argc, char** argv)
 	// Test_NetTCPUDP(xCore);
 	
 	/* TLS 1.3 测试 */
-	// Test_NetTLS(xCore);
+	Test_NetTLS(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);
@@ -205,7 +205,7 @@ int main(int argc, char** argv)
 	// Test_Template(xCore);
 	
 	/* TLS 综合测试 */
-	Test_TLS_Comprehensive();
+	// Test_TLS_Comprehensive();
 	
 	/* TLS 算法套件测试 */
 	// Test_TLS_CipherSuites();
