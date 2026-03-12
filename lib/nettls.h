@@ -189,6 +189,21 @@ static const uint8 __xrt_oid_ec_public_key[] = {
 	0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01
 };
 
+// prime256v1 OID: 1.2.840.10045.3.1.7
+static const uint8 __xrt_oid_prime256v1[] = {
+	0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+};
+
+// secp384r1 OID: 1.3.132.0.34
+static const uint8 __xrt_oid_secp384r1[] = {
+	0x2b, 0x81, 0x04, 0x00, 0x22
+};
+
+// Ed25519 OID: 1.3.101.112
+static const uint8 __xrt_oid_ed25519[] = {
+	0x2b, 0x65, 0x70
+};
+
 // 从 X.509 证书 DER 中提取 EC 公钥 (uncompressed P-256, 65 字节)
 static bool __xrt_tls_extract_ec_pubkey(uint8 *pCert, size_t iCertLen,
 	uint8 **ppPubKey, size_t *pPubKeySz)
@@ -424,7 +439,8 @@ enum __xrt_x509_sig_alg {
 	__XRT_X509_SIGALG_RSA_PSS_SHA512,
 	__XRT_X509_SIGALG_ECDSA_SHA256,
 	__XRT_X509_SIGALG_ECDSA_SHA384,
-	__XRT_X509_SIGALG_ECDSA_SHA512
+	__XRT_X509_SIGALG_ECDSA_SHA512,
+	__XRT_X509_SIGALG_ED25519
 };
 
 struct __xrt_x509_cert {
@@ -454,6 +470,7 @@ struct __xrt_x509_cert {
 	const uint8 *pSig;
 	size_t iSigLen;
 	bool bIsECPubKey;
+	bool bIsEd25519Key;
 	bool bIsRSAPSSKey;
 	uint8 *pMod;
 	size_t iModSz;
@@ -461,6 +478,8 @@ struct __xrt_x509_cert {
 	size_t iExpSz;
 	uint8 *pECPub;
 	size_t iECPubSz;
+	uint8 *pEdPub;
+	size_t iEdPubSz;
 };
 
 static int __xrt_tls_ascii_tolower(int c)
@@ -725,6 +744,12 @@ static bool __xrt_x509_parse_signature_algorithm(const struct __xrt_der_tlv *pAl
 		*pHashLen = 64;
 		return true;
 	}
+	if ( tOID.iLen == sizeof(__xrt_oid_ed25519) &&
+		memcmp(tOID.pValue, __xrt_oid_ed25519, sizeof(__xrt_oid_ed25519)) == 0 ) {
+		*pSigAlg = __XRT_X509_SIGALG_ED25519;
+		*pHashLen = 0;
+		return true;
+	}
 	if ( tOID.iLen == sizeof(__xrt_oid_rsassa_pss) &&
 		memcmp(tOID.pValue, __xrt_oid_rsassa_pss, sizeof(__xrt_oid_rsassa_pss)) == 0 ) {
 		if ( __xrt_der_next(&tSeq, &tParams) <= 0 ) return false;
@@ -855,10 +880,36 @@ static bool __xrt_x509_parse_spki(struct __xrt_x509_cert *pCert, const struct __
 
 		if ( tOID.iLen == sizeof(__xrt_oid_ec_public_key) &&
 			memcmp(tOID.pValue, __xrt_oid_ec_public_key, sizeof(__xrt_oid_ec_public_key)) == 0 ) {
+			struct __xrt_der_tlv tCurveOID;
+			bool bCurveOK = false;
+
+			if ( __xrt_der_next(&tAlg, &tCurveOID) > 0 && tCurveOID.iType == 0x06 ) {
+				if ( tCurveOID.iLen == sizeof(__xrt_oid_prime256v1) &&
+					memcmp(tCurveOID.pValue, __xrt_oid_prime256v1, sizeof(__xrt_oid_prime256v1)) == 0 ) {
+					bCurveOK = (tBitStr.iLen - 1) == 65;
+				} else if ( tCurveOID.iLen == sizeof(__xrt_oid_secp384r1) &&
+					memcmp(tCurveOID.pValue, __xrt_oid_secp384r1, sizeof(__xrt_oid_secp384r1)) == 0 ) {
+					bCurveOK = (tBitStr.iLen - 1) == 97;
+				}
+			} else {
+				bCurveOK = (tBitStr.iLen - 1) == 65 || (tBitStr.iLen - 1) == 97;
+			}
+			if ( !bCurveOK ) return false;
 			pCert->bIsECPubKey = true;
+			pCert->bIsEd25519Key = false;
 			pCert->pECPub = tBitStr.pValue + 1;
 			pCert->iECPubSz = tBitStr.iLen - 1;
 			return pCert->iECPubSz > 0;
+		}
+		if ( tOID.iLen == sizeof(__xrt_oid_ed25519) &&
+			memcmp(tOID.pValue, __xrt_oid_ed25519, sizeof(__xrt_oid_ed25519)) == 0 ) {
+			if ( tBitStr.iLen != 33 || tBitStr.pValue[0] != 0x00 ) return false;
+			pCert->bIsECPubKey = false;
+			pCert->bIsEd25519Key = true;
+			pCert->bIsRSAPSSKey = false;
+			pCert->pEdPub = tBitStr.pValue + 1;
+			pCert->iEdPubSz = 32;
+			return true;
 		}
 	}
 	return false;
@@ -985,27 +1036,32 @@ static bool __xrt_x509_verify_signature(const struct __xrt_x509_cert *pChild, co
 	uint8 aHash[64];
 
 	if ( !pChild || !pIssuer ) return false;
-	if ( !__xrt_hash_bytes(aHash, pChild->iSigHashLen, pChild->pTbs, pChild->iTbsLen) ) return false;
 
 	switch ( pChild->iSigAlg ) {
 		case __XRT_X509_SIGALG_RSA_PKCS1_SHA256:
 		case __XRT_X509_SIGALG_RSA_PKCS1_SHA384:
 		case __XRT_X509_SIGALG_RSA_PKCS1_SHA512:
+			if ( !__xrt_hash_bytes(aHash, pChild->iSigHashLen, pChild->pTbs, pChild->iTbsLen) ) return false;
 			if ( pIssuer->bIsECPubKey || !pIssuer->pMod || !pIssuer->pExp ) return false;
 			return xrtRSAPKCS1Verify(aHash, pChild->iSigHashLen, pChild->pSig, pChild->iSigLen,
 				pIssuer->pMod, pIssuer->iModSz, pIssuer->pExp, pIssuer->iExpSz);
 		case __XRT_X509_SIGALG_RSA_PSS_SHA256:
 		case __XRT_X509_SIGALG_RSA_PSS_SHA384:
 		case __XRT_X509_SIGALG_RSA_PSS_SHA512:
+			if ( !__xrt_hash_bytes(aHash, pChild->iSigHashLen, pChild->pTbs, pChild->iTbsLen) ) return false;
 			if ( pIssuer->bIsECPubKey || !pIssuer->pMod || !pIssuer->pExp ) return false;
 			return xrtRSAPSSVerify(aHash, pChild->iSigHashLen, pChild->pSig, pChild->iSigLen,
 				pIssuer->pMod, pIssuer->iModSz, pIssuer->pExp, pIssuer->iExpSz);
 		case __XRT_X509_SIGALG_ECDSA_SHA256:
 		case __XRT_X509_SIGALG_ECDSA_SHA384:
 		case __XRT_X509_SIGALG_ECDSA_SHA512:
+			if ( !__xrt_hash_bytes(aHash, pChild->iSigHashLen, pChild->pTbs, pChild->iTbsLen) ) return false;
 			if ( !pIssuer->bIsECPubKey || !pIssuer->pECPub ) return false;
 			return xrtECDSAVerify(aHash, pChild->iSigHashLen, pChild->pSig, pChild->iSigLen,
 				pIssuer->pECPub, pIssuer->iECPubSz);
+		case __XRT_X509_SIGALG_ED25519:
+			if ( !pIssuer->bIsEd25519Key || !pIssuer->pEdPub || pIssuer->iEdPubSz != 32 ) return false;
+			return xrtEd25519Verify(pChild->pTbs, pChild->iTbsLen, pChild->pSig, pIssuer->pEdPub);
 		default:
 			return false;
 	}
@@ -1078,10 +1134,13 @@ struct xrt_tls_context {
 	uint8 aSessionId[32];         // session ID
 	uint8 aX25519Priv[32];        // X25519 私钥
 	uint8 aX25519Pub[32];         // X25519 公钥
-	uint8 aX25519Secret[32];      // TLS 1.3 共享密钥 (X25519 或 P-256 ECDH)
-	uint8 aPeerKeyShare[65];      // 服务端: 客户端的 key_share
+	uint8 aX448Priv[56];          // X448 私钥
+	uint8 aX448Pub[56];           // X448 公钥
+	uint8 aX25519Secret[56];      // TLS 1.3 共享密钥 (X25519 / P-256 / P-384 / X448)
+	size_t iTls13SecretLen;
+	uint8 aPeerKeyShare[97];      // 服务端: 客户端的 key_share
 	size_t iPeerKeyShareLen;
-	uint16 iTls13Group;           // TLS 1.3 协商的密钥组 (0x001d=X25519, 0x0017=P-256)
+	uint16 iTls13Group;           // TLS 1.3 协商的密钥组
 	uint8 iSessionIdLen;
 	
 	// TLS 1.3 加密密钥
@@ -1093,8 +1152,11 @@ struct xrt_tls_context {
 	uint8 aMasterSecret[48];      // 主密钥
 	uint8 aP256Priv[32];          // ECDHE P-256 私钥
 	uint8 aP256Pub[65];           // ECDHE P-256 公钥
+	uint8 aP384Priv[48];          // ECDHE P-384 私钥
+	uint8 aP384Pub[97];           // ECDHE P-384 公钥
 	uint8 aPreMaster[48];         // RSA 模式 pre_master_secret
-	uint8 aSharedSecret[32];      // ECDHE 共享密钥
+	uint8 aSharedSecret[56];      // ECDHE 共享密钥
+	size_t iSharedSecretLen;
 	uint8 aClientWriteKey12[32];  // 客户端写密钥 (16 or 32)
 	uint8 aServerWriteKey12[32];  // 服务端写密钥 (16 or 32)
 	uint8 aClientWriteIV12[12];   // 客户端隐式 IV (GCM:4, ChaCha20:12)
@@ -1107,7 +1169,7 @@ struct xrt_tls_context {
 	bool bUseSHA384;              // 当前套件是否使用 SHA-384
 	bool bTls12UseChaCha;         // TLS 1.2 是否使用 ChaCha20-Poly1305
 	bool bIsECDHE;                // 是否为 ECDHE 密钥交换
-	uint16 iTls12Curve;           // TLS 1.2 ECDHE 曲线类型 (0x0017=P-256, 0x001d=X25519)
+	uint16 iTls12Curve;           // TLS 1.2 ECDHE 曲线类型
 	
 	// 配置
 	bool bSkipVerify;
@@ -1125,13 +1187,18 @@ struct xrt_tls_context {
 	size_t iKeyDerLen;
 	uint8 *pCaData;
 	size_t iCaDataLen;
-	uint8 aECKey[32];             // EC 私钥
+	uint8 aECKey[48];             // EC 私钥
+	uint8 aEd25519Key[32];        // Ed25519 seed
+	size_t iECKeyLen;
 	uint8 aRSAPrivExp[512];       // RSA 私钥指数 d
 	size_t iRSAPrivExpSz;
 	bool bHasECPrivKey;
+	bool bHasEd25519Priv;
 	bool bHasRSAPrivKey;
 	uint16 iServerSigAlg;
 	bool bPeerSigECDSAP256;
+	bool bPeerSigECDSAP384;
+	bool bPeerSigEd25519;
 	bool bPeerSigRSAPSS256;
 	bool bPeerSigRSAPSS384;
 	bool bPeerSigRSAPSS512;
@@ -1142,6 +1209,7 @@ struct xrt_tls_context {
 	
 	// 服务器证书公钥 (RSA 或 EC)
 	bool bIsECPubKey;             // true=EC, false=RSA
+	bool bIsEd25519Key;
 	bool bIsRSAPSSKey;
 	uint8 aPubKey[512 + 16];      // RSA 公钥 (modulus + exp) 或 EC 公钥
 	size_t iPubKeySz;             // 公钥总大小
@@ -1186,6 +1254,8 @@ static bool __xrt_tls_hash_bytes(uint8 *pOut, size_t iHashLen, const uint8 *pDat
 static size_t __xrt_tls_sigalg_hash_len(uint16 iSigAlg)
 {
 	switch ( iSigAlg ) {
+		case 0x0807:
+			return 0;
 		case 0x0401:
 		case 0x0403:
 		case 0x0804:
@@ -1203,6 +1273,7 @@ static size_t __xrt_tls_sigalg_hash_len(uint16 iSigAlg)
 			return 64;
 		default:
 			switch ( (uint8)(iSigAlg >> 8) ) {
+				case 8: return 0;
 				case 4: return 32;
 				case 5: return 48;
 				case 6: return 64;
@@ -1334,14 +1405,25 @@ static bool __xrt_tls_copy_pubkey_from_cert(xtlsctx *pCtx, const struct __xrt_x5
 	if ( pCert->bIsECPubKey ) {
 		if ( pCert->iECPubSz == 0 || pCert->iECPubSz > sizeof(pCtx->aPubKey) ) return false;
 		pCtx->bIsECPubKey = true;
+		pCtx->bIsEd25519Key = false;
 		pCtx->bIsRSAPSSKey = false;
 		memcpy(pCtx->aPubKey, pCert->pECPub, pCert->iECPubSz);
 		pCtx->iPubKeySz = pCert->iECPubSz;
 		return true;
 	}
+	if ( pCert->bIsEd25519Key ) {
+		if ( pCert->iEdPubSz != 32 ) return false;
+		pCtx->bIsECPubKey = false;
+		pCtx->bIsEd25519Key = true;
+		pCtx->bIsRSAPSSKey = false;
+		memcpy(pCtx->aPubKey, pCert->pEdPub, 32);
+		pCtx->iPubKeySz = 32;
+		return true;
+	}
 
 	if ( !pCert->pMod || !pCert->pExp || pCert->iModSz + pCert->iExpSz > sizeof(pCtx->aPubKey) ) return false;
 	pCtx->bIsECPubKey = false;
+	pCtx->bIsEd25519Key = false;
 	pCtx->bIsRSAPSSKey = pCert->bIsRSAPSSKey;
 	memcpy(pCtx->aPubKey, pCert->pMod, pCert->iModSz);
 	memcpy(pCtx->aPubKey + pCert->iModSz, pCert->pExp, pCert->iExpSz);
@@ -2112,14 +2194,16 @@ static void __xrt_tls12_update_hash(xtlsctx *pCtx, const uint8 *pData, size_t iL
 // 构造 ClientHello 消息
 static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 {
-	uint8 aBuf[768];  // 增大缓冲区以容纳 P-256 key_share
+	uint8 aBuf[1024];
 	size_t iPos = 0;
 	
-	// 生成随机数和密钥对 (X25519 + P-256)
+	// 生成随机数和密钥对 (X25519 + X448 + P-256 + P-384)
 	xrtRandomBytes(pCtx->aRandom, 32);
 	xrtRandomBytes(pCtx->aSessionId, 32);
 	xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
-	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);  // 同时生成 P-256 密钥对
+	xrtX448Keypair(pCtx->aX448Priv, pCtx->aX448Pub);
+	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
+	xrtECDHSecp384r1Keypair(pCtx->aP384Priv, pCtx->aP384Pub);
 	
 	#ifdef DEBUG_TRACE
 		printf("    [TLS] ClientHello: aRandom generated: ");
@@ -2186,24 +2270,28 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
 	iPos += 2;
 	
-	// Extension: supported_groups (0x000a) - X25519 + secp256r1
+	// Extension: supported_groups (0x000a) - X25519 + X448 + secp256r1 + secp384r1
 	__xrt_tls_store_be16(aBuf + iPos, 0x000a);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 6);   // ext data length
+	__xrt_tls_store_be16(aBuf + iPos, 10);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 4);   // named group list length
+	__xrt_tls_store_be16(aBuf + iPos, 8);
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x001d);  // x25519
 	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x001e);  // x448
+	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0017);  // secp256r1
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0018);  // secp384r1
 	iPos += 2;
 	
 	// Extension: signature_algorithms (0x000d)
 	__xrt_tls_store_be16(aBuf + iPos, 0x000d);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 22);   // 扩展数据长度 (10 algorithms * 2 + 2)
+	__xrt_tls_store_be16(aBuf + iPos, 26);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 20);   // 签名算法列表长度 (10 * 2)
+	__xrt_tls_store_be16(aBuf + iPos, 24);
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0804);  // RSA-PSS-RSAE-SHA256 (TLS 1.3 必须)
 	iPos += 2;
@@ -2217,7 +2305,11 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x080b);  // RSA-PSS-PSS-SHA512
 	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0807);  // Ed25519
+	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0403);  // ECDSA-SECP256R1-SHA256
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0503);  // ECDSA-SECP384R1-SHA384
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0401);  // RSA-PKCS1-SHA256 (TLS 1.2 兼容)
 	iPos += 2;
@@ -2226,30 +2318,37 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aBuf + iPos, 0x0601);  // RSA-PKCS1-SHA512 (TLS 1.2 兼容)
 	iPos += 2;
 	
-	// Extension: key_share (0x0033) - X25519 + P-256 public keys
-	// 提供两个 key_share 以避免 HelloRetryRequest
+	// Extension: key_share (0x0033) - X25519 + X448 + P-256 + P-384
 	__xrt_tls_store_be16(aBuf + iPos, 0x0033);
 	iPos += 2;
-	// ext data length: key_share_entries_len(2) + X25519(2+2+32=36) + P-256(2+2+65=69) = 107
-	__xrt_tls_store_be16(aBuf + iPos, 107);
+	__xrt_tls_store_be16(aBuf + iPos, 268);
 	iPos += 2;
-	// key share entries length: X25519(36) + P-256(69) = 105
-	__xrt_tls_store_be16(aBuf + iPos, 105);
+	__xrt_tls_store_be16(aBuf + iPos, 266);
 	iPos += 2;
-	// X25519 key share entry
 	__xrt_tls_store_be16(aBuf + iPos, 0x001d);  // x25519 group
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 32);   // key length
 	iPos += 2;
 	memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
 	iPos += 32;
-	// P-256 (secp256r1) key share entry
+	__xrt_tls_store_be16(aBuf + iPos, 0x001e);  // x448 group
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 56);
+	iPos += 2;
+	memcpy(aBuf + iPos, pCtx->aX448Pub, 56);
+	iPos += 56;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0017);  // secp256r1 group
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 65);   // key length (uncompressed point)
 	iPos += 2;
 	memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
 	iPos += 65;
+	__xrt_tls_store_be16(aBuf + iPos, 0x0018);  // secp384r1 group
+	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iPos, 97);
+	iPos += 2;
+	memcpy(aBuf + iPos, pCtx->aP384Pub, 97);
+	iPos += 97;
 	
 	// Extension: psk_key_exchange_modes (0x002d) — 许多服务器要求此扩展
 	__xrt_tls_store_be16(aBuf + iPos, 0x002d);
@@ -2374,15 +2473,31 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 						// X25519: 32 字节公钥
 						xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pMsg + iPos + 4);
 						pCtx->iTls13Group = 0x001d;
+						pCtx->iTls13SecretLen = 32;
 						#ifdef DEBUG_TRACE
 							printf("    [TLS] ServerHello key_share: X25519\n");
+						#endif
+					} else if ( iGroup == 0x001e && iKeyLen == 56 && iExtDataLen >= 60 ) {
+						xrtX448SharedSecret(pCtx->aX25519Secret, pCtx->aX448Priv, pMsg + iPos + 4);
+						pCtx->iTls13Group = 0x001e;
+						pCtx->iTls13SecretLen = 56;
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] ServerHello key_share: X448\n");
 						#endif
 					} else if ( iGroup == 0x0017 && iKeyLen == 65 && iExtDataLen >= 69 ) {
 						// P-256 (secp256r1): 65 字节 uncompressed 公钥
 						xrtECDHSecp256r1SharedSecret(pCtx->aX25519Secret, pCtx->aP256Priv, pMsg + iPos + 4);
 						pCtx->iTls13Group = 0x0017;
+						pCtx->iTls13SecretLen = 32;
 						#ifdef DEBUG_TRACE
 							printf("    [TLS] ServerHello key_share: P-256\n");
+						#endif
+					} else if ( iGroup == 0x0018 && iKeyLen == 97 && iExtDataLen >= 101 ) {
+						xrtECDHSecp384r1SharedSecret(pCtx->aX25519Secret, pCtx->aP384Priv, pMsg + iPos + 4);
+						pCtx->iTls13Group = 0x0018;
+						pCtx->iTls13SecretLen = 48;
+						#ifdef DEBUG_TRACE
+							printf("    [TLS] ServerHello key_share: P-384\n");
 						#endif
 					}
 				}
@@ -2473,7 +2588,7 @@ static bool __xrt_tls_verify_finished(xtlsctx *pCtx, const uint8 *pVerifyData,
 	return __xrt_tls_consttime_equal(aExpected, pVerifyData, iHashLen);
 }
 
-static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
+static bool __xrt_tls13_build_cert_verify_input(uint8 *pOut, size_t *pOutLen,
 	const uint8 *pTranscriptHash, size_t iTranscriptHashLen, uint16 iSigAlg, bool bAsServer)
 {
 	size_t iSigHashLen;
@@ -2484,12 +2599,16 @@ static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
 	size_t iContentLen;
 
 	switch ( iSigAlg ) {
+		case 0x0807:
+			iSigHashLen = 0;
+			break;
 		case 0x0804:
 		case 0x0403:
 		case 0x0809:
 			iSigHashLen = 32;
 			break;
 		case 0x0805:
+		case 0x0503:
 		case 0x080a:
 			iSigHashLen = 48;
 			break;
@@ -2511,6 +2630,11 @@ static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
 	memcpy(aSigContent + iContentLen, pTranscriptHash, iTranscriptHashLen);
 	iContentLen += iTranscriptHashLen;
 
+	if ( iSigAlg == 0x0807 ) {
+		memcpy(pOut, aSigContent, iContentLen);
+		if ( pOutLen ) *pOutLen = iContentLen;
+		return true;
+	}
 	if ( !__xrt_tls_hash_bytes(pOut, iSigHashLen, aSigContent, iContentLen) ) return false;
 	if ( pOutLen ) *pOutLen = iSigHashLen;
 	return true;
@@ -2542,7 +2666,8 @@ static void __xrt_tls_derive_handshake_keys(xtlsctx *pCtx)
 	__xrt_tls_derive_secret(aDerived, aEarlySecret, "derived", 7, aEmptyHash, iHashLen);
 	
 	// Handshake Secret = HKDF-Extract(salt=derived, IKM=shared_secret)
-	__xrt_tls13_hkdf_extract(aHandshakeSecret, aDerived, iHashLen, pCtx->aX25519Secret, 32, iHashLen);
+	__xrt_tls13_hkdf_extract(aHandshakeSecret, aDerived, iHashLen,
+		pCtx->aX25519Secret, pCtx->iTls13SecretLen, iHashLen);
 	
 	// 获取当前握手哈希 (包含 ClientHello + ServerHello)
 	__xrt_tls13_get_transcript_hash(pCtx, aTranscriptHash, NULL);
@@ -2715,18 +2840,17 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 	#ifdef DEBUG_TRACE
 	printf("    [TLS12] SKE: curve=0x%04x\n", iCurve);
 	#endif
-	if ( iCurve != 0x0017 && iCurve != 0x001d ) {
+	if ( iCurve != 0x0017 && iCurve != 0x0018 && iCurve != 0x001d && iCurve != 0x001e ) {
 		#ifdef DEBUG_TRACE
 		printf("    [TLS12] SKE: unsupported curve 0x%04x\n", iCurve);
 		#endif
-		return false;  // secp256r1 (0x0017) or x25519 (0x001d)
+		return false;
 	}
 	pCtx->iTls12Curve = iCurve;
 	iOff += 3;
 	
 	// EC point: point_len(1) + point
-	// P-256: 65 bytes (0x04 + 32X + 32Y uncompressed)
-	// X25519: 32 bytes
+	// P-256: 65 bytes, P-384: 97 bytes, X25519: 32 bytes, X448: 56 bytes
 	if ( iOff + 1 > iLen ) return false;
 	uint8 iPointLen = pMsg[iOff++];
 	
@@ -2741,11 +2865,27 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 			#endif
 			return false;  // uncompressed format required
 		}
-	} else {  // X25519
+	} else if ( iCurve == 0x0018 ) {
+		iExpectedLen = 97;
+		if ( iPointLen != 97 || pMsg[iOff] != 0x04 ) {
+			#ifdef DEBUG_TRACE
+			printf("    [TLS12] SKE: P-384 invalid point (len=%d, format=0x%02x)\n", iPointLen, pMsg[iOff]);
+			#endif
+			return false;
+		}
+	} else if ( iCurve == 0x001d ) {  // X25519
 		iExpectedLen = 32;
 		if ( iPointLen != 32 ) {
 			#ifdef DEBUG_TRACE
 			printf("    [TLS12] SKE: X25519 invalid point (len=%d, expected 32)\n", iPointLen);
+			#endif
+			return false;
+		}
+	} else {  // X448
+		iExpectedLen = 56;
+		if ( iPointLen != 56 ) {
+			#ifdef DEBUG_TRACE
+			printf("    [TLS12] SKE: X448 invalid point (len=%d, expected 56)\n", iPointLen);
 			#endif
 			return false;
 		}
@@ -2765,51 +2905,75 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 	iOff += 2;
 	if ( iOff + iSigLen > iLen ) return false;
 	const uint8 *pSig = pMsg + iOff;
+
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] SKE raw (%d): ", (int)iLen);
+		for (int i = 0; i < (int)iLen; i++) printf("%02x", pMsg[i]);
+		printf("\n");
+	#endif
 	
 	// 验证签名: 对 client_random(32) + server_random(32) + server_params 进行验签
 	if ( !pCtx->bSkipVerify ) {
-		uint8 aSigBuf[128];
+		uint8 aSigBuf[192];
 		size_t iSigBufLen = 32 + 32 + iParamsLen;
 		uint8 *pSigData = (iSigBufLen <= sizeof(aSigBuf)) ? aSigBuf : (uint8*)xrtMalloc(iSigBufLen);
+		bool bVerifyOK = false;
 		if ( !pSigData ) return false;
 		
 		memcpy(pSigData, pCtx->aRandom, 32);          // client_random
 		memcpy(pSigData + 32, pCtx->aServerRandom, 32); // server_random
 		memcpy(pSigData + 64, pMsg, iParamsLen);         // server_params
 		
-		// 计算哈希
-		uint8 aHash[64];
-		size_t iHashLen = __xrt_tls_sigalg_hash_len(iSigAlg);
-		if ( iHashLen == 0 || !__xrt_tls_hash_bytes(aHash, iHashLen, pSigData, iSigBufLen) ) {
-			if ( pSigData != aSigBuf ) xrtFree(pSigData);
-			return false;
+		if ( iSigAlg == 0x0807 ) {
+			if ( !pCtx->bIsEd25519Key || pCtx->iPubKeySz != 32 ) {
+				if ( pSigData != aSigBuf ) xrtFree(pSigData);
+				return false;
+			}
+			bVerifyOK = xrtEd25519Verify(pSigData, iSigBufLen, pSig, pCtx->aPubKey);
+		} else {
+			uint8 aHash[64];
+			size_t iHashLen = __xrt_tls_sigalg_hash_len(iSigAlg);
+			uint8 iSigType = iSigAlg & 0xFF;  // signature algorithm type
+
+			if ( iHashLen == 0 || !__xrt_tls_hash_bytes(aHash, iHashLen, pSigData, iSigBufLen) ) {
+				if ( pSigData != aSigBuf ) xrtFree(pSigData);
+				return false;
+			}
+
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] SKE hash (%d): ", (int)iHashLen);
+				for (int i = 0; i < (int)iHashLen; i++) printf("%02x", aHash[i]);
+				printf("\n    [TLS12] SKE sig (%d): ", (int)iSigLen);
+				for (int i = 0; i < (int)iSigLen; i++) printf("%02x", pSig[i]);
+				printf("\n    [TLS12] SKE pub (%d): ", (int)pCtx->iPubKeySz);
+				for (int i = 0; i < (int)pCtx->iPubKeySz; i++) printf("%02x", pCtx->aPubKey[i]);
+				printf("\n");
+			#endif
+
+			if ( iSigAlg == 0x0804 || iSigAlg == 0x0805 || iSigAlg == 0x0806 ||
+				iSigAlg == 0x0809 || iSigAlg == 0x080a || iSigAlg == 0x080b ) {
+				bool bIsPssPss = (iSigAlg == 0x0809 || iSigAlg == 0x080a || iSigAlg == 0x080b);
+				if ( bIsPssPss != pCtx->bIsRSAPSSKey ) {
+					if ( pSigData != aSigBuf ) xrtFree(pSigData);
+					return false;
+				}
+				// RSA-PSS (TLS 1.3 style sig algs used in TLS 1.2)
+				bVerifyOK = xrtRSAPSSVerify(aHash, iHashLen, pSig, iSigLen,
+					pCtx->aPubKey, pCtx->iPubKeyModSz,
+					pCtx->aPubKey + pCtx->iPubKeyModSz,
+					pCtx->iPubKeySz - pCtx->iPubKeyModSz);
+			} else if ( iSigType == 1 ) {  // RSA-PKCS1
+				bVerifyOK = xrtRSAPKCS1Verify(aHash, iHashLen, pSig, iSigLen,
+					pCtx->aPubKey, pCtx->iPubKeyModSz,
+					pCtx->aPubKey + pCtx->iPubKeyModSz,
+					pCtx->iPubKeySz - pCtx->iPubKeyModSz);
+			} else if ( iSigType == 3 ) {  // ECDSA
+				bVerifyOK = xrtECDSAVerify(aHash, iHashLen, pSig, iSigLen,
+					pCtx->aPubKey, pCtx->iPubKeySz);
+			}
 		}
-		
+
 		if ( pSigData != aSigBuf ) xrtFree(pSigData);
-		
-		// 根据密码套件类型验证签名
-		bool bVerifyOK = false;
-		
-		uint8 iSigType = iSigAlg & 0xFF;  // signature algorithm type
-		
-		if ( iSigAlg == 0x0804 || iSigAlg == 0x0805 || iSigAlg == 0x0806 ||
-			iSigAlg == 0x0809 || iSigAlg == 0x080a || iSigAlg == 0x080b ) {
-			bool bIsPssPss = (iSigAlg == 0x0809 || iSigAlg == 0x080a || iSigAlg == 0x080b);
-			if ( bIsPssPss != pCtx->bIsRSAPSSKey ) return false;
-			// RSA-PSS (TLS 1.3 style sig algs used in TLS 1.2)
-			bVerifyOK = xrtRSAPSSVerify(aHash, iHashLen, pSig, iSigLen,
-				pCtx->aPubKey, pCtx->iPubKeyModSz,
-				pCtx->aPubKey + pCtx->iPubKeyModSz,
-				pCtx->iPubKeySz - pCtx->iPubKeyModSz);
-		} else if ( iSigType == 1 ) {  // RSA-PKCS1
-			bVerifyOK = xrtRSAPKCS1Verify(aHash, iHashLen, pSig, iSigLen,
-				pCtx->aPubKey, pCtx->iPubKeyModSz,
-				pCtx->aPubKey + pCtx->iPubKeyModSz,
-				pCtx->iPubKeySz - pCtx->iPubKeyModSz);
-		} else if ( iSigType == 3 ) {  // ECDSA
-			bVerifyOK = xrtECDSAVerify(aHash, iHashLen, pSig, iSigLen,
-				pCtx->aPubKey, pCtx->iPubKeySz);
-		}
 		
 		if ( !bVerifyOK ) {
 			#ifdef DEBUG_TRACE
@@ -2828,6 +2992,7 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 		xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
 		// 计算共享密钥
 		xrtECDHSecp256r1SharedSecret(pCtx->aSharedSecret, pCtx->aP256Priv, pServerPub);
+		pCtx->iSharedSecretLen = 32;
 		#ifdef DEBUG_TRACE
 			printf("    [TLS12] ServerKeyExchange: P-256 ECDH shared secret computed\n");
 			printf("    [TLS12]   ServerPub: ");
@@ -2838,11 +3003,19 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 			for (int i = 0; i < 32; i++) printf("%02x", pCtx->aSharedSecret[i]);
 			printf("\n");
 		#endif
-	} else {  // X25519
+	} else if ( iCurve == 0x0018 ) {
+		xrtECDHSecp384r1Keypair(pCtx->aP384Priv, pCtx->aP384Pub);
+		xrtECDHSecp384r1SharedSecret(pCtx->aSharedSecret, pCtx->aP384Priv, pServerPub);
+		pCtx->iSharedSecretLen = 48;
+		#ifdef DEBUG_TRACE
+			printf("    [TLS12] ServerKeyExchange: P-384 ECDH shared secret computed\n");
+		#endif
+	} else if ( iCurve == 0x001d ) {  // X25519
 		// 生成 X25519 密钥对
 		xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
 		// 计算共享密钥
 		xrtX25519SharedSecret(pCtx->aSharedSecret, pCtx->aX25519Priv, pServerPub);
+		pCtx->iSharedSecretLen = 32;
 		#ifdef DEBUG_TRACE
 			printf("    [TLS12] ServerKeyExchange: X25519 ECDH shared secret computed\n");
 			printf("    [TLS12]   ServerPub: ");
@@ -2852,6 +3025,13 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 			printf("\n    [TLS12]   SharedSecret: ");
 			for (int i = 0; i < 32; i++) printf("%02x", pCtx->aSharedSecret[i]);
 			printf("\n");
+		#endif
+	} else {  // X448
+		xrtX448Keypair(pCtx->aX448Priv, pCtx->aX448Pub);
+		xrtX448SharedSecret(pCtx->aSharedSecret, pCtx->aX448Priv, pServerPub);
+		pCtx->iSharedSecretLen = 56;
+		#ifdef DEBUG_TRACE
+			printf("    [TLS12] ServerKeyExchange: X448 ECDH shared secret computed\n");
 		#endif
 	}
 	
@@ -2875,10 +3055,18 @@ static void __xrt_tls12_send_client_key_exchange(xtlsctx *pCtx)
 			aBuf[iPos++] = 65;  // point length
 			memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
 			iPos += 65;
-		} else {  // X25519
+		} else if ( pCtx->iTls12Curve == 0x0018 ) {
+			aBuf[iPos++] = 97;
+			memcpy(aBuf + iPos, pCtx->aP384Pub, 97);
+			iPos += 97;
+		} else if ( pCtx->iTls12Curve == 0x001d ) {  // X25519
 			aBuf[iPos++] = 32;  // point length
 			memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
 			iPos += 32;
+		} else {  // X448
+			aBuf[iPos++] = 56;
+			memcpy(aBuf + iPos, pCtx->aX448Pub, 56);
+			iPos += 56;
 		}
 	} else {
 		// RSA: 生成 pre_master_secret, PKCS#1 v1.5 加密后发送
@@ -2947,7 +3135,7 @@ static void __xrt_tls12_derive_keys(xtlsctx *pCtx)
 	
 	if ( pCtx->bIsECDHE ) {
 		pPreMaster = pCtx->aSharedSecret;
-		iPMLen = 32;
+		iPMLen = pCtx->iSharedSecretLen;
 	} else {
 		pPreMaster = pCtx->aPreMaster;
 		iPMLen = 48;
@@ -3201,7 +3389,7 @@ static bool __xrt_tls12_send_certificate(xtlsctx *pCtx)
 static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 {
 	uint8 aMsg[1024];
-	uint8 aSigInput[160];
+	uint8 aSigInput[256];
 	uint8 aHash[64];
 	uint8 aSig[512];
 	size_t iPos = 0;
@@ -3225,10 +3413,18 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 		iPubLen = 32;
 		aMsg[iPos++] = 32;
 		memcpy(aMsg + iPos, pCtx->aX25519Pub, 32);
+	} else if ( pCtx->iTls12Curve == 0x001e ) {
+		iPubLen = 56;
+		aMsg[iPos++] = 56;
+		memcpy(aMsg + iPos, pCtx->aX448Pub, 56);
 	} else if ( pCtx->iTls12Curve == 0x0017 ) {
 		iPubLen = 65;
 		aMsg[iPos++] = 65;
 		memcpy(aMsg + iPos, pCtx->aP256Pub, 65);
+	} else if ( pCtx->iTls12Curve == 0x0018 ) {
+		iPubLen = 97;
+		aMsg[iPos++] = 97;
+		memcpy(aMsg + iPos, pCtx->aP384Pub, 97);
 	} else {
 		return false;
 	}
@@ -3240,19 +3436,35 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 	memcpy(aSigInput + 64, aMsg + __XRT_TLS_MSGHDR_SIZE, iParamsLen);
 
 	iHashAlg = (uint16)(pCtx->iServerSigAlg >> 8);
-	iHashLen = __xrt_tls_sigalg_hash_len(pCtx->iServerSigAlg);
-	if ( iHashLen == 0 || !__xrt_tls_hash_bytes(aHash, iHashLen, aSigInput, 64 + iParamsLen) ) {
-		#ifdef DEBUG_TRACE
-			printf("    [TLS12] SKE sign: unsupported hash alg 0x%02x\n", iHashAlg);
-		#endif
-		return false;
+	if ( pCtx->iServerSigAlg == 0x0807 ) {
+		if ( !__xrt_tls_sign_server_hash(pCtx, aSigInput, 64 + iParamsLen, aSig, &iSigLen) ) {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] SKE sign FAILED: sigAlg=0x%04x rawLen=%d curve=0x%04x\n",
+					pCtx->iServerSigAlg, (int)(64 + iParamsLen), pCtx->iTls12Curve);
+			#endif
+			return false;
+		}
+	} else {
+		iHashLen = __xrt_tls_sigalg_hash_len(pCtx->iServerSigAlg);
+		if ( iHashLen == 0 || !__xrt_tls_hash_bytes(aHash, iHashLen, aSigInput, 64 + iParamsLen) ) {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] SKE sign: unsupported hash alg 0x%02x\n", iHashAlg);
+			#endif
+			return false;
+		}
+		if ( !__xrt_tls_sign_server_hash(pCtx, aHash, iHashLen, aSig, &iSigLen) ) {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS12] SKE sign FAILED: sigAlg=0x%04x hashLen=%d modSz=%d privSz=%d curve=0x%04x\n",
+					pCtx->iServerSigAlg, (int)iHashLen, (int)pCtx->iPubKeyModSz,
+					(int)pCtx->iRSAPrivExpSz, pCtx->iTls12Curve);
+			#endif
+			return false;
+		}
 	}
 
-	if ( !__xrt_tls_sign_server_hash(pCtx, aHash, iHashLen, aSig, &iSigLen) ) {
+	if ( pCtx->iServerSigAlg != 0x0807 && !__xrt_tls_sign_server_hash ) {
 		#ifdef DEBUG_TRACE
-			printf("    [TLS12] SKE sign FAILED: sigAlg=0x%04x hashLen=%d modSz=%d privSz=%d curve=0x%04x\n",
-				pCtx->iServerSigAlg, (int)iHashLen, (int)pCtx->iPubKeyModSz,
-				(int)pCtx->iRSAPrivExpSz, pCtx->iTls12Curve);
+			printf("    [TLS12] SKE sign: impossible state\n");
 		#endif
 		return false;
 	}
@@ -3263,6 +3475,12 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 	iPos += 2;
 	memcpy(aMsg + iPos, aSig, iSigLen);
 	iPos += iSigLen;
+
+	#ifdef DEBUG_TRACE
+		printf("    [TLS12] SKE send raw (%d): ", (int)(iPos - __XRT_TLS_MSGHDR_SIZE));
+		for (int i = (int)__XRT_TLS_MSGHDR_SIZE; i < (int)iPos; i++) printf("%02x", aMsg[i]);
+		printf("\n");
+	#endif
 
 	__xrt_tls_store_be24(aMsg + iLenPos, (uint32)(iPos - iLenPos - 3));
 	return __xrt_tls12_send_handshake_message(pCtx, aMsg, iPos);
@@ -3308,11 +3526,25 @@ static bool __xrt_tls12_parse_client_key_exchange(xtlsctx *pCtx, const uint8 *pM
 	if ( pCtx->iTls12Curve == 0x001d ) {
 		if ( iLen != 33 || pMsg[0] != 32 ) return false;
 		xrtX25519SharedSecret(pCtx->aSharedSecret, pCtx->aX25519Priv, pMsg + 1);
+		pCtx->iSharedSecretLen = 32;
+		return true;
+	}
+	if ( pCtx->iTls12Curve == 0x001e ) {
+		if ( iLen != 57 || pMsg[0] != 56 ) return false;
+		xrtX448SharedSecret(pCtx->aSharedSecret, pCtx->aX448Priv, pMsg + 1);
+		pCtx->iSharedSecretLen = 56;
 		return true;
 	}
 	if ( pCtx->iTls12Curve == 0x0017 ) {
 		if ( iLen != 66 || pMsg[0] != 65 || pMsg[1] != 0x04 ) return false;
 		xrtECDHSecp256r1SharedSecret(pCtx->aSharedSecret, pCtx->aP256Priv, pMsg + 1);
+		pCtx->iSharedSecretLen = 32;
+		return true;
+	}
+	if ( pCtx->iTls12Curve == 0x0018 ) {
+		if ( iLen != 98 || pMsg[0] != 97 || pMsg[1] != 0x04 ) return false;
+		xrtECDHSecp384r1SharedSecret(pCtx->aSharedSecret, pCtx->aP384Priv, pMsg + 1);
+		pCtx->iSharedSecretLen = 48;
 		return true;
 	}
 	return false;
@@ -3394,13 +3626,16 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	if ( pCtx->pCaData ) xrtFree(pCtx->pCaData);
 	
 	// 清零敏感数据
-	memset(pCtx->aX25519Priv, 0, 32);
-	memset(pCtx->aX25519Secret, 0, 32);
+	memset(pCtx->aX25519Priv, 0, sizeof(pCtx->aX25519Priv));
+	memset(pCtx->aX448Priv, 0, sizeof(pCtx->aX448Priv));
+	memset(pCtx->aX25519Secret, 0, sizeof(pCtx->aX25519Secret));
 	memset(&pCtx->tEnc, 0, sizeof(struct __xrt_tls_enc));
 	memset(&pCtx->tAppKeys, 0, sizeof(struct __xrt_tls_enc));
 	memset(pCtx->aMasterSecret, 0, 48);
-	memset(pCtx->aP256Priv, 0, 32);
-	memset(pCtx->aSharedSecret, 0, 32);
+	memset(pCtx->aP256Priv, 0, sizeof(pCtx->aP256Priv));
+	memset(pCtx->aP384Priv, 0, sizeof(pCtx->aP384Priv));
+	memset(pCtx->aECKey, 0, sizeof(pCtx->aECKey));
+	memset(pCtx->aSharedSecret, 0, sizeof(pCtx->aSharedSecret));
 	memset(pCtx->aClientWriteKey12, 0, 32);
 	memset(pCtx->aServerWriteKey12, 0, 32);
 	
@@ -3671,7 +3906,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 									uint16 iSigAlg;
 									uint16 iSigLen;
 									const uint8 *pSig;
-									uint8 aContentHash[64];
+									uint8 aContentHash[192];
 									size_t iContentHashLen = 0;
 									bool bVerifyOK = false;
 
@@ -3684,13 +3919,20 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 									if ( 4 + iSigLen > iMsgBodyLen ) return XRT_NET_ERROR;
 									pSig = pMsg + __XRT_TLS_MSGHDR_SIZE + 4;
 
-									if ( !__xrt_tls13_build_cert_verify_hash(aContentHash, &iContentHashLen,
+									if ( !__xrt_tls13_build_cert_verify_input(aContentHash, &iContentHashLen,
 										pCtx->aSigHash, pCtx->iSigHashLen, iSigAlg, true) ) {
 										return XRT_NET_ERROR;
 									}
 
-									if ( pCtx->bIsECPubKey ) {
-										if ( iSigAlg != 0x0403 || pCtx->iPubKeySz != 65 ) return XRT_NET_ERROR;
+									if ( pCtx->bIsEd25519Key ) {
+										if ( iSigAlg != 0x0807 || pCtx->iPubKeySz != 32 ) return XRT_NET_ERROR;
+										bVerifyOK = xrtEd25519Verify(aContentHash, iContentHashLen, pSig, pCtx->aPubKey);
+									} else if ( pCtx->bIsECPubKey ) {
+										if ( (pCtx->iPubKeySz == 65 && iSigAlg != 0x0403)
+											|| (pCtx->iPubKeySz == 97 && iSigAlg != 0x0503)
+											|| (pCtx->iPubKeySz != 65 && pCtx->iPubKeySz != 97) ) {
+											return XRT_NET_ERROR;
+										}
 										bVerifyOK = xrtECDSAVerify(aContentHash, iContentHashLen,
 											pSig, iSigLen, pCtx->aPubKey, pCtx->iPubKeySz);
 									} else if ( pCtx->iPubKeyModSz > 0 ) {
@@ -4369,16 +4611,20 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	bool bOfferTLS12EcdheEcdsaChaCha = false;
 	bool bOfferTLS12EcdheRsaAES128 = false, bOfferTLS12EcdheRsaAES256 = false;
 	bool bOfferTLS12EcdheRsaChaCha = false;
-	bool bGroupX25519 = false, bGroupP256 = false;
+	bool bGroupX25519 = false, bGroupX448 = false, bGroupP256 = false, bGroupP384 = false;
 	bool bSawPointFormats = false, bPointFmtUncompressed = false;
 	bool bPeerSigECDSA256 = false, bPeerSigECDSA384 = false, bPeerSigECDSA512 = false;
 	bool bPeerSigRSAPKCS1256 = false, bPeerSigRSAPKCS1384 = false, bPeerSigRSAPKCS1512 = false;
 	uint8 aX25519Peer[32];
+	uint8 aX448Peer[56];
 	uint8 aP256Peer[65];
-	bool bHaveX25519 = false, bHaveP256 = false;
+	uint8 aP384Peer[97];
+	bool bHaveX25519 = false, bHaveX448 = false, bHaveP256 = false, bHaveP384 = false;
 
 	if ( !pCtx ) return false;
 	pCtx->bPeerSigECDSAP256 = false;
+	pCtx->bPeerSigECDSAP384 = false;
+	pCtx->bPeerSigEd25519 = false;
 	pCtx->bPeerSigRSAPSS256 = false;
 	pCtx->bPeerSigRSAPSS384 = false;
 	pCtx->bPeerSigRSAPSS512 = false;
@@ -4499,7 +4745,9 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				while ( iOff + 1 < iPos + iExtDataLen && iOff < iPos + 2 + iGroupListLen ) {
 					uint16 iGroup = __xrt_tls_load_be16(pMsg + iOff);
 					if ( iGroup == 0x001d ) bGroupX25519 = true;
+					else if ( iGroup == 0x001e ) bGroupX448 = true;
 					else if ( iGroup == 0x0017 ) bGroupP256 = true;
+					else if ( iGroup == 0x0018 ) bGroupP384 = true;
 					iOff += 2;
 				}
 			}
@@ -4524,7 +4772,10 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 						pCtx->bPeerSigECDSAP256 = true;
 						bPeerSigECDSA256 = true;
 					} else if ( iSigAlg == 0x0503 ) {
+						pCtx->bPeerSigECDSAP384 = true;
 						bPeerSigECDSA384 = true;
+					} else if ( iSigAlg == 0x0807 ) {
+						pCtx->bPeerSigEd25519 = true;
 					} else if ( iSigAlg == 0x0603 ) {
 						bPeerSigECDSA512 = true;
 					} else if ( iSigAlg == 0x0401 ) {
@@ -4557,9 +4808,15 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 					if ( iGroup == 0x001d && iKeyLen == 32 ) {
 						memcpy(aX25519Peer, pMsg + iOff, 32);
 						bHaveX25519 = true;
+					} else if ( iGroup == 0x001e && iKeyLen == 56 ) {
+						memcpy(aX448Peer, pMsg + iOff, 56);
+						bHaveX448 = true;
 					} else if ( iGroup == 0x0017 && iKeyLen == 65 && pMsg[iOff] == 0x04 ) {
 						memcpy(aP256Peer, pMsg + iOff, 65);
 						bHaveP256 = true;
+					} else if ( iGroup == 0x0018 && iKeyLen == 97 && pMsg[iOff] == 0x04 ) {
+						memcpy(aP384Peer, pMsg + iOff, 97);
+						bHaveP384 = true;
 					}
 					iOff += iKeyLen;
 				}
@@ -4588,18 +4845,43 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				memcpy(pCtx->aPeerKeyShare, aX25519Peer, 32);
 				xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
 				xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pCtx->aPeerKeyShare);
+				pCtx->iTls13SecretLen = 32;
+			} else if ( bHaveX448 ) {
+				pCtx->iTls13Group = 0x001e;
+				pCtx->iPeerKeyShareLen = 56;
+				memcpy(pCtx->aPeerKeyShare, aX448Peer, 56);
+				xrtX448Keypair(pCtx->aX448Priv, pCtx->aX448Pub);
+				xrtX448SharedSecret(pCtx->aX25519Secret, pCtx->aX448Priv, pCtx->aPeerKeyShare);
+				pCtx->iTls13SecretLen = 56;
 			} else if ( bHaveP256 ) {
 				pCtx->iTls13Group = 0x0017;
 				pCtx->iPeerKeyShareLen = 65;
 				memcpy(pCtx->aPeerKeyShare, aP256Peer, 65);
 				xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
 				xrtECDHSecp256r1SharedSecret(pCtx->aX25519Secret, pCtx->aP256Priv, pCtx->aPeerKeyShare);
+				pCtx->iTls13SecretLen = 32;
+			} else if ( bHaveP384 ) {
+				pCtx->iTls13Group = 0x0018;
+				pCtx->iPeerKeyShareLen = 97;
+				memcpy(pCtx->aPeerKeyShare, aP384Peer, 97);
+				xrtECDHSecp384r1Keypair(pCtx->aP384Priv, pCtx->aP384Pub);
+				xrtECDHSecp384r1SharedSecret(pCtx->aX25519Secret, pCtx->aP384Priv, pCtx->aPeerKeyShare);
+				pCtx->iTls13SecretLen = 48;
 			}
 
 			if ( pCtx->iTls13Group != 0 ) {
-				if ( pCtx->bIsECPubKey ) {
-					if ( pCtx->bHasECPrivKey && pCtx->bPeerSigECDSAP256 ) {
+				if ( pCtx->bIsEd25519Key ) {
+					if ( pCtx->bHasEd25519Priv && pCtx->bPeerSigEd25519 ) {
+						pCtx->iServerSigAlg = 0x0807;
+						return true;
+					}
+				} else if ( pCtx->bIsECPubKey ) {
+					if ( pCtx->bHasECPrivKey && pCtx->iPubKeySz == 65 && pCtx->bPeerSigECDSAP256 ) {
 						pCtx->iServerSigAlg = 0x0403;
+						return true;
+					}
+					if ( pCtx->bHasECPrivKey && pCtx->iPubKeySz == 97 && pCtx->bPeerSigECDSAP384 ) {
+						pCtx->iServerSigAlg = 0x0503;
 						return true;
 					}
 				} else if ( pCtx->bHasRSAPrivKey ) {
@@ -4666,25 +4948,36 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	if ( bGroupX25519 ) {
 		pCtx->iTls12Curve = 0x001d;
 		xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
+	} else if ( bGroupX448 ) {
+		pCtx->iTls12Curve = 0x001e;
+		xrtX448Keypair(pCtx->aX448Priv, pCtx->aX448Pub);
 	} else if ( bGroupP256 && (!bSawPointFormats || bPointFmtUncompressed) ) {
 		pCtx->iTls12Curve = 0x0017;
 		xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
-	} else if ( !bGroupX25519 && !bGroupP256 ) {
+	} else if ( bGroupP384 && (!bSawPointFormats || bPointFmtUncompressed) ) {
+		pCtx->iTls12Curve = 0x0018;
+		xrtECDHSecp384r1Keypair(pCtx->aP384Priv, pCtx->aP384Pub);
+	} else if ( !bGroupX25519 && !bGroupX448 && !bGroupP256 && !bGroupP384 ) {
 		pCtx->iTls12Curve = 0x0017;
 		xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
 	} else {
 		return false;
 	}
 
-	if ( pCtx->bIsECPubKey ) {
+	if ( pCtx->bIsEd25519Key ) {
+		if ( !pCtx->bHasEd25519Priv ) return false;
+	} else if ( pCtx->bIsECPubKey ) {
 		if ( !pCtx->bHasECPrivKey ) return false;
 	} else {
 		if ( !pCtx->bHasRSAPrivKey ) return false;
 	}
 
-	if ( pCtx->bIsECPubKey ) {
-		if ( pCtx->bUseSHA384 && bPeerSigECDSA384 ) pCtx->iServerSigAlg = 0x0503;
-		else if ( bPeerSigECDSA256 ) pCtx->iServerSigAlg = 0x0403;
+	if ( pCtx->bIsEd25519Key ) {
+		if ( !pCtx->bHasEd25519Priv || !pCtx->bPeerSigEd25519 ) return false;
+		pCtx->iServerSigAlg = 0x0807;
+	} else if ( pCtx->bIsECPubKey ) {
+		if ( bPeerSigECDSA256 ) pCtx->iServerSigAlg = 0x0403;
+		else if ( pCtx->bUseSHA384 && bPeerSigECDSA384 ) pCtx->iServerSigAlg = 0x0503;
 		else if ( bPeerSigECDSA384 ) pCtx->iServerSigAlg = 0x0503;
 		else if ( bPeerSigECDSA512 ) pCtx->iServerSigAlg = 0x0603;
 		else return false;
@@ -4718,14 +5011,22 @@ static bool __xrt_tls_sign_server_hash(xtlsctx *pCtx, const uint8 *pHash, size_t
 	uint8 *pSig, size_t *pSigLen)
 {
 	if ( !pCtx || !pHash || !pSig || !pSigLen ) return false;
+	if ( pCtx->bIsEd25519Key ) {
+		if ( !pCtx->bHasEd25519Priv || pCtx->iServerSigAlg != 0x0807 ) return false;
+		*pSigLen = 64;
+		return xrtEd25519Sign(pSig, pHash, iHashLen, pCtx->aEd25519Key);
+	}
 	if ( pCtx->bIsECPubKey ) {
 		if ( !pCtx->bHasECPrivKey ) return false;
-		if ( pCtx->iServerSigAlg != 0x0403
-			&& pCtx->iServerSigAlg != 0x0503
-			&& pCtx->iServerSigAlg != 0x0603 ) {
-			return false;
+		if ( pCtx->iPubKeySz == 65 || pCtx->iECKeyLen == 32 ) {
+			if ( pCtx->iServerSigAlg != 0x0403 && pCtx->iServerSigAlg != 0x0503 && pCtx->iServerSigAlg != 0x0603 ) return false;
+			return __xrt_ecdsa_sign_p256(pHash, iHashLen, pCtx->aECKey, pSig, pSigLen);
 		}
-		return __xrt_ecdsa_sign_p256(pHash, iHashLen, pCtx->aECKey, pSig, pSigLen);
+		if ( pCtx->iPubKeySz == 97 || pCtx->iECKeyLen == 48 ) {
+			if ( pCtx->iServerSigAlg != 0x0403 && pCtx->iServerSigAlg != 0x0503 && pCtx->iServerSigAlg != 0x0603 ) return false;
+			return __xrt_ecdsa_sign_p384(pHash, iHashLen, pCtx->aECKey, pSig, pSigLen);
+		}
+		return false;
 	}
 	if ( !pCtx->bHasRSAPrivKey || pCtx->iPubKeyModSz == 0 ) return false;
 
@@ -4752,7 +5053,9 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 
 	if ( !pCtx ) return false;
 	if ( pCtx->iTls13Group == 0x001d ) iKeyLen = 32;
+	else if ( pCtx->iTls13Group == 0x001e ) iKeyLen = 56;
 	else if ( pCtx->iTls13Group == 0x0017 ) iKeyLen = 65;
+	else if ( pCtx->iTls13Group == 0x0018 ) iKeyLen = 97;
 	else return false;
 
 	xrtRandomBytes(pCtx->aServerRandom, 32);
@@ -4791,8 +5094,12 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 		iPos += 2;
 		if ( pCtx->iTls13Group == 0x001d ) {
 			memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
-		} else {
+		} else if ( pCtx->iTls13Group == 0x001e ) {
+			memcpy(aBuf + iPos, pCtx->aX448Pub, 56);
+		} else if ( pCtx->iTls13Group == 0x0017 ) {
 			memcpy(aBuf + iPos, pCtx->aP256Pub, 65);
+		} else {
+			memcpy(aBuf + iPos, pCtx->aP384Pub, 97);
 		}
 		iPos += iKeyLen;
 
@@ -4851,7 +5158,7 @@ static bool __xrt_tls13_send_certificate_verify(xtlsctx *pCtx)
 {
 	uint8 aTranscriptHash[64];
 	size_t iTranscriptHashLen = 0;
-	uint8 aContentHash[64];
+	uint8 aContentHash[192];
 	size_t iContentHashLen = 0;
 	uint8 aSig[512];
 	size_t iSigLen = 0;
@@ -4860,7 +5167,7 @@ static bool __xrt_tls13_send_certificate_verify(xtlsctx *pCtx)
 
 	if ( !pCtx || pCtx->iServerSigAlg == 0 ) return false;
 	__xrt_tls13_get_transcript_hash(pCtx, aTranscriptHash, &iTranscriptHashLen);
-	if ( !__xrt_tls13_build_cert_verify_hash(aContentHash, &iContentHashLen,
+	if ( !__xrt_tls13_build_cert_verify_input(aContentHash, &iContentHashLen,
 		aTranscriptHash, iTranscriptHashLen, pCtx->iServerSigAlg, true) ) {
 		return false;
 	}
@@ -4928,9 +5235,33 @@ static bool __xrt_tls_parse_ec_private_key(xtlsctx *pCtx, uint8 *pDer, size_t iL
 	if ( __xrt_der_parse(pDer, iLen, &tSeq) < 0 || tSeq.iType != 0x30 ) return false;
 	if ( __xrt_der_next(&tSeq, &tField) <= 0 || tField.iType != 0x02 ) return false;
 	if ( __xrt_der_next(&tSeq, &tField) <= 0 || tField.iType != 0x04 ) return false;
-	if ( tField.iLen != 32 ) return false;
-	memcpy(pCtx->aECKey, tField.pValue, 32);
+	if ( tField.iLen != 32 && tField.iLen != 48 ) return false;
+	memcpy(pCtx->aECKey, tField.pValue, tField.iLen);
+	pCtx->iECKeyLen = tField.iLen;
 	pCtx->bHasECPrivKey = true;
+	return true;
+}
+
+static bool __xrt_tls_parse_ed25519_private_key(xtlsctx *pCtx, uint8 *pDer, size_t iLen)
+{
+	struct __xrt_der_tlv tKey, tSeed;
+
+	if ( !pCtx || !pDer ) return false;
+	if ( iLen == 32 ) {
+		memcpy(pCtx->aEd25519Key, pDer, 32);
+		pCtx->bHasEd25519Priv = true;
+		return true;
+	}
+	if ( __xrt_der_parse(pDer, iLen, &tKey) < 0 ) return false;
+	if ( tKey.iType == 0x04 && tKey.iLen == 32 ) {
+		memcpy(pCtx->aEd25519Key, tKey.pValue, 32);
+		pCtx->bHasEd25519Priv = true;
+		return true;
+	}
+	if ( tKey.iType != 0x04 ) return false;
+	if ( __xrt_der_parse(tKey.pValue, tKey.iLen, &tSeed) < 0 || tSeed.iType != 0x04 || tSeed.iLen != 32 ) return false;
+	memcpy(pCtx->aEd25519Key, tSeed.pValue, 32);
+	pCtx->bHasEd25519Priv = true;
 	return true;
 }
 
@@ -4957,6 +5288,10 @@ static bool __xrt_tls_parse_private_key_info(xtlsctx *pCtx, uint8 *pDer, size_t 
 			memcmp(tOID.pValue, __xrt_oid_ec_public_key, sizeof(__xrt_oid_ec_public_key)) == 0 ) {
 			return __xrt_tls_parse_ec_private_key(pCtx, tPriv.pValue, tPriv.iLen);
 		}
+		if ( tOID.iLen == sizeof(__xrt_oid_ed25519) &&
+			memcmp(tOID.pValue, __xrt_oid_ed25519, sizeof(__xrt_oid_ed25519)) == 0 ) {
+			return __xrt_tls_parse_ed25519_private_key(pCtx, tPriv.pValue, tPriv.iLen);
+		}
 	}
 	return false;
 }
@@ -4967,10 +5302,14 @@ static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx)
 
 	if ( !pCtx ) return false;
 	pCtx->bHasECPrivKey = false;
+	pCtx->bHasEd25519Priv = false;
 	pCtx->bHasRSAPrivKey = false;
+	pCtx->bIsEd25519Key = false;
 	pCtx->bIsRSAPSSKey = false;
 	pCtx->iRSAPrivExpSz = 0;
+	pCtx->iECKeyLen = 0;
 	memset(pCtx->aECKey, 0, sizeof(pCtx->aECKey));
+	memset(pCtx->aEd25519Key, 0, sizeof(pCtx->aEd25519Key));
 	memset(pCtx->aRSAPrivExp, 0, sizeof(pCtx->aRSAPrivExp));
 
 	if ( !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) return true;
@@ -4979,13 +5318,29 @@ static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx)
 
 	if ( !pCtx->pKeyDer || pCtx->iKeyDerLen == 0 ) return true;
 	if ( __xrt_tls_parse_private_key_info(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
+		if ( pCtx->bIsECPubKey && pCtx->bHasECPrivKey ) {
+			if ( (pCtx->iPubKeySz == 65 && pCtx->iECKeyLen != 32)
+				|| (pCtx->iPubKeySz == 97 && pCtx->iECKeyLen != 48) ) {
+				return false;
+			}
+		}
+		if ( pCtx->bIsEd25519Key ) return pCtx->bHasEd25519Priv;
 		return pCtx->bIsECPubKey ? pCtx->bHasECPrivKey : pCtx->bHasRSAPrivKey;
 	}
 	if ( __xrt_tls_parse_rsa_private_key(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
-		return !pCtx->bIsECPubKey;
+		return !pCtx->bIsECPubKey && !pCtx->bIsEd25519Key;
 	}
 	if ( __xrt_tls_parse_ec_private_key(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
+		if ( pCtx->bIsECPubKey ) {
+			if ( (pCtx->iPubKeySz == 65 && pCtx->iECKeyLen != 32)
+				|| (pCtx->iPubKeySz == 97 && pCtx->iECKeyLen != 48) ) {
+				return false;
+			}
+		}
 		return pCtx->bIsECPubKey;
+	}
+	if ( __xrt_tls_parse_ed25519_private_key(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
+		return pCtx->bIsEd25519Key;
 	}
 	return false;
 }

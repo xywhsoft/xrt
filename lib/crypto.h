@@ -2018,6 +2018,302 @@ XXAPI void xrtX25519SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8
 
 
 
+/* ============================== X448 密钥交换 (RFC 7748) ============================== */
+
+#define __XRT_X448_BYTES 56
+#define __XRT_X448_WBITS 32
+#define __XRT_X448_NLIMBS (448 / __XRT_X448_WBITS)
+
+typedef uint32 __xrt_x448_limb;
+typedef uint64 __xrt_x448_dlimb;
+typedef __xrt_x448_limb __xrt_x448_fe[__XRT_X448_NLIMBS];
+
+static const uint8 __xrt_x448_base_point[__XRT_X448_BYTES] = {5};
+static const __xrt_x448_limb __xrt_x448_p[__XRT_X448_NLIMBS] = {
+	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
+	0xffffffff, 0xffffffff, 0xffffffff, 0xfffffffe,
+	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
+	0xffffffff, 0xffffffff
+};
+static const __xrt_x448_limb __xrt_x448_p_minus_2[__XRT_X448_NLIMBS] = {
+	0xfffffffd, 0xffffffff, 0xffffffff, 0xffffffff,
+	0xffffffff, 0xffffffff, 0xffffffff, 0xfffffffe,
+	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
+	0xffffffff, 0xffffffff
+};
+static const __xrt_x448_limb __xrt_x448_a24[1] = {39081};
+
+static __xrt_x448_limb __xrt_x448_umaal(__xrt_x448_limb *pCarry, __xrt_x448_limb acc,
+	__xrt_x448_limb mand, __xrt_x448_limb mier)
+{
+	__xrt_x448_dlimb tmp = (__xrt_x448_dlimb)mand * mier + acc + *pCarry;
+	*pCarry = (__xrt_x448_limb)(tmp >> __XRT_X448_WBITS);
+	return (__xrt_x448_limb)tmp;
+}
+
+static int __xrt_x448_cmp(const __xrt_x448_fe a, const __xrt_x448_limb *b)
+{
+	int i;
+	for ( i = __XRT_X448_NLIMBS - 1; i >= 0; i-- ) {
+		if ( a[i] > b[i] ) return 1;
+		if ( a[i] < b[i] ) return -1;
+	}
+	return 0;
+}
+
+static uint64 __xrt_x448_add_scalar_at(__xrt_x448_fe x, unsigned iStart, uint64 iVal)
+{
+	unsigned i = iStart;
+	while ( iVal && i < __XRT_X448_NLIMBS ) {
+		uint64 iSum = (uint64)x[i] + (uint32)iVal;
+		x[i] = (__xrt_x448_limb)iSum;
+		iVal = (iVal >> 32) + (iSum >> 32);
+		i++;
+	}
+	return iVal;
+}
+
+static void __xrt_x448_fold_carry(__xrt_x448_fe x, uint64 iCarry)
+{
+	while ( iCarry ) {
+		uint64 iCarry0 = __xrt_x448_add_scalar_at(x, 0, iCarry);
+		uint64 iCarry7 = __xrt_x448_add_scalar_at(x, 7, iCarry);
+		iCarry = iCarry0 + iCarry7;
+	}
+}
+
+static void __xrt_x448_sub_p(__xrt_x448_fe out, const __xrt_x448_fe a, const __xrt_x448_limb *pMod)
+{
+	uint64 iBorrow = 0;
+	unsigned i;
+	for ( i = 0; i < __XRT_X448_NLIMBS; i++ ) {
+		uint64 iBi = (uint64)pMod[i] + iBorrow;
+		if ( (uint64)a[i] < iBi ) {
+			out[i] = (__xrt_x448_limb)(((uint64)1 << 32) + a[i] - iBi);
+			iBorrow = 1;
+		} else {
+			out[i] = (__xrt_x448_limb)((uint64)a[i] - iBi);
+			iBorrow = 0;
+		}
+	}
+}
+
+static void __xrt_x448_canon(__xrt_x448_fe x)
+{
+	while ( __xrt_x448_cmp(x, __xrt_x448_p) >= 0 ) {
+		__xrt_x448_sub_p(x, x, __xrt_x448_p);
+	}
+}
+
+static void __xrt_x448_add(__xrt_x448_fe out, const __xrt_x448_fe a, const __xrt_x448_fe b)
+{
+	uint64 iCarry = 0;
+	unsigned i;
+	for ( i = 0; i < __XRT_X448_NLIMBS; i++ ) {
+		uint64 iSum = (uint64)a[i] + b[i] + iCarry;
+		out[i] = (__xrt_x448_limb)iSum;
+		iCarry = iSum >> 32;
+	}
+	__xrt_x448_fold_carry(out, iCarry);
+	__xrt_x448_canon(out);
+}
+
+static void __xrt_x448_sub(__xrt_x448_fe out, const __xrt_x448_fe a, const __xrt_x448_fe b)
+{
+	uint64 iCarry = 0;
+	unsigned i;
+	for ( i = 0; i < __XRT_X448_NLIMBS; i++ ) {
+		uint64 iSum = (uint64)a[i] + __xrt_x448_p[i] + iCarry - b[i];
+		out[i] = (__xrt_x448_limb)iSum;
+		iCarry = iSum >> 32;
+	}
+	__xrt_x448_fold_carry(out, iCarry);
+	__xrt_x448_canon(out);
+}
+
+static void __xrt_x448_mul(__xrt_x448_fe out, const __xrt_x448_fe a,
+	const __xrt_x448_limb *b, unsigned nb)
+{
+	__xrt_x448_limb accum[2 * __XRT_X448_NLIMBS] = {0};
+	uint64 t[21] = {0};
+	__xrt_x448_limb carry2;
+	unsigned i, j;
+	uint64 iCarry = 0;
+
+	for ( i = 0; i < nb; i++ ) {
+		__xrt_x448_limb mand = b[i];
+		carry2 = 0;
+		for ( j = 0; j < __XRT_X448_NLIMBS; j++ ) {
+			__xrt_x448_limb tmp;
+			memcpy(&tmp, &a[j], sizeof(tmp));
+			accum[i + j] = __xrt_x448_umaal(&carry2, accum[i + j], mand, tmp);
+		}
+		accum[i + j] = carry2;
+	}
+
+	for ( i = 0; i < __XRT_X448_NLIMBS; i++ ) {
+		t[i] += accum[i];
+		t[i] += accum[i + __XRT_X448_NLIMBS];
+		t[i + 7] += accum[i + __XRT_X448_NLIMBS];
+	}
+	for ( i = 20; i >= 14; i-- ) {
+		t[i - 14] += t[i];
+		t[i - 7] += t[i];
+	}
+
+	for ( i = 0; i < __XRT_X448_NLIMBS; i++ ) {
+		uint64 iSum = t[i] + iCarry;
+		out[i] = (__xrt_x448_limb)iSum;
+		iCarry = iSum >> 32;
+	}
+	__xrt_x448_fold_carry(out, iCarry);
+	__xrt_x448_canon(out);
+}
+
+static void __xrt_x448_sqr(__xrt_x448_fe out, const __xrt_x448_fe a)
+{
+	__xrt_x448_mul(out, a, a, __XRT_X448_NLIMBS);
+}
+
+static void __xrt_x448_mul1(__xrt_x448_fe out, const __xrt_x448_fe a)
+{
+	__xrt_x448_mul(out, a, out, __XRT_X448_NLIMBS);
+}
+
+static void __xrt_x448_sqr1(__xrt_x448_fe a)
+{
+	__xrt_x448_mul1(a, a);
+}
+
+static void __xrt_x448_condswap(__xrt_x448_limb a[2 * __XRT_X448_NLIMBS],
+	__xrt_x448_limb b[2 * __XRT_X448_NLIMBS], __xrt_x448_limb doswap)
+{
+	unsigned i;
+	for ( i = 0; i < 2 * __XRT_X448_NLIMBS; i++ ) {
+		__xrt_x448_limb xor_ab = (a[i] ^ b[i]) & doswap;
+		a[i] ^= xor_ab;
+		b[i] ^= xor_ab;
+	}
+}
+
+static void __xrt_x448_inv(__xrt_x448_fe out, const __xrt_x448_fe a)
+{
+	__xrt_x448_fe base, result;
+	int i;
+
+	memcpy(base, a, sizeof(base));
+	memset(result, 0, sizeof(result));
+	result[0] = 1;
+
+	for ( i = 0; i < 448; i++ ) {
+		if ( __xrt_x448_p_minus_2[i / 32] & ((uint32)1 << (i % 32)) ) {
+			__xrt_x448_mul(result, result, base, __XRT_X448_NLIMBS);
+		}
+		__xrt_x448_sqr(base, base);
+	}
+	memcpy(out, result, sizeof(result));
+}
+
+static void __xrt_x448_ladder_part1(__xrt_x448_fe xs[5]);
+static void __xrt_x448_ladder_part2(__xrt_x448_fe xs[5], const __xrt_x448_fe x1);
+
+static void __xrt_x448_core(__xrt_x448_fe xs[5], const uint8 scalar[__XRT_X448_BYTES],
+	const uint8 *x1, int clamp)
+{
+	int i;
+	__xrt_x448_fe x1_limbs;
+	__xrt_x448_limb swap = 0;
+	__xrt_x448_limb *x2 = xs[0], *x3 = xs[2], *z3 = xs[3];
+
+	memset(xs, 0, 4 * sizeof(__xrt_x448_fe));
+	x2[0] = z3[0] = 1;
+	for ( i = 0; i < __XRT_X448_NLIMBS; i++ ) {
+		x3[i] = x1_limbs[i] = __XRT_MG_U32(x1[i * 4 + 3], x1[i * 4 + 2], x1[i * 4 + 1], x1[i * 4]);
+	}
+
+	for ( i = 447; i >= 0; i-- ) {
+		uint8 bytei = scalar[i / 8];
+		__xrt_x448_limb doswap;
+		if ( clamp ) {
+			if ( i / 8 == 0 ) {
+				bytei &= (uint8)~3U;
+			} else if ( i / 8 == __XRT_X448_BYTES - 1 ) {
+				bytei |= 0x80;
+			}
+		}
+		doswap = 0 - (__xrt_x448_limb)((bytei >> (i % 8)) & 1);
+		__xrt_x448_condswap(x2, x3, swap ^ doswap);
+		swap = doswap;
+
+		__xrt_x448_ladder_part1(xs);
+		__xrt_x448_ladder_part2(xs, x1_limbs);
+	}
+	__xrt_x448_condswap(x2, x3, swap);
+}
+
+static void __xrt_x448_ladder_part1(__xrt_x448_fe xs[5])
+{
+	__xrt_x448_limb *x2 = xs[0], *z2 = xs[1], *x3 = xs[2], *z3 = xs[3], *t1 = xs[4];
+	__xrt_x448_add(t1, x2, z2);
+	__xrt_x448_sub(z2, x2, z2);
+	__xrt_x448_add(x2, x3, z3);
+	__xrt_x448_sub(z3, x3, z3);
+	__xrt_x448_mul1(z3, t1);
+	__xrt_x448_mul1(x2, z2);
+	__xrt_x448_add(x3, z3, x2);
+	__xrt_x448_sub(z3, z3, x2);
+	__xrt_x448_sqr1(t1);
+	__xrt_x448_sqr1(z2);
+	__xrt_x448_sub(x2, t1, z2);
+	__xrt_x448_mul(z2, x2, __xrt_x448_a24, 1);
+	__xrt_x448_add(z2, z2, t1);
+}
+
+static void __xrt_x448_ladder_part2(__xrt_x448_fe xs[5], const __xrt_x448_fe x1)
+{
+	__xrt_x448_limb *x2 = xs[0], *z2 = xs[1], *x3 = xs[2], *z3 = xs[3], *t1 = xs[4];
+	__xrt_x448_sqr1(z3);
+	__xrt_x448_mul1(z3, x1);
+	__xrt_x448_sqr1(x3);
+	__xrt_x448_mul1(z2, x2);
+	__xrt_x448_sub(x2, t1, x2);
+	__xrt_x448_mul1(x2, t1);
+}
+
+static void __xrt_x448_compute(uint8 out[__XRT_X448_BYTES],
+	const uint8 scalar[__XRT_X448_BYTES], const uint8 x1[__XRT_X448_BYTES], int clamp)
+{
+	int i;
+	__xrt_x448_fe xs[5], out_limbs, z_inv;
+	__xrt_x448_limb *x2 = xs[0], *z2 = xs[1];
+
+	__xrt_x448_core(xs, scalar, x1, clamp);
+	__xrt_x448_inv(z_inv, z2);
+	__xrt_x448_mul(out_limbs, x2, z_inv, __XRT_X448_NLIMBS);
+	__xrt_x448_canon(out_limbs);
+
+	for ( i = 0; i < __XRT_X448_NLIMBS; i++ ) {
+		uint32 n = out_limbs[i];
+		out[i * 4] = (uint8)(n & 0xff);
+		out[i * 4 + 1] = (uint8)((n >> 8) & 0xff);
+		out[i * 4 + 2] = (uint8)((n >> 16) & 0xff);
+		out[i * 4 + 3] = (uint8)((n >> 24) & 0xff);
+	}
+}
+
+XXAPI void xrtX448Keypair(uint8 *pPrivKey, uint8 *pPubKey)
+{
+	xrtRandomBytes(pPrivKey, __XRT_X448_BYTES);
+	__xrt_x448_compute(pPubKey, pPrivKey, __xrt_x448_base_point, 1);
+}
+
+XXAPI void xrtX448SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey)
+{
+	__xrt_x448_compute(pOut, pPrivKey, pPubKey, 1);
+}
+
+
+
 /* ============================== RSA 大整数运算 ============================== */
 
 /*
@@ -3585,6 +3881,566 @@ XXAPI void xrtECDHSecp256r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, cons
 	__xrt_u256_to_be(pOut, rx);
 }
 
+/* ============================== ECDH / ECDSA secp384r1 (P-384) ============================== */
+
+static const uint32 __xrt_p384_P[12] = {
+	0xffffffff, 0x00000000, 0x00000000, 0xffffffff,
+	0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff,
+	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
+};
+
+static const uint32 __xrt_p384_N[12] = {
+	0xccc52973, 0xecec196a, 0x48b0a77a, 0x581a0db2,
+	0xf4372ddf, 0xc7634d81, 0xffffffff, 0xffffffff,
+	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
+};
+
+static const uint32 __xrt_p384_Gx[12] = {
+	0x72760ab7, 0x3a545e38, 0xbf55296c, 0x5502f25d,
+	0x82542a38, 0x59f741e0, 0x8ba79b98, 0x6e1d3b62,
+	0xf320ad74, 0x8eb1c71e, 0xbe8b0537, 0xaa87ca22
+};
+
+static const uint32 __xrt_p384_Gy[12] = {
+	0x90ea0e5f, 0x7a431d7c, 0x1d7e819d, 0x0a60b1ce,
+	0xb5f0b8c0, 0xe9da3113, 0x289a147c, 0xf8f41dbd,
+	0x9292dc29, 0x5d9e98bf, 0x96262c6f, 0x3617de4a
+};
+
+static void __xrt_u384_zero(uint32 *r)
+{
+	memset(r, 0, 12 * sizeof(uint32));
+}
+
+static void __xrt_u384_copy(uint32 *r, const uint32 *a)
+{
+	memcpy(r, a, 12 * sizeof(uint32));
+}
+
+static bool __xrt_u384_is_zero(const uint32 *a)
+{
+	uint32 x = 0;
+	int i;
+	for ( i = 0; i < 12; i++ ) x |= a[i];
+	return x == 0;
+}
+
+static int __xrt_u384_cmp(const uint32 *a, const uint32 *b)
+{
+	int i;
+	for ( i = 11; i >= 0; i-- ) {
+		if ( a[i] > b[i] ) return 1;
+		if ( a[i] < b[i] ) return -1;
+	}
+	return 0;
+}
+
+static bool __xrt_u384_gte(const uint32 *a, const uint32 *b)
+{
+	return __xrt_u384_cmp(a, b) >= 0;
+}
+
+static uint32 __xrt_u384_add(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint64 carry = 0;
+	int i;
+	for ( i = 0; i < 12; i++ ) {
+		uint64 sum = (uint64)a[i] + b[i] + carry;
+		r[i] = (uint32)sum;
+		carry = sum >> 32;
+	}
+	return (uint32)carry;
+}
+
+static uint32 __xrt_u384_sub(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint64 borrow = 0;
+	int i;
+	for ( i = 0; i < 12; i++ ) {
+		uint64 bi = (uint64)b[i] + borrow;
+		if ( (uint64)a[i] < bi ) {
+			r[i] = (uint32)(((uint64)1 << 32) + a[i] - bi);
+			borrow = 1;
+		} else {
+			r[i] = (uint32)((uint64)a[i] - bi);
+			borrow = 0;
+		}
+	}
+	return (uint32)borrow;
+}
+
+static void __xrt_u384_from_be(uint32 *r, const uint8 *pData)
+{
+	int i;
+	for ( i = 0; i < 12; i++ ) {
+		int j = 44 - i * 4;
+		r[i] = ((uint32)pData[j] << 24) | ((uint32)pData[j + 1] << 16)
+			| ((uint32)pData[j + 2] << 8) | (uint32)pData[j + 3];
+	}
+}
+
+static void __xrt_u384_to_be(uint8 *pData, const uint32 *a)
+{
+	int i;
+	for ( i = 0; i < 12; i++ ) {
+		uint32 n = a[11 - i];
+		pData[i * 4] = (uint8)(n >> 24);
+		pData[i * 4 + 1] = (uint8)(n >> 16);
+		pData[i * 4 + 2] = (uint8)(n >> 8);
+		pData[i * 4 + 3] = (uint8)n;
+	}
+}
+
+static struct __xrt_bi_ctx* __xrt_u384_make_mod_ctx(const uint32 *pMod)
+{
+	struct __xrt_bi_ctx *pCtx;
+	struct __xrt_bigint *pBiMod;
+	uint8 aMod[48];
+
+	pCtx = __xrt_bi_initialize();
+	if ( !pCtx ) return NULL;
+	__xrt_u384_to_be(aMod, pMod);
+	pBiMod = __xrt_bi_import(pCtx, aMod, sizeof(aMod));
+	__xrt_bi_set_mod(pCtx, pBiMod, __XRT_BI_M_OFFSET);
+	return pCtx;
+}
+
+static void __xrt_u384_free_mod_ctx(struct __xrt_bi_ctx *pCtx)
+{
+	if ( !pCtx ) return;
+	__xrt_bi_free_mod(pCtx, __XRT_BI_M_OFFSET);
+	__xrt_bi_terminate(pCtx);
+}
+
+static struct __xrt_bigint* __xrt_u384_import_words(struct __xrt_bi_ctx *pCtx, const uint32 *a)
+{
+	uint8 aBuf[48];
+	__xrt_u384_to_be(aBuf, a);
+	return __xrt_bi_import(pCtx, aBuf, sizeof(aBuf));
+}
+
+static void __xrt_u384_export_words(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, uint32 *r)
+{
+	uint8 aBuf[48];
+	__xrt_bi_export(pCtx, pBi, aBuf, sizeof(aBuf));
+	__xrt_u384_from_be(r, aBuf);
+}
+
+static void __xrt_u384_reduce_mod(struct __xrt_bi_ctx *pCtx, uint32 *r, const uint32 *a)
+{
+	struct __xrt_bigint *pBi = __xrt_u384_import_words(pCtx, a);
+	pBi = __xrt_bi_mod(pCtx, pBi);
+	__xrt_u384_export_words(pCtx, pBi, r);
+}
+
+static void __xrt_u384_mul_mod(struct __xrt_bi_ctx *pCtx, uint32 *r, const uint32 *a, const uint32 *b)
+{
+	struct __xrt_bigint *pA = __xrt_u384_import_words(pCtx, a);
+	struct __xrt_bigint *pB = __xrt_u384_import_words(pCtx, b);
+	struct __xrt_bigint *pR = __xrt_bi_multiply(pCtx, pA, pB);
+	pR = __xrt_bi_mod(pCtx, pR);
+	__xrt_u384_export_words(pCtx, pR, r);
+}
+
+static void __xrt_u384_inv_mod(struct __xrt_bi_ctx *pCtx, uint32 *r, const uint32 *a, const uint32 *pMod)
+{
+	uint32 exp[12];
+	struct __xrt_bigint *pBase;
+	struct __xrt_bigint *pExp;
+	struct __xrt_bigint *pR;
+
+	__xrt_u384_copy(exp, pMod);
+	exp[0] -= 2;
+	pBase = __xrt_u384_import_words(pCtx, a);
+	pExp = __xrt_u384_import_words(pCtx, exp);
+	pR = __xrt_bi_mod_power(pCtx, pBase, pExp);
+	__xrt_u384_export_words(pCtx, pR, r);
+}
+
+static void __xrt_p384_add_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 carry = __xrt_u384_add(r, a, b);
+	if ( carry || __xrt_u384_gte(r, __xrt_p384_P) ) {
+		__xrt_u384_sub(r, r, __xrt_p384_P);
+	}
+}
+
+static void __xrt_p384_sub_mod_p(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	if ( __xrt_u384_sub(r, a, b) ) {
+		__xrt_u384_add(r, r, __xrt_p384_P);
+	}
+}
+
+static void __xrt_p384_mul_mod_p(uint32 *r, const uint32 *a, const uint32 *b, struct __xrt_bi_ctx *pCtxP)
+{
+	__xrt_u384_mul_mod(pCtxP, r, a, b);
+}
+
+static void __xrt_p384_sqr_mod_p(uint32 *r, const uint32 *a, struct __xrt_bi_ctx *pCtxP)
+{
+	__xrt_u384_mul_mod(pCtxP, r, a, a);
+}
+
+static void __xrt_p384_inv_mod_p(uint32 *r, const uint32 *a, struct __xrt_bi_ctx *pCtxP)
+{
+	__xrt_u384_inv_mod(pCtxP, r, a, __xrt_p384_P);
+}
+
+static void __xrt_p384_add_mod_n(uint32 *r, const uint32 *a, const uint32 *b)
+{
+	uint32 carry = __xrt_u384_add(r, a, b);
+	if ( carry || __xrt_u384_gte(r, __xrt_p384_N) ) {
+		__xrt_u384_sub(r, r, __xrt_p384_N);
+	}
+}
+
+static void __xrt_p384_mul_mod_n(uint32 *r, const uint32 *a, const uint32 *b, struct __xrt_bi_ctx *pCtxN)
+{
+	__xrt_u384_mul_mod(pCtxN, r, a, b);
+}
+
+static void __xrt_p384_inv_mod_n(uint32 *r, const uint32 *a, struct __xrt_bi_ctx *pCtxN)
+{
+	__xrt_u384_inv_mod(pCtxN, r, a, __xrt_p384_N);
+}
+
+typedef struct {
+	uint32 x[12];
+	uint32 y[12];
+	uint32 z[12];
+} __xrt_p384_jpt;
+
+static void __xrt_p384_pt_dbl(__xrt_p384_jpt *pR, const __xrt_p384_jpt *pP, struct __xrt_bi_ctx *pCtxP)
+{
+	uint32 m[12], s[12], t1[12], t2[12], y2[12], zSave[12], ySave[12];
+
+	if ( __xrt_u384_is_zero(pP->z) ) {
+		memset(pR, 0, sizeof(*pR));
+		return;
+	}
+
+	__xrt_u384_copy(ySave, pP->y);
+	__xrt_u384_copy(zSave, pP->z);
+	__xrt_p384_sqr_mod_p(y2, ySave, pCtxP);
+	__xrt_p384_mul_mod_p(s, pP->x, y2, pCtxP);
+	__xrt_p384_add_mod_p(s, s, s);
+	__xrt_p384_add_mod_p(s, s, s);
+	__xrt_p384_sqr_mod_p(t1, zSave, pCtxP);
+	__xrt_p384_add_mod_p(t2, pP->x, t1);
+	__xrt_p384_sub_mod_p(t1, pP->x, t1);
+	__xrt_p384_mul_mod_p(m, t2, t1, pCtxP);
+	__xrt_p384_add_mod_p(t1, m, m);
+	__xrt_p384_add_mod_p(m, m, t1);
+	__xrt_p384_sqr_mod_p(t1, y2, pCtxP);
+	__xrt_p384_add_mod_p(t1, t1, t1);
+	__xrt_p384_add_mod_p(t1, t1, t1);
+	__xrt_p384_add_mod_p(t1, t1, t1);
+	__xrt_p384_mul_mod_p(pR->z, ySave, zSave, pCtxP);
+	__xrt_p384_add_mod_p(pR->z, pR->z, pR->z);
+	__xrt_p384_sqr_mod_p(pR->x, m, pCtxP);
+	__xrt_p384_sub_mod_p(pR->x, pR->x, s);
+	__xrt_p384_sub_mod_p(pR->x, pR->x, s);
+	__xrt_p384_sub_mod_p(t2, s, pR->x);
+	__xrt_p384_mul_mod_p(pR->y, m, t2, pCtxP);
+	__xrt_p384_sub_mod_p(pR->y, pR->y, t1);
+}
+
+static void __xrt_p384_pt_add_aff(__xrt_p384_jpt *pR, const __xrt_p384_jpt *pP,
+	const uint32 *qx, const uint32 *qy, struct __xrt_bi_ctx *pCtxP)
+{
+	uint32 u1[12], u2[12], s1[12], s2[12], h[12], hh[12], hhh[12], rr[12], t[12];
+	__xrt_p384_jpt PSave;
+
+	if ( __xrt_u384_is_zero(pP->z) ) {
+		__xrt_u384_copy(pR->x, qx);
+		__xrt_u384_copy(pR->y, qy);
+		__xrt_u384_zero(pR->z);
+		pR->z[0] = 1;
+		return;
+	}
+
+	memcpy(&PSave, pP, sizeof(PSave));
+	__xrt_p384_sqr_mod_p(t, PSave.z, pCtxP);
+	__xrt_p384_mul_mod_p(u2, qx, t, pCtxP);
+	__xrt_u384_copy(u1, PSave.x);
+	__xrt_p384_mul_mod_p(s2, t, PSave.z, pCtxP);
+	__xrt_p384_mul_mod_p(s2, s2, qy, pCtxP);
+	__xrt_u384_copy(s1, PSave.y);
+	__xrt_p384_sub_mod_p(h, u2, u1);
+	__xrt_p384_sub_mod_p(rr, s2, s1);
+
+	if ( __xrt_u384_is_zero(h) ) {
+		if ( __xrt_u384_is_zero(rr) ) __xrt_p384_pt_dbl(pR, &PSave, pCtxP);
+		else memset(pR, 0, sizeof(*pR));
+		return;
+	}
+
+	__xrt_p384_sqr_mod_p(hh, h, pCtxP);
+	__xrt_p384_mul_mod_p(hhh, hh, h, pCtxP);
+	__xrt_p384_mul_mod_p(t, u1, hh, pCtxP);
+	__xrt_p384_sqr_mod_p(pR->x, rr, pCtxP);
+	__xrt_p384_sub_mod_p(pR->x, pR->x, hhh);
+	__xrt_p384_sub_mod_p(pR->x, pR->x, t);
+	__xrt_p384_sub_mod_p(pR->x, pR->x, t);
+	__xrt_p384_sub_mod_p(t, t, pR->x);
+	__xrt_p384_mul_mod_p(pR->y, rr, t, pCtxP);
+	__xrt_p384_mul_mod_p(t, s1, hhh, pCtxP);
+	__xrt_p384_sub_mod_p(pR->y, pR->y, t);
+	__xrt_p384_mul_mod_p(pR->z, PSave.z, h, pCtxP);
+}
+
+static void __xrt_p384_scalar_mult(__xrt_p384_jpt *pR, const uint32 *k,
+	const uint32 *px, const uint32 *py, struct __xrt_bi_ctx *pCtxP)
+{
+	int i;
+	memset(pR, 0, sizeof(*pR));
+	for ( i = 383; i >= 0; i-- ) {
+		__xrt_p384_pt_dbl(pR, pR, pCtxP);
+		if ( k[i / 32] & ((uint32)1 << (i % 32)) ) {
+			__xrt_p384_pt_add_aff(pR, pR, px, py, pCtxP);
+		}
+	}
+}
+
+static void __xrt_p384_to_affine(uint32 *ax, uint32 *ay, const __xrt_p384_jpt *pP, struct __xrt_bi_ctx *pCtxP)
+{
+	uint32 zInv[12], zInv2[12], zInv3[12];
+
+	if ( __xrt_u384_is_zero(pP->z) ) {
+		__xrt_u384_zero(ax);
+		__xrt_u384_zero(ay);
+		return;
+	}
+
+	__xrt_p384_inv_mod_p(zInv, pP->z, pCtxP);
+	__xrt_p384_sqr_mod_p(zInv2, zInv, pCtxP);
+	__xrt_p384_mul_mod_p(zInv3, zInv2, zInv, pCtxP);
+	__xrt_p384_mul_mod_p(ax, pP->x, zInv2, pCtxP);
+	__xrt_p384_mul_mod_p(ay, pP->y, zInv3, pCtxP);
+}
+
+XXAPI void xrtECDHSecp384r1Keypair(uint8 *pPrivKey, uint8 *pPubKey)
+{
+	uint32 k[12], rx[12], ry[12];
+	__xrt_p384_jpt tR;
+	struct __xrt_bi_ctx *pCtxP = __xrt_u384_make_mod_ctx(__xrt_p384_P);
+
+	if ( !pCtxP ) {
+		memset(pPrivKey, 0, 48);
+		memset(pPubKey, 0, 97);
+		return;
+	}
+
+	do {
+		xrtRandomBytes(pPrivKey, 48);
+		__xrt_u384_from_be(k, pPrivKey);
+	} while ( __xrt_u384_is_zero(k) || __xrt_u384_gte(k, __xrt_p384_N) );
+
+	__xrt_p384_scalar_mult(&tR, k, __xrt_p384_Gx, __xrt_p384_Gy, pCtxP);
+	__xrt_p384_to_affine(rx, ry, &tR, pCtxP);
+	pPubKey[0] = 0x04;
+	__xrt_u384_to_be(pPubKey + 1, rx);
+	__xrt_u384_to_be(pPubKey + 49, ry);
+	__xrt_u384_free_mod_ctx(pCtxP);
+}
+
+XXAPI void xrtECDHSecp384r1SharedSecret(uint8 *pOut, const uint8 *pPrivKey, const uint8 *pPubKey)
+{
+	uint32 k[12], px[12], py[12], rx[12], ry[12];
+	__xrt_p384_jpt tR;
+	struct __xrt_bi_ctx *pCtxP = __xrt_u384_make_mod_ctx(__xrt_p384_P);
+
+	if ( !pCtxP ) {
+		memset(pOut, 0, 48);
+		return;
+	}
+
+	__xrt_u384_from_be(k, pPrivKey);
+	if ( pPubKey[0] != 0x04 ) {
+		memset(pOut, 0, 48);
+		__xrt_u384_free_mod_ctx(pCtxP);
+		return;
+	}
+	__xrt_u384_from_be(px, pPubKey + 1);
+	__xrt_u384_from_be(py, pPubKey + 49);
+	__xrt_p384_scalar_mult(&tR, k, px, py, pCtxP);
+	__xrt_p384_to_affine(rx, ry, &tR, pCtxP);
+	__xrt_u384_to_be(pOut, rx);
+	__xrt_u384_free_mod_ctx(pCtxP);
+}
+
+static size_t __xrt_u384_to_der_integer(uint8 *pOut, const uint32 *pValue)
+{
+	uint8 aBuf[48];
+	size_t iOff = 0;
+	size_t iLen;
+
+	__xrt_u384_to_be(aBuf, pValue);
+	while ( iOff < 47 && aBuf[iOff] == 0 ) iOff++;
+	iLen = 48 - iOff;
+	if ( iLen == 0 ) {
+		pOut[0] = 0x02;
+		pOut[1] = 1;
+		pOut[2] = 0;
+		return 3;
+	}
+
+	pOut[0] = 0x02;
+	if ( aBuf[iOff] & 0x80 ) {
+		pOut[1] = (uint8)(iLen + 1);
+		pOut[2] = 0x00;
+		memcpy(pOut + 3, aBuf + iOff, iLen);
+		return iLen + 3;
+	}
+
+	pOut[1] = (uint8)iLen;
+	memcpy(pOut + 2, aBuf + iOff, iLen);
+	return iLen + 2;
+}
+
+static bool __xrt_ecdsa_verify_p384(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pSig, size_t iSigLen, const uint8 *pPubKey)
+{
+	uint32 rU[12], sU[12], z[12], sInv[12], u1[12], u2[12];
+	uint32 px[12], py[12], rx[12], ry[12], ax[12], ay[12];
+	__xrt_p384_jpt tR1, tR2;
+	struct __xrt_bi_ctx *pCtxP = NULL;
+	struct __xrt_bi_ctx *pCtxN = NULL;
+	const uint8 *p = pSig;
+	size_t rLen, sLen;
+	uint8 rBuf[49], sBuf[49];
+
+	if ( !pHash || !pSig || !pPubKey || iSigLen < 8 ) return false;
+	if ( pPubKey[0] != 0x04 ) return false;
+	__xrt_u384_from_be(px, pPubKey + 1);
+	__xrt_u384_from_be(py, pPubKey + 49);
+
+	if ( *p++ != 0x30 ) return false;
+	{ size_t iSeqLen = *p++; (void)iSeqLen; }
+	if ( *p++ != 0x02 ) return false;
+	rLen = *p++;
+	if ( rLen == 0 || rLen > sizeof(rBuf) || (size_t)(p - pSig) + rLen > iSigLen ) return false;
+	memset(rBuf, 0, sizeof(rBuf));
+	memcpy(rBuf + (sizeof(rBuf) - rLen), p, rLen);
+	p += rLen;
+	{
+		const uint8 *pR = rBuf;
+		if ( rBuf[0] == 0x00 ) pR++;
+		__xrt_u384_from_be(rU, pR + ((sizeof(rBuf) - (size_t)(pR - rBuf)) - 48));
+	}
+
+	if ( *p++ != 0x02 ) return false;
+	sLen = *p++;
+	if ( sLen == 0 || sLen > sizeof(sBuf) || (size_t)(p - pSig) + sLen > iSigLen ) return false;
+	memset(sBuf, 0, sizeof(sBuf));
+	memcpy(sBuf + (sizeof(sBuf) - sLen), p, sLen);
+	{
+		const uint8 *pS = sBuf;
+		if ( sBuf[0] == 0x00 ) pS++;
+		__xrt_u384_from_be(sU, pS + ((sizeof(sBuf) - (size_t)(pS - sBuf)) - 48));
+	}
+
+	if ( __xrt_u384_is_zero(rU) || __xrt_u384_gte(rU, __xrt_p384_N) ) return false;
+	if ( __xrt_u384_is_zero(sU) || __xrt_u384_gte(sU, __xrt_p384_N) ) return false;
+
+	{
+		uint8 aZ[48] = {0};
+		size_t iCopy = iHashLen > 48 ? 48 : iHashLen;
+		if ( iHashLen > 48 ) memcpy(aZ, pHash, 48);
+		else memcpy(aZ + (48 - iCopy), pHash, iCopy);
+		__xrt_u384_from_be(z, aZ);
+	}
+
+	pCtxP = __xrt_u384_make_mod_ctx(__xrt_p384_P);
+	pCtxN = __xrt_u384_make_mod_ctx(__xrt_p384_N);
+	if ( !pCtxP || !pCtxN ) goto failed;
+
+	__xrt_p384_inv_mod_n(sInv, sU, pCtxN);
+	__xrt_p384_mul_mod_n(u1, z, sInv, pCtxN);
+	__xrt_p384_mul_mod_n(u2, rU, sInv, pCtxN);
+	__xrt_p384_scalar_mult(&tR1, u1, __xrt_p384_Gx, __xrt_p384_Gy, pCtxP);
+	__xrt_p384_scalar_mult(&tR2, u2, px, py, pCtxP);
+	__xrt_p384_to_affine(ax, ay, &tR2, pCtxP);
+	if ( !__xrt_u384_is_zero(ax) || !__xrt_u384_is_zero(ay) ) {
+		__xrt_p384_pt_add_aff(&tR1, &tR1, ax, ay, pCtxP);
+	}
+	__xrt_p384_to_affine(rx, ry, &tR1, pCtxP);
+	__xrt_u384_reduce_mod(pCtxN, rx, rx);
+	__xrt_u384_free_mod_ctx(pCtxP);
+	__xrt_u384_free_mod_ctx(pCtxN);
+	return __xrt_u384_cmp(rx, rU) == 0;
+
+failed:
+	__xrt_u384_free_mod_ctx(pCtxP);
+	__xrt_u384_free_mod_ctx(pCtxN);
+	return false;
+}
+
+static bool __xrt_ecdsa_sign_p384(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pPrivKey, uint8 *pSig, size_t *pSigLen)
+{
+	uint32 d[12], z[12], k[12], kInv[12], r[12], s[12], t[12], rx[12], ry[12];
+	__xrt_p384_jpt tR;
+	struct __xrt_bi_ctx *pCtxP = NULL;
+	struct __xrt_bi_ctx *pCtxN = NULL;
+	uint8 aK[48];
+	uint8 aR[64], aS[64];
+	size_t iRLen, iSLen;
+	int iTry;
+
+	if ( !pHash || !pPrivKey || !pSig || !pSigLen ) return false;
+	__xrt_u384_from_be(d, pPrivKey);
+	if ( __xrt_u384_is_zero(d) || __xrt_u384_gte(d, __xrt_p384_N) ) return false;
+
+	{
+		uint8 aZ[48] = {0};
+		size_t iCopy = iHashLen > 48 ? 48 : iHashLen;
+		if ( iHashLen > 48 ) memcpy(aZ, pHash, 48);
+		else memcpy(aZ + (48 - iCopy), pHash, iCopy);
+		__xrt_u384_from_be(z, aZ);
+	}
+
+	pCtxP = __xrt_u384_make_mod_ctx(__xrt_p384_P);
+	pCtxN = __xrt_u384_make_mod_ctx(__xrt_p384_N);
+	if ( !pCtxP || !pCtxN ) goto failed;
+
+	for ( iTry = 0; iTry < 32; iTry++ ) {
+		xrtRandomBytes(aK, sizeof(aK));
+		__xrt_u384_from_be(k, aK);
+		if ( __xrt_u384_is_zero(k) || __xrt_u384_gte(k, __xrt_p384_N) ) continue;
+
+		__xrt_p384_scalar_mult(&tR, k, __xrt_p384_Gx, __xrt_p384_Gy, pCtxP);
+		__xrt_p384_to_affine(rx, ry, &tR, pCtxP);
+		if ( __xrt_u384_is_zero(rx) && __xrt_u384_is_zero(ry) ) continue;
+		__xrt_u384_reduce_mod(pCtxN, rx, rx);
+		if ( __xrt_u384_is_zero(rx) ) continue;
+
+		__xrt_u384_copy(r, rx);
+		__xrt_p384_inv_mod_n(kInv, k, pCtxN);
+		__xrt_p384_mul_mod_n(t, r, d, pCtxN);
+		__xrt_p384_add_mod_n(t, t, z);
+		__xrt_p384_mul_mod_n(s, kInv, t, pCtxN);
+		if ( __xrt_u384_is_zero(s) ) continue;
+
+		iRLen = __xrt_u384_to_der_integer(aR, r);
+		iSLen = __xrt_u384_to_der_integer(aS, s);
+		pSig[0] = 0x30;
+		pSig[1] = (uint8)(iRLen + iSLen);
+		memcpy(pSig + 2, aR, iRLen);
+		memcpy(pSig + 2 + iRLen, aS, iSLen);
+		*pSigLen = 2 + iRLen + iSLen;
+		__xrt_u384_free_mod_ctx(pCtxP);
+		__xrt_u384_free_mod_ctx(pCtxN);
+		return true;
+	}
+
+failed:
+	__xrt_u384_free_mod_ctx(pCtxP);
+	__xrt_u384_free_mod_ctx(pCtxN);
+	return false;
+}
+
 // ECDSA secp256r1 签名验证
 // pSig: DER 编码的签名 (SEQUENCE { INTEGER r, INTEGER s })
 // pPubKey: 未压缩公钥 (0x04 || X || Y, 65 字节)
@@ -3596,6 +4452,10 @@ XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig
 	const uint8 *p;
 	size_t rLen, sLen;
 	uint8 rBuf[33], sBuf[33];
+
+	if ( iPubKeyLen == 97 ) {
+		return __xrt_ecdsa_verify_p384(pHash, iHashLen, pSig, iSigLen, pPubKey);
+	}
 	
 	// 解析公钥
 	if ( (iPubKeyLen < 65) || (pPubKey[0] != 0x04) ) return false;
@@ -3712,7 +4572,8 @@ static bool __xrt_ecdsa_sign_p256(const uint8 *pHash, size_t iHashLen,
 	{
 		uint8 aZ[32] = {0};
 		size_t iCopy = iHashLen > 32 ? 32 : iHashLen;
-		memcpy(aZ, pHash, iCopy);
+		if ( iHashLen > 32 ) memcpy(aZ, pHash, 32);
+		else memcpy(aZ + (32 - iCopy), pHash, iCopy);
 		__xrt_u256_from_be(z, aZ);
 	}
 
@@ -3747,9 +4608,461 @@ static bool __xrt_ecdsa_sign_p256(const uint8 *pHash, size_t iHashLen,
 	return false;
 }
 
+typedef __xrt_x25519_fe __xrt_ed25519_fe;
+
+typedef struct {
+	__xrt_ed25519_fe X;
+	__xrt_ed25519_fe Y;
+	__xrt_ed25519_fe Z;
+	__xrt_ed25519_fe T;
+} __xrt_ed25519_pt;
+
+static const uint8 __xrt_ed25519_order_le[32] = {
+	0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+	0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
+};
+
+static const uint8 __xrt_ed25519_order_be[32] = {
+	0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x14, 0xde, 0xf9, 0xde, 0xa2, 0xf7, 0x9c, 0xd6,
+	0x58, 0x12, 0x63, 0x1a, 0x5c, 0xf5, 0xd3, 0xed
+};
+
+static const uint8 __xrt_ed25519_d_le[32] = {
+	0xa3, 0x78, 0x59, 0x13, 0xca, 0x4d, 0xeb, 0x75,
+	0xab, 0xd8, 0x41, 0x41, 0x4d, 0x0a, 0x70, 0x00,
+	0x98, 0xe8, 0x79, 0x77, 0x79, 0x40, 0xc7, 0x8c,
+	0x73, 0xfe, 0x6f, 0x2b, 0xee, 0x6c, 0x03, 0x52
+};
+
+static const uint8 __xrt_ed25519_sqrtm1_le[32] = {
+	0xb0, 0xa0, 0x0e, 0x4a, 0x27, 0x1b, 0xee, 0xc4,
+	0x78, 0xe4, 0x2f, 0xad, 0x06, 0x18, 0x43, 0x2f,
+	0xa7, 0xd7, 0xfb, 0x3d, 0x99, 0x00, 0x4d, 0x2b,
+	0x0b, 0xdf, 0xc1, 0x4f, 0x80, 0x24, 0x83, 0x2b
+};
+
+static const uint8 __xrt_ed25519_base_y[32] = {
+	0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66
+};
+
+static void __xrt_ed25519_fe_zero(__xrt_ed25519_fe a) { memset(a, 0, sizeof(__xrt_ed25519_fe)); }
+static void __xrt_ed25519_fe_one(__xrt_ed25519_fe a) { __xrt_ed25519_fe_zero(a); a[0] = 1; }
+static void __xrt_ed25519_fe_copy(__xrt_ed25519_fe d, const __xrt_ed25519_fe s) { memcpy(d, s, sizeof(__xrt_ed25519_fe)); }
+static void __xrt_ed25519_fe_add(__xrt_ed25519_fe d, const __xrt_ed25519_fe a, const __xrt_ed25519_fe b) { __xrt_x25519_add(d, a, b); }
+static void __xrt_ed25519_fe_sub(__xrt_ed25519_fe d, const __xrt_ed25519_fe a, const __xrt_ed25519_fe b) { __xrt_x25519_sub(d, a, b); }
+static void __xrt_ed25519_fe_mul(__xrt_ed25519_fe d, const __xrt_ed25519_fe a, const __xrt_ed25519_fe b) { __xrt_x25519_mul(d, a, b, __XRT_X25519_NLIMBS); }
+static void __xrt_ed25519_fe_sqr(__xrt_ed25519_fe d, const __xrt_ed25519_fe a) { __xrt_x25519_sqr(d, a); }
+
+static void __xrt_ed25519_fe_from_le(__xrt_ed25519_fe out, const uint8 in[32])
+{
+	int i;
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		out[i] = __XRT_MG_U32(in[i * 4 + 3], in[i * 4 + 2], in[i * 4 + 1], in[i * 4]);
+	}
+	out[__XRT_X25519_NLIMBS - 1] &= 0x7fffffff;
+}
+
+static void __xrt_ed25519_fe_to_le(uint8 out[32], const __xrt_ed25519_fe in)
+{
+	int i;
+	__xrt_ed25519_fe t;
+	__xrt_ed25519_fe_copy(t, in);
+	(void)__xrt_x25519_canon(t);
+	for ( i = 0; i < __XRT_X25519_NLIMBS; i++ ) {
+		uint32 n = t[i];
+		out[i * 4] = (uint8)(n);
+		out[i * 4 + 1] = (uint8)(n >> 8);
+		out[i * 4 + 2] = (uint8)(n >> 16);
+		out[i * 4 + 3] = (uint8)(n >> 24);
+	}
+	out[31] &= 0x7f;
+}
+
+static bool __xrt_ed25519_fe_equal(const __xrt_ed25519_fe a, const __xrt_ed25519_fe b)
+{
+	uint8 aa[32], bb[32];
+	__xrt_ed25519_fe_to_le(aa, a);
+	__xrt_ed25519_fe_to_le(bb, b);
+	return memcmp(aa, bb, 32) == 0;
+}
+
+static bool __xrt_ed25519_fe_is_zero(const __xrt_ed25519_fe a)
+{
+	uint8 t[32];
+	int i;
+	__xrt_ed25519_fe_to_le(t, a);
+	for ( i = 0; i < 32; i++ ) {
+		if ( t[i] != 0 ) return false;
+	}
+	return true;
+}
+
+static int __xrt_ed25519_fe_is_odd(const __xrt_ed25519_fe a)
+{
+	uint8 t[32];
+	__xrt_ed25519_fe_to_le(t, a);
+	return t[0] & 1;
+}
+
+static void __xrt_ed25519_fe_neg(__xrt_ed25519_fe out, const __xrt_ed25519_fe a)
+{
+	__xrt_ed25519_fe z;
+	__xrt_ed25519_fe_zero(z);
+	__xrt_ed25519_fe_sub(out, z, a);
+}
+
+static bool __xrt_ed25519_fe_from_le_canonical(__xrt_ed25519_fe out, const uint8 in[32])
+{
+	uint8 t[32];
+	__xrt_ed25519_fe_from_le(out, in);
+	__xrt_ed25519_fe_to_le(t, out);
+	return memcmp(t, in, 32) == 0;
+}
+
+static void __xrt_ed25519_fe_inv(__xrt_ed25519_fe out, const __xrt_ed25519_fe a)
+{
+	int i;
+	__xrt_ed25519_fe result, base;
+	__xrt_ed25519_fe_one(result);
+	__xrt_ed25519_fe_copy(base, a);
+	for ( i = 254; i >= 0; i-- ) {
+		__xrt_ed25519_fe_sqr(result, result);
+		if ( i >= 5 || i == 3 || i == 1 || i == 0 ) {
+			__xrt_ed25519_fe_mul(result, result, base);
+		}
+	}
+	__xrt_ed25519_fe_copy(out, result);
+}
+
+static void __xrt_ed25519_fe_pow252m2(__xrt_ed25519_fe out, const __xrt_ed25519_fe a)
+{
+	int i;
+	__xrt_ed25519_fe result;
+	__xrt_ed25519_fe_one(result);
+	for ( i = 251; i >= 0; i-- ) {
+		__xrt_ed25519_fe_sqr(result, result);
+		if ( i != 0 ) {
+			__xrt_ed25519_fe_mul(result, result, a);
+		}
+	}
+	__xrt_ed25519_fe_copy(out, result);
+}
+
+static bool __xrt_ed25519_fe_sqrt_ratio(__xrt_ed25519_fe out,
+	const __xrt_ed25519_fe u, const __xrt_ed25519_fe v)
+{
+	__xrt_ed25519_fe x2, x, check, invv, sqrtm1;
+	__xrt_ed25519_fe_inv(invv, v);
+	__xrt_ed25519_fe_mul(x2, u, invv);
+	__xrt_ed25519_fe_pow252m2(x, x2);
+	__xrt_ed25519_fe_sqr(check, x);
+	if ( !__xrt_ed25519_fe_equal(check, x2) ) {
+		__xrt_ed25519_fe_from_le(sqrtm1, __xrt_ed25519_sqrtm1_le);
+		__xrt_ed25519_fe_mul(x, x, sqrtm1);
+		__xrt_ed25519_fe_sqr(check, x);
+		if ( !__xrt_ed25519_fe_equal(check, x2) ) {
+			return false;
+		}
+	}
+	__xrt_ed25519_fe_copy(out, x);
+	return true;
+}
+
+static void __xrt_ed25519_pt_identity(__xrt_ed25519_pt *pR)
+{
+	__xrt_ed25519_fe_zero(pR->X);
+	__xrt_ed25519_fe_one(pR->Y);
+	__xrt_ed25519_fe_one(pR->Z);
+	__xrt_ed25519_fe_zero(pR->T);
+}
+
+static void __xrt_ed25519_pt_copy(__xrt_ed25519_pt *pDst, const __xrt_ed25519_pt *pSrc)
+{
+	memcpy(pDst, pSrc, sizeof(__xrt_ed25519_pt));
+}
+
+static void __xrt_ed25519_pt_add(__xrt_ed25519_pt *pR, const __xrt_ed25519_pt *pP, const __xrt_ed25519_pt *pQ)
+{
+	__xrt_ed25519_fe A, B, C, D, E, F, G, H, t1, t2, d;
+	__xrt_ed25519_fe_from_le(d, __xrt_ed25519_d_le);
+
+	__xrt_ed25519_fe_sub(t1, pP->Y, pP->X);
+	__xrt_ed25519_fe_sub(t2, pQ->Y, pQ->X);
+	__xrt_ed25519_fe_mul(A, t1, t2);
+	__xrt_ed25519_fe_add(t1, pP->Y, pP->X);
+	__xrt_ed25519_fe_add(t2, pQ->Y, pQ->X);
+	__xrt_ed25519_fe_mul(B, t1, t2);
+	__xrt_ed25519_fe_mul(C, pP->T, pQ->T);
+	__xrt_ed25519_fe_mul(C, C, d);
+	__xrt_ed25519_fe_add(C, C, C);
+	__xrt_ed25519_fe_mul(D, pP->Z, pQ->Z);
+	__xrt_ed25519_fe_add(D, D, D);
+	__xrt_ed25519_fe_sub(E, B, A);
+	__xrt_ed25519_fe_sub(F, D, C);
+	__xrt_ed25519_fe_add(G, D, C);
+	__xrt_ed25519_fe_add(H, B, A);
+	__xrt_ed25519_fe_mul(pR->X, E, F);
+	__xrt_ed25519_fe_mul(pR->Y, G, H);
+	__xrt_ed25519_fe_mul(pR->T, E, H);
+	__xrt_ed25519_fe_mul(pR->Z, F, G);
+}
+
+static void __xrt_ed25519_pt_double(__xrt_ed25519_pt *pR, const __xrt_ed25519_pt *pP)
+{
+	__xrt_ed25519_fe A, B, C, D, E, F, G, H, t;
+	__xrt_ed25519_fe_sqr(A, pP->X);
+	__xrt_ed25519_fe_sqr(B, pP->Y);
+	__xrt_ed25519_fe_sqr(C, pP->Z);
+	__xrt_ed25519_fe_add(C, C, C);
+	__xrt_ed25519_fe_neg(D, A);
+	__xrt_ed25519_fe_add(t, pP->X, pP->Y);
+	__xrt_ed25519_fe_sqr(E, t);
+	__xrt_ed25519_fe_sub(E, E, A);
+	__xrt_ed25519_fe_sub(E, E, B);
+	__xrt_ed25519_fe_add(G, D, B);
+	__xrt_ed25519_fe_sub(F, G, C);
+	__xrt_ed25519_fe_sub(H, D, B);
+	__xrt_ed25519_fe_mul(pR->X, E, F);
+	__xrt_ed25519_fe_mul(pR->Y, G, H);
+	__xrt_ed25519_fe_mul(pR->T, E, H);
+	__xrt_ed25519_fe_mul(pR->Z, F, G);
+}
+
+static void __xrt_ed25519_pt_mul(__xrt_ed25519_pt *pR, const __xrt_ed25519_pt *pP, const uint8 k[32])
+{
+	int i;
+	__xrt_ed25519_pt tRes, tTmp;
+	__xrt_ed25519_pt_identity(&tRes);
+	for ( i = 255; i >= 0; i-- ) {
+		__xrt_ed25519_pt_double(&tTmp, &tRes);
+		__xrt_ed25519_pt_copy(&tRes, &tTmp);
+		if ( (k[i / 8] >> (i & 7)) & 1 ) {
+			__xrt_ed25519_pt_add(&tTmp, &tRes, pP);
+			__xrt_ed25519_pt_copy(&tRes, &tTmp);
+		}
+	}
+	__xrt_ed25519_pt_copy(pR, &tRes);
+}
+
+static bool __xrt_ed25519_pt_from_bytes(__xrt_ed25519_pt *pP, const uint8 in[32])
+{
+	uint8 yEnc[32];
+	int iSign;
+	__xrt_ed25519_fe y, y2, u, v, x, t, one, d;
+	memcpy(yEnc, in, 32);
+	iSign = (yEnc[31] >> 7) & 1;
+	yEnc[31] &= 0x7f;
+	if ( !__xrt_ed25519_fe_from_le_canonical(y, yEnc) ) return false;
+	__xrt_ed25519_fe_sqr(y2, y);
+	__xrt_ed25519_fe_one(one);
+	__xrt_ed25519_fe_sub(u, y2, one);
+	__xrt_ed25519_fe_from_le(d, __xrt_ed25519_d_le);
+	__xrt_ed25519_fe_mul(v, d, y2);
+	__xrt_ed25519_fe_add(v, v, one);
+	if ( !__xrt_ed25519_fe_sqrt_ratio(x, u, v) ) return false;
+	if ( __xrt_ed25519_fe_is_zero(x) && iSign ) return false;
+	if ( __xrt_ed25519_fe_is_odd(x) != iSign ) {
+		__xrt_ed25519_fe_neg(x, x);
+	}
+	__xrt_ed25519_fe_copy(pP->X, x);
+	__xrt_ed25519_fe_copy(pP->Y, y);
+	__xrt_ed25519_fe_one(pP->Z);
+	__xrt_ed25519_fe_mul(t, x, y);
+	__xrt_ed25519_fe_copy(pP->T, t);
+	return true;
+}
+
+static void __xrt_ed25519_pt_to_bytes(uint8 out[32], const __xrt_ed25519_pt *pP)
+{
+	__xrt_ed25519_fe zInv, x, y;
+	__xrt_ed25519_fe_inv(zInv, pP->Z);
+	__xrt_ed25519_fe_mul(x, pP->X, zInv);
+	__xrt_ed25519_fe_mul(y, pP->Y, zInv);
+	__xrt_ed25519_fe_to_le(out, y);
+	out[31] |= (uint8)(__xrt_ed25519_fe_is_odd(x) << 7);
+}
+
+static bool __xrt_ed25519_base_point(__xrt_ed25519_pt *pB)
+{
+	return __xrt_ed25519_pt_from_bytes(pB, __xrt_ed25519_base_y);
+}
+
+static bool __xrt_ed25519_scalar_lt_l(const uint8 s[32])
+{
+	int i;
+	for ( i = 31; i >= 0; i-- ) {
+		if ( s[i] < __xrt_ed25519_order_le[i] ) return true;
+		if ( s[i] > __xrt_ed25519_order_le[i] ) return false;
+	}
+	return false;
+}
+
+static struct __xrt_bigint* __xrt_ed25519_bi_import_le(struct __xrt_bi_ctx *pCtx, const uint8 *pData, size_t iLen)
+{
+	uint8 aBE[64];
+	size_t i;
+	if ( !pCtx || !pData || iLen == 0 || iLen > sizeof(aBE) ) return NULL;
+	for ( i = 0; i < iLen; i++ ) {
+		aBE[i] = pData[iLen - 1 - i];
+	}
+	return __xrt_bi_import(pCtx, aBE, (int)iLen);
+}
+
+static bool __xrt_ed25519_scalar_export_le(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, uint8 out[32])
+{
+	uint8 aBE[32];
+	int i;
+	if ( !pCtx || !pBi || !out ) return false;
+	__xrt_bi_export(pCtx, pBi, aBE, sizeof(aBE));
+	for ( i = 0; i < 32; i++ ) {
+		out[i] = aBE[31 - i];
+	}
+	return true;
+}
+
+static bool __xrt_ed25519_scalar_reduce(uint8 out[32], const uint8 *pData, size_t iLen)
+{
+	struct __xrt_bi_ctx *pCtx;
+	struct __xrt_bigint *pVal, *pMod, *pRem;
+	bool bOK = false;
+	if ( !out || !pData || iLen == 0 || iLen > 64 ) return false;
+	pCtx = __xrt_bi_initialize();
+	if ( !pCtx ) return false;
+	pVal = __xrt_ed25519_bi_import_le(pCtx, pData, iLen);
+	pMod = __xrt_bi_import(pCtx, __xrt_ed25519_order_be, 32);
+	if ( pVal && pMod ) {
+		pRem = __xrt_bi_divide(pCtx, pVal, pMod, 1);
+		bOK = __xrt_ed25519_scalar_export_le(pCtx, pRem, out);
+	}
+	__xrt_bi_terminate(pCtx);
+	return bOK;
+}
+
+static bool __xrt_ed25519_scalar_muladd(uint8 out[32], const uint8 addend[32],
+	const uint8 mulA[32], const uint8 mulB[32])
+{
+	struct __xrt_bi_ctx *pCtx;
+	struct __xrt_bigint *pAdd, *pA, *pB, *pProd, *pSum, *pMod, *pRem;
+	bool bOK = false;
+	if ( !out || !addend || !mulA || !mulB ) return false;
+	pCtx = __xrt_bi_initialize();
+	if ( !pCtx ) return false;
+	pAdd = __xrt_ed25519_bi_import_le(pCtx, addend, 32);
+	pA = __xrt_ed25519_bi_import_le(pCtx, mulA, 32);
+	pB = __xrt_ed25519_bi_import_le(pCtx, mulB, 32);
+	if ( !pAdd || !pA || !pB ) {
+		__xrt_bi_terminate(pCtx);
+		return false;
+	}
+	pProd = __xrt_bi_multiply(pCtx, pA, pB);
+	pSum = __xrt_bi_add(pCtx, pProd, pAdd);
+	pMod = __xrt_bi_import(pCtx, __xrt_ed25519_order_be, 32);
+	if ( pSum && pMod ) {
+		pRem = __xrt_bi_divide(pCtx, pSum, pMod, 1);
+		bOK = __xrt_ed25519_scalar_export_le(pCtx, pRem, out);
+	}
+	__xrt_bi_terminate(pCtx);
+	return bOK;
+}
+
+static void __xrt_ed25519_clamp_scalar(uint8 out[32], const uint8 h[64])
+{
+	memcpy(out, h, 32);
+	out[0] &= 248;
+	out[31] &= 63;
+	out[31] |= 64;
+}
+
+XXAPI void xrtEd25519PublicKey(uint8 *pPubKey, const uint8 *pSeed)
+{
+	uint8 aH[64], aScalar[32];
+	__xrt_ed25519_pt tB, tA;
+	if ( !pPubKey || !pSeed ) return;
+	xrtSHA512((const ptr)pSeed, 32, aH);
+	__xrt_ed25519_clamp_scalar(aScalar, aH);
+	if ( !__xrt_ed25519_base_point(&tB) ) {
+		memset(pPubKey, 0, 32);
+		return;
+	}
+	__xrt_ed25519_pt_mul(&tA, &tB, aScalar);
+	__xrt_ed25519_pt_to_bytes(pPubKey, &tA);
+}
+
+XXAPI void xrtEd25519Keypair(uint8 *pSeed, uint8 *pPubKey)
+{
+	if ( !pSeed || !pPubKey ) return;
+	xrtRandomBytes(pSeed, 32);
+	xrtEd25519PublicKey(pPubKey, pSeed);
+}
+
+XXAPI bool xrtEd25519Sign(uint8 *pSig, const uint8 *pMsg, size_t iMsgLen, const uint8 *pSeed)
+{
+	xsha512_ctx tHash;
+	uint8 aH[64], aScalar[32], aPrefix[32], aPub[32], aNonceHash[64], aNonce[32];
+	uint8 aChallengeHash[64], aChallenge[32], aS[32];
+	__xrt_ed25519_pt tB, tA, tR;
+	if ( !pSig || !pMsg || !pSeed ) return false;
+	xrtSHA512((const ptr)pSeed, 32, aH);
+	__xrt_ed25519_clamp_scalar(aScalar, aH);
+	memcpy(aPrefix, aH + 32, 32);
+	if ( !__xrt_ed25519_base_point(&tB) ) return false;
+	__xrt_ed25519_pt_mul(&tA, &tB, aScalar);
+	__xrt_ed25519_pt_to_bytes(aPub, &tA);
+
+	xrtSHA512Init(&tHash);
+	xrtSHA512Update(&tHash, aPrefix, 32);
+	xrtSHA512Update(&tHash, (const ptr)pMsg, iMsgLen);
+	xrtSHA512Final(&tHash, aNonceHash);
+	if ( !__xrt_ed25519_scalar_reduce(aNonce, aNonceHash, sizeof(aNonceHash)) ) return false;
+
+	__xrt_ed25519_pt_mul(&tR, &tB, aNonce);
+	__xrt_ed25519_pt_to_bytes(pSig, &tR);
+
+	xrtSHA512Init(&tHash);
+	xrtSHA512Update(&tHash, pSig, 32);
+	xrtSHA512Update(&tHash, aPub, 32);
+	xrtSHA512Update(&tHash, (const ptr)pMsg, iMsgLen);
+	xrtSHA512Final(&tHash, aChallengeHash);
+	if ( !__xrt_ed25519_scalar_reduce(aChallenge, aChallengeHash, sizeof(aChallengeHash)) ) return false;
+	if ( !__xrt_ed25519_scalar_muladd(aS, aNonce, aChallenge, aScalar) ) return false;
+	memcpy(pSig + 32, aS, 32);
+	return true;
+}
+
 XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey)
 {
-	// TODO: Ed25519 签名验证待实现
-	(void)pMsg; (void)iMsgLen; (void)pSig; (void)pPubKey;
-	return false;
+	xsha512_ctx tHash;
+	uint8 aChallengeHash[64], aChallenge[32], aLeft[32], aRight[32];
+	__xrt_ed25519_pt tB, tA, tR, tSB, tKA, tSum;
+	int i;
+	if ( !pMsg || !pSig || !pPubKey ) return false;
+	if ( !__xrt_ed25519_scalar_lt_l(pSig + 32) ) return false;
+	if ( !__xrt_ed25519_pt_from_bytes(&tA, pPubKey) ) return false;
+	if ( !__xrt_ed25519_pt_from_bytes(&tR, pSig) ) return false;
+	if ( !__xrt_ed25519_base_point(&tB) ) return false;
+
+	xrtSHA512Init(&tHash);
+	xrtSHA512Update(&tHash, (const ptr)pSig, 32);
+	xrtSHA512Update(&tHash, (const ptr)pPubKey, 32);
+	xrtSHA512Update(&tHash, (const ptr)pMsg, iMsgLen);
+	xrtSHA512Final(&tHash, aChallengeHash);
+	if ( !__xrt_ed25519_scalar_reduce(aChallenge, aChallengeHash, sizeof(aChallengeHash)) ) return false;
+
+	__xrt_ed25519_pt_mul(&tSB, &tB, pSig + 32);
+	__xrt_ed25519_pt_mul(&tKA, &tA, aChallenge);
+	__xrt_ed25519_pt_add(&tSum, &tR, &tKA);
+	for ( i = 0; i < 3; i++ ) {
+		__xrt_ed25519_pt_double(&tSB, &tSB);
+		__xrt_ed25519_pt_double(&tSum, &tSum);
+	}
+	__xrt_ed25519_pt_to_bytes(aLeft, &tSB);
+	__xrt_ed25519_pt_to_bytes(aRight, &tSum);
+	return memcmp(aLeft, aRight, 32) == 0;
 }
