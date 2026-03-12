@@ -1715,6 +1715,7 @@
 		// 服务端 SNI 回调 (虚拟主机支持)
 		void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
 		ptr pSNIUserData;
+		bool bAllowTLS12Ed25519;  // 服务端是否允许在 TLS 1.2 使用 Ed25519 证书, 默认 false
 	} xtlsconfig;
 	
 	/* ---- IO Poller (不透明) ---- */
@@ -1926,6 +1927,7 @@
 	XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
 	XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);                   // 获取客户端请求的 SNI 主机名 (服务端模式)
 	XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);  // SNI 回调后配置证书
+	XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx* pCtx, bool bAllow);  // 显式允许 TLS 1.2 使用 Ed25519 证书
 	
 	
 	

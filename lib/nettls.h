@@ -1173,6 +1173,7 @@ struct xrt_tls_context {
 	
 	// 配置
 	bool bSkipVerify;
+	bool bAllowTLS12Ed25519;
 	char sHostname[254];
 	
 	// 服务端 SNI
@@ -3591,6 +3592,7 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	
 	if ( pConfig ) {
 		pCtx->bSkipVerify = !pConfig->bVerifyPeer;
+		pCtx->bAllowTLS12Ed25519 = pConfig->bAllowTLS12Ed25519;
 		if ( pConfig->sHostName ) {
 			strncpy(pCtx->sHostname, pConfig->sHostName, sizeof(pCtx->sHostname) - 1);
 		}
@@ -4931,7 +4933,10 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	// 回退到 TLS 1.2
 	if ( iLegacyVersion != __XRT_TLS_VERSION_1_2 ) return false;
 
-	if ( pCtx->bIsECPubKey ) {
+	// TLS 1.2 中 Ed25519 不是默认互操作路径, 仅在显式允许时作为 ECDHE_ECDSA 认证证书使用。
+	if ( pCtx->bIsEd25519Key && !pCtx->bAllowTLS12Ed25519 ) return false;
+
+	if ( pCtx->bIsECPubKey || pCtx->bIsEd25519Key ) {
 		if ( bOfferTLS12EcdheEcdsaAES256 ) pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384;
 		else if ( bOfferTLS12EcdheEcdsaChaCha ) pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256;
 		else if ( bOfferTLS12EcdheEcdsaAES128 ) pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256;
@@ -4973,7 +4978,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	}
 
 	if ( pCtx->bIsEd25519Key ) {
-		if ( !pCtx->bHasEd25519Priv || !pCtx->bPeerSigEd25519 ) return false;
+		if ( !pCtx->bAllowTLS12Ed25519 || !pCtx->bHasEd25519Priv || !pCtx->bPeerSigEd25519 ) return false;
 		pCtx->iServerSigAlg = 0x0807;
 	} else if ( pCtx->bIsECPubKey ) {
 		if ( bPeerSigECDSA256 ) pCtx->iServerSigAlg = 0x0403;
@@ -5352,6 +5357,12 @@ XXAPI const char* xrtTlsGetSNI(xtlsctx *pCtx)
 	if ( !pCtx ) return NULL;
 	if ( pCtx->sClientSNI[0] == '\0' ) return NULL;
 	return pCtx->sClientSNI;
+}
+
+XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx *pCtx, bool bAllow)
+{
+	if ( !pCtx ) return;
+	pCtx->bAllowTLS12Ed25519 = bAllow;
 }
 
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile)
