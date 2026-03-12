@@ -118,6 +118,40 @@ static void __xrt_tcp_server_free_slot(xtcpserver* pServer, int iSlot)
 // Forward declarations
 static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
 static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
+static void __xrt_tcp_server_dispatch_tls_data(xtcpserver* pServer, __xrt_tcp_client_slot* pSlot);
+static void __xrt_tcp_client_dispatch_tls_data(xtcpclient* pClient);
+
+static void __xrt_tcp_server_dispatch_tls_data(xtcpserver* pServer, __xrt_tcp_client_slot* pSlot)
+{
+	char aBuf[8192];
+	size_t iDecrypted = 0;
+
+	if ( !pServer || !pSlot || !pSlot->pTlsCtx ) return;
+	while ( xrtTlsRead(pSlot->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+		if ( pServer->tEvents.OnRecv ) {
+			pServer->tEvents.OnRecv(pServer, &pSlot->tConn, aBuf, iDecrypted);
+		}
+		iDecrypted = 0;
+	}
+}
+
+static void __xrt_tcp_client_dispatch_tls_data(xtcpclient* pClient)
+{
+	char aBuf[8192];
+	size_t iDecrypted = 0;
+
+	if ( !pClient || !pClient->pTlsCtx ) return;
+	while ( xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
+		if ( pClient->bSyncRecvMode ) {
+			xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iDecrypted);
+			pClient->bSyncRecvReady = true;
+		}
+		if ( pClient->tEvents.OnRecv ) {
+			pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iDecrypted);
+		}
+		iDecrypted = 0;
+	}
+}
 
 // 客户端槽位 事件处理 (READ/WRITE/CLOSE)
 static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
@@ -136,6 +170,7 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 			// 将 poller 收到的数据送入 TLS 接收缓冲区
 			xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, pData, iLen);
 			xnet_result iRes = xrtTlsHandshake(pSlot->pTlsCtx, &pSlot->tConn);
+			bool bTlsReady = xrtTlsIsReady(pSlot->pTlsCtx);
 			
 			// 将 TLS 输出通过 poller 发送
 			if ( pSlot->pTlsCtx->tSendBuf.iSize > 0 ) {
@@ -144,11 +179,12 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 				xrtNetBufConsume(&pSlot->pTlsCtx->tSendBuf, pSlot->pTlsCtx->tSendBuf.iSize);
 			}
 			
-			if ( iRes == XRT_NET_OK ) {
+			if ( iRes == XRT_NET_OK || (iRes == XRT_NET_AGAIN && bTlsReady) ) {
 				// 握手完成
 				pSlot->bTlsHandshaking = false;
 				pSlot->tConn.bTlsEnabled = true;
 				pSlot->tConn.pTlsCtx = pSlot->pTlsCtx;
+				__xrt_tcp_server_dispatch_tls_data(pServer, pSlot);
 			} else if ( iRes == XRT_NET_ERROR ) {
 				// 握手失败，关闭连接
 				goto close_slot;
@@ -162,18 +198,11 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 		if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
 			// TLS: 将原始数据送入 TLS 解密
 			xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, pData, iLen);
-			char aBuf[8192];
-			size_t iDecrypted = 0;
-			while ( xrtTlsRead(pSlot->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
-					if ( pServer->tEvents.OnRecv ) {
-						pServer->tEvents.OnRecv(pServer->pUserData, &pSlot->tConn, aBuf, iDecrypted);
-				}
-				iDecrypted = 0;
-			}
+			__xrt_tcp_server_dispatch_tls_data(pServer, pSlot);
 		} else {
 			// 明文数据
 			if ( pServer->tEvents.OnRecv ) {
-				pServer->tEvents.OnRecv(pServer->pUserData, &pSlot->tConn, pData, iLen);
+				pServer->tEvents.OnRecv(pServer, &pSlot->tConn, pData, iLen);
 			}
 		}
 		
@@ -184,7 +213,7 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 	
 	if ( iEvent == XRT_POLL_WRITE ) {
 		if ( pServer->tEvents.OnSend ) {
-			pServer->tEvents.OnSend(pServer->pUserData, &pSlot->tConn, iLen);
+			pServer->tEvents.OnSend(pServer, &pSlot->tConn, iLen);
 		}
 		return;
 	}
@@ -192,7 +221,7 @@ static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEve
 	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
 close_slot:
 		if ( pServer->tEvents.OnClose ) {
-			pServer->tEvents.OnClose(pServer->pUserData, &pSlot->tConn);
+			pServer->tEvents.OnClose(pServer, &pSlot->tConn);
 		}
 		
 		xrtPollRemove(pPoller, &pSlot->tConn);
@@ -273,7 +302,7 @@ static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 	
 	// 触发 OnAccept 回调
 	if ( pServer->tEvents.OnAccept ) {
-		pServer->tEvents.OnAccept(pServer->pUserData, &pSlot->tConn);
+		pServer->tEvents.OnAccept(pServer, &pSlot->tConn);
 	}
 	
 	// 投递 recv
@@ -502,7 +531,7 @@ XXAPI void xrtTcpServerStop(xtcpserver* pServer)
 			#endif
 			
 			if ( pServer->tEvents.OnClose ) {
-				pServer->tEvents.OnClose(pServer->pUserData, &pSlot->tConn);
+				pServer->tEvents.OnClose(pServer, &pSlot->tConn);
 			}
 			if ( pSlot->pTlsCtx ) {
 				xrtTlsDestroy(pSlot->pTlsCtx);
@@ -558,7 +587,7 @@ XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId)
 	if ( !pSlot->bInUse ) return;
 	
 	if ( pServer->tEvents.OnClose ) {
-		pServer->tEvents.OnClose(pServer->pUserData, &pSlot->tConn);
+		pServer->tEvents.OnClose(pServer, &pSlot->tConn);
 	}
 	
 	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
@@ -618,6 +647,7 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 		if ( pClient->bTlsHandshaking && pClient->pTlsCtx ) {
 			xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, pData, iLen);
 			xnet_result iRes = xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn);
+			bool bTlsReady = xrtTlsIsReady(pClient->pTlsCtx);
 			
 			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
 				xrtPollPostSend(pPoller, &pClient->tConn,
@@ -625,11 +655,12 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 				xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, pClient->pTlsCtx->tSendBuf.iSize);
 			}
 			
-			if ( iRes == XRT_NET_OK ) {
+			if ( iRes == XRT_NET_OK || (iRes == XRT_NET_AGAIN && bTlsReady) ) {
 				pClient->bTlsHandshaking = false;
 				pClient->tConn.bTlsEnabled = true;
 				pClient->tConn.pTlsCtx = pClient->pTlsCtx;
 				pClient->bConnected = true;
+				__xrt_tcp_client_dispatch_tls_data(pClient);
 				if ( pClient->tEvents.OnConnect ) {
 					pClient->tEvents.OnConnect(pClient, &pClient->tConn, true);
 				}
@@ -646,20 +677,7 @@ static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, c
 		// 正常数据
 		if ( pClient->tConn.bTlsEnabled && pClient->pTlsCtx ) {
 			xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, pData, iLen);
-			char aBuf[8192];
-			size_t iDecrypted = 0;
-			while ( xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
-				// 同步模式：写入同步缓冲区
-				if ( pClient->bSyncRecvMode ) {
-					xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iDecrypted);
-					pClient->bSyncRecvReady = true;
-				}
-				// 异步模式：调用用户回调
-				if ( pClient->tEvents.OnRecv ) {
-					pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iDecrypted);
-				}
-				iDecrypted = 0;
-			}
+			__xrt_tcp_client_dispatch_tls_data(pClient);
 		} else {
 			// 同步模式：写入同步缓冲区
 			if ( pClient->bSyncRecvMode ) {

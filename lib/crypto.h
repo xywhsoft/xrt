@@ -2610,16 +2610,36 @@ XXAPI int xrtRSAModPow(const uint8 *pMod, size_t iModSz,
 
 /* ============================== RSA-PSS 签名验证 (RFC 8017) ============================== */
 
-// MGF1 掩码生成函数 (RFC 8017 B.2.1, 基于 SHA-256)
-static void __xrt_mgf1_sha256(uint8 *pOut, size_t iOutLen, const uint8 *pSeed, size_t iSeedLen)
+// 根据输出长度选择 SHA-256 / SHA-384 / SHA-512
+static bool __xrt_hash_bytes(uint8 *pOut, size_t iHashLen, const uint8 *pData, size_t iLen)
+{
+	if ( iHashLen == 32 ) {
+		xrtSHA256((const ptr)pData, iLen, pOut);
+		return true;
+	}
+	if ( iHashLen == 48 ) {
+		xrtSHA384((const ptr)pData, iLen, pOut);
+		return true;
+	}
+	if ( iHashLen == 64 ) {
+		xrtSHA512((const ptr)pData, iLen, pOut);
+		return true;
+	}
+	return false;
+}
+
+// MGF1 掩码生成函数 (RFC 8017 B.2.1)
+static bool __xrt_mgf1(uint8 *pOut, size_t iOutLen,
+	const uint8 *pSeed, size_t iSeedLen, size_t iHashLen)
 {
 	uint8 aCounter[4];
-	uint8 aHash[32];
+	uint8 aHash[64];
 	size_t iOffset = 0;
 	uint32 iCtr = 0;
 
+	if ( (iHashLen != 32) && (iHashLen != 48) && (iHashLen != 64) ) return false;
+
 	while ( iOffset < iOutLen ) {
-		xsha256_ctx tCtx;
 		size_t iCopyLen;
 
 		aCounter[0] = (uint8)(iCtr >> 24);
@@ -2627,25 +2647,27 @@ static void __xrt_mgf1_sha256(uint8 *pOut, size_t iOutLen, const uint8 *pSeed, s
 		aCounter[2] = (uint8)(iCtr >> 8);
 		aCounter[3] = (uint8)(iCtr);
 
-		xrtSHA256Init(&tCtx);
-		xrtSHA256Update(&tCtx, (ptr)pSeed, iSeedLen);
-		xrtSHA256Update(&tCtx, aCounter, 4);
-		xrtSHA256Final(&tCtx, aHash);
+		uint8 aBuf[68];
+		if ( iSeedLen + 4 > sizeof(aBuf) ) return false;
+		memcpy(aBuf, pSeed, iSeedLen);
+		memcpy(aBuf + iSeedLen, aCounter, 4);
+		if ( !__xrt_hash_bytes(aHash, iHashLen, aBuf, iSeedLen + 4) ) return false;
 
 		iCopyLen = iOutLen - iOffset;
-		if ( iCopyLen > 32 ) iCopyLen = 32;
+		if ( iCopyLen > iHashLen ) iCopyLen = iHashLen;
 		memcpy(pOut + iOffset, aHash, iCopyLen);
 
 		iOffset += iCopyLen;
 		iCtr++;
 	}
+	return true;
 }
 
 // EMSA-PSS-VERIFY (RFC 8017 Section 9.1.2)
-// pHash: 被签名的消息哈希 (SHA-256, 32 bytes)
+// pHash: 被签名的消息哈希 (SHA-256/384/512)
 // pEM: RSA 解密后的编码消息
 // iEMLen: EM 长度 (等于 RSA modulus 字节数)
-// iSaltLen: 盐长度 (通常等于 hash 长度 = 32)
+// iSaltLen: 盐长度 (通常等于 hash 长度)
 static bool __xrt_emsa_pss_verify(const uint8 *pHash, size_t iHashLen,
 	const uint8 *pEM, size_t iEMLen, size_t iSaltLen)
 {
@@ -2654,10 +2676,11 @@ static bool __xrt_emsa_pss_verify(const uint8 *pHash, size_t iHashLen,
 	const uint8 *pH;
 	uint8 *pDBMask;
 	uint8 *pDB;
-	uint8 aHP[32];  // H'
-	xsha256_ctx tCtx;
+	uint8 aHP[64];  // H'
 	uint8 iDiff;
 	const uint8 aPad8[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+	if ( (iHashLen != 32) && (iHashLen != 48) && (iHashLen != 64) ) return false;
 
 	// 检查 EM 最后一个字节为 0xbc
 	if ( iEMLen < iHashLen + iSaltLen + 2 ) return false;
@@ -2679,7 +2702,11 @@ static bool __xrt_emsa_pss_verify(const uint8 *pHash, size_t iHashLen,
 		return false;
 	}
 
-	__xrt_mgf1_sha256(pDBMask, iDBLen, pH, iHashLen);
+	if ( !__xrt_mgf1(pDBMask, iDBLen, pH, iHashLen, iHashLen) ) {
+		xrtFree(pDBMask);
+		xrtFree(pDB);
+		return false;
+	}
 
 	// DB = maskedDB XOR dbMask
 	for ( i = 0; i < iDBLen; i++ ) {
@@ -2706,12 +2733,19 @@ static bool __xrt_emsa_pss_verify(const uint8 *pHash, size_t iHashLen,
 		}
 	}
 
-	// H' = SHA-256(0x00*8 || mHash || salt)
-	xrtSHA256Init(&tCtx);
-	xrtSHA256Update(&tCtx, (ptr)aPad8, 8);
-	xrtSHA256Update(&tCtx, (ptr)pHash, iHashLen);
-	xrtSHA256Update(&tCtx, (ptr)(pDB + iDBLen - iSaltLen), iSaltLen);
-	xrtSHA256Final(&tCtx, aHP);
+	// H' = Hash(0x00*8 || mHash || salt)
+	{
+		uint8 aM[8 + 64 + 64];
+		size_t iMLen = 8 + iHashLen + iSaltLen;
+		memcpy(aM, aPad8, 8);
+		memcpy(aM + 8, pHash, iHashLen);
+		memcpy(aM + 8 + iHashLen, pDB + iDBLen - iSaltLen, iSaltLen);
+		if ( !__xrt_hash_bytes(aHP, iHashLen, aM, iMLen) ) {
+			xrtFree(pDBMask);
+			xrtFree(pDB);
+			return false;
+		}
+	}
 
 	// 常量时间比较 H == H'
 	iDiff = 0;
@@ -2725,7 +2759,7 @@ static bool __xrt_emsa_pss_verify(const uint8 *pHash, size_t iHashLen,
 	return (iDiff == 0);
 }
 
-// RSA-PSS-RSAE-SHA256 签名验证
+// RSA-PSS-RSAE 签名验证 (SHA-256 / SHA-384 / SHA-512)
 XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen,
 	const uint8 *pSig, size_t iSigLen,
 	const uint8 *pMod, size_t iModSz,
@@ -2734,7 +2768,7 @@ XXAPI bool xrtRSAPSSVerify(const uint8 *pHash, size_t iHashLen,
 	uint8 *pEM;
 	bool bResult;
 
-	if ( (iHashLen != 32) || (iSigLen != iModSz) ) return false;
+	if ( ((iHashLen != 32) && (iHashLen != 48) && (iHashLen != 64)) || (iSigLen != iModSz) ) return false;
 
 	// 分配 EM 缓冲区
 	pEM = (uint8*)xrtMalloc(iModSz);
@@ -2849,6 +2883,126 @@ XXAPI bool xrtRSAPKCS1Verify(const uint8 *pHash, size_t iHashLen,
 	
 	xrtFree(pEM);
 	return (iDiff == 0);
+}
+
+static bool __xrt_emsa_pss_encode(const uint8 *pHash, size_t iHashLen, uint8 *pEM, size_t iEMLen)
+{
+	size_t iDBLen;
+	size_t iSaltLen = iHashLen;
+	uint8 aSalt[64];
+	uint8 aH[64];
+	uint8 *pDB;
+	uint8 *pMask;
+	size_t i;
+
+	if ( ((iHashLen != 32) && (iHashLen != 48) && (iHashLen != 64)) ||
+		(iEMLen < iHashLen + iSaltLen + 2) ) {
+		return false;
+	}
+
+	xrtRandomBytes(aSalt, iSaltLen);
+	{
+		uint8 aM[8 + 64 + 64];
+		memcpy(aM + 8, pHash, iHashLen);
+		memcpy(aM + 8 + iHashLen, aSalt, iSaltLen);
+		memset(aM, 0, 8);
+		if ( !__xrt_hash_bytes(aH, iHashLen, aM, 8 + iHashLen + iSaltLen) ) return false;
+	}
+
+	iDBLen = iEMLen - iHashLen - 1;
+	pDB = (uint8*)xrtMalloc(iDBLen);
+	pMask = (uint8*)xrtMalloc(iDBLen);
+	if ( !pDB || !pMask ) {
+		if ( pDB ) xrtFree(pDB);
+		if ( pMask ) xrtFree(pMask);
+		return false;
+	}
+
+	memset(pDB, 0, iDBLen);
+	pDB[iDBLen - iSaltLen - 1] = 0x01;
+	memcpy(pDB + iDBLen - iSaltLen, aSalt, iSaltLen);
+	if ( !__xrt_mgf1(pMask, iDBLen, aH, iHashLen, iHashLen) ) {
+		xrtFree(pDB);
+		xrtFree(pMask);
+		return false;
+	}
+
+	for ( i = 0; i < iDBLen; i++ ) pEM[i] = pDB[i] ^ pMask[i];
+	pEM[0] &= 0x7f;
+	memcpy(pEM + iDBLen, aH, iHashLen);
+	pEM[iEMLen - 1] = 0xbc;
+
+	xrtFree(pDB);
+	xrtFree(pMask);
+	return true;
+}
+
+static bool __xrt_rsa_pss_sign(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pMod, size_t iModSz,
+	const uint8 *pPrivExp, size_t iPrivExpSz,
+	uint8 *pSig, size_t iSigSz)
+{
+	uint8 *pEM;
+	bool bOK = false;
+
+	if ( !pHash || !pMod || !pPrivExp || !pSig || iSigSz != iModSz ) return false;
+	pEM = (uint8*)xrtMalloc(iModSz);
+	if ( !pEM ) return false;
+
+	if ( __xrt_emsa_pss_encode(pHash, iHashLen, pEM, iModSz) &&
+		xrtRSAModPow(pMod, iModSz, pPrivExp, iPrivExpSz, pEM, iModSz, pSig, iSigSz) == 0 ) {
+		bOK = true;
+	}
+
+	xrtFree(pEM);
+	return bOK;
+}
+
+static bool __xrt_rsa_pkcs1_sign(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pMod, size_t iModSz,
+	const uint8 *pPrivExp, size_t iPrivExpSz,
+	uint8 *pSig, size_t iSigSz)
+{
+	uint8 *pEM;
+	const uint8 *pPrefix;
+	size_t iPrefixLen;
+	size_t iTLen;
+	size_t iPsLen;
+
+	if ( !pHash || !pMod || !pPrivExp || !pSig || iSigSz != iModSz ) return false;
+	if ( iHashLen == 32 ) {
+		pPrefix = __xrt_pkcs1_sha256_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha256_prefix);
+	} else if ( iHashLen == 48 ) {
+		pPrefix = __xrt_pkcs1_sha384_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha384_prefix);
+	} else if ( iHashLen == 64 ) {
+		pPrefix = __xrt_pkcs1_sha512_prefix;
+		iPrefixLen = sizeof(__xrt_pkcs1_sha512_prefix);
+	} else {
+		return false;
+	}
+
+	iTLen = iPrefixLen + iHashLen;
+	if ( iModSz < iTLen + 11 ) return false;
+	pEM = (uint8*)xrtMalloc(iModSz);
+	if ( !pEM ) return false;
+
+	iPsLen = iModSz - 3 - iTLen;
+	pEM[0] = 0x00;
+	pEM[1] = 0x01;
+	memset(pEM + 2, 0xff, iPsLen);
+	pEM[2 + iPsLen] = 0x00;
+	memcpy(pEM + 3 + iPsLen, pPrefix, iPrefixLen);
+	memcpy(pEM + 3 + iPsLen + iPrefixLen, pHash, iHashLen);
+
+	if ( xrtRSAModPow(pMod, iModSz, pPrivExp, iPrivExpSz, pEM, iModSz, pSig, iSigSz) != 0 ) {
+		xrtFree(pEM);
+		return false;
+	}
+
+	xrtFree(pEM);
+	return true;
 }
 
 
@@ -3509,6 +3663,88 @@ XXAPI bool xrtECDSAVerify(const uint8 *pHash, size_t iHashLen, const uint8 *pSig
 	}
 	
 	return (__xrt_u256_cmp(rx, r_u) == 0);
+}
+
+static size_t __xrt_u256_to_der_integer(uint8 *pOut, const uint32 *pValue)
+{
+	uint8 aBuf[32];
+	size_t iOff = 0;
+	size_t iLen;
+
+	__xrt_u256_to_be(aBuf, pValue);
+	while ( iOff < 31 && aBuf[iOff] == 0 ) iOff++;
+	iLen = 32 - iOff;
+	if ( iLen == 0 ) {
+		pOut[0] = 0x02;
+		pOut[1] = 1;
+		pOut[2] = 0;
+		return 3;
+	}
+
+	pOut[0] = 0x02;
+	if ( aBuf[iOff] & 0x80 ) {
+		pOut[1] = (uint8)(iLen + 1);
+		pOut[2] = 0x00;
+		memcpy(pOut + 3, aBuf + iOff, iLen);
+		return iLen + 3;
+	}
+
+	pOut[1] = (uint8)iLen;
+	memcpy(pOut + 2, aBuf + iOff, iLen);
+	return iLen + 2;
+}
+
+static bool __xrt_ecdsa_sign_p256(const uint8 *pHash, size_t iHashLen,
+	const uint8 *pPrivKey, uint8 *pSig, size_t *pSigLen)
+{
+	uint32 d[8], z[8], k[8], kinv[8], r[8], s[8], t[8], rx[8], ry[8];
+	__xrt_p256_jpt tR;
+	uint8 aK[32];
+	uint8 aR[40], aS[40];
+	size_t iRLen, iSLen;
+	int iTry;
+
+	if ( !pHash || !pPrivKey || !pSig || !pSigLen ) return false;
+
+	__xrt_u256_from_be(d, pPrivKey);
+	if ( __xrt_u256_is_zero(d) || __xrt_u256_gte(d, __xrt_p256_N) ) return false;
+
+	{
+		uint8 aZ[32] = {0};
+		size_t iCopy = iHashLen > 32 ? 32 : iHashLen;
+		memcpy(aZ, pHash, iCopy);
+		__xrt_u256_from_be(z, aZ);
+	}
+
+	for ( iTry = 0; iTry < 32; iTry++ ) {
+		xrtRandomBytes(aK, 32);
+		__xrt_u256_from_be(k, aK);
+		if ( __xrt_u256_is_zero(k) || __xrt_u256_gte(k, __xrt_p256_N) ) continue;
+
+		__xrt_p256_scalar_mult(&tR, k, __xrt_p256_Gx, __xrt_p256_Gy);
+		__xrt_p256_to_affine(rx, ry, &tR);
+		if ( __xrt_u256_is_zero(rx) && __xrt_u256_is_zero(ry) ) continue;
+		if ( __xrt_u256_gte(rx, __xrt_p256_N) ) __xrt_u256_sub(rx, rx, __xrt_p256_N);
+		if ( __xrt_u256_is_zero(rx) ) continue;
+
+		__xrt_u256_copy(r, rx);
+		__xrt_p256_inv_mod_n(kinv, k);
+		__xrt_p256_mul_mod_n(t, r, d);
+		__xrt_p256_add_mod_n(t, t, z);
+		__xrt_p256_mul_mod_n(s, kinv, t);
+		if ( __xrt_u256_is_zero(s) ) continue;
+
+		iRLen = __xrt_u256_to_der_integer(aR, r);
+		iSLen = __xrt_u256_to_der_integer(aS, s);
+		pSig[0] = 0x30;
+		pSig[1] = (uint8)(iRLen + iSLen);
+		memcpy(pSig + 2, aR, iRLen);
+		memcpy(pSig + 2 + iRLen, aS, iSLen);
+		*pSigLen = 2 + iRLen + iSLen;
+		return true;
+	}
+
+	return false;
 }
 
 XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig, const uint8 *pPubKey)

@@ -23,7 +23,417 @@
 /* ============================== 内部线程安全的临时缓冲区 ============================== */
 
 // 用于 xrtHttpRespHeader / xrtHttpRespCookie 返回值的线程局部缓冲区
-static char __xrt_http_tmpbuf[4096];
+#if defined(__GNUC__) || defined(__TINYC__)
+	#define __XRT_HTTP_THREAD_LOCAL __thread
+#elif defined(_WIN32) || defined(_WIN64)
+	#define __XRT_HTTP_THREAD_LOCAL __declspec(thread)
+#else
+	#define __XRT_HTTP_THREAD_LOCAL __thread
+#endif
+static __XRT_HTTP_THREAD_LOCAL char __xrt_http_tmpbuf[4096];
+
+typedef struct {
+	char* sName;
+	char* sValue;
+	char* sDomain;
+	char* sPath;
+	time_t iExpiresAt;   // 0 = session cookie
+	bool bSecure;
+	bool bHostOnly;
+} __xrt_http_cookie;
+
+typedef struct {
+	xbuffer pBuf;
+	xurl pURL;
+	time_t iNow;
+} __xrt_http_cookie_build_ctx;
+
+
+
+static char __xrt_http_tolower(char c)
+{
+	if ( c >= 'A' && c <= 'Z' ) return (char)(c + 32);
+	return c;
+}
+
+static bool __xrt_http_str_ieq_n(const char* a, const char* b, size_t iLen)
+{
+	for ( size_t i = 0; i < iLen; i++ ) {
+		if ( __xrt_http_tolower(a[i]) != __xrt_http_tolower(b[i]) ) return false;
+	}
+	return true;
+}
+
+static bool __xrt_http_str_ieq(const char* a, const char* b)
+{
+	size_t iLenA = a ? strlen(a) : 0;
+	size_t iLenB = b ? strlen(b) : 0;
+	if ( iLenA != iLenB ) return false;
+	return __xrt_http_str_ieq_n(a, b, iLenA);
+}
+
+static char* __xrt_http_copy_lower(const char* sText)
+{
+	if ( !sText ) return NULL;
+	size_t iLen = strlen(sText);
+	char* sCopy = (char*)xrtMalloc(iLen + 1);
+	if ( !sCopy ) return NULL;
+	for ( size_t i = 0; i < iLen; i++ ) sCopy[i] = __xrt_http_tolower(sText[i]);
+	sCopy[iLen] = '\0';
+	return sCopy;
+}
+
+static char* __xrt_http_copy_trim(const char* sText, size_t iLen)
+{
+	while ( iLen > 0 && (*sText == ' ' || *sText == '\t') ) {
+		sText++;
+		iLen--;
+	}
+	while ( iLen > 0 && (sText[iLen - 1] == ' ' || sText[iLen - 1] == '\t') ) {
+		iLen--;
+	}
+	return xrtCopyStr((str)sText, (uint32)iLen);
+}
+
+static void __xrt_http_cookie_free(__xrt_http_cookie* pCookie)
+{
+	if ( !pCookie ) return;
+	if ( pCookie->sName ) xrtFree(pCookie->sName);
+	if ( pCookie->sValue ) xrtFree(pCookie->sValue);
+	if ( pCookie->sDomain ) xrtFree(pCookie->sDomain);
+	if ( pCookie->sPath ) xrtFree(pCookie->sPath);
+	xrtFree(pCookie);
+}
+
+static int __xrt_http_month_index(const char* sMonth)
+{
+	static const char* aMonths[] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	};
+	for ( int i = 0; i < 12; i++ ) {
+		if ( __xrt_http_str_ieq_n(sMonth, aMonths[i], 3) ) return i;
+	}
+	return -1;
+}
+
+static time_t __xrt_http_timegm(struct tm* pTM)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return _mkgmtime(pTM);
+	#else
+		return timegm(pTM);
+	#endif
+}
+
+static bool __xrt_http_parse_http_date(const char* sText, time_t* pOut)
+{
+	char aWeekDay[8] = {0};
+	char aMonth[8] = {0};
+	char aTZ[8] = {0};
+	int iDay = 0, iYear = 0, iHour = 0, iMin = 0, iSec = 0;
+	struct tm tTM;
+	int iMonth;
+
+	if ( !sText || !pOut ) return false;
+	if ( sscanf(sText, "%7[^,], %d %7s %d %d:%d:%d %7s",
+		aWeekDay, &iDay, aMonth, &iYear, &iHour, &iMin, &iSec, aTZ) != 8 ) {
+		return false;
+	}
+
+	iMonth = __xrt_http_month_index(aMonth);
+	if ( iMonth < 0 ) return false;
+
+	memset(&tTM, 0, sizeof(tTM));
+	tTM.tm_mday = iDay;
+	tTM.tm_mon = iMonth;
+	tTM.tm_year = iYear - 1900;
+	tTM.tm_hour = iHour;
+	tTM.tm_min = iMin;
+	tTM.tm_sec = iSec;
+	tTM.tm_isdst = 0;
+
+	*pOut = __xrt_http_timegm(&tTM);
+	return (*pOut != (time_t)-1);
+}
+
+static char* __xrt_http_default_cookie_path(const char* sReqPath)
+{
+	size_t iLen = 0;
+	const char* pQuery = NULL;
+	const char* pLastSlash = NULL;
+
+	if ( !sReqPath || sReqPath[0] != '/' ) return xrtCopyStr("/", 1);
+
+	pQuery = strchr(sReqPath, '?');
+	iLen = pQuery ? (size_t)(pQuery - sReqPath) : strlen(sReqPath);
+	if ( iLen == 0 || sReqPath[0] != '/' ) return xrtCopyStr("/", 1);
+
+	for ( size_t i = 0; i < iLen; i++ ) {
+		if ( sReqPath[i] == '/' ) pLastSlash = sReqPath + i;
+	}
+
+	if ( !pLastSlash || pLastSlash == sReqPath ) return xrtCopyStr("/", 1);
+	return xrtCopyStr((str)sReqPath, (uint32)(pLastSlash - sReqPath));
+}
+
+static bool __xrt_http_domain_match(const char* sHost, const __xrt_http_cookie* pCookie)
+{
+	size_t iHostLen;
+	size_t iDomainLen;
+
+	if ( !pCookie || !sHost ) return false;
+	if ( !pCookie->sDomain || !pCookie->sDomain[0] ) return true;
+
+	iHostLen = strlen(sHost);
+	iDomainLen = strlen(pCookie->sDomain);
+
+	if ( pCookie->bHostOnly ) {
+		return __xrt_http_str_ieq(sHost, pCookie->sDomain);
+	}
+
+	if ( iHostLen < iDomainLen ) return false;
+	if ( !__xrt_http_str_ieq_n(sHost + iHostLen - iDomainLen, pCookie->sDomain, iDomainLen) ) {
+		return false;
+	}
+	if ( iHostLen == iDomainLen ) return true;
+	return sHost[iHostLen - iDomainLen - 1] == '.';
+}
+
+static bool __xrt_http_path_match(const char* sReqPath, const char* sCookiePath)
+{
+	size_t iCookieLen;
+
+	if ( !sReqPath || sReqPath[0] == '\0' ) sReqPath = "/";
+	if ( !sCookiePath || sCookiePath[0] == '\0' ) return true;
+
+	iCookieLen = strlen(sCookiePath);
+	if ( iCookieLen == 1 && sCookiePath[0] == '/' ) return true;
+	if ( strncmp(sReqPath, sCookiePath, iCookieLen) != 0 ) return false;
+	if ( sReqPath[iCookieLen] == '\0' ) return true;
+	if ( sCookiePath[iCookieLen - 1] == '/' ) return true;
+	return sReqPath[iCookieLen] == '/';
+}
+
+static bool __xrt_http_header_exists(const char* sHeaders, const char* sName)
+{
+	size_t iNameLen;
+	const char* p;
+
+	if ( !sHeaders || !sName ) return false;
+
+	iNameLen = strlen(sName);
+	p = sHeaders;
+	while ( *p ) {
+		size_t i = 0;
+		while ( p[i] && p[i] != ':' && p[i] != '\r' && p[i] != '\n' ) i++;
+		if ( i == iNameLen && p[i] == ':' && __xrt_http_str_ieq_n(p, sName, iNameLen) ) {
+			return true;
+		}
+		while ( *p && *p != '\n' ) p++;
+		if ( *p == '\n' ) p++;
+	}
+
+	return false;
+}
+
+static bool __xrt_http_has_token_ci(const char* sValue, const char* sToken)
+{
+	size_t iTokenLen;
+	const char* p;
+
+	if ( !sValue || !sToken ) return false;
+	iTokenLen = strlen(sToken);
+	p = sValue;
+
+	while ( *p ) {
+		const char* pStart;
+		size_t iLen;
+
+		while ( *p == ' ' || *p == '\t' || *p == ',' ) p++;
+		pStart = p;
+		while ( *p && *p != ',' && *p != '\r' && *p != '\n' ) p++;
+		iLen = (size_t)(p - pStart);
+		while ( iLen > 0 && (pStart[iLen - 1] == ' ' || pStart[iLen - 1] == '\t') ) iLen--;
+		if ( iLen == iTokenLen && __xrt_http_str_ieq_n(pStart, sToken, iTokenLen) ) {
+			return true;
+		}
+		if ( *p == ',' ) p++;
+	}
+
+	return false;
+}
+
+static void __xrt_http_append_headers_normalized(xbuffer pBuf, const char* sHeaders)
+{
+	const char* p = sHeaders;
+	bool bLastCRLF = false;
+
+	if ( !pBuf || !sHeaders || !sHeaders[0] ) return;
+
+	while ( *p ) {
+		const char* pStart = p;
+		while ( *p && *p != '\r' && *p != '\n' ) p++;
+		if ( p > pStart ) {
+			xrtBufferAppend(pBuf, (ptr)pStart, (uint32)(p - pStart), 0);
+		}
+
+		if ( *p == '\r' ) p++;
+		if ( *p == '\n' ) p++;
+		xrtBufferAppend(pBuf, "\r\n", 2, 0);
+		bLastCRLF = true;
+	}
+
+	if ( !bLastCRLF ) {
+		xrtBufferAppend(pBuf, "\r\n", 2, 0);
+	}
+}
+
+static bool __xrt_http_buffer_ends_with(const xbuffer pBuf, str sSuffix)
+{
+	size_t iSuffixLen;
+	if ( !pBuf || !pBuf->Buffer || !sSuffix ) return false;
+	iSuffixLen = strlen(sSuffix);
+	if ( pBuf->Length < iSuffixLen ) return false;
+	return memcmp(pBuf->Buffer + pBuf->Length - iSuffixLen, sSuffix, iSuffixLen) == 0;
+}
+
+static void __xrt_http_format_url(char* sBuf, size_t iBufSize,
+	bool bHttps, const char* sHost, uint16 iPort, const char* sPath)
+{
+	bool bDefaultPort = (bHttps && iPort == 443) || (!bHttps && iPort == 80);
+	if ( !sPath || !sPath[0] ) sPath = "/";
+	if ( bDefaultPort ) {
+		snprintf(sBuf, iBufSize, "%s://%s%s", bHttps ? "https" : "http", sHost, sPath);
+	} else {
+		snprintf(sBuf, iBufSize, "%s://%s:%u%s", bHttps ? "https" : "http", sHost, iPort, sPath);
+	}
+}
+
+static void __xrt_http_normalize_path(char* sPath)
+{
+	char aTmp[2048];
+	char* aSegPos[256];
+	int iSegCount = 0;
+	char* pOut = aTmp;
+	const char* p = sPath;
+
+	if ( !sPath || !sPath[0] ) {
+		strcpy(sPath, "/");
+		return;
+	}
+
+	if ( *p != '/' ) *pOut++ = '/';
+
+	while ( *p ) {
+		const char* pSeg = p;
+		size_t iSegLen;
+
+		while ( *p == '/' ) p++;
+		pSeg = p;
+		while ( *p && *p != '/' ) p++;
+		iSegLen = (size_t)(p - pSeg);
+
+		if ( iSegLen == 0 ) break;
+		if ( iSegLen == 1 && pSeg[0] == '.' ) continue;
+		if ( iSegLen == 2 && pSeg[0] == '.' && pSeg[1] == '.' ) {
+			if ( iSegCount > 0 ) {
+				pOut = aSegPos[--iSegCount];
+				*pOut = '\0';
+			}
+			continue;
+		}
+
+		if ( pOut == aTmp || pOut[-1] != '/' ) *pOut++ = '/';
+		aSegPos[iSegCount++] = pOut - 1;
+		memcpy(pOut, pSeg, iSegLen);
+		pOut += iSegLen;
+	}
+
+	if ( pOut == aTmp ) *pOut++ = '/';
+	*pOut = '\0';
+	strcpy(sPath, aTmp);
+}
+
+static bool __xrt_http_resolve_redirect_url(char* sBuf, size_t iBufSize,
+	xurl pBase, const char* sLocation)
+{
+	char aBasePath[2048];
+	char aCombined[4096];
+	char aPathPart[2048];
+	const char* pQuery = NULL;
+
+	if ( !sBuf || !pBase || !sLocation || !sLocation[0] ) return false;
+
+	if ( strncmp(sLocation, "http://", 7) == 0 || strncmp(sLocation, "https://", 8) == 0 ) {
+		snprintf(sBuf, iBufSize, "%s", sLocation);
+		return true;
+	}
+
+	if ( strncmp(sLocation, "//", 2) == 0 ) {
+		snprintf(sBuf, iBufSize, "%s:%s", pBase->bHttps ? "https" : "http", sLocation);
+		return true;
+	}
+
+	memset(aBasePath, 0, sizeof(aBasePath));
+	strncpy(aBasePath, pBase->sPath[0] ? pBase->sPath : "/", sizeof(aBasePath) - 1);
+	pQuery = strchr(aBasePath, '?');
+	if ( pQuery ) aBasePath[pQuery - aBasePath] = '\0';
+	if ( aBasePath[0] == '\0' ) strcpy(aBasePath, "/");
+
+	if ( sLocation[0] == '?' ) {
+		snprintf(aCombined, sizeof(aCombined), "%s%s", aBasePath, sLocation);
+		__xrt_http_format_url(sBuf, iBufSize, pBase->bHttps, pBase->sHost, pBase->iPort, aCombined);
+		return true;
+	}
+
+	if ( sLocation[0] == '/' ) {
+		snprintf(aCombined, sizeof(aCombined), "%s", sLocation);
+	} else {
+		char aBaseDir[2048];
+		char* pLastSlash;
+
+		strncpy(aBaseDir, aBasePath, sizeof(aBaseDir) - 1);
+		aBaseDir[sizeof(aBaseDir) - 1] = '\0';
+		pLastSlash = strrchr(aBaseDir, '/');
+		if ( !pLastSlash ) {
+			strcpy(aBaseDir, "/");
+		} else if ( pLastSlash == aBaseDir ) {
+			aBaseDir[1] = '\0';
+		} else {
+			pLastSlash[1] = '\0';
+		}
+		snprintf(aCombined, sizeof(aCombined), "%s%s", aBaseDir, sLocation);
+	}
+
+	pQuery = strpbrk(aCombined, "?#");
+	if ( pQuery ) {
+		size_t iPathLen = (size_t)(pQuery - aCombined);
+		if ( iPathLen >= sizeof(aPathPart) ) iPathLen = sizeof(aPathPart) - 1;
+		memcpy(aPathPart, aCombined, iPathLen);
+		aPathPart[iPathLen] = '\0';
+	} else {
+		strncpy(aPathPart, aCombined, sizeof(aPathPart) - 1);
+		aPathPart[sizeof(aPathPart) - 1] = '\0';
+	}
+
+	__xrt_http_normalize_path(aPathPart);
+
+	if ( pQuery ) {
+		snprintf(aCombined, sizeof(aCombined), "%s%s", aPathPart, pQuery);
+	} else {
+		snprintf(aCombined, sizeof(aCombined), "%s", aPathPart);
+	}
+
+	// HTTP 请求中不发送 fragment
+	{
+		char* pFragment = strchr(aCombined, '#');
+		if ( pFragment ) *pFragment = '\0';
+	}
+
+	__xrt_http_format_url(sBuf, iBufSize, pBase->bHttps, pBase->sHost, pBase->iPort, aCombined);
+	return true;
+}
 
 
 
@@ -112,7 +522,7 @@ typedef struct {
 	bool bConnected;
 } __xrt_http_conn;
 
-static bool __xrt_http_connect(__xrt_http_conn* pConn, const xurl pURL, int iTimeoutSec)
+static bool __xrt_http_connect(__xrt_http_conn* pConn, const xurl pURL, int iTimeoutSec, bool bVerifySSL)
 {
 	memset(pConn, 0, sizeof(__xrt_http_conn));
 	pConn->bHttps = pURL->bHttps;
@@ -165,7 +575,7 @@ static bool __xrt_http_connect(__xrt_http_conn* pConn, const xurl pURL, int iTim
 		xtlsconfig tCfg;
 		memset(&tCfg, 0, sizeof(xtlsconfig));
 		tCfg.sHostName = pURL->sHost;
-		tCfg.bVerifyPeer = false;  // 暂不验证证书
+		tCfg.bVerifyPeer = bVerifySSL;
 		
 		pConn->pTlsCtx = xrtTlsCreate(&tCfg, false);
 		if ( !pConn->pTlsCtx ) {
@@ -361,6 +771,8 @@ static void __xrt_http_build_request(
 	xbuffer pBuf)
 {
 	char aTmp[4096];
+	bool bHasContentType = __xrt_http_header_exists(sHeaders, "Content-Type");
+	bool bHasContentLength = __xrt_http_header_exists(sHeaders, "Content-Length");
 	
 	// 请求行
 	int iLen = snprintf(aTmp, sizeof(aTmp), "%s %s HTTP/1.1\r\n",
@@ -382,26 +794,25 @@ static void __xrt_http_build_request(
 	
 	// Content-Type
 	if ( pBody && iBodyLen > 0 ) {
-		if ( sContentType && sContentType[0] ) {
-			iLen = snprintf(aTmp, sizeof(aTmp), "Content-Type: %s\r\n", sContentType);
-		} else {
-			iLen = snprintf(aTmp, sizeof(aTmp), "Content-Type: application/x-www-form-urlencoded\r\n");
+		if ( !bHasContentType ) {
+			if ( sContentType && sContentType[0] ) {
+				iLen = snprintf(aTmp, sizeof(aTmp), "Content-Type: %s\r\n", sContentType);
+			} else {
+				iLen = snprintf(aTmp, sizeof(aTmp), "Content-Type: application/x-www-form-urlencoded\r\n");
+			}
+			xrtBufferAppend(pBuf, aTmp, iLen, 0);
 		}
-		xrtBufferAppend(pBuf, aTmp, iLen, 0);
 		
 		// Content-Length
-		iLen = snprintf(aTmp, sizeof(aTmp), "Content-Length: %u\r\n", (unsigned int)iBodyLen);
-		xrtBufferAppend(pBuf, aTmp, iLen, 0);
+		if ( !bHasContentLength ) {
+			iLen = snprintf(aTmp, sizeof(aTmp), "Content-Length: %u\r\n", (unsigned int)iBodyLen);
+			xrtBufferAppend(pBuf, aTmp, iLen, 0);
+		}
 	}
 	
 	// 用户自定义头
 	if ( sHeaders && sHeaders[0] ) {
-		size_t iHdrLen = strlen(sHeaders);
-		xrtBufferAppend(pBuf, (ptr)sHeaders, (uint32)iHdrLen, 0);
-		// 确保以 \r\n 结尾
-		if ( iHdrLen < 2 || sHeaders[iHdrLen - 1] != '\n' ) {
-			xrtBufferAppend(pBuf, "\r\n", 2, 0);
-		}
+		__xrt_http_append_headers_normalized(pBuf, sHeaders);
 	}
 	
 	// 空行结束头部
@@ -503,44 +914,53 @@ static str __xrt_http_find_header(str sHeaders, str sName, str sBuf, size_t iBuf
 // 解析 Chunked 编码数据到 pOut
 static bool __xrt_http_decode_chunked(str pData, size_t iLen, xbuffer pOut)
 {
-	str p = pData;
-	str pEnd = pData + iLen;
+	const char* p = pData;
+	const char* pEnd = pData + iLen;
+	bool bSawLastChunk = false;
 	
 	while ( p < pEnd ) {
-		// 解析 chunk 大小 (十六进制)
 		size_t iChunkSize = 0;
-		while ( p < pEnd && *p != '\r' && *p != '\n' ) {
+		bool bHasDigit = false;
+		
+		while ( p < pEnd && *p != ';' && *p != '\r' && *p != '\n' ) {
 			char c = *p;
-			if ( c >= '0' && c <= '9' ) iChunkSize = iChunkSize * 16 + (c - '0');
-			else if ( c >= 'a' && c <= 'f' ) iChunkSize = iChunkSize * 16 + (c - 'a' + 10);
-			else if ( c >= 'A' && c <= 'F' ) iChunkSize = iChunkSize * 16 + (c - 'A' + 10);
-			else break;  // chunk extension
+			if ( c >= '0' && c <= '9' ) iChunkSize = iChunkSize * 16 + (size_t)(c - '0');
+			else if ( c >= 'a' && c <= 'f' ) iChunkSize = iChunkSize * 16 + (size_t)(c - 'a' + 10);
+			else if ( c >= 'A' && c <= 'F' ) iChunkSize = iChunkSize * 16 + (size_t)(c - 'A' + 10);
+			else return false;
+			bHasDigit = true;
 			p++;
 		}
 		
-		// 跳过 \r\n
-		if ( p < pEnd && *p == '\r' ) p++;
-		if ( p < pEnd && *p == '\n' ) p++;
+		if ( !bHasDigit ) return false;
 		
-		// chunk size 0 表示结束
-		if ( iChunkSize == 0 ) break;
+		while ( p < pEnd && *p != '\r' && *p != '\n' ) p++;  // 跳过 chunk-extension
+		if ( p + 1 >= pEnd || p[0] != '\r' || p[1] != '\n' ) return false;
+		p += 2;
 		
-		// 复制 chunk 数据
-		if ( p + iChunkSize <= pEnd ) {
-			xrtBufferAppend(pOut, (ptr)p, (uint32)iChunkSize, 0);
-			p += iChunkSize;
-		} else {
-			// 数据不完整
-			xrtBufferAppend(pOut, (ptr)p, (uint32)(pEnd - p), 0);
-			break;
+		if ( iChunkSize == 0 ) {
+			bSawLastChunk = true;
+			while ( p < pEnd ) {
+				const char* pLineStart = p;
+				while ( p < pEnd && *p != '\r' && *p != '\n' ) p++;
+				if ( p + 1 >= pEnd || p[0] != '\r' || p[1] != '\n' ) return false;
+				if ( p == pLineStart ) {
+					p += 2;
+					return p == pEnd;
+				}
+				p += 2;
+			}
+			return false;
 		}
 		
-		// 跳过 chunk 后的 \r\n
-		if ( p < pEnd && *p == '\r' ) p++;
-		if ( p < pEnd && *p == '\n' ) p++;
+		if ( (size_t)(pEnd - p) < iChunkSize + 2 ) return false;
+		xrtBufferAppend(pOut, (ptr)p, (uint32)iChunkSize, 0);
+		p += iChunkSize;
+		if ( p[0] != '\r' || p[1] != '\n' ) return false;
+		p += 2;
 	}
 	
-	return true;
+	return bSawLastChunk;
 }
 
 
@@ -549,8 +969,9 @@ static bool __xrt_http_decode_chunked(str pData, size_t iLen, xbuffer pOut)
 
 static bool __xrt_http_cookie_free_cb(Dict_Key* pKey, ptr pVal, ptr pArg)
 {
-	str sVal = (str)xrtDictGetPtr((xdict)pArg, pKey->Key, pKey->KeyLen);
-	if ( sVal ) xrtFree(sVal);
+	(void)pVal;
+	__xrt_http_cookie* pCookie = (__xrt_http_cookie*)xrtDictGetPtr((xdict)pArg, pKey->Key, pKey->KeyLen);
+	if ( pCookie ) __xrt_http_cookie_free(pCookie);
 	return false;  // 继续遍历
 }
 
@@ -564,30 +985,40 @@ static void __xrt_http_cookies_destroy(xdict pCookies)
 // 遍历回调: 构建 Cookie 请求头
 static bool __xrt_http_cookie_build_cb(Dict_Key* pKey, ptr pVal, ptr pArg)
 {
-	xbuffer pBuf = (xbuffer)pArg;
-	// pVal 指向字典内部的值槽, 其中存储的是 ptr (cookie value 字符串)
-	str sCookieVal = *(str*)pVal;
-	if ( !sCookieVal ) return false;
+	__xrt_http_cookie_build_ctx* pCtx = (__xrt_http_cookie_build_ctx*)pArg;
+	__xrt_http_cookie* pCookie = pVal ? *((__xrt_http_cookie**)pVal) : NULL;
+	(void)pKey;
+	if ( !pCtx || !pCtx->pBuf || !pCtx->pURL || !pCookie || !pCookie->sValue ) return false;
+	str sReqPath = pCtx->pURL->sPath[0] ? pCtx->pURL->sPath : "/";
+	if ( pCookie->iExpiresAt != 0 && pCookie->iExpiresAt <= pCtx->iNow ) return false;
+	if ( pCookie->bSecure && !pCtx->pURL->bHttps ) return false;
+	if ( !__xrt_http_domain_match(pCtx->pURL->sHost, pCookie) ) return false;
+	if ( !__xrt_http_path_match(sReqPath, pCookie->sPath) ) return false;
 	
-	if ( pBuf->Length > 8 ) {  // 已有 "Cookie: " 之后的内容
-		xrtBufferAppend(pBuf, "; ", 2, 0);
+	if ( pCtx->pBuf->Length > 8 ) {  // 已有 "Cookie: " 之后的内容
+		xrtBufferAppend(pCtx->pBuf, "; ", 2, 0);
 	}
-	xrtBufferAppend(pBuf, pKey->Key, pKey->KeyLen, 0);
-	xrtBufferAppend(pBuf, "=", 1, 0);
-	xrtBufferAppend(pBuf, sCookieVal, (uint32)strlen(sCookieVal), 0);
+	xrtBufferAppend(pCtx->pBuf, pCookie->sName ? pCookie->sName : pKey->Key,
+		pCookie->sName ? (uint32)strlen(pCookie->sName) : pKey->KeyLen, 0);
+	xrtBufferAppend(pCtx->pBuf, "=", 1, 0);
+	xrtBufferAppend(pCtx->pBuf, pCookie->sValue, (uint32)strlen(pCookie->sValue), 0);
 	return false;  // 继续遍历
 }
 
 // 构建 "Cookie: name1=val1; name2=val2\r\n" 字符串, 调用者负责 xrtFree
-static str __xrt_http_build_cookie_header(xdict pCookies)
+static str __xrt_http_build_cookie_header(xdict pCookies, const xurl pURL)
 {
 	if ( !pCookies ) return NULL;
 	
 	xbuffer_struct tBuf;
+	__xrt_http_cookie_build_ctx tCtx;
 	xrtBufferInit(&tBuf, 512);
 	xrtBufferAppend(&tBuf, "Cookie: ", 8, 0);
 	
-	xrtDictWalk(pCookies, __xrt_http_cookie_build_cb, &tBuf);
+	tCtx.pBuf = &tBuf;
+	tCtx.pURL = pURL;
+	tCtx.iNow = time(NULL);
+	xrtDictWalk(pCookies, __xrt_http_cookie_build_cb, &tCtx);
 	
 	if ( tBuf.Length <= 8 ) {
 		// 没有任何 cookie
@@ -604,7 +1035,7 @@ static str __xrt_http_build_cookie_header(xdict pCookies)
 }
 
 // 从响应头中提取所有 Set-Cookie 并存入 xdict
-static void __xrt_http_save_cookies(xhttpresp pResp, xdict pCookies)
+static void __xrt_http_save_cookies(xhttpresp pResp, xdict pCookies, const xurl pURL)
 {
 	if ( !pResp || !pResp->tRawHeaders.Buffer || !pCookies ) return;
 	
@@ -621,6 +1052,13 @@ static void __xrt_http_save_cookies(xhttpresp pResp, xdict pCookies)
 		}
 		
 		if ( bMatch ) {
+			__xrt_http_cookie* pCookie = NULL;
+			char* sDomain = NULL;
+			char* sPath = NULL;
+			time_t iExpiresAt = 0;
+			bool bSecure = false;
+			bool bHostOnly = true;
+			
 			p += 11;  // strlen("set-cookie:")
 			while ( *p == ' ' || *p == '\t' ) p++;
 			
@@ -635,17 +1073,107 @@ static void __xrt_http_save_cookies(xhttpresp pResp, xdict pCookies)
 				str pValStart = p;
 				while ( *p && *p != ';' && *p != '\r' && *p != '\n' ) p++;
 				size_t iValLen = (size_t)(p - pValStart);
+				str sValue = xrtCopyStr((str)pValStart, (uint32)iValLen);
 				
-				// 释放旧值
-				str sOldVal = (str)xrtDictGetPtr(pCookies, (ptr)pNameStart, (uint32)iNameLen);
-				if ( sOldVal ) xrtFree(sOldVal);
+				pCookie = (__xrt_http_cookie*)xrtCalloc(1, sizeof(__xrt_http_cookie));
+				if ( !pCookie || !sValue ) {
+					if ( pCookie ) __xrt_http_cookie_free(pCookie);
+					if ( sValue ) xrtFree(sValue);
+					goto __next_cookie_line;
+				}
 				
-				// 存储新值
-				str sNewVal = xrtCopyStr((str)pValStart, (uint32)iValLen);
-				xrtDictSetPtr(pCookies, (ptr)pNameStart, (uint32)iNameLen, sNewVal, NULL);
+				pCookie->sName = xrtCopyStr((str)pNameStart, (uint32)iNameLen);
+				pCookie->sValue = sValue;
+				pCookie->sDomain = __xrt_http_copy_lower(pURL ? pURL->sHost : "");
+				pCookie->sPath = __xrt_http_default_cookie_path(pURL ? pURL->sPath : "/");
+				pCookie->bSecure = false;
+				pCookie->bHostOnly = true;
+				pCookie->iExpiresAt = 0;
+				
+				while ( *p == ';' ) {
+					str pAttrName;
+					size_t iAttrNameLen;
+					str pAttrVal = NULL;
+					size_t iAttrValLen = 0;
+					
+					p++;
+					while ( *p == ' ' || *p == '\t' ) p++;
+					pAttrName = p;
+					while ( *p && *p != '=' && *p != ';' && *p != '\r' && *p != '\n' ) p++;
+					iAttrNameLen = (size_t)(p - pAttrName);
+					if ( *p == '=' ) {
+						p++;
+						pAttrVal = p;
+						while ( *p && *p != ';' && *p != '\r' && *p != '\n' ) p++;
+						iAttrValLen = (size_t)(p - pAttrVal);
+					}
+					
+					if ( iAttrNameLen == 6 && __xrt_http_str_ieq_n(pAttrName, "Domain", 6) && pAttrVal ) {
+						char* sNewDomain = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
+						if ( sNewDomain ) {
+							while ( sNewDomain[0] == '.' ) memmove(sNewDomain, sNewDomain + 1, strlen(sNewDomain));
+							for ( size_t i = 0; sNewDomain[i]; i++ ) sNewDomain[i] = __xrt_http_tolower(sNewDomain[i]);
+							if ( sNewDomain[0] ) {
+								if ( pCookie->sDomain ) xrtFree(pCookie->sDomain);
+								pCookie->sDomain = sNewDomain;
+								pCookie->bHostOnly = false;
+								sNewDomain = NULL;
+							}
+							if ( sNewDomain ) xrtFree(sNewDomain);
+						}
+					} else if ( iAttrNameLen == 4 && __xrt_http_str_ieq_n(pAttrName, "Path", 4) && pAttrVal ) {
+						char* sNewPath = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
+						if ( sNewPath ) {
+							if ( pCookie->sPath ) xrtFree(pCookie->sPath);
+							pCookie->sPath = sNewPath;
+						}
+					} else if ( iAttrNameLen == 6 && __xrt_http_str_ieq_n(pAttrName, "Secure", 6) ) {
+						pCookie->bSecure = true;
+					} else if ( iAttrNameLen == 7 && __xrt_http_str_ieq_n(pAttrName, "Max-Age", 7) && pAttrVal ) {
+						char* sAge = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
+						if ( sAge ) {
+							long long iDelta = atoll(sAge);
+							if ( iDelta <= 0 ) {
+								pCookie->iExpiresAt = 1;
+							} else {
+								pCookie->iExpiresAt = time(NULL) + (time_t)iDelta;
+							}
+							xrtFree(sAge);
+						}
+					} else if ( iAttrNameLen == 7 && __xrt_http_str_ieq_n(pAttrName, "Expires", 7) && pAttrVal ) {
+						char* sExpiry = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
+						if ( sExpiry ) {
+							time_t iParsed = 0;
+							if ( __xrt_http_parse_http_date(sExpiry, &iParsed) ) {
+								pCookie->iExpiresAt = iParsed;
+							}
+							xrtFree(sExpiry);
+						}
+					}
+				}
+				
+				{
+					__xrt_http_cookie* pOldCookie = (__xrt_http_cookie*)xrtDictGetPtr(pCookies, (ptr)pNameStart, (uint32)iNameLen);
+					bool bDeleteCookie = (pCookie->sValue[0] == '\0') ||
+						(pCookie->iExpiresAt != 0 && pCookie->iExpiresAt <= time(NULL));
+					
+					if ( bDeleteCookie ) {
+						if ( pOldCookie ) {
+							__xrt_http_cookie_free(pOldCookie);
+							xrtDictRemove(pCookies, (ptr)pNameStart, (uint32)iNameLen);
+						}
+						__xrt_http_cookie_free(pCookie);
+						pCookie = NULL;
+					} else {
+						if ( pOldCookie ) __xrt_http_cookie_free(pOldCookie);
+						xrtDictSetPtr(pCookies, (ptr)pNameStart, (uint32)iNameLen, pCookie, NULL);
+						pCookie = NULL;
+					}
+				}
 			}
 		}
 		
+__next_cookie_line:
 		// 跳到下一行
 		while ( *p && *p != '\n' ) p++;
 		if ( *p == '\n' ) p++;
@@ -690,7 +1218,7 @@ static xhttpresp __xrt_http_execute(
 	
 	// 建立连接
 	__xrt_http_conn tConn;
-	if ( !__xrt_http_connect(&tConn, &tURL, iTimeoutSec) ) {
+	if ( !__xrt_http_connect(&tConn, &tURL, iTimeoutSec, bVerifySSL) ) {
 		#ifdef DEBUG_TRACE
 			printf("    [HTTP] Connect failed\n");
 		#endif
@@ -702,7 +1230,7 @@ static xhttpresp __xrt_http_execute(
 	str sMergedHeaders = NULL;
 	str sFinalHeaders = sHeaders;
 	if ( pCookies ) {
-		sCookieHdr = __xrt_http_build_cookie_header(pCookies);
+		sCookieHdr = __xrt_http_build_cookie_header(pCookies, &tURL);
 		if ( sCookieHdr ) {
 			if ( sHeaders ) {
 				size_t iCookieLen = strlen(sCookieHdr);
@@ -778,16 +1306,16 @@ static xhttpresp __xrt_http_execute(
 		
 		if ( iRecvd <= 0 ) {
 			// 连接关闭或超时
-			if ( !bHeadersDone ) {
-				// 未收到完整头部
-				if ( tRawBuf.Length == 0 ) {
-					// 未收到任何数据
-					xrtBufferUnit(&tRawBuf);
-					if ( pFile ) fclose(pFile);
-					xrtHttpRespFree(pResp);
-					__xrt_http_close(&tConn);
-					return NULL;
+			if ( !bHeadersDone || (!bChunked && pResp->iContentLength != (size_t)-1 &&
+				iTotalReceived < pResp->iContentLength) ) {
+				xrtBufferUnit(&tRawBuf);
+				if ( pFile ) {
+					fclose(pFile);
+					remove(sFilePath);
 				}
+				xrtHttpRespFree(pResp);
+				__xrt_http_close(&tConn);
+				return NULL;
 			}
 			break;
 		}
@@ -822,12 +1350,7 @@ static xhttpresp __xrt_http_execute(
 					
 					// Transfer-Encoding
 					if ( __xrt_http_find_header(pResp->tRawHeaders.Buffer, "Transfer-Encoding", aTmpVal, sizeof(aTmpVal)) ) {
-						// 检查是否为 chunked (不区分大小写)
-						str pTE = aTmpVal;
-						while ( *pTE == ' ' ) pTE++;
-						if ( (pTE[0] == 'c' || pTE[0] == 'C') && (pTE[1] == 'h' || pTE[1] == 'H') ) {
-							bChunked = true;
-						}
+						bChunked = __xrt_http_has_token_ci(aTmpVal, "chunked");
 					}
 					
 					// 把头部之后的数据作为 body 的开头
@@ -839,7 +1362,14 @@ static xhttpresp __xrt_http_execute(
 							xrtBufferAppend(&pResp->tBody, tRawBuf.Buffer + iBodyStart, (uint32)iBodyPart, 0);
 						} else {
 							if ( pFile ) {
-								fwrite(tRawBuf.Buffer + iBodyStart, 1, iBodyPart, pFile);
+								if ( fwrite(tRawBuf.Buffer + iBodyStart, 1, iBodyPart, pFile) != iBodyPart ) {
+									xrtBufferUnit(&tRawBuf);
+									fclose(pFile);
+									remove(sFilePath);
+									xrtHttpRespFree(pResp);
+									__xrt_http_close(&tConn);
+									return NULL;
+								}
 							} else {
 								xrtBufferAppend(&pResp->tBody, tRawBuf.Buffer + iBodyStart, (uint32)iBodyPart, 0);
 							}
@@ -863,6 +1393,7 @@ static xhttpresp __xrt_http_execute(
 								xrtBufferUnit(&tProgressBuf);
 								xrtBufferUnit(&tRawBuf);
 								fclose(pFile);
+								remove(sFilePath);
 								__xrt_http_close(&tConn);
 								return pResp;
 							}
@@ -888,7 +1419,14 @@ static xhttpresp __xrt_http_execute(
 			xrtBufferAppend(&pResp->tBody, aRecvBuf, iRecvd, 0);
 		} else {
 			if ( pFile ) {
-				fwrite(aRecvBuf, 1, iRecvd, pFile);
+				if ( fwrite(aRecvBuf, 1, iRecvd, pFile) != (size_t)iRecvd ) {
+					xrtBufferUnit(&tRawBuf);
+					fclose(pFile);
+					remove(sFilePath);
+					xrtHttpRespFree(pResp);
+					__xrt_http_close(&tConn);
+					return NULL;
+				}
 			} else {
 				xrtBufferAppend(&pResp->tBody, aRecvBuf, iRecvd, 0);
 			}
@@ -922,19 +1460,35 @@ static xhttpresp __xrt_http_execute(
 	// 关闭连接
 	__xrt_http_close(&tConn);
 	
-	// 关闭文件
-	if ( pFile ) {
-		fclose(pFile);
-		pFile = NULL;
-	}
-	
 	// Chunked 解码
 	if ( bChunked && pResp->tBody.Length > 0 ) {
 		xbuffer_struct tDecoded;
 		xrtBufferInit(&tDecoded, pResp->tBody.Length);
-		__xrt_http_decode_chunked(pResp->tBody.Buffer, pResp->tBody.Length, &tDecoded);
+		if ( !__xrt_http_decode_chunked(pResp->tBody.Buffer, pResp->tBody.Length, &tDecoded) ) {
+			xrtBufferUnit(&tDecoded);
+			if ( pFile ) {
+				fclose(pFile);
+				remove(sFilePath);
+			}
+			xrtHttpRespFree(pResp);
+			return NULL;
+		}
 		xrtBufferUnit(&pResp->tBody);
 		pResp->tBody = tDecoded;
+	}
+	
+	// 关闭文件 / 写出 chunked 正文
+	if ( pFile ) {
+		if ( bChunked && pResp->tBody.Length > 0 ) {
+			if ( fwrite(pResp->tBody.Buffer, 1, pResp->tBody.Length, pFile) != pResp->tBody.Length ) {
+				fclose(pFile);
+				remove(sFilePath);
+				xrtHttpRespFree(pResp);
+				return NULL;
+			}
+		}
+		fclose(pFile);
+		pFile = NULL;
 	}
 	
 	// 确保 body 以 \0 结尾 (方便字符串操作)
@@ -945,7 +1499,7 @@ static xhttpresp __xrt_http_execute(
 	
 	// 保存响应中的 Set-Cookie 到 cookie 字典
 	if ( pCookies && pResp ) {
-		__xrt_http_save_cookies(pResp, pCookies);
+		__xrt_http_save_cookies(pResp, pCookies, &tURL);
 	}
 	
 	// 处理重定向
@@ -956,17 +1510,9 @@ static xhttpresp __xrt_http_execute(
 				printf("    [HTTP] Redirect %d -> %s\n", pResp->iStatusCode, sLocation);
 			#endif
 			
-			// 判断是否为相对路径
+			// 解析相对/绝对重定向 URL
 			char sFullURL[4096];
-			if ( sLocation[0] == '/' ) {
-				// 相对路径，拼接完整 URL
-				snprintf(sFullURL, sizeof(sFullURL), "%s://%s:%d%s",
-					tURL.bHttps ? "https" : "http", tURL.sHost, tURL.iPort, sLocation);
-			} else if ( strncmp(sLocation, "http://", 7) == 0 || strncmp(sLocation, "https://", 8) == 0 ) {
-				// 绝对 URL
-				snprintf(sFullURL, sizeof(sFullURL), "%s", sLocation);
-			} else {
-				// 不支持的重定向
+			if ( !__xrt_http_resolve_redirect_url(sFullURL, sizeof(sFullURL), &tURL, sLocation) ) {
 				return pResp;
 			}
 			
@@ -1263,7 +1809,9 @@ XXAPI xhttpresp xrtHttpReqExecute(xhttpreq pReq)
 		// 添加 multipart 结束标记
 		char aEnd[128];
 		int iEndLen = snprintf(aEnd, sizeof(aEnd), "--%s--\r\n", pReq->sBoundary);
-		xrtBufferAppend(&pReq->tMultipart, aEnd, iEndLen, 0);
+		if ( !__xrt_http_buffer_ends_with(&pReq->tMultipart, aEnd) ) {
+			xrtBufferAppend(&pReq->tMultipart, aEnd, iEndLen, 0);
+		}
 		
 		pBody = pReq->tMultipart.Buffer;
 		iBodyLen = pReq->tMultipart.Length;
@@ -1306,6 +1854,8 @@ XXAPI void xrtHttpReqEnableCookies(xhttpreq pReq, bool bEnable)
 XXAPI void xrtHttpReqSetCookie(xhttpreq pReq, str sName, str sValue)
 {
 	if ( !pReq || !sName || !sValue ) return;
+	__xrt_http_cookie* pCookie;
+	__xrt_http_cookie* pOldCookie;
 	
 	// 懒创建 xdict
 	if ( !pReq->pCookies ) {
@@ -1315,13 +1865,18 @@ XXAPI void xrtHttpReqSetCookie(xhttpreq pReq, str sName, str sValue)
 	
 	uint32 iKeyLen = (uint32)strlen(sName);
 	
-	// 释放旧值
-	str sOldVal = (str)xrtDictGetPtr(pReq->pCookies, (ptr)sName, iKeyLen);
-	if ( sOldVal ) xrtFree(sOldVal);
+	pCookie = (__xrt_http_cookie*)xrtCalloc(1, sizeof(__xrt_http_cookie));
+	if ( !pCookie ) return;
+	pCookie->sName = xrtCopyStr((str)sName, iKeyLen);
+	pCookie->sValue = xrtCopyStr((str)sValue, (uint32)strlen(sValue));
+	if ( !pCookie->sName || !pCookie->sValue ) {
+		__xrt_http_cookie_free(pCookie);
+		return;
+	}
 	
-	// 存储新值
-	str sNewVal = xrtCopyStr((str)sValue, (uint32)strlen(sValue));
-	xrtDictSetPtr(pReq->pCookies, (ptr)sName, iKeyLen, sNewVal, NULL);
+	pOldCookie = (__xrt_http_cookie*)xrtDictGetPtr(pReq->pCookies, (ptr)sName, iKeyLen);
+	if ( pOldCookie ) __xrt_http_cookie_free(pOldCookie);
+	xrtDictSetPtr(pReq->pCookies, (ptr)sName, iKeyLen, pCookie, NULL);
 }
 
 XXAPI void xrtHttpReqRemoveCookie(xhttpreq pReq, str sName)
@@ -1331,8 +1886,8 @@ XXAPI void xrtHttpReqRemoveCookie(xhttpreq pReq, str sName)
 	uint32 iKeyLen = (uint32)strlen(sName);
 	
 	// 释放值
-	str sOldVal = (str)xrtDictGetPtr(pReq->pCookies, (ptr)sName, iKeyLen);
-	if ( sOldVal ) xrtFree(sOldVal);
+	__xrt_http_cookie* pOldCookie = (__xrt_http_cookie*)xrtDictGetPtr(pReq->pCookies, (ptr)sName, iKeyLen);
+	if ( pOldCookie ) __xrt_http_cookie_free(pOldCookie);
 	
 	xrtDictRemove(pReq->pCookies, (ptr)sName, iKeyLen);
 }
