@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-13 15:46:56
+    Generated: 2026-03-13 23:14:37
 
     MIT License
 
@@ -197,6 +197,7 @@
 			#define InetNtopA inet_ntop
 					
 			BOOL WINAPI CancelIoEx(HANDLE hFile, LPOVERLAPPED lpOverlapped);
+			BOOL WINAPI IsThreadAFiber(void);
 		#endif
 	#else
 		#include <winsock2.h>
@@ -209,6 +210,7 @@
 	#include <pthread.h>
 	#include <semaphore.h>
 	#include <signal.h>
+	#include <sys/mman.h>
 #endif
 // ========================================
 // XRT 模块裁剪支持
@@ -407,6 +409,18 @@
 		ptr pSharedAlloc;
 		ptr pReserved;
 	} xrtThreadMemState;
+	#define XRT_CO_RUNTIME_FIBER_CONVERTED	0x00000001u
+	#define XRT_CO_RUNTIME_FIBER_HOSTED		0x00000002u
+	typedef struct {
+		uint64 iOwnerThreadId;
+		uint32 iFlags;
+		uint32 iReserved;
+		ptr pCurrent;
+		ptr pRoot;
+		ptr pDefaultSched;
+		ptr pBackendMain;
+		ptr pBackendAux;
+	} xrtCoroRuntimeState;
 	#define XRT_OBJMODE_LOCAL		0
 	#define XRT_OBJMODE_SHARED		1
 	#define XRT_OBJFLAG_SHARED_PENDING	0x00000001u
@@ -480,6 +494,7 @@
 		xrand rand64_low;
 		xrand rand64_high;
 		xrtThreadMemState tMem;
+		xrtCoroRuntimeState tCoro;
 		xrtThreadCleanup* pCleanupTop;
 	};
 	
@@ -561,21 +576,63 @@
 		}
 		return NULL;
 	}
-	static inline long __xrtOwnerAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
+	static inline long __xrtAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
 	{
-		#if defined(_WIN32) || defined(_WIN64)
+		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+			long iPrev;
+			__asm__ volatile (
+				"lock; cmpxchgl %2, %1"
+				: "=a"(iPrev), "+m"(*pValue)
+				: "r"(iExchange), "0"(iComparand)
+				: "memory"
+			);
+			return iPrev;
+		#elif defined(_WIN32) || defined(_WIN64)
 			return InterlockedCompareExchange((volatile LONG*)pValue, iExchange, iComparand);
 		#else
 			return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
 		#endif
 	}
+	static inline long __xrtAtomicExchange32(volatile long* pValue, long iValue)
+	{
+		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+			__asm__ volatile (
+				"xchgl %0, %1"
+				: "+r"(iValue), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iValue;
+		#elif defined(_WIN32) || defined(_WIN64)
+			return InterlockedExchange((volatile LONG*)pValue, iValue);
+		#else
+			return __sync_lock_test_and_set(pValue, iValue);
+		#endif
+	}
+	static inline long __xrtAtomicAddFetch32(volatile long* pValue, long iDelta)
+	{
+		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+			long iPrev = iDelta;
+			__asm__ volatile (
+				"lock; xaddl %0, %1"
+				: "+r"(iPrev), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iPrev + iDelta;
+		#elif defined(_WIN32) || defined(_WIN64)
+			return InterlockedExchangeAdd((volatile LONG*)pValue, iDelta) + iDelta;
+		#else
+			return __sync_add_and_fetch(pValue, iDelta);
+		#endif
+	}
+	static inline long __xrtOwnerAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
+	{
+		return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
+	}
 	static inline void __xrtOwnerAtomicStore(volatile long* pValue, long iValue)
 	{
-		#if defined(_WIN32) || defined(_WIN64)
-			InterlockedExchange((volatile LONG*)pValue, iValue);
-		#else
-			__sync_lock_test_and_set(pValue, iValue);
-		#endif
+		__xrtAtomicExchange32(pValue, iValue);
 	}
 	static inline void __xrtOwnerSpinLock(volatile long* pLock)
 	{
@@ -1503,44 +1560,104 @@
 	#define XRT_CO_RUNNING       1      // 正在运行
 	#define XRT_CO_SUSPENDED     2      // 已挂起 (yield)
 	#define XRT_CO_DEAD          3      // 已结束
+	// 协程终态原因
+	#define XRT_CO_TERM_NONE         0
+	#define XRT_CO_TERM_RETURNED     1
+	#define XRT_CO_TERM_CANCELLED    2
+	// 协程 backend 分层
+	#define XRT_CO_BACKEND_TIER_COMPAT       1
+	#define XRT_CO_BACKEND_TIER_PRODUCTION   2
+	// 协程 backend 实现风格
+	#define XRT_CO_BACKEND_STYLE_COMPAT      1
+	#define XRT_CO_BACKEND_STYLE_INLINE_ASM  2
 	
 	// 默认栈大小
 	#define XRT_CO_STACK_DEFAULT (64 * 1024)        // 64 KB
 	#define XRT_CO_STACK_MIN     (8 * 1024)         // 8 KB (最小值保护)
 	#define XRT_CO_STACK_MAX     (8 * 1024 * 1024)  // 8 MB (最大值保护)
+	#define XRT_CO_WAIT_INFINITE UINT32_C(0xffffffff)
 	
 	// 协程入口函数类型
 	typedef void (*xco_entry)(ptr pParam);
+	typedef void (*xco_cleanup_proc)(ptr pArg);
+	typedef struct xco_cleanup {
+		xco_cleanup_proc Proc;
+		ptr Arg;
+		struct xco_cleanup* pPrev;
+	} xco_cleanup;
+	// 协程创建参数（标准 runtime API，未来扩展入口）
+	#define XRT_CO_CREATE_NONE	0x00000000u
+	typedef struct {
+		size_t iStackSize;
+		ptr pUserData;
+		uint32 iFlags;
+		uint32 iReserved;
+	} xco_create_args;
 	
 	// 协程上下文（内部使用）
 	typedef struct {
-		ptr arrReg[16];   // 保存的寄存器（各后端按需使用）
+		ptr arrReg[40];   // 保存的寄存器/向量状态（各后端按需使用，兼容 Win64 XMM 与 ARM64 q8-q15 非易失状态）
 	} __xrt_co_ctx;
 	
 	// 协程数据结构
-	typedef struct {
+	typedef struct xcoro_struct {
 		int iState;             // 当前状态 (XRT_CO_*)
+		uint32 __iFlags;        // 内部标志
+		uint64 __iOwnerThreadId;// 所属线程ID
 		xco_entry pfnEntry;     // 入口函数
 		ptr pParam;             // 用户传入参数
 		ptr pUserData;          // 用户自定义数据
+		ptr pResult;            // 协程结果指针
+		int64 iExitCode;        // 退出码（预留给 join/close）
+		uint32 iTermReason;     // 终态原因 (XRT_CO_TERM_*)
+		uint32 __iReserved;
 		size_t iStackSize;      // 栈大小
 		ptr __pStack;           // 分配的栈内存
+		ptr __pStackMem;        // 栈保留区起始地址（含 guard page）
+		size_t __iStackAllocSize; // 栈保留区总大小
+		size_t __iStackGuardSize; // guard page 大小
 		__xrt_co_ctx __tCtx;    // 上下文（汇编/ucontext 后端使用）
 		ptr __hFiber;           // Windows Fiber 句柄
 		ptr __pSched;           // 所属调度器指针（NULL=无调度器）
 		int64 __iWakeTime;      // 唤醒时间戳（调度器用，0=不等待）
+		ptr __pWaitObject;      // 当前等待对象（event/future 等）
+		uint32 __iWaitKind;     // 当前等待类型（内部使用）
+		uint32 __iWaitResult;   // 当前等待结果（内部使用）
+		struct xcoro_struct* __pJoinTarget; // 当前等待的目标协程
+		struct xcoro_struct* __pJoinWaiter; // 等待本协程结束的协程（当前仅支持单等待者）
+		xco_cleanup* __pCleanupTop; // 协程退出清理栈
+		struct xcoro_struct* __pReadyPrev;  // ready queue prev
+		struct xcoro_struct* __pReadyNext;  // ready queue next
+		uint32 __iTimerIndex;   // timer heap index + 1（0=不在堆中）
 	} xcoro_struct, *xcoro;
 	
 	// 调度器（不透明结构）
 	typedef struct xrt_co_scheduler xcosched;
+	// 协程事件对象（最小 wait source，当前支持单 waiter）
+	typedef struct xcoevent_struct {
+		xmutex pLock;
+		bool bManualReset;
+		bool bSignaled;
+		struct xcoro_struct* pWaiter;
+	} xcoevent_struct, *xcoevent;
 	
 	/* ---------- 协程生命周期 ---------- */
+	// 扩展创建协程（支持栈大小、初始 user data 和保留 flags）
+	XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args* pArgs);
 	
 	// 创建协程
 	XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize);
 	
-	// 销毁协程（协程必须处于 READY 或 DEAD 状态）
+	// 销毁协程（协程必须处于 READY 或 DEAD 状态，且不能仍属于调度器）
 	XXAPI void xrtCoDestroy(xcoro pCo);
+	// 请求取消协程（第一版为协作式取消；READY 协程可直接进入终态）
+	XXAPI bool xrtCoCancel(xcoro pCo);
+	// 关闭协程句柄或向活协程发出关闭请求
+	XXAPI bool xrtCoClose(xcoro pCo);
+	// 等待协程结束（主线程可驱动 unscheduled/scheduler-managed 协程，协程内仅支持等待同 scheduler 目标）
+	XXAPI bool xrtCoJoin(xcoro pCo);
+	// 主动以给定退出码结束当前协程
+	XXAPI void xrtCoExit(int64 iExitCode);
 	
 	/* ---------- 协程切换 ---------- */
 	
@@ -1557,6 +1674,22 @@
 	
 	// 获取当前正在运行的协程（不在协程中返回 NULL）
 	XXAPI xcoro xrtCoGetCurrent();
+	// 当前协程是否已收到取消请求
+	XXAPI bool xrtCoIsCancelRequested();
+	// 协程是否以取消方式结束
+	XXAPI bool xrtCoWasCancelled(xcoro pCo);
+	// 获取协程退出码
+	XXAPI int64 xrtCoGetExitCode(xcoro pCo);
+	// 设置当前协程结果指针
+	XXAPI void xrtCoSetResult(ptr pResult);
+	// 获取协程结果指针
+	XXAPI ptr xrtCoGetResult(xcoro pCo);
+	// 当前目标使用的协程 backend 名称
+	XXAPI str xrtCoGetBackendName();
+	// 当前目标使用的协程 backend 分层 (XRT_CO_BACKEND_TIER_*)
+	XXAPI int xrtCoGetBackendTier();
+	// 当前目标使用的协程 backend 风格 (XRT_CO_BACKEND_STYLE_*)
+	XXAPI int xrtCoGetBackendStyle();
 	
 	/* ---------- 用户数据 ---------- */
 	
@@ -1565,17 +1698,26 @@
 	
 	// 获取协程的用户自定义数据
 	XXAPI ptr xrtCoGetUserData(xcoro pCo);
+	// 向当前协程压入一个退出清理回调
+	XXAPI bool xrtCoPushCleanup(xco_cleanup_proc proc, ptr pArg);
+	// 弹出当前协程顶部匹配的清理回调，可选择立即执行
+	XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute);
 	
 	/* ---------- 协程调度器 ---------- */
 	
 	// 创建调度器
 	XXAPI xcosched* xrtCoSchedCreate();
+	// 获取当前线程的默认调度器（在协程内优先返回当前协程所属调度器）
+	XXAPI xcosched* xrtCoSchedCurrent();
 	
 	// 销毁调度器（会自动销毁所有关联的协程）
 	XXAPI void xrtCoSchedDestroy(xcosched* pSched);
-	
 	// 向调度器添加一个协程
 	XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, size_t iStackSize);
+	// 向调度器投递一个唤醒请求（可跨线程调用）
+	XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo);
+	// 执行一次调度轮询（可选择等待 post/timer）
+	XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout);
 	
 	// 执行一轮调度（返回 true=还有存活协程）
 	XXAPI bool xrtCoSchedStep(xcosched* pSched);
@@ -1585,6 +1727,24 @@
 	
 	// 获取调度器中存活的协程数量
 	XXAPI int xrtCoSchedGetAlive(xcosched* pSched);
+	// 协程睡眠到指定的单调时钟毫秒 deadline
+	XXAPI void xrtCoSleepUntil(int64 iDeadlineMs);
+	// 等待到指定的单调时钟毫秒 deadline，若等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitDeadline(int64 iDeadlineMs);
+	// 创建协程事件对象（manual reset 或 auto reset）
+	XXAPI xcoevent xrtCoEventCreate(bool bManualReset, bool bInitialState);
+	// 销毁协程事件对象（有 waiter 时拒绝销毁）
+	XXAPI void xrtCoEventDestroy(xcoevent pEvent);
+	// 置位协程事件对象，可跨线程唤醒 waiter
+	XXAPI void xrtCoEventSet(xcoevent pEvent);
+	// 重置协程事件对象
+	XXAPI void xrtCoEventReset(xcoevent pEvent);
+	// 等待协程事件对象被置位，若等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitEvent(xcoevent pEvent);
+	// 在超时窗口内等待协程事件对象被置位，若超时或等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitEventTimeout(xcoevent pEvent, uint32 iTimeoutMs);
+	// 等待协程事件对象直到指定单调时钟毫秒 deadline，若超时或等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitEventUntil(xcoevent pEvent, int64 iDeadlineMs);
 	
 	// 协程休眠（挂起当前协程，等待指定毫秒后自动恢复，需配合调度器使用）
 	XXAPI void xrtCoSleep(uint32 iMs);
@@ -3407,11 +3567,7 @@
 	};
 	static inline uint32 __xvoAtomicCompareExchange32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
 	{
-		#if defined(_WIN32) || defined(_WIN64)
-			return (uint32)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
-		#else
-			return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
-		#endif
+		return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, (long)iExchange, (long)iComparand);
 	}
 	static inline void xvoInitHeader(xvalue pVal, uint32 iType, bool bStatic, bool bShared, uint32 iRefCount)
 	{
@@ -4448,7 +4604,7 @@
 
 
 // ========================================
-// File: D:\git\xrt\xrt.c
+// File: D:\git\xrt/xrt.c
 // ========================================
 
 
@@ -12363,40 +12519,395 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 
 
 /* ================================ 协程后端自动选择 ================================ */
-#if defined(_WIN32) || defined(_WIN64)
-	// Windows: 全部编译器统一用 Fiber API
-	#define __XRT_CO_FIBER
-#elif (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
-	// Linux: GCC / Clang 用内联汇编
-	#if defined(__x86_64__) || defined(_M_X64)
+/*
+	backend 策略说明：
+	1. 单头文件仍是 XRT 的第一优先级约束之一
+	2. production backend 优先使用 header 内的 inline asm
+	3. Fiber / ucontext 仅作为 compat backend 保留
+	4. 平台支持按 ABI + 编译器家族逐步扩展，不对未验证目标做超前承诺
+*/
+#ifndef XRT_CO_ENABLE_COMPAT_BACKEND
+	#define XRT_CO_ENABLE_COMPAT_BACKEND	1
+#endif
+#ifndef XRT_CO_REQUIRE_PRODUCTION_BACKEND
+	#define XRT_CO_REQUIRE_PRODUCTION_BACKEND	0
+#endif
+#define __XRT_CO_BACKEND_TIER_COMPAT		1
+#define __XRT_CO_BACKEND_TIER_PRODUCTION	2
+#define __XRT_CO_BACKEND_STYLE_COMPAT		1
+#define __XRT_CO_BACKEND_STYLE_INLINE_ASM	2
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
+		#define __XRT_CO_ASM_X64_WIN
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#elif !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
 		#define __XRT_CO_ASM_X64
-	#elif defined(__aarch64__)
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-sysv"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#elif !defined(_WIN32) && !defined(_WIN64) && defined(__aarch64__)
 		#define __XRT_CO_ASM_ARM64
-	#elif defined(__riscv) && (__riscv_xlen == 64)
+		#define __XRT_CO_BACKEND_NAME	"asm-arm64-aapcs64"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#elif !defined(_WIN32) && !defined(_WIN64) && defined(__riscv) && (__riscv_xlen == 64)
 		#define __XRT_CO_ASM_RV64
-	#elif defined(__loongarch64)
+		#define __XRT_CO_BACKEND_NAME	"asm-rv64"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#elif !defined(_WIN32) && !defined(_WIN64) && defined(__loongarch64)
 		#define __XRT_CO_ASM_LA64
-	#else
-		#define __XRT_CO_UCONTEXT
+		#define __XRT_CO_BACKEND_NAME	"asm-la64"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
 	#endif
-#else
-	// TCC / 其他编译器: ucontext 兜底
-	#define __XRT_CO_UCONTEXT
+#endif
+#ifndef __XRT_CO_BACKEND_TIER
+	#if XRT_CO_ENABLE_COMPAT_BACKEND
+		#if defined(_WIN32) || defined(_WIN64)
+			#define __XRT_CO_FIBER
+			#define __XRT_CO_BACKEND_NAME	"fiber-compat"
+			#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_COMPAT
+			#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_COMPAT
+		#else
+			#define __XRT_CO_UCONTEXT
+			#define __XRT_CO_BACKEND_NAME	"ucontext-compat"
+			#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_COMPAT
+			#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_COMPAT
+		#endif
+	#else
+		#error "XRT coroutine backend is unavailable for this target without compat backend."
+	#endif
+#endif
+#if XRT_CO_REQUIRE_PRODUCTION_BACKEND && (__XRT_CO_BACKEND_TIER != __XRT_CO_BACKEND_TIER_PRODUCTION)
+	#error "XRT coroutine production backend is required, but current target only has compat backend."
 #endif
 #ifdef __XRT_CO_UCONTEXT
 	#include <ucontext.h>
 #endif
-/* ================================ 线程局部协程状态 ================================ */
-#ifdef __XRT_CO_FIBER
-	static ptr __xrt_co_main_fiber = NULL;
-	static int __xrt_co_fiber_converted = 0;
-#elif defined(__XRT_CO_UCONTEXT)
-	static ucontext_t __xrt_co_main_uctx;
-#else
-	static __xrt_co_ctx __xrt_co_main_ctx;
+/* ================================ 线程级协程运行时 ================================ */
+static xrtCoroRuntimeState* __xrt_co_get_runtime_from_thread(xrtThreadData* pThreadData)
+{
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+	return &pThreadData->tCoro;
+}
+static xrtThreadData* __xrt_co_require_thread_data(bool bSetError)
+{
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL && bSetError ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+	}
+	return pThreadData;
+}
+static xrtCoroRuntimeState* __xrt_co_get_runtime()
+{
+	return __xrt_co_get_runtime_from_thread(xrtThreadGetCurrent());
+}
+static xrtCoroRuntimeState* __xrt_co_require_runtime(bool bSetError)
+{
+	xrtThreadData* pThreadData = __xrt_co_require_thread_data(bSetError);
+	return __xrt_co_get_runtime_from_thread(pThreadData);
+}
+static xcoro __xrt_co_get_current()
+{
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+	if ( pRuntime == NULL ) {
+		return NULL;
+	}
+	return (xcoro)pRuntime->pCurrent;
+}
+static void __xrt_co_set_current(xcoro pCo)
+{
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+	if ( pRuntime ) {
+		pRuntime->pCurrent = pCo;
+	}
+}
+static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, str sError)
+{
+	xrtThreadData* pThreadData = __xrt_co_require_thread_data(TRUE);
+	if ( pThreadData == NULL ) {
+		return FALSE;
+	}
+	if ( iOwnerThreadId != 0 && pThreadData->iThreadId != iOwnerThreadId ) {
+		if ( sError ) {
+			xrtSetError(sError, FALSE);
+		}
+		return FALSE;
+	}
+	return TRUE;
+}
+static bool __xrt_co_check_owner(xcoro pCo, str sError)
+{
+	if ( pCo == NULL ) {
+		xrtSetError("invalid coroutine handle.", FALSE);
+		return FALSE;
+	}
+	return __xrt_co_check_owner_tid(pCo->__iOwnerThreadId, sError);
+}
+static void __xrtCoroRuntimeInitThread(xrtThreadData* pThreadData)
+{
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime_from_thread(pThreadData);
+	if ( pRuntime == NULL ) {
+		return;
+	}
+	memset(pRuntime, 0, sizeof(xrtCoroRuntimeState));
+	pRuntime->iOwnerThreadId = pThreadData->iThreadId;
+}
+static void __xrtCoroRuntimeUnitThread(xrtThreadData* pThreadData)
+{
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime_from_thread(pThreadData);
+	if ( pRuntime == NULL ) {
+		return;
+	}
+	#ifdef __XRT_CO_FIBER
+		if ( (pRuntime->iFlags & XRT_CO_RUNTIME_FIBER_CONVERTED) && pRuntime->pBackendMain ) {
+			if ( pRuntime->pCurrent == NULL ) {
+				ConvertFiberToThread();
+			}
+		}
+	#elif defined(__XRT_CO_UCONTEXT)
+		if ( pRuntime->pBackendMain ) {
+			xrtFree(pRuntime->pBackendMain);
+		}
+	#else
+		if ( pRuntime->pBackendMain ) {
+			xrtFree(pRuntime->pBackendMain);
+		}
+	#endif
+	memset(pRuntime, 0, sizeof(xrtCoroRuntimeState));
+}
+/* ================================ 协程生命周期辅助 ================================ */
+#ifndef MAP_ANONYMOUS
+	#ifdef MAP_ANON
+		#define MAP_ANONYMOUS MAP_ANON
+	#endif
 #endif
-// 当前正在运行的协程
-static xcoro __xrt_co_current = NULL;
+#define __XRT_CO_FLAG_CANCEL_REQUESTED	0x00000001u
+#define __XRT_CO_FLAG_CANCELLED			0x00000002u
+#define __XRT_CO_FLAG_CLOSE_REQUESTED	0x00000004u
+#define __XRT_CO_FLAG_REAP_PENDING		0x00000008u
+#define __XRT_CO_FLAG_JOIN_PINNED		0x00000010u
+#define __XRT_CO_FLAG_READY_QUEUED		0x00000020u
+#define __XRT_CO_FLAG_TIMER_QUEUED		0x00000040u
+#define __XRT_CO_FLAG_STARTED			0x00000080u
+#define __XRT_CO_FLAG_IN_CLEANUP		0x00000100u
+#define __XRT_CO_WAIT_NONE				0u
+#define __XRT_CO_WAIT_TIMER				1u
+#define __XRT_CO_WAIT_JOIN				2u
+#define __XRT_CO_WAIT_EVENT				3u
+#define __XRT_CO_WAIT_RESULT_NONE		0u
+#define __XRT_CO_WAIT_RESULT_SIGNAL		1u
+#define __XRT_CO_WAIT_RESULT_TIMEOUT	2u
+static bool __xrt_co_is_terminal(xcoro pCo)
+{
+	return pCo && pCo->iState == XRT_CO_DEAD;
+}
+static bool __xrt_co_is_cancel_requested_flag(xcoro pCo)
+{
+	return pCo && ((pCo->__iFlags & __XRT_CO_FLAG_CANCEL_REQUESTED) != 0);
+}
+static bool __xrt_co_sched_mark_ready(xcosched* pSched, xcoro pCo);
+static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo);
+static bool __xrt_co_sched_release_dead(xcoro pCo);
+static bool __xrt_co_sched_run_until(xcosched* pSched, xcoro pTarget);
+static void __xrt_co_clear_wait_state(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return;
+	}
+	pCo->__pWaitObject = NULL;
+	pCo->__iWaitKind = __XRT_CO_WAIT_NONE;
+}
+static void __xrt_co_detach_event_waiter_locked(xcoevent pEvent, xcoro pCo)
+{
+	if ( pEvent == NULL || pCo == NULL ) {
+		return;
+	}
+	if ( pEvent->pWaiter == pCo ) {
+		pEvent->pWaiter = NULL;
+	}
+	if ( pCo->__pWaitObject == pEvent && pCo->__iWaitKind == __XRT_CO_WAIT_EVENT ) {
+		__xrt_co_clear_wait_state(pCo);
+	}
+}
+static bool __xrt_co_event_try_consume_locked(xcoevent pEvent)
+{
+	if ( pEvent == NULL || !pEvent->bSignaled ) {
+		return FALSE;
+	}
+	if ( !pEvent->bManualReset ) {
+		pEvent->bSignaled = FALSE;
+	}
+	return TRUE;
+}
+static void __xrt_co_free_cleanup_nodes(xcoro pCo)
+{
+	while ( pCo && pCo->__pCleanupTop ) {
+		xco_cleanup* pCleanup = pCo->__pCleanupTop;
+		pCo->__pCleanupTop = pCleanup->pPrev;
+		xrtFree(pCleanup);
+	}
+}
+static void __xrt_co_run_cleanup(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return;
+	}
+	pCo->__iFlags |= __XRT_CO_FLAG_IN_CLEANUP;
+	while ( pCo->__pCleanupTop ) {
+		xco_cleanup* pCleanup = pCo->__pCleanupTop;
+		pCo->__pCleanupTop = pCleanup->pPrev;
+		if ( pCleanup->Proc ) {
+			pCleanup->Proc(pCleanup->Arg);
+		}
+		xrtFree(pCleanup);
+	}
+	pCo->__iFlags &= ~__XRT_CO_FLAG_IN_CLEANUP;
+}
+static size_t __xrt_co_stack_page_size()
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		SYSTEM_INFO tInfo;
+		GetSystemInfo(&tInfo);
+		return (tInfo.dwPageSize != 0) ? (size_t)tInfo.dwPageSize : 4096u;
+	#else
+		long iPage = sysconf(_SC_PAGESIZE);
+		return (iPage > 0) ? (size_t)iPage : 4096u;
+	#endif
+}
+static size_t __xrt_co_align_up(size_t iValue, size_t iAlign)
+{
+	if ( iAlign == 0 ) {
+		return iValue;
+	}
+	return (iValue + iAlign - 1) & ~(iAlign - 1);
+}
+static bool __xrt_co_stack_alloc(xcoro pCo)
+{
+	size_t iPageSize = 0;
+	size_t iGuardSize = 0;
+	size_t iStackSize = 0;
+	size_t iAllocSize = 0;
+	ptr pBase = NULL;
+	if ( pCo == NULL ) {
+		return FALSE;
+	}
+	iPageSize = __xrt_co_stack_page_size();
+	iGuardSize = iPageSize;
+	iStackSize = __xrt_co_align_up(pCo->iStackSize, iPageSize);
+	if ( iStackSize < XRT_CO_STACK_MIN ) {
+		iStackSize = __xrt_co_align_up(XRT_CO_STACK_MIN, iPageSize);
+	}
+	if ( iStackSize > XRT_CO_STACK_MAX ) {
+		iStackSize = __xrt_co_align_up(XRT_CO_STACK_MAX, iPageSize);
+	}
+	if ( iStackSize > (SIZE_MAX - iGuardSize) ) {
+		xrtSetError("coroutine stack size overflow.", FALSE);
+		return FALSE;
+	}
+	iAllocSize = iStackSize + iGuardSize;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			DWORD iOldProtect = 0;
+			pBase = VirtualAlloc(NULL, iAllocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+			if ( pBase == NULL ) {
+				xrtSetError("failed to reserve coroutine stack.", FALSE);
+				return FALSE;
+			}
+			if ( !VirtualProtect(pBase, iGuardSize, PAGE_NOACCESS, &iOldProtect) ) {
+				VirtualFree(pBase, 0, MEM_RELEASE);
+				xrtSetError("failed to protect coroutine guard page.", FALSE);
+				return FALSE;
+			}
+		}
+	#else
+		pBase = mmap(NULL, iAllocSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		if ( pBase == MAP_FAILED ) {
+			xrtSetError("failed to reserve coroutine stack.", FALSE);
+			return FALSE;
+		}
+		if ( mprotect(pBase, iGuardSize, PROT_NONE) != 0 ) {
+			munmap(pBase, iAllocSize);
+			xrtSetError("failed to protect coroutine guard page.", FALSE);
+			return FALSE;
+		}
+	#endif
+	pCo->__pStackMem = pBase;
+	pCo->__iStackAllocSize = iAllocSize;
+	pCo->__iStackGuardSize = iGuardSize;
+	pCo->__pStack = (uint8*)pBase + iGuardSize;
+	pCo->iStackSize = iStackSize;
+	return TRUE;
+}
+static void __xrt_co_stack_free(xcoro pCo)
+{
+	if ( pCo == NULL || pCo->__pStackMem == NULL ) {
+		return;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		VirtualFree(pCo->__pStackMem, 0, MEM_RELEASE);
+	#else
+		munmap(pCo->__pStackMem, pCo->__iStackAllocSize);
+	#endif
+	pCo->__pStack = NULL;
+	pCo->__pStackMem = NULL;
+	pCo->__iStackAllocSize = 0;
+	pCo->__iStackGuardSize = 0;
+}
+static void __xrt_co_wake_join_waiter(xcoro pTarget)
+{
+	xcoro pWaiter = NULL;
+	if ( pTarget == NULL ) {
+		return;
+	}
+	pWaiter = pTarget->__pJoinWaiter;
+	if ( pWaiter == NULL ) {
+		return;
+	}
+	if ( pWaiter->__pJoinTarget == pTarget ) {
+		pWaiter->__pJoinTarget = NULL;
+	}
+	if ( pWaiter->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
+		pWaiter->__iWaitKind = __XRT_CO_WAIT_NONE;
+	}
+	pTarget->__pJoinWaiter = NULL;
+	pWaiter->__iWakeTime = 0;
+	if ( pWaiter->__pSched ) {
+		__xrt_co_sched_mark_ready((xcosched*)pWaiter->__pSched, pWaiter);
+	}
+}
+static void __xrt_co_finish(xcoro pCo, uint32 iTermReason, int64 iExitCode)
+{
+	if ( pCo == NULL ) {
+		return;
+	}
+	pCo->iState = XRT_CO_DEAD;
+	pCo->iExitCode = iExitCode;
+	pCo->iTermReason = iTermReason;
+	pCo->__iWakeTime = 0;
+	__xrt_co_clear_wait_state(pCo);
+	if ( iTermReason == XRT_CO_TERM_CANCELLED ) {
+		pCo->__iFlags |= __XRT_CO_FLAG_CANCELLED;
+	}
+	__xrt_co_run_cleanup(pCo);
+	__xrt_co_wake_join_waiter(pCo);
+}
+static bool __xrt_co_finalize_ready_cancel(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return FALSE;
+	}
+	if ( pCo->iState != XRT_CO_READY ) {
+		return FALSE;
+	}
+	__xrt_co_finish(pCo, XRT_CO_TERM_CANCELLED, -1);
+	return TRUE;
+}
 /* ================================ 时间辅助函数 ================================ */
 static int64 __xrt_co_time_ms()
 {
@@ -12421,31 +12932,139 @@ static void __xrt_co_sleep_ms(int iMs)
 }
 /* ================================ 后端实现: Windows Fiber ================================ */
 #ifdef __XRT_CO_FIBER
+static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
+{
+	if ( pRuntime == NULL ) {
+		return FALSE;
+	}
+	if ( pRuntime->pBackendMain != NULL ) {
+		return TRUE;
+	}
+	if ( IsThreadAFiber() ) {
+		pRuntime->pBackendMain = GetCurrentFiber();
+		if ( pRuntime->pBackendMain == NULL ) {
+			xrtSetError("failed to adopt current host fiber.", FALSE);
+			return FALSE;
+		}
+		pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_HOSTED;
+		return TRUE;
+	}
+	pRuntime->pBackendMain = ConvertThreadToFiber(NULL);
+	if ( pRuntime->pBackendMain == NULL ) {
+		xrtSetError("failed to convert current thread to fiber.", FALSE);
+		return FALSE;
+	}
+	pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_CONVERTED;
+	return TRUE;
+}
 static void CALLBACK __xrt_co_fiber_entry(LPVOID lpParameter)
 {
 	xcoro pCo = (xcoro)lpParameter;
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+	if ( pCo == NULL || pRuntime == NULL ) {
+		return;
+	}
 	pCo->pfnEntry(pCo->pParam);
-	pCo->iState = XRT_CO_DEAD;
-	SwitchToFiber(__xrt_co_main_fiber);
+	__xrt_co_finish(pCo, __xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED, 0);
+	SwitchToFiber(pRuntime->pBackendMain);
 }
-static void __xrt_co_init_ctx(xcoro pCo)
+static bool __xrt_co_init_ctx(xcoro pCo)
 {
 	pCo->__hFiber = CreateFiber(pCo->iStackSize, __xrt_co_fiber_entry, pCo);
-}
-static void __xrt_co_swap_to_co(xcoro pCo)
-{
-	if ( !__xrt_co_fiber_converted ) {
-		__xrt_co_main_fiber = ConvertThreadToFiber(NULL);
-		__xrt_co_fiber_converted = 1;
+	if ( pCo->__hFiber == NULL ) {
+		xrtSetError("failed to create coroutine fiber.", FALSE);
+		return FALSE;
 	}
+	return TRUE;
+}
+static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
+{
+	(void)pRuntime;
 	SwitchToFiber(pCo->__hFiber);
 }
-static void __xrt_co_swap_to_main()
+static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
 {
-	SwitchToFiber(__xrt_co_main_fiber);
+	if ( pRuntime && pRuntime->pBackendMain ) {
+		SwitchToFiber(pRuntime->pBackendMain);
+	}
 }
 #endif
 /* ================================ 后端实现: x86_64 内联汇编 ================================ */
+#ifdef __XRT_CO_ASM_X64_WIN
+/*
+	Windows x64 ABI callee-saved 寄存器:
+	0x00 = rip
+	0x08 = rsp
+	0x10 = rbp
+	0x18 = rbx
+	0x20 = rdi
+	0x28 = rsi
+	0x30 = r12
+	0x38 = r13
+	0x40 = r14
+	0x48 = r15
+	0x50 = xmm6
+	0x60 = xmm7
+	0x70 = xmm8
+	0x80 = xmm9
+	0x90 = xmm10
+	0xA0 = xmm11
+	0xB0 = xmm12
+	0xC0 = xmm13
+	0xD0 = xmm14
+	0xE0 = xmm15
+*/
+static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
+{
+	__asm__ volatile (
+		"leaq 1f(%%rip), %%rax\n\t"
+		"movq %%rax, 0x00(%%rcx)\n\t"
+		"movq %%rsp, 0x08(%%rcx)\n\t"
+		"movq %%rbp, 0x10(%%rcx)\n\t"
+		"movq %%rbx, 0x18(%%rcx)\n\t"
+		"movq %%rdi, 0x20(%%rcx)\n\t"
+		"movq %%rsi, 0x28(%%rcx)\n\t"
+		"movq %%r12, 0x30(%%rcx)\n\t"
+		"movq %%r13, 0x38(%%rcx)\n\t"
+		"movq %%r14, 0x40(%%rcx)\n\t"
+		"movq %%r15, 0x48(%%rcx)\n\t"
+		"movdqu %%xmm6,  0x50(%%rcx)\n\t"
+		"movdqu %%xmm7,  0x60(%%rcx)\n\t"
+		"movdqu %%xmm8,  0x70(%%rcx)\n\t"
+		"movdqu %%xmm9,  0x80(%%rcx)\n\t"
+		"movdqu %%xmm10, 0x90(%%rcx)\n\t"
+		"movdqu %%xmm11, 0xA0(%%rcx)\n\t"
+		"movdqu %%xmm12, 0xB0(%%rcx)\n\t"
+		"movdqu %%xmm13, 0xC0(%%rcx)\n\t"
+		"movdqu %%xmm14, 0xD0(%%rcx)\n\t"
+		"movdqu %%xmm15, 0xE0(%%rcx)\n\t"
+		"movdqu 0xE0(%%rdx), %%xmm15\n\t"
+		"movdqu 0xD0(%%rdx), %%xmm14\n\t"
+		"movdqu 0xC0(%%rdx), %%xmm13\n\t"
+		"movdqu 0xB0(%%rdx), %%xmm12\n\t"
+		"movdqu 0xA0(%%rdx), %%xmm11\n\t"
+		"movdqu 0x90(%%rdx), %%xmm10\n\t"
+		"movdqu 0x80(%%rdx), %%xmm9\n\t"
+		"movdqu 0x70(%%rdx), %%xmm8\n\t"
+		"movdqu 0x60(%%rdx), %%xmm7\n\t"
+		"movdqu 0x50(%%rdx), %%xmm6\n\t"
+		"movq 0x48(%%rdx), %%r15\n\t"
+		"movq 0x40(%%rdx), %%r14\n\t"
+		"movq 0x38(%%rdx), %%r13\n\t"
+		"movq 0x30(%%rdx), %%r12\n\t"
+		"movq 0x28(%%rdx), %%rsi\n\t"
+		"movq 0x20(%%rdx), %%rdi\n\t"
+		"movq 0x18(%%rdx), %%rbx\n\t"
+		"movq 0x10(%%rdx), %%rbp\n\t"
+		"movq 0x08(%%rdx), %%rsp\n\t"
+		"jmpq *0x00(%%rdx)\n\t"
+		"1:\n\t"
+		:
+		: "c"(pFrom), "d"(pTo)
+		: "memory", "rax", "r8", "r9", "r10", "r11"
+	);
+}
+#endif
 #ifdef __XRT_CO_ASM_X64
 /*
 	x86_64 System V ABI callee-saved 寄存器:
@@ -12497,6 +13116,10 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[8..9] = x25, x26
 	arrReg[10..11] = x27, x28
 	arrReg[12..13] = x29 (fp), x30 (lr)
+	arrReg[14..17] = q8, q9
+	arrReg[18..21] = q10, q11
+	arrReg[22..25] = q12, q13
+	arrReg[26..29] = q14, q15
 */
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
@@ -12510,6 +13133,14 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"stp x25, x26, [%0, #0x40]\n\t"
 		"stp x27, x28, [%0, #0x50]\n\t"
 		"stp x29, x30, [%0, #0x60]\n\t"
+		"stp q8,  q9,  [%0, #0x70]\n\t"
+		"stp q10, q11, [%0, #0x90]\n\t"
+		"stp q12, q13, [%0, #0xB0]\n\t"
+		"stp q14, q15, [%0, #0xD0]\n\t"
+		"ldp q14, q15, [%1, #0xD0]\n\t"
+		"ldp q12, q13, [%1, #0xB0]\n\t"
+		"ldp q10, q11, [%1, #0x90]\n\t"
+		"ldp q8,  q9,  [%1, #0x70]\n\t"
 		"ldp x29, x30, [%1, #0x60]\n\t"
 		"ldp x27, x28, [%1, #0x50]\n\t"
 		"ldp x25, x26, [%1, #0x40]\n\t"
@@ -12527,15 +13158,147 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 #endif
 /* ================================ 后端实现: RISC-V 64 内联汇编 ================================ */
 #ifdef __XRT_CO_ASM_RV64
+	#if (defined(__riscv_flen) && (__riscv_flen == 32)) || defined(__riscv_float_abi_single)
+		#define __XRT_CO_RV64_FP32
+		#define __XRT_CO_RV64_HAS_FP
+	#elif (defined(__riscv_flen) && (__riscv_flen >= 64)) || defined(__riscv_float_abi_double) || defined(__riscv_float_abi_quad)
+		#define __XRT_CO_RV64_FP64
+		#define __XRT_CO_RV64_HAS_FP
+	#endif
 /*
 	RISC-V LP64 callee-saved 寄存器:
 	arrReg[0] = 恢复点地址 (ra/pc)
 	arrReg[1] = sp
 	arrReg[2] = s0 (fp)
 	arrReg[3..13] = s1 ~ s11
+	若使用硬浮点 ABI:
+	arrReg[14..25] = fs0 ~ fs11（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
+	#ifdef __XRT_CO_RV64_FP64
+		__asm__ volatile (
+			"la t0, 1f\n\t"
+			"sd t0,   0x00(%0)\n\t"
+			"sd sp,   0x08(%0)\n\t"
+			"sd s0,   0x10(%0)\n\t"
+			"sd s1,   0x18(%0)\n\t"
+			"sd s2,   0x20(%0)\n\t"
+			"sd s3,   0x28(%0)\n\t"
+			"sd s4,   0x30(%0)\n\t"
+			"sd s5,   0x38(%0)\n\t"
+			"sd s6,   0x40(%0)\n\t"
+			"sd s7,   0x48(%0)\n\t"
+			"sd s8,   0x50(%0)\n\t"
+			"sd s9,   0x58(%0)\n\t"
+			"sd s10,  0x60(%0)\n\t"
+			"sd s11,  0x68(%0)\n\t"
+			"fsd fs0,  0x70(%0)\n\t"
+			"fsd fs1,  0x78(%0)\n\t"
+			"fsd fs2,  0x80(%0)\n\t"
+			"fsd fs3,  0x88(%0)\n\t"
+			"fsd fs4,  0x90(%0)\n\t"
+			"fsd fs5,  0x98(%0)\n\t"
+			"fsd fs6,  0xA0(%0)\n\t"
+			"fsd fs7,  0xA8(%0)\n\t"
+			"fsd fs8,  0xB0(%0)\n\t"
+			"fsd fs9,  0xB8(%0)\n\t"
+			"fsd fs10, 0xC0(%0)\n\t"
+			"fsd fs11, 0xC8(%0)\n\t"
+			"fld fs11, 0xC8(%1)\n\t"
+			"fld fs10, 0xC0(%1)\n\t"
+			"fld fs9,  0xB8(%1)\n\t"
+			"fld fs8,  0xB0(%1)\n\t"
+			"fld fs7,  0xA8(%1)\n\t"
+			"fld fs6,  0xA0(%1)\n\t"
+			"fld fs5,  0x98(%1)\n\t"
+			"fld fs4,  0x90(%1)\n\t"
+			"fld fs3,  0x88(%1)\n\t"
+			"fld fs2,  0x80(%1)\n\t"
+			"fld fs1,  0x78(%1)\n\t"
+			"fld fs0,  0x70(%1)\n\t"
+			"ld s11,   0x68(%1)\n\t"
+			"ld s10,   0x60(%1)\n\t"
+			"ld s9,    0x58(%1)\n\t"
+			"ld s8,    0x50(%1)\n\t"
+			"ld s7,    0x48(%1)\n\t"
+			"ld s6,    0x40(%1)\n\t"
+			"ld s5,    0x38(%1)\n\t"
+			"ld s4,    0x30(%1)\n\t"
+			"ld s3,    0x28(%1)\n\t"
+			"ld s2,    0x20(%1)\n\t"
+			"ld s1,    0x18(%1)\n\t"
+			"ld s0,    0x10(%1)\n\t"
+			"ld sp,    0x08(%1)\n\t"
+			"ld t0,    0x00(%1)\n\t"
+			"jr t0\n\t"
+			"1:\n\t"
+			: : "r"(pFrom), "r"(pTo)
+			: "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
+			  "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"
+		);
+	#elif defined(__XRT_CO_RV64_FP32)
+		__asm__ volatile (
+			"la t0, 1f\n\t"
+			"sd t0,   0x00(%0)\n\t"
+			"sd sp,   0x08(%0)\n\t"
+			"sd s0,   0x10(%0)\n\t"
+			"sd s1,   0x18(%0)\n\t"
+			"sd s2,   0x20(%0)\n\t"
+			"sd s3,   0x28(%0)\n\t"
+			"sd s4,   0x30(%0)\n\t"
+			"sd s5,   0x38(%0)\n\t"
+			"sd s6,   0x40(%0)\n\t"
+			"sd s7,   0x48(%0)\n\t"
+			"sd s8,   0x50(%0)\n\t"
+			"sd s9,   0x58(%0)\n\t"
+			"sd s10,  0x60(%0)\n\t"
+			"sd s11,  0x68(%0)\n\t"
+			"fsw fs0,  0x70(%0)\n\t"
+			"fsw fs1,  0x78(%0)\n\t"
+			"fsw fs2,  0x80(%0)\n\t"
+			"fsw fs3,  0x88(%0)\n\t"
+			"fsw fs4,  0x90(%0)\n\t"
+			"fsw fs5,  0x98(%0)\n\t"
+			"fsw fs6,  0xA0(%0)\n\t"
+			"fsw fs7,  0xA8(%0)\n\t"
+			"fsw fs8,  0xB0(%0)\n\t"
+			"fsw fs9,  0xB8(%0)\n\t"
+			"fsw fs10, 0xC0(%0)\n\t"
+			"fsw fs11, 0xC8(%0)\n\t"
+			"flw fs11, 0xC8(%1)\n\t"
+			"flw fs10, 0xC0(%1)\n\t"
+			"flw fs9,  0xB8(%1)\n\t"
+			"flw fs8,  0xB0(%1)\n\t"
+			"flw fs7,  0xA8(%1)\n\t"
+			"flw fs6,  0xA0(%1)\n\t"
+			"flw fs5,  0x98(%1)\n\t"
+			"flw fs4,  0x90(%1)\n\t"
+			"flw fs3,  0x88(%1)\n\t"
+			"flw fs2,  0x80(%1)\n\t"
+			"flw fs1,  0x78(%1)\n\t"
+			"flw fs0,  0x70(%1)\n\t"
+			"ld s11,   0x68(%1)\n\t"
+			"ld s10,   0x60(%1)\n\t"
+			"ld s9,    0x58(%1)\n\t"
+			"ld s8,    0x50(%1)\n\t"
+			"ld s7,    0x48(%1)\n\t"
+			"ld s6,    0x40(%1)\n\t"
+			"ld s5,    0x38(%1)\n\t"
+			"ld s4,    0x30(%1)\n\t"
+			"ld s3,    0x28(%1)\n\t"
+			"ld s2,    0x20(%1)\n\t"
+			"ld s1,    0x18(%1)\n\t"
+			"ld s0,    0x10(%1)\n\t"
+			"ld sp,    0x08(%1)\n\t"
+			"ld t0,    0x00(%1)\n\t"
+			"jr t0\n\t"
+			"1:\n\t"
+			: : "r"(pFrom), "r"(pTo)
+			: "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
+			  "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"
+		);
+	#else
 	__asm__ volatile (
 		"la t0, 1f\n\t"
 		"sd t0,  0x00(%0)\n\t"
@@ -12572,19 +13335,132 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		: "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
 		  "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"
 	);
+	#endif
 }
 #endif
 /* ================================ 后端实现: LoongArch64 内联汇编 ================================ */
 #ifdef __XRT_CO_ASM_LA64
+	#if defined(__loongarch_frlen) && (__loongarch_frlen == 32)
+		#define __XRT_CO_LA64_FP32
+		#define __XRT_CO_LA64_HAS_FP
+	#elif defined(__loongarch_frlen) && (__loongarch_frlen >= 64)
+		#define __XRT_CO_LA64_FP64
+		#define __XRT_CO_LA64_HAS_FP
+	#elif defined(__loongarch_single_float)
+		#define __XRT_CO_LA64_FP32
+		#define __XRT_CO_LA64_HAS_FP
+	#elif defined(__loongarch_double_float)
+		#define __XRT_CO_LA64_FP64
+		#define __XRT_CO_LA64_HAS_FP
+	#endif
 /*
 	LoongArch64 LP64 callee-saved 寄存器:
 	arrReg[0] = 恢复点地址 (ra)
 	arrReg[1] = sp ($r3)
 	arrReg[2] = fp ($r22)
 	arrReg[3..11] = s0~s8 ($r23~$r31)
+	若使用硬浮点 ABI:
+	arrReg[12..19] = fs0 ~ fs7（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
+	#ifdef __XRT_CO_LA64_FP64
+		__asm__ volatile (
+			"la.local $t0, 1f\n\t"
+			"st.d   $t0,   %0, 0x00\n\t"
+			"st.d   $sp,   %0, 0x08\n\t"
+			"st.d   $fp,   %0, 0x10\n\t"
+			"st.d   $s0,   %0, 0x18\n\t"
+			"st.d   $s1,   %0, 0x20\n\t"
+			"st.d   $s2,   %0, 0x28\n\t"
+			"st.d   $s3,   %0, 0x30\n\t"
+			"st.d   $s4,   %0, 0x38\n\t"
+			"st.d   $s5,   %0, 0x40\n\t"
+			"st.d   $s6,   %0, 0x48\n\t"
+			"st.d   $s7,   %0, 0x50\n\t"
+			"st.d   $s8,   %0, 0x58\n\t"
+			"fst.d  $fs0,  %0, 0x60\n\t"
+			"fst.d  $fs1,  %0, 0x68\n\t"
+			"fst.d  $fs2,  %0, 0x70\n\t"
+			"fst.d  $fs3,  %0, 0x78\n\t"
+			"fst.d  $fs4,  %0, 0x80\n\t"
+			"fst.d  $fs5,  %0, 0x88\n\t"
+			"fst.d  $fs6,  %0, 0x90\n\t"
+			"fst.d  $fs7,  %0, 0x98\n\t"
+			"fld.d  $fs7,  %1, 0x98\n\t"
+			"fld.d  $fs6,  %1, 0x90\n\t"
+			"fld.d  $fs5,  %1, 0x88\n\t"
+			"fld.d  $fs4,  %1, 0x80\n\t"
+			"fld.d  $fs3,  %1, 0x78\n\t"
+			"fld.d  $fs2,  %1, 0x70\n\t"
+			"fld.d  $fs1,  %1, 0x68\n\t"
+			"fld.d  $fs0,  %1, 0x60\n\t"
+			"ld.d   $s8,   %1, 0x58\n\t"
+			"ld.d   $s7,   %1, 0x50\n\t"
+			"ld.d   $s6,   %1, 0x48\n\t"
+			"ld.d   $s5,   %1, 0x40\n\t"
+			"ld.d   $s4,   %1, 0x38\n\t"
+			"ld.d   $s3,   %1, 0x30\n\t"
+			"ld.d   $s2,   %1, 0x28\n\t"
+			"ld.d   $s1,   %1, 0x20\n\t"
+			"ld.d   $fp,   %1, 0x10\n\t"
+			"ld.d   $s0,   %1, 0x18\n\t"
+			"ld.d   $sp,   %1, 0x08\n\t"
+			"ld.d   $t0,   %1, 0x00\n\t"
+			"jr $t0\n\t"
+			"1:\n\t"
+			: : "r"(pFrom), "r"(pTo)
+			: "memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
+		);
+	#elif defined(__XRT_CO_LA64_FP32)
+		__asm__ volatile (
+			"la.local $t0, 1f\n\t"
+			"st.d   $t0,   %0, 0x00\n\t"
+			"st.d   $sp,   %0, 0x08\n\t"
+			"st.d   $fp,   %0, 0x10\n\t"
+			"st.d   $s0,   %0, 0x18\n\t"
+			"st.d   $s1,   %0, 0x20\n\t"
+			"st.d   $s2,   %0, 0x28\n\t"
+			"st.d   $s3,   %0, 0x30\n\t"
+			"st.d   $s4,   %0, 0x38\n\t"
+			"st.d   $s5,   %0, 0x40\n\t"
+			"st.d   $s6,   %0, 0x48\n\t"
+			"st.d   $s7,   %0, 0x50\n\t"
+			"st.d   $s8,   %0, 0x58\n\t"
+			"fst.s  $fs0,  %0, 0x60\n\t"
+			"fst.s  $fs1,  %0, 0x68\n\t"
+			"fst.s  $fs2,  %0, 0x70\n\t"
+			"fst.s  $fs3,  %0, 0x78\n\t"
+			"fst.s  $fs4,  %0, 0x80\n\t"
+			"fst.s  $fs5,  %0, 0x88\n\t"
+			"fst.s  $fs6,  %0, 0x90\n\t"
+			"fst.s  $fs7,  %0, 0x98\n\t"
+			"fld.s  $fs7,  %1, 0x98\n\t"
+			"fld.s  $fs6,  %1, 0x90\n\t"
+			"fld.s  $fs5,  %1, 0x88\n\t"
+			"fld.s  $fs4,  %1, 0x80\n\t"
+			"fld.s  $fs3,  %1, 0x78\n\t"
+			"fld.s  $fs2,  %1, 0x70\n\t"
+			"fld.s  $fs1,  %1, 0x68\n\t"
+			"fld.s  $fs0,  %1, 0x60\n\t"
+			"ld.d   $s8,   %1, 0x58\n\t"
+			"ld.d   $s7,   %1, 0x50\n\t"
+			"ld.d   $s6,   %1, 0x48\n\t"
+			"ld.d   $s5,   %1, 0x40\n\t"
+			"ld.d   $s4,   %1, 0x38\n\t"
+			"ld.d   $s3,   %1, 0x30\n\t"
+			"ld.d   $s2,   %1, 0x28\n\t"
+			"ld.d   $s1,   %1, 0x20\n\t"
+			"ld.d   $fp,   %1, 0x10\n\t"
+			"ld.d   $s0,   %1, 0x18\n\t"
+			"ld.d   $sp,   %1, 0x08\n\t"
+			"ld.d   $t0,   %1, 0x00\n\t"
+			"jr $t0\n\t"
+			"1:\n\t"
+			: : "r"(pFrom), "r"(pTo)
+			: "memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
+		);
+	#else
 	__asm__ volatile (
 		"la.local $t0, 1f\n\t"
 		"st.d $t0,  %0, 0x00\n\t"
@@ -12616,158 +13492,354 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		: : "r"(pFrom), "r"(pTo)
 		: "memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
 	);
+	#endif
 }
 #endif
 /* ================================ 汇编后端: 入口 + 初始化 + swap 包装 ================================ */
-#if defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
-// 协程入口包装（不接收参数，从全局状态读取当前协程）
+#if defined(__XRT_CO_ASM_X64_WIN) || defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
+static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
+{
+	__xrt_co_ctx* pMainCtx = NULL;
+	if ( pRuntime == NULL ) {
+		return FALSE;
+	}
+	if ( pRuntime->pBackendMain == NULL ) {
+		pMainCtx = (__xrt_co_ctx*)xrtCalloc(1, sizeof(__xrt_co_ctx));
+		if ( pMainCtx == NULL ) {
+			xrtSetError("failed to allocate coroutine main context.", FALSE);
+			return FALSE;
+		}
+		pRuntime->pBackendMain = pMainCtx;
+	}
+	return TRUE;
+}
+// 协程入口包装（不接收参数，从线程状态读取当前协程）
 static void __xrt_co_asm_entry()
 {
-	xcoro pCo = __xrt_co_current;
+	xcoro pCo = __xrt_co_get_current();
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+	if ( pCo == NULL || pRuntime == NULL || pRuntime->pBackendMain == NULL ) {
+		return;
+	}
 	pCo->pfnEntry(pCo->pParam);
-	pCo->iState = XRT_CO_DEAD;
-	__xrt_co_swap(&pCo->__tCtx, &__xrt_co_main_ctx);
+	__xrt_co_finish(pCo, __xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED, 0);
+	__xrt_co_swap(&pCo->__tCtx, (__xrt_co_ctx*)pRuntime->pBackendMain);
 }
-static void __xrt_co_init_ctx(xcoro pCo)
+static bool __xrt_co_init_ctx(xcoro pCo)
 {
 	uint8* pStackTop = (uint8*)pCo->__pStack + pCo->iStackSize;
-	
 	// 对齐到 16 字节边界
 	pStackTop = (uint8*)((uintptr)pStackTop & ~(uintptr)0x0F);
-	
 	#ifdef __XRT_CO_ASM_X64
 		// x86_64: 模拟 call 指令压入返回地址的效果 (rsp mod 16 == 8)
 		pStackTop -= 8;
+	#elif defined(__XRT_CO_ASM_X64_WIN)
+		// Win64: 需要模拟返回地址 + 32 字节 shadow space
+		pStackTop -= 40;
 	#endif
-	
 	memset(&pCo->__tCtx, 0, sizeof(__xrt_co_ctx));
-	
 	// arrReg[0] = 入口点, arrReg[1] = 栈顶
 	pCo->__tCtx.arrReg[0] = (ptr)__xrt_co_asm_entry;
 	pCo->__tCtx.arrReg[1] = (ptr)pStackTop;
+	return TRUE;
 }
-static void __xrt_co_swap_to_co(xcoro pCo)
+static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
 {
-	__xrt_co_swap(&__xrt_co_main_ctx, &pCo->__tCtx);
+	__xrt_co_swap((__xrt_co_ctx*)pRuntime->pBackendMain, &pCo->__tCtx);
 }
-static void __xrt_co_swap_to_main()
+static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
 {
-	__xrt_co_swap(&__xrt_co_current->__tCtx, &__xrt_co_main_ctx);
+	xcoro pCurrent = __xrt_co_get_current();
+	if ( pRuntime && pRuntime->pBackendMain && pCurrent ) {
+		__xrt_co_swap(&pCurrent->__tCtx, (__xrt_co_ctx*)pRuntime->pBackendMain);
+	}
 }
 #endif
 /* ================================ ucontext 后端: 入口 + 初始化 + swap 包装 ================================ */
 #ifdef __XRT_CO_UCONTEXT
+static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
+{
+	if ( pRuntime == NULL ) {
+		return FALSE;
+	}
+	if ( pRuntime->pBackendMain == NULL ) {
+		pRuntime->pBackendMain = xrtMalloc(sizeof(ucontext_t));
+		if ( pRuntime->pBackendMain == NULL ) {
+			xrtSetError("failed to allocate coroutine main context.", FALSE);
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
 static void __xrt_co_ucontext_entry()
 {
-	xcoro pCo = __xrt_co_current;
+	xcoro pCo = __xrt_co_get_current();
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+	if ( pCo == NULL || pRuntime == NULL || pRuntime->pBackendMain == NULL ) {
+		return;
+	}
 	pCo->pfnEntry(pCo->pParam);
-	pCo->iState = XRT_CO_DEAD;
-	swapcontext((ucontext_t*)pCo->__hFiber, &__xrt_co_main_uctx);
+	__xrt_co_finish(pCo, __xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED, 0);
+	swapcontext((ucontext_t*)pCo->__hFiber, (ucontext_t*)pRuntime->pBackendMain);
 }
-static void __xrt_co_init_ctx(xcoro pCo)
+static bool __xrt_co_init_ctx(xcoro pCo)
 {
-	// ucontext_t 体积较大，动态分配并将指针存入 __hFiber
 	ucontext_t* pCtx = (ucontext_t*)xrtMalloc(sizeof(ucontext_t));
+	if ( pCtx == NULL ) {
+		xrtSetError("failed to allocate coroutine context.", FALSE);
+		return FALSE;
+	}
 	pCo->__hFiber = pCtx;
 	getcontext(pCtx);
 	pCtx->uc_stack.ss_sp = pCo->__pStack;
 	pCtx->uc_stack.ss_size = pCo->iStackSize;
 	pCtx->uc_link = NULL;
 	makecontext(pCtx, (void(*)())__xrt_co_ucontext_entry, 0);
+	return TRUE;
 }
-static void __xrt_co_swap_to_co(xcoro pCo)
+static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
 {
-	swapcontext(&__xrt_co_main_uctx, (ucontext_t*)pCo->__hFiber);
+	swapcontext((ucontext_t*)pRuntime->pBackendMain, (ucontext_t*)pCo->__hFiber);
 }
-static void __xrt_co_swap_to_main()
+static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
 {
-	swapcontext((ucontext_t*)__xrt_co_current->__hFiber, &__xrt_co_main_uctx);
+	xcoro pCurrent = __xrt_co_get_current();
+	if ( pRuntime && pRuntime->pBackendMain && pCurrent ) {
+		swapcontext((ucontext_t*)pCurrent->__hFiber, (ucontext_t*)pRuntime->pBackendMain);
+	}
 }
 #endif
-/* ================================ 基础协程 API ================================ */
-XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize)
+/* ================================ 内部销毁辅助 ================================ */
+static void __xrt_co_destroy_raw(xcoro pCo)
 {
-	if ( !pfnEntry ) return NULL;
-	
-	// 栈大小处理
-	if ( iStackSize == 0 ) iStackSize = XRT_CO_STACK_DEFAULT;
-	if ( iStackSize < XRT_CO_STACK_MIN ) iStackSize = XRT_CO_STACK_MIN;
-	if ( iStackSize > XRT_CO_STACK_MAX ) iStackSize = XRT_CO_STACK_MAX;
-	
-	// 分配协程结构体
-	xcoro pCo = (xcoro)xrtMalloc(sizeof(xcoro_struct));
-	if ( !pCo ) return NULL;
-	
-	memset(pCo, 0, sizeof(xcoro_struct));
-	pCo->iState = XRT_CO_READY;
-	pCo->pfnEntry = pfnEntry;
-	pCo->pParam = pParam;
-	pCo->iStackSize = iStackSize;
-	
-	// 分配栈内存（Fiber 后端由系统分配栈，不需要手动分配）
-	#ifndef __XRT_CO_FIBER
-		pCo->__pStack = xrtMalloc(iStackSize);
-		if ( !pCo->__pStack ) {
-			xrtFree(pCo);
-			return NULL;
-		}
-	#endif
-	
-	// 初始化上下文
-	__xrt_co_init_ctx(pCo);
-	
-	return pCo;
-}
-XXAPI void xrtCoDestroy(xcoro pCo)
-{
-	if ( !pCo ) return;
-	
+	if ( pCo == NULL ) {
+		return;
+	}
 	#ifdef __XRT_CO_FIBER
 		if ( pCo->__hFiber ) {
 			DeleteFiber(pCo->__hFiber);
 		}
 	#elif defined(__XRT_CO_UCONTEXT)
 		if ( pCo->__hFiber ) {
-			xrtFree(pCo->__hFiber);  // 释放 ucontext_t
+			xrtFree(pCo->__hFiber);
 		}
-		if ( pCo->__pStack ) {
-			xrtFree(pCo->__pStack);
-		}
+		__xrt_co_stack_free(pCo);
 	#else
-		if ( pCo->__pStack ) {
-			xrtFree(pCo->__pStack);
+		__xrt_co_stack_free(pCo);
+	#endif
+	__xrt_co_free_cleanup_nodes(pCo);
+	xrtFree(pCo);
+}
+/* ================================ 基础协程 API ================================ */
+XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args* pArgs)
+{
+	xrtThreadData* pThreadData = __xrt_co_require_thread_data(TRUE);
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime_from_thread(pThreadData);
+	xcoro pCo = NULL;
+	size_t iStackSize = 0;
+	ptr pUserData = NULL;
+	uint32 iFlags = 0;
+	if ( pThreadData == NULL || pRuntime == NULL ) {
+		return NULL;
+	}
+	if ( !pfnEntry ) {
+		xrtSetError("coroutine entry is null.", FALSE);
+		return NULL;
+	}
+	if ( pArgs != NULL ) {
+		iStackSize = pArgs->iStackSize;
+		pUserData = pArgs->pUserData;
+		iFlags = pArgs->iFlags;
+	}
+	if ( iFlags != XRT_CO_CREATE_NONE ) {
+		xrtSetError("unsupported coroutine create flags.", FALSE);
+		return NULL;
+	}
+	// 栈大小处理
+	if ( iStackSize == 0 ) iStackSize = XRT_CO_STACK_DEFAULT;
+	if ( iStackSize < XRT_CO_STACK_MIN ) iStackSize = XRT_CO_STACK_MIN;
+	if ( iStackSize > XRT_CO_STACK_MAX ) iStackSize = XRT_CO_STACK_MAX;
+	// 分配协程结构体
+	pCo = (xcoro)xrtMalloc(sizeof(xcoro_struct));
+	if ( !pCo ) {
+		return NULL;
+	}
+	memset(pCo, 0, sizeof(xcoro_struct));
+	pCo->iState = XRT_CO_READY;
+	pCo->__iFlags = 0;
+	pCo->__iOwnerThreadId = pThreadData->iThreadId;
+	pCo->pfnEntry = pfnEntry;
+	pCo->pParam = pParam;
+	pCo->pUserData = pUserData;
+	pCo->pResult = NULL;
+	pCo->iExitCode = 0;
+	pCo->iTermReason = XRT_CO_TERM_NONE;
+	pCo->iStackSize = iStackSize;
+	// 分配栈内存（Fiber 后端由系统分配栈，不需要手动分配）
+	#ifndef __XRT_CO_FIBER
+		if ( !__xrt_co_stack_alloc(pCo) ) {
+			xrtFree(pCo);
+			return NULL;
 		}
 	#endif
-	
-	xrtFree(pCo);
+	if ( !__xrt_co_prepare_backend_main(pRuntime) || !__xrt_co_init_ctx(pCo) ) {
+		__xrt_co_destroy_raw(pCo);
+		return NULL;
+	}
+	return pCo;
+}
+XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize)
+{
+	xco_create_args tArgs;
+	memset(&tArgs, 0, sizeof(tArgs));
+	tArgs.iStackSize = iStackSize;
+	return xrtCoCreateEx(pfnEntry, pParam, &tArgs);
+}
+XXAPI void xrtCoDestroy(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return;
+	}
+	if ( pCo->__pSched != NULL ) {
+		xrtSetError("cannot destroy coroutine while it is owned by a scheduler.", FALSE);
+		return;
+	}
+	if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_DEAD) ) {
+		xrtSetError("coroutine destroy requires READY or DEAD state.", FALSE);
+		return;
+	}
+	__xrt_co_destroy_raw(pCo);
+}
+XXAPI bool xrtCoCancel(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		xrtSetError("invalid coroutine handle.", FALSE);
+		return FALSE;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return FALSE;
+	}
+	if ( __xrt_co_is_terminal(pCo) ) {
+		return TRUE;
+	}
+	pCo->__iFlags |= __XRT_CO_FLAG_CANCEL_REQUESTED;
+	if ( pCo == __xrt_co_get_current() ) {
+		return TRUE;
+	}
+	if ( pCo->iState == XRT_CO_READY && (pCo->__iFlags & __XRT_CO_FLAG_STARTED) == 0 ) {
+		__xrt_co_finalize_ready_cancel(pCo);
+		return TRUE;
+	}
+	if ( pCo->__pJoinTarget != NULL ) {
+		if ( pCo->__pJoinTarget->__pJoinWaiter == pCo ) {
+			pCo->__pJoinTarget->__pJoinWaiter = NULL;
+		}
+		pCo->__pJoinTarget = NULL;
+		if ( pCo->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
+			pCo->__iWaitKind = __XRT_CO_WAIT_NONE;
+		}
+	}
+	if ( pCo->__iWaitKind == __XRT_CO_WAIT_EVENT && pCo->__pWaitObject != NULL ) {
+		xcoevent pEvent = (xcoevent)pCo->__pWaitObject;
+		if ( pEvent->pLock ) {
+			xrtMutexLock(pEvent->pLock);
+			__xrt_co_detach_event_waiter_locked(pEvent, pCo);
+			xrtMutexUnlock(pEvent->pLock);
+		}
+		else {
+			__xrt_co_clear_wait_state(pCo);
+		}
+	}
+	if ( pCo->__iWakeTime > 0 ) {
+		pCo->__iWakeTime = 0;
+	}
+	if ( pCo->__pSched != NULL ) {
+		__xrt_co_sched_detach_timer((xcosched*)pCo->__pSched, pCo);
+		__xrt_co_sched_mark_ready((xcosched*)pCo->__pSched, pCo);
+	}
+	return TRUE;
+}
+XXAPI bool xrtCoClose(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		xrtSetError("invalid coroutine handle.", FALSE);
+		return FALSE;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return FALSE;
+	}
+	if ( pCo->__pSched != NULL ) {
+		if ( pCo->iState == XRT_CO_DEAD ) {
+			return __xrt_co_sched_release_dead(pCo);
+		}
+		pCo->__iFlags |= __XRT_CO_FLAG_CLOSE_REQUESTED;
+		return xrtCoCancel(pCo);
+	}
+	if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_DEAD) ) {
+		xrtSetError("close requires READY or DEAD coroutine when no scheduler owns it.", FALSE);
+		return FALSE;
+	}
+	xrtCoDestroy(pCo);
+	return TRUE;
 }
 XXAPI bool xrtCoResume(xcoro pCo)
 {
-	if ( !pCo ) return false;
-	
+	xrtCoroRuntimeState* pRuntime = NULL;
+	if ( pCo == NULL ) {
+		xrtSetError("invalid coroutine handle.", FALSE);
+		return FALSE;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return FALSE;
+	}
+	pRuntime = __xrt_co_require_runtime(TRUE);
+	if ( pRuntime == NULL ) {
+		return FALSE;
+	}
+	if ( !__xrt_co_prepare_backend_main(pRuntime) ) {
+		return FALSE;
+	}
 	// 只能恢复 READY 或 SUSPENDED 状态的协程
-	if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_SUSPENDED) ) return false;
-	
+	if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_SUSPENDED) ) {
+		xrtSetError("coroutine is not in a resumable state.", FALSE);
+		return FALSE;
+	}
 	// 不能在协程内部调用 Resume（不支持嵌套）
-	if ( __xrt_co_current != NULL ) return false;
-	
+	if ( __xrt_co_get_current() != NULL ) {
+		xrtSetError("nested coroutine resume is not supported.", FALSE);
+		return FALSE;
+	}
+	if ( pCo->iState == XRT_CO_READY &&
+		__xrt_co_is_cancel_requested_flag(pCo) &&
+		(pCo->__iFlags & __XRT_CO_FLAG_STARTED) == 0 ) {
+		__xrt_co_finish(pCo, XRT_CO_TERM_CANCELLED, -1);
+		return TRUE;
+	}
 	pCo->__iWakeTime = 0;
-	__xrt_co_current = pCo;
+	pCo->__iFlags |= __XRT_CO_FLAG_STARTED;
+	__xrt_co_set_current(pCo);
 	pCo->iState = XRT_CO_RUNNING;
-	
-	__xrt_co_swap_to_co(pCo);
-	
+	__xrt_co_swap_to_co(pRuntime, pCo);
 	// 从这里恢复意味着协程 yield 了或者结束了
-	__xrt_co_current = NULL;
-	return true;
+	__xrt_co_set_current(NULL);
+	return TRUE;
 }
 XXAPI void xrtCoYield()
 {
-	xcoro pCo = __xrt_co_current;
-	if ( !pCo ) return;
-	
+	xcoro pCo = __xrt_co_get_current();
+	xrtCoroRuntimeState* pRuntime = __xrt_co_require_runtime(FALSE);
+	if ( pCo == NULL || pRuntime == NULL ) {
+		return;
+	}
+	if ( (pCo->__iFlags & __XRT_CO_FLAG_IN_CLEANUP) != 0 ) {
+		xrtSetError("cannot yield while running coroutine cleanup.", FALSE);
+		return;
+	}
 	pCo->iState = XRT_CO_SUSPENDED;
-	__xrt_co_swap_to_main();
+	__xrt_co_swap_to_main(pRuntime);
 }
 XXAPI int xrtCoGetState(xcoro pCo)
 {
@@ -12776,59 +13848,788 @@ XXAPI int xrtCoGetState(xcoro pCo)
 }
 XXAPI xcoro xrtCoGetCurrent()
 {
-	return __xrt_co_current;
+	return __xrt_co_get_current();
 }
-XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData)
+XXAPI bool xrtCoIsCancelRequested()
 {
-	if ( pCo ) pCo->pUserData = pData;
+	xcoro pCo = __xrt_co_get_current();
+	return pCo ? __xrt_co_is_cancel_requested_flag(pCo) : FALSE;
 }
-XXAPI ptr xrtCoGetUserData(xcoro pCo)
+XXAPI bool xrtCoWasCancelled(xcoro pCo)
 {
-	if ( !pCo ) return NULL;
-	return pCo->pUserData;
+	if ( pCo == NULL ) {
+		return FALSE;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return FALSE;
+	}
+	return (pCo->__iFlags & __XRT_CO_FLAG_CANCELLED) != 0;
+}
+XXAPI int64 xrtCoGetExitCode(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return 0;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return 0;
+	}
+	return pCo->iExitCode;
+}
+XXAPI void xrtCoSetResult(ptr pResult)
+{
+	xcoro pCo = __xrt_co_get_current();
+	if ( pCo == NULL ) {
+		xrtSetError("xrtCoSetResult must be called from inside a coroutine.", FALSE);
+		return;
+	}
+	pCo->pResult = pResult;
+}
+XXAPI ptr xrtCoGetResult(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return NULL;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return NULL;
+	}
+	return pCo->pResult;
+}
+XXAPI str xrtCoGetBackendName()
+{
+	return __XRT_CO_BACKEND_NAME;
+}
+XXAPI int xrtCoGetBackendTier()
+{
+	#if (__XRT_CO_BACKEND_TIER == __XRT_CO_BACKEND_TIER_PRODUCTION)
+		return XRT_CO_BACKEND_TIER_PRODUCTION;
+	#else
+		return XRT_CO_BACKEND_TIER_COMPAT;
+	#endif
+}
+XXAPI int xrtCoGetBackendStyle()
+{
+	#if (__XRT_CO_BACKEND_STYLE == __XRT_CO_BACKEND_STYLE_INLINE_ASM)
+		return XRT_CO_BACKEND_STYLE_INLINE_ASM;
+	#else
+		return XRT_CO_BACKEND_STYLE_COMPAT;
+	#endif
 }
 /* ================================ 协程调度器 ================================ */
 #define __XRT_CO_SCHED_INIT_CAP  16
+#define __XRT_CO_TIMER_INIT_CAP  16
+#define __XRT_CO_SCHED_WAIT_FOREVER 0xFFFFFFFFu
+typedef struct __xrt_co_post_item {
+	xcoro pCo;
+	struct __xrt_co_post_item* pNext;
+} __xrt_co_post_item;
 struct xrt_co_scheduler {
+	xrtThreadData* pThreadData;
+	uint64 iOwnerThreadId;
 	xcoro* arrCoros;
 	int iCount;
 	int iCapacity;
 	int iAlive;
+	xcoro pReadyHead;
+	xcoro pReadyTail;
+	xcoro* arrTimers;
+	int iTimerCount;
+	int iTimerCapacity;
+	xmutex pPostMutex;
+	xcond pPostCond;
+	__xrt_co_post_item* pPostHead;
+	__xrt_co_post_item* pPostTail;
 };
+static int __xrt_co_sched_find_index(xcosched* pSched, xcoro pCo)
+{
+	if ( pSched == NULL || pCo == NULL ) {
+		return -1;
+	}
+	for ( int i = 0; i < pSched->iCount; i++ ) {
+		if ( pSched->arrCoros[i] == pCo ) {
+			return i;
+		}
+	}
+	return -1;
+}
+static bool __xrt_co_sched_ready_unlink(xcosched* pSched, xcoro pCo)
+{
+	if ( pSched == NULL || pCo == NULL || (pCo->__iFlags & __XRT_CO_FLAG_READY_QUEUED) == 0 ) {
+		return FALSE;
+	}
+	if ( pCo->__pReadyPrev ) {
+		pCo->__pReadyPrev->__pReadyNext = pCo->__pReadyNext;
+	}
+	else {
+		pSched->pReadyHead = pCo->__pReadyNext;
+	}
+	if ( pCo->__pReadyNext ) {
+		pCo->__pReadyNext->__pReadyPrev = pCo->__pReadyPrev;
+	}
+	else {
+		pSched->pReadyTail = pCo->__pReadyPrev;
+	}
+	pCo->__pReadyPrev = NULL;
+	pCo->__pReadyNext = NULL;
+	pCo->__iFlags &= ~__XRT_CO_FLAG_READY_QUEUED;
+	return TRUE;
+}
+static bool __xrt_co_sched_timer_ensure_capacity(xcosched* pSched)
+{
+	xcoro* arrNew = NULL;
+	int iNewCap = 0;
+	if ( pSched == NULL ) {
+		return FALSE;
+	}
+	if ( pSched->iTimerCount < pSched->iTimerCapacity ) {
+		return TRUE;
+	}
+	iNewCap = (pSched->iTimerCapacity <= 0) ? __XRT_CO_TIMER_INIT_CAP : (pSched->iTimerCapacity * 2);
+	arrNew = (xcoro*)xrtRealloc(pSched->arrTimers, sizeof(xcoro) * iNewCap);
+	if ( arrNew == NULL ) {
+		return FALSE;
+	}
+	pSched->arrTimers = arrNew;
+	pSched->iTimerCapacity = iNewCap;
+	return TRUE;
+}
+static void __xrt_co_sched_timer_swap(xcosched* pSched, int iA, int iB)
+{
+	xcoro pTmp = NULL;
+	if ( pSched == NULL || iA == iB ) {
+		return;
+	}
+	pTmp = pSched->arrTimers[iA];
+	pSched->arrTimers[iA] = pSched->arrTimers[iB];
+	pSched->arrTimers[iB] = pTmp;
+	if ( pSched->arrTimers[iA] ) {
+		pSched->arrTimers[iA]->__iTimerIndex = (uint32)(iA + 1);
+	}
+	if ( pSched->arrTimers[iB] ) {
+		pSched->arrTimers[iB]->__iTimerIndex = (uint32)(iB + 1);
+	}
+}
+static void __xrt_co_sched_timer_sift_up(xcosched* pSched, int iIndex)
+{
+	while ( pSched && iIndex > 0 ) {
+		int iParent = (iIndex - 1) / 2;
+		xcoro pNode = pSched->arrTimers[iIndex];
+		xcoro pParent = pSched->arrTimers[iParent];
+		if ( pNode == NULL || pParent == NULL || pParent->__iWakeTime <= pNode->__iWakeTime ) {
+			break;
+		}
+		__xrt_co_sched_timer_swap(pSched, iIndex, iParent);
+		iIndex = iParent;
+	}
+}
+static void __xrt_co_sched_timer_sift_down(xcosched* pSched, int iIndex)
+{
+	while ( pSched ) {
+		int iLeft = iIndex * 2 + 1;
+		int iRight = iLeft + 1;
+		int iSmallest = iIndex;
+		if ( iLeft < pSched->iTimerCount &&
+			pSched->arrTimers[iLeft] &&
+			pSched->arrTimers[iSmallest] &&
+			pSched->arrTimers[iLeft]->__iWakeTime < pSched->arrTimers[iSmallest]->__iWakeTime ) {
+			iSmallest = iLeft;
+		}
+		if ( iRight < pSched->iTimerCount &&
+			pSched->arrTimers[iRight] &&
+			pSched->arrTimers[iSmallest] &&
+			pSched->arrTimers[iRight]->__iWakeTime < pSched->arrTimers[iSmallest]->__iWakeTime ) {
+			iSmallest = iRight;
+		}
+		if ( iSmallest == iIndex ) {
+			break;
+		}
+		__xrt_co_sched_timer_swap(pSched, iIndex, iSmallest);
+		iIndex = iSmallest;
+	}
+}
+static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo)
+{
+	int iIndex = 0;
+	int iLast = 0;
+	if ( pSched == NULL || pCo == NULL || (pCo->__iFlags & __XRT_CO_FLAG_TIMER_QUEUED) == 0 || pCo->__iTimerIndex == 0 ) {
+		return FALSE;
+	}
+	iIndex = (int)pCo->__iTimerIndex - 1;
+	iLast = pSched->iTimerCount - 1;
+	if ( iIndex < 0 || iIndex >= pSched->iTimerCount ) {
+		pCo->__iTimerIndex = 0;
+		pCo->__iFlags &= ~__XRT_CO_FLAG_TIMER_QUEUED;
+		return FALSE;
+	}
+	if ( iIndex != iLast ) {
+		__xrt_co_sched_timer_swap(pSched, iIndex, iLast);
+	}
+	pSched->arrTimers[iLast] = NULL;
+	pSched->iTimerCount--;
+	pCo->__iTimerIndex = 0;
+	pCo->__iFlags &= ~__XRT_CO_FLAG_TIMER_QUEUED;
+	if ( iIndex < pSched->iTimerCount ) {
+		__xrt_co_sched_timer_sift_down(pSched, iIndex);
+		__xrt_co_sched_timer_sift_up(pSched, iIndex);
+	}
+	return TRUE;
+}
+static bool __xrt_co_sched_attach_timer(xcosched* pSched, xcoro pCo)
+{
+	int iIndex = 0;
+	if ( pSched == NULL || pCo == NULL || pCo->iState == XRT_CO_DEAD || pCo->__iWakeTime <= 0 ) {
+		return FALSE;
+	}
+	__xrt_co_sched_ready_unlink(pSched, pCo);
+	if ( pCo->__iFlags & __XRT_CO_FLAG_TIMER_QUEUED ) {
+		iIndex = (int)pCo->__iTimerIndex - 1;
+		if ( iIndex >= 0 && iIndex < pSched->iTimerCount ) {
+			__xrt_co_sched_timer_sift_down(pSched, iIndex);
+			__xrt_co_sched_timer_sift_up(pSched, iIndex);
+			return TRUE;
+		}
+		pCo->__iFlags &= ~__XRT_CO_FLAG_TIMER_QUEUED;
+		pCo->__iTimerIndex = 0;
+	}
+	if ( !__xrt_co_sched_timer_ensure_capacity(pSched) ) {
+		return FALSE;
+	}
+	iIndex = pSched->iTimerCount++;
+	pSched->arrTimers[iIndex] = pCo;
+	pCo->__iFlags |= __XRT_CO_FLAG_TIMER_QUEUED;
+	pCo->__iTimerIndex = (uint32)(iIndex + 1);
+	pCo->iState = XRT_CO_SUSPENDED;
+	__xrt_co_sched_timer_sift_up(pSched, iIndex);
+	return TRUE;
+}
+static bool __xrt_co_sched_mark_ready(xcosched* pSched, xcoro pCo)
+{
+	if ( pSched == NULL || pCo == NULL || pCo->iState == XRT_CO_DEAD || pCo->__pSched != pSched ) {
+		return FALSE;
+	}
+	if ( pCo->__pJoinTarget != NULL && !__xrt_co_is_terminal(pCo->__pJoinTarget) ) {
+		return FALSE;
+	}
+	__xrt_co_sched_detach_timer(pSched, pCo);
+	if ( pCo->__iFlags & __XRT_CO_FLAG_READY_QUEUED ) {
+		pCo->iState = XRT_CO_READY;
+		return TRUE;
+	}
+	pCo->__iWakeTime = 0;
+	pCo->iState = XRT_CO_READY;
+	pCo->__pReadyPrev = pSched->pReadyTail;
+	pCo->__pReadyNext = NULL;
+	if ( pSched->pReadyTail ) {
+		pSched->pReadyTail->__pReadyNext = pCo;
+	}
+	else {
+		pSched->pReadyHead = pCo;
+	}
+	pSched->pReadyTail = pCo;
+	pCo->__iFlags |= __XRT_CO_FLAG_READY_QUEUED;
+	return TRUE;
+}
+static void __xrt_co_sched_collect_expired_timers(xcosched* pSched, int64 iNow)
+{
+	while ( pSched && pSched->iTimerCount > 0 ) {
+		xcoro pCo = pSched->arrTimers[0];
+		if ( pCo == NULL ) {
+			break;
+		}
+		if ( pCo->__iWakeTime > iNow ) {
+			break;
+		}
+		__xrt_co_sched_detach_timer(pSched, pCo);
+		if ( pCo->__iWaitKind == __XRT_CO_WAIT_EVENT && pCo->__pWaitObject != NULL ) {
+			xcoevent pEvent = (xcoevent)pCo->__pWaitObject;
+			if ( pEvent && pEvent->pLock ) {
+				xrtMutexLock(pEvent->pLock);
+				pCo->__iWaitResult = __XRT_CO_WAIT_RESULT_TIMEOUT;
+				__xrt_co_detach_event_waiter_locked(pEvent, pCo);
+				xrtMutexUnlock(pEvent->pLock);
+			}
+		}
+		pCo->__iWakeTime = 0;
+		__xrt_co_sched_mark_ready(pSched, pCo);
+	}
+}
+static bool __xrt_co_sched_reap_dead(xcosched* pSched, int iIndex)
+{
+	xcoro pCo = NULL;
+	if ( pSched == NULL || iIndex < 0 || iIndex >= pSched->iCount ) {
+		return FALSE;
+	}
+	pCo = pSched->arrCoros[iIndex];
+	if ( pCo == NULL || pCo->iState != XRT_CO_DEAD ) {
+		return FALSE;
+	}
+	__xrt_co_sched_ready_unlink(pSched, pCo);
+	__xrt_co_sched_detach_timer(pSched, pCo);
+	if ( (pCo->__iFlags & __XRT_CO_FLAG_REAP_PENDING) == 0 ) {
+		pCo->__iFlags |= __XRT_CO_FLAG_REAP_PENDING;
+		if ( pSched->iAlive > 0 ) {
+			pSched->iAlive--;
+		}
+	}
+	if ( pCo->__iFlags & __XRT_CO_FLAG_JOIN_PINNED ) {
+		return TRUE;
+	}
+	pCo->__pSched = NULL;
+	__xrt_co_destroy_raw(pCo);
+	pSched->arrCoros[iIndex] = NULL;
+	return TRUE;
+}
+static bool __xrt_co_sched_release_dead(xcoro pCo)
+{
+	xcosched* pSched = NULL;
+	if ( pCo == NULL || pCo->__pSched == NULL || pCo->iState != XRT_CO_DEAD ) {
+		return FALSE;
+	}
+	pSched = (xcosched*)pCo->__pSched;
+	int iIndex = __xrt_co_sched_find_index(pSched, pCo);
+	if ( iIndex >= 0 ) {
+		__xrt_co_sched_ready_unlink(pSched, pCo);
+		__xrt_co_sched_detach_timer(pSched, pCo);
+		if ( (pCo->__iFlags & __XRT_CO_FLAG_REAP_PENDING) == 0 && pSched->iAlive > 0 ) {
+			pSched->iAlive--;
+		}
+		pCo->__iFlags &= ~__XRT_CO_FLAG_JOIN_PINNED;
+		pCo->__iFlags |= __XRT_CO_FLAG_REAP_PENDING;
+		pCo->__pSched = NULL;
+		__xrt_co_destroy_raw(pCo);
+		pSched->arrCoros[iIndex] = NULL;
+		return TRUE;
+	}
+	return FALSE;
+}
+static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
+{
+	int iIndex = 0;
+	if ( pSched == NULL || pCo == NULL ) {
+		return;
+	}
+	if ( pCo->iState == XRT_CO_DEAD ) {
+		iIndex = __xrt_co_sched_find_index(pSched, pCo);
+		if ( iIndex >= 0 ) {
+			__xrt_co_sched_reap_dead(pSched, iIndex);
+		}
+		return;
+	}
+	if ( pCo->__pSched != pSched ) {
+		return;
+	}
+	if ( pCo->__pJoinTarget != NULL ) {
+		if ( __xrt_co_is_terminal(pCo->__pJoinTarget) ) {
+			pCo->__pJoinTarget = NULL;
+			if ( pCo->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
+				pCo->__iWaitKind = __XRT_CO_WAIT_NONE;
+			}
+		}
+		else {
+			pCo->iState = XRT_CO_SUSPENDED;
+			return;
+		}
+	}
+	if ( pCo->__iWaitKind == __XRT_CO_WAIT_EVENT && pCo->__pWaitObject != NULL ) {
+		if ( (pCo->__iWakeTime > 0) && (pCo->__iWakeTime > iNow) ) {
+			pCo->iState = XRT_CO_SUSPENDED;
+			__xrt_co_sched_attach_timer(pSched, pCo);
+		}
+		else if ( pCo->__iWakeTime > 0 ) {
+			pCo->__iWakeTime = 0;
+		}
+		pCo->iState = XRT_CO_SUSPENDED;
+		return;
+	}
+	if ( (pCo->__iWakeTime > 0) && (pCo->__iWakeTime > iNow) ) {
+		pCo->iState = XRT_CO_SUSPENDED;
+		__xrt_co_sched_attach_timer(pSched, pCo);
+		return;
+	}
+	if ( pCo->__iWakeTime > 0 ) {
+		pCo->__iWakeTime = 0;
+	}
+	__xrt_co_sched_mark_ready(pSched, pCo);
+}
+static int64 __xrt_co_sched_next_wake_time(xcosched* pSched, int64 iNow)
+{
+	if ( pSched == NULL ) {
+		return 0;
+	}
+	if ( pSched->pReadyHead != NULL ) {
+		return iNow;
+	}
+	if ( pSched->iTimerCount > 0 && pSched->arrTimers[0] ) {
+		return pSched->arrTimers[0]->__iWakeTime;
+	}
+	return 0;
+}
+static bool __xrt_co_sched_has_pending_posts(xcosched* pSched)
+{
+	bool bPending = FALSE;
+	if ( pSched == NULL || pSched->pPostMutex == NULL ) {
+		return FALSE;
+	}
+	xrtMutexLock(pSched->pPostMutex);
+	bPending = (pSched->pPostHead != NULL);
+	xrtMutexUnlock(pSched->pPostMutex);
+	return bPending;
+}
+static void __xrt_co_sched_drain_posts(xcosched* pSched)
+{
+	__xrt_co_post_item* pHead = NULL;
+	if ( pSched == NULL || pSched->pPostMutex == NULL ) {
+		return;
+	}
+	xrtMutexLock(pSched->pPostMutex);
+	pHead = pSched->pPostHead;
+	pSched->pPostHead = NULL;
+	pSched->pPostTail = NULL;
+	xrtMutexUnlock(pSched->pPostMutex);
+	while ( pHead ) {
+		__xrt_co_post_item* pNext = pHead->pNext;
+		xcoro pCo = pHead->pCo;
+		if ( pCo && pCo->__pSched == pSched && pCo->iState != XRT_CO_DEAD ) {
+			if ( pCo->__pJoinTarget == NULL || __xrt_co_is_terminal(pCo->__pJoinTarget) ) {
+				pCo->__iWakeTime = 0;
+				__xrt_co_sched_detach_timer(pSched, pCo);
+				__xrt_co_sched_mark_ready(pSched, pCo);
+			}
+		}
+		xrtFree(pHead);
+		pHead = pNext;
+	}
+}
+static bool __xrt_co_sched_wait_for_post(xcosched* pSched, uint32 iTimeout)
+{
+	bool bReady = FALSE;
+	if ( pSched == NULL || pSched->pPostMutex == NULL || pSched->pPostCond == NULL || iTimeout == 0 ) {
+		return FALSE;
+	}
+	xrtMutexLock(pSched->pPostMutex);
+	if ( pSched->pPostHead == NULL ) {
+		if ( iTimeout == __XRT_CO_SCHED_WAIT_FOREVER ) {
+			xrtCondWait(pSched->pPostCond, pSched->pPostMutex);
+		}
+		else {
+			(void)xrtCondWaitTimeout(pSched->pPostCond, pSched->pPostMutex, iTimeout);
+		}
+	}
+	bReady = (pSched->pPostHead != NULL);
+	xrtMutexUnlock(pSched->pPostMutex);
+	return bReady;
+}
+static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTimeout)
+{
+	int64 iNow = 0;
+	int64 iNextWake = 0;
+	bool bInfinite = (iTimeout == __XRT_CO_SCHED_WAIT_FOREVER);
+	if ( pSched == NULL ) {
+		return 0;
+	}
+	if ( pSched->pReadyHead != NULL || __xrt_co_sched_has_pending_posts(pSched) ) {
+		return 0;
+	}
+	iNow = __xrt_co_time_ms();
+	iNextWake = __xrt_co_sched_next_wake_time(pSched, iNow);
+	if ( iNextWake > iNow ) {
+		int64 iDelta = iNextWake - iNow;
+		if ( !bInfinite && iDelta > iTimeout ) {
+			iDelta = iTimeout;
+		}
+		if ( iDelta < 0 ) {
+			iDelta = 0;
+		}
+		if ( iDelta > 0xFFFFFFFEull ) {
+			iDelta = 0xFFFFFFFEull;
+		}
+		return (uint32)iDelta;
+	}
+	if ( iNextWake > 0 ) {
+		return 0;
+	}
+	return bInfinite ? __XRT_CO_SCHED_WAIT_FOREVER : iTimeout;
+}
+static bool __xrt_co_sched_run_until(xcosched* pSched, xcoro pTarget)
+{
+	if ( pSched == NULL || pTarget == NULL ) {
+		return FALSE;
+	}
+	while ( !__xrt_co_is_terminal(pTarget) && pSched->iAlive > 0 ) {
+		if ( !xrtCoSchedPollOnce(pSched, __XRT_CO_SCHED_WAIT_FOREVER) && !__xrt_co_is_terminal(pTarget) ) {
+			break;
+		}
+		if ( __xrt_co_is_terminal(pTarget) ) {
+			break;
+		}
+	}
+	return __xrt_co_is_terminal(pTarget);
+}
+XXAPI bool xrtCoJoin(xcoro pCo)
+{
+	xcoro pCurrent = NULL;
+	xrtCoroRuntimeState* pRuntime = NULL;
+	if ( pCo == NULL ) {
+		xrtSetError("invalid coroutine handle.", FALSE);
+		return FALSE;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return FALSE;
+	}
+	if ( __xrt_co_is_terminal(pCo) ) {
+		return TRUE;
+	}
+	pRuntime = __xrt_co_require_runtime(TRUE);
+	if ( pRuntime == NULL ) {
+		return FALSE;
+	}
+	pCurrent = __xrt_co_get_current();
+	if ( pCurrent != NULL ) {
+		if ( pCurrent == pCo ) {
+			xrtSetError("coroutine cannot join itself.", FALSE);
+			return FALSE;
+		}
+		if ( pCurrent->__pSched == NULL || pCo->__pSched == NULL || pCurrent->__pSched != pCo->__pSched ) {
+			xrtSetError("coroutine join inside coroutine requires the same scheduler.", FALSE);
+			return FALSE;
+		}
+		if ( pCurrent->__pJoinTarget != NULL && pCurrent->__pJoinTarget != pCo ) {
+			xrtSetError("current coroutine is already waiting for another join target.", FALSE);
+			return FALSE;
+		}
+		if ( pCo->__pJoinWaiter != NULL && pCo->__pJoinWaiter != pCurrent ) {
+			xrtSetError("multiple join waiters are not supported yet.", FALSE);
+			return FALSE;
+		}
+		if ( !__xrt_co_is_terminal(pCo) ) {
+			pCo->__iFlags |= __XRT_CO_FLAG_JOIN_PINNED;
+			pCurrent->__pJoinTarget = pCo;
+			pCurrent->__iWaitKind = __XRT_CO_WAIT_JOIN;
+			pCo->__pJoinWaiter = pCurrent;
+			pCurrent->iState = XRT_CO_SUSPENDED;
+			__xrt_co_swap_to_main(pRuntime);
+		}
+		pCo->__iFlags &= ~__XRT_CO_FLAG_JOIN_PINNED;
+		if ( pCurrent->__pJoinTarget == pCo && __xrt_co_is_terminal(pCo) ) {
+			pCurrent->__pJoinTarget = NULL;
+			if ( pCurrent->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
+				pCurrent->__iWaitKind = __XRT_CO_WAIT_NONE;
+			}
+		}
+		return __xrt_co_is_terminal(pCo);
+	}
+	if ( pCo->__pSched != NULL ) {
+		bool bJoined = FALSE;
+		pCo->__iFlags |= __XRT_CO_FLAG_JOIN_PINNED;
+		bJoined = __xrt_co_sched_run_until((xcosched*)pCo->__pSched, pCo);
+		pCo->__iFlags &= ~__XRT_CO_FLAG_JOIN_PINNED;
+		return bJoined;
+	}
+	while ( !__xrt_co_is_terminal(pCo) ) {
+		if ( !xrtCoResume(pCo) ) {
+			return __xrt_co_is_terminal(pCo);
+		}
+	}
+	return TRUE;
+}
+XXAPI void xrtCoExit(int64 iExitCode)
+{
+	xcoro pCo = __xrt_co_get_current();
+	xrtCoroRuntimeState* pRuntime = __xrt_co_require_runtime(FALSE);
+	if ( pCo == NULL || pRuntime == NULL ) {
+		xrtSetError("xrtCoExit must be called from inside a coroutine.", FALSE);
+		return;
+	}
+	__xrt_co_finish(
+		pCo,
+		__xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED,
+		iExitCode
+	);
+	__xrt_co_swap_to_main(pRuntime);
+}
+XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData)
+{
+	if ( pCo == NULL ) {
+		return;
+	}
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return;
+	}
+	pCo->pUserData = pData;
+}
+XXAPI ptr xrtCoGetUserData(xcoro pCo)
+{
+	if ( !pCo ) return NULL;
+	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
+		return NULL;
+	}
+	return pCo->pUserData;
+}
+XXAPI bool xrtCoPushCleanup(xco_cleanup_proc proc, ptr pArg)
+{
+	xcoro pCo = __xrt_co_get_current();
+	xco_cleanup* pCleanup = NULL;
+	if ( pCo == NULL ) {
+		xrtSetError("xrtCoPushCleanup must be called from inside a coroutine.", FALSE);
+		return FALSE;
+	}
+	if ( proc == NULL ) {
+		xrtSetError("coroutine cleanup proc is null.", FALSE);
+		return FALSE;
+	}
+	pCleanup = (xco_cleanup*)xrtMalloc(sizeof(xco_cleanup));
+	if ( pCleanup == NULL ) {
+		return FALSE;
+	}
+	pCleanup->Proc = proc;
+	pCleanup->Arg = pArg;
+	pCleanup->pPrev = pCo->__pCleanupTop;
+	pCo->__pCleanupTop = pCleanup;
+	return TRUE;
+}
+XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute)
+{
+	xcoro pCo = __xrt_co_get_current();
+	xco_cleanup* pCleanup = NULL;
+	if ( pCo == NULL ) {
+		xrtSetError("xrtCoPopCleanup must be called from inside a coroutine.", FALSE);
+		return FALSE;
+	}
+	if ( pCo->__pCleanupTop == NULL ) {
+		xrtSetError("coroutine cleanup stack is empty.", FALSE);
+		return FALSE;
+	}
+	pCleanup = pCo->__pCleanupTop;
+	if ( pCleanup->Proc != proc || pCleanup->Arg != pArg ) {
+		xrtSetError("coroutine cleanup pop requires the current top cleanup.", FALSE);
+		return FALSE;
+	}
+	pCo->__pCleanupTop = pCleanup->pPrev;
+	if ( bExecute && pCleanup->Proc ) {
+		pCo->__iFlags |= __XRT_CO_FLAG_IN_CLEANUP;
+		pCleanup->Proc(pCleanup->Arg);
+		pCo->__iFlags &= ~__XRT_CO_FLAG_IN_CLEANUP;
+	}
+	xrtFree(pCleanup);
+	return TRUE;
+}
+static bool __xrt_co_check_sched_owner(xcosched* pSched, str sError)
+{
+	if ( pSched == NULL ) {
+		xrtSetError("invalid coroutine scheduler.", FALSE);
+		return FALSE;
+	}
+	return __xrt_co_check_owner_tid(pSched->iOwnerThreadId, sError);
+}
 XXAPI xcosched* xrtCoSchedCreate()
 {
-	xcosched* pSched = (xcosched*)xrtMalloc(sizeof(xcosched));
+	xrtThreadData* pThreadData = __xrt_co_require_thread_data(TRUE);
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime_from_thread(pThreadData);
+	xcosched* pSched = NULL;
+	if ( pThreadData == NULL || pRuntime == NULL ) {
+		return NULL;
+	}
+	pSched = (xcosched*)xrtMalloc(sizeof(xcosched));
 	if ( !pSched ) return NULL;
-	
+	memset(pSched, 0, sizeof(xcosched));
 	pSched->arrCoros = (xcoro*)xrtMalloc(sizeof(xcoro) * __XRT_CO_SCHED_INIT_CAP);
 	if ( !pSched->arrCoros ) {
 		xrtFree(pSched);
 		return NULL;
 	}
-	
+	memset(pSched->arrCoros, 0, sizeof(xcoro) * __XRT_CO_SCHED_INIT_CAP);
+	pSched->arrTimers = (xcoro*)xrtMalloc(sizeof(xcoro) * __XRT_CO_TIMER_INIT_CAP);
+	if ( !pSched->arrTimers ) {
+		xrtFree(pSched->arrCoros);
+		xrtFree(pSched);
+		return NULL;
+	}
+	memset(pSched->arrTimers, 0, sizeof(xcoro) * __XRT_CO_TIMER_INIT_CAP);
+	pSched->pPostMutex = xrtMutexCreate();
+	if ( pSched->pPostMutex == NULL ) {
+		xrtFree(pSched->arrTimers);
+		xrtFree(pSched->arrCoros);
+		xrtFree(pSched);
+		return NULL;
+	}
+	pSched->pPostCond = xrtCondCreate();
+	if ( pSched->pPostCond == NULL ) {
+		xrtMutexDestroy(pSched->pPostMutex);
+		xrtFree(pSched->arrTimers);
+		xrtFree(pSched->arrCoros);
+		xrtFree(pSched);
+		return NULL;
+	}
+	pSched->pThreadData = pThreadData;
+	pSched->iOwnerThreadId = pThreadData->iThreadId;
 	pSched->iCount = 0;
 	pSched->iCapacity = __XRT_CO_SCHED_INIT_CAP;
 	pSched->iAlive = 0;
+	pSched->pReadyHead = NULL;
+	pSched->pReadyTail = NULL;
+	pSched->iTimerCount = 0;
+	pSched->iTimerCapacity = __XRT_CO_TIMER_INIT_CAP;
+	if ( pRuntime->pDefaultSched == NULL ) {
+		pRuntime->pDefaultSched = pSched;
+	}
 	return pSched;
+}
+XXAPI xcosched* xrtCoSchedCurrent()
+{
+	xcoro pCurrent = __xrt_co_get_current();
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+	if ( pCurrent && pCurrent->__pSched ) {
+		return (xcosched*)pCurrent->__pSched;
+	}
+	return pRuntime ? (xcosched*)pRuntime->pDefaultSched : NULL;
 }
 XXAPI void xrtCoSchedDestroy(xcosched* pSched)
 {
-	if ( !pSched ) return;
-	
+	xrtCoroRuntimeState* pRuntime = NULL;
+	if ( pSched == NULL ) {
+		return;
+	}
+	if ( !__xrt_co_check_sched_owner(pSched, "scheduler belongs to another thread.") ) {
+		return;
+	}
+	if ( __xrt_co_get_current() != NULL ) {
+		xrtSetError("cannot destroy scheduler while a coroutine is running.", FALSE);
+		return;
+	}
+	pRuntime = __xrt_co_get_runtime();
+	__xrt_co_sched_drain_posts(pSched);
 	// 销毁所有协程
 	for ( int i = 0; i < pSched->iCount; i++ ) {
 		if ( pSched->arrCoros[i] ) {
-			xrtCoDestroy(pSched->arrCoros[i]);
+			__xrt_co_sched_ready_unlink(pSched, pSched->arrCoros[i]);
+			__xrt_co_sched_detach_timer(pSched, pSched->arrCoros[i]);
+			pSched->arrCoros[i]->__pSched = NULL;
+			__xrt_co_destroy_raw(pSched->arrCoros[i]);
+			pSched->arrCoros[i] = NULL;
 		}
 	}
-	
+	if ( pRuntime && pRuntime->pDefaultSched == pSched ) {
+		pRuntime->pDefaultSched = NULL;
+	}
+	if ( pSched->pPostCond ) {
+		xrtCondDestroy(pSched->pPostCond);
+	}
+	if ( pSched->pPostMutex ) {
+		xrtMutexDestroy(pSched->pPostMutex);
+	}
 	xrtFree(pSched->arrCoros);
+	xrtFree(pSched->arrTimers);
 	xrtFree(pSched);
 }
 XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, size_t iStackSize)
 {
-	if ( !pSched ) return NULL;
-	
+	xcoro pCo = NULL;
+	if ( pSched == NULL ) {
+		xrtSetError("invalid coroutine scheduler.", FALSE);
+		return NULL;
+	}
+	if ( !__xrt_co_check_sched_owner(pSched, "scheduler belongs to another thread.") ) {
+		return NULL;
+	}
 	// 扩容检查
 	if ( pSched->iCount >= pSched->iCapacity ) {
 		int iNewCap = pSched->iCapacity * 2;
@@ -12837,75 +14638,121 @@ XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, si
 		pSched->arrCoros = pNewArr;
 		pSched->iCapacity = iNewCap;
 	}
-	
-	xcoro pCo = xrtCoCreate(pfnEntry, pParam, iStackSize);
+	pCo = xrtCoCreate(pfnEntry, pParam, iStackSize);
 	if ( !pCo ) return NULL;
-	
 	pCo->__pSched = pSched;
 	pSched->arrCoros[pSched->iCount] = pCo;
 	pSched->iCount++;
 	pSched->iAlive++;
-	
+	__xrt_co_sched_mark_ready(pSched, pCo);
 	return pCo;
+}
+XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo)
+{
+	__xrt_co_post_item* pItem = NULL;
+	if ( pSched == NULL ) {
+		xrtSetError("invalid coroutine scheduler.", FALSE);
+		return FALSE;
+	}
+	if ( pCo && pCo->__pSched != pSched ) {
+		xrtSetError("coroutine does not belong to target scheduler.", FALSE);
+		return FALSE;
+	}
+	if ( pCo && pCo->iState == XRT_CO_DEAD ) {
+		return TRUE;
+	}
+	pItem = (__xrt_co_post_item*)xrtMalloc(sizeof(__xrt_co_post_item));
+	if ( pItem == NULL ) {
+		return FALSE;
+	}
+	pItem->pCo = pCo;
+	pItem->pNext = NULL;
+	xrtMutexLock(pSched->pPostMutex);
+	if ( pSched->pPostTail ) {
+		pSched->pPostTail->pNext = pItem;
+	}
+	else {
+		pSched->pPostHead = pItem;
+	}
+	pSched->pPostTail = pItem;
+	xrtCondSignal(pSched->pPostCond);
+	xrtMutexUnlock(pSched->pPostMutex);
+	return TRUE;
+}
+XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout)
+{
+	int64 iNow = 0;
+	uint32 iWaitTimeout = 0;
+	xcoro pCo = NULL;
+	int iIndex = 0;
+	if ( pSched == NULL ) {
+		xrtSetError("invalid coroutine scheduler.", FALSE);
+		return FALSE;
+	}
+	if ( !__xrt_co_check_sched_owner(pSched, "scheduler belongs to another thread.") ) {
+		return FALSE;
+	}
+	if ( __xrt_co_get_current() != NULL ) {
+		xrtSetError("cannot poll scheduler from inside a running coroutine.", FALSE);
+		return FALSE;
+	}
+	if ( pSched->iAlive <= 0 ) return FALSE;
+	iNow = __xrt_co_time_ms();
+	__xrt_co_sched_drain_posts(pSched);
+	__xrt_co_sched_collect_expired_timers(pSched, iNow);
+	if ( pSched->pReadyHead == NULL ) {
+		iWaitTimeout = __xrt_co_sched_compute_wait_timeout(pSched, iTimeout);
+		if ( iWaitTimeout > 0 ) {
+			(void)__xrt_co_sched_wait_for_post(pSched, iWaitTimeout);
+			iNow = __xrt_co_time_ms();
+			__xrt_co_sched_drain_posts(pSched);
+			__xrt_co_sched_collect_expired_timers(pSched, iNow);
+		}
+	}
+	while ( pSched->pReadyHead != NULL ) {
+		pCo = pSched->pReadyHead;
+		__xrt_co_sched_ready_unlink(pSched, pCo);
+		if ( pCo == NULL ) {
+			break;
+		}
+		if ( pCo->iState == XRT_CO_DEAD ) {
+			iIndex = __xrt_co_sched_find_index(pSched, pCo);
+			if ( iIndex >= 0 ) {
+				__xrt_co_sched_reap_dead(pSched, iIndex);
+			}
+			continue;
+		}
+		if ( __xrt_co_is_cancel_requested_flag(pCo) && (pCo->__iFlags & __XRT_CO_FLAG_STARTED) == 0 ) {
+			__xrt_co_finish(pCo, XRT_CO_TERM_CANCELLED, -1);
+			iIndex = __xrt_co_sched_find_index(pSched, pCo);
+			if ( iIndex >= 0 ) {
+				__xrt_co_sched_reap_dead(pSched, iIndex);
+			}
+			continue;
+		}
+		xrtCoResume(pCo);
+		__xrt_co_sched_on_return(pSched, pCo, __xrt_co_time_ms());
+		break;
+	}
+	return pSched->iAlive > 0;
 }
 XXAPI bool xrtCoSchedStep(xcosched* pSched)
 {
-	if ( !pSched ) return false;
-	if ( pSched->iAlive <= 0 ) return false;
-	
-	int64 iNow = __xrt_co_time_ms();
-	
-	for ( int i = 0; i < pSched->iCount; i++ ) {
-		xcoro pCo = pSched->arrCoros[i];
-		if ( !pCo ) continue;
-		
-		// 已结束的协程: 更新计数
-		if ( pCo->iState == XRT_CO_DEAD ) {
-			pSched->iAlive--;
-			xrtCoDestroy(pCo);
-			pSched->arrCoros[i] = NULL;
-			continue;
-		}
-		
-		// 只处理可恢复的协程
-		if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_SUSPENDED) ) continue;
-		
-		// 检查休眠定时器
-		if ( (pCo->__iWakeTime > 0) && (iNow < pCo->__iWakeTime) ) continue;
-		
-		// 恢复协程
-		xrtCoResume(pCo);
-		
-		// Resume 返回后，如果协程已结束，下一轮 Step 会清理
-	}
-	
-	return pSched->iAlive > 0;
+	return xrtCoSchedPollOnce(pSched, 0);
 }
 XXAPI void xrtCoSchedRun(xcosched* pSched)
 {
-	if ( !pSched ) return;
-	
+	if ( pSched == NULL ) {
+		return;
+	}
+	if ( !__xrt_co_check_sched_owner(pSched, "scheduler belongs to another thread.") ) {
+		return;
+	}
 	while ( pSched->iAlive > 0 ) {
-		int iAliveBefore = pSched->iAlive;
-		bool bResult = xrtCoSchedStep(pSched);
-		if ( !bResult ) break;
-		
-		// 检查是否所有存活协程都在休眠
-		// 如果 Step 没有减少存活数且还有存活协程，可能都在等待
-		// 短暂休眠避免空转
-		int64 iNow = __xrt_co_time_ms();
-		bool bAllSleeping = true;
-		for ( int i = 0; i < pSched->iCount; i++ ) {
-			xcoro pCo = pSched->arrCoros[i];
-			if ( !pCo ) continue;
-			if ( pCo->iState == XRT_CO_DEAD ) continue;
-			if ( (pCo->__iWakeTime <= 0) || (iNow >= pCo->__iWakeTime) ) {
-				bAllSleeping = false;
+		if ( !xrtCoSchedPollOnce(pSched, __XRT_CO_SCHED_WAIT_FOREVER) ) {
+			if ( pSched->iAlive <= 0 ) {
 				break;
 			}
-		}
-		if ( bAllSleeping ) {
-			__xrt_co_sleep_ms(1);
 		}
 	}
 }
@@ -12914,13 +14761,193 @@ XXAPI int xrtCoSchedGetAlive(xcosched* pSched)
 	if ( !pSched ) return 0;
 	return pSched->iAlive;
 }
+XXAPI void xrtCoSleepUntil(int64 iDeadlineMs)
+{
+	xcoro pCo = __xrt_co_get_current();
+	if ( !pCo ) {
+		xrtSetError("xrtCoSleepUntil must be called from inside a coroutine.", FALSE);
+		return;
+	}
+	if ( pCo->__pSched == NULL ) {
+		xrtSetError("xrtCoSleepUntil requires a scheduler-managed coroutine.", FALSE);
+		return;
+	}
+	pCo->__iWakeTime = iDeadlineMs;
+	pCo->__iWaitKind = __XRT_CO_WAIT_TIMER;
+	xrtCoYield();
+}
+XXAPI bool xrtCoWaitDeadline(int64 iDeadlineMs)
+{
+	xcoro pCo = __xrt_co_get_current();
+	if ( !pCo ) {
+		xrtSetError("xrtCoWaitDeadline must be called from inside a coroutine.", FALSE);
+		return FALSE;
+	}
+	if ( pCo->__pSched == NULL ) {
+		xrtSetError("xrtCoWaitDeadline requires a scheduler-managed coroutine.", FALSE);
+		return FALSE;
+	}
+	if ( __xrt_co_is_cancel_requested_flag(pCo) ) {
+		return FALSE;
+	}
+	if ( iDeadlineMs > __xrt_co_time_ms() ) {
+		pCo->__iWakeTime = iDeadlineMs;
+		pCo->__iWaitKind = __XRT_CO_WAIT_TIMER;
+		xrtCoYield();
+	}
+	return !__xrt_co_is_cancel_requested_flag(pCo);
+}
+XXAPI xcoevent xrtCoEventCreate(bool bManualReset, bool bInitialState)
+{
+	xcoevent pEvent = (xcoevent)xrtCalloc(1, sizeof(xcoevent_struct));
+	if ( pEvent == NULL ) {
+		return NULL;
+	}
+	pEvent->pLock = xrtMutexCreate();
+	if ( pEvent->pLock == NULL ) {
+		xrtFree(pEvent);
+		return NULL;
+	}
+	pEvent->bManualReset = bManualReset;
+	pEvent->bSignaled = bInitialState;
+	pEvent->pWaiter = NULL;
+	return pEvent;
+}
+XXAPI void xrtCoEventDestroy(xcoevent pEvent)
+{
+	if ( pEvent == NULL ) {
+		return;
+	}
+	if ( pEvent->pLock ) {
+		xrtMutexLock(pEvent->pLock);
+		if ( pEvent->pWaiter != NULL ) {
+			xrtMutexUnlock(pEvent->pLock);
+			xrtSetError("cannot destroy coroutine event while a waiter is attached.", FALSE);
+			return;
+		}
+		xrtMutexUnlock(pEvent->pLock);
+		xrtMutexDestroy(pEvent->pLock);
+	}
+	xrtFree(pEvent);
+}
+XXAPI void xrtCoEventSet(xcoevent pEvent)
+{
+	xcoro pWaiter = NULL;
+	xcosched* pSched = NULL;
+	if ( pEvent == NULL ) {
+		xrtSetError("invalid coroutine event.", FALSE);
+		return;
+	}
+	if ( pEvent->pLock == NULL ) {
+		xrtSetError("coroutine event lock is missing.", FALSE);
+		return;
+	}
+	xrtMutexLock(pEvent->pLock);
+	if ( pEvent->bManualReset ) {
+		pEvent->bSignaled = TRUE;
+	}
+	else if ( pEvent->pWaiter == NULL ) {
+		pEvent->bSignaled = TRUE;
+	}
+	pWaiter = pEvent->pWaiter;
+	if ( pWaiter != NULL ) {
+		pWaiter->__iWaitResult = __XRT_CO_WAIT_RESULT_SIGNAL;
+		pSched = (xcosched*)pWaiter->__pSched;
+		__xrt_co_detach_event_waiter_locked(pEvent, pWaiter);
+	}
+	xrtMutexUnlock(pEvent->pLock);
+	if ( pWaiter != NULL && pSched != NULL ) {
+		(void)xrtCoSchedPost(pSched, pWaiter);
+	}
+}
+XXAPI void xrtCoEventReset(xcoevent pEvent)
+{
+	if ( pEvent == NULL ) {
+		xrtSetError("invalid coroutine event.", FALSE);
+		return;
+	}
+	if ( pEvent->pLock == NULL ) {
+		xrtSetError("coroutine event lock is missing.", FALSE);
+		return;
+	}
+	xrtMutexLock(pEvent->pLock);
+	pEvent->bSignaled = FALSE;
+	xrtMutexUnlock(pEvent->pLock);
+}
+static bool __xrt_co_wait_event_core(xcoevent pEvent, bool bInfinite, int64 iDeadlineMs)
+{
+	xcoro pCo = __xrt_co_get_current();
+	int64 iNowMs = 0;
+	if ( pEvent == NULL ) {
+		xrtSetError("invalid coroutine event.", FALSE);
+		return FALSE;
+	}
+	if ( pCo == NULL ) {
+		xrtSetError("xrtCoWaitEvent must be called from inside a coroutine.", FALSE);
+		return FALSE;
+	}
+	if ( pCo->__pSched == NULL ) {
+		xrtSetError("xrtCoWaitEvent requires a scheduler-managed coroutine.", FALSE);
+		return FALSE;
+	}
+	if ( __xrt_co_is_cancel_requested_flag(pCo) ) {
+		return FALSE;
+	}
+	if ( pEvent->pLock == NULL ) {
+		xrtSetError("coroutine event lock is missing.", FALSE);
+		return FALSE;
+	}
+	pCo->__iWaitResult = __XRT_CO_WAIT_RESULT_NONE;
+	xrtMutexLock(pEvent->pLock);
+	if ( __xrt_co_event_try_consume_locked(pEvent) ) {
+		pCo->__iWaitResult = __XRT_CO_WAIT_RESULT_SIGNAL;
+		xrtMutexUnlock(pEvent->pLock);
+		return TRUE;
+	}
+	iNowMs = __xrt_co_time_ms();
+	if ( !bInfinite && iDeadlineMs <= iNowMs ) {
+		xrtMutexUnlock(pEvent->pLock);
+		return FALSE;
+	}
+	if ( pEvent->pWaiter != NULL && pEvent->pWaiter != pCo ) {
+		xrtMutexUnlock(pEvent->pLock);
+		xrtSetError("multiple event waiters are not supported yet.", FALSE);
+		return FALSE;
+	}
+	pEvent->pWaiter = pCo;
+	pCo->__pWaitObject = pEvent;
+	pCo->__iWaitKind = __XRT_CO_WAIT_EVENT;
+	if ( bInfinite ) {
+		pCo->__iWakeTime = 0;
+	}
+	else {
+		pCo->__iWakeTime = iDeadlineMs;
+	}
+	xrtMutexUnlock(pEvent->pLock);
+	xrtCoYield();
+	if ( __xrt_co_is_cancel_requested_flag(pCo) ) {
+		return FALSE;
+	}
+	return pCo->__iWaitResult == __XRT_CO_WAIT_RESULT_SIGNAL;
+}
+XXAPI bool xrtCoWaitEvent(xcoevent pEvent)
+{
+	return __xrt_co_wait_event_core(pEvent, TRUE, 0);
+}
+XXAPI bool xrtCoWaitEventUntil(xcoevent pEvent, int64 iDeadlineMs)
+{
+	return __xrt_co_wait_event_core(pEvent, FALSE, iDeadlineMs);
+}
+XXAPI bool xrtCoWaitEventTimeout(xcoevent pEvent, uint32 iTimeoutMs)
+{
+	if ( iTimeoutMs == XRT_CO_WAIT_INFINITE ) {
+		return __xrt_co_wait_event_core(pEvent, TRUE, 0);
+	}
+	return __xrt_co_wait_event_core(pEvent, FALSE, __xrt_co_time_ms() + (int64)iTimeoutMs);
+}
 XXAPI void xrtCoSleep(uint32 iMs)
 {
-	xcoro pCo = __xrt_co_current;
-	if ( !pCo ) return;
-	
-	pCo->__iWakeTime = __xrt_co_time_ms() + (int64)iMs;
-	xrtCoYield();
+	xrtCoSleepUntil(__xrt_co_time_ms() + (int64)iMs);
 }
 #endif
 #ifndef XRT_NO_NETWORK
@@ -27167,7 +29194,9 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 /* ============================== URL 解析器 (公开 API) ============================== */
 /* ============================== 内部线程安全的临时缓冲区 ============================== */
 // 用于 xrtHttpRespHeader / xrtHttpRespCookie 返回值的线程局部缓冲区
-#if defined(__GNUC__) || defined(__TINYC__)
+#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+	#define __XRT_HTTP_THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__)
 	#define __XRT_HTTP_THREAD_LOCAL __thread
 #elif defined(_WIN32) || defined(_WIN64)
 	#define __XRT_HTTP_THREAD_LOCAL __declspec(thread)
@@ -30244,7 +32273,7 @@ static xhttp_method __xrt_httpd_parse_method(const char* sMethod)
 static int __xrt_httpd_parse_request_line(const char* pData, size_t iLen, xhttpdreq* pReq)
 {
 	// 查找 \r\n
-	const char* pEnd = (const char*)memmem(pData, iLen, "\r\n", 2);
+	const char* pEnd = (const char*)memmem((ptr)pData, iLen, (ptr)"\r\n", 2);
 	if ( !pEnd ) return 0;
 	
 	size_t iLineLen = pEnd - pData;
@@ -30301,7 +32330,7 @@ static int __xrt_httpd_parse_request_line(const char* pData, size_t iLen, xhttpd
 static int __xrt_httpd_parse_headers(const char* pData, size_t iLen, xhttpdreq* pReq)
 {
 	// 查找 \r\n\r\n
-	const char* pEnd = (const char*)memmem(pData, iLen, "\r\n\r\n", 4);
+	const char* pEnd = (const char*)memmem((ptr)pData, iLen, (ptr)"\r\n\r\n", 4);
 	if ( !pEnd ) return 0;
 	
 	// 初始化头部字典
@@ -30312,7 +32341,7 @@ static int __xrt_httpd_parse_headers(const char* pData, size_t iLen, xhttpdreq* 
 	const char* p = pData;
 	while ( p < pEnd ) {
 		// 查找行尾
-		const char* pLineEnd = (const char*)memmem(p, pEnd - p, "\r\n", 2);
+		const char* pLineEnd = (const char*)memmem((ptr)p, pEnd - p, (ptr)"\r\n", 2);
 		if ( !pLineEnd ) break;
 		
 		// 空行表示头部结束
@@ -47621,6 +49650,9 @@ static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 	pThreadData->TempMemIdx = 0;
 	pThreadData->pCleanupTop = NULL;
 	__xrtInitThreadMemState(pThreadData);
+	#ifndef XRT_NO_COROUTINE
+		__xrtCoroRuntimeInitThread(pThreadData);
+	#endif
 	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
 		pThreadData->TempMem[i] = NULL;
 	}
@@ -47700,6 +49732,9 @@ static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
 		pThreadData->pSelf = pThread;
 		pThreadData->iThreadId = __xrtGetCurrentThreadId();
 		pThreadData->tMem.iOwnerThreadId = pThreadData->iThreadId;
+		#ifndef XRT_NO_COROUTINE
+			pThreadData->tCoro.iOwnerThreadId = pThreadData->iThreadId;
+		#endif
 	}
 	return pThreadData;
 }
@@ -47717,6 +49752,9 @@ XXAPI void xrtThreadDetachCurrent()
 	__xrtRunThreadCleanup(pThreadData);
 	__xrtFreeThreadError(pThreadData);
 	__xrtFreeThreadTempMemory(pThreadData);
+	#ifndef XRT_NO_COROUTINE
+		__xrtCoroRuntimeUnitThread(pThreadData);
+	#endif
 	__xrtUnitThreadMemState(pThreadData);
 	__xrtThreadState = NULL;
 	procFree(pThreadData);

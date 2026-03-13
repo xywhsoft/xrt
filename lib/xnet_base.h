@@ -10,6 +10,7 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#include <winsock2.h>
 	#include <ws2tcpip.h>
+	#include <windows.h>
 #else
 	#include <arpa/inet.h>
 	#include <netdb.h>
@@ -30,31 +31,53 @@
 */
 
 
-/* ============================== Basic local types ============================== */
-
-typedef void* ptr;
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-
-#if defined(_WIN32) || defined(_WIN64)
-	typedef SOCKET xsocket;
-	#define XNET_SOCKET_INVALID INVALID_SOCKET
+#if defined(XXRTL_CORE)
+	#define __XNET_IN_XRT_CORE 1
 #else
-	typedef int xsocket;
-	#define XNET_SOCKET_INVALID (-1)
+	#define __XNET_IN_XRT_CORE 0
 #endif
 
-typedef enum {
-	XRT_NET_OK      =  0,
-	XRT_NET_ERROR   = -1,
-	XRT_NET_AGAIN   = -2,
-	XRT_NET_TIMEOUT = -3,
-	XRT_NET_CLOSED  = -4
-} xnet_result;
+#if __XNET_IN_XRT_CORE
+	#define xnetaddr xnet2_addr
+	#define xrtNetResolve xrtNet2Resolve
+#endif
 
-typedef struct xrt_tls_config xtlsconfig;
+
+/* ============================== Basic local types ============================== */
+
+#if !__XNET_IN_XRT_CORE
+	typedef void* ptr;
+	typedef uint8_t uint8;
+	typedef uint16_t uint16;
+	typedef uint32_t uint32;
+	typedef uint64_t uint64;
+#endif
+
+#if __XNET_IN_XRT_CORE
+	#define XNET_SOCKET_INVALID XSOCKET_INVALID
+#else
+	#if defined(_WIN32) || defined(_WIN64)
+		typedef SOCKET xsocket;
+		#define XNET_SOCKET_INVALID INVALID_SOCKET
+	#else
+		typedef int xsocket;
+		#define XNET_SOCKET_INVALID (-1)
+	#endif
+#endif
+
+#if !__XNET_IN_XRT_CORE
+	typedef enum {
+		XRT_NET_OK      =  0,
+		XRT_NET_ERROR   = -1,
+		XRT_NET_AGAIN   = -2,
+		XRT_NET_TIMEOUT = -3,
+		XRT_NET_CLOSED  = -4
+	} xnet_result;
+#endif
+
+#if !__XNET_IN_XRT_CORE
+	typedef struct xrt_tls_config xtlsconfig;
+#endif
 
 
 
@@ -188,6 +211,38 @@ typedef struct {
 #else
 	#define __XNET_THREAD_LOCAL
 #endif
+
+static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (long)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
+	#else
+		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
+	#endif
+}
+
+static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (long)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
+	#else
+		return __sync_lock_test_and_set(pValue, iValue);
+	#endif
+}
+
+static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (long)(InterlockedExchangeAdd((volatile LONG*)pValue, (LONG)iDelta) + (LONG)iDelta);
+	#else
+		return __sync_add_and_fetch(pValue, iDelta);
+	#endif
+}
+
+static long __xnetAtomicLoad32(const volatile long* pValue)
+{
+	return __xnetAtomicCompareExchange32((volatile long*)pValue, 0, 0);
+}
 
 static bool __xnetAddrFromSockAddr(xnetaddr* pAddr, const struct sockaddr* pSA)
 {

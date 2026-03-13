@@ -149,6 +149,7 @@
 			#define InetNtopA inet_ntop
 					
 			BOOL WINAPI CancelIoEx(HANDLE hFile, LPOVERLAPPED lpOverlapped);
+			BOOL WINAPI IsThreadAFiber(void);
 		#endif
 	#else
 		#include <winsock2.h>
@@ -161,6 +162,7 @@
 	#include <pthread.h>
 	#include <semaphore.h>
 	#include <signal.h>
+	#include <sys/mman.h>
 #endif
 
 
@@ -387,6 +389,20 @@
 		ptr pReserved;
 	} xrtThreadMemState;
 
+	#define XRT_CO_RUNTIME_FIBER_CONVERTED	0x00000001u
+	#define XRT_CO_RUNTIME_FIBER_HOSTED		0x00000002u
+
+	typedef struct {
+		uint64 iOwnerThreadId;
+		uint32 iFlags;
+		uint32 iReserved;
+		ptr pCurrent;
+		ptr pRoot;
+		ptr pDefaultSched;
+		ptr pBackendMain;
+		ptr pBackendAux;
+	} xrtCoroRuntimeState;
+
 	#define XRT_OBJMODE_LOCAL		0
 	#define XRT_OBJMODE_SHARED		1
 	#define XRT_OBJFLAG_SHARED_PENDING	0x00000001u
@@ -465,6 +481,7 @@
 		xrand rand64_low;
 		xrand rand64_high;
 		xrtThreadMemState tMem;
+		xrtCoroRuntimeState tCoro;
 		xrtThreadCleanup* pCleanupTop;
 	};
 	
@@ -1557,44 +1574,116 @@
 	#define XRT_CO_RUNNING       1      // 正在运行
 	#define XRT_CO_SUSPENDED     2      // 已挂起 (yield)
 	#define XRT_CO_DEAD          3      // 已结束
+
+	// 协程终态原因
+	#define XRT_CO_TERM_NONE         0
+	#define XRT_CO_TERM_RETURNED     1
+	#define XRT_CO_TERM_CANCELLED    2
+
+	// 协程 backend 分层
+	#define XRT_CO_BACKEND_TIER_COMPAT       1
+	#define XRT_CO_BACKEND_TIER_PRODUCTION   2
+
+	// 协程 backend 实现风格
+	#define XRT_CO_BACKEND_STYLE_COMPAT      1
+	#define XRT_CO_BACKEND_STYLE_INLINE_ASM  2
 	
 	// 默认栈大小
 	#define XRT_CO_STACK_DEFAULT (64 * 1024)        // 64 KB
 	#define XRT_CO_STACK_MIN     (8 * 1024)         // 8 KB (最小值保护)
 	#define XRT_CO_STACK_MAX     (8 * 1024 * 1024)  // 8 MB (最大值保护)
+	#define XRT_CO_WAIT_INFINITE UINT32_C(0xffffffff)
 	
 	// 协程入口函数类型
 	typedef void (*xco_entry)(ptr pParam);
+	typedef void (*xco_cleanup_proc)(ptr pArg);
+
+	typedef struct xco_cleanup {
+		xco_cleanup_proc Proc;
+		ptr Arg;
+		struct xco_cleanup* pPrev;
+	} xco_cleanup;
+
+	// 协程创建参数（标准 runtime API，未来扩展入口）
+	#define XRT_CO_CREATE_NONE	0x00000000u
+
+	typedef struct {
+		size_t iStackSize;
+		ptr pUserData;
+		uint32 iFlags;
+		uint32 iReserved;
+	} xco_create_args;
 	
 	// 协程上下文（内部使用）
 	typedef struct {
-		ptr arrReg[16];   // 保存的寄存器（各后端按需使用）
+		ptr arrReg[40];   // 保存的寄存器/向量状态（各后端按需使用，兼容 Win64 XMM 与 ARM64 q8-q15 非易失状态）
 	} __xrt_co_ctx;
 	
 	// 协程数据结构
-	typedef struct {
+	typedef struct xcoro_struct {
 		int iState;             // 当前状态 (XRT_CO_*)
+		uint32 __iFlags;        // 内部标志
+		uint64 __iOwnerThreadId;// 所属线程ID
 		xco_entry pfnEntry;     // 入口函数
 		ptr pParam;             // 用户传入参数
 		ptr pUserData;          // 用户自定义数据
+		ptr pResult;            // 协程结果指针
+		int64 iExitCode;        // 退出码（预留给 join/close）
+		uint32 iTermReason;     // 终态原因 (XRT_CO_TERM_*)
+		uint32 __iReserved;
 		size_t iStackSize;      // 栈大小
 		ptr __pStack;           // 分配的栈内存
+		ptr __pStackMem;        // 栈保留区起始地址（含 guard page）
+		size_t __iStackAllocSize; // 栈保留区总大小
+		size_t __iStackGuardSize; // guard page 大小
 		__xrt_co_ctx __tCtx;    // 上下文（汇编/ucontext 后端使用）
 		ptr __hFiber;           // Windows Fiber 句柄
 		ptr __pSched;           // 所属调度器指针（NULL=无调度器）
 		int64 __iWakeTime;      // 唤醒时间戳（调度器用，0=不等待）
+		ptr __pWaitObject;      // 当前等待对象（event/future 等）
+		uint32 __iWaitKind;     // 当前等待类型（内部使用）
+		uint32 __iWaitResult;   // 当前等待结果（内部使用）
+		struct xcoro_struct* __pJoinTarget; // 当前等待的目标协程
+		struct xcoro_struct* __pJoinWaiter; // 等待本协程结束的协程（当前仅支持单等待者）
+		xco_cleanup* __pCleanupTop; // 协程退出清理栈
+		struct xcoro_struct* __pReadyPrev;  // ready queue prev
+		struct xcoro_struct* __pReadyNext;  // ready queue next
+		uint32 __iTimerIndex;   // timer heap index + 1（0=不在堆中）
 	} xcoro_struct, *xcoro;
 	
 	// 调度器（不透明结构）
 	typedef struct xrt_co_scheduler xcosched;
+
+	// 协程事件对象（最小 wait source，当前支持单 waiter）
+	typedef struct xcoevent_struct {
+		xmutex pLock;
+		bool bManualReset;
+		bool bSignaled;
+		struct xcoro_struct* pWaiter;
+	} xcoevent_struct, *xcoevent;
 	
 	/* ---------- 协程生命周期 ---------- */
+
+	// 扩展创建协程（支持栈大小、初始 user data 和保留 flags）
+	XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args* pArgs);
 	
 	// 创建协程
 	XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize);
 	
-	// 销毁协程（协程必须处于 READY 或 DEAD 状态）
+	// 销毁协程（协程必须处于 READY 或 DEAD 状态，且不能仍属于调度器）
 	XXAPI void xrtCoDestroy(xcoro pCo);
+
+	// 请求取消协程（第一版为协作式取消；READY 协程可直接进入终态）
+	XXAPI bool xrtCoCancel(xcoro pCo);
+
+	// 关闭协程句柄或向活协程发出关闭请求
+	XXAPI bool xrtCoClose(xcoro pCo);
+
+	// 等待协程结束（主线程可驱动 unscheduled/scheduler-managed 协程，协程内仅支持等待同 scheduler 目标）
+	XXAPI bool xrtCoJoin(xcoro pCo);
+
+	// 主动以给定退出码结束当前协程
+	XXAPI void xrtCoExit(int64 iExitCode);
 	
 	/* ---------- 协程切换 ---------- */
 	
@@ -1611,6 +1700,30 @@
 	
 	// 获取当前正在运行的协程（不在协程中返回 NULL）
 	XXAPI xcoro xrtCoGetCurrent();
+
+	// 当前协程是否已收到取消请求
+	XXAPI bool xrtCoIsCancelRequested();
+
+	// 协程是否以取消方式结束
+	XXAPI bool xrtCoWasCancelled(xcoro pCo);
+
+	// 获取协程退出码
+	XXAPI int64 xrtCoGetExitCode(xcoro pCo);
+
+	// 设置当前协程结果指针
+	XXAPI void xrtCoSetResult(ptr pResult);
+
+	// 获取协程结果指针
+	XXAPI ptr xrtCoGetResult(xcoro pCo);
+
+	// 当前目标使用的协程 backend 名称
+	XXAPI str xrtCoGetBackendName();
+
+	// 当前目标使用的协程 backend 分层 (XRT_CO_BACKEND_TIER_*)
+	XXAPI int xrtCoGetBackendTier();
+
+	// 当前目标使用的协程 backend 风格 (XRT_CO_BACKEND_STYLE_*)
+	XXAPI int xrtCoGetBackendStyle();
 	
 	/* ---------- 用户数据 ---------- */
 	
@@ -1619,17 +1732,32 @@
 	
 	// 获取协程的用户自定义数据
 	XXAPI ptr xrtCoGetUserData(xcoro pCo);
+
+	// 向当前协程压入一个退出清理回调
+	XXAPI bool xrtCoPushCleanup(xco_cleanup_proc proc, ptr pArg);
+
+	// 弹出当前协程顶部匹配的清理回调，可选择立即执行
+	XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute);
 	
 	/* ---------- 协程调度器 ---------- */
 	
 	// 创建调度器
 	XXAPI xcosched* xrtCoSchedCreate();
+
+	// 获取当前线程的默认调度器（在协程内优先返回当前协程所属调度器）
+	XXAPI xcosched* xrtCoSchedCurrent();
 	
 	// 销毁调度器（会自动销毁所有关联的协程）
 	XXAPI void xrtCoSchedDestroy(xcosched* pSched);
-	
+
 	// 向调度器添加一个协程
 	XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, size_t iStackSize);
+
+	// 向调度器投递一个唤醒请求（可跨线程调用）
+	XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo);
+
+	// 执行一次调度轮询（可选择等待 post/timer）
+	XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout);
 	
 	// 执行一轮调度（返回 true=还有存活协程）
 	XXAPI bool xrtCoSchedStep(xcosched* pSched);
@@ -1639,6 +1767,33 @@
 	
 	// 获取调度器中存活的协程数量
 	XXAPI int xrtCoSchedGetAlive(xcosched* pSched);
+
+	// 协程睡眠到指定的单调时钟毫秒 deadline
+	XXAPI void xrtCoSleepUntil(int64 iDeadlineMs);
+
+	// 等待到指定的单调时钟毫秒 deadline，若等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitDeadline(int64 iDeadlineMs);
+
+	// 创建协程事件对象（manual reset 或 auto reset）
+	XXAPI xcoevent xrtCoEventCreate(bool bManualReset, bool bInitialState);
+
+	// 销毁协程事件对象（有 waiter 时拒绝销毁）
+	XXAPI void xrtCoEventDestroy(xcoevent pEvent);
+
+	// 置位协程事件对象，可跨线程唤醒 waiter
+	XXAPI void xrtCoEventSet(xcoevent pEvent);
+
+	// 重置协程事件对象
+	XXAPI void xrtCoEventReset(xcoevent pEvent);
+
+	// 等待协程事件对象被置位，若等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitEvent(xcoevent pEvent);
+
+	// 在超时窗口内等待协程事件对象被置位，若超时或等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitEventTimeout(xcoevent pEvent, uint32 iTimeoutMs);
+
+	// 等待协程事件对象直到指定单调时钟毫秒 deadline，若超时或等待期间收到取消请求则返回 false
+	XXAPI bool xrtCoWaitEventUntil(xcoevent pEvent, int64 iDeadlineMs);
 	
 	// 协程休眠（挂起当前协程，等待指定毫秒后自动恢复，需配合调度器使用）
 	XXAPI void xrtCoSleep(uint32 iMs);

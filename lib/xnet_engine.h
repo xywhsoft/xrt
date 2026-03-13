@@ -47,13 +47,15 @@ typedef struct __xnet_engine_timer {
 typedef void (*xnet_port_event_fn)(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
 
 #if defined(_WIN32) || defined(_WIN64)
-	typedef HANDLE __xnet_thread_handle;
 	typedef CRITICAL_SECTION __xnet_mutex;
-	typedef DWORD __xnet_thread_id;
 #else
-	typedef pthread_t* __xnet_thread_handle;
 	typedef pthread_mutex_t __xnet_mutex;
-	typedef pthread_t __xnet_thread_id;
+#endif
+
+#if defined(XXRTL_CORE) && !defined(XRT_NO_THREAD)
+	#define __XNET_ENGINE_USE_XRT_THREAD	1
+#else
+	#define __XNET_ENGINE_USE_XRT_THREAD	0
 #endif
 
 typedef struct {
@@ -81,7 +83,7 @@ struct xrt_net_worker {
 	xnetengine* pEngine;
 	uint32 iId;
 	ptr hThread;
-	__xnet_thread_id iThreadId;
+	uint64 iThreadId;
 	volatile bool bRunning;
 	volatile bool bStopRequested;
 	xnetport tPort;
@@ -141,10 +143,12 @@ static void __xnetEngineSleepMs(uint32 iMs)
 static bool __xnetEngineIsCurrentWorker(xnetworker* pWorker)
 {
 	if ( !pWorker || !pWorker->bRunning || !pWorker->hThread ) return false;
-	#if defined(_WIN32) || defined(_WIN64)
-		return GetCurrentThreadId() == pWorker->iThreadId;
+	#if __XNET_ENGINE_USE_XRT_THREAD
+		return xrtThreadGetCurrentId() == pWorker->iThreadId;
+	#elif defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetCurrentThreadId() == pWorker->iThreadId;
 	#else
-		return pthread_equal(pthread_self(), pWorker->iThreadId) != 0;
+		return (uint64)(uintptr_t)pthread_self() == pWorker->iThreadId;
 	#endif
 }
 
@@ -416,10 +420,12 @@ static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 	}
 }
 
-#if defined(_WIN32) || defined(_WIN64)
-	static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
+#if __XNET_ENGINE_USE_XRT_THREAD
+static uint32 __xnetEngineWorkerMain(ptr pArg)
+#elif defined(_WIN32) || defined(_WIN64)
+static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
 #else
-	static void* __xnetEngineWorkerMain(void* pArg)
+static void* __xnetEngineWorkerMain(void* pArg)
 #endif
 {
 	xnetworker* pWorker = (xnetworker*)pArg;
@@ -427,12 +433,20 @@ static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 	xnetportevent arrEvents[32];
 	uint32 iEventCount;
 	if ( !pWorker ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			return 0;
+		#if __XNET_ENGINE_USE_XRT_THREAD || defined(_WIN32) || defined(_WIN64)
+		return 0;
 		#else
-			return NULL;
+		return NULL;
 		#endif
 	}
+
+	#if __XNET_ENGINE_USE_XRT_THREAD
+	pWorker->iThreadId = xrtThreadGetCurrentId();
+	#elif defined(_WIN32) || defined(_WIN64)
+		pWorker->iThreadId = (uint64)GetCurrentThreadId();
+	#else
+		pWorker->iThreadId = (uint64)(uintptr_t)pthread_self();
+	#endif
 
 	while ( !pWorker->bStopRequested ) {
 		__xnetEngineDrainCommands(pWorker);
@@ -442,9 +456,8 @@ static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 	}
 
 	__xnetEngineDrainCommands(pWorker);
-
-	#if defined(_WIN32) || defined(_WIN64)
-		return 0;
+	#if __XNET_ENGINE_USE_XRT_THREAD || defined(_WIN32) || defined(_WIN64)
+	return 0;
 	#else
 		return NULL;
 	#endif
@@ -453,22 +466,28 @@ static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
 {
 	if ( !pWorker ) return false;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if __XNET_ENGINE_USE_XRT_THREAD
+		xthread pThread = xrtThreadCreate((ptr)__xnetEngineWorkerMain, pWorker, 0);
+		if ( !pThread ) return false;
+		pWorker->hThread = (ptr)pThread;
+		pWorker->iThreadId = pThread->TID;
+		return true;
+	#elif defined(_WIN32) || defined(_WIN64)
 		DWORD iThreadId = 0;
-		__xnet_thread_handle hThread = CreateThread(NULL, 0, __xnetEngineWorkerMain, pWorker, 0, &iThreadId);
+		HANDLE hThread = CreateThread(NULL, 0, __xnetEngineWorkerMain, pWorker, 0, &iThreadId);
 		if ( !hThread ) return false;
 		pWorker->hThread = (ptr)hThread;
-		pWorker->iThreadId = iThreadId;
+		pWorker->iThreadId = (uint64)iThreadId;
 		return true;
 	#else
-		__xnet_thread_handle hThread = (__xnet_thread_handle)XNET_ALLOC(sizeof(pthread_t));
+		pthread_t* hThread = (pthread_t*)XNET_ALLOC(sizeof(pthread_t));
 		if ( !hThread ) return false;
 		if ( pthread_create(hThread, NULL, __xnetEngineWorkerMain, pWorker) != 0 ) {
 			XNET_FREE(hThread);
 			return false;
 		}
 		pWorker->hThread = (ptr)hThread;
-		pWorker->iThreadId = *hThread;
+		pWorker->iThreadId = (uint64)(uintptr_t)(*hThread);
 		return true;
 	#endif
 }
@@ -476,7 +495,10 @@ static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
 static void __xnetEngineJoinWorkerThread(xnetworker* pWorker)
 {
 	if ( !pWorker || !pWorker->hThread ) return;
-	#if defined(_WIN32) || defined(_WIN64)
+	#if __XNET_ENGINE_USE_XRT_THREAD
+		xrtThreadWait((xthread)pWorker->hThread);
+		xrtThreadDestroy((xthread)pWorker->hThread);
+	#elif defined(_WIN32) || defined(_WIN64)
 		WaitForSingleObject((HANDLE)pWorker->hThread, INFINITE);
 		CloseHandle((HANDLE)pWorker->hThread);
 	#else

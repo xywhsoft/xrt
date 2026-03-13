@@ -230,17 +230,17 @@ static void __xws2CopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 
 static long __xws2AtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 {
-	return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
+	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
 }
 
 static long __xws2AtomicLoad(volatile long* pValue)
 {
-	return __xws2AtomicCompareExchange(pValue, 0, 0);
+	return __xnetAtomicLoad32(pValue);
 }
 
 static long __xws2AtomicLoadConst(const volatile long* pValue)
 {
-	return __xws2AtomicCompareExchange((volatile long*)pValue, 0, 0);
+	return __xnetAtomicLoad32(pValue);
 }
 
 static void __xws2Sleep0(void)
@@ -272,7 +272,7 @@ static void __xws2Lock(volatile long* pLock)
 static void __xws2Unlock(volatile long* pLock)
 {
 	if ( !pLock ) return;
-	(void)__xws2AtomicCompareExchange(pLock, 0, 1);
+	(void)__xnetAtomicExchange32(pLock, 0);
 }
 
 static bool __xws2AppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)

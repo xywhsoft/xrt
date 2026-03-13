@@ -4,7 +4,7 @@
 
 - Document: `dev/XNET_V2_SPEC.md`
 - Status: Active draft
-- Version: `0.1.26`
+- Version: `0.1.28`
 - Last updated: `2026-03-13`
 - Scope: Full rewrite of the xrt network infrastructure
 - Source of truth: This file is the primary development spec for `xnet-v2`
@@ -402,6 +402,7 @@ Worker invariants:
 - a worker is the exclusive owner of all transport state assigned to it
 - cross-thread actions become commands queued to the owner worker
 - worker-local memory caches are not shared directly across workers
+- worker threads are created through `xrt` runtime-managed thread APIs so they inherit attach/detach lifecycle and thread-local runtime state
 
 ### 9.8 Future Object
 
@@ -436,6 +437,7 @@ Future invariants:
 Required rule:
 
 - No transport object may be mutated from a thread that does not own it.
+- Any thread that executes worker callbacks or touches worker-owned transport state must already be attached to the XRT runtime.
 
 
 ## 11. Memory Model
@@ -1162,6 +1164,101 @@ Use this section for durable architecture decisions.
   `xcodec_http1` owns message delimiting plus dechunk helpers, while `xhttp2`
   and `xhttpd2` consume decoded bodies and may serialize outbound bodies as a
   single chunked message without introducing streaming/trailer APIs yet.
+- `D-039` `2026-03-13`: `xnet-v2` staging headers must carry their own minimal
+  atomic helper layer instead of directly calling `__xrtAtomic*`, so the
+  standalone harness remains self-contained while future `xrt.h` migration can
+  still map onto the same semantics from above.
+- `D-040` `2026-03-13`: until old networking public names are frozen or moved,
+  full-xrt builds may use a narrow namespace bridge for the `xnet-v2` widened
+  address model and conflicting helper symbols, while reusing the existing
+  runtime's scalar types, socket type, result enum, and TLS config ABI.
+- `D-041` `2026-03-13`: once a stream has entered graceful close, later socket
+  faults on that same transport must still be allowed to escalate shutdown to
+  abort and complete final close emission; reset races after shutdown has
+  started must not be surfaced as fresh application errors.
+- `D-042` `2026-03-13`: sync futures should expose a coroutine wait bridge when
+  compiled inside full xrt runtime; the first version uses coroutine events to
+  wake the owner scheduler, supports a single coroutine waiter per future, and
+  intentionally preserves the existing thread-side condvar wait semantics.
+- `D-043` `2026-03-13`: timeout-aware coroutine future wait should build on the
+  coroutine timed-event path rather than reintroducing thread-style condvar
+  polling; the first version exposes `xrtNetFutureWaitCoTimeout()` as an
+  internal bridge and keeps the single coroutine-waiter limit.
+- `D-044` `2026-03-13`: coroutine future wait should also support deadline-based
+  waiting so xnet futures align with the coroutine runtime's
+  sleep/deadline/event model; the first version adds `xrtNetFutureWaitCoUntil()`
+  as an internal bridge and keeps timeout/infinite waits layered on top.
+- `D-045` `2026-03-13`: coroutine integration should include a minimal
+  `task/post -> future -> wake` bridge so worker tasks can complete back into
+  coroutine schedulers without a second sync implementation; the first version
+  adds `xrtNetEnginePostFuture()` and `xrtNetEnginePostDelayedFuture()` inside
+  `xnet_sync.h`.
+- `D-046` `2026-03-13`: posted futures must pin their own lifetime while a
+  worker task is queued or running; `xrtNetFutureDestroy()` must reject
+  destruction during that async-hold window so queued tasks cannot resolve into
+  freed future storage.
+- `D-047` `2026-03-13`: stream drain/close waits should reuse the future bridge
+  instead of embedding coroutine state directly into the stream layer; the
+  first version adds single-waiter drain/close registration slots in
+  `xnet_stream.h`, exposes `xrtNetStreamDrainFuture()` and
+  `xrtNetStreamCloseFuture()` from `xnet_sync.h`, and requires stream destroy to
+  reject while an async wait hold still exists.
+- `D-048` `2026-03-13`: readable stream waits must not race the existing
+  callback-driven recv path; the first version therefore exposes
+  `xrtNetStreamReadableFuture()` only for paused-read mode, backed by a single
+  buffered-readable waiter slot in `xnet_stream.h`. Unpaused streams must reject
+  readable-future registration instead of pretending to offer safe readiness
+  semantics.
+- `D-049` `2026-03-13`: writable stream waits should model backpressure relief
+  instead of raw socket-ready state; the first version unifies stream waiters
+  behind a shared wait-slot table in `xnet_stream.h` and exposes
+  `xrtNetStreamWritableFuture()` as a one-shot future that resolves when queued
+  send bytes fall from a high-water state to `low-water` or lower, or when the
+  stream closes.
+- `D-050` `2026-03-13`: once stream wait surfaces already resolve through
+  one-shot futures, `xnet_sync.h` should also provide direct coroutine helpers
+  so callers do not repeat `create future -> wait -> destroy`; the first
+  version adds indefinite-only `xrtNetStreamWaitReadableCo()`,
+  `xrtNetStreamWaitWritableCo()`, `xrtNetStreamWaitDrainCo()`, and
+  `xrtNetStreamWaitCloseCo()`. Timed variants remain deferred until stream
+  waiter cancellation/unregister semantics exist.
+- `D-051` `2026-03-13`: timed direct stream coroutine waits must not return
+  timeout/deadline while a waiter is still registered on the owner worker;
+  `xnet_sync.h` therefore needs a worker-side unregister path for stream
+  futures, and `xrtNetStreamWait*CoTimeout/Until()` may only complete after the
+  pending waiter has been detached and its async-holds released.
+- `D-052` `2026-03-13`: stream wait surfaces need a first generic abstraction
+  layer before more readiness kinds are added; `xnet_sync.h` should therefore
+  expose `xrtNetStreamFutureEx()` and `xrtNetStreamWaitCo*Ex()` keyed by a
+  public stream wait-kind constant set, while the specialized readable/writable/
+  drain/close helpers remain thin wrappers on top.
+- `D-053` `2026-03-13`: the generic stream wait abstraction must serve both
+  coroutine and thread callers; `xnet_sync.h` therefore also needs
+  `xrtNetStreamWaitEx()/WaitTimeoutEx()/WaitUntilEx()` built on the same
+  pending-wait cancellation path, so sync and coroutine waits share one
+  lifecycle contract instead of drifting into separate implementations.
+- `D-054` `2026-03-13`: before a broader socket/port wait-source model exists,
+  `xnet_sync.h` may introduce a minimal `xnetwaitsrc` object that unifies
+  existing `future` waits and `stream wait-kind` waits behind one common wait
+  surface; the first version should route into the already-verified future and
+  stream wait paths instead of inventing a second waiter lifecycle.
+- `D-055` `2026-03-13`: the wait-source abstraction must also expose a value
+  path, not only a status path; `xnet_sync.h` therefore needs
+  `xrtNetWaitSourceWaitValue*()` and `xrtNetWaitSourceWaitCoValue*()` so future
+  values and stream-event values can flow through one shared wait contract
+  instead of forcing callers back into surface-specific getter logic.
+- `D-056` `2026-03-13`: the next wait-source object after `future` and `stream`
+  should be datagram receive, but it must stay contract-tight in phase-1:
+  `xnet_sync.h` may expose `dgram recv` as a one-shot packet wait that returns
+  a heap-owned `xnetdgrampkt`; the first version supports only a single waiter,
+  rejects concurrent `OnRecv` callback usage, and does not promise datagram
+  backlog buffering or multi-consumer fairness.
+- `D-057` `2026-03-13`: `listener accept` must not be promoted into a wait-source
+  until the listener itself owns a real async contract: owner-worker affinity,
+  async-hold tracking, a single accept-wait slot or equivalent queue model, and
+  accept registration/cancellation routed through `xnet_port`. A polling-loop
+  wrapper around `accept()` is explicitly not acceptable as the `future` or
+  coroutine-wait implementation path.
 
 
 ## 20. Session Log Template
@@ -1601,6 +1698,396 @@ Tests run: gcc -fsyntax-only lib/xcodec_http1.h -I.; gcc -fsyntax-only lib/xhttp
 Benchmarks run: none
 Blockers: Linux-native validation, negotiated WebSocket extensions, trustworthy plain-TCP and queue-pressure benchmark baselines on the staged Windows backend, and final performance comparison against xnet-v1 remain open
 Next steps: either move to Linux-native validation and benchmark-baseline work, or implement the remaining higher-level protocol conveniences such as negotiated WebSocket extensions
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Align xnet_engine worker threading with the new XRT runtime threading model without breaking the standalone xnet2 staging harness
+Tasks touched: threading/runtime integration follow-up, xnet engine worker lifecycle
+Decisions made: when xnet-v2 is compiled inside the full xrt runtime, worker threads should be created through xrtThreadCreate/xrtThreadWait/xrtThreadDestroy so they inherit attach/detach lifecycle and thread-local runtime state; when xnet-v2 is compiled in the standalone staging harness, the previous native CreateThread/pthread_create fallback remains in place until full xrt.h migration is complete
+Code paths changed: updated lib/xnet_engine.h so worker thread storage uses a neutral pointer plus uint64 thread id, added __XNET_ENGINE_USE_XRT_THREAD gating, switched the integrated path to xrt-managed worker threads, and kept the standalone stage path self-contained; updated the worker ownership check to use xrtThreadGetCurrentId() when available; updated dev/XNET_V2_SPEC.md worker invariants to record the runtime-attach requirement
+Tests run: gcc -m64 -c dev/tmp_xnet2_engine_stage_check.c -o tmp_xnet2_engine_stage_check.o; gcc -m64 dev/tmp_xnet2_engine_stage_check.c -o dev/tmp_xnet2_engine_stage_check.exe -lws2_32 -liphlpapi -lshell32; ran dev/tmp_xnet2_engine_stage_check.exe successfully and verified the engine skeleton suite passed on Windows
+Benchmarks run: none
+Blockers: full integrated xrt-mode execution is still blocked by the broader xnet2 staging headers not yet being fully migrated onto xrt.h/shared runtime primitives; test_xnet2_stage.c still carries separate standalone assumptions in xnet_sync and related headers
+Next steps: either continue the xnet2-to-xrt runtime migration so integrated mode becomes directly runnable, or move to the next module while preserving this boundary in the spec
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Remove direct __xrtAtomic dependencies from xnet-v2 staging headers and restore standalone compilation of the sync/http/ws layer
+Tasks touched: xnet base/runtime migration follow-up, sync/http/ws platform helper cleanup
+Decisions made: D-039
+Code paths changed: updated lib/xnet_base.h to provide local compare-exchange, exchange, add-fetch, and load helpers; switched lib/xnet_sync.h, lib/xhttp2.h, lib/xhttpd2.h, and lib/xws2.h to those helpers; simplified staged shared-lock unlock paths in xhttpd2/xws2 to use atomic exchange instead of compare-exchange-on-unlock
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_syncfix.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_syncfix.exe successfully on Windows and verified the stage suite completed
+Benchmarks run: none
+Blockers: direct one-translation-unit xrt-integration of xnet-v2 is still blocked by namespace/type collisions between legacy xrt networking types and the widened xnet-v2 base model, most notably xnetaddr/xtlsconfig/xnet_result
+Next steps: decide whether the next migration step is a temporary namespace-bridge for xnet-v2 staging inside full xrt builds, or a broader old-network freeze that clears those public names for the v2 model
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add a minimal full-xrt namespace bridge for xnet-v2 base types so integrated builds can move past typedef collisions
+Tasks touched: xnet-v2 to xrt migration follow-up, legacy TLS ABI bridge cleanup
+Decisions made: D-040
+Code paths changed: updated lib/xnet_base.h to reuse xrt scalar/socket/result/TLS types under XXRTL_CORE while remapping the widened v2 address model to an internal xnet2_addr name and remapping the conflicting xrtNetResolve helper; updated lib/xnet_tls.h so full-xrt builds reuse the existing xtlsctx/xrtGlobalData/xtlsconfig definitions instead of redefining them inside the staging adapter
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; inline compile checks for xrt.c plus xnet-v2 headers in one translation unit
+Benchmarks run: none
+Blockers: wider integrated builds can now move beyond the old typedef layer, but remaining collisions and behavioral mismatches must still be surfaced module by module; old public xnetaddr and xnet-v2 widened address helpers still cannot coexist under the same external public name
+Next steps: compile an integrated xrt + xnet-v2 translation unit again, capture the next concrete blocker after the typedef bridge, and decide whether to continue bridging or freeze the old network public surface sooner
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Fix integrated close-path regressions exposed by the full xnet-v2 WebSocket TLS suite under xrt-managed worker threads
+Tasks touched: integrated xnet-v2 regression follow-up, stream close semantics
+Decisions made: D-041
+Code paths changed: updated lib/xnet_stream.h so a later abort request can escalate a stream that is already in graceful close, and suppressed duplicate OnError emission for non-wouldblock socket faults after shutdown has already started; this closes the gap where WS/TLS close races could leave a stream stuck in bClosing without a final close callback
+Tests run: focused integrated WS2 TLS debug repro using xrt.c plus test/test_xnet2_ws2.h; full integrated xrt.c + all xnet2 test headers stage compile/run
+Benchmarks run: none
+Blockers: old public-name overlap remains a migration concern, but integrated runtime behavior is now much closer to standalone staging behavior
+Next steps: rerun standalone and integrated xnet-v2 stage suites, then decide whether to formalize the bridge layer or continue moving selected xnet-v2 modules into the main xrt build
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add the first coroutine-aware future wait bridge for full-xrt runtime builds
+Tasks touched: xnet-sync future bridge, coroutine integration
+Decisions made: D-042
+Code paths changed: extended lib/xnet_sync.h so xnetfuture can lazily own a coroutine event plus a single coroutine-waiter slot under XXRTL_CORE; added xrtNetFutureWaitCo() as a core-only helper; updated future resolve/reset/destroy paths to cooperate with coroutine wait state; expanded test/test_xnet2_sync.h with a guarded coroutine-future wait regression
+Tests run: dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: full public xrt exposure for xnetfuture is still deferred until the wider xnet-v2 integration window; timeout-aware coroutine future wait is not implemented yet, only indefinite wait
+Next steps: decide whether to add timeout/deadline-aware future wait on top of coroutine timed event support, or keep the bridge minimal and move on to the next xnet-v2 integration surface
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Extend the coroutine-aware future bridge with timeout semantics on top of timed coroutine events
+Tasks touched: xnet-sync future bridge, coroutine integration follow-up
+Decisions made: D-043
+Code paths changed: updated lib/xnet_sync.h to add xrtNetFutureWaitCoTimeout(); reused xrtCoWaitEventTimeout() so unresolved futures can return XRT_NET_TIMEOUT without blocking the thread; expanded test/test_xnet2_sync.h with a guarded coroutine-future-timeout regression
+Tests run: dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: full public xrt exposure for xnetfuture is still deferred until the wider xnet-v2 integration window; coroutine future wait still supports only a single coroutine waiter and currently exposes timeout, not deadline-based waiting
+Next steps: decide whether to add deadline-aware coroutine future wait, or move to the next xnet-v2 integration surface such as task/post driven coroutine wakeups
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Extend the coroutine-aware future bridge with deadline-based waiting
+Tasks touched: xnet-sync future bridge, coroutine integration follow-up
+Decisions made: D-044
+Code paths changed: updated lib/xnet_sync.h to add xrtNetFutureWaitCoUntil(); layered xrtNetFutureWaitCo() and xrtNetFutureWaitCoTimeout() on top of the same deadline-aware coroutine event path; expanded test/test_xnet2_sync.h with a guarded coroutine-future-deadline regression
+Tests run: dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: full public xrt exposure for xnetfuture is still deferred until the wider xnet-v2 integration window; coroutine future wait still supports only a single coroutine waiter and currently offers indefinite/timeout/deadline waits, but not a richer wake-reason contract
+Next steps: decide whether to make coroutine future wait public during the broader xnet-v2 merge window, or continue with the next xnet-v2 integration surface such as task/post driven coroutine wakeups
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add the first task/post -> future -> coroutine wake bridge in xnet_sync
+Tasks touched: xnet-sync future bridge, engine task integration, coroutine integration follow-up
+Decisions made: D-045
+Code paths changed: updated lib/xnet_sync.h to add xnet_future_task_fn plus xrtNetEnginePostFuture()/xrtNetEnginePostDelayedFuture(); worker tasks now auto-resolve a generated future that can be awaited by coroutines through the existing future-wait bridge; expanded test/test_xnet2_sync.h with guarded post-future and delayed-post-future coroutine regressions
+Tests run: dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: full public xrt exposure for xnetfuture and the new posted-future helpers is still deferred until the wider xnet-v2 integration window; the bridge currently models one-shot task completion only and still keeps the single coroutine waiter limit
+Next steps: decide whether to expose the posted-future helpers more broadly during the xnet-v2 merge, or continue with the next integration surface such as socket/stream wait sources
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Harden posted-future lifetime so queued worker tasks cannot resolve into freed futures
+Tasks touched: xnet-sync future bridge, engine task integration follow-up
+Decisions made: D-046
+Code paths changed: extended lib/xnet_sync.h so xnetfuture tracks an internal async-hold count; posted/delayed future creation now pins the future before queueing work and releases that hold only after the worker resolves the future; xrtNetFutureDestroy() now rejects destruction while async-hold is still present; expanded test/test_xnet2_sync.h with a guarded regression that rejects early destroy, verifies the queued task still resolves, and then allows final destroy
+Tests run: dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: full public xrt exposure for xnetfuture and posted-future helpers is still deferred until the wider xnet-v2 integration window; the bridge still models one-shot task completion only and keeps the single coroutine waiter limit
+Next steps: continue with the next integration surface such as stream/socket wait sources, now that posted-future lifetime is explicitly hardened
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add the first stream wait-source bridge so drain/close events can wake coroutine waiters through futures
+Tasks touched: xnet-sync future bridge, stream lifecycle integration, coroutine integration follow-up
+Decisions made: D-047
+Code paths changed: updated lib/xnet_stream.h with single-waiter sync drain/close slots, stream async-hold tracking, and destroy rejection while async waiters still hold the stream; updated lib/xnet_sync.h to add xrtNetStreamDrainFuture() and xrtNetStreamCloseFuture(), which register waiters on the owner worker and resolve futures on drain/close; expanded test/test_xnet2_sync.h with guarded coroutine regressions for stream-drain wait, stream-close wait, and early stream-destroy rejection while a stream future is active
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: the bridge currently supports only one drain waiter and one close waiter per stream, and still resolves through one-shot futures rather than a richer reusable wait-source abstraction
+Next steps: decide whether to generalize the stream wait registration model into a reusable socket/stream wait-source table, or continue by bridging the next concrete xnet surface such as readable/writable readiness
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add the first readable stream future bridge on top of paused-read buffered recv state
+Tasks touched: xnet-sync future bridge, stream recv lifecycle integration, coroutine integration follow-up
+Decisions made: D-048
+Code paths changed: updated lib/xnet_stream.h with a single readable waiter slot plus readable notifications on recv-buffer append, recv-chain splice, and close paths; updated lib/xnet_sync.h to add xrtNetStreamReadableFuture(), which currently requires paused-read mode and resolves when buffered recv data becomes available or the stream closes; expanded test/test_xnet2_sync.h with guarded regressions for readable future wait and explicit rejection on unpaused streams
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: readable future currently supports only one waiter and only the paused-read buffered contract; it is not yet a general-purpose readiness API for callback-driven streams
+Next steps: decide whether to keep expanding the future bridge with writable/readiness helpers, or collapse the current drain/close/readable contracts into a reusable wait-source table before adding more surfaces
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add the first writable stream future bridge on top of unified stream wait slots
+Tasks touched: xnet-sync future bridge, stream send/backpressure lifecycle integration, coroutine integration follow-up
+Decisions made: D-049
+Code paths changed: updated lib/xnet_stream.h so readable/writable/drain/close waiters all share one wait-slot table and writable wait resolves when send pressure drops from high-water to low-water or below; updated lib/xnet_sync.h to add xrtNetStreamWritableFuture(); expanded test/test_xnet2_sync.h with guarded regressions for writable future wait, early stream-destroy rejection while writable wait is active, and low-water relief semantics
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: writable future still supports only one waiter and models queue-pressure relief rather than a richer callback-safe readiness API
+Next steps: continue collapsing stream/socket wait surfaces toward a reusable wait-source abstraction before exposing more readiness helpers
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add direct coroutine wait helpers on top of the existing stream future bridge
+Tasks touched: xnet-sync future bridge, coroutine integration usability layer
+Decisions made: D-050
+Code paths changed: updated lib/xnet_sync.h to add indefinite-only xrtNetStreamWaitReadableCo()/WaitWritableCo()/WaitDrainCo()/WaitCloseCo() wrappers that internally create the matching stream future, wait in coroutine context, and destroy the future; expanded test/test_xnet2_sync.h with guarded regressions for direct readable and writable coroutine helpers
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: direct helpers are intentionally indefinite-only for now because stream waiters still lack a timeout/deadline cancellation protocol
+Next steps: continue collapsing stream/socket wait surfaces toward a reusable wait-source abstraction, then revisit timed direct helpers once waiter unregister semantics exist
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add timeout/deadline direct coroutine waits on top of the existing stream future bridge
+Tasks touched: xnet-sync future bridge, stream waiter lifecycle hardening, coroutine integration usability layer
+Decisions made: D-051
+Code paths changed: updated lib/xnet_stream.h to add __xnetStreamCancelSyncWait(); extended lib/xnet_sync.h so stream future wait contexts carry a small state machine, a cancellation-complete event, and a pending-cleanup hook owned by xnetfuture; added xrtNetStreamWait*CoTimeout() and xrtNetStreamWait*CoUntil(); expanded test/test_xnet2_sync.h with guarded regressions that time out readable/writable direct waits and then successfully re-register the same surface
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: direct timed waits are now implemented for existing stream wait surfaces, but the broader reusable wait-source abstraction and additional socket-level readiness contracts are still deferred
+Next steps: continue collapsing stream/socket wait surfaces toward a reusable wait-source abstraction, now that timed direct coroutine waits no longer leave dangling stream waiters
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Complete timed direct coroutine wait coverage for drain/close stream surfaces
+Tasks touched: xnet-sync future bridge tests, coroutine integration regression coverage
+Decisions made: D-051
+Code paths changed: expanded test/test_xnet2_sync.h with guarded regressions for stream-drain timeout helper and stream-close deadline helper; both tests first time out, then re-register the same stream wait surface and verify the retried wait still resolves correctly
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: stream wait surfaces now have timed direct-helper coverage, but the broader reusable wait-source abstraction and additional socket-level readiness contracts are still deferred
+Next steps: continue collapsing stream/socket wait surfaces toward a reusable wait-source abstraction, with the timed direct helper contract now fully covered for readable/writable/drain/close
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add the first generic stream wait abstraction layer above the existing specialized helpers
+Tasks touched: xnet-sync future bridge, stream wait-source API shaping, coroutine integration usability layer
+Decisions made: D-052
+Code paths changed: updated lib/xnet_stream.h to expose public wait-kind constants; updated lib/xnet_sync.h so stream future registration is table-driven by wait-kind and now exposes xrtNetStreamFutureEx() plus xrtNetStreamWaitCoEx()/WaitCoTimeoutEx()/WaitCoUntilEx(); expanded test/test_xnet2_sync.h with guarded regressions for generic future invalid-kind rejection and generic coroutine readable wait
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: this is only the first generic layer for stream wait surfaces; a broader reusable socket/port wait-source abstraction is still deferred
+Next steps: continue collapsing stream/socket wait surfaces toward a reusable wait-source abstraction, now that stream waits have both specialized wrappers and a generic Ex entrypoint
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Extend the generic stream wait abstraction to synchronous thread callers
+Tasks touched: xnet-sync future bridge, stream wait-source API shaping, sync/coroutine lifecycle unification
+Decisions made: D-053
+Code paths changed: updated lib/xnet_sync.h to add xrtNetFutureWaitUntil(), xrtNetStreamWaitEx(), xrtNetStreamWaitTimeoutEx(), and xrtNetStreamWaitUntilEx(); these sync waits reuse the same pending waiter cancellation path as coroutine timed waits; expanded test/test_xnet2_sync.h with guarded regressions for generic sync readable wait and generic sync timeout followed by successful re-registration
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: stream wait abstraction is now shared by future, coroutine, and sync-thread callers, but a broader socket/port-level reusable wait-source model is still deferred
+Next steps: continue collapsing stream/socket wait surfaces toward a reusable wait-source abstraction, now that stream wait contracts are unified across future/coroutine/sync-thread layers
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add the first minimal cross-surface wait-source object above future and stream waits
+Tasks touched: xnet-sync wait-source API shaping, sync/coroutine lifecycle unification, xnet sync regression coverage
+Decisions made: D-054
+Code paths changed: updated lib/xnet_sync.h to add xnetwaitsrc, xrtNetWaitSourceNone()/Future()/Stream(), xrtNetWaitSourceWait()/WaitTimeout()/WaitUntil(), and xrtNetWaitSourceWaitCo()/WaitCoTimeout()/WaitCoUntil(); expanded test/test_xnet2_sync.h with guarded regressions for future-backed sync wait-source wait, future-backed coroutine wait-source wait, and invalid wait-source kind rejection
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: xnetwaitsrc currently unifies only future and stream wait-kind surfaces; broader socket/port-level wait sources remain deferred
+Next steps: continue promoting stream/socket readiness contracts into reusable wait-source objects now that future and stream waits share one minimal wrapper surface
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Extend xnetwaitsrc regression coverage to timed future and timed stream waits
+Tasks touched: xnet-sync wait-source regression coverage, sync/coroutine timeout lifecycle verification
+Decisions made: D-054
+Code paths changed: expanded test/test_xnet2_sync.h with guarded regressions for wait-source-backed future coroutine timeout, wait-source-backed readable stream sync timeout, and wait-source-backed readable stream coroutine timeout; each timeout test reuses the same surface after timeout to verify waiter detach completed before return
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: xnetwaitsrc coverage is now broader, but the object still wraps only future and stream wait-kind surfaces; broader socket/port-level wait sources remain deferred
+Next steps: continue promoting stream/socket readiness contracts into reusable wait-source objects, with timed wait-source wrappers now covered for both future and readable stream paths
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Extend xnetwaitsrc timed coverage to all remaining stream wait kinds
+Tasks touched: xnet-sync wait-source regression coverage, coroutine timeout/deadline waiter lifecycle verification
+Decisions made: D-054
+Code paths changed: expanded test/test_xnet2_sync.h with guarded regressions for wait-source-backed stream drain timeout, stream close deadline, and stream writable deadline; each test first times out or reaches deadline, then re-registers the same wait surface and verifies the retried wait completes successfully
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: xnetwaitsrc timed coverage now spans readable, writable, drain, and close stream waits, but the object still wraps only future and stream wait-kind surfaces; broader socket/port-level wait sources remain deferred
+Next steps: continue promoting stream/socket readiness contracts into reusable wait-source objects, now that all four stream wait kinds have timed wait-source regression coverage
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Align xnetwaitsrc timed regression coverage across both sync-thread and coroutine entrypoints
+Tasks touched: xnet-sync wait-source regression coverage, timed future/stream lifecycle verification
+Decisions made: D-054
+Code paths changed: expanded test/test_xnet2_sync.h with guarded regressions for wait-source-backed future sync timeout/deadline and for wait-source-backed stream drain timeout, stream close deadline, and stream writable deadline on the sync-thread path; all timed tests verify the wrapped wait surface remains reusable after timeout/deadline returns
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: xnetwaitsrc now has broad timed coverage across future plus all four stream wait kinds on both sync-thread and coroutine entrypoints, but the object still wraps only future and stream wait-kind surfaces; broader socket/port-level wait sources remain deferred
+Next steps: continue promoting stream/socket readiness contracts into reusable wait-source objects, with the current wait-source layer now broadly regression-covered instead of only structurally unified
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Collapse specialized coroutine stream-wait wrappers onto the generic wait-kind path
+Tasks touched: xnet-sync coroutine wait dispatch, stream wait-source implementation consolidation
+Decisions made: D-054
+Code paths changed: updated lib/xnet_sync.h so xrtNetStreamWaitReadableCo()/WritableCo()/DrainCo()/CloseCo() and their timed variants are now thin wrappers over xrtNetStreamWaitCoEx()/WaitCoTimeoutEx()/WaitCoUntilEx(), making the generic wait-kind path the actual implementation route instead of only a parallel abstraction
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: coroutine stream waits are now implementation-wise consolidated onto the generic path, but xnetwaitsrc still wraps only future and stream wait-kind surfaces; broader socket/port-level wait sources remain deferred
+Next steps: continue promoting stream/socket readiness contracts into reusable wait-source objects, now that both tests and implementation dispatch are converging on the same generic wait-kind layer
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Collapse sync/coroutine stream wait dispatch onto the shared xnetwaitsrc core dispatcher
+Tasks touched: xnet-sync wait-source implementation consolidation, stream wait dispatch layering
+Decisions made: D-054
+Code paths changed: updated lib/xnet_sync.h to add internal sync/coroutine wait-source dispatch helpers; xrtNetStreamWaitEx()/WaitTimeoutEx()/WaitUntilEx() and xrtNetStreamWaitCoEx()/WaitCoTimeoutEx()/WaitCoUntilEx() now construct xnetwaitsrc and enter the same core dispatch path used by xrtNetWaitSourceWait*(), removing the old parallel dispatch split between dedicated stream waits and generic wait-source waits
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: dispatch is now unified through xnetwaitsrc for future and stream wait-kind surfaces, but the wait-source object still does not cover broader socket/port-level readiness surfaces
+Next steps: continue promoting stream/socket readiness contracts into reusable wait-source objects, now that both regression coverage and implementation dispatch share the same wait-source core
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Add value-returning wait-source APIs on top of the unified future/stream wait dispatcher
+Tasks touched: xnet-sync wait-source result model, sync/coroutine wait-source coverage
+Decisions made: D-055
+Code paths changed: updated lib/xnet_sync.h to add xrtNetWaitSourceWaitValue()/WaitValueTimeout()/WaitValueUntil() plus xrtNetWaitSourceWaitCoValue()/WaitCoValueTimeout()/WaitCoValueUntil(); sync/coroutine stream-wait cores now optionally surface the internal future value before cleanup; expanded test/test_xnet2_sync.h so future and stream wait-source paths validate both status and value propagation, including timed waits leaving value as NULL
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: xnetwaitsrc now carries both status and value for future plus stream wait-kind surfaces, but broader dgram/socket/port-level wait sources are still deferred
+Next steps: use the new value-capable wait-source contract as the bridge for the next network object, most likely datagram receive waits before considering raw port-level readiness
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Promote datagram receive into the unified wait-source layer as the first packet-valued network object
+Tasks touched: xnet-dgram one-shot packet contract, xnet-sync dgram future/wait-source bridge, sync/coroutine datagram regression coverage
+Decisions made: D-056
+Code paths changed: updated lib/xnet_dgram.h to add heap-owned xnetdgrampkt, async-hold tracking, and a single recv waiter slot; updated lib/xnet_sync.h to add xrtNetWaitSourceDgramRecv(), xrtNetDgramRecvFuture(), xrtNetDgramRecv()/RecvTimeout()/RecvUntil(), and xrtNetDgramRecvCo*() on top of the existing pending-cancel wait bridge; expanded test/test_xnet2_sync.h with sync recv-helper, wait-source timeout/retry, early-destroy rejection, and coroutine recv-helper regressions
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: datagram wait-source is still single-waiter and mutually exclusive with OnRecv callbacks; backlog buffering and multi-consumer semantics remain deferred
+Next steps: keep promoting xnetwaitsrc downward into broader readiness surfaces only after the datagram one-shot packet contract proves stable
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Harden datagram wait-source misuse contracts and explicitly defer listener accept as a wait-source
+Tasks touched: xnet-sync datagram regression coverage, wait-source roadmap hygiene
+Decisions made: D-057
+Code paths changed: expanded test/test_xnet2_sync.h with datagram OnRecv-conflict rejection, second-waiter rejection, sync RecvUntil deadline, and coroutine RecvCoUntil deadline regressions; no listener code was added because accept remains tied to polling-style helpers instead of a real port/worker-owned async contract
+Tests run: gcc -m64 -c xrt.c -I.; gcc -m64 -c test.c -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; dedicated core-mode compile/run harness using xrt.h + lib/xnet_sync.h + test/test_xnet2_sync.h on Windows
+Benchmarks run: none
+Blockers: datagram wait-source now has stronger misuse coverage, but listener accept still lacks async-hold ownership, waiter lifecycle, and port-driven registration/cancellation; accept wait-source work remains intentionally deferred
+Next steps: keep hardening completed wait-source contracts and only introduce listener accept waits after listener runtime ownership matches the existing stream/dgram model
 ```
 
 

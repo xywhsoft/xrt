@@ -121,17 +121,17 @@ static bool __xhttp2StrEqNoCase(const char* sA, const char* sB)
 
 static long __xhttp2AtomicAdd(volatile long* pValue, long iDelta)
 {
-	return __xrtAtomicAddFetch32(pValue, iDelta);
+	return __xnetAtomicAddFetch32(pValue, iDelta);
 }
 
 static long __xhttp2AtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 {
-	return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
+	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
 }
 
 static long __xhttp2AtomicLoad(volatile long* pValue)
 {
-	return __xhttp2AtomicCompareExchange(pValue, 0, 0);
+	return __xnetAtomicLoad32(pValue);
 }
 
 static void __xhttp2CopyToken(char* sDst, size_t iDstCap, const char* sSrc)

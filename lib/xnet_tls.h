@@ -29,40 +29,50 @@
 
 /* ============================== Legacy TLS ABI bridge ============================== */
 
-typedef struct xrt_tls_context xtlsctx;
-typedef struct __xnet_tls_global xrtGlobalData;
+#if !defined(XXRTL_CORE)
+	typedef struct xrt_tls_context xtlsctx;
+	typedef struct __xnet_tls_global xrtGlobalData;
 
-struct xrt_tls_config {
-	const char* sCertFile;
-	const char* sKeyFile;
-	const char* sCaFile;
-	const char* sHostName;
-	bool bVerifyPeer;
-	void (*OnSNI)(xtlsctx* pCtx, const char* sHostName, ptr pUserData);
-	ptr pSNIUserData;
-	bool bAllowTLS12Ed25519;
-};
+	struct xrt_tls_config {
+		const char* sCertFile;
+		const char* sKeyFile;
+		const char* sCaFile;
+		const char* sHostName;
+		bool bVerifyPeer;
+		void (*OnSNI)(xtlsctx* pCtx, const char* sHostName, ptr pUserData);
+		ptr pSNIUserData;
+		bool bAllowTLS12Ed25519;
+	};
+#endif
 
-typedef struct {
-	uint32 iAddr;
-	uint16 iPort;
-	char sAddr[16];
-} __xnet_tls_legacy_addr;
+#if defined(XXRTL_CORE)
+	typedef xnetconn __xnet_tls_legacy_conn;
+#else
+	typedef struct {
+		uint32 iAddr;
+		uint16 iPort;
+		char sAddr[16];
+	} __xnet_tls_legacy_addr;
 
-typedef struct {
-	int iId;
-	xsocket hSocket;
-	__xnet_tls_legacy_addr tLocalAddr;
-	__xnet_tls_legacy_addr tRemoteAddr;
-	int iType;
-	ptr pUserData;
-	ptr pTlsCtx;
-	bool bTlsEnabled;
-} __xnet_tls_legacy_conn;
+	typedef struct {
+		int iId;
+		xsocket hSocket;
+		__xnet_tls_legacy_addr tLocalAddr;
+		__xnet_tls_legacy_addr tRemoteAddr;
+		int iType;
+		ptr pUserData;
+		ptr pTlsCtx;
+		bool bTlsEnabled;
+	} __xnet_tls_legacy_conn;
+#endif
 
 extern xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
 extern void xrtTlsDestroy(xtlsctx* pCtx);
-extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, __xnet_tls_legacy_conn* pConn);
+#if defined(XXRTL_CORE)
+	extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, xnetconn* pConn);
+#else
+	extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, __xnet_tls_legacy_conn* pConn);
+#endif
 extern xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
 extern xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
 extern xnet_result xrtTlsClose(xtlsctx* pCtx);
@@ -72,7 +82,9 @@ extern size_t xrtTlsPendingSend(xtlsctx* pCtx);
 extern size_t xrtTlsPendingRecv(xtlsctx* pCtx);
 extern xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
 extern void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
-extern xrtGlobalData* xrtInit(void);
+#if !defined(XXRTL_CORE)
+	extern xrtGlobalData* xrtInit(void);
+#endif
 
 
 /* ============================== Session wrapper ============================== */

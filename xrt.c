@@ -323,6 +323,9 @@ static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 	pThreadData->TempMemIdx = 0;
 	pThreadData->pCleanupTop = NULL;
 	__xrtInitThreadMemState(pThreadData);
+	#ifndef XRT_NO_COROUTINE
+		__xrtCoroRuntimeInitThread(pThreadData);
+	#endif
 
 	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
 		pThreadData->TempMem[i] = NULL;
@@ -442,6 +445,9 @@ static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
 		pThreadData->pSelf = pThread;
 		pThreadData->iThreadId = __xrtGetCurrentThreadId();
 		pThreadData->tMem.iOwnerThreadId = pThreadData->iThreadId;
+		#ifndef XRT_NO_COROUTINE
+			pThreadData->tCoro.iOwnerThreadId = pThreadData->iThreadId;
+		#endif
 	}
 
 	return pThreadData;
@@ -466,6 +472,9 @@ XXAPI void xrtThreadDetachCurrent()
 	__xrtRunThreadCleanup(pThreadData);
 	__xrtFreeThreadError(pThreadData);
 	__xrtFreeThreadTempMemory(pThreadData);
+	#ifndef XRT_NO_COROUTINE
+		__xrtCoroRuntimeUnitThread(pThreadData);
+	#endif
 	__xrtUnitThreadMemState(pThreadData);
 
 	__xrtThreadState = NULL;
