@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-12 19:34:10
+    Generated: 2026-03-13 15:46:56
 
     MIT License
 
@@ -101,6 +101,9 @@
 			#define XRT_THREAD_INIT
 			typedef struct { PVOID Ptr; } SRWLOCK, *PSRWLOCK;
 			typedef struct { PVOID Ptr; } CONDITION_VARIABLE, *PCONDITION_VARIABLE;
+			#ifndef SRWLOCK_INIT
+				#define SRWLOCK_INIT { 0 }
+			#endif
 			
 			ULONGLONG GetTickCount64();
 			
@@ -392,19 +395,46 @@
 		uint64 state;
 		uint64 inc;
 	} xrand;
+	#define XRT_TEMP_SLOT_COUNT 32
+	typedef struct xrtThreadData xrtThreadData;
+	typedef struct xrtThreadCleanup xrtThreadCleanup;
+	typedef void (*xrtThreadCleanupProc)(xrtThreadData* pThreadData, ptr pArg);
+	typedef struct {
+		uint64 iOwnerThreadId;
+		uint32 iFlags;
+		uint32 iReserved;
+		ptr pLocalAlloc;
+		ptr pSharedAlloc;
+		ptr pReserved;
+	} xrtThreadMemState;
+	#define XRT_OBJMODE_LOCAL		0
+	#define XRT_OBJMODE_SHARED		1
+	#define XRT_OBJFLAG_SHARED_PENDING	0x00000001u
+	typedef struct {
+		xrtThreadData* pOwnerThread;
+		uint64 iOwnerThreadId;
+		uint32 iMode;
+		uint32 iFlags;
+		volatile long iSharedLock;
+		uint64 iSharedOwnerThreadId;
+		uint32 iSharedDepth;
+	} xrtOwnerInfo;
+	struct xrtThreadCleanup {
+		xrtThreadCleanupProc Proc;
+		ptr Arg;
+		xrtThreadCleanup* pPrev;
+	};
 	
 	// 全局
 	typedef struct {
 		
 		// 是否已经初始化过
 		int bInit;
+		// 初始化引用计数
+		uint32 iInitRef;
 		
 		// 全局数据 (不可改变)
 		str sNull;
-		
-		// 错误信息（线程不安全）
-		str LastError;
-		int __pri_FreeError;
 		void (*OnError)(str sError);
 		
 		// 高精度时钟频率单位
@@ -419,20 +449,11 @@
 		str AppFile;
 		str AppPath;
 		
-		// 环形临时内存（线程不安全）
-		ptr TempMem[32];
-		uint32 TempMemIdx;
-		
 		// 内存函数
 		ptr (*malloc)(size_t iSize);
 		ptr (*calloc)(size_t iNum, size_t iSize);
 		ptr (*realloc)(ptr pMem, size_t iSize);
 		void (*free)(ptr pMem);
-		
-		// 随机数全局状态（线程不安全）
-		xrand rand32;
-		xrand rand64_low;
-		xrand rand64_high;
 		
 		// 约等于配置
 		int iApproxIntMode;       // 整数模式: 0=差值, 1=百分比
@@ -445,6 +466,22 @@
 		bool bApproxStrCase;      // 通配符模式大小写开关(TRUE=忽略)
 		
 	} xrtGlobalData;
+	// 线程级运行时状态
+	struct xrtThreadData {
+		xrtGlobalData* pGlobal;
+		uint64 iThreadId;
+		struct xthread_struct* pSelf;
+		uint32 iAttachDepth;
+		str LastError;
+		bool bFreeLastError;
+		ptr TempMem[XRT_TEMP_SLOT_COUNT];
+		uint32 TempMemIdx;
+		xrand rand32;
+		xrand rand64_low;
+		xrand rand64_high;
+		xrtThreadMemState tMem;
+		xrtThreadCleanup* pCleanupTop;
+	};
 	
 	// 全局数据
 	XXAPI extern xrtGlobalData xCore;
@@ -456,6 +493,22 @@
 	
 	// 释放 xCore
 	XXAPI void xrtUnit();
+	// 获取当前线程运行时状态
+	XXAPI xrtThreadData* xrtThreadGetCurrent();
+	// 当前线程是否已经附加到 XRT 运行时
+	XXAPI bool xrtThreadIsAttached();
+	// 将当前线程附加到 XRT 运行时
+	XXAPI xrtThreadData* xrtThreadAttachCurrent();
+	// 将当前线程从 XRT 运行时分离
+	XXAPI void xrtThreadDetachCurrent();
+	// 获取当前线程错误信息
+	XXAPI str xrtGetError();
+	// 获取当前线程ID
+	XXAPI uint64 xrtThreadGetCurrentId();
+	// 注册当前线程退出清理回调
+	XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg);
+	// 弹出当前线程顶部匹配的清理回调
+	XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg);
 	
 	
 	
@@ -499,6 +552,190 @@
 	
 	// 清除错误
 	XXAPI void xrtClearError();
+	// 获取当前线程的内存上下文
+	static inline xrtThreadMemState* xrtThreadGetMemState()
+	{
+		xrtThreadData* pThreadData = xrtThreadGetCurrent();
+		if ( pThreadData ) {
+			return &pThreadData->tMem;
+		}
+		return NULL;
+	}
+	static inline long __xrtOwnerAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
+	{
+		#if defined(_WIN32) || defined(_WIN64)
+			return InterlockedCompareExchange((volatile LONG*)pValue, iExchange, iComparand);
+		#else
+			return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
+		#endif
+	}
+	static inline void __xrtOwnerAtomicStore(volatile long* pValue, long iValue)
+	{
+		#if defined(_WIN32) || defined(_WIN64)
+			InterlockedExchange((volatile LONG*)pValue, iValue);
+		#else
+			__sync_lock_test_and_set(pValue, iValue);
+		#endif
+	}
+	static inline void __xrtOwnerSpinLock(volatile long* pLock)
+	{
+		while ( __xrtOwnerAtomicCompareExchange(pLock, 1, 0) != 0 ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				Sleep(0);
+			#else
+				usleep(1000);
+			#endif
+		}
+	}
+	static inline void __xrtOwnerSpinUnlock(volatile long* pLock)
+	{
+		__xrtOwnerAtomicStore(pLock, 0);
+	}
+	static inline uint64 __xrtOwnerGetCurrentThreadId()
+	{
+		xrtThreadData* pThreadData = xrtThreadGetCurrent();
+		if ( pThreadData ) {
+			return pThreadData->iThreadId;
+		}
+		return xrtThreadGetCurrentId();
+	}
+	// 初始化对象所有权信息（默认本线程私有）
+	static inline void xrtOwnerInitMode(xrtOwnerInfo* pOwner, uint32 iMode)
+	{
+		xrtThreadData* pThreadData = xrtThreadGetCurrent();
+		if ( pOwner == NULL ) {
+			return;
+		}
+		pOwner->pOwnerThread = pThreadData;
+		pOwner->iOwnerThreadId = pThreadData ? pThreadData->iThreadId : xrtThreadGetCurrentId();
+		pOwner->iMode = XRT_OBJMODE_LOCAL;
+		pOwner->iFlags = 0;
+		pOwner->iSharedLock = 0;
+		pOwner->iSharedOwnerThreadId = 0;
+		pOwner->iSharedDepth = 0;
+		if ( iMode == XRT_OBJMODE_SHARED ) {
+			pOwner->iMode = XRT_OBJMODE_SHARED;
+			pOwner->iFlags |= XRT_OBJFLAG_SHARED_PENDING;
+		}
+	}
+	// 初始化对象所有权信息（默认本线程私有）
+	static inline void xrtOwnerInit(xrtOwnerInfo* pOwner)
+	{
+		xrtOwnerInitMode(pOwner, XRT_OBJMODE_LOCAL);
+	}
+	// 获取对象模式
+	static inline uint32 xrtOwnerGetMode(const xrtOwnerInfo* pOwner)
+	{
+		if ( pOwner == NULL ) {
+			return XRT_OBJMODE_LOCAL;
+		}
+		return pOwner->iMode;
+	}
+	// 允许对象进入共享模式（phase-2 staged 入口）
+	static inline void xrtOwnerSetShared(xrtOwnerInfo* pOwner)
+	{
+		if ( pOwner == NULL ) {
+			return;
+		}
+		pOwner->iMode = XRT_OBJMODE_SHARED;
+		pOwner->iFlags |= XRT_OBJFLAG_SHARED_PENDING;
+		pOwner->iSharedOwnerThreadId = 0;
+		pOwner->iSharedDepth = 0;
+	}
+	static inline void xrtOwnerActivateShared(xrtOwnerInfo* pOwner)
+	{
+		if ( pOwner == NULL ) {
+			return;
+		}
+		pOwner->iMode = XRT_OBJMODE_SHARED;
+		pOwner->iFlags &= ~XRT_OBJFLAG_SHARED_PENDING;
+		pOwner->iSharedOwnerThreadId = 0;
+		pOwner->iSharedDepth = 0;
+	}
+	static inline bool xrtOwnerLock(xrtOwnerInfo* pOwner, str sError)
+	{
+		uint64 iThreadId;
+		if ( pOwner == NULL ) {
+			return FALSE;
+		}
+		iThreadId = __xrtOwnerGetCurrentThreadId();
+		if ( pOwner->iMode == XRT_OBJMODE_SHARED ) {
+			if ( pOwner->iFlags & XRT_OBJFLAG_SHARED_PENDING ) {
+				if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
+					return TRUE;
+				}
+				xrtSetError((str)"shared mode synchronization is not implemented yet.", FALSE);
+				return FALSE;
+			}
+			if ( pOwner->iSharedOwnerThreadId == iThreadId && pOwner->iSharedDepth > 0 ) {
+				pOwner->iSharedDepth++;
+				return TRUE;
+			}
+			__xrtOwnerSpinLock(&pOwner->iSharedLock);
+			pOwner->iSharedOwnerThreadId = iThreadId;
+			pOwner->iSharedDepth = 1;
+			return TRUE;
+		}
+		if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
+			return TRUE;
+		}
+		xrtSetError(sError ? sError : (str)"runtime object belongs to another thread.", FALSE);
+		return FALSE;
+	}
+	static inline void xrtOwnerUnlock(xrtOwnerInfo* pOwner)
+	{
+		uint64 iThreadId;
+		if ( pOwner == NULL ) {
+			return;
+		}
+		if ( pOwner->iMode == XRT_OBJMODE_SHARED && (pOwner->iFlags & XRT_OBJFLAG_SHARED_PENDING) == 0 ) {
+			iThreadId = __xrtOwnerGetCurrentThreadId();
+			if ( pOwner->iSharedOwnerThreadId != 0 && pOwner->iSharedOwnerThreadId != iThreadId ) {
+				return;
+			}
+			if ( pOwner->iSharedDepth > 1 ) {
+				pOwner->iSharedDepth--;
+				return;
+			}
+			pOwner->iSharedDepth = 0;
+			pOwner->iSharedOwnerThreadId = 0;
+			__xrtOwnerSpinUnlock(&pOwner->iSharedLock);
+		}
+	}
+	static inline bool xrtOwnerBeginMutable(xrtOwnerInfo* pOwner, str sError)
+	{
+		return xrtOwnerLock(pOwner, sError);
+	}
+	static inline void xrtOwnerEndMutable(xrtOwnerInfo* pOwner)
+	{
+		xrtOwnerUnlock(pOwner);
+	}
+	// 检查当前线程是否允许修改对象
+	static inline bool xrtOwnerCheckMutable(xrtOwnerInfo* pOwner, str sError)
+	{
+		uint64 iThreadId;
+		xrtThreadData* pThreadData;
+		if ( pOwner == NULL ) {
+			return FALSE;
+		}
+		pThreadData = xrtThreadGetCurrent();
+		iThreadId = pThreadData ? pThreadData->iThreadId : xrtThreadGetCurrentId();
+		if ( pOwner->iMode == XRT_OBJMODE_SHARED ) {
+			if ( (pOwner->iFlags & XRT_OBJFLAG_SHARED_PENDING) == 0 ) {
+				return TRUE;
+			}
+			if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
+				return TRUE;
+			}
+			xrtSetError((str)"shared mode synchronization is not implemented yet.", FALSE);
+			return FALSE;
+		}
+		if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
+			return TRUE;
+		}
+		xrtSetError(sError ? sError : (str)"runtime object belongs to another thread.", FALSE);
+		return FALSE;
+	}
 	
 	
 	
@@ -1053,12 +1290,15 @@
 	#define XRT_WAIT_ERROR			-1			// 等待错误
 	
 	// 线程数据结构
-	typedef struct {
+	typedef struct xthread_struct {
 		ptr Handle;								// 线程句柄
-		uint32 TID;								// 线程ID
+		uint64 TID;								// 线程ID
 		uint32 (*Proc)(ptr param);				// 用户回调函数
 		ptr Param;								// 用户参数
 		volatile int StopFlag;					// 停止信号标志
+		volatile int bFinished;					// 是否已经结束
+		volatile int bJoined;					// 是否已经完成等待
+		uint32 ExitCode;						// 线程退出码
 	} xthread_struct, *xthread;
 	
 	// 互斥体数据结构
@@ -2186,19 +2426,25 @@
 		uint32 Count;							// 管理器中存在多少成员
 		uint32 AllocCount;						// 已经申请的结构数量
 		uint32 AllocStep;						// 预分配内存步长
+		xrtOwnerInfo Owner;						// 所有权信息（phase-2）
 	} xparray_struct, *xparray;
 	
 	// 创建指针内存管理器
 	XXAPI xparray xrtPtrArrayCreate();
+	XXAPI xparray xrtPtrArrayCreateEx(uint32 iMode);
 	
 	// 销毁指针内存管理器
 	XXAPI void xrtPtrArrayDestroy(xparray pObject);
 	
 	// 初始化内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtPtrArrayInit(xparray pObject);
+	XXAPI void xrtPtrArrayInitEx(xparray pObject, uint32 iMode);
 	
 	// 释放内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtPtrArrayUnit(xparray pObject);
+	// 显式锁定管理器（shared 模式下可用于稳定访问内部指针/遍历）
+	XXAPI bool xrtPtrArrayLock(xparray pObject);
+	XXAPI void xrtPtrArrayUnlock(xparray pObject);
 	
 	// 分配内存
 	XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount);
@@ -2237,7 +2483,11 @@
 	XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal);
 	static inline void xrtPtrArraySet_Inline(xparray pObject, uint32 iPos, ptr pVal)
 	{
+		if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+			return;
+		}
 		pObject->Memory[iPos - 1] = pVal;
+		xrtOwnerEndMutable(&pObject->Owner);
 	}
 	
 	// 成员排序
@@ -2264,19 +2514,25 @@
 		uint32 Count;					// 管理器中存在多少成员
 		uint32 AllocCount;				// 已经申请的结构数量
 		uint32 AllocStep;				// 预分配内存步长
+		xrtOwnerInfo Owner;				// 所有权信息（phase-2）
 	} xarray_struct, *xarray;
 	
 	// 创建数组
 	XXAPI xarray xrtArrayCreate(uint32 iItemLength);
+	XXAPI xarray xrtArrayCreateEx(uint32 iItemLength, uint32 iMode);
 	
 	// 销毁数组
 	XXAPI void xrtArrayDestroy(xarray pArr);
 	
 	// 初始化数组的数据结构 ( 用于内嵌数组的对象使用 )
 	XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength);
+	XXAPI void xrtArrayInitEx(xarray pArr, uint32 iItemLength, uint32 iMode);
 	
 	// 释放数组的数据结构 ( 但不会释放数组结构体本身的内存，用于内嵌数组的对象使用 )
 	XXAPI void xrtArrayUnit(xarray pArr);
+	// 显式锁定数组（shared 模式下可用于稳定访问内部指针/遍历）
+	XXAPI bool xrtArrayLock(xarray pArr);
+	XXAPI void xrtArrayUnlock(xarray pArr);
 	
 	// 分配内存
 	XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount);
@@ -2330,6 +2586,7 @@
 	
 	// 数据块结构内存管理器数据结构
 	typedef struct {
+		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
 		uint32 ItemLength;			// 成员占用内存长度
 		uint32 Count;					// 管理器中存在多少成员
 		xparray_struct PageMMU;				// 内存页管理器
@@ -2338,12 +2595,14 @@
 	
 	// 创建数据块结构内存管理器
 	XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength);
+	XXAPI xbsmm xrtBsmmCreateEx(uint32 iItemLength, uint32 iMode);
 	
 	// 销毁数据块结构内存管理器
 	XXAPI void xrtBsmmDestroy(xbsmm objBSMM);
 	
 	// 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
 	XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength);
+	XXAPI void xrtBsmmInitEx(xbsmm objBSMM, uint32 iItemLength, uint32 iMode);
 	
 	// 释放数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Destroy 功能类似）
 	XXAPI void xrtBsmmUnit(xbsmm objBSMM);
@@ -2393,6 +2652,7 @@
 	
 	// 数据管理单元数据结构
 	typedef struct {
+		xrtOwnerInfo Owner;						// 所有权信息（phase-2）
 		uint8 FreeList[256];						// 已释放成员列表
 		uint32 ItemLength;							// 成员占用内存长度
 		uint16 Count;								// 成员数量
@@ -2404,6 +2664,7 @@
 	
 	// 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
 	XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength);
+	XXAPI xmemunit xrtMemUnitCreateEx(uint32 iItemLength, uint32 iMode);
 	
 	// 销毁内存管理单元
 	#define xrtMemUnitDestroy xrtFree
@@ -2411,6 +2672,16 @@
 	// 从内存管理单元中申请一个元素
 	static inline ptr xrtMemUnitAlloc_Inline(xmemunit objUnit)
 	{
+		if ( objUnit == NULL ) {
+			return NULL;
+		}
+		if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+			return NULL;
+		}
+		if ( objUnit->Count > 255 ) {
+			xrtOwnerEndMutable(&objUnit->Owner);
+			return NULL;
+		}
 		uint8 idx = objUnit->Count;
 		// 优先复用已释放的数据
 		if ( objUnit->FreeCount > 0 ) {
@@ -2420,7 +2691,8 @@
 		}
 		objUnit->Count++;
 		MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
-		v->ItemFlag = objUnit->Flag | idx;
+		v->ItemFlag = MMU_FLAG_USE | objUnit->Flag | idx;
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return (ptr)&v[1];
 	}
 	XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit);
@@ -2428,6 +2700,12 @@
 	// 释放内存管理单元中某个元素（FreeIdx不会清空 ItemFlag，建议由调用方负责清空）
 	static inline void xrtMemUnitFreeIdx_Inline(xmemunit objUnit, uint8 idx)
 	{
+		if ( objUnit == NULL ) {
+			return;
+		}
+		if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+			return;
+		}
 		objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
 		objUnit->Count--;
 		if ( objUnit->Count ) {
@@ -2436,14 +2714,29 @@
 			objUnit->FreeCount = 0;
 			objUnit->FreeOffset = 0;
 		}
+		xrtOwnerEndMutable(&objUnit->Owner);
 	}
 	XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx);
 	static inline void xrtMemUnitFree_Inline(xmemunit objUnit, ptr obj)
 	{
+		if ( objUnit == NULL || obj == NULL ) {
+			return;
+		}
+		if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+			return;
+		}
 		MMU_ValuePtr v = obj - 4;
 		unsigned char idx = v->ItemFlag & 0xFF;
 		v->ItemFlag = 0;
-		xrtMemUnitFreeIdx_Inline(objUnit, idx);
+		objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
+		objUnit->Count--;
+		if ( objUnit->Count ) {
+			objUnit->FreeCount++;
+		} else {
+			objUnit->FreeCount = 0;
+			objUnit->FreeOffset = 0;
+		}
+		xrtOwnerEndMutable(&objUnit->Owner);
 	}
 	XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj);
 	
@@ -2464,6 +2757,7 @@
 	
 	// 256步进内存管理器数据结构
 	typedef struct {
+		xrtOwnerInfo Owner;					// 所有权信息（phase-2）
 		uint32 ItemLength;					// 成员占用内存长度
 		xbsmm_struct arrMMU;						// MMU 阵列
 		MMU_LLNode* LL_Idle;						// 有空闲的内存管理单元链表首元素 (优先分配内存的单元)
@@ -2474,12 +2768,14 @@
 	
 	// 创建内存管理器
 	XXAPI xfsmempool xrtFSMemPoolCreate(uint32 iItemLength);
+	XXAPI xfsmempool xrtFSMemPoolCreateEx(uint32 iItemLength, uint32 iMode);
 	
 	// 销毁内存管理器
 	XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM);
 	
 	// 初始化内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtFSMemPoolInit(xfsmempool objMM, uint32 iItemLength);
+	XXAPI void xrtFSMemPoolInitEx(xfsmempool objMM, uint32 iItemLength, uint32 iMode);
 	
 	// 释放内存管理器（对自维护结构体指针使用）
 	XXAPI void xrtFSMemPoolUnit(xfsmempool objMM);
@@ -2601,10 +2897,12 @@
 	} xavltnode_struct, *xavltnode;
 	
 	// AVL树迭代器结构（按需分配，无需存储树对象）
+	#define XRT_AVLITER_FLAG_HOLD_ROOT_LOCK	0x00000001u
 	typedef struct xavltree_iterator_struct {
 		xavltnode Path[AVLTree_MAX_HEIGHT];		// 遍历路径栈
 		int32 Depth;							// 当前栈深度（-1表示未激活）
 		ptr Current;							// 当前节点数据
+		uint32 Flags;							// 迭代器附加状态
 	} xavltree_iterator_struct, *xavltree_iterator;
 	
 	// AVL树对象数据结构
@@ -2694,6 +2992,7 @@
 		xavltnode RootNode;
 		uint32 Count;
 		xavltree_iterator Iterator;		// 当前激活的迭代器对象
+		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
 		struct xavltree_struct* Parent;
 		AVLTree_CompProc CompProc;
 		AVLTree_FreeProc FreeProc;
@@ -2703,15 +3002,20 @@
 	
 	// 创建 AVLTree
 	XXAPI xavltree xrtAVLTreeCreate(uint32 iItemLength, AVLTree_CompProc procComp);
+	XXAPI xavltree xrtAVLTreeCreateEx(uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
 	
 	// 销毁 AVLTree
 	XXAPI void xrtAVLTreeDestroy(xavltree objAVLT);
 	
 	// 初始化 AVLTree（对自维护结构体指针使用，和 AVLTree_Create 功能类似）
 	XXAPI void xrtAVLTreeInit(xavltree objAVLT, uint32 iItemLength, AVLTree_CompProc procComp);
+	XXAPI void xrtAVLTreeInitEx(xavltree objAVLT, uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
 	
 	// 释放 AVLTree（对自维护结构体指针使用，和 AVLTree_Destroy 功能类似）
 	XXAPI void xrtAVLTreeUnit(xavltree objAVLT);
+	// 显式锁定 AVLTree（shared 模式下可用于稳定访问内部指针/遍历）
+	XXAPI bool xrtAVLTreeLock(xavltree objAVLT);
+	XXAPI void xrtAVLTreeUnlock(xavltree objAVLT);
 	
 	// 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
 	XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew);
@@ -2729,16 +3033,20 @@
 	#define xrtAVLTreeClear xrtAVLTreeUnit
 	
 	// 遍历 AVLTree 所有节点
-	#define xrtAVLTreeWalk xrtAVLTB_Walk
-	#define xrtAVLTreeWalkEx xrtAVLTB_WalkEx
+	XXAPI bool xrtAVLTreeWalk(xavltree objAVLT, AVLTree_EachProc procEach, ptr pArg);
+	XXAPI bool xrtAVLTreeWalkEx(xavltree objAVLT, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg);
 	
 	// 迭代器操作
-	#define xrtAVLTreeIterBegin(obj) xrtAVLTB_IterBegin((xavltbase)obj)
-	#define xrtAVLTreeIterNext(obj) xrtAVLTB_IterNext((xavltbase)obj)
-	#define xrtAVLTreeIterEnd(obj) xrtAVLTB_IterEnd((xavltbase)obj)
-	#define AVLTREE_FOREACH AVLTBASE_FOREACH
-	#define AVLTREE_FOREACH_TYPE AVLTBASE_FOREACH_TYPE
-	#define AVLTREE_BREAK AVLTBASE_BREAK
+	XXAPI void xrtAVLTreeIterBegin(xavltree objAVLT);
+	XXAPI ptr xrtAVLTreeIterNext(xavltree objAVLT);
+	XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT);
+	#define AVLTREE_FOREACH(tree, var) \
+		xrtAVLTreeIterBegin(tree); \
+		for ( ptr var = xrtAVLTreeIterNext(tree); var != NULL; var = xrtAVLTreeIterNext(tree) )
+	#define AVLTREE_FOREACH_TYPE(tree, var, type) \
+		xrtAVLTreeIterBegin(tree); \
+		for ( type var = xrtAVLTreeIterNext(tree); var != NULL; var = xrtAVLTreeIterNext(tree) )
+	#define AVLTREE_BREAK(tree) xrtAVLTreeIterEnd(tree); break;
 	
 	
 	
@@ -2752,6 +3060,7 @@
 	
 	// MP256 or MP64K 大内存信息链表结构体（实际返回的内存地址相当于 Ptr + sizeof(MP_MemHead)）
 	typedef struct MP_BigInfoLL {
+		uint32 Index;							// BigMM 槽位索引
 		uint32 Size;							// 申请内存的大小，可有可无（可开发辅助功能，如泄漏检测）
 		ptr Ptr;									// 指针地址，使用 mmu_malloc 返回的地址
 		struct MP_BigInfoLL* Next;					// 下一个链表节点（用于释放链表）
@@ -2771,6 +3080,7 @@
 	
 	// 256步进内存池数据结构
 	typedef struct {
+		xrtOwnerInfo Owner;							// 所有权信息（phase-2）
 		FSB_Item* FSB_Memory;						// fixed-size-blocks 内存（MP256_Create参数为 1 或 2 时自动创建，否则需要手动创建，不为空会调用 mmu_free 释放）
 		FSB_Item* FSB_RootNode;						// fixed-size-blocks 二叉树（固定大小区块内存管理器阵列）
 		xbsmm_struct arrMMU;						// MMU 阵列
@@ -2780,12 +3090,14 @@
 	
 	// 创建内存池
 	XXAPI xmempool xrtMemPoolCreate(int iCustom);
+	XXAPI xmempool xrtMemPoolCreateEx(int iCustom, uint32 iMode);
 	
 	// 销毁内存池
 	XXAPI void xrtMemPoolDestroy(xmempool objMP);
 	
 	// 初始化内存池（对自维护结构体指针使用，和 MP256_Create 功能类似）
 	XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom);
+	XXAPI void xrtMemPoolInitEx(xmempool objMP, int iCustom, uint32 iMode);
 	
 	// 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）
 	XXAPI void xrtMemPoolUnit(xmempool objMP);
@@ -2817,6 +3129,7 @@
 	typedef struct {
 		xavltree_struct AVLT;
 		xmempool MP;
+		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
 	} xdict_struct, *xdict;
 	
 	// 字典遍历回调函数
@@ -2824,19 +3137,28 @@
 	
 	// 创建哈希表
 	XXAPI xdict xrtDictCreate(uint32 iItemLength);
+	XXAPI xdict xrtDictCreateEx(uint32 iItemLength, uint32 iMode);
 	
 	// 销毁哈希表
 	XXAPI void xrtDictDestroy(xdict objHT);
 	
 	// 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
 	XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength);
+	XXAPI void xrtDictInitEx(xdict objHT, uint32 iItemLength, uint32 iMode);
 	
 	// 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
 	XXAPI void xrtDictUnit(xdict objHT);
+	// 显式锁定哈希表（shared 模式下可用于稳定访问内部指针/遍历）
+	XXAPI bool xrtDictLock(xdict objHT);
+	XXAPI void xrtDictUnlock(xdict objHT);
 	
 	// 设置值
 	static inline ptr xrtDictSetWithKey(xdict objHT, Dict_Key* objKey, bool* bNewRet)
 	{
+		ptr pRet = NULL;
+		if ( !xrtOwnerBeginMutable(&objHT->Owner, (str)"dict belongs to another thread.") ) {
+			return NULL;
+		}
 		bool bNew;
 		Dict_Key* pNode = xrtAVLTreeInsert(&objHT->AVLT, objKey, &bNew);
 		if ( pNode ) {
@@ -2855,9 +3177,10 @@
 				memcpy(pNode->Key, objKey->Key, iKeyLen);
 				((char*)pNode->Key)[iKeyLen] = 0;
 			}
-			return &pNode[1];
+			pRet = &pNode[1];
 		}
-		return NULL;
+		xrtOwnerEndMutable(&objHT->Owner);
+		return pRet;
 	}
 	XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet);
 	
@@ -2867,11 +3190,16 @@
 	// 获取值
 	static inline ptr xrtDictGetWithKey(xdict objHT, Dict_Key* objKey)
 	{
+		ptr pRet = NULL;
+		if ( !xrtOwnerBeginMutable(&objHT->Owner, (str)"dict belongs to another thread.") ) {
+			return NULL;
+		}
 		Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, objKey);
 		if ( pNode ) {
-			return &pNode[1];
+			pRet = &pNode[1];
 		}
-		return NULL;
+		xrtOwnerEndMutable(&objHT->Owner);
+		return pRet;
 	}
 	XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen);
 	
@@ -2930,6 +3258,7 @@
 	// 列表对象数据结构
 	typedef struct {
 		xavltree_struct AVLT;
+		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
 	} xlist_struct, *xlist;
 	
 	// 列表遍历回调函数
@@ -2937,15 +3266,20 @@
 	
 	// 创建列表
 	XXAPI xlist xrtListCreate(uint32 iItemLength);
+	XXAPI xlist xrtListCreateEx(uint32 iItemLength, uint32 iMode);
 	
 	// 销毁列表
 	XXAPI void xrtListDestroy(xlist objList);
 	
 	// 初始化列表（对自维护结构体指针使用）
 	XXAPI void xrtListInit(xlist objList, uint32 iItemLength);
+	XXAPI void xrtListInitEx(xlist objList, uint32 iItemLength, uint32 iMode);
 	
 	// 释放列表（对自维护结构体指针使用）
 	XXAPI void xrtListUnit(xlist objList);
+	// 显式锁定列表（shared 模式下可用于稳定访问内部指针/遍历）
+	XXAPI bool xrtListLock(xlist objList);
+	XXAPI void xrtListUnlock(xlist objList);
 	
 	// 设置值
 	XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet);
@@ -3021,13 +3355,26 @@
 	#define XVO_DT_TABLE			11				// 表
 	#define XVO_DT_CLASS			12				// 结构体
 	#define XVO_DT_CUSTOM			15				// 自定义
+	#define XVO_HEADER_SHARED_MASK		0x00000010u
+	#define XVO_HEADER_STATIC_MASK		0x00000020u
+	#define XVO_HEADER_REFCOUNT_SHIFT	6u
+	#define XVO_HEADER_REFCOUNT_ONE		(1u << XVO_HEADER_REFCOUNT_SHIFT)
+	#define XVO_HEADER_REFCOUNT_MAX		0x03FFFFFFu
+	#define XVO_HEADER_REFCOUNT_MASK	(XVO_HEADER_REFCOUNT_MAX << XVO_HEADER_REFCOUNT_SHIFT)
+	#define XVO_HEADER_INIT(iType, bStatic, bShared, iRefCount) \
+		((((uint32)(iType)) & 0x0Fu) | ((bShared) ? XVO_HEADER_SHARED_MASK : 0u) | ((bStatic) ? XVO_HEADER_STATIC_MASK : 0u) | ((((uint32)(iRefCount)) & XVO_HEADER_REFCOUNT_MAX) << XVO_HEADER_REFCOUNT_SHIFT))
 	
 	// Value 标准数据类 [ 16 Byte ]
 	typedef struct xvalue_struct {
-		uint32 Type:4;
-		uint32 Reserve:1;
-		uint32 IsStatic:1;
-		uint32 RefCount:26;
+		union {
+			struct {
+				uint32 Type:4;
+				uint32 Reserve:1;
+				uint32 IsStatic:1;
+				uint32 RefCount:26;
+			};
+			volatile uint32 Header;
+		};
 		uint32 Size;
 		union {
 			bool vBool;
@@ -3058,17 +3405,130 @@
 		xvalue (*call)(xvalue var, str key, xvalue param);
 		ptr value;
 	};
+	static inline uint32 __xvoAtomicCompareExchange32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
+	{
+		#if defined(_WIN32) || defined(_WIN64)
+			return (uint32)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
+		#else
+			return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
+		#endif
+	}
+	static inline void xvoInitHeader(xvalue pVal, uint32 iType, bool bStatic, bool bShared, uint32 iRefCount)
+	{
+		if ( pVal == NULL ) {
+			return;
+		}
+		pVal->Header = XVO_HEADER_INIT(iType, bStatic, bShared, iRefCount);
+	}
+	static inline void xvoInitOwnedHeader_Inline(xvalue pVal, uint32 iType, uint32 iMode)
+	{
+		xvoInitHeader(pVal, iType, FALSE, iMode == XRT_OBJMODE_SHARED, 1);
+	}
+	static inline bool xvoIsShared_Inline(xvalue pVal)
+	{
+		if ( pVal == NULL ) {
+			return FALSE;
+		}
+		return (pVal->Header & XVO_HEADER_SHARED_MASK) != 0;
+	}
+	static inline void xvoSetShared_Inline(xvalue pVal)
+	{
+		if ( pVal == NULL || pVal->IsStatic ) {
+			return;
+		}
+		pVal->Header |= XVO_HEADER_SHARED_MASK;
+	}
+	static inline bool xrtOwnerIsRealShared(const xrtOwnerInfo* pOwner)
+	{
+		if ( pOwner == NULL ) {
+			return FALSE;
+		}
+		return pOwner->iMode == XRT_OBJMODE_SHARED && (pOwner->iFlags & XRT_OBJFLAG_SHARED_PENDING) == 0;
+	}
+	static inline bool xvoMakeShared_Inline(xvalue pVal)
+	{
+		if ( pVal == NULL || pVal->IsStatic ) {
+			return TRUE;
+		}
+		switch ( pVal->Type ) {
+			case XVO_DT_ARRAY:
+				if ( !xrtOwnerIsRealShared(&pVal->vArray->Owner) ) {
+					xrtSetError((str)"array value requires a real shared array root.", FALSE);
+					return FALSE;
+				}
+				break;
+			case XVO_DT_LIST:
+				if ( !xrtOwnerIsRealShared(&pVal->vList->Owner) ) {
+					xrtSetError((str)"list value requires a real shared list root.", FALSE);
+					return FALSE;
+				}
+				break;
+			case XVO_DT_TABLE:
+				if ( !xrtOwnerIsRealShared(&pVal->vTable->Owner) ) {
+					xrtSetError((str)"table value requires a real shared table root.", FALSE);
+					return FALSE;
+				}
+				break;
+			case XVO_DT_COLL:
+				if ( !xrtOwnerIsRealShared(&pVal->vColl->Owner) ) {
+					xrtSetError((str)"coll value requires a real shared coll root.", FALSE);
+					return FALSE;
+				}
+				break;
+			default:
+				break;
+		}
+		xvoSetShared_Inline(pVal);
+		return TRUE;
+	}
+	static inline bool xvoPrepareStoreWithOwner_Inline(const xrtOwnerInfo* pOwner, xvalue pVal)
+	{
+		if ( pVal == NULL ) {
+			return FALSE;
+		}
+		if ( !xrtOwnerIsRealShared(pOwner) ) {
+			return TRUE;
+		}
+		return xvoMakeShared_Inline(pVal);
+	}
 	
 	// 引用计数操作
 	XXAPI void xvoAddRef(xvalue pVal);
 	XXAPI void xvoUnref(xvalue pVal);
 	static inline void xvoAddRef_Inline(xvalue pVal)
 	{
-		if ( pVal->RefCount >= 0x3FFFFFF ) {
-			// 引用计数太多，就转为静态值
-			pVal->IsStatic = 1;
-		} else {
-			pVal->RefCount++;
+		uint32 iOldHeader;
+		uint32 iNewHeader;
+		uint32 iRefCount;
+		if ( pVal == NULL ) {
+			return;
+		}
+		if ( pVal->IsStatic ) {
+			return;
+		}
+		if ( !xvoIsShared_Inline(pVal) ) {
+			if ( pVal->RefCount >= XVO_HEADER_REFCOUNT_MAX ) {
+				// 引用计数太多，就转为静态值
+				pVal->IsStatic = 1;
+			} else {
+				pVal->RefCount++;
+			}
+			return;
+		}
+		while ( TRUE ) {
+			iOldHeader = pVal->Header;
+			if ( iOldHeader & XVO_HEADER_STATIC_MASK ) {
+				return;
+			}
+			iRefCount = (iOldHeader & XVO_HEADER_REFCOUNT_MASK) >> XVO_HEADER_REFCOUNT_SHIFT;
+			if ( iRefCount >= XVO_HEADER_REFCOUNT_MAX ) {
+				iNewHeader = iOldHeader | XVO_HEADER_STATIC_MASK;
+			} else {
+				iNewHeader = iOldHeader + XVO_HEADER_REFCOUNT_ONE;
+			}
+			if ( __xvoAtomicCompareExchange32(&pVal->Header, iNewHeader, iOldHeader) == iOldHeader ) {
+				return;
+			}
 		}
 	}
 	
@@ -3083,9 +3543,13 @@
 	XXAPI xvalue xvoCreatePoint(ptr point);
 	XXAPI xvalue xvoCreateFunc(xfunction pFunc);
 	XXAPI xvalue xvoCreateArray();
+	XXAPI xvalue xvoCreateArrayEx(uint32 iMode);
 	XXAPI xvalue xvoCreateList();
+	XXAPI xvalue xvoCreateListEx(uint32 iMode);
 	XXAPI xvalue xvoCreateColl();
+	XXAPI xvalue xvoCreateCollEx(uint32 iMode);
 	XXAPI xvalue xvoCreateTable();
+	XXAPI xvalue xvoCreateTableEx(uint32 iMode);
 	XXAPI xvalue xvoCreateClass(uint32 iSize);
 	XXAPI xvalue xvoCreateCustom(ptr pObj);
 	
@@ -3248,6 +3712,12 @@
 	static inline bool xvoCollSetValueWithKey(xavltree pColl, Coll_Key* objKey, bool bColloc)
 	{
 		bool bNew;
+		if ( pColl == NULL || objKey == NULL || objKey->Value == NULL ) {
+			return FALSE;
+		}
+		if ( !xvoPrepareStoreWithOwner_Inline(&pColl->Owner, objKey->Value) ) {
+			return FALSE;
+		}
 		Coll_Key* pNode = xrtAVLTreeInsert(pColl, objKey, &bNew);
 		if ( pNode ) {
 			if ( bNew ) {
@@ -3978,7 +4448,7 @@
 
 
 // ========================================
-// File: D:\git\xrt/xrt.c
+// File: D:\git\xrt\xrt.c
 // ========================================
 
 
@@ -4009,9 +4479,43 @@
 	#include <sys/wait.h>
 #endif
 // 全局数据
-const int sNullValue = 0;
+static const unsigned char __xrt_sNullBytes[4] = "\0\0\0";
 xrtGlobalData xCore = { FALSE };
-static int __xrt_RefCount = 0;  // 引用计数
+#if defined(_WIN32) || defined(_WIN64)
+	#if !defined(XRT_NO_NETWORK) || !defined(XRT_NO_NETSOCK) || !defined(XRT_NO_NETPOLL) || !defined(XRT_NO_NETTLS) || !defined(XRT_NO_NETLOOP) || !defined(XRT_NO_NETPROXY) || !defined(XRT_NO_NETTCP) || !defined(XRT_NO_NETUDP) || !defined(XRT_NO_NETHTTP) || !defined(XRT_NO_NETWS) || !defined(XRT_NO_NETHTTPD)
+		#define __XRT_RUNTIME_NEED_WSA	1
+	#else
+		#define __XRT_RUNTIME_NEED_WSA	0
+	#endif
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+	static SRWLOCK __xrtRuntimeLockObj = SRWLOCK_INIT;
+	#define __xrtRuntimeLock()		AcquireSRWLockExclusive(&__xrtRuntimeLockObj)
+	#define __xrtRuntimeUnlock()	ReleaseSRWLockExclusive(&__xrtRuntimeLockObj)
+	#if defined(__TINYC__)
+		#define XRT_TLS_STORAGE		__declspec(thread)
+	#elif defined(__GNUC__)
+		#define XRT_TLS_STORAGE		__thread
+	#else
+		#define XRT_TLS_STORAGE		__declspec(thread)
+	#endif
+#else
+	static pthread_mutex_t __xrtRuntimeLockObj = PTHREAD_MUTEX_INITIALIZER;
+	#define __xrtRuntimeLock()		pthread_mutex_lock(&__xrtRuntimeLockObj)
+	#define __xrtRuntimeUnlock()	pthread_mutex_unlock(&__xrtRuntimeLockObj)
+	#define XRT_TLS_STORAGE			__thread
+#endif
+static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+static uint64 __xrtGetSeedTick();
+static void __xrtSeedThreadRand(xrtThreadData* pThreadData);
+static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread);
+static void __xrtInitThreadMemState(xrtThreadData* pThreadData);
+static void __xrtUnitThreadMemState(xrtThreadData* pThreadData);
+static void __xrtFreeThreadError(xrtThreadData* pThreadData);
+static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData);
+static void __xrtRunThreadCleanup(xrtThreadData* pThreadData);
+static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread);
+static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode);
 // 引入补充依赖库
 
 // ========================================
@@ -4075,7 +4579,8 @@ XXAPI size_t u32len(u32str sText)
 // 申请内存
 XXAPI ptr xrtMalloc(size_t iSize)
 {
-	ptr mem = xCore.malloc(iSize);
+	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
+	ptr mem = procMalloc(iSize);
 	if ( mem == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
 		return NULL;
@@ -4085,7 +4590,8 @@ XXAPI ptr xrtMalloc(size_t iSize)
 // 申请类内存
 XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 {
-	ptr mem = xCore.calloc(iNum, iSize);
+	ptr (*procCalloc)(size_t, size_t) = xCore.calloc ? xCore.calloc : calloc;
+	ptr mem = procCalloc(iNum, iSize);
 	if ( mem == NULL ) {
 		xrtSetError("class memory allocate failed.", FALSE);
 	}
@@ -4094,7 +4600,8 @@ XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 // 重新申请内存
 XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 {
-	ptr mem = xCore.realloc(pMem, iSize);
+	ptr (*procRealloc)(ptr, size_t) = xCore.realloc ? xCore.realloc : realloc;
+	ptr mem = procRealloc(pMem, iSize);
 	if ( mem == NULL ) {
 		xrtSetError("memory reallocate failed.", FALSE);
 	}
@@ -4103,54 +4610,68 @@ XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 // 释放内存（ 会先判断是否为 null ）
 XXAPI void xrtFree(ptr pmem)
 {
-	if ( pmem && (pmem != xCore.sNull) ) { xCore.free(pmem); }
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pmem && (pmem != xCore.sNull) ) { procFree(pmem); }
 }
-// 申请无需主动释放的临时内存（线程不安全）
+// 申请无需主动释放的临时内存（线程级）
 XXAPI ptr xrtTempMemory(size_t iSize)
 {
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return NULL;
+	}
 	// 申请内存
 	ptr pMem = xrtMalloc(iSize);
 	if ( pMem == NULL ) {
 		return NULL;
 	}
 	// 释放过期内存
-	if ( xCore.TempMem[xCore.TempMemIdx] ) {
-		xrtFree(xCore.TempMem[xCore.TempMemIdx]);
-		xCore.TempMem[xCore.TempMemIdx] = NULL;
+	if ( pThreadData->TempMem[pThreadData->TempMemIdx] ) {
+		xrtFree(pThreadData->TempMem[pThreadData->TempMemIdx]);
+		pThreadData->TempMem[pThreadData->TempMemIdx] = NULL;
 	}
 	// 处理环形临时内存数据
-	xCore.TempMem[xCore.TempMemIdx] = pMem;
-	xCore.TempMemIdx++;
-	if ( xCore.TempMemIdx > 31 ) {
-		xCore.TempMemIdx = 0;
+	pThreadData->TempMem[pThreadData->TempMemIdx] = pMem;
+	pThreadData->TempMemIdx++;
+	if ( pThreadData->TempMemIdx >= XRT_TEMP_SLOT_COUNT ) {
+		pThreadData->TempMemIdx = 0;
 	}
 	// 返回内存指针
 	return pMem;
 }
-// 释放所有临时内存（线程不安全）
+// 释放当前线程的所有临时内存
 XXAPI void xrtFreeTempMemory()
 {
-	for ( int i = 0; i < 32; i++ ) {
-		if ( xCore.TempMem[i] ) {
-			xrtFree(xCore.TempMem[i]);
-			xCore.TempMem[i] = NULL;
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
+		if ( pThreadData->TempMem[i] ) {
+			xrtFree(pThreadData->TempMem[i]);
+			pThreadData->TempMem[i] = NULL;
 		}
 	}
-	xCore.TempMemIdx = 0;
+	pThreadData->TempMemIdx = 0;
 }
-// 设置错误（线程不安全）
+// 设置错误（线程级）
 XXAPI void xrtSetError(str sError, bool bFree)
 {
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
 	// 回调通知
 	if ( xCore.OnError ) {
 		xCore.OnError(sError);
 	}
-	// 释放旧的错误信息
-	if ( xCore.__pri_FreeError && xCore.LastError && xCore.LastError != xCore.sNull ) {
-		xrtFree(xCore.LastError);
+	if ( pThreadData == NULL ) {
+		return;
 	}
-	xCore.LastError = sError;
-	xCore.__pri_FreeError = bFree;
+	// 释放旧的错误信息
+	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
+		xrtFree(pThreadData->LastError);
+	}
+	pThreadData->LastError = sError;
+	pThreadData->bFreeLastError = bFree;
 }
 XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree)
 {
@@ -4168,14 +4689,18 @@ XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree)
 	}
 	xrtSetError(sErrorU8, TRUE);
 }
-// 清除错误（线程不安全）
+// 清除当前线程错误
 XXAPI void xrtClearError()
 {
-	if ( xCore.__pri_FreeError && xCore.LastError && xCore.LastError != xCore.sNull ) {
-		xrtFree(xCore.LastError);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		return;
 	}
-	xCore.LastError = xCore.sNull;
-	xCore.__pri_FreeError = FALSE;
+	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
+		xrtFree(pThreadData->LastError);
+	}
+	pThreadData->LastError = xCore.sNull;
+	pThreadData->bFreeLastError = FALSE;
 }
 
 // ========================================
@@ -7869,7 +8394,7 @@ XXAPI int xrtGetCharSize(int iCP)
 	修改：
 		整合到 xrt 库
 		提供 Ex 版本 API（调用者管理状态，线程安全）
-		普通版本 API 使用全局状态（线程不安全，性能优先）
+		普通版本 API 使用线程状态（线程隔离，性能优先）
 	使用协议注意事项：
 		Apache License, Version 2.0 协议
 		允许个人使用、商业使用
@@ -7950,17 +8475,32 @@ XXAPI int xrtRandRangeEx(xrand* rng, int min, int max)
 // 获取 32 位随机数
 XXAPI uint32 xrtRand32()
 {
-	return xrtRand32Ex(&xCore.rand32);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return 0;
+	}
+	return xrtRand32Ex(&pThreadData->rand32);
 }
 // 获取 64 位随机数
 XXAPI uint64 xrtRand64()
 {
-	return xrtRand64Ex(&xCore.rand64_low, &xCore.rand64_high);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return 0;
+	}
+	return xrtRand64Ex(&pThreadData->rand64_low, &pThreadData->rand64_high);
 }
 // 获取 32 位范围随机数
 XXAPI int xrtRandRange(int min, int max)
 {
-	return xrtRandRangeEx(&xCore.rand32, min, max);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return 0;
+	}
+	return xrtRandRangeEx(&pThreadData->rand32, min, max);
 }
 // 整数约等于
 XXAPI bool xrtIntApprox(int64 a, int64 b)
@@ -11065,18 +11605,36 @@ XXAPI int xrtDirDelete(str sPath)
 
 
 /* ================================ 线程管理 ================================ */
-// Windows 线程包装函数（解决调用约定不匹配问题）
+// 线程包装函数（统一完成 attach / detach / exit code 保存）
 #if defined(_WIN32) || defined(_WIN64)
 static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
 {
 	xthread pThread = (xthread)lpParameter;
-	
-	// 调用用户定义的线程函数
-	ptr pProc = pThread->Proc;
-	ptr pParam = pThread->Param;
-	
-	uint32 (*UserThreadProc)(ptr) = (uint32 (*)(ptr))pProc;
-	return UserThreadProc(pParam);
+	uint32 iExitCode = 0;
+	if ( pThread == NULL ) {
+		return 0;
+	}
+	__xrtThreadAttachManaged(pThread);
+	if ( pThread->Proc ) {
+		iExitCode = pThread->Proc(pThread->Param);
+	}
+	__xrtThreadExitManaged(pThread, iExitCode);
+	return iExitCode;
+}
+#else
+static void* xrtThreadWrapper(void* pParameter)
+{
+	xthread pThread = (xthread)pParameter;
+	uint32 iExitCode = 0;
+	if ( pThread == NULL ) {
+		return (void*)(uintptr_t)0;
+	}
+	__xrtThreadAttachManaged(pThread);
+	if ( pThread->Proc ) {
+		iExitCode = pThread->Proc(pThread->Param);
+	}
+	__xrtThreadExitManaged(pThread, iExitCode);
+	return (void*)(uintptr_t)iExitCode;
 }
 #endif
 // 创建线程
@@ -11088,9 +11646,12 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 	pThread->Proc = pProc;
 	pThread->Param = pParam;
 	pThread->StopFlag = 0;
+	pThread->bFinished = FALSE;
+	pThread->bJoined = FALSE;
+	pThread->ExitCode = 0;
+	pThread->TID = 0;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		// Windows 方案：使用包装函数解决调用约定问题
 		DWORD iThreadID;
 		pThread->Handle = CreateThread(NULL, iStackSize, xrtThreadWrapper, pThread, 0, &iThreadID);
 		pThread->TID = iThreadID;
@@ -11100,14 +11661,13 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 			return NULL;
 		}
 	#else
-		// POSIX 方案
 		pthread_t tid;
 		pthread_attr_t attr;
 		pthread_attr_init(&attr);
 		if ( iStackSize > 0 ) {
 			pthread_attr_setstacksize(&attr, iStackSize);
 		}
-		int ret = pthread_create(&tid, &attr, (void*(*)(void*))pProc, pParam);
+		int ret = pthread_create(&tid, &attr, xrtThreadWrapper, pThread);
 		pthread_attr_destroy(&attr);
 		if ( ret != 0 ) {
 			xrtFree(pThread);
@@ -11115,7 +11675,6 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 			return NULL;
 		}
 		pThread->Handle = (ptr)tid;
-		pThread->TID = (uint32)tid;
 	#endif
 	
 	return pThread;
@@ -11124,15 +11683,22 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 XXAPI void xrtThreadDestroy(xthread pThread)
 {
 	if ( pThread ) {
+		if ( !pThread->bFinished && !pThread->bJoined ) {
+			xrtSetError("thread is still running.", FALSE);
+			return;
+		}
 		#if defined(_WIN32) || defined(_WIN64)
 			if ( pThread->Handle ) {
 				CloseHandle(pThread->Handle);
+				pThread->Handle = NULL;
 			}
 		#else
-			// POSIX: pthread_detach 让线程结束后自动释放资源
-			if ( pThread->Handle ) {
-				pthread_detach((pthread_t)pThread->Handle);
+			if ( pThread->Handle && !pThread->bJoined ) {
+				void* pExit = NULL;
+				pthread_join((pthread_t)pThread->Handle, &pExit);
+				pThread->bJoined = TRUE;
 			}
+			pThread->Handle = NULL;
 		#endif
 		xrtFree(pThread);
 	}
@@ -11141,55 +11707,53 @@ XXAPI void xrtThreadDestroy(xthread pThread)
 XXAPI void xrtThreadWait(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return;
+	if ( pThread->bJoined ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		WaitForSingleObject(pThread->Handle, INFINITE);
+		DWORD iExitCode = 0;
+		if ( GetExitCodeThread(pThread->Handle, &iExitCode) ) {
+			pThread->ExitCode = (uint32)iExitCode;
+		}
+		pThread->bFinished = TRUE;
+		pThread->bJoined = TRUE;
 	#else
-		pthread_join((pthread_t)pThread->Handle, NULL);
+		void* pExit = NULL;
+		pthread_join((pthread_t)pThread->Handle, &pExit);
+		pThread->bFinished = TRUE;
+		pThread->bJoined = TRUE;
 	#endif
 }
 // 等待线程结束（带超时，毫秒）
 XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_WAIT_ERROR;
+	if ( pThread->bJoined ) return XRT_WAIT_OK;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD ret = WaitForSingleObject(pThread->Handle, iTimeout);
-		if ( ret == WAIT_OBJECT_0 ) return XRT_WAIT_OK;
+		if ( ret == WAIT_OBJECT_0 ) {
+			DWORD iExitCode = 0;
+			if ( GetExitCodeThread(pThread->Handle, &iExitCode) ) {
+				pThread->ExitCode = (uint32)iExitCode;
+			}
+			pThread->bFinished = TRUE;
+			pThread->bJoined = TRUE;
+			return XRT_WAIT_OK;
+		}
 		if ( ret == WAIT_TIMEOUT ) return XRT_WAIT_TIMEOUT;
 		return XRT_WAIT_ERROR;
 	#else
-		// POSIX 没有带超时的 join，使用轮询方式
-		struct timespec ts;
-		ts.tv_sec = iTimeout / 1000;
-		ts.tv_nsec = (iTimeout % 1000) * 1000000;
-		
-		#if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
-			#if __GLIBC_PREREQ(2, 34)
-				// glibc 2.34+ 支持 pthread_timedjoin_np
-				struct timespec abstime;
-				clock_gettime(CLOCK_REALTIME, &abstime);
-				abstime.tv_sec += ts.tv_sec;
-				abstime.tv_nsec += ts.tv_nsec;
-				if ( abstime.tv_nsec >= 1000000000 ) {
-					abstime.tv_sec++;
-					abstime.tv_nsec -= 1000000000;
-				}
-				int ret = pthread_timedjoin_np((pthread_t)pThread->Handle, NULL, &abstime);
-				if ( ret == 0 ) return XRT_WAIT_OK;
-				if ( ret == ETIMEDOUT ) return XRT_WAIT_TIMEOUT;
-				return XRT_WAIT_ERROR;
-			#endif
-		#endif
-		
-		// 回退方案：轮询检查
 		uint32 elapsed = 0;
 		while ( elapsed < iTimeout ) {
-			int ret = pthread_tryjoin_np((pthread_t)pThread->Handle, NULL);
-			if ( ret == 0 ) return XRT_WAIT_OK;
-			if ( ret != EBUSY ) return XRT_WAIT_ERROR;
+			if ( pThread->bFinished ) {
+				return XRT_WAIT_OK;
+			}
 			xrtSleep(10);
 			elapsed += 10;
+		}
+		if ( pThread->bFinished ) {
+			return XRT_WAIT_OK;
 		}
 		return XRT_WAIT_TIMEOUT;
 	#endif
@@ -11248,6 +11812,7 @@ XXAPI bool xrtThreadResume(xthread pThread)
 XXAPI int xrtThreadGetState(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_THREAD_STOPPED;
+	if ( pThread->bFinished ) return XRT_THREAD_STOPPED;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD exitCode;
@@ -11267,30 +11832,14 @@ XXAPI int xrtThreadGetState(xthread pThread)
 		}
 		return XRT_THREAD_STOPPED;
 	#else
-		// POSIX: 尝试 join 检查状态
-		int ret = pthread_tryjoin_np((pthread_t)pThread->Handle, NULL);
-		if ( ret == 0 ) {
-			return XRT_THREAD_STOPPED;
-		}
-		if ( ret == EBUSY ) {
-			return XRT_THREAD_RUNNING;
-		}
-		return XRT_THREAD_STOPPED;
+		return XRT_THREAD_RUNNING;
 	#endif
 }
 // 获取线程退出码
 XXAPI uint32 xrtThreadGetExitCode(xthread pThread)
 {
-	if ( !pThread || !pThread->Handle ) return 0;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		DWORD exitCode = 0;
-		GetExitCodeThread(pThread->Handle, &exitCode);
-		return (uint32)exitCode;
-	#else
-		// POSIX: 需要通过 pthread_join 获取
-		return 0;
-	#endif
+	if ( !pThread ) return 0;
+	return pThread->ExitCode;
 }
 // 获取当前线程ID
 XXAPI uint64 xrtThreadGetCurrentId()
@@ -11298,7 +11847,7 @@ XXAPI uint64 xrtThreadGetCurrentId()
 	#if defined(_WIN32) || defined(_WIN64)
 		return GetCurrentThreadId();
 	#else
-		return pthread_self();
+		return (uint64)(uintptr_t)pthread_self();
 	#endif
 }
 // 让出当前线程的时间片
@@ -23199,6 +23748,39 @@ XXAPI bool xrtTlsIsReady(xtlsctx *pCtx)
 	if ( !pCtx ) return false;
 	return pCtx->bHandshakeDone;
 }
+XXAPI xnet_result xrtTlsFeed(xtlsctx *pCtx, const char *pData, size_t iLen)
+{
+	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	return xrtNetBufAppend(&pCtx->tRecvBuf, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
+}
+XXAPI size_t xrtTlsPendingSend(xtlsctx *pCtx)
+{
+	return pCtx ? pCtx->tSendBuf.iSize : 0;
+}
+XXAPI size_t xrtTlsPendingRecv(xtlsctx *pCtx)
+{
+	return pCtx ? pCtx->tRecvBuf.iSize : 0;
+}
+XXAPI xnet_result xrtTlsPeekSend(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
+{
+	size_t iCopy;
+	if ( pRead ) *pRead = 0;
+	if ( !pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
+	if ( pCtx->tSendBuf.iSize == 0 ) return XRT_NET_AGAIN;
+	iCopy = pCtx->tSendBuf.iSize < iLen ? pCtx->tSendBuf.iSize : iLen;
+	memcpy(pBuf, pCtx->tSendBuf.pData, iCopy);
+	if ( pRead ) *pRead = iCopy;
+	return XRT_NET_OK;
+}
+XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
+{
+	if ( !pCtx || iLen == 0 || pCtx->tSendBuf.iSize == 0 ) return;
+	if ( iLen >= pCtx->tSendBuf.iSize ) {
+		xrtNetBufConsume(&pCtx->tSendBuf, pCtx->tSendBuf.iSize);
+		return;
+	}
+	xrtNetBufConsume(&pCtx->tSendBuf, iLen);
+}
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
 static void __xrt_tls_derive_application_keys(xtlsctx *pCtx);
 static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
@@ -30670,40 +31252,16 @@ XXAPI ptr xrtHttpServerGetUserData(xhttpserver* pServer)
 // ========================================
 
 
-// 创建指针内存管理器
-XXAPI xparray xrtPtrArrayCreate()
+static inline void __xrtPtrArrayUnit_NoLock(xparray pObject)
 {
-	xparray ObjPtr = xrtMalloc(sizeof(xparray_struct));
-	if ( ObjPtr ) {
-		xrtPtrArrayInit(ObjPtr);
+	if ( pObject->Memory ) {
+		xrtFree(pObject->Memory);
+		pObject->Memory = NULL;
 	}
-	return ObjPtr;
-}
-// 销毁指针内存管理器
-XXAPI void xrtPtrArrayDestroy(xparray pObject)
-{
-	if ( pObject ) {
-		xrtPtrArrayUnit(pObject);
-		xrtFree(pObject);
-	}
-}
-// 初始化内存管理器（对自维护结构体指针使用）
-XXAPI void xrtPtrArrayInit(xparray pObject)
-{
-	pObject->Memory = NULL;
-	pObject->Count = 0;
-	pObject->AllocCount = 0;
-	pObject->AllocStep = XPARRAY_PREASSIGNSTEP;
-}
-// 释放内存管理器（对自维护结构体指针使用）
-XXAPI void xrtPtrArrayUnit(xparray pObject)
-{
-	if ( pObject->Memory ) { xrtFree(pObject->Memory); pObject->Memory = NULL; }
 	pObject->Count = 0;
 	pObject->AllocCount = 0;
 }
-// 分配内存
-XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount)
+static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 {
 	if ( iCount > pObject->AllocCount ) {
 		// 增量
@@ -30725,9 +31283,9 @@ XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount)
 			}
 			return TRUE;
 		}
-	} else if ( iCount = 0 ) {
+	} else if ( iCount == 0 ) {
 		// 清空
-		xrtPtrArrayUnit(pObject);
+		__xrtPtrArrayUnit_NoLock(pObject);
 		return TRUE;
 	} else {
 		// 不变
@@ -30735,12 +31293,91 @@ XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount)
 	}
 	return FALSE;
 }
+// 创建指针内存管理器
+XXAPI xparray xrtPtrArrayCreate()
+{
+	return xrtPtrArrayCreateEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xparray xrtPtrArrayCreateEx(uint32 iMode)
+{
+	xparray ObjPtr = xrtMalloc(sizeof(xparray_struct));
+	if ( ObjPtr ) {
+		xrtPtrArrayInitEx(ObjPtr, iMode);
+	}
+	return ObjPtr;
+}
+// 销毁指针内存管理器
+XXAPI void xrtPtrArrayDestroy(xparray pObject)
+{
+	if ( pObject ) {
+		if ( !xrtOwnerCheckMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+			return;
+		}
+		xrtPtrArrayUnit(pObject);
+		xrtFree(pObject);
+	}
+}
+// 初始化内存管理器（对自维护结构体指针使用）
+XXAPI void xrtPtrArrayInit(xparray pObject)
+{
+	xrtPtrArrayInitEx(pObject, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtPtrArrayInitEx(xparray pObject, uint32 iMode)
+{
+	pObject->Memory = NULL;
+	pObject->Count = 0;
+	pObject->AllocCount = 0;
+	pObject->AllocStep = XPARRAY_PREASSIGNSTEP;
+	xrtOwnerInitMode(&pObject->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&pObject->Owner);
+	}
+}
+// 释放内存管理器（对自维护结构体指针使用）
+XXAPI void xrtPtrArrayUnit(xparray pObject)
+{
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return;
+	}
+	__xrtPtrArrayUnit_NoLock(pObject);
+	xrtOwnerEndMutable(&pObject->Owner);
+}
+XXAPI bool xrtPtrArrayLock(xparray pObject)
+{
+	if ( pObject == NULL ) {
+		return FALSE;
+	}
+	return xrtOwnerLock(&pObject->Owner, "pointer array belongs to another thread.");
+}
+XXAPI void xrtPtrArrayUnlock(xparray pObject)
+{
+	if ( pObject == NULL ) {
+		return;
+	}
+	xrtOwnerUnlock(&pObject->Owner);
+}
+// 分配内存
+XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount)
+{
+	bool bRet;
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return FALSE;
+	}
+	bRet = __xrtPtrArrayMalloc_NoLock(pObject, iCount);
+	xrtOwnerEndMutable(&pObject->Owner);
+	return bRet;
+}
 // 中间插入成员(0为头部插入，pObject->Count为末尾插入)
 XXAPI uint32 xrtPtrArrayInsert(xparray pObject, uint32 iPos, ptr pVal)
 {
+	uint32 iRet = 0;
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return 0;
+	}
 	// 分配内存
 	if ( pObject->Count >= pObject->AllocCount ) {
-		if ( xrtPtrArrayMalloc(pObject, pObject->Count + pObject->AllocStep) == 0 ) {
+		if ( __xrtPtrArrayMalloc_NoLock(pObject, pObject->Count + pObject->AllocStep) == 0 ) {
+			xrtOwnerEndMutable(&pObject->Owner);
 			return 0;
 		}
 	}
@@ -30750,13 +31387,15 @@ XXAPI uint32 xrtPtrArrayInsert(xparray pObject, uint32 iPos, ptr pVal)
 		memmove(src + 1, src, (pObject->Count - iPos) * sizeof(ptr));
 		pObject->Memory[iPos] = pVal;
 		pObject->Count++;
-		return iPos + 1;
+		iRet = iPos + 1;
 	} else {
 		// 追加模式
 		pObject->Memory[pObject->Count] = pVal;
 		pObject->Count++;
-		return pObject->Count;
+		iRet = pObject->Count;
 	}
+	xrtOwnerEndMutable(&pObject->Owner);
+	return iRet;
 }
 // 末尾添加成员
 XXAPI uint32 xrtPtrArrayAppend(xparray pObject, ptr pVal)
@@ -30766,38 +31405,68 @@ XXAPI uint32 xrtPtrArrayAppend(xparray pObject, ptr pVal)
 // 添加成员，自动查找空隙（替换为 NULL 的值）
 XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal)
 {
+	uint32 iRet = 0;
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return 0;
+	}
 	for ( int i = 0; i < pObject->Count; i++ ) {
 		if ( pObject->Memory[i] == NULL ) {
 			pObject->Memory[i] = pVal;
-			return i + 1;
+			iRet = i + 1;
+			xrtOwnerEndMutable(&pObject->Owner);
+			return iRet;
 		}
 	}
-	return xrtPtrArrayInsert(pObject, pObject->Count, pVal);
+	if ( pObject->Count >= pObject->AllocCount ) {
+		if ( __xrtPtrArrayMalloc_NoLock(pObject, pObject->Count + pObject->AllocStep) == 0 ) {
+			xrtOwnerEndMutable(&pObject->Owner);
+			return 0;
+		}
+	}
+	pObject->Memory[pObject->Count] = pVal;
+	pObject->Count++;
+	iRet = pObject->Count;
+	xrtOwnerEndMutable(&pObject->Owner);
+	return iRet;
 }
 // 交换成员
 XXAPI bool xrtPtrArraySwap(xparray pObject, uint32 iPosA, uint32 iPosB)
 {
+	bool bRet = FALSE;
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return FALSE;
+	}
 	// 范围检查
-	if ( iPosA == 0 ) { return FALSE; }
-	if ( iPosA > pObject->Count ) { return FALSE; }
-	if ( iPosB == 0 ) { return FALSE; }
-	if ( iPosB > pObject->Count ) { return FALSE; }
-	if ( iPosA == iPosB ) { return TRUE; }
+	if ( iPosA == 0 || iPosA > pObject->Count || iPosB == 0 || iPosB > pObject->Count ) {
+		xrtOwnerEndMutable(&pObject->Owner);
+		return FALSE;
+	}
+	if ( iPosA == iPosB ) {
+		xrtOwnerEndMutable(&pObject->Owner);
+		return TRUE;
+	}
 	// 交换成员
 	iPosA--;
 	iPosB--;
 	ptr pA = pObject->Memory[iPosB];
 	pObject->Memory[iPosB] = pObject->Memory[iPosA];
 	pObject->Memory[iPosA] = pA;
-	return TRUE;
+	bRet = TRUE;
+	xrtOwnerEndMutable(&pObject->Owner);
+	return bRet;
 }
 // 删除成员
 XXAPI bool xrtPtrArrayRemove(xparray pObject, uint32 iPos, uint32 iCount)
 {
+	bool bRet = FALSE;
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return FALSE;
+	}
 	// 不能添加 0 个成员、不能删除不存在的成员（0号成员也不存在）
-	if ( iCount == 0 ) { return FALSE; }
-	if ( iPos == 0 ) { return FALSE; }
-	if ( iPos > pObject->Count ) { return FALSE; }
+	if ( iCount == 0 || iPos == 0 || iPos > pObject->Count ) {
+		xrtOwnerEndMutable(&pObject->Owner);
+		return FALSE;
+	}
 	// 删除成员（数量不足时删除后面的所有成员）
 	iPos--;
 	if ( iPos + iCount < pObject->Count ) {
@@ -30809,18 +31478,25 @@ XXAPI bool xrtPtrArrayRemove(xparray pObject, uint32 iPos, uint32 iCount)
 		// 末尾删除
 		pObject->Count = iPos;
 	}
-	return TRUE;
+	bRet = TRUE;
+	xrtOwnerEndMutable(&pObject->Owner);
+	return bRet;
 }
 // 获取成员指针
 XXAPI ptr xrtPtrArrayGet(xparray pObject, uint32 iPos)
 {
+	ptr pRet = NULL;
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return NULL;
+	}
 	if ( iPos ) {
 		iPos--;
 		if ( iPos < pObject->Count ) {
-			return pObject->Memory[iPos];
+			pRet = pObject->Memory[iPos];
 		}
 	}
-	return NULL;
+	xrtOwnerEndMutable(&pObject->Owner);
+	return pRet;
 }
 XXAPI ptr xrtPtrArrayGet_Unsafe(xparray pObject, uint32 iPos)
 {
@@ -30829,24 +31505,37 @@ XXAPI ptr xrtPtrArrayGet_Unsafe(xparray pObject, uint32 iPos)
 // 设置成员指针
 XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal)
 {
+	bool bRet = FALSE;
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return FALSE;
+	}
 	if ( iPos ) {
 		iPos--;
 		if ( iPos < pObject->Count ) {
 			pObject->Memory[iPos] = pVal;
-			return TRUE;
+			bRet = TRUE;
 		}
 	}
-	return FALSE;
+	xrtOwnerEndMutable(&pObject->Owner);
+	return bRet;
 }
 XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal)
 {
+	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return;
+	}
 	pObject->Memory[iPos - 1] = pVal;
+	xrtOwnerEndMutable(&pObject->Owner);
 }
 // 成员排序
 XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 {
 	if ( pObject ) {
+		if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+			return FALSE;
+		}
 		qsort(pObject->Memory, pObject->Count, sizeof(ptr), procCompar);
+		xrtOwnerEndMutable(&pObject->Owner);
 		return TRUE;
 	} else {
 		return FALSE;
@@ -30858,42 +31547,16 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 // ========================================
 
 
-// 创建数组
-XXAPI xarray xrtArrayCreate(uint32 iItemLength)
+static inline void __xrtArrayUnit_NoLock(xarray pArr)
 {
-	xarray pArr = xrtMalloc(sizeof(xarray_struct));
-	if ( pArr == NULL ) {
-		return NULL;
+	if ( pArr->Memory ) {
+		xrtFree(pArr->Memory);
+		pArr->Memory = NULL;
 	}
-	xrtArrayInit(pArr, iItemLength);
-	return pArr;
-}
-// 销毁数组
-XXAPI void xrtArrayDestroy(xarray pArr)
-{
-	if ( pArr ) {
-		xrtArrayUnit(pArr);
-		xrtFree(pArr);
-	}
-}
-// 初始化数组的数据结构 ( 用于内嵌数组的对象使用 )
-XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength)
-{
-	pArr->Memory = NULL;
-	pArr->ItemLength = iItemLength;
-	pArr->Count = 0;
-	pArr->AllocCount = 0;
-	pArr->AllocStep = XARRAY_PREASSIGNSTEP;
-}
-// 释放数组的数据结构 ( 但不会释放数组结构体本身的内存，用于内嵌数组的对象使用 )
-XXAPI void xrtArrayUnit(xarray pArr)
-{
-	if ( pArr->Memory ) { xrtFree(pArr->Memory); pArr->Memory = NULL; }
 	pArr->Count = 0;
 	pArr->AllocCount = 0;
 }
-// 分配内存
-XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount)
+static inline bool __xrtArrayAlloc_NoLock(xarray pArr, uint32 iCount)
 {
 	if ( iCount > pArr->AllocCount ) {
 		// 增量
@@ -30917,7 +31580,7 @@ XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount)
 		}
 	} else if ( iCount == 0 ) {
 		// 清空
-		xrtArrayUnit(pArr);
+		__xrtArrayUnit_NoLock(pArr);
 		return TRUE;
 	} else {
 		// 不变
@@ -30925,14 +31588,95 @@ XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount)
 	}
 	return FALSE;
 }
+// 创建数组
+XXAPI xarray xrtArrayCreate(uint32 iItemLength)
+{
+	return xrtArrayCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xarray xrtArrayCreateEx(uint32 iItemLength, uint32 iMode)
+{
+	xarray pArr = xrtMalloc(sizeof(xarray_struct));
+	if ( pArr == NULL ) {
+		return NULL;
+	}
+	xrtArrayInitEx(pArr, iItemLength, iMode);
+	return pArr;
+}
+// 销毁数组
+XXAPI void xrtArrayDestroy(xarray pArr)
+{
+	if ( pArr ) {
+		if ( !xrtOwnerCheckMutable(&pArr->Owner, "array belongs to another thread.") ) {
+			return;
+		}
+		xrtArrayUnit(pArr);
+		xrtFree(pArr);
+	}
+}
+// 初始化数组的数据结构 ( 用于内嵌数组的对象使用 )
+XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength)
+{
+	xrtArrayInitEx(pArr, iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtArrayInitEx(xarray pArr, uint32 iItemLength, uint32 iMode)
+{
+	pArr->Memory = NULL;
+	pArr->ItemLength = iItemLength;
+	pArr->Count = 0;
+	pArr->AllocCount = 0;
+	pArr->AllocStep = XARRAY_PREASSIGNSTEP;
+	xrtOwnerInitMode(&pArr->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&pArr->Owner);
+	}
+}
+// 释放数组的数据结构 ( 但不会释放数组结构体本身的内存，用于内嵌数组的对象使用 )
+XXAPI void xrtArrayUnit(xarray pArr)
+{
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return;
+	}
+	__xrtArrayUnit_NoLock(pArr);
+	xrtOwnerEndMutable(&pArr->Owner);
+}
+XXAPI bool xrtArrayLock(xarray pArr)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	return xrtOwnerLock(&pArr->Owner, "array belongs to another thread.");
+}
+XXAPI void xrtArrayUnlock(xarray pArr)
+{
+	if ( pArr == NULL ) {
+		return;
+	}
+	xrtOwnerUnlock(&pArr->Owner);
+}
+// 分配内存
+XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount)
+{
+	bool bRet;
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return FALSE;
+	}
+	bRet = __xrtArrayAlloc_NoLock(pArr, iCount);
+	xrtOwnerEndMutable(&pArr->Owner);
+	return bRet;
+}
 // 中间插入成员
 XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount)
 {
+	uint32 iRet = 0;
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return 0;
+	}
 	// 不能添加 0 个成员
 	if ( iCount == 0 ) { iCount = 1; }
 	// 分配内存
 	if ( (pArr->Count + iCount) > pArr->AllocCount ) {
-		if ( xrtArrayAlloc(pArr, pArr->Count + iCount + pArr->AllocStep) == FALSE ) {
+		if ( __xrtArrayAlloc_NoLock(pArr, pArr->Count + iCount + pArr->AllocStep) == FALSE ) {
+			xrtOwnerEndMutable(&pArr->Owner);
 			return 0;
 		}
 	}
@@ -30942,12 +31686,14 @@ XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount)
 		ptr src = pArr->Memory + (iPos * pArr->ItemLength);
 		memmove(dst, src, (pArr->Count - iPos) * pArr->ItemLength);
 		pArr->Count += iCount;
-		return iPos + 1;
+		iRet = iPos + 1;
 	} else {
 		// 追加模式
 		pArr->Count += iCount;
-		return pArr->Count - iCount + 1;
+		iRet = pArr->Count - iCount + 1;
 	}
+	xrtOwnerEndMutable(&pArr->Owner);
+	return iRet;
 }
 // 末尾添加成员
 XXAPI uint32 xrtArrayAppend(xarray pArr, uint32 iCount)
@@ -30957,32 +31703,47 @@ XXAPI uint32 xrtArrayAppend(xarray pArr, uint32 iCount)
 // 交换成员
 XXAPI bool xrtArraySwap(xarray pArr, uint32 iPosA, uint32 iPosB)
 {
+	bool bRet = FALSE;
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return FALSE;
+	}
 	// 范围检查
-	if ( iPosA == 0 ) { return FALSE; }
-	if ( iPosA > pArr->Count ) { return FALSE; }
-	if ( iPosB == 0 ) { return FALSE; }
-	if ( iPosB > pArr->Count ) { return FALSE; }
-	if ( iPosA == iPosB ) { return TRUE; }
+	if ( iPosA == 0 || iPosA > pArr->Count || iPosB == 0 || iPosB > pArr->Count ) {
+		xrtOwnerEndMutable(&pArr->Owner);
+		return FALSE;
+	}
+	if ( iPosA == iPosB ) {
+		xrtOwnerEndMutable(&pArr->Owner);
+		return TRUE;
+	}
 	// 交换成员
 	iPosA--;
 	iPosB--;
 	ptr pTemp = xrtMalloc(pArr->ItemLength);
 	if ( pTemp == NULL ) {
+		xrtOwnerEndMutable(&pArr->Owner);
 		return FALSE;
 	}
 	memmove(pTemp, pArr->Memory + (iPosA * pArr->ItemLength), pArr->ItemLength);
 	memmove(pArr->Memory + (iPosA * pArr->ItemLength), pArr->Memory + (iPosB * pArr->ItemLength), pArr->ItemLength);
 	memmove(pArr->Memory + (iPosB * pArr->ItemLength), pTemp, pArr->ItemLength);
 	xrtFree(pTemp);
-	return TRUE;
+	bRet = TRUE;
+	xrtOwnerEndMutable(&pArr->Owner);
+	return bRet;
 }
 // 删除成员
 XXAPI bool xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount)
 {
+	bool bRet = FALSE;
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return FALSE;
+	}
 	// 不能添加 0 个成员、不能删除不存在的成员（0号成员也不存在）
-	if ( iCount == 0 ) { return FALSE; }
-	if ( iPos == 0 ) { return FALSE; }
-	if ( iPos > pArr->Count ) { return FALSE; }
+	if ( iCount == 0 || iPos == 0 || iPos > pArr->Count ) {
+		xrtOwnerEndMutable(&pArr->Owner);
+		return FALSE;
+	}
 	// 删除成员（数量不足时删除后面的所有成员）
 	iPos--;
 	if ( iPos + iCount < pArr->Count ) {
@@ -30995,18 +31756,25 @@ XXAPI bool xrtArrayRemove(xarray pArr, uint32 iPos, uint32 iCount)
 		// 末尾删除
 		pArr->Count = iPos;
 	}
-	return TRUE;
+	bRet = TRUE;
+	xrtOwnerEndMutable(&pArr->Owner);
+	return bRet;
 }
 // 获取成员指针
 XXAPI ptr xrtArrayGet(xarray pArr, uint32 iPos)
 {
+	ptr pRet = NULL;
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return NULL;
+	}
 	if ( iPos ) {
 		iPos--;
 		if ( iPos < pArr->Count ) {
-			return &pArr->Memory[iPos * pArr->ItemLength];
+			pRet = &pArr->Memory[iPos * pArr->ItemLength];
 		}
 	}
-	return NULL;
+	xrtOwnerEndMutable(&pArr->Owner);
+	return pRet;
 }
 XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 {
@@ -31016,7 +31784,11 @@ XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 {
 	if ( pArr ) {
+		if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+			return FALSE;
+		}
 		qsort(pArr->Memory, pArr->Count, pArr->ItemLength, procCompar);
+		xrtOwnerEndMutable(&pArr->Owner);
 		return TRUE;
 	} else {
 		return FALSE;
@@ -31030,12 +31802,40 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 // ========================================
 
 
+static inline void __xrtBsmmPageMMUUnit(xbsmm objBSMM)
+{
+	if ( objBSMM->PageMMU.Memory ) {
+		xrtFree(objBSMM->PageMMU.Memory);
+		objBSMM->PageMMU.Memory = NULL;
+	}
+	objBSMM->PageMMU.Count = 0;
+	objBSMM->PageMMU.AllocCount = 0;
+}
+static inline uint32 __xrtBsmmPageMMUAppend(xbsmm objBSMM, ptr pBlock)
+{
+	if ( objBSMM->PageMMU.Count >= objBSMM->PageMMU.AllocCount ) {
+		uint32 iNewCount = objBSMM->PageMMU.Count + objBSMM->PageMMU.AllocStep;
+		ptr* pNew = xrtRealloc(objBSMM->PageMMU.Memory, iNewCount * sizeof(ptr));
+		if ( pNew == NULL ) {
+			return 0;
+		}
+		objBSMM->PageMMU.Memory = pNew;
+		objBSMM->PageMMU.AllocCount = iNewCount;
+	}
+	objBSMM->PageMMU.Memory[objBSMM->PageMMU.Count] = pBlock;
+	objBSMM->PageMMU.Count++;
+	return objBSMM->PageMMU.Count;
+}
 // 创建数据块结构内存管理器
 XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength)
 {
+	return xrtBsmmCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xbsmm xrtBsmmCreateEx(uint32 iItemLength, uint32 iMode)
+{
 	xbsmm objBSMM = xrtMalloc(sizeof(xbsmm_struct));
 	if ( objBSMM ) {
-		xrtBsmmInit(objBSMM, iItemLength);
+		xrtBsmmInitEx(objBSMM, iItemLength, iMode);
 	}
 	return objBSMM;
 }
@@ -31043,6 +31843,9 @@ XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength)
 XXAPI void xrtBsmmDestroy(xbsmm objBSMM)
 {
 	if ( objBSMM ) {
+		if ( !xrtOwnerCheckMutable(&objBSMM->Owner, "bsmm belongs to another thread.") ) {
+			return;
+		}
 		xrtBsmmUnit(objBSMM);
 		xrtFree(objBSMM);
 	}
@@ -31050,21 +31853,32 @@ XXAPI void xrtBsmmDestroy(xbsmm objBSMM)
 // 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
 XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength)
 {
+	xrtBsmmInitEx(objBSMM, iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtBsmmInitEx(xbsmm objBSMM, uint32 iItemLength, uint32 iMode)
+{
+	xrtOwnerInitMode(&objBSMM->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objBSMM->Owner);
+	}
 	objBSMM->ItemLength = iItemLength;
 	objBSMM->Count = 0;
-	xrtPtrArrayInit(&objBSMM->PageMMU);
+	xrtPtrArrayInitEx(&objBSMM->PageMMU, iMode);
 	objBSMM->LL_Free = NULL;
 }
 // 释放数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Destroy 功能类似）
 XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 {
+	if ( !xrtOwnerBeginMutable(&objBSMM->Owner, "bsmm belongs to another thread.") ) {
+		return;
+	}
 	objBSMM->Count = 0;
 	// 循环释放 PageMMU 中的内存页
 	for ( int i = 0; i < objBSMM->PageMMU.Count; i++ ) {
 		xrtFree(objBSMM->PageMMU.Memory[i]);
 		objBSMM->PageMMU.Memory[i] = NULL;
 	}
-	xrtPtrArrayUnit(&objBSMM->PageMMU);
+	__xrtBsmmPageMMUUnit(objBSMM);
 	// 循环释放空闲内存块链表
 	MemPtr_LLNode* pNode = objBSMM->LL_Free;
 	while ( pNode ) {
@@ -31073,28 +31887,34 @@ XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 		pNode = pNext;
 	}
 	objBSMM->LL_Free = NULL;
+	xrtOwnerEndMutable(&objBSMM->Owner);
 }
 // 申请结构体内存
 XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM)
 {
+	ptr pResult = NULL;
+	if ( !xrtOwnerBeginMutable(&objBSMM->Owner, "bsmm belongs to another thread.") ) {
+		return NULL;
+	}
 	if ( objBSMM->LL_Free ) {
 		// 有空闲内存块先用空闲的
 		ptr Ptr = objBSMM->LL_Free->Ptr;
 		MemPtr_LLNode* pNext = objBSMM->LL_Free->Next;
 		xrtFree(objBSMM->LL_Free);
 		objBSMM->LL_Free = pNext;
-		return Ptr;
+		pResult = Ptr;
 	} else {
 		// 需要申请新的内存块
 		if ( objBSMM->Count >= (objBSMM->PageMMU.Count * 256) ) {
 			ptr pBlock = xrtMalloc(objBSMM->ItemLength * 256);
 			if ( pBlock == NULL ) {
+				xrtOwnerEndMutable(&objBSMM->Owner);
 				return NULL;
 			}
-			// 向
-			uint iIdx = xrtPtrArrayAppend(&objBSMM->PageMMU, pBlock);
+			uint iIdx = __xrtBsmmPageMMUAppend(objBSMM, pBlock);
 			if ( iIdx == 0 ) {
 				xrtFree(pBlock);
+				xrtOwnerEndMutable(&objBSMM->Owner);
 				return NULL;
 			}
 		}
@@ -31103,20 +31923,27 @@ XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM)
 		uint32 iPos = objBSMM->Count & 0xFF;
 		str pBlock = xrtPtrArrayGet_Inline(&objBSMM->PageMMU, iBlock + 1);
 		objBSMM->Count++;
-		return &pBlock[iPos * objBSMM->ItemLength];
+		pResult = &pBlock[iPos * objBSMM->ItemLength];
 	}
+	xrtOwnerEndMutable(&objBSMM->Owner);
+	return pResult;
 }
 // 释放结构体内存
 XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 {
+	if ( !xrtOwnerBeginMutable(&objBSMM->Owner, "bsmm belongs to another thread.") ) {
+		return;
+	}
 	MemPtr_LLNode* pNode = xrtMalloc(sizeof(MemPtr_LLNode));
 	if ( pNode == NULL ) {
 		xrtSetError("BSMM free failed: out of memory.", FALSE);
+		xrtOwnerEndMutable(&objBSMM->Owner);
 		return;
 	}
 	pNode->Ptr = p;
 	pNode->Next = objBSMM->LL_Free;
 	objBSMM->LL_Free = pNode;
+	xrtOwnerEndMutable(&objBSMM->Owner);
 }
 #endif
 #ifndef XRT_NO_MEMUNIT
@@ -31129,6 +31956,10 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 // 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
 XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength)
 {
+	return xrtMemUnitCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xmemunit xrtMemUnitCreateEx(uint32 iItemLength, uint32 iMode)
+{
 	iItemLength += sizeof(MMU_Value);
 	xmemunit objUnit = xrtMalloc(sizeof(xmemunit_struct) + (256 * iItemLength));
 	if ( objUnit == NULL ) {
@@ -31140,6 +31971,10 @@ XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength)
 	objUnit->FreeCount = 0;
 	objUnit->FreeOffset = 0;
 	objUnit->Flag = 0;
+	xrtOwnerInitMode(&objUnit->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objUnit->Owner);
+	}
 	return objUnit;
 }
 // 从内存管理单元中申请一个元素
@@ -31148,7 +31983,11 @@ XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit)
 	if ( objUnit == NULL ) {
 		return NULL;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return NULL;
+	}
 	if ( objUnit->Count > 255 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return NULL;
 	}
 	uint8 idx = objUnit->Count;
@@ -31161,6 +32000,7 @@ XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit)
 	objUnit->Count++;
 	MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
 	v->ItemFlag = MMU_FLAG_USE | objUnit->Flag | idx;
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return (void*)&v[1];
 }
 // 释放内存管理单元中某个元素
@@ -31169,8 +32009,12 @@ XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx)
 	if ( objUnit == NULL ) {
 		return FALSE;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return FALSE;
+	}
 	MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
 	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return FALSE;
 	}
 	// 释放内存
@@ -31183,6 +32027,7 @@ XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx)
 		objUnit->FreeOffset = 0;
 	}
 	v->ItemFlag = 0;
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return TRUE;
 }
 XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
@@ -31190,8 +32035,12 @@ XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 	if ( objUnit == NULL ) {
 		return FALSE;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return FALSE;
+	}
 	MMU_ValuePtr v = obj - 4;
 	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return FALSE;
 	}
 	uint8 idx = v->ItemFlag & 0xFF;
@@ -31205,6 +32054,7 @@ XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 		objUnit->FreeOffset = 0;
 	}
 	v->ItemFlag = 0;
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return TRUE;
 }
 // 进行一轮GC，将 标记 或 未标记 的内存全部回收
@@ -31213,7 +32063,11 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 	if ( objUnit == NULL ) {
 		return 0;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return 0;
+	}
 	if ( objUnit->Count > 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return 0;
 	}
 	int iCount = 0;
@@ -31258,6 +32112,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 			}
 		}
 	}
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return iCount;
 }
 #endif
@@ -31271,9 +32126,13 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 // 创建内存管理器
 XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength)
 {
+	return xrtFSMemPoolCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xfsmempool xrtFSMemPoolCreateEx(unsigned int iItemLength, uint32 iMode)
+{
 	xfsmempool mm = xrtMalloc(sizeof(xfsmempool_struct));
 	if ( mm ) {
-		xrtFSMemPoolInit(mm, iItemLength);
+		xrtFSMemPoolInitEx(mm, iItemLength, iMode);
 	}
 	return mm;
 }
@@ -31281,6 +32140,9 @@ XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength)
 XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM)
 {
 	if ( objMM ) {
+		if ( !xrtOwnerCheckMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+			return;
+		}
 		xrtFSMemPoolUnit(objMM);
 		xrtFree(objMM);
 	}
@@ -31288,8 +32150,16 @@ XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM)
 // 初始化内存管理器（对自维护结构体指针使用）
 XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength)
 {
+	xrtFSMemPoolInitEx(objMM, iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtFSMemPoolInitEx(xfsmempool objMM, unsigned int iItemLength, uint32 iMode)
+{
+	xrtOwnerInitMode(&objMM->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objMM->Owner);
+	}
 	objMM->ItemLength = iItemLength;
-	xrtBsmmInit(&objMM->arrMMU, sizeof(MMU_LLNode));
+	xrtBsmmInitEx(&objMM->arrMMU, sizeof(MMU_LLNode), iMode);
 	objMM->arrMMU.PageMMU.AllocStep = 64;
 	objMM->LL_Idle = NULL;
 	objMM->LL_Full = NULL;
@@ -31299,6 +32169,9 @@ XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength)
 // 释放内存管理器（对自维护结构体指针使用）
 XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 {
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
 	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
@@ -31311,10 +32184,15 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	objMM->LL_Full = NULL;
 	objMM->LL_Null = NULL;
 	objMM->LL_Free = NULL;
+	xrtOwnerEndMutable(&objMM->Owner);
 }
 // 从内存管理器中申请一块内存
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {
+	ptr pResult = NULL;
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return NULL;
+	}
 	xmemunit objMMU = NULL;
 	if ( objMM->LL_Idle == NULL ) {
 		// 如果没有空闲的内存管理单元，优先使用备用的全空单元，或创建一个新的单元
@@ -31325,8 +32203,9 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			objMM->LL_Null = NULL;
 		} else if ( objMM->LL_Free ) {
 			// 创建新的内存管理单元，使用已释放的内存管理单元位置
-			objMMU = xrtMemUnitCreate(objMM->ItemLength);
+			objMMU = xrtMemUnitCreateEx(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
 			if ( objMMU == NULL ) {
+				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;
 			}
 			// 恢复Flag，写入新申请的单元
@@ -31344,8 +32223,9 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			objMM->LL_Idle = pNode;
 		} else {
 			// 创建新的内存管理单元，创建失败就报错处理
-			objMMU = xrtMemUnitCreate(objMM->ItemLength);
+			objMMU = xrtMemUnitCreateEx(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
 			if ( objMMU == NULL ) {
+				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;
 			}
 			// 将创建好的内存管理单元添加到单元阵列管理器，添加失败就报错处理
@@ -31361,6 +32241,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			} else {
 				xrtMemUnitDestroy(objMMU);
 				xrtSetError("Fixed-Size Memory Pool : add memory unit failed.", FALSE);
+				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;
 			}
 		}
@@ -31385,7 +32266,9 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 		}
 	}
 	// 从选定内存管理器单元中申请内存块
-	return xrtMemUnitAlloc_Inline(objMMU);
+	pResult = xrtMemUnitAlloc_Inline(objMMU);
+	xrtOwnerEndMutable(&objMM->Owner);
+	return pResult;
 }
 // 将内存管理器申请的内存释放掉
 static inline void MM256_LLNode_ClearCheck(xfsmempool objMM, MMU_LLNode* pNode, bool bLL_Full)
@@ -31461,6 +32344,9 @@ static inline void MM256_LLNode_IdleCheck(xfsmempool objMM, MMU_LLNode* pNode)
 }
 XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 {
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
 	MMU_ValuePtr v = p - sizeof(MMU_Value);
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
@@ -31469,6 +32355,7 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, iMMU);
 		if ( pNode->objMMU == NULL ) {
 			xrtSetError("Fixed-Size Memory Pool : MMU cannot be null.", FALSE);
+			xrtOwnerEndMutable(&objMM->Owner);
 			return;
 		}
 		// 调用对应 MMU 的释放函数
@@ -31481,10 +32368,14 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 		// 如果这个内存管理单元已经清空，将他释放或变为备用单元
 		MM256_LLNode_ClearCheck(objMM, pNode, 0);
 	}
+	xrtOwnerEndMutable(&objMM->Owner);
 }
 // 进行一轮GC，将未标记为使用中的内存全部回收
 XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 {
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
 	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objMM->LL_Idle;
 	while ( pNode ) {
@@ -31513,6 +32404,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 		}
 		pNode = pNext;
 	}
+	xrtOwnerEndMutable(&objMM->Owner);
 }
 #endif
 #ifndef XRT_NO_STACK
@@ -32145,6 +33037,7 @@ XXAPI void xrtAVLTB_IterBegin(xavltbase objAVLT)
 	// 初始化迭代器状态
 	iter->Depth = -1;
 	iter->Current = NULL;
+	iter->Flags = 0;
 	objAVLT->Iterator = iter;
 	
 	// 定位到第一个节点（最左节点）并压入栈
@@ -32225,9 +33118,13 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 // 创建 AVLTree
 XXAPI xavltree xrtAVLTreeCreate(unsigned int iItemLength, AVLTree_CompProc procComp)
 {
+	return xrtAVLTreeCreateEx(iItemLength, procComp, XRT_OBJMODE_LOCAL);
+}
+XXAPI xavltree xrtAVLTreeCreateEx(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode)
+{
 	xavltree objAVLT = xrtMalloc(sizeof(xavltree_struct));
 	if ( objAVLT ) {
-		xrtAVLTreeInit(objAVLT, iItemLength, procComp);
+		xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, iMode);
 	}
 	return objAVLT;
 }
@@ -32235,6 +33132,9 @@ XXAPI xavltree xrtAVLTreeCreate(unsigned int iItemLength, AVLTree_CompProc procC
 XXAPI void xrtAVLTreeDestroy(xavltree objAVLT)
 {
 	if ( objAVLT ) {
+		if ( !xrtOwnerCheckMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+			return;
+		}
 		xrtAVLTreeUnit(objAVLT);
 		xrtFree(objAVLT);
 	}
@@ -32242,12 +33142,20 @@ XXAPI void xrtAVLTreeDestroy(xavltree objAVLT)
 // 初始化 AVLTree（对自维护结构体指针使用，和 AVLTree_Create 功能类似）
 XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp)
 {
+	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtAVLTreeInitEx(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode)
+{
+	xrtOwnerInitMode(&objAVLT->Owner, iMode);
 	xrtAVLTB_Init(objAVLT);
 	objAVLT->Parent = NULL;
 	objAVLT->CompProc = procComp;
 	objAVLT->FreeProc = NULL;
-	xrtFSMemPoolInit(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength);
+	xrtFSMemPoolInitEx(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength, iMode);
 	objAVLT->NodeCache = NULL;
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objAVLT->Owner);
+	}
 }
 // 释放 AVLTree（对自维护结构体指针使用，和 AVLTree_Destroy 功能类似）
 void xrtAVLTreeUnit_FreeKeysRecuProc(xavltree objAVLT, xavltnode root)
@@ -32266,22 +33174,53 @@ void xrtAVLTreeUnit_FreeKeysRecuProc(xavltree objAVLT, xavltnode root)
 		}
 	}
 }
-XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
+static inline void __xrtAVLTreeUnit_NoLock(xavltree objAVLT)
 {
-	if (objAVLT->FreeProc ) {
+	if ( objAVLT->Iterator ) {
+		xrtFree(objAVLT->Iterator);
+		objAVLT->Iterator = NULL;
+	}
+	if ( objAVLT->FreeProc ) {
 		xrtAVLTreeUnit_FreeKeysRecuProc(objAVLT, objAVLT->RootNode);
 	}
 	xrtAVLTB_Unit(objAVLT);
 	xrtFSMemPoolUnit(&objAVLT->objMM);
 	objAVLT->NodeCache = NULL;
 }
+XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
+{
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return;
+	}
+	__xrtAVLTreeUnit_NoLock(objAVLT);
+	xrtOwnerEndMutable(&objAVLT->Owner);
+}
+XXAPI bool xrtAVLTreeLock(xavltree objAVLT)
+{
+	if ( objAVLT == NULL ) {
+		return FALSE;
+	}
+	return xrtOwnerLock(&objAVLT->Owner, "avltree belongs to another thread.");
+}
+XXAPI void xrtAVLTreeUnlock(xavltree objAVLT)
+{
+	if ( objAVLT == NULL ) {
+		return;
+	}
+	xrtOwnerUnlock(&objAVLT->Owner);
+}
 // 向 AVLTree 中插入节点，返回数据段指针（如果值已经存在，则会返回已存在的数据段指针）
 XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew)
 {
+	ptr pRet = NULL;
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return NULL;
+	}
 	// 创建缓存节点 [节点添加可能失败，缓存节点会留到下次添加节点时继续使用]
 	if ( objAVLT->NodeCache == NULL ) {
 		objAVLT->NodeCache = xrtFSMemPoolAlloc(&objAVLT->objMM);
 		if ( objAVLT->NodeCache == NULL ) {
+			xrtOwnerEndMutable(&objAVLT->Owner);
 			return NULL;
 		}
 	}
@@ -32300,40 +33239,122 @@ XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew)
 	}
 	// 返回节点数据
 	if ( pNewNode ) {
-		return &pNewNode[1];
-	} else {
-		return NULL;
+		pRet = &pNewNode[1];
 	}
+	xrtOwnerEndMutable(&objAVLT->Owner);
+	return pRet;
 }
 // 从 AVLTree 中删除节点（成功返回 TRUE、失败返回 FALSE）
 XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey)
 {
+	bool bRet = FALSE;
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return FALSE;
+	}
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)objAVLT, objAVLT->CompProc, pKey);
 	if ( pDelNode ) {
 		if ( objAVLT->FreeProc ) {
 			objAVLT->FreeProc(objAVLT, &pDelNode[1]);
 		}
 		xrtFSMemPoolFree(&objAVLT->objMM, pDelNode);
-		return TRUE;
-	} else {
-		return FALSE;
+		bRet = TRUE;
 	}
+	xrtOwnerEndMutable(&objAVLT->Owner);
+	return bRet;
 }
 // 从 AVLTree 中查找节点（返回 AVLTree 节点对象）
 XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 {
+	ptr pRet = NULL;
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return NULL;
+	}
 	xavltnode pNode = xrtAVLTB_Search((xavltbase)objAVLT, objAVLT->CompProc, pKey);
 	if ( pNode ) {
-		return &pNode[1];
+		pRet = &pNode[1];
 	} else {
 		// 如果有父树，尝试在父树中查找
 		if ( objAVLT->Parent ) {
 			pNode = xrtAVLTB_Search((xavltbase)objAVLT->Parent, objAVLT->Parent->CompProc, pKey);
 			if ( pNode ) {
-				return &pNode[1];
+				pRet = &pNode[1];
 			}
 		}
+	}
+	xrtOwnerEndMutable(&objAVLT->Owner);
+	return pRet;
+}
+XXAPI bool xrtAVLTreeWalk(xavltree objAVLT, AVLTree_EachProc procEach, ptr pArg)
+{
+	bool bRet = FALSE;
+	if ( objAVLT == NULL ) {
+		return FALSE;
+	}
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return FALSE;
+	}
+	bRet = xrtAVLTB_WalkRecuProc(objAVLT->RootNode, procEach, pArg);
+	xrtOwnerEndMutable(&objAVLT->Owner);
+	return bRet;
+}
+XXAPI bool xrtAVLTreeWalkEx(xavltree objAVLT, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg)
+{
+	bool bRet = FALSE;
+	if ( objAVLT == NULL ) {
+		return FALSE;
+	}
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return FALSE;
+	}
+	bRet = xrtAVLTB_WalkExRecuProc(objAVLT->RootNode, procPre, procIn, procPost, pArg);
+	xrtOwnerEndMutable(&objAVLT->Owner);
+	return bRet;
+}
+XXAPI void xrtAVLTreeIterBegin(xavltree objAVLT)
+{
+	if ( objAVLT == NULL ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return;
+	}
+	if ( objAVLT->Iterator && (objAVLT->Iterator->Flags & XRT_AVLITER_FLAG_HOLD_ROOT_LOCK) ) {
+		xrtAVLTB_IterEnd((xavltbase)objAVLT);
+		xrtOwnerEndMutable(&objAVLT->Owner);
+	}
+	xrtAVLTB_IterBegin((xavltbase)objAVLT);
+	if ( objAVLT->Iterator ) {
+		objAVLT->Iterator->Flags |= XRT_AVLITER_FLAG_HOLD_ROOT_LOCK;
+	} else {
+		xrtOwnerEndMutable(&objAVLT->Owner);
+	}
+}
+XXAPI ptr xrtAVLTreeIterNext(xavltree objAVLT)
+{
+	ptr pRet;
+	bool bOwnsLock;
+	if ( objAVLT == NULL || objAVLT->Iterator == NULL ) {
 		return NULL;
+	}
+	bOwnsLock = (objAVLT->Iterator->Flags & XRT_AVLITER_FLAG_HOLD_ROOT_LOCK) != 0;
+	pRet = xrtAVLTB_IterNext((xavltbase)objAVLT);
+	if ( pRet == NULL && bOwnsLock ) {
+		xrtOwnerEndMutable(&objAVLT->Owner);
+	}
+	return pRet;
+}
+XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
+{
+	bool bOwnsLock = FALSE;
+	if ( objAVLT == NULL ) {
+		return;
+	}
+	if ( objAVLT->Iterator ) {
+		bOwnsLock = (objAVLT->Iterator->Flags & XRT_AVLITER_FLAG_HOLD_ROOT_LOCK) != 0;
+	}
+	xrtAVLTB_IterEnd((xavltbase)objAVLT);
+	if ( bOwnsLock ) {
+		xrtOwnerEndMutable(&objAVLT->Owner);
 	}
 }
 #endif
@@ -32347,9 +33368,13 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 // 创建内存池
 XXAPI xmempool xrtMemPoolCreate(int iCustom)
 {
+	return xrtMemPoolCreateEx(iCustom, XRT_OBJMODE_LOCAL);
+}
+XXAPI xmempool xrtMemPoolCreateEx(int iCustom, uint32 iMode)
+{
 	xmempool objMP = xrtMalloc(sizeof(xmempool_struct));
 	if ( objMP ) {
-		xrtMemPoolInit(objMP, iCustom);
+		xrtMemPoolInitEx(objMP, iCustom, iMode);
 	}
 	return objMP;
 }
@@ -32357,6 +33382,9 @@ XXAPI xmempool xrtMemPoolCreate(int iCustom)
 XXAPI void xrtMemPoolDestroy(xmempool objMP)
 {
 	if ( objMP ) {
+		if ( !xrtOwnerCheckMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+			return;
+		}
 		xrtMemPoolUnit(objMP);
 		xrtFree(objMP);
 	}
@@ -32375,8 +33403,16 @@ void MP256_SetFSB(FSB_Item* FSB, int idx, uint32 iSizeMin, uint32 iSizeMax, FSB_
 }
 XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 {
-	xrtBsmmInit(&objMP->arrMMU, sizeof(MMU_LLNode));
-	xrtBsmmInit(&objMP->BigMM, sizeof(MP_BigInfoLL));
+	xrtMemPoolInitEx(objMP, iCustom, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtMemPoolInitEx(xmempool objMP, int iCustom, uint32 iMode)
+{
+	xrtOwnerInitMode(&objMP->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objMP->Owner);
+	}
+	xrtBsmmInitEx(&objMP->arrMMU, sizeof(MMU_LLNode), iMode);
+	xrtBsmmInitEx(&objMP->BigMM, sizeof(MP_BigInfoLL), iMode);
 	objMP->LL_BigFree = NULL;
 	if ( iCustom == 1 ) {
 		// 添加默认的区块区间 (4层树，针对小内存的方案)
@@ -32473,6 +33509,9 @@ XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 // 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）
 XXAPI void xrtMemPoolUnit(xmempool objMP)
 {
+	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+		return;
+	}
 	// 循环释放所有 MMU
 	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
@@ -32494,11 +33533,19 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	}
 	xrtBsmmUnit(&objMP->BigMM);
 	objMP->LL_BigFree = NULL;
+	xrtOwnerEndMutable(&objMP->Owner);
 }
 // 从内存池中申请一块内存
 XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 {
-	if ( iSize == 0 ) { return NULL; }
+	void* pRet = NULL;
+	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+		return NULL;
+	}
+	if ( iSize == 0 ) {
+		xrtOwnerEndMutable(&objMP->Owner);
+		return NULL;
+	}
 	// 查找符合条件的 FSB 信息
 	FSB_Item* objFSB = objMP->FSB_RootNode;
 	while ( objFSB ) {
@@ -32522,8 +33569,9 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				objFSB->LL_Null = NULL;
 			} else if ( objFSB->LL_Free ) {
 				// 创建新的内存管理单元，使用已释放的内存管理单元位置
-				objMMU = xrtMemUnitCreate(objFSB->MaxLength);
+				objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
 				if ( objMMU == NULL ) {
+					xrtOwnerEndMutable(&objMP->Owner);
 					return NULL;
 				}
 				// 恢复Flag，写入新申请的单元
@@ -32541,8 +33589,9 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				objFSB->LL_Idle = pNode;
 			} else {
 				// 创建新的内存管理单元，创建失败就报错处理
-				objMMU = xrtMemUnitCreate(objFSB->MaxLength);
+				objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
 				if ( objMMU == NULL ) {
+					xrtOwnerEndMutable(&objMP->Owner);
 					return NULL;
 				}
 				// 将创建好的内存管理单元添加到单元阵列管理器，添加失败就报错处理
@@ -32558,6 +33607,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				} else {
 					xrtMemUnitDestroy(objMMU);
 					xrtSetError("Memory Pool : add memory unit failed.", FALSE);
+					xrtOwnerEndMutable(&objMP->Owner);
 					return NULL;
 				}
 			}
@@ -32581,7 +33631,9 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				objFSB->LL_Full = pNode;
 			}
 		}
-		return xrtMemUnitAlloc_Inline(objMMU);
+		pRet = xrtMemUnitAlloc_Inline(objMMU);
+		xrtOwnerEndMutable(&objMP->Owner);
+		return pRet;
 	} else {
 		// 无法选定 FSB，使用 malloc 申请内存
 		MP_MemHead* pHead = xrtMalloc(sizeof(MP_MemHead) + iSize);
@@ -32590,23 +33642,32 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				// 优先复用已释放的 BigMM 元素
 				MP_BigInfoLL* pInfo = objMP->LL_BigFree;
 				objMP->LL_BigFree = pInfo->Next;
+				pInfo->Next = NULL;
+				pHead->Index = pInfo->Index;
 				pHead->Flag = MMU_FLAG_EXT;
 				pInfo->Size = iSize;
 				pInfo->Ptr = pHead;
-				return &pHead[1];
+				pRet = &pHead[1];
+				xrtOwnerEndMutable(&objMP->Owner);
+				return pRet;
 			} else {
 				// 没有已释放的 BigMM 元素，就申请一个新的
 				MP_BigInfoLL* pInfo = xrtBsmmAlloc(&objMP->BigMM);
 				if ( pInfo ) {
-					pHead->Index = objMP->BigMM.Count;
+					pInfo->Index = objMP->BigMM.Count - 1;
+					pInfo->Next = NULL;
+					pHead->Index = pInfo->Index;
 					pHead->Flag = MMU_FLAG_EXT;
 					pInfo->Size = iSize;
 					pInfo->Ptr = pHead;
-					return &pHead[1];
+					pRet = &pHead[1];
+					xrtOwnerEndMutable(&objMP->Owner);
+					return pRet;
 				}
 			}
 			xrtFree(pHead);
 		}
+		xrtOwnerEndMutable(&objMP->Owner);
 		return NULL;
 	}
 }
@@ -32684,13 +33745,21 @@ static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 }
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
+	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+		return;
+	}
 	MMU_ValuePtr v = ptr - sizeof(MMU_Value);
 	if ( (v->ItemFlag & MMU_FLAG_MASK) == MMU_FLAG_MASK ) {
 		// 大内存释放
 		MP_MemHead* pHead = ptr - sizeof(MP_MemHead);
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, pHead->Index);
-		xrtFree(pInfo->Ptr);
+		if ( pInfo == NULL || pInfo->Ptr == NULL ) {
+			xrtSetError("Memory Pool : BigMM item cannot be null.", FALSE);
+			xrtOwnerEndMutable(&objMP->Owner);
+			return;
+		}
 		pHead->Flag = 0;
+		xrtFree(pInfo->Ptr);
 		pInfo->Ptr = NULL;
 		pInfo->Next = objMP->LL_BigFree;
 		objMP->LL_BigFree = pInfo;
@@ -32703,6 +33772,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 			MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, iMMU);
 			if ( pNode->objMMU == NULL ) {
 				xrtSetError("Memory Pool : MMU cannot be null.", FALSE);
+				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
 			// 查找符合条件的 FSB 信息
@@ -32719,6 +33789,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 			}
 			if ( objFSB == NULL ) {
 				xrtSetError("Memory Pool : find FSB error.", FALSE);
+				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
 			// 调用对应 MMU 的释放函数
@@ -32732,6 +33803,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 			MP256_LLNode_ClearCheck(objFSB, pNode, 0);
 		}
 	}
+	xrtOwnerEndMutable(&objMP->Owner);
 }
 // 进行一轮GC，将 标记 或 未标记 的内存全部回收
 void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
@@ -32775,6 +33847,9 @@ void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
 }
 XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
+	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+		return;
+	}
 	// 递归回收 FSB 标记的内存
 	MP256_GC_RecuFSB(objMP->FSB_RootNode, bFreeMark);
 	// 循环大内存列表进行回收
@@ -32782,11 +33857,14 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 		// 被标记的内存将被回收
 		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
+			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
+				continue;
+			}
 			MP_MemHead* pHead = pInfo->Ptr;
 			if ( pHead->Flag & MMU_FLAG_USE ) {
 				if ( pHead->Flag & MMU_FLAG_GC ) {
-					xrtFree(pInfo->Ptr);
 					pHead->Flag = 0;
+					xrtFree(pInfo->Ptr);
 					pInfo->Ptr = NULL;
 					pInfo->Next = objMP->LL_BigFree;
 					objMP->LL_BigFree = pInfo;
@@ -32797,13 +33875,16 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 		// 未被标记的内存将被回收
 		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
+			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
+				continue;
+			}
 			MP_MemHead* pHead = pInfo->Ptr;
 			if ( pHead->Flag & MMU_FLAG_USE ) {
 				if ( pHead->Flag & MMU_FLAG_GC ) {
 					pHead->Flag &= ~MMU_FLAG_GC;
 				} else {
-					xrtFree(pInfo->Ptr);
 					pHead->Flag = 0;
+					xrtFree(pInfo->Ptr);
 					pInfo->Ptr = NULL;
 					pInfo->Next = objMP->LL_BigFree;
 					objMP->LL_BigFree = pInfo;
@@ -32811,6 +33892,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 			}
 		}
 	}
+	xrtOwnerEndMutable(&objMP->Owner);
 }
 #endif
 #ifndef XRT_NO_DICT
@@ -32844,9 +33926,13 @@ int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
 // 创建哈希表
 XXAPI xdict xrtDictCreate(uint32 iItemLength)
 {
+	return xrtDictCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xdict xrtDictCreateEx(uint32 iItemLength, uint32 iMode)
+{
 	xdict objHT = xrtMalloc(sizeof(xdict_struct));
 	if ( objHT ) {
-		xrtDictInit(objHT, iItemLength);
+		xrtDictInitEx(objHT, iItemLength, iMode);
 	}
 	return objHT;
 }
@@ -32854,6 +33940,9 @@ XXAPI xdict xrtDictCreate(uint32 iItemLength)
 XXAPI void xrtDictDestroy(xdict objHT)
 {
 	if ( objHT ) {
+		if ( !xrtOwnerCheckMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+			return;
+		}
 		xrtDictUnit(objHT);
 		xrtFree(objHT);
 	}
@@ -32869,25 +33958,68 @@ void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 }
 XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength)
 {
-	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc);
+	xrtDictInitEx(objHT, iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtDictInitEx(xdict objHT, uint32 iItemLength, uint32 iMode)
+{
+	xrtOwnerInitMode(&objHT->Owner, iMode);
+	xrtAVLTreeInitEx(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objHT->Owner);
+		xrtOwnerActivateShared(&objHT->AVLT.Owner);
+	}
 	objHT->AVLT.FreeProc = (ptr)AVLHT32_FreeProc;
 	objHT->MP = NULL;
 }
 // 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
-XXAPI void xrtDictUnit(xdict objHT)
+static inline void __xrtDictUnit_NoLock(xdict objHT)
 {
 	xrtAVLTreeUnit(&objHT->AVLT);
+}
+XXAPI void xrtDictUnit(xdict objHT)
+{
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return;
+	}
+	__xrtDictUnit_NoLock(objHT);
+	xrtOwnerEndMutable(&objHT->Owner);
+}
+XXAPI bool xrtDictLock(xdict objHT)
+{
+	if ( objHT == NULL ) {
+		return FALSE;
+	}
+	return xrtOwnerLock(&objHT->Owner, "dict belongs to another thread.");
+}
+XXAPI void xrtDictUnlock(xdict objHT)
+{
+	if ( objHT == NULL ) {
+		return;
+	}
+	xrtOwnerUnlock(&objHT->Owner);
 }
 // 设置值
 XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet)
 {
+	ptr pRet;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	return xrtDictSetWithKey(objHT, &objKey, bNewRet);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
+	pRet = xrtDictSetWithKey(objHT, &objKey, bNewRet);
+	xrtOwnerEndMutable(&objHT->Owner);
+	return pRet;
 }
 // 设置值 - 当值为 ptr 时直接修改指针内容
 XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal)
 {
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		if ( ppOldVal ) {
+			*ppOldVal = NULL;
+		}
+		return FALSE;
+	}
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
 	bool bNew;
@@ -32903,75 +34035,108 @@ XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* p
 		}
 		// 修改为新值
 		ppVal[0] = pVal;
+		xrtOwnerEndMutable(&objHT->Owner);
 		return TRUE;
 	} else {
 		if ( ppOldVal ) {
 			*ppOldVal = NULL;
 		}
+		xrtOwnerEndMutable(&objHT->Owner);
 		return FALSE;
 	}
 }
 // 获取值
 XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	ptr pRet;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	return xrtDictGetWithKey(objHT, &objKey);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
+	pRet = xrtDictGetWithKey(objHT, &objKey);
+	xrtOwnerEndMutable(&objHT->Owner);
+	return pRet;
 }
 // 获取值 - 当值为 ptr 时直接获取指针内容
 XXAPI ptr xrtDictGetPtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	ptr pRet = NULL;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
 	struct {
 		ptr val;
 	} *pData = xrtDictGetWithKey(objHT, &objKey);
 	if ( pData ) {
-		return pData->val;
+		pRet = pData->val;
 	}
-	return NULL;
+	xrtOwnerEndMutable(&objHT->Owner);
+	return pRet;
 }
 // 删除值
 XXAPI bool xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	bool bRet;
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return FALSE;
+	}
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	return xrtAVLTreeRemove(&objHT->AVLT, &objKey);
+	bRet = xrtAVLTreeRemove(&objHT->AVLT, &objKey);
+	xrtOwnerEndMutable(&objHT->Owner);
+	return bRet;
 }
 // 删除值，当值为 ptr 时返回 ptr
 XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	ptr result = NULL;
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)&objHT->AVLT, objHT->AVLT.CompProc, &objKey);
 	if ( pDelNode ) {
 		Dict_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
 		ptr* pData = (ptr*)&pKeyPtr[1];
-		ptr result = pData[0];  // 先保存返回值
+		result = pData[0];  // 先保存返回值
 		if ( objHT->AVLT.FreeProc ) {
 			objHT->AVLT.FreeProc(&objHT->AVLT, &pDelNode[1]);
 		}
 		xrtFSMemPoolFree(&objHT->AVLT.objMM, pDelNode);
-		return result;  // 返回保存的值
-	} else {
-		return NULL;
 	}
+	xrtOwnerEndMutable(&objHT->Owner);
+	return result;  // 返回保存的值
 }
 // 判断值是否存在
 XXAPI bool xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	bool bRet = FALSE;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return FALSE;
+	}
 	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
 	if ( pNode ) {
-		return TRUE;
+		bRet = TRUE;
 	}
-	return FALSE;
+	xrtOwnerEndMutable(&objHT->Owner);
+	return bRet;
 }
 // 获取表内元素数量
 XXAPI uint32 xrtDictCount(xdict objHT)
 {
-	return objHT->AVLT.Count;
+	uint32 iCount = 0;
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return 0;
+	}
+	iCount = objHT->AVLT.Count;
+	xrtOwnerEndMutable(&objHT->Owner);
+	return iCount;
 }
 // 遍历表元素
 int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, ptr pArg)
@@ -33000,7 +34165,11 @@ int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, ptr pArg)
 }
 XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 {
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return;
+	}
 	AVLHT32_WalkRecuProc(objHT->AVLT.RootNode, procEach, pArg);
+	xrtOwnerEndMutable(&objHT->Owner);
 }
 #endif
 #ifndef XRT_NO_LIST
@@ -33024,9 +34193,13 @@ int List_CompProc(int64* pNode, int64* pObjKey)
 // 创建列表
 XXAPI xlist xrtListCreate(uint32 iItemLength)
 {
+	return xrtListCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xlist xrtListCreateEx(uint32 iItemLength, uint32 iMode)
+{
 	xlist objList = xrtMalloc(sizeof(xlist_struct));
 	if ( objList ) {
-		xrtListInit(objList, iItemLength);
+		xrtListInitEx(objList, iItemLength, iMode);
 	}
 	return objList;
 }
@@ -33034,6 +34207,9 @@ XXAPI xlist xrtListCreate(uint32 iItemLength)
 XXAPI void xrtListDestroy(xlist objList)
 {
 	if ( objList ) {
+		if ( !xrtOwnerCheckMutable(&objList->Owner, "list belongs to another thread.") ) {
+			return;
+		}
 		xrtListUnit(objList);
 		xrtFree(objList);
 	}
@@ -33041,19 +34217,55 @@ XXAPI void xrtListDestroy(xlist objList)
 // 初始化列表（对自维护结构体指针使用）
 XXAPI void xrtListInit(xlist objList, uint32 iItemLength)
 {
-	xrtAVLTreeInit(&objList->AVLT, iItemLength + sizeof(int64), (ptr)List_CompProc);
+	xrtListInitEx(objList, iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtListInitEx(xlist objList, uint32 iItemLength, uint32 iMode)
+{
+	xrtOwnerInitMode(&objList->Owner, iMode);
+	xrtAVLTreeInitEx(&objList->AVLT, iItemLength + sizeof(int64), (ptr)List_CompProc, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objList->Owner);
+		xrtOwnerActivateShared(&objList->AVLT.Owner);
+	}
 }
 // 释放列表（对自维护结构体指针使用）
-XXAPI void xrtListUnit(xlist objList)
+static inline void __xrtListUnit_NoLock(xlist objList)
 {
 	xrtAVLTreeUnit(&objList->AVLT);
+}
+XXAPI void xrtListUnit(xlist objList)
+{
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return;
+	}
+	__xrtListUnit_NoLock(objList);
+	xrtOwnerEndMutable(&objList->Owner);
+}
+XXAPI bool xrtListLock(xlist objList)
+{
+	if ( objList == NULL ) {
+		return FALSE;
+	}
+	return xrtOwnerLock(&objList->Owner, "list belongs to another thread.");
+}
+XXAPI void xrtListUnlock(xlist objList)
+{
+	if ( objList == NULL ) {
+		return;
+	}
+	xrtOwnerUnlock(&objList->Owner);
 }
 // 设置值
 XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet)
 {
+	ptr pRet = NULL;
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return NULL;
+	}
 	bool bNew;
 	int64* pNode = xrtAVLTreeInsert(&objList->AVLT, &iKey, &bNew);
 	if ( pNode == NULL ) {
+		xrtOwnerEndMutable(&objList->Owner);
 		return NULL;
 	}
 	if ( bNewRet ) {
@@ -33062,14 +34274,23 @@ XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet)
 	if ( bNew ) {
 		*pNode = iKey;
 	}
-	return &pNode[1];
+	pRet = &pNode[1];
+	xrtOwnerEndMutable(&objList->Owner);
+	return pRet;
 }
 // 设置值 - 当值为 ptr 时直接修改指针内容
 XXAPI bool xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal)
 {
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		if ( ppOldVal ) {
+			*ppOldVal = NULL;
+		}
+		return FALSE;
+	}
 	bool bNew;
 	int64* pNode = xrtAVLTreeInsert(&objList->AVLT, &iKey, &bNew);
 	if ( pNode == NULL ) {
+		xrtOwnerEndMutable(&objList->Owner);
 		return FALSE;
 	}
 	if ( bNew ) {
@@ -33089,64 +34310,93 @@ XXAPI bool xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal)
 	}
 	// 修改为新值
 	pData->val = pVal;
+	xrtOwnerEndMutable(&objList->Owner);
 	return TRUE;
 }
 // 获取值
 XXAPI ptr xrtListGet(xlist objList, int64 iKey)
 {
+	ptr pRet = NULL;
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return NULL;
+	}
 	int64* pNode = xrtAVLTreeSearch(&objList->AVLT, &iKey);
 	if ( pNode ) {
-		return &pNode[1];
+		pRet = &pNode[1];
 	}
-	return NULL;
+	xrtOwnerEndMutable(&objList->Owner);
+	return pRet;
 }
 // 获取值 - 当值为 ptr 时直接获取指针内容
 XXAPI ptr xrtListGetPtr(xlist objList, int64 iKey)
 {
+	ptr result = NULL;
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return NULL;
+	}
 	int64* pNode = xrtAVLTreeSearch(&objList->AVLT, &iKey);
 	if ( pNode ) {
 		// 指针大小可能为 4 或 8 字节，使用 memcpy 确保跨平台兼容性
-		ptr result;
 		memcpy(&result, &pNode[1], sizeof(ptr));
-		return result;
 	}
-	return NULL;
+	xrtOwnerEndMutable(&objList->Owner);
+	return result;
 }
 // 删除值
 XXAPI bool xrtListRemove(xlist objList, int64 iKey)
 {
-	return xrtAVLTreeRemove(&objList->AVLT, &iKey);
+	bool bRet;
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return FALSE;
+	}
+	bRet = xrtAVLTreeRemove(&objList->AVLT, &iKey);
+	xrtOwnerEndMutable(&objList->Owner);
+	return bRet;
 }
 // 删除值，当值为 ptr 时返回 ptr
 XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey)
 {
+	ptr result = NULL;
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return NULL;
+	}
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)&objList->AVLT, objList->AVLT.CompProc, &iKey);
 	if ( pDelNode ) {
 		int64* pKeyPtr = (int64*)xrtAVLTreeGetNodeData(pDelNode);  // List 使用 int64 作为键
 		ptr* pData = (ptr*)&pKeyPtr[1];
-		ptr result = pData[0];  // 先保存返回值
+		result = pData[0];  // 先保存返回值
 		if ( objList->AVLT.FreeProc ) {
 			objList->AVLT.FreeProc(&objList->AVLT, &pDelNode[1]);
 		}
 		xrtFSMemPoolFree(&objList->AVLT.objMM, pDelNode);
-		return result;  // 返回保存的值
-	} else {
-		return NULL;
 	}
+	xrtOwnerEndMutable(&objList->Owner);
+	return result;  // 返回保存的值
 }
 // 判断值是否存在
 XXAPI bool xrtListExists(xlist objList, int64 iKey)
 {
+	bool bRet = FALSE;
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return FALSE;
+	}
 	int64* pNode = xrtAVLTreeSearch(&objList->AVLT, &iKey);
 	if ( pNode ) {
-		return TRUE;
+		bRet = TRUE;
 	}
-	return FALSE;
+	xrtOwnerEndMutable(&objList->Owner);
+	return bRet;
 }
 // 获取表内元素数量
 XXAPI uint32 xrtListCount(xlist objList)
 {
-	return objList->AVLT.Count;
+	uint32 iCount = 0;
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return 0;
+	}
+	iCount = objList->AVLT.Count;
+	xrtOwnerEndMutable(&objList->Owner);
+	return iCount;
 }
 // 遍历表元素
 int List_WalkRecuProc(xavltnode root, List_EachProc procEach, ptr pArg)
@@ -33175,7 +34425,11 @@ int List_WalkRecuProc(xavltnode root, List_EachProc procEach, ptr pArg)
 }
 XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 {
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return;
+	}
 	List_WalkRecuProc(objList->AVLT.RootNode, procEach, pArg);
+	xrtOwnerEndMutable(&objList->Owner);
 }
 #endif
 #ifndef XRT_NO_REGEX
@@ -38730,91 +39984,98 @@ static const char *const bbre_version_str = "0.0.2";
 
 // 静态值 : null、true、false
 static xvalue_struct XVO_VALUE_NULL = {
-	XVO_DT_NULL,
-	0,
-	TRUE,
-	0,
-	0,
-	0
+	.Header = XVO_HEADER_INIT(XVO_DT_NULL, TRUE, FALSE, 0),
+	.Size = 0,
+	.vInt = 0
 };
 static xvalue_struct XVO_VALUE_TRUE = {
-	XVO_DT_BOOL,
-	0,
-	TRUE,
-	0,
-	sizeof(bool),
-	TRUE
+	.Header = XVO_HEADER_INIT(XVO_DT_BOOL, TRUE, FALSE, 0),
+	.Size = sizeof(bool),
+	.vBool = TRUE
 };
 static xvalue_struct XVO_VALUE_FALSE = {
-	XVO_DT_BOOL,
-	0,
-	TRUE,
-	0,
-	sizeof(bool),
-	FALSE
+	.Header = XVO_HEADER_INIT(XVO_DT_BOOL, TRUE, FALSE, 0),
+	.Size = sizeof(bool),
+	.vBool = FALSE
 };
 // 引用计数操作
 XXAPI void xvoAddRef(xvalue pVal)
 {
-	if ( pVal ) {
-		if ( pVal->RefCount >= 0x3FFFFFF ) {
-			// 引用计数太多，就转为静态值
-			pVal->IsStatic = 1;
-		} else {
-			pVal->RefCount++;
-		}
-	}
+	xvoAddRef_Inline(pVal);
 }
 bool xvoListClear_FreeProc(int64 pKey, xvalue* ppVal, xlist pList)
 {
 	xvoUnref(*ppVal);
 	return FALSE;
 }
-bool xvoCollClear_FreeProc(Coll_Key* pKey, xavltree pColl)
+static void xvoCollNode_FreeProc(xavltree pColl, Coll_Key* pKey)
 {
+	(void)pColl;
 	xvoUnref(pKey->Value);
-	return FALSE;
 }
 bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue* ppVal, xdict pTbl)
 {
 	xvoUnref(*ppVal);
 	return FALSE;
 }
+static void __xvoDestroyValue(xvalue pVal)
+{
+	if ( pVal->Type == XVO_DT_TEXT ) {
+		xrtFree(pVal->vText);
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
+			xvoUnref(pItem);
+		}
+		xrtPtrArrayDestroy(pVal->vArray);
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
+		xrtListDestroy(pVal->vList);
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		xrtAVLTreeDestroy(pVal->vColl);
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
+		xrtDictDestroy(pVal->vTable);
+	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		xrtFree(pVal->vStruct);
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+	}
+	xrtFree(pVal);
+	#ifdef DEBUG_TRACE
+		printf("free value : %x\n", pVal);
+	#endif
+}
 XXAPI void xvoUnref(xvalue pVal)
 {
+	uint32 iOldHeader;
+	uint32 iNewHeader;
+	uint32 iRefCount;
 	if ( pVal ) {
-		if ( pVal->IsStatic == 0 ) {
-			pVal->RefCount--;
-			// 引用计数用完了就销毁对象
-			if ( pVal->RefCount == 0 ) {
-				// 释放值
-				if ( pVal->Type == XVO_DT_TEXT ) {
-					xrtFree(pVal->vText);
-				} else if ( pVal->Type == XVO_DT_ARRAY ) {
-					for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
-						xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
-						xvoUnref(pItem);
-					}
-					xrtPtrArrayDestroy(pVal->vArray);
-				} else if ( pVal->Type == XVO_DT_LIST ) {
-					xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
-					xrtListDestroy(pVal->vList);
-				} else if ( pVal->Type == XVO_DT_COLL ) {
-					xrtAVLTreeWalk(pVal->vColl, (ptr)xvoCollClear_FreeProc, pVal->vColl);
-					xrtAVLTreeDestroy(pVal->vColl);
-				} else if ( pVal->Type == XVO_DT_TABLE ) {
-					xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
-					xrtDictDestroy(pVal->vTable);
-				} else if ( pVal->Type == XVO_DT_CLASS ) {
-					xrtFree(pVal->vStruct);
-				} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		if ( !xvoIsShared_Inline(pVal) ) {
+			if ( pVal->IsStatic == 0 ) {
+				pVal->RefCount--;
+				if ( pVal->RefCount == 0 ) {
+					__xvoDestroyValue(pVal);
 				}
-				// 释放变量本身
-				xrtFree(pVal);
-				#ifdef DEBUG_TRACE
-					printf("free value : %x\n", pVal);
-				#endif
 			}
+			return;
+		}
+		while ( TRUE ) {
+			iOldHeader = pVal->Header;
+			if ( iOldHeader & XVO_HEADER_STATIC_MASK ) {
+				return;
+			}
+			iRefCount = (iOldHeader & XVO_HEADER_REFCOUNT_MASK) >> XVO_HEADER_REFCOUNT_SHIFT;
+			if ( iRefCount == 0 ) {
+				return;
+			}
+			iNewHeader = (iOldHeader & ~XVO_HEADER_REFCOUNT_MASK) | ((iRefCount - 1) << XVO_HEADER_REFCOUNT_SHIFT);
+			if ( __xvoAtomicCompareExchange32(&pVal->Header, iNewHeader, iOldHeader) == iOldHeader ) {
+				break;
+			}
+		}
+		if ( iRefCount == 1 ) {
+			__xvoDestroyValue(pVal);
 		}
 	}
 }
@@ -38835,9 +40096,7 @@ XXAPI xvalue xvoCreateInt(int64 iVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_INT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_INT, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(int64);
 		pVal->vInt = iVal;
 	}
@@ -38847,9 +40106,7 @@ XXAPI xvalue xvoCreateFloat(double fVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_FLOAT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_FLOAT, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(double);
 		pVal->vFloat = fVal;
 	}
@@ -38870,9 +40127,7 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 	}
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_TEXT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TEXT, XRT_OBJMODE_LOCAL);
 		pVal->Size = iSize;
 		if ( bColloc ) {
 			pVal->vText = sVal;
@@ -38890,9 +40145,7 @@ XXAPI xvalue xvoCreateTime(xtime tVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_TIME;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TIME, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(xtime);
 		pVal->vTime = tVal;
 	}
@@ -38902,9 +40155,7 @@ XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, i
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_TIME;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TIME, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(xtime);
 		pVal->vTime = xrtDateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond);
 	}
@@ -38914,9 +40165,7 @@ XXAPI xvalue xvoCreatePoint(ptr point)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_POINT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_POINT, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(ptr);
 		pVal->vPoint = point;
 	}
@@ -38926,9 +40175,7 @@ XXAPI xvalue xvoCreateFunc(xfunction pFunc)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_FUNC;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_FUNC, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(ptr);
 		pVal->vFunc = pFunc;
 	}
@@ -38936,16 +40183,18 @@ XXAPI xvalue xvoCreateFunc(xfunction pFunc)
 }
 XXAPI xvalue xvoCreateArray()
 {
+	return xvoCreateArrayEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateArrayEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xparray objArr = xrtPtrArrayCreate();
+		xparray objArr = xrtPtrArrayCreateEx(iMode);
 		if ( objArr == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_ARRAY;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_ARRAY, iMode);
 		pVal->Size = 0;
 		pVal->vArray = objArr;
 	}
@@ -38953,16 +40202,18 @@ XXAPI xvalue xvoCreateArray()
 }
 XXAPI xvalue xvoCreateList()
 {
+	return xvoCreateListEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateListEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xlist objList = xrtListCreate(sizeof(xvalue));
+		xlist objList = xrtListCreateEx(sizeof(xvalue), iMode);
 		if ( objList == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_LIST;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_LIST, iMode);
 		pVal->Size = 0;
 		pVal->vList = objList;
 	}
@@ -38970,17 +40221,20 @@ XXAPI xvalue xvoCreateList()
 }
 XXAPI xvalue xvoCreateColl()
 {
+	return xvoCreateCollEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateCollEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
 		int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey);	// 比较函数定义
-		xavltree objColl = xrtAVLTreeCreate(sizeof(Coll_Key), (ptr)Coll_CompProc);
+		xavltree objColl = xrtAVLTreeCreateEx(sizeof(Coll_Key), (ptr)Coll_CompProc, iMode);
 		if ( objColl == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_COLL;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		objColl->FreeProc = (ptr)xvoCollNode_FreeProc;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_COLL, iMode);
 		pVal->Size = 0;
 		pVal->vColl = objColl;
 	}
@@ -38988,16 +40242,18 @@ XXAPI xvalue xvoCreateColl()
 }
 XXAPI xvalue xvoCreateTable()
 {
+	return xvoCreateTableEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateTableEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xdict objTbl = xrtDictCreate(sizeof(xvalue));
+		xdict objTbl = xrtDictCreateEx(sizeof(xvalue), iMode);
 		if ( objTbl == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_TABLE;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TABLE, iMode);
 		pVal->Size = 0;
 		pVal->vTable = objTbl;
 	}
@@ -39015,9 +40271,7 @@ XXAPI xvalue xvoCreateClass(uint32 iSize)
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_CLASS;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_CLASS, XRT_OBJMODE_LOCAL);
 		pVal->Size = iSize;
 		pVal->vStruct = pStruct;
 	}
@@ -39027,9 +40281,7 @@ XXAPI xvalue xvoCreateCustom(ptr pObj)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_CUSTOM;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_CUSTOM, XRT_OBJMODE_LOCAL);
 		pVal->Size = 0;
 		pVal->vCustom = pObj;
 	}
@@ -39258,6 +40510,9 @@ XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc)
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
+		return FALSE;
+	}
 	uint32 index = xrtPtrArrayAppend(pArr->vArray, pVal);
 	if ( index == 0 ) {
 		return FALSE;
@@ -39276,6 +40531,9 @@ XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bCol
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
+		return FALSE;
+	}
 	uint32 idx = xrtPtrArrayInsert(pArr->vArray, index, pVal);
 	if ( idx == 0 ) {
 		return FALSE;
@@ -39292,6 +40550,9 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
 		return FALSE;
 	}
 	xvalue pOldVal = xrtPtrArrayGet(pArr->vArray, index + 1);
@@ -39319,6 +40580,9 @@ XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
 	}
 	for ( int i = 1; i <= pArr2->vArray->Count; i++ ) {
 		xvalue pVal = xrtPtrArrayGet_Inline(pArr2->vArray, i);
+		if ( !xvoPrepareStoreWithOwner_Inline(&pArr1->vArray->Owner, pVal) ) {
+			return FALSE;
+		}
 		xvoAddRef_Inline(pVal);
 		xrtPtrArrayAppend(pArr1->vArray, pVal);
 	}
@@ -39422,6 +40686,9 @@ XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
 	if ( pList->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pList->vList->Owner, pVal) ) {
+		return FALSE;
+	}
 	xvalue pOldVal = NULL;
 	bool bRet = xrtListSetPtr(pList->vList, index, pVal, (ptr*)&pOldVal);
 	if ( bRet == FALSE ) {
@@ -39436,10 +40703,18 @@ XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
 	return TRUE;
 }
 // List 合并
-bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, xlist objList)
+typedef struct {
+	xlist objList;
+	bool bFailed;
+} __xvoListMergeCtx;
+bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
 {
 	bool bNew = FALSE;
-	xvalue* ppOldVal = xrtListSet(objList, iKey, &bNew);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objList->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtListSet(pCtx->objList, iKey, &bNew);
 	if ( ppOldVal ) {
 		// 只转移之前没有的值
 		if ( bNew ) {
@@ -39447,12 +40722,16 @@ bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, xlist objList)
 			ppOldVal[0] = *ppVal;
 		}
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
-bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, xlist objList)
+bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
 {
 	xvalue pOldVal = NULL;
-	int iRet = xrtListSetPtr(objList, iKey, *ppVal, (ptr*)&pOldVal);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objList->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	int iRet = xrtListSetPtr(pCtx->objList, iKey, *ppVal, (ptr*)&pOldVal);
 	if ( iRet ) {
 		xvoAddRef_Inline(*ppVal);
 		// 释放旧值
@@ -39460,10 +40739,11 @@ bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, xlist objList)
 			xvoUnref(pOldVal);
 		}
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
 XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
 {
+	__xvoListMergeCtx tCtx;
 	if ( (pList1 == NULL) || (pList2 == NULL) ) {
 		return FALSE;
 	}
@@ -39473,12 +40753,14 @@ XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
 	if ( pList2->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.objList = pList1->vList;
 	if ( bReWrite ) {
-		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc_ReWrite, pList1->vList);
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc_ReWrite, &tCtx);
 	} else {
-		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc, pList1->vList);
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc, &tCtx);
 	}
-	return TRUE;
+	return tCtx.bFailed == FALSE;
 }
 // List 操作
 XXAPI bool xvoListExists(xvalue pList, int64 index)
@@ -39727,23 +41009,23 @@ XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
 	}
 	Coll_Key objKey;
 	MAKE_COLL_KEY(objKey, pVal);
-	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)pColl->vColl, pColl->vColl->CompProc, &objKey);
-	if ( pDelNode ) {
-		Coll_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
-		xvoUnref(pKeyPtr->Value);
-		return TRUE;
-	}
-	return FALSE;
+	return xrtAVLTreeRemove(pColl->vColl, &objKey);
 }
 XXAPI uint32 xvoCollItemCount(xvalue pColl)
 {
+	uint32 iCount = 0;
 	if ( pColl == NULL ) {
 		return 0;
 	}
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return 0;
 	}
-	return pColl->vColl->Count;
+	if ( !xrtAVLTreeLock(pColl->vColl) ) {
+		return 0;
+	}
+	iCount = pColl->vColl->Count;
+	xrtAVLTreeUnlock(pColl->vColl);
+	return iCount;
 }
 XXAPI bool xvoCollClear(xvalue pColl)
 {
@@ -39753,7 +41035,6 @@ XXAPI bool xvoCollClear(xvalue pColl)
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
-	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollClear_FreeProc, pColl);
 	xrtAVLTreeClear(pColl->vColl);
 	return TRUE;
 }
@@ -39768,7 +41049,11 @@ XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl)
 	if ( pParentColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
+	if ( !xrtOwnerBeginMutable(&pColl->vColl->Owner, "coll belongs to another thread.") ) {
+		return FALSE;
+	}
 	pColl->vColl->Parent = pParentColl->vColl;
+	xrtOwnerEndMutable(&pColl->vColl->Owner);
 	return TRUE;
 }
 // Table 读数据
@@ -39808,6 +41093,9 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 	} else if ( kl == 0 ) {
 		kl = strlen(key);
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pTbl->vTable->Owner, pVal) ) {
+		return FALSE;
+	}
 	xvalue pOldVal = NULL;
 	int iRet = xrtDictSetPtr(pTbl->vTable, key, kl, pVal, (ptr*)&pOldVal);
 	if ( iRet == FALSE ) {
@@ -39822,10 +41110,18 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 	return TRUE;
 }
 // Table 合并
-bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+typedef struct {
+	xdict objTbl;
+	bool bFailed;
+} __xvoTableMergeCtx;
+bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
 {
 	bool bNew;
-	xvalue* ppOldVal = xrtDictSetWithKey(objTbl, pKey, &bNew);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objTbl->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtDictSetWithKey(pCtx->objTbl, pKey, &bNew);
 	if ( ppOldVal ) {
 		// 只转移之前没有的值
 		if ( bNew ) {
@@ -39833,12 +41129,16 @@ bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 			ppOldVal[0] = *ppVal;
 		}
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
-bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
 {
 	bool bNew = FALSE;
-	xvalue* ppOldVal = xrtDictSetWithKey(objTbl, pKey, &bNew);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objTbl->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtDictSetWithKey(pCtx->objTbl, pKey, &bNew);
 	if ( ppOldVal ) {
 		// 释放旧值
 		if ( bNew == FALSE ) {
@@ -39847,10 +41147,11 @@ bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 		xvoAddRef_Inline(*ppVal);
 		ppOldVal[0] = *ppVal;
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
 XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
 {
+	__xvoTableMergeCtx tCtx;
 	if ( (pTbl1 == NULL) || (pTbl2 == NULL) ) {
 		return FALSE;
 	}
@@ -39860,12 +41161,14 @@ XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
 	if ( pTbl2->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.objTbl = pTbl1->vTable;
 	if ( bReWrite ) {
-		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc_ReWrite, pTbl1->vTable);
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc_ReWrite, &tCtx);
 	} else {
-		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc, pTbl1->vTable);
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc, &tCtx);
 	}
-	return TRUE;
+	return tCtx.bFailed == FALSE;
 }
 // Table 操作
 XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl)
@@ -40056,10 +41359,7 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 	} else {
 		// 其他类型直接 Copy 64 位数据
 		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
-		varRet->Type = pVal->Type;
-		varRet->Reserve = 0;
-		varRet->IsStatic = 0;
-		varRet->RefCount = 1;
+		xvoInitOwnedHeader_Inline(varRet, pVal->Type, XRT_OBJMODE_LOCAL);
 		varRet->Size = pVal->Size;
 		varRet->vInt = pVal->vInt;
 		return varRet;
@@ -40127,10 +41427,7 @@ XXAPI xvalue xvoDeepCopy(xvalue pVal)
 	} else {
 		// 其他类型直接 Copy 64 位数据
 		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
-		varRet->Type = pVal->Type;
-		varRet->Reserve = 0;
-		varRet->IsStatic = 0;
-		varRet->RefCount = 1;
+		xvoInitOwnedHeader_Inline(varRet, pVal->Type, XRT_OBJMODE_LOCAL);
 		varRet->Size = pVal->Size;
 		varRet->vInt = pVal->vInt;
 		return varRet;
@@ -44188,36 +45485,7 @@ XTE_LiteStruct XTE_LITE_ERROR_MALLOC = {
 	0,
 	{ NULL, 0, 0, 0 },							// Tokens (xarray_struct)
 	{ NULL, 0, 0, 0 },							// Actions (xparray_struct)
-	{
-		{
-			NULL,
-			0,
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			{
-				0,
-				{
-					0,
-					0,
-					{
-						NULL,
-						0,
-						0,
-						0
-					},
-					NULL
-				},
-				NULL,
-				NULL,
-				NULL,
-				NULL
-			},
-			NULL
-		},
-		NULL
-	}
+	{ 0 }
 };
 // xTemplate Engine Lite 模板管理器数据结构
 typedef struct {
@@ -46279,152 +47547,339 @@ int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot,
 	return boolVal;
 }
 #endif
-// 初始化 xCore
-XXAPI xrtGlobalData* xrtInit()
+static uint64 __xrtGetCurrentThreadId()
 {
-	// 增加引用计数
-	__xrt_RefCount++;
-	
-	if ( xCore.bInit ) {
-		return &xCore;
-	}
-	
-	// 初始化数据
-	xCore.bInit = TRUE;
-	xCore.sNull = (str)&sNullValue;
-	xCore.LastError = xCore.sNull;
-	xCore.__pri_FreeError = FALSE;
-	xCore.OnError = NULL;
-	
-	// 初始化内存函数
-	xCore.malloc = malloc;
-	xCore.calloc = calloc;
-	xCore.realloc = realloc;
-	xCore.free = free;
-	
-	// 初始化环形临时内存
-	for ( int i = 0; i < 32; i++ ) {
-		xCore.TempMem[i] = NULL;
-	}
-	xCore.TempMemIdx = 0;
-	
-	// 初始化高精度时钟频率单位
 	#if defined(_WIN32) || defined(_WIN64)
-		LARGE_INTEGER QPF;
-		if ( QueryPerformanceFrequency( &QPF ) ) {
-			xCore.Frequency = QPF.QuadPart;
-		} else {
-			xCore.Frequency = 0;
-		}
+		return GetCurrentThreadId();
+	#else
+		return (uint64)(uintptr_t)pthread_self();
 	#endif
-	
-	// 初始化随机数生成器
+}
+static uint64 __xrtGetSeedTick()
+{
 	uint64 iTick = 0;
 	#if defined(_WIN32) || defined(_WIN64)
 		iTick = GetTickCount64() ^ (uint64)GetCurrentProcessId();
 	#else
 		struct timespec timer;
 		clock_gettime(CLOCK_MONOTONIC, &timer);
-		iTick = ((uint64)timer.tv_sec << 30) | timer.tv_nsec;
+		iTick = ((uint64)timer.tv_sec << 30) | (uint64)timer.tv_nsec;
 		iTick ^= (uint64)getpid();
 	#endif
-	xrtRandSeed(&xCore.rand32, iTick, 0xda3e39cb94b95bdbULL ^ iTick);
-	xrtRandSeed(&xCore.rand64_low, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
-	xrtRandSeed(&xCore.rand64_high, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
-	
-	// 初始化约等于配置（整数容差万分之一、小数容差0.01、时间容差 10 秒、字符串相似度95%）
-	xCore.iApproxIntMode = XRT_APPROX_PERCENT;
-	xCore.fApproxIntTol = 0.0001;
-	xCore.iApproxNumMode = XRT_APPROX_DIFF;
-	xCore.fApproxNumTol = 0.01;
-	xCore.iApproxTimeTol = 10;
-	xCore.iApproxStrMode = XRT_STR_APPROX_SIM;  // 默认相似度模式
-	xCore.fApproxStrTol = 0.95;                 // 默认95%相似度
-	xCore.bApproxStrCase = FALSE;               // 默认区分大小写
-	
-	// 获取程序文件名和路径
-	#if defined(_WIN32) || defined(_WIN64)
-		u16str sTemp = malloc(4096 * sizeof(wchar_t));
-		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
-		size_t iRetSize = 0;
-		xCore.AppFile = xrtUTF16to8(sTemp, iSize, &iRetSize);
-		free(sTemp);
-		xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
-	#else
-		str sTemp = malloc(4096);
-		ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
-		if ( iSize == -1 ) {
-			// 无法读取程序路径
-			free(sTemp);
-			xCore.AppFile = xCore.sNull;
-			xCore.AppPath = xCore.sNull;
-		} else {
-			xCore.AppFile = xrtCopyStr(sTemp, iSize);
-			free(sTemp);
-			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iSize);
+	return iTick;
+}
+static void __xrtSeedThreadRand(xrtThreadData* pThreadData)
+{
+	uint64 iTick = __xrtGetSeedTick();
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	iTick ^= (uint64)(uintptr_t)pThreadData;
+	iTick ^= pThreadData->iThreadId;
+	xrtRandSeed(&pThreadData->rand32, iTick, 0xda3e39cb94b95bdbULL ^ iTick);
+	xrtRandSeed(&pThreadData->rand64_low, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
+	xrtRandSeed(&pThreadData->rand64_high, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
+}
+static void __xrtInitThreadMemState(xrtThreadData* pThreadData)
+{
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	pThreadData->tMem.iOwnerThreadId = pThreadData->iThreadId;
+	pThreadData->tMem.iFlags = 0;
+	pThreadData->tMem.iReserved = 0;
+	pThreadData->tMem.pLocalAlloc = NULL;
+	pThreadData->tMem.pSharedAlloc = NULL;
+	pThreadData->tMem.pReserved = NULL;
+}
+static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
+{
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	pThreadData->tMem.iOwnerThreadId = 0;
+	pThreadData->tMem.iFlags = 0;
+	pThreadData->tMem.iReserved = 0;
+	pThreadData->tMem.pLocalAlloc = NULL;
+	pThreadData->tMem.pSharedAlloc = NULL;
+	pThreadData->tMem.pReserved = NULL;
+}
+static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
+{
+	xrtThreadData* pThreadData = NULL;
+	ptr (*procCalloc)(size_t, size_t) = xCore.calloc ? xCore.calloc : calloc;
+	pThreadData = procCalloc(1, sizeof(xrtThreadData));
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+	pThreadData->pGlobal = &xCore;
+	pThreadData->iThreadId = __xrtGetCurrentThreadId();
+	pThreadData->pSelf = pThread;
+	pThreadData->iAttachDepth = 1;
+	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
+	pThreadData->bFreeLastError = FALSE;
+	pThreadData->TempMemIdx = 0;
+	pThreadData->pCleanupTop = NULL;
+	__xrtInitThreadMemState(pThreadData);
+	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
+		pThreadData->TempMem[i] = NULL;
+	}
+	__xrtSeedThreadRand(pThreadData);
+	return pThreadData;
+}
+static void __xrtFreeThreadError(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
+		procFree(pThreadData->LastError);
+	}
+	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
+	pThreadData->bFreeLastError = FALSE;
+}
+static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
+		if ( pThreadData->TempMem[i] ) {
+			procFree(pThreadData->TempMem[i]);
+			pThreadData->TempMem[i] = NULL;
 		}
-	#endif
-	
-	// 初始化 socket
-	#if defined(_WIN32) || defined(_WIN64)
-		WSADATA wsaData;
-		WSAStartup(MAKEWORD(2, 2), &wsaData);
-	#endif
-	
-	// 获取本机 IP
-	#ifndef XRT_NO_NETWORK
-		xCore.LocalAddr = xrtGetLocalRawIP();
-	#else
-		xCore.LocalAddr = 0;
-	#endif
-	
-	// 初始化模板引擎
-	#ifndef XRT_NO_TEMPLATE
-		xte_private_init();
-	#endif
-	
+	}
+	pThreadData->TempMemIdx = 0;
+}
+static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	while ( pThreadData->pCleanupTop ) {
+		xrtThreadCleanup* pCleanup = pThreadData->pCleanupTop;
+		pThreadData->pCleanupTop = pCleanup->pPrev;
+		if ( pCleanup->Proc ) {
+			pCleanup->Proc(pThreadData, pCleanup->Arg);
+		}
+		procFree(pCleanup);
+	}
+}
+XXAPI xrtThreadData* xrtThreadGetCurrent()
+{
+	return __xrtThreadState;
+}
+XXAPI bool xrtThreadIsAttached()
+{
+	return __xrtThreadState != NULL;
+}
+XXAPI xrtThreadData* xrtThreadAttachCurrent()
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	if ( pThreadData ) {
+		pThreadData->iAttachDepth++;
+		return pThreadData;
+	}
+	if ( !xCore.bInit ) {
+		return NULL;
+	}
+	pThreadData = __xrtCreateThreadState(NULL);
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+	__xrtThreadState = pThreadData;
+	return pThreadData;
+}
+static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
+{
+	xrtThreadData* pThreadData = xrtThreadAttachCurrent();
+	if ( pThreadData ) {
+		pThreadData->pSelf = pThread;
+		pThreadData->iThreadId = __xrtGetCurrentThreadId();
+		pThreadData->tMem.iOwnerThreadId = pThreadData->iThreadId;
+	}
+	return pThreadData;
+}
+XXAPI void xrtThreadDetachCurrent()
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	if ( pThreadData->iAttachDepth > 1 ) {
+		pThreadData->iAttachDepth--;
+		return;
+	}
+	__xrtRunThreadCleanup(pThreadData);
+	__xrtFreeThreadError(pThreadData);
+	__xrtFreeThreadTempMemory(pThreadData);
+	__xrtUnitThreadMemState(pThreadData);
+	__xrtThreadState = NULL;
+	procFree(pThreadData);
+}
+XXAPI str xrtGetError()
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	if ( pThreadData ) {
+		return pThreadData->LastError;
+	}
+	if ( xCore.sNull ) {
+		return xCore.sNull;
+	}
+	return (str)__xrt_sNullBytes;
+}
+XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadCleanup* pCleanup = NULL;
+	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
+	if ( pThreadData == NULL || proc == NULL ) {
+		return FALSE;
+	}
+	pCleanup = procMalloc(sizeof(xrtThreadCleanup));
+	if ( pCleanup == NULL ) {
+		return FALSE;
+	}
+	pCleanup->Proc = proc;
+	pCleanup->Arg = pArg;
+	pCleanup->pPrev = pThreadData->pCleanupTop;
+	pThreadData->pCleanupTop = pCleanup;
+	return TRUE;
+}
+XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadCleanup* pCleanup = NULL;
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pThreadData == NULL || pThreadData->pCleanupTop == NULL ) {
+		return FALSE;
+	}
+	pCleanup = pThreadData->pCleanupTop;
+	if ( pCleanup->Proc != proc || pCleanup->Arg != pArg ) {
+		return FALSE;
+	}
+	pThreadData->pCleanupTop = pCleanup->pPrev;
+	procFree(pCleanup);
+	return TRUE;
+}
+static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode)
+{
+	if ( pThread ) {
+		pThread->ExitCode = iExitCode;
+		pThread->bFinished = TRUE;
+	}
+	xrtThreadDetachCurrent();
+}
+// 初始化 xCore
+XXAPI xrtGlobalData* xrtInit()
+{
+	__xrtRuntimeLock();
+	xCore.iInitRef++;
+	if ( !xCore.bInit ) {
+		// 初始化数据
+		xCore.bInit = TRUE;
+		xCore.sNull = (str)__xrt_sNullBytes;
+		xCore.OnError = NULL;
+		// 初始化内存函数
+		xCore.malloc = malloc;
+		xCore.calloc = calloc;
+		xCore.realloc = realloc;
+		xCore.free = free;
+		// 初始化高精度时钟频率单位
+		#if defined(_WIN32) || defined(_WIN64)
+			LARGE_INTEGER QPF;
+			if ( QueryPerformanceFrequency( &QPF ) ) {
+				xCore.Frequency = QPF.QuadPart;
+			} else {
+				xCore.Frequency = 0;
+			}
+		#endif
+		// 初始化约等于配置（整数容差万分之一、小数容差0.01、时间容差 10 秒、字符串相似度95%）
+		xCore.iApproxIntMode = XRT_APPROX_PERCENT;
+		xCore.fApproxIntTol = 0.0001;
+		xCore.iApproxNumMode = XRT_APPROX_DIFF;
+		xCore.fApproxNumTol = 0.01;
+		xCore.iApproxTimeTol = 10;
+		xCore.iApproxStrMode = XRT_STR_APPROX_SIM;  // 默认相似度模式
+		xCore.fApproxStrTol = 0.95;                 // 默认95%相似度
+		xCore.bApproxStrCase = FALSE;               // 默认区分大小写
+		// 获取程序文件名和路径
+		#if defined(_WIN32) || defined(_WIN64)
+			u16str sTemp = malloc(4096 * sizeof(wchar_t));
+			int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
+			size_t iRetSize = 0;
+			xCore.AppFile = xrtUTF16to8(sTemp, iSize, &iRetSize);
+			free(sTemp);
+			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
+		#else
+			str sTemp = malloc(4096);
+			ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
+			if ( iSize == -1 ) {
+				// 无法读取程序路径
+				free(sTemp);
+				xCore.AppFile = xCore.sNull;
+				xCore.AppPath = xCore.sNull;
+			} else {
+				xCore.AppFile = xrtCopyStr(sTemp, iSize);
+				free(sTemp);
+				xCore.AppPath = xrtPathGetDir(xCore.AppFile, iSize);
+			}
+		#endif
+		// 初始化 socket
+		#if defined(_WIN32) || defined(_WIN64)
+			#if __XRT_RUNTIME_NEED_WSA
+				WSADATA wsaData;
+				WSAStartup(MAKEWORD(2, 2), &wsaData);
+			#endif
+		#endif
+		// 获取本机 IP
+		#ifndef XRT_NO_NETWORK
+			xCore.LocalAddr = xrtGetLocalRawIP();
+		#else
+			xCore.LocalAddr = 0;
+		#endif
+		// 初始化模板引擎
+		#ifndef XRT_NO_TEMPLATE
+			xte_private_init();
+		#endif
+	}
+	__xrtRuntimeUnlock();
+	xrtThreadAttachCurrent();
 	return &xCore;
 }
 // 释放 xCore
 XXAPI void xrtUnit()
 {
-	// 减少引用计数
-	if ( __xrt_RefCount > 0 ) {
-		__xrt_RefCount--;
+	xrtThreadDetachCurrent();
+	__xrtRuntimeLock();
+	if ( xCore.iInitRef > 0 ) {
+		xCore.iInitRef--;
 	}
-	
 	// 只有引用计数为 0 时才真正释放资源
-	if ( (__xrt_RefCount == 0) && (xCore.bInit) ) {
-		
+	if ( (xCore.iInitRef == 0) && (xCore.bInit) ) {
 		// 清理模板引擎
 		#ifndef XRT_NO_TEMPLATE
 			xte_private_unit();
 		#endif
-		
 		// 释放应用路径
 		xrtFree(xCore.AppFile);
 		xCore.AppFile = xCore.sNull;
 		xrtFree(xCore.AppPath);
 		xCore.AppPath = xCore.sNull;
-		
-		// 释放错误描述
-		if ( xCore.__pri_FreeError && xCore.LastError ) {
-			xrtFree(xCore.LastError);
-			xCore.LastError = xCore.sNull;
-			xCore.__pri_FreeError = FALSE;
-		}
-		
-		// 释放环形临时内存
-		xrtFreeTempMemory();
-		
 		// 重置初始化标记
 		xCore.bInit = FALSE;
-		
 		// 释放 socket
 		#if defined(_WIN32) || defined(_WIN64)
-			WSACleanup();
+			#if __XRT_RUNTIME_NEED_WSA
+				WSACleanup();
+			#endif
 		#endif
 	}
+	__xrtRuntimeUnlock();
 }
 #ifdef DBUILD_DLL
 	

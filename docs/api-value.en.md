@@ -10,6 +10,7 @@
 
 - [Type System](#type-system)
 - [Reference Management](#reference-management)
+- [Shared Mode](#shared-mode)
 - [Creating Values](#creating-values)
 - [Reading Values](#reading-values)
 - [Type Checking](#type-checking)
@@ -47,26 +48,31 @@
 
 ```c
 typedef struct xvalue_struct {
-    uint32 Type:4;          // Type (4 bits)
-    uint32 Reserve:1;       // Reserved (1 bit)
-    uint32 IsStatic:1;      // Is static (1 bit)
-    uint32 RefCount:26;     // Reference count (26 bits, max 67108863)
-    uint32 Size;            // Data size
-    union {
-        bool vBool;         // Boolean value
-        int64 vInt;         // Integer value
-        double vFloat;      // Floating point value
-        str vText;          // String pointer
-        xtime vTime;        // Time value
-        ptr vPoint;         // Pointer
-        xfunction vFunc;    // Function pointer
-        xparray vArray;     // Array
-        xlist vList;        // List
-        xavltree vColl;     // Collection
-        xdict vTable;       // Table
-        ptr vStruct;        // Class instance data
-        ptr vCustom;        // Custom data
-    };
+	union {
+		struct {
+			uint32 Type:4;		// Type (4 bits)
+			uint32 Reserve:1;	// Reserved (1 bit)
+			uint32 IsStatic:1;	// Is static (1 bit)
+			uint32 RefCount:26;	// Reference count (26 bits, max 67108863)
+		};
+		volatile uint32 Header;	// Shared values update the raw header atomically
+	};
+	uint32 Size;				// Data size
+	union {
+		bool vBool;			// Boolean value
+		int64 vInt;			// Integer value
+		double vFloat;		// Floating point value
+		str vText;			// String pointer
+		xtime vTime;		// Time value
+		ptr vPoint;			// Pointer
+		xfunction vFunc;	// Function pointer
+		xparray vArray;		// Array
+		xlist vList;		// List
+		xavltree vColl;		// Collection
+		xdict vTable;		// Table
+		ptr vStruct;		// Class instance data
+		ptr vCustom;		// Custom data
+	};
 } xvalue_struct, *xvalue;
 
 // Function pointer type
@@ -91,6 +97,8 @@ static inline void xvoAddRef_Inline(xvalue pVal);
 
 **Description:**
 - Increments reference count by 1
+- local values keep the cheap local fast path
+- shared values automatically use the atomic top-level refcount path
 - When reference count reaches maximum (0x3FFFFFF), automatically converts to static value
 
 ---
@@ -116,6 +124,37 @@ xvalue v = xvoCreateInt(100);
 xvoAddRef(v);   // RefCount = 2
 xvoUnref(v);    // RefCount = 1
 xvoUnref(v);    // RefCount = 0, released
+```
+
+---
+
+## Shared Mode
+
+After phase-2, cross-thread `xvalue` semantics are explicit:
+
+- `xvoCreateArray/List/Coll/Table()` create local roots by default
+- `xvoCreate*Ex(XRT_OBJMODE_SHARED)` explicitly creates shared roots
+- array/list/coll/table-backed shared `xvalue` objects automatically use atomic top-level refcounting
+- when writing child values into a shared container, primitive values are promoted automatically, but nested containers must already own a real shared root
+- the script-like API style stays the same; only the cross-thread boundary becomes explicit
+
+Common shared-root constructors:
+
+```c
+XXAPI xvalue xvoCreateArrayEx(uint32 iMode);
+XXAPI xvalue xvoCreateListEx(uint32 iMode);
+XXAPI xvalue xvoCreateCollEx(uint32 iMode);
+XXAPI xvalue xvoCreateTableEx(uint32 iMode);
+```
+
+Example:
+
+```c
+xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+
+xvoCollSetText(tags, "ai", 0, FALSE);
+xvoTableSetValue(table, "tags", 4, tags, FALSE);	// Valid: tags already owns a real shared root
 ```
 
 ---
@@ -266,9 +305,13 @@ Create empty array
 **Prototype:**
 ```c
 XXAPI xvalue xvoCreateArray();
+XXAPI xvalue xvoCreateArrayEx(uint32 iMode);
 ```
 
-**Description:** Based on `xparray` implementation, supports dynamic resizing
+**Description:**
+- Based on `xparray` implementation, supports dynamic resizing
+- `xvoCreateArray()` is equivalent to `xvoCreateArrayEx(XRT_OBJMODE_LOCAL)`
+- Use `xvoCreateArrayEx(XRT_OBJMODE_SHARED)` for cross-thread roots
 
 ---
 
@@ -279,9 +322,13 @@ Create empty list
 **Prototype:**
 ```c
 XXAPI xvalue xvoCreateList();
+XXAPI xvalue xvoCreateListEx(uint32 iMode);
 ```
 
-**Description:** Based on `xlist` implementation, key is int64 type
+**Description:**
+- Based on `xlist` implementation, key is int64 type
+- `xvoCreateList()` is equivalent to `xvoCreateListEx(XRT_OBJMODE_LOCAL)`
+- Use `xvoCreateListEx(XRT_OBJMODE_SHARED)` for cross-thread roots
 
 ---
 
@@ -292,9 +339,13 @@ Create empty collection
 **Prototype:**
 ```c
 XXAPI xvalue xvoCreateColl();
+XXAPI xvalue xvoCreateCollEx(uint32 iMode);
 ```
 
-**Description:** Based on AVL tree implementation, elements are automatically deduplicated and sorted
+**Description:**
+- Based on AVL tree implementation, elements are automatically deduplicated and sorted
+- `xvoCreateColl()` is equivalent to `xvoCreateCollEx(XRT_OBJMODE_LOCAL)`
+- `xvoCreateCollEx(XRT_OBJMODE_SHARED)` creates a real shared collection root; public root operations such as set/remove/clear/itemcount/set parent can be used across threads
 
 ---
 
@@ -305,9 +356,13 @@ Create empty table (dictionary)
 **Prototype:**
 ```c
 XXAPI xvalue xvoCreateTable();
+XXAPI xvalue xvoCreateTableEx(uint32 iMode);
 ```
 
-**Description:** Based on `xdict` implementation, string keys
+**Description:**
+- Based on `xdict` implementation, string keys
+- `xvoCreateTable()` is equivalent to `xvoCreateTableEx(XRT_OBJMODE_LOCAL)`
+- Use `xvoCreateTableEx(XRT_OBJMODE_SHARED)` for cross-thread roots
 
 ---
 
@@ -788,6 +843,10 @@ xvoUnref(list);
 
 Collection (Coll) is based on AVL tree implementation, elements are automatically deduplicated and sorted.
 
+After phase-2:
+- `xvoCreateCollEx(XRT_OBJMODE_SHARED)` creates a real shared collection root
+- when a `coll` is stored as a child value inside a shared array/list/coll/table, that `coll` must also already own a real shared root
+
 ### xvoCollSetValue
 
 Add element to collection
@@ -1215,6 +1274,22 @@ for (int i = 0; i < 1000; i++) {
     xvoArrayAppendInt(arr, i);
 }
 xvoUnref(arr);
+```
+
+---
+
+### 4. Cross-thread Sharing
+
+```c
+// ✅ Correct: use shared roots for cross-thread containers
+xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+xvoCollSetText(tags, "agent", 0, FALSE);
+xvoTableSetValue(table, "tags", 4, tags, FALSE);
+
+// ❌ Wrong: storing a local container directly into a shared container
+xvalue bad = xvoCreateColl();
+xvoTableSetValue(table, "bad", 3, bad, FALSE);	// Returns FALSE and sets the current-thread error
 ```
 
 ---

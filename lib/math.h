@@ -6,7 +6,7 @@
 	修改：
 		整合到 xrt 库
 		提供 Ex 版本 API（调用者管理状态，线程安全）
-		普通版本 API 使用全局状态（线程不安全，性能优先）
+		普通版本 API 使用线程状态（线程隔离，性能优先）
 	使用协议注意事项：
 		Apache License, Version 2.0 协议
 		允许个人使用、商业使用
@@ -105,7 +105,14 @@ XXAPI int xrtRandRangeEx(xrand* rng, int min, int max)
 // 获取 32 位随机数
 XXAPI uint32 xrtRand32()
 {
-	return xrtRand32Ex(&xCore.rand32);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return 0;
+	}
+
+	return xrtRand32Ex(&pThreadData->rand32);
 }
 
 
@@ -113,7 +120,14 @@ XXAPI uint32 xrtRand32()
 // 获取 64 位随机数
 XXAPI uint64 xrtRand64()
 {
-	return xrtRand64Ex(&xCore.rand64_low, &xCore.rand64_high);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return 0;
+	}
+
+	return xrtRand64Ex(&pThreadData->rand64_low, &pThreadData->rand64_high);
 }
 
 
@@ -121,7 +135,14 @@ XXAPI uint64 xrtRand64()
 // 获取 32 位范围随机数
 XXAPI int xrtRandRange(int min, int max)
 {
-	return xrtRandRangeEx(&xCore.rand32, min, max);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return 0;
+	}
+
+	return xrtRandRangeEx(&pThreadData->rand32, min, max);
 }
 
 

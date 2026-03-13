@@ -107,13 +107,20 @@ xrtGlobalData* xrtInit();           // 初始化库
 void xrtUnit();                      // 释放库资源
 ```
 
+说明：
+- `xrtInit()` 会初始化全局运行时，并自动附加当前线程
+- `xrtUnit()` 会分离当前线程；当全局引用计数归零时再释放全局资源
+- `xvoCreateArray/List/Coll/Table()` 默认创建本线程本地 root；跨线程共享请使用 `xvoCreate*Ex(..., XRT_OBJMODE_SHARED)`
+- shared root 下的 `xvalue` 顶层引用计数会自动进入共享路径；如果继续直接使用底层 root 指针、walk 或 iterator，请配合对应 `Lock/Unlock`
+
 #### 内存管理
 ```c
 ptr xrtMalloc(size_t iSize);                 // 分配内存
 ptr xrtCalloc(size_t iNum, size_t iSize);   // 分配并清零
 ptr xrtRealloc(ptr pMem, size_t iSize);     // 重新分配
 void xrtFree(ptr pmem);                      // 释放内存
-ptr xrtTempMemory(size_t iSize);            // 临时内存（自动释放）
+ptr xrtTempMemory(size_t iSize);            // 线程级临时内存（短期自动管理）
+str xrtGetError();                           // 获取当前线程错误信息
 ```
 
 #### 字符串操作
@@ -183,8 +190,13 @@ int main() {
 - 使用 `xrtMalloc/xrtCalloc/xrtRealloc` 分配的内存
 
 **无需释放的函数：**
-- `xrtTempMemory` - 使用环形临时内存，自动管理
+- `xrtTempMemory` - 使用线程级临时内存，自动管理
 - 返回常量字符串的函数
+
+线程说明：
+- 主线程在 `xrtInit()` 后自动进入 XRT 运行时上下文
+- `xrtThreadCreate()` 创建的线程会自动附加到运行时，可直接调用运行时相关 API
+- 宿主自行创建的线程如需调用运行时相关 API，应先调用 `xrtThreadAttachCurrent()`，结束前调用 `xrtThreadDetachCurrent()`
 
 ### 3. 字符集处理
 
@@ -211,8 +223,8 @@ void OnError(str sError) {
 xCore->OnError = OnError;
 
 // 检查错误
-if (xCore->LastError != xCore->sNull) {
-    printf("Last Error: %s\n", xCore->LastError);
+if (xrtGetError() != xCore->sNull) {
+    printf("Last Error: %s\n", xrtGetError());
 }
 ```
 

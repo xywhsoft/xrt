@@ -121,20 +121,12 @@ static bool __xhttp2StrEqNoCase(const char* sA, const char* sB)
 
 static long __xhttp2AtomicAdd(volatile long* pValue, long iDelta)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedExchangeAdd((volatile LONG*)pValue, iDelta) + iDelta;
-	#else
-		return __sync_add_and_fetch(pValue, iDelta);
-	#endif
+	return __xrtAtomicAddFetch32(pValue, iDelta);
 }
 
 static long __xhttp2AtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, iExchange, iComparand);
-	#else
-		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
-	#endif
+	return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
 }
 
 static long __xhttp2AtomicLoad(volatile long* pValue)

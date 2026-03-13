@@ -4,9 +4,13 @@
 // 创建内存管理器
 XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength)
 {
+	return xrtFSMemPoolCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xfsmempool xrtFSMemPoolCreateEx(unsigned int iItemLength, uint32 iMode)
+{
 	xfsmempool mm = xrtMalloc(sizeof(xfsmempool_struct));
 	if ( mm ) {
-		xrtFSMemPoolInit(mm, iItemLength);
+		xrtFSMemPoolInitEx(mm, iItemLength, iMode);
 	}
 	return mm;
 }
@@ -15,6 +19,9 @@ XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength)
 XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM)
 {
 	if ( objMM ) {
+		if ( !xrtOwnerCheckMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+			return;
+		}
 		xrtFSMemPoolUnit(objMM);
 		xrtFree(objMM);
 	}
@@ -23,8 +30,16 @@ XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM)
 // 初始化内存管理器（对自维护结构体指针使用）
 XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength)
 {
+	xrtFSMemPoolInitEx(objMM, iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtFSMemPoolInitEx(xfsmempool objMM, unsigned int iItemLength, uint32 iMode)
+{
+	xrtOwnerInitMode(&objMM->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objMM->Owner);
+	}
 	objMM->ItemLength = iItemLength;
-	xrtBsmmInit(&objMM->arrMMU, sizeof(MMU_LLNode));
+	xrtBsmmInitEx(&objMM->arrMMU, sizeof(MMU_LLNode), iMode);
 	objMM->arrMMU.PageMMU.AllocStep = 64;
 	objMM->LL_Idle = NULL;
 	objMM->LL_Full = NULL;
@@ -35,6 +50,9 @@ XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength)
 // 释放内存管理器（对自维护结构体指针使用）
 XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 {
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
 	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
@@ -47,11 +65,16 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	objMM->LL_Full = NULL;
 	objMM->LL_Null = NULL;
 	objMM->LL_Free = NULL;
+	xrtOwnerEndMutable(&objMM->Owner);
 }
 
 // 从内存管理器中申请一块内存
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {
+	ptr pResult = NULL;
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return NULL;
+	}
 	xmemunit objMMU = NULL;
 	if ( objMM->LL_Idle == NULL ) {
 		// 如果没有空闲的内存管理单元，优先使用备用的全空单元，或创建一个新的单元
@@ -62,8 +85,9 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			objMM->LL_Null = NULL;
 		} else if ( objMM->LL_Free ) {
 			// 创建新的内存管理单元，使用已释放的内存管理单元位置
-			objMMU = xrtMemUnitCreate(objMM->ItemLength);
+			objMMU = xrtMemUnitCreateEx(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
 			if ( objMMU == NULL ) {
+				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;
 			}
 			// 恢复Flag，写入新申请的单元
@@ -81,8 +105,9 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			objMM->LL_Idle = pNode;
 		} else {
 			// 创建新的内存管理单元，创建失败就报错处理
-			objMMU = xrtMemUnitCreate(objMM->ItemLength);
+			objMMU = xrtMemUnitCreateEx(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
 			if ( objMMU == NULL ) {
+				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;
 			}
 			// 将创建好的内存管理单元添加到单元阵列管理器，添加失败就报错处理
@@ -98,6 +123,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			} else {
 				xrtMemUnitDestroy(objMMU);
 				xrtSetError("Fixed-Size Memory Pool : add memory unit failed.", FALSE);
+				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;
 			}
 		}
@@ -122,7 +148,9 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 		}
 	}
 	// 从选定内存管理器单元中申请内存块
-	return xrtMemUnitAlloc_Inline(objMMU);
+	pResult = xrtMemUnitAlloc_Inline(objMMU);
+	xrtOwnerEndMutable(&objMM->Owner);
+	return pResult;
 }
 
 // 将内存管理器申请的内存释放掉
@@ -199,6 +227,9 @@ static inline void MM256_LLNode_IdleCheck(xfsmempool objMM, MMU_LLNode* pNode)
 }
 XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 {
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
 	MMU_ValuePtr v = p - sizeof(MMU_Value);
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
@@ -207,6 +238,7 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, iMMU);
 		if ( pNode->objMMU == NULL ) {
 			xrtSetError("Fixed-Size Memory Pool : MMU cannot be null.", FALSE);
+			xrtOwnerEndMutable(&objMM->Owner);
 			return;
 		}
 		// 调用对应 MMU 的释放函数
@@ -219,11 +251,15 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 		// 如果这个内存管理单元已经清空，将他释放或变为备用单元
 		MM256_LLNode_ClearCheck(objMM, pNode, 0);
 	}
+	xrtOwnerEndMutable(&objMM->Owner);
 }
 
 // 进行一轮GC，将未标记为使用中的内存全部回收
 XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 {
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
 	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objMM->LL_Idle;
 	while ( pNode ) {
@@ -252,6 +288,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 		}
 		pNode = pNext;
 	}
+	xrtOwnerEndMutable(&objMM->Owner);
 }
 
 

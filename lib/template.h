@@ -808,36 +808,7 @@ XTE_LiteStruct XTE_LITE_ERROR_MALLOC = {
 	0,
 	{ NULL, 0, 0, 0 },							// Tokens (xarray_struct)
 	{ NULL, 0, 0, 0 },							// Actions (xparray_struct)
-	{
-		{
-			NULL,
-			0,
-			NULL,
-			NULL,
-			NULL,
-			NULL,
-			{
-				0,
-				{
-					0,
-					0,
-					{
-						NULL,
-						0,
-						0,
-						0
-					},
-					NULL
-				},
-				NULL,
-				NULL,
-				NULL,
-				NULL
-			},
-			NULL
-		},
-		NULL
-	}
+	{ 0 }
 };
 
 

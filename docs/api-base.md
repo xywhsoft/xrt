@@ -55,49 +55,25 @@
 
 ### xrtGlobalData
 
-XRT 全局数据结构体，保存库的运行状态和配置。
+XRT 进程级运行时结构体，保存全局状态和配置。
 
 **定义：**
 ```c
 typedef struct {
-    // 初始化状态
-    int bInit;                          // 是否已初始化
-    
-    // 全局常量
-    str sNull;                          // 空字符串常量（只读）
-    
-    // 临时返回值（用于多返回值场景）
-    str sRet;                           // 字符串返回值
-    int64 iRet;                         // 整数返回值
-    double nRet;                        // 浮点数返回值
-    
-    // 错误处理
-    str LastError;                      // 最后一次错误信息
-    int __pri_FreeError;                // 内部：是否需要释放错误字符串
-    void (*OnError)(str sError);        // 错误回调函数
-    
-    // 高精度时钟（仅Windows）
-    #if defined(_WIN32) || defined(_WIN64)
-        uint64 Frequency;               // 时钟频率
-    #endif
-    
-    // 网络信息
-    uint LocalAddr;                     // 本机IP地址（用于XID生成）
-    
-    // 应用信息
-    str AppFile;                        // 应用程序完整路径
-    str AppPath;                        // 应用程序目录
-    
-    // 环形临时内存
-    ptr TempMem[32];                    // 32个临时内存槽位
-    uint32 TempMemIdx;                  // 当前槽位索引
-    
-    // 内存分配函数（可自定义）
-    ptr (*malloc)(size_t iSize);        // 分配内存
-    ptr (*calloc)(size_t iNum, size_t iSize);  // 分配并清零
-    ptr (*realloc)(ptr pMem, size_t iSize);    // 重新分配
-    void (*free)(ptr pMem);             // 释放内存
-    
+	int bInit;                          // 是否已初始化
+	uint32 iInitRef;                    // 全局初始化引用计数
+	str sNull;                          // 全局空字符串常量（只读）
+	void (*OnError)(str sError);        // 全局错误回调函数
+	#if defined(_WIN32) || defined(_WIN64)
+		uint64 Frequency;               // 时钟频率
+	#endif
+	uint LocalAddr;                     // 本机IP地址（用于XID生成）
+	str AppFile;                        // 应用程序完整路径
+	str AppPath;                        // 应用程序目录
+	ptr (*malloc)(size_t iSize);        // 分配内存
+	ptr (*calloc)(size_t iNum, size_t iSize);
+	ptr (*realloc)(ptr pMem, size_t iSize);
+	void (*free)(ptr pMem);             // 释放内存
 } xrtGlobalData;
 ```
 
@@ -106,16 +82,29 @@ typedef struct {
 | 成员 | 类型 | 说明 |
 |------|------|------|
 | `bInit` | `int` | 初始化标志，`TRUE` 表示已初始化 |
+| `iInitRef` | `uint32` | 全局初始化引用计数 |
 | `sNull` | `str` | 全局空字符串，用于安全返回 |
-| `sRet` | `str` | 临时字符串返回值存储 |
-| `iRet` | `int64` | 临时整数返回值存储 |
-| `nRet` | `double` | 临时浮点数返回值存储 |
-| `LastError` | `str` | 最后一次错误信息 |
 | `OnError` | 函数指针 | 错误发生时的回调函数 |
 | `AppFile` | `str` | 当前程序的完整路径 |
 | `AppPath` | `str` | 当前程序所在目录 |
-| `TempMem` | `ptr[32]` | 32个临时内存槽位 |
 | `malloc/calloc/realloc/free` | 函数指针 | 可自定义的内存分配函数 |
+
+### xrtThreadData
+
+XRT 线程级运行时结构体，保存当前线程的错误状态、临时内存、默认随机数状态等。
+
+phase-1 后，以下数据已移动到线程级状态：
+
+- `LastError`
+- `xrtTempMemory()` 使用的 32 槽位临时内存
+- 默认随机数状态 `xrtRand32()` / `xrtRand64()` / `xrtRandRange()`
+
+通常不需要直接操作 `xrtThreadData`，而是通过这些 API 使用线程级运行时：
+
+- `xrtThreadGetCurrent()`
+- `xrtThreadAttachCurrent()`
+- `xrtThreadDetachCurrent()`
+- `xrtGetError()`
 
 ---
 
@@ -130,26 +119,27 @@ typedef struct {
 XXAPI extern xrtGlobalData xCore;
 ```
 
+**说明：**
+- `xCore` 只保存进程级状态
+- phase-1 后，`LastError` 和临时内存不再存储在 `xCore` 中
+- 当前线程错误信息请使用 `xrtGetError()`
+
 **使用示例：**
 ```c
 #include "xrt.h"
 
 int main() {
-    xrtInit();
-    
-    // 访问应用路径
-    printf("App Path: %s\n", xCore.AppPath);
-    
-    // 设置错误回调
-    xCore.OnError = MyErrorHandler;
-    
-    // 检查错误
-    if (xCore.LastError != xCore.sNull) {
-        printf("Error: %s\n", xCore.LastError);
-    }
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	printf("App Path: %s\n", xCore.AppPath);
+	xCore.OnError = MyErrorHandler;
+	
+	if (xrtGetError() != xCore.sNull) {
+		printf("Error: %s\n", xrtGetError());
+	}
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -172,12 +162,13 @@ XXAPI xrtGlobalData* xrtInit();
 **说明：**
 - **必须**在使用任何 XRT 功能前调用
 - 多次调用是安全的（会检查初始化状态）
+- 会自动附加当前线程到 XRT 运行时
 - 初始化内容：
-  - 设置全局常量
-  - 初始化随机数生成器
-  - 获取应用程序路径
-  - 初始化网络（Windows）
-  - 获取本机IP地址
+	- 设置全局常量
+	- 初始化当前线程的线程级运行时状态
+	- 获取应用程序路径
+	- 初始化网络（Windows）
+	- 获取本机IP地址
 
 **示例：**
 ```c
@@ -471,7 +462,7 @@ int main() {
 
 ### xrtTempMemory
 
-分配临时内存（自动管理）
+分配当前线程的临时内存（自动管理）
 
 **函数原型：**
 ```c
@@ -488,10 +479,12 @@ XXAPI ptr xrtTempMemory(size_t iSize);
 **内存释放：** ⭕ **无需手动释放**（自动管理）
 
 **说明：**
-- 使用环形缓冲区（32个槽位）
-- 循环使用，第33次调用会自动释放第1次的内存
+- 使用当前线程独立的 32 槽位临时内存
+- 同一线程第 33 次调用会自动回收本线程第 1 次的内存
+- 不同线程之间不会互相覆盖
 - 适用于临时、短期使用的小内存
 - **不适用于**需要长期持有的数据
+- 依赖线程级运行时；主线程在 `xrtInit()` 后自动附加，`xrtThreadCreate()` 创建的线程也会自动附加
 
 **示例：**
 ```c
@@ -499,21 +492,18 @@ XXAPI ptr xrtTempMemory(size_t iSize);
 #include <stdio.h>
 
 int main() {
-    xrtInit();
-    
-    // 临时格式化字符串
-    str temp1 = xrtTempMemory(100);
-    sprintf((char*)temp1, "Number: %d", 123);
-    printf("%s\n", temp1);  // 使用
-    
-    str temp2 = xrtTempMemory(200);
-    sprintf((char*)temp2, "Value: %.2f", 3.14);
-    printf("%s\n", temp2);
-    
-    // 无需调用 xrtFree
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	str temp1 = xrtTempMemory(100);
+	sprintf((char*)temp1, "Number: %d", 123);
+	printf("%s\n", temp1);
+	
+	str temp2 = xrtTempMemory(200);
+	sprintf((char*)temp2, "Value: %.2f", 3.14);
+	printf("%s\n", temp2);
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -521,16 +511,16 @@ int main() {
 ```c
 // ❌ 错误用法：返回临时内存
 str GetTempString() {
-    str temp = xrtTempMemory(100);
-    strcpy((char*)temp, "data");
-    return temp;  // 危险！可能在32次后被覆盖
+	str temp = xrtTempMemory(100);
+	strcpy((char*)temp, "data");
+	return temp;	// 危险！后续同线程临时分配可能覆盖它
 }
 
 // ✅ 正确用法：立即使用
 void PrintFormat(int value) {
-    str temp = xrtTempMemory(50);
-    sprintf((char*)temp, "Value: %d", value);
-    printf("%s\n", temp);  // 立即使用完毕
+	str temp = xrtTempMemory(50);
+	sprintf((char*)temp, "Value: %d", value);
+	printf("%s\n", temp);	// 立即使用完毕
 }
 ```
 
@@ -538,7 +528,7 @@ void PrintFormat(int value) {
 
 ### xrtFreeTempMemory
 
-释放所有临时内存
+释放当前线程的所有临时内存
 
 **函数原型：**
 ```c
@@ -546,9 +536,9 @@ XXAPI void xrtFreeTempMemory();
 ```
 
 **说明：**
-- 释放所有32个临时内存槽位
-- 重置环形缓冲区索引
-- 通常在 `xrtUnit()` 中自动调用
+- 释放当前线程的 32 个临时内存槽位
+- 重置当前线程的临时内存索引
+- 通常在当前线程 `xrtUnit()` 或 `xrtThreadDetachCurrent()` 时自动调用
 - 可在需要立即释放临时内存时手动调用
 
 **示例：**
@@ -557,20 +547,18 @@ XXAPI void xrtFreeTempMemory();
 #include <stdio.h>
 
 int main() {
-    xrtInit();
-    
-    for (int i = 0; i < 100; i++) {
-        str temp = xrtTempMemory(1024);
-        sprintf((char*)temp, "Item %d", i);
-        // 使用 temp
-        
-        if (i % 32 == 31) {
-            xrtFreeTempMemory();  // 每32次清理一次，避免覆盖
-        }
-    }
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	for (int i = 0; i < 100; i++) {
+		str temp = xrtTempMemory(1024);
+		sprintf((char*)temp, "Item %d", i);
+		if (i % 32 == 31) {
+			xrtFreeTempMemory();
+		}
+	}
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -594,8 +582,9 @@ XXAPI void xrtSetError(str sError, bool bFree);
   - `FALSE` - XRT不会释放（常量字符串）
 
 **说明：**
-- 设置 `xCore.LastError`
+- 设置当前线程的错误状态
 - 如果设置了 `xCore.OnError` 回调，会触发回调
+- 不会影响其他线程的错误状态
 
 **示例：**
 ```c
@@ -607,19 +596,19 @@ void MyErrorHandler(str sError) {
 }
 
 int main() {
-    xrtInit();
-    xCore.OnError = MyErrorHandler;
-    
-    // 使用常量字符串（不释放）
-    xrtSetError("File not found", FALSE);
-    
-    // 使用动态字符串（XRT会释放）
-    int param = -1;
-    str error = xrtFormat("Invalid parameter: %d", param);
-    xrtSetError(error, TRUE);  // XRT会负责释放
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	xCore.OnError = MyErrorHandler;
+	
+	xrtSetError("File not found", FALSE);
+	
+	int param = -1;
+	str error = xrtFormat("Invalid parameter: %d", param);
+	xrtSetError(error, TRUE);
+	
+	fprintf(stderr, "Current Error: %s\n", xrtGetError());
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -648,17 +637,14 @@ XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree);
 #include <stdio.h>
 
 int main() {
-    xrtInit();
-    
-    // 设置 UTF-16 错误信息
-    u16str error = (u16str)L"文件未找到";
-    xrtSetErrorU16(error, 0, FALSE);
-    
-    // 错误信息已转换为 UTF-8
-    printf("Error: %s\n", xCore.LastError);
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	u16str error = (u16str)L"文件未找到";
+	xrtSetErrorU16(error, 0, FALSE);
+	printf("Error: %s\n", xrtGetError());
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -683,6 +669,25 @@ XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree);
 
 ---
 
+### xrtGetError
+
+获取当前线程的错误信息。
+
+**函数原型：**
+```c
+XXAPI str xrtGetError();
+```
+
+**返回值：**
+- 返回当前线程的错误字符串
+- 无错误时返回 `xCore.sNull`
+
+**说明：**
+- phase-1 后这是读取错误状态的推荐方式
+- 不同线程读取到的是各自独立的错误状态
+
+---
+
 ### xrtClearError
 
 清除错误信息
@@ -693,7 +698,7 @@ XXAPI void xrtClearError();
 ```
 
 **说明：**
-- 将 `xCore.LastError` 设置为 `xCore.sNull`
+- 将当前线程错误信息设置为 `xCore.sNull`
 - 如果之前的错误需要释放，会先释放
 
 **示例：**
@@ -702,24 +707,21 @@ XXAPI void xrtClearError();
 #include <stdio.h>
 
 int main() {
-    xrtInit();
-    
-    // 模拟一个错误
-    xrtSetError("Something went wrong", FALSE);
-    
-    // 检查并处理错误
-    if (xCore.LastError != xCore.sNull) {
-        printf("Error: %s\n", xCore.LastError);
-        xrtClearError();  // 清除错误
-    }
-    
-    // 确认错误已清除
-    if (xCore.LastError == xCore.sNull) {
-        printf("Error cleared.\n");
-    }
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	xrtSetError("Something went wrong", FALSE);
+	
+	if (xrtGetError() != xCore.sNull) {
+		printf("Error: %s\n", xrtGetError());
+		xrtClearError();
+	}
+	
+	if (xrtGetError() == xCore.sNull) {
+		printf("Error cleared.\n");
+	}
+	
+	xrtUnit();
+	return 0;
 }
 ```
 

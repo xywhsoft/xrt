@@ -34,9 +34,47 @@
 
 
 // 全局数据
-const int sNullValue = 0;
+static const unsigned char __xrt_sNullBytes[4] = "\0\0\0";
 xrtGlobalData xCore = { FALSE };
-static int __xrt_RefCount = 0;  // 引用计数
+
+#if defined(_WIN32) || defined(_WIN64)
+	#if !defined(XRT_NO_NETWORK) || !defined(XRT_NO_NETSOCK) || !defined(XRT_NO_NETPOLL) || !defined(XRT_NO_NETTLS) || !defined(XRT_NO_NETLOOP) || !defined(XRT_NO_NETPROXY) || !defined(XRT_NO_NETTCP) || !defined(XRT_NO_NETUDP) || !defined(XRT_NO_NETHTTP) || !defined(XRT_NO_NETWS) || !defined(XRT_NO_NETHTTPD)
+		#define __XRT_RUNTIME_NEED_WSA	1
+	#else
+		#define __XRT_RUNTIME_NEED_WSA	0
+	#endif
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+	static SRWLOCK __xrtRuntimeLockObj = SRWLOCK_INIT;
+	#define __xrtRuntimeLock()		AcquireSRWLockExclusive(&__xrtRuntimeLockObj)
+	#define __xrtRuntimeUnlock()	ReleaseSRWLockExclusive(&__xrtRuntimeLockObj)
+	#if defined(__TINYC__)
+		#define XRT_TLS_STORAGE		__declspec(thread)
+	#elif defined(__GNUC__)
+		#define XRT_TLS_STORAGE		__thread
+	#else
+		#define XRT_TLS_STORAGE		__declspec(thread)
+	#endif
+#else
+	static pthread_mutex_t __xrtRuntimeLockObj = PTHREAD_MUTEX_INITIALIZER;
+	#define __xrtRuntimeLock()		pthread_mutex_lock(&__xrtRuntimeLockObj)
+	#define __xrtRuntimeUnlock()	pthread_mutex_unlock(&__xrtRuntimeLockObj)
+	#define XRT_TLS_STORAGE			__thread
+#endif
+
+static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+
+static uint64 __xrtGetSeedTick();
+static void __xrtSeedThreadRand(xrtThreadData* pThreadData);
+static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread);
+static void __xrtInitThreadMemState(xrtThreadData* pThreadData);
+static void __xrtUnitThreadMemState(xrtThreadData* pThreadData);
+static void __xrtFreeThreadError(xrtThreadData* pThreadData);
+static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData);
+static void __xrtRunThreadCleanup(xrtThreadData* pThreadData);
+static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread);
+static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode);
 
 
 
@@ -187,110 +225,419 @@ static int __xrt_RefCount = 0;  // 引用计数
 
 
 
-// 初始化 xCore
-XXAPI xrtGlobalData* xrtInit()
+static uint64 __xrtGetCurrentThreadId()
 {
-	// 增加引用计数
-	__xrt_RefCount++;
-	
-	if ( xCore.bInit ) {
-		return &xCore;
-	}
-	
-	// 初始化数据
-	xCore.bInit = TRUE;
-	xCore.sNull = (str)&sNullValue;
-	xCore.LastError = xCore.sNull;
-	xCore.__pri_FreeError = FALSE;
-	xCore.OnError = NULL;
-	
-	// 初始化内存函数
-	xCore.malloc = malloc;
-	xCore.calloc = calloc;
-	xCore.realloc = realloc;
-	xCore.free = free;
-	
-	// 初始化环形临时内存
-	for ( int i = 0; i < 32; i++ ) {
-		xCore.TempMem[i] = NULL;
-	}
-	xCore.TempMemIdx = 0;
-	
-	// 初始化高精度时钟频率单位
 	#if defined(_WIN32) || defined(_WIN64)
-		LARGE_INTEGER QPF;
-		if ( QueryPerformanceFrequency( &QPF ) ) {
-			xCore.Frequency = QPF.QuadPart;
-		} else {
-			xCore.Frequency = 0;
-		}
+		return GetCurrentThreadId();
+	#else
+		return (uint64)(uintptr_t)pthread_self();
 	#endif
-	
-	// 初始化随机数生成器
+}
+
+
+
+static uint64 __xrtGetSeedTick()
+{
 	uint64 iTick = 0;
+
 	#if defined(_WIN32) || defined(_WIN64)
 		iTick = GetTickCount64() ^ (uint64)GetCurrentProcessId();
 	#else
 		struct timespec timer;
 		clock_gettime(CLOCK_MONOTONIC, &timer);
-		iTick = ((uint64)timer.tv_sec << 30) | timer.tv_nsec;
+		iTick = ((uint64)timer.tv_sec << 30) | (uint64)timer.tv_nsec;
 		iTick ^= (uint64)getpid();
 	#endif
-	xrtRandSeed(&xCore.rand32, iTick, 0xda3e39cb94b95bdbULL ^ iTick);
-	xrtRandSeed(&xCore.rand64_low, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
-	xrtRandSeed(&xCore.rand64_high, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
-	
-	// 初始化约等于配置（整数容差万分之一、小数容差0.01、时间容差 10 秒、字符串相似度95%）
-	xCore.iApproxIntMode = XRT_APPROX_PERCENT;
-	xCore.fApproxIntTol = 0.0001;
-	xCore.iApproxNumMode = XRT_APPROX_DIFF;
-	xCore.fApproxNumTol = 0.01;
-	xCore.iApproxTimeTol = 10;
-	xCore.iApproxStrMode = XRT_STR_APPROX_SIM;  // 默认相似度模式
-	xCore.fApproxStrTol = 0.95;                 // 默认95%相似度
-	xCore.bApproxStrCase = FALSE;               // 默认区分大小写
-	
-	// 获取程序文件名和路径
-	#if defined(_WIN32) || defined(_WIN64)
-		u16str sTemp = malloc(4096 * sizeof(wchar_t));
-		int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
-		size_t iRetSize = 0;
-		xCore.AppFile = xrtUTF16to8(sTemp, iSize, &iRetSize);
-		free(sTemp);
-		xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
-	#else
-		str sTemp = malloc(4096);
-		ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
-		if ( iSize == -1 ) {
-			// 无法读取程序路径
-			free(sTemp);
-			xCore.AppFile = xCore.sNull;
-			xCore.AppPath = xCore.sNull;
-		} else {
-			xCore.AppFile = xrtCopyStr(sTemp, iSize);
-			free(sTemp);
-			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iSize);
+
+	return iTick;
+}
+
+
+
+static void __xrtSeedThreadRand(xrtThreadData* pThreadData)
+{
+	uint64 iTick = __xrtGetSeedTick();
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	iTick ^= (uint64)(uintptr_t)pThreadData;
+	iTick ^= pThreadData->iThreadId;
+
+	xrtRandSeed(&pThreadData->rand32, iTick, 0xda3e39cb94b95bdbULL ^ iTick);
+	xrtRandSeed(&pThreadData->rand64_low, iTick * 0x5851f42d4c957f2dULL, 0xda3e39cb94b95bdbULL);
+	xrtRandSeed(&pThreadData->rand64_high, iTick ^ 0x14057b7ef767814fULL, 0x14057b7ef767814fULL);
+}
+
+
+
+static void __xrtInitThreadMemState(xrtThreadData* pThreadData)
+{
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	pThreadData->tMem.iOwnerThreadId = pThreadData->iThreadId;
+	pThreadData->tMem.iFlags = 0;
+	pThreadData->tMem.iReserved = 0;
+	pThreadData->tMem.pLocalAlloc = NULL;
+	pThreadData->tMem.pSharedAlloc = NULL;
+	pThreadData->tMem.pReserved = NULL;
+}
+
+
+
+static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
+{
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	pThreadData->tMem.iOwnerThreadId = 0;
+	pThreadData->tMem.iFlags = 0;
+	pThreadData->tMem.iReserved = 0;
+	pThreadData->tMem.pLocalAlloc = NULL;
+	pThreadData->tMem.pSharedAlloc = NULL;
+	pThreadData->tMem.pReserved = NULL;
+}
+
+
+
+static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
+{
+	xrtThreadData* pThreadData = NULL;
+	ptr (*procCalloc)(size_t, size_t) = xCore.calloc ? xCore.calloc : calloc;
+
+	pThreadData = procCalloc(1, sizeof(xrtThreadData));
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+
+	pThreadData->pGlobal = &xCore;
+	pThreadData->iThreadId = __xrtGetCurrentThreadId();
+	pThreadData->pSelf = pThread;
+	pThreadData->iAttachDepth = 1;
+	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
+	pThreadData->bFreeLastError = FALSE;
+	pThreadData->TempMemIdx = 0;
+	pThreadData->pCleanupTop = NULL;
+	__xrtInitThreadMemState(pThreadData);
+
+	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
+		pThreadData->TempMem[i] = NULL;
+	}
+
+	__xrtSeedThreadRand(pThreadData);
+
+	return pThreadData;
+}
+
+
+
+static void __xrtFreeThreadError(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
+		procFree(pThreadData->LastError);
+	}
+
+	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
+	pThreadData->bFreeLastError = FALSE;
+}
+
+
+
+static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
+		if ( pThreadData->TempMem[i] ) {
+			procFree(pThreadData->TempMem[i]);
+			pThreadData->TempMem[i] = NULL;
 		}
-	#endif
-	
-	// 初始化 socket
-	#if defined(_WIN32) || defined(_WIN64)
-		WSADATA wsaData;
-		WSAStartup(MAKEWORD(2, 2), &wsaData);
-	#endif
-	
-	// 获取本机 IP
-	#ifndef XRT_NO_NETWORK
-		xCore.LocalAddr = xrtGetLocalRawIP();
-	#else
-		xCore.LocalAddr = 0;
-	#endif
-	
-	// 初始化模板引擎
-	#ifndef XRT_NO_TEMPLATE
-		xte_private_init();
-	#endif
-	
+	}
+
+	pThreadData->TempMemIdx = 0;
+}
+
+
+
+static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	while ( pThreadData->pCleanupTop ) {
+		xrtThreadCleanup* pCleanup = pThreadData->pCleanupTop;
+
+		pThreadData->pCleanupTop = pCleanup->pPrev;
+
+		if ( pCleanup->Proc ) {
+			pCleanup->Proc(pThreadData, pCleanup->Arg);
+		}
+
+		procFree(pCleanup);
+	}
+}
+
+
+
+XXAPI xrtThreadData* xrtThreadGetCurrent()
+{
+	return __xrtThreadState;
+}
+
+
+
+XXAPI bool xrtThreadIsAttached()
+{
+	return __xrtThreadState != NULL;
+}
+
+
+
+XXAPI xrtThreadData* xrtThreadAttachCurrent()
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+
+	if ( pThreadData ) {
+		pThreadData->iAttachDepth++;
+		return pThreadData;
+	}
+
+	if ( !xCore.bInit ) {
+		return NULL;
+	}
+
+	pThreadData = __xrtCreateThreadState(NULL);
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+
+	__xrtThreadState = pThreadData;
+	return pThreadData;
+}
+
+
+
+static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
+{
+	xrtThreadData* pThreadData = xrtThreadAttachCurrent();
+
+	if ( pThreadData ) {
+		pThreadData->pSelf = pThread;
+		pThreadData->iThreadId = __xrtGetCurrentThreadId();
+		pThreadData->tMem.iOwnerThreadId = pThreadData->iThreadId;
+	}
+
+	return pThreadData;
+}
+
+
+
+XXAPI void xrtThreadDetachCurrent()
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	if ( pThreadData->iAttachDepth > 1 ) {
+		pThreadData->iAttachDepth--;
+		return;
+	}
+
+	__xrtRunThreadCleanup(pThreadData);
+	__xrtFreeThreadError(pThreadData);
+	__xrtFreeThreadTempMemory(pThreadData);
+	__xrtUnitThreadMemState(pThreadData);
+
+	__xrtThreadState = NULL;
+	procFree(pThreadData);
+}
+
+
+
+XXAPI str xrtGetError()
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+
+	if ( pThreadData ) {
+		return pThreadData->LastError;
+	}
+
+	if ( xCore.sNull ) {
+		return xCore.sNull;
+	}
+
+	return (str)__xrt_sNullBytes;
+}
+
+
+
+XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadCleanup* pCleanup = NULL;
+	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
+
+	if ( pThreadData == NULL || proc == NULL ) {
+		return FALSE;
+	}
+
+	pCleanup = procMalloc(sizeof(xrtThreadCleanup));
+	if ( pCleanup == NULL ) {
+		return FALSE;
+	}
+
+	pCleanup->Proc = proc;
+	pCleanup->Arg = pArg;
+	pCleanup->pPrev = pThreadData->pCleanupTop;
+	pThreadData->pCleanupTop = pCleanup;
+
+	return TRUE;
+}
+
+
+
+XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
+{
+	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadCleanup* pCleanup = NULL;
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+
+	if ( pThreadData == NULL || pThreadData->pCleanupTop == NULL ) {
+		return FALSE;
+	}
+
+	pCleanup = pThreadData->pCleanupTop;
+	if ( pCleanup->Proc != proc || pCleanup->Arg != pArg ) {
+		return FALSE;
+	}
+
+	pThreadData->pCleanupTop = pCleanup->pPrev;
+	procFree(pCleanup);
+
+	return TRUE;
+}
+
+
+
+static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode)
+{
+	if ( pThread ) {
+		pThread->ExitCode = iExitCode;
+		pThread->bFinished = TRUE;
+	}
+
+	xrtThreadDetachCurrent();
+}
+
+
+
+// 初始化 xCore
+XXAPI xrtGlobalData* xrtInit()
+{
+	__xrtRuntimeLock();
+
+	xCore.iInitRef++;
+
+	if ( !xCore.bInit ) {
+		// 初始化数据
+		xCore.bInit = TRUE;
+		xCore.sNull = (str)__xrt_sNullBytes;
+		xCore.OnError = NULL;
+
+		// 初始化内存函数
+		xCore.malloc = malloc;
+		xCore.calloc = calloc;
+		xCore.realloc = realloc;
+		xCore.free = free;
+
+		// 初始化高精度时钟频率单位
+		#if defined(_WIN32) || defined(_WIN64)
+			LARGE_INTEGER QPF;
+			if ( QueryPerformanceFrequency( &QPF ) ) {
+				xCore.Frequency = QPF.QuadPart;
+			} else {
+				xCore.Frequency = 0;
+			}
+		#endif
+
+		// 初始化约等于配置（整数容差万分之一、小数容差0.01、时间容差 10 秒、字符串相似度95%）
+		xCore.iApproxIntMode = XRT_APPROX_PERCENT;
+		xCore.fApproxIntTol = 0.0001;
+		xCore.iApproxNumMode = XRT_APPROX_DIFF;
+		xCore.fApproxNumTol = 0.01;
+		xCore.iApproxTimeTol = 10;
+		xCore.iApproxStrMode = XRT_STR_APPROX_SIM;  // 默认相似度模式
+		xCore.fApproxStrTol = 0.95;                 // 默认95%相似度
+		xCore.bApproxStrCase = FALSE;               // 默认区分大小写
+
+		// 获取程序文件名和路径
+		#if defined(_WIN32) || defined(_WIN64)
+			u16str sTemp = malloc(4096 * sizeof(wchar_t));
+			int iSize = GetModuleFileNameW(NULL, sTemp, 4096);
+			size_t iRetSize = 0;
+			xCore.AppFile = xrtUTF16to8(sTemp, iSize, &iRetSize);
+			free(sTemp);
+			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
+		#else
+			str sTemp = malloc(4096);
+			ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
+			if ( iSize == -1 ) {
+				// 无法读取程序路径
+				free(sTemp);
+				xCore.AppFile = xCore.sNull;
+				xCore.AppPath = xCore.sNull;
+			} else {
+				xCore.AppFile = xrtCopyStr(sTemp, iSize);
+				free(sTemp);
+				xCore.AppPath = xrtPathGetDir(xCore.AppFile, iSize);
+			}
+		#endif
+
+		// 初始化 socket
+		#if defined(_WIN32) || defined(_WIN64)
+			#if __XRT_RUNTIME_NEED_WSA
+				WSADATA wsaData;
+				WSAStartup(MAKEWORD(2, 2), &wsaData);
+			#endif
+		#endif
+
+		// 获取本机 IP
+		#ifndef XRT_NO_NETWORK
+			xCore.LocalAddr = xrtGetLocalRawIP();
+		#else
+			xCore.LocalAddr = 0;
+		#endif
+
+		// 初始化模板引擎
+		#ifndef XRT_NO_TEMPLATE
+			xte_private_init();
+		#endif
+	}
+
+	__xrtRuntimeUnlock();
+
+	xrtThreadAttachCurrent();
+
 	return &xCore;
 }
 
@@ -299,43 +646,39 @@ XXAPI xrtGlobalData* xrtInit()
 // 释放 xCore
 XXAPI void xrtUnit()
 {
-	// 减少引用计数
-	if ( __xrt_RefCount > 0 ) {
-		__xrt_RefCount--;
+	xrtThreadDetachCurrent();
+
+	__xrtRuntimeLock();
+
+	if ( xCore.iInitRef > 0 ) {
+		xCore.iInitRef--;
 	}
-	
+
 	// 只有引用计数为 0 时才真正释放资源
-	if ( (__xrt_RefCount == 0) && (xCore.bInit) ) {
-		
+	if ( (xCore.iInitRef == 0) && (xCore.bInit) ) {
 		// 清理模板引擎
 		#ifndef XRT_NO_TEMPLATE
 			xte_private_unit();
 		#endif
-		
+
 		// 释放应用路径
 		xrtFree(xCore.AppFile);
 		xCore.AppFile = xCore.sNull;
 		xrtFree(xCore.AppPath);
 		xCore.AppPath = xCore.sNull;
-		
-		// 释放错误描述
-		if ( xCore.__pri_FreeError && xCore.LastError ) {
-			xrtFree(xCore.LastError);
-			xCore.LastError = xCore.sNull;
-			xCore.__pri_FreeError = FALSE;
-		}
-		
-		// 释放环形临时内存
-		xrtFreeTempMemory();
-		
+
 		// 重置初始化标记
 		xCore.bInit = FALSE;
-		
+
 		// 释放 socket
 		#if defined(_WIN32) || defined(_WIN64)
-			WSACleanup();
+			#if __XRT_RUNTIME_NEED_WSA
+				WSACleanup();
+			#endif
 		#endif
 	}
+
+	__xrtRuntimeUnlock();
 }
 
 

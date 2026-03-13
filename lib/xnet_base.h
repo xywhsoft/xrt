@@ -179,7 +179,9 @@ typedef struct {
 
 #define __XNET_ADDR_STR_CAP 64
 
-#if defined(_MSC_VER)
+#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+	#define __XNET_THREAD_LOCAL __declspec(thread)
+#elif defined(_MSC_VER)
 	#define __XNET_THREAD_LOCAL __declspec(thread)
 #elif defined(__GNUC__) || defined(__clang__)
 	#define __XNET_THREAD_LOCAL __thread

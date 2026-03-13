@@ -3,28 +3,19 @@
 
 // 静态值 : null、true、false
 static xvalue_struct XVO_VALUE_NULL = {
-	XVO_DT_NULL,
-	0,
-	TRUE,
-	0,
-	0,
-	0
+	.Header = XVO_HEADER_INIT(XVO_DT_NULL, TRUE, FALSE, 0),
+	.Size = 0,
+	.vInt = 0
 };
 static xvalue_struct XVO_VALUE_TRUE = {
-	XVO_DT_BOOL,
-	0,
-	TRUE,
-	0,
-	sizeof(bool),
-	TRUE
+	.Header = XVO_HEADER_INIT(XVO_DT_BOOL, TRUE, FALSE, 0),
+	.Size = sizeof(bool),
+	.vBool = TRUE
 };
 static xvalue_struct XVO_VALUE_FALSE = {
-	XVO_DT_BOOL,
-	0,
-	TRUE,
-	0,
-	sizeof(bool),
-	FALSE
+	.Header = XVO_HEADER_INIT(XVO_DT_BOOL, TRUE, FALSE, 0),
+	.Size = sizeof(bool),
+	.vBool = FALSE
 };
 
 
@@ -32,65 +23,81 @@ static xvalue_struct XVO_VALUE_FALSE = {
 // 引用计数操作
 XXAPI void xvoAddRef(xvalue pVal)
 {
-	if ( pVal ) {
-		if ( pVal->RefCount >= 0x3FFFFFF ) {
-			// 引用计数太多，就转为静态值
-			pVal->IsStatic = 1;
-		} else {
-			pVal->RefCount++;
-		}
-	}
+	xvoAddRef_Inline(pVal);
 }
 bool xvoListClear_FreeProc(int64 pKey, xvalue* ppVal, xlist pList)
 {
 	xvoUnref(*ppVal);
 	return FALSE;
 }
-bool xvoCollClear_FreeProc(Coll_Key* pKey, xavltree pColl)
+static void xvoCollNode_FreeProc(xavltree pColl, Coll_Key* pKey)
 {
+	(void)pColl;
 	xvoUnref(pKey->Value);
-	return FALSE;
 }
 bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue* ppVal, xdict pTbl)
 {
 	xvoUnref(*ppVal);
 	return FALSE;
 }
+static void __xvoDestroyValue(xvalue pVal)
+{
+	if ( pVal->Type == XVO_DT_TEXT ) {
+		xrtFree(pVal->vText);
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
+			xvoUnref(pItem);
+		}
+		xrtPtrArrayDestroy(pVal->vArray);
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
+		xrtListDestroy(pVal->vList);
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		xrtAVLTreeDestroy(pVal->vColl);
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
+		xrtDictDestroy(pVal->vTable);
+	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		xrtFree(pVal->vStruct);
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+	}
+	xrtFree(pVal);
+	#ifdef DEBUG_TRACE
+		printf("free value : %x\n", pVal);
+	#endif
+}
 XXAPI void xvoUnref(xvalue pVal)
 {
+	uint32 iOldHeader;
+	uint32 iNewHeader;
+	uint32 iRefCount;
 	if ( pVal ) {
-		if ( pVal->IsStatic == 0 ) {
-			pVal->RefCount--;
-			// 引用计数用完了就销毁对象
-			if ( pVal->RefCount == 0 ) {
-				// 释放值
-				if ( pVal->Type == XVO_DT_TEXT ) {
-					xrtFree(pVal->vText);
-				} else if ( pVal->Type == XVO_DT_ARRAY ) {
-					for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
-						xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
-						xvoUnref(pItem);
-					}
-					xrtPtrArrayDestroy(pVal->vArray);
-				} else if ( pVal->Type == XVO_DT_LIST ) {
-					xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
-					xrtListDestroy(pVal->vList);
-				} else if ( pVal->Type == XVO_DT_COLL ) {
-					xrtAVLTreeWalk(pVal->vColl, (ptr)xvoCollClear_FreeProc, pVal->vColl);
-					xrtAVLTreeDestroy(pVal->vColl);
-				} else if ( pVal->Type == XVO_DT_TABLE ) {
-					xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
-					xrtDictDestroy(pVal->vTable);
-				} else if ( pVal->Type == XVO_DT_CLASS ) {
-					xrtFree(pVal->vStruct);
-				} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		if ( !xvoIsShared_Inline(pVal) ) {
+			if ( pVal->IsStatic == 0 ) {
+				pVal->RefCount--;
+				if ( pVal->RefCount == 0 ) {
+					__xvoDestroyValue(pVal);
 				}
-				// 释放变量本身
-				xrtFree(pVal);
-				#ifdef DEBUG_TRACE
-					printf("free value : %x\n", pVal);
-				#endif
 			}
+			return;
+		}
+		while ( TRUE ) {
+			iOldHeader = pVal->Header;
+			if ( iOldHeader & XVO_HEADER_STATIC_MASK ) {
+				return;
+			}
+			iRefCount = (iOldHeader & XVO_HEADER_REFCOUNT_MASK) >> XVO_HEADER_REFCOUNT_SHIFT;
+			if ( iRefCount == 0 ) {
+				return;
+			}
+			iNewHeader = (iOldHeader & ~XVO_HEADER_REFCOUNT_MASK) | ((iRefCount - 1) << XVO_HEADER_REFCOUNT_SHIFT);
+			if ( __xvoAtomicCompareExchange32(&pVal->Header, iNewHeader, iOldHeader) == iOldHeader ) {
+				break;
+			}
+		}
+		if ( iRefCount == 1 ) {
+			__xvoDestroyValue(pVal);
 		}
 	}
 }
@@ -114,9 +121,7 @@ XXAPI xvalue xvoCreateInt(int64 iVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_INT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_INT, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(int64);
 		pVal->vInt = iVal;
 	}
@@ -126,9 +131,7 @@ XXAPI xvalue xvoCreateFloat(double fVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_FLOAT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_FLOAT, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(double);
 		pVal->vFloat = fVal;
 	}
@@ -149,9 +152,7 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 	}
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_TEXT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TEXT, XRT_OBJMODE_LOCAL);
 		pVal->Size = iSize;
 		if ( bColloc ) {
 			pVal->vText = sVal;
@@ -169,9 +170,7 @@ XXAPI xvalue xvoCreateTime(xtime tVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_TIME;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TIME, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(xtime);
 		pVal->vTime = tVal;
 	}
@@ -181,9 +180,7 @@ XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, i
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_TIME;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TIME, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(xtime);
 		pVal->vTime = xrtDateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond);
 	}
@@ -193,9 +190,7 @@ XXAPI xvalue xvoCreatePoint(ptr point)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_POINT;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_POINT, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(ptr);
 		pVal->vPoint = point;
 	}
@@ -205,9 +200,7 @@ XXAPI xvalue xvoCreateFunc(xfunction pFunc)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_FUNC;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_FUNC, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(ptr);
 		pVal->vFunc = pFunc;
 	}
@@ -215,16 +208,18 @@ XXAPI xvalue xvoCreateFunc(xfunction pFunc)
 }
 XXAPI xvalue xvoCreateArray()
 {
+	return xvoCreateArrayEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateArrayEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xparray objArr = xrtPtrArrayCreate();
+		xparray objArr = xrtPtrArrayCreateEx(iMode);
 		if ( objArr == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_ARRAY;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_ARRAY, iMode);
 		pVal->Size = 0;
 		pVal->vArray = objArr;
 	}
@@ -232,16 +227,18 @@ XXAPI xvalue xvoCreateArray()
 }
 XXAPI xvalue xvoCreateList()
 {
+	return xvoCreateListEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateListEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xlist objList = xrtListCreate(sizeof(xvalue));
+		xlist objList = xrtListCreateEx(sizeof(xvalue), iMode);
 		if ( objList == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_LIST;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_LIST, iMode);
 		pVal->Size = 0;
 		pVal->vList = objList;
 	}
@@ -249,17 +246,20 @@ XXAPI xvalue xvoCreateList()
 }
 XXAPI xvalue xvoCreateColl()
 {
+	return xvoCreateCollEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateCollEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
 		int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey);	// 比较函数定义
-		xavltree objColl = xrtAVLTreeCreate(sizeof(Coll_Key), (ptr)Coll_CompProc);
+		xavltree objColl = xrtAVLTreeCreateEx(sizeof(Coll_Key), (ptr)Coll_CompProc, iMode);
 		if ( objColl == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_COLL;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		objColl->FreeProc = (ptr)xvoCollNode_FreeProc;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_COLL, iMode);
 		pVal->Size = 0;
 		pVal->vColl = objColl;
 	}
@@ -267,16 +267,18 @@ XXAPI xvalue xvoCreateColl()
 }
 XXAPI xvalue xvoCreateTable()
 {
+	return xvoCreateTableEx(XRT_OBJMODE_LOCAL);
+}
+XXAPI xvalue xvoCreateTableEx(uint32 iMode)
+{
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xdict objTbl = xrtDictCreate(sizeof(xvalue));
+		xdict objTbl = xrtDictCreateEx(sizeof(xvalue), iMode);
 		if ( objTbl == NULL ) {
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_TABLE;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TABLE, iMode);
 		pVal->Size = 0;
 		pVal->vTable = objTbl;
 	}
@@ -294,9 +296,7 @@ XXAPI xvalue xvoCreateClass(uint32 iSize)
 			xrtFree(pVal);
 			return NULL;
 		}
-		pVal->Type = XVO_DT_CLASS;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_CLASS, XRT_OBJMODE_LOCAL);
 		pVal->Size = iSize;
 		pVal->vStruct = pStruct;
 	}
@@ -306,9 +306,7 @@ XXAPI xvalue xvoCreateCustom(ptr pObj)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		pVal->Type = XVO_DT_CUSTOM;
-		pVal->IsStatic = FALSE;
-		pVal->RefCount = 1;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_CUSTOM, XRT_OBJMODE_LOCAL);
 		pVal->Size = 0;
 		pVal->vCustom = pObj;
 	}
@@ -546,6 +544,9 @@ XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc)
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
+		return FALSE;
+	}
 	uint32 index = xrtPtrArrayAppend(pArr->vArray, pVal);
 	if ( index == 0 ) {
 		return FALSE;
@@ -567,6 +568,9 @@ XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bCol
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
+		return FALSE;
+	}
 	uint32 idx = xrtPtrArrayInsert(pArr->vArray, index, pVal);
 	if ( idx == 0 ) {
 		return FALSE;
@@ -586,6 +590,9 @@ XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc
 		return FALSE;
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
 		return FALSE;
 	}
 	xvalue pOldVal = xrtPtrArrayGet(pArr->vArray, index + 1);
@@ -616,6 +623,9 @@ XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
 	}
 	for ( int i = 1; i <= pArr2->vArray->Count; i++ ) {
 		xvalue pVal = xrtPtrArrayGet_Inline(pArr2->vArray, i);
+		if ( !xvoPrepareStoreWithOwner_Inline(&pArr1->vArray->Owner, pVal) ) {
+			return FALSE;
+		}
 		xvoAddRef_Inline(pVal);
 		xrtPtrArrayAppend(pArr1->vArray, pVal);
 	}
@@ -728,6 +738,9 @@ XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
 	if ( pList->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pList->vList->Owner, pVal) ) {
+		return FALSE;
+	}
 	xvalue pOldVal = NULL;
 	bool bRet = xrtListSetPtr(pList->vList, index, pVal, (ptr*)&pOldVal);
 	if ( bRet == FALSE ) {
@@ -745,10 +758,18 @@ XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
 
 
 // List 合并
-bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, xlist objList)
+typedef struct {
+	xlist objList;
+	bool bFailed;
+} __xvoListMergeCtx;
+bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
 {
 	bool bNew = FALSE;
-	xvalue* ppOldVal = xrtListSet(objList, iKey, &bNew);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objList->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtListSet(pCtx->objList, iKey, &bNew);
 	if ( ppOldVal ) {
 		// 只转移之前没有的值
 		if ( bNew ) {
@@ -756,12 +777,16 @@ bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, xlist objList)
 			ppOldVal[0] = *ppVal;
 		}
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
-bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, xlist objList)
+bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
 {
 	xvalue pOldVal = NULL;
-	int iRet = xrtListSetPtr(objList, iKey, *ppVal, (ptr*)&pOldVal);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objList->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	int iRet = xrtListSetPtr(pCtx->objList, iKey, *ppVal, (ptr*)&pOldVal);
 	if ( iRet ) {
 		xvoAddRef_Inline(*ppVal);
 		// 释放旧值
@@ -769,10 +794,11 @@ bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, xlist objList)
 			xvoUnref(pOldVal);
 		}
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
 XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
 {
+	__xvoListMergeCtx tCtx;
 	if ( (pList1 == NULL) || (pList2 == NULL) ) {
 		return FALSE;
 	}
@@ -782,12 +808,14 @@ XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
 	if ( pList2->Type != XVO_DT_LIST ) {
 		return FALSE;
 	}
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.objList = pList1->vList;
 	if ( bReWrite ) {
-		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc_ReWrite, pList1->vList);
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc_ReWrite, &tCtx);
 	} else {
-		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc, pList1->vList);
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc, &tCtx);
 	}
-	return TRUE;
+	return tCtx.bFailed == FALSE;
 }
 
 
@@ -1063,23 +1091,23 @@ XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
 	}
 	Coll_Key objKey;
 	MAKE_COLL_KEY(objKey, pVal);
-	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)pColl->vColl, pColl->vColl->CompProc, &objKey);
-	if ( pDelNode ) {
-		Coll_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
-		xvoUnref(pKeyPtr->Value);
-		return TRUE;
-	}
-	return FALSE;
+	return xrtAVLTreeRemove(pColl->vColl, &objKey);
 }
 XXAPI uint32 xvoCollItemCount(xvalue pColl)
 {
+	uint32 iCount = 0;
 	if ( pColl == NULL ) {
 		return 0;
 	}
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return 0;
 	}
-	return pColl->vColl->Count;
+	if ( !xrtAVLTreeLock(pColl->vColl) ) {
+		return 0;
+	}
+	iCount = pColl->vColl->Count;
+	xrtAVLTreeUnlock(pColl->vColl);
+	return iCount;
 }
 XXAPI bool xvoCollClear(xvalue pColl)
 {
@@ -1089,7 +1117,6 @@ XXAPI bool xvoCollClear(xvalue pColl)
 	if ( pColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
-	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollClear_FreeProc, pColl);
 	xrtAVLTreeClear(pColl->vColl);
 	return TRUE;
 }
@@ -1104,7 +1131,11 @@ XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl)
 	if ( pParentColl->Type != XVO_DT_COLL ) {
 		return FALSE;
 	}
+	if ( !xrtOwnerBeginMutable(&pColl->vColl->Owner, "coll belongs to another thread.") ) {
+		return FALSE;
+	}
 	pColl->vColl->Parent = pParentColl->vColl;
+	xrtOwnerEndMutable(&pColl->vColl->Owner);
 	return TRUE;
 }
 
@@ -1150,6 +1181,9 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 	} else if ( kl == 0 ) {
 		kl = strlen(key);
 	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pTbl->vTable->Owner, pVal) ) {
+		return FALSE;
+	}
 	xvalue pOldVal = NULL;
 	int iRet = xrtDictSetPtr(pTbl->vTable, key, kl, pVal, (ptr*)&pOldVal);
 	if ( iRet == FALSE ) {
@@ -1167,10 +1201,18 @@ XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool b
 
 
 // Table 合并
-bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+typedef struct {
+	xdict objTbl;
+	bool bFailed;
+} __xvoTableMergeCtx;
+bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
 {
 	bool bNew;
-	xvalue* ppOldVal = xrtDictSetWithKey(objTbl, pKey, &bNew);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objTbl->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtDictSetWithKey(pCtx->objTbl, pKey, &bNew);
 	if ( ppOldVal ) {
 		// 只转移之前没有的值
 		if ( bNew ) {
@@ -1178,12 +1220,16 @@ bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 			ppOldVal[0] = *ppVal;
 		}
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
-bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
 {
 	bool bNew = FALSE;
-	xvalue* ppOldVal = xrtDictSetWithKey(objTbl, pKey, &bNew);
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objTbl->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtDictSetWithKey(pCtx->objTbl, pKey, &bNew);
 	if ( ppOldVal ) {
 		// 释放旧值
 		if ( bNew == FALSE ) {
@@ -1192,10 +1238,11 @@ bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 		xvoAddRef_Inline(*ppVal);
 		ppOldVal[0] = *ppVal;
 	}
-	return FALSE;
+	return pCtx->bFailed;
 }
 XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
 {
+	__xvoTableMergeCtx tCtx;
 	if ( (pTbl1 == NULL) || (pTbl2 == NULL) ) {
 		return FALSE;
 	}
@@ -1205,12 +1252,14 @@ XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
 	if ( pTbl2->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.objTbl = pTbl1->vTable;
 	if ( bReWrite ) {
-		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc_ReWrite, pTbl1->vTable);
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc_ReWrite, &tCtx);
 	} else {
-		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc, pTbl1->vTable);
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc, &tCtx);
 	}
-	return TRUE;
+	return tCtx.bFailed == FALSE;
 }
 
 
@@ -1413,10 +1462,7 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 	} else {
 		// 其他类型直接 Copy 64 位数据
 		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
-		varRet->Type = pVal->Type;
-		varRet->Reserve = 0;
-		varRet->IsStatic = 0;
-		varRet->RefCount = 1;
+		xvoInitOwnedHeader_Inline(varRet, pVal->Type, XRT_OBJMODE_LOCAL);
 		varRet->Size = pVal->Size;
 		varRet->vInt = pVal->vInt;
 		return varRet;
@@ -1487,10 +1533,7 @@ XXAPI xvalue xvoDeepCopy(xvalue pVal)
 	} else {
 		// 其他类型直接 Copy 64 位数据
 		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
-		varRet->Type = pVal->Type;
-		varRet->Reserve = 0;
-		varRet->IsStatic = 0;
-		varRet->RefCount = 1;
+		xvoInitOwnedHeader_Inline(varRet, pVal->Type, XRT_OBJMODE_LOCAL);
 		varRet->Size = pVal->Size;
 		varRet->vInt = pVal->vInt;
 		return varRet;

@@ -230,11 +230,7 @@ static void __xws2CopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 
 static long __xws2AtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, iExchange, iComparand);
-	#else
-		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
-	#endif
+	return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
 }
 
 static long __xws2AtomicLoad(volatile long* pValue)

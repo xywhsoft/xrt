@@ -10,6 +10,7 @@
 
 - [类型系统](#类型系统)
 - [引用管理](#引用管理)
+- [共享模式](#共享模式)
 - [创建Value](#创建value)
 - [读取值](#读取值)
 - [类型判断](#类型判断)
@@ -47,26 +48,31 @@
 
 ```c
 typedef struct xvalue_struct {
-    uint32 Type:4;          // 类型（4位）
-    uint32 Reserve:1;       // 保留（1位）
-    uint32 IsStatic:1;      // 是否静态（1位）
-    uint32 RefCount:26;     // 引用计数（26位，最大67108863）
-    uint32 Size;            // 数据大小
-    union {
-        bool vBool;         // 布尔值
-        int64 vInt;         // 整数值
-        double vFloat;      // 浮点值
-        str vText;          // 字符串指针
-        xtime vTime;        // 时间值
-        ptr vPoint;         // 指针
-        xfunction vFunc;    // 函数指针
-        xparray vArray;     // 数组
-        xlist vList;        // 列表
-        xavltree vColl;     // 集合
-        xdict vTable;       // 表
-        ptr vStruct;        // 类实例数据
-        ptr vCustom;        // 自定义数据
-    };
+	union {
+		struct {
+			uint32 Type:4;		// 类型（4位）
+			uint32 Reserve:1;	// 保留（1位）
+			uint32 IsStatic:1;	// 是否静态（1位）
+			uint32 RefCount:26;	// 引用计数（26位，最大67108863）
+		};
+		volatile uint32 Header;	// 共享值通过原始 Header 走原子更新路径
+	};
+	uint32 Size;				// 数据大小
+	union {
+		bool vBool;			// 布尔值
+		int64 vInt;			// 整数值
+		double vFloat;		// 浮点值
+		str vText;			// 字符串指针
+		xtime vTime;		// 时间值
+		ptr vPoint;			// 指针
+		xfunction vFunc;	// 函数指针
+		xparray vArray;		// 数组
+		xlist vList;		// 列表
+		xavltree vColl;		// 集合
+		xdict vTable;		// 表
+		ptr vStruct;		// 类实例数据
+		ptr vCustom;		// 自定义数据
+	};
 } xvalue_struct, *xvalue;
 
 // 函数指针类型
@@ -91,6 +97,8 @@ static inline void xvoAddRef_Inline(xvalue pVal);
 
 **说明：**
 - 引用计数+1
+- local value 继续走轻量本地路径
+- shared value 的顶层引用计数会自动走原子更新路径
 - 当引用计数达到最大值(0x3FFFFFF)时，自动转为静态值
 
 ---
@@ -116,6 +124,37 @@ xvalue v = xvoCreateInt(100);
 xvoAddRef(v);   // RefCount = 2
 xvoUnref(v);    // RefCount = 1
 xvoUnref(v);    // RefCount = 0，释放
+```
+
+---
+
+## 共享模式
+
+Phase-2 之后，Value 体系的跨线程契约是显式的：
+
+- `xvoCreateArray/List/Coll/Table()` 默认创建本线程本地 root
+- `xvoCreate*Ex(XRT_OBJMODE_SHARED)` 显式创建 shared root
+- array/list/coll/table-backed shared `xvalue` 顶层引用计数自动走原子路径
+- 向 shared 容器写入子值时，基础值会自动进入共享路径；嵌套容器值必须已经拥有 real shared root
+- 这不会改变脚本式 API 的用法，只是把跨线程边界从“隐含假设”改成“显式构造”
+
+常用 shared root 构造器：
+
+```c
+XXAPI xvalue xvoCreateArrayEx(uint32 iMode);
+XXAPI xvalue xvoCreateListEx(uint32 iMode);
+XXAPI xvalue xvoCreateCollEx(uint32 iMode);
+XXAPI xvalue xvoCreateTableEx(uint32 iMode);
+```
+
+示例：
+
+```c
+xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+
+xvoCollSetText(tags, "ai", 0, FALSE);
+xvoTableSetValue(table, "tags", 4, tags, FALSE);	// 合法：tags 已是 real shared root
 ```
 
 ---
@@ -266,9 +305,13 @@ XXAPI xvalue xvoCreateFunc(xfunction pFunc);
 **函数原型：**
 ```c
 XXAPI xvalue xvoCreateArray();
+XXAPI xvalue xvoCreateArrayEx(uint32 iMode);
 ```
 
-**说明：** 基于 `xparray` 实现，支持动态扩容
+**说明：**
+- 基于 `xparray` 实现，支持动态扩容
+- `xvoCreateArray()` 等价于 `xvoCreateArrayEx(XRT_OBJMODE_LOCAL)`
+- 跨线程 root 请使用 `xvoCreateArrayEx(XRT_OBJMODE_SHARED)`
 
 ---
 
@@ -279,9 +322,13 @@ XXAPI xvalue xvoCreateArray();
 **函数原型：**
 ```c
 XXAPI xvalue xvoCreateList();
+XXAPI xvalue xvoCreateListEx(uint32 iMode);
 ```
 
-**说明：** 基于 `xlist` 实现，键为 int64 类型
+**说明：**
+- 基于 `xlist` 实现，键为 int64 类型
+- `xvoCreateList()` 等价于 `xvoCreateListEx(XRT_OBJMODE_LOCAL)`
+- 跨线程 root 请使用 `xvoCreateListEx(XRT_OBJMODE_SHARED)`
 
 ---
 
@@ -292,9 +339,13 @@ XXAPI xvalue xvoCreateList();
 **函数原型：**
 ```c
 XXAPI xvalue xvoCreateColl();
+XXAPI xvalue xvoCreateCollEx(uint32 iMode);
 ```
 
-**说明：** 基于 AVL树 实现，元素自动去重排序
+**说明：**
+- 基于 AVL树 实现，元素自动去重排序
+- `xvoCreateColl()` 等价于 `xvoCreateCollEx(XRT_OBJMODE_LOCAL)`
+- `xvoCreateCollEx(XRT_OBJMODE_SHARED)` 创建的集合 root 已进入 real shared 合同，可跨线程执行公开 root 操作
 
 ---
 
@@ -305,9 +356,13 @@ XXAPI xvalue xvoCreateColl();
 **函数原型：**
 ```c
 XXAPI xvalue xvoCreateTable();
+XXAPI xvalue xvoCreateTableEx(uint32 iMode);
 ```
 
-**说明：** 基于 `xdict` 实现，字符串键
+**说明：**
+- 基于 `xdict` 实现，字符串键
+- `xvoCreateTable()` 等价于 `xvoCreateTableEx(XRT_OBJMODE_LOCAL)`
+- 跨线程 root 请使用 `xvoCreateTableEx(XRT_OBJMODE_SHARED)`
 
 ---
 
@@ -788,6 +843,10 @@ xvoUnref(list);
 
 集合（Coll）基于 AVL树 实现，元素自动去重和排序。
 
+Phase-2 之后：
+- `xvoCreateCollEx(XRT_OBJMODE_SHARED)` 创建的集合 root 已进入 real shared 模式
+- 当 `coll` 作为子值写入 shared array/list/coll/table 时，该 `coll` 自身也必须是 real shared root
+
 ### xvoCollSetValue
 
 添加元素到集合
@@ -1215,6 +1274,22 @@ for (int i = 0; i < 1000; i++) {
     xvoArrayAppendInt(arr, i);
 }
 xvoUnref(arr);
+```
+
+---
+
+### 4. 跨线程共享
+
+```c
+// ✅ 正确：跨线程容器使用 shared root
+xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+xvoCollSetText(tags, "agent", 0, FALSE);
+xvoTableSetValue(table, "tags", 4, tags, FALSE);
+
+// ❌ 错误：把本地容器直接写入 shared 容器
+xvalue bad = xvoCreateColl();
+xvoTableSetValue(table, "bad", 3, bad, FALSE);	// 返回 FALSE，并设置当前线程错误
 ```
 
 ---

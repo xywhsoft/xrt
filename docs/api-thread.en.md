@@ -11,6 +11,7 @@
 - [Constants](#constants)
 - [Data Types](#data-types)
 - [Thread Management](#thread-management)
+- [Runtime Attachment](#runtime-attachment)
 - [Mutex](#mutex)
 - [Semaphore](#semaphore)
 - [Condition Variable](#condition-variable)
@@ -47,11 +48,14 @@ Thread data structure.
 
 ```c
 typedef struct {
-    ptr Handle;                    // Thread handle
-    uint32 TID;                    // Thread ID
+    ptr Handle;                    // Native thread handle
+    uint64 TID;                    // Thread ID
     uint32 (*Proc)(ptr param);     // User callback function
     ptr Param;                     // User parameter
     volatile int StopFlag;         // Stop signal flag
+    volatile int bFinished;        // Whether the thread has finished
+    volatile int bJoined;          // Whether wait/join has completed
+    uint32 ExitCode;               // Thread exit code
 } xthread_struct, *xthread;
 ```
 
@@ -104,15 +108,27 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize);
 
 **Returns:** Thread object pointer on success, `NULL` on failure
 
+**Notes:**
+- Threads created by `xrtThreadCreate()` are automatically attached to the XRT runtime
+- Runtime-bound APIs such as `xrtTempMemory()`, `xrtSetError()`, and `xrtRand32()` can be called directly inside the worker procedure
+
 ---
 
 ### xrtThreadDestroy
 
-Destroy thread object (does not terminate thread, only releases management structure).
+Destroy the thread object (does not terminate the thread, only releases the management structure).
 
 ```c
 XXAPI void xrtThreadDestroy(xthread pThread);
 ```
+
+**Parameters:**
+- `pThread` - Thread object
+
+**Notes:**
+- Only destroys the thread management object; it never force-terminates the thread
+- If the thread is still running, `xrtThreadDestroy()` sets the current-thread error message and returns immediately
+- Recommended order: `xrtThreadWait()` -> `xrtThreadDestroy()`
 
 ---
 
@@ -139,6 +155,10 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout);
 - `iTimeout` - Timeout in milliseconds
 
 **Returns:** `XRT_WAIT_OK`/`XRT_WAIT_TIMEOUT`/`XRT_WAIT_ERROR`
+
+**Notes:**
+- Windows uses native wait objects
+- The current Linux/macOS implementation keeps the thread joinable for a later `xrtThreadWait()` call instead of consuming the join state during timeout polling
 
 ---
 
@@ -210,6 +230,10 @@ XXAPI int xrtThreadGetState(xthread pThread);
 
 **Returns:** `XRT_THREAD_STOPPED`/`XRT_THREAD_RUNNING`/`XRT_THREAD_SUSPENDED`
 
+**Notes:**
+- This is a best-effort snapshot
+- Observable granularity between running and stopped states is not identical across platforms
+
 ---
 
 ### xrtThreadGetExitCode
@@ -227,8 +251,58 @@ XXAPI uint32 xrtThreadGetExitCode(xthread pThread);
 Get current thread ID.
 
 ```c
-XXAPI uint32 xrtThreadGetCurrentId();
+XXAPI uint64 xrtThreadGetCurrentId();
 ```
+
+---
+
+## Runtime Attachment
+
+### xrtThreadIsAttached
+
+Check whether the current thread is attached to the XRT runtime.
+
+```c
+XXAPI bool xrtThreadIsAttached();
+```
+
+### xrtThreadGetCurrent
+
+Get the runtime state object of the current thread.
+
+```c
+XXAPI xrtThreadData* xrtThreadGetCurrent();
+```
+
+### xrtThreadAttachCurrent
+
+Attach the current thread to the XRT runtime.
+
+```c
+XXAPI xrtThreadData* xrtThreadAttachCurrent();
+```
+
+### xrtThreadDetachCurrent
+
+Detach the current thread from the XRT runtime.
+
+```c
+XXAPI void xrtThreadDetachCurrent();
+```
+
+### xrtThreadPushCleanup / xrtThreadPopCleanup
+
+Register or pop a thread-exit cleanup callback for the current thread.
+
+```c
+XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg);
+XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg);
+```
+
+**Notes:**
+- The bootstrap thread is attached automatically after `xrtInit()`
+- Threads created by `xrtThreadCreate()` are attached automatically and clean up attached runtime resources on exit
+- Host-created threads that need runtime-bound APIs should call `xrtThreadAttachCurrent()` before use and `xrtThreadDetachCurrent()` before exit
 
 ---
 
@@ -481,12 +555,20 @@ XXAPI void xrtCondBroadcast(xcond pCond);
 #include "xrt.h"
 #include <stdio.h>
 
+typedef struct {
+    xthread Thread;
+} ThreadCtx;
+
 static uint32 WorkerThread(ptr param)
 {
-    xthread self = (xthread)param;
-    
+    ThreadCtx* pCtx = (ThreadCtx*)param;
+
+    while (pCtx->Thread == NULL) {
+        xrtSleep(1);
+    }
+
     for (int i = 0; i < 10; i++) {
-        if (xrtThreadShouldStop(self)) {
+        if (xrtThreadShouldStop(pCtx->Thread)) {
             printf("Thread received stop signal\n");
             return 1;
         }
@@ -497,13 +579,13 @@ static uint32 WorkerThread(ptr param)
 }
 
 int main() {
+    ThreadCtx tCtx = { 0 };
     xrtInit();
-    
-    xthread t = xrtThreadCreate(WorkerThread, NULL, 0);
-    t->Param = t;  // Pass self to thread function
-    
-    xrtThreadWait(t);
-    xrtThreadDestroy(t);
+
+    tCtx.Thread = xrtThreadCreate(WorkerThread, &tCtx, 0);
+
+    xrtThreadWait(tCtx.Thread);
+    xrtThreadDestroy(tCtx.Thread);
     
     xrtUnit();
     return 0;
@@ -681,11 +763,12 @@ int main() {
 
 ### 1. Thread Safety
 
-Most XRT library functions are **not thread-safe**, especially:
+After phase-1, the XRT runtime model is:
 
-- `xCore` global variable (`iRet`, `LastError`, etc.)
-- Temporary memory (`xrtTempMemory`)
-- JSON parser
+- `xCore` only stores process-global state such as `AppPath`, `AppFile`, `sNull`, and `OnError`
+- `LastError`, `xrtTempMemory()`, and the default RNG belong to the current thread
+- Threads created by `xrtThreadCreate()` can call runtime-bound APIs directly
+- Host threads should not call runtime-bound APIs before they are attached
 
 Use mutex to protect shared data:
 

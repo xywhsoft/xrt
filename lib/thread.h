@@ -3,18 +3,46 @@
 
 /* ================================ 线程管理 ================================ */
 
-// Windows 线程包装函数（解决调用约定不匹配问题）
+// 线程包装函数（统一完成 attach / detach / exit code 保存）
 #if defined(_WIN32) || defined(_WIN64)
 static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
 {
 	xthread pThread = (xthread)lpParameter;
-	
-	// 调用用户定义的线程函数
-	ptr pProc = pThread->Proc;
-	ptr pParam = pThread->Param;
-	
-	uint32 (*UserThreadProc)(ptr) = (uint32 (*)(ptr))pProc;
-	return UserThreadProc(pParam);
+	uint32 iExitCode = 0;
+
+	if ( pThread == NULL ) {
+		return 0;
+	}
+
+	__xrtThreadAttachManaged(pThread);
+
+	if ( pThread->Proc ) {
+		iExitCode = pThread->Proc(pThread->Param);
+	}
+
+	__xrtThreadExitManaged(pThread, iExitCode);
+
+	return iExitCode;
+}
+#else
+static void* xrtThreadWrapper(void* pParameter)
+{
+	xthread pThread = (xthread)pParameter;
+	uint32 iExitCode = 0;
+
+	if ( pThread == NULL ) {
+		return (void*)(uintptr_t)0;
+	}
+
+	__xrtThreadAttachManaged(pThread);
+
+	if ( pThread->Proc ) {
+		iExitCode = pThread->Proc(pThread->Param);
+	}
+
+	__xrtThreadExitManaged(pThread, iExitCode);
+
+	return (void*)(uintptr_t)iExitCode;
 }
 #endif
 
@@ -27,9 +55,12 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 	pThread->Proc = pProc;
 	pThread->Param = pParam;
 	pThread->StopFlag = 0;
+	pThread->bFinished = FALSE;
+	pThread->bJoined = FALSE;
+	pThread->ExitCode = 0;
+	pThread->TID = 0;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		// Windows 方案：使用包装函数解决调用约定问题
 		DWORD iThreadID;
 		pThread->Handle = CreateThread(NULL, iStackSize, xrtThreadWrapper, pThread, 0, &iThreadID);
 		pThread->TID = iThreadID;
@@ -39,14 +70,13 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 			return NULL;
 		}
 	#else
-		// POSIX 方案
 		pthread_t tid;
 		pthread_attr_t attr;
 		pthread_attr_init(&attr);
 		if ( iStackSize > 0 ) {
 			pthread_attr_setstacksize(&attr, iStackSize);
 		}
-		int ret = pthread_create(&tid, &attr, (void*(*)(void*))pProc, pParam);
+		int ret = pthread_create(&tid, &attr, xrtThreadWrapper, pThread);
 		pthread_attr_destroy(&attr);
 		if ( ret != 0 ) {
 			xrtFree(pThread);
@@ -54,7 +84,6 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 			return NULL;
 		}
 		pThread->Handle = (ptr)tid;
-		pThread->TID = (uint32)tid;
 	#endif
 	
 	return pThread;
@@ -66,15 +95,23 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 XXAPI void xrtThreadDestroy(xthread pThread)
 {
 	if ( pThread ) {
+		if ( !pThread->bFinished && !pThread->bJoined ) {
+			xrtSetError("thread is still running.", FALSE);
+			return;
+		}
+
 		#if defined(_WIN32) || defined(_WIN64)
 			if ( pThread->Handle ) {
 				CloseHandle(pThread->Handle);
+				pThread->Handle = NULL;
 			}
 		#else
-			// POSIX: pthread_detach 让线程结束后自动释放资源
-			if ( pThread->Handle ) {
-				pthread_detach((pthread_t)pThread->Handle);
+			if ( pThread->Handle && !pThread->bJoined ) {
+				void* pExit = NULL;
+				pthread_join((pthread_t)pThread->Handle, &pExit);
+				pThread->bJoined = TRUE;
 			}
+			pThread->Handle = NULL;
 		#endif
 		xrtFree(pThread);
 	}
@@ -86,11 +123,21 @@ XXAPI void xrtThreadDestroy(xthread pThread)
 XXAPI void xrtThreadWait(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return;
+	if ( pThread->bJoined ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		WaitForSingleObject(pThread->Handle, INFINITE);
+		DWORD iExitCode = 0;
+		if ( GetExitCodeThread(pThread->Handle, &iExitCode) ) {
+			pThread->ExitCode = (uint32)iExitCode;
+		}
+		pThread->bFinished = TRUE;
+		pThread->bJoined = TRUE;
 	#else
-		pthread_join((pthread_t)pThread->Handle, NULL);
+		void* pExit = NULL;
+		pthread_join((pthread_t)pThread->Handle, &pExit);
+		pThread->bFinished = TRUE;
+		pThread->bJoined = TRUE;
 	#endif
 }
 
@@ -100,44 +147,32 @@ XXAPI void xrtThreadWait(xthread pThread)
 XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_WAIT_ERROR;
+	if ( pThread->bJoined ) return XRT_WAIT_OK;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD ret = WaitForSingleObject(pThread->Handle, iTimeout);
-		if ( ret == WAIT_OBJECT_0 ) return XRT_WAIT_OK;
+		if ( ret == WAIT_OBJECT_0 ) {
+			DWORD iExitCode = 0;
+			if ( GetExitCodeThread(pThread->Handle, &iExitCode) ) {
+				pThread->ExitCode = (uint32)iExitCode;
+			}
+			pThread->bFinished = TRUE;
+			pThread->bJoined = TRUE;
+			return XRT_WAIT_OK;
+		}
 		if ( ret == WAIT_TIMEOUT ) return XRT_WAIT_TIMEOUT;
 		return XRT_WAIT_ERROR;
 	#else
-		// POSIX 没有带超时的 join，使用轮询方式
-		struct timespec ts;
-		ts.tv_sec = iTimeout / 1000;
-		ts.tv_nsec = (iTimeout % 1000) * 1000000;
-		
-		#if defined(__GLIBC__) && defined(__GLIBC_PREREQ)
-			#if __GLIBC_PREREQ(2, 34)
-				// glibc 2.34+ 支持 pthread_timedjoin_np
-				struct timespec abstime;
-				clock_gettime(CLOCK_REALTIME, &abstime);
-				abstime.tv_sec += ts.tv_sec;
-				abstime.tv_nsec += ts.tv_nsec;
-				if ( abstime.tv_nsec >= 1000000000 ) {
-					abstime.tv_sec++;
-					abstime.tv_nsec -= 1000000000;
-				}
-				int ret = pthread_timedjoin_np((pthread_t)pThread->Handle, NULL, &abstime);
-				if ( ret == 0 ) return XRT_WAIT_OK;
-				if ( ret == ETIMEDOUT ) return XRT_WAIT_TIMEOUT;
-				return XRT_WAIT_ERROR;
-			#endif
-		#endif
-		
-		// 回退方案：轮询检查
 		uint32 elapsed = 0;
 		while ( elapsed < iTimeout ) {
-			int ret = pthread_tryjoin_np((pthread_t)pThread->Handle, NULL);
-			if ( ret == 0 ) return XRT_WAIT_OK;
-			if ( ret != EBUSY ) return XRT_WAIT_ERROR;
+			if ( pThread->bFinished ) {
+				return XRT_WAIT_OK;
+			}
 			xrtSleep(10);
 			elapsed += 10;
+		}
+		if ( pThread->bFinished ) {
+			return XRT_WAIT_OK;
 		}
 		return XRT_WAIT_TIMEOUT;
 	#endif
@@ -214,6 +249,7 @@ XXAPI bool xrtThreadResume(xthread pThread)
 XXAPI int xrtThreadGetState(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_THREAD_STOPPED;
+	if ( pThread->bFinished ) return XRT_THREAD_STOPPED;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD exitCode;
@@ -233,15 +269,7 @@ XXAPI int xrtThreadGetState(xthread pThread)
 		}
 		return XRT_THREAD_STOPPED;
 	#else
-		// POSIX: 尝试 join 检查状态
-		int ret = pthread_tryjoin_np((pthread_t)pThread->Handle, NULL);
-		if ( ret == 0 ) {
-			return XRT_THREAD_STOPPED;
-		}
-		if ( ret == EBUSY ) {
-			return XRT_THREAD_RUNNING;
-		}
-		return XRT_THREAD_STOPPED;
+		return XRT_THREAD_RUNNING;
 	#endif
 }
 
@@ -250,16 +278,8 @@ XXAPI int xrtThreadGetState(xthread pThread)
 // 获取线程退出码
 XXAPI uint32 xrtThreadGetExitCode(xthread pThread)
 {
-	if ( !pThread || !pThread->Handle ) return 0;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		DWORD exitCode = 0;
-		GetExitCodeThread(pThread->Handle, &exitCode);
-		return (uint32)exitCode;
-	#else
-		// POSIX: 需要通过 pthread_join 获取
-		return 0;
-	#endif
+	if ( !pThread ) return 0;
+	return pThread->ExitCode;
 }
 
 
@@ -270,7 +290,7 @@ XXAPI uint64 xrtThreadGetCurrentId()
 	#if defined(_WIN32) || defined(_WIN64)
 		return GetCurrentThreadId();
 	#else
-		return pthread_self();
+		return (uint64)(uintptr_t)pthread_self();
 	#endif
 }
 

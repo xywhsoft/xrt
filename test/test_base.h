@@ -73,8 +73,8 @@ void Test_Base(xrtGlobalData* xCore)
 	// 测试 xrtSetError
 	printf("[8] xrtSetError 测试\n");
 	xrtSetError("测试错误信息", FALSE);
-	if ( xCore->LastError != NULL && xrtStrComp(xCore->LastError, "测试错误信息", 0, 0) == 0 ) {
-		printf("  ✓ 设置错误信息成功: %s\n", xCore->LastError);
+	if ( xrtGetError() != NULL && xrtStrComp(xrtGetError(), "测试错误信息", 0, 0) == 0 ) {
+		printf("  ✓ 设置错误信息成功: %s\n", xrtGetError());
 	} else {
 		printf("  ✗ 设置错误信息失败\n");
 	}
@@ -82,7 +82,7 @@ void Test_Base(xrtGlobalData* xCore)
 	// 测试 xrtClearError
 	printf("[9] xrtClearError 测试\n");
 	xrtClearError();
-	if ( xCore->LastError == xCore->sNull || xCore->LastError == NULL ) {
+	if ( xrtGetError() == xCore->sNull || xrtGetError() == NULL ) {
 		printf("  ✓ 清除错误信息成功\n");
 	} else {
 		printf("  ✗ 清除错误信息失败\n");
@@ -93,8 +93,8 @@ void Test_Base(xrtGlobalData* xCore)
 	str sErrorUTF8 = "UTF16错误信息";
 	u16str u16Error = xrtUTF8to16(sErrorUTF8, 0, NULL);
 	xrtSetErrorU16(u16Error, 0, TRUE);
-	if ( xCore->LastError != NULL && strstr(xCore->LastError, "错误信息") != NULL ) {
-		printf("  ✓ UTF16 错误转换成功: %s\n", xCore->LastError);
+	if ( xrtGetError() != NULL && strstr(xrtGetError(), "错误信息") != NULL ) {
+		printf("  ✓ UTF16 错误转换成功: %s\n", xrtGetError());
 	} else {
 		printf("  ✗ UTF16 错误转换失败\n");
 	}
@@ -103,8 +103,8 @@ void Test_Base(xrtGlobalData* xCore)
 	printf("[11] xrtSetErrorU32 测试\n");
 	u32str u32Error = xrtUTF8to32(sErrorUTF8, 0, NULL);
 	xrtSetErrorU32(u32Error, 0, TRUE);
-	if ( xCore->LastError != NULL && strstr(xCore->LastError, "错误信息") != NULL ) {
-		printf("  ✓ UTF32 错误转换成功: %s\n", xCore->LastError);
+	if ( xrtGetError() != NULL && strstr(xrtGetError(), "错误信息") != NULL ) {
+		printf("  ✓ UTF32 错误转换成功: %s\n", xrtGetError());
 	} else {
 		printf("  ✗ UTF32 错误转换失败\n");
 	}

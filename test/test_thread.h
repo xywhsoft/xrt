@@ -8,11 +8,20 @@ typedef struct {
 	xmutex Mutex;
 } ThreadTestData;
 
+typedef struct {
+	volatile int bAutoAttached;
+	volatile int bNestedAttachOk;
+	volatile int bTempOk;
+	volatile int bErrorOk;
+	volatile int bCleanupRan;
+	volatile int bRandOk;
+} ThreadRuntimeData;
+
 // 测试线程函数
 static uint32 TestThreadProc(ptr param)
 {
 	ThreadTestData* data = (ThreadTestData*)param;
-	printf("  [线程] 启动, TID=%u\n", xrtThreadGetCurrentId());
+	printf("  [线程] 启动, TID=%" PRIu64 "\n", xrtThreadGetCurrentId());
 	
 	for ( int i = 0; i < 10; i++ ) {
 		// 检查停止信号
@@ -32,6 +41,49 @@ static uint32 TestThreadProc(ptr param)
 	
 	printf("  [线程] 正常结束\n");
 	return 0;
+}
+
+static void ThreadCleanupProc(xrtThreadData* pThreadData, ptr pArg)
+{
+	(void)pThreadData;
+	(*(volatile int*)pArg)++;
+}
+
+static uint32 RuntimeThreadProc(ptr param)
+{
+	ThreadRuntimeData* pData = (ThreadRuntimeData*)param;
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	char* sTemp = NULL;
+
+	pData->bAutoAttached = xrtThreadIsAttached();
+	pData->bNestedAttachOk = FALSE;
+	pData->bTempOk = FALSE;
+	pData->bErrorOk = FALSE;
+	pData->bRandOk = FALSE;
+
+	if ( pThreadData ) {
+		xrtThreadData* pAttach = xrtThreadAttachCurrent();
+		pData->bNestedAttachOk = (pAttach == pThreadData);
+		xrtThreadDetachCurrent();
+	}
+
+	sTemp = (char*)xrtTempMemory(64);
+	if ( sTemp ) {
+		strcpy(sTemp, "thread-temp-ok");
+		pData->bTempOk = (strcmp(sTemp, "thread-temp-ok") == 0);
+	}
+
+	xrtSetError("thread-error", FALSE);
+	pData->bErrorOk = (xrtStrComp(xrtGetError(), "thread-error", 0, 0) == 0);
+
+	(void)xrtRand32();
+	(void)xrtRand64();
+	(void)xrtRandRange(1, 100);
+	pData->bRandOk = TRUE;
+
+	xrtThreadPushCleanup(ThreadCleanupProc, (ptr)&pData->bCleanupRan);
+
+	return 77;
 }
 
 // 信号量测试 - 生产者线程
@@ -115,11 +167,11 @@ void Test_Thread(xrtGlobalData* xCore)
 		data.Thread = xrtThreadCreate(TestThreadProc, &data, 0);
 		
 		if ( data.Thread ) {
-			printf("  主线程: 线程已创建, TID=%u\n", data.Thread->TID);
+			printf("  主线程: 线程已创建, TID=%" PRIu64 "\n", data.Thread->TID);
 			
 			// 等待线程结束
 			xrtThreadWait(data.Thread);
-			printf("  主线程: 线程已结束, Counter = %d\n", data.Counter);
+			printf("  主线程: 线程已结束, Counter = %d, ExitCode = %u\n", data.Counter, xrtThreadGetExitCode(data.Thread));
 			
 			xrtThreadDestroy(data.Thread);
 		} else {
@@ -191,7 +243,7 @@ void Test_Thread(xrtGlobalData* xCore)
 		
 		// 测试 TryLock
 		bool tryResult = xrtMutexTryLock(mutex);
-		printf("  TryLock 结果: %s (同一线程可重入)\n", 
+		printf("  TryLock 结果: %s (非递归互斥体应失败)\n", 
 			tryResult ? "成功" : "失败");
 		if ( tryResult ) {
 			xrtMutexUnlock(mutex);
@@ -265,8 +317,68 @@ void Test_Thread(xrtGlobalData* xCore)
 	// 测试 7: 获取当前线程ID
 	printf("\n[Test 7] 获取当前线程ID:\n");
 	{
-		uint32 tid = xrtThreadGetCurrentId();
-		printf("  当前线程ID: %u\n", tid);
+		uint64 tid = xrtThreadGetCurrentId();
+		printf("  当前线程ID: %" PRIu64 "\n", tid);
+	}
+
+	// 测试 8: runtime 自动 attach / 线程级状态隔离 / cleanup
+	printf("\n[Test 8] runtime 自动 attach 与线程级状态:\n");
+	{
+		ThreadRuntimeData data = { 0 };
+		xthread pThread = NULL;
+
+		xrtSetError("main-error", FALSE);
+		pThread = xrtThreadCreate(RuntimeThreadProc, &data, 0);
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			printf("  自动 attach: %s\n", data.bAutoAttached ? "成功" : "失败");
+			printf("  嵌套 attach: %s\n", data.bNestedAttachOk ? "成功" : "失败");
+			printf("  临时内存: %s\n", data.bTempOk ? "成功" : "失败");
+			printf("  线程错误: %s\n", data.bErrorOk ? "成功" : "失败");
+			printf("  cleanup: %s\n", data.bCleanupRan ? "成功" : "失败");
+			printf("  随机数: %s\n", data.bRandOk ? "成功" : "失败");
+			printf("  退出码: %u\n", xrtThreadGetExitCode(pThread));
+			printf("  主线程错误隔离: %s\n",
+				xrtStrComp(xrtGetError(), "main-error", 0, 0) == 0 ? "成功" : "失败");
+			xrtThreadDestroy(pThread);
+		} else {
+			printf("  错误: runtime 线程创建失败\n");
+		}
+
+		xrtClearError();
+	}
+
+	// 测试 9: 当前线程 attach / detach 深度
+	printf("\n[Test 9] 当前线程 attach / detach 深度:\n");
+	{
+		xrtThreadData* pThreadData1 = xrtThreadGetCurrent();
+		xrtThreadData* pThreadData2 = xrtThreadAttachCurrent();
+		printf("  重复 attach: %s\n", (pThreadData1 && pThreadData1 == pThreadData2) ? "成功" : "失败");
+		xrtThreadDetachCurrent();
+		printf("  detach 后仍附加: %s\n", xrtThreadIsAttached() ? "成功" : "失败");
+	}
+
+	// 测试 10: 销毁运行中线程应被拒绝
+	printf("\n[Test 10] 销毁运行中线程保护:\n");
+	{
+		ThreadTestData data;
+		data.Counter = 0;
+		data.Mutex = xrtMutexCreate();
+		data.Thread = xrtThreadCreate(TestThreadProc, &data, 0);
+
+		if ( data.Thread ) {
+			xrtSleep(50);
+			xrtClearError();
+			xrtThreadDestroy(data.Thread);
+			printf("  Destroy 保护: %s\n",
+				xrtStrComp(xrtGetError(), "thread is still running.", 0, 0) == 0 ? "成功" : "失败");
+			xrtThreadStop(data.Thread);
+			xrtThreadWait(data.Thread);
+			xrtThreadDestroy(data.Thread);
+			xrtClearError();
+		}
+
+		xrtMutexDestroy(data.Mutex);
 	}
 	
 	printf("\n Thread 库测试完成\n");

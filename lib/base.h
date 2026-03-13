@@ -4,7 +4,8 @@
 // 申请内存
 XXAPI ptr xrtMalloc(size_t iSize)
 {
-	ptr mem = xCore.malloc(iSize);
+	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
+	ptr mem = procMalloc(iSize);
 	if ( mem == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
 		return NULL;
@@ -17,7 +18,8 @@ XXAPI ptr xrtMalloc(size_t iSize)
 // 申请类内存
 XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 {
-	ptr mem = xCore.calloc(iNum, iSize);
+	ptr (*procCalloc)(size_t, size_t) = xCore.calloc ? xCore.calloc : calloc;
+	ptr mem = procCalloc(iNum, iSize);
 	if ( mem == NULL ) {
 		xrtSetError("class memory allocate failed.", FALSE);
 	}
@@ -29,7 +31,8 @@ XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 // 重新申请内存
 XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 {
-	ptr mem = xCore.realloc(pMem, iSize);
+	ptr (*procRealloc)(ptr, size_t) = xCore.realloc ? xCore.realloc : realloc;
+	ptr mem = procRealloc(pMem, iSize);
 	if ( mem == NULL ) {
 		xrtSetError("memory reallocate failed.", FALSE);
 	}
@@ -41,63 +44,87 @@ XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 // 释放内存（ 会先判断是否为 null ）
 XXAPI void xrtFree(ptr pmem)
 {
-	if ( pmem && (pmem != xCore.sNull) ) { xCore.free(pmem); }
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pmem && (pmem != xCore.sNull) ) { procFree(pmem); }
 }
 
 
 
-// 申请无需主动释放的临时内存（线程不安全）
+// 申请无需主动释放的临时内存（线程级）
 XXAPI ptr xrtTempMemory(size_t iSize)
 {
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
+	if ( pThreadData == NULL ) {
+		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
+		return NULL;
+	}
+
 	// 申请内存
 	ptr pMem = xrtMalloc(iSize);
 	if ( pMem == NULL ) {
 		return NULL;
 	}
+
 	// 释放过期内存
-	if ( xCore.TempMem[xCore.TempMemIdx] ) {
-		xrtFree(xCore.TempMem[xCore.TempMemIdx]);
-		xCore.TempMem[xCore.TempMemIdx] = NULL;
+	if ( pThreadData->TempMem[pThreadData->TempMemIdx] ) {
+		xrtFree(pThreadData->TempMem[pThreadData->TempMemIdx]);
+		pThreadData->TempMem[pThreadData->TempMemIdx] = NULL;
 	}
+
 	// 处理环形临时内存数据
-	xCore.TempMem[xCore.TempMemIdx] = pMem;
-	xCore.TempMemIdx++;
-	if ( xCore.TempMemIdx > 31 ) {
-		xCore.TempMemIdx = 0;
+	pThreadData->TempMem[pThreadData->TempMemIdx] = pMem;
+	pThreadData->TempMemIdx++;
+	if ( pThreadData->TempMemIdx >= XRT_TEMP_SLOT_COUNT ) {
+		pThreadData->TempMemIdx = 0;
 	}
+
 	// 返回内存指针
 	return pMem;
 }
 
 
 
-// 释放所有临时内存（线程不安全）
+// 释放当前线程的所有临时内存
 XXAPI void xrtFreeTempMemory()
 {
-	for ( int i = 0; i < 32; i++ ) {
-		if ( xCore.TempMem[i] ) {
-			xrtFree(xCore.TempMem[i]);
-			xCore.TempMem[i] = NULL;
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+
+	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
+		if ( pThreadData->TempMem[i] ) {
+			xrtFree(pThreadData->TempMem[i]);
+			pThreadData->TempMem[i] = NULL;
 		}
 	}
-	xCore.TempMemIdx = 0;
+	pThreadData->TempMemIdx = 0;
 }
 
 
 
-// 设置错误（线程不安全）
+// 设置错误（线程级）
 XXAPI void xrtSetError(str sError, bool bFree)
 {
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
 	// 回调通知
 	if ( xCore.OnError ) {
 		xCore.OnError(sError);
 	}
-	// 释放旧的错误信息
-	if ( xCore.__pri_FreeError && xCore.LastError && xCore.LastError != xCore.sNull ) {
-		xrtFree(xCore.LastError);
+
+	if ( pThreadData == NULL ) {
+		return;
 	}
-	xCore.LastError = sError;
-	xCore.__pri_FreeError = bFree;
+
+	// 释放旧的错误信息
+	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
+		xrtFree(pThreadData->LastError);
+	}
+	pThreadData->LastError = sError;
+	pThreadData->bFreeLastError = bFree;
 }
 XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree)
 {
@@ -118,14 +145,20 @@ XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree)
 
 
 
-// 清除错误（线程不安全）
+// 清除当前线程错误
 XXAPI void xrtClearError()
 {
-	if ( xCore.__pri_FreeError && xCore.LastError && xCore.LastError != xCore.sNull ) {
-		xrtFree(xCore.LastError);
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+
+	if ( pThreadData == NULL ) {
+		return;
 	}
-	xCore.LastError = xCore.sNull;
-	xCore.__pri_FreeError = FALSE;
+
+	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
+		xrtFree(pThreadData->LastError);
+	}
+	pThreadData->LastError = xCore.sNull;
+	pThreadData->bFreeLastError = FALSE;
 }
 
 

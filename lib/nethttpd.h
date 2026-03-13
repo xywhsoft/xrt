@@ -194,7 +194,7 @@ static xhttp_method __xrt_httpd_parse_method(const char* sMethod)
 static int __xrt_httpd_parse_request_line(const char* pData, size_t iLen, xhttpdreq* pReq)
 {
 	// 查找 \r\n
-	const char* pEnd = (const char*)memmem(pData, iLen, "\r\n", 2);
+	const char* pEnd = (const char*)memmem((ptr)pData, iLen, (ptr)"\r\n", 2);
 	if ( !pEnd ) return 0;
 	
 	size_t iLineLen = pEnd - pData;
@@ -252,7 +252,7 @@ static int __xrt_httpd_parse_request_line(const char* pData, size_t iLen, xhttpd
 static int __xrt_httpd_parse_headers(const char* pData, size_t iLen, xhttpdreq* pReq)
 {
 	// 查找 \r\n\r\n
-	const char* pEnd = (const char*)memmem(pData, iLen, "\r\n\r\n", 4);
+	const char* pEnd = (const char*)memmem((ptr)pData, iLen, (ptr)"\r\n\r\n", 4);
 	if ( !pEnd ) return 0;
 	
 	// 初始化头部字典
@@ -263,7 +263,7 @@ static int __xrt_httpd_parse_headers(const char* pData, size_t iLen, xhttpdreq* 
 	const char* p = pData;
 	while ( p < pEnd ) {
 		// 查找行尾
-		const char* pLineEnd = (const char*)memmem(p, pEnd - p, "\r\n", 2);
+		const char* pLineEnd = (const char*)memmem((ptr)p, pEnd - p, (ptr)"\r\n", 2);
 		if ( !pLineEnd ) break;
 		
 		// 空行表示头部结束

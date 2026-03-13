@@ -50,7 +50,7 @@ xrtUnit();
 | strcpy | xrtCopyStr | Copy string |
 | strcmp | xrtCmpStr | Compare strings |
 | strstr | xrtFindStr | Find string |
-| malloc+free | xrtTempMemory | Temporary memory |
+| malloc+free | xrtTempMemory | Thread-local temporary memory |
 | sprintf | xrtFormat | Format string |
 
 ---
@@ -269,25 +269,60 @@ xrtUnit();  // Automatically detect memory leaks
 
 #### Major Changes
 
-1. **Thread Safety Improvements**
+1. **Runtime State Split**
 
 ```c
-// New thread-safe versions
-str xrtCopyStr_ThreadSafe(str sText, size_t iSize);
-void xrtFree_ThreadSafe(ptr pMem);
+// Old habit: error state and temp memory mixed into xCore
+printf("%s\n", xCore.LastError);
+
+// New habit: error state and temp memory belong to the current thread
+printf("%s\n", xrtGetError());
 ```
 
-2. **JSON Performance Optimization**
+2. **Thread Attach Model**
 
 ```c
-// New SAX API
-json_sax_ret_t cb(json_sax_parser_t* parser) {
-    // SAX callback handling
-    return JSON_SAX_PARSE_CONTINUE;
-}
+// Bootstrap thread
+xrtInit();  // Automatically attaches the current thread
 
-xrtJsonParseSAX(json_str, len, cb);
+// XRT-managed thread
+xthread th = xrtThreadCreate(procWorker, pArg, 0);  // Automatically attaches the new thread
+
+// Host-created thread
+xrtThreadAttachCurrent();
+// ... use runtime-bound APIs ...
+xrtThreadDetachCurrent();
 ```
+
+3. **Stricter Thread Destroy Semantics**
+
+```c
+// Old habit: destroy the thread object directly
+xrtThreadDestroy(th);
+
+// New habit: wait first, then destroy the thread object
+xrtThreadWait(th);
+xrtThreadDestroy(th);
+```
+
+4. **Cross-thread containers now use explicit shared roots**
+
+```c
+// Old habit: cross-thread objects still used default constructors
+xvalue table = xvoCreateTable();
+xvalue tags = xvoCreateColl();
+
+// New habit: cross-thread roots are explicitly declared shared
+xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+xvoCollSetText(tags, "ai", 0, FALSE);
+xvoTableSetValue(table, "tags", 4, tags, FALSE);
+```
+
+Notes:
+- `xvoCreateArray/List/Coll/Table()` are still the right default for single-thread local objects
+- shared containers accept primitive values or nested container values that already own a real shared root
+- if you want to store `list/coll/table/array` as child values inside a shared container, create that child container as a shared root first
 
 ---
 
@@ -306,6 +341,7 @@ xrtJsonParseSAX(json_str, len, cb);
 - [ ] Replace API function calls
 - [ ] Update data types
 - [ ] Modify memory management code
+- [ ] Move cross-thread container roots to `xvoCreate*Ex(..., XRT_OBJMODE_SHARED)`
 - [ ] Test compilation passes
 
 ### Functionality Verification
@@ -490,7 +526,7 @@ valgrind --leak-check=full ./program
 1. Ensure calling `xrtInit()` and `xrtUnit()`
 2. Call `xrtFree` for all memory allocated with `xrtMalloc`
 3. Call `xvoUnref` for all values created with `xvoCreate*`
-4. Use `xrtTempMemory` for temporary memory
+4. Use `xrtTempMemory` only for short-lived temporary data inside an attached thread
 
 ---
 

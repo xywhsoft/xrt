@@ -269,25 +269,60 @@ xrtUnit();  // 自动检测内存泄漏
 
 #### 主要变更
 
-1. **线程安全改进**
+1. **运行时状态拆分**
 
 ```c
-// 新增线程安全版本
-str xrtCopyStr_ThreadSafe(str sText, size_t iSize);
-void xrtFree_ThreadSafe(ptr pMem);
+// 旧习惯：错误状态和临时内存混在 xCore 里
+printf("%s\n", xCore.LastError);
+
+// 新习惯：错误状态和临时内存属于当前线程
+printf("%s\n", xrtGetError());
 ```
 
-2. **JSON 性能优化**
+2. **线程附加模型**
 
 ```c
-// 新增 SAX API
-json_sax_ret_t cb(json_sax_parser_t* parser) {
-    // SAX 回调处理
-    return JSON_SAX_PARSE_CONTINUE;
-}
+// 主线程
+xrtInit();	// 自动附加当前线程
 
-xrtJsonParseSAX(json_str, len, cb);
+// XRT 创建的线程
+xthread th = xrtThreadCreate(procWorker, pArg, 0);	// 自动附加新线程
+
+// 宿主自行创建的线程
+xrtThreadAttachCurrent();
+// ... 使用运行时相关 API ...
+xrtThreadDetachCurrent();
 ```
+
+3. **线程销毁语义收紧**
+
+```c
+// 旧习惯：直接销毁线程对象
+xrtThreadDestroy(th);
+
+// 新习惯：先等待线程结束，再销毁对象
+xrtThreadWait(th);
+xrtThreadDestroy(th);
+```
+
+4. **跨线程容器改为显式 shared root**
+
+```c
+// 旧习惯：跨线程对象仍使用默认构造器
+xvalue table = xvoCreateTable();
+xvalue tags = xvoCreateColl();
+
+// 新习惯：跨线程 root 显式声明为 shared
+xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+xvoCollSetText(tags, "ai", 0, FALSE);
+xvoTableSetValue(table, "tags", 4, tags, FALSE);
+```
+
+说明：
+- `xvoCreateArray/List/Coll/Table()` 仍适合单线程本地对象
+- shared 容器只接受基础值或已经拥有 real shared root 的嵌套容器值
+- 如果要把 `list/coll/table/array` 作为子值写入 shared 容器，请先把该子容器也创建为 shared root
 
 ---
 
@@ -306,6 +341,7 @@ xrtJsonParseSAX(json_str, len, cb);
 - [ ] 替换 API 函数调用
 - [ ] 更新数据类型
 - [ ] 修改内存管理代码
+- [ ] 将跨线程容器 root 改为 `xvoCreate*Ex(..., XRT_OBJMODE_SHARED)`
 - [ ] 测试编译通过
 
 ### 功能验证
@@ -490,7 +526,7 @@ valgrind --leak-check=full ./program
 1. 确保调用 `xrtInit()` 和 `xrtUnit()`
 2. 对所有 `xrtMalloc` 分配的内存调用 `xrtFree`
 3. 对所有 `xvoCreate*` 创建的值调用 `xvoUnref`
-4. 临时内存使用 `xrtTempMemory`
+4. 临时内存使用 `xrtTempMemory`，且只在已附加线程内做短期使用
 
 ---
 

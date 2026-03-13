@@ -23,7 +23,9 @@
 /* ============================== 内部线程安全的临时缓冲区 ============================== */
 
 // 用于 xrtHttpRespHeader / xrtHttpRespCookie 返回值的线程局部缓冲区
-#if defined(__GNUC__) || defined(__TINYC__)
+#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+	#define __XRT_HTTP_THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__)
 	#define __XRT_HTTP_THREAD_LOCAL __thread
 #elif defined(_WIN32) || defined(_WIN64)
 	#define __XRT_HTTP_THREAD_LOCAL __declspec(thread)

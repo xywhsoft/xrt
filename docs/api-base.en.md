@@ -55,49 +55,25 @@
 
 ### xrtGlobalData
 
-XRT global data structure, stores library runtime state and configuration.
+XRT process-global runtime structure. Stores global state and configuration.
 
 **Definition:**
 ```c
 typedef struct {
-    // Initialization state
     int bInit;                          // Whether initialized
-    
-    // Global constants
-    str sNull;                          // Empty string constant (read-only)
-    
-    // Temporary return values (for multi-return scenarios)
-    str sRet;                           // String return value
-    int64 iRet;                         // Integer return value
-    double nRet;                        // Float return value
-    
-    // Error handling
-    str LastError;                      // Last error message
-    int __pri_FreeError;                // Internal: whether to free error string
-    void (*OnError)(str sError);        // Error callback function
-    
-    // High-precision clock (Windows only)
+    uint32 iInitRef;                    // Global init refcount
+    str sNull;                          // Global empty string constant (read-only)
+    void (*OnError)(str sError);        // Global error callback
     #if defined(_WIN32) || defined(_WIN64)
         uint64 Frequency;               // Clock frequency
     #endif
-    
-    // Network info
     uint LocalAddr;                     // Local IP address (for XID generation)
-    
-    // Application info
     str AppFile;                        // Application full path
     str AppPath;                        // Application directory
-    
-    // Ring temporary memory
-    ptr TempMem[32];                    // 32 temporary memory slots
-    uint32 TempMemIdx;                  // Current slot index
-    
-    // Memory allocation functions (customizable)
     ptr (*malloc)(size_t iSize);        // Allocate memory
-    ptr (*calloc)(size_t iNum, size_t iSize);  // Allocate and zero
-    ptr (*realloc)(ptr pMem, size_t iSize);    // Reallocate
+    ptr (*calloc)(size_t iNum, size_t iSize);
+    ptr (*realloc)(ptr pMem, size_t iSize);
     void (*free)(ptr pMem);             // Free memory
-    
 } xrtGlobalData;
 ```
 
@@ -106,16 +82,29 @@ typedef struct {
 | Member | Type | Description |
 |--------|------|-------------|
 | `bInit` | `int` | Initialization flag, `TRUE` means initialized |
+| `iInitRef` | `uint32` | Global init reference count |
 | `sNull` | `str` | Global empty string, used for safe returns |
-| `sRet` | `str` | Temporary string return value storage |
-| `iRet` | `int64` | Temporary integer return value storage |
-| `nRet` | `double` | Temporary float return value storage |
-| `LastError` | `str` | Last error message |
 | `OnError` | Function pointer | Callback function when error occurs |
 | `AppFile` | `str` | Full path of current program |
 | `AppPath` | `str` | Directory of current program |
-| `TempMem` | `ptr[32]` | 32 temporary memory slots |
 | `malloc/calloc/realloc/free` | Function pointers | Customizable memory allocation functions |
+
+### xrtThreadData
+
+XRT thread-local runtime structure. Stores the current thread's error state, temporary memory, default RNG state, and cleanup stack.
+
+After phase-1, the following data has moved to thread-local runtime state:
+
+- `LastError`
+- The 32-slot temporary memory used by `xrtTempMemory()`
+- Default RNG state used by `xrtRand32()` / `xrtRand64()` / `xrtRandRange()`
+
+In most cases you do not operate on `xrtThreadData` directly. Use these APIs instead:
+
+- `xrtThreadGetCurrent()`
+- `xrtThreadAttachCurrent()`
+- `xrtThreadDetachCurrent()`
+- `xrtGetError()`
 
 ---
 
@@ -129,6 +118,11 @@ Global data instance, available after `xrtInit()`.
 ```c
 XXAPI extern xrtGlobalData xCore;
 ```
+
+**Notes:**
+- `xCore` stores process-global state only
+- After phase-1, `LastError` and temporary memory are no longer stored in `xCore`
+- Use `xrtGetError()` to read the current-thread error message
 
 **Usage Example:**
 ```c
@@ -144,8 +138,8 @@ int main() {
     xCore.OnError = MyErrorHandler;
     
     // Check error
-    if (xCore.LastError != xCore.sNull) {
-        printf("Error: %s\n", xCore.LastError);
+    if (xrtGetError() != xCore.sNull) {
+        printf("Error: %s\n", xrtGetError());
     }
     
     xrtUnit();
@@ -172,9 +166,10 @@ XXAPI xrtGlobalData* xrtInit();
 **Notes:**
 - **Must** be called before using any XRT functionality
 - Multiple calls are safe (checks initialization state)
+- Automatically attaches the current thread to the XRT runtime
 - Initialization includes:
   - Setting global constants
-  - Initializing random number generator
+  - Initializing current-thread runtime state
   - Getting application path
   - Initializing network (Windows)
   - Getting local IP address
@@ -222,9 +217,9 @@ XXAPI void xrtUnit();
 ```
 
 **Notes:**
-- Releases application path
-- Releases all temporary memory
-- Cleans up network resources (Windows)
+- Detaches the current thread from the XRT runtime
+- Releases process-global resources only when the global init refcount reaches zero
+- Cleans up network resources (Windows) when the last runtime user exits
 - Should be called before program exit
 
 **Example:**
@@ -471,7 +466,7 @@ int main() {
 
 ### xrtTempMemory
 
-Allocate temporary memory (auto-managed)
+Allocate current-thread temporary memory (auto-managed)
 
 **Function Prototype:**
 ```c
@@ -488,10 +483,12 @@ XXAPI ptr xrtTempMemory(size_t iSize);
 **Memory Release:** ⭕ **No manual release needed** (auto-managed)
 
 **Notes:**
-- Uses ring buffer (32 slots)
-- Cyclic use, 33rd call automatically frees 1st memory
+- Uses 32 temporary memory slots owned by the current thread
+- The 33rd call on the same thread automatically frees that thread's 1st slot
+- Different threads do not overwrite each other's temporary memory
 - Suitable for temporary, short-term small memory
 - **Not suitable for** data that needs long-term holding
+- Depends on thread runtime state; the bootstrap thread is attached after `xrtInit()`, and `xrtThreadCreate()` threads are attached automatically
 
 **Example:**
 ```c
@@ -523,7 +520,7 @@ int main() {
 str GetTempString() {
     str temp = xrtTempMemory(100);
     strcpy((char*)temp, "data");
-    return temp;  // Dangerous! May be overwritten after 32 calls
+    return temp;  // Dangerous! Later temporary allocations on the same thread may overwrite it
 }
 
 // ✅ Correct usage: use immediately
@@ -538,7 +535,7 @@ void PrintFormat(int value) {
 
 ### xrtFreeTempMemory
 
-Free all temporary memory
+Free all temporary memory of the current thread
 
 **Function Prototype:**
 ```c
@@ -546,9 +543,9 @@ XXAPI void xrtFreeTempMemory();
 ```
 
 **Notes:**
-- Frees all 32 temporary memory slots
-- Resets ring buffer index
-- Usually called automatically in `xrtUnit()`
+- Frees all 32 temporary memory slots of the current thread
+- Resets the current thread's temporary memory index
+- Usually called automatically during `xrtUnit()` or `xrtThreadDetachCurrent()`
 - Can be called manually when immediate release is needed
 
 **Example:**
@@ -594,8 +591,9 @@ XXAPI void xrtSetError(str sError, bool bFree);
   - `FALSE` - XRT won't free (constant string)
 
 **Notes:**
-- Sets `xCore.LastError`
-- If `xCore.OnError` callback is set, triggers callback
+- Sets the current-thread error state
+- If `xCore.OnError` callback is set, triggers the callback
+- Does not affect other threads
 
 **Example:**
 ```c
@@ -617,6 +615,8 @@ int main() {
     int param = -1;
     str error = xrtFormat("Invalid parameter: %d", param);
     xrtSetError(error, TRUE);  // XRT will handle freeing
+
+    fprintf(stderr, "Current Error: %s\n", xrtGetError());
     
     xrtUnit();
     return 0;
@@ -655,7 +655,7 @@ int main() {
     xrtSetErrorU16(error, 0, FALSE);
     
     // Error message converted to UTF-8
-    printf("Error: %s\n", xCore.LastError);
+    printf("Error: %s\n", xrtGetError());
     
     xrtUnit();
     return 0;
@@ -683,6 +683,25 @@ XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree);
 
 ---
 
+### xrtGetError
+
+Get the error message of the current thread.
+
+**Function Prototype:**
+```c
+XXAPI str xrtGetError();
+```
+
+**Return Value:**
+- Returns the current-thread error string
+- Returns `xCore.sNull` when there is no error
+
+**Notes:**
+- This is the recommended way to read error state after phase-1
+- Different threads observe independent error state
+
+---
+
 ### xrtClearError
 
 Clear error message
@@ -693,8 +712,8 @@ XXAPI void xrtClearError();
 ```
 
 **Notes:**
-- Sets `xCore.LastError` to `xCore.sNull`
-- If previous error needs freeing, frees it first
+- Sets the current-thread error message to `xCore.sNull`
+- Frees the previous error first if it owns the string
 
 **Example:**
 ```c
@@ -708,13 +727,13 @@ int main() {
     xrtSetError("Something went wrong", FALSE);
     
     // Check and handle error
-    if (xCore.LastError != xCore.sNull) {
-        printf("Error: %s\n", xCore.LastError);
+    if (xrtGetError() != xCore.sNull) {
+        printf("Error: %s\n", xrtGetError());
         xrtClearError();  // Clear error
     }
     
     // Confirm error cleared
-    if (xCore.LastError == xCore.sNull) {
+    if (xrtGetError() == xCore.sNull) {
         printf("Error cleared.\n");
     }
     
@@ -948,7 +967,7 @@ int main() {
     
     // Call function
     if (!MyFunction(-1)) {
-        printf("Check error: %s\n", xCore.LastError);
+        printf("Check error: %s\n", xrtGetError());
         xrtClearError();
     }
     
@@ -1028,7 +1047,7 @@ int main() {
         xrtFree(temp);
     }
     
-    // ✅ Efficient: use temporary memory (but note 32 limit)
+    // ✅ Efficient: use current-thread temporary memory (but note the 32-slot limit)
     for (int i = 0; i < 30; i++) {  // Less than 32 times
         str temp = xrtTempMemory(256);
         sprintf((char*)temp, "Item %d", i);

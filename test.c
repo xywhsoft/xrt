@@ -18,6 +18,7 @@
 #include "test/test_time.h"
 #include "test/test_file.h"
 #include "test/test_thread.h"
+#include "test/test_runtime_phase2.h"
 #include "test/test_coroutine.h"
 #include "test/test_rwlock.h"
 #include "test/test_hash.h"
@@ -114,6 +115,9 @@ int main(int argc, char** argv)
 	
 	/* Thread 库测试 */
 	// Test_Thread(xCore);
+
+	/* Runtime Phase-2 测试 */
+	// Test_Runtime_Phase2(xCore);
 	
 	/* RWLock 库测试 */
 	// Test_RWLock(xCore);

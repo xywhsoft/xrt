@@ -4,6 +4,10 @@
 // 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
 XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength)
 {
+	return xrtMemUnitCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xmemunit xrtMemUnitCreateEx(uint32 iItemLength, uint32 iMode)
+{
 	iItemLength += sizeof(MMU_Value);
 	xmemunit objUnit = xrtMalloc(sizeof(xmemunit_struct) + (256 * iItemLength));
 	if ( objUnit == NULL ) {
@@ -15,6 +19,10 @@ XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength)
 	objUnit->FreeCount = 0;
 	objUnit->FreeOffset = 0;
 	objUnit->Flag = 0;
+	xrtOwnerInitMode(&objUnit->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objUnit->Owner);
+	}
 	return objUnit;
 }
 
@@ -24,7 +32,11 @@ XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit)
 	if ( objUnit == NULL ) {
 		return NULL;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return NULL;
+	}
 	if ( objUnit->Count > 255 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return NULL;
 	}
 	uint8 idx = objUnit->Count;
@@ -37,6 +49,7 @@ XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit)
 	objUnit->Count++;
 	MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
 	v->ItemFlag = MMU_FLAG_USE | objUnit->Flag | idx;
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return (void*)&v[1];
 }
 
@@ -46,8 +59,12 @@ XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx)
 	if ( objUnit == NULL ) {
 		return FALSE;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return FALSE;
+	}
 	MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
 	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return FALSE;
 	}
 	// 释放内存
@@ -60,6 +77,7 @@ XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx)
 		objUnit->FreeOffset = 0;
 	}
 	v->ItemFlag = 0;
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return TRUE;
 }
 XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
@@ -67,8 +85,12 @@ XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 	if ( objUnit == NULL ) {
 		return FALSE;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return FALSE;
+	}
 	MMU_ValuePtr v = obj - 4;
 	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return FALSE;
 	}
 	uint8 idx = v->ItemFlag & 0xFF;
@@ -82,6 +104,7 @@ XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 		objUnit->FreeOffset = 0;
 	}
 	v->ItemFlag = 0;
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return TRUE;
 }
 
@@ -91,7 +114,11 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 	if ( objUnit == NULL ) {
 		return 0;
 	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return 0;
+	}
 	if ( objUnit->Count > 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
 		return 0;
 	}
 	int iCount = 0;
@@ -136,6 +163,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 			}
 		}
 	}
+	xrtOwnerEndMutable(&objUnit->Owner);
 	return iCount;
 }
 

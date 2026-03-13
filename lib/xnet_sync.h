@@ -65,20 +65,12 @@ static void __xnetSyncSleepMs(uint32 iDelayMs)
 
 static long __xnetSyncAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, iExchange, iComparand);
-	#else
-		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
-	#endif
+	return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
 }
 
 static void __xnetSyncAtomicStore(volatile long* pValue, long iValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		InterlockedExchange((volatile LONG*)pValue, iValue);
-	#else
-		__sync_lock_test_and_set(pValue, iValue);
-	#endif
+	__xrtAtomicExchange32(pValue, iValue);
 }
 
 static void __xnetSyncSpinLock(volatile long* pLock)

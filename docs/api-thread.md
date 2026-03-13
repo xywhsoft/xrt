@@ -11,6 +11,7 @@
 - [常量定义](#常量定义)
 - [数据类型](#数据类型)
 - [线程管理](#线程管理)
+- [运行时附加](#运行时附加)
 - [互斥体](#互斥体)
 - [信号量](#信号量)
 - [条件变量](#条件变量)
@@ -47,11 +48,14 @@
 
 ```c
 typedef struct {
-    ptr Handle;                    // 线程句柄
-    uint32 TID;                    // 线程ID
+    ptr Handle;                    // 原生线程句柄
+    uint64 TID;                    // 线程ID
     uint32 (*Proc)(ptr param);     // 用户回调函数
     ptr Param;                     // 用户参数
     volatile int StopFlag;         // 停止信号标志
+    volatile int bFinished;        // 线程是否已结束
+    volatile int bJoined;          // 是否已完成等待
+    uint32 ExitCode;               // 线程退出码
 } xthread_struct, *xthread;
 ```
 
@@ -104,6 +108,10 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize);
 
 **返回值：** 成功返回线程对象指针，失败返回 `NULL`
 
+**说明：**
+- `xrtThreadCreate()` 创建的线程会自动附加到 XRT 运行时
+- 线程函数内可以直接调用 `xrtTempMemory()`、`xrtSetError()`、`xrtRand32()` 等运行时相关 API
+
 ---
 
 ### xrtThreadDestroy
@@ -116,6 +124,11 @@ XXAPI void xrtThreadDestroy(xthread pThread);
 
 **参数：**
 - `pThread` - 线程对象
+
+**说明：**
+- 只销毁线程管理对象，不会终止线程
+- 如果线程仍在运行，`xrtThreadDestroy()` 会设置当前线程错误信息并直接返回
+- 推荐顺序始终是：`xrtThreadWait()` -> `xrtThreadDestroy()`
 
 ---
 
@@ -142,6 +155,10 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout);
 - `iTimeout` - 超时时间（毫秒）
 
 **返回值：** `XRT_WAIT_OK`/`XRT_WAIT_TIMEOUT`/`XRT_WAIT_ERROR`
+
+**说明：**
+- Windows 使用原生等待对象
+- Linux/macOS 当前实现会保持线程可再次 `xrtThreadWait()`，不会因为状态查询提前消费 join 状态
 
 ---
 
@@ -213,6 +230,10 @@ XXAPI int xrtThreadGetState(xthread pThread);
 
 **返回值：** `XRT_THREAD_STOPPED`/`XRT_THREAD_RUNNING`/`XRT_THREAD_SUSPENDED`
 
+**说明：**
+- 该接口是尽力而为的状态快照
+- 运行态与停止态在不同平台上的可观测粒度并不完全一致
+
 ---
 
 ### xrtThreadGetExitCode
@@ -230,8 +251,58 @@ XXAPI uint32 xrtThreadGetExitCode(xthread pThread);
 获取当前线程ID。
 
 ```c
-XXAPI uint32 xrtThreadGetCurrentId();
+XXAPI uint64 xrtThreadGetCurrentId();
 ```
+
+---
+
+## 运行时附加
+
+### xrtThreadIsAttached
+
+检查当前线程是否已附加到 XRT 运行时。
+
+```c
+XXAPI bool xrtThreadIsAttached();
+```
+
+### xrtThreadGetCurrent
+
+获取当前线程的运行时状态对象。
+
+```c
+XXAPI xrtThreadData* xrtThreadGetCurrent();
+```
+
+### xrtThreadAttachCurrent
+
+将当前线程附加到 XRT 运行时。
+
+```c
+XXAPI xrtThreadData* xrtThreadAttachCurrent();
+```
+
+### xrtThreadDetachCurrent
+
+将当前线程从 XRT 运行时分离。
+
+```c
+XXAPI void xrtThreadDetachCurrent();
+```
+
+### xrtThreadPushCleanup / xrtThreadPopCleanup
+
+注册或弹出当前线程的退出清理回调。
+
+```c
+XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg);
+XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg);
+```
+
+**说明：**
+- 主线程在 `xrtInit()` 后自动附加
+- `xrtThreadCreate()` 创建的线程会自动附加并在退出时自动清理线程资源
+- 宿主自行创建的线程如果要调用运行时相关 API，应先 `xrtThreadAttachCurrent()`，结束前再 `xrtThreadDetachCurrent()`
 
 ---
 
@@ -484,36 +555,40 @@ XXAPI void xrtCondBroadcast(xcond pCond);
 #include "xrt.h"
 #include <stdio.h>
 
-// 线程函数
+typedef struct {
+	xthread Thread;
+} ThreadCtx;
+
 static uint32 WorkerThread(ptr param)
 {
-    xthread self = (xthread)param;
-    
-    for (int i = 0; i < 10; i++) {
-        // 检查停止信号
-        if (xrtThreadShouldStop(self)) {
-            printf("线程收到停止信号\n");
-            return 1;
-        }
-        printf("工作中: %d\n", i);
-        xrtSleep(100);
-    }
-    return 0;
+	ThreadCtx* pCtx = (ThreadCtx*)param;
+	
+	while (pCtx->Thread == NULL) {
+		xrtSleep(1);
+	}
+	
+	for (int i = 0; i < 10; i++) {
+		if (xrtThreadShouldStop(pCtx->Thread)) {
+			printf("线程收到停止信号\n");
+			return 1;
+		}
+		printf("工作中: %d\n", i);
+		xrtSleep(100);
+	}
+	return 0;
 }
 
 int main() {
-    xrtInit();
-    
-    xthread t = xrtThreadCreate(WorkerThread, NULL, 0);
-    // 传递自身给线程函数
-    t->Param = t;
-    
-    // 等待线程结束
-    xrtThreadWait(t);
-    xrtThreadDestroy(t);
-    
-    xrtUnit();
-    return 0;
+	ThreadCtx tCtx = { 0 };
+	xrtInit();
+	
+	tCtx.Thread = xrtThreadCreate(WorkerThread, &tCtx, 0);
+	
+	xrtThreadWait(tCtx.Thread);
+	xrtThreadDestroy(tCtx.Thread);
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -692,18 +767,19 @@ int main() {
 
 ### 1. 线程安全
 
-XRT 库的大部分函数**不是线程安全**的，特别是：
+phase-1 之后，XRT 的运行时语义变为：
 
-- `xCore` 全局变量（`iRet`, `LastError` 等）
-- 临时内存（`xrtTempMemory`）
-- JSON 解析器
+- `xCore` 只保存进程级状态，如 `AppPath`、`AppFile`、`sNull`、`OnError`
+- `LastError`、`xrtTempMemory()`、默认随机数属于当前线程
+- `xrtThreadCreate()` 创建的线程可直接使用运行时相关 API
+- 宿主线程在未附加前，不应调用依赖线程状态的运行时 API
 
-使用互斥体保护共享数据：
+共享对象本身仍需要上层自行同步，例如容器、网络会话和用户业务状态。使用互斥体保护共享数据：
 
 ```c
 xmutex mutex = xrtMutexCreate();
 
-// 线稍安全的访问
+// 线程安全的访问
 xrtMutexLock(mutex);
 // 访问共享数据...
 xrtMutexUnlock(mutex);

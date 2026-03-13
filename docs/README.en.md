@@ -107,13 +107,20 @@ xrtGlobalData* xrtInit();           // Initialize library
 void xrtUnit();                      // Release library resources
 ```
 
+Notes:
+- `xrtInit()` initializes the process-global runtime and automatically attaches the current thread
+- `xrtUnit()` detaches the current thread; global resources are released only when the global init refcount reaches zero
+- `xvoCreateArray/List/Coll/Table()` create local roots by default; use `xvoCreate*Ex(..., XRT_OBJMODE_SHARED)` for cross-thread sharing
+- On shared roots, top-level `xvalue` refcounting automatically enters the shared path; if you keep using underlying root pointers, walks, or iterators directly, pair them with the matching `Lock/Unlock` APIs
+
 #### Memory Management
 ```c
 ptr xrtMalloc(size_t iSize);                 // Allocate memory
 ptr xrtCalloc(size_t iNum, size_t iSize);   // Allocate and zero-fill
 ptr xrtRealloc(ptr pMem, size_t iSize);     // Reallocate
 void xrtFree(ptr pmem);                      // Free memory
-ptr xrtTempMemory(size_t iSize);            // Temporary memory (auto-released)
+ptr xrtTempMemory(size_t iSize);            // Thread-local temporary memory
+str xrtGetError();                           // Get current-thread error message
 ```
 
 #### String Operations
@@ -183,8 +190,13 @@ int main() {
 - Memory allocated with `xrtMalloc/xrtCalloc/xrtRealloc`
 
 **Functions not requiring release:**
-- `xrtTempMemory` - Uses circular temporary memory, automatically managed
+- `xrtTempMemory` - Uses thread-local temporary memory, automatically managed
 - Functions returning constant strings
+
+Runtime notes:
+- The bootstrap thread is attached automatically after `xrtInit()`
+- Threads created by `xrtThreadCreate()` are attached automatically and can call runtime-bound APIs directly
+- Host-created threads that need runtime-bound APIs should call `xrtThreadAttachCurrent()` before use and `xrtThreadDetachCurrent()` before exit
 
 ### 3. Character Set Handling
 
@@ -211,8 +223,8 @@ void OnError(str sError) {
 xCore->OnError = OnError;
 
 // Check for errors
-if (xCore->LastError != xCore->sNull) {
-    printf("Last Error: %s\n", xCore->LastError);
+if (xrtGetError() != xCore->sNull) {
+    printf("Last Error: %s\n", xrtGetError());
 }
 ```
 

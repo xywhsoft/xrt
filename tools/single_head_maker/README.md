@@ -103,6 +103,55 @@ void my_function() {
 }
 ```
 
+### 运行时与共享根注意事项
+
+- `xrtInit()` 会自动附加当前线程到 XRT 运行时
+- `xrtThreadCreate()` 创建的线程也会自动附加，可直接调用 `xrtTempMemory()`、`xrtSetError()`、`xrtRand32()` 等运行时相关 API
+- 如果线程不是由 XRT 创建，而你又要调用运行时相关 API，请在线程入口先执行 `xrtThreadAttachCurrent()`，退出前执行 `xrtThreadDetachCurrent()`
+- `xvoCreateArray/List/Coll/Table()` 默认创建本线程本地 root；跨线程共享请使用 `xvoCreate*Ex(XRT_OBJMODE_SHARED)`
+- shared 容器写入嵌套容器值时，子容器也必须已经拥有 real shared root
+
+```c
+#define XRT_IMPLEMENTATION
+#include "xrt.h"
+
+static uint32 Worker(ptr pArg)
+{
+	xvalue pSharedTable = (xvalue)pArg;
+	str pTemp = xrtTempMemory(64);
+	(void)pTemp;
+
+	if ( xvoTableExists(pSharedTable, "tags", 4) ) {
+		xvoAddRef(pSharedTable);
+		xvoUnref(pSharedTable);
+	}
+	return 0;
+}
+
+int main(void)
+{
+	xvalue pTable;
+	xvalue pTags;
+	xthread pThread;
+
+	xrtInit();
+
+	pTable = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+	pTags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+	xvoCollSetText(pTags, "agent", 0, FALSE);
+	xvoTableSetValue(pTable, "tags", 4, pTags, FALSE);
+
+	pThread = xrtThreadCreate((ptr)Worker, pTable, 0);
+	xrtThreadWait(pThread);
+	xrtThreadDestroy(pThread);
+
+	xvoUnref(pTable);
+	xvoUnref(pTags);
+	xrtUnit();
+	return 0;
+}
+```
+
 ## 生成文件结构
 
 生成的单头文件结构：

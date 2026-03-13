@@ -29,9 +29,13 @@ int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
 // 创建哈希表
 XXAPI xdict xrtDictCreate(uint32 iItemLength)
 {
+	return xrtDictCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI xdict xrtDictCreateEx(uint32 iItemLength, uint32 iMode)
+{
 	xdict objHT = xrtMalloc(sizeof(xdict_struct));
 	if ( objHT ) {
-		xrtDictInit(objHT, iItemLength);
+		xrtDictInitEx(objHT, iItemLength, iMode);
 	}
 	return objHT;
 }
@@ -40,6 +44,9 @@ XXAPI xdict xrtDictCreate(uint32 iItemLength)
 XXAPI void xrtDictDestroy(xdict objHT)
 {
 	if ( objHT ) {
+		if ( !xrtOwnerCheckMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+			return;
+		}
 		xrtDictUnit(objHT);
 		xrtFree(objHT);
 	}
@@ -56,28 +63,73 @@ void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 }
 XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength)
 {
-	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc);
+	xrtDictInitEx(objHT, iItemLength, XRT_OBJMODE_LOCAL);
+}
+XXAPI void xrtDictInitEx(xdict objHT, uint32 iItemLength, uint32 iMode)
+{
+	xrtOwnerInitMode(&objHT->Owner, iMode);
+	xrtAVLTreeInitEx(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objHT->Owner);
+		xrtOwnerActivateShared(&objHT->AVLT.Owner);
+	}
 	objHT->AVLT.FreeProc = (ptr)AVLHT32_FreeProc;
 	objHT->MP = NULL;
 }
 
 // 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
-XXAPI void xrtDictUnit(xdict objHT)
+static inline void __xrtDictUnit_NoLock(xdict objHT)
 {
 	xrtAVLTreeUnit(&objHT->AVLT);
+}
+XXAPI void xrtDictUnit(xdict objHT)
+{
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return;
+	}
+	__xrtDictUnit_NoLock(objHT);
+	xrtOwnerEndMutable(&objHT->Owner);
+}
+
+XXAPI bool xrtDictLock(xdict objHT)
+{
+	if ( objHT == NULL ) {
+		return FALSE;
+	}
+	return xrtOwnerLock(&objHT->Owner, "dict belongs to another thread.");
+}
+
+XXAPI void xrtDictUnlock(xdict objHT)
+{
+	if ( objHT == NULL ) {
+		return;
+	}
+	xrtOwnerUnlock(&objHT->Owner);
 }
 
 // 设置值
 XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet)
 {
+	ptr pRet;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	return xrtDictSetWithKey(objHT, &objKey, bNewRet);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
+	pRet = xrtDictSetWithKey(objHT, &objKey, bNewRet);
+	xrtOwnerEndMutable(&objHT->Owner);
+	return pRet;
 }
 
 // 设置值 - 当值为 ptr 时直接修改指针内容
 XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal)
 {
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		if ( ppOldVal ) {
+			*ppOldVal = NULL;
+		}
+		return FALSE;
+	}
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
 	bool bNew;
@@ -93,11 +145,13 @@ XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* p
 		}
 		// 修改为新值
 		ppVal[0] = pVal;
+		xrtOwnerEndMutable(&objHT->Owner);
 		return TRUE;
 	} else {
 		if ( ppOldVal ) {
 			*ppOldVal = NULL;
 		}
+		xrtOwnerEndMutable(&objHT->Owner);
 		return FALSE;
 	}
 }
@@ -105,69 +159,100 @@ XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* p
 // 获取值
 XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	ptr pRet;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	return xrtDictGetWithKey(objHT, &objKey);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
+	pRet = xrtDictGetWithKey(objHT, &objKey);
+	xrtOwnerEndMutable(&objHT->Owner);
+	return pRet;
 }
 
 // 获取值 - 当值为 ptr 时直接获取指针内容
 XXAPI ptr xrtDictGetPtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	ptr pRet = NULL;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
 	struct {
 		ptr val;
 	} *pData = xrtDictGetWithKey(objHT, &objKey);
 	if ( pData ) {
-		return pData->val;
+		pRet = pData->val;
 	}
-	return NULL;
+	xrtOwnerEndMutable(&objHT->Owner);
+	return pRet;
 }
 
 // 删除值
 XXAPI bool xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	bool bRet;
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return FALSE;
+	}
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
-	return xrtAVLTreeRemove(&objHT->AVLT, &objKey);
+	bRet = xrtAVLTreeRemove(&objHT->AVLT, &objKey);
+	xrtOwnerEndMutable(&objHT->Owner);
+	return bRet;
 }
 
 // 删除值，当值为 ptr 时返回 ptr
 XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	ptr result = NULL;
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return NULL;
+	}
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)&objHT->AVLT, objHT->AVLT.CompProc, &objKey);
 	if ( pDelNode ) {
 		Dict_Key* pKeyPtr = xrtAVLTreeGetNodeData(pDelNode);
 		ptr* pData = (ptr*)&pKeyPtr[1];
-		ptr result = pData[0];  // 先保存返回值
+		result = pData[0];  // 先保存返回值
 		if ( objHT->AVLT.FreeProc ) {
 			objHT->AVLT.FreeProc(&objHT->AVLT, &pDelNode[1]);
 		}
 		xrtFSMemPoolFree(&objHT->AVLT.objMM, pDelNode);
-		return result;  // 返回保存的值
-	} else {
-		return NULL;
 	}
+	xrtOwnerEndMutable(&objHT->Owner);
+	return result;  // 返回保存的值
 }
 
 // 判断值是否存在
 XXAPI bool xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
+	bool bRet = FALSE;
 	Dict_Key objKey;
 	Dict_EvalHash(objKey, sKey, iKeyLen);
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return FALSE;
+	}
 	Dict_Key* pNode = xrtAVLTreeSearch(&objHT->AVLT, &objKey);
 	if ( pNode ) {
-		return TRUE;
+		bRet = TRUE;
 	}
-	return FALSE;
+	xrtOwnerEndMutable(&objHT->Owner);
+	return bRet;
 }
 
 // 获取表内元素数量
 XXAPI uint32 xrtDictCount(xdict objHT)
 {
-	return objHT->AVLT.Count;
+	uint32 iCount = 0;
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return 0;
+	}
+	iCount = objHT->AVLT.Count;
+	xrtOwnerEndMutable(&objHT->Owner);
+	return iCount;
 }
 
 // 遍历表元素
@@ -197,7 +282,11 @@ int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, ptr pArg)
 }
 XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 {
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return;
+	}
 	AVLHT32_WalkRecuProc(objHT->AVLT.RootNode, procEach, pArg);
+	xrtOwnerEndMutable(&objHT->Owner);
 }
 
 

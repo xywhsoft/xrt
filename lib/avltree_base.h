@@ -345,6 +345,7 @@ XXAPI void xrtAVLTB_IterBegin(xavltbase objAVLT)
 	// 初始化迭代器状态
 	iter->Depth = -1;
 	iter->Current = NULL;
+	iter->Flags = 0;
 	objAVLT->Iterator = iter;
 	
 	// 定位到第一个节点（最左节点）并压入栈
