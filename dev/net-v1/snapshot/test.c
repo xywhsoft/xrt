@@ -132,7 +132,6 @@ int main(int argc, char** argv)
 	
 	/* 环形缓冲区测试 */
 	// Test_NetRingBuf(xCore);
-	// XNet2 staging tests use the dedicated harness in dev/test_xnet2_stage.c
 	
 	/* 事件循环测试 */
 	// Test_NetEventLoop(xCore);

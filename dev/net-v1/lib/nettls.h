@@ -4597,44 +4597,6 @@ XXAPI bool xrtTlsIsReady(xtlsctx *pCtx)
 	return pCtx->bHandshakeDone;
 }
 
-XXAPI xnet_result xrtTlsFeed(xtlsctx *pCtx, const char *pData, size_t iLen)
-{
-	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	return xrtNetBufAppend(&pCtx->tRecvBuf, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
-}
-
-XXAPI size_t xrtTlsPendingSend(xtlsctx *pCtx)
-{
-	return pCtx ? pCtx->tSendBuf.iSize : 0;
-}
-
-XXAPI size_t xrtTlsPendingRecv(xtlsctx *pCtx)
-{
-	return pCtx ? pCtx->tRecvBuf.iSize : 0;
-}
-
-XXAPI xnet_result xrtTlsPeekSend(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
-{
-	size_t iCopy;
-	if ( pRead ) *pRead = 0;
-	if ( !pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
-	if ( pCtx->tSendBuf.iSize == 0 ) return XRT_NET_AGAIN;
-	iCopy = pCtx->tSendBuf.iSize < iLen ? pCtx->tSendBuf.iSize : iLen;
-	memcpy(pBuf, pCtx->tSendBuf.pData, iCopy);
-	if ( pRead ) *pRead = iCopy;
-	return XRT_NET_OK;
-}
-
-XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
-{
-	if ( !pCtx || iLen == 0 || pCtx->tSendBuf.iSize == 0 ) return;
-	if ( iLen >= pCtx->tSendBuf.iSize ) {
-		xrtNetBufConsume(&pCtx->tSendBuf, pCtx->tSendBuf.iSize);
-		return;
-	}
-	xrtNetBufConsume(&pCtx->tSendBuf, iLen);
-}
-
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
 static void __xrt_tls_derive_application_keys(xtlsctx *pCtx);
 static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
