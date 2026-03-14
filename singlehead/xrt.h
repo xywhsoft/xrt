@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-14 09:31:33
+    Generated: 2026-03-15 05:10:33
 
     MIT License
 
@@ -294,15 +294,9 @@
 	#define XRT_NO_COROUTINE
 	#define XRT_NO_NETWORK
 	#define XRT_NO_CRYPTO
-	#define XRT_NO_NETSOCK
-	#define XRT_NO_NETPOLL
 	#define XRT_NO_NETTLS
-	#define XRT_NO_NETLOOP
-	#define XRT_NO_NETTCP
-	#define XRT_NO_NETUDP
 	#define XRT_NO_XID
 	#define XRT_NO_BUFFER
-	#define XRT_NO_NETHTTP
 	#define XRT_NO_ARRAY
 	#define XRT_NO_STACK
 	#define XRT_NO_BSMN
@@ -617,15 +611,14 @@
 	}
 	static inline long __xrtAtomicAddFetch32(volatile long* pValue, long iDelta)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
-			long iPrev = iDelta;
-			__asm__ volatile (
-				"lock; xaddl %0, %1"
-				: "+r"(iPrev), "+m"(*pValue)
-				:
-				: "memory"
-			);
-			return iPrev + iDelta;
+		#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+			long iPrev;
+			long iNext;
+			do {
+				iPrev = InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
+				iNext = iPrev + iDelta;
+			} while ( InterlockedCompareExchange((volatile LONG*)pValue, iNext, iPrev) != iPrev );
+			return iNext;
 		#elif defined(_WIN32) || defined(_WIN64)
 			return InterlockedExchangeAdd((volatile LONG*)pValue, iDelta) + iDelta;
 		#else
@@ -1944,321 +1937,36 @@
 	
 	// 加密安全随机数 (Windows: RtlGenRandom, Linux: /dev/urandom)
 	XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen);
-	
-	
-	
-	/* ------------------------------------ 网络通信基础类型 ------------------------------------ */
-	
-	/* ---- 网络结果码 ---- */
-	typedef enum {
-		XRT_NET_OK        =  0,
-		XRT_NET_ERROR     = -1,
-		XRT_NET_AGAIN     = -2,   // 非阻塞操作需重试
-		XRT_NET_TIMEOUT   = -3,
-		XRT_NET_CLOSED    = -4,
-	} xnet_result;
-	
-	/* ---- Socket 类型 ---- */
-	#if defined(_WIN32) || defined(_WIN64)
-		typedef SOCKET xsocket;
-		#define XSOCKET_INVALID  INVALID_SOCKET
-	#else
-		typedef int xsocket;
-		#define XSOCKET_INVALID  -1
-	#endif
-	
-	/* ---- 网络地址 (IPv4) ---- */
-	typedef struct {
-		uint32 iAddr;         // IP 地址 (网络字节序)
-		uint16 iPort;         // 端口号 (主机字节序)
-		char sAddr[16];       // IP 字符串缓存 "xxx.xxx.xxx.xxx"
-	} xnetaddr;
-	
-	/* ---- 网络缓冲区 ---- */
-	typedef struct {
-		char* pData;
-		size_t iSize;
-		size_t iCapacity;
-	} xnetbuf;
-	
-	/* ---- 环形网络缓冲区 (高性能, 无 memmove) ---- */
-	typedef struct {
-		char* pData;
-		size_t iCapacity;     // 总容量 (向上对齐为 2 的幂)
-		size_t iMask;         // iCapacity - 1, 用位与代替取模
-		size_t iReadPos;      // 读位置
-		size_t iWritePos;     // 写位置
-	} xnetringbuf;
-	
-	/* ---- 连接对象 ---- */
-	typedef struct {
-		int iId;
-		xsocket hSocket;
-		xnetaddr tLocalAddr;
-		xnetaddr tRemoteAddr;
-		int iType;            // 0=TCP, 1=UDP
-		ptr pUserData;
-		ptr pTlsCtx;
-		bool bTlsEnabled;
-	} xnetconn;
-	
-	/* ---- 事件回调 ---- */
-	typedef struct {
-		void (*OnAccept)(ptr pServer, xnetconn* pConn);
-		void (*OnConnect)(ptr pServer, xnetconn* pConn, bool bSuccess);
-		void (*OnRecv)(ptr pServer, xnetconn* pConn, const char* pData, size_t iLen);
-		void (*OnRecvFrom)(ptr pServer, xnetconn* pConn, const xnetaddr* pFromAddr, const char* pData, size_t iLen);
-		void (*OnSend)(ptr pServer, xnetconn* pConn, size_t iLen);
-		void (*OnClose)(ptr pServer, xnetconn* pConn);
-		void (*OnError)(ptr pServer, xnetconn* pConn, int iErrorCode);
-	} xnetevents;
-	
-	/* ---- WebSocket 事件回调 ---- */
-	typedef struct {
-		void (*OnOpen)(ptr pOwner, xnetconn* pConn);
-		void (*OnMessage)(ptr pOwner, xnetconn* pConn, int iOpcode, const char* pData, size_t iLen);
-		void (*OnClose)(ptr pOwner, xnetconn* pConn, uint16 iCode, const char* sReason);
-		void (*OnPing)(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
-		void (*OnPong)(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
-		void (*OnError)(ptr pOwner, xnetconn* pConn, int iErrorCode);
-	} xwsevents;
-	
-	/* ---- WebSocket 配置 ---- */
-	typedef struct {
-		const char* sPath;          // 请求路径，默认 "/"
-		const char* sProtocol;      // 子协议，可选
-		const char* sOrigin;        // Origin 头，可选
-		int iMaxMessageSize;        // 最大消息大小，默认 1MB
-		int iPingIntervalSec;       // Ping 间隔秒数，0=禁用
-		int iHandshakeTimeoutSec;   // 握手超时，默认 10秒
-	} xwsconfig;
-	
-	/* ---- WebSocket 操作码 ---- */
-	#define XRT_WS_OP_CONTINUATION  0x00
-	#define XRT_WS_OP_TEXT          0x01
-	#define XRT_WS_OP_BINARY        0x02
-	#define XRT_WS_OP_CLOSE         0x08
-	#define XRT_WS_OP_PING          0x09
-	#define XRT_WS_OP_PONG          0x0A
-	
-	/* ---- WebSocket 关闭状态码 ---- */
-	#define XRT_WS_CLOSE_NORMAL     1000
-	#define XRT_WS_CLOSE_GOING_AWAY 1001
-	#define XRT_WS_CLOSE_PROTOCOL   1002
-	#define XRT_WS_CLOSE_INVALID    1003
-	#define XRT_WS_CLOSE_NO_STATUS  1005
-	#define XRT_WS_CLOSE_ABNORMAL   1006
-	#define XRT_WS_CLOSE_INVALID_DATA 1007
-	#define XRT_WS_CLOSE_POLICY     1008
-	#define XRT_WS_CLOSE_TOO_BIG    1009
-	#define XRT_WS_CLOSE_EXTENSION  1010
-	#define XRT_WS_CLOSE_UNEXPECTED 1011
-	
-	/* ---- HTTP 服务器请求结构 (传递给回调) ---- */
-	typedef struct {
-		int iMethod;                  // 请求方法 (使用 xhttp_method 枚举值)
-		char sMethod[16];             // 原始方法字符串
-		char sUri[2048];              // 请求 URI (如 /api/user?id=1)
-		char sPath[1024];             // URI 路径部分 (如 /api/user)
-		char sQuery[1024];            // 查询字符串 (如 id=1)
-		char sVersion[16];            // HTTP/1.0 或 HTTP/1.1
-		void* pHeaders;               // 请求头字典 (内部使用 xdict_struct)
-		char* pBody;                  // 请求正文
-		size_t iBodyLen;              // 正文长度
-		size_t iContentLength;        // Content-Length 值
-		bool bKeepAlive;              // Connection: keep-alive
-		// 内部使用
-		void* pParams;                // 解析后的查询参数 (内部 xdict_struct)
-		void* pCookies;               // 解析后的 Cookie (内部 xdict_struct)
-	} xhttpdreq;
-	
-	/* ---- HTTP 服务器事件回调 ---- */
-	typedef struct {
-		void (*OnRequest)(ptr pOwner, xnetconn* pConn, xhttpdreq* pReq);
-		bool (*OnUpgrade)(ptr pOwner, xnetconn* pConn, xhttpdreq* pReq);
-		void (*OnClose)(ptr pOwner, xnetconn* pConn);
-		void (*OnError)(ptr pOwner, xnetconn* pConn, int iErrorCode);
-	} xhttpsrvevents;
-	
-	/* ---- HTTP 服务器配置 ---- */
-	typedef struct {
-		const char* sRootDir;         // 静态文件根目录 (NULL=禁用)
-		const char* sIndexFile;       // 默认索引文件 (默认 "index.html")
-		int iMaxHeaderSize;           // 最大请求头大小 (默认 8KB)
-		int iMaxBodySize;             // 最大请求正文 (默认 1MB)
-		int iKeepAliveTimeout;        // Keep-Alive 超时秒数 (默认 60)
-		int iMaxClients;              // 最大并发连接 (默认 256)
-	} xhttpsrvconfig;
-	
-	/* ---- 代理配置 ---- */
-	#define XRT_PROXY_NONE         0   // 无代理
-	#define XRT_PROXY_SOCKS5       1   // SOCKS5 代理
-	#define XRT_PROXY_HTTP_CONNECT 2   // HTTP CONNECT 代理
-	
-	typedef struct {
-		int iType;           // 代理类型: XRT_PROXY_NONE / XRT_PROXY_SOCKS5 / XRT_PROXY_HTTP_CONNECT
-		char sHost[64];      // 代理服务器地址
-		uint16 iPort;        // 代理服务器端口
-		char sUser[64];      // 用户名 (可选，空字符串=无认证)
-		char sPass[64];      // 密码 (可选)
-	} xproxyconfig;
-	
-	/* ---- 网络配置 ---- */
-	typedef struct {
-		size_t iRecvBufSize;    // 默认 8192
-		size_t iSendBufSize;    // 默认 8192
-		int iMaxClients;        // 最大客户端数（0=不限）
-		int iPollTimeoutMs;     // 轮询超时(毫秒)
-		int iConnectTimeoutMs;  // 连接超时(毫秒)，默认 5000
-		bool bNoDelay;          // TCP_NODELAY，默认 true
-		xproxyconfig tProxy;    // 代理配置
-	} xnetconfig;
-	
-	/* 初始化 xnetconfig 的默认值 */
-	static void xrtNetConfigInit(xnetconfig* pConfig)
-	{
-		pConfig->iRecvBufSize = 8192;
-		pConfig->iSendBufSize = 8192;
-		pConfig->iMaxClients = 0;
-		pConfig->iPollTimeoutMs = 1000;
-		pConfig->iConnectTimeoutMs = 5000;
-		pConfig->bNoDelay = true;
-		// 代理默认禁用
-		pConfig->tProxy.iType = XRT_PROXY_NONE;
-		pConfig->tProxy.sHost[0] = '\0';
-		pConfig->tProxy.iPort = 0;
-		pConfig->tProxy.sUser[0] = '\0';
-		pConfig->tProxy.sPass[0] = '\0';
-	}
-	
-	/* ---- TLS 上下文 (不透明) ---- */
-	typedef struct xrt_tls_context xtlsctx;
-	
-	/* ---- TLS 配置 ---- */
-	typedef struct {
-		const char* sCertFile;    // 证书文件路径
-		const char* sKeyFile;     // 私钥文件路径
-		const char* sCaFile;      // CA 证书路径
-		const char* sHostName;    // 主机名 (SNI, 客户端)
-		bool bVerifyPeer;         // 是否验证对端证书
-		// 服务端 SNI 回调 (虚拟主机支持)
-		void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
-		ptr pSNIUserData;
-		bool bAllowTLS12Ed25519;  // 服务端是否允许在 TLS 1.2 使用 Ed25519 证书, 默认 false
-	} xtlsconfig;
-	
-	/* ---- IO Poller (不透明) ---- */
-	typedef struct xrt_net_poller xnetpoller;
-	
-	/* ---- Event Loop 事件循环 (不透明) ---- */
-	typedef struct xrt_event_loop xeventloop;
-	
-	/* ---- TCP 服务器/客户端 (不透明) ---- */
-	typedef struct xrt_tcp_server xtcpserver;
-	typedef struct xrt_tcp_client xtcpclient;
-	
-	/* ---- UDP 服务器/客户端 (不透明) ---- */
-	typedef struct xrt_udp_server xudpserver;
-	typedef struct xrt_udp_client xudpclient;
-	
-	/* ---- WebSocket 服务器/客户端 (不透明) ---- */
-	typedef struct xrt_ws_server xwsserver;
-	typedef struct xrt_ws_client xwsclient;
-	
-	/* ---- HTTP 服务器 (不透明) ---- */
-	typedef struct xrt_http_server xhttpserver;
-	
-	
-	
-	/* ------------------------------------ Socket 基础操作 ------------------------------------ */
-	
-	// Socket 生命周期
-	XXAPI xnet_result xrtSockCreate(xnetconn* pConn, int iType);    // 0=TCP, 1=UDP
-	XXAPI void xrtSockClose(xnetconn* pConn);
-	XXAPI xnet_result xrtSockSetNonBlock(xnetconn* pConn);
-	XXAPI xnet_result xrtSockSetReuseAddr(xnetconn* pConn);
-	XXAPI xnet_result xrtSockSetTimeout(xnetconn* pConn, int iRecvMs, int iSendMs);
-	XXAPI xnet_result xrtSockSetNoDelay(xnetconn* pConn);
-	XXAPI xnet_result xrtSockSetKeepAlive(xnetconn* pConn, int iIdleSec, int iIntervalSec, int iCount);
-	
-	// 地址操作
-	XXAPI void xrtNetAddrInit(xnetaddr* pAddr, const char* sIP, uint16 iPort);
-	XXAPI void xrtNetAddrFromSockAddr(xnetaddr* pAddr, struct sockaddr_in* pSA);
-	XXAPI void xrtNetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_in* pSA);
-	XXAPI uint32 xrtNetIPFromStr(const char* sIP);
-	XXAPI const char* xrtNetIPToStr(uint32 iIP);
-	
-	// 连接操作
-	XXAPI xnet_result xrtSockBind(xnetconn* pConn, const xnetaddr* pAddr);
-	XXAPI xnet_result xrtSockListen(xnetconn* pConn, int iBacklog);
-	XXAPI xnet_result xrtSockAccept(xnetconn* pServer, xnetconn* pClient);
-	XXAPI xnet_result xrtSockConnect(xnetconn* pConn, const xnetaddr* pAddr);
-	
-	// 数据收发
-	XXAPI xnet_result xrtSockSend(xnetconn* pConn, const char* pData, size_t iLen, size_t* pSent);
-	XXAPI xnet_result xrtSockRecv(xnetconn* pConn, char* pBuf, size_t iLen, size_t* pReceived);
-	XXAPI xnet_result xrtSockSendTo(xnetconn* pConn, const char* pData, size_t iLen, const xnetaddr* pAddr, size_t* pSent);
-	XXAPI xnet_result xrtSockRecvFrom(xnetconn* pConn, char* pBuf, size_t iLen, xnetaddr* pAddr, size_t* pReceived);
-	
-	// DNS 解析
-	XXAPI xnet_result xrtNetResolve(const char* sHostname, xnetaddr* pAddr);
-	
-	// 网络缓冲区
-	XXAPI bool xrtNetBufInit(xnetbuf* pBuf, size_t iCapacity);
-	XXAPI void xrtNetBufFree(xnetbuf* pBuf);
-	XXAPI bool xrtNetBufAppend(xnetbuf* pBuf, const char* pData, size_t iLen);
-	XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen);
-	XXAPI void xrtNetBufClear(xnetbuf* pBuf);
-	
-	// 环形网络缓冲区
-	XXAPI bool xrtNetRingBufInit(xnetringbuf* pBuf, size_t iCapacity);
-	XXAPI void xrtNetRingBufFree(xnetringbuf* pBuf);
-	XXAPI size_t xrtNetRingBufWrite(xnetringbuf* pBuf, const char* pData, size_t iLen);
-	XXAPI size_t xrtNetRingBufRead(xnetringbuf* pBuf, char* pOut, size_t iLen);
-	XXAPI size_t xrtNetRingBufPeek(xnetringbuf* pBuf, char* pOut, size_t iLen);
-	XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen);
-	XXAPI size_t xrtNetRingBufReadable(const xnetringbuf* pBuf);
-	XXAPI size_t xrtNetRingBufWritable(const xnetringbuf* pBuf);
-	
-	
-	
-	/* ------------------------------------ IO 模型 (Poller) ------------------------------------ */
-	
-	#define XRT_POLL_READ   0x01
-	#define XRT_POLL_WRITE  0x02
-	#define XRT_POLL_ERROR  0x04
-	#define XRT_POLL_ACCEPT 0x08
-	#define XRT_POLL_CLOSE  0x10
-	
-	// Poller 事件回调函数类型
-	// iEvent: XRT_POLL_READ/WRITE/ERROR/ACCEPT/CLOSE
-	// pData: 完成的数据 (READ 事件时有效)
-	// iLen: 数据长度
-	typedef void (*xpoll_fn)(xnetpoller* pPoller, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
-	
-	XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData);
-	XXAPI void xrtPollDestroy(xnetpoller* pPoller);
-	XXAPI xnet_result xrtPollAdd(xnetpoller* pPoller, xnetconn* pConn, int iEvents);
-	XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn);
-	XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn);
-	XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen);
-	XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient);
-	XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs);
-	XXAPI void xrtPollWakeup(xnetpoller* pPoller);
-	XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller);
-	
-	
-	
-	/* ------------------------------------ Event Loop (事件循环) ------------------------------------ */
-	
-	XXAPI xeventloop* xrtEventLoopCreate();
-	XXAPI void xrtEventLoopDestroy(xeventloop* pLoop);
-	XXAPI void xrtEventLoopRun(xeventloop* pLoop);                              // 阻塞直到 Stop
-	XXAPI void xrtEventLoopStop(xeventloop* pLoop);
-	XXAPI xnet_result xrtEventLoopRunOnce(xeventloop* pLoop, int iTimeoutMs);   // 单次迭代
-	XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop);
-	
-	
+    /* ------------------------------------ Shared network/TLS status ------------------------------------ */
+    /* ---- Shared network result ---- */
+    typedef enum {
+        XRT_NET_OK        =  0,
+        XRT_NET_ERROR     = -1,
+        XRT_NET_AGAIN     = -2,
+        XRT_NET_TIMEOUT   = -3,
+        XRT_NET_CLOSED    = -4,
+    } xnet_result;
+    /* ---- Shared socket handle ---- */
+    #if defined(_WIN32) || defined(_WIN64)
+        typedef SOCKET xsocket;
+        #define XSOCKET_INVALID INVALID_SOCKET
+    #else
+        typedef int xsocket;
+        #define XSOCKET_INVALID (-1)
+    #endif
+    #define XRT_XSOCKET_DEFINED 1
+    /* ---- TLS context/config ---- */
+    typedef struct xrt_tls_context xtlsctx;
+    typedef struct {
+        const char* sCertFile;
+        const char* sKeyFile;
+        const char* sCaFile;
+        const char* sHostName;
+        bool bVerifyPeer;
+        void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
+        ptr pSNIUserData;
+        bool bAllowTLS12Ed25519;
+    } xtlsconfig;
 	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
 	
 #ifndef XRT_NO_REGEX
@@ -2341,166 +2049,11403 @@
 	// 版本号
 	XXAPI const char *bbre_version(void);
 #endif // XRT_NO_REGEX
-	/* ------------------------------------ TLS ------------------------------------ */
+    /* ------------------------------------ XNet V2 ------------------------------------ */
+#ifndef XRT_NO_NETWORK
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_base.h
+// ========================================
+
+#ifndef XRT_XNET_BASE_H
+#define XRT_XNET_BASE_H
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#if defined(_WIN32) || defined(_WIN64)
+	#include <winsock2.h>
+	#include <ws2tcpip.h>
+	#include <windows.h>
+#else
+	#include <arpa/inet.h>
+	#include <netdb.h>
+	#include <sys/socket.h>
+#endif
+/*
+    XNet V2 - Base Types and Config
+    This header defines the shared public model used by the xnet-v2 stack.
+    It is designed to work both inside xrt.h and as a standalone header during
+    focused xnet development and testing.
+    Public responsibilities:
+      - widened IPv4/IPv6 address model
+      - shared result codes, socket handles, and config types
+      - public engine/stream/dgram/future forward declarations
+*/
+#if defined(XXRTL_CORE)
+	#define __XNET_IN_XRT_CORE 1
+#else
+	#define __XNET_IN_XRT_CORE 0
+#endif
+/* ============================== Basic local types ============================== */
+#if !__XNET_IN_XRT_CORE
+	typedef void* ptr;
+	typedef uint8_t uint8;
+	typedef uint16_t uint16;
+	typedef uint32_t uint32;
+	typedef uint64_t uint64;
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+	#if !defined(XRT_XSOCKET_DEFINED)
+		typedef SOCKET xsocket;
+		#define XRT_XSOCKET_DEFINED 1
+	#endif
+	#ifndef XSOCKET_INVALID
+		#define XSOCKET_INVALID INVALID_SOCKET
+	#endif
+#else
+	#if !defined(XRT_XSOCKET_DEFINED)
+		typedef int xsocket;
+		#define XRT_XSOCKET_DEFINED 1
+	#endif
+	#ifndef XSOCKET_INVALID
+		#define XSOCKET_INVALID (-1)
+	#endif
+#endif
+#ifndef XNET_SOCKET_INVALID
+	#define XNET_SOCKET_INVALID XSOCKET_INVALID
+#endif
+#if !__XNET_IN_XRT_CORE
+	typedef enum {
+		XRT_NET_OK      =  0,
+		XRT_NET_ERROR   = -1,
+		XRT_NET_AGAIN   = -2,
+		XRT_NET_TIMEOUT = -3,
+		XRT_NET_CLOSED  = -4
+	} xnet_result;
+#endif
+#if !__XNET_IN_XRT_CORE
+	typedef struct xrt_tls_config xtlsconfig;
+#endif
+/* ============================== Opaque handles ============================== */
+typedef struct xrt_net_engine   xnetengine;
+typedef struct xrt_net_mem_ctx  xnetmemctx;
+typedef struct xrt_net_worker   xnetworker;
+typedef struct xrt_net_listener xnetlistener;
+typedef struct xrt_net_stream   xnetstream;
+typedef struct xrt_net_dgram    xdgramsock;
+typedef struct xrt_net_chain    xnetchain;
+typedef struct xrt_net_future   xnetfuture;
+typedef struct xrt_tls_session  xtlssession;
+typedef void (*xnet_task_fn)(xnetworker* pWorker, ptr pArg);
+/* ============================== Address model ============================== */
+typedef struct {
+	uint16 iFamily;
+	uint16 iPort;
+	uint32 iScopeId;
+	uint8 aAddr[16];
+} xnetaddr;
+/* ============================== Small public helpers ============================== */
+typedef struct {
+	const void* pData;
+	uint32 iLen;
+} xnetspan;
+typedef struct {
+	const void* pData;
+	uint32 iLen;
+	void (*pfnRelease)(ptr pCtx, const void* pData, size_t iLen);
+	ptr pReleaseCtx;
+} xnetbufref;
+/* ============================== Flags ============================== */
+#define XNET_ENGINE_F_NONE            0x00000000u
+#define XNET_ENGINE_F_AUTO_WORKERS    0x00000001u
+#define XNET_LISTEN_F_NONE            0x00000000u
+#define XNET_LISTEN_F_REUSE_ADDR      0x00000001u
+#define XNET_LISTEN_F_REUSE_PORT      0x00000002u
+#define XNET_LISTEN_F_NO_DELAY        0x00000004u
+#define XNET_LISTEN_F_KEEPALIVE       0x00000008u
+#define XNET_CONNECT_F_NONE           0x00000000u
+#define XNET_CONNECT_F_NO_DELAY       0x00000001u
+#define XNET_CONNECT_F_KEEPALIVE      0x00000002u
+#define XNET_DGRAM_F_NONE             0x00000000u
+#define XNET_DGRAM_F_REUSE_ADDR       0x00000001u
+#define XNET_DGRAM_F_REUSE_PORT       0x00000002u
+#define XNET_CLOSE_F_ABORT            0x00000001u
+#define XNET_CLOSE_F_GRACEFUL         0x00000002u
+/* ============================== Config structs ============================== */
+typedef struct {
+	uint32 iWorkerCount;
+	uint32 iFlags;
+	uint32 iSqEntries;
+	uint32 iCqEntries;
+	uint32 iAcceptBatch;
+	uint32 iCmdQueueSize;
+	uint32 iTimerTickMs;
+	uint32 iTimerWheelSlots;
+	uint32 iDefaultHighWater;
+	uint32 iDefaultLowWater;
+	uint32 iSmallBlockSize;
+	uint32 iMediumBlockSize;
+	uint32 iLargeBlockSize;
+	uint32 iBlockCachePerWorker;
+	uint32 iMaxConnsPerWorker;
+} xnetengineconfig;
+typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iBacklog;
+	uint32 iHighWater;
+	uint32 iLowWater;
+	uint32 iRecvLimit;
+	const xtlsconfig* pTlsConfig;
+} xnetlistenconfig;
+typedef struct {
+	const char* sHost;
+	uint16 iPort;
+	uint32 iFlags;
+	uint32 iConnectTimeoutMs;
+	uint32 iHighWater;
+	uint32 iLowWater;
+	uint32 iRecvLimit;
+	const xtlsconfig* pTlsConfig;
+} xnetconnectconfig;
+typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iRecvBatch;
+	uint32 iSendQueueLimit;
+} xnetdgramconfig;
+/* ============================== Internal address helpers ============================== */
+#define __XNET_ADDR_STR_CAP 64
+#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+	#define __XNET_THREAD_LOCAL __declspec(thread)
+#elif defined(_MSC_VER)
+	#define __XNET_THREAD_LOCAL __declspec(thread)
+#elif defined(__GNUC__) || defined(__clang__)
+	#define __XNET_THREAD_LOCAL __thread
+#else
+	#define __XNET_THREAD_LOCAL
+#endif
+static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (long)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
+	#else
+		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
+	#endif
+}
+static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (long)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
+	#else
+		return __sync_lock_test_and_set(pValue, iValue);
+	#endif
+}
+static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
+{
+	#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		long iPrev;
+		long iNext;
+		do {
+			iPrev = (long)InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
+			iNext = iPrev + iDelta;
+		} while ( (long)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iNext, (LONG)iPrev) != iPrev );
+		return iNext;
+	#elif defined(_WIN32) || defined(_WIN64)
+		return (long)(InterlockedExchangeAdd((volatile LONG*)pValue, (LONG)iDelta) + (LONG)iDelta);
+	#else
+		return __sync_add_and_fetch(pValue, iDelta);
+	#endif
+}
+static long __xnetAtomicLoad32(const volatile long* pValue)
+{
+	return __xnetAtomicCompareExchange32((volatile long*)pValue, 0, 0);
+}
+static bool __xnetAddrFromSockAddr(xnetaddr* pAddr, const struct sockaddr* pSA)
+{
+	if ( !pAddr || !pSA ) return false;
+	memset(pAddr, 0, sizeof(xnetaddr));
+	if ( pSA->sa_family == AF_INET ) {
+		const struct sockaddr_in* pSA4 = (const struct sockaddr_in*)pSA;
+		pAddr->iFamily = AF_INET;
+		pAddr->iPort = ntohs(pSA4->sin_port);
+		memcpy(pAddr->aAddr, &pSA4->sin_addr, 4);
+		return true;
+	}
+	if ( pSA->sa_family == AF_INET6 ) {
+		const struct sockaddr_in6* pSA6 = (const struct sockaddr_in6*)pSA;
+		pAddr->iFamily = AF_INET6;
+		pAddr->iPort = ntohs(pSA6->sin6_port);
+		pAddr->iScopeId = pSA6->sin6_scope_id;
+		memcpy(pAddr->aAddr, &pSA6->sin6_addr, 16);
+		return true;
+	}
+	return false;
+}
+static bool __xnetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_storage* pStorage, socklen_t* pLen)
+{
+	if ( !pAddr || !pStorage || !pLen ) return false;
+	memset(pStorage, 0, sizeof(struct sockaddr_storage));
+	if ( pAddr->iFamily == AF_INET ) {
+		struct sockaddr_in* pSA4 = (struct sockaddr_in*)pStorage;
+		pSA4->sin_family = AF_INET;
+		pSA4->sin_port = htons(pAddr->iPort);
+		memcpy(&pSA4->sin_addr, pAddr->aAddr, 4);
+		*pLen = sizeof(struct sockaddr_in);
+		return true;
+	}
+	if ( pAddr->iFamily == AF_INET6 ) {
+		struct sockaddr_in6* pSA6 = (struct sockaddr_in6*)pStorage;
+		pSA6->sin6_family = AF_INET6;
+		pSA6->sin6_port = htons(pAddr->iPort);
+		pSA6->sin6_scope_id = pAddr->iScopeId;
+		memcpy(&pSA6->sin6_addr, pAddr->aAddr, 16);
+		*pLen = sizeof(struct sockaddr_in6);
+		return true;
+	}
+	return false;
+}
+static char* __xnetAddrTempBuf(void)
+{
+	static __XNET_THREAD_LOCAL char aRing[4][__XNET_ADDR_STR_CAP];
+	static __XNET_THREAD_LOCAL uint32 iIndex = 0;
+	char* pBuf = aRing[iIndex & 3u];
+	iIndex++;
+	pBuf[0] = '\0';
+	return pBuf;
+}
+/* ============================== Address public helpers ============================== */
+static void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort)
+{
+	if ( !pAddr ) return;
+	memset(pAddr, 0, sizeof(xnetaddr));
+	pAddr->iFamily = (uint16)((iFamily == AF_INET6) ? AF_INET6 : AF_INET);
+	pAddr->iPort = iPort;
+}
+static xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		struct sockaddr_storage tStorage;
+		int iStorageLen;
+		char sAddrBuf[64];
+	#endif
+	if ( !pAddr || !sIP || !sIP[0] ) return XRT_NET_ERROR;
+	memset(pAddr, 0, sizeof(xnetaddr));
+	pAddr->iPort = iPort;
+	#if defined(_WIN32) || defined(_WIN64)
+		memset(&tStorage, 0, sizeof(tStorage));
+		iStorageLen = (int)sizeof(tStorage);
+		snprintf(sAddrBuf, sizeof(sAddrBuf), "%s", sIP);
+		if ( WSAStringToAddressA(sAddrBuf, AF_INET, NULL, (struct sockaddr*)&tStorage, &iStorageLen) == 0 ) {
+			pAddr->iFamily = AF_INET;
+			memcpy(pAddr->aAddr, &((struct sockaddr_in*)&tStorage)->sin_addr, 4u);
+			return XRT_NET_OK;
+		}
+		memset(&tStorage, 0, sizeof(tStorage));
+		iStorageLen = (int)sizeof(tStorage);
+		snprintf(sAddrBuf, sizeof(sAddrBuf), "%s", sIP);
+		if ( WSAStringToAddressA(sAddrBuf, AF_INET6, NULL, (struct sockaddr*)&tStorage, &iStorageLen) == 0 ) {
+			pAddr->iFamily = AF_INET6;
+			pAddr->iScopeId = ((struct sockaddr_in6*)&tStorage)->sin6_scope_id;
+			memcpy(pAddr->aAddr, &((struct sockaddr_in6*)&tStorage)->sin6_addr, 16u);
+			return XRT_NET_OK;
+		}
+	#else
+		if ( inet_pton(AF_INET, sIP, pAddr->aAddr) == 1 ) {
+			pAddr->iFamily = AF_INET;
+			return XRT_NET_OK;
+		}
+		if ( inet_pton(AF_INET6, sIP, pAddr->aAddr) == 1 ) {
+			pAddr->iFamily = AF_INET6;
+			return XRT_NET_OK;
+		}
+	#endif
+	memset(pAddr, 0, sizeof(xnetaddr));
+	return XRT_NET_ERROR;
+}
+static xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
+{
+	if ( !sHost || !sHost[0] || !pAddr ) return XRT_NET_ERROR;
+	{
+		xnetaddr tParsed;
+		if ( xrtNetAddrParse(&tParsed, sHost, pAddr->iPort) == XRT_NET_OK ) {
+			tParsed.iScopeId = pAddr->iScopeId;
+			*pAddr = tParsed;
+			return XRT_NET_OK;
+		}
+	}
+	struct addrinfo tHints;
+	struct addrinfo* pRes = NULL;
+	struct addrinfo* pIt = NULL;
+	uint16 iPort = pAddr->iPort;
+	memset(&tHints, 0, sizeof(tHints));
+	tHints.ai_family = AF_UNSPEC;
+	tHints.ai_socktype = SOCK_STREAM;
+	if ( getaddrinfo(sHost, NULL, &tHints, &pRes) != 0 ) {
+		return XRT_NET_ERROR;
+	}
+	for ( pIt = pRes; pIt; pIt = pIt->ai_next ) {
+		if ( !pIt->ai_addr ) continue;
+		if ( __xnetAddrFromSockAddr(pAddr, pIt->ai_addr) ) {
+			pAddr->iPort = iPort;
+			freeaddrinfo(pRes);
+			return XRT_NET_OK;
+		}
+	}
+	freeaddrinfo(pRes);
+	return XRT_NET_ERROR;
+}
+static const char* xrtNetAddrToStr(const xnetaddr* pAddr)
+{
+	char* pBuf = __xnetAddrTempBuf();
+	if ( !pAddr ) return pBuf;
+	if ( pAddr->iFamily == AF_INET ) {
+		if ( !inet_ntop(AF_INET, pAddr->aAddr, pBuf, __XNET_ADDR_STR_CAP) ) {
+			pBuf[0] = '\0';
+		}
+		return pBuf;
+	}
+	if ( pAddr->iFamily == AF_INET6 ) {
+		char aAddr[INET6_ADDRSTRLEN];
+		if ( !inet_ntop(AF_INET6, pAddr->aAddr, aAddr, sizeof(aAddr)) ) {
+			pBuf[0] = '\0';
+			return pBuf;
+		}
+		if ( pAddr->iScopeId != 0 ) {
+			snprintf(pBuf, __XNET_ADDR_STR_CAP, "%s%%%u", aAddr, pAddr->iScopeId);
+		} else {
+			strncpy(pBuf, aAddr, __XNET_ADDR_STR_CAP - 1);
+			pBuf[__XNET_ADDR_STR_CAP - 1] = '\0';
+		}
+		return pBuf;
+	}
+	pBuf[0] = '\0';
+	return pBuf;
+}
+/* ============================== Default init helpers ============================== */
+static void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xnetengineconfig));
+	pCfg->iWorkerCount = 0;
+	pCfg->iFlags = XNET_ENGINE_F_AUTO_WORKERS;
+	pCfg->iSqEntries = 4096;
+	pCfg->iCqEntries = 8192;
+	pCfg->iAcceptBatch = 64;
+	pCfg->iCmdQueueSize = 65536;
+	pCfg->iTimerTickMs = 10;
+	pCfg->iTimerWheelSlots = 4096;
+	pCfg->iDefaultHighWater = 262144;
+	pCfg->iDefaultLowWater = 65536;
+	pCfg->iSmallBlockSize = 256;
+	pCfg->iMediumBlockSize = 2048;
+	pCfg->iLargeBlockSize = 16384;
+	pCfg->iBlockCachePerWorker = 256;
+	pCfg->iMaxConnsPerWorker = 0;
+}
+static void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xnetlistenconfig));
+	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
+	pCfg->iFlags = XNET_LISTEN_F_REUSE_ADDR | XNET_LISTEN_F_NO_DELAY;
+	pCfg->iBacklog = 512;
+	pCfg->iHighWater = 262144;
+	pCfg->iLowWater = 65536;
+	pCfg->iRecvLimit = 1048576;
+	pCfg->pTlsConfig = NULL;
+}
+static void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xnetconnectconfig));
+	pCfg->sHost = NULL;
+	pCfg->iPort = 0;
+	pCfg->iFlags = XNET_CONNECT_F_NO_DELAY;
+	pCfg->iConnectTimeoutMs = 5000;
+	pCfg->iHighWater = 262144;
+	pCfg->iLowWater = 65536;
+	pCfg->iRecvLimit = 1048576;
+	pCfg->pTlsConfig = NULL;
+}
+static void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xnetdgramconfig));
+	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
+	pCfg->iFlags = XNET_DGRAM_F_REUSE_ADDR;
+	pCfg->iRecvBatch = 64;
+	pCfg->iSendQueueLimit = 262144;
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_engine.h
+// ========================================
+
+#ifndef XRT_XNET_ENGINE_H
+#define XRT_XNET_ENGINE_H
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_port_iocp.h
+// ========================================
+
+#ifndef XRT_XNET_PORT_IOCP_H
+#define XRT_XNET_PORT_IOCP_H
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_port.h
+// ========================================
+
+#ifndef XRT_XNET_PORT_H
+#define XRT_XNET_PORT_H
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_mem.h
+// ========================================
+
+
+#ifndef XRT_XNET_MEM_H
+#define XRT_XNET_MEM_H
+#include <stdlib.h>
+#include <string.h>
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_base.h)
+/*
+    XNet V2 - Memory Blocks and Chains
+    Phase-1 staging implementation:
+      - chain model is implemented
+      - allocator contexts support small/medium/large cached blocks
+      - payloads larger than the large class fall back to dynamic blocks
+      - worker-local integration is still pending the engine/runtime layers
+*/
+#ifndef XNET_ALLOC
+	#define XNET_ALLOC malloc
+#endif
+#ifndef XNET_FREE
+	#define XNET_FREE free
+#endif
+/* ============================== Block classes ============================== */
+#define XNET_MEM_CLASS_SMALL    1u
+#define XNET_MEM_CLASS_MEDIUM   2u
+#define XNET_MEM_CLASS_LARGE    3u
+#define XNET_MEM_CLASS_DYNAMIC  4u
+#define XNET_MEM_CLASS_REF      5u
+#define XNET_BLK_F_REF          0x0001u
+#define __XNET_BLK_MIN_CAPACITY 256u
+typedef struct __xnet_blk __xnet_blk;
+/* ============================== Allocator config ============================== */
+typedef struct {
+	uint32 iSmallBlockSize;
+	uint32 iMediumBlockSize;
+	uint32 iLargeBlockSize;
+	uint32 iSmallCacheLimit;
+	uint32 iMediumCacheLimit;
+	uint32 iLargeCacheLimit;
+} xnetmemconfig;
+typedef struct {
+	uint32 iSmallCached;
+	uint32 iMediumCached;
+	uint32 iLargeCached;
+	uint64 iSmallAllocCount;
+	uint64 iMediumAllocCount;
+	uint64 iLargeAllocCount;
+	uint64 iDynamicAllocCount;
+	uint64 iRefAllocCount;
+	uint64 iSmallReuseCount;
+	uint64 iMediumReuseCount;
+	uint64 iLargeReuseCount;
+	uint64 iDynamicFreeCount;
+	uint64 iRefFreeCount;
+} xnetmemstats;
+struct xrt_net_mem_ctx {
+	xnetmemconfig tConfig;
+	__xnet_blk* pSmallFree;
+	__xnet_blk* pMediumFree;
+	__xnet_blk* pLargeFree;
+	xnetmemstats tStats;
+};
+/* ============================== Block model ============================== */
+struct __xnet_blk {
+	__xnet_blk* pNext;
+	xnetmemctx* pMemCtx;
+	uint16 iClassId;
+	uint16 iRefCount;
+	uint16 iFlags;
+	uint16 iReserved;
+	uint32 iBegin;
+	uint32 iEnd;
+	uint32 iCapacity;
+	uint32 iRefLen;
+	const uint8* pRefData;
+	void (*pfnRelease)(ptr pCtx, const void* pData, size_t iLen);
+	ptr pReleaseCtx;
+	uint8 aData[1];
+};
+struct xrt_net_chain {
+	__xnet_blk* pHead;
+	__xnet_blk* pTail;
+	ptr pMemCtx;
+	uint32 iBytes;
+	uint32 iBlockCount;
+};
+/* ============================== Config helpers ============================== */
+static void xrtNetMemConfigInit(xnetmemconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xnetmemconfig));
+	pCfg->iSmallBlockSize = 256;
+	pCfg->iMediumBlockSize = 2048;
+	pCfg->iLargeBlockSize = 16384;
+	pCfg->iSmallCacheLimit = 256;
+	pCfg->iMediumCacheLimit = 128;
+	pCfg->iLargeCacheLimit = 64;
+}
+static void __xnetMemNormalizeConfig(xnetmemconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	if ( pCfg->iSmallBlockSize < __XNET_BLK_MIN_CAPACITY ) {
+		pCfg->iSmallBlockSize = __XNET_BLK_MIN_CAPACITY;
+	}
+	if ( pCfg->iMediumBlockSize < pCfg->iSmallBlockSize ) {
+		pCfg->iMediumBlockSize = pCfg->iSmallBlockSize;
+	}
+	if ( pCfg->iLargeBlockSize < pCfg->iMediumBlockSize ) {
+		pCfg->iLargeBlockSize = pCfg->iMediumBlockSize;
+	}
+}
+static void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg)
+{
+	if ( !pCtx ) return;
+	memset(pCtx, 0, sizeof(xnetmemctx));
+	if ( pCfg ) {
+		pCtx->tConfig = *pCfg;
+	} else {
+		xrtNetMemConfigInit(&pCtx->tConfig);
+	}
+	__xnetMemNormalizeConfig(&pCtx->tConfig);
+}
+/* ============================== Internal allocator helpers ============================== */
+static __xnet_blk* __xnetBlkAllocRaw(size_t iCapacity)
+{
+	size_t iCap = iCapacity < __XNET_BLK_MIN_CAPACITY ? __XNET_BLK_MIN_CAPACITY : iCapacity;
+	__xnet_blk* pBlk = (__xnet_blk*)XNET_ALLOC(sizeof(__xnet_blk) + iCap - 1);
+	if ( !pBlk ) return NULL;
+	memset(pBlk, 0, sizeof(__xnet_blk));
+	pBlk->iRefCount = 1;
+	pBlk->iCapacity = (uint32)iCap;
+	return pBlk;
+}
+static uint32 __xnetMemClassCapacity(const xnetmemctx* pCtx, uint16 iClassId)
+{
+	if ( !pCtx ) return 0;
+	switch ( iClassId ) {
+		case XNET_MEM_CLASS_SMALL:  return pCtx->tConfig.iSmallBlockSize;
+		case XNET_MEM_CLASS_MEDIUM: return pCtx->tConfig.iMediumBlockSize;
+		case XNET_MEM_CLASS_LARGE:  return pCtx->tConfig.iLargeBlockSize;
+		default: return 0;
+	}
+}
+static uint32* __xnetMemClassCacheCount(xnetmemctx* pCtx, uint16 iClassId)
+{
+	if ( !pCtx ) return NULL;
+	switch ( iClassId ) {
+		case XNET_MEM_CLASS_SMALL:  return &pCtx->tStats.iSmallCached;
+		case XNET_MEM_CLASS_MEDIUM: return &pCtx->tStats.iMediumCached;
+		case XNET_MEM_CLASS_LARGE:  return &pCtx->tStats.iLargeCached;
+		default: return NULL;
+	}
+}
+static uint32 __xnetMemClassCacheLimit(const xnetmemctx* pCtx, uint16 iClassId)
+{
+	if ( !pCtx ) return 0;
+	switch ( iClassId ) {
+		case XNET_MEM_CLASS_SMALL:  return pCtx->tConfig.iSmallCacheLimit;
+		case XNET_MEM_CLASS_MEDIUM: return pCtx->tConfig.iMediumCacheLimit;
+		case XNET_MEM_CLASS_LARGE:  return pCtx->tConfig.iLargeCacheLimit;
+		default: return 0;
+	}
+}
+static __xnet_blk** __xnetMemClassFreeList(xnetmemctx* pCtx, uint16 iClassId)
+{
+	if ( !pCtx ) return NULL;
+	switch ( iClassId ) {
+		case XNET_MEM_CLASS_SMALL:  return &pCtx->pSmallFree;
+		case XNET_MEM_CLASS_MEDIUM: return &pCtx->pMediumFree;
+		case XNET_MEM_CLASS_LARGE:  return &pCtx->pLargeFree;
+		default: return NULL;
+	}
+}
+static void __xnetMemCountAlloc(xnetmemctx* pCtx, uint16 iClassId)
+{
+	if ( !pCtx ) return;
+	switch ( iClassId ) {
+		case XNET_MEM_CLASS_SMALL:  pCtx->tStats.iSmallAllocCount++; break;
+		case XNET_MEM_CLASS_MEDIUM: pCtx->tStats.iMediumAllocCount++; break;
+		case XNET_MEM_CLASS_LARGE:  pCtx->tStats.iLargeAllocCount++; break;
+		case XNET_MEM_CLASS_DYNAMIC: pCtx->tStats.iDynamicAllocCount++; break;
+		case XNET_MEM_CLASS_REF: pCtx->tStats.iRefAllocCount++; break;
+	}
+}
+static void __xnetMemCountReuse(xnetmemctx* pCtx, uint16 iClassId)
+{
+	if ( !pCtx ) return;
+	switch ( iClassId ) {
+		case XNET_MEM_CLASS_SMALL:  pCtx->tStats.iSmallReuseCount++; break;
+		case XNET_MEM_CLASS_MEDIUM: pCtx->tStats.iMediumReuseCount++; break;
+		case XNET_MEM_CLASS_LARGE:  pCtx->tStats.iLargeReuseCount++; break;
+	}
+}
+static uint16 __xnetMemPickClass(const xnetmemctx* pCtx, size_t iCapacity)
+{
+	if ( !pCtx ) return XNET_MEM_CLASS_DYNAMIC;
+	if ( iCapacity <= pCtx->tConfig.iSmallBlockSize ) return XNET_MEM_CLASS_SMALL;
+	if ( iCapacity <= pCtx->tConfig.iMediumBlockSize ) return XNET_MEM_CLASS_MEDIUM;
+	if ( iCapacity <= pCtx->tConfig.iLargeBlockSize ) return XNET_MEM_CLASS_LARGE;
+	return XNET_MEM_CLASS_DYNAMIC;
+}
+static __xnet_blk* __xnetMemPopCached(xnetmemctx* pCtx, uint16 iClassId)
+{
+	__xnet_blk** ppHead = __xnetMemClassFreeList(pCtx, iClassId);
+	uint32* pCached = __xnetMemClassCacheCount(pCtx, iClassId);
+	if ( !ppHead || !pCached || !*ppHead ) return NULL;
 	
-	XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
-	XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
-	XXAPI xnet_result xrtTlsHandshake(xtlsctx* pCtx, xnetconn* pConn);
-	XXAPI xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
-	XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
-	XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
-	XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
-	XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);                   // 获取客户端请求的 SNI 主机名 (服务端模式)
-	XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);  // SNI 回调后配置证书
-	XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx* pCtx, bool bAllow);  // 显式允许 TLS 1.2 使用 Ed25519 证书
+	__xnet_blk* pBlk = *ppHead;
+	*ppHead = pBlk->pNext;
+	pBlk->pNext = NULL;
+	if ( *pCached > 0 ) (*pCached)--;
+	__xnetMemCountReuse(pCtx, iClassId);
+	return pBlk;
+}
+static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
+{
+	uint16 iClassId = __xnetMemPickClass(pCtx, iCapacity);
+	__xnet_blk* pBlk = NULL;
 	
+	if ( iClassId != XNET_MEM_CLASS_DYNAMIC ) {
+		pBlk = __xnetMemPopCached(pCtx, iClassId);
+		if ( !pBlk ) {
+			uint32 iCap = __xnetMemClassCapacity(pCtx, iClassId);
+			pBlk = __xnetBlkAllocRaw(iCap);
+			if ( !pBlk ) return NULL;
+			__xnetMemCountAlloc(pCtx, iClassId);
+		}
+	} else {
+		pBlk = __xnetBlkAllocRaw(iCapacity);
+		if ( !pBlk ) return NULL;
+		__xnetMemCountAlloc(pCtx, XNET_MEM_CLASS_DYNAMIC);
+	}
 	
+	pBlk->pNext = NULL;
+	pBlk->pMemCtx = pCtx;
+	pBlk->iClassId = iClassId;
+	pBlk->iRefCount = 1;
+	pBlk->iBegin = 0;
+	pBlk->iEnd = 0;
+	return pBlk;
+}
+static __xnet_blk* __xnetBlkAllocRef(xnetmemctx* pCtx, const xnetbufref* pRef)
+{
+	if ( !pRef || !pRef->pData || pRef->iLen == 0 ) return NULL;
+	__xnet_blk* pBlk = (__xnet_blk*)XNET_ALLOC(sizeof(__xnet_blk));
+	if ( !pBlk ) return NULL;
+	memset(pBlk, 0, sizeof(__xnet_blk));
+	pBlk->pMemCtx = pCtx;
+	pBlk->iClassId = XNET_MEM_CLASS_REF;
+	pBlk->iRefCount = 1;
+	pBlk->iFlags = XNET_BLK_F_REF;
+	pBlk->iBegin = 0;
+	pBlk->iEnd = pRef->iLen;
+	pBlk->iCapacity = 0;
+	pBlk->iRefLen = pRef->iLen;
+	pBlk->pRefData = (const uint8*)pRef->pData;
+	pBlk->pfnRelease = pRef->pfnRelease;
+	pBlk->pReleaseCtx = pRef->pReleaseCtx;
+	__xnetMemCountAlloc(pCtx, XNET_MEM_CLASS_REF);
+	return pBlk;
+}
+static const uint8* __xnetBlkDataPtr(const __xnet_blk* pBlk)
+{
+	if ( !pBlk ) return NULL;
+	if ( pBlk->iFlags & XNET_BLK_F_REF ) {
+		return pBlk->pRefData;
+	}
+	return pBlk->aData;
+}
+static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
+{
+	if ( !pBlk ) return;
 	
-	/* ------------------------------------ 代理连接 ------------------------------------ */
+	xnetmemctx* pCtx = pBlk->pMemCtx;
+	uint16 iClassId = pBlk->iClassId;
+	if ( pBlk->iFlags & XNET_BLK_F_REF ) {
+		if ( pBlk->pfnRelease ) {
+			pBlk->pfnRelease(pBlk->pReleaseCtx, pBlk->pRefData, pBlk->iRefLen);
+		}
+		if ( pCtx ) {
+			pCtx->tStats.iRefFreeCount++;
+		}
+		XNET_FREE(pBlk);
+		return;
+	}
+	if ( pCtx && iClassId != XNET_MEM_CLASS_DYNAMIC ) {
+		uint32 iLimit = __xnetMemClassCacheLimit(pCtx, iClassId);
+		uint32* pCached = __xnetMemClassCacheCount(pCtx, iClassId);
+		__xnet_blk** ppHead = __xnetMemClassFreeList(pCtx, iClassId);
+		if ( iLimit > 0 && pCached && ppHead && *pCached < iLimit ) {
+			pBlk->pNext = *ppHead;
+			pBlk->iBegin = 0;
+			pBlk->iEnd = 0;
+			pBlk->iRefCount = 1;
+			*ppHead = pBlk;
+			(*pCached)++;
+			return;
+		}
+	}
 	
-	// SOCKS5 代理握手 + CONNECT (同步阻塞，pConn 需已连接到代理服务器)
-	XXAPI xnet_result xrtProxySocks5Connect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
-		const char* sUser, const char* sPass, int iTimeoutMs);
+	if ( pCtx && iClassId == XNET_MEM_CLASS_DYNAMIC ) {
+		pCtx->tStats.iDynamicFreeCount++;
+	}
+	XNET_FREE(pBlk);
+}
+static void __xnetBlkFree(__xnet_blk* pBlk)
+{
+	if ( !pBlk ) return;
+	if ( pBlk->iRefCount > 1 ) {
+		pBlk->iRefCount--;
+		return;
+	}
+	__xnetBlkReleaseOne(pBlk);
+}
+static uint32 __xnetBlkReadable(const __xnet_blk* pBlk)
+{
+	if ( !pBlk || pBlk->iEnd < pBlk->iBegin ) return 0;
+	return pBlk->iEnd - pBlk->iBegin;
+}
+static uint32 __xnetBlkWritable(const __xnet_blk* pBlk)
+{
+	if ( !pBlk || (pBlk->iFlags & XNET_BLK_F_REF) || pBlk->iEnd > pBlk->iCapacity ) return 0;
+	return pBlk->iCapacity - pBlk->iEnd;
+}
+static void __xnetChainLinkBlock(xnetchain* pChain, __xnet_blk* pBlk)
+{
+	if ( !pChain || !pBlk ) return;
+	if ( pChain->pTail ) {
+		pChain->pTail->pNext = pBlk;
+	} else {
+		pChain->pHead = pBlk;
+	}
+	pChain->pTail = pBlk;
+	pChain->iBlockCount++;
+	pChain->iBytes += __xnetBlkReadable(pBlk);
+}
+static void __xnetMemTrimList(__xnet_blk** ppHead, uint32* pCached, uint32 iTarget)
+{
+	if ( !ppHead || !pCached ) return;
+	while ( *ppHead && *pCached > iTarget ) {
+		__xnet_blk* pBlk = *ppHead;
+		*ppHead = pBlk->pNext;
+		pBlk->pNext = NULL;
+		XNET_FREE(pBlk);
+		(*pCached)--;
+	}
+}
+/* ============================== Allocator public helpers ============================== */
+static void xrtNetMemCtxTrim(xnetmemctx* pCtx)
+{
+	if ( !pCtx ) return;
+	__xnetMemTrimList(&pCtx->pSmallFree, &pCtx->tStats.iSmallCached, 0);
+	__xnetMemTrimList(&pCtx->pMediumFree, &pCtx->tStats.iMediumCached, 0);
+	__xnetMemTrimList(&pCtx->pLargeFree, &pCtx->tStats.iLargeCached, 0);
+}
+static void xrtNetMemCtxUnit(xnetmemctx* pCtx)
+{
+	if ( !pCtx ) return;
+	xrtNetMemCtxTrim(pCtx);
+	memset(pCtx, 0, sizeof(xnetmemctx));
+}
+static void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats)
+{
+	if ( !pStats ) return;
+	memset(pStats, 0, sizeof(xnetmemstats));
+	if ( !pCtx ) return;
+	*pStats = pCtx->tStats;
+}
+/* ============================== Chain lifecycle ============================== */
+static void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx)
+{
+	if ( !pChain ) return;
+	memset(pChain, 0, sizeof(xnetchain));
+	pChain->pMemCtx = pMemCtx;
+}
+static void xrtNetChainInit(xnetchain* pChain)
+{
+	xrtNetChainInitEx(pChain, NULL);
+}
+static void xrtNetChainClear(xnetchain* pChain)
+{
+	if ( !pChain ) return;
+	while ( pChain->pHead ) {
+		__xnet_blk* pNext = pChain->pHead->pNext;
+		__xnetBlkFree(pChain->pHead);
+		pChain->pHead = pNext;
+	}
+	pChain->pTail = NULL;
+	pChain->iBytes = 0;
+	pChain->iBlockCount = 0;
+}
+/* ============================== Chain append ============================== */
+static bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iLen)
+{
+	if ( !pChain || !pData || iLen == 0 ) return false;
 	
-	// HTTP CONNECT 代理握手 (同步阻塞，pConn 需已连接到代理服务器)
-	XXAPI xnet_result xrtProxyHttpConnect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
-		const char* sUser, const char* sPass, int iTimeoutMs);
+	xnetmemctx* pMemCtx = (xnetmemctx*)pChain->pMemCtx;
+	const uint8* pSrc = (const uint8*)pData;
+	size_t iLeft = iLen;
 	
-	// 通用代理连接 (根据配置自动选择协议)
-	XXAPI xnet_result xrtProxyConnect(xnetconn* pConn, const xproxyconfig* pProxy,
-		const char* sTargetHost, uint16 iTargetPort, int iTimeoutMs);
+	while ( iLeft > 0 ) {
+		__xnet_blk* pTail = pChain->pTail;
+		if ( pTail && __xnetBlkWritable(pTail) > 0 ) {
+			uint32 iWritable = __xnetBlkWritable(pTail);
+			uint32 iChunk = (uint32)(iLeft < iWritable ? iLeft : iWritable);
+			memcpy(pTail->aData + pTail->iEnd, pSrc, iChunk);
+			pTail->iEnd += iChunk;
+			pChain->iBytes += iChunk;
+			pSrc += iChunk;
+			iLeft -= iChunk;
+			continue;
+		}
+		
+		__xnet_blk* pBlk = __xnetBlkAllocEx(pMemCtx, iLeft);
+		if ( !pBlk ) return false;
+		
+		uint32 iChunk = (uint32)(iLeft < pBlk->iCapacity ? iLeft : pBlk->iCapacity);
+		memcpy(pBlk->aData, pSrc, iChunk);
+		pBlk->iBegin = 0;
+		pBlk->iEnd = iChunk;
+		__xnetChainLinkBlock(pChain, pBlk);
+		
+		pSrc += iChunk;
+		iLeft -= iChunk;
+	}
 	
+	return true;
+}
+static bool xrtNetChainAppendRef(xnetchain* pChain, const xnetbufref* pRef)
+{
+	if ( !pChain || !pRef || !pRef->pData || pRef->iLen == 0 ) return false;
+	xnetmemctx* pMemCtx = (xnetmemctx*)pChain->pMemCtx;
+	__xnet_blk* pBlk = __xnetBlkAllocRef(pMemCtx, pRef);
+	if ( !pBlk ) return false;
+	__xnetChainLinkBlock(pChain, pBlk);
+	return true;
+}
+/* ============================== Public chain queries ============================== */
+static size_t xrtNetChainBytes(const xnetchain* pChain)
+{
+	return pChain ? pChain->iBytes : 0;
+}
+static uint32 xrtNetChainSpanCount(const xnetchain* pChain)
+{
+	if ( !pChain ) return 0;
+	uint32 iCount = 0;
+	for ( __xnet_blk* pBlk = pChain->pHead; pBlk; pBlk = pBlk->pNext ) {
+		if ( __xnetBlkReadable(pBlk) > 0 ) iCount++;
+	}
+	return iCount;
+}
+static uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32 iMaxCount)
+{
+	if ( !pChain || !pOut || iMaxCount == 0 ) return 0;
 	
+	uint32 iCount = 0;
+	for ( __xnet_blk* pBlk = pChain->pHead; pBlk && iCount < iMaxCount; pBlk = pBlk->pNext ) {
+		uint32 iReadable = __xnetBlkReadable(pBlk);
+		if ( iReadable == 0 ) continue;
+		pOut[iCount].pData = __xnetBlkDataPtr(pBlk) + pBlk->iBegin;
+		pOut[iCount].iLen = iReadable;
+		iCount++;
+	}
+	return iCount;
+}
+static size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
+{
+	if ( !pChain || !pOut || iLen == 0 ) return 0;
 	
-	/* ------------------------------------ TCP 服务器/客户端 ------------------------------------ */
+	uint8* pDst = (uint8*)pOut;
+	size_t iCopied = 0;
 	
-	// TCP 服务器
-	XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI xtcpserver* xrtTcpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI void xrtTcpServerDestroy(xtcpserver* pServer);
-	XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer);
-	XXAPI void xrtTcpServerStop(xtcpserver* pServer);
-	XXAPI xnet_result xrtTcpServerSend(xtcpserver* pServer, int iClientId, const char* pData, size_t iLen);
-	XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId);
-	XXAPI xnet_result xrtTcpServerEnableTLS(xtcpserver* pServer, const xtlsconfig* pConfig);
-	XXAPI int xrtTcpServerGetClientCount(xtcpserver* pServer);
-	XXAPI void xrtTcpServerSetUserData(xtcpserver* pServer, ptr pData);
-	XXAPI ptr xrtTcpServerGetUserData(xtcpserver* pServer);
+	for ( __xnet_blk* pBlk = pChain->pHead; pBlk && iCopied < iLen; pBlk = pBlk->pNext ) {
+		uint32 iReadable = __xnetBlkReadable(pBlk);
+		if ( iReadable == 0 ) continue;
+		
+		size_t iChunk = (iLen - iCopied) < iReadable ? (iLen - iCopied) : iReadable;
+		memcpy(pDst + iCopied, __xnetBlkDataPtr(pBlk) + pBlk->iBegin, iChunk);
+		iCopied += iChunk;
+	}
 	
-	// TCP 客户端
-	XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI xtcpclient* xrtTcpClientCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI void xrtTcpClientDestroy(xtcpclient* pClient);
-	XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient);
-	XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient);
-	XXAPI xnet_result xrtTcpClientSend(xtcpclient* pClient, const char* pData, size_t iLen);
-	XXAPI xnet_result xrtTcpClientEnableTLS(xtcpclient* pClient, const xtlsconfig* pConfig);
-	XXAPI bool xrtTcpClientIsConnected(xtcpclient* pClient);
-	XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData);
-	XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient);
+	return iCopied;
+}
+static size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff)
+{
+	if ( !pChain || iStartOff >= pChain->iBytes ) return (size_t)-1;
 	
-	// TCP 客户端 - 同步接收 API
-	XXAPI void xrtTcpClientEnableSyncRecv(xtcpclient* pClient);
-	XXAPI void xrtTcpClientDisableSyncRecv(xtcpclient* pClient);
-	XXAPI xnet_result xrtTcpClientRecvSync(xtcpclient* pClient, char* pBuf, size_t iBufSize, size_t* pRecvLen, int iTimeoutMs);
-	XXAPI size_t xrtTcpClientSyncAvailable(xtcpclient* pClient);
-	XXAPI xnet_result xrtTcpClientWaitData(xtcpclient* pClient, int iTimeoutMs);
+	size_t iOffset = 0;
 	
+	for ( __xnet_blk* pBlk = pChain->pHead; pBlk; pBlk = pBlk->pNext ) {
+		uint32 iReadable = __xnetBlkReadable(pBlk);
+		if ( iReadable == 0 ) continue;
+		
+		if ( iOffset + iReadable <= iStartOff ) {
+			iOffset += iReadable;
+			continue;
+		}
+		
+		size_t iBegin = iStartOff > iOffset ? (iStartOff - iOffset) : 0;
+		const uint8* pFound = (const uint8*)memchr(__xnetBlkDataPtr(pBlk) + pBlk->iBegin + iBegin, ch, iReadable - iBegin);
+		if ( pFound ) {
+			return iOffset + (size_t)(pFound - (__xnetBlkDataPtr(pBlk) + pBlk->iBegin));
+		}
+		
+		iOffset += iReadable;
+	}
 	
+	return (size_t)-1;
+}
+/* ============================== Public chain consume ============================== */
+static void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
+{
+	if ( !pChain || iLen == 0 ) return;
+	if ( iLen >= pChain->iBytes ) {
+		xrtNetChainClear(pChain);
+		return;
+	}
 	
-	/* ------------------------------------ UDP 服务器/客户端 ------------------------------------ */
-	
-	// UDP 服务器
-	XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI xudpserver* xrtUdpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI void xrtUdpServerDestroy(xudpserver* pServer);
-	XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer);
-	XXAPI void xrtUdpServerStop(xudpserver* pServer);
-	XXAPI xnet_result xrtUdpServerSendTo(xudpserver* pServer, const xnetaddr* pAddr, const char* pData, size_t iLen);
-	XXAPI void xrtUdpServerSetUserData(xudpserver* pServer, ptr pData);
-	XXAPI ptr xrtUdpServerGetUserData(xudpserver* pServer);
-	
-	// UDP 客户端
-	XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI xudpclient* xrtUdpClientCreateEx(xeventloop* pLoop, const xnetconfig* pConfig, const xnetevents* pEvents);
-	XXAPI void xrtUdpClientDestroy(xudpclient* pClient);
-	XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient);
-	XXAPI void xrtUdpClientStop(xudpclient* pClient);
-	XXAPI xnet_result xrtUdpClientSendTo(xudpclient* pClient, const xnetaddr* pAddr, const char* pData, size_t iLen);
-	XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData);
-	XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient);
-	
-	
-	
-	/* ------------------------------------ WebSocket 服务器/客户端 ------------------------------------ */
-	
-	// WebSocket 客户端
-	XXAPI xwsclient* xrtWsClientCreate(const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents);
-	XXAPI xwsclient* xrtWsClientCreateEx(xeventloop* pLoop, const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents);
-	XXAPI void xrtWsClientDestroy(xwsclient* pClient);
-	XXAPI xnet_result xrtWsClientConnect(xwsclient* pClient);
-	XXAPI void xrtWsClientDisconnect(xwsclient* pClient);
-	XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen);
-	XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const char* pData, size_t iLen);
-	XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const char* pData, size_t iLen);
-	XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
-	XXAPI bool xrtWsClientIsConnected(xwsclient* pClient);
-	XXAPI void xrtWsClientSetUserData(xwsclient* pClient, ptr pData);
-	XXAPI ptr xrtWsClientGetUserData(xwsclient* pClient);
-	
-	// WebSocket 服务器
-	XXAPI xwsserver* xrtWsServerCreate(const char* sIP, uint16 iPort, const xwsconfig* pConfig, const xwsevents* pEvents);
-	XXAPI xwsserver* xrtWsServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xwsconfig* pConfig, const xwsevents* pEvents);
-	XXAPI void xrtWsServerDestroy(xwsserver* pServer);
-	XXAPI xnet_result xrtWsServerStart(xwsserver* pServer);
-	XXAPI void xrtWsServerStop(xwsserver* pServer);
-	XXAPI xnet_result xrtWsServerEnableTLS(xwsserver* pServer, const xtlsconfig* pTlsConfig);
-	XXAPI xnet_result xrtWsServerSendText(xwsserver* pServer, int iClientId, const char* sText, size_t iLen);
-	XXAPI xnet_result xrtWsServerSendBinary(xwsserver* pServer, int iClientId, const char* pData, size_t iLen);
-	XXAPI xnet_result xrtWsServerPing(xwsserver* pServer, int iClientId, const char* pData, size_t iLen);
-	XXAPI xnet_result xrtWsServerBroadcastText(xwsserver* pServer, const char* sText, size_t iLen);
-	XXAPI xnet_result xrtWsServerBroadcastBinary(xwsserver* pServer, const char* pData, size_t iLen);
-	XXAPI void xrtWsServerDisconnect(xwsserver* pServer, int iClientId, uint16 iCode, const char* sReason);
-	XXAPI int xrtWsServerGetClientCount(xwsserver* pServer);
-	XXAPI void xrtWsServerSetUserData(xwsserver* pServer, ptr pData);
-	XXAPI ptr xrtWsServerGetUserData(xwsserver* pServer);
-	
-	
-	/* ------------------------------------ HTTP 服务器 ------------------------------------ */
-	
-	// HTTP 服务器生命周期
-	XXAPI xhttpserver* xrtHttpServerCreate(const char* sIP, uint16 iPort, const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents);
-	XXAPI xhttpserver* xrtHttpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort, const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents);
-	XXAPI void xrtHttpServerDestroy(xhttpserver* pServer);
-	XXAPI xnet_result xrtHttpServerStart(xhttpserver* pServer);
-	XXAPI void xrtHttpServerStop(xhttpserver* pServer);
-	XXAPI xnet_result xrtHttpServerEnableTLS(xhttpserver* pServer, const xtlsconfig* pTlsConfig);
-	XXAPI void xrtHttpServerSetUserData(xhttpserver* pServer, ptr pData);
-	XXAPI ptr xrtHttpServerGetUserData(xhttpserver* pServer);
-	
-	// HTTP 请求读取
-	XXAPI const char* xrtHttpReqGetHeader(xhttpdreq* pReq, const char* sName);
-	XXAPI const char* xrtHttpReqGetParam(xhttpdreq* pReq, const char* sName);
-	XXAPI const char* xrtHttpReqGetCookie(xhttpdreq* pReq, const char* sName);
-	XXAPI bool xrtHttpReqMatch(xhttpdreq* pReq, const char* sPattern);
-	
-	// HTTP 响应发送
-	XXAPI void xrtHttpReply(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sBody);
-	XXAPI void xrtHttpReplyFmt(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sFmt, ...);
-	XXAPI void xrtHttpReplyJSON(xnetconn* pConn, int iStatusCode, const char* sJSON);
-	XXAPI void xrtHttpReplyFile(xnetconn* pConn, const char* sFilePath, const char* sMimeType);
-	XXAPI void xrtHttpReplyStart(xnetconn* pConn, int iStatusCode, const char* sHeaders);
-	XXAPI void xrtHttpReplyChunk(xnetconn* pConn, const char* pData, size_t iLen);
-	XXAPI void xrtHttpReplyEnd(xnetconn* pConn);
-	XXAPI void xrtHttpRedirect(xnetconn* pConn, int iStatusCode, const char* sLocation);
-	XXAPI void xrtHttpUpgradeWebSocket(xnetconn* pConn, xhttpdreq* pReq, const xwsevents* pEvents);
-	
-	// HTTP 静态文件服务
-	XXAPI void xrtHttpServeDir(xnetconn* pConn, xhttpdreq* pReq, const char* sRootDir);
-	XXAPI void xrtHttpServeFile(xnetconn* pConn, const char* sFilePath);
-	
-	
-	
+	size_t iLeft = iLen;
+	while ( pChain->pHead && iLeft > 0 ) {
+		__xnet_blk* pBlk = pChain->pHead;
+		uint32 iReadable = __xnetBlkReadable(pBlk);
+		
+		if ( iReadable == 0 ) {
+			pChain->pHead = pBlk->pNext;
+			if ( pChain->pTail == pBlk ) pChain->pTail = NULL;
+			__xnetBlkFree(pBlk);
+			if ( pChain->iBlockCount > 0 ) pChain->iBlockCount--;
+			continue;
+		}
+		
+		if ( iLeft < iReadable ) {
+			pBlk->iBegin += (uint32)iLeft;
+			pChain->iBytes -= (uint32)iLeft;
+			iLeft = 0;
+			break;
+		}
+		
+		iLeft -= iReadable;
+		pChain->iBytes -= iReadable;
+		pChain->pHead = pBlk->pNext;
+		if ( pChain->pTail == pBlk ) pChain->pTail = NULL;
+		__xnetBlkFree(pBlk);
+		if ( pChain->iBlockCount > 0 ) pChain->iBlockCount--;
+	}
+}
+#endif
+/*
+    XNet V2 - Backend-Neutral Port Interface
+    This is the internal contract between xnet_engine workers and concrete
+    backend implementations such as IOCP and io_uring.
+*/
+/* ============================== Opaque handles ============================== */
+typedef struct xrt_net_port xnetport;
+typedef struct xrt_net_port_ops xnetportops;
+/* ============================== Backend and op identifiers ============================== */
+#define XNET_PORT_BACKEND_AUTO    0u
+#define XNET_PORT_BACKEND_IOCP    1u
+#define XNET_PORT_BACKEND_URING   2u
+#define XNET_PORT_BACKEND_CUSTOM  3u
+#define XNET_PORT_F_NONE              0x00000000u
+#define XNET_PORT_F_BATCH_COMPLETION  0x00000001u
+#define XNET_PORT_F_GATHER_SEND       0x00000002u
+#define XNET_PORT_F_TIMER_WAKE        0x00000004u
+#define XNET_PORT_OP_NONE      0u
+#define XNET_PORT_OP_ACCEPT    1u
+#define XNET_PORT_OP_CONNECT   2u
+#define XNET_PORT_OP_RECV      3u
+#define XNET_PORT_OP_SEND      4u
+#define XNET_PORT_OP_RECVFROM  5u
+#define XNET_PORT_OP_SENDTO    6u
+#define XNET_PORT_OP_TIMER     7u
+#define XNET_PORT_OP_WAKE      8u
+#define XNET_PORT_OP_CLOSE     9u
+#define XNET_PORT_EVENT_NONE      0u
+#define XNET_PORT_EVENT_ACCEPT    1u
+#define XNET_PORT_EVENT_CONNECT   2u
+#define XNET_PORT_EVENT_RECV      3u
+#define XNET_PORT_EVENT_SEND      4u
+#define XNET_PORT_EVENT_RECVFROM  5u
+#define XNET_PORT_EVENT_SENDTO    6u
+#define XNET_PORT_EVENT_TIMER     7u
+#define XNET_PORT_EVENT_WAKE      8u
+#define XNET_PORT_EVENT_CLOSE     9u
+#define XNET_PORT_EVENT_ERROR     10u
+#define XNET_PORT_SUBMIT_F_NONE      0x00000000u
+#define XNET_PORT_SUBMIT_F_LINKED    0x00000001u
+#define XNET_PORT_SUBMIT_F_MORE      0x00000002u
+#define XNET_PORT_SUBMIT_F_MULTISHOT 0x00000004u
+#define XNET_PORT_EVENT_F_NONE       0x00000000u
+#define XNET_PORT_EVENT_F_EOF        0x00000001u
+#define XNET_PORT_EVENT_F_PARTIAL    0x00000002u
+#define XNET_PORT_EVENT_F_MORE       0x00000004u
+/* ============================== Config and I/O descriptors ============================== */
+typedef struct {
+	uint32 iBackend;
+	uint32 iFlags;
+	uint32 iSqEntries;
+	uint32 iCqEntries;
+	uint32 iAcceptBatch;
+	uint32 iEventBatch;
+	uint32 iBufferGroupSize;
+	uint32 iBufferGroupCount;
+} xnetportconfig;
+typedef struct {
+	uint16 iOpType;
+	uint16 iFlags;
+	uint32 iReserved;
+	uint64 iOpId;
+	intptr_t hSocket;
+	ptr pUserData;
+	xnetchain* pChain;
+	const xnetspan* pVec;
+	uint32 iVecCount;
+	uint32 iTimeoutMs;
+	xnetaddr tAddr;
+} xnetportsubmit;
+typedef struct {
+	uint16 iType;
+	uint16 iFlags;
+	xnet_result iStatus;
+	uint32 iBytes;
+	uint64 iOpId;
+	intptr_t hSocket;
+	ptr pUserData;
+	xnetchain* pChain;
+	xnetaddr tAddr;
+} xnetportevent;
+/* ============================== Backend vtable ============================== */
+struct xrt_net_port_ops {
+	const char* sName;
+	xnet_result (*Init)(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner);
+	void (*Unit)(xnetport* pPort);
+	xnet_result (*Submit)(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount);
+	uint32 (*Harvest)(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs);
+	xnet_result (*Wake)(xnetport* pPort);
+	xnet_result (*ArmTimer)(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs);
+	xnet_result (*CancelTimer)(xnetport* pPort, uint64 iTimerId);
+};
+struct xrt_net_port {
+	const xnetportops* pOps;
+	ptr pOwner;
+	ptr pCtx;
+	xnetportconfig tConfig;
+};
+/* ============================== Config and wrapper helpers ============================== */
+static void xrtNetPortConfigInit(xnetportconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xnetportconfig));
+	pCfg->iBackend = XNET_PORT_BACKEND_AUTO;
+	pCfg->iFlags = XNET_PORT_F_BATCH_COMPLETION | XNET_PORT_F_GATHER_SEND | XNET_PORT_F_TIMER_WAKE;
+	pCfg->iSqEntries = 4096;
+	pCfg->iCqEntries = 8192;
+	pCfg->iAcceptBatch = 64;
+	pCfg->iEventBatch = 256;
+	pCfg->iBufferGroupSize = 2048;
+	pCfg->iBufferGroupCount = 1024;
+}
+static xnet_result xrtNetPortInit(xnetport* pPort, const xnetportops* pOps, const xnetportconfig* pCfg, ptr pOwner)
+{
+	if ( !pPort || !pOps || !pOps->Init ) return XRT_NET_ERROR;
+	memset(pPort, 0, sizeof(xnetport));
+	pPort->pOps = pOps;
+	pPort->pOwner = pOwner;
+	if ( pCfg ) {
+		pPort->tConfig = *pCfg;
+	} else {
+		xrtNetPortConfigInit(&pPort->tConfig);
+	}
+	return pOps->Init(pPort, &pPort->tConfig, pOwner);
+}
+static void xrtNetPortUnit(xnetport* pPort)
+{
+	if ( !pPort ) return;
+	if ( pPort->pOps && pPort->pOps->Unit ) {
+		pPort->pOps->Unit(pPort);
+	}
+	memset(pPort, 0, sizeof(xnetport));
+}
+static xnet_result xrtNetPortSubmit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
+{
+	if ( !pPort || !pPort->pOps || !pPort->pOps->Submit || !pOps || iCount == 0 ) {
+		return XRT_NET_ERROR;
+	}
+	return pPort->pOps->Submit(pPort, pOps, iCount);
+}
+static uint32 xrtNetPortHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
+{
+	if ( !pPort || !pPort->pOps || !pPort->pOps->Harvest || !pEvents || iMaxEvents == 0 ) {
+		return 0;
+	}
+	return pPort->pOps->Harvest(pPort, pEvents, iMaxEvents, iTimeoutMs);
+}
+static xnet_result xrtNetPortWake(xnetport* pPort)
+{
+	if ( !pPort || !pPort->pOps || !pPort->pOps->Wake ) return XRT_NET_ERROR;
+	return pPort->pOps->Wake(pPort);
+}
+static xnet_result xrtNetPortArmTimer(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs)
+{
+	if ( !pPort || !pPort->pOps || !pPort->pOps->ArmTimer ) return XRT_NET_ERROR;
+	return pPort->pOps->ArmTimer(pPort, iTimerId, iDelayMs);
+}
+static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
+{
+	if ( !pPort || !pPort->pOps || !pPort->pOps->CancelTimer ) return XRT_NET_ERROR;
+	return pPort->pOps->CancelTimer(pPort, iTimerId);
+}
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+	#include <windows.h>
+	typedef struct __xnet_iocp_post {
+		OVERLAPPED tOverlapped;
+		xnetportevent tEvent;
+	} __xnet_iocp_post;
+	typedef struct __xnet_iocp_timer {
+		struct __xnet_iocp_timer* pNext;
+		uint64 iTimerId;
+		uint64 iDueMs;
+	} __xnet_iocp_timer;
+	typedef struct __xnet_iocp_watch {
+		struct __xnet_iocp_watch* pNext;
+		uint16 iOpType;
+		uint16 iReserved;
+		uint64 iOpId;
+		intptr_t hSocket;
+		ptr pUserData;
+		xnetaddr tAddr;
+	} __xnet_iocp_watch;
+	typedef struct {
+		HANDLE hIOCP;
+		__xnet_iocp_timer* pTimers;
+		__xnet_iocp_watch* pWatches;
+		__xnet_iocp_watch* pFreeWatches;
+		CRITICAL_SECTION tWatchLock;
+	} __xnet_iocp_ctx;
+	/*
+	    The staged Windows backend routes posts through IOCP but socket readiness still
+	    uses watch/select. A long watch slice directly inflates serialized echo latency,
+	    especially for TLS small-message loops, so keep the slice short.
+	*/
+	#define __XNET_IOCP_WATCH_SLICE_MS 1u
+	static uint16 __xnetPortIOCPEventType(uint16 iOpType)
+	{
+		switch ( iOpType ) {
+			case XNET_PORT_OP_ACCEPT: return XNET_PORT_EVENT_ACCEPT;
+			case XNET_PORT_OP_CONNECT: return XNET_PORT_EVENT_CONNECT;
+			case XNET_PORT_OP_RECV: return XNET_PORT_EVENT_RECV;
+			case XNET_PORT_OP_SEND: return XNET_PORT_EVENT_SEND;
+			case XNET_PORT_OP_RECVFROM: return XNET_PORT_EVENT_RECVFROM;
+			case XNET_PORT_OP_SENDTO: return XNET_PORT_EVENT_SENDTO;
+			case XNET_PORT_OP_TIMER: return XNET_PORT_EVENT_TIMER;
+			case XNET_PORT_OP_WAKE: return XNET_PORT_EVENT_WAKE;
+			case XNET_PORT_OP_CLOSE: return XNET_PORT_EVENT_CLOSE;
+			default: return XNET_PORT_EVENT_NONE;
+		}
+	}
+	static uint32 __xnetPortIOCPSubmitBytes(const xnetportsubmit* pOp)
+	{
+		uint64 iBytes = 0;
+		if ( !pOp ) return 0;
+		if ( pOp->pVec && pOp->iVecCount > 0 ) {
+			for ( uint32 i = 0; i < pOp->iVecCount; ++i ) {
+				iBytes += pOp->pVec[i].iLen;
+			}
+		} else if ( pOp->pChain ) {
+			iBytes = xrtNetChainBytes(pOp->pChain);
+		}
+		if ( iBytes > 0xffffffffu ) iBytes = 0xffffffffu;
+		return (uint32)iBytes;
+	}
+	static uint64 __xnetPortIOCPNowMs(void)
+	{
+		return (uint64)GetTickCount64();
+	}
+	static bool __xnetPortIOCPValidOp(uint16 iType)
+	{
+		switch ( iType ) {
+			case XNET_PORT_OP_ACCEPT:
+			case XNET_PORT_OP_CONNECT:
+			case XNET_PORT_OP_RECV:
+			case XNET_PORT_OP_SEND:
+			case XNET_PORT_OP_RECVFROM:
+			case XNET_PORT_OP_SENDTO:
+			case XNET_PORT_OP_TIMER:
+			case XNET_PORT_OP_WAKE:
+			case XNET_PORT_OP_CLOSE:
+				return true;
+			default:
+				return false;
+		}
+	}
+	static __xnet_iocp_post* __xnetPortIOCPAllocPost(uint16 iType, uint16 iFlags, xnet_result iStatus, uint32 iBytes, uint64 iOpId)
+	{
+		__xnet_iocp_post* pPost = (__xnet_iocp_post*)XNET_ALLOC(sizeof(__xnet_iocp_post));
+		if ( !pPost ) return NULL;
+		memset(pPost, 0, sizeof(__xnet_iocp_post));
+		pPost->tEvent.iType = iType;
+		pPost->tEvent.iFlags = iFlags;
+		pPost->tEvent.iStatus = iStatus;
+		pPost->tEvent.iBytes = iBytes;
+		pPost->tEvent.iOpId = iOpId;
+		return pPost;
+	}
+	static bool __xnetPortIOCPIsSocketWatchOp(const xnetportsubmit* pOp)
+	{
+		if ( !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return false;
+		if ( pOp->iOpId == 0 ) return false;
+		if ( pOp->pChain || (pOp->pVec && pOp->iVecCount > 0) ) return false;
+		return pOp->iOpType == XNET_PORT_OP_ACCEPT || pOp->iOpType == XNET_PORT_OP_RECV ||
+			pOp->iOpType == XNET_PORT_OP_RECVFROM || pOp->iOpType == XNET_PORT_OP_SEND;
+	}
+	static void __xnetPortIOCPFreeWatches(__xnet_iocp_ctx* pCtx)
+	{
+		if ( !pCtx ) return;
+		EnterCriticalSection(&pCtx->tWatchLock);
+		while ( pCtx->pWatches ) {
+			__xnet_iocp_watch* pNext = pCtx->pWatches->pNext;
+			XNET_FREE(pCtx->pWatches);
+			pCtx->pWatches = pNext;
+		}
+		while ( pCtx->pFreeWatches ) {
+			__xnet_iocp_watch* pNext = pCtx->pFreeWatches->pNext;
+			XNET_FREE(pCtx->pFreeWatches);
+			pCtx->pFreeWatches = pNext;
+		}
+		LeaveCriticalSection(&pCtx->tWatchLock);
+	}
+	static void __xnetPortIOCPRemoveWatches(__xnet_iocp_ctx* pCtx, uint16 iOpType, intptr_t hSocket, ptr pUserData)
+	{
+		__xnet_iocp_watch** ppCur;
+		if ( !pCtx ) return;
+		EnterCriticalSection(&pCtx->tWatchLock);
+		ppCur = &pCtx->pWatches;
+		while ( *ppCur ) {
+			__xnet_iocp_watch* pNode = *ppCur;
+			bool bTypeMatch = (iOpType == 0 || pNode->iOpType == iOpType);
+			bool bSocketMatch = (hSocket == 0 || pNode->hSocket == hSocket);
+			bool bUserMatch = (pUserData == NULL || pNode->pUserData == pUserData);
+			if ( bTypeMatch && bSocketMatch && bUserMatch ) {
+				*ppCur = pNode->pNext;
+				pNode->pNext = pCtx->pFreeWatches;
+				pCtx->pFreeWatches = pNode;
+				continue;
+			}
+			ppCur = &pNode->pNext;
+		}
+		LeaveCriticalSection(&pCtx->tWatchLock);
+	}
+	static bool __xnetPortIOCPRegisterWatch(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_watch* pNode;
+		if ( !pCtx || !pOp ) return false;
+		EnterCriticalSection(&pCtx->tWatchLock);
+		for ( __xnet_iocp_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
+			if ( pCur->iOpType == pOp->iOpType && pCur->hSocket == pOp->hSocket && pCur->pUserData == pOp->pUserData ) {
+				LeaveCriticalSection(&pCtx->tWatchLock);
+				return true;
+			}
+		}
+		if ( pCtx->pFreeWatches ) {
+			pNode = pCtx->pFreeWatches;
+			pCtx->pFreeWatches = pNode->pNext;
+		} else {
+			pNode = (__xnet_iocp_watch*)XNET_ALLOC(sizeof(__xnet_iocp_watch));
+		}
+		if ( !pNode ) {
+			LeaveCriticalSection(&pCtx->tWatchLock);
+			return false;
+		}
+		memset(pNode, 0, sizeof(__xnet_iocp_watch));
+		pNode->iOpType = pOp->iOpType;
+		pNode->iOpId = pOp->iOpId;
+		pNode->hSocket = pOp->hSocket;
+		pNode->pUserData = pOp->pUserData;
+		pNode->tAddr = pOp->tAddr;
+		pNode->pNext = pCtx->pWatches;
+		pCtx->pWatches = pNode;
+		LeaveCriticalSection(&pCtx->tWatchLock);
+		return true;
+	}
+	static bool __xnetPortIOCPHasWatches(__xnet_iocp_ctx* pCtx)
+	{
+		bool bHas = false;
+		if ( !pCtx ) return false;
+		EnterCriticalSection(&pCtx->tWatchLock);
+		bHas = pCtx->pWatches != NULL;
+		LeaveCriticalSection(&pCtx->tWatchLock);
+		return bHas;
+	}
+	static uint32 __xnetPortIOCPHarvestPosted(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iWaitMs)
+	{
+		uint32 iCount = 0;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		for ( ;; ) {
+			DWORD iBytes = 0;
+			ULONG_PTR iKey = 0;
+			LPOVERLAPPED pOv = NULL;
+			DWORD iWait = (iCount > 0) ? 0 : iWaitMs;
+			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, iWait);
+			if ( !bOk && !pOv ) break;
+			if ( !pOv ) break;
+			{
+				__xnet_iocp_post* pPost = (__xnet_iocp_post*)pOv;
+				pPost->tEvent.iBytes = iBytes;
+				if ( !bOk && pPost->tEvent.iStatus == XRT_NET_OK ) {
+					pPost->tEvent.iStatus = XRT_NET_ERROR;
+				}
+				pEvents[iCount++] = pPost->tEvent;
+				XNET_FREE(pPost);
+			}
+			(void)iKey;
+			if ( iCount >= iMaxEvents ) break;
+		}
+		return iCount;
+	}
+	static uint32 __xnetPortIOCPHarvestWatches(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
+	{
+		__xnet_iocp_watch arrSnap[FD_SETSIZE];
+		uint32 iSnapCount = 0;
+		uint32 iCount = 0;
+		fd_set tReadSet;
+		fd_set tWriteSet;
+		struct timeval tTv;
+		int iReady;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		FD_ZERO(&tReadSet);
+		FD_ZERO(&tWriteSet);
+		EnterCriticalSection(&pCtx->tWatchLock);
+		for ( __xnet_iocp_watch* pNode = pCtx->pWatches; pNode && iSnapCount < FD_SETSIZE; pNode = pNode->pNext ) {
+			arrSnap[iSnapCount] = *pNode;
+			if ( pNode->iOpType == XNET_PORT_OP_SEND ) {
+				FD_SET((SOCKET)pNode->hSocket, &tWriteSet);
+			} else {
+				FD_SET((SOCKET)pNode->hSocket, &tReadSet);
+			}
+			iSnapCount++;
+		}
+		LeaveCriticalSection(&pCtx->tWatchLock);
+		if ( iSnapCount == 0 ) return 0;
+		tTv.tv_sec = (long)(iTimeoutMs / 1000u);
+		tTv.tv_usec = (long)((iTimeoutMs % 1000u) * 1000u);
+		iReady = select(0, &tReadSet, &tWriteSet, NULL, &tTv);
+		if ( iReady <= 0 ) return 0;
+		for ( uint32 i = 0; i < iSnapCount && iCount < iMaxEvents; ++i ) {
+			bool bReady = (arrSnap[i].iOpType == XNET_PORT_OP_SEND)
+				? (FD_ISSET((SOCKET)arrSnap[i].hSocket, &tWriteSet) != 0)
+				: (FD_ISSET((SOCKET)arrSnap[i].hSocket, &tReadSet) != 0);
+			if ( !bReady ) continue;
+			memset(&pEvents[iCount], 0, sizeof(xnetportevent));
+			pEvents[iCount].iType = __xnetPortIOCPEventType(arrSnap[i].iOpType);
+			pEvents[iCount].iStatus = XRT_NET_OK;
+			pEvents[iCount].iOpId = arrSnap[i].iOpId;
+			pEvents[iCount].hSocket = arrSnap[i].hSocket;
+			pEvents[iCount].pUserData = arrSnap[i].pUserData;
+			pEvents[iCount].tAddr = arrSnap[i].tAddr;
+			iCount++;
+			__xnetPortIOCPRemoveWatches(pCtx, arrSnap[i].iOpType, arrSnap[i].hSocket, arrSnap[i].pUserData);
+		}
+		return iCount;
+	}
+	static void __xnetPortIOCPFreeTimers(__xnet_iocp_ctx* pCtx)
+	{
+		while ( pCtx && pCtx->pTimers ) {
+			__xnet_iocp_timer* pNext = pCtx->pTimers->pNext;
+			XNET_FREE(pCtx->pTimers);
+			pCtx->pTimers = pNext;
+		}
+	}
+	static uint32 __xnetPortIOCPHarvestTimers(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
+	{
+		uint32 iCount = 0;
+		uint64 iNowMs = __xnetPortIOCPNowMs();
+		__xnet_iocp_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
+		while ( ppCur && *ppCur && iCount < iMaxEvents ) {
+			__xnet_iocp_timer* pNode = *ppCur;
+			if ( pNode->iDueMs > iNowMs ) {
+				ppCur = &pNode->pNext;
+				continue;
+			}
+			memset(&pEvents[iCount], 0, sizeof(xnetportevent));
+			pEvents[iCount].iType = XNET_PORT_EVENT_TIMER;
+			pEvents[iCount].iStatus = XRT_NET_OK;
+			pEvents[iCount].iOpId = pNode->iTimerId;
+			iCount++;
+			*ppCur = pNode->pNext;
+			XNET_FREE(pNode);
+		}
+		return iCount;
+	}
+	static void __xnetPortIOCPDrainPosted(__xnet_iocp_ctx* pCtx)
+	{
+		if ( !pCtx || !pCtx->hIOCP ) return;
+		for ( ;; ) {
+			DWORD iBytes = 0;
+			ULONG_PTR iKey = 0;
+			LPOVERLAPPED pOv = NULL;
+			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, 0);
+			if ( !bOk && !pOv ) break;
+			if ( pOv ) {
+				__xnet_iocp_post* pPost = (__xnet_iocp_post*)pOv;
+				XNET_FREE(pPost);
+			}
+		}
+	}
+	static xnet_result __xnetPortIOCPInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
+	{
+		(void)pOwner;
+		if ( !pPort || !pCfg ) return XRT_NET_ERROR;
+		__xnet_iocp_ctx* pCtx = (__xnet_iocp_ctx*)XNET_ALLOC(sizeof(__xnet_iocp_ctx));
+		if ( !pCtx ) return XRT_NET_ERROR;
+		memset(pCtx, 0, sizeof(__xnet_iocp_ctx));
+		InitializeCriticalSection(&pCtx->tWatchLock);
+		pCtx->hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+		if ( !pCtx->hIOCP ) {
+			DeleteCriticalSection(&pCtx->tWatchLock);
+			XNET_FREE(pCtx);
+			return XRT_NET_ERROR;
+		}
+		pPort->pCtx = pCtx;
+		return XRT_NET_OK;
+	}
+	static void __xnetPortIOCPUnit(xnetport* pPort)
+	{
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
+		if ( !pCtx ) return;
+		__xnetPortIOCPDrainPosted(pCtx);
+		__xnetPortIOCPFreeTimers(pCtx);
+		__xnetPortIOCPFreeWatches(pCtx);
+		if ( pCtx->hIOCP ) {
+			CloseHandle(pCtx->hIOCP);
+		}
+		DeleteCriticalSection(&pCtx->tWatchLock);
+		XNET_FREE(pCtx);
+		if ( pPort ) pPort->pCtx = NULL;
+	}
+	static xnet_result __xnetPortIOCPSumbit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
+	{
+		uint32 i;
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
+		if ( !pCtx || !pCtx->hIOCP || !pOps || iCount == 0 ) return XRT_NET_ERROR;
+		for ( i = 0; i < iCount; ++i ) {
+			__xnet_iocp_post* pPost;
+			uint16 iEventType;
+			if ( !__xnetPortIOCPValidOp(pOps[i].iOpType) ) {
+				return XRT_NET_ERROR;
+			}
+			iEventType = __xnetPortIOCPEventType(pOps[i].iOpType);
+			if ( iEventType == XNET_PORT_EVENT_NONE ) {
+				return XRT_NET_ERROR;
+			}
+			if ( pOps[i].iOpType == XNET_PORT_OP_CLOSE && pOps[i].hSocket != (intptr_t)XNET_SOCKET_INVALID ) {
+				__xnetPortIOCPRemoveWatches(pCtx, 0, pOps[i].hSocket, pOps[i].pUserData);
+				continue;
+			}
+			if ( __xnetPortIOCPIsSocketWatchOp(&pOps[i]) ) {
+				if ( !__xnetPortIOCPRegisterWatch(pCtx, &pOps[i]) ) return XRT_NET_ERROR;
+				continue;
+			}
+			pPost = __xnetPortIOCPAllocPost(iEventType, XNET_PORT_EVENT_F_NONE, XRT_NET_OK,
+				__xnetPortIOCPSubmitBytes(&pOps[i]), pOps[i].iOpId);
+			if ( !pPost ) return XRT_NET_ERROR;
+			pPost->tEvent.hSocket = pOps[i].hSocket;
+			pPost->tEvent.pUserData = pOps[i].pUserData;
+			pPost->tEvent.pChain = pOps[i].pChain;
+			pPost->tEvent.tAddr = pOps[i].tAddr;
+			if ( !PostQueuedCompletionStatus(pCtx->hIOCP, pPost->tEvent.iBytes, 0, &pPost->tOverlapped) ) {
+				XNET_FREE(pPost);
+				return XRT_NET_ERROR;
+			}
+		}
+		return XRT_NET_OK;
+	}
+	static uint32 __xnetPortIOCPHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
+	{
+		uint32 iCount = 0;
+		uint64 iStartMs;
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		iCount += __xnetPortIOCPHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
+		if ( iCount >= iMaxEvents ) return iCount;
+		iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, 0);
+		if ( iCount >= iMaxEvents || iCount > 0 || iTimeoutMs == 0 ) return iCount;
+		if ( !__xnetPortIOCPHasWatches(pCtx) ) {
+			iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iTimeoutMs);
+			return iCount;
+		}
+		iStartMs = __xnetPortIOCPNowMs();
+		for ( ;; ) {
+			uint64 iNowMs = __xnetPortIOCPNowMs();
+			uint32 iElapsedMs = (uint32)(iNowMs - iStartMs);
+			uint32 iRemainMs = (iElapsedMs >= iTimeoutMs) ? 0u : (iTimeoutMs - iElapsedMs);
+			uint32 iSliceMs = iRemainMs > __XNET_IOCP_WATCH_SLICE_MS ? __XNET_IOCP_WATCH_SLICE_MS : iRemainMs;
+			if ( iRemainMs == 0 ) break;
+			iCount += __xnetPortIOCPHarvestWatches(pCtx, pEvents + iCount, iMaxEvents - iCount, iSliceMs);
+			if ( iCount >= iMaxEvents || iCount > 0 ) break;
+			iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iSliceMs);
+			if ( iCount >= iMaxEvents || iCount > 0 ) break;
+		}
+		return iCount;
+	}
+	static xnet_result __xnetPortIOCPWake(xnetport* pPort)
+	{
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
+		__xnet_iocp_post* pPost;
+		if ( !pCtx || !pCtx->hIOCP ) return XRT_NET_ERROR;
+		pPost = __xnetPortIOCPAllocPost(XNET_PORT_EVENT_WAKE, XNET_PORT_EVENT_F_NONE, XRT_NET_OK, 0, 0);
+		if ( !pPost ) return XRT_NET_ERROR;
+		if ( !PostQueuedCompletionStatus(pCtx->hIOCP, 0, 0, &pPost->tOverlapped) ) {
+			XNET_FREE(pPost);
+			return XRT_NET_ERROR;
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPArmTimer(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs)
+	{
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
+		__xnet_iocp_timer* pNode;
+		if ( !pCtx ) return XRT_NET_ERROR;
+		pNode = (__xnet_iocp_timer*)XNET_ALLOC(sizeof(__xnet_iocp_timer));
+		if ( !pNode ) return XRT_NET_ERROR;
+		memset(pNode, 0, sizeof(__xnet_iocp_timer));
+		pNode->iTimerId = iTimerId;
+		pNode->iDueMs = __xnetPortIOCPNowMs() + (uint64)iDelayMs;
+		pNode->pNext = pCtx->pTimers;
+		pCtx->pTimers = pNode;
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPCancelTimer(xnetport* pPort, uint64 iTimerId)
+	{
+		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
+		__xnet_iocp_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
+		if ( !ppCur ) return XRT_NET_ERROR;
+		while ( *ppCur ) {
+			__xnet_iocp_timer* pNode = *ppCur;
+			if ( pNode->iTimerId == iTimerId ) {
+				*ppCur = pNode->pNext;
+				XNET_FREE(pNode);
+				return XRT_NET_OK;
+			}
+			ppCur = &pNode->pNext;
+		}
+		return XRT_NET_ERROR;
+	}
+	static const xnetportops __g_xnetPortIOCPOps = {
+		"xnet-port-iocp",
+		__xnetPortIOCPInit,
+		__xnetPortIOCPUnit,
+		__xnetPortIOCPSumbit,
+		__xnetPortIOCPHarvest,
+		__xnetPortIOCPWake,
+		__xnetPortIOCPArmTimer,
+		__xnetPortIOCPCancelTimer
+	};
+	static const xnetportops* xrtNetPortIOCPOps(void)
+	{
+		return &__g_xnetPortIOCPOps;
+	}
+#else
+	static const xnetportops* xrtNetPortIOCPOps(void)
+	{
+		return NULL;
+	}
+#endif
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_port_uring.h
+// ========================================
+
+#ifndef XRT_XNET_PORT_URING_H
+#define XRT_XNET_PORT_URING_H
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_port.h)
+#if defined(__linux__)
+	#include <errno.h>
+	#include <poll.h>
+	#include <pthread.h>
+	#include <sys/eventfd.h>
+	#include <unistd.h>
+	typedef struct __xnet_uring_timer {
+		struct __xnet_uring_timer* pNext;
+		uint64 iTimerId;
+		uint64 iDueMs;
+	} __xnet_uring_timer;
+	typedef struct __xnet_uring_post {
+		struct __xnet_uring_post* pNext;
+		xnetportevent tEvent;
+	} __xnet_uring_post;
+	typedef struct __xnet_uring_watch {
+		struct __xnet_uring_watch* pNext;
+		uint16 iOpType;
+		uint16 iReserved;
+		uint64 iOpId;
+		intptr_t hSocket;
+		ptr pUserData;
+		xnetaddr tAddr;
+	} __xnet_uring_watch;
+	typedef struct {
+		int hRing;
+		int hWakeFd;
+		__xnet_uring_timer* pTimers;
+		__xnet_uring_post* pPostedHead;
+		__xnet_uring_post* pPostedTail;
+		pthread_mutex_t tPostedLock;
+		__xnet_uring_watch* pWatches;
+		__xnet_uring_watch* pFreeWatches;
+		pthread_mutex_t tWatchLock;
+	} __xnet_uring_ctx;
+	static xnet_result __xnetPortUringWake(xnetport* pPort);
+	static uint16 __xnetPortUringEventType(uint16 iOpType)
+	{
+		switch ( iOpType ) {
+			case XNET_PORT_OP_ACCEPT: return XNET_PORT_EVENT_ACCEPT;
+			case XNET_PORT_OP_CONNECT: return XNET_PORT_EVENT_CONNECT;
+			case XNET_PORT_OP_RECV: return XNET_PORT_EVENT_RECV;
+			case XNET_PORT_OP_SEND: return XNET_PORT_EVENT_SEND;
+			case XNET_PORT_OP_RECVFROM: return XNET_PORT_EVENT_RECVFROM;
+			case XNET_PORT_OP_SENDTO: return XNET_PORT_EVENT_SENDTO;
+			case XNET_PORT_OP_TIMER: return XNET_PORT_EVENT_TIMER;
+			case XNET_PORT_OP_WAKE: return XNET_PORT_EVENT_WAKE;
+			case XNET_PORT_OP_CLOSE: return XNET_PORT_EVENT_CLOSE;
+			default: return XNET_PORT_EVENT_NONE;
+		}
+	}
+	static uint32 __xnetPortUringSubmitBytes(const xnetportsubmit* pOp)
+	{
+		uint64 iBytes = 0;
+		if ( !pOp ) return 0;
+		if ( pOp->pVec && pOp->iVecCount > 0 ) {
+			for ( uint32 i = 0; i < pOp->iVecCount; ++i ) {
+				iBytes += pOp->pVec[i].iLen;
+			}
+		} else if ( pOp->pChain ) {
+			iBytes = xrtNetChainBytes(pOp->pChain);
+		}
+		if ( iBytes > 0xffffffffu ) iBytes = 0xffffffffu;
+		return (uint32)iBytes;
+	}
+	static uint64 __xnetPortUringNowMs(void)
+	{
+		struct timespec tNow;
+		clock_gettime(CLOCK_MONOTONIC, &tNow);
+		return (uint64)tNow.tv_sec * 1000u + (uint64)(tNow.tv_nsec / 1000000u);
+	}
+	static bool __xnetPortUringValidOp(uint16 iType)
+	{
+		switch ( iType ) {
+			case XNET_PORT_OP_ACCEPT:
+			case XNET_PORT_OP_CONNECT:
+			case XNET_PORT_OP_RECV:
+			case XNET_PORT_OP_SEND:
+			case XNET_PORT_OP_RECVFROM:
+			case XNET_PORT_OP_SENDTO:
+			case XNET_PORT_OP_TIMER:
+			case XNET_PORT_OP_WAKE:
+			case XNET_PORT_OP_CLOSE:
+				return true;
+			default:
+				return false;
+		}
+	}
+	static void __xnetPortUringFreeTimers(__xnet_uring_ctx* pCtx)
+	{
+		while ( pCtx && pCtx->pTimers ) {
+			__xnet_uring_timer* pNext = pCtx->pTimers->pNext;
+			XNET_FREE(pCtx->pTimers);
+			pCtx->pTimers = pNext;
+		}
+	}
+	static void __xnetPortUringFreePosts(__xnet_uring_ctx* pCtx)
+	{
+		if ( !pCtx ) return;
+		while ( pCtx->pPostedHead ) {
+			__xnet_uring_post* pNext = pCtx->pPostedHead->pNext;
+			XNET_FREE(pCtx->pPostedHead);
+			pCtx->pPostedHead = pNext;
+		}
+		pCtx->pPostedTail = NULL;
+	}
+	static bool __xnetPortUringQueueEvent(__xnet_uring_ctx* pCtx, const xnetportevent* pEvent)
+	{
+		__xnet_uring_post* pPost;
+		if ( !pCtx || !pEvent ) return false;
+		pPost = (__xnet_uring_post*)XNET_ALLOC(sizeof(__xnet_uring_post));
+		if ( !pPost ) return false;
+		memset(pPost, 0, sizeof(__xnet_uring_post));
+		pPost->tEvent = *pEvent;
+		pthread_mutex_lock(&pCtx->tPostedLock);
+		if ( pCtx->pPostedTail ) {
+			pCtx->pPostedTail->pNext = pPost;
+		} else {
+			pCtx->pPostedHead = pPost;
+		}
+		pCtx->pPostedTail = pPost;
+		pthread_mutex_unlock(&pCtx->tPostedLock);
+		return true;
+	}
+	static bool __xnetPortUringIsSocketWatchOp(const xnetportsubmit* pOp)
+	{
+		if ( !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return false;
+		if ( pOp->iOpId == 0 ) return false;
+		if ( pOp->pChain || (pOp->pVec && pOp->iVecCount > 0) ) return false;
+		return pOp->iOpType == XNET_PORT_OP_ACCEPT || pOp->iOpType == XNET_PORT_OP_RECV ||
+			pOp->iOpType == XNET_PORT_OP_RECVFROM || pOp->iOpType == XNET_PORT_OP_SEND;
+	}
+	static void __xnetPortUringFreeWatches(__xnet_uring_ctx* pCtx)
+	{
+		if ( !pCtx ) return;
+		pthread_mutex_lock(&pCtx->tWatchLock);
+		while ( pCtx->pWatches ) {
+			__xnet_uring_watch* pNext = pCtx->pWatches->pNext;
+			XNET_FREE(pCtx->pWatches);
+			pCtx->pWatches = pNext;
+		}
+		while ( pCtx->pFreeWatches ) {
+			__xnet_uring_watch* pNext = pCtx->pFreeWatches->pNext;
+			XNET_FREE(pCtx->pFreeWatches);
+			pCtx->pFreeWatches = pNext;
+		}
+		pthread_mutex_unlock(&pCtx->tWatchLock);
+	}
+	static void __xnetPortUringRemoveWatches(__xnet_uring_ctx* pCtx, uint16 iOpType, intptr_t hSocket, ptr pUserData)
+	{
+		__xnet_uring_watch** ppCur;
+		if ( !pCtx ) return;
+		pthread_mutex_lock(&pCtx->tWatchLock);
+		ppCur = &pCtx->pWatches;
+		while ( *ppCur ) {
+			__xnet_uring_watch* pNode = *ppCur;
+			bool bTypeMatch = (iOpType == 0 || pNode->iOpType == iOpType);
+			bool bSocketMatch = (hSocket == 0 || pNode->hSocket == hSocket);
+			bool bUserMatch = (pUserData == NULL || pNode->pUserData == pUserData);
+			if ( bTypeMatch && bSocketMatch && bUserMatch ) {
+				*ppCur = pNode->pNext;
+				pNode->pNext = pCtx->pFreeWatches;
+				pCtx->pFreeWatches = pNode;
+				continue;
+			}
+			ppCur = &pNode->pNext;
+		}
+		pthread_mutex_unlock(&pCtx->tWatchLock);
+	}
+	static bool __xnetPortUringRegisterWatch(__xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_uring_watch* pNode;
+		if ( !pCtx || !pOp ) return false;
+		pthread_mutex_lock(&pCtx->tWatchLock);
+		for ( __xnet_uring_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
+			if ( pCur->iOpType == pOp->iOpType && pCur->hSocket == pOp->hSocket && pCur->pUserData == pOp->pUserData ) {
+				pthread_mutex_unlock(&pCtx->tWatchLock);
+				return true;
+			}
+		}
+		if ( pCtx->pFreeWatches ) {
+			pNode = pCtx->pFreeWatches;
+			pCtx->pFreeWatches = pNode->pNext;
+		} else {
+			pNode = (__xnet_uring_watch*)XNET_ALLOC(sizeof(__xnet_uring_watch));
+		}
+		if ( !pNode ) {
+			pthread_mutex_unlock(&pCtx->tWatchLock);
+			return false;
+		}
+		memset(pNode, 0, sizeof(__xnet_uring_watch));
+		pNode->iOpType = pOp->iOpType;
+		pNode->iOpId = pOp->iOpId;
+		pNode->hSocket = pOp->hSocket;
+		pNode->pUserData = pOp->pUserData;
+		pNode->tAddr = pOp->tAddr;
+		pNode->pNext = pCtx->pWatches;
+		pCtx->pWatches = pNode;
+		pthread_mutex_unlock(&pCtx->tWatchLock);
+		return true;
+	}
+	static bool __xnetPortUringHasWatches(__xnet_uring_ctx* pCtx)
+	{
+		bool bHas = false;
+		if ( !pCtx ) return false;
+		pthread_mutex_lock(&pCtx->tWatchLock);
+		bHas = pCtx->pWatches != NULL;
+		pthread_mutex_unlock(&pCtx->tWatchLock);
+		return bHas;
+	}
+	static uint32 __xnetPortUringDrainPosted(__xnet_uring_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
+	{
+		uint32 iCount = 0;
+		__xnet_uring_post* pHead;
+		__xnet_uring_post* pTail;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		pthread_mutex_lock(&pCtx->tPostedLock);
+		pHead = pCtx->pPostedHead;
+		pTail = pCtx->pPostedTail;
+		pCtx->pPostedHead = NULL;
+		pCtx->pPostedTail = NULL;
+		pthread_mutex_unlock(&pCtx->tPostedLock);
+		(void)pTail;
+		while ( pHead && iCount < iMaxEvents ) {
+			__xnet_uring_post* pNext = pHead->pNext;
+			pEvents[iCount++] = pHead->tEvent;
+			XNET_FREE(pHead);
+			pHead = pNext;
+		}
+		while ( pHead ) {
+			__xnet_uring_post* pNext = pHead->pNext;
+			pthread_mutex_lock(&pCtx->tPostedLock);
+			if ( pCtx->pPostedTail ) {
+				pCtx->pPostedTail->pNext = pHead;
+			} else {
+				pCtx->pPostedHead = pHead;
+			}
+			pCtx->pPostedTail = pHead;
+			pHead->pNext = NULL;
+			pthread_mutex_unlock(&pCtx->tPostedLock);
+			pHead = pNext;
+		}
+		return iCount;
+	}
+	static uint32 __xnetPortUringHarvestTimers(__xnet_uring_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
+	{
+		uint32 iCount = 0;
+		uint64 iNowMs = __xnetPortUringNowMs();
+		__xnet_uring_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
+		while ( ppCur && *ppCur && iCount < iMaxEvents ) {
+			__xnet_uring_timer* pNode = *ppCur;
+			if ( pNode->iDueMs > iNowMs ) {
+				ppCur = &pNode->pNext;
+				continue;
+			}
+			memset(&pEvents[iCount], 0, sizeof(xnetportevent));
+			pEvents[iCount].iType = XNET_PORT_EVENT_TIMER;
+			pEvents[iCount].iStatus = XRT_NET_OK;
+			pEvents[iCount].iOpId = pNode->iTimerId;
+			iCount++;
+			*ppCur = pNode->pNext;
+			XNET_FREE(pNode);
+		}
+		return iCount;
+	}
+	static xnet_result __xnetPortUringInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
+	{
+		__xnet_uring_ctx* pCtx;
+		(void)pOwner;
+		if ( !pPort || !pCfg ) return XRT_NET_ERROR;
+		pCtx = (__xnet_uring_ctx*)XNET_ALLOC(sizeof(__xnet_uring_ctx));
+		if ( !pCtx ) return XRT_NET_ERROR;
+		memset(pCtx, 0, sizeof(__xnet_uring_ctx));
+		pCtx->hRing = -1;
+		pCtx->hWakeFd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+		if ( pCtx->hWakeFd < 0 ) {
+			XNET_FREE(pCtx);
+			return XRT_NET_ERROR;
+		}
+		if ( pthread_mutex_init(&pCtx->tPostedLock, NULL) != 0 ) {
+			close(pCtx->hWakeFd);
+			XNET_FREE(pCtx);
+			return XRT_NET_ERROR;
+		}
+		if ( pthread_mutex_init(&pCtx->tWatchLock, NULL) != 0 ) {
+			pthread_mutex_destroy(&pCtx->tPostedLock);
+			close(pCtx->hWakeFd);
+			XNET_FREE(pCtx);
+			return XRT_NET_ERROR;
+		}
+		pPort->pCtx = pCtx;
+		return XRT_NET_OK;
+	}
+	static void __xnetPortUringUnit(xnetport* pPort)
+	{
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		if ( !pCtx ) return;
+		__xnetPortUringFreeTimers(pCtx);
+		__xnetPortUringFreePosts(pCtx);
+		__xnetPortUringFreeWatches(pCtx);
+		pthread_mutex_destroy(&pCtx->tPostedLock);
+		pthread_mutex_destroy(&pCtx->tWatchLock);
+		if ( pCtx->hWakeFd >= 0 ) {
+			close(pCtx->hWakeFd);
+		}
+		XNET_FREE(pCtx);
+		if ( pPort ) pPort->pCtx = NULL;
+	}
+	static xnet_result __xnetPortUringSubmit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
+	{
+		uint32 i;
+		bool bNeedWake = false;
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		if ( !pCtx || !pOps || iCount == 0 ) return XRT_NET_ERROR;
+		for ( i = 0; i < iCount; ++i ) {
+			xnetportevent tEvent;
+			if ( !__xnetPortUringValidOp(pOps[i].iOpType) ) {
+				return XRT_NET_ERROR;
+			}
+			if ( pOps[i].iOpType == XNET_PORT_OP_CLOSE && pOps[i].hSocket != (intptr_t)XNET_SOCKET_INVALID ) {
+				__xnetPortUringRemoveWatches(pCtx, 0, pOps[i].hSocket, pOps[i].pUserData);
+				continue;
+			}
+			if ( __xnetPortUringIsSocketWatchOp(&pOps[i]) ) {
+				if ( !__xnetPortUringRegisterWatch(pCtx, &pOps[i]) ) return XRT_NET_ERROR;
+				continue;
+			}
+			memset(&tEvent, 0, sizeof(tEvent));
+			tEvent.iType = __xnetPortUringEventType(pOps[i].iOpType);
+			tEvent.iStatus = XRT_NET_OK;
+			tEvent.iBytes = __xnetPortUringSubmitBytes(&pOps[i]);
+			tEvent.iOpId = pOps[i].iOpId;
+			tEvent.hSocket = pOps[i].hSocket;
+			tEvent.pUserData = pOps[i].pUserData;
+			tEvent.pChain = pOps[i].pChain;
+			tEvent.tAddr = pOps[i].tAddr;
+			if ( tEvent.iType == XNET_PORT_EVENT_NONE || !__xnetPortUringQueueEvent(pCtx, &tEvent) ) {
+				return XRT_NET_ERROR;
+			}
+			bNeedWake = true;
+		}
+		if ( bNeedWake ) {
+			(void)__xnetPortUringWake(pPort);
+		}
+		return XRT_NET_OK;
+	}
+	static uint32 __xnetPortUringHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
+	{
+		uint32 iCount = 0;
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		iCount += __xnetPortUringHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
+		if ( iCount >= iMaxEvents ) return iCount;
+		iCount += __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
+		if ( iCount >= iMaxEvents ) return iCount;
+		if ( !__xnetPortUringHasWatches(pCtx) && pCtx->hWakeFd >= 0 ) {
+			struct pollfd tPoll;
+			int iPollRet;
+			uint64 iWakeCount = 0;
+			memset(&tPoll, 0, sizeof(tPoll));
+			tPoll.fd = pCtx->hWakeFd;
+			tPoll.events = POLLIN;
+			iPollRet = poll(&tPoll, 1, (iCount > 0) ? 0 : (int)iTimeoutMs);
+			if ( iPollRet > 0 && (tPoll.revents & POLLIN) ) {
+				if ( read(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) == (ssize_t)sizeof(iWakeCount) ) {
+					uint32 iPosted = __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
+					iCount += iPosted;
+					if ( iPosted == 0 && iCount < iMaxEvents ) {
+						memset(&pEvents[iCount], 0, sizeof(xnetportevent));
+						pEvents[iCount].iType = XNET_PORT_EVENT_WAKE;
+						pEvents[iCount].iStatus = XRT_NET_OK;
+						pEvents[iCount].iBytes = (uint32)((iWakeCount > 0xffffffffu) ? 0xffffffffu : iWakeCount);
+						iCount++;
+					}
+				}
+			}
+		}
+		if ( __xnetPortUringHasWatches(pCtx) ) {
+			__xnet_uring_watch arrSnap[256];
+			struct pollfd arrPoll[257];
+			nfds_t iPollCount = 0;
+			uint32 iSnapCount = 0;
+			int iPollRet;
+			memset(arrPoll, 0, sizeof(arrPoll));
+			pthread_mutex_lock(&pCtx->tWatchLock);
+			for ( __xnet_uring_watch* pNode = pCtx->pWatches; pNode && iSnapCount < 256; pNode = pNode->pNext ) {
+				arrSnap[iSnapCount] = *pNode;
+				++iSnapCount;
+			}
+			pthread_mutex_unlock(&pCtx->tWatchLock);
+			if ( pCtx->hWakeFd >= 0 ) {
+				arrPoll[iPollCount].fd = pCtx->hWakeFd;
+				arrPoll[iPollCount].events = POLLIN;
+				++iPollCount;
+			}
+			for ( uint32 i = 0; i < iSnapCount; ++i ) {
+				arrPoll[iPollCount].fd = (int)arrSnap[i].hSocket;
+				arrPoll[iPollCount].events = (short)((arrSnap[i].iOpType == XNET_PORT_OP_SEND) ? POLLOUT : POLLIN);
+				++iPollCount;
+			}
+			if ( iPollCount > 0 ) {
+				iPollRet = poll(arrPoll, iPollCount, (iCount > 0) ? 0 : (int)iTimeoutMs);
+				if ( iPollRet > 0 ) {
+					if ( pCtx->hWakeFd >= 0 && (arrPoll[0].revents & POLLIN) ) {
+						uint64 iWakeCount = 0;
+						if ( read(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) == (ssize_t)sizeof(iWakeCount) ) {
+							uint32 iPosted = __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
+							iCount += iPosted;
+							if ( iPosted == 0 && iCount < iMaxEvents ) {
+								memset(&pEvents[iCount], 0, sizeof(xnetportevent));
+								pEvents[iCount].iType = XNET_PORT_EVENT_WAKE;
+								pEvents[iCount].iStatus = XRT_NET_OK;
+								pEvents[iCount].iBytes = (uint32)((iWakeCount > 0xffffffffu) ? 0xffffffffu : iWakeCount);
+								iCount++;
+							}
+						}
+					}
+					for ( uint32 i = 0; i < iSnapCount && iCount < iMaxEvents; ++i ) {
+						nfds_t iIndex = (pCtx->hWakeFd >= 0) ? (i + 1u) : i;
+						short iWant = (short)((arrSnap[i].iOpType == XNET_PORT_OP_SEND) ? POLLOUT : POLLIN);
+						if ( (arrPoll[iIndex].revents & iWant) == 0 ) continue;
+						memset(&pEvents[iCount], 0, sizeof(xnetportevent));
+						pEvents[iCount].iType = __xnetPortUringEventType(arrSnap[i].iOpType);
+						pEvents[iCount].iStatus = XRT_NET_OK;
+						pEvents[iCount].iOpId = arrSnap[i].iOpId;
+						pEvents[iCount].hSocket = arrSnap[i].hSocket;
+						pEvents[iCount].pUserData = arrSnap[i].pUserData;
+						pEvents[iCount].tAddr = arrSnap[i].tAddr;
+						iCount++;
+						__xnetPortUringRemoveWatches(pCtx, arrSnap[i].iOpType, arrSnap[i].hSocket, arrSnap[i].pUserData);
+					}
+				}
+			}
+		}
+		return iCount;
+	}
+	static xnet_result __xnetPortUringWake(xnetport* pPort)
+	{
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		uint64 iWakeCount = 1;
+		if ( !pCtx || pCtx->hWakeFd < 0 ) return XRT_NET_ERROR;
+		if ( write(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) != (ssize_t)sizeof(iWakeCount) ) {
+			if ( errno == EAGAIN ) return XRT_NET_OK;
+			return XRT_NET_ERROR;
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortUringArmTimer(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs)
+	{
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		__xnet_uring_timer* pNode;
+		if ( !pCtx ) return XRT_NET_ERROR;
+		pNode = (__xnet_uring_timer*)XNET_ALLOC(sizeof(__xnet_uring_timer));
+		if ( !pNode ) return XRT_NET_ERROR;
+		memset(pNode, 0, sizeof(__xnet_uring_timer));
+		pNode->iTimerId = iTimerId;
+		pNode->iDueMs = __xnetPortUringNowMs() + (uint64)iDelayMs;
+		pNode->pNext = pCtx->pTimers;
+		pCtx->pTimers = pNode;
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortUringCancelTimer(xnetport* pPort, uint64 iTimerId)
+	{
+		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
+		__xnet_uring_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
+		if ( !ppCur ) return XRT_NET_ERROR;
+		while ( *ppCur ) {
+			__xnet_uring_timer* pNode = *ppCur;
+			if ( pNode->iTimerId == iTimerId ) {
+				*ppCur = pNode->pNext;
+				XNET_FREE(pNode);
+				return XRT_NET_OK;
+			}
+			ppCur = &pNode->pNext;
+		}
+		return XRT_NET_ERROR;
+	}
+	static const xnetportops __g_xnetPortUringOps = {
+		"xnet-port-uring",
+		__xnetPortUringInit,
+		__xnetPortUringUnit,
+		__xnetPortUringSubmit,
+		__xnetPortUringHarvest,
+		__xnetPortUringWake,
+		__xnetPortUringArmTimer,
+		__xnetPortUringCancelTimer
+	};
+	static const xnetportops* xrtNetPortUringOps(void)
+	{
+		return &__g_xnetPortUringOps;
+	}
+#else
+	static const xnetportops* xrtNetPortUringOps(void)
+	{
+		return NULL;
+	}
+#endif
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+	#include <windows.h>
+#else
+	#include <pthread.h>
+	#include <unistd.h>
+#endif
+/*
+    XNet V2 - Engine and Worker Runtime
+    Phase-1 scope in this header:
+      - engine lifecycle
+      - worker bootstrap
+      - worker threads
+      - command queue for cross-thread task posting
+    Still pending:
+      - timer wheel
+      - stream/dgram ownership tables
+*/
+/* ============================== Internal queue and platform types ============================== */
+typedef struct __xnet_engine_cmd {
+	struct __xnet_engine_cmd* pNext;
+	uint32 iType;
+	uint32 iDelayMs;
+	xnet_task_fn pfnTask;
+	ptr pArg;
+} __xnet_engine_cmd;
+typedef struct __xnet_engine_timer {
+	struct __xnet_engine_timer* pNext;
+	uint64 iDueTick;
+	xnet_task_fn pfnTask;
+	ptr pArg;
+} __xnet_engine_timer;
+typedef void (*xnet_port_event_fn)(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
+#if defined(_WIN32) || defined(_WIN64)
+	typedef CRITICAL_SECTION __xnet_mutex;
+#else
+	typedef pthread_mutex_t __xnet_mutex;
+#endif
+#if defined(XXRTL_CORE) && !defined(XRT_NO_THREAD)
+	#define __XNET_ENGINE_USE_XRT_THREAD	1
+#else
+	#define __XNET_ENGINE_USE_XRT_THREAD	0
+#endif
+typedef struct {
+	__xnet_engine_cmd* pHead;
+	__xnet_engine_cmd* pTail;
+	__xnet_mutex tLock;
+} __xnet_engine_cmdq;
+typedef struct {
+	uint32 iTickMs;
+	uint32 iSlotCount;
+	uint64 iCurrentTick;
+	__xnet_engine_timer** arrSlots;
+} __xnet_engine_timerwheel;
+#define __XNET_ENGINE_CMD_TASK       1u
+#define __XNET_ENGINE_CMD_TIMER_ADD  2u
+#define __XNET_ENGINE_TIMER_PULSE_ID UINT64_C(0xffffffffffffffff)
+#define __XNET_ENGINE_HARVEST_BATCH  128u
+/* ============================== Public object layout ============================== */
+struct xrt_net_worker {
+	xnetengine* pEngine;
+	uint32 iId;
+	ptr hThread;
+	uint64 iThreadId;
+	volatile bool bRunning;
+	volatile bool bStopRequested;
+	xnetport tPort;
+	xnetmemctx tMemCtx;
+	ptr pCmdQ;
+	ptr pTimerWheel;
+	ptr pStreamTable;
+	ptr pDgramTable;
+};
+struct xrt_net_engine {
+	xnetengineconfig tConfig;
+	xnetworker* arrWorkers;
+	uint32 iWorkerCount;
+	uint64 iNextStreamId;
+	xnet_port_event_fn pfnOnPortEvent;
+	xnet_port_event_fn pfnOnPortEvent2;
+	volatile bool bRunning;
+};
+/* ============================== Internal platform helpers ============================== */
+static uint32 __xnetEngineDetectWorkers(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		SYSTEM_INFO tInfo;
+		GetSystemInfo(&tInfo);
+		return tInfo.dwNumberOfProcessors > 0 ? (uint32)tInfo.dwNumberOfProcessors : 1u;
+	#else
+		long iCount = sysconf(_SC_NPROCESSORS_ONLN);
+		return iCount > 0 ? (uint32)iCount : 1u;
+	#endif
+}
+static const xnetportops* __xnetEngineDefaultPortOps(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return xrtNetPortIOCPOps();
+	#elif defined(__linux__)
+		return xrtNetPortUringOps();
+	#else
+		return NULL;
+	#endif
+}
+static void __xnetEngineSleepMs(uint32 iMs)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		Sleep(iMs);
+	#else
+		usleep((useconds_t)iMs * 1000u);
+	#endif
+}
+static bool __xnetEngineIsCurrentWorker(xnetworker* pWorker)
+{
+	if ( !pWorker || !pWorker->bRunning || !pWorker->hThread ) return false;
+	#if __XNET_ENGINE_USE_XRT_THREAD
+		return xrtThreadGetCurrentId() == pWorker->iThreadId;
+	#elif defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetCurrentThreadId() == pWorker->iThreadId;
+	#else
+		return (uint64)(uintptr_t)pthread_self() == pWorker->iThreadId;
+	#endif
+}
+static void __xnetEngineInitMemConfig(xnetmemconfig* pMemCfg, const xnetengineconfig* pCfg)
+{
+	if ( !pMemCfg || !pCfg ) return;
+	xrtNetMemConfigInit(pMemCfg);
+	pMemCfg->iSmallBlockSize = pCfg->iSmallBlockSize;
+	pMemCfg->iMediumBlockSize = pCfg->iMediumBlockSize;
+	pMemCfg->iLargeBlockSize = pCfg->iLargeBlockSize;
+	pMemCfg->iSmallCacheLimit = pCfg->iBlockCachePerWorker;
+	pMemCfg->iMediumCacheLimit = pCfg->iBlockCachePerWorker / 2u;
+	pMemCfg->iLargeCacheLimit = pCfg->iBlockCachePerWorker / 4u;
+	if ( pMemCfg->iMediumCacheLimit == 0 ) pMemCfg->iMediumCacheLimit = 1;
+	if ( pMemCfg->iLargeCacheLimit == 0 ) pMemCfg->iLargeCacheLimit = 1;
+}
+static void __xnetEngineInitPortConfig(xnetportconfig* pPortCfg, const xnetengineconfig* pCfg)
+{
+	if ( !pPortCfg || !pCfg ) return;
+	xrtNetPortConfigInit(pPortCfg);
+	pPortCfg->iSqEntries = pCfg->iSqEntries;
+	pPortCfg->iCqEntries = pCfg->iCqEntries;
+	pPortCfg->iAcceptBatch = pCfg->iAcceptBatch;
+}
+/* ============================== Internal queue helpers ============================== */
+static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ)
+{
+	if ( !pQ ) return false;
+	memset(pQ, 0, sizeof(__xnet_engine_cmdq));
+	#if defined(_WIN32) || defined(_WIN64)
+		InitializeCriticalSection(&pQ->tLock);
+		return true;
+	#else
+		return pthread_mutex_init(&pQ->tLock, NULL) == 0;
+	#endif
+}
+static void __xnetCmdQUnit(__xnet_engine_cmdq* pQ)
+{
+	__xnet_engine_cmd* pNode;
+	if ( !pQ ) return;
+	for ( ;; ) {
+		pNode = pQ->pHead;
+		if ( !pNode ) break;
+		pQ->pHead = pNode->pNext;
+		XNET_FREE(pNode);
+	}
+	pQ->pTail = NULL;
+	#if defined(_WIN32) || defined(_WIN64)
+		DeleteCriticalSection(&pQ->tLock);
+	#else
+		pthread_mutex_destroy(&pQ->tLock);
+	#endif
+}
+static void __xnetCmdQLock(__xnet_engine_cmdq* pQ)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		EnterCriticalSection(&pQ->tLock);
+	#else
+		pthread_mutex_lock(&pQ->tLock);
+	#endif
+}
+static void __xnetCmdQUnlock(__xnet_engine_cmdq* pQ)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		LeaveCriticalSection(&pQ->tLock);
+	#else
+		pthread_mutex_unlock(&pQ->tLock);
+	#endif
+}
+static bool __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
+static bool __xnetCmdQPush(__xnet_engine_cmdq* pQ, xnet_task_fn pfnTask, ptr pArg)
+{
+	return __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TASK, 0, pfnTask, pArg);
+}
+static bool __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
+{
+	__xnet_engine_cmd* pCmd;
+	if ( !pQ || !pfnTask ) return false;
+	pCmd = (__xnet_engine_cmd*)XNET_ALLOC(sizeof(__xnet_engine_cmd));
+	if ( !pCmd ) return false;
+	memset(pCmd, 0, sizeof(__xnet_engine_cmd));
+	pCmd->iType = iType;
+	pCmd->iDelayMs = iDelayMs;
+	pCmd->pfnTask = pfnTask;
+	pCmd->pArg = pArg;
+	__xnetCmdQLock(pQ);
+	if ( pQ->pTail ) {
+		pQ->pTail->pNext = pCmd;
+	} else {
+		pQ->pHead = pCmd;
+	}
+	pQ->pTail = pCmd;
+	__xnetCmdQUnlock(pQ);
+	return true;
+}
+static __xnet_engine_cmd* __xnetCmdQPopAll(__xnet_engine_cmdq* pQ)
+{
+	__xnet_engine_cmd* pHead;
+	if ( !pQ ) return NULL;
+	__xnetCmdQLock(pQ);
+	pHead = pQ->pHead;
+	pQ->pHead = NULL;
+	pQ->pTail = NULL;
+	__xnetCmdQUnlock(pQ);
+	return pHead;
+}
+/* ============================== Internal timer wheel helpers ============================== */
+static bool __xnetTimerWheelInit(__xnet_engine_timerwheel* pWheel, uint32 iTickMs, uint32 iSlotCount)
+{
+	if ( !pWheel ) return false;
+	memset(pWheel, 0, sizeof(__xnet_engine_timerwheel));
+	pWheel->iTickMs = (iTickMs == 0) ? 10u : iTickMs;
+	pWheel->iSlotCount = (iSlotCount == 0) ? 256u : iSlotCount;
+	pWheel->arrSlots = (__xnet_engine_timer**)XNET_ALLOC(sizeof(__xnet_engine_timer*) * pWheel->iSlotCount);
+	if ( !pWheel->arrSlots ) return false;
+	memset(pWheel->arrSlots, 0, sizeof(__xnet_engine_timer*) * pWheel->iSlotCount);
+	return true;
+}
+static void __xnetTimerWheelUnit(__xnet_engine_timerwheel* pWheel)
+{
+	if ( !pWheel ) return;
+	if ( pWheel->arrSlots ) {
+		for ( uint32 i = 0; i < pWheel->iSlotCount; ++i ) {
+			__xnet_engine_timer* pNode = pWheel->arrSlots[i];
+			while ( pNode ) {
+				__xnet_engine_timer* pNext = pNode->pNext;
+				XNET_FREE(pNode);
+				pNode = pNext;
+			}
+		}
+		XNET_FREE(pWheel->arrSlots);
+	}
+	memset(pWheel, 0, sizeof(__xnet_engine_timerwheel));
+}
+static bool __xnetTimerWheelSchedule(__xnet_engine_timerwheel* pWheel, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
+{
+	uint64 iDeltaTicks;
+	uint64 iDueTick;
+	uint32 iSlot;
+	__xnet_engine_timer* pTimer;
+	if ( !pWheel || !pWheel->arrSlots || !pfnTask ) return false;
+	iDeltaTicks = (iDelayMs == 0) ? 1u : ((uint64)iDelayMs + pWheel->iTickMs - 1u) / pWheel->iTickMs;
+	if ( iDeltaTicks == 0 ) iDeltaTicks = 1;
+	iDueTick = pWheel->iCurrentTick + iDeltaTicks;
+	iSlot = (uint32)(iDueTick % pWheel->iSlotCount);
+	pTimer = (__xnet_engine_timer*)XNET_ALLOC(sizeof(__xnet_engine_timer));
+	if ( !pTimer ) return false;
+	memset(pTimer, 0, sizeof(__xnet_engine_timer));
+	pTimer->iDueTick = iDueTick;
+	pTimer->pfnTask = pfnTask;
+	pTimer->pArg = pArg;
+	pTimer->pNext = pWheel->arrSlots[iSlot];
+	pWheel->arrSlots[iSlot] = pTimer;
+	return true;
+}
+static void __xnetTimerWheelTick(xnetworker* pWorker)
+{
+	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
+	__xnet_engine_timer* pList;
+	__xnet_engine_timer* pDeferred = NULL;
+	if ( !pWheel || !pWheel->arrSlots ) return;
+	pWheel->iCurrentTick++;
+	pList = pWheel->arrSlots[pWheel->iCurrentTick % pWheel->iSlotCount];
+	pWheel->arrSlots[pWheel->iCurrentTick % pWheel->iSlotCount] = NULL;
+	while ( pList ) {
+		__xnet_engine_timer* pNext = pList->pNext;
+		if ( pList->iDueTick <= pWheel->iCurrentTick ) {
+			if ( pList->pfnTask ) {
+				pList->pfnTask(pWorker, pList->pArg);
+			}
+			XNET_FREE(pList);
+		} else {
+			pList->pNext = pDeferred;
+			pDeferred = pList;
+		}
+		pList = pNext;
+	}
+	while ( pDeferred ) {
+		__xnet_engine_timer* pNext = pDeferred->pNext;
+		uint32 iSlot = (uint32)(pDeferred->iDueTick % pWheel->iSlotCount);
+		pDeferred->pNext = pWheel->arrSlots[iSlot];
+		pWheel->arrSlots[iSlot] = pDeferred;
+		pDeferred = pNext;
+	}
+}
+static void __xnetEngineHandlePortEvents(xnetworker* pWorker, xnetportevent* pEvents, uint32 iCount)
+{
+	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
+	if ( !pWorker || !pEvents || iCount == 0 ) return;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		if ( pEvents[i].iType == XNET_PORT_EVENT_TIMER && pEvents[i].iOpId == __XNET_ENGINE_TIMER_PULSE_ID ) {
+			__xnetTimerWheelTick(pWorker);
+			if ( !pWorker->bStopRequested && pWheel ) {
+				(void)xrtNetPortArmTimer(&pWorker->tPort, __XNET_ENGINE_TIMER_PULSE_ID, pWheel->iTickMs);
+			}
+		}
+	}
+	if ( pWorker->pEngine && pWorker->pEngine->pfnOnPortEvent ) {
+		pWorker->pEngine->pfnOnPortEvent(pWorker, pEvents, iCount);
+	}
+	if ( pWorker->pEngine && pWorker->pEngine->pfnOnPortEvent2 &&
+		pWorker->pEngine->pfnOnPortEvent2 != pWorker->pEngine->pfnOnPortEvent ) {
+		pWorker->pEngine->pfnOnPortEvent2(pWorker, pEvents, iCount);
+	}
+}
+/* ============================== Internal worker helpers ============================== */
+static void __xnetEngineDrainCommands(xnetworker* pWorker)
+{
+	__xnet_engine_cmdq* pQ = pWorker ? (__xnet_engine_cmdq*)pWorker->pCmdQ : NULL;
+	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
+	__xnet_engine_cmd* pNode;
+	if ( !pQ ) return;
+	pNode = __xnetCmdQPopAll(pQ);
+	while ( pNode ) {
+		__xnet_engine_cmd* pNext = pNode->pNext;
+		if ( pNode->iType == __XNET_ENGINE_CMD_TIMER_ADD ) {
+			(void)__xnetTimerWheelSchedule(pWheel, pNode->iDelayMs, pNode->pfnTask, pNode->pArg);
+		} else if ( pNode->pfnTask ) {
+			pNode->pfnTask(pWorker, pNode->pArg);
+		}
+		XNET_FREE(pNode);
+		pNode = pNext;
+	}
+}
+static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
+{
+	if ( !pWorker ) return;
+	xrtNetPortUnit(&pWorker->tPort);
+	if ( pWorker->pTimerWheel ) {
+		__xnetTimerWheelUnit((__xnet_engine_timerwheel*)pWorker->pTimerWheel);
+		XNET_FREE(pWorker->pTimerWheel);
+		pWorker->pTimerWheel = NULL;
+	}
+	xrtNetMemCtxUnit(&pWorker->tMemCtx);
+	if ( pWorker->pCmdQ ) {
+		__xnetCmdQUnit((__xnet_engine_cmdq*)pWorker->pCmdQ);
+		XNET_FREE(pWorker->pCmdQ);
+		pWorker->pCmdQ = NULL;
+	}
+}
+#if __XNET_ENGINE_USE_XRT_THREAD
+static uint32 __xnetEngineWorkerMain(ptr pArg)
+#elif defined(_WIN32) || defined(_WIN64)
+static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
+#else
+static void* __xnetEngineWorkerMain(void* pArg)
+#endif
+{
+	xnetworker* pWorker = (xnetworker*)pArg;
+	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
+	xnetportevent arrEvents[__XNET_ENGINE_HARVEST_BATCH];
+	uint32 iEventCount;
+	if ( !pWorker ) {
+		#if __XNET_ENGINE_USE_XRT_THREAD || defined(_WIN32) || defined(_WIN64)
+		return 0;
+		#else
+		return NULL;
+		#endif
+	}
+	#if __XNET_ENGINE_USE_XRT_THREAD
+	pWorker->iThreadId = xrtThreadGetCurrentId();
+	#elif defined(_WIN32) || defined(_WIN64)
+		pWorker->iThreadId = (uint64)GetCurrentThreadId();
+	#else
+		pWorker->iThreadId = (uint64)(uintptr_t)pthread_self();
+	#endif
+	while ( !pWorker->bStopRequested ) {
+		__xnetEngineDrainCommands(pWorker);
+		iEventCount = xrtNetPortHarvest(&pWorker->tPort, arrEvents, __XNET_ENGINE_HARVEST_BATCH, pWheel ? pWheel->iTickMs : 50u);
+		__xnetEngineHandlePortEvents(pWorker, arrEvents, iEventCount);
+		__xnetEngineDrainCommands(pWorker);
+	}
+	__xnetEngineDrainCommands(pWorker);
+	#if __XNET_ENGINE_USE_XRT_THREAD || defined(_WIN32) || defined(_WIN64)
+	return 0;
+	#else
+		return NULL;
+	#endif
+}
+static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
+{
+	if ( !pWorker ) return false;
+	#if __XNET_ENGINE_USE_XRT_THREAD
+		xthread pThread = xrtThreadCreate((ptr)__xnetEngineWorkerMain, pWorker, 0);
+		if ( !pThread ) return false;
+		pWorker->hThread = (ptr)pThread;
+		pWorker->iThreadId = pThread->TID;
+		return true;
+	#elif defined(_WIN32) || defined(_WIN64)
+		DWORD iThreadId = 0;
+		HANDLE hThread = CreateThread(NULL, 0, __xnetEngineWorkerMain, pWorker, 0, &iThreadId);
+		if ( !hThread ) return false;
+		pWorker->hThread = (ptr)hThread;
+		pWorker->iThreadId = (uint64)iThreadId;
+		return true;
+	#else
+		pthread_t* hThread = (pthread_t*)XNET_ALLOC(sizeof(pthread_t));
+		if ( !hThread ) return false;
+		if ( pthread_create(hThread, NULL, __xnetEngineWorkerMain, pWorker) != 0 ) {
+			XNET_FREE(hThread);
+			return false;
+		}
+		pWorker->hThread = (ptr)hThread;
+		pWorker->iThreadId = (uint64)(uintptr_t)(*hThread);
+		return true;
+	#endif
+}
+static void __xnetEngineJoinWorkerThread(xnetworker* pWorker)
+{
+	if ( !pWorker || !pWorker->hThread ) return;
+	#if __XNET_ENGINE_USE_XRT_THREAD
+		xrtThreadWait((xthread)pWorker->hThread);
+		xrtThreadDestroy((xthread)pWorker->hThread);
+	#elif defined(_WIN32) || defined(_WIN64)
+		WaitForSingleObject((HANDLE)pWorker->hThread, INFINITE);
+		CloseHandle((HANDLE)pWorker->hThread);
+	#else
+		pthread_join(*(pthread_t*)pWorker->hThread, NULL);
+		XNET_FREE(pWorker->hThread);
+	#endif
+	pWorker->hThread = NULL;
+	memset(&pWorker->iThreadId, 0, sizeof(pWorker->iThreadId));
+}
+static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengineconfig* pEngineCfg, const xnetportops* pOps, const xnetportconfig* pPortCfg, const xnetmemconfig* pMemCfg)
+{
+	__xnet_engine_timerwheel* pWheel;
+	if ( !pWorker || !pEngineCfg || !pOps || !pPortCfg || !pMemCfg ) return XRT_NET_ERROR;
+	pWorker->pCmdQ = XNET_ALLOC(sizeof(__xnet_engine_cmdq));
+	if ( !pWorker->pCmdQ ) return XRT_NET_ERROR;
+	if ( !__xnetCmdQInit((__xnet_engine_cmdq*)pWorker->pCmdQ) ) {
+		XNET_FREE(pWorker->pCmdQ);
+		pWorker->pCmdQ = NULL;
+		return XRT_NET_ERROR;
+	}
+	xrtNetMemCtxInit(&pWorker->tMemCtx, pMemCfg);
+	if ( xrtNetPortInit(&pWorker->tPort, pOps, pPortCfg, pWorker) != XRT_NET_OK ) {
+		__xnetCmdQUnit((__xnet_engine_cmdq*)pWorker->pCmdQ);
+		XNET_FREE(pWorker->pCmdQ);
+		pWorker->pCmdQ = NULL;
+		xrtNetMemCtxUnit(&pWorker->tMemCtx);
+		return XRT_NET_ERROR;
+	}
+	pWheel = (__xnet_engine_timerwheel*)XNET_ALLOC(sizeof(__xnet_engine_timerwheel));
+	if ( !pWheel ) {
+		__xnetEngineStopWorkerResources(pWorker);
+		return XRT_NET_ERROR;
+	}
+	if ( !__xnetTimerWheelInit(pWheel, pEngineCfg->iTimerTickMs, pEngineCfg->iTimerWheelSlots) ) {
+		XNET_FREE(pWheel);
+		__xnetEngineStopWorkerResources(pWorker);
+		return XRT_NET_ERROR;
+	}
+	pWorker->pTimerWheel = pWheel;
+	if ( xrtNetPortArmTimer(&pWorker->tPort, __XNET_ENGINE_TIMER_PULSE_ID, pWheel->iTickMs) != XRT_NET_OK ) {
+		__xnetEngineStopWorkerResources(pWorker);
+		return XRT_NET_ERROR;
+	}
+	pWorker->bStopRequested = false;
+	pWorker->bRunning = true;
+	if ( !__xnetEngineStartWorkerThread(pWorker) ) {
+		pWorker->bRunning = false;
+		__xnetEngineStopWorkerResources(pWorker);
+		return XRT_NET_ERROR;
+	}
+	return XRT_NET_OK;
+}
+static void __xnetEngineStopWorker(xnetworker* pWorker)
+{
+	if ( !pWorker || !pWorker->bRunning ) return;
+	pWorker->bStopRequested = true;
+	(void)xrtNetPortWake(&pWorker->tPort);
+	__xnetEngineJoinWorkerThread(pWorker);
+	__xnetEngineStopWorkerResources(pWorker);
+	pWorker->bRunning = false;
+}
+/* ============================== Public engine helpers ============================== */
+static xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
+{
+	xnetengineconfig tCfg;
+	xnetengine* pEngine;
+	uint32 iWorkerCount;
+	if ( pCfg ) {
+		tCfg = *pCfg;
+	} else {
+		xrtNetEngineConfigInit(&tCfg);
+	}
+	iWorkerCount = (tCfg.iWorkerCount != 0) ? tCfg.iWorkerCount : __xnetEngineDetectWorkers();
+	if ( iWorkerCount == 0 ) iWorkerCount = 1;
+	pEngine = (xnetengine*)XNET_ALLOC(sizeof(xnetengine));
+	if ( !pEngine ) return NULL;
+	memset(pEngine, 0, sizeof(xnetengine));
+	pEngine->arrWorkers = (xnetworker*)XNET_ALLOC(sizeof(xnetworker) * iWorkerCount);
+	if ( !pEngine->arrWorkers ) {
+		XNET_FREE(pEngine);
+		return NULL;
+	}
+	memset(pEngine->arrWorkers, 0, sizeof(xnetworker) * iWorkerCount);
+	pEngine->tConfig = tCfg;
+	pEngine->iWorkerCount = iWorkerCount;
+	pEngine->iNextStreamId = 1;
+	for ( uint32 i = 0; i < iWorkerCount; ++i ) {
+		pEngine->arrWorkers[i].pEngine = pEngine;
+		pEngine->arrWorkers[i].iId = i;
+	}
+	return pEngine;
+}
+static void xrtNetEngineDestroy(xnetengine* pEngine)
+{
+	if ( !pEngine ) return;
+	if ( pEngine->bRunning ) {
+		for ( uint32 i = 0; i < pEngine->iWorkerCount; ++i ) {
+			__xnetEngineStopWorker(&pEngine->arrWorkers[i]);
+		}
+		pEngine->bRunning = false;
+	}
+	if ( pEngine->arrWorkers ) {
+		XNET_FREE(pEngine->arrWorkers);
+	}
+	XNET_FREE(pEngine);
+}
+static xnet_result xrtNetEngineStart(xnetengine* pEngine)
+{
+	const xnetportops* pOps;
+	xnetportconfig tPortCfg;
+	xnetmemconfig tMemCfg;
+	if ( !pEngine ) return XRT_NET_ERROR;
+	if ( pEngine->bRunning ) return XRT_NET_OK;
+	pOps = __xnetEngineDefaultPortOps();
+	if ( !pOps ) return XRT_NET_ERROR;
+	__xnetEngineInitPortConfig(&tPortCfg, &pEngine->tConfig);
+	__xnetEngineInitMemConfig(&tMemCfg, &pEngine->tConfig);
+	for ( uint32 i = 0; i < pEngine->iWorkerCount; ++i ) {
+		if ( __xnetEngineStartWorker(&pEngine->arrWorkers[i], &pEngine->tConfig, pOps, &tPortCfg, &tMemCfg) != XRT_NET_OK ) {
+			for ( uint32 j = 0; j < i; ++j ) {
+				__xnetEngineStopWorker(&pEngine->arrWorkers[j]);
+			}
+			return XRT_NET_ERROR;
+		}
+	}
+	pEngine->bRunning = true;
+	return XRT_NET_OK;
+}
+static void xrtNetEngineStop(xnetengine* pEngine)
+{
+	if ( !pEngine || !pEngine->bRunning ) return;
+	for ( uint32 i = 0; i < pEngine->iWorkerCount; ++i ) {
+		__xnetEngineStopWorker(&pEngine->arrWorkers[i]);
+	}
+	pEngine->bRunning = false;
+}
+static uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine)
+{
+	return pEngine ? pEngine->iWorkerCount : 0;
+}
+static xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg)
+{
+	xnetworker* pWorker;
+	__xnet_engine_cmdq* pQ;
+	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
+		return XRT_NET_ERROR;
+	}
+	pWorker = &pEngine->arrWorkers[iAffinityKey % pEngine->iWorkerCount];
+	if ( !pWorker->bRunning || !pWorker->pCmdQ ) {
+		return XRT_NET_ERROR;
+	}
+	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
+	if ( !__xnetCmdQPush(pQ, pfnTask, pArg) ) {
+		return XRT_NET_ERROR;
+	}
+	if ( xrtNetPortWake(&pWorker->tPort) != XRT_NET_OK ) {
+		/*
+		    The queue already owns the task node at this point.
+		    Fall back to harvest timeout progress instead of rolling back.
+		*/
+	}
+	return XRT_NET_OK;
+}
+static xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
+{
+	xnetworker* pWorker;
+	__xnet_engine_cmdq* pQ;
+	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
+		return XRT_NET_ERROR;
+	}
+	pWorker = &pEngine->arrWorkers[iAffinityKey % pEngine->iWorkerCount];
+	if ( !pWorker->bRunning || !pWorker->pCmdQ || !pWorker->pTimerWheel ) {
+		return XRT_NET_ERROR;
+	}
+	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
+	if ( !__xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TIMER_ADD, iDelayMs, pfnTask, pArg) ) {
+		return XRT_NET_ERROR;
+	}
+	(void)xrtNetPortWake(&pWorker->tPort);
+	return XRT_NET_OK;
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_stream.h
+// ========================================
+
+#ifndef XRT_XNET_STREAM_H
+#define XRT_XNET_STREAM_H
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_engine.h)
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_tls.h
+// ========================================
+
+#ifndef XRT_XNET_TLS_H
+#define XRT_XNET_TLS_H
+#include <stdlib.h>
+#include <string.h>
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_base.h)
+/*
+    XNet V2 - Builtin TLS Adapter
+    This header bridges xnet-v2 stream transport with the in-tree TLS engine
+    without introducing any external dependency.
+    The TLS core no longer depends on the legacy v1 network ABI. The adapter
+    only coordinates owned sockets and plaintext/ciphertext queues for xnet-v2.
+*/
+#ifndef XNET_ALLOC
+	#define XNET_ALLOC malloc
+#endif
+#ifndef XNET_FREE
+	#define XNET_FREE free
+#endif
+/* ============================== TLS core bridge ============================== */
+#if !defined(XXRTL_CORE)
+	typedef struct xrt_tls_context xtlsctx;
+	typedef struct __xnet_tls_global xrtGlobalData;
+	struct xrt_tls_config {
+		const char* sCertFile;
+		const char* sKeyFile;
+		const char* sCaFile;
+		const char* sHostName;
+		bool bVerifyPeer;
+		void (*OnSNI)(xtlsctx* pCtx, const char* sHostName, ptr pUserData);
+		ptr pSNIUserData;
+		bool bAllowTLS12Ed25519;
+	};
+#endif
+extern xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
+extern void xrtTlsDestroy(xtlsctx* pCtx);
+extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
+extern xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
+extern xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
+extern xnet_result xrtTlsClose(xtlsctx* pCtx);
+extern bool xrtTlsIsReady(xtlsctx* pCtx);
+extern xnet_result xrtTlsFeed(xtlsctx* pCtx, const char* pData, size_t iLen);
+extern size_t xrtTlsPendingSend(xtlsctx* pCtx);
+extern size_t xrtTlsPendingRecv(xtlsctx* pCtx);
+extern xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
+extern void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
+#if !defined(XXRTL_CORE)
+	extern xrtGlobalData* xrtInit(void);
+#endif
+/* ============================== Session wrapper ============================== */
+struct xrt_tls_session {
+	xtlsctx* pCtx;
+	bool bIsServer;
+};
+static xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer)
+{
+	xtlssession* pSession = (xtlssession*)XNET_ALLOC(sizeof(xtlssession));
+	(void)xrtInit();
+	if ( !pSession ) return NULL;
+	memset(pSession, 0, sizeof(xtlssession));
+	pSession->pCtx = xrtTlsCreate(pCfg, bIsServer);
+	if ( !pSession->pCtx ) {
+		XNET_FREE(pSession);
+		return NULL;
+	}
+	pSession->bIsServer = bIsServer;
+	return pSession;
+}
+static void xrtNetTlsSessionDestroy(xtlssession* pSession)
+{
+	if ( !pSession ) return;
+	if ( pSession->pCtx ) {
+		xrtTlsDestroy(pSession->pCtx);
+		pSession->pCtx = NULL;
+	}
+	XNET_FREE(pSession);
+}
+static bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
+{
+	return pSession && pSession->pCtx ? xrtTlsIsReady(pSession->pCtx) : false;
+}
+static xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession, xsocket hSocket)
+{
+	if ( !pSession || !pSession->pCtx || hSocket == XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+	return xrtTlsHandshake(pSession->pCtx, hSocket);
+}
+static xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)
+{
+	if ( !pSession || !pSession->pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	return xrtTlsFeed(pSession->pCtx, (const char*)pData, iLen);
+}
+static size_t xrtNetTlsSessionPendingCipher(const xtlssession* pSession)
+{
+	return (pSession && pSession->pCtx) ? xrtTlsPendingSend(pSession->pCtx) : 0;
+}
+static size_t xrtNetTlsSessionPendingRecv(const xtlssession* pSession)
+{
+	return (pSession && pSession->pCtx) ? xrtTlsPendingRecv(pSession->pCtx) : 0;
+}
+static xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
+{
+	if ( !pSession || !pSession->pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
+	return xrtTlsPeekSend(pSession->pCtx, (char*)pBuf, iLen, pRead);
+}
+static void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen)
+{
+	if ( !pSession || !pSession->pCtx || iLen == 0 ) return;
+	xrtTlsConsumeSend(pSession->pCtx, iLen);
+}
+static xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten)
+{
+	if ( !pSession || !pSession->pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	return xrtTlsWrite(pSession->pCtx, (const char*)pData, iLen, pWritten);
+}
+static xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
+{
+	if ( !pSession || !pSession->pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
+	return xrtTlsRead(pSession->pCtx, (char*)pBuf, iLen, pRead);
+}
+static xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession)
+{
+	if ( !pSession || !pSession->pCtx ) return XRT_NET_ERROR;
+	return xrtTlsClose(pSession->pCtx);
+}
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+	#include <mswsock.h>
+#else
+	#include <errno.h>
+	#include <fcntl.h>
+	#include <sys/ioctl.h>
+	#include <netinet/tcp.h>
+	#include <unistd.h>
+#endif
+/*
+    XNet V2 - Stream and Listener Skeleton
+    Phase-1 scope in this header:
+      - listener object lifecycle
+      - stream object lifecycle
+      - user data, ownership, and local state helpers
+    Still pending:
+      - accept/connect
+      - recv/send data paths
+      - backpressure and close semantics
+*/
+/* ============================== Event tables ============================== */
+typedef struct {
+	bool (*OnAccept)(ptr pOwner, xnetlistener* pListener, xnetstream* pStream);
+	void (*OnError)(ptr pOwner, xnetlistener* pListener, int iSysErr);
+} xnetlistenerevents;
+typedef struct {
+	void (*OnOpen)(ptr pOwner, xnetstream* pStream);
+	void (*OnRecv)(ptr pOwner, xnetstream* pStream, xnetchain* pChain);
+	void (*OnDrain)(ptr pOwner, xnetstream* pStream);
+	void (*OnClose)(ptr pOwner, xnetstream* pStream, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xnetstream* pStream, int iSysErr);
+	void (*OnHighWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
+	void (*OnLowWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
+} xnetstreamevents;
+/* ============================== Internal queue model ============================== */
+typedef struct {
+	xnetchain tQueue;
+	uint32 iQueuedBytes;
+	uint32 iHighWater;
+	uint32 iLowWater;
+	bool bHighWaterHit;
+	bool bWritePosted;
+} __xnet_sendq;
+#define __XNET_STREAM_STATE_INIT           0x00000001u
+#define __XNET_STREAM_STATE_CLOSE_EMITTED  0x00000002u
+#define __XNET_STREAM_STATE_OPEN_EMITTED   0x00000004u
+#define __XNET_STREAM_ASYNC_SEND_COPY      1u
+#define __XNET_STREAM_ASYNC_SEND_REF       2u
+#define __XNET_STREAM_ASYNC_RECV_COPY      3u
+#define __XNET_STREAM_ASYNC_RECV_REF       4u
+#define __XNET_STREAM_ASYNC_DISPATCH_RECV  5u
+#define __XNET_STREAM_ASYNC_SOCKET_RECV    6u
+#define __XNET_STREAM_ASYNC_TLS_HANDSHAKE  7u
+typedef struct {
+	xnetstream* pStream;
+	uint32 iType;
+	uint32 iLen;
+	xnetbufref tRef;
+	uint8 aData[1];
+} __xnet_stream_async_op;
+typedef void (*__xnet_stream_sync_wait_fn)(xnetstream* pStream, xnet_result iStatus, ptr pCtx);
+typedef struct {
+	__xnet_stream_sync_wait_fn pfnWait;
+	ptr pCtx;
+} __xnet_stream_wait_slot;
+typedef void (*__xnet_listener_sync_wait_fn)(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx);
+typedef bool (*__xnet_listener_sync_wait_ready_fn)(ptr pCtx);
+typedef struct {
+	__xnet_listener_sync_wait_fn pfnWait;
+	__xnet_listener_sync_wait_ready_fn pfnCanAccept;
+	ptr pCtx;
+} __xnet_listener_wait_slot;
+typedef struct {
+	xsocket hSocket;
+	struct sockaddr_storage tStorage;
+	socklen_t iAddrLen;
+} __xnet_listener_accept_raw;
+#define __XNET_LISTENER_ACCEPT_SYS_CLOSED (-1)
+#define __XNET_STREAM_WAIT_READABLE 0u
+#define __XNET_STREAM_WAIT_WRITABLE 1u
+#define __XNET_STREAM_WAIT_DRAIN    2u
+#define __XNET_STREAM_WAIT_CLOSE    3u
+#define __XNET_STREAM_WAIT_COUNT    4u
+#define XNET_STREAM_WAIT_READABLE __XNET_STREAM_WAIT_READABLE
+#define XNET_STREAM_WAIT_WRITABLE __XNET_STREAM_WAIT_WRITABLE
+#define XNET_STREAM_WAIT_DRAIN    __XNET_STREAM_WAIT_DRAIN
+#define XNET_STREAM_WAIT_CLOSE    __XNET_STREAM_WAIT_CLOSE
+/* ============================== Public object layout ============================== */
+struct xrt_net_listener {
+	xnetengine* pEngine;
+	xnetworker* pWorker;
+	const xnetlistenerevents* pEvents;
+	const xnetstreamevents* pStreamEvents;
+	ptr pUserData;
+	xsocket hSocket;
+	__xnet_listener_wait_slot tAcceptWait;
+	xnetlistenconfig tConfig;
+	uint64 iAcceptOpId;
+	uint32 iPortCount;
+	uint32 iNextWorker;
+	volatile long iAsyncHoldCount;
+	bool bAcceptArmed;
+	bool bRunning;
+};
+struct xrt_net_stream {
+	uint64 iId;
+	xnetengine* pEngine;
+	xnetworker* pWorker;
+	xnetlistener* pListener;
+	xtlssession* pTls;
+	const xnetstreamevents* pEvents;
+	xsocket hSocket;
+	xnetaddr tLocalAddr;
+	xnetaddr tRemoteAddr;
+	xnetchain tRxChain;
+	__xnet_sendq tSendQ;
+	ptr pUserData;
+	__xnet_stream_wait_slot arrSyncWait[__XNET_STREAM_WAIT_COUNT];
+	uint32 iState;
+	uint32 iFlags;
+	uint32 iRecvLimit;
+	xnet_result iCloseReason;
+	volatile long iAsyncHoldCount;
+	bool bReadPaused;
+	bool bRecvArmed;
+	bool bSendArmed;
+	bool bClosing;
+	bool bTlsCloseQueued;
+};
+static void xrtNetStreamDestroy(xnetstream* pStream);
+static void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
+static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
+static bool __xnetStreamArmRecvWatch(xnetstream* pStream);
+static bool __xnetStreamArmSendWatch(xnetstream* pStream);
+static void __xnetStreamFinalizeSocketClose(xnetstream* pStream);
+static bool __xnetStreamDrainTlsPlain(xnetstream* pStream);
+static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream);
+static void __xnetStreamEmitOpen(xnetstream* pStream);
+static xnet_result __xnetStreamPostSocketRecvPump(xnetstream* pStream);
+static bool __xnetListenerRegisterSyncAcceptWait(xnetlistener* pListener, __xnet_listener_sync_wait_fn pfnWait, __xnet_listener_sync_wait_ready_fn pfnCanAccept, ptr pCtx);
+static bool __xnetListenerCancelSyncAcceptWait(xnetlistener* pListener, ptr pCtx);
+/* ============================== Internal helpers ============================== */
+static xnetworker* __xnetStreamPickWorker(xnetengine* pEngine, xnetlistener* pListener)
+{
+	uint32 iIndex;
+	if ( !pEngine || pEngine->iWorkerCount == 0 ) return NULL;
+	if ( pListener ) {
+		iIndex = pListener->iNextWorker % pEngine->iWorkerCount;
+		pListener->iNextWorker = (iIndex + 1u) % pEngine->iWorkerCount;
+		return &pEngine->arrWorkers[iIndex];
+	}
+	iIndex = (uint32)((pEngine->iNextStreamId > 0 ? pEngine->iNextStreamId - 1u : 0u) % pEngine->iWorkerCount);
+	return &pEngine->arrWorkers[iIndex];
+}
+static xnetworker* __xnetListenerPickWorker(xnetengine* pEngine, const xnetlistenconfig* pCfg)
+{
+	uint32 iIndex = 0;
+	if ( !pEngine || pEngine->iWorkerCount == 0 ) return NULL;
+	if ( pCfg && pCfg->tBindAddr.iPort > 0 ) {
+		iIndex = pCfg->tBindAddr.iPort % pEngine->iWorkerCount;
+	}
+	return &pEngine->arrWorkers[iIndex];
+}
+static void __xnetStreamInitQueues(xnetstream* pStream, xnetworker* pWorker)
+{
+	xnetmemctx* pMemCtx = pWorker ? &pWorker->tMemCtx : NULL;
+	if ( !pStream ) return;
+	xrtNetChainInitEx(&pStream->tRxChain, pMemCtx);
+	xrtNetChainInitEx(&pStream->tSendQ.tQueue, pMemCtx);
+}
+static void __xnetStreamBindEngine(xnetengine* pEngine)
+{
+	if ( !pEngine ) return;
+	if ( !pEngine->pfnOnPortEvent || pEngine->pfnOnPortEvent == __xnetStreamOnPortEvents ) {
+		pEngine->pfnOnPortEvent = __xnetStreamOnPortEvents;
+		return;
+	}
+	if ( !pEngine->pfnOnPortEvent2 || pEngine->pfnOnPortEvent2 == __xnetStreamOnPortEvents ) {
+		pEngine->pfnOnPortEvent2 = __xnetStreamOnPortEvents;
+	}
+}
+static int __xnetSocketLastErr(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return WSAGetLastError();
+	#else
+		return errno;
+	#endif
+}
+static bool __xnetSocketWouldBlock(int iErr)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return iErr == WSAEWOULDBLOCK || iErr == WSAEINPROGRESS || iErr == WSAEALREADY;
+	#else
+		return iErr == EINPROGRESS || iErr == EWOULDBLOCK || iErr == EAGAIN || iErr == EALREADY;
+	#endif
+}
+static bool __xnetSocketIsValid(xsocket hSocket)
+{
+	return hSocket != XNET_SOCKET_INVALID;
+}
+static void __xnetStreamSetError(const char* sError)
+{
+	#if defined(XXRTL_CORE)
+		xrtSetError((str)sError, FALSE);
+	#else
+		(void)sError;
+	#endif
+}
+static void __xnetStreamAddAsyncHold(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	(void)__xnetAtomicAddFetch32(&pStream->iAsyncHoldCount, 1);
+}
+static void __xnetStreamReleaseAsyncHold(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	(void)__xnetAtomicAddFetch32(&pStream->iAsyncHoldCount, -1);
+}
+static void __xnetListenerAddAsyncHold(xnetlistener* pListener)
+{
+	if ( !pListener ) return;
+	(void)__xnetAtomicAddFetch32(&pListener->iAsyncHoldCount, 1);
+}
+static void __xnetListenerReleaseAsyncHold(xnetlistener* pListener)
+{
+	if ( !pListener ) return;
+	(void)__xnetAtomicAddFetch32(&pListener->iAsyncHoldCount, -1);
+}
+static bool __xnetListenerCanDispatchAccept(xnetlistener* pListener)
+{
+	if ( !pListener || pListener->tAcceptWait.pfnWait == NULL ) return false;
+	if ( pListener->tAcceptWait.pfnCanAccept && !pListener->tAcceptWait.pfnCanAccept(pListener->tAcceptWait.pCtx) ) {
+		return false;
+	}
+	return true;
+}
+static void __xnetListenerNotifySyncAccept(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream)
+{
+	__xnet_listener_sync_wait_fn pfnWait = NULL;
+	ptr pCtx = NULL;
+	if ( !pListener || pListener->tAcceptWait.pfnWait == NULL ) return;
+	pfnWait = pListener->tAcceptWait.pfnWait;
+	pCtx = pListener->tAcceptWait.pCtx;
+	pListener->tAcceptWait.pfnWait = NULL;
+	pListener->tAcceptWait.pfnCanAccept = NULL;
+	pListener->tAcceptWait.pCtx = NULL;
+	pfnWait(pListener, iStatus, pStream, pCtx);
+}
+static __xnet_stream_wait_slot* __xnetStreamGetSyncWaitSlot(xnetstream* pStream, uint32 iWaitKind)
+{
+	if ( !pStream || iWaitKind >= __XNET_STREAM_WAIT_COUNT ) return NULL;
+	return &pStream->arrSyncWait[iWaitKind];
+}
+static bool __xnetStreamResolveSyncWaitNow(xnetstream* pStream, uint32 iWaitKind, xnet_result* pStatus)
+{
+	if ( !pStream || !pStatus ) return false;
+	switch ( iWaitKind ) {
+		case __XNET_STREAM_WAIT_READABLE:
+			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
+				*pStatus = pStream->iCloseReason;
+				return true;
+			}
+			if ( xrtNetChainBytes(&pStream->tRxChain) > 0 ) {
+				*pStatus = XRT_NET_OK;
+				return true;
+			}
+			return false;
+		case __XNET_STREAM_WAIT_WRITABLE:
+			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
+				*pStatus = pStream->iCloseReason;
+				return true;
+			}
+			if ( pStream->bClosing ) {
+				*pStatus = XRT_NET_CLOSED;
+				return true;
+			}
+			if ( !pStream->tSendQ.bHighWaterHit || pStream->tSendQ.iQueuedBytes <= pStream->tSendQ.iLowWater ) {
+				*pStatus = XRT_NET_OK;
+				return true;
+			}
+			return false;
+		case __XNET_STREAM_WAIT_DRAIN:
+			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
+				*pStatus = XRT_NET_CLOSED;
+				return true;
+			}
+			if ( pStream->tSendQ.iQueuedBytes == 0 ) {
+				*pStatus = pStream->bClosing ? XRT_NET_CLOSED : XRT_NET_OK;
+				return true;
+			}
+			return false;
+		case __XNET_STREAM_WAIT_CLOSE:
+			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
+				*pStatus = pStream->iCloseReason;
+				return true;
+			}
+			return false;
+	}
+	return false;
+}
+static void __xnetStreamNotifySyncWait(xnetstream* pStream, uint32 iWaitKind, xnet_result iStatus)
+{
+	__xnet_stream_wait_slot* pSlot = NULL;
+	__xnet_stream_sync_wait_fn pfnWait = NULL;
+	ptr pCtx = NULL;
+	pSlot = __xnetStreamGetSyncWaitSlot(pStream, iWaitKind);
+	if ( pSlot == NULL || pSlot->pfnWait == NULL ) return;
+	pfnWait = pSlot->pfnWait;
+	pCtx = pSlot->pCtx;
+	pSlot->pfnWait = NULL;
+	pSlot->pCtx = NULL;
+	pfnWait(pStream, iStatus, pCtx);
+}
+static void __xnetStreamNotifySyncReadable(xnetstream* pStream, xnet_result iStatus)
+{
+	__xnetStreamNotifySyncWait(pStream, __XNET_STREAM_WAIT_READABLE, iStatus);
+}
+static void __xnetStreamNotifySyncWritable(xnetstream* pStream, xnet_result iStatus)
+{
+	__xnetStreamNotifySyncWait(pStream, __XNET_STREAM_WAIT_WRITABLE, iStatus);
+}
+static void __xnetStreamNotifySyncClose(xnetstream* pStream, xnet_result iStatus)
+{
+	__xnetStreamNotifySyncWait(pStream, __XNET_STREAM_WAIT_CLOSE, iStatus);
+}
+static void __xnetStreamNotifySyncDrain(xnetstream* pStream, xnet_result iStatus)
+{
+	__xnetStreamNotifySyncWait(pStream, __XNET_STREAM_WAIT_DRAIN, iStatus);
+}
+static bool __xnetStreamRegisterSyncWait(xnetstream* pStream, uint32 iWaitKind, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+{
+	__xnet_stream_wait_slot* pSlot = NULL;
+	xnet_result iImmediateStatus = XRT_NET_ERROR;
+	if ( !pStream || !pfnWait ) return false;
+	if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) return false;
+	if ( iWaitKind == __XNET_STREAM_WAIT_READABLE && !pStream->bReadPaused ) return false;
+	pSlot = __xnetStreamGetSyncWaitSlot(pStream, iWaitKind);
+	if ( pSlot == NULL || pSlot->pfnWait != NULL ) return false;
+	if ( __xnetStreamResolveSyncWaitNow(pStream, iWaitKind, &iImmediateStatus) ) {
+		pfnWait(pStream, iImmediateStatus, pCtx);
+		return true;
+	}
+	pSlot->pfnWait = pfnWait;
+	pSlot->pCtx = pCtx;
+	return true;
+}
+static bool __xnetStreamCancelSyncWait(xnetstream* pStream, uint32 iWaitKind, ptr pCtx)
+{
+	__xnet_stream_wait_slot* pSlot = NULL;
+	if ( !pStream ) return false;
+	if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) return false;
+	pSlot = __xnetStreamGetSyncWaitSlot(pStream, iWaitKind);
+	if ( pSlot == NULL ) return false;
+	if ( pSlot->pfnWait == NULL || pSlot->pCtx != pCtx ) return false;
+	pSlot->pfnWait = NULL;
+	pSlot->pCtx = NULL;
+	return true;
+}
+static bool __xnetStreamRegisterSyncDrainWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+{
+	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_DRAIN, pfnWait, pCtx);
+}
+static bool __xnetStreamRegisterSyncReadableWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+{
+	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_READABLE, pfnWait, pCtx);
+}
+static bool __xnetStreamRegisterSyncWritableWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+{
+	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_WRITABLE, pfnWait, pCtx);
+}
+static bool __xnetStreamRegisterSyncCloseWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+{
+	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_CLOSE, pfnWait, pCtx);
+}
+static uint32 __xnetSocketBytesAvailable(xsocket hSocket)
+{
+	if ( !__xnetSocketIsValid(hSocket) ) return 0;
+	#if defined(_WIN32) || defined(_WIN64)
+		u_long iAvail = 0;
+		if ( ioctlsocket(hSocket, FIONREAD, &iAvail) != 0 ) return 0;
+		return (uint32)iAvail;
+	#else
+		int iAvail = 0;
+		if ( ioctl(hSocket, FIONREAD, &iAvail) != 0 || iAvail <= 0 ) return 0;
+		return (uint32)iAvail;
+	#endif
+}
+static void __xnetSocketCloseHandle(xsocket* phSocket)
+{
+	if ( !phSocket || !__xnetSocketIsValid(*phSocket) ) return;
+	#if defined(_WIN32) || defined(_WIN64)
+		closesocket(*phSocket);
+	#else
+		close(*phSocket);
+	#endif
+	*phSocket = XNET_SOCKET_INVALID;
+}
+static bool __xnetSocketSetNonBlock(xsocket hSocket, bool bEnable)
+{
+	if ( !__xnetSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		u_long iMode = bEnable ? 1u : 0u;
+		return ioctlsocket(hSocket, FIONBIO, &iMode) == 0;
+	#else
+		int iFlags = fcntl(hSocket, F_GETFL, 0);
+		if ( iFlags < 0 ) return false;
+		if ( bEnable ) {
+			iFlags |= O_NONBLOCK;
+		} else {
+			iFlags &= ~O_NONBLOCK;
+		}
+		return fcntl(hSocket, F_SETFL, iFlags) == 0;
+	#endif
+}
+static bool __xnetListenerSubmitSocketNotice(xnetlistener* pListener, uint16 iOpType, xsocket hSocket)
+{
+	xnetportsubmit tSubmit;
+	if ( !pListener || !pListener->pWorker || !__xnetSocketIsValid(hSocket) ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	tSubmit.iOpType = iOpType;
+	tSubmit.hSocket = (intptr_t)hSocket;
+	tSubmit.pUserData = pListener;
+	tSubmit.iOpId = (iOpType == XNET_PORT_OP_CLOSE) ? 0u : pListener->iAcceptOpId;
+	return xrtNetPortSubmit(&pListener->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+}
+static bool __xnetListenerArmAcceptWatch(xnetlistener* pListener)
+{
+	if ( !pListener || !pListener->bRunning || pListener->bAcceptArmed || !__xnetSocketIsValid(pListener->hSocket) ) return false;
+	if ( pListener->iAcceptOpId == 0 ) return false;
+	if ( !__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_ACCEPT, pListener->hSocket) ) return false;
+	pListener->bAcceptArmed = true;
+	if ( pListener->pWorker && !__xnetEngineIsCurrentWorker(pListener->pWorker) ) {
+		(void)xrtNetPortWake(&pListener->pWorker->tPort);
+	}
+	return true;
+}
+static bool __xnetListenerCancelAcceptWatch(xnetlistener* pListener)
+{
+	if ( !pListener ) return false;
+	if ( !pListener->bAcceptArmed ) return true;
+	pListener->bAcceptArmed = false;
+	if ( pListener->pWorker && __xnetSocketIsValid(pListener->hSocket) ) {
+		(void)__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_CLOSE, pListener->hSocket);
+	}
+	return true;
+}
+static bool __xnetSocketSetReuseAddr(xsocket hSocket)
+{
+	int iOpt = 1;
+	if ( !__xnetSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		return setsockopt(hSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&iOpt, sizeof(iOpt)) == 0;
+	#else
+		return setsockopt(hSocket, SOL_SOCKET, SO_REUSEADDR, &iOpt, sizeof(iOpt)) == 0;
+	#endif
+}
+static bool __xnetSocketSetReusePort(xsocket hSocket)
+{
+	#if defined(SO_REUSEPORT)
+		int iOpt = 1;
+		if ( !__xnetSocketIsValid(hSocket) ) return false;
+		#if defined(_WIN32) || defined(_WIN64)
+			return setsockopt(hSocket, SOL_SOCKET, SO_REUSEPORT, (const char*)&iOpt, sizeof(iOpt)) == 0;
+		#else
+			return setsockopt(hSocket, SOL_SOCKET, SO_REUSEPORT, &iOpt, sizeof(iOpt)) == 0;
+		#endif
+	#else
+		(void)hSocket;
+		return false;
+	#endif
+}
+static bool __xnetSocketSetNoDelay(xsocket hSocket)
+{
+	int iOpt = 1;
+	if ( !__xnetSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		return setsockopt(hSocket, IPPROTO_TCP, TCP_NODELAY, (const char*)&iOpt, sizeof(iOpt)) == 0;
+	#else
+		return setsockopt(hSocket, IPPROTO_TCP, TCP_NODELAY, &iOpt, sizeof(iOpt)) == 0;
+	#endif
+}
+static bool __xnetSocketSetKeepAlive(xsocket hSocket)
+{
+	int iOpt = 1;
+	if ( !__xnetSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		return setsockopt(hSocket, SOL_SOCKET, SO_KEEPALIVE, (const char*)&iOpt, sizeof(iOpt)) == 0;
+	#else
+		return setsockopt(hSocket, SOL_SOCKET, SO_KEEPALIVE, &iOpt, sizeof(iOpt)) == 0;
+	#endif
+}
+static bool __xnetSocketUpdateLocalAddr(xsocket hSocket, xnetaddr* pAddr)
+{
+	struct sockaddr_storage tStorage;
+	socklen_t iLen = (socklen_t)sizeof(tStorage);
+	if ( !__xnetSocketIsValid(hSocket) || !pAddr ) return false;
+	memset(&tStorage, 0, sizeof(tStorage));
+	if ( getsockname(hSocket, (struct sockaddr*)&tStorage, &iLen) != 0 ) return false;
+	return __xnetAddrFromSockAddr(pAddr, (const struct sockaddr*)&tStorage);
+}
+static bool __xnetSocketUpdateRemoteAddr(xsocket hSocket, xnetaddr* pAddr)
+{
+	struct sockaddr_storage tStorage;
+	socklen_t iLen = (socklen_t)sizeof(tStorage);
+	if ( !__xnetSocketIsValid(hSocket) || !pAddr ) return false;
+	memset(&tStorage, 0, sizeof(tStorage));
+	if ( getpeername(hSocket, (struct sockaddr*)&tStorage, &iLen) != 0 ) return false;
+	return __xnetAddrFromSockAddr(pAddr, (const struct sockaddr*)&tStorage);
+}
+static bool __xnetSocketApplyConnectFlags(xsocket hSocket, uint32 iFlags)
+{
+	bool bOk = true;
+	if ( (iFlags & XNET_CONNECT_F_NO_DELAY) != 0 ) {
+		bOk = __xnetSocketSetNoDelay(hSocket) && bOk;
+	}
+	if ( (iFlags & XNET_CONNECT_F_KEEPALIVE) != 0 ) {
+		bOk = __xnetSocketSetKeepAlive(hSocket) && bOk;
+	}
+	return bOk;
+}
+static bool __xnetSocketApplyListenFlags(xsocket hSocket, uint32 iFlags)
+{
+	bool bOk = true;
+	if ( (iFlags & XNET_LISTEN_F_REUSE_ADDR) != 0 ) {
+		bOk = __xnetSocketSetReuseAddr(hSocket) && bOk;
+	}
+	if ( (iFlags & XNET_LISTEN_F_REUSE_PORT) != 0 ) {
+		(void)__xnetSocketSetReusePort(hSocket);
+	}
+	return bOk;
+}
+static bool __xnetSocketWaitWritable(xsocket hSocket, uint32 iTimeoutMs)
+{
+	fd_set tWriteSet;
+	struct timeval tTimeout;
+	int iRet;
+	FD_ZERO(&tWriteSet);
+	FD_SET(hSocket, &tWriteSet);
+	tTimeout.tv_sec = (long)(iTimeoutMs / 1000u);
+	tTimeout.tv_usec = (long)((iTimeoutMs % 1000u) * 1000u);
+	iRet = select((int)(hSocket + 1), NULL, &tWriteSet, NULL, iTimeoutMs == 0 ? NULL : &tTimeout);
+	return iRet > 0 && FD_ISSET(hSocket, &tWriteSet);
+}
+static bool __xnetSocketConnectWithTimeout(xsocket hSocket, const struct sockaddr* pSA, socklen_t iLen, uint32 iTimeoutMs)
+{
+	int iRet;
+	int iErr;
+	if ( !__xnetSocketIsValid(hSocket) || !pSA ) return false;
+	if ( !__xnetSocketSetNonBlock(hSocket, true) ) return false;
+	iRet = connect(hSocket, pSA, iLen);
+	if ( iRet == 0 ) return true;
+	iErr = __xnetSocketLastErr();
+	if ( !__xnetSocketWouldBlock(iErr) ) return false;
+	if ( !__xnetSocketWaitWritable(hSocket, iTimeoutMs) ) return false;
+	{
+		int iSockErr = 0;
+		socklen_t iSockErrLen = (socklen_t)sizeof(iSockErr);
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( getsockopt(hSocket, SOL_SOCKET, SO_ERROR, (char*)&iSockErr, &iSockErrLen) != 0 ) return false;
+		#else
+			if ( getsockopt(hSocket, SOL_SOCKET, SO_ERROR, &iSockErr, &iSockErrLen) != 0 ) return false;
+		#endif
+		return iSockErr == 0;
+	}
+}
+static void __xnetStreamApplyWatermark(xnetstream* pStream, uint32 iHighWater, uint32 iLowWater)
+{
+	if ( !pStream ) return;
+	if ( iHighWater == 0 ) iHighWater = 1;
+	if ( iLowWater > iHighWater ) iLowWater = iHighWater;
+	pStream->tSendQ.iHighWater = iHighWater;
+	pStream->tSendQ.iLowWater = iLowWater;
+}
+static void __xnetStreamApplyDefaults(xnetstream* pStream, const xnetconnectconfig* pConnectCfg, const xnetlistenconfig* pListenCfg)
+{
+	uint32 iHighWater;
+	uint32 iLowWater;
+	uint32 iRecvLimit;
+	if ( !pStream || !pStream->pEngine ) return;
+	iHighWater = pStream->pEngine->tConfig.iDefaultHighWater;
+	iLowWater = pStream->pEngine->tConfig.iDefaultLowWater;
+	iRecvLimit = 1048576u;
+	if ( pListenCfg ) {
+		if ( pListenCfg->iHighWater > 0 ) iHighWater = pListenCfg->iHighWater;
+		if ( pListenCfg->iLowWater <= iHighWater ) iLowWater = pListenCfg->iLowWater;
+		if ( pListenCfg->iRecvLimit > 0 ) iRecvLimit = pListenCfg->iRecvLimit;
+	}
+	if ( pConnectCfg ) {
+		if ( pConnectCfg->iHighWater > 0 ) iHighWater = pConnectCfg->iHighWater;
+		if ( pConnectCfg->iLowWater <= iHighWater ) iLowWater = pConnectCfg->iLowWater;
+		if ( pConnectCfg->iRecvLimit > 0 ) iRecvLimit = pConnectCfg->iRecvLimit;
+	}
+	__xnetStreamApplyWatermark(pStream, iHighWater, iLowWater);
+	pStream->iRecvLimit = iRecvLimit;
+}
+static ptr __xnetStreamOwner(xnetstream* pStream)
+{
+	return pStream ? pStream->pUserData : NULL;
+}
+static bool __xnetStreamAttachTls(xnetstream* pStream, const xtlsconfig* pCfg, bool bIsServer)
+{
+	if ( !pStream ) return false;
+	if ( !pCfg ) return true;
+	pStream->pTls = xrtNetTlsSessionCreate(pCfg, bIsServer);
+	return pStream->pTls != NULL;
+}
+static void __xnetStreamDetachTls(xnetstream* pStream)
+{
+	if ( !pStream || !pStream->pTls ) return;
+	xrtNetTlsSessionDestroy(pStream->pTls);
+	pStream->pTls = NULL;
+	pStream->bTlsCloseQueued = false;
+}
+static bool __xnetStreamTlsReady(const xnetstream* pStream)
+{
+	return pStream && pStream->pTls ? xrtNetTlsSessionIsReady(pStream->pTls) : false;
+}
+static void __xnetStreamEmitClose(xnetstream* pStream, xnet_result iReason)
+{
+	if ( !pStream || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return;
+	pStream->iState |= __XNET_STREAM_STATE_CLOSE_EMITTED;
+	pStream->iCloseReason = iReason;
+	__xnetStreamNotifySyncReadable(pStream, iReason);
+	__xnetStreamNotifySyncWritable(pStream, iReason);
+	__xnetStreamNotifySyncClose(pStream, iReason);
+	if ( pStream->pEvents && pStream->pEvents->OnClose ) {
+		pStream->pEvents->OnClose(__xnetStreamOwner(pStream), pStream, iReason);
+	}
+}
+static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
+{
+	if ( !pDst || !pSrc || !pSrc->pHead ) return;
+	if ( pDst->pTail ) {
+		pDst->pTail->pNext = pSrc->pHead;
+	} else {
+		pDst->pHead = pSrc->pHead;
+	}
+	pDst->pTail = pSrc->pTail;
+	pDst->iBytes += pSrc->iBytes;
+	pDst->iBlockCount += pSrc->iBlockCount;
+	pSrc->pHead = NULL;
+	pSrc->pTail = NULL;
+	pSrc->iBytes = 0;
+	pSrc->iBlockCount = 0;
+}
+static void __xnetStreamRefreshSendState(xnetstream* pStream, uint32 iPrevQueuedBytes, bool bPrevHighWater)
+{
+	size_t iQueuedBytes;
+	if ( !pStream ) return;
+	iQueuedBytes = xrtNetChainBytes(&pStream->tSendQ.tQueue);
+	pStream->tSendQ.iQueuedBytes = iQueuedBytes > UINT32_MAX ? UINT32_MAX : (uint32)iQueuedBytes;
+	if ( !bPrevHighWater && pStream->tSendQ.iHighWater > 0 && pStream->tSendQ.iQueuedBytes >= pStream->tSendQ.iHighWater ) {
+		pStream->tSendQ.bHighWaterHit = true;
+		if ( pStream->pEvents && pStream->pEvents->OnHighWater ) {
+			pStream->pEvents->OnHighWater(__xnetStreamOwner(pStream), pStream, pStream->tSendQ.iQueuedBytes);
+		}
+	} else if ( bPrevHighWater && pStream->tSendQ.iQueuedBytes <= pStream->tSendQ.iLowWater ) {
+		pStream->tSendQ.bHighWaterHit = false;
+		__xnetStreamNotifySyncWritable(pStream, XRT_NET_OK);
+		if ( pStream->pEvents && pStream->pEvents->OnLowWater ) {
+			pStream->pEvents->OnLowWater(__xnetStreamOwner(pStream), pStream, pStream->tSendQ.iQueuedBytes);
+		}
+	}
+	if ( iPrevQueuedBytes > 0 && pStream->tSendQ.iQueuedBytes == 0 && pStream->pEvents && pStream->pEvents->OnDrain ) {
+		__xnetStreamNotifySyncDrain(pStream, XRT_NET_OK);
+		pStream->pEvents->OnDrain(__xnetStreamOwner(pStream), pStream);
+	}
+	else if ( iPrevQueuedBytes > 0 && pStream->tSendQ.iQueuedBytes == 0 ) {
+		__xnetStreamNotifySyncDrain(pStream, XRT_NET_OK);
+	}
+}
+static size_t __xnetStreamConsumeSendQueue(xnetstream* pStream, size_t iLen)
+{
+	size_t iQueuedBytes;
+	uint32 iPrevQueuedBytes;
+	bool bPrevHighWater;
+	if ( !pStream || iLen == 0 ) return 0;
+	iQueuedBytes = xrtNetChainBytes(&pStream->tSendQ.tQueue);
+	if ( iQueuedBytes == 0 ) {
+		if ( pStream->bClosing ) {
+			__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		}
+		return 0;
+	}
+	if ( iLen > iQueuedBytes ) iLen = iQueuedBytes;
+	iPrevQueuedBytes = pStream->tSendQ.iQueuedBytes;
+	bPrevHighWater = pStream->tSendQ.bHighWaterHit;
+	xrtNetChainConsume(&pStream->tSendQ.tQueue, iLen);
+	__xnetStreamRefreshSendState(pStream, iPrevQueuedBytes, bPrevHighWater);
+	if ( pStream->bClosing && pStream->tSendQ.iQueuedBytes == 0 ) {
+		__xnetStreamFinalizeSocketClose(pStream);
+		__xnetStreamDetachTls(pStream);
+		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+	}
+	return iLen;
+}
+static bool __xnetStreamQueueCopy(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	return pStream ? xrtNetChainAppendCopy(&pStream->tSendQ.tQueue, pData, iLen) : false;
+}
+static bool __xnetStreamQueueRef(xnetstream* pStream, const xnetbufref* pRef)
+{
+	return pStream ? xrtNetChainAppendRef(&pStream->tSendQ.tQueue, pRef) : false;
+}
+static xnetchain* __xnetStreamAllocTempChain(xnetstream* pStream)
+{
+	xnetchain* pChain;
+	xnetmemctx* pMemCtx;
+	if ( !pStream || !pStream->pWorker ) return NULL;
+	pChain = (xnetchain*)XNET_ALLOC(sizeof(xnetchain));
+	if ( !pChain ) return NULL;
+	pMemCtx = &pStream->pWorker->tMemCtx;
+	xrtNetChainInitEx(pChain, pMemCtx);
+	return pChain;
+}
+static void __xnetStreamFreeTempChain(xnetchain* pChain)
+{
+	if ( !pChain ) return;
+	xrtNetChainClear(pChain);
+	XNET_FREE(pChain);
+}
+static bool __xnetStreamAppendSendCopy(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	uint32 iPrevQueuedBytes;
+	bool bPrevHighWater;
+	if ( !pStream || !pData || iLen == 0 ) return false;
+	iPrevQueuedBytes = pStream->tSendQ.iQueuedBytes;
+	bPrevHighWater = pStream->tSendQ.bHighWaterHit;
+	if ( !__xnetStreamQueueCopy(pStream, pData, iLen) ) return false;
+	__xnetStreamRefreshSendState(pStream, iPrevQueuedBytes, bPrevHighWater);
+	return true;
+}
+static bool __xnetStreamAppendSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount)
+{
+	xnetchain tTemp;
+	uint32 iPrevQueuedBytes;
+	bool bPrevHighWater;
+	if ( !pStream || !pVec || iCount == 0 ) return false;
+	xrtNetChainInitEx(&tTemp, (xnetmemctx*)pStream->tSendQ.tQueue.pMemCtx);
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		if ( !pVec[i].pData || pVec[i].iLen == 0 || !xrtNetChainAppendCopy(&tTemp, pVec[i].pData, pVec[i].iLen) ) {
+			xrtNetChainClear(&tTemp);
+			return false;
+		}
+	}
+	iPrevQueuedBytes = pStream->tSendQ.iQueuedBytes;
+	bPrevHighWater = pStream->tSendQ.bHighWaterHit;
+	__xnetChainSplice(&pStream->tSendQ.tQueue, &tTemp);
+	__xnetStreamRefreshSendState(pStream, iPrevQueuedBytes, bPrevHighWater);
+	return true;
+}
+static bool __xnetStreamAppendSendRef(xnetstream* pStream, const xnetbufref* pRef)
+{
+	uint32 iPrevQueuedBytes;
+	bool bPrevHighWater;
+	if ( !pStream || !pRef ) return false;
+	iPrevQueuedBytes = pStream->tSendQ.iQueuedBytes;
+	bPrevHighWater = pStream->tSendQ.bHighWaterHit;
+	if ( !__xnetStreamQueueRef(pStream, pRef) ) return false;
+	__xnetStreamRefreshSendState(pStream, iPrevQueuedBytes, bPrevHighWater);
+	return true;
+}
+static bool __xnetStreamAppendRecvCopy(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	bool bOk;
+	if ( !pStream || !pData || iLen == 0 ) return false;
+	if ( pStream->iRecvLimit > 0 && xrtNetChainBytes(&pStream->tRxChain) + iLen > pStream->iRecvLimit ) {
+		if ( pStream->pEvents && pStream->pEvents->OnError ) {
+			pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+		}
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return false;
+	}
+	bOk = xrtNetChainAppendCopy(&pStream->tRxChain, pData, iLen);
+	if ( bOk ) {
+		__xnetStreamNotifySyncReadable(pStream, XRT_NET_OK);
+	}
+	return bOk;
+}
+static bool __xnetStreamAppendRecvRef(xnetstream* pStream, const xnetbufref* pRef)
+{
+	bool bOk;
+	if ( !pStream || !pRef ) return false;
+	if ( pStream->iRecvLimit > 0 && xrtNetChainBytes(&pStream->tRxChain) + pRef->iLen > pStream->iRecvLimit ) {
+		if ( pStream->pEvents && pStream->pEvents->OnError ) {
+			pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+		}
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return false;
+	}
+	bOk = xrtNetChainAppendRef(&pStream->tRxChain, pRef);
+	if ( bOk ) {
+		__xnetStreamNotifySyncReadable(pStream, XRT_NET_OK);
+	}
+	return bOk;
+}
+static void __xnetStreamDispatchRecv(xnetstream* pStream)
+{
+	if ( !pStream || pStream->bReadPaused ) return;
+	if ( xrtNetChainBytes(&pStream->tRxChain) == 0 ) return;
+	if ( pStream->pEvents && pStream->pEvents->OnRecv ) {
+		pStream->pEvents->OnRecv(__xnetStreamOwner(pStream), pStream, &pStream->tRxChain);
+	}
+}
+static uint32 __xnetStreamBuildSendSpans(const xnetstream* pStream, xnetspan* pOut, uint32 iMaxCount)
+{
+	if ( !pStream || !pOut || iMaxCount == 0 ) return 0;
+	return xrtNetChainGetSpans(&pStream->tSendQ.tQueue, pOut, iMaxCount);
+}
+static bool __xnetStreamTryBeginWrite(xnetstream* pStream, xnetspan* pOut, uint32 iMaxCount, uint32* pSpanCount)
+{
+	uint32 iCount;
+	if ( pSpanCount ) *pSpanCount = 0;
+	if ( !pStream || !pOut || iMaxCount == 0 ) return false;
+	if ( pStream->tSendQ.bWritePosted || pStream->tSendQ.iQueuedBytes == 0 ) return false;
+	iCount = __xnetStreamBuildSendSpans(pStream, pOut, iMaxCount);
+	if ( iCount == 0 ) return false;
+	pStream->tSendQ.bWritePosted = true;
+	if ( pSpanCount ) *pSpanCount = iCount;
+	return true;
+}
+static bool __xnetStreamSubmitWrite(xnetstream* pStream)
+{
+	xnetspan arrVec[16];
+	xnetportsubmit tSubmit;
+	uint32 iSpanCount = 0;
+	if ( !pStream || !pStream->pWorker ) return false;
+	if ( !__xnetStreamTryBeginWrite(pStream, arrVec, 16, &iSpanCount) ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	tSubmit.iOpType = XNET_PORT_OP_SEND;
+	tSubmit.pUserData = pStream;
+	tSubmit.pVec = arrVec;
+	tSubmit.iVecCount = iSpanCount;
+	tSubmit.tAddr = pStream->tRemoteAddr;
+	if ( xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) != XRT_NET_OK ) {
+		pStream->tSendQ.bWritePosted = false;
+		return false;
+	}
+	return true;
+}
+static size_t __xnetStreamSocketFlushSend(xnetstream* pStream)
+{
+	size_t iTotal = 0;
+	xnetspan arrVec[16];
+	uint32 iSpanCount;
+	if ( !pStream || !__xnetSocketIsValid(pStream->hSocket) ) return 0;
+	for ( ;; ) {
+		iSpanCount = __xnetStreamBuildSendSpans(pStream, arrVec, 16);
+		if ( iSpanCount == 0 ) break;
+		for ( uint32 i = 0; i < iSpanCount; ++i ) {
+			const uint8* pBuf = (const uint8*)arrVec[i].pData;
+			size_t iLeft = arrVec[i].iLen;
+			while ( iLeft > 0 ) {
+				int iSent = send(pStream->hSocket, (const char*)pBuf, (int)iLeft, 0);
+				if ( iSent > 0 ) {
+					size_t iStep = __xnetStreamConsumeSendQueue(pStream, (size_t)iSent);
+					pBuf += iStep;
+					iLeft -= iStep;
+					iTotal += iStep;
+					if ( !__xnetSocketIsValid(pStream->hSocket) || pStream->tSendQ.iQueuedBytes == 0 ) {
+						return iTotal;
+					}
+					continue;
+				}
+				if ( iSent == 0 ) {
+					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+					return iTotal;
+				}
+				{
+					int iErr = __xnetSocketLastErr();
+					if ( __xnetSocketWouldBlock(iErr) ) {
+						(void)__xnetStreamArmSendWatch(pStream);
+						return iTotal;
+					}
+					if ( !pStream->bClosing && pStream->pEvents && pStream->pEvents->OnError ) {
+						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, iErr);
+					}
+					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+					return iTotal;
+				}
+			}
+		}
+	}
+	return iTotal;
+}
+static bool __xnetStreamSocketPumpRecv(xnetstream* pStream)
+{
+	char aBuf[4096];
+	bool bReadAny = false;
+	if ( !pStream || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	for ( ;; ) {
+		int iRecv = recv(pStream->hSocket, aBuf, sizeof(aBuf), 0);
+		if ( iRecv > 0 ) {
+			bReadAny = true;
+			if ( pStream->pTls ) {
+				if ( xrtNetTlsSessionFeedCipher(pStream->pTls, aBuf, (size_t)iRecv) != XRT_NET_OK ) {
+					if ( pStream->pEvents && pStream->pEvents->OnError ) {
+						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+					}
+					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+					return bReadAny;
+				}
+				if ( !__xnetStreamDrainTlsPlain(pStream) ) {
+					return bReadAny;
+				}
+			} else if ( !__xnetStreamAppendRecvCopy(pStream, aBuf, (size_t)iRecv) ) {
+				return bReadAny;
+			}
+			continue;
+		}
+		if ( iRecv == 0 ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			break;
+		}
+		{
+			int iErr = __xnetSocketLastErr();
+			if ( __xnetSocketWouldBlock(iErr) ) break;
+			if ( !pStream->bClosing && pStream->pEvents && pStream->pEvents->OnError ) {
+				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, iErr);
+			}
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			break;
+		}
+	}
+	if ( bReadAny && !pStream->pTls ) {
+		__xnetStreamDispatchRecv(pStream);
+	}
+	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) ) {
+		(void)__xnetStreamArmRecvWatch(pStream);
+	}
+	return bReadAny;
+}
+static void __xnetStreamKickWrite(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	if ( __xnetSocketIsValid(pStream->hSocket) ) {
+		(void)__xnetStreamSocketFlushSend(pStream);
+		return;
+	}
+	(void)__xnetStreamSubmitWrite(pStream);
+}
+static bool __xnetStreamQueueTlsCipher(xnetstream* pStream)
+{
+	char aBuf[4096];
+	if ( !pStream || !pStream->pTls ) return false;
+	while ( xrtNetTlsSessionPendingCipher(pStream->pTls) > 0 ) {
+		size_t iRead = 0;
+		if ( xrtNetTlsSessionPeekCipher(pStream->pTls, aBuf, sizeof(aBuf), &iRead) != XRT_NET_OK || iRead == 0 ) {
+			return false;
+		}
+		if ( !__xnetStreamAppendSendCopy(pStream, aBuf, iRead) ) {
+			return false;
+		}
+		xrtNetTlsSessionConsumeCipher(pStream->pTls, iRead);
+	}
+	return true;
+}
+static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
+{
+	char aBuf[4096];
+	bool bReadAny = false;
+	if ( !pStream || !pStream->pTls ) return false;
+	for ( ;; ) {
+		size_t iRead = 0;
+		xnet_result iRes = xrtNetTlsSessionReadPlain(pStream->pTls, aBuf, sizeof(aBuf), &iRead);
+		if ( iRes == XRT_NET_OK && iRead > 0 ) {
+			if ( !__xnetStreamAppendRecvCopy(pStream, aBuf, iRead) ) {
+				return false;
+			}
+			bReadAny = true;
+			continue;
+		}
+		if ( iRes == XRT_NET_AGAIN ) break;
+		if ( iRes == XRT_NET_CLOSED ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return false;
+		}
+		if ( iRes != XRT_NET_OK ) {
+			if ( pStream->pEvents && pStream->pEvents->OnError ) {
+				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+			}
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return false;
+		}
+		break;
+	}
+	if ( bReadAny ) {
+		__xnetStreamDispatchRecv(pStream);
+	}
+	return true;
+}
+static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
+{
+	xnet_result iRes = XRT_NET_AGAIN;
+	uint32 iSpin = 0;
+	if ( !pStream || !pStream->pTls || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	#ifdef DEBUG_TRACE
+		printf("    [XNET_TLS] drive stream=%llu server=%d queued=%u ready=%d\n",
+			(unsigned long long)pStream->iId,
+			pStream->pTls->bIsServer ? 1 : 0,
+			pStream->tSendQ.iQueuedBytes,
+			__xnetStreamTlsReady(pStream) ? 1 : 0);
+	#endif
+	if ( pStream->tSendQ.iQueuedBytes > 0 ) {
+		__xnetStreamKickWrite(pStream);
+		return true;
+	}
+	for ( iSpin = 0; iSpin < 8; ++iSpin ) {
+		iRes = xrtNetTlsSessionDriveHandshake(pStream->pTls, pStream->hSocket);
+		#ifdef DEBUG_TRACE
+			printf("    [XNET_TLS] step stream=%llu res=%d pendingCipher=%u pendingRecv=%u readable=%u\n",
+				(unsigned long long)pStream->iId,
+				(int)iRes,
+				(uint32)xrtNetTlsSessionPendingCipher(pStream->pTls),
+				(uint32)xrtNetTlsSessionPendingRecv(pStream->pTls),
+				__xnetSocketBytesAvailable(pStream->hSocket));
+		#endif
+		if ( !__xnetStreamQueueTlsCipher(pStream) ) {
+			if ( pStream->pEvents && pStream->pEvents->OnError ) {
+				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+			}
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return false;
+		}
+		if ( pStream->tSendQ.iQueuedBytes > 0 ) {
+			__xnetStreamKickWrite(pStream);
+			break;
+		}
+		if ( __xnetStreamTlsReady(pStream) ) break;
+		if ( iRes != XRT_NET_AGAIN ) break;
+		if ( xrtNetTlsSessionPendingRecv(pStream->pTls) == 0 && __xnetSocketBytesAvailable(pStream->hSocket) == 0 ) break;
+	}
+	if ( __xnetStreamTlsReady(pStream) ) {
+		__xnetStreamEmitOpen(pStream);
+		(void)__xnetStreamDrainTlsPlain(pStream);
+	}
+	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) ) {
+		(void)__xnetStreamArmRecvWatch(pStream);
+	}
+	if ( iRes == XRT_NET_OK || iRes == XRT_NET_AGAIN ) return true;
+	if ( pStream->pEvents && pStream->pEvents->OnError ) {
+		pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+	}
+	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+	return false;
+}
+static bool __xnetStreamAppendTlsPlainCopy(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	size_t iWritten = 0;
+	if ( !pStream || !pStream->pTls || !__xnetStreamTlsReady(pStream) || !pData || iLen == 0 ) return false;
+	if ( xrtNetTlsSessionWritePlain(pStream->pTls, pData, iLen, &iWritten) != XRT_NET_OK || iWritten != iLen ) return false;
+	if ( !__xnetStreamQueueTlsCipher(pStream) ) return false;
+	__xnetStreamKickWrite(pStream);
+	return true;
+}
+static bool __xnetStreamAppendTlsPlainVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount)
+{
+	if ( !pStream || !pVec || iCount == 0 ) return false;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		if ( !pVec[i].pData || pVec[i].iLen == 0 ) return false;
+		if ( !__xnetStreamAppendTlsPlainCopy(pStream, pVec[i].pData, pVec[i].iLen) ) return false;
+	}
+	return true;
+}
+static bool __xnetStreamAppendTlsPlainRef(xnetstream* pStream, const xnetbufref* pRef)
+{
+	if ( !pStream || !pRef || !pRef->pData || pRef->iLen == 0 ) return false;
+	return __xnetStreamAppendTlsPlainCopy(pStream, pRef->pData, pRef->iLen);
+}
+static void __xnetStreamEmitOpen(xnetstream* pStream)
+{
+	if ( !pStream || (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0 ) return;
+	pStream->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
+	if ( pStream->pEvents && pStream->pEvents->OnOpen ) {
+		pStream->pEvents->OnOpen(__xnetStreamOwner(pStream), pStream);
+	}
+}
+static bool __xnetStreamSubmitOpenEvent(xnetstream* pStream, uint16 iOpType)
+{
+	xnetportsubmit tSubmit;
+	if ( !pStream || !pStream->pWorker ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	tSubmit.iOpType = iOpType;
+	tSubmit.pUserData = pStream;
+	tSubmit.hSocket = (intptr_t)pStream->hSocket;
+	return xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+}
+static bool __xnetStreamSubmitSocketNotice(xnetstream* pStream, uint16 iOpType, xsocket hSocket)
+{
+	xnetportsubmit tSubmit;
+	if ( !pStream || !pStream->pWorker || !__xnetSocketIsValid(hSocket) ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	tSubmit.iOpType = iOpType;
+	tSubmit.hSocket = (intptr_t)hSocket;
+	tSubmit.pUserData = pStream;
+	tSubmit.iOpId = pStream->iId;
+	return xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+}
+static bool __xnetStreamArmRecvWatch(xnetstream* pStream)
+{
+	if ( !pStream || pStream->bClosing || pStream->bRecvArmed || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	if ( !__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_RECV, pStream->hSocket) ) return false;
+	pStream->bRecvArmed = true;
+	if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		(void)xrtNetPortWake(&pStream->pWorker->tPort);
+	}
+	return true;
+}
+static bool __xnetStreamArmSendWatch(xnetstream* pStream)
+{
+	if ( !pStream || pStream->bSendArmed || pStream->tSendQ.iQueuedBytes == 0 || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	if ( !__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_SEND, pStream->hSocket) ) return false;
+	pStream->bSendArmed = true;
+	if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		(void)xrtNetPortWake(&pStream->pWorker->tPort);
+	}
+	return true;
+}
+static void __xnetStreamFinalizeSocketClose(xnetstream* pStream)
+{
+	xsocket hSocket;
+	if ( !pStream ) return;
+	hSocket = pStream->hSocket;
+	pStream->bRecvArmed = false;
+	pStream->bSendArmed = false;
+	if ( __xnetSocketIsValid(hSocket) ) {
+		(void)__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_CLOSE, hSocket);
+		__xnetSocketCloseHandle(&pStream->hSocket);
+	}
+}
+static size_t __xnetStreamCompleteWrite(xnetstream* pStream, size_t iBytes)
+{
+	bool bNeedResubmit;
+	if ( !pStream ) return 0;
+	pStream->tSendQ.bWritePosted = false;
+	iBytes = __xnetStreamConsumeSendQueue(pStream, iBytes);
+	bNeedResubmit = !pStream->bClosing && pStream->tSendQ.iQueuedBytes > 0 && !pStream->tSendQ.bWritePosted;
+	if ( bNeedResubmit ) {
+		__xnetStreamKickWrite(pStream);
+	}
+	return iBytes;
+}
+static bool __xnetStreamSubmitRecvChain(xnetstream* pStream, xnetchain* pChain)
+{
+	xnetportsubmit tSubmit;
+	if ( !pStream || !pStream->pWorker || !pChain ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	tSubmit.iOpType = XNET_PORT_OP_RECV;
+	tSubmit.pUserData = pStream;
+	tSubmit.pChain = pChain;
+	tSubmit.tAddr = pStream->tRemoteAddr;
+	return xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+}
+static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
+{
+	if ( !pStream || !pChain ) {
+		__xnetStreamFreeTempChain(pChain);
+		return;
+	}
+	if ( pStream->iRecvLimit > 0 && xrtNetChainBytes(&pStream->tRxChain) + xrtNetChainBytes(pChain) > pStream->iRecvLimit ) {
+		if ( pStream->pEvents && pStream->pEvents->OnError ) {
+			pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+		}
+		__xnetStreamFreeTempChain(pChain);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	__xnetChainSplice(&pStream->tRxChain, pChain);
+	__xnetStreamFreeTempChain(pChain);
+	__xnetStreamNotifySyncReadable(pStream, XRT_NET_OK);
+	__xnetStreamDispatchRecv(pStream);
+}
+static void __xnetStreamHandleSendEvent(xnetstream* pStream, const xnetportevent* pEvent)
+{
+	if ( !pStream || !pEvent ) return;
+	if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+		if ( pEvent->iBytes > 0 ) {
+			(void)__xnetStreamCompleteWrite(pStream, pEvent->iBytes);
+		} else {
+			pStream->bSendArmed = false;
+		}
+		return;
+	}
+	if ( pEvent->iBytes == 0 && __xnetSocketIsValid(pStream->hSocket) ) {
+		pStream->bSendArmed = false;
+		__xnetStreamKickWrite(pStream);
+		return;
+	}
+	(void)__xnetStreamCompleteWrite(pStream, pEvent->iBytes);
+}
+static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_stream_async_op* pOp = (__xnet_stream_async_op*)pArg;
+	xnetstream* pStream = pOp ? pOp->pStream : NULL;
+	(void)pWorker;
+	if ( !pOp || !pStream ) {
+		if ( pOp ) XNET_FREE(pOp);
+		return;
+	}
+	if ( pStream->bClosing && pOp->iType != __XNET_STREAM_ASYNC_DISPATCH_RECV ) {
+		XNET_FREE(pOp);
+		return;
+	}
+	switch ( pOp->iType ) {
+		case __XNET_STREAM_ASYNC_SEND_COPY:
+			if ( pStream->pTls ) {
+				(void)__xnetStreamAppendTlsPlainCopy(pStream, pOp->aData, pOp->iLen);
+			} else if ( __xnetStreamAppendSendCopy(pStream, pOp->aData, pOp->iLen) ) {
+				__xnetStreamKickWrite(pStream);
+			}
+			break;
+		case __XNET_STREAM_ASYNC_SEND_REF:
+			if ( pStream->pTls ) {
+				(void)__xnetStreamAppendTlsPlainRef(pStream, &pOp->tRef);
+			} else if ( __xnetStreamAppendSendRef(pStream, &pOp->tRef) ) {
+				__xnetStreamKickWrite(pStream);
+			}
+			break;
+		case __XNET_STREAM_ASYNC_RECV_COPY:
+			{
+				xnetchain* pChain = __xnetStreamAllocTempChain(pStream);
+				if ( pChain && xrtNetChainAppendCopy(pChain, pOp->aData, pOp->iLen) && __xnetStreamSubmitRecvChain(pStream, pChain) ) {
+					pChain = NULL;
+				}
+				__xnetStreamFreeTempChain(pChain);
+			}
+			break;
+		case __XNET_STREAM_ASYNC_RECV_REF:
+			{
+				xnetchain* pChain = __xnetStreamAllocTempChain(pStream);
+				if ( pChain && xrtNetChainAppendRef(pChain, &pOp->tRef) && __xnetStreamSubmitRecvChain(pStream, pChain) ) {
+					pChain = NULL;
+				}
+				__xnetStreamFreeTempChain(pChain);
+			}
+			break;
+		case __XNET_STREAM_ASYNC_DISPATCH_RECV:
+			__xnetStreamDispatchRecv(pStream);
+			break;
+		case __XNET_STREAM_ASYNC_SOCKET_RECV:
+			(void)__xnetStreamSocketPumpRecv(pStream);
+			break;
+		case __XNET_STREAM_ASYNC_TLS_HANDSHAKE:
+			(void)__xnetStreamDriveTlsHandshake(pStream);
+			break;
+		default:
+			break;
+	}
+	XNET_FREE(pOp);
+}
+static __xnet_stream_async_op* __xnetStreamAllocAsyncCopy(xnetstream* pStream, uint32 iType, const void* pData, size_t iLen)
+{
+	__xnet_stream_async_op* pOp;
+	size_t iSize;
+	if ( !pStream || !pData || iLen == 0 || iLen > UINT32_MAX ) return NULL;
+	iSize = sizeof(__xnet_stream_async_op) + iLen;
+	pOp = (__xnet_stream_async_op*)XNET_ALLOC(iSize);
+	if ( !pOp ) return NULL;
+	memset(pOp, 0, iSize);
+	pOp->pStream = pStream;
+	pOp->iType = iType;
+	pOp->iLen = (uint32)iLen;
+	memcpy(pOp->aData, pData, iLen);
+	return pOp;
+}
+static __xnet_stream_async_op* __xnetStreamAllocAsyncRef(xnetstream* pStream, uint32 iType, const xnetbufref* pRef)
+{
+	__xnet_stream_async_op* pOp;
+	if ( !pStream || !pRef || !pRef->pData || pRef->iLen == 0 ) return NULL;
+	pOp = (__xnet_stream_async_op*)XNET_ALLOC(sizeof(__xnet_stream_async_op));
+	if ( !pOp ) return NULL;
+	memset(pOp, 0, sizeof(__xnet_stream_async_op));
+	pOp->pStream = pStream;
+	pOp->iType = iType;
+	pOp->iLen = pRef->iLen;
+	pOp->tRef = *pRef;
+	return pOp;
+}
+static __xnet_stream_async_op* __xnetStreamAllocAsyncVecCopy(xnetstream* pStream, uint32 iType, const xnetspan* pVec, uint32 iCount)
+{
+	__xnet_stream_async_op* pOp;
+	size_t iTotal = 0;
+	size_t iOffset = 0;
+	size_t iSize;
+	if ( !pStream || !pVec || iCount == 0 ) return NULL;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		if ( !pVec[i].pData || pVec[i].iLen == 0 ) return NULL;
+		iTotal += pVec[i].iLen;
+		if ( iTotal > UINT32_MAX ) return NULL;
+	}
+	iSize = sizeof(__xnet_stream_async_op) + iTotal;
+	pOp = (__xnet_stream_async_op*)XNET_ALLOC(iSize);
+	if ( !pOp ) return NULL;
+	memset(pOp, 0, iSize);
+	pOp->pStream = pStream;
+	pOp->iType = iType;
+	pOp->iLen = (uint32)iTotal;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		memcpy(pOp->aData + iOffset, pVec[i].pData, pVec[i].iLen);
+		iOffset += pVec[i].iLen;
+	}
+	return pOp;
+}
+static __xnet_stream_async_op* __xnetStreamAllocAsyncSimple(xnetstream* pStream, uint32 iType)
+{
+	__xnet_stream_async_op* pOp;
+	if ( !pStream ) return NULL;
+	pOp = (__xnet_stream_async_op*)XNET_ALLOC(sizeof(__xnet_stream_async_op));
+	if ( !pOp ) return NULL;
+	memset(pOp, 0, sizeof(__xnet_stream_async_op));
+	pOp->pStream = pStream;
+	pOp->iType = iType;
+	return pOp;
+}
+static xnet_result __xnetStreamPostAsync(xnetstream* pStream, __xnet_stream_async_op* pOp)
+{
+	if ( !pStream || !pOp || !pStream->pEngine || !pStream->pWorker ) {
+		if ( pOp ) XNET_FREE(pOp);
+		return XRT_NET_ERROR;
+	}
+	if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xnetStreamAsyncTask, pOp) != XRT_NET_OK ) {
+		XNET_FREE(pOp);
+		return XRT_NET_ERROR;
+	}
+	return XRT_NET_OK;
+}
+static xnet_result __xnetStreamPostSendCopy(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncCopy(pStream, __XNET_STREAM_ASYNC_SEND_COPY, pData, iLen));
+}
+static xnet_result __xnetStreamPostSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount)
+{
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncVecCopy(pStream, __XNET_STREAM_ASYNC_SEND_COPY, pVec, iCount));
+}
+static xnet_result __xnetStreamPostSendRef(xnetstream* pStream, const xnetbufref* pRef)
+{
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncRef(pStream, __XNET_STREAM_ASYNC_SEND_REF, pRef));
+}
+static xnet_result __xnetStreamPostRecvCopy(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncCopy(pStream, __XNET_STREAM_ASYNC_RECV_COPY, pData, iLen));
+}
+static xnet_result __xnetStreamPostRecvRef(xnetstream* pStream, const xnetbufref* pRef)
+{
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncRef(pStream, __XNET_STREAM_ASYNC_RECV_REF, pRef));
+}
+static xnet_result __xnetStreamPostRecvDispatch(xnetstream* pStream)
+{
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncSimple(pStream, __XNET_STREAM_ASYNC_DISPATCH_RECV));
+}
+static xnet_result __xnetStreamPostSocketRecvPump(xnetstream* pStream)
+{
+	if ( !pStream || !__xnetSocketIsValid(pStream->hSocket) ) return XRT_NET_ERROR;
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncSimple(pStream, __XNET_STREAM_ASYNC_SOCKET_RECV));
+}
+static xnet_result __xnetStreamPostTlsHandshake(xnetstream* pStream)
+{
+	if ( !pStream || !pStream->pTls || !__xnetSocketIsValid(pStream->hSocket) ) return XRT_NET_ERROR;
+	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncSimple(pStream, __XNET_STREAM_ASYNC_TLS_HANDSHAKE));
+}
+/* ============================== Listener helpers ============================== */
+static xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenconfig* pCfg,
+	const xnetlistenerevents* pEvents, const xnetstreamevents* pStreamEvents, ptr pUserData)
+{
+	xnetlistener* pListener;
+	if ( !pEngine ) return NULL;
+	pListener = (xnetlistener*)XNET_ALLOC(sizeof(xnetlistener));
+	if ( !pListener ) return NULL;
+	memset(pListener, 0, sizeof(xnetlistener));
+	__xnetStreamBindEngine(pEngine);
+	pListener->hSocket = XNET_SOCKET_INVALID;
+	pListener->pEngine = pEngine;
+	pListener->pEvents = pEvents;
+	pListener->pStreamEvents = pStreamEvents;
+	pListener->pUserData = pUserData;
+	if ( pCfg ) {
+		pListener->tConfig = *pCfg;
+	} else {
+		xrtNetListenConfigInit(&pListener->tConfig);
+	}
+	pListener->iPortCount = ((pListener->tConfig.iFlags & XNET_LISTEN_F_REUSE_PORT) != 0 && pEngine->iWorkerCount > 0)
+		? pEngine->iWorkerCount
+		: 1u;
+	pListener->pWorker = __xnetListenerPickWorker(pEngine, &pListener->tConfig);
+	pListener->iNextWorker = 0;
+	return pListener;
+}
+static void xrtNetListenerDestroy(xnetlistener* pListener)
+{
+	if ( !pListener ) return;
+	if ( __xnetAtomicLoad32(&pListener->iAsyncHoldCount) != 0 ) {
+		__xnetStreamSetError("cannot destroy listener while an async waiter or task still holds it.");
+		return;
+	}
+	pListener->bRunning = false;
+	(void)__xnetListenerCancelAcceptWatch(pListener);
+	__xnetSocketCloseHandle(&pListener->hSocket);
+	XNET_FREE(pListener);
+}
+static xnet_result xrtNetListenerStart(xnetlistener* pListener)
+{
+	struct sockaddr_storage tStorage;
+	socklen_t iAddrLen = 0;
+	if ( !pListener || !pListener->pEngine || !pListener->pEngine->bRunning ) return XRT_NET_ERROR;
+	if ( pListener->bRunning ) return XRT_NET_OK;
+	if ( !__xnetAddrToSockAddr(&pListener->tConfig.tBindAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+	pListener->hSocket = socket(pListener->tConfig.tBindAddr.iFamily, SOCK_STREAM, IPPROTO_TCP);
+	if ( !__xnetSocketIsValid(pListener->hSocket) ) return XRT_NET_ERROR;
+	(void)__xnetSocketApplyListenFlags(pListener->hSocket, pListener->tConfig.iFlags);
+	(void)__xnetSocketSetNonBlock(pListener->hSocket, true);
+	if ( bind(pListener->hSocket, (struct sockaddr*)&tStorage, iAddrLen) != 0 ) {
+		if ( pListener->pEvents && pListener->pEvents->OnError ) {
+			pListener->pEvents->OnError(pListener->pUserData, pListener, __xnetSocketLastErr());
+		}
+		__xnetSocketCloseHandle(&pListener->hSocket);
+		return XRT_NET_ERROR;
+	}
+	if ( listen(pListener->hSocket, (int)(pListener->tConfig.iBacklog > 0 ? pListener->tConfig.iBacklog : 128u)) != 0 ) {
+		if ( pListener->pEvents && pListener->pEvents->OnError ) {
+			pListener->pEvents->OnError(pListener->pUserData, pListener, __xnetSocketLastErr());
+		}
+		__xnetSocketCloseHandle(&pListener->hSocket);
+		return XRT_NET_ERROR;
+	}
+	(void)__xnetSocketUpdateLocalAddr(pListener->hSocket, &pListener->tConfig.tBindAddr);
+	pListener->pWorker = __xnetListenerPickWorker(pListener->pEngine, &pListener->tConfig);
+	pListener->iAcceptOpId = pListener->pEngine->iNextStreamId++;
+	pListener->bAcceptArmed = false;
+	pListener->bRunning = true;
+	return XRT_NET_OK;
+}
+static void xrtNetListenerStop(xnetlistener* pListener)
+{
+	if ( !pListener ) return;
+	pListener->bRunning = false;
+	(void)__xnetListenerCancelAcceptWatch(pListener);
+	__xnetSocketCloseHandle(&pListener->hSocket);
+	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
+}
+static xnetstream* __xnetListenerCreateAcceptedStream(xnetlistener* pListener, ptr pUserData)
+{
+	xnetstream* pStream;
+	xnetworker* pWorker;
+	bool bAccepted = true;
+	if ( !pListener || !pListener->pEngine ) return NULL;
+	pStream = (xnetstream*)XNET_ALLOC(sizeof(xnetstream));
+	if ( !pStream ) return NULL;
+	memset(pStream, 0, sizeof(xnetstream));
+	__xnetStreamBindEngine(pListener->pEngine);
+	pStream->hSocket = XNET_SOCKET_INVALID;
+	pWorker = __xnetStreamPickWorker(pListener->pEngine, pListener);
+	pStream->iId = pListener->pEngine->iNextStreamId++;
+	pStream->pEngine = pListener->pEngine;
+	pStream->pWorker = pWorker;
+	pStream->pListener = pListener;
+	pStream->pEvents = pListener->pStreamEvents;
+	pStream->pUserData = pUserData;
+	pStream->iState = __XNET_STREAM_STATE_INIT;
+	pStream->iCloseReason = XRT_NET_AGAIN;
+	__xnetStreamInitQueues(pStream, pWorker);
+	__xnetStreamApplyDefaults(pStream, NULL, &pListener->tConfig);
+	if ( !__xnetStreamAttachTls(pStream, pListener->tConfig.pTlsConfig, true) ) {
+		xrtNetStreamDestroy(pStream);
+		return NULL;
+	}
+	if ( pListener->pEvents && pListener->pEvents->OnAccept ) {
+		bAccepted = pListener->pEvents->OnAccept(pListener->pUserData, pListener, pStream);
+	}
+	if ( !bAccepted ) {
+		xrtNetStreamDestroy(pStream);
+		return NULL;
+	}
+	return pStream;
+}
+static bool __xnetListenerAcceptSocket(xnetlistener* pListener, __xnet_listener_accept_raw* pRaw, int* pSysErr)
+{
+	if ( pSysErr ) *pSysErr = 0;
+	if ( pRaw ) {
+		memset(pRaw, 0, sizeof(*pRaw));
+		pRaw->hSocket = XNET_SOCKET_INVALID;
+		pRaw->iAddrLen = (socklen_t)sizeof(pRaw->tStorage);
+	}
+	if ( !pListener || !pRaw || !pListener->bRunning || !__xnetSocketIsValid(pListener->hSocket) ) {
+		if ( pSysErr ) *pSysErr = __XNET_LISTENER_ACCEPT_SYS_CLOSED;
+		return false;
+	}
+	pRaw->hSocket = accept(pListener->hSocket, (struct sockaddr*)&pRaw->tStorage, &pRaw->iAddrLen);
+	if ( !__xnetSocketIsValid(pRaw->hSocket) ) {
+		int iErr = __xnetSocketLastErr();
+		if ( pSysErr ) {
+			*pSysErr = __xnetSocketWouldBlock(iErr) ? 0 : iErr;
+		}
+		if ( !__xnetSocketWouldBlock(iErr) && pListener->pEvents && pListener->pEvents->OnError ) {
+			pListener->pEvents->OnError(pListener->pUserData, pListener, iErr);
+		}
+		return false;
+	}
+	return true;
+}
+static xnetstream* __xnetListenerWrapAcceptedSocket(xnetlistener* pListener, const __xnet_listener_accept_raw* pRaw, ptr pUserData)
+{
+	xnetstream* pStream;
+	if ( !pListener || !pRaw || !__xnetSocketIsValid(pRaw->hSocket) ) return NULL;
+	pStream = __xnetListenerCreateAcceptedStream(pListener, pUserData);
+	if ( !pStream ) {
+		return NULL;
+	}
+	pStream->hSocket = pRaw->hSocket;
+	(void)__xnetSocketSetNonBlock(pStream->hSocket, true);
+	if ( (pListener->tConfig.iFlags & XNET_LISTEN_F_NO_DELAY) != 0 ) {
+		(void)__xnetSocketSetNoDelay(pStream->hSocket);
+	}
+	if ( (pListener->tConfig.iFlags & XNET_LISTEN_F_KEEPALIVE) != 0 ) {
+		(void)__xnetSocketSetKeepAlive(pStream->hSocket);
+	}
+	(void)__xnetAddrFromSockAddr(&pStream->tRemoteAddr, (const struct sockaddr*)&pRaw->tStorage);
+	(void)__xnetSocketUpdateLocalAddr(pStream->hSocket, &pStream->tLocalAddr);
+	if ( pStream->pTls ) {
+		if ( __xnetStreamPostTlsHandshake(pStream) != XRT_NET_OK ) {
+			(void)__xnetStreamDriveTlsHandshake(pStream);
+		}
+	} else if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_ACCEPT) ) {
+		__xnetStreamEmitOpen(pStream);
+		(void)__xnetStreamArmRecvWatch(pStream);
+	}
+	return pStream;
+}
+static bool __xnetListenerRegisterSyncAcceptWait(xnetlistener* pListener, __xnet_listener_sync_wait_fn pfnWait, __xnet_listener_sync_wait_ready_fn pfnCanAccept, ptr pCtx)
+{
+	__xnet_listener_accept_raw tRaw;
+	int iSysErr = 0;
+	xnetstream* pStream = NULL;
+	if ( !pListener || !pfnWait ) return false;
+	if ( pListener->pWorker && !__xnetEngineIsCurrentWorker(pListener->pWorker) ) return false;
+	if ( pListener->tAcceptWait.pfnWait != NULL ) return false;
+	pListener->tAcceptWait.pfnWait = pfnWait;
+	pListener->tAcceptWait.pfnCanAccept = pfnCanAccept;
+	pListener->tAcceptWait.pCtx = pCtx;
+	if ( !pListener->bRunning || !__xnetSocketIsValid(pListener->hSocket) ) {
+		__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
+		return true;
+	}
+	memset(&tRaw, 0, sizeof(tRaw));
+	tRaw.hSocket = XNET_SOCKET_INVALID;
+	if ( __xnetListenerAcceptSocket(pListener, &tRaw, &iSysErr) ) {
+		if ( !__xnetListenerCanDispatchAccept(pListener) ) {
+			__xnetSocketCloseHandle(&tRaw.hSocket);
+			return true;
+		}
+		pStream = __xnetListenerWrapAcceptedSocket(pListener, &tRaw, NULL);
+		if ( pStream ) {
+			__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
+			return true;
+		}
+		__xnetSocketCloseHandle(&tRaw.hSocket);
+	}
+	if ( iSysErr == __XNET_LISTENER_ACCEPT_SYS_CLOSED ) {
+		__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
+		return true;
+	}
+	if ( iSysErr != 0 ) {
+		__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
+		return true;
+	}
+	if ( !__xnetListenerCanDispatchAccept(pListener) ) {
+		return true;
+	}
+	if ( !__xnetListenerArmAcceptWatch(pListener) ) {
+		__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
+	}
+	return true;
+}
+static bool __xnetListenerCancelSyncAcceptWait(xnetlistener* pListener, ptr pCtx)
+{
+	if ( !pListener ) return false;
+	if ( pListener->pWorker && !__xnetEngineIsCurrentWorker(pListener->pWorker) ) return false;
+	if ( pListener->tAcceptWait.pfnWait == NULL || pListener->tAcceptWait.pCtx != pCtx ) return false;
+	pListener->tAcceptWait.pfnWait = NULL;
+	pListener->tAcceptWait.pfnCanAccept = NULL;
+	pListener->tAcceptWait.pCtx = NULL;
+	(void)__xnetListenerCancelAcceptWatch(pListener);
+	return true;
+}
+static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
+{
+	__xnet_listener_accept_raw tRaw;
+	int iSysErr = 0;
+	xnetstream* pStream = NULL;
+	if ( !pListener ) return;
+	pListener->bAcceptArmed = false;
+	if ( !__xnetListenerCanDispatchAccept(pListener) ) return;
+	memset(&tRaw, 0, sizeof(tRaw));
+	tRaw.hSocket = XNET_SOCKET_INVALID;
+	if ( __xnetListenerAcceptSocket(pListener, &tRaw, &iSysErr) ) {
+		if ( !__xnetListenerCanDispatchAccept(pListener) ) {
+			__xnetSocketCloseHandle(&tRaw.hSocket);
+			return;
+		}
+		pStream = __xnetListenerWrapAcceptedSocket(pListener, &tRaw, NULL);
+		if ( pStream ) {
+			__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
+			return;
+		}
+		__xnetSocketCloseHandle(&tRaw.hSocket);
+		if ( __xnetListenerCanDispatchAccept(pListener) && pListener->bRunning && __xnetSocketIsValid(pListener->hSocket) ) {
+			(void)__xnetListenerArmAcceptWatch(pListener);
+		}
+		return;
+	}
+	if ( iSysErr == 0 ) {
+		if ( __xnetListenerCanDispatchAccept(pListener) && pListener->bRunning && __xnetSocketIsValid(pListener->hSocket) ) {
+			(void)__xnetListenerArmAcceptWatch(pListener);
+		}
+		return;
+	}
+	if ( iSysErr == __XNET_LISTENER_ACCEPT_SYS_CLOSED ) {
+		__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
+		return;
+	}
+	__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
+}
+static xnetstream* __xnetListenerTryAcceptOneEx(xnetlistener* pListener, ptr pUserData, int* pSysErr)
+{
+	__xnet_listener_accept_raw tRaw;
+	xnetstream* pStream = NULL;
+	memset(&tRaw, 0, sizeof(tRaw));
+	tRaw.hSocket = XNET_SOCKET_INVALID;
+	if ( !__xnetListenerAcceptSocket(pListener, &tRaw, pSysErr) ) {
+		return NULL;
+	}
+	pStream = __xnetListenerWrapAcceptedSocket(pListener, &tRaw, pUserData);
+	if ( !pStream ) {
+		__xnetSocketCloseHandle(&tRaw.hSocket);
+		if ( pSysErr ) *pSysErr = 0;
+	}
+	return pStream;
+}
+static xnetstream* __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUserData)
+{
+	return __xnetListenerTryAcceptOneEx(pListener, pUserData, NULL);
+}
+/* ============================== Stream helpers ============================== */
+static xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevents* pEvents, ptr pUserData)
+{
+	xnetstream* pStream;
+	xnetworker* pWorker;
+	if ( !pEngine ) return NULL;
+	pStream = (xnetstream*)XNET_ALLOC(sizeof(xnetstream));
+	if ( !pStream ) return NULL;
+	memset(pStream, 0, sizeof(xnetstream));
+	__xnetStreamBindEngine(pEngine);
+	pStream->hSocket = XNET_SOCKET_INVALID;
+	pWorker = __xnetStreamPickWorker(pEngine, NULL);
+	pStream->iId = pEngine->iNextStreamId++;
+	pStream->pEngine = pEngine;
+	pStream->pWorker = pWorker;
+	pStream->pEvents = pEvents;
+	pStream->pUserData = pUserData;
+	pStream->iState = __XNET_STREAM_STATE_INIT;
+	pStream->iCloseReason = XRT_NET_AGAIN;
+	__xnetStreamInitQueues(pStream, pWorker);
+	__xnetStreamApplyDefaults(pStream, NULL, NULL);
+	return pStream;
+}
+static void xrtNetStreamDestroy(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	if ( __xnetAtomicLoad32(&pStream->iAsyncHoldCount) != 0 ) {
+		__xnetStreamSetError("cannot destroy stream while an async waiter or task still holds it.");
+		return;
+	}
+	__xnetStreamNotifySyncReadable(pStream, pStream->iCloseReason == XRT_NET_AGAIN ? XRT_NET_CLOSED : pStream->iCloseReason);
+	__xnetStreamNotifySyncWritable(pStream, pStream->iCloseReason == XRT_NET_AGAIN ? XRT_NET_CLOSED : pStream->iCloseReason);
+	__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
+	__xnetStreamNotifySyncClose(pStream, pStream->iCloseReason == XRT_NET_AGAIN ? XRT_NET_CLOSED : pStream->iCloseReason);
+	xrtNetChainClear(&pStream->tRxChain);
+	xrtNetChainClear(&pStream->tSendQ.tQueue);
+	__xnetStreamFinalizeSocketClose(pStream);
+	__xnetStreamDetachTls(pStream);
+	XNET_FREE(pStream);
+}
+static xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconfig* pCfg)
+{
+	struct sockaddr_storage tStorage;
+	socklen_t iAddrLen = 0;
+	xsocket hSocket;
+	if ( !pStream || !pStream->pEngine || !pStream->pEngine->bRunning ) return XRT_NET_ERROR;
+	__xnetStreamApplyDefaults(pStream, pCfg, NULL);
+	if ( __xnetSocketIsValid(pStream->hSocket) ) return XRT_NET_ERROR;
+	if ( pCfg && pCfg->sHost && pCfg->sHost[0] ) {
+		xnetaddr tAddr;
+		memset(&tAddr, 0, sizeof(tAddr));
+		tAddr.iPort = pCfg->iPort;
+		if ( xrtNetResolve(pCfg->sHost, &tAddr) == XRT_NET_OK ) {
+			pStream->tRemoteAddr = tAddr;
+		}
+	}
+	if ( !__xnetAddrToSockAddr(&pStream->tRemoteAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+	hSocket = socket(pStream->tRemoteAddr.iFamily, SOCK_STREAM, IPPROTO_TCP);
+	if ( !__xnetSocketIsValid(hSocket) ) return XRT_NET_ERROR;
+	(void)__xnetSocketApplyConnectFlags(hSocket, pCfg ? pCfg->iFlags : XNET_CONNECT_F_NONE);
+	if ( !__xnetSocketConnectWithTimeout(hSocket, (const struct sockaddr*)&tStorage, iAddrLen, pCfg ? pCfg->iConnectTimeoutMs : 5000u) ) {
+		__xnetSocketCloseHandle(&hSocket);
+		return XRT_NET_ERROR;
+	}
+	pStream->hSocket = hSocket;
+	(void)__xnetSocketUpdateLocalAddr(pStream->hSocket, &pStream->tLocalAddr);
+	(void)__xnetSocketUpdateRemoteAddr(pStream->hSocket, &pStream->tRemoteAddr);
+	if ( !__xnetStreamAttachTls(pStream, pCfg ? pCfg->pTlsConfig : NULL, false) ) {
+		__xnetSocketCloseHandle(&pStream->hSocket);
+		return XRT_NET_ERROR;
+	}
+	if ( pStream->pTls ) {
+		if ( __xnetStreamPostTlsHandshake(pStream) != XRT_NET_OK ) {
+			(void)__xnetStreamDriveTlsHandshake(pStream);
+		}
+	} else if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_CONNECT) ) {
+		__xnetStreamEmitOpen(pStream);
+		(void)__xnetStreamArmRecvWatch(pStream);
+	}
+	return XRT_NET_OK;
+}
+static void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
+{
+	if ( !pStream ) return;
+	if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return;
+	if ( pStream->bClosing ) {
+		if ( (iFlags & XNET_CLOSE_F_ABORT) == 0 || (pStream->iFlags & XNET_CLOSE_F_ABORT) != 0 ) return;
+		pStream->iFlags |= XNET_CLOSE_F_ABORT;
+		__xnetStreamFinalizeSocketClose(pStream);
+		xrtNetChainClear(&pStream->tRxChain);
+		xrtNetChainClear(&pStream->tSendQ.tQueue);
+		pStream->tSendQ.iQueuedBytes = 0;
+		pStream->tSendQ.bHighWaterHit = false;
+		__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
+		__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
+		__xnetStreamDetachTls(pStream);
+		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		return;
+	}
+	pStream->bClosing = true;
+	pStream->iFlags = iFlags;
+	if ( (iFlags & XNET_CLOSE_F_ABORT) != 0 ) {
+		__xnetStreamFinalizeSocketClose(pStream);
+		xrtNetChainClear(&pStream->tRxChain);
+		xrtNetChainClear(&pStream->tSendQ.tQueue);
+		pStream->tSendQ.iQueuedBytes = 0;
+		pStream->tSendQ.bHighWaterHit = false;
+		__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
+		__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
+		__xnetStreamDetachTls(pStream);
+		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		return;
+	}
+	if ( pStream->pTls && __xnetStreamTlsReady(pStream) && !pStream->bTlsCloseQueued ) {
+		pStream->bTlsCloseQueued = true;
+		if ( xrtNetTlsSessionQueueClose(pStream->pTls) == XRT_NET_OK ) {
+			if ( !__xnetStreamQueueTlsCipher(pStream) ) {
+				__xnetStreamFinalizeSocketClose(pStream);
+				__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
+				__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
+				__xnetStreamDetachTls(pStream);
+				__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+				return;
+			}
+		}
+	}
+	if ( pStream->tSendQ.iQueuedBytes == 0 ) {
+		__xnetStreamFinalizeSocketClose(pStream);
+		__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
+		__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
+		__xnetStreamDetachTls(pStream);
+		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		return;
+	}
+	__xnetStreamKickWrite(pStream);
+}
+static xnet_result xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	if ( !pStream || !pStream->pEngine || !pStream->pEngine->bRunning || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	if ( pStream->bClosing || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return XRT_NET_CLOSED;
+	if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) return XRT_NET_AGAIN;
+	if ( __xnetSocketIsValid(pStream->hSocket) ) {
+		if ( __xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+			if ( pStream->pTls ) {
+				return __xnetStreamAppendTlsPlainCopy(pStream, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
+			}
+			if ( !__xnetStreamAppendSendCopy(pStream, pData, iLen) ) return XRT_NET_ERROR;
+			__xnetStreamKickWrite(pStream);
+			return XRT_NET_OK;
+		}
+		return __xnetStreamPostSendCopy(pStream, pData, iLen);
+	}
+	if ( pStream->pTls ) {
+		return __xnetStreamAppendTlsPlainCopy(pStream, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
+	}
+	return __xnetStreamAppendSendCopy(pStream, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
+}
+static xnet_result xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount)
+{
+	if ( !pStream || !pStream->pEngine || !pStream->pEngine->bRunning || !pVec || iCount == 0 ) return XRT_NET_ERROR;
+	if ( pStream->bClosing || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return XRT_NET_CLOSED;
+	if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) return XRT_NET_AGAIN;
+	if ( __xnetSocketIsValid(pStream->hSocket) ) {
+		if ( __xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+			if ( pStream->pTls ) {
+				return __xnetStreamAppendTlsPlainVec(pStream, pVec, iCount) ? XRT_NET_OK : XRT_NET_ERROR;
+			}
+			if ( !__xnetStreamAppendSendVec(pStream, pVec, iCount) ) return XRT_NET_ERROR;
+			__xnetStreamKickWrite(pStream);
+			return XRT_NET_OK;
+		}
+		return __xnetStreamPostSendVec(pStream, pVec, iCount);
+	}
+	if ( pStream->pTls ) {
+		return __xnetStreamAppendTlsPlainVec(pStream, pVec, iCount) ? XRT_NET_OK : XRT_NET_ERROR;
+	}
+	return __xnetStreamAppendSendVec(pStream, pVec, iCount) ? XRT_NET_OK : XRT_NET_ERROR;
+}
+static xnet_result xrtNetStreamSendRef(xnetstream* pStream, const xnetbufref* pRef)
+{
+	if ( !pStream || !pStream->pEngine || !pStream->pEngine->bRunning || !pRef ) return XRT_NET_ERROR;
+	if ( pStream->bClosing || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return XRT_NET_CLOSED;
+	if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) return XRT_NET_AGAIN;
+	if ( __xnetSocketIsValid(pStream->hSocket) ) {
+		if ( __xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+			if ( pStream->pTls ) {
+				return __xnetStreamAppendTlsPlainRef(pStream, pRef) ? XRT_NET_OK : XRT_NET_ERROR;
+			}
+			if ( !__xnetStreamAppendSendRef(pStream, pRef) ) return XRT_NET_ERROR;
+			__xnetStreamKickWrite(pStream);
+			return XRT_NET_OK;
+		}
+		return __xnetStreamPostSendRef(pStream, pRef);
+	}
+	if ( pStream->pTls ) {
+		return __xnetStreamAppendTlsPlainRef(pStream, pRef) ? XRT_NET_OK : XRT_NET_ERROR;
+	}
+	return __xnetStreamAppendSendRef(pStream, pRef) ? XRT_NET_OK : XRT_NET_ERROR;
+}
+static void xrtNetStreamPauseRead(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	pStream->bReadPaused = true;
+}
+static void xrtNetStreamResumeRead(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	pStream->bReadPaused = false;
+	if ( xrtNetChainBytes(&pStream->tRxChain) > 0 ) {
+		if ( __xnetStreamPostRecvDispatch(pStream) != XRT_NET_OK ) {
+			__xnetStreamDispatchRecv(pStream);
+		}
+		return;
+	}
+	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+		if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+			(void)__xnetStreamPostSocketRecvPump(pStream);
+		} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+			(void)__xnetStreamDriveTlsHandshake(pStream);
+		} else {
+			(void)__xnetStreamSocketPumpRecv(pStream);
+		}
+	}
+}
+static size_t xrtNetStreamPendingSend(const xnetstream* pStream)
+{
+	return pStream ? pStream->tSendQ.iQueuedBytes : 0;
+}
+static const xnetaddr* xrtNetStreamLocalAddr(const xnetstream* pStream)
+{
+	return pStream ? &pStream->tLocalAddr : NULL;
+}
+static const xnetaddr* xrtNetStreamRemoteAddr(const xnetstream* pStream)
+{
+	return pStream ? &pStream->tRemoteAddr : NULL;
+}
+static void xrtNetStreamSetUserData(xnetstream* pStream, ptr pData)
+{
+	if ( !pStream ) return;
+	pStream->pUserData = pData;
+}
+static ptr xrtNetStreamGetUserData(xnetstream* pStream)
+{
+	return pStream ? pStream->pUserData : NULL;
+}
+static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount)
+{
+	(void)pWorker;
+	if ( !pEvents || iCount == 0 ) return;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		const xnetportevent* pEvent = &pEvents[i];
+		if ( pEvent->iType == XNET_PORT_EVENT_ACCEPT && pEvent->iOpId != 0 ) {
+			xnetlistener* pListener = (xnetlistener*)pEvent->pUserData;
+			if ( pListener && pListener->iAcceptOpId == pEvent->iOpId ) {
+				__xnetListenerHandleAcceptEvent(pListener);
+			}
+		} else if ( pEvent->iType == XNET_PORT_EVENT_CONNECT || pEvent->iType == XNET_PORT_EVENT_ACCEPT ) {
+			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
+			if ( pStream && pStream->pTls ) {
+				(void)__xnetStreamDriveTlsHandshake(pStream);
+			} else {
+				__xnetStreamEmitOpen(pStream);
+				(void)__xnetStreamArmRecvWatch(pStream);
+			}
+		} else if ( pEvent->iType == XNET_PORT_EVENT_SEND ) {
+			__xnetStreamHandleSendEvent((xnetstream*)pEvent->pUserData, pEvent);
+		} else if ( pEvent->iType == XNET_PORT_EVENT_RECV ) {
+			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
+			if ( pEvent->pChain ) {
+				__xnetStreamHandleRecvEvent(pStream, pEvent->pChain);
+			} else if ( pStream ) {
+				pStream->bRecvArmed = false;
+				if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+					(void)__xnetStreamDriveTlsHandshake(pStream);
+				} else if ( pStream->bReadPaused ) {
+					/* Real pause/read backpressure: leave bytes in the socket until resume. */
+				} else {
+					(void)__xnetStreamSocketPumpRecv(pStream);
+				}
+			}
+		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {
+			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
+			if ( pStream && pStream->pEvents && pStream->pEvents->OnError ) {
+				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+			}
+		}
+	}
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_dgram.h
+// ========================================
+
+#ifndef XRT_XNET_DGRAM_H
+#define XRT_XNET_DGRAM_H
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_engine.h)
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <errno.h>
+	#include <fcntl.h>
+	#include <unistd.h>
+#endif
+typedef struct {
+	void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
+	void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
+} xnetdgramevents;
+#define __XNET_DGRAM_ASYNC_SEND_COPY  1u
+typedef struct {
+	xdgramsock* pSock;
+	xnetaddr tTo;
+	uint32 iType;
+	uint32 iLen;
+	uint8 aData[1];
+} __xnet_dgram_async_op;
+typedef struct xrt_net_dgram_packet {
+	xnetaddr tFrom;
+	xnetchain tChain;
+} xnetdgrampkt;
+typedef void (*__xnet_dgram_sync_wait_fn)(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket, ptr pCtx);
+typedef struct {
+	__xnet_dgram_sync_wait_fn pfnWait;
+	ptr pCtx;
+} __xnet_dgram_wait_slot;
+struct xrt_net_dgram {
+	uint64 iId;
+	xnetengine* pEngine;
+	xnetworker* pWorker;
+	const xnetdgramevents* pEvents;
+	xsocket hSocket;
+	xnetaddr tLocalAddr;
+	ptr pUserData;
+	uint32 iFlags;
+	uint32 iRecvBatch;
+	uint32 iSendQueueLimit;
+	volatile long iAsyncHoldCount;
+	bool bRunning;
+	bool bRecvArmed;
+	__xnet_dgram_wait_slot tRecvWait;
+};
+static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
+static bool __xnetDgramSocketIsValid(xsocket hSocket);
+static xnetworker* __xnetDgramPickWorker(xnetengine* pEngine, const xnetdgramconfig* pCfg)
+{
+	uint32 iIndex = 0;
+	if ( !pEngine || pEngine->iWorkerCount == 0 ) return NULL;
+	if ( pCfg && pCfg->tBindAddr.iPort > 0 ) {
+		iIndex = pCfg->tBindAddr.iPort % pEngine->iWorkerCount;
+	}
+	return &pEngine->arrWorkers[iIndex];
+}
+static void __xnetDgramBindEngine(xnetengine* pEngine)
+{
+	if ( !pEngine ) return;
+	if ( !pEngine->pfnOnPortEvent || pEngine->pfnOnPortEvent == __xnetDgramOnPortEvents ) {
+		pEngine->pfnOnPortEvent = __xnetDgramOnPortEvents;
+		return;
+	}
+	if ( !pEngine->pfnOnPortEvent2 || pEngine->pfnOnPortEvent2 == __xnetDgramOnPortEvents ) {
+		pEngine->pfnOnPortEvent2 = __xnetDgramOnPortEvents;
+	}
+}
+static ptr __xnetDgramOwner(xdgramsock* pSock)
+{
+	return pSock ? pSock->pUserData : NULL;
+}
+static void __xnetDgramSetError(const char* sError)
+{
+	#if defined(XXRTL_CORE)
+		xrtSetError((str)sError, FALSE);
+	#else
+		(void)sError;
+	#endif
+}
+static void __xnetDgramAddAsyncHold(xdgramsock* pSock)
+{
+	if ( !pSock ) return;
+	(void)__xnetAtomicAddFetch32(&pSock->iAsyncHoldCount, 1);
+}
+static void __xnetDgramReleaseAsyncHold(xdgramsock* pSock)
+{
+	if ( !pSock ) return;
+	(void)__xnetAtomicAddFetch32(&pSock->iAsyncHoldCount, -1);
+}
+static xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* pData, size_t iLen)
+{
+	xnetdgrampkt* pPacket;
+	if ( !pFrom || (!pData && iLen > 0) ) return NULL;
+	pPacket = (xnetdgrampkt*)XNET_ALLOC(sizeof(xnetdgrampkt));
+	if ( !pPacket ) return NULL;
+	memset(pPacket, 0, sizeof(xnetdgrampkt));
+	pPacket->tFrom = *pFrom;
+	xrtNetChainInit(&pPacket->tChain);
+	if ( iLen > 0 && !xrtNetChainAppendCopy(&pPacket->tChain, pData, iLen) ) {
+		xrtNetChainClear(&pPacket->tChain);
+		XNET_FREE(pPacket);
+		return NULL;
+	}
+	return pPacket;
+}
+static void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket)
+{
+	if ( !pPacket ) return;
+	xrtNetChainClear(&pPacket->tChain);
+	XNET_FREE(pPacket);
+}
+static const xnetaddr* xrtNetDgramPacketFrom(const xnetdgrampkt* pPacket)
+{
+	return pPacket ? &pPacket->tFrom : NULL;
+}
+static size_t xrtNetDgramPacketBytes(const xnetdgrampkt* pPacket)
+{
+	return pPacket ? xrtNetChainBytes(&pPacket->tChain) : 0;
+}
+static size_t xrtNetDgramPacketPeek(const xnetdgrampkt* pPacket, ptr pOut, size_t iLen)
+{
+	return pPacket ? xrtNetChainPeek(&pPacket->tChain, pOut, iLen) : 0;
+}
+static void __xnetDgramNotifySyncRecv(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket)
+{
+	__xnet_dgram_wait_slot* pSlot = NULL;
+	__xnet_dgram_sync_wait_fn pfnWait = NULL;
+	ptr pCtx = NULL;
+	if ( !pSock ) {
+		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		return;
+	}
+	pSlot = &pSock->tRecvWait;
+	if ( pSlot->pfnWait == NULL ) {
+		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		return;
+	}
+	pfnWait = pSlot->pfnWait;
+	pCtx = pSlot->pCtx;
+	pSlot->pfnWait = NULL;
+	pSlot->pCtx = NULL;
+	pfnWait(pSock, iStatus, pPacket, pCtx);
+}
+static bool __xnetDgramRegisterSyncRecvWait(xdgramsock* pSock, __xnet_dgram_sync_wait_fn pfnWait, ptr pCtx)
+{
+	if ( !pSock || !pfnWait ) return false;
+	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) return false;
+	if ( pSock->tRecvWait.pfnWait != NULL ) return false;
+	if ( pSock->pEvents && pSock->pEvents->OnRecv ) return false;
+	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) {
+		pfnWait(pSock, XRT_NET_CLOSED, NULL, pCtx);
+		return true;
+	}
+	pSock->tRecvWait.pfnWait = pfnWait;
+	pSock->tRecvWait.pCtx = pCtx;
+	return true;
+}
+static bool __xnetDgramCancelSyncRecvWait(xdgramsock* pSock, ptr pCtx)
+{
+	if ( !pSock ) return false;
+	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) return false;
+	if ( pSock->tRecvWait.pfnWait == NULL || pSock->tRecvWait.pCtx != pCtx ) return false;
+	pSock->tRecvWait.pfnWait = NULL;
+	pSock->tRecvWait.pCtx = NULL;
+	return true;
+}
+static int __xnetDgramSocketLastErr(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return WSAGetLastError();
+	#else
+		return errno;
+	#endif
+}
+static bool __xnetDgramSocketWouldBlock(int iErr)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return iErr == WSAEWOULDBLOCK || iErr == WSAEINPROGRESS || iErr == WSAEALREADY;
+	#else
+		return iErr == EINPROGRESS || iErr == EWOULDBLOCK || iErr == EAGAIN || iErr == EALREADY;
+	#endif
+}
+static bool __xnetDgramSocketIsValid(xsocket hSocket)
+{
+	return hSocket != XNET_SOCKET_INVALID;
+}
+static void __xnetDgramSocketCloseHandle(xsocket* phSocket)
+{
+	if ( !phSocket || !__xnetDgramSocketIsValid(*phSocket) ) return;
+	#if defined(_WIN32) || defined(_WIN64)
+		closesocket(*phSocket);
+	#else
+		close(*phSocket);
+	#endif
+	*phSocket = XNET_SOCKET_INVALID;
+}
+static bool __xnetDgramSocketSetNonBlock(xsocket hSocket, bool bEnable)
+{
+	if ( !__xnetDgramSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		u_long iMode = bEnable ? 1u : 0u;
+		return ioctlsocket(hSocket, FIONBIO, &iMode) == 0;
+	#else
+		int iFlags = fcntl(hSocket, F_GETFL, 0);
+		if ( iFlags < 0 ) return false;
+		if ( bEnable ) {
+			iFlags |= O_NONBLOCK;
+		} else {
+			iFlags &= ~O_NONBLOCK;
+		}
+		return fcntl(hSocket, F_SETFL, iFlags) == 0;
+	#endif
+}
+static bool __xnetDgramSocketSetReuseAddr(xsocket hSocket)
+{
+	int iOpt = 1;
+	if ( !__xnetDgramSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		return setsockopt(hSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&iOpt, sizeof(iOpt)) == 0;
+	#else
+		return setsockopt(hSocket, SOL_SOCKET, SO_REUSEADDR, &iOpt, sizeof(iOpt)) == 0;
+	#endif
+}
+static bool __xnetDgramSocketSetReusePort(xsocket hSocket)
+{
+	#if defined(SO_REUSEPORT)
+		int iOpt = 1;
+		if ( !__xnetDgramSocketIsValid(hSocket) ) return false;
+		#if defined(_WIN32) || defined(_WIN64)
+			return setsockopt(hSocket, SOL_SOCKET, SO_REUSEPORT, (const char*)&iOpt, sizeof(iOpt)) == 0;
+		#else
+			return setsockopt(hSocket, SOL_SOCKET, SO_REUSEPORT, &iOpt, sizeof(iOpt)) == 0;
+		#endif
+	#else
+		(void)hSocket;
+		return false;
+	#endif
+}
+static bool __xnetDgramSocketUpdateLocalAddr(xsocket hSocket, xnetaddr* pAddr)
+{
+	struct sockaddr_storage tStorage;
+	socklen_t iLen = (socklen_t)sizeof(tStorage);
+	if ( !__xnetDgramSocketIsValid(hSocket) || !pAddr ) return false;
+	memset(&tStorage, 0, sizeof(tStorage));
+	if ( getsockname(hSocket, (struct sockaddr*)&tStorage, &iLen) != 0 ) return false;
+	return __xnetAddrFromSockAddr(pAddr, (const struct sockaddr*)&tStorage);
+}
+static void __xnetDgramApplyBindFlags(xsocket hSocket, uint32 iFlags)
+{
+	if ( !__xnetDgramSocketIsValid(hSocket) ) return;
+	if ( (iFlags & XNET_DGRAM_F_REUSE_ADDR) != 0 ) {
+		(void)__xnetDgramSocketSetReuseAddr(hSocket);
+	}
+	if ( (iFlags & XNET_DGRAM_F_REUSE_PORT) != 0 ) {
+		(void)__xnetDgramSocketSetReusePort(hSocket);
+	}
+}
+static xnetchain* __xnetDgramAllocTempChain(xdgramsock* pSock)
+{
+	xnetchain* pChain;
+	xnetmemctx* pMemCtx;
+	if ( !pSock || !pSock->pWorker ) return NULL;
+	pChain = (xnetchain*)XNET_ALLOC(sizeof(xnetchain));
+	if ( !pChain ) return NULL;
+	pMemCtx = &pSock->pWorker->tMemCtx;
+	xrtNetChainInitEx(pChain, pMemCtx);
+	return pChain;
+}
+static void __xnetDgramFreeTempChain(xnetchain* pChain)
+{
+	if ( !pChain ) return;
+	xrtNetChainClear(pChain);
+	XNET_FREE(pChain);
+}
+static bool __xnetDgramSubmitSocketNotice(xdgramsock* pSock, uint16 iOpType, xsocket hSocket)
+{
+	xnetportsubmit tSubmit;
+	if ( !pSock || !pSock->pWorker || !__xnetDgramSocketIsValid(hSocket) ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	tSubmit.iOpType = iOpType;
+	tSubmit.iOpId = pSock->iId;
+	tSubmit.hSocket = (intptr_t)hSocket;
+	tSubmit.pUserData = pSock;
+	return xrtNetPortSubmit(&pSock->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+}
+static bool __xnetDgramArmRecvWatch(xdgramsock* pSock)
+{
+	if ( !pSock || !pSock->bRunning || pSock->bRecvArmed || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
+	if ( !__xnetDgramSubmitSocketNotice(pSock, XNET_PORT_OP_RECVFROM, pSock->hSocket) ) return false;
+	pSock->bRecvArmed = true;
+	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) {
+		(void)xrtNetPortWake(&pSock->pWorker->tPort);
+	}
+	return true;
+}
+static void __xnetDgramFinalizeSocketClose(xdgramsock* pSock)
+{
+	xsocket hSocket;
+	if ( !pSock ) return;
+	hSocket = pSock->hSocket;
+	pSock->bRecvArmed = false;
+	if ( __xnetDgramSocketIsValid(hSocket) ) {
+		(void)__xnetDgramSubmitSocketNotice(pSock, XNET_PORT_OP_CLOSE, hSocket);
+		__xnetDgramSocketCloseHandle(&pSock->hSocket);
+	}
+}
+static bool __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, const void* pData, size_t iLen)
+{
+	xnetchain* pChain;
+	xnetdgrampkt* pPacket = NULL;
+	if ( !pSock || !pFrom ) return false;
+	if ( pSock->tRecvWait.pfnWait != NULL ) {
+		pPacket = xrtNetDgramPacketCreate(pFrom, pData, iLen);
+		if ( !pPacket ) {
+			__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
+			if ( pSock->pEvents && pSock->pEvents->OnError ) {
+				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+			return false;
+		}
+		__xnetDgramNotifySyncRecv(pSock, XRT_NET_OK, pPacket);
+		return true;
+	}
+	pChain = __xnetDgramAllocTempChain(pSock);
+	if ( !pChain ) return false;
+	if ( iLen > 0 && (!pData || !xrtNetChainAppendCopy(pChain, pData, iLen)) ) {
+		__xnetDgramFreeTempChain(pChain);
+		return false;
+	}
+	if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
+		pSock->pEvents->OnRecv(__xnetDgramOwner(pSock), pSock, pFrom, pChain);
+	}
+	__xnetDgramFreeTempChain(pChain);
+	return true;
+}
+static bool __xnetDgramSocketPumpRecv(xdgramsock* pSock)
+{
+	char aBuf[8192];
+	uint32 iPackets = 0;
+	bool bReadAny = false;
+	if ( !pSock || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
+	for ( ;; ) {
+		struct sockaddr_storage tStorage;
+		socklen_t iAddrLen = (socklen_t)sizeof(tStorage);
+		xnetaddr tFrom;
+		int iRecv;
+		memset(&tStorage, 0, sizeof(tStorage));
+		memset(&tFrom, 0, sizeof(tFrom));
+		iRecv = recvfrom(pSock->hSocket, aBuf, sizeof(aBuf), 0, (struct sockaddr*)&tStorage, &iAddrLen);
+		if ( iRecv >= 0 ) {
+			bReadAny = true;
+			(void)__xnetAddrFromSockAddr(&tFrom, (const struct sockaddr*)&tStorage);
+			if ( !__xnetDgramDispatchPacket(pSock, &tFrom, aBuf, (size_t)iRecv) ) {
+				return bReadAny;
+			}
+			iPackets++;
+			if ( pSock->iRecvBatch > 0 && iPackets >= pSock->iRecvBatch ) break;
+			continue;
+		}
+		{
+			int iErr = __xnetDgramSocketLastErr();
+			if ( __xnetDgramSocketWouldBlock(iErr) ) break;
+			if ( pSock->tRecvWait.pfnWait != NULL ) {
+				__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
+			}
+			if ( pSock->pEvents && pSock->pEvents->OnError ) {
+				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, iErr);
+			}
+			break;
+		}
+	}
+	if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) ) {
+		(void)__xnetDgramArmRecvWatch(pSock);
+	}
+	return bReadAny;
+}
+static xnet_result __xnetDgramSocketSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
+{
+	struct sockaddr_storage tStorage;
+	socklen_t iAddrLen = 0;
+	int iSent;
+	if ( !pSock || !pTo || !__xnetDgramSocketIsValid(pSock->hSocket) || (!pData && iLen > 0) ) return XRT_NET_ERROR;
+	if ( !__xnetAddrToSockAddr(pTo, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+	iSent = sendto(pSock->hSocket, (const char*)pData, (int)iLen, 0, (const struct sockaddr*)&tStorage, iAddrLen);
+	if ( iSent >= 0 ) return XRT_NET_OK;
+	if ( pSock->pEvents && pSock->pEvents->OnError ) {
+		pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, __xnetDgramSocketLastErr());
+	}
+	return XRT_NET_ERROR;
+}
+static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_dgram_async_op* pOp = (__xnet_dgram_async_op*)pArg;
+	xdgramsock* pSock = pOp ? pOp->pSock : NULL;
+	(void)pWorker;
+	if ( !pOp || !pSock ) {
+		if ( pOp ) XNET_FREE(pOp);
+		return;
+	}
+	if ( pOp->iType == __XNET_DGRAM_ASYNC_SEND_COPY ) {
+		(void)__xnetDgramSocketSendTo(pSock, &pOp->tTo, pOp->aData, pOp->iLen);
+	}
+	XNET_FREE(pOp);
+}
+static __xnet_dgram_async_op* __xnetDgramAllocAsyncCopy(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
+{
+	__xnet_dgram_async_op* pOp;
+	size_t iSize;
+	if ( !pSock || !pTo || (!pData && iLen > 0) || iLen > UINT32_MAX ) return NULL;
+	iSize = sizeof(__xnet_dgram_async_op) + iLen;
+	pOp = (__xnet_dgram_async_op*)XNET_ALLOC(iSize);
+	if ( !pOp ) return NULL;
+	memset(pOp, 0, iSize);
+	pOp->pSock = pSock;
+	pOp->tTo = *pTo;
+	pOp->iType = __XNET_DGRAM_ASYNC_SEND_COPY;
+	pOp->iLen = (uint32)iLen;
+	if ( iLen > 0 ) memcpy(pOp->aData, pData, iLen);
+	return pOp;
+}
+static __xnet_dgram_async_op* __xnetDgramAllocAsyncVecCopy(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount)
+{
+	__xnet_dgram_async_op* pOp;
+	size_t iTotal = 0;
+	size_t iOffset = 0;
+	size_t iSize;
+	if ( !pSock || !pTo || !pVec || iCount == 0 ) return NULL;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		if ( !pVec[i].pData || pVec[i].iLen == 0 ) return NULL;
+		iTotal += pVec[i].iLen;
+		if ( iTotal > UINT32_MAX ) return NULL;
+	}
+	iSize = sizeof(__xnet_dgram_async_op) + iTotal;
+	pOp = (__xnet_dgram_async_op*)XNET_ALLOC(iSize);
+	if ( !pOp ) return NULL;
+	memset(pOp, 0, iSize);
+	pOp->pSock = pSock;
+	pOp->tTo = *pTo;
+	pOp->iType = __XNET_DGRAM_ASYNC_SEND_COPY;
+	pOp->iLen = (uint32)iTotal;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		memcpy(pOp->aData + iOffset, pVec[i].pData, pVec[i].iLen);
+		iOffset += pVec[i].iLen;
+	}
+	return pOp;
+}
+static xnet_result __xnetDgramPostAsync(xdgramsock* pSock, __xnet_dgram_async_op* pOp)
+{
+	if ( !pSock || !pOp || !pSock->pEngine || !pSock->pWorker ) {
+		if ( pOp ) XNET_FREE(pOp);
+		return XRT_NET_ERROR;
+	}
+	if ( xrtNetEnginePost(pSock->pEngine, pSock->pWorker->iId, __xnetDgramAsyncTask, pOp) != XRT_NET_OK ) {
+		XNET_FREE(pOp);
+		return XRT_NET_ERROR;
+	}
+	return XRT_NET_OK;
+}
+static xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* pCfg, const xnetdgramevents* pEvents, ptr pUserData)
+{
+	xdgramsock* pSock;
+	xnetworker* pWorker;
+	if ( !pEngine ) return NULL;
+	__xnetDgramBindEngine(pEngine);
+	pSock = (xdgramsock*)XNET_ALLOC(sizeof(xdgramsock));
+	if ( !pSock ) return NULL;
+	memset(pSock, 0, sizeof(xdgramsock));
+	pWorker = __xnetDgramPickWorker(pEngine, pCfg);
+	pSock->iId = pEngine->iNextStreamId++;
+	pSock->pEngine = pEngine;
+	pSock->pWorker = pWorker;
+	pSock->pEvents = pEvents;
+	pSock->pUserData = pUserData;
+	pSock->hSocket = XNET_SOCKET_INVALID;
+	if ( pCfg ) {
+		pSock->tLocalAddr = pCfg->tBindAddr;
+		pSock->iFlags = pCfg->iFlags;
+		pSock->iRecvBatch = pCfg->iRecvBatch;
+		pSock->iSendQueueLimit = pCfg->iSendQueueLimit;
+	} else {
+		xnetdgramconfig tCfg;
+		xrtNetDgramConfigInit(&tCfg);
+		pSock->tLocalAddr = tCfg.tBindAddr;
+		pSock->iFlags = tCfg.iFlags;
+		pSock->iRecvBatch = tCfg.iRecvBatch;
+		pSock->iSendQueueLimit = tCfg.iSendQueueLimit;
+	}
+	return pSock;
+}
+static void xrtNetDgramDestroy(xdgramsock* pSock)
+{
+	if ( !pSock ) return;
+	if ( __xnetAtomicLoad32(&pSock->iAsyncHoldCount) != 0 ) {
+		__xnetDgramSetError("cannot destroy datagram socket while an async waiter or task still holds it.");
+		return;
+	}
+	__xnetDgramNotifySyncRecv(pSock, XRT_NET_CLOSED, NULL);
+	__xnetDgramFinalizeSocketClose(pSock);
+	XNET_FREE(pSock);
+}
+static xnet_result xrtNetDgramStart(xdgramsock* pSock)
+{
+	struct sockaddr_storage tStorage;
+	socklen_t iAddrLen = 0;
+	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning ) return XRT_NET_ERROR;
+	if ( pSock->bRunning ) return XRT_NET_OK;
+	if ( !__xnetAddrToSockAddr(&pSock->tLocalAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+	pSock->hSocket = socket(pSock->tLocalAddr.iFamily, SOCK_DGRAM, IPPROTO_UDP);
+	if ( !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
+	__xnetDgramApplyBindFlags(pSock->hSocket, pSock->iFlags);
+	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, true);
+	if ( bind(pSock->hSocket, (struct sockaddr*)&tStorage, iAddrLen) != 0 ) {
+		if ( pSock->pEvents && pSock->pEvents->OnError ) {
+			pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, __xnetDgramSocketLastErr());
+		}
+		__xnetDgramFinalizeSocketClose(pSock);
+		return XRT_NET_ERROR;
+	}
+	(void)__xnetDgramSocketUpdateLocalAddr(pSock->hSocket, &pSock->tLocalAddr);
+	pSock->bRunning = true;
+	(void)__xnetDgramArmRecvWatch(pSock);
+	return XRT_NET_OK;
+}
+static void xrtNetDgramStop(xdgramsock* pSock)
+{
+	if ( !pSock ) return;
+	if ( __xnetAtomicLoad32(&pSock->iAsyncHoldCount) != 0 ) {
+		__xnetDgramSetError("cannot stop datagram socket while an async waiter or task still holds it.");
+		return;
+	}
+	pSock->bRunning = false;
+	__xnetDgramNotifySyncRecv(pSock, XRT_NET_CLOSED, NULL);
+	__xnetDgramFinalizeSocketClose(pSock);
+}
+static xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
+{
+	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || (!pData && iLen > 0) ) return XRT_NET_ERROR;
+	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
+	return __xnetDgramPostAsync(pSock, __xnetDgramAllocAsyncCopy(pSock, pTo, pData, iLen));
+}
+static xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount)
+{
+	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || !pVec || iCount == 0 ) return XRT_NET_ERROR;
+	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
+	return __xnetDgramPostAsync(pSock, __xnetDgramAllocAsyncVecCopy(pSock, pTo, pVec, iCount));
+}
+static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount)
+{
+	(void)pWorker;
+	if ( !pEvents || iCount == 0 ) return;
+	for ( uint32 i = 0; i < iCount; ++i ) {
+		const xnetportevent* pEvent = &pEvents[i];
+		if ( pEvent->iType == XNET_PORT_EVENT_RECVFROM ) {
+			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
+			if ( pSock ) {
+				pSock->bRecvArmed = false;
+				(void)__xnetDgramSocketPumpRecv(pSock);
+			}
+		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {
+			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
+			if ( pSock ) {
+				__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
+			}
+			if ( pSock && pSock->pEvents && pSock->pEvents->OnError ) {
+				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+		}
+	}
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xnet_sync.h
+// ========================================
+
+#ifndef XRT_XNET_SYNC_H
+#define XRT_XNET_SYNC_H
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_stream.h)
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_dgram.h)
+#if defined(_WIN32) || defined(_WIN64)
+	#include <windows.h>
+#else
+	#include <errno.h>
+	#include <pthread.h>
+	#include <time.h>
+	#include <unistd.h>
+#endif
+/*
+    XNet V2 - Sync Core
+    Phase-1 scope in this header:
+      - future object and timed wait semantics
+      - hidden convenience engine for sync facades
+    Still pending:
+      - protocol-specific sync facades built on top of futures
+*/
+/* ============================== Local sync primitives ============================== */
+#define XNET_WAIT_INFINITE UINT32_C(0xffffffff)
+#if defined(_WIN32) || defined(_WIN64)
+	typedef CRITICAL_SECTION __xnet_sync_mutex;
+	typedef CONDITION_VARIABLE __xnet_sync_cond;
+#else
+	typedef pthread_mutex_t __xnet_sync_mutex;
+	typedef pthread_cond_t __xnet_sync_cond;
+#endif
+typedef struct {
+	volatile long iLock;
+	xnetengine* pEngine;
+} __xnet_sync_hidden_state;
+typedef bool (*__xnet_future_pending_cancel_fn)(struct xrt_net_future* pFuture);
+typedef void (*__xnet_future_pending_cleanup_fn)(struct xrt_net_future* pFuture);
+struct xrt_net_future {
+	__xnet_sync_mutex hLock;
+	__xnet_sync_cond hCond;
+	volatile bool bDone;
+	xnet_result iStatus;
+	ptr pValue;
+	volatile long iAsyncHoldCount;
+	ptr pPendingCtx;
+	__xnet_future_pending_cancel_fn pfnPendingCancel;
+	__xnet_future_pending_cleanup_fn pfnPendingCleanup;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		xcoevent pCoEvent;
+		volatile long iCoWaitActive;
+	#endif
+};
+typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
+typedef struct {
+	xnetfuture* pFuture;
+	xnet_future_task_fn pfnTask;
+	ptr pArg;
+} __xnet_future_task_ctx;
+typedef struct {
+	uint32 iKind;
+	union {
+		xnetfuture* pFuture;
+		struct {
+			xnetstream* pStream;
+			uint32 iWaitKind;
+		} tStream;
+		xdgramsock* pDgram;
+		xnetlistener* pListener;
+	} u;
+} xnetwaitsrc;
+typedef struct {
+	xnetfuture* pFuture;
+	xnetstream* pStream;
+	uint32 iWaitKind;
+	volatile long iState;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		xcoevent pCancelDoneEvent;
+	#endif
+} __xnet_stream_future_wait_ctx;
+typedef struct {
+	xnetfuture* pFuture;
+	xdgramsock* pSock;
+	volatile long iState;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		xcoevent pCancelDoneEvent;
+	#endif
+} __xnet_dgram_future_wait_ctx;
+typedef struct {
+	xnetfuture* pFuture;
+	xnetlistener* pListener;
+	volatile long iState;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		xcoevent pCancelDoneEvent;
+	#endif
+} __xnet_listener_future_wait_ctx;
+#define __XNET_SYNC_STREAM_WAIT_POSTED            0l
+#define __XNET_SYNC_STREAM_WAIT_REGISTERED        1l
+#define __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED  2l
+#define __XNET_SYNC_STREAM_WAIT_FINISHED          3l
+#define XNET_WAITSRC_NONE   0u
+#define XNET_WAITSRC_FUTURE 1u
+#define XNET_WAITSRC_STREAM 2u
+#define XNET_WAITSRC_DGRAM  3u
+#define XNET_WAITSRC_LISTENER 4u
+typedef struct {
+	__xnet_stream_sync_wait_fn pfnOnReady;
+	const char* sRegisterError;
+} __xnet_stream_wait_ops;
+static const __xnet_stream_wait_ops* __xnetSyncGetStreamWaitOps(uint32 iWaitKind);
+/* ============================== Local platform helpers ============================== */
+static void __xnetSyncSleepMs(uint32 iDelayMs)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		Sleep(iDelayMs);
+	#else
+		usleep((useconds_t)iDelayMs * 1000u);
+	#endif
+}
+static uint64 __xnetSyncNowMs(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetTickCount64();
+	#else
+		struct timespec tNow;
+		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) return 0;
+		return ((uint64)tNow.tv_sec * 1000ULL) + ((uint64)tNow.tv_nsec / 1000000ULL);
+	#endif
+}
+static long __xnetSyncAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
+{
+	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
+}
+static void __xnetSyncAtomicStore(volatile long* pValue, long iValue)
+{
+	(void)__xnetAtomicExchange32(pValue, iValue);
+}
+static void __xnetSyncSpinLock(volatile long* pLock)
+{
+	while ( __xnetSyncAtomicCompareExchange(pLock, 1, 0) != 0 ) {
+		__xnetSyncSleepMs(1);
+	}
+}
+static void __xnetSyncSpinUnlock(volatile long* pLock)
+{
+	__xnetSyncAtomicStore(pLock, 0);
+}
+static void __xnetSyncSetError(const char* sError)
+{
+	#if defined(XXRTL_CORE)
+		xrtSetError((str)sError, FALSE);
+	#else
+		(void)sError;
+	#endif
+}
+static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		InitializeCriticalSection(&pFuture->hLock);
+		InitializeConditionVariable(&pFuture->hCond);
+		return true;
+	#else
+		if ( pthread_mutex_init(&pFuture->hLock, NULL) != 0 ) return false;
+		if ( pthread_cond_init(&pFuture->hCond, NULL) != 0 ) {
+			pthread_mutex_destroy(&pFuture->hLock);
+			return false;
+		}
+		return true;
+	#endif
+}
+static void __xnetFuturePrimitiveUnit(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return;
+	#if defined(_WIN32) || defined(_WIN64)
+		DeleteCriticalSection(&pFuture->hLock);
+	#else
+		pthread_cond_destroy(&pFuture->hCond);
+		pthread_mutex_destroy(&pFuture->hLock);
+	#endif
+}
+static void __xnetFutureLock(xnetfuture* pFuture)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		EnterCriticalSection(&pFuture->hLock);
+	#else
+		pthread_mutex_lock(&pFuture->hLock);
+	#endif
+}
+static void __xnetFutureUnlock(xnetfuture* pFuture)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		LeaveCriticalSection(&pFuture->hLock);
+	#else
+		pthread_mutex_unlock(&pFuture->hLock);
+	#endif
+}
+static void __xnetFutureWakeAll(xnetfuture* pFuture)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		WakeAllConditionVariable(&pFuture->hCond);
+	#else
+		pthread_cond_broadcast(&pFuture->hCond);
+	#endif
+}
+static bool __xnetFutureWaitOnce(xnetfuture* pFuture, uint32 iTimeoutMs)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
+			return SleepConditionVariableCS(&pFuture->hCond, &pFuture->hLock, INFINITE) != 0;
+		}
+		return SleepConditionVariableCS(&pFuture->hCond, &pFuture->hLock, iTimeoutMs) != 0;
+	#else
+		if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
+			return pthread_cond_wait(&pFuture->hCond, &pFuture->hLock) == 0;
+		} else {
+			struct timespec tNow;
+			struct timespec tAbs;
+			uint64 iNs;
+			if ( clock_gettime(CLOCK_REALTIME, &tNow) != 0 ) return false;
+			iNs = (uint64)tNow.tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
+			tAbs.tv_sec = tNow.tv_sec + (time_t)(iNs / 1000000000ULL);
+			tAbs.tv_nsec = (long)(iNs % 1000000000ULL);
+			return pthread_cond_timedwait(&pFuture->hCond, &pFuture->hLock, &tAbs) == 0;
+		}
+	#endif
+}
+static bool __xnetFutureInit(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return false;
+	memset(pFuture, 0, sizeof(xnetfuture));
+	if ( !__xnetFuturePrimitiveInit(pFuture) ) return false;
+	pFuture->bDone = false;
+	pFuture->iStatus = XRT_NET_AGAIN;
+	pFuture->pValue = NULL;
+	pFuture->iAsyncHoldCount = 0;
+	return true;
+}
+static void __xnetFutureAddAsyncHold(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return;
+	__xnetFutureLock(pFuture);
+	pFuture->iAsyncHoldCount++;
+	__xnetFutureUnlock(pFuture);
+}
+static void __xnetFutureReleaseAsyncHold(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return;
+	__xnetFutureLock(pFuture);
+	if ( pFuture->iAsyncHoldCount > 0 ) {
+		pFuture->iAsyncHoldCount--;
+	}
+	__xnetFutureUnlock(pFuture);
+}
+static void __xnetFutureUnit(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pFuture->pCoEvent ) {
+			xrtCoEventDestroy(pFuture->pCoEvent);
+			pFuture->pCoEvent = NULL;
+		}
+	#endif
+	__xnetFuturePrimitiveUnit(pFuture);
+}
+static void __xnetFutureReset(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return;
+	__xnetFutureLock(pFuture);
+	pFuture->bDone = false;
+	pFuture->iStatus = XRT_NET_AGAIN;
+	pFuture->pValue = NULL;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pFuture->pCoEvent ) {
+			xrtCoEventReset(pFuture->pCoEvent);
+		}
+	#endif
+	__xnetFutureUnlock(pFuture);
+}
+static bool __xnetFutureResolve(xnetfuture* pFuture, xnet_result iStatus, ptr pValue)
+{
+	bool bResolved = false;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		xcoevent pCoEvent = NULL;
+	#endif
+	if ( !pFuture ) return false;
+	__xnetFutureLock(pFuture);
+	if ( !pFuture->bDone ) {
+		pFuture->bDone = true;
+		pFuture->iStatus = iStatus;
+		pFuture->pValue = pValue;
+		bResolved = true;
+		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+			pCoEvent = pFuture->pCoEvent;
+		#endif
+		__xnetFutureWakeAll(pFuture);
+	}
+	__xnetFutureUnlock(pFuture);
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( bResolved && pCoEvent ) {
+			xrtCoEventSet(pCoEvent);
+		}
+	#endif
+	return bResolved;
+}
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static xcoevent __xnetFutureEnsureCoEvent(xnetfuture* pFuture)
+{
+	xcoevent pEvent = NULL;
+	xcoevent pNewEvent = NULL;
+	if ( !pFuture ) return NULL;
+	__xnetFutureLock(pFuture);
+	pEvent = pFuture->pCoEvent;
+	__xnetFutureUnlock(pFuture);
+	if ( pEvent ) return pEvent;
+	pNewEvent = xrtCoEventCreate(TRUE, FALSE);
+	if ( !pNewEvent ) return NULL;
+	__xnetFutureLock(pFuture);
+	if ( pFuture->pCoEvent == NULL ) {
+		pFuture->pCoEvent = pNewEvent;
+		pEvent = pNewEvent;
+		pNewEvent = NULL;
+	} else {
+		pEvent = pFuture->pCoEvent;
+	}
+	__xnetFutureUnlock(pFuture);
+	if ( pNewEvent ) {
+		xrtCoEventDestroy(pNewEvent);
+	}
+	return pEvent;
+}
+#endif
+static __xnet_sync_hidden_state* __xnetSyncHiddenState(void)
+{
+	static __xnet_sync_hidden_state tState;
+	return &tState;
+}
+/* ============================== Public future helpers ============================== */
+static xnetfuture* xrtNetFutureCreate(void)
+{
+	xnetfuture* pFuture = (xnetfuture*)XNET_ALLOC(sizeof(xnetfuture));
+	if ( !pFuture ) return NULL;
+	if ( !__xnetFutureInit(pFuture) ) {
+		XNET_FREE(pFuture);
+		return NULL;
+	}
+	return pFuture;
+}
+static xnetwaitsrc xrtNetWaitSourceNone(void)
+{
+	xnetwaitsrc tSrc;
+	memset(&tSrc, 0, sizeof(tSrc));
+	tSrc.iKind = XNET_WAITSRC_NONE;
+	return tSrc;
+}
+static xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture)
+{
+	xnetwaitsrc tSrc;
+	memset(&tSrc, 0, sizeof(tSrc));
+	tSrc.iKind = XNET_WAITSRC_FUTURE;
+	tSrc.u.pFuture = pFuture;
+	return tSrc;
+}
+static xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind)
+{
+	xnetwaitsrc tSrc;
+	memset(&tSrc, 0, sizeof(tSrc));
+	tSrc.iKind = XNET_WAITSRC_STREAM;
+	tSrc.u.tStream.pStream = pStream;
+	tSrc.u.tStream.iWaitKind = iWaitKind;
+	return tSrc;
+}
+static xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock)
+{
+	xnetwaitsrc tSrc;
+	memset(&tSrc, 0, sizeof(tSrc));
+	tSrc.iKind = XNET_WAITSRC_DGRAM;
+	tSrc.u.pDgram = pSock;
+	return tSrc;
+}
+static xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener)
+{
+	xnetwaitsrc tSrc;
+	memset(&tSrc, 0, sizeof(tSrc));
+	tSrc.iKind = XNET_WAITSRC_LISTENER;
+	tSrc.u.pListener = pListener;
+	return tSrc;
+}
+static bool __xnetFutureDestroyCore(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return true;
+	__xnetFutureLock(pFuture);
+	if ( pFuture->iAsyncHoldCount != 0 ) {
+		__xnetFutureUnlock(pFuture);
+		return false;
+	}
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pFuture->iCoWaitActive != 0 ) {
+			__xnetFutureUnlock(pFuture);
+			return false;
+		}
+	#endif
+	__xnetFutureUnlock(pFuture);
+	if ( pFuture->pfnPendingCleanup ) {
+		pFuture->pfnPendingCleanup(pFuture);
+	}
+	__xnetFutureUnit(pFuture);
+	XNET_FREE(pFuture);
+	return true;
+}
+static void xrtNetFutureDestroy(xnetfuture* pFuture)
+{
+	if ( !pFuture ) return;
+	if ( !__xnetFutureDestroyCore(pFuture) ) {
+		__xnetSyncSetError("cannot destroy future while an async waiter or task still holds it.");
+	}
+}
+static xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
+{
+	xnet_result iStatus;
+	if ( !pFuture ) return XRT_NET_ERROR;
+	__xnetFutureLock(pFuture);
+	if ( !pFuture->bDone ) {
+		if ( iTimeoutMs == 0 ) {
+			__xnetFutureUnlock(pFuture);
+			return XRT_NET_TIMEOUT;
+		}
+		if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
+			while ( !pFuture->bDone ) {
+				(void)__xnetFutureWaitOnce(pFuture, XNET_WAIT_INFINITE);
+			}
+		} else {
+			uint64 iDeadlineMs;
+			#if defined(_WIN32) || defined(_WIN64)
+				iDeadlineMs = GetTickCount64() + (uint64)iTimeoutMs;
+			#else
+				struct timespec tNow;
+				if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) {
+					__xnetFutureUnlock(pFuture);
+					return XRT_NET_ERROR;
+				}
+				iDeadlineMs = ((uint64)tNow.tv_sec * 1000ULL) + ((uint64)tNow.tv_nsec / 1000000ULL) + (uint64)iTimeoutMs;
+			#endif
+			while ( !pFuture->bDone ) {
+				uint32 iWaitMs;
+				uint64 iNowMs;
+				bool bSignaled;
+				#if defined(_WIN32) || defined(_WIN64)
+					iNowMs = GetTickCount64();
+				#else
+					struct timespec tNowLoop;
+					if ( clock_gettime(CLOCK_MONOTONIC, &tNowLoop) != 0 ) {
+						__xnetFutureUnlock(pFuture);
+						return XRT_NET_ERROR;
+					}
+					iNowMs = ((uint64)tNowLoop.tv_sec * 1000ULL) + ((uint64)tNowLoop.tv_nsec / 1000000ULL);
+				#endif
+				if ( iNowMs >= iDeadlineMs ) {
+					__xnetFutureUnlock(pFuture);
+					return XRT_NET_TIMEOUT;
+				}
+				iWaitMs = (uint32)(iDeadlineMs - iNowMs);
+				bSignaled = __xnetFutureWaitOnce(pFuture, iWaitMs);
+				if ( !bSignaled && !pFuture->bDone ) {
+					__xnetFutureUnlock(pFuture);
+					return XRT_NET_TIMEOUT;
+				}
+			}
+		}
+	}
+	iStatus = pFuture->iStatus;
+	__xnetFutureUnlock(pFuture);
+	return iStatus;
+}
+static xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
+{
+	xnet_result iStatus;
+	if ( !pFuture ) return XRT_NET_ERROR;
+	__xnetFutureLock(pFuture);
+	iStatus = pFuture->bDone ? pFuture->iStatus : XRT_NET_AGAIN;
+	__xnetFutureUnlock(pFuture);
+	return iStatus;
+}
+static ptr xrtNetFutureValue(xnetfuture* pFuture)
+{
+	ptr pValue;
+	if ( !pFuture ) return NULL;
+	__xnetFutureLock(pFuture);
+	pValue = pFuture->bDone ? pFuture->pValue : NULL;
+	__xnetFutureUnlock(pFuture);
+	return pValue;
+}
+static xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs)
+{
+	int64_t iNowMs;
+	uint64 iRemainMs;
+	if ( !pFuture ) return XRT_NET_ERROR;
+	iNowMs = (int64_t)__xnetSyncNowMs();
+	if ( iNowMs >= iDeadlineMs ) {
+		return xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN ? XRT_NET_TIMEOUT : xrtNetFutureWait(pFuture, 0);
+	}
+	iRemainMs = (uint64)(iDeadlineMs - iNowMs);
+	if ( iRemainMs > (uint64)XNET_WAIT_INFINITE ) {
+		iRemainMs = (uint64)XNET_WAIT_INFINITE;
+	}
+	return xrtNetFutureWait(pFuture, (uint32)iRemainMs);
+}
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+{
+	xcoevent pEvent = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	bool bWaitOk = false;
+	if ( !pFuture ) return XRT_NET_ERROR;
+	__xnetFutureLock(pFuture);
+	if ( pFuture->bDone ) {
+		iStatus = pFuture->iStatus;
+		__xnetFutureUnlock(pFuture);
+		return iStatus;
+	}
+	__xnetFutureUnlock(pFuture);
+	pEvent = __xnetFutureEnsureCoEvent(pFuture);
+	if ( !pEvent ) {
+		return XRT_NET_ERROR;
+	}
+	__xnetFutureLock(pFuture);
+	if ( pFuture->bDone ) {
+		iStatus = pFuture->iStatus;
+		__xnetFutureUnlock(pFuture);
+		return iStatus;
+	}
+	if ( pFuture->iCoWaitActive != 0 ) {
+		__xnetFutureUnlock(pFuture);
+		__xnetSyncSetError("multiple coroutine waiters on one future are not supported yet.");
+		return XRT_NET_ERROR;
+	}
+	pFuture->iCoWaitActive = 1;
+	__xnetFutureUnlock(pFuture);
+	if ( iWaitMode == 0 ) {
+		bWaitOk = xrtCoWaitEvent(pEvent);
+	}
+	else if ( iWaitMode == 1 ) {
+		bWaitOk = xrtCoWaitEventTimeout(pEvent, iTimeoutMs);
+	}
+	else {
+		bWaitOk = xrtCoWaitEventUntil(pEvent, iDeadlineMs);
+	}
+	__xnetFutureLock(pFuture);
+	pFuture->iCoWaitActive = 0;
+	iStatus = pFuture->bDone ? pFuture->iStatus : XRT_NET_AGAIN;
+	__xnetFutureUnlock(pFuture);
+	if ( !bWaitOk && iStatus == XRT_NET_AGAIN ) {
+		if ( xrtCoIsCancelRequested() ) {
+			__xnetSyncSetError("coroutine future wait was interrupted before resolve.");
+			return XRT_NET_ERROR;
+		}
+		return XRT_NET_TIMEOUT;
+	}
+	return (iStatus == XRT_NET_AGAIN) ? XRT_NET_ERROR : iStatus;
+}
+static xnet_result xrtNetFutureWaitCoUntil(xnetfuture* pFuture, int64 iDeadlineMs)
+{
+	return __xnetFutureWaitCoCore(pFuture, 2, iDeadlineMs, 0);
+}
+static xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeoutMs)
+{
+	if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
+		return __xnetFutureWaitCoCore(pFuture, 0, 0, 0);
+	}
+	return __xnetFutureWaitCoCore(pFuture, 1, 0, iTimeoutMs);
+}
+static xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture)
+{
+	return __xnetFutureWaitCoCore(pFuture, 0, 0, 0);
+}
+#endif
+/* ============================== Hidden convenience engine helpers ============================== */
+static xnetengine* xrtNetSyncGetHiddenEngine(void)
+{
+	__xnet_sync_hidden_state* pState = __xnetSyncHiddenState();
+	xnetengine* pEngine;
+	__xnetSyncSpinLock(&pState->iLock);
+	pEngine = pState->pEngine;
+	if ( pEngine && !pEngine->bRunning ) {
+		xrtNetEngineDestroy(pEngine);
+		pEngine = NULL;
+		pState->pEngine = NULL;
+	}
+	if ( !pEngine ) {
+		xnetengineconfig tCfg;
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pEngine = xrtNetEngineCreate(&tCfg);
+		if ( pEngine ) {
+			if ( xrtNetEngineStart(pEngine) != XRT_NET_OK ) {
+				xrtNetEngineDestroy(pEngine);
+				pEngine = NULL;
+			}
+		}
+		pState->pEngine = pEngine;
+	}
+	__xnetSyncSpinUnlock(&pState->iLock);
+	return pEngine;
+}
+static void xrtNetSyncShutdownHiddenEngine(void)
+{
+	__xnet_sync_hidden_state* pState = __xnetSyncHiddenState();
+	xnetengine* pEngine;
+	__xnetSyncSpinLock(&pState->iLock);
+	pEngine = pState->pEngine;
+	pState->pEngine = NULL;
+	__xnetSyncSpinUnlock(&pState->iLock);
+	if ( pEngine ) {
+		xrtNetEngineStop(pEngine);
+		xrtNetEngineDestroy(pEngine);
+	}
+}
+static xnetengine* __xnetSyncResolveEngine(xnetengine* pEngine)
+{
+	return pEngine ? pEngine : xrtNetSyncGetHiddenEngine();
+}
+static void __xnetFutureTaskDispatch(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_future_task_ctx* pCtx = (__xnet_future_task_ctx*)pArg;
+	xnetfuture* pFuture = NULL;
+	xnet_future_task_fn pfnTask = NULL;
+	ptr pTaskArg = NULL;
+	ptr pValue = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	if ( pCtx == NULL ) {
+		return;
+	}
+	pFuture = pCtx->pFuture;
+	pfnTask = pCtx->pfnTask;
+	pTaskArg = pCtx->pArg;
+	XNET_FREE(pCtx);
+	if ( pfnTask != NULL ) {
+		iStatus = pfnTask(pWorker, pTaskArg, &pValue);
+	}
+	(void)__xnetFutureResolve(pFuture, iStatus, pValue);
+	__xnetFutureReleaseAsyncHold(pFuture);
+}
+static void __xnetSyncSignalStreamFutureCancel(__xnet_stream_future_wait_ctx* pCtx)
+{
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pCtx && pCtx->pCancelDoneEvent ) {
+			xrtCoEventSet(pCtx->pCancelDoneEvent);
+		}
+	#else
+		(void)pCtx;
+	#endif
+}
+static void __xnetSyncCleanupStreamFutureWait(xnetfuture* pFuture)
+{
+	__xnet_stream_future_wait_ctx* pCtx = NULL;
+	if ( !pFuture ) return;
+	pCtx = (__xnet_stream_future_wait_ctx*)pFuture->pPendingCtx;
+	pFuture->pPendingCtx = NULL;
+	pFuture->pfnPendingCancel = NULL;
+	pFuture->pfnPendingCleanup = NULL;
+	if ( !pCtx ) return;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pCtx->pCancelDoneEvent ) {
+			xrtCoEventDestroy(pCtx->pCancelDoneEvent);
+			pCtx->pCancelDoneEvent = NULL;
+		}
+	#endif
+	XNET_FREE(pCtx);
+}
+static void __xnetSyncResolveStreamFutureWait(__xnet_stream_future_wait_ctx* pCtx, xnet_result iStatus)
+{
+	long iPrevState;
+	if ( pCtx == NULL ) return;
+	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	if ( iPrevState != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
+		(void)__xnetFutureResolve(pCtx->pFuture, iStatus, pCtx->pStream);
+	}
+	__xnetStreamReleaseAsyncHold(pCtx->pStream);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	__xnetSyncSignalStreamFutureCancel(pCtx);
+}
+static void __xnetSyncCancelStreamFutureWaitFinish(__xnet_stream_future_wait_ctx* pCtx)
+{
+	long iPrevState;
+	if ( pCtx == NULL ) return;
+	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	__xnetStreamReleaseAsyncHold(pCtx->pStream);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	__xnetSyncSignalStreamFutureCancel(pCtx);
+}
+static void __xnetSyncOnStreamDrainFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
+{
+	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
+	if ( pWaitCtx ) {
+		pWaitCtx->pStream = pStream;
+	}
+	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
+}
+static void __xnetSyncOnStreamCloseFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
+{
+	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
+	if ( pWaitCtx ) {
+		pWaitCtx->pStream = pStream;
+	}
+	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
+}
+static void __xnetSyncOnStreamReadableFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
+{
+	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
+	if ( pWaitCtx ) {
+		pWaitCtx->pStream = pStream;
+	}
+	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
+}
+static void __xnetSyncOnStreamWritableFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
+{
+	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
+	if ( pWaitCtx ) {
+		pWaitCtx->pStream = pStream;
+	}
+	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
+}
+static void __xnetSyncCancelStreamFutureWait(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_stream_future_wait_ctx* pCtx = (__xnet_stream_future_wait_ctx*)pArg;
+	(void)pWorker;
+	if ( pCtx == NULL || pCtx->pStream == NULL ) {
+		__xnetSyncCancelStreamFutureWaitFinish(pCtx);
+		return;
+	}
+	(void)__xnetStreamCancelSyncWait(pCtx->pStream, pCtx->iWaitKind, pCtx);
+	__xnetSyncCancelStreamFutureWaitFinish(pCtx);
+}
+static void __xnetSyncRegisterStreamFutureWait(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_stream_future_wait_ctx* pCtx = (__xnet_stream_future_wait_ctx*)pArg;
+	const __xnet_stream_wait_ops* pOps = NULL;
+	bool bRegistered = false;
+	long iState;
+	(void)pWorker;
+	if ( pCtx == NULL || pCtx->pFuture == NULL || pCtx->pStream == NULL ) {
+		__xnetSyncResolveStreamFutureWait(pCtx, XRT_NET_ERROR);
+		return;
+	}
+	pOps = __xnetSyncGetStreamWaitOps(pCtx->iWaitKind);
+	if ( pOps == NULL ) {
+		__xnetSyncSetError("invalid stream wait kind.");
+		__xnetSyncResolveStreamFutureWait(pCtx, XRT_NET_ERROR);
+		return;
+	}
+	for ( ;; ) {
+		iState = __xnetAtomicLoad32(&pCtx->iState);
+		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
+			__xnetSyncCancelStreamFutureWaitFinish(pCtx);
+			return;
+		}
+		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) break;
+		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_REGISTERED, __XNET_SYNC_STREAM_WAIT_POSTED) == __XNET_SYNC_STREAM_WAIT_POSTED ) {
+			break;
+		}
+	}
+	bRegistered = __xnetStreamRegisterSyncWait(pCtx->pStream, pCtx->iWaitKind, pOps->pfnOnReady, pCtx);
+	if ( !bRegistered ) {
+		__xnetSyncSetError(pOps->sRegisterError);
+		__xnetSyncResolveStreamFutureWait(pCtx, XRT_NET_ERROR);
+	}
+}
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static xcoevent __xnetSyncEnsureStreamWaitCancelEvent(__xnet_stream_future_wait_ctx* pCtx)
+{
+	xcoevent pEvent = NULL;
+	if ( !pCtx ) return NULL;
+	if ( pCtx->pCancelDoneEvent ) return pCtx->pCancelDoneEvent;
+	pEvent = xrtCoEventCreate(TRUE, FALSE);
+	if ( !pEvent ) return NULL;
+	pCtx->pCancelDoneEvent = pEvent;
+	return pEvent;
+}
+#endif
+static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
+{
+	__xnet_stream_future_wait_ctx* pCtx = NULL;
+	xnet_result iPostResult;
+	bool bUseCoroWait = false;
+	uint64 iDeadlineMs = 0;
+	if ( pFuture == NULL ) return false;
+	pCtx = (__xnet_stream_future_wait_ctx*)pFuture->pPendingCtx;
+	if ( pCtx == NULL ) return true;
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( xrtCoGetCurrent() != NULL ) {
+			if ( __xnetSyncEnsureStreamWaitCancelEvent(pCtx) == NULL ) {
+				__xnetSyncSetError("unable to allocate stream waiter cancellation event.");
+				return false;
+			}
+			bUseCoroWait = true;
+		}
+	#endif
+	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
+			__xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		long iObservedState = __xnetAtomicLoad32(&pCtx->iState);
+		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED, iObservedState) == iObservedState ) {
+			break;
+		}
+	}
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	iPostResult = xrtNetEnginePost(pCtx->pStream->pEngine, pCtx->pStream->pWorker->iId, __xnetSyncCancelStreamFutureWait, pCtx);
+	if ( iPostResult != XRT_NET_OK ) {
+		__xnetSyncSetError("unable to post stream waiter cancellation.");
+		return false;
+	}
+	if ( bUseCoroWait ) {
+		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( !xrtCoWaitEvent(pCtx->pCancelDoneEvent) ) {
+			__xnetSyncSetError("stream waiter cancellation did not complete cleanly.");
+			return false;
+		}
+		#endif
+		return true;
+	}
+	iDeadlineMs = __xnetSyncNowMs() + 5000ULL;
+	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
+			__xnetSyncSetError("stream waiter cancellation timed out.");
+			return false;
+		}
+		__xnetSyncSleepMs(1);
+	}
+	return true;
+}
+static const __xnet_stream_wait_ops* __xnetSyncGetStreamWaitOps(uint32 iWaitKind)
+{
+	static const __xnet_stream_wait_ops arrOps[__XNET_STREAM_WAIT_COUNT] = {
+		{ __xnetSyncOnStreamReadableFuture, "unable to register stream readable waiter." },
+		{ __xnetSyncOnStreamWritableFuture, "unable to register stream writable waiter." },
+		{ __xnetSyncOnStreamDrainFuture,    "unable to register stream drain waiter." },
+		{ __xnetSyncOnStreamCloseFuture,    "unable to register stream close waiter." }
+	};
+	if ( iWaitKind >= __XNET_STREAM_WAIT_COUNT ) return NULL;
+	return &arrOps[iWaitKind];
+}
+static bool __xnetSyncListenerWaitCanAccept(ptr pCtx)
+{
+	__xnet_listener_future_wait_ctx* pWaitCtx = (__xnet_listener_future_wait_ctx*)pCtx;
+	if ( pWaitCtx == NULL ) return false;
+	return __xnetAtomicLoad32(&pWaitCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
+		__xnetAtomicLoad32(&pWaitCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED;
+}
+static void __xnetSyncSignalListenerFutureCancel(__xnet_listener_future_wait_ctx* pCtx)
+{
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pCtx && pCtx->pCancelDoneEvent ) {
+			xrtCoEventSet(pCtx->pCancelDoneEvent);
+		}
+	#else
+		(void)pCtx;
+	#endif
+}
+static void __xnetSyncCleanupListenerFutureWait(xnetfuture* pFuture)
+{
+	__xnet_listener_future_wait_ctx* pCtx = NULL;
+	if ( !pFuture ) return;
+	pCtx = (__xnet_listener_future_wait_ctx*)pFuture->pPendingCtx;
+	pFuture->pPendingCtx = NULL;
+	pFuture->pfnPendingCancel = NULL;
+	pFuture->pfnPendingCleanup = NULL;
+	if ( !pCtx ) return;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pCtx->pCancelDoneEvent ) {
+			xrtCoEventDestroy(pCtx->pCancelDoneEvent);
+			pCtx->pCancelDoneEvent = NULL;
+		}
+	#endif
+	XNET_FREE(pCtx);
+}
+static void __xnetSyncResolveListenerFutureWait(__xnet_listener_future_wait_ctx* pCtx, xnet_result iStatus, xnetstream* pStream)
+{
+	long iPrevState;
+	if ( pCtx == NULL ) {
+		if ( pStream ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		}
+		return;
+	}
+	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		if ( pStream ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		}
+		return;
+	}
+	if ( iPrevState != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
+		(void)__xnetFutureResolve(pCtx->pFuture, iStatus, pStream);
+	} else if ( pStream ) {
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+	}
+	__xnetListenerReleaseAsyncHold(pCtx->pListener);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	__xnetSyncSignalListenerFutureCancel(pCtx);
+}
+static void __xnetSyncCancelListenerFutureWaitFinish(__xnet_listener_future_wait_ctx* pCtx)
+{
+	long iPrevState;
+	if ( pCtx == NULL ) return;
+	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	__xnetListenerReleaseAsyncHold(pCtx->pListener);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	__xnetSyncSignalListenerFutureCancel(pCtx);
+}
+static void __xnetSyncOnListenerAcceptFuture(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx)
+{
+	__xnet_listener_future_wait_ctx* pWaitCtx = (__xnet_listener_future_wait_ctx*)pCtx;
+	if ( pWaitCtx ) {
+		pWaitCtx->pListener = pListener;
+	}
+	__xnetSyncResolveListenerFutureWait(pWaitCtx, iStatus, pStream);
+}
+static void __xnetSyncCancelListenerFutureWait(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_listener_future_wait_ctx* pCtx = (__xnet_listener_future_wait_ctx*)pArg;
+	(void)pWorker;
+	if ( pCtx == NULL || pCtx->pListener == NULL ) {
+		__xnetSyncCancelListenerFutureWaitFinish(pCtx);
+		return;
+	}
+	(void)__xnetListenerCancelSyncAcceptWait(pCtx->pListener, pCtx);
+	__xnetSyncCancelListenerFutureWaitFinish(pCtx);
+}
+static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_listener_future_wait_ctx* pCtx = (__xnet_listener_future_wait_ctx*)pArg;
+	bool bRegistered = false;
+	long iState;
+	(void)pWorker;
+	if ( pCtx == NULL || pCtx->pFuture == NULL || pCtx->pListener == NULL ) {
+		__xnetSyncResolveListenerFutureWait(pCtx, XRT_NET_ERROR, NULL);
+		return;
+	}
+	for ( ;; ) {
+		iState = __xnetAtomicLoad32(&pCtx->iState);
+		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
+			__xnetSyncCancelListenerFutureWaitFinish(pCtx);
+			return;
+		}
+		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) break;
+		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_REGISTERED, __XNET_SYNC_STREAM_WAIT_POSTED) == __XNET_SYNC_STREAM_WAIT_POSTED ) {
+			break;
+		}
+	}
+	bRegistered = __xnetListenerRegisterSyncAcceptWait(
+		pCtx->pListener,
+		__xnetSyncOnListenerAcceptFuture,
+		__xnetSyncListenerWaitCanAccept,
+		pCtx);
+	if ( !bRegistered ) {
+		__xnetSyncSetError("unable to register listener accept waiter.");
+		__xnetSyncResolveListenerFutureWait(pCtx, XRT_NET_ERROR, NULL);
+	}
+}
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static xcoevent __xnetSyncEnsureListenerWaitCancelEvent(__xnet_listener_future_wait_ctx* pCtx)
+{
+	xcoevent pEvent = NULL;
+	if ( !pCtx ) return NULL;
+	if ( pCtx->pCancelDoneEvent ) return pCtx->pCancelDoneEvent;
+	pEvent = xrtCoEventCreate(TRUE, FALSE);
+	if ( !pEvent ) return NULL;
+	pCtx->pCancelDoneEvent = pEvent;
+	return pEvent;
+}
+#endif
+static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
+{
+	__xnet_listener_future_wait_ctx* pCtx = NULL;
+	xnet_result iPostResult;
+	bool bUseCoroWait = false;
+	uint64 iDeadlineMs = 0;
+	if ( pFuture == NULL ) return false;
+	pCtx = (__xnet_listener_future_wait_ctx*)pFuture->pPendingCtx;
+	if ( pCtx == NULL ) return true;
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( xrtCoGetCurrent() != NULL ) {
+			if ( __xnetSyncEnsureListenerWaitCancelEvent(pCtx) == NULL ) {
+				__xnetSyncSetError("unable to allocate listener waiter cancellation event.");
+				return false;
+			}
+			bUseCoroWait = true;
+		}
+	#endif
+	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
+			__xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		long iObservedState = __xnetAtomicLoad32(&pCtx->iState);
+		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED, iObservedState) == iObservedState ) {
+			break;
+		}
+	}
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	iPostResult = xrtNetEnginePost(pCtx->pListener->pEngine, pCtx->pListener->pWorker->iId, __xnetSyncCancelListenerFutureWait, pCtx);
+	if ( iPostResult != XRT_NET_OK ) {
+		__xnetSyncSetError("unable to post listener waiter cancellation.");
+		return false;
+	}
+	if ( bUseCoroWait ) {
+		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( !xrtCoWaitEvent(pCtx->pCancelDoneEvent) ) {
+			__xnetSyncSetError("listener waiter cancellation did not complete cleanly.");
+			return false;
+		}
+		#endif
+		return true;
+	}
+	iDeadlineMs = __xnetSyncNowMs() + 5000ULL;
+	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
+			__xnetSyncSetError("listener waiter cancellation timed out.");
+			return false;
+		}
+		__xnetSyncSleepMs(1);
+	}
+	return true;
+}
+static void __xnetSyncCleanupDgramFutureWait(xnetfuture* pFuture)
+{
+	__xnet_dgram_future_wait_ctx* pCtx = NULL;
+	if ( !pFuture ) return;
+	pCtx = (__xnet_dgram_future_wait_ctx*)pFuture->pPendingCtx;
+	pFuture->pPendingCtx = NULL;
+	pFuture->pfnPendingCancel = NULL;
+	pFuture->pfnPendingCleanup = NULL;
+	if ( !pCtx ) return;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pCtx->pCancelDoneEvent ) {
+			xrtCoEventDestroy(pCtx->pCancelDoneEvent);
+			pCtx->pCancelDoneEvent = NULL;
+		}
+	#endif
+	XNET_FREE(pCtx);
+}
+static void __xnetSyncSignalDgramFutureCancel(__xnet_dgram_future_wait_ctx* pCtx)
+{
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( pCtx && pCtx->pCancelDoneEvent ) {
+			xrtCoEventSet(pCtx->pCancelDoneEvent);
+		}
+	#else
+		(void)pCtx;
+	#endif
+}
+static void __xnetSyncResolveDgramFutureWait(__xnet_dgram_future_wait_ctx* pCtx, xnet_result iStatus, xnetdgrampkt* pPacket)
+{
+	long iPrevState;
+	if ( pCtx == NULL ) {
+		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		return;
+	}
+	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		return;
+	}
+	if ( iPrevState != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
+		(void)__xnetFutureResolve(pCtx->pFuture, iStatus, pPacket);
+	} else if ( pPacket ) {
+		xrtNetDgramPacketDestroy(pPacket);
+	}
+	__xnetDgramReleaseAsyncHold(pCtx->pSock);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	__xnetSyncSignalDgramFutureCancel(pCtx);
+}
+static void __xnetSyncCancelDgramFutureWaitFinish(__xnet_dgram_future_wait_ctx* pCtx)
+{
+	long iPrevState;
+	if ( pCtx == NULL ) return;
+	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	__xnetDgramReleaseAsyncHold(pCtx->pSock);
+	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
+	__xnetSyncSignalDgramFutureCancel(pCtx);
+}
+static void __xnetSyncOnDgramRecvFuture(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket, ptr pCtx)
+{
+	__xnet_dgram_future_wait_ctx* pWaitCtx = (__xnet_dgram_future_wait_ctx*)pCtx;
+	if ( pWaitCtx ) {
+		pWaitCtx->pSock = pSock;
+	}
+	__xnetSyncResolveDgramFutureWait(pWaitCtx, iStatus, pPacket);
+}
+static void __xnetSyncCancelDgramFutureWait(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_dgram_future_wait_ctx* pCtx = (__xnet_dgram_future_wait_ctx*)pArg;
+	(void)pWorker;
+	if ( pCtx == NULL || pCtx->pSock == NULL ) {
+		__xnetSyncCancelDgramFutureWaitFinish(pCtx);
+		return;
+	}
+	(void)__xnetDgramCancelSyncRecvWait(pCtx->pSock, pCtx);
+	__xnetSyncCancelDgramFutureWaitFinish(pCtx);
+}
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static xcoevent __xnetSyncEnsureDgramWaitCancelEvent(__xnet_dgram_future_wait_ctx* pCtx)
+{
+	xcoevent pEvent = NULL;
+	if ( !pCtx ) return NULL;
+	if ( pCtx->pCancelDoneEvent ) return pCtx->pCancelDoneEvent;
+	pEvent = xrtCoEventCreate(TRUE, FALSE);
+	if ( !pEvent ) return NULL;
+	pCtx->pCancelDoneEvent = pEvent;
+	return pEvent;
+}
+#endif
+static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
+{
+	__xnet_dgram_future_wait_ctx* pCtx = NULL;
+	xnet_result iPostResult;
+	bool bUseCoroWait = false;
+	uint64 iDeadlineMs = 0;
+	if ( pFuture == NULL ) return false;
+	pCtx = (__xnet_dgram_future_wait_ctx*)pFuture->pPendingCtx;
+	if ( pCtx == NULL ) return true;
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( xrtCoGetCurrent() != NULL ) {
+			if ( __xnetSyncEnsureDgramWaitCancelEvent(pCtx) == NULL ) {
+				__xnetSyncSetError("unable to allocate datagram waiter cancellation event.");
+				return false;
+			}
+			bUseCoroWait = true;
+		}
+	#endif
+	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
+			__xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		long iObservedState = __xnetAtomicLoad32(&pCtx->iState);
+		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED, iObservedState) == iObservedState ) {
+			break;
+		}
+	}
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	iPostResult = xrtNetEnginePost(pCtx->pSock->pEngine, pCtx->pSock->pWorker->iId, __xnetSyncCancelDgramFutureWait, pCtx);
+	if ( iPostResult != XRT_NET_OK ) {
+		__xnetSyncSetError("unable to post datagram waiter cancellation.");
+		return false;
+	}
+	if ( bUseCoroWait ) {
+		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+		if ( !xrtCoWaitEvent(pCtx->pCancelDoneEvent) ) {
+			__xnetSyncSetError("datagram waiter cancellation did not complete cleanly.");
+			return false;
+		}
+		#endif
+		return true;
+	}
+	iDeadlineMs = __xnetSyncNowMs() + 5000ULL;
+	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
+		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
+			__xnetSyncSetError("datagram waiter cancellation timed out.");
+			return false;
+		}
+		__xnetSyncSleepMs(1);
+	}
+	return true;
+}
+static void __xnetSyncRegisterDgramFutureWait(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_dgram_future_wait_ctx* pCtx = (__xnet_dgram_future_wait_ctx*)pArg;
+	bool bRegistered = false;
+	long iState;
+	(void)pWorker;
+	if ( pCtx == NULL || pCtx->pFuture == NULL || pCtx->pSock == NULL ) {
+		__xnetSyncResolveDgramFutureWait(pCtx, XRT_NET_ERROR, NULL);
+		return;
+	}
+	for ( ;; ) {
+		iState = __xnetAtomicLoad32(&pCtx->iState);
+		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
+			__xnetSyncCancelDgramFutureWaitFinish(pCtx);
+			return;
+		}
+		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) break;
+		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_REGISTERED, __XNET_SYNC_STREAM_WAIT_POSTED) == __XNET_SYNC_STREAM_WAIT_POSTED ) {
+			break;
+		}
+	}
+	bRegistered = __xnetDgramRegisterSyncRecvWait(pCtx->pSock, __xnetSyncOnDgramRecvFuture, pCtx);
+	if ( !bRegistered ) {
+		__xnetSyncSetError("unable to register datagram recv waiter.");
+		__xnetSyncResolveDgramFutureWait(pCtx, XRT_NET_ERROR, NULL);
+	}
+}
+static xnetfuture* __xnetSyncCreatePostedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg, bool bDelayed)
+{
+	xnetengine* pResolvedEngine = NULL;
+	xnetfuture* pFuture = NULL;
+	__xnet_future_task_ctx* pCtx = NULL;
+	xnet_result iPostResult;
+	if ( pfnTask == NULL ) {
+		__xnetSyncSetError("future task callback is null.");
+		return NULL;
+	}
+	pResolvedEngine = __xnetSyncResolveEngine(pEngine);
+	if ( pResolvedEngine == NULL ) {
+		__xnetSyncSetError("unable to resolve sync engine.");
+		return NULL;
+	}
+	pFuture = xrtNetFutureCreate();
+	if ( pFuture == NULL ) {
+		return NULL;
+	}
+	pCtx = (__xnet_future_task_ctx*)XNET_ALLOC(sizeof(__xnet_future_task_ctx));
+	if ( pCtx == NULL ) {
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	memset(pCtx, 0, sizeof(__xnet_future_task_ctx));
+	pCtx->pFuture = pFuture;
+	pCtx->pfnTask = pfnTask;
+	pCtx->pArg = pArg;
+	__xnetFutureAddAsyncHold(pFuture);
+	if ( bDelayed ) {
+		iPostResult = xrtNetEnginePostDelayed(pResolvedEngine, iAffinityKey, iDelayMs, __xnetFutureTaskDispatch, pCtx);
+	}
+	else {
+		iPostResult = xrtNetEnginePost(pResolvedEngine, iAffinityKey, __xnetFutureTaskDispatch, pCtx);
+	}
+	if ( iPostResult != XRT_NET_OK ) {
+		__xnetFutureReleaseAsyncHold(pFuture);
+		XNET_FREE(pCtx);
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	return pFuture;
+}
+static xnetfuture* xrtNetEnginePostFuture(xnetengine* pEngine, uint32 iAffinityKey, xnet_future_task_fn pfnTask, ptr pArg)
+{
+	return __xnetSyncCreatePostedFuture(pEngine, iAffinityKey, 0, pfnTask, pArg, false);
+}
+static xnetfuture* xrtNetEnginePostDelayedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg)
+{
+	return __xnetSyncCreatePostedFuture(pEngine, iAffinityKey, iDelayMs, pfnTask, pArg, true);
+}
+static xnetfuture* __xnetSyncCreateStreamFutureWait(xnetstream* pStream, uint32 iWaitKind)
+{
+	xnetfuture* pFuture = NULL;
+	__xnet_stream_future_wait_ctx* pCtx = NULL;
+	const __xnet_stream_wait_ops* pOps = NULL;
+	xnet_result iPostResult;
+	if ( pStream == NULL || pStream->pEngine == NULL || pStream->pWorker == NULL ) {
+		__xnetSyncSetError("stream is not bound to a running engine worker.");
+		return NULL;
+	}
+	pOps = __xnetSyncGetStreamWaitOps(iWaitKind);
+	if ( pOps == NULL ) {
+		__xnetSyncSetError("invalid stream wait kind.");
+		return NULL;
+	}
+	if ( iWaitKind == __XNET_STREAM_WAIT_READABLE && !pStream->bReadPaused ) {
+		__xnetSyncSetError("stream readable future currently requires paused read mode.");
+		return NULL;
+	}
+	pFuture = xrtNetFutureCreate();
+	if ( pFuture == NULL ) {
+		return NULL;
+	}
+	pCtx = (__xnet_stream_future_wait_ctx*)XNET_ALLOC(sizeof(__xnet_stream_future_wait_ctx));
+	if ( pCtx == NULL ) {
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	memset(pCtx, 0, sizeof(__xnet_stream_future_wait_ctx));
+	pCtx->pFuture = pFuture;
+	pCtx->pStream = pStream;
+	pCtx->iWaitKind = iWaitKind;
+	pCtx->iState = __XNET_SYNC_STREAM_WAIT_POSTED;
+	pFuture->pPendingCtx = pCtx;
+	pFuture->pfnPendingCancel = __xnetSyncCancelPendingStreamFutureWait;
+	pFuture->pfnPendingCleanup = __xnetSyncCleanupStreamFutureWait;
+	__xnetFutureAddAsyncHold(pFuture);
+	__xnetStreamAddAsyncHold(pStream);
+	iPostResult = xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xnetSyncRegisterStreamFutureWait, pCtx);
+	if ( iPostResult != XRT_NET_OK ) {
+		__xnetStreamReleaseAsyncHold(pStream);
+		__xnetFutureReleaseAsyncHold(pFuture);
+		__xnetSyncCleanupStreamFutureWait(pFuture);
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	return pFuture;
+}
+static xnetfuture* xrtNetStreamDrainFuture(xnetstream* pStream)
+{
+	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_DRAIN);
+}
+static xnetfuture* xrtNetStreamWritableFuture(xnetstream* pStream)
+{
+	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_WRITABLE);
+}
+static xnetfuture* xrtNetStreamCloseFuture(xnetstream* pStream)
+{
+	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_CLOSE);
+}
+static xnetfuture* xrtNetStreamReadableFuture(xnetstream* pStream)
+{
+	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_READABLE);
+}
+static xnetfuture* xrtNetStreamFutureEx(xnetstream* pStream, uint32 iWaitKind)
+{
+	return __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
+}
+static xnetfuture* __xnetSyncCreateListenerFutureAccept(xnetlistener* pListener)
+{
+	xnetfuture* pFuture = NULL;
+	__xnet_listener_future_wait_ctx* pCtx = NULL;
+	xnet_result iPostResult;
+	if ( pListener == NULL || pListener->pEngine == NULL || pListener->pWorker == NULL ) {
+		__xnetSyncSetError("listener is not bound to a running engine worker.");
+		return NULL;
+	}
+	pFuture = xrtNetFutureCreate();
+	if ( pFuture == NULL ) {
+		return NULL;
+	}
+	pCtx = (__xnet_listener_future_wait_ctx*)XNET_ALLOC(sizeof(__xnet_listener_future_wait_ctx));
+	if ( pCtx == NULL ) {
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	memset(pCtx, 0, sizeof(__xnet_listener_future_wait_ctx));
+	pCtx->pFuture = pFuture;
+	pCtx->pListener = pListener;
+	pCtx->iState = __XNET_SYNC_STREAM_WAIT_POSTED;
+	pFuture->pPendingCtx = pCtx;
+	pFuture->pfnPendingCancel = __xnetSyncCancelPendingListenerFutureWait;
+	pFuture->pfnPendingCleanup = __xnetSyncCleanupListenerFutureWait;
+	__xnetFutureAddAsyncHold(pFuture);
+	__xnetListenerAddAsyncHold(pListener);
+	iPostResult = xrtNetEnginePost(pListener->pEngine, pListener->pWorker->iId, __xnetSyncRegisterListenerFutureWait, pCtx);
+	if ( iPostResult != XRT_NET_OK ) {
+		__xnetListenerReleaseAsyncHold(pListener);
+		__xnetFutureReleaseAsyncHold(pFuture);
+		__xnetSyncCleanupListenerFutureWait(pFuture);
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	return pFuture;
+}
+static xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener)
+{
+	return __xnetSyncCreateListenerFutureAccept(pListener);
+}
+static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
+{
+	xnetfuture* pFuture = NULL;
+	__xnet_dgram_future_wait_ctx* pCtx = NULL;
+	xnet_result iPostResult;
+	if ( pSock == NULL || pSock->pEngine == NULL || pSock->pWorker == NULL ) {
+		__xnetSyncSetError("datagram socket is not bound to a running engine worker.");
+		return NULL;
+	}
+	if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
+		__xnetSyncSetError("datagram recv future cannot be used while OnRecv callback is installed.");
+		return NULL;
+	}
+	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) {
+		__xnetSyncSetError("datagram socket is not running.");
+		return NULL;
+	}
+	pFuture = xrtNetFutureCreate();
+	if ( pFuture == NULL ) {
+		return NULL;
+	}
+	pCtx = (__xnet_dgram_future_wait_ctx*)XNET_ALLOC(sizeof(__xnet_dgram_future_wait_ctx));
+	if ( pCtx == NULL ) {
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	memset(pCtx, 0, sizeof(__xnet_dgram_future_wait_ctx));
+	pCtx->pFuture = pFuture;
+	pCtx->pSock = pSock;
+	pCtx->iState = __XNET_SYNC_STREAM_WAIT_POSTED;
+	pFuture->pPendingCtx = pCtx;
+	pFuture->pfnPendingCancel = __xnetSyncCancelPendingDgramFutureWait;
+	pFuture->pfnPendingCleanup = __xnetSyncCleanupDgramFutureWait;
+	__xnetFutureAddAsyncHold(pFuture);
+	__xnetDgramAddAsyncHold(pSock);
+	iPostResult = xrtNetEnginePost(pSock->pEngine, pSock->pWorker->iId, __xnetSyncRegisterDgramFutureWait, pCtx);
+	if ( iPostResult != XRT_NET_OK ) {
+		__xnetDgramReleaseAsyncHold(pSock);
+		__xnetFutureReleaseAsyncHold(pFuture);
+		__xnetSyncCleanupDgramFutureWait(pFuture);
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	return pFuture;
+}
+static xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock)
+{
+	return __xnetSyncCreateDgramFutureRecv(pSock);
+}
+static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	xnetfuture* pFuture = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	bool bNeedCancel = false;
+	if ( ppValue ) *ppValue = NULL;
+	pFuture = __xnetSyncCreateListenerFutureAccept(pListener);
+	if ( pFuture == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	if ( iWaitMode == 0 ) {
+		iStatus = xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE);
+	}
+	else if ( iWaitMode == 1 ) {
+		iStatus = xrtNetFutureWait(pFuture, iTimeoutMs);
+	}
+	else {
+		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
+	}
+	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
+		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		bNeedCancel = true;
+	}
+	if ( bNeedCancel ) {
+		if ( !__xnetSyncCancelPendingListenerFutureWait(pFuture) ) {
+			(void)__xnetFutureDestroyCore(pFuture);
+			__xnetSyncSetError("listener accept wait could not cancel its pending waiter.");
+			return XRT_NET_ERROR;
+		}
+	}
+	if ( ppValue ) {
+		*ppValue = xrtNetFutureValue(pFuture);
+	}
+	if ( !__xnetFutureDestroyCore(pFuture) ) {
+		__xnetSyncSetError("listener accept wait could not release its internal future.");
+		return XRT_NET_ERROR;
+	}
+	return iStatus;
+}
+static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	xnetfuture* pFuture = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	bool bNeedCancel = false;
+	if ( ppValue ) *ppValue = NULL;
+	pFuture = __xnetSyncCreateDgramFutureRecv(pSock);
+	if ( pFuture == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	if ( iWaitMode == 0 ) {
+		iStatus = xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE);
+	}
+	else if ( iWaitMode == 1 ) {
+		iStatus = xrtNetFutureWait(pFuture, iTimeoutMs);
+	}
+	else {
+		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
+	}
+	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
+		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		bNeedCancel = true;
+	}
+	if ( bNeedCancel ) {
+		if ( !__xnetSyncCancelPendingDgramFutureWait(pFuture) ) {
+			(void)__xnetFutureDestroyCore(pFuture);
+			__xnetSyncSetError("datagram wait could not cancel its pending waiter.");
+			return XRT_NET_ERROR;
+		}
+	}
+	if ( ppValue ) {
+		*ppValue = xrtNetFutureValue(pFuture);
+	}
+	if ( !__xnetFutureDestroyCore(pFuture) ) {
+		__xnetSyncSetError("datagram wait could not release its internal future.");
+		return XRT_NET_ERROR;
+	}
+	return iStatus;
+}
+static xnet_result __xnetSyncWaitDgramSyncCore(xdgramsock* pSock, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitDgramSyncCoreEx(pSock, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
+}
+static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	xnetfuture* pFuture = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	bool bNeedCancel = false;
+	if ( ppValue ) *ppValue = NULL;
+	pFuture = __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
+	if ( pFuture == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	if ( iWaitMode == 0 ) {
+		iStatus = xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE);
+	}
+	else if ( iWaitMode == 1 ) {
+		iStatus = xrtNetFutureWait(pFuture, iTimeoutMs);
+	}
+	else {
+		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
+	}
+	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
+		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		bNeedCancel = true;
+	}
+	if ( bNeedCancel ) {
+		if ( !__xnetSyncCancelPendingStreamFutureWait(pFuture) ) {
+			(void)__xnetFutureDestroyCore(pFuture);
+			__xnetSyncSetError("stream wait could not cancel its pending waiter.");
+			return XRT_NET_ERROR;
+		}
+	}
+	if ( ppValue ) {
+		*ppValue = xrtNetFutureValue(pFuture);
+	}
+	if ( !__xnetFutureDestroyCore(pFuture) ) {
+		__xnetSyncSetError("stream wait could not release its internal future.");
+		return XRT_NET_ERROR;
+	}
+	return iStatus;
+}
+static xnet_result __xnetSyncWaitStreamSyncCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitStreamSyncCoreEx(pStream, iWaitKind, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
+}
+static xnet_result __xnetSyncWaitSourceSyncCoreEx(const xnetwaitsrc* pSrc, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	if ( ppValue ) *ppValue = NULL;
+	if ( !pSrc ) return XRT_NET_ERROR;
+	if ( pSrc->iKind == XNET_WAITSRC_FUTURE ) {
+		xnet_result iStatus = XRT_NET_ERROR;
+		if ( iWaitMode == 0 ) {
+			iStatus = xrtNetFutureWait(pSrc->u.pFuture, XNET_WAIT_INFINITE);
+		}
+		else if ( iWaitMode == 1 ) {
+			iStatus = xrtNetFutureWait(pSrc->u.pFuture, iTimeoutMs);
+		}
+		else {
+			iStatus = xrtNetFutureWaitUntil(pSrc->u.pFuture, iDeadlineMs);
+		}
+		if ( ppValue ) {
+			*ppValue = xrtNetFutureValue(pSrc->u.pFuture);
+		}
+		return iStatus;
+	}
+	if ( pSrc->iKind == XNET_WAITSRC_STREAM ) {
+		return __xnetSyncWaitStreamSyncCoreEx(
+			pSrc->u.tStream.pStream,
+			pSrc->u.tStream.iWaitKind,
+			iWaitMode,
+			iDeadlineMs,
+			iTimeoutMs,
+			ppValue);
+	}
+	if ( pSrc->iKind == XNET_WAITSRC_DGRAM ) {
+		return __xnetSyncWaitDgramSyncCoreEx(
+			pSrc->u.pDgram,
+			iWaitMode,
+			iDeadlineMs,
+			iTimeoutMs,
+			ppValue);
+	}
+	if ( pSrc->iKind == XNET_WAITSRC_LISTENER ) {
+		return __xnetSyncWaitListenerSyncCoreEx(
+			pSrc->u.pListener,
+			iWaitMode,
+			iDeadlineMs,
+			iTimeoutMs,
+			ppValue);
+	}
+	__xnetSyncSetError("invalid wait source kind.");
+	return XRT_NET_ERROR;
+}
+static xnet_result __xnetSyncWaitSourceSyncCore(const xnetwaitsrc* pSrc, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitSourceSyncCoreEx(pSrc, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
+}
+static xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
+	return __xnetSyncWaitSourceSyncCore(&tSrc, 0, 0, 0);
+}
+static xnet_result xrtNetStreamWaitTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
+	return __xnetSyncWaitSourceSyncCore(&tSrc, 1, 0, iTimeoutMs);
+}
+static xnet_result xrtNetStreamWaitUntilEx(xnetstream* pStream, uint32 iWaitKind, int64_t iDeadlineMs)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
+	return __xnetSyncWaitSourceSyncCore(&tSrc, 2, iDeadlineMs, 0);
+}
+static xnet_result xrtNetWaitSourceWait(const xnetwaitsrc* pSrc)
+{
+	return __xnetSyncWaitSourceSyncCore(pSrc, 0, 0, 0);
+}
+static xnet_result xrtNetWaitSourceWaitTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitSourceSyncCore(pSrc, 1, 0, iTimeoutMs);
+}
+static xnet_result xrtNetWaitSourceWaitUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs)
+{
+	return __xnetSyncWaitSourceSyncCore(pSrc, 2, iDeadlineMs, 0);
+}
+static xnet_result xrtNetWaitSourceWaitValue(const xnetwaitsrc* pSrc, ptr* ppValue)
+{
+	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 0, 0, 0, ppValue);
+}
+static xnet_result xrtNetWaitSourceWaitValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
+{
+	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 1, 0, iTimeoutMs, ppValue);
+}
+static xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue)
+{
+	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
+}
+static xnet_result xrtNetListenerAccept(xnetlistener* pListener, xnetstream** ppStream)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
+	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 0, 0, 0, (ptr*)ppStream);
+}
+static xnet_result xrtNetListenerAcceptTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
+	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppStream);
+}
+static xnet_result xrtNetListenerAcceptUntil(xnetlistener* pListener, int64_t iDeadlineMs, xnetstream** ppStream)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
+	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppStream);
+}
+static xnet_result xrtNetDgramRecv(xdgramsock* pSock, xnetdgrampkt** ppPacket)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
+	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 0, 0, 0, (ptr*)ppPacket);
+}
+static xnet_result xrtNetDgramRecvTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
+	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppPacket);
+}
+static xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, xnetdgrampkt** ppPacket)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
+	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppPacket);
+}
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	xnetfuture* pFuture = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	str sErr = NULL;
+	bool bNeedCancel = false;
+	if ( ppValue ) *ppValue = NULL;
+	if ( xrtCoGetCurrent() == NULL ) {
+		__xnetSyncSetError("stream coroutine wait requires an active coroutine context.");
+		return XRT_NET_ERROR;
+	}
+	pFuture = __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
+	if ( pFuture == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	if ( iWaitMode == 0 ) {
+		iStatus = xrtNetFutureWaitCo(pFuture);
+	}
+	else if ( iWaitMode == 1 ) {
+		iStatus = xrtNetFutureWaitCoTimeout(pFuture, iTimeoutMs);
+	}
+	else {
+		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
+	}
+	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
+		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		bNeedCancel = true;
+	}
+	if ( bNeedCancel ) {
+		if ( !__xnetSyncCancelPendingStreamFutureWait(pFuture) ) {
+			xrtClearError();
+			xrtNetFutureDestroy(pFuture);
+			__xnetSyncSetError("stream coroutine wait could not cancel its pending waiter.");
+			return XRT_NET_ERROR;
+		}
+	}
+	if ( ppValue ) {
+		*ppValue = xrtNetFutureValue(pFuture);
+	}
+	xrtClearError();
+	xrtNetFutureDestroy(pFuture);
+	sErr = xrtGetError();
+	if ( sErr && sErr[0] != 0 ) {
+		__xnetSyncSetError("stream coroutine wait could not release its internal future.");
+		return XRT_NET_ERROR;
+	}
+	return iStatus;
+}
+static xnet_result __xnetSyncWaitStreamCoCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitStreamCoCoreEx(pStream, iWaitKind, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
+}
+static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	xnetfuture* pFuture = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	str sErr = NULL;
+	bool bNeedCancel = false;
+	if ( ppValue ) *ppValue = NULL;
+	if ( xrtCoGetCurrent() == NULL ) {
+		__xnetSyncSetError("listener coroutine wait requires an active coroutine context.");
+		return XRT_NET_ERROR;
+	}
+	pFuture = __xnetSyncCreateListenerFutureAccept(pListener);
+	if ( pFuture == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	if ( iWaitMode == 0 ) {
+		iStatus = xrtNetFutureWaitCo(pFuture);
+	}
+	else if ( iWaitMode == 1 ) {
+		iStatus = xrtNetFutureWaitCoTimeout(pFuture, iTimeoutMs);
+	}
+	else {
+		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
+	}
+	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
+		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		bNeedCancel = true;
+	}
+	if ( bNeedCancel ) {
+		if ( !__xnetSyncCancelPendingListenerFutureWait(pFuture) ) {
+			xrtClearError();
+			xrtNetFutureDestroy(pFuture);
+			__xnetSyncSetError("listener coroutine wait could not cancel its pending waiter.");
+			return XRT_NET_ERROR;
+		}
+	}
+	if ( ppValue ) {
+		*ppValue = xrtNetFutureValue(pFuture);
+	}
+	xrtClearError();
+	xrtNetFutureDestroy(pFuture);
+	sErr = xrtGetError();
+	if ( sErr && sErr[0] != 0 ) {
+		__xnetSyncSetError("listener coroutine wait could not release its internal future.");
+		return XRT_NET_ERROR;
+	}
+	return iStatus;
+}
+static xnet_result __xnetSyncWaitListenerCoCore(xnetlistener* pListener, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitListenerCoCoreEx(pListener, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
+}
+static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	xnetfuture* pFuture = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	str sErr = NULL;
+	bool bNeedCancel = false;
+	if ( ppValue ) *ppValue = NULL;
+	if ( xrtCoGetCurrent() == NULL ) {
+		__xnetSyncSetError("datagram coroutine wait requires an active coroutine context.");
+		return XRT_NET_ERROR;
+	}
+	pFuture = __xnetSyncCreateDgramFutureRecv(pSock);
+	if ( pFuture == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	if ( iWaitMode == 0 ) {
+		iStatus = xrtNetFutureWaitCo(pFuture);
+	}
+	else if ( iWaitMode == 1 ) {
+		iStatus = xrtNetFutureWaitCoTimeout(pFuture, iTimeoutMs);
+	}
+	else {
+		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
+	}
+	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
+		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		bNeedCancel = true;
+	}
+	if ( bNeedCancel ) {
+		if ( !__xnetSyncCancelPendingDgramFutureWait(pFuture) ) {
+			xrtClearError();
+			xrtNetFutureDestroy(pFuture);
+			__xnetSyncSetError("datagram coroutine wait could not cancel its pending waiter.");
+			return XRT_NET_ERROR;
+		}
+	}
+	if ( ppValue ) {
+		*ppValue = xrtNetFutureValue(pFuture);
+	}
+	xrtClearError();
+	xrtNetFutureDestroy(pFuture);
+	sErr = xrtGetError();
+	if ( sErr && sErr[0] != 0 ) {
+		__xnetSyncSetError("datagram coroutine wait could not release its internal future.");
+		return XRT_NET_ERROR;
+	}
+	return iStatus;
+}
+static xnet_result __xnetSyncWaitDgramCoCore(xdgramsock* pSock, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitDgramCoCoreEx(pSock, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
+}
+static xnet_result __xnetSyncWaitSourceCoCoreEx(const xnetwaitsrc* pSrc, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
+{
+	if ( ppValue ) *ppValue = NULL;
+	if ( !pSrc ) return XRT_NET_ERROR;
+	if ( pSrc->iKind == XNET_WAITSRC_FUTURE ) {
+		xnet_result iStatus = XRT_NET_ERROR;
+		if ( iWaitMode == 0 ) {
+			iStatus = xrtNetFutureWaitCo(pSrc->u.pFuture);
+		}
+		else if ( iWaitMode == 1 ) {
+			iStatus = xrtNetFutureWaitCoTimeout(pSrc->u.pFuture, iTimeoutMs);
+		}
+		else {
+			iStatus = xrtNetFutureWaitCoUntil(pSrc->u.pFuture, iDeadlineMs);
+		}
+		if ( ppValue ) {
+			*ppValue = xrtNetFutureValue(pSrc->u.pFuture);
+		}
+		return iStatus;
+	}
+	if ( pSrc->iKind == XNET_WAITSRC_STREAM ) {
+		return __xnetSyncWaitStreamCoCoreEx(
+			pSrc->u.tStream.pStream,
+			pSrc->u.tStream.iWaitKind,
+			iWaitMode,
+			iDeadlineMs,
+			iTimeoutMs,
+			ppValue);
+	}
+	if ( pSrc->iKind == XNET_WAITSRC_DGRAM ) {
+		return __xnetSyncWaitDgramCoCoreEx(
+			pSrc->u.pDgram,
+			iWaitMode,
+			iDeadlineMs,
+			iTimeoutMs,
+			ppValue);
+	}
+	if ( pSrc->iKind == XNET_WAITSRC_LISTENER ) {
+		return __xnetSyncWaitListenerCoCoreEx(
+			pSrc->u.pListener,
+			iWaitMode,
+			iDeadlineMs,
+			iTimeoutMs,
+			ppValue);
+	}
+	__xnetSyncSetError("invalid wait source kind.");
+	return XRT_NET_ERROR;
+}
+static xnet_result __xnetSyncWaitSourceCoCore(const xnetwaitsrc* pSrc, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitSourceCoCoreEx(pSrc, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
+}
+static xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
+static xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
+static xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
+static xnet_result xrtNetStreamWaitDrainCo(xnetstream* pStream)
+{
+	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_DRAIN);
+}
+static xnet_result xrtNetStreamWaitDrainCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+{
+	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_DRAIN, iTimeoutMs);
+}
+static xnet_result xrtNetStreamWaitDrainCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+{
+	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_DRAIN, iDeadlineMs);
+}
+static xnet_result xrtNetStreamWaitWritableCo(xnetstream* pStream)
+{
+	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_WRITABLE);
+}
+static xnet_result xrtNetStreamWaitWritableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+{
+	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_WRITABLE, iTimeoutMs);
+}
+static xnet_result xrtNetStreamWaitWritableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+{
+	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_WRITABLE, iDeadlineMs);
+}
+static xnet_result xrtNetStreamWaitCloseCo(xnetstream* pStream)
+{
+	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_CLOSE);
+}
+static xnet_result xrtNetStreamWaitCloseCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+{
+	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_CLOSE, iTimeoutMs);
+}
+static xnet_result xrtNetStreamWaitCloseCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+{
+	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_CLOSE, iDeadlineMs);
+}
+static xnet_result xrtNetStreamWaitReadableCo(xnetstream* pStream)
+{
+	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_READABLE);
+}
+static xnet_result xrtNetStreamWaitReadableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+{
+	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_READABLE, iTimeoutMs);
+}
+static xnet_result xrtNetStreamWaitReadableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+{
+	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_READABLE, iDeadlineMs);
+}
+static xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
+	return __xnetSyncWaitSourceCoCore(&tSrc, 0, 0, 0);
+}
+static xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
+	return __xnetSyncWaitSourceCoCore(&tSrc, 1, 0, iTimeoutMs);
+}
+static xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
+	return __xnetSyncWaitSourceCoCore(&tSrc, 2, iDeadlineMs, 0);
+}
+static xnet_result xrtNetWaitSourceWaitCo(const xnetwaitsrc* pSrc)
+{
+	return __xnetSyncWaitSourceCoCore(pSrc, 0, 0, 0);
+}
+static xnet_result xrtNetWaitSourceWaitCoTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
+{
+	return __xnetSyncWaitSourceCoCore(pSrc, 1, 0, iTimeoutMs);
+}
+static xnet_result xrtNetWaitSourceWaitCoUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs)
+{
+	return __xnetSyncWaitSourceCoCore(pSrc, 2, iDeadlineMs, 0);
+}
+static xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppValue)
+{
+	return __xnetSyncWaitSourceCoCoreEx(pSrc, 0, 0, 0, ppValue);
+}
+static xnet_result xrtNetWaitSourceWaitCoValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
+{
+	return __xnetSyncWaitSourceCoCoreEx(pSrc, 1, 0, iTimeoutMs, ppValue);
+}
+static xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue)
+{
+	return __xnetSyncWaitSourceCoCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
+}
+static xnet_result xrtNetListenerAcceptCo(xnetlistener* pListener, xnetstream** ppStream)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
+	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 0, 0, 0, (ptr*)ppStream);
+}
+static xnet_result xrtNetListenerAcceptCoTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
+	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppStream);
+}
+static xnet_result xrtNetListenerAcceptCoUntil(xnetlistener* pListener, int64 iDeadlineMs, xnetstream** ppStream)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
+	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppStream);
+}
+static xnet_result xrtNetDgramRecvCo(xdgramsock* pSock, xnetdgrampkt** ppPacket)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
+	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 0, 0, 0, (ptr*)ppPacket);
+}
+static xnet_result xrtNetDgramRecvCoTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
+	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppPacket);
+}
+static xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, xnetdgrampkt** ppPacket)
+{
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
+	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppPacket);
+}
+#endif
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xcodec.h
+// ========================================
+
+#ifndef XRT_XCODEC_H
+#define XRT_XCODEC_H
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_mem.h)
+/*
+    XNet V2 - Codec Adapter and Core Framing Helpers
+    Phase-2 scope in this header:
+      - backend-neutral parser adapter contract
+      - common frame metadata over xnetchain
+      - line and length-field framing codecs
+*/
+/* ============================== Common codec status and frame types ============================== */
+typedef enum {
+	XCODEC_STATUS_ERROR = -1,
+	XCODEC_STATUS_NEED_MORE = 0,
+	XCODEC_STATUS_FRAME = 1
+} xcodecstatus;
+#define XCODEC_KIND_NONE    0u
+#define XCODEC_KIND_LINE    1u
+#define XCODEC_KIND_LENGTH  2u
+#define XCODEC_KIND_HTTP1   3u
+#define XCODEC_KIND_WS      4u
+#define XCODEC_FRAME_F_NONE        0x00000000u
+#define XCODEC_FRAME_F_TEXT        0x00000001u
+#define XCODEC_FRAME_F_BINARY      0x00000002u
+#define XCODEC_FRAME_F_REQUEST     0x00000004u
+#define XCODEC_FRAME_F_RESPONSE    0x00000008u
+#define XCODEC_FRAME_F_FIN         0x00000010u
+#define XCODEC_FRAME_F_MASKED      0x00000020u
+#define XCODEC_FRAME_F_UPGRADE     0x00000040u
+#define XCODEC_FRAME_F_KEEPALIVE   0x00000080u
+#define XCODEC_FRAME_F_CHUNKED     0x00000100u
+#define XCODEC_FRAME_F_CONTROL     0x00000200u
+typedef struct {
+	uint32 iKind;
+	uint32 iFlags;
+	size_t iHeaderBytes;
+	size_t iPayloadOffset;
+	size_t iPayloadBytes;
+	size_t iFrameBytes;
+	uint64 iMeta0;
+	uint64 iMeta1;
+} xcodecframe;
+/* ============================== Generic parser adapter ============================== */
+typedef xcodecstatus (*xcodec_parse_fn)(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame);
+typedef void (*xcodec_reset_fn)(ptr pCtx);
+typedef struct {
+	xcodec_parse_fn Parse;
+	xcodec_reset_fn Reset;
+} xcodecparserops;
+typedef struct {
+	const xcodecparserops* pOps;
+	ptr pCtx;
+} xcodecparser;
+static void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx)
+{
+	if ( !pParser ) return;
+	pParser->pOps = pOps;
+	pParser->pCtx = pCtx;
+}
+static xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetchain* pInput, xcodecframe* pFrame)
+{
+	if ( !pParser || !pParser->pOps || !pParser->pOps->Parse ) return XCODEC_STATUS_ERROR;
+	return pParser->pOps->Parse(pParser->pCtx, pInput, pFrame);
+}
+static void xrtCodecParserReset(const xcodecparser* pParser)
+{
+	if ( !pParser || !pParser->pOps || !pParser->pOps->Reset ) return;
+	pParser->pOps->Reset(pParser->pCtx);
+}
+/* ============================== Internal chain slice helpers ============================== */
+static size_t __xcodecChainPeekAt(const xnetchain* pChain, size_t iOffset, ptr pOut, size_t iLen)
+{
+	size_t iCopied = 0;
+	size_t iSeen = 0;
+	uint8* pDst = (uint8*)pOut;
+	const __xnet_blk* pBlk;
+	if ( !pChain || !pOut || iLen == 0 || iOffset >= xrtNetChainBytes(pChain) ) return 0;
+	for ( pBlk = pChain->pHead; pBlk && iCopied < iLen; pBlk = pBlk->pNext ) {
+		size_t iReadable = __xnetBlkReadable(pBlk);
+		size_t iStart;
+		size_t iChunk;
+		if ( iReadable == 0 ) continue;
+		if ( iSeen + iReadable <= iOffset ) {
+			iSeen += iReadable;
+			continue;
+		}
+		iStart = (iOffset > iSeen) ? (iOffset - iSeen) : 0;
+		iChunk = iReadable - iStart;
+		if ( iChunk > (iLen - iCopied) ) iChunk = iLen - iCopied;
+		memcpy(pDst + iCopied, __xnetBlkDataPtr(pBlk) + pBlk->iBegin + iStart, iChunk);
+		iCopied += iChunk;
+		iSeen += iReadable;
+	}
+	return iCopied;
+}
+static bool __xcodecChainMatchAt(const xnetchain* pChain, size_t iOffset, const uint8* pNeedle, size_t iNeedleLen)
+{
+	size_t iSeen = 0;
+	const __xnet_blk* pBlk;
+	size_t iNeedleOff = 0;
+	if ( !pChain || !pNeedle || iNeedleLen == 0 ) return false;
+	if ( iOffset + iNeedleLen > xrtNetChainBytes(pChain) ) return false;
+	for ( pBlk = pChain->pHead; pBlk && iNeedleOff < iNeedleLen; pBlk = pBlk->pNext ) {
+		size_t iReadable = __xnetBlkReadable(pBlk);
+		size_t iStart;
+		size_t iChunk;
+		if ( iReadable == 0 ) continue;
+		if ( iSeen + iReadable <= iOffset ) {
+			iSeen += iReadable;
+			continue;
+		}
+		iStart = (iOffset > iSeen) ? (iOffset - iSeen) : 0;
+		iChunk = iReadable - iStart;
+		if ( iChunk > (iNeedleLen - iNeedleOff) ) iChunk = iNeedleLen - iNeedleOff;
+		if ( memcmp(__xnetBlkDataPtr(pBlk) + pBlk->iBegin + iStart, pNeedle + iNeedleOff, iChunk) != 0 ) {
+			return false;
+		}
+		iNeedleOff += iChunk;
+		iSeen += iReadable;
+	}
+	return iNeedleOff == iNeedleLen;
+}
+static size_t __xcodecChainFindPattern(const xnetchain* pChain, const uint8* pNeedle, size_t iNeedleLen, size_t iStartOff)
+{
+	size_t iPos;
+	if ( !pChain || !pNeedle || iNeedleLen == 0 ) return (size_t)-1;
+	if ( iNeedleLen == 1 ) return xrtNetChainFindByte(pChain, pNeedle[0], iStartOff);
+	iPos = xrtNetChainFindByte(pChain, pNeedle[0], iStartOff);
+	while ( iPos != (size_t)-1 ) {
+		if ( __xcodecChainMatchAt(pChain, iPos, pNeedle, iNeedleLen) ) return iPos;
+		iPos = xrtNetChainFindByte(pChain, pNeedle[0], iPos + 1u);
+	}
+	return (size_t)-1;
+}
+static void xrtCodecFrameInit(xcodecframe* pFrame)
+{
+	if ( !pFrame ) return;
+	memset(pFrame, 0, sizeof(xcodecframe));
+}
+static size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
+{
+	size_t iCopyLen;
+	if ( !pInput || !pFrame || !pOut || iLen == 0 ) return 0;
+	iCopyLen = pFrame->iPayloadBytes;
+	if ( iCopyLen > iLen ) iCopyLen = iLen;
+	return __xcodecChainPeekAt(pInput, pFrame->iPayloadOffset, pOut, iCopyLen);
+}
+static void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
+{
+	if ( !pInput || !pFrame || pFrame->iFrameBytes == 0 ) return;
+	xrtNetChainConsume(pInput, pFrame->iFrameBytes);
+}
+/* ============================== Line codec ============================== */
+typedef struct {
+	uint8 aDelimiter[4];
+	uint32 iDelimiterLen;
+	uint32 iMaxLineBytes;
+	bool bStripDelimiter;
+} xcodeclinecodec;
+static void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
+{
+	if ( !pCodec ) return;
+	memset(pCodec, 0, sizeof(xcodeclinecodec));
+	pCodec->aDelimiter[0] = '\n';
+	pCodec->iDelimiterLen = 1;
+	pCodec->iMaxLineBytes = 8192;
+	pCodec->bStripDelimiter = true;
+}
+static bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimiter, uint32 iDelimiterLen)
+{
+	if ( !pCodec || !pDelimiter || iDelimiterLen == 0 || iDelimiterLen > sizeof(pCodec->aDelimiter) ) return false;
+	memset(pCodec->aDelimiter, 0, sizeof(pCodec->aDelimiter));
+	memcpy(pCodec->aDelimiter, pDelimiter, iDelimiterLen);
+	pCodec->iDelimiterLen = iDelimiterLen;
+	return true;
+}
+static xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
+{
+	xcodeclinecodec* pCodec = (xcodeclinecodec*)pCtx;
+	size_t iPos;
+	size_t iBytes;
+	if ( !pCodec || !pInput || !pFrame || pCodec->iDelimiterLen == 0 ) return XCODEC_STATUS_ERROR;
+	xrtCodecFrameInit(pFrame);
+	iBytes = xrtNetChainBytes(pInput);
+	if ( iBytes == 0 ) return XCODEC_STATUS_NEED_MORE;
+	if ( pCodec->iMaxLineBytes > 0 && iBytes > pCodec->iMaxLineBytes && __xcodecChainFindPattern(pInput, pCodec->aDelimiter, pCodec->iDelimiterLen, 0) == (size_t)-1 ) {
+		return XCODEC_STATUS_ERROR;
+	}
+	iPos = __xcodecChainFindPattern(pInput, pCodec->aDelimiter, pCodec->iDelimiterLen, 0);
+	if ( iPos == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+	pFrame->iKind = XCODEC_KIND_LINE;
+	pFrame->iHeaderBytes = 0;
+	pFrame->iPayloadOffset = 0;
+	pFrame->iPayloadBytes = pCodec->bStripDelimiter ? iPos : (iPos + pCodec->iDelimiterLen);
+	pFrame->iFrameBytes = iPos + pCodec->iDelimiterLen;
+	pFrame->iFlags = XCODEC_FRAME_F_TEXT;
+	return XCODEC_STATUS_FRAME;
+}
+static void xrtCodecLineReset(ptr pCtx)
+{
+	(void)pCtx;
+}
+static const xcodecparserops* xrtCodecLineOps(void)
+{
+	static const xcodecparserops tOps = {
+		xrtCodecLineParse,
+		xrtCodecLineReset
+	};
+	return &tOps;
+}
+/* ============================== Length-field codec ============================== */
+typedef struct {
+	uint8 iFieldBytes;
+	bool bBigEndian;
+	int32_t iLengthAdjust;
+	uint32 iMaxPayloadBytes;
+} xcodeclengthcodec;
+static void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
+{
+	if ( !pCodec ) return;
+	memset(pCodec, 0, sizeof(xcodeclengthcodec));
+	pCodec->iFieldBytes = 4;
+	pCodec->bBigEndian = true;
+	pCodec->iLengthAdjust = 0;
+	pCodec->iMaxPayloadBytes = 1024u * 1024u;
+}
+static uint64 __xcodecReadUint(const uint8* pBytes, uint32 iByteCount, bool bBigEndian)
+{
+	uint64 iValue = 0;
+	if ( !pBytes || iByteCount == 0 || iByteCount > 8 ) return 0;
+	if ( bBigEndian ) {
+		for ( uint32 i = 0; i < iByteCount; ++i ) {
+			iValue = (iValue << 8u) | (uint64)pBytes[i];
+		}
+	} else {
+		for ( uint32 i = 0; i < iByteCount; ++i ) {
+			iValue |= ((uint64)pBytes[i]) << (8u * i);
+		}
+	}
+	return iValue;
+}
+static xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
+{
+	xcodeclengthcodec* pCodec = (xcodeclengthcodec*)pCtx;
+	uint8 aHeader[8];
+	uint64 iDeclaredLen;
+	int64_t iPayloadLen;
+	size_t iFrameBytes;
+	if ( !pCodec || !pInput || !pFrame ) return XCODEC_STATUS_ERROR;
+	if ( pCodec->iFieldBytes == 0 || pCodec->iFieldBytes > sizeof(aHeader) ) return XCODEC_STATUS_ERROR;
+	xrtCodecFrameInit(pFrame);
+	if ( xrtNetChainBytes(pInput) < pCodec->iFieldBytes ) return XCODEC_STATUS_NEED_MORE;
+	if ( __xcodecChainPeekAt(pInput, 0, aHeader, pCodec->iFieldBytes) != pCodec->iFieldBytes ) return XCODEC_STATUS_ERROR;
+	iDeclaredLen = __xcodecReadUint(aHeader, pCodec->iFieldBytes, pCodec->bBigEndian);
+	iPayloadLen = (int64_t)iDeclaredLen + (int64_t)pCodec->iLengthAdjust;
+	if ( iPayloadLen < 0 ) return XCODEC_STATUS_ERROR;
+	if ( pCodec->iMaxPayloadBytes > 0 && (uint64)iPayloadLen > (uint64)pCodec->iMaxPayloadBytes ) return XCODEC_STATUS_ERROR;
+	iFrameBytes = (size_t)pCodec->iFieldBytes + (size_t)iPayloadLen;
+	if ( xrtNetChainBytes(pInput) < iFrameBytes ) return XCODEC_STATUS_NEED_MORE;
+	pFrame->iKind = XCODEC_KIND_LENGTH;
+	pFrame->iHeaderBytes = pCodec->iFieldBytes;
+	pFrame->iPayloadOffset = pCodec->iFieldBytes;
+	pFrame->iPayloadBytes = (size_t)iPayloadLen;
+	pFrame->iFrameBytes = iFrameBytes;
+	pFrame->iMeta0 = iDeclaredLen;
+	return XCODEC_STATUS_FRAME;
+}
+static void xrtCodecLengthReset(ptr pCtx)
+{
+	(void)pCtx;
+}
+static const xcodecparserops* xrtCodecLengthOps(void)
+{
+	static const xcodecparserops tOps = {
+		xrtCodecLengthParse,
+		xrtCodecLengthReset
+	};
+	return &tOps;
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xcodec_http1.h
+// ========================================
+
+#ifndef XRT_XCODEC_HTTP1_H
+#define XRT_XCODEC_HTTP1_H
+// (skipped duplicate include: D:/Git/xrt/lib/xcodec.h)
+/*
+    XNet V2 - HTTP/1 Parser Skeleton
+    Phase-2 scope in this header:
+      - parse request/response start-line and headers from xnetchain
+      - expose content-length / chunked / upgrade metadata
+      - provide whole-message chunked body delimiting and decode helpers
+*/
+/* ============================== HTTP/1 public model ============================== */
+#define XCODEC_HTTP1_MAX_HEADERS 32u
+#define XCODEC_HTTP1_TOKEN_CAP   32u
+#define XCODEC_HTTP1_TARGET_CAP  256u
+#define XCODEC_HTTP1_VALUE_CAP   256u
+#define XCODEC_HTTP1_REASON_CAP  128u
+#define XCODEC_HTTP1_F_NONE       0x00000000u
+#define XCODEC_HTTP1_F_REQUEST    0x00000001u
+#define XCODEC_HTTP1_F_RESPONSE   0x00000002u
+#define XCODEC_HTTP1_F_CHUNKED    0x00000004u
+#define XCODEC_HTTP1_F_KEEPALIVE  0x00000008u
+#define XCODEC_HTTP1_F_UPGRADE    0x00000010u
+typedef struct {
+	char sName[XCODEC_HTTP1_TOKEN_CAP];
+	char sValue[XCODEC_HTTP1_VALUE_CAP];
+} xcodechttp1header;
+typedef struct {
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	uint32 iStatusCode;
+	int64_t iContentLength;
+	size_t iHeadBytes;
+	char sMethod[XCODEC_HTTP1_TOKEN_CAP];
+	char sTarget[XCODEC_HTTP1_TARGET_CAP];
+	char sVersion[XCODEC_HTTP1_TOKEN_CAP];
+	char sReason[XCODEC_HTTP1_REASON_CAP];
+	xcodechttp1header arrHeaders[XCODEC_HTTP1_MAX_HEADERS];
+} xcodechttp1msg;
+/* ============================== Internal string helpers ============================== */
+static char __xcodecHttpToLower(char ch)
+{
+	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
+	return ch;
+}
+static bool __xcodecHttpStrEqNoCase(const char* sA, const char* sB)
+{
+	size_t i = 0;
+	if ( !sA || !sB ) return false;
+	while ( sA[i] && sB[i] ) {
+		if ( __xcodecHttpToLower(sA[i]) != __xcodecHttpToLower(sB[i]) ) return false;
+		i++;
+	}
+	return sA[i] == '\0' && sB[i] == '\0';
+}
+static bool __xcodecHttpContainsTokenNoCase(const char* sText, const char* sToken)
+{
+	size_t iLenText;
+	size_t iLenToken;
+	if ( !sText || !sToken ) return false;
+	iLenText = strlen(sText);
+	iLenToken = strlen(sToken);
+	if ( iLenToken == 0 || iLenToken > iLenText ) return false;
+	for ( size_t i = 0; i + iLenToken <= iLenText; ++i ) {
+		size_t j;
+		for ( j = 0; j < iLenToken; ++j ) {
+			if ( __xcodecHttpToLower(sText[i + j]) != __xcodecHttpToLower(sToken[j]) ) break;
+		}
+		if ( j == iLenToken ) return true;
+	}
+	return false;
+}
+static void __xcodecHttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc, size_t iLen)
+{
+	size_t iCopyLen;
+	if ( !sDst || iDstCap == 0 ) return;
+	if ( !sSrc ) {
+		sDst[0] = '\0';
+		return;
+	}
+	iCopyLen = iLen;
+	if ( iCopyLen >= iDstCap ) iCopyLen = iDstCap - 1u;
+	memcpy(sDst, sSrc, iCopyLen);
+	sDst[iCopyLen] = '\0';
+}
+static void __xcodecHttpTrimView(const char** ppText, size_t* pLen)
+{
+	const char* sText = ppText ? *ppText : NULL;
+	size_t iLen = pLen ? *pLen : 0;
+	if ( !ppText || !pLen || !sText ) return;
+	while ( iLen > 0 && (*sText == ' ' || *sText == '\t') ) {
+		sText++;
+		iLen--;
+	}
+	while ( iLen > 0 && (sText[iLen - 1] == ' ' || sText[iLen - 1] == '\t') ) {
+		iLen--;
+	}
+	*ppText = sText;
+	*pLen = iLen;
+}
+static bool __xcodecHttpParseInt64(const char* sText, int64_t* pValue)
+{
+	int64_t iValue = 0;
+	size_t i = 0;
+	if ( !sText || !sText[0] || !pValue ) return false;
+	while ( sText[i] ) {
+		if ( sText[i] < '0' || sText[i] > '9' ) return false;
+		iValue = (iValue * 10) + (int64_t)(sText[i] - '0');
+		i++;
+	}
+	*pValue = iValue;
+	return true;
+}
+static bool __xcodecHttpParseHexU64(const char* sText, size_t iLen, uint64* pValue)
+{
+	uint64 iValue = 0;
+	bool bHasDigit = false;
+	size_t i = 0;
+	if ( !sText || !pValue ) return false;
+	while ( i < iLen && (sText[i] == ' ' || sText[i] == '\t') ) i++;
+	while ( iLen > i && (sText[iLen - 1u] == ' ' || sText[iLen - 1u] == '\t') ) iLen--;
+	if ( i >= iLen ) return false;
+	for ( ; i < iLen; ++i ) {
+		uint32 iDigit;
+		char ch = sText[i];
+		if ( ch == ';' ) break;
+		if ( ch >= '0' && ch <= '9' ) iDigit = (uint32)(ch - '0');
+		else if ( ch >= 'a' && ch <= 'f' ) iDigit = 10u + (uint32)(ch - 'a');
+		else if ( ch >= 'A' && ch <= 'F' ) iDigit = 10u + (uint32)(ch - 'A');
+		else if ( ch == ' ' || ch == '\t' ) {
+			while ( i < iLen && (sText[i] == ' ' || sText[i] == '\t') ) i++;
+			if ( i < iLen && sText[i] != ';' ) return false;
+			break;
+		} else {
+			return false;
+		}
+		if ( iValue > (UINT64_MAX - iDigit) / 16u ) return false;
+		iValue = (iValue * 16u) + iDigit;
+		bHasDigit = true;
+	}
+	if ( !bHasDigit ) return false;
+	*pValue = iValue;
+	return true;
+}
+static const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName)
+{
+	if ( !pMsg || !sName ) return NULL;
+	for ( uint32 i = 0; i < pMsg->iHeaderCount; ++i ) {
+		if ( __xcodecHttpStrEqNoCase(pMsg->arrHeaders[i].sName, sName) ) {
+			return pMsg->arrHeaders[i].sValue;
+		}
+	}
+	return NULL;
+}
+static void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg)
+{
+	if ( !pMsg ) return;
+	memset(pMsg, 0, sizeof(xcodechttp1msg));
+	pMsg->iContentLength = -1;
+}
+static xcodecstatus __xcodecHttpReadChunkHeader(const xnetchain* pInput, size_t iOffset, uint64* pChunkSize, size_t* pDataOffset)
+{
+	static const uint8 aCrlf[] = { '\r', '\n' };
+	size_t iLineEnd;
+	size_t iLineLen;
+	char* sLine;
+	bool bOk;
+	if ( !pInput || !pChunkSize ) return XCODEC_STATUS_ERROR;
+	iLineEnd = __xcodecChainFindPattern(pInput, aCrlf, sizeof(aCrlf), iOffset);
+	if ( iLineEnd == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+	iLineLen = iLineEnd - iOffset;
+	sLine = (char*)XNET_ALLOC(iLineLen + 1u);
+	if ( !sLine ) return XCODEC_STATUS_ERROR;
+	if ( __xcodecChainPeekAt(pInput, iOffset, sLine, iLineLen) != iLineLen ) {
+		XNET_FREE(sLine);
+		return XCODEC_STATUS_ERROR;
+	}
+	sLine[iLineLen] = '\0';
+	bOk = __xcodecHttpParseHexU64(sLine, iLineLen, pChunkSize);
+	XNET_FREE(sLine);
+	if ( !bOk ) return XCODEC_STATUS_ERROR;
+	if ( pDataOffset ) *pDataOffset = iLineEnd + sizeof(aCrlf);
+	return XCODEC_STATUS_FRAME;
+}
+static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size_t iBodyOffset, size_t* pChunkBodyBytes, size_t* pDecodedBytes)
+{
+	static const uint8 aCrlf[] = { '\r', '\n' };
+	static const uint8 aTrailerEnd[] = { '\r', '\n', '\r', '\n' };
+	size_t iPos;
+	size_t iDecoded = 0u;
+	if ( !pInput || !pChunkBodyBytes || !pDecodedBytes ) return XCODEC_STATUS_ERROR;
+	iPos = iBodyOffset;
+	for ( ;; ) {
+		uint64 iChunkSize = 0u;
+		size_t iDataOffset = 0u;
+		size_t iChunkBytes;
+		xcodecstatus iChunkHdr = __xcodecHttpReadChunkHeader(pInput, iPos, &iChunkSize, &iDataOffset);
+		size_t iAvailBytes;
+		if ( iChunkHdr != XCODEC_STATUS_FRAME ) return iChunkHdr;
+		if ( iChunkSize == 0u ) {
+			if ( __xcodecChainMatchAt(pInput, iDataOffset, aCrlf, sizeof(aCrlf)) ) {
+				*pChunkBodyBytes = (iDataOffset + sizeof(aCrlf)) - iBodyOffset;
+				*pDecodedBytes = iDecoded;
+				return XCODEC_STATUS_FRAME;
+			}
+			iPos = __xcodecChainFindPattern(pInput, aTrailerEnd, sizeof(aTrailerEnd), iDataOffset);
+			if ( iPos == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+			*pChunkBodyBytes = (iPos + sizeof(aTrailerEnd)) - iBodyOffset;
+			*pDecodedBytes = iDecoded;
+			return XCODEC_STATUS_FRAME;
+		}
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDecoded) ) return XCODEC_STATUS_ERROR;
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - sizeof(aCrlf)) ) return XCODEC_STATUS_ERROR;
+		iChunkBytes = (size_t)iChunkSize;
+		iAvailBytes = xrtNetChainBytes(pInput);
+		if ( iAvailBytes < iDataOffset + iChunkBytes + sizeof(aCrlf) ) return XCODEC_STATUS_NEED_MORE;
+		if ( !__xcodecChainMatchAt(pInput, iDataOffset + iChunkBytes, aCrlf, sizeof(aCrlf)) ) return XCODEC_STATUS_ERROR;
+		iDecoded += iChunkBytes;
+		iPos = iDataOffset + iChunkBytes + sizeof(aCrlf);
+	}
+}
+static size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame)
+{
+	if ( !pFrame ) return 0u;
+	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) != 0u ) return (size_t)pFrame->iMeta0;
+	return pFrame->iPayloadBytes;
+}
+static size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
+{
+	uint8* pDst = (uint8*)pOut;
+	size_t iWant;
+	size_t iCopied = 0u;
+	size_t iPos;
+	if ( !pInput || !pFrame || !pOut || iLen == 0u ) return 0u;
+	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) == 0u ) {
+		return xrtCodecFramePeek(pInput, pFrame, pOut, iLen);
+	}
+	iWant = xrtCodecHttp1BodyBytes(pFrame);
+	if ( iWant > iLen ) iWant = iLen;
+	iPos = pFrame->iPayloadOffset;
+	while ( iCopied < iWant ) {
+		uint64 iChunkSize = 0u;
+		size_t iDataOffset = 0u;
+		size_t iChunkBytes;
+		if ( __xcodecHttpReadChunkHeader(pInput, iPos, &iChunkSize, &iDataOffset) != XCODEC_STATUS_FRAME ) break;
+		if ( iChunkSize == 0u ) break;
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - 2u) ) break;
+		iChunkBytes = (size_t)iChunkSize;
+		if ( iCopied + iChunkBytes > iWant ) iChunkBytes = iWant - iCopied;
+		if ( iChunkBytes > 0u && __xcodecChainPeekAt(pInput, iDataOffset, pDst + iCopied, iChunkBytes) != iChunkBytes ) break;
+		iCopied += iChunkBytes;
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - 2u) ) break;
+		iPos = iDataOffset + (size_t)iChunkSize + 2u;
+	}
+	return iCopied;
+}
+/* ============================== HTTP/1 skeleton parser ============================== */
+static xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
+{
+	static const uint8 aHeadEnd[] = { '\r', '\n', '\r', '\n' };
+	char* sHeadBuf;
+	size_t iHeadEndPos;
+	size_t iHeadBytes;
+	size_t iBodyBytes = 0;
+	char* sCursor;
+	char* sLineEnd;
+	char* sNextLine;
+	if ( !pInput || !pFrame || !pMsg ) return XCODEC_STATUS_ERROR;
+	xrtCodecFrameInit(pFrame);
+	xrtCodecHttp1MessageInit(pMsg);
+	iHeadEndPos = __xcodecChainFindPattern(pInput, aHeadEnd, sizeof(aHeadEnd), 0);
+	if ( iHeadEndPos == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+	iHeadBytes = iHeadEndPos + sizeof(aHeadEnd);
+	sHeadBuf = (char*)XNET_ALLOC(iHeadBytes + 1u);
+	if ( !sHeadBuf ) return XCODEC_STATUS_ERROR;
+	if ( __xcodecChainPeekAt(pInput, 0, sHeadBuf, iHeadBytes) != iHeadBytes ) {
+		XNET_FREE(sHeadBuf);
+		return XCODEC_STATUS_ERROR;
+	}
+	sHeadBuf[iHeadBytes] = '\0';
+	sLineEnd = strstr(sHeadBuf, "\r\n");
+	if ( !sLineEnd ) {
+		XNET_FREE(sHeadBuf);
+		return XCODEC_STATUS_ERROR;
+	}
+	*sLineEnd = '\0';
+	if ( strncmp(sHeadBuf, "HTTP/", 5) == 0 ) {
+		char* sVersion = sHeadBuf;
+		char* sStatus = strchr(sVersion, ' ');
+		char* sReason = NULL;
+		if ( !sStatus ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+		*sStatus++ = '\0';
+		while ( *sStatus == ' ' ) sStatus++;
+		sReason = strchr(sStatus, ' ');
+		if ( sReason ) {
+			*sReason++ = '\0';
+			while ( *sReason == ' ' ) sReason++;
+		}
+		pMsg->iFlags |= XCODEC_HTTP1_F_RESPONSE;
+		pFrame->iFlags |= XCODEC_FRAME_F_RESPONSE;
+		__xcodecHttpCopyToken(pMsg->sVersion, sizeof(pMsg->sVersion), sVersion, strlen(sVersion));
+		pMsg->iStatusCode = (uint32)atoi(sStatus);
+		if ( sReason ) __xcodecHttpCopyToken(pMsg->sReason, sizeof(pMsg->sReason), sReason, strlen(sReason));
+	} else {
+		char* sMethod = sHeadBuf;
+		char* sTarget = strchr(sMethod, ' ');
+		char* sVersion = NULL;
+		if ( !sTarget ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+		*sTarget++ = '\0';
+		while ( *sTarget == ' ' ) sTarget++;
+		sVersion = strchr(sTarget, ' ');
+		if ( !sVersion ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+		*sVersion++ = '\0';
+		while ( *sVersion == ' ' ) sVersion++;
+		pMsg->iFlags |= XCODEC_HTTP1_F_REQUEST;
+		pFrame->iFlags |= XCODEC_FRAME_F_REQUEST;
+		__xcodecHttpCopyToken(pMsg->sMethod, sizeof(pMsg->sMethod), sMethod, strlen(sMethod));
+		__xcodecHttpCopyToken(pMsg->sTarget, sizeof(pMsg->sTarget), sTarget, strlen(sTarget));
+		__xcodecHttpCopyToken(pMsg->sVersion, sizeof(pMsg->sVersion), sVersion, strlen(sVersion));
+	}
+	sCursor = sLineEnd + 2;
+	while ( sCursor < (sHeadBuf + iHeadBytes - 2u) ) {
+		char* sColon;
+		const char* sName;
+		const char* sValue;
+		size_t iNameLen;
+		size_t iValueLen;
+		if ( sCursor[0] == '\r' && sCursor[1] == '\n' ) break;
+		sNextLine = strstr(sCursor, "\r\n");
+		if ( !sNextLine ) break;
+		*sNextLine = '\0';
+		sColon = strchr(sCursor, ':');
+		if ( !sColon ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+		*sColon = '\0';
+		sName = sCursor;
+		sValue = sColon + 1;
+		iNameLen = strlen(sName);
+		iValueLen = strlen(sValue);
+		__xcodecHttpTrimView(&sName, &iNameLen);
+		__xcodecHttpTrimView(&sValue, &iValueLen);
+		if ( pMsg->iHeaderCount < XCODEC_HTTP1_MAX_HEADERS ) {
+			xcodechttp1header* pHeader = &pMsg->arrHeaders[pMsg->iHeaderCount++];
+			__xcodecHttpCopyToken(pHeader->sName, sizeof(pHeader->sName), sName, iNameLen);
+			__xcodecHttpCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue, iValueLen);
+			if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Content-Length") ) {
+				(void)__xcodecHttpParseInt64(pHeader->sValue, &pMsg->iContentLength);
+			} else if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Transfer-Encoding") ) {
+				if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "chunked") ) {
+					pMsg->iFlags |= XCODEC_HTTP1_F_CHUNKED;
+					pFrame->iFlags |= XCODEC_FRAME_F_CHUNKED;
+				}
+			} else if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Connection") ) {
+				if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "upgrade") ) {
+					pMsg->iFlags |= XCODEC_HTTP1_F_UPGRADE;
+					pFrame->iFlags |= XCODEC_FRAME_F_UPGRADE;
+				}
+				if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "close") ) {
+					pMsg->iFlags &= ~XCODEC_HTTP1_F_KEEPALIVE;
+					pFrame->iFlags &= ~XCODEC_FRAME_F_KEEPALIVE;
+				} else if ( __xcodecHttpContainsTokenNoCase(pHeader->sValue, "keep-alive") ) {
+					pMsg->iFlags |= XCODEC_HTTP1_F_KEEPALIVE;
+					pFrame->iFlags |= XCODEC_FRAME_F_KEEPALIVE;
+				}
+			} else if ( __xcodecHttpStrEqNoCase(pHeader->sName, "Upgrade") ) {
+				if ( pHeader->sValue[0] != '\0' ) {
+					pMsg->iFlags |= XCODEC_HTTP1_F_UPGRADE;
+					pFrame->iFlags |= XCODEC_FRAME_F_UPGRADE;
+				}
+			}
+		}
+		sCursor = sNextLine + 2;
+	}
+	if ( __xcodecHttpContainsTokenNoCase(pMsg->sVersion, "HTTP/1.1") &&
+		((pFrame->iFlags & XCODEC_FRAME_F_KEEPALIVE) == 0) ) {
+		const char* sConn = xrtCodecHttp1GetHeader(pMsg, "Connection");
+		if ( !sConn || !__xcodecHttpContainsTokenNoCase(sConn, "close") ) {
+			pMsg->iFlags |= XCODEC_HTTP1_F_KEEPALIVE;
+			pFrame->iFlags |= XCODEC_FRAME_F_KEEPALIVE;
+		}
+	}
+	pMsg->iHeadBytes = iHeadBytes;
+	pFrame->iKind = XCODEC_KIND_HTTP1;
+	pFrame->iHeaderBytes = iHeadBytes;
+	pFrame->iPayloadOffset = iHeadBytes;
+	if ( pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED ) {
+		size_t iChunkBodyBytes = 0u;
+		size_t iDecodedBytes = 0u;
+		xcodecstatus iChunkParse = __xcodecHttpMeasureChunkedBody(pInput, iHeadBytes, &iChunkBodyBytes, &iDecodedBytes);
+		if ( iChunkParse != XCODEC_STATUS_FRAME ) {
+			XNET_FREE(sHeadBuf);
+			return iChunkParse;
+		}
+		pFrame->iPayloadBytes = 0;
+		pFrame->iFrameBytes = iHeadBytes + iChunkBodyBytes;
+		pFrame->iMeta0 = (uint64)iDecodedBytes;
+		pFrame->iMeta1 = (uint64)iChunkBodyBytes;
+		XNET_FREE(sHeadBuf);
+		return XCODEC_STATUS_FRAME;
+	}
+	if ( pMsg->iContentLength > 0 ) {
+		iBodyBytes = (size_t)pMsg->iContentLength;
+	}
+	pFrame->iPayloadBytes = iBodyBytes;
+	pFrame->iFrameBytes = iHeadBytes + iBodyBytes;
+	if ( xrtNetChainBytes(pInput) < pFrame->iFrameBytes ) {
+		XNET_FREE(sHeadBuf);
+		return XCODEC_STATUS_NEED_MORE;
+	}
+	XNET_FREE(sHeadBuf);
+	return XCODEC_STATUS_FRAME;
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xcodec_ws.h
+// ========================================
+
+#ifndef XRT_XCODEC_WS_H
+#define XRT_XCODEC_WS_H
+// (skipped duplicate include: D:/Git/xrt/lib/xcodec.h)
+/*
+    XNet V2 - WebSocket Frame Skeleton
+    Phase-2 scope in this header:
+      - parse frame header, payload length, FIN, opcode, and masking metadata
+      - expose payload boundaries over xnetchain
+      - leave message reassembly to the upper WebSocket layer
+*/
+/* ============================== WebSocket public model ============================== */
+#define XCODEC_WS_OPCODE_CONT   0x0u
+#define XCODEC_WS_OPCODE_TEXT   0x1u
+#define XCODEC_WS_OPCODE_BINARY 0x2u
+#define XCODEC_WS_OPCODE_CLOSE  0x8u
+#define XCODEC_WS_OPCODE_PING   0x9u
+#define XCODEC_WS_OPCODE_PONG   0xAu
+#define XCODEC_WS_F_NONE     0x00000000u
+#define XCODEC_WS_F_FIN      0x00000001u
+#define XCODEC_WS_F_MASKED   0x00000002u
+#define XCODEC_WS_F_CONTROL  0x00000004u
+typedef struct {
+	uint32 iFlags;
+	uint8 iOpcode;
+	uint8 aMask[4];
+	uint64 iPayloadLen;
+	size_t iHeaderBytes;
+} xcodecwsframeinfo;
+/* ============================== WebSocket skeleton parser ============================== */
+static void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo)
+{
+	if ( !pInfo ) return;
+	memset(pInfo, 0, sizeof(xcodecwsframeinfo));
+}
+static xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo)
+{
+	uint8 aHead[14];
+	uint8 iB0;
+	uint8 iB1;
+	uint64 iPayloadLen;
+	size_t iHeaderBytes = 2;
+	size_t iNeedBytes;
+	bool bMasked;
+	if ( !pInput || !pFrame || !pInfo ) return XCODEC_STATUS_ERROR;
+	xrtCodecFrameInit(pFrame);
+	xrtCodecWsFrameInit(pInfo);
+	if ( xrtNetChainBytes(pInput) < 2 ) return XCODEC_STATUS_NEED_MORE;
+	if ( __xcodecChainPeekAt(pInput, 0, aHead, 2) != 2 ) return XCODEC_STATUS_ERROR;
+	iB0 = aHead[0];
+	iB1 = aHead[1];
+	bMasked = (iB1 & 0x80u) != 0;
+	iPayloadLen = (uint64)(iB1 & 0x7Fu);
+	if ( iPayloadLen == 126u ) {
+		iHeaderBytes += 2u;
+		if ( xrtNetChainBytes(pInput) < iHeaderBytes ) return XCODEC_STATUS_NEED_MORE;
+		if ( __xcodecChainPeekAt(pInput, 2, aHead + 2, 2) != 2 ) return XCODEC_STATUS_ERROR;
+		iPayloadLen = ((uint64)aHead[2] << 8u) | (uint64)aHead[3];
+	} else if ( iPayloadLen == 127u ) {
+		iHeaderBytes += 8u;
+		if ( xrtNetChainBytes(pInput) < iHeaderBytes ) return XCODEC_STATUS_NEED_MORE;
+		if ( __xcodecChainPeekAt(pInput, 2, aHead + 2, 8) != 8 ) return XCODEC_STATUS_ERROR;
+		iPayloadLen = 0;
+		for ( uint32 i = 0; i < 8; ++i ) {
+			iPayloadLen = (iPayloadLen << 8u) | (uint64)aHead[2 + i];
+		}
+	}
+	if ( bMasked ) {
+		iNeedBytes = iHeaderBytes + 4u;
+		if ( xrtNetChainBytes(pInput) < iNeedBytes ) return XCODEC_STATUS_NEED_MORE;
+		if ( __xcodecChainPeekAt(pInput, iHeaderBytes, pInfo->aMask, 4) != 4 ) return XCODEC_STATUS_ERROR;
+		iHeaderBytes += 4u;
+	}
+	if ( xrtNetChainBytes(pInput) < iHeaderBytes + (size_t)iPayloadLen ) return XCODEC_STATUS_NEED_MORE;
+	pInfo->iOpcode = (uint8)(iB0 & 0x0Fu);
+	pInfo->iPayloadLen = iPayloadLen;
+	pInfo->iHeaderBytes = iHeaderBytes;
+	if ( iB0 & 0x80u ) pInfo->iFlags |= XCODEC_WS_F_FIN;
+	if ( bMasked ) pInfo->iFlags |= XCODEC_WS_F_MASKED;
+	if ( pInfo->iOpcode >= 0x8u ) pInfo->iFlags |= XCODEC_WS_F_CONTROL;
+	pFrame->iKind = XCODEC_KIND_WS;
+	pFrame->iHeaderBytes = iHeaderBytes;
+	pFrame->iPayloadOffset = iHeaderBytes;
+	pFrame->iPayloadBytes = (size_t)iPayloadLen;
+	pFrame->iFrameBytes = iHeaderBytes + (size_t)iPayloadLen;
+	pFrame->iMeta0 = pInfo->iOpcode;
+	pFrame->iMeta1 = pInfo->iFlags;
+	if ( pInfo->iFlags & XCODEC_WS_F_FIN ) pFrame->iFlags |= XCODEC_FRAME_F_FIN;
+	if ( pInfo->iFlags & XCODEC_WS_F_MASKED ) pFrame->iFlags |= XCODEC_FRAME_F_MASKED;
+	if ( pInfo->iFlags & XCODEC_WS_F_CONTROL ) pFrame->iFlags |= XCODEC_FRAME_F_CONTROL;
+	if ( pInfo->iOpcode == XCODEC_WS_OPCODE_TEXT ) pFrame->iFlags |= XCODEC_FRAME_F_TEXT;
+	if ( pInfo->iOpcode == XCODEC_WS_OPCODE_BINARY ) pFrame->iFlags |= XCODEC_FRAME_F_BINARY;
+	return XCODEC_STATUS_FRAME;
+}
+static void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset)
+{
+	uint8* pBytes = (uint8*)pData;
+	if ( !pBytes || !aMask ) return;
+	for ( size_t i = 0; i < iLen; ++i ) {
+		pBytes[i] ^= aMask[(iStartOffset + i) & 3u];
+	}
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xhttp.h
+// ========================================
+
+#ifndef XRT_XHTTP_H
+#define XRT_XHTTP_H
+// (skipped duplicate include: D:/Git/xrt/lib/xcodec_http1.h)
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_stream.h)
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_sync.h)
+/*
+    XNet V2 - HTTP Client Rebuild Skeleton
+    Phase-3 scope in this header:
+      - request and response objects
+      - one-shot async HTTP/1.1 client transaction on xnet_stream
+      - sync facade over the same async transport core
+    Current limitations:
+      - one request per connection, default Connection: keep-alive
+      - whole-body chunked transfer is supported, but trailers are metadata-only
+      - streaming bodies are still deferred to later protocol work
+*/
+#define XHTTP_METHOD_CAP         16u
+#define XHTTP_URL_CAP            1024u
+#define XHTTP_HOST_CAP           256u
+#define XHTTP_PATH_CAP           1024u
+#define XHTTP_HEADER_NAME_CAP    64u
+#define XHTTP_HEADER_VALUE_CAP   256u
+#define XHTTP_MAX_HEADERS        32u
+#define XHTTP_RESP_F_NONE        0x00000000u
+#define XHTTP_RESP_F_CHUNKED     0x00000001u
+#define XHTTP_RESP_F_KEEPALIVE   0x00000002u
+#define XHTTP_RESP_F_UPGRADE     0x00000004u
+typedef struct {
+	char sName[XHTTP_HEADER_NAME_CAP];
+	char sValue[XHTTP_HEADER_VALUE_CAP];
+} xhttpheader;
+typedef struct {
+	bool bHttps;
+	uint16 iPort;
+	char sHost[XHTTP_HOST_CAP];
+	char sPath[XHTTP_PATH_CAP];
+} xhttpurl;
+typedef struct {
+	char sMethod[XHTTP_METHOD_CAP];
+	char sURL[XHTTP_URL_CAP];
+	xhttpurl tURL;
+	xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
+	uint32 iHeaderCount;
+	char* pBody;
+	size_t iBodyLen;
+	uint32 iTimeoutMs;
+	bool bVerifyPeer;
+} xhttprequest;
+typedef struct {
+	uint32 iStatusCode;
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	int64_t iContentLength;
+	char sVersion[XCODEC_HTTP1_TOKEN_CAP];
+	char sReason[XCODEC_HTTP1_REASON_CAP];
+	xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
+	char* pBody;
+	size_t iBodyLen;
+} xhttpresponse;
+typedef struct {
+	volatile long iRefCount;
+	volatile long iCleanupPosted;
+	volatile long iComplete;
+	xnetengine* pEngine;
+	struct __xhttp_conn* pConn;
+	xnetstream* pStream;
+	xnetfuture* pFuture;
+	xhttprequest tReq;
+	char* pSendBuf;
+	size_t iSendLen;
+	int iLastSysErr;
+	xtlsconfig tTlsCfg;
+} __xhttp_tx;
+typedef struct __xhttp_conn {
+	struct __xhttp_conn* pNext;
+	volatile long iCleanupPosted;
+	xnetengine* pEngine;
+	xnetstream* pStream;
+	__xhttp_tx* pTx;
+	char sHost[XHTTP_HOST_CAP];
+	uint16 iPort;
+	bool bHttps;
+	bool bVerifyPeer;
+	bool bOpen;
+	bool bIdle;
+	int iLastSysErr;
+	xtlsconfig tTlsCfg;
+} __xhttp_conn;
+static volatile long __g_xhttpPoolLock = 0;
+static __xhttp_conn* __g_xhttpIdleConnHead = NULL;
+static char __xhttpToLower(char ch)
+{
+	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
+	return ch;
+}
+static bool __xhttpStrEqNoCase(const char* sA, const char* sB)
+{
+	size_t i = 0;
+	if ( !sA || !sB ) return false;
+	while ( sA[i] && sB[i] ) {
+		if ( __xhttpToLower(sA[i]) != __xhttpToLower(sB[i]) ) return false;
+		i++;
+	}
+	return sA[i] == '\0' && sB[i] == '\0';
+}
+static long __xhttpAtomicAdd(volatile long* pValue, long iDelta)
+{
+	return __xnetAtomicAddFetch32(pValue, iDelta);
+}
+static long __xhttpAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
+{
+	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
+}
+static long __xhttpAtomicLoad(volatile long* pValue)
+{
+	return __xnetAtomicLoad32(pValue);
+}
+static void __xhttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
+{
+	size_t iLen;
+	if ( !sDst || iDstCap == 0 ) return;
+	if ( !sSrc ) {
+		sDst[0] = '\0';
+		return;
+	}
+	iLen = strlen(sSrc);
+	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
+	memcpy(sDst, sSrc, iLen);
+	sDst[iLen] = '\0';
+}
+static bool __xhttpAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)
+{
+	size_t iNeedCap;
+	char* pNewBuf;
+	if ( !ppBuf || !pLen || !pCap || (!pData && iDataLen != 0) ) return false;
+	if ( iDataLen == 0 ) return true;
+	if ( *pLen + iDataLen + 1u <= *pCap ) {
+		memcpy(*ppBuf + *pLen, pData, iDataLen);
+		*pLen += iDataLen;
+		(*ppBuf)[*pLen] = '\0';
+		return true;
+	}
+	iNeedCap = (*pCap == 0) ? 256u : *pCap;
+	while ( iNeedCap < (*pLen + iDataLen + 1u) ) iNeedCap *= 2u;
+	pNewBuf = (char*)XNET_ALLOC(iNeedCap);
+	if ( !pNewBuf ) return false;
+	if ( *ppBuf && *pLen > 0 ) memcpy(pNewBuf, *ppBuf, *pLen);
+	XNET_FREE(*ppBuf);
+	*ppBuf = pNewBuf;
+	*pCap = iNeedCap;
+	memcpy(*ppBuf + *pLen, pData, iDataLen);
+	*pLen += iDataLen;
+	(*ppBuf)[*pLen] = '\0';
+	return true;
+}
+static bool __xhttpAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
+{
+	return __xhttpAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+}
+static bool __xhttpRequestHasHeader(const xhttprequest* pReq, const char* sName)
+{
+	if ( !pReq || !sName ) return false;
+	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
+		if ( __xhttpStrEqNoCase(pReq->arrHeaders[i].sName, sName) ) return true;
+	}
+	return false;
+}
+static const char* __xhttpRequestHeaderValue(const xhttprequest* pReq, const char* sName)
+{
+	if ( !pReq || !sName ) return NULL;
+	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
+		if ( __xhttpStrEqNoCase(pReq->arrHeaders[i].sName, sName) ) return pReq->arrHeaders[i].sValue;
+	}
+	return NULL;
+}
+static bool __xhttpStatusHasNoBody(uint32 iStatusCode)
+{
+	return (iStatusCode >= 100u && iStatusCode < 200u) || iStatusCode == 204u || iStatusCode == 304u;
+}
+static bool __xhttpUrlParse(const char* sURL, xhttpurl* pOut)
+{
+	const char* p;
+	const char* pHostStart;
+	const char* pPortStart = NULL;
+	size_t iHostLen;
+	size_t iPathLen;
+	if ( !sURL || !pOut ) return false;
+	memset(pOut, 0, sizeof(xhttpurl));
+	p = sURL;
+	if ( strncmp(p, "https://", 8) == 0 ) {
+		pOut->bHttps = true;
+		pOut->iPort = 443;
+		p += 8;
+	} else if ( strncmp(p, "http://", 7) == 0 ) {
+		pOut->bHttps = false;
+		pOut->iPort = 80;
+		p += 7;
+	} else {
+		return false;
+	}
+	pHostStart = p;
+	while ( *p && *p != '/' && *p != '?' ) {
+		if ( *p == ':' ) pPortStart = p + 1;
+		p++;
+	}
+	if ( pPortStart ) {
+		iHostLen = (size_t)((pPortStart - 1) - pHostStart);
+		if ( iHostLen == 0 ) return false;
+		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
+		memcpy(pOut->sHost, pHostStart, iHostLen);
+		pOut->sHost[iHostLen] = '\0';
+		pOut->iPort = (uint16)atoi(pPortStart);
+	} else {
+		iHostLen = (size_t)(p - pHostStart);
+		if ( iHostLen == 0 ) return false;
+		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
+		memcpy(pOut->sHost, pHostStart, iHostLen);
+		pOut->sHost[iHostLen] = '\0';
+	}
+	if ( *p == '/' || *p == '?' ) {
+		iPathLen = strlen(p);
+		if ( iPathLen >= sizeof(pOut->sPath) ) iPathLen = sizeof(pOut->sPath) - 1u;
+		memcpy(pOut->sPath, p, iPathLen);
+		pOut->sPath[iPathLen] = '\0';
+	} else {
+		strcpy(pOut->sPath, "/");
+	}
+	return pOut->sHost[0] != '\0';
+}
+static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc);
+static void __xhttpRequestUnitInternal(xhttprequest* pReq);
+static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, size_t* pOutLen);
+static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain);
+static void __xhttpConnPostCleanup(__xhttp_conn* pConn);
+static void __xhttpPoolLockAcquire(void)
+{
+	while ( __xnetAtomicCompareExchange32(&__g_xhttpPoolLock, 1, 0) != 0 ) {
+		__xnetEngineSleepMs(1u);
+	}
+}
+static void __xhttpPoolLockRelease(void)
+{
+	(void)__xnetAtomicExchange32(&__g_xhttpPoolLock, 0);
+}
+static bool __xhttpContainsTokenNoCase(const char* sValue, const char* sToken)
+{
+	size_t iTokenLen;
+	size_t i;
+	if ( !sValue || !sToken || sToken[0] == '\0' ) return false;
+	iTokenLen = strlen(sToken);
+	while ( *sValue ) {
+		while ( *sValue == ' ' || *sValue == '\t' || *sValue == ',' ) sValue++;
+		for ( i = 0; i < iTokenLen; ++i ) {
+			if ( sValue[i] == '\0' || __xhttpToLower(sValue[i]) != __xhttpToLower(sToken[i]) ) break;
+		}
+		if ( i == iTokenLen ) {
+			char ch = sValue[iTokenLen];
+			if ( ch == '\0' || ch == ',' || ch == ' ' || ch == '\t' ) return true;
+		}
+		while ( *sValue && *sValue != ',' ) sValue++;
+	}
+	return false;
+}
+static bool __xhttpRequestWantsClose(const xhttprequest* pReq)
+{
+	if ( !pReq ) return false;
+	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
+		if ( __xhttpStrEqNoCase(pReq->arrHeaders[i].sName, "Connection") ) {
+			return __xhttpContainsTokenNoCase(pReq->arrHeaders[i].sValue, "close");
+		}
+	}
+	return false;
+}
+static bool __xhttpResponseWantsClose(const xcodechttp1msg* pMsg)
+{
+	const char* sConn;
+	if ( !pMsg ) return false;
+	sConn = xrtCodecHttp1GetHeader(pMsg, "Connection");
+	return sConn ? __xhttpContainsTokenNoCase(sConn, "close") : false;
+}
+static bool __xhttpConnMatchesReq(const __xhttp_conn* pConn, xnetengine* pEngine, const xhttprequest* pReq)
+{
+	if ( !pConn || !pReq || !pEngine ) return false;
+	if ( pConn->pEngine != pEngine ) return false;
+	if ( pConn->iPort != pReq->tURL.iPort ) return false;
+	if ( pConn->bHttps != pReq->tURL.bHttps ) return false;
+	if ( pConn->bVerifyPeer != pReq->bVerifyPeer ) return false;
+	if ( strcmp(pConn->sHost, pReq->tURL.sHost) != 0 ) return false;
+	if ( !pConn->bOpen || pConn->pStream == NULL || pConn->pTx != NULL ) return false;
+	return true;
+}
+static __xhttp_conn* __xhttpPoolTake(xnetengine* pEngine, const xhttprequest* pReq)
+{
+	__xhttp_conn** ppConn;
+	__xhttp_conn* pConn = NULL;
+	if ( !pEngine || !pReq ) return NULL;
+	__xhttpPoolLockAcquire();
+	ppConn = &__g_xhttpIdleConnHead;
+	while ( *ppConn ) {
+		if ( __xhttpConnMatchesReq(*ppConn, pEngine, pReq) ) {
+			pConn = *ppConn;
+			*ppConn = pConn->pNext;
+			pConn->pNext = NULL;
+			pConn->bIdle = false;
+			break;
+		}
+		ppConn = &(*ppConn)->pNext;
+	}
+	__xhttpPoolLockRelease();
+	return pConn;
+}
+static bool __xhttpPoolPut(__xhttp_conn* pConn)
+{
+	if ( !pConn || !pConn->pStream || !pConn->bOpen || pConn->pTx != NULL ) return false;
+	__xhttpPoolLockAcquire();
+	pConn->pNext = __g_xhttpIdleConnHead;
+	__g_xhttpIdleConnHead = pConn;
+	pConn->bIdle = true;
+	__xhttpPoolLockRelease();
+	return true;
+}
+static void __xhttpPoolRemove(__xhttp_conn* pConn)
+{
+	__xhttp_conn** ppCur;
+	if ( !pConn ) return;
+	__xhttpPoolLockAcquire();
+	ppCur = &__g_xhttpIdleConnHead;
+	while ( *ppCur ) {
+		if ( *ppCur == pConn ) {
+			*ppCur = pConn->pNext;
+			pConn->pNext = NULL;
+			pConn->bIdle = false;
+			break;
+		}
+		ppCur = &(*ppCur)->pNext;
+	}
+	__xhttpPoolLockRelease();
+}
+static void xrtHttpCloseIdleConnections(xnetengine* pEngine)
+{
+	__xhttp_conn* pList = NULL;
+	__xhttp_conn** ppTail = &pList;
+	__xhttp_conn** ppCur;
+	__xhttpPoolLockAcquire();
+	ppCur = &__g_xhttpIdleConnHead;
+	while ( *ppCur ) {
+		__xhttp_conn* pConn = *ppCur;
+		if ( pEngine != NULL && pConn->pEngine != pEngine ) {
+			ppCur = &pConn->pNext;
+			continue;
+		}
+		*ppCur = pConn->pNext;
+		pConn->pNext = NULL;
+		pConn->bIdle = false;
+		*ppTail = pConn;
+		ppTail = &pConn->pNext;
+	}
+	__xhttpPoolLockRelease();
+	while ( pList ) {
+		__xhttp_conn* pNext = pList->pNext;
+		pList->pNext = NULL;
+		if ( pList->pStream ) {
+			xrtNetStreamClose(pList->pStream, XNET_CLOSE_F_ABORT);
+		}
+		__xhttpConnPostCleanup(pList);
+		pList = pNext;
+	}
+}
+static void xrtHttpRequestInit(xhttprequest* pReq)
+{
+	if ( !pReq ) return;
+	memset(pReq, 0, sizeof(xhttprequest));
+	strcpy(pReq->sMethod, "GET");
+	pReq->iTimeoutMs = 30000u;
+	pReq->bVerifyPeer = true;
+}
+static void __xhttpRequestUnitInternal(xhttprequest* pReq)
+{
+	if ( !pReq ) return;
+	if ( pReq->pBody ) {
+		XNET_FREE(pReq->pBody);
+		pReq->pBody = NULL;
+	}
+	pReq->iBodyLen = 0;
+}
+static void xrtHttpRequestUnit(xhttprequest* pReq)
+{
+	if ( !pReq ) return;
+	__xhttpRequestUnitInternal(pReq);
+	memset(pReq, 0, sizeof(xhttprequest));
+}
+static bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod)
+{
+	size_t iLen;
+	if ( !pReq || !sMethod || !sMethod[0] ) return false;
+	iLen = strlen(sMethod);
+	if ( iLen >= sizeof(pReq->sMethod) ) iLen = sizeof(pReq->sMethod) - 1u;
+	memcpy(pReq->sMethod, sMethod, iLen);
+	pReq->sMethod[iLen] = '\0';
+	return true;
+}
+static bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL)
+{
+	size_t iLen;
+	if ( !pReq || !sURL || !sURL[0] ) return false;
+	if ( !__xhttpUrlParse(sURL, &pReq->tURL) ) return false;
+	iLen = strlen(sURL);
+	if ( iLen >= sizeof(pReq->sURL) ) iLen = sizeof(pReq->sURL) - 1u;
+	memcpy(pReq->sURL, sURL, iLen);
+	pReq->sURL[iLen] = '\0';
+	return true;
+}
+static bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue)
+{
+	xhttpheader* pHeader;
+	if ( !pReq || !sName || !sValue ) return false;
+	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
+		if ( __xhttpStrEqNoCase(pReq->arrHeaders[i].sName, sName) ) {
+			__xhttpCopyToken(pReq->arrHeaders[i].sValue, sizeof(pReq->arrHeaders[i].sValue), sValue);
+			return true;
+		}
+	}
+	if ( pReq->iHeaderCount >= XHTTP_MAX_HEADERS ) return false;
+	pHeader = &pReq->arrHeaders[pReq->iHeaderCount++];
+	__xhttpCopyToken(pHeader->sName, sizeof(pHeader->sName), sName);
+	__xhttpCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue);
+	return true;
+}
+static bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType)
+{
+	char* pBodyCopy = NULL;
+	if ( !pReq ) return false;
+	if ( pReq->pBody ) {
+		XNET_FREE(pReq->pBody);
+		pReq->pBody = NULL;
+		pReq->iBodyLen = 0;
+	}
+	if ( pData && iLen > 0 ) {
+		pBodyCopy = (char*)XNET_ALLOC(iLen);
+		if ( !pBodyCopy ) return false;
+		memcpy(pBodyCopy, pData, iLen);
+		pReq->pBody = pBodyCopy;
+		pReq->iBodyLen = iLen;
+	}
+	if ( sContentType && sContentType[0] ) {
+		return xrtHttpRequestSetHeader(pReq, "Content-Type", sContentType);
+	}
+	return true;
+}
+static void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
+{
+	if ( !pReq ) return;
+	pReq->iTimeoutMs = iTimeoutMs;
+}
+static void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer)
+{
+	if ( !pReq ) return;
+	pReq->bVerifyPeer = bVerifyPeer;
+}
+static void xrtHttpResponseDestroy(xhttpresponse* pResp)
+{
+	if ( !pResp ) return;
+	if ( pResp->pBody ) {
+		XNET_FREE(pResp->pBody);
+		pResp->pBody = NULL;
+	}
+	XNET_FREE(pResp);
+}
+static const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName)
+{
+	if ( !pResp || !sName ) return NULL;
+	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
+		if ( __xhttpStrEqNoCase(pResp->arrHeaders[i].sName, sName) ) {
+			return pResp->arrHeaders[i].sValue;
+		}
+	}
+	return NULL;
+}
+static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc)
+{
+	if ( !pDst || !pSrc ) return false;
+	xrtHttpRequestInit(pDst);
+	memcpy(pDst->sMethod, pSrc->sMethod, sizeof(pDst->sMethod));
+	memcpy(pDst->sURL, pSrc->sURL, sizeof(pDst->sURL));
+	memcpy(&pDst->tURL, &pSrc->tURL, sizeof(pDst->tURL));
+	memcpy(pDst->arrHeaders, pSrc->arrHeaders, sizeof(pDst->arrHeaders));
+	pDst->iHeaderCount = pSrc->iHeaderCount;
+	pDst->iTimeoutMs = pSrc->iTimeoutMs;
+	pDst->bVerifyPeer = pSrc->bVerifyPeer;
+	if ( pSrc->pBody && pSrc->iBodyLen > 0 ) {
+		pDst->pBody = (char*)XNET_ALLOC(pSrc->iBodyLen);
+		if ( !pDst->pBody ) {
+			__xhttpRequestUnitInternal(pDst);
+			return false;
+		}
+		memcpy(pDst->pBody, pSrc->pBody, pSrc->iBodyLen);
+		pDst->iBodyLen = pSrc->iBodyLen;
+	}
+	return true;
+}
+static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, size_t* pOutLen)
+{
+	char* pBuf = NULL;
+	size_t iLen = 0;
+	size_t iCap = 0;
+	char aLine[512];
+	bool bDefaultPort;
+	bool bChunked;
+	if ( !pReq || !ppOut || !pOutLen || pReq->tURL.sHost[0] == '\0' || pReq->sMethod[0] == '\0' ) return false;
+	*ppOut = NULL;
+	*pOutLen = 0;
+	bChunked = __xhttpContainsTokenNoCase(__xhttpRequestHeaderValue(pReq, "Transfer-Encoding"), "chunked");
+	snprintf(aLine, sizeof(aLine), "%s %s HTTP/1.1\r\n",
+		pReq->sMethod,
+		pReq->tURL.sPath[0] ? pReq->tURL.sPath : "/");
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	bDefaultPort = (pReq->tURL.bHttps && pReq->tURL.iPort == 443u) || (!pReq->tURL.bHttps && pReq->tURL.iPort == 80u);
+	if ( !__xhttpRequestHasHeader(pReq, "Host") ) {
+		if ( bDefaultPort ) {
+			snprintf(aLine, sizeof(aLine), "Host: %s\r\n", pReq->tURL.sHost);
+		} else {
+			snprintf(aLine, sizeof(aLine), "Host: %s:%u\r\n", pReq->tURL.sHost, (unsigned)pReq->tURL.iPort);
+		}
+		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	}
+	if ( !__xhttpRequestHasHeader(pReq, "Connection") ) {
+		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, "Connection: keep-alive\r\n") ) goto fail;
+	}
+	if ( !bChunked && pReq->iBodyLen > 0 && !__xhttpRequestHasHeader(pReq, "Content-Length") ) {
+		snprintf(aLine, sizeof(aLine), "Content-Length: %llu\r\n", (unsigned long long)pReq->iBodyLen);
+		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	}
+	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
+		if ( bChunked && __xhttpStrEqNoCase(pReq->arrHeaders[i].sName, "Content-Length") ) continue;
+		snprintf(aLine, sizeof(aLine), "%s: %s\r\n", pReq->arrHeaders[i].sName, pReq->arrHeaders[i].sValue);
+		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	}
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, "\r\n") ) goto fail;
+	if ( bChunked ) {
+		snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pReq->iBodyLen);
+		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+		if ( pReq->pBody && pReq->iBodyLen > 0 ) {
+			if ( !__xhttpAppendBytes(&pBuf, &iLen, &iCap, pReq->pBody, pReq->iBodyLen) ) goto fail;
+		}
+		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, "\r\n0\r\n\r\n") ) goto fail;
+	} else if ( pReq->pBody && pReq->iBodyLen > 0 ) {
+		if ( !__xhttpAppendBytes(&pBuf, &iLen, &iCap, pReq->pBody, pReq->iBodyLen) ) goto fail;
+	}
+	*ppOut = pBuf;
+	*pOutLen = iLen;
+	return true;
+fail:
+	if ( pBuf ) XNET_FREE(pBuf);
+	return false;
+}
+static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain)
+{
+	xhttpresponse* pResp;
+	size_t iBodyBytes;
+	if ( !pFrame || !pMsg || !pChain ) return NULL;
+	pResp = (xhttpresponse*)XNET_ALLOC(sizeof(xhttpresponse));
+	if ( !pResp ) return NULL;
+	memset(pResp, 0, sizeof(xhttpresponse));
+	pResp->iStatusCode = pMsg->iStatusCode;
+	pResp->iContentLength = pMsg->iContentLength;
+	__xhttpCopyToken(pResp->sVersion, sizeof(pResp->sVersion), pMsg->sVersion);
+	__xhttpCopyToken(pResp->sReason, sizeof(pResp->sReason), pMsg->sReason);
+	if ( pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED ) pResp->iFlags |= XHTTP_RESP_F_CHUNKED;
+	if ( pMsg->iFlags & XCODEC_HTTP1_F_KEEPALIVE ) pResp->iFlags |= XHTTP_RESP_F_KEEPALIVE;
+	if ( pMsg->iFlags & XCODEC_HTTP1_F_UPGRADE ) pResp->iFlags |= XHTTP_RESP_F_UPGRADE;
+	pResp->iHeaderCount = pMsg->iHeaderCount < XHTTP_MAX_HEADERS ? pMsg->iHeaderCount : XHTTP_MAX_HEADERS;
+	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
+		__xhttpCopyToken(pResp->arrHeaders[i].sName, sizeof(pResp->arrHeaders[i].sName), pMsg->arrHeaders[i].sName);
+		__xhttpCopyToken(pResp->arrHeaders[i].sValue, sizeof(pResp->arrHeaders[i].sValue), pMsg->arrHeaders[i].sValue);
+	}
+	iBodyBytes = xrtCodecHttp1BodyBytes(pFrame);
+	if ( (pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u ) pResp->iContentLength = (int64_t)iBodyBytes;
+	if ( iBodyBytes > 0u ) {
+		pResp->pBody = (char*)XNET_ALLOC(iBodyBytes + 1u);
+		if ( !pResp->pBody ) {
+			xrtHttpResponseDestroy(pResp);
+			return NULL;
+		}
+		pResp->iBodyLen = xrtCodecHttp1CopyBody(pChain, pFrame, pResp->pBody, iBodyBytes);
+		pResp->pBody[pResp->iBodyLen] = '\0';
+	}
+	return pResp;
+}
+static void __xhttpTxAddRef(__xhttp_tx* pTx)
+{
+	if ( !pTx ) return;
+	(void)__xhttpAtomicAdd(&pTx->iRefCount, 1);
+}
+static void __xhttpTxDiscardTransient(__xhttp_tx* pTx)
+{
+	if ( !pTx ) return;
+	if ( pTx->pSendBuf ) {
+		XNET_FREE(pTx->pSendBuf);
+		pTx->pSendBuf = NULL;
+	}
+	pTx->iSendLen = 0;
+	__xhttpRequestUnitInternal(&pTx->tReq);
+}
+static bool __xhttpTxComplete(__xhttp_tx* pTx, xnet_result iStatus, xhttpresponse* pResp)
+{
+	if ( !pTx ) {
+		if ( pResp ) xrtHttpResponseDestroy(pResp);
+		return false;
+	}
+	if ( __xhttpAtomicCompareExchange(&pTx->iComplete, 1, 0) != 0 ) {
+		if ( pResp ) xrtHttpResponseDestroy(pResp);
+		return false;
+	}
+	if ( pTx->pFuture ) {
+		(void)__xnetFutureResolve(pTx->pFuture, iStatus, pResp);
+	} else if ( pResp ) {
+		xrtHttpResponseDestroy(pResp);
+	}
+	return true;
+}
+static void __xhttpTxRelease(__xhttp_tx* pTx)
+{
+	if ( !pTx ) return;
+	if ( __xhttpAtomicAdd(&pTx->iRefCount, -1) == 0 ) {
+		__xhttpTxDiscardTransient(pTx);
+		pTx->pConn = NULL;
+		pTx->pStream = NULL;
+		XNET_FREE(pTx);
+	}
+}
+static void __xhttpTxCleanupTask(xnetworker* pWorker, ptr pArg)
+{
+	__xhttp_tx* pTx = (__xhttp_tx*)pArg;
+	(void)pWorker;
+	if ( !pTx ) return;
+	pTx->pConn = NULL;
+	pTx->pStream = NULL;
+	__xhttpTxDiscardTransient(pTx);
+	__xhttpTxRelease(pTx);
+}
+static void __xhttpTxPostCleanup(__xhttp_tx* pTx)
+{
+	uint32 iAffinity = 0u;
+	if ( !pTx || !pTx->pEngine ) return;
+	if ( __xhttpAtomicCompareExchange(&pTx->iCleanupPosted, 1, 0) != 0 ) return;
+	if ( pTx->pStream && pTx->pStream->pWorker ) iAffinity = pTx->pStream->pWorker->iId;
+	else if ( pTx->pConn && pTx->pConn->pStream && pTx->pConn->pStream->pWorker ) iAffinity = pTx->pConn->pStream->pWorker->iId;
+	if ( xrtNetEnginePost(pTx->pEngine, iAffinity, __xhttpTxCleanupTask, pTx) != XRT_NET_OK ) {
+		__xhttpTxCleanupTask(NULL, pTx);
+	}
+}
+static void __xhttpConnCleanupTask(xnetworker* pWorker, ptr pArg)
+{
+	__xhttp_conn* pConn = (__xhttp_conn*)pArg;
+	(void)pWorker;
+	if ( !pConn ) return;
+	__xhttpPoolRemove(pConn);
+	if ( pConn->pStream ) {
+		xrtNetStreamDestroy(pConn->pStream);
+		pConn->pStream = NULL;
+	}
+	XNET_FREE(pConn);
+}
+static void __xhttpConnPostCleanup(__xhttp_conn* pConn)
+{
+	if ( !pConn ) return;
+	if ( __xhttpAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) != 0 ) return;
+	__xhttpPoolRemove(pConn);
+	if ( pConn->pEngine && pConn->pStream && pConn->pStream->pWorker ) {
+		if ( xrtNetEnginePost(pConn->pEngine, pConn->pStream->pWorker->iId, __xhttpConnCleanupTask, pConn) == XRT_NET_OK ) {
+			return;
+		}
+	}
+	__xhttpConnCleanupTask(NULL, pConn);
+}
+static bool __xhttpResponseReusable(const __xhttp_tx* pTx, const xcodechttp1msg* pMsg)
+{
+	if ( !pTx || !pMsg || !pTx->pConn ) return false;
+	if ( (pMsg->iFlags & XCODEC_HTTP1_F_KEEPALIVE) == 0u ) return false;
+	if ( (pMsg->iFlags & XCODEC_HTTP1_F_UPGRADE) != 0u ) return false;
+	if ( __xhttpRequestWantsClose(&pTx->tReq) ) return false;
+	if ( __xhttpResponseWantsClose(pMsg) ) return false;
+	return pTx->pConn->pStream != NULL && pTx->pConn->bOpen;
+}
+static bool __xhttpConnSendActiveTx(__xhttp_conn* pConn)
+{
+	__xhttp_tx* pTx;
+	if ( !pConn || !pConn->pStream ) return false;
+	pTx = pConn->pTx;
+	if ( !pTx || !pTx->pSendBuf || pTx->iSendLen == 0u ) return false;
+	if ( xrtNetStreamSend(pConn->pStream, pTx->pSendBuf, pTx->iSendLen) != XRT_NET_OK ) {
+		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
+		xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+		return false;
+	}
+	return true;
+}
+static void __xhttpTxTimeoutTask(xnetworker* pWorker, ptr pArg)
+{
+	__xhttp_tx* pTx = (__xhttp_tx*)pArg;
+	(void)pWorker;
+	if ( !pTx ) return;
+	if ( __xhttpAtomicLoad(&pTx->iComplete) == 0 ) {
+		(void)__xhttpTxComplete(pTx, XRT_NET_TIMEOUT, NULL);
+		if ( pTx->pConn && pTx->pConn->pStream ) xrtNetStreamClose(pTx->pConn->pStream, XNET_CLOSE_F_ABORT);
+		else if ( pTx->pStream ) xrtNetStreamClose(pTx->pStream, XNET_CLOSE_F_ABORT);
+	}
+	__xhttpTxRelease(pTx);
+}
+static void __xhttpClientOnOpen(ptr pOwner, xnetstream* pStream)
+{
+	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
+	if ( !pConn || !pStream ) return;
+	pConn->bOpen = true;
+	(void)__xhttpConnSendActiveTx(pConn);
+}
+static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
+	__xhttp_tx* pTx = pConn ? pConn->pTx : NULL;
+	xcodecframe tFrame;
+	xcodechttp1msg tMsg;
+	xcodecstatus iParse;
+	bool bNoBodyExpected;
+	bool bReusable;
+	xhttpresponse* pResp;
+	if ( !pTx || !pStream || !pChain ) return;
+	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
+	if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
+	if ( iParse == XCODEC_STATUS_ERROR ) {
+		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	bNoBodyExpected = __xhttpStatusHasNoBody(tMsg.iStatusCode) || __xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD");
+	if ( (tMsg.iFlags & XCODEC_HTTP1_F_CHUNKED) == 0u && (tMsg.iContentLength < 0 && !bNoBodyExpected) ) {
+		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
+	if ( !pResp ) {
+		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	xrtCodecFrameConsume(pChain, &tFrame);
+	bReusable = __xhttpResponseReusable(pTx, &tMsg);
+	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
+	if ( bReusable && pConn ) {
+		pConn->pTx = NULL;
+		pTx->pConn = NULL;
+		pTx->pStream = NULL;
+		(void)__xhttpPoolPut(pConn);
+		__xhttpTxPostCleanup(pTx);
+		return;
+	}
+	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+}
+static void __xhttpClientOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
+	__xhttp_tx* pTx = pConn ? pConn->pTx : NULL;
+	(void)pStream;
+	if ( !pConn ) return;
+	pConn->bOpen = false;
+	if ( pConn->bIdle ) __xhttpPoolRemove(pConn);
+	pConn->bIdle = false;
+	pConn->pStream = NULL;
+	pConn->pTx = NULL;
+	if ( pTx ) {
+		pTx->pConn = NULL;
+		pTx->pStream = NULL;
+	}
+	if ( pTx && __xhttpAtomicLoad(&pTx->iComplete) == 0 ) {
+		(void)__xhttpTxComplete(pTx, iReason == XRT_NET_CLOSED ? XRT_NET_CLOSED : XRT_NET_ERROR, NULL);
+	}
+	if ( pTx ) __xhttpTxPostCleanup(pTx);
+	__xhttpConnPostCleanup(pConn);
+}
+static void __xhttpClientOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
+	__xhttp_tx* pTx = pConn ? pConn->pTx : NULL;
+	(void)pStream;
+	if ( pConn ) pConn->iLastSysErr = iSysErr;
+	if ( pTx ) pTx->iLastSysErr = iSysErr;
+}
+static const xnetstreamevents* __xhttpClientEvents(void)
+{
+	static const xnetstreamevents tEvents = {
+		__xhttpClientOnOpen,
+		__xhttpClientOnRecv,
+		NULL,
+		__xhttpClientOnClose,
+		__xhttpClientOnError,
+		NULL,
+		NULL
+	};
+	return &tEvents;
+}
+static xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq)
+{
+	__xhttp_tx* pTx;
+	__xhttp_conn* pConn = NULL;
+	xnetfuture* pFuture;
+	xnetconnectconfig tConnCfg;
+	xnetengine* pResolvedEngine;
+	if ( !pReq ) return NULL;
+	pResolvedEngine = __xnetSyncResolveEngine(pEngine);
+	if ( !pResolvedEngine ) return NULL;
+	pFuture = xrtNetFutureCreate();
+	if ( !pFuture ) return NULL;
+	pTx = (__xhttp_tx*)XNET_ALLOC(sizeof(__xhttp_tx));
+	if ( !pTx ) {
+		xrtNetFutureDestroy(pFuture);
+		return NULL;
+	}
+	memset(pTx, 0, sizeof(__xhttp_tx));
+	pTx->iRefCount = 1;
+	pTx->pEngine = pResolvedEngine;
+	pTx->pFuture = pFuture;
+	if ( !__xhttpRequestClone(&pTx->tReq, pReq) ) {
+		(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
+		__xhttpTxRelease(pTx);
+		return pFuture;
+	}
+	if ( pTx->tReq.tURL.sHost[0] == '\0' ) {
+		if ( pTx->tReq.sURL[0] == '\0' || !__xhttpUrlParse(pTx->tReq.sURL, &pTx->tReq.tURL) ) {
+			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
+			__xhttpTxRelease(pTx);
+			return pFuture;
+		}
+	}
+	if ( !__xhttpBuildRequestBytes(&pTx->tReq, &pTx->pSendBuf, &pTx->iSendLen) ) {
+		(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
+		__xhttpTxRelease(pTx);
+		return pFuture;
+	}
+	pConn = __xhttpPoolTake(pResolvedEngine, &pTx->tReq);
+	if ( !pConn ) {
+		pConn = (__xhttp_conn*)XNET_ALLOC(sizeof(__xhttp_conn));
+		if ( !pConn ) {
+			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
+			__xhttpTxRelease(pTx);
+			return pFuture;
+		}
+		memset(pConn, 0, sizeof(__xhttp_conn));
+		pConn->pEngine = pResolvedEngine;
+		__xhttpCopyToken(pConn->sHost, sizeof(pConn->sHost), pTx->tReq.tURL.sHost);
+		pConn->iPort = pTx->tReq.tURL.iPort;
+		pConn->bHttps = pTx->tReq.tURL.bHttps;
+		pConn->bVerifyPeer = pTx->tReq.bVerifyPeer;
+		pConn->pStream = xrtNetStreamCreate(pResolvedEngine, __xhttpClientEvents(), pConn);
+		if ( !pConn->pStream ) {
+			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
+			XNET_FREE(pConn);
+			__xhttpTxRelease(pTx);
+			return pFuture;
+		}
+	}
+	pConn->pTx = pTx;
+	pTx->pConn = pConn;
+	pTx->pStream = pConn->pStream;
+	if ( !pConn->bOpen ) {
+		xrtNetConnectConfigInit(&tConnCfg);
+		tConnCfg.sHost = pTx->tReq.tURL.sHost;
+		tConnCfg.iPort = pTx->tReq.tURL.iPort;
+		tConnCfg.iConnectTimeoutMs = pTx->tReq.iTimeoutMs;
+		tConnCfg.iRecvLimit = 1024u * 1024u;
+		if ( pTx->tReq.tURL.bHttps ) {
+			memset(&pConn->tTlsCfg, 0, sizeof(pConn->tTlsCfg));
+			pConn->tTlsCfg.sHostName = pTx->tReq.tURL.sHost;
+			pConn->tTlsCfg.bVerifyPeer = pTx->tReq.bVerifyPeer;
+			tConnCfg.pTlsConfig = &pConn->tTlsCfg;
+		}
+		if ( xrtNetStreamConnect(pConn->pStream, &tConnCfg) != XRT_NET_OK ) {
+			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
+			xrtNetStreamDestroy(pConn->pStream);
+			pConn->pStream = NULL;
+			pConn->pTx = NULL;
+			pTx->pConn = NULL;
+			pTx->pStream = NULL;
+			XNET_FREE(pConn);
+			__xhttpTxRelease(pTx);
+			return pFuture;
+		}
+	} else if ( !__xhttpConnSendActiveTx(pConn) ) {
+		return pFuture;
+	}
+	if ( pTx->tReq.iTimeoutMs > 0 ) {
+		__xhttpTxAddRef(pTx);
+		if ( xrtNetEnginePostDelayed(pResolvedEngine, pTx->pStream && pTx->pStream->pWorker ? pTx->pStream->pWorker->iId : 0, pTx->tReq.iTimeoutMs, __xhttpTxTimeoutTask, pTx) != XRT_NET_OK ) {
+			__xhttpTxRelease(pTx);
+		}
+	}
+	return pFuture;
+}
+static xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus)
+{
+	xnetfuture* pFuture;
+	xnet_result iStatus;
+	xhttpresponse* pResp;
+	if ( pStatus ) *pStatus = XRT_NET_ERROR;
+	pFuture = xrtHttpExecuteAsync(pEngine, pReq);
+	if ( !pFuture ) return NULL;
+	iStatus = xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE);
+	pResp = (iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
+	if ( pStatus ) *pStatus = iStatus;
+	xrtNetFutureDestroy(pFuture);
+	return pResp;
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xhttpd.h
+// ========================================
+
+#ifndef XRT_XHTTPD_H
+#define XRT_XHTTPD_H
+// (skipped duplicate include: D:/Git/xrt/lib/xcodec_http1.h)
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_stream.h)
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <sched.h>
+#endif
+/*
+    XNet V2 - HTTP Server Rebuild Skeleton
+    Phase-3 scope in this header:
+      - HTTP server wrapper on top of xnet_stream
+      - request and response materialization helpers
+      - plain HTTP and builtin TLS loopback service path
+    Current limitations:
+      - serial keep-alive reuse only
+      - client-side connection pooling is still deferred
+      - chunked request and response bodies are whole-message only
+      - static files, routing tables, and upgrade paths are deferred
+*/
+#define XHTTPD_METHOD_CAP         16u
+#define XHTTPD_TARGET_CAP         256u
+#define XHTTPD_PATH_CAP           256u
+#define XHTTPD_QUERY_CAP          256u
+#define XHTTPD_VERSION_CAP        32u
+#define XHTTPD_REASON_CAP         128u
+#define XHTTPD_HEADER_NAME_CAP    64u
+#define XHTTPD_HEADER_VALUE_CAP   256u
+#define XHTTPD_MAX_HEADERS        32u
+#define XHTTPD_REQ_F_NONE         0x00000000u
+#define XHTTPD_REQ_F_KEEPALIVE    0x00000001u
+#define XHTTPD_REQ_F_CHUNKED      0x00000002u
+#define XHTTPD_REQ_F_UPGRADE      0x00000004u
+#define XHTTPD_RESP_F_NONE        0x00000000u
+#define XHTTPD_RESP_F_CLOSE       0x00000001u
+typedef struct xrt_httpd_server xhttpdserver;
+typedef struct xrt_httpd_conn xhttpdconn;
+typedef struct {
+	char sName[XHTTPD_HEADER_NAME_CAP];
+	char sValue[XHTTPD_HEADER_VALUE_CAP];
+} xhttpdheader;
+typedef struct {
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	int64_t iContentLength;
+	char sMethod[XHTTPD_METHOD_CAP];
+	char sTarget[XHTTPD_TARGET_CAP];
+	char sPath[XHTTPD_PATH_CAP];
+	char sQuery[XHTTPD_QUERY_CAP];
+	char sVersion[XHTTPD_VERSION_CAP];
+	xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
+	char* pBody;
+	size_t iBodyLen;
+} xhttpdrequest;
+typedef struct {
+	uint32 iStatusCode;
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	char sReason[XHTTPD_REASON_CAP];
+	xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
+	char* pBody;
+	size_t iBodyLen;
+} xhttpdresponse;
+typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iBacklog;
+	uint32 iRecvLimit;
+	uint32 iAcceptPollMs;
+	const xtlsconfig* pTlsConfig;
+} xhttpdconfig;
+typedef struct {
+	void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
+	bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
+	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
+} xhttpdevents;
+struct xrt_httpd_conn {
+	struct xrt_httpd_conn* pNext;
+	volatile long iCleanupPosted;
+	xhttpdserver* pServer;
+	xnetstream* pStream;
+	bool bResponseInFlight;
+	bool bKeepAlive;
+};
+struct xrt_httpd_server {
+	xnetengine* pEngine;
+	xnetlistener* pListener;
+	xhttpdconfig tConfig;
+	xhttpdevents tEvents;
+	ptr pUserData;
+	volatile long iConnLock;
+	volatile long bRunning;
+	xhttpdconn* pConnHead;
+#if defined(_WIN32) || defined(_WIN64)
+	HANDLE hAcceptThread;
+#else
+	pthread_t hAcceptThread;
+	bool bAcceptThreadStarted;
+#endif
+};
+static char __xhttpdToLower(char ch)
+{
+	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
+	return ch;
+}
+static bool __xhttpdStrEqNoCase(const char* sA, const char* sB)
+{
+	size_t i = 0;
+	if ( !sA || !sB ) return false;
+	while ( sA[i] && sB[i] ) {
+		if ( __xhttpdToLower(sA[i]) != __xhttpdToLower(sB[i]) ) return false;
+		i++;
+	}
+	return sA[i] == '\0' && sB[i] == '\0';
+}
+static long __xhttpdAtomicAdd(volatile long* pValue, long iDelta)
+{
+	return __xnetAtomicAddFetch32(pValue, iDelta);
+}
+static long __xhttpdAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
+{
+	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
+}
+static long __xhttpdAtomicLoad(volatile long* pValue)
+{
+	return __xnetAtomicLoad32(pValue);
+}
+static void __xhttpdSleep0(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		Sleep(0);
+	#else
+		sched_yield();
+	#endif
+}
+static void __xhttpdLock(volatile long* pLock)
+{
+	if ( !pLock ) return;
+	while ( __xhttpdAtomicCompareExchange(pLock, 1, 0) != 0 ) {
+		__xhttpdSleep0();
+	}
+}
+static void __xhttpdUnlock(volatile long* pLock)
+{
+	if ( !pLock ) return;
+	(void)__xnetAtomicExchange32(pLock, 0);
+}
+static void __xhttpdCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
+{
+	size_t iLen;
+	if ( !sDst || iDstCap == 0 ) return;
+	if ( !sSrc ) {
+		sDst[0] = '\0';
+		return;
+	}
+	iLen = strlen(sSrc);
+	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
+	memcpy(sDst, sSrc, iLen);
+	sDst[iLen] = '\0';
+}
+static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)
+{
+	size_t iNeedCap;
+	char* pNewBuf;
+	if ( !ppBuf || !pLen || !pCap || (!pData && iDataLen != 0) ) return false;
+	if ( iDataLen == 0 ) return true;
+	if ( *pLen + iDataLen + 1u <= *pCap ) {
+		memcpy(*ppBuf + *pLen, pData, iDataLen);
+		*pLen += iDataLen;
+		(*ppBuf)[*pLen] = '\0';
+		return true;
+	}
+	iNeedCap = (*pCap == 0) ? 256u : *pCap;
+	while ( iNeedCap < (*pLen + iDataLen + 1u) ) iNeedCap *= 2u;
+	pNewBuf = (char*)XNET_ALLOC(iNeedCap);
+	if ( !pNewBuf ) return false;
+	if ( *ppBuf && *pLen > 0 ) memcpy(pNewBuf, *ppBuf, *pLen);
+	XNET_FREE(*ppBuf);
+	*ppBuf = pNewBuf;
+	*pCap = iNeedCap;
+	memcpy(*ppBuf + *pLen, pData, iDataLen);
+	*pLen += iDataLen;
+	(*ppBuf)[*pLen] = '\0';
+	return true;
+}
+static bool __xhttpdAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
+{
+	return __xhttpdAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+}
+static const char* __xhttpdStatusText(uint32 iStatusCode)
+{
+	switch ( iStatusCode ) {
+		case 200: return "OK";
+		case 201: return "Created";
+		case 204: return "No Content";
+		case 400: return "Bad Request";
+		case 404: return "Not Found";
+		case 405: return "Method Not Allowed";
+		case 408: return "Request Timeout";
+		case 413: return "Payload Too Large";
+		case 500: return "Internal Server Error";
+		case 501: return "Not Implemented";
+		case 503: return "Service Unavailable";
+		default: return "OK";
+	}
+}
+static bool __xhttpdResponseHasHeader(const xhttpdresponse* pResp, const char* sName)
+{
+	if ( !pResp || !sName ) return false;
+	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
+		if ( __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, sName) ) return true;
+	}
+	return false;
+}
+static bool __xhttpdContainsTokenNoCase(const char* sValue, const char* sToken)
+{
+	size_t iTokenLen;
+	size_t i;
+	if ( !sValue || !sToken || sToken[0] == '\0' ) return false;
+	iTokenLen = strlen(sToken);
+	while ( *sValue ) {
+		while ( *sValue == ' ' || *sValue == '\t' || *sValue == ',' ) sValue++;
+		for ( i = 0; i < iTokenLen; ++i ) {
+			if ( sValue[i] == '\0' || __xhttpdToLower(sValue[i]) != __xhttpdToLower(sToken[i]) ) break;
+		}
+		if ( i == iTokenLen ) {
+			char ch = sValue[iTokenLen];
+			if ( ch == '\0' || ch == ',' || ch == ' ' || ch == '\t' ) return true;
+		}
+		while ( *sValue && *sValue != ',' ) sValue++;
+	}
+	return false;
+}
+static const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName)
+{
+	if ( !pReq || !sName ) return NULL;
+	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
+		if ( __xhttpdStrEqNoCase(pReq->arrHeaders[i].sName, sName) ) return pReq->arrHeaders[i].sValue;
+	}
+	return NULL;
+}
+static const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName)
+{
+	if ( !pResp || !sName ) return NULL;
+	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
+		if ( __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, sName) ) return pResp->arrHeaders[i].sValue;
+	}
+	return NULL;
+}
+static void xrtHttpdConfigInit(xhttpdconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xhttpdconfig));
+	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
+	pCfg->iBacklog = 128u;
+	pCfg->iRecvLimit = 1024u * 1024u;
+	pCfg->iAcceptPollMs = 5u;
+}
+static void xrtHttpdRequestInit(xhttpdrequest* pReq)
+{
+	if ( !pReq ) return;
+	memset(pReq, 0, sizeof(xhttpdrequest));
+	pReq->iContentLength = -1;
+}
+static void xrtHttpdRequestUnit(xhttpdrequest* pReq)
+{
+	if ( !pReq ) return;
+	if ( pReq->pBody ) {
+		XNET_FREE(pReq->pBody);
+		pReq->pBody = NULL;
+	}
+	pReq->iBodyLen = 0;
+	memset(pReq, 0, sizeof(xhttpdrequest));
+}
+static void xrtHttpdResponseInit(xhttpdresponse* pResp)
+{
+	if ( !pResp ) return;
+	memset(pResp, 0, sizeof(xhttpdresponse));
+	pResp->iStatusCode = 200u;
+	pResp->iFlags = XHTTPD_RESP_F_CLOSE;
+}
+static void xrtHttpdResponseUnit(xhttpdresponse* pResp)
+{
+	if ( !pResp ) return;
+	if ( pResp->pBody ) {
+		XNET_FREE(pResp->pBody);
+		pResp->pBody = NULL;
+	}
+	pResp->iBodyLen = 0;
+	memset(pResp, 0, sizeof(xhttpdresponse));
+}
+static void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason)
+{
+	if ( !pResp ) return;
+	pResp->iStatusCode = iStatusCode;
+	__xhttpdCopyToken(pResp->sReason, sizeof(pResp->sReason), sReason);
+}
+static bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue)
+{
+	xhttpdheader* pHeader;
+	if ( !pResp || !sName || !sValue ) return false;
+	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
+		if ( __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, sName) ) {
+			__xhttpdCopyToken(pResp->arrHeaders[i].sValue, sizeof(pResp->arrHeaders[i].sValue), sValue);
+			return true;
+		}
+	}
+	if ( pResp->iHeaderCount >= XHTTPD_MAX_HEADERS ) return false;
+	pHeader = &pResp->arrHeaders[pResp->iHeaderCount++];
+	__xhttpdCopyToken(pHeader->sName, sizeof(pHeader->sName), sName);
+	__xhttpdCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue);
+	return true;
+}
+static bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType)
+{
+	char* pBodyCopy = NULL;
+	if ( !pResp ) return false;
+	if ( pResp->pBody ) {
+		XNET_FREE(pResp->pBody);
+		pResp->pBody = NULL;
+	}
+	pResp->iBodyLen = 0;
+	if ( pData && iLen > 0 ) {
+		pBodyCopy = (char*)XNET_ALLOC(iLen + 1u);
+		if ( !pBodyCopy ) return false;
+		memcpy(pBodyCopy, pData, iLen);
+		pBodyCopy[iLen] = '\0';
+	}
+	pResp->pBody = pBodyCopy;
+	pResp->iBodyLen = iLen;
+	if ( sContentType && sContentType[0] ) {
+		return xrtHttpdResponseSetHeader(pResp, "Content-Type", sContentType);
+	}
+	return true;
+}
+static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain, xhttpdrequest* pReq)
+{
+	const char* sQuery;
+	size_t iPathLen;
+	size_t iBodyBytes;
+	if ( !pFrame || !pMsg || !pChain || !pReq ) return false;
+	xrtHttpdRequestInit(pReq);
+	if ( pMsg->iFlags & XCODEC_HTTP1_F_KEEPALIVE ) pReq->iFlags |= XHTTPD_REQ_F_KEEPALIVE;
+	if ( pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED ) pReq->iFlags |= XHTTPD_REQ_F_CHUNKED;
+	if ( pMsg->iFlags & XCODEC_HTTP1_F_UPGRADE ) pReq->iFlags |= XHTTPD_REQ_F_UPGRADE;
+	pReq->iContentLength = pMsg->iContentLength;
+	__xhttpdCopyToken(pReq->sMethod, sizeof(pReq->sMethod), pMsg->sMethod);
+	__xhttpdCopyToken(pReq->sTarget, sizeof(pReq->sTarget), pMsg->sTarget);
+	__xhttpdCopyToken(pReq->sVersion, sizeof(pReq->sVersion), pMsg->sVersion);
+	sQuery = strchr(pReq->sTarget, '?');
+	if ( sQuery ) {
+		iPathLen = (size_t)(sQuery - pReq->sTarget);
+		if ( iPathLen >= sizeof(pReq->sPath) ) iPathLen = sizeof(pReq->sPath) - 1u;
+		memcpy(pReq->sPath, pReq->sTarget, iPathLen);
+		pReq->sPath[iPathLen] = '\0';
+		__xhttpdCopyToken(pReq->sQuery, sizeof(pReq->sQuery), sQuery + 1);
+	} else {
+		__xhttpdCopyToken(pReq->sPath, sizeof(pReq->sPath), pReq->sTarget);
+	}
+	pReq->iHeaderCount = pMsg->iHeaderCount < XHTTPD_MAX_HEADERS ? pMsg->iHeaderCount : XHTTPD_MAX_HEADERS;
+	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
+		__xhttpdCopyToken(pReq->arrHeaders[i].sName, sizeof(pReq->arrHeaders[i].sName), pMsg->arrHeaders[i].sName);
+		__xhttpdCopyToken(pReq->arrHeaders[i].sValue, sizeof(pReq->arrHeaders[i].sValue), pMsg->arrHeaders[i].sValue);
+	}
+	iBodyBytes = xrtCodecHttp1BodyBytes(pFrame);
+	if ( (pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u ) pReq->iContentLength = (int64_t)iBodyBytes;
+	if ( iBodyBytes > 0u ) {
+		pReq->pBody = (char*)XNET_ALLOC(iBodyBytes + 1u);
+		if ( !pReq->pBody ) {
+			xrtHttpdRequestUnit(pReq);
+			return false;
+		}
+		pReq->iBodyLen = xrtCodecHttp1CopyBody(pChain, pFrame, pReq->pBody, iBodyBytes);
+		pReq->pBody[pReq->iBodyLen] = '\0';
+	}
+	return true;
+}
+static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut, size_t* pOutLen)
+{
+	char* pBuf = NULL;
+	size_t iLen = 0;
+	size_t iCap = 0;
+	char aLine[512];
+	const char* sReason;
+	bool bChunked;
+	if ( !pResp || !ppOut || !pOutLen ) return false;
+	sReason = pResp->sReason[0] ? pResp->sReason : __xhttpdStatusText(pResp->iStatusCode);
+	bChunked = __xhttpdContainsTokenNoCase(xrtHttpdResponseHeader(pResp, "Transfer-Encoding"), "chunked");
+	snprintf(aLine, sizeof(aLine), "HTTP/1.1 %u %s\r\n", (unsigned)pResp->iStatusCode, sReason);
+	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	if ( !__xhttpdResponseHasHeader(pResp, "Connection") ) {
+		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "Connection: close\r\n") ) goto fail;
+	}
+	if ( !bChunked && !__xhttpdResponseHasHeader(pResp, "Content-Length") ) {
+		snprintf(aLine, sizeof(aLine), "Content-Length: %llu\r\n", (unsigned long long)pResp->iBodyLen);
+		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	}
+	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
+		if ( bChunked && __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, "Content-Length") ) continue;
+		snprintf(aLine, sizeof(aLine), "%s: %s\r\n", pResp->arrHeaders[i].sName, pResp->arrHeaders[i].sValue);
+		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	}
+	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n") ) goto fail;
+	if ( bChunked ) {
+		snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pResp->iBodyLen);
+		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+		if ( pResp->pBody && pResp->iBodyLen > 0 ) {
+			if ( !__xhttpdAppendBytes(&pBuf, &iLen, &iCap, pResp->pBody, pResp->iBodyLen) ) goto fail;
+		}
+		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n0\r\n\r\n") ) goto fail;
+	} else if ( pResp->pBody && pResp->iBodyLen > 0 ) {
+		if ( !__xhttpdAppendBytes(&pBuf, &iLen, &iCap, pResp->pBody, pResp->iBodyLen) ) goto fail;
+	}
+	*ppOut = pBuf;
+	*pOutLen = iLen;
+	return true;
+fail:
+	if ( pBuf ) XNET_FREE(pBuf);
+	return false;
+}
+static void __xhttpdServerAddConn(xhttpdserver* pServer, xhttpdconn* pConn)
+{
+	if ( !pServer || !pConn ) return;
+	__xhttpdLock(&pServer->iConnLock);
+	pConn->pNext = pServer->pConnHead;
+	pServer->pConnHead = pConn;
+	__xhttpdUnlock(&pServer->iConnLock);
+}
+static void __xhttpdServerRemoveConn(xhttpdserver* pServer, xhttpdconn* pConn)
+{
+	xhttpdconn** ppNode;
+	if ( !pServer || !pConn ) return;
+	__xhttpdLock(&pServer->iConnLock);
+	ppNode = &pServer->pConnHead;
+	while ( *ppNode ) {
+		if ( *ppNode == pConn ) {
+			*ppNode = pConn->pNext;
+			break;
+		}
+		ppNode = &(*ppNode)->pNext;
+	}
+	pConn->pNext = NULL;
+	__xhttpdUnlock(&pServer->iConnLock);
+}
+static xhttpdconn* __xhttpdServerDetachAllConns(xhttpdserver* pServer)
+{
+	xhttpdconn* pHead;
+	if ( !pServer ) return NULL;
+	__xhttpdLock(&pServer->iConnLock);
+	pHead = pServer->pConnHead;
+	pServer->pConnHead = NULL;
+	__xhttpdUnlock(&pServer->iConnLock);
+	return pHead;
+}
+static void __xhttpdConnCleanupTask(xnetworker* pWorker, ptr pArg)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pArg;
+	(void)pWorker;
+	if ( !pConn ) return;
+	if ( pConn->pServer ) {
+		__xhttpdServerRemoveConn(pConn->pServer, pConn);
+		pConn->pServer = NULL;
+	}
+	if ( pConn->pStream ) {
+		xrtNetStreamDestroy(pConn->pStream);
+		pConn->pStream = NULL;
+	}
+	XNET_FREE(pConn);
+}
+static void __xhttpdConnPostCleanup(xhttpdconn* pConn)
+{
+	if ( !pConn ) return;
+	if ( __xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) != 0 ) return;
+	if ( pConn->pServer && pConn->pServer->pEngine && pConn->pStream && pConn->pStream->pWorker ) {
+		if ( xrtNetEnginePost(pConn->pServer->pEngine, pConn->pStream->pWorker->iId, __xhttpdConnCleanupTask, pConn) == XRT_NET_OK ) {
+			return;
+		}
+	}
+	__xhttpdConnCleanupTask(NULL, pConn);
+}
+static void __xhttpdEmitServerError(xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr)
+{
+	if ( pServer && pServer->tEvents.OnError ) {
+		pServer->tEvents.OnError(pServer->pUserData, pServer, pConn, iSysErr);
+	}
+}
+static bool __xhttpdSendResponseAndClose(xhttpdconn* pConn, const xhttpdresponse* pResp)
+{
+	char* pBytes = NULL;
+	size_t iLen = 0;
+	xnetstream* pStream;
+	if ( !pConn || !pConn->pStream || !pResp ) return false;
+	pStream = pConn->pStream;
+	if ( !__xhttpdBuildResponseBytes(pResp, &pBytes, &iLen) ) return false;
+	if ( pStream->pTls ) {
+		if ( !__xnetStreamAppendTlsPlainCopy(pStream, pBytes, iLen) ) {
+			XNET_FREE(pBytes);
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return false;
+		}
+	} else {
+		if ( !__xnetStreamAppendSendCopy(pStream, pBytes, iLen) ) {
+			XNET_FREE(pBytes);
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return false;
+		}
+	}
+	XNET_FREE(pBytes);
+	__xnetStreamKickWrite(pStream);
+	if ( (pResp->iFlags & XHTTPD_RESP_F_CLOSE) != 0 ) {
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+	}
+	return true;
+}
+static void __xhttpdSendSimpleStatus(xhttpdconn* pConn, uint32 iStatusCode, const char* sBody)
+{
+	xhttpdresponse tResp;
+	xrtHttpdResponseInit(&tResp);
+	xrtHttpdResponseSetStatus(&tResp, iStatusCode, NULL);
+	if ( sBody && sBody[0] ) {
+		(void)xrtHttpdResponseSetBodyCopy(&tResp, sBody, strlen(sBody), "text/plain");
+	}
+	(void)__xhttpdSendResponseAndClose(pConn, &tResp);
+	xrtHttpdResponseUnit(&tResp);
+}
+static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetstream* pStream)
+{
+	xhttpdserver* pServer = (xhttpdserver*)pOwner;
+	xhttpdconn* pConn;
+	(void)pListener;
+	if ( !pServer || !pStream ) return false;
+	pConn = (xhttpdconn*)xrtNetStreamGetUserData(pStream);
+	if ( !pConn ) return false;
+	pConn->pServer = pServer;
+	pConn->pStream = pStream;
+	__xhttpdServerAddConn(pServer, pConn);
+	return true;
+}
+static void __xhttpdStreamOnOpen(ptr pOwner, xnetstream* pStream)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pOwner;
+	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
+	(void)pStream;
+	if ( pServer && pServer->tEvents.OnOpen ) {
+		pServer->tEvents.OnOpen(pServer->pUserData, pServer, pConn);
+	}
+}
+static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pOwner;
+	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
+	xcodecframe tFrame;
+	xcodechttp1msg tMsg;
+	xcodecstatus iParse;
+	xhttpdrequest tReq;
+	xhttpdresponse tResp;
+	bool bHandled = false;
+	if ( !pConn || !pServer || !pStream || !pChain ) return;
+	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return;
+	if ( pConn->bResponseInFlight ) return;
+	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
+	if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
+	if ( iParse == XCODEC_STATUS_ERROR ) {
+		__xhttpdEmitServerError(pServer, pConn, -1);
+		__xhttpdSendSimpleStatus(pConn, 400u, "Bad Request");
+		return;
+	}
+	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, &tReq) ) {
+		__xhttpdEmitServerError(pServer, pConn, -1);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	xrtHttpdResponseInit(&tResp);
+	if ( pServer->tEvents.OnRequest ) {
+		bHandled = pServer->tEvents.OnRequest(pServer->pUserData, pServer, pConn, &tReq, &tResp);
+	}
+	if ( !bHandled ) {
+		xrtHttpdResponseSetStatus(&tResp, 404u, NULL);
+		(void)xrtHttpdResponseSetBodyCopy(&tResp, "Not Found", 9, "text/plain");
+	}
+	if ( (tReq.iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0 && !__xhttpdResponseHasHeader(&tResp, "Connection") ) {
+		tResp.iFlags &= ~XHTTPD_RESP_F_CLOSE;
+		(void)xrtHttpdResponseSetHeader(&tResp, "Connection", "keep-alive");
+	}
+	xrtCodecFrameConsume(pChain, &tFrame);
+	pConn->bKeepAlive = ((tReq.iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0) && ((tResp.iFlags & XHTTPD_RESP_F_CLOSE) == 0u);
+	pConn->bResponseInFlight = true;
+	if ( !__xhttpdSendResponseAndClose(pConn, &tResp) ) {
+		__xhttpdEmitServerError(pServer, pConn, -1);
+	}
+	xrtHttpdRequestUnit(&tReq);
+	xrtHttpdResponseUnit(&tResp);
+}
+static void __xhttpdStreamOnDrain(ptr pOwner, xnetstream* pStream)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pOwner;
+	if ( !pConn || !pStream ) return;
+	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return;
+	if ( !pConn->bResponseInFlight ) return;
+	if ( !pConn->bKeepAlive || pStream->bClosing ) return;
+	pConn->bResponseInFlight = false;
+	if ( xrtNetChainBytes(&pStream->tRxChain) > 0u ) {
+		__xhttpdStreamOnRecv(pOwner, pStream, &pStream->tRxChain);
+	}
+}
+static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pOwner;
+	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
+	(void)pStream;
+	if ( pServer && pServer->tEvents.OnClose ) {
+		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
+	}
+	__xhttpdConnPostCleanup(pConn);
+}
+static void __xhttpdStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pOwner;
+	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
+	(void)pStream;
+	__xhttpdEmitServerError(pServer, pConn, iSysErr);
+}
+static const xnetlistenerevents* __xhttpdListenerEvents(void)
+{
+	static const xnetlistenerevents tEvents = {
+		__xhttpdListenerOnAccept,
+		NULL
+	};
+	return &tEvents;
+}
+static const xnetstreamevents* __xhttpdStreamEvents(void)
+{
+	static const xnetstreamevents tEvents = {
+		__xhttpdStreamOnOpen,
+		__xhttpdStreamOnRecv,
+		__xhttpdStreamOnDrain,
+		__xhttpdStreamOnClose,
+		__xhttpdStreamOnError,
+		NULL,
+		NULL
+	};
+	return &tEvents;
+}
+#if defined(_WIN32) || defined(_WIN64)
+static DWORD WINAPI __xhttpdAcceptThread(LPVOID pArg)
+#else
+static void* __xhttpdAcceptThread(void* pArg)
+#endif
+{
+	xhttpdserver* pServer = (xhttpdserver*)pArg;
+	while ( pServer && __xhttpdAtomicLoad(&pServer->bRunning) != 0 ) {
+		xhttpdconn* pConn = NULL;
+		if ( pServer->pListener && pServer->pListener->bRunning ) {
+			pConn = (xhttpdconn*)XNET_ALLOC(sizeof(xhttpdconn));
+			if ( pConn ) {
+				xnetstream* pStream;
+				memset(pConn, 0, sizeof(xhttpdconn));
+				pConn->pServer = pServer;
+				pStream = __xnetListenerTryAcceptOne(pServer->pListener, pConn);
+				if ( !pStream ) {
+					XNET_FREE(pConn);
+				}
+			}
+		}
+		#if defined(_WIN32) || defined(_WIN64)
+			Sleep(pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u);
+		#else
+			usleep((useconds_t)((pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u) * 1000u));
+		#endif
+	}
+	#if !defined(_WIN32) && !defined(_WIN64)
+		return NULL;
+	#else
+		return 0;
+	#endif
+}
+static xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData)
+{
+	xhttpdserver* pServer;
+	if ( !pEngine ) return NULL;
+	pServer = (xhttpdserver*)XNET_ALLOC(sizeof(xhttpdserver));
+	if ( !pServer ) return NULL;
+	memset(pServer, 0, sizeof(xhttpdserver));
+	pServer->pEngine = pEngine;
+	if ( pCfg ) {
+		pServer->tConfig = *pCfg;
+	} else {
+		xrtHttpdConfigInit(&pServer->tConfig);
+	}
+	if ( pEvents ) pServer->tEvents = *pEvents;
+	pServer->pUserData = pUserData;
+	return pServer;
+}
+static uint16 xrtHttpdBoundPort(const xhttpdserver* pServer)
+{
+	return (pServer && pServer->pListener) ? pServer->pListener->tConfig.tBindAddr.iPort : 0u;
+}
+static xnet_result xrtHttpdStart(xhttpdserver* pServer)
+{
+	xnetlistenconfig tListenCfg;
+	if ( !pServer || !pServer->pEngine ) return XRT_NET_ERROR;
+	if ( __xhttpdAtomicLoad(&pServer->bRunning) != 0 ) return XRT_NET_OK;
+	xrtNetListenConfigInit(&tListenCfg);
+	tListenCfg.tBindAddr = pServer->tConfig.tBindAddr;
+	tListenCfg.iFlags = pServer->tConfig.iFlags;
+	tListenCfg.iBacklog = pServer->tConfig.iBacklog;
+	tListenCfg.iRecvLimit = pServer->tConfig.iRecvLimit;
+	tListenCfg.pTlsConfig = pServer->tConfig.pTlsConfig;
+	pServer->pListener = xrtNetListenerCreate(pServer->pEngine, &tListenCfg, __xhttpdListenerEvents(), __xhttpdStreamEvents(), pServer);
+	if ( !pServer->pListener ) return XRT_NET_ERROR;
+	if ( xrtNetListenerStart(pServer->pListener) != XRT_NET_OK ) {
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+		return XRT_NET_ERROR;
+	}
+	(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 1, 0);
+	#if defined(_WIN32) || defined(_WIN64)
+		pServer->hAcceptThread = CreateThread(NULL, 0, __xhttpdAcceptThread, pServer, 0, NULL);
+		if ( !pServer->hAcceptThread ) {
+			(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
+			xrtNetListenerStop(pServer->pListener);
+			xrtNetListenerDestroy(pServer->pListener);
+			pServer->pListener = NULL;
+			return XRT_NET_ERROR;
+		}
+	#else
+		if ( pthread_create(&pServer->hAcceptThread, NULL, __xhttpdAcceptThread, pServer) != 0 ) {
+			(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
+			xrtNetListenerStop(pServer->pListener);
+			xrtNetListenerDestroy(pServer->pListener);
+			pServer->pListener = NULL;
+			return XRT_NET_ERROR;
+		}
+		pServer->bAcceptThreadStarted = true;
+	#endif
+	return XRT_NET_OK;
+}
+static void xrtHttpdStop(xhttpdserver* pServer)
+{
+	xhttpdconn* pConn;
+	if ( !pServer ) return;
+	if ( __xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
+		/* already stopped */
+	} else {
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( pServer->hAcceptThread ) {
+				WaitForSingleObject(pServer->hAcceptThread, INFINITE);
+				CloseHandle(pServer->hAcceptThread);
+				pServer->hAcceptThread = NULL;
+			}
+		#else
+			if ( pServer->bAcceptThreadStarted ) {
+				pthread_join(pServer->hAcceptThread, NULL);
+				pServer->bAcceptThreadStarted = false;
+			}
+		#endif
+	}
+	if ( pServer->pListener ) {
+		xrtNetListenerStop(pServer->pListener);
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+	}
+	pConn = __xhttpdServerDetachAllConns(pServer);
+	while ( pConn ) {
+		xhttpdconn* pNext = pConn->pNext;
+		pConn->pNext = NULL;
+		(void)__xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0);
+		if ( pConn->pStream ) {
+			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			xrtNetStreamDestroy(pConn->pStream);
+			pConn->pStream = NULL;
+		}
+		XNET_FREE(pConn);
+		pConn = pNext;
+	}
+}
+static void xrtHttpdDestroy(xhttpdserver* pServer)
+{
+	if ( !pServer ) return;
+	xrtHttpdStop(pServer);
+	XNET_FREE(pServer);
+}
+#endif
+
+// ========================================
+// File: D:/Git/xrt/lib/xws.h
+// ========================================
+
+#ifndef XRT_XWS_H
+#define XRT_XWS_H
+#include <stdlib.h>
+// (skipped duplicate include: D:/Git/xrt/lib/xcodec_http1.h)
+// (skipped duplicate include: D:/Git/xrt/lib/xcodec_ws.h)
+// (skipped duplicate include: D:/Git/xrt/lib/xnet_stream.h)
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <sched.h>
+#endif
+/*
+    XNet V2 - WebSocket Rebuild Skeleton
+    Phase-3 scope in this header:
+      - async WebSocket client and server wrappers on top of xnet_stream
+      - HTTP upgrade handshake over plain TCP and builtin TLS
+      - single-frame text/binary messaging plus ping/pong and close control
+    Current limitations:
+      - message fragmentation and continuation frames are rejected
+      - extensions and permessage-deflate are not implemented
+      - server subprotocol negotiation is fixed-string and optional
+*/
+/* ============================== Public model ============================== */
+#define XWS_URL_CAP              1024u
+#define XWS_HOST_CAP             256u
+#define XWS_PATH_CAP             1024u
+#define XWS_ORIGIN_CAP           256u
+#define XWS_PROTOCOL_CAP         128u
+#define XWS_CLOSE_REASON_CAP     123u
+#define XWS_CLOSE_NORMAL         1000u
+#define XWS_CLOSE_GOING_AWAY     1001u
+#define XWS_CLOSE_PROTOCOL       1002u
+#define XWS_CLOSE_UNSUPPORTED    1003u
+#define XWS_CLOSE_TOO_BIG        1009u
+#define XWS_CLOSE_INTERNAL       1011u
+typedef struct xrt_ws_client xwsclient;
+typedef struct xrt_ws_server xwsserver;
+typedef struct xrt_ws_conn   xwsconn;
+typedef struct {
+	char sURL[XWS_URL_CAP];
+	char sOrigin[XWS_ORIGIN_CAP];
+	char sProtocol[XWS_PROTOCOL_CAP];
+	uint32 iConnectTimeoutMs;
+	uint32 iRecvLimit;
+	bool bVerifyPeer;
+} xwsclientconfig;
+typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iBacklog;
+	uint32 iRecvLimit;
+	uint32 iAcceptPollMs;
+	const xtlsconfig* pTlsConfig;
+	char sProtocol[XWS_PROTOCOL_CAP];
+} xwsserverconfig;
+typedef struct {
+	void (*OnOpen)(ptr pOwner, xwsclient* pClient);
+	void (*OnText)(ptr pOwner, xwsclient* pClient, const char* pData, size_t iLen);
+	void (*OnBinary)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
+	void (*OnClose)(ptr pOwner, xwsclient* pClient, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xwsclient* pClient, int iSysErr);
+	void (*OnPing)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
+	void (*OnPong)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
+} xwsclientevents;
+typedef struct {
+	void (*OnOpen)(ptr pOwner, xwsserver* pServer, xwsconn* pConn);
+	void (*OnText)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const char* pData, size_t iLen);
+	void (*OnBinary)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
+	void (*OnClose)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, int iSysErr);
+	void (*OnPing)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
+	void (*OnPong)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
+} xwsserverevents;
+typedef struct {
+	bool bSecure;
+	uint16 iPort;
+	char sHost[XWS_HOST_CAP];
+	char sPath[XWS_PATH_CAP];
+} __xws_url;
+struct xrt_ws_client {
+	xnetengine* pEngine;
+	xnetstream* pStream;
+	xwsclientconfig tConfig;
+	xwsclientevents tEvents;
+	ptr pUserData;
+	__xws_url tURL;
+	xtlsconfig tTlsCfg;
+	char sKey[32];
+	char sExpectedAccept[64];
+	char* pMsgBuf;
+	size_t iMsgLen;
+	size_t iMsgCap;
+	uint8 iMsgOpcode;
+	volatile long iOpen;
+	volatile long iClosePosted;
+	int iLastSysErr;
+};
+struct xrt_ws_conn {
+	struct xrt_ws_conn* pNext;
+	volatile long iCleanupPosted;
+	volatile long iOpen;
+	volatile long iClosePosted;
+	xwsserver* pServer;
+	xnetstream* pStream;
+	char sProtocol[XWS_PROTOCOL_CAP];
+	char* pMsgBuf;
+	size_t iMsgLen;
+	size_t iMsgCap;
+	uint8 iMsgOpcode;
+	int iLastSysErr;
+};
+struct xrt_ws_server {
+	xnetengine* pEngine;
+	xnetlistener* pListener;
+	xwsserverconfig tConfig;
+	xwsserverevents tEvents;
+	ptr pUserData;
+	volatile long iConnLock;
+	volatile long bRunning;
+	xwsconn* pConnHead;
+#if defined(_WIN32) || defined(_WIN64)
+	HANDLE hAcceptThread;
+#else
+	pthread_t hAcceptThread;
+	bool bAcceptThreadStarted;
+#endif
+};
+/* ============================== Legacy crypto hooks ============================== */
+extern void xrtRandomBytes(uint8* pBuf, size_t iLen);
+extern void xrtSHA1(const ptr pData, size_t iLen, uint8* pOut);
+/* ============================== Local helpers ============================== */
+#define __XWS_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+typedef struct {
+	xnetstream* pStream;
+	char* pFrame;
+	size_t iFrameLen;
+} __xws_close_task;
+#define __XWS_APPEND_OK       0
+#define __XWS_APPEND_TOO_BIG  1
+#define __XWS_APPEND_PROTOCOL 2
+#define __XWS_APPEND_INTERNAL 3
+static char __xwsToLower(char ch)
+{
+	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
+	return ch;
+}
+static bool __xwsStrEqNoCase(const char* sA, const char* sB)
+{
+	size_t i = 0;
+	if ( !sA || !sB ) return false;
+	while ( sA[i] && sB[i] ) {
+		if ( __xwsToLower(sA[i]) != __xwsToLower(sB[i]) ) return false;
+		i++;
+	}
+	return sA[i] == '\0' && sB[i] == '\0';
+}
+static bool __xwsContainsTokenNoCase(const char* sText, const char* sToken)
+{
+	const char* p;
+	size_t iTokenLen;
+	if ( !sText || !sToken || sToken[0] == '\0' ) return false;
+	iTokenLen = strlen(sToken);
+	p = sText;
+	while ( *p ) {
+		const char* pStart;
+		size_t iLen;
+		while ( *p == ' ' || *p == '\t' || *p == ',' ) p++;
+		pStart = p;
+		while ( *p && *p != ',' ) p++;
+		iLen = (size_t)(p - pStart);
+		while ( iLen > 0 && (pStart[iLen - 1] == ' ' || pStart[iLen - 1] == '\t') ) iLen--;
+		if ( iLen == iTokenLen ) {
+			size_t i;
+			bool bMatch = true;
+			for ( i = 0; i < iLen; ++i ) {
+				if ( __xwsToLower(pStart[i]) != __xwsToLower(sToken[i]) ) {
+					bMatch = false;
+					break;
+				}
+			}
+			if ( bMatch ) return true;
+		}
+		if ( *p == ',' ) p++;
+	}
+	return false;
+}
+static void __xwsCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
+{
+	size_t iLen;
+	if ( !sDst || iDstCap == 0 ) return;
+	if ( !sSrc ) {
+		sDst[0] = '\0';
+		return;
+	}
+	iLen = strlen(sSrc);
+	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
+	memcpy(sDst, sSrc, iLen);
+	sDst[iLen] = '\0';
+}
+static long __xwsAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
+{
+	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
+}
+static long __xwsAtomicLoad(volatile long* pValue)
+{
+	return __xnetAtomicLoad32(pValue);
+}
+static long __xwsAtomicLoadConst(const volatile long* pValue)
+{
+	return __xnetAtomicLoad32(pValue);
+}
+static void __xwsSleep0(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		Sleep(0);
+	#else
+		sched_yield();
+	#endif
+}
+static void __xwsSleepMs(uint32 iDelayMs)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		Sleep(iDelayMs);
+	#else
+		usleep((useconds_t)iDelayMs * 1000u);
+	#endif
+}
+static void __xwsLock(volatile long* pLock)
+{
+	if ( !pLock ) return;
+	while ( __xwsAtomicCompareExchange(pLock, 1, 0) != 0 ) {
+		__xwsSleep0();
+	}
+}
+static void __xwsUnlock(volatile long* pLock)
+{
+	if ( !pLock ) return;
+	(void)__xnetAtomicExchange32(pLock, 0);
+}
+static bool __xwsAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)
+{
+	size_t iNeedCap;
+	char* pNewBuf;
+	if ( !ppBuf || !pLen || !pCap || (!pData && iDataLen != 0) ) return false;
+	if ( iDataLen == 0 ) return true;
+	if ( *pLen + iDataLen + 1u <= *pCap ) {
+		memcpy(*ppBuf + *pLen, pData, iDataLen);
+		*pLen += iDataLen;
+		(*ppBuf)[*pLen] = '\0';
+		return true;
+	}
+	iNeedCap = (*pCap == 0) ? 256u : *pCap;
+	while ( iNeedCap < (*pLen + iDataLen + 1u) ) iNeedCap *= 2u;
+	pNewBuf = (char*)XNET_ALLOC(iNeedCap);
+	if ( !pNewBuf ) return false;
+	if ( *ppBuf && *pLen > 0 ) memcpy(pNewBuf, *ppBuf, *pLen);
+	XNET_FREE(*ppBuf);
+	*ppBuf = pNewBuf;
+	*pCap = iNeedCap;
+	memcpy(*ppBuf + *pLen, pData, iDataLen);
+	*pLen += iDataLen;
+	(*ppBuf)[*pLen] = '\0';
+	return true;
+}
+static bool __xwsAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
+{
+	return __xwsAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+}
+static const char* __xwsHttpStatusText(uint32 iStatusCode)
+{
+	switch ( iStatusCode ) {
+		case 101: return "Switching Protocols";
+		case 400: return "Bad Request";
+		case 404: return "Not Found";
+		case 426: return "Upgrade Required";
+		case 500: return "Internal Server Error";
+		default: return "OK";
+	}
+}
+static bool __xwsBase64Encode(const uint8* pIn, size_t iLen, char* sOut, size_t iOutCap)
+{
+	static const char aTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	size_t iNeed = 4u * ((iLen + 2u) / 3u);
+	size_t i = 0;
+	size_t j = 0;
+	if ( !pIn || !sOut || iOutCap <= iNeed ) return false;
+	while ( i + 2u < iLen ) {
+		uint32 iTri = ((uint32)pIn[i] << 16u) | ((uint32)pIn[i + 1u] << 8u) | (uint32)pIn[i + 2u];
+		sOut[j++] = aTable[(iTri >> 18u) & 0x3Fu];
+		sOut[j++] = aTable[(iTri >> 12u) & 0x3Fu];
+		sOut[j++] = aTable[(iTri >> 6u) & 0x3Fu];
+		sOut[j++] = aTable[iTri & 0x3Fu];
+		i += 3u;
+	}
+	if ( i < iLen ) {
+		uint32 iTri = (uint32)pIn[i] << 16u;
+		sOut[j++] = aTable[(iTri >> 18u) & 0x3Fu];
+		if ( i + 1u < iLen ) {
+			iTri |= (uint32)pIn[i + 1u] << 8u;
+			sOut[j++] = aTable[(iTri >> 12u) & 0x3Fu];
+			sOut[j++] = aTable[(iTri >> 6u) & 0x3Fu];
+			sOut[j++] = '=';
+		} else {
+			sOut[j++] = aTable[(iTri >> 12u) & 0x3Fu];
+			sOut[j++] = '=';
+			sOut[j++] = '=';
+		}
+	}
+	sOut[j] = '\0';
+	return true;
+}
+static bool __xwsGenerateKey(char* sKey, size_t iCap)
+{
+	uint8 aRandom[16];
+	if ( !sKey || iCap < 25u ) return false;
+	xrtRandomBytes(aRandom, sizeof(aRandom));
+	return __xwsBase64Encode(aRandom, sizeof(aRandom), sKey, iCap);
+}
+static bool __xwsComputeAccept(const char* sKey, char* sAccept, size_t iCap)
+{
+	char sCombined[128];
+	uint8 aDigest[20];
+	int iWritten;
+	if ( !sKey || !sAccept || iCap < 29u ) return false;
+	iWritten = snprintf(sCombined, sizeof(sCombined), "%s%s", sKey, __XWS_GUID);
+	if ( iWritten <= 0 || (size_t)iWritten >= sizeof(sCombined) ) return false;
+	xrtSHA1(sCombined, (size_t)iWritten, aDigest);
+	return __xwsBase64Encode(aDigest, sizeof(aDigest), sAccept, iCap);
+}
+static bool __xwsUrlParse(const char* sURL, __xws_url* pOut)
+{
+	const char* p;
+	const char* pHostStart;
+	const char* pPathStart;
+	size_t iHostLen;
+	size_t iPathLen;
+	if ( !sURL || !pOut ) return false;
+	memset(pOut, 0, sizeof(__xws_url));
+	p = sURL;
+	if ( strncmp(p, "wss://", 6) == 0 ) {
+		pOut->bSecure = true;
+		pOut->iPort = 443u;
+		p += 6;
+	} else if ( strncmp(p, "ws://", 5) == 0 ) {
+		pOut->bSecure = false;
+		pOut->iPort = 80u;
+		p += 5;
+	} else {
+		return false;
+	}
+	pHostStart = p;
+	if ( *p == '[' ) {
+		pHostStart = ++p;
+		while ( *p && *p != ']' ) p++;
+		if ( *p != ']' ) return false;
+		iHostLen = (size_t)(p - pHostStart);
+		if ( iHostLen == 0 ) return false;
+		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
+		memcpy(pOut->sHost, pHostStart, iHostLen);
+		pOut->sHost[iHostLen] = '\0';
+		p++;
+		if ( *p == ':' ) {
+			pOut->iPort = (uint16)atoi(p + 1);
+			while ( *p && *p != '/' && *p != '?' ) p++;
+		}
+	} else {
+		while ( *p && *p != ':' && *p != '/' && *p != '?' ) p++;
+		iHostLen = (size_t)(p - pHostStart);
+		if ( iHostLen == 0 ) return false;
+		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
+		memcpy(pOut->sHost, pHostStart, iHostLen);
+		pOut->sHost[iHostLen] = '\0';
+		if ( *p == ':' ) {
+			pOut->iPort = (uint16)atoi(p + 1);
+			while ( *p && *p != '/' && *p != '?' ) p++;
+		}
+	}
+	pPathStart = (*p == '/' || *p == '?') ? p : NULL;
+	if ( pPathStart ) {
+		iPathLen = strlen(pPathStart);
+		if ( iPathLen >= sizeof(pOut->sPath) ) iPathLen = sizeof(pOut->sPath) - 1u;
+		memcpy(pOut->sPath, pPathStart, iPathLen);
+		pOut->sPath[iPathLen] = '\0';
+	} else {
+		strcpy(pOut->sPath, "/");
+	}
+	return pOut->sHost[0] != '\0' && pOut->iPort != 0u;
+}
+static void __xwsMakeHostHeader(const __xws_url* pURL, char* sOut, size_t iOutCap)
+{
+	bool bDefaultPort;
+	if ( !sOut || iOutCap == 0 ) return;
+	sOut[0] = '\0';
+	if ( !pURL ) return;
+	bDefaultPort = (pURL->bSecure && pURL->iPort == 443u) || (!pURL->bSecure && pURL->iPort == 80u);
+	if ( strchr(pURL->sHost, ':') != NULL ) {
+		if ( bDefaultPort ) {
+			(void)snprintf(sOut, iOutCap, "[%s]", pURL->sHost);
+		} else {
+			(void)snprintf(sOut, iOutCap, "[%s]:%u", pURL->sHost, (unsigned)pURL->iPort);
+		}
+	} else if ( bDefaultPort ) {
+		(void)snprintf(sOut, iOutCap, "%s", pURL->sHost);
+	} else {
+		(void)snprintf(sOut, iOutCap, "%s:%u", pURL->sHost, (unsigned)pURL->iPort);
+	}
+}
+static bool __xwsBuildClientHandshake(xwsclient* pClient, char** ppOut, size_t* pOutLen)
+{
+	char sHost[384];
+	char* pBuf = NULL;
+	size_t iLen = 0;
+	size_t iCap = 0;
+	if ( !pClient || !ppOut || !pOutLen ) return false;
+	__xwsMakeHostHeader(&pClient->tURL, sHost, sizeof(sHost));
+	if ( !__xwsGenerateKey(pClient->sKey, sizeof(pClient->sKey)) ) return false;
+	if ( !__xwsComputeAccept(pClient->sKey, pClient->sExpectedAccept, sizeof(pClient->sExpectedAccept)) ) return false;
+	if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "GET ") ||
+		!__xwsAppendText(&pBuf, &iLen, &iCap, pClient->tURL.sPath) ||
+		!__xwsAppendText(&pBuf, &iLen, &iCap, " HTTP/1.1\r\nHost: ") ||
+		!__xwsAppendText(&pBuf, &iLen, &iCap, sHost) ||
+		!__xwsAppendText(&pBuf, &iLen, &iCap, "\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ") ||
+		!__xwsAppendText(&pBuf, &iLen, &iCap, pClient->sKey) ||
+		!__xwsAppendText(&pBuf, &iLen, &iCap, "\r\nSec-WebSocket-Version: 13\r\n") ) {
+		XNET_FREE(pBuf);
+		return false;
+	}
+	if ( pClient->tConfig.sProtocol[0] ) {
+		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Sec-WebSocket-Protocol: ") ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, pClient->tConfig.sProtocol) ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n") ) {
+			XNET_FREE(pBuf);
+			return false;
+		}
+	}
+	if ( pClient->tConfig.sOrigin[0] ) {
+		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Origin: ") ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, pClient->tConfig.sOrigin) ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n") ) {
+			XNET_FREE(pBuf);
+			return false;
+		}
+	}
+	if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n") ) {
+		XNET_FREE(pBuf);
+		return false;
+	}
+	*ppOut = pBuf;
+	*pOutLen = iLen;
+	return true;
+}
+static bool __xwsBuildHttpResponseBytes(uint32 iStatusCode, const char* sBody, const char* sAccept, const char* sProtocol, char** ppOut, size_t* pOutLen)
+{
+	char sLine[256];
+	char sLength[64];
+	char* pBuf = NULL;
+	size_t iLen = 0;
+	size_t iCap = 0;
+	size_t iBodyLen = sBody ? strlen(sBody) : 0u;
+	if ( !ppOut || !pOutLen ) return false;
+	(void)snprintf(sLine, sizeof(sLine), "HTTP/1.1 %u %s\r\n", (unsigned)iStatusCode, __xwsHttpStatusText(iStatusCode));
+	if ( !__xwsAppendText(&pBuf, &iLen, &iCap, sLine) ) {
+		XNET_FREE(pBuf);
+		return false;
+	}
+	if ( iStatusCode == 101u ) {
+		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ") ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, sAccept ? sAccept : "") ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n") ) {
+			XNET_FREE(pBuf);
+			return false;
+		}
+		if ( sProtocol && sProtocol[0] ) {
+			if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Sec-WebSocket-Protocol: ") ||
+				!__xwsAppendText(&pBuf, &iLen, &iCap, sProtocol) ||
+				!__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n") ) {
+				XNET_FREE(pBuf);
+				return false;
+			}
+		}
+		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n") ) {
+			XNET_FREE(pBuf);
+			return false;
+		}
+	} else {
+		(void)snprintf(sLength, sizeof(sLength), "%llu", (unsigned long long)iBodyLen);
+		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Connection: close\r\nContent-Type: text/plain\r\nContent-Length: ") ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, sLength) ||
+			!__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n\r\n") ||
+			!__xwsAppendBytes(&pBuf, &iLen, &iCap, sBody, iBodyLen) ) {
+			XNET_FREE(pBuf);
+			return false;
+		}
+	}
+	*ppOut = pBuf;
+	*pOutLen = iLen;
+	return true;
+}
+static void __xwsMessageReset(char** ppBuf, size_t* pLen, size_t* pCap, uint8* pOpcode)
+{
+	if ( ppBuf && *ppBuf ) {
+		XNET_FREE(*ppBuf);
+		*ppBuf = NULL;
+	}
+	if ( pLen ) *pLen = 0u;
+	if ( pCap ) *pCap = 0u;
+	if ( pOpcode ) *pOpcode = 0u;
+}
+static int __xwsMessageAppend(char** ppBuf, size_t* pLen, size_t* pCap, uint8* pOpcode, uint8 iOpcode, const void* pPayload, size_t iPayloadLen, size_t iLimit)
+{
+	if ( !ppBuf || !pLen || !pCap || !pOpcode || (!pPayload && iPayloadLen != 0u) ) return __XWS_APPEND_INTERNAL;
+	if ( iLimit > 0u && *pLen + iPayloadLen > iLimit ) return __XWS_APPEND_TOO_BIG;
+	if ( iOpcode != 0u ) *pOpcode = iOpcode;
+	if ( !__xwsAppendBytes(ppBuf, pLen, pCap, pPayload, iPayloadLen) ) return __XWS_APPEND_INTERNAL;
+	return __XWS_APPEND_OK;
+}
+static size_t __xwsFrameSize(size_t iPayloadLen, bool bMask)
+{
+	size_t iSize = 2u + iPayloadLen;
+	if ( iPayloadLen >= 126u && iPayloadLen <= 0xFFFFu ) iSize += 2u;
+	else if ( iPayloadLen > 0xFFFFu ) iSize += 8u;
+	if ( bMask ) iSize += 4u;
+	return iSize;
+}
+static bool __xwsBuildFrameBytesEx(uint8 iOpcode, bool bFin, bool bMask, const void* pPayload, size_t iPayloadLen, char** ppOut, size_t* pOutLen)
+{
+	char* pBuf;
+	size_t iNeed;
+	size_t iPos = 0;
+	uint8 aMask[4] = {0};
+	const uint8* pBytes = (const uint8*)pPayload;
+	if ( !ppOut || !pOutLen ) return false;
+	iNeed = __xwsFrameSize(iPayloadLen, bMask);
+	pBuf = (char*)XNET_ALLOC(iNeed);
+	if ( !pBuf ) return false;
+	((uint8*)pBuf)[iPos++] = (uint8)((bFin ? 0x80u : 0x00u) | (iOpcode & 0x0Fu));
+	if ( iPayloadLen < 126u ) {
+		((uint8*)pBuf)[iPos++] = (uint8)((bMask ? 0x80u : 0x00u) | (uint8)iPayloadLen);
+	} else if ( iPayloadLen <= 0xFFFFu ) {
+		((uint8*)pBuf)[iPos++] = (uint8)((bMask ? 0x80u : 0x00u) | 126u);
+		((uint8*)pBuf)[iPos++] = (uint8)((iPayloadLen >> 8u) & 0xFFu);
+		((uint8*)pBuf)[iPos++] = (uint8)(iPayloadLen & 0xFFu);
+	} else {
+		((uint8*)pBuf)[iPos++] = (uint8)((bMask ? 0x80u : 0x00u) | 127u);
+		for ( int i = 7; i >= 0; --i ) {
+			((uint8*)pBuf)[iPos++] = (uint8)((((uint64)iPayloadLen) >> (uint32)(i * 8)) & 0xFFu);
+		}
+	}
+	if ( bMask ) {
+		xrtRandomBytes(aMask, sizeof(aMask));
+		memcpy(pBuf + iPos, aMask, sizeof(aMask));
+		iPos += sizeof(aMask);
+	}
+	if ( iPayloadLen > 0 && pBytes ) {
+		memcpy(pBuf + iPos, pBytes, iPayloadLen);
+		if ( bMask ) {
+			xrtCodecWsUnmask(pBuf + iPos, iPayloadLen, aMask, 0u);
+		}
+		iPos += iPayloadLen;
+	}
+	*ppOut = pBuf;
+	*pOutLen = iPos;
+	return true;
+}
+static bool __xwsBuildFrameBytes(uint8 iOpcode, bool bMask, const void* pPayload, size_t iPayloadLen, char** ppOut, size_t* pOutLen)
+{
+	return __xwsBuildFrameBytesEx(iOpcode, true, bMask, pPayload, iPayloadLen, ppOut, pOutLen);
+}
+static bool __xwsBuildClosePayload(uint16 iCode, const char* sReason, size_t iReasonLen, char** ppOut, size_t* pOutLen)
+{
+	char* pBuf;
+	if ( !ppOut || !pOutLen ) return false;
+	if ( iCode == 0 && (!sReason || iReasonLen == 0u) ) {
+		*ppOut = NULL;
+		*pOutLen = 0u;
+		return true;
+	}
+	if ( iCode == 0u ) iCode = XWS_CLOSE_NORMAL;
+	if ( iReasonLen > XWS_CLOSE_REASON_CAP ) iReasonLen = XWS_CLOSE_REASON_CAP;
+	pBuf = (char*)XNET_ALLOC(2u + iReasonLen);
+	if ( !pBuf ) return false;
+	pBuf[0] = (char)((iCode >> 8u) & 0xFFu);
+	pBuf[1] = (char)(iCode & 0xFFu);
+	if ( sReason && iReasonLen > 0 ) memcpy(pBuf + 2u, sReason, iReasonLen);
+	*ppOut = pBuf;
+	*pOutLen = 2u + iReasonLen;
+	return true;
+}
+static bool __xwsStreamQueueBytesDirect(xnetstream* pStream, const void* pData, size_t iLen)
+{
+	if ( !pStream || !pData || iLen == 0u ) return false;
+	if ( pStream->pTls ) {
+		if ( !__xnetStreamAppendTlsPlainCopy(pStream, pData, iLen) ) return false;
+	} else {
+		if ( !__xnetStreamAppendSendCopy(pStream, pData, iLen) ) return false;
+	}
+	__xnetStreamKickWrite(pStream);
+	return true;
+}
+static xnet_result __xwsStreamSendFrame(xnetstream* pStream, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+{
+	char* pFrame = NULL;
+	size_t iFrameLen = 0u;
+	xnet_result iRet;
+	if ( !pStream ) return XRT_NET_ERROR;
+	if ( !__xwsBuildFrameBytesEx(iOpcode, true, bMask, pPayload, iPayloadLen, &pFrame, &iFrameLen) ) return XRT_NET_ERROR;
+	iRet = xrtNetStreamSend(pStream, pFrame, iFrameLen);
+	XNET_FREE(pFrame);
+	return iRet;
+}
+static xnet_result __xwsStreamSendFrameEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+{
+	char* pFrame = NULL;
+	size_t iFrameLen = 0u;
+	xnet_result iRet;
+	if ( !pStream ) return XRT_NET_ERROR;
+	if ( !__xwsBuildFrameBytesEx(iOpcode, bFin, bMask, pPayload, iPayloadLen, &pFrame, &iFrameLen) ) return XRT_NET_ERROR;
+	iRet = xrtNetStreamSend(pStream, pFrame, iFrameLen);
+	XNET_FREE(pFrame);
+	return iRet;
+}
+static bool __xwsStreamQueueFrameDirectEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+{
+	char* pFrame = NULL;
+	size_t iFrameLen = 0u;
+	bool bRet;
+	if ( !pStream ) return false;
+	if ( !__xwsBuildFrameBytesEx(iOpcode, bFin, bMask, pPayload, iPayloadLen, &pFrame, &iFrameLen) ) return false;
+	bRet = __xwsStreamQueueBytesDirect(pStream, pFrame, iFrameLen);
+	XNET_FREE(pFrame);
+	return bRet;
+}
+static bool __xwsStreamQueueFrameDirect(xnetstream* pStream, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+{
+	char* pFrame = NULL;
+	size_t iFrameLen = 0u;
+	bool bRet;
+	if ( !pStream ) return false;
+	if ( !__xwsBuildFrameBytesEx(iOpcode, true, bMask, pPayload, iPayloadLen, &pFrame, &iFrameLen) ) return false;
+	bRet = __xwsStreamQueueBytesDirect(pStream, pFrame, iFrameLen);
+	XNET_FREE(pFrame);
+	return bRet;
+}
+static void __xwsCloseTask(xnetworker* pWorker, ptr pArg)
+{
+	__xws_close_task* pTask = (__xws_close_task*)pArg;
+	(void)pWorker;
+	if ( !pTask ) return;
+	if ( pTask->pStream && pTask->pFrame && pTask->iFrameLen > 0u ) {
+		(void)__xwsStreamQueueBytesDirect(pTask->pStream, pTask->pFrame, pTask->iFrameLen);
+	}
+	if ( pTask->pStream ) {
+		xrtNetStreamClose(pTask->pStream, XNET_CLOSE_F_GRACEFUL);
+	}
+	XNET_FREE(pTask->pFrame);
+	XNET_FREE(pTask);
+}
+static xnet_result __xwsPostClose(xnetstream* pStream, bool bMask, uint16 iCode, const char* sReason)
+{
+	__xws_close_task* pTask;
+	char* pPayload = NULL;
+	char* pFrame = NULL;
+	size_t iPayloadLen = 0u;
+	size_t iFrameLen = 0u;
+	size_t iReasonLen = sReason ? strlen(sReason) : 0u;
+	if ( !pStream || !pStream->pEngine || !pStream->pWorker ) return XRT_NET_ERROR;
+	if ( !__xwsBuildClosePayload(iCode, sReason, iReasonLen, &pPayload, &iPayloadLen) ) return XRT_NET_ERROR;
+	if ( !__xwsBuildFrameBytes(XCODEC_WS_OPCODE_CLOSE, bMask, pPayload, iPayloadLen, &pFrame, &iFrameLen) ) {
+		XNET_FREE(pPayload);
+		return XRT_NET_ERROR;
+	}
+	XNET_FREE(pPayload);
+	pTask = (__xws_close_task*)XNET_ALLOC(sizeof(__xws_close_task));
+	if ( !pTask ) {
+		XNET_FREE(pFrame);
+		return XRT_NET_ERROR;
+	}
+	memset(pTask, 0, sizeof(__xws_close_task));
+	pTask->pStream = pStream;
+	pTask->pFrame = pFrame;
+	pTask->iFrameLen = iFrameLen;
+	if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xwsCloseTask, pTask) != XRT_NET_OK ) {
+		XNET_FREE(pFrame);
+		XNET_FREE(pTask);
+		return XRT_NET_ERROR;
+	}
+	return XRT_NET_OK;
+}
+static bool __xwsPeekPayloadCopy(xnetchain* pChain, const xcodecframe* pFrame, const xcodecwsframeinfo* pInfo, char** ppPayload, size_t* pPayloadLen)
+{
+	char* pBuf;
+	size_t iNeed;
+	if ( !ppPayload || !pPayloadLen || !pChain || !pFrame || !pInfo ) return false;
+	iNeed = pFrame->iPayloadBytes;
+	pBuf = (char*)XNET_ALLOC(iNeed + 1u);
+	if ( !pBuf ) return false;
+	if ( xrtCodecFramePeek(pChain, pFrame, pBuf, iNeed) != iNeed ) {
+		XNET_FREE(pBuf);
+		return false;
+	}
+	if ( (pInfo->iFlags & XCODEC_WS_F_MASKED) != 0u && iNeed > 0u ) {
+		xrtCodecWsUnmask(pBuf, iNeed, pInfo->aMask, 0u);
+	}
+	pBuf[iNeed] = '\0';
+	*ppPayload = pBuf;
+	*pPayloadLen = iNeed;
+	return true;
+}
+static void __xwsClientEmitText(xwsclient* pClient, const char* pData, size_t iLen)
+{
+	if ( pClient && pClient->tEvents.OnText ) {
+		pClient->tEvents.OnText(pClient->pUserData, pClient, pData, iLen);
+	}
+}
+static void __xwsClientEmitBinary(xwsclient* pClient, const void* pData, size_t iLen)
+{
+	if ( pClient && pClient->tEvents.OnBinary ) {
+		pClient->tEvents.OnBinary(pClient->pUserData, pClient, pData, iLen);
+	}
+}
+static void __xwsServerEmitText(xwsconn* pConn, const char* pData, size_t iLen)
+{
+	xwsserver* pServer = pConn ? pConn->pServer : NULL;
+	if ( pServer && pServer->tEvents.OnText ) {
+		pServer->tEvents.OnText(pServer->pUserData, pServer, pConn, pData, iLen);
+	}
+}
+static void __xwsServerEmitBinary(xwsconn* pConn, const void* pData, size_t iLen)
+{
+	xwsserver* pServer = pConn ? pConn->pServer : NULL;
+	if ( pServer && pServer->tEvents.OnBinary ) {
+		pServer->tEvents.OnBinary(pServer->pUserData, pServer, pConn, pData, iLen);
+	}
+}
+static int __xwsClientConsumeDataFrame(xwsclient* pClient, uint8 iOpcode, bool bFin, const char* pPayload, size_t iPayloadLen)
+{
+	size_t iLimit = pClient && pClient->tConfig.iRecvLimit > 0u ? (size_t)pClient->tConfig.iRecvLimit : 0u;
+	int iAppend;
+	if ( !pClient ) return __XWS_APPEND_INTERNAL;
+	if ( iOpcode == XCODEC_WS_OPCODE_CONT ) {
+		if ( pClient->iMsgOpcode == 0u ) return __XWS_APPEND_PROTOCOL;
+		iAppend = __xwsMessageAppend(&pClient->pMsgBuf, &pClient->iMsgLen, &pClient->iMsgCap, &pClient->iMsgOpcode, 0u, pPayload, iPayloadLen, iLimit);
+		if ( iAppend != __XWS_APPEND_OK ) return iAppend;
+		if ( bFin ) {
+			if ( pClient->iMsgOpcode == XCODEC_WS_OPCODE_TEXT ) __xwsClientEmitText(pClient, pClient->pMsgBuf ? pClient->pMsgBuf : "", pClient->iMsgLen);
+			else if ( pClient->iMsgOpcode == XCODEC_WS_OPCODE_BINARY ) __xwsClientEmitBinary(pClient, pClient->pMsgBuf, pClient->iMsgLen);
+			else return __XWS_APPEND_INTERNAL;
+			__xwsMessageReset(&pClient->pMsgBuf, &pClient->iMsgLen, &pClient->iMsgCap, &pClient->iMsgOpcode);
+		}
+		return __XWS_APPEND_OK;
+	}
+	if ( iOpcode != XCODEC_WS_OPCODE_TEXT && iOpcode != XCODEC_WS_OPCODE_BINARY ) return __XWS_APPEND_PROTOCOL;
+	if ( pClient->iMsgOpcode != 0u ) return __XWS_APPEND_PROTOCOL;
+	if ( bFin ) {
+		if ( iOpcode == XCODEC_WS_OPCODE_TEXT ) __xwsClientEmitText(pClient, pPayload, iPayloadLen);
+		else __xwsClientEmitBinary(pClient, pPayload, iPayloadLen);
+		return __XWS_APPEND_OK;
+	}
+	return __xwsMessageAppend(&pClient->pMsgBuf, &pClient->iMsgLen, &pClient->iMsgCap, &pClient->iMsgOpcode, iOpcode, pPayload, iPayloadLen, iLimit);
+}
+static int __xwsServerConsumeDataFrame(xwsconn* pConn, uint8 iOpcode, bool bFin, const char* pPayload, size_t iPayloadLen)
+{
+	size_t iLimit = (pConn && pConn->pServer && pConn->pServer->tConfig.iRecvLimit > 0u) ? (size_t)pConn->pServer->tConfig.iRecvLimit : 0u;
+	int iAppend;
+	if ( !pConn ) return __XWS_APPEND_INTERNAL;
+	if ( iOpcode == XCODEC_WS_OPCODE_CONT ) {
+		if ( pConn->iMsgOpcode == 0u ) return __XWS_APPEND_PROTOCOL;
+		iAppend = __xwsMessageAppend(&pConn->pMsgBuf, &pConn->iMsgLen, &pConn->iMsgCap, &pConn->iMsgOpcode, 0u, pPayload, iPayloadLen, iLimit);
+		if ( iAppend != __XWS_APPEND_OK ) return iAppend;
+		if ( bFin ) {
+			if ( pConn->iMsgOpcode == XCODEC_WS_OPCODE_TEXT ) __xwsServerEmitText(pConn, pConn->pMsgBuf ? pConn->pMsgBuf : "", pConn->iMsgLen);
+			else if ( pConn->iMsgOpcode == XCODEC_WS_OPCODE_BINARY ) __xwsServerEmitBinary(pConn, pConn->pMsgBuf, pConn->iMsgLen);
+			else return __XWS_APPEND_INTERNAL;
+			__xwsMessageReset(&pConn->pMsgBuf, &pConn->iMsgLen, &pConn->iMsgCap, &pConn->iMsgOpcode);
+		}
+		return __XWS_APPEND_OK;
+	}
+	if ( iOpcode != XCODEC_WS_OPCODE_TEXT && iOpcode != XCODEC_WS_OPCODE_BINARY ) return __XWS_APPEND_PROTOCOL;
+	if ( pConn->iMsgOpcode != 0u ) return __XWS_APPEND_PROTOCOL;
+	if ( bFin ) {
+		if ( iOpcode == XCODEC_WS_OPCODE_TEXT ) __xwsServerEmitText(pConn, pPayload, iPayloadLen);
+		else __xwsServerEmitBinary(pConn, pPayload, iPayloadLen);
+		return __XWS_APPEND_OK;
+	}
+	return __xwsMessageAppend(&pConn->pMsgBuf, &pConn->iMsgLen, &pConn->iMsgCap, &pConn->iMsgOpcode, iOpcode, pPayload, iPayloadLen, iLimit);
+}
+/* ============================== Client helpers ============================== */
+static void __xwsClientEmitError(xwsclient* pClient, int iSysErr)
+{
+	if ( !pClient ) return;
+	pClient->iLastSysErr = iSysErr;
+	if ( pClient->tEvents.OnError ) {
+		pClient->tEvents.OnError(pClient->pUserData, pClient, iSysErr);
+	}
+}
+static bool __xwsClientValidateHandshake(xwsclient* pClient, const xcodechttp1msg* pMsg)
+{
+	const char* sUpgrade;
+	const char* sConnection;
+	const char* sAccept;
+	const char* sProtocol;
+	if ( !pClient || !pMsg ) return false;
+	if ( pMsg->iStatusCode != 101u ) return false;
+	sUpgrade = xrtCodecHttp1GetHeader(pMsg, "Upgrade");
+	sConnection = xrtCodecHttp1GetHeader(pMsg, "Connection");
+	sAccept = xrtCodecHttp1GetHeader(pMsg, "Sec-WebSocket-Accept");
+	if ( !sUpgrade || !__xwsStrEqNoCase(sUpgrade, "websocket") ) return false;
+	if ( !sConnection || !__xwsContainsTokenNoCase(sConnection, "Upgrade") ) return false;
+	if ( !sAccept || !__xwsStrEqNoCase(sAccept, pClient->sExpectedAccept) ) return false;
+	if ( pClient->tConfig.sProtocol[0] ) {
+		sProtocol = xrtCodecHttp1GetHeader(pMsg, "Sec-WebSocket-Protocol");
+		if ( !sProtocol || !__xwsStrEqNoCase(sProtocol, pClient->tConfig.sProtocol) ) return false;
+	}
+	return true;
+}
+static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
+{
+	while ( pClient && pChain ) {
+		xcodecframe tFrame;
+		xcodecwsframeinfo tInfo;
+		xcodecstatus iParse = xrtCodecWsParseFrame(pChain, &tFrame, &tInfo);
+		char* pPayload = NULL;
+		size_t iPayloadLen = 0u;
+		bool bFin;
+		int iDataRet;
+		uint16 iCloseCode = XWS_CLOSE_NORMAL;
+		if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
+		if ( iParse == XCODEC_STATUS_ERROR ) {
+			__xwsClientEmitError(pClient, -2);
+			if ( pClient->pStream ) xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		if ( (tInfo.iFlags & XCODEC_WS_F_CONTROL) != 0u && tInfo.iPayloadLen > 125u ) {
+			(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "control too large");
+			return;
+		}
+		if ( !__xwsPeekPayloadCopy(pChain, &tFrame, &tInfo, &pPayload, &iPayloadLen) ) {
+			__xwsClientEmitError(pClient, -3);
+			xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		xrtCodecFrameConsume(pChain, &tFrame);
+		bFin = (tInfo.iFlags & XCODEC_WS_F_FIN) != 0u;
+		switch ( tInfo.iOpcode ) {
+			case XCODEC_WS_OPCODE_TEXT:
+			case XCODEC_WS_OPCODE_BINARY:
+			case XCODEC_WS_OPCODE_CONT:
+				iDataRet = __xwsClientConsumeDataFrame(pClient, tInfo.iOpcode, bFin, pPayload, iPayloadLen);
+				if ( iDataRet == __XWS_APPEND_OK ) break;
+				if ( iDataRet == __XWS_APPEND_TOO_BIG ) {
+					(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_TOO_BIG, "message too large");
+				} else if ( iDataRet == __XWS_APPEND_PROTOCOL ) {
+					(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "bad fragment sequence");
+				} else {
+					__xwsClientEmitError(pClient, -7);
+					xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT);
+				}
+				XNET_FREE(pPayload);
+				return;
+				break;
+			case XCODEC_WS_OPCODE_PING:
+				if ( pClient->pStream ) (void)__xwsStreamQueueFrameDirect(pClient->pStream, true, XCODEC_WS_OPCODE_PONG, pPayload, iPayloadLen);
+				if ( pClient->tEvents.OnPing ) pClient->tEvents.OnPing(pClient->pUserData, pClient, pPayload, iPayloadLen);
+				break;
+			case XCODEC_WS_OPCODE_PONG:
+				if ( pClient->tEvents.OnPong ) pClient->tEvents.OnPong(pClient->pUserData, pClient, pPayload, iPayloadLen);
+				break;
+			case XCODEC_WS_OPCODE_CLOSE:
+				if ( iPayloadLen >= 2u ) {
+					iCloseCode = (uint16)(((uint8)pPayload[0] << 8u) | (uint8)pPayload[1]);
+				}
+				if ( __xwsAtomicCompareExchange(&pClient->iClosePosted, 1, 0) == 0 ) {
+					if ( pClient->pStream ) (void)__xwsPostClose(pClient->pStream, true, iCloseCode, NULL);
+				}
+				XNET_FREE(pPayload);
+				return;
+			default:
+				(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "bad opcode");
+				XNET_FREE(pPayload);
+				return;
+		}
+		XNET_FREE(pPayload);
+	}
+}
+static void __xwsClientStreamOnOpen(ptr pOwner, xnetstream* pStream)
+{
+	xwsclient* pClient = (xwsclient*)pOwner;
+	char* pHandshake = NULL;
+	size_t iHandshakeLen = 0u;
+	if ( !pClient || !pStream ) return;
+	if ( !__xwsBuildClientHandshake(pClient, &pHandshake, &iHandshakeLen) ) {
+		__xwsClientEmitError(pClient, -4);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	if ( xrtNetStreamSend(pStream, pHandshake, iHandshakeLen) != XRT_NET_OK ) {
+		__xwsClientEmitError(pClient, -5);
+		XNET_FREE(pHandshake);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	XNET_FREE(pHandshake);
+}
+static void __xwsClientStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	xwsclient* pClient = (xwsclient*)pOwner;
+	if ( !pClient || !pStream || !pChain ) return;
+	if ( __xwsAtomicLoad(&pClient->iOpen) == 0 ) {
+		xcodecframe tFrame;
+		xcodechttp1msg tMsg;
+		xcodecstatus iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
+		if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
+		if ( iParse == XCODEC_STATUS_ERROR || !__xwsClientValidateHandshake(pClient, &tMsg) ) {
+			__xwsClientEmitError(pClient, -6);
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		xrtCodecFrameConsume(pChain, &tFrame);
+		(void)__xwsAtomicCompareExchange(&pClient->iOpen, 1, 0);
+		if ( pClient->tEvents.OnOpen ) {
+			pClient->tEvents.OnOpen(pClient->pUserData, pClient);
+		}
+	}
+	__xwsClientConsumeFrames(pClient, pChain);
+}
+static void __xwsClientStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	xwsclient* pClient = (xwsclient*)pOwner;
+	(void)pStream;
+	if ( pClient && pClient->tEvents.OnClose ) {
+		pClient->tEvents.OnClose(pClient->pUserData, pClient, iReason);
+	}
+}
+static void __xwsClientStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	xwsclient* pClient = (xwsclient*)pOwner;
+	(void)pStream;
+	__xwsClientEmitError(pClient, iSysErr);
+}
+static const xnetstreamevents* __xwsClientStreamEvents(void)
+{
+	static const xnetstreamevents tEvents = {
+		__xwsClientStreamOnOpen,
+		__xwsClientStreamOnRecv,
+		NULL,
+		__xwsClientStreamOnClose,
+		__xwsClientStreamOnError,
+		NULL,
+		NULL
+	};
+	return &tEvents;
+}
+/* ============================== Server helpers ============================== */
+static void __xwsServerAddConn(xwsserver* pServer, xwsconn* pConn)
+{
+	if ( !pServer || !pConn ) return;
+	__xwsLock(&pServer->iConnLock);
+	pConn->pNext = pServer->pConnHead;
+	pServer->pConnHead = pConn;
+	__xwsUnlock(&pServer->iConnLock);
+}
+static void __xwsServerRemoveConn(xwsserver* pServer, xwsconn* pConn)
+{
+	xwsconn** ppNode;
+	if ( !pServer || !pConn ) return;
+	__xwsLock(&pServer->iConnLock);
+	ppNode = &pServer->pConnHead;
+	while ( *ppNode ) {
+		if ( *ppNode == pConn ) {
+			*ppNode = pConn->pNext;
+			break;
+		}
+		ppNode = &(*ppNode)->pNext;
+	}
+	__xwsUnlock(&pServer->iConnLock);
+}
+static xwsconn* __xwsServerDetachAllConns(xwsserver* pServer)
+{
+	xwsconn* pHead;
+	if ( !pServer ) return NULL;
+	__xwsLock(&pServer->iConnLock);
+	pHead = pServer->pConnHead;
+	pServer->pConnHead = NULL;
+	__xwsUnlock(&pServer->iConnLock);
+	return pHead;
+}
+static void __xwsConnCleanupTask(xnetworker* pWorker, ptr pArg)
+{
+	xwsconn* pConn = (xwsconn*)pArg;
+	(void)pWorker;
+	if ( !pConn ) return;
+	if ( pConn->pServer ) {
+		__xwsServerRemoveConn(pConn->pServer, pConn);
+		pConn->pServer = NULL;
+	}
+	if ( pConn->pStream ) {
+		xrtNetStreamDestroy(pConn->pStream);
+		pConn->pStream = NULL;
+	}
+	__xwsMessageReset(&pConn->pMsgBuf, &pConn->iMsgLen, &pConn->iMsgCap, &pConn->iMsgOpcode);
+	XNET_FREE(pConn);
+}
+static void __xwsConnPostCleanup(xwsconn* pConn)
+{
+	if ( !pConn ) return;
+	if ( __xwsAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) != 0 ) return;
+	if ( pConn->pServer && pConn->pServer->pEngine && pConn->pStream && pConn->pStream->pWorker ) {
+		if ( xrtNetEnginePost(pConn->pServer->pEngine, pConn->pStream->pWorker->iId, __xwsConnCleanupTask, pConn) == XRT_NET_OK ) {
+			return;
+		}
+	}
+	__xwsConnCleanupTask(NULL, pConn);
+}
+static void __xwsServerEmitError(xwsserver* pServer, xwsconn* pConn, int iSysErr)
+{
+	if ( pConn ) pConn->iLastSysErr = iSysErr;
+	if ( pServer && pServer->tEvents.OnError ) {
+		pServer->tEvents.OnError(pServer->pUserData, pServer, pConn, iSysErr);
+	}
+}
+static bool __xwsSendHttpReply(xnetstream* pStream, uint32 iStatusCode, const char* sBody, const char* sAccept, const char* sProtocol, bool bClose)
+{
+	char* pBytes = NULL;
+	size_t iLen = 0u;
+	if ( !pStream ) return false;
+	if ( !__xwsBuildHttpResponseBytes(iStatusCode, sBody, sAccept, sProtocol, &pBytes, &iLen) ) return false;
+	if ( !__xwsStreamQueueBytesDirect(pStream, pBytes, iLen) ) {
+		XNET_FREE(pBytes);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return false;
+	}
+	XNET_FREE(pBytes);
+	if ( bClose ) xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+	return true;
+}
+static bool __xwsServerValidateRequest(const xcodechttp1msg* pMsg, const char** psKey)
+{
+	const char* sUpgrade;
+	const char* sConnection;
+	const char* sKey;
+	const char* sVersion;
+	if ( !pMsg || !psKey ) return false;
+	if ( (pMsg->iFlags & XCODEC_HTTP1_F_REQUEST) == 0u ) return false;
+	if ( strcmp(pMsg->sMethod, "GET") != 0 ) return false;
+	sUpgrade = xrtCodecHttp1GetHeader(pMsg, "Upgrade");
+	sConnection = xrtCodecHttp1GetHeader(pMsg, "Connection");
+	sKey = xrtCodecHttp1GetHeader(pMsg, "Sec-WebSocket-Key");
+	sVersion = xrtCodecHttp1GetHeader(pMsg, "Sec-WebSocket-Version");
+	if ( !sUpgrade || !__xwsStrEqNoCase(sUpgrade, "websocket") ) return false;
+	if ( !sConnection || !__xwsContainsTokenNoCase(sConnection, "Upgrade") ) return false;
+	if ( !sKey || sKey[0] == '\0' ) return false;
+	if ( sVersion && strcmp(sVersion, "13") != 0 ) return false;
+	*psKey = sKey;
+	return true;
+}
+static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
+{
+	xwsserver* pServer = pConn ? pConn->pServer : NULL;
+	while ( pConn && pServer && pChain ) {
+		xcodecframe tFrame;
+		xcodecwsframeinfo tInfo;
+		xcodecstatus iParse = xrtCodecWsParseFrame(pChain, &tFrame, &tInfo);
+		char* pPayload = NULL;
+		size_t iPayloadLen = 0u;
+		bool bFin;
+		int iDataRet;
+		uint16 iCloseCode = XWS_CLOSE_NORMAL;
+		if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
+		if ( iParse == XCODEC_STATUS_ERROR ) {
+			__xwsServerEmitError(pServer, pConn, -21);
+			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		if ( (tInfo.iFlags & XCODEC_WS_F_MASKED) == 0u ) {
+			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "mask required");
+			return;
+		}
+		if ( (tInfo.iFlags & XCODEC_WS_F_CONTROL) != 0u && tInfo.iPayloadLen > 125u ) {
+			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "control too large");
+			return;
+		}
+		if ( !__xwsPeekPayloadCopy(pChain, &tFrame, &tInfo, &pPayload, &iPayloadLen) ) {
+			__xwsServerEmitError(pServer, pConn, -22);
+			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		xrtCodecFrameConsume(pChain, &tFrame);
+		bFin = (tInfo.iFlags & XCODEC_WS_F_FIN) != 0u;
+		switch ( tInfo.iOpcode ) {
+			case XCODEC_WS_OPCODE_TEXT:
+			case XCODEC_WS_OPCODE_BINARY:
+			case XCODEC_WS_OPCODE_CONT:
+				iDataRet = __xwsServerConsumeDataFrame(pConn, tInfo.iOpcode, bFin, pPayload, iPayloadLen);
+				if ( iDataRet == __XWS_APPEND_OK ) break;
+				if ( iDataRet == __XWS_APPEND_TOO_BIG ) {
+					(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_TOO_BIG, "message too large");
+				} else if ( iDataRet == __XWS_APPEND_PROTOCOL ) {
+					(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "bad fragment sequence");
+				} else {
+					__xwsServerEmitError(pServer, pConn, -23);
+					xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+				}
+				XNET_FREE(pPayload);
+				return;
+				break;
+			case XCODEC_WS_OPCODE_PING:
+				(void)__xwsStreamQueueFrameDirect(pConn->pStream, false, XCODEC_WS_OPCODE_PONG, pPayload, iPayloadLen);
+				if ( pServer->tEvents.OnPing ) pServer->tEvents.OnPing(pServer->pUserData, pServer, pConn, pPayload, iPayloadLen);
+				break;
+			case XCODEC_WS_OPCODE_PONG:
+				if ( pServer->tEvents.OnPong ) pServer->tEvents.OnPong(pServer->pUserData, pServer, pConn, pPayload, iPayloadLen);
+				break;
+			case XCODEC_WS_OPCODE_CLOSE:
+				if ( iPayloadLen >= 2u ) {
+					iCloseCode = (uint16)(((uint8)pPayload[0] << 8u) | (uint8)pPayload[1]);
+				}
+				if ( __xwsAtomicCompareExchange(&pConn->iClosePosted, 1, 0) == 0 ) {
+					if ( pConn->pStream ) (void)__xwsPostClose(pConn->pStream, false, iCloseCode, NULL);
+				}
+				XNET_FREE(pPayload);
+				return;
+			default:
+				(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "bad opcode");
+				XNET_FREE(pPayload);
+				return;
+		}
+		XNET_FREE(pPayload);
+	}
+}
+static bool __xwsListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetstream* pStream)
+{
+	xwsserver* pServer = (xwsserver*)pOwner;
+	xwsconn* pConn;
+	(void)pListener;
+	if ( !pServer || !pStream ) return false;
+	pConn = (xwsconn*)xrtNetStreamGetUserData(pStream);
+	if ( !pConn ) return false;
+	pConn->pServer = pServer;
+	pConn->pStream = pStream;
+	__xwsServerAddConn(pServer, pConn);
+	return true;
+}
+static void __xwsServerStreamOnOpen(ptr pOwner, xnetstream* pStream)
+{
+	(void)pOwner;
+	(void)pStream;
+}
+static void __xwsServerStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	xwsconn* pConn = (xwsconn*)pOwner;
+	xwsserver* pServer = pConn ? pConn->pServer : NULL;
+	if ( !pConn || !pServer || !pStream || !pChain ) return;
+	if ( __xwsAtomicLoad(&pConn->iOpen) == 0 ) {
+		xcodecframe tFrame;
+		xcodechttp1msg tMsg;
+		xcodecstatus iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
+		const char* sKey = NULL;
+		char sAccept[64];
+		const char* sClientProtocol;
+		if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
+		if ( iParse == XCODEC_STATUS_ERROR || !__xwsServerValidateRequest(&tMsg, &sKey) ) {
+			__xwsServerEmitError(pServer, pConn, -31);
+			(void)__xwsSendHttpReply(pStream, 400u, "Bad Request", NULL, NULL, true);
+			return;
+		}
+		if ( !__xwsComputeAccept(sKey, sAccept, sizeof(sAccept)) ) {
+			__xwsServerEmitError(pServer, pConn, -32);
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		sClientProtocol = xrtCodecHttp1GetHeader(&tMsg, "Sec-WebSocket-Protocol");
+		if ( pServer->tConfig.sProtocol[0] ) {
+			if ( !sClientProtocol || !__xwsContainsTokenNoCase(sClientProtocol, pServer->tConfig.sProtocol) ) {
+				(void)__xwsSendHttpReply(pStream, 400u, "Protocol Required", NULL, NULL, true);
+				return;
+			}
+			__xwsCopyToken(pConn->sProtocol, sizeof(pConn->sProtocol), pServer->tConfig.sProtocol);
+		}
+		if ( !__xwsSendHttpReply(pStream, 101u, NULL, sAccept, pConn->sProtocol, false) ) {
+			__xwsServerEmitError(pServer, pConn, -33);
+			return;
+		}
+		xrtCodecFrameConsume(pChain, &tFrame);
+		(void)__xwsAtomicCompareExchange(&pConn->iOpen, 1, 0);
+		if ( pServer->tEvents.OnOpen ) {
+			pServer->tEvents.OnOpen(pServer->pUserData, pServer, pConn);
+		}
+	}
+	__xwsServerConsumeFrames(pConn, pChain);
+}
+static void __xwsServerStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	xwsconn* pConn = (xwsconn*)pOwner;
+	xwsserver* pServer = pConn ? pConn->pServer : NULL;
+	(void)pStream;
+	if ( pServer && pServer->tEvents.OnClose ) {
+		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
+	}
+	__xwsConnPostCleanup(pConn);
+}
+static void __xwsServerStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	xwsconn* pConn = (xwsconn*)pOwner;
+	xwsserver* pServer = pConn ? pConn->pServer : NULL;
+	(void)pStream;
+	__xwsServerEmitError(pServer, pConn, iSysErr);
+}
+static const xnetlistenerevents* __xwsListenerEvents(void)
+{
+	static const xnetlistenerevents tEvents = {
+		__xwsListenerOnAccept,
+		NULL
+	};
+	return &tEvents;
+}
+static const xnetstreamevents* __xwsServerStreamEvents(void)
+{
+	static const xnetstreamevents tEvents = {
+		__xwsServerStreamOnOpen,
+		__xwsServerStreamOnRecv,
+		NULL,
+		__xwsServerStreamOnClose,
+		__xwsServerStreamOnError,
+		NULL,
+		NULL
+	};
+	return &tEvents;
+}
+#if defined(_WIN32) || defined(_WIN64)
+static DWORD WINAPI __xwsAcceptThread(LPVOID pArg)
+#else
+static void* __xwsAcceptThread(void* pArg)
+#endif
+{
+	xwsserver* pServer = (xwsserver*)pArg;
+	while ( pServer && __xwsAtomicLoad(&pServer->bRunning) != 0 ) {
+		xwsconn* pConn = NULL;
+		if ( pServer->pListener && pServer->pListener->bRunning ) {
+			pConn = (xwsconn*)XNET_ALLOC(sizeof(xwsconn));
+			if ( pConn ) {
+				memset(pConn, 0, sizeof(xwsconn));
+				pConn->pServer = pServer;
+				if ( !__xnetListenerTryAcceptOne(pServer->pListener, pConn) ) {
+					XNET_FREE(pConn);
+				}
+			}
+		}
+		__xwsSleepMs(pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u);
+	}
+	#if !defined(_WIN32) && !defined(_WIN64)
+		return NULL;
+	#else
+		return 0;
+	#endif
+}
+/* ============================== Public API ============================== */
+static void xrtWsClientConfigInit(xwsclientconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xwsclientconfig));
+	pCfg->iConnectTimeoutMs = 5000u;
+	pCfg->iRecvLimit = 1024u * 1024u;
+	pCfg->bVerifyPeer = true;
+}
+static void xrtWsServerConfigInit(xwsserverconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xwsserverconfig));
+	pCfg->iBacklog = 128u;
+	pCfg->iRecvLimit = 1024u * 1024u;
+	pCfg->iAcceptPollMs = 5u;
+}
+static xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData)
+{
+	xwsclient* pClient;
+	if ( !pEngine ) return NULL;
+	pClient = (xwsclient*)XNET_ALLOC(sizeof(xwsclient));
+	if ( !pClient ) return NULL;
+	memset(pClient, 0, sizeof(xwsclient));
+	pClient->pEngine = pEngine;
+	if ( pCfg ) pClient->tConfig = *pCfg;
+	else xrtWsClientConfigInit(&pClient->tConfig);
+	if ( pEvents ) pClient->tEvents = *pEvents;
+	pClient->pUserData = pUserData;
+	return pClient;
+}
+static xnet_result xrtWsClientStart(xwsclient* pClient)
+{
+	xnetconnectconfig tConnCfg;
+	if ( !pClient || !pClient->pEngine || pClient->pStream ) return XRT_NET_ERROR;
+	if ( !__xwsUrlParse(pClient->tConfig.sURL, &pClient->tURL) ) return XRT_NET_ERROR;
+	pClient->pStream = xrtNetStreamCreate(pClient->pEngine, __xwsClientStreamEvents(), pClient);
+	if ( !pClient->pStream ) return XRT_NET_ERROR;
+	xrtNetConnectConfigInit(&tConnCfg);
+	tConnCfg.sHost = pClient->tURL.sHost;
+	tConnCfg.iPort = pClient->tURL.iPort;
+	tConnCfg.iConnectTimeoutMs = pClient->tConfig.iConnectTimeoutMs;
+	tConnCfg.iRecvLimit = pClient->tConfig.iRecvLimit;
+	if ( pClient->tURL.bSecure ) {
+		memset(&pClient->tTlsCfg, 0, sizeof(pClient->tTlsCfg));
+		pClient->tTlsCfg.sHostName = pClient->tURL.sHost;
+		pClient->tTlsCfg.bVerifyPeer = pClient->tConfig.bVerifyPeer;
+		tConnCfg.pTlsConfig = &pClient->tTlsCfg;
+	}
+	if ( xrtNetStreamConnect(pClient->pStream, &tConnCfg) != XRT_NET_OK ) {
+		xrtNetStreamDestroy(pClient->pStream);
+		pClient->pStream = NULL;
+		return XRT_NET_ERROR;
+	}
+	return XRT_NET_OK;
+}
+static void xrtWsClientStop(xwsclient* pClient)
+{
+	if ( !pClient ) return;
+	if ( pClient->pStream ) {
+		xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT);
+		xrtNetStreamDestroy(pClient->pStream);
+		pClient->pStream = NULL;
+	}
+	__xwsMessageReset(&pClient->pMsgBuf, &pClient->iMsgLen, &pClient->iMsgCap, &pClient->iMsgOpcode);
+}
+static void xrtWsClientDestroy(xwsclient* pClient)
+{
+	if ( !pClient ) return;
+	xrtWsClientStop(pClient);
+	XNET_FREE(pClient);
+}
+static bool xrtWsClientIsOpen(const xwsclient* pClient)
+{
+	return pClient && __xwsAtomicLoadConst(&pClient->iOpen) != 0 && pClient->pStream != NULL;
+}
+static xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen)
+{
+	if ( !pClient || !pClient->pStream || !xrtWsClientIsOpen(pClient) || !sText ) return XRT_NET_ERROR;
+	return __xwsStreamSendFrame(pClient->pStream, true, XCODEC_WS_OPCODE_TEXT, sText, iLen);
+}
+static xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen)
+{
+	if ( !pClient || !pClient->pStream || !xrtWsClientIsOpen(pClient) || (!pData && iLen != 0u) ) return XRT_NET_ERROR;
+	return __xwsStreamSendFrame(pClient->pStream, true, XCODEC_WS_OPCODE_BINARY, pData, iLen);
+}
+static xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen)
+{
+	if ( !pClient || !pClient->pStream || !xrtWsClientIsOpen(pClient) || iLen > 125u ) return XRT_NET_ERROR;
+	return __xwsStreamSendFrame(pClient->pStream, true, XCODEC_WS_OPCODE_PING, pData, iLen);
+}
+static xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason)
+{
+	if ( !pClient || !pClient->pStream ) return XRT_NET_ERROR;
+	if ( __xwsAtomicCompareExchange(&pClient->iClosePosted, 1, 0) != 0 ) return XRT_NET_OK;
+	return __xwsPostClose(pClient->pStream, true, iCode, sReason);
+}
+static xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData)
+{
+	xwsserver* pServer;
+	if ( !pEngine ) return NULL;
+	pServer = (xwsserver*)XNET_ALLOC(sizeof(xwsserver));
+	if ( !pServer ) return NULL;
+	memset(pServer, 0, sizeof(xwsserver));
+	pServer->pEngine = pEngine;
+	if ( pCfg ) pServer->tConfig = *pCfg;
+	else xrtWsServerConfigInit(&pServer->tConfig);
+	if ( pEvents ) pServer->tEvents = *pEvents;
+	pServer->pUserData = pUserData;
+	return pServer;
+}
+static uint16 xrtWsServerBoundPort(const xwsserver* pServer)
+{
+	return (pServer && pServer->pListener) ? pServer->pListener->tConfig.tBindAddr.iPort : 0u;
+}
+static xnet_result xrtWsServerStart(xwsserver* pServer)
+{
+	xnetlistenconfig tListenCfg;
+	if ( !pServer || !pServer->pEngine ) return XRT_NET_ERROR;
+	if ( __xwsAtomicLoad(&pServer->bRunning) != 0 ) return XRT_NET_OK;
+	xrtNetListenConfigInit(&tListenCfg);
+	tListenCfg.tBindAddr = pServer->tConfig.tBindAddr;
+	tListenCfg.iFlags = pServer->tConfig.iFlags;
+	tListenCfg.iBacklog = pServer->tConfig.iBacklog;
+	tListenCfg.iRecvLimit = pServer->tConfig.iRecvLimit;
+	tListenCfg.pTlsConfig = pServer->tConfig.pTlsConfig;
+	pServer->pListener = xrtNetListenerCreate(pServer->pEngine, &tListenCfg, __xwsListenerEvents(), __xwsServerStreamEvents(), pServer);
+	if ( !pServer->pListener ) return XRT_NET_ERROR;
+	if ( xrtNetListenerStart(pServer->pListener) != XRT_NET_OK ) {
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+		return XRT_NET_ERROR;
+	}
+	(void)__xwsAtomicCompareExchange(&pServer->bRunning, 1, 0);
+	#if defined(_WIN32) || defined(_WIN64)
+		pServer->hAcceptThread = CreateThread(NULL, 0, __xwsAcceptThread, pServer, 0, NULL);
+		if ( !pServer->hAcceptThread ) {
+			(void)__xwsAtomicCompareExchange(&pServer->bRunning, 0, 1);
+			xrtNetListenerStop(pServer->pListener);
+			xrtNetListenerDestroy(pServer->pListener);
+			pServer->pListener = NULL;
+			return XRT_NET_ERROR;
+		}
+	#else
+		if ( pthread_create(&pServer->hAcceptThread, NULL, __xwsAcceptThread, pServer) != 0 ) {
+			(void)__xwsAtomicCompareExchange(&pServer->bRunning, 0, 1);
+			xrtNetListenerStop(pServer->pListener);
+			xrtNetListenerDestroy(pServer->pListener);
+			pServer->pListener = NULL;
+			return XRT_NET_ERROR;
+		}
+		pServer->bAcceptThreadStarted = true;
+	#endif
+	return XRT_NET_OK;
+}
+static void xrtWsServerStop(xwsserver* pServer)
+{
+	xwsconn* pConn;
+	if ( !pServer ) return;
+	if ( __xwsAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
+		/* already stopped */
+	} else {
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( pServer->hAcceptThread ) {
+				WaitForSingleObject(pServer->hAcceptThread, INFINITE);
+				CloseHandle(pServer->hAcceptThread);
+				pServer->hAcceptThread = NULL;
+			}
+		#else
+			if ( pServer->bAcceptThreadStarted ) {
+				pthread_join(pServer->hAcceptThread, NULL);
+				pServer->bAcceptThreadStarted = false;
+			}
+		#endif
+	}
+	if ( pServer->pListener ) {
+		xrtNetListenerStop(pServer->pListener);
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+	}
+	pConn = __xwsServerDetachAllConns(pServer);
+	while ( pConn ) {
+		xwsconn* pNext = pConn->pNext;
+		pConn->pNext = NULL;
+		(void)__xwsAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0);
+		if ( pConn->pStream ) {
+			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			xrtNetStreamDestroy(pConn->pStream);
+			pConn->pStream = NULL;
+		}
+		__xwsMessageReset(&pConn->pMsgBuf, &pConn->iMsgLen, &pConn->iMsgCap, &pConn->iMsgOpcode);
+		XNET_FREE(pConn);
+		pConn = pNext;
+	}
+}
+static void xrtWsServerDestroy(xwsserver* pServer)
+{
+	if ( !pServer ) return;
+	xrtWsServerStop(pServer);
+	XNET_FREE(pServer);
+}
+static bool xrtWsConnIsOpen(const xwsconn* pConn)
+{
+	return pConn && __xwsAtomicLoadConst(&pConn->iOpen) != 0 && pConn->pStream != NULL;
+}
+static xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iLen)
+{
+	if ( !pConn || !pConn->pStream || !xrtWsConnIsOpen(pConn) || !sText ) return XRT_NET_ERROR;
+	return __xwsStreamSendFrame(pConn->pStream, false, XCODEC_WS_OPCODE_TEXT, sText, iLen);
+}
+static xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen)
+{
+	if ( !pConn || !pConn->pStream || !xrtWsConnIsOpen(pConn) || (!pData && iLen != 0u) ) return XRT_NET_ERROR;
+	return __xwsStreamSendFrame(pConn->pStream, false, XCODEC_WS_OPCODE_BINARY, pData, iLen);
+}
+static xnet_result xrtWsConnPing(xwsconn* pConn, const void* pData, size_t iLen)
+{
+	if ( !pConn || !pConn->pStream || !xrtWsConnIsOpen(pConn) || iLen > 125u ) return XRT_NET_ERROR;
+	return __xwsStreamSendFrame(pConn->pStream, false, XCODEC_WS_OPCODE_PING, pData, iLen);
+}
+static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReason)
+{
+	if ( !pConn || !pConn->pStream ) return XRT_NET_ERROR;
+	if ( __xwsAtomicCompareExchange(&pConn->iClosePosted, 1, 0) != 0 ) return XRT_NET_OK;
+	return __xwsPostClose(pConn->pStream, false, iCode, sReason);
+}
+#endif
+#endif
+    /* ------------------------------------ TLS ------------------------------------ */
+#ifndef XRT_NO_NETTLS
+    XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
+    XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
+    XXAPI xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
+    XXAPI xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
+    XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
+    XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
+    XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
+    XXAPI xnet_result xrtTlsFeed(xtlsctx* pCtx, const char* pData, size_t iLen);
+    XXAPI size_t xrtTlsPendingSend(xtlsctx* pCtx);
+    XXAPI size_t xrtTlsPendingRecv(xtlsctx* pCtx);
+    XXAPI xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
+    XXAPI void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
+    XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);
+    XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);
+    XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx* pCtx, bool bAllow);
+#endif
 	/* ------------------------------------ XID 函数库 ------------------------------------ */
 	
 	// XID 数据结构 ( 192 bit )
@@ -4644,7 +15589,7 @@
 static const unsigned char __xrt_sNullBytes[4] = "\0\0\0";
 xrtGlobalData xCore = { FALSE };
 #if defined(_WIN32) || defined(_WIN64)
-	#if !defined(XRT_NO_NETWORK) || !defined(XRT_NO_NETSOCK) || !defined(XRT_NO_NETPOLL) || !defined(XRT_NO_NETTLS) || !defined(XRT_NO_NETLOOP) || !defined(XRT_NO_NETPROXY) || !defined(XRT_NO_NETTCP) || !defined(XRT_NO_NETUDP) || !defined(XRT_NO_NETHTTP) || !defined(XRT_NO_NETWS) || !defined(XRT_NO_NETHTTPD)
+	#if !defined(XRT_NO_NETWORK) || !defined(XRT_NO_NETTLS)
 		#define __XRT_RUNTIME_NEED_WSA	1
 	#else
 		#define __XRT_RUNTIME_NEED_WSA	0
@@ -11766,8 +22711,8 @@ XXAPI int xrtDirDelete(str sPath)
 // ========================================
 
 
-/* ================================ 线程管理 ================================ */
-// 线程包装函数（统一完成 attach / detach / exit code 保存）
+/* ================================ �̹߳��� ================================ */
+// �̰߳�װ������ͳһ��� attach / detach / exit code ���棩
 #if defined(_WIN32) || defined(_WIN64)
 static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
 {
@@ -11799,7 +22744,7 @@ static void* xrtThreadWrapper(void* pParameter)
 	return (void*)(uintptr_t)iExitCode;
 }
 #endif
-// 创建线程
+// �����߳�
 XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 {
 	xthread pThread = xrtMalloc(sizeof(xthread_struct));
@@ -11841,7 +22786,7 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 	
 	return pThread;
 }
-// 销毁线程对象（不终止线程，仅释放管理结构）
+// �����̶߳��󣨲���ֹ�̣߳����ͷŹ����ṹ��
 XXAPI void xrtThreadDestroy(xthread pThread)
 {
 	if ( pThread ) {
@@ -11865,7 +22810,7 @@ XXAPI void xrtThreadDestroy(xthread pThread)
 		xrtFree(pThread);
 	}
 }
-// 等待线程结束
+// �ȴ��߳̽���
 XXAPI void xrtThreadWait(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return;
@@ -11886,7 +22831,7 @@ XXAPI void xrtThreadWait(xthread pThread)
 		pThread->bJoined = TRUE;
 	#endif
 }
-// 等待线程结束（带超时，毫秒）
+// �ȴ��߳̽���������ʱ�����룩
 XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_WAIT_ERROR;
@@ -11920,14 +22865,14 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 		return XRT_WAIT_TIMEOUT;
 	#endif
 }
-// 发送停止信号
+// ����ֹͣ�ź�
 XXAPI void xrtThreadStop(xthread pThread)
 {
 	if ( pThread ) {
 		pThread->StopFlag = 1;
 	}
 }
-// 检查是否应该停止
+// ����Ƿ�Ӧ��ֹͣ
 XXAPI bool xrtThreadShouldStop(xthread pThread)
 {
 	if ( pThread ) {
@@ -11935,42 +22880,10 @@ XXAPI bool xrtThreadShouldStop(xthread pThread)
 	}
 	return FALSE;
 }
-// 强制终止线程
-XXAPI bool xrtThreadKill(xthread pThread)
-{
-	if ( !pThread || !pThread->Handle ) return FALSE;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		return TerminateThread(pThread->Handle, 0) != 0;
-	#else
-		return pthread_cancel((pthread_t)pThread->Handle) == 0;
-	#endif
-}
-// 挂起线程
-XXAPI bool xrtThreadSuspend(xthread pThread)
-{
-	if ( !pThread || !pThread->Handle ) return FALSE;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		return SuspendThread(pThread->Handle) != (DWORD)-1;
-	#else
-		// POSIX 不直接支持挂起线程，返回失败
-		return FALSE;
-	#endif
-}
-// 恢复线程
-XXAPI bool xrtThreadResume(xthread pThread)
-{
-	if ( !pThread || !pThread->Handle ) return FALSE;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		return ResumeThread(pThread->Handle) != (DWORD)-1;
-	#else
-		// POSIX 不直接支持恢复线程，返回失败
-		return FALSE;
-	#endif
-}
-// 获取线程状态
+// ǿ����ֹ�߳�
+// �����߳�
+// �ָ��߳�
+// ��ȡ�߳�״̬
 XXAPI int xrtThreadGetState(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_THREAD_STOPPED;
@@ -11980,7 +22893,7 @@ XXAPI int xrtThreadGetState(xthread pThread)
 		DWORD exitCode;
 		if ( GetExitCodeThread(pThread->Handle, &exitCode) ) {
 			if ( exitCode == STILL_ACTIVE ) {
-				// 检查是否挂起
+				// ����Ƿ����
 				DWORD suspendCount = SuspendThread(pThread->Handle);
 				if ( suspendCount != (DWORD)-1 ) {
 					ResumeThread(pThread->Handle);
@@ -11997,13 +22910,13 @@ XXAPI int xrtThreadGetState(xthread pThread)
 		return XRT_THREAD_RUNNING;
 	#endif
 }
-// 获取线程退出码
+// ��ȡ�߳��˳���
 XXAPI uint32 xrtThreadGetExitCode(xthread pThread)
 {
 	if ( !pThread ) return 0;
 	return pThread->ExitCode;
 }
-// 获取当前线程ID
+// ��ȡ��ǰ�߳�ID
 XXAPI uint64 xrtThreadGetCurrentId()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -12012,7 +22925,7 @@ XXAPI uint64 xrtThreadGetCurrentId()
 		return (uint64)(uintptr_t)pthread_self();
 	#endif
 }
-// 让出当前线程的时间片
+// �ó���ǰ�̵߳�ʱ��Ƭ
 XXAPI void xrtThreadYield()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -12021,8 +22934,8 @@ XXAPI void xrtThreadYield()
 		sched_yield();
 	#endif
 }
-/* ================================ 互斥体 ================================ */
-// 创建互斥体
+/* ================================ ������ ================================ */
+// ����������
 XXAPI xmutex xrtMutexCreate()
 {
 	xmutex pMutex = xrtMalloc(sizeof(xmutex_struct));
@@ -12045,7 +22958,7 @@ XXAPI xmutex xrtMutexCreate()
 	
 	return pMutex;
 }
-// 销毁互斥体
+// ���ٻ�����
 XXAPI void xrtMutexDestroy(xmutex pMutex)
 {
 	if ( pMutex ) {
@@ -12053,7 +22966,7 @@ XXAPI void xrtMutexDestroy(xmutex pMutex)
 		xrtFree(pMutex);
 	}
 }
-// 初始化互斥体
+// ��ʼ��������
 XXAPI void xrtMutexInit(xmutex pMutex)
 {
 	if ( !pMutex ) return;
@@ -12068,19 +22981,19 @@ XXAPI void xrtMutexInit(xmutex pMutex)
 		pthread_mutexattr_destroy(&attr);
 	#endif
 }
-// 释放互斥体
+// �ͷŻ�����
 XXAPI void xrtMutexUnit(xmutex pMutex)
 {
 	if ( !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		// SRWLOCK 不需要显式销毁
+		// SRWLOCK ����Ҫ��ʽ����
 		(void)pMutex;
 	#else
 		pthread_mutex_destroy(&pMutex->objLock);
 	#endif
 }
-// 锁定互斥体
+// ����������
 XXAPI void xrtMutexLock(xmutex pMutex)
 {
 	if ( !pMutex ) return;
@@ -12091,7 +23004,7 @@ XXAPI void xrtMutexLock(xmutex pMutex)
 		pthread_mutex_lock(&pMutex->objLock);
 	#endif
 }
-// 尝试锁定互斥体
+// ��������������
 XXAPI bool xrtMutexTryLock(xmutex pMutex)
 {
 	if ( !pMutex ) return FALSE;
@@ -12102,7 +23015,7 @@ XXAPI bool xrtMutexTryLock(xmutex pMutex)
 		return pthread_mutex_trylock(&pMutex->objLock) == 0;
 	#endif
 }
-// 解锁互斥体
+// ����������
 XXAPI void xrtMutexUnlock(xmutex pMutex)
 {
 	if ( !pMutex ) return;
@@ -12113,8 +23026,8 @@ XXAPI void xrtMutexUnlock(xmutex pMutex)
 		pthread_mutex_unlock(&pMutex->objLock);
 	#endif
 }
-/* ================================ 信号量 ================================ */
-// 创建信号量
+/* ================================ �ź��� ================================ */
+// �����ź���
 XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue)
 {
 	xsem pSem = xrtMalloc(sizeof(xsem_struct));
@@ -12135,7 +23048,7 @@ XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue)
 	
 	return pSem;
 }
-// 销毁信号量
+// �����ź���
 XXAPI void xrtSemDestroy(xsem pSem)
 {
 	if ( pSem ) {
@@ -12143,7 +23056,7 @@ XXAPI void xrtSemDestroy(xsem pSem)
 		xrtFree(pSem);
 	}
 }
-// 初始化信号量
+// ��ʼ���ź���
 XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue)
 {
 	if ( !pSem ) return;
@@ -12152,11 +23065,11 @@ XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue)
 		pSem->objSem = CreateSemaphoreW(NULL, iInitValue, iMaxValue, NULL);
 	#else
 		if ( sem_init(&pSem->objSem, 0, iInitValue) != 0 ) {
-			// 初始化失败，保持结构体不变
+			// ��ʼ��ʧ�ܣ����ֽṹ�岻��
 		}
 	#endif
 }
-// 释放信号量
+// �ͷ��ź���
 XXAPI void xrtSemUnit(xsem pSem)
 {
 	if ( !pSem ) return;
@@ -12169,7 +23082,7 @@ XXAPI void xrtSemUnit(xsem pSem)
 		memset(&pSem->objSem, 0, sizeof(pSem->objSem));
 	#endif
 }
-// 等待信号量
+// �ȴ��ź���
 XXAPI void xrtSemWait(xsem pSem)
 {
 	if ( !pSem ) return;
@@ -12180,7 +23093,7 @@ XXAPI void xrtSemWait(xsem pSem)
 		sem_wait(&pSem->objSem);
 	#endif
 }
-// 尝试等待信号量
+// ���Եȴ��ź���
 XXAPI bool xrtSemTryWait(xsem pSem)
 {
 	if ( !pSem ) return FALSE;
@@ -12191,7 +23104,7 @@ XXAPI bool xrtSemTryWait(xsem pSem)
 		return sem_trywait(&pSem->objSem) == 0;
 	#endif
 }
-// 等待信号量（带超时）
+// �ȴ��ź���������ʱ��
 XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 {
 	if ( !pSem ) return XRT_WAIT_ERROR;
@@ -12216,7 +23129,7 @@ XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 		return XRT_WAIT_ERROR;
 	#endif
 }
-// 释放信号量
+// �ͷ��ź���
 XXAPI bool xrtSemPost(xsem pSem)
 {
 	if ( !pSem ) return FALSE;
@@ -12227,7 +23140,7 @@ XXAPI bool xrtSemPost(xsem pSem)
 		return sem_post(&pSem->objSem) == 0;
 	#endif
 }
-// 释放信号量（计数加N）
+// �ͷ��ź�����������N��
 XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 {
 	if ( !pSem || iCount == 0 ) return FALSE;
@@ -12235,7 +23148,7 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 	#if defined(_WIN32) || defined(_WIN64)
 		return ReleaseSemaphore(pSem->objSem, iCount, NULL) != 0;
 	#else
-		// POSIX 不支持一次释放多个，循环调用
+		// POSIX ��֧��һ���ͷŶ����ѭ������
 		for ( uint32 i = 0; i < iCount; i++ ) {
 			if ( sem_post(&pSem->objSem) != 0 ) {
 				return FALSE;
@@ -12244,8 +23157,8 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 		return TRUE;
 	#endif
 }
-/* ================================ 条件变量 ================================ */
-// 创建条件变量
+/* ================================ �������� ================================ */
+// ������������
 XXAPI xcond xrtCondCreate()
 {
 	xcond pCond = xrtMalloc(sizeof(xcond_struct));
@@ -12262,7 +23175,7 @@ XXAPI xcond xrtCondCreate()
 	
 	return pCond;
 }
-// 销毁条件变量
+// ������������
 XXAPI void xrtCondDestroy(xcond pCond)
 {
 	if ( pCond ) {
@@ -12270,7 +23183,7 @@ XXAPI void xrtCondDestroy(xcond pCond)
 		xrtFree(pCond);
 	}
 }
-// 初始化条件变量
+// ��ʼ����������
 XXAPI void xrtCondInit(xcond pCond)
 {
 	if ( !pCond ) return;
@@ -12283,20 +23196,20 @@ XXAPI void xrtCondInit(xcond pCond)
 		}
 	#endif
 }
-// 释放条件变量
+// �ͷ���������
 XXAPI void xrtCondUnit(xcond pCond)
 {
 	if ( !pCond ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		// Windows CONDITION_VARIABLE 不需要显式销毁
+		// Windows CONDITION_VARIABLE ����Ҫ��ʽ����
 		memset(&pCond->objCond, 0, sizeof(pCond->objCond));
 	#else
 		pthread_cond_destroy(&pCond->objCond);
 		memset(&pCond->objCond, 0, sizeof(pCond->objCond));
 	#endif
 }
-// 等待条件变量
+// �ȴ���������
 XXAPI void xrtCondWait(xcond pCond, xmutex pMutex)
 {
 	if ( !pCond || !pMutex ) return;
@@ -12309,7 +23222,7 @@ XXAPI void xrtCondWait(xcond pCond, xmutex pMutex)
 			(pthread_mutex_t*)&pMutex->objLock);
 	#endif
 }
-// 等待条件变量（带超时）
+// �ȴ���������������ʱ��
 XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 {
 	if ( !pCond || !pMutex ) {
@@ -12341,7 +23254,7 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 		return XRT_WAIT_ERROR;
 	#endif
 }
-// 唤醒一个等待的线程
+// ����һ���ȴ����߳�
 XXAPI void xrtCondSignal(xcond pCond)
 {
 	if ( !pCond ) return;
@@ -12352,7 +23265,7 @@ XXAPI void xrtCondSignal(xcond pCond)
 		pthread_cond_signal(&pCond->objCond);
 	#endif
 }
-// 唤醒所有等待的线程
+// �������еȴ����߳�
 XXAPI void xrtCondBroadcast(xcond pCond)
 {
 	if ( !pCond ) return;
@@ -12363,8 +23276,8 @@ XXAPI void xrtCondBroadcast(xcond pCond)
 		pthread_cond_broadcast(&pCond->objCond);
 	#endif
 }
-/* ================================ 读写锁实现 ================================ */
-// 创建读写锁
+/* ================================ ��д��ʵ�� ================================ */
+// ������д��
 XXAPI xrwlock xrtRWLockCreate()
 {
 	xrwlock pRWLock = xrtMalloc(sizeof(xrwlock_struct));
@@ -12372,7 +23285,7 @@ XXAPI xrwlock xrtRWLockCreate()
 	xrtRWLockInit(pRWLock);
 	return pRWLock;
 }
-// 销毁读写锁
+// ���ٶ�д��
 XXAPI void xrtRWLockDestroy(xrwlock pRWLock)
 {
 	if ( pRWLock ) {
@@ -12380,7 +23293,7 @@ XXAPI void xrtRWLockDestroy(xrwlock pRWLock)
 		xrtFree(pRWLock);
 	}
 }
-// 初始化读写锁（对自维护结构体指针使用）
+// ��ʼ����д��������ά���ṹ��ָ��ʹ�ã�
 XXAPI void xrtRWLockInit(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -12395,7 +23308,7 @@ XXAPI void xrtRWLockInit(xrwlock pRWLock)
 		pthread_rwlockattr_destroy(&attr);
 	#endif
 }
-// 释放读写锁（对自维护结构体指针使用）
+// �ͷŶ�д��������ά���ṹ��ָ��ʹ�ã�
 XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -12406,7 +23319,7 @@ XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 		memset(&pRWLock->objLock, 0, sizeof(pRWLock->objLock));
 	#endif
 }
-// 获取读锁（阻塞）
+// ��ȡ������������
 XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -12417,7 +23330,7 @@ XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 		pthread_rwlock_rdlock(&pRWLock->objLock);
 	#endif
 }
-// 尝试获取读锁（非阻塞）
+// ���Ի�ȡ��������������
 XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
@@ -12431,7 +23344,7 @@ XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 	
 	return bResult != FALSE;
 }
-// 释放读锁
+// �ͷŶ���
 XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -12442,7 +23355,7 @@ XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 		pthread_rwlock_unlock(&pRWLock->objLock);
 	#endif
 }
-// 获取写锁（阻塞）
+// ��ȡд����������
 XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -12453,7 +23366,7 @@ XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 		pthread_rwlock_wrlock(&pRWLock->objLock);
 	#endif
 }
-// 尝试获取写锁（非阻塞）
+// ���Ի�ȡд������������
 XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
@@ -12467,7 +23380,7 @@ XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 	
 	return bResult != FALSE;
 }
-// 释放写锁
+// �ͷ�д��
 XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -12478,7 +23391,7 @@ XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 		pthread_rwlock_unlock(&pRWLock->objLock);
 	#endif
 }
-// 写锁降级为读锁（保持锁状态）
+// д������Ϊ������������״̬��
 XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -12491,7 +23404,7 @@ XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 		pthread_rwlock_rdlock(&pRWLock->objLock);
 	#endif
 }
-// 读锁升级为写锁（可能失败，需要释放后重新获取）
+// ��������Ϊд��������ʧ�ܣ���Ҫ�ͷź����»�ȡ��
 XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
@@ -19783,472 +30696,30 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 	return memcmp(aLeft, aRight, 32) == 0;
 }
 #endif
-#ifndef XRT_NO_NETSOCK
+#ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/Git/xrt/lib/netsock.h
+// File: D:/Git/xrt/lib/nettls.h
 // ========================================
-
 
 /*
-	NetSock - 跨平台 Socket 基础操作 [Ver1.0]
-	
-	提供 Socket 创建/绑定/监听/接受/连接/收发/关闭/选项设置
-	仅 IPv4，跨平台 (Windows / Linux)
+    NetTLS - builtin TLS engine for xrt
+    This file implements the in-tree TLS stack used by xrt and xnet-v2.
+    It has no dependency on the legacy v1 network layer and only relies on:
+      - lib/crypto.h for cryptographic primitives
+      - platform sockets when the blocking handshake helper is used
+      - internal TLS byte buffers owned by xtlsctx
+    Current scope:
+      - TLS 1.3 as the primary path
+      - TLS 1.2 compatibility where already supported by the engine
+      - builtin client/server operation with no external TLS dependency
 */
-#if defined(_WIN32) || defined(_WIN64)
-	#ifndef _SOCKLEN_T_DEFINED
-		#define _SOCKLEN_T_DEFINED
-		typedef int socklen_t;
-	#endif
-#endif
-/* ============================== 地址操作 ============================== */
-XXAPI void xrtNetAddrInit(xnetaddr* pAddr, const char* sIP, uint16 iPort)
-{
-	if ( !pAddr ) return;
-	memset(pAddr, 0, sizeof(xnetaddr));
-	pAddr->iPort = iPort;
-	if ( sIP && sIP[0] ) {
-		pAddr->iAddr = inet_addr(sIP);
-		strncpy(pAddr->sAddr, sIP, 15);
-		pAddr->sAddr[15] = '\0';
-	} else {
-		pAddr->iAddr = INADDR_ANY;
-		strcpy(pAddr->sAddr, "0.0.0.0");
-	}
-}
-XXAPI void xrtNetAddrFromSockAddr(xnetaddr* pAddr, struct sockaddr_in* pSA)
-{
-	if ( !pAddr || !pSA ) return;
-	pAddr->iAddr = pSA->sin_addr.s_addr;
-	pAddr->iPort = ntohs(pSA->sin_port);
-	// 线程安全: 使用 inet_ntop 代替 inet_ntoa
-	#if defined(_WIN32) || defined(_WIN64)
-		InetNtopA(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
-	#else
-		inet_ntop(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
-	#endif
-}
-XXAPI void xrtNetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_in* pSA)
-{
-	if ( !pAddr || !pSA ) return;
-	memset(pSA, 0, sizeof(struct sockaddr_in));
-	pSA->sin_family = AF_INET;
-	pSA->sin_addr.s_addr = pAddr->iAddr;
-	pSA->sin_port = htons(pAddr->iPort);
-}
-XXAPI uint32 xrtNetIPFromStr(const char* sIP)
-{
-	if ( !sIP ) return 0;
-	return (uint32)inet_addr(sIP);
-}
-XXAPI const char* xrtNetIPToStr(uint32 iIP)
-{
-	struct in_addr tAddr;
-	tAddr.s_addr = iIP;
-	// 线程安全: 使用 inet_ntop + xrt 环形临时内存
-	char aTmp[16];
-	#if defined(_WIN32) || defined(_WIN64)
-		InetNtopA(AF_INET, &tAddr, aTmp, sizeof(aTmp));
-	#else
-		inet_ntop(AF_INET, &tAddr, aTmp, sizeof(aTmp));
-	#endif
-	str sCopy = xrtCopyStr(aTmp, strlen(aTmp));
-	return (const char*)sCopy;
-}
-/* ============================== Socket 生命周期 ============================== */
-XXAPI xnet_result xrtSockCreate(xnetconn* pConn, int iType)
-{
-	if ( !pConn ) return XRT_NET_ERROR;
-	
-	memset(pConn, 0, sizeof(xnetconn));
-	pConn->hSocket = XSOCKET_INVALID;
-	pConn->iType = iType;
-	
-	int iSockType = (iType == 0) ? SOCK_STREAM : SOCK_DGRAM;
-	int iProtocol = (iType == 0) ? IPPROTO_TCP : IPPROTO_UDP;
-	
-	pConn->hSocket = socket(AF_INET, iSockType, iProtocol);
-	if ( pConn->hSocket == XSOCKET_INVALID ) {
-		return XRT_NET_ERROR;
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI void xrtSockClose(xnetconn* pConn)
-{
-	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		closesocket(pConn->hSocket);
-	#else
-		close(pConn->hSocket);
-	#endif
-	
-	pConn->hSocket = XSOCKET_INVALID;
-}
-XXAPI xnet_result xrtSockSetNonBlock(xnetconn* pConn)
-{
-	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		u_long iMode = 1;
-		if ( ioctlsocket(pConn->hSocket, FIONBIO, &iMode) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-	#else
-		int iFlags = fcntl(pConn->hSocket, F_GETFL, 0);
-		if ( iFlags == -1 ) return XRT_NET_ERROR;
-		if ( fcntl(pConn->hSocket, F_SETFL, iFlags | O_NONBLOCK) == -1 ) {
-			return XRT_NET_ERROR;
-		}
-	#endif
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockSetReuseAddr(xnetconn* pConn)
-{
-	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	int iOpt = 1;
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-	#else
-		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_REUSEADDR, &iOpt, sizeof(iOpt)) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-	#endif
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockSetTimeout(xnetconn* pConn, int iRecvMs, int iSendMs)
-{
-	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		DWORD iRecvTimeout = (DWORD)iRecvMs;
-		DWORD iSendTimeout = (DWORD)iSendMs;
-		if ( iRecvMs > 0 ) {
-			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_RCVTIMEO, (char*)&iRecvTimeout, sizeof(iRecvTimeout)) != 0 ) {
-				return XRT_NET_ERROR;
-			}
-		}
-		if ( iSendMs > 0 ) {
-			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_SNDTIMEO, (char*)&iSendTimeout, sizeof(iSendTimeout)) != 0 ) {
-				return XRT_NET_ERROR;
-			}
-		}
-	#else
-		if ( iRecvMs > 0 ) {
-			struct timeval tRecvTV;
-			tRecvTV.tv_sec = iRecvMs / 1000;
-			tRecvTV.tv_usec = (iRecvMs % 1000) * 1000;
-			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_RCVTIMEO, &tRecvTV, sizeof(tRecvTV)) != 0 ) {
-				return XRT_NET_ERROR;
-			}
-		}
-		if ( iSendMs > 0 ) {
-			struct timeval tSendTV;
-			tSendTV.tv_sec = iSendMs / 1000;
-			tSendTV.tv_usec = (iSendMs % 1000) * 1000;
-			if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_SNDTIMEO, &tSendTV, sizeof(tSendTV)) != 0 ) {
-				return XRT_NET_ERROR;
-			}
-		}
-	#endif
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockSetNoDelay(xnetconn* pConn)
-{
-	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	int iOpt = 1;
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_NODELAY, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-	#else
-		if ( setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_NODELAY, &iOpt, sizeof(iOpt)) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-	#endif
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockSetKeepAlive(xnetconn* pConn, int iIdleSec, int iIntervalSec, int iCount)
-{
-	if ( !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	int iOpt = 1;
-	#if defined(_WIN32) || defined(_WIN64)
-		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, (char*)&iOpt, sizeof(iOpt)) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-		// Windows: 使用 SIO_KEEPALIVE_VALS 配置完整参数
-		if ( iIdleSec > 0 || iIntervalSec > 0 ) {
-			struct tcp_keepalive tKA;
-			tKA.onoff = 1;
-			tKA.keepalivetime = (iIdleSec > 0 ? iIdleSec : 7200) * 1000;  // 默认7200秒
-			tKA.keepaliveinterval = (iIntervalSec > 0 ? iIntervalSec : 75) * 1000;  // 默认75秒
-			DWORD dwRet;
-			WSAIoctl(pConn->hSocket, SIO_KEEPALIVE_VALS,
-				&tKA, sizeof(tKA), NULL, 0, &dwRet, NULL, NULL);
-		}
-	#else
-		if ( setsockopt(pConn->hSocket, SOL_SOCKET, SO_KEEPALIVE, &iOpt, sizeof(iOpt)) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-		if ( iIdleSec > 0 ) {
-			setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_KEEPIDLE, &iIdleSec, sizeof(iIdleSec));
-		}
-		if ( iIntervalSec > 0 ) {
-			setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_KEEPINTVL, &iIntervalSec, sizeof(iIntervalSec));
-		}
-		if ( iCount > 0 ) {
-			setsockopt(pConn->hSocket, IPPROTO_TCP, TCP_KEEPCNT, &iCount, sizeof(iCount));
-		}
-	#endif
-	
-	return XRT_NET_OK;
-}
-/* ============================== 连接操作 ============================== */
-XXAPI xnet_result xrtSockBind(xnetconn* pConn, const xnetaddr* pAddr)
-{
-	if ( !pConn || !pAddr || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	struct sockaddr_in tSA;
-	xrtNetAddrToSockAddr(pAddr, &tSA);
-	
-	if ( bind(pConn->hSocket, (struct sockaddr*)&tSA, sizeof(tSA)) != 0 ) {
-		return XRT_NET_ERROR;
-	}
-	
-	pConn->tLocalAddr = *pAddr;
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockListen(xnetconn* pConn, int iBacklog)
-{
-	if ( !pConn || pConn->hSocket == XSOCKET_INVALID || pConn->iType != 0 ) {
-		return XRT_NET_ERROR;
-	}
-	
-	if ( listen(pConn->hSocket, iBacklog) != 0 ) {
-		return XRT_NET_ERROR;
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockAccept(xnetconn* pServer, xnetconn* pClient)
-{
-	if ( !pServer || !pClient || pServer->hSocket == XSOCKET_INVALID ) {
-		return XRT_NET_ERROR;
-	}
-	
-	struct sockaddr_in tSA;
-	socklen_t iSALen = sizeof(tSA);
-	
-	memset(pClient, 0, sizeof(xnetconn));
-	pClient->hSocket = accept(pServer->hSocket, (struct sockaddr*)&tSA, &iSALen);
-	
-	if ( pClient->hSocket == XSOCKET_INVALID ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			int iErr = WSAGetLastError();
-			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
-		#else
-			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
-		#endif
-		return XRT_NET_ERROR;
-	}
-	
-	xrtNetAddrFromSockAddr(&pClient->tRemoteAddr, &tSA);
-	pClient->iType = pServer->iType;
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockConnect(xnetconn* pConn, const xnetaddr* pAddr)
-{
-	if ( !pConn || !pAddr || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	struct sockaddr_in tSA;
-	xrtNetAddrToSockAddr(pAddr, &tSA);
-	
-	int iResult = connect(pConn->hSocket, (struct sockaddr*)&tSA, sizeof(tSA));
-	if ( iResult != 0 ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			int iErr = WSAGetLastError();
-			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
-			if ( iErr == WSAEISCONN ) return XRT_NET_OK;
-		#else
-			if ( errno == EINPROGRESS ) return XRT_NET_AGAIN;
-			if ( errno == EISCONN ) return XRT_NET_OK;
-		#endif
-		return XRT_NET_ERROR;
-	}
-	
-	pConn->tRemoteAddr = *pAddr;
-	return XRT_NET_OK;
-}
-/* ============================== 数据收发 ============================== */
-XXAPI xnet_result xrtSockSend(xnetconn* pConn, const char* pData, size_t iLen, size_t* pSent)
-{
-	if ( !pConn || !pData || iLen == 0 || pConn->hSocket == XSOCKET_INVALID ) {
-		return XRT_NET_ERROR;
-	}
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		int iResult = send(pConn->hSocket, pData, (int)iLen, 0);
-	#else
-		ssize_t iResult = send(pConn->hSocket, pData, iLen, MSG_NOSIGNAL);
-	#endif
-	
-	if ( iResult < 0 ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			int iErr = WSAGetLastError();
-			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
-		#else
-			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
-		#endif
-		return XRT_NET_ERROR;
-	}
-	
-	if ( pSent ) *pSent = (size_t)iResult;
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockRecv(xnetconn* pConn, char* pBuf, size_t iLen, size_t* pReceived)
-{
-	if ( !pConn || !pBuf || iLen == 0 || pConn->hSocket == XSOCKET_INVALID ) {
-		return XRT_NET_ERROR;
-	}
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		int iResult = recv(pConn->hSocket, pBuf, (int)iLen, 0);
-	#else
-		ssize_t iResult = recv(pConn->hSocket, pBuf, iLen, 0);
-	#endif
-	
-	if ( iResult < 0 ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			int iErr = WSAGetLastError();
-			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
-		#else
-			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
-		#endif
-		return XRT_NET_ERROR;
-	}
-	
-	if ( iResult == 0 ) return XRT_NET_CLOSED;
-	
-	if ( pReceived ) *pReceived = (size_t)iResult;
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockSendTo(xnetconn* pConn, const char* pData, size_t iLen, const xnetaddr* pAddr, size_t* pSent)
-{
-	if ( !pConn || !pData || iLen == 0 || !pAddr || pConn->hSocket == XSOCKET_INVALID ) {
-		return XRT_NET_ERROR;
-	}
-	
-	struct sockaddr_in tSA;
-	xrtNetAddrToSockAddr(pAddr, &tSA);
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		int iResult = sendto(pConn->hSocket, pData, (int)iLen, 0, (struct sockaddr*)&tSA, sizeof(tSA));
-	#else
-		ssize_t iResult = sendto(pConn->hSocket, pData, iLen, 0, (struct sockaddr*)&tSA, sizeof(tSA));
-	#endif
-	
-	if ( iResult < 0 ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			int iErr = WSAGetLastError();
-			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
-		#else
-			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
-		#endif
-		return XRT_NET_ERROR;
-	}
-	
-	if ( pSent ) *pSent = (size_t)iResult;
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtSockRecvFrom(xnetconn* pConn, char* pBuf, size_t iLen, xnetaddr* pAddr, size_t* pReceived)
-{
-	if ( !pConn || !pBuf || iLen == 0 || pConn->hSocket == XSOCKET_INVALID ) {
-		return XRT_NET_ERROR;
-	}
-	
-	struct sockaddr_in tSA;
-	socklen_t iSALen = sizeof(tSA);
-	
-	#if defined(_WIN32) || defined(_WIN64)
-		int iResult = recvfrom(pConn->hSocket, pBuf, (int)iLen, 0, (struct sockaddr*)&tSA, &iSALen);
-	#else
-		ssize_t iResult = recvfrom(pConn->hSocket, pBuf, iLen, 0, (struct sockaddr*)&tSA, &iSALen);
-	#endif
-	
-	if ( iResult < 0 ) {
-		#if defined(_WIN32) || defined(_WIN64)
-			int iErr = WSAGetLastError();
-			if ( iErr == WSAEWOULDBLOCK ) return XRT_NET_AGAIN;
-		#else
-			if ( errno == EAGAIN || errno == EWOULDBLOCK ) return XRT_NET_AGAIN;
-		#endif
-		return XRT_NET_ERROR;
-	}
-	
-	if ( pAddr ) {
-		xrtNetAddrFromSockAddr(pAddr, &tSA);
-	}
-	
-	if ( iResult == 0 ) return XRT_NET_CLOSED;
-	
-	if ( pReceived ) *pReceived = (size_t)iResult;
-	return XRT_NET_OK;
-}
-/* ============================== DNS 解析 ============================== */
-XXAPI xnet_result xrtNetResolve(const char* sHostname, xnetaddr* pAddr)
-{
-	if ( !sHostname || !pAddr ) return XRT_NET_ERROR;
-	
-	#ifdef __TINYC__
-		// TCC 不支持 getaddrinfo，使用 gethostbyname
-		struct hostent* pHost = gethostbyname(sHostname);
-		if ( !pHost || pHost->h_addrtype != AF_INET || !pHost->h_addr_list[0] ) {
-			return XRT_NET_ERROR;
-		}
-		struct in_addr tInAddr;
-		memcpy(&tInAddr, pHost->h_addr_list[0], sizeof(struct in_addr));
-		pAddr->iAddr = tInAddr.s_addr;
-		#if defined(_WIN32) || defined(_WIN64)
-			InetNtopA(AF_INET, &tInAddr, pAddr->sAddr, sizeof(pAddr->sAddr));
-		#else
-			inet_ntop(AF_INET, &tInAddr, pAddr->sAddr, sizeof(pAddr->sAddr));
-		#endif
-	#else
-		// 线程安全: 使用 getaddrinfo + inet_ntop
-		struct addrinfo tHints, *pRes;
-		memset(&tHints, 0, sizeof(tHints));
-		tHints.ai_family = AF_INET;
-		tHints.ai_socktype = SOCK_STREAM;
-		if ( getaddrinfo(sHostname, NULL, &tHints, &pRes) != 0 ) {
-			return XRT_NET_ERROR;
-		}
-		if ( !pRes ) return XRT_NET_ERROR;
-		struct sockaddr_in* pSA = (struct sockaddr_in*)pRes->ai_addr;
-		pAddr->iAddr = pSA->sin_addr.s_addr;
-		#if defined(_WIN32) || defined(_WIN64)
-			InetNtopA(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
-		#else
-			inet_ntop(AF_INET, &pSA->sin_addr, pAddr->sAddr, sizeof(pAddr->sAddr));
-		#endif
-		freeaddrinfo(pRes);
-	#endif
-	
-	return XRT_NET_OK;
-}
-/* ============================== 网络缓冲区 ============================== */
-XXAPI bool xrtNetBufInit(xnetbuf* pBuf, size_t iCapacity)
+typedef struct {
+	char* pData;
+	size_t iSize;
+	size_t iCapacity;
+} __xrt_tls_buf;
+static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
 {
 	if ( !pBuf ) return false;
 	pBuf->pData = (char*)xrtMalloc(iCapacity);
@@ -20257,7 +30728,7 @@ XXAPI bool xrtNetBufInit(xnetbuf* pBuf, size_t iCapacity)
 	pBuf->iCapacity = iCapacity;
 	return true;
 }
-XXAPI void xrtNetBufFree(xnetbuf* pBuf)
+static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
 {
 	if ( !pBuf ) return;
 	if ( pBuf->pData ) {
@@ -20267,1324 +30738,82 @@ XXAPI void xrtNetBufFree(xnetbuf* pBuf)
 	pBuf->iSize = 0;
 	pBuf->iCapacity = 0;
 }
-XXAPI bool xrtNetBufAppend(xnetbuf* pBuf, const char* pData, size_t iLen)
+static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
 {
-	if ( !pBuf || !pData || iLen == 0 ) return false;
-	
-	// 需要扩容
-	if ( pBuf->iSize + iLen > pBuf->iCapacity ) {
-		size_t iNewCap = pBuf->iCapacity * 2;
-		if ( iNewCap < pBuf->iSize + iLen ) {
-			iNewCap = pBuf->iSize + iLen;
-		}
-		char* pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
-		if ( !pNew ) return false;
-		pBuf->pData = pNew;
-		pBuf->iCapacity = iNewCap;
-	}
-	
-	memcpy(pBuf->pData + pBuf->iSize, pData, iLen);
-	pBuf->iSize += iLen;
-	return true;
-}
-// 预留容量, 确保可写入 iLen 字节 (不改变 iSize)
-XXAPI bool xrtNetBufEnsure(xnetbuf* pBuf, size_t iLen)
-{
+	size_t iNeed;
+	size_t iNewCap;
+	char* pNew;
 	if ( !pBuf ) return false;
-	if ( pBuf->iSize + iLen <= pBuf->iCapacity ) return true;
-	
-	size_t iNewCap = pBuf->iCapacity * 2;
-	if ( iNewCap < pBuf->iSize + iLen ) {
-		iNewCap = pBuf->iSize + iLen;
-	}
-	char* pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
+	iNeed = pBuf->iSize + iExtra;
+	if ( iNeed <= pBuf->iCapacity ) return true;
+	iNewCap = pBuf->iCapacity ? (pBuf->iCapacity * 2) : 256;
+	if ( iNewCap < iNeed ) iNewCap = iNeed;
+	pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
 	if ( !pNew ) return false;
 	pBuf->pData = pNew;
 	pBuf->iCapacity = iNewCap;
 	return true;
 }
-XXAPI void xrtNetBufConsume(xnetbuf* pBuf, size_t iLen)
+static bool __xrt_tls_buf_append(__xrt_tls_buf* pBuf, const char* pData, size_t iLen)
+{
+	if ( !pBuf || !pData || iLen == 0 ) return false;
+	if ( !__xrt_tls_buf_ensure(pBuf, iLen) ) return false;
+	memcpy(pBuf->pData + pBuf->iSize, pData, iLen);
+	pBuf->iSize += iLen;
+	return true;
+}
+static void __xrt_tls_buf_consume(__xrt_tls_buf* pBuf, size_t iLen)
 {
 	if ( !pBuf || iLen == 0 ) return;
 	if ( iLen >= pBuf->iSize ) {
 		pBuf->iSize = 0;
-	} else {
-		memmove(pBuf->pData, pBuf->pData + iLen, pBuf->iSize - iLen);
-		pBuf->iSize -= iLen;
+		return;
 	}
+	memmove(pBuf->pData, pBuf->pData + iLen, pBuf->iSize - iLen);
+	pBuf->iSize -= iLen;
 }
-XXAPI void xrtNetBufClear(xnetbuf* pBuf)
+static int __xrt_tls_sock_last_err(void)
 {
-	if ( !pBuf ) return;
-	pBuf->iSize = 0;
-}
-/* ============================== 环形网络缓冲区 ============================== */
-// 向上对齐到 2 的幂
-static inline size_t __xrt_ringbuf_next_pow2(size_t v)
-{
-	v--;
-	v |= v >> 1;
-	v |= v >> 2;
-	v |= v >> 4;
-	v |= v >> 8;
-	v |= v >> 16;
-	#if defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || defined(__LP64__)
-		v |= v >> 32;
+	#if defined(_WIN32) || defined(_WIN64)
+		return WSAGetLastError();
+	#else
+		return errno;
 	#endif
-	v++;
-	return v;
 }
-XXAPI bool xrtNetRingBufInit(xnetringbuf* pBuf, size_t iCapacity)
+static bool __xrt_tls_sock_would_block(int iErr)
 {
-	if ( !pBuf || iCapacity == 0 ) return false;
-	size_t iAligned = __xrt_ringbuf_next_pow2(iCapacity);
-	if ( iAligned < 16 ) iAligned = 16;
-	pBuf->pData = (char*)xrtMalloc(iAligned);
-	if ( !pBuf->pData ) return false;
-	pBuf->iCapacity = iAligned;
-	pBuf->iMask = iAligned - 1;
-	pBuf->iReadPos = 0;
-	pBuf->iWritePos = 0;
-	return true;
+	#if defined(_WIN32) || defined(_WIN64)
+		return iErr == WSAEWOULDBLOCK || iErr == WSAEINPROGRESS || iErr == WSAEINTR;
+	#else
+		return iErr == EAGAIN || iErr == EWOULDBLOCK || iErr == EINTR;
+	#endif
 }
-XXAPI void xrtNetRingBufFree(xnetringbuf* pBuf)
+static xnet_result __xrt_tls_sock_send(xsocket hSocket, const char* pData, size_t iLen, size_t* pSent)
 {
-	if ( !pBuf ) return;
-	if ( pBuf->pData ) {
-		xrtFree(pBuf->pData);
-		pBuf->pData = NULL;
-	}
-	pBuf->iCapacity = 0;
-	pBuf->iMask = 0;
-	pBuf->iReadPos = 0;
-	pBuf->iWritePos = 0;
-}
-XXAPI size_t xrtNetRingBufReadable(const xnetringbuf* pBuf)
-{
-	if ( !pBuf ) return 0;
-	return pBuf->iWritePos - pBuf->iReadPos;
-}
-XXAPI size_t xrtNetRingBufWritable(const xnetringbuf* pBuf)
-{
-	if ( !pBuf ) return 0;
-	return pBuf->iCapacity - (pBuf->iWritePos - pBuf->iReadPos);
-}
-XXAPI size_t xrtNetRingBufWrite(xnetringbuf* pBuf, const char* pData, size_t iLen)
-{
-	if ( !pBuf || !pData || iLen == 0 ) return 0;
-	size_t iAvail = xrtNetRingBufWritable(pBuf);
-	if ( iLen > iAvail ) iLen = iAvail;
-	if ( iLen == 0 ) return 0;
-	
-	size_t iPos = pBuf->iWritePos & pBuf->iMask;
-	size_t iFirstChunk = pBuf->iCapacity - iPos;
-	if ( iFirstChunk >= iLen ) {
-		memcpy(pBuf->pData + iPos, pData, iLen);
-	} else {
-		memcpy(pBuf->pData + iPos, pData, iFirstChunk);
-		memcpy(pBuf->pData, pData + iFirstChunk, iLen - iFirstChunk);
-	}
-	pBuf->iWritePos += iLen;
-	return iLen;
-}
-XXAPI size_t xrtNetRingBufPeek(xnetringbuf* pBuf, char* pOut, size_t iLen)
-{
-	if ( !pBuf || !pOut || iLen == 0 ) return 0;
-	size_t iReadable = xrtNetRingBufReadable(pBuf);
-	if ( iLen > iReadable ) iLen = iReadable;
-	if ( iLen == 0 ) return 0;
-	
-	size_t iPos = pBuf->iReadPos & pBuf->iMask;
-	size_t iFirstChunk = pBuf->iCapacity - iPos;
-	if ( iFirstChunk >= iLen ) {
-		memcpy(pOut, pBuf->pData + iPos, iLen);
-	} else {
-		memcpy(pOut, pBuf->pData + iPos, iFirstChunk);
-		memcpy(pOut + iFirstChunk, pBuf->pData, iLen - iFirstChunk);
-	}
-	return iLen;
-}
-XXAPI size_t xrtNetRingBufRead(xnetringbuf* pBuf, char* pOut, size_t iLen)
-{
-	size_t iRead = xrtNetRingBufPeek(pBuf, pOut, iLen);
-	pBuf->iReadPos += iRead;
-	return iRead;
-}
-XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen)
-{
-	if ( !pBuf ) return;
-	size_t iReadable = xrtNetRingBufReadable(pBuf);
-	if ( iLen > iReadable ) iLen = iReadable;
-	pBuf->iReadPos += iLen;
-}
-#endif
-#ifndef XRT_NO_NETPOLL
-
-// ========================================
-// File: D:/Git/xrt/lib/netpoll.h
-// ========================================
-
-
-/*
-	NetPoll - IO 模型抽象层 [Ver2.0]
-	
-	Windows: IOCP (I/O Completion Port)
-	Linux:   io_uring (内核 >= 5.1, 无 epoll 回退)
-	
-	基于完成端口模型的统一异步 IO 接口
-	
-	Ver2.0 变更:
-	  - 操作池空闲链表 O(1) 分配/释放
-	  - Windows: GetQueuedCompletionStatusEx 批量收割
-	  - Windows: AcceptEx 异步 accept
-	  - Linux: io_uring 批量 SQE 提交
-	  - 发送路径支持大消息 (>8KB 动态缓冲区)
-	  - per-operation 用户数据 (事件路由)
-*/
-/* ============================== 通用定义 ============================== */
-#define __XRT_POLL_OP_RECV    1
-#define __XRT_POLL_OP_SEND    2
-#define __XRT_POLL_OP_ACCEPT  3
-#define __XRT_POLL_OP_RECVFROM 4
-#define __XRT_POLL_INIT_OPS   64
-#define __XRT_POLL_MAX_OPS    4096
-#define __XRT_POLL_RECV_SIZE  8192
-/* ============================== Windows IOCP 实现 ============================== */
-#if defined(_WIN32) || defined(_WIN64)
-#define __XRT_IOCP_BATCH_SIZE 64
-// IOCP 操作结构
-typedef struct {
-	WSAOVERLAPPED tOverlapped;
-	xnetconn* pConn;
-	xnetconn* pAcceptConn;       // 用于 accept 操作的客户端连接
-	char aRecvBuf[__XRT_POLL_RECV_SIZE];
-	char* pDynamicBuf;           // 动态发送缓冲区 (>8KB)
-	bool bDynamicBuf;            // 是否使用动态缓冲区
-	WSABUF tWSABuf;
-	DWORD iBytes;
-	DWORD iFlags;
-	int iOpType;
-	bool bInUse;
-	int iNextFree;               // 空闲链表下一个索引, -1 = 尾
-	ptr pOpUserData;             // per-operation 用户数据
-	SOCKET hAcceptSocket;        // AcceptEx 预创建的 socket
-	struct sockaddr_in tRemoteAddr;  // UDP recvfrom 远端地址
-	int iRemoteAddrLen;
-} __xrt_iocp_op;
-// Poller 结构定义
-struct xrt_net_poller {
-	HANDLE hIOCP;
-	__xrt_iocp_op* pOps;
-	int iOpCount;
-	int iOpCapacity;
-	int iFreeHead;               // 空闲链表头索引
-	CRITICAL_SECTION tLock;
-	xpoll_fn pfnCallback;
-	ptr pUserData;
-	size_t iRecvBufSize;
-	LPFN_ACCEPTEX pfnAcceptEx;
-	LPFN_GETACCEPTEXSOCKADDRS pfnGetAcceptExSockAddrs;
-};
-// O(1) 操作池分配
-static __xrt_iocp_op* __xrt_iocp_alloc_op(xnetpoller* pPoller)
-{
-	EnterCriticalSection(&pPoller->tLock);
-	
-	if ( pPoller->iFreeHead >= 0 ) {
-		// 从空闲链表头取
-		int iIdx = pPoller->iFreeHead;
-		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
-		pPoller->iFreeHead = pOp->iNextFree;
-		pOp->bInUse = true;
-		pOp->iNextFree = -1;
-		pOp->pDynamicBuf = NULL;
-		pOp->bDynamicBuf = false;
-		pOp->pOpUserData = NULL;
-		pOp->hAcceptSocket = INVALID_SOCKET;
-		LeaveCriticalSection(&pPoller->tLock);
-		return pOp;
-	}
-	
-	// 空闲链表为空，尝试追加
-	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
-		int iIdx = pPoller->iOpCount++;
-		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
-		memset(pOp, 0, sizeof(__xrt_iocp_op));
-		pOp->bInUse = true;
-		pOp->iNextFree = -1;
-		LeaveCriticalSection(&pPoller->tLock);
-		return pOp;
-	}
-	
-	// 容量已满，尝试动态扩容（最大4096）
-	if ( pPoller->iOpCapacity < __XRT_POLL_MAX_OPS ) {
-		int iNewCapacity = pPoller->iOpCapacity * 2;
-		if ( iNewCapacity > __XRT_POLL_MAX_OPS ) {
-			iNewCapacity = __XRT_POLL_MAX_OPS;
-		}
-		
-		__xrt_iocp_op* pNewOps = (__xrt_iocp_op*)xrtRealloc(pPoller->pOps, 
-			iNewCapacity * sizeof(__xrt_iocp_op));
-		if ( !pNewOps ) {
-			LeaveCriticalSection(&pPoller->tLock);
-			return NULL;
-		}
-		
-		// 更新容量和指针
-		pPoller->pOps = pNewOps;
-		pPoller->iOpCapacity = iNewCapacity;
-		
-		// 将新增的槽位串入空闲链表
-		for ( int i = pPoller->iOpCount; i < pPoller->iOpCapacity; i++ ) {
-			pPoller->pOps[i].bInUse = false;
-			pPoller->pOps[i].iNextFree = (i + 1 < pPoller->iOpCapacity) ? (i + 1) : pPoller->iFreeHead;
-		}
-		pPoller->iFreeHead = pPoller->iOpCount;
-		
-		// 分配第一个新增的槽位
-		int iIdx = pPoller->iOpCount++;
-		__xrt_iocp_op* pOp = &pPoller->pOps[iIdx];
-		memset(pOp, 0, sizeof(__xrt_iocp_op));
-		pOp->bInUse = true;
-		pOp->iNextFree = -1;
-		LeaveCriticalSection(&pPoller->tLock);
-		return pOp;
-	}
-	
-	LeaveCriticalSection(&pPoller->tLock);
-	return NULL;
-}
-// O(1) 操作池释放
-static void __xrt_iocp_free_op(xnetpoller* pPoller, __xrt_iocp_op* pOp)
-{
-	if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
-		xrtFree(pOp->pDynamicBuf);
-		pOp->pDynamicBuf = NULL;
-	}
-	pOp->bDynamicBuf = false;
-	pOp->bInUse = false;
-	
-	EnterCriticalSection(&pPoller->tLock);
-	int iIdx = (int)(pOp - pPoller->pOps);
-	pOp->iNextFree = pPoller->iFreeHead;
-	pPoller->iFreeHead = iIdx;
-	LeaveCriticalSection(&pPoller->tLock);
-}
-// 加载 AcceptEx 扩展函数
-static void __xrt_iocp_load_acceptex(xnetpoller* pPoller)
-{
-	pPoller->pfnAcceptEx = NULL;
-	pPoller->pfnGetAcceptExSockAddrs = NULL;
-	
-	// 创建临时 socket 加载扩展函数
-	SOCKET hTmp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if ( hTmp == INVALID_SOCKET ) return;
-	
-	DWORD dwBytes = 0;
-	GUID guidAcceptEx = WSAID_ACCEPTEX;
-	WSAIoctl(hTmp, SIO_GET_EXTENSION_FUNCTION_POINTER,
-		&guidAcceptEx, sizeof(guidAcceptEx),
-		&pPoller->pfnAcceptEx, sizeof(pPoller->pfnAcceptEx),
-		&dwBytes, NULL, NULL);
-	
-	GUID guidGetAddr = WSAID_GETACCEPTEXSOCKADDRS;
-	WSAIoctl(hTmp, SIO_GET_EXTENSION_FUNCTION_POINTER,
-		&guidGetAddr, sizeof(guidGetAddr),
-		&pPoller->pfnGetAcceptExSockAddrs, sizeof(pPoller->pfnGetAcceptExSockAddrs),
-		&dwBytes, NULL, NULL);
-	
-	closesocket(hTmp);
-}
-XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
-{
-	xnetpoller* pPoller = (xnetpoller*)xrtCalloc(1, sizeof(xnetpoller));
-	if ( !pPoller ) return NULL;
-	
-	pPoller->hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
-	if ( !pPoller->hIOCP ) {
-		xrtFree(pPoller);
-		return NULL;
-	}
-	
-	pPoller->iOpCapacity = __XRT_POLL_INIT_OPS;
-	pPoller->pOps = (__xrt_iocp_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_iocp_op));
-	if ( !pPoller->pOps ) {
-		CloseHandle(pPoller->hIOCP);
-		xrtFree(pPoller);
-		return NULL;
-	}
-	
-	// 初始化空闲链表 (所有槽位串成链表)
-	pPoller->iFreeHead = -1;  // 初始为空, 通过 alloc_op 按需追加
-	
-	InitializeCriticalSection(&pPoller->tLock);
-	pPoller->pfnCallback = pfnCallback;
-	pPoller->pUserData = pUserData;
-	pPoller->iRecvBufSize = (pConfig && pConfig->iRecvBufSize > 0) ? pConfig->iRecvBufSize : __XRT_POLL_RECV_SIZE;
-	
-	// 加载 AcceptEx 扩展函数
-	__xrt_iocp_load_acceptex(pPoller);
-	
-	return pPoller;
-}
-XXAPI void xrtPollDestroy(xnetpoller* pPoller)
-{
-	if ( !pPoller ) return;
-	
-	// 释放所有动态缓冲区
-	if ( pPoller->pOps ) {
-		for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-			if ( pPoller->pOps[i].bDynamicBuf && pPoller->pOps[i].pDynamicBuf ) {
-				xrtFree(pPoller->pOps[i].pDynamicBuf);
-			}
-			if ( pPoller->pOps[i].hAcceptSocket != INVALID_SOCKET && pPoller->pOps[i].hAcceptSocket != 0 ) {
-				closesocket(pPoller->pOps[i].hAcceptSocket);
-			}
-		}
-		xrtFree(pPoller->pOps);
-	}
-	if ( pPoller->hIOCP ) {
-		CloseHandle(pPoller->hIOCP);
-	}
-	DeleteCriticalSection(&pPoller->tLock);
-	xrtFree(pPoller);
-}
-XXAPI xnet_result xrtPollAdd(xnetpoller* pPoller, xnetconn* pConn, int iEvents)
-{
-	if ( !pPoller || !pConn || pConn->hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
-	
-	HANDLE hResult = CreateIoCompletionPort((HANDLE)pConn->hSocket, pPoller->hIOCP, (ULONG_PTR)pConn, 0);
-	if ( !hResult ) {
-		return XRT_NET_ERROR;
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
-{
-	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
-	
-	// 直接调用 CancelIoEx 取消该 socket 上的所有 IO
-	CancelIoEx((HANDLE)pConn->hSocket, NULL);
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
-{
-	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
-	
-	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
-	if ( !pOp ) return XRT_NET_ERROR;
-	
-	memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
-	pOp->pConn = pConn;
-	pOp->tWSABuf.buf = pOp->aRecvBuf;
-	pOp->tWSABuf.len = __XRT_POLL_RECV_SIZE;
-	pOp->iFlags = 0;
-	pOp->pOpUserData = pConn->pUserData;
-	
-	int iResult;
-	if ( pConn->iType == 1 ) {
-		// UDP: WSARecvFrom 获取远端地址
-		pOp->iOpType = __XRT_POLL_OP_RECVFROM;
-		pOp->iRemoteAddrLen = sizeof(struct sockaddr_in);
-		iResult = WSARecvFrom(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags,
-			(struct sockaddr*)&pOp->tRemoteAddr, &pOp->iRemoteAddrLen, &pOp->tOverlapped, NULL);
-	} else {
-		// TCP: WSARecv
-		pOp->iOpType = __XRT_POLL_OP_RECV;
-		iResult = WSARecv(pConn->hSocket, &pOp->tWSABuf, 1, &pOp->iBytes, &pOp->iFlags, &pOp->tOverlapped, NULL);
-	}
-	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
-		__xrt_iocp_free_op(pPoller, pOp);
-		return XRT_NET_ERROR;
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen)
-{
-	if ( !pPoller || !pConn || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	
-	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
-	if ( !pOp ) return XRT_NET_ERROR;
-	
-	// 大消息: 动态分配缓冲区
-	if ( iLen > __XRT_POLL_RECV_SIZE ) {
-		pOp->pDynamicBuf = (char*)xrtMalloc(iLen);
-		if ( !pOp->pDynamicBuf ) {
-			__xrt_iocp_free_op(pPoller, pOp);
-			return XRT_NET_ERROR;
-		}
-		pOp->bDynamicBuf = true;
-		memcpy(pOp->pDynamicBuf, pData, iLen);
-		pOp->tWSABuf.buf = pOp->pDynamicBuf;
-		pOp->tWSABuf.len = (ULONG)iLen;
-	} else {
-		memcpy(pOp->aRecvBuf, pData, iLen);
-		pOp->tWSABuf.buf = pOp->aRecvBuf;
-		pOp->tWSABuf.len = (ULONG)iLen;
-	}
-	
-	memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
-	pOp->pConn = pConn;
-	pOp->iOpType = __XRT_POLL_OP_SEND;
-	pOp->iFlags = 0;
-	pOp->pOpUserData = pConn->pUserData;
-	
-	DWORD iBytesSent;
-	int iResult = WSASend(pConn->hSocket, &pOp->tWSABuf, 1, &iBytesSent, 0, &pOp->tOverlapped, NULL);
-	if ( iResult == SOCKET_ERROR && WSAGetLastError() != WSA_IO_PENDING ) {
-		__xrt_iocp_free_op(pPoller, pOp);
-		return XRT_NET_ERROR;
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
-{
-	if ( !pPoller || !pServer ) return XRT_NET_ERROR;
-	
-	__xrt_iocp_op* pOp = __xrt_iocp_alloc_op(pPoller);
-	if ( !pOp ) return XRT_NET_ERROR;
-	
-	pOp->pConn = pServer;
-	pOp->pAcceptConn = pClient;
-	pOp->iOpType = __XRT_POLL_OP_ACCEPT;
-	pOp->pOpUserData = pServer->pUserData;
-	
-	// AcceptEx 可用时使用异步 accept
-	if ( pPoller->pfnAcceptEx ) {
-		SOCKET hAccept = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if ( hAccept == INVALID_SOCKET ) {
-			__xrt_iocp_free_op(pPoller, pOp);
-			return XRT_NET_ERROR;
-		}
-		pOp->hAcceptSocket = hAccept;
-		
-		memset(&pOp->tOverlapped, 0, sizeof(WSAOVERLAPPED));
-		DWORD dwBytes = 0;
-		BOOL bResult = pPoller->pfnAcceptEx(
-			pServer->hSocket, hAccept,
-			pOp->aRecvBuf,                     // 输出缓冲区 (地址信息)
-			0,                                  // 不接收首包数据
-			sizeof(struct sockaddr_in) + 16,    // 本地地址长度
-			sizeof(struct sockaddr_in) + 16,    // 远端地址长度
-			&dwBytes,
-			&pOp->tOverlapped
-		);
-		
-		if ( !bResult && WSAGetLastError() != ERROR_IO_PENDING ) {
-			closesocket(hAccept);
-			pOp->hAcceptSocket = INVALID_SOCKET;
-			__xrt_iocp_free_op(pPoller, pOp);
-			return XRT_NET_ERROR;
-		}
-		
+	int iRet;
+	if ( pSent ) *pSent = 0;
+	if ( hSocket == XSOCKET_INVALID || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	iRet = (int)send(hSocket, pData, (int)((iLen > (size_t)INT_MAX) ? INT_MAX : iLen), 0);
+	if ( iRet > 0 ) {
+		if ( pSent ) *pSent = (size_t)iRet;
 		return XRT_NET_OK;
 	}
-	
-	// AcceptEx 不可用: 回退到非阻塞 accept (在 PollWait 通知中处理)
-	__xrt_iocp_free_op(pPoller, pOp);
-	return XRT_NET_OK;
+	if ( iRet == 0 ) return XRT_NET_CLOSED;
+	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
 }
-XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
+static xnet_result __xrt_tls_sock_recv(xsocket hSocket, char* pBuf, size_t iLen, size_t* pReceived)
 {
-	if ( !pPoller ) return XRT_NET_ERROR;
-	
-	// 批量收割完成事件
-	OVERLAPPED_ENTRY aEntries[__XRT_IOCP_BATCH_SIZE];
-	ULONG iRemoved = 0;
-	
-	BOOL bSuccess = GetQueuedCompletionStatusEx(
-		pPoller->hIOCP,
-		aEntries,
-		__XRT_IOCP_BATCH_SIZE,
-		&iRemoved,
-		(DWORD)iTimeoutMs,
-		FALSE
-	);
-	
-	if ( !bSuccess ) {
-		if ( GetLastError() == WAIT_TIMEOUT ) {
-			return XRT_NET_TIMEOUT;
-		}
-		return XRT_NET_ERROR;
+	int iRet;
+	if ( pReceived ) *pReceived = 0;
+	if ( hSocket == XSOCKET_INVALID || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
+	iRet = (int)recv(hSocket, pBuf, (int)((iLen > (size_t)INT_MAX) ? INT_MAX : iLen), 0);
+	if ( iRet > 0 ) {
+		if ( pReceived ) *pReceived = (size_t)iRet;
+		return XRT_NET_OK;
 	}
-	
-	// 分发所有完成事件
-	for ( ULONG i = 0; i < iRemoved; i++ ) {
-		LPOVERLAPPED pOverlapped = aEntries[i].lpOverlapped;
-		DWORD iBytesTransferred = aEntries[i].dwNumberOfBytesTransferred;
-		
-		// Wakeup 信号
-		if ( !pOverlapped ) continue;
-		
-		__xrt_iocp_op* pOp = (__xrt_iocp_op*)pOverlapped;
-		if ( !pOp->bInUse ) continue;
-		
-		xnetconn* pConn = pOp->pConn;
-		
-		// AcceptEx 完成
-		if ( pOp->iOpType == __XRT_POLL_OP_ACCEPT ) {
-			if ( pOp->hAcceptSocket != INVALID_SOCKET && pOp->hAcceptSocket != 0 ) {
-				// AcceptEx 成功: 从缓冲区提取地址
-				if ( pOp->pAcceptConn ) {
-					pOp->pAcceptConn->hSocket = pOp->hAcceptSocket;
-					pOp->pAcceptConn->iType = 0;  // TCP
-					
-					// 用 GetAcceptExSockaddrs 提取地址
-					if ( pPoller->pfnGetAcceptExSockAddrs ) {
-						struct sockaddr* pLocal = NULL;
-						struct sockaddr* pRemote = NULL;
-						int iLocalLen = 0, iRemoteLen = 0;
-						pPoller->pfnGetAcceptExSockAddrs(
-							pOp->aRecvBuf, 0,
-							sizeof(struct sockaddr_in) + 16,
-							sizeof(struct sockaddr_in) + 16,
-							&pLocal, &iLocalLen,
-							&pRemote, &iRemoteLen
-						);
-						if ( pRemote ) {
-							xrtNetAddrFromSockAddr(&pOp->pAcceptConn->tRemoteAddr, (struct sockaddr_in*)pRemote);
-						}
-					}
-					
-					// 继承监听 socket 的上下文
-					setsockopt(pOp->hAcceptSocket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-						(char*)&pConn->hSocket, sizeof(pConn->hSocket));
-				}
-				pOp->hAcceptSocket = INVALID_SOCKET;  // 所有权转移
-			}
-			
-			if ( pPoller->pfnCallback ) {
-				// 继承监听 socket 的 pUserData 用于事件路由
-				if ( pOp->pAcceptConn && pConn ) {
-					pOp->pAcceptConn->pUserData = pConn->pUserData;
-				}
-				pPoller->pfnCallback(pPoller, pOp->pAcceptConn ? pOp->pAcceptConn : pConn,
-					XRT_POLL_ACCEPT, NULL, 0);
-			}
-			__xrt_iocp_free_op(pPoller, pOp);
-			continue;
-		}
-		
-		// 连接关闭 - 仅TCP RECV 0字节才视为关闭
-		if ( iBytesTransferred == 0 && pOp->iOpType == __XRT_POLL_OP_RECV ) {
-			if ( pConn && pConn->iType == 0 ) {  // 仅TCP连接判close
-				if ( pPoller->pfnCallback ) {
-					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
-				}
-				__xrt_iocp_free_op(pPoller, pOp);
-				continue;
-			}
-			// UDP 0字节是合法数据，走正常READ分发
-		}
-		
-		// 分发 RECV / RECVFROM / SEND
-		switch ( pOp->iOpType ) {
-			case __XRT_POLL_OP_RECVFROM:
-				// UDP: 将远端地址拷贝到 conn
-				if ( pConn ) {
-					xrtNetAddrFromSockAddr(&pConn->tRemoteAddr, &pOp->tRemoteAddr);
-				}
-				// fall through
-			case __XRT_POLL_OP_RECV:
-				if ( pPoller->pfnCallback ) {
-					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)iBytesTransferred);
-				}
-				break;
-			
-			case __XRT_POLL_OP_SEND:
-				if ( pPoller->pfnCallback ) {
-					pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)iBytesTransferred);
-				}
-				break;
-		}
-		
-		__xrt_iocp_free_op(pPoller, pOp);
-	}
-	
-	return XRT_NET_OK;
+	if ( iRet == 0 ) return XRT_NET_CLOSED;
+	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
 }
-XXAPI void xrtPollWakeup(xnetpoller* pPoller)
-{
-	if ( !pPoller || !pPoller->hIOCP ) return;
-	PostQueuedCompletionStatus(pPoller->hIOCP, 0, 0, NULL);
-}
-XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
-{
-	if ( !pPoller ) return NULL;
-	return pPoller->pUserData;
-}
-/* ============================== Linux io_uring 实现 ============================== */
-#else  /* Linux */
-/*
-	io_uring 零依赖实现 (不使用 liburing)
-	直接通过 syscall 调用内核接口
-	最低要求: Linux 5.1+ (io_uring_setup, io_uring_enter, io_uring_register)
-*/
-#include <sys/syscall.h>
-#include <sys/mman.h>
-#include <sys/eventfd.h>
-#include <linux/io_uring.h>
-#define __XRT_URING_ENTRIES  256
-#define __XRT_URING_TIMEOUT_MARKER  ((unsigned long long)-1)
-// io_uring syscall 封装
-static inline int __xrt_io_uring_setup(unsigned iEntries, struct io_uring_params* pParams)
-{
-	return (int)syscall(SYS_io_uring_setup, iEntries, pParams);
-}
-static inline int __xrt_io_uring_enter(int iFd, unsigned iToSubmit, unsigned iMinComplete, unsigned iFlags, void* pSig)
-{
-	return (int)syscall(SYS_io_uring_enter, iFd, iToSubmit, iMinComplete, iFlags, pSig, 0);
-}
-// io_uring 环形缓冲区
-typedef struct {
-	unsigned* pHead;
-	unsigned* pTail;
-	unsigned* pRingMask;
-	unsigned* pRingEntries;
-	unsigned* pFlags;
-	unsigned* pArray;
-	struct io_uring_sqe* pSQEs;
-	size_t iRingSize;
-	void* pRingPtr;
-} __xrt_uring_sq;
-typedef struct {
-	unsigned* pHead;
-	unsigned* pTail;
-	unsigned* pRingMask;
-	unsigned* pRingEntries;
-	struct io_uring_cqe* pCQEs;
-	size_t iRingSize;
-	void* pRingPtr;
-} __xrt_uring_cq;
-// io_uring 操作结构
-typedef struct {
-	xnetconn* pConn;
-	xnetconn* pAcceptConn;
-	char aRecvBuf[__XRT_POLL_RECV_SIZE];
-	char* pDynamicBuf;           // 动态发送缓冲区 (>8KB)
-	bool bDynamicBuf;
-	int iOpType;
-	bool bInUse;
-	int iNextFree;               // 空闲链表
-	ptr pOpUserData;             // per-operation 用户数据
-	struct sockaddr_in tAcceptAddr;
-	socklen_t iAcceptAddrLen;
-	struct msghdr tMsgHdr;       // UDP recvmsg 消息头
-	struct iovec tIov;           // UDP recvmsg IO 向量
-	struct sockaddr_in tRemoteAddr;  // UDP recvfrom 远端地址
-} __xrt_uring_op;
-// Poller 结构定义
-struct xrt_net_poller {
-	int iFd;                      // io_uring fd
-	__xrt_uring_sq tSQ;
-	__xrt_uring_cq tCQ;
-	__xrt_uring_op* pOps;
-	int iOpCount;
-	int iOpCapacity;
-	int iFreeHead;                // 空闲链表头
-	unsigned iPendingSQE;         // 待提交的 SQE 计数
-	int iWakeupFd;                // eventfd 用于唤醒
-	uint64 iWakeupVal;            // eventfd 读缓冲区
-	xpoll_fn pfnCallback;
-	ptr pUserData;
-	size_t iRecvBufSize;
-	pthread_mutex_t tLock;
-	struct __kernel_timespec tTimeoutSpec;  // PollWait TIMEOUT 持久存储
-};
-// O(1) 操作池分配 (无锁版本, 调用方需持有 tLock)
-static __xrt_uring_op* __xrt_uring_alloc_op_unlocked(xnetpoller* pPoller)
-{
-	if ( pPoller->iFreeHead >= 0 ) {
-		int iIdx = pPoller->iFreeHead;
-		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
-		pPoller->iFreeHead = pOp->iNextFree;
-		pOp->bInUse = true;
-		pOp->iNextFree = -1;
-		pOp->pDynamicBuf = NULL;
-		pOp->bDynamicBuf = false;
-		pOp->pOpUserData = NULL;
-		return pOp;
-	}
-	
-	if ( pPoller->iOpCount < pPoller->iOpCapacity ) {
-		int iIdx = pPoller->iOpCount++;
-		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
-		memset(pOp, 0, sizeof(__xrt_uring_op));
-		pOp->bInUse = true;
-		pOp->iNextFree = -1;
-		return pOp;
-	}
-	
-	// 容量已满，尝试动态扩容（最大4096）
-	if ( pPoller->iOpCapacity < __XRT_POLL_MAX_OPS ) {
-		int iNewCapacity = pPoller->iOpCapacity * 2;
-		if ( iNewCapacity > __XRT_POLL_MAX_OPS ) {
-			iNewCapacity = __XRT_POLL_MAX_OPS;
-		}
-		
-		__xrt_uring_op* pNewOps = (__xrt_uring_op*)xrtRealloc(pPoller->pOps, 
-			iNewCapacity * sizeof(__xrt_uring_op));
-		if ( !pNewOps ) return NULL;
-		
-		// 更新容量和指针
-		pPoller->pOps = pNewOps;
-		pPoller->iOpCapacity = iNewCapacity;
-		
-		// 将新增的槽位串入空闲链表
-		for ( int i = pPoller->iOpCount; i < pPoller->iOpCapacity; i++ ) {
-			pPoller->pOps[i].bInUse = false;
-			pPoller->pOps[i].iNextFree = (i + 1 < pPoller->iOpCapacity) ? (i + 1) : pPoller->iFreeHead;
-		}
-		pPoller->iFreeHead = pPoller->iOpCount;
-		
-		// 分配第一个新增的槽位
-		int iIdx = pPoller->iOpCount++;
-		__xrt_uring_op* pOp = &pPoller->pOps[iIdx];
-		memset(pOp, 0, sizeof(__xrt_uring_op));
-		pOp->bInUse = true;
-		pOp->iNextFree = -1;
-		return pOp;
-	}
-	
-	return NULL;
-}
-// O(1) 操作池分配 (带锁版本)
-static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
-{
-	pthread_mutex_lock(&pPoller->tLock);
-	__xrt_uring_op* pOp = __xrt_uring_alloc_op_unlocked(pPoller);
-	pthread_mutex_unlock(&pPoller->tLock);
-	return pOp;
-}
-// 注册 wakeup read 事件
-static struct io_uring_sqe* __xrt_uring_get_sqe(xnetpoller* pPoller);
-static void __xrt_uring_submit_sqe(xnetpoller* pPoller);
-static void __xrt_uring_post_wakeup_read(xnetpoller* pPoller)
-{
-	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-	if ( !pSQE ) return;
-	
-	pSQE->opcode = IORING_OP_READ;
-	pSQE->fd = pPoller->iWakeupFd;
-	pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->iWakeupVal;
-	pSQE->len = sizeof(uint64);
-	pSQE->user_data = 0;  // 特殊标记表示wakeup事件
-	__xrt_uring_submit_sqe(pPoller);
-}
-// O(1) 操作池释放
-static void __xrt_uring_free_op(xnetpoller* pPoller, __xrt_uring_op* pOp)
-{
-	if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
-		xrtFree(pOp->pDynamicBuf);
-		pOp->pDynamicBuf = NULL;
-	}
-	pOp->bDynamicBuf = false;
-	pOp->bInUse = false;
-	
-	pthread_mutex_lock(&pPoller->tLock);
-	int iIdx = (int)(pOp - pPoller->pOps);
-	pOp->iNextFree = pPoller->iFreeHead;
-	pPoller->iFreeHead = iIdx;
-	pthread_mutex_unlock(&pPoller->tLock);
-}
-static struct io_uring_sqe* __xrt_uring_get_sqe(xnetpoller* pPoller)
-{
-	__xrt_uring_sq* pSQ = &pPoller->tSQ;
-	unsigned iHead = __atomic_load_n(pSQ->pHead, __ATOMIC_ACQUIRE);
-	unsigned iTail = *pSQ->pTail;
-	unsigned iMask = *pSQ->pRingMask;
-	
-	if ( iTail - iHead >= *pSQ->pRingEntries ) {
-		return NULL;  // SQ 已满
-	}
-	
-	struct io_uring_sqe* pSQE = &pSQ->pSQEs[iTail & iMask];
-	memset(pSQE, 0, sizeof(struct io_uring_sqe));
-	return pSQE;
-}
-static void __xrt_uring_submit_sqe(xnetpoller* pPoller)
-{
-	__xrt_uring_sq* pSQ = &pPoller->tSQ;
-	unsigned iTail = *pSQ->pTail;
-	unsigned iMask = *pSQ->pRingMask;
-	
-	pSQ->pArray[iTail & iMask] = iTail & iMask;
-	__atomic_store_n(pSQ->pTail, iTail + 1, __ATOMIC_RELEASE);
-	pPoller->iPendingSQE++;
-}
-// 批量提交所有待提交 SQE
-static xnet_result __xrt_uring_flush(xnetpoller* pPoller)
-{
-	if ( pPoller->iPendingSQE == 0 ) return XRT_NET_OK;
-	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, pPoller->iPendingSQE, 0, 0, NULL);
-	pPoller->iPendingSQE = 0;
-	
-	if ( iRet < 0 ) return XRT_NET_ERROR;
-	return XRT_NET_OK;
-}
-XXAPI xnetpoller* xrtPollCreate(xnetconfig* pConfig, xpoll_fn pfnCallback, ptr pUserData)
-{
-	xnetpoller* pPoller = (xnetpoller*)xrtCalloc(1, sizeof(xnetpoller));
-	if ( !pPoller ) return NULL;
-	
-	// 初始化 io_uring
-	struct io_uring_params tParams;
-	memset(&tParams, 0, sizeof(tParams));
-	
-	pPoller->iFd = __xrt_io_uring_setup(__XRT_URING_ENTRIES, &tParams);
-	if ( pPoller->iFd < 0 ) {
-		xrtFree(pPoller);
-		return NULL;
-	}
-	
-	// 映射 SQ ring
-	size_t iSQSize = tParams.sq_off.array + tParams.sq_entries * sizeof(unsigned);
-	void* pSQPtr = mmap(NULL, iSQSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pPoller->iFd, IORING_OFF_SQ_RING);
-	if ( pSQPtr == MAP_FAILED ) {
-		close(pPoller->iFd);
-		xrtFree(pPoller);
-		return NULL;
-	}
-	
-	pPoller->tSQ.pRingPtr = pSQPtr;
-	pPoller->tSQ.iRingSize = iSQSize;
-	pPoller->tSQ.pHead = (unsigned*)((char*)pSQPtr + tParams.sq_off.head);
-	pPoller->tSQ.pTail = (unsigned*)((char*)pSQPtr + tParams.sq_off.tail);
-	pPoller->tSQ.pRingMask = (unsigned*)((char*)pSQPtr + tParams.sq_off.ring_mask);
-	pPoller->tSQ.pRingEntries = (unsigned*)((char*)pSQPtr + tParams.sq_off.ring_entries);
-	pPoller->tSQ.pFlags = (unsigned*)((char*)pSQPtr + tParams.sq_off.flags);
-	pPoller->tSQ.pArray = (unsigned*)((char*)pSQPtr + tParams.sq_off.array);
-	
-	// 映射 SQEs
-	size_t iSQESize = tParams.sq_entries * sizeof(struct io_uring_sqe);
-	pPoller->tSQ.pSQEs = (struct io_uring_sqe*)mmap(NULL, iSQESize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pPoller->iFd, IORING_OFF_SQES);
-	if ( pPoller->tSQ.pSQEs == MAP_FAILED ) {
-		munmap(pSQPtr, iSQSize);
-		close(pPoller->iFd);
-		xrtFree(pPoller);
-		return NULL;
-	}
-	
-	// 映射 CQ ring
-	size_t iCQSize = tParams.cq_off.cqes + tParams.cq_entries * sizeof(struct io_uring_cqe);
-	void* pCQPtr = mmap(NULL, iCQSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pPoller->iFd, IORING_OFF_CQ_RING);
-	if ( pCQPtr == MAP_FAILED ) {
-		munmap(pPoller->tSQ.pSQEs, iSQESize);
-		munmap(pSQPtr, iSQSize);
-		close(pPoller->iFd);
-		xrtFree(pPoller);
-		return NULL;
-	}
-	
-	pPoller->tCQ.pRingPtr = pCQPtr;
-	pPoller->tCQ.iRingSize = iCQSize;
-	pPoller->tCQ.pHead = (unsigned*)((char*)pCQPtr + tParams.cq_off.head);
-	pPoller->tCQ.pTail = (unsigned*)((char*)pCQPtr + tParams.cq_off.tail);
-	pPoller->tCQ.pRingMask = (unsigned*)((char*)pCQPtr + tParams.cq_off.ring_mask);
-	pPoller->tCQ.pRingEntries = (unsigned*)((char*)pCQPtr + tParams.cq_off.ring_entries);
-	pPoller->tCQ.pCQEs = (struct io_uring_cqe*)((char*)pCQPtr + tParams.cq_off.cqes);
-	
-	// 分配操作池
-	pPoller->iOpCapacity = __XRT_POLL_INIT_OPS;
-	pPoller->pOps = (__xrt_uring_op*)xrtCalloc(pPoller->iOpCapacity, sizeof(__xrt_uring_op));
-	if ( !pPoller->pOps ) {
-		munmap(pCQPtr, iCQSize);
-		munmap(pPoller->tSQ.pSQEs, iSQESize);
-		munmap(pSQPtr, iSQSize);
-		close(pPoller->iFd);
-		xrtFree(pPoller);
-		return NULL;
-	}
-	
-	pPoller->iFreeHead = -1;
-	pPoller->iPendingSQE = 0;
-	
-	// 创建 eventfd 用于唤醒
-	pPoller->iWakeupFd = eventfd(0, EFD_NONBLOCK);
-	
-	// 注册 wakeup read 事件
-	__xrt_uring_post_wakeup_read(pPoller);
-	
-	pthread_mutex_init(&pPoller->tLock, NULL);
-	pPoller->pfnCallback = pfnCallback;
-	pPoller->pUserData = pUserData;
-	pPoller->iRecvBufSize = (pConfig && pConfig->iRecvBufSize > 0) ? pConfig->iRecvBufSize : __XRT_POLL_RECV_SIZE;
-	
-	return pPoller;
-}
-XXAPI void xrtPollDestroy(xnetpoller* pPoller)
-{
-	if ( !pPoller ) return;
-	
-	if ( pPoller->pOps ) {
-		for ( int i = 0; i < pPoller->iOpCount; i++ ) {
-			if ( pPoller->pOps[i].bDynamicBuf && pPoller->pOps[i].pDynamicBuf ) {
-				xrtFree(pPoller->pOps[i].pDynamicBuf);
-			}
-		}
-		xrtFree(pPoller->pOps);
-	}
-	
-	if ( pPoller->iWakeupFd >= 0 ) {
-		close(pPoller->iWakeupFd);
-	}
-	
-	// 释放 mmap 映射
-	if ( pPoller->tCQ.pRingPtr && pPoller->tCQ.pRingPtr != MAP_FAILED ) {
-		munmap(pPoller->tCQ.pRingPtr, pPoller->tCQ.iRingSize);
-	}
-	if ( pPoller->tSQ.pSQEs && (void*)pPoller->tSQ.pSQEs != MAP_FAILED ) {
-		munmap(pPoller->tSQ.pSQEs, __XRT_URING_ENTRIES * sizeof(struct io_uring_sqe));
-	}
-	if ( pPoller->tSQ.pRingPtr && pPoller->tSQ.pRingPtr != MAP_FAILED ) {
-		munmap(pPoller->tSQ.pRingPtr, pPoller->tSQ.iRingSize);
-	}
-	
-	if ( pPoller->iFd >= 0 ) {
-		close(pPoller->iFd);
-	}
-	
-	pthread_mutex_destroy(&pPoller->tLock);
-	xrtFree(pPoller);
-}
-XXAPI xnet_result xrtPollAdd(xnetpoller* pPoller, xnetconn* pConn, int iEvents)
-{
-	// io_uring 不需要显式注册 socket，操作在 Post 时提交
-	(void)pPoller; (void)pConn; (void)iEvents;
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollRemove(xnetpoller* pPoller, xnetconn* pConn)
-{
-	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
-	
-	// 直接使用 IORING_OP_ASYNC_CANCEL 取消该 socket 上的所有 IO
-	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-	if ( pSQE ) {
-		pSQE->opcode = IORING_OP_ASYNC_CANCEL;
-		pSQE->fd = pConn->hSocket;
-		#ifdef IORING_ASYNC_CANCEL_FD  // kernel 5.19+
-			pSQE->cancel_flags = IORING_ASYNC_CANCEL_FD;
-		#endif
-		__xrt_uring_submit_sqe(pPoller);
-		__xrt_uring_flush(pPoller);
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollPostRecv(xnetpoller* pPoller, xnetconn* pConn)
-{
-	if ( !pPoller || !pConn ) return XRT_NET_ERROR;
-	
-	// 单次加锁: 分配 op + 填充 SQE
-	pthread_mutex_lock(&pPoller->tLock);
-	
-	__xrt_uring_op* pOp = __xrt_uring_alloc_op_unlocked(pPoller);
-	if ( !pOp ) {
-		pthread_mutex_unlock(&pPoller->tLock);
-		return XRT_NET_ERROR;
-	}
-	
-	pOp->pConn = pConn;
-	pOp->pOpUserData = pConn->pUserData;
-	
-	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-	if ( !pSQE ) {
-		// 归还 op (无锁, 已持有 tLock)
-		pOp->bInUse = false;
-		int iIdx = (int)(pOp - pPoller->pOps);
-		pOp->iNextFree = pPoller->iFreeHead;
-		pPoller->iFreeHead = iIdx;
-		pthread_mutex_unlock(&pPoller->tLock);
-		return XRT_NET_ERROR;
-	}
-	
-	if ( pConn->iType == 1 ) {
-		// UDP: RECVMSG 获取远端地址
-		pOp->iOpType = __XRT_POLL_OP_RECVFROM;
-		memset(&pOp->tMsgHdr, 0, sizeof(struct msghdr));
-		memset(&pOp->tRemoteAddr, 0, sizeof(struct sockaddr_in));
-		pOp->tIov.iov_base = pOp->aRecvBuf;
-		pOp->tIov.iov_len = __XRT_POLL_RECV_SIZE;
-		pOp->tMsgHdr.msg_name = &pOp->tRemoteAddr;
-		pOp->tMsgHdr.msg_namelen = sizeof(struct sockaddr_in);
-		pOp->tMsgHdr.msg_iov = &pOp->tIov;
-		pOp->tMsgHdr.msg_iovlen = 1;
-		pSQE->opcode = IORING_OP_RECVMSG;
-		pSQE->fd = pConn->hSocket;
-		pSQE->addr = (unsigned long long)(uintptr_t)&pOp->tMsgHdr;
-		pSQE->len = 1;  // msg_iovlen
-	} else {
-		// TCP: RECV
-		pOp->iOpType = __XRT_POLL_OP_RECV;
-		pSQE->opcode = IORING_OP_RECV;
-		pSQE->fd = pConn->hSocket;
-		pSQE->addr = (unsigned long long)(uintptr_t)pOp->aRecvBuf;
-		pSQE->len = __XRT_POLL_RECV_SIZE;
-	}
-	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
-	
-	__xrt_uring_submit_sqe(pPoller);
-	pthread_mutex_unlock(&pPoller->tLock);
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollPostSend(xnetpoller* pPoller, xnetconn* pConn, const char* pData, size_t iLen)
-{
-	if ( !pPoller || !pConn || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	
-	// 大消息: 在加锁前完成内存分配和拷贝 (减少持锁时间)
-	char* pDynamicBuf = NULL;
-	if ( iLen > __XRT_POLL_RECV_SIZE ) {
-		pDynamicBuf = (char*)xrtMalloc(iLen);
-		if ( !pDynamicBuf ) return XRT_NET_ERROR;
-		memcpy(pDynamicBuf, pData, iLen);
-	}
-	
-	// 单次加锁: 分配 op + 填充 SQE
-	pthread_mutex_lock(&pPoller->tLock);
-	
-	__xrt_uring_op* pOp = __xrt_uring_alloc_op_unlocked(pPoller);
-	if ( !pOp ) {
-		pthread_mutex_unlock(&pPoller->tLock);
-		if ( pDynamicBuf ) xrtFree(pDynamicBuf);
-		return XRT_NET_ERROR;
-	}
-	
-	char* pBuf;
-	if ( pDynamicBuf ) {
-		pOp->pDynamicBuf = pDynamicBuf;
-		pOp->bDynamicBuf = true;
-		pBuf = pDynamicBuf;
-	} else {
-		memcpy(pOp->aRecvBuf, pData, iLen);
-		pBuf = pOp->aRecvBuf;
-	}
-	
-	pOp->pConn = pConn;
-	pOp->iOpType = __XRT_POLL_OP_SEND;
-	pOp->pOpUserData = pConn->pUserData;
-	
-	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-	if ( !pSQE ) {
-		if ( pOp->bDynamicBuf && pOp->pDynamicBuf ) {
-			xrtFree(pOp->pDynamicBuf);
-			pOp->pDynamicBuf = NULL;
-		}
-		pOp->bDynamicBuf = false;
-		pOp->bInUse = false;
-		int iIdx = (int)(pOp - pPoller->pOps);
-		pOp->iNextFree = pPoller->iFreeHead;
-		pPoller->iFreeHead = iIdx;
-		pthread_mutex_unlock(&pPoller->tLock);
-		return XRT_NET_ERROR;
-	}
-	
-	pSQE->opcode = IORING_OP_SEND;
-	pSQE->fd = pConn->hSocket;
-	pSQE->addr = (unsigned long long)(uintptr_t)pBuf;
-	pSQE->len = (unsigned)iLen;
-	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
-	
-	__xrt_uring_submit_sqe(pPoller);
-	pthread_mutex_unlock(&pPoller->tLock);
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollPostAccept(xnetpoller* pPoller, xnetconn* pServer, xnetconn* pClient)
-{
-	if ( !pPoller || !pServer ) return XRT_NET_ERROR;
-	
-	__xrt_uring_op* pOp = __xrt_uring_alloc_op(pPoller);
-	if ( !pOp ) return XRT_NET_ERROR;
-	
-	pOp->pConn = pServer;
-	pOp->pAcceptConn = pClient;
-	pOp->iOpType = __XRT_POLL_OP_ACCEPT;
-	pOp->iAcceptAddrLen = sizeof(struct sockaddr_in);
-	pOp->pOpUserData = pServer->pUserData;
-	
-	pthread_mutex_lock(&pPoller->tLock);
-	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-	if ( !pSQE ) {
-		pthread_mutex_unlock(&pPoller->tLock);
-		__xrt_uring_free_op(pPoller, pOp);
-		return XRT_NET_ERROR;
-	}
-	
-	pSQE->opcode = IORING_OP_ACCEPT;
-	pSQE->fd = pServer->hSocket;
-	pSQE->addr = (unsigned long long)(uintptr_t)&pOp->tAcceptAddr;
-	pSQE->addr2 = (unsigned long long)(uintptr_t)&pOp->iAcceptAddrLen;
-	pSQE->user_data = (unsigned long long)(uintptr_t)pOp;
-	
-	__xrt_uring_submit_sqe(pPoller);
-	pthread_mutex_unlock(&pPoller->tLock);
-	
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtPollWait(xnetpoller* pPoller, int iTimeoutMs)
-{
-	if ( !pPoller ) return XRT_NET_ERROR;
-	
-	// 投递 TIMEOUT SQE（使用 poller 持久成员避免栈变量生命周期问题）
-	if ( iTimeoutMs >= 0 ) {
-		struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
-		if ( pSQE ) {
-			pSQE->opcode = IORING_OP_TIMEOUT;
-			pPoller->tTimeoutSpec.tv_sec = iTimeoutMs / 1000;
-			pPoller->tTimeoutSpec.tv_nsec = (long)(iTimeoutMs % 1000) * 1000000L;
-			pSQE->addr = (unsigned long long)(uintptr_t)&pPoller->tTimeoutSpec;
-			pSQE->len = 1;  // 等到 1 个事件或超时
-			pSQE->user_data = __XRT_URING_TIMEOUT_MARKER;
-			__xrt_uring_submit_sqe(pPoller);
-		}
-	}
-	
-	// 单次 io_uring_enter: 同时提交所有待提交 SQE 并等待完成事件
-	unsigned iToSubmit = pPoller->iPendingSQE;
-	pPoller->iPendingSQE = 0;
-	
-	int iRet = __xrt_io_uring_enter(pPoller->iFd, iToSubmit, 1, IORING_ENTER_GETEVENTS, NULL);
-	if ( iRet < 0 ) {
-		if ( errno == ETIME || errno == EINTR ) {
-			return XRT_NET_TIMEOUT;
-		}
-		return XRT_NET_ERROR;
-	}
-	
-	// 处理 CQ 事件
-	__xrt_uring_cq* pCQ = &pPoller->tCQ;
-	unsigned iHead = __atomic_load_n(pCQ->pHead, __ATOMIC_ACQUIRE);
-	unsigned iTail = __atomic_load_n(pCQ->pTail, __ATOMIC_ACQUIRE);
-	
-	if ( iHead == iTail ) {
-		return XRT_NET_TIMEOUT;
-	}
-	
-	unsigned iMask = *pCQ->pRingMask;
-	
-	while ( iHead != iTail ) {
-		struct io_uring_cqe* pCQE = &pCQ->pCQEs[iHead & iMask];
-		
-		// 跳过 TIMEOUT 完成事件
-		if ( pCQE->user_data == __XRT_URING_TIMEOUT_MARKER ) {
-			iHead++;
-			continue;
-		}
-		
-		// 处理 wakeup 事件
-		if ( pCQE->user_data == 0 ) {
-			__xrt_uring_post_wakeup_read(pPoller);  // 重新投递wakeup read
-			iHead++;
-			continue;
-		}
-		
-		__xrt_uring_op* pOp = (__xrt_uring_op*)(uintptr_t)pCQE->user_data;
-		
-		if ( pOp && pOp->bInUse ) {
-			xnetconn* pConn = pOp->pConn;
-			
-			if ( pOp->iOpType == __XRT_POLL_OP_ACCEPT ) {
-				if ( pCQE->res >= 0 && pOp->pAcceptConn ) {
-					pOp->pAcceptConn->hSocket = pCQE->res;
-					xrtNetAddrFromSockAddr(&pOp->pAcceptConn->tRemoteAddr, &pOp->tAcceptAddr);
-					pOp->pAcceptConn->iType = 0;  // TCP
-					// 继承监听 socket 的 pUserData 用于事件路由
-					pOp->pAcceptConn->pUserData = pOp->pConn->pUserData;
-					if ( pPoller->pfnCallback ) {
-						pPoller->pfnCallback(pPoller, pOp->pAcceptConn, XRT_POLL_ACCEPT, NULL, 0);
-					}
-				}
-				__xrt_uring_free_op(pPoller, pOp);
-			} else if ( pCQE->res <= 0 ) {
-				// 连接关闭或错误 (UDP 0字节是合法数据, 不视为关闭)
-				if ( pCQE->res == 0 && pOp->iOpType == __XRT_POLL_OP_RECVFROM ) {
-					// UDP 空数据报: 正常分发
-					if ( pConn ) {
-						xrtNetAddrFromSockAddr(&pConn->tRemoteAddr, &pOp->tRemoteAddr);
-					}
-					if ( pPoller->pfnCallback ) {
-						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, 0);
-					}
-				} else if ( pCQE->res == 0 || pCQE->res == -ECONNRESET ) {
-					if ( pPoller->pfnCallback ) {
-						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_CLOSE, NULL, 0);
-					}
-				} else {
-					if ( pPoller->pfnCallback ) {
-						pPoller->pfnCallback(pPoller, pConn, XRT_POLL_ERROR, NULL, 0);
-					}
-				}
-				__xrt_uring_free_op(pPoller, pOp);
-			} else {
-				switch ( pOp->iOpType ) {
-					case __XRT_POLL_OP_RECVFROM:
-						// UDP: 将远端地址拷贝到 conn
-						if ( pConn ) {
-							xrtNetAddrFromSockAddr(&pConn->tRemoteAddr, &pOp->tRemoteAddr);
-						}
-						// fall through
-					case __XRT_POLL_OP_RECV:
-						if ( pPoller->pfnCallback ) {
-							pPoller->pfnCallback(pPoller, pConn, XRT_POLL_READ, pOp->aRecvBuf, (size_t)pCQE->res);
-						}
-						break;
-					
-					case __XRT_POLL_OP_SEND:
-						if ( pPoller->pfnCallback ) {
-							pPoller->pfnCallback(pPoller, pConn, XRT_POLL_WRITE, NULL, (size_t)pCQE->res);
-						}
-						break;
-				}
-				__xrt_uring_free_op(pPoller, pOp);
-			}
-		}
-		
-		iHead++;
-	}
-	
-	__atomic_store_n(pCQ->pHead, iHead, __ATOMIC_RELEASE);
-	
-	return XRT_NET_OK;
-}
-XXAPI void xrtPollWakeup(xnetpoller* pPoller)
-{
-	if ( !pPoller || pPoller->iWakeupFd < 0 ) return;
-	uint64 iVal = 1;
-	write(pPoller->iWakeupFd, &iVal, sizeof(iVal));
-}
-XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
-{
-	if ( !pPoller ) return NULL;
-	return pPoller->pUserData;
-}
-#endif /* Linux */
-#endif
-#ifndef XRT_NO_NETTLS
-
-// ========================================
-// File: D:/Git/xrt/lib/nettls.h
-// ========================================
-
-
-/*
-	NetTLS - TLS 1.3 实现 [Ver1.0]
-	
-	基于 mongoose 内建 TLS 移植，零外部依赖
-	使用 lib/crypto.h 提供的加密原语:
-		SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
-	
-	支持:
-		- TLS 1.3 (RFC 8446) only
-		- 密码套件: TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384
-		- 密钥交换: X25519
-		- 客户端/服务端模式
-*/
 /* ============================== 常量定义 ============================== */
 // TLS 记录类型 (RFC 8446 B.1)
 #define __XRT_TLS_CHANGE_CIPHER  20
@@ -22642,10 +31871,10 @@ struct xrt_tls_context {
 	size_t iSigHashLen;
 	
 	// IO 缓冲区
-	xnetbuf tSendBuf;
-	xnetbuf tRecvBuf;
-	xnetbuf tHandshakeBuf;        // TLS 1.3 握手消息重组缓冲区 (用于跨记录的大消息)
-	xnetbuf tPlainBuf;            // 已解密但尚未被应用层消费的明文
+	__xrt_tls_buf tSendBuf;
+	__xrt_tls_buf tRecvBuf;
+	__xrt_tls_buf tHandshakeBuf;        // TLS 1.3 握手消息重组缓冲区 (用于跨记录的大消息)
+	__xrt_tls_buf tPlainBuf;            // 已解密但尚未被应用层消费的明文
 	size_t iRecvOffset;
 	size_t iRecvMsgLen;
 	uint8 iContentType;
@@ -23310,7 +32539,7 @@ static void __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	
 	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
 	size_t iTotalLen = 5 + iCipherLen;
-	if ( xrtNetBufEnsure(&pCtx->tSendBuf, iTotalLen) ) {
+	if ( __xrt_tls_buf_ensure(&pCtx->tSendBuf, iTotalLen) ) {
 		memcpy(pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize, aHdr, 5);
 		memcpy(pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize + 5, pCipher, iCipherLen);
 		pCtx->tSendBuf.iSize += iTotalLen;
@@ -23437,7 +32666,7 @@ static void __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	
 	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
 	size_t iTotalLen = 5 + iExplicitNonceLen + iLen + 16;
-	if ( xrtNetBufEnsure(&pCtx->tSendBuf, iTotalLen) ) {
+	if ( __xrt_tls_buf_ensure(&pCtx->tSendBuf, iTotalLen) ) {
 		char *pDst = pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize;
 		memcpy(pDst, aHdr, 5);
 		if ( iExplicitNonceLen > 0 ) {
@@ -23739,8 +32968,8 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aRec + 1, 0x0303);  // TLS 1.2 record version for compatibility
 	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
 	
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, 5);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aBuf, iPos);
 	
 	#ifdef DEBUG_TRACE
 		printf("    [TLS] ClientHello: total=%d bytes, msg=%d bytes\n",
@@ -24426,8 +33655,8 @@ static void __xrt_tls12_send_client_key_exchange(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
 	
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, 5);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aBuf, iPos);
 }
 // Step 8: TLS 1.2 密钥派生
 static void __xrt_tls12_derive_keys(xtlsctx *pCtx)
@@ -24531,7 +33760,7 @@ static void __xrt_tls12_send_ccs_finished(xtlsctx *pCtx, bool bAsServer)
 	__xrt_tls_store_be16(aCCS + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aCCS + 3, 1);
 	aCCS[5] = 0x01;
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aCCS, 6);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aCCS, 6);
 	
 	// 2. 计算 verify_data = PRF(master_secret, label, Hash(handshake_messages))[0..11]
 	uint8 aHash[48];
@@ -24609,8 +33838,8 @@ static bool __xrt_tls12_send_handshake_message(xtlsctx *pCtx, const uint8 *pMsg,
 	aRec[0] = __XRT_TLS_HANDSHAKE;
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aRec + 3, (uint16)iMsgLen);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, sizeof(aRec));
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)pMsg, iMsgLen);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, sizeof(aRec));
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)pMsg, iMsgLen);
 	return true;
 }
 static bool __xrt_tls_sign_server_hash(xtlsctx *pCtx, const uint8 *pHash, size_t iHashLen,
@@ -24851,10 +34080,10 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	xrtSHA384Init(&pCtx->tSHA384_12);
 	
 	// 初始化 IO 缓冲区
-	xrtNetBufInit(&pCtx->tSendBuf, 8192);
-	xrtNetBufInit(&pCtx->tRecvBuf, 8192);
-	xrtNetBufInit(&pCtx->tHandshakeBuf, 4096);
-	xrtNetBufInit(&pCtx->tPlainBuf, 4096);
+	__xrt_tls_buf_init(&pCtx->tSendBuf, 8192);
+	__xrt_tls_buf_init(&pCtx->tRecvBuf, 8192);
+	__xrt_tls_buf_init(&pCtx->tHandshakeBuf, 4096);
+	__xrt_tls_buf_init(&pCtx->tPlainBuf, 4096);
 	
 	if ( pConfig ) {
 		pCtx->bSkipVerify = !pConfig->bVerifyPeer;
@@ -24883,10 +34112,10 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 {
 	if ( !pCtx ) return;
 	
-	xrtNetBufFree(&pCtx->tSendBuf);
-	xrtNetBufFree(&pCtx->tRecvBuf);
-	xrtNetBufFree(&pCtx->tHandshakeBuf);
-	xrtNetBufFree(&pCtx->tPlainBuf);
+	__xrt_tls_buf_free(&pCtx->tSendBuf);
+	__xrt_tls_buf_free(&pCtx->tRecvBuf);
+	__xrt_tls_buf_free(&pCtx->tHandshakeBuf);
+	__xrt_tls_buf_free(&pCtx->tPlainBuf);
 	
 	if ( pCtx->pCertDer ) xrtFree(pCtx->pCertDer);
 	if ( pCtx->pKeyDer ) xrtFree(pCtx->pKeyDer);
@@ -24908,16 +34137,16 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	
 	xrtFree(pCtx);
 }
-XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
+XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 {
-	if ( !pCtx || !pConn ) return XRT_NET_ERROR;
+	if ( !pCtx || hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
 	
 	// 如果有待发送数据，先发送
 	if ( pCtx->tSendBuf.iSize > 0 ) {
 		size_t iSent = 0;
-		xnet_result iRes = xrtSockSend(pConn, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
+		xnet_result iRes = __xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
 		if ( iRes == XRT_NET_OK && iSent > 0 ) {
-			xrtNetBufConsume(&pCtx->tSendBuf, iSent);
+			__xrt_tls_buf_consume(&pCtx->tSendBuf, iSent);
 		}
 		if ( pCtx->tSendBuf.iSize > 0 ) {
 			return XRT_NET_AGAIN;  // 还有数据要发
@@ -24940,9 +34169,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					#ifdef DEBUG_TRACE
 						printf("    [TLS] WAIT_SH: connection closed\n");
@@ -24971,11 +34200,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					printf("    [TLS] WAIT_SH: server alert level=%d desc=%d\n",
 						pRecData[0], (iRecLen >= 2) ? pRecData[1] : -1);
 				#endif
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				return XRT_NET_ERROR;
 			}
 			if ( iRecType != __XRT_TLS_HANDSHAKE ) {
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				return XRT_NET_ERROR;
 			}
 			
@@ -24998,7 +34227,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				#endif
 			}
 			
-			xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+			__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			
 			if ( pCtx->bIsTls12 ) {
 				// TLS 1.2: 不派生握手密钥, 后续消息仍为明文
@@ -25024,12 +34253,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				#ifdef DEBUG_TRACE
-					printf("    [TLS] WAIT_EE+: xrtSockRecv returned res=%d, recvd=%d\n", iRes, (int)iRecvd);
+					printf("    [TLS] WAIT_EE+: socket recv returned res=%d, recvd=%d\n", iRes, (int)iRecvd);
 				#endif
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 					#ifdef DEBUG_TRACE
 						printf("    [TLS] WAIT_EE+: recv %d bytes, recvBuf=%d\n", (int)iRecvd, (int)pCtx->tRecvBuf.iSize);
 					#endif
@@ -25069,7 +34298,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
 					// ChangeCipherSpec: 忽略 (TLS 1.3 兼容)
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
 				}
 				
@@ -25097,11 +34326,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 							(int)iPlainLen, iContentType);
 					#endif
 					
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					
 					if ( iContentType == __XRT_TLS_HANDSHAKE ) {
 						// 将解密后的握手明文追加到重组缓冲区 (支持跨记录的大消息)
-						xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+						__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 						
 						#ifdef DEBUG_TRACE
 							printf("    [TLS] WAIT_EE+: appended %d bytes to handshakeBuf, total=%d\n",
@@ -25236,7 +34465,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						
 						// 消费已处理的握手消息
 						if ( iMsgOff > 0 ) {
-							xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff);
+							__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff);
 							#ifdef DEBUG_TRACE
 								printf("    [TLS] WAIT_EE+: consumed %d bytes from handshakeBuf, remaining=%d\n",
 									(int)iMsgOff, (int)pCtx->tHandshakeBuf.iSize);
@@ -25247,7 +34476,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					}
 				} else {
 					// 未知记录类型
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				}
 			}
 			
@@ -25267,9 +34496,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -25287,12 +34516,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						const uint8 *pA = (const uint8*)pCtx->tRecvBuf.pData + 5;
 						printf("    [TLS12] Alert: level=%d desc=%d\n", pA[0], (iRecLen >= 2) ? pA[1] : -1);
 					#endif
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				
 				if ( iRecType != __XRT_TLS_HANDSHAKE ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
 				}
 				
@@ -25360,7 +34589,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					iMsgOff += iTotalMsgLen;
 				}
 				
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				
 				// 如果状态已过渡到 WAIT_CCS, 停止处理更多记录
 				if ( pCtx->iState == XRT_TLS12_CLIENT_WAIT_CCS ) break;
@@ -25374,12 +34603,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				#ifdef DEBUG_TRACE
 					printf("    [TLS12] WAIT_CCS: recv res=%d recvd=%d\n", (int)iRes, (int)iRecvd);
 				#endif
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -25395,7 +34624,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					#ifdef DEBUG_TRACE
 						printf("    [TLS12] Got server CCS\n");
 					#endif
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					pCtx->iState = XRT_TLS12_CLIENT_WAIT_FINISH;
 					break;
 				} else if ( iRecType == __XRT_TLS_ALERT ) {
@@ -25403,10 +34632,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						const uint8 *pA = (const uint8*)pCtx->tRecvBuf.pData + 5;
 						printf("    [TLS12] WAIT_CCS: Alert level=%d desc=%d\n", pA[0], (iRecLen >= 2) ? pA[1] : -1);
 					#endif
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			}
 			return XRT_NET_AGAIN;
 		}
@@ -25416,9 +34645,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -25432,7 +34661,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 			
 			if ( iRecType == __XRT_TLS_ALERT ) {
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				return XRT_NET_ERROR;
 			}
 			
@@ -25448,11 +34677,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					#ifdef DEBUG_TRACE
 						printf("    [TLS12] Failed to decrypt server Finished\n");
 					#endif
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				
 				// 解析 Finished 握手消息
 				if ( iPlainLen >= __XRT_TLS_MSGHDR_SIZE && aPlain[0] == __XRT_TLS_FINISHED ) {
@@ -25485,11 +34714,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				
 				if ( !__xrt_tls12_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
 					__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType) ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				
 				if ( iPlainLen >= __XRT_TLS_MSGHDR_SIZE && aPlain[0] == __XRT_TLS_FINISHED ) {
 					uint32 iFinLen = __xrt_tls_load_be24(aPlain + 1);
@@ -25505,7 +34734,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				return XRT_NET_ERROR;
 			}
 			
-			xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+			__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			return XRT_NET_AGAIN;
 		}
 		
@@ -25514,8 +34743,8 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			// 发送剩余数据
 			if ( pCtx->tSendBuf.iSize > 0 ) {
 				size_t iSent = 0;
-				xrtSockSend(pConn, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
-				if ( iSent > 0 ) xrtNetBufConsume(&pCtx->tSendBuf, iSent);
+				__xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
+				if ( iSent > 0 ) __xrt_tls_buf_consume(&pCtx->tSendBuf, iSent);
 				if ( pCtx->tSendBuf.iSize > 0 ) return XRT_NET_AGAIN;
 			}
 			return XRT_NET_OK;
@@ -25525,9 +34754,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -25566,7 +34795,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					if ( !__xrt_tls13_send_server_flight(pCtx) ) return XRT_NET_ERROR;
 					pCtx->iState = XRT_TLS_SERVER_NEGOTIATED;
 				}
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			}
 			return XRT_NET_AGAIN;
 		}
@@ -25576,9 +34805,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -25588,7 +34817,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
 				if ( iRecType == __XRT_TLS_ALERT ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				if ( pCtx->iState == XRT_TLS12_SERVER_WAIT_CKE ) {
@@ -25596,8 +34825,8 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					size_t iMsgOff = 0;
 					if ( iRecType != __XRT_TLS_HANDSHAKE ) return XRT_NET_ERROR;
 					pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
-					xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)pRecData, iRecLen);
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)pRecData, iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= pCtx->tHandshakeBuf.iSize ) {
 						const uint8 *pMsg = (const uint8*)pCtx->tHandshakeBuf.pData + iMsgOff;
 						uint8 iMsgType = pMsg[0];
@@ -25611,7 +34840,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						}
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
 						__xrt_tls12_derive_keys(pCtx);
-						xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
 						pCtx->iState = XRT_TLS12_SERVER_WAIT_CCS;
 						iMsgOff = 0;
 					}
@@ -25619,7 +34848,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				}
 				if ( pCtx->iState == XRT_TLS12_SERVER_WAIT_CCS ) {
 					if ( iRecType != __XRT_TLS_CHANGE_CIPHER ) return XRT_NET_ERROR;
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					pCtx->iState = XRT_TLS12_SERVER_WAIT_FINISH;
 					continue;
 				}
@@ -25635,10 +34864,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType) ) {
 						return XRT_NET_ERROR;
 					}
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					if ( iContentType == __XRT_TLS_ALERT ) return XRT_NET_ERROR;
 					if ( iContentType != __XRT_TLS_HANDSHAKE ) continue;
-					xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 					while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= pCtx->tHandshakeBuf.iSize ) {
 						const uint8 *pMsg = (const uint8*)pCtx->tHandshakeBuf.pData + iMsgOff;
 						uint8 iMsgType = pMsg[0];
@@ -25651,7 +34880,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 							return XRT_NET_ERROR;
 						}
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
-						xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
 						__xrt_tls12_send_ccs_finished(pCtx, true);
 						pCtx->bHandshakeDone = true;
 						pCtx->iState = XRT_TLS_SERVER_CONNECTED;
@@ -25666,9 +34895,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -25678,15 +34907,15 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
 				}
 				if ( iRecType == __XRT_TLS_ALERT ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				if ( iRecType != __XRT_TLS_APP_DATA ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				{
@@ -25697,10 +34926,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, false) ) {
 						return XRT_NET_ERROR;
 					}
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					if ( iContentType == __XRT_TLS_ALERT ) return XRT_NET_ERROR;
 					if ( iContentType != __XRT_TLS_HANDSHAKE ) continue;
-					xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 					{
 						uint8 *pHsBuf = (uint8*)pCtx->tHandshakeBuf.pData;
 						size_t iHsBufLen = pCtx->tHandshakeBuf.iSize;
@@ -25720,7 +34949,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 								return XRT_NET_ERROR;
 							}
 							__xrt_tls13_hash_update(pCtx, pMsg, iTotalMsgLen);
-							xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+							__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
 							pCtx->bHandshakeDone = true;
 							pCtx->iState = XRT_TLS_SERVER_CONNECTED;
 							return XRT_NET_OK;
@@ -25747,7 +34976,7 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 	if ( pCtx->tPlainBuf.iSize > 0 ) {
 		size_t iCopy = pCtx->tPlainBuf.iSize < iLen ? pCtx->tPlainBuf.iSize : iLen;
 		memcpy(pBuf, pCtx->tPlainBuf.pData, iCopy);
-		xrtNetBufConsume(&pCtx->tPlainBuf, iCopy);
+		__xrt_tls_buf_consume(&pCtx->tPlainBuf, iCopy);
 		if ( pRead ) *pRead = iCopy;
 		return XRT_NET_OK;
 	}
@@ -25771,11 +35000,11 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 		}
 		
 		if ( !bOK ) return XRT_NET_ERROR;
-		xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+		__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 		
 		if ( iContentType == __XRT_TLS_APP_DATA ) {
 			if ( iPlainLen > 0 ) {
-				if ( !xrtNetBufAppend(&pCtx->tPlainBuf, (const char*)aPlain, iPlainLen) ) return XRT_NET_ERROR;
+				if ( !__xrt_tls_buf_append(&pCtx->tPlainBuf, (const char*)aPlain, iPlainLen) ) return XRT_NET_ERROR;
 				break;
 			}
 			continue;
@@ -25786,7 +35015,7 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 	if ( pCtx->tPlainBuf.iSize > 0 ) {
 		size_t iCopy = pCtx->tPlainBuf.iSize < iLen ? pCtx->tPlainBuf.iSize : iLen;
 		memcpy(pBuf, pCtx->tPlainBuf.pData, iCopy);
-		xrtNetBufConsume(&pCtx->tPlainBuf, iCopy);
+		__xrt_tls_buf_consume(&pCtx->tPlainBuf, iCopy);
 		if ( pRead ) *pRead = iCopy;
 		return XRT_NET_OK;
 	}
@@ -25831,7 +35060,7 @@ XXAPI bool xrtTlsIsReady(xtlsctx *pCtx)
 XXAPI xnet_result xrtTlsFeed(xtlsctx *pCtx, const char *pData, size_t iLen)
 {
 	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	return xrtNetBufAppend(&pCtx->tRecvBuf, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
+	return __xrt_tls_buf_append(&pCtx->tRecvBuf, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
 }
 XXAPI size_t xrtTlsPendingSend(xtlsctx *pCtx)
 {
@@ -25856,10 +35085,10 @@ XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
 {
 	if ( !pCtx || iLen == 0 || pCtx->tSendBuf.iSize == 0 ) return;
 	if ( iLen >= pCtx->tSendBuf.iSize ) {
-		xrtNetBufConsume(&pCtx->tSendBuf, pCtx->tSendBuf.iSize);
+		__xrt_tls_buf_consume(&pCtx->tSendBuf, pCtx->tSendBuf.iSize);
 		return;
 	}
-	xrtNetBufConsume(&pCtx->tSendBuf, iLen);
+	__xrt_tls_buf_consume(&pCtx->tSendBuf, iLen);
 }
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
 static void __xrt_tls_derive_application_keys(xtlsctx *pCtx);
@@ -26355,8 +35584,8 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
 	aRec[0] = __XRT_TLS_HANDSHAKE;
 	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, 5);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aBuf, iPos);
 	return true;
 }
 static bool __xrt_tls13_send_encrypted_extensions(xtlsctx *pCtx)
@@ -26920,2138 +36149,6 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #if defined(__GNUC__)
 	#pragma GCC pop_options
 #endif
-#ifndef XRT_NO_NETLOOP
-
-// ========================================
-// File: D:/Git/xrt/lib/netloop.h
-// ========================================
-
-
-/*
-	NetLoop - 事件循环 [Ver1.0]
-	
-	统一管理 IO 轮询器，驱动 TCP/UDP 服务器/客户端
-	通过 __xrt_conn_handler 实现事件路由:
-	  xnetconn->pUserData -> __xrt_conn_handler -> pfnHandler(pOwner, ...)
-	
-	多个服务器可共享同一个事件循环 (共享底层 poller)
-*/
-/* ============================== 事件路由处理器 ============================== */
-// 连接事件处理器 (每个 TCP/UDP 服务器/客户端 注册自己的处理器)
-typedef struct {
-	void (*pfnHandler)(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
-	ptr pOwner;    // 指向 TCP/UDP server 或 client 宿主
-} __xrt_conn_handler;
-/* ============================== 事件循环结构 ============================== */
-struct xrt_event_loop {
-	xnetpoller* pPoller;
-	volatile bool bRunning;
-	int iPollTimeoutMs;         // 默认 100ms
-};
-/* ============================== 事件路由回调 ============================== */
-// poller 全局回调: 将事件路由到具体的 TCP/UDP 处理函数
-static void __xrt_eventloop_dispatch(xnetpoller* pPoller, xnetconn* pConn,
-	int iEvent, const char* pData, size_t iLen)
-{
-	if ( !pConn ) return;
-	__xrt_conn_handler* pHandler = (__xrt_conn_handler*)pConn->pUserData;
-	if ( pHandler && pHandler->pfnHandler ) {
-		pHandler->pfnHandler(pHandler->pOwner, pConn, iEvent, pData, iLen);
-	}
-}
-/* ============================== 事件循环 API ============================== */
-XXAPI xeventloop* xrtEventLoopCreate()
-{
-	xeventloop* pLoop = (xeventloop*)xrtCalloc(1, sizeof(xeventloop));
-	if ( !pLoop ) return NULL;
-	
-	pLoop->pPoller = xrtPollCreate(NULL, __xrt_eventloop_dispatch, pLoop);
-	if ( !pLoop->pPoller ) {
-		xrtFree(pLoop);
-		return NULL;
-	}
-	
-	pLoop->bRunning = false;
-	pLoop->iPollTimeoutMs = 100;
-	
-	return pLoop;
-}
-XXAPI void xrtEventLoopDestroy(xeventloop* pLoop)
-{
-	if ( !pLoop ) return;
-	
-	pLoop->bRunning = false;
-	if ( pLoop->pPoller ) {
-		xrtPollDestroy(pLoop->pPoller);
-		pLoop->pPoller = NULL;
-	}
-	xrtFree(pLoop);
-}
-XXAPI void xrtEventLoopRun(xeventloop* pLoop)
-{
-	if ( !pLoop ) return;
-	pLoop->bRunning = true;
-	while ( pLoop->bRunning ) {
-		xnet_result iRes = xrtPollWait(pLoop->pPoller, pLoop->iPollTimeoutMs);
-		if ( iRes == XRT_NET_ERROR ) {
-			// 防止 busy-loop，出错时短暂休眠
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(1);
-			#else
-				usleep(1000);
-			#endif
-		}
-	}
-}
-XXAPI void xrtEventLoopStop(xeventloop* pLoop)
-{
-	if ( !pLoop ) return;
-	pLoop->bRunning = false;
-	xrtPollWakeup(pLoop->pPoller);
-}
-XXAPI xnet_result xrtEventLoopRunOnce(xeventloop* pLoop, int iTimeoutMs)
-{
-	if ( !pLoop ) return XRT_NET_ERROR;
-	return xrtPollWait(pLoop->pPoller, iTimeoutMs);
-}
-XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop)
-{
-	if ( !pLoop ) return NULL;
-	return pLoop->pPoller;
-}
-#endif
-#ifndef XRT_NO_NETPROXY
-
-// ========================================
-// File: D:/Git/xrt/lib/netproxy.h
-// ========================================
-
-
-/*
-	NetProxy - 代理协议支持 [Ver1.0]
-	
-	支持 SOCKS5 和 HTTP CONNECT 代理协议
-	同步阻塞式 API，用于 TCP 客户端代理连接
-	
-	SOCKS5: RFC 1928 + RFC 1929 (用户名/密码认证)
-	HTTP CONNECT: RFC 7231
-*/
-/* ============================== 内部工具函数 ============================== */
-// 阻塞发送全部数据
-static xnet_result __xrt_proxy_send_all(xnetconn* pConn, const char* pData, size_t iLen)
-{
-	size_t iSent = 0;
-	while ( iSent < iLen ) {
-		size_t iThisSent = 0;
-		xnet_result iRes = xrtSockSend(pConn, pData + iSent, iLen - iSent, &iThisSent);
-		if ( iRes != XRT_NET_OK ) {
-			if ( iRes == XRT_NET_AGAIN ) continue;
-			return iRes;
-		}
-		iSent += iThisSent;
-	}
-	return XRT_NET_OK;
-}
-// 阻塞接收指定长度数据 (带超时)
-static xnet_result __xrt_proxy_recv_exact(xnetconn* pConn, char* pBuf, size_t iLen, int iTimeoutMs)
-{
-	size_t iReceived = 0;
-	int iElapsed = 0;
-	int iInterval = 50;  // 50ms 轮询间隔
-	
-	while ( iReceived < iLen ) {
-		size_t iThisRecv = 0;
-		xnet_result iRes = xrtSockRecv(pConn, pBuf + iReceived, iLen - iReceived, &iThisRecv);
-		if ( iRes == XRT_NET_OK ) {
-			iReceived += iThisRecv;
-		} else if ( iRes == XRT_NET_AGAIN ) {
-			// 等待数据
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(iInterval);
-			#else
-				usleep(iInterval * 1000);
-			#endif
-			iElapsed += iInterval;
-			if ( iTimeoutMs > 0 && iElapsed >= iTimeoutMs ) {
-				return XRT_NET_TIMEOUT;
-			}
-		} else if ( iRes == XRT_NET_CLOSED ) {
-			return XRT_NET_CLOSED;
-		} else {
-			return XRT_NET_ERROR;
-		}
-	}
-	return XRT_NET_OK;
-}
-// 阻塞接收数据直到有数据 (带超时，返回实际接收长度)
-static xnet_result __xrt_proxy_recv_some(xnetconn* pConn, char* pBuf, size_t iMaxLen, size_t* pReceived, int iTimeoutMs)
-{
-	int iElapsed = 0;
-	int iInterval = 50;
-	
-	while ( 1 ) {
-		size_t iThisRecv = 0;
-		xnet_result iRes = xrtSockRecv(pConn, pBuf, iMaxLen, &iThisRecv);
-		if ( iRes == XRT_NET_OK ) {
-			if ( pReceived ) *pReceived = iThisRecv;
-			return XRT_NET_OK;
-		} else if ( iRes == XRT_NET_AGAIN ) {
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(iInterval);
-			#else
-				usleep(iInterval * 1000);
-			#endif
-			iElapsed += iInterval;
-			if ( iTimeoutMs > 0 && iElapsed >= iTimeoutMs ) {
-				return XRT_NET_TIMEOUT;
-			}
-		} else {
-			return iRes;
-		}
-	}
-}
-/* ============================== SOCKS5 协议实现 ============================== */
-/*
-	SOCKS5 握手流程:
-	1. 客户端发送: VER(1) | NMETHODS(1) | METHODS(1-255)
-	2. 服务端响应: VER(1) | METHOD(1)
-	3. 如果需要认证 (METHOD=0x02):
-	   - 客户端发送: VER(1) | ULEN(1) | UNAME(1-255) | PLEN(1) | PASSWD(1-255)
-	   - 服务端响应: VER(1) | STATUS(1)
-	4. 客户端发送 CONNECT 请求: VER(1) | CMD(1) | RSV(1) | ATYP(1) | DST.ADDR | DST.PORT(2)
-	5. 服务端响应: VER(1) | REP(1) | RSV(1) | ATYP(1) | BND.ADDR | BND.PORT(2)
-*/
-XXAPI xnet_result xrtProxySocks5Connect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
-	const char* sUser, const char* sPass, int iTimeoutMs)
-{
-	if ( !pConn || !sTargetHost || iTargetPort == 0 ) return XRT_NET_ERROR;
-	
-	uint8 aBuf[512];
-	xnet_result iRes;
-	bool bNeedAuth = (sUser && sUser[0] && sPass && sPass[0]);
-	
-	// ========== Step 1: 发送认证方法协商 ==========
-	// VER=0x05, NMETHODS=1或2, METHODS=0x00(无认证) [0x02(用户名/密码)]
-	aBuf[0] = 0x05;  // SOCKS5
-	if ( bNeedAuth ) {
-		aBuf[1] = 0x02;  // 2种方法
-		aBuf[2] = 0x00;  // 无认证
-		aBuf[3] = 0x02;  // 用户名/密码
-		iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, 4);
-	} else {
-		aBuf[1] = 0x01;  // 1种方法
-		aBuf[2] = 0x00;  // 无认证
-		iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, 3);
-	}
-	if ( iRes != XRT_NET_OK ) return iRes;
-	
-	// ========== Step 2: 接收服务端选择的认证方法 ==========
-	iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 2, iTimeoutMs);
-	if ( iRes != XRT_NET_OK ) return iRes;
-	
-	if ( aBuf[0] != 0x05 ) return XRT_NET_ERROR;  // 版本错误
-	
-	uint8 iMethod = aBuf[1];
-	if ( iMethod == 0xFF ) return XRT_NET_ERROR;  // 无可接受的方法
-	
-	// ========== Step 3: 如果需要用户名/密码认证 ==========
-	if ( iMethod == 0x02 ) {
-		if ( !bNeedAuth ) return XRT_NET_ERROR;  // 服务端要求认证但未提供凭证
-		
-		size_t iUserLen = strlen(sUser);
-		size_t iPassLen = strlen(sPass);
-		if ( iUserLen > 255 || iPassLen > 255 ) return XRT_NET_ERROR;
-		
-		// VER=0x01, ULEN, UNAME, PLEN, PASSWD
-		size_t iPos = 0;
-		aBuf[iPos++] = 0x01;
-		aBuf[iPos++] = (uint8)iUserLen;
-		memcpy(aBuf + iPos, sUser, iUserLen);
-		iPos += iUserLen;
-		aBuf[iPos++] = (uint8)iPassLen;
-		memcpy(aBuf + iPos, sPass, iPassLen);
-		iPos += iPassLen;
-		
-		iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, iPos);
-		if ( iRes != XRT_NET_OK ) return iRes;
-		
-		// 接收认证结果
-		iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 2, iTimeoutMs);
-		if ( iRes != XRT_NET_OK ) return iRes;
-		
-		if ( aBuf[1] != 0x00 ) return XRT_NET_ERROR;  // 认证失败
-	} else if ( iMethod != 0x00 ) {
-		return XRT_NET_ERROR;  // 不支持的认证方法
-	}
-	
-	// ========== Step 4: 发送 CONNECT 请求 (域名模式) ==========
-	// VER=0x05, CMD=0x01(CONNECT), RSV=0x00, ATYP=0x03(域名), DST.ADDR, DST.PORT
-	size_t iHostLen = strlen(sTargetHost);
-	if ( iHostLen > 255 ) return XRT_NET_ERROR;
-	
-	size_t iPos = 0;
-	aBuf[iPos++] = 0x05;              // VER
-	aBuf[iPos++] = 0x01;              // CMD: CONNECT
-	aBuf[iPos++] = 0x00;              // RSV
-	aBuf[iPos++] = 0x03;              // ATYP: 域名
-	aBuf[iPos++] = (uint8)iHostLen;   // 域名长度
-	memcpy(aBuf + iPos, sTargetHost, iHostLen);
-	iPos += iHostLen;
-	aBuf[iPos++] = (uint8)(iTargetPort >> 8);    // 端口高字节
-	aBuf[iPos++] = (uint8)(iTargetPort & 0xFF);  // 端口低字节
-	
-	iRes = __xrt_proxy_send_all(pConn, (char*)aBuf, iPos);
-	if ( iRes != XRT_NET_OK ) return iRes;
-	
-	// ========== Step 5: 接收 CONNECT 响应 ==========
-	// 先读取固定头部: VER, REP, RSV, ATYP (4字节)
-	iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 4, iTimeoutMs);
-	if ( iRes != XRT_NET_OK ) return iRes;
-	
-	if ( aBuf[0] != 0x05 ) return XRT_NET_ERROR;  // 版本错误
-	if ( aBuf[1] != 0x00 ) return XRT_NET_ERROR;  // CONNECT 失败 (REP != 0)
-	
-	// 根据 ATYP 读取剩余数据
-	uint8 iAtyp = aBuf[3];
-	size_t iAddrLen = 0;
-	if ( iAtyp == 0x01 ) {
-		iAddrLen = 4;   // IPv4: 4字节
-	} else if ( iAtyp == 0x03 ) {
-		// 域名: 先读取长度
-		iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, 1, iTimeoutMs);
-		if ( iRes != XRT_NET_OK ) return iRes;
-		iAddrLen = aBuf[0];
-	} else if ( iAtyp == 0x04 ) {
-		iAddrLen = 16;  // IPv6: 16字节
-	} else {
-		return XRT_NET_ERROR;
-	}
-	
-	// 读取地址 + 端口 (2字节)
-	iRes = __xrt_proxy_recv_exact(pConn, (char*)aBuf, iAddrLen + 2, iTimeoutMs);
-	if ( iRes != XRT_NET_OK ) return iRes;
-	
-	// SOCKS5 隧道建立成功
-	return XRT_NET_OK;
-}
-/* ============================== HTTP CONNECT 协议实现 ============================== */
-/*
-	HTTP CONNECT 握手流程:
-	1. 客户端发送: CONNECT host:port HTTP/1.1\r
-Host: host:port\r
-[Proxy-Authorization: Basic base64]\r
-\r
-	2. 服务端响应: HTTP/1.x 200 ...\r\n\r\n
-*/
-XXAPI xnet_result xrtProxyHttpConnect(xnetconn* pConn, const char* sTargetHost, uint16 iTargetPort,
-	const char* sUser, const char* sPass, int iTimeoutMs)
-{
-	if ( !pConn || !sTargetHost || iTargetPort == 0 ) return XRT_NET_ERROR;
-	
-	char aBuf[1024];
-	char aResp[1024];
-	xnet_result iRes;
-	bool bNeedAuth = (sUser && sUser[0] && sPass && sPass[0]);
-	
-	// ========== Step 1: 构造 CONNECT 请求 ==========
-	size_t iLen;
-	if ( bNeedAuth ) {
-		// 构造 Basic 认证字符串: base64(user:pass)
-		char aCredentials[256];
-		snprintf(aCredentials, sizeof(aCredentials), "%s:%s", sUser, sPass);
-		
-		// Base64 编码
-		char aBase64[512];
-		size_t iCredLen = strlen(aCredentials);
-		size_t iBase64Len = 0;
-		
-		// 简单的 Base64 编码
-		static const char* sBase64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-		size_t i;
-		for ( i = 0; i + 2 < iCredLen; i += 3 ) {
-			aBase64[iBase64Len++] = sBase64Chars[(aCredentials[i] >> 2) & 0x3F];
-			aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i] & 0x03) << 4) | ((aCredentials[i+1] >> 4) & 0x0F)];
-			aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i+1] & 0x0F) << 2) | ((aCredentials[i+2] >> 6) & 0x03)];
-			aBase64[iBase64Len++] = sBase64Chars[aCredentials[i+2] & 0x3F];
-		}
-		if ( i < iCredLen ) {
-			aBase64[iBase64Len++] = sBase64Chars[(aCredentials[i] >> 2) & 0x3F];
-			if ( i + 1 < iCredLen ) {
-				aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i] & 0x03) << 4) | ((aCredentials[i+1] >> 4) & 0x0F)];
-				aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i+1] & 0x0F) << 2)];
-				aBase64[iBase64Len++] = '=';
-			} else {
-				aBase64[iBase64Len++] = sBase64Chars[((aCredentials[i] & 0x03) << 4)];
-				aBase64[iBase64Len++] = '=';
-				aBase64[iBase64Len++] = '=';
-			}
-		}
-		aBase64[iBase64Len] = '\0';
-		
-		iLen = snprintf(aBuf, sizeof(aBuf),
-			"CONNECT %s:%u HTTP/1.1\r\n"
-			"Host: %s:%u\r\n"
-			"Proxy-Authorization: Basic %s\r\n"
-			"Proxy-Connection: Keep-Alive\r\n"
-			"\r\n",
-			sTargetHost, iTargetPort,
-			sTargetHost, iTargetPort,
-			aBase64);
-	} else {
-		iLen = snprintf(aBuf, sizeof(aBuf),
-			"CONNECT %s:%u HTTP/1.1\r\n"
-			"Host: %s:%u\r\n"
-			"Proxy-Connection: Keep-Alive\r\n"
-			"\r\n",
-			sTargetHost, iTargetPort,
-			sTargetHost, iTargetPort);
-	}
-	
-	// ========== Step 2: 发送 CONNECT 请求 ==========
-	iRes = __xrt_proxy_send_all(pConn, aBuf, iLen);
-	if ( iRes != XRT_NET_OK ) return iRes;
-	
-	// ========== Step 3: 接收响应 ==========
-	// 读取 HTTP 响应直到 \r\n\r\n
-	size_t iRespLen = 0;
-	int iElapsed = 0;
-	int iInterval = 50;
-	
-	while ( iRespLen < sizeof(aResp) - 1 ) {
-		size_t iRecv = 0;
-		iRes = xrtSockRecv(pConn, aResp + iRespLen, 1, &iRecv);
-		if ( iRes == XRT_NET_OK && iRecv > 0 ) {
-			iRespLen++;
-			// 检查是否收到 \r\n\r\n
-			if ( iRespLen >= 4 &&
-				aResp[iRespLen-4] == '\r' && aResp[iRespLen-3] == '\n' &&
-				aResp[iRespLen-2] == '\r' && aResp[iRespLen-1] == '\n' ) {
-				break;
-			}
-		} else if ( iRes == XRT_NET_AGAIN ) {
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(iInterval);
-			#else
-				usleep(iInterval * 1000);
-			#endif
-			iElapsed += iInterval;
-			if ( iTimeoutMs > 0 && iElapsed >= iTimeoutMs ) {
-				return XRT_NET_TIMEOUT;
-			}
-		} else {
-			return iRes;
-		}
-	}
-	aResp[iRespLen] = '\0';
-	
-	// ========== Step 4: 解析响应 ==========
-	// 检查是否为 HTTP/1.x 200
-	if ( iRespLen < 12 ) return XRT_NET_ERROR;
-	if ( strncmp(aResp, "HTTP/1.", 7) != 0 ) return XRT_NET_ERROR;
-	
-	// 找状态码
-	char* pStatus = strchr(aResp, ' ');
-	if ( !pStatus ) return XRT_NET_ERROR;
-	pStatus++;
-	
-	int iStatusCode = atoi(pStatus);
-	if ( iStatusCode != 200 ) {
-		// 407 = Proxy Authentication Required
-		return XRT_NET_ERROR;
-	}
-	
-	// HTTP CONNECT 隧道建立成功
-	return XRT_NET_OK;
-}
-/* ============================== 通用代理连接 ============================== */
-XXAPI xnet_result xrtProxyConnect(xnetconn* pConn, const xproxyconfig* pProxy,
-	const char* sTargetHost, uint16 iTargetPort, int iTimeoutMs)
-{
-	if ( !pConn || !pProxy || !sTargetHost || iTargetPort == 0 ) return XRT_NET_ERROR;
-	
-	switch ( pProxy->iType ) {
-		case XRT_PROXY_SOCKS5:
-			return xrtProxySocks5Connect(pConn, sTargetHost, iTargetPort,
-				pProxy->sUser[0] ? pProxy->sUser : NULL,
-				pProxy->sPass[0] ? pProxy->sPass : NULL,
-				iTimeoutMs);
-		
-		case XRT_PROXY_HTTP_CONNECT:
-			return xrtProxyHttpConnect(pConn, sTargetHost, iTargetPort,
-				pProxy->sUser[0] ? pProxy->sUser : NULL,
-				pProxy->sPass[0] ? pProxy->sPass : NULL,
-				iTimeoutMs);
-		
-		default:
-			return XRT_NET_ERROR;
-	}
-}
-#endif
-#ifndef XRT_NO_NETTCP
-
-// ========================================
-// File: D:/Git/xrt/lib/nettcp.h
-// ========================================
-
-
-/*
-	NetTCP - TCP 服务器/客户端封装 [Ver2.0]
-	
-	基于 netsock.h (Socket) + netpoll.h (IO) + netloop.h (事件循环) + nettls.h (TLS)
-	
-	Ver2.0 变更:
-	  - 事件驱动架构 (IOCP/io_uring 完成端口模型)
-	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
-	  - 客户端槽位空闲栈 O(1) 分配/回收
-	  - 环形接收缓冲区
-	  - TLS 握手事件驱动化 (依赖 poller recv 事件)
-	
-	仅 IPv4，跨平台 (Windows / Linux)
-*/
-/* ============================== 内部客户端数据结构 ============================== */
-typedef struct {
-	xnetconn tConn;
-	xnetringbuf tRecvRing;         // 环形接收缓冲区
-	xtlsctx* pTlsCtx;
-	__xrt_conn_handler tHandler;   // 事件路由
-	bool bInUse;
-	bool bTlsHandshaking;         // TLS 握手中
-} __xrt_tcp_client_slot;
-/* ============================== TCP 服务器结构 ============================== */
-struct xrt_tcp_server {
-	xeventloop* pLoop;            // 事件循环 (自有或借用)
-	bool bOwnLoop;                // 是否拥有 event loop
-	xthread pThread;              // 简易模式内部线程
-	
-	xnetconn tListenConn;
-	__xrt_conn_handler tListenHandler;
-	xnetconn tAcceptConn;          // 预分配 accept 连接缓冲区
-	xnetconfig tConfig;
-	xnetevents tEvents;
-	xtlsconfig tTlsConfig;
-	bool bTlsEnabled;
-	
-	// 客户端管理 (空闲索引栈)
-	__xrt_tcp_client_slot* arrSlots;
-	int iMaxClients;
-	int iClientCount;
-	int* arrFreeStack;             // 空闲索引栈
-	int iFreeTop;                  // 栈顶 (-1=空)
-	
-	ptr pUserData;
-	volatile bool bRunning;
-};
-/* ============================== TCP 客户端结构 ============================== */
-struct xrt_tcp_client {
-	xeventloop* pLoop;            // 事件循环 (自有或借用)
-	bool bOwnLoop;
-	xthread pThread;
-	
-	xnetconn tConn;
-	__xrt_conn_handler tHandler;
-	xnetconfig tConfig;
-	xnetevents tEvents;
-	xtlsconfig tTlsConfig;
-	xtlsctx* pTlsCtx;
-	bool bTlsEnabled;
-	bool bTlsHandshaking;
-	
-	xnetaddr tServerAddr;
-	char sTargetHost[256];        // 目标主机名 (用于代理和SNI)
-	uint16 iTargetPort;           // 目标端口
-	
-	volatile bool bRunning;
-	volatile bool bConnected;
-	
-	// 同步接收缓冲区
-	xnetbuf tSyncRecvBuf;         // 同步接收缓冲区
-	volatile bool bSyncRecvReady; // 同步接收数据就绪标志
-	volatile bool bSyncRecvMode;  // 是否启用同步接收模式
-	
-	ptr pUserData;
-};
-/* ============================== TCP 服务器 - 槽位管理 ============================== */
-// 从空闲栈 pop 槽位 O(1)
-static int __xrt_tcp_server_alloc_slot(xtcpserver* pServer)
-{
-	if ( pServer->iFreeTop < 0 ) return -1;
-	int iSlot = pServer->arrFreeStack[pServer->iFreeTop];
-	pServer->iFreeTop--;
-	return iSlot;
-}
-// 归还槽位到空闲栈 O(1)
-static void __xrt_tcp_server_free_slot(xtcpserver* pServer, int iSlot)
-{
-	pServer->iFreeTop++;
-	pServer->arrFreeStack[pServer->iFreeTop] = iSlot;
-}
-/* ============================== TCP 服务器 - 事件处理 ============================== */
-// Forward declarations
-static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
-static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen);
-static void __xrt_tcp_server_dispatch_tls_data(xtcpserver* pServer, __xrt_tcp_client_slot* pSlot);
-static void __xrt_tcp_client_dispatch_tls_data(xtcpclient* pClient);
-static void __xrt_tcp_server_dispatch_tls_data(xtcpserver* pServer, __xrt_tcp_client_slot* pSlot)
-{
-	char aBuf[8192];
-	size_t iDecrypted = 0;
-	if ( !pServer || !pSlot || !pSlot->pTlsCtx ) return;
-	while ( xrtTlsRead(pSlot->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
-		if ( pServer->tEvents.OnRecv ) {
-			pServer->tEvents.OnRecv(pServer, &pSlot->tConn, aBuf, iDecrypted);
-		}
-		iDecrypted = 0;
-	}
-}
-static void __xrt_tcp_client_dispatch_tls_data(xtcpclient* pClient)
-{
-	char aBuf[8192];
-	size_t iDecrypted = 0;
-	if ( !pClient || !pClient->pTlsCtx ) return;
-	while ( xrtTlsRead(pClient->pTlsCtx, aBuf, sizeof(aBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
-		if ( pClient->bSyncRecvMode ) {
-			xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iDecrypted);
-			pClient->bSyncRecvReady = true;
-		}
-		if ( pClient->tEvents.OnRecv ) {
-			pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iDecrypted);
-		}
-		iDecrypted = 0;
-	}
-}
-// 客户端槽位 事件处理 (READ/WRITE/CLOSE)
-static void __xrt_tcp_client_slot_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
-{
-	xtcpserver* pServer = (xtcpserver*)pOwner;
-	int iSlot = pConn->iId;
-	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
-	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iSlot];
-	if ( !pSlot->bInUse ) return;
-	
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
-	
-	if ( iEvent == XRT_POLL_READ ) {
-		// TLS 握手进行中
-		if ( pSlot->bTlsHandshaking && pSlot->pTlsCtx ) {
-			// 将 poller 收到的数据送入 TLS 接收缓冲区
-			xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, pData, iLen);
-			xnet_result iRes = xrtTlsHandshake(pSlot->pTlsCtx, &pSlot->tConn);
-			bool bTlsReady = xrtTlsIsReady(pSlot->pTlsCtx);
-			
-			// 将 TLS 输出通过 poller 发送
-			if ( pSlot->pTlsCtx->tSendBuf.iSize > 0 ) {
-				xrtPollPostSend(pPoller, &pSlot->tConn,
-					pSlot->pTlsCtx->tSendBuf.pData, pSlot->pTlsCtx->tSendBuf.iSize);
-				xrtNetBufConsume(&pSlot->pTlsCtx->tSendBuf, pSlot->pTlsCtx->tSendBuf.iSize);
-			}
-			
-			if ( iRes == XRT_NET_OK || (iRes == XRT_NET_AGAIN && bTlsReady) ) {
-				// 握手完成
-				pSlot->bTlsHandshaking = false;
-				pSlot->tConn.bTlsEnabled = true;
-				pSlot->tConn.pTlsCtx = pSlot->pTlsCtx;
-				__xrt_tcp_server_dispatch_tls_data(pServer, pSlot);
-			} else if ( iRes == XRT_NET_ERROR ) {
-				// 握手失败，关闭连接
-				goto close_slot;
-			}
-			// XRT_NET_AGAIN: 等待更多数据
-			xrtPollPostRecv(pPoller, &pSlot->tConn);
-			return;
-		}
-		
-		// 正常数据
-		if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
-			// TLS: 将原始数据送入 TLS 解密
-			xrtNetBufAppend(&pSlot->pTlsCtx->tRecvBuf, pData, iLen);
-			__xrt_tcp_server_dispatch_tls_data(pServer, pSlot);
-		} else {
-			// 明文数据
-			if ( pServer->tEvents.OnRecv ) {
-				pServer->tEvents.OnRecv(pServer, &pSlot->tConn, pData, iLen);
-			}
-		}
-		
-		// 投递下一次 recv
-		xrtPollPostRecv(pPoller, &pSlot->tConn);
-		return;
-	}
-	
-	if ( iEvent == XRT_POLL_WRITE ) {
-		if ( pServer->tEvents.OnSend ) {
-			pServer->tEvents.OnSend(pServer, &pSlot->tConn, iLen);
-		}
-		return;
-	}
-	
-	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
-close_slot:
-		if ( pServer->tEvents.OnClose ) {
-			pServer->tEvents.OnClose(pServer, &pSlot->tConn);
-		}
-		
-		xrtPollRemove(pPoller, &pSlot->tConn);
-		
-		if ( pSlot->pTlsCtx ) {
-			xrtTlsDestroy(pSlot->pTlsCtx);
-			pSlot->pTlsCtx = NULL;
-		}
-		xrtSockClose(&pSlot->tConn);
-		xrtNetRingBufFree(&pSlot->tRecvRing);
-		pSlot->bInUse = false;
-		pSlot->bTlsHandshaking = false;
-		pServer->iClientCount--;
-		__xrt_tcp_server_free_slot(pServer, iSlot);
-		return;
-	}
-}
-// 服务器监听 事件处理 (ACCEPT)
-static void __xrt_tcp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
-{
-	xtcpserver* pServer = (xtcpserver*)pOwner;
-	
-	if ( iEvent != XRT_POLL_ACCEPT ) return;
-	
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
-	
-	// 分配槽位
-	int iSlot = __xrt_tcp_server_alloc_slot(pServer);
-	if ( iSlot < 0 ) {
-		// 无空闲槽位，拒绝连接
-		xrtSockClose(pConn);
-		// 继续投递 accept
-		memset(&pServer->tAcceptConn, 0, sizeof(xnetconn));
-		xrtPollPostAccept(pPoller, &pServer->tListenConn, &pServer->tAcceptConn);
-		return;
-	}
-	
-	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iSlot];
-	
-	// 拷贝 accept 连接信息
-	pSlot->tConn = *pConn;
-	pSlot->tConn.iId = iSlot;
-	pSlot->tConn.iType = 0;  // TCP
-	pSlot->bInUse = true;
-	pSlot->bTlsHandshaking = false;
-	pSlot->pTlsCtx = NULL;
-	
-	// 设置事件处理器
-	pSlot->tHandler.pfnHandler = __xrt_tcp_client_slot_on_event;
-	pSlot->tHandler.pOwner = pServer;
-	pSlot->tConn.pUserData = &pSlot->tHandler;
-	
-	// 初始化环形缓冲区
-	size_t iRecvSize = pServer->tConfig.iRecvBufSize > 0 ? pServer->tConfig.iRecvBufSize : 8192;
-	xrtNetRingBufInit(&pSlot->tRecvRing, iRecvSize);
-	
-	// 设置非阻塞
-	xrtSockSetNonBlock(&pSlot->tConn);
-	
-	pServer->iClientCount++;
-	
-	// 注册到 poller
-	xrtPollAdd(pPoller, &pSlot->tConn, XRT_POLL_READ);
-	
-	// Accept后设置TCP_NODELAY（如果配置启用）
-	if ( pServer->tConfig.bNoDelay ) {
-		xrtSockSetNoDelay(&pSlot->tConn);
-	}
-	
-	// TLS 握手 (如果启用)
-	if ( pServer->bTlsEnabled ) {
-		pSlot->pTlsCtx = xrtTlsCreate(&pServer->tTlsConfig, true);
-		if ( pSlot->pTlsCtx ) {
-			pSlot->bTlsHandshaking = true;
-		}
-	}
-	
-	// 触发 OnAccept 回调
-	if ( pServer->tEvents.OnAccept ) {
-		pServer->tEvents.OnAccept(pServer, &pSlot->tConn);
-	}
-	
-	// 投递 recv
-	xrtPollPostRecv(pPoller, &pSlot->tConn);
-	
-	// 投递下一个 accept
-	memset(&pServer->tAcceptConn, 0, sizeof(xnetconn));
-	xrtPollPostAccept(pPoller, &pServer->tListenConn, &pServer->tAcceptConn);
-}
-// 服务器内部线程 (简易模式)
-static uint32 __xrt_tcp_server_thread(ptr pParam)
-{
-	xtcpserver* pServer = (xtcpserver*)pParam;
-	xrtEventLoopRun(pServer->pLoop);
-	return 0;
-}
-/* ============================== TCP 服务器 API ============================== */
-// 内部初始化 (Ex 和普通版共用)
-static xtcpserver* __xrt_tcp_server_init(xeventloop* pLoop, const char* sIP, uint16 iPort,
-	const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	xtcpserver* pServer = (xtcpserver*)xrtCalloc(1, sizeof(xtcpserver));
-	if ( !pServer ) return NULL;
-	
-	pServer->pLoop = pLoop;
-	
-	// 配置
-	if ( pConfig ) {
-		pServer->tConfig = *pConfig;
-	} else {
-		pServer->tConfig.iRecvBufSize = 8192;
-		pServer->tConfig.iSendBufSize = 8192;
-		pServer->tConfig.iMaxClients = 256;
-		pServer->tConfig.iPollTimeoutMs = 10;
-	}
-	
-	if ( pEvents ) {
-		pServer->tEvents = *pEvents;
-	}
-	
-	pServer->iMaxClients = pServer->tConfig.iMaxClients > 0 ? pServer->tConfig.iMaxClients : 256;
-	
-	// 分配客户端槽位数组 (连续内存)
-	pServer->arrSlots = (__xrt_tcp_client_slot*)xrtCalloc(pServer->iMaxClients, sizeof(__xrt_tcp_client_slot));
-	if ( !pServer->arrSlots ) {
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	// 分配空闲索引栈
-	pServer->arrFreeStack = (int*)xrtMalloc(pServer->iMaxClients * sizeof(int));
-	if ( !pServer->arrFreeStack ) {
-		xrtFree(pServer->arrSlots);
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	// 初始化空闲栈 (倒序压入, 使得 slot 0 先被分配)
-	pServer->iFreeTop = pServer->iMaxClients - 1;
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		pServer->arrFreeStack[i] = pServer->iMaxClients - 1 - i;
-		pServer->arrSlots[i].bInUse = false;
-		pServer->arrSlots[i].tConn.iId = i;
-	}
-	
-	// 创建监听 socket
-	memset(&pServer->tListenConn, 0, sizeof(xnetconn));
-	if ( xrtSockCreate(&pServer->tListenConn, 0) != XRT_NET_OK ) {
-		goto error_cleanup;
-	}
-	
-	xrtSockSetReuseAddr(&pServer->tListenConn);
-	xrtSockSetNonBlock(&pServer->tListenConn);
-	
-	xnetaddr tAddr;
-	xrtNetAddrInit(&tAddr, sIP, iPort);
-	
-	if ( xrtSockBind(&pServer->tListenConn, &tAddr) != XRT_NET_OK ) {
-		goto error_cleanup;
-	}
-	
-	if ( xrtSockListen(&pServer->tListenConn, SOMAXCONN) != XRT_NET_OK ) {
-		goto error_cleanup;
-	}
-	
-	// 设置监听 handler
-	pServer->tListenHandler.pfnHandler = __xrt_tcp_server_on_event;
-	pServer->tListenHandler.pOwner = pServer;
-	pServer->tListenConn.pUserData = &pServer->tListenHandler;
-	
-	// 注册监听 socket 到 poller
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
-	xrtPollAdd(pPoller, &pServer->tListenConn, XRT_POLL_ACCEPT);
-	
-	// 投递第一个异步 accept
-	memset(&pServer->tAcceptConn, 0, sizeof(xnetconn));
-	xrtPollPostAccept(pPoller, &pServer->tListenConn, &pServer->tAcceptConn);
-	
-	return pServer;
-error_cleanup:
-	xrtSockClose(&pServer->tListenConn);
-	xrtFree(pServer->arrFreeStack);
-	xrtFree(pServer->arrSlots);
-	xrtFree(pServer);
-	return NULL;
-}
-// 高级版: 绑定共享事件循环
-XXAPI xtcpserver* xrtTcpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
-	const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	if ( !pLoop ) return NULL;
-	
-	xtcpserver* pServer = __xrt_tcp_server_init(pLoop, sIP, iPort, pConfig, pEvents);
-	if ( !pServer ) return NULL;
-	
-	pServer->bOwnLoop = false;
-	return pServer;
-}
-// 简易版: 内部创建事件循环 + 线程
-XXAPI xtcpserver* xrtTcpServerCreate(const char* sIP, uint16 iPort,
-	const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	xeventloop* pLoop = xrtEventLoopCreate();
-	if ( !pLoop ) return NULL;
-	
-	xtcpserver* pServer = __xrt_tcp_server_init(pLoop, sIP, iPort, pConfig, pEvents);
-	if ( !pServer ) {
-		xrtEventLoopDestroy(pLoop);
-		return NULL;
-	}
-	
-	pServer->bOwnLoop = true;
-	return pServer;
-}
-XXAPI void xrtTcpServerDestroy(xtcpserver* pServer)
-{
-	if ( !pServer ) return;
-	
-	xrtTcpServerStop(pServer);
-	
-	// 关闭所有客户端
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[i];
-		if ( pSlot->bInUse ) {
-			if ( pSlot->pTlsCtx ) {
-				xrtTlsDestroy(pSlot->pTlsCtx);
-				pSlot->pTlsCtx = NULL;
-			}
-			xrtSockClose(&pSlot->tConn);
-			xrtNetRingBufFree(&pSlot->tRecvRing);
-		}
-	}
-	
-	// 关闭监听 socket
-	xrtSockClose(&pServer->tListenConn);
-	
-	// 释放资源
-	xrtFree(pServer->arrFreeStack);
-	xrtFree(pServer->arrSlots);
-	
-	if ( pServer->bOwnLoop && pServer->pLoop ) {
-		xrtEventLoopDestroy(pServer->pLoop);
-	}
-	
-	xrtFree(pServer);
-}
-XXAPI xnet_result xrtTcpServerStart(xtcpserver* pServer)
-{
-	if ( !pServer ) return XRT_NET_ERROR;
-	if ( pServer->bRunning ) return XRT_NET_OK;
-	
-	pServer->bRunning = true;
-	
-	// 简易模式: 启动内部线程驱动事件循环
-	if ( pServer->bOwnLoop ) {
-		pServer->pThread = xrtThreadCreate((ptr)__xrt_tcp_server_thread, pServer, 0);
-		if ( !pServer->pThread ) {
-			pServer->bRunning = false;
-			return XRT_NET_ERROR;
-		}
-	}
-	// 高级模式: 事件循环由用户的 EventLoopRun 驱动
-	
-	return XRT_NET_OK;
-}
-XXAPI void xrtTcpServerStop(xtcpserver* pServer)
-{
-	if ( !pServer || !pServer->bRunning ) return;
-	
-	pServer->bRunning = false;
-	
-	if ( pServer->bOwnLoop && pServer->pLoop ) {
-		xrtEventLoopStop(pServer->pLoop);
-	}
-	
-	if ( pServer->pThread ) {
-		xrtThreadWait(pServer->pThread);
-		xrtThreadDestroy(pServer->pThread);
-		pServer->pThread = NULL;
-	}
-	
-	// 关闭所有客户端连接
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[i];
-		if ( pSlot->bInUse ) {
-			// Stop前先PollRemove
-			xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
-			xrtPollRemove(pPoller, &pSlot->tConn);
-			
-			// Graceful Shutdown
-			#if defined(_WIN32) || defined(_WIN64)
-				shutdown(pSlot->tConn.hSocket, SD_SEND);
-			#else
-				shutdown(pSlot->tConn.hSocket, SHUT_WR);
-			#endif
-			
-			if ( pServer->tEvents.OnClose ) {
-				pServer->tEvents.OnClose(pServer, &pSlot->tConn);
-			}
-			if ( pSlot->pTlsCtx ) {
-				xrtTlsDestroy(pSlot->pTlsCtx);
-				pSlot->pTlsCtx = NULL;
-			}
-			xrtSockClose(&pSlot->tConn);
-			xrtNetRingBufFree(&pSlot->tRecvRing);
-			pSlot->bInUse = false;
-		}
-	}
-	pServer->iClientCount = 0;
-	
-	// 重建空闲栈
-	pServer->iFreeTop = pServer->iMaxClients - 1;
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		pServer->arrFreeStack[i] = pServer->iMaxClients - 1 - i;
-	}
-}
-XXAPI xnet_result xrtTcpServerSend(xtcpserver* pServer, int iClientId,
-	const char* pData, size_t iLen)
-{
-	if ( !pServer || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return XRT_NET_ERROR;
-	
-	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iClientId];
-	if ( !pSlot->bInUse ) return XRT_NET_ERROR;
-	
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
-	
-	if ( pSlot->tConn.bTlsEnabled && pSlot->pTlsCtx ) {
-		size_t iWritten = 0;
-		xnet_result iRes = xrtTlsWrite(pSlot->pTlsCtx, pData, iLen, &iWritten);
-		if ( iRes != XRT_NET_OK ) return iRes;
-		// 通过 poller 发送加密数据
-		if ( pSlot->pTlsCtx->tSendBuf.iSize > 0 ) {
-			xrtPollPostSend(pPoller, &pSlot->tConn,
-				pSlot->pTlsCtx->tSendBuf.pData, pSlot->pTlsCtx->tSendBuf.iSize);
-			xrtNetBufConsume(&pSlot->pTlsCtx->tSendBuf, pSlot->pTlsCtx->tSendBuf.iSize);
-		}
-		return XRT_NET_OK;
-	} else {
-		return xrtPollPostSend(pPoller, &pSlot->tConn, pData, iLen);
-	}
-}
-XXAPI void xrtTcpServerDisconnect(xtcpserver* pServer, int iClientId)
-{
-	if ( !pServer ) return;
-	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
-	
-	__xrt_tcp_client_slot* pSlot = &pServer->arrSlots[iClientId];
-	if ( !pSlot->bInUse ) return;
-	
-	if ( pServer->tEvents.OnClose ) {
-		pServer->tEvents.OnClose(pServer, &pSlot->tConn);
-	}
-	
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
-	xrtPollRemove(pPoller, &pSlot->tConn);
-	
-	if ( pSlot->pTlsCtx ) {
-		xrtTlsClose(pSlot->pTlsCtx);
-		xrtTlsDestroy(pSlot->pTlsCtx);
-		pSlot->pTlsCtx = NULL;
-	}
-	
-	xrtSockClose(&pSlot->tConn);
-	xrtNetRingBufFree(&pSlot->tRecvRing);
-	pSlot->bInUse = false;
-	pSlot->bTlsHandshaking = false;
-	pServer->iClientCount--;
-	__xrt_tcp_server_free_slot(pServer, iClientId);
-}
-XXAPI xnet_result xrtTcpServerEnableTLS(xtcpserver* pServer, const xtlsconfig* pConfig)
-{
-	if ( !pServer || !pConfig ) return XRT_NET_ERROR;
-	pServer->tTlsConfig = *pConfig;
-	pServer->bTlsEnabled = true;
-	return XRT_NET_OK;
-}
-XXAPI int xrtTcpServerGetClientCount(xtcpserver* pServer)
-{
-	return pServer ? pServer->iClientCount : 0;
-}
-XXAPI void xrtTcpServerSetUserData(xtcpserver* pServer, ptr pData)
-{
-	if ( pServer ) pServer->pUserData = pData;
-}
-XXAPI ptr xrtTcpServerGetUserData(xtcpserver* pServer)
-{
-	return pServer ? pServer->pUserData : NULL;
-}
-/* ============================== TCP 客户端 - 事件处理 ============================== */
-// 客户端 事件处理 (READ/WRITE/CLOSE)
-static void __xrt_tcp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
-{
-	xtcpclient* pClient = (xtcpclient*)pOwner;
-	if ( !pClient->bConnected && !pClient->bTlsHandshaking ) return;
-	
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
-	
-	if ( iEvent == XRT_POLL_READ ) {
-		// TLS 握手进行中
-		if ( pClient->bTlsHandshaking && pClient->pTlsCtx ) {
-			xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, pData, iLen);
-			xnet_result iRes = xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn);
-			bool bTlsReady = xrtTlsIsReady(pClient->pTlsCtx);
-			
-			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
-				xrtPollPostSend(pPoller, &pClient->tConn,
-					pClient->pTlsCtx->tSendBuf.pData, pClient->pTlsCtx->tSendBuf.iSize);
-				xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, pClient->pTlsCtx->tSendBuf.iSize);
-			}
-			
-			if ( iRes == XRT_NET_OK || (iRes == XRT_NET_AGAIN && bTlsReady) ) {
-				pClient->bTlsHandshaking = false;
-				pClient->tConn.bTlsEnabled = true;
-				pClient->tConn.pTlsCtx = pClient->pTlsCtx;
-				pClient->bConnected = true;
-				__xrt_tcp_client_dispatch_tls_data(pClient);
-				if ( pClient->tEvents.OnConnect ) {
-					pClient->tEvents.OnConnect(pClient, &pClient->tConn, true);
-				}
-			} else if ( iRes == XRT_NET_ERROR ) {
-				if ( pClient->tEvents.OnConnect ) {
-					pClient->tEvents.OnConnect(pClient, &pClient->tConn, false);
-				}
-				goto close_client;
-			}
-			xrtPollPostRecv(pPoller, &pClient->tConn);
-			return;
-		}
-		
-		// 正常数据
-		if ( pClient->tConn.bTlsEnabled && pClient->pTlsCtx ) {
-			xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, pData, iLen);
-			__xrt_tcp_client_dispatch_tls_data(pClient);
-		} else {
-			// 同步模式：写入同步缓冲区
-			if ( pClient->bSyncRecvMode ) {
-				xrtNetBufAppend(&pClient->tSyncRecvBuf, pData, iLen);
-				pClient->bSyncRecvReady = true;
-			}
-			// 异步模式：调用用户回调
-			if ( pClient->tEvents.OnRecv ) {
-				pClient->tEvents.OnRecv(pClient, &pClient->tConn, pData, iLen);
-			}
-		}
-		
-		xrtPollPostRecv(pPoller, &pClient->tConn);
-		return;
-	}
-	
-	if ( iEvent == XRT_POLL_WRITE ) {
-		if ( pClient->tEvents.OnSend ) {
-			pClient->tEvents.OnSend(pClient, &pClient->tConn, iLen);
-		}
-		return;
-	}
-	
-	if ( iEvent == XRT_POLL_CLOSE || iEvent == XRT_POLL_ERROR ) {
-close_client:
-		;  // label 后需要语句
-		// 关闭前尝试读取剩余数据（优雅关闭）
-		int iTotalRead = 0;
-		if ( iEvent == XRT_POLL_CLOSE ) {
-			char aBuf[4096];
-			int iRemaining;
-			while ( (iRemaining = recv(pClient->tConn.hSocket, aBuf, sizeof(aBuf), 0)) > 0 ) {
-				iTotalRead += iRemaining;
-				if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
-					// TLS: 先放入 TLS 接收缓冲区，再解密读取
-					xrtNetBufAppend(&pClient->pTlsCtx->tRecvBuf, aBuf, iRemaining);
-					size_t iDecrypted = 0;
-					char aTlsBuf[4096];
-					while ( xrtTlsRead(pClient->pTlsCtx, aTlsBuf, sizeof(aTlsBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
-						if ( pClient->bSyncRecvMode ) {
-							xrtNetBufAppend(&pClient->tSyncRecvBuf, aTlsBuf, iDecrypted);
-							pClient->bSyncRecvReady = true;
-						}
-						if ( pClient->tEvents.OnRecv ) {
-							pClient->tEvents.OnRecv(pClient, &pClient->tConn, aTlsBuf, iDecrypted);
-						}
-						iDecrypted = 0;
-					}
-				} else {
-					// 非 TLS: 直接处理
-					if ( pClient->bSyncRecvMode ) {
-						xrtNetBufAppend(&pClient->tSyncRecvBuf, aBuf, iRemaining);
-						pClient->bSyncRecvReady = true;
-					}
-					if ( pClient->tEvents.OnRecv ) {
-						pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iRemaining);
-					}
-				}
-			}
-			
-			// 即使 recv() 没有返回数据，也要尝试解密 TLS 缓冲区中的剩余数据
-			if ( pClient->bTlsEnabled && pClient->pTlsCtx && pClient->pTlsCtx->tRecvBuf.iSize > 0 ) {
-				size_t iDecrypted = 0;
-				char aTlsBuf[4096];
-				while ( xrtTlsRead(pClient->pTlsCtx, aTlsBuf, sizeof(aTlsBuf), &iDecrypted) == XRT_NET_OK && iDecrypted > 0 ) {
-					if ( pClient->bSyncRecvMode ) {
-						xrtNetBufAppend(&pClient->tSyncRecvBuf, aTlsBuf, iDecrypted);
-						pClient->bSyncRecvReady = true;
-					}
-					if ( pClient->tEvents.OnRecv ) {
-						pClient->tEvents.OnRecv(pClient, &pClient->tConn, aTlsBuf, iDecrypted);
-					}
-					iDecrypted = 0;
-				}
-			}
-		}
-		
-		pClient->bConnected = false;
-		pClient->bTlsHandshaking = false;
-		if ( pClient->tEvents.OnClose ) {
-			pClient->tEvents.OnClose(pClient, &pClient->tConn);
-		}
-		return;
-	}
-}
-// 客户端内部线程 (简易模式)
-static uint32 __xrt_tcp_client_thread(ptr pParam)
-{
-	xtcpclient* pClient = (xtcpclient*)pParam;
-	xrtEventLoopRun(pClient->pLoop);
-	return 0;
-}
-/* ============================== TCP 客户端 API ============================== */
-// 高级版: 绑定共享事件循环
-XXAPI xtcpclient* xrtTcpClientCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
-	const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	if ( !pLoop ) return NULL;
-	
-	xtcpclient* pClient = (xtcpclient*)xrtCalloc(1, sizeof(xtcpclient));
-	if ( !pClient ) return NULL;
-	
-	pClient->pLoop = pLoop;
-	pClient->bOwnLoop = false;
-	
-	if ( pConfig ) {
-		pClient->tConfig = *pConfig;
-	} else {
-		pClient->tConfig.iRecvBufSize = 8192;
-		pClient->tConfig.iSendBufSize = 8192;
-		pClient->tConfig.iMaxClients = 0;
-		pClient->tConfig.iPollTimeoutMs = 10;
-	}
-	
-	if ( pEvents ) {
-		pClient->tEvents = *pEvents;
-	}
-	
-	// 保存目标主机名和端口 (用于代理连接和SNI)
-	strncpy(pClient->sTargetHost, sIP, sizeof(pClient->sTargetHost) - 1);
-	pClient->sTargetHost[sizeof(pClient->sTargetHost) - 1] = '\0';
-	pClient->iTargetPort = iPort;
-	
-	xrtNetAddrInit(&pClient->tServerAddr, sIP, iPort);
-	
-	return pClient;
-}
-// 简易版: 内部创建事件循环 + 线程
-XXAPI xtcpclient* xrtTcpClientCreate(const char* sIP, uint16 iPort,
-	const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	xeventloop* pLoop = xrtEventLoopCreate();
-	if ( !pLoop ) return NULL;
-	
-	xtcpclient* pClient = xrtTcpClientCreateEx(pLoop, sIP, iPort, pConfig, pEvents);
-	if ( !pClient ) {
-		xrtEventLoopDestroy(pLoop);
-		return NULL;
-	}
-	
-	pClient->bOwnLoop = true;
-	return pClient;
-}
-XXAPI void xrtTcpClientDestroy(xtcpclient* pClient)
-{
-	if ( !pClient ) return;
-	
-	xrtTcpClientDisconnect(pClient);
-	
-	if ( pClient->bOwnLoop && pClient->pLoop ) {
-		xrtEventLoopDestroy(pClient->pLoop);
-		pClient->pLoop = NULL;
-	}
-	
-	xrtFree(pClient);
-}
-XXAPI xnet_result xrtTcpClientConnect(xtcpclient* pClient)
-{
-	if ( !pClient ) return XRT_NET_ERROR;
-	if ( pClient->bConnected ) return XRT_NET_OK;
-	
-	// 创建 socket
-	memset(&pClient->tConn, 0, sizeof(xnetconn));
-	if ( xrtSockCreate(&pClient->tConn, 0) != XRT_NET_OK ) {
-		return XRT_NET_ERROR;
-	}
-	
-	int iTimeoutMs = pClient->tConfig.iConnectTimeoutMs > 0 ? 
-		pClient->tConfig.iConnectTimeoutMs : 5000;
-	
-	// ========== 代理连接处理 ==========
-	xnetaddr tConnectAddr;
-	bool bUseProxy = (pClient->tConfig.tProxy.iType > 0 && pClient->tConfig.tProxy.sHost[0]);
-	
-	if ( bUseProxy ) {
-		// 使用代理：先解析代理服务器地址
-		xnet_result iDnsRes = xrtNetResolve(pClient->tConfig.tProxy.sHost, &tConnectAddr);
-		if ( iDnsRes != XRT_NET_OK ) {
-			xrtSockClose(&pClient->tConn);
-			return XRT_NET_ERROR;
-		}
-		tConnectAddr.iPort = pClient->tConfig.tProxy.iPort;
-	} else {
-		// 直连：检查 tServerAddr 是否有效，无效则尝试 DNS 解析
-		if ( pClient->tServerAddr.iAddr == INADDR_NONE || pClient->tServerAddr.iAddr == 0 ) {
-			// tServerAddr 无效（可能传入的是域名），尝试 DNS 解析
-			xnet_result iDnsRes = xrtNetResolve(pClient->sTargetHost, &tConnectAddr);
-			if ( iDnsRes != XRT_NET_OK ) {
-				xrtSockClose(&pClient->tConn);
-				return XRT_NET_ERROR;
-			}
-			tConnectAddr.iPort = pClient->iTargetPort;
-		} else {
-			// tServerAddr 有效，直接使用
-			tConnectAddr = pClient->tServerAddr;
-		}
-	}
-	
-	// 阻塞连接 (到代理或目标)
-	xnet_result iRes = xrtSockConnect(&pClient->tConn, &tConnectAddr);
-	if ( iRes != XRT_NET_OK && iRes != XRT_NET_AGAIN ) {
-		xrtSockClose(&pClient->tConn);
-		return XRT_NET_ERROR;
-	}
-	
-	// 非阻塞 connect 等待
-	if ( iRes == XRT_NET_AGAIN ) {
-		fd_set tWriteSet;
-		FD_ZERO(&tWriteSet);
-		FD_SET(pClient->tConn.hSocket, &tWriteSet);
-		struct timeval tTimeout;
-		tTimeout.tv_sec = iTimeoutMs / 1000;
-		tTimeout.tv_usec = (iTimeoutMs % 1000) * 1000;
-		int iSelRes = select((int)pClient->tConn.hSocket + 1, NULL, &tWriteSet, NULL, &tTimeout);
-		if ( iSelRes <= 0 ) {
-			xrtSockClose(&pClient->tConn);
-			return XRT_NET_TIMEOUT;
-		}
-	}
-	
-	// ========== 代理握手 ==========
-	if ( bUseProxy ) {
-		// 使用原始目标主机名和端口进行代理握手
-		xnet_result iProxyRes = xrtProxyConnect(&pClient->tConn, &pClient->tConfig.tProxy,
-			pClient->sTargetHost, pClient->iTargetPort, iTimeoutMs);
-		if ( iProxyRes != XRT_NET_OK ) {
-			xrtSockClose(&pClient->tConn);
-			return iProxyRes;
-		}
-	}
-	
-	// 设置非阻塞
-	xrtSockSetNonBlock(&pClient->tConn);
-	
-	// TLS 握手
-	if ( pClient->bTlsEnabled ) {
-		pClient->pTlsCtx = xrtTlsCreate(&pClient->tTlsConfig, false);
-		if ( !pClient->pTlsCtx ) {
-			xrtSockClose(&pClient->tConn);
-			return XRT_NET_ERROR;
-		}
-		
-		if ( !pClient->bOwnLoop ) {
-			// Ex 模式: 事件驱动 TLS 握手 (非阻塞)
-			// 调用初始握手生成 ClientHello
-			xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn);
-			
-			// 设置事件处理器
-			pClient->tHandler.pfnHandler = __xrt_tcp_client_on_event;
-			pClient->tHandler.pOwner = pClient;
-			pClient->tConn.pUserData = &pClient->tHandler;
-			
-			// 注册到 poller
-			xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
-			xrtPollAdd(pPoller, &pClient->tConn, XRT_POLL_READ);
-			
-			// 通过 poller 发送 ClientHello
-			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
-				xrtPollPostSend(pPoller, &pClient->tConn,
-					pClient->pTlsCtx->tSendBuf.pData, pClient->pTlsCtx->tSendBuf.iSize);
-				xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, pClient->pTlsCtx->tSendBuf.iSize);
-			}
-			
-			// 投递 recv 等待 ServerHello
-			xrtPollPostRecv(pPoller, &pClient->tConn);
-			
-			pClient->bTlsHandshaking = true;
-			pClient->bRunning = true;
-			return XRT_NET_AGAIN;  // 握手进行中，通过 OnConnect 通知完成
-		}
-		
-		// Simple 模式: 同步 TLS 握手 (select 等待)
-		xnet_result iTlsRes;
-		int iRetries = 0;
-		int iMaxRetries = (pClient->tConfig.iConnectTimeoutMs > 0 ? 
-			pClient->tConfig.iConnectTimeoutMs : 5000) / 100;  // 100ms per retry
-		while ( (iTlsRes = xrtTlsHandshake(pClient->pTlsCtx, &pClient->tConn)) == XRT_NET_AGAIN ) {
-			// 发送 TLS 输出
-			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
-				size_t iSent = 0;
-				xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
-					pClient->pTlsCtx->tSendBuf.iSize, &iSent);
-				if ( iSent > 0 ) xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, iSent);
-			}
-			
-			// select 等待 IO 就绪
-			fd_set tReadSet, tWriteSet;
-			FD_ZERO(&tReadSet); FD_ZERO(&tWriteSet);
-			FD_SET(pClient->tConn.hSocket, &tReadSet);
-			if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
-				FD_SET(pClient->tConn.hSocket, &tWriteSet);
-			}
-			struct timeval tSelTimeout = {0, 100000};  // 100ms
-			select((int)pClient->tConn.hSocket + 1, &tReadSet, 
-				pClient->pTlsCtx->tSendBuf.iSize > 0 ? &tWriteSet : NULL, NULL, &tSelTimeout);
-			
-			iRetries++;
-			if ( iRetries > iMaxRetries ) {
-				xrtTlsDestroy(pClient->pTlsCtx);
-				pClient->pTlsCtx = NULL;
-				xrtSockClose(&pClient->tConn);
-				return XRT_NET_TIMEOUT;
-			}
-		}
-		
-		if ( iTlsRes != XRT_NET_OK ) {
-			xrtTlsDestroy(pClient->pTlsCtx);
-			pClient->pTlsCtx = NULL;
-			xrtSockClose(&pClient->tConn);
-			return XRT_NET_ERROR;
-		}
-		
-		pClient->tConn.bTlsEnabled = true;
-		pClient->tConn.pTlsCtx = pClient->pTlsCtx;
-	}
-	
-	pClient->bConnected = true;
-	pClient->bRunning = true;
-	
-	// 设置事件处理器
-	pClient->tHandler.pfnHandler = __xrt_tcp_client_on_event;
-	pClient->tHandler.pOwner = pClient;
-	pClient->tConn.pUserData = &pClient->tHandler;
-	
-	// 注册到 poller
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
-	xrtPollAdd(pPoller, &pClient->tConn, XRT_POLL_READ);
-	xrtPollPostRecv(pPoller, &pClient->tConn);
-	
-	// 触发连接回调
-	if ( pClient->tEvents.OnConnect ) {
-		pClient->tEvents.OnConnect(pClient, &pClient->tConn, true);
-	}
-	
-	// 简易模式: 启动内部线程
-	if ( pClient->bOwnLoop ) {
-		pClient->pThread = xrtThreadCreate((ptr)__xrt_tcp_client_thread, pClient, 0);
-		if ( !pClient->pThread ) {
-			pClient->bRunning = false;
-			pClient->bConnected = false;
-			xrtSockClose(&pClient->tConn);
-			return XRT_NET_ERROR;
-		}
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI void xrtTcpClientDisconnect(xtcpclient* pClient)
-{
-	if ( !pClient || !pClient->bRunning ) return;
-	
-	pClient->bRunning = false;
-	pClient->bConnected = false;
-	
-	if ( pClient->bOwnLoop && pClient->pLoop ) {
-		xrtEventLoopStop(pClient->pLoop);
-	}
-	
-	if ( pClient->pThread ) {
-		xrtThreadWait(pClient->pThread);
-		xrtThreadDestroy(pClient->pThread);
-		pClient->pThread = NULL;
-	}
-	
-	if ( pClient->pTlsCtx ) {
-		xrtTlsClose(pClient->pTlsCtx);
-		if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
-			size_t iSent = 0;
-			xrtSockSend(&pClient->tConn, pClient->pTlsCtx->tSendBuf.pData,
-				pClient->pTlsCtx->tSendBuf.iSize, &iSent);
-		}
-		xrtTlsDestroy(pClient->pTlsCtx);
-		pClient->pTlsCtx = NULL;
-	}
-	
-	xrtSockClose(&pClient->tConn);
-}
-XXAPI xnet_result xrtTcpClientSend(xtcpclient* pClient, const char* pData, size_t iLen)
-{
-	if ( !pClient || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	if ( !pClient->bConnected ) return XRT_NET_ERROR;
-	
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
-	
-	if ( pClient->bTlsEnabled && pClient->pTlsCtx ) {
-		size_t iWritten = 0;
-		xnet_result iRes = xrtTlsWrite(pClient->pTlsCtx, pData, iLen, &iWritten);
-		if ( iRes != XRT_NET_OK ) return iRes;
-		if ( pClient->pTlsCtx->tSendBuf.iSize > 0 ) {
-			xrtPollPostSend(pPoller, &pClient->tConn,
-				pClient->pTlsCtx->tSendBuf.pData, pClient->pTlsCtx->tSendBuf.iSize);
-			xrtNetBufConsume(&pClient->pTlsCtx->tSendBuf, pClient->pTlsCtx->tSendBuf.iSize);
-		}
-		return XRT_NET_OK;
-	} else {
-		return xrtPollPostSend(pPoller, &pClient->tConn, pData, iLen);
-	}
-}
-XXAPI xnet_result xrtTcpClientEnableTLS(xtcpclient* pClient, const xtlsconfig* pConfig)
-{
-	if ( !pClient || !pConfig ) return XRT_NET_ERROR;
-	pClient->tTlsConfig = *pConfig;
-	pClient->bTlsEnabled = true;
-	return XRT_NET_OK;
-}
-XXAPI bool xrtTcpClientIsConnected(xtcpclient* pClient)
-{
-	return pClient ? pClient->bConnected : false;
-}
-XXAPI void xrtTcpClientSetUserData(xtcpclient* pClient, ptr pData)
-{
-	if ( pClient ) pClient->pUserData = pData;
-}
-XXAPI ptr xrtTcpClientGetUserData(xtcpclient* pClient)
-{
-	return pClient ? pClient->pUserData : NULL;
-}
-/* ============================== TCP 客户端 - 同步接收 API ============================== */
-// 启用同步接收模式
-XXAPI void xrtTcpClientEnableSyncRecv(xtcpclient* pClient)
-{
-	if ( !pClient ) return;
-	if ( !pClient->tSyncRecvBuf.pData ) {
-		xrtNetBufInit(&pClient->tSyncRecvBuf, 16384);  // 16KB 初始缓冲区
-	}
-	pClient->bSyncRecvMode = true;
-	pClient->bSyncRecvReady = false;
-}
-// 禁用同步接收模式
-XXAPI void xrtTcpClientDisableSyncRecv(xtcpclient* pClient)
-{
-	if ( !pClient ) return;
-	pClient->bSyncRecvMode = false;
-	pClient->bSyncRecvReady = false;
-	xrtNetBufFree(&pClient->tSyncRecvBuf);
-}
-// 同步阻塞接收数据
-// 返回: XRT_NET_OK 成功, XRT_NET_TIMEOUT 超时, XRT_NET_ERROR 错误/连接断开
-XXAPI xnet_result xrtTcpClientRecvSync(xtcpclient* pClient, char* pBuf, size_t iBufSize, size_t* pRecvLen, int iTimeoutMs)
-{
-	if ( !pClient || !pBuf || iBufSize == 0 ) return XRT_NET_ERROR;
-	if ( !pClient->bSyncRecvMode ) return XRT_NET_ERROR;  // 需要先启用同步模式
-	
-	if ( pRecvLen ) *pRecvLen = 0;
-	
-	// 优先检查：如果缓冲区已有数据，立即返回（即使连接已关闭）
-	if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
-		goto read_buffer;
-	}
-	
-	// 连接已断开且无数据
-	if ( !pClient->bConnected ) return XRT_NET_ERROR;
-	
-	// 计算超时
-	int iElapsedMs = 0;
-	int iSleepMs = 10;  // 每次睡眠 10ms
-	if ( iTimeoutMs <= 0 ) iTimeoutMs = 30000;  // 默认 30 秒超时
-	
-	// 等待数据到达
-	while ( !pClient->bSyncRecvReady ) {
-		// 驱动事件循环，让数据能够到达
-		if ( pClient->pLoop ) {
-			xrtEventLoopRunOnce(pClient->pLoop, iSleepMs);
-		} else {
-			#if defined(_WIN32) || defined(_WIN64)
-				Sleep(iSleepMs);
-			#else
-				usleep(iSleepMs * 1000);
-			#endif
-		}
-		
-		// 再次检查：数据可能在 Poll 期间到达
-		if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
-			goto read_buffer;
-		}
-		
-		// 连接断开：再给一点时间等待剩余数据
-		if ( !pClient->bConnected ) {
-			// 连接关闭后额外等待 500ms，让可能在途的数据到达
-			for ( int i = 0; i < 50; i++ ) {
-				if ( pClient->pLoop ) {
-					xrtEventLoopRunOnce(pClient->pLoop, 10);
-				} else {
-					#if defined(_WIN32) || defined(_WIN64)
-						Sleep(10);
-					#else
-						usleep(10000);
-					#endif
-				}
-				if ( pClient->bSyncRecvReady && pClient->tSyncRecvBuf.iSize > 0 ) {
-					goto read_buffer;
-				}
-			}
-			return XRT_NET_ERROR;
-		}
-		
-		iElapsedMs += iSleepMs;
-		if ( iElapsedMs >= iTimeoutMs ) {
-			return XRT_NET_TIMEOUT;
-		}
-	}
-	
-read_buffer:
-	;  // label 后需要语句
-	// 从同步缓冲区读取数据
-	{
-		size_t iAvailable = pClient->tSyncRecvBuf.iSize;
-		if ( iAvailable == 0 ) {
-			pClient->bSyncRecvReady = false;
-			return XRT_NET_AGAIN;  // 没有数据
-		}
-		
-		size_t iCopyLen = iAvailable < iBufSize ? iAvailable : iBufSize;
-		memcpy(pBuf, pClient->tSyncRecvBuf.pData, iCopyLen);
-		xrtNetBufConsume(&pClient->tSyncRecvBuf, iCopyLen);
-		
-		if ( pRecvLen ) *pRecvLen = iCopyLen;
-		
-		// 如果缓冲区空了，清除就绪标志
-		if ( pClient->tSyncRecvBuf.iSize == 0 ) {
-			pClient->bSyncRecvReady = false;
-		}
-		
-		return XRT_NET_OK;
-	}
-}
-// 检查同步缓冲区是否有数据（非阻塞）
-XXAPI size_t xrtTcpClientSyncAvailable(xtcpclient* pClient)
-{
-	if ( !pClient || !pClient->bSyncRecvMode ) return 0;
-	return pClient->tSyncRecvBuf.iSize;
-}
-// 等待同步数据到达（不读取，仅等待）
-XXAPI xnet_result xrtTcpClientWaitData(xtcpclient* pClient, int iTimeoutMs)
-{
-	if ( !pClient ) return XRT_NET_ERROR;
-	if ( !pClient->bConnected ) return XRT_NET_ERROR;
-	if ( !pClient->bSyncRecvMode ) return XRT_NET_ERROR;
-	
-	int iElapsedMs = 0;
-	int iSleepMs = 10;
-	if ( iTimeoutMs <= 0 ) iTimeoutMs = 30000;
-	
-	while ( !pClient->bSyncRecvReady ) {
-		if ( !pClient->bConnected ) return XRT_NET_ERROR;
-		
-		#if defined(_WIN32) || defined(_WIN64)
-			Sleep(iSleepMs);
-		#else
-			usleep(iSleepMs * 1000);
-		#endif
-		
-		iElapsedMs += iSleepMs;
-		if ( iElapsedMs >= iTimeoutMs ) return XRT_NET_TIMEOUT;
-	}
-	
-	return XRT_NET_OK;
-}
-#endif
-#ifndef XRT_NO_NETUDP
-
-// ========================================
-// File: D:/Git/xrt/lib/netudp.h
-// ========================================
-
-
-/*
-	NetUDP - UDP 服务器/客户端封装 [Ver2.0]
-	
-	基于 netsock.h (Socket) + netpoll.h (IO) + netloop.h (事件循环)
-	
-	Ver2.0 变更:
-	  - 事件驱动架构 (IOCP/io_uring)
-	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
-	
-	仅 IPv4，跨平台 (Windows / Linux)
-	
-	与 TCP 不同，UDP 无连接管理，通过 conn 的 tRemoteAddr 传递远端地址
-*/
-/* ============================== UDP 服务器结构 ============================== */
-struct xrt_udp_server {
-	xeventloop* pLoop;            // 事件循环 (自有或借用)
-	bool bOwnLoop;
-	xthread pThread;
-	
-	xnetconn tConn;                // UDP socket
-	__xrt_conn_handler tHandler;
-	xnetconfig tConfig;
-	xnetevents tEvents;
-	
-	volatile bool bRunning;
-	ptr pUserData;
-};
-/* ============================== UDP 客户端结构 ============================== */
-struct xrt_udp_client {
-	xeventloop* pLoop;            // 事件循环 (自有或借用)
-	bool bOwnLoop;
-	xthread pThread;
-	
-	xnetconn tConn;                // UDP socket
-	__xrt_conn_handler tHandler;
-	xnetconfig tConfig;
-	xnetevents tEvents;
-	
-	volatile bool bRunning;
-	ptr pUserData;
-};
-/* ============================== UDP 服务器 - 事件处理 ============================== */
-// UDP 服务器事件处理
-static void __xrt_udp_server_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
-{
-	xudpserver* pServer = (xudpserver*)pOwner;
-	
-	if ( iEvent == XRT_POLL_READ ) {
-		// 优先使用 OnRecvFrom (传入远端地址), 回退到 OnRecv
-		if ( pServer->tEvents.OnRecvFrom ) {
-			pServer->tEvents.OnRecvFrom(pServer, &pServer->tConn, &pServer->tConn.tRemoteAddr, pData, iLen);
-		} else if ( pServer->tEvents.OnRecv ) {
-			pServer->tEvents.OnRecv(pServer, &pServer->tConn, pData, iLen);
-		}
-		
-		// 投递下一次 recv
-		xrtPollPostRecv(xrtEventLoopGetPoller(pServer->pLoop), &pServer->tConn);
-		return;
-	}
-	
-	if ( iEvent == XRT_POLL_ERROR ) {
-		if ( pServer->tEvents.OnError ) {
-			pServer->tEvents.OnError(pServer, &pServer->tConn, -1);
-		}
-		return;
-	}
-}
-// 服务器内部线程 (简易模式使用轮询接收, 更好的 UDP 远端地址支持)
-static uint32 __xrt_udp_server_loop(ptr pParam)
-{
-	xudpserver* pServer = (xudpserver*)pParam;
-	char aBuf[8192];
-	
-	while ( pServer->bRunning ) {
-		xnetaddr tFromAddr;
-		size_t iRecvd = 0;
-		xnet_result iRes = xrtSockRecvFrom(&pServer->tConn, aBuf, sizeof(aBuf), &tFromAddr, &iRecvd);
-		
-		if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-			pServer->tConn.tRemoteAddr = tFromAddr;
-			if ( pServer->tEvents.OnRecv ) {
-				pServer->tEvents.OnRecv(pServer, &pServer->tConn, aBuf, iRecvd);
-			}
-		} else if ( iRes == XRT_NET_AGAIN ) {
-			int iTimeout = pServer->tConfig.iPollTimeoutMs > 0 ? pServer->tConfig.iPollTimeoutMs : 10;
-			fd_set tReadSet;
-			FD_ZERO(&tReadSet);
-			FD_SET(pServer->tConn.hSocket, &tReadSet);
-			struct timeval tSelTimeout;
-			tSelTimeout.tv_sec = iTimeout / 1000;
-			tSelTimeout.tv_usec = (iTimeout % 1000) * 1000;
-			select((int)pServer->tConn.hSocket + 1, &tReadSet, NULL, NULL, &tSelTimeout);
-		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
-			if ( pServer->tEvents.OnError ) {
-				pServer->tEvents.OnError(pServer, &pServer->tConn, (int)iRes);
-			}
-			break;
-		}
-	}
-	
-	return 0;
-}
-/* ============================== UDP 服务器 API ============================== */
-// 高级版: 绑定共享事件循环
-XXAPI xudpserver* xrtUdpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
-	const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	if ( !pLoop ) return NULL;
-	
-	xudpserver* pServer = (xudpserver*)xrtCalloc(1, sizeof(xudpserver));
-	if ( !pServer ) return NULL;
-	
-	pServer->pLoop = pLoop;
-	pServer->bOwnLoop = false;
-	
-	if ( pConfig ) {
-		pServer->tConfig = *pConfig;
-	} else {
-		pServer->tConfig.iRecvBufSize = 8192;
-		pServer->tConfig.iSendBufSize = 8192;
-		pServer->tConfig.iMaxClients = 0;
-		pServer->tConfig.iPollTimeoutMs = 10;
-	}
-	
-	if ( pEvents ) {
-		pServer->tEvents = *pEvents;
-	}
-	
-	// 创建 UDP socket
-	memset(&pServer->tConn, 0, sizeof(xnetconn));
-	pServer->tConn.iType = 1;  // UDP
-	
-	if ( xrtSockCreate(&pServer->tConn, 1) != XRT_NET_OK ) {
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	xrtSockSetReuseAddr(&pServer->tConn);
-	xrtSockSetNonBlock(&pServer->tConn);
-	
-	xnetaddr tAddr;
-	xrtNetAddrInit(&tAddr, sIP, iPort);
-	
-	if ( xrtSockBind(&pServer->tConn, &tAddr) != XRT_NET_OK ) {
-		xrtSockClose(&pServer->tConn);
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	// 设置事件处理器
-	pServer->tHandler.pfnHandler = __xrt_udp_server_on_event;
-	pServer->tHandler.pOwner = pServer;
-	pServer->tConn.pUserData = &pServer->tHandler;
-	
-	// 注册到 poller
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pServer->pLoop);
-	xrtPollAdd(pPoller, &pServer->tConn, XRT_POLL_READ);
-	xrtPollPostRecv(pPoller, &pServer->tConn);
-	
-	return pServer;
-}
-// 简易版: 内部创建线程 (使用 recvfrom 轮询, 保留远端地址支持)
-XXAPI xudpserver* xrtUdpServerCreate(const char* sIP, uint16 iPort,
-	const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	xudpserver* pServer = (xudpserver*)xrtCalloc(1, sizeof(xudpserver));
-	if ( !pServer ) return NULL;
-	
-	pServer->pLoop = NULL;  // 简易模式不使用事件循环
-	pServer->bOwnLoop = true;
-	
-	if ( pConfig ) {
-		pServer->tConfig = *pConfig;
-	} else {
-		pServer->tConfig.iRecvBufSize = 8192;
-		pServer->tConfig.iSendBufSize = 8192;
-		pServer->tConfig.iMaxClients = 0;
-		pServer->tConfig.iPollTimeoutMs = 10;
-	}
-	
-	if ( pEvents ) {
-		pServer->tEvents = *pEvents;
-	}
-	
-	// 创建 UDP socket
-	memset(&pServer->tConn, 0, sizeof(xnetconn));
-	pServer->tConn.iType = 1;
-	
-	if ( xrtSockCreate(&pServer->tConn, 1) != XRT_NET_OK ) {
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	xrtSockSetReuseAddr(&pServer->tConn);
-	xrtSockSetNonBlock(&pServer->tConn);
-	
-	xnetaddr tAddr;
-	xrtNetAddrInit(&tAddr, sIP, iPort);
-	
-	if ( xrtSockBind(&pServer->tConn, &tAddr) != XRT_NET_OK ) {
-		xrtSockClose(&pServer->tConn);
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	return pServer;
-}
-XXAPI void xrtUdpServerDestroy(xudpserver* pServer)
-{
-	if ( !pServer ) return;
-	
-	xrtUdpServerStop(pServer);
-	xrtSockClose(&pServer->tConn);
-	xrtFree(pServer);
-}
-XXAPI xnet_result xrtUdpServerStart(xudpserver* pServer)
-{
-	if ( !pServer ) return XRT_NET_ERROR;
-	if ( pServer->bRunning ) return XRT_NET_OK;
-	
-	pServer->bRunning = true;
-	
-	if ( pServer->bOwnLoop && !pServer->pLoop ) {
-		// 简易模式: 使用 recvfrom 轮询线程
-		pServer->pThread = xrtThreadCreate((ptr)__xrt_udp_server_loop, pServer, 0);
-		if ( !pServer->pThread ) {
-			pServer->bRunning = false;
-			return XRT_NET_ERROR;
-		}
-	}
-	// 高级模式: 事件由 EventLoopRun 驱动
-	
-	return XRT_NET_OK;
-}
-XXAPI void xrtUdpServerStop(xudpserver* pServer)
-{
-	if ( !pServer || !pServer->bRunning ) return;
-	
-	pServer->bRunning = false;
-	
-	if ( pServer->pThread ) {
-		xrtThreadWait(pServer->pThread);
-		xrtThreadDestroy(pServer->pThread);
-		pServer->pThread = NULL;
-	}
-}
-XXAPI xnet_result xrtUdpServerSendTo(xudpserver* pServer, const xnetaddr* pAddr,
-	const char* pData, size_t iLen)
-{
-	if ( !pServer || !pAddr || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	
-	size_t iSent = 0;
-	return xrtSockSendTo(&pServer->tConn, pData, iLen, pAddr, &iSent);
-}
-XXAPI void xrtUdpServerSetUserData(xudpserver* pServer, ptr pData)
-{
-	if ( pServer ) pServer->pUserData = pData;
-}
-XXAPI ptr xrtUdpServerGetUserData(xudpserver* pServer)
-{
-	return pServer ? pServer->pUserData : NULL;
-}
-/* ============================== UDP 客户端 - 事件处理 ============================== */
-static void __xrt_udp_client_on_event(ptr pOwner, xnetconn* pConn, int iEvent, const char* pData, size_t iLen)
-{
-	xudpclient* pClient = (xudpclient*)pOwner;
-	
-	if ( iEvent == XRT_POLL_READ ) {
-		// 优先使用 OnRecvFrom (传入远端地址), 回退到 OnRecv
-		if ( pClient->tEvents.OnRecvFrom ) {
-			pClient->tEvents.OnRecvFrom(pClient, &pClient->tConn, &pClient->tConn.tRemoteAddr, pData, iLen);
-		} else if ( pClient->tEvents.OnRecv ) {
-			pClient->tEvents.OnRecv(pClient, &pClient->tConn, pData, iLen);
-		}
-		xrtPollPostRecv(xrtEventLoopGetPoller(pClient->pLoop), &pClient->tConn);
-		return;
-	}
-	
-	if ( iEvent == XRT_POLL_ERROR ) {
-		if ( pClient->tEvents.OnError ) {
-			pClient->tEvents.OnError(pClient, &pClient->tConn, -1);
-		}
-		return;
-	}
-}
-// 简易模式轮询线程
-static uint32 __xrt_udp_client_loop(ptr pParam)
-{
-	xudpclient* pClient = (xudpclient*)pParam;
-	char aBuf[8192];
-	
-	while ( pClient->bRunning ) {
-		xnetaddr tFromAddr;
-		size_t iRecvd = 0;
-		xnet_result iRes = xrtSockRecvFrom(&pClient->tConn, aBuf, sizeof(aBuf), &tFromAddr, &iRecvd);
-		
-		if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-			pClient->tConn.tRemoteAddr = tFromAddr;
-			if ( pClient->tEvents.OnRecv ) {
-				pClient->tEvents.OnRecv(pClient, &pClient->tConn, aBuf, iRecvd);
-			}
-		} else if ( iRes == XRT_NET_AGAIN ) {
-			int iTimeout = pClient->tConfig.iPollTimeoutMs > 0 ? pClient->tConfig.iPollTimeoutMs : 10;
-			fd_set tReadSet;
-			FD_ZERO(&tReadSet);
-			FD_SET(pClient->tConn.hSocket, &tReadSet);
-			struct timeval tSelTimeout;
-			tSelTimeout.tv_sec = iTimeout / 1000;
-			tSelTimeout.tv_usec = (iTimeout % 1000) * 1000;
-			select((int)pClient->tConn.hSocket + 1, &tReadSet, NULL, NULL, &tSelTimeout);
-		} else if ( iRes == XRT_NET_CLOSED || iRes == XRT_NET_ERROR ) {
-			if ( pClient->tEvents.OnError ) {
-				pClient->tEvents.OnError(pClient, &pClient->tConn, (int)iRes);
-			}
-			break;
-		}
-	}
-	
-	return 0;
-}
-/* ============================== UDP 客户端 API ============================== */
-// 高级版
-XXAPI xudpclient* xrtUdpClientCreateEx(xeventloop* pLoop, const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	if ( !pLoop ) return NULL;
-	
-	xudpclient* pClient = (xudpclient*)xrtCalloc(1, sizeof(xudpclient));
-	if ( !pClient ) return NULL;
-	
-	pClient->pLoop = pLoop;
-	pClient->bOwnLoop = false;
-	
-	if ( pConfig ) {
-		pClient->tConfig = *pConfig;
-	} else {
-		pClient->tConfig.iRecvBufSize = 8192;
-		pClient->tConfig.iSendBufSize = 8192;
-		pClient->tConfig.iMaxClients = 0;
-		pClient->tConfig.iPollTimeoutMs = 10;
-	}
-	
-	if ( pEvents ) {
-		pClient->tEvents = *pEvents;
-	}
-	
-	// 创建 UDP socket
-	memset(&pClient->tConn, 0, sizeof(xnetconn));
-	pClient->tConn.iType = 1;
-	
-	if ( xrtSockCreate(&pClient->tConn, 1) != XRT_NET_OK ) {
-		xrtFree(pClient);
-		return NULL;
-	}
-	
-	xrtSockSetNonBlock(&pClient->tConn);
-	
-	// 设置事件处理器
-	pClient->tHandler.pfnHandler = __xrt_udp_client_on_event;
-	pClient->tHandler.pOwner = pClient;
-	pClient->tConn.pUserData = &pClient->tHandler;
-	
-	// 注册到 poller
-	xnetpoller* pPoller = xrtEventLoopGetPoller(pClient->pLoop);
-	xrtPollAdd(pPoller, &pClient->tConn, XRT_POLL_READ);
-	xrtPollPostRecv(pPoller, &pClient->tConn);
-	
-	return pClient;
-}
-// 简易版
-XXAPI xudpclient* xrtUdpClientCreate(const xnetconfig* pConfig, const xnetevents* pEvents)
-{
-	xudpclient* pClient = (xudpclient*)xrtCalloc(1, sizeof(xudpclient));
-	if ( !pClient ) return NULL;
-	
-	pClient->pLoop = NULL;
-	pClient->bOwnLoop = true;
-	
-	if ( pConfig ) {
-		pClient->tConfig = *pConfig;
-	} else {
-		pClient->tConfig.iRecvBufSize = 8192;
-		pClient->tConfig.iSendBufSize = 8192;
-		pClient->tConfig.iMaxClients = 0;
-		pClient->tConfig.iPollTimeoutMs = 10;
-	}
-	
-	if ( pEvents ) {
-		pClient->tEvents = *pEvents;
-	}
-	
-	// 创建 UDP socket
-	memset(&pClient->tConn, 0, sizeof(xnetconn));
-	pClient->tConn.iType = 1;
-	
-	if ( xrtSockCreate(&pClient->tConn, 1) != XRT_NET_OK ) {
-		xrtFree(pClient);
-		return NULL;
-	}
-	
-	xrtSockSetNonBlock(&pClient->tConn);
-	
-	// 绑定到 0.0.0.0:0 让系统分配随机端口
-	// 必须在 Start 之前绑定，否则 recvfrom 在 Windows 上返回 WSAEINVAL 导致轮询线程退出
-	xnetaddr tBindAddr;
-	xrtNetAddrInit(&tBindAddr, "0.0.0.0", 0);
-	xrtSockBind(&pClient->tConn, &tBindAddr);
-	
-	return pClient;
-}
-XXAPI void xrtUdpClientDestroy(xudpclient* pClient)
-{
-	if ( !pClient ) return;
-	
-	xrtUdpClientStop(pClient);
-	xrtSockClose(&pClient->tConn);
-	xrtFree(pClient);
-}
-XXAPI xnet_result xrtUdpClientStart(xudpclient* pClient)
-{
-	if ( !pClient ) return XRT_NET_ERROR;
-	if ( pClient->bRunning ) return XRT_NET_OK;
-	
-	pClient->bRunning = true;
-	
-	if ( pClient->bOwnLoop && !pClient->pLoop ) {
-		// 简易模式: recvfrom 轮询线程
-		pClient->pThread = xrtThreadCreate((ptr)__xrt_udp_client_loop, pClient, 0);
-		if ( !pClient->pThread ) {
-			pClient->bRunning = false;
-			return XRT_NET_ERROR;
-		}
-	}
-	
-	return XRT_NET_OK;
-}
-XXAPI void xrtUdpClientStop(xudpclient* pClient)
-{
-	if ( !pClient || !pClient->bRunning ) return;
-	
-	pClient->bRunning = false;
-	
-	if ( pClient->pThread ) {
-		xrtThreadWait(pClient->pThread);
-		xrtThreadDestroy(pClient->pThread);
-		pClient->pThread = NULL;
-	}
-}
-XXAPI xnet_result xrtUdpClientSendTo(xudpclient* pClient, const xnetaddr* pAddr,
-	const char* pData, size_t iLen)
-{
-	if ( !pClient || !pAddr || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	
-	size_t iSent = 0;
-	return xrtSockSendTo(&pClient->tConn, pData, iLen, pAddr, &iSent);
-}
-XXAPI void xrtUdpClientSetUserData(xudpclient* pClient, ptr pData)
-{
-	if ( pClient ) pClient->pUserData = pData;
-}
-XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient)
-{
-	return pClient ? pClient->pUserData : NULL;
-}
-#endif
 #ifndef XRT_NO_XID
 
 // ========================================
@@ -29227,4107 +36324,6 @@ XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, u
 XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMode)
 {
 	return xrtBufferInsert(pBuf, pBuf->Length, pData, iSize, bStrMode);
-}
-#endif
-#ifndef XRT_NO_NETHTTP
-
-// ========================================
-// File: D:/Git/xrt/lib/nethttp.h
-// ========================================
-
-
-/*
-	NetHTTP - HTTP Client 封装 [Ver1.0]
-	
-	基于 netsock.h (Socket 基础) + nettls.h (TLS) + buffer.h (自增缓冲区)
-	同步阻塞模型，支持 HTTP/1.1, HTTPS, 30x 重定向, Chunked 传输
-	
-	极简 API: xrtHttpGet / xrtHttpPost / xrtHttpGetFile / xrtHttpPostFile
-	完整 API: xrtHttpReq* / xrtHttpResp* 系列
-	
-	仅 IPv4，跨平台 (Windows / Linux)
-*/
-/* ============================== URL 解析器 (公开 API) ============================== */
-/* ============================== 内部线程安全的临时缓冲区 ============================== */
-// 用于 xrtHttpRespHeader / xrtHttpRespCookie 返回值的线程局部缓冲区
-#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
-	#define __XRT_HTTP_THREAD_LOCAL __declspec(thread)
-#elif defined(__GNUC__)
-	#define __XRT_HTTP_THREAD_LOCAL __thread
-#elif defined(_WIN32) || defined(_WIN64)
-	#define __XRT_HTTP_THREAD_LOCAL __declspec(thread)
-#else
-	#define __XRT_HTTP_THREAD_LOCAL __thread
-#endif
-static __XRT_HTTP_THREAD_LOCAL char __xrt_http_tmpbuf[4096];
-typedef struct {
-	char* sName;
-	char* sValue;
-	char* sDomain;
-	char* sPath;
-	time_t iExpiresAt;   // 0 = session cookie
-	bool bSecure;
-	bool bHostOnly;
-} __xrt_http_cookie;
-typedef struct {
-	xbuffer pBuf;
-	xurl pURL;
-	time_t iNow;
-} __xrt_http_cookie_build_ctx;
-static char __xrt_http_tolower(char c)
-{
-	if ( c >= 'A' && c <= 'Z' ) return (char)(c + 32);
-	return c;
-}
-static bool __xrt_http_str_ieq_n(const char* a, const char* b, size_t iLen)
-{
-	for ( size_t i = 0; i < iLen; i++ ) {
-		if ( __xrt_http_tolower(a[i]) != __xrt_http_tolower(b[i]) ) return false;
-	}
-	return true;
-}
-static bool __xrt_http_str_ieq(const char* a, const char* b)
-{
-	size_t iLenA = a ? strlen(a) : 0;
-	size_t iLenB = b ? strlen(b) : 0;
-	if ( iLenA != iLenB ) return false;
-	return __xrt_http_str_ieq_n(a, b, iLenA);
-}
-static char* __xrt_http_copy_lower(const char* sText)
-{
-	if ( !sText ) return NULL;
-	size_t iLen = strlen(sText);
-	char* sCopy = (char*)xrtMalloc(iLen + 1);
-	if ( !sCopy ) return NULL;
-	for ( size_t i = 0; i < iLen; i++ ) sCopy[i] = __xrt_http_tolower(sText[i]);
-	sCopy[iLen] = '\0';
-	return sCopy;
-}
-static char* __xrt_http_copy_trim(const char* sText, size_t iLen)
-{
-	while ( iLen > 0 && (*sText == ' ' || *sText == '\t') ) {
-		sText++;
-		iLen--;
-	}
-	while ( iLen > 0 && (sText[iLen - 1] == ' ' || sText[iLen - 1] == '\t') ) {
-		iLen--;
-	}
-	return xrtCopyStr((str)sText, (uint32)iLen);
-}
-static void __xrt_http_cookie_free(__xrt_http_cookie* pCookie)
-{
-	if ( !pCookie ) return;
-	if ( pCookie->sName ) xrtFree(pCookie->sName);
-	if ( pCookie->sValue ) xrtFree(pCookie->sValue);
-	if ( pCookie->sDomain ) xrtFree(pCookie->sDomain);
-	if ( pCookie->sPath ) xrtFree(pCookie->sPath);
-	xrtFree(pCookie);
-}
-static int __xrt_http_month_index(const char* sMonth)
-{
-	static const char* aMonths[] = {
-		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-	};
-	for ( int i = 0; i < 12; i++ ) {
-		if ( __xrt_http_str_ieq_n(sMonth, aMonths[i], 3) ) return i;
-	}
-	return -1;
-}
-static time_t __xrt_http_timegm(struct tm* pTM)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		return _mkgmtime(pTM);
-	#else
-		return timegm(pTM);
-	#endif
-}
-static bool __xrt_http_parse_http_date(const char* sText, time_t* pOut)
-{
-	char aWeekDay[8] = {0};
-	char aMonth[8] = {0};
-	char aTZ[8] = {0};
-	int iDay = 0, iYear = 0, iHour = 0, iMin = 0, iSec = 0;
-	struct tm tTM;
-	int iMonth;
-	if ( !sText || !pOut ) return false;
-	if ( sscanf(sText, "%7[^,], %d %7s %d %d:%d:%d %7s",
-		aWeekDay, &iDay, aMonth, &iYear, &iHour, &iMin, &iSec, aTZ) != 8 ) {
-		return false;
-	}
-	iMonth = __xrt_http_month_index(aMonth);
-	if ( iMonth < 0 ) return false;
-	memset(&tTM, 0, sizeof(tTM));
-	tTM.tm_mday = iDay;
-	tTM.tm_mon = iMonth;
-	tTM.tm_year = iYear - 1900;
-	tTM.tm_hour = iHour;
-	tTM.tm_min = iMin;
-	tTM.tm_sec = iSec;
-	tTM.tm_isdst = 0;
-	*pOut = __xrt_http_timegm(&tTM);
-	return (*pOut != (time_t)-1);
-}
-static char* __xrt_http_default_cookie_path(const char* sReqPath)
-{
-	size_t iLen = 0;
-	const char* pQuery = NULL;
-	const char* pLastSlash = NULL;
-	if ( !sReqPath || sReqPath[0] != '/' ) return xrtCopyStr("/", 1);
-	pQuery = strchr(sReqPath, '?');
-	iLen = pQuery ? (size_t)(pQuery - sReqPath) : strlen(sReqPath);
-	if ( iLen == 0 || sReqPath[0] != '/' ) return xrtCopyStr("/", 1);
-	for ( size_t i = 0; i < iLen; i++ ) {
-		if ( sReqPath[i] == '/' ) pLastSlash = sReqPath + i;
-	}
-	if ( !pLastSlash || pLastSlash == sReqPath ) return xrtCopyStr("/", 1);
-	return xrtCopyStr((str)sReqPath, (uint32)(pLastSlash - sReqPath));
-}
-static bool __xrt_http_domain_match(const char* sHost, const __xrt_http_cookie* pCookie)
-{
-	size_t iHostLen;
-	size_t iDomainLen;
-	if ( !pCookie || !sHost ) return false;
-	if ( !pCookie->sDomain || !pCookie->sDomain[0] ) return true;
-	iHostLen = strlen(sHost);
-	iDomainLen = strlen(pCookie->sDomain);
-	if ( pCookie->bHostOnly ) {
-		return __xrt_http_str_ieq(sHost, pCookie->sDomain);
-	}
-	if ( iHostLen < iDomainLen ) return false;
-	if ( !__xrt_http_str_ieq_n(sHost + iHostLen - iDomainLen, pCookie->sDomain, iDomainLen) ) {
-		return false;
-	}
-	if ( iHostLen == iDomainLen ) return true;
-	return sHost[iHostLen - iDomainLen - 1] == '.';
-}
-static bool __xrt_http_path_match(const char* sReqPath, const char* sCookiePath)
-{
-	size_t iCookieLen;
-	if ( !sReqPath || sReqPath[0] == '\0' ) sReqPath = "/";
-	if ( !sCookiePath || sCookiePath[0] == '\0' ) return true;
-	iCookieLen = strlen(sCookiePath);
-	if ( iCookieLen == 1 && sCookiePath[0] == '/' ) return true;
-	if ( strncmp(sReqPath, sCookiePath, iCookieLen) != 0 ) return false;
-	if ( sReqPath[iCookieLen] == '\0' ) return true;
-	if ( sCookiePath[iCookieLen - 1] == '/' ) return true;
-	return sReqPath[iCookieLen] == '/';
-}
-static bool __xrt_http_header_exists(const char* sHeaders, const char* sName)
-{
-	size_t iNameLen;
-	const char* p;
-	if ( !sHeaders || !sName ) return false;
-	iNameLen = strlen(sName);
-	p = sHeaders;
-	while ( *p ) {
-		size_t i = 0;
-		while ( p[i] && p[i] != ':' && p[i] != '\r' && p[i] != '\n' ) i++;
-		if ( i == iNameLen && p[i] == ':' && __xrt_http_str_ieq_n(p, sName, iNameLen) ) {
-			return true;
-		}
-		while ( *p && *p != '\n' ) p++;
-		if ( *p == '\n' ) p++;
-	}
-	return false;
-}
-static bool __xrt_http_has_token_ci(const char* sValue, const char* sToken)
-{
-	size_t iTokenLen;
-	const char* p;
-	if ( !sValue || !sToken ) return false;
-	iTokenLen = strlen(sToken);
-	p = sValue;
-	while ( *p ) {
-		const char* pStart;
-		size_t iLen;
-		while ( *p == ' ' || *p == '\t' || *p == ',' ) p++;
-		pStart = p;
-		while ( *p && *p != ',' && *p != '\r' && *p != '\n' ) p++;
-		iLen = (size_t)(p - pStart);
-		while ( iLen > 0 && (pStart[iLen - 1] == ' ' || pStart[iLen - 1] == '\t') ) iLen--;
-		if ( iLen == iTokenLen && __xrt_http_str_ieq_n(pStart, sToken, iTokenLen) ) {
-			return true;
-		}
-		if ( *p == ',' ) p++;
-	}
-	return false;
-}
-static void __xrt_http_append_headers_normalized(xbuffer pBuf, const char* sHeaders)
-{
-	const char* p = sHeaders;
-	bool bLastCRLF = false;
-	if ( !pBuf || !sHeaders || !sHeaders[0] ) return;
-	while ( *p ) {
-		const char* pStart = p;
-		while ( *p && *p != '\r' && *p != '\n' ) p++;
-		if ( p > pStart ) {
-			xrtBufferAppend(pBuf, (ptr)pStart, (uint32)(p - pStart), 0);
-		}
-		if ( *p == '\r' ) p++;
-		if ( *p == '\n' ) p++;
-		xrtBufferAppend(pBuf, "\r\n", 2, 0);
-		bLastCRLF = true;
-	}
-	if ( !bLastCRLF ) {
-		xrtBufferAppend(pBuf, "\r\n", 2, 0);
-	}
-}
-static bool __xrt_http_buffer_ends_with(const xbuffer pBuf, str sSuffix)
-{
-	size_t iSuffixLen;
-	if ( !pBuf || !pBuf->Buffer || !sSuffix ) return false;
-	iSuffixLen = strlen(sSuffix);
-	if ( pBuf->Length < iSuffixLen ) return false;
-	return memcmp(pBuf->Buffer + pBuf->Length - iSuffixLen, sSuffix, iSuffixLen) == 0;
-}
-static void __xrt_http_format_url(char* sBuf, size_t iBufSize,
-	bool bHttps, const char* sHost, uint16 iPort, const char* sPath)
-{
-	bool bDefaultPort = (bHttps && iPort == 443) || (!bHttps && iPort == 80);
-	if ( !sPath || !sPath[0] ) sPath = "/";
-	if ( bDefaultPort ) {
-		snprintf(sBuf, iBufSize, "%s://%s%s", bHttps ? "https" : "http", sHost, sPath);
-	} else {
-		snprintf(sBuf, iBufSize, "%s://%s:%u%s", bHttps ? "https" : "http", sHost, iPort, sPath);
-	}
-}
-static void __xrt_http_normalize_path(char* sPath)
-{
-	char aTmp[2048];
-	char* aSegPos[256];
-	int iSegCount = 0;
-	char* pOut = aTmp;
-	const char* p = sPath;
-	if ( !sPath || !sPath[0] ) {
-		strcpy(sPath, "/");
-		return;
-	}
-	if ( *p != '/' ) *pOut++ = '/';
-	while ( *p ) {
-		const char* pSeg = p;
-		size_t iSegLen;
-		while ( *p == '/' ) p++;
-		pSeg = p;
-		while ( *p && *p != '/' ) p++;
-		iSegLen = (size_t)(p - pSeg);
-		if ( iSegLen == 0 ) break;
-		if ( iSegLen == 1 && pSeg[0] == '.' ) continue;
-		if ( iSegLen == 2 && pSeg[0] == '.' && pSeg[1] == '.' ) {
-			if ( iSegCount > 0 ) {
-				pOut = aSegPos[--iSegCount];
-				*pOut = '\0';
-			}
-			continue;
-		}
-		if ( pOut == aTmp || pOut[-1] != '/' ) *pOut++ = '/';
-		aSegPos[iSegCount++] = pOut - 1;
-		memcpy(pOut, pSeg, iSegLen);
-		pOut += iSegLen;
-	}
-	if ( pOut == aTmp ) *pOut++ = '/';
-	*pOut = '\0';
-	strcpy(sPath, aTmp);
-}
-static bool __xrt_http_resolve_redirect_url(char* sBuf, size_t iBufSize,
-	xurl pBase, const char* sLocation)
-{
-	char aBasePath[2048];
-	char aCombined[4096];
-	char aPathPart[2048];
-	const char* pQuery = NULL;
-	if ( !sBuf || !pBase || !sLocation || !sLocation[0] ) return false;
-	if ( strncmp(sLocation, "http://", 7) == 0 || strncmp(sLocation, "https://", 8) == 0 ) {
-		snprintf(sBuf, iBufSize, "%s", sLocation);
-		return true;
-	}
-	if ( strncmp(sLocation, "//", 2) == 0 ) {
-		snprintf(sBuf, iBufSize, "%s:%s", pBase->bHttps ? "https" : "http", sLocation);
-		return true;
-	}
-	memset(aBasePath, 0, sizeof(aBasePath));
-	strncpy(aBasePath, pBase->sPath[0] ? pBase->sPath : "/", sizeof(aBasePath) - 1);
-	pQuery = strchr(aBasePath, '?');
-	if ( pQuery ) aBasePath[pQuery - aBasePath] = '\0';
-	if ( aBasePath[0] == '\0' ) strcpy(aBasePath, "/");
-	if ( sLocation[0] == '?' ) {
-		snprintf(aCombined, sizeof(aCombined), "%s%s", aBasePath, sLocation);
-		__xrt_http_format_url(sBuf, iBufSize, pBase->bHttps, pBase->sHost, pBase->iPort, aCombined);
-		return true;
-	}
-	if ( sLocation[0] == '/' ) {
-		snprintf(aCombined, sizeof(aCombined), "%s", sLocation);
-	} else {
-		char aBaseDir[2048];
-		char* pLastSlash;
-		strncpy(aBaseDir, aBasePath, sizeof(aBaseDir) - 1);
-		aBaseDir[sizeof(aBaseDir) - 1] = '\0';
-		pLastSlash = strrchr(aBaseDir, '/');
-		if ( !pLastSlash ) {
-			strcpy(aBaseDir, "/");
-		} else if ( pLastSlash == aBaseDir ) {
-			aBaseDir[1] = '\0';
-		} else {
-			pLastSlash[1] = '\0';
-		}
-		snprintf(aCombined, sizeof(aCombined), "%s%s", aBaseDir, sLocation);
-	}
-	pQuery = strpbrk(aCombined, "?#");
-	if ( pQuery ) {
-		size_t iPathLen = (size_t)(pQuery - aCombined);
-		if ( iPathLen >= sizeof(aPathPart) ) iPathLen = sizeof(aPathPart) - 1;
-		memcpy(aPathPart, aCombined, iPathLen);
-		aPathPart[iPathLen] = '\0';
-	} else {
-		strncpy(aPathPart, aCombined, sizeof(aPathPart) - 1);
-		aPathPart[sizeof(aPathPart) - 1] = '\0';
-	}
-	__xrt_http_normalize_path(aPathPart);
-	if ( pQuery ) {
-		snprintf(aCombined, sizeof(aCombined), "%s%s", aPathPart, pQuery);
-	} else {
-		snprintf(aCombined, sizeof(aCombined), "%s", aPathPart);
-	}
-	// HTTP 请求中不发送 fragment
-	{
-		char* pFragment = strchr(aCombined, '#');
-		if ( pFragment ) *pFragment = '\0';
-	}
-	__xrt_http_format_url(sBuf, iBufSize, pBase->bHttps, pBase->sHost, pBase->iPort, aCombined);
-	return true;
-}
-XXAPI bool xrtUrlParse(str sURL, xurl pOut)
-{
-	if ( !sURL || !pOut ) return false;
-	memset(pOut, 0, sizeof(xurl_struct));
-	
-	str p = sURL;
-	
-	// 解析协议
-	if ( strncmp(p, "https://", 8) == 0 ) {
-		pOut->bHttps = true;
-		pOut->iPort = 443;
-		p += 8;
-	} else if ( strncmp(p, "http://", 7) == 0 ) {
-		pOut->bHttps = false;
-		pOut->iPort = 80;
-		p += 7;
-	} else {
-		return false;
-	}
-	
-	// 解析主机名和端口
-	str pHostStart = p;
-	str pHostEnd = NULL;
-	str pPortStart = NULL;
-	
-	while ( *p && *p != '/' && *p != '?' ) {
-		if ( *p == ':' ) {
-			pPortStart = p + 1;
-		}
-		p++;
-	}
-	
-	if ( pPortStart ) {
-		// 有端口号
-		size_t iHostLen = (size_t)(pPortStart - 1 - pHostStart);
-		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1;
-		memcpy(pOut->sHost, pHostStart, iHostLen);
-		pOut->sHost[iHostLen] = '\0';
-		pOut->iPort = (uint16)atoi(pPortStart);
-	} else {
-		// 无端口号
-		size_t iHostLen = (size_t)(p - pHostStart);
-		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1;
-		memcpy(pOut->sHost, pHostStart, iHostLen);
-		pOut->sHost[iHostLen] = '\0';
-	}
-	
-	// 解析路径
-	if ( *p == '/' || *p == '?' ) {
-		size_t iPathLen = strlen(p);
-		if ( iPathLen >= sizeof(pOut->sPath) ) iPathLen = sizeof(pOut->sPath) - 1;
-		memcpy(pOut->sPath, p, iPathLen);
-		pOut->sPath[iPathLen] = '\0';
-	} else {
-		pOut->sPath[0] = '/';
-		pOut->sPath[1] = '\0';
-	}
-	
-	return (pOut->sHost[0] != '\0');
-}
-// 内部辅助: URL 编码并追加到 xbuffer
-static void __xrt_http_url_encode_append(str sSrc, xbuffer pBuf)
-{
-	str sEncoded = xrtUrlEncode(sSrc, 0);
-	if ( sEncoded ) {
-		xrtBufferAppend(pBuf, sEncoded, strlen(sEncoded), 0);
-		xrtFree(sEncoded);
-	}
-}
-/* ============================== 底层同步连接 ============================== */
-// 内部连接上下文
-typedef struct {
-	xnetconn tConn;
-	xtlsctx* pTlsCtx;
-	bool bHttps;
-	bool bConnected;
-} __xrt_http_conn;
-static bool __xrt_http_connect(__xrt_http_conn* pConn, const xurl pURL, int iTimeoutSec, bool bVerifySSL)
-{
-	memset(pConn, 0, sizeof(__xrt_http_conn));
-	pConn->bHttps = pURL->bHttps;
-	
-	// DNS 解析
-	xnetaddr tAddr;
-	if ( xrtNetResolve(pURL->sHost, &tAddr) != XRT_NET_OK ) {
-		#ifdef DEBUG_TRACE
-			printf("    [HTTP] DNS resolve failed: %s\n", pURL->sHost);
-		#endif
-		return false;
-	}
-	tAddr.iPort = pURL->iPort;
-	
-	// 创建 Socket
-	memset(&pConn->tConn, 0, sizeof(xnetconn));
-	if ( xrtSockCreate(&pConn->tConn, 0) != XRT_NET_OK ) {
-		#ifdef DEBUG_TRACE
-			printf("    [HTTP] Socket create failed\n");
-		#endif
-		return false;
-	}
-	
-	// 连接
-	xnet_result iRes = xrtSockConnect(&pConn->tConn, &tAddr);
-	if ( iRes != XRT_NET_OK && iRes != XRT_NET_AGAIN ) {
-		xrtSockClose(&pConn->tConn);
-		return false;
-	}
-	
-	// AGAIN: 使用 select 等待
-	if ( iRes == XRT_NET_AGAIN ) {
-		fd_set tWriteSet;
-		FD_ZERO(&tWriteSet);
-		FD_SET(pConn->tConn.hSocket, &tWriteSet);
-		struct timeval tTimeout;
-		tTimeout.tv_sec = iTimeoutSec > 0 ? iTimeoutSec : 10;
-		tTimeout.tv_usec = 0;
-		int iSelRes = select((int)pConn->tConn.hSocket + 1, NULL, &tWriteSet, NULL, &tTimeout);
-		if ( iSelRes <= 0 ) {
-			xrtSockClose(&pConn->tConn);
-			return false;
-		}
-	}
-	
-	// TLS 握手
-	if ( pURL->bHttps ) {
-		xrtSockSetNonBlock(&pConn->tConn);
-		
-		xtlsconfig tCfg;
-		memset(&tCfg, 0, sizeof(xtlsconfig));
-		tCfg.sHostName = pURL->sHost;
-		tCfg.bVerifyPeer = bVerifySSL;
-		
-		pConn->pTlsCtx = xrtTlsCreate(&tCfg, false);
-		if ( !pConn->pTlsCtx ) {
-			xrtSockClose(&pConn->tConn);
-			return false;
-		}
-		
-		// TLS 握手循环 (select 等待 IO 就绪)
-		xnet_result iTlsRes;
-		int iRetries = 0;
-		int iMaxRetries = (iTimeoutSec > 0 ? iTimeoutSec : 10) * 10;  // 100ms per retry
-		while ( (iTlsRes = xrtTlsHandshake(pConn->pTlsCtx, &pConn->tConn)) == XRT_NET_AGAIN ) {
-			// 发送待发数据
-			if ( pConn->pTlsCtx->tSendBuf.iSize > 0 ) {
-				size_t iSent = 0;
-				xrtSockSend(&pConn->tConn, pConn->pTlsCtx->tSendBuf.pData,
-					pConn->pTlsCtx->tSendBuf.iSize, &iSent);
-				if ( iSent > 0 ) xrtNetBufConsume(&pConn->pTlsCtx->tSendBuf, iSent);
-			}
-			
-			// select 等待 IO 就绪，替代 Sleep(10)
-			fd_set tReadSet, tWriteSet;
-			FD_ZERO(&tReadSet); FD_ZERO(&tWriteSet);
-			FD_SET(pConn->tConn.hSocket, &tReadSet);
-			if ( pConn->pTlsCtx->tSendBuf.iSize > 0 ) {
-				FD_SET(pConn->tConn.hSocket, &tWriteSet);
-			}
-			struct timeval tSelTimeout = {0, 100000};  // 100ms
-			select((int)pConn->tConn.hSocket + 1, &tReadSet,
-				pConn->pTlsCtx->tSendBuf.iSize > 0 ? &tWriteSet : NULL, NULL, &tSelTimeout);
-			
-			iRetries++;
-			if ( iRetries > iMaxRetries ) {
-				#ifdef DEBUG_TRACE
-					printf("    [HTTP] TLS handshake timeout after %d retries\n", iRetries);
-				#endif
-				xrtTlsDestroy(pConn->pTlsCtx);
-				pConn->pTlsCtx = NULL;
-				xrtSockClose(&pConn->tConn);
-				return false;
-			}
-		}
-		
-		// 发送残余 TLS 数据
-		if ( pConn->pTlsCtx->tSendBuf.iSize > 0 ) {
-			size_t iSent = 0;
-			xrtSockSend(&pConn->tConn, pConn->pTlsCtx->tSendBuf.pData,
-				pConn->pTlsCtx->tSendBuf.iSize, &iSent);
-			if ( iSent > 0 ) xrtNetBufConsume(&pConn->pTlsCtx->tSendBuf, iSent);
-		}
-		
-		if ( iTlsRes != XRT_NET_OK ) {
-			xrtTlsDestroy(pConn->pTlsCtx);
-			pConn->pTlsCtx = NULL;
-			xrtSockClose(&pConn->tConn);
-			return false;
-		}
-		
-		pConn->tConn.bTlsEnabled = true;
-		pConn->tConn.pTlsCtx = pConn->pTlsCtx;
-	}
-	
-	pConn->bConnected = true;
-	return true;
-}
-// 发送数据 (自动处理 TLS)
-static bool __xrt_http_send(__xrt_http_conn* pConn, str pData, size_t iLen)
-{
-	if ( !pConn->bConnected || iLen == 0 ) return false;
-	
-	if ( pConn->bHttps && pConn->pTlsCtx ) {
-		size_t iWritten = 0;
-		xnet_result iRes = xrtTlsWrite(pConn->pTlsCtx, pData, iLen, &iWritten);
-		if ( iRes != XRT_NET_OK ) return false;
-		// 发送 TLS 加密后的数据
-		if ( pConn->pTlsCtx->tSendBuf.iSize > 0 ) {
-			size_t iSent = 0;
-			size_t iRemaining = pConn->pTlsCtx->tSendBuf.iSize;
-			size_t iOffset = 0;
-			while ( iRemaining > 0 ) {
-				xrtSockSend(&pConn->tConn, pConn->pTlsCtx->tSendBuf.pData + iOffset,
-					iRemaining, &iSent);
-				if ( iSent <= 0 ) break;
-				iOffset += iSent;
-				iRemaining -= iSent;
-			}
-			xrtNetBufClear(&pConn->pTlsCtx->tSendBuf);
-		}
-		return true;
-	} else {
-		size_t iSent = 0;
-		size_t iRemaining = iLen;
-		size_t iOffset = 0;
-		while ( iRemaining > 0 ) {
-			xnet_result iRes = xrtSockSend(&pConn->tConn, pData + iOffset, iRemaining, &iSent);
-			if ( iRes != XRT_NET_OK || iSent == 0 ) return false;
-			iOffset += iSent;
-			iRemaining -= iSent;
-		}
-		return true;
-	}
-}
-// 接收数据 (自动处理 TLS, 使用 select 等待)
-static int __xrt_http_recv(__xrt_http_conn* pConn, char* pBuf, size_t iBufSize, int iTimeoutSec)
-{
-	if ( !pConn->bConnected ) return -1;
-	
-	// 使用 select 等待可读
-	fd_set tReadSet;
-	FD_ZERO(&tReadSet);
-	FD_SET(pConn->tConn.hSocket, &tReadSet);
-	struct timeval tTimeout;
-	tTimeout.tv_sec = iTimeoutSec > 0 ? iTimeoutSec : 10;
-	tTimeout.tv_usec = 0;
-	
-	int iSelRes = select((int)pConn->tConn.hSocket + 1, &tReadSet, NULL, NULL, &tTimeout);
-	if ( iSelRes <= 0 ) return -1;  // 超时或错误
-	
-	if ( pConn->bHttps && pConn->pTlsCtx ) {
-		// 先从 socket 读原始数据到 TLS 缓冲区
-		char aTlsBuf[8192];
-		size_t iTlsRecvd = 0;
-		xnet_result iTlsRes = xrtSockRecv(&pConn->tConn, aTlsBuf, sizeof(aTlsBuf), &iTlsRecvd);
-		if ( iTlsRes == XRT_NET_OK && iTlsRecvd > 0 ) {
-			xrtNetBufAppend(&pConn->pTlsCtx->tRecvBuf, aTlsBuf, iTlsRecvd);
-		} else if ( iTlsRes == XRT_NET_CLOSED ) {
-			return 0;  // 连接关闭
-		}
-		
-		// TLS 解密
-		size_t iRead = 0;
-		xnet_result iRes = xrtTlsRead(pConn->pTlsCtx, pBuf, iBufSize, &iRead);
-		if ( iRes == XRT_NET_OK && iRead > 0 ) return (int)iRead;
-		if ( iRes == XRT_NET_CLOSED ) return 0;
-		return -1;
-	} else {
-		size_t iRecvd = 0;
-		xnet_result iRes = xrtSockRecv(&pConn->tConn, pBuf, iBufSize, &iRecvd);
-		if ( iRes == XRT_NET_OK && iRecvd > 0 ) return (int)iRecvd;
-		if ( iRes == XRT_NET_CLOSED ) return 0;
-		return -1;
-	}
-}
-// 关闭连接
-static void __xrt_http_close(__xrt_http_conn* pConn)
-{
-	if ( !pConn ) return;
-	
-	if ( pConn->pTlsCtx ) {
-		xrtTlsClose(pConn->pTlsCtx);
-		// 发送 close_notify
-		if ( pConn->pTlsCtx->tSendBuf.iSize > 0 ) {
-			size_t iSent = 0;
-			xrtSockSend(&pConn->tConn, pConn->pTlsCtx->tSendBuf.pData,
-				pConn->pTlsCtx->tSendBuf.iSize, &iSent);
-		}
-		xrtTlsDestroy(pConn->pTlsCtx);
-		pConn->pTlsCtx = NULL;
-	}
-	
-	xrtSockClose(&pConn->tConn);
-	pConn->bConnected = false;
-}
-/* ============================== HTTP 请求构建 ============================== */
-static str __xrt_http_method_str(xhttp_method iMethod)
-{
-	switch ( iMethod ) {
-		case XHTTP_GET:    return "GET";
-		case XHTTP_POST:   return "POST";
-		case XHTTP_PUT:    return "PUT";
-		case XHTTP_DELETE: return "DELETE";
-		case XHTTP_PATCH:  return "PATCH";
-		case XHTTP_HEAD:   return "HEAD";
-		default:           return "GET";
-	}
-}
-// 构建 HTTP 请求文本到 xbuffer
-static void __xrt_http_build_request(
-	xhttp_method iMethod,
-	const xurl pURL,
-	str sHeaders,
-	str pBody,
-	size_t iBodyLen,
-	str sContentType,
-	xbuffer pBuf)
-{
-	char aTmp[4096];
-	bool bHasContentType = __xrt_http_header_exists(sHeaders, "Content-Type");
-	bool bHasContentLength = __xrt_http_header_exists(sHeaders, "Content-Length");
-	
-	// 请求行
-	int iLen = snprintf(aTmp, sizeof(aTmp), "%s %s HTTP/1.1\r\n",
-		__xrt_http_method_str(iMethod), pURL->sPath);
-	xrtBufferAppend(pBuf, aTmp, iLen, 0);
-	
-	// Host 头
-	if ( (pURL->bHttps && pURL->iPort != 443) || (!pURL->bHttps && pURL->iPort != 80) ) {
-		iLen = snprintf(aTmp, sizeof(aTmp), "Host: %s:%d\r\n", pURL->sHost, pURL->iPort);
-	} else {
-		iLen = snprintf(aTmp, sizeof(aTmp), "Host: %s\r\n", pURL->sHost);
-	}
-	xrtBufferAppend(pBuf, aTmp, iLen, 0);
-	
-	// 默认头
-	xrtBufferAppend(pBuf, "User-Agent: xrt/1.0\r\n", 21, 0);
-	xrtBufferAppend(pBuf, "Accept: */*\r\n", 13, 0);
-	xrtBufferAppend(pBuf, "Connection: close\r\n", 19, 0);
-	
-	// Content-Type
-	if ( pBody && iBodyLen > 0 ) {
-		if ( !bHasContentType ) {
-			if ( sContentType && sContentType[0] ) {
-				iLen = snprintf(aTmp, sizeof(aTmp), "Content-Type: %s\r\n", sContentType);
-			} else {
-				iLen = snprintf(aTmp, sizeof(aTmp), "Content-Type: application/x-www-form-urlencoded\r\n");
-			}
-			xrtBufferAppend(pBuf, aTmp, iLen, 0);
-		}
-		
-		// Content-Length
-		if ( !bHasContentLength ) {
-			iLen = snprintf(aTmp, sizeof(aTmp), "Content-Length: %u\r\n", (unsigned int)iBodyLen);
-			xrtBufferAppend(pBuf, aTmp, iLen, 0);
-		}
-	}
-	
-	// 用户自定义头
-	if ( sHeaders && sHeaders[0] ) {
-		__xrt_http_append_headers_normalized(pBuf, sHeaders);
-	}
-	
-	// 空行结束头部
-	xrtBufferAppend(pBuf, "\r\n", 2, 0);
-	
-	// 请求正文
-	if ( pBody && iBodyLen > 0 ) {
-		xrtBufferAppend(pBuf, (ptr)pBody, (uint32)iBodyLen, 0);
-	}
-}
-/* ============================== HTTP 响应解析 ============================== */
-// 创建响应对象
-static xhttpresp __xrt_http_resp_create(void)
-{
-	xhttpresp pResp = (xhttpresp)xrtCalloc(1, sizeof(xhttpresp_struct));
-	if ( pResp ) {
-		xrtBufferInit(&pResp->tBody, 8192);
-		xrtBufferInit(&pResp->tRawHeaders, 2048);
-		pResp->iContentLength = (size_t)-1;
-	}
-	return pResp;
-}
-// 解析状态行: "HTTP/1.1 200 OK\r\n"
-static bool __xrt_http_parse_status_line(str sLine, xhttpresp pResp)
-{
-	// HTTP/x.x
-	if ( strncmp(sLine, "HTTP/", 5) != 0 ) return false;
-	
-	str p = sLine + 5;
-	int i = 0;
-	while ( *p && *p != ' ' && i < 15 ) {
-		pResp->sVersion[i++] = *p++;
-	}
-	pResp->sVersion[i] = '\0';
-	
-	// 跳过空格
-	while ( *p == ' ' ) p++;
-	
-	// 状态码
-	pResp->iStatusCode = atoi(p);
-	
-	// 跳过状态码
-	while ( *p >= '0' && *p <= '9' ) p++;
-	while ( *p == ' ' ) p++;
-	
-	// 状态文本
-	i = 0;
-	while ( *p && *p != '\r' && *p != '\n' && i < 63 ) {
-		pResp->sStatusText[i++] = *p++;
-	}
-	pResp->sStatusText[i] = '\0';
-	
-	return (pResp->iStatusCode > 0);
-}
-// 从原始头部中提取指定 Header 值 (不区分大小写)
-static str __xrt_http_find_header(str sHeaders, str sName, str sBuf, size_t iBufSize)
-{
-	if ( !sHeaders || !sName ) return NULL;
-	
-	size_t iNameLen = strlen(sName);
-	str p = sHeaders;
-	
-	while ( *p ) {
-		// 不区分大小写比较
-		bool bMatch = true;
-		for ( size_t i = 0; i < iNameLen; i++ ) {
-			char a = p[i], b = sName[i];
-			if ( a >= 'A' && a <= 'Z' ) a += 32;
-			if ( b >= 'A' && b <= 'Z' ) b += 32;
-			if ( a != b ) { bMatch = false; break; }
-		}
-		
-		if ( bMatch && p[iNameLen] == ':' ) {
-			p += iNameLen + 1;
-			while ( *p == ' ' || *p == '\t' ) p++;
-			// 提取值直到 \r\n
-			size_t i = 0;
-			while ( *p && *p != '\r' && *p != '\n' && i < iBufSize - 1 ) {
-				sBuf[i++] = *p++;
-			}
-			sBuf[i] = '\0';
-			return sBuf;
-		}
-		
-		// 跳到下一行
-		while ( *p && *p != '\n' ) p++;
-		if ( *p == '\n' ) p++;
-	}
-	
-	return NULL;
-}
-// 解析 Chunked 编码数据到 pOut
-static bool __xrt_http_decode_chunked(str pData, size_t iLen, xbuffer pOut)
-{
-	const char* p = pData;
-	const char* pEnd = pData + iLen;
-	bool bSawLastChunk = false;
-	
-	while ( p < pEnd ) {
-		size_t iChunkSize = 0;
-		bool bHasDigit = false;
-		
-		while ( p < pEnd && *p != ';' && *p != '\r' && *p != '\n' ) {
-			char c = *p;
-			if ( c >= '0' && c <= '9' ) iChunkSize = iChunkSize * 16 + (size_t)(c - '0');
-			else if ( c >= 'a' && c <= 'f' ) iChunkSize = iChunkSize * 16 + (size_t)(c - 'a' + 10);
-			else if ( c >= 'A' && c <= 'F' ) iChunkSize = iChunkSize * 16 + (size_t)(c - 'A' + 10);
-			else return false;
-			bHasDigit = true;
-			p++;
-		}
-		
-		if ( !bHasDigit ) return false;
-		
-		while ( p < pEnd && *p != '\r' && *p != '\n' ) p++;  // 跳过 chunk-extension
-		if ( p + 1 >= pEnd || p[0] != '\r' || p[1] != '\n' ) return false;
-		p += 2;
-		
-		if ( iChunkSize == 0 ) {
-			bSawLastChunk = true;
-			while ( p < pEnd ) {
-				const char* pLineStart = p;
-				while ( p < pEnd && *p != '\r' && *p != '\n' ) p++;
-				if ( p + 1 >= pEnd || p[0] != '\r' || p[1] != '\n' ) return false;
-				if ( p == pLineStart ) {
-					p += 2;
-					return p == pEnd;
-				}
-				p += 2;
-			}
-			return false;
-		}
-		
-		if ( (size_t)(pEnd - p) < iChunkSize + 2 ) return false;
-		xrtBufferAppend(pOut, (ptr)p, (uint32)iChunkSize, 0);
-		p += iChunkSize;
-		if ( p[0] != '\r' || p[1] != '\n' ) return false;
-		p += 2;
-	}
-	
-	return bSawLastChunk;
-}
-/* ============================== Cookie 管理内部辅助 ============================== */
-static bool __xrt_http_cookie_free_cb(Dict_Key* pKey, ptr pVal, ptr pArg)
-{
-	(void)pVal;
-	__xrt_http_cookie* pCookie = (__xrt_http_cookie*)xrtDictGetPtr((xdict)pArg, pKey->Key, pKey->KeyLen);
-	if ( pCookie ) __xrt_http_cookie_free(pCookie);
-	return false;  // 继续遍历
-}
-static void __xrt_http_cookies_destroy(xdict pCookies)
-{
-	if ( !pCookies ) return;
-	xrtDictWalk(pCookies, __xrt_http_cookie_free_cb, pCookies);
-	xrtDictDestroy(pCookies);
-}
-// 遍历回调: 构建 Cookie 请求头
-static bool __xrt_http_cookie_build_cb(Dict_Key* pKey, ptr pVal, ptr pArg)
-{
-	__xrt_http_cookie_build_ctx* pCtx = (__xrt_http_cookie_build_ctx*)pArg;
-	__xrt_http_cookie* pCookie = pVal ? *((__xrt_http_cookie**)pVal) : NULL;
-	(void)pKey;
-	if ( !pCtx || !pCtx->pBuf || !pCtx->pURL || !pCookie || !pCookie->sValue ) return false;
-	str sReqPath = pCtx->pURL->sPath[0] ? pCtx->pURL->sPath : "/";
-	if ( pCookie->iExpiresAt != 0 && pCookie->iExpiresAt <= pCtx->iNow ) return false;
-	if ( pCookie->bSecure && !pCtx->pURL->bHttps ) return false;
-	if ( !__xrt_http_domain_match(pCtx->pURL->sHost, pCookie) ) return false;
-	if ( !__xrt_http_path_match(sReqPath, pCookie->sPath) ) return false;
-	
-	if ( pCtx->pBuf->Length > 8 ) {  // 已有 "Cookie: " 之后的内容
-		xrtBufferAppend(pCtx->pBuf, "; ", 2, 0);
-	}
-	xrtBufferAppend(pCtx->pBuf, pCookie->sName ? pCookie->sName : pKey->Key,
-		pCookie->sName ? (uint32)strlen(pCookie->sName) : pKey->KeyLen, 0);
-	xrtBufferAppend(pCtx->pBuf, "=", 1, 0);
-	xrtBufferAppend(pCtx->pBuf, pCookie->sValue, (uint32)strlen(pCookie->sValue), 0);
-	return false;  // 继续遍历
-}
-// 构建 "Cookie: name1=val1; name2=val2\r\n" 字符串, 调用者负责 xrtFree
-static str __xrt_http_build_cookie_header(xdict pCookies, const xurl pURL)
-{
-	if ( !pCookies ) return NULL;
-	
-	xbuffer_struct tBuf;
-	__xrt_http_cookie_build_ctx tCtx;
-	xrtBufferInit(&tBuf, 512);
-	xrtBufferAppend(&tBuf, "Cookie: ", 8, 0);
-	
-	tCtx.pBuf = &tBuf;
-	tCtx.pURL = pURL;
-	tCtx.iNow = time(NULL);
-	xrtDictWalk(pCookies, __xrt_http_cookie_build_cb, &tCtx);
-	
-	if ( tBuf.Length <= 8 ) {
-		// 没有任何 cookie
-		xrtBufferUnit(&tBuf);
-		return NULL;
-	}
-	
-	xrtBufferAppend(&tBuf, "\r\n", 2, XBUF_ANSI);
-	
-	// 转移缓冲区所有权
-	str sRet = tBuf.Buffer;
-	// 不调用 xrtBufferUnit, 因为我们要保留 Buffer
-	return sRet;
-}
-// 从响应头中提取所有 Set-Cookie 并存入 xdict
-static void __xrt_http_save_cookies(xhttpresp pResp, xdict pCookies, const xurl pURL)
-{
-	if ( !pResp || !pResp->tRawHeaders.Buffer || !pCookies ) return;
-	
-	str p = pResp->tRawHeaders.Buffer;
-	str sSetCookie = "set-cookie:";
-	
-	while ( *p ) {
-		// 不区分大小写匹配 "set-cookie:"
-		bool bMatch = true;
-		for ( int i = 0; sSetCookie[i]; i++ ) {
-			char a = p[i];
-			if ( (a >= 'A') && (a <= 'Z') ) a += 32;
-			if ( a != sSetCookie[i] ) { bMatch = false; break; }
-		}
-		
-		if ( bMatch ) {
-			__xrt_http_cookie* pCookie = NULL;
-			char* sDomain = NULL;
-			char* sPath = NULL;
-			time_t iExpiresAt = 0;
-			bool bSecure = false;
-			bool bHostOnly = true;
-			
-			p += 11;  // strlen("set-cookie:")
-			while ( *p == ' ' || *p == '\t' ) p++;
-			
-			// 提取 name
-			str pNameStart = p;
-			while ( *p && *p != '=' && *p != '\r' && *p != '\n' ) p++;
-			size_t iNameLen = (size_t)(p - pNameStart);
-			
-			if ( *p == '=' && iNameLen > 0 ) {
-				p++;  // 跳过 '='
-				// 提取 value (到 ';' 或行尾)
-				str pValStart = p;
-				while ( *p && *p != ';' && *p != '\r' && *p != '\n' ) p++;
-				size_t iValLen = (size_t)(p - pValStart);
-				str sValue = xrtCopyStr((str)pValStart, (uint32)iValLen);
-				
-				pCookie = (__xrt_http_cookie*)xrtCalloc(1, sizeof(__xrt_http_cookie));
-				if ( !pCookie || !sValue ) {
-					if ( pCookie ) __xrt_http_cookie_free(pCookie);
-					if ( sValue ) xrtFree(sValue);
-					goto __next_cookie_line;
-				}
-				
-				pCookie->sName = xrtCopyStr((str)pNameStart, (uint32)iNameLen);
-				pCookie->sValue = sValue;
-				pCookie->sDomain = __xrt_http_copy_lower(pURL ? pURL->sHost : "");
-				pCookie->sPath = __xrt_http_default_cookie_path(pURL ? pURL->sPath : "/");
-				pCookie->bSecure = false;
-				pCookie->bHostOnly = true;
-				pCookie->iExpiresAt = 0;
-				
-				while ( *p == ';' ) {
-					str pAttrName;
-					size_t iAttrNameLen;
-					str pAttrVal = NULL;
-					size_t iAttrValLen = 0;
-					
-					p++;
-					while ( *p == ' ' || *p == '\t' ) p++;
-					pAttrName = p;
-					while ( *p && *p != '=' && *p != ';' && *p != '\r' && *p != '\n' ) p++;
-					iAttrNameLen = (size_t)(p - pAttrName);
-					if ( *p == '=' ) {
-						p++;
-						pAttrVal = p;
-						while ( *p && *p != ';' && *p != '\r' && *p != '\n' ) p++;
-						iAttrValLen = (size_t)(p - pAttrVal);
-					}
-					
-					if ( iAttrNameLen == 6 && __xrt_http_str_ieq_n(pAttrName, "Domain", 6) && pAttrVal ) {
-						char* sNewDomain = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
-						if ( sNewDomain ) {
-							while ( sNewDomain[0] == '.' ) memmove(sNewDomain, sNewDomain + 1, strlen(sNewDomain));
-							for ( size_t i = 0; sNewDomain[i]; i++ ) sNewDomain[i] = __xrt_http_tolower(sNewDomain[i]);
-							if ( sNewDomain[0] ) {
-								if ( pCookie->sDomain ) xrtFree(pCookie->sDomain);
-								pCookie->sDomain = sNewDomain;
-								pCookie->bHostOnly = false;
-								sNewDomain = NULL;
-							}
-							if ( sNewDomain ) xrtFree(sNewDomain);
-						}
-					} else if ( iAttrNameLen == 4 && __xrt_http_str_ieq_n(pAttrName, "Path", 4) && pAttrVal ) {
-						char* sNewPath = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
-						if ( sNewPath ) {
-							if ( pCookie->sPath ) xrtFree(pCookie->sPath);
-							pCookie->sPath = sNewPath;
-						}
-					} else if ( iAttrNameLen == 6 && __xrt_http_str_ieq_n(pAttrName, "Secure", 6) ) {
-						pCookie->bSecure = true;
-					} else if ( iAttrNameLen == 7 && __xrt_http_str_ieq_n(pAttrName, "Max-Age", 7) && pAttrVal ) {
-						char* sAge = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
-						if ( sAge ) {
-							long long iDelta = atoll(sAge);
-							if ( iDelta <= 0 ) {
-								pCookie->iExpiresAt = 1;
-							} else {
-								pCookie->iExpiresAt = time(NULL) + (time_t)iDelta;
-							}
-							xrtFree(sAge);
-						}
-					} else if ( iAttrNameLen == 7 && __xrt_http_str_ieq_n(pAttrName, "Expires", 7) && pAttrVal ) {
-						char* sExpiry = __xrt_http_copy_trim(pAttrVal, iAttrValLen);
-						if ( sExpiry ) {
-							time_t iParsed = 0;
-							if ( __xrt_http_parse_http_date(sExpiry, &iParsed) ) {
-								pCookie->iExpiresAt = iParsed;
-							}
-							xrtFree(sExpiry);
-						}
-					}
-				}
-				
-				{
-					__xrt_http_cookie* pOldCookie = (__xrt_http_cookie*)xrtDictGetPtr(pCookies, (ptr)pNameStart, (uint32)iNameLen);
-					bool bDeleteCookie = (pCookie->sValue[0] == '\0') ||
-						(pCookie->iExpiresAt != 0 && pCookie->iExpiresAt <= time(NULL));
-					
-					if ( bDeleteCookie ) {
-						if ( pOldCookie ) {
-							__xrt_http_cookie_free(pOldCookie);
-							xrtDictRemove(pCookies, (ptr)pNameStart, (uint32)iNameLen);
-						}
-						__xrt_http_cookie_free(pCookie);
-						pCookie = NULL;
-					} else {
-						if ( pOldCookie ) __xrt_http_cookie_free(pOldCookie);
-						xrtDictSetPtr(pCookies, (ptr)pNameStart, (uint32)iNameLen, pCookie, NULL);
-						pCookie = NULL;
-					}
-				}
-			}
-		}
-		
-__next_cookie_line:
-		// 跳到下一行
-		while ( *p && *p != '\n' ) p++;
-		if ( *p == '\n' ) p++;
-	}
-}
-/* ============================== 核心 HTTP 执行引擎 ============================== */
-static xhttpresp __xrt_http_execute(
-	xhttp_method iMethod,
-	str sURL,
-	str sHeaders,
-	str pBody,
-	size_t iBodyLen,
-	str sContentType,
-	xhttp_proc procOnData,
-	int iMaxRedirects,
-	int iTimeoutSec,
-	bool bVerifySSL,
-	str sFilePath,
-	xdict pCookies)
-{
-	if ( !sURL ) return NULL;
-	
-	// 解析 URL
-	xurl_struct tURL;
-	if ( !xrtUrlParse(sURL, &tURL) ) {
-		#ifdef DEBUG_TRACE
-			printf("    [HTTP] URL parse failed: %s\n", sURL);
-		#endif
-		return NULL;
-	}
-	
-	#ifdef DEBUG_TRACE
-		printf("    [HTTP] %s %s://%s:%d%s\n",
-			__xrt_http_method_str(iMethod),
-			tURL.bHttps ? "https" : "http",
-			tURL.sHost, tURL.iPort, tURL.sPath);
-	#endif
-	
-	// 建立连接
-	__xrt_http_conn tConn;
-	if ( !__xrt_http_connect(&tConn, &tURL, iTimeoutSec, bVerifySSL) ) {
-		#ifdef DEBUG_TRACE
-			printf("    [HTTP] Connect failed\n");
-		#endif
-		return NULL;
-	}
-	
-	// Cookie 头构建
-	str sCookieHdr = NULL;
-	str sMergedHeaders = NULL;
-	str sFinalHeaders = sHeaders;
-	if ( pCookies ) {
-		sCookieHdr = __xrt_http_build_cookie_header(pCookies, &tURL);
-		if ( sCookieHdr ) {
-			if ( sHeaders ) {
-				size_t iCookieLen = strlen(sCookieHdr);
-				size_t iHeadersLen = strlen(sHeaders);
-				sMergedHeaders = (str)xrtMalloc(iCookieLen + iHeadersLen + 1);
-				if ( sMergedHeaders ) {
-					memcpy(sMergedHeaders, sCookieHdr, iCookieLen);
-					memcpy(sMergedHeaders + iCookieLen, sHeaders, iHeadersLen);
-					sMergedHeaders[iCookieLen + iHeadersLen] = '\0';
-					sFinalHeaders = sMergedHeaders;
-				}
-			} else {
-				sFinalHeaders = sCookieHdr;
-			}
-		}
-	}
-	
-	// 构建请求
-	xbuffer_struct tReqBuf;
-	xrtBufferInit(&tReqBuf, 4096);
-	__xrt_http_build_request(iMethod, &tURL, sFinalHeaders, pBody, iBodyLen, sContentType, &tReqBuf);
-	
-	// 释放 Cookie 临时字符串
-	if ( sCookieHdr ) xrtFree(sCookieHdr);
-	if ( sMergedHeaders ) xrtFree(sMergedHeaders);
-	
-	// 发送请求
-	bool bSendOK = __xrt_http_send(&tConn, tReqBuf.Buffer, tReqBuf.Length);
-	xrtBufferUnit(&tReqBuf);
-	
-	if ( !bSendOK ) {
-		#ifdef DEBUG_TRACE
-			printf("    [HTTP] Send failed\n");
-		#endif
-		__xrt_http_close(&tConn);
-		return NULL;
-	}
-	
-	// 接收响应
-	xbuffer_struct tRawBuf;
-	xrtBufferInit(&tRawBuf, 16384);
-	
-	char aRecvBuf[8192];
-	bool bHeadersDone = false;
-	size_t iHeaderEnd = 0;
-	
-	// 创建响应对象
-	xhttpresp pResp = __xrt_http_resp_create();
-	if ( !pResp ) {
-		__xrt_http_close(&tConn);
-		return NULL;
-	}
-	
-	// 是否使用 chunked 传输
-	bool bChunked = false;
-	size_t iTotalReceived = 0;
-	
-	// 文件句柄
-	FILE* pFile = NULL;
-	if ( sFilePath ) {
-		pFile = fopen(sFilePath, "wb");
-		if ( !pFile ) {
-			xrtBufferUnit(&tRawBuf);
-			xrtHttpRespFree(pResp);
-			__xrt_http_close(&tConn);
-			return NULL;
-		}
-	}
-	
-	// 接收循环
-	while ( 1 ) {
-		int iRecvd = __xrt_http_recv(&tConn, aRecvBuf, sizeof(aRecvBuf), iTimeoutSec);
-		
-		if ( iRecvd <= 0 ) {
-			// 连接关闭或超时
-			if ( !bHeadersDone || (!bChunked && pResp->iContentLength != (size_t)-1 &&
-				iTotalReceived < pResp->iContentLength) ) {
-				xrtBufferUnit(&tRawBuf);
-				if ( pFile ) {
-					fclose(pFile);
-					remove(sFilePath);
-				}
-				xrtHttpRespFree(pResp);
-				__xrt_http_close(&tConn);
-				return NULL;
-			}
-			break;
-		}
-		
-		xrtBufferAppend(&tRawBuf, aRecvBuf, iRecvd, 0);
-		
-		// 检查是否收到完整头部
-		if ( !bHeadersDone ) {
-			// 搜索 \r\n\r\n
-			for ( size_t i = 3; i < tRawBuf.Length; i++ ) {
-				if ( tRawBuf.Buffer[i-3] == '\r' && tRawBuf.Buffer[i-2] == '\n' &&
-					 tRawBuf.Buffer[i-1] == '\r' && tRawBuf.Buffer[i] == '\n' ) {
-					iHeaderEnd = i + 1;  // 头部结束位置 (含 \r\n\r\n)
-					bHeadersDone = true;
-					
-					// 保存原始头部
-					xrtBufferAppend(&pResp->tRawHeaders, tRawBuf.Buffer, (uint32)iHeaderEnd, XBUF_ANSI);
-					
-					// 解析状态行
-					__xrt_http_parse_status_line(tRawBuf.Buffer, pResp);
-					
-					// 解析关键头部
-					char aTmpVal[256];
-					
-					// Content-Length
-					if ( __xrt_http_find_header(pResp->tRawHeaders.Buffer, "Content-Length", aTmpVal, sizeof(aTmpVal)) ) {
-						pResp->iContentLength = (size_t)atol(aTmpVal);
-					}
-					
-					// Content-Type
-					__xrt_http_find_header(pResp->tRawHeaders.Buffer, "Content-Type", pResp->sContentType, sizeof(pResp->sContentType));
-					
-					// Transfer-Encoding
-					if ( __xrt_http_find_header(pResp->tRawHeaders.Buffer, "Transfer-Encoding", aTmpVal, sizeof(aTmpVal)) ) {
-						bChunked = __xrt_http_has_token_ci(aTmpVal, "chunked");
-					}
-					
-					// 把头部之后的数据作为 body 的开头
-					size_t iBodyStart = iHeaderEnd;
-					if ( iBodyStart < tRawBuf.Length ) {
-						size_t iBodyPart = tRawBuf.Length - iBodyStart;
-						if ( bChunked ) {
-							// Chunked: 先暂存，最后统一解码
-							xrtBufferAppend(&pResp->tBody, tRawBuf.Buffer + iBodyStart, (uint32)iBodyPart, 0);
-						} else {
-							if ( pFile ) {
-								if ( fwrite(tRawBuf.Buffer + iBodyStart, 1, iBodyPart, pFile) != iBodyPart ) {
-									xrtBufferUnit(&tRawBuf);
-									fclose(pFile);
-									remove(sFilePath);
-									xrtHttpRespFree(pResp);
-									__xrt_http_close(&tConn);
-									return NULL;
-								}
-							} else {
-								xrtBufferAppend(&pResp->tBody, tRawBuf.Buffer + iBodyStart, (uint32)iBodyPart, 0);
-							}
-						}
-						iTotalReceived += iBodyPart;
-						
-						// 回调
-						if ( procOnData && !pFile ) {
-							if ( !procOnData(&pResp->tBody, pResp->iContentLength != (size_t)-1 ? pResp->iContentLength : 0, iTotalReceived) ) {
-								// 用户中止
-								xrtBufferUnit(&tRawBuf);
-								if ( pFile ) fclose(pFile);
-								__xrt_http_close(&tConn);
-								return pResp;
-							}
-						} else if ( procOnData && pFile ) {
-							// 文件下载进度回调
-							xbuffer_struct tProgressBuf;
-							xrtBufferInit(&tProgressBuf, 0);
-							if ( !procOnData(&tProgressBuf, pResp->iContentLength != (size_t)-1 ? pResp->iContentLength : 0, iTotalReceived) ) {
-								xrtBufferUnit(&tProgressBuf);
-								xrtBufferUnit(&tRawBuf);
-								fclose(pFile);
-								remove(sFilePath);
-								__xrt_http_close(&tConn);
-								return pResp;
-							}
-							xrtBufferUnit(&tProgressBuf);
-						}
-					}
-					
-					break;
-				}
-			}
-			
-			if ( !bHeadersDone ) continue;
-			
-			// 检查是否已经收完 (非 chunked, Content-Length 已知)
-			if ( !bChunked && pResp->iContentLength != (size_t)-1 ) {
-				if ( iTotalReceived >= pResp->iContentLength ) break;
-			}
-			continue;
-		}
-		
-		// 已过头部，直接处理 body 数据
-		if ( bChunked ) {
-			xrtBufferAppend(&pResp->tBody, aRecvBuf, iRecvd, 0);
-		} else {
-			if ( pFile ) {
-				if ( fwrite(aRecvBuf, 1, iRecvd, pFile) != (size_t)iRecvd ) {
-					xrtBufferUnit(&tRawBuf);
-					fclose(pFile);
-					remove(sFilePath);
-					xrtHttpRespFree(pResp);
-					__xrt_http_close(&tConn);
-					return NULL;
-				}
-			} else {
-				xrtBufferAppend(&pResp->tBody, aRecvBuf, iRecvd, 0);
-			}
-		}
-		iTotalReceived += iRecvd;
-		
-		// 回调
-		if ( procOnData && !pFile ) {
-			if ( !procOnData(&pResp->tBody, pResp->iContentLength != (size_t)-1 ? pResp->iContentLength : 0, iTotalReceived) ) {
-				break;  // 用户中止
-			}
-		} else if ( procOnData && pFile ) {
-			xbuffer_struct tProgressBuf;
-			xrtBufferInit(&tProgressBuf, 0);
-			if ( !procOnData(&tProgressBuf, pResp->iContentLength != (size_t)-1 ? pResp->iContentLength : 0, iTotalReceived) ) {
-				xrtBufferUnit(&tProgressBuf);
-				break;
-			}
-			xrtBufferUnit(&tProgressBuf);
-		}
-		
-		// 检查是否已经收完
-		if ( !bChunked && pResp->iContentLength != (size_t)-1 ) {
-			if ( iTotalReceived >= pResp->iContentLength ) break;
-		}
-	}
-	
-	// 清理原始缓冲区
-	xrtBufferUnit(&tRawBuf);
-	
-	// 关闭连接
-	__xrt_http_close(&tConn);
-	
-	// Chunked 解码
-	if ( bChunked && pResp->tBody.Length > 0 ) {
-		xbuffer_struct tDecoded;
-		xrtBufferInit(&tDecoded, pResp->tBody.Length);
-		if ( !__xrt_http_decode_chunked(pResp->tBody.Buffer, pResp->tBody.Length, &tDecoded) ) {
-			xrtBufferUnit(&tDecoded);
-			if ( pFile ) {
-				fclose(pFile);
-				remove(sFilePath);
-			}
-			xrtHttpRespFree(pResp);
-			return NULL;
-		}
-		xrtBufferUnit(&pResp->tBody);
-		pResp->tBody = tDecoded;
-	}
-	
-	// 关闭文件 / 写出 chunked 正文
-	if ( pFile ) {
-		if ( bChunked && pResp->tBody.Length > 0 ) {
-			if ( fwrite(pResp->tBody.Buffer, 1, pResp->tBody.Length, pFile) != pResp->tBody.Length ) {
-				fclose(pFile);
-				remove(sFilePath);
-				xrtHttpRespFree(pResp);
-				return NULL;
-			}
-		}
-		fclose(pFile);
-		pFile = NULL;
-	}
-	
-	// 确保 body 以 \0 结尾 (方便字符串操作)
-	if ( pResp->tBody.Buffer ) {
-		xrtBufferAppend(&pResp->tBody, "", 0, XBUF_ANSI);
-		if ( pResp->tBody.Length > 0 ) pResp->tBody.Length--;  // 不计入 \0 到长度中
-	}
-	
-	// 保存响应中的 Set-Cookie 到 cookie 字典
-	if ( pCookies && pResp ) {
-		__xrt_http_save_cookies(pResp, pCookies, &tURL);
-	}
-	
-	// 处理重定向
-	if ( iMaxRedirects > 0 && pResp->iStatusCode >= 300 && pResp->iStatusCode < 400 ) {
-		char sLocation[2048];
-		if ( __xrt_http_find_header(pResp->tRawHeaders.Buffer, "Location", sLocation, sizeof(sLocation)) ) {
-			#ifdef DEBUG_TRACE
-				printf("    [HTTP] Redirect %d -> %s\n", pResp->iStatusCode, sLocation);
-			#endif
-			
-			// 解析相对/绝对重定向 URL
-			char sFullURL[4096];
-			if ( !__xrt_http_resolve_redirect_url(sFullURL, sizeof(sFullURL), &tURL, sLocation) ) {
-				return pResp;
-			}
-			
-			// 确定重定向方法
-			// 307/308 保持原方法和 body; 301/302/303 转为 GET (不发 body)
-			int iCode = pResp->iStatusCode;
-			xhttp_method iRedirectMethod = iMethod;
-			str pRedirectBody = pBody;
-			size_t iRedirectBodyLen = iBodyLen;
-			str sRedirectCT = sContentType;
-			
-			if ( iCode == 301 || iCode == 302 || iCode == 303 ) {
-				iRedirectMethod = XHTTP_GET;
-				pRedirectBody = NULL;
-				iRedirectBodyLen = 0;
-				sRedirectCT = NULL;
-			}
-			
-			// 释放当前响应，递归请求
-			xrtHttpRespFree(pResp);
-			
-			return __xrt_http_execute(
-				iRedirectMethod, sFullURL, sHeaders,
-				pRedirectBody, iRedirectBodyLen, sRedirectCT,
-				procOnData, iMaxRedirects - 1, iTimeoutSec, bVerifySSL, sFilePath,
-				pCookies);
-		}
-	}
-	
-	return pResp;
-}
-/* ============================== 极简 API 实现 ============================== */
-XXAPI xhttpresp xrtHttpGet(str sURL, str sHeaders, xhttp_proc pProc)
-{
-	return __xrt_http_execute(XHTTP_GET, sURL, sHeaders, NULL, 0, NULL,
-		pProc, 5, 10, true, NULL, NULL);
-}
-XXAPI xhttpresp xrtHttpPost(str sURL, str sBody, str sHeaders, xhttp_proc pProc)
-{
-	return __xrt_http_execute(XHTTP_POST, sURL, sHeaders,
-		sBody, sBody ? strlen(sBody) : 0, NULL,
-		pProc, 5, 10, true, NULL, NULL);
-}
-XXAPI bool xrtHttpGetFile(str sURL, str sFilePath, str sHeaders, xhttp_proc pProc)
-{
-	xhttpresp pResp = __xrt_http_execute(XHTTP_GET, sURL, sHeaders, NULL, 0, NULL,
-		pProc, 5, 10, true, sFilePath, NULL);
-	bool bOK = (pResp && pResp->iStatusCode >= 200 && pResp->iStatusCode < 300);
-	xrtHttpRespFree(pResp);
-	return bOK;
-}
-XXAPI bool xrtHttpPostFile(str sURL, str sBody,
-	str sFilePath, str sHeaders, xhttp_proc pProc)
-{
-	xhttpresp pResp = __xrt_http_execute(XHTTP_POST, sURL, sHeaders,
-		sBody, sBody ? strlen(sBody) : 0, NULL,
-		pProc, 5, 10, true, sFilePath, NULL);
-	bool bOK = (pResp && pResp->iStatusCode >= 200 && pResp->iStatusCode < 300);
-	xrtHttpRespFree(pResp);
-	return bOK;
-}
-// 释放响应对象
-XXAPI void xrtHttpRespFree(xhttpresp pResp)
-{
-	if ( !pResp ) return;
-	xrtBufferUnit(&pResp->tBody);
-	xrtBufferUnit(&pResp->tRawHeaders);
-	xrtFree(pResp);
-}
-/* ============================== 完整 API - 请求对象 ============================== */
-XXAPI xhttpreq xrtHttpReqCreate(xhttp_method iMethod, str sURL)
-{
-	xhttpreq pReq = (xhttpreq)xrtCalloc(1, sizeof(xhttpreq_struct));
-	if ( !pReq ) return NULL;
-	
-	pReq->iMethod = iMethod;
-	if ( sURL ) {
-		size_t iLen = strlen(sURL);
-		if ( iLen >= sizeof(pReq->sURL) ) iLen = sizeof(pReq->sURL) - 1;
-		memcpy(pReq->sURL, sURL, iLen);
-		pReq->sURL[iLen] = '\0';
-	}
-	
-	xrtBufferInit(&pReq->tHeaders, 512);
-	xrtBufferInit(&pReq->tBody, 1024);
-	xrtBufferInit(&pReq->tMultipart, 4096);
-	
-	pReq->iMaxRedirects = 5;
-	pReq->iTimeoutSec = 10;
-	pReq->bVerifySSL = true;
-	pReq->bIsMultipart = false;
-	
-	return pReq;
-}
-XXAPI void xrtHttpReqFree(xhttpreq pReq)
-{
-	if ( !pReq ) return;
-	xrtBufferUnit(&pReq->tHeaders);
-	xrtBufferUnit(&pReq->tBody);
-	xrtBufferUnit(&pReq->tMultipart);
-	// 非持久化模式: 自动清理本地 cookie
-	if ( pReq->pCookies && !pReq->bCookiePersist ) {
-		__xrt_http_cookies_destroy(pReq->pCookies);
-		pReq->pCookies = NULL;
-	}
-	xrtFree(pReq);
-}
-XXAPI void xrtHttpReqSetHeader(xhttpreq pReq, str sName, str sValue)
-{
-	if ( !pReq || !sName || !sValue ) return;
-	char aBuf[4096];
-	int iLen = snprintf(aBuf, sizeof(aBuf), "%s: %s\r\n", sName, sValue);
-	xrtBufferAppend(&pReq->tHeaders, aBuf, iLen, 0);
-}
-XXAPI void xrtHttpReqSetBody(xhttpreq pReq, str pData, size_t iLen, str sContentType)
-{
-	if ( !pReq || !pData ) return;
-	
-	// 重置 body
-	pReq->tBody.Length = 0;
-	xrtBufferAppend(&pReq->tBody, (ptr)pData, (uint32)iLen, 0);
-	
-	// 设置 Content-Type
-	if ( sContentType && sContentType[0] ) {
-		xrtHttpReqSetHeader(pReq, "Content-Type", sContentType);
-	}
-}
-XXAPI void xrtHttpReqAddField(xhttpreq pReq, str sName, str sValue)
-{
-	if ( !pReq || !sName || !sValue ) return;
-	
-	// URL 编码追加 key=value&
-	if ( pReq->tBody.Length > 0 ) {
-		xrtBufferAppend(&pReq->tBody, "&", 1, 0);
-	}
-	__xrt_http_url_encode_append(sName, &pReq->tBody);
-	xrtBufferAppend(&pReq->tBody, "=", 1, 0);
-	__xrt_http_url_encode_append(sValue, &pReq->tBody);
-}
-/* ============================== 完整 API - Multipart 表单 ============================== */
-static void __xrt_http_multipart_ensure(xhttpreq pReq)
-{
-	if ( !pReq->bIsMultipart ) {
-		pReq->bIsMultipart = true;
-		// 生成随机 boundary
-		snprintf(pReq->sBoundary, sizeof(pReq->sBoundary),
-			"----XrtBoundary%08X%08X",
-			(unsigned int)xrtNow(),
-			(unsigned int)((size_t)pReq ^ 0xA5A5A5A5));
-	}
-}
-XXAPI void xrtHttpReqAddFormField(xhttpreq pReq, str sName, str sValue)
-{
-	if ( !pReq || !sName || !sValue ) return;
-	__xrt_http_multipart_ensure(pReq);
-	
-	char aBuf[4096];
-	int iLen = snprintf(aBuf, sizeof(aBuf),
-		"--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n",
-		pReq->sBoundary, sName, sValue);
-	xrtBufferAppend(&pReq->tMultipart, aBuf, iLen, 0);
-}
-XXAPI void xrtHttpReqAddFormFile(xhttpreq pReq, str sFieldName,
-	str sFilePath, str sMimeType)
-{
-	if ( !pReq || !sFieldName || !sFilePath ) return;
-	__xrt_http_multipart_ensure(pReq);
-	
-	// 提取文件名
-	str sFileName = sFilePath;
-	str p = sFilePath;
-	while ( *p ) {
-		if ( *p == '/' || *p == '\\' ) sFileName = p + 1;
-		p++;
-	}
-	
-	if ( !sMimeType || !sMimeType[0] ) sMimeType = "application/octet-stream";
-	
-	// 读取文件
-	FILE* pFile = fopen(sFilePath, "rb");
-	if ( !pFile ) return;
-	
-	fseek(pFile, 0, SEEK_END);
-	long iFileSize = ftell(pFile);
-	fseek(pFile, 0, SEEK_SET);
-	
-	str pFileData = (str)xrtMalloc(iFileSize);
-	if ( !pFileData ) { fclose(pFile); return; }
-	fread(pFileData, 1, iFileSize, pFile);
-	fclose(pFile);
-	
-	// 写入 multipart 部分
-	char aBuf[4096];
-	int iLen = snprintf(aBuf, sizeof(aBuf),
-		"--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n"
-		"Content-Type: %s\r\n\r\n",
-		pReq->sBoundary, sFieldName, sFileName, sMimeType);
-	xrtBufferAppend(&pReq->tMultipart, aBuf, iLen, 0);
-	xrtBufferAppend(&pReq->tMultipart, pFileData, (uint32)iFileSize, 0);
-	xrtBufferAppend(&pReq->tMultipart, "\r\n", 2, 0);
-	
-	xrtFree(pFileData);
-}
-XXAPI void xrtHttpReqAddFormData(xhttpreq pReq, str sFieldName,
-	str sFileName, str pData, size_t iLen, str sMimeType)
-{
-	if ( !pReq || !sFieldName || !pData ) return;
-	__xrt_http_multipart_ensure(pReq);
-	
-	if ( !sFileName || !sFileName[0] ) sFileName = "data";
-	if ( !sMimeType || !sMimeType[0] ) sMimeType = "application/octet-stream";
-	
-	char aBuf[4096];
-	int iHdrLen = snprintf(aBuf, sizeof(aBuf),
-		"--%s\r\nContent-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n"
-		"Content-Type: %s\r\n\r\n",
-		pReq->sBoundary, sFieldName, sFileName, sMimeType);
-	xrtBufferAppend(&pReq->tMultipart, aBuf, iHdrLen, 0);
-	xrtBufferAppend(&pReq->tMultipart, (ptr)pData, (uint32)iLen, 0);
-	xrtBufferAppend(&pReq->tMultipart, "\r\n", 2, 0);
-}
-/* ============================== 完整 API - 配置和执行 ============================== */
-XXAPI void xrtHttpReqSetTimeout(xhttpreq pReq, int iTimeoutSec)
-{
-	if ( pReq ) pReq->iTimeoutSec = iTimeoutSec;
-}
-XXAPI void xrtHttpReqSetRedirect(xhttpreq pReq, int iMaxRedirects)
-{
-	if ( pReq ) pReq->iMaxRedirects = iMaxRedirects;
-}
-XXAPI void xrtHttpReqSetVerifySSL(xhttpreq pReq, bool bVerify)
-{
-	if ( pReq ) pReq->bVerifySSL = bVerify;
-}
-XXAPI void xrtHttpReqSetCallback(xhttpreq pReq, xhttp_proc pProc)
-{
-	if ( pReq ) pReq->procOnData = pProc;
-}
-XXAPI void xrtHttpReqSetUserData(xhttpreq pReq, ptr pData)
-{
-	if ( pReq ) pReq->pUserData = pData;
-}
-XXAPI xhttpresp xrtHttpReqExecute(xhttpreq pReq)
-{
-	if ( !pReq ) return NULL;
-	
-	// 准备 body 和 Content-Type
-	str pBody = NULL;
-	size_t iBodyLen = 0;
-	str sContentType = NULL;
-	char sMultipartCT[128];
-	
-	// 合并自定义头部为字符串
-	str sHeaders = NULL;
-	if ( pReq->tHeaders.Length > 0 ) {
-		// 确保以 \0 结尾
-		xrtBufferAppend(&pReq->tHeaders, "", 0, XBUF_ANSI);
-		sHeaders = pReq->tHeaders.Buffer;
-	}
-	
-	if ( pReq->bIsMultipart ) {
-		// 添加 multipart 结束标记
-		char aEnd[128];
-		int iEndLen = snprintf(aEnd, sizeof(aEnd), "--%s--\r\n", pReq->sBoundary);
-		if ( !__xrt_http_buffer_ends_with(&pReq->tMultipart, aEnd) ) {
-			xrtBufferAppend(&pReq->tMultipart, aEnd, iEndLen, 0);
-		}
-		
-		pBody = pReq->tMultipart.Buffer;
-		iBodyLen = pReq->tMultipart.Length;
-		snprintf(sMultipartCT, sizeof(sMultipartCT),
-			"multipart/form-data; boundary=%s", pReq->sBoundary);
-		sContentType = sMultipartCT;
-	} else if ( pReq->tBody.Length > 0 ) {
-		pBody = pReq->tBody.Buffer;
-		iBodyLen = pReq->tBody.Length;
-	}
-	
-	return __xrt_http_execute(
-		pReq->iMethod, pReq->sURL, sHeaders,
-		pBody, iBodyLen, sContentType,
-		pReq->procOnData, pReq->iMaxRedirects, pReq->iTimeoutSec,
-		pReq->bVerifySSL, NULL, pReq->pCookies);
-}
-/* ============================== Cookie 管理 API ============================== */
-XXAPI void xrtHttpReqEnableCookies(xhttpreq pReq, bool bEnable)
-{
-	if ( !pReq ) return;
-	if ( bEnable ) {
-		if ( !pReq->pCookies ) {
-			pReq->pCookies = xrtDictCreate(sizeof(ptr));
-		}
-		pReq->bCookiePersist = true;
-	} else {
-		if ( pReq->pCookies ) {
-			__xrt_http_cookies_destroy(pReq->pCookies);
-			pReq->pCookies = NULL;
-		}
-		pReq->bCookiePersist = false;
-	}
-}
-XXAPI void xrtHttpReqSetCookie(xhttpreq pReq, str sName, str sValue)
-{
-	if ( !pReq || !sName || !sValue ) return;
-	__xrt_http_cookie* pCookie;
-	__xrt_http_cookie* pOldCookie;
-	
-	// 懒创建 xdict
-	if ( !pReq->pCookies ) {
-		pReq->pCookies = xrtDictCreate(sizeof(ptr));
-		if ( !pReq->pCookies ) return;
-	}
-	
-	uint32 iKeyLen = (uint32)strlen(sName);
-	
-	pCookie = (__xrt_http_cookie*)xrtCalloc(1, sizeof(__xrt_http_cookie));
-	if ( !pCookie ) return;
-	pCookie->sName = xrtCopyStr((str)sName, iKeyLen);
-	pCookie->sValue = xrtCopyStr((str)sValue, (uint32)strlen(sValue));
-	if ( !pCookie->sName || !pCookie->sValue ) {
-		__xrt_http_cookie_free(pCookie);
-		return;
-	}
-	
-	pOldCookie = (__xrt_http_cookie*)xrtDictGetPtr(pReq->pCookies, (ptr)sName, iKeyLen);
-	if ( pOldCookie ) __xrt_http_cookie_free(pOldCookie);
-	xrtDictSetPtr(pReq->pCookies, (ptr)sName, iKeyLen, pCookie, NULL);
-}
-XXAPI void xrtHttpReqRemoveCookie(xhttpreq pReq, str sName)
-{
-	if ( !pReq || !sName || !pReq->pCookies ) return;
-	
-	uint32 iKeyLen = (uint32)strlen(sName);
-	
-	// 释放值
-	__xrt_http_cookie* pOldCookie = (__xrt_http_cookie*)xrtDictGetPtr(pReq->pCookies, (ptr)sName, iKeyLen);
-	if ( pOldCookie ) __xrt_http_cookie_free(pOldCookie);
-	
-	xrtDictRemove(pReq->pCookies, (ptr)sName, iKeyLen);
-}
-/* ============================== 响应对象读取函数 ============================== */
-XXAPI int xrtHttpRespCode(xhttpresp pResp)
-{
-	return pResp ? pResp->iStatusCode : 0;
-}
-XXAPI str xrtHttpRespBody(xhttpresp pResp)
-{
-	return (pResp && pResp->tBody.Buffer) ? pResp->tBody.Buffer : "";
-}
-XXAPI size_t xrtHttpRespBodyLen(xhttpresp pResp)
-{
-	return pResp ? pResp->tBody.Length : 0;
-}
-XXAPI str xrtHttpRespHeader(xhttpresp pResp, str sName)
-{
-	if ( !pResp || !pResp->tRawHeaders.Buffer || !sName ) return NULL;
-	return __xrt_http_find_header(pResp->tRawHeaders.Buffer, sName,
-		__xrt_http_tmpbuf, sizeof(__xrt_http_tmpbuf));
-}
-XXAPI str xrtHttpRespCookie(xhttpresp pResp, str sName)
-{
-	if ( !pResp || !pResp->tRawHeaders.Buffer || !sName ) return NULL;
-	
-	size_t iNameLen = strlen(sName);
-	str p = pResp->tRawHeaders.Buffer;
-	
-	// 搜索所有 Set-Cookie 头
-	while ( *p ) {
-		// 不区分大小写匹配 "set-cookie:"
-		bool bMatch = true;
-		str sSetCookie = "set-cookie:";
-		for ( int i = 0; sSetCookie[i]; i++ ) {
-			char a = p[i];
-			if ( a >= 'A' && a <= 'Z' ) a += 32;
-			if ( a != sSetCookie[i] ) { bMatch = false; break; }
-		}
-		
-		if ( bMatch ) {
-			p += 11;  // strlen("set-cookie:")
-			while ( *p == ' ' || *p == '\t' ) p++;
-			
-			// 检查 cookie 名称是否匹配: name=value
-			if ( strncmp(p, sName, iNameLen) == 0 && p[iNameLen] == '=' ) {
-				p += iNameLen + 1;
-				size_t i = 0;
-				while ( *p && *p != ';' && *p != '\r' && *p != '\n' && i < sizeof(__xrt_http_tmpbuf) - 1 ) {
-					__xrt_http_tmpbuf[i++] = *p++;
-				}
-				__xrt_http_tmpbuf[i] = '\0';
-				return __xrt_http_tmpbuf;
-			}
-		}
-		
-		// 跳到下一行
-		while ( *p && *p != '\n' ) p++;
-		if ( *p == '\n' ) p++;
-	}
-	
-	return NULL;
-}
-XXAPI str xrtHttpRespContentType(xhttpresp pResp)
-{
-	return (pResp && pResp->sContentType[0]) ? pResp->sContentType : NULL;
-}
-#endif
-#ifndef XRT_NO_NETWS
-
-// ========================================
-// File: D:/Git/xrt/lib/netws.h
-// ========================================
-
-
-/*
-	NetWS - WebSocket 客户端/服务器封装 [Ver1.0]
-	
-	基于 nettcp.h (TCP) + nettls.h (TLS) + crypto.h (SHA-1, Base64)
-	
-	特性:
-	  - 支持 WS/WSS 协议
-	  - 客户端和服务器双模式
-	  - 事件驱动架构
-	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
-	  - 自动 Ping/Pong 心跳
-	  - 分片消息重组
-	
-	仅 IPv4，跨平台 (Windows / Linux)
-*/
-/* ============================== 内部常量定义 ============================== */
-#define __XRT_WS_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-#define __XRT_WS_MAX_HEADER_SIZE 4096
-#define __XRT_WS_DEFAULT_MAX_MSG_SIZE (1024 * 1024)  // 1MB
-#define __XRT_WS_DEFAULT_HANDSHAKE_TIMEOUT 10
-#define __XRT_WS_KEY_LEN 16
-/* ============================== WebSocket 帧结构 ============================== */
-typedef struct {
-	uint8 iOpcode;      // 操作码
-	bool bFin;          // 是否最后一帧
-	bool bMasked;       // 是否掩码
-	uint8 aMask[4];     // 掩码键
-	size_t iPayloadLen; // 载荷长度
-	size_t iHeaderLen;  // 帧头长度
-} __xrt_ws_frame;
-/* ============================== WebSocket 客户端槽位结构 ============================== */
-typedef struct {
-	xnetconn* pConn;           // 底层连接
-	int iClientId;             // 客户端 ID
-	bool bInUse;               // 是否使用中
-	bool bHandshakeDone;       // 握手是否完成
-	xnetbuf tRecvBuf;          // 接收缓冲区
-	xnetbuf tMsgBuf;           // 消息重组缓冲区
-	uint8 iMsgOpcode;          // 消息操作码
-	bool bFragmented;          // 是否正在接收分片消息
-} __xrt_ws_client_slot;
-/* ============================== WebSocket 客户端结构 ============================== */
-struct xrt_ws_client {
-	xtcpclient* pTcpClient;   // 底层 TCP 客户端
-	
-	xwsconfig tConfig;
-	xwsevents tEvents;
-	
-	char sHost[256];          // 目标主机名
-	uint16 iPort;             // 目标端口
-	char sPath[512];          // 请求路径
-	bool bSecure;             // 是否 WSS
-	
-	char sKey[32];            // Sec-WebSocket-Key (Base64)
-	char sExpectedAccept[32]; // 期望的 Sec-WebSocket-Accept
-	
-	xnetbuf tRecvBuf;         // 接收缓冲区
-	xnetbuf tMsgBuf;          // 消息重组缓冲区
-	uint8 iMsgOpcode;         // 消息操作码
-	bool bFragmented;         // 是否正在接收分片消息
-	
-	volatile bool bConnected;
-	volatile bool bHandshakeDone;
-	
-	ptr pUserData;
-};
-/* ============================== WebSocket 服务器结构 ============================== */
-struct xrt_ws_server {
-	xtcpserver* pTcpServer;   // 底层 TCP 服务器
-	
-	xwsconfig tConfig;
-	xwsevents tEvents;
-	
-	// 客户端槽位管理
-	__xrt_ws_client_slot* arrSlots;
-	int iMaxClients;
-	int iClientCount;
-	
-	volatile bool bRunning;
-	
-	ptr pUserData;
-};
-/* ============================== 内部工具函数 ============================== */
-// 生成随机 WebSocket Key
-static void __xrt_ws_generate_key(char* sKey)
-{
-	uint8 aRandom[__XRT_WS_KEY_LEN];
-	xrtRandomBytes(aRandom, __XRT_WS_KEY_LEN);
-	str sEncoded = xrtBase64Encode(aRandom, __XRT_WS_KEY_LEN, NULL);
-	if ( sEncoded && sEncoded != xCore.sNull ) {
-		strcpy(sKey, sEncoded);
-		xrtFree(sEncoded);
-	}
-}
-// 计算 Sec-WebSocket-Accept
-static void __xrt_ws_compute_accept(const char* sKey, char* sAccept)
-{
-	char sCombined[128];
-	snprintf(sCombined, sizeof(sCombined), "%s%s", sKey, __XRT_WS_GUID);
-	uint8 aSha1[20];
-	xrtSHA1((uint8*)sCombined, strlen(sCombined), aSha1);
-	str sEncoded = xrtBase64Encode(aSha1, 20, NULL);
-	if ( sEncoded && sEncoded != xCore.sNull ) {
-		strcpy(sAccept, sEncoded);
-		xrtFree(sEncoded);
-	}
-}
-// 掩码/解掩码数据
-static void __xrt_ws_mask_data(uint8* pData, size_t iLen, const uint8* pMask)
-{
-	for ( size_t i = 0; i < iLen; i++ ) {
-		pData[i] ^= pMask[i % 4];
-	}
-}
-// 解析 WebSocket 帧头
-// 返回: 0=需要更多数据, >0=帧头长度, -1=错误
-static int __xrt_ws_parse_frame_header(const uint8* pData, size_t iLen, __xrt_ws_frame* pFrame)
-{
-	if ( iLen < 2 ) return 0;
-	
-	// 第一字节: FIN + RSV + Opcode
-	pFrame->bFin = (pData[0] & 0x80) != 0;
-	pFrame->iOpcode = pData[0] & 0x0F;
-	
-	// 第二字节: MASK + Payload Length
-	pFrame->bMasked = (pData[1] & 0x80) != 0;
-	uint8 iLen7 = pData[1] & 0x7F;
-	
-	size_t iHeaderLen = 2;
-	
-	if ( iLen7 == 126 ) {
-		// 16-bit 长度
-		if ( iLen < 4 ) return 0;
-		pFrame->iPayloadLen = ((size_t)pData[2] << 8) | pData[3];
-		iHeaderLen = 4;
-	} else if ( iLen7 == 127 ) {
-		// 64-bit 长度
-		if ( iLen < 10 ) return 0;
-		pFrame->iPayloadLen = 
-			((size_t)pData[2] << 56) | ((size_t)pData[3] << 48) |
-			((size_t)pData[4] << 40) | ((size_t)pData[5] << 32) |
-			((size_t)pData[6] << 24) | ((size_t)pData[7] << 16) |
-			((size_t)pData[8] << 8)  | pData[9];
-		iHeaderLen = 10;
-	} else {
-		pFrame->iPayloadLen = iLen7;
-	}
-	
-	// 掩码键
-	if ( pFrame->bMasked ) {
-		if ( iLen < iHeaderLen + 4 ) return 0;
-		memcpy(pFrame->aMask, pData + iHeaderLen, 4);
-		iHeaderLen += 4;
-	}
-	
-	pFrame->iHeaderLen = iHeaderLen;
-	return (int)iHeaderLen;
-}
-// 编码 WebSocket 帧
-// 返回: 帧总长度
-static size_t __xrt_ws_encode_frame(uint8* pOut, uint8 iOpcode, bool bFin, bool bMask,
-	const uint8* pPayload, size_t iPayloadLen)
-{
-	size_t iIdx = 0;
-	
-	// 第一字节: FIN + Opcode
-	pOut[iIdx++] = (bFin ? 0x80 : 0x00) | (iOpcode & 0x0F);
-	
-	// 第二字节 + 扩展长度
-	uint8 iMaskBit = bMask ? 0x80 : 0x00;
-	if ( iPayloadLen < 126 ) {
-		pOut[iIdx++] = iMaskBit | (uint8)iPayloadLen;
-	} else if ( iPayloadLen <= 0xFFFF ) {
-		pOut[iIdx++] = iMaskBit | 126;
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 8);
-		pOut[iIdx++] = (uint8)(iPayloadLen & 0xFF);
-	} else {
-		pOut[iIdx++] = iMaskBit | 127;
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 56);
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 48);
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 40);
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 32);
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 24);
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 16);
-		pOut[iIdx++] = (uint8)(iPayloadLen >> 8);
-		pOut[iIdx++] = (uint8)(iPayloadLen & 0xFF);
-	}
-	
-	// 掩码键
-	uint8 aMask[4] = {0};
-	if ( bMask ) {
-		xrtRandomBytes(aMask, 4);
-		memcpy(pOut + iIdx, aMask, 4);
-		iIdx += 4;
-	}
-	
-	// 载荷数据
-	if ( pPayload && iPayloadLen > 0 ) {
-		memcpy(pOut + iIdx, pPayload, iPayloadLen);
-		if ( bMask ) {
-			__xrt_ws_mask_data(pOut + iIdx, iPayloadLen, aMask);
-		}
-		iIdx += iPayloadLen;
-	}
-	
-	return iIdx;
-}
-// 计算编码帧需要的缓冲区大小
-static size_t __xrt_ws_frame_size(size_t iPayloadLen, bool bMask)
-{
-	size_t iSize = 2;  // 基本头
-	if ( iPayloadLen >= 126 && iPayloadLen <= 0xFFFF ) {
-		iSize += 2;
-	} else if ( iPayloadLen > 0xFFFF ) {
-		iSize += 8;
-	}
-	if ( bMask ) {
-		iSize += 4;
-	}
-	iSize += iPayloadLen;
-	return iSize;
-}
-/* ============================== 内部 HTTP 头解析 ============================== */
-// 从 HTTP 响应中提取指定头的值
-static bool __xrt_ws_get_header_value(const char* sHeaders, const char* sName, char* sValue, size_t iMaxLen)
-{
-	if ( !sHeaders || !sName || !sValue ) return false;
-	
-	size_t iNameLen = strlen(sName);
-	const char* p = sHeaders;
-	
-	while ( *p ) {
-		// 跳过空白
-		while ( *p == ' ' || *p == '\t' ) p++;
-		
-		// 检查是否匹配头名
-		if ( strncasecmp(p, sName, iNameLen) == 0 && p[iNameLen] == ':' ) {
-			p += iNameLen + 1;
-			// 跳过冒号后的空白
-			while ( *p == ' ' || *p == '\t' ) p++;
-			// 提取值直到行尾
-			size_t iIdx = 0;
-			while ( *p && *p != '\r' && *p != '\n' && iIdx < iMaxLen - 1 ) {
-				sValue[iIdx++] = *p++;
-			}
-			sValue[iIdx] = '\0';
-			return true;
-		}
-		
-		// 跳到下一行
-		while ( *p && *p != '\n' ) p++;
-		if ( *p == '\n' ) p++;
-	}
-	
-	return false;
-}
-// 检查 HTTP 响应状态码
-static int __xrt_ws_get_status_code(const char* sResponse)
-{
-	// HTTP/1.1 101 Switching Protocols
-	if ( strncmp(sResponse, "HTTP/", 5) != 0 ) return -1;
-	const char* p = sResponse + 5;
-	// 跳过版本号
-	while ( *p && *p != ' ' ) p++;
-	if ( !*p ) return -1;
-	// 跳过空格
-	while ( *p == ' ' ) p++;
-	// 解析状态码
-	return atoi(p);
-}
-/* ============================== WebSocket 客户端 TCP 事件回调 ============================== */
-// 前向声明
-static void __xrt_ws_client_process_data(xwsclient* pClient, const char* pData, size_t iLen);
-static void __xrt_ws_client_on_connect(ptr pOwner, xnetconn* pConn, bool bSuccess)
-{
-	xwsclient* pClient = (xwsclient*)xrtTcpClientGetUserData((xtcpclient*)pOwner);
-	if ( !pClient ) return;
-	
-	if ( !bSuccess ) {
-		pClient->bConnected = false;
-		if ( pClient->tEvents.OnError ) {
-			pClient->tEvents.OnError(pClient, pConn, -1);
-		}
-		return;
-	}
-	
-	// TCP 连接成功，发送 WebSocket 握手请求
-	char sRequest[1024];
-	int iLen = snprintf(sRequest, sizeof(sRequest),
-		"GET %s HTTP/1.1\r\n"
-		"Host: %s:%d\r\n"
-		"Upgrade: websocket\r\n"
-		"Connection: Upgrade\r\n"
-		"Sec-WebSocket-Key: %s\r\n"
-		"Sec-WebSocket-Version: 13\r\n",
-		pClient->sPath,
-		pClient->sHost, pClient->iPort,
-		pClient->sKey);
-	
-	// 可选头
-	if ( pClient->tConfig.sProtocol && pClient->tConfig.sProtocol[0] ) {
-		iLen += snprintf(sRequest + iLen, sizeof(sRequest) - iLen,
-			"Sec-WebSocket-Protocol: %s\r\n", pClient->tConfig.sProtocol);
-	}
-	if ( pClient->tConfig.sOrigin && pClient->tConfig.sOrigin[0] ) {
-		iLen += snprintf(sRequest + iLen, sizeof(sRequest) - iLen,
-			"Origin: %s\r\n", pClient->tConfig.sOrigin);
-	}
-	
-	// 结束头
-	iLen += snprintf(sRequest + iLen, sizeof(sRequest) - iLen, "\r\n");
-	
-	// 计算期望的 Accept 值
-	__xrt_ws_compute_accept(pClient->sKey, pClient->sExpectedAccept);
-	
-	// 发送握手请求
-	xrtTcpClientSend(pClient->pTcpClient, sRequest, iLen);
-}
-static void __xrt_ws_client_on_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen)
-{
-	xwsclient* pClient = (xwsclient*)xrtTcpClientGetUserData((xtcpclient*)pOwner);
-	if ( !pClient ) return;
-	
-	__xrt_ws_client_process_data(pClient, pData, iLen);
-}
-static void __xrt_ws_client_on_close(ptr pOwner, xnetconn* pConn)
-{
-	xwsclient* pClient = (xwsclient*)xrtTcpClientGetUserData((xtcpclient*)pOwner);
-	if ( !pClient ) return;
-	
-	pClient->bConnected = false;
-	pClient->bHandshakeDone = false;
-	
-	if ( pClient->tEvents.OnClose ) {
-		pClient->tEvents.OnClose(pClient, pConn, XRT_WS_CLOSE_ABNORMAL, "Connection closed");
-	}
-}
-// 处理接收到的数据
-static void __xrt_ws_client_process_data(xwsclient* pClient, const char* pData, size_t iLen)
-{
-	// 追加到接收缓冲区
-	xrtNetBufAppend(&pClient->tRecvBuf, pData, iLen);
-	
-	if ( !pClient->bHandshakeDone ) {
-		// 等待握手响应
-		char* pBuf = (char*)pClient->tRecvBuf.pData;
-		size_t iBufLen = pClient->tRecvBuf.iSize;
-		
-		// 查找 HTTP 响应结束标记
-		char* pEnd = strstr(pBuf, "\r\n\r\n");
-		if ( !pEnd ) return;  // 还没收到完整响应
-		
-		// 检查状态码
-		int iStatus = __xrt_ws_get_status_code(pBuf);
-		if ( iStatus != 101 ) {
-			// 握手失败
-			if ( pClient->tEvents.OnError ) {
-				pClient->tEvents.OnError(pClient, NULL, iStatus);
-			}
-			xrtWsClientDisconnect(pClient);
-			return;
-		}
-		
-		// 验证 Sec-WebSocket-Accept
-		char sAccept[64] = {0};
-		if ( !__xrt_ws_get_header_value(pBuf, "Sec-WebSocket-Accept", sAccept, sizeof(sAccept)) ) {
-			if ( pClient->tEvents.OnError ) {
-				pClient->tEvents.OnError(pClient, NULL, -2);
-			}
-			xrtWsClientDisconnect(pClient);
-			return;
-		}
-		
-		if ( strcmp(sAccept, pClient->sExpectedAccept) != 0 ) {
-			if ( pClient->tEvents.OnError ) {
-				pClient->tEvents.OnError(pClient, NULL, -3);
-			}
-			xrtWsClientDisconnect(pClient);
-			return;
-		}
-		
-		// 握手成功
-		pClient->bHandshakeDone = true;
-		pClient->bConnected = true;
-		
-		// 消费 HTTP 响应
-		size_t iHeaderLen = (size_t)(pEnd - pBuf) + 4;
-		xrtNetBufConsume(&pClient->tRecvBuf, iHeaderLen);
-		
-		// 触发 OnOpen 回调
-		if ( pClient->tEvents.OnOpen ) {
-			pClient->tEvents.OnOpen(pClient, NULL);
-		}
-	}
-	
-	// 处理 WebSocket 帧
-	while ( pClient->tRecvBuf.iSize > 0 ) {
-		__xrt_ws_frame tFrame;
-		int iHeaderLen = __xrt_ws_parse_frame_header(
-			(uint8*)pClient->tRecvBuf.pData, pClient->tRecvBuf.iSize, &tFrame);
-		
-		if ( iHeaderLen <= 0 ) break;  // 需要更多数据
-		
-		size_t iFrameLen = tFrame.iHeaderLen + tFrame.iPayloadLen;
-		if ( pClient->tRecvBuf.iSize < iFrameLen ) break;  // 需要更多数据
-		
-		// 获取载荷
-		uint8* pPayload = (uint8*)pClient->tRecvBuf.pData + tFrame.iHeaderLen;
-		
-		// 解掩码 (服务器发送的数据通常不掩码)
-		if ( tFrame.bMasked ) {
-			__xrt_ws_mask_data(pPayload, tFrame.iPayloadLen, tFrame.aMask);
-		}
-		
-		// 处理控制帧
-		if ( tFrame.iOpcode >= 0x08 ) {
-			switch ( tFrame.iOpcode ) {
-				case XRT_WS_OP_CLOSE:
-					{
-						uint16 iCode = XRT_WS_CLOSE_NO_STATUS;
-						const char* sReason = "";
-						if ( tFrame.iPayloadLen >= 2 ) {
-							iCode = ((uint16)pPayload[0] << 8) | pPayload[1];
-							if ( tFrame.iPayloadLen > 2 ) {
-								sReason = (const char*)(pPayload + 2);
-							}
-						}
-						if ( pClient->tEvents.OnClose ) {
-							pClient->tEvents.OnClose(pClient, NULL, iCode, sReason);
-						}
-						xrtNetBufConsume(&pClient->tRecvBuf, iFrameLen);
-						xrtWsClientDisconnect(pClient);
-						return;
-					}
-				case XRT_WS_OP_PING:
-					// 自动回复 Pong
-					xrtWsClientSendBinary(pClient, (char*)pPayload, tFrame.iPayloadLen);
-					if ( pClient->tEvents.OnPing ) {
-						pClient->tEvents.OnPing(pClient, NULL, (char*)pPayload, tFrame.iPayloadLen);
-					}
-					break;
-				case XRT_WS_OP_PONG:
-					if ( pClient->tEvents.OnPong ) {
-						pClient->tEvents.OnPong(pClient, NULL, (char*)pPayload, tFrame.iPayloadLen);
-					}
-					break;
-			}
-		} else {
-			// 数据帧
-			if ( tFrame.iOpcode != XRT_WS_OP_CONTINUATION ) {
-				// 新消息开始
-				pClient->iMsgOpcode = tFrame.iOpcode;
-				xrtNetBufClear(&pClient->tMsgBuf);
-			}
-			
-			// 追加到消息缓冲区
-			xrtNetBufAppend(&pClient->tMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
-			
-			if ( tFrame.bFin ) {
-				// 消息完成
-				if ( pClient->tEvents.OnMessage ) {
-					pClient->tEvents.OnMessage(pClient, NULL, pClient->iMsgOpcode,
-						(char*)pClient->tMsgBuf.pData, pClient->tMsgBuf.iSize);
-				}
-				xrtNetBufClear(&pClient->tMsgBuf);
-			} else {
-				pClient->bFragmented = true;
-			}
-		}
-		
-		xrtNetBufConsume(&pClient->tRecvBuf, iFrameLen);
-	}
-}
-/* ============================== WebSocket 客户端 API ============================== */
-// 解析 WebSocket URL: ws://host:port/path 或 wss://host:port/path
-static bool __xrt_ws_parse_url(const char* sURL, char* sHost, uint16* pPort, char* sPath, bool* pSecure)
-{
-	if ( !sURL ) return false;
-	
-	const char* p = sURL;
-	
-	// 解析协议
-	if ( strncmp(p, "wss://", 6) == 0 ) {
-		*pSecure = true;
-		*pPort = 443;
-		p += 6;
-	} else if ( strncmp(p, "ws://", 5) == 0 ) {
-		*pSecure = false;
-		*pPort = 80;
-		p += 5;
-	} else {
-		return false;
-	}
-	
-	// 解析主机名和端口
-	const char* pHostStart = p;
-	const char* pPortStart = NULL;
-	
-	while ( *p && *p != '/' && *p != '?' ) {
-		if ( *p == ':' ) {
-			pPortStart = p + 1;
-		}
-		p++;
-	}
-	
-	if ( pPortStart ) {
-		size_t iHostLen = (size_t)(pPortStart - 1 - pHostStart);
-		if ( iHostLen >= 256 ) iHostLen = 255;
-		memcpy(sHost, pHostStart, iHostLen);
-		sHost[iHostLen] = '\0';
-		*pPort = (uint16)atoi(pPortStart);
-	} else {
-		size_t iHostLen = (size_t)(p - pHostStart);
-		if ( iHostLen >= 256 ) iHostLen = 255;
-		memcpy(sHost, pHostStart, iHostLen);
-		sHost[iHostLen] = '\0';
-	}
-	
-	// 解析路径
-	if ( *p == '/' || *p == '?' ) {
-		size_t iPathLen = strlen(p);
-		if ( iPathLen >= 512 ) iPathLen = 511;
-		memcpy(sPath, p, iPathLen);
-		sPath[iPathLen] = '\0';
-	} else {
-		strcpy(sPath, "/");
-	}
-	
-	return (sHost[0] != '\0');
-}
-// 内部初始化
-static xwsclient* __xrt_ws_client_init(xeventloop* pLoop, const char* sURL,
-	const xwsconfig* pConfig, const xwsevents* pEvents)
-{
-	xwsclient* pClient = (xwsclient*)xrtCalloc(1, sizeof(xwsclient));
-	if ( !pClient ) return NULL;
-	
-	// 解析 URL
-	if ( !__xrt_ws_parse_url(sURL, pClient->sHost, &pClient->iPort, pClient->sPath, &pClient->bSecure) ) {
-		xrtFree(pClient);
-		return NULL;
-	}
-	
-	// 复制配置
-	if ( pConfig ) {
-		pClient->tConfig = *pConfig;
-	}
-	if ( !pClient->tConfig.sPath || !pClient->tConfig.sPath[0] ) {
-		pClient->tConfig.sPath = pClient->sPath;
-	}
-	if ( pClient->tConfig.iMaxMessageSize <= 0 ) {
-		pClient->tConfig.iMaxMessageSize = __XRT_WS_DEFAULT_MAX_MSG_SIZE;
-	}
-	if ( pClient->tConfig.iHandshakeTimeoutSec <= 0 ) {
-		pClient->tConfig.iHandshakeTimeoutSec = __XRT_WS_DEFAULT_HANDSHAKE_TIMEOUT;
-	}
-	
-	// 复制事件
-	if ( pEvents ) {
-		pClient->tEvents = *pEvents;
-	}
-	
-	// 生成 WebSocket Key
-	__xrt_ws_generate_key(pClient->sKey);
-	
-	// 创建底层 TCP 客户端
-	xnetevents tTcpEvents = {0};
-	tTcpEvents.OnConnect = __xrt_ws_client_on_connect;
-	tTcpEvents.OnRecv = __xrt_ws_client_on_recv;
-	tTcpEvents.OnClose = __xrt_ws_client_on_close;
-	
-	if ( pLoop ) {
-		pClient->pTcpClient = xrtTcpClientCreateEx(pLoop, pClient->sHost, pClient->iPort, NULL, &tTcpEvents);
-	} else {
-		pClient->pTcpClient = xrtTcpClientCreate(pClient->sHost, pClient->iPort, NULL, &tTcpEvents);
-	}
-	
-	if ( !pClient->pTcpClient ) {
-		xrtFree(pClient);
-		return NULL;
-	}
-	
-	xrtTcpClientSetUserData(pClient->pTcpClient, pClient);
-	
-	// 启用 TLS (WSS)
-	if ( pClient->bSecure ) {
-		xtlsconfig tTlsConfig = {0};
-		tTlsConfig.sHostName = pClient->sHost;
-		tTlsConfig.bVerifyPeer = false;
-		xrtTcpClientEnableTLS(pClient->pTcpClient, &tTlsConfig);
-	}
-	
-	return pClient;
-}
-XXAPI xwsclient* xrtWsClientCreate(const char* sURL, const xwsconfig* pConfig, const xwsevents* pEvents)
-{
-	return __xrt_ws_client_init(NULL, sURL, pConfig, pEvents);
-}
-XXAPI xwsclient* xrtWsClientCreateEx(xeventloop* pLoop, const char* sURL,
-	const xwsconfig* pConfig, const xwsevents* pEvents)
-{
-	return __xrt_ws_client_init(pLoop, sURL, pConfig, pEvents);
-}
-XXAPI void xrtWsClientDestroy(xwsclient* pClient)
-{
-	if ( !pClient ) return;
-	
-	if ( pClient->pTcpClient ) {
-		xrtTcpClientDestroy(pClient->pTcpClient);
-	}
-	
-	xrtNetBufFree(&pClient->tRecvBuf);
-	xrtNetBufFree(&pClient->tMsgBuf);
-	
-	xrtFree(pClient);
-}
-XXAPI xnet_result xrtWsClientConnect(xwsclient* pClient)
-{
-	if ( !pClient || !pClient->pTcpClient ) return XRT_NET_ERROR;
-	return xrtTcpClientConnect(pClient->pTcpClient);
-}
-XXAPI void xrtWsClientDisconnect(xwsclient* pClient)
-{
-	if ( !pClient ) return;
-	
-	pClient->bConnected = false;
-	pClient->bHandshakeDone = false;
-	
-	if ( pClient->pTcpClient ) {
-		xrtTcpClientDisconnect(pClient->pTcpClient);
-	}
-}
-// 发送帧 (内部)
-static xnet_result __xrt_ws_client_send_frame(xwsclient* pClient, uint8 iOpcode,
-	const char* pData, size_t iLen)
-{
-	if ( !pClient || !pClient->bHandshakeDone ) return XRT_NET_ERROR;
-	
-	// 计算帧大小 (客户端必须掩码)
-	size_t iFrameSize = __xrt_ws_frame_size(iLen, true);
-	uint8* pFrame = (uint8*)xrtMalloc(iFrameSize);
-	if ( !pFrame ) return XRT_NET_ERROR;
-	
-	// 编码帧
-	size_t iActualSize = __xrt_ws_encode_frame(pFrame, iOpcode, true, true, (uint8*)pData, iLen);
-	
-	// 发送
-	xnet_result iRes = xrtTcpClientSend(pClient->pTcpClient, (char*)pFrame, iActualSize);
-	
-	xrtFree(pFrame);
-	return iRes;
-}
-XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen)
-{
-	return __xrt_ws_client_send_frame(pClient, XRT_WS_OP_TEXT, sText, iLen);
-}
-XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const char* pData, size_t iLen)
-{
-	return __xrt_ws_client_send_frame(pClient, XRT_WS_OP_BINARY, pData, iLen);
-}
-XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const char* pData, size_t iLen)
-{
-	return __xrt_ws_client_send_frame(pClient, XRT_WS_OP_PING, pData, iLen);
-}
-XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason)
-{
-	if ( !pClient || !pClient->bHandshakeDone ) return XRT_NET_ERROR;
-	
-	// 构造 Close 帧载荷
-	size_t iReasonLen = sReason ? strlen(sReason) : 0;
-	size_t iPayloadLen = 2 + iReasonLen;
-	uint8* pPayload = (uint8*)xrtMalloc(iPayloadLen);
-	if ( !pPayload ) return XRT_NET_ERROR;
-	
-	pPayload[0] = (uint8)(iCode >> 8);
-	pPayload[1] = (uint8)(iCode & 0xFF);
-	if ( iReasonLen > 0 ) {
-		memcpy(pPayload + 2, sReason, iReasonLen);
-	}
-	
-	xnet_result iRes = __xrt_ws_client_send_frame(pClient, XRT_WS_OP_CLOSE, (char*)pPayload, iPayloadLen);
-	
-	xrtFree(pPayload);
-	return iRes;
-}
-XXAPI bool xrtWsClientIsConnected(xwsclient* pClient)
-{
-	return pClient && pClient->bConnected && pClient->bHandshakeDone;
-}
-XXAPI void xrtWsClientSetUserData(xwsclient* pClient, ptr pData)
-{
-	if ( pClient ) pClient->pUserData = pData;
-}
-XXAPI ptr xrtWsClientGetUserData(xwsclient* pClient)
-{
-	return pClient ? pClient->pUserData : NULL;
-}
-/* ============================== WebSocket 服务器 TCP 事件回调 ============================== */
-// 前向声明
-static void __xrt_ws_server_process_client_data(xwsserver* pServer, int iClientId,
-	const char* pData, size_t iLen);
-static void __xrt_ws_server_on_accept(ptr pOwner, xnetconn* pConn)
-{
-	xwsserver* pServer = (xwsserver*)xrtTcpServerGetUserData((xtcpserver*)pOwner);
-	if ( !pServer ) return;
-	
-	// 查找空闲槽位
-	int iSlot = -1;
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		if ( !pServer->arrSlots[i].bInUse ) {
-			iSlot = i;
-			break;
-		}
-	}
-	
-	if ( iSlot < 0 ) {
-		// 无空闲槽位，拒绝连接
-		return;
-	}
-	
-	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iSlot];
-	memset(pSlot, 0, sizeof(__xrt_ws_client_slot));
-	pSlot->bInUse = true;
-	pSlot->iClientId = pConn->iId;
-	pSlot->pConn = pConn;
-	pServer->iClientCount++;
-}
-static void __xrt_ws_server_on_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen)
-{
-	xwsserver* pServer = (xwsserver*)xrtTcpServerGetUserData((xtcpserver*)pOwner);
-	if ( !pServer ) return;
-	
-	// 查找客户端槽位
-	int iClientId = pConn->iId;
-	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
-	
-	__xrt_ws_server_process_client_data(pServer, iClientId, pData, iLen);
-}
-static void __xrt_ws_server_on_close(ptr pOwner, xnetconn* pConn)
-{
-	xwsserver* pServer = (xwsserver*)xrtTcpServerGetUserData((xtcpserver*)pOwner);
-	if ( !pServer ) return;
-	
-	int iClientId = pConn->iId;
-	if ( iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
-	
-	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
-	if ( !pSlot->bInUse ) return;
-	
-	if ( pSlot->bHandshakeDone && pServer->tEvents.OnClose ) {
-		pServer->tEvents.OnClose(pServer, pConn, XRT_WS_CLOSE_ABNORMAL, "Connection closed");
-	}
-	
-	// 清理槽位
-	xrtNetBufFree(&pSlot->tRecvBuf);
-	xrtNetBufFree(&pSlot->tMsgBuf);
-	pSlot->bInUse = false;
-	pServer->iClientCount--;
-}
-// 处理客户端数据
-static void __xrt_ws_server_process_client_data(xwsserver* pServer, int iClientId,
-	const char* pData, size_t iLen)
-{
-	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
-	if ( !pSlot->bInUse ) return;
-	
-	// 追加到接收缓冲区
-	xrtNetBufAppend(&pSlot->tRecvBuf, pData, iLen);
-	
-	if ( !pSlot->bHandshakeDone ) {
-		// 处理 WebSocket 握手请求
-		char* pBuf = (char*)pSlot->tRecvBuf.pData;
-		size_t iBufLen = pSlot->tRecvBuf.iSize;
-		
-		// 查找 HTTP 请求结束标记
-		char* pEnd = strstr(pBuf, "\r\n\r\n");
-		if ( !pEnd ) return;
-		
-		// 验证是 WebSocket 升级请求
-		char sUpgrade[32] = {0};
-		char sConnection[64] = {0};
-		char sKey[64] = {0};
-		
-		__xrt_ws_get_header_value(pBuf, "Upgrade", sUpgrade, sizeof(sUpgrade));
-		__xrt_ws_get_header_value(pBuf, "Connection", sConnection, sizeof(sConnection));
-		__xrt_ws_get_header_value(pBuf, "Sec-WebSocket-Key", sKey, sizeof(sKey));
-		
-		if ( strcasecmp(sUpgrade, "websocket") != 0 || !strstr(sConnection, "Upgrade") || !sKey[0] ) {
-			// 无效请求
-			xrtTcpServerDisconnect(pServer->pTcpServer, iClientId);
-			return;
-		}
-		
-		// 计算 Accept 密钥
-		char sAccept[64];
-		__xrt_ws_compute_accept(sKey, sAccept);
-		
-		// 发送握手响应
-		char sResponse[512];
-		int iRespLen = snprintf(sResponse, sizeof(sResponse),
-			"HTTP/1.1 101 Switching Protocols\r\n"
-			"Upgrade: websocket\r\n"
-			"Connection: Upgrade\r\n"
-			"Sec-WebSocket-Accept: %s\r\n"
-			"\r\n",
-			sAccept);
-		
-		xrtTcpServerSend(pServer->pTcpServer, iClientId, sResponse, iRespLen);
-		
-		// 握手完成
-		pSlot->bHandshakeDone = true;
-		
-		// 消费 HTTP 请求
-		size_t iHeaderLen = (size_t)(pEnd - pBuf) + 4;
-		xrtNetBufConsume(&pSlot->tRecvBuf, iHeaderLen);
-		
-		// 触发 OnOpen 回调
-		if ( pServer->tEvents.OnOpen ) {
-			pServer->tEvents.OnOpen(pServer, pSlot->pConn);
-		}
-	}
-	
-	// 处理 WebSocket 帧
-	while ( pSlot->tRecvBuf.iSize > 0 ) {
-		__xrt_ws_frame tFrame;
-		int iHeaderLen = __xrt_ws_parse_frame_header(
-			(uint8*)pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &tFrame);
-		
-		if ( iHeaderLen <= 0 ) break;
-		
-		size_t iFrameLen = tFrame.iHeaderLen + tFrame.iPayloadLen;
-		if ( pSlot->tRecvBuf.iSize < iFrameLen ) break;
-		
-		// 获取载荷
-		uint8* pPayload = (uint8*)pSlot->tRecvBuf.pData + tFrame.iHeaderLen;
-		
-		// 解掩码 (客户端发送的数据必须掩码)
-		if ( tFrame.bMasked ) {
-			__xrt_ws_mask_data(pPayload, tFrame.iPayloadLen, tFrame.aMask);
-		}
-		
-		// 处理控制帧
-		if ( tFrame.iOpcode >= 0x08 ) {
-			switch ( tFrame.iOpcode ) {
-				case XRT_WS_OP_CLOSE:
-					{
-						uint16 iCode = XRT_WS_CLOSE_NO_STATUS;
-						const char* sReason = "";
-						if ( tFrame.iPayloadLen >= 2 ) {
-							iCode = ((uint16)pPayload[0] << 8) | pPayload[1];
-							if ( tFrame.iPayloadLen > 2 ) {
-								sReason = (const char*)(pPayload + 2);
-							}
-						}
-						if ( pServer->tEvents.OnClose ) {
-							pServer->tEvents.OnClose(pServer, pSlot->pConn, iCode, sReason);
-						}
-						// 发送 Close 响应
-						xrtWsServerDisconnect(pServer, iClientId, iCode, sReason);
-						return;
-					}
-				case XRT_WS_OP_PING:
-					// 自动回复 Pong (服务器不掩码)
-					{
-						size_t iPongSize = __xrt_ws_frame_size(tFrame.iPayloadLen, false);
-						uint8* pPong = (uint8*)xrtMalloc(iPongSize);
-						if ( pPong ) {
-							size_t iActual = __xrt_ws_encode_frame(pPong, XRT_WS_OP_PONG, true, false,
-								pPayload, tFrame.iPayloadLen);
-							xrtTcpServerSend(pServer->pTcpServer, iClientId, (char*)pPong, iActual);
-							xrtFree(pPong);
-						}
-					}
-					if ( pServer->tEvents.OnPing ) {
-						pServer->tEvents.OnPing(pServer, pSlot->pConn, (char*)pPayload, tFrame.iPayloadLen);
-					}
-					break;
-				case XRT_WS_OP_PONG:
-					if ( pServer->tEvents.OnPong ) {
-						pServer->tEvents.OnPong(pServer, pSlot->pConn, (char*)pPayload, tFrame.iPayloadLen);
-					}
-					break;
-			}
-		} else {
-			// 数据帧
-			if ( tFrame.iOpcode != XRT_WS_OP_CONTINUATION ) {
-				pSlot->iMsgOpcode = tFrame.iOpcode;
-				xrtNetBufClear(&pSlot->tMsgBuf);
-			}
-			
-			xrtNetBufAppend(&pSlot->tMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
-			
-			if ( tFrame.bFin ) {
-				if ( pServer->tEvents.OnMessage ) {
-					pServer->tEvents.OnMessage(pServer, pSlot->pConn, pSlot->iMsgOpcode,
-						(char*)pSlot->tMsgBuf.pData, pSlot->tMsgBuf.iSize);
-				}
-				xrtNetBufClear(&pSlot->tMsgBuf);
-				pSlot->bFragmented = false;
-			} else {
-				pSlot->bFragmented = true;
-			}
-		}
-		
-		xrtNetBufConsume(&pSlot->tRecvBuf, iFrameLen);
-	}
-}
-/* ============================== WebSocket 服务器 API ============================== */
-static xwsserver* __xrt_ws_server_init(xeventloop* pLoop, const char* sIP, uint16 iPort,
-	const xwsconfig* pConfig, const xwsevents* pEvents)
-{
-	xwsserver* pServer = (xwsserver*)xrtCalloc(1, sizeof(xwsserver));
-	if ( !pServer ) return NULL;
-	
-	// 复制配置
-	if ( pConfig ) {
-		pServer->tConfig = *pConfig;
-	}
-	if ( pServer->tConfig.iMaxMessageSize <= 0 ) {
-		pServer->tConfig.iMaxMessageSize = __XRT_WS_DEFAULT_MAX_MSG_SIZE;
-	}
-	
-	// 复制事件
-	if ( pEvents ) {
-		pServer->tEvents = *pEvents;
-	}
-	
-	// 创建底层 TCP 服务器
-	xnetevents tTcpEvents = {0};
-	tTcpEvents.OnAccept = __xrt_ws_server_on_accept;
-	tTcpEvents.OnRecv = __xrt_ws_server_on_recv;
-	tTcpEvents.OnClose = __xrt_ws_server_on_close;
-	
-	xnetconfig tNetConfig = {0};
-	tNetConfig.iRecvBufSize = 8192;
-	tNetConfig.iSendBufSize = 8192;
-	tNetConfig.iMaxClients = 256;
-	
-	if ( pLoop ) {
-		pServer->pTcpServer = xrtTcpServerCreateEx(pLoop, sIP, iPort, &tNetConfig, &tTcpEvents);
-	} else {
-		pServer->pTcpServer = xrtTcpServerCreate(sIP, iPort, &tNetConfig, &tTcpEvents);
-	}
-	
-	if ( !pServer->pTcpServer ) {
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	xrtTcpServerSetUserData(pServer->pTcpServer, pServer);
-	
-	// 分配客户端槽位
-	pServer->iMaxClients = tNetConfig.iMaxClients;
-	pServer->arrSlots = (__xrt_ws_client_slot*)xrtCalloc(pServer->iMaxClients, sizeof(__xrt_ws_client_slot));
-	if ( !pServer->arrSlots ) {
-		xrtTcpServerDestroy(pServer->pTcpServer);
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	return pServer;
-}
-XXAPI xwsserver* xrtWsServerCreate(const char* sIP, uint16 iPort,
-	const xwsconfig* pConfig, const xwsevents* pEvents)
-{
-	return __xrt_ws_server_init(NULL, sIP, iPort, pConfig, pEvents);
-}
-XXAPI xwsserver* xrtWsServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
-	const xwsconfig* pConfig, const xwsevents* pEvents)
-{
-	return __xrt_ws_server_init(pLoop, sIP, iPort, pConfig, pEvents);
-}
-XXAPI void xrtWsServerDestroy(xwsserver* pServer)
-{
-	if ( !pServer ) return;
-	
-	// 清理所有槽位
-	if ( pServer->arrSlots ) {
-		for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-			if ( pServer->arrSlots[i].bInUse ) {
-				xrtNetBufFree(&pServer->arrSlots[i].tRecvBuf);
-				xrtNetBufFree(&pServer->arrSlots[i].tMsgBuf);
-			}
-		}
-		xrtFree(pServer->arrSlots);
-	}
-	
-	if ( pServer->pTcpServer ) {
-		xrtTcpServerDestroy(pServer->pTcpServer);
-	}
-	
-	xrtFree(pServer);
-}
-XXAPI xnet_result xrtWsServerStart(xwsserver* pServer)
-{
-	if ( !pServer || !pServer->pTcpServer ) return XRT_NET_ERROR;
-	pServer->bRunning = true;
-	return xrtTcpServerStart(pServer->pTcpServer);
-}
-XXAPI void xrtWsServerStop(xwsserver* pServer)
-{
-	if ( !pServer ) return;
-	pServer->bRunning = false;
-	if ( pServer->pTcpServer ) {
-		xrtTcpServerStop(pServer->pTcpServer);
-	}
-}
-XXAPI xnet_result xrtWsServerEnableTLS(xwsserver* pServer, const xtlsconfig* pTlsConfig)
-{
-	if ( !pServer || !pServer->pTcpServer ) return XRT_NET_ERROR;
-	return xrtTcpServerEnableTLS(pServer->pTcpServer, pTlsConfig);
-}
-// 发送帧 (内部)
-static xnet_result __xrt_ws_server_send_frame(xwsserver* pServer, int iClientId,
-	uint8 iOpcode, const char* pData, size_t iLen)
-{
-	if ( !pServer || iClientId < 0 || iClientId >= pServer->iMaxClients ) return XRT_NET_ERROR;
-	
-	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
-	if ( !pSlot->bInUse || !pSlot->bHandshakeDone ) return XRT_NET_ERROR;
-	
-	// 服务器不掩码
-	size_t iFrameSize = __xrt_ws_frame_size(iLen, false);
-	uint8* pFrame = (uint8*)xrtMalloc(iFrameSize);
-	if ( !pFrame ) return XRT_NET_ERROR;
-	
-	size_t iActualSize = __xrt_ws_encode_frame(pFrame, iOpcode, true, false, (uint8*)pData, iLen);
-	
-	xnet_result iRes = xrtTcpServerSend(pServer->pTcpServer, iClientId, (char*)pFrame, iActualSize);
-	
-	xrtFree(pFrame);
-	return iRes;
-}
-XXAPI xnet_result xrtWsServerSendText(xwsserver* pServer, int iClientId, const char* sText, size_t iLen)
-{
-	return __xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_TEXT, sText, iLen);
-}
-XXAPI xnet_result xrtWsServerSendBinary(xwsserver* pServer, int iClientId, const char* pData, size_t iLen)
-{
-	return __xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_BINARY, pData, iLen);
-}
-XXAPI xnet_result xrtWsServerPing(xwsserver* pServer, int iClientId, const char* pData, size_t iLen)
-{
-	return __xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_PING, pData, iLen);
-}
-XXAPI xnet_result xrtWsServerBroadcastText(xwsserver* pServer, const char* sText, size_t iLen)
-{
-	if ( !pServer ) return XRT_NET_ERROR;
-	
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		if ( pServer->arrSlots[i].bInUse && pServer->arrSlots[i].bHandshakeDone ) {
-			xrtWsServerSendText(pServer, i, sText, iLen);
-		}
-	}
-	return XRT_NET_OK;
-}
-XXAPI xnet_result xrtWsServerBroadcastBinary(xwsserver* pServer, const char* pData, size_t iLen)
-{
-	if ( !pServer ) return XRT_NET_ERROR;
-	
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		if ( pServer->arrSlots[i].bInUse && pServer->arrSlots[i].bHandshakeDone ) {
-			xrtWsServerSendBinary(pServer, i, pData, iLen);
-		}
-	}
-	return XRT_NET_OK;
-}
-XXAPI void xrtWsServerDisconnect(xwsserver* pServer, int iClientId, uint16 iCode, const char* sReason)
-{
-	if ( !pServer || iClientId < 0 || iClientId >= pServer->iMaxClients ) return;
-	
-	__xrt_ws_client_slot* pSlot = &pServer->arrSlots[iClientId];
-	if ( !pSlot->bInUse ) return;
-	
-	if ( pSlot->bHandshakeDone ) {
-		// 发送 Close 帧
-		size_t iReasonLen = sReason ? strlen(sReason) : 0;
-		size_t iPayloadLen = 2 + iReasonLen;
-		uint8* pPayload = (uint8*)xrtMalloc(iPayloadLen);
-		if ( pPayload ) {
-			pPayload[0] = (uint8)(iCode >> 8);
-			pPayload[1] = (uint8)(iCode & 0xFF);
-			if ( iReasonLen > 0 ) {
-				memcpy(pPayload + 2, sReason, iReasonLen);
-			}
-			__xrt_ws_server_send_frame(pServer, iClientId, XRT_WS_OP_CLOSE, (char*)pPayload, iPayloadLen);
-			xrtFree(pPayload);
-		}
-	}
-	
-	// 断开底层 TCP 连接
-	xrtTcpServerDisconnect(pServer->pTcpServer, iClientId);
-}
-XXAPI int xrtWsServerGetClientCount(xwsserver* pServer)
-{
-	return pServer ? pServer->iClientCount : 0;
-}
-XXAPI void xrtWsServerSetUserData(xwsserver* pServer, ptr pData)
-{
-	if ( pServer ) pServer->pUserData = pData;
-}
-XXAPI ptr xrtWsServerGetUserData(xwsserver* pServer)
-{
-	return pServer ? pServer->pUserData : NULL;
-}
-#endif
-#ifndef XRT_NO_NETHTTPD
-
-// ========================================
-// File: D:/Git/xrt/lib/nethttpd.h
-// ========================================
-
-
-/*
-	NetHTTPD - HTTP 服务器封装 [Ver1.0]
-	
-	基于 nettcp.h (TCP 服务器) + nettls.h (HTTPS TLS 支持)
-	
-	特性:
-	  - HTTP/1.0 和 HTTP/1.1 支持
-	  - Keep-Alive 连接复用
-	  - 事件驱动架构
-	  - 双模式 API: 简易版 (内部线程) + 高级版 (共享事件循环)
-	  - 静态文件服务
-	  - 简单 URI 模式匹配
-	  - WebSocket 升级支持
-	
-	仅 IPv4，跨平台 (Windows / Linux)
-*/
-/* ============================== 内部常量定义 ============================== */
-#define __XRT_HTTPD_DEFAULT_MAX_HEADER   8192       // 默认最大请求头 8KB
-#define __XRT_HTTPD_DEFAULT_MAX_BODY     1048576    // 默认最大请求正文 1MB
-#define __XRT_HTTPD_DEFAULT_KEEPALIVE    60         // 默认 Keep-Alive 超时 60 秒
-#define __XRT_HTTPD_DEFAULT_MAX_CLIENTS  256        // 默认最大连接数
-#define __XRT_HTTPD_RECV_BUF_SIZE        8192       // 接收缓冲区大小
-/* ============================== HTTP 状态码文本 ============================== */
-static const char* __xrt_httpd_status_text(int iStatusCode)
-{
-	switch ( iStatusCode ) {
-		case 100: return "Continue";
-		case 101: return "Switching Protocols";
-		case 200: return "OK";
-		case 201: return "Created";
-		case 204: return "No Content";
-		case 206: return "Partial Content";
-		case 301: return "Moved Permanently";
-		case 302: return "Found";
-		case 303: return "See Other";
-		case 304: return "Not Modified";
-		case 307: return "Temporary Redirect";
-		case 308: return "Permanent Redirect";
-		case 400: return "Bad Request";
-		case 401: return "Unauthorized";
-		case 403: return "Forbidden";
-		case 404: return "Not Found";
-		case 405: return "Method Not Allowed";
-		case 408: return "Request Timeout";
-		case 411: return "Length Required";
-		case 413: return "Payload Too Large";
-		case 414: return "URI Too Long";
-		case 415: return "Unsupported Media Type";
-		case 500: return "Internal Server Error";
-		case 501: return "Not Implemented";
-		case 502: return "Bad Gateway";
-		case 503: return "Service Unavailable";
-		case 505: return "HTTP Version Not Supported";
-		default: return "Unknown";
-	}
-}
-/* ============================== MIME 类型映射 ============================== */
-static const char* __xrt_httpd_get_mime_type(const char* sPath)
-{
-	// 获取扩展名
-	const char* pDot = strrchr(sPath, '.');
-	if ( !pDot || pDot == sPath ) return "application/octet-stream";
-	pDot++;
-	
-	// 常见 MIME 类型
-	if ( strcasecmp(pDot, "html") == 0 || strcasecmp(pDot, "htm") == 0 ) return "text/html; charset=utf-8";
-	if ( strcasecmp(pDot, "css") == 0 ) return "text/css; charset=utf-8";
-	if ( strcasecmp(pDot, "js") == 0 ) return "application/javascript; charset=utf-8";
-	if ( strcasecmp(pDot, "json") == 0 ) return "application/json; charset=utf-8";
-	if ( strcasecmp(pDot, "xml") == 0 ) return "application/xml; charset=utf-8";
-	if ( strcasecmp(pDot, "txt") == 0 ) return "text/plain; charset=utf-8";
-	if ( strcasecmp(pDot, "csv") == 0 ) return "text/csv; charset=utf-8";
-	
-	// 图片
-	if ( strcasecmp(pDot, "png") == 0 ) return "image/png";
-	if ( strcasecmp(pDot, "jpg") == 0 || strcasecmp(pDot, "jpeg") == 0 ) return "image/jpeg";
-	if ( strcasecmp(pDot, "gif") == 0 ) return "image/gif";
-	if ( strcasecmp(pDot, "ico") == 0 ) return "image/x-icon";
-	if ( strcasecmp(pDot, "svg") == 0 ) return "image/svg+xml";
-	if ( strcasecmp(pDot, "webp") == 0 ) return "image/webp";
-	if ( strcasecmp(pDot, "bmp") == 0 ) return "image/bmp";
-	
-	// 字体
-	if ( strcasecmp(pDot, "woff") == 0 ) return "font/woff";
-	if ( strcasecmp(pDot, "woff2") == 0 ) return "font/woff2";
-	if ( strcasecmp(pDot, "ttf") == 0 ) return "font/ttf";
-	if ( strcasecmp(pDot, "otf") == 0 ) return "font/otf";
-	if ( strcasecmp(pDot, "eot") == 0 ) return "application/vnd.ms-fontobject";
-	
-	// 音视频
-	if ( strcasecmp(pDot, "mp3") == 0 ) return "audio/mpeg";
-	if ( strcasecmp(pDot, "wav") == 0 ) return "audio/wav";
-	if ( strcasecmp(pDot, "ogg") == 0 ) return "audio/ogg";
-	if ( strcasecmp(pDot, "mp4") == 0 ) return "video/mp4";
-	if ( strcasecmp(pDot, "webm") == 0 ) return "video/webm";
-	if ( strcasecmp(pDot, "avi") == 0 ) return "video/x-msvideo";
-	
-	// 压缩文件
-	if ( strcasecmp(pDot, "zip") == 0 ) return "application/zip";
-	if ( strcasecmp(pDot, "gz") == 0 || strcasecmp(pDot, "gzip") == 0 ) return "application/gzip";
-	if ( strcasecmp(pDot, "tar") == 0 ) return "application/x-tar";
-	if ( strcasecmp(pDot, "rar") == 0 ) return "application/vnd.rar";
-	if ( strcasecmp(pDot, "7z") == 0 ) return "application/x-7z-compressed";
-	
-	// 文档
-	if ( strcasecmp(pDot, "pdf") == 0 ) return "application/pdf";
-	if ( strcasecmp(pDot, "doc") == 0 ) return "application/msword";
-	if ( strcasecmp(pDot, "docx") == 0 ) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-	if ( strcasecmp(pDot, "xls") == 0 ) return "application/vnd.ms-excel";
-	if ( strcasecmp(pDot, "xlsx") == 0 ) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-	if ( strcasecmp(pDot, "ppt") == 0 ) return "application/vnd.ms-powerpoint";
-	if ( strcasecmp(pDot, "pptx") == 0 ) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-	
-	// 默认二进制
-	return "application/octet-stream";
-}
-/* ============================== HTTP 客户端槽位结构 ============================== */
-typedef struct {
-	xnetconn* pConn;              // 底层连接
-	int iClientId;                // 客户端 ID
-	bool bInUse;                  // 是否使用中
-	xnetbuf tRecvBuf;             // 接收缓冲区
-	xhttpdreq tReq;               // 当前请求
-	bool bHeaderParsed;           // 请求头是否解析完成
-	bool bBodyComplete;           // 请求正文是否接收完成
-	bool bKeepAlive;              // 是否 Keep-Alive 连接
-	xtime tLastActive;            // 最后活跃时间
-	// WebSocket 升级状态
-	bool bUpgraded;               // 是否已升级为 WebSocket
-	xwsevents* pWsEvents;         // WebSocket 事件回调 (升级后使用)
-	xnetbuf tWsMsgBuf;            // WebSocket 消息重组缓冲区
-	uint8 iWsMsgOpcode;           // WebSocket 消息操作码
-	bool bWsFragmented;           // 是否正在接收 WebSocket 分片消息
-} __xrt_httpd_client_slot;
-/* ============================== HTTP 服务器结构 ============================== */
-struct xrt_http_server {
-	xtcpserver* pTcpServer;       // 底层 TCP 服务器
-	
-	xhttpsrvconfig tConfig;
-	xhttpsrvevents tEvents;
-	
-	// 客户端槽位管理
-	__xrt_httpd_client_slot* arrSlots;
-	int iMaxClients;
-	int iClientCount;
-	
-	volatile bool bRunning;
-	
-	ptr pUserData;
-};
-/* ============================== HTTP 请求解析 ============================== */
-// 解析 HTTP 方法
-static xhttp_method __xrt_httpd_parse_method(const char* sMethod)
-{
-	if ( strcmp(sMethod, "GET") == 0 ) return XHTTP_GET;
-	if ( strcmp(sMethod, "POST") == 0 ) return XHTTP_POST;
-	if ( strcmp(sMethod, "PUT") == 0 ) return XHTTP_PUT;
-	if ( strcmp(sMethod, "DELETE") == 0 ) return XHTTP_DELETE;
-	if ( strcmp(sMethod, "PATCH") == 0 ) return XHTTP_PATCH;
-	if ( strcmp(sMethod, "HEAD") == 0 ) return XHTTP_HEAD;
-	return XHTTP_GET;  // 默认 GET
-}
-// 解析请求行: GET /path HTTP/1.1
-// 返回: 0=需要更多数据, >0=请求行长度 (含 \r\n), -1=错误
-static int __xrt_httpd_parse_request_line(const char* pData, size_t iLen, xhttpdreq* pReq)
-{
-	// 查找 \r\n
-	const char* pEnd = (const char*)memmem((ptr)pData, iLen, (ptr)"\r\n", 2);
-	if ( !pEnd ) return 0;
-	
-	size_t iLineLen = pEnd - pData;
-	if ( iLineLen < 14 ) return -1;  // 最短: "GET / HTTP/1.0"
-	
-	// 解析方法
-	const char* p = pData;
-	const char* pSpace = memchr(p, ' ', pEnd - p);
-	if ( !pSpace || pSpace - p >= 16 ) return -1;
-	
-	size_t iMethodLen = pSpace - p;
-	memcpy(pReq->sMethod, p, iMethodLen);
-	pReq->sMethod[iMethodLen] = '\0';
-	pReq->iMethod = __xrt_httpd_parse_method(pReq->sMethod);
-	
-	// 解析 URI
-	p = pSpace + 1;
-	pSpace = memchr(p, ' ', pEnd - p);
-	if ( !pSpace ) return -1;
-	
-	size_t iUriLen = pSpace - p;
-	if ( iUriLen >= sizeof(pReq->sUri) ) iUriLen = sizeof(pReq->sUri) - 1;
-	memcpy(pReq->sUri, p, iUriLen);
-	pReq->sUri[iUriLen] = '\0';
-	
-	// 分离 Path 和 Query
-	char* pQuery = strchr(pReq->sUri, '?');
-	if ( pQuery ) {
-		size_t iPathLen = pQuery - pReq->sUri;
-		memcpy(pReq->sPath, pReq->sUri, iPathLen);
-		pReq->sPath[iPathLen] = '\0';
-		strncpy(pReq->sQuery, pQuery + 1, sizeof(pReq->sQuery) - 1);
-		pReq->sQuery[sizeof(pReq->sQuery) - 1] = '\0';
-	} else {
-		strncpy(pReq->sPath, pReq->sUri, sizeof(pReq->sPath) - 1);
-		pReq->sPath[sizeof(pReq->sPath) - 1] = '\0';
-		pReq->sQuery[0] = '\0';
-	}
-	
-	// 解析 HTTP 版本
-	p = pSpace + 1;
-	size_t iVerLen = pEnd - p;
-	if ( iVerLen >= sizeof(pReq->sVersion) ) iVerLen = sizeof(pReq->sVersion) - 1;
-	memcpy(pReq->sVersion, p, iVerLen);
-	pReq->sVersion[iVerLen] = '\0';
-	
-	// HTTP/1.1 默认 Keep-Alive
-	pReq->bKeepAlive = (strcmp(pReq->sVersion, "HTTP/1.1") == 0);
-	
-	return (int)(iLineLen + 2);
-}
-// 解析请求头
-// 返回: 0=需要更多数据, >0=头部总长度 (含空行 \r\n\r\n), -1=错误
-static int __xrt_httpd_parse_headers(const char* pData, size_t iLen, xhttpdreq* pReq)
-{
-	// 查找 \r\n\r\n
-	const char* pEnd = (const char*)memmem((ptr)pData, iLen, (ptr)"\r\n\r\n", 4);
-	if ( !pEnd ) return 0;
-	
-	// 初始化头部字典
-	if ( !pReq->pHeaders ) {
-		pReq->pHeaders = xrtDictCreate(sizeof(char*));
-	}
-	
-	const char* p = pData;
-	while ( p < pEnd ) {
-		// 查找行尾
-		const char* pLineEnd = (const char*)memmem((ptr)p, pEnd - p, (ptr)"\r\n", 2);
-		if ( !pLineEnd ) break;
-		
-		// 空行表示头部结束
-		if ( pLineEnd == p ) break;
-		
-		// 解析 "Key: Value"
-		const char* pColon = memchr(p, ':', pLineEnd - p);
-		if ( pColon ) {
-			// 转小写 Key
-			char sKey[256];
-			size_t iKeyLen = pColon - p;
-			if ( iKeyLen >= sizeof(sKey) ) iKeyLen = sizeof(sKey) - 1;
-			for ( size_t i = 0; i < iKeyLen; i++ ) {
-				sKey[i] = (char)tolower((unsigned char)p[i]);
-			}
-			sKey[iKeyLen] = '\0';
-			
-			// 跳过冒号后的空格
-			const char* pValue = pColon + 1;
-			while ( pValue < pLineEnd && *pValue == ' ' ) pValue++;
-			
-			// 复制值
-			size_t iValueLen = pLineEnd - pValue;
-			char* sValue = (char*)xrtMalloc(iValueLen + 1);
-			if ( sValue ) {
-				memcpy(sValue, pValue, iValueLen);
-				sValue[iValueLen] = '\0';
-				
-				// 存入字典
-				char** ppOld = NULL;
-				xrtDictSetPtr((xdict)pReq->pHeaders, sKey, (uint32)iKeyLen, sValue, (ptr*)&ppOld);
-				if ( ppOld && *ppOld ) xrtFree(*ppOld);
-				
-				// 解析特殊头部
-				if ( strcmp(sKey, "content-length") == 0 ) {
-					pReq->iContentLength = (size_t)atoll(sValue);
-				} else if ( strcmp(sKey, "connection") == 0 ) {
-					if ( strcasecmp(sValue, "close") == 0 ) {
-						pReq->bKeepAlive = false;
-					} else if ( strcasecmp(sValue, "keep-alive") == 0 ) {
-						pReq->bKeepAlive = true;
-					}
-				}
-			}
-		}
-		
-		p = pLineEnd + 2;
-	}
-	
-	return (int)(pEnd - pData + 4);
-}
-// 解析查询参数 (延迟解析)
-static void __xrt_httpd_parse_params(xhttpdreq* pReq)
-{
-	if ( pReq->sQuery[0] == '\0' ) return;
-	if ( pReq->pParams && xrtDictCount((xdict)pReq->pParams) > 0 ) return;  // 已解析
-	
-	if ( !pReq->pParams ) {
-		pReq->pParams = xrtDictCreate(sizeof(char*));
-	}
-	
-	char* p = pReq->sQuery;
-	while ( *p ) {
-		// 找 '=' 和 '&'
-		char* pEq = strchr(p, '=');
-		char* pAmp = strchr(p, '&');
-		
-		if ( !pEq || (pAmp && pAmp < pEq) ) {
-			// 没有值的参数或格式错误，跳过
-			if ( pAmp ) {
-				p = pAmp + 1;
-				continue;
-			}
-			break;
-		}
-		
-		// 提取 key
-		size_t iKeyLen = pEq - p;
-		char sKey[256];
-		if ( iKeyLen >= sizeof(sKey) ) iKeyLen = sizeof(sKey) - 1;
-		memcpy(sKey, p, iKeyLen);
-		sKey[iKeyLen] = '\0';
-		
-		// 提取 value
-		char* pValueEnd = pAmp ? pAmp : p + strlen(p);
-		size_t iValueLen = pValueEnd - (pEq + 1);
-		char* sValue = (char*)xrtMalloc(iValueLen + 1);
-		if ( sValue ) {
-			memcpy(sValue, pEq + 1, iValueLen);
-			sValue[iValueLen] = '\0';
-			// TODO: URL 解码
-			xrtDictSetPtr((xdict)pReq->pParams, sKey, (uint32)iKeyLen, sValue, NULL);
-		}
-		
-		if ( !pAmp ) break;
-		p = pAmp + 1;
-	}
-}
-// 解析 Cookie (延迟解析)
-static void __xrt_httpd_parse_cookies(xhttpdreq* pReq)
-{
-	if ( pReq->pCookies && xrtDictCount((xdict)pReq->pCookies) > 0 ) return;  // 已解析
-	
-	const char* sCookie = xrtHttpReqGetHeader(pReq, "cookie");
-	if ( !sCookie ) return;
-	
-	if ( !pReq->pCookies ) {
-		pReq->pCookies = xrtDictCreate(sizeof(char*));
-	}
-	
-	const char* p = sCookie;
-	while ( *p ) {
-		// 跳过空格
-		while ( *p == ' ' ) p++;
-		
-		// 找 '=' 和 ';'
-		const char* pEq = strchr(p, '=');
-		const char* pSemi = strchr(p, ';');
-		
-		if ( !pEq || (pSemi && pSemi < pEq) ) {
-			if ( pSemi ) {
-				p = pSemi + 1;
-				continue;
-			}
-			break;
-		}
-		
-		// 提取 key
-		size_t iKeyLen = pEq - p;
-		char sKey[256];
-		if ( iKeyLen >= sizeof(sKey) ) iKeyLen = sizeof(sKey) - 1;
-		memcpy(sKey, p, iKeyLen);
-		sKey[iKeyLen] = '\0';
-		
-		// 提取 value
-		const char* pValueEnd = pSemi ? pSemi : p + strlen(p);
-		size_t iValueLen = pValueEnd - (pEq + 1);
-		char* sValue = (char*)xrtMalloc(iValueLen + 1);
-		if ( sValue ) {
-			memcpy(sValue, pEq + 1, iValueLen);
-			sValue[iValueLen] = '\0';
-			xrtDictSetPtr((xdict)pReq->pCookies, sKey, (uint32)iKeyLen, sValue, NULL);
-		}
-		
-		if ( !pSemi ) break;
-		p = pSemi + 1;
-	}
-}
-// 清理请求结构
-static void __xrt_httpd_req_cleanup(xhttpdreq* pReq)
-{
-	// 释放字典
-	if ( pReq->pHeaders ) {
-		xrtDictDestroy((xdict)pReq->pHeaders);
-		pReq->pHeaders = NULL;
-	}
-	if ( pReq->pParams ) {
-		xrtDictDestroy((xdict)pReq->pParams);
-		pReq->pParams = NULL;
-	}
-	if ( pReq->pCookies ) {
-		xrtDictDestroy((xdict)pReq->pCookies);
-		pReq->pCookies = NULL;
-	}
-	
-	if ( pReq->pBody ) {
-		xrtFree(pReq->pBody);
-		pReq->pBody = NULL;
-	}
-	pReq->iBodyLen = 0;
-}
-/* ============================== HTTP 响应发送 ============================== */
-// 发送数据 (自动处理 TLS)
-static void __xrt_httpd_send(xnetconn* pConn, const char* pData, size_t iLen)
-{
-	if ( pConn->bTlsEnabled && pConn->pTlsCtx ) {
-		size_t iWritten = 0;
-		xrtTlsWrite(pConn->pTlsCtx, pData, iLen, &iWritten);
-	} else {
-		size_t iSent = 0;
-		xrtSockSend(pConn, pData, iLen, &iSent);
-	}
-}
-// 快速响应 (一次性发送)
-XXAPI void xrtHttpReply(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sBody)
-{
-	size_t iBodyLen = sBody ? strlen(sBody) : 0;
-	
-	// 构建响应头
-	char sRespHeader[4096];
-	int iHeaderLen = snprintf(sRespHeader, sizeof(sRespHeader),
-		"HTTP/1.1 %d %s\r\n"
-		"Content-Length: %zu\r\n"
-		"Server: xrt/1.0\r\n"
-		"%s"
-		"\r\n",
-		iStatusCode, __xrt_httpd_status_text(iStatusCode),
-		iBodyLen,
-		sHeaders ? sHeaders : "");
-	
-	// 发送头部
-	__xrt_httpd_send(pConn, sRespHeader, iHeaderLen);
-	
-	// 发送正文
-	if ( sBody && iBodyLen > 0 ) {
-		__xrt_httpd_send(pConn, sBody, iBodyLen);
-	}
-}
-// 格式化响应
-XXAPI void xrtHttpReplyFmt(xnetconn* pConn, int iStatusCode, const char* sHeaders, const char* sFmt, ...)
-{
-	char sBody[16384];
-	va_list args;
-	va_start(args, sFmt);
-	vsnprintf(sBody, sizeof(sBody), sFmt, args);
-	va_end(args);
-	
-	xrtHttpReply(pConn, iStatusCode, sHeaders, sBody);
-}
-// 发送 JSON 响应
-XXAPI void xrtHttpReplyJSON(xnetconn* pConn, int iStatusCode, const char* sJSON)
-{
-	xrtHttpReply(pConn, iStatusCode, "Content-Type: application/json; charset=utf-8\r\n", sJSON);
-}
-// 发送文件响应
-XXAPI void xrtHttpReplyFile(xnetconn* pConn, const char* sFilePath, const char* sMimeType)
-{
-	// 读取文件
-	size_t iFileSize = 0;
-	char* pFileData = xrtFileReadAll((str)sFilePath, XRT_CP_BINARY, &iFileSize);
-	
-	if ( !pFileData ) {
-		xrtHttpReply(pConn, 404, "Content-Type: text/plain\r\n", "File Not Found");
-		return;
-	}
-	
-	// 确定 MIME 类型
-	const char* sMime = sMimeType ? sMimeType : __xrt_httpd_get_mime_type(sFilePath);
-	
-	// 构建响应头
-	char sRespHeader[4096];
-	int iHeaderLen = snprintf(sRespHeader, sizeof(sRespHeader),
-		"HTTP/1.1 200 OK\r\n"
-		"Content-Type: %s\r\n"
-		"Content-Length: %zu\r\n"
-		"Server: xrt/1.0\r\n"
-		"\r\n",
-		sMime, iFileSize);
-	
-	// 发送头部
-	__xrt_httpd_send(pConn, sRespHeader, iHeaderLen);
-	
-	// 发送正文
-	if ( iFileSize > 0 ) {
-		__xrt_httpd_send(pConn, pFileData, iFileSize);
-	}
-	
-	xrtFree(pFileData);
-}
-// 分块响应开始
-XXAPI void xrtHttpReplyStart(xnetconn* pConn, int iStatusCode, const char* sHeaders)
-{
-	char sRespHeader[4096];
-	int iHeaderLen = snprintf(sRespHeader, sizeof(sRespHeader),
-		"HTTP/1.1 %d %s\r\n"
-		"Transfer-Encoding: chunked\r\n"
-		"Server: xrt/1.0\r\n"
-		"%s"
-		"\r\n",
-		iStatusCode, __xrt_httpd_status_text(iStatusCode),
-		sHeaders ? sHeaders : "");
-	
-	__xrt_httpd_send(pConn, sRespHeader, iHeaderLen);
-}
-// 发送分块数据
-XXAPI void xrtHttpReplyChunk(xnetconn* pConn, const char* pData, size_t iLen)
-{
-	if ( iLen == 0 ) return;
-	
-	// 发送块大小
-	char sChunkHeader[32];
-	int iChunkHeaderLen = snprintf(sChunkHeader, sizeof(sChunkHeader), "%zx\r\n", iLen);
-	__xrt_httpd_send(pConn, sChunkHeader, iChunkHeaderLen);
-	
-	// 发送块数据
-	__xrt_httpd_send(pConn, pData, iLen);
-	
-	// 发送块结束
-	__xrt_httpd_send(pConn, "\r\n", 2);
-}
-// 结束分块响应
-XXAPI void xrtHttpReplyEnd(xnetconn* pConn)
-{
-	__xrt_httpd_send(pConn, "0\r\n\r\n", 5);
-}
-// 重定向
-XXAPI void xrtHttpRedirect(xnetconn* pConn, int iStatusCode, const char* sLocation)
-{
-	char sHeaders[2048];
-	snprintf(sHeaders, sizeof(sHeaders), "Location: %s\r\n", sLocation);
-	xrtHttpReply(pConn, iStatusCode, sHeaders, NULL);
-}
-/* ============================== URI 模式匹配 ============================== */
-// 简单模式匹配
-// 模式语法:
-//   *   - 匹配任意字符 (不含 /)
-//   **  - 匹配任意字符 (含 /)
-//   :name - 路径参数占位符 (匹配到下一个 / 或结尾)
-XXAPI bool xrtHttpReqMatch(xhttpdreq* pReq, const char* sPattern)
-{
-	const char* pPath = pReq->sPath;
-	const char* pPat = sPattern;
-	
-	while ( *pPath && *pPat ) {
-		if ( *pPat == '*' ) {
-			if ( *(pPat + 1) == '*' ) {
-				// ** 匹配任意字符 (含 /)
-				pPat += 2;
-				if ( *pPat == '\0' ) return true;
-				// 尝试匹配剩余部分
-				while ( *pPath ) {
-					if ( xrtHttpReqMatch(&(xhttpdreq){ .sPath = {0} }, pPat) ) {
-						// 需要复制 path 进行递归检查
-						xhttpdreq tTempReq = {0};
-						strncpy(tTempReq.sPath, pPath, sizeof(tTempReq.sPath) - 1);
-						if ( xrtHttpReqMatch(&tTempReq, pPat) ) return true;
-					}
-					pPath++;
-				}
-				return false;
-			} else {
-				// * 匹配任意字符 (不含 /)
-				pPat++;
-				while ( *pPath && *pPath != '/' ) {
-					pPath++;
-				}
-			}
-		} else if ( *pPat == ':' ) {
-			// :name 匹配路径段
-			pPat++;
-			while ( *pPat && *pPat != '/' ) pPat++;
-			while ( *pPath && *pPath != '/' ) pPath++;
-		} else {
-			// 精确匹配
-			if ( *pPath != *pPat ) return false;
-			pPath++;
-			pPat++;
-		}
-	}
-	
-	// 跳过结尾的通配符
-	while ( *pPat == '*' ) pPat++;
-	
-	return (*pPath == '\0' && *pPat == '\0');
-}
-/* ============================== HTTP 请求读取 API ============================== */
-// 获取请求头
-XXAPI const char* xrtHttpReqGetHeader(xhttpdreq* pReq, const char* sName)
-{
-	if ( !pReq->pHeaders ) return NULL;
-	
-	// 转小写
-	char sKey[256];
-	size_t iLen = strlen(sName);
-	if ( iLen >= sizeof(sKey) ) iLen = sizeof(sKey) - 1;
-	for ( size_t i = 0; i < iLen; i++ ) {
-		sKey[i] = (char)tolower((unsigned char)sName[i]);
-	}
-	sKey[iLen] = '\0';
-	
-	return (const char*)xrtDictGetPtr((xdict)pReq->pHeaders, sKey, (uint32)iLen);
-}
-// 获取查询参数
-XXAPI const char* xrtHttpReqGetParam(xhttpdreq* pReq, const char* sName)
-{
-	__xrt_httpd_parse_params(pReq);
-	if ( !pReq->pParams ) return NULL;
-	return (const char*)xrtDictGetPtr((xdict)pReq->pParams, (ptr)sName, (uint32)strlen(sName));
-}
-// 获取 Cookie
-XXAPI const char* xrtHttpReqGetCookie(xhttpdreq* pReq, const char* sName)
-{
-	__xrt_httpd_parse_cookies(pReq);
-	if ( !pReq->pCookies ) return NULL;
-	return (const char*)xrtDictGetPtr((xdict)pReq->pCookies, (ptr)sName, (uint32)strlen(sName));
-}
-/* ============================== 静态文件服务 ============================== */
-// 路径安全检查 (防止路径遍历攻击)
-static bool __xrt_httpd_is_path_safe(const char* sPath)
-{
-	// 检查 .. 路径遍历
-	if ( strstr(sPath, "..") ) return false;
-	
-	// 检查绝对路径
-	if ( sPath[0] == '/' || sPath[0] == '\\' ) return true;
-	#if defined(_WIN32) || defined(_WIN64)
-	if ( strlen(sPath) >= 2 && sPath[1] == ':' ) return false;
-	#endif
-	
-	return true;
-}
-// 服务静态文件目录
-XXAPI void xrtHttpServeDir(xnetconn* pConn, xhttpdreq* pReq, const char* sRootDir)
-{
-	// 安全检查
-	if ( !__xrt_httpd_is_path_safe(pReq->sPath) ) {
-		xrtHttpReply(pConn, 403, "Content-Type: text/plain\r\n", "Forbidden");
-		return;
-	}
-	
-	// 构建文件路径
-	char sFilePath[2048];
-	snprintf(sFilePath, sizeof(sFilePath), "%s%s", sRootDir, pReq->sPath);
-	
-	// 如果是目录，尝试 index.html
-	size_t iPathLen = strlen(sFilePath);
-	if ( iPathLen > 0 && (sFilePath[iPathLen - 1] == '/' || sFilePath[iPathLen - 1] == '\\') ) {
-		snprintf(sFilePath + iPathLen, sizeof(sFilePath) - iPathLen, "index.html");
-	} else if ( xrtDirExists(sFilePath) ) {
-		snprintf(sFilePath, sizeof(sFilePath), "%s%s/index.html", sRootDir, pReq->sPath);
-	}
-	
-	// 检查文件是否存在
-	if ( !xrtFileExists(sFilePath) ) {
-		xrtHttpReply(pConn, 404, "Content-Type: text/plain\r\n", "Not Found");
-		return;
-	}
-	
-	// 发送文件
-	xrtHttpReplyFile(pConn, sFilePath, NULL);
-}
-// 服务单个文件
-XXAPI void xrtHttpServeFile(xnetconn* pConn, const char* sFilePath)
-{
-	xrtHttpReplyFile(pConn, sFilePath, NULL);
-}
-/* ============================== WebSocket 升级支持 ============================== */
-// WebSocket 升级响应
-XXAPI void xrtHttpUpgradeWebSocket(xnetconn* pConn, xhttpdreq* pReq, const xwsevents* pEvents)
-{
-	// 获取 Sec-WebSocket-Key
-	const char* sKey = xrtHttpReqGetHeader(pReq, "sec-websocket-key");
-	if ( !sKey ) {
-		xrtHttpReply(pConn, 400, "Content-Type: text/plain\r\n", "Missing Sec-WebSocket-Key");
-		return;
-	}
-	
-	// 计算 Accept
-	char sAccept[64];
-	__xrt_ws_compute_accept(sKey, sAccept);
-	
-	// 发送升级响应
-	char sResponse[512];
-	int iLen = snprintf(sResponse, sizeof(sResponse),
-		"HTTP/1.1 101 Switching Protocols\r\n"
-		"Upgrade: websocket\r\n"
-		"Connection: Upgrade\r\n"
-		"Sec-WebSocket-Accept: %s\r\n"
-		"\r\n",
-		sAccept);
-	
-	__xrt_httpd_send(pConn, sResponse, iLen);
-	
-	// 标记连接已升级 (后续数据按 WebSocket 处理)
-	// 槽位状态由调用者更新
-}
-/* ============================== HTTP 服务器 - 槽位管理 ============================== */
-// 分配槽位
-static int __xrt_httpd_alloc_slot(xhttpserver* pServer)
-{
-	for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-		if ( !pServer->arrSlots[i].bInUse ) {
-			pServer->arrSlots[i].bInUse = true;
-			pServer->arrSlots[i].iClientId = i;
-			pServer->iClientCount++;
-			return i;
-		}
-	}
-	return -1;
-}
-// 释放槽位
-static void __xrt_httpd_free_slot(xhttpserver* pServer, int iSlot)
-{
-	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
-	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
-	
-	// 清理
-	xrtNetBufFree(&pSlot->tRecvBuf);
-	xrtNetBufFree(&pSlot->tWsMsgBuf);
-	__xrt_httpd_req_cleanup(&pSlot->tReq);
-	
-	memset(pSlot, 0, sizeof(__xrt_httpd_client_slot));
-	pServer->iClientCount--;
-}
-/* ============================== HTTP 服务器 - WebSocket 帧处理 ============================== */
-// 处理 WebSocket 数据 (从 HTTP 服务器槽位调用)
-static void __xrt_httpd_process_ws_data(xhttpserver* pServer, __xrt_httpd_client_slot* pSlot)
-{
-	while ( pSlot->tRecvBuf.iSize > 0 ) {
-		__xrt_ws_frame tFrame;
-		int iHeaderLen = __xrt_ws_parse_frame_header(
-			(uint8*)pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &tFrame);
-		
-		if ( iHeaderLen == 0 ) break;  // 需要更多数据
-		if ( iHeaderLen < 0 ) {
-			// 错误，关闭连接
-			if ( pSlot->pWsEvents && pSlot->pWsEvents->OnError ) {
-				pSlot->pWsEvents->OnError(pServer->pUserData, pSlot->pConn, -1);
-			}
-			return;
-		}
-		
-		// 检查是否有完整的帧
-		size_t iTotalLen = tFrame.iHeaderLen + tFrame.iPayloadLen;
-		if ( pSlot->tRecvBuf.iSize < iTotalLen ) break;
-		
-		// 提取载荷
-		uint8* pPayload = (uint8*)pSlot->tRecvBuf.pData + tFrame.iHeaderLen;
-		
-		// 解掩码 (客户端发送的数据必须掩码)
-		if ( tFrame.bMasked ) {
-			__xrt_ws_mask_data(pPayload, tFrame.iPayloadLen, tFrame.aMask);
-		}
-		
-		// 处理帧
-		switch ( tFrame.iOpcode ) {
-			case XRT_WS_OP_CONTINUATION:
-				// 分片续帧
-				if ( pSlot->bWsFragmented ) {
-					xrtNetBufAppend(&pSlot->tWsMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
-					if ( tFrame.bFin ) {
-						// 分片消息完成
-						if ( pSlot->pWsEvents && pSlot->pWsEvents->OnMessage ) {
-							pSlot->pWsEvents->OnMessage(pServer->pUserData, pSlot->pConn,
-								pSlot->iWsMsgOpcode, pSlot->tWsMsgBuf.pData, pSlot->tWsMsgBuf.iSize);
-						}
-						xrtNetBufClear(&pSlot->tWsMsgBuf);
-						pSlot->bWsFragmented = false;
-					}
-				}
-				break;
-				
-			case XRT_WS_OP_TEXT:
-			case XRT_WS_OP_BINARY:
-				if ( tFrame.bFin ) {
-					// 完整消息
-					if ( pSlot->pWsEvents && pSlot->pWsEvents->OnMessage ) {
-						pSlot->pWsEvents->OnMessage(pServer->pUserData, pSlot->pConn,
-							tFrame.iOpcode, (char*)pPayload, tFrame.iPayloadLen);
-					}
-				} else {
-					// 分片消息开始
-					pSlot->bWsFragmented = true;
-					pSlot->iWsMsgOpcode = tFrame.iOpcode;
-					xrtNetBufClear(&pSlot->tWsMsgBuf);
-					xrtNetBufAppend(&pSlot->tWsMsgBuf, (char*)pPayload, tFrame.iPayloadLen);
-				}
-				break;
-				
-			case XRT_WS_OP_CLOSE:
-				{
-					uint16 iCode = 1000;
-					const char* sReason = "";
-					if ( tFrame.iPayloadLen >= 2 ) {
-						iCode = ((uint16)pPayload[0] << 8) | pPayload[1];
-						if ( tFrame.iPayloadLen > 2 ) {
-							sReason = (char*)(pPayload + 2);
-						}
-					}
-					if ( pSlot->pWsEvents && pSlot->pWsEvents->OnClose ) {
-						pSlot->pWsEvents->OnClose(pServer->pUserData, pSlot->pConn, iCode, sReason);
-					}
-				}
-				break;
-				
-			case XRT_WS_OP_PING:
-				// 自动回复 Pong
-				{
-					uint8 aPong[256];
-					size_t iPongLen = __xrt_ws_encode_frame(aPong, XRT_WS_OP_PONG, true, false,
-						pPayload, tFrame.iPayloadLen < 125 ? tFrame.iPayloadLen : 125);
-					__xrt_httpd_send(pSlot->pConn, (char*)aPong, iPongLen);
-					
-					if ( pSlot->pWsEvents && pSlot->pWsEvents->OnPing ) {
-						pSlot->pWsEvents->OnPing(pServer->pUserData, pSlot->pConn,
-							(char*)pPayload, tFrame.iPayloadLen);
-					}
-				}
-				break;
-				
-			case XRT_WS_OP_PONG:
-				if ( pSlot->pWsEvents && pSlot->pWsEvents->OnPong ) {
-					pSlot->pWsEvents->OnPong(pServer->pUserData, pSlot->pConn,
-						(char*)pPayload, tFrame.iPayloadLen);
-				}
-				break;
-		}
-		
-		// 消费数据
-		xrtNetBufConsume(&pSlot->tRecvBuf, iTotalLen);
-	}
-}
-/* ============================== HTTP 服务器 - 事件处理 ============================== */
-// 前向声明
-static void __xrt_httpd_on_tcp_accept(ptr pOwner, xnetconn* pConn);
-static void __xrt_httpd_on_tcp_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen);
-static void __xrt_httpd_on_tcp_close(ptr pOwner, xnetconn* pConn);
-// TCP Accept 回调
-static void __xrt_httpd_on_tcp_accept(ptr pOwner, xnetconn* pConn)
-{
-	xhttpserver* pServer = (xhttpserver*)pOwner;
-	
-	// 分配槽位
-	int iSlot = __xrt_httpd_alloc_slot(pServer);
-	if ( iSlot < 0 ) {
-		// 槽位已满，拒绝连接
-		return;
-	}
-	
-	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
-	pSlot->pConn = pConn;
-	pSlot->iClientId = iSlot;
-	pSlot->tLastActive = xrtNow();
-	
-	// 初始化接收缓冲区
-	xrtNetBufInit(&pSlot->tRecvBuf, __XRT_HTTPD_RECV_BUF_SIZE);
-	
-	// 关联槽位 ID 到连接
-	pConn->iId = iSlot;
-}
-// TCP Recv 回调
-static void __xrt_httpd_on_tcp_recv(ptr pOwner, xnetconn* pConn, const char* pData, size_t iLen)
-{
-	xhttpserver* pServer = (xhttpserver*)pOwner;
-	int iSlot = pConn->iId;
-	
-	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
-	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
-	if ( !pSlot->bInUse ) return;
-	
-	// 更新活跃时间
-	pSlot->tLastActive = xrtNow();
-	
-	// 追加到接收缓冲区
-	xrtNetBufAppend(&pSlot->tRecvBuf, pData, iLen);
-	
-	// WebSocket 模式
-	if ( pSlot->bUpgraded ) {
-		__xrt_httpd_process_ws_data(pServer, pSlot);
-		return;
-	}
-	
-	// HTTP 模式 - 解析请求
-	if ( !pSlot->bHeaderParsed ) {
-		// 解析请求行
-		int iLineLen = __xrt_httpd_parse_request_line(
-			pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &pSlot->tReq);
-		
-		if ( iLineLen < 0 ) {
-			// 解析错误
-			xrtHttpReply(pConn, 400, "Content-Type: text/plain\r\n", "Bad Request");
-			if ( pServer->tEvents.OnError ) {
-				pServer->tEvents.OnError(pServer->pUserData, pConn, 400);
-			}
-			return;
-		}
-		if ( iLineLen == 0 ) return;  // 需要更多数据
-		
-		// 消费请求行
-		xrtNetBufConsume(&pSlot->tRecvBuf, iLineLen);
-		
-		// 解析请求头
-		int iHeaderLen = __xrt_httpd_parse_headers(
-			pSlot->tRecvBuf.pData, pSlot->tRecvBuf.iSize, &pSlot->tReq);
-		
-		if ( iHeaderLen < 0 ) {
-			xrtHttpReply(pConn, 400, "Content-Type: text/plain\r\n", "Bad Request");
-			if ( pServer->tEvents.OnError ) {
-				pServer->tEvents.OnError(pServer->pUserData, pConn, 400);
-			}
-			return;
-		}
-		if ( iHeaderLen == 0 ) return;  // 需要更多数据
-		
-		// 消费头部
-		xrtNetBufConsume(&pSlot->tRecvBuf, iHeaderLen);
-		pSlot->bHeaderParsed = true;
-		pSlot->bKeepAlive = pSlot->tReq.bKeepAlive;
-	}
-	
-	// 接收请求正文
-	if ( pSlot->tReq.iContentLength > 0 ) {
-		if ( pSlot->tRecvBuf.iSize < pSlot->tReq.iContentLength ) {
-			return;  // 需要更多数据
-		}
-		
-		// 分配正文缓冲区
-		pSlot->tReq.pBody = (char*)xrtMalloc(pSlot->tReq.iContentLength + 1);
-		if ( pSlot->tReq.pBody ) {
-			memcpy(pSlot->tReq.pBody, pSlot->tRecvBuf.pData, pSlot->tReq.iContentLength);
-			pSlot->tReq.pBody[pSlot->tReq.iContentLength] = '\0';
-			pSlot->tReq.iBodyLen = pSlot->tReq.iContentLength;
-		}
-		xrtNetBufConsume(&pSlot->tRecvBuf, pSlot->tReq.iContentLength);
-	}
-	
-	pSlot->bBodyComplete = true;
-	
-	// 检查 WebSocket 升级请求
-	const char* sUpgrade = xrtHttpReqGetHeader(&pSlot->tReq, "upgrade");
-	if ( sUpgrade && strcasecmp(sUpgrade, "websocket") == 0 ) {
-		if ( pServer->tEvents.OnUpgrade ) {
-			bool bAccept = pServer->tEvents.OnUpgrade(pServer->pUserData, pConn, &pSlot->tReq);
-			if ( bAccept ) {
-				// 标记为已升级
-				pSlot->bUpgraded = true;
-				xrtNetBufInit(&pSlot->tWsMsgBuf, 4096);
-			}
-		}
-	}
-	
-	// 调用请求回调 (非 WebSocket)
-	if ( !pSlot->bUpgraded && pServer->tEvents.OnRequest ) {
-		pServer->tEvents.OnRequest(pServer->pUserData, pConn, &pSlot->tReq);
-	}
-	
-	// 清理请求状态 (准备下一个请求)
-	if ( !pSlot->bUpgraded ) {
-		__xrt_httpd_req_cleanup(&pSlot->tReq);
-		memset(&pSlot->tReq, 0, sizeof(xhttpdreq));
-		pSlot->bHeaderParsed = false;
-		pSlot->bBodyComplete = false;
-	}
-}
-// TCP Close 回调
-static void __xrt_httpd_on_tcp_close(ptr pOwner, xnetconn* pConn)
-{
-	xhttpserver* pServer = (xhttpserver*)pOwner;
-	int iSlot = pConn->iId;
-	
-	if ( iSlot < 0 || iSlot >= pServer->iMaxClients ) return;
-	__xrt_httpd_client_slot* pSlot = &pServer->arrSlots[iSlot];
-	if ( !pSlot->bInUse ) return;
-	
-	// 调用关闭回调
-	if ( pServer->tEvents.OnClose ) {
-		pServer->tEvents.OnClose(pServer->pUserData, pConn);
-	}
-	
-	// 释放槽位
-	__xrt_httpd_free_slot(pServer, iSlot);
-}
-/* ============================== HTTP 服务器 - 生命周期 ============================== */
-// 创建 (简易版)
-XXAPI xhttpserver* xrtHttpServerCreate(const char* sIP, uint16 iPort,
-	const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents)
-{
-	xhttpserver* pServer = (xhttpserver*)xrtMalloc(sizeof(xhttpserver));
-	if ( !pServer ) return NULL;
-	memset(pServer, 0, sizeof(xhttpserver));
-	
-	// 复制配置
-	if ( pConfig ) {
-		memcpy(&pServer->tConfig, pConfig, sizeof(xhttpsrvconfig));
-	}
-	
-	// 设置默认值
-	if ( pServer->tConfig.iMaxHeaderSize <= 0 )
-		pServer->tConfig.iMaxHeaderSize = __XRT_HTTPD_DEFAULT_MAX_HEADER;
-	if ( pServer->tConfig.iMaxBodySize <= 0 )
-		pServer->tConfig.iMaxBodySize = __XRT_HTTPD_DEFAULT_MAX_BODY;
-	if ( pServer->tConfig.iKeepAliveTimeout <= 0 )
-		pServer->tConfig.iKeepAliveTimeout = __XRT_HTTPD_DEFAULT_KEEPALIVE;
-	if ( pServer->tConfig.iMaxClients <= 0 )
-		pServer->tConfig.iMaxClients = __XRT_HTTPD_DEFAULT_MAX_CLIENTS;
-	
-	// 复制事件回调
-	if ( pEvents ) {
-		memcpy(&pServer->tEvents, pEvents, sizeof(xhttpsrvevents));
-	}
-	
-	// 分配客户端槽位
-	pServer->iMaxClients = pServer->tConfig.iMaxClients;
-	pServer->arrSlots = (__xrt_httpd_client_slot*)xrtMalloc(
-		pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
-	if ( !pServer->arrSlots ) {
-		xrtFree(pServer);
-		return NULL;
-	}
-	memset(pServer->arrSlots, 0, pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
-	
-	// 创建底层 TCP 服务器
-	xnetconfig tNetConfig = {0};
-	tNetConfig.iRecvBufSize = __XRT_HTTPD_RECV_BUF_SIZE;
-	tNetConfig.iMaxClients = pServer->iMaxClients;
-	
-	xnetevents tNetEvents = {0};
-	tNetEvents.OnAccept = __xrt_httpd_on_tcp_accept;
-	tNetEvents.OnRecv = __xrt_httpd_on_tcp_recv;
-	tNetEvents.OnClose = __xrt_httpd_on_tcp_close;
-	
-	pServer->pTcpServer = xrtTcpServerCreate(sIP, iPort, &tNetConfig, &tNetEvents);
-	if ( !pServer->pTcpServer ) {
-		xrtFree(pServer->arrSlots);
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	// 设置 TCP 服务器的 Owner 为 HTTP 服务器
-	xrtTcpServerSetUserData(pServer->pTcpServer, pServer);
-	
-	return pServer;
-}
-// 创建 (高级版: 共享事件循环)
-XXAPI xhttpserver* xrtHttpServerCreateEx(xeventloop* pLoop, const char* sIP, uint16 iPort,
-	const xhttpsrvconfig* pConfig, const xhttpsrvevents* pEvents)
-{
-	xhttpserver* pServer = (xhttpserver*)xrtMalloc(sizeof(xhttpserver));
-	if ( !pServer ) return NULL;
-	memset(pServer, 0, sizeof(xhttpserver));
-	
-	// 复制配置
-	if ( pConfig ) {
-		memcpy(&pServer->tConfig, pConfig, sizeof(xhttpsrvconfig));
-	}
-	
-	// 设置默认值
-	if ( pServer->tConfig.iMaxHeaderSize <= 0 )
-		pServer->tConfig.iMaxHeaderSize = __XRT_HTTPD_DEFAULT_MAX_HEADER;
-	if ( pServer->tConfig.iMaxBodySize <= 0 )
-		pServer->tConfig.iMaxBodySize = __XRT_HTTPD_DEFAULT_MAX_BODY;
-	if ( pServer->tConfig.iKeepAliveTimeout <= 0 )
-		pServer->tConfig.iKeepAliveTimeout = __XRT_HTTPD_DEFAULT_KEEPALIVE;
-	if ( pServer->tConfig.iMaxClients <= 0 )
-		pServer->tConfig.iMaxClients = __XRT_HTTPD_DEFAULT_MAX_CLIENTS;
-	
-	// 复制事件回调
-	if ( pEvents ) {
-		memcpy(&pServer->tEvents, pEvents, sizeof(xhttpsrvevents));
-	}
-	
-	// 分配客户端槽位
-	pServer->iMaxClients = pServer->tConfig.iMaxClients;
-	pServer->arrSlots = (__xrt_httpd_client_slot*)xrtMalloc(
-		pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
-	if ( !pServer->arrSlots ) {
-		xrtFree(pServer);
-		return NULL;
-	}
-	memset(pServer->arrSlots, 0, pServer->iMaxClients * sizeof(__xrt_httpd_client_slot));
-	
-	// 创建底层 TCP 服务器 (共享事件循环版)
-	xnetconfig tNetConfig = {0};
-	tNetConfig.iRecvBufSize = __XRT_HTTPD_RECV_BUF_SIZE;
-	tNetConfig.iMaxClients = pServer->iMaxClients;
-	
-	xnetevents tNetEvents = {0};
-	tNetEvents.OnAccept = __xrt_httpd_on_tcp_accept;
-	tNetEvents.OnRecv = __xrt_httpd_on_tcp_recv;
-	tNetEvents.OnClose = __xrt_httpd_on_tcp_close;
-	
-	pServer->pTcpServer = xrtTcpServerCreateEx(pLoop, sIP, iPort, &tNetConfig, &tNetEvents);
-	if ( !pServer->pTcpServer ) {
-		xrtFree(pServer->arrSlots);
-		xrtFree(pServer);
-		return NULL;
-	}
-	
-	// 设置 TCP 服务器的 Owner 为 HTTP 服务器
-	xrtTcpServerSetUserData(pServer->pTcpServer, pServer);
-	
-	return pServer;
-}
-// 销毁
-XXAPI void xrtHttpServerDestroy(xhttpserver* pServer)
-{
-	if ( !pServer ) return;
-	
-	// 停止服务器
-	xrtHttpServerStop(pServer);
-	
-	// 销毁 TCP 服务器
-	if ( pServer->pTcpServer ) {
-		xrtTcpServerDestroy(pServer->pTcpServer);
-	}
-	
-	// 释放槽位
-	if ( pServer->arrSlots ) {
-		for ( int i = 0; i < pServer->iMaxClients; i++ ) {
-			if ( pServer->arrSlots[i].bInUse ) {
-				__xrt_httpd_free_slot(pServer, i);
-			}
-		}
-		xrtFree(pServer->arrSlots);
-	}
-	
-	xrtFree(pServer);
-}
-// 启动
-XXAPI xnet_result xrtHttpServerStart(xhttpserver* pServer)
-{
-	if ( !pServer || !pServer->pTcpServer ) return XRT_NET_ERROR;
-	
-	pServer->bRunning = true;
-	return xrtTcpServerStart(pServer->pTcpServer);
-}
-// 停止
-XXAPI void xrtHttpServerStop(xhttpserver* pServer)
-{
-	if ( !pServer ) return;
-	
-	pServer->bRunning = false;
-	if ( pServer->pTcpServer ) {
-		xrtTcpServerStop(pServer->pTcpServer);
-	}
-}
-// 启用 TLS (HTTPS)
-XXAPI xnet_result xrtHttpServerEnableTLS(xhttpserver* pServer, const xtlsconfig* pTlsConfig)
-{
-	if ( !pServer || !pServer->pTcpServer || !pTlsConfig ) return XRT_NET_ERROR;
-	return xrtTcpServerEnableTLS(pServer->pTcpServer, pTlsConfig);
-}
-// 用户数据
-XXAPI void xrtHttpServerSetUserData(xhttpserver* pServer, ptr pData)
-{
-	if ( pServer ) pServer->pUserData = pData;
-}
-XXAPI ptr xrtHttpServerGetUserData(xhttpserver* pServer)
-{
-	return pServer ? pServer->pUserData : NULL;
 }
 #endif
 #ifndef XRT_NO_ARRAY
