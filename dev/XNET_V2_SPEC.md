@@ -164,7 +164,7 @@ scheme:
 - `lib/xcodec.h`
 - `lib/xcodec_http1.h`
 - `lib/xcodec_ws.h`
-- `lib/xws2.h`
+- `lib/xws.h`
 - `test/test_xnet2_base.h`
 - `test/test_xnet2_engine.h`
 - `test/test_xnet2_mem.h`
@@ -174,7 +174,7 @@ scheme:
 - `test/test_xnet2_tls.h`
 - `test/test_xnet2_sync.h`
 - `test/test_xnet2_codec.h`
-- `test/test_xnet2_ws2.h`
+- `test/test_xnet_ws.h`
 - `dev/test_xnet2_stage.c`
 - `dev/bench/xnet2/bench_common.h`
 - `dev/bench/xnet2/bench_stream_server.h`
@@ -201,9 +201,9 @@ scheme:
 | `xnet_sync` | 1 | done | Future and waiter model for sync facades | `xnet_engine` |
 | `xnet_tls` | 2 | done | Builtin TLS integration on stream transport | `xnet_stream` |
 | `xcodec_*` | 2 | done | Framing and parser helpers | `xnet_stream` |
-| `xhttp2` | 3 | done | New HTTP client | `xnet_stream`, `xnet_tls`, `xnet_sync` |
-| `xhttpd2` | 3 | done | New HTTP server | `xnet_stream`, `xnet_tls`, `xcodec_http1` |
-| `xws2` | 3 | done | New WebSocket layer | `xnet_stream`, `xcodec_http1`, `xcodec_ws`, `xnet_tls` |
+| `xhttp` | 3 | done | New HTTP client | `xnet_stream`, `xnet_tls`, `xnet_sync` |
+| `xhttpd` | 3 | done | New HTTP server | `xnet_stream`, `xnet_tls`, `xcodec_http1` |
+| `xws` | 3 | done | New WebSocket layer | `xnet_stream`, `xcodec_http1`, `xcodec_ws`, `xnet_tls` |
 
 
 ## 9. Core Data Model
@@ -822,7 +822,7 @@ Exit gate:
 
 - server wrapper owns listener lifecycle on top of `xnet_stream`
 - request and response objects materialize from `xcodec_http1`
-- plain HTTP and builtin TLS loopback paths work with the new `xhttp2` client
+- plain HTTP and builtin TLS loopback paths work with the new `xhttp` client
 - accepted connection cleanup does not leak streams on close or server stop
 - Windows stage harness covers plain and HTTPS server regressions
 
@@ -876,7 +876,7 @@ Tasks:
 
 Exit gate:
 
-- `xws2` reassembles fragmented text and binary messages on both client and server paths
+- `xws` reassembles fragmented text and binary messages on both client and server paths
 - control frames remain legal while a fragmented message is in progress
 - oversized fragmented messages close with the correct WebSocket close code
 - partial-message buffers are released on close, stop, and cleanup paths
@@ -884,7 +884,7 @@ Exit gate:
 
 Tasks:
 
-- [x] `M13-T01` Add per-endpoint fragmented-message reassembly state to `xws2`
+- [x] `M13-T01` Add per-endpoint fragmented-message reassembly state to `xws`
 - [x] `M13-T02` Implement client-side fragmented text and binary consume paths
 - [x] `M13-T03` Implement server-side fragmented text and binary consume paths
 - [x] `M13-T04` Preserve ping/pong behavior and cleanup semantics during reassembly
@@ -894,7 +894,7 @@ Tasks:
 
 Exit gate:
 
-- `xhttpd2` can process multiple serial requests on one keep-alive connection
+- `xhttpd` can process multiple serial requests on one keep-alive connection
 - response drain and close semantics remain owned by the same `xnet_stream`
 - buffered bytes already present in the receive chain may be parsed after response drain
 - Windows stage harness verifies same-socket keep-alive reuse with multiple requests
@@ -902,7 +902,7 @@ Exit gate:
 
 Tasks:
 
-- [x] `M14-T01` Track per-connection response-in-flight and keep-alive state in `xhttpd2`
+- [x] `M14-T01` Track per-connection response-in-flight and keep-alive state in `xhttpd`
 - [x] `M14-T02` Re-enable request parsing after response drain on kept-alive connections
 - [x] `M14-T03` Re-enter parsing when buffered next-request bytes are already present
 - [x] `M14-T04` Add a raw loopback keep-alive reuse regression
@@ -911,7 +911,7 @@ Tasks:
 
 Exit gate:
 
-- `xhttp2` can reuse one idle keep-alive connection for serial requests to the same origin
+- `xhttp` can reuse one idle keep-alive connection for serial requests to the same origin
 - reuse works for both caller-owned engines and the hidden sync engine
 - reused requests do not create a second accepted server connection in the loopback harness
 - idle kept-alive connections can be explicitly purged before engine shutdown
@@ -919,8 +919,8 @@ Exit gate:
 
 Tasks:
 
-- [x] `M15-T01` Introduce an internal reusable client-connection object for `xhttp2`
-- [x] `M15-T02` Reassign per-request ownership from `xhttp2` transactions to reusable connections
+- [x] `M15-T01` Introduce an internal reusable client-connection object for `xhttp`
+- [x] `M15-T02` Reassign per-request ownership from `xhttp` transactions to reusable connections
 - [x] `M15-T03` Return completed keep-alive connections to an idle pool keyed by engine plus origin
 - [x] `M15-T04` Add explicit idle-connection purge helpers for engine shutdown safety
 - [x] `M15-T05` Add loopback regression coverage for serial keep-alive client reuse
@@ -930,16 +930,16 @@ Tasks:
 Exit gate:
 
 - `xcodec_http1` can delimit whole chunked HTTP/1.1 messages and expose decoded body helpers
-- `xhttp2` can serialize chunked requests and decode chunked responses over plain TCP and builtin TLS
+- `xhttp` can serialize chunked requests and decode chunked responses over plain TCP and builtin TLS
 - chunked keep-alive responses remain reusable when the full message has been delimited and consumed
-- `xhttpd2` can decode chunked requests and serialize chunked responses without owning raw socket logic
+- `xhttpd` can decode chunked requests and serialize chunked responses without owning raw socket logic
 - Windows stage harness covers codec, client, and server chunked regressions
 
 Tasks:
 
 - [x] `M16-T01` Extend `xcodec_http1` with whole-message chunked delimiting and dechunk helpers
-- [x] `M16-T02` Teach `xhttp2` request serialization and response materialization about chunked transfer
-- [x] `M16-T03` Teach `xhttpd2` request parse and response serialization paths about chunked transfer
+- [x] `M16-T02` Teach `xhttp` request serialization and response materialization about chunked transfer
+- [x] `M16-T03` Teach `xhttpd` request parse and response serialization paths about chunked transfer
 - [x] `M16-T04` Add codec, client, and server chunked regression coverage and rerun the Windows stage harness
 
 
@@ -955,9 +955,9 @@ Tasks:
 - `test/test_xnet2_tls.h`
 - `test/test_xnet2_sync.h`
 - `test/test_xnet2_codec.h`
-- `test/test_xnet2_http2.h`
-- `test/test_xnet2_httpd2.h`
-- `test/test_xnet2_ws2.h`
+- `test/test_xnet_http.h`
+- `test/test_xnet_httpd.h`
+- `test/test_xnet_ws.h`
 
 ### 16.2 Integration Tests
 
@@ -1115,29 +1115,29 @@ Use this section for durable architecture decisions.
   HTTP message state machine into the stage parser layer.
 - `D-026` `2026-03-13`: The first WebSocket codec parses individual frame
   headers, payload boundaries, and mask metadata, while message reassembly and
-  higher-level semantics remain the responsibility of the future `xws2` layer.
-- `D-027` `2026-03-13`: `xhttp2` completion state is owned by the transaction
+  higher-level semantics remain the responsibility of the future `xws` layer.
+- `D-027` `2026-03-13`: `xhttp` completion state is owned by the transaction
   rather than inferred from `xnetfuture` status so close and timeout callbacks
   do not touch a future after the request has already completed.
-- `D-028` `2026-03-13`: `xhttp2` cleanup may discard request-body and send
+- `D-028` `2026-03-13`: `xhttp` cleanup may discard request-body and send
   buffers as soon as stream teardown is scheduled, even if a timeout reference
   keeps the lightweight transaction shell alive until timer expiry or engine
   shutdown.
-- `D-029` `2026-03-13`: `xhttpd2` must serialize and enqueue responses on the
+- `D-029` `2026-03-13`: `xhttpd` must serialize and enqueue responses on the
   owner worker directly instead of calling socket-backed `xrtNetStreamSend()`
   from inside `OnRecv`, because the public send path is a posted operation and
   can be dropped if the stream is marked closing before the post is drained.
-- `D-030` `2026-03-13`: until a real keep-alive manager exists, `xhttpd2`
+- `D-030` `2026-03-13`: until a real keep-alive manager exists, `xhttpd`
   responds with `Connection: keep-alive` and does not proactively close the
   stream when the request advertises keep-alive; the client side is currently
   responsible for closing the one-shot loopback test connection after parsing
   the response.
-- `D-031` `2026-03-13`: the first `xws2` layer owns the HTTP upgrade handshake
-  itself on top of `xnet_stream` instead of routing through `xhttp2` or
-  `xhttpd2`, because upgraded connections must retain transport ownership after
+- `D-031` `2026-03-13`: the first `xws` layer owns the HTTP upgrade handshake
+  itself on top of `xnet_stream` instead of routing through `xhttp` or
+  `xhttpd`, because upgraded connections must retain transport ownership after
   the `101 Switching Protocols` response instead of collapsing back into a
   one-shot HTTP transaction model.
-- `D-032` `2026-03-13`: phase-3 `xws2` deliberately supports only single-frame
+- `D-032` `2026-03-13`: phase-3 `xws` deliberately supports only single-frame
   text and binary messages plus ping/pong and close control, and rejects
   continuation or fragmented message flows until a later milestone introduces
   explicit message-reassembly state on top of `xcodec_ws`.
@@ -1145,14 +1145,14 @@ Use this section for durable architecture decisions.
   around staging internals such as the manual accept-thread pattern instead of
   introducing new public benchmark-only server APIs into `lib/`.
 - `D-034` `2026-03-13`: fragmented WebSocket message reassembly lives in
-  `xws2` rather than `xcodec_ws`, so the codec stays frame-oriented while
+  `xws` rather than `xcodec_ws`, so the codec stays frame-oriented while
   client/server wrappers own message lifetime, close semantics, and control
   frame interleaving rules.
-- `D-035` `2026-03-13`: the first keep-alive upgrade for `xhttpd2` is
+- `D-035` `2026-03-13`: the first keep-alive upgrade for `xhttpd` is
   deliberately serial and drain-driven; a connection becomes parseable again
   only after the previous response queue drains, which keeps ownership inside
   one `xnet_stream` without introducing a premature global pooling layer.
-- `D-036` `2026-03-13`: `xhttp2` now owns a serial idle keep-alive pool keyed
+- `D-036` `2026-03-13`: `xhttp` now owns a serial idle keep-alive pool keyed
   by engine plus origin plus TLS verification mode; idle connections remain
   outside active transactions and therefore require an explicit purge helper
   before engine shutdown until engine-level lifetime hooks exist.
@@ -1161,8 +1161,8 @@ Use this section for durable architecture decisions.
   backend, TLS echo is valid enough for smoke coverage, while plain TCP echo and
   send-queue pressure are still not trustworthy baseline measurements.
 - `D-038` `2026-03-13`: first-wave HTTP chunked support is whole-message only:
-  `xcodec_http1` owns message delimiting plus dechunk helpers, while `xhttp2`
-  and `xhttpd2` consume decoded bodies and may serialize outbound bodies as a
+  `xcodec_http1` owns message delimiting plus dechunk helpers, while `xhttp`
+  and `xhttpd` consume decoded bodies and may serialize outbound bodies as a
   single chunked message without introducing streaming/trailer APIs yet.
 - `D-039` `2026-03-13`: `xnet-v2` staging headers must carry their own minimal
   atomic helper layer instead of directly calling `__xrtAtomic*`, so the
@@ -1592,7 +1592,7 @@ Code paths changed: added lib/xcodec.h with the parser adapter contract, frame m
 Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_codec.exe -lws2_32 -liphlpapi; launched dev/test_xnet2_stage_codec.exe via PowerShell Start-Process and verified exit code 0; confirmed stage output includes passing base, port, engine, stream, dgram, tls, sync, codec, and mem suites on Windows
 Benchmarks run: none
 Blockers: M8 is closed in the Windows staging environment, but Linux-native validation is still pending outside this workspace and the codec skeletons intentionally stop short of full chunked HTTP or multi-frame WebSocket message assembly
-Next steps: begin upper-layer rebuild work by introducing xhttp2 request/response objects on top of xnet_stream, xnet_tls, xnet_sync, and xcodec_http1
+Next steps: begin upper-layer rebuild work by introducing xhttp request/response objects on top of xnet_stream, xnet_tls, xnet_sync, and xcodec_http1
 ```
 
 Progress entry:
@@ -1603,11 +1603,11 @@ Author: Codex
 Scope: Deliver and harden the M9 HTTP client skeleton on top of xnet-v2
 Tasks touched: M9-T01, M9-T02, M9-T03, M9-T04, M9-T05, M9-T06
 Decisions made: D-027, D-028
-Code paths changed: added lib/xhttp2.h with request/response objects, URL parsing, one-shot async HTTP/1.1 execution, and a sync facade over xnet_sync; added test/test_xnet2_http2.h with loopback HTTP and HTTPS regressions; updated dev/test_xnet2_stage.c to execute the HTTP client suite; added dev/test_xhttp2_only.c as a dedicated debug harness; and hardened xhttp2 completion, timeout, and cleanup paths so hidden-engine shutdown no longer depends on touching a completed future.
-Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_http2.exe -lws2_32 -liphlpapi; launched dev/test_xnet2_stage_http2.exe via PowerShell Start-Process and verified natural completion with passing base, port, engine, stream, dgram, tls, sync, codec, http2, and mem suites on Windows; gcc dev/test_xhttp2_only.c xrt.c -I. -o dev/test_xhttp2_only.exe -lws2_32 -liphlpapi; launched dev/test_xhttp2_only.exe via PowerShell Start-Process and verified natural completion with passing plain HTTP and HTTPS loopback cases.
+Code paths changed: added lib/xhttp.h with request/response objects, URL parsing, one-shot async HTTP/1.1 execution, and a sync facade over xnet_sync; added test/test_xnet_http.h with loopback HTTP and HTTPS regressions; updated dev/test_xnet2_stage.c to execute the HTTP client suite; added dev/test_xhttp_only.c as a dedicated debug harness; and hardened xhttp completion, timeout, and cleanup paths so hidden-engine shutdown no longer depends on touching a completed future.
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_http.exe -lws2_32 -liphlpapi; launched dev/test_xnet2_stage_http.exe via PowerShell Start-Process and verified natural completion with passing base, port, engine, stream, dgram, tls, sync, codec, http2, and mem suites on Windows; gcc dev/test_xhttp_only.c xrt.c -I. -o dev/test_xhttp_only.exe -lws2_32 -liphlpapi; launched dev/test_xhttp_only.exe via PowerShell Start-Process and verified natural completion with passing plain HTTP and HTTPS loopback cases.
 Benchmarks run: none
 Blockers: M9 is closed in the Windows staging environment, but chunked decoding, connection pooling or keep-alive reuse, and Linux-native validation remain pending outside this workspace.
-Next steps: start the `xhttpd2` rebuild on top of xnet_stream, xnet_tls, and xcodec_http1 while preserving the one-core rule.
+Next steps: start the `xhttpd` rebuild on top of xnet_stream, xnet_tls, and xcodec_http1 while preserving the one-core rule.
 ```
 
 Progress entry:
@@ -1618,11 +1618,11 @@ Author: Codex
 Scope: Deliver the M10 HTTP server skeleton on top of xnet-v2
 Tasks touched: M10-T01, M10-T02, M10-T03, M10-T04, M10-T05, M10-T06
 Decisions made: D-029, D-030
-Code paths changed: added lib/xhttpd2.h with server config, request/response objects, response serialization, accept-thread wrapper, per-connection cleanup flow, plain HTTP handling, builtin TLS handling, and owner-worker direct response enqueueing; added test/test_xnet2_httpd2.h with plain and HTTPS loopback regressions driven by the new xhttp2 client; updated dev/test_xnet2_stage.c to execute the HTTP server suite.
-Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_httpd2.exe -lws2_32 -liphlpapi; launched dev/test_xnet2_stage_httpd2.exe via PowerShell Start-Process and verified natural completion with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, and mem suites on Windows.
+Code paths changed: added lib/xhttpd.h with server config, request/response objects, response serialization, accept-thread wrapper, per-connection cleanup flow, plain HTTP handling, builtin TLS handling, and owner-worker direct response enqueueing; added test/test_xnet_httpd.h with plain and HTTPS loopback regressions driven by the new xhttp client; updated dev/test_xnet2_stage.c to execute the HTTP server suite.
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_httpd.exe -lws2_32 -liphlpapi; launched dev/test_xnet2_stage_httpd.exe via PowerShell Start-Process and verified natural completion with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, and mem suites on Windows.
 Benchmarks run: none
 Blockers: M10 is closed in the Windows staging environment, but request keep-alive reuse, chunked request decoding, static files, routing tables, and Linux-native validation remain pending outside this workspace.
-Next steps: begin the `xws2` rebuild and/or deepen the HTTP stack with reusable server connection management instead of the current one-shot keep-alive compromise.
+Next steps: begin the `xws` rebuild and/or deepen the HTTP stack with reusable server connection management instead of the current one-shot keep-alive compromise.
 ```
 
 Progress entry:
@@ -1633,11 +1633,11 @@ Author: Codex
 Scope: Deliver the M11 WebSocket skeleton on top of xnet-v2
 Tasks touched: M11-T01, M11-T02, M11-T03, M11-T04, M11-T05, M11-T06
 Decisions made: D-031, D-032
-Code paths changed: added lib/xws2.h with async WebSocket client/server wrappers, URL parsing, HTTP upgrade handshake, single-frame text/binary send helpers, automatic ping/pong handling, close control, and builtin TLS support; added test/test_xnet2_ws2.h with plain ws and wss loopback regressions covering open, text echo, binary echo, ping/pong, and close semantics; updated dev/test_xnet2_stage.c to execute the WebSocket suite.
-Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc -fsyntax-only test/test_xnet2_ws2.h -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_ws2.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_ws2.exe and verified exit code 0 with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows.
+Code paths changed: added lib/xws.h with async WebSocket client/server wrappers, URL parsing, HTTP upgrade handshake, single-frame text/binary send helpers, automatic ping/pong handling, close control, and builtin TLS support; added test/test_xnet_ws.h with plain ws and wss loopback regressions covering open, text echo, binary echo, ping/pong, and close semantics; updated dev/test_xnet2_stage.c to execute the WebSocket suite.
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc -fsyntax-only test/test_xnet_ws.h -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_ws.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_ws.exe and verified exit code 0 with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows.
 Benchmarks run: none
 Blockers: M11 is closed in the Windows staging environment, but fragmented-message support, negotiated extensions, keep-alive-aware HTTP upgrade reuse, and Linux-native validation remain pending outside this workspace.
-Next steps: either deepen `xws2` with fragmented message reassembly and higher-level convenience APIs, or turn back to the HTTP stack to replace the temporary one-shot keep-alive compromise with reusable connection management.
+Next steps: either deepen `xws` with fragmented message reassembly and higher-level convenience APIs, or turn back to the HTTP stack to replace the temporary one-shot keep-alive compromise with reusable connection management.
 ```
 
 Progress entry:
@@ -1663,11 +1663,11 @@ Author: Codex
 Scope: Close WebSocket fragmented-message support and HTTP/1.1 server keep-alive reuse gaps in the Windows staging environment
 Tasks touched: M13-T01, M13-T02, M13-T03, M13-T04, M13-T05, M14-T01, M14-T02, M14-T03, M14-T04
 Decisions made: D-034, D-035
-Code paths changed: updated lib/xws2.h with fragmented message reassembly state, client/server continuation handling, control-frame interleave handling, and cleanup of partial-message buffers; updated test/test_xnet2_ws2.h with plain ws and wss fragmented-message regressions; updated lib/xhttpd2.h with serial keep-alive response-in-flight gating and drain-driven request reentry on kept-alive streams; updated test/test_xnet2_httpd2.h with a raw same-socket keep-alive reuse regression.
-Tests run: gcc -fsyntax-only test/test_xnet2_ws2.h -I.; gcc -fsyntax-only test/test_xnet2_httpd2.h -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_http_keepalive.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_http_keepalive.exe and verified exit code 0 with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows, including fragmented ws/wss and raw keep-alive HTTP loopback cases.
+Code paths changed: updated lib/xws.h with fragmented message reassembly state, client/server continuation handling, control-frame interleave handling, and cleanup of partial-message buffers; updated test/test_xnet_ws.h with plain ws and wss fragmented-message regressions; updated lib/xhttpd.h with serial keep-alive response-in-flight gating and drain-driven request reentry on kept-alive streams; updated test/test_xnet_httpd.h with a raw same-socket keep-alive reuse regression.
+Tests run: gcc -fsyntax-only test/test_xnet_ws.h -I.; gcc -fsyntax-only test/test_xnet_httpd.h -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_http_keepalive.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_http_keepalive.exe and verified exit code 0 with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows, including fragmented ws/wss and raw keep-alive HTTP loopback cases.
 Benchmarks run: none
 Blockers: Linux-native validation, client-side HTTP connection pooling/reuse, chunked HTTP decode, negotiated WebSocket extensions, and benchmark baseline capture remain pending outside this workspace.
-Next steps: either add xhttp2-side connection pooling on top of the new keep-alive-capable server path, or run larger benchmark sweeps and Linux-native validation to close the remaining DoD gaps.
+Next steps: either add xhttp-side connection pooling on top of the new keep-alive-capable server path, or run larger benchmark sweeps and Linux-native validation to close the remaining DoD gaps.
 ```
 
 Progress entry:
@@ -1675,11 +1675,11 @@ Progress entry:
 ```text
 Date: 2026-03-13
 Author: Codex
-Scope: Add serial keep-alive client reuse to xhttp2 and keep the stage harness aligned with the new behavior
+Scope: Add serial keep-alive client reuse to xhttp and keep the stage harness aligned with the new behavior
 Tasks touched: M15-T01, M15-T02, M15-T03, M15-T04, M15-T05
 Decisions made: D-036, D-037
-Code paths changed: updated lib/xhttp2.h so transactions lease reusable client connections instead of always owning one-shot streams, added an idle keep-alive pool keyed by engine plus origin plus TLS verification mode, added xrtHttp2CloseIdleConnections(...) for shutdown-safe idle-connection purge, and extended test/test_xnet2_http2.h plus test/test_xnet2_httpd2.h to validate serial client reuse and to explicitly purge idle pooled connections before asserting server-side close callbacks
-Tests run: gcc -fsyntax-only lib/xhttp2.h -I.; gcc -fsyntax-only test/test_xnet2_http2.h -I.; gcc -fsyntax-only test/test_xnet2_httpd2.h -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xhttp2_only.c xrt.c -I. -o dev/test_xhttp2_only.exe -lws2_32 -liphlpapi; ran dev/test_xhttp2_only.exe successfully; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_http_pool.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_http_pool.exe successfully with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows
+Code paths changed: updated lib/xhttp.h so transactions lease reusable client connections instead of always owning one-shot streams, added an idle keep-alive pool keyed by engine plus origin plus TLS verification mode, added xrtHttpCloseIdleConnections(...) for shutdown-safe idle-connection purge, and extended test/test_xnet_http.h plus test/test_xnet_httpd.h to validate serial client reuse and to explicitly purge idle pooled connections before asserting server-side close callbacks
+Tests run: gcc -fsyntax-only lib/xhttp.h -I.; gcc -fsyntax-only test/test_xnet_http.h -I.; gcc -fsyntax-only test/test_xnet_httpd.h -I.; gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xhttp_only.c xrt.c -I. -o dev/test_xhttp_only.exe -lws2_32 -liphlpapi; ran dev/test_xhttp_only.exe successfully; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_http_pool.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_http_pool.exe successfully with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows
 Benchmarks run: reran dev/bench/xnet2/bench_echo_tcp.exe, dev/bench/xnet2/bench_echo_tls.exe, and dev/bench/xnet2/bench_send_queue_pressure.exe on Windows; TLS echo completed credibly, while plain TCP echo and send-queue pressure still fail closed and are not yet accepted as baseline data
 Blockers: Linux-native validation, chunked HTTP decode, negotiated WebSocket extensions, trustworthy plain-TCP and queue-pressure benchmark baselines on the staged Windows backend, and final performance comparison against xnet-v1 remain open
 Next steps: either implement chunked HTTP handling next, or shift to benchmark/native-backend work so the remaining DoD items become measurable instead of structural
@@ -1693,8 +1693,8 @@ Author: Codex
 Scope: Close the HTTP chunked transfer gap across codec, client, and server layers
 Tasks touched: M16-T01, M16-T02, M16-T03, M16-T04
 Decisions made: D-038
-Code paths changed: extended lib/xcodec_http1.h with whole-message chunked delimiting, decoded-body sizing/copy helpers, and chunked frame metadata; updated lib/xhttp2.h so requests may serialize with Transfer-Encoding: chunked, responses decode chunked bodies, and chunked keep-alive responses remain reusable; updated lib/xhttpd2.h so chunked requests materialize as decoded request bodies and chunked responses serialize without Content-Length; expanded test/test_xnet2_codec.h, test/test_xnet2_http2.h, and test/test_xnet2_httpd2.h with chunked codec/client/server regressions
-Tests run: gcc -fsyntax-only lib/xcodec_http1.h -I.; gcc -fsyntax-only lib/xhttp2.h -I.; gcc -fsyntax-only lib/xhttpd2.h -I.; gcc -fsyntax-only test/test_xnet2_codec.h -I.; gcc -fsyntax-only test/test_xnet2_http2.h -I.; gcc -fsyntax-only test/test_xnet2_httpd2.h -I.; gcc dev/test_xhttp2_only.c xrt.c -I. -o dev/test_xhttp2_chunked.exe -lws2_32 -liphlpapi; ran dev/test_xhttp2_chunked.exe successfully; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_chunked.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_chunked.exe successfully with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows
+Code paths changed: extended lib/xcodec_http1.h with whole-message chunked delimiting, decoded-body sizing/copy helpers, and chunked frame metadata; updated lib/xhttp.h so requests may serialize with Transfer-Encoding: chunked, responses decode chunked bodies, and chunked keep-alive responses remain reusable; updated lib/xhttpd.h so chunked requests materialize as decoded request bodies and chunked responses serialize without Content-Length; expanded test/test_xnet2_codec.h, test/test_xnet_http.h, and test/test_xnet_httpd.h with chunked codec/client/server regressions
+Tests run: gcc -fsyntax-only lib/xcodec_http1.h -I.; gcc -fsyntax-only lib/xhttp.h -I.; gcc -fsyntax-only lib/xhttpd.h -I.; gcc -fsyntax-only test/test_xnet2_codec.h -I.; gcc -fsyntax-only test/test_xnet_http.h -I.; gcc -fsyntax-only test/test_xnet_httpd.h -I.; gcc dev/test_xhttp_only.c xrt.c -I. -o dev/test_xhttp_chunked.exe -lws2_32 -liphlpapi; ran dev/test_xhttp_chunked.exe successfully; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_chunked.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_chunked.exe successfully with passing base, port, engine, stream, dgram, tls, sync, codec, http2, httpd2, ws2, and mem suites on Windows
 Benchmarks run: none
 Blockers: Linux-native validation, negotiated WebSocket extensions, trustworthy plain-TCP and queue-pressure benchmark baselines on the staged Windows backend, and final performance comparison against xnet-v1 remain open
 Next steps: either move to Linux-native validation and benchmark-baseline work, or implement the remaining higher-level protocol conveniences such as negotiated WebSocket extensions
@@ -1723,7 +1723,7 @@ Author: Codex
 Scope: Remove direct __xrtAtomic dependencies from xnet-v2 staging headers and restore standalone compilation of the sync/http/ws layer
 Tasks touched: xnet base/runtime migration follow-up, sync/http/ws platform helper cleanup
 Decisions made: D-039
-Code paths changed: updated lib/xnet_base.h to provide local compare-exchange, exchange, add-fetch, and load helpers; switched lib/xnet_sync.h, lib/xhttp2.h, lib/xhttpd2.h, and lib/xws2.h to those helpers; simplified staged shared-lock unlock paths in xhttpd2/xws2 to use atomic exchange instead of compare-exchange-on-unlock
+Code paths changed: updated lib/xnet_base.h to provide local compare-exchange, exchange, add-fetch, and load helpers; switched lib/xnet_sync.h, lib/xhttp.h, lib/xhttpd.h, and lib/xws.h to those helpers; simplified staged shared-lock unlock paths in xhttpd/xws to use atomic exchange instead of compare-exchange-on-unlock
 Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I.; gcc dev/test_xnet2_stage.c xrt.c -I. -o dev/test_xnet2_stage_syncfix.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_syncfix.exe successfully on Windows and verified the stage suite completed
 Benchmarks run: none
 Blockers: direct one-translation-unit xrt-integration of xnet-v2 is still blocked by namespace/type collisions between legacy xrt networking types and the widened xnet-v2 base model, most notably xnetaddr/xtlsconfig/xnet_result
@@ -1754,7 +1754,7 @@ Scope: Fix integrated close-path regressions exposed by the full xnet-v2 WebSock
 Tasks touched: integrated xnet-v2 regression follow-up, stream close semantics
 Decisions made: D-041
 Code paths changed: updated lib/xnet_stream.h so a later abort request can escalate a stream that is already in graceful close, and suppressed duplicate OnError emission for non-wouldblock socket faults after shutdown has already started; this closes the gap where WS/TLS close races could leave a stream stuck in bClosing without a final close callback
-Tests run: focused integrated WS2 TLS debug repro using xrt.c plus test/test_xnet2_ws2.h; full integrated xrt.c + all xnet2 test headers stage compile/run
+Tests run: focused integrated WS2 TLS debug repro using xrt.c plus test/test_xnet_ws.h; full integrated xrt.c + all xnet2 test headers stage compile/run
 Benchmarks run: none
 Blockers: old public-name overlap remains a migration concern, but integrated runtime behavior is now much closer to standalone staging behavior
 Next steps: rerun standalone and integrated xnet-v2 stage suites, then decide whether to formalize the bridge layer or continue moving selected xnet-v2 modules into the main xrt build

@@ -10,12 +10,11 @@
 /*
     XNet V2 - Builtin TLS Adapter
 
-    This header bridges xnet-v2 stream transport with the existing in-tree TLS
-    engine without introducing any external dependency.
+    This header bridges xnet-v2 stream transport with the in-tree TLS engine
+    without introducing any external dependency.
 
-    Phase-1 note:
-      - handshake still reuses the legacy state machine against the owned socket
-      - plaintext and ciphertext data paths are routed through xnet-v2 helpers
+    The TLS core no longer depends on the legacy v1 network ABI. The adapter
+    only coordinates owned sockets and plaintext/ciphertext queues for xnet-v2.
 */
 
 #ifndef XNET_ALLOC
@@ -27,7 +26,7 @@
 #endif
 
 
-/* ============================== Legacy TLS ABI bridge ============================== */
+/* ============================== TLS core bridge ============================== */
 
 #if !defined(XXRTL_CORE)
 	typedef struct xrt_tls_context xtlsctx;
@@ -45,34 +44,9 @@
 	};
 #endif
 
-#if defined(XXRTL_CORE)
-	typedef xnetconn __xnet_tls_legacy_conn;
-#else
-	typedef struct {
-		uint32 iAddr;
-		uint16 iPort;
-		char sAddr[16];
-	} __xnet_tls_legacy_addr;
-
-	typedef struct {
-		int iId;
-		xsocket hSocket;
-		__xnet_tls_legacy_addr tLocalAddr;
-		__xnet_tls_legacy_addr tRemoteAddr;
-		int iType;
-		ptr pUserData;
-		ptr pTlsCtx;
-		bool bTlsEnabled;
-	} __xnet_tls_legacy_conn;
-#endif
-
 extern xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
 extern void xrtTlsDestroy(xtlsctx* pCtx);
-#if defined(XXRTL_CORE)
-	extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, xnetconn* pConn);
-#else
-	extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, __xnet_tls_legacy_conn* pConn);
-#endif
+extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
 extern xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
 extern xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
 extern xnet_result xrtTlsClose(xtlsctx* pCtx);
@@ -126,14 +100,8 @@ static bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
 
 static xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession, xsocket hSocket)
 {
-	__xnet_tls_legacy_conn tConn;
 	if ( !pSession || !pSession->pCtx || hSocket == XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-	memset(&tConn, 0, sizeof(tConn));
-	tConn.hSocket = hSocket;
-	tConn.iType = 0;
-	tConn.pTlsCtx = pSession->pCtx;
-	tConn.bTlsEnabled = true;
-	return xrtTlsHandshake(pSession->pCtx, &tConn);
+	return xrtTlsHandshake(pSession->pCtx, hSocket);
 }
 
 static xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)

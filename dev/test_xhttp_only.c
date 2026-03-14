@@ -1,4 +1,4 @@
-#include "../test/test_xnet2_http2.h"
+#include "../test/test_xnet_http.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include <winsock2.h>
@@ -15,7 +15,7 @@ int main(void)
 		}
 	#endif
 
-	Test_XNet2_Http2();
+	Test_XNet_Http();
 
 	#if defined(_WIN32) || defined(_WIN64)
 		WSACleanup();

@@ -88,7 +88,7 @@
 - 重写协程生命周期，避免 destroy/UAF/错线程 resume 等不确定行为
 - 将当前 demo 级调度器升级为 ready-queue + timer + waiter 的真正 runtime
 - 将 `sleep` 从忙轮询方案升级为 deadline/timer 驱动方案
-- 设计标准化的 I/O 等待接口，以便后续和 xnet/xhttp2/xws2 等模块整合
+- 设计标准化的 I/O 等待接口，以便后续和 xnet/xhttp/xws 等模块整合
 - 提供严格的 backend 策略，不再默认信任弱兼容后端
 - 将协程测试提升为正式回归测试的一部分
 

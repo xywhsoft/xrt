@@ -21,13 +21,14 @@
 /*
     XNet V2 - Base Types and Config
 
-    This is the staging header for the xnet-v2 rewrite.
-    It is intentionally self-contained and is not wired into xrt.h yet.
+    This header defines the shared public model used by the xnet-v2 stack.
+    It is designed to work both inside xrt.h and as a standalone header during
+    focused xnet development and testing.
 
-    Phase-1 note:
-      - This header defines the widened IPv4/IPv6 address model used by xnet-v2.
-      - It must be tested through the dedicated xnet2 harness, not the legacy
-        omnibus test.c path, until xrt.h migration begins.
+    Public responsibilities:
+      - widened IPv4/IPv6 address model
+      - shared result codes, socket handles, and config types
+      - public engine/stream/dgram/future forward declarations
 */
 
 
@@ -36,12 +37,6 @@
 #else
 	#define __XNET_IN_XRT_CORE 0
 #endif
-
-#if __XNET_IN_XRT_CORE
-	#define xnetaddr xnet2_addr
-	#define xrtNetResolve xrtNet2Resolve
-#endif
-
 
 /* ============================== Basic local types ============================== */
 
@@ -53,16 +48,26 @@
 	typedef uint64_t uint64;
 #endif
 
-#if __XNET_IN_XRT_CORE
-	#define XNET_SOCKET_INVALID XSOCKET_INVALID
-#else
-	#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
+	#if !defined(XRT_XSOCKET_DEFINED)
 		typedef SOCKET xsocket;
-		#define XNET_SOCKET_INVALID INVALID_SOCKET
-	#else
-		typedef int xsocket;
-		#define XNET_SOCKET_INVALID (-1)
+		#define XRT_XSOCKET_DEFINED 1
 	#endif
+	#ifndef XSOCKET_INVALID
+		#define XSOCKET_INVALID INVALID_SOCKET
+	#endif
+#else
+	#if !defined(XRT_XSOCKET_DEFINED)
+		typedef int xsocket;
+		#define XRT_XSOCKET_DEFINED 1
+	#endif
+	#ifndef XSOCKET_INVALID
+		#define XSOCKET_INVALID (-1)
+	#endif
+#endif
+
+#ifndef XNET_SOCKET_INVALID
+	#define XNET_SOCKET_INVALID XSOCKET_INVALID
 #endif
 
 #if !__XNET_IN_XRT_CORE
@@ -232,7 +237,15 @@ static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
 
 static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		long iPrev;
+		long iNext;
+		do {
+			iPrev = (long)InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
+			iNext = iPrev + iDelta;
+		} while ( (long)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iNext, (LONG)iPrev) != iPrev );
+		return iNext;
+	#elif defined(_WIN32) || defined(_WIN64)
 		return (long)(InterlockedExchangeAdd((volatile LONG*)pValue, (LONG)iDelta) + (LONG)iDelta);
 	#else
 		return __sync_add_and_fetch(pValue, iDelta);
@@ -315,19 +328,44 @@ static void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort)
 
 static xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort)
 {
+	#if defined(_WIN32) || defined(_WIN64)
+		struct sockaddr_storage tStorage;
+		int iStorageLen;
+		char sAddrBuf[64];
+	#endif
 	if ( !pAddr || !sIP || !sIP[0] ) return XRT_NET_ERROR;
 
 	memset(pAddr, 0, sizeof(xnetaddr));
 	pAddr->iPort = iPort;
 
-	if ( inet_pton(AF_INET, sIP, pAddr->aAddr) == 1 ) {
-		pAddr->iFamily = AF_INET;
-		return XRT_NET_OK;
-	}
-	if ( inet_pton(AF_INET6, sIP, pAddr->aAddr) == 1 ) {
-		pAddr->iFamily = AF_INET6;
-		return XRT_NET_OK;
-	}
+	#if defined(_WIN32) || defined(_WIN64)
+		memset(&tStorage, 0, sizeof(tStorage));
+		iStorageLen = (int)sizeof(tStorage);
+		snprintf(sAddrBuf, sizeof(sAddrBuf), "%s", sIP);
+		if ( WSAStringToAddressA(sAddrBuf, AF_INET, NULL, (struct sockaddr*)&tStorage, &iStorageLen) == 0 ) {
+			pAddr->iFamily = AF_INET;
+			memcpy(pAddr->aAddr, &((struct sockaddr_in*)&tStorage)->sin_addr, 4u);
+			return XRT_NET_OK;
+		}
+		memset(&tStorage, 0, sizeof(tStorage));
+		iStorageLen = (int)sizeof(tStorage);
+		snprintf(sAddrBuf, sizeof(sAddrBuf), "%s", sIP);
+		if ( WSAStringToAddressA(sAddrBuf, AF_INET6, NULL, (struct sockaddr*)&tStorage, &iStorageLen) == 0 ) {
+			pAddr->iFamily = AF_INET6;
+			pAddr->iScopeId = ((struct sockaddr_in6*)&tStorage)->sin6_scope_id;
+			memcpy(pAddr->aAddr, &((struct sockaddr_in6*)&tStorage)->sin6_addr, 16u);
+			return XRT_NET_OK;
+		}
+	#else
+		if ( inet_pton(AF_INET, sIP, pAddr->aAddr) == 1 ) {
+			pAddr->iFamily = AF_INET;
+			return XRT_NET_OK;
+		}
+		if ( inet_pton(AF_INET6, sIP, pAddr->aAddr) == 1 ) {
+			pAddr->iFamily = AF_INET6;
+			return XRT_NET_OK;
+		}
+	#endif
 
 	memset(pAddr, 0, sizeof(xnetaddr));
 	return XRT_NET_ERROR;

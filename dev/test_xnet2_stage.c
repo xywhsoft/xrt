@@ -6,9 +6,9 @@
 #include "../test/test_xnet2_tls.h"
 #include "../test/test_xnet2_sync.h"
 #include "../test/test_xnet2_codec.h"
-#include "../test/test_xnet2_http2.h"
-#include "../test/test_xnet2_httpd2.h"
-#include "../test/test_xnet2_ws2.h"
+#include "../test/test_xnet_http.h"
+#include "../test/test_xnet_httpd.h"
+#include "../test/test_xnet_ws.h"
 #include "../test/test_xnet2_base.h"
 #include "../test/test_xnet2_mem.h"
 
@@ -36,9 +36,9 @@ int main(void)
 	Test_XNet2_TLS();
 	Test_XNet2_Sync();
 	Test_XNet2_Codec();
-	Test_XNet2_Http2();
-	Test_XNet2_Httpd2();
-	Test_XNet2_Ws2();
+	Test_XNet_Http();
+	Test_XNet_Httpd();
+	Test_XNet_Ws();
 	Test_XNet2_Mem();
 
 	#if defined(_WIN32) || defined(_WIN64)

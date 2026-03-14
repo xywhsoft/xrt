@@ -24,16 +24,6 @@
 #include "test/test_hash.h"
 #include "test/test_network.h"
 #include "test/test_crypto.h"
-#include "test/test_netsock.h"
-#include "test/test_netringbuf.h"
-#include "test/test_netloop.h"
-#include "test/test_nettcp.h"
-#include "test/test_nettls.h"
-#include "test/test_tls_sni.h"
-#include "test/tls_comprehensive_test.h"
-#include "test/test_nethttp.h"
-#include "test/test_netws.h"
-#include "test/test_nethttpd.h"
 #include "test/test_xid.h"
 #include "test/test_buffer.h"
 #include "test/test_array_ptr.h"
@@ -132,29 +122,21 @@ int main(int argc, char** argv)
 	// Test_Crypto(xCore);
 	
 	/* Socket 基础操作测试 */
-	// Test_NetSock(xCore);
 	
 	/* 环形缓冲区测试 */
-	// Test_NetRingBuf(xCore);
 	// XNet2 staging tests use the dedicated harness in dev/test_xnet2_stage.c
 	
 	/* 事件循环测试 */
-	// Test_NetEventLoop(xCore);
 	
 	/* TCP/UDP 网络通信测试 */
-	// Test_NetTCPUDP(xCore);
 	
 	/* TLS 1.3 测试 */
-	Test_NetTLS(xCore);
 	
 	/* TLS SNI 测试 */
-	Test_TLS_SNI();
 	
 	/* WebSocket 测试 */
-	Test_NetWS(xCore);
 	
 	/* HTTP 服务器测试 */
-	Test_NetHTTPD(xCore);
 	
 	/* XID 库测试 */
 	// Test_XID(xCore);
@@ -222,19 +204,14 @@ int main(int argc, char** argv)
 	// Test_Template(xCore);
 	
 	/* TLS 综合测试 */
-	// Test_TLS_Comprehensive();
 	
 	/* TLS 算法套件测试 */
-	// Test_TLS_CipherSuites();
 	
 	/* TLS 边界条件测试 */
-	// Test_TLS_EdgeCases();
 	
 	/* TLS 性能测试 */
-	// Test_TLS_Performance();
 	
 	/* HTTP Client 测试 */
-	// Test_HTTP();
 	
 	/* Coroutine 协程库测试 */
 	// Test_Coroutine(xCore);
@@ -249,5 +226,3 @@ int main(int argc, char** argv)
 	xrtUnit();
 	return 0;
 }
-
-

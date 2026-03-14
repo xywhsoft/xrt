@@ -1,21 +1,127 @@
-
-
-
-
 /*
-	NetTLS - TLS 1.3 实现 [Ver1.0]
-	
-	基于 mongoose 内建 TLS 移植，零外部依赖
-	使用 lib/crypto.h 提供的加密原语:
-		SHA-256, HMAC-SHA256, ChaCha20-Poly1305, AES-128-GCM, X25519, HKDF
-	
-	支持:
-		- TLS 1.3 (RFC 8446) only
-		- 密码套件: TLS_CHACHA20_POLY1305_SHA256, TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384
-		- 密钥交换: X25519
-		- 客户端/服务端模式
+    NetTLS - builtin TLS engine for xrt
+
+    This file implements the in-tree TLS stack used by xrt and xnet-v2.
+    It has no dependency on the legacy v1 network layer and only relies on:
+      - lib/crypto.h for cryptographic primitives
+      - platform sockets when the blocking handshake helper is used
+      - internal TLS byte buffers owned by xtlsctx
+
+    Current scope:
+      - TLS 1.3 as the primary path
+      - TLS 1.2 compatibility where already supported by the engine
+      - builtin client/server operation with no external TLS dependency
 */
 
+typedef struct {
+	char* pData;
+	size_t iSize;
+	size_t iCapacity;
+} __xrt_tls_buf;
+
+static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
+{
+	if ( !pBuf ) return false;
+	pBuf->pData = (char*)xrtMalloc(iCapacity);
+	if ( !pBuf->pData ) return false;
+	pBuf->iSize = 0;
+	pBuf->iCapacity = iCapacity;
+	return true;
+}
+
+static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
+{
+	if ( !pBuf ) return;
+	if ( pBuf->pData ) {
+		xrtFree(pBuf->pData);
+		pBuf->pData = NULL;
+	}
+	pBuf->iSize = 0;
+	pBuf->iCapacity = 0;
+}
+
+static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
+{
+	size_t iNeed;
+	size_t iNewCap;
+	char* pNew;
+	if ( !pBuf ) return false;
+	iNeed = pBuf->iSize + iExtra;
+	if ( iNeed <= pBuf->iCapacity ) return true;
+	iNewCap = pBuf->iCapacity ? (pBuf->iCapacity * 2) : 256;
+	if ( iNewCap < iNeed ) iNewCap = iNeed;
+	pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
+	if ( !pNew ) return false;
+	pBuf->pData = pNew;
+	pBuf->iCapacity = iNewCap;
+	return true;
+}
+
+static bool __xrt_tls_buf_append(__xrt_tls_buf* pBuf, const char* pData, size_t iLen)
+{
+	if ( !pBuf || !pData || iLen == 0 ) return false;
+	if ( !__xrt_tls_buf_ensure(pBuf, iLen) ) return false;
+	memcpy(pBuf->pData + pBuf->iSize, pData, iLen);
+	pBuf->iSize += iLen;
+	return true;
+}
+
+static void __xrt_tls_buf_consume(__xrt_tls_buf* pBuf, size_t iLen)
+{
+	if ( !pBuf || iLen == 0 ) return;
+	if ( iLen >= pBuf->iSize ) {
+		pBuf->iSize = 0;
+		return;
+	}
+	memmove(pBuf->pData, pBuf->pData + iLen, pBuf->iSize - iLen);
+	pBuf->iSize -= iLen;
+}
+
+static int __xrt_tls_sock_last_err(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return WSAGetLastError();
+	#else
+		return errno;
+	#endif
+}
+
+static bool __xrt_tls_sock_would_block(int iErr)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return iErr == WSAEWOULDBLOCK || iErr == WSAEINPROGRESS || iErr == WSAEINTR;
+	#else
+		return iErr == EAGAIN || iErr == EWOULDBLOCK || iErr == EINTR;
+	#endif
+}
+
+static xnet_result __xrt_tls_sock_send(xsocket hSocket, const char* pData, size_t iLen, size_t* pSent)
+{
+	int iRet;
+	if ( pSent ) *pSent = 0;
+	if ( hSocket == XSOCKET_INVALID || !pData || iLen == 0 ) return XRT_NET_ERROR;
+	iRet = (int)send(hSocket, pData, (int)((iLen > (size_t)INT_MAX) ? INT_MAX : iLen), 0);
+	if ( iRet > 0 ) {
+		if ( pSent ) *pSent = (size_t)iRet;
+		return XRT_NET_OK;
+	}
+	if ( iRet == 0 ) return XRT_NET_CLOSED;
+	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
+}
+
+static xnet_result __xrt_tls_sock_recv(xsocket hSocket, char* pBuf, size_t iLen, size_t* pReceived)
+{
+	int iRet;
+	if ( pReceived ) *pReceived = 0;
+	if ( hSocket == XSOCKET_INVALID || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
+	iRet = (int)recv(hSocket, pBuf, (int)((iLen > (size_t)INT_MAX) ? INT_MAX : iLen), 0);
+	if ( iRet > 0 ) {
+		if ( pReceived ) *pReceived = (size_t)iRet;
+		return XRT_NET_OK;
+	}
+	if ( iRet == 0 ) return XRT_NET_CLOSED;
+	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
+}
 
 
 /* ============================== 常量定义 ============================== */
@@ -1219,10 +1325,10 @@ struct xrt_tls_context {
 	size_t iSigHashLen;
 	
 	// IO 缓冲区
-	xnetbuf tSendBuf;
-	xnetbuf tRecvBuf;
-	xnetbuf tHandshakeBuf;        // TLS 1.3 握手消息重组缓冲区 (用于跨记录的大消息)
-	xnetbuf tPlainBuf;            // 已解密但尚未被应用层消费的明文
+	__xrt_tls_buf tSendBuf;
+	__xrt_tls_buf tRecvBuf;
+	__xrt_tls_buf tHandshakeBuf;        // TLS 1.3 握手消息重组缓冲区 (用于跨记录的大消息)
+	__xrt_tls_buf tPlainBuf;            // 已解密但尚未被应用层消费的明文
 	size_t iRecvOffset;
 	size_t iRecvMsgLen;
 	uint8 iContentType;
@@ -1961,7 +2067,7 @@ static void __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	
 	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
 	size_t iTotalLen = 5 + iCipherLen;
-	if ( xrtNetBufEnsure(&pCtx->tSendBuf, iTotalLen) ) {
+	if ( __xrt_tls_buf_ensure(&pCtx->tSendBuf, iTotalLen) ) {
 		memcpy(pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize, aHdr, 5);
 		memcpy(pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize + 5, pCipher, iCipherLen);
 		pCtx->tSendBuf.iSize += iTotalLen;
@@ -2091,7 +2197,7 @@ static void __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	
 	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
 	size_t iTotalLen = 5 + iExplicitNonceLen + iLen + 16;
-	if ( xrtNetBufEnsure(&pCtx->tSendBuf, iTotalLen) ) {
+	if ( __xrt_tls_buf_ensure(&pCtx->tSendBuf, iTotalLen) ) {
 		char *pDst = pCtx->tSendBuf.pData + pCtx->tSendBuf.iSize;
 		memcpy(pDst, aHdr, 5);
 		if ( iExplicitNonceLen > 0 ) {
@@ -2400,8 +2506,8 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aRec + 1, 0x0303);  // TLS 1.2 record version for compatibility
 	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
 	
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, 5);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aBuf, iPos);
 	
 	#ifdef DEBUG_TRACE
 		printf("    [TLS] ClientHello: total=%d bytes, msg=%d bytes\n",
@@ -3124,8 +3230,8 @@ static void __xrt_tls12_send_client_key_exchange(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
 	
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, 5);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aBuf, iPos);
 }
 
 // Step 8: TLS 1.2 密钥派生
@@ -3232,7 +3338,7 @@ static void __xrt_tls12_send_ccs_finished(xtlsctx *pCtx, bool bAsServer)
 	__xrt_tls_store_be16(aCCS + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aCCS + 3, 1);
 	aCCS[5] = 0x01;
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aCCS, 6);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aCCS, 6);
 	
 	// 2. 计算 verify_data = PRF(master_secret, label, Hash(handshake_messages))[0..11]
 	uint8 aHash[48];
@@ -3314,8 +3420,8 @@ static bool __xrt_tls12_send_handshake_message(xtlsctx *pCtx, const uint8 *pMsg,
 	aRec[0] = __XRT_TLS_HANDSHAKE;
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aRec + 3, (uint16)iMsgLen);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, sizeof(aRec));
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)pMsg, iMsgLen);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, sizeof(aRec));
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)pMsg, iMsgLen);
 	return true;
 }
 
@@ -3585,10 +3691,10 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	xrtSHA384Init(&pCtx->tSHA384_12);
 	
 	// 初始化 IO 缓冲区
-	xrtNetBufInit(&pCtx->tSendBuf, 8192);
-	xrtNetBufInit(&pCtx->tRecvBuf, 8192);
-	xrtNetBufInit(&pCtx->tHandshakeBuf, 4096);
-	xrtNetBufInit(&pCtx->tPlainBuf, 4096);
+	__xrt_tls_buf_init(&pCtx->tSendBuf, 8192);
+	__xrt_tls_buf_init(&pCtx->tRecvBuf, 8192);
+	__xrt_tls_buf_init(&pCtx->tHandshakeBuf, 4096);
+	__xrt_tls_buf_init(&pCtx->tPlainBuf, 4096);
 	
 	if ( pConfig ) {
 		pCtx->bSkipVerify = !pConfig->bVerifyPeer;
@@ -3618,10 +3724,10 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 {
 	if ( !pCtx ) return;
 	
-	xrtNetBufFree(&pCtx->tSendBuf);
-	xrtNetBufFree(&pCtx->tRecvBuf);
-	xrtNetBufFree(&pCtx->tHandshakeBuf);
-	xrtNetBufFree(&pCtx->tPlainBuf);
+	__xrt_tls_buf_free(&pCtx->tSendBuf);
+	__xrt_tls_buf_free(&pCtx->tRecvBuf);
+	__xrt_tls_buf_free(&pCtx->tHandshakeBuf);
+	__xrt_tls_buf_free(&pCtx->tPlainBuf);
 	
 	if ( pCtx->pCertDer ) xrtFree(pCtx->pCertDer);
 	if ( pCtx->pKeyDer ) xrtFree(pCtx->pKeyDer);
@@ -3644,16 +3750,16 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	xrtFree(pCtx);
 }
 
-XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
+XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 {
-	if ( !pCtx || !pConn ) return XRT_NET_ERROR;
+	if ( !pCtx || hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
 	
 	// 如果有待发送数据，先发送
 	if ( pCtx->tSendBuf.iSize > 0 ) {
 		size_t iSent = 0;
-		xnet_result iRes = xrtSockSend(pConn, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
+		xnet_result iRes = __xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
 		if ( iRes == XRT_NET_OK && iSent > 0 ) {
-			xrtNetBufConsume(&pCtx->tSendBuf, iSent);
+			__xrt_tls_buf_consume(&pCtx->tSendBuf, iSent);
 		}
 		if ( pCtx->tSendBuf.iSize > 0 ) {
 			return XRT_NET_AGAIN;  // 还有数据要发
@@ -3676,9 +3782,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					#ifdef DEBUG_TRACE
 						printf("    [TLS] WAIT_SH: connection closed\n");
@@ -3707,11 +3813,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					printf("    [TLS] WAIT_SH: server alert level=%d desc=%d\n",
 						pRecData[0], (iRecLen >= 2) ? pRecData[1] : -1);
 				#endif
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				return XRT_NET_ERROR;
 			}
 			if ( iRecType != __XRT_TLS_HANDSHAKE ) {
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				return XRT_NET_ERROR;
 			}
 			
@@ -3734,7 +3840,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				#endif
 			}
 			
-			xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+			__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			
 			if ( pCtx->bIsTls12 ) {
 				// TLS 1.2: 不派生握手密钥, 后续消息仍为明文
@@ -3760,12 +3866,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				#ifdef DEBUG_TRACE
-					printf("    [TLS] WAIT_EE+: xrtSockRecv returned res=%d, recvd=%d\n", iRes, (int)iRecvd);
+					printf("    [TLS] WAIT_EE+: socket recv returned res=%d, recvd=%d\n", iRes, (int)iRecvd);
 				#endif
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 					#ifdef DEBUG_TRACE
 						printf("    [TLS] WAIT_EE+: recv %d bytes, recvBuf=%d\n", (int)iRecvd, (int)pCtx->tRecvBuf.iSize);
 					#endif
@@ -3805,7 +3911,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
 					// ChangeCipherSpec: 忽略 (TLS 1.3 兼容)
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
 				}
 				
@@ -3833,11 +3939,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 							(int)iPlainLen, iContentType);
 					#endif
 					
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					
 					if ( iContentType == __XRT_TLS_HANDSHAKE ) {
 						// 将解密后的握手明文追加到重组缓冲区 (支持跨记录的大消息)
-						xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+						__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 						
 						#ifdef DEBUG_TRACE
 							printf("    [TLS] WAIT_EE+: appended %d bytes to handshakeBuf, total=%d\n",
@@ -3978,7 +4084,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						
 						// 消费已处理的握手消息
 						if ( iMsgOff > 0 ) {
-							xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff);
+							__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff);
 							#ifdef DEBUG_TRACE
 								printf("    [TLS] WAIT_EE+: consumed %d bytes from handshakeBuf, remaining=%d\n",
 									(int)iMsgOff, (int)pCtx->tHandshakeBuf.iSize);
@@ -3989,7 +4095,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					}
 				} else {
 					// 未知记录类型
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				}
 			}
 			
@@ -4009,9 +4115,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -4029,12 +4135,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						const uint8 *pA = (const uint8*)pCtx->tRecvBuf.pData + 5;
 						printf("    [TLS12] Alert: level=%d desc=%d\n", pA[0], (iRecLen >= 2) ? pA[1] : -1);
 					#endif
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				
 				if ( iRecType != __XRT_TLS_HANDSHAKE ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
 				}
 				
@@ -4102,7 +4208,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					iMsgOff += iTotalMsgLen;
 				}
 				
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				
 				// 如果状态已过渡到 WAIT_CCS, 停止处理更多记录
 				if ( pCtx->iState == XRT_TLS12_CLIENT_WAIT_CCS ) break;
@@ -4116,12 +4222,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				#ifdef DEBUG_TRACE
 					printf("    [TLS12] WAIT_CCS: recv res=%d recvd=%d\n", (int)iRes, (int)iRecvd);
 				#endif
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -4137,7 +4243,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					#ifdef DEBUG_TRACE
 						printf("    [TLS12] Got server CCS\n");
 					#endif
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					pCtx->iState = XRT_TLS12_CLIENT_WAIT_FINISH;
 					break;
 				} else if ( iRecType == __XRT_TLS_ALERT ) {
@@ -4145,10 +4251,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						const uint8 *pA = (const uint8*)pCtx->tRecvBuf.pData + 5;
 						printf("    [TLS12] WAIT_CCS: Alert level=%d desc=%d\n", pA[0], (iRecLen >= 2) ? pA[1] : -1);
 					#endif
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			}
 			return XRT_NET_AGAIN;
 		}
@@ -4158,9 +4264,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -4174,7 +4280,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 			
 			if ( iRecType == __XRT_TLS_ALERT ) {
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				return XRT_NET_ERROR;
 			}
 			
@@ -4190,11 +4296,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					#ifdef DEBUG_TRACE
 						printf("    [TLS12] Failed to decrypt server Finished\n");
 					#endif
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				
 				// 解析 Finished 握手消息
 				if ( iPlainLen >= __XRT_TLS_MSGHDR_SIZE && aPlain[0] == __XRT_TLS_FINISHED ) {
@@ -4227,11 +4333,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				
 				if ( !__xrt_tls12_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
 					__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType) ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				
 				if ( iPlainLen >= __XRT_TLS_MSGHDR_SIZE && aPlain[0] == __XRT_TLS_FINISHED ) {
 					uint32 iFinLen = __xrt_tls_load_be24(aPlain + 1);
@@ -4247,7 +4353,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 				return XRT_NET_ERROR;
 			}
 			
-			xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+			__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			return XRT_NET_AGAIN;
 		}
 		
@@ -4256,8 +4362,8 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			// 发送剩余数据
 			if ( pCtx->tSendBuf.iSize > 0 ) {
 				size_t iSent = 0;
-				xrtSockSend(pConn, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
-				if ( iSent > 0 ) xrtNetBufConsume(&pCtx->tSendBuf, iSent);
+				__xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
+				if ( iSent > 0 ) __xrt_tls_buf_consume(&pCtx->tSendBuf, iSent);
 				if ( pCtx->tSendBuf.iSize > 0 ) return XRT_NET_AGAIN;
 			}
 			return XRT_NET_OK;
@@ -4267,9 +4373,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -4310,7 +4416,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 					if ( !__xrt_tls13_send_server_flight(pCtx) ) return XRT_NET_ERROR;
 					pCtx->iState = XRT_TLS_SERVER_NEGOTIATED;
 				}
-				xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			}
 			return XRT_NET_AGAIN;
 		}
@@ -4321,9 +4427,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -4335,7 +4441,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
 				if ( iRecType == __XRT_TLS_ALERT ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 
@@ -4345,8 +4451,8 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 
 					if ( iRecType != __XRT_TLS_HANDSHAKE ) return XRT_NET_ERROR;
 					pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
-					xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)pRecData, iRecLen);
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)pRecData, iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 
 					while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= pCtx->tHandshakeBuf.iSize ) {
 						const uint8 *pMsg = (const uint8*)pCtx->tHandshakeBuf.pData + iMsgOff;
@@ -4362,7 +4468,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						}
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
 						__xrt_tls12_derive_keys(pCtx);
-						xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
 						pCtx->iState = XRT_TLS12_SERVER_WAIT_CCS;
 						iMsgOff = 0;
 					}
@@ -4371,7 +4477,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 
 				if ( pCtx->iState == XRT_TLS12_SERVER_WAIT_CCS ) {
 					if ( iRecType != __XRT_TLS_CHANGE_CIPHER ) return XRT_NET_ERROR;
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					pCtx->iState = XRT_TLS12_SERVER_WAIT_FINISH;
 					continue;
 				}
@@ -4390,11 +4496,11 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType) ) {
 						return XRT_NET_ERROR;
 					}
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					if ( iContentType == __XRT_TLS_ALERT ) return XRT_NET_ERROR;
 					if ( iContentType != __XRT_TLS_HANDSHAKE ) continue;
 
-					xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 					while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= pCtx->tHandshakeBuf.iSize ) {
 						const uint8 *pMsg = (const uint8*)pCtx->tHandshakeBuf.pData + iMsgOff;
 						uint8 iMsgType = pMsg[0];
@@ -4408,7 +4514,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 							return XRT_NET_ERROR;
 						}
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
-						xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
 						__xrt_tls12_send_ccs_finished(pCtx, true);
 						pCtx->bHandshakeDone = true;
 						pCtx->iState = XRT_TLS_SERVER_CONNECTED;
@@ -4423,9 +4529,9 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				char aBuf[4096];
 				size_t iRecvd = 0;
-				xnet_result iRes = xrtSockRecv(pConn, aBuf, sizeof(aBuf), &iRecvd);
+				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
 				if ( iRes == XRT_NET_OK && iRecvd > 0 ) {
-					xrtNetBufAppend(&pCtx->tRecvBuf, aBuf, iRecvd);
+					__xrt_tls_buf_append(&pCtx->tRecvBuf, aBuf, iRecvd);
 				} else if ( iRes == XRT_NET_CLOSED ) {
 					return XRT_NET_ERROR;
 				}
@@ -4437,15 +4543,15 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) break;
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
 				}
 				if ( iRecType == __XRT_TLS_ALERT ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				if ( iRecType != __XRT_TLS_APP_DATA ) {
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 
@@ -4457,12 +4563,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 						__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, false) ) {
 						return XRT_NET_ERROR;
 					}
-					xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 
 					if ( iContentType == __XRT_TLS_ALERT ) return XRT_NET_ERROR;
 					if ( iContentType != __XRT_TLS_HANDSHAKE ) continue;
 
-					xrtNetBufAppend(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 					{
 						uint8 *pHsBuf = (uint8*)pCtx->tHandshakeBuf.pData;
 						size_t iHsBufLen = pCtx->tHandshakeBuf.iSize;
@@ -4484,7 +4590,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xnetconn *pConn)
 								return XRT_NET_ERROR;
 							}
 							__xrt_tls13_hash_update(pCtx, pMsg, iTotalMsgLen);
-							xrtNetBufConsume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+							__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
 							pCtx->bHandshakeDone = true;
 							pCtx->iState = XRT_TLS_SERVER_CONNECTED;
 							return XRT_NET_OK;
@@ -4512,7 +4618,7 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 	if ( pCtx->tPlainBuf.iSize > 0 ) {
 		size_t iCopy = pCtx->tPlainBuf.iSize < iLen ? pCtx->tPlainBuf.iSize : iLen;
 		memcpy(pBuf, pCtx->tPlainBuf.pData, iCopy);
-		xrtNetBufConsume(&pCtx->tPlainBuf, iCopy);
+		__xrt_tls_buf_consume(&pCtx->tPlainBuf, iCopy);
 		if ( pRead ) *pRead = iCopy;
 		return XRT_NET_OK;
 	}
@@ -4536,11 +4642,11 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 		}
 		
 		if ( !bOK ) return XRT_NET_ERROR;
-		xrtNetBufConsume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+		__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 		
 		if ( iContentType == __XRT_TLS_APP_DATA ) {
 			if ( iPlainLen > 0 ) {
-				if ( !xrtNetBufAppend(&pCtx->tPlainBuf, (const char*)aPlain, iPlainLen) ) return XRT_NET_ERROR;
+				if ( !__xrt_tls_buf_append(&pCtx->tPlainBuf, (const char*)aPlain, iPlainLen) ) return XRT_NET_ERROR;
 				break;
 			}
 			continue;
@@ -4551,7 +4657,7 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 	if ( pCtx->tPlainBuf.iSize > 0 ) {
 		size_t iCopy = pCtx->tPlainBuf.iSize < iLen ? pCtx->tPlainBuf.iSize : iLen;
 		memcpy(pBuf, pCtx->tPlainBuf.pData, iCopy);
-		xrtNetBufConsume(&pCtx->tPlainBuf, iCopy);
+		__xrt_tls_buf_consume(&pCtx->tPlainBuf, iCopy);
 		if ( pRead ) *pRead = iCopy;
 		return XRT_NET_OK;
 	}
@@ -4600,7 +4706,7 @@ XXAPI bool xrtTlsIsReady(xtlsctx *pCtx)
 XXAPI xnet_result xrtTlsFeed(xtlsctx *pCtx, const char *pData, size_t iLen)
 {
 	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
-	return xrtNetBufAppend(&pCtx->tRecvBuf, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
+	return __xrt_tls_buf_append(&pCtx->tRecvBuf, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
 }
 
 XXAPI size_t xrtTlsPendingSend(xtlsctx *pCtx)
@@ -4629,10 +4735,10 @@ XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
 {
 	if ( !pCtx || iLen == 0 || pCtx->tSendBuf.iSize == 0 ) return;
 	if ( iLen >= pCtx->tSendBuf.iSize ) {
-		xrtNetBufConsume(&pCtx->tSendBuf, pCtx->tSendBuf.iSize);
+		__xrt_tls_buf_consume(&pCtx->tSendBuf, pCtx->tSendBuf.iSize);
 		return;
 	}
-	xrtNetBufConsume(&pCtx->tSendBuf, iLen);
+	__xrt_tls_buf_consume(&pCtx->tSendBuf, iLen);
 }
 
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
@@ -5154,8 +5260,8 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
 	aRec[0] = __XRT_TLS_HANDSHAKE;
 	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aRec, 5);
-	xrtNetBufAppend(&pCtx->tSendBuf, (const char*)aBuf, iPos);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, 5);
+	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aBuf, iPos);
 	return true;
 }
 

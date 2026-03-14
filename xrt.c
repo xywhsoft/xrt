@@ -38,7 +38,7 @@ static const unsigned char __xrt_sNullBytes[4] = "\0\0\0";
 xrtGlobalData xCore = { FALSE };
 
 #if defined(_WIN32) || defined(_WIN64)
-	#if !defined(XRT_NO_NETWORK) || !defined(XRT_NO_NETSOCK) || !defined(XRT_NO_NETPOLL) || !defined(XRT_NO_NETTLS) || !defined(XRT_NO_NETLOOP) || !defined(XRT_NO_NETPROXY) || !defined(XRT_NO_NETTCP) || !defined(XRT_NO_NETUDP) || !defined(XRT_NO_NETHTTP) || !defined(XRT_NO_NETWS) || !defined(XRT_NO_NETHTTPD)
+	#if !defined(XRT_NO_NETWORK) || !defined(XRT_NO_NETTLS)
 		#define __XRT_RUNTIME_NEED_WSA	1
 	#else
 		#define __XRT_RUNTIME_NEED_WSA	0
@@ -121,36 +121,12 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 #include "lib/crypto.h"
 #endif
 
-#ifndef XRT_NO_NETSOCK
-#include "lib/netsock.h"
-#endif
-
-#ifndef XRT_NO_NETPOLL
-#include "lib/netpoll.h"
-#endif
-
 #ifndef XRT_NO_NETTLS
 #include "lib/nettls.h"
 #endif
 
 #if defined(__GNUC__)
 	#pragma GCC pop_options
-#endif
-
-#ifndef XRT_NO_NETLOOP
-#include "lib/netloop.h"
-#endif
-
-#ifndef XRT_NO_NETPROXY
-#include "lib/netproxy.h"
-#endif
-
-#ifndef XRT_NO_NETTCP
-#include "lib/nettcp.h"
-#endif
-
-#ifndef XRT_NO_NETUDP
-#include "lib/netudp.h"
 #endif
 
 #ifndef XRT_NO_XID
@@ -161,17 +137,6 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 #include "lib/buffer.h"
 #endif
 
-#ifndef XRT_NO_NETHTTP
-#include "lib/nethttp.h"
-#endif
-
-#ifndef XRT_NO_NETWS
-#include "lib/netws.h"
-#endif
-
-#ifndef XRT_NO_NETHTTPD
-#include "lib/nethttpd.h"
-#endif
 
 #ifndef XRT_NO_ARRAY
 #include "lib/array_point.h"
