@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-13 23:14:37
+    Generated: 2026-03-14 09:31:33
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/git/xrt/xrt.h
+// File: D:/Git/xrt/xrt.h
 // ========================================
 
 
@@ -93,6 +93,8 @@
 #include <time.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <assert.h>
+#include <limits.h>
 // 跨平台头文件
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
@@ -210,6 +212,10 @@
 	#include <pthread.h>
 	#include <semaphore.h>
 	#include <signal.h>
+	#include <sys/socket.h>
+	#include <arpa/inet.h>
+	#include <netinet/in.h>
+	#include <netinet/tcp.h>
 	#include <sys/mman.h>
 #endif
 // ========================================
@@ -4604,7 +4610,7 @@
 
 
 // ========================================
-// File: D:\git\xrt/xrt.c
+// File: D:\Git\xrt/xrt.c
 // ========================================
 
 
@@ -4675,7 +4681,7 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 // 引入补充依赖库
 
 // ========================================
-// File: D:/git/xrt/lib/suplib.h
+// File: D:/Git/xrt/lib/suplib.h
 // ========================================
 
 
@@ -4728,7 +4734,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
-// File: D:/git/xrt/lib/base.h
+// File: D:/Git/xrt/lib/base.h
 // ========================================
 
 
@@ -4860,7 +4866,7 @@ XXAPI void xrtClearError()
 }
 
 // ========================================
-// File: D:/git/xrt/lib/string.h
+// File: D:/Git/xrt/lib/string.h
 // ========================================
 
 
@@ -6416,7 +6422,7 @@ XXAPI str xrtUrlDecode(str sSrc, size_t iLen)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/os.h
+// File: D:/Git/xrt/lib/os.h
 // ========================================
 
 
@@ -6503,7 +6509,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/hash.h
+// File: D:/Git/xrt/lib/hash.h
 // ========================================
 
 
@@ -7669,7 +7675,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/charset.h
+// File: D:/Git/xrt/lib/charset.h
 // ========================================
 
 
@@ -8541,7 +8547,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/math.h
+// File: D:/Git/xrt/lib/math.h
 // ========================================
 
 
@@ -8702,7 +8708,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/path.h
+// File: D:/Git/xrt/lib/path.h
 // ========================================
 
 
@@ -8875,7 +8881,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 #ifndef XRT_NO_TIME
 
 // ========================================
-// File: D:/git/xrt/lib/time.h
+// File: D:/Git/xrt/lib/time.h
 // ========================================
 
 
@@ -10114,7 +10120,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 #ifndef XRT_NO_FILE
 
 // ========================================
-// File: D:/git/xrt/lib/file.h
+// File: D:/Git/xrt/lib/file.h
 // ========================================
 
 
@@ -11756,7 +11762,7 @@ XXAPI int xrtDirDelete(str sPath)
 #ifndef XRT_NO_THREAD
 
 // ========================================
-// File: D:/git/xrt/lib/thread.h
+// File: D:/Git/xrt/lib/thread.h
 // ========================================
 
 
@@ -12416,7 +12422,7 @@ XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
 	
-	BOOL bResult;
+	bool bResult;
 	#if defined(_WIN32) || defined(_WIN64)
 		bResult = TryAcquireSRWLockShared(&pRWLock->objLock);
 	#else
@@ -12452,7 +12458,7 @@ XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
 	
-	BOOL bResult;
+	bool bResult;
 	#if defined(_WIN32) || defined(_WIN64)
 		bResult = TryAcquireSRWLockExclusive(&pRWLock->objLock);
 	#else
@@ -12514,7 +12520,7 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 #ifndef XRT_NO_COROUTINE
 
 // ========================================
-// File: D:/git/xrt/lib/coroutine.h
+// File: D:/Git/xrt/lib/coroutine.h
 // ========================================
 
 
@@ -13081,25 +13087,25 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	__asm__ volatile (
 		"leaq 1f(%%rip), %%rax\n\t"
-		"movq %%rax, 0x00(%0)\n\t"
-		"movq %%rsp, 0x08(%0)\n\t"
-		"movq %%rbp, 0x10(%0)\n\t"
-		"movq %%rbx, 0x18(%0)\n\t"
-		"movq %%r12, 0x20(%0)\n\t"
-		"movq %%r13, 0x28(%0)\n\t"
-		"movq %%r14, 0x30(%0)\n\t"
-		"movq %%r15, 0x38(%0)\n\t"
-		"movq 0x38(%1), %%r15\n\t"
-		"movq 0x30(%1), %%r14\n\t"
-		"movq 0x28(%1), %%r13\n\t"
-		"movq 0x20(%1), %%r12\n\t"
-		"movq 0x18(%1), %%rbx\n\t"
-		"movq 0x10(%1), %%rbp\n\t"
-		"movq 0x08(%1), %%rsp\n\t"
-		"jmpq *0x00(%1)\n\t"
+		"movq %%rax, 0x00(%%rdi)\n\t"
+		"movq %%rsp, 0x08(%%rdi)\n\t"
+		"movq %%rbp, 0x10(%%rdi)\n\t"
+		"movq %%rbx, 0x18(%%rdi)\n\t"
+		"movq %%r12, 0x20(%%rdi)\n\t"
+		"movq %%r13, 0x28(%%rdi)\n\t"
+		"movq %%r14, 0x30(%%rdi)\n\t"
+		"movq %%r15, 0x38(%%rdi)\n\t"
+		"movq 0x38(%%rsi), %%r15\n\t"
+		"movq 0x30(%%rsi), %%r14\n\t"
+		"movq 0x28(%%rsi), %%r13\n\t"
+		"movq 0x20(%%rsi), %%r12\n\t"
+		"movq 0x18(%%rsi), %%rbx\n\t"
+		"movq 0x10(%%rsi), %%rbp\n\t"
+		"movq 0x08(%%rsi), %%rsp\n\t"
+		"jmpq *0x00(%%rsi)\n\t"
 		"1:\n\t"
-		: : "r"(pFrom), "r"(pTo)
-		: "memory", "rax", "rcx", "rdx", "rsi", "rdi",
+		: : "D"(pFrom), "S"(pTo)
+		: "memory", "rax", "rcx", "rdx",
 		  "r8", "r9", "r10", "r11"
 	);
 }
@@ -13938,6 +13944,7 @@ struct xrt_co_scheduler {
 	xcond pPostCond;
 	__xrt_co_post_item* pPostHead;
 	__xrt_co_post_item* pPostTail;
+	__xrt_co_post_item* pPostFree;
 };
 static int __xrt_co_sched_find_index(xcosched* pSched, xcoro pCo)
 {
@@ -14274,6 +14281,41 @@ static bool __xrt_co_sched_has_pending_posts(xcosched* pSched)
 	xrtMutexUnlock(pSched->pPostMutex);
 	return bPending;
 }
+static __xrt_co_post_item* __xrt_co_sched_post_item_alloc(xcosched* pSched)
+{
+	__xrt_co_post_item* pItem = NULL;
+	if ( pSched == NULL ) {
+		return NULL;
+	}
+	xrtMutexLock(pSched->pPostMutex);
+	pItem = pSched->pPostFree;
+	if ( pItem != NULL ) {
+		pSched->pPostFree = pItem->pNext;
+	}
+	xrtMutexUnlock(pSched->pPostMutex);
+	if ( pItem == NULL ) {
+		pItem = (__xrt_co_post_item*)xrtMalloc(sizeof(__xrt_co_post_item));
+	}
+	if ( pItem != NULL ) {
+		pItem->pCo = NULL;
+		pItem->pNext = NULL;
+	}
+	return pItem;
+}
+static void __xrt_co_sched_post_item_free(xcosched* pSched, __xrt_co_post_item* pItem)
+{
+	if ( pSched == NULL || pItem == NULL || pSched->pPostMutex == NULL ) {
+		if ( pItem != NULL ) {
+			xrtFree(pItem);
+		}
+		return;
+	}
+	xrtMutexLock(pSched->pPostMutex);
+	pItem->pCo = NULL;
+	pItem->pNext = pSched->pPostFree;
+	pSched->pPostFree = pItem;
+	xrtMutexUnlock(pSched->pPostMutex);
+}
 static void __xrt_co_sched_drain_posts(xcosched* pSched)
 {
 	__xrt_co_post_item* pHead = NULL;
@@ -14295,7 +14337,7 @@ static void __xrt_co_sched_drain_posts(xcosched* pSched)
 				__xrt_co_sched_mark_ready(pSched, pCo);
 			}
 		}
-		xrtFree(pHead);
+		__xrt_co_sched_post_item_free(pSched, pHead);
 		pHead = pNext;
 	}
 }
@@ -14597,6 +14639,11 @@ XXAPI void xrtCoSchedDestroy(xcosched* pSched)
 	}
 	pRuntime = __xrt_co_get_runtime();
 	__xrt_co_sched_drain_posts(pSched);
+	while ( pSched->pPostFree != NULL ) {
+		__xrt_co_post_item* pNext = pSched->pPostFree->pNext;
+		xrtFree(pSched->pPostFree);
+		pSched->pPostFree = pNext;
+	}
 	// 销毁所有协程
 	for ( int i = 0; i < pSched->iCount; i++ ) {
 		if ( pSched->arrCoros[i] ) {
@@ -14661,7 +14708,7 @@ XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo)
 	if ( pCo && pCo->iState == XRT_CO_DEAD ) {
 		return TRUE;
 	}
-	pItem = (__xrt_co_post_item*)xrtMalloc(sizeof(__xrt_co_post_item));
+	pItem = __xrt_co_sched_post_item_alloc(pSched);
 	if ( pItem == NULL ) {
 		return FALSE;
 	}
@@ -14953,7 +15000,7 @@ XXAPI void xrtCoSleep(uint32 iMs)
 #ifndef XRT_NO_NETWORK
 
 // ========================================
-// File: D:/git/xrt/lib/network.h
+// File: D:/Git/xrt/lib/network.h
 // ========================================
 
 
@@ -15154,10 +15201,14 @@ str xrtGetLocalName()
 	return xCore.sNull;
 }
 #endif
+#if defined(__GNUC__)
+	#pragma GCC push_options
+	#pragma GCC optimize ("no-strict-aliasing")
+#endif
 #ifndef XRT_NO_CRYPTO
 
 // ========================================
-// File: D:/git/xrt/lib/crypto.h
+// File: D:/Git/xrt/lib/crypto.h
 // ========================================
 
 
@@ -19735,7 +19786,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 #ifndef XRT_NO_NETSOCK
 
 // ========================================
-// File: D:/git/xrt/lib/netsock.h
+// File: D:/Git/xrt/lib/netsock.h
 // ========================================
 
 
@@ -20370,7 +20421,7 @@ XXAPI void xrtNetRingBufConsume(xnetringbuf* pBuf, size_t iLen)
 #ifndef XRT_NO_NETPOLL
 
 // ========================================
-// File: D:/git/xrt/lib/netpoll.h
+// File: D:/Git/xrt/lib/netpoll.h
 // ========================================
 
 
@@ -21010,6 +21061,8 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 	return pOp;
 }
 // 注册 wakeup read 事件
+static struct io_uring_sqe* __xrt_uring_get_sqe(xnetpoller* pPoller);
+static void __xrt_uring_submit_sqe(xnetpoller* pPoller);
 static void __xrt_uring_post_wakeup_read(xnetpoller* pPoller)
 {
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);
@@ -21515,7 +21568,7 @@ XXAPI ptr xrtPollGetUserData(xnetpoller* pPoller)
 #ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/git/xrt/lib/nettls.h
+// File: D:/Git/xrt/lib/nettls.h
 // ========================================
 
 
@@ -26864,10 +26917,13 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 }
 #endif
 #endif
+#if defined(__GNUC__)
+	#pragma GCC pop_options
+#endif
 #ifndef XRT_NO_NETLOOP
 
 // ========================================
-// File: D:/git/xrt/lib/netloop.h
+// File: D:/Git/xrt/lib/netloop.h
 // ========================================
 
 
@@ -26967,7 +27023,7 @@ XXAPI xnetpoller* xrtEventLoopGetPoller(xeventloop* pLoop)
 #ifndef XRT_NO_NETPROXY
 
 // ========================================
-// File: D:/git/xrt/lib/netproxy.h
+// File: D:/Git/xrt/lib/netproxy.h
 // ========================================
 
 
@@ -27334,7 +27390,7 @@ XXAPI xnet_result xrtProxyConnect(xnetconn* pConn, const xproxyconfig* pProxy,
 #ifndef XRT_NO_NETTCP
 
 // ========================================
-// File: D:/git/xrt/lib/nettcp.h
+// File: D:/Git/xrt/lib/nettcp.h
 // ========================================
 
 
@@ -28528,7 +28584,7 @@ XXAPI xnet_result xrtTcpClientWaitData(xtcpclient* pClient, int iTimeoutMs)
 #ifndef XRT_NO_NETUDP
 
 // ========================================
-// File: D:/git/xrt/lib/netudp.h
+// File: D:/Git/xrt/lib/netudp.h
 // ========================================
 
 
@@ -28999,7 +29055,7 @@ XXAPI ptr xrtUdpClientGetUserData(xudpclient* pClient)
 #ifndef XRT_NO_XID
 
 // ========================================
-// File: D:/git/xrt/lib/xid.h
+// File: D:/Git/xrt/lib/xid.h
 // ========================================
 
 
@@ -29064,7 +29120,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 #ifndef XRT_NO_BUFFER
 
 // ========================================
-// File: D:/git/xrt/lib/buffer.h
+// File: D:/Git/xrt/lib/buffer.h
 // ========================================
 
 
@@ -29176,7 +29232,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 #ifndef XRT_NO_NETHTTP
 
 // ========================================
-// File: D:/git/xrt/lib/nethttp.h
+// File: D:/Git/xrt/lib/nethttp.h
 // ========================================
 
 
@@ -30989,7 +31045,7 @@ XXAPI str xrtHttpRespContentType(xhttpresp pResp)
 #ifndef XRT_NO_NETWS
 
 // ========================================
-// File: D:/git/xrt/lib/netws.h
+// File: D:/Git/xrt/lib/netws.h
 // ========================================
 
 
@@ -32102,7 +32158,7 @@ XXAPI ptr xrtWsServerGetUserData(xwsserver* pServer)
 #ifndef XRT_NO_NETHTTPD
 
 // ========================================
-// File: D:/git/xrt/lib/nethttpd.h
+// File: D:/Git/xrt/lib/nethttpd.h
 // ========================================
 
 
@@ -33277,7 +33333,7 @@ XXAPI ptr xrtHttpServerGetUserData(xhttpserver* pServer)
 #ifndef XRT_NO_ARRAY
 
 // ========================================
-// File: D:/git/xrt/lib/array_point.h
+// File: D:/Git/xrt/lib/array_point.h
 // ========================================
 
 
@@ -33572,7 +33628,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/array.h
+// File: D:/Git/xrt/lib/array.h
 // ========================================
 
 
@@ -33827,7 +33883,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 #ifndef XRT_NO_BSMN
 
 // ========================================
-// File: D:/git/xrt/lib/bsmm.h
+// File: D:/Git/xrt/lib/bsmm.h
 // ========================================
 
 
@@ -33978,7 +34034,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 #ifndef XRT_NO_MEMUNIT
 
 // ========================================
-// File: D:/git/xrt/lib/memunit.h
+// File: D:/Git/xrt/lib/memunit.h
 // ========================================
 
 
@@ -34148,7 +34204,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 #ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
-// File: D:/git/xrt/lib/mempool_fs.h
+// File: D:/Git/xrt/lib/mempool_fs.h
 // ========================================
 
 
@@ -34439,7 +34495,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 #ifndef XRT_NO_STACK
 
 // ========================================
-// File: D:/git/xrt/lib/stack.h
+// File: D:/Git/xrt/lib/stack.h
 // ========================================
 
 
@@ -34570,7 +34626,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/stack_dyn.h
+// File: D:/Git/xrt/lib/stack_dyn.h
 // ========================================
 
 
@@ -34727,7 +34783,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 #ifndef XRT_NO_AVLTREE
 
 // ========================================
-// File: D:/git/xrt/lib/avltree_base.h
+// File: D:/Git/xrt/lib/avltree_base.h
 // ========================================
 
 
@@ -35140,7 +35196,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/avltree.h
+// File: D:/Git/xrt/lib/avltree.h
 // ========================================
 
 
@@ -35390,7 +35446,7 @@ XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 #ifndef XRT_NO_MEMPOOL
 
 // ========================================
-// File: D:/git/xrt/lib/mempool.h
+// File: D:/Git/xrt/lib/mempool.h
 // ========================================
 
 
@@ -35927,7 +35983,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 #ifndef XRT_NO_DICT
 
 // ========================================
-// File: D:/git/xrt/lib/dict.h
+// File: D:/Git/xrt/lib/dict.h
 // ========================================
 
 
@@ -36204,7 +36260,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_LIST
 
 // ========================================
-// File: D:/git/xrt/lib/list.h
+// File: D:/Git/xrt/lib/list.h
 // ========================================
 
 
@@ -36464,7 +36520,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_REGEX
 
 // ========================================
-// File: D:/git/xrt/lib/regex.h
+// File: D:/Git/xrt/lib/regex.h
 // ========================================
 
 /* 
@@ -42007,7 +42063,7 @@ static const char *const bbre_version_str = "0.0.2";
 #ifndef XRT_NO_VALUE
 
 // ========================================
-// File: D:/git/xrt/lib/value.h
+// File: D:/Git/xrt/lib/value.h
 // ========================================
 
 
@@ -43602,7 +43658,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 #ifndef XRT_NO_JNUM
 
 // ========================================
-// File: D:/git/xrt/lib/jnum.h
+// File: D:/Git/xrt/lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -45102,7 +45158,7 @@ jnum_to_func(double, xrtStrToNum)
 #ifndef XRT_NO_JSON
 
 // ========================================
-// File: D:/git/xrt/lib/json.h
+// File: D:/Git/xrt/lib/json.h
 // ========================================
 
 
@@ -46743,7 +46799,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 #ifndef XRT_NO_TEMPLATE
 
 // ========================================
-// File: D:/git/xrt/lib/template.h
+// File: D:/Git/xrt/lib/template.h
 // ========================================
 
 
