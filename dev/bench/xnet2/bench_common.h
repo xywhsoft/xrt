@@ -1,7 +1,14 @@
 #ifndef XNET2_BENCH_COMMON_H
 #define XNET2_BENCH_COMMON_H
 
+#if !defined(_WIN32) && !defined(_WIN64)
+	#ifndef _GNU_SOURCE
+		#define _GNU_SOURCE
+	#endif
+#endif
+
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +20,7 @@
 #else
 	#include <errno.h>
 	#include <pthread.h>
+	#include <sched.h>
 	#include <time.h>
 	#include <unistd.h>
 #endif
@@ -33,7 +41,7 @@ static uint64_t xbenchNowNs(void)
 	#else
 		struct timespec tNow;
 		clock_gettime(CLOCK_MONOTONIC, &tNow);
-		return ((uint64)tNow.tv_sec * 1000000000ULL) + (uint64)tNow.tv_nsec;
+		return ((uint64_t)tNow.tv_sec * 1000000000ULL) + (uint64_t)tNow.tv_nsec;
 	#endif
 }
 
@@ -104,6 +112,25 @@ static long xbenchAtomicLoad(volatile long* pValue)
 	#endif
 }
 
+static uint64_t xbenchAtomicLoadU64(volatile uint64_t* pValue)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64_t)InterlockedCompareExchange64((volatile LONG64*)pValue, 0, 0);
+	#else
+		return (uint64_t)__sync_val_compare_and_swap(pValue, 0u, 0u);
+	#endif
+}
+
+static bool xbenchAtomicSetOnceU64(volatile uint64_t* pValue, uint64_t iValue)
+{
+	if ( !pValue || iValue == 0u ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64_t)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iValue, 0) == 0u;
+	#else
+		return (uint64_t)__sync_val_compare_and_swap(pValue, 0u, iValue) == 0u;
+	#endif
+}
+
 static long xbenchAtomicMax(volatile long* pValue, long iCandidate)
 {
 	long iPrev = xbenchAtomicLoad(pValue);
@@ -167,12 +194,46 @@ static bool xbenchFileExists(const char* sPath)
 
 static bool xbenchNetInit(void)
 {
+	const char* sCpuPin = getenv("XBENCH_PIN_CPU");
+
 	#if defined(_WIN32) || defined(_WIN64)
 		WSADATA tWSA;
-		return WSAStartup(MAKEWORD(2, 2), &tWSA) == 0;
+		if ( WSAStartup(MAKEWORD(2, 2), &tWSA) != 0 ) return false;
 	#else
-		return true;
+		/* no-op */
 	#endif
+
+	if ( sCpuPin && sCpuPin[0] != '\0' ) {
+		char* pEnd = NULL;
+		unsigned long iCpu = strtoul(sCpuPin, &pEnd, 10);
+		if ( pEnd == sCpuPin || *pEnd != '\0' ) {
+			fprintf(stderr, "bench_cpu_pin_error: invalid '%s'\n", sCpuPin);
+		} else {
+			#if defined(_WIN32) || defined(_WIN64)
+				if ( iCpu >= (sizeof(DWORD_PTR) * 8u) ) {
+					fprintf(stderr, "bench_cpu_pin_error: cpu %lu unsupported on this Windows build\n", iCpu);
+				} else {
+					DWORD_PTR iMask = ((DWORD_PTR)1u) << iCpu;
+					if ( !SetProcessAffinityMask(GetCurrentProcess(), iMask) ) {
+						fprintf(stderr, "bench_cpu_pin_error: SetProcessAffinityMask failed (%lu)\n", (unsigned long)GetLastError());
+					} else {
+						printf("bench_cpu_pin: %lu\n", iCpu);
+					}
+				}
+			#else
+				cpu_set_t tSet;
+				CPU_ZERO(&tSet);
+				CPU_SET((int)iCpu, &tSet);
+				if ( sched_setaffinity(0, sizeof(tSet), &tSet) != 0 ) {
+					fprintf(stderr, "bench_cpu_pin_error: sched_setaffinity(%lu) failed (%d)\n", iCpu, errno);
+				} else {
+					printf("bench_cpu_pin: %lu\n", iCpu);
+				}
+			#endif
+		}
+	}
+
+	return true;
 }
 
 static void xbenchNetUnit(void)
@@ -180,6 +241,15 @@ static void xbenchNetUnit(void)
 	#if defined(_WIN32) || defined(_WIN64)
 		WSACleanup();
 	#endif
+}
+
+static uint32_t xbenchEnvU32(const char* sName, uint32_t iDefault)
+{
+	const char* sValue;
+	if ( !sName || sName[0] == '\0' ) return iDefault;
+	sValue = getenv(sName);
+	if ( !sValue || sValue[0] == '\0' ) return iDefault;
+	return (uint32_t)strtoul(sValue, NULL, 10);
 }
 
 static void xbenchPrintMetricU64(const char* sLabel, uint64_t iValue)

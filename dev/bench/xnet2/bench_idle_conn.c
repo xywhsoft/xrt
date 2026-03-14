@@ -153,9 +153,16 @@ int main(int argc, char** argv)
 
 cleanup:
 	if ( arrClients ) {
-		for ( uint32_t i = 0; i < iConnCount; ++i ) {
+		for ( uint32_t i = 0; i < iCreated; ++i ) {
 			if ( arrClients[i] ) {
 				xrtNetStreamClose(arrClients[i], XNET_CLOSE_F_ABORT);
+			}
+		}
+		(void)xbenchWaitMin(&tCliCtx.iCloseCount, (long)iCreated, 5000u);
+		(void)xbenchWaitMin(&tSrvCtx.iCloseCount, (long)iCreated, 5000u);
+		xbenchSleepMs(50u);
+		for ( uint32_t i = 0; i < iCreated; ++i ) {
+			if ( arrClients[i] ) {
 				xrtNetStreamDestroy(arrClients[i]);
 			}
 		}

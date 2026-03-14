@@ -4,8 +4,8 @@
 
 - Document: `dev/XNET_V2_SPEC.md`
 - Status: Active draft
-- Version: `0.1.28`
-- Last updated: `2026-03-13`
+- Version: `0.1.45`
+- Last updated: `2026-03-14`
 - Scope: Full rewrite of the xrt network infrastructure
 - Source of truth: This file is the primary development spec for `xnet-v2`
 
@@ -2090,6 +2090,21 @@ Blockers: datagram wait-source now has stronger misuse coverage, but listener ac
 Next steps: keep hardening completed wait-source contracts and only introduce listener accept waits after listener runtime ownership matches the existing stream/dgram model
 ```
 
+Progress entry:
+
+```text
+Date: 2026-03-13
+Author: Codex
+Scope: Replay Linux-debug merge onto refreshed upstream and revalidate xnet-v2 on native Debian
+Tasks touched: Linux compatibility replay, xnet-v1 benchmark restore, Debian validation rerun
+Decisions made: none
+Code paths changed: replayed the previously recorded Linux-debug merge onto the refreshed tree, preserving upstream network changes while restoring xrt.h include fixes, lib/thread.h RW-lock bool cleanup, lib/netpoll.h forward declarations, Linux bench_common portability tweaks, stream slow-peer test tuning, bench_stream_server teardown hardening, and the xnet_v1 comparison benchmark sources under dev/bench/xnet_v1; also normalized lib/xnet_sync.h and test/test_xnet2_sync.h to use C99 true/false so standalone xnet2 builds no longer depend on Win32 TRUE/FALSE macros
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c -I .; Debian 13 native build/run of dev/test_xnet2_stage.c + xrt.c with -pthread; Debian 13 native build/run of dev/bench/xnet_v1/bench_echo_tcp_v1.c, bench_echo_tls_v1.c, bench_udp_burst_v1.c; Debian 13 native build/run of dev/bench/xnet2/bench_echo_tcp.c, bench_echo_tls.c, bench_udp_burst.c
+Benchmarks run: Linux smoke results recorded during replay validation; xnet-v1 TCP echo 50x64 completed at ~51.2k msg/s, xnet-v1 TLS echo 10x64 at ~13.0k msg/s, xnet-v1 UDP burst 2000x128 received all packets; xnet-v2 TCP echo 50x64 completed at ~4.9k msg/s, xnet-v2 TLS echo 10x64 at ~110 msg/s, xnet-v2 UDP burst 2000x128 received all packets
+Blockers: benchmark smoke proves restored tooling and Linux functional paths are intact, but these tiny runs are not yet trustworthy performance baselines; full comparative benchmarking still needs dedicated sweeps and result curation
+Next steps: keep the replayed Linux-debug patch as the merge base for future refreshes, then run larger Linux benchmark sweeps only after deciding whether current wait-source work or transport hot-path optimization is the next priority
+```
+
 
 ## 21. Definition of Done
 
@@ -2100,3 +2115,273 @@ Next steps: keep hardening completed wait-source contracts and only introduce li
 - benchmarks are recorded and compared against `xnet-v1`
 - no protocol-facing code depends on raw socket primitives
 - this document has been updated to reflect delivered behavior
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Finish listener accept integration with the shared sync/coroutine wait-source layer
+Tasks touched: listener runtime ownership, xnet_sync wait-source coverage, coroutine bridge completion
+Decisions made: none
+Code paths changed: updated lib/xnet_stream.h so listeners now own a worker, async-hold count, accept waiter slot, accept op id, and accept watch submit/cancel/harvest lifecycle; updated lib/xnet_sync.h to add listener accept future/sync/coroutine/wait-source helpers on top of the existing future bridge; expanded test/test_xnet2_sync.h with listener future/wait-source/coroutine regressions; added dev/test_xnet2_listener_accept_core.c as a focused accept harness
+Tests run: gcc -fsyntax-only dev/test_xnet2_listener_accept_core.c -I .; gcc dev/test_xnet2_listener_accept_core.c xrt.c -I . -o dev/test_xnet2_listener_accept_core_dbg2.exe -lws2_32 -liphlpapi; focused listener harness PASS; gcc -fsyntax-only dev/test_xnet2_stage.c -I .; gcc dev/test_xnet2_stage.c xrt.c -I . -o dev/test_xnet2_stage_coroutine_listener.exe -lws2_32 -liphlpapi; stage harness PASS
+Benchmarks run: none
+Blockers: listener accept is no longer a wait-source gap; the remaining network backlog is now concentrated in performance/baseline work and any optional lower-level readiness surfaces that may still be desired later
+Next steps: resume the remaining network tasks from the now-complete thread/coroutine/xnet listener foundation
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Revalidate listener/coroutine wait-source paths on native Debian after fixing the Linux x64 coroutine production backend
+Tasks touched: coroutine backend Linux bring-up, listener accept wait-source validation, Debian regression rerun
+Decisions made: none
+Code paths changed: updated lib/coroutine.h so the SysV x64 inline-asm backend pins __xrt_co_swap() context pointers to rdi/rsi instead of generic register operands, eliminating Linux-side context-pointer corruption during the first switch; added dev/test_coroutine_core.c as a standalone wrapper for test/test_coroutine.h to make pure-coroutine regression runs easier outside the legacy main test entry
+Tests run: Debian 13 native build/run of dev/test_coroutine_min.c + xrt.c under ASan; Debian 13 native build/run of dev/test_coroutine_core.c + xrt.c; Debian 13 native build/run of dev/test_xnet2_listener_accept_core.c + xrt.c under ASan; Debian 13 native build/run of dev/test_xnet2_sync_core.c + xrt.c; Debian 13 native build/run of dev/test_xnet2_stage.c + xrt.c; Windows rerun of focused listener harness and coroutine stage harness
+Benchmarks run: none
+Blockers: listener accept wait-source is no longer blocked by the Linux coroutine backend; remaining network backlog stays concentrated in benchmark/baseline quality and optional lower-level readiness work
+Next steps: continue coroutine-side M7 packaging as needed, then resume the remaining network-library performance and baseline tasks on top of the now revalidated Windows/Linux coroutine foundation
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Harden the xnet-v2 benchmark harness so small Windows/Linux smoke runs reflect transport behavior instead of test-fixture artifacts
+Tasks touched: benchmark accept path quality, echo metric hygiene, queue-pressure benchmark validity, native Debian rerun
+Decisions made: none
+Code paths changed: updated dev/bench/xnet2/bench_stream_server.h so the benchmark listener thread now blocks on listener-socket readability and accepts with __xnetListenerTryAcceptOne() instead of a poll-sleep loop or the heavier sync-wait accept path; kept benchmark stream event dispatch resilient to owner lookup races during accept handoff; updated dev/bench/xnet2/bench_echo_tcp.c and bench_echo_tls.c so the server echoes directly from xnetchain spans and reports both total and steady-state throughput; updated dev/bench/xnet2/bench_send_queue_pressure.c to clamp socket buffers, fail fast on open/send preconditions, scale hard-send attempts toward a minimum pressure byte budget, and expose a configurable drain timeout with a higher default so Linux loopback runs can fully drain after high-water is reached
+Tests run: Windows local build/run of dev/bench/xnet2/bench_idle_conn.c, bench_echo_tcp.c, bench_echo_tls.c, and bench_send_queue_pressure.c against xrt.c; Debian 13 native build/run of the same four benchmarks under /opt/xrt with -pthread
+Benchmarks run: Windows smoke: idle_conn 32x100ms completed with 32/32 opens at ~1.38k conn/s; echo_tcp 50x64 completed with steady-state ~56.3k msg/s and no errors; echo_tls 10x64 completed with steady-state ~29.6k msg/s and no errors; send_queue_pressure 256x1024x100ms now reaches high-water and drains cleanly with 16,384 sends. Debian 13 smoke: idle_conn 32x100ms completed with 32/32 opens at ~1.06k conn/s; echo_tcp 50x64 completed with steady-state ~8.32k msg/s and no errors; echo_tls 10x64 completed with steady-state ~14.2k msg/s and no errors; send_queue_pressure 256x1024x100ms reaches high-water and drains cleanly within a 60s timeout at 10,368 sends
+Blockers: benchmark smoke quality is now much better, but the repository still lacks curated larger sweeps and an updated apples-to-apples xnet-v1 vs xnet-v2 comparison after the harness fixes; transport hot-path work is still needed before claiming a final performance win
+Next steps: record a repeatable Linux/Windows sweep matrix using the repaired benchmarks, then spend the next optimization pass on the TCP/TLS hot paths that still trail the old stack in raw throughput
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Turn the repaired benchmark harness into a repeatable xnet-v1 vs xnet-v2 comparison matrix on both Windows and Debian
+Tasks touched: benchmark automation, baseline recording, Windows/Linux comparison reporting
+Decisions made: none
+Code paths changed: added dev/bench/run_xnet_compare_windows.ps1 and dev/bench/run_xnet_compare_linux.sh as one-shot comparison scripts; added dev/bench/XNET_COMPARE_20260314.md to record the first post-harness-fix baseline; tuned the Linux comparison script so the legacy TLS case is wrapped in timeout instead of hanging the whole run, and so queue-pressure uses a longer drain timeout; tuned dev/bench/xnet2/bench_send_queue_pressure.c again by reducing the minimum pressure budget from 16MB to 8MB so the default comparison run remains cross-platform stable while still hitting high-water
+Tests run: powershell -ExecutionPolicy Bypass -File dev/bench/run_xnet_compare_windows.ps1; Debian 13 native run of dev/bench/run_xnet_compare_linux.sh via SSH after syncing the updated script and queue-pressure source
+Benchmarks run: Windows matrix now records stable passes for v1/v2 TCP echo, v1/v2 TLS echo, v1/v2 UDP burst at 512x128, and v2 queue-pressure; Debian matrix now records stable passes for v1/v2 TCP echo, v2 TLS echo, v1/v2 UDP burst at 2000x128, and v2 queue-pressure, while preserving the fact that the legacy Linux TLS benchmark does not complete
+Blockers: the comparison matrix is now automated and recorded, but it is still a small baseline rather than a final sweep; Windows TLS performance remains a clear weak point, Windows UDP is still fragile at larger burst sizes, and broader hot-path optimization work is still required before claiming overall performance leadership
+Next steps: use the new scripts/report as the frozen comparison baseline, then focus the next optimization pass on Windows TLS and any remaining TCP transport-path inefficiencies before expanding to larger sweep sizes
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Convert the benchmark runners to optimized builds, tighten Windows staged-watch latency, and refresh the benchmark interpretation
+Tasks touched: xnet engine harvest batching, Windows IOCP watch cadence, benchmark runner flags, refreshed Windows/Debian compare matrix
+Decisions made: none
+Code paths changed: updated lib/xnet_engine.h so worker harvests now batch up to 128 port events per loop; updated lib/xnet_port_iocp.h so staged Windows socket-watch harvest slices cap at 1ms instead of 5ms; updated dev/bench/run_xnet_compare_windows.ps1, dev/bench/run_xnet_compare_linux.sh, dev/bench/run_coroutine_bench_windows.ps1, and dev/bench/run_coroutine_bench_linux.sh to compile benchmark binaries with -O2; refreshed dev/bench/XNET_COMPARE_20260314.md and dev/bench/COROUTINE_BENCH_20260314.md to reflect the optimized-runner baselines
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c xrt.c -I . -lws2_32 -liphlpapi; gcc dev/test_xnet2_stage.c xrt.c -I . -O2 -o dev/test_xnet2_stage_tmp4.exe -lws2_32 -liphlpapi; Windows local run of dev/test_xnet2_stage_tmp4.exe; Windows local build/run of dev/bench/xnet2/bench_echo_tcp.c and bench_echo_tls.c with -O2; powershell -ExecutionPolicy Bypass -File dev/bench/run_xnet_compare_windows.ps1; powershell -ExecutionPolicy Bypass -File dev/bench/run_coroutine_bench_windows.ps1; Debian 13 native run of dev/bench/run_xnet_compare_linux.sh and dev/bench/run_coroutine_bench_linux.sh via SSH after syncing updated sources/scripts
+Benchmarks run: Windows compare matrix now shows optimized xnet-v2 TCP steady-state ~73.3k msg/s and optimized xnet-v2 TLS steady-state ~49.2k msg/s at the current tiny matrix sizes; Debian 13 reruns place optimized xnet-v2 TCP steady-state at ~53.3k msg/s and TLS steady-state at ~15.5k msg/s, with UDP remaining strong and queue-pressure completing cleanly on the latest rerun after one earlier fail-closed attempt
+Blockers: the optimized runners make the comparison data much more credible, but Linux TCP steady-state still needs more hot-path work, Linux compare-matrix consistency is not yet perfect across reruns, and a larger curated sweep is still required before claiming final performance leadership
+Next steps: keep the optimized runner scripts as the default benchmark entry point, then focus the next transport pass on Linux TCP hot paths and broader rerun consistency before widening the sweep matrix
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Raise the compare matrix to a more stable default size and refresh the recorded baseline
+Tasks touched: comparison runner defaults, compare log clarity, refreshed Windows/Debian medium-matrix results
+Decisions made: none
+Code paths changed: updated dev/bench/run_xnet_compare_windows.ps1 and dev/bench/run_xnet_compare_linux.sh so the default compare matrix now uses 500x64 TCP, 100x64 TLS, and the existing UDP/queue-pressure sizes; added env-var overrides for matrix sizing; made both scripts print the active matrix at startup; refreshed dev/bench/XNET_COMPARE_20260314.md to record the medium-matrix optimized results
+Tests run: powershell -ExecutionPolicy Bypass -File dev/bench/run_xnet_compare_windows.ps1; Debian 13 native run of dev/bench/run_xnet_compare_linux.sh via SSH after syncing the updated script; standalone Windows run of dev/bench/xnet2/bench_send_queue_pressure_cmp.exe 256 1024 100 60000
+Benchmarks run: Windows medium matrix now shows xnet-v2 TCP total ~22.3k msg/s and steady-state ~82.3k msg/s versus xnet-v1 ~93 msg/s, plus xnet-v2 TLS total ~1.28k msg/s and steady-state ~61.3k msg/s versus xnet-v1 ~79 msg/s; Debian 13 medium matrix shows xnet-v2 TCP total ~49.5k msg/s and steady-state ~61.8k msg/s versus xnet-v1 ~61.9k msg/s, xnet-v2 TLS total ~992 msg/s and steady-state ~36.0k msg/s while legacy TLS remains flaky, and xnet-v2 queue-pressure completes cleanly with zero pending bytes
+Blockers: the medium matrix is much more representative than the earlier tiny runs, but Linux TCP tail latency and cross-rerun consistency still need work, Windows UDP still needs larger-burst confidence, and a broader curated sweep is still required before claiming final performance leadership
+Next steps: keep the new medium matrix as the default compare lane, then spend the next optimization pass on Linux TCP tails and larger-burst UDP/queue-pressure consistency before expanding the sweep set further
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Reduce staged watch churn in the port backends and preserve correctness for non-owner watch registration
+Tasks touched: IOCP/uring watch allocation behavior, stream/listener/dgram non-owner wake behavior, Linux medium-matrix rerun
+Decisions made: none
+Code paths changed: updated lib/xnet_port_iocp.h and lib/xnet_port_uring.h so watch registrations/removals reuse backend-local watch freelists instead of malloc/free churning on every arm/remove cycle; kept the earlier uring no-self-wake behavior for pure watch registration; updated lib/xnet_stream.h and lib/xnet_dgram.h so listener accept, stream recv/send, and dgram recv watch arms explicitly wake the owner port when registration happens from a non-worker thread, restoring correctness for dgram/listener startup and other out-of-band watch registration paths
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c xrt.c -I . -lws2_32 -liphlpapi; Debian 13 native rerun of dev/bench/run_xnet_compare_linux.sh via SSH after syncing lib/xnet_port_iocp.h, lib/xnet_port_uring.h, lib/xnet_stream.h, and lib/xnet_dgram.h
+Benchmarks run: Debian 13 medium matrix after the watch-freelist pass shows xnet-v2 TCP total ~49.4k msg/s and steady-state ~63.8k msg/s versus xnet-v1 ~61.3k msg/s, with TCP p99 down to ~27.0us; xnet-v2 TLS total stays ~991 msg/s while steady-state rises to ~41.0k msg/s and TLS p99 tightens to ~75.4us; UDP burst and queue-pressure both complete cleanly again after restoring non-owner watch wakeups
+Blockers: the staged watch-freelist pass improved Linux TCP/TLS tails and removed allocator churn from the watch hot path, but Linux TCP total-path cost still trails the legacy blocking stack, Windows UDP still needs larger-burst confidence, and broader sweep curation is still required before claiming final performance leadership
+Next steps: keep the watch-freelist path, then focus the next transport pass on Linux total-path/connect overhead and broader repeatability sweeps instead of per-watch allocator churn
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Fix benchmark timing fairness, remove the Windows GCC O2 TLS regression, and harden the default queue-pressure compare lane
+Tasks touched: xnet-v2 echo benchmark timing semantics, xrt crypto/TLS optimized build behavior, compare-runner stability, refreshed Windows/Debian baseline
+Decisions made: none
+Code paths changed: updated dev/bench/xnet2/bench_echo_tcp.c and bench_echo_tls.c so xnet-v2 now records setup_elapsed_ns separately and times total/steady throughput from the post-open message loop instead of mixing connect or TLS setup into the reported loop throughput; updated xrt.c to scope GCC no-strict-aliasing around the in-tree crypto.h/nettls.h implementation region after isolating the Windows O2 TLS regression to optimized xrt.c rather than the benchmark itself; updated dev/bench/run_xnet_compare_windows.ps1 and run_xnet_compare_linux.sh so the default queue-pressure lane now uses 512 messages, 1024-byte payloads, 250ms pause, and a 120s drain timeout; refreshed dev/bench/XNET_COMPARE_20260314.md with the new fair-timing Windows/Debian results
+Tests run: Windows local build/run of dev/bench/xnet2/bench_echo_tcp_tmp5.exe and bench_echo_tls_tmp5.exe; Windows local compile matrix isolating optimized bench object vs optimized xrt.c object for the TLS benchmark; gcc -O2 dev/bench/xnet2/bench_echo_tls.c xrt.c -I . -o dev/bench/xnet2/bench_echo_tls_cmp2.exe -lws2_32 -liphlpapi; Windows local run of bench_echo_tls_cmp2.exe 100x64; powershell -ExecutionPolicy Bypass -File dev/bench/run_xnet_compare_windows.ps1; Debian 13 native reruns of dev/bench/run_xnet_compare_linux.sh via SSH after syncing xrt.c and the updated compare sources/scripts
+Benchmarks run: Windows refreshed matrix now shows xnet-v2 TCP total/steady ~83.2k msg/s with p50/p95 ~11.7/12.7us versus xnet-v1 ~91.7 msg/s, xnet-v2 TLS total/steady ~59.3k msg/s with p50/p95 ~16.5/18.2us versus xnet-v1 ~99.9 msg/s, xnet-v2 UDP send ~1.34M pps versus xnet-v1 ~264.9k pps, and the stronger queue-pressure lane still passes cleanly; Debian 13 refreshed matrix now shows xnet-v2 TCP total/steady ~60.2k msg/s with p50/p95 ~15.8/22.6us versus xnet-v1 ~36.6k msg/s, xnet-v2 TLS total/steady ~39.3k msg/s while legacy TLS remains incomplete, xnet-v2 UDP send ~1.05M pps versus xnet-v1 ~257.8k pps, and the stronger queue-pressure lane now hits high-water reproducibly with zero pending bytes
+Blockers: the compare lanes are now much cleaner and the Windows optimized TLS regression is resolved, but Windows UDP still lacks larger-burst confidence, Linux queue-pressure drain time is still long, and a broader curated sweep is still required before claiming final performance leadership
+Next steps: keep the fair-timing compare lanes and scoped crypto/TLS aliasing fix, then focus the next optimization pass on larger-burst UDP confidence, Linux queue-pressure/drain behavior, and broader repeated sweeps
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Turn stream pause/resume into real socket backpressure and de-pathologize the queue-pressure compare lane
+Tasks touched: xnet-stream read-pause semantics, queue-pressure benchmark realism, refreshed Windows/Debian pressure baselines
+Decisions made: none
+Code paths changed: updated lib/xnet_stream.h so socket-driven recv events stop draining the socket while bReadPaused is set, and so xrtNetStreamResumeRead() resumes kernel recv work through the owner-worker async socket-recv path instead of directly touching the socket from an arbitrary caller thread; updated dev/bench/xnet2/bench_send_queue_pressure.c so the synthetic socket buffer clamp is now 16KB instead of 4KB on both client and server, preserving high-water pressure while avoiding the earlier ultra-pathological drain behavior; refreshed the compare lanes after these changes
+Tests run: gcc -fsyntax-only dev/test_xnet2_stage.c xrt.c -I . -lws2_32 -liphlpapi; gcc dev/test_xnet2_stage.c xrt.c -I . -O2 -o dev/test_xnet2_stage_pausefix.exe -lws2_32 -liphlpapi; Windows local run of dev/test_xnet2_stage_pausefix.exe; Windows local build/run of dev/bench/xnet2/bench_send_queue_pressure.c; Debian 13 native build/run of dev/bench/xnet2/bench_send_queue_pressure.c via SSH after syncing lib/xnet_stream.h and the updated benchmark source; refreshed Windows and Debian compare runs through the existing compare scripts
+Benchmarks run: Windows refreshed queue-pressure lane now drains in ~90ms while still hitting high-water and finishing with zero pending bytes; Debian 13 standalone queue-pressure drain dropped from ~15-18s to ~2.27-3.30s depending on rerun while still hitting high-water and finishing with zero pending bytes; refreshed compare reruns now show Windows xnet-v2 TCP total/steady ~82.9k msg/s and TLS ~59.8k msg/s, Debian xnet-v2 TCP total/steady ~61.3k msg/s and TLS ~44.5k msg/s, and improved pressure-lane realism on both hosts
+Blockers: queue-pressure is now much more representative, but Debian drain is still slower than ideal, Windows UDP still lacks larger-burst confidence, and the project still needs broader repeated sweeps before claiming final performance leadership
+Next steps: use the new real-backpressure semantics as the baseline, then focus the next transport pass on Debian queue-pressure drain behavior, larger-burst Windows UDP confidence, and a broader multi-rerun benchmark sweep
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Raise the UDP compare lane to a more meaningful burst size after revalidating Windows and Debian burst stability
+Tasks touched: UDP benchmark confidence, compare-runner defaults, refreshed Windows/Debian baseline
+Decisions made: none
+Code paths changed: updated dev/bench/run_xnet_compare_windows.ps1 and dev/bench/run_xnet_compare_linux.sh so the default UDP lane is now 8000 packets at 128B instead of the earlier tiny Windows lane and smaller Debian lane; refreshed dev/bench/XNET_COMPARE_20260314.md to reflect the larger UDP compare baseline and the latest queue-pressure numbers
+Tests run: Windows local UDP burst probes at 512x128, 1024x128, 2000x128, 4000x128, 8000x128, 16000x128, 8000x256, 16000x256, 32000x128, and 32000x256 using dev/bench/xnet2/bench_udp_burst.c; Debian 13 native UDP burst probes at 8000x128, 16000x128, 8000x256, and 16000x256 via SSH; refreshed full compare reruns on both Windows and Debian using the updated compare scripts
+Benchmarks run: Windows refreshed compare now records xnet-v2 UDP send at ~1.72M pps versus xnet-v1 ~322.8k pps on the new 8000x128 lane, with both sides receiving all 8000 packets; Debian refreshed compare now records xnet-v2 UDP send at ~1.36M pps versus xnet-v1 ~340.1k pps on the same 8000x128 lane, again with both sides receiving all 8000 packets; Windows local probes also completed xnet-v2 UDP cleanly at 32000x128 and 32000x256 without packet loss
+Blockers: Windows UDP burst confidence is much stronger now, but Linux queue-pressure drain behavior still deserves more optimization and the project still lacks a broader repeated-sweep package before claiming final performance leadership
+Next steps: keep the larger UDP compare lane, then focus the next performance pass on Debian queue-pressure drain time and a broader multi-rerun benchmark sweep
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Add repeatable multi-run compare sweep scripts on top of the stabilized Windows/Linux compare lanes
+Tasks touched: benchmark automation, repeatability workflow, sweep artifact layout
+Decisions made: none
+Code paths changed: added dev/bench/run_xnet_compare_sweep_windows.ps1 and dev/bench/run_xnet_compare_sweep_linux.sh so the current compare lane can be replayed multiple times into dev/bench/sweeps/{windows,linux}; updated the Windows sweep runner to call the compare script directly and emit millisecond-resolution log names to avoid file-collision issues during rapid reruns
+Tests run: bash -n dev/bench/run_xnet_compare_sweep_linux.sh; Windows local smoke run of dev/bench/run_xnet_compare_sweep_windows.ps1 with XNET_COMPARE_SWEEP_RUNS=1, including successful log emission under dev/bench/sweeps/windows; Debian 13 native smoke run of dev/bench/run_xnet_compare_sweep_linux.sh with XNET_COMPARE_SWEEP_RUNS=1 via SSH, including successful log emission under /opt/xrt/dev/bench/sweeps/linux
+Benchmarks run: both Windows and Debian sweep smokes completed one full compare lane using the current 8000x128 UDP matrix and wrote captured runs to their respective sweeps directories
+Blockers: sweep scripts now exist and both host paths have passing smokes, but broader repeated sweeps and summary tooling still remain to be done
+Next steps: use the new sweep scripts to collect the next round of multi-rerun Windows/Linux data, then decide whether to add aggregation/summarization helpers or move directly into transport-path optimization from the new repeatability baseline
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Add compare-sweep summarizers, run the first repeated Windows/Debian sweep, and turn the remaining instability into a concrete report
+Tasks touched: sweep summarization tooling, Windows compare log capture, repeated compare analysis, focused Windows TLS and Debian queue-pressure probes
+Decisions made: treat a sweep log as valid if either its matrix header is present or its core xnet-v2 metrics (TCP total, TLS total, UDP send, queue drain) are all present; this preserves Windows sweep runs whose compare header was emitted with Write-Host before the runner was switched to Write-Output
+Code paths changed: added dev/bench/summarize_xnet_compare_sweep_windows.ps1 and dev/bench/summarize_xnet_compare_sweep_linux.sh; updated dev/bench/run_xnet_compare_windows.ps1 so compare headers now use Write-Output and therefore get captured in sweep logs; added dev/bench/XNET_COMPARE_SWEEP_20260314.md; refreshed dev/bench/XNET_COMPARE_20260314.md to reference the new sweep tooling/report; mirrored the Debian summary back into dev/bench/sweeps/linux/SUMMARY_20260314.md
+Tests run: local runs of dev/bench/summarize_xnet_compare_sweep_windows.ps1; bash syntax check of dev/bench/summarize_xnet_compare_sweep_linux.sh; Debian 13 native runs of the Linux summarizer via SSH; Windows local rerun of dev/bench/xnet2/bench_echo_tls.c for six focused repetitions; Debian 13 native rerun of dev/bench/xnet2/bench_send_queue_pressure.c for five focused repetitions via SSH
+Benchmarks run: Windows repeated compare sweep reached 8 valid logs and shows xnet-v2 TCP total avg ~81.98k msg/s (CV ~1.1%), xnet-v2 UDP send avg ~1.74M pps (CV ~2.3%), xnet-v2 TLS avg ~53.28k msg/s but with one catastrophic sweep outlier dragging CV up to ~37.8%, and xnet-v2 queue drain avg ~80.9ms with visible spread; Debian 13 repeated compare sweep reached 4 valid logs and shows xnet-v2 TCP total avg ~59.57k msg/s (CV ~1.7%), xnet-v2 TLS avg ~36.14k msg/s (CV ~9.3%), xnet-v2 UDP send avg ~1.31M pps (CV ~11.8%), and xnet-v2 queue drain avg ~1272.6ms (CV ~47.3%) while legacy TLS remained incomplete in 4/4 runs; focused Windows TLS reruns outside the full compare lane averaged ~60.38k msg/s with CV ~3.8%, while focused Debian queue-pressure reruns averaged ~1548.5ms with CV ~84.5%
+Blockers: the repeated sweep shows the network rewrite is not ready to be called fully complete yet; the highest-signal remaining issues are the rare Windows compare-context TLS collapse and the very noisy Debian queue-pressure drain behavior
+Next steps: instrument or otherwise isolate the Windows compare-context TLS outlier, then reduce Debian queue-pressure drain variance and rerun the repeated sweep before declaring the network rewrite finished
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Remove a queue-pressure benchmark accounting bug and verify whether the remaining drain spread is still present after requiring full receive completion
+Tasks touched: queue-pressure benchmark completion semantics, focused Windows/Debian drain reruns, post-fix compare spot-checks
+Decisions made: treat queue-pressure as complete only when both the client-side pending-send bytes reach zero and the server-side received-byte counter reaches the exact expected total for the run
+Code paths changed: updated dev/bench/xnet2/bench_send_queue_pressure.c so the drain loop waits for full receive completion and records expected_recv_bytes as an explicit benchmark metric; refreshed dev/bench/XNET_COMPARE_SWEEP_20260314.md with the post-fix rerun findings
+Tests run: Windows local rebuild/rerun of dev/bench/xnet2/bench_send_queue_pressure.c before and after correcting the expected_recv_bytes placement bug; Debian 13 native rebuild/rerun of the same benchmark via SSH; post-fix Windows compare sweep with XNET_COMPARE_SWEEP_RUNS=2; post-fix Debian compare sweep with XNET_COMPARE_SWEEP_RUNS=2
+Benchmarks run: the first stricter Windows rerun exposed that several earlier short-drain queue-pressure results were finishing before the server had actually consumed all bytes; after fixing the expected_recv_bytes placement bug, focused Windows queue-pressure reruns stabilized around ~102-106ms with full receive completion, and focused Debian reruns stabilized around ~1631ms with full receive completion; post-fix compare sweeps still show spread (Windows roughly ~14.7ms vs ~105.2ms, Debian roughly ~584.7ms vs ~1419.6ms), which suggests the remaining variance is now a real compare-context or transport scheduling issue rather than a simple benchmark accounting bug
+Blockers: the queue-pressure benchmark is now materially more trustworthy, but its integrated compare-context variability remains high on both Windows and Debian, so the network rewrite still cannot be called fully performance-closed
+Next steps: instrument the compare-context queue-pressure path to understand why integrated runs diverge after the accounting fix, and continue isolating the rare Windows TLS sweep outlier before declaring the network rewrite complete
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Remove cross-thread command-queue noise from the queue-pressure benchmark and rebaseline the lane on Windows and Debian
+Tasks touched: queue-pressure benchmark send path, benchmark engine tick, Windows/Debian focused reruns, integrated compare spot-checks
+Decisions made: the queue-pressure benchmark should generate pressure from the stream owner worker via batched xrtNetStreamSendVec() calls rather than from an external thread via thousands of async xrtNetStreamSend() posts; for this benchmark only, set iTimerTickMs = 1 so drain timing is less distorted by a coarse 10ms worker harvest cadence
+Code paths changed: updated dev/bench/xnet2/bench_send_queue_pressure.c so the pressure-producing send phase is executed as one owner-worker task, uses batched sendv-style appends to hit high-water synchronously, no longer depends on the earlier 8MB hard-flood workaround, and initializes benchmark engines with a 1ms timer tick; refreshed dev/bench/XNET_COMPARE_SWEEP_20260314.md with the new queue-pressure design and rerun results
+Tests run: Windows local rebuild/rerun of dev/bench/xnet2/bench_send_queue_pressure.c for four owner-worker repetitions and one full compare rerun; Debian 13 native rebuild/rerun of the same benchmark for four owner-worker repetitions and two full compare reruns via SSH; gcc -fsyntax-only dev/test_xnet2_stage.c xrt.c -I . -lws2_32 -liphlpapi after the benchmark rewrite
+Benchmarks run: Windows owner-worker queue-pressure now consistently sends exactly 512 messages, reaches high_water=16 with peak_queue=32768, and drains in roughly 12-15ms; Debian owner-worker queue-pressure now sends exactly 512 messages, reaches high_water=3 with peak_queue≈458779, and focused reruns land around ~372-584ms with one earlier ~1.0s outlier before the 1ms tick change; integrated compare reruns now show Windows queue-pressure behaving cleanly (~12-15ms) and Debian queue-pressure materially improved, with the latest clean compare rerun landing near ~372ms instead of the earlier multi-second worst cases
+Blockers: Windows queue-pressure no longer looks like a blocker, but Debian integrated compare still needs a broader rerun set before the pressure lane can be called closed; the older rare Windows TLS sweep outlier also still deserves one fresh repeated compare sweep on top of the new queue-pressure baseline
+Next steps: rerun a fresh repeated compare sweep using the owner-worker queue-pressure lane, then decide whether Debian pressure variability is low enough to close or whether transport/harvest tuning still needs another pass; refresh the Windows TLS repeated sweep on top of the new benchmark baseline before declaring the network rewrite complete
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Probe benchmark-environment controls after the queue-pressure rewrite and tighten the interpretation of the remaining Linux variance
+Tasks touched: benchmark harness affinity controls, Windows compare rerun, Debian repeated-sweep policy exploration, report/spec refresh
+Decisions made: keep CPU affinity as an opt-in diagnostic tool instead of making it the default compare policy; single-process single-core pinning is too distortive for the official network baseline; Linux runner-level taskset is more useful than in-process single-core pinning, but still not ready to be declared the one official benchmark policy
+Code paths changed: updated dev/bench/xnet2/bench_common.h to add optional XBENCH_PIN_CPU support; updated dev/bench/run_xnet_compare_windows.ps1 to report cpu-pin state but stay unpinned by default after verifying that legacy Windows TLS can hang under single-core pinning; updated dev/bench/run_xnet_compare_linux.sh to report cpu-pin/taskset state and support runner-level XNET_COMPARE_TASKSET_CPUS; refreshed dev/bench/XNET_COMPARE_20260314.md and dev/bench/XNET_COMPARE_SWEEP_20260314.md with the latest fresh-sweep and affinity findings
+Tests run: Windows local run of dev/bench/run_xnet_compare_windows.ps1 after removing default pinning; Windows standalone verification of dev/bench/xnet_v1/bench_echo_tls_v1_cmp.exe with and without XBENCH_PIN_CPU=1; Debian 13 native run of dev/bench/run_xnet_compare_linux.sh with XBENCH_PIN_CPU=1; Debian 13 native repeated sweep of dev/bench/run_xnet_compare_linux.sh under XNET_COMPARE_TASKSET_CPUS=0,1 via SSH; regeneration/copy-back of the Linux taskset summary artifact
+Benchmarks run: Windows compare rerun on the current baseline produced xnet-v2 TCP total/steady ~82.2k msg/s, xnet-v2 TLS total/steady ~56.6k msg/s, xnet-v2 UDP send ~1.73M pps, and queue-pressure drain ~15.0ms; the fresh Windows repeated sweep artifact at dev/bench/sweeps/windows_fresh_20260314_owner_b/SUMMARY.md shows xnet-v2 TCP avg ~82.5k msg/s (CV ~1.0%), TLS avg ~60.5k msg/s (CV ~1.8%), UDP send avg ~1.72M pps (CV ~0.3%), and queue drain avg ~15.2ms (CV ~1.9%); Debian single-core pinning via XBENCH_PIN_CPU=1 reduced noise but badly distorted the workload and degraded UDP completion, while the Linux taskset sweep at dev/bench/sweeps/linux_taskset_20260314_a/SUMMARY.md held xnet-v2 queue drain to ~372.5ms with CV ~0.1% but still left visible spread in other lanes such as UDP send
+Blockers: the queue-pressure lane itself is no longer the clearest blocker; the remaining open item is deciding and documenting the official Linux repeated-sweep environment policy, then rerunning a broader sweep under that single policy before declaring the network rewrite performance-closed
+Next steps: settle on the Linux benchmark-environment policy, rerun a broader Linux sweep under that policy, and keep validating the Windows compare lane as changes land even though the old rare TLS collapse no longer looks like the top priority
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Probe whether a broader Linux taskset mask can serve as the official repeated-sweep policy
+Tasks touched: Linux compare policy exploration, Debian taskset spot-check
+Decisions made: do not promote multi-core taskset to the default policy yet; even a wider mask is not consistently better than the current unpinned baseline
+Code paths changed: documentation only; refreshed dev/bench/XNET_COMPARE_SWEEP_20260314.md with the broader taskset spot-check conclusion
+Tests run: Debian 13 native run of dev/bench/run_xnet_compare_linux.sh via SSH under XNET_COMPARE_TASKSET_CPUS=0,1,2,3
+Benchmarks run: the 0,1,2,3 taskset probe still showed legacy TCP going incomplete in that run; xnet-v2 completed cleanly with TCP total/steady ~60.2k msg/s, TLS total/steady ~38.3k msg/s, UDP send ~1.02M pps, and queue-pressure drain ~573.7ms, which is useful diagnostic data but not a clear improvement over the unpinned baseline
+Blockers: the project still lacks one clearly documented Linux repeated-sweep policy that improves reproducibility without materially distorting the compare lanes
+Next steps: keep the current affinity controls diagnostic-only, continue using the unpinned baseline for the main report, and revisit a dedicated controlled-host policy if broader Linux repeated sweeps remain too noisy
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Finalize the current Linux benchmark-environment policy and back it with a broader repeated sweep
+Tasks touched: Linux compare runner policy labeling, Debian repeated sweep, benchmark report/spec closure
+Decisions made: the official Linux repeated-compare baseline for the current project state is now policy: baseline-unpinned; affinity controls remain diagnostic-only because single-core pinning is too distortive and taskset-based runs materially change the workload shape
+Code paths changed: updated dev/bench/run_xnet_compare_linux.sh and dev/bench/run_xnet_compare_windows.ps1 so compare logs now print an explicit policy label; refreshed dev/bench/XNET_COMPARE_20260314.md and dev/bench/XNET_COMPARE_SWEEP_20260314.md with the official Linux policy decision and the broader unpinned Debian sweep results
+Tests run: Debian 13 native 6-run repeated sweep of dev/bench/run_xnet_compare_linux.sh via SSH under the default unpinned policy; regenerated and copied back dev/bench/sweeps/linux_unpinned_20260314_b/SUMMARY.md
+Benchmarks run: the 6-run Debian unpinned sweep at dev/bench/sweeps/linux_unpinned_20260314_b/SUMMARY.md recorded xnet-v2 TCP total avg ~58.3k msg/s (CV ~6.9%), xnet-v2 TLS total avg ~40.1k msg/s (CV ~4.3%), xnet-v2 UDP send avg ~1.37M pps (CV ~1.8%), and xnet-v2 queue drain avg ~933.1ms (CV ~55.8%); in the same sweep xnet-v1 TCP was materially less stable (CV ~34.8%), while legacy TLS remained incomplete in 6/6 runs
+Blockers: the official Linux baseline policy is now documented, but queue-pressure remains the noisiest default Linux lane and the project still lacks a final decision about whether that remaining variance is acceptable for calling the network rewrite fully performance-closed
+Next steps: treat the Linux environment-policy question as resolved for now, keep affinity diagnostic-only, and focus any remaining network work on whether queue-pressure variance needs one more transport pass or can be accepted as known host-level noise
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-14
+Author: Codex
+Scope: Diagnose the remaining Linux queue-pressure variance deeply enough to decide whether it still blocks closure
+Tasks touched: queue-pressure benchmark diagnostics, Debian focused reruns, final closure decision support
+Decisions made: treat the remaining default-Linux queue-pressure spread as a documented host/transport-drain characteristic rather than a known correctness bug in xnet-v2; the rewrite is now considered complete for the current spec, with any further queue-pressure tuning moved to optional follow-up optimization work
+Code paths changed: updated dev/bench/xnet2/bench_common.h with small 64-bit atomic helpers for benchmark diagnostics; updated dev/bench/xnet2/bench_send_queue_pressure.c so it now records resume-to-first-recv, resume-to-low-water, resume-to-drain, resume-to-pending-zero, pending-zero-to-full-recv, and post-resume low-water/drain counts; refreshed dev/bench/XNET_COMPARE_20260314.md and dev/bench/XNET_COMPARE_SWEEP_20260314.md with the new diagnostic interpretation
+Tests run: Windows local syntax/build verification of dev/bench/xnet2/bench_send_queue_pressure.c + xrt.c; Debian 13 native focused reruns of the diagnostic queue-pressure benchmark via SSH; Debian 13 native 6-run unpinned repeated sweep remained the official baseline reference
+Benchmarks run: focused Debian reruns show resume_to_first_recv_ns stays in the tens of microseconds, pending_zero_to_full_recv_ns stays negligible, and the visible spread lives almost entirely in resume_to_low_water_ns / resume_to_pending_zero_ns; this confirms that the residual variance is in the synthetic pressure-lane drain interval itself rather than in resume dispatch or application-level receive completion
+Blockers: none for the current xnet-v2 rewrite acceptance gates; remaining queue-pressure refinement is now optional performance work rather than a blocker for upper-layer migration
+Next steps: proceed with upper-layer migration and any future hot-path tuning as separate follow-on work instead of holding the rewrite open
+```

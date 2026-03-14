@@ -795,7 +795,7 @@ XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
 	
-	BOOL bResult;
+	bool bResult;
 	#if defined(_WIN32) || defined(_WIN64)
 		bResult = TryAcquireSRWLockShared(&pRWLock->objLock);
 	#else
@@ -837,7 +837,7 @@ XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
 	
-	BOOL bResult;
+	bool bResult;
 	#if defined(_WIN32) || defined(_WIN64)
 		bResult = TryAcquireSRWLockExclusive(&pRWLock->objLock);
 	#else

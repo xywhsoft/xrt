@@ -19,7 +19,12 @@ typedef struct {
 	uint32_t iPendingBytes;
 	char* pPayload;
 	uint64_t* arrLatencyNs;
+	uint64_t iConnectStartNs;
+	uint64_t iOpenNs;
+	uint64_t iRunStartNs;
 	uint64_t iCurrentSendNs;
+	uint64_t iFirstSendNs;
+	uint64_t iLastRecvNs;
 	xtlsconfig tTlsCfg;
 } __bench_echo_tls_client_ctx;
 
@@ -30,10 +35,40 @@ static int __benchEchoTlsLatencyCmp(const void* pA, const void* pB)
 	return (a > b) - (a < b);
 }
 
+static bool __benchEchoTlsSendChain(xnetstream* pStream, xnetchain* pChain)
+{
+	xnetspan arrInline[64];
+	xnetspan* pSpans = arrInline;
+	uint32 iSpanCount = 0u;
+	uint32 iWriteCount = 0u;
+	bool bOk = false;
+
+	if ( !pStream || !pChain ) return false;
+
+	iSpanCount = xrtNetChainSpanCount(pChain);
+	if ( iSpanCount == 0u ) return true;
+
+	if ( iSpanCount > (uint32)(sizeof(arrInline) / sizeof(arrInline[0])) ) {
+		pSpans = (xnetspan*)calloc(iSpanCount, sizeof(xnetspan));
+		if ( !pSpans ) return false;
+	}
+
+	iWriteCount = xrtNetChainGetSpans(pChain, pSpans, iSpanCount);
+	if ( iWriteCount > 0u ) {
+		bOk = (xrtNetStreamSendVec(pStream, pSpans, iWriteCount) == XRT_NET_OK);
+	}
+
+	if ( pSpans != arrInline ) free(pSpans);
+	return bOk;
+}
+
 static bool __benchEchoTlsSendNext(xnetstream* pStream, __bench_echo_tls_client_ctx* pCtx)
 {
+	uint64_t iNowNs;
 	if ( !pStream || !pCtx || !pCtx->pPayload || pCtx->iSent >= pCtx->iIterations ) return false;
-	pCtx->iCurrentSendNs = xbenchNowNs();
+	iNowNs = xbenchNowNs();
+	pCtx->iCurrentSendNs = iNowNs;
+	if ( pCtx->iSent == 0u ) pCtx->iFirstSendNs = iNowNs;
 	if ( xrtNetStreamSend(pStream, pCtx->pPayload, pCtx->iMessageSize) != XRT_NET_OK ) return false;
 	pCtx->iSent++;
 	return true;
@@ -51,20 +86,14 @@ static void __benchEchoTlsServerOnRecv(ptr pOwner, xbenchstreamserver* pServer, 
 {
 	__bench_echo_tls_server_ctx* pCtx = (__bench_echo_tls_server_ctx*)pOwner;
 	size_t iBytes;
-	char* pBuf;
 	(void)pServer;
 	if ( !pConn || !pConn->pStream || !pChain ) return;
 	iBytes = xrtNetChainBytes(pChain);
 	if ( iBytes == 0u ) return;
-	pBuf = (char*)malloc(iBytes);
-	if ( !pBuf ) return;
-	if ( xrtNetChainPeek(pChain, pBuf, iBytes) == iBytes ) {
-		if ( xrtNetStreamSend(pConn->pStream, pBuf, iBytes) == XRT_NET_OK && pCtx ) {
-			xbenchAtomicAdd(&pCtx->iEchoBytes, (long)iBytes);
-		}
+	if ( __benchEchoTlsSendChain(pConn->pStream, pChain) && pCtx ) {
+		xbenchAtomicAdd(&pCtx->iEchoBytes, (long)iBytes);
 	}
 	xrtNetChainConsume(pChain, iBytes);
-	free(pBuf);
 }
 
 static void __benchEchoTlsServerOnClose(ptr pOwner, xbenchstreamserver* pServer, xbenchstreamconn* pConn, xnet_result iReason)
@@ -89,6 +118,8 @@ static void __benchEchoTlsClientOnOpen(ptr pOwner, xnetstream* pStream)
 {
 	__bench_echo_tls_client_ctx* pCtx = (__bench_echo_tls_client_ctx*)pOwner;
 	if ( !pCtx || !pStream ) return;
+	pCtx->iOpenNs = xbenchNowNs();
+	if ( pCtx->iRunStartNs == 0u ) pCtx->iRunStartNs = pCtx->iOpenNs;
 	xbenchAtomicInc(&pCtx->iOpenCount);
 	(void)__benchEchoTlsSendNext(pStream, pCtx);
 }
@@ -103,6 +134,7 @@ static void __benchEchoTlsClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchai
 	while ( pCtx->iPendingBytes >= pCtx->iMessageSize && pCtx->iRecv < pCtx->iIterations ) {
 		uint64_t iNow = xbenchNowNs();
 		pCtx->iPendingBytes -= pCtx->iMessageSize;
+		pCtx->iLastRecvNs = iNow;
 		pCtx->arrLatencyNs[pCtx->iRecv++] = iNow - pCtx->iCurrentSendNs;
 		if ( pCtx->iRecv >= pCtx->iIterations ) {
 			xbenchAtomicInc(&pCtx->iDone);
@@ -163,8 +195,9 @@ int main(int argc, char** argv)
 	xnetstream* pClient = NULL;
 	xnetconnectconfig tConnCfg;
 	xtlsconfig tServerTlsCfg;
-	xbenchtimer tRunTimer;
-	uint64_t iElapsedNs;
+	uint64_t iSetupElapsedNs = 0u;
+	uint64_t iElapsedNs = 0u;
+	uint64_t iSteadyNs = 0u;
 	double fP50 = 0.0;
 	double fP95 = 0.0;
 	double fP99 = 0.0;
@@ -224,11 +257,16 @@ int main(int argc, char** argv)
 	pClient = xrtNetStreamCreate(pClientEngine, __benchEchoTlsClientEvents(), &tCliCtx);
 	if ( !pClient ) goto cleanup;
 
-	xbenchTimerStart(&tRunTimer);
+	tCliCtx.iConnectStartNs = xbenchNowNs();
 	if ( xrtNetStreamConnect(pClient, &tConnCfg) != XRT_NET_OK ) goto cleanup;
+	if ( !xbenchWaitMin(&tCliCtx.iOpenCount, 1, 20000u) ) goto cleanup;
+	if ( tCliCtx.iOpenNs > tCliCtx.iConnectStartNs ) {
+		iSetupElapsedNs = tCliCtx.iOpenNs - tCliCtx.iConnectStartNs;
+	}
 	bCompleted = xbenchWaitMin(&tCliCtx.iDone, 1, 20000u);
-	xbenchTimerStop(&tRunTimer);
-	iElapsedNs = xbenchTimerElapsedNs(&tRunTimer);
+	if ( tCliCtx.iLastRecvNs > tCliCtx.iRunStartNs && tCliCtx.iRunStartNs > 0u ) {
+		iElapsedNs = tCliCtx.iLastRecvNs - tCliCtx.iRunStartNs;
+	}
 
 	if ( !bCompleted || tCliCtx.iRecv != iIterations ) {
 		printf("incomplete_run: recv=%u expected=%u client_errors=%ld server_errors=%ld\n",
@@ -240,6 +278,10 @@ int main(int argc, char** argv)
 		goto cleanup;
 	}
 
+	if ( tCliCtx.iFirstSendNs > 0u && tCliCtx.iLastRecvNs > tCliCtx.iFirstSendNs ) {
+		iSteadyNs = tCliCtx.iLastRecvNs - tCliCtx.iFirstSendNs;
+	}
+
 	qsort(tCliCtx.arrLatencyNs, tCliCtx.iRecv, sizeof(uint64_t), __benchEchoTlsLatencyCmp);
 	if ( tCliCtx.iRecv > 0u ) {
 		fP50 = (double)tCliCtx.arrLatencyNs[(tCliCtx.iRecv - 1u) / 2u] / 1000.0;
@@ -247,9 +289,13 @@ int main(int argc, char** argv)
 		fP99 = (double)tCliCtx.arrLatencyNs[(uint32_t)((double)(tCliCtx.iRecv - 1u) * 0.99)] / 1000.0;
 	}
 
-	xbenchPrintMetricU64("echo_elapsed_ns", iElapsedNs);
-	xbenchPrintMetricDouble("messages_per_sec", xbenchSafeRate(tCliCtx.iRecv, iElapsedNs));
-	xbenchPrintMetricDouble("bytes_per_sec", xbenchSafeRate((uint64_t)tCliCtx.iRecv * iMessageSize, iElapsedNs));
+	xbenchPrintMetricU64("setup_elapsed_ns", iSetupElapsedNs);
+	xbenchPrintMetricU64("total_elapsed_ns", iElapsedNs);
+	xbenchPrintMetricDouble("messages_per_sec_total", xbenchSafeRate(tCliCtx.iRecv, iElapsedNs));
+	xbenchPrintMetricDouble("bytes_per_sec_total", xbenchSafeRate((uint64_t)tCliCtx.iRecv * iMessageSize, iElapsedNs));
+	xbenchPrintMetricU64("echo_steady_elapsed_ns", iSteadyNs);
+	xbenchPrintMetricDouble("messages_per_sec_steady", xbenchSafeRate(tCliCtx.iRecv, iSteadyNs));
+	xbenchPrintMetricDouble("bytes_per_sec_steady", xbenchSafeRate((uint64_t)tCliCtx.iRecv * iMessageSize, iSteadyNs));
 	xbenchPrintMetricDouble("latency_p50_us", fP50);
 	xbenchPrintMetricDouble("latency_p95_us", fP95);
 	xbenchPrintMetricDouble("latency_p99_us", fP99);

@@ -331,6 +331,9 @@ static bool __xnetDgramArmRecvWatch(xdgramsock* pSock)
 	if ( !pSock || !pSock->bRunning || pSock->bRecvArmed || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
 	if ( !__xnetDgramSubmitSocketNotice(pSock, XNET_PORT_OP_RECVFROM, pSock->hSocket) ) return false;
 	pSock->bRecvArmed = true;
+	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) {
+		(void)xrtNetPortWake(&pSock->pWorker->tPort);
+	}
 	return true;
 }
 

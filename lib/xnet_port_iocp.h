@@ -31,8 +31,16 @@
 		HANDLE hIOCP;
 		__xnet_iocp_timer* pTimers;
 		__xnet_iocp_watch* pWatches;
+		__xnet_iocp_watch* pFreeWatches;
 		CRITICAL_SECTION tWatchLock;
 	} __xnet_iocp_ctx;
+
+	/*
+	    The staged Windows backend routes posts through IOCP but socket readiness still
+	    uses watch/select. A long watch slice directly inflates serialized echo latency,
+	    especially for TLS small-message loops, so keep the slice short.
+	*/
+	#define __XNET_IOCP_WATCH_SLICE_MS 1u
 
 	static uint16 __xnetPortIOCPEventType(uint16 iOpType)
 	{
@@ -119,6 +127,11 @@
 			XNET_FREE(pCtx->pWatches);
 			pCtx->pWatches = pNext;
 		}
+		while ( pCtx->pFreeWatches ) {
+			__xnet_iocp_watch* pNext = pCtx->pFreeWatches->pNext;
+			XNET_FREE(pCtx->pFreeWatches);
+			pCtx->pFreeWatches = pNext;
+		}
 		LeaveCriticalSection(&pCtx->tWatchLock);
 	}
 
@@ -135,7 +148,8 @@
 			bool bUserMatch = (pUserData == NULL || pNode->pUserData == pUserData);
 			if ( bTypeMatch && bSocketMatch && bUserMatch ) {
 				*ppCur = pNode->pNext;
-				XNET_FREE(pNode);
+				pNode->pNext = pCtx->pFreeWatches;
+				pCtx->pFreeWatches = pNode;
 				continue;
 			}
 			ppCur = &pNode->pNext;
@@ -147,23 +161,29 @@
 	{
 		__xnet_iocp_watch* pNode;
 		if ( !pCtx || !pOp ) return false;
-		pNode = (__xnet_iocp_watch*)XNET_ALLOC(sizeof(__xnet_iocp_watch));
-		if ( !pNode ) return false;
+		EnterCriticalSection(&pCtx->tWatchLock);
+		for ( __xnet_iocp_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
+			if ( pCur->iOpType == pOp->iOpType && pCur->hSocket == pOp->hSocket && pCur->pUserData == pOp->pUserData ) {
+				LeaveCriticalSection(&pCtx->tWatchLock);
+				return true;
+			}
+		}
+		if ( pCtx->pFreeWatches ) {
+			pNode = pCtx->pFreeWatches;
+			pCtx->pFreeWatches = pNode->pNext;
+		} else {
+			pNode = (__xnet_iocp_watch*)XNET_ALLOC(sizeof(__xnet_iocp_watch));
+		}
+		if ( !pNode ) {
+			LeaveCriticalSection(&pCtx->tWatchLock);
+			return false;
+		}
 		memset(pNode, 0, sizeof(__xnet_iocp_watch));
 		pNode->iOpType = pOp->iOpType;
 		pNode->iOpId = pOp->iOpId;
 		pNode->hSocket = pOp->hSocket;
 		pNode->pUserData = pOp->pUserData;
 		pNode->tAddr = pOp->tAddr;
-
-		EnterCriticalSection(&pCtx->tWatchLock);
-		for ( __xnet_iocp_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
-			if ( pCur->iOpType == pNode->iOpType && pCur->hSocket == pNode->hSocket && pCur->pUserData == pNode->pUserData ) {
-				LeaveCriticalSection(&pCtx->tWatchLock);
-				XNET_FREE(pNode);
-				return true;
-			}
-		}
 		pNode->pNext = pCtx->pWatches;
 		pCtx->pWatches = pNode;
 		LeaveCriticalSection(&pCtx->tWatchLock);
@@ -396,7 +416,7 @@
 			uint64 iNowMs = __xnetPortIOCPNowMs();
 			uint32 iElapsedMs = (uint32)(iNowMs - iStartMs);
 			uint32 iRemainMs = (iElapsedMs >= iTimeoutMs) ? 0u : (iTimeoutMs - iElapsedMs);
-			uint32 iSliceMs = iRemainMs > 5u ? 5u : iRemainMs;
+			uint32 iSliceMs = iRemainMs > __XNET_IOCP_WATCH_SLICE_MS ? __XNET_IOCP_WATCH_SLICE_MS : iRemainMs;
 			if ( iRemainMs == 0 ) break;
 			iCount += __xnetPortIOCPHarvestWatches(pCtx, pEvents + iCount, iMaxEvents - iCount, iSliceMs);
 			if ( iCount >= iMaxEvents || iCount > 0 ) break;

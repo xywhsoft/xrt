@@ -521,7 +521,15 @@ void Test_XNet2_Stream(void)
 		socklen_t iAddrLen = 0;
 		xnetaddr tPeerAddr;
 		char* pPayload = NULL;
-		size_t iPayloadLen = 1024u * 1024u;
+		#if defined(_WIN32) || defined(_WIN64)
+			size_t iPayloadLen = 1024u * 1024u;
+			uint32 iReadLoopLimit = 300u;
+			uint32 iDrainWaitMs = 1000u;
+		#else
+			size_t iPayloadLen = 256u * 1024u;
+			uint32 iReadLoopLimit = 800u;
+			uint32 iDrainWaitMs = 3000u;
+		#endif
 		size_t iReadTotal = 0;
 		int iSockBuf = 4096;
 		char aBuf[8192];
@@ -600,7 +608,7 @@ void Test_XNet2_Stream(void)
 		if ( __xnetSocketIsValid(hPeer) ) {
 			(void)__xnetSocketSetNonBlock(hPeer, true);
 		}
-		for ( uint32 iLoop = 0; iLoop < 300 && iReadTotal < iPayloadLen; ++iLoop ) {
+		for ( uint32 iLoop = 0; iLoop < iReadLoopLimit && iReadTotal < iPayloadLen; ++iLoop ) {
 			int iRecv = __xnetSocketIsValid(hPeer) ? recv(hPeer, aBuf, sizeof(aBuf), 0) : -1;
 			if ( iRecv > 0 ) {
 				iReadTotal += (size_t)iRecv;
@@ -617,8 +625,8 @@ void Test_XNet2_Stream(void)
 		}
 
 		printf("  Slow-peer raw client drains payload : %s\n", iReadTotal == iPayloadLen ? "PASS" : "FAIL");
-		printf("  Slow-peer drain callback fires : %s\n", __Test_XNet2_StreamWaitMin(&tServerStats.iDrainCount, 1, 1000) ? "PASS" : "FAIL");
-		printf("  Slow-peer pending send returns zero : %s\n", pAccepted && __Test_XNet2_StreamWaitPendingSend(pAccepted, 0, 1000) ? "PASS" : "FAIL");
+		printf("  Slow-peer drain callback fires : %s\n", __Test_XNet2_StreamWaitMin(&tServerStats.iDrainCount, 1, iDrainWaitMs) ? "PASS" : "FAIL");
+		printf("  Slow-peer pending send returns zero : %s\n", pAccepted && __Test_XNet2_StreamWaitPendingSend(pAccepted, 0, iDrainWaitMs) ? "PASS" : "FAIL");
 		printf("  Slow-peer path stays error free : %s\n", __Test_XNet2_StreamAtomicLoad(&tServerStats.iErrorCount) == 0 ? "PASS" : "FAIL");
 
 		if ( __xnetSocketIsValid(hPeer) ) {

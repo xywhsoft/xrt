@@ -90,6 +90,7 @@
 | [**path**](docs/api-path.md) | `path.h` | 路径处理 | `xrtPathGetName`, `xrtPathGetDir`, `xrtPathJoin` | 跨平台路径处理，支持随机路径生成 |
 | [**network**](docs/api-network.md) | `network.h` | 网络功能 | `xrtGetLocalIP`, `xrtGetLocalMAC`, `xrtGetLocalName` | 获取本机网络信息 |
 | [**thread**](docs/api-thread.md) | `thread.h` | 线程管理 | `xrtThreadCreate` | 跨平台线程创建 |
+| [**coroutine**](docs/api-coroutine.md) | `coroutine.h` | 协程运行时 | `xrtCoCreate`, `xrtCoSchedRun`, `xrtCoWaitEvent` | 栈式协程调度、deadline 等待、事件等待 |
 
 ### 🔹 字符串处理层（3 个模块）
 

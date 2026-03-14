@@ -42,6 +42,8 @@
 #include <time.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <assert.h>
+#include <limits.h>
 
 
 
@@ -162,6 +164,10 @@
 	#include <pthread.h>
 	#include <semaphore.h>
 	#include <signal.h>
+	#include <sys/socket.h>
+	#include <arpa/inet.h>
+	#include <netinet/in.h>
+	#include <netinet/tcp.h>
 	#include <sys/mman.h>
 #endif
 

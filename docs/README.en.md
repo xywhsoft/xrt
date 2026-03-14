@@ -22,6 +22,7 @@
 | **Time** | [Time Processing](api-time.en.md) | Date and time calculations |
 | **File** | [File Operations](api-file.en.md) | File read/write, directory management |
 | **Thread** | [Thread Management](api-thread.en.md) | Multi-threading support |
+| **Coroutine** | [Coroutine Runtime](api-coroutine.en.md) | Stackful coroutine runtime and scheduler |
 | **Hash** | [Hash Computation](api-hash.en.md) | 32/64-bit hash functions |
 | **Network** | [Network Functions](api-network.en.md) | Local network information |
 | **XID** | [Distributed ID](api-xid.en.md) | Unique ID generator |

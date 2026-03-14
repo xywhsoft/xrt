@@ -24,16 +24,16 @@
 | M1 Runtime integration | done | 100% | 协程 runtime 已迁入线程态 |
 | M2 Lifecycle hardening | done | 100% | destroy/cancel/join/thread affinity 已落地 |
 | M3 Scheduler core | done | 100% | ready queue + timer heap + post queue 已落地 |
-| M4 Backend rewrite/audit | in_progress | 70% | 当前主平台已跑通，非 x86 真机验证未完成 |
+| M4 Backend rewrite/audit | in_progress | 80% | Windows x64 与 Linux x64 production backend 已跑通，非 x86 真机验证未完成 |
 | M5 Public API compat layer | in_progress | 80% | 标准 runtime API 已成型，但尚未完全收口 |
-| M6 xnet integration | in_progress | 75% | future/stream/dgram 等待链已接通，accept/socket-level 仍未完成 |
-| M7 Tests, docs, benchmarks | todo | 20% | 仅有专项测试和 spec，公开文档/基准/默认主测试流未完成 |
+| M6 xnet integration | done | 100% | future/stream/dgram/listener accept 等待链已接通，socket-level readiness 仍为可选后续项 |
+| M7 Tests, docs, benchmarks | in_progress | 85% | 默认 modern 测试流、双端回归脚本、首份基线报告、公开 coroutine API 文档与 xnet wait bridge 说明已落地，剩余主要是更大规模基准 sweep |
 
 一句话总结：
 
 - 协程“能用”的部分已经很多
 - 协程“可以宣称完成”的部分还不够
-- 当前最缺的是：真机 backend 验证、最后一段 xnet 等待源、主测试流/文档/benchmark
+- 当前最缺的是：非 x86 真机 backend 验证，以及更大规模 benchmark sweep
 
 
 ## 3. 已完成任务
@@ -205,20 +205,18 @@
 当前状态：
 
 - 已经有很多专项回归
-- 但仍主要依赖专用 harness
-- 主测试流、公开文档、基准测试没有完成收口
+- modern 主测试流已经可复跑
+- coroutine 公开 API 文档已经落地
+- 基准测试已具备首份正式脚本与报告，但规模还不够大
 
 未完成的具体事项：
 
-- 协程测试尚未作为“已完成交付”纳入默认主测试流
-- 协程重构的公开文档尚未补齐
-- 协程与 xnet 集成的公开说明尚未补齐
-- benchmark 尚未完成：
-  - context switch 成本
-  - coroutine create/destroy 成本
-  - timer 唤醒吞吐
-  - post queue 跨线程唤醒成本
-  - 与 thread-per-task 的对比
+- benchmark 还未完成更大规模 sweep：
+  - context switch 成本的长时间趋势采样
+  - coroutine create/destroy 成本的更大样本验证
+  - timer 唤醒吞吐的更大规模压力结果
+  - post queue 跨线程唤醒成本的优化前后对照
+  - 与 thread-per-task 的正式对比
 
 
 ## 5. 当前关键合同
@@ -304,3 +302,302 @@
 - 当前是否已经具备 ARM64 / RV64 / LA64 的真机验证条件
 
 如果没有新设备，优先继续 `listener accept` 的 runtime 主线，而不是继续扩更多未经收口的等待面。
+
+
+## 10. Session Update (2026-03-14)
+
+`listener accept` 这一条之前被明确 deferred 的 wait-source 主线，现在已经接通到了真实的 `owner-worker / async-hold / accept waiter / xnet_port submit-harvest` 生命周期上。
+
+本次已完成：
+
+- `lib/xnet_stream.h`
+  - listener 现在具备 `pWorker`、`iAsyncHoldCount`、`tAcceptWait`、`iAcceptOpId`、`bAcceptArmed`
+  - accept 的注册、撤销、完成分发现在走真实的 `xnet_port` watch 生命周期
+- `lib/xnet_sync.h`
+  - 新增 `XNET_WAITSRC_LISTENER`
+  - 新增 `xrtNetListenerAcceptFuture()`
+  - 新增 `xrtNetListenerAccept()/AcceptTimeout()/AcceptUntil()`
+  - 新增 `xrtNetListenerAcceptCo()/AcceptCoTimeout()/AcceptCoUntil()`
+  - 新增 `xrtNetWaitSourceListenerAccept()`
+- `test/test_xnet2_sync.h`
+  - listener future 回归
+  - listener wait-source 回归
+  - listener coroutine helper / deadline helper 回归
+- `dev/test_xnet2_listener_accept_core.c`
+  - 新增 focused harness，用来隔离验证 listener accept 的 future / wait-source / coroutine 三条路径
+
+本次已验证：
+
+- `gcc -fsyntax-only dev/test_xnet2_listener_accept_core.c -I .`
+- `gcc dev/test_xnet2_listener_accept_core.c xrt.c -I . -o dev/test_xnet2_listener_accept_core_dbg2.exe -lws2_32 -liphlpapi`
+- focused harness 运行通过
+  - future path PASS
+  - wait-source path PASS
+  - coroutine path PASS
+- `gcc -fsyntax-only dev/test_xnet2_stage.c -I .`
+- `gcc dev/test_xnet2_stage.c xrt.c -I . -o dev/test_xnet2_stage_coroutine_listener.exe -lws2_32 -liphlpapi`
+- `xnet2` stage harness 运行通过，说明 listener/coroutine 接线没有破坏现有网络栈主线
+
+这意味着当前 coroutine backlog 的重点已经变化：
+
+- `M6 xnet integration` 不再被 `listener accept` 阻塞
+- coroutine 侧剩余重点主要变成：
+  - `M4` 真机 backend 验证
+  - `M7` 主测试流 / 文档 / benchmark 收口
+  - 如确实需要，再考虑更低层的 `socket/port readiness` wait-source
+
+推荐下一步：
+
+1. 将 `listener accept` wait-source 视为已收口的可用基础设施。
+2. 回到网络库剩余任务，继续推进性能 / benchmark / 其余协议层 backlog。
+3. 后续任何修改 `xnet_sync.h` 或 listener 生命周期时，都优先重跑这个 focused harness。
+
+## 11. Session Update (2026-03-14, Linux x64 backend)
+
+这次在 Debian 13 真机上继续完成了 Linux x64 production backend 的 bring-up 与回归闭环，结论是：
+
+- 之前在 Linux 上暴露出来的 `listener accept coroutine` 崩溃，根因不在 listener/xnet 集成，而在 `asm-x64-sysv` 协程后端本身
+- 根因收敛到 `lib/coroutine.h` 里的 `__xrt_co_swap()`：旧实现使用自由寄存器约束，编译器可能把上下文指针分配到会被切换代码保存/覆盖的寄存器里，导致第一次切换就踩坏上下文
+- 修复后改为固定使用 SysV caller-saved 的 `rdi/rsi` 传递 `pFrom/pTo`
+
+这次新增/使用的验证入口：
+
+- `dev/test_coroutine_min.c`
+  - 最小协程调度器 smoke，用来确认崩溃是否与网络层无关
+- `dev/test_coroutine_core.c`
+  - 旧 `test/test_coroutine.h` 的独立可执行入口
+- `dev/test_xnet2_listener_accept_core.c`
+  - listener accept 的 focused harness
+- `dev/test_xnet2_sync_core.c`
+  - `xnet_sync` 的独立入口
+
+这次在 Debian 13 上实际通过的验证：
+
+- `dev/test_coroutine_min.c + xrt.c`
+  - 修复前：ASan 下崩溃在 `__xrt_co_swap`
+  - 修复后：退出码 `0`
+- `dev/test_xnet2_listener_accept_core.c + xrt.c`
+  - future / wait-source / coroutine 三条 listener accept 路径全部 PASS
+- `dev/test_xnet2_sync_core.c + xrt.c`
+  - listener accept、future、stream、dgram 的 sync/coroutine 等待链全部 PASS
+- `dev/test_coroutine_core.c + xrt.c`
+  - `test/test_coroutine.h` 现有 27 项协程回归在 Linux x64 `asm-x64-sysv` 下通过
+- `dev/test_xnet2_stage.c + xrt.c`
+  - Linux 原生 stage harness 再次完整通过
+
+对路线图的影响：
+
+- `M4` 现在可以把 “Windows / Linux 主流 x64 production backend 已验证” 视为已完成的阶段性结论
+- `M6` 现在可以视为正式收口，不再被 listener accept 或 Linux 协程后端阻塞
+- coroutine 剩余重点进一步收敛为：
+  - `M4` 的 ARM64 / RV64 / LA64 真机验证
+  - `M7` 的主测试流、公开文档、benchmark 收口
+
+## 12. Session Update (2026-03-14, M7 benchmark scaffolding)
+
+为了让协程库后续的优化和网络库性能工作有共同基线，这次补上了第一批 coroutine benchmark 入口：
+
+- `dev/bench/coroutine/bench_context_switch.c`
+  - 主线程与协程之间的 context switch 吞吐
+- `dev/bench/coroutine/bench_create_destroy.c`
+  - `create/destroy` 与 `create/resume/destroy` 生命周期成本
+- `dev/bench/coroutine/bench_timer_churn.c`
+  - scheduler timer insert/remove + immediate wake churn
+- `dev/bench/coroutine/bench_sched_post.c`
+  - 跨线程 `xrtCoSchedPost()` 唤醒 sleeping coroutine 的吞吐
+- `dev/bench/coroutine/README.md`
+  - build/run 说明与 smoke 命令
+- `build_test_coroutine.sh`
+  - 纯协程回归脚本
+- `build_test_coroutine_stage.sh`
+  - 协程 + xnet coroutine bridge 阶段回归脚本
+
+这批 bench 的设计目标是“先有稳定入口，再扩正式基线”，所以当前结论只到 smoke：
+
+- Windows x64 `asm-x64-win64`
+  - `bench_context_switch.exe 10000`
+  - `bench_create_destroy.exe 20000`
+  - `bench_timer_churn.exe 5000`
+  - `bench_sched_post.exe 5000`
+- Debian 13 x64 `asm-x64-sysv`
+  - `bench_context_switch_linux 10000`
+  - `bench_create_destroy_linux 20000`
+  - `bench_timer_churn_linux 5000`
+  - `bench_sched_post_linux 5000`
+
+已知边界：
+
+- 这些是 smoke/trend 入口，还不是正式性能基线
+- `bench_timer_churn` 已明确固定到与 coroutine runtime 相同的单调时钟基准，避免跨时钟错误
+- `bench_sched_post` 现在衡量的是 scheduler-post wake 路径本身，而不是带粗粒度轮询延迟的测试夹具
+
+## 13. Session Update (2026-03-14, coroutine test stage scripts)
+
+为了让 `M7` 不再依赖零散的手工命令，这次把协程回归整理成了两条明确脚本：
+
+- `build_test_coroutine.sh`
+  - 构建并运行 `dev/test_coroutine_core.c`
+- `build_test_coroutine_stage.sh`
+  - 依次构建并运行：
+    - `dev/test_coroutine_min.c`
+    - `dev/test_coroutine_core.c`
+    - `dev/test_xnet2_sync_core.c`
+    - `dev/test_xnet2_listener_accept_core.c`
+
+这意味着当前已经形成三层可复跑入口：
+
+1. 最小 smoke
+   - `dev/test_coroutine_min.c`
+2. 纯协程主回归
+   - `dev/test_coroutine_core.c`
+3. 协程 + xnet bridge 阶段回归
+   - `build_test_coroutine_stage.sh`
+
+这次已验证：
+
+- Windows 本地
+  - `release/x64/xrt_test_coroutine.exe`
+- Debian 13
+  - `./build_test_coroutine.sh`
+  - `./build_test_coroutine_stage.sh`
+
+当前判断：
+
+- 协程库已经不再缺“怎么复跑”的基础设施
+- `M7` 接下来更像是“把这些入口进一步整理进默认文档和长期 benchmark 结果沉淀”，而不是继续补零散 harness
+
+## 14. Session Update (2026-03-14, cross-platform modern test flow)
+
+为了把协程验证真正纳入默认主测试流，这次继续把 modern 测试入口整理成跨平台可复跑形态：
+
+- `build_test.sh`
+  - 默认进入 modern flow
+- `build_test_modern.sh`
+  - 依次运行 coroutine stage 和 `xnet2` stage
+- `build_test_coroutine.sh`
+- `build_test_coroutine_stage.sh`
+- `build_test_xnet2_stage.sh`
+- `build_test_legacy.sh`
+  - 保留 legacy `test.c` 入口，但不再作为 modern flow 的主路径
+
+这批 shell 脚本现在会按平台自动选择基础链接参数：
+
+- Windows Git Bash
+  - `-lws2_32 -liphlpapi`
+- Linux
+  - `-pthread`
+
+这次已验证：
+
+- Windows 本地
+  - `./build_test_modern.sh`
+- Debian 13
+  - `./build_test_modern.sh`
+
+这意味着验收标准里“协程测试已纳入默认测试流”这一条，当前已经有了实际可运行的交付形态，而不再只是文档目标。
+
+## 15. Session Update (2026-03-14, first scripted coroutine baseline)
+
+为了让后续协程优化和网络库剩余 hot path 收尾有共同参照，这次把协程 benchmark 进一步整理成正式脚本与报告：
+
+- `dev/bench/run_coroutine_bench_windows.ps1`
+- `dev/bench/run_coroutine_bench_linux.sh`
+- `dev/bench/COROUTINE_BENCH_20260314.md`
+
+当前矩阵统一为：
+
+- context switch: `100000`
+- create/destroy: `50000`
+- timer churn: `10000`
+- scheduler post wake: `10000`
+
+首轮结果的关键信号是：
+
+- Windows x64 与 Linux x64 的 context switch / timer 成本已经进入同一数量级并可复跑
+- Windows 当前在 `create/destroy` 和 `create/resume/destroy` 上领先
+- Linux x64 当前最明显的 coroutine/runtime hot path 是 `xrtCoSchedPost()` 跨线程唤醒
+
+这意味着 `M7` 已经不再停留在“bench scaffolding only”，而是有了第一份可复跑、可比较、可继续扩展的正式基线。
+
+## 16. Session Update (2026-03-14, public coroutine API docs)
+
+为了把 `M7` 从“只有内部 spec 和 harness”推进到“有公开交付面”，这次补上了正式的 coroutine API 文档：
+
+- `docs/api-coroutine.md`
+- `docs/api-coroutine.en.md`
+
+并把它们接入了现有索引：
+
+- `docs/README.md`
+- `docs/README.en.md`
+- `README.md`
+- `README.en.md`
+
+当前公开文档覆盖的重点是：
+
+- coroutine 的产品定位与线程绑定合同
+- `xcoro` / `xcosched` / `xcoevent` / `xco_create_args`
+- create / resume / yield / cancel / close / join / exit
+- scheduler / sleep / deadline / event wait
+- result / user data / cleanup
+- backend 自检接口
+
+这意味着后续恢复任务时，不再需要先翻内部 spec 才能理解当前稳定的 coroutine 公共面。
+
+## 17. Session Update (2026-03-14, coroutine + xnet public bridge notes)
+
+为了把协程文档里的网络等待边界也补齐，这次继续把稳定的 `coroutine + xnet` 合同写进了：
+
+- `docs/api-coroutine.md`
+- `docs/api-coroutine.en.md`
+
+当前公开说明已经覆盖：
+
+- `xrtNetFutureWaitCo*`
+- `xrtNetStreamWait*Co`
+- `xrtNetDgramRecvCo*`
+- `xrtNetListenerAcceptCo*`
+- `xnetwaitsrc` 统一等待源
+
+同时明确了几条最重要的合同：
+
+- `readable` 是 paused-read buffered 路径
+- `writable` 表达的是 backpressure relief
+- `dgram recv` 是 one-shot 且与 `OnRecv` 互斥
+- `listener accept` 基于真实 listener/worker 生命周期
+
+这意味着协程侧已经不再缺少“如何和 xnet 一起使用”的公开说明。
+
+## 18. Session Update (2026-03-14, sched-post hot path pass #1)
+
+在协程和网络库共享的性能尾项里，这次先处理了 Linux 基线里最显眼的热点：
+
+- `xrtCoSchedPost()` 每次跨线程唤醒都会分配并释放一个临时 post 节点
+
+这次改成了 scheduler 内部复用 post node 的路径，避免高频 `malloc/free` 抖动：
+
+- `lib/coroutine.h`
+  - scheduler 新增 post freelist
+  - `xrtCoSchedPost()` 优先复用 freelist node
+  - `drain_posts()` 不再每次 `xrtFree`
+
+实际验证：
+
+- Windows 本地
+  - `./build_test_coroutine_stage.sh` PASS
+  - `run_coroutine_bench_windows.ps1` PASS
+- Debian 13
+  - `./build_test_coroutine_stage.sh` PASS
+  - `run_coroutine_bench_linux.sh` PASS
+
+这轮对 `bench_sched_post` 的影响是“有改善，但不是根治”：
+
+- Windows
+  - `760.260 ns/wakeup -> 687.510 ns/wakeup`
+- Debian 13
+  - `55343.819 ns/wakeup -> 53983.741 ns/wakeup`
+
+当前判断：
+
+- 这条优化是值得保留的低风险改进
+- 但 Linux `sched_post` 的主要成本还不只在 heap churn，上层 condvar / wake / scheduling 路径仍需继续分析

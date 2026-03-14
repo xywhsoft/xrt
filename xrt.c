@@ -112,6 +112,11 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 #include "lib/network.h"
 #endif
 
+#if defined(__GNUC__)
+	#pragma GCC push_options
+	#pragma GCC optimize ("no-strict-aliasing")
+#endif
+
 #ifndef XRT_NO_CRYPTO
 #include "lib/crypto.h"
 #endif
@@ -126,6 +131,10 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 
 #ifndef XRT_NO_NETTLS
 #include "lib/nettls.h"
+#endif
+
+#if defined(__GNUC__)
+	#pragma GCC pop_options
 #endif
 
 #ifndef XRT_NO_NETLOOP

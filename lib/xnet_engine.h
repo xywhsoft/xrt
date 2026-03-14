@@ -74,6 +74,7 @@ typedef struct {
 #define __XNET_ENGINE_CMD_TASK       1u
 #define __XNET_ENGINE_CMD_TIMER_ADD  2u
 #define __XNET_ENGINE_TIMER_PULSE_ID UINT64_C(0xffffffffffffffff)
+#define __XNET_ENGINE_HARVEST_BATCH  128u
 
 
 
@@ -430,7 +431,7 @@ static void* __xnetEngineWorkerMain(void* pArg)
 {
 	xnetworker* pWorker = (xnetworker*)pArg;
 	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
-	xnetportevent arrEvents[32];
+	xnetportevent arrEvents[__XNET_ENGINE_HARVEST_BATCH];
 	uint32 iEventCount;
 	if ( !pWorker ) {
 		#if __XNET_ENGINE_USE_XRT_THREAD || defined(_WIN32) || defined(_WIN64)
@@ -450,7 +451,7 @@ static void* __xnetEngineWorkerMain(void* pArg)
 
 	while ( !pWorker->bStopRequested ) {
 		__xnetEngineDrainCommands(pWorker);
-		iEventCount = xrtNetPortHarvest(&pWorker->tPort, arrEvents, 32, pWheel ? pWheel->iTickMs : 50u);
+		iEventCount = xrtNetPortHarvest(&pWorker->tPort, arrEvents, __XNET_ENGINE_HARVEST_BATCH, pWheel ? pWheel->iTickMs : 50u);
 		__xnetEngineHandlePortEvents(pWorker, arrEvents, iEventCount);
 		__xnetEngineDrainCommands(pWorker);
 	}

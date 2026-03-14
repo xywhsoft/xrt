@@ -23,6 +23,7 @@ typedef struct {
 struct xbench_stream_conn {
 	struct xbench_stream_conn* pNext;
 	volatile long iCleanupPosted;
+	volatile long iOpenNotified;
 	xbenchstreamserver* pServer;
 	xnetstream* pStream;
 	ptr pUserData;
@@ -59,6 +60,30 @@ static bool xbenchStreamConnSendDirect(xbenchstreamconn* pConn, const void* pDat
 	return true;
 }
 
+static bool __xbenchSocketWaitReadable(xsocket hSocket, uint32_t iTimeoutMs)
+{
+	fd_set tReadSet;
+	struct timeval tTv;
+	int iRet;
+	if ( !__xnetSocketIsValid(hSocket) ) return false;
+	FD_ZERO(&tReadSet);
+	FD_SET(hSocket, &tReadSet);
+	tTv.tv_sec = (long)(iTimeoutMs / 1000u);
+	tTv.tv_usec = (long)((iTimeoutMs % 1000u) * 1000u);
+	#if defined(_WIN32) || defined(_WIN64)
+		iRet = select(0, &tReadSet, NULL, NULL, &tTv);
+	#else
+		iRet = select((int)hSocket + 1, &tReadSet, NULL, NULL, &tTv);
+	#endif
+	return iRet > 0 && FD_ISSET(hSocket, &tReadSet) != 0;
+}
+
+static xbenchstreamserver* __xbenchStreamServerFromStream(xnetstream* pStream)
+{
+	if ( !pStream || !pStream->pListener ) return NULL;
+	return (xbenchstreamserver*)pStream->pListener->pUserData;
+}
+
 static void xbenchStreamServerConfigInit(xbenchstreamserverconfig* pCfg)
 {
 	if ( !pCfg ) return;
@@ -90,6 +115,41 @@ static void __xbenchStreamServerRemoveConn(xbenchstreamserver* pServer, xbenchst
 		ppNode = &(*ppNode)->pNext;
 	}
 	__sync_lock_release(&pServer->iConnLock);
+}
+
+static xbenchstreamconn* __xbenchStreamServerFindConnByStream(xbenchstreamserver* pServer, xnetstream* pStream)
+{
+	xbenchstreamconn* pNode;
+	if ( !pServer || !pStream ) return NULL;
+	while ( __sync_lock_test_and_set(&pServer->iConnLock, 1) != 0 ) xbenchSleepMs(1u);
+	pNode = pServer->pConnHead;
+	while ( pNode ) {
+		if ( pNode->pStream == pStream ) break;
+		pNode = pNode->pNext;
+	}
+	__sync_lock_release(&pServer->iConnLock);
+	return pNode;
+}
+
+static xbenchstreamconn* __xbenchStreamResolveConn(ptr pOwner, xnetstream* pStream)
+{
+	xbenchstreamconn* pConn = (xbenchstreamconn*)pOwner;
+	xbenchstreamserver* pServer;
+	if ( pConn ) return pConn;
+	pServer = __xbenchStreamServerFromStream(pStream);
+	if ( !pServer ) return NULL;
+	return __xbenchStreamServerFindConnByStream(pServer, pStream);
+}
+
+static void __xbenchStreamDispatchOpen(xbenchstreamconn* pConn)
+{
+	xbenchstreamserver* pServer;
+	if ( !pConn ) return;
+	if ( __sync_val_compare_and_swap(&pConn->iOpenNotified, 0, 1) != 0 ) return;
+	pServer = pConn->pServer;
+	if ( pServer && pServer->tEvents.OnOpen ) {
+		pServer->tEvents.OnOpen(pServer->pUserData, pServer, pConn);
+	}
 }
 
 static xbenchstreamconn* __xbenchStreamServerDetachAll(xbenchstreamserver* pServer)
@@ -138,7 +198,7 @@ static bool __xbenchStreamListenerOnAccept(ptr pOwner, xnetlistener* pListener, 
 	(void)pListener;
 	if ( !pServer || !pStream ) return false;
 	pConn = (xbenchstreamconn*)xrtNetStreamGetUserData(pStream);
-	if ( !pConn ) return false;
+	if ( !pConn ) return true;
 	pConn->pServer = pServer;
 	pConn->pStream = pStream;
 	__xbenchStreamServerAddConn(pServer, pConn);
@@ -153,17 +213,14 @@ static bool __xbenchStreamListenerOnAccept(ptr pOwner, xnetlistener* pListener, 
 
 static void __xbenchStreamOnOpen(ptr pOwner, xnetstream* pStream)
 {
-	xbenchstreamconn* pConn = (xbenchstreamconn*)pOwner;
-	xbenchstreamserver* pServer = pConn ? pConn->pServer : NULL;
+	xbenchstreamconn* pConn = __xbenchStreamResolveConn(pOwner, pStream);
 	(void)pStream;
-	if ( pServer && pServer->tEvents.OnOpen ) {
-		pServer->tEvents.OnOpen(pServer->pUserData, pServer, pConn);
-	}
+	__xbenchStreamDispatchOpen(pConn);
 }
 
 static void __xbenchStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
 {
-	xbenchstreamconn* pConn = (xbenchstreamconn*)pOwner;
+	xbenchstreamconn* pConn = __xbenchStreamResolveConn(pOwner, pStream);
 	xbenchstreamserver* pServer = pConn ? pConn->pServer : NULL;
 	(void)pStream;
 	if ( pServer && pServer->tEvents.OnRecv ) {
@@ -173,7 +230,7 @@ static void __xbenchStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 
 static void __xbenchStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
-	xbenchstreamconn* pConn = (xbenchstreamconn*)pOwner;
+	xbenchstreamconn* pConn = __xbenchStreamResolveConn(pOwner, pStream);
 	xbenchstreamserver* pServer = pConn ? pConn->pServer : NULL;
 	(void)pStream;
 	if ( pServer && pServer->tEvents.OnClose ) {
@@ -184,7 +241,7 @@ static void __xbenchStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result i
 
 static void __xbenchStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
-	xbenchstreamconn* pConn = (xbenchstreamconn*)pOwner;
+	xbenchstreamconn* pConn = __xbenchStreamResolveConn(pOwner, pStream);
 	xbenchstreamserver* pServer = pConn ? pConn->pServer : NULL;
 	(void)pStream;
 	if ( pServer && pServer->tEvents.OnError ) {
@@ -223,18 +280,28 @@ static void* __xbenchStreamAcceptThread(void* pArg)
 {
 	xbenchstreamserver* pServer = (xbenchstreamserver*)pArg;
 	while ( pServer && xbenchAtomicLoad(&pServer->bRunning) != 0 ) {
-		xbenchstreamconn* pConn = NULL;
-		if ( pServer->pListener && pServer->pListener->bRunning ) {
-			pConn = (xbenchstreamconn*)XNET_ALLOC(sizeof(xbenchstreamconn));
-			if ( pConn ) {
-				memset(pConn, 0, sizeof(xbenchstreamconn));
-				pConn->pServer = pServer;
-				if ( !__xnetListenerTryAcceptOne(pServer->pListener, pConn) ) {
-					XNET_FREE(pConn);
-				}
+		uint32_t iTimeoutMs = (pServer->tConfig.iAcceptPollMs > 0u) ? pServer->tConfig.iAcceptPollMs : 5u;
+		if ( !pServer->pListener || !pServer->pListener->bRunning ) {
+			xbenchSleepMs(iTimeoutMs);
+			continue;
+		}
+		if ( !__xbenchSocketWaitReadable(pServer->pListener->hSocket, iTimeoutMs) ) {
+			continue;
+		}
+		{
+			xbenchstreamconn* pConn = (xbenchstreamconn*)XNET_ALLOC(sizeof(xbenchstreamconn));
+			xnetstream* pStream;
+			if ( !pConn ) {
+				continue;
+			}
+			memset(pConn, 0, sizeof(xbenchstreamconn));
+			pConn->pServer = pServer;
+			pStream = __xnetListenerTryAcceptOne(pServer->pListener, pConn);
+			if ( !pStream ) {
+				XNET_FREE(pConn);
+				continue;
 			}
 		}
-		xbenchSleepMs(pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u);
 	}
 	#if !defined(_WIN32) && !defined(_WIN64)
 		return NULL;
@@ -321,6 +388,11 @@ static void xbenchStreamServerStop(xbenchstreamserver* pServer)
 	pConn = __xbenchStreamServerDetachAll(pServer);
 	while ( pConn ) {
 		xbenchstreamconn* pNext = pConn->pNext;
+		pConn->pServer = NULL;
+		if ( xbenchAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+			pConn = pNext;
+			continue;
+		}
 		if ( pConn->pStream ) {
 			xrtNetStreamDestroy(pConn->pStream);
 			pConn->pStream = NULL;

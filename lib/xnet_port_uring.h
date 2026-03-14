@@ -39,6 +39,7 @@
 		__xnet_uring_post* pPostedTail;
 		pthread_mutex_t tPostedLock;
 		__xnet_uring_watch* pWatches;
+		__xnet_uring_watch* pFreeWatches;
 		pthread_mutex_t tWatchLock;
 	} __xnet_uring_ctx;
 
@@ -157,6 +158,11 @@
 			XNET_FREE(pCtx->pWatches);
 			pCtx->pWatches = pNext;
 		}
+		while ( pCtx->pFreeWatches ) {
+			__xnet_uring_watch* pNext = pCtx->pFreeWatches->pNext;
+			XNET_FREE(pCtx->pFreeWatches);
+			pCtx->pFreeWatches = pNext;
+		}
 		pthread_mutex_unlock(&pCtx->tWatchLock);
 	}
 
@@ -173,7 +179,8 @@
 			bool bUserMatch = (pUserData == NULL || pNode->pUserData == pUserData);
 			if ( bTypeMatch && bSocketMatch && bUserMatch ) {
 				*ppCur = pNode->pNext;
-				XNET_FREE(pNode);
+				pNode->pNext = pCtx->pFreeWatches;
+				pCtx->pFreeWatches = pNode;
 				continue;
 			}
 			ppCur = &pNode->pNext;
@@ -185,23 +192,29 @@
 	{
 		__xnet_uring_watch* pNode;
 		if ( !pCtx || !pOp ) return false;
-		pNode = (__xnet_uring_watch*)XNET_ALLOC(sizeof(__xnet_uring_watch));
-		if ( !pNode ) return false;
+		pthread_mutex_lock(&pCtx->tWatchLock);
+		for ( __xnet_uring_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
+			if ( pCur->iOpType == pOp->iOpType && pCur->hSocket == pOp->hSocket && pCur->pUserData == pOp->pUserData ) {
+				pthread_mutex_unlock(&pCtx->tWatchLock);
+				return true;
+			}
+		}
+		if ( pCtx->pFreeWatches ) {
+			pNode = pCtx->pFreeWatches;
+			pCtx->pFreeWatches = pNode->pNext;
+		} else {
+			pNode = (__xnet_uring_watch*)XNET_ALLOC(sizeof(__xnet_uring_watch));
+		}
+		if ( !pNode ) {
+			pthread_mutex_unlock(&pCtx->tWatchLock);
+			return false;
+		}
 		memset(pNode, 0, sizeof(__xnet_uring_watch));
 		pNode->iOpType = pOp->iOpType;
 		pNode->iOpId = pOp->iOpId;
 		pNode->hSocket = pOp->hSocket;
 		pNode->pUserData = pOp->pUserData;
 		pNode->tAddr = pOp->tAddr;
-
-		pthread_mutex_lock(&pCtx->tWatchLock);
-		for ( __xnet_uring_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
-			if ( pCur->iOpType == pNode->iOpType && pCur->hSocket == pNode->hSocket && pCur->pUserData == pNode->pUserData ) {
-				pthread_mutex_unlock(&pCtx->tWatchLock);
-				XNET_FREE(pNode);
-				return true;
-			}
-		}
 		pNode->pNext = pCtx->pWatches;
 		pCtx->pWatches = pNode;
 		pthread_mutex_unlock(&pCtx->tWatchLock);
@@ -326,6 +339,7 @@
 	static xnet_result __xnetPortUringSubmit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
 	{
 		uint32 i;
+		bool bNeedWake = false;
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pOps || iCount == 0 ) return XRT_NET_ERROR;
 		for ( i = 0; i < iCount; ++i ) {
@@ -353,8 +367,11 @@
 			if ( tEvent.iType == XNET_PORT_EVENT_NONE || !__xnetPortUringQueueEvent(pCtx, &tEvent) ) {
 				return XRT_NET_ERROR;
 			}
+			bNeedWake = true;
 		}
-		(void)__xnetPortUringWake(pPort);
+		if ( bNeedWake ) {
+			(void)__xnetPortUringWake(pPort);
+		}
 		return XRT_NET_OK;
 	}
 

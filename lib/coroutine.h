@@ -678,25 +678,25 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	__asm__ volatile (
 		"leaq 1f(%%rip), %%rax\n\t"
-		"movq %%rax, 0x00(%0)\n\t"
-		"movq %%rsp, 0x08(%0)\n\t"
-		"movq %%rbp, 0x10(%0)\n\t"
-		"movq %%rbx, 0x18(%0)\n\t"
-		"movq %%r12, 0x20(%0)\n\t"
-		"movq %%r13, 0x28(%0)\n\t"
-		"movq %%r14, 0x30(%0)\n\t"
-		"movq %%r15, 0x38(%0)\n\t"
-		"movq 0x38(%1), %%r15\n\t"
-		"movq 0x30(%1), %%r14\n\t"
-		"movq 0x28(%1), %%r13\n\t"
-		"movq 0x20(%1), %%r12\n\t"
-		"movq 0x18(%1), %%rbx\n\t"
-		"movq 0x10(%1), %%rbp\n\t"
-		"movq 0x08(%1), %%rsp\n\t"
-		"jmpq *0x00(%1)\n\t"
+		"movq %%rax, 0x00(%%rdi)\n\t"
+		"movq %%rsp, 0x08(%%rdi)\n\t"
+		"movq %%rbp, 0x10(%%rdi)\n\t"
+		"movq %%rbx, 0x18(%%rdi)\n\t"
+		"movq %%r12, 0x20(%%rdi)\n\t"
+		"movq %%r13, 0x28(%%rdi)\n\t"
+		"movq %%r14, 0x30(%%rdi)\n\t"
+		"movq %%r15, 0x38(%%rdi)\n\t"
+		"movq 0x38(%%rsi), %%r15\n\t"
+		"movq 0x30(%%rsi), %%r14\n\t"
+		"movq 0x28(%%rsi), %%r13\n\t"
+		"movq 0x20(%%rsi), %%r12\n\t"
+		"movq 0x18(%%rsi), %%rbx\n\t"
+		"movq 0x10(%%rsi), %%rbp\n\t"
+		"movq 0x08(%%rsi), %%rsp\n\t"
+		"jmpq *0x00(%%rsi)\n\t"
 		"1:\n\t"
-		: : "r"(pFrom), "r"(pTo)
-		: "memory", "rax", "rcx", "rdx", "rsi", "rdi",
+		: : "D"(pFrom), "S"(pTo)
+		: "memory", "rax", "rcx", "rdx",
 		  "r8", "r9", "r10", "r11"
 	);
 }
@@ -1684,6 +1684,7 @@ struct xrt_co_scheduler {
 	xcond pPostCond;
 	__xrt_co_post_item* pPostHead;
 	__xrt_co_post_item* pPostTail;
+	__xrt_co_post_item* pPostFree;
 };
 
 static int __xrt_co_sched_find_index(xcosched* pSched, xcoro pCo)
@@ -2100,6 +2101,49 @@ static bool __xrt_co_sched_has_pending_posts(xcosched* pSched)
 	return bPending;
 }
 
+static __xrt_co_post_item* __xrt_co_sched_post_item_alloc(xcosched* pSched)
+{
+	__xrt_co_post_item* pItem = NULL;
+
+	if ( pSched == NULL ) {
+		return NULL;
+	}
+
+	xrtMutexLock(pSched->pPostMutex);
+	pItem = pSched->pPostFree;
+	if ( pItem != NULL ) {
+		pSched->pPostFree = pItem->pNext;
+	}
+	xrtMutexUnlock(pSched->pPostMutex);
+
+	if ( pItem == NULL ) {
+		pItem = (__xrt_co_post_item*)xrtMalloc(sizeof(__xrt_co_post_item));
+	}
+
+	if ( pItem != NULL ) {
+		pItem->pCo = NULL;
+		pItem->pNext = NULL;
+	}
+
+	return pItem;
+}
+
+static void __xrt_co_sched_post_item_free(xcosched* pSched, __xrt_co_post_item* pItem)
+{
+	if ( pSched == NULL || pItem == NULL || pSched->pPostMutex == NULL ) {
+		if ( pItem != NULL ) {
+			xrtFree(pItem);
+		}
+		return;
+	}
+
+	xrtMutexLock(pSched->pPostMutex);
+	pItem->pCo = NULL;
+	pItem->pNext = pSched->pPostFree;
+	pSched->pPostFree = pItem;
+	xrtMutexUnlock(pSched->pPostMutex);
+}
+
 static void __xrt_co_sched_drain_posts(xcosched* pSched)
 {
 	__xrt_co_post_item* pHead = NULL;
@@ -2126,7 +2170,7 @@ static void __xrt_co_sched_drain_posts(xcosched* pSched)
 			}
 		}
 
-		xrtFree(pHead);
+		__xrt_co_sched_post_item_free(pSched, pHead);
 		pHead = pNext;
 	}
 }
@@ -2504,6 +2548,11 @@ XXAPI void xrtCoSchedDestroy(xcosched* pSched)
 	pRuntime = __xrt_co_get_runtime();
 
 	__xrt_co_sched_drain_posts(pSched);
+	while ( pSched->pPostFree != NULL ) {
+		__xrt_co_post_item* pNext = pSched->pPostFree->pNext;
+		xrtFree(pSched->pPostFree);
+		pSched->pPostFree = pNext;
+	}
 
 	// 销毁所有协程
 	for ( int i = 0; i < pSched->iCount; i++ ) {
@@ -2585,7 +2634,7 @@ XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo)
 		return TRUE;
 	}
 
-	pItem = (__xrt_co_post_item*)xrtMalloc(sizeof(__xrt_co_post_item));
+	pItem = __xrt_co_sched_post_item_alloc(pSched);
 	if ( pItem == NULL ) {
 		return FALSE;
 	}

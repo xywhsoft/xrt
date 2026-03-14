@@ -90,6 +90,7 @@ The library adopts a **single-header design** with zero external dependencies an
 | [**path**](docs/api-path.en.md) | `path.h` | Path handling | `xrtPathGetName`, `xrtPathGetDir`, `xrtPathJoin` | Cross-platform path handling, random path generation |
 | [**network**](docs/api-network.en.md) | `network.h` | Network functions | `xrtGetLocalIP`, `xrtGetLocalMAC`, `xrtGetLocalName` | Get local network information |
 | [**thread**](docs/api-thread.en.md) | `thread.h` | Thread management | `xrtThreadCreate` | Cross-platform thread creation |
+| [**coroutine**](docs/api-coroutine.en.md) | `coroutine.h` | Coroutine runtime | `xrtCoCreate`, `xrtCoSchedRun`, `xrtCoWaitEvent` | Stackful coroutine scheduling, deadline wait, event wait |
 
 ### 🔹 String Processing Layer (3 Modules)
 

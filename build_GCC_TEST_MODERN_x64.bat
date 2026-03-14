@@ -1,0 +1,2 @@
+call build_GCC_TEST_COROUTINE_STAGE_x64.bat
+call build_GCC_TEST_XNET2_STAGE_x64.bat

@@ -679,6 +679,9 @@ static __xrt_uring_op* __xrt_uring_alloc_op(xnetpoller* pPoller)
 }
 
 // 注册 wakeup read 事件
+static struct io_uring_sqe* __xrt_uring_get_sqe(xnetpoller* pPoller);
+static void __xrt_uring_submit_sqe(xnetpoller* pPoller);
+
 static void __xrt_uring_post_wakeup_read(xnetpoller* pPoller)
 {
 	struct io_uring_sqe* pSQE = __xrt_uring_get_sqe(pPoller);

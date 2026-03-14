@@ -4,8 +4,9 @@
 
 - 文档路径: `dev/XRT_COROUTINE_REFACTOR_SPEC.md`
 - 状态: Active draft
-- 版本: `0.1.0`
-- 最后更新: `2026-03-13`
+- 版本: `0.1.3`
+- 版本: `0.1.4`
+- 最后更新: `2026-03-14`
 - 范围: XRT 协程运行时、协程调度器、上下文后端、与 runtime/threading/xnet 的集成边界
 - 相关文档:
 - `dev/XRT_RUNTIME_PHASE1_SPEC.md`
@@ -682,8 +683,8 @@ TCC 支持应区分两个层次：
 | M3 Scheduler core | done | ready queue + timer heap + post queue |
 | M4 Backend rewrite/audit | in_progress | 生产级 backend 完成并通过 ABI 测试 |
 | M5 Public API compat layer | in_progress | 兼容旧 `xrtCo*`，引入新标准 runtime API |
-| M6 xnet integration | in_progress | future/timer/I/O wait 正式接线 |
-| M7 Tests, docs, benchmarks | todo | 主测试流、文档、基准齐备 |
+| M6 xnet integration | done | future/timer/I/O wait 正式接线 |
+| M7 Tests, docs, benchmarks | in_progress | 主测试流、文档、基准齐备 |
 
 
 ## 20. 风险与缓解
@@ -755,6 +756,10 @@ TCC 支持应区分两个层次：
 42. `2026-03-13`: 统一等待源不能只返回状态；第一版应补齐“带值等待”语义，使 `future` 的 resolved value 与 `stream` wait 的事件值都能通过 `xrtNetWaitSourceWaitValue*()` / `xrtNetWaitSourceWaitCoValue*()` 透传出来，为后续 `dgram packet`、更广义结果对象和上层组合等待预留稳定合同。
 43. `2026-03-13`: 统一等待源的下一跳选择 `dgram recv`，并明确采用 one-shot packet 合同：`xnet_sync.h` 通过 `future/wait source` 返回独立的 `xnetdgrampkt`，第一版只支持单 waiter，且与 `OnRecv` 回调互斥，不引入 datagram backlog 或多 waiter 竞争语义。
 44. `2026-03-13`: `listener accept` 暂不进入统一等待源；在 `xnet-v2` listener 具备真实的 owner-worker、async-hold、accept waiter 槽位，以及通过 `xnet_port` 提交/回收 accept 的完整生命周期前，不允许为了赶进度引入基于轮询 `accept()` 的伪 future 或伪 coroutine wait。
+45. `2026-03-14`: 协程默认测试流以 dedicated modern harness 为主，而不是继续依赖历史 `test.c`；`build_test.sh` / `build_GCC_TEST_x64.bat` 应默认进入 coroutine stage + xnet2 stage，legacy 测试流保留为兼容入口。
+46. `2026-03-14`: 协程 benchmark 的正式沉淀方式采用“Windows PowerShell 脚本 + Linux shell 脚本 + Markdown 基线报告”的三件套；结果首先服务于趋势跟踪和热点定位，而不是未经筛选地对外宣称最终性能。
+47. `2026-03-14`: 协程公开文档应优先覆盖已经冻结的稳定公共面：线程绑定合同、生命周期、调度器、event/deadline wait、result/user-data/cleanup 与 backend introspection；仍在持续演进的 xnet 协程桥接只做边界说明，不在 coroutine 文档里提前写死细节。
+48. `2026-03-14`: `xrtCoSchedPost()` 的第一轮 hot-path 优化优先选择“保留语义、减少 heap churn”的方向：scheduler 内部复用 post-node，比大改 wake 机制更适合作为低风险第一步；若 Linux 侧基线仍明显偏高，再继续分析 condvar/wake/scheduler 切换成本。
 
 
 ## 23. 工作日志
@@ -802,3 +807,11 @@ TCC 支持应区分两个层次：
 - `2026-03-13`: 继续推进 `M6` 的 wait-source 结果模型：`xnet_sync.h` 现已补齐 `xrtNetWaitSourceWaitValue*()` 与 `xrtNetWaitSourceWaitCoValue*()`，sync/coroutine 两侧都可以通过统一等待源直接拿到 `future` 的 resolved value 或 `stream` wait 产生的 `pStream` 值；正式回归已覆盖 `future` 与 `stream readable` 的 sync/coroutine value path，以及 timed wait 返回后 value 维持 `NULL` 的合同。
 - `2026-03-13`: 继续推进 `M6` 的统一 wait-source 到 datagram：`xnet_dgram.h` 现已引入独立 `xnetdgrampkt`，`xnet_sync.h` 新增 `xrtNetWaitSourceDgramRecv()`、`xrtNetDgramRecvFuture()`、`xrtNetDgramRecv()/RecvTimeout()/RecvUntil()` 与协程版 `xrtNetDgramRecvCo*()`；第一版采用 one-shot packet、单 waiter、与 `OnRecv` 回调互斥的合同，并补了“sync recv helper”“wait-source timeout 后重试”“future 活跃时 early destroy rejected”“coroutine recv helper”四组正式回归。当前平台重新完成 `xrt.c`、`test.c`、`dev/test_xnet2_stage.c` 编译检查，并用专用 `xnet sync` harness 实际运行通过。
 - `2026-03-13`: 继续硬化 `M6` 的 datagram 合同并明确 accept defer：补了 `dgram recv` 的 `OnRecv` 冲突拒绝、第二 waiter 冲突拒绝、sync `RecvUntil()` deadline、coroutine `RecvCoUntil()` deadline 这组正式回归；同时把“`listener accept` 必须等待真实 port/worker 生命周期接入后再进入 wait-source”固定成长期决策，避免退回到轮询式伪 future。
+- `2026-03-14`: Linux x64 `asm-x64-sysv` production backend 在 Debian 13 真机上完成了第一轮正式运行验证。原先由 `listener accept coroutine` 暴露出来的崩溃被定位为 `lib/coroutine.h` 中 SysV x64 `__xrt_co_swap()` 的寄存器约束问题：旧实现让 GCC 自由分配 `pFrom/pTo` 输入寄存器，可能与切换代码自身保存/恢复的 callee-saved 寄存器发生别名，导致第一次切换踩坏上下文。修复后改为固定使用 `rdi/rsi` 传递上下文指针，并在 Debian 上重新跑通了最小协程 smoke、`dev/test_coroutine_core.c`、`dev/test_xnet2_sync_core.c`、`dev/test_xnet2_listener_accept_core.c` 与 `dev/test_xnet2_stage.c`。这意味着 Windows x64 与 Linux x64 主流 production backend 现在都已具备实际回归基础，剩余 M4 主要集中在 ARM64/RV64/LA64 真机验证，M7 主要集中在主测试流、公开文档和 benchmark 收口。
+- `2026-03-14`: 开始推进 `M7` 的 benchmark scaffolding，新增 `dev/bench/coroutine/bench_context_switch.c`、`bench_create_destroy.c`、`bench_timer_churn.c`、`bench_sched_post.c` 与 `README.md`。其中 `bench_timer_churn` 明确固定到与 coroutine runtime 相同的单调时钟基准，`bench_sched_post` 明确收敛为跨线程 `xrtCoSchedPost()` 唤醒 sleeping coroutine 的成本测试。当前这批 bench 已在 Windows x64 与 Debian 13 x64 上完成小参数 smoke，但尚未整理为正式基线。
+- `2026-03-14`: 继续推进 `M7` 的测试入口收口，新增 `build_test_coroutine.sh` 与 `build_test_coroutine_stage.sh`。前者用于稳定复跑纯协程回归，后者用于串行复跑 `test_coroutine_min`、`test_coroutine_core`、`test_xnet2_sync_core` 与 `test_xnet2_listener_accept_core`。两条脚本都已在 Debian 13 上实际运行通过，协程主线从此不再依赖会话日志里的零散命令才能复现当前验证状态。
+- `2026-03-14`: 继续推进 `M7` 的默认主测试流收口：`build_test_xnet2_stage.sh`、`build_test_coroutine.sh`、`build_test_coroutine_stage.sh`、`build_test_legacy.sh` 现在都具备 Windows(Git Bash) / Linux 的基础跨平台编译参数选择；`build_test.sh` 与 `build_test_modern.sh` 已能在本地 Windows Git Bash 和 Debian 13 上实际串行跑通 modern flow。
+- `2026-03-14`: 继续推进 `M7` 的 benchmark 正式沉淀：新增 `dev/bench/run_coroutine_bench_windows.ps1`、`dev/bench/run_coroutine_bench_linux.sh` 与 `dev/bench/COROUTINE_BENCH_20260314.md`，并完成首轮脚本化双端基线。当前结果表明：Windows/Linux x64 的 context-switch 与 timer 成本都已经量化，Windows 在 create/destroy 与 scheduler-post wake 上暂时领先，Linux x64 当前最明显的热点是 cross-thread `xrtCoSchedPost()` 唤醒路径。
+- `2026-03-14`: 继续推进 `M7` 的公开文档收口：新增 `docs/api-coroutine.md` 与 `docs/api-coroutine.en.md`，并把 coroutine 模块接入 `docs/README*` 与顶层 `README*` 的文档索引。当前公开文档已覆盖稳定公共面，包括生命周期、调度器、event/deadline wait、result/user-data/cleanup 与 backend introspection；协程侧 xnet bridge 暂仅保留边界说明，等待网络文档统一收口。
+- `2026-03-14`: 继续推进 `M7` 的集成文档收口：在 `docs/api-coroutine*` 中补上 `coroutine + xnet` 的公开桥接说明，覆盖 `future / stream / dgram / listener / xnetwaitsrc` 这几条稳定等待面，并明确 `readable`、`writable`、`dgram recv`、`listener accept` 的使用合同。协程文档侧现在只剩更大规模 benchmark sweep 和非 x86 设备验证相关的收尾项。
+- `2026-03-14`: 对 `xrtCoSchedPost()` 做了第一轮低风险 hot-path 优化：scheduler 新增 post-node freelist，`xrtCoSchedPost()` 改为优先复用 freelist，`drain_posts()` 不再为每次 wake 做 `malloc/free` 往返。Windows 与 Debian 13 上的 coroutine stage 回归都保持通过；脚本化 benchmark 显示 `bench_sched_post` 在 Windows 和 Linux 上都有小幅改善，但 Linux cross-thread wake 仍是当前最明显的 coroutine 性能热点。

@@ -238,6 +238,7 @@ int main(int argc, char** argv)
 	
 	/* Coroutine 协程库测试 */
 	// Test_Coroutine(xCore);
+	// Coroutine refactor uses the dedicated harness in dev/test_coroutine_core.c
 	
 	/* 自定义测试 */
 	// Test_Other(xCore);
