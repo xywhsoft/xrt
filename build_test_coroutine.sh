@@ -5,7 +5,7 @@ set -e
 mkdir -p release/x64
 
 case "$(uname -s)" in
-	MINGW*|MSYS*|CYGWIN*)
+	MINGW*|MSYS*|CYGWIN*|Windows_NT)
 		OUT="release/x64/xrt_test_coroutine.exe"
 		LIBS="-lws2_32 -liphlpapi"
 		;;

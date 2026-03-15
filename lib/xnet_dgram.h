@@ -3,6 +3,10 @@
 
 #include "xnet_engine.h"
 
+#if defined(XNET_DEBUG_IOCP_NATIVE)
+	#include <stdio.h>
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64)
 	#include <errno.h>
 	#include <fcntl.h>
@@ -15,7 +19,8 @@ typedef struct {
 	void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
 } xnetdgramevents;
 
-#define __XNET_DGRAM_ASYNC_SEND_COPY  1u
+#define __XNET_DGRAM_ASYNC_SEND_COPY   1u
+#define __XNET_DGRAM_ASYNC_SEND_NATIVE 2u
 
 typedef struct {
 	xdgramsock* pSock;
@@ -90,6 +95,38 @@ static void __xnetDgramSetError(const char* sError)
 		xrtSetError((str)sError, FALSE);
 	#else
 		(void)sError;
+	#endif
+}
+
+static bool __xnetDgramUseNativePortIO(xdgramsock* pSock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortIOCPOps() &&
+			__xnetDgramSocketIsValid(pSock->hSocket);
+	#elif defined(__linux__)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort) &&
+			__xnetDgramSocketIsValid(pSock->hSocket);
+	#else
+		(void)pSock;
+		return false;
+	#endif
+}
+
+static bool __xnetDgramUseNativePortOps(xdgramsock* pSock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortIOCPOps();
+	#elif defined(__linux__)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort);
+	#else
+		(void)pSock;
+		return false;
 	#endif
 }
 
@@ -204,18 +241,18 @@ static int __xnetDgramSocketLastErr(void)
 	#endif
 }
 
-static bool __xnetDgramSocketWouldBlock(int iErr)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		return iErr == WSAEWOULDBLOCK || iErr == WSAEINPROGRESS || iErr == WSAEALREADY;
-	#else
-		return iErr == EINPROGRESS || iErr == EWOULDBLOCK || iErr == EAGAIN || iErr == EALREADY;
-	#endif
-}
-
 static bool __xnetDgramSocketIsValid(xsocket hSocket)
 {
 	return hSocket != XNET_SOCKET_INVALID;
+}
+
+static xsocket __xnetDgramSocketCreate(int iFamily)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return WSASocket(iFamily, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
+	#else
+		return socket(iFamily, SOCK_DGRAM, IPPROTO_UDP);
+	#endif
 }
 
 static void __xnetDgramSocketCloseHandle(xsocket* phSocket)
@@ -379,61 +416,23 @@ static bool __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, 
 	return true;
 }
 
-static bool __xnetDgramSocketPumpRecv(xdgramsock* pSock)
+static bool __xnetDgramSubmitNativeSend(xdgramsock* pSock, __xnet_dgram_async_op* pOp)
 {
-	char aBuf[8192];
-	uint32 iPackets = 0;
-	bool bReadAny = false;
-	if ( !pSock || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
-	for ( ;; ) {
-		struct sockaddr_storage tStorage;
-		socklen_t iAddrLen = (socklen_t)sizeof(tStorage);
-		xnetaddr tFrom;
-		int iRecv;
-		memset(&tStorage, 0, sizeof(tStorage));
-		memset(&tFrom, 0, sizeof(tFrom));
-		iRecv = recvfrom(pSock->hSocket, aBuf, sizeof(aBuf), 0, (struct sockaddr*)&tStorage, &iAddrLen);
-		if ( iRecv >= 0 ) {
-			bReadAny = true;
-			(void)__xnetAddrFromSockAddr(&tFrom, (const struct sockaddr*)&tStorage);
-			if ( !__xnetDgramDispatchPacket(pSock, &tFrom, aBuf, (size_t)iRecv) ) {
-				return bReadAny;
-			}
-			iPackets++;
-			if ( pSock->iRecvBatch > 0 && iPackets >= pSock->iRecvBatch ) break;
-			continue;
-		}
-		{
-			int iErr = __xnetDgramSocketLastErr();
-			if ( __xnetDgramSocketWouldBlock(iErr) ) break;
-			if ( pSock->tRecvWait.pfnWait != NULL ) {
-				__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
-			}
-			if ( pSock->pEvents && pSock->pEvents->OnError ) {
-				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, iErr);
-			}
-			break;
-		}
-	}
-	if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) ) {
-		(void)__xnetDgramArmRecvWatch(pSock);
-	}
-	return bReadAny;
-}
-
-static xnet_result __xnetDgramSocketSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
-{
-	struct sockaddr_storage tStorage;
-	socklen_t iAddrLen = 0;
-	int iSent;
-	if ( !pSock || !pTo || !__xnetDgramSocketIsValid(pSock->hSocket) || (!pData && iLen > 0) ) return XRT_NET_ERROR;
-	if ( !__xnetAddrToSockAddr(pTo, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
-	iSent = sendto(pSock->hSocket, (const char*)pData, (int)iLen, 0, (const struct sockaddr*)&tStorage, iAddrLen);
-	if ( iSent >= 0 ) return XRT_NET_OK;
-	if ( pSock->pEvents && pSock->pEvents->OnError ) {
-		pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, __xnetDgramSocketLastErr());
-	}
-	return XRT_NET_ERROR;
+	xnetportsubmit tSubmit;
+	xnetspan tSpan;
+	if ( !pSock || !pOp || !pSock->pWorker || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	memset(&tSpan, 0, sizeof(tSpan));
+	tSpan.pData = pOp->aData;
+	tSpan.iLen = pOp->iLen;
+	tSubmit.iOpType = XNET_PORT_OP_SENDTO;
+	tSubmit.iOpId = (uint64)(uintptr_t)pOp;
+	tSubmit.hSocket = (intptr_t)pSock->hSocket;
+	tSubmit.pUserData = pOp;
+	tSubmit.pVec = &tSpan;
+	tSubmit.iVecCount = 1;
+	tSubmit.tAddr = pOp->tTo;
+	return xrtNetPortSubmit(&pSock->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
 }
 
 static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
@@ -447,8 +446,16 @@ static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
 	}
 
 	if ( pOp->iType == __XNET_DGRAM_ASYNC_SEND_COPY ) {
-		(void)__xnetDgramSocketSendTo(pSock, &pOp->tTo, pOp->aData, pOp->iLen);
+		if ( !__xnetDgramUseNativePortIO(pSock) || !__xnetDgramSubmitNativeSend(pSock, pOp) ) {
+			if ( pSock->pEvents && pSock->pEvents->OnError ) {
+				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+			__xnetDgramReleaseAsyncHold(pSock);
+			XNET_FREE(pOp);
+		}
+		return;
 	}
+	__xnetDgramReleaseAsyncHold(pSock);
 	XNET_FREE(pOp);
 }
 
@@ -502,7 +509,9 @@ static xnet_result __xnetDgramPostAsync(xdgramsock* pSock, __xnet_dgram_async_op
 		if ( pOp ) XNET_FREE(pOp);
 		return XRT_NET_ERROR;
 	}
+	__xnetDgramAddAsyncHold(pSock);
 	if ( xrtNetEnginePost(pSock->pEngine, pSock->pWorker->iId, __xnetDgramAsyncTask, pOp) != XRT_NET_OK ) {
+		__xnetDgramReleaseAsyncHold(pSock);
 		XNET_FREE(pOp);
 		return XRT_NET_ERROR;
 	}
@@ -560,7 +569,7 @@ static xnet_result xrtNetDgramStart(xdgramsock* pSock)
 	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning ) return XRT_NET_ERROR;
 	if ( pSock->bRunning ) return XRT_NET_OK;
 	if ( !__xnetAddrToSockAddr(&pSock->tLocalAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
-	pSock->hSocket = socket(pSock->tLocalAddr.iFamily, SOCK_DGRAM, IPPROTO_UDP);
+	pSock->hSocket = __xnetDgramSocketCreate(pSock->tLocalAddr.iFamily);
 	if ( !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
 	__xnetDgramApplyBindFlags(pSock->hSocket, pSock->iFlags);
 	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, true);
@@ -571,6 +580,12 @@ static xnet_result xrtNetDgramStart(xdgramsock* pSock)
 		__xnetDgramFinalizeSocketClose(pSock);
 		return XRT_NET_ERROR;
 	}
+	if ( !__xnetDgramUseNativePortOps(pSock) ) {
+		__xnetDgramSetError("mainline datagram sockets require a native xnet backend.");
+		__xnetDgramFinalizeSocketClose(pSock);
+		return XRT_NET_ERROR;
+	}
+	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, false);
 	(void)__xnetDgramSocketUpdateLocalAddr(pSock->hSocket, &pSock->tLocalAddr);
 	pSock->bRunning = true;
 	(void)__xnetDgramArmRecvWatch(pSock);
@@ -611,9 +626,41 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 		const xnetportevent* pEvent = &pEvents[i];
 		if ( pEvent->iType == XNET_PORT_EVENT_RECVFROM ) {
 			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
+			#if defined(XNET_DEBUG_IOCP_NATIVE)
+				if ( pSock && __xnetDgramUseNativePortIO(pSock) ) {
+					fprintf(stderr, "[DGRAM] recvfrom event sock=%llu bytes=%u chain=%p status=%d\n",
+						(unsigned long long)pSock->iId, pEvent->iBytes, (void*)pEvent->pChain, (int)pEvent->iStatus);
+				}
+			#endif
 			if ( pSock ) {
 				pSock->bRecvArmed = false;
-				(void)__xnetDgramSocketPumpRecv(pSock);
+				if ( pEvent->pChain ) {
+					if ( pSock->tRecvWait.pfnWait != NULL ) {
+						xnetdgrampkt* pPacket = xrtNetDgramPacketCreate(&pEvent->tAddr, NULL, 0);
+						if ( pPacket ) {
+							__xnetChainSplice(&pPacket->tChain, pEvent->pChain);
+							__xnetDgramNotifySyncRecv(pSock, XRT_NET_OK, pPacket);
+						} else {
+							__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
+						}
+					} else if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
+						pSock->pEvents->OnRecv(__xnetDgramOwner(pSock), pSock, &pEvent->tAddr, pEvent->pChain);
+					}
+					__xnetDgramFreeTempChain(pEvent->pChain);
+					if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) && !pSock->bRecvArmed ) {
+						(void)__xnetDgramArmRecvWatch(pSock);
+					}
+				} else {
+					if ( pEvent->iStatus != XRT_NET_OK && pSock->tRecvWait.pfnWait != NULL ) {
+						__xnetDgramNotifySyncRecv(pSock, pEvent->iStatus, NULL);
+					}
+					if ( pEvent->iStatus != XRT_NET_OK && pSock->pEvents && pSock->pEvents->OnError ) {
+						pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+					}
+					if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) && !pSock->bRecvArmed ) {
+						(void)__xnetDgramArmRecvWatch(pSock);
+					}
+				}
 			}
 		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {
 			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
@@ -622,6 +669,18 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 			}
 			if ( pSock && pSock->pEvents && pSock->pEvents->OnError ) {
 				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+		} else if ( pEvent->iType == XNET_PORT_EVENT_SENDTO ) {
+			__xnet_dgram_async_op* pOp = (__xnet_dgram_async_op*)pEvent->pUserData;
+			xdgramsock* pSock = pOp ? pOp->pSock : NULL;
+			if ( pSock && pEvent->iStatus != XRT_NET_OK && pSock->pEvents && pSock->pEvents->OnError ) {
+				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+			if ( pSock ) {
+				__xnetDgramReleaseAsyncHold(pSock);
+			}
+			if ( pOp ) {
+				XNET_FREE(pOp);
 			}
 		}
 	}

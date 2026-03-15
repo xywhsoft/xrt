@@ -16,6 +16,8 @@ Companion scripts:
 - `dev/bench/summarize_xnet_compare_sweep_windows.ps1`
 - `dev/bench/summarize_xnet_compare_sweep_linux.sh`
 - `dev/bench/XNET_COMPARE_SWEEP_20260314.md`
+- `dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md`
+- `dev/bench/TLS_BENCH_20260315.md`
 
 ## Matrix
 

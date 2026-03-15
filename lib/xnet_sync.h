@@ -15,14 +15,13 @@
 
 
 /*
-    XNet V2 - Sync Core
+    XRT mainline synchronous wait and convenience runtime.
 
-    Phase-1 scope in this header:
-      - future object and timed wait semantics
-      - hidden convenience engine for sync facades
-
-    Still pending:
-      - protocol-specific sync facades built on top of futures
+    This header provides:
+      - future objects with thread and coroutine wait support
+      - monotonic timed-wait semantics for sync wrappers
+      - wait-source helpers used by stream, listener, and datagram sync paths
+      - a hidden convenience engine used by synchronous network facades
 */
 
 
@@ -36,6 +35,11 @@
 #else
 	typedef pthread_mutex_t __xnet_sync_mutex;
 	typedef pthread_cond_t __xnet_sync_cond;
+#if defined(CLOCK_MONOTONIC)
+	#define __XNET_SYNC_WAIT_CLOCK CLOCK_MONOTONIC
+#else
+	#define __XNET_SYNC_WAIT_CLOCK CLOCK_REALTIME
+#endif
 #endif
 
 typedef struct {
@@ -184,6 +188,35 @@ static void __xnetSyncSetError(const char* sError)
 	#endif
 }
 
+#if !defined(_WIN32) && !defined(_WIN64)
+static bool __xnetSyncMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
+{
+	uint64 iNs;
+	if ( !pTs ) return false;
+	if ( clock_gettime(__XNET_SYNC_WAIT_CLOCK, pTs) != 0 ) return false;
+	iNs = (uint64)pTs->tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
+	pTs->tv_sec += (time_t)(iNs / 1000000000ULL);
+	pTs->tv_nsec = (long)(iNs % 1000000000ULL);
+	return true;
+}
+
+static bool __xnetSyncInitCond(__xnet_sync_cond* pCond)
+{
+	pthread_condattr_t tAttr;
+	if ( !pCond ) return false;
+	if ( pthread_condattr_init(&tAttr) != 0 ) return false;
+	#if defined(CLOCK_MONOTONIC)
+		(void)pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC);
+	#endif
+	if ( pthread_cond_init(pCond, &tAttr) != 0 ) {
+		pthread_condattr_destroy(&tAttr);
+		return false;
+	}
+	pthread_condattr_destroy(&tAttr);
+	return true;
+}
+#endif
+
 static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return false;
@@ -193,7 +226,7 @@ static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 		return true;
 	#else
 		if ( pthread_mutex_init(&pFuture->hLock, NULL) != 0 ) return false;
-		if ( pthread_cond_init(&pFuture->hCond, NULL) != 0 ) {
+		if ( !__xnetSyncInitCond(&pFuture->hCond) ) {
 			pthread_mutex_destroy(&pFuture->hLock);
 			return false;
 		}
@@ -250,13 +283,8 @@ static bool __xnetFutureWaitOnce(xnetfuture* pFuture, uint32 iTimeoutMs)
 		if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
 			return pthread_cond_wait(&pFuture->hCond, &pFuture->hLock) == 0;
 		} else {
-			struct timespec tNow;
 			struct timespec tAbs;
-			uint64 iNs;
-			if ( clock_gettime(CLOCK_REALTIME, &tNow) != 0 ) return false;
-			iNs = (uint64)tNow.tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
-			tAbs.tv_sec = tNow.tv_sec + (time_t)(iNs / 1000000000ULL);
-			tAbs.tv_nsec = (long)(iNs % 1000000000ULL);
+			if ( !__xnetSyncMakeAbsTimeout(&tAbs, iTimeoutMs) ) return false;
 			return pthread_cond_timedwait(&pFuture->hCond, &pFuture->hLock, &tAbs) == 0;
 		}
 	#endif
@@ -604,12 +632,7 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 		__xnetFutureUnlock(pFuture);
 		return iStatus;
 	}
-	if ( pFuture->iCoWaitActive != 0 ) {
-		__xnetFutureUnlock(pFuture);
-		__xnetSyncSetError("multiple coroutine waiters on one future are not supported yet.");
-		return XRT_NET_ERROR;
-	}
-	pFuture->iCoWaitActive = 1;
+	pFuture->iCoWaitActive++;
 	__xnetFutureUnlock(pFuture);
 
 	if ( iWaitMode == 0 ) {
@@ -623,7 +646,9 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 	}
 
 	__xnetFutureLock(pFuture);
-	pFuture->iCoWaitActive = 0;
+	if ( pFuture->iCoWaitActive > 0 ) {
+		pFuture->iCoWaitActive--;
+	}
 	iStatus = pFuture->bDone ? pFuture->iStatus : XRT_NET_AGAIN;
 	__xnetFutureUnlock(pFuture);
 
@@ -881,7 +906,6 @@ static void __xnetSyncRegisterStreamFutureWait(xnetworker* pWorker, ptr pArg)
 			break;
 		}
 	}
-
 	bRegistered = __xnetStreamRegisterSyncWait(pCtx->pStream, pCtx->iWaitKind, pOps->pfnOnReady, pCtx);
 
 	if ( !bRegistered ) {

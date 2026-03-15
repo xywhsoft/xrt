@@ -13,17 +13,16 @@
 
 
 /*
-    XNet V2 - Engine and Worker Runtime
+    XRT mainline network engine and worker runtime.
 
-    Phase-1 scope in this header:
-      - engine lifecycle
-      - worker bootstrap
-      - worker threads
-      - command queue for cross-thread task posting
+    This header owns:
+      - engine and worker lifecycle
+      - worker threads and cross-thread command posting
+      - timer-wheel driven delayed work
+      - dispatch of port completions into stream, datagram, and listener layers
 
-    Still pending:
-      - timer wheel
-      - stream/dgram ownership tables
+    The engine is the shared runtime core used by async transport, protocol
+    modules, and sync facades built on top of futures.
 */
 
 

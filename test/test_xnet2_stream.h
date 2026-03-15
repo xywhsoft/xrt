@@ -365,7 +365,7 @@ void Test_XNet2_Stream(void)
 		printf("  Posted recv ref dispatches to owner worker : %s\n", pAccepted2 && __xnetStreamPostRecvRef(pAccepted2, &tRecvRef) == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Recv ref callback executes : %s\n", __Test_XNet2_StreamWaitMin(&tAcceptedStats2.iRecvCount, 2, 200) ? "PASS" : "FAIL");
 		printf("  Recv ref release fires once : %s\n", __Test_XNet2_StreamWaitValue(&tAcceptedStats2.iReleaseCount, 1, 200) ? "PASS" : "FAIL");
-		printf("  No recv overflow error on staged path : %s\n", __Test_XNet2_StreamAtomicLoad(&tAcceptedStats2.iErrorCount) == 0 ? "PASS" : "FAIL");
+		printf("  No recv overflow error on mainline owner path : %s\n", __Test_XNet2_StreamAtomicLoad(&tAcceptedStats2.iErrorCount) == 0 ? "PASS" : "FAIL");
 
 		xrtNetStreamSetUserData(pClientStream, NULL);
 		printf("  Stream set user data : %s\n", pClientStream && xrtNetStreamGetUserData(pClientStream) == NULL ? "PASS" : "FAIL");

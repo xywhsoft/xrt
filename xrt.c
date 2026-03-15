@@ -525,8 +525,15 @@ XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
 static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode)
 {
 	if ( pThread ) {
+		#if !defined(_WIN32) && !defined(_WIN64)
+			pthread_mutex_lock(&pThread->FinishLock);
+		#endif
 		pThread->ExitCode = iExitCode;
 		pThread->bFinished = TRUE;
+		#if !defined(_WIN32) && !defined(_WIN64)
+			pthread_cond_broadcast(&pThread->FinishCond);
+			pthread_mutex_unlock(&pThread->FinishLock);
+		#endif
 	}
 
 	xrtThreadDetachCurrent();

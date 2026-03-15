@@ -5,10 +5,12 @@
 
 
 /*
-    XNet V2 - Backend-Neutral Port Interface
+    XRT mainline backend-neutral network port interface.
 
     This is the internal contract between xnet_engine workers and concrete
-    backend implementations such as IOCP and io_uring.
+    platform backends such as IOCP and the Linux transport backend. It defines
+    the submission, completion, timer, and wake semantics consumed by the
+    transport layers.
 */
 
 
@@ -63,6 +65,8 @@ typedef struct xrt_net_port_ops xnetportops;
 #define XNET_PORT_EVENT_F_EOF        0x00000001u
 #define XNET_PORT_EVENT_F_PARTIAL    0x00000002u
 #define XNET_PORT_EVENT_F_MORE       0x00000004u
+/* Internal marker: synthetic accepted-stream open event, not listener accept completion. */
+#define XNET_PORT_EVENT_F_ACCEPTED_OPEN 0x8000u
 
 
 

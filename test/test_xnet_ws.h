@@ -342,6 +342,32 @@ void Test_XNet_Ws(void)
 		printf("  WS plain server close callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iCloseCount, 1, 3000u) ? "PASS" : "FAIL");
 		printf("  WS plain client error free : %s\n", __Test_XWsAtomicLoad(&tCliCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
 		printf("  WS plain server error free : %s\n", __Test_XWsAtomicLoad(&tSrvCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+		if ( pClient ) {
+			xrtWsClientDestroy(pClient);
+			pClient = NULL;
+		}
+
+		{
+			__test_xws_client_ctx tCliCtx2;
+			long iSrvOpenBefore = __Test_XWsAtomicLoad(&tSrvCtx.iOpenCount);
+			long iSrvCloseBefore = __Test_XWsAtomicLoad(&tSrvCtx.iCloseCount);
+			long iSrvTextBefore = __Test_XWsAtomicLoad(&tSrvCtx.iTextCount);
+			memset(&tCliCtx2, 0, sizeof(tCliCtx2));
+			pClient = pClientEngine ? xrtWsClientCreate(pClientEngine, &tCliCfg, &tCliEvents, &tCliCtx2) : NULL;
+			printf("  WS plain reaccept client create : %s\n", pClient != NULL ? "PASS" : "FAIL");
+			printf("  WS plain reaccept client start : %s\n", pClient && xrtWsClientStart(pClient) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS plain reaccept server open : %s\n", __Test_XWsWaitMin(&tSrvCtx.iOpenCount, iSrvOpenBefore + 1, 2000u) ? "PASS" : "FAIL");
+			printf("  WS plain reaccept client open : %s\n", __Test_XWsWaitMin(&tCliCtx2.iOpenCount, 1, 2000u) ? "PASS" : "FAIL");
+			printf("  WS plain reaccept send text : %s\n", pClient && xrtWsClientSendText(pClient, "again-ws", 8u) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS plain reaccept server text callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iTextCount, iSrvTextBefore + 1, 2000u) ? "PASS" : "FAIL");
+			printf("  WS plain reaccept client text echo : %s\n", __Test_XWsWaitMin(&tCliCtx2.iTextCount, 1, 2000u) ? "PASS" : "FAIL");
+			printf("  WS plain reaccept echoed text : %s\n", strcmp(tCliCtx2.aLastText, "again-ws") == 0 && strcmp(tSrvCtx.aLastText, "again-ws") == 0 ? "PASS" : "FAIL");
+			printf("  WS plain reaccept close request : %s\n", pClient && xrtWsClientClose(pClient, XWS_CLOSE_NORMAL, "bye2") == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS plain reaccept client close callback : %s\n", __Test_XWsWaitMin(&tCliCtx2.iCloseCount, 1, 3000u) ? "PASS" : "FAIL");
+			printf("  WS plain reaccept server close callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iCloseCount, iSrvCloseBefore + 1, 3000u) ? "PASS" : "FAIL");
+			printf("  WS plain reaccept client error free : %s\n", __Test_XWsAtomicLoad(&tCliCtx2.iErrorCount) == 0 ? "PASS" : "FAIL");
+			printf("  WS plain reaccept server error free : %s\n", __Test_XWsAtomicLoad(&tSrvCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+		}
 
 		if ( pClient ) xrtWsClientDestroy(pClient);
 		if ( pServer ) xrtWsServerDestroy(pServer);

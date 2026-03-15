@@ -5,12 +5,13 @@
 
 
 /*
-    XNet V2 - Codec Adapter and Core Framing Helpers
+    XRT mainline codec adapter and framing helpers.
 
-    Phase-2 scope in this header:
-      - backend-neutral parser adapter contract
+    This header defines:
+      - the backend-neutral parser contract used by xnet-based protocols
       - common frame metadata over xnetchain
-      - line and length-field framing codecs
+      - reusable line and length-field framing helpers
+      - shared status codes consumed by HTTP and WebSocket codecs
 */
 
 

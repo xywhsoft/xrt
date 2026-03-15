@@ -8,13 +8,14 @@
 
 
 /*
-    XNet V2 - Builtin TLS Adapter
+    XRT mainline builtin TLS adapter.
 
-    This header bridges xnet-v2 stream transport with the in-tree TLS engine
+    This header bridges xnet stream transport with the in-tree TLS engine
     without introducing any external dependency.
 
-    The TLS core no longer depends on the legacy v1 network ABI. The adapter
-    only coordinates owned sockets and plaintext/ciphertext queues for xnet-v2.
+    The TLS core no longer depends on the archived v1 network ABI. The adapter
+    only coordinates owned sockets plus plaintext/ciphertext flow for the
+    modern xnet stream layer.
 */
 
 #ifndef XNET_ALLOC
@@ -30,6 +31,7 @@
 
 #if !defined(XXRTL_CORE)
 	typedef struct xrt_tls_context xtlsctx;
+	typedef struct xrt_tls_resume xtlsresume;
 	typedef struct __xnet_tls_global xrtGlobalData;
 
 	struct xrt_tls_config {
@@ -41,12 +43,15 @@
 		void (*OnSNI)(xtlsctx* pCtx, const char* sHostName, ptr pUserData);
 		ptr pSNIUserData;
 		bool bAllowTLS12Ed25519;
+		uint16 iMaxVersion;
+		const xtlsresume* pResume;
 	};
 #endif
 
 extern xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
 extern void xrtTlsDestroy(xtlsctx* pCtx);
 extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
+extern xnet_result xrtTlsDrive(xtlsctx* pCtx);
 extern xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
 extern xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
 extern xnet_result xrtTlsClose(xtlsctx* pCtx);
@@ -56,6 +61,9 @@ extern size_t xrtTlsPendingSend(xtlsctx* pCtx);
 extern size_t xrtTlsPendingRecv(xtlsctx* pCtx);
 extern xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
 extern void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
+extern xtlsresume* xrtTlsExportResume(xtlsctx* pCtx);
+extern void xrtTlsResumeDestroy(xtlsresume* pResume);
+extern bool xrtTlsWasResumed(xtlsctx* pCtx);
 #if !defined(XXRTL_CORE)
 	extern xrtGlobalData* xrtInit(void);
 #endif
@@ -98,10 +106,10 @@ static bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
 	return pSession && pSession->pCtx ? xrtTlsIsReady(pSession->pCtx) : false;
 }
 
-static xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession, xsocket hSocket)
+static xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession)
 {
-	if ( !pSession || !pSession->pCtx || hSocket == XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-	return xrtTlsHandshake(pSession->pCtx, hSocket);
+	if ( !pSession || !pSession->pCtx ) return XRT_NET_ERROR;
+	return xrtTlsDrive(pSession->pCtx);
 }
 
 static xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)

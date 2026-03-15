@@ -5,12 +5,14 @@
 
 
 /*
-    XNet V2 - WebSocket Frame Skeleton
+    XRT mainline WebSocket frame codec.
 
-    Phase-2 scope in this header:
-      - parse frame header, payload length, FIN, opcode, and masking metadata
-      - expose payload boundaries over xnetchain
-      - leave message reassembly to the upper WebSocket layer
+    This header provides:
+      - frame header parsing for FIN/opcode/mask/payload length
+      - payload boundary metadata over xnetchain
+      - masking helpers used by the upper WebSocket layer
+
+    Message reassembly remains the responsibility of xws.
 */
 
 
@@ -38,7 +40,7 @@ typedef struct {
 
 
 
-/* ============================== WebSocket skeleton parser ============================== */
+/* ============================== WebSocket frame parser ============================== */
 
 static void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo)
 {

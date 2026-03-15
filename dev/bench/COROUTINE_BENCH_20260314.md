@@ -8,6 +8,7 @@ Companion scripts:
 
 - `dev/bench/run_coroutine_bench_windows.ps1`
 - `dev/bench/run_coroutine_bench_linux.sh`
+- `dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md`
 
 ## Matrix
 

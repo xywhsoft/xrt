@@ -9,18 +9,17 @@
 #endif
 
 /*
-    XNet V2 - HTTP Server Rebuild Skeleton
+    XRT mainline HTTP/1.1 server on top of xnet.
 
-    Phase-3 scope in this header:
-      - HTTP server wrapper on top of xnet_stream
+    This header provides:
+      - listener-driven HTTP server lifecycle on top of xnet_stream
       - request and response materialization helpers
-      - plain HTTP and builtin TLS loopback service path
+      - plain HTTP and builtin TLS service paths
+      - serial keep-alive reuse on a single accepted connection
 
     Current limitations:
-      - serial keep-alive reuse only
-      - client-side connection pooling is still deferred
-      - chunked request and response bodies are whole-message only
-      - static files, routing tables, and upgrade paths are deferred
+      - chunked request and response bodies are whole-message oriented
+      - static files, routing tables, and generic upgrade dispatch are deferred
 */
 
 #define XHTTPD_METHOD_CAP         16u
@@ -78,7 +77,6 @@ typedef struct {
 	uint32 iFlags;
 	uint32 iBacklog;
 	uint32 iRecvLimit;
-	uint32 iAcceptPollMs;
 	const xtlsconfig* pTlsConfig;
 } xhttpdconfig;
 
@@ -107,12 +105,6 @@ struct xrt_httpd_server {
 	volatile long iConnLock;
 	volatile long bRunning;
 	xhttpdconn* pConnHead;
-#if defined(_WIN32) || defined(_WIN64)
-	HANDLE hAcceptThread;
-#else
-	pthread_t hAcceptThread;
-	bool bAcceptThreadStarted;
-#endif
 };
 
 static char __xhttpdToLower(char ch)
@@ -287,7 +279,6 @@ static void xrtHttpdConfigInit(xhttpdconfig* pCfg)
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
 	pCfg->iBacklog = 128u;
 	pCfg->iRecvLimit = 1024u * 1024u;
-	pCfg->iAcceptPollMs = 5u;
 }
 
 static void xrtHttpdRequestInit(xhttpdrequest* pReq)
@@ -534,6 +525,25 @@ static void __xhttpdEmitServerError(xhttpdserver* pServer, xhttpdconn* pConn, in
 	}
 }
 
+static bool __xhttpdIsBenignStreamError(xhttpdconn* pConn, xnetstream* pStream, int iSysErr)
+{
+	if ( pConn && __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return true;
+	if ( pStream && pStream->bClosing ) return true;
+	if ( pConn && !pConn->bResponseInFlight && iSysErr == -1 ) return true;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( iSysErr == WSAECONNRESET || iSysErr == WSAECONNABORTED || iSysErr == WSAESHUTDOWN ||
+			iSysErr == WSAENOTSOCK || iSysErr == WSA_OPERATION_ABORTED ) {
+			return true;
+		}
+	#else
+		if ( iSysErr == ECONNRESET || iSysErr == ECONNABORTED || iSysErr == EPIPE ||
+			iSysErr == ESHUTDOWN || iSysErr == ENOTSOCK || iSysErr == EBADF ) {
+			return true;
+		}
+	#endif
+	return false;
+}
+
 static bool __xhttpdSendResponseAndClose(xhttpdconn* pConn, const xhttpdresponse* pResp)
 {
 	char* pBytes = NULL;
@@ -582,7 +592,12 @@ static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetst
 	(void)pListener;
 	if ( !pServer || !pStream ) return false;
 	pConn = (xhttpdconn*)xrtNetStreamGetUserData(pStream);
-	if ( !pConn ) return false;
+	if ( !pConn ) {
+		pConn = (xhttpdconn*)XNET_ALLOC(sizeof(xhttpdconn));
+		if ( !pConn ) return false;
+		memset(pConn, 0, sizeof(xhttpdconn));
+		xrtNetStreamSetUserData(pStream, pConn);
+	}
 	pConn->pServer = pServer;
 	pConn->pStream = pStream;
 	__xhttpdServerAddConn(pServer, pConn);
@@ -663,6 +678,14 @@ static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result i
 {
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;
 	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
+	#if defined(XNET_DEBUG_CLOSE_DIAG)
+		fprintf(stderr, "[CLOSE_DIAG][HTTPD] close conn=%p stream=%p reason=%d keepalive=%d inflight=%d\n",
+			(void*)pConn,
+			(void*)pStream,
+			(int)iReason,
+			pConn ? (pConn->bKeepAlive ? 1 : 0) : 0,
+			pConn ? (pConn->bResponseInFlight ? 1 : 0) : 0);
+	#endif
 	(void)pStream;
 	if ( pServer && pServer->tEvents.OnClose ) {
 		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
@@ -674,8 +697,30 @@ static void __xhttpdStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;
 	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
-	(void)pStream;
+	if ( __xhttpdIsBenignStreamError(pConn, pStream, iSysErr) ) return;
 	__xhttpdEmitServerError(pServer, pConn, iSysErr);
+}
+
+static void __xhttpdAcceptReady(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx)
+{
+	xhttpdserver* pServer = (xhttpdserver*)pCtx;
+	(void)pListener;
+	(void)pStream;
+	if ( !pServer || __xhttpdAtomicLoad(&pServer->bRunning) == 0 ) return;
+	if ( pServer->pListener && pServer->pListener->bRunning ) {
+		(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xhttpdAcceptReady, NULL, pServer);
+	}
+	if ( iStatus != XRT_NET_OK && pServer->tEvents.OnError ) {
+		pServer->tEvents.OnError(pServer->pUserData, pServer, NULL, -1);
+	}
+}
+
+static void __xhttpdArmAcceptTask(xnetworker* pWorker, ptr pArg)
+{
+	xhttpdserver* pServer = (xhttpdserver*)pArg;
+	(void)pWorker;
+	if ( !pServer || !pServer->pListener || __xhttpdAtomicLoad(&pServer->bRunning) == 0 ) return;
+	(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xhttpdAcceptReady, NULL, pServer);
 }
 
 static const xnetlistenerevents* __xhttpdListenerEvents(void)
@@ -699,40 +744,6 @@ static const xnetstreamevents* __xhttpdStreamEvents(void)
 		NULL
 	};
 	return &tEvents;
-}
-
-#if defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI __xhttpdAcceptThread(LPVOID pArg)
-#else
-static void* __xhttpdAcceptThread(void* pArg)
-#endif
-{
-	xhttpdserver* pServer = (xhttpdserver*)pArg;
-	while ( pServer && __xhttpdAtomicLoad(&pServer->bRunning) != 0 ) {
-		xhttpdconn* pConn = NULL;
-		if ( pServer->pListener && pServer->pListener->bRunning ) {
-			pConn = (xhttpdconn*)XNET_ALLOC(sizeof(xhttpdconn));
-			if ( pConn ) {
-				xnetstream* pStream;
-				memset(pConn, 0, sizeof(xhttpdconn));
-				pConn->pServer = pServer;
-				pStream = __xnetListenerTryAcceptOne(pServer->pListener, pConn);
-				if ( !pStream ) {
-					XNET_FREE(pConn);
-				}
-			}
-		}
-		#if defined(_WIN32) || defined(_WIN64)
-			Sleep(pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u);
-		#else
-			usleep((useconds_t)((pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u) * 1000u));
-		#endif
-	}
-	#if !defined(_WIN32) && !defined(_WIN64)
-		return NULL;
-	#else
-		return 0;
-	#endif
 }
 
 static xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData)
@@ -777,25 +788,13 @@ static xnet_result xrtHttpdStart(xhttpdserver* pServer)
 		return XRT_NET_ERROR;
 	}
 	(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 1, 0);
-	#if defined(_WIN32) || defined(_WIN64)
-		pServer->hAcceptThread = CreateThread(NULL, 0, __xhttpdAcceptThread, pServer, 0, NULL);
-		if ( !pServer->hAcceptThread ) {
-			(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-	#else
-		if ( pthread_create(&pServer->hAcceptThread, NULL, __xhttpdAcceptThread, pServer) != 0 ) {
-			(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-		pServer->bAcceptThreadStarted = true;
-	#endif
+	if ( xrtNetEnginePost(pServer->pEngine, pServer->pListener->pWorker->iId, __xhttpdArmAcceptTask, pServer) != XRT_NET_OK ) {
+		(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
+		xrtNetListenerStop(pServer->pListener);
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+		return XRT_NET_ERROR;
+	}
 	return XRT_NET_OK;
 }
 
@@ -805,19 +804,6 @@ static void xrtHttpdStop(xhttpdserver* pServer)
 	if ( !pServer ) return;
 	if ( __xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
 		/* already stopped */
-	} else {
-		#if defined(_WIN32) || defined(_WIN64)
-			if ( pServer->hAcceptThread ) {
-				WaitForSingleObject(pServer->hAcceptThread, INFINITE);
-				CloseHandle(pServer->hAcceptThread);
-				pServer->hAcceptThread = NULL;
-			}
-		#else
-			if ( pServer->bAcceptThreadStarted ) {
-				pthread_join(pServer->hAcceptThread, NULL);
-				pServer->bAcceptThreadStarted = false;
-			}
-		#endif
 	}
 	if ( pServer->pListener ) {
 		xrtNetListenerStop(pServer->pListener);

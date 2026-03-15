@@ -1,0 +1,28 @@
+# Generated validation/debug artifacts
+dev/_tmp_*
+dev/*.exe
+dev/*.log
+dev/*_dbg.txt
+dev/foundation_sync_bundle.tar.gz
+dev/foundation_sync_manifest.txt
+dev/ssh/
+
+# Generated benchmark outputs
+dev/bench/**/*.exe
+dev/bench/**/*.log
+dev/bench/**/*.o
+
+# Generated release-side validation artifacts
+release/x64/xrt_test_*.exe
+release/x64/test/test_copy.txt
+release/x64/test/test_move.txt
+release/x64/test/test_size.txt
+release/x64/test/test_write_u16.txt
+release/x64/test/test_write_u16be.txt
+release/x64/test/test_write_u32.txt
+release/x86/test/test_copy.txt
+release/x86/test/test_move.txt
+release/x86/test/test_size.txt
+release/x86/test/test_write_u16.txt
+release/x86/test/test_write_u16be.txt
+release/x86/test/test_write_u32.txt

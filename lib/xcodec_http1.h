@@ -5,12 +5,13 @@
 
 
 /*
-    XNet V2 - HTTP/1 Parser Skeleton
+    XRT mainline HTTP/1.1 codec.
 
-    Phase-2 scope in this header:
-      - parse request/response start-line and headers from xnetchain
-      - expose content-length / chunked / upgrade metadata
-      - provide whole-message chunked body delimiting and decode helpers
+    This header provides:
+      - request/response start-line and header parsing over xnetchain
+      - content-length, chunked, keep-alive, and upgrade metadata extraction
+      - whole-message delimiting for fixed-length and chunked bodies
+      - chunk decode helpers used by xhttp and xhttpd
 */
 
 
@@ -282,7 +283,7 @@ static size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* 
 
 
 
-/* ============================== HTTP/1 skeleton parser ============================== */
+/* ============================== HTTP/1 parser ============================== */
 
 static xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
 {

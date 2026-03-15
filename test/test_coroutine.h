@@ -90,6 +90,13 @@ typedef struct {
 	int iLoopCount;
 } __test_co_lifecycle_case;
 
+typedef struct {
+	xcoro pTarget;
+	int arrEvents[8];
+	int iEventCount;
+	bool arrJoined[2];
+} __test_co_multi_join_case;
+
 static void __test_co_lifecycle_push(__test_co_lifecycle_case* pCase, int iValue)
 {
 	if ( pCase == NULL ) {
@@ -116,6 +123,43 @@ static void __test_co_join_waiter(ptr pParam)
 	if ( xrtCoJoin(pCase->pTarget) ) {
 		pCase->bJoined = TRUE;
 		__test_co_lifecycle_push(pCase, 20);
+	}
+}
+
+static void __test_co_multi_join_target(ptr pParam)
+{
+	__test_co_multi_join_case* pCase = (__test_co_multi_join_case*)pParam;
+	if ( pCase == NULL ) {
+		return;
+	}
+	if ( pCase->iEventCount < 8 ) pCase->arrEvents[pCase->iEventCount++] = 1;
+	xrtCoYield();
+	if ( pCase->iEventCount < 8 ) pCase->arrEvents[pCase->iEventCount++] = 2;
+}
+
+static void __test_co_multi_join_waiter_1(ptr pParam)
+{
+	__test_co_multi_join_case* pCase = (__test_co_multi_join_case*)pParam;
+	if ( pCase == NULL ) {
+		return;
+	}
+	if ( pCase->iEventCount < 8 ) pCase->arrEvents[pCase->iEventCount++] = 10;
+	if ( xrtCoJoin(pCase->pTarget) ) {
+		pCase->arrJoined[0] = TRUE;
+		if ( pCase->iEventCount < 8 ) pCase->arrEvents[pCase->iEventCount++] = 20;
+	}
+}
+
+static void __test_co_multi_join_waiter_2(ptr pParam)
+{
+	__test_co_multi_join_case* pCase = (__test_co_multi_join_case*)pParam;
+	if ( pCase == NULL ) {
+		return;
+	}
+	if ( pCase->iEventCount < 8 ) pCase->arrEvents[pCase->iEventCount++] = 11;
+	if ( xrtCoJoin(pCase->pTarget) ) {
+		pCase->arrJoined[1] = TRUE;
+		if ( pCase->iEventCount < 8 ) pCase->arrEvents[pCase->iEventCount++] = 21;
 	}
 }
 
@@ -185,6 +229,12 @@ typedef struct {
 	int64 iDeadlineElapsedMs;
 	xcosched* pSeenSched;
 } __test_co_event_case;
+
+typedef struct {
+	xcoevent pEvent;
+	bool arrWaitResult[2];
+	bool arrDone[2];
+} __test_co_multi_event_case;
 
 typedef struct {
 	int arrOrder[8];
@@ -411,6 +461,45 @@ static uint32 __test_co_event_set_worker(ptr pParam)
 	return 0;
 }
 
+static void __test_co_multi_event_waiter_1(ptr pParam)
+{
+	__test_co_multi_event_case* pCase = (__test_co_multi_event_case*)pParam;
+	if ( pCase == NULL ) {
+		return;
+	}
+	pCase->arrWaitResult[0] = xrtCoWaitEvent(pCase->pEvent);
+	pCase->arrDone[0] = TRUE;
+}
+
+static void __test_co_multi_event_waiter_2(ptr pParam)
+{
+	__test_co_multi_event_case* pCase = (__test_co_multi_event_case*)pParam;
+	if ( pCase == NULL ) {
+		return;
+	}
+	pCase->arrWaitResult[1] = xrtCoWaitEvent(pCase->pEvent);
+	pCase->arrDone[1] = TRUE;
+}
+
+static uint32 __test_co_multi_event_set_worker(ptr pParam)
+{
+	__test_co_multi_event_case* pCase = (__test_co_multi_event_case*)pParam;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		Sleep(50);
+	#else
+		struct timespec ts;
+		ts.tv_sec = 0;
+		ts.tv_nsec = 50 * 1000000L;
+		nanosleep(&ts, NULL);
+	#endif
+
+	if ( pCase && pCase->pEvent ) {
+		xrtCoEventSet(pCase->pEvent);
+	}
+	return 0;
+}
+
 static void __test_co_cleanup_func(ptr pParam)
 {
 	__test_co_cleanup_case* pCase = (__test_co_cleanup_case*)pParam;
@@ -550,8 +639,8 @@ void Test_Coroutine(xrtGlobalData* xCore)
 		const char* sBackendText = NULL;
 		int iTier = xrtCoGetBackendTier();
 		int iStyle = xrtCoGetBackendStyle();
-		bool bTier = (iTier == XRT_CO_BACKEND_TIER_COMPAT) || (iTier == XRT_CO_BACKEND_TIER_PRODUCTION);
-		bool bStyle = (iStyle == XRT_CO_BACKEND_STYLE_COMPAT) || (iStyle == XRT_CO_BACKEND_STYLE_INLINE_ASM);
+		bool bTier = (iTier == XRT_CO_BACKEND_TIER_PRODUCTION);
+		bool bStyle = (iStyle == XRT_CO_BACKEND_STYLE_INLINE_ASM);
 		bool bName = (sBackend != NULL) && (sBackend[0] != 0);
 		sBackendText = bName ? (const char*)sBackend : "(null)";
 
@@ -849,6 +938,35 @@ void Test_Coroutine(xrtGlobalData* xCore)
 		xrtCoSchedDestroy(pSched);
 	}
 
+	printf("\n[Test 12A] scheduler 内部 multi-join:\n");
+	{
+		__test_co_multi_join_case tCase;
+		xcosched* pSched = NULL;
+		bool bOrder = FALSE;
+
+		memset(&tCase, 0, sizeof(tCase));
+		pSched = xrtCoSchedCreate();
+		tCase.pTarget = xrtCoSchedSpawn(pSched, __test_co_multi_join_target, &tCase, 0);
+		(void)xrtCoSchedSpawn(pSched, __test_co_multi_join_waiter_1, &tCase, 0);
+		(void)xrtCoSchedSpawn(pSched, __test_co_multi_join_waiter_2, &tCase, 0);
+		xrtCoSchedRun(pSched);
+
+		bOrder =
+			(tCase.iEventCount == 6) &&
+			(tCase.arrEvents[0] == 1) &&
+			(tCase.arrEvents[1] == 10) &&
+			(tCase.arrEvents[2] == 11) &&
+			(tCase.arrEvents[3] == 2) &&
+			(tCase.arrEvents[4] == 20) &&
+			(tCase.arrEvents[5] == 21);
+
+		printf("  Multi-join 顺序: %s\n", bOrder ? "PASS" : "FAIL");
+		printf("  Waiter #1 Join 成功: %s\n", tCase.arrJoined[0] ? "PASS" : "FAIL");
+		printf("  Waiter #2 Join 成功: %s\n", tCase.arrJoined[1] ? "PASS" : "FAIL");
+
+		xrtCoSchedDestroy(pSched);
+	}
+
 	// 测试 13: 协作式 cancel + close
 	printf("\n[Test 13] 协作式 cancel + close:\n");
 	{
@@ -1134,6 +1252,32 @@ void Test_Coroutine(xrtGlobalData* xCore)
 		xrtCoSchedRun(pSched);
 
 		printf("  预置位立即返回: %s\n", (tCase.bImmediateDone && tCase.bImmediateResult) ? "PASS" : "FAIL");
+
+		xrtCoEventDestroy(tCase.pEvent);
+		xrtCoSchedDestroy(pSched);
+	}
+
+	printf("\n[Test 21A] manual-reset multi-waiter event:\n");
+	{
+		__test_co_multi_event_case tCase;
+		xcosched* pSched = NULL;
+		xthread pThread = NULL;
+
+		memset(&tCase, 0, sizeof(tCase));
+		pSched = xrtCoSchedCreate();
+		tCase.pEvent = xrtCoEventCreate(TRUE, FALSE);
+		(void)xrtCoSchedSpawn(pSched, __test_co_multi_event_waiter_1, &tCase, 0);
+		(void)xrtCoSchedSpawn(pSched, __test_co_multi_event_waiter_2, &tCase, 0);
+		pThread = xrtThreadCreate(__test_co_multi_event_set_worker, &tCase, 0);
+		xrtCoSchedRun(pSched);
+
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			xrtThreadDestroy(pThread);
+		}
+
+		printf("  Multi-event waiter #1 : %s\n", (tCase.arrDone[0] && tCase.arrWaitResult[0]) ? "PASS" : "FAIL");
+		printf("  Multi-event waiter #2 : %s\n", (tCase.arrDone[1] && tCase.arrWaitResult[1]) ? "PASS" : "FAIL");
 
 		xrtCoEventDestroy(tCase.pEvent);
 		xrtCoSchedDestroy(pSched);

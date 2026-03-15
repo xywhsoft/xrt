@@ -9,7 +9,6 @@ typedef struct xbench_stream_conn xbenchstreamconn;
 
 typedef struct {
 	xnetlistenconfig tListenCfg;
-	uint32_t iAcceptPollMs;
 } xbenchstreamserverconfig;
 
 typedef struct {
@@ -38,12 +37,6 @@ struct xbench_stream_server {
 	volatile long iConnLock;
 	volatile long bRunning;
 	xbenchstreamconn* pConnHead;
-#if defined(_WIN32) || defined(_WIN64)
-	HANDLE hAcceptThread;
-#else
-	pthread_t hAcceptThread;
-	bool bAcceptThreadStarted;
-#endif
 };
 
 static bool xbenchStreamConnSendDirect(xbenchstreamconn* pConn, const void* pData, size_t iLen)
@@ -60,24 +53,6 @@ static bool xbenchStreamConnSendDirect(xbenchstreamconn* pConn, const void* pDat
 	return true;
 }
 
-static bool __xbenchSocketWaitReadable(xsocket hSocket, uint32_t iTimeoutMs)
-{
-	fd_set tReadSet;
-	struct timeval tTv;
-	int iRet;
-	if ( !__xnetSocketIsValid(hSocket) ) return false;
-	FD_ZERO(&tReadSet);
-	FD_SET(hSocket, &tReadSet);
-	tTv.tv_sec = (long)(iTimeoutMs / 1000u);
-	tTv.tv_usec = (long)((iTimeoutMs % 1000u) * 1000u);
-	#if defined(_WIN32) || defined(_WIN64)
-		iRet = select(0, &tReadSet, NULL, NULL, &tTv);
-	#else
-		iRet = select((int)hSocket + 1, &tReadSet, NULL, NULL, &tTv);
-	#endif
-	return iRet > 0 && FD_ISSET(hSocket, &tReadSet) != 0;
-}
-
 static xbenchstreamserver* __xbenchStreamServerFromStream(xnetstream* pStream)
 {
 	if ( !pStream || !pStream->pListener ) return NULL;
@@ -89,7 +64,6 @@ static void xbenchStreamServerConfigInit(xbenchstreamserverconfig* pCfg)
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xbenchstreamserverconfig));
 	xrtNetListenConfigInit(&pCfg->tListenCfg);
-	pCfg->iAcceptPollMs = 5u;
 }
 
 static void __xbenchStreamServerAddConn(xbenchstreamserver* pServer, xbenchstreamconn* pConn)
@@ -198,7 +172,12 @@ static bool __xbenchStreamListenerOnAccept(ptr pOwner, xnetlistener* pListener, 
 	(void)pListener;
 	if ( !pServer || !pStream ) return false;
 	pConn = (xbenchstreamconn*)xrtNetStreamGetUserData(pStream);
-	if ( !pConn ) return true;
+	if ( !pConn ) {
+		pConn = (xbenchstreamconn*)XNET_ALLOC(sizeof(xbenchstreamconn));
+		if ( !pConn ) return false;
+		memset(pConn, 0, sizeof(xbenchstreamconn));
+		xrtNetStreamSetUserData(pStream, pConn);
+	}
 	pConn->pServer = pServer;
 	pConn->pStream = pStream;
 	__xbenchStreamServerAddConn(pServer, pConn);
@@ -272,40 +251,26 @@ static const xnetstreamevents* __xbenchStreamEvents(void)
 	return &tEvents;
 }
 
-#if defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI __xbenchStreamAcceptThread(LPVOID pArg)
-#else
-static void* __xbenchStreamAcceptThread(void* pArg)
-#endif
+static void __xbenchStreamAcceptReady(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx)
+{
+	xbenchstreamserver* pServer = (xbenchstreamserver*)pCtx;
+	(void)pListener;
+	(void)pStream;
+	if ( !pServer || xbenchAtomicLoad(&pServer->bRunning) == 0 ) return;
+	if ( pServer->pListener && pServer->pListener->bRunning ) {
+		(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xbenchStreamAcceptReady, NULL, pServer);
+	}
+	if ( iStatus != XRT_NET_OK && pServer->tEvents.OnError ) {
+		pServer->tEvents.OnError(pServer->pUserData, pServer, NULL, -1);
+	}
+}
+
+static void __xbenchStreamArmAcceptTask(xnetworker* pWorker, ptr pArg)
 {
 	xbenchstreamserver* pServer = (xbenchstreamserver*)pArg;
-	while ( pServer && xbenchAtomicLoad(&pServer->bRunning) != 0 ) {
-		uint32_t iTimeoutMs = (pServer->tConfig.iAcceptPollMs > 0u) ? pServer->tConfig.iAcceptPollMs : 5u;
-		if ( !pServer->pListener || !pServer->pListener->bRunning ) {
-			xbenchSleepMs(iTimeoutMs);
-			continue;
-		}
-		if ( !__xbenchSocketWaitReadable(pServer->pListener->hSocket, iTimeoutMs) ) {
-			continue;
-		}
-		{
-			xbenchstreamconn* pConn = (xbenchstreamconn*)XNET_ALLOC(sizeof(xbenchstreamconn));
-			xnetstream* pStream;
-			if ( !pConn ) {
-				continue;
-			}
-			memset(pConn, 0, sizeof(xbenchstreamconn));
-			pConn->pServer = pServer;
-			pStream = __xnetListenerTryAcceptOne(pServer->pListener, pConn);
-			if ( !pStream ) {
-				XNET_FREE(pConn);
-				continue;
-			}
-		}
-	}
-	#if !defined(_WIN32) && !defined(_WIN64)
-		return NULL;
-	#endif
+	(void)pWorker;
+	if ( !pServer || !pServer->pListener || xbenchAtomicLoad(&pServer->bRunning) == 0 ) return;
+	(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xbenchStreamAcceptReady, NULL, pServer);
 }
 
 static xbenchstreamserver* xbenchStreamServerCreate(xnetengine* pEngine, const xbenchstreamserverconfig* pCfg, const xbenchstreamserverevents* pEvents, ptr pUserData)
@@ -339,25 +304,13 @@ static xnet_result xbenchStreamServerStart(xbenchstreamserver* pServer)
 		return XRT_NET_ERROR;
 	}
 	pServer->bRunning = 1;
-	#if defined(_WIN32) || defined(_WIN64)
-		pServer->hAcceptThread = CreateThread(NULL, 0, __xbenchStreamAcceptThread, pServer, 0, NULL);
-		if ( !pServer->hAcceptThread ) {
-			pServer->bRunning = 0;
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-	#else
-		if ( pthread_create(&pServer->hAcceptThread, NULL, __xbenchStreamAcceptThread, pServer) != 0 ) {
-			pServer->bRunning = 0;
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-		pServer->bAcceptThreadStarted = true;
-	#endif
+	if ( xrtNetEnginePost(pServer->pEngine, pServer->pListener->pWorker->iId, __xbenchStreamArmAcceptTask, pServer) != XRT_NET_OK ) {
+		pServer->bRunning = 0;
+		xrtNetListenerStop(pServer->pListener);
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+		return XRT_NET_ERROR;
+	}
 	return XRT_NET_OK;
 }
 
@@ -367,18 +320,6 @@ static void xbenchStreamServerStop(xbenchstreamserver* pServer)
 	if ( !pServer ) return;
 	if ( pServer->bRunning ) {
 		pServer->bRunning = 0;
-		#if defined(_WIN32) || defined(_WIN64)
-			if ( pServer->hAcceptThread ) {
-				WaitForSingleObject(pServer->hAcceptThread, INFINITE);
-				CloseHandle(pServer->hAcceptThread);
-				pServer->hAcceptThread = NULL;
-			}
-		#else
-			if ( pServer->bAcceptThreadStarted ) {
-				pthread_join(pServer->hAcceptThread, NULL);
-				pServer->bAcceptThreadStarted = false;
-			}
-		#endif
 	}
 	if ( pServer->pListener ) {
 		xrtNetListenerStop(pServer->pListener);

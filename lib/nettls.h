@@ -1,19 +1,23 @@
 /*
     NetTLS - builtin TLS engine for xrt
 
-    This file implements the in-tree TLS stack used by xrt and xnet-v2.
-    It has no dependency on the legacy v1 network layer and only relies on:
+    This file implements the in-tree TLS stack used by the modern xrt network
+    path. It does not depend on the archived v1 network layer and only relies
+    on:
       - lib/crypto.h for cryptographic primitives
       - platform sockets when the blocking handshake helper is used
-      - internal TLS byte buffers owned by xtlsctx
+      - transport-fed TLS byte buffers owned by xtlsctx
 
     Current scope:
       - TLS 1.3 as the primary path
       - TLS 1.2 compatibility where already supported by the engine
+      - socketless transport-owned drive/feed integration via xrtTlsDrive and
+        xrtTlsFeed
       - builtin client/server operation with no external TLS dependency
 */
 
 typedef struct {
+	char* pBase;
 	char* pData;
 	size_t iSize;
 	size_t iCapacity;
@@ -22,8 +26,9 @@ typedef struct {
 static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
 {
 	if ( !pBuf ) return false;
-	pBuf->pData = (char*)xrtMalloc(iCapacity);
-	if ( !pBuf->pData ) return false;
+	pBuf->pBase = (char*)xrtMalloc(iCapacity);
+	if ( !pBuf->pBase ) return false;
+	pBuf->pData = pBuf->pBase;
 	pBuf->iSize = 0;
 	pBuf->iCapacity = iCapacity;
 	return true;
@@ -32,8 +37,9 @@ static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
 static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
 {
 	if ( !pBuf ) return;
-	if ( pBuf->pData ) {
-		xrtFree(pBuf->pData);
+	if ( pBuf->pBase ) {
+		xrtFree(pBuf->pBase);
+		pBuf->pBase = NULL;
 		pBuf->pData = NULL;
 	}
 	pBuf->iSize = 0;
@@ -42,16 +48,30 @@ static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
 
 static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
 {
+	size_t iHead;
 	size_t iNeed;
 	size_t iNewCap;
 	char* pNew;
 	if ( !pBuf ) return false;
+	if ( !pBuf->pBase ) return false;
+	iHead = (pBuf->pData && pBuf->pData >= pBuf->pBase) ? (size_t)(pBuf->pData - pBuf->pBase) : 0u;
 	iNeed = pBuf->iSize + iExtra;
-	if ( iNeed <= pBuf->iCapacity ) return true;
+	if ( iHead + iNeed <= pBuf->iCapacity ) return true;
+	if ( iNeed <= pBuf->iCapacity ) {
+		if ( pBuf->iSize > 0u && iHead > 0u ) {
+			memmove(pBuf->pBase, pBuf->pData, pBuf->iSize);
+		}
+		pBuf->pData = pBuf->pBase;
+		return true;
+	}
 	iNewCap = pBuf->iCapacity ? (pBuf->iCapacity * 2) : 256;
 	if ( iNewCap < iNeed ) iNewCap = iNeed;
-	pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
+	pNew = (char*)xrtRealloc(pBuf->pBase, iNewCap);
 	if ( !pNew ) return false;
+	if ( pBuf->iSize > 0u && iHead > 0u ) {
+		memmove(pNew, pNew + iHead, pBuf->iSize);
+	}
+	pBuf->pBase = pNew;
 	pBuf->pData = pNew;
 	pBuf->iCapacity = iNewCap;
 	return true;
@@ -71,9 +91,10 @@ static void __xrt_tls_buf_consume(__xrt_tls_buf* pBuf, size_t iLen)
 	if ( !pBuf || iLen == 0 ) return;
 	if ( iLen >= pBuf->iSize ) {
 		pBuf->iSize = 0;
+		pBuf->pData = pBuf->pBase;
 		return;
 	}
-	memmove(pBuf->pData, pBuf->pData + iLen, pBuf->iSize - iLen);
+	pBuf->pData += iLen;
 	pBuf->iSize -= iLen;
 }
 
@@ -121,6 +142,160 @@ static xnet_result __xrt_tls_sock_recv(xsocket hSocket, char* pBuf, size_t iLen,
 	}
 	if ( iRet == 0 ) return XRT_NET_CLOSED;
 	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
+}
+
+
+/* ============================== TLS resume state ============================== */
+
+struct xrt_tls_resume {
+	uint16 iVersion;
+	uint16 iCipherSuite;
+	uint8 iSessionIdLen;
+	uint8 aSessionId[32];
+	uint8 aMasterSecret[48];
+};
+
+typedef struct __xrt_tls_resume_cache_entry {
+	struct __xrt_tls_resume_cache_entry* pNext;
+	uint64 iGeneration;
+	struct xrt_tls_resume tResume;
+} __xrt_tls_resume_cache_entry;
+
+static volatile long __xrt_tls_resume_lock = 0;
+static __xrt_tls_resume_cache_entry* __xrt_tls_resume_cache = NULL;
+static uint32 __xrt_tls_resume_cache_count = 0;
+static uint64 __xrt_tls_resume_cache_gen = 0;
+
+#ifndef __XRT_TLS_VERSION_1_2
+	#define __XRT_TLS_VERSION_1_2  0x0303
+#endif
+#ifndef __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256
+	#define __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256  0xC02B
+	#define __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256    0xC02F
+	#define __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384  0xC02C
+	#define __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384    0xC030
+	#define __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256    0xCCA8
+	#define __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256  0xCCA9
+#endif
+
+static void __xrt_tls_resume_lock_acquire(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		while ( InterlockedCompareExchange((volatile LONG*)&__xrt_tls_resume_lock, 1, 0) != 0 ) {
+			xrtThreadYield();
+		}
+	#else
+		while ( __sync_lock_test_and_set(&__xrt_tls_resume_lock, 1) != 0 ) {
+			xrtThreadYield();
+		}
+	#endif
+}
+
+static void __xrt_tls_resume_lock_release(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		InterlockedExchange((volatile LONG*)&__xrt_tls_resume_lock, 0);
+	#else
+		__sync_lock_release(&__xrt_tls_resume_lock);
+	#endif
+}
+
+static bool __xrt_tls_resume_copy(struct xrt_tls_resume* pDst, const struct xrt_tls_resume* pSrc)
+{
+	if ( !pDst || !pSrc ) return false;
+	if ( pSrc->iSessionIdLen == 0 || pSrc->iSessionIdLen > sizeof(pSrc->aSessionId) ) return false;
+	if ( pSrc->iVersion != __XRT_TLS_VERSION_1_2 ) return false;
+	memcpy(pDst, pSrc, sizeof(*pDst));
+	return true;
+}
+
+static bool __xrt_tls_resume_cache_lookup(const uint8* pSessionId, uint8 iSessionIdLen, struct xrt_tls_resume* pOut)
+{
+	__xrt_tls_resume_cache_entry* pEntry;
+	bool bFound = false;
+	if ( !pSessionId || !pOut || iSessionIdLen == 0 ) return false;
+
+	__xrt_tls_resume_lock_acquire();
+	for ( pEntry = __xrt_tls_resume_cache; pEntry; pEntry = pEntry->pNext ) {
+		if ( pEntry->tResume.iSessionIdLen != iSessionIdLen ) continue;
+		if ( memcmp(pEntry->tResume.aSessionId, pSessionId, iSessionIdLen) != 0 ) continue;
+		memcpy(pOut, &pEntry->tResume, sizeof(*pOut));
+		pEntry->iGeneration = ++__xrt_tls_resume_cache_gen;
+		bFound = true;
+		break;
+	}
+	__xrt_tls_resume_lock_release();
+	return bFound;
+}
+
+static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
+{
+	__xrt_tls_resume_cache_entry* pEntry;
+	__xrt_tls_resume_cache_entry* pPrevOldest = NULL;
+	__xrt_tls_resume_cache_entry* pOldest = NULL;
+	__xrt_tls_resume_cache_entry* pPrev = NULL;
+	__xrt_tls_resume_cache_entry* pCurr = NULL;
+
+	if ( !pResume || pResume->iVersion != __XRT_TLS_VERSION_1_2 || pResume->iSessionIdLen == 0 ) return;
+
+	__xrt_tls_resume_lock_acquire();
+	for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
+		if ( pCurr->tResume.iSessionIdLen == pResume->iSessionIdLen
+			&& memcmp(pCurr->tResume.aSessionId, pResume->aSessionId, pResume->iSessionIdLen) == 0 ) {
+			memcpy(&pCurr->tResume, pResume, sizeof(*pResume));
+			pCurr->iGeneration = ++__xrt_tls_resume_cache_gen;
+			__xrt_tls_resume_lock_release();
+			return;
+		}
+	}
+
+	pEntry = (__xrt_tls_resume_cache_entry*)xrtCalloc(1, sizeof(*pEntry));
+	if ( !pEntry ) {
+		__xrt_tls_resume_lock_release();
+		return;
+	}
+	memcpy(&pEntry->tResume, pResume, sizeof(*pResume));
+	pEntry->iGeneration = ++__xrt_tls_resume_cache_gen;
+	pEntry->pNext = __xrt_tls_resume_cache;
+	__xrt_tls_resume_cache = pEntry;
+	__xrt_tls_resume_cache_count++;
+
+	if ( __xrt_tls_resume_cache_count > 128u ) {
+		for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
+			if ( !pOldest || pCurr->iGeneration < pOldest->iGeneration ) {
+				pOldest = pCurr;
+				pPrevOldest = pPrev;
+			}
+			pPrev = pCurr;
+		}
+		if ( pOldest ) {
+			if ( pPrevOldest ) pPrevOldest->pNext = pOldest->pNext;
+			else __xrt_tls_resume_cache = pOldest->pNext;
+			xrtFree(pOldest);
+			__xrt_tls_resume_cache_count--;
+		}
+	}
+
+	__xrt_tls_resume_lock_release();
+}
+
+static bool __xrt_tls12_client_offers_suite(uint16 iSuite,
+	bool bOfferTLS12EcdheEcdsaAES128,
+	bool bOfferTLS12EcdheEcdsaAES256,
+	bool bOfferTLS12EcdheEcdsaChaCha,
+	bool bOfferTLS12EcdheRsaAES128,
+	bool bOfferTLS12EcdheRsaAES256,
+	bool bOfferTLS12EcdheRsaChaCha)
+{
+	switch ( iSuite ) {
+		case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256: return bOfferTLS12EcdheEcdsaAES128;
+		case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384: return bOfferTLS12EcdheEcdsaAES256;
+		case __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256: return bOfferTLS12EcdheEcdsaChaCha;
+		case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256: return bOfferTLS12EcdheRsaAES128;
+		case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384: return bOfferTLS12EcdheRsaAES256;
+		case __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256: return bOfferTLS12EcdheRsaChaCha;
+		default: return false;
+	}
 }
 
 
@@ -1250,6 +1425,10 @@ struct xrt_tls_context {
 	uint8 iSessionIdLen;
 	
 	// TLS 1.3 加密密钥
+	uint16 iMaxVersion;
+	bool bHaveResume;
+	bool bSessionResumed;
+	struct xrt_tls_resume tResume;
 	struct __xrt_tls_enc tEnc;
 	struct __xrt_tls_enc tAppKeys;  // 应用数据密钥
 	
@@ -1333,6 +1512,20 @@ struct xrt_tls_context {
 	size_t iRecvMsgLen;
 	uint8 iContentType;
 };
+
+static bool __xrt_tls_resume_from_ctx(xtlsctx* pCtx, struct xrt_tls_resume* pOut)
+{
+	if ( !pCtx || !pOut ) return false;
+	if ( !pCtx->bHandshakeDone || !pCtx->bIsTls12 ) return false;
+	if ( pCtx->iSessionIdLen == 0 || pCtx->iSessionIdLen > sizeof(pOut->aSessionId) ) return false;
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->iVersion = __XRT_TLS_VERSION_1_2;
+	pOut->iCipherSuite = pCtx->iCipherSuite;
+	pOut->iSessionIdLen = pCtx->iSessionIdLen;
+	memcpy(pOut->aSessionId, pCtx->aSessionId, pCtx->iSessionIdLen);
+	memcpy(pOut->aMasterSecret, pCtx->aMasterSecret, sizeof(pOut->aMasterSecret));
+	return true;
+}
 
 // SHA-256("") 预计算
 static const uint8 __xrt_tls_zeros_sha256[32] = {
@@ -2303,10 +2496,20 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 {
 	uint8 aBuf[1024];
 	size_t iPos = 0;
+	size_t iSuitesPos;
+	size_t iSuitesStart;
+	size_t iExtPos;
+	bool bAllowTls13 = (pCtx->iMaxVersion == 0 || pCtx->iMaxVersion >= __XRT_TLS_VERSION_1_3);
 	
 	// 生成随机数和密钥对 (X25519 + X448 + P-256 + P-384)
 	xrtRandomBytes(pCtx->aRandom, 32);
-	xrtRandomBytes(pCtx->aSessionId, 32);
+	if ( pCtx->bHaveResume && pCtx->tResume.iVersion == __XRT_TLS_VERSION_1_2 && pCtx->tResume.iSessionIdLen > 0 ) {
+		pCtx->iSessionIdLen = pCtx->tResume.iSessionIdLen;
+		memcpy(pCtx->aSessionId, pCtx->tResume.aSessionId, pCtx->iSessionIdLen);
+	} else {
+		pCtx->iSessionIdLen = 32;
+		xrtRandomBytes(pCtx->aSessionId, 32);
+	}
 	xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
 	xrtX448Keypair(pCtx->aX448Priv, pCtx->aX448Pub);
 	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
@@ -2331,20 +2534,23 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	memcpy(aBuf + iPos, pCtx->aRandom, 32);
 	iPos += 32;
 	
-	// session ID (32 bytes)
-	aBuf[iPos++] = 32;
-	memcpy(aBuf + iPos, pCtx->aSessionId, 32);
-	iPos += 32;
+	// session ID
+	aBuf[iPos++] = pCtx->iSessionIdLen;
+	memcpy(aBuf + iPos, pCtx->aSessionId, pCtx->iSessionIdLen);
+	iPos += pCtx->iSessionIdLen;
 	
 	// cipher suites (TLS 1.3 + TLS 1.2 现代 AEAD 套件, 9 套件)
-	__xrt_tls_store_be16(aBuf + iPos, 18);  // 9 suites * 2 bytes
+	iSuitesPos = iPos;
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_CHACHA20_POLY1305_SHA256);  // TLS 1.3
-	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_128_GCM_SHA256);        // TLS 1.3
-	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_256_GCM_SHA384);        // TLS 1.3
-	iPos += 2;
+	iSuitesStart = iPos;
+	if ( bAllowTls13 ) {
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_CHACHA20_POLY1305_SHA256);  // TLS 1.3
+		iPos += 2;
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_128_GCM_SHA256);        // TLS 1.3
+		iPos += 2;
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_256_GCM_SHA384);        // TLS 1.3
+		iPos += 2;
+	}
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256);  // TLS 1.2
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256);    // TLS 1.2
@@ -2357,23 +2563,26 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256);    // TLS 1.2
 	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iSuitesPos, (uint16)(iPos - iSuitesStart));
 	
 	// compression methods
 	aBuf[iPos++] = 1;   // length
 	aBuf[iPos++] = 0;   // null compression
 	
 	// --- Extensions ---
-	size_t iExtPos = iPos;
+	iExtPos = iPos;
 	iPos += 2;  // 预留扩展总长度
 	
 	// Extension: supported_versions (0x002b) — TLS 1.3 preferred, TLS 1.2 fallback
 	__xrt_tls_store_be16(aBuf + iPos, 0x002b);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 5);  // ext data length
+	__xrt_tls_store_be16(aBuf + iPos, bAllowTls13 ? 5 : 3);  // ext data length
 	iPos += 2;
-	aBuf[iPos++] = 4;   // version list length (2 versions * 2 bytes)
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
-	iPos += 2;
+	aBuf[iPos++] = bAllowTls13 ? 4 : 2;   // version list length
+	if ( bAllowTls13 ) {
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
+		iPos += 2;
+	}
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
 	iPos += 2;
 	
@@ -2425,6 +2634,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aBuf + iPos, 0x0601);  // RSA-PKCS1-SHA512 (TLS 1.2 兼容)
 	iPos += 2;
 	
+	if ( bAllowTls13 ) {
 	// Extension: key_share (0x0033) - X25519 + X448 + P-256 + P-384
 	__xrt_tls_store_be16(aBuf + iPos, 0x0033);
 	iPos += 2;
@@ -2464,6 +2674,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	aBuf[iPos++] = 1;   // modes list length
 	aBuf[iPos++] = 1;   // psk_dhe_ke
+	}
 	
 	// Extension: ec_point_formats (0x000b) — TLS 1.2 兼容
 	__xrt_tls_store_be16(aBuf + iPos, 0x000b);
@@ -2530,6 +2741,7 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	if ( iLen < 2 + 32 + 1 ) return false;
 	
 	size_t iPos = 0;
+	bool bTls12ResumeAccepted = false;
 	
 	// legacy server version
 	uint16 iLegacyVer = __xrt_tls_load_be16(pMsg + iPos);
@@ -2541,6 +2753,9 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	
 	// session ID
 	uint8 iSessLen = pMsg[iPos++];
+	if ( iSessLen > sizeof(pCtx->aSessionId) || iPos + iSessLen > iLen ) return false;
+	pCtx->iSessionIdLen = iSessLen;
+	if ( iSessLen > 0 ) memcpy(pCtx->aSessionId, pMsg + iPos, iSessLen);
 	iPos += iSessLen;
 	
 	// cipher suite
@@ -2638,11 +2853,22 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 			#endif
 			return false;
 		}
+		if ( pCtx->bHaveResume
+			&& pCtx->tResume.iVersion == __XRT_TLS_VERSION_1_2
+			&& pCtx->tResume.iSessionIdLen == pCtx->iSessionIdLen
+			&& pCtx->tResume.iCipherSuite == pCtx->iCipherSuite
+			&& pCtx->iSessionIdLen > 0
+			&& memcmp(pCtx->tResume.aSessionId, pCtx->aSessionId, pCtx->iSessionIdLen) == 0 ) {
+			memcpy(pCtx->aMasterSecret, pCtx->tResume.aMasterSecret, sizeof(pCtx->aMasterSecret));
+			bTls12ResumeAccepted = true;
+		}
 		
 		#ifdef DEBUG_TRACE
 			printf("    [TLS] ServerHello: TLS 1.2, cipher=0x%04x, sha384=%d, ecdhe=%d, keyLen=%d\n",
 				pCtx->iCipherSuite, pCtx->bUseSHA384, pCtx->bIsECDHE, pCtx->iKeyLen);
+			if ( bTls12ResumeAccepted ) printf("    [TLS] ServerHello: session resumed\n");
 		#endif
+		pCtx->bSessionResumed = bTls12ResumeAccepted;
 		return true;
 	}
 	
@@ -3699,11 +3925,18 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	if ( pConfig ) {
 		pCtx->bSkipVerify = !pConfig->bVerifyPeer;
 		pCtx->bAllowTLS12Ed25519 = pConfig->bAllowTLS12Ed25519;
+		pCtx->iMaxVersion = pConfig->iMaxVersion;
 		if ( pConfig->sHostName ) {
 			strncpy(pCtx->sHostname, pConfig->sHostName, sizeof(pCtx->sHostname) - 1);
 		}
 		pCtx->OnSNI = pConfig->OnSNI;
 		pCtx->pSNIUserData = pConfig->pSNIUserData;
+		if ( pConfig->pResume && __xrt_tls_resume_copy(&pCtx->tResume, pConfig->pResume) ) {
+			pCtx->bHaveResume = true;
+			if ( pCtx->iMaxVersion == 0 || pCtx->iMaxVersion > pCtx->tResume.iVersion ) {
+				pCtx->iMaxVersion = pCtx->tResume.iVersion;
+			}
+		}
 		if ( (pConfig->sCertFile && pConfig->sCertFile[0]) || (pConfig->sKeyFile && pConfig->sKeyFile[0]) ) {
 			if ( xrtTlsSetCert(pCtx, pConfig->sCertFile, pConfig->sKeyFile) != XRT_NET_OK ) {
 				xrtTlsDestroy(pCtx);
@@ -3739,6 +3972,7 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	memset(pCtx->aX25519Secret, 0, sizeof(pCtx->aX25519Secret));
 	memset(&pCtx->tEnc, 0, sizeof(struct __xrt_tls_enc));
 	memset(&pCtx->tAppKeys, 0, sizeof(struct __xrt_tls_enc));
+	memset(&pCtx->tResume, 0, sizeof(pCtx->tResume));
 	memset(pCtx->aMasterSecret, 0, 48);
 	memset(pCtx->aP256Priv, 0, sizeof(pCtx->aP256Priv));
 	memset(pCtx->aP384Priv, 0, sizeof(pCtx->aP384Priv));
@@ -3750,12 +3984,14 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	xrtFree(pCtx);
 }
 
-XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
+static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool bAllowSocketIO)
 {
-	if ( !pCtx || hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	if ( !pCtx ) return XRT_NET_ERROR;
+	if ( bAllowSocketIO && hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
 	
 	// 如果有待发送数据，先发送
 	if ( pCtx->tSendBuf.iSize > 0 ) {
+		if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 		size_t iSent = 0;
 		xnet_result iRes = __xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
 		if ( iRes == XRT_NET_OK && iSent > 0 ) {
@@ -3780,6 +4016,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS_CLIENT_WAIT_SH: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -3844,7 +4081,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 			
 			if ( pCtx->bIsTls12 ) {
 				// TLS 1.2: 不派生握手密钥, 后续消息仍为明文
-				pCtx->iState = XRT_TLS12_CLIENT_WAIT_CERT;
+				if ( pCtx->bSessionResumed ) {
+					__xrt_tls12_derive_keys(pCtx);
+					pCtx->iState = XRT_TLS12_CLIENT_WAIT_CCS;
+				} else {
+					pCtx->iState = XRT_TLS12_CLIENT_WAIT_CERT;
+				}
 				#ifdef DEBUG_TRACE
 					printf("    [TLS] After ServerHello: aRandom: ");
 					for (int i = 0; i < 32; i++) printf("%02x", pCtx->aRandom[i]);
@@ -3864,6 +4106,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS_CLIENT_WAIT_FINISH: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -4113,6 +4356,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 			#endif
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -4220,6 +4464,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_CLIENT_WAIT_CCS: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -4262,6 +4507,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_CLIENT_WAIT_FINISH: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -4313,6 +4559,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 							return XRT_NET_ERROR;
 						}
 						
+						if ( pCtx->bSessionResumed ) {
+							__xrt_tls12_update_hash(pCtx, aPlain, __XRT_TLS_MSGHDR_SIZE + iFinLen);
+							__xrt_tls12_send_ccs_finished(pCtx, false);
+						}
 						pCtx->bHandshakeDone = true;
 						pCtx->iState = XRT_TLS12_CLIENT_CONNECTED;
 						#ifdef DEBUG_TRACE
@@ -4345,6 +4595,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 						if ( !__xrt_tls12_verify_finished(pCtx, aPlain + __XRT_TLS_MSGHDR_SIZE, iFinLen, true) ) {
 							return XRT_NET_ERROR;
 						}
+						if ( pCtx->bSessionResumed ) {
+							__xrt_tls12_update_hash(pCtx, aPlain, __XRT_TLS_MSGHDR_SIZE + iFinLen);
+							__xrt_tls12_send_ccs_finished(pCtx, false);
+						}
 						pCtx->bHandshakeDone = true;
 						pCtx->iState = XRT_TLS12_CLIENT_CONNECTED;
 						return XRT_NET_AGAIN;
@@ -4361,6 +4615,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_CLIENT_CONNECTED:
 			// 发送剩余数据
 			if ( pCtx->tSendBuf.iSize > 0 ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				size_t iSent = 0;
 				__xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
 				if ( iSent > 0 ) __xrt_tls_buf_consume(&pCtx->tSendBuf, iSent);
@@ -4371,6 +4626,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS_SERVER_START:
 		{
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -4403,8 +4659,15 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 							pCtx->iCipherSuite, pCtx->iTls12Curve, pCtx->iServerSigAlg);
 					#endif
 					__xrt_tls12_update_hash(pCtx, pRecData, iRecLen);
-					if ( !__xrt_tls12_send_server_flight(pCtx) ) return XRT_NET_ERROR;
-					pCtx->iState = XRT_TLS12_SERVER_WAIT_CKE;
+					if ( pCtx->bSessionResumed ) {
+						if ( !__xrt_tls12_send_server_hello(pCtx) ) return XRT_NET_ERROR;
+						__xrt_tls12_derive_keys(pCtx);
+						__xrt_tls12_send_ccs_finished(pCtx, true);
+						pCtx->iState = XRT_TLS12_SERVER_WAIT_CCS;
+					} else {
+						if ( !__xrt_tls12_send_server_flight(pCtx) ) return XRT_NET_ERROR;
+						pCtx->iState = XRT_TLS12_SERVER_WAIT_CKE;
+					}
 				} else {
 					#ifdef DEBUG_TRACE
 						printf("    [TLS13] server negotiated suite=0x%04x group=0x%04x sig=0x%04x\n",
@@ -4425,6 +4688,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_SERVER_WAIT_CCS:
 		case XRT_TLS12_SERVER_WAIT_FINISH: {
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -4515,8 +4779,16 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 						}
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
 						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
-						__xrt_tls12_send_ccs_finished(pCtx, true);
+						if ( !pCtx->bSessionResumed ) {
+							__xrt_tls12_send_ccs_finished(pCtx, true);
+						}
 						pCtx->bHandshakeDone = true;
+						if ( !pCtx->bSessionResumed ) {
+							struct xrt_tls_resume tResume;
+							if ( __xrt_tls_resume_from_ctx(pCtx, &tResume) ) {
+								__xrt_tls_resume_cache_store(&tResume);
+							}
+						}
 						pCtx->iState = XRT_TLS_SERVER_CONNECTED;
 						return XRT_NET_AGAIN;
 					}
@@ -4527,6 +4799,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		
 		case XRT_TLS_SERVER_NEGOTIATED: {
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -4607,6 +4880,16 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		default:
 			return XRT_NET_ERROR;
 	}
+}
+
+XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
+{
+	return __xrt_tls_drive_internal(pCtx, hSocket, true);
+}
+
+XXAPI xnet_result xrtTlsDrive(xtlsctx *pCtx)
+{
+	return __xrt_tls_drive_internal(pCtx, XSOCKET_INVALID, false);
 }
 
 XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
@@ -4741,6 +5024,31 @@ XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
 	__xrt_tls_buf_consume(&pCtx->tSendBuf, iLen);
 }
 
+XXAPI xtlsresume* xrtTlsExportResume(xtlsctx *pCtx)
+{
+	xtlsresume* pResume;
+	if ( !pCtx ) return NULL;
+	pResume = (xtlsresume*)xrtCalloc(1, sizeof(xtlsresume));
+	if ( !pResume ) return NULL;
+	if ( !__xrt_tls_resume_from_ctx(pCtx, pResume) ) {
+		xrtFree(pResume);
+		return NULL;
+	}
+	return pResume;
+}
+
+XXAPI void xrtTlsResumeDestroy(xtlsresume* pResume)
+{
+	if ( !pResume ) return;
+	memset(pResume, 0, sizeof(*pResume));
+	xrtFree(pResume);
+}
+
+XXAPI bool xrtTlsWasResumed(xtlsctx *pCtx)
+{
+	return pCtx ? pCtx->bSessionResumed : false;
+}
+
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
 static void __xrt_tls_derive_application_keys(xtlsctx *pCtx);
 static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
@@ -4766,6 +5074,9 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	uint8 aP256Peer[65];
 	uint8 aP384Peer[97];
 	bool bHaveX25519 = false, bHaveX448 = false, bHaveP256 = false, bHaveP384 = false;
+	struct xrt_tls_resume tCachedResume;
+	bool bHaveCachedResume = false;
+	bool bAllowTls13 = false;
 
 	if ( !pCtx ) return false;
 	pCtx->bPeerSigECDSAP256 = false;
@@ -4784,6 +5095,8 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	pCtx->iServerSigAlg = 0;
 	pCtx->sClientSNI[0] = '\0';
 	pCtx->bIsTls12 = false;
+	pCtx->bSessionResumed = false;
+	bAllowTls13 = (pCtx->iMaxVersion == 0 || pCtx->iMaxVersion >= __XRT_TLS_VERSION_1_3);
 	
 	// client_version(2)
 	if ( iPos + 2 > iLen ) return false;
@@ -4978,7 +5291,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	}
 
 	// 优先协商 TLS 1.3
-	if ( bTls13Supported ) {
+	if ( bAllowTls13 && bTls13Supported ) {
 		if ( bOfferTLS13AES256 ) pCtx->iCipherSuite = __XRT_TLS_AES_256_GCM_SHA384;
 		else if ( bOfferTLS13ChaCha ) pCtx->iCipherSuite = __XRT_TLS_CHACHA20_POLY1305_SHA256;
 		else if ( bOfferTLS13AES128 ) pCtx->iCipherSuite = __XRT_TLS_AES_128_GCM_SHA256;
@@ -5079,6 +5392,23 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 
 	// TLS 1.2 中 Ed25519 不是默认互操作路径, 仅在显式允许时作为 ECDHE_ECDSA 认证证书使用。
 	if ( pCtx->bIsEd25519Key && !pCtx->bAllowTLS12Ed25519 ) return false;
+
+	if ( pCtx->iSessionIdLen > 0
+		&& __xrt_tls_resume_cache_lookup(pCtx->aSessionId, pCtx->iSessionIdLen, &tCachedResume)
+		&& __xrt_tls12_client_offers_suite(tCachedResume.iCipherSuite,
+			bOfferTLS12EcdheEcdsaAES128,
+			bOfferTLS12EcdheEcdsaAES256,
+			bOfferTLS12EcdheEcdsaChaCha,
+			bOfferTLS12EcdheRsaAES128,
+			bOfferTLS12EcdheRsaAES256,
+			bOfferTLS12EcdheRsaChaCha) ) {
+		pCtx->iCipherSuite = tCachedResume.iCipherSuite;
+		if ( !__xrt_tls12_set_cipher_params(pCtx, pCtx->iCipherSuite) ) return false;
+		memcpy(pCtx->aMasterSecret, tCachedResume.aMasterSecret, sizeof(pCtx->aMasterSecret));
+		pCtx->bIsTls12 = true;
+		pCtx->bSessionResumed = true;
+		return true;
+	}
 
 	if ( pCtx->bIsECPubKey || pCtx->bIsEd25519Key ) {
 		if ( bOfferTLS12EcdheEcdsaAES256 ) pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384;
@@ -5853,4 +6183,3 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 	}
 }
 #endif
-

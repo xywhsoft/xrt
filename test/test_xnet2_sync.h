@@ -33,6 +33,14 @@ typedef struct {
 } __test_xnet2_sync_coro_case;
 
 typedef struct {
+	xnetfuture* pFuture;
+	int iPayload;
+	xnet_result arrStatus[2];
+	ptr arrValues[2];
+	bool arrDone[2];
+} __test_xnet2_sync_multi_coro_case;
+
+typedef struct {
 	int iPayload;
 	volatile long iHitCount;
 	volatile long iWorkerId;
@@ -244,6 +252,24 @@ static void __Test_XNet2_SyncFutureWaitCo(ptr pArg)
 	pCase->iWaitStatus = xrtNetFutureWaitCo(pCase->pFuture);
 	pCase->pResolvedValue = xrtNetFutureValue(pCase->pFuture);
 	pCase->bDone = true;
+}
+
+static void __Test_XNet2_SyncFutureWaitCoMulti1(ptr pArg)
+{
+	__test_xnet2_sync_multi_coro_case* pCase = (__test_xnet2_sync_multi_coro_case*)pArg;
+	if ( !pCase ) return;
+	pCase->arrStatus[0] = xrtNetFutureWaitCo(pCase->pFuture);
+	pCase->arrValues[0] = xrtNetFutureValue(pCase->pFuture);
+	pCase->arrDone[0] = true;
+}
+
+static void __Test_XNet2_SyncFutureWaitCoMulti2(ptr pArg)
+{
+	__test_xnet2_sync_multi_coro_case* pCase = (__test_xnet2_sync_multi_coro_case*)pArg;
+	if ( !pCase ) return;
+	pCase->arrStatus[1] = xrtNetFutureWaitCo(pCase->pFuture);
+	pCase->arrValues[1] = xrtNetFutureValue(pCase->pFuture);
+	pCase->arrDone[1] = true;
 }
 
 static void __Test_XNet2_SyncWaitSourceFutureCo(ptr pArg)
@@ -504,6 +530,16 @@ static void __Test_XNet2_SyncStreamCloseWaitCo(ptr pArg)
 static uint32 __Test_XNet2_SyncFutureResolveWorker(ptr pArg)
 {
 	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
+
+	if ( !pCase || !pCase->pFuture ) return 0;
+	__Test_XNet2_SyncSleepMs(50);
+	(void)__xnetFutureResolve(pCase->pFuture, XRT_NET_OK, &pCase->iPayload);
+	return 0;
+}
+
+static uint32 __Test_XNet2_SyncFutureResolveWorkerMulti(ptr pArg)
+{
+	__test_xnet2_sync_multi_coro_case* pCase = (__test_xnet2_sync_multi_coro_case*)pArg;
 
 	if ( !pCase || !pCase->pFuture ) return 0;
 	__Test_XNet2_SyncSleepMs(50);
@@ -1395,6 +1431,35 @@ void Test_XNet2_Sync(void)
 		printf("  Future coroutine wait status : %s\n", tCase.iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Future coroutine wait value : %s\n", tCase.pResolvedValue == &tCase.iPayload ? "PASS" : "FAIL");
 		printf("  Future coroutine wait completion : %s\n", tCase.bDone ? "PASS" : "FAIL");
+
+		if ( tCase.pFuture ) xrtNetFutureDestroy(tCase.pFuture);
+		if ( pSched ) xrtCoSchedDestroy(pSched);
+	}
+
+	{
+		__test_xnet2_sync_multi_coro_case tCase;
+		xcosched* pSched = NULL;
+		xthread pThread = NULL;
+
+		memset(&tCase, 0, sizeof(tCase));
+		tCase.pFuture = xrtNetFutureCreate();
+		tCase.iPayload = 11223;
+		pSched = xrtCoSchedCreate();
+		if ( pSched && tCase.pFuture ) {
+			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCoMulti1, &tCase, 0);
+			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCoMulti2, &tCase, 0);
+			pThread = xrtThreadCreate(__Test_XNet2_SyncFutureResolveWorkerMulti, &tCase, 0);
+			xrtCoSchedRun(pSched);
+		}
+
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			xrtThreadDestroy(pThread);
+		}
+
+		printf("  Future multi coroutine wait create : %s\n", tCase.pFuture && pSched ? "PASS" : "FAIL");
+		printf("  Future multi waiter #1 : %s\n", (tCase.arrDone[0] && tCase.arrStatus[0] == XRT_NET_OK && tCase.arrValues[0] == &tCase.iPayload) ? "PASS" : "FAIL");
+		printf("  Future multi waiter #2 : %s\n", (tCase.arrDone[1] && tCase.arrStatus[1] == XRT_NET_OK && tCase.arrValues[1] == &tCase.iPayload) ? "PASS" : "FAIL");
 
 		if ( tCase.pFuture ) xrtNetFutureDestroy(tCase.pFuture);
 		if ( pSched ) xrtCoSchedDestroy(pSched);

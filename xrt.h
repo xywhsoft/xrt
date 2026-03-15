@@ -695,7 +695,7 @@
 		return pOwner->iMode;
 	}
 
-	// 允许对象进入共享模式（phase-2 staged 入口）
+	// 允许对象进入共享模式
 	static inline void xrtOwnerSetShared(xrtOwnerInfo* pOwner)
 	{
 		if ( pOwner == NULL ) {
@@ -1369,6 +1369,10 @@
 		volatile int bFinished;					// 是否已经结束
 		volatile int bJoined;					// 是否已经完成等待
 		uint32 ExitCode;						// 线程退出码
+		#if !defined(_WIN32) && !defined(_WIN64)
+			pthread_mutex_t FinishLock;			// 结束状态锁（POSIX）
+			pthread_cond_t FinishCond;			// 结束条件变量（POSIX，monotonic）
+		#endif
 	} xthread_struct, *xthread;
 	
 	// 互斥体数据结构
@@ -1385,7 +1389,10 @@
 		#if defined(_WIN32) || defined(_WIN64)
 			HANDLE objSem;					// Windows：内核信号量句柄（直接嵌入）
 		#else
-			sem_t objSem;					// POSIX：sem_t 对象（直接嵌入，无需额外 malloc）
+			pthread_mutex_t objLock;		// POSIX：自维护锁（monotonic wait）
+			pthread_cond_t objCond;			// POSIX：自维护条件变量（monotonic wait）
+			uint32 iValue;					// 当前计数
+			uint32 iMaxValue;				// 最大计数
 		#endif
 	} xsem_struct, *xsem;
 	
@@ -1426,15 +1433,6 @@
 	
 	// 检查是否应该停止（线程内调用）
 	XXAPI bool xrtThreadShouldStop(xthread pThread);
-	
-	// 强制终止线程（危险操作，可能导致资源泄漏）
-	XXAPI bool xrtThreadKill(xthread pThread);
-	
-	// 挂起线程
-	XXAPI bool xrtThreadSuspend(xthread pThread);
-	
-	// 恢复线程
-	XXAPI bool xrtThreadResume(xthread pThread);
 	
 	// 获取线程状态
 	XXAPI int xrtThreadGetState(xthread pThread);
@@ -1579,12 +1577,8 @@
 	#define XRT_CO_TERM_RETURNED     1
 	#define XRT_CO_TERM_CANCELLED    2
 
-	// 协程 backend 分层
-	#define XRT_CO_BACKEND_TIER_COMPAT       1
+	// 协程 backend 分层/风格：主线只保留 production inline-asm 实现
 	#define XRT_CO_BACKEND_TIER_PRODUCTION   2
-
-	// 协程 backend 实现风格
-	#define XRT_CO_BACKEND_STYLE_COMPAT      1
 	#define XRT_CO_BACKEND_STYLE_INLINE_ASM  2
 	
 	// 默认栈大小
@@ -1643,7 +1637,11 @@
 		uint32 __iWaitKind;     // 当前等待类型（内部使用）
 		uint32 __iWaitResult;   // 当前等待结果（内部使用）
 		struct xcoro_struct* __pJoinTarget; // 当前等待的目标协程
-		struct xcoro_struct* __pJoinWaiter; // 等待本协程结束的协程（当前仅支持单等待者）
+		struct xcoro_struct* __pJoinWaitHead; // 等待本协程结束的协程队列头
+		struct xcoro_struct* __pJoinWaitTail; // 等待本协程结束的协程队列尾
+		struct xcoro_struct* __pWaitPrev; // 等待队列 prev
+		struct xcoro_struct* __pWaitNext; // 等待队列 next
+		uint32 __iJoinRefCount;   // join 引用计数，用于 pin DEAD 协程直到所有等待者返回
 		xco_cleanup* __pCleanupTop; // 协程退出清理栈
 		struct xcoro_struct* __pReadyPrev;  // ready queue prev
 		struct xcoro_struct* __pReadyNext;  // ready queue next
@@ -1658,7 +1656,8 @@
 		xmutex pLock;
 		bool bManualReset;
 		bool bSignaled;
-		struct xcoro_struct* pWaiter;
+		struct xcoro_struct* pWaitHead;
+		struct xcoro_struct* pWaitTail;
 	} xcoevent_struct, *xcoevent;
 	
 	/* ---------- 协程生命周期 ---------- */
@@ -2013,6 +2012,7 @@
 
     /* ---- TLS context/config ---- */
     typedef struct xrt_tls_context xtlsctx;
+    typedef struct xrt_tls_resume xtlsresume;
     typedef struct {
         const char* sCertFile;
         const char* sKeyFile;
@@ -2022,6 +2022,8 @@
         void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
         ptr pSNIUserData;
         bool bAllowTLS12Ed25519;
+        uint16 iMaxVersion;
+        const xtlsresume* pResume;
     } xtlsconfig;
 
 	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
@@ -2131,6 +2133,7 @@
     XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
     XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
+    XXAPI xnet_result xrtTlsDrive(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
     XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
     XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
@@ -2140,6 +2143,9 @@
     XXAPI size_t xrtTlsPendingRecv(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
     XXAPI void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
+    XXAPI xtlsresume* xrtTlsExportResume(xtlsctx* pCtx);
+    XXAPI void xrtTlsResumeDestroy(xtlsresume* pResume);
+    XXAPI bool xrtTlsWasResumed(xtlsctx* pCtx);
     XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);
     XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx* pCtx, bool bAllow);
@@ -2236,7 +2242,7 @@
 		uint32 Count;							// 管理器中存在多少成员
 		uint32 AllocCount;						// 已经申请的结构数量
 		uint32 AllocStep;						// 预分配内存步长
-		xrtOwnerInfo Owner;						// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;						// 所有权信息
 	} xparray_struct, *xparray;
 	
 	// 创建指针内存管理器
@@ -2325,7 +2331,7 @@
 		uint32 Count;					// 管理器中存在多少成员
 		uint32 AllocCount;				// 已经申请的结构数量
 		uint32 AllocStep;				// 预分配内存步长
-		xrtOwnerInfo Owner;				// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;				// 所有权信息
 	} xarray_struct, *xarray;
 	
 	// 创建数组
@@ -2398,7 +2404,7 @@
 	
 	// 数据块结构内存管理器数据结构
 	typedef struct {
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 		uint32 ItemLength;			// 成员占用内存长度
 		uint32 Count;					// 管理器中存在多少成员
 		xparray_struct PageMMU;				// 内存页管理器
@@ -2464,7 +2470,7 @@
 	
 	// 数据管理单元数据结构
 	typedef struct {
-		xrtOwnerInfo Owner;						// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;						// 所有权信息
 		uint8 FreeList[256];						// 已释放成员列表
 		uint32 ItemLength;							// 成员占用内存长度
 		uint16 Count;								// 成员数量
@@ -2569,7 +2575,7 @@
 	
 	// 256步进内存管理器数据结构
 	typedef struct {
-		xrtOwnerInfo Owner;					// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;					// 所有权信息
 		uint32 ItemLength;					// 成员占用内存长度
 		xbsmm_struct arrMMU;						// MMU 阵列
 		MMU_LLNode* LL_Idle;						// 有空闲的内存管理单元链表首元素 (优先分配内存的单元)
@@ -2804,7 +2810,7 @@
 		xavltnode RootNode;
 		uint32 Count;
 		xavltree_iterator Iterator;		// 当前激活的迭代器对象
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 		struct xavltree_struct* Parent;
 		AVLTree_CompProc CompProc;
 		AVLTree_FreeProc FreeProc;
@@ -2893,7 +2899,7 @@
 	
 	// 256步进内存池数据结构
 	typedef struct {
-		xrtOwnerInfo Owner;							// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;							// 所有权信息
 		FSB_Item* FSB_Memory;						// fixed-size-blocks 内存（MP256_Create参数为 1 或 2 时自动创建，否则需要手动创建，不为空会调用 mmu_free 释放）
 		FSB_Item* FSB_RootNode;						// fixed-size-blocks 二叉树（固定大小区块内存管理器阵列）
 		xbsmm_struct arrMMU;						// MMU 阵列
@@ -2942,7 +2948,7 @@
 	typedef struct {
 		xavltree_struct AVLT;
 		xmempool MP;
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 	} xdict_struct, *xdict;
 	
 	// 字典遍历回调函数
@@ -3072,7 +3078,7 @@
 	// 列表对象数据结构
 	typedef struct {
 		xavltree_struct AVLT;
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 	} xlist_struct, *xlist;
 	
 	// 列表遍历回调函数

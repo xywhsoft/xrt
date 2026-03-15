@@ -357,6 +357,35 @@ void Test_XNet_Httpd(void)
 
 		{
 			xsocket hRaw = XNET_SOCKET_INVALID;
+			char sReq[512];
+			char aResp[2048];
+			size_t iRespLen = 0u;
+			long iOpenBefore = __Test_XHttpdAtomicLoad(&tCtx.iOpenCount);
+			long iReqBefore = __Test_XHttpdAtomicLoad(&tCtx.iRequestCount);
+			long iCloseBefore = __Test_XHttpdAtomicLoad(&tCtx.iCloseCount);
+			hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+			snprintf(sReq, sizeof(sReq),
+				"POST /echo?mode=plain-reaccept HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n"
+				"Connection: close\r\n"
+				"Content-Type: text/plain\r\n"
+				"Content-Length: 5\r\n\r\n"
+				"again",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			printf("  HTTPD plain reaccept raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 2000u) ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept response code : %s\n", strstr(aResp, "HTTP/1.1 201") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept response body : %s\n", strstr(aResp, "\r\n\r\nagain") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept request callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iRequestCount, iReqBefore + 1, 1000u) ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept open callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iOpenCount, iOpenBefore + 1, 1000u) ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, iCloseBefore + 1, 2000u) ? "PASS" : "FAIL");
+			printf("  HTTPD plain reaccept final query : %s\n", strcmp(tCtx.aLastQuery, "mode=plain-reaccept") == 0 && strcmp(tCtx.aLastBody, "again") == 0 ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hRaw);
+		}
+
+		{
+			xsocket hRaw = XNET_SOCKET_INVALID;
 			char sReq1[512];
 			char sReq2[512];
 			char aResp[2048];

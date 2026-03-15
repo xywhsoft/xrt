@@ -213,11 +213,278 @@ void Test_XNet2_TLS(void)
 
 		if ( pAccepted ) xrtNetStreamDestroy(pAccepted);
 		if ( pClient ) xrtNetStreamDestroy(pClient);
+		__Test_XNet2_TLSSleepMs(20);
 		if ( pListener ) {
 			xrtNetListenerStop(pListener);
 			xrtNetListenerDestroy(pListener);
 		}
+		__Test_XNet2_TLSSleepMs(20);
 		xrtNetEngineStop(pEngine);
 		xrtNetEngineDestroy(pEngine);
+	}
+
+	__Test_XNet2_TLSSleepMs(100);
+
+	{
+		const char* sCertPath = "dev/xnet2_tls_test_cert.pem";
+		const char* sKeyPath = "dev/xnet2_tls_test_key.pem";
+		xnetengineconfig tEngineCfg;
+		xnetlistenconfig tListenCfg;
+		xnetconnectconfig tConnCfg;
+		xnetstreamevents tEvents;
+		xtlsconfig tServerTls;
+		xtlsconfig tClientTls;
+		__test_xnet2_tls_stats arrClientStats[4];
+		__test_xnet2_tls_stats arrServerStats[4];
+		xnetengine* pEngine;
+		xnetlistener* pListener;
+		bool bAllOpen = true;
+		bool bAllClose = true;
+		bool bErrorFree = true;
+		const int iRounds = 4;
+
+		if ( !__Test_XNet2_TLSFileExists(sCertPath) || !__Test_XNet2_TLSFileExists(sKeyPath) ) {
+			printf("  TLS repeated handshakes : SKIP\n");
+			return;
+		}
+
+		memset(&tEvents, 0, sizeof(tEvents));
+		memset(&tServerTls, 0, sizeof(tServerTls));
+		memset(&tClientTls, 0, sizeof(tClientTls));
+		memset(arrClientStats, 0, sizeof(arrClientStats));
+		memset(arrServerStats, 0, sizeof(arrServerStats));
+		tEvents.OnOpen = __Test_XNet2_TLSOnOpen;
+		tEvents.OnRecv = __Test_XNet2_TLSOnRecv;
+		tEvents.OnClose = __Test_XNet2_TLSOnClose;
+		tEvents.OnError = __Test_XNet2_TLSOnError;
+		tServerTls.sCertFile = sCertPath;
+		tServerTls.sKeyFile = sKeyPath;
+		tServerTls.bVerifyPeer = false;
+		tClientTls.sHostName = "localhost";
+		tClientTls.bVerifyPeer = false;
+
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		xrtNetListenConfigInit(&tListenCfg);
+		xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 0);
+		tListenCfg.pTlsConfig = &tServerTls;
+		xrtNetConnectConfigInit(&tConnCfg);
+		tConnCfg.sHost = "127.0.0.1";
+		tConnCfg.pTlsConfig = &tClientTls;
+
+		pEngine = xrtNetEngineCreate(&tEngineCfg);
+		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, NULL, &tEvents, NULL) : NULL;
+		if ( pEngine ) (void)xrtNetEngineStart(pEngine);
+		if ( pListener ) (void)xrtNetListenerStart(pListener);
+		if ( pListener ) tConnCfg.iPort = pListener->tConfig.tBindAddr.iPort;
+
+		for ( int iRound = 0; pEngine && pListener && iRound < iRounds; ++iRound ) {
+			__test_xnet2_tls_stats* pClientStats = &arrClientStats[iRound];
+			__test_xnet2_tls_stats* pServerStats = &arrServerStats[iRound];
+			xnetstream* pClient = NULL;
+			xnetstream* pAccepted = NULL;
+
+			memset(pClientStats, 0, sizeof(*pClientStats));
+			memset(pServerStats, 0, sizeof(*pServerStats));
+
+			pClient = xrtNetStreamCreate(pEngine, &tEvents, pClientStats);
+			if ( !pClient || xrtNetStreamConnect(pClient, &tConnCfg) != XRT_NET_OK ) {
+				bAllOpen = false;
+				if ( pClient ) xrtNetStreamDestroy(pClient);
+				break;
+			}
+
+			for ( int iAcceptRetry = 0; iAcceptRetry < 100 && !pAccepted; ++iAcceptRetry ) {
+				pAccepted = __xnetListenerTryAcceptOne(pListener, pServerStats);
+				if ( !pAccepted ) __Test_XNet2_TLSSleepMs(10);
+			}
+			if ( !pAccepted ) {
+				bAllOpen = false;
+				xrtNetStreamClose(pClient, XNET_CLOSE_F_ABORT);
+				xrtNetStreamDestroy(pClient);
+				break;
+			}
+
+			if ( !__Test_XNet2_TLSWaitMin(&pClientStats->iOpenCount, 1, 3000)
+				|| !__Test_XNet2_TLSWaitMin(&pServerStats->iOpenCount, 1, 3000) ) {
+				bAllOpen = false;
+			}
+
+			xrtNetStreamClose(pClient, XNET_CLOSE_F_GRACEFUL);
+			if ( !__Test_XNet2_TLSWaitMin(&pClientStats->iCloseCount, 1, 3000)
+				|| !__Test_XNet2_TLSWaitMin(&pServerStats->iCloseCount, 1, 3000) ) {
+				bAllClose = false;
+			}
+			if ( __Test_XNet2_TLSAtomicLoad(&pClientStats->iErrorCount) != 0
+				|| __Test_XNet2_TLSAtomicLoad(&pServerStats->iErrorCount) != 0 ) {
+				bErrorFree = false;
+			}
+
+			xrtNetStreamDestroy(pAccepted);
+			xrtNetStreamDestroy(pClient);
+			__Test_XNet2_TLSSleepMs(20);
+			if ( !bAllOpen || !bAllClose || !bErrorFree ) break;
+		}
+
+		printf("  TLS repeated sequential opens : %s\n", bAllOpen ? "PASS" : "FAIL");
+		printf("  TLS repeated sequential closes : %s\n", bAllClose ? "PASS" : "FAIL");
+		printf("  TLS repeated error-free path : %s\n", bErrorFree ? "PASS" : "FAIL");
+
+		if ( pListener ) {
+			xrtNetListenerStop(pListener);
+			xrtNetListenerDestroy(pListener);
+		}
+		if ( pEngine ) {
+			__Test_XNet2_TLSSleepMs(20);
+			xrtNetEngineStop(pEngine);
+			xrtNetEngineDestroy(pEngine);
+		}
+	}
+
+	__Test_XNet2_TLSSleepMs(100);
+
+	{
+		const char* sCertPath = "dev/xnet2_tls_test_cert.pem";
+		const char* sKeyPath = "dev/xnet2_tls_test_key.pem";
+		xnetengineconfig tEngineCfg;
+		xnetlistenconfig tListenCfg;
+		xnetconnectconfig tConnCfg;
+		xnetstreamevents tEvents;
+		xtlsconfig tServerTls;
+		xtlsconfig tClientTls;
+		__test_xnet2_tls_stats tClientStats1;
+		__test_xnet2_tls_stats tServerStats1;
+		__test_xnet2_tls_stats tClientStats2;
+		__test_xnet2_tls_stats tServerStats2;
+		xnetengine* pEngine = NULL;
+		xnetlistener* pListener = NULL;
+		xnetstream* pClient1 = NULL;
+		xnetstream* pAccepted1 = NULL;
+		xnetstream* pClient2 = NULL;
+		xnetstream* pAccepted2 = NULL;
+		xtlsresume* pResume = NULL;
+		bool bWarmOpen = false;
+		bool bResumeOpen = false;
+		bool bResumeExported = false;
+		bool bClientResumed = false;
+		bool bServerResumed = false;
+
+		if ( !__Test_XNet2_TLSFileExists(sCertPath) || !__Test_XNet2_TLSFileExists(sKeyPath) ) {
+			printf("  TLS session resume : SKIP\n");
+			return;
+		}
+
+		memset(&tEvents, 0, sizeof(tEvents));
+		memset(&tServerTls, 0, sizeof(tServerTls));
+		memset(&tClientTls, 0, sizeof(tClientTls));
+		memset(&tClientStats1, 0, sizeof(tClientStats1));
+		memset(&tServerStats1, 0, sizeof(tServerStats1));
+		memset(&tClientStats2, 0, sizeof(tClientStats2));
+		memset(&tServerStats2, 0, sizeof(tServerStats2));
+
+		tEvents.OnOpen = __Test_XNet2_TLSOnOpen;
+		tEvents.OnRecv = __Test_XNet2_TLSOnRecv;
+		tEvents.OnClose = __Test_XNet2_TLSOnClose;
+		tEvents.OnError = __Test_XNet2_TLSOnError;
+		tServerStats1.bEchoBack = true;
+		tServerStats2.bEchoBack = true;
+
+		tServerTls.sCertFile = sCertPath;
+		tServerTls.sKeyFile = sKeyPath;
+		tServerTls.bVerifyPeer = false;
+		tServerTls.iMaxVersion = 0x0303u;
+
+		tClientTls.sHostName = "localhost";
+		tClientTls.bVerifyPeer = false;
+		tClientTls.iMaxVersion = 0x0303u;
+
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		xrtNetListenConfigInit(&tListenCfg);
+		xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 0);
+		tListenCfg.pTlsConfig = &tServerTls;
+		xrtNetConnectConfigInit(&tConnCfg);
+		tConnCfg.sHost = "127.0.0.1";
+		tConnCfg.pTlsConfig = &tClientTls;
+
+		pEngine = xrtNetEngineCreate(&tEngineCfg);
+		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, NULL, &tEvents, NULL) : NULL;
+		if ( pEngine ) (void)xrtNetEngineStart(pEngine);
+		if ( pListener ) (void)xrtNetListenerStart(pListener);
+		if ( pListener ) tConnCfg.iPort = pListener->tConfig.tBindAddr.iPort;
+
+		if ( pEngine && pListener ) {
+			pClient1 = xrtNetStreamCreate(pEngine, &tEvents, &tClientStats1);
+		}
+		if ( pClient1 && xrtNetStreamConnect(pClient1, &tConnCfg) == XRT_NET_OK ) {
+			for ( int iAcceptRetry = 0; iAcceptRetry < 100 && !pAccepted1; ++iAcceptRetry ) {
+				pAccepted1 = __xnetListenerTryAcceptOne(pListener, &tServerStats1);
+				if ( !pAccepted1 ) __Test_XNet2_TLSSleepMs(10);
+			}
+		}
+		if ( pAccepted1 ) {
+			bWarmOpen = __Test_XNet2_TLSWaitMin(&tClientStats1.iOpenCount, 1, 3000)
+				&& __Test_XNet2_TLSWaitMin(&tServerStats1.iOpenCount, 1, 3000);
+		}
+		if ( bWarmOpen && pClient1 && pClient1->pTls && pClient1->pTls->pCtx ) {
+			pResume = xrtTlsExportResume(pClient1->pTls->pCtx);
+			bResumeExported = (pResume != NULL);
+		}
+		if ( pClient1 ) xrtNetStreamClose(pClient1, XNET_CLOSE_F_GRACEFUL);
+		(void)__Test_XNet2_TLSWaitMin(&tClientStats1.iCloseCount, 1, 3000);
+		(void)__Test_XNet2_TLSWaitMin(&tServerStats1.iCloseCount, 1, 3000);
+		if ( pAccepted1 ) xrtNetStreamDestroy(pAccepted1);
+		if ( pClient1 ) xrtNetStreamDestroy(pClient1);
+		pAccepted1 = NULL;
+		pClient1 = NULL;
+		__Test_XNet2_TLSSleepMs(30);
+
+		if ( pResume ) {
+			tClientTls.pResume = pResume;
+			pClient2 = xrtNetStreamCreate(pEngine, &tEvents, &tClientStats2);
+			if ( pClient2 && xrtNetStreamConnect(pClient2, &tConnCfg) == XRT_NET_OK ) {
+				for ( int iAcceptRetry = 0; iAcceptRetry < 100 && !pAccepted2; ++iAcceptRetry ) {
+					pAccepted2 = __xnetListenerTryAcceptOne(pListener, &tServerStats2);
+					if ( !pAccepted2 ) __Test_XNet2_TLSSleepMs(10);
+				}
+			}
+			if ( pAccepted2 ) {
+				bResumeOpen = __Test_XNet2_TLSWaitMin(&tClientStats2.iOpenCount, 1, 3000)
+					&& __Test_XNet2_TLSWaitMin(&tServerStats2.iOpenCount, 1, 3000);
+			}
+			if ( bResumeOpen && pClient2 && pClient2->pTls && pClient2->pTls->pCtx ) {
+				bClientResumed = xrtTlsWasResumed(pClient2->pTls->pCtx);
+			}
+			if ( bResumeOpen && pAccepted2 && pAccepted2->pTls && pAccepted2->pTls->pCtx ) {
+				bServerResumed = xrtTlsWasResumed(pAccepted2->pTls->pCtx);
+			}
+			if ( bResumeOpen ) {
+				(void)xrtNetStreamSend(pClient2, "resume tls", 10);
+				(void)__Test_XNet2_TLSWaitMin(&tServerStats2.iRecvCount, 1, 3000);
+				(void)__Test_XNet2_TLSWaitMin(&tClientStats2.iRecvCount, 1, 3000);
+			}
+		}
+
+		printf("  TLS resume warm full handshake : %s\n", bWarmOpen ? "PASS" : "FAIL");
+		printf("  TLS resume export : %s\n", bResumeExported ? "PASS" : "FAIL");
+		printf("  TLS resumed reconnect open : %s\n", bResumeOpen ? "PASS" : "FAIL");
+		printf("  TLS resumed client state : %s\n", bClientResumed ? "PASS" : "FAIL");
+		printf("  TLS resumed server state : %s\n", bServerResumed ? "PASS" : "FAIL");
+
+		if ( pClient2 ) xrtNetStreamClose(pClient2, XNET_CLOSE_F_GRACEFUL);
+		(void)__Test_XNet2_TLSWaitMin(&tClientStats2.iCloseCount, 1, 3000);
+		(void)__Test_XNet2_TLSWaitMin(&tServerStats2.iCloseCount, 1, 3000);
+		if ( pAccepted2 ) xrtNetStreamDestroy(pAccepted2);
+		if ( pClient2 ) xrtNetStreamDestroy(pClient2);
+		if ( pResume ) xrtTlsResumeDestroy(pResume);
+		if ( pListener ) {
+			xrtNetListenerStop(pListener);
+			xrtNetListenerDestroy(pListener);
+		}
+		if ( pEngine ) {
+			__Test_XNet2_TLSSleepMs(20);
+			xrtNetEngineStop(pEngine);
+			xrtNetEngineDestroy(pEngine);
+		}
 	}
 }

@@ -19,16 +19,17 @@
 
 
 /*
-    XNet V2 - Base Types and Config
+    XRT mainline network base model.
 
-    This header defines the shared public model used by the xnet-v2 stack.
-    It is designed to work both inside xrt.h and as a standalone header during
-    focused xnet development and testing.
+    This header defines the shared public types used by the modern xnet stack.
+    It is designed to work both inside xrt.h and as a focused standalone header
+    for transport development and testing.
 
     Public responsibilities:
-      - widened IPv4/IPv6 address model
-      - shared result codes, socket handles, and config types
-      - public engine/stream/dgram/future forward declarations
+      - IPv4/IPv6 address and endpoint representation
+      - shared result codes, socket handles, and config structures
+      - forward declarations for engine, stream, datagram, listener, and future
+        objects
 */
 
 
@@ -150,6 +151,7 @@ typedef struct {
 
 #define XNET_CLOSE_F_ABORT            0x00000001u
 #define XNET_CLOSE_F_GRACEFUL         0x00000002u
+#define XNET_CLOSE_F_WAIT_PEER        0x00000004u
 
 
 

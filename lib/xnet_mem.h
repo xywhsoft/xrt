@@ -10,13 +10,13 @@
 #include "xnet_base.h"
 
 /*
-    XNet V2 - Memory Blocks and Chains
+    XRT mainline network memory blocks and chains.
 
-    Phase-1 staging implementation:
-      - chain model is implemented
-      - allocator contexts support small/medium/large cached blocks
-      - payloads larger than the large class fall back to dynamic blocks
-      - worker-local integration is still pending the engine/runtime layers
+    This header provides:
+      - cached small/medium/large block classes for transport and protocol I/O
+      - dynamic blocks for oversized payloads
+      - ref blocks for zero-copy send and external buffer ownership
+      - xnetchain helpers for append, peek, span extraction, and consume
 */
 
 

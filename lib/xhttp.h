@@ -6,17 +6,18 @@
 #include "xnet_sync.h"
 
 /*
-    XNet V2 - HTTP Client Rebuild Skeleton
+    XRT mainline HTTP/1.1 client on top of xnet.
 
-    Phase-3 scope in this header:
+    This header provides:
       - request and response objects
-      - one-shot async HTTP/1.1 client transaction on xnet_stream
-      - sync facade over the same async transport core
+      - async HTTP/1.1 transactions over plain TCP or builtin TLS
+      - sync facades that reuse the same async transport core
+      - serial keep-alive connection reuse for the same origin
 
     Current limitations:
-      - one request per connection, default Connection: keep-alive
-      - whole-body chunked transfer is supported, but trailers are metadata-only
-      - streaming bodies are still deferred to later protocol work
+      - whole-body request/response handling is the primary path
+      - chunked transfer is supported, but trailers remain metadata-only
+      - streaming request/response bodies are still deferred
 */
 
 #define XHTTP_METHOD_CAP         16u
@@ -814,15 +815,16 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	}
 	xrtCodecFrameConsume(pChain, &tFrame);
 	bReusable = __xhttpResponseReusable(pTx, &tMsg);
-	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 	if ( bReusable && pConn ) {
 		pConn->pTx = NULL;
 		pTx->pConn = NULL;
 		pTx->pStream = NULL;
 		(void)__xhttpPoolPut(pConn);
+		(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 		__xhttpTxPostCleanup(pTx);
 		return;
 	}
+	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 }
 
