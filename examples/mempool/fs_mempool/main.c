@@ -24,7 +24,7 @@ static void test_basic_fsmempool(void)
 {
 	printf("=== Test: Basic FS Memory Pool ===\n");
 
-	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(Record));
+	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(Record), XRT_OBJMODE_LOCAL);
 	Record* pRecords[5];
 
 	printf("Created FS MemPool with item size: %u bytes\n", (uint32)sizeof(Record));
@@ -54,7 +54,7 @@ static void test_large_allocation(void)
 
 	printf("\n=== Test: Large Number of Allocations ===\n");
 
-	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(int));
+	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	int* pPtrs[ALLOC_COUNT];
 
 	printf("Allocating %d integers...\n", ALLOC_COUNT);
@@ -87,7 +87,7 @@ static void test_gc_helpers(void)
 {
 	printf("\n=== Test: Garbage Collection Helpers ===\n");
 
-	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(int));
+	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	int* pPtrs[10];
 
 	printf("Allocating 10 integers...\n");

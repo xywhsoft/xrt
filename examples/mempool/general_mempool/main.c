@@ -18,7 +18,7 @@ static void test_basic_mempool(void)
 {
 	printf("=== Test: Basic General Memory Pool ===\n");
 
-	xmempool pPool = xrtMemPoolCreate(0);
+	xmempool pPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 
 	printf("Created general MemPool (cutoff=0 => default 16..1024 profile)\n");
 	printf("\nAllocating various sizes:\n");
@@ -65,7 +65,7 @@ static void test_struct_allocation(void)
 
 	printf("\n=== Test: Struct Allocation ===\n");
 
-	xmempool pPool = xrtMemPoolCreate(0);
+	xmempool pPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	Item* pItems[5];
 
 	printf("Allocating 5 Items (structs)...\n");
@@ -100,7 +100,7 @@ static void test_custom_config(void)
 
 	printf("\n=== Test: Custom Configuration ===\n");
 
-	xmempool pPool = xrtMemPoolCreate(CUSTOM_CUTOFF);
+	xmempool pPool = xrtMemPoolCreate(CUSTOM_CUTOFF, XRT_OBJMODE_LOCAL);
 
 	printf("Created MemPool with custom fallback cutoff: %d\n", CUSTOM_CUTOFF);
 

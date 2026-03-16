@@ -20,7 +20,7 @@ static void __benchArrayLane(uint32_t iIterations, uint32_t iItems)
 {
 	uint32_t i;
 	for ( i = 0; i < iIterations; ++i ) {
-		xarray pArr = xrtArrayCreate(sizeof(int));
+		xarray pArr = xrtArrayCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		uint32_t j;
 		if ( !pArr ) exit(20);
 		for ( j = 0; j < iItems; ++j ) {
@@ -52,7 +52,7 @@ static void __benchListLane(uint32_t iIterations, uint32_t iItems)
 {
 	uint32_t i;
 	for ( i = 0; i < iIterations; ++i ) {
-		xlist pList = xrtListCreate(sizeof(int));
+		xlist pList = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		uint32_t j;
 		if ( !pList ) exit(24);
 		for ( j = 0; j < iItems; ++j ) {
@@ -68,7 +68,7 @@ static void __benchDictLane(uint32_t iIterations, uint32_t iItems)
 {
 	uint32_t i;
 	for ( i = 0; i < iIterations; ++i ) {
-		xdict pDict = xrtDictCreate(sizeof(int));
+		xdict pDict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		uint32_t j;
 		if ( !pDict ) exit(26);
 		for ( j = 0; j < iItems; ++j ) {
@@ -87,7 +87,7 @@ static void __benchAvlLane(uint32_t iIterations, uint32_t iItems)
 {
 	uint32_t i;
 	for ( i = 0; i < iIterations; ++i ) {
-		xavltree pTree = xrtAVLTreeCreate(sizeof(__bench_avl_item), __benchAvlComp);
+		xavltree pTree = xrtAVLTreeCreate(sizeof(__bench_avl_item), __benchAvlComp, XRT_OBJMODE_LOCAL);
 		uint32_t j;
 		if ( !pTree ) exit(28);
 		for ( j = 0; j < iItems; ++j ) {

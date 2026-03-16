@@ -27,7 +27,7 @@ void test_list_iterator(void)
 	printf("=== Test: List Iterator ===\n");
 	printf("=== 测试：列表迭代器 ===\n");
 	
-	xlist pList = xrtListCreate(sizeof(DataItem));
+	xlist pList = xrtListCreate(sizeof(DataItem), XRT_OBJMODE_LOCAL);
 	
 	printf("Setting values at various indices...\n");
 	printf("在各种索引设置值...\n");
@@ -63,7 +63,7 @@ void test_walk_function(void)
 	printf("\n=== Test: List Walk Function ===\n");
 	printf("=== 测试：列表遍历函数 ===\n");
 	
-	xlist pList = xrtListCreate(sizeof(int));
+	xlist pList = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	
 	printf("Setting values...\n");
 	printf("设置值...\n");

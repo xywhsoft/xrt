@@ -24,7 +24,7 @@ void test_dict_ptr(void)
 	printf("=== Test: Dictionary Pointer Operations ===\n");
 	printf("=== 测试：字典指针操作 ===\n");
 	
-	xdict pDict = xrtDictCreate(sizeof(ptr));
+	xdict pDict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
 	
 	printf("Storing pointers in dictionary...\n");
 	printf("在字典中存储指针...\n");
@@ -81,7 +81,7 @@ void test_ptr_with_structs(void)
 		char szName[32];
 	} User;
 	
-	xdict pDict = xrtDictCreate(sizeof(ptr));
+	xdict pDict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
 	
 	User users[] = {
 		{1, "Alice"},

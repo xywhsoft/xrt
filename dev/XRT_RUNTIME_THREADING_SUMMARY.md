@@ -169,7 +169,7 @@
 
 跨线程共享现在必须显式 opt-in。
 
-shared mode 的入口是显式的 `CreateEx(..., XRT_OBJMODE_SHARED)` 或 `xvoCreate*Ex(XRT_OBJMODE_SHARED)`。
+shared mode 的入口是显式的 `Create(..., XRT_OBJMODE_SHARED)` 或 `xvoCreate*Ex(XRT_OBJMODE_SHARED)`。
 
 这条规则的意义是：
 

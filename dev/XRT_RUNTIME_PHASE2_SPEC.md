@@ -407,17 +407,17 @@ semantics of old constructors.
 Current mode-aware entry points:
 
 ```c
-XXAPI xarray xrtArrayCreateEx(uint32 iItemLength, uint32 iMode);
-XXAPI xdict xrtDictCreateEx(uint32 iItemLength, uint32 iMode);
-XXAPI xlist xrtListCreateEx(uint32 iItemLength, uint32 iMode);
-XXAPI xavltree xrtAVLTreeCreateEx(uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
+XXAPI xarray xrtArrayCreate(uint32 iItemLength, uint32 iMode);
+XXAPI xdict xrtDictCreate(uint32 iItemLength, uint32 iMode);
+XXAPI xlist xrtListCreate(uint32 iItemLength, uint32 iMode);
+XXAPI xavltree xrtAVLTreeCreate(uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
 XXAPI xvalue xvoCreateArrayEx(uint32 iMode);
 XXAPI xvalue xvoCreateListEx(uint32 iMode);
 XXAPI xvalue xvoCreateCollEx(uint32 iMode);
 XXAPI xvalue xvoCreateTableEx(uint32 iMode);
 ```
 
-Additional low-level `CreateEx/InitEx` helpers also exist for allocator roots so
+Additional low-level `mode-aware constructor/init` helpers also exist for allocator roots so
 mode can propagate through embedded sub-objects.
 
 Current behavior:
@@ -555,7 +555,7 @@ Phase-2 is accepted only if:
 4. `2026-03-13`: Low-level allocator mode and container mode must use one consistent ownership vocabulary.
 5. `2026-03-13`: Shared `xvalue` refcounting must no longer rely on plain non-atomic mutation.
 6. `2026-03-13`: Legacy root objects that are cast to base views must preserve prefix layout when owner metadata is added.
-7. `2026-03-13`: Shared `CreateEx(..., XRT_OBJMODE_SHARED)` constructors are staged entry points; until shared synchronization exists they remain owner-thread mutable and reject non-owner mutation explicitly.
+7. `2026-03-13`: Shared mode constructors using `..., XRT_OBJMODE_SHARED` are staged entry points; until shared synchronization exists they remain owner-thread mutable and reject non-owner mutation explicitly.
 8. `2026-03-13`: Low-level allocators may complete real shared synchronization before containers and `xvalue`; staged shared semantics now apply only to higher-level container/value objects.
 9. `2026-03-13`: Standalone `xparray`, `xarray`, `xdict`, and `xlist` may be promoted to real shared before generic `xavltree`; generic tree APIs stay staged until direct-pointer and traversal semantics are explicitly constrained or redesigned.
 10. `2026-03-13`: Shared `xvalue` roots may promote to real shared once both the top-level value header and the underlying container root support it.
@@ -576,7 +576,7 @@ Phase-2 is accepted only if:
 - `2026-03-13`: Extended ownership metadata and local-mode wrong-thread diagnostics into `xmempool`, `xavltree`, `xdict`, and `xlist`. While validating, found that `xavltree` and embedded dict/list roots still depend on legacy prefix-cast layout (`xavltbase` and `FreeProc` paths), so owner metadata was moved out of the leading prefix to preserve old object layout. Recompiled `xrt.c` and `test.c`, then verified same-thread success plus wrong-thread rejection for mempool/tree/dict/list with a dedicated runtime harness.
 - `2026-03-13`: Added owner-thread metadata and wrong-thread mutation diagnostics to `xparray` and `xarray`, including the inline pointer-array setter path. Recompiled `xrt.c` and `test.c`, then verified same-thread mutation plus wrong-thread rejection for pointer-array and struct-array operations with a dedicated runtime harness.
 - `2026-03-13`: Promoted the owner-thread regression checks into the formal test tree by adding `test/test_runtime_phase2.h` and wiring it into `test.c`. The new coverage locks in same-thread success plus wrong-thread rejection for low-level allocators, mempool/tree/dict/list, and array/parray write paths. Verified by recompiling `xrt.c` and `test.c`, then running a dedicated phase-2 runtime test harness with exit code `0`.
-- `2026-03-13`: Implemented the first staged shared-mode entry layer by adding mode-aware `CreateEx/InitEx` constructors across allocator/container roots plus `xvoCreate*Ex` container constructors. Shared mode now propagates into embedded sub-objects at construction time, but remains explicitly staged: owner-thread mutation works, while non-owner mutation fails with `"shared mode synchronization is not implemented yet."` until real shared synchronization is implemented. Recompiled `xrt.c` and `test.c`, then verified the staged shared entry semantics with a dedicated runtime harness (`exit=0`).
+- `2026-03-13`: Implemented the first staged shared-mode entry layer by adding mode-aware `mode-aware constructor/init` constructors across allocator/container roots plus `xvoCreate*Ex` container constructors. Shared mode now propagates into embedded sub-objects at construction time, but remains explicitly staged: owner-thread mutation works, while non-owner mutation fails with `"shared mode synchronization is not implemented yet."` until real shared synchronization is implemented. Recompiled `xrt.c` and `test.c`, then verified the staged shared entry semantics with a dedicated runtime harness (`exit=0`).
 - `2026-03-13`: Completed real shared-mode synchronization for low-level allocator roots by adding the object shared gate to `xbsmm`, `xmemunit`, `xfsmempool`, and `xmempool`, then fixed three allocator correctness issues exposed by concurrent shared-mode testing: phase-2 tests were updated to treat `xrtGetError()==xCore.sNull` as the no-error state, `xrtMemUnitAlloc_Inline()` now writes `MMU_FLAG_USE` and enforces the 256-item bound, and the `xmempool` big-allocation path now stores a stable `BigMM` slot index and avoids use-after-free/null-dereference in free/GC flows. Recompiled `xrt.c` and `test.c`, then reran the dedicated phase-2 runtime harness with exit code `0`.
 - `2026-03-13`: Promoted standalone shared container roots by wiring real shared gates into `xparray`, `xarray`, `xdict`, and `xlist`, while intentionally leaving generic `xavltree` staged. Added a dedicated shared container concurrency smoke test plus a staged shared-tree boundary test to `test/test_runtime_phase2.h`. Recompiled `xrt.c` and `test.c`, then reran a dedicated phase-2 runtime harness covering owner protection, shared entry behavior, staged shared tree behavior, shared container roots, and shared allocator roots with exit code `0`.
 - `2026-03-13`: Made the shared root gate reentrant for the owning thread and added explicit `Lock/Unlock` APIs for `xparray`, `xarray`, `xavltree`, `xdict`, and `xlist`. Added formal tests that hold a shared root lock while calling existing `Get` / `Walk` / iterator entry points and while a second thread blocks on the same root, then reran the dedicated phase-2 runtime harness with exit code `0`.

@@ -10,7 +10,7 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 	printf("\n\n\n------------------------------------\n\n Fixed-Size Memory Pool Test:\n\n");
 
 	printf("FSMemPool subject 1 : create object\n\n");
-	xfsmempool objMM = xrtFSMemPoolCreate(sizeof(MM256_Test_Struct));
+	xfsmempool objMM = xrtFSMemPoolCreate(sizeof(MM256_Test_Struct), XRT_OBJMODE_LOCAL);
 	printf("  object                : %p\n", objMM);
 	printf("  item length           : %d (expected %d)\n", objMM->ItemLength, (int)sizeof(MM256_Test_Struct));
 	printf("  page alloc step       : %d (expected 64)\n", objMM->arrMMU.PageMMU.AllocStep);
@@ -42,7 +42,7 @@ void Test_MemPoolFS(xrtGlobalData* xCore)
 	}
 
 	printf("\nFSMemPool subject 4 : GC helpers\n\n");
-	xfsmempool pGcPool = xrtFSMemPoolCreate(sizeof(int));
+	xfsmempool pGcPool = xrtFSMemPoolCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	int* pValues[10];
 	for (int i = 0; i < 10; i++) {
 		pValues[i] = (int*)xrtFSMemPoolAlloc(pGcPool);

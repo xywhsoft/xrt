@@ -21,7 +21,7 @@ static void Test_MemPoolCore(void)
 
 	printf("[mempool-core] start\n");
 
-	objDefault = xrtMemPoolCreate(0);
+	objDefault = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	__Test_MemPoolCoreRequire(objDefault != NULL, "default pool create failed");
 	__Test_MemPoolCoreRequire(objDefault->iBucketStep == XRT_MEMPOOL_STEP_SIZE, "default step mismatch");
 	__Test_MemPoolCoreRequire(objDefault->iFallbackCutoff == XRT_MEMPOOL_CUTOFF_DEFAULT, "default cutoff mismatch");
@@ -46,7 +46,7 @@ static void Test_MemPoolCore(void)
 	xrtMemPoolFree(objDefault, pBig);
 	xrtMemPoolDestroy(objDefault);
 
-	objCustom = xrtMemPoolCreate(100);
+	objCustom = xrtMemPoolCreate(100, XRT_OBJMODE_LOCAL);
 	__Test_MemPoolCoreRequire(objCustom != NULL, "custom pool create failed");
 	__Test_MemPoolCoreRequire(objCustom->iFallbackCutoff == 100, "custom cutoff mismatch");
 	__Test_MemPoolCoreRequire(objCustom->iBucketCount == 7, "custom bucket count mismatch");

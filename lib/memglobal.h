@@ -211,6 +211,121 @@ static inline bool __xrtMemDebugEnabled()
 	return xCore.MemDebug.bEnabled != 0;
 }
 
+static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind);
+
+static inline const char* __xrtMemDebugImmediateObjectTypeName(uint32 iObjectType)
+{
+	switch ( iObjectType ) {
+		case XRT_MEMDEBUG_OBJECT_ARRAY:
+			return "array";
+		case XRT_MEMDEBUG_OBJECT_DICT:
+			return "dict";
+		case XRT_MEMDEBUG_OBJECT_LIST:
+			return "list";
+		case XRT_MEMDEBUG_OBJECT_AVLTREE:
+			return "avltree";
+		case XRT_MEMDEBUG_OBJECT_DYNSTACK:
+			return "dynstack";
+		case XRT_MEMDEBUG_OBJECT_MEMPOOL:
+			return "mempool";
+		case XRT_MEMDEBUG_OBJECT_FSMEMPOOL:
+			return "fsmempool";
+		default:
+			return "unknown";
+	}
+}
+
+static inline const char* __xrtMemDebugImmediateEventName(uint32 iType)
+{
+	switch ( iType ) {
+		case XRT_MEMDEBUG_EVENT_DOUBLE_FREE:
+			return "DOUBLE_FREE";
+		case XRT_MEMDEBUG_EVENT_INVALID_FREE:
+			return "INVALID_FREE";
+		case XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE:
+			return "WRONG_ALLOCATOR_FREE";
+		case XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT:
+			return "BUFFER_OVERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT:
+			return "BUFFER_UNDERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT:
+			return "USE_AFTER_FREE_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY:
+			return "OBJECT_DOUBLE_DESTROY";
+		default:
+			return "UNKNOWN";
+	}
+}
+
+static inline bool __xrtMemDebugShouldEmitImmediate(uint32 iType)
+{
+	return iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE
+		|| iType == XRT_MEMDEBUG_EVENT_INVALID_FREE
+		|| iType == XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE
+		|| iType == XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT
+		|| iType == XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT
+		|| iType == XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY;
+}
+
+static inline void __xrtMemDebugEmitConsoleLine(const char* sText, size_t iLen)
+{
+	if ( sText == NULL || iLen == 0 ) {
+		return;
+	}
+
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+			DWORD iWritten = 0;
+			if ( hErr && hErr != INVALID_HANDLE_VALUE ) {
+				WriteFile(hErr, sText, (DWORD)iLen, &iWritten, NULL);
+			}
+			OutputDebugStringA(sText);
+		}
+	#else
+		(void)write(2, sText, iLen);
+	#endif
+}
+
+static inline void __xrtMemDebugEmitImmediateNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	char sText[640];
+	const char* sKind;
+	int iWritten;
+
+	if ( !__xrtMemDebugShouldEmitImmediate(iType) ) {
+		return;
+	}
+
+	if ( iType == XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY ) {
+		sKind = __xrtMemDebugImmediateObjectTypeName(iAllocatorKind);
+	} else {
+		sKind = __xrtMemDebugAllocatorName(iAllocatorKind);
+	}
+
+	iWritten = snprintf(
+		sText,
+		sizeof(sText),
+		"[XRT_MEM_DEBUG][%s] time_ms=%llu ptr=%p size=%llu kind=%s site=%s:%u thread=%llu\n",
+		__xrtMemDebugImmediateEventName(iType),
+		(unsigned long long)__xrtMemDebugNowMs(),
+		pAddress,
+		(unsigned long long)iSize,
+		sKind ? sKind : "unknown",
+		sFile ? sFile : "(unknown)",
+		(unsigned int)iLine,
+		(unsigned long long)xrtThreadGetCurrentId()
+	);
+	if ( iWritten <= 0 ) {
+		return;
+	}
+	if ( (size_t)iWritten >= sizeof(sText) ) {
+		iWritten = (int)(sizeof(sText) - 1);
+	}
+	__xrtMemDebugEmitConsoleLine(sText, (size_t)iWritten);
+}
+
 static inline void __xrtMemDebugLock()
 {
 	__xrtMemGlobalLock(&xCore.MemDebug.iLock);
@@ -433,6 +548,7 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	if ( pNode == NULL ) {
 		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pAddress, 0, iAllocatorKind, sFile, iLine);
 		xCore.MemDebug.iDoubleFreeCount++;
+		__xrtMemDebugEmitImmediateNoLock(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pAddress, 0, iAllocatorKind, sFile, iLine);
 		__xrtMemDebugUnlock();
 		return FALSE;
 	}
@@ -546,6 +662,7 @@ static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectT
 	if ( pNode && pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
 		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
 		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugEmitImmediateNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
 		__xrtMemDebugUnlock();
 		return FALSE;
 	}
@@ -564,6 +681,7 @@ static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectTyp
 	if ( pNode == NULL || pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
 		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, iObjectType, sFile, iLine);
 		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugEmitImmediateNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, iObjectType, sFile, iLine);
 		__xrtMemDebugUnlock();
 		return FALSE;
 	}
@@ -653,6 +771,7 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 	} else if ( iType == XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT ) {
 		xCore.MemDebug.iUnderflowCount++;
 	}
+	__xrtMemDebugEmitImmediateNoLock(iType, pAddress, iSize, iAllocatorKind, sFile, iLine);
 	__xrtMemDebugUnlock();
 }
 

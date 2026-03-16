@@ -25,7 +25,7 @@ XXAPI void xrtDynStackInit(xdynstack objSTK, uint32 iItemLength)
 {
 	objSTK->ItemLength = iItemLength;
 	objSTK->Count = 0;
-	xrtPtrArrayInit(&objSTK->MMU);
+	xrtPtrArrayInit(&objSTK->MMU, XRT_OBJMODE_LOCAL);
 	objSTK->MMU.AllocStep = 64;
 }
 
@@ -40,6 +40,7 @@ XXAPI void xrtDynStackUnit(xdynstack objSTK)
 	xrtPtrArrayUnit(&objSTK->MMU);
 }
 
+#ifdef XRT_MEM_DEBUG
 XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
 {
 	xdynstack objSTK = xrtDynStackCreate(iItemLength);
@@ -73,6 +74,7 @@ XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
 	xrtDynStackUnit(objSTK);
 	__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
 }
+#endif
 
 // 压栈
 XXAPI ptr xrtDynStackPush(xdynstack objSTK)

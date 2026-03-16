@@ -34,7 +34,7 @@ void test_iterator(void)
 	printf("=== Test: AVL Tree Iterator ===\n");
 	printf("=== 测试：AVL树迭代器 ===\n");
 	
-	xavltree pTree = xrtAVLTreeCreate(sizeof(Item), compare_items);
+	xavltree pTree = xrtAVLTreeCreate(sizeof(Item), compare_items, XRT_OBJMODE_LOCAL);
 	
 	Item items[] = {
 		{50, "Fifty"}, {25, "Twenty-five"}, {75, "Seventy-five"},
@@ -70,7 +70,7 @@ void test_empty_tree(void)
 	printf("\n=== Test: Empty Tree Iterator ===\n");
 	printf("=== 测试：空树迭代器 ===\n");
 	
-	xavltree pTree = xrtAVLTreeCreate(sizeof(int), compare_items);
+	xavltree pTree = xrtAVLTreeCreate(sizeof(int), compare_items, XRT_OBJMODE_LOCAL);
 	
 	printf("Iterating empty tree:\n");
 	printf("遍历空树:\n");

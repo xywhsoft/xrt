@@ -26,7 +26,7 @@ void Test_List(xrtGlobalData* xCore)
 	
 	// subject 1 : create object
 	printf("List test subject 1 : create object\n\n");
-	xlist objList = xrtListCreate(sizeof(AVLT_Test_Struct));
+	xlist objList = xrtListCreate(sizeof(AVLT_Test_Struct), XRT_OBJMODE_LOCAL);
 	if ( objList ) {
 		printf("List object : %p\t\t\t\t\tpass! √\n", objList);
 		printf("\tCount : %d\t\t\t\t=> 0\n", objList->AVLT.Count);

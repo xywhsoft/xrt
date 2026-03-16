@@ -16,15 +16,11 @@ int List_CompProc(int64* pNode, int64* pObjKey)
 
 
 // 创建列表
-XXAPI xlist xrtListCreate(uint32 iItemLength)
-{
-	return xrtListCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI xlist xrtListCreateEx(uint32 iItemLength, uint32 iMode)
+XXAPI xlist xrtListCreate(uint32 iItemLength, uint32 iMode)
 {
 	xlist objList = xrtMalloc(sizeof(xlist_struct));
 	if ( objList ) {
-		xrtListInitEx(objList, iItemLength, iMode);
+		xrtListInit(objList, iItemLength, iMode);
 	}
 	return objList;
 }
@@ -42,14 +38,10 @@ XXAPI void xrtListDestroy(xlist objList)
 }
 
 // 初始化列表（对自维护结构体指针使用）
-XXAPI void xrtListInit(xlist objList, uint32 iItemLength)
-{
-	xrtListInitEx(objList, iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtListInitEx(xlist objList, uint32 iItemLength, uint32 iMode)
+XXAPI void xrtListInit(xlist objList, uint32 iItemLength, uint32 iMode)
 {
 	xrtOwnerInitMode(&objList->Owner, iMode);
-	xrtAVLTreeInitEx(&objList->AVLT, iItemLength + sizeof(int64), (ptr)List_CompProc, iMode);
+	xrtAVLTreeInit(&objList->AVLT, iItemLength + sizeof(int64), (ptr)List_CompProc, iMode);
 	if ( iMode == XRT_OBJMODE_SHARED ) {
 		xrtOwnerActivateShared(&objList->Owner);
 		xrtOwnerActivateShared(&objList->AVLT.Owner);
@@ -70,26 +62,16 @@ XXAPI void xrtListUnit(xlist objList)
 	xrtOwnerEndMutable(&objList->Owner);
 }
 
-XXAPI xlist xrtListCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+#ifdef XRT_MEM_DEBUG
+XXAPI xlist xrtListCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xlist objList = xrtListCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	xlist objList = xrtListCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objList;
 }
-XXAPI xlist xrtListCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xlist objList = xrtListCreateEx(iItemLength, iMode);
-	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
-	return objList;
-}
-XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, const char* sFile, uint32 iLine)
-{
-	xrtListInitEx(objList, iItemLength, XRT_OBJMODE_LOCAL);
-	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
-}
-XXAPI void xrtListInitExDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
-{
-	xrtListInitEx(objList, iItemLength, iMode);
+	xrtListInit(objList, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
@@ -121,6 +103,7 @@ XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine)
 	xrtOwnerEndMutable(&objList->Owner);
 	__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
 }
+#endif
 
 XXAPI bool xrtListLock(xlist objList)
 {

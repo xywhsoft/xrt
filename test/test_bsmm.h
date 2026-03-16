@@ -17,7 +17,7 @@ void Test_BSMM(xrtGlobalData* xCore)
 	
 	// subject 1 : create object
 	printf("BSMM test subject 1 : create object\n\n");
-	xbsmm objBSMM = xrtBsmmCreate(sizeof(BSMM_Test_Struct));
+	xbsmm objBSMM = xrtBsmmCreate(sizeof(BSMM_Test_Struct), XRT_OBJMODE_LOCAL);
 	if ( objBSMM ) {
 		printf("BSMM object : %p\t\t\t\t\tpass! √\n", objBSMM);
 		printf("\tItemLength : %d\t\t\t\t=> %d\n", objBSMM->ItemLength, sizeof(BSMM_Test_Struct));

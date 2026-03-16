@@ -118,7 +118,7 @@ XTE_TokenList_Struct XTE_LEXER_ERROR_MALLOC = {
 // 创建关键字列表（失败返回 NULL）
 xarray xteCreateIdentList()
 {
-	return xrtArrayCreate(sizeof(XTE_IdentInfo_Struct));
+	return xrtArrayCreate(sizeof(XTE_IdentInfo_Struct), XRT_OBJMODE_LOCAL);
 }
 
 // 销毁关键字列表
@@ -250,7 +250,7 @@ XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBr
 	objRet->ErrorRefLine = 0;
 	objRet->ErrorRefLinePos = 0;
 	objRet->ErrorRefPos = 0;
-	xrtArrayInit(&objRet->Tokens, sizeof(XTE_TokenItem_Struct));
+	xrtArrayInit(&objRet->Tokens, sizeof(XTE_TokenItem_Struct), XRT_OBJMODE_LOCAL);
 	// 自动计算文本长度
 	if ( iSize == 0 ) {
 		iSize = strlen(sText);
@@ -853,8 +853,8 @@ XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks)
 	objToks->Tokens.Memory = NULL;		// 防止 xteLexerFree 释放数组
 	xteLexerFree(objToks);				// 安全释放 TokenList 外壳
 	// 初始化数据结构
-	xrtPtrArrayInit(&objRet->Actions);
-	xrtDictInit(&objRet->SubTemplates, sizeof(xparray_struct));
+	xrtPtrArrayInit(&objRet->Actions, XRT_OBJMODE_LOCAL);
+	xrtDictInit(&objRet->SubTemplates, sizeof(xparray_struct), XRT_OBJMODE_LOCAL);
 	// 遍历 Token 列表，添加到 Actions 列表
 	XTE_TokenItem objRefTok = NULL;
 	xparray objCurTemplate = NULL;
@@ -870,7 +870,7 @@ XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks)
 					XTE_OnParseError(2);
 				}
 				objRefTok = objTok;
-				xrtPtrArrayInit(objCurTemplate);
+				xrtPtrArrayInit(objCurTemplate, XRT_OBJMODE_LOCAL);
 			}
 		} else if ( objTok->Type == XTE_TK_END ) {
 			// 语句结束
@@ -974,7 +974,7 @@ static int xte_private_init(void)
 	xteAddIdentToList(XTE_IDENT_LIST, "continue", 8, XTE_TK_CONTINUE, XTE_IDTPE_DEFAULT, 0, 0);
 	
 	// 创建表达式 AST 缓存
-	XTE_EXPR_CACHE = xrtDictCreate(sizeof(ptr));  // 存储指针需要 sizeof(ptr) 空间
+	XTE_EXPR_CACHE = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);  // 存储指针需要 sizeof(ptr) 空间
 	if ( XTE_EXPR_CACHE == NULL ) {
 		xteDestroyIdentList(XTE_IDENT_LIST);
 		XTE_IDENT_LIST = NULL;
@@ -1685,7 +1685,7 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 									int nestedEnd = xte_find_matching_end(arrAction, j + 1);
 									if ( nestedEnd > 0 && nestedEnd <= arrAction->Count ) {
 										xparray_struct tempAction = { 0, 0, 0 };
-										xrtPtrArrayInit(&tempAction);
+										xrtPtrArrayInit(&tempAction, XRT_OBJMODE_LOCAL);
 										for ( int k = j; k <= nestedEnd; k++ ) {
 											xrtPtrArrayAppend(&tempAction, xrtPtrArrayGet_Inline(arrAction, k));
 										}
@@ -1713,7 +1713,7 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 								} else {
 									// 其他 Token，构建单元素 Action 列表执行
 									xparray_struct singleAction = { 0, 0, 0 };
-									xrtPtrArrayInit(&singleAction);
+									xrtPtrArrayInit(&singleAction, XRT_OBJMODE_LOCAL);
 									xrtPtrArrayAppend(&singleAction, subTok);
 									size_t singleSize = 0;
 									char* singleResult = xteMakeActions_ex(&singleAction, objTemplate, tblVal, tblRoot, tblENV, tblInclude, &singleSize, pBreakFlag, pContinueFlag);
@@ -1750,7 +1750,7 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 					
 					// 构建循环体 Action 列表
 					xparray_struct loopAction = { 0, 0, 0 };
-					xrtPtrArrayInit(&loopAction);
+					xrtPtrArrayInit(&loopAction, XRT_OBJMODE_LOCAL);
 					for ( int k = i + 1; k < endIdx; k++ ) {
 						xrtPtrArrayAppend(&loopAction, xrtPtrArrayGet_Inline(arrAction, k));
 					}
@@ -1806,7 +1806,7 @@ char* xteMakeActions_ex(xparray arrAction, XTE_LiteObject objTemplate, xvalue tb
 					if ( iterObj != &XVO_VALUE_NULL && (iterObj->Type == XVO_DT_ARRAY || iterObj->Type == XVO_DT_TABLE) ) {
 						// 构建循环体 Action 列表
 						xparray_struct loopAction = { 0, 0, 0 };
-						xrtPtrArrayInit(&loopAction);
+						xrtPtrArrayInit(&loopAction, XRT_OBJMODE_LOCAL);
 						for ( int k = i + 1; k < endIdx; k++ ) {
 							xrtPtrArrayAppend(&loopAction, xrtPtrArrayGet_Inline(arrAction, k));
 						}

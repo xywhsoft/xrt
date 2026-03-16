@@ -38,7 +38,7 @@ void test_basic_avltree(void)
 	printf("=== Test: Basic AVL Tree Operations ===\n");
 	printf("=== 测试：基本AVL树操作 ===\n");
 	
-	xavltree pTree = xrtAVLTreeCreate(sizeof(TreeNode), compare_int_keys);
+	xavltree pTree = xrtAVLTreeCreate(sizeof(TreeNode), compare_int_keys, XRT_OBJMODE_LOCAL);
 	
 	printf("Created AVL tree with TreeNode item size: %u\n", (uint32)sizeof(TreeNode));
 	printf("创建AVL树，TreeNode项大小: %u\n", (uint32)sizeof(TreeNode));
@@ -102,7 +102,7 @@ void test_balanced_insertions(void)
 	printf("\n=== Test: Balanced Insertions ===\n");
 	printf("=== 测试：平衡插入 ===\n");
 	
-	xavltree pTree = xrtAVLTreeCreate(sizeof(int), compare_int_keys);
+	xavltree pTree = xrtAVLTreeCreate(sizeof(int), compare_int_keys, XRT_OBJMODE_LOCAL);
 	
 	printf("Inserting keys in ascending order (tests AVL balancing):\n");
 	printf("按升序插入键（测试AVL平衡）:\n");

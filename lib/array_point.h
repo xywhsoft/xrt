@@ -44,15 +44,11 @@ static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 }
 
 // 创建指针内存管理器
-XXAPI xparray xrtPtrArrayCreate()
-{
-	return xrtPtrArrayCreateEx(XRT_OBJMODE_LOCAL);
-}
-XXAPI xparray xrtPtrArrayCreateEx(uint32 iMode)
+XXAPI xparray xrtPtrArrayCreate(uint32 iMode)
 {
 	xparray ObjPtr = xrtMalloc(sizeof(xparray_struct));
 	if ( ObjPtr ) {
-		xrtPtrArrayInitEx(ObjPtr, iMode);
+		xrtPtrArrayInit(ObjPtr, iMode);
 	}
 	return ObjPtr;
 }
@@ -70,11 +66,7 @@ XXAPI void xrtPtrArrayDestroy(xparray pObject)
 }
 
 // 初始化内存管理器（对自维护结构体指针使用）
-XXAPI void xrtPtrArrayInit(xparray pObject)
-{
-	xrtPtrArrayInitEx(pObject, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtPtrArrayInitEx(xparray pObject, uint32 iMode)
+XXAPI void xrtPtrArrayInit(xparray pObject, uint32 iMode)
 {
 	pObject->Memory = NULL;
 	pObject->Count = 0;

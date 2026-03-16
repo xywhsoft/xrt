@@ -2,15 +2,11 @@
 
 
 // 创建内存池
-XXAPI xmempool xrtMemPoolCreate(int iCustom)
-{
-	return xrtMemPoolCreateEx(iCustom, XRT_OBJMODE_LOCAL);
-}
-XXAPI xmempool xrtMemPoolCreateEx(int iCustom, uint32 iMode)
+XXAPI xmempool xrtMemPoolCreate(int iCustom, uint32 iMode)
 {
 	xmempool objMP = xrtMalloc(sizeof(xmempool_struct));
 	if ( objMP ) {
-		xrtMemPoolInitEx(objMP, iCustom, iMode);
+		xrtMemPoolInit(objMP, iCustom, iMode);
 	}
 	return objMP;
 }
@@ -135,18 +131,14 @@ static inline FSB_Item* __xrtMemPoolGetBucketByMMU(xmempool objMP, xmemunit objM
 	return __xrtMemPoolGetBucketBySize(objMP, iSize);
 }
 
-XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
-{
-	xrtMemPoolInitEx(objMP, iCustom, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtMemPoolInitEx(xmempool objMP, int iCustom, uint32 iMode)
+XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom, uint32 iMode)
 {
 	xrtOwnerInitMode(&objMP->Owner, iMode);
 	if ( iMode == XRT_OBJMODE_SHARED ) {
 		xrtOwnerActivateShared(&objMP->Owner);
 	}
-	xrtBsmmInitEx(&objMP->arrMMU, sizeof(MMU_LLNode), iMode);
-	xrtBsmmInitEx(&objMP->BigMM, sizeof(MP_BigInfoLL), iMode);
+	xrtBsmmInit(&objMP->arrMMU, sizeof(MMU_LLNode), iMode);
+	xrtBsmmInit(&objMP->BigMM, sizeof(MP_BigInfoLL), iMode);
 	objMP->LL_BigFree = NULL;
 	if ( !__xrtMemPoolBuildBucketPlan(objMP, __xrtMemPoolResolveCutoff(iCustom)) ) {
 		xrtSetError("Memory Pool : build bucket plan failed.", FALSE);
@@ -190,26 +182,16 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	xrtOwnerEndMutable(&objMP->Owner);
 }
 
-XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, const char* sFile, uint32 iLine)
+#ifdef XRT_MEM_DEBUG
+XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xmempool objMP = xrtMemPoolCreateEx(iCustom, XRT_OBJMODE_LOCAL);
+	xmempool objMP = xrtMemPoolCreate(iCustom, iMode);
 	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objMP;
 }
-XXAPI xmempool xrtMemPoolCreateExDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
+XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xmempool objMP = xrtMemPoolCreateEx(iCustom, iMode);
-	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
-	return objMP;
-}
-XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, const char* sFile, uint32 iLine)
-{
-	xrtMemPoolInitEx(objMP, iCustom, XRT_OBJMODE_LOCAL);
-	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
-}
-XXAPI void xrtMemPoolInitExDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
-{
-	xrtMemPoolInitEx(objMP, iCustom, iMode);
+	xrtMemPoolInit(objMP, iCustom, iMode);
 	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
@@ -268,6 +250,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	xrtOwnerEndMutable(&objMP->Owner);
 	__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
 }
+#endif
 
 static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 {
@@ -280,7 +263,7 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 			objFSB->LL_Null = NULL;
 		} else if ( objFSB->LL_Free ) {
 			MMU_LLNode* pNode = objFSB->LL_Free;
-			objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
+			objMMU = xrtMemUnitCreate(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
 			if ( objMMU == NULL ) {
 				return NULL;
 			}
@@ -295,7 +278,7 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 			objFSB->LL_Idle = pNode;
 		} else {
 			MMU_LLNode* pNode;
-			objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
+			objMMU = xrtMemUnitCreate(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
 			if ( objMMU == NULL ) {
 				return NULL;
 			}

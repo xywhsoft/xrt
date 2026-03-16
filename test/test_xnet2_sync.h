@@ -173,6 +173,19 @@ static bool __Test_XNet2_SyncWaitStreamOpen(xnetstream* pStream, uint32 iTimeout
 	return (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0;
 }
 
+static bool __Test_XNet2_SyncWaitListenerAcceptRegistered(xnetlistener* pListener, uint32 iTimeoutMs)
+{
+	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
+	if ( !pListener ) return false;
+	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
+		if ( pListener->tAcceptWait.pfnWait != NULL ) {
+			return true;
+		}
+		__Test_XNet2_SyncSleepMs(5);
+	}
+	return pListener->tAcceptWait.pfnWait != NULL;
+}
+
 static void __Test_XNet2_SyncDgramOnRecv(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain)
 {
 	__test_xnet2_sync_dgram_event_case* pCase = (__test_xnet2_sync_dgram_event_case*)pOwner;
@@ -1210,6 +1223,7 @@ void Test_XNet2_Sync(void)
 		__test_xnet2_sync_connect_case tConnCase;
 		xnetstream* pAccepted = NULL;
 		xnet_result iWaitStatus = XRT_NET_ERROR;
+		bool bWaitRegistered = false;
 		bool bEarlyDestroyRejected = false;
 		bool bOpenEmitted = false;
 
@@ -1229,10 +1243,11 @@ void Test_XNet2_Sync(void)
 			tConnCase.iDelayMs = 20;
 			tConnCase.iHoldMs = 80;
 			pFuture = xrtNetListenerAcceptFuture(pListener);
+			bWaitRegistered = __Test_XNet2_SyncWaitListenerAcceptRegistered(pListener, 200);
 		}
 
 		xrtClearError();
-		if ( pListener ) {
+		if ( pListener && bWaitRegistered ) {
 			xrtNetListenerDestroy(pListener);
 			bEarlyDestroyRejected = xrtGetError() && xrtGetError()[0] != 0;
 		}
@@ -1245,6 +1260,7 @@ void Test_XNet2_Sync(void)
 		}
 
 		printf("  Listener accept future create : %s\n", pEngine && pListener && pFuture ? "PASS" : "FAIL");
+		printf("  Listener accept future waiter registers : %s\n", bWaitRegistered ? "PASS" : "FAIL");
 		printf("  Listener accept future rejects early listener destroy : %s\n", bEarlyDestroyRejected ? "PASS" : "FAIL");
 		printf("  Listener accept future wait status : %s\n", iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Listener accept future value : %s\n", pAccepted != NULL ? "PASS" : "FAIL");
@@ -1265,6 +1281,50 @@ void Test_XNet2_Sync(void)
 			xrtClearError();
 			xrtNetListenerDestroy(pListener);
 		}
+		if ( pEngine ) {
+			xrtNetEngineStop(pEngine);
+			xrtNetEngineDestroy(pEngine);
+		}
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetlistenconfig tListenCfg;
+		xnetengine* pEngine = NULL;
+		xnetlistener* pListener = NULL;
+		xnetwaitsrc tSrc = xrtNetWaitSourceNone();
+		xnet_result iTimeoutStatus = XRT_NET_ERROR;
+		xnetstream* pTimeoutAccepted = (xnetstream*)1;
+		bool bAcceptHoldActive = false;
+		bool bDestroyAfterTimeoutOk = false;
+
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		xrtNetListenConfigInit(&tListenCfg);
+		xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 0);
+		pEngine = xrtNetEngineCreate(&tCfg);
+		if ( pEngine ) {
+			(void)xrtNetEngineStart(pEngine);
+		}
+		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, NULL, NULL, NULL) : NULL;
+		if ( pListener ) {
+			(void)xrtNetListenerStart(pListener);
+			tSrc = xrtNetWaitSourceListenerAccept(pListener);
+			iTimeoutStatus = xrtNetWaitSourceWaitValueTimeout(&tSrc, 30, (ptr*)&pTimeoutAccepted);
+			bAcceptHoldActive = __xnetAtomicLoad32(&pListener->iAsyncHoldCount) > 0 &&
+				pListener->tAcceptWait.pfnWait == NULL;
+			xrtClearError();
+			xrtNetListenerDestroy(pListener);
+			bDestroyAfterTimeoutOk = xrtGetError() && xrtGetError()[0] == 0;
+			pListener = NULL;
+		}
+
+		printf("  Listener timeout destroy create : %s\n", pEngine != NULL ? "PASS" : "FAIL");
+		printf("  Listener timeout destroy timeout status : %s\n", iTimeoutStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
+		printf("  Listener timeout destroy leaves null value : %s\n", pTimeoutAccepted == NULL ? "PASS" : "FAIL");
+		printf("  Listener timeout destroy sees outstanding accept hold : %s\n", bAcceptHoldActive ? "PASS" : "FAIL");
+		printf("  Listener timeout destroy succeeds : %s\n", bDestroyAfterTimeoutOk ? "PASS" : "FAIL");
+
 		if ( pEngine ) {
 			xrtNetEngineStop(pEngine);
 			xrtNetEngineDestroy(pEngine);

@@ -26,7 +26,7 @@ void test_basic_operations(void)
 	printf("=== Test: Basic Pointer Array Operations ===\n");
 	printf("=== 测试：基本指针数组操作 ===\n");
 	
-	xparray pArr = xrtPtrArrayCreate();
+	xparray pArr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
 	
 	int a = 10, b = 20, c = 30, d = 40;
 	
@@ -51,7 +51,7 @@ void test_insert_and_set(void)
 	printf("\n=== Test: Insert and Set Operations ===\n");
 	printf("=== 测试：插入和设置操作 ===\n");
 	
-	xparray pArr = xrtPtrArrayCreate();
+	xparray pArr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
 	
 	int a = 100, b = 200, c = 300, d = 400;
 	
@@ -96,7 +96,7 @@ void test_add_alt(void)
 	printf("\n=== Test: AddAlt (Alternate Append) ===\n");
 	printf("=== 测试：AddAlt（交替追加）===\n");
 	
-	xparray pArr = xrtPtrArrayCreate();
+	xparray pArr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
 	
 	int a = 1, b = 2, c = 3, d = 4, e = 5;
 	
@@ -123,7 +123,7 @@ void test_remove_and_swap(void)
 	printf("\n=== Test: Remove and Swap Operations ===\n");
 	printf("=== 测试：移除和交换操作 ===\n");
 	
-	xparray pArr = xrtPtrArrayCreate();
+	xparray pArr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
 	
 	int vals[] = {10, 20, 30, 40, 50};
 	for (int i = 0; i < 5; i++)

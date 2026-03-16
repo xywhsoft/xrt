@@ -2,15 +2,11 @@
 
 
 // 创建 AVLTree
-XXAPI xavltree xrtAVLTreeCreate(unsigned int iItemLength, AVLTree_CompProc procComp)
-{
-	return xrtAVLTreeCreateEx(iItemLength, procComp, XRT_OBJMODE_LOCAL);
-}
-XXAPI xavltree xrtAVLTreeCreateEx(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode)
+XXAPI xavltree xrtAVLTreeCreate(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode)
 {
 	xavltree objAVLT = xrtMalloc(sizeof(xavltree_struct));
 	if ( objAVLT ) {
-		xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, iMode);
+		xrtAVLTreeInit(objAVLT, iItemLength, procComp, iMode);
 	}
 	return objAVLT;
 }
@@ -28,18 +24,14 @@ XXAPI void xrtAVLTreeDestroy(xavltree objAVLT)
 }
 
 // 初始化 AVLTree（对自维护结构体指针使用，和 AVLTree_Create 功能类似）
-XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp)
-{
-	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtAVLTreeInitEx(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode)
+XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode)
 {
 	xrtOwnerInitMode(&objAVLT->Owner, iMode);
 	xrtAVLTB_Init(objAVLT);
 	objAVLT->Parent = NULL;
 	objAVLT->CompProc = procComp;
 	objAVLT->FreeProc = NULL;
-	xrtFSMemPoolInitEx(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength, iMode);
+	xrtFSMemPoolInit(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength, iMode);
 	objAVLT->NodeCache = NULL;
 	if ( iMode == XRT_OBJMODE_SHARED ) {
 		xrtOwnerActivateShared(&objAVLT->Owner);
@@ -85,26 +77,16 @@ XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
 	xrtOwnerEndMutable(&objAVLT->Owner);
 }
 
-XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine)
+#ifdef XRT_MEM_DEBUG
+XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xavltree objAVLT = xrtAVLTreeCreateEx(iItemLength, procComp, XRT_OBJMODE_LOCAL);
+	xavltree objAVLT = xrtAVLTreeCreate(iItemLength, procComp, iMode);
 	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objAVLT;
 }
-XXAPI xavltree xrtAVLTreeCreateExDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
+XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xavltree objAVLT = xrtAVLTreeCreateEx(iItemLength, procComp, iMode);
-	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
-	return objAVLT;
-}
-XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine)
-{
-	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, XRT_OBJMODE_LOCAL);
-	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
-}
-XXAPI void xrtAVLTreeInitExDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
-{
-	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, iMode);
+	xrtAVLTreeInit(objAVLT, iItemLength, procComp, iMode);
 	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
@@ -136,6 +118,7 @@ XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
 	xrtOwnerEndMutable(&objAVLT->Owner);
 	__xrtMemDebugUnregisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine);
 }
+#endif
 
 XXAPI bool xrtAVLTreeLock(xavltree objAVLT)
 {

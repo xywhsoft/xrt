@@ -28,15 +28,11 @@ static inline uint32 __xrtBsmmPageMMUAppend(xbsmm objBSMM, ptr pBlock)
 }
 
 // 创建数据块结构内存管理器
-XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength)
-{
-	return xrtBsmmCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI xbsmm xrtBsmmCreateEx(uint32 iItemLength, uint32 iMode)
+XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength, uint32 iMode)
 {
 	xbsmm objBSMM = xrtMalloc(sizeof(xbsmm_struct));
 	if ( objBSMM ) {
-		xrtBsmmInitEx(objBSMM, iItemLength, iMode);
+		xrtBsmmInit(objBSMM, iItemLength, iMode);
 	}
 	return objBSMM;
 }
@@ -54,11 +50,7 @@ XXAPI void xrtBsmmDestroy(xbsmm objBSMM)
 }
 
 // 初始化数据块结构内存管理器（对自维护结构体指针使用，和 BSMM_Create 功能类似）
-XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength)
-{
-	xrtBsmmInitEx(objBSMM, iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtBsmmInitEx(xbsmm objBSMM, uint32 iItemLength, uint32 iMode)
+XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength, uint32 iMode)
 {
 	xrtOwnerInitMode(&objBSMM->Owner, iMode);
 	if ( iMode == XRT_OBJMODE_SHARED ) {
@@ -66,7 +58,7 @@ XXAPI void xrtBsmmInitEx(xbsmm objBSMM, uint32 iItemLength, uint32 iMode)
 	}
 	objBSMM->ItemLength = iItemLength;
 	objBSMM->Count = 0;
-	xrtPtrArrayInitEx(&objBSMM->PageMMU, iMode);
+	xrtPtrArrayInit(&objBSMM->PageMMU, iMode);
 	objBSMM->LL_Free = NULL;
 }
 

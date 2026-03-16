@@ -55,7 +55,7 @@ void test_string_keys(void)
 	printf("=== Test: String Key Comparison ===\n");
 	printf("=== 测试：字符串键比较 ===\n");
 	
-	xavltree pTree = xrtAVLTreeCreate(sizeof(StringItem), compare_string_items);
+	xavltree pTree = xrtAVLTreeCreate(sizeof(StringItem), compare_string_items, XRT_OBJMODE_LOCAL);
 	
 	StringItem items[] = {
 		{"banana", 1}, {"apple", 2}, {"cherry", 3}, {"date", 4}
@@ -90,7 +90,7 @@ void test_case_sensitivity(void)
 	printf("\n=== Test: Case-Sensitive Comparison ===\n");
 	printf("=== 测试：区分大小写比较 ===\n");
 	
-	xavltree pTree = xrtAVLTreeCreate(sizeof(StringItem), compare_string_items);
+	xavltree pTree = xrtAVLTreeCreate(sizeof(StringItem), compare_string_items, XRT_OBJMODE_LOCAL);
 	
 	StringItem items[] = {
 		{"Apple", 1}, {"apple", 2}, {"APPLE", 3}
@@ -115,7 +115,7 @@ void test_descending_order(void)
 	printf("\n=== Test: Descending Order Comparison ===\n");
 	printf("=== 测试：降序比较 ===\n");
 	
-	xavltree pTree = xrtAVLTreeCreate(sizeof(DescItem), compare_descending);
+	xavltree pTree = xrtAVLTreeCreate(sizeof(DescItem), compare_descending, XRT_OBJMODE_LOCAL);
 	
 	printf("Inserting: 10, 30, 20, 50, 40\n");
 	

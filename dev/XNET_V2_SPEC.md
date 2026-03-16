@@ -4,8 +4,8 @@
 
 - Document: `dev/XNET_V2_SPEC.md`
 - Status: Active draft
-- Version: `0.1.45`
-- Last updated: `2026-03-14`
+- Version: `0.1.46`
+- Last updated: `2026-03-16`
 - Scope: Full rewrite of the xrt network infrastructure
 - Source of truth: This file is the primary development spec for `xnet-v2`
 
@@ -1259,6 +1259,13 @@ Use this section for durable architecture decisions.
   accept registration/cancellation routed through `xnet_port`. A polling-loop
   wrapper around `accept()` is explicitly not acceptable as the `future` or
   coroutine-wait implementation path.
+- `D-058` `2026-03-16`: listener accept lifecycle must distinguish between
+  public waiters and backend accept-op ownership. Listener destroy may defer
+  final free while a native accept completion still carries listener user data,
+  but it must still reject explicit destroy attempts when a public accept waiter
+  is currently registered. Cancel-race accepted streams that were never handed
+  to an external owner must be explicitly abandoned and destroyed instead of
+  only being closed.
 
 
 ## 20. Session Log Template
@@ -2384,4 +2391,19 @@ Tests run: Windows local syntax/build verification of dev/bench/xnet2/bench_send
 Benchmarks run: focused Debian reruns show resume_to_first_recv_ns stays in the tens of microseconds, pending_zero_to_full_recv_ns stays negligible, and the visible spread lives almost entirely in resume_to_low_water_ns / resume_to_pending_zero_ns; this confirms that the residual variance is in the synthetic pressure-lane drain interval itself rather than in resume dispatch or application-level receive completion
 Blockers: none for the current xnet-v2 rewrite acceptance gates; remaining queue-pressure refinement is now optional performance work rather than a blocker for upper-layer migration
 Next steps: proceed with upper-layer migration and any future hot-path tuning as separate follow-on work instead of holding the rewrite open
+```
+
+Progress entry:
+
+```text
+Date: 2026-03-16
+Author: Codex
+Scope: Harden listener accept wait-source lifecycle around outstanding accept completions and cancel-race orphan streams
+Tasks touched: listener lifecycle fix, listener future/wait-source cancellation, focused accept regression coverage
+Decisions made: D-058
+Code paths changed: updated lib/xnet_stream.h so listener-owned native accept submissions add an internal async hold, listener destroy now defers final free until outstanding accept completion harvest releases that hold, and unowned accepted streams can be explicitly abandoned during teardown; updated lib/xnet_sync.h so listener future and wait-source cancel-race paths abandon/destroy accepted streams that resolve after cancellation instead of only closing them; expanded dev/test_xnet2_listener_accept_core.c and test/test_xnet2_sync.h with deterministic registered-waiter destroy rejection and timeout-destroy-with-outstanding-accept-op regressions
+Tests run: gcc -fsyntax-only xrt.c -I .; gcc -fsyntax-only dev/test_xnet2_listener_accept_core.c -I .; gcc -fsyntax-only test/test_xnet2_sync.h -I .; gcc -fsyntax-only dev/test_xnet2_stage.c -I .; gcc dev/test_xnet2_listener_accept_core.c xrt.c -I . -o dev/test_xnet2_listener_accept_core_fix.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_listener_accept_core_fix.exe successfully; gcc dev/test_xnet2_stage.c xrt.c -I . -o dev/test_xnet2_stage_fix.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_stage_fix.exe successfully; gcc -DXRT_MEM_DEBUG dev/test_xnet2_listener_accept_core.c xrt.c -I . -o dev/test_xnet2_listener_accept_core_memdbg.exe -lws2_32 -liphlpapi; ran dev/test_xnet2_listener_accept_core_memdbg.exe successfully and observed no auto leak dump
+Benchmarks run: none
+Blockers: none for listener accept wait-source lifecycle hardening; remaining network work stays in transport/performance follow-up areas
+Next steps: treat listener accept lifecycle hardening as complete and keep future network work focused on broader transport or performance tasks
 ```

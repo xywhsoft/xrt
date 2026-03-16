@@ -45,17 +45,13 @@ static inline bool __xrtArrayAlloc_NoLock(xarray pArr, uint32 iCount)
 }
 
 // 创建数组
-XXAPI xarray xrtArrayCreate(uint32 iItemLength)
-{
-	return xrtArrayCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI xarray xrtArrayCreateEx(uint32 iItemLength, uint32 iMode)
+XXAPI xarray xrtArrayCreate(uint32 iItemLength, uint32 iMode)
 {
 	xarray pArr = xrtMalloc(sizeof(xarray_struct));
 	if ( pArr == NULL ) {
 		return NULL;
 	}
-	xrtArrayInitEx(pArr, iItemLength, iMode);
+	xrtArrayInit(pArr, iItemLength, iMode);
 	return pArr;
 }
 
@@ -72,11 +68,7 @@ XXAPI void xrtArrayDestroy(xarray pArr)
 }
 
 // 初始化数组的数据结构 ( 用于内嵌数组的对象使用 )
-XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength)
-{
-	xrtArrayInitEx(pArr, iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtArrayInitEx(xarray pArr, uint32 iItemLength, uint32 iMode)
+XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength, uint32 iMode)
 {
 	pArr->Memory = NULL;
 	pArr->ItemLength = iItemLength;
@@ -99,26 +91,16 @@ XXAPI void xrtArrayUnit(xarray pArr)
 	xrtOwnerEndMutable(&pArr->Owner);
 }
 
-XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+#ifdef XRT_MEM_DEBUG
+XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xarray pArr = xrtArrayCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	xarray pArr = xrtArrayCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return pArr;
 }
-XXAPI xarray xrtArrayCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xarray pArr = xrtArrayCreateEx(iItemLength, iMode);
-	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
-	return pArr;
-}
-XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, const char* sFile, uint32 iLine)
-{
-	xrtArrayInitEx(pArr, iItemLength, XRT_OBJMODE_LOCAL);
-	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
-}
-XXAPI void xrtArrayInitExDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
-{
-	xrtArrayInitEx(pArr, iItemLength, iMode);
+	xrtArrayInit(pArr, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
@@ -150,6 +132,7 @@ XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine)
 	xrtOwnerEndMutable(&pArr->Owner);
 	__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
 }
+#endif
 
 XXAPI bool xrtArrayLock(xarray pArr)
 {

@@ -36,7 +36,7 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 	
 	// subject 1 : create object
 	printf("AVLTree Iterator test subject 1 : create object\n");
-	xavltree objTree = xrtAVLTreeCreate(sizeof(AVLT_Test_Iter_Struct), (void*)avltree_iter_comp_proc);
+	xavltree objTree = xrtAVLTreeCreate(sizeof(AVLT_Test_Iter_Struct), (void*)avltree_iter_comp_proc, XRT_OBJMODE_LOCAL);
 	if (objTree) {
 		printf("\tMM.ItemLength : %d\t\t\t=> %d\n", objTree->objMM.ItemLength, sizeof(AVLT_Test_Iter_Struct) + sizeof(xavltnode_struct));
 		
@@ -118,7 +118,7 @@ void Test_AVLTree_Iterator(xrtGlobalData* xCore)
 		
 		// subject 6 : test empty tree
 		printf("AVLTree Iterator test subject 6 : empty tree\n");
-		xavltree emptyTree = xrtAVLTreeCreate(sizeof(AVLT_Test_Iter_Struct), (void*)avltree_iter_comp_proc);
+		xavltree emptyTree = xrtAVLTreeCreate(sizeof(AVLT_Test_Iter_Struct), (void*)avltree_iter_comp_proc, XRT_OBJMODE_LOCAL);
 		if (emptyTree) {
 			printf("\tEmpty tree count: %u\n", emptyTree->Count);
 			

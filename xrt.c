@@ -874,76 +874,58 @@ XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut)
 
 
 
+#ifdef XRT_MEM_DEBUG
 XXAPI void xrtMemDebugEnable(bool bEnable)
 {
-	#ifdef XRT_MEM_DEBUG
-		xCore.MemDebug.bEnabled = bEnable ? 1 : 0;
-	#else
-		(void)bEnable;
-	#endif
+	xCore.MemDebug.bEnabled = bEnable ? 1 : 0;
 }
 
 
 
 XXAPI bool xrtMemDebugIsEnabled()
 {
-	#ifdef XRT_MEM_DEBUG
-		return xCore.MemDebug.bEnabled != 0;
-	#else
-		return FALSE;
-	#endif
+	return xCore.MemDebug.bEnabled != 0;
 }
 
 
 
 XXAPI void xrtMemDebugReset()
 {
-	#ifdef XRT_MEM_DEBUG
-		__xrtRuntimeLock();
-		__xrtMemDebugResetState(&xCore.MemDebug);
-		__xrtRuntimeUnlock();
-	#endif
+	__xrtRuntimeLock();
+	__xrtMemDebugResetState(&xCore.MemDebug);
+	__xrtRuntimeUnlock();
 }
 
 
 
 XXAPI bool xrtMemDebugDumpText(str sPath)
 {
-	#ifdef XRT_MEM_DEBUG
-		const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.txt";
-		FILE* pFile = fopen(sOpenPath, "wb");
-		bool bRet;
-		if ( pFile == NULL ) {
-			return FALSE;
-		}
-		bRet = __xrtMemDebugDumpTextFile(pFile);
-		fclose(pFile);
-		return bRet;
-	#else
-		(void)sPath;
+	const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.txt";
+	FILE* pFile = fopen(sOpenPath, "wb");
+	bool bRet;
+	if ( pFile == NULL ) {
 		return FALSE;
-	#endif
+	}
+	bRet = __xrtMemDebugDumpTextFile(pFile);
+	fclose(pFile);
+	return bRet;
 }
 
 
 
 XXAPI bool xrtMemDebugDumpJson(str sPath)
 {
-	#ifdef XRT_MEM_DEBUG
-		const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.json";
-		FILE* pFile = fopen(sOpenPath, "wb");
-		bool bRet;
-		if ( pFile == NULL ) {
-			return FALSE;
-		}
-		bRet = __xrtMemDebugDumpJsonFile(pFile);
-		fclose(pFile);
-		return bRet;
-	#else
-		(void)sPath;
+	const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.json";
+	FILE* pFile = fopen(sOpenPath, "wb");
+	bool bRet;
+	if ( pFile == NULL ) {
 		return FALSE;
-	#endif
+	}
+	bRet = __xrtMemDebugDumpJsonFile(pFile);
+	fclose(pFile);
+	return bRet;
 }
+#endif
 
 
 

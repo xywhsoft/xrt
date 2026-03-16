@@ -214,7 +214,7 @@ XXAPI xvalue xvoCreateArrayEx(uint32 iMode)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xparray objArr = xrtPtrArrayCreateEx(iMode);
+		xparray objArr = xrtPtrArrayCreate(iMode);
 		if ( objArr == NULL ) {
 			xrtFree(pVal);
 			return NULL;
@@ -233,7 +233,7 @@ XXAPI xvalue xvoCreateListEx(uint32 iMode)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xlist objList = xrtListCreateEx(sizeof(xvalue), iMode);
+		xlist objList = xrtListCreate(sizeof(xvalue), iMode);
 		if ( objList == NULL ) {
 			xrtFree(pVal);
 			return NULL;
@@ -253,7 +253,7 @@ XXAPI xvalue xvoCreateCollEx(uint32 iMode)
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
 		int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey);	// 比较函数定义
-		xavltree objColl = xrtAVLTreeCreateEx(sizeof(Coll_Key), (ptr)Coll_CompProc, iMode);
+		xavltree objColl = xrtAVLTreeCreate(sizeof(Coll_Key), (ptr)Coll_CompProc, iMode);
 		if ( objColl == NULL ) {
 			xrtFree(pVal);
 			return NULL;
@@ -273,7 +273,7 @@ XXAPI xvalue xvoCreateTableEx(uint32 iMode)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
-		xdict objTbl = xrtDictCreateEx(sizeof(xvalue), iMode);
+		xdict objTbl = xrtDictCreate(sizeof(xvalue), iMode);
 		if ( objTbl == NULL ) {
 			xrtFree(pVal);
 			return NULL;

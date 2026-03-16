@@ -12,7 +12,7 @@ static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
 static inline void __xrtMemTelemetryRecordFree();
 static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
-XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine)
+static inline ptr __xrtMallocSite(size_t iSize, const char* sFile, uint32 iLine)
 {
 	ptr mem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
 	if ( mem == NULL ) {
@@ -23,15 +23,7 @@ XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine)
 	return mem;
 }
 
-XXAPI ptr xrtMalloc(size_t iSize)
-{
-	return xrtMallocDbg(iSize, NULL, 0);
-}
-
-
-
-// 申请类内存
-XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
+static inline ptr __xrtCallocSite(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
 {
 	size_t iTotal = __xrtMemTelemetryMulClamp(iNum, iSize);
 	ptr mem = __xrtMemGlobalAllocSite(iTotal, TRUE, sFile, iLine);
@@ -43,15 +35,7 @@ XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLin
 	return mem;
 }
 
-XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
-{
-	return xrtCallocDbg(iNum, iSize, NULL, 0);
-}
-
-
-
-// 重新申请内存
-XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
+static inline ptr __xrtReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
 	ptr mem;
 	if ( pMem == xCore.sNull ) {
@@ -66,15 +50,7 @@ XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 	return mem;
 }
 
-XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
-{
-	return xrtReallocDbg(pMem, iSize, NULL, 0);
-}
-
-
-
-// 释放内存（ 会先判断是否为 null ）
-XXAPI void xrtFreeDbg(ptr pmem, const char* sFile, uint32 iLine)
+static inline void __xrtFreeSite(ptr pmem, const char* sFile, uint32 iLine)
 {
 	if ( pmem && (pmem != xCore.sNull) ) {
 		__xrtMemTelemetryRecordFree();
@@ -82,9 +58,61 @@ XXAPI void xrtFreeDbg(ptr pmem, const char* sFile, uint32 iLine)
 	}
 }
 
+#ifdef XRT_MEM_DEBUG
+XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine)
+{
+	return __xrtMallocSite(iSize, sFile, iLine);
+}
+#endif
+
+XXAPI ptr xrtMalloc(size_t iSize)
+{
+	return __xrtMallocSite(iSize, NULL, 0);
+}
+
+
+
+// 申请类内存
+#ifdef XRT_MEM_DEBUG
+XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
+{
+	return __xrtCallocSite(iNum, iSize, sFile, iLine);
+}
+#endif
+
+XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
+{
+	return __xrtCallocSite(iNum, iSize, NULL, 0);
+}
+
+
+
+// 重新申请内存
+#ifdef XRT_MEM_DEBUG
+XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
+{
+	return __xrtReallocSite(pMem, iSize, sFile, iLine);
+}
+#endif
+
+XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
+{
+	return __xrtReallocSite(pMem, iSize, NULL, 0);
+}
+
+
+
+// 释放内存（ 会先判断是否为 null ）
+#ifdef XRT_MEM_DEBUG
+XXAPI void xrtFreeDbg(ptr pmem, const char* sFile, uint32 iLine)
+{
+	__xrtFreeSite(pmem, sFile, iLine);
+}
+#endif
+
 XXAPI void xrtFree(ptr pmem)
 {
-	xrtFreeDbg(pmem, NULL, 0);
+	__xrtFreeSite(pmem, NULL, 0);
 }
 
 static inline size_t __xrtTempArenaBlockHeaderSize()

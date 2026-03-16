@@ -25,7 +25,7 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 	
 	// subject 1 : create object
 	printf("array test subject 1 : create array (struct)\n\n");
-	xarray arr = xrtArrayCreate(sizeof(Test_Struct));
+	xarray arr = xrtArrayCreate(sizeof(Test_Struct), XRT_OBJMODE_LOCAL);
 	if ( arr ) {
 		arr->AllocStep = 16;
 		printf("array object : %p\t\t\t\t\tpass! √\n", arr);
@@ -55,7 +55,7 @@ void Test_Array_Struct(xrtGlobalData* xCore)
 	// subject 2 : struct init
 	printf("array test subject 2 : struct init (Please check print)\n\n");
 	xarray_struct stuArr;
-	xrtArrayInit(&stuArr, sizeof(Test_Struct));
+	xrtArrayInit(&stuArr, sizeof(Test_Struct), XRT_OBJMODE_LOCAL);
 	stuArr.AllocStep = 16;
 	printf("\tMemory : %p\t\t=> 0\n", stuArr.Memory);
 	printf("\tItemLength : %d\t\t\t\t=> %d\n", stuArr.ItemLength, sizeof(Test_Struct));

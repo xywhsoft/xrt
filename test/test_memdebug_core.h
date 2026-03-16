@@ -50,6 +50,7 @@ static void Test_MemDebugCore(void)
 {
 	const char* sTextPath = "dev/memdebug_report.txt";
 	const char* sJsonPath = "dev/memdebug_report.json";
+	const char* sConsolePath = "dev/memdebug_console.txt";
 	char* pOverflow;
 	char* pDouble;
 	char* pLeak;
@@ -63,6 +64,8 @@ static void Test_MemDebugCore(void)
 	printf("[memdebug-core] start\n");
 
 	__Test_MemDebugCoreRequire(xrtMemDebugIsEnabled(), "memory debug must be enabled");
+	remove(sConsolePath);
+	__Test_MemDebugCoreRequire(freopen(sConsolePath, "wb", stderr) != NULL, "stderr redirect failed");
 
 	pOverflow = (char*)xrtMalloc(16);
 	__Test_MemDebugCoreRequire(pOverflow != NULL, "overflow alloc failed");
@@ -82,27 +85,33 @@ static void Test_MemDebugCore(void)
 	pLeak = (char*)xrtMalloc(48);
 	__Test_MemDebugCoreRequire(pLeak != NULL, "leak alloc failed");
 
-	objArrayLeak = xrtArrayCreate(sizeof(int));
+	objArrayLeak = xrtArrayCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	__Test_MemDebugCoreRequire(objArrayLeak != NULL, "array leak create failed");
 
-	objArrayDouble = xrtArrayCreate(sizeof(int));
+	objArrayDouble = xrtArrayCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	__Test_MemDebugCoreRequire(objArrayDouble != NULL, "array double-destroy create failed");
 	xrtArrayDestroy(objArrayDouble);
 	xrtArrayDestroy(objArrayDouble);
 
-	xrtArrayInit(&objArrayEmbedded, sizeof(int));
+	xrtArrayInit(&objArrayEmbedded, sizeof(int), XRT_OBJMODE_LOCAL);
 	xrtArrayUnit(&objArrayEmbedded);
 	xrtArrayUnit(&objArrayEmbedded);
 
-	objFS = xrtFSMemPoolCreate(32);
+	objFS = xrtFSMemPoolCreate(32, XRT_OBJMODE_LOCAL);
 	__Test_MemDebugCoreRequire(objFS != NULL, "fsmempool create failed");
 	pForeign = xrtFSMemPoolAlloc(objFS);
 	__Test_MemDebugCoreRequire(pForeign != NULL, "fsmempool alloc failed");
 	xrtFree(pForeign);
+	fflush(stderr);
 
 	__Test_MemDebugCoreRequire(xrtMemDebugDumpText((str)sTextPath), "text report dump failed");
 	__Test_MemDebugCoreRequire(xrtMemDebugDumpJson((str)sJsonPath), "json report dump failed");
 
+	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sConsolePath, "[XRT_MEM_DEBUG][DOUBLE_FREE]"), "console log missing double-free");
+	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sConsolePath, "[XRT_MEM_DEBUG][INVALID_FREE]"), "console log missing invalid-free");
+	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sConsolePath, "[XRT_MEM_DEBUG][WRONG_ALLOCATOR_FREE]"), "console log missing wrong-allocator-free");
+	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sConsolePath, "[XRT_MEM_DEBUG][BUFFER_OVERFLOW_SUSPECT]"), "console log missing overflow");
+	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sConsolePath, "[XRT_MEM_DEBUG][OBJECT_DOUBLE_DESTROY]"), "console log missing object double-destroy");
 	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sTextPath, "DOUBLE_FREE"), "text report missing double-free");
 	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sTextPath, "INVALID_FREE"), "text report missing invalid-free");
 	__Test_MemDebugCoreRequire(__Test_MemDebugCoreFileContains(sTextPath, "WRONG_ALLOCATOR_FREE"), "text report missing wrong-allocator-free");

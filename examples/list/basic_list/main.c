@@ -31,7 +31,7 @@ void test_basic_list(void)
 	printf("=== Test: Basic List Operations ===\n");
 	printf("=== 测试：基本列表操作 ===\n");
 	
-	xlist pList = xrtListCreate(sizeof(ListItem));
+	xlist pList = xrtListCreate(sizeof(ListItem), XRT_OBJMODE_LOCAL);
 	
 	printf("Created list with ListItem value size: %u\n", (uint32)sizeof(ListItem));
 	printf("创建列表，ListItem值大小: %u\n", (uint32)sizeof(ListItem));
@@ -79,7 +79,7 @@ void test_sparse_list(void)
 	printf("\n=== Test: Sparse List (Non-contiguous indices) ===\n");
 	printf("=== 测试：稀疏列表（非连续索引）===\n");
 	
-	xlist pList = xrtListCreate(sizeof(int));
+	xlist pList = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	
 	printf("Setting values at non-contiguous indices...\n");
 	printf("在非连续索引设置值...\n");

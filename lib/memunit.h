@@ -2,11 +2,7 @@
 
 
 // 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
-XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength)
-{
-	return xrtMemUnitCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI xmemunit xrtMemUnitCreateEx(uint32 iItemLength, uint32 iMode)
+XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength, uint32 iMode)
 {
 	iItemLength += sizeof(MMU_Value);
 	xmemunit objUnit = xrtMalloc(sizeof(xmemunit_struct) + (256 * iItemLength));

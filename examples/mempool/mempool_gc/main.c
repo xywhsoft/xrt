@@ -23,7 +23,7 @@ static void test_fsmempool_gc(void)
 {
 	printf("=== Test: FS MemPool GC ===\n");
 
-	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(int));
+	xfsmempool pPool = xrtFSMemPoolCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	int* pPtrs[20];
 
 	printf("Allocating 20 integers...\n");
@@ -48,7 +48,7 @@ static void test_general_mempool_gc(void)
 {
 	printf("\n=== Test: General MemPool GC ===\n");
 
-	xmempool pPool = xrtMemPoolCreate(0);
+	xmempool pPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	GCObject* pObjs[10];
 
 	printf("Allocating 10 GCObject instances...\n");
@@ -75,7 +75,7 @@ static void test_gc_marking_pattern(void)
 {
 	printf("\n=== Test: GC Marking Pattern ===\n");
 
-	xfsmempool pPool = xrtFSMemPoolCreate(32);
+	xfsmempool pPool = xrtFSMemPoolCreate(32, XRT_OBJMODE_LOCAL);
 	void* pObjs[50];
 
 	printf("Allocating 50 objects...\n");

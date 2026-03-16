@@ -20,7 +20,7 @@ void Test_Dict_Iterator(xrtGlobalData* xCore)
 	// subject 1 : 创建字典并插入数据
 	printf("Subject 1 : 创建字典并插入数据\n");
 	
-	xdict objDict = xrtDictCreate(sizeof(Employee));
+	xdict objDict = xrtDictCreate(sizeof(Employee), XRT_OBJMODE_LOCAL);
 	if ( objDict ) {
 		printf("\t字典创建成功，Count: %u\n", objDict->AVLT.Count);
 		
@@ -94,7 +94,7 @@ void Test_Dict_Iterator(xrtGlobalData* xCore)
 		// subject 5 : 测试空字典
 		printf("Subject 5 : 空字典迭代测试\n");
 		
-		xdict emptyDict = xrtDictCreate(sizeof(int));
+		xdict emptyDict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		if ( emptyDict ) {
 			count = 0;
 			DICT_FOREACH(emptyDict, key, val) {
@@ -127,7 +127,7 @@ void Test_Dict_Iterator(xrtGlobalData* xCore)
 		// subject 7 : 测试大量数据
 		printf("Subject 7 : 大量数据迭代测试\n");
 		
-		xdict largeDict = xrtDictCreate(sizeof(int));
+		xdict largeDict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		if ( largeDict ) {
 			// 插入 100 条数据
 			for ( int i = 0; i < 100; i++ ) {
@@ -180,7 +180,7 @@ void Test_Dict_Iterator(xrtGlobalData* xCore)
 		// subject 9 : 测试指针类型值
 		printf("Subject 9 : 指针类型值测试\n");
 		
-		xdict ptrDict = xrtDictCreate(sizeof(ptr));
+		xdict ptrDict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
 		if ( ptrDict ) {
 			// 插入一些指针值
 			for ( int i = 0; i < 3; i++ ) {

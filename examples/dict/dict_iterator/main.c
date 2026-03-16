@@ -22,7 +22,7 @@ void test_dict_iterator(void)
 	printf("=== Test: Dictionary Iterator ===\n");
 	printf("=== 测试：字典迭代器 ===\n");
 	
-	xdict pDict = xrtDictCreate(sizeof(int));
+	xdict pDict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	
 	printf("Setting values...\n");
 	printf("设置值...\n");
@@ -58,7 +58,7 @@ void test_walk_function(void)
 	printf("\n=== Test: Dictionary Walk Function ===\n");
 	printf("=== 测试：字典遍历函数 ===\n");
 	
-	xdict pDict = xrtDictCreate(sizeof(double));
+	xdict pDict = xrtDictCreate(sizeof(double), XRT_OBJMODE_LOCAL);
 	
 	printf("Setting double values...\n");
 	printf("设置双精度值...\n");

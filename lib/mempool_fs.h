@@ -2,15 +2,11 @@
 
 
 // 创建内存管理器
-XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength)
-{
-	return xrtFSMemPoolCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI xfsmempool xrtFSMemPoolCreateEx(unsigned int iItemLength, uint32 iMode)
+XXAPI xfsmempool xrtFSMemPoolCreate(unsigned int iItemLength, uint32 iMode)
 {
 	xfsmempool mm = xrtMalloc(sizeof(xfsmempool_struct));
 	if ( mm ) {
-		xrtFSMemPoolInitEx(mm, iItemLength, iMode);
+		xrtFSMemPoolInit(mm, iItemLength, iMode);
 	}
 	return mm;
 }
@@ -28,18 +24,14 @@ XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM)
 }
 
 // 初始化内存管理器（对自维护结构体指针使用）
-XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength)
-{
-	xrtFSMemPoolInitEx(objMM, iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtFSMemPoolInitEx(xfsmempool objMM, unsigned int iItemLength, uint32 iMode)
+XXAPI void xrtFSMemPoolInit(xfsmempool objMM, unsigned int iItemLength, uint32 iMode)
 {
 	xrtOwnerInitMode(&objMM->Owner, iMode);
 	if ( iMode == XRT_OBJMODE_SHARED ) {
 		xrtOwnerActivateShared(&objMM->Owner);
 	}
 	objMM->ItemLength = iItemLength;
-	xrtBsmmInitEx(&objMM->arrMMU, sizeof(MMU_LLNode), iMode);
+	xrtBsmmInit(&objMM->arrMMU, sizeof(MMU_LLNode), iMode);
 	objMM->arrMMU.PageMMU.AllocStep = 64;
 	objMM->LL_Idle = NULL;
 	objMM->LL_Full = NULL;
@@ -68,26 +60,16 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	xrtOwnerEndMutable(&objMM->Owner);
 }
 
-XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, const char* sFile, uint32 iLine)
+#ifdef XRT_MEM_DEBUG
+XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xfsmempool objMM = xrtFSMemPoolCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	xfsmempool objMM = xrtFSMemPoolCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objMM;
 }
-XXAPI xfsmempool xrtFSMemPoolCreateExDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xfsmempool objMM = xrtFSMemPoolCreateEx(iItemLength, iMode);
-	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
-	return objMM;
-}
-XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, const char* sFile, uint32 iLine)
-{
-	xrtFSMemPoolInitEx(objMM, iItemLength, XRT_OBJMODE_LOCAL);
-	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
-}
-XXAPI void xrtFSMemPoolInitExDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
-{
-	xrtFSMemPoolInitEx(objMM, iItemLength, iMode);
+	xrtFSMemPoolInit(objMM, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine)
@@ -130,6 +112,7 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 	xrtOwnerEndMutable(&objMM->Owner);
 	__xrtMemDebugUnregisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine);
 }
+#endif
 
 // 从内存管理器中申请一块内存
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
@@ -148,7 +131,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			objMM->LL_Null = NULL;
 		} else if ( objMM->LL_Free ) {
 			// 创建新的内存管理单元，使用已释放的内存管理单元位置
-			objMMU = xrtMemUnitCreateEx(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
+			objMMU = xrtMemUnitCreate(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
 			if ( objMMU == NULL ) {
 				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;
@@ -168,7 +151,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			objMM->LL_Idle = pNode;
 		} else {
 			// 创建新的内存管理单元，创建失败就报错处理
-			objMMU = xrtMemUnitCreateEx(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
+			objMMU = xrtMemUnitCreate(objMM->ItemLength, xrtOwnerGetMode(&objMM->Owner));
 			if ( objMMU == NULL ) {
 				xrtOwnerEndMutable(&objMM->Owner);
 				return NULL;

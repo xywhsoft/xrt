@@ -236,13 +236,13 @@ static bool __test_phase2_owner_allocator_container(void)
 	bool bOk = TRUE;
 
 	memset(&tData, 0, sizeof(tData));
-	tData.BSMM = xrtBsmmCreate(sizeof(int));
-	tData.MemUnit = xrtMemUnitCreate(sizeof(int));
-	tData.FSMemPool = xrtFSMemPoolCreate(sizeof(int));
-	tData.MemPool = xrtMemPoolCreate(0);
-	tData.Tree = xrtAVLTreeCreate(sizeof(__test_phase2_tree_item), (ptr)__test_phase2_tree_comp);
-	tData.Dict = xrtDictCreate(sizeof(ptr));
-	tData.List = xrtListCreate(sizeof(ptr));
+	tData.BSMM = xrtBsmmCreate(sizeof(int), XRT_OBJMODE_LOCAL);
+	tData.MemUnit = xrtMemUnitCreate(sizeof(int), XRT_OBJMODE_LOCAL);
+	tData.FSMemPool = xrtFSMemPoolCreate(sizeof(int), XRT_OBJMODE_LOCAL);
+	tData.MemPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
+	tData.Tree = xrtAVLTreeCreate(sizeof(__test_phase2_tree_item), (ptr)__test_phase2_tree_comp, XRT_OBJMODE_LOCAL);
+	tData.Dict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
+	tData.List = xrtListCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
 	if ( !tData.BSMM || !tData.MemUnit || !tData.FSMemPool || !tData.MemPool || !tData.Tree || !tData.Dict || !tData.List ) {
 		bOk = FALSE;
 		goto cleanup;
@@ -402,8 +402,8 @@ static bool __test_phase2_owner_arrays(void)
 	bool bOk = TRUE;
 
 	memset(&tData, 0, sizeof(tData));
-	tData.PtrArray = xrtPtrArrayCreate();
-	tData.StructArray = xrtArrayCreate(sizeof(__test_phase2_array_item));
+	tData.PtrArray = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
+	tData.StructArray = xrtArrayCreate(sizeof(__test_phase2_array_item), XRT_OBJMODE_LOCAL);
 	if ( !tData.PtrArray || !tData.StructArray ) {
 		bOk = FALSE;
 		goto cleanup;
@@ -551,10 +551,10 @@ static bool __test_phase2_shared_entry_points(void)
 	bool bOk = TRUE;
 
 	memset(&tData, 0, sizeof(tData));
-	tData.Dict = xrtDictCreateEx(sizeof(ptr), XRT_OBJMODE_SHARED);
-	tData.List = xrtListCreateEx(sizeof(ptr), XRT_OBJMODE_SHARED);
-	tData.PtrArray = xrtPtrArrayCreateEx(XRT_OBJMODE_SHARED);
-	tData.StructArray = xrtArrayCreateEx(sizeof(__test_phase2_array_item), XRT_OBJMODE_SHARED);
+	tData.Dict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_SHARED);
+	tData.List = xrtListCreate(sizeof(ptr), XRT_OBJMODE_SHARED);
+	tData.PtrArray = xrtPtrArrayCreate(XRT_OBJMODE_SHARED);
+	tData.StructArray = xrtArrayCreate(sizeof(__test_phase2_array_item), XRT_OBJMODE_SHARED);
 	tData.ValueArray = xvoCreateArrayEx(XRT_OBJMODE_SHARED);
 	tData.ValueTable = xvoCreateTableEx(XRT_OBJMODE_SHARED);
 	if ( !tData.Dict || !tData.List || !tData.PtrArray || !tData.StructArray || !tData.ValueArray || !tData.ValueTable ) {
@@ -1126,10 +1126,10 @@ static bool __test_phase2_shared_allocator_roots(void)
 	bool bOk = TRUE;
 
 	memset(&tData, 0, sizeof(tData));
-	tData.BSMM = xrtBsmmCreateEx(sizeof(int), XRT_OBJMODE_SHARED);
-	tData.MemUnit = xrtMemUnitCreateEx(sizeof(int), XRT_OBJMODE_SHARED);
-	tData.FSMemPool = xrtFSMemPoolCreateEx(sizeof(int), XRT_OBJMODE_SHARED);
-	tData.MemPool = xrtMemPoolCreateEx(0, XRT_OBJMODE_SHARED);
+	tData.BSMM = xrtBsmmCreate(sizeof(int), XRT_OBJMODE_SHARED);
+	tData.MemUnit = xrtMemUnitCreate(sizeof(int), XRT_OBJMODE_SHARED);
+	tData.FSMemPool = xrtFSMemPoolCreate(sizeof(int), XRT_OBJMODE_SHARED);
+	tData.MemPool = xrtMemPoolCreate(0, XRT_OBJMODE_SHARED);
 	if ( !tData.BSMM || !tData.MemUnit || !tData.FSMemPool || !tData.MemPool ) {
 		bOk = FALSE;
 		goto cleanup;
@@ -1258,7 +1258,7 @@ static bool __test_phase2_shared_tree_real(void)
 	int iWalkCount = 0;
 
 	memset(&tData, 0, sizeof(tData));
-	tData.Tree = xrtAVLTreeCreateEx(sizeof(__test_phase2_tree_item), (ptr)__test_phase2_tree_comp, XRT_OBJMODE_SHARED);
+	tData.Tree = xrtAVLTreeCreate(sizeof(__test_phase2_tree_item), (ptr)__test_phase2_tree_comp, XRT_OBJMODE_SHARED);
 	if ( tData.Tree == NULL ) {
 		bOk = FALSE;
 		goto cleanup;
@@ -1378,11 +1378,11 @@ static bool __test_phase2_shared_explicit_lock_api(void)
 	memset(&tData, 0, sizeof(tData));
 	memset(&tWorker, 0, sizeof(tWorker));
 
-	tData.Dict = xrtDictCreateEx(sizeof(ptr), XRT_OBJMODE_SHARED);
-	tData.List = xrtListCreateEx(sizeof(ptr), XRT_OBJMODE_SHARED);
-	tData.PtrArray = xrtPtrArrayCreateEx(XRT_OBJMODE_SHARED);
-	tData.StructArray = xrtArrayCreateEx(sizeof(__test_phase2_array_item), XRT_OBJMODE_SHARED);
-	tData.Tree = xrtAVLTreeCreateEx(sizeof(__test_phase2_tree_item), (ptr)__test_phase2_tree_comp, XRT_OBJMODE_SHARED);
+	tData.Dict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_SHARED);
+	tData.List = xrtListCreate(sizeof(ptr), XRT_OBJMODE_SHARED);
+	tData.PtrArray = xrtPtrArrayCreate(XRT_OBJMODE_SHARED);
+	tData.StructArray = xrtArrayCreate(sizeof(__test_phase2_array_item), XRT_OBJMODE_SHARED);
+	tData.Tree = xrtAVLTreeCreate(sizeof(__test_phase2_tree_item), (ptr)__test_phase2_tree_comp, XRT_OBJMODE_SHARED);
 	if ( !tData.Dict || !tData.List || !tData.PtrArray || !tData.StructArray || !tData.Tree ) {
 		bOk = FALSE;
 		goto cleanup;
@@ -1662,10 +1662,10 @@ static bool __test_phase2_shared_container_roots(void)
 	memset(&tData, 0, sizeof(tData));
 	memset(&tArg1, 0, sizeof(tArg1));
 	memset(&tArg2, 0, sizeof(tArg2));
-	tData.Dict = xrtDictCreateEx(sizeof(ptr), XRT_OBJMODE_SHARED);
-	tData.List = xrtListCreateEx(sizeof(ptr), XRT_OBJMODE_SHARED);
-	tData.PtrArray = xrtPtrArrayCreateEx(XRT_OBJMODE_SHARED);
-	tData.StructArray = xrtArrayCreateEx(sizeof(__test_phase2_array_item), XRT_OBJMODE_SHARED);
+	tData.Dict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_SHARED);
+	tData.List = xrtListCreate(sizeof(ptr), XRT_OBJMODE_SHARED);
+	tData.PtrArray = xrtPtrArrayCreate(XRT_OBJMODE_SHARED);
+	tData.StructArray = xrtArrayCreate(sizeof(__test_phase2_array_item), XRT_OBJMODE_SHARED);
 	if ( !tData.Dict || !tData.List || !tData.PtrArray || !tData.StructArray ) {
 		bOk = FALSE;
 		goto cleanup;
@@ -1764,7 +1764,7 @@ void Test_Runtime_Phase2(xrtGlobalData* xCore)
 	bArrayChain = __test_phase2_owner_arrays();
 	printf("  array/parray owner 保护: %s\n", bArrayChain ? "成功" : "失败");
 
-	printf("\n[Test 3] shared CreateEx staged 入口:\n");
+	printf("\n[Test 3] shared mode constructor staged 入口:\n");
 	bSharedEntry = __test_phase2_shared_entry_points();
 	printf("  shared container/value 边界: %s\n", bSharedEntry ? "成功" : "失败");
 

@@ -68,7 +68,14 @@
 
 ### 2. Listener accept wait-source lifecycle hardening
 
-状态: ready
+状态: done
+
+Resolved state:
+
+- listener native accept submissions now hold listener lifetime until the backend completion path releases the accept-op hold
+- listener destroy now defers final free while an outstanding accept completion can still surface listener user data
+- listener future and wait-source cancel races now abandon and destroy undelivered accepted streams instead of only closing them
+- focused listener and stage sync regressions now cover registered-waiter destroy rejection and timeout-destroy with an outstanding accept op
 
 范围:
 

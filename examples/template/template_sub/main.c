@@ -45,7 +45,7 @@ void test_basic_include(void)
 		return;
 	}
 	
-	xdict tblInclude = xrtDictCreate(sizeof(XTE_LiteObject));
+	xdict tblInclude = xrtDictCreate(sizeof(XTE_LiteObject), XRT_OBJMODE_LOCAL);
 	int bNew = 0;
 	XTE_LiteObject* pSlot = NULL;
 	
@@ -100,7 +100,7 @@ void test_nested_includes(void)
 		return;
 	}
 	
-	xdict tblInclude = xrtDictCreate(sizeof(XTE_LiteObject));
+	xdict tblInclude = xrtDictCreate(sizeof(XTE_LiteObject), XRT_OBJMODE_LOCAL);
 	int bNew = 0;
 	XTE_LiteObject* pSlot = NULL;
 	
@@ -137,7 +137,7 @@ void test_dynamic_includes(void)
 	XTE_LiteObject greetingEn = xteParse((char*)"Hello, {{name}}!", 15, "{{}}");
 	XTE_LiteObject greetingZh = xteParse((char*)"你好, {{name}}!", 14, "{{}}");
 	
-	xdict tblInclude = xrtDictCreate(sizeof(XTE_LiteObject));
+	xdict tblInclude = xrtDictCreate(sizeof(XTE_LiteObject), XRT_OBJMODE_LOCAL);
 	int bNew = 0;
 	XTE_LiteObject* pSlot = NULL;
 	

@@ -36,7 +36,7 @@ void TestArrayCreate()
 	printf("=== Array Creation ===\n");
 	printf("=== 数组创建 ===\n");
 	
-	xarray pArr = xrtArrayCreate(sizeof(Student));
+	xarray pArr = xrtArrayCreate(sizeof(Student), XRT_OBJMODE_LOCAL);
 	printf("Created array for Student struct\n");
 	printf("为 Student 结构体创建数组\n");
 	printf("  ItemLength: %u bytes\n", pArr->ItemLength);
@@ -54,7 +54,7 @@ void TestArrayAppend()
 	printf("=== Array Append ===\n");
 	printf("=== 数组追加 ===\n");
 	
-	xarray pArr = xrtArrayCreate(sizeof(Student));
+	xarray pArr = xrtArrayCreate(sizeof(Student), XRT_OBJMODE_LOCAL);
 	
 	// Append students
 	// 追加学生
@@ -95,7 +95,7 @@ void TestArrayInsert()
 	printf("=== Array Insert ===\n");
 	printf("=== 数组插入 ===\n");
 	
-	xarray pArr = xrtArrayCreate(sizeof(Student));
+	xarray pArr = xrtArrayCreate(sizeof(Student), XRT_OBJMODE_LOCAL);
 	
 	// Add initial students
 	// 添加初始学生
@@ -140,7 +140,7 @@ void TestArrayRemove()
 	printf("=== Array Remove ===\n");
 	printf("=== 数组删除 ===\n");
 	
-	xarray pArr = xrtArrayCreate(sizeof(Student));
+	xarray pArr = xrtArrayCreate(sizeof(Student), XRT_OBJMODE_LOCAL);
 	
 	// Add students
 	// 添加学生
@@ -186,7 +186,7 @@ void TestPracticalUseCases()
 	printf("=== Practical Use Case: Score Management ===\n");
 	printf("=== 实际用例: 成绩管理 ===\n");
 	
-	xarray pArr = xrtArrayCreate(sizeof(Student));
+	xarray pArr = xrtArrayCreate(sizeof(Student), XRT_OBJMODE_LOCAL);
 	
 	// Add students
 	// 添加学生

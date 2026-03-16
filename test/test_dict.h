@@ -24,13 +24,13 @@ void Test_Dict(xrtGlobalData* xCore)
 	
 	
 	
-	xmempool objMP = xrtMemPoolCreate(0);
+	xmempool objMP = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	
 	
 	
 	// subject 1 : create object
 	printf("Dict test subject 1 : create object\n\n");
-	xdict objHT = xrtDictCreate(sizeof(AVLT_Test_Struct));
+	xdict objHT = xrtDictCreate(sizeof(AVLT_Test_Struct), XRT_OBJMODE_LOCAL);
 	if ( objHT ) {
 		objHT->MP = objMP;
 		printf("Dict object : %p\t\t\t\tpass! √\n", objHT);

@@ -20,7 +20,7 @@ SafeList* SafeList_Create(uint32 iItemLength) {
 	SafeList* p = xrtMalloc(sizeof(SafeList));
 	if ( !p ) return NULL;
 	
-	p->List = xrtListCreate(iItemLength);
+	p->List = xrtListCreate(iItemLength, XRT_OBJMODE_LOCAL);
 	p->Lock = xrtRWLockCreate();
 	
 	return p;
@@ -81,7 +81,7 @@ SafeDict* SafeDict_Create(uint32 iItemLength) {
 	SafeDict* p = xrtMalloc(sizeof(SafeDict));
 	if ( !p ) return NULL;
 	
-	p->Dict = xrtDictCreate(iItemLength);
+	p->Dict = xrtDictCreate(iItemLength, XRT_OBJMODE_LOCAL);
 	p->Lock = xrtRWLockCreate();
 	
 	return p;

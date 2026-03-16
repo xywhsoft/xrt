@@ -5,7 +5,7 @@ static void Test_MemPool(xrtGlobalData* xCore)
 	printf("\n\n\n------------------------------------\n\n MemPool Test:\n\n");
 
 	printf("MemPool subject 1 : create default pool\n\n");
-	xmempool objMP = xrtMemPoolCreate(0);
+	xmempool objMP = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	printf("  object                : %p\n", objMP);
 	printf("  fallback cutoff       : %u (expected 1024)\n", objMP->iFallbackCutoff);
 	printf("  bucket step           : %u (expected 16)\n", objMP->iBucketStep);
@@ -16,7 +16,7 @@ static void Test_MemPool(xrtGlobalData* xCore)
 	xrtMemPoolDestroy(objMP);
 
 	printf("\nMemPool subject 2 : create custom-cutoff pool\n\n");
-	objMP = xrtMemPoolCreate(256);
+	objMP = xrtMemPoolCreate(256, XRT_OBJMODE_LOCAL);
 	printf("  object                : %p\n", objMP);
 	printf("  fallback cutoff       : %u (expected 256)\n", objMP->iFallbackCutoff);
 	printf("  bucket count          : %u (expected 16)\n", objMP->iBucketCount);
@@ -25,7 +25,7 @@ static void Test_MemPool(xrtGlobalData* xCore)
 	xrtMemPoolDestroy(objMP);
 
 	printf("\nMemPool subject 3 : pooled and fallback allocations\n\n");
-	objMP = xrtMemPoolCreate(256);
+	objMP = xrtMemPoolCreate(256, XRT_OBJMODE_LOCAL);
 	void* pSmall = xrtMemPoolAlloc(objMP, 32);
 	void* pMedium = xrtMemPoolAlloc(objMP, 240);
 	void* pFallback = xrtMemPoolAlloc(objMP, 257);
@@ -45,7 +45,7 @@ static void Test_MemPool(xrtGlobalData* xCore)
 		char szName[32];
 	} MP_TestRecord;
 
-	objMP = xrtMemPoolCreate(0);
+	objMP = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	MP_TestRecord* pRecords[4];
 	for (int i = 0; i < 4; i++) {
 		pRecords[i] = (MP_TestRecord*)xrtMemPoolAlloc(objMP, sizeof(MP_TestRecord));

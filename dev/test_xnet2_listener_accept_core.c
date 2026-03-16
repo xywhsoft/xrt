@@ -59,6 +59,25 @@ static bool __listener_accept_wait_open(xnetstream* pStream, uint32 iTimeoutMs)
 	return (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0;
 }
 
+static bool __listener_accept_wait_registered(xnetlistener* pListener, uint32 iTimeoutMs)
+{
+	int64_t iDeadlineMs = __listener_accept_now_ms() + (int64_t)iTimeoutMs;
+	if ( !pListener ) return false;
+	while ( __listener_accept_now_ms() < iDeadlineMs ) {
+		if ( pListener->tAcceptWait.pfnWait != NULL ) {
+			return true;
+		}
+		__listener_accept_sleep_ms(5);
+	}
+	return pListener->tAcceptWait.pfnWait != NULL;
+}
+
+static bool __listener_accept_error_empty(void)
+{
+	const char* sErr = xrtGetError();
+	return sErr == NULL || sErr[0] == 0;
+}
+
 static uint32 __listener_accept_connect_worker(ptr pArg)
 {
 	__listener_accept_connect_case* pCase = (__listener_accept_connect_case*)pArg;
@@ -167,6 +186,7 @@ int main(void)
 		xnetstream* pAccepted = NULL;
 		xnetfuture* pFuture = NULL;
 		xnet_result iFutureStatus = XRT_NET_ERROR;
+		bool bWaitRegistered = false;
 		bool bEarlyDestroyRejected = false;
 		bool bOpenEmitted = false;
 
@@ -184,34 +204,37 @@ int main(void)
 			tConnCase.iDelayMs = 20;
 			tConnCase.iHoldMs = 80;
 			pFuture = xrtNetListenerAcceptFuture(pListener);
+			bWaitRegistered = __listener_accept_wait_registered(pListener, 200);
 		}
 
 		xrtClearError();
-		if ( pListener ) {
+		if ( pListener && bWaitRegistered ) {
 			xrtNetListenerDestroy(pListener);
-			bEarlyDestroyRejected = xrtGetError() && xrtGetError()[0] != 0;
+			bEarlyDestroyRejected = !__listener_accept_error_empty();
 		}
 
-		if ( pListener ) {
+		if ( pListener && pFuture ) {
 			pThread = xrtThreadCreate(__listener_accept_connect_worker, &tConnCase, 0);
 			if ( pFuture ) iFutureStatus = xrtNetFutureWait(pFuture, 400);
 			pAccepted = pFuture ? (xnetstream*)xrtNetFutureValue(pFuture) : NULL;
 			bOpenEmitted = __listener_accept_wait_open(pAccepted, 200);
 		}
 
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			xrtThreadDestroy(pThread);
+		}
+
+		printf("  future waiter registers before destroy gate: %s\n", bWaitRegistered ? "PASS" : "FAIL");
 		printf("  future destroy protection: %s\n", bEarlyDestroyRejected ? "PASS" : "FAIL");
 		printf("  future wait status: %s\n", iFutureStatus == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  future value: %s\n", pAccepted != NULL ? "PASS" : "FAIL");
 		printf("  client connect: %s\n", tConnCase.iConnectResult == 1 ? "PASS" : "FAIL");
 		printf("  accepted stream open: %s\n", bOpenEmitted ? "PASS" : "FAIL");
 
-		bFutureOk = bEarlyDestroyRejected && iFutureStatus == XRT_NET_OK &&
+		bFutureOk = bWaitRegistered && bEarlyDestroyRejected && iFutureStatus == XRT_NET_OK &&
 			pAccepted != NULL && tConnCase.iConnectResult == 1 && bOpenEmitted;
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
 		if ( pFuture ) xrtNetFutureDestroy(pFuture);
 		if ( pAccepted ) {
 			xrtNetStreamClose(pAccepted, XNET_CLOSE_F_ABORT);
@@ -222,6 +245,49 @@ int main(void)
 			xrtClearError();
 			xrtNetListenerDestroy(pListener);
 		}
+		if ( pEngine ) {
+			xrtNetEngineStop(pEngine);
+			xrtNetEngineDestroy(pEngine);
+		}
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetlistenconfig tListenCfg;
+		xnetengine* pEngine = NULL;
+		xnetlistener* pListener = NULL;
+		xnetwaitsrc tSrc = xrtNetWaitSourceNone();
+		xnetstream* pAccepted = (xnetstream*)1;
+		xnet_result iTimeoutStatus = XRT_NET_ERROR;
+		bool bAcceptHoldActive = false;
+		bool bDestroyAfterTimeoutOk = false;
+
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		xrtNetListenConfigInit(&tListenCfg);
+		xrtNetAddrInitAny(&tListenCfg.tBindAddr, AF_INET, 0);
+		pEngine = xrtNetEngineCreate(&tCfg);
+		if ( pEngine ) {
+			(void)xrtNetEngineStart(pEngine);
+		}
+		pListener = pEngine ? xrtNetListenerCreate(pEngine, &tListenCfg, NULL, NULL, NULL) : NULL;
+		if ( pListener ) {
+			(void)xrtNetListenerStart(pListener);
+			tSrc = xrtNetWaitSourceListenerAccept(pListener);
+			iTimeoutStatus = xrtNetWaitSourceWaitValueTimeout(&tSrc, 35, (ptr*)&pAccepted);
+			bAcceptHoldActive = __xnetAtomicLoad32(&pListener->iAsyncHoldCount) > 0 &&
+				pListener->tAcceptWait.pfnWait == NULL;
+			xrtClearError();
+			xrtNetListenerDestroy(pListener);
+			bDestroyAfterTimeoutOk = __listener_accept_error_empty();
+			pListener = NULL;
+		}
+
+		printf("  timeout destroy status: %s\n", iTimeoutStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
+		printf("  timeout destroy leaves null value: %s\n", pAccepted == NULL ? "PASS" : "FAIL");
+		printf("  timeout destroy sees outstanding accept hold: %s\n", bAcceptHoldActive ? "PASS" : "FAIL");
+		printf("  timeout destroy succeeds while accept op is still deferred: %s\n", bDestroyAfterTimeoutOk ? "PASS" : "FAIL");
+
 		if ( pEngine ) {
 			xrtNetEngineStop(pEngine);
 			xrtNetEngineDestroy(pEngine);
@@ -265,6 +331,11 @@ int main(void)
 			bOpenEmitted = __listener_accept_wait_open(pAccepted, 200);
 		}
 
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			xrtThreadDestroy(pThread);
+		}
+
 		printf("  wait source timeout status: %s\n", iTimeoutStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
 		printf("  wait source timeout null value: %s\n", pTimeoutAccepted == NULL ? "PASS" : "FAIL");
 		printf("  wait source retry status: %s\n", iRetryStatus == XRT_NET_OK ? "PASS" : "FAIL");
@@ -275,10 +346,6 @@ int main(void)
 		bWaitSrcOk = iTimeoutStatus == XRT_NET_TIMEOUT && pTimeoutAccepted == NULL &&
 			iRetryStatus == XRT_NET_OK && pAccepted != NULL && tConnCase.iConnectResult == 1 && bOpenEmitted;
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
 		if ( pAccepted ) {
 			xrtNetStreamClose(pAccepted, XNET_CLOSE_F_ABORT);
 			xrtNetStreamDestroy(pAccepted);
@@ -336,6 +403,11 @@ int main(void)
 			bRetryOpen = __listener_accept_wait_open(tRetryCase.pRetryAccepted, 200);
 		}
 
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			xrtThreadDestroy(pThread);
+		}
+
 		printf("  coroutine timeout status: %s\n", tTimeoutCase.iTimeoutStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
 		printf("  coroutine timeout null value: %s\n", tTimeoutCase.pAccepted == NULL ? "PASS" : "FAIL");
 		printf("  coroutine retry status: %s\n", tRetryCase.iStatus == XRT_NET_OK ? "PASS" : "FAIL");
@@ -347,10 +419,6 @@ int main(void)
 			tRetryCase.iStatus == XRT_NET_OK && tRetryCase.pRetryAccepted != NULL &&
 			tConnCase.iConnectResult == 1 && bRetryOpen;
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
 		if ( pSched ) xrtCoSchedDestroy(pSched);
 		if ( tRetryCase.pRetryAccepted ) {
 			xrtNetStreamClose(tRetryCase.pRetryAccepted, XNET_CLOSE_F_ABORT);

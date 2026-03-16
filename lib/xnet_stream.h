@@ -136,6 +136,7 @@ struct xrt_net_listener {
 	volatile long iAsyncHoldCount;
 	bool bAcceptArmed;
 	bool bRunning;
+	bool bDestroyPending;
 };
 
 struct xrt_net_stream {
@@ -176,6 +177,8 @@ static void __xnetStreamFinishClose(xnetstream* pStream, xnet_result iReason);
 static void __xnetStreamBeginGracefulCloseWait(xnetstream* pStream);
 static void __xnetStreamDetachTls(xnetstream* pStream);
 static void __xnetStreamNotifyDestroyWaiters(xnetstream* pStream);
+static void __xnetStreamAbandonUnownedAccepted(xnetstream* pStream);
+static void __xnetSocketCloseHandle(xsocket* phSocket);
 static bool __xnetStreamDrainTlsPlain(xnetstream* pStream);
 static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream);
 static void __xnetStreamEmitOpen(xnetstream* pStream);
@@ -281,16 +284,44 @@ static void __xnetStreamReleaseAsyncHold(xnetstream* pStream)
 	}
 }
 
+static void __xnetListenerFinalizeDestroy(xnetlistener* pListener)
+{
+	if ( !pListener ) return;
+	pListener->bRunning = false;
+	pListener->bAcceptArmed = false;
+	pListener->bDestroyPending = false;
+	pListener->iAcceptOpId = 0;
+	pListener->tAcceptWait.pfnWait = NULL;
+	pListener->tAcceptWait.pfnCanAccept = NULL;
+	pListener->tAcceptWait.pCtx = NULL;
+	pListener->pEvents = NULL;
+	pListener->pStreamEvents = NULL;
+	pListener->pUserData = NULL;
+	__xnetSocketCloseHandle(&pListener->hSocket);
+	XNET_FREE(pListener);
+}
+
 static void __xnetListenerAddAsyncHold(xnetlistener* pListener)
 {
 	if ( !pListener ) return;
 	(void)__xnetAtomicAddFetch32(&pListener->iAsyncHoldCount, 1);
 }
 
+static void __xnetListenerPrepareDeferredDestroy(xnetlistener* pListener)
+{
+	if ( !pListener || pListener->bDestroyPending ) return;
+	pListener->bDestroyPending = true;
+	pListener->pEvents = NULL;
+	pListener->pStreamEvents = NULL;
+	pListener->pUserData = NULL;
+}
+
 static void __xnetListenerReleaseAsyncHold(xnetlistener* pListener)
 {
 	if ( !pListener ) return;
-	(void)__xnetAtomicAddFetch32(&pListener->iAsyncHoldCount, -1);
+	if ( __xnetAtomicAddFetch32(&pListener->iAsyncHoldCount, -1) == 0 && pListener->bDestroyPending ) {
+		__xnetListenerFinalizeDestroy(pListener);
+	}
 }
 
 static bool __xnetListenerCanDispatchAccept(xnetlistener* pListener)
@@ -445,6 +476,16 @@ static void __xnetStreamPrepareDeferredDestroy(xnetstream* pStream)
 	pStream->pEvents = NULL;
 	pStream->pUserData = NULL;
 	__xnetStreamNotifyDestroyWaiters(pStream);
+}
+
+static void __xnetStreamAbandonUnownedAccepted(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	__xnetStreamPrepareDeferredDestroy(pStream);
+	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+	if ( __xnetAtomicLoad32(&pStream->iAsyncHoldCount) == 0 ) {
+		xrtNetStreamDestroy(pStream);
+	}
 }
 
 static bool __xnetStreamRegisterSyncWait(xnetstream* pStream, uint32 iWaitKind, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
@@ -673,7 +714,11 @@ static bool __xnetListenerArmAcceptWatch(xnetlistener* pListener)
 	iOpId = __xnetListenerNextAcceptOpId(pListener);
 	if ( iOpId == 0 ) return false;
 	pListener->iAcceptOpId = iOpId;
-	if ( !__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_ACCEPT, pListener->hSocket) ) return false;
+	__xnetListenerAddAsyncHold(pListener);
+	if ( !__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_ACCEPT, pListener->hSocket) ) {
+		__xnetListenerReleaseAsyncHold(pListener);
+		return false;
+	}
 	pListener->bAcceptArmed = true;
 	if ( pListener->pWorker && !__xnetEngineIsCurrentWorker(pListener->pWorker) ) {
 		(void)xrtNetPortWake(&pListener->pWorker->tPort);
@@ -1716,14 +1761,19 @@ static xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenc
 static void xrtNetListenerDestroy(xnetlistener* pListener)
 {
 	if ( !pListener ) return;
-	if ( __xnetAtomicLoad32(&pListener->iAsyncHoldCount) != 0 ) {
+	if ( pListener->tAcceptWait.pfnWait != NULL ) {
 		__xnetStreamSetError("cannot destroy listener while an async waiter or task still holds it.");
 		return;
 	}
 	pListener->bRunning = false;
 	(void)__xnetListenerCancelAcceptWatch(pListener);
 	__xnetSocketCloseHandle(&pListener->hSocket);
-	XNET_FREE(pListener);
+	__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
+	if ( __xnetAtomicLoad32(&pListener->iAsyncHoldCount) != 0 ) {
+		__xnetListenerPrepareDeferredDestroy(pListener);
+		return;
+	}
+	__xnetListenerFinalizeDestroy(pListener);
 }
 
 static xnet_result xrtNetListenerStart(xnetlistener* pListener)
@@ -2298,6 +2348,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 				xsocket hStaleSocket = (xsocket)pEvent->hSocket;
 				__xnetSocketCloseHandle(&hStaleSocket);
 			}
+			__xnetListenerReleaseAsyncHold(pListener);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_CONNECT || pEvent->iType == XNET_PORT_EVENT_ACCEPT ) {
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			if ( pStream ) {

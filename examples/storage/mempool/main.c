@@ -115,7 +115,7 @@ void TestMemoryPool(PerformanceMetrics* pMetrics, size_t iIterations)
 	
 	// Create memory pool
 	// 创建内存池
-	xmempool objPool = xrtMemPoolCreate(0);  // 0 for default configuration / 0表示默认配置
+	xmempool objPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);  // 0 for default configuration / 0表示默认配置
 	if ( !objPool ) {
 		printf("Failed to create memory pool\n");
 		return;
@@ -159,7 +159,7 @@ void TestDifferentSizes()
 	printf("=== Different Size Allocation Test ===\n");
 	printf("=== 不同大小分配测试 ===\n");
 	
-	xmempool objPool = xrtMemPoolCreate(0);
+	xmempool objPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	if ( !objPool ) {
 		printf("Failed to create memory pool\n");
 		return;
@@ -192,7 +192,7 @@ void TestFragmentation()
 	printf("\n=== Fragmentation Test ===\n");
 	printf("=== 碎片测试 ===\n");
 	
-	xmempool objPool = xrtMemPoolCreate(0);
+	xmempool objPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	if ( !objPool ) {
 		printf("Failed to create memory pool\n");
 		return;
@@ -250,7 +250,7 @@ void TestBulkAllocation()
 	printf("\n=== Bulk Allocation Test ===\n");
 	printf("=== 批量分配测试 ===\n");
 	
-	xmempool objPool = xrtMemPoolCreate(0);
+	xmempool objPool = xrtMemPoolCreate(0, XRT_OBJMODE_LOCAL);
 	if ( !objPool ) {
 		printf("Failed to create memory pool\n");
 		return;

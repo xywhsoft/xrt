@@ -30,7 +30,7 @@ void test_basic_bsmm(void)
 	printf("=== Test: Basic Block Memory Manager ===\n");
 	printf("=== 测试：基本块内存管理器 ===\n");
 	
-	xbsmm pBSMM = xrtBsmmCreate(sizeof(Student));
+	xbsmm pBSMM = xrtBsmmCreate(sizeof(Student), XRT_OBJMODE_LOCAL);
 	
 	printf("Created BSMM with item size: %u bytes\n", (uint32)sizeof(Student));
 	printf("创建BSMM，项大小: %u 字节\n", (uint32)sizeof(Student));
@@ -70,7 +70,7 @@ void test_reuse_blocks(void)
 	printf("\n=== Test: Block Reuse ===\n");
 	printf("=== 测试：块重用 ===\n");
 	
-	xbsmm pBSMM = xrtBsmmCreate(sizeof(int));
+	xbsmm pBSMM = xrtBsmmCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	
 	printf("Allocating 3 integer blocks...\n");
 	printf("分配3个整数块...\n");
@@ -113,7 +113,7 @@ void test_get_ptr_by_index(void)
 	printf("\n=== Test: Get Pointer by Index ===\n");
 	printf("=== 测试：通过索引获取指针 ===\n");
 	
-	xbsmm pBSMM = xrtBsmmCreate(sizeof(int));
+	xbsmm pBSMM = xrtBsmmCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	
 	printf("Allocating 5 integers...\n");
 	printf("分配5个整数...\n");

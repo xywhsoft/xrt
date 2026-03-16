@@ -29,7 +29,7 @@ void test_basic_memunit(void)
 	printf("=== Test: Basic Memory Unit ===\n");
 	printf("=== 测试：基本内存单元 ===\n");
 	
-	xmemunit pUnit = xrtMemUnitCreate(sizeof(Point));
+	xmemunit pUnit = xrtMemUnitCreate(sizeof(Point), XRT_OBJMODE_LOCAL);
 	
 	printf("Created MemUnit with item size: %u bytes\n", (uint32)sizeof(Point));
 	printf("创建MemUnit，项大小: %u 字节\n", (uint32)sizeof(Point));
@@ -64,7 +64,7 @@ void test_alloc_by_index(void)
 	printf("\n=== Test: Allocation by Index ===\n");
 	printf("=== 测试：按索引分配 ===\n");
 	
-	xmemunit pUnit = xrtMemUnitCreate(sizeof(int));
+	xmemunit pUnit = xrtMemUnitCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	
 	printf("Memory unit has 256 slots (index 0-255)\n");
 	printf("内存单元有256个槽位（索引0-255）\n");
@@ -99,7 +99,7 @@ void test_garbage_collection(void)
 	printf("\n=== Test: Garbage Collection ===\n");
 	printf("=== 测试：垃圾回收 ===\n");
 	
-	xmemunit pUnit = xrtMemUnitCreate(sizeof(int));
+	xmemunit pUnit = xrtMemUnitCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 	
 	printf("Allocating 10 integers...\n");
 	printf("分配10个整数...\n");

@@ -31,7 +31,7 @@ void test_basic_dict(void)
 	printf("=== Test: Basic Dictionary Operations ===\n");
 	printf("=== 测试：基本字典操作 ===\n");
 	
-	xdict pDict = xrtDictCreate(sizeof(PersonData));
+	xdict pDict = xrtDictCreate(sizeof(PersonData), XRT_OBJMODE_LOCAL);
 	
 	printf("Created dictionary with PersonData value size: %u\n", (uint32)sizeof(PersonData));
 	printf("创建字典，PersonData值大小: %u\n", (uint32)sizeof(PersonData));

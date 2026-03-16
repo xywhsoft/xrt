@@ -1045,7 +1045,7 @@ static void __xnetSyncResolveListenerFutureWait(__xnet_listener_future_wait_ctx*
 
 	if ( pCtx == NULL ) {
 		if ( pStream ) {
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			__xnetStreamAbandonUnownedAccepted(pStream);
 		}
 		return;
 	}
@@ -1053,7 +1053,7 @@ static void __xnetSyncResolveListenerFutureWait(__xnet_listener_future_wait_ctx*
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
 	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		if ( pStream ) {
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			__xnetStreamAbandonUnownedAccepted(pStream);
 		}
 		return;
 	}
@@ -1061,7 +1061,7 @@ static void __xnetSyncResolveListenerFutureWait(__xnet_listener_future_wait_ctx*
 	if ( iPrevState != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
 		(void)__xnetFutureResolve(pCtx->pFuture, iStatus, pStream);
 	} else if ( pStream ) {
-		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		__xnetStreamAbandonUnownedAccepted(pStream);
 	}
 
 	__xnetListenerReleaseAsyncHold(pCtx->pListener);

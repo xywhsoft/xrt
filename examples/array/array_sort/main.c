@@ -41,7 +41,7 @@ void test_struct_array_sort(void)
 	printf("=== Test: Struct Array Sort ===\n");
 	printf("=== 测试：结构体数组排序 ===\n");
 	
-	xarray pArr = xrtArrayCreate(sizeof(Person));
+	xarray pArr = xrtArrayCreate(sizeof(Person), XRT_OBJMODE_LOCAL);
 	
 	Person people[] = {{5, "Alice"}, {2, "Bob"}, {8, "Charlie"}, {1, "David"}, {3, "Eve"}};
 	int nCount = sizeof(people) / sizeof(people[0]);
@@ -80,7 +80,7 @@ void test_ptr_array_sort(void)
 	printf("\n=== Test: Pointer Array Sort ===\n");
 	printf("=== 测试：指针数组排序 ===\n");
 	
-	xparray pArr = xrtPtrArrayCreate();
+	xparray pArr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
 	
 	int vals[] = {50, 20, 80, 10, 30, 60, 40};
 	int nCount = sizeof(vals) / sizeof(vals[0]);

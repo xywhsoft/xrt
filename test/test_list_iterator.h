@@ -12,7 +12,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 	// subject 1 : 创建列表并插入数据
 	printf("Subject 1 : 创建列表并插入数据\n");
 	
-	xlist objList = xrtListCreate(sizeof(Employee));
+	xlist objList = xrtListCreate(sizeof(Employee), XRT_OBJMODE_LOCAL);
 	if ( objList ) {
 		printf("\t列表创建成功，Count: %u\n", objList->AVLT.Count);
 		
@@ -79,7 +79,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		// subject 5 : 测试空列表
 		printf("Subject 5 : 空列表迭代测试\n");
 		
-		xlist emptyList = xrtListCreate(sizeof(int));
+		xlist emptyList = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		if ( emptyList ) {
 			count = 0;
 			LIST_FOREACH(emptyList, idx, val) {
@@ -112,7 +112,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		// subject 7 : 测试大量数据
 		printf("Subject 7 : 大量数据迭代测试\n");
 		
-		xlist largeList = xrtListCreate(sizeof(int));
+		xlist largeList = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		if ( largeList ) {
 			// 插入 100 条数据
 			for ( int i = 0; i < 100; i++ ) {
@@ -156,7 +156,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		// subject 9 : 测试指针类型值
 		printf("Subject 9 : 指针类型值测试\n");
 		
-		xlist ptrList = xrtListCreate(sizeof(ptr));
+		xlist ptrList = xrtListCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
 		if ( ptrList ) {
 			// 插入一些指针值
 			for ( int i = 0; i < 3; i++ ) {

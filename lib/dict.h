@@ -27,15 +27,11 @@ int Dict_CompProc(Dict_Key* pNode, Dict_Key* pObjKey)
 
 
 // 创建哈希表
-XXAPI xdict xrtDictCreate(uint32 iItemLength)
-{
-	return xrtDictCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI xdict xrtDictCreateEx(uint32 iItemLength, uint32 iMode)
+XXAPI xdict xrtDictCreate(uint32 iItemLength, uint32 iMode)
 {
 	xdict objHT = xrtMalloc(sizeof(xdict_struct));
 	if ( objHT ) {
-		xrtDictInitEx(objHT, iItemLength, iMode);
+		xrtDictInit(objHT, iItemLength, iMode);
 	}
 	return objHT;
 }
@@ -61,14 +57,10 @@ void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 		xrtFree(pNode->Key);
 	}
 }
-XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength)
-{
-	xrtDictInitEx(objHT, iItemLength, XRT_OBJMODE_LOCAL);
-}
-XXAPI void xrtDictInitEx(xdict objHT, uint32 iItemLength, uint32 iMode)
+XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength, uint32 iMode)
 {
 	xrtOwnerInitMode(&objHT->Owner, iMode);
-	xrtAVLTreeInitEx(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc, iMode);
+	xrtAVLTreeInit(&objHT->AVLT, iItemLength + sizeof(Dict_Key), (ptr)Dict_CompProc, iMode);
 	if ( iMode == XRT_OBJMODE_SHARED ) {
 		xrtOwnerActivateShared(&objHT->Owner);
 		xrtOwnerActivateShared(&objHT->AVLT.Owner);
@@ -91,26 +83,16 @@ XXAPI void xrtDictUnit(xdict objHT)
 	xrtOwnerEndMutable(&objHT->Owner);
 }
 
-XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+#ifdef XRT_MEM_DEBUG
+XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xdict objHT = xrtDictCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	xdict objHT = xrtDictCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objHT;
 }
-XXAPI xdict xrtDictCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
-	xdict objHT = xrtDictCreateEx(iItemLength, iMode);
-	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
-	return objHT;
-}
-XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, const char* sFile, uint32 iLine)
-{
-	xrtDictInitEx(objHT, iItemLength, XRT_OBJMODE_LOCAL);
-	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
-}
-XXAPI void xrtDictInitExDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
-{
-	xrtDictInitEx(objHT, iItemLength, iMode);
+	xrtDictInit(objHT, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
@@ -142,6 +124,7 @@ XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine)
 	xrtOwnerEndMutable(&objHT->Owner);
 	__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
 }
+#endif
 
 XXAPI bool xrtDictLock(xdict objHT)
 {

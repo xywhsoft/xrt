@@ -46,7 +46,7 @@ void Test_AVLTree(xrtGlobalData* xCore)
 	
 	// subject 1 : create object
 	printf("AVLTree test subject 1 : create object\n\n");
-	xavltree objTree = xrtAVLTreeCreate(sizeof(AVLT_Test_Struct), (void*)avltree_comp_proc);
+	xavltree objTree = xrtAVLTreeCreate(sizeof(AVLT_Test_Struct), (void*)avltree_comp_proc, XRT_OBJMODE_LOCAL);
 	if ( objTree ) {
 		printf("AVLTree object : %p\t\t\t\tpass! √\n", objTree);
 		printf("\tRootNode : %p\t\t=> 0\n", objTree->RootNode);
