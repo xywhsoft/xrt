@@ -2434,6 +2434,8 @@
     #include "lib/xnet_stream.h"
     #include "lib/xnet_dgram.h"
     #include "lib/xnet_sync.h"
+    #include "lib/xurl.h"
+    #include "lib/xhttp_util.h"
     #include "lib/xcodec.h"
     #include "lib/xcodec_http1.h"
     #include "lib/xcodec_ws.h"
@@ -4208,17 +4210,6 @@
 	
 	
 	/* ------------------------------------ HTTP Client ------------------------------------ */
-	
-	/* ---- URL 解析结构 ---- */
-	typedef struct {
-		bool bHttps;                    // 是否为 HTTPS
-		char sHost[256];                // 主机名
-		uint16 iPort;                   // 端口 (80/443 默认)
-		char sPath[2048];               // 路径 + 查询字符串
-	} xurl_struct, *xurl;
-	
-	// 解析 URL (支持 http:// 和 https://)
-	XXAPI bool xrtUrlParse(str sURL, xurl pOut);
 	
 	/* ---- HTTP 方法 ---- */
 	typedef enum {

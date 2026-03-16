@@ -481,11 +481,10 @@ static void __xnetStreamPrepareDeferredDestroy(xnetstream* pStream)
 static void __xnetStreamAbandonUnownedAccepted(xnetstream* pStream)
 {
 	if ( !pStream ) return;
+	__xnetStreamAddAsyncHold(pStream);
 	__xnetStreamPrepareDeferredDestroy(pStream);
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-	if ( __xnetAtomicLoad32(&pStream->iAsyncHoldCount) == 0 ) {
-		xrtNetStreamDestroy(pStream);
-	}
+	__xnetStreamReleaseAsyncHold(pStream);
 }
 
 static bool __xnetStreamRegisterSyncWait(xnetstream* pStream, uint32 iWaitKind, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)

@@ -1,6 +1,8 @@
 #ifndef XRT_XHTTP_H
 #define XRT_XHTTP_H
 
+#include "xurl.h"
+#include "xhttp_util.h"
 #include "xcodec_http1.h"
 #include "xnet_stream.h"
 #include "xnet_sync.h"
@@ -203,57 +205,6 @@ static bool __xhttpStatusHasNoBody(uint32 iStatusCode)
 	return (iStatusCode >= 100u && iStatusCode < 200u) || iStatusCode == 204u || iStatusCode == 304u;
 }
 
-static bool __xhttpUrlParse(const char* sURL, xhttpurl* pOut)
-{
-	const char* p;
-	const char* pHostStart;
-	const char* pPortStart = NULL;
-	size_t iHostLen;
-	size_t iPathLen;
-	if ( !sURL || !pOut ) return false;
-	memset(pOut, 0, sizeof(xhttpurl));
-	p = sURL;
-	if ( strncmp(p, "https://", 8) == 0 ) {
-		pOut->bHttps = true;
-		pOut->iPort = 443;
-		p += 8;
-	} else if ( strncmp(p, "http://", 7) == 0 ) {
-		pOut->bHttps = false;
-		pOut->iPort = 80;
-		p += 7;
-	} else {
-		return false;
-	}
-	pHostStart = p;
-	while ( *p && *p != '/' && *p != '?' ) {
-		if ( *p == ':' ) pPortStart = p + 1;
-		p++;
-	}
-	if ( pPortStart ) {
-		iHostLen = (size_t)((pPortStart - 1) - pHostStart);
-		if ( iHostLen == 0 ) return false;
-		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
-		memcpy(pOut->sHost, pHostStart, iHostLen);
-		pOut->sHost[iHostLen] = '\0';
-		pOut->iPort = (uint16)atoi(pPortStart);
-	} else {
-		iHostLen = (size_t)(p - pHostStart);
-		if ( iHostLen == 0 ) return false;
-		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
-		memcpy(pOut->sHost, pHostStart, iHostLen);
-		pOut->sHost[iHostLen] = '\0';
-	}
-	if ( *p == '/' || *p == '?' ) {
-		iPathLen = strlen(p);
-		if ( iPathLen >= sizeof(pOut->sPath) ) iPathLen = sizeof(pOut->sPath) - 1u;
-		memcpy(pOut->sPath, p, iPathLen);
-		pOut->sPath[iPathLen] = '\0';
-	} else {
-		strcpy(pOut->sPath, "/");
-	}
-	return pOut->sHost[0] != '\0';
-}
-
 static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc);
 static void __xhttpRequestUnitInternal(xhttprequest* pReq);
 static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, size_t* pOutLen);
@@ -274,22 +225,18 @@ static void __xhttpPoolLockRelease(void)
 
 static bool __xhttpContainsTokenNoCase(const char* sValue, const char* sToken)
 {
-	size_t iTokenLen;
-	size_t i;
-	if ( !sValue || !sToken || sToken[0] == '\0' ) return false;
-	iTokenLen = strlen(sToken);
-	while ( *sValue ) {
-		while ( *sValue == ' ' || *sValue == '\t' || *sValue == ',' ) sValue++;
-		for ( i = 0; i < iTokenLen; ++i ) {
-			if ( sValue[i] == '\0' || __xhttpToLower(sValue[i]) != __xhttpToLower(sToken[i]) ) break;
-		}
-		if ( i == iTokenLen ) {
-			char ch = sValue[iTokenLen];
-			if ( ch == '\0' || ch == ',' || ch == ' ' || ch == '\t' ) return true;
-		}
-		while ( *sValue && *sValue != ',' ) sValue++;
+	return xrtHttpHeaderContainsToken(sValue, sToken);
+}
+
+static bool __xhttpMakeHostHeader(const xhttprequest* pReq, char* sOut, size_t iOutCap)
+{
+	xrturlview tURL;
+	if ( !pReq || !sOut || iOutCap == 0u ) return false;
+	if ( pReq->sURL[0] != '\0' && xrtUrlParseView(pReq->sURL, &tURL) ) {
+		return xrtUrlMakeHostHeader(&tURL, sOut, iOutCap);
 	}
-	return false;
+	if ( pReq->tURL.sHost[0] == '\0' ) return false;
+	return xrtUrlMakeHostHeaderFixed(pReq->tURL.bHttps ? "https" : "http", pReq->tURL.sHost, pReq->tURL.iPort, sOut, iOutCap);
 }
 
 static bool __xhttpRequestWantsClose(const xhttprequest* pReq)
@@ -445,7 +392,7 @@ static bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL)
 {
 	size_t iLen;
 	if ( !pReq || !sURL || !sURL[0] ) return false;
-	if ( !__xhttpUrlParse(sURL, &pReq->tURL) ) return false;
+	if ( !xrtUrlParseFixedTo(sURL, "http", "https", &pReq->tURL.bHttps, pReq->tURL.sHost, sizeof(pReq->tURL.sHost), &pReq->tURL.iPort, pReq->tURL.sPath, sizeof(pReq->tURL.sPath)) ) return false;
 	iLen = strlen(sURL);
 	if ( iLen >= sizeof(pReq->sURL) ) iLen = sizeof(pReq->sURL) - 1u;
 	memcpy(pReq->sURL, sURL, iLen);
@@ -554,7 +501,6 @@ static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, siz
 	size_t iLen = 0;
 	size_t iCap = 0;
 	char aLine[512];
-	bool bDefaultPort;
 	bool bChunked;
 
 	if ( !pReq || !ppOut || !pOutLen || pReq->tURL.sHost[0] == '\0' || pReq->sMethod[0] == '\0' ) return false;
@@ -567,13 +513,10 @@ static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, siz
 		pReq->tURL.sPath[0] ? pReq->tURL.sPath : "/");
 	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
 
-	bDefaultPort = (pReq->tURL.bHttps && pReq->tURL.iPort == 443u) || (!pReq->tURL.bHttps && pReq->tURL.iPort == 80u);
 	if ( !__xhttpRequestHasHeader(pReq, "Host") ) {
-		if ( bDefaultPort ) {
-			snprintf(aLine, sizeof(aLine), "Host: %s\r\n", pReq->tURL.sHost);
-		} else {
-			snprintf(aLine, sizeof(aLine), "Host: %s:%u\r\n", pReq->tURL.sHost, (unsigned)pReq->tURL.iPort);
-		}
+		char sHostHeader[384];
+		if ( !__xhttpMakeHostHeader(pReq, sHostHeader, sizeof(sHostHeader)) ) goto fail;
+		snprintf(aLine, sizeof(aLine), "Host: %s\r\n", sHostHeader);
 		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
 	}
 	if ( !__xhttpRequestHasHeader(pReq, "Connection") ) {
@@ -902,7 +845,7 @@ static xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* 
 		return pFuture;
 	}
 	if ( pTx->tReq.tURL.sHost[0] == '\0' ) {
-		if ( pTx->tReq.sURL[0] == '\0' || !__xhttpUrlParse(pTx->tReq.sURL, &pTx->tReq.tURL) ) {
+	if ( pTx->tReq.sURL[0] == '\0' || !xrtUrlParseFixedTo(pTx->tReq.sURL, "http", "https", &pTx->tReq.tURL.bHttps, pTx->tReq.tURL.sHost, sizeof(pTx->tReq.tURL.sHost), &pTx->tReq.tURL.iPort, pTx->tReq.tURL.sPath, sizeof(pTx->tReq.tURL.sPath)) ) {
 			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
 			__xhttpTxRelease(pTx);
 			return pFuture;

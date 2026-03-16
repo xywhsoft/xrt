@@ -1,6 +1,8 @@
 #ifndef XRT_XHTTPD_H
 #define XRT_XHTTPD_H
 
+#include "xurl.h"
+#include "xhttp_util.h"
 #include "xcodec_http1.h"
 #include "xnet_stream.h"
 
@@ -236,22 +238,7 @@ static bool __xhttpdResponseHasHeader(const xhttpdresponse* pResp, const char* s
 
 static bool __xhttpdContainsTokenNoCase(const char* sValue, const char* sToken)
 {
-	size_t iTokenLen;
-	size_t i;
-	if ( !sValue || !sToken || sToken[0] == '\0' ) return false;
-	iTokenLen = strlen(sToken);
-	while ( *sValue ) {
-		while ( *sValue == ' ' || *sValue == '\t' || *sValue == ',' ) sValue++;
-		for ( i = 0; i < iTokenLen; ++i ) {
-			if ( sValue[i] == '\0' || __xhttpdToLower(sValue[i]) != __xhttpdToLower(sToken[i]) ) break;
-		}
-		if ( i == iTokenLen ) {
-			char ch = sValue[iTokenLen];
-			if ( ch == '\0' || ch == ',' || ch == ' ' || ch == '\t' ) return true;
-		}
-		while ( *sValue && *sValue != ',' ) sValue++;
-	}
-	return false;
+	return xrtHttpHeaderContainsToken(sValue, sToken);
 }
 
 static const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName)
@@ -367,9 +354,8 @@ static bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData
 
 static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain, xhttpdrequest* pReq)
 {
-	const char* sQuery;
-	size_t iPathLen;
 	size_t iBodyBytes;
+	xrturlview tTarget;
 	if ( !pFrame || !pMsg || !pChain || !pReq ) return false;
 	xrtHttpdRequestInit(pReq);
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_KEEPALIVE ) pReq->iFlags |= XHTTPD_REQ_F_KEEPALIVE;
@@ -379,15 +365,15 @@ static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg
 	__xhttpdCopyToken(pReq->sMethod, sizeof(pReq->sMethod), pMsg->sMethod);
 	__xhttpdCopyToken(pReq->sTarget, sizeof(pReq->sTarget), pMsg->sTarget);
 	__xhttpdCopyToken(pReq->sVersion, sizeof(pReq->sVersion), pMsg->sVersion);
-	sQuery = strchr(pReq->sTarget, '?');
-	if ( sQuery ) {
-		iPathLen = (size_t)(sQuery - pReq->sTarget);
-		if ( iPathLen >= sizeof(pReq->sPath) ) iPathLen = sizeof(pReq->sPath) - 1u;
-		memcpy(pReq->sPath, pReq->sTarget, iPathLen);
-		pReq->sPath[iPathLen] = '\0';
-		__xhttpdCopyToken(pReq->sQuery, sizeof(pReq->sQuery), sQuery + 1);
+	if ( !xrtUrlParseTarget(pMsg->sTarget, &tTarget) ) return false;
+	if ( (tTarget.iFlags & XRT_URL_F_HAS_FRAGMENT) != 0u ) return false;
+	if ( tTarget.tPath.iLen == 0u ) {
+		__xhttpdCopyToken(pReq->sPath, sizeof(pReq->sPath), "/");
 	} else {
-		__xhttpdCopyToken(pReq->sPath, sizeof(pReq->sPath), pReq->sTarget);
+		if ( !xrtUrlViewCopyPathTo(&tTarget, pReq->sPath, sizeof(pReq->sPath)) ) return false;
+	}
+	if ( (tTarget.iFlags & XRT_URL_F_HAS_QUERY) != 0u ) {
+		if ( !xrtUrlViewCopyQueryTo(&tTarget, pReq->sQuery, sizeof(pReq->sQuery)) ) return false;
 	}
 	pReq->iHeaderCount = pMsg->iHeaderCount < XHTTPD_MAX_HEADERS ? pMsg->iHeaderCount : XHTTPD_MAX_HEADERS;
 	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {

@@ -1,0 +1,5 @@
+Host: example.com
+Connection keep-alive
+X-Test: ok
+Set-Cookie: sid=abc; Path=/; HttpOnly
+

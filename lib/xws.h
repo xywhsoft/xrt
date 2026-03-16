@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 
+#include "xurl.h"
+#include "xhttp_util.h"
 #include "xcodec_http1.h"
 #include "xcodec_ws.h"
 #include "xnet_stream.h"
@@ -180,33 +182,7 @@ static bool __xwsStrEqNoCase(const char* sA, const char* sB)
 
 static bool __xwsContainsTokenNoCase(const char* sText, const char* sToken)
 {
-	const char* p;
-	size_t iTokenLen;
-	if ( !sText || !sToken || sToken[0] == '\0' ) return false;
-	iTokenLen = strlen(sToken);
-	p = sText;
-	while ( *p ) {
-		const char* pStart;
-		size_t iLen;
-		while ( *p == ' ' || *p == '\t' || *p == ',' ) p++;
-		pStart = p;
-		while ( *p && *p != ',' ) p++;
-		iLen = (size_t)(p - pStart);
-		while ( iLen > 0 && (pStart[iLen - 1] == ' ' || pStart[iLen - 1] == '\t') ) iLen--;
-		if ( iLen == iTokenLen ) {
-			size_t i;
-			bool bMatch = true;
-			for ( i = 0; i < iLen; ++i ) {
-				if ( __xwsToLower(pStart[i]) != __xwsToLower(sToken[i]) ) {
-					bMatch = false;
-					break;
-				}
-			}
-			if ( bMatch ) return true;
-		}
-		if ( *p == ',' ) p++;
-	}
-	return false;
+	return xrtHttpHeaderContainsToken(sText, sToken);
 }
 
 static void __xwsCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
@@ -357,86 +333,6 @@ static bool __xwsComputeAccept(const char* sKey, char* sAccept, size_t iCap)
 	return __xwsBase64Encode(aDigest, sizeof(aDigest), sAccept, iCap);
 }
 
-static bool __xwsUrlParse(const char* sURL, __xws_url* pOut)
-{
-	const char* p;
-	const char* pHostStart;
-	const char* pPathStart;
-	size_t iHostLen;
-	size_t iPathLen;
-	if ( !sURL || !pOut ) return false;
-	memset(pOut, 0, sizeof(__xws_url));
-	p = sURL;
-	if ( strncmp(p, "wss://", 6) == 0 ) {
-		pOut->bSecure = true;
-		pOut->iPort = 443u;
-		p += 6;
-	} else if ( strncmp(p, "ws://", 5) == 0 ) {
-		pOut->bSecure = false;
-		pOut->iPort = 80u;
-		p += 5;
-	} else {
-		return false;
-	}
-	pHostStart = p;
-	if ( *p == '[' ) {
-		pHostStart = ++p;
-		while ( *p && *p != ']' ) p++;
-		if ( *p != ']' ) return false;
-		iHostLen = (size_t)(p - pHostStart);
-		if ( iHostLen == 0 ) return false;
-		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
-		memcpy(pOut->sHost, pHostStart, iHostLen);
-		pOut->sHost[iHostLen] = '\0';
-		p++;
-		if ( *p == ':' ) {
-			pOut->iPort = (uint16)atoi(p + 1);
-			while ( *p && *p != '/' && *p != '?' ) p++;
-		}
-	} else {
-		while ( *p && *p != ':' && *p != '/' && *p != '?' ) p++;
-		iHostLen = (size_t)(p - pHostStart);
-		if ( iHostLen == 0 ) return false;
-		if ( iHostLen >= sizeof(pOut->sHost) ) iHostLen = sizeof(pOut->sHost) - 1u;
-		memcpy(pOut->sHost, pHostStart, iHostLen);
-		pOut->sHost[iHostLen] = '\0';
-		if ( *p == ':' ) {
-			pOut->iPort = (uint16)atoi(p + 1);
-			while ( *p && *p != '/' && *p != '?' ) p++;
-		}
-	}
-	pPathStart = (*p == '/' || *p == '?') ? p : NULL;
-	if ( pPathStart ) {
-		iPathLen = strlen(pPathStart);
-		if ( iPathLen >= sizeof(pOut->sPath) ) iPathLen = sizeof(pOut->sPath) - 1u;
-		memcpy(pOut->sPath, pPathStart, iPathLen);
-		pOut->sPath[iPathLen] = '\0';
-	} else {
-		strcpy(pOut->sPath, "/");
-	}
-	return pOut->sHost[0] != '\0' && pOut->iPort != 0u;
-}
-
-static void __xwsMakeHostHeader(const __xws_url* pURL, char* sOut, size_t iOutCap)
-{
-	bool bDefaultPort;
-	if ( !sOut || iOutCap == 0 ) return;
-	sOut[0] = '\0';
-	if ( !pURL ) return;
-	bDefaultPort = (pURL->bSecure && pURL->iPort == 443u) || (!pURL->bSecure && pURL->iPort == 80u);
-	if ( strchr(pURL->sHost, ':') != NULL ) {
-		if ( bDefaultPort ) {
-			(void)snprintf(sOut, iOutCap, "[%s]", pURL->sHost);
-		} else {
-			(void)snprintf(sOut, iOutCap, "[%s]:%u", pURL->sHost, (unsigned)pURL->iPort);
-		}
-	} else if ( bDefaultPort ) {
-		(void)snprintf(sOut, iOutCap, "%s", pURL->sHost);
-	} else {
-		(void)snprintf(sOut, iOutCap, "%s:%u", pURL->sHost, (unsigned)pURL->iPort);
-	}
-}
-
 static bool __xwsBuildClientHandshake(xwsclient* pClient, char** ppOut, size_t* pOutLen)
 {
 	char sHost[384];
@@ -444,7 +340,7 @@ static bool __xwsBuildClientHandshake(xwsclient* pClient, char** ppOut, size_t* 
 	size_t iLen = 0;
 	size_t iCap = 0;
 	if ( !pClient || !ppOut || !pOutLen ) return false;
-	__xwsMakeHostHeader(&pClient->tURL, sHost, sizeof(sHost));
+	if ( !xrtUrlMakeHostHeaderFixed(pClient->tURL.bSecure ? "wss" : "ws", pClient->tURL.sHost, pClient->tURL.iPort, sHost, sizeof(sHost)) ) return false;
 	if ( !__xwsGenerateKey(pClient->sKey, sizeof(pClient->sKey)) ) return false;
 	if ( !__xwsComputeAccept(pClient->sKey, pClient->sExpectedAccept, sizeof(pClient->sExpectedAccept)) ) return false;
 	if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "GET ") ||
@@ -1440,7 +1336,7 @@ static xnet_result xrtWsClientStart(xwsclient* pClient)
 {
 	xnetconnectconfig tConnCfg;
 	if ( !pClient || !pClient->pEngine || pClient->pStream ) return XRT_NET_ERROR;
-	if ( !__xwsUrlParse(pClient->tConfig.sURL, &pClient->tURL) ) return XRT_NET_ERROR;
+	if ( !xrtUrlParseFixedTo(pClient->tConfig.sURL, "ws", "wss", &pClient->tURL.bSecure, pClient->tURL.sHost, sizeof(pClient->tURL.sHost), &pClient->tURL.iPort, pClient->tURL.sPath, sizeof(pClient->tURL.sPath)) ) return XRT_NET_ERROR;
 	pClient->pStream = xrtNetStreamCreate(pClient->pEngine, __xwsClientStreamEvents(), pClient);
 	if ( !pClient->pStream ) return XRT_NET_ERROR;
 	xrtNetConnectConfigInit(&tConnCfg);

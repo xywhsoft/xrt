@@ -109,6 +109,8 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 #endif
 
 #ifndef XRT_NO_NETWORK
+#include "lib/xurl.h"
+#include "lib/xhttp_util.h"
 #include "lib/network.h"
 #endif
 
