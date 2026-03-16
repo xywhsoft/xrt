@@ -16,7 +16,7 @@ void Test_Array_Ptr(xrtGlobalData* xCore)
 	
 	// subject 1 : create array (ptr)
 	printf("array test subject 1 : create array (ptr)\n\n");
-	xparray arr = xrtPtrArrayCreate(sizeof(ptr));
+	xparray arr = xrtPtrArrayCreate();
 	if ( arr ) {
 		printf("array object : %p\t\t\t\t\tpass! √\n", arr);
 		printf("\tMemory : %p\t\t=> 0\n", arr->Memory);

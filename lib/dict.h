@@ -91,6 +91,58 @@ XXAPI void xrtDictUnit(xdict objHT)
 	xrtOwnerEndMutable(&objHT->Owner);
 }
 
+XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xdict objHT = xrtDictCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objHT;
+}
+XXAPI xdict xrtDictCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xdict objHT = xrtDictCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objHT;
+}
+XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtDictInitEx(objHT, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtDictInitExDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtDictInitEx(objHT, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
+{
+	if ( objHT ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+			return;
+		}
+		xrtDictUnit(objHT);
+		__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
+		xrtFreeDbg(objHT, sFile, iLine);
+	}
+}
+XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine)
+{
+	if ( objHT == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return;
+	}
+	__xrtDictUnit_NoLock(objHT);
+	xrtOwnerEndMutable(&objHT->Owner);
+	__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
+}
+
 XXAPI bool xrtDictLock(xdict objHT)
 {
 	if ( objHT == NULL ) {

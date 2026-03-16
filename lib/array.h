@@ -99,6 +99,58 @@ XXAPI void xrtArrayUnit(xarray pArr)
 	xrtOwnerEndMutable(&pArr->Owner);
 }
 
+XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xarray pArr = xrtArrayCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return pArr;
+}
+XXAPI xarray xrtArrayCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xarray pArr = xrtArrayCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return pArr;
+}
+XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtArrayInitEx(pArr, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtArrayInitExDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtArrayInitEx(pArr, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
+{
+	if ( pArr ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&pArr->Owner, "array belongs to another thread.") ) {
+			return;
+		}
+		xrtArrayUnit(pArr);
+		__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
+		xrtFreeDbg(pArr, sFile, iLine);
+	}
+}
+XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine)
+{
+	if ( pArr == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return;
+	}
+	__xrtArrayUnit_NoLock(pArr);
+	xrtOwnerEndMutable(&pArr->Owner);
+	__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
+}
+
 XXAPI bool xrtArrayLock(xarray pArr)
 {
 	if ( pArr == NULL ) {

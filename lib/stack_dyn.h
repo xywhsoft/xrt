@@ -40,6 +40,40 @@ XXAPI void xrtDynStackUnit(xdynstack objSTK)
 	xrtPtrArrayUnit(&objSTK->MMU);
 }
 
+XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xdynstack objSTK = xrtDynStackCreate(iItemLength);
+	__xrtMemDebugRegisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objSTK;
+}
+XXAPI void xrtDynStackInitDbg(xdynstack objSTK, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtDynStackInit(objSTK, iItemLength);
+	__xrtMemDebugRegisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
+{
+	if ( objSTK ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine) ) {
+			return;
+		}
+		xrtDynStackUnit(objSTK);
+		__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
+		xrtFreeDbg(objSTK, sFile, iLine);
+	}
+}
+XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
+{
+	if ( objSTK == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine) ) {
+		return;
+	}
+	xrtDynStackUnit(objSTK);
+	__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
+}
+
 // 压栈
 XXAPI ptr xrtDynStackPush(xdynstack objSTK)
 {

@@ -858,23 +858,6 @@ static void __xnetStreamEmitClose(xnetstream* pStream, xnet_result iReason)
 	}
 }
 
-static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
-{
-	if ( !pDst || !pSrc || !pSrc->pHead ) return;
-	if ( pDst->pTail ) {
-		pDst->pTail->pNext = pSrc->pHead;
-	} else {
-		pDst->pHead = pSrc->pHead;
-	}
-	pDst->pTail = pSrc->pTail;
-	pDst->iBytes += pSrc->iBytes;
-	pDst->iBlockCount += pSrc->iBlockCount;
-	pSrc->pHead = NULL;
-	pSrc->pTail = NULL;
-	pSrc->iBytes = 0;
-	pSrc->iBlockCount = 0;
-}
-
 static void __xnetStreamRefreshSendState(xnetstream* pStream, uint32 iPrevQueuedBytes, bool bPrevHighWater)
 {
 	size_t iQueuedBytes;
@@ -1559,6 +1542,15 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			break;
 		case __XNET_STREAM_ASYNC_DISPATCH_RECV:
 			__xnetStreamDispatchRecv(pStream);
+			if ( pStream && !pStream->bReadPaused && !pStream->bClosing &&
+				xrtNetChainBytes(&pStream->tRxChain) == 0 &&
+				__xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+					(void)__xnetStreamDriveTlsHandshake(pStream);
+				} else {
+					(void)__xnetStreamArmRecvWatch(pStream);
+				}
+			}
 			break;
 		case __XNET_STREAM_ASYNC_TLS_HANDSHAKE:
 			(void)__xnetStreamDriveTlsHandshake(pStream);
@@ -2247,7 +2239,9 @@ static void xrtNetStreamResumeRead(xnetstream* pStream)
 		if ( __xnetStreamPostRecvDispatch(pStream) != XRT_NET_OK ) {
 			__xnetStreamDispatchRecv(pStream);
 		}
-		return;
+		if ( xrtNetChainBytes(&pStream->tRxChain) > 0 ) {
+			return;
+		}
 	}
 	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
 		if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {

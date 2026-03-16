@@ -1,0 +1,1366 @@
+
+
+
+static inline size_t __xrtMemGlobalAlignSize(size_t iSize)
+{
+	size_t iAlign = sizeof(ptr);
+	return (iSize + (iAlign - 1)) & ~(iAlign - 1);
+}
+
+static inline size_t __xrtMemGlobalHeaderSize()
+{
+	return __xrtMemGlobalAlignSize(sizeof(xrtMemBlockHeader));
+}
+
+static inline ptr (*__xrtMemGlobalProcMalloc())(size_t)
+{
+	return xCore.malloc ? xCore.malloc : malloc;
+}
+
+static inline ptr (*__xrtMemGlobalProcCalloc())(size_t, size_t)
+{
+	return xCore.calloc ? xCore.calloc : calloc;
+}
+
+static inline ptr (*__xrtMemGlobalProcRealloc())(ptr, size_t)
+{
+	return xCore.realloc ? xCore.realloc : realloc;
+}
+
+static inline void (*__xrtMemGlobalProcFree())(ptr)
+{
+	return xCore.free ? xCore.free : free;
+}
+
+static inline void __xrtMemGlobalLock(volatile long* pLock)
+{
+	while ( __xrtAtomicCompareExchange32(pLock, 1, 0) != 0 ) {
+	}
+}
+
+static inline void __xrtMemGlobalUnlock(volatile long* pLock)
+{
+	*pLock = 0;
+}
+
+static inline void __xrtMemGlobalInitPlan(xrtMemGlobalPool* pPool)
+{
+	uint32 i;
+
+	if ( pPool == NULL ) {
+		return;
+	}
+
+	memset(pPool, 0, sizeof(xrtMemGlobalPool));
+	pPool->iClassCount = XRT_MEMPOOL_CLASS_COUNT_DEFAULT;
+	pPool->iClassStep = XRT_MEMPOOL_STEP_SIZE;
+	pPool->iCutoff = XRT_MEMPOOL_CUTOFF_DEFAULT;
+
+	for ( i = 0; i < XRT_MEMPOOL_CLASS_COUNT_DEFAULT; i++ ) {
+		pPool->arrClassDesc[i].iBlockSize = (uint16)((i + 1) * XRT_MEMPOOL_STEP_SIZE);
+	}
+
+	for ( i = 0; i <= XRT_MEMPOOL_CUTOFF_DEFAULT; i++ ) {
+		if ( i == 0 ) {
+			pPool->arrSizeClassLut[i] = 0;
+		} else {
+			pPool->arrSizeClassLut[i] = (uint8)(((i + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE) - 1);
+		}
+	}
+}
+
+static inline void __xrtMemGlobalEnsurePlan()
+{
+	if ( xCore.MemGlobal.iClassCount == 0 ) {
+		__xrtMemGlobalInitPlan(&xCore.MemGlobal);
+	}
+}
+
+static inline uint32 __xrtMemGlobalClassIndex(const xrtMemGlobalPool* pPool, size_t iSize)
+{
+	if ( pPool == NULL || iSize == 0 || iSize > pPool->iCutoff ) {
+		return (uint32)-1;
+	}
+	return pPool->arrSizeClassLut[iSize];
+}
+
+static inline uint32 __xrtMemGlobalClassBlockSize(const xrtMemGlobalPool* pPool, uint32 iClass)
+{
+	if ( pPool == NULL || iClass >= pPool->iClassCount ) {
+		return 0;
+	}
+	return pPool->arrClassDesc[iClass].iBlockSize;
+}
+
+static inline size_t __xrtMemGlobalDebugTailSize()
+{
+	#ifdef XRT_MEM_DEBUG
+		return sizeof(uint32);
+	#else
+		return 0;
+	#endif
+}
+
+static inline size_t __xrtMemGlobalAllocPayloadSize(size_t iRequestSize)
+{
+	size_t iPayload = iRequestSize ? iRequestSize : 1;
+	return iPayload + __xrtMemGlobalDebugTailSize();
+}
+
+static inline uint32 __xrtMemGlobalClassIndexForRequest(const xrtMemGlobalPool* pPool, size_t iRequestSize)
+{
+	return __xrtMemGlobalClassIndex(pPool, __xrtMemGlobalAllocPayloadSize(iRequestSize));
+}
+
+static inline uint64 __xrtMemDebugNowMs()
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetTickCount64();
+	#else
+		struct timespec timer;
+		clock_gettime(CLOCK_MONOTONIC, &timer);
+		return ((uint64)timer.tv_sec * 1000ULL) + (uint64)(timer.tv_nsec / 1000000ULL);
+	#endif
+}
+
+static inline xrtMemBlockHeader* __xrtMemGlobalHeaderFromUser(ptr pUser)
+{
+	if ( pUser == NULL ) {
+		return NULL;
+	}
+	return (xrtMemBlockHeader*)((char*)pUser - __xrtMemGlobalHeaderSize());
+}
+
+static inline ptr __xrtMemGlobalUserFromHeader(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return NULL;
+	}
+	return (ptr)((char*)pHeader + __xrtMemGlobalHeaderSize());
+}
+
+static inline bool __xrtMemGlobalHeaderValid(const xrtMemBlockHeader* pHeader)
+{
+	return pHeader != NULL && pHeader->iMagic == XRT_MEMBLOCK_MAGIC;
+}
+
+static inline void __xrtMemGlobalWriteHeader(xrtMemBlockHeader* pHeader, uint32 iClassIndex, uint16 iFlags, uint32 iRequestSize)
+{
+	pHeader->iMagic = XRT_MEMBLOCK_MAGIC;
+	pHeader->iClassIndex = (uint16)iClassIndex;
+	pHeader->iFlags = iFlags;
+	pHeader->iRequestSize = iRequestSize;
+	pHeader->iReserved = 0;
+	#ifdef XRT_MEM_DEBUG
+		pHeader->sAllocFile = NULL;
+		pHeader->iAllocLine = 0;
+		pHeader->sFreeFile = NULL;
+		pHeader->iFreeLine = 0;
+		pHeader->iAllocThreadId = 0;
+		pHeader->iAllocSeq = 0;
+		pHeader->iAllocTimeMs = 0;
+		pHeader->iFreeTimeMs = 0;
+		pHeader->pDebugPrev = NULL;
+		pHeader->pDebugNext = NULL;
+		pHeader->iFrontCanary = XRT_MEMDEBUG_CANARY_HEAD ^ (uint32)(uintptr_t)pHeader;
+		pHeader->iDebugState = 0;
+	#endif
+}
+
+#ifdef XRT_MEM_DEBUG
+
+static inline uint32 __xrtMemGlobalTailCanaryValue(const xrtMemBlockHeader* pHeader)
+{
+	return XRT_MEMDEBUG_CANARY_TAIL ^ (uint32)pHeader->iRequestSize ^ 0xA5A5A5A5u;
+}
+
+static inline uint32* __xrtMemGlobalTailCanaryPtr(xrtMemBlockHeader* pHeader)
+{
+	size_t iPayload = pHeader->iRequestSize ? pHeader->iRequestSize : 1;
+	return (uint32*)((char*)__xrtMemGlobalUserFromHeader(pHeader) + iPayload);
+}
+
+static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return;
+	}
+	*__xrtMemGlobalTailCanaryPtr(pHeader) = __xrtMemGlobalTailCanaryValue(pHeader);
+}
+
+static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return FALSE;
+	}
+	return pHeader->iFrontCanary == (XRT_MEMDEBUG_CANARY_HEAD ^ (uint32)(uintptr_t)pHeader);
+}
+
+static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
+{
+	uint32* pTail;
+	if ( pHeader == NULL ) {
+		return FALSE;
+	}
+	pTail = __xrtMemGlobalTailCanaryPtr((xrtMemBlockHeader*)pHeader);
+	return *pTail == __xrtMemGlobalTailCanaryValue(pHeader);
+}
+
+static inline bool __xrtMemDebugEnabled()
+{
+	return xCore.MemDebug.bEnabled != 0;
+}
+
+static inline void __xrtMemDebugLock()
+{
+	__xrtMemGlobalLock(&xCore.MemDebug.iLock);
+}
+
+static inline void __xrtMemDebugUnlock()
+{
+	__xrtMemGlobalUnlock(&xCore.MemDebug.iLock);
+}
+
+static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind)
+{
+	switch ( iAllocatorKind ) {
+		case XRT_MEMDEBUG_ALLOCATOR_GLOBAL:
+			return "global";
+		case XRT_MEMDEBUG_ALLOCATOR_MEMPOOL:
+			return "mempool";
+		case XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL:
+			return "fsmempool";
+		default:
+			return "unknown";
+	}
+}
+
+static inline xrtMemDebugSiteStat* __xrtMemDebugFindSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
+{
+	xrtMemDebugSiteStat* pNode = xCore.MemDebug.pSiteStats;
+	while ( pNode ) {
+		if ( pNode->sFile == sFile && pNode->iLine == iLine && pNode->iAllocatorKind == iAllocatorKind ) {
+			return pNode;
+		}
+		pNode = pNode->pNext;
+	}
+	return NULL;
+}
+
+static inline xrtMemDebugSiteStat* __xrtMemDebugEnsureSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
+{
+	xrtMemDebugSiteStat* pNode = __xrtMemDebugFindSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pNode ) {
+		return pNode;
+	}
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugSiteStat));
+	if ( pNode == NULL ) {
+		return NULL;
+	}
+	pNode->sFile = sFile;
+	pNode->iLine = iLine;
+	pNode->iAllocatorKind = iAllocatorKind;
+	pNode->pNext = xCore.MemDebug.pSiteStats;
+	xCore.MemDebug.pSiteStats = pNode;
+	return pNode;
+}
+
+static inline void __xrtMemDebugSiteOnAllocNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
+{
+	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pSite == NULL ) {
+		return;
+	}
+	pSite->iAllocCount++;
+	pSite->iAllocBytes += iSize;
+	pSite->iLiveCount++;
+	pSite->iLiveBytes += iSize;
+	if ( pSite->iLiveCount > pSite->iPeakLiveCount ) {
+		pSite->iPeakLiveCount = pSite->iLiveCount;
+	}
+	if ( pSite->iLiveBytes > pSite->iPeakLiveBytes ) {
+		pSite->iPeakLiveBytes = pSite->iLiveBytes;
+	}
+}
+
+static inline void __xrtMemDebugSiteOnFreeNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
+{
+	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pSite == NULL ) {
+		return;
+	}
+	pSite->iFreeCount++;
+	pSite->iFreeBytes += iSize;
+	if ( pSite->iLiveCount > 0 ) {
+		pSite->iLiveCount--;
+	}
+	if ( pSite->iLiveBytes >= iSize ) {
+		pSite->iLiveBytes -= iSize;
+	} else {
+		pSite->iLiveBytes = 0;
+	}
+}
+
+static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[xCore.MemDebug.iEventCursor];
+	memset(pEvent, 0, sizeof(xrtMemDebugEvent));
+	pEvent->iType = iType;
+	pEvent->iLine = iLine;
+	pEvent->iAllocatorKind = iAllocatorKind;
+	pEvent->iThreadId = xrtThreadGetCurrentId();
+	pEvent->iTimeMs = __xrtMemDebugNowMs();
+	pEvent->iSize = (uint64)iSize;
+	pEvent->pAddress = pAddress;
+	pEvent->sFile = sFile;
+	xCore.MemDebug.iEventCursor = (xCore.MemDebug.iEventCursor + 1) % XRT_MEMDEBUG_EVENT_CAPACITY;
+	if ( xCore.MemDebug.iEventCount < XRT_MEMDEBUG_EVENT_CAPACITY ) {
+		xCore.MemDebug.iEventCount++;
+	}
+}
+
+static inline void __xrtMemDebugAttachLiveNoLock(xrtMemBlockHeader* pHeader)
+{
+	pHeader->pDebugPrev = xCore.MemDebug.pLiveTail;
+	pHeader->pDebugNext = NULL;
+	if ( xCore.MemDebug.pLiveTail ) {
+		xCore.MemDebug.pLiveTail->pDebugNext = pHeader;
+	} else {
+		xCore.MemDebug.pLiveHead = pHeader;
+	}
+	xCore.MemDebug.pLiveTail = pHeader;
+	xCore.MemDebug.iLiveAllocCount++;
+	xCore.MemDebug.iLiveAllocBytes += pHeader->iRequestSize;
+	if ( xCore.MemDebug.iLiveAllocCount > xCore.MemDebug.iPeakLiveAllocCount ) {
+		xCore.MemDebug.iPeakLiveAllocCount = xCore.MemDebug.iLiveAllocCount;
+	}
+	if ( xCore.MemDebug.iLiveAllocBytes > xCore.MemDebug.iPeakLiveAllocBytes ) {
+		xCore.MemDebug.iPeakLiveAllocBytes = xCore.MemDebug.iLiveAllocBytes;
+	}
+}
+
+static inline void __xrtMemDebugDetachLiveNoLock(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader->pDebugPrev ) {
+		pHeader->pDebugPrev->pDebugNext = pHeader->pDebugNext;
+	} else {
+		xCore.MemDebug.pLiveHead = pHeader->pDebugNext;
+	}
+	if ( pHeader->pDebugNext ) {
+		pHeader->pDebugNext->pDebugPrev = pHeader->pDebugPrev;
+	} else {
+		xCore.MemDebug.pLiveTail = pHeader->pDebugPrev;
+	}
+	pHeader->pDebugPrev = NULL;
+	pHeader->pDebugNext = NULL;
+	if ( xCore.MemDebug.iLiveAllocCount > 0 ) {
+		xCore.MemDebug.iLiveAllocCount--;
+	}
+	if ( xCore.MemDebug.iLiveAllocBytes >= pHeader->iRequestSize ) {
+		xCore.MemDebug.iLiveAllocBytes -= pHeader->iRequestSize;
+	} else {
+		xCore.MemDebug.iLiveAllocBytes = 0;
+	}
+}
+
+static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode = xCore.MemDebug.pForeignAllocs;
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			if ( ppPrev ) {
+				*ppPrev = pPrev;
+			}
+			return pNode;
+		}
+		pPrev = pNode;
+		pNode = pNode->pNext;
+	}
+	if ( ppPrev ) {
+		*ppPrev = NULL;
+	}
+	return NULL;
+}
+
+static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	if ( __xrtMemDebugFindForeignNoLock(pAddress, NULL) != NULL ) {
+		__xrtMemDebugUnlock();
+		return;
+	}
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugForeignAlloc));
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return;
+	}
+	pNode->pAddress = pAddress;
+	pNode->iSize = (uint32)iSize;
+	pNode->iAllocatorKind = iAllocatorKind;
+	pNode->sAllocFile = sFile;
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	pNode->pNext = xCore.MemDebug.pForeignAllocs;
+	xCore.MemDebug.pForeignAllocs = pNode;
+	xCore.MemDebug.iForeignLiveCount++;
+	xCore.MemDebug.iForeignLiveBytes += iSize;
+	if ( xCore.MemDebug.iForeignLiveCount > xCore.MemDebug.iPeakForeignLiveCount ) {
+		xCore.MemDebug.iPeakForeignLiveCount = xCore.MemDebug.iForeignLiveCount;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes > xCore.MemDebug.iPeakForeignLiveBytes ) {
+		xCore.MemDebug.iPeakForeignLiveBytes = xCore.MemDebug.iForeignLiveBytes;
+	}
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, iAllocatorKind, iSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_ALLOC, pAddress, iSize, iAllocatorKind, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pAddress, 0, iAllocatorKind, sFile, iLine);
+		xCore.MemDebug.iDoubleFreeCount++;
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		xCore.MemDebug.pForeignAllocs = pNode->pNext;
+	}
+	if ( xCore.MemDebug.iForeignLiveCount > 0 ) {
+		xCore.MemDebug.iForeignLiveCount--;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes >= pNode->iSize ) {
+		xCore.MemDebug.iForeignLiveBytes -= pNode->iSize;
+	} else {
+		xCore.MemDebug.iForeignLiveBytes = 0;
+	}
+	__xrtMemDebugSiteOnFreeNoLock(pNode->sAllocFile, pNode->iAllocLine, pNode->iAllocatorKind, pNode->iSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, pAddress, pNode->iSize, pNode->iAllocatorKind, sFile, iLine);
+	__xrtMemGlobalProcFree()(pNode);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, NULL);
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	if ( pAllocatorKind ) {
+		*pAllocatorKind = pNode->iAllocatorKind;
+	}
+	if ( pSize ) {
+		*pSize = pNode->iSize;
+	}
+	if ( psFile ) {
+		*psFile = pNode->sAllocFile;
+	}
+	if ( pLine ) {
+		*pLine = pNode->iAllocLine;
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+static inline xrtMemDebugObject* __xrtMemDebugFindObjectNoLock(ptr pAddress)
+{
+	xrtMemDebugObject* pNode = xCore.MemDebug.pObjects;
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			return pNode;
+		}
+		pNode = pNode->pNext;
+	}
+	return NULL;
+}
+
+static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode == NULL ) {
+		pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugObject));
+		if ( pNode == NULL ) {
+			__xrtMemDebugUnlock();
+			return;
+		}
+		pNode->pAddress = pAddress;
+		pNode->pNext = xCore.MemDebug.pObjects;
+		xCore.MemDebug.pObjects = pNode;
+	}
+	if ( pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		xCore.MemDebug.iLiveObjectCount++;
+		if ( xCore.MemDebug.iLiveObjectCount > xCore.MemDebug.iPeakLiveObjectCount ) {
+			xCore.MemDebug.iPeakLiveObjectCount = xCore.MemDebug.iLiveObjectCount;
+		}
+	}
+	pNode->iObjectType = iObjectType;
+	pNode->iOrigin = iOrigin;
+	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_LIVE;
+	pNode->sAllocFile = sFile;
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	pNode->sFreeFile = NULL;
+	pNode->iFreeLine = 0;
+	pNode->iFreeThreadId = 0;
+	pNode->iFreeTimeMs = 0;
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_CREATE, pAddress, 0, iObjectType, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return TRUE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode && pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
+		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return TRUE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode == NULL || pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, iObjectType, sFile, iLine);
+		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_DESTROYED;
+	pNode->sFreeFile = sFile;
+	pNode->iFreeLine = iLine;
+	pNode->iFreeThreadId = xrtThreadGetCurrentId();
+	pNode->iFreeTimeMs = __xrtMemDebugNowMs();
+	if ( xCore.MemDebug.iLiveObjectCount > 0 ) {
+		xCore.MemDebug.iLiveObjectCount--;
+	}
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	pHeader->sAllocFile = sFile;
+	pHeader->iAllocLine = iLine;
+	pHeader->sFreeFile = NULL;
+	pHeader->iFreeLine = 0;
+	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
+	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
+	pHeader->iAllocSeq = ++xCore.MemDebug.iAllocSeq;
+	pHeader->iFreeTimeMs = 0;
+	pHeader->iDebugState = XRT_MEMDEBUG_STATE_LIVE;
+	__xrtMemDebugAttachLiveNoLock(pHeader);
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_ALLOC, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	if ( pHeader->iDebugState == XRT_MEMDEBUG_STATE_LIVE ) {
+		__xrtMemDebugDetachLiveNoLock(pHeader);
+		__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	}
+	pHeader->sFreeFile = sFile;
+	pHeader->iFreeLine = iLine;
+	pHeader->iFreeTimeMs = __xrtMemDebugNowMs();
+	pHeader->iDebugState = XRT_MEMDEBUG_STATE_FREED;
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, iOldSize);
+	pHeader->sAllocFile = sFile;
+	pHeader->iAllocLine = iLine;
+	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
+	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_REALLOC, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	if ( !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	__xrtMemDebugRecordEventNoLock(iType, pAddress, iSize, iAllocatorKind, sFile, iLine);
+	if ( iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE ) {
+		xCore.MemDebug.iDoubleFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_INVALID_FREE ) {
+		xCore.MemDebug.iInvalidFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE ) {
+		xCore.MemDebug.iWrongAllocatorFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT ) {
+		xCore.MemDebug.iOverflowCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT ) {
+		xCore.MemDebug.iUnderflowCount++;
+	}
+	__xrtMemDebugUnlock();
+}
+
+static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
+{
+	xrtMemDebugSiteStat* pSite;
+	xrtMemDebugForeignAlloc* pForeign;
+	xrtMemDebugObject* pObject;
+	xrtMemBlockHeader* pQuarantine;
+	if ( pState == NULL ) {
+		return;
+	}
+	pQuarantine = pState->pQuarantineHead;
+	while ( pQuarantine ) {
+		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
+		__xrtMemGlobalProcFree()(pQuarantine);
+		pQuarantine = pNext;
+	}
+	pSite = pState->pSiteStats;
+	while ( pSite ) {
+		xrtMemDebugSiteStat* pNext = pSite->pNext;
+		__xrtMemGlobalProcFree()(pSite);
+		pSite = pNext;
+	}
+	pForeign = pState->pForeignAllocs;
+	while ( pForeign ) {
+		xrtMemDebugForeignAlloc* pNext = pForeign->pNext;
+		__xrtMemGlobalProcFree()(pForeign);
+		pForeign = pNext;
+	}
+	pObject = pState->pObjects;
+	while ( pObject ) {
+		xrtMemDebugObject* pNext = pObject->pNext;
+		__xrtMemGlobalProcFree()(pObject);
+		pObject = pNext;
+	}
+	memset(pState, 0, sizeof(xrtMemDebugState));
+	pState->bEnabled = 1;
+}
+
+static inline bool __xrtMemDebugHasLeaks()
+{
+	return xCore.MemDebug.pLiveHead != NULL || xCore.MemDebug.pForeignAllocs != NULL || xCore.MemDebug.iLiveObjectCount != 0;
+}
+
+#else
+
+static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+}
+
+static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+	return TRUE;
+}
+
+static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+	return TRUE;
+}
+
+static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iSize;
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+}
+
+static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+
+static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
+{
+	(void)pAddress;
+	(void)pAllocatorKind;
+	(void)pSize;
+	(void)psFile;
+	(void)pLine;
+	return FALSE;
+}
+
+static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)iOrigin;
+	(void)sFile;
+	(void)iLine;
+}
+
+static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+
+static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+
+static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)sFile;
+	(void)iLine;
+}
+
+static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)sFile;
+	(void)iLine;
+}
+
+static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)iOldSize;
+	(void)sFile;
+	(void)iLine;
+}
+
+static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	(void)iType;
+	(void)pAddress;
+	(void)iSize;
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+}
+
+static inline void __xrtMemDebugResetState(ptr pState)
+{
+	(void)pState;
+}
+
+static inline bool __xrtMemDebugHasLeaks()
+{
+	return FALSE;
+}
+
+#endif
+
+static inline xrtMemThreadCache* __xrtMemGlobalGetThreadCache()
+{
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+	return (xrtMemThreadCache*)pThreadData->tMem.pLocalAlloc;
+}
+
+static inline bool __xrtMemGlobalInitThreadCache(xrtThreadData* pThreadData)
+{
+	ptr (*procCalloc)(size_t, size_t) = __xrtMemGlobalProcCalloc();
+	xrtMemThreadCache* pCache;
+
+	if ( pThreadData == NULL ) {
+		return FALSE;
+	}
+	if ( pThreadData->tMem.pLocalAlloc ) {
+		return TRUE;
+	}
+
+	__xrtMemGlobalEnsurePlan();
+	pCache = procCalloc(1, sizeof(xrtMemThreadCache));
+	if ( pCache == NULL ) {
+		return FALSE;
+	}
+
+	pCache->iClassCount = xCore.MemGlobal.iClassCount;
+	pCache->iCacheLimit = XRT_MEMGLOBAL_CACHE_LIMIT;
+	pThreadData->tMem.pLocalAlloc = pCache;
+	return TRUE;
+}
+
+static inline void __xrtMemGlobalPushCentral(uint32 iClass, xrtMemFreeNode* pHead, xrtMemFreeNode* pTail, uint32 iCount)
+{
+	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
+
+	if ( pHead == NULL || pTail == NULL || iCount == 0 ) {
+		return;
+	}
+
+	__xrtMemGlobalLock(&pClass->iLock);
+	pTail->pNext = pClass->pFreeList;
+	pClass->pFreeList = pHead;
+	pClass->iFreeCount += iCount;
+	__xrtMemGlobalUnlock(&pClass->iLock);
+}
+
+static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMaxCount, uint32* pOutCount)
+{
+	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 iCount = 0;
+
+	__xrtMemGlobalLock(&pClass->iLock);
+	while ( pClass->pFreeList && iCount < iMaxCount ) {
+		xrtMemFreeNode* pNode = pClass->pFreeList;
+		pClass->pFreeList = pNode->pNext;
+		pNode->pNext = NULL;
+		if ( pHead == NULL ) {
+			pHead = pNode;
+		} else {
+			pTail->pNext = pNode;
+		}
+		pTail = pNode;
+		iCount++;
+	}
+	if ( pClass->iFreeCount >= iCount ) {
+		pClass->iFreeCount -= iCount;
+	} else {
+		pClass->iFreeCount = 0;
+	}
+	__xrtMemGlobalUnlock(&pClass->iLock);
+
+	if ( pOutCount ) {
+		*pOutCount = iCount;
+	}
+	return pHead;
+}
+
+static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
+{
+	ptr (*procMalloc)(size_t) = __xrtMemGlobalProcMalloc();
+	size_t iHeaderSize = __xrtMemGlobalHeaderSize();
+	size_t iPayloadSize = __xrtMemGlobalClassBlockSize(&xCore.MemGlobal, iClass);
+	size_t iStride = __xrtMemGlobalAlignSize(iHeaderSize + iPayloadSize);
+	uint32 iBlockCount;
+	size_t iBytes;
+	xrtMemGlobalSpan* pSpan;
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 i;
+
+	if ( iPayloadSize == 0 ) {
+		return FALSE;
+	}
+
+	iBlockCount = (uint32)(XRT_MEMGLOBAL_SPAN_TARGET_BYTES / iStride);
+	if ( iBlockCount < XRT_MEMGLOBAL_SPAN_MIN_BLOCKS ) {
+		iBlockCount = XRT_MEMGLOBAL_SPAN_MIN_BLOCKS;
+	}
+	if ( iBlockCount > XRT_MEMGLOBAL_SPAN_MAX_BLOCKS ) {
+		iBlockCount = XRT_MEMGLOBAL_SPAN_MAX_BLOCKS;
+	}
+
+	iBytes = __xrtMemGlobalAlignSize(sizeof(xrtMemGlobalSpan)) + (iStride * iBlockCount);
+	pSpan = (xrtMemGlobalSpan*)procMalloc(iBytes);
+	if ( pSpan == NULL ) {
+		return FALSE;
+	}
+
+	pSpan->pMemory = pSpan;
+	pSpan->iClassIndex = iClass;
+	pSpan->iBlockCount = iBlockCount;
+
+	{
+		char* pCursor = (char*)pSpan + __xrtMemGlobalAlignSize(sizeof(xrtMemGlobalSpan));
+		for ( i = 0; i < iBlockCount; i++ ) {
+			xrtMemBlockHeader* pHeader = (xrtMemBlockHeader*)pCursor;
+			xrtMemFreeNode* pNode;
+
+			__xrtMemGlobalWriteHeader(pHeader, iClass, XRT_MEMBLOCK_FLAG_POOLED, (uint32)iPayloadSize);
+			pNode = (xrtMemFreeNode*)__xrtMemGlobalUserFromHeader(pHeader);
+			pNode->pNext = NULL;
+			if ( pHead == NULL ) {
+				pHead = pNode;
+			} else {
+				pTail->pNext = pNode;
+			}
+			pTail = pNode;
+			pCursor += iStride;
+		}
+	}
+
+	__xrtMemGlobalLock(&xCore.MemGlobal.iSpanLock);
+	pSpan->pNext = xCore.MemGlobal.pSpanList;
+	xCore.MemGlobal.pSpanList = pSpan;
+	__xrtMemGlobalUnlock(&xCore.MemGlobal.iSpanLock);
+
+	xCore.MemGlobal.arrClassDesc[iClass].iSpanCount++;
+	__xrtMemGlobalPushCentral(iClass, pHead, pTail, iBlockCount);
+	return TRUE;
+}
+
+static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, uint32 iClass)
+{
+	uint32 iDesired = pCache ? (uint32)(pCache->iCacheLimit / 2) : 0;
+	uint32 iCount = 0;
+	xrtMemFreeNode* pHead;
+	xrtMemFreeNode* pNode;
+
+	if ( pCache == NULL || iClass >= pCache->iClassCount ) {
+		return FALSE;
+	}
+	if ( iDesired == 0 ) {
+		iDesired = 1;
+	}
+
+	pHead = __xrtMemGlobalPopCentral(iClass, iDesired, &iCount);
+	if ( pHead == NULL ) {
+		if ( !__xrtMemGlobalAllocSpan(iClass) ) {
+			return FALSE;
+		}
+		pHead = __xrtMemGlobalPopCentral(iClass, iDesired, &iCount);
+		if ( pHead == NULL ) {
+			return FALSE;
+		}
+	}
+
+	pNode = pHead;
+	while ( pNode ) {
+		xrtMemFreeNode* pNext = pNode->pNext;
+		pNode->pNext = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode;
+		pCache->arrFreeCount[iClass]++;
+		pNode = pNext;
+	}
+
+	return pCache->arrFreeCount[iClass] > 0;
+}
+
+static inline void __xrtMemGlobalDrainThreadCache(xrtMemThreadCache* pCache, uint32 iClass, uint32 iKeepCount)
+{
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 iCount = 0;
+
+	if ( pCache == NULL || iClass >= pCache->iClassCount ) {
+		return;
+	}
+
+	while ( pCache->arrFreeCount[iClass] > iKeepCount ) {
+		xrtMemFreeNode* pNode = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode->pNext;
+		pCache->arrFreeCount[iClass]--;
+		pNode->pNext = NULL;
+		if ( pHead == NULL ) {
+			pHead = pNode;
+		} else {
+			pTail->pNext = pNode;
+		}
+		pTail = pNode;
+		iCount++;
+	}
+
+	if ( iCount > 0 ) {
+		__xrtMemGlobalPushCentral(iClass, pHead, pTail, iCount);
+	}
+}
+
+static inline void __xrtMemGlobalUnitThreadCache(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
+	xrtMemThreadCache* pCache;
+	uint32 i;
+
+	if ( pThreadData == NULL || pThreadData->tMem.pLocalAlloc == NULL ) {
+		return;
+	}
+
+	pCache = (xrtMemThreadCache*)pThreadData->tMem.pLocalAlloc;
+	for ( i = 0; i < pCache->iClassCount; i++ ) {
+		__xrtMemGlobalDrainThreadCache(pCache, i, 0);
+	}
+
+	procFree(pCache);
+	pThreadData->tMem.pLocalAlloc = NULL;
+}
+
+static inline void __xrtMemGlobalUnitPlan(xrtMemGlobalPool* pPool)
+{
+	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
+	xrtMemGlobalSpan* pSpan;
+
+	if ( pPool == NULL ) {
+		return;
+	}
+
+	pSpan = pPool->pSpanList;
+	while ( pSpan ) {
+		xrtMemGlobalSpan* pNext = pSpan->pNext;
+		procFree(pSpan->pMemory);
+		pSpan = pNext;
+	}
+
+	memset(pPool, 0, sizeof(xrtMemGlobalPool));
+}
+
+static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, bool bZero)
+{
+	xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
+	xrtMemFreeNode* pNode = NULL;
+	xrtMemBlockHeader* pHeader;
+	uint32 iBlockSize;
+
+	if ( pCache && iClass < pCache->iClassCount ) {
+		if ( pCache->arrFreeList[iClass] == NULL ) {
+			if ( !__xrtMemGlobalRefillThreadCache(pCache, iClass) ) {
+				return NULL;
+			}
+		}
+		pNode = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode->pNext;
+		pCache->arrFreeCount[iClass]--;
+	} else {
+		uint32 iCount = 0;
+		pNode = __xrtMemGlobalPopCentral(iClass, 1, &iCount);
+		if ( pNode == NULL ) {
+			if ( !__xrtMemGlobalAllocSpan(iClass) ) {
+				return NULL;
+			}
+			pNode = __xrtMemGlobalPopCentral(iClass, 1, &iCount);
+			if ( pNode == NULL ) {
+				return NULL;
+			}
+		}
+	}
+
+	pHeader = __xrtMemGlobalHeaderFromUser(pNode);
+	iBlockSize = __xrtMemGlobalClassBlockSize(&xCore.MemGlobal, iClass);
+	__xrtMemGlobalWriteHeader(pHeader, iClass, XRT_MEMBLOCK_FLAG_POOLED, (uint32)iRequestSize);
+	if ( bZero ) {
+		memset(pNode, 0, iBlockSize);
+	#ifdef XRT_MEM_DEBUG
+	} else {
+		memset(pNode, 0xCD, iBlockSize);
+	#endif
+	}
+	__xrtMemGlobalWriteTailCanary(pHeader);
+	return pNode;
+}
+
+static inline ptr __xrtMemGlobalAllocBacking(size_t iRequestSize, bool bZero)
+{
+	ptr pRaw;
+	xrtMemBlockHeader* pHeader;
+	size_t iAllocPayload = __xrtMemGlobalAllocPayloadSize(iRequestSize);
+	size_t iAllocSize = __xrtMemGlobalHeaderSize() + iAllocPayload;
+
+	if ( bZero ) {
+		pRaw = __xrtMemGlobalProcCalloc()(1, iAllocSize);
+	} else {
+		pRaw = __xrtMemGlobalProcMalloc()(iAllocSize);
+	}
+	if ( pRaw == NULL ) {
+		return NULL;
+	}
+
+	pHeader = (xrtMemBlockHeader*)pRaw;
+	__xrtMemGlobalWriteHeader(pHeader, 0xFFFFu, XRT_MEMBLOCK_FLAG_BACKING, (uint32)iRequestSize);
+	#ifdef XRT_MEM_DEBUG
+		if ( !bZero ) {
+			memset(__xrtMemGlobalUserFromHeader(pHeader), 0xCD, iAllocPayload);
+		}
+	#endif
+	__xrtMemGlobalWriteTailCanary(pHeader);
+	return __xrtMemGlobalUserFromHeader(pHeader);
+}
+
+static inline ptr __xrtMemGlobalAllocSite(size_t iSize, bool bZero, const char* sFile, uint32 iLine)
+{
+	uint32 iClass;
+	ptr pMem;
+
+	__xrtMemGlobalEnsurePlan();
+
+	iClass = __xrtMemGlobalClassIndexForRequest(&xCore.MemGlobal, iSize);
+	if ( iClass != (uint32)-1 ) {
+		pMem = __xrtMemGlobalAllocPooled(iClass, iSize, bZero);
+	} else {
+		pMem = __xrtMemGlobalAllocBacking(iSize, bZero);
+	}
+	if ( pMem ) {
+		__xrtMemDebugTrackAlloc(__xrtMemGlobalHeaderFromUser(pMem), sFile, iLine);
+	}
+	return pMem;
+}
+
+static inline ptr __xrtMemGlobalAlloc(size_t iSize, bool bZero)
+{
+	return __xrtMemGlobalAllocSite(iSize, bZero, NULL, 0);
+}
+
+static inline void __xrtMemGlobalFreeRelease(ptr pMem)
+{
+	xrtMemBlockHeader* pHeader;
+
+	if ( pMem == NULL ) {
+		return;
+	}
+
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		__xrtMemGlobalProcFree()(pMem);
+		return;
+	}
+
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_POOLED ) {
+		uint32 iClass = pHeader->iClassIndex;
+		xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
+		xrtMemFreeNode* pNode = (xrtMemFreeNode*)pMem;
+
+		if ( pCache && iClass < pCache->iClassCount ) {
+			if ( pCache->arrFreeCount[iClass] >= pCache->iCacheLimit ) {
+				__xrtMemGlobalDrainThreadCache(pCache, iClass, pCache->iCacheLimit / 2);
+			}
+			pNode->pNext = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+			pCache->arrFreeList[iClass] = pNode;
+			pCache->arrFreeCount[iClass]++;
+		} else {
+			pNode->pNext = NULL;
+			__xrtMemGlobalPushCentral(iClass, pNode, pNode, 1);
+		}
+		return;
+	}
+
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+		__xrtMemGlobalProcFree()(pHeader);
+		return;
+	}
+
+	__xrtMemGlobalProcFree()(pHeader);
+}
+
+static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iLine)
+{
+	xrtMemBlockHeader* pHeader;
+
+	if ( pMem == NULL ) {
+		return;
+	}
+
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		uint32 iAllocatorKind = 0;
+		size_t iForeignSize = 0;
+		const char* sForeignFile = NULL;
+		uint32 iForeignLine = 0;
+		if ( __xrtMemDebugLookupForeignAlloc(pMem, &iAllocatorKind, &iForeignSize, &sForeignFile, &iForeignLine) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE, pMem, iForeignSize, iAllocatorKind, sFile, iLine);
+			xrtSetError("memory belongs to an explicit pool allocator.", FALSE);
+			return;
+		}
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_INVALID_FREE, pMem, 0, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("invalid free detected.", FALSE);
+			return;
+		#else
+			__xrtMemGlobalProcFree()(pMem);
+			return;
+		#endif
+	}
+
+	#ifdef XRT_MEM_DEBUG
+		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("double free detected.", FALSE);
+			return;
+		}
+		if ( !__xrtMemGlobalCheckFrontCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		if ( !__xrtMemGlobalCheckTailCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		__xrtMemDebugTrackFree(pHeader, sFile, iLine);
+		memset(pMem, 0xDD, __xrtMemGlobalAllocPayloadSize(pHeader->iRequestSize));
+		if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+			__xrtMemDebugLock();
+			pHeader->iDebugState = XRT_MEMDEBUG_STATE_QUARANTINE;
+			pHeader->pDebugPrev = xCore.MemDebug.pQuarantineTail;
+			pHeader->pDebugNext = NULL;
+			if ( xCore.MemDebug.pQuarantineTail ) {
+				xCore.MemDebug.pQuarantineTail->pDebugNext = pHeader;
+			} else {
+				xCore.MemDebug.pQuarantineHead = pHeader;
+			}
+			xCore.MemDebug.pQuarantineTail = pHeader;
+			xCore.MemDebug.iQuarantineCount++;
+			xCore.MemDebug.iQuarantineBytes += pHeader->iRequestSize;
+			while ( xCore.MemDebug.iQuarantineCount > XRT_MEMDEBUG_QUARANTINE_LIMIT && xCore.MemDebug.pQuarantineHead ) {
+				xrtMemBlockHeader* pOld = xCore.MemDebug.pQuarantineHead;
+				xCore.MemDebug.pQuarantineHead = pOld->pDebugNext;
+				if ( xCore.MemDebug.pQuarantineHead ) {
+					xCore.MemDebug.pQuarantineHead->pDebugPrev = NULL;
+				} else {
+					xCore.MemDebug.pQuarantineTail = NULL;
+				}
+				pOld->pDebugPrev = NULL;
+				pOld->pDebugNext = NULL;
+				if ( xCore.MemDebug.iQuarantineCount > 0 ) {
+					xCore.MemDebug.iQuarantineCount--;
+				}
+				if ( xCore.MemDebug.iQuarantineBytes >= pOld->iRequestSize ) {
+					xCore.MemDebug.iQuarantineBytes -= pOld->iRequestSize;
+				} else {
+					xCore.MemDebug.iQuarantineBytes = 0;
+				}
+				__xrtMemGlobalProcFree()(pOld);
+			}
+			__xrtMemDebugUnlock();
+			return;
+		}
+	#endif
+
+	__xrtMemGlobalFreeRelease(pMem);
+}
+
+static inline void __xrtMemGlobalFree(ptr pMem)
+{
+	__xrtMemGlobalFreeSite(pMem, NULL, 0);
+}
+
+static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
+{
+	xrtMemBlockHeader* pHeader;
+	size_t iOldSize;
+
+	if ( pMem == NULL ) {
+		return __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
+	}
+	if ( iSize == 0 ) {
+		__xrtMemGlobalFreeSite(pMem, sFile, iLine);
+		return NULL;
+	}
+
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		return __xrtMemGlobalProcRealloc()(pMem, iSize);
+	}
+
+	#ifdef XRT_MEM_DEBUG
+		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("realloc on freed memory detected.", FALSE);
+			return NULL;
+		}
+		if ( !__xrtMemGlobalCheckFrontCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		if ( !__xrtMemGlobalCheckTailCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+	#endif
+
+	iOldSize = pHeader->iRequestSize;
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_POOLED ) {
+		uint32 iOldClass = pHeader->iClassIndex;
+		uint32 iNewClass = __xrtMemGlobalClassIndexForRequest(&xCore.MemGlobal, iSize);
+
+		if ( iNewClass == iOldClass ) {
+			pHeader->iRequestSize = (uint32)iSize;
+			__xrtMemGlobalWriteTailCanary(pHeader);
+			__xrtMemDebugTrackReallocInPlace(pHeader, iOldSize, sFile, iLine);
+			return pMem;
+		}
+	} else if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+		#ifndef XRT_MEM_DEBUG
+		if ( iSize > xCore.MemGlobal.iCutoff ) {
+			size_t iAllocPayload = __xrtMemGlobalAllocPayloadSize(iSize);
+			size_t iAllocSize = __xrtMemGlobalHeaderSize() + iAllocPayload;
+			xrtMemBlockHeader* pNewHeader = __xrtMemGlobalProcRealloc()(pHeader, iAllocSize);
+			if ( pNewHeader == NULL ) {
+				return NULL;
+			}
+			__xrtMemGlobalWriteHeader(pNewHeader, 0xFFFFu, XRT_MEMBLOCK_FLAG_BACKING, (uint32)iSize);
+			__xrtMemGlobalWriteTailCanary(pNewHeader);
+			return __xrtMemGlobalUserFromHeader(pNewHeader);
+		}
+		#endif
+	}
+
+	{
+		ptr pNewMem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
+		if ( pNewMem == NULL ) {
+			return NULL;
+		}
+		memcpy(pNewMem, pMem, iOldSize < iSize ? iOldSize : iSize);
+		__xrtMemGlobalFreeSite(pMem, sFile, iLine);
+		return pNewMem;
+	}
+}
+
+static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
+{
+	return __xrtMemGlobalReallocSite(pMem, iSize, NULL, 0);
+}

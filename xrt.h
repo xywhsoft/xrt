@@ -374,7 +374,8 @@
 		uint64 inc;
 	} xrand;
 
-	#define XRT_TEMP_SLOT_COUNT 32
+	#define XRT_TEMP_ARENA_BLOCK_SIZE	4096u
+	#define XRT_TEMP_ARENA_SPILL_CUTOFF	2048u
 
 	typedef struct xrtThreadData xrtThreadData;
 	typedef struct xrtThreadCleanup xrtThreadCleanup;
@@ -388,6 +389,277 @@
 		ptr pSharedAlloc;
 		ptr pReserved;
 	} xrtThreadMemState;
+
+	typedef struct xrtTempArenaBlock {
+		struct xrtTempArenaBlock* pNext;
+		uint32 iCapacity;
+		uint32 iUsed;
+		uint32 iFlags;
+		uint32 iReserved;
+	} xrtTempArenaBlock;
+
+	typedef struct {
+		xrtTempArenaBlock* pBlocks;
+		xrtTempArenaBlock* pCurrent;
+		xrtTempArenaBlock* pSpill;
+		uint32 iBlockSize;
+		uint32 iSpillCutoff;
+		uint64 iCurrentBytes;
+		uint64 iPeakBytes;
+		uint64 iResetCount;
+	} xrtTempArenaState;
+
+	#define XRT_MEMPOOL_STEP_SIZE			16u
+	#define XRT_MEMPOOL_CUTOFF_DEFAULT		1024u
+	#define XRT_MEMPOOL_CLASS_COUNT_DEFAULT	(XRT_MEMPOOL_CUTOFF_DEFAULT / XRT_MEMPOOL_STEP_SIZE)
+	#define XRT_MEMGLOBAL_CACHE_LIMIT		32u
+	#define XRT_MEMBLOCK_MAGIC				0x584D454Du
+	#define XRT_MEMGLOBAL_SPAN_TARGET_BYTES	4096u
+	#define XRT_MEMGLOBAL_SPAN_MIN_BLOCKS	8u
+	#define XRT_MEMGLOBAL_SPAN_MAX_BLOCKS	128u
+
+	#define XRT_MEMBLOCK_FLAG_POOLED		0x0001u
+	#define XRT_MEMBLOCK_FLAG_BACKING		0x0002u
+
+	typedef struct xrtMemBlockHeader {
+		uint32 iMagic;
+		uint16 iClassIndex;
+		uint16 iFlags;
+		uint32 iRequestSize;
+		uint32 iReserved;
+		#ifdef XRT_MEM_DEBUG
+			const char* sAllocFile;
+			uint32 iAllocLine;
+			const char* sFreeFile;
+			uint32 iFreeLine;
+			uint64 iAllocThreadId;
+			uint64 iAllocSeq;
+			uint64 iAllocTimeMs;
+			uint64 iFreeTimeMs;
+			struct xrtMemBlockHeader* pDebugPrev;
+			struct xrtMemBlockHeader* pDebugNext;
+			uint32 iFrontCanary;
+			uint32 iDebugState;
+		#endif
+	} xrtMemBlockHeader;
+
+	typedef struct xrtMemFreeNode {
+		struct xrtMemFreeNode* pNext;
+	} xrtMemFreeNode;
+
+	typedef struct xrtMemGlobalSpan {
+		struct xrtMemGlobalSpan* pNext;
+		ptr pMemory;
+		uint32 iClassIndex;
+		uint32 iBlockCount;
+	} xrtMemGlobalSpan;
+
+	typedef struct {
+		uint16 iBlockSize;
+		uint16 iReserved;
+		volatile long iLock;
+		xrtMemFreeNode* pFreeList;
+		uint32 iFreeCount;
+		uint32 iSpanCount;
+	} xrtMemGlobalClassDesc;
+
+	typedef struct {
+		uint16 iClassCount;
+		uint16 iClassStep;
+		uint32 iCutoff;
+		volatile long iSpanLock;
+		xrtMemGlobalSpan* pSpanList;
+		xrtMemGlobalClassDesc arrClassDesc[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint8 arrSizeClassLut[XRT_MEMPOOL_CUTOFF_DEFAULT + 1];
+	} xrtMemGlobalPool;
+
+	typedef struct {
+		ptr arrFreeList[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint16 arrFreeCount[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint16 iClassCount;
+		uint16 iCacheLimit;
+	} xrtMemThreadCache;
+
+	typedef struct {
+		volatile long bEnabled;
+		volatile long iReserved0;
+		volatile int64 iMallocCalls;
+		volatile int64 iMallocBytes;
+		volatile int64 iCallocCalls;
+		volatile int64 iCallocBytes;
+		volatile int64 iReallocCalls;
+		volatile int64 iReallocBytes;
+		volatile int64 iFreeCalls;
+		volatile int64 iTempCalls;
+		volatile int64 iTempBytes;
+		volatile int64 iPooledCandidateCalls;
+		volatile int64 iPooledCandidateBytes;
+		volatile int64 iFallbackCalls;
+		volatile int64 iFallbackBytes;
+		volatile int64 arrClassCalls[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		volatile int64 arrClassBytes[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+	} xrtMemTelemetryState;
+
+	typedef struct {
+		bool bEnabled;
+		uint32 iClassStep;
+		uint32 iClassCutoff;
+		uint32 iClassCount;
+		uint64 iMallocCalls;
+		uint64 iMallocBytes;
+		uint64 iCallocCalls;
+		uint64 iCallocBytes;
+		uint64 iReallocCalls;
+		uint64 iReallocBytes;
+		uint64 iFreeCalls;
+		uint64 iTempCalls;
+		uint64 iTempBytes;
+		uint64 iPooledCandidateCalls;
+		uint64 iPooledCandidateBytes;
+		uint64 iFallbackCalls;
+		uint64 iFallbackBytes;
+		uint64 arrClassCalls[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint64 arrClassBytes[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+	} xrtMemTelemetrySnapshot;
+
+	#define XRT_MEMDEBUG_CANARY_HEAD				0x584D4448u
+	#define XRT_MEMDEBUG_CANARY_TAIL				0x584D4454u
+	#define XRT_MEMDEBUG_EVENT_CAPACITY			512u
+	#define XRT_MEMDEBUG_QUARANTINE_LIMIT			256u
+
+	#define XRT_MEMDEBUG_ALLOCATOR_GLOBAL			1u
+	#define XRT_MEMDEBUG_ALLOCATOR_MEMPOOL			2u
+	#define XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL		3u
+
+	#define XRT_MEMDEBUG_STATE_LIVE				1u
+	#define XRT_MEMDEBUG_STATE_FREED			2u
+	#define XRT_MEMDEBUG_STATE_QUARANTINE			3u
+
+	#define XRT_MEMDEBUG_OBJECT_STATE_LIVE			1u
+	#define XRT_MEMDEBUG_OBJECT_STATE_DESTROYED		2u
+
+	#define XRT_MEMDEBUG_OBJECT_ARRAY			1u
+	#define XRT_MEMDEBUG_OBJECT_DICT			2u
+	#define XRT_MEMDEBUG_OBJECT_LIST			3u
+	#define XRT_MEMDEBUG_OBJECT_AVLTREE			4u
+	#define XRT_MEMDEBUG_OBJECT_DYNSTACK			5u
+	#define XRT_MEMDEBUG_OBJECT_MEMPOOL			6u
+	#define XRT_MEMDEBUG_OBJECT_FSMEMPOOL			7u
+
+	#define XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE		1u
+	#define XRT_MEMDEBUG_OBJECT_ORIGIN_INIT			2u
+
+	#define XRT_MEMDEBUG_EVENT_ALLOC				1u
+	#define XRT_MEMDEBUG_EVENT_FREE				2u
+	#define XRT_MEMDEBUG_EVENT_REALLOC			3u
+	#define XRT_MEMDEBUG_EVENT_LEAK				4u
+	#define XRT_MEMDEBUG_EVENT_POOL_LEAK			5u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_LEAK			6u
+	#define XRT_MEMDEBUG_EVENT_DOUBLE_FREE			7u
+	#define XRT_MEMDEBUG_EVENT_INVALID_FREE			8u
+	#define XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE		9u
+	#define XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT	10u
+	#define XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT	11u
+	#define XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT	12u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_CREATE			13u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_DESTROY			14u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY	15u
+	#define XRT_MEMDEBUG_EVENT_TEMP_ALLOC			16u
+	#define XRT_MEMDEBUG_EVENT_TEMP_RESET			17u
+
+	typedef struct xrtMemDebugEvent {
+		uint32 iType;
+		uint32 iLine;
+		uint32 iAllocatorKind;
+		uint32 iReserved;
+		uint64 iThreadId;
+		uint64 iTimeMs;
+		uint64 iSize;
+		ptr pAddress;
+		const char* sFile;
+	} xrtMemDebugEvent;
+
+	typedef struct xrtMemDebugSiteStat {
+		struct xrtMemDebugSiteStat* pNext;
+		const char* sFile;
+		uint32 iLine;
+		uint32 iAllocatorKind;
+		uint64 iAllocCount;
+		uint64 iAllocBytes;
+		uint64 iFreeCount;
+		uint64 iFreeBytes;
+		uint64 iLiveCount;
+		uint64 iLiveBytes;
+		uint64 iPeakLiveCount;
+		uint64 iPeakLiveBytes;
+	} xrtMemDebugSiteStat;
+
+	typedef struct xrtMemDebugForeignAlloc {
+		struct xrtMemDebugForeignAlloc* pNext;
+		ptr pAddress;
+		uint32 iSize;
+		uint32 iAllocatorKind;
+		const char* sAllocFile;
+		uint32 iAllocLine;
+		uint64 iAllocThreadId;
+		uint64 iAllocTimeMs;
+	} xrtMemDebugForeignAlloc;
+
+	typedef struct xrtMemDebugObject {
+		struct xrtMemDebugObject* pNext;
+		ptr pAddress;
+		uint32 iObjectType;
+		uint32 iOrigin;
+		uint32 iState;
+		uint32 iReserved;
+		const char* sAllocFile;
+		uint32 iAllocLine;
+		uint64 iAllocThreadId;
+		uint64 iAllocTimeMs;
+		const char* sFreeFile;
+		uint32 iFreeLine;
+		uint64 iFreeThreadId;
+		uint64 iFreeTimeMs;
+	} xrtMemDebugObject;
+
+	typedef struct {
+		volatile long iLock;
+		volatile long bEnabled;
+		volatile long iReserved0;
+		volatile long iReserved1;
+		uint64 iAllocSeq;
+		xrtMemBlockHeader* pLiveHead;
+		xrtMemBlockHeader* pLiveTail;
+		xrtMemBlockHeader* pQuarantineHead;
+		xrtMemBlockHeader* pQuarantineTail;
+		uint32 iQuarantineCount;
+		uint32 iEventCursor;
+		uint64 iQuarantineBytes;
+		uint32 iEventCount;
+		uint64 iLiveAllocCount;
+		uint64 iLiveAllocBytes;
+		uint64 iPeakLiveAllocCount;
+		uint64 iPeakLiveAllocBytes;
+		uint64 iForeignLiveCount;
+		uint64 iForeignLiveBytes;
+		uint64 iPeakForeignLiveCount;
+		uint64 iPeakForeignLiveBytes;
+		uint64 iInvalidFreeCount;
+		uint64 iDoubleFreeCount;
+		uint64 iWrongAllocatorFreeCount;
+		uint64 iLiveObjectCount;
+		uint64 iPeakLiveObjectCount;
+		uint64 iObjectDoubleDestroyCount;
+		uint64 iTempCurrentBytes;
+		uint64 iTempPeakBytes;
+		uint64 iTempResetCount;
+		uint64 iOverflowCount;
+		uint64 iUnderflowCount;
+		xrtMemDebugSiteStat* pSiteStats;
+		xrtMemDebugForeignAlloc* pForeignAllocs;
+		xrtMemDebugObject* pObjects;
+		xrtMemDebugEvent arrEvents[XRT_MEMDEBUG_EVENT_CAPACITY];
+	} xrtMemDebugState;
 
 	#define XRT_CO_RUNTIME_FIBER_CONVERTED	0x00000001u
 	#define XRT_CO_RUNTIME_FIBER_HOSTED		0x00000002u
@@ -465,6 +737,11 @@
 		double fApproxStrTol;     // 字符串相似度阈值(0.0-1.0)
 		bool bApproxStrCase;      // 通配符模式大小写开关(TRUE=忽略)
 		
+		xrtMemGlobalPool MemGlobal;
+		xrtMemTelemetryState MemTelemetry;
+		#ifdef XRT_MEM_DEBUG
+			xrtMemDebugState MemDebug;
+		#endif
 	} xrtGlobalData;
 
 	// 线程级运行时状态
@@ -475,8 +752,7 @@
 		uint32 iAttachDepth;
 		str LastError;
 		bool bFreeLastError;
-		ptr TempMem[XRT_TEMP_SLOT_COUNT];
-		uint32 TempMemIdx;
+		xrtTempArenaState tTemp;
 		xrand rand32;
 		xrand rand64_low;
 		xrand rand64_high;
@@ -554,6 +830,26 @@
 	
 	// 释放所有临时内存
 	XXAPI void xrtFreeTempMemory();
+	XXAPI void xrtMemTelemetryEnable(bool bEnable);
+	XXAPI bool xrtMemTelemetryIsEnabled();
+	XXAPI void xrtMemTelemetryReset();
+	XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut);
+	XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine);
+	XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLine);
+	XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine);
+	XXAPI void xrtFreeDbg(ptr pMem, const char* sFile, uint32 iLine);
+	XXAPI void xrtMemDebugEnable(bool bEnable);
+	XXAPI bool xrtMemDebugIsEnabled();
+	XXAPI void xrtMemDebugReset();
+	XXAPI bool xrtMemDebugDumpText(str sPath);
+	XXAPI bool xrtMemDebugDumpJson(str sPath);
+
+	#if defined(XRT_MEM_DEBUG) && !defined(XRT_BUILD_CORE)
+		#define xrtMalloc(iSize) xrtMallocDbg((iSize), __FILE__, __LINE__)
+		#define xrtCalloc(iNum, iSize) xrtCallocDbg((iNum), (iSize), __FILE__, __LINE__)
+		#define xrtRealloc(pMem, iSize) xrtReallocDbg((pMem), (iSize), __FILE__, __LINE__)
+		#define xrtFree(pMem) xrtFreeDbg((pMem), __FILE__, __LINE__)
+	#endif
 	
 	// 设置错误
 	XXAPI void xrtSetError(str sError, bool bFree);
@@ -620,6 +916,23 @@
 			return iNext;
 		#elif defined(_WIN32) || defined(_WIN64)
 			return InterlockedExchangeAdd((volatile LONG*)pValue, iDelta) + iDelta;
+		#else
+			return __sync_add_and_fetch(pValue, iDelta);
+		#endif
+	}
+
+	static inline int64 __xrtAtomicAddFetch64(volatile int64* pValue, int64 iDelta)
+	{
+		#if defined(__TINYC__) && defined(_WIN32)
+			int64 iPrev;
+			int64 iNext;
+			do {
+				iPrev = (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, 0, 0);
+				iNext = iPrev + iDelta;
+			} while ( (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iNext, (LONG64)iPrev) != iPrev );
+			return iNext;
+		#elif defined(_WIN32) || defined(_WIN64)
+			return (int64)InterlockedExchangeAdd64((volatile LONG64*)pValue, (LONG64)iDelta) + iDelta;
 		#else
 			return __sync_add_and_fetch(pValue, iDelta);
 		#endif
@@ -2893,15 +3206,19 @@
 		MMU_LLNode* LL_Full;						// 满载的 MMU 内存管理单元链表 (不会从这些单元中分配内存)
 		MMU_LLNode* LL_Null;						// 全空的 MMU 内存管理单元 (备用单元，最多只留一个)
 		MMU_LLNode* LL_Free;						// 已释放的 MMU 内存管理单元链表 (申请新单元优先从这里找)
-		struct FSB_Item* left;						// 左子树
-		struct FSB_Item* right;						// 右子树
+		struct FSB_Item* left;						// legacy tree pointer (unused in LUT mode)
+		struct FSB_Item* right;						// legacy tree pointer (unused in LUT mode)
 	} FSB_Item;
 	
-	// 256步进内存池数据结构
+	// 通用内存池数据结构（LUT 分桶）
 	typedef struct {
 		xrtOwnerInfo Owner;							// 所有权信息
-		FSB_Item* FSB_Memory;						// fixed-size-blocks 内存（MP256_Create参数为 1 或 2 时自动创建，否则需要手动创建，不为空会调用 mmu_free 释放）
-		FSB_Item* FSB_RootNode;						// fixed-size-blocks 二叉树（固定大小区块内存管理器阵列）
+		FSB_Item* FSB_Memory;						// fixed-size-blocks bucket array
+		FSB_Item* FSB_RootNode;						// legacy compatibility alias, points to the first bucket when active
+		uint32* FSB_Lut;							// size -> bucket lookup table (0..iFallbackCutoff)
+		uint32 iBucketStep;							// bucket step size in bytes
+		uint32 iBucketCount;						// number of buckets in FSB_Memory
+		uint32 iFallbackCutoff;						// max size still served by pooled buckets
 		xbsmm_struct arrMMU;						// MMU 阵列
 		xbsmm_struct BigMM;							// 大内存数组
 		MP_BigInfoLL* LL_BigFree;					// 大内存已释放的内存块链表
@@ -4265,7 +4582,102 @@
 	XXAPI int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
 	
 	
-	
+XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI xarray xrtArrayCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayInitExDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine);
+
+XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI xdict xrtDictCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtDictInitExDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine);
+XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine);
+
+XXAPI xlist xrtListCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI xlist xrtListCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtListInitExDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine);
+XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine);
+
+XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine);
+XXAPI xavltree xrtAVLTreeCreateExDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeInitExDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
+
+XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtDynStackInitDbg(xdynstack objSTK, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
+XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
+
+XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, const char* sFile, uint32 iLine);
+XXAPI xmempool xrtMemPoolCreateExDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolInitExDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine);
+
+XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, const char* sFile, uint32 iLine);
+XXAPI xfsmempool xrtFSMemPoolCreateExDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolInitExDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
+
+#if defined(XRT_MEM_DEBUG) && !defined(XRT_BUILD_CORE)
+	#define xrtArrayCreate(iItemLength) xrtArrayCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtArrayCreateEx(iItemLength, iMode) xrtArrayCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtArrayInit(pArr, iItemLength) xrtArrayInitDbg((pArr), (iItemLength), __FILE__, __LINE__)
+	#define xrtArrayInitEx(pArr, iItemLength, iMode) xrtArrayInitExDbg((pArr), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtArrayDestroy(pArr) xrtArrayDestroyDbg((pArr), __FILE__, __LINE__)
+	#define xrtArrayUnit(pArr) xrtArrayUnitDbg((pArr), __FILE__, __LINE__)
+
+	#define xrtDictCreate(iItemLength) xrtDictCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtDictCreateEx(iItemLength, iMode) xrtDictCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtDictInit(objHT, iItemLength) xrtDictInitDbg((objHT), (iItemLength), __FILE__, __LINE__)
+	#define xrtDictInitEx(objHT, iItemLength, iMode) xrtDictInitExDbg((objHT), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtDictDestroy(objHT) xrtDictDestroyDbg((objHT), __FILE__, __LINE__)
+	#define xrtDictUnit(objHT) xrtDictUnitDbg((objHT), __FILE__, __LINE__)
+
+	#define xrtListCreate(iItemLength) xrtListCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtListCreateEx(iItemLength, iMode) xrtListCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtListInit(objList, iItemLength) xrtListInitDbg((objList), (iItemLength), __FILE__, __LINE__)
+	#define xrtListInitEx(objList, iItemLength, iMode) xrtListInitExDbg((objList), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtListDestroy(objList) xrtListDestroyDbg((objList), __FILE__, __LINE__)
+	#define xrtListUnit(objList) xrtListUnitDbg((objList), __FILE__, __LINE__)
+
+	#define xrtAVLTreeCreate(iItemLength, procComp) xrtAVLTreeCreateDbg((iItemLength), (procComp), __FILE__, __LINE__)
+	#define xrtAVLTreeCreateEx(iItemLength, procComp, iMode) xrtAVLTreeCreateExDbg((iItemLength), (procComp), (iMode), __FILE__, __LINE__)
+	#define xrtAVLTreeInit(objAVLT, iItemLength, procComp) xrtAVLTreeInitDbg((objAVLT), (iItemLength), (procComp), __FILE__, __LINE__)
+	#define xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, iMode) xrtAVLTreeInitExDbg((objAVLT), (iItemLength), (procComp), (iMode), __FILE__, __LINE__)
+	#define xrtAVLTreeDestroy(objAVLT) xrtAVLTreeDestroyDbg((objAVLT), __FILE__, __LINE__)
+	#define xrtAVLTreeUnit(objAVLT) xrtAVLTreeUnitDbg((objAVLT), __FILE__, __LINE__)
+
+	#define xrtDynStackCreate(iItemLength) xrtDynStackCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtDynStackInit(objSTK, iItemLength) xrtDynStackInitDbg((objSTK), (iItemLength), __FILE__, __LINE__)
+	#define xrtDynStackDestroy(objSTK) xrtDynStackDestroyDbg((objSTK), __FILE__, __LINE__)
+	#define xrtDynStackUnit(objSTK) xrtDynStackUnitDbg((objSTK), __FILE__, __LINE__)
+
+	#define xrtMemPoolCreate(iCustom) xrtMemPoolCreateDbg((iCustom), __FILE__, __LINE__)
+	#define xrtMemPoolCreateEx(iCustom, iMode) xrtMemPoolCreateExDbg((iCustom), (iMode), __FILE__, __LINE__)
+	#define xrtMemPoolInit(objMP, iCustom) xrtMemPoolInitDbg((objMP), (iCustom), __FILE__, __LINE__)
+	#define xrtMemPoolInitEx(objMP, iCustom, iMode) xrtMemPoolInitExDbg((objMP), (iCustom), (iMode), __FILE__, __LINE__)
+	#define xrtMemPoolDestroy(objMP) xrtMemPoolDestroyDbg((objMP), __FILE__, __LINE__)
+	#define xrtMemPoolUnit(objMP) xrtMemPoolUnitDbg((objMP), __FILE__, __LINE__)
+
+	#define xrtFSMemPoolCreate(iItemLength) xrtFSMemPoolCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtFSMemPoolCreateEx(iItemLength, iMode) xrtFSMemPoolCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtFSMemPoolInit(objMM, iItemLength) xrtFSMemPoolInitDbg((objMM), (iItemLength), __FILE__, __LINE__)
+	#define xrtFSMemPoolInitEx(objMM, iItemLength, iMode) xrtFSMemPoolInitExDbg((objMM), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtFSMemPoolDestroy(objMM) xrtFSMemPoolDestroyDbg((objMM), __FILE__, __LINE__)
+	#define xrtFSMemPoolUnit(objMM) xrtFSMemPoolUnitDbg((objMM), __FILE__, __LINE__)
+#endif
+
 #endif
 
 

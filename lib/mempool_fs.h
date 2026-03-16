@@ -68,6 +68,69 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	xrtOwnerEndMutable(&objMM->Owner);
 }
 
+XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, const char* sFile, uint32 iLine)
+{
+	xfsmempool objMM = xrtFSMemPoolCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMM;
+}
+XXAPI xfsmempool xrtFSMemPoolCreateExDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xfsmempool objMM = xrtFSMemPoolCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMM;
+}
+XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtFSMemPoolInitEx(objMM, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtFSMemPoolInitExDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtFSMemPoolInitEx(objMM, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine)
+{
+	if ( objMM ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+			return;
+		}
+		xrtFSMemPoolUnit(objMM);
+		__xrtMemDebugUnregisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine);
+		xrtFreeDbg(objMM, sFile, iLine);
+	}
+}
+XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine)
+{
+	if ( objMM == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
+	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
+		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
+		if ( pNode->objMMU ) {
+			xrtMemUnitDestroy(pNode->objMMU);
+			pNode->objMMU = NULL;
+		}
+	}
+	xrtBsmmUnit(&objMM->arrMMU);
+	objMM->LL_Idle = NULL;
+	objMM->LL_Full = NULL;
+	objMM->LL_Null = NULL;
+	objMM->LL_Free = NULL;
+	xrtOwnerEndMutable(&objMM->Owner);
+	__xrtMemDebugUnregisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine);
+}
+
 // 从内存管理器中申请一块内存
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {
@@ -149,6 +212,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 	}
 	// 从选定内存管理器单元中申请内存块
 	pResult = xrtMemUnitAlloc_Inline(objMMU);
+	__xrtMemDebugRegisterForeignAlloc(pResult, objMM->ItemLength, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, NULL, 0);
 	xrtOwnerEndMutable(&objMM->Owner);
 	return pResult;
 }
@@ -230,6 +294,12 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
+	#ifdef XRT_MEM_DEBUG
+		if ( xrtMemDebugIsEnabled() && !__xrtMemDebugUnregisterForeignAlloc(p, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, NULL, 0) ) {
+			xrtOwnerEndMutable(&objMM->Owner);
+			return;
+		}
+	#endif
 	MMU_ValuePtr v = p - sizeof(MMU_Value);
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;

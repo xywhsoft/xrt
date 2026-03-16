@@ -485,146 +485,9 @@ static const uint8 __xrt_oid_ed25519[] = {
 	0x2b, 0x65, 0x70
 };
 
-// 从 X.509 证书 DER 中提取 EC 公钥 (uncompressed P-256, 65 字节)
-static bool __xrt_tls_extract_ec_pubkey(uint8 *pCert, size_t iCertLen,
-	uint8 **ppPubKey, size_t *pPubKeySz)
-{
-	struct __xrt_der_tlv tRoot, tRoot2, tCert, tTbsCert, tChild;
-	
-	if ( __xrt_der_parse(pCert, iCertLen, &tRoot) < 0 ) return false;
-	
-	// 查找 ecPublicKey OID
-	struct __xrt_der_tlv tFound;
-	if ( !__xrt_der_find_oid(&tRoot, __xrt_oid_ec_public_key,
-		sizeof(__xrt_oid_ec_public_key), &tFound) ) {
-		return false;
-	}
-	
-	// 重新遍历找 SubjectPublicKeyInfo 中的 BIT STRING
-	if ( __xrt_der_parse(pCert, iCertLen, &tRoot2) < 0 ) return false;
-	if ( __xrt_der_next(&tRoot2, &tCert) <= 0 ) return false;
-	tTbsCert = tCert;
-	
-	while ( __xrt_der_next(&tTbsCert, &tChild) > 0 ) {
-		if ( tChild.iType == 0x30 ) {  // SEQUENCE
-			struct __xrt_der_tlv tSeq = tChild;
-			if ( __xrt_der_find_oid(&tSeq, __xrt_oid_ec_public_key,
-				sizeof(__xrt_oid_ec_public_key), &tFound) ) {
-				// 找到 SubjectPublicKeyInfo
-				struct __xrt_der_tlv tSPKI = tChild;
-				struct __xrt_der_tlv tAlgId, tBitStr;
-				
-				if ( __xrt_der_next(&tSPKI, &tAlgId) <= 0 ) return false;
-				if ( __xrt_der_next(&tSPKI, &tBitStr) <= 0 ) return false;
-				if ( tBitStr.iType != 0x03 ) return false;
-				if ( tBitStr.iLen < 2 ) return false;  // unused bits + at least 1 byte
-				
-				// BIT STRING 第一个字节是 unused bits (should be 0)
-				*ppPubKey = tBitStr.pValue + 1;
-				*pPubKeySz = tBitStr.iLen - 1;
-				return true;
-			}
-		}
-	}
-	
-	return false;
-}
-
-// 从 X.509 证书 DER 中提取 RSA 公钥 (modulus n, exponent e)
-// 成功返回 true, pMod/pExp 指向证书数据内部 (零拷贝)
-static bool __xrt_tls_extract_rsa_pubkey(uint8 *pCert, size_t iCertLen,
-	uint8 **ppMod, size_t *pModSz, uint8 **ppExp, size_t *pExpSz)
-{
-	struct __xrt_der_tlv tRoot, tFound;
-
-	// 解析证书根 SEQUENCE
-	if ( __xrt_der_parse(pCert, iCertLen, &tRoot) < 0 ) return false;
-
-	// 查找 rsaEncryption OID
-	if ( !__xrt_der_find_oid(&tRoot, __xrt_oid_rsa_encryption,
-		sizeof(__xrt_oid_rsa_encryption), &tFound) ) {
-		return false;
-	}
-
-	// tFound 现在指向 OID 后的下一个元素
-	// 需要重新遍历找到 SubjectPublicKeyInfo -> BIT STRING -> RSA key SEQUENCE
-	{
-		struct __xrt_der_tlv tRoot2, tCert, tTbsCert, tChild;
-		int iRet;
-
-		if ( __xrt_der_parse(pCert, iCertLen, &tRoot2) < 0 ) return false;
-
-		// Certificate -> SEQUENCE
-		if ( __xrt_der_next(&tRoot2, &tCert) <= 0 ) return false;
-
-		// TBSCertificate -> first child SEQUENCE
-		tTbsCert = tCert;
-
-		// 遍历 TBSCertificate 的子元素找 SubjectPublicKeyInfo
-		// 它是一个 SEQUENCE, 其第一个子元素是 AlgorithmIdentifier SEQUENCE
-		// 包含 rsaEncryption OID
-		while ( __xrt_der_next(&tTbsCert, &tChild) > 0 ) {
-			if ( tChild.iType == 0x30 ) {  // SEQUENCE
-				struct __xrt_der_tlv tSeq = tChild;
-				struct __xrt_der_tlv tFirst;
-
-				// 检查这个 SEQUENCE 是否包含 rsaEncryption OID
-				if ( __xrt_der_find_oid(&tSeq, __xrt_oid_rsa_encryption,
-					sizeof(__xrt_oid_rsa_encryption), &tFirst) ) {
-					// 找到 SubjectPublicKeyInfo
-					// 结构: SEQUENCE { AlgorithmIdentifier, BIT STRING { SEQUENCE { INTEGER(n), INTEGER(e) } } }
-					struct __xrt_der_tlv tSPKI = tChild;
-					struct __xrt_der_tlv tAlgId, tBitStr, tKeySeq, tMod, tExp;
-
-					// 跳过 AlgorithmIdentifier
-					if ( __xrt_der_next(&tSPKI, &tAlgId) <= 0 ) return false;
-
-					// BIT STRING
-					if ( __xrt_der_next(&tSPKI, &tBitStr) <= 0 ) return false;
-					if ( tBitStr.iType != 0x03 ) return false;
-
-					// BIT STRING 第一个字节是 unused bits (should be 0)
-					if ( tBitStr.iLen < 1 ) return false;
-					{
-						uint8 *pKeyData = tBitStr.pValue + 1;
-						size_t iKeyDataLen = tBitStr.iLen - 1;
-
-						// 解析 RSA 公钥 SEQUENCE { INTEGER(n), INTEGER(e) }
-						if ( __xrt_der_parse(pKeyData, iKeyDataLen, &tKeySeq) < 0 ) return false;
-						if ( tKeySeq.iType != 0x30 ) return false;
-
-						// modulus (n)
-						if ( __xrt_der_next(&tKeySeq, &tMod) <= 0 ) return false;
-						if ( tMod.iType != 0x02 ) return false;
-
-						// 跳过前导零字节
-						*ppMod = tMod.pValue;
-						*pModSz = tMod.iLen;
-						if ( (*pModSz > 0) && ((*ppMod)[0] == 0x00) ) {
-							(*ppMod)++;
-							(*pModSz)--;
-						}
-
-						// exponent (e)
-						if ( __xrt_der_next(&tKeySeq, &tExp) <= 0 ) return false;
-						if ( tExp.iType != 0x02 ) return false;
-
-						*ppExp = tExp.pValue;
-						*pExpSz = tExp.iLen;
-
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
 // x509 OID: commonName 2.5.4.3
 static const uint8 __xrt_oid_common_name[] = {
-	0x55, 0x04, 0x03
+        0x55, 0x04, 0x03
 };
 
 // x509 OID: subjectAltName 2.5.29.17
@@ -1599,12 +1462,6 @@ static bool __xrt_tls13_is_supported_cipher(uint16 iCipherSuite)
 		|| iCipherSuite == __XRT_TLS_CHACHA20_POLY1305_SHA256;
 }
 
-static bool __xrt_tls12_is_chacha_cipher(uint16 iCipherSuite)
-{
-	return iCipherSuite == __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256
-		|| iCipherSuite == __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256;
-}
-
 static bool __xrt_tls12_set_cipher_params(xtlsctx *pCtx, uint16 iCipherSuite)
 {
 	if ( !pCtx ) return false;
@@ -1926,6 +1783,53 @@ static bool __xrt_tls_load_file_copy(const char *sFile, uint8 **ppData, size_t *
 	*ppData = pCopy;
 	*pLen = iFileSize;
 	return true;
+}
+
+static bool __xrt_tls_load_der_file(const char *sFile, uint8 **ppDer, size_t *pDerLen)
+{
+	size_t iFileSize = 0;
+	uint8 *pFileData;
+
+	if ( !sFile || !sFile[0] || !ppDer || !pDerLen ) return false;
+	*ppDer = NULL;
+	*pDerLen = 0;
+
+	pFileData = (uint8*)xrtFileGetAll((str)sFile, &iFileSize);
+	if ( !pFileData || pFileData == (uint8*)xCore.sNull ) return false;
+
+	if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
+		const char *pStart = strstr((char*)pFileData, "\n");
+		const char *pEnd;
+		bool bOK;
+
+		if ( !pStart ) {
+			xrtFree(pFileData);
+			return false;
+		}
+		pStart++;
+		pEnd = strstr(pStart, "-----END ");
+		if ( !pEnd ) {
+			xrtFree(pFileData);
+			return false;
+		}
+
+		bOK = __xrt_tls_decode_pem_cert_block(pStart, pEnd, ppDer, pDerLen);
+		xrtFree(pFileData);
+		return bOK && *ppDer && *pDerLen > 0;
+	}
+
+	{
+		uint8 *pCopy = (uint8*)xrtMalloc(iFileSize);
+		if ( !pCopy ) {
+			xrtFree(pFileData);
+			return false;
+		}
+		memcpy(pCopy, pFileData, iFileSize);
+		xrtFree(pFileData);
+		*ppDer = pCopy;
+		*pDerLen = iFileSize;
+		return true;
+	}
 }
 
 static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
@@ -5051,8 +4955,6 @@ XXAPI bool xrtTlsWasResumed(xtlsctx *pCtx)
 
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
 static void __xrt_tls_derive_application_keys(xtlsctx *pCtx);
-static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
-	const uint8 *pTranscriptHash, size_t iTranscriptHashLen, uint16 iSigAlg, bool bAsServer);
 
 // Step 12: 服务端 ClientHello 解析 (提取 SNI)
 static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
@@ -5841,9 +5743,13 @@ XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx *pCtx, bool bAllow)
 
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile)
 {
+	uint8 *pCertDer = NULL;
+	size_t iCertDerLen = 0;
+	uint8 *pKeyDer = NULL;
+	size_t iKeyDerLen = 0;
+
 	if ( !pCtx ) return XRT_NET_ERROR;
-	
-	// 释放旧证书数据
+
 	if ( pCtx->pCertDer ) {
 		xrtFree(pCtx->pCertDer);
 		pCtx->pCertDer = NULL;
@@ -5854,126 +5760,39 @@ XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char
 		pCtx->pKeyDer = NULL;
 		pCtx->iKeyDerLen = 0;
 	}
-	
-	// 加载证书文件
+
 	if ( sCertFile && sCertFile[0] ) {
-		size_t iFileSize = 0;
-		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sCertFile, &iFileSize);
-		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+		if ( !__xrt_tls_load_der_file(sCertFile, &pCertDer, &iCertDerLen) ) {
 			return XRT_NET_ERROR;
 		}
-		
-		// 检测是否为 PEM 格式
-		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
-			// PEM 格式: 找到 Base64 内容区域
-			const char *pStart = strstr((char*)pFileData, "\n");
-			if ( pStart ) {
-				pStart++;  // 跳过 -----BEGIN xxx-----\n
-				const char *pEnd = strstr(pStart, "-----END ");
-				if ( pEnd ) {
-					// 复制 Base64 内容 (去除换行符)
-					size_t iB64Len = pEnd - pStart;
-					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
-					if ( !pB64 ) {
-						xrtFree(pFileData);
-						return XRT_NET_ERROR;
-					}
-					
-					size_t j = 0;
-					for ( size_t i = 0; i < iB64Len; i++ ) {
-						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
-							pB64[j++] = pStart[i];
-						}
-					}
-					pB64[j] = '\0';
-					
-					// Base64 解码
-					// 补齐 Base64 长度为 4 的倍数
-					while ( j % 4 != 0 ) {
-						pB64[j++] = '=';
-					}
-					pB64[j] = '\0';
-					
-					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
-					if ( pDer && pDer != (uint8*)xCore.sNull ) {
-						pCtx->pCertDer = pDer;
-						pCtx->iCertDerLen = (j / 4) * 3;
-						if ( j > 0 && pB64[j - 1] == '=' ) pCtx->iCertDerLen--;
-						if ( j > 1 && pB64[j - 2] == '=' ) pCtx->iCertDerLen--;
-					}
-					xrtFree(pB64);
-				}
-			}
-		} else {
-			// DER 格式: 直接复制
-			pCtx->pCertDer = (uint8*)xrtMalloc(iFileSize);
-			if ( pCtx->pCertDer ) {
-				memcpy(pCtx->pCertDer, pFileData, iFileSize);
-				pCtx->iCertDerLen = iFileSize;
-			}
-		}
-		xrtFree(pFileData);
 	}
-	
-	// 加载私钥文件
+
 	if ( sKeyFile && sKeyFile[0] ) {
-		size_t iFileSize = 0;
-		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sKeyFile, &iFileSize);
-		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+		if ( !__xrt_tls_load_der_file(sKeyFile, &pKeyDer, &iKeyDerLen) ) {
+			if ( pCertDer ) xrtFree(pCertDer);
 			return XRT_NET_ERROR;
 		}
-		
-		// 检测是否为 PEM 格式
-		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
-			// PEM 格式
-			const char *pStart = strstr((char*)pFileData, "\n");
-			if ( pStart ) {
-				pStart++;
-				const char *pEnd = strstr(pStart, "-----END ");
-				if ( pEnd ) {
-					size_t iB64Len = pEnd - pStart;
-					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
-					if ( !pB64 ) {
-						xrtFree(pFileData);
-						return XRT_NET_ERROR;
-					}
-					
-					size_t j = 0;
-					for ( size_t i = 0; i < iB64Len; i++ ) {
-						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
-							pB64[j++] = pStart[i];
-						}
-					}
-					pB64[j] = '\0';
-					
-					while ( j % 4 != 0 ) {
-						pB64[j++] = '=';
-					}
-					pB64[j] = '\0';
-					
-					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
-					if ( pDer && pDer != (uint8*)xCore.sNull ) {
-						pCtx->pKeyDer = pDer;
-						pCtx->iKeyDerLen = (j / 4) * 3;
-						if ( j > 0 && pB64[j - 1] == '=' ) pCtx->iKeyDerLen--;
-						if ( j > 1 && pB64[j - 2] == '=' ) pCtx->iKeyDerLen--;
-					}
-					xrtFree(pB64);
-				}
-			}
-		} else {
-			// DER 格式
-			pCtx->pKeyDer = (uint8*)xrtMalloc(iFileSize);
-			if ( pCtx->pKeyDer ) {
-				memcpy(pCtx->pKeyDer, pFileData, iFileSize);
-				pCtx->iKeyDerLen = iFileSize;
-			}
-		}
-		xrtFree(pFileData);
 	}
-	
-	if ( !__xrt_tls_prepare_server_identity(pCtx) ) return XRT_NET_ERROR;
-	
+
+	pCtx->pCertDer = pCertDer;
+	pCtx->iCertDerLen = iCertDerLen;
+	pCtx->pKeyDer = pKeyDer;
+	pCtx->iKeyDerLen = iKeyDerLen;
+
+	if ( !__xrt_tls_prepare_server_identity(pCtx) ) {
+		if ( pCtx->pCertDer ) {
+			xrtFree(pCtx->pCertDer);
+			pCtx->pCertDer = NULL;
+			pCtx->iCertDerLen = 0;
+		}
+		if ( pCtx->pKeyDer ) {
+			xrtFree(pCtx->pKeyDer);
+			pCtx->pKeyDer = NULL;
+			pCtx->iKeyDerLen = 0;
+		}
+		return XRT_NET_ERROR;
+	}
+
 	return XRT_NET_OK;
 }
 

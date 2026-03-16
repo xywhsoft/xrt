@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-15 05:10:33
+    Generated: 2026-03-16 16:01:26
 
     MIT License
 
@@ -397,7 +397,8 @@
 		uint64 state;
 		uint64 inc;
 	} xrand;
-	#define XRT_TEMP_SLOT_COUNT 32
+	#define XRT_TEMP_ARENA_BLOCK_SIZE	4096u
+	#define XRT_TEMP_ARENA_SPILL_CUTOFF	2048u
 	typedef struct xrtThreadData xrtThreadData;
 	typedef struct xrtThreadCleanup xrtThreadCleanup;
 	typedef void (*xrtThreadCleanupProc)(xrtThreadData* pThreadData, ptr pArg);
@@ -409,6 +410,253 @@
 		ptr pSharedAlloc;
 		ptr pReserved;
 	} xrtThreadMemState;
+	typedef struct xrtTempArenaBlock {
+		struct xrtTempArenaBlock* pNext;
+		uint32 iCapacity;
+		uint32 iUsed;
+		uint32 iFlags;
+		uint32 iReserved;
+	} xrtTempArenaBlock;
+	typedef struct {
+		xrtTempArenaBlock* pBlocks;
+		xrtTempArenaBlock* pCurrent;
+		xrtTempArenaBlock* pSpill;
+		uint32 iBlockSize;
+		uint32 iSpillCutoff;
+		uint64 iCurrentBytes;
+		uint64 iPeakBytes;
+		uint64 iResetCount;
+	} xrtTempArenaState;
+	#define XRT_MEMPOOL_STEP_SIZE			16u
+	#define XRT_MEMPOOL_CUTOFF_DEFAULT		1024u
+	#define XRT_MEMPOOL_CLASS_COUNT_DEFAULT	(XRT_MEMPOOL_CUTOFF_DEFAULT / XRT_MEMPOOL_STEP_SIZE)
+	#define XRT_MEMGLOBAL_CACHE_LIMIT		32u
+	#define XRT_MEMBLOCK_MAGIC				0x584D454Du
+	#define XRT_MEMGLOBAL_SPAN_TARGET_BYTES	4096u
+	#define XRT_MEMGLOBAL_SPAN_MIN_BLOCKS	8u
+	#define XRT_MEMGLOBAL_SPAN_MAX_BLOCKS	128u
+	#define XRT_MEMBLOCK_FLAG_POOLED		0x0001u
+	#define XRT_MEMBLOCK_FLAG_BACKING		0x0002u
+	typedef struct xrtMemBlockHeader {
+		uint32 iMagic;
+		uint16 iClassIndex;
+		uint16 iFlags;
+		uint32 iRequestSize;
+		uint32 iReserved;
+		#ifdef XRT_MEM_DEBUG
+			const char* sAllocFile;
+			uint32 iAllocLine;
+			const char* sFreeFile;
+			uint32 iFreeLine;
+			uint64 iAllocThreadId;
+			uint64 iAllocSeq;
+			uint64 iAllocTimeMs;
+			uint64 iFreeTimeMs;
+			struct xrtMemBlockHeader* pDebugPrev;
+			struct xrtMemBlockHeader* pDebugNext;
+			uint32 iFrontCanary;
+			uint32 iDebugState;
+		#endif
+	} xrtMemBlockHeader;
+	typedef struct xrtMemFreeNode {
+		struct xrtMemFreeNode* pNext;
+	} xrtMemFreeNode;
+	typedef struct xrtMemGlobalSpan {
+		struct xrtMemGlobalSpan* pNext;
+		ptr pMemory;
+		uint32 iClassIndex;
+		uint32 iBlockCount;
+	} xrtMemGlobalSpan;
+	typedef struct {
+		uint16 iBlockSize;
+		uint16 iReserved;
+		volatile long iLock;
+		xrtMemFreeNode* pFreeList;
+		uint32 iFreeCount;
+		uint32 iSpanCount;
+	} xrtMemGlobalClassDesc;
+	typedef struct {
+		uint16 iClassCount;
+		uint16 iClassStep;
+		uint32 iCutoff;
+		volatile long iSpanLock;
+		xrtMemGlobalSpan* pSpanList;
+		xrtMemGlobalClassDesc arrClassDesc[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint8 arrSizeClassLut[XRT_MEMPOOL_CUTOFF_DEFAULT + 1];
+	} xrtMemGlobalPool;
+	typedef struct {
+		ptr arrFreeList[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint16 arrFreeCount[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint16 iClassCount;
+		uint16 iCacheLimit;
+	} xrtMemThreadCache;
+	typedef struct {
+		volatile long bEnabled;
+		volatile long iReserved0;
+		volatile int64 iMallocCalls;
+		volatile int64 iMallocBytes;
+		volatile int64 iCallocCalls;
+		volatile int64 iCallocBytes;
+		volatile int64 iReallocCalls;
+		volatile int64 iReallocBytes;
+		volatile int64 iFreeCalls;
+		volatile int64 iTempCalls;
+		volatile int64 iTempBytes;
+		volatile int64 iPooledCandidateCalls;
+		volatile int64 iPooledCandidateBytes;
+		volatile int64 iFallbackCalls;
+		volatile int64 iFallbackBytes;
+		volatile int64 arrClassCalls[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		volatile int64 arrClassBytes[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+	} xrtMemTelemetryState;
+	typedef struct {
+		bool bEnabled;
+		uint32 iClassStep;
+		uint32 iClassCutoff;
+		uint32 iClassCount;
+		uint64 iMallocCalls;
+		uint64 iMallocBytes;
+		uint64 iCallocCalls;
+		uint64 iCallocBytes;
+		uint64 iReallocCalls;
+		uint64 iReallocBytes;
+		uint64 iFreeCalls;
+		uint64 iTempCalls;
+		uint64 iTempBytes;
+		uint64 iPooledCandidateCalls;
+		uint64 iPooledCandidateBytes;
+		uint64 iFallbackCalls;
+		uint64 iFallbackBytes;
+		uint64 arrClassCalls[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+		uint64 arrClassBytes[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+	} xrtMemTelemetrySnapshot;
+	#define XRT_MEMDEBUG_CANARY_HEAD				0x584D4448u
+	#define XRT_MEMDEBUG_CANARY_TAIL				0x584D4454u
+	#define XRT_MEMDEBUG_EVENT_CAPACITY			512u
+	#define XRT_MEMDEBUG_QUARANTINE_LIMIT			256u
+	#define XRT_MEMDEBUG_ALLOCATOR_GLOBAL			1u
+	#define XRT_MEMDEBUG_ALLOCATOR_MEMPOOL			2u
+	#define XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL		3u
+	#define XRT_MEMDEBUG_STATE_LIVE				1u
+	#define XRT_MEMDEBUG_STATE_FREED			2u
+	#define XRT_MEMDEBUG_STATE_QUARANTINE			3u
+	#define XRT_MEMDEBUG_OBJECT_STATE_LIVE			1u
+	#define XRT_MEMDEBUG_OBJECT_STATE_DESTROYED		2u
+	#define XRT_MEMDEBUG_OBJECT_ARRAY			1u
+	#define XRT_MEMDEBUG_OBJECT_DICT			2u
+	#define XRT_MEMDEBUG_OBJECT_LIST			3u
+	#define XRT_MEMDEBUG_OBJECT_AVLTREE			4u
+	#define XRT_MEMDEBUG_OBJECT_DYNSTACK			5u
+	#define XRT_MEMDEBUG_OBJECT_MEMPOOL			6u
+	#define XRT_MEMDEBUG_OBJECT_FSMEMPOOL			7u
+	#define XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE		1u
+	#define XRT_MEMDEBUG_OBJECT_ORIGIN_INIT			2u
+	#define XRT_MEMDEBUG_EVENT_ALLOC				1u
+	#define XRT_MEMDEBUG_EVENT_FREE				2u
+	#define XRT_MEMDEBUG_EVENT_REALLOC			3u
+	#define XRT_MEMDEBUG_EVENT_LEAK				4u
+	#define XRT_MEMDEBUG_EVENT_POOL_LEAK			5u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_LEAK			6u
+	#define XRT_MEMDEBUG_EVENT_DOUBLE_FREE			7u
+	#define XRT_MEMDEBUG_EVENT_INVALID_FREE			8u
+	#define XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE		9u
+	#define XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT	10u
+	#define XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT	11u
+	#define XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT	12u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_CREATE			13u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_DESTROY			14u
+	#define XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY	15u
+	#define XRT_MEMDEBUG_EVENT_TEMP_ALLOC			16u
+	#define XRT_MEMDEBUG_EVENT_TEMP_RESET			17u
+	typedef struct xrtMemDebugEvent {
+		uint32 iType;
+		uint32 iLine;
+		uint32 iAllocatorKind;
+		uint32 iReserved;
+		uint64 iThreadId;
+		uint64 iTimeMs;
+		uint64 iSize;
+		ptr pAddress;
+		const char* sFile;
+	} xrtMemDebugEvent;
+	typedef struct xrtMemDebugSiteStat {
+		struct xrtMemDebugSiteStat* pNext;
+		const char* sFile;
+		uint32 iLine;
+		uint32 iAllocatorKind;
+		uint64 iAllocCount;
+		uint64 iAllocBytes;
+		uint64 iFreeCount;
+		uint64 iFreeBytes;
+		uint64 iLiveCount;
+		uint64 iLiveBytes;
+		uint64 iPeakLiveCount;
+		uint64 iPeakLiveBytes;
+	} xrtMemDebugSiteStat;
+	typedef struct xrtMemDebugForeignAlloc {
+		struct xrtMemDebugForeignAlloc* pNext;
+		ptr pAddress;
+		uint32 iSize;
+		uint32 iAllocatorKind;
+		const char* sAllocFile;
+		uint32 iAllocLine;
+		uint64 iAllocThreadId;
+		uint64 iAllocTimeMs;
+	} xrtMemDebugForeignAlloc;
+	typedef struct xrtMemDebugObject {
+		struct xrtMemDebugObject* pNext;
+		ptr pAddress;
+		uint32 iObjectType;
+		uint32 iOrigin;
+		uint32 iState;
+		uint32 iReserved;
+		const char* sAllocFile;
+		uint32 iAllocLine;
+		uint64 iAllocThreadId;
+		uint64 iAllocTimeMs;
+		const char* sFreeFile;
+		uint32 iFreeLine;
+		uint64 iFreeThreadId;
+		uint64 iFreeTimeMs;
+	} xrtMemDebugObject;
+	typedef struct {
+		volatile long iLock;
+		volatile long bEnabled;
+		volatile long iReserved0;
+		volatile long iReserved1;
+		uint64 iAllocSeq;
+		xrtMemBlockHeader* pLiveHead;
+		xrtMemBlockHeader* pLiveTail;
+		xrtMemBlockHeader* pQuarantineHead;
+		xrtMemBlockHeader* pQuarantineTail;
+		uint32 iQuarantineCount;
+		uint32 iEventCursor;
+		uint64 iQuarantineBytes;
+		uint32 iEventCount;
+		uint64 iLiveAllocCount;
+		uint64 iLiveAllocBytes;
+		uint64 iPeakLiveAllocCount;
+		uint64 iPeakLiveAllocBytes;
+		uint64 iForeignLiveCount;
+		uint64 iForeignLiveBytes;
+		uint64 iPeakForeignLiveCount;
+		uint64 iPeakForeignLiveBytes;
+		uint64 iInvalidFreeCount;
+		uint64 iDoubleFreeCount;
+		uint64 iWrongAllocatorFreeCount;
+		uint64 iLiveObjectCount;
+		uint64 iPeakLiveObjectCount;
+		uint64 iObjectDoubleDestroyCount;
+		uint64 iTempCurrentBytes;
+		uint64 iTempPeakBytes;
+		uint64 iTempResetCount;
+		uint64 iOverflowCount;
+		uint64 iUnderflowCount;
+		xrtMemDebugSiteStat* pSiteStats;
+		xrtMemDebugForeignAlloc* pForeignAllocs;
+		xrtMemDebugObject* pObjects;
+		xrtMemDebugEvent arrEvents[XRT_MEMDEBUG_EVENT_CAPACITY];
+	} xrtMemDebugState;
 	#define XRT_CO_RUNTIME_FIBER_CONVERTED	0x00000001u
 	#define XRT_CO_RUNTIME_FIBER_HOSTED		0x00000002u
 	typedef struct {
@@ -479,6 +727,11 @@
 		double fApproxStrTol;     // 字符串相似度阈值(0.0-1.0)
 		bool bApproxStrCase;      // 通配符模式大小写开关(TRUE=忽略)
 		
+		xrtMemGlobalPool MemGlobal;
+		xrtMemTelemetryState MemTelemetry;
+		#ifdef XRT_MEM_DEBUG
+			xrtMemDebugState MemDebug;
+		#endif
 	} xrtGlobalData;
 	// 线程级运行时状态
 	struct xrtThreadData {
@@ -488,8 +741,7 @@
 		uint32 iAttachDepth;
 		str LastError;
 		bool bFreeLastError;
-		ptr TempMem[XRT_TEMP_SLOT_COUNT];
-		uint32 TempMemIdx;
+		xrtTempArenaState tTemp;
 		xrand rand32;
 		xrand rand64_low;
 		xrand rand64_high;
@@ -559,6 +811,25 @@
 	
 	// 释放所有临时内存
 	XXAPI void xrtFreeTempMemory();
+	XXAPI void xrtMemTelemetryEnable(bool bEnable);
+	XXAPI bool xrtMemTelemetryIsEnabled();
+	XXAPI void xrtMemTelemetryReset();
+	XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut);
+	XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine);
+	XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLine);
+	XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine);
+	XXAPI void xrtFreeDbg(ptr pMem, const char* sFile, uint32 iLine);
+	XXAPI void xrtMemDebugEnable(bool bEnable);
+	XXAPI bool xrtMemDebugIsEnabled();
+	XXAPI void xrtMemDebugReset();
+	XXAPI bool xrtMemDebugDumpText(str sPath);
+	XXAPI bool xrtMemDebugDumpJson(str sPath);
+	#if defined(XRT_MEM_DEBUG) && !defined(XRT_BUILD_CORE)
+		#define xrtMalloc(iSize) xrtMallocDbg((iSize), __FILE__, __LINE__)
+		#define xrtCalloc(iNum, iSize) xrtCallocDbg((iNum), (iSize), __FILE__, __LINE__)
+		#define xrtRealloc(pMem, iSize) xrtReallocDbg((pMem), (iSize), __FILE__, __LINE__)
+		#define xrtFree(pMem) xrtFreeDbg((pMem), __FILE__, __LINE__)
+	#endif
 	
 	// 设置错误
 	XXAPI void xrtSetError(str sError, bool bFree);
@@ -625,6 +896,22 @@
 			return __sync_add_and_fetch(pValue, iDelta);
 		#endif
 	}
+	static inline int64 __xrtAtomicAddFetch64(volatile int64* pValue, int64 iDelta)
+	{
+		#if defined(__TINYC__) && defined(_WIN32)
+			int64 iPrev;
+			int64 iNext;
+			do {
+				iPrev = (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, 0, 0);
+				iNext = iPrev + iDelta;
+			} while ( (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iNext, (LONG64)iPrev) != iPrev );
+			return iNext;
+		#elif defined(_WIN32) || defined(_WIN64)
+			return (int64)InterlockedExchangeAdd64((volatile LONG64*)pValue, (LONG64)iDelta) + iDelta;
+		#else
+			return __sync_add_and_fetch(pValue, iDelta);
+		#endif
+	}
 	static inline long __xrtOwnerAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 	{
 		return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
@@ -687,7 +974,7 @@
 		}
 		return pOwner->iMode;
 	}
-	// 允许对象进入共享模式（phase-2 staged 入口）
+	// 允许对象进入共享模式
 	static inline void xrtOwnerSetShared(xrtOwnerInfo* pOwner)
 	{
 		if ( pOwner == NULL ) {
@@ -1355,6 +1642,10 @@
 		volatile int bFinished;					// 是否已经结束
 		volatile int bJoined;					// 是否已经完成等待
 		uint32 ExitCode;						// 线程退出码
+		#if !defined(_WIN32) && !defined(_WIN64)
+			pthread_mutex_t FinishLock;			// 结束状态锁（POSIX）
+			pthread_cond_t FinishCond;			// 结束条件变量（POSIX，monotonic）
+		#endif
 	} xthread_struct, *xthread;
 	
 	// 互斥体数据结构
@@ -1371,7 +1662,10 @@
 		#if defined(_WIN32) || defined(_WIN64)
 			HANDLE objSem;					// Windows：内核信号量句柄（直接嵌入）
 		#else
-			sem_t objSem;					// POSIX：sem_t 对象（直接嵌入，无需额外 malloc）
+			pthread_mutex_t objLock;		// POSIX：自维护锁（monotonic wait）
+			pthread_cond_t objCond;			// POSIX：自维护条件变量（monotonic wait）
+			uint32 iValue;					// 当前计数
+			uint32 iMaxValue;				// 最大计数
 		#endif
 	} xsem_struct, *xsem;
 	
@@ -1412,15 +1706,6 @@
 	
 	// 检查是否应该停止（线程内调用）
 	XXAPI bool xrtThreadShouldStop(xthread pThread);
-	
-	// 强制终止线程（危险操作，可能导致资源泄漏）
-	XXAPI bool xrtThreadKill(xthread pThread);
-	
-	// 挂起线程
-	XXAPI bool xrtThreadSuspend(xthread pThread);
-	
-	// 恢复线程
-	XXAPI bool xrtThreadResume(xthread pThread);
 	
 	// 获取线程状态
 	XXAPI int xrtThreadGetState(xthread pThread);
@@ -1563,11 +1848,8 @@
 	#define XRT_CO_TERM_NONE         0
 	#define XRT_CO_TERM_RETURNED     1
 	#define XRT_CO_TERM_CANCELLED    2
-	// 协程 backend 分层
-	#define XRT_CO_BACKEND_TIER_COMPAT       1
+	// 协程 backend 分层/风格：主线只保留 production inline-asm 实现
 	#define XRT_CO_BACKEND_TIER_PRODUCTION   2
-	// 协程 backend 实现风格
-	#define XRT_CO_BACKEND_STYLE_COMPAT      1
 	#define XRT_CO_BACKEND_STYLE_INLINE_ASM  2
 	
 	// 默认栈大小
@@ -1623,7 +1905,11 @@
 		uint32 __iWaitKind;     // 当前等待类型（内部使用）
 		uint32 __iWaitResult;   // 当前等待结果（内部使用）
 		struct xcoro_struct* __pJoinTarget; // 当前等待的目标协程
-		struct xcoro_struct* __pJoinWaiter; // 等待本协程结束的协程（当前仅支持单等待者）
+		struct xcoro_struct* __pJoinWaitHead; // 等待本协程结束的协程队列头
+		struct xcoro_struct* __pJoinWaitTail; // 等待本协程结束的协程队列尾
+		struct xcoro_struct* __pWaitPrev; // 等待队列 prev
+		struct xcoro_struct* __pWaitNext; // 等待队列 next
+		uint32 __iJoinRefCount;   // join 引用计数，用于 pin DEAD 协程直到所有等待者返回
 		xco_cleanup* __pCleanupTop; // 协程退出清理栈
 		struct xcoro_struct* __pReadyPrev;  // ready queue prev
 		struct xcoro_struct* __pReadyNext;  // ready queue next
@@ -1637,7 +1923,8 @@
 		xmutex pLock;
 		bool bManualReset;
 		bool bSignaled;
-		struct xcoro_struct* pWaiter;
+		struct xcoro_struct* pWaitHead;
+		struct xcoro_struct* pWaitTail;
 	} xcoevent_struct, *xcoevent;
 	
 	/* ---------- 协程生命周期 ---------- */
@@ -1957,6 +2244,7 @@
     #define XRT_XSOCKET_DEFINED 1
     /* ---- TLS context/config ---- */
     typedef struct xrt_tls_context xtlsctx;
+    typedef struct xrt_tls_resume xtlsresume;
     typedef struct {
         const char* sCertFile;
         const char* sKeyFile;
@@ -1966,6 +2254,8 @@
         void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
         ptr pSNIUserData;
         bool bAllowTLS12Ed25519;
+        uint16 iMaxVersion;
+        const xtlsresume* pResume;
     } xtlsconfig;
 	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
 	
@@ -2073,14 +2363,15 @@
 	#include <sys/socket.h>
 #endif
 /*
-    XNet V2 - Base Types and Config
-    This header defines the shared public model used by the xnet-v2 stack.
-    It is designed to work both inside xrt.h and as a standalone header during
-    focused xnet development and testing.
+    XRT mainline network base model.
+    This header defines the shared public types used by the modern xnet stack.
+    It is designed to work both inside xrt.h and as a focused standalone header
+    for transport development and testing.
     Public responsibilities:
-      - widened IPv4/IPv6 address model
-      - shared result codes, socket handles, and config types
-      - public engine/stream/dgram/future forward declarations
+      - IPv4/IPv6 address and endpoint representation
+      - shared result codes, socket handles, and config structures
+      - forward declarations for engine, stream, datagram, listener, and future
+        objects
 */
 #if defined(XXRTL_CORE)
 	#define __XNET_IN_XRT_CORE 1
@@ -2172,6 +2463,7 @@ typedef struct {
 #define XNET_DGRAM_F_REUSE_PORT       0x00000002u
 #define XNET_CLOSE_F_ABORT            0x00000001u
 #define XNET_CLOSE_F_GRACEFUL         0x00000002u
+#define XNET_CLOSE_F_WAIT_PEER        0x00000004u
 /* ============================== Config structs ============================== */
 typedef struct {
 	uint32 iWorkerCount;
@@ -2512,12 +2804,12 @@ static void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 #include <string.h>
 // (skipped duplicate include: D:/Git/xrt/lib/xnet_base.h)
 /*
-    XNet V2 - Memory Blocks and Chains
-    Phase-1 staging implementation:
-      - chain model is implemented
-      - allocator contexts support small/medium/large cached blocks
-      - payloads larger than the large class fall back to dynamic blocks
-      - worker-local integration is still pending the engine/runtime layers
+    XRT mainline network memory blocks and chains.
+    This header provides:
+      - cached small/medium/large block classes for transport and protocol I/O
+      - dynamic blocks for oversized payloads
+      - ref blocks for zero-copy send and external buffer ownership
+      - xnetchain helpers for append, peek, span extraction, and consume
 */
 #ifndef XNET_ALLOC
 	#define XNET_ALLOC malloc
@@ -2589,6 +2881,22 @@ struct xrt_net_chain {
 	uint32 iBytes;
 	uint32 iBlockCount;
 };
+static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
+{
+	if ( !pDst || !pSrc || !pSrc->pHead ) return;
+	if ( pDst->pTail ) {
+		pDst->pTail->pNext = pSrc->pHead;
+	} else {
+		pDst->pHead = pSrc->pHead;
+	}
+	pDst->pTail = pSrc->pTail;
+	pDst->iBytes += pSrc->iBytes;
+	pDst->iBlockCount += pSrc->iBlockCount;
+	pSrc->pHead = NULL;
+	pSrc->pTail = NULL;
+	pSrc->iBytes = 0;
+	pSrc->iBlockCount = 0;
+}
 /* ============================== Config helpers ============================== */
 static void xrtNetMemConfigInit(xnetmemconfig* pCfg)
 {
@@ -3051,9 +3359,11 @@ static void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 }
 #endif
 /*
-    XNet V2 - Backend-Neutral Port Interface
+    XRT mainline backend-neutral network port interface.
     This is the internal contract between xnet_engine workers and concrete
-    backend implementations such as IOCP and io_uring.
+    platform backends such as IOCP and the Linux transport backend. It defines
+    the submission, completion, timer, and wake semantics consumed by the
+    transport layers.
 */
 /* ============================== Opaque handles ============================== */
 typedef struct xrt_net_port xnetport;
@@ -3096,6 +3406,8 @@ typedef struct xrt_net_port_ops xnetportops;
 #define XNET_PORT_EVENT_F_EOF        0x00000001u
 #define XNET_PORT_EVENT_F_PARTIAL    0x00000002u
 #define XNET_PORT_EVENT_F_MORE       0x00000004u
+/* Internal marker: synthetic accepted-stream open event, not listener accept completion. */
+#define XNET_PORT_EVENT_F_ACCEPTED_OPEN 0x8000u
 /* ============================== Config and I/O descriptors ============================== */
 typedef struct {
 	uint32 iBackend;
@@ -3214,9 +3526,31 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 }
 #endif
 #if defined(_WIN32) || defined(_WIN64)
-	#include <windows.h>
+	#include <mswsock.h>
+	#if defined(XNET_DEBUG_IOCP_NATIVE)
+		#include <stdio.h>
+	#endif
+	/*
+	    XRT mainline Windows network backend.
+	    This header implements the worker port used on Windows:
+	      - IOCP-backed wake and completion harvest
+	      - overlapped accept / recv / send / datagram submissions
+	      - worker timer and synthetic control events that share the same
+	        completion queue
+	    It is the production Windows transport path used by xnet workers.
+	*/
+	#define __XNET_IOCP_KIND_POST         1u
+	#define __XNET_IOCP_KIND_IO           2u
+	#define __XNET_IOCP_INLINE_RECV       8192u
+	#define __XNET_IOCP_MAX_IOVEC         16u
+	#define __XNET_IOCP_ACCEPT_ADDR_SPACE ((DWORD)(sizeof(struct sockaddr_storage) + 16))
+	typedef struct {
+		OVERLAPPED tOverlapped;
+		uint32 iKind;
+	} __xnet_iocp_header;
 	typedef struct __xnet_iocp_post {
 		OVERLAPPED tOverlapped;
+		uint32 iKind;
 		xnetportevent tEvent;
 	} __xnet_iocp_post;
 	typedef struct __xnet_iocp_timer {
@@ -3224,28 +3558,37 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		uint64 iTimerId;
 		uint64 iDueMs;
 	} __xnet_iocp_timer;
-	typedef struct __xnet_iocp_watch {
-		struct __xnet_iocp_watch* pNext;
+	typedef struct __xnet_iocp_bound_socket {
+		struct __xnet_iocp_bound_socket* pNext;
+		SOCKET hSocket;
+	} __xnet_iocp_bound_socket;
+	typedef struct __xnet_iocp_io {
+		OVERLAPPED tOverlapped;
+		uint32 iKind;
 		uint16 iOpType;
-		uint16 iReserved;
+		uint16 iFlags;
+		uint32 iBufCount;
 		uint64 iOpId;
 		intptr_t hSocket;
+		intptr_t hAuxSocket;
 		ptr pUserData;
 		xnetaddr tAddr;
-	} __xnet_iocp_watch;
+		WSABUF arrBuf[__XNET_IOCP_MAX_IOVEC];
+		struct sockaddr_storage tAddrStorage;
+		int iAddrLen;
+		DWORD iRecvFlags;
+		SOCKET hAcceptSocket;
+		char aAcceptBuf[__XNET_IOCP_ACCEPT_ADDR_SPACE * 2u];
+		char aRecvBuf[__XNET_IOCP_INLINE_RECV];
+	} __xnet_iocp_io;
 	typedef struct {
 		HANDLE hIOCP;
 		__xnet_iocp_timer* pTimers;
-		__xnet_iocp_watch* pWatches;
-		__xnet_iocp_watch* pFreeWatches;
-		CRITICAL_SECTION tWatchLock;
+		__xnet_iocp_bound_socket* pBoundSockets;
+		LPFN_ACCEPTEX pfnAcceptEx;
+		LPFN_CONNECTEX pfnConnectEx;
+		CRITICAL_SECTION tExtLock;
 	} __xnet_iocp_ctx;
-	/*
-	    The staged Windows backend routes posts through IOCP but socket readiness still
-	    uses watch/select. A long watch slice directly inflates serialized echo latency,
-	    especially for TLS small-message loops, so keep the slice short.
-	*/
-	#define __XNET_IOCP_WATCH_SLICE_MS 1u
 	static uint16 __xnetPortIOCPEventType(uint16 iOpType)
 	{
 		switch ( iOpType ) {
@@ -3296,11 +3639,16 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 				return false;
 		}
 	}
+	static bool __xnetPortIOCPHasNativeSocket(const xnetportsubmit* pOp)
+	{
+		return pOp && pOp->hSocket != (intptr_t)XNET_SOCKET_INVALID && pOp->hSocket != 0;
+	}
 	static __xnet_iocp_post* __xnetPortIOCPAllocPost(uint16 iType, uint16 iFlags, xnet_result iStatus, uint32 iBytes, uint64 iOpId)
 	{
 		__xnet_iocp_post* pPost = (__xnet_iocp_post*)XNET_ALLOC(sizeof(__xnet_iocp_post));
 		if ( !pPost ) return NULL;
 		memset(pPost, 0, sizeof(__xnet_iocp_post));
+		pPost->iKind = __XNET_IOCP_KIND_POST;
 		pPost->tEvent.iType = iType;
 		pPost->tEvent.iFlags = iFlags;
 		pPost->tEvent.iStatus = iStatus;
@@ -3308,162 +3656,440 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		pPost->tEvent.iOpId = iOpId;
 		return pPost;
 	}
-	static bool __xnetPortIOCPIsSocketWatchOp(const xnetportsubmit* pOp)
+	static xnetchain* __xnetPortIOCPAllocEventChain(const void* pData, size_t iLen)
 	{
-		if ( !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return false;
-		if ( pOp->iOpId == 0 ) return false;
-		if ( pOp->pChain || (pOp->pVec && pOp->iVecCount > 0) ) return false;
-		return pOp->iOpType == XNET_PORT_OP_ACCEPT || pOp->iOpType == XNET_PORT_OP_RECV ||
-			pOp->iOpType == XNET_PORT_OP_RECVFROM || pOp->iOpType == XNET_PORT_OP_SEND;
-	}
-	static void __xnetPortIOCPFreeWatches(__xnet_iocp_ctx* pCtx)
-	{
-		if ( !pCtx ) return;
-		EnterCriticalSection(&pCtx->tWatchLock);
-		while ( pCtx->pWatches ) {
-			__xnet_iocp_watch* pNext = pCtx->pWatches->pNext;
-			XNET_FREE(pCtx->pWatches);
-			pCtx->pWatches = pNext;
+		xnetchain* pChain = NULL;
+		if ( (!pData && iLen > 0) || iLen > UINT32_MAX ) {
+			return NULL;
 		}
-		while ( pCtx->pFreeWatches ) {
-			__xnet_iocp_watch* pNext = pCtx->pFreeWatches->pNext;
-			XNET_FREE(pCtx->pFreeWatches);
-			pCtx->pFreeWatches = pNext;
+		pChain = (xnetchain*)XNET_ALLOC(sizeof(xnetchain));
+		if ( !pChain ) {
+			return NULL;
 		}
-		LeaveCriticalSection(&pCtx->tWatchLock);
-	}
-	static void __xnetPortIOCPRemoveWatches(__xnet_iocp_ctx* pCtx, uint16 iOpType, intptr_t hSocket, ptr pUserData)
-	{
-		__xnet_iocp_watch** ppCur;
-		if ( !pCtx ) return;
-		EnterCriticalSection(&pCtx->tWatchLock);
-		ppCur = &pCtx->pWatches;
-		while ( *ppCur ) {
-			__xnet_iocp_watch* pNode = *ppCur;
-			bool bTypeMatch = (iOpType == 0 || pNode->iOpType == iOpType);
-			bool bSocketMatch = (hSocket == 0 || pNode->hSocket == hSocket);
-			bool bUserMatch = (pUserData == NULL || pNode->pUserData == pUserData);
-			if ( bTypeMatch && bSocketMatch && bUserMatch ) {
-				*ppCur = pNode->pNext;
-				pNode->pNext = pCtx->pFreeWatches;
-				pCtx->pFreeWatches = pNode;
-				continue;
-			}
-			ppCur = &pNode->pNext;
+		xrtNetChainInit(pChain);
+		if ( iLen > 0 && !xrtNetChainAppendCopy(pChain, pData, iLen) ) {
+			xrtNetChainClear(pChain);
+			XNET_FREE(pChain);
+			return NULL;
 		}
-		LeaveCriticalSection(&pCtx->tWatchLock);
+		return pChain;
 	}
-	static bool __xnetPortIOCPRegisterWatch(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	static void __xnetPortIOCPFreeEventChain(xnetchain* pChain)
 	{
-		__xnet_iocp_watch* pNode;
-		if ( !pCtx || !pOp ) return false;
-		EnterCriticalSection(&pCtx->tWatchLock);
-		for ( __xnet_iocp_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
-			if ( pCur->iOpType == pOp->iOpType && pCur->hSocket == pOp->hSocket && pCur->pUserData == pOp->pUserData ) {
-				LeaveCriticalSection(&pCtx->tWatchLock);
+		if ( !pChain ) return;
+		xrtNetChainClear(pChain);
+		XNET_FREE(pChain);
+	}
+	static bool __xnetPortIOCPBindSocket(__xnet_iocp_ctx* pCtx, SOCKET hSocket)
+	{
+		HANDLE hAssoc;
+		__xnet_iocp_bound_socket* pNode = NULL;
+		bool bBound = false;
+		if ( !pCtx || !pCtx->hIOCP || hSocket == XNET_SOCKET_INVALID ) return false;
+		EnterCriticalSection(&pCtx->tExtLock);
+		for ( pNode = pCtx->pBoundSockets; pNode; pNode = pNode->pNext ) {
+			if ( pNode->hSocket == hSocket ) {
+				LeaveCriticalSection(&pCtx->tExtLock);
 				return true;
 			}
 		}
-		if ( pCtx->pFreeWatches ) {
-			pNode = pCtx->pFreeWatches;
-			pCtx->pFreeWatches = pNode->pNext;
-		} else {
-			pNode = (__xnet_iocp_watch*)XNET_ALLOC(sizeof(__xnet_iocp_watch));
+		pNode = (__xnet_iocp_bound_socket*)XNET_ALLOC(sizeof(__xnet_iocp_bound_socket));
+		if ( pNode ) {
+			memset(pNode, 0, sizeof(__xnet_iocp_bound_socket));
+			pNode->hSocket = hSocket;
 		}
-		if ( !pNode ) {
-			LeaveCriticalSection(&pCtx->tWatchLock);
-			return false;
-		}
-		memset(pNode, 0, sizeof(__xnet_iocp_watch));
-		pNode->iOpType = pOp->iOpType;
-		pNode->iOpId = pOp->iOpId;
-		pNode->hSocket = pOp->hSocket;
-		pNode->pUserData = pOp->pUserData;
-		pNode->tAddr = pOp->tAddr;
-		pNode->pNext = pCtx->pWatches;
-		pCtx->pWatches = pNode;
-		LeaveCriticalSection(&pCtx->tWatchLock);
-		return true;
-	}
-	static bool __xnetPortIOCPHasWatches(__xnet_iocp_ctx* pCtx)
-	{
-		bool bHas = false;
-		if ( !pCtx ) return false;
-		EnterCriticalSection(&pCtx->tWatchLock);
-		bHas = pCtx->pWatches != NULL;
-		LeaveCriticalSection(&pCtx->tWatchLock);
-		return bHas;
-	}
-	static uint32 __xnetPortIOCPHarvestPosted(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iWaitMs)
-	{
-		uint32 iCount = 0;
-		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
-		for ( ;; ) {
-			DWORD iBytes = 0;
-			ULONG_PTR iKey = 0;
-			LPOVERLAPPED pOv = NULL;
-			DWORD iWait = (iCount > 0) ? 0 : iWaitMs;
-			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, iWait);
-			if ( !bOk && !pOv ) break;
-			if ( !pOv ) break;
-			{
-				__xnet_iocp_post* pPost = (__xnet_iocp_post*)pOv;
-				pPost->tEvent.iBytes = iBytes;
-				if ( !bOk && pPost->tEvent.iStatus == XRT_NET_OK ) {
-					pPost->tEvent.iStatus = XRT_NET_ERROR;
-				}
-				pEvents[iCount++] = pPost->tEvent;
-				XNET_FREE(pPost);
+		hAssoc = CreateIoCompletionPort((HANDLE)hSocket, pCtx->hIOCP, 0, 0);
+		if ( hAssoc == pCtx->hIOCP ) {
+			if ( pNode ) {
+				pNode->pNext = pCtx->pBoundSockets;
+				pCtx->pBoundSockets = pNode;
+				pNode = NULL;
 			}
-			(void)iKey;
-			if ( iCount >= iMaxEvents ) break;
+			bBound = true;
 		}
-		return iCount;
+		LeaveCriticalSection(&pCtx->tExtLock);
+		if ( pNode ) {
+			XNET_FREE(pNode);
+		}
+		return bBound;
 	}
-	static uint32 __xnetPortIOCPHarvestWatches(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
+	static void __xnetPortIOCPUnbindSocket(__xnet_iocp_ctx* pCtx, SOCKET hSocket)
 	{
-		__xnet_iocp_watch arrSnap[FD_SETSIZE];
-		uint32 iSnapCount = 0;
-		uint32 iCount = 0;
-		fd_set tReadSet;
-		fd_set tWriteSet;
-		struct timeval tTv;
-		int iReady;
-		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
-		FD_ZERO(&tReadSet);
-		FD_ZERO(&tWriteSet);
-		EnterCriticalSection(&pCtx->tWatchLock);
-		for ( __xnet_iocp_watch* pNode = pCtx->pWatches; pNode && iSnapCount < FD_SETSIZE; pNode = pNode->pNext ) {
-			arrSnap[iSnapCount] = *pNode;
-			if ( pNode->iOpType == XNET_PORT_OP_SEND ) {
-				FD_SET((SOCKET)pNode->hSocket, &tWriteSet);
-			} else {
-				FD_SET((SOCKET)pNode->hSocket, &tReadSet);
+		__xnet_iocp_bound_socket** ppCur;
+		if ( !pCtx || hSocket == XNET_SOCKET_INVALID ) return;
+		EnterCriticalSection(&pCtx->tExtLock);
+		ppCur = &pCtx->pBoundSockets;
+		while ( *ppCur ) {
+			__xnet_iocp_bound_socket* pNode = *ppCur;
+			if ( pNode->hSocket == hSocket ) {
+				*ppCur = pNode->pNext;
+				XNET_FREE(pNode);
+				break;
 			}
-			iSnapCount++;
+			ppCur = &pNode->pNext;
 		}
-		LeaveCriticalSection(&pCtx->tWatchLock);
-		if ( iSnapCount == 0 ) return 0;
-		tTv.tv_sec = (long)(iTimeoutMs / 1000u);
-		tTv.tv_usec = (long)((iTimeoutMs % 1000u) * 1000u);
-		iReady = select(0, &tReadSet, &tWriteSet, NULL, &tTv);
-		if ( iReady <= 0 ) return 0;
-		for ( uint32 i = 0; i < iSnapCount && iCount < iMaxEvents; ++i ) {
-			bool bReady = (arrSnap[i].iOpType == XNET_PORT_OP_SEND)
-				? (FD_ISSET((SOCKET)arrSnap[i].hSocket, &tWriteSet) != 0)
-				: (FD_ISSET((SOCKET)arrSnap[i].hSocket, &tReadSet) != 0);
-			if ( !bReady ) continue;
-			memset(&pEvents[iCount], 0, sizeof(xnetportevent));
-			pEvents[iCount].iType = __xnetPortIOCPEventType(arrSnap[i].iOpType);
-			pEvents[iCount].iStatus = XRT_NET_OK;
-			pEvents[iCount].iOpId = arrSnap[i].iOpId;
-			pEvents[iCount].hSocket = arrSnap[i].hSocket;
-			pEvents[iCount].pUserData = arrSnap[i].pUserData;
-			pEvents[iCount].tAddr = arrSnap[i].tAddr;
-			iCount++;
-			__xnetPortIOCPRemoveWatches(pCtx, arrSnap[i].iOpType, arrSnap[i].hSocket, arrSnap[i].pUserData);
+		LeaveCriticalSection(&pCtx->tExtLock);
+	}
+	static int __xnetPortIOCPGetSocketFamily(SOCKET hSocket)
+	{
+		struct sockaddr_storage tStorage;
+		int iLen = (int)sizeof(tStorage);
+		memset(&tStorage, 0, sizeof(tStorage));
+		if ( getsockname(hSocket, (struct sockaddr*)&tStorage, &iLen) == 0 ) {
+			return ((struct sockaddr*)&tStorage)->sa_family;
 		}
-		return iCount;
+		return AF_INET;
+	}
+	static LPFN_ACCEPTEX __xnetPortIOCPGetAcceptEx(__xnet_iocp_ctx* pCtx, SOCKET hListenSocket)
+	{
+		DWORD iBytes = 0;
+		GUID tGuid = WSAID_ACCEPTEX;
+		if ( !pCtx || hListenSocket == XNET_SOCKET_INVALID ) return NULL;
+		if ( pCtx->pfnAcceptEx ) return pCtx->pfnAcceptEx;
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->pfnAcceptEx == NULL ) {
+			LPFN_ACCEPTEX pfnAcceptEx = NULL;
+			if ( WSAIoctl(hListenSocket,
+				SIO_GET_EXTENSION_FUNCTION_POINTER,
+				&tGuid,
+				sizeof(tGuid),
+				&pfnAcceptEx,
+				sizeof(pfnAcceptEx),
+				&iBytes,
+				NULL,
+				NULL) == 0 ) {
+				pCtx->pfnAcceptEx = pfnAcceptEx;
+			}
+		}
+		LeaveCriticalSection(&pCtx->tExtLock);
+		return pCtx->pfnAcceptEx;
+	}
+	static LPFN_CONNECTEX __xnetPortIOCPGetConnectEx(__xnet_iocp_ctx* pCtx, SOCKET hSocket)
+	{
+		DWORD iBytes = 0;
+		GUID tGuid = WSAID_CONNECTEX;
+		if ( !pCtx || hSocket == INVALID_SOCKET ) return NULL;
+		if ( pCtx->pfnConnectEx ) return pCtx->pfnConnectEx;
+		EnterCriticalSection(&pCtx->tExtLock);
+		if ( pCtx->pfnConnectEx == NULL ) {
+			LPFN_CONNECTEX pfnConnectEx = NULL;
+			if ( WSAIoctl(hSocket,
+				SIO_GET_EXTENSION_FUNCTION_POINTER,
+				&tGuid,
+				sizeof(tGuid),
+				&pfnConnectEx,
+				sizeof(pfnConnectEx),
+				&iBytes,
+				NULL,
+				NULL) == 0 ) {
+				pCtx->pfnConnectEx = pfnConnectEx;
+			}
+		}
+		LeaveCriticalSection(&pCtx->tExtLock);
+		return pCtx->pfnConnectEx;
+	}
+	static bool __xnetPortIOCPBindConnectSocketLocal(SOCKET hSocket, int iFamily)
+	{
+		if ( hSocket == INVALID_SOCKET ) return false;
+		if ( iFamily == AF_INET6 ) {
+			struct sockaddr_in6 tAddr6;
+			memset(&tAddr6, 0, sizeof(tAddr6));
+			tAddr6.sin6_family = AF_INET6;
+			return bind(hSocket, (const struct sockaddr*)&tAddr6, sizeof(tAddr6)) == 0;
+		}
+		if ( iFamily == AF_INET ) {
+			struct sockaddr_in tAddr4;
+			memset(&tAddr4, 0, sizeof(tAddr4));
+			tAddr4.sin_family = AF_INET;
+			tAddr4.sin_addr.s_addr = htonl(INADDR_ANY);
+			return bind(hSocket, (const struct sockaddr*)&tAddr4, sizeof(tAddr4)) == 0;
+		}
+		return false;
+	}
+	static bool __xnetPortIOCPBuildBufsFromSubmit(__xnet_iocp_io* pIo, const xnetportsubmit* pOp)
+	{
+		if ( !pIo || !pOp ) return false;
+		if ( pOp->pVec && pOp->iVecCount > 0 ) {
+			if ( pOp->iVecCount > __XNET_IOCP_MAX_IOVEC ) {
+				return false;
+			}
+			for ( uint32 i = 0; i < pOp->iVecCount; ++i ) {
+				pIo->arrBuf[i].buf = (CHAR*)pOp->pVec[i].pData;
+				pIo->arrBuf[i].len = (ULONG)pOp->pVec[i].iLen;
+			}
+			pIo->iBufCount = pOp->iVecCount;
+			return true;
+		}
+		if ( pOp->pChain ) {
+			xnetspan arrSpan[__XNET_IOCP_MAX_IOVEC];
+			uint32 iSpanCount = xrtNetChainGetSpans(pOp->pChain, arrSpan, __XNET_IOCP_MAX_IOVEC);
+			if ( iSpanCount == 0 ) {
+				return false;
+			}
+			for ( uint32 i = 0; i < iSpanCount; ++i ) {
+				pIo->arrBuf[i].buf = (CHAR*)arrSpan[i].pData;
+				pIo->arrBuf[i].len = (ULONG)arrSpan[i].iLen;
+			}
+			pIo->iBufCount = iSpanCount;
+			return true;
+		}
+		return false;
+	}
+	static __xnet_iocp_io* __xnetPortIOCPAllocIO(const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_io* pIo = NULL;
+		if ( !pOp ) {
+			return NULL;
+		}
+		pIo = (__xnet_iocp_io*)XNET_ALLOC(sizeof(__xnet_iocp_io));
+		if ( !pIo ) {
+			return NULL;
+		}
+		memset(pIo, 0, sizeof(__xnet_iocp_io));
+		pIo->iKind = __XNET_IOCP_KIND_IO;
+		pIo->iOpType = pOp->iOpType;
+		pIo->iFlags = pOp->iFlags;
+		pIo->iOpId = pOp->iOpId;
+		pIo->hSocket = pOp->hSocket;
+		pIo->pUserData = pOp->pUserData;
+		pIo->tAddr = pOp->tAddr;
+		pIo->iAddrLen = (int)sizeof(pIo->tAddrStorage);
+		return pIo;
+	}
+	static xnet_result __xnetPortIOCPSubmitSynthetic(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_post* pPost = NULL;
+		uint16 iEventType;
+		if ( !pCtx || !pCtx->hIOCP || !pOp ) return XRT_NET_ERROR;
+		iEventType = __xnetPortIOCPEventType(pOp->iOpType);
+		if ( iEventType == XNET_PORT_EVENT_NONE ) return XRT_NET_ERROR;
+		pPost = __xnetPortIOCPAllocPost(iEventType, XNET_PORT_EVENT_F_NONE, XRT_NET_OK,
+			__xnetPortIOCPSubmitBytes(pOp), pOp->iOpId);
+		if ( !pPost ) return XRT_NET_ERROR;
+		pPost->tEvent.iFlags |= pOp->iFlags;
+		pPost->tEvent.hSocket = pOp->hSocket;
+		pPost->tEvent.pUserData = pOp->pUserData;
+		pPost->tEvent.pChain = pOp->pChain;
+		pPost->tEvent.tAddr = pOp->tAddr;
+		if ( !PostQueuedCompletionStatus(pCtx->hIOCP, pPost->tEvent.iBytes, 0, &pPost->tOverlapped) ) {
+			XNET_FREE(pPost);
+			return XRT_NET_ERROR;
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPSubmitAccept(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_io* pIo = NULL;
+		LPFN_ACCEPTEX pfnAcceptEx = NULL;
+		DWORD iBytes = 0;
+		int iFamily;
+		BOOL bOk;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		pfnAcceptEx = __xnetPortIOCPGetAcceptEx(pCtx, (SOCKET)pOp->hSocket);
+		if ( !pfnAcceptEx ) return XRT_NET_ERROR;
+		pIo = __xnetPortIOCPAllocIO(pOp);
+		if ( !pIo ) return XRT_NET_ERROR;
+		iFamily = __xnetPortIOCPGetSocketFamily((SOCKET)pOp->hSocket);
+		pIo->hAuxSocket = pOp->hSocket;
+		pIo->hAcceptSocket = WSASocket(iFamily, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
+		if ( pIo->hAcceptSocket == XNET_SOCKET_INVALID ) {
+			XNET_FREE(pIo);
+			return XRT_NET_ERROR;
+		}
+		bOk = pfnAcceptEx((SOCKET)pOp->hSocket,
+			pIo->hAcceptSocket,
+			pIo->aAcceptBuf,
+			0,
+			__XNET_IOCP_ACCEPT_ADDR_SPACE,
+			__XNET_IOCP_ACCEPT_ADDR_SPACE,
+			&iBytes,
+			&pIo->tOverlapped);
+		if ( !bOk ) {
+			int iErr = WSAGetLastError();
+			if ( iErr != ERROR_IO_PENDING ) {
+				closesocket(pIo->hAcceptSocket);
+				XNET_FREE(pIo);
+				return XRT_NET_ERROR;
+			}
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPSubmitRecv(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_io* pIo = NULL;
+		DWORD iBytes = 0;
+		DWORD iFlags = 0;
+		int iRet;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		pIo = __xnetPortIOCPAllocIO(pOp);
+		if ( !pIo ) return XRT_NET_ERROR;
+		pIo->arrBuf[0].buf = pIo->aRecvBuf;
+		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
+		pIo->iBufCount = 1;
+		pIo->iRecvFlags = 0;
+		iRet = WSARecv((SOCKET)pOp->hSocket, pIo->arrBuf, 1, &iBytes, &iFlags, &pIo->tOverlapped, NULL);
+		if ( iRet == SOCKET_ERROR ) {
+			int iErr = WSAGetLastError();
+			if ( iErr != WSA_IO_PENDING ) {
+				#if defined(XNET_DEBUG_IOCP_NATIVE)
+					fprintf(stderr, "[IOCP] WSARecv submit fail socket=%p err=%d op=%llu\n",
+						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId);
+				#endif
+				XNET_FREE(pIo);
+				return XRT_NET_ERROR;
+			}
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPSubmitConnect(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_io* pIo = NULL;
+		LPFN_CONNECTEX pfnConnectEx = NULL;
+		struct sockaddr_storage tStorage;
+		socklen_t iAddrLen = 0;
+		BOOL bOk;
+		int iFamily;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		iFamily = pOp->tAddr.iFamily ? pOp->tAddr.iFamily : __xnetPortIOCPGetSocketFamily((SOCKET)pOp->hSocket);
+		if ( !__xnetPortIOCPBindConnectSocketLocal((SOCKET)pOp->hSocket, iFamily) ) {
+			return XRT_NET_ERROR;
+		}
+		pfnConnectEx = __xnetPortIOCPGetConnectEx(pCtx, (SOCKET)pOp->hSocket);
+		if ( !pfnConnectEx ) return XRT_NET_ERROR;
+		pIo = __xnetPortIOCPAllocIO(pOp);
+		if ( !pIo ) return XRT_NET_ERROR;
+		bOk = pfnConnectEx((SOCKET)pOp->hSocket,
+			(const struct sockaddr*)&tStorage,
+			(int)iAddrLen,
+			NULL,
+			0,
+			NULL,
+			&pIo->tOverlapped);
+		if ( !bOk ) {
+			int iErr = WSAGetLastError();
+			if ( iErr != ERROR_IO_PENDING ) {
+				XNET_FREE(pIo);
+				return XRT_NET_ERROR;
+			}
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPSubmitRecvFrom(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_io* pIo = NULL;
+		DWORD iBytes = 0;
+		DWORD iFlags = 0;
+		int iRet;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		pIo = __xnetPortIOCPAllocIO(pOp);
+		if ( !pIo ) return XRT_NET_ERROR;
+		pIo->arrBuf[0].buf = pIo->aRecvBuf;
+		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
+		pIo->iBufCount = 1;
+		pIo->iRecvFlags = 0;
+		iRet = WSARecvFrom((SOCKET)pOp->hSocket,
+			pIo->arrBuf,
+			1,
+			&iBytes,
+			&iFlags,
+			(struct sockaddr*)&pIo->tAddrStorage,
+			&pIo->iAddrLen,
+			&pIo->tOverlapped,
+			NULL);
+		if ( iRet == SOCKET_ERROR ) {
+			int iErr = WSAGetLastError();
+			if ( iErr != WSA_IO_PENDING ) {
+				#if defined(XNET_DEBUG_IOCP_NATIVE)
+					fprintf(stderr, "[IOCP] WSARecvFrom submit fail socket=%p err=%d op=%llu\n",
+						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId);
+				#endif
+				XNET_FREE(pIo);
+				return XRT_NET_ERROR;
+			}
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPSubmitSend(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_io* pIo = NULL;
+		DWORD iBytes = 0;
+		int iRet;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) {
+			#if defined(XNET_DEBUG_IOCP_NATIVE)
+				fprintf(stderr, "[IOCP] bind send socket fail socket=%p err=%lu\n",
+					(void*)(uintptr_t)pOp->hSocket, (unsigned long)GetLastError());
+			#endif
+			return XRT_NET_ERROR;
+		}
+		pIo = __xnetPortIOCPAllocIO(pOp);
+		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBuildBufsFromSubmit(pIo, pOp) ) {
+			#if defined(XNET_DEBUG_IOCP_NATIVE)
+				fprintf(stderr, "[IOCP] build send bufs fail socket=%p vec=%u chain=%p\n",
+					(void*)(uintptr_t)pOp->hSocket, pOp->iVecCount, (void*)pOp->pChain);
+			#endif
+			XNET_FREE(pIo);
+			return XRT_NET_ERROR;
+		}
+		iRet = WSASend((SOCKET)pOp->hSocket, pIo->arrBuf, pIo->iBufCount, &iBytes, 0, &pIo->tOverlapped, NULL);
+		if ( iRet == SOCKET_ERROR ) {
+			int iErr = WSAGetLastError();
+			if ( iErr != WSA_IO_PENDING ) {
+				#if defined(XNET_DEBUG_IOCP_NATIVE)
+					fprintf(stderr, "[IOCP] WSASend submit fail socket=%p err=%d op=%llu bufcount=%u\n",
+						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId, pIo->iBufCount);
+				#endif
+				XNET_FREE(pIo);
+				return XRT_NET_ERROR;
+			}
+		}
+		return XRT_NET_OK;
+	}
+	static xnet_result __xnetPortIOCPSubmitSendTo(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_iocp_io* pIo = NULL;
+		DWORD iBytes = 0;
+		int iRet;
+		struct sockaddr_storage tStorage;
+		socklen_t iAddrLen = 0;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+		pIo = __xnetPortIOCPAllocIO(pOp);
+		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !__xnetPortIOCPBuildBufsFromSubmit(pIo, pOp) ) {
+			XNET_FREE(pIo);
+			return XRT_NET_ERROR;
+		}
+		memcpy(&pIo->tAddrStorage, &tStorage, sizeof(tStorage));
+		pIo->iAddrLen = (int)iAddrLen;
+		iRet = WSASendTo((SOCKET)pOp->hSocket,
+			pIo->arrBuf,
+			pIo->iBufCount,
+			&iBytes,
+			0,
+			(const struct sockaddr*)&pIo->tAddrStorage,
+			pIo->iAddrLen,
+			&pIo->tOverlapped,
+			NULL);
+		if ( iRet == SOCKET_ERROR ) {
+			int iErr = WSAGetLastError();
+			if ( iErr != WSA_IO_PENDING ) {
+				#if defined(XNET_DEBUG_IOCP_NATIVE)
+					fprintf(stderr, "[IOCP] WSASendTo submit fail socket=%p err=%d op=%llu bufcount=%u\n",
+						(void*)(uintptr_t)pOp->hSocket, iErr, (unsigned long long)pOp->iOpId, pIo->iBufCount);
+				#endif
+				XNET_FREE(pIo);
+				return XRT_NET_ERROR;
+			}
+		}
+		return XRT_NET_OK;
 	}
 	static void __xnetPortIOCPFreeTimers(__xnet_iocp_ctx* pCtx)
 	{
@@ -3471,6 +4097,14 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			__xnet_iocp_timer* pNext = pCtx->pTimers->pNext;
 			XNET_FREE(pCtx->pTimers);
 			pCtx->pTimers = pNext;
+		}
+	}
+	static void __xnetPortIOCPFreeBoundSockets(__xnet_iocp_ctx* pCtx)
+	{
+		while ( pCtx && pCtx->pBoundSockets ) {
+			__xnet_iocp_bound_socket* pNext = pCtx->pBoundSockets->pNext;
+			XNET_FREE(pCtx->pBoundSockets);
+			pCtx->pBoundSockets = pNext;
 		}
 	}
 	static uint32 __xnetPortIOCPHarvestTimers(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
@@ -3494,19 +4128,110 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		}
 		return iCount;
 	}
-	static void __xnetPortIOCPDrainPosted(__xnet_iocp_ctx* pCtx)
+	static bool __xnetPortIOCPBuildIoEvent(__xnet_iocp_io* pIo, BOOL bOk, DWORD iBytes, xnetportevent* pEvent)
 	{
-		if ( !pCtx || !pCtx->hIOCP ) return;
+		if ( !pIo || !pEvent ) return false;
+		memset(pEvent, 0, sizeof(xnetportevent));
+		pEvent->iType = __xnetPortIOCPEventType(pIo->iOpType);
+		pEvent->iStatus = bOk ? XRT_NET_OK : XRT_NET_ERROR;
+		pEvent->iOpId = pIo->iOpId;
+		pEvent->hSocket = pIo->hSocket;
+		pEvent->pUserData = pIo->pUserData;
+		pEvent->iBytes = (uint32)iBytes;
+		pEvent->tAddr = pIo->tAddr;
+		if ( pIo->iOpType == XNET_PORT_OP_ACCEPT ) {
+			if ( bOk ) {
+				SOCKET hListenSocket = (SOCKET)pIo->hAuxSocket;
+				(void)setsockopt(pIo->hAcceptSocket,
+					SOL_SOCKET,
+					SO_UPDATE_ACCEPT_CONTEXT,
+					(const char*)&hListenSocket,
+					sizeof(hListenSocket));
+				pEvent->hSocket = (intptr_t)pIo->hAcceptSocket;
+			} else if ( pIo->hAcceptSocket != XNET_SOCKET_INVALID ) {
+				closesocket(pIo->hAcceptSocket);
+			}
+			return true;
+		}
+		if ( pIo->iOpType == XNET_PORT_OP_CONNECT ) {
+			if ( bOk ) {
+				SOCKET hSocket = (SOCKET)pIo->hSocket;
+				(void)setsockopt(hSocket, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
+			}
+			return true;
+		}
+		if ( pIo->iOpType == XNET_PORT_OP_RECV ) {
+			if ( bOk && iBytes > 0 ) {
+				pEvent->pChain = __xnetPortIOCPAllocEventChain(pIo->aRecvBuf, (size_t)iBytes);
+				if ( pEvent->pChain == NULL ) {
+					pEvent->iStatus = XRT_NET_ERROR;
+					pEvent->iBytes = 0;
+				}
+			} else if ( bOk ) {
+				pEvent->iStatus = XRT_NET_CLOSED;
+				pEvent->iFlags |= XNET_PORT_EVENT_F_EOF;
+			}
+			return true;
+		}
+		if ( pIo->iOpType == XNET_PORT_OP_RECVFROM ) {
+			if ( bOk ) {
+				pEvent->pChain = __xnetPortIOCPAllocEventChain(pIo->aRecvBuf, (size_t)iBytes);
+				if ( pEvent->pChain == NULL ) {
+					pEvent->iStatus = XRT_NET_ERROR;
+					pEvent->iBytes = 0;
+				}
+				(void)__xnetAddrFromSockAddr(&pEvent->tAddr, (const struct sockaddr*)&pIo->tAddrStorage);
+			}
+			return true;
+		}
+		return true;
+	}
+	static uint32 __xnetPortIOCPHarvestPosted(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iWaitMs)
+	{
+		uint32 iCount = 0;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
 		for ( ;; ) {
 			DWORD iBytes = 0;
 			ULONG_PTR iKey = 0;
 			LPOVERLAPPED pOv = NULL;
-			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, 0);
-			if ( !bOk && !pOv ) break;
-			if ( pOv ) {
+			DWORD iWait = (iCount > 0) ? 0u : iWaitMs;
+			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, iWait);
+			__xnet_iocp_header* pHdr;
+			(void)iKey;
+			if ( !bOk && pOv == NULL ) break;
+			if ( pOv == NULL ) break;
+			pHdr = (__xnet_iocp_header*)pOv;
+			if ( pHdr->iKind == __XNET_IOCP_KIND_POST ) {
 				__xnet_iocp_post* pPost = (__xnet_iocp_post*)pOv;
+				if ( !bOk && pPost->tEvent.iStatus == XRT_NET_OK ) {
+					pPost->tEvent.iStatus = XRT_NET_ERROR;
+				}
+				pPost->tEvent.iBytes = iBytes;
+				pEvents[iCount++] = pPost->tEvent;
 				XNET_FREE(pPost);
+			} else if ( pHdr->iKind == __XNET_IOCP_KIND_IO ) {
+				__xnet_iocp_io* pIo = (__xnet_iocp_io*)pOv;
+				if ( __xnetPortIOCPBuildIoEvent(pIo, bOk, iBytes, &pEvents[iCount]) ) {
+					iCount++;
+				}
+				XNET_FREE(pIo);
 			}
+			if ( iCount >= iMaxEvents ) break;
+		}
+		return iCount;
+	}
+	static void __xnetPortIOCPDrainPosted(__xnet_iocp_ctx* pCtx)
+	{
+		xnetportevent arrEvents[32];
+		uint32 iCount;
+		memset(arrEvents, 0, sizeof(arrEvents));
+		while ( (iCount = __xnetPortIOCPHarvestPosted(pCtx, arrEvents, 32, 0)) > 0 ) {
+			for ( uint32 i = 0; i < iCount; ++i ) {
+				if ( arrEvents[i].pChain ) {
+					__xnetPortIOCPFreeEventChain(arrEvents[i].pChain);
+				}
+			}
+			memset(arrEvents, 0, sizeof(arrEvents));
 		}
 	}
 	static xnet_result __xnetPortIOCPInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
@@ -3516,10 +4241,10 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		__xnet_iocp_ctx* pCtx = (__xnet_iocp_ctx*)XNET_ALLOC(sizeof(__xnet_iocp_ctx));
 		if ( !pCtx ) return XRT_NET_ERROR;
 		memset(pCtx, 0, sizeof(__xnet_iocp_ctx));
-		InitializeCriticalSection(&pCtx->tWatchLock);
+		InitializeCriticalSection(&pCtx->tExtLock);
 		pCtx->hIOCP = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
 		if ( !pCtx->hIOCP ) {
-			DeleteCriticalSection(&pCtx->tWatchLock);
+			DeleteCriticalSection(&pCtx->tExtLock);
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
@@ -3532,47 +4257,83 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		if ( !pCtx ) return;
 		__xnetPortIOCPDrainPosted(pCtx);
 		__xnetPortIOCPFreeTimers(pCtx);
-		__xnetPortIOCPFreeWatches(pCtx);
+		__xnetPortIOCPFreeBoundSockets(pCtx);
 		if ( pCtx->hIOCP ) {
 			CloseHandle(pCtx->hIOCP);
 		}
-		DeleteCriticalSection(&pCtx->tWatchLock);
+		DeleteCriticalSection(&pCtx->tExtLock);
 		XNET_FREE(pCtx);
 		if ( pPort ) pPort->pCtx = NULL;
 	}
 	static xnet_result __xnetPortIOCPSumbit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
 	{
-		uint32 i;
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pCtx->hIOCP || !pOps || iCount == 0 ) return XRT_NET_ERROR;
-		for ( i = 0; i < iCount; ++i ) {
-			__xnet_iocp_post* pPost;
-			uint16 iEventType;
-			if ( !__xnetPortIOCPValidOp(pOps[i].iOpType) ) {
+		for ( uint32 i = 0; i < iCount; ++i ) {
+			const xnetportsubmit* pOp = &pOps[i];
+			if ( !__xnetPortIOCPValidOp(pOp->iOpType) ) {
 				return XRT_NET_ERROR;
 			}
-			iEventType = __xnetPortIOCPEventType(pOps[i].iOpType);
-			if ( iEventType == XNET_PORT_EVENT_NONE ) {
-				return XRT_NET_ERROR;
-			}
-			if ( pOps[i].iOpType == XNET_PORT_OP_CLOSE && pOps[i].hSocket != (intptr_t)XNET_SOCKET_INVALID ) {
-				__xnetPortIOCPRemoveWatches(pCtx, 0, pOps[i].hSocket, pOps[i].pUserData);
-				continue;
-			}
-			if ( __xnetPortIOCPIsSocketWatchOp(&pOps[i]) ) {
-				if ( !__xnetPortIOCPRegisterWatch(pCtx, &pOps[i]) ) return XRT_NET_ERROR;
-				continue;
-			}
-			pPost = __xnetPortIOCPAllocPost(iEventType, XNET_PORT_EVENT_F_NONE, XRT_NET_OK,
-				__xnetPortIOCPSubmitBytes(&pOps[i]), pOps[i].iOpId);
-			if ( !pPost ) return XRT_NET_ERROR;
-			pPost->tEvent.hSocket = pOps[i].hSocket;
-			pPost->tEvent.pUserData = pOps[i].pUserData;
-			pPost->tEvent.pChain = pOps[i].pChain;
-			pPost->tEvent.tAddr = pOps[i].tAddr;
-			if ( !PostQueuedCompletionStatus(pCtx->hIOCP, pPost->tEvent.iBytes, 0, &pPost->tOverlapped) ) {
-				XNET_FREE(pPost);
-				return XRT_NET_ERROR;
+			switch ( pOp->iOpType ) {
+				case XNET_PORT_OP_ACCEPT:
+					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
+						(pOp->iFlags & XNET_PORT_EVENT_F_ACCEPTED_OPEN) == 0 &&
+						pOp->iOpId != 0 ) {
+						if ( __xnetPortIOCPSubmitAccept(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						break;
+					}
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					break;
+				case XNET_PORT_OP_RECV:
+					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->iOpId != 0 &&
+						pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0) ) {
+						if ( __xnetPortIOCPSubmitRecv(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						break;
+					}
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					break;
+				case XNET_PORT_OP_RECVFROM:
+					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->iOpId != 0 &&
+						pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0) ) {
+						if ( __xnetPortIOCPSubmitRecvFrom(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						break;
+					}
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					break;
+				case XNET_PORT_OP_SEND:
+					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
+						((pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL) ) {
+						if ( __xnetPortIOCPSubmitSend(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						break;
+					}
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					break;
+				case XNET_PORT_OP_SENDTO:
+					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
+						((pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL) ) {
+						if ( __xnetPortIOCPSubmitSendTo(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						break;
+					}
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					break;
+				case XNET_PORT_OP_CONNECT:
+					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->tAddr.iFamily != 0 ) {
+						if ( __xnetPortIOCPSubmitConnect(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						break;
+					}
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					break;
+				case XNET_PORT_OP_WAKE:
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					break;
+				case XNET_PORT_OP_CLOSE:
+					if ( __xnetPortIOCPHasNativeSocket(pOp) ) {
+						__xnetPortIOCPUnbindSocket(pCtx, (SOCKET)pOp->hSocket);
+					}
+					break;
+				case XNET_PORT_OP_TIMER:
+				default:
+					return XRT_NET_ERROR;
 			}
 		}
 		return XRT_NET_OK;
@@ -3580,29 +4341,11 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 	static uint32 __xnetPortIOCPHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
 	{
 		uint32 iCount = 0;
-		uint64 iStartMs;
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
 		iCount += __xnetPortIOCPHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) return iCount;
-		iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, 0);
-		if ( iCount >= iMaxEvents || iCount > 0 || iTimeoutMs == 0 ) return iCount;
-		if ( !__xnetPortIOCPHasWatches(pCtx) ) {
-			iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iTimeoutMs);
-			return iCount;
-		}
-		iStartMs = __xnetPortIOCPNowMs();
-		for ( ;; ) {
-			uint64 iNowMs = __xnetPortIOCPNowMs();
-			uint32 iElapsedMs = (uint32)(iNowMs - iStartMs);
-			uint32 iRemainMs = (iElapsedMs >= iTimeoutMs) ? 0u : (iTimeoutMs - iElapsedMs);
-			uint32 iSliceMs = iRemainMs > __XNET_IOCP_WATCH_SLICE_MS ? __XNET_IOCP_WATCH_SLICE_MS : iRemainMs;
-			if ( iRemainMs == 0 ) break;
-			iCount += __xnetPortIOCPHarvestWatches(pCtx, pEvents + iCount, iMaxEvents - iCount, iSliceMs);
-			if ( iCount >= iMaxEvents || iCount > 0 ) break;
-			iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iSliceMs);
-			if ( iCount >= iMaxEvents || iCount > 0 ) break;
-		}
+		iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iCount > 0 ? 0u : iTimeoutMs);
 		return iCount;
 	}
 	static xnet_result __xnetPortIOCPWake(xnetport* pPort)
@@ -3681,8 +4424,156 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 	#include <errno.h>
 	#include <poll.h>
 	#include <pthread.h>
+	#include <sys/mman.h>
+	#include <sys/syscall.h>
 	#include <sys/eventfd.h>
+	#include <sys/uio.h>
 	#include <unistd.h>
+	/*
+	    XRT mainline Linux network backend.
+	    This header owns the Linux worker port used by xnet:
+	      - native io_uring ring setup, submission, and completion harvest
+	      - worker wake plus control-event integration
+	      - timer harvest for the native Linux backend
+	    Mainline Linux transport now requires a native io_uring ring. If the ring
+	    cannot be initialized, backend init fails instead of falling back to a
+	    historical poll-based socket-watch transport.
+	*/
+	#define __XNET_IORING_OFF_SQ_RING   0ULL
+	#define __XNET_IORING_OFF_CQ_RING   0x8000000ULL
+	#define __XNET_IORING_OFF_SQES      0x10000000ULL
+	#define __XNET_IORING_SETUP_IOPOLL        (1u << 0)
+	#define __XNET_IORING_SETUP_SQPOLL        (1u << 1)
+	#define __XNET_IORING_SETUP_SQ_AFF        (1u << 2)
+	#define __XNET_IORING_SETUP_CQSIZE        (1u << 3)
+	#define __XNET_IORING_SETUP_CLAMP         (1u << 4)
+	#define __XNET_IORING_SETUP_ATTACH_WQ     (1u << 5)
+	#define __XNET_IORING_FEAT_SINGLE_MMAP    (1u << 0)
+	#define __XNET_IORING_ENTER_GETEVENTS     (1u << 0)
+	#define __XNET_IORING_OP_NOP              0u
+	#define __XNET_IORING_OP_READV            1u
+	#define __XNET_IORING_OP_WRITEV           2u
+	#define __XNET_IORING_OP_FSYNC            3u
+	#define __XNET_IORING_OP_READ_FIXED       4u
+	#define __XNET_IORING_OP_WRITE_FIXED      5u
+	#define __XNET_IORING_OP_POLL_ADD         6u
+	#define __XNET_IORING_OP_POLL_REMOVE      7u
+	#define __XNET_IORING_OP_SENDMSG          9u
+	#define __XNET_IORING_OP_RECVMSG          10u
+	#define __XNET_IORING_OP_TIMEOUT         11u
+	#define __XNET_IORING_OP_ACCEPT          13u
+	#define __XNET_IORING_OP_ASYNC_CANCEL    14u
+	#define __XNET_IORING_OP_CONNECT         16u
+	#define __XNET_IORING_OP_CLOSE           19u
+	#define __XNET_IORING_OP_SEND            26u
+	#define __XNET_IORING_OP_RECV            27u
+	#define __XNET_URING_INLINE_RECV         8192u
+	#define __XNET_URING_MAX_IOVEC           16u
+	typedef struct {
+		uint32 iHead;
+		uint32 iTail;
+		uint32 iRingMask;
+		uint32 iRingEntries;
+		uint32 iFlags;
+		uint32 iDropped;
+		uint32 iArray;
+		uint32 iResv1;
+		uint64 iResv2;
+	} __xnet_io_uring_sqring_offsets;
+	typedef struct {
+		uint32 iHead;
+		uint32 iTail;
+		uint32 iRingMask;
+		uint32 iRingEntries;
+		uint32 iOverflow;
+		uint32 iCqes;
+		uint64 iResv[2];
+	} __xnet_io_uring_cqring_offsets;
+	typedef struct {
+		uint32 iSqEntries;
+		uint32 iCqEntries;
+		uint32 iFlags;
+		uint32 iSqThreadCpu;
+		uint32 iSqThreadIdle;
+		uint32 iFeatures;
+		uint32 iWqFd;
+		uint32 iResv[3];
+		__xnet_io_uring_sqring_offsets tSqOff;
+		__xnet_io_uring_cqring_offsets tCqOff;
+	} __xnet_io_uring_params;
+	typedef struct {
+		uint8 iOpcode;
+		uint8 iFlags;
+		uint16 iIoPrio;
+		int32_t iFd;
+		union {
+			uint64 iOff;
+			uint64 iAddr2;
+		};
+		uint64 iAddr;
+		uint32 iLen;
+		union {
+			uint32 iRwFlags;
+			uint32 iPollEvents;
+			uint32 iTimeoutFlags;
+			uint32 iAcceptFlags;
+			uint32 iCancelFlags;
+		};
+		uint64 iUserData;
+		union {
+			struct {
+				uint16 iBufIndex;
+				uint16 iPersonality;
+			};
+			uint64 iPad3[3];
+		};
+	} __xnet_io_uring_sqe;
+	typedef struct {
+		uint64 iUserData;
+		int32_t iRes;
+		uint32 iFlags;
+	} __xnet_io_uring_cqe;
+	typedef struct {
+		int hRingFd;
+		void* pSqRingBase;
+		size_t iSqRingMapLen;
+		void* pCqRingBase;
+		size_t iCqRingMapLen;
+		void* pSqesBase;
+		size_t iSqesMapLen;
+		uint32* pSqHead;
+		uint32* pSqTail;
+		uint32* pSqMask;
+		uint32* pSqEntries;
+		uint32* pSqFlags;
+		uint32* pSqDropped;
+		uint32* pSqArray;
+		uint32* pCqHead;
+		uint32* pCqTail;
+		uint32* pCqMask;
+		uint32* pCqEntries;
+		uint32* pCqOverflow;
+		__xnet_io_uring_cqe* pCqes;
+		__xnet_io_uring_sqe* pSqes;
+		__xnet_io_uring_params tParams;
+		bool bSingleMmap;
+		bool bReady;
+	} __xnet_uring_native_ring;
+	typedef struct __xnet_uring_io {
+		struct __xnet_uring_io* pNext;
+		uint16 iOpType;
+		uint16 iFlags;
+		uint32 iBufCount;
+		uint64 iOpId;
+		intptr_t hSocket;
+		ptr pUserData;
+		xnetaddr tAddr;
+		struct sockaddr_storage tAddrStorage;
+		socklen_t iAddrLen;
+		struct iovec arrIov[__XNET_URING_MAX_IOVEC];
+		struct msghdr tMsg;
+		char aRecvBuf[__XNET_URING_INLINE_RECV];
+	} __xnet_uring_io;
 	typedef struct __xnet_uring_timer {
 		struct __xnet_uring_timer* pNext;
 		uint64 iTimerId;
@@ -3692,26 +4583,489 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		struct __xnet_uring_post* pNext;
 		xnetportevent tEvent;
 	} __xnet_uring_post;
-	typedef struct __xnet_uring_watch {
-		struct __xnet_uring_watch* pNext;
-		uint16 iOpType;
-		uint16 iReserved;
-		uint64 iOpId;
-		intptr_t hSocket;
-		ptr pUserData;
-		xnetaddr tAddr;
-	} __xnet_uring_watch;
 	typedef struct {
 		int hRing;
 		int hWakeFd;
+		__xnet_uring_native_ring tNativeRing;
 		__xnet_uring_timer* pTimers;
 		__xnet_uring_post* pPostedHead;
 		__xnet_uring_post* pPostedTail;
+		__xnet_uring_io* pActiveIo;
 		pthread_mutex_t tPostedLock;
-		__xnet_uring_watch* pWatches;
-		__xnet_uring_watch* pFreeWatches;
-		pthread_mutex_t tWatchLock;
+		pthread_mutex_t tIoLock;
+		pthread_mutex_t tRingLock;
 	} __xnet_uring_ctx;
+	static bool __xnetPortUringHasNativeRing(const xnetport* pPort)
+	{
+		const __xnet_uring_ctx* pCtx = pPort ? (const __xnet_uring_ctx*)pPort->pCtx : NULL;
+		return pCtx && pCtx->tNativeRing.bReady;
+	}
+	static uint16 __xnetPortUringEventType(uint16 iOpType);
+	static int __xnetPortUringSysSetup(uint32 iEntries, __xnet_io_uring_params* pParams)
+	{
+		#if defined(SYS_io_uring_setup)
+			return (int)syscall(SYS_io_uring_setup, iEntries, pParams);
+		#elif defined(__NR_io_uring_setup)
+			return (int)syscall(__NR_io_uring_setup, iEntries, pParams);
+		#else
+			(void)iEntries;
+			(void)pParams;
+			errno = ENOSYS;
+			return -1;
+		#endif
+	}
+	static int __xnetPortUringSysEnter(int hRingFd, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
+	{
+		#if defined(SYS_io_uring_enter)
+			return (int)syscall(SYS_io_uring_enter, hRingFd, iToSubmit, iMinComplete, iFlags, NULL, 0);
+		#elif defined(__NR_io_uring_enter)
+			return (int)syscall(__NR_io_uring_enter, hRingFd, iToSubmit, iMinComplete, iFlags, NULL, 0);
+		#else
+			(void)hRingFd;
+			(void)iToSubmit;
+			(void)iMinComplete;
+			(void)iFlags;
+			errno = ENOSYS;
+			return -1;
+		#endif
+	}
+	static int __xnetPortUringSysRegister(int hRingFd, uint32 iOpcode, const void* pArg, uint32 iNrArgs)
+	{
+		#if defined(SYS_io_uring_register)
+			return (int)syscall(SYS_io_uring_register, hRingFd, iOpcode, pArg, iNrArgs);
+		#elif defined(__NR_io_uring_register)
+			return (int)syscall(__NR_io_uring_register, hRingFd, iOpcode, pArg, iNrArgs);
+		#else
+			(void)hRingFd;
+			(void)iOpcode;
+			(void)pArg;
+			(void)iNrArgs;
+			errno = ENOSYS;
+			return -1;
+		#endif
+	}
+	static void __xnetPortUringNativeRingUnit(__xnet_uring_native_ring* pRing)
+	{
+		if ( !pRing ) return;
+		if ( pRing->pSqesBase && pRing->iSqesMapLen > 0 ) {
+			munmap(pRing->pSqesBase, pRing->iSqesMapLen);
+		}
+		if ( pRing->pSqRingBase && pRing->iSqRingMapLen > 0 ) {
+			munmap(pRing->pSqRingBase, pRing->iSqRingMapLen);
+		}
+		if ( pRing->pCqRingBase && pRing->pCqRingBase != pRing->pSqRingBase && pRing->iCqRingMapLen > 0 ) {
+			munmap(pRing->pCqRingBase, pRing->iCqRingMapLen);
+		}
+		if ( pRing->hRingFd >= 0 ) {
+			close(pRing->hRingFd);
+		}
+		memset(pRing, 0, sizeof(*pRing));
+		pRing->hRingFd = -1;
+	}
+	static bool __xnetPortUringNativeRingInit(__xnet_uring_native_ring* pRing, uint32 iEntries)
+	{
+		size_t iSqRingLen;
+		size_t iCqRingLen;
+		size_t iSqesLen;
+		size_t iSharedLen;
+		void* pSharedMap = MAP_FAILED;
+		if ( !pRing ) return false;
+		memset(pRing, 0, sizeof(*pRing));
+		pRing->hRingFd = -1;
+		memset(&pRing->tParams, 0, sizeof(pRing->tParams));
+		pRing->hRingFd = __xnetPortUringSysSetup(iEntries ? iEntries : 256u, &pRing->tParams);
+		if ( pRing->hRingFd < 0 ) {
+			return false;
+		}
+		iSqRingLen = pRing->tParams.tSqOff.iArray + (size_t)pRing->tParams.iSqEntries * sizeof(uint32);
+		iCqRingLen = pRing->tParams.tCqOff.iCqes + (size_t)pRing->tParams.iCqEntries * sizeof(__xnet_io_uring_cqe);
+		iSqesLen = (size_t)pRing->tParams.iSqEntries * sizeof(__xnet_io_uring_sqe);
+		pRing->bSingleMmap = (pRing->tParams.iFeatures & __XNET_IORING_FEAT_SINGLE_MMAP) != 0;
+		if ( pRing->bSingleMmap ) {
+			iSharedLen = (iSqRingLen > iCqRingLen) ? iSqRingLen : iCqRingLen;
+			pSharedMap = mmap(NULL, iSharedLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
+			if ( pSharedMap == MAP_FAILED ) {
+				__xnetPortUringNativeRingUnit(pRing);
+				return false;
+			}
+			pRing->pSqRingBase = pSharedMap;
+			pRing->pCqRingBase = pSharedMap;
+			pRing->iSqRingMapLen = iSharedLen;
+			pRing->iCqRingMapLen = iSharedLen;
+		} else {
+			pRing->pSqRingBase = mmap(NULL, iSqRingLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
+			if ( pRing->pSqRingBase == MAP_FAILED ) {
+				pRing->pSqRingBase = NULL;
+				__xnetPortUringNativeRingUnit(pRing);
+				return false;
+			}
+			pRing->pCqRingBase = mmap(NULL, iCqRingLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_CQ_RING);
+			if ( pRing->pCqRingBase == MAP_FAILED ) {
+				pRing->pCqRingBase = NULL;
+				__xnetPortUringNativeRingUnit(pRing);
+				return false;
+			}
+			pRing->iSqRingMapLen = iSqRingLen;
+			pRing->iCqRingMapLen = iCqRingLen;
+		}
+		pRing->pSqesBase = mmap(NULL, iSqesLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQES);
+		if ( pRing->pSqesBase == MAP_FAILED ) {
+			pRing->pSqesBase = NULL;
+			__xnetPortUringNativeRingUnit(pRing);
+			return false;
+		}
+		pRing->iSqesMapLen = iSqesLen;
+		pRing->pSqHead = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iHead);
+		pRing->pSqTail = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iTail);
+		pRing->pSqMask = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iRingMask);
+		pRing->pSqEntries = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iRingEntries);
+		pRing->pSqFlags = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iFlags);
+		pRing->pSqDropped = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iDropped);
+		pRing->pSqArray = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iArray);
+		pRing->pCqHead = (uint32*)((uint8*)pRing->pCqRingBase + pRing->tParams.tCqOff.iHead);
+		pRing->pCqTail = (uint32*)((uint8*)pRing->pCqRingBase + pRing->tParams.tCqOff.iTail);
+		pRing->pCqMask = (uint32*)((uint8*)pRing->pCqRingBase + pRing->tParams.tCqOff.iRingMask);
+		pRing->pCqEntries = (uint32*)((uint8*)pRing->pCqRingBase + pRing->tParams.tCqOff.iRingEntries);
+		pRing->pCqOverflow = (uint32*)((uint8*)pRing->pCqRingBase + pRing->tParams.tCqOff.iOverflow);
+		pRing->pCqes = (__xnet_io_uring_cqe*)((uint8*)pRing->pCqRingBase + pRing->tParams.tCqOff.iCqes);
+		pRing->pSqes = (__xnet_io_uring_sqe*)pRing->pSqesBase;
+		pRing->bReady = true;
+		return true;
+	}
+	static xnetchain* __xnetPortUringAllocEventChain(const void* pData, size_t iLen)
+	{
+		xnetchain* pChain = NULL;
+		if ( (!pData && iLen > 0) || iLen > UINT32_MAX ) return NULL;
+		pChain = (xnetchain*)XNET_ALLOC(sizeof(xnetchain));
+		if ( !pChain ) return NULL;
+		xrtNetChainInit(pChain);
+		if ( iLen > 0 && !xrtNetChainAppendCopy(pChain, pData, iLen) ) {
+			xrtNetChainClear(pChain);
+			XNET_FREE(pChain);
+			return NULL;
+		}
+		return pChain;
+	}
+	static void __xnetPortUringFreeEventChain(xnetchain* pChain)
+	{
+		if ( !pChain ) return;
+		xrtNetChainClear(pChain);
+		XNET_FREE(pChain);
+	}
+	static void __xnetPortUringTrackIo(__xnet_uring_ctx* pCtx, __xnet_uring_io* pIo)
+	{
+		if ( !pCtx || !pIo ) return;
+		pthread_mutex_lock(&pCtx->tIoLock);
+		pIo->pNext = pCtx->pActiveIo;
+		pCtx->pActiveIo = pIo;
+		pthread_mutex_unlock(&pCtx->tIoLock);
+	}
+	static void __xnetPortUringUntrackIo(__xnet_uring_ctx* pCtx, __xnet_uring_io* pIo)
+	{
+		__xnet_uring_io** ppCur;
+		if ( !pCtx || !pIo ) return;
+		pthread_mutex_lock(&pCtx->tIoLock);
+		ppCur = &pCtx->pActiveIo;
+		while ( *ppCur ) {
+			if ( *ppCur == pIo ) {
+				*ppCur = pIo->pNext;
+				break;
+			}
+			ppCur = &(*ppCur)->pNext;
+		}
+		pthread_mutex_unlock(&pCtx->tIoLock);
+	}
+	static void __xnetPortUringFreeActiveIo(__xnet_uring_ctx* pCtx)
+	{
+		__xnet_uring_io* pList = NULL;
+		if ( !pCtx ) return;
+		pthread_mutex_lock(&pCtx->tIoLock);
+		pList = pCtx->pActiveIo;
+		pCtx->pActiveIo = NULL;
+		pthread_mutex_unlock(&pCtx->tIoLock);
+		while ( pList ) {
+			__xnet_uring_io* pNext = pList->pNext;
+			XNET_FREE(pList);
+			pList = pNext;
+		}
+	}
+	static bool __xnetPortUringNativeCanUse(const __xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) return false;
+		if ( pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID || pOp->hSocket == 0 ) return false;
+		switch ( pOp->iOpType ) {
+			case XNET_PORT_OP_ACCEPT:
+				/*
+				    Accept has two roles in mainline:
+				      1. listener-owned native accept submissions
+				      2. accepted-stream synthetic open events
+				    Only the listener form should reach native io_uring accept.
+				    Accepted-stream open events already carry a resolved remote
+				    address, while listener submissions leave tAddr zeroed.
+				*/
+				return (pOp->iFlags & XNET_PORT_EVENT_F_ACCEPTED_OPEN) == 0 &&
+					pOp->iOpId != 0 && pOp->tAddr.iFamily == 0;
+			case XNET_PORT_OP_CONNECT:
+				return pOp->tAddr.iFamily != 0;
+			case XNET_PORT_OP_RECV:
+				return pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0);
+			case XNET_PORT_OP_SEND:
+				return (pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL;
+			case XNET_PORT_OP_RECVFROM:
+				return pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0);
+			case XNET_PORT_OP_SENDTO:
+				return (pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL;
+			default:
+				return false;
+		}
+	}
+	static __xnet_io_uring_sqe* __xnetPortUringNativeGetSqe(__xnet_uring_native_ring* pRing, uint32* pTail, uint32* pSlot)
+	{
+		uint32 iHead;
+		uint32 iTail;
+		uint32 iEntries;
+		if ( !pRing || !pRing->bReady || !pTail || !pSlot ) return NULL;
+		iHead = __atomic_load_n(pRing->pSqHead, __ATOMIC_ACQUIRE);
+		iTail = __atomic_load_n(pRing->pSqTail, __ATOMIC_RELAXED);
+		iEntries = __atomic_load_n(pRing->pSqEntries, __ATOMIC_RELAXED);
+		if ( (iTail - iHead) >= iEntries ) return NULL;
+		*pTail = iTail;
+		*pSlot = iTail & __atomic_load_n(pRing->pSqMask, __ATOMIC_RELAXED);
+		memset(&pRing->pSqes[*pSlot], 0, sizeof(__xnet_io_uring_sqe));
+		return &pRing->pSqes[*pSlot];
+	}
+	static void __xnetPortUringNativeCommitSqe(__xnet_uring_native_ring* pRing, uint32 iTail, uint32 iSlot)
+	{
+		if ( !pRing || !pRing->bReady ) return;
+		pRing->pSqArray[iTail & __atomic_load_n(pRing->pSqMask, __ATOMIC_RELAXED)] = iSlot;
+		__atomic_store_n(pRing->pSqTail, iTail + 1u, __ATOMIC_RELEASE);
+	}
+	static xnet_result __xnetPortUringNativeEnter(__xnet_uring_native_ring* pRing, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
+	{
+		int iRet;
+		if ( !pRing || !pRing->bReady ) return XRT_NET_ERROR;
+		do {
+			iRet = __xnetPortUringSysEnter(pRing->hRingFd, iToSubmit, iMinComplete, iFlags);
+		} while ( iRet < 0 && errno == EINTR );
+		return (iRet >= 0) ? XRT_NET_OK : XRT_NET_ERROR;
+	}
+	static __xnet_uring_io* __xnetPortUringAllocIO(const xnetportsubmit* pOp)
+	{
+		__xnet_uring_io* pIo;
+		if ( !pOp ) return NULL;
+		pIo = (__xnet_uring_io*)XNET_ALLOC(sizeof(__xnet_uring_io));
+		if ( !pIo ) return NULL;
+		memset(pIo, 0, sizeof(__xnet_uring_io));
+		pIo->iOpType = pOp->iOpType;
+		pIo->iFlags = pOp->iFlags;
+		pIo->iOpId = pOp->iOpId;
+		pIo->hSocket = pOp->hSocket;
+		pIo->pUserData = pOp->pUserData;
+		pIo->tAddr = pOp->tAddr;
+		pIo->iAddrLen = (socklen_t)sizeof(pIo->tAddrStorage);
+		return pIo;
+	}
+	static bool __xnetPortUringBuildBufsFromSubmit(__xnet_uring_io* pIo, const xnetportsubmit* pOp)
+	{
+		if ( !pIo || !pOp ) return false;
+		if ( pOp->pVec && pOp->iVecCount > 0 ) {
+			if ( pOp->iVecCount > __XNET_URING_MAX_IOVEC ) return false;
+			for ( uint32 i = 0; i < pOp->iVecCount; ++i ) {
+				pIo->arrIov[i].iov_base = (void*)pOp->pVec[i].pData;
+				pIo->arrIov[i].iov_len = (size_t)pOp->pVec[i].iLen;
+			}
+			pIo->iBufCount = pOp->iVecCount;
+			return true;
+		}
+		if ( pOp->pChain ) {
+			xnetspan arrSpan[__XNET_URING_MAX_IOVEC];
+			uint32 iSpanCount = xrtNetChainGetSpans(pOp->pChain, arrSpan, __XNET_URING_MAX_IOVEC);
+			if ( iSpanCount == 0 ) return false;
+			for ( uint32 i = 0; i < iSpanCount; ++i ) {
+				pIo->arrIov[i].iov_base = (void*)arrSpan[i].pData;
+				pIo->arrIov[i].iov_len = (size_t)arrSpan[i].iLen;
+			}
+			pIo->iBufCount = iSpanCount;
+			return true;
+		}
+		return false;
+	}
+	static xnet_result __xnetPortUringSubmitNative(__xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
+	{
+		__xnet_uring_io* pIo = NULL;
+		__xnet_io_uring_sqe* pSqe = NULL;
+		uint32 iTail = 0;
+		uint32 iSlot = 0;
+		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) return XRT_NET_ERROR;
+		pIo = __xnetPortUringAllocIO(pOp);
+		if ( !pIo ) return XRT_NET_ERROR;
+		switch ( pOp->iOpType ) {
+			case XNET_PORT_OP_ACCEPT:
+				break;
+			case XNET_PORT_OP_CONNECT:
+				if ( !__xnetAddrToSockAddr(&pOp->tAddr, &pIo->tAddrStorage, &pIo->iAddrLen) ) {
+					XNET_FREE(pIo);
+					return XRT_NET_ERROR;
+				}
+				break;
+			case XNET_PORT_OP_RECV:
+				break;
+			case XNET_PORT_OP_SEND:
+				if ( !__xnetPortUringBuildBufsFromSubmit(pIo, pOp) ) {
+					XNET_FREE(pIo);
+					return XRT_NET_ERROR;
+				}
+				memset(&pIo->tMsg, 0, sizeof(pIo->tMsg));
+				pIo->tMsg.msg_iov = pIo->arrIov;
+				pIo->tMsg.msg_iovlen = pIo->iBufCount;
+				break;
+			case XNET_PORT_OP_RECVFROM:
+				memset(&pIo->tMsg, 0, sizeof(pIo->tMsg));
+				pIo->arrIov[0].iov_base = pIo->aRecvBuf;
+				pIo->arrIov[0].iov_len = sizeof(pIo->aRecvBuf);
+				pIo->iBufCount = 1;
+				pIo->tMsg.msg_name = &pIo->tAddrStorage;
+				pIo->tMsg.msg_namelen = sizeof(pIo->tAddrStorage);
+				pIo->tMsg.msg_iov = pIo->arrIov;
+				pIo->tMsg.msg_iovlen = 1;
+				break;
+			case XNET_PORT_OP_SENDTO:
+				if ( !__xnetAddrToSockAddr(&pOp->tAddr, &pIo->tAddrStorage, &pIo->iAddrLen) ||
+					!__xnetPortUringBuildBufsFromSubmit(pIo, pOp) ) {
+					XNET_FREE(pIo);
+					return XRT_NET_ERROR;
+				}
+				memset(&pIo->tMsg, 0, sizeof(pIo->tMsg));
+				pIo->tMsg.msg_name = &pIo->tAddrStorage;
+				pIo->tMsg.msg_namelen = pIo->iAddrLen;
+				pIo->tMsg.msg_iov = pIo->arrIov;
+				pIo->tMsg.msg_iovlen = pIo->iBufCount;
+				break;
+			default:
+				XNET_FREE(pIo);
+				return XRT_NET_ERROR;
+		}
+		pthread_mutex_lock(&pCtx->tRingLock);
+		pSqe = __xnetPortUringNativeGetSqe(&pCtx->tNativeRing, &iTail, &iSlot);
+		if ( !pSqe ) {
+			pthread_mutex_unlock(&pCtx->tRingLock);
+			XNET_FREE(pIo);
+			return XRT_NET_ERROR;
+		}
+		pSqe->iFd = (int)pOp->hSocket;
+		pSqe->iUserData = (uint64)(uintptr_t)pIo;
+		switch ( pOp->iOpType ) {
+			case XNET_PORT_OP_ACCEPT:
+				pSqe->iOpcode = __XNET_IORING_OP_ACCEPT;
+				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
+				pSqe->iOff = (uint64)(uintptr_t)&pIo->iAddrLen;
+				break;
+			case XNET_PORT_OP_CONNECT:
+				pSqe->iOpcode = __XNET_IORING_OP_CONNECT;
+				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
+				pSqe->iOff = (uint64)pIo->iAddrLen;
+				break;
+			case XNET_PORT_OP_RECV:
+				pSqe->iOpcode = __XNET_IORING_OP_RECV;
+				pSqe->iAddr = (uint64)(uintptr_t)pIo->aRecvBuf;
+				pSqe->iLen = (uint32)sizeof(pIo->aRecvBuf);
+				break;
+			case XNET_PORT_OP_SEND:
+				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
+				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
+				pSqe->iLen = 1u;
+				break;
+			case XNET_PORT_OP_RECVFROM:
+				pSqe->iOpcode = __XNET_IORING_OP_RECVMSG;
+				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
+				pSqe->iLen = 1u;
+				break;
+			case XNET_PORT_OP_SENDTO:
+				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
+				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
+				pSqe->iLen = 1u;
+				break;
+		}
+		__xnetPortUringTrackIo(pCtx, pIo);
+		__xnetPortUringNativeCommitSqe(&pCtx->tNativeRing, iTail, iSlot);
+		if ( __xnetPortUringNativeEnter(&pCtx->tNativeRing, 1u, 0u, 0u) != XRT_NET_OK ) {
+			pthread_mutex_unlock(&pCtx->tRingLock);
+			return XRT_NET_ERROR;
+		}
+		pthread_mutex_unlock(&pCtx->tRingLock);
+		return XRT_NET_OK;
+	}
+	static bool __xnetPortUringBuildIoEvent(__xnet_uring_io* pIo, int iRes, xnetportevent* pEvent)
+	{
+		int iErr = (iRes < 0) ? -iRes : 0;
+		if ( !pIo || !pEvent ) return false;
+		memset(pEvent, 0, sizeof(xnetportevent));
+		pEvent->iType = __xnetPortUringEventType(pIo->iOpType);
+		pEvent->iStatus = (iRes >= 0) ? XRT_NET_OK : XRT_NET_ERROR;
+		pEvent->iOpId = pIo->iOpId;
+		pEvent->hSocket = pIo->hSocket;
+		pEvent->pUserData = pIo->pUserData;
+		pEvent->tAddr = pIo->tAddr;
+		pEvent->iBytes = (iRes > 0) ? (uint32)iRes : 0u;
+		if ( pIo->iOpType == XNET_PORT_OP_ACCEPT ) {
+			if ( iRes >= 0 ) {
+				pEvent->hSocket = (intptr_t)iRes;
+				(void)__xnetAddrFromSockAddr(&pEvent->tAddr, (const struct sockaddr*)&pIo->tAddrStorage);
+			}
+			return true;
+		}
+		if ( pIo->iOpType == XNET_PORT_OP_CONNECT ) {
+			return true;
+		}
+		if ( pIo->iOpType == XNET_PORT_OP_RECV ) {
+			if ( iRes > 0 ) {
+				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->aRecvBuf, (size_t)iRes);
+				if ( !pEvent->pChain ) {
+					pEvent->iStatus = XRT_NET_ERROR;
+					pEvent->iBytes = 0;
+				}
+			} else if ( iRes == 0 || iErr == ECONNRESET || iErr == ENOTCONN || iErr == EBADF ) {
+				pEvent->iStatus = XRT_NET_CLOSED;
+				pEvent->iFlags |= XNET_PORT_EVENT_F_EOF;
+			}
+			return true;
+		}
+		if ( pIo->iOpType == XNET_PORT_OP_RECVFROM ) {
+			if ( iRes >= 0 ) {
+				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->aRecvBuf, (size_t)iRes);
+				if ( !pEvent->pChain ) {
+					pEvent->iStatus = XRT_NET_ERROR;
+					pEvent->iBytes = 0;
+				}
+				(void)__xnetAddrFromSockAddr(&pEvent->tAddr, (const struct sockaddr*)&pIo->tAddrStorage);
+			}
+			return true;
+		}
+		return true;
+	}
+	static uint32 __xnetPortUringDrainNative(__xnet_uring_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
+	{
+		uint32 iCount = 0;
+		uint32 iHead;
+		uint32 iTail;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 || !pCtx->tNativeRing.bReady ) return 0;
+		iHead = __atomic_load_n(pCtx->tNativeRing.pCqHead, __ATOMIC_ACQUIRE);
+		iTail = __atomic_load_n(pCtx->tNativeRing.pCqTail, __ATOMIC_ACQUIRE);
+		while ( iHead != iTail && iCount < iMaxEvents ) {
+			__xnet_io_uring_cqe* pCqe = &pCtx->tNativeRing.pCqes[iHead & __atomic_load_n(pCtx->tNativeRing.pCqMask, __ATOMIC_RELAXED)];
+			__xnet_uring_io* pIo = (__xnet_uring_io*)(uintptr_t)pCqe->iUserData;
+			if ( pIo ) {
+				__xnetPortUringUntrackIo(pCtx, pIo);
+				if ( __xnetPortUringBuildIoEvent(pIo, pCqe->iRes, &pEvents[iCount]) ) {
+					++iCount;
+				}
+				XNET_FREE(pIo);
+			}
+			++iHead;
+		}
+		__atomic_store_n(pCtx->tNativeRing.pCqHead, iHead, __ATOMIC_RELEASE);
+		return iCount;
+	}
 	static xnet_result __xnetPortUringWake(xnetport* pPort);
 	static uint16 __xnetPortUringEventType(uint16 iOpType)
 	{
@@ -3801,92 +5155,6 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		pthread_mutex_unlock(&pCtx->tPostedLock);
 		return true;
 	}
-	static bool __xnetPortUringIsSocketWatchOp(const xnetportsubmit* pOp)
-	{
-		if ( !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return false;
-		if ( pOp->iOpId == 0 ) return false;
-		if ( pOp->pChain || (pOp->pVec && pOp->iVecCount > 0) ) return false;
-		return pOp->iOpType == XNET_PORT_OP_ACCEPT || pOp->iOpType == XNET_PORT_OP_RECV ||
-			pOp->iOpType == XNET_PORT_OP_RECVFROM || pOp->iOpType == XNET_PORT_OP_SEND;
-	}
-	static void __xnetPortUringFreeWatches(__xnet_uring_ctx* pCtx)
-	{
-		if ( !pCtx ) return;
-		pthread_mutex_lock(&pCtx->tWatchLock);
-		while ( pCtx->pWatches ) {
-			__xnet_uring_watch* pNext = pCtx->pWatches->pNext;
-			XNET_FREE(pCtx->pWatches);
-			pCtx->pWatches = pNext;
-		}
-		while ( pCtx->pFreeWatches ) {
-			__xnet_uring_watch* pNext = pCtx->pFreeWatches->pNext;
-			XNET_FREE(pCtx->pFreeWatches);
-			pCtx->pFreeWatches = pNext;
-		}
-		pthread_mutex_unlock(&pCtx->tWatchLock);
-	}
-	static void __xnetPortUringRemoveWatches(__xnet_uring_ctx* pCtx, uint16 iOpType, intptr_t hSocket, ptr pUserData)
-	{
-		__xnet_uring_watch** ppCur;
-		if ( !pCtx ) return;
-		pthread_mutex_lock(&pCtx->tWatchLock);
-		ppCur = &pCtx->pWatches;
-		while ( *ppCur ) {
-			__xnet_uring_watch* pNode = *ppCur;
-			bool bTypeMatch = (iOpType == 0 || pNode->iOpType == iOpType);
-			bool bSocketMatch = (hSocket == 0 || pNode->hSocket == hSocket);
-			bool bUserMatch = (pUserData == NULL || pNode->pUserData == pUserData);
-			if ( bTypeMatch && bSocketMatch && bUserMatch ) {
-				*ppCur = pNode->pNext;
-				pNode->pNext = pCtx->pFreeWatches;
-				pCtx->pFreeWatches = pNode;
-				continue;
-			}
-			ppCur = &pNode->pNext;
-		}
-		pthread_mutex_unlock(&pCtx->tWatchLock);
-	}
-	static bool __xnetPortUringRegisterWatch(__xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
-	{
-		__xnet_uring_watch* pNode;
-		if ( !pCtx || !pOp ) return false;
-		pthread_mutex_lock(&pCtx->tWatchLock);
-		for ( __xnet_uring_watch* pCur = pCtx->pWatches; pCur; pCur = pCur->pNext ) {
-			if ( pCur->iOpType == pOp->iOpType && pCur->hSocket == pOp->hSocket && pCur->pUserData == pOp->pUserData ) {
-				pthread_mutex_unlock(&pCtx->tWatchLock);
-				return true;
-			}
-		}
-		if ( pCtx->pFreeWatches ) {
-			pNode = pCtx->pFreeWatches;
-			pCtx->pFreeWatches = pNode->pNext;
-		} else {
-			pNode = (__xnet_uring_watch*)XNET_ALLOC(sizeof(__xnet_uring_watch));
-		}
-		if ( !pNode ) {
-			pthread_mutex_unlock(&pCtx->tWatchLock);
-			return false;
-		}
-		memset(pNode, 0, sizeof(__xnet_uring_watch));
-		pNode->iOpType = pOp->iOpType;
-		pNode->iOpId = pOp->iOpId;
-		pNode->hSocket = pOp->hSocket;
-		pNode->pUserData = pOp->pUserData;
-		pNode->tAddr = pOp->tAddr;
-		pNode->pNext = pCtx->pWatches;
-		pCtx->pWatches = pNode;
-		pthread_mutex_unlock(&pCtx->tWatchLock);
-		return true;
-	}
-	static bool __xnetPortUringHasWatches(__xnet_uring_ctx* pCtx)
-	{
-		bool bHas = false;
-		if ( !pCtx ) return false;
-		pthread_mutex_lock(&pCtx->tWatchLock);
-		bHas = pCtx->pWatches != NULL;
-		pthread_mutex_unlock(&pCtx->tWatchLock);
-		return bHas;
-	}
 	static uint32 __xnetPortUringDrainPosted(__xnet_uring_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
 	{
 		uint32 iCount = 0;
@@ -3961,12 +5229,28 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
-		if ( pthread_mutex_init(&pCtx->tWatchLock, NULL) != 0 ) {
+		if ( pthread_mutex_init(&pCtx->tIoLock, NULL) != 0 ) {
 			pthread_mutex_destroy(&pCtx->tPostedLock);
 			close(pCtx->hWakeFd);
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
+		if ( pthread_mutex_init(&pCtx->tRingLock, NULL) != 0 ) {
+			pthread_mutex_destroy(&pCtx->tIoLock);
+			pthread_mutex_destroy(&pCtx->tPostedLock);
+			close(pCtx->hWakeFd);
+			XNET_FREE(pCtx);
+			return XRT_NET_ERROR;
+		}
+		if ( !__xnetPortUringNativeRingInit(&pCtx->tNativeRing, pCfg->iSqEntries ? pCfg->iSqEntries : 256u) ) {
+			pthread_mutex_destroy(&pCtx->tRingLock);
+			pthread_mutex_destroy(&pCtx->tIoLock);
+			pthread_mutex_destroy(&pCtx->tPostedLock);
+			close(pCtx->hWakeFd);
+			XNET_FREE(pCtx);
+			return XRT_NET_ERROR;
+		}
+		pCtx->hRing = pCtx->tNativeRing.hRingFd;
 		pPort->pCtx = pCtx;
 		return XRT_NET_OK;
 	}
@@ -3976,9 +5260,11 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		if ( !pCtx ) return;
 		__xnetPortUringFreeTimers(pCtx);
 		__xnetPortUringFreePosts(pCtx);
-		__xnetPortUringFreeWatches(pCtx);
+		__xnetPortUringFreeActiveIo(pCtx);
+		__xnetPortUringNativeRingUnit(&pCtx->tNativeRing);
 		pthread_mutex_destroy(&pCtx->tPostedLock);
-		pthread_mutex_destroy(&pCtx->tWatchLock);
+		pthread_mutex_destroy(&pCtx->tIoLock);
+		pthread_mutex_destroy(&pCtx->tRingLock);
 		if ( pCtx->hWakeFd >= 0 ) {
 			close(pCtx->hWakeFd);
 		}
@@ -3996,17 +5282,19 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			if ( !__xnetPortUringValidOp(pOps[i].iOpType) ) {
 				return XRT_NET_ERROR;
 			}
-			if ( pOps[i].iOpType == XNET_PORT_OP_CLOSE && pOps[i].hSocket != (intptr_t)XNET_SOCKET_INVALID ) {
-				__xnetPortUringRemoveWatches(pCtx, 0, pOps[i].hSocket, pOps[i].pUserData);
+			if ( pOps[i].iOpType == XNET_PORT_OP_CLOSE ) {
 				continue;
 			}
-			if ( __xnetPortUringIsSocketWatchOp(&pOps[i]) ) {
-				if ( !__xnetPortUringRegisterWatch(pCtx, &pOps[i]) ) return XRT_NET_ERROR;
+			if ( __xnetPortUringNativeCanUse(pCtx, &pOps[i]) ) {
+				if ( __xnetPortUringSubmitNative(pCtx, &pOps[i]) != XRT_NET_OK ) {
+					return XRT_NET_ERROR;
+				}
 				continue;
 			}
 			memset(&tEvent, 0, sizeof(tEvent));
 			tEvent.iType = __xnetPortUringEventType(pOps[i].iOpType);
 			tEvent.iStatus = XRT_NET_OK;
+			tEvent.iFlags = pOps[i].iFlags;
 			tEvent.iBytes = __xnetPortUringSubmitBytes(&pOps[i]);
 			tEvent.iOpId = pOps[i].iOpId;
 			tEvent.hSocket = pOps[i].hSocket;
@@ -4032,82 +5320,44 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		if ( iCount >= iMaxEvents ) return iCount;
 		iCount += __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) return iCount;
-		if ( !__xnetPortUringHasWatches(pCtx) && pCtx->hWakeFd >= 0 ) {
-			struct pollfd tPoll;
-			int iPollRet;
-			uint64 iWakeCount = 0;
-			memset(&tPoll, 0, sizeof(tPoll));
-			tPoll.fd = pCtx->hWakeFd;
-			tPoll.events = POLLIN;
-			iPollRet = poll(&tPoll, 1, (iCount > 0) ? 0 : (int)iTimeoutMs);
-			if ( iPollRet > 0 && (tPoll.revents & POLLIN) ) {
-				if ( read(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) == (ssize_t)sizeof(iWakeCount) ) {
-					uint32 iPosted = __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
-					iCount += iPosted;
-					if ( iPosted == 0 && iCount < iMaxEvents ) {
-						memset(&pEvents[iCount], 0, sizeof(xnetportevent));
-						pEvents[iCount].iType = XNET_PORT_EVENT_WAKE;
-						pEvents[iCount].iStatus = XRT_NET_OK;
-						pEvents[iCount].iBytes = (uint32)((iWakeCount > 0xffffffffu) ? 0xffffffffu : iWakeCount);
-						iCount++;
-					}
-				}
-			}
-		}
-		if ( __xnetPortUringHasWatches(pCtx) ) {
-			__xnet_uring_watch arrSnap[256];
-			struct pollfd arrPoll[257];
+		iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
+		if ( iCount >= iMaxEvents ) return iCount;
+		{
+			struct pollfd arrPoll[2];
 			nfds_t iPollCount = 0;
-			uint32 iSnapCount = 0;
+			int iWakeIndex = -1;
+			int iRingIndex = -1;
 			int iPollRet;
 			memset(arrPoll, 0, sizeof(arrPoll));
-			pthread_mutex_lock(&pCtx->tWatchLock);
-			for ( __xnet_uring_watch* pNode = pCtx->pWatches; pNode && iSnapCount < 256; pNode = pNode->pNext ) {
-				arrSnap[iSnapCount] = *pNode;
-				++iSnapCount;
-			}
-			pthread_mutex_unlock(&pCtx->tWatchLock);
 			if ( pCtx->hWakeFd >= 0 ) {
+				iWakeIndex = (int)iPollCount;
 				arrPoll[iPollCount].fd = pCtx->hWakeFd;
 				arrPoll[iPollCount].events = POLLIN;
 				++iPollCount;
 			}
-			for ( uint32 i = 0; i < iSnapCount; ++i ) {
-				arrPoll[iPollCount].fd = (int)arrSnap[i].hSocket;
-				arrPoll[iPollCount].events = (short)((arrSnap[i].iOpType == XNET_PORT_OP_SEND) ? POLLOUT : POLLIN);
-				++iPollCount;
-			}
-			if ( iPollCount > 0 ) {
-				iPollRet = poll(arrPoll, iPollCount, (iCount > 0) ? 0 : (int)iTimeoutMs);
-				if ( iPollRet > 0 ) {
-					if ( pCtx->hWakeFd >= 0 && (arrPoll[0].revents & POLLIN) ) {
-						uint64 iWakeCount = 0;
-						if ( read(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) == (ssize_t)sizeof(iWakeCount) ) {
-							uint32 iPosted = __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
-							iCount += iPosted;
-							if ( iPosted == 0 && iCount < iMaxEvents ) {
-								memset(&pEvents[iCount], 0, sizeof(xnetportevent));
-								pEvents[iCount].iType = XNET_PORT_EVENT_WAKE;
-								pEvents[iCount].iStatus = XRT_NET_OK;
-								pEvents[iCount].iBytes = (uint32)((iWakeCount > 0xffffffffu) ? 0xffffffffu : iWakeCount);
-								iCount++;
-							}
+			iRingIndex = (int)iPollCount;
+			arrPoll[iPollCount].fd = pCtx->tNativeRing.hRingFd;
+			arrPoll[iPollCount].events = POLLIN;
+			++iPollCount;
+			iPollRet = poll(arrPoll, iPollCount, (iCount > 0) ? 0 : (int)iTimeoutMs);
+			if ( iPollRet > 0 ) {
+				if ( iWakeIndex >= 0 && (arrPoll[iWakeIndex].revents & POLLIN) ) {
+					uint64 iWakeCount = 0;
+					if ( read(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) == (ssize_t)sizeof(iWakeCount) ) {
+						uint32 iPosted = __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
+						iCount += iPosted;
+						if ( iPosted == 0 && iCount < iMaxEvents ) {
+							memset(&pEvents[iCount], 0, sizeof(xnetportevent));
+							pEvents[iCount].iType = XNET_PORT_EVENT_WAKE;
+							pEvents[iCount].iStatus = XRT_NET_OK;
+							pEvents[iCount].iBytes = (uint32)((iWakeCount > 0xffffffffu) ? 0xffffffffu : iWakeCount);
+							++iCount;
 						}
 					}
-					for ( uint32 i = 0; i < iSnapCount && iCount < iMaxEvents; ++i ) {
-						nfds_t iIndex = (pCtx->hWakeFd >= 0) ? (i + 1u) : i;
-						short iWant = (short)((arrSnap[i].iOpType == XNET_PORT_OP_SEND) ? POLLOUT : POLLIN);
-						if ( (arrPoll[iIndex].revents & iWant) == 0 ) continue;
-						memset(&pEvents[iCount], 0, sizeof(xnetportevent));
-						pEvents[iCount].iType = __xnetPortUringEventType(arrSnap[i].iOpType);
-						pEvents[iCount].iStatus = XRT_NET_OK;
-						pEvents[iCount].iOpId = arrSnap[i].iOpId;
-						pEvents[iCount].hSocket = arrSnap[i].hSocket;
-						pEvents[iCount].pUserData = arrSnap[i].pUserData;
-						pEvents[iCount].tAddr = arrSnap[i].tAddr;
-						iCount++;
-						__xnetPortUringRemoveWatches(pCtx, arrSnap[i].iOpType, arrSnap[i].hSocket, arrSnap[i].pUserData);
-					}
+				}
+				if ( iCount < iMaxEvents && iRingIndex >= 0 &&
+					(arrPoll[iRingIndex].revents & (POLLIN | POLLERR | POLLHUP)) ) {
+					iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
 				}
 			}
 		}
@@ -4169,6 +5419,11 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		return &__g_xnetPortUringOps;
 	}
 #else
+	static bool __xnetPortUringHasNativeRing(const xnetport* pPort)
+	{
+		(void)pPort;
+		return false;
+	}
 	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return NULL;
@@ -4182,15 +5437,14 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 	#include <unistd.h>
 #endif
 /*
-    XNet V2 - Engine and Worker Runtime
-    Phase-1 scope in this header:
-      - engine lifecycle
-      - worker bootstrap
-      - worker threads
-      - command queue for cross-thread task posting
-    Still pending:
-      - timer wheel
-      - stream/dgram ownership tables
+    XRT mainline network engine and worker runtime.
+    This header owns:
+      - engine and worker lifecycle
+      - worker threads and cross-thread command posting
+      - timer-wheel driven delayed work
+      - dispatch of port completions into stream, datagram, and listener layers
+    The engine is the shared runtime core used by async transport, protocol
+    modules, and sync facades built on top of futures.
 */
 /* ============================== Internal queue and platform types ============================== */
 typedef struct __xnet_engine_cmd {
@@ -4809,11 +6063,12 @@ static xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinity
 #include <string.h>
 // (skipped duplicate include: D:/Git/xrt/lib/xnet_base.h)
 /*
-    XNet V2 - Builtin TLS Adapter
-    This header bridges xnet-v2 stream transport with the in-tree TLS engine
+    XRT mainline builtin TLS adapter.
+    This header bridges xnet stream transport with the in-tree TLS engine
     without introducing any external dependency.
-    The TLS core no longer depends on the legacy v1 network ABI. The adapter
-    only coordinates owned sockets and plaintext/ciphertext queues for xnet-v2.
+    The TLS core no longer depends on the archived v1 network ABI. The adapter
+    only coordinates owned sockets plus plaintext/ciphertext flow for the
+    modern xnet stream layer.
 */
 #ifndef XNET_ALLOC
 	#define XNET_ALLOC malloc
@@ -4824,6 +6079,7 @@ static xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinity
 /* ============================== TLS core bridge ============================== */
 #if !defined(XXRTL_CORE)
 	typedef struct xrt_tls_context xtlsctx;
+	typedef struct xrt_tls_resume xtlsresume;
 	typedef struct __xnet_tls_global xrtGlobalData;
 	struct xrt_tls_config {
 		const char* sCertFile;
@@ -4834,11 +6090,14 @@ static xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinity
 		void (*OnSNI)(xtlsctx* pCtx, const char* sHostName, ptr pUserData);
 		ptr pSNIUserData;
 		bool bAllowTLS12Ed25519;
+		uint16 iMaxVersion;
+		const xtlsresume* pResume;
 	};
 #endif
 extern xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
 extern void xrtTlsDestroy(xtlsctx* pCtx);
 extern xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
+extern xnet_result xrtTlsDrive(xtlsctx* pCtx);
 extern xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
 extern xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
 extern xnet_result xrtTlsClose(xtlsctx* pCtx);
@@ -4848,6 +6107,9 @@ extern size_t xrtTlsPendingSend(xtlsctx* pCtx);
 extern size_t xrtTlsPendingRecv(xtlsctx* pCtx);
 extern xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
 extern void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
+extern xtlsresume* xrtTlsExportResume(xtlsctx* pCtx);
+extern void xrtTlsResumeDestroy(xtlsresume* pResume);
+extern bool xrtTlsWasResumed(xtlsctx* pCtx);
 #if !defined(XXRTL_CORE)
 	extern xrtGlobalData* xrtInit(void);
 #endif
@@ -4883,10 +6145,10 @@ static bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
 {
 	return pSession && pSession->pCtx ? xrtTlsIsReady(pSession->pCtx) : false;
 }
-static xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession, xsocket hSocket)
+static xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession)
 {
-	if ( !pSession || !pSession->pCtx || hSocket == XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-	return xrtTlsHandshake(pSession->pCtx, hSocket);
+	if ( !pSession || !pSession->pCtx ) return XRT_NET_ERROR;
+	return xrtTlsDrive(pSession->pCtx);
 }
 static xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)
 {
@@ -4929,6 +6191,9 @@ static xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession)
 #endif
 #if defined(_WIN32) || defined(_WIN64)
 	#include <mswsock.h>
+	#if defined(XNET_DEBUG_IOCP_NATIVE)
+		#include <stdio.h>
+	#endif
 #else
 	#include <errno.h>
 	#include <fcntl.h>
@@ -4937,15 +6202,15 @@ static xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession)
 	#include <unistd.h>
 #endif
 /*
-    XNet V2 - Stream and Listener Skeleton
-    Phase-1 scope in this header:
-      - listener object lifecycle
-      - stream object lifecycle
-      - user data, ownership, and local state helpers
-    Still pending:
-      - accept/connect
-      - recv/send data paths
-      - backpressure and close semantics
+    XNet mainline stream and listener layer.
+    This header owns:
+      - listener and stream lifecycle
+      - completion-driven accept / connect / recv / send flow
+      - send queue, backpressure, graceful vs abort close, and sync wait slots
+      - TLS attachment and handshake progression on top of transport-owned I/O
+    Current focus:
+      - Windows native IOCP flow is active in mainline
+      - Linux backend finalization still continues under the xnet finalization spec
 */
 /* ============================== Event tables ============================== */
 typedef struct {
@@ -4978,8 +6243,7 @@ typedef struct {
 #define __XNET_STREAM_ASYNC_RECV_COPY      3u
 #define __XNET_STREAM_ASYNC_RECV_REF       4u
 #define __XNET_STREAM_ASYNC_DISPATCH_RECV  5u
-#define __XNET_STREAM_ASYNC_SOCKET_RECV    6u
-#define __XNET_STREAM_ASYNC_TLS_HANDSHAKE  7u
+#define __XNET_STREAM_ASYNC_TLS_HANDSHAKE  6u
 typedef struct {
 	xnetstream* pStream;
 	uint32 iType;
@@ -5054,7 +6318,9 @@ struct xrt_net_stream {
 	bool bRecvArmed;
 	bool bSendArmed;
 	bool bClosing;
+	bool bWriteShutdown;
 	bool bTlsCloseQueued;
+	bool bDestroyPending;
 };
 static void xrtNetStreamDestroy(xnetstream* pStream);
 static void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
@@ -5062,10 +6328,13 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 static bool __xnetStreamArmRecvWatch(xnetstream* pStream);
 static bool __xnetStreamArmSendWatch(xnetstream* pStream);
 static void __xnetStreamFinalizeSocketClose(xnetstream* pStream);
+static void __xnetStreamFinishClose(xnetstream* pStream, xnet_result iReason);
+static void __xnetStreamBeginGracefulCloseWait(xnetstream* pStream);
+static void __xnetStreamDetachTls(xnetstream* pStream);
+static void __xnetStreamNotifyDestroyWaiters(xnetstream* pStream);
 static bool __xnetStreamDrainTlsPlain(xnetstream* pStream);
 static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream);
 static void __xnetStreamEmitOpen(xnetstream* pStream);
-static xnet_result __xnetStreamPostSocketRecvPump(xnetstream* pStream);
 static bool __xnetListenerRegisterSyncAcceptWait(xnetlistener* pListener, __xnet_listener_sync_wait_fn pfnWait, __xnet_listener_sync_wait_ready_fn pfnCanAccept, ptr pCtx);
 static bool __xnetListenerCancelSyncAcceptWait(xnetlistener* pListener, ptr pCtx);
 /* ============================== Internal helpers ============================== */
@@ -5144,7 +6413,14 @@ static void __xnetStreamAddAsyncHold(xnetstream* pStream)
 static void __xnetStreamReleaseAsyncHold(xnetstream* pStream)
 {
 	if ( !pStream ) return;
-	(void)__xnetAtomicAddFetch32(&pStream->iAsyncHoldCount, -1);
+	if ( __xnetAtomicAddFetch32(&pStream->iAsyncHoldCount, -1) == 0 && pStream->bDestroyPending ) {
+		__xnetStreamNotifyDestroyWaiters(pStream);
+		xrtNetChainClear(&pStream->tRxChain);
+		xrtNetChainClear(&pStream->tSendQ.tQueue);
+		__xnetStreamFinalizeSocketClose(pStream);
+		__xnetStreamDetachTls(pStream);
+		XNET_FREE(pStream);
+	}
 }
 static void __xnetListenerAddAsyncHold(xnetlistener* pListener)
 {
@@ -5163,6 +6439,16 @@ static bool __xnetListenerCanDispatchAccept(xnetlistener* pListener)
 		return false;
 	}
 	return true;
+}
+static uint64 __xnetListenerNextAcceptOpId(xnetlistener* pListener)
+{
+	uint64 iOpId = 0;
+	if ( !pListener || !pListener->pEngine ) return 0;
+	iOpId = pListener->pEngine->iNextStreamId++;
+	if ( iOpId == 0 ) {
+		iOpId = pListener->pEngine->iNextStreamId++;
+	}
+	return iOpId;
 }
 static void __xnetListenerNotifySyncAccept(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream)
 {
@@ -5257,6 +6543,28 @@ static void __xnetStreamNotifySyncDrain(xnetstream* pStream, xnet_result iStatus
 {
 	__xnetStreamNotifySyncWait(pStream, __XNET_STREAM_WAIT_DRAIN, iStatus);
 }
+static xnet_result __xnetStreamDestroyStatus(const xnetstream* pStream)
+{
+	if ( !pStream || pStream->iCloseReason == XRT_NET_AGAIN ) return XRT_NET_CLOSED;
+	return pStream->iCloseReason;
+}
+static void __xnetStreamNotifyDestroyWaiters(xnetstream* pStream)
+{
+	xnet_result iReason = __xnetStreamDestroyStatus(pStream);
+	if ( !pStream ) return;
+	__xnetStreamNotifySyncReadable(pStream, iReason);
+	__xnetStreamNotifySyncWritable(pStream, iReason);
+	__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
+	__xnetStreamNotifySyncClose(pStream, iReason);
+}
+static void __xnetStreamPrepareDeferredDestroy(xnetstream* pStream)
+{
+	if ( !pStream || pStream->bDestroyPending ) return;
+	pStream->bDestroyPending = true;
+	pStream->pEvents = NULL;
+	pStream->pUserData = NULL;
+	__xnetStreamNotifyDestroyWaiters(pStream);
+}
 static bool __xnetStreamRegisterSyncWait(xnetstream* pStream, uint32 iWaitKind, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
 {
 	__xnet_stream_wait_slot* pSlot = NULL;
@@ -5325,6 +6633,68 @@ static void __xnetSocketCloseHandle(xsocket* phSocket)
 	#endif
 	*phSocket = XNET_SOCKET_INVALID;
 }
+static bool __xnetSocketShutdownWrite(xsocket hSocket)
+{
+	if ( !__xnetSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( shutdown(hSocket, SD_SEND) == 0 ) return true;
+		switch ( WSAGetLastError() ) {
+			case WSAENOTSOCK:
+			case WSAESHUTDOWN:
+			case WSAECONNRESET:
+			case WSAECONNABORTED:
+			case WSAENOTCONN:
+				return true;
+			default:
+				return false;
+		}
+	#else
+		if ( shutdown(hSocket, SHUT_WR) == 0 ) return true;
+		switch ( errno ) {
+			case ENOTSOCK:
+			case ENOTCONN:
+			case EPIPE:
+			case ESHUTDOWN:
+			case ECONNRESET:
+			case ECONNABORTED:
+			case EBADF:
+				return true;
+			default:
+				return false;
+		}
+	#endif
+}
+static bool __xnetSocketShutdownBoth(xsocket hSocket)
+{
+	if ( !__xnetSocketIsValid(hSocket) ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( shutdown(hSocket, SD_BOTH) == 0 ) return true;
+		switch ( WSAGetLastError() ) {
+			case WSAENOTSOCK:
+			case WSAESHUTDOWN:
+			case WSAECONNRESET:
+			case WSAECONNABORTED:
+			case WSAENOTCONN:
+				return true;
+			default:
+				return false;
+		}
+	#else
+		if ( shutdown(hSocket, SHUT_RDWR) == 0 ) return true;
+		switch ( errno ) {
+			case ENOTSOCK:
+			case ENOTCONN:
+			case EPIPE:
+			case ESHUTDOWN:
+			case ECONNRESET:
+			case ECONNABORTED:
+			case EBADF:
+				return true;
+			default:
+				return false;
+		}
+	#endif
+}
 static bool __xnetSocketSetNonBlock(xsocket hSocket, bool bEnable)
 {
 	if ( !__xnetSocketIsValid(hSocket) ) return false;
@@ -5342,6 +6712,44 @@ static bool __xnetSocketSetNonBlock(xsocket hSocket, bool bEnable)
 		return fcntl(hSocket, F_SETFL, iFlags) == 0;
 	#endif
 }
+static xsocket __xnetSocketCreateStream(int iFamily)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return WSASocket(iFamily, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
+	#else
+		return socket(iFamily, SOCK_STREAM, IPPROTO_TCP);
+	#endif
+}
+static bool __xnetStreamUseNativePortIO(xnetstream* pStream)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return pStream && pStream->pWorker &&
+			pStream->pWorker->tPort.pOps == xrtNetPortIOCPOps() &&
+			__xnetSocketIsValid(pStream->hSocket);
+	#elif defined(__linux__)
+		return pStream && pStream->pWorker &&
+			pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort) &&
+			__xnetSocketIsValid(pStream->hSocket);
+	#else
+		(void)pStream;
+		return false;
+	#endif
+}
+static bool __xnetStreamUseNativePortOps(xnetstream* pStream)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return pStream && pStream->pWorker &&
+			pStream->pWorker->tPort.pOps == xrtNetPortIOCPOps();
+	#elif defined(__linux__)
+		return pStream && pStream->pWorker &&
+			pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort);
+	#else
+		(void)pStream;
+		return false;
+	#endif
+}
 static bool __xnetListenerSubmitSocketNotice(xnetlistener* pListener, uint16 iOpType, xsocket hSocket)
 {
 	xnetportsubmit tSubmit;
@@ -5355,8 +6763,12 @@ static bool __xnetListenerSubmitSocketNotice(xnetlistener* pListener, uint16 iOp
 }
 static bool __xnetListenerArmAcceptWatch(xnetlistener* pListener)
 {
-	if ( !pListener || !pListener->bRunning || pListener->bAcceptArmed || !__xnetSocketIsValid(pListener->hSocket) ) return false;
-	if ( pListener->iAcceptOpId == 0 ) return false;
+	uint64 iOpId;
+	if ( !pListener || !pListener->bRunning || !__xnetSocketIsValid(pListener->hSocket) ) return false;
+	if ( pListener->bAcceptArmed ) return true;
+	iOpId = __xnetListenerNextAcceptOpId(pListener);
+	if ( iOpId == 0 ) return false;
+	pListener->iAcceptOpId = iOpId;
 	if ( !__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_ACCEPT, pListener->hSocket) ) return false;
 	pListener->bAcceptArmed = true;
 	if ( pListener->pWorker && !__xnetEngineIsCurrentWorker(pListener->pWorker) ) {
@@ -5369,9 +6781,7 @@ static bool __xnetListenerCancelAcceptWatch(xnetlistener* pListener)
 	if ( !pListener ) return false;
 	if ( !pListener->bAcceptArmed ) return true;
 	pListener->bAcceptArmed = false;
-	if ( pListener->pWorker && __xnetSocketIsValid(pListener->hSocket) ) {
-		(void)__xnetListenerSubmitSocketNotice(pListener, XNET_PORT_OP_CLOSE, pListener->hSocket);
-	}
+	pListener->iAcceptOpId = 0;
 	return true;
 }
 static bool __xnetSocketSetReuseAddr(xsocket hSocket)
@@ -5459,40 +6869,6 @@ static bool __xnetSocketApplyListenFlags(xsocket hSocket, uint32 iFlags)
 	}
 	return bOk;
 }
-static bool __xnetSocketWaitWritable(xsocket hSocket, uint32 iTimeoutMs)
-{
-	fd_set tWriteSet;
-	struct timeval tTimeout;
-	int iRet;
-	FD_ZERO(&tWriteSet);
-	FD_SET(hSocket, &tWriteSet);
-	tTimeout.tv_sec = (long)(iTimeoutMs / 1000u);
-	tTimeout.tv_usec = (long)((iTimeoutMs % 1000u) * 1000u);
-	iRet = select((int)(hSocket + 1), NULL, &tWriteSet, NULL, iTimeoutMs == 0 ? NULL : &tTimeout);
-	return iRet > 0 && FD_ISSET(hSocket, &tWriteSet);
-}
-static bool __xnetSocketConnectWithTimeout(xsocket hSocket, const struct sockaddr* pSA, socklen_t iLen, uint32 iTimeoutMs)
-{
-	int iRet;
-	int iErr;
-	if ( !__xnetSocketIsValid(hSocket) || !pSA ) return false;
-	if ( !__xnetSocketSetNonBlock(hSocket, true) ) return false;
-	iRet = connect(hSocket, pSA, iLen);
-	if ( iRet == 0 ) return true;
-	iErr = __xnetSocketLastErr();
-	if ( !__xnetSocketWouldBlock(iErr) ) return false;
-	if ( !__xnetSocketWaitWritable(hSocket, iTimeoutMs) ) return false;
-	{
-		int iSockErr = 0;
-		socklen_t iSockErrLen = (socklen_t)sizeof(iSockErr);
-		#if defined(_WIN32) || defined(_WIN64)
-			if ( getsockopt(hSocket, SOL_SOCKET, SO_ERROR, (char*)&iSockErr, &iSockErrLen) != 0 ) return false;
-		#else
-			if ( getsockopt(hSocket, SOL_SOCKET, SO_ERROR, &iSockErr, &iSockErrLen) != 0 ) return false;
-		#endif
-		return iSockErr == 0;
-	}
-}
 static void __xnetStreamApplyWatermark(xnetstream* pStream, uint32 iHighWater, uint32 iLowWater)
 {
 	if ( !pStream ) return;
@@ -5557,22 +6933,6 @@ static void __xnetStreamEmitClose(xnetstream* pStream, xnet_result iReason)
 		pStream->pEvents->OnClose(__xnetStreamOwner(pStream), pStream, iReason);
 	}
 }
-static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
-{
-	if ( !pDst || !pSrc || !pSrc->pHead ) return;
-	if ( pDst->pTail ) {
-		pDst->pTail->pNext = pSrc->pHead;
-	} else {
-		pDst->pHead = pSrc->pHead;
-	}
-	pDst->pTail = pSrc->pTail;
-	pDst->iBytes += pSrc->iBytes;
-	pDst->iBlockCount += pSrc->iBlockCount;
-	pSrc->pHead = NULL;
-	pSrc->pTail = NULL;
-	pSrc->iBytes = 0;
-	pSrc->iBlockCount = 0;
-}
 static void __xnetStreamRefreshSendState(xnetstream* pStream, uint32 iPrevQueuedBytes, bool bPrevHighWater)
 {
 	size_t iQueuedBytes;
@@ -5618,9 +6978,11 @@ static size_t __xnetStreamConsumeSendQueue(xnetstream* pStream, size_t iLen)
 	xrtNetChainConsume(&pStream->tSendQ.tQueue, iLen);
 	__xnetStreamRefreshSendState(pStream, iPrevQueuedBytes, bPrevHighWater);
 	if ( pStream->bClosing && pStream->tSendQ.iQueuedBytes == 0 ) {
-		__xnetStreamFinalizeSocketClose(pStream);
-		__xnetStreamDetachTls(pStream);
-		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		if ( (pStream->iFlags & XNET_CLOSE_F_WAIT_PEER) != 0 ) {
+			__xnetStreamBeginGracefulCloseWait(pStream);
+		} else {
+			__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
+		}
 	}
 	return iLen;
 }
@@ -5758,116 +7120,32 @@ static bool __xnetStreamSubmitWrite(xnetstream* pStream)
 	if ( !__xnetStreamTryBeginWrite(pStream, arrVec, 16, &iSpanCount) ) return false;
 	memset(&tSubmit, 0, sizeof(tSubmit));
 	tSubmit.iOpType = XNET_PORT_OP_SEND;
+	tSubmit.iOpId = pStream->iId;
+	tSubmit.hSocket = (intptr_t)pStream->hSocket;
 	tSubmit.pUserData = pStream;
 	tSubmit.pVec = arrVec;
 	tSubmit.iVecCount = iSpanCount;
 	tSubmit.tAddr = pStream->tRemoteAddr;
+	__xnetStreamAddAsyncHold(pStream);
 	if ( xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) != XRT_NET_OK ) {
+		__xnetStreamReleaseAsyncHold(pStream);
 		pStream->tSendQ.bWritePosted = false;
 		return false;
 	}
 	return true;
 }
-static size_t __xnetStreamSocketFlushSend(xnetstream* pStream)
-{
-	size_t iTotal = 0;
-	xnetspan arrVec[16];
-	uint32 iSpanCount;
-	if ( !pStream || !__xnetSocketIsValid(pStream->hSocket) ) return 0;
-	for ( ;; ) {
-		iSpanCount = __xnetStreamBuildSendSpans(pStream, arrVec, 16);
-		if ( iSpanCount == 0 ) break;
-		for ( uint32 i = 0; i < iSpanCount; ++i ) {
-			const uint8* pBuf = (const uint8*)arrVec[i].pData;
-			size_t iLeft = arrVec[i].iLen;
-			while ( iLeft > 0 ) {
-				int iSent = send(pStream->hSocket, (const char*)pBuf, (int)iLeft, 0);
-				if ( iSent > 0 ) {
-					size_t iStep = __xnetStreamConsumeSendQueue(pStream, (size_t)iSent);
-					pBuf += iStep;
-					iLeft -= iStep;
-					iTotal += iStep;
-					if ( !__xnetSocketIsValid(pStream->hSocket) || pStream->tSendQ.iQueuedBytes == 0 ) {
-						return iTotal;
-					}
-					continue;
-				}
-				if ( iSent == 0 ) {
-					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-					return iTotal;
-				}
-				{
-					int iErr = __xnetSocketLastErr();
-					if ( __xnetSocketWouldBlock(iErr) ) {
-						(void)__xnetStreamArmSendWatch(pStream);
-						return iTotal;
-					}
-					if ( !pStream->bClosing && pStream->pEvents && pStream->pEvents->OnError ) {
-						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, iErr);
-					}
-					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-					return iTotal;
-				}
-			}
-		}
-	}
-	return iTotal;
-}
-static bool __xnetStreamSocketPumpRecv(xnetstream* pStream)
-{
-	char aBuf[4096];
-	bool bReadAny = false;
-	if ( !pStream || !__xnetSocketIsValid(pStream->hSocket) ) return false;
-	for ( ;; ) {
-		int iRecv = recv(pStream->hSocket, aBuf, sizeof(aBuf), 0);
-		if ( iRecv > 0 ) {
-			bReadAny = true;
-			if ( pStream->pTls ) {
-				if ( xrtNetTlsSessionFeedCipher(pStream->pTls, aBuf, (size_t)iRecv) != XRT_NET_OK ) {
-					if ( pStream->pEvents && pStream->pEvents->OnError ) {
-						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
-					}
-					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-					return bReadAny;
-				}
-				if ( !__xnetStreamDrainTlsPlain(pStream) ) {
-					return bReadAny;
-				}
-			} else if ( !__xnetStreamAppendRecvCopy(pStream, aBuf, (size_t)iRecv) ) {
-				return bReadAny;
-			}
-			continue;
-		}
-		if ( iRecv == 0 ) {
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-			break;
-		}
-		{
-			int iErr = __xnetSocketLastErr();
-			if ( __xnetSocketWouldBlock(iErr) ) break;
-			if ( !pStream->bClosing && pStream->pEvents && pStream->pEvents->OnError ) {
-				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, iErr);
-			}
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-			break;
-		}
-	}
-	if ( bReadAny && !pStream->pTls ) {
-		__xnetStreamDispatchRecv(pStream);
-	}
-	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) ) {
-		(void)__xnetStreamArmRecvWatch(pStream);
-	}
-	return bReadAny;
-}
 static void __xnetStreamKickWrite(xnetstream* pStream)
 {
 	if ( !pStream ) return;
-	if ( __xnetSocketIsValid(pStream->hSocket) ) {
-		(void)__xnetStreamSocketFlushSend(pStream);
-		return;
+	if ( !__xnetStreamSubmitWrite(pStream) ) {
+		#if defined(XNET_DEBUG_IOCP_NATIVE)
+			fprintf(stderr, "[STREAM] kick write submit fail stream=%llu socket=%p queued=%u native=%d\n",
+				(unsigned long long)pStream->iId,
+				(void*)(uintptr_t)pStream->hSocket,
+				pStream->tSendQ.iQueuedBytes,
+				__xnetStreamUseNativePortIO(pStream) ? 1 : 0);
+		#endif
 	}
-	(void)__xnetStreamSubmitWrite(pStream);
 }
 static bool __xnetStreamQueueTlsCipher(xnetstream* pStream)
 {
@@ -5902,7 +7180,11 @@ static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 		}
 		if ( iRes == XRT_NET_AGAIN ) break;
 		if ( iRes == XRT_NET_CLOSED ) {
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			if ( pStream->bClosing && (pStream->iFlags & XNET_CLOSE_F_ABORT) == 0 ) {
+				__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
+			} else {
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			}
 			return false;
 		}
 		if ( iRes != XRT_NET_OK ) {
@@ -5915,7 +7197,9 @@ static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 		break;
 	}
 	if ( bReadAny ) {
-		__xnetStreamDispatchRecv(pStream);
+		if ( !pStream->bReadPaused ) {
+			__xnetStreamDispatchRecv(pStream);
+		}
 	}
 	return true;
 }
@@ -5936,7 +7220,7 @@ static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 		return true;
 	}
 	for ( iSpin = 0; iSpin < 8; ++iSpin ) {
-		iRes = xrtNetTlsSessionDriveHandshake(pStream->pTls, pStream->hSocket);
+		iRes = xrtNetTlsSessionDriveHandshake(pStream->pTls);
 		#ifdef DEBUG_TRACE
 			printf("    [XNET_TLS] step stream=%llu res=%d pendingCipher=%u pendingRecv=%u readable=%u\n",
 				(unsigned long long)pStream->iId,
@@ -5958,7 +7242,7 @@ static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 		}
 		if ( __xnetStreamTlsReady(pStream) ) break;
 		if ( iRes != XRT_NET_AGAIN ) break;
-		if ( xrtNetTlsSessionPendingRecv(pStream->pTls) == 0 && __xnetSocketBytesAvailable(pStream->hSocket) == 0 ) break;
+		if ( xrtNetTlsSessionPendingRecv(pStream->pTls) == 0 ) break;
 	}
 	if ( __xnetStreamTlsReady(pStream) ) {
 		__xnetStreamEmitOpen(pStream);
@@ -6011,25 +7295,54 @@ static bool __xnetStreamSubmitOpenEvent(xnetstream* pStream, uint16 iOpType)
 	if ( !pStream || !pStream->pWorker ) return false;
 	memset(&tSubmit, 0, sizeof(tSubmit));
 	tSubmit.iOpType = iOpType;
+	if ( iOpType == XNET_PORT_OP_ACCEPT ) {
+		tSubmit.iFlags = XNET_PORT_EVENT_F_ACCEPTED_OPEN;
+	}
+	tSubmit.iOpId = pStream->iId;
 	tSubmit.pUserData = pStream;
 	tSubmit.hSocket = (intptr_t)pStream->hSocket;
-	return xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+	tSubmit.tAddr = pStream->tRemoteAddr;
+	__xnetStreamAddAsyncHold(pStream);
+	if ( xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) != XRT_NET_OK ) {
+		__xnetStreamReleaseAsyncHold(pStream);
+		return false;
+	}
+	return true;
 }
 static bool __xnetStreamSubmitSocketNotice(xnetstream* pStream, uint16 iOpType, xsocket hSocket)
 {
 	xnetportsubmit tSubmit;
+	bool bTrackHold;
 	if ( !pStream || !pStream->pWorker || !__xnetSocketIsValid(hSocket) ) return false;
 	memset(&tSubmit, 0, sizeof(tSubmit));
 	tSubmit.iOpType = iOpType;
 	tSubmit.hSocket = (intptr_t)hSocket;
 	tSubmit.pUserData = pStream;
 	tSubmit.iOpId = pStream->iId;
-	return xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+	bTrackHold = (iOpType != XNET_PORT_OP_CLOSE);
+	if ( bTrackHold ) {
+		__xnetStreamAddAsyncHold(pStream);
+	}
+	if ( xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) != XRT_NET_OK ) {
+		if ( bTrackHold ) {
+			__xnetStreamReleaseAsyncHold(pStream);
+		}
+		return false;
+	}
+	return true;
 }
 static bool __xnetStreamArmRecvWatch(xnetstream* pStream)
 {
 	if ( !pStream || pStream->bClosing || pStream->bRecvArmed || !__xnetSocketIsValid(pStream->hSocket) ) return false;
-	if ( !__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_RECV, pStream->hSocket) ) return false;
+	if ( !__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_RECV, pStream->hSocket) ) {
+		#if defined(XNET_DEBUG_IOCP_NATIVE)
+			fprintf(stderr, "[STREAM] arm recv fail stream=%llu socket=%p native=%d\n",
+				(unsigned long long)pStream->iId,
+				(void*)(uintptr_t)pStream->hSocket,
+				__xnetStreamUseNativePortIO(pStream) ? 1 : 0);
+		#endif
+		return false;
+	}
 	pStream->bRecvArmed = true;
 	if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
 		(void)xrtNetPortWake(&pStream->pWorker->tPort);
@@ -6053,9 +7366,38 @@ static void __xnetStreamFinalizeSocketClose(xnetstream* pStream)
 	hSocket = pStream->hSocket;
 	pStream->bRecvArmed = false;
 	pStream->bSendArmed = false;
+	pStream->bWriteShutdown = false;
 	if ( __xnetSocketIsValid(hSocket) ) {
+		(void)__xnetSocketShutdownBoth(hSocket);
 		(void)__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_CLOSE, hSocket);
 		__xnetSocketCloseHandle(&pStream->hSocket);
+	}
+}
+static void __xnetStreamFinishClose(xnetstream* pStream, xnet_result iReason)
+{
+	if ( !pStream ) return;
+	__xnetStreamFinalizeSocketClose(pStream);
+	__xnetStreamNotifySyncReadable(pStream, iReason);
+	__xnetStreamNotifySyncDrain(pStream, iReason);
+	__xnetStreamDetachTls(pStream);
+	__xnetStreamEmitClose(pStream, iReason);
+}
+static void __xnetStreamBeginGracefulCloseWait(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	if ( !__xnetSocketIsValid(pStream->hSocket) ) {
+		__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
+		return;
+	}
+	if ( !pStream->bWriteShutdown ) {
+		if ( !__xnetSocketShutdownWrite(pStream->hSocket) ) {
+			__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
+			return;
+		}
+		pStream->bWriteShutdown = true;
+	}
+	if ( !pStream->bRecvArmed ) {
+		(void)__xnetStreamArmRecvWatch(pStream);
 	}
 }
 static size_t __xnetStreamCompleteWrite(xnetstream* pStream, size_t iBytes)
@@ -6064,7 +7406,8 @@ static size_t __xnetStreamCompleteWrite(xnetstream* pStream, size_t iBytes)
 	if ( !pStream ) return 0;
 	pStream->tSendQ.bWritePosted = false;
 	iBytes = __xnetStreamConsumeSendQueue(pStream, iBytes);
-	bNeedResubmit = !pStream->bClosing && pStream->tSendQ.iQueuedBytes > 0 && !pStream->tSendQ.bWritePosted;
+	bNeedResubmit = pStream->tSendQ.iQueuedBytes > 0 && !pStream->tSendQ.bWritePosted &&
+		__xnetSocketIsValid(pStream->hSocket);
 	if ( bNeedResubmit ) {
 		__xnetStreamKickWrite(pStream);
 	}
@@ -6076,10 +7419,30 @@ static bool __xnetStreamSubmitRecvChain(xnetstream* pStream, xnetchain* pChain)
 	if ( !pStream || !pStream->pWorker || !pChain ) return false;
 	memset(&tSubmit, 0, sizeof(tSubmit));
 	tSubmit.iOpType = XNET_PORT_OP_RECV;
+	tSubmit.hSocket = (intptr_t)XNET_SOCKET_INVALID;
 	tSubmit.pUserData = pStream;
 	tSubmit.pChain = pChain;
 	tSubmit.tAddr = pStream->tRemoteAddr;
-	return xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
+	__xnetStreamAddAsyncHold(pStream);
+	if ( xrtNetPortSubmit(&pStream->pWorker->tPort, &tSubmit, 1) != XRT_NET_OK ) {
+		__xnetStreamReleaseAsyncHold(pStream);
+		return false;
+	}
+	return true;
+}
+static bool __xnetStreamFeedTlsChain(xnetstream* pStream, xnetchain* pChain)
+{
+	xnetspan arrSpan[16];
+	uint32 iSpanCount;
+	if ( !pStream || !pStream->pTls || !pChain ) return false;
+	iSpanCount = xrtNetChainGetSpans(pChain, arrSpan, 16);
+	for ( uint32 i = 0; i < iSpanCount; ++i ) {
+		if ( arrSpan[i].iLen == 0 ) continue;
+		if ( xrtNetTlsSessionFeedCipher(pStream->pTls, arrSpan[i].pData, arrSpan[i].iLen) != XRT_NET_OK ) {
+			return false;
+		}
+	}
+	return true;
 }
 static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 {
@@ -6095,24 +7458,65 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	if ( pStream->pTls ) {
+		bool bHandshakeReady = __xnetStreamTlsReady(pStream);
+		if ( !__xnetStreamFeedTlsChain(pStream, pChain) ) {
+			__xnetStreamFreeTempChain(pChain);
+			if ( pStream->pEvents && pStream->pEvents->OnError ) {
+				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+			}
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		__xnetStreamFreeTempChain(pChain);
+		if ( !bHandshakeReady ) {
+			(void)__xnetStreamDriveTlsHandshake(pStream);
+		} else {
+			(void)__xnetStreamDrainTlsPlain(pStream);
+			if ( !pStream->bClosing && !pStream->bReadPaused &&
+				__xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				(void)__xnetStreamArmRecvWatch(pStream);
+			}
+		}
+		return;
+	}
 	__xnetChainSplice(&pStream->tRxChain, pChain);
 	__xnetStreamFreeTempChain(pChain);
 	__xnetStreamNotifySyncReadable(pStream, XRT_NET_OK);
+	if ( pStream->bReadPaused ) {
+		return;
+	}
 	__xnetStreamDispatchRecv(pStream);
+	if ( !pStream->bClosing && __xnetStreamUseNativePortIO(pStream) && !pStream->bRecvArmed ) {
+		(void)__xnetStreamArmRecvWatch(pStream);
+	}
 }
 static void __xnetStreamHandleSendEvent(xnetstream* pStream, const xnetportevent* pEvent)
 {
 	if ( !pStream || !pEvent ) return;
+	pStream->bSendArmed = false;
+	#if defined(XNET_DEBUG_IOCP_NATIVE)
+		if ( __xnetStreamUseNativePortIO(pStream) ) {
+			fprintf(stderr, "[STREAM] send event stream=%llu bytes=%u queued=%u status=%d\n",
+				(unsigned long long)pStream->iId, pEvent->iBytes, pStream->tSendQ.iQueuedBytes, (int)pEvent->iStatus);
+		}
+	#endif
 	if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
 		if ( pEvent->iBytes > 0 ) {
 			(void)__xnetStreamCompleteWrite(pStream, pEvent->iBytes);
+			if ( !pStream->bClosing && pStream->tSendQ.iQueuedBytes == 0 ) {
+				(void)__xnetStreamDriveTlsHandshake(pStream);
+			}
 		} else {
-			pStream->bSendArmed = false;
+			if ( !pStream->bClosing && pStream->tSendQ.iQueuedBytes > 0 ) {
+				__xnetStreamKickWrite(pStream);
+			} else if ( !pStream->bClosing ) {
+				(void)__xnetStreamDriveTlsHandshake(pStream);
+			}
 		}
 		return;
 	}
 	if ( pEvent->iBytes == 0 && __xnetSocketIsValid(pStream->hSocket) ) {
-		pStream->bSendArmed = false;
 		__xnetStreamKickWrite(pStream);
 		return;
 	}
@@ -6129,6 +7533,7 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 	}
 	if ( pStream->bClosing && pOp->iType != __XNET_STREAM_ASYNC_DISPATCH_RECV ) {
 		XNET_FREE(pOp);
+		__xnetStreamReleaseAsyncHold(pStream);
 		return;
 	}
 	switch ( pOp->iType ) {
@@ -6166,9 +7571,15 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			break;
 		case __XNET_STREAM_ASYNC_DISPATCH_RECV:
 			__xnetStreamDispatchRecv(pStream);
-			break;
-		case __XNET_STREAM_ASYNC_SOCKET_RECV:
-			(void)__xnetStreamSocketPumpRecv(pStream);
+			if ( pStream && !pStream->bReadPaused && !pStream->bClosing &&
+				xrtNetChainBytes(&pStream->tRxChain) == 0 &&
+				__xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+					(void)__xnetStreamDriveTlsHandshake(pStream);
+				} else {
+					(void)__xnetStreamArmRecvWatch(pStream);
+				}
+			}
 			break;
 		case __XNET_STREAM_ASYNC_TLS_HANDSHAKE:
 			(void)__xnetStreamDriveTlsHandshake(pStream);
@@ -6177,6 +7588,7 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			break;
 	}
 	XNET_FREE(pOp);
+	__xnetStreamReleaseAsyncHold(pStream);
 }
 static __xnet_stream_async_op* __xnetStreamAllocAsyncCopy(xnetstream* pStream, uint32 iType, const void* pData, size_t iLen)
 {
@@ -6248,7 +7660,9 @@ static xnet_result __xnetStreamPostAsync(xnetstream* pStream, __xnet_stream_asyn
 		if ( pOp ) XNET_FREE(pOp);
 		return XRT_NET_ERROR;
 	}
+	__xnetStreamAddAsyncHold(pStream);
 	if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xnetStreamAsyncTask, pOp) != XRT_NET_OK ) {
+		__xnetStreamReleaseAsyncHold(pStream);
 		XNET_FREE(pOp);
 		return XRT_NET_ERROR;
 	}
@@ -6277,11 +7691,6 @@ static xnet_result __xnetStreamPostRecvRef(xnetstream* pStream, const xnetbufref
 static xnet_result __xnetStreamPostRecvDispatch(xnetstream* pStream)
 {
 	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncSimple(pStream, __XNET_STREAM_ASYNC_DISPATCH_RECV));
-}
-static xnet_result __xnetStreamPostSocketRecvPump(xnetstream* pStream)
-{
-	if ( !pStream || !__xnetSocketIsValid(pStream->hSocket) ) return XRT_NET_ERROR;
-	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncSimple(pStream, __XNET_STREAM_ASYNC_SOCKET_RECV));
 }
 static xnet_result __xnetStreamPostTlsHandshake(xnetstream* pStream)
 {
@@ -6334,7 +7743,7 @@ static xnet_result xrtNetListenerStart(xnetlistener* pListener)
 	if ( !pListener || !pListener->pEngine || !pListener->pEngine->bRunning ) return XRT_NET_ERROR;
 	if ( pListener->bRunning ) return XRT_NET_OK;
 	if ( !__xnetAddrToSockAddr(&pListener->tConfig.tBindAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
-	pListener->hSocket = socket(pListener->tConfig.tBindAddr.iFamily, SOCK_STREAM, IPPROTO_TCP);
+	pListener->hSocket = __xnetSocketCreateStream(pListener->tConfig.tBindAddr.iFamily);
 	if ( !__xnetSocketIsValid(pListener->hSocket) ) return XRT_NET_ERROR;
 	(void)__xnetSocketApplyListenFlags(pListener->hSocket, pListener->tConfig.iFlags);
 	(void)__xnetSocketSetNonBlock(pListener->hSocket, true);
@@ -6354,7 +7763,7 @@ static xnet_result xrtNetListenerStart(xnetlistener* pListener)
 	}
 	(void)__xnetSocketUpdateLocalAddr(pListener->hSocket, &pListener->tConfig.tBindAddr);
 	pListener->pWorker = __xnetListenerPickWorker(pListener->pEngine, &pListener->tConfig);
-	pListener->iAcceptOpId = pListener->pEngine->iNextStreamId++;
+	pListener->iAcceptOpId = 0;
 	pListener->bAcceptArmed = false;
 	pListener->bRunning = true;
 	return XRT_NET_OK;
@@ -6436,14 +7845,23 @@ static xnetstream* __xnetListenerWrapAcceptedSocket(xnetlistener* pListener, con
 		return NULL;
 	}
 	pStream->hSocket = pRaw->hSocket;
-	(void)__xnetSocketSetNonBlock(pStream->hSocket, true);
+	(void)__xnetSocketSetNonBlock(pStream->hSocket, false);
 	if ( (pListener->tConfig.iFlags & XNET_LISTEN_F_NO_DELAY) != 0 ) {
 		(void)__xnetSocketSetNoDelay(pStream->hSocket);
 	}
 	if ( (pListener->tConfig.iFlags & XNET_LISTEN_F_KEEPALIVE) != 0 ) {
 		(void)__xnetSocketSetKeepAlive(pStream->hSocket);
 	}
-	(void)__xnetAddrFromSockAddr(&pStream->tRemoteAddr, (const struct sockaddr*)&pRaw->tStorage);
+	if ( pRaw->iAddrLen > 0 && ((const struct sockaddr*)&pRaw->tStorage)->sa_family != 0 ) {
+		(void)__xnetAddrFromSockAddr(&pStream->tRemoteAddr, (const struct sockaddr*)&pRaw->tStorage);
+	} else {
+		struct sockaddr_storage tPeer;
+		socklen_t iPeerLen = (socklen_t)sizeof(tPeer);
+		memset(&tPeer, 0, sizeof(tPeer));
+		if ( getpeername(pStream->hSocket, (struct sockaddr*)&tPeer, &iPeerLen) == 0 ) {
+			(void)__xnetAddrFromSockAddr(&pStream->tRemoteAddr, (const struct sockaddr*)&tPeer);
+		}
+	}
 	(void)__xnetSocketUpdateLocalAddr(pStream->hSocket, &pStream->tLocalAddr);
 	if ( pStream->pTls ) {
 		if ( __xnetStreamPostTlsHandshake(pStream) != XRT_NET_OK ) {
@@ -6508,7 +7926,6 @@ static bool __xnetListenerCancelSyncAcceptWait(xnetlistener* pListener, ptr pCtx
 	pListener->tAcceptWait.pfnWait = NULL;
 	pListener->tAcceptWait.pfnCanAccept = NULL;
 	pListener->tAcceptWait.pCtx = NULL;
-	(void)__xnetListenerCancelAcceptWatch(pListener);
 	return true;
 }
 static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
@@ -6548,6 +7965,33 @@ static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
 		return;
 	}
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
+}
+static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xsocket hSocket)
+{
+	__xnet_listener_accept_raw tRaw;
+	xnetstream* pStream = NULL;
+	if ( !pListener ) return;
+	pListener->bAcceptArmed = false;
+	if ( !__xnetSocketIsValid(hSocket) ) {
+		__xnetListenerHandleAcceptEvent(pListener);
+		return;
+	}
+	if ( !__xnetListenerCanDispatchAccept(pListener) ) {
+		__xnetSocketCloseHandle(&hSocket);
+		return;
+	}
+	memset(&tRaw, 0, sizeof(tRaw));
+	tRaw.hSocket = hSocket;
+	pStream = __xnetListenerWrapAcceptedSocket(pListener, &tRaw, NULL);
+	if ( pStream ) {
+		__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
+		return;
+	}
+	__xnetSocketCloseHandle(&hSocket);
+	if ( __xnetListenerCanDispatchAccept(pListener) &&
+		pListener->bRunning && __xnetSocketIsValid(pListener->hSocket) ) {
+		(void)__xnetListenerArmAcceptWatch(pListener);
+	}
 }
 static xnetstream* __xnetListenerTryAcceptOneEx(xnetlistener* pListener, ptr pUserData, int* pSysErr)
 {
@@ -6599,10 +8043,7 @@ static void xrtNetStreamDestroy(xnetstream* pStream)
 		__xnetStreamSetError("cannot destroy stream while an async waiter or task still holds it.");
 		return;
 	}
-	__xnetStreamNotifySyncReadable(pStream, pStream->iCloseReason == XRT_NET_AGAIN ? XRT_NET_CLOSED : pStream->iCloseReason);
-	__xnetStreamNotifySyncWritable(pStream, pStream->iCloseReason == XRT_NET_AGAIN ? XRT_NET_CLOSED : pStream->iCloseReason);
-	__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
-	__xnetStreamNotifySyncClose(pStream, pStream->iCloseReason == XRT_NET_AGAIN ? XRT_NET_CLOSED : pStream->iCloseReason);
+	__xnetStreamNotifyDestroyWaiters(pStream);
 	xrtNetChainClear(&pStream->tRxChain);
 	xrtNetChainClear(&pStream->tSendQ.tQueue);
 	__xnetStreamFinalizeSocketClose(pStream);
@@ -6626,27 +8067,24 @@ static xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectcon
 		}
 	}
 	if ( !__xnetAddrToSockAddr(&pStream->tRemoteAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
-	hSocket = socket(pStream->tRemoteAddr.iFamily, SOCK_STREAM, IPPROTO_TCP);
+	hSocket = __xnetSocketCreateStream(pStream->tRemoteAddr.iFamily);
 	if ( !__xnetSocketIsValid(hSocket) ) return XRT_NET_ERROR;
 	(void)__xnetSocketApplyConnectFlags(hSocket, pCfg ? pCfg->iFlags : XNET_CONNECT_F_NONE);
-	if ( !__xnetSocketConnectWithTimeout(hSocket, (const struct sockaddr*)&tStorage, iAddrLen, pCfg ? pCfg->iConnectTimeoutMs : 5000u) ) {
+	if ( !__xnetStreamUseNativePortOps(pStream) ) {
+		__xnetStreamSetError("mainline stream connect requires a native xnet backend.");
 		__xnetSocketCloseHandle(&hSocket);
 		return XRT_NET_ERROR;
 	}
 	pStream->hSocket = hSocket;
-	(void)__xnetSocketUpdateLocalAddr(pStream->hSocket, &pStream->tLocalAddr);
-	(void)__xnetSocketUpdateRemoteAddr(pStream->hSocket, &pStream->tRemoteAddr);
+	(void)__xnetSocketSetNonBlock(pStream->hSocket, false);
 	if ( !__xnetStreamAttachTls(pStream, pCfg ? pCfg->pTlsConfig : NULL, false) ) {
 		__xnetSocketCloseHandle(&pStream->hSocket);
 		return XRT_NET_ERROR;
 	}
-	if ( pStream->pTls ) {
-		if ( __xnetStreamPostTlsHandshake(pStream) != XRT_NET_OK ) {
-			(void)__xnetStreamDriveTlsHandshake(pStream);
-		}
-	} else if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_CONNECT) ) {
-		__xnetStreamEmitOpen(pStream);
-		(void)__xnetStreamArmRecvWatch(pStream);
+	if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_CONNECT) ) {
+		__xnetStreamDetachTls(pStream);
+		__xnetSocketCloseHandle(&pStream->hSocket);
+		return XRT_NET_ERROR;
 	}
 	return XRT_NET_OK;
 }
@@ -6657,50 +8095,38 @@ static void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 	if ( pStream->bClosing ) {
 		if ( (iFlags & XNET_CLOSE_F_ABORT) == 0 || (pStream->iFlags & XNET_CLOSE_F_ABORT) != 0 ) return;
 		pStream->iFlags |= XNET_CLOSE_F_ABORT;
-		__xnetStreamFinalizeSocketClose(pStream);
 		xrtNetChainClear(&pStream->tRxChain);
 		xrtNetChainClear(&pStream->tSendQ.tQueue);
 		pStream->tSendQ.iQueuedBytes = 0;
 		pStream->tSendQ.bHighWaterHit = false;
-		__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
-		__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
-		__xnetStreamDetachTls(pStream);
-		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 		return;
 	}
 	pStream->bClosing = true;
 	pStream->iFlags = iFlags;
 	if ( (iFlags & XNET_CLOSE_F_ABORT) != 0 ) {
-		__xnetStreamFinalizeSocketClose(pStream);
 		xrtNetChainClear(&pStream->tRxChain);
 		xrtNetChainClear(&pStream->tSendQ.tQueue);
 		pStream->tSendQ.iQueuedBytes = 0;
 		pStream->tSendQ.bHighWaterHit = false;
-		__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
-		__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
-		__xnetStreamDetachTls(pStream);
-		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 		return;
 	}
 	if ( pStream->pTls && __xnetStreamTlsReady(pStream) && !pStream->bTlsCloseQueued ) {
 		pStream->bTlsCloseQueued = true;
 		if ( xrtNetTlsSessionQueueClose(pStream->pTls) == XRT_NET_OK ) {
 			if ( !__xnetStreamQueueTlsCipher(pStream) ) {
-				__xnetStreamFinalizeSocketClose(pStream);
-				__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
-				__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
-				__xnetStreamDetachTls(pStream);
-				__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+				__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 				return;
 			}
 		}
 	}
 	if ( pStream->tSendQ.iQueuedBytes == 0 ) {
-		__xnetStreamFinalizeSocketClose(pStream);
-		__xnetStreamNotifySyncReadable(pStream, XRT_NET_CLOSED);
-		__xnetStreamNotifySyncDrain(pStream, XRT_NET_CLOSED);
-		__xnetStreamDetachTls(pStream);
-		__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
+		if ( (pStream->iFlags & XNET_CLOSE_F_WAIT_PEER) != 0 ) {
+			__xnetStreamBeginGracefulCloseWait(pStream);
+		} else {
+			__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
+		}
 		return;
 	}
 	__xnetStreamKickWrite(pStream);
@@ -6781,15 +8207,15 @@ static void xrtNetStreamResumeRead(xnetstream* pStream)
 		if ( __xnetStreamPostRecvDispatch(pStream) != XRT_NET_OK ) {
 			__xnetStreamDispatchRecv(pStream);
 		}
-		return;
+		if ( xrtNetChainBytes(&pStream->tRxChain) > 0 ) {
+			return;
+		}
 	}
 	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
-		if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
-			(void)__xnetStreamPostSocketRecvPump(pStream);
-		} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+		if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
 			(void)__xnetStreamDriveTlsHandshake(pStream);
 		} else {
-			(void)__xnetStreamSocketPumpRecv(pStream);
+			(void)__xnetStreamArmRecvWatch(pStream);
 		}
 	}
 }
@@ -6820,35 +8246,84 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 	if ( !pEvents || iCount == 0 ) return;
 	for ( uint32 i = 0; i < iCount; ++i ) {
 		const xnetportevent* pEvent = &pEvents[i];
-		if ( pEvent->iType == XNET_PORT_EVENT_ACCEPT && pEvent->iOpId != 0 ) {
+		if ( pEvent->iType == XNET_PORT_EVENT_ACCEPT &&
+			(pEvent->iFlags & XNET_PORT_EVENT_F_ACCEPTED_OPEN) == 0 &&
+			pEvent->iOpId != 0 ) {
 			xnetlistener* pListener = (xnetlistener*)pEvent->pUserData;
 			if ( pListener && pListener->iAcceptOpId == pEvent->iOpId ) {
-				__xnetListenerHandleAcceptEvent(pListener);
+				if ( pEvent->iStatus == XRT_NET_OK && __xnetSocketIsValid((xsocket)pEvent->hSocket) ) {
+					__xnetListenerHandleAcceptedSocketEvent(pListener, (xsocket)pEvent->hSocket);
+				} else {
+					__xnetListenerHandleAcceptEvent(pListener);
+				}
+			} else if ( pEvent->iStatus == XRT_NET_OK && __xnetSocketIsValid((xsocket)pEvent->hSocket) ) {
+				xsocket hStaleSocket = (xsocket)pEvent->hSocket;
+				__xnetSocketCloseHandle(&hStaleSocket);
 			}
 		} else if ( pEvent->iType == XNET_PORT_EVENT_CONNECT || pEvent->iType == XNET_PORT_EVENT_ACCEPT ) {
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
-			if ( pStream && pStream->pTls ) {
-				(void)__xnetStreamDriveTlsHandshake(pStream);
-			} else {
-				__xnetStreamEmitOpen(pStream);
-				(void)__xnetStreamArmRecvWatch(pStream);
+			if ( pStream ) {
+				if ( pEvent->iStatus != XRT_NET_OK ) {
+					if ( pStream->pEvents && pStream->pEvents->OnError ) {
+						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+					}
+					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+				} else {
+					if ( __xnetSocketIsValid(pStream->hSocket) ) {
+						(void)__xnetSocketUpdateLocalAddr(pStream->hSocket, &pStream->tLocalAddr);
+						(void)__xnetSocketUpdateRemoteAddr(pStream->hSocket, &pStream->tRemoteAddr);
+					}
+					if ( pStream->pTls ) {
+						(void)__xnetStreamDriveTlsHandshake(pStream);
+					} else {
+						__xnetStreamEmitOpen(pStream);
+						(void)__xnetStreamArmRecvWatch(pStream);
+					}
+				}
 			}
+			__xnetStreamReleaseAsyncHold(pStream);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_SEND ) {
-			__xnetStreamHandleSendEvent((xnetstream*)pEvent->pUserData, pEvent);
+			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
+			__xnetStreamHandleSendEvent(pStream, pEvent);
+			__xnetStreamReleaseAsyncHold(pStream);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_RECV ) {
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
+			if ( pStream ) {
+				pStream->bRecvArmed = false;
+			}
+			#if defined(XNET_DEBUG_IOCP_NATIVE)
+				if ( pStream && __xnetStreamUseNativePortIO(pStream) ) {
+					fprintf(stderr, "[STREAM] recv event stream=%llu bytes=%u chain=%p status=%d flags=0x%x\n",
+						(unsigned long long)pStream->iId, pEvent->iBytes, (void*)pEvent->pChain, (int)pEvent->iStatus, pEvent->iFlags);
+				}
+			#endif
 			if ( pEvent->pChain ) {
 				__xnetStreamHandleRecvEvent(pStream, pEvent->pChain);
 			} else if ( pStream ) {
-				pStream->bRecvArmed = false;
-				if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+				#if defined(XNET_DEBUG_CLOSE_DIAG)
+					if ( pEvent->iStatus == XRT_NET_CLOSED || (pEvent->iFlags & XNET_PORT_EVENT_F_EOF) != 0 ) {
+						fprintf(stderr, "[CLOSE_DIAG][STREAM] recv eof stream=%llu tls=%d closing=%d flags=0x%x socket=%p\n",
+							(unsigned long long)pStream->iId,
+							pStream->pTls ? 1 : 0,
+							pStream->bClosing ? 1 : 0,
+							(unsigned)pStream->iFlags,
+							(void*)(uintptr_t)pStream->hSocket);
+					}
+				#endif
+				if ( pEvent->iStatus == XRT_NET_CLOSED || (pEvent->iFlags & XNET_PORT_EVENT_F_EOF) != 0 ) {
+					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+				} else if ( pEvent->iStatus != XRT_NET_OK ) {
+					if ( pStream->pEvents && pStream->pEvents->OnError ) {
+						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
+					}
+					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+				} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
 					(void)__xnetStreamDriveTlsHandshake(pStream);
-				} else if ( pStream->bReadPaused ) {
-					/* Real pause/read backpressure: leave bytes in the socket until resume. */
-				} else {
-					(void)__xnetStreamSocketPumpRecv(pStream);
+				} else if ( !pStream->bReadPaused ) {
+					(void)__xnetStreamArmRecvWatch(pStream);
 				}
 			}
+			__xnetStreamReleaseAsyncHold(pStream);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			if ( pStream && pStream->pEvents && pStream->pEvents->OnError ) {
@@ -6866,6 +8341,9 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #ifndef XRT_XNET_DGRAM_H
 #define XRT_XNET_DGRAM_H
 // (skipped duplicate include: D:/Git/xrt/lib/xnet_engine.h)
+#if defined(XNET_DEBUG_IOCP_NATIVE)
+	#include <stdio.h>
+#endif
 #if !defined(_WIN32) && !defined(_WIN64)
 	#include <errno.h>
 	#include <fcntl.h>
@@ -6875,7 +8353,8 @@ typedef struct {
 	void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
 	void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
 } xnetdgramevents;
-#define __XNET_DGRAM_ASYNC_SEND_COPY  1u
+#define __XNET_DGRAM_ASYNC_SEND_COPY   1u
+#define __XNET_DGRAM_ASYNC_SEND_NATIVE 2u
 typedef struct {
 	xdgramsock* pSock;
 	xnetaddr tTo;
@@ -6940,6 +8419,36 @@ static void __xnetDgramSetError(const char* sError)
 		xrtSetError((str)sError, FALSE);
 	#else
 		(void)sError;
+	#endif
+}
+static bool __xnetDgramUseNativePortIO(xdgramsock* pSock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortIOCPOps() &&
+			__xnetDgramSocketIsValid(pSock->hSocket);
+	#elif defined(__linux__)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort) &&
+			__xnetDgramSocketIsValid(pSock->hSocket);
+	#else
+		(void)pSock;
+		return false;
+	#endif
+}
+static bool __xnetDgramUseNativePortOps(xdgramsock* pSock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortIOCPOps();
+	#elif defined(__linux__)
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort);
+	#else
+		(void)pSock;
+		return false;
 	#endif
 }
 static void __xnetDgramAddAsyncHold(xdgramsock* pSock)
@@ -7037,17 +8546,17 @@ static int __xnetDgramSocketLastErr(void)
 		return errno;
 	#endif
 }
-static bool __xnetDgramSocketWouldBlock(int iErr)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		return iErr == WSAEWOULDBLOCK || iErr == WSAEINPROGRESS || iErr == WSAEALREADY;
-	#else
-		return iErr == EINPROGRESS || iErr == EWOULDBLOCK || iErr == EAGAIN || iErr == EALREADY;
-	#endif
-}
 static bool __xnetDgramSocketIsValid(xsocket hSocket)
 {
 	return hSocket != XNET_SOCKET_INVALID;
+}
+static xsocket __xnetDgramSocketCreate(int iFamily)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return WSASocket(iFamily, SOCK_DGRAM, IPPROTO_UDP, NULL, 0, WSA_FLAG_OVERLAPPED);
+	#else
+		return socket(iFamily, SOCK_DGRAM, IPPROTO_UDP);
+	#endif
 }
 static void __xnetDgramSocketCloseHandle(xsocket* phSocket)
 {
@@ -7198,60 +8707,23 @@ static bool __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, 
 	__xnetDgramFreeTempChain(pChain);
 	return true;
 }
-static bool __xnetDgramSocketPumpRecv(xdgramsock* pSock)
+static bool __xnetDgramSubmitNativeSend(xdgramsock* pSock, __xnet_dgram_async_op* pOp)
 {
-	char aBuf[8192];
-	uint32 iPackets = 0;
-	bool bReadAny = false;
-	if ( !pSock || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
-	for ( ;; ) {
-		struct sockaddr_storage tStorage;
-		socklen_t iAddrLen = (socklen_t)sizeof(tStorage);
-		xnetaddr tFrom;
-		int iRecv;
-		memset(&tStorage, 0, sizeof(tStorage));
-		memset(&tFrom, 0, sizeof(tFrom));
-		iRecv = recvfrom(pSock->hSocket, aBuf, sizeof(aBuf), 0, (struct sockaddr*)&tStorage, &iAddrLen);
-		if ( iRecv >= 0 ) {
-			bReadAny = true;
-			(void)__xnetAddrFromSockAddr(&tFrom, (const struct sockaddr*)&tStorage);
-			if ( !__xnetDgramDispatchPacket(pSock, &tFrom, aBuf, (size_t)iRecv) ) {
-				return bReadAny;
-			}
-			iPackets++;
-			if ( pSock->iRecvBatch > 0 && iPackets >= pSock->iRecvBatch ) break;
-			continue;
-		}
-		{
-			int iErr = __xnetDgramSocketLastErr();
-			if ( __xnetDgramSocketWouldBlock(iErr) ) break;
-			if ( pSock->tRecvWait.pfnWait != NULL ) {
-				__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
-			}
-			if ( pSock->pEvents && pSock->pEvents->OnError ) {
-				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, iErr);
-			}
-			break;
-		}
-	}
-	if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) ) {
-		(void)__xnetDgramArmRecvWatch(pSock);
-	}
-	return bReadAny;
-}
-static xnet_result __xnetDgramSocketSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
-{
-	struct sockaddr_storage tStorage;
-	socklen_t iAddrLen = 0;
-	int iSent;
-	if ( !pSock || !pTo || !__xnetDgramSocketIsValid(pSock->hSocket) || (!pData && iLen > 0) ) return XRT_NET_ERROR;
-	if ( !__xnetAddrToSockAddr(pTo, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
-	iSent = sendto(pSock->hSocket, (const char*)pData, (int)iLen, 0, (const struct sockaddr*)&tStorage, iAddrLen);
-	if ( iSent >= 0 ) return XRT_NET_OK;
-	if ( pSock->pEvents && pSock->pEvents->OnError ) {
-		pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, __xnetDgramSocketLastErr());
-	}
-	return XRT_NET_ERROR;
+	xnetportsubmit tSubmit;
+	xnetspan tSpan;
+	if ( !pSock || !pOp || !pSock->pWorker || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
+	memset(&tSubmit, 0, sizeof(tSubmit));
+	memset(&tSpan, 0, sizeof(tSpan));
+	tSpan.pData = pOp->aData;
+	tSpan.iLen = pOp->iLen;
+	tSubmit.iOpType = XNET_PORT_OP_SENDTO;
+	tSubmit.iOpId = (uint64)(uintptr_t)pOp;
+	tSubmit.hSocket = (intptr_t)pSock->hSocket;
+	tSubmit.pUserData = pOp;
+	tSubmit.pVec = &tSpan;
+	tSubmit.iVecCount = 1;
+	tSubmit.tAddr = pOp->tTo;
+	return xrtNetPortSubmit(&pSock->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
 }
 static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
 {
@@ -7263,8 +8735,16 @@ static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
 		return;
 	}
 	if ( pOp->iType == __XNET_DGRAM_ASYNC_SEND_COPY ) {
-		(void)__xnetDgramSocketSendTo(pSock, &pOp->tTo, pOp->aData, pOp->iLen);
+		if ( !__xnetDgramUseNativePortIO(pSock) || !__xnetDgramSubmitNativeSend(pSock, pOp) ) {
+			if ( pSock->pEvents && pSock->pEvents->OnError ) {
+				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+			__xnetDgramReleaseAsyncHold(pSock);
+			XNET_FREE(pOp);
+		}
+		return;
 	}
+	__xnetDgramReleaseAsyncHold(pSock);
 	XNET_FREE(pOp);
 }
 static __xnet_dgram_async_op* __xnetDgramAllocAsyncCopy(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
@@ -7315,7 +8795,9 @@ static xnet_result __xnetDgramPostAsync(xdgramsock* pSock, __xnet_dgram_async_op
 		if ( pOp ) XNET_FREE(pOp);
 		return XRT_NET_ERROR;
 	}
+	__xnetDgramAddAsyncHold(pSock);
 	if ( xrtNetEnginePost(pSock->pEngine, pSock->pWorker->iId, __xnetDgramAsyncTask, pOp) != XRT_NET_OK ) {
+		__xnetDgramReleaseAsyncHold(pSock);
 		XNET_FREE(pOp);
 		return XRT_NET_ERROR;
 	}
@@ -7370,7 +8852,7 @@ static xnet_result xrtNetDgramStart(xdgramsock* pSock)
 	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning ) return XRT_NET_ERROR;
 	if ( pSock->bRunning ) return XRT_NET_OK;
 	if ( !__xnetAddrToSockAddr(&pSock->tLocalAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
-	pSock->hSocket = socket(pSock->tLocalAddr.iFamily, SOCK_DGRAM, IPPROTO_UDP);
+	pSock->hSocket = __xnetDgramSocketCreate(pSock->tLocalAddr.iFamily);
 	if ( !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
 	__xnetDgramApplyBindFlags(pSock->hSocket, pSock->iFlags);
 	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, true);
@@ -7381,6 +8863,12 @@ static xnet_result xrtNetDgramStart(xdgramsock* pSock)
 		__xnetDgramFinalizeSocketClose(pSock);
 		return XRT_NET_ERROR;
 	}
+	if ( !__xnetDgramUseNativePortOps(pSock) ) {
+		__xnetDgramSetError("mainline datagram sockets require a native xnet backend.");
+		__xnetDgramFinalizeSocketClose(pSock);
+		return XRT_NET_ERROR;
+	}
+	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, false);
 	(void)__xnetDgramSocketUpdateLocalAddr(pSock->hSocket, &pSock->tLocalAddr);
 	pSock->bRunning = true;
 	(void)__xnetDgramArmRecvWatch(pSock);
@@ -7417,9 +8905,41 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 		const xnetportevent* pEvent = &pEvents[i];
 		if ( pEvent->iType == XNET_PORT_EVENT_RECVFROM ) {
 			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
+			#if defined(XNET_DEBUG_IOCP_NATIVE)
+				if ( pSock && __xnetDgramUseNativePortIO(pSock) ) {
+					fprintf(stderr, "[DGRAM] recvfrom event sock=%llu bytes=%u chain=%p status=%d\n",
+						(unsigned long long)pSock->iId, pEvent->iBytes, (void*)pEvent->pChain, (int)pEvent->iStatus);
+				}
+			#endif
 			if ( pSock ) {
 				pSock->bRecvArmed = false;
-				(void)__xnetDgramSocketPumpRecv(pSock);
+				if ( pEvent->pChain ) {
+					if ( pSock->tRecvWait.pfnWait != NULL ) {
+						xnetdgrampkt* pPacket = xrtNetDgramPacketCreate(&pEvent->tAddr, NULL, 0);
+						if ( pPacket ) {
+							__xnetChainSplice(&pPacket->tChain, pEvent->pChain);
+							__xnetDgramNotifySyncRecv(pSock, XRT_NET_OK, pPacket);
+						} else {
+							__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
+						}
+					} else if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
+						pSock->pEvents->OnRecv(__xnetDgramOwner(pSock), pSock, &pEvent->tAddr, pEvent->pChain);
+					}
+					__xnetDgramFreeTempChain(pEvent->pChain);
+					if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) && !pSock->bRecvArmed ) {
+						(void)__xnetDgramArmRecvWatch(pSock);
+					}
+				} else {
+					if ( pEvent->iStatus != XRT_NET_OK && pSock->tRecvWait.pfnWait != NULL ) {
+						__xnetDgramNotifySyncRecv(pSock, pEvent->iStatus, NULL);
+					}
+					if ( pEvent->iStatus != XRT_NET_OK && pSock->pEvents && pSock->pEvents->OnError ) {
+						pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+					}
+					if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) && !pSock->bRecvArmed ) {
+						(void)__xnetDgramArmRecvWatch(pSock);
+					}
+				}
 			}
 		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {
 			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
@@ -7428,6 +8948,18 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 			}
 			if ( pSock && pSock->pEvents && pSock->pEvents->OnError ) {
 				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+		} else if ( pEvent->iType == XNET_PORT_EVENT_SENDTO ) {
+			__xnet_dgram_async_op* pOp = (__xnet_dgram_async_op*)pEvent->pUserData;
+			xdgramsock* pSock = pOp ? pOp->pSock : NULL;
+			if ( pSock && pEvent->iStatus != XRT_NET_OK && pSock->pEvents && pSock->pEvents->OnError ) {
+				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
+			}
+			if ( pSock ) {
+				__xnetDgramReleaseAsyncHold(pSock);
+			}
+			if ( pOp ) {
+				XNET_FREE(pOp);
 			}
 		}
 	}
@@ -7451,12 +8983,12 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 	#include <unistd.h>
 #endif
 /*
-    XNet V2 - Sync Core
-    Phase-1 scope in this header:
-      - future object and timed wait semantics
-      - hidden convenience engine for sync facades
-    Still pending:
-      - protocol-specific sync facades built on top of futures
+    XRT mainline synchronous wait and convenience runtime.
+    This header provides:
+      - future objects with thread and coroutine wait support
+      - monotonic timed-wait semantics for sync wrappers
+      - wait-source helpers used by stream, listener, and datagram sync paths
+      - a hidden convenience engine used by synchronous network facades
 */
 /* ============================== Local sync primitives ============================== */
 #define XNET_WAIT_INFINITE UINT32_C(0xffffffff)
@@ -7466,6 +8998,11 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 #else
 	typedef pthread_mutex_t __xnet_sync_mutex;
 	typedef pthread_cond_t __xnet_sync_cond;
+#if defined(CLOCK_MONOTONIC)
+	#define __XNET_SYNC_WAIT_CLOCK CLOCK_MONOTONIC
+#else
+	#define __XNET_SYNC_WAIT_CLOCK CLOCK_REALTIME
+#endif
 #endif
 typedef struct {
 	volatile long iLock;
@@ -7590,6 +9127,33 @@ static void __xnetSyncSetError(const char* sError)
 		(void)sError;
 	#endif
 }
+#if !defined(_WIN32) && !defined(_WIN64)
+static bool __xnetSyncMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
+{
+	uint64 iNs;
+	if ( !pTs ) return false;
+	if ( clock_gettime(__XNET_SYNC_WAIT_CLOCK, pTs) != 0 ) return false;
+	iNs = (uint64)pTs->tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
+	pTs->tv_sec += (time_t)(iNs / 1000000000ULL);
+	pTs->tv_nsec = (long)(iNs % 1000000000ULL);
+	return true;
+}
+static bool __xnetSyncInitCond(__xnet_sync_cond* pCond)
+{
+	pthread_condattr_t tAttr;
+	if ( !pCond ) return false;
+	if ( pthread_condattr_init(&tAttr) != 0 ) return false;
+	#if defined(CLOCK_MONOTONIC)
+		(void)pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC);
+	#endif
+	if ( pthread_cond_init(pCond, &tAttr) != 0 ) {
+		pthread_condattr_destroy(&tAttr);
+		return false;
+	}
+	pthread_condattr_destroy(&tAttr);
+	return true;
+}
+#endif
 static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return false;
@@ -7599,7 +9163,7 @@ static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 		return true;
 	#else
 		if ( pthread_mutex_init(&pFuture->hLock, NULL) != 0 ) return false;
-		if ( pthread_cond_init(&pFuture->hCond, NULL) != 0 ) {
+		if ( !__xnetSyncInitCond(&pFuture->hCond) ) {
 			pthread_mutex_destroy(&pFuture->hLock);
 			return false;
 		}
@@ -7651,13 +9215,8 @@ static bool __xnetFutureWaitOnce(xnetfuture* pFuture, uint32 iTimeoutMs)
 		if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
 			return pthread_cond_wait(&pFuture->hCond, &pFuture->hLock) == 0;
 		} else {
-			struct timespec tNow;
 			struct timespec tAbs;
-			uint64 iNs;
-			if ( clock_gettime(CLOCK_REALTIME, &tNow) != 0 ) return false;
-			iNs = (uint64)tNow.tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
-			tAbs.tv_sec = tNow.tv_sec + (time_t)(iNs / 1000000000ULL);
-			tAbs.tv_nsec = (long)(iNs % 1000000000ULL);
+			if ( !__xnetSyncMakeAbsTimeout(&tAbs, iTimeoutMs) ) return false;
 			return pthread_cond_timedwait(&pFuture->hCond, &pFuture->hLock, &tAbs) == 0;
 		}
 	#endif
@@ -7966,12 +9525,7 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 		__xnetFutureUnlock(pFuture);
 		return iStatus;
 	}
-	if ( pFuture->iCoWaitActive != 0 ) {
-		__xnetFutureUnlock(pFuture);
-		__xnetSyncSetError("multiple coroutine waiters on one future are not supported yet.");
-		return XRT_NET_ERROR;
-	}
-	pFuture->iCoWaitActive = 1;
+	pFuture->iCoWaitActive++;
 	__xnetFutureUnlock(pFuture);
 	if ( iWaitMode == 0 ) {
 		bWaitOk = xrtCoWaitEvent(pEvent);
@@ -7983,7 +9537,9 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 		bWaitOk = xrtCoWaitEventUntil(pEvent, iDeadlineMs);
 	}
 	__xnetFutureLock(pFuture);
-	pFuture->iCoWaitActive = 0;
+	if ( pFuture->iCoWaitActive > 0 ) {
+		pFuture->iCoWaitActive--;
+	}
 	iStatus = pFuture->bDone ? pFuture->iStatus : XRT_NET_AGAIN;
 	__xnetFutureUnlock(pFuture);
 	if ( !bWaitOk && iStatus == XRT_NET_AGAIN ) {
@@ -9425,11 +10981,12 @@ static xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, 
 #define XRT_XCODEC_H
 // (skipped duplicate include: D:/Git/xrt/lib/xnet_mem.h)
 /*
-    XNet V2 - Codec Adapter and Core Framing Helpers
-    Phase-2 scope in this header:
-      - backend-neutral parser adapter contract
+    XRT mainline codec adapter and framing helpers.
+    This header defines:
+      - the backend-neutral parser contract used by xnet-based protocols
       - common frame metadata over xnetchain
-      - line and length-field framing codecs
+      - reusable line and length-field framing helpers
+      - shared status codes consumed by HTTP and WebSocket codecs
 */
 /* ============================== Common codec status and frame types ============================== */
 typedef enum {
@@ -9710,11 +11267,12 @@ static const xcodecparserops* xrtCodecLengthOps(void)
 #define XRT_XCODEC_HTTP1_H
 // (skipped duplicate include: D:/Git/xrt/lib/xcodec.h)
 /*
-    XNet V2 - HTTP/1 Parser Skeleton
-    Phase-2 scope in this header:
-      - parse request/response start-line and headers from xnetchain
-      - expose content-length / chunked / upgrade metadata
-      - provide whole-message chunked body delimiting and decode helpers
+    XRT mainline HTTP/1.1 codec.
+    This header provides:
+      - request/response start-line and header parsing over xnetchain
+      - content-length, chunked, keep-alive, and upgrade metadata extraction
+      - whole-message delimiting for fixed-length and chunked bodies
+      - chunk decode helpers used by xhttp and xhttpd
 */
 /* ============================== HTTP/1 public model ============================== */
 #define XCODEC_HTTP1_MAX_HEADERS 32u
@@ -9961,7 +11519,7 @@ static size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* 
 	}
 	return iCopied;
 }
-/* ============================== HTTP/1 skeleton parser ============================== */
+/* ============================== HTTP/1 parser ============================== */
 static xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
 {
 	static const uint8 aHeadEnd[] = { '\r', '\n', '\r', '\n' };
@@ -10138,11 +11696,12 @@ static xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFr
 #define XRT_XCODEC_WS_H
 // (skipped duplicate include: D:/Git/xrt/lib/xcodec.h)
 /*
-    XNet V2 - WebSocket Frame Skeleton
-    Phase-2 scope in this header:
-      - parse frame header, payload length, FIN, opcode, and masking metadata
-      - expose payload boundaries over xnetchain
-      - leave message reassembly to the upper WebSocket layer
+    XRT mainline WebSocket frame codec.
+    This header provides:
+      - frame header parsing for FIN/opcode/mask/payload length
+      - payload boundary metadata over xnetchain
+      - masking helpers used by the upper WebSocket layer
+    Message reassembly remains the responsibility of xws.
 */
 /* ============================== WebSocket public model ============================== */
 #define XCODEC_WS_OPCODE_CONT   0x0u
@@ -10162,7 +11721,7 @@ typedef struct {
 	uint64 iPayloadLen;
 	size_t iHeaderBytes;
 } xcodecwsframeinfo;
-/* ============================== WebSocket skeleton parser ============================== */
+/* ============================== WebSocket frame parser ============================== */
 static void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo)
 {
 	if ( !pInfo ) return;
@@ -10247,15 +11806,16 @@ static void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_
 // (skipped duplicate include: D:/Git/xrt/lib/xnet_stream.h)
 // (skipped duplicate include: D:/Git/xrt/lib/xnet_sync.h)
 /*
-    XNet V2 - HTTP Client Rebuild Skeleton
-    Phase-3 scope in this header:
+    XRT mainline HTTP/1.1 client on top of xnet.
+    This header provides:
       - request and response objects
-      - one-shot async HTTP/1.1 client transaction on xnet_stream
-      - sync facade over the same async transport core
+      - async HTTP/1.1 transactions over plain TCP or builtin TLS
+      - sync facades that reuse the same async transport core
+      - serial keep-alive connection reuse for the same origin
     Current limitations:
-      - one request per connection, default Connection: keep-alive
-      - whole-body chunked transfer is supported, but trailers are metadata-only
-      - streaming bodies are still deferred to later protocol work
+      - whole-body request/response handling is the primary path
+      - chunked transfer is supported, but trailers remain metadata-only
+      - streaming request/response bodies are still deferred
 */
 #define XHTTP_METHOD_CAP         16u
 #define XHTTP_URL_CAP            1024u
@@ -10989,15 +12549,16 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	}
 	xrtCodecFrameConsume(pChain, &tFrame);
 	bReusable = __xhttpResponseReusable(pTx, &tMsg);
-	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 	if ( bReusable && pConn ) {
 		pConn->pTx = NULL;
 		pTx->pConn = NULL;
 		pTx->pStream = NULL;
 		(void)__xhttpPoolPut(pConn);
+		(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 		__xhttpTxPostCleanup(pTx);
 		return;
 	}
+	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 }
 static void __xhttpClientOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
@@ -11167,16 +12728,15 @@ static xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest
 	#include <sched.h>
 #endif
 /*
-    XNet V2 - HTTP Server Rebuild Skeleton
-    Phase-3 scope in this header:
-      - HTTP server wrapper on top of xnet_stream
+    XRT mainline HTTP/1.1 server on top of xnet.
+    This header provides:
+      - listener-driven HTTP server lifecycle on top of xnet_stream
       - request and response materialization helpers
-      - plain HTTP and builtin TLS loopback service path
+      - plain HTTP and builtin TLS service paths
+      - serial keep-alive reuse on a single accepted connection
     Current limitations:
-      - serial keep-alive reuse only
-      - client-side connection pooling is still deferred
-      - chunked request and response bodies are whole-message only
-      - static files, routing tables, and upgrade paths are deferred
+      - chunked request and response bodies are whole-message oriented
+      - static files, routing tables, and generic upgrade dispatch are deferred
 */
 #define XHTTPD_METHOD_CAP         16u
 #define XHTTPD_TARGET_CAP         256u
@@ -11226,7 +12786,6 @@ typedef struct {
 	uint32 iFlags;
 	uint32 iBacklog;
 	uint32 iRecvLimit;
-	uint32 iAcceptPollMs;
 	const xtlsconfig* pTlsConfig;
 } xhttpdconfig;
 typedef struct {
@@ -11252,12 +12811,6 @@ struct xrt_httpd_server {
 	volatile long iConnLock;
 	volatile long bRunning;
 	xhttpdconn* pConnHead;
-#if defined(_WIN32) || defined(_WIN64)
-	HANDLE hAcceptThread;
-#else
-	pthread_t hAcceptThread;
-	bool bAcceptThreadStarted;
-#endif
 };
 static char __xhttpdToLower(char ch)
 {
@@ -11415,7 +12968,6 @@ static void xrtHttpdConfigInit(xhttpdconfig* pCfg)
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
 	pCfg->iBacklog = 128u;
 	pCfg->iRecvLimit = 1024u * 1024u;
-	pCfg->iAcceptPollMs = 5u;
 }
 static void xrtHttpdRequestInit(xhttpdrequest* pReq)
 {
@@ -11645,6 +13197,24 @@ static void __xhttpdEmitServerError(xhttpdserver* pServer, xhttpdconn* pConn, in
 		pServer->tEvents.OnError(pServer->pUserData, pServer, pConn, iSysErr);
 	}
 }
+static bool __xhttpdIsBenignStreamError(xhttpdconn* pConn, xnetstream* pStream, int iSysErr)
+{
+	if ( pConn && __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return true;
+	if ( pStream && pStream->bClosing ) return true;
+	if ( pConn && !pConn->bResponseInFlight && iSysErr == -1 ) return true;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( iSysErr == WSAECONNRESET || iSysErr == WSAECONNABORTED || iSysErr == WSAESHUTDOWN ||
+			iSysErr == WSAENOTSOCK || iSysErr == WSA_OPERATION_ABORTED ) {
+			return true;
+		}
+	#else
+		if ( iSysErr == ECONNRESET || iSysErr == ECONNABORTED || iSysErr == EPIPE ||
+			iSysErr == ESHUTDOWN || iSysErr == ENOTSOCK || iSysErr == EBADF ) {
+			return true;
+		}
+	#endif
+	return false;
+}
 static bool __xhttpdSendResponseAndClose(xhttpdconn* pConn, const xhttpdresponse* pResp)
 {
 	char* pBytes = NULL;
@@ -11691,7 +13261,12 @@ static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetst
 	(void)pListener;
 	if ( !pServer || !pStream ) return false;
 	pConn = (xhttpdconn*)xrtNetStreamGetUserData(pStream);
-	if ( !pConn ) return false;
+	if ( !pConn ) {
+		pConn = (xhttpdconn*)XNET_ALLOC(sizeof(xhttpdconn));
+		if ( !pConn ) return false;
+		memset(pConn, 0, sizeof(xhttpdconn));
+		xrtNetStreamSetUserData(pStream, pConn);
+	}
 	pConn->pServer = pServer;
 	pConn->pStream = pStream;
 	__xhttpdServerAddConn(pServer, pConn);
@@ -11768,6 +13343,14 @@ static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result i
 {
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;
 	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
+	#if defined(XNET_DEBUG_CLOSE_DIAG)
+		fprintf(stderr, "[CLOSE_DIAG][HTTPD] close conn=%p stream=%p reason=%d keepalive=%d inflight=%d\n",
+			(void*)pConn,
+			(void*)pStream,
+			(int)iReason,
+			pConn ? (pConn->bKeepAlive ? 1 : 0) : 0,
+			pConn ? (pConn->bResponseInFlight ? 1 : 0) : 0);
+	#endif
 	(void)pStream;
 	if ( pServer && pServer->tEvents.OnClose ) {
 		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
@@ -11778,8 +13361,28 @@ static void __xhttpdStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;
 	xhttpdserver* pServer = pConn ? pConn->pServer : NULL;
-	(void)pStream;
+	if ( __xhttpdIsBenignStreamError(pConn, pStream, iSysErr) ) return;
 	__xhttpdEmitServerError(pServer, pConn, iSysErr);
+}
+static void __xhttpdAcceptReady(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx)
+{
+	xhttpdserver* pServer = (xhttpdserver*)pCtx;
+	(void)pListener;
+	(void)pStream;
+	if ( !pServer || __xhttpdAtomicLoad(&pServer->bRunning) == 0 ) return;
+	if ( pServer->pListener && pServer->pListener->bRunning ) {
+		(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xhttpdAcceptReady, NULL, pServer);
+	}
+	if ( iStatus != XRT_NET_OK && pServer->tEvents.OnError ) {
+		pServer->tEvents.OnError(pServer->pUserData, pServer, NULL, -1);
+	}
+}
+static void __xhttpdArmAcceptTask(xnetworker* pWorker, ptr pArg)
+{
+	xhttpdserver* pServer = (xhttpdserver*)pArg;
+	(void)pWorker;
+	if ( !pServer || !pServer->pListener || __xhttpdAtomicLoad(&pServer->bRunning) == 0 ) return;
+	(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xhttpdAcceptReady, NULL, pServer);
 }
 static const xnetlistenerevents* __xhttpdListenerEvents(void)
 {
@@ -11801,39 +13404,6 @@ static const xnetstreamevents* __xhttpdStreamEvents(void)
 		NULL
 	};
 	return &tEvents;
-}
-#if defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI __xhttpdAcceptThread(LPVOID pArg)
-#else
-static void* __xhttpdAcceptThread(void* pArg)
-#endif
-{
-	xhttpdserver* pServer = (xhttpdserver*)pArg;
-	while ( pServer && __xhttpdAtomicLoad(&pServer->bRunning) != 0 ) {
-		xhttpdconn* pConn = NULL;
-		if ( pServer->pListener && pServer->pListener->bRunning ) {
-			pConn = (xhttpdconn*)XNET_ALLOC(sizeof(xhttpdconn));
-			if ( pConn ) {
-				xnetstream* pStream;
-				memset(pConn, 0, sizeof(xhttpdconn));
-				pConn->pServer = pServer;
-				pStream = __xnetListenerTryAcceptOne(pServer->pListener, pConn);
-				if ( !pStream ) {
-					XNET_FREE(pConn);
-				}
-			}
-		}
-		#if defined(_WIN32) || defined(_WIN64)
-			Sleep(pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u);
-		#else
-			usleep((useconds_t)((pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u) * 1000u));
-		#endif
-	}
-	#if !defined(_WIN32) && !defined(_WIN64)
-		return NULL;
-	#else
-		return 0;
-	#endif
 }
 static xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData)
 {
@@ -11875,25 +13445,13 @@ static xnet_result xrtHttpdStart(xhttpdserver* pServer)
 		return XRT_NET_ERROR;
 	}
 	(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 1, 0);
-	#if defined(_WIN32) || defined(_WIN64)
-		pServer->hAcceptThread = CreateThread(NULL, 0, __xhttpdAcceptThread, pServer, 0, NULL);
-		if ( !pServer->hAcceptThread ) {
-			(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-	#else
-		if ( pthread_create(&pServer->hAcceptThread, NULL, __xhttpdAcceptThread, pServer) != 0 ) {
-			(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-		pServer->bAcceptThreadStarted = true;
-	#endif
+	if ( xrtNetEnginePost(pServer->pEngine, pServer->pListener->pWorker->iId, __xhttpdArmAcceptTask, pServer) != XRT_NET_OK ) {
+		(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
+		xrtNetListenerStop(pServer->pListener);
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+		return XRT_NET_ERROR;
+	}
 	return XRT_NET_OK;
 }
 static void xrtHttpdStop(xhttpdserver* pServer)
@@ -11902,19 +13460,6 @@ static void xrtHttpdStop(xhttpdserver* pServer)
 	if ( !pServer ) return;
 	if ( __xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
 		/* already stopped */
-	} else {
-		#if defined(_WIN32) || defined(_WIN64)
-			if ( pServer->hAcceptThread ) {
-				WaitForSingleObject(pServer->hAcceptThread, INFINITE);
-				CloseHandle(pServer->hAcceptThread);
-				pServer->hAcceptThread = NULL;
-			}
-		#else
-			if ( pServer->bAcceptThreadStarted ) {
-				pthread_join(pServer->hAcceptThread, NULL);
-				pServer->bAcceptThreadStarted = false;
-			}
-		#endif
 	}
 	if ( pServer->pListener ) {
 		xrtNetListenerStop(pServer->pListener);
@@ -11957,15 +13502,14 @@ static void xrtHttpdDestroy(xhttpdserver* pServer)
 	#include <sched.h>
 #endif
 /*
-    XNet V2 - WebSocket Rebuild Skeleton
-    Phase-3 scope in this header:
+    XRT mainline WebSocket layer on top of xnet.
+    This header provides:
       - async WebSocket client and server wrappers on top of xnet_stream
       - HTTP upgrade handshake over plain TCP and builtin TLS
-      - single-frame text/binary messaging plus ping/pong and close control
+      - text/binary messaging, ping/pong, close, and fragmented message reassembly
     Current limitations:
-      - message fragmentation and continuation frames are rejected
       - extensions and permessage-deflate are not implemented
-      - server subprotocol negotiation is fixed-string and optional
+      - subprotocol negotiation is fixed-string and optional
 */
 /* ============================== Public model ============================== */
 #define XWS_URL_CAP              1024u
@@ -11996,7 +13540,6 @@ typedef struct {
 	uint32 iFlags;
 	uint32 iBacklog;
 	uint32 iRecvLimit;
-	uint32 iAcceptPollMs;
 	const xtlsconfig* pTlsConfig;
 	char sProtocol[XWS_PROTOCOL_CAP];
 } xwsserverconfig;
@@ -12040,6 +13583,7 @@ struct xrt_ws_client {
 	uint8 iMsgOpcode;
 	volatile long iOpen;
 	volatile long iClosePosted;
+	volatile long iCloseNotified;
 	int iLastSysErr;
 };
 struct xrt_ws_conn {
@@ -12047,6 +13591,7 @@ struct xrt_ws_conn {
 	volatile long iCleanupPosted;
 	volatile long iOpen;
 	volatile long iClosePosted;
+	volatile long iCloseNotified;
 	xwsserver* pServer;
 	xnetstream* pStream;
 	char sProtocol[XWS_PROTOCOL_CAP];
@@ -12065,14 +13610,8 @@ struct xrt_ws_server {
 	volatile long iConnLock;
 	volatile long bRunning;
 	xwsconn* pConnHead;
-#if defined(_WIN32) || defined(_WIN64)
-	HANDLE hAcceptThread;
-#else
-	pthread_t hAcceptThread;
-	bool bAcceptThreadStarted;
-#endif
 };
-/* ============================== Legacy crypto hooks ============================== */
+/* ============================== WebSocket handshake crypto hooks ============================== */
 extern void xrtRandomBytes(uint8* pBuf, size_t iLen);
 extern void xrtSHA1(const ptr pData, size_t iLen, uint8* pOut);
 /* ============================== Local helpers ============================== */
@@ -12081,6 +13620,7 @@ typedef struct {
 	xnetstream* pStream;
 	char* pFrame;
 	size_t iFrameLen;
+	bool bCloseStream;
 } __xws_close_task;
 #define __XWS_APPEND_OK       0
 #define __XWS_APPEND_TOO_BIG  1
@@ -12162,14 +13702,6 @@ static void __xwsSleep0(void)
 		Sleep(0);
 	#else
 		sched_yield();
-	#endif
-}
-static void __xwsSleepMs(uint32 iDelayMs)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		Sleep(iDelayMs);
-	#else
-		usleep((useconds_t)iDelayMs * 1000u);
 	#endif
 }
 static void __xwsLock(volatile long* pLock)
@@ -12596,13 +14128,13 @@ static void __xwsCloseTask(xnetworker* pWorker, ptr pArg)
 	if ( pTask->pStream && pTask->pFrame && pTask->iFrameLen > 0u ) {
 		(void)__xwsStreamQueueBytesDirect(pTask->pStream, pTask->pFrame, pTask->iFrameLen);
 	}
-	if ( pTask->pStream ) {
-		xrtNetStreamClose(pTask->pStream, XNET_CLOSE_F_GRACEFUL);
+	if ( pTask->pStream && pTask->bCloseStream ) {
+		xrtNetStreamClose(pTask->pStream, XNET_CLOSE_F_GRACEFUL | XNET_CLOSE_F_WAIT_PEER);
 	}
 	XNET_FREE(pTask->pFrame);
 	XNET_FREE(pTask);
 }
-static xnet_result __xwsPostClose(xnetstream* pStream, bool bMask, uint16 iCode, const char* sReason)
+static xnet_result __xwsPostClose(xnetstream* pStream, bool bMask, uint16 iCode, const char* sReason, bool bCloseStream)
 {
 	__xws_close_task* pTask;
 	char* pPayload = NULL;
@@ -12626,6 +14158,7 @@ static xnet_result __xwsPostClose(xnetstream* pStream, bool bMask, uint16 iCode,
 	pTask->pStream = pStream;
 	pTask->pFrame = pFrame;
 	pTask->iFrameLen = iFrameLen;
+	pTask->bCloseStream = bCloseStream;
 	if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xwsCloseTask, pTask) != XRT_NET_OK ) {
 		XNET_FREE(pFrame);
 		XNET_FREE(pTask);
@@ -12740,6 +14273,28 @@ static void __xwsClientEmitError(xwsclient* pClient, int iSysErr)
 		pClient->tEvents.OnError(pClient->pUserData, pClient, iSysErr);
 	}
 }
+static void __xwsClientEmitCloseOnce(xwsclient* pClient, xnet_result iReason)
+{
+	if ( !pClient ) return;
+	if ( __xwsAtomicCompareExchange(&pClient->iCloseNotified, 1, 0) != 0 ) return;
+	if ( pClient->tEvents.OnClose ) {
+		pClient->tEvents.OnClose(pClient->pUserData, pClient, iReason);
+	}
+}
+static bool __xwsIsBenignStreamError(int iSysErr, xnetstream* pStream, volatile long* pClosePosted, volatile long* pCloseNotified)
+{
+	if ( pStream && pStream->bClosing ) return true;
+	if ( pClosePosted && __xwsAtomicLoad(pClosePosted) != 0 ) return true;
+	if ( pCloseNotified && __xwsAtomicLoad(pCloseNotified) != 0 ) return true;
+	if ( iSysErr == -1 ) return (pClosePosted && __xwsAtomicLoad(pClosePosted) != 0) || (pCloseNotified && __xwsAtomicLoad(pCloseNotified) != 0);
+	#if defined(_WIN32) || defined(_WIN64)
+		return iSysErr == WSAECONNRESET || iSysErr == WSAECONNABORTED || iSysErr == WSAESHUTDOWN ||
+			iSysErr == WSAENOTSOCK || iSysErr == WSA_OPERATION_ABORTED;
+	#else
+		return iSysErr == ECONNRESET || iSysErr == ECONNABORTED || iSysErr == EPIPE ||
+			iSysErr == ESHUTDOWN || iSysErr == ENOTSOCK || iSysErr == EBADF;
+	#endif
+}
 static bool __xwsClientValidateHandshake(xwsclient* pClient, const xcodechttp1msg* pMsg)
 {
 	const char* sUpgrade;
@@ -12778,7 +14333,7 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 			return;
 		}
 		if ( (tInfo.iFlags & XCODEC_WS_F_CONTROL) != 0u && tInfo.iPayloadLen > 125u ) {
-			(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "control too large");
+			(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "control too large", true);
 			return;
 		}
 		if ( !__xwsPeekPayloadCopy(pChain, &tFrame, &tInfo, &pPayload, &iPayloadLen) ) {
@@ -12795,9 +14350,9 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 				iDataRet = __xwsClientConsumeDataFrame(pClient, tInfo.iOpcode, bFin, pPayload, iPayloadLen);
 				if ( iDataRet == __XWS_APPEND_OK ) break;
 				if ( iDataRet == __XWS_APPEND_TOO_BIG ) {
-					(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_TOO_BIG, "message too large");
+					(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_TOO_BIG, "message too large", true);
 				} else if ( iDataRet == __XWS_APPEND_PROTOCOL ) {
-					(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "bad fragment sequence");
+					(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "bad fragment sequence", true);
 				} else {
 					__xwsClientEmitError(pClient, -7);
 					xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT);
@@ -12816,13 +14371,24 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 				if ( iPayloadLen >= 2u ) {
 					iCloseCode = (uint16)(((uint8)pPayload[0] << 8u) | (uint8)pPayload[1]);
 				}
+				#if defined(XNET_DEBUG_CLOSE_DIAG)
+					fprintf(stderr, "[CLOSE_DIAG][WS-CLIENT] recv close stream=%p code=%u posted=%ld open=%ld len=%zu\n",
+						(void*)pClient->pStream,
+						(unsigned)iCloseCode,
+						(long)__xwsAtomicLoad(&pClient->iClosePosted),
+						(long)__xwsAtomicLoad(&pClient->iOpen),
+						iPayloadLen);
+				#endif
+				__xwsClientEmitCloseOnce(pClient, XRT_NET_CLOSED);
 				if ( __xwsAtomicCompareExchange(&pClient->iClosePosted, 1, 0) == 0 ) {
-					if ( pClient->pStream ) (void)__xwsPostClose(pClient->pStream, true, iCloseCode, NULL);
+					if ( pClient->pStream ) (void)__xwsPostClose(pClient->pStream, true, iCloseCode, NULL, true);
+				} else if ( pClient->pStream ) {
+					xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_GRACEFUL);
 				}
 				XNET_FREE(pPayload);
 				return;
 			default:
-				(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "bad opcode");
+				(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "bad opcode", true);
 				XNET_FREE(pPayload);
 				return;
 		}
@@ -12873,15 +14439,21 @@ static void __xwsClientStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 static void __xwsClientStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
 	xwsclient* pClient = (xwsclient*)pOwner;
+	#if defined(XNET_DEBUG_CLOSE_DIAG)
+		fprintf(stderr, "[CLOSE_DIAG][WS-CLIENT] stream close stream=%p reason=%d posted=%ld notified=%ld\n",
+			(void*)pStream,
+			(int)iReason,
+			pClient ? (long)__xwsAtomicLoad(&pClient->iClosePosted) : -1L,
+			pClient ? (long)__xwsAtomicLoad(&pClient->iCloseNotified) : -1L);
+	#endif
 	(void)pStream;
-	if ( pClient && pClient->tEvents.OnClose ) {
-		pClient->tEvents.OnClose(pClient->pUserData, pClient, iReason);
-	}
+	__xwsClientEmitCloseOnce(pClient, iReason);
 }
 static void __xwsClientStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	xwsclient* pClient = (xwsclient*)pOwner;
 	(void)pStream;
+	if ( pClient && __xwsIsBenignStreamError(iSysErr, pStream, &pClient->iClosePosted, &pClient->iCloseNotified) ) return;
 	__xwsClientEmitError(pClient, iSysErr);
 }
 static const xnetstreamevents* __xwsClientStreamEvents(void)
@@ -12965,6 +14537,14 @@ static void __xwsServerEmitError(xwsserver* pServer, xwsconn* pConn, int iSysErr
 		pServer->tEvents.OnError(pServer->pUserData, pServer, pConn, iSysErr);
 	}
 }
+static void __xwsServerEmitCloseOnce(xwsserver* pServer, xwsconn* pConn, xnet_result iReason)
+{
+	if ( !pConn ) return;
+	if ( __xwsAtomicCompareExchange(&pConn->iCloseNotified, 1, 0) != 0 ) return;
+	if ( pServer && pServer->tEvents.OnClose ) {
+		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
+	}
+}
 static bool __xwsSendHttpReply(xnetstream* pStream, uint32 iStatusCode, const char* sBody, const char* sAccept, const char* sProtocol, bool bClose)
 {
 	char* pBytes = NULL;
@@ -13019,11 +14599,11 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 			return;
 		}
 		if ( (tInfo.iFlags & XCODEC_WS_F_MASKED) == 0u ) {
-			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "mask required");
+			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "mask required", true);
 			return;
 		}
 		if ( (tInfo.iFlags & XCODEC_WS_F_CONTROL) != 0u && tInfo.iPayloadLen > 125u ) {
-			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "control too large");
+			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "control too large", true);
 			return;
 		}
 		if ( !__xwsPeekPayloadCopy(pChain, &tFrame, &tInfo, &pPayload, &iPayloadLen) ) {
@@ -13040,9 +14620,9 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 				iDataRet = __xwsServerConsumeDataFrame(pConn, tInfo.iOpcode, bFin, pPayload, iPayloadLen);
 				if ( iDataRet == __XWS_APPEND_OK ) break;
 				if ( iDataRet == __XWS_APPEND_TOO_BIG ) {
-					(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_TOO_BIG, "message too large");
+					(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_TOO_BIG, "message too large", true);
 				} else if ( iDataRet == __XWS_APPEND_PROTOCOL ) {
-					(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "bad fragment sequence");
+					(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "bad fragment sequence", true);
 				} else {
 					__xwsServerEmitError(pServer, pConn, -23);
 					xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
@@ -13061,13 +14641,24 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 				if ( iPayloadLen >= 2u ) {
 					iCloseCode = (uint16)(((uint8)pPayload[0] << 8u) | (uint8)pPayload[1]);
 				}
+				#if defined(XNET_DEBUG_CLOSE_DIAG)
+					fprintf(stderr, "[CLOSE_DIAG][WS-SERVER] recv close stream=%p code=%u posted=%ld open=%ld len=%zu\n",
+						(void*)pConn->pStream,
+						(unsigned)iCloseCode,
+						(long)__xwsAtomicLoad(&pConn->iClosePosted),
+						(long)__xwsAtomicLoad(&pConn->iOpen),
+						iPayloadLen);
+				#endif
+				__xwsServerEmitCloseOnce(pServer, pConn, XRT_NET_CLOSED);
 				if ( __xwsAtomicCompareExchange(&pConn->iClosePosted, 1, 0) == 0 ) {
-					if ( pConn->pStream ) (void)__xwsPostClose(pConn->pStream, false, iCloseCode, NULL);
+					if ( pConn->pStream ) (void)__xwsPostClose(pConn->pStream, false, iCloseCode, NULL, true);
+				} else if ( pConn->pStream ) {
+					xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_GRACEFUL);
 				}
 				XNET_FREE(pPayload);
 				return;
 			default:
-				(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "bad opcode");
+				(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "bad opcode", true);
 				XNET_FREE(pPayload);
 				return;
 		}
@@ -13081,7 +14672,12 @@ static bool __xwsListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetstrea
 	(void)pListener;
 	if ( !pServer || !pStream ) return false;
 	pConn = (xwsconn*)xrtNetStreamGetUserData(pStream);
-	if ( !pConn ) return false;
+	if ( !pConn ) {
+		pConn = (xwsconn*)XNET_ALLOC(sizeof(xwsconn));
+		if ( !pConn ) return false;
+		memset(pConn, 0, sizeof(xwsconn));
+		xrtNetStreamSetUserData(pStream, pConn);
+	}
 	pConn->pServer = pServer;
 	pConn->pStream = pStream;
 	__xwsServerAddConn(pServer, pConn);
@@ -13139,18 +14735,43 @@ static void __xwsServerStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_resul
 {
 	xwsconn* pConn = (xwsconn*)pOwner;
 	xwsserver* pServer = pConn ? pConn->pServer : NULL;
+	#if defined(XNET_DEBUG_CLOSE_DIAG)
+		fprintf(stderr, "[CLOSE_DIAG][WS-SERVER] stream close stream=%p reason=%d posted=%ld notified=%ld\n",
+			(void*)pStream,
+			(int)iReason,
+			pConn ? (long)__xwsAtomicLoad(&pConn->iClosePosted) : -1L,
+			pConn ? (long)__xwsAtomicLoad(&pConn->iCloseNotified) : -1L);
+	#endif
 	(void)pStream;
-	if ( pServer && pServer->tEvents.OnClose ) {
-		pServer->tEvents.OnClose(pServer->pUserData, pServer, pConn, iReason);
-	}
+	__xwsServerEmitCloseOnce(pServer, pConn, iReason);
 	__xwsConnPostCleanup(pConn);
 }
 static void __xwsServerStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	xwsconn* pConn = (xwsconn*)pOwner;
 	xwsserver* pServer = pConn ? pConn->pServer : NULL;
-	(void)pStream;
+	if ( pConn && __xwsIsBenignStreamError(iSysErr, pStream, &pConn->iClosePosted, &pConn->iCloseNotified) ) return;
 	__xwsServerEmitError(pServer, pConn, iSysErr);
+}
+static void __xwsAcceptReady(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx)
+{
+	xwsserver* pServer = (xwsserver*)pCtx;
+	(void)pListener;
+	(void)pStream;
+	if ( !pServer || __xwsAtomicLoad(&pServer->bRunning) == 0 ) return;
+	if ( pServer->pListener && pServer->pListener->bRunning ) {
+		(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xwsAcceptReady, NULL, pServer);
+	}
+	if ( iStatus != XRT_NET_OK && pServer->tEvents.OnError ) {
+		pServer->tEvents.OnError(pServer->pUserData, pServer, NULL, -1);
+	}
+}
+static void __xwsArmAcceptTask(xnetworker* pWorker, ptr pArg)
+{
+	xwsserver* pServer = (xwsserver*)pArg;
+	(void)pWorker;
+	if ( !pServer || !pServer->pListener || __xwsAtomicLoad(&pServer->bRunning) == 0 ) return;
+	(void)__xnetListenerRegisterSyncAcceptWait(pServer->pListener, __xwsAcceptReady, NULL, pServer);
 }
 static const xnetlistenerevents* __xwsListenerEvents(void)
 {
@@ -13173,33 +14794,6 @@ static const xnetstreamevents* __xwsServerStreamEvents(void)
 	};
 	return &tEvents;
 }
-#if defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI __xwsAcceptThread(LPVOID pArg)
-#else
-static void* __xwsAcceptThread(void* pArg)
-#endif
-{
-	xwsserver* pServer = (xwsserver*)pArg;
-	while ( pServer && __xwsAtomicLoad(&pServer->bRunning) != 0 ) {
-		xwsconn* pConn = NULL;
-		if ( pServer->pListener && pServer->pListener->bRunning ) {
-			pConn = (xwsconn*)XNET_ALLOC(sizeof(xwsconn));
-			if ( pConn ) {
-				memset(pConn, 0, sizeof(xwsconn));
-				pConn->pServer = pServer;
-				if ( !__xnetListenerTryAcceptOne(pServer->pListener, pConn) ) {
-					XNET_FREE(pConn);
-				}
-			}
-		}
-		__xwsSleepMs(pServer && pServer->tConfig.iAcceptPollMs > 0 ? pServer->tConfig.iAcceptPollMs : 5u);
-	}
-	#if !defined(_WIN32) && !defined(_WIN64)
-		return NULL;
-	#else
-		return 0;
-	#endif
-}
 /* ============================== Public API ============================== */
 static void xrtWsClientConfigInit(xwsclientconfig* pCfg)
 {
@@ -13215,7 +14809,6 @@ static void xrtWsServerConfigInit(xwsserverconfig* pCfg)
 	memset(pCfg, 0, sizeof(xwsserverconfig));
 	pCfg->iBacklog = 128u;
 	pCfg->iRecvLimit = 1024u * 1024u;
-	pCfg->iAcceptPollMs = 5u;
 }
 static xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData)
 {
@@ -13295,7 +14888,7 @@ static xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char
 {
 	if ( !pClient || !pClient->pStream ) return XRT_NET_ERROR;
 	if ( __xwsAtomicCompareExchange(&pClient->iClosePosted, 1, 0) != 0 ) return XRT_NET_OK;
-	return __xwsPostClose(pClient->pStream, true, iCode, sReason);
+	return __xwsPostClose(pClient->pStream, true, iCode, sReason, false);
 }
 static xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData)
 {
@@ -13334,25 +14927,13 @@ static xnet_result xrtWsServerStart(xwsserver* pServer)
 		return XRT_NET_ERROR;
 	}
 	(void)__xwsAtomicCompareExchange(&pServer->bRunning, 1, 0);
-	#if defined(_WIN32) || defined(_WIN64)
-		pServer->hAcceptThread = CreateThread(NULL, 0, __xwsAcceptThread, pServer, 0, NULL);
-		if ( !pServer->hAcceptThread ) {
-			(void)__xwsAtomicCompareExchange(&pServer->bRunning, 0, 1);
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-	#else
-		if ( pthread_create(&pServer->hAcceptThread, NULL, __xwsAcceptThread, pServer) != 0 ) {
-			(void)__xwsAtomicCompareExchange(&pServer->bRunning, 0, 1);
-			xrtNetListenerStop(pServer->pListener);
-			xrtNetListenerDestroy(pServer->pListener);
-			pServer->pListener = NULL;
-			return XRT_NET_ERROR;
-		}
-		pServer->bAcceptThreadStarted = true;
-	#endif
+	if ( xrtNetEnginePost(pServer->pEngine, pServer->pListener->pWorker->iId, __xwsArmAcceptTask, pServer) != XRT_NET_OK ) {
+		(void)__xwsAtomicCompareExchange(&pServer->bRunning, 0, 1);
+		xrtNetListenerStop(pServer->pListener);
+		xrtNetListenerDestroy(pServer->pListener);
+		pServer->pListener = NULL;
+		return XRT_NET_ERROR;
+	}
 	return XRT_NET_OK;
 }
 static void xrtWsServerStop(xwsserver* pServer)
@@ -13361,19 +14942,6 @@ static void xrtWsServerStop(xwsserver* pServer)
 	if ( !pServer ) return;
 	if ( __xwsAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
 		/* already stopped */
-	} else {
-		#if defined(_WIN32) || defined(_WIN64)
-			if ( pServer->hAcceptThread ) {
-				WaitForSingleObject(pServer->hAcceptThread, INFINITE);
-				CloseHandle(pServer->hAcceptThread);
-				pServer->hAcceptThread = NULL;
-			}
-		#else
-			if ( pServer->bAcceptThreadStarted ) {
-				pthread_join(pServer->hAcceptThread, NULL);
-				pServer->bAcceptThreadStarted = false;
-			}
-		#endif
 	}
 	if ( pServer->pListener ) {
 		xrtNetListenerStop(pServer->pListener);
@@ -13384,6 +14952,11 @@ static void xrtWsServerStop(xwsserver* pServer)
 	while ( pConn ) {
 		xwsconn* pNext = pConn->pNext;
 		pConn->pNext = NULL;
+		if ( __xwsAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+			pConn->pServer = NULL;
+			pConn = pNext;
+			continue;
+		}
 		(void)__xwsAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0);
 		if ( pConn->pStream ) {
 			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
@@ -13424,7 +14997,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 {
 	if ( !pConn || !pConn->pStream ) return XRT_NET_ERROR;
 	if ( __xwsAtomicCompareExchange(&pConn->iClosePosted, 1, 0) != 0 ) return XRT_NET_OK;
-	return __xwsPostClose(pConn->pStream, false, iCode, sReason);
+	return __xwsPostClose(pConn->pStream, false, iCode, sReason, false);
 }
 #endif
 #endif
@@ -13433,6 +15006,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
     XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
     XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
+    XXAPI xnet_result xrtTlsDrive(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
     XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
     XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
@@ -13442,6 +15016,9 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
     XXAPI size_t xrtTlsPendingRecv(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
     XXAPI void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
+    XXAPI xtlsresume* xrtTlsExportResume(xtlsctx* pCtx);
+    XXAPI void xrtTlsResumeDestroy(xtlsresume* pResume);
+    XXAPI bool xrtTlsWasResumed(xtlsctx* pCtx);
     XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);
     XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);
     XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx* pCtx, bool bAllow);
@@ -13537,7 +15114,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 		uint32 Count;							// 管理器中存在多少成员
 		uint32 AllocCount;						// 已经申请的结构数量
 		uint32 AllocStep;						// 预分配内存步长
-		xrtOwnerInfo Owner;						// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;						// 所有权信息
 	} xparray_struct, *xparray;
 	
 	// 创建指针内存管理器
@@ -13625,7 +15202,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 		uint32 Count;					// 管理器中存在多少成员
 		uint32 AllocCount;				// 已经申请的结构数量
 		uint32 AllocStep;				// 预分配内存步长
-		xrtOwnerInfo Owner;				// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;				// 所有权信息
 	} xarray_struct, *xarray;
 	
 	// 创建数组
@@ -13697,7 +15274,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 	
 	// 数据块结构内存管理器数据结构
 	typedef struct {
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 		uint32 ItemLength;			// 成员占用内存长度
 		uint32 Count;					// 管理器中存在多少成员
 		xparray_struct PageMMU;				// 内存页管理器
@@ -13763,7 +15340,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 	
 	// 数据管理单元数据结构
 	typedef struct {
-		xrtOwnerInfo Owner;						// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;						// 所有权信息
 		uint8 FreeList[256];						// 已释放成员列表
 		uint32 ItemLength;							// 成员占用内存长度
 		uint16 Count;								// 成员数量
@@ -13868,7 +15445,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 	
 	// 256步进内存管理器数据结构
 	typedef struct {
-		xrtOwnerInfo Owner;					// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;					// 所有权信息
 		uint32 ItemLength;					// 成员占用内存长度
 		xbsmm_struct arrMMU;						// MMU 阵列
 		MMU_LLNode* LL_Idle;						// 有空闲的内存管理单元链表首元素 (优先分配内存的单元)
@@ -14103,7 +15680,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 		xavltnode RootNode;
 		uint32 Count;
 		xavltree_iterator Iterator;		// 当前激活的迭代器对象
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 		struct xavltree_struct* Parent;
 		AVLTree_CompProc CompProc;
 		AVLTree_FreeProc FreeProc;
@@ -14185,15 +15762,19 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 		MMU_LLNode* LL_Full;						// 满载的 MMU 内存管理单元链表 (不会从这些单元中分配内存)
 		MMU_LLNode* LL_Null;						// 全空的 MMU 内存管理单元 (备用单元，最多只留一个)
 		MMU_LLNode* LL_Free;						// 已释放的 MMU 内存管理单元链表 (申请新单元优先从这里找)
-		struct FSB_Item* left;						// 左子树
-		struct FSB_Item* right;						// 右子树
+		struct FSB_Item* left;						// legacy tree pointer (unused in LUT mode)
+		struct FSB_Item* right;						// legacy tree pointer (unused in LUT mode)
 	} FSB_Item;
 	
-	// 256步进内存池数据结构
+	// 通用内存池数据结构（LUT 分桶）
 	typedef struct {
-		xrtOwnerInfo Owner;							// 所有权信息（phase-2）
-		FSB_Item* FSB_Memory;						// fixed-size-blocks 内存（MP256_Create参数为 1 或 2 时自动创建，否则需要手动创建，不为空会调用 mmu_free 释放）
-		FSB_Item* FSB_RootNode;						// fixed-size-blocks 二叉树（固定大小区块内存管理器阵列）
+		xrtOwnerInfo Owner;							// 所有权信息
+		FSB_Item* FSB_Memory;						// fixed-size-blocks bucket array
+		FSB_Item* FSB_RootNode;						// legacy compatibility alias, points to the first bucket when active
+		uint32* FSB_Lut;							// size -> bucket lookup table (0..iFallbackCutoff)
+		uint32 iBucketStep;							// bucket step size in bytes
+		uint32 iBucketCount;						// number of buckets in FSB_Memory
+		uint32 iFallbackCutoff;						// max size still served by pooled buckets
 		xbsmm_struct arrMMU;						// MMU 阵列
 		xbsmm_struct BigMM;							// 大内存数组
 		MP_BigInfoLL* LL_BigFree;					// 大内存已释放的内存块链表
@@ -14240,7 +15821,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 	typedef struct {
 		xavltree_struct AVLT;
 		xmempool MP;
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 	} xdict_struct, *xdict;
 	
 	// 字典遍历回调函数
@@ -14369,7 +15950,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 	// 列表对象数据结构
 	typedef struct {
 		xavltree_struct AVLT;
-		xrtOwnerInfo Owner;			// 所有权信息（phase-2）
+		xrtOwnerInfo Owner;			// 所有权信息
 	} xlist_struct, *xlist;
 	
 	// 列表遍历回调函数
@@ -15544,7 +17125,88 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 	XXAPI int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
 	
 	
-	
+XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI xarray xrtArrayCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayInitExDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine);
+XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine);
+XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI xdict xrtDictCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtDictInitExDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine);
+XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine);
+XXAPI xlist xrtListCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI xlist xrtListCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtListInitExDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine);
+XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine);
+XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine);
+XXAPI xavltree xrtAVLTreeCreateExDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeInitExDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
+XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
+XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtDynStackInitDbg(xdynstack objSTK, uint32 iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
+XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
+XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, const char* sFile, uint32 iLine);
+XXAPI xmempool xrtMemPoolCreateExDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolInitExDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine);
+XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine);
+XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, const char* sFile, uint32 iLine);
+XXAPI xfsmempool xrtFSMemPoolCreateExDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolInitExDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
+XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
+#if defined(XRT_MEM_DEBUG) && !defined(XRT_BUILD_CORE)
+	#define xrtArrayCreate(iItemLength) xrtArrayCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtArrayCreateEx(iItemLength, iMode) xrtArrayCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtArrayInit(pArr, iItemLength) xrtArrayInitDbg((pArr), (iItemLength), __FILE__, __LINE__)
+	#define xrtArrayInitEx(pArr, iItemLength, iMode) xrtArrayInitExDbg((pArr), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtArrayDestroy(pArr) xrtArrayDestroyDbg((pArr), __FILE__, __LINE__)
+	#define xrtArrayUnit(pArr) xrtArrayUnitDbg((pArr), __FILE__, __LINE__)
+	#define xrtDictCreate(iItemLength) xrtDictCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtDictCreateEx(iItemLength, iMode) xrtDictCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtDictInit(objHT, iItemLength) xrtDictInitDbg((objHT), (iItemLength), __FILE__, __LINE__)
+	#define xrtDictInitEx(objHT, iItemLength, iMode) xrtDictInitExDbg((objHT), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtDictDestroy(objHT) xrtDictDestroyDbg((objHT), __FILE__, __LINE__)
+	#define xrtDictUnit(objHT) xrtDictUnitDbg((objHT), __FILE__, __LINE__)
+	#define xrtListCreate(iItemLength) xrtListCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtListCreateEx(iItemLength, iMode) xrtListCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtListInit(objList, iItemLength) xrtListInitDbg((objList), (iItemLength), __FILE__, __LINE__)
+	#define xrtListInitEx(objList, iItemLength, iMode) xrtListInitExDbg((objList), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtListDestroy(objList) xrtListDestroyDbg((objList), __FILE__, __LINE__)
+	#define xrtListUnit(objList) xrtListUnitDbg((objList), __FILE__, __LINE__)
+	#define xrtAVLTreeCreate(iItemLength, procComp) xrtAVLTreeCreateDbg((iItemLength), (procComp), __FILE__, __LINE__)
+	#define xrtAVLTreeCreateEx(iItemLength, procComp, iMode) xrtAVLTreeCreateExDbg((iItemLength), (procComp), (iMode), __FILE__, __LINE__)
+	#define xrtAVLTreeInit(objAVLT, iItemLength, procComp) xrtAVLTreeInitDbg((objAVLT), (iItemLength), (procComp), __FILE__, __LINE__)
+	#define xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, iMode) xrtAVLTreeInitExDbg((objAVLT), (iItemLength), (procComp), (iMode), __FILE__, __LINE__)
+	#define xrtAVLTreeDestroy(objAVLT) xrtAVLTreeDestroyDbg((objAVLT), __FILE__, __LINE__)
+	#define xrtAVLTreeUnit(objAVLT) xrtAVLTreeUnitDbg((objAVLT), __FILE__, __LINE__)
+	#define xrtDynStackCreate(iItemLength) xrtDynStackCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtDynStackInit(objSTK, iItemLength) xrtDynStackInitDbg((objSTK), (iItemLength), __FILE__, __LINE__)
+	#define xrtDynStackDestroy(objSTK) xrtDynStackDestroyDbg((objSTK), __FILE__, __LINE__)
+	#define xrtDynStackUnit(objSTK) xrtDynStackUnitDbg((objSTK), __FILE__, __LINE__)
+	#define xrtMemPoolCreate(iCustom) xrtMemPoolCreateDbg((iCustom), __FILE__, __LINE__)
+	#define xrtMemPoolCreateEx(iCustom, iMode) xrtMemPoolCreateExDbg((iCustom), (iMode), __FILE__, __LINE__)
+	#define xrtMemPoolInit(objMP, iCustom) xrtMemPoolInitDbg((objMP), (iCustom), __FILE__, __LINE__)
+	#define xrtMemPoolInitEx(objMP, iCustom, iMode) xrtMemPoolInitExDbg((objMP), (iCustom), (iMode), __FILE__, __LINE__)
+	#define xrtMemPoolDestroy(objMP) xrtMemPoolDestroyDbg((objMP), __FILE__, __LINE__)
+	#define xrtMemPoolUnit(objMP) xrtMemPoolUnitDbg((objMP), __FILE__, __LINE__)
+	#define xrtFSMemPoolCreate(iItemLength) xrtFSMemPoolCreateDbg((iItemLength), __FILE__, __LINE__)
+	#define xrtFSMemPoolCreateEx(iItemLength, iMode) xrtFSMemPoolCreateExDbg((iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtFSMemPoolInit(objMM, iItemLength) xrtFSMemPoolInitDbg((objMM), (iItemLength), __FILE__, __LINE__)
+	#define xrtFSMemPoolInitEx(objMM, iItemLength, iMode) xrtFSMemPoolInitExDbg((objMM), (iItemLength), (iMode), __FILE__, __LINE__)
+	#define xrtFSMemPoolDestroy(objMM) xrtFSMemPoolDestroyDbg((objMM), __FILE__, __LINE__)
+	#define xrtFSMemPoolUnit(objMM) xrtFSMemPoolUnitDbg((objMM), __FILE__, __LINE__)
+#endif
 #endif
 
 // ========================================
@@ -15559,6 +17221,7 @@ static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sRea
 // ========================================
 
 
+#define XRT_BUILD_CORE
 // (skipped include: #include "xrt.h")
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
@@ -15679,73 +17342,1524 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
+// File: D:/Git/xrt/lib/memglobal.h
+// ========================================
+
+
+static inline size_t __xrtMemGlobalAlignSize(size_t iSize)
+{
+	size_t iAlign = sizeof(ptr);
+	return (iSize + (iAlign - 1)) & ~(iAlign - 1);
+}
+static inline size_t __xrtMemGlobalHeaderSize()
+{
+	return __xrtMemGlobalAlignSize(sizeof(xrtMemBlockHeader));
+}
+static inline ptr (*__xrtMemGlobalProcMalloc())(size_t)
+{
+	return xCore.malloc ? xCore.malloc : malloc;
+}
+static inline ptr (*__xrtMemGlobalProcCalloc())(size_t, size_t)
+{
+	return xCore.calloc ? xCore.calloc : calloc;
+}
+static inline ptr (*__xrtMemGlobalProcRealloc())(ptr, size_t)
+{
+	return xCore.realloc ? xCore.realloc : realloc;
+}
+static inline void (*__xrtMemGlobalProcFree())(ptr)
+{
+	return xCore.free ? xCore.free : free;
+}
+static inline void __xrtMemGlobalLock(volatile long* pLock)
+{
+	while ( __xrtAtomicCompareExchange32(pLock, 1, 0) != 0 ) {
+	}
+}
+static inline void __xrtMemGlobalUnlock(volatile long* pLock)
+{
+	*pLock = 0;
+}
+static inline void __xrtMemGlobalInitPlan(xrtMemGlobalPool* pPool)
+{
+	uint32 i;
+	if ( pPool == NULL ) {
+		return;
+	}
+	memset(pPool, 0, sizeof(xrtMemGlobalPool));
+	pPool->iClassCount = XRT_MEMPOOL_CLASS_COUNT_DEFAULT;
+	pPool->iClassStep = XRT_MEMPOOL_STEP_SIZE;
+	pPool->iCutoff = XRT_MEMPOOL_CUTOFF_DEFAULT;
+	for ( i = 0; i < XRT_MEMPOOL_CLASS_COUNT_DEFAULT; i++ ) {
+		pPool->arrClassDesc[i].iBlockSize = (uint16)((i + 1) * XRT_MEMPOOL_STEP_SIZE);
+	}
+	for ( i = 0; i <= XRT_MEMPOOL_CUTOFF_DEFAULT; i++ ) {
+		if ( i == 0 ) {
+			pPool->arrSizeClassLut[i] = 0;
+		} else {
+			pPool->arrSizeClassLut[i] = (uint8)(((i + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE) - 1);
+		}
+	}
+}
+static inline void __xrtMemGlobalEnsurePlan()
+{
+	if ( xCore.MemGlobal.iClassCount == 0 ) {
+		__xrtMemGlobalInitPlan(&xCore.MemGlobal);
+	}
+}
+static inline uint32 __xrtMemGlobalClassIndex(const xrtMemGlobalPool* pPool, size_t iSize)
+{
+	if ( pPool == NULL || iSize == 0 || iSize > pPool->iCutoff ) {
+		return (uint32)-1;
+	}
+	return pPool->arrSizeClassLut[iSize];
+}
+static inline uint32 __xrtMemGlobalClassBlockSize(const xrtMemGlobalPool* pPool, uint32 iClass)
+{
+	if ( pPool == NULL || iClass >= pPool->iClassCount ) {
+		return 0;
+	}
+	return pPool->arrClassDesc[iClass].iBlockSize;
+}
+static inline size_t __xrtMemGlobalDebugTailSize()
+{
+	#ifdef XRT_MEM_DEBUG
+		return sizeof(uint32);
+	#else
+		return 0;
+	#endif
+}
+static inline size_t __xrtMemGlobalAllocPayloadSize(size_t iRequestSize)
+{
+	size_t iPayload = iRequestSize ? iRequestSize : 1;
+	return iPayload + __xrtMemGlobalDebugTailSize();
+}
+static inline uint32 __xrtMemGlobalClassIndexForRequest(const xrtMemGlobalPool* pPool, size_t iRequestSize)
+{
+	return __xrtMemGlobalClassIndex(pPool, __xrtMemGlobalAllocPayloadSize(iRequestSize));
+}
+static inline uint64 __xrtMemDebugNowMs()
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetTickCount64();
+	#else
+		struct timespec timer;
+		clock_gettime(CLOCK_MONOTONIC, &timer);
+		return ((uint64)timer.tv_sec * 1000ULL) + (uint64)(timer.tv_nsec / 1000000ULL);
+	#endif
+}
+static inline xrtMemBlockHeader* __xrtMemGlobalHeaderFromUser(ptr pUser)
+{
+	if ( pUser == NULL ) {
+		return NULL;
+	}
+	return (xrtMemBlockHeader*)((char*)pUser - __xrtMemGlobalHeaderSize());
+}
+static inline ptr __xrtMemGlobalUserFromHeader(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return NULL;
+	}
+	return (ptr)((char*)pHeader + __xrtMemGlobalHeaderSize());
+}
+static inline bool __xrtMemGlobalHeaderValid(const xrtMemBlockHeader* pHeader)
+{
+	return pHeader != NULL && pHeader->iMagic == XRT_MEMBLOCK_MAGIC;
+}
+static inline void __xrtMemGlobalWriteHeader(xrtMemBlockHeader* pHeader, uint32 iClassIndex, uint16 iFlags, uint32 iRequestSize)
+{
+	pHeader->iMagic = XRT_MEMBLOCK_MAGIC;
+	pHeader->iClassIndex = (uint16)iClassIndex;
+	pHeader->iFlags = iFlags;
+	pHeader->iRequestSize = iRequestSize;
+	pHeader->iReserved = 0;
+	#ifdef XRT_MEM_DEBUG
+		pHeader->sAllocFile = NULL;
+		pHeader->iAllocLine = 0;
+		pHeader->sFreeFile = NULL;
+		pHeader->iFreeLine = 0;
+		pHeader->iAllocThreadId = 0;
+		pHeader->iAllocSeq = 0;
+		pHeader->iAllocTimeMs = 0;
+		pHeader->iFreeTimeMs = 0;
+		pHeader->pDebugPrev = NULL;
+		pHeader->pDebugNext = NULL;
+		pHeader->iFrontCanary = XRT_MEMDEBUG_CANARY_HEAD ^ (uint32)(uintptr_t)pHeader;
+		pHeader->iDebugState = 0;
+	#endif
+}
+#ifdef XRT_MEM_DEBUG
+static inline uint32 __xrtMemGlobalTailCanaryValue(const xrtMemBlockHeader* pHeader)
+{
+	return XRT_MEMDEBUG_CANARY_TAIL ^ (uint32)pHeader->iRequestSize ^ 0xA5A5A5A5u;
+}
+static inline uint32* __xrtMemGlobalTailCanaryPtr(xrtMemBlockHeader* pHeader)
+{
+	size_t iPayload = pHeader->iRequestSize ? pHeader->iRequestSize : 1;
+	return (uint32*)((char*)__xrtMemGlobalUserFromHeader(pHeader) + iPayload);
+}
+static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return;
+	}
+	*__xrtMemGlobalTailCanaryPtr(pHeader) = __xrtMemGlobalTailCanaryValue(pHeader);
+}
+static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return FALSE;
+	}
+	return pHeader->iFrontCanary == (XRT_MEMDEBUG_CANARY_HEAD ^ (uint32)(uintptr_t)pHeader);
+}
+static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
+{
+	uint32* pTail;
+	if ( pHeader == NULL ) {
+		return FALSE;
+	}
+	pTail = __xrtMemGlobalTailCanaryPtr((xrtMemBlockHeader*)pHeader);
+	return *pTail == __xrtMemGlobalTailCanaryValue(pHeader);
+}
+static inline bool __xrtMemDebugEnabled()
+{
+	return xCore.MemDebug.bEnabled != 0;
+}
+static inline void __xrtMemDebugLock()
+{
+	__xrtMemGlobalLock(&xCore.MemDebug.iLock);
+}
+static inline void __xrtMemDebugUnlock()
+{
+	__xrtMemGlobalUnlock(&xCore.MemDebug.iLock);
+}
+static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind)
+{
+	switch ( iAllocatorKind ) {
+		case XRT_MEMDEBUG_ALLOCATOR_GLOBAL:
+			return "global";
+		case XRT_MEMDEBUG_ALLOCATOR_MEMPOOL:
+			return "mempool";
+		case XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL:
+			return "fsmempool";
+		default:
+			return "unknown";
+	}
+}
+static inline xrtMemDebugSiteStat* __xrtMemDebugFindSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
+{
+	xrtMemDebugSiteStat* pNode = xCore.MemDebug.pSiteStats;
+	while ( pNode ) {
+		if ( pNode->sFile == sFile && pNode->iLine == iLine && pNode->iAllocatorKind == iAllocatorKind ) {
+			return pNode;
+		}
+		pNode = pNode->pNext;
+	}
+	return NULL;
+}
+static inline xrtMemDebugSiteStat* __xrtMemDebugEnsureSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
+{
+	xrtMemDebugSiteStat* pNode = __xrtMemDebugFindSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pNode ) {
+		return pNode;
+	}
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugSiteStat));
+	if ( pNode == NULL ) {
+		return NULL;
+	}
+	pNode->sFile = sFile;
+	pNode->iLine = iLine;
+	pNode->iAllocatorKind = iAllocatorKind;
+	pNode->pNext = xCore.MemDebug.pSiteStats;
+	xCore.MemDebug.pSiteStats = pNode;
+	return pNode;
+}
+static inline void __xrtMemDebugSiteOnAllocNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
+{
+	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pSite == NULL ) {
+		return;
+	}
+	pSite->iAllocCount++;
+	pSite->iAllocBytes += iSize;
+	pSite->iLiveCount++;
+	pSite->iLiveBytes += iSize;
+	if ( pSite->iLiveCount > pSite->iPeakLiveCount ) {
+		pSite->iPeakLiveCount = pSite->iLiveCount;
+	}
+	if ( pSite->iLiveBytes > pSite->iPeakLiveBytes ) {
+		pSite->iPeakLiveBytes = pSite->iLiveBytes;
+	}
+}
+static inline void __xrtMemDebugSiteOnFreeNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
+{
+	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pSite == NULL ) {
+		return;
+	}
+	pSite->iFreeCount++;
+	pSite->iFreeBytes += iSize;
+	if ( pSite->iLiveCount > 0 ) {
+		pSite->iLiveCount--;
+	}
+	if ( pSite->iLiveBytes >= iSize ) {
+		pSite->iLiveBytes -= iSize;
+	} else {
+		pSite->iLiveBytes = 0;
+	}
+}
+static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[xCore.MemDebug.iEventCursor];
+	memset(pEvent, 0, sizeof(xrtMemDebugEvent));
+	pEvent->iType = iType;
+	pEvent->iLine = iLine;
+	pEvent->iAllocatorKind = iAllocatorKind;
+	pEvent->iThreadId = xrtThreadGetCurrentId();
+	pEvent->iTimeMs = __xrtMemDebugNowMs();
+	pEvent->iSize = (uint64)iSize;
+	pEvent->pAddress = pAddress;
+	pEvent->sFile = sFile;
+	xCore.MemDebug.iEventCursor = (xCore.MemDebug.iEventCursor + 1) % XRT_MEMDEBUG_EVENT_CAPACITY;
+	if ( xCore.MemDebug.iEventCount < XRT_MEMDEBUG_EVENT_CAPACITY ) {
+		xCore.MemDebug.iEventCount++;
+	}
+}
+static inline void __xrtMemDebugAttachLiveNoLock(xrtMemBlockHeader* pHeader)
+{
+	pHeader->pDebugPrev = xCore.MemDebug.pLiveTail;
+	pHeader->pDebugNext = NULL;
+	if ( xCore.MemDebug.pLiveTail ) {
+		xCore.MemDebug.pLiveTail->pDebugNext = pHeader;
+	} else {
+		xCore.MemDebug.pLiveHead = pHeader;
+	}
+	xCore.MemDebug.pLiveTail = pHeader;
+	xCore.MemDebug.iLiveAllocCount++;
+	xCore.MemDebug.iLiveAllocBytes += pHeader->iRequestSize;
+	if ( xCore.MemDebug.iLiveAllocCount > xCore.MemDebug.iPeakLiveAllocCount ) {
+		xCore.MemDebug.iPeakLiveAllocCount = xCore.MemDebug.iLiveAllocCount;
+	}
+	if ( xCore.MemDebug.iLiveAllocBytes > xCore.MemDebug.iPeakLiveAllocBytes ) {
+		xCore.MemDebug.iPeakLiveAllocBytes = xCore.MemDebug.iLiveAllocBytes;
+	}
+}
+static inline void __xrtMemDebugDetachLiveNoLock(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader->pDebugPrev ) {
+		pHeader->pDebugPrev->pDebugNext = pHeader->pDebugNext;
+	} else {
+		xCore.MemDebug.pLiveHead = pHeader->pDebugNext;
+	}
+	if ( pHeader->pDebugNext ) {
+		pHeader->pDebugNext->pDebugPrev = pHeader->pDebugPrev;
+	} else {
+		xCore.MemDebug.pLiveTail = pHeader->pDebugPrev;
+	}
+	pHeader->pDebugPrev = NULL;
+	pHeader->pDebugNext = NULL;
+	if ( xCore.MemDebug.iLiveAllocCount > 0 ) {
+		xCore.MemDebug.iLiveAllocCount--;
+	}
+	if ( xCore.MemDebug.iLiveAllocBytes >= pHeader->iRequestSize ) {
+		xCore.MemDebug.iLiveAllocBytes -= pHeader->iRequestSize;
+	} else {
+		xCore.MemDebug.iLiveAllocBytes = 0;
+	}
+}
+static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode = xCore.MemDebug.pForeignAllocs;
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			if ( ppPrev ) {
+				*ppPrev = pPrev;
+			}
+			return pNode;
+		}
+		pPrev = pNode;
+		pNode = pNode->pNext;
+	}
+	if ( ppPrev ) {
+		*ppPrev = NULL;
+	}
+	return NULL;
+}
+static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	if ( __xrtMemDebugFindForeignNoLock(pAddress, NULL) != NULL ) {
+		__xrtMemDebugUnlock();
+		return;
+	}
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugForeignAlloc));
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return;
+	}
+	pNode->pAddress = pAddress;
+	pNode->iSize = (uint32)iSize;
+	pNode->iAllocatorKind = iAllocatorKind;
+	pNode->sAllocFile = sFile;
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	pNode->pNext = xCore.MemDebug.pForeignAllocs;
+	xCore.MemDebug.pForeignAllocs = pNode;
+	xCore.MemDebug.iForeignLiveCount++;
+	xCore.MemDebug.iForeignLiveBytes += iSize;
+	if ( xCore.MemDebug.iForeignLiveCount > xCore.MemDebug.iPeakForeignLiveCount ) {
+		xCore.MemDebug.iPeakForeignLiveCount = xCore.MemDebug.iForeignLiveCount;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes > xCore.MemDebug.iPeakForeignLiveBytes ) {
+		xCore.MemDebug.iPeakForeignLiveBytes = xCore.MemDebug.iForeignLiveBytes;
+	}
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, iAllocatorKind, iSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_ALLOC, pAddress, iSize, iAllocatorKind, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pAddress, 0, iAllocatorKind, sFile, iLine);
+		xCore.MemDebug.iDoubleFreeCount++;
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		xCore.MemDebug.pForeignAllocs = pNode->pNext;
+	}
+	if ( xCore.MemDebug.iForeignLiveCount > 0 ) {
+		xCore.MemDebug.iForeignLiveCount--;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes >= pNode->iSize ) {
+		xCore.MemDebug.iForeignLiveBytes -= pNode->iSize;
+	} else {
+		xCore.MemDebug.iForeignLiveBytes = 0;
+	}
+	__xrtMemDebugSiteOnFreeNoLock(pNode->sAllocFile, pNode->iAllocLine, pNode->iAllocatorKind, pNode->iSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, pAddress, pNode->iSize, pNode->iAllocatorKind, sFile, iLine);
+	__xrtMemGlobalProcFree()(pNode);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, NULL);
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	if ( pAllocatorKind ) {
+		*pAllocatorKind = pNode->iAllocatorKind;
+	}
+	if ( pSize ) {
+		*pSize = pNode->iSize;
+	}
+	if ( psFile ) {
+		*psFile = pNode->sAllocFile;
+	}
+	if ( pLine ) {
+		*pLine = pNode->iAllocLine;
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+static inline xrtMemDebugObject* __xrtMemDebugFindObjectNoLock(ptr pAddress)
+{
+	xrtMemDebugObject* pNode = xCore.MemDebug.pObjects;
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			return pNode;
+		}
+		pNode = pNode->pNext;
+	}
+	return NULL;
+}
+static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode == NULL ) {
+		pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugObject));
+		if ( pNode == NULL ) {
+			__xrtMemDebugUnlock();
+			return;
+		}
+		pNode->pAddress = pAddress;
+		pNode->pNext = xCore.MemDebug.pObjects;
+		xCore.MemDebug.pObjects = pNode;
+	}
+	if ( pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		xCore.MemDebug.iLiveObjectCount++;
+		if ( xCore.MemDebug.iLiveObjectCount > xCore.MemDebug.iPeakLiveObjectCount ) {
+			xCore.MemDebug.iPeakLiveObjectCount = xCore.MemDebug.iLiveObjectCount;
+		}
+	}
+	pNode->iObjectType = iObjectType;
+	pNode->iOrigin = iOrigin;
+	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_LIVE;
+	pNode->sAllocFile = sFile;
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	pNode->sFreeFile = NULL;
+	pNode->iFreeLine = 0;
+	pNode->iFreeThreadId = 0;
+	pNode->iFreeTimeMs = 0;
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_CREATE, pAddress, 0, iObjectType, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return TRUE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode && pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
+		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return TRUE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode == NULL || pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, iObjectType, sFile, iLine);
+		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_DESTROYED;
+	pNode->sFreeFile = sFile;
+	pNode->iFreeLine = iLine;
+	pNode->iFreeThreadId = xrtThreadGetCurrentId();
+	pNode->iFreeTimeMs = __xrtMemDebugNowMs();
+	if ( xCore.MemDebug.iLiveObjectCount > 0 ) {
+		xCore.MemDebug.iLiveObjectCount--;
+	}
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	pHeader->sAllocFile = sFile;
+	pHeader->iAllocLine = iLine;
+	pHeader->sFreeFile = NULL;
+	pHeader->iFreeLine = 0;
+	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
+	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
+	pHeader->iAllocSeq = ++xCore.MemDebug.iAllocSeq;
+	pHeader->iFreeTimeMs = 0;
+	pHeader->iDebugState = XRT_MEMDEBUG_STATE_LIVE;
+	__xrtMemDebugAttachLiveNoLock(pHeader);
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_ALLOC, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	if ( pHeader->iDebugState == XRT_MEMDEBUG_STATE_LIVE ) {
+		__xrtMemDebugDetachLiveNoLock(pHeader);
+		__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	}
+	pHeader->sFreeFile = sFile;
+	pHeader->iFreeLine = iLine;
+	pHeader->iFreeTimeMs = __xrtMemDebugNowMs();
+	pHeader->iDebugState = XRT_MEMDEBUG_STATE_FREED;
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, iOldSize);
+	pHeader->sAllocFile = sFile;
+	pHeader->iAllocLine = iLine;
+	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
+	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_REALLOC, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	if ( !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugLock();
+	__xrtMemDebugRecordEventNoLock(iType, pAddress, iSize, iAllocatorKind, sFile, iLine);
+	if ( iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE ) {
+		xCore.MemDebug.iDoubleFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_INVALID_FREE ) {
+		xCore.MemDebug.iInvalidFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE ) {
+		xCore.MemDebug.iWrongAllocatorFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT ) {
+		xCore.MemDebug.iOverflowCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT ) {
+		xCore.MemDebug.iUnderflowCount++;
+	}
+	__xrtMemDebugUnlock();
+}
+static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
+{
+	xrtMemDebugSiteStat* pSite;
+	xrtMemDebugForeignAlloc* pForeign;
+	xrtMemDebugObject* pObject;
+	xrtMemBlockHeader* pQuarantine;
+	if ( pState == NULL ) {
+		return;
+	}
+	pQuarantine = pState->pQuarantineHead;
+	while ( pQuarantine ) {
+		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
+		__xrtMemGlobalProcFree()(pQuarantine);
+		pQuarantine = pNext;
+	}
+	pSite = pState->pSiteStats;
+	while ( pSite ) {
+		xrtMemDebugSiteStat* pNext = pSite->pNext;
+		__xrtMemGlobalProcFree()(pSite);
+		pSite = pNext;
+	}
+	pForeign = pState->pForeignAllocs;
+	while ( pForeign ) {
+		xrtMemDebugForeignAlloc* pNext = pForeign->pNext;
+		__xrtMemGlobalProcFree()(pForeign);
+		pForeign = pNext;
+	}
+	pObject = pState->pObjects;
+	while ( pObject ) {
+		xrtMemDebugObject* pNext = pObject->pNext;
+		__xrtMemGlobalProcFree()(pObject);
+		pObject = pNext;
+	}
+	memset(pState, 0, sizeof(xrtMemDebugState));
+	pState->bEnabled = 1;
+}
+static inline bool __xrtMemDebugHasLeaks()
+{
+	return xCore.MemDebug.pLiveHead != NULL || xCore.MemDebug.pForeignAllocs != NULL || xCore.MemDebug.iLiveObjectCount != 0;
+}
+#else
+static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+}
+static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+	return TRUE;
+}
+static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+	return TRUE;
+}
+static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iSize;
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+}
+static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
+{
+	(void)pAddress;
+	(void)pAllocatorKind;
+	(void)pSize;
+	(void)psFile;
+	(void)pLine;
+	return FALSE;
+}
+static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)iOrigin;
+	(void)sFile;
+	(void)iLine;
+}
+static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)sFile;
+	(void)iLine;
+}
+static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)sFile;
+	(void)iLine;
+}
+static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)iOldSize;
+	(void)sFile;
+	(void)iLine;
+}
+static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	(void)iType;
+	(void)pAddress;
+	(void)iSize;
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+}
+static inline void __xrtMemDebugResetState(ptr pState)
+{
+	(void)pState;
+}
+static inline bool __xrtMemDebugHasLeaks()
+{
+	return FALSE;
+}
+#endif
+static inline xrtMemThreadCache* __xrtMemGlobalGetThreadCache()
+{
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+	return (xrtMemThreadCache*)pThreadData->tMem.pLocalAlloc;
+}
+static inline bool __xrtMemGlobalInitThreadCache(xrtThreadData* pThreadData)
+{
+	ptr (*procCalloc)(size_t, size_t) = __xrtMemGlobalProcCalloc();
+	xrtMemThreadCache* pCache;
+	if ( pThreadData == NULL ) {
+		return FALSE;
+	}
+	if ( pThreadData->tMem.pLocalAlloc ) {
+		return TRUE;
+	}
+	__xrtMemGlobalEnsurePlan();
+	pCache = procCalloc(1, sizeof(xrtMemThreadCache));
+	if ( pCache == NULL ) {
+		return FALSE;
+	}
+	pCache->iClassCount = xCore.MemGlobal.iClassCount;
+	pCache->iCacheLimit = XRT_MEMGLOBAL_CACHE_LIMIT;
+	pThreadData->tMem.pLocalAlloc = pCache;
+	return TRUE;
+}
+static inline void __xrtMemGlobalPushCentral(uint32 iClass, xrtMemFreeNode* pHead, xrtMemFreeNode* pTail, uint32 iCount)
+{
+	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
+	if ( pHead == NULL || pTail == NULL || iCount == 0 ) {
+		return;
+	}
+	__xrtMemGlobalLock(&pClass->iLock);
+	pTail->pNext = pClass->pFreeList;
+	pClass->pFreeList = pHead;
+	pClass->iFreeCount += iCount;
+	__xrtMemGlobalUnlock(&pClass->iLock);
+}
+static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMaxCount, uint32* pOutCount)
+{
+	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 iCount = 0;
+	__xrtMemGlobalLock(&pClass->iLock);
+	while ( pClass->pFreeList && iCount < iMaxCount ) {
+		xrtMemFreeNode* pNode = pClass->pFreeList;
+		pClass->pFreeList = pNode->pNext;
+		pNode->pNext = NULL;
+		if ( pHead == NULL ) {
+			pHead = pNode;
+		} else {
+			pTail->pNext = pNode;
+		}
+		pTail = pNode;
+		iCount++;
+	}
+	if ( pClass->iFreeCount >= iCount ) {
+		pClass->iFreeCount -= iCount;
+	} else {
+		pClass->iFreeCount = 0;
+	}
+	__xrtMemGlobalUnlock(&pClass->iLock);
+	if ( pOutCount ) {
+		*pOutCount = iCount;
+	}
+	return pHead;
+}
+static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
+{
+	ptr (*procMalloc)(size_t) = __xrtMemGlobalProcMalloc();
+	size_t iHeaderSize = __xrtMemGlobalHeaderSize();
+	size_t iPayloadSize = __xrtMemGlobalClassBlockSize(&xCore.MemGlobal, iClass);
+	size_t iStride = __xrtMemGlobalAlignSize(iHeaderSize + iPayloadSize);
+	uint32 iBlockCount;
+	size_t iBytes;
+	xrtMemGlobalSpan* pSpan;
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 i;
+	if ( iPayloadSize == 0 ) {
+		return FALSE;
+	}
+	iBlockCount = (uint32)(XRT_MEMGLOBAL_SPAN_TARGET_BYTES / iStride);
+	if ( iBlockCount < XRT_MEMGLOBAL_SPAN_MIN_BLOCKS ) {
+		iBlockCount = XRT_MEMGLOBAL_SPAN_MIN_BLOCKS;
+	}
+	if ( iBlockCount > XRT_MEMGLOBAL_SPAN_MAX_BLOCKS ) {
+		iBlockCount = XRT_MEMGLOBAL_SPAN_MAX_BLOCKS;
+	}
+	iBytes = __xrtMemGlobalAlignSize(sizeof(xrtMemGlobalSpan)) + (iStride * iBlockCount);
+	pSpan = (xrtMemGlobalSpan*)procMalloc(iBytes);
+	if ( pSpan == NULL ) {
+		return FALSE;
+	}
+	pSpan->pMemory = pSpan;
+	pSpan->iClassIndex = iClass;
+	pSpan->iBlockCount = iBlockCount;
+	{
+		char* pCursor = (char*)pSpan + __xrtMemGlobalAlignSize(sizeof(xrtMemGlobalSpan));
+		for ( i = 0; i < iBlockCount; i++ ) {
+			xrtMemBlockHeader* pHeader = (xrtMemBlockHeader*)pCursor;
+			xrtMemFreeNode* pNode;
+			__xrtMemGlobalWriteHeader(pHeader, iClass, XRT_MEMBLOCK_FLAG_POOLED, (uint32)iPayloadSize);
+			pNode = (xrtMemFreeNode*)__xrtMemGlobalUserFromHeader(pHeader);
+			pNode->pNext = NULL;
+			if ( pHead == NULL ) {
+				pHead = pNode;
+			} else {
+				pTail->pNext = pNode;
+			}
+			pTail = pNode;
+			pCursor += iStride;
+		}
+	}
+	__xrtMemGlobalLock(&xCore.MemGlobal.iSpanLock);
+	pSpan->pNext = xCore.MemGlobal.pSpanList;
+	xCore.MemGlobal.pSpanList = pSpan;
+	__xrtMemGlobalUnlock(&xCore.MemGlobal.iSpanLock);
+	xCore.MemGlobal.arrClassDesc[iClass].iSpanCount++;
+	__xrtMemGlobalPushCentral(iClass, pHead, pTail, iBlockCount);
+	return TRUE;
+}
+static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, uint32 iClass)
+{
+	uint32 iDesired = pCache ? (uint32)(pCache->iCacheLimit / 2) : 0;
+	uint32 iCount = 0;
+	xrtMemFreeNode* pHead;
+	xrtMemFreeNode* pNode;
+	if ( pCache == NULL || iClass >= pCache->iClassCount ) {
+		return FALSE;
+	}
+	if ( iDesired == 0 ) {
+		iDesired = 1;
+	}
+	pHead = __xrtMemGlobalPopCentral(iClass, iDesired, &iCount);
+	if ( pHead == NULL ) {
+		if ( !__xrtMemGlobalAllocSpan(iClass) ) {
+			return FALSE;
+		}
+		pHead = __xrtMemGlobalPopCentral(iClass, iDesired, &iCount);
+		if ( pHead == NULL ) {
+			return FALSE;
+		}
+	}
+	pNode = pHead;
+	while ( pNode ) {
+		xrtMemFreeNode* pNext = pNode->pNext;
+		pNode->pNext = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode;
+		pCache->arrFreeCount[iClass]++;
+		pNode = pNext;
+	}
+	return pCache->arrFreeCount[iClass] > 0;
+}
+static inline void __xrtMemGlobalDrainThreadCache(xrtMemThreadCache* pCache, uint32 iClass, uint32 iKeepCount)
+{
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 iCount = 0;
+	if ( pCache == NULL || iClass >= pCache->iClassCount ) {
+		return;
+	}
+	while ( pCache->arrFreeCount[iClass] > iKeepCount ) {
+		xrtMemFreeNode* pNode = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode->pNext;
+		pCache->arrFreeCount[iClass]--;
+		pNode->pNext = NULL;
+		if ( pHead == NULL ) {
+			pHead = pNode;
+		} else {
+			pTail->pNext = pNode;
+		}
+		pTail = pNode;
+		iCount++;
+	}
+	if ( iCount > 0 ) {
+		__xrtMemGlobalPushCentral(iClass, pHead, pTail, iCount);
+	}
+}
+static inline void __xrtMemGlobalUnitThreadCache(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
+	xrtMemThreadCache* pCache;
+	uint32 i;
+	if ( pThreadData == NULL || pThreadData->tMem.pLocalAlloc == NULL ) {
+		return;
+	}
+	pCache = (xrtMemThreadCache*)pThreadData->tMem.pLocalAlloc;
+	for ( i = 0; i < pCache->iClassCount; i++ ) {
+		__xrtMemGlobalDrainThreadCache(pCache, i, 0);
+	}
+	procFree(pCache);
+	pThreadData->tMem.pLocalAlloc = NULL;
+}
+static inline void __xrtMemGlobalUnitPlan(xrtMemGlobalPool* pPool)
+{
+	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
+	xrtMemGlobalSpan* pSpan;
+	if ( pPool == NULL ) {
+		return;
+	}
+	pSpan = pPool->pSpanList;
+	while ( pSpan ) {
+		xrtMemGlobalSpan* pNext = pSpan->pNext;
+		procFree(pSpan->pMemory);
+		pSpan = pNext;
+	}
+	memset(pPool, 0, sizeof(xrtMemGlobalPool));
+}
+static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, bool bZero)
+{
+	xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
+	xrtMemFreeNode* pNode = NULL;
+	xrtMemBlockHeader* pHeader;
+	uint32 iBlockSize;
+	if ( pCache && iClass < pCache->iClassCount ) {
+		if ( pCache->arrFreeList[iClass] == NULL ) {
+			if ( !__xrtMemGlobalRefillThreadCache(pCache, iClass) ) {
+				return NULL;
+			}
+		}
+		pNode = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode->pNext;
+		pCache->arrFreeCount[iClass]--;
+	} else {
+		uint32 iCount = 0;
+		pNode = __xrtMemGlobalPopCentral(iClass, 1, &iCount);
+		if ( pNode == NULL ) {
+			if ( !__xrtMemGlobalAllocSpan(iClass) ) {
+				return NULL;
+			}
+			pNode = __xrtMemGlobalPopCentral(iClass, 1, &iCount);
+			if ( pNode == NULL ) {
+				return NULL;
+			}
+		}
+	}
+	pHeader = __xrtMemGlobalHeaderFromUser(pNode);
+	iBlockSize = __xrtMemGlobalClassBlockSize(&xCore.MemGlobal, iClass);
+	__xrtMemGlobalWriteHeader(pHeader, iClass, XRT_MEMBLOCK_FLAG_POOLED, (uint32)iRequestSize);
+	if ( bZero ) {
+		memset(pNode, 0, iBlockSize);
+	#ifdef XRT_MEM_DEBUG
+	} else {
+		memset(pNode, 0xCD, iBlockSize);
+	#endif
+	}
+	__xrtMemGlobalWriteTailCanary(pHeader);
+	return pNode;
+}
+static inline ptr __xrtMemGlobalAllocBacking(size_t iRequestSize, bool bZero)
+{
+	ptr pRaw;
+	xrtMemBlockHeader* pHeader;
+	size_t iAllocPayload = __xrtMemGlobalAllocPayloadSize(iRequestSize);
+	size_t iAllocSize = __xrtMemGlobalHeaderSize() + iAllocPayload;
+	if ( bZero ) {
+		pRaw = __xrtMemGlobalProcCalloc()(1, iAllocSize);
+	} else {
+		pRaw = __xrtMemGlobalProcMalloc()(iAllocSize);
+	}
+	if ( pRaw == NULL ) {
+		return NULL;
+	}
+	pHeader = (xrtMemBlockHeader*)pRaw;
+	__xrtMemGlobalWriteHeader(pHeader, 0xFFFFu, XRT_MEMBLOCK_FLAG_BACKING, (uint32)iRequestSize);
+	#ifdef XRT_MEM_DEBUG
+		if ( !bZero ) {
+			memset(__xrtMemGlobalUserFromHeader(pHeader), 0xCD, iAllocPayload);
+		}
+	#endif
+	__xrtMemGlobalWriteTailCanary(pHeader);
+	return __xrtMemGlobalUserFromHeader(pHeader);
+}
+static inline ptr __xrtMemGlobalAllocSite(size_t iSize, bool bZero, const char* sFile, uint32 iLine)
+{
+	uint32 iClass;
+	ptr pMem;
+	__xrtMemGlobalEnsurePlan();
+	iClass = __xrtMemGlobalClassIndexForRequest(&xCore.MemGlobal, iSize);
+	if ( iClass != (uint32)-1 ) {
+		pMem = __xrtMemGlobalAllocPooled(iClass, iSize, bZero);
+	} else {
+		pMem = __xrtMemGlobalAllocBacking(iSize, bZero);
+	}
+	if ( pMem ) {
+		__xrtMemDebugTrackAlloc(__xrtMemGlobalHeaderFromUser(pMem), sFile, iLine);
+	}
+	return pMem;
+}
+static inline ptr __xrtMemGlobalAlloc(size_t iSize, bool bZero)
+{
+	return __xrtMemGlobalAllocSite(iSize, bZero, NULL, 0);
+}
+static inline void __xrtMemGlobalFreeRelease(ptr pMem)
+{
+	xrtMemBlockHeader* pHeader;
+	if ( pMem == NULL ) {
+		return;
+	}
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		__xrtMemGlobalProcFree()(pMem);
+		return;
+	}
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_POOLED ) {
+		uint32 iClass = pHeader->iClassIndex;
+		xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
+		xrtMemFreeNode* pNode = (xrtMemFreeNode*)pMem;
+		if ( pCache && iClass < pCache->iClassCount ) {
+			if ( pCache->arrFreeCount[iClass] >= pCache->iCacheLimit ) {
+				__xrtMemGlobalDrainThreadCache(pCache, iClass, pCache->iCacheLimit / 2);
+			}
+			pNode->pNext = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+			pCache->arrFreeList[iClass] = pNode;
+			pCache->arrFreeCount[iClass]++;
+		} else {
+			pNode->pNext = NULL;
+			__xrtMemGlobalPushCentral(iClass, pNode, pNode, 1);
+		}
+		return;
+	}
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+		__xrtMemGlobalProcFree()(pHeader);
+		return;
+	}
+	__xrtMemGlobalProcFree()(pHeader);
+}
+static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iLine)
+{
+	xrtMemBlockHeader* pHeader;
+	if ( pMem == NULL ) {
+		return;
+	}
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		uint32 iAllocatorKind = 0;
+		size_t iForeignSize = 0;
+		const char* sForeignFile = NULL;
+		uint32 iForeignLine = 0;
+		if ( __xrtMemDebugLookupForeignAlloc(pMem, &iAllocatorKind, &iForeignSize, &sForeignFile, &iForeignLine) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE, pMem, iForeignSize, iAllocatorKind, sFile, iLine);
+			xrtSetError("memory belongs to an explicit pool allocator.", FALSE);
+			return;
+		}
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_INVALID_FREE, pMem, 0, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("invalid free detected.", FALSE);
+			return;
+		#else
+			__xrtMemGlobalProcFree()(pMem);
+			return;
+		#endif
+	}
+	#ifdef XRT_MEM_DEBUG
+		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("double free detected.", FALSE);
+			return;
+		}
+		if ( !__xrtMemGlobalCheckFrontCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		if ( !__xrtMemGlobalCheckTailCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		__xrtMemDebugTrackFree(pHeader, sFile, iLine);
+		memset(pMem, 0xDD, __xrtMemGlobalAllocPayloadSize(pHeader->iRequestSize));
+		if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+			__xrtMemDebugLock();
+			pHeader->iDebugState = XRT_MEMDEBUG_STATE_QUARANTINE;
+			pHeader->pDebugPrev = xCore.MemDebug.pQuarantineTail;
+			pHeader->pDebugNext = NULL;
+			if ( xCore.MemDebug.pQuarantineTail ) {
+				xCore.MemDebug.pQuarantineTail->pDebugNext = pHeader;
+			} else {
+				xCore.MemDebug.pQuarantineHead = pHeader;
+			}
+			xCore.MemDebug.pQuarantineTail = pHeader;
+			xCore.MemDebug.iQuarantineCount++;
+			xCore.MemDebug.iQuarantineBytes += pHeader->iRequestSize;
+			while ( xCore.MemDebug.iQuarantineCount > XRT_MEMDEBUG_QUARANTINE_LIMIT && xCore.MemDebug.pQuarantineHead ) {
+				xrtMemBlockHeader* pOld = xCore.MemDebug.pQuarantineHead;
+				xCore.MemDebug.pQuarantineHead = pOld->pDebugNext;
+				if ( xCore.MemDebug.pQuarantineHead ) {
+					xCore.MemDebug.pQuarantineHead->pDebugPrev = NULL;
+				} else {
+					xCore.MemDebug.pQuarantineTail = NULL;
+				}
+				pOld->pDebugPrev = NULL;
+				pOld->pDebugNext = NULL;
+				if ( xCore.MemDebug.iQuarantineCount > 0 ) {
+					xCore.MemDebug.iQuarantineCount--;
+				}
+				if ( xCore.MemDebug.iQuarantineBytes >= pOld->iRequestSize ) {
+					xCore.MemDebug.iQuarantineBytes -= pOld->iRequestSize;
+				} else {
+					xCore.MemDebug.iQuarantineBytes = 0;
+				}
+				__xrtMemGlobalProcFree()(pOld);
+			}
+			__xrtMemDebugUnlock();
+			return;
+		}
+	#endif
+	__xrtMemGlobalFreeRelease(pMem);
+}
+static inline void __xrtMemGlobalFree(ptr pMem)
+{
+	__xrtMemGlobalFreeSite(pMem, NULL, 0);
+}
+static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
+{
+	xrtMemBlockHeader* pHeader;
+	size_t iOldSize;
+	if ( pMem == NULL ) {
+		return __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
+	}
+	if ( iSize == 0 ) {
+		__xrtMemGlobalFreeSite(pMem, sFile, iLine);
+		return NULL;
+	}
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		return __xrtMemGlobalProcRealloc()(pMem, iSize);
+	}
+	#ifdef XRT_MEM_DEBUG
+		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("realloc on freed memory detected.", FALSE);
+			return NULL;
+		}
+		if ( !__xrtMemGlobalCheckFrontCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		if ( !__xrtMemGlobalCheckTailCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+	#endif
+	iOldSize = pHeader->iRequestSize;
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_POOLED ) {
+		uint32 iOldClass = pHeader->iClassIndex;
+		uint32 iNewClass = __xrtMemGlobalClassIndexForRequest(&xCore.MemGlobal, iSize);
+		if ( iNewClass == iOldClass ) {
+			pHeader->iRequestSize = (uint32)iSize;
+			__xrtMemGlobalWriteTailCanary(pHeader);
+			__xrtMemDebugTrackReallocInPlace(pHeader, iOldSize, sFile, iLine);
+			return pMem;
+		}
+	} else if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+		#ifndef XRT_MEM_DEBUG
+		if ( iSize > xCore.MemGlobal.iCutoff ) {
+			size_t iAllocPayload = __xrtMemGlobalAllocPayloadSize(iSize);
+			size_t iAllocSize = __xrtMemGlobalHeaderSize() + iAllocPayload;
+			xrtMemBlockHeader* pNewHeader = __xrtMemGlobalProcRealloc()(pHeader, iAllocSize);
+			if ( pNewHeader == NULL ) {
+				return NULL;
+			}
+			__xrtMemGlobalWriteHeader(pNewHeader, 0xFFFFu, XRT_MEMBLOCK_FLAG_BACKING, (uint32)iSize);
+			__xrtMemGlobalWriteTailCanary(pNewHeader);
+			return __xrtMemGlobalUserFromHeader(pNewHeader);
+		}
+		#endif
+	}
+	{
+		ptr pNewMem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
+		if ( pNewMem == NULL ) {
+			return NULL;
+		}
+		memcpy(pNewMem, pMem, iOldSize < iSize ? iOldSize : iSize);
+		__xrtMemGlobalFreeSite(pMem, sFile, iLine);
+		return pNewMem;
+	}
+}
+static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
+{
+	return __xrtMemGlobalReallocSite(pMem, iSize, NULL, 0);
+}
+
+// ========================================
 // File: D:/Git/xrt/lib/base.h
 // ========================================
 
 
 // 申请内存
-XXAPI ptr xrtMalloc(size_t iSize)
+#define __XRT_MEMTELEMETRY_OP_MALLOC 1
+#define __XRT_MEMTELEMETRY_OP_CALLOC 2
+#define __XRT_MEMTELEMETRY_OP_REALLOC 3
+static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize);
+static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize);
+static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
+static inline void __xrtMemTelemetryRecordFree();
+static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
+XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine)
 {
-	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
-	ptr mem = procMalloc(iSize);
+	ptr mem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
 		return NULL;
 	}
+	__xrtMemTelemetryRecordSizedOp(__XRT_MEMTELEMETRY_OP_MALLOC, iSize);
 	return mem;
+}
+XXAPI ptr xrtMalloc(size_t iSize)
+{
+	return xrtMallocDbg(iSize, NULL, 0);
 }
 // 申请类内存
-XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
+XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
 {
-	ptr (*procCalloc)(size_t, size_t) = xCore.calloc ? xCore.calloc : calloc;
-	ptr mem = procCalloc(iNum, iSize);
+	size_t iTotal = __xrtMemTelemetryMulClamp(iNum, iSize);
+	ptr mem = __xrtMemGlobalAllocSite(iTotal, TRUE, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("class memory allocate failed.", FALSE);
+	} else {
+		__xrtMemTelemetryRecordSizedOp(__XRT_MEMTELEMETRY_OP_CALLOC, iTotal);
 	}
 	return mem;
+}
+XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
+{
+	return xrtCallocDbg(iNum, iSize, NULL, 0);
 }
 // 重新申请内存
-XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
+XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
-	ptr (*procRealloc)(ptr, size_t) = xCore.realloc ? xCore.realloc : realloc;
-	ptr mem = procRealloc(pMem, iSize);
+	ptr mem;
+	if ( pMem == xCore.sNull ) {
+		pMem = NULL;
+	}
+	mem = __xrtMemGlobalReallocSite(pMem, iSize, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("memory reallocate failed.", FALSE);
+	} else {
+		__xrtMemTelemetryRecordSizedOp(__XRT_MEMTELEMETRY_OP_REALLOC, iSize);
 	}
 	return mem;
 }
+XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
+{
+	return xrtReallocDbg(pMem, iSize, NULL, 0);
+}
 // 释放内存（ 会先判断是否为 null ）
+XXAPI void xrtFreeDbg(ptr pmem, const char* sFile, uint32 iLine)
+{
+	if ( pmem && (pmem != xCore.sNull) ) {
+		__xrtMemTelemetryRecordFree();
+		__xrtMemGlobalFreeSite(pmem, sFile, iLine);
+	}
+}
 XXAPI void xrtFree(ptr pmem)
 {
-	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
-	if ( pmem && (pmem != xCore.sNull) ) { procFree(pmem); }
+	xrtFreeDbg(pmem, NULL, 0);
+}
+static inline size_t __xrtTempArenaBlockHeaderSize()
+{
+	return __xrtMemGlobalAlignSize(sizeof(xrtTempArenaBlock));
+}
+static inline ptr __xrtTempArenaBlockUser(xrtTempArenaBlock* pBlock)
+{
+	return (ptr)((char*)pBlock + __xrtTempArenaBlockHeaderSize());
+}
+static inline xrtTempArenaBlock* __xrtTempArenaAllocBlock(size_t iCapacity)
+{
+	size_t iTotal;
+	xrtTempArenaBlock* pBlock;
+	if ( iCapacity == 0 ) {
+		iCapacity = 1;
+	}
+	iTotal = __xrtTempArenaBlockHeaderSize() + iCapacity;
+	pBlock = (xrtTempArenaBlock*)__xrtMemGlobalProcMalloc()(iTotal);
+	if ( pBlock == NULL ) {
+		return NULL;
+	}
+	memset(pBlock, 0, __xrtTempArenaBlockHeaderSize());
+	pBlock->iCapacity = (uint32)iCapacity;
+	return pBlock;
+}
+static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t iSize, bool bSpill)
+{
+	#ifdef XRT_MEM_DEBUG
+		if ( pThreadData == NULL || !__xrtMemDebugEnabled() ) {
+			return;
+		}
+		__xrtMemDebugLock();
+		pThreadData->tTemp.iCurrentBytes += iSize;
+		if ( pThreadData->tTemp.iCurrentBytes > pThreadData->tTemp.iPeakBytes ) {
+			pThreadData->tTemp.iPeakBytes = pThreadData->tTemp.iCurrentBytes;
+		}
+		xCore.MemDebug.iTempCurrentBytes += iSize;
+		if ( xCore.MemDebug.iTempCurrentBytes > xCore.MemDebug.iTempPeakBytes ) {
+			xCore.MemDebug.iTempPeakBytes = xCore.MemDebug.iTempCurrentBytes;
+		}
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_ALLOC, NULL, iSize, bSpill ? XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL : XRT_MEMDEBUG_ALLOCATOR_GLOBAL, NULL, 0);
+		__xrtMemDebugUnlock();
+	#else
+		(void)pThreadData;
+		(void)iSize;
+		(void)bSpill;
+	#endif
+}
+static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
+{
+	#ifdef XRT_MEM_DEBUG
+		if ( pThreadData == NULL || !__xrtMemDebugEnabled() ) {
+			return;
+		}
+		__xrtMemDebugLock();
+		if ( xCore.MemDebug.iTempCurrentBytes >= pThreadData->tTemp.iCurrentBytes ) {
+			xCore.MemDebug.iTempCurrentBytes -= pThreadData->tTemp.iCurrentBytes;
+		} else {
+			xCore.MemDebug.iTempCurrentBytes = 0;
+		}
+		xCore.MemDebug.iTempResetCount++;
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_RESET, NULL, pThreadData->tTemp.iCurrentBytes, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, NULL, 0);
+		__xrtMemDebugUnlock();
+	#else
+		(void)pThreadData;
+	#endif
+}
+static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_t iNeed)
+{
+	xrtTempArenaBlock* pBlock;
+	size_t iCapacity;
+	if ( pThreadData == NULL ) {
+		return FALSE;
+	}
+	if ( pThreadData->tTemp.pCurrent && ((size_t)pThreadData->tTemp.pCurrent->iUsed + iNeed) <= pThreadData->tTemp.pCurrent->iCapacity ) {
+		return TRUE;
+	}
+	if ( pThreadData->tTemp.pCurrent && pThreadData->tTemp.pCurrent->pNext ) {
+		xrtTempArenaBlock* pNext = pThreadData->tTemp.pCurrent->pNext;
+		while ( pNext ) {
+			if ( ((size_t)pNext->iUsed + iNeed) <= pNext->iCapacity ) {
+				pThreadData->tTemp.pCurrent = pNext;
+				return TRUE;
+			}
+			pNext = pNext->pNext;
+		}
+	}
+	if ( pThreadData->tTemp.pCurrent == NULL && pThreadData->tTemp.pBlocks ) {
+		xrtTempArenaBlock* pNext = pThreadData->tTemp.pBlocks;
+		while ( pNext ) {
+			if ( ((size_t)pNext->iUsed + iNeed) <= pNext->iCapacity ) {
+				pThreadData->tTemp.pCurrent = pNext;
+				return TRUE;
+			}
+			pNext = pNext->pNext;
+		}
+	}
+	iCapacity = pThreadData->tTemp.iBlockSize ? pThreadData->tTemp.iBlockSize : XRT_TEMP_ARENA_BLOCK_SIZE;
+	if ( iNeed > iCapacity ) {
+		iCapacity = iNeed;
+	}
+	pBlock = __xrtTempArenaAllocBlock(iCapacity);
+	if ( pBlock == NULL ) {
+		return FALSE;
+	}
+	if ( pThreadData->tTemp.pBlocks == NULL ) {
+		pThreadData->tTemp.pBlocks = pBlock;
+	} else if ( pThreadData->tTemp.pCurrent ) {
+		pThreadData->tTemp.pCurrent->pNext = pBlock;
+	} else {
+		xrtTempArenaBlock* pTail = pThreadData->tTemp.pBlocks;
+		while ( pTail->pNext ) {
+			pTail = pTail->pNext;
+		}
+		pTail->pNext = pBlock;
+	}
+	pThreadData->tTemp.pCurrent = pBlock;
+	return TRUE;
+}
+static inline void __xrtTempArenaResetThread(xrtThreadData* pThreadData)
+{
+	xrtTempArenaBlock* pBlock;
+	xrtTempArenaBlock* pSpill;
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	__xrtTempArenaDebugOnReset(pThreadData);
+	for ( pBlock = pThreadData->tTemp.pBlocks; pBlock; pBlock = pBlock->pNext ) {
+		#ifdef XRT_MEM_DEBUG
+			memset(__xrtTempArenaBlockUser(pBlock), 0xE7, pBlock->iCapacity);
+		#endif
+		pBlock->iUsed = 0;
+	}
+	pSpill = pThreadData->tTemp.pSpill;
+	while ( pSpill ) {
+		xrtTempArenaBlock* pNext = pSpill->pNext;
+		#ifdef XRT_MEM_DEBUG
+			memset(__xrtTempArenaBlockUser(pSpill), 0xE7, pSpill->iCapacity);
+		#endif
+		__xrtMemGlobalProcFree()(pSpill);
+		pSpill = pNext;
+	}
+	pThreadData->tTemp.pCurrent = pThreadData->tTemp.pBlocks;
+	pThreadData->tTemp.pSpill = NULL;
+	pThreadData->tTemp.iCurrentBytes = 0;
+	pThreadData->tTemp.iResetCount++;
+}
+static inline void __xrtTempArenaFreeAllThread(xrtThreadData* pThreadData)
+{
+	xrtTempArenaBlock* pBlock;
+	xrtTempArenaBlock* pSpill;
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	__xrtTempArenaDebugOnReset(pThreadData);
+	pBlock = pThreadData->tTemp.pBlocks;
+	while ( pBlock ) {
+		xrtTempArenaBlock* pNext = pBlock->pNext;
+		__xrtMemGlobalProcFree()(pBlock);
+		pBlock = pNext;
+	}
+	pSpill = pThreadData->tTemp.pSpill;
+	while ( pSpill ) {
+		xrtTempArenaBlock* pNext = pSpill->pNext;
+		__xrtMemGlobalProcFree()(pSpill);
+		pSpill = pNext;
+	}
+	memset(&pThreadData->tTemp, 0, sizeof(xrtTempArenaState));
+	pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
+	pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
 }
 // 申请无需主动释放的临时内存（线程级）
 XXAPI ptr xrtTempMemory(size_t iSize)
 {
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	size_t iNeed;
+	bool bSpill;
+	xrtTempArenaBlock* pBlock;
+	ptr pRet;
 	if ( pThreadData == NULL ) {
 		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
 		return NULL;
 	}
 	// 申请内存
-	ptr pMem = xrtMalloc(iSize);
-	if ( pMem == NULL ) {
-		return NULL;
+	if ( pThreadData->tTemp.iBlockSize == 0 ) {
+		pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
 	}
-	// 释放过期内存
-	if ( pThreadData->TempMem[pThreadData->TempMemIdx] ) {
-		xrtFree(pThreadData->TempMem[pThreadData->TempMemIdx]);
-		pThreadData->TempMem[pThreadData->TempMemIdx] = NULL;
+	if ( pThreadData->tTemp.iSpillCutoff == 0 ) {
+		pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
 	}
-	// 处理环形临时内存数据
-	pThreadData->TempMem[pThreadData->TempMemIdx] = pMem;
-	pThreadData->TempMemIdx++;
-	if ( pThreadData->TempMemIdx >= XRT_TEMP_SLOT_COUNT ) {
-		pThreadData->TempMemIdx = 0;
+	iNeed = __xrtMemGlobalAlignSize(iSize ? iSize : 1);
+	bSpill = iNeed > pThreadData->tTemp.iSpillCutoff;
+	if ( bSpill ) {
+		pBlock = __xrtTempArenaAllocBlock(iNeed);
+		if ( pBlock == NULL ) {
+			xrtSetError("temporary memory allocate failed.", FALSE);
+			return NULL;
+		}
+		pBlock->iUsed = (uint32)iNeed;
+		pBlock->iFlags = 1u;
+		pBlock->pNext = pThreadData->tTemp.pSpill;
+		pThreadData->tTemp.pSpill = pBlock;
+		pRet = __xrtTempArenaBlockUser(pBlock);
+	} else {
+		if ( !__xrtTempArenaEnsureCurrent(pThreadData, iNeed) ) {
+			xrtSetError("temporary memory allocate failed.", FALSE);
+			return NULL;
+		}
+		pBlock = pThreadData->tTemp.pCurrent;
+		pRet = (ptr)((char*)__xrtTempArenaBlockUser(pBlock) + pBlock->iUsed);
+		pBlock->iUsed += (uint32)iNeed;
 	}
-	// 返回内存指针
-	return pMem;
+	__xrtMemTelemetryRecordTemp(iSize);
+	__xrtTempArenaDebugOnAlloc(pThreadData, iNeed, bSpill);
+	return pRet;
 }
 // 释放当前线程的所有临时内存
 XXAPI void xrtFreeTempMemory()
@@ -15754,13 +18868,7 @@ XXAPI void xrtFreeTempMemory()
 	if ( pThreadData == NULL ) {
 		return;
 	}
-	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
-		if ( pThreadData->TempMem[i] ) {
-			xrtFree(pThreadData->TempMem[i]);
-			pThreadData->TempMem[i] = NULL;
-		}
-	}
-	pThreadData->TempMemIdx = 0;
+	__xrtTempArenaResetThread(pThreadData);
 }
 // 设置错误（线程级）
 XXAPI void xrtSetError(str sError, bool bFree)
@@ -15809,6 +18917,91 @@ XXAPI void xrtClearError()
 	pThreadData->LastError = xCore.sNull;
 	pThreadData->bFreeLastError = FALSE;
 }
+static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize)
+{
+	if ( iNum == 0 || iSize == 0 ) {
+		return 0;
+	}
+	if ( iNum > ((size_t)-1) / iSize ) {
+		return (size_t)-1;
+	}
+	return iNum * iSize;
+}
+static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize)
+{
+	if ( xCore.MemGlobal.iClassCount == XRT_MEMPOOL_CLASS_COUNT_DEFAULT && iSize <= xCore.MemGlobal.iCutoff ) {
+		if ( iSize == 0 ) {
+			return 0;
+		}
+		return xCore.MemGlobal.arrSizeClassLut[iSize];
+	}
+	if ( iSize <= 1 ) {
+		return 0;
+	}
+	if ( iSize >= XRT_MEMPOOL_CUTOFF_DEFAULT ) {
+		return XRT_MEMPOOL_CLASS_COUNT_DEFAULT - 1;
+	}
+	return (uint32)(((iSize + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE) - 1);
+}
+static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize)
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+	uint32 iIdx;
+	if ( pState->bEnabled == 0 ) {
+		return;
+	}
+	switch ( iOp ) {
+		case __XRT_MEMTELEMETRY_OP_MALLOC:
+			__xrtAtomicAddFetch64(&pState->iMallocCalls, 1);
+			__xrtAtomicAddFetch64(&pState->iMallocBytes, (int64)iSize);
+			break;
+		case __XRT_MEMTELEMETRY_OP_CALLOC:
+			__xrtAtomicAddFetch64(&pState->iCallocCalls, 1);
+			__xrtAtomicAddFetch64(&pState->iCallocBytes, (int64)iSize);
+			break;
+		case __XRT_MEMTELEMETRY_OP_REALLOC:
+			__xrtAtomicAddFetch64(&pState->iReallocCalls, 1);
+			__xrtAtomicAddFetch64(&pState->iReallocBytes, (int64)iSize);
+			break;
+		default:
+			return;
+	}
+	if ( iSize <= XRT_MEMPOOL_CUTOFF_DEFAULT ) {
+		iIdx = __xrtMemTelemetryClassIndex(iSize);
+		__xrtAtomicAddFetch64(&pState->iPooledCandidateCalls, 1);
+		__xrtAtomicAddFetch64(&pState->iPooledCandidateBytes, (int64)iSize);
+		__xrtAtomicAddFetch64(&pState->arrClassCalls[iIdx], 1);
+		__xrtAtomicAddFetch64(&pState->arrClassBytes[iIdx], (int64)iSize);
+	} else {
+		__xrtAtomicAddFetch64(&pState->iFallbackCalls, 1);
+		__xrtAtomicAddFetch64(&pState->iFallbackBytes, (int64)iSize);
+	}
+}
+static inline void __xrtMemTelemetryRecordFree()
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+	if ( pState->bEnabled == 0 ) {
+		return;
+	}
+	__xrtAtomicAddFetch64(&pState->iFreeCalls, 1);
+}
+static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+	if ( pState->bEnabled == 0 ) {
+		return;
+	}
+	__xrtAtomicAddFetch64(&pState->iTempCalls, 1);
+	__xrtAtomicAddFetch64(&pState->iTempBytes, (int64)iSize);
+}
+#define __XRT_MEMTELEMETRY_OP_MALLOC 1
+#define __XRT_MEMTELEMETRY_OP_CALLOC 2
+#define __XRT_MEMTELEMETRY_OP_REALLOC 3
+static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize);
+static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize);
+static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
+static inline void __xrtMemTelemetryRecordFree();
+static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
 // ========================================
 // File: D:/Git/xrt/lib/string.h
@@ -22711,8 +25904,40 @@ XXAPI int xrtDirDelete(str sPath)
 // ========================================
 
 
-/* ================================ �̹߳��� ================================ */
-// �̰߳�װ������ͳһ��� attach / detach / exit code ���棩
+/* ================================ 线程管理 ================================ */
+#if !defined(_WIN32) && !defined(_WIN64)
+	#if defined(CLOCK_MONOTONIC)
+		#define __XRT_THREAD_WAIT_CLOCK CLOCK_MONOTONIC
+	#else
+		#define __XRT_THREAD_WAIT_CLOCK CLOCK_REALTIME
+	#endif
+	static bool __xrtThreadMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
+	{
+		uint64 iNs;
+		if ( !pTs ) return false;
+		if ( clock_gettime(__XRT_THREAD_WAIT_CLOCK, pTs) != 0 ) return false;
+		iNs = (uint64)pTs->tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
+		pTs->tv_sec += (time_t)(iNs / 1000000000ULL);
+		pTs->tv_nsec = (long)(iNs % 1000000000ULL);
+		return true;
+	}
+	static bool __xrtThreadInitMonotonicCond(pthread_cond_t* pCond)
+	{
+		pthread_condattr_t tAttr;
+		if ( !pCond ) return false;
+		if ( pthread_condattr_init(&tAttr) != 0 ) return false;
+		#if defined(CLOCK_MONOTONIC)
+			(void)pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC);
+		#endif
+		if ( pthread_cond_init(pCond, &tAttr) != 0 ) {
+			pthread_condattr_destroy(&tAttr);
+			return false;
+		}
+		pthread_condattr_destroy(&tAttr);
+		return true;
+	}
+#endif
+// 线程包装函数（统一完成 attach / detach / exit code 保存）
 #if defined(_WIN32) || defined(_WIN64)
 static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
 {
@@ -22744,12 +25969,11 @@ static void* xrtThreadWrapper(void* pParameter)
 	return (void*)(uintptr_t)iExitCode;
 }
 #endif
-// �����߳�
+// 创建线程
 XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 {
 	xthread pThread = xrtMalloc(sizeof(xthread_struct));
 	if ( !pThread ) return NULL;
-	
 	pThread->Proc = pProc;
 	pThread->Param = pParam;
 	pThread->StopFlag = 0;
@@ -22757,36 +25981,43 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 	pThread->bJoined = FALSE;
 	pThread->ExitCode = 0;
 	pThread->TID = 0;
-	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD iThreadID;
 		pThread->Handle = CreateThread(NULL, iStackSize, xrtThreadWrapper, pThread, 0, &iThreadID);
 		pThread->TID = iThreadID;
 		if ( !pThread->Handle ) {
 			xrtFree(pThread);
-			pThread = NULL;
 			return NULL;
 		}
 	#else
 		pthread_t tid;
 		pthread_attr_t attr;
+		if ( pthread_mutex_init(&pThread->FinishLock, NULL) != 0 ) {
+			xrtFree(pThread);
+			return NULL;
+		}
+		if ( !__xrtThreadInitMonotonicCond(&pThread->FinishCond) ) {
+			pthread_mutex_destroy(&pThread->FinishLock);
+			xrtFree(pThread);
+			return NULL;
+		}
 		pthread_attr_init(&attr);
 		if ( iStackSize > 0 ) {
 			pthread_attr_setstacksize(&attr, iStackSize);
 		}
-		int ret = pthread_create(&tid, &attr, xrtThreadWrapper, pThread);
-		pthread_attr_destroy(&attr);
-		if ( ret != 0 ) {
+		if ( pthread_create(&tid, &attr, xrtThreadWrapper, pThread) != 0 ) {
+			pthread_attr_destroy(&attr);
+			pthread_cond_destroy(&pThread->FinishCond);
+			pthread_mutex_destroy(&pThread->FinishLock);
 			xrtFree(pThread);
-			pThread = NULL;
 			return NULL;
 		}
+		pthread_attr_destroy(&attr);
 		pThread->Handle = (ptr)tid;
 	#endif
-	
 	return pThread;
 }
-// �����̶߳��󣨲���ֹ�̣߳����ͷŹ����ṹ��
+// 销毁线程对象（不终止线程，仅释放管理结构）
 XXAPI void xrtThreadDestroy(xthread pThread)
 {
 	if ( pThread ) {
@@ -22805,17 +26036,18 @@ XXAPI void xrtThreadDestroy(xthread pThread)
 				pthread_join((pthread_t)pThread->Handle, &pExit);
 				pThread->bJoined = TRUE;
 			}
+			pthread_cond_destroy(&pThread->FinishCond);
+			pthread_mutex_destroy(&pThread->FinishLock);
 			pThread->Handle = NULL;
 		#endif
 		xrtFree(pThread);
 	}
 }
-// �ȴ��߳̽���
+// 等待线程结束
 XXAPI void xrtThreadWait(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return;
 	if ( pThread->bJoined ) return;
-	
 	#if defined(_WIN32) || defined(_WIN64)
 		WaitForSingleObject(pThread->Handle, INFINITE);
 		DWORD iExitCode = 0;
@@ -22831,12 +26063,11 @@ XXAPI void xrtThreadWait(xthread pThread)
 		pThread->bJoined = TRUE;
 	#endif
 }
-// �ȴ��߳̽���������ʱ�����룩
+// 等待线程结束（带超时，毫秒）
 XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_WAIT_ERROR;
 	if ( pThread->bJoined ) return XRT_WAIT_OK;
-	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD ret = WaitForSingleObject(pThread->Handle, iTimeout);
 		if ( ret == WAIT_OBJECT_0 ) {
@@ -22851,28 +26082,58 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 		if ( ret == WAIT_TIMEOUT ) return XRT_WAIT_TIMEOUT;
 		return XRT_WAIT_ERROR;
 	#else
-		uint32 elapsed = 0;
-		while ( elapsed < iTimeout ) {
-			if ( pThread->bFinished ) {
-				return XRT_WAIT_OK;
+		int iRet;
+		if ( pthread_mutex_lock(&pThread->FinishLock) != 0 ) {
+			return XRT_WAIT_ERROR;
+		}
+		if ( iTimeout == 0 && !pThread->bFinished ) {
+			pthread_mutex_unlock(&pThread->FinishLock);
+			return XRT_WAIT_TIMEOUT;
+		}
+		if ( iTimeout == UINT32_MAX ) {
+			while ( !pThread->bFinished ) {
+				if ( pthread_cond_wait(&pThread->FinishCond, &pThread->FinishLock) != 0 ) {
+					pthread_mutex_unlock(&pThread->FinishLock);
+					return XRT_WAIT_ERROR;
+				}
 			}
-			xrtSleep(10);
-			elapsed += 10;
+		} else if ( !pThread->bFinished ) {
+			struct timespec ts;
+			if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) {
+				pthread_mutex_unlock(&pThread->FinishLock);
+				return XRT_WAIT_ERROR;
+			}
+			while ( !pThread->bFinished ) {
+				iRet = pthread_cond_timedwait(&pThread->FinishCond, &pThread->FinishLock, &ts);
+				if ( iRet == ETIMEDOUT ) {
+					pthread_mutex_unlock(&pThread->FinishLock);
+					return XRT_WAIT_TIMEOUT;
+				}
+				if ( iRet != 0 ) {
+					pthread_mutex_unlock(&pThread->FinishLock);
+					return XRT_WAIT_ERROR;
+				}
+			}
 		}
-		if ( pThread->bFinished ) {
-			return XRT_WAIT_OK;
+		pthread_mutex_unlock(&pThread->FinishLock);
+		if ( !pThread->bJoined ) {
+			void* pExit = NULL;
+			if ( pthread_join((pthread_t)pThread->Handle, &pExit) != 0 ) {
+				return XRT_WAIT_ERROR;
+			}
+			pThread->bJoined = TRUE;
 		}
-		return XRT_WAIT_TIMEOUT;
+		return XRT_WAIT_OK;
 	#endif
 }
-// ����ֹͣ�ź�
+// 发送停止信号
 XXAPI void xrtThreadStop(xthread pThread)
 {
 	if ( pThread ) {
 		pThread->StopFlag = 1;
 	}
 }
-// ����Ƿ�Ӧ��ֹͣ
+// 检查是否应该停止
 XXAPI bool xrtThreadShouldStop(xthread pThread)
 {
 	if ( pThread ) {
@@ -22880,10 +26141,10 @@ XXAPI bool xrtThreadShouldStop(xthread pThread)
 	}
 	return FALSE;
 }
-// ǿ����ֹ�߳�
-// �����߳�
-// �ָ��߳�
-// ��ȡ�߳�״̬
+// 强制终止线程
+// 挂起线程
+// 恢复线程
+// 获取线程状态
 XXAPI int xrtThreadGetState(xthread pThread)
 {
 	if ( !pThread || !pThread->Handle ) return XRT_THREAD_STOPPED;
@@ -22892,31 +26153,20 @@ XXAPI int xrtThreadGetState(xthread pThread)
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD exitCode;
 		if ( GetExitCodeThread(pThread->Handle, &exitCode) ) {
-			if ( exitCode == STILL_ACTIVE ) {
-				// ����Ƿ����
-				DWORD suspendCount = SuspendThread(pThread->Handle);
-				if ( suspendCount != (DWORD)-1 ) {
-					ResumeThread(pThread->Handle);
-					if ( suspendCount > 0 ) {
-						return XRT_THREAD_SUSPENDED;
-					}
-				}
-				return XRT_THREAD_RUNNING;
-			}
-			return XRT_THREAD_STOPPED;
+			return (exitCode == STILL_ACTIVE) ? XRT_THREAD_RUNNING : XRT_THREAD_STOPPED;
 		}
 		return XRT_THREAD_STOPPED;
 	#else
 		return XRT_THREAD_RUNNING;
 	#endif
 }
-// ��ȡ�߳��˳���
+// 获取线程退出码
 XXAPI uint32 xrtThreadGetExitCode(xthread pThread)
 {
 	if ( !pThread ) return 0;
 	return pThread->ExitCode;
 }
-// ��ȡ��ǰ�߳�ID
+// 获取当前线程ID
 XXAPI uint64 xrtThreadGetCurrentId()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -22925,7 +26175,7 @@ XXAPI uint64 xrtThreadGetCurrentId()
 		return (uint64)(uintptr_t)pthread_self();
 	#endif
 }
-// �ó���ǰ�̵߳�ʱ��Ƭ
+// 让出当前线程的时间片
 XXAPI void xrtThreadYield()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -22934,8 +26184,8 @@ XXAPI void xrtThreadYield()
 		sched_yield();
 	#endif
 }
-/* ================================ ������ ================================ */
-// ����������
+/* ================================ 互斥体 ================================ */
+// 创建互斥体
 XXAPI xmutex xrtMutexCreate()
 {
 	xmutex pMutex = xrtMalloc(sizeof(xmutex_struct));
@@ -22958,7 +26208,7 @@ XXAPI xmutex xrtMutexCreate()
 	
 	return pMutex;
 }
-// ���ٻ�����
+// 销毁互斥体
 XXAPI void xrtMutexDestroy(xmutex pMutex)
 {
 	if ( pMutex ) {
@@ -22966,7 +26216,7 @@ XXAPI void xrtMutexDestroy(xmutex pMutex)
 		xrtFree(pMutex);
 	}
 }
-// ��ʼ��������
+// 初始化互斥体
 XXAPI void xrtMutexInit(xmutex pMutex)
 {
 	if ( !pMutex ) return;
@@ -22981,19 +26231,19 @@ XXAPI void xrtMutexInit(xmutex pMutex)
 		pthread_mutexattr_destroy(&attr);
 	#endif
 }
-// �ͷŻ�����
+// 释放互斥体
 XXAPI void xrtMutexUnit(xmutex pMutex)
 {
 	if ( !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		// SRWLOCK ����Ҫ��ʽ����
+		// SRWLOCK 不需要显式销毁
 		(void)pMutex;
 	#else
 		pthread_mutex_destroy(&pMutex->objLock);
 	#endif
 }
-// ����������
+// 锁定互斥体
 XXAPI void xrtMutexLock(xmutex pMutex)
 {
 	if ( !pMutex ) return;
@@ -23004,7 +26254,7 @@ XXAPI void xrtMutexLock(xmutex pMutex)
 		pthread_mutex_lock(&pMutex->objLock);
 	#endif
 }
-// ��������������
+// 尝试锁定互斥体
 XXAPI bool xrtMutexTryLock(xmutex pMutex)
 {
 	if ( !pMutex ) return FALSE;
@@ -23015,7 +26265,7 @@ XXAPI bool xrtMutexTryLock(xmutex pMutex)
 		return pthread_mutex_trylock(&pMutex->objLock) == 0;
 	#endif
 }
-// ����������
+// 解锁互斥体
 XXAPI void xrtMutexUnlock(xmutex pMutex)
 {
 	if ( !pMutex ) return;
@@ -23026,8 +26276,8 @@ XXAPI void xrtMutexUnlock(xmutex pMutex)
 		pthread_mutex_unlock(&pMutex->objLock);
 	#endif
 }
-/* ================================ �ź��� ================================ */
-// �����ź���
+/* ================================ 信号量 ================================ */
+// 创建信号量
 XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue)
 {
 	xsem pSem = xrtMalloc(sizeof(xsem_struct));
@@ -23040,15 +26290,22 @@ XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue)
 			return NULL;
 		}
 	#else
-		if ( sem_init(&pSem->objSem, 0, iInitValue) != 0 ) {
+		if ( pthread_mutex_init(&pSem->objLock, NULL) != 0 ) {
 			xrtFree(pSem);
 			return NULL;
 		}
+		if ( !__xrtThreadInitMonotonicCond(&pSem->objCond) ) {
+			pthread_mutex_destroy(&pSem->objLock);
+			xrtFree(pSem);
+			return NULL;
+		}
+		pSem->iValue = iInitValue;
+		pSem->iMaxValue = iMaxValue;
 	#endif
 	
 	return pSem;
 }
-// �����ź���
+// 销毁信号量
 XXAPI void xrtSemDestroy(xsem pSem)
 {
 	if ( pSem ) {
@@ -23056,7 +26313,7 @@ XXAPI void xrtSemDestroy(xsem pSem)
 		xrtFree(pSem);
 	}
 }
-// ��ʼ���ź���
+// 初始化信号量
 XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue)
 {
 	if ( !pSem ) return;
@@ -23064,12 +26321,15 @@ XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue)
 	#if defined(_WIN32) || defined(_WIN64)
 		pSem->objSem = CreateSemaphoreW(NULL, iInitValue, iMaxValue, NULL);
 	#else
-		if ( sem_init(&pSem->objSem, 0, iInitValue) != 0 ) {
-			// ��ʼ��ʧ�ܣ����ֽṹ�岻��
+		if ( pthread_mutex_init(&pSem->objLock, NULL) != 0 ) return;
+		if ( !__xrtThreadInitMonotonicCond(&pSem->objCond) ) {
+			pthread_mutex_destroy(&pSem->objLock);
+			return;
 		}
+		pSem->iValue = iInitValue;
+		pSem->iMaxValue = iMaxValue;
 	#endif
 }
-// �ͷ��ź���
 XXAPI void xrtSemUnit(xsem pSem)
 {
 	if ( !pSem ) return;
@@ -23078,11 +26338,14 @@ XXAPI void xrtSemUnit(xsem pSem)
 		CloseHandle(pSem->objSem);
 		pSem->objSem = NULL;
 	#else
-		sem_destroy(&pSem->objSem);
-		memset(&pSem->objSem, 0, sizeof(pSem->objSem));
+		pthread_cond_destroy(&pSem->objCond);
+		pthread_mutex_destroy(&pSem->objLock);
+		memset(&pSem->objCond, 0, sizeof(pSem->objCond));
+		memset(&pSem->objLock, 0, sizeof(pSem->objLock));
+		pSem->iValue = 0;
+		pSem->iMaxValue = 0;
 	#endif
 }
-// �ȴ��ź���
 XXAPI void xrtSemWait(xsem pSem)
 {
 	if ( !pSem ) return;
@@ -23090,10 +26353,14 @@ XXAPI void xrtSemWait(xsem pSem)
 	#if defined(_WIN32) || defined(_WIN64)
 		WaitForSingleObject(pSem->objSem, INFINITE);
 	#else
-		sem_wait(&pSem->objSem);
+		pthread_mutex_lock(&pSem->objLock);
+		while ( pSem->iValue == 0 ) {
+			pthread_cond_wait(&pSem->objCond, &pSem->objLock);
+		}
+		pSem->iValue--;
+		pthread_mutex_unlock(&pSem->objLock);
 	#endif
 }
-// ���Եȴ��ź���
 XXAPI bool xrtSemTryWait(xsem pSem)
 {
 	if ( !pSem ) return FALSE;
@@ -23101,10 +26368,16 @@ XXAPI bool xrtSemTryWait(xsem pSem)
 	#if defined(_WIN32) || defined(_WIN64)
 		return WaitForSingleObject(pSem->objSem, 0) == WAIT_OBJECT_0;
 	#else
-		return sem_trywait(&pSem->objSem) == 0;
+		bool bOk = FALSE;
+		pthread_mutex_lock(&pSem->objLock);
+		if ( pSem->iValue > 0 ) {
+			pSem->iValue--;
+			bOk = TRUE;
+		}
+		pthread_mutex_unlock(&pSem->objLock);
+		return bOk;
 	#endif
 }
-// �ȴ��ź���������ʱ��
 XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 {
 	if ( !pSem ) return XRT_WAIT_ERROR;
@@ -23116,20 +26389,27 @@ XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 		return XRT_WAIT_ERROR;
 	#else
 		struct timespec ts;
-		clock_gettime(CLOCK_REALTIME, &ts);
-		ts.tv_sec += iTimeout / 1000;
-		ts.tv_nsec += (iTimeout % 1000) * 1000000;
-		if ( ts.tv_nsec >= 1000000000 ) {
-			ts.tv_sec++;
-			ts.tv_nsec -= 1000000000;
+		int ret = XRT_WAIT_ERROR;
+		if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) return XRT_WAIT_ERROR;
+		pthread_mutex_lock(&pSem->objLock);
+		while ( pSem->iValue == 0 ) {
+			int iWaitRet = pthread_cond_timedwait(&pSem->objCond, &pSem->objLock, &ts);
+			if ( iWaitRet == ETIMEDOUT ) {
+				ret = XRT_WAIT_TIMEOUT;
+				goto exit_wait;
+			}
+			if ( iWaitRet != 0 ) {
+				ret = XRT_WAIT_ERROR;
+				goto exit_wait;
+			}
 		}
-		int ret = sem_timedwait(&pSem->objSem, &ts);
-		if ( ret == 0 ) return XRT_WAIT_OK;
-		if ( ret == ETIMEDOUT ) return XRT_WAIT_TIMEOUT;
-		return XRT_WAIT_ERROR;
+		pSem->iValue--;
+		ret = XRT_WAIT_OK;
+	exit_wait:
+		pthread_mutex_unlock(&pSem->objLock);
+		return ret;
 	#endif
 }
-// �ͷ��ź���
 XXAPI bool xrtSemPost(xsem pSem)
 {
 	if ( !pSem ) return FALSE;
@@ -23137,10 +26417,17 @@ XXAPI bool xrtSemPost(xsem pSem)
 	#if defined(_WIN32) || defined(_WIN64)
 		return ReleaseSemaphore(pSem->objSem, 1, NULL) != 0;
 	#else
-		return sem_post(&pSem->objSem) == 0;
+		bool bOk = FALSE;
+		pthread_mutex_lock(&pSem->objLock);
+		if ( pSem->iValue < pSem->iMaxValue ) {
+			pSem->iValue++;
+			bOk = TRUE;
+			pthread_cond_signal(&pSem->objCond);
+		}
+		pthread_mutex_unlock(&pSem->objLock);
+		return bOk;
 	#endif
 }
-// �ͷ��ź�����������N��
 XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 {
 	if ( !pSem || iCount == 0 ) return FALSE;
@@ -23148,17 +26435,21 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 	#if defined(_WIN32) || defined(_WIN64)
 		return ReleaseSemaphore(pSem->objSem, iCount, NULL) != 0;
 	#else
-		// POSIX ��֧��һ���ͷŶ����ѭ������
-		for ( uint32 i = 0; i < iCount; i++ ) {
-			if ( sem_post(&pSem->objSem) != 0 ) {
-				return FALSE;
-			}
+		bool bOk = FALSE;
+		uint32 iPosted = 0;
+		pthread_mutex_lock(&pSem->objLock);
+		while ( iPosted < iCount && pSem->iValue < pSem->iMaxValue ) {
+			pSem->iValue++;
+			iPosted++;
 		}
-		return TRUE;
+		if ( iPosted > 0 ) {
+			pthread_cond_broadcast(&pSem->objCond);
+			bOk = (iPosted == iCount);
+		}
+		pthread_mutex_unlock(&pSem->objLock);
+		return bOk;
 	#endif
 }
-/* ================================ �������� ================================ */
-// ������������
 XXAPI xcond xrtCondCreate()
 {
 	xcond pCond = xrtMalloc(sizeof(xcond_struct));
@@ -23167,7 +26458,7 @@ XXAPI xcond xrtCondCreate()
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeConditionVariable(&pCond->objCond);
 	#else
-		if ( pthread_cond_init(&pCond->objCond, NULL) != 0 ) {
+		if ( !__xrtThreadInitMonotonicCond(&pCond->objCond) ) {
 			xrtFree(pCond);
 			return NULL;
 		}
@@ -23175,7 +26466,7 @@ XXAPI xcond xrtCondCreate()
 	
 	return pCond;
 }
-// ������������
+// 销毁条件变量
 XXAPI void xrtCondDestroy(xcond pCond)
 {
 	if ( pCond ) {
@@ -23183,7 +26474,7 @@ XXAPI void xrtCondDestroy(xcond pCond)
 		xrtFree(pCond);
 	}
 }
-// ��ʼ����������
+// 初始化条件变量
 XXAPI void xrtCondInit(xcond pCond)
 {
 	if ( !pCond ) return;
@@ -23191,25 +26482,25 @@ XXAPI void xrtCondInit(xcond pCond)
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeConditionVariable(&pCond->objCond);
 	#else
-		if ( pthread_cond_init(&pCond->objCond, NULL) != 0 ) {
+		if ( !__xrtThreadInitMonotonicCond(&pCond->objCond) ) {
 			memset(&pCond->objCond, 0, sizeof(pCond->objCond));
 		}
 	#endif
 }
-// �ͷ���������
+// 释放条件变量
 XXAPI void xrtCondUnit(xcond pCond)
 {
 	if ( !pCond ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		// Windows CONDITION_VARIABLE ����Ҫ��ʽ����
+		// Windows CONDITION_VARIABLE 不需要显式销毁
 		memset(&pCond->objCond, 0, sizeof(pCond->objCond));
 	#else
 		pthread_cond_destroy(&pCond->objCond);
 		memset(&pCond->objCond, 0, sizeof(pCond->objCond));
 	#endif
 }
-// �ȴ���������
+// 等待条件变量
 XXAPI void xrtCondWait(xcond pCond, xmutex pMutex)
 {
 	if ( !pCond || !pMutex ) return;
@@ -23222,7 +26513,7 @@ XXAPI void xrtCondWait(xcond pCond, xmutex pMutex)
 			(pthread_mutex_t*)&pMutex->objLock);
 	#endif
 }
-// �ȴ���������������ʱ��
+// 等待条件变量（带超时）
 XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 {
 	if ( !pCond || !pMutex ) {
@@ -23240,12 +26531,8 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 		return XRT_WAIT_ERROR;
 	#else
 		struct timespec ts;
-		clock_gettime(CLOCK_REALTIME, &ts);
-		ts.tv_sec += iTimeout / 1000;
-		ts.tv_nsec += (iTimeout % 1000) * 1000000;
-		if ( ts.tv_nsec >= 1000000000 ) {
-			ts.tv_sec++;
-			ts.tv_nsec -= 1000000000;
+		if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) {
+			return XRT_WAIT_ERROR;
 		}
 		int ret = pthread_cond_timedwait(&pCond->objCond, 
 			(pthread_mutex_t*)&pMutex->objLock, &ts);
@@ -23254,7 +26541,7 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 		return XRT_WAIT_ERROR;
 	#endif
 }
-// ����һ���ȴ����߳�
+// 唤醒一个等待的线程
 XXAPI void xrtCondSignal(xcond pCond)
 {
 	if ( !pCond ) return;
@@ -23265,7 +26552,7 @@ XXAPI void xrtCondSignal(xcond pCond)
 		pthread_cond_signal(&pCond->objCond);
 	#endif
 }
-// �������еȴ����߳�
+// 唤醒所有等待的线程
 XXAPI void xrtCondBroadcast(xcond pCond)
 {
 	if ( !pCond ) return;
@@ -23276,8 +26563,8 @@ XXAPI void xrtCondBroadcast(xcond pCond)
 		pthread_cond_broadcast(&pCond->objCond);
 	#endif
 }
-/* ================================ ��д��ʵ�� ================================ */
-// ������д��
+/* ================================ 读写锁实现 ================================ */
+// 创建读写锁
 XXAPI xrwlock xrtRWLockCreate()
 {
 	xrwlock pRWLock = xrtMalloc(sizeof(xrwlock_struct));
@@ -23285,7 +26572,7 @@ XXAPI xrwlock xrtRWLockCreate()
 	xrtRWLockInit(pRWLock);
 	return pRWLock;
 }
-// ���ٶ�д��
+// 销毁读写锁
 XXAPI void xrtRWLockDestroy(xrwlock pRWLock)
 {
 	if ( pRWLock ) {
@@ -23293,7 +26580,7 @@ XXAPI void xrtRWLockDestroy(xrwlock pRWLock)
 		xrtFree(pRWLock);
 	}
 }
-// ��ʼ����д��������ά���ṹ��ָ��ʹ�ã�
+// 初始化读写锁（对自维护结构体指针使用）
 XXAPI void xrtRWLockInit(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -23308,7 +26595,7 @@ XXAPI void xrtRWLockInit(xrwlock pRWLock)
 		pthread_rwlockattr_destroy(&attr);
 	#endif
 }
-// �ͷŶ�д��������ά���ṹ��ָ��ʹ�ã�
+// 释放读写锁（对自维护结构体指针使用）
 XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -23319,7 +26606,7 @@ XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 		memset(&pRWLock->objLock, 0, sizeof(pRWLock->objLock));
 	#endif
 }
-// ��ȡ������������
+// 获取读锁（阻塞）
 XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -23330,7 +26617,7 @@ XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 		pthread_rwlock_rdlock(&pRWLock->objLock);
 	#endif
 }
-// ���Ի�ȡ��������������
+// 尝试获取读锁（非阻塞）
 XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
@@ -23344,7 +26631,7 @@ XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 	
 	return bResult != FALSE;
 }
-// �ͷŶ���
+// 释放读锁
 XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -23355,7 +26642,7 @@ XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 		pthread_rwlock_unlock(&pRWLock->objLock);
 	#endif
 }
-// ��ȡд����������
+// 获取写锁（阻塞）
 XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -23366,7 +26653,7 @@ XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 		pthread_rwlock_wrlock(&pRWLock->objLock);
 	#endif
 }
-// ���Ի�ȡд������������
+// 尝试获取写锁（非阻塞）
 XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
@@ -23380,7 +26667,7 @@ XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 	
 	return bResult != FALSE;
 }
-// �ͷ�д��
+// 释放写锁
 XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -23391,7 +26678,7 @@ XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 		pthread_rwlock_unlock(&pRWLock->objLock);
 	#endif
 }
-// д������Ϊ������������״̬��
+// 写锁降级为读锁（保持锁状态）
 XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
@@ -23404,7 +26691,7 @@ XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 		pthread_rwlock_rdlock(&pRWLock->objLock);
 	#endif
 }
-// ��������Ϊд��������ʧ�ܣ���Ҫ�ͷź����»�ȡ��
+// 读锁升级为写锁（可能失败，需要释放后重新获取）
 XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
@@ -23442,18 +26729,13 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 	backend 策略说明：
 	1. 单头文件仍是 XRT 的第一优先级约束之一
 	2. production backend 优先使用 header 内的 inline asm
-	3. Fiber / ucontext 仅作为 compat backend 保留
+	3. 主线只保留 production backend；不再在主线内编译 archive fallback
 	4. 平台支持按 ABI + 编译器家族逐步扩展，不对未验证目标做超前承诺
 */
-#ifndef XRT_CO_ENABLE_COMPAT_BACKEND
-	#define XRT_CO_ENABLE_COMPAT_BACKEND	1
-#endif
 #ifndef XRT_CO_REQUIRE_PRODUCTION_BACKEND
-	#define XRT_CO_REQUIRE_PRODUCTION_BACKEND	0
+	#define XRT_CO_REQUIRE_PRODUCTION_BACKEND	1
 #endif
-#define __XRT_CO_BACKEND_TIER_COMPAT		1
 #define __XRT_CO_BACKEND_TIER_PRODUCTION	2
-#define __XRT_CO_BACKEND_STYLE_COMPAT		1
 #define __XRT_CO_BACKEND_STYLE_INLINE_ASM	2
 #if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
 	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
@@ -23484,27 +26766,10 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 	#endif
 #endif
 #ifndef __XRT_CO_BACKEND_TIER
-	#if XRT_CO_ENABLE_COMPAT_BACKEND
-		#if defined(_WIN32) || defined(_WIN64)
-			#define __XRT_CO_FIBER
-			#define __XRT_CO_BACKEND_NAME	"fiber-compat"
-			#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_COMPAT
-			#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_COMPAT
-		#else
-			#define __XRT_CO_UCONTEXT
-			#define __XRT_CO_BACKEND_NAME	"ucontext-compat"
-			#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_COMPAT
-			#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_COMPAT
-		#endif
-	#else
-		#error "XRT coroutine backend is unavailable for this target without compat backend."
-	#endif
+	#error "XRT coroutine production backend is unavailable for this target."
 #endif
 #if XRT_CO_REQUIRE_PRODUCTION_BACKEND && (__XRT_CO_BACKEND_TIER != __XRT_CO_BACKEND_TIER_PRODUCTION)
-	#error "XRT coroutine production backend is required, but current target only has compat backend."
-#endif
-#ifdef __XRT_CO_UCONTEXT
-	#include <ucontext.h>
+	#error "XRT coroutine production backend is required, but current target is not using a production backend."
 #endif
 /* ================================ 线程级协程运行时 ================================ */
 static xrtCoroRuntimeState* __xrt_co_get_runtime_from_thread(xrtThreadData* pThreadData)
@@ -23583,21 +26848,9 @@ static void __xrtCoroRuntimeUnitThread(xrtThreadData* pThreadData)
 	if ( pRuntime == NULL ) {
 		return;
 	}
-	#ifdef __XRT_CO_FIBER
-		if ( (pRuntime->iFlags & XRT_CO_RUNTIME_FIBER_CONVERTED) && pRuntime->pBackendMain ) {
-			if ( pRuntime->pCurrent == NULL ) {
-				ConvertFiberToThread();
-			}
-		}
-	#elif defined(__XRT_CO_UCONTEXT)
-		if ( pRuntime->pBackendMain ) {
-			xrtFree(pRuntime->pBackendMain);
-		}
-	#else
-		if ( pRuntime->pBackendMain ) {
-			xrtFree(pRuntime->pBackendMain);
-		}
-	#endif
+	if ( pRuntime->pBackendMain ) {
+		xrtFree(pRuntime->pBackendMain);
+	}
 	memset(pRuntime, 0, sizeof(xrtCoroRuntimeState));
 }
 /* ================================ 协程生命周期辅助 ================================ */
@@ -23642,17 +26895,119 @@ static void __xrt_co_clear_wait_state(xcoro pCo)
 	pCo->__pWaitObject = NULL;
 	pCo->__iWaitKind = __XRT_CO_WAIT_NONE;
 }
+static void __xrt_co_wait_link_clear(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return;
+	}
+	pCo->__pWaitPrev = NULL;
+	pCo->__pWaitNext = NULL;
+}
+static void __xrt_co_wait_queue_push_tail(xcoro* ppHead, xcoro* ppTail, xcoro pCo)
+{
+	if ( ppHead == NULL || ppTail == NULL || pCo == NULL ) {
+		return;
+	}
+	__xrt_co_wait_link_clear(pCo);
+	if ( *ppTail != NULL ) {
+		(*ppTail)->__pWaitNext = pCo;
+		pCo->__pWaitPrev = *ppTail;
+	}
+	else {
+		*ppHead = pCo;
+	}
+	*ppTail = pCo;
+}
+static void __xrt_co_wait_queue_remove(xcoro* ppHead, xcoro* ppTail, xcoro pCo)
+{
+	if ( ppHead == NULL || ppTail == NULL || pCo == NULL ) {
+		return;
+	}
+	if ( pCo->__pWaitPrev != NULL ) {
+		pCo->__pWaitPrev->__pWaitNext = pCo->__pWaitNext;
+	}
+	else if ( *ppHead == pCo ) {
+		*ppHead = pCo->__pWaitNext;
+	}
+	if ( pCo->__pWaitNext != NULL ) {
+		pCo->__pWaitNext->__pWaitPrev = pCo->__pWaitPrev;
+	}
+	else if ( *ppTail == pCo ) {
+		*ppTail = pCo->__pWaitPrev;
+	}
+	__xrt_co_wait_link_clear(pCo);
+}
+static xcoro __xrt_co_wait_queue_pop_head(xcoro* ppHead, xcoro* ppTail)
+{
+	xcoro pHead = NULL;
+	if ( ppHead == NULL || ppTail == NULL ) {
+		return NULL;
+	}
+	pHead = *ppHead;
+	if ( pHead != NULL ) {
+		__xrt_co_wait_queue_remove(ppHead, ppTail, pHead);
+	}
+	return pHead;
+}
+static void __xrt_co_join_pin_acquire(xcoro pTarget)
+{
+	if ( pTarget == NULL ) {
+		return;
+	}
+	pTarget->__iJoinRefCount++;
+	pTarget->__iFlags |= __XRT_CO_FLAG_JOIN_PINNED;
+}
+static void __xrt_co_join_pin_release(xcoro pTarget)
+{
+	if ( pTarget == NULL ) {
+		return;
+	}
+	if ( pTarget->__iJoinRefCount > 0 ) {
+		pTarget->__iJoinRefCount--;
+	}
+	if ( pTarget->__iJoinRefCount == 0 ) {
+		pTarget->__iFlags &= ~__XRT_CO_FLAG_JOIN_PINNED;
+	}
+}
+static void __xrt_co_detach_join_waiter(xcoro pWaiter, bool bReleasePin)
+{
+	xcoro pTarget = NULL;
+	if ( pWaiter == NULL ) {
+		return;
+	}
+	pTarget = pWaiter->__pJoinTarget;
+	if ( pTarget != NULL ) {
+		__xrt_co_wait_queue_remove(&pTarget->__pJoinWaitHead, &pTarget->__pJoinWaitTail, pWaiter);
+	}
+	if ( pWaiter->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
+		__xrt_co_clear_wait_state(pWaiter);
+	}
+	if ( bReleasePin && pTarget != NULL ) {
+		pWaiter->__pJoinTarget = NULL;
+		__xrt_co_join_pin_release(pTarget);
+	}
+}
 static void __xrt_co_detach_event_waiter_locked(xcoevent pEvent, xcoro pCo)
 {
 	if ( pEvent == NULL || pCo == NULL ) {
 		return;
 	}
-	if ( pEvent->pWaiter == pCo ) {
-		pEvent->pWaiter = NULL;
-	}
+	__xrt_co_wait_queue_remove(&pEvent->pWaitHead, &pEvent->pWaitTail, pCo);
 	if ( pCo->__pWaitObject == pEvent && pCo->__iWaitKind == __XRT_CO_WAIT_EVENT ) {
 		__xrt_co_clear_wait_state(pCo);
 	}
+}
+static xcoro __xrt_co_pop_event_waiter_locked(xcoevent pEvent)
+{
+	xcoro pCo = NULL;
+	if ( pEvent == NULL ) {
+		return NULL;
+	}
+	pCo = __xrt_co_wait_queue_pop_head(&pEvent->pWaitHead, &pEvent->pWaitTail);
+	if ( pCo != NULL && pCo->__pWaitObject == pEvent && pCo->__iWaitKind == __XRT_CO_WAIT_EVENT ) {
+		__xrt_co_clear_wait_state(pCo);
+	}
+	return pCo;
 }
 static bool __xrt_co_event_try_consume_locked(xcoevent pEvent)
 {
@@ -23778,26 +27133,24 @@ static void __xrt_co_stack_free(xcoro pCo)
 	pCo->__iStackAllocSize = 0;
 	pCo->__iStackGuardSize = 0;
 }
-static void __xrt_co_wake_join_waiter(xcoro pTarget)
+static void __xrt_co_wake_join_waiters(xcoro pTarget)
 {
 	xcoro pWaiter = NULL;
 	if ( pTarget == NULL ) {
 		return;
 	}
-	pWaiter = pTarget->__pJoinWaiter;
-	if ( pWaiter == NULL ) {
-		return;
-	}
-	if ( pWaiter->__pJoinTarget == pTarget ) {
-		pWaiter->__pJoinTarget = NULL;
-	}
-	if ( pWaiter->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
-		pWaiter->__iWaitKind = __XRT_CO_WAIT_NONE;
-	}
-	pTarget->__pJoinWaiter = NULL;
-	pWaiter->__iWakeTime = 0;
-	if ( pWaiter->__pSched ) {
-		__xrt_co_sched_mark_ready((xcosched*)pWaiter->__pSched, pWaiter);
+	for ( ;; ) {
+		pWaiter = __xrt_co_wait_queue_pop_head(&pTarget->__pJoinWaitHead, &pTarget->__pJoinWaitTail);
+		if ( pWaiter == NULL ) {
+			break;
+		}
+		if ( pWaiter->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
+			__xrt_co_clear_wait_state(pWaiter);
+		}
+		pWaiter->__iWakeTime = 0;
+		if ( pWaiter->__pSched ) {
+			__xrt_co_sched_mark_ready((xcosched*)pWaiter->__pSched, pWaiter);
+		}
 	}
 }
 static void __xrt_co_finish(xcoro pCo, uint32 iTermReason, int64 iExitCode)
@@ -23814,7 +27167,7 @@ static void __xrt_co_finish(xcoro pCo, uint32 iTermReason, int64 iExitCode)
 		pCo->__iFlags |= __XRT_CO_FLAG_CANCELLED;
 	}
 	__xrt_co_run_cleanup(pCo);
-	__xrt_co_wake_join_waiter(pCo);
+	__xrt_co_wake_join_waiters(pCo);
 }
 static bool __xrt_co_finalize_ready_cancel(xcoro pCo)
 {
@@ -23849,65 +27202,6 @@ static void __xrt_co_sleep_ms(int iMs)
 		nanosleep(&ts, NULL);
 	#endif
 }
-/* ================================ 后端实现: Windows Fiber ================================ */
-#ifdef __XRT_CO_FIBER
-static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
-{
-	if ( pRuntime == NULL ) {
-		return FALSE;
-	}
-	if ( pRuntime->pBackendMain != NULL ) {
-		return TRUE;
-	}
-	if ( IsThreadAFiber() ) {
-		pRuntime->pBackendMain = GetCurrentFiber();
-		if ( pRuntime->pBackendMain == NULL ) {
-			xrtSetError("failed to adopt current host fiber.", FALSE);
-			return FALSE;
-		}
-		pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_HOSTED;
-		return TRUE;
-	}
-	pRuntime->pBackendMain = ConvertThreadToFiber(NULL);
-	if ( pRuntime->pBackendMain == NULL ) {
-		xrtSetError("failed to convert current thread to fiber.", FALSE);
-		return FALSE;
-	}
-	pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_CONVERTED;
-	return TRUE;
-}
-static void CALLBACK __xrt_co_fiber_entry(LPVOID lpParameter)
-{
-	xcoro pCo = (xcoro)lpParameter;
-	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
-	if ( pCo == NULL || pRuntime == NULL ) {
-		return;
-	}
-	pCo->pfnEntry(pCo->pParam);
-	__xrt_co_finish(pCo, __xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED, 0);
-	SwitchToFiber(pRuntime->pBackendMain);
-}
-static bool __xrt_co_init_ctx(xcoro pCo)
-{
-	pCo->__hFiber = CreateFiber(pCo->iStackSize, __xrt_co_fiber_entry, pCo);
-	if ( pCo->__hFiber == NULL ) {
-		xrtSetError("failed to create coroutine fiber.", FALSE);
-		return FALSE;
-	}
-	return TRUE;
-}
-static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
-{
-	(void)pRuntime;
-	SwitchToFiber(pCo->__hFiber);
-}
-static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
-{
-	if ( pRuntime && pRuntime->pBackendMain ) {
-		SwitchToFiber(pRuntime->pBackendMain);
-	}
-}
-#endif
 /* ================================ 后端实现: x86_64 内联汇编 ================================ */
 #ifdef __XRT_CO_ASM_X64_WIN
 /*
@@ -24474,78 +27768,13 @@ static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
 	}
 }
 #endif
-/* ================================ ucontext 后端: 入口 + 初始化 + swap 包装 ================================ */
-#ifdef __XRT_CO_UCONTEXT
-static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
-{
-	if ( pRuntime == NULL ) {
-		return FALSE;
-	}
-	if ( pRuntime->pBackendMain == NULL ) {
-		pRuntime->pBackendMain = xrtMalloc(sizeof(ucontext_t));
-		if ( pRuntime->pBackendMain == NULL ) {
-			xrtSetError("failed to allocate coroutine main context.", FALSE);
-			return FALSE;
-		}
-	}
-	return TRUE;
-}
-static void __xrt_co_ucontext_entry()
-{
-	xcoro pCo = __xrt_co_get_current();
-	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
-	if ( pCo == NULL || pRuntime == NULL || pRuntime->pBackendMain == NULL ) {
-		return;
-	}
-	pCo->pfnEntry(pCo->pParam);
-	__xrt_co_finish(pCo, __xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED, 0);
-	swapcontext((ucontext_t*)pCo->__hFiber, (ucontext_t*)pRuntime->pBackendMain);
-}
-static bool __xrt_co_init_ctx(xcoro pCo)
-{
-	ucontext_t* pCtx = (ucontext_t*)xrtMalloc(sizeof(ucontext_t));
-	if ( pCtx == NULL ) {
-		xrtSetError("failed to allocate coroutine context.", FALSE);
-		return FALSE;
-	}
-	pCo->__hFiber = pCtx;
-	getcontext(pCtx);
-	pCtx->uc_stack.ss_sp = pCo->__pStack;
-	pCtx->uc_stack.ss_size = pCo->iStackSize;
-	pCtx->uc_link = NULL;
-	makecontext(pCtx, (void(*)())__xrt_co_ucontext_entry, 0);
-	return TRUE;
-}
-static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
-{
-	swapcontext((ucontext_t*)pRuntime->pBackendMain, (ucontext_t*)pCo->__hFiber);
-}
-static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
-{
-	xcoro pCurrent = __xrt_co_get_current();
-	if ( pRuntime && pRuntime->pBackendMain && pCurrent ) {
-		swapcontext((ucontext_t*)pCurrent->__hFiber, (ucontext_t*)pRuntime->pBackendMain);
-	}
-}
-#endif
 /* ================================ 内部销毁辅助 ================================ */
 static void __xrt_co_destroy_raw(xcoro pCo)
 {
 	if ( pCo == NULL ) {
 		return;
 	}
-	#ifdef __XRT_CO_FIBER
-		if ( pCo->__hFiber ) {
-			DeleteFiber(pCo->__hFiber);
-		}
-	#elif defined(__XRT_CO_UCONTEXT)
-		if ( pCo->__hFiber ) {
-			xrtFree(pCo->__hFiber);
-		}
-		__xrt_co_stack_free(pCo);
-	#else
-		__xrt_co_stack_free(pCo);
-	#endif
+	__xrt_co_stack_free(pCo);
 	__xrt_co_free_cleanup_nodes(pCo);
 	xrtFree(pCo);
 }
@@ -24594,13 +27823,10 @@ XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args*
 	pCo->iExitCode = 0;
 	pCo->iTermReason = XRT_CO_TERM_NONE;
 	pCo->iStackSize = iStackSize;
-	// 分配栈内存（Fiber 后端由系统分配栈，不需要手动分配）
-	#ifndef __XRT_CO_FIBER
-		if ( !__xrt_co_stack_alloc(pCo) ) {
-			xrtFree(pCo);
-			return NULL;
-		}
-	#endif
+	if ( !__xrt_co_stack_alloc(pCo) ) {
+		xrtFree(pCo);
+		return NULL;
+	}
 	if ( !__xrt_co_prepare_backend_main(pRuntime) || !__xrt_co_init_ctx(pCo) ) {
 		__xrt_co_destroy_raw(pCo);
 		return NULL;
@@ -24653,13 +27879,7 @@ XXAPI bool xrtCoCancel(xcoro pCo)
 		return TRUE;
 	}
 	if ( pCo->__pJoinTarget != NULL ) {
-		if ( pCo->__pJoinTarget->__pJoinWaiter == pCo ) {
-			pCo->__pJoinTarget->__pJoinWaiter = NULL;
-		}
-		pCo->__pJoinTarget = NULL;
-		if ( pCo->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
-			pCo->__iWaitKind = __XRT_CO_WAIT_NONE;
-		}
+		__xrt_co_detach_join_waiter(pCo, TRUE);
 	}
 	if ( pCo->__iWaitKind == __XRT_CO_WAIT_EVENT && pCo->__pWaitObject != NULL ) {
 		xcoevent pEvent = (xcoevent)pCo->__pWaitObject;
@@ -24819,19 +28039,11 @@ XXAPI str xrtCoGetBackendName()
 }
 XXAPI int xrtCoGetBackendTier()
 {
-	#if (__XRT_CO_BACKEND_TIER == __XRT_CO_BACKEND_TIER_PRODUCTION)
-		return XRT_CO_BACKEND_TIER_PRODUCTION;
-	#else
-		return XRT_CO_BACKEND_TIER_COMPAT;
-	#endif
+	return XRT_CO_BACKEND_TIER_PRODUCTION;
 }
 XXAPI int xrtCoGetBackendStyle()
 {
-	#if (__XRT_CO_BACKEND_STYLE == __XRT_CO_BACKEND_STYLE_INLINE_ASM)
-		return XRT_CO_BACKEND_STYLE_INLINE_ASM;
-	#else
-		return XRT_CO_BACKEND_STYLE_COMPAT;
-	#endif
+	return XRT_CO_BACKEND_STYLE_INLINE_ASM;
 }
 /* ================================ 协程调度器 ================================ */
 #define __XRT_CO_SCHED_INIT_CAP  16
@@ -25138,13 +28350,7 @@ static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 		return;
 	}
 	if ( pCo->__pJoinTarget != NULL ) {
-		if ( __xrt_co_is_terminal(pCo->__pJoinTarget) ) {
-			pCo->__pJoinTarget = NULL;
-			if ( pCo->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
-				pCo->__iWaitKind = __XRT_CO_WAIT_NONE;
-			}
-		}
-		else {
+		if ( !__xrt_co_is_terminal(pCo->__pJoinTarget) ) {
 			pCo->iState = XRT_CO_SUSPENDED;
 			return;
 		}
@@ -25351,32 +28557,28 @@ XXAPI bool xrtCoJoin(xcoro pCo)
 			xrtSetError("current coroutine is already waiting for another join target.", FALSE);
 			return FALSE;
 		}
-		if ( pCo->__pJoinWaiter != NULL && pCo->__pJoinWaiter != pCurrent ) {
-			xrtSetError("multiple join waiters are not supported yet.", FALSE);
-			return FALSE;
-		}
 		if ( !__xrt_co_is_terminal(pCo) ) {
-			pCo->__iFlags |= __XRT_CO_FLAG_JOIN_PINNED;
+			__xrt_co_join_pin_acquire(pCo);
 			pCurrent->__pJoinTarget = pCo;
 			pCurrent->__iWaitKind = __XRT_CO_WAIT_JOIN;
-			pCo->__pJoinWaiter = pCurrent;
+			__xrt_co_wait_queue_push_tail(&pCo->__pJoinWaitHead, &pCo->__pJoinWaitTail, pCurrent);
 			pCurrent->iState = XRT_CO_SUSPENDED;
 			__xrt_co_swap_to_main(pRuntime);
 		}
-		pCo->__iFlags &= ~__XRT_CO_FLAG_JOIN_PINNED;
 		if ( pCurrent->__pJoinTarget == pCo && __xrt_co_is_terminal(pCo) ) {
 			pCurrent->__pJoinTarget = NULL;
 			if ( pCurrent->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
 				pCurrent->__iWaitKind = __XRT_CO_WAIT_NONE;
 			}
+			__xrt_co_join_pin_release(pCo);
 		}
 		return __xrt_co_is_terminal(pCo);
 	}
 	if ( pCo->__pSched != NULL ) {
 		bool bJoined = FALSE;
-		pCo->__iFlags |= __XRT_CO_FLAG_JOIN_PINNED;
+		__xrt_co_join_pin_acquire(pCo);
 		bJoined = __xrt_co_sched_run_until((xcosched*)pCo->__pSched, pCo);
-		pCo->__iFlags &= ~__XRT_CO_FLAG_JOIN_PINNED;
+		__xrt_co_join_pin_release(pCo);
 		return bJoined;
 	}
 	while ( !__xrt_co_is_terminal(pCo) ) {
@@ -25770,7 +28972,8 @@ XXAPI xcoevent xrtCoEventCreate(bool bManualReset, bool bInitialState)
 	}
 	pEvent->bManualReset = bManualReset;
 	pEvent->bSignaled = bInitialState;
-	pEvent->pWaiter = NULL;
+	pEvent->pWaitHead = NULL;
+	pEvent->pWaitTail = NULL;
 	return pEvent;
 }
 XXAPI void xrtCoEventDestroy(xcoevent pEvent)
@@ -25780,7 +28983,7 @@ XXAPI void xrtCoEventDestroy(xcoevent pEvent)
 	}
 	if ( pEvent->pLock ) {
 		xrtMutexLock(pEvent->pLock);
-		if ( pEvent->pWaiter != NULL ) {
+		if ( pEvent->pWaitHead != NULL ) {
 			xrtMutexUnlock(pEvent->pLock);
 			xrtSetError("cannot destroy coroutine event while a waiter is attached.", FALSE);
 			return;
@@ -25792,8 +28995,6 @@ XXAPI void xrtCoEventDestroy(xcoevent pEvent)
 }
 XXAPI void xrtCoEventSet(xcoevent pEvent)
 {
-	xcoro pWaiter = NULL;
-	xcosched* pSched = NULL;
 	if ( pEvent == NULL ) {
 		xrtSetError("invalid coroutine event.", FALSE);
 		return;
@@ -25802,22 +29003,30 @@ XXAPI void xrtCoEventSet(xcoevent pEvent)
 		xrtSetError("coroutine event lock is missing.", FALSE);
 		return;
 	}
-	xrtMutexLock(pEvent->pLock);
-	if ( pEvent->bManualReset ) {
-		pEvent->bSignaled = TRUE;
-	}
-	else if ( pEvent->pWaiter == NULL ) {
-		pEvent->bSignaled = TRUE;
-	}
-	pWaiter = pEvent->pWaiter;
-	if ( pWaiter != NULL ) {
-		pWaiter->__iWaitResult = __XRT_CO_WAIT_RESULT_SIGNAL;
-		pSched = (xcosched*)pWaiter->__pSched;
-		__xrt_co_detach_event_waiter_locked(pEvent, pWaiter);
-	}
-	xrtMutexUnlock(pEvent->pLock);
-	if ( pWaiter != NULL && pSched != NULL ) {
-		(void)xrtCoSchedPost(pSched, pWaiter);
+	for ( ;; ) {
+		xcoro pWaiter = NULL;
+		xcosched* pSched = NULL;
+		bool bWakeAll = FALSE;
+		xrtMutexLock(pEvent->pLock);
+		bWakeAll = pEvent->bManualReset;
+		if ( pEvent->bManualReset ) {
+			pEvent->bSignaled = TRUE;
+		}
+		pWaiter = __xrt_co_pop_event_waiter_locked(pEvent);
+		if ( pWaiter == NULL && !pEvent->bManualReset ) {
+			pEvent->bSignaled = TRUE;
+		}
+		if ( pWaiter != NULL ) {
+			pWaiter->__iWaitResult = __XRT_CO_WAIT_RESULT_SIGNAL;
+			pSched = (xcosched*)pWaiter->__pSched;
+		}
+		xrtMutexUnlock(pEvent->pLock);
+		if ( pWaiter != NULL && pSched != NULL ) {
+			(void)xrtCoSchedPost(pSched, pWaiter);
+		}
+		if ( !bWakeAll || pWaiter == NULL ) {
+			break;
+		}
 	}
 }
 XXAPI void xrtCoEventReset(xcoevent pEvent)
@@ -25869,12 +29078,7 @@ static bool __xrt_co_wait_event_core(xcoevent pEvent, bool bInfinite, int64 iDea
 		xrtMutexUnlock(pEvent->pLock);
 		return FALSE;
 	}
-	if ( pEvent->pWaiter != NULL && pEvent->pWaiter != pCo ) {
-		xrtMutexUnlock(pEvent->pLock);
-		xrtSetError("multiple event waiters are not supported yet.", FALSE);
-		return FALSE;
-	}
-	pEvent->pWaiter = pCo;
+	__xrt_co_wait_queue_push_tail(&pEvent->pWaitHead, &pEvent->pWaitTail, pCo);
 	pCo->__pWaitObject = pEvent;
 	pCo->__iWaitKind = __XRT_CO_WAIT_EVENT;
 	if ( bInfinite ) {
@@ -26607,89 +29811,75 @@ XXAPI void xrtSHA384Final(xsha512_ctx *pCtx, uint8 *pOut)
 	xrtSHA512Final(pCtx, aFull);
 	memcpy(pOut, aFull, 48);  // SHA-384 截取前 48 字节
 }
-XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut)
+static void __xrt_sha512_family(bool bUse384, const ptr pData, size_t iLen, uint8 *pOut)
 {
 	xsha512_ctx tCtx;
-	xrtSHA512Init(&tCtx);
-	xrtSHA512Update(&tCtx, pData, iLen);
-	xrtSHA512Final(&tCtx, pOut);
+	if ( bUse384 ) {
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, pData, iLen);
+		xrtSHA384Final(&tCtx, pOut);
+	} else {
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, pData, iLen);
+		xrtSHA512Final(&tCtx, pOut);
+	}
+}
+static void __xrt_hmac_sha512_family(bool bUse384,
+	const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	uint8 k[128] = {0};
+	uint8 o_pad[128], i_pad[128];
+	size_t iOutLen = bUse384 ? 48 : 64;
+	unsigned int i;
+	memset(i_pad, 0x36, sizeof(i_pad));
+	memset(o_pad, 0x5c, sizeof(o_pad));
+	if ( iKeyLen <= sizeof(k) ) {
+		if ( iKeyLen > 0 ) {
+			memmove(k, pKey, iKeyLen);
+		}
+	} else {
+		__xrt_sha512_family(bUse384, (ptr)pKey, iKeyLen, k);
+	}
+	for ( i = 0; i < sizeof(k); i++ ) {
+		i_pad[i] ^= k[i];
+		o_pad[i] ^= k[i];
+	}
+	if ( bUse384 ) {
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+		xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+		xrtSHA384Final(&tCtx, pOut);
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+		xrtSHA512Update(&tCtx, pOut, iOutLen);
+		xrtSHA384Final(&tCtx, pOut);
+	} else {
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+		xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+		xrtSHA512Final(&tCtx, pOut);
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+		xrtSHA512Update(&tCtx, pOut, iOutLen);
+		xrtSHA512Final(&tCtx, pOut);
+	}
+}
+XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	__xrt_sha512_family(false, pData, iLen, pOut);
 }
 XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut)
 {
-	xsha512_ctx tCtx;
-	xrtSHA384Init(&tCtx);
-	xrtSHA512Update(&tCtx, pData, iLen);
-	xrtSHA384Final(&tCtx, pOut);
+	__xrt_sha512_family(true, pData, iLen, pOut);
 }
 XXAPI void xrtHMAC_SHA384(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
 {
-	xsha512_ctx tCtx;
-	uint8 k[128] = {0};
-	uint8 o_pad[128], i_pad[128];
-	unsigned int i;
-	
-	memset(i_pad, 0x36, sizeof(i_pad));
-	memset(o_pad, 0x5c, sizeof(o_pad));
-	
-	if ( iKeyLen <= 128 ) {
-		if ( iKeyLen > 0 ) {
-			memmove(k, pKey, iKeyLen);
-		}
-	} else {
-		xrtSHA384Init(&tCtx);
-		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
-		xrtSHA384Final(&tCtx, k);
-	}
-	
-	for ( i = 0; i < sizeof(k); i++ ) {
-		i_pad[i] ^= k[i];
-		o_pad[i] ^= k[i];
-	}
-	
-	xrtSHA384Init(&tCtx);
-	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
-	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
-	xrtSHA384Final(&tCtx, pOut);
-	
-	xrtSHA384Init(&tCtx);
-	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
-	xrtSHA512Update(&tCtx, pOut, 48);
-	xrtSHA384Final(&tCtx, pOut);
+	__xrt_hmac_sha512_family(true, pKey, iKeyLen, pMsg, iMsgLen, pOut);
 }
 XXAPI void xrtHMAC_SHA512(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
 {
-	xsha512_ctx tCtx;
-	uint8 k[128] = {0};
-	uint8 o_pad[128], i_pad[128];
-	unsigned int i;
-	
-	memset(i_pad, 0x36, sizeof(i_pad));
-	memset(o_pad, 0x5c, sizeof(o_pad));
-	
-	if ( iKeyLen <= 128 ) {
-		if ( iKeyLen > 0 ) {
-			memmove(k, pKey, iKeyLen);
-		}
-	} else {
-		xrtSHA512Init(&tCtx);
-		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
-		xrtSHA512Final(&tCtx, k);
-	}
-	
-	for ( i = 0; i < sizeof(k); i++ ) {
-		i_pad[i] ^= k[i];
-		o_pad[i] ^= k[i];
-	}
-	
-	xrtSHA512Init(&tCtx);
-	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
-	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
-	xrtSHA512Final(&tCtx, pOut);
-	
-	xrtSHA512Init(&tCtx);
-	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
-	xrtSHA512Update(&tCtx, pOut, 64);
-	xrtSHA512Final(&tCtx, pOut);
+	__xrt_hmac_sha512_family(false, pKey, iKeyLen, pMsg, iMsgLen, pOut);
 }
 /* ============================== ChaCha20-Poly1305 (RFC 8439) ============================== */
 #define __XRT_CHACHA20_KEY_SIZE 32
@@ -30704,17 +33894,21 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 
 /*
     NetTLS - builtin TLS engine for xrt
-    This file implements the in-tree TLS stack used by xrt and xnet-v2.
-    It has no dependency on the legacy v1 network layer and only relies on:
+    This file implements the in-tree TLS stack used by the modern xrt network
+    path. It does not depend on the archived v1 network layer and only relies
+    on:
       - lib/crypto.h for cryptographic primitives
       - platform sockets when the blocking handshake helper is used
-      - internal TLS byte buffers owned by xtlsctx
+      - transport-fed TLS byte buffers owned by xtlsctx
     Current scope:
       - TLS 1.3 as the primary path
       - TLS 1.2 compatibility where already supported by the engine
+      - socketless transport-owned drive/feed integration via xrtTlsDrive and
+        xrtTlsFeed
       - builtin client/server operation with no external TLS dependency
 */
 typedef struct {
+	char* pBase;
 	char* pData;
 	size_t iSize;
 	size_t iCapacity;
@@ -30722,8 +33916,9 @@ typedef struct {
 static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
 {
 	if ( !pBuf ) return false;
-	pBuf->pData = (char*)xrtMalloc(iCapacity);
-	if ( !pBuf->pData ) return false;
+	pBuf->pBase = (char*)xrtMalloc(iCapacity);
+	if ( !pBuf->pBase ) return false;
+	pBuf->pData = pBuf->pBase;
 	pBuf->iSize = 0;
 	pBuf->iCapacity = iCapacity;
 	return true;
@@ -30731,8 +33926,9 @@ static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
 static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
 {
 	if ( !pBuf ) return;
-	if ( pBuf->pData ) {
-		xrtFree(pBuf->pData);
+	if ( pBuf->pBase ) {
+		xrtFree(pBuf->pBase);
+		pBuf->pBase = NULL;
 		pBuf->pData = NULL;
 	}
 	pBuf->iSize = 0;
@@ -30740,16 +33936,30 @@ static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
 }
 static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
 {
+	size_t iHead;
 	size_t iNeed;
 	size_t iNewCap;
 	char* pNew;
 	if ( !pBuf ) return false;
+	if ( !pBuf->pBase ) return false;
+	iHead = (pBuf->pData && pBuf->pData >= pBuf->pBase) ? (size_t)(pBuf->pData - pBuf->pBase) : 0u;
 	iNeed = pBuf->iSize + iExtra;
-	if ( iNeed <= pBuf->iCapacity ) return true;
+	if ( iHead + iNeed <= pBuf->iCapacity ) return true;
+	if ( iNeed <= pBuf->iCapacity ) {
+		if ( pBuf->iSize > 0u && iHead > 0u ) {
+			memmove(pBuf->pBase, pBuf->pData, pBuf->iSize);
+		}
+		pBuf->pData = pBuf->pBase;
+		return true;
+	}
 	iNewCap = pBuf->iCapacity ? (pBuf->iCapacity * 2) : 256;
 	if ( iNewCap < iNeed ) iNewCap = iNeed;
-	pNew = (char*)xrtRealloc(pBuf->pData, iNewCap);
+	pNew = (char*)xrtRealloc(pBuf->pBase, iNewCap);
 	if ( !pNew ) return false;
+	if ( pBuf->iSize > 0u && iHead > 0u ) {
+		memmove(pNew, pNew + iHead, pBuf->iSize);
+	}
+	pBuf->pBase = pNew;
 	pBuf->pData = pNew;
 	pBuf->iCapacity = iNewCap;
 	return true;
@@ -30767,9 +33977,10 @@ static void __xrt_tls_buf_consume(__xrt_tls_buf* pBuf, size_t iLen)
 	if ( !pBuf || iLen == 0 ) return;
 	if ( iLen >= pBuf->iSize ) {
 		pBuf->iSize = 0;
+		pBuf->pData = pBuf->pBase;
 		return;
 	}
-	memmove(pBuf->pData, pBuf->pData + iLen, pBuf->iSize - iLen);
+	pBuf->pData += iLen;
 	pBuf->iSize -= iLen;
 }
 static int __xrt_tls_sock_last_err(void)
@@ -30813,6 +34024,142 @@ static xnet_result __xrt_tls_sock_recv(xsocket hSocket, char* pBuf, size_t iLen,
 	}
 	if ( iRet == 0 ) return XRT_NET_CLOSED;
 	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
+}
+/* ============================== TLS resume state ============================== */
+struct xrt_tls_resume {
+	uint16 iVersion;
+	uint16 iCipherSuite;
+	uint8 iSessionIdLen;
+	uint8 aSessionId[32];
+	uint8 aMasterSecret[48];
+};
+typedef struct __xrt_tls_resume_cache_entry {
+	struct __xrt_tls_resume_cache_entry* pNext;
+	uint64 iGeneration;
+	struct xrt_tls_resume tResume;
+} __xrt_tls_resume_cache_entry;
+static volatile long __xrt_tls_resume_lock = 0;
+static __xrt_tls_resume_cache_entry* __xrt_tls_resume_cache = NULL;
+static uint32 __xrt_tls_resume_cache_count = 0;
+static uint64 __xrt_tls_resume_cache_gen = 0;
+#ifndef __XRT_TLS_VERSION_1_2
+	#define __XRT_TLS_VERSION_1_2  0x0303
+#endif
+#ifndef __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256
+	#define __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256  0xC02B
+	#define __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256    0xC02F
+	#define __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384  0xC02C
+	#define __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384    0xC030
+	#define __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256    0xCCA8
+	#define __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256  0xCCA9
+#endif
+static void __xrt_tls_resume_lock_acquire(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		while ( InterlockedCompareExchange((volatile LONG*)&__xrt_tls_resume_lock, 1, 0) != 0 ) {
+			xrtThreadYield();
+		}
+	#else
+		while ( __sync_lock_test_and_set(&__xrt_tls_resume_lock, 1) != 0 ) {
+			xrtThreadYield();
+		}
+	#endif
+}
+static void __xrt_tls_resume_lock_release(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		InterlockedExchange((volatile LONG*)&__xrt_tls_resume_lock, 0);
+	#else
+		__sync_lock_release(&__xrt_tls_resume_lock);
+	#endif
+}
+static bool __xrt_tls_resume_copy(struct xrt_tls_resume* pDst, const struct xrt_tls_resume* pSrc)
+{
+	if ( !pDst || !pSrc ) return false;
+	if ( pSrc->iSessionIdLen == 0 || pSrc->iSessionIdLen > sizeof(pSrc->aSessionId) ) return false;
+	if ( pSrc->iVersion != __XRT_TLS_VERSION_1_2 ) return false;
+	memcpy(pDst, pSrc, sizeof(*pDst));
+	return true;
+}
+static bool __xrt_tls_resume_cache_lookup(const uint8* pSessionId, uint8 iSessionIdLen, struct xrt_tls_resume* pOut)
+{
+	__xrt_tls_resume_cache_entry* pEntry;
+	bool bFound = false;
+	if ( !pSessionId || !pOut || iSessionIdLen == 0 ) return false;
+	__xrt_tls_resume_lock_acquire();
+	for ( pEntry = __xrt_tls_resume_cache; pEntry; pEntry = pEntry->pNext ) {
+		if ( pEntry->tResume.iSessionIdLen != iSessionIdLen ) continue;
+		if ( memcmp(pEntry->tResume.aSessionId, pSessionId, iSessionIdLen) != 0 ) continue;
+		memcpy(pOut, &pEntry->tResume, sizeof(*pOut));
+		pEntry->iGeneration = ++__xrt_tls_resume_cache_gen;
+		bFound = true;
+		break;
+	}
+	__xrt_tls_resume_lock_release();
+	return bFound;
+}
+static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
+{
+	__xrt_tls_resume_cache_entry* pEntry;
+	__xrt_tls_resume_cache_entry* pPrevOldest = NULL;
+	__xrt_tls_resume_cache_entry* pOldest = NULL;
+	__xrt_tls_resume_cache_entry* pPrev = NULL;
+	__xrt_tls_resume_cache_entry* pCurr = NULL;
+	if ( !pResume || pResume->iVersion != __XRT_TLS_VERSION_1_2 || pResume->iSessionIdLen == 0 ) return;
+	__xrt_tls_resume_lock_acquire();
+	for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
+		if ( pCurr->tResume.iSessionIdLen == pResume->iSessionIdLen
+			&& memcmp(pCurr->tResume.aSessionId, pResume->aSessionId, pResume->iSessionIdLen) == 0 ) {
+			memcpy(&pCurr->tResume, pResume, sizeof(*pResume));
+			pCurr->iGeneration = ++__xrt_tls_resume_cache_gen;
+			__xrt_tls_resume_lock_release();
+			return;
+		}
+	}
+	pEntry = (__xrt_tls_resume_cache_entry*)xrtCalloc(1, sizeof(*pEntry));
+	if ( !pEntry ) {
+		__xrt_tls_resume_lock_release();
+		return;
+	}
+	memcpy(&pEntry->tResume, pResume, sizeof(*pResume));
+	pEntry->iGeneration = ++__xrt_tls_resume_cache_gen;
+	pEntry->pNext = __xrt_tls_resume_cache;
+	__xrt_tls_resume_cache = pEntry;
+	__xrt_tls_resume_cache_count++;
+	if ( __xrt_tls_resume_cache_count > 128u ) {
+		for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
+			if ( !pOldest || pCurr->iGeneration < pOldest->iGeneration ) {
+				pOldest = pCurr;
+				pPrevOldest = pPrev;
+			}
+			pPrev = pCurr;
+		}
+		if ( pOldest ) {
+			if ( pPrevOldest ) pPrevOldest->pNext = pOldest->pNext;
+			else __xrt_tls_resume_cache = pOldest->pNext;
+			xrtFree(pOldest);
+			__xrt_tls_resume_cache_count--;
+		}
+	}
+	__xrt_tls_resume_lock_release();
+}
+static bool __xrt_tls12_client_offers_suite(uint16 iSuite,
+	bool bOfferTLS12EcdheEcdsaAES128,
+	bool bOfferTLS12EcdheEcdsaAES256,
+	bool bOfferTLS12EcdheEcdsaChaCha,
+	bool bOfferTLS12EcdheRsaAES128,
+	bool bOfferTLS12EcdheRsaAES256,
+	bool bOfferTLS12EcdheRsaChaCha)
+{
+	switch ( iSuite ) {
+		case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256: return bOfferTLS12EcdheEcdsaAES128;
+		case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384: return bOfferTLS12EcdheEcdsaAES256;
+		case __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256: return bOfferTLS12EcdheEcdsaChaCha;
+		case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256: return bOfferTLS12EcdheRsaAES128;
+		case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384: return bOfferTLS12EcdheRsaAES256;
+		case __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256: return bOfferTLS12EcdheRsaChaCha;
+		default: return false;
+	}
 }
 /* ============================== 常量定义 ============================== */
 // TLS 记录类型 (RFC 8446 B.1)
@@ -30966,126 +34313,9 @@ static const uint8 __xrt_oid_secp384r1[] = {
 static const uint8 __xrt_oid_ed25519[] = {
 	0x2b, 0x65, 0x70
 };
-// 从 X.509 证书 DER 中提取 EC 公钥 (uncompressed P-256, 65 字节)
-static bool __xrt_tls_extract_ec_pubkey(uint8 *pCert, size_t iCertLen,
-	uint8 **ppPubKey, size_t *pPubKeySz)
-{
-	struct __xrt_der_tlv tRoot, tRoot2, tCert, tTbsCert, tChild;
-	
-	if ( __xrt_der_parse(pCert, iCertLen, &tRoot) < 0 ) return false;
-	
-	// 查找 ecPublicKey OID
-	struct __xrt_der_tlv tFound;
-	if ( !__xrt_der_find_oid(&tRoot, __xrt_oid_ec_public_key,
-		sizeof(__xrt_oid_ec_public_key), &tFound) ) {
-		return false;
-	}
-	
-	// 重新遍历找 SubjectPublicKeyInfo 中的 BIT STRING
-	if ( __xrt_der_parse(pCert, iCertLen, &tRoot2) < 0 ) return false;
-	if ( __xrt_der_next(&tRoot2, &tCert) <= 0 ) return false;
-	tTbsCert = tCert;
-	
-	while ( __xrt_der_next(&tTbsCert, &tChild) > 0 ) {
-		if ( tChild.iType == 0x30 ) {  // SEQUENCE
-			struct __xrt_der_tlv tSeq = tChild;
-			if ( __xrt_der_find_oid(&tSeq, __xrt_oid_ec_public_key,
-				sizeof(__xrt_oid_ec_public_key), &tFound) ) {
-				// 找到 SubjectPublicKeyInfo
-				struct __xrt_der_tlv tSPKI = tChild;
-				struct __xrt_der_tlv tAlgId, tBitStr;
-				
-				if ( __xrt_der_next(&tSPKI, &tAlgId) <= 0 ) return false;
-				if ( __xrt_der_next(&tSPKI, &tBitStr) <= 0 ) return false;
-				if ( tBitStr.iType != 0x03 ) return false;
-				if ( tBitStr.iLen < 2 ) return false;  // unused bits + at least 1 byte
-				
-				// BIT STRING 第一个字节是 unused bits (should be 0)
-				*ppPubKey = tBitStr.pValue + 1;
-				*pPubKeySz = tBitStr.iLen - 1;
-				return true;
-			}
-		}
-	}
-	
-	return false;
-}
-// 从 X.509 证书 DER 中提取 RSA 公钥 (modulus n, exponent e)
-// 成功返回 true, pMod/pExp 指向证书数据内部 (零拷贝)
-static bool __xrt_tls_extract_rsa_pubkey(uint8 *pCert, size_t iCertLen,
-	uint8 **ppMod, size_t *pModSz, uint8 **ppExp, size_t *pExpSz)
-{
-	struct __xrt_der_tlv tRoot, tFound;
-	// 解析证书根 SEQUENCE
-	if ( __xrt_der_parse(pCert, iCertLen, &tRoot) < 0 ) return false;
-	// 查找 rsaEncryption OID
-	if ( !__xrt_der_find_oid(&tRoot, __xrt_oid_rsa_encryption,
-		sizeof(__xrt_oid_rsa_encryption), &tFound) ) {
-		return false;
-	}
-	// tFound 现在指向 OID 后的下一个元素
-	// 需要重新遍历找到 SubjectPublicKeyInfo -> BIT STRING -> RSA key SEQUENCE
-	{
-		struct __xrt_der_tlv tRoot2, tCert, tTbsCert, tChild;
-		int iRet;
-		if ( __xrt_der_parse(pCert, iCertLen, &tRoot2) < 0 ) return false;
-		// Certificate -> SEQUENCE
-		if ( __xrt_der_next(&tRoot2, &tCert) <= 0 ) return false;
-		// TBSCertificate -> first child SEQUENCE
-		tTbsCert = tCert;
-		// 遍历 TBSCertificate 的子元素找 SubjectPublicKeyInfo
-		// 它是一个 SEQUENCE, 其第一个子元素是 AlgorithmIdentifier SEQUENCE
-		// 包含 rsaEncryption OID
-		while ( __xrt_der_next(&tTbsCert, &tChild) > 0 ) {
-			if ( tChild.iType == 0x30 ) {  // SEQUENCE
-				struct __xrt_der_tlv tSeq = tChild;
-				struct __xrt_der_tlv tFirst;
-				// 检查这个 SEQUENCE 是否包含 rsaEncryption OID
-				if ( __xrt_der_find_oid(&tSeq, __xrt_oid_rsa_encryption,
-					sizeof(__xrt_oid_rsa_encryption), &tFirst) ) {
-					// 找到 SubjectPublicKeyInfo
-					// 结构: SEQUENCE { AlgorithmIdentifier, BIT STRING { SEQUENCE { INTEGER(n), INTEGER(e) } } }
-					struct __xrt_der_tlv tSPKI = tChild;
-					struct __xrt_der_tlv tAlgId, tBitStr, tKeySeq, tMod, tExp;
-					// 跳过 AlgorithmIdentifier
-					if ( __xrt_der_next(&tSPKI, &tAlgId) <= 0 ) return false;
-					// BIT STRING
-					if ( __xrt_der_next(&tSPKI, &tBitStr) <= 0 ) return false;
-					if ( tBitStr.iType != 0x03 ) return false;
-					// BIT STRING 第一个字节是 unused bits (should be 0)
-					if ( tBitStr.iLen < 1 ) return false;
-					{
-						uint8 *pKeyData = tBitStr.pValue + 1;
-						size_t iKeyDataLen = tBitStr.iLen - 1;
-						// 解析 RSA 公钥 SEQUENCE { INTEGER(n), INTEGER(e) }
-						if ( __xrt_der_parse(pKeyData, iKeyDataLen, &tKeySeq) < 0 ) return false;
-						if ( tKeySeq.iType != 0x30 ) return false;
-						// modulus (n)
-						if ( __xrt_der_next(&tKeySeq, &tMod) <= 0 ) return false;
-						if ( tMod.iType != 0x02 ) return false;
-						// 跳过前导零字节
-						*ppMod = tMod.pValue;
-						*pModSz = tMod.iLen;
-						if ( (*pModSz > 0) && ((*ppMod)[0] == 0x00) ) {
-							(*ppMod)++;
-							(*pModSz)--;
-						}
-						// exponent (e)
-						if ( __xrt_der_next(&tKeySeq, &tExp) <= 0 ) return false;
-						if ( tExp.iType != 0x02 ) return false;
-						*ppExp = tExp.pValue;
-						*pExpSz = tExp.iLen;
-						return true;
-					}
-				}
-			}
-		}
-	}
-	return false;
-}
 // x509 OID: commonName 2.5.4.3
 static const uint8 __xrt_oid_common_name[] = {
-	0x55, 0x04, 0x03
+        0x55, 0x04, 0x03
 };
 // x509 OID: subjectAltName 2.5.29.17
 static const uint8 __xrt_oid_subject_alt_name[] = {
@@ -31796,6 +35026,10 @@ struct xrt_tls_context {
 	uint8 iSessionIdLen;
 	
 	// TLS 1.3 加密密钥
+	uint16 iMaxVersion;
+	bool bHaveResume;
+	bool bSessionResumed;
+	struct xrt_tls_resume tResume;
 	struct __xrt_tls_enc tEnc;
 	struct __xrt_tls_enc tAppKeys;  // 应用数据密钥
 	
@@ -31879,6 +35113,19 @@ struct xrt_tls_context {
 	size_t iRecvMsgLen;
 	uint8 iContentType;
 };
+static bool __xrt_tls_resume_from_ctx(xtlsctx* pCtx, struct xrt_tls_resume* pOut)
+{
+	if ( !pCtx || !pOut ) return false;
+	if ( !pCtx->bHandshakeDone || !pCtx->bIsTls12 ) return false;
+	if ( pCtx->iSessionIdLen == 0 || pCtx->iSessionIdLen > sizeof(pOut->aSessionId) ) return false;
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->iVersion = __XRT_TLS_VERSION_1_2;
+	pOut->iCipherSuite = pCtx->iCipherSuite;
+	pOut->iSessionIdLen = pCtx->iSessionIdLen;
+	memcpy(pOut->aSessionId, pCtx->aSessionId, pCtx->iSessionIdLen);
+	memcpy(pOut->aMasterSecret, pCtx->aMasterSecret, sizeof(pOut->aMasterSecret));
+	return true;
+}
 // SHA-256("") 预计算
 static const uint8 __xrt_tls_zeros_sha256[32] = {
 	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4,
@@ -31944,11 +35191,6 @@ static bool __xrt_tls13_is_supported_cipher(uint16 iCipherSuite)
 	return iCipherSuite == __XRT_TLS_AES_128_GCM_SHA256
 		|| iCipherSuite == __XRT_TLS_AES_256_GCM_SHA384
 		|| iCipherSuite == __XRT_TLS_CHACHA20_POLY1305_SHA256;
-}
-static bool __xrt_tls12_is_chacha_cipher(uint16 iCipherSuite)
-{
-	return iCipherSuite == __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256
-		|| iCipherSuite == __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256;
 }
 static bool __xrt_tls12_set_cipher_params(xtlsctx *pCtx, uint16 iCipherSuite)
 {
@@ -32233,6 +35475,46 @@ static bool __xrt_tls_load_file_copy(const char *sFile, uint8 **ppData, size_t *
 	*ppData = pCopy;
 	*pLen = iFileSize;
 	return true;
+}
+static bool __xrt_tls_load_der_file(const char *sFile, uint8 **ppDer, size_t *pDerLen)
+{
+	size_t iFileSize = 0;
+	uint8 *pFileData;
+	if ( !sFile || !sFile[0] || !ppDer || !pDerLen ) return false;
+	*ppDer = NULL;
+	*pDerLen = 0;
+	pFileData = (uint8*)xrtFileGetAll((str)sFile, &iFileSize);
+	if ( !pFileData || pFileData == (uint8*)xCore.sNull ) return false;
+	if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
+		const char *pStart = strstr((char*)pFileData, "\n");
+		const char *pEnd;
+		bool bOK;
+		if ( !pStart ) {
+			xrtFree(pFileData);
+			return false;
+		}
+		pStart++;
+		pEnd = strstr(pStart, "-----END ");
+		if ( !pEnd ) {
+			xrtFree(pFileData);
+			return false;
+		}
+		bOK = __xrt_tls_decode_pem_cert_block(pStart, pEnd, ppDer, pDerLen);
+		xrtFree(pFileData);
+		return bOK && *ppDer && *pDerLen > 0;
+	}
+	{
+		uint8 *pCopy = (uint8*)xrtMalloc(iFileSize);
+		if ( !pCopy ) {
+			xrtFree(pFileData);
+			return false;
+		}
+		memcpy(pCopy, pFileData, iFileSize);
+		xrtFree(pFileData);
+		*ppDer = pCopy;
+		*pDerLen = iFileSize;
+		return true;
+	}
 }
 static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 {
@@ -32765,10 +36047,20 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 {
 	uint8 aBuf[1024];
 	size_t iPos = 0;
+	size_t iSuitesPos;
+	size_t iSuitesStart;
+	size_t iExtPos;
+	bool bAllowTls13 = (pCtx->iMaxVersion == 0 || pCtx->iMaxVersion >= __XRT_TLS_VERSION_1_3);
 	
 	// 生成随机数和密钥对 (X25519 + X448 + P-256 + P-384)
 	xrtRandomBytes(pCtx->aRandom, 32);
-	xrtRandomBytes(pCtx->aSessionId, 32);
+	if ( pCtx->bHaveResume && pCtx->tResume.iVersion == __XRT_TLS_VERSION_1_2 && pCtx->tResume.iSessionIdLen > 0 ) {
+		pCtx->iSessionIdLen = pCtx->tResume.iSessionIdLen;
+		memcpy(pCtx->aSessionId, pCtx->tResume.aSessionId, pCtx->iSessionIdLen);
+	} else {
+		pCtx->iSessionIdLen = 32;
+		xrtRandomBytes(pCtx->aSessionId, 32);
+	}
 	xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
 	xrtX448Keypair(pCtx->aX448Priv, pCtx->aX448Pub);
 	xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
@@ -32793,20 +36085,23 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	memcpy(aBuf + iPos, pCtx->aRandom, 32);
 	iPos += 32;
 	
-	// session ID (32 bytes)
-	aBuf[iPos++] = 32;
-	memcpy(aBuf + iPos, pCtx->aSessionId, 32);
-	iPos += 32;
+	// session ID
+	aBuf[iPos++] = pCtx->iSessionIdLen;
+	memcpy(aBuf + iPos, pCtx->aSessionId, pCtx->iSessionIdLen);
+	iPos += pCtx->iSessionIdLen;
 	
 	// cipher suites (TLS 1.3 + TLS 1.2 现代 AEAD 套件, 9 套件)
-	__xrt_tls_store_be16(aBuf + iPos, 18);  // 9 suites * 2 bytes
+	iSuitesPos = iPos;
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_CHACHA20_POLY1305_SHA256);  // TLS 1.3
-	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_128_GCM_SHA256);        // TLS 1.3
-	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_256_GCM_SHA384);        // TLS 1.3
-	iPos += 2;
+	iSuitesStart = iPos;
+	if ( bAllowTls13 ) {
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_CHACHA20_POLY1305_SHA256);  // TLS 1.3
+		iPos += 2;
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_128_GCM_SHA256);        // TLS 1.3
+		iPos += 2;
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_AES_256_GCM_SHA384);        // TLS 1.3
+		iPos += 2;
+	}
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256);  // TLS 1.2
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256);    // TLS 1.2
@@ -32819,23 +36114,26 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256);    // TLS 1.2
 	iPos += 2;
+	__xrt_tls_store_be16(aBuf + iSuitesPos, (uint16)(iPos - iSuitesStart));
 	
 	// compression methods
 	aBuf[iPos++] = 1;   // length
 	aBuf[iPos++] = 0;   // null compression
 	
 	// --- Extensions ---
-	size_t iExtPos = iPos;
+	iExtPos = iPos;
 	iPos += 2;  // 预留扩展总长度
 	
 	// Extension: supported_versions (0x002b) — TLS 1.3 preferred, TLS 1.2 fallback
 	__xrt_tls_store_be16(aBuf + iPos, 0x002b);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 5);  // ext data length
+	__xrt_tls_store_be16(aBuf + iPos, bAllowTls13 ? 5 : 3);  // ext data length
 	iPos += 2;
-	aBuf[iPos++] = 4;   // version list length (2 versions * 2 bytes)
-	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
-	iPos += 2;
+	aBuf[iPos++] = bAllowTls13 ? 4 : 2;   // version list length
+	if ( bAllowTls13 ) {
+		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
+		iPos += 2;
+	}
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
 	iPos += 2;
 	
@@ -32887,6 +36185,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	__xrt_tls_store_be16(aBuf + iPos, 0x0601);  // RSA-PKCS1-SHA512 (TLS 1.2 兼容)
 	iPos += 2;
 	
+	if ( bAllowTls13 ) {
 	// Extension: key_share (0x0033) - X25519 + X448 + P-256 + P-384
 	__xrt_tls_store_be16(aBuf + iPos, 0x0033);
 	iPos += 2;
@@ -32926,6 +36225,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	aBuf[iPos++] = 1;   // modes list length
 	aBuf[iPos++] = 1;   // psk_dhe_ke
+	}
 	
 	// Extension: ec_point_formats (0x000b) — TLS 1.2 兼容
 	__xrt_tls_store_be16(aBuf + iPos, 0x000b);
@@ -32991,6 +36291,7 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	if ( iLen < 2 + 32 + 1 ) return false;
 	
 	size_t iPos = 0;
+	bool bTls12ResumeAccepted = false;
 	
 	// legacy server version
 	uint16 iLegacyVer = __xrt_tls_load_be16(pMsg + iPos);
@@ -33002,6 +36303,9 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	
 	// session ID
 	uint8 iSessLen = pMsg[iPos++];
+	if ( iSessLen > sizeof(pCtx->aSessionId) || iPos + iSessLen > iLen ) return false;
+	pCtx->iSessionIdLen = iSessLen;
+	if ( iSessLen > 0 ) memcpy(pCtx->aSessionId, pMsg + iPos, iSessLen);
 	iPos += iSessLen;
 	
 	// cipher suite
@@ -33099,11 +36403,22 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 			#endif
 			return false;
 		}
+		if ( pCtx->bHaveResume
+			&& pCtx->tResume.iVersion == __XRT_TLS_VERSION_1_2
+			&& pCtx->tResume.iSessionIdLen == pCtx->iSessionIdLen
+			&& pCtx->tResume.iCipherSuite == pCtx->iCipherSuite
+			&& pCtx->iSessionIdLen > 0
+			&& memcmp(pCtx->tResume.aSessionId, pCtx->aSessionId, pCtx->iSessionIdLen) == 0 ) {
+			memcpy(pCtx->aMasterSecret, pCtx->tResume.aMasterSecret, sizeof(pCtx->aMasterSecret));
+			bTls12ResumeAccepted = true;
+		}
 		
 		#ifdef DEBUG_TRACE
 			printf("    [TLS] ServerHello: TLS 1.2, cipher=0x%04x, sha384=%d, ecdhe=%d, keyLen=%d\n",
 				pCtx->iCipherSuite, pCtx->bUseSHA384, pCtx->bIsECDHE, pCtx->iKeyLen);
+			if ( bTls12ResumeAccepted ) printf("    [TLS] ServerHello: session resumed\n");
 		#endif
+		pCtx->bSessionResumed = bTls12ResumeAccepted;
 		return true;
 	}
 	
@@ -34088,11 +37403,18 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	if ( pConfig ) {
 		pCtx->bSkipVerify = !pConfig->bVerifyPeer;
 		pCtx->bAllowTLS12Ed25519 = pConfig->bAllowTLS12Ed25519;
+		pCtx->iMaxVersion = pConfig->iMaxVersion;
 		if ( pConfig->sHostName ) {
 			strncpy(pCtx->sHostname, pConfig->sHostName, sizeof(pCtx->sHostname) - 1);
 		}
 		pCtx->OnSNI = pConfig->OnSNI;
 		pCtx->pSNIUserData = pConfig->pSNIUserData;
+		if ( pConfig->pResume && __xrt_tls_resume_copy(&pCtx->tResume, pConfig->pResume) ) {
+			pCtx->bHaveResume = true;
+			if ( pCtx->iMaxVersion == 0 || pCtx->iMaxVersion > pCtx->tResume.iVersion ) {
+				pCtx->iMaxVersion = pCtx->tResume.iVersion;
+			}
+		}
 		if ( (pConfig->sCertFile && pConfig->sCertFile[0]) || (pConfig->sKeyFile && pConfig->sKeyFile[0]) ) {
 			if ( xrtTlsSetCert(pCtx, pConfig->sCertFile, pConfig->sKeyFile) != XRT_NET_OK ) {
 				xrtTlsDestroy(pCtx);
@@ -34127,6 +37449,7 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	memset(pCtx->aX25519Secret, 0, sizeof(pCtx->aX25519Secret));
 	memset(&pCtx->tEnc, 0, sizeof(struct __xrt_tls_enc));
 	memset(&pCtx->tAppKeys, 0, sizeof(struct __xrt_tls_enc));
+	memset(&pCtx->tResume, 0, sizeof(pCtx->tResume));
 	memset(pCtx->aMasterSecret, 0, 48);
 	memset(pCtx->aP256Priv, 0, sizeof(pCtx->aP256Priv));
 	memset(pCtx->aP384Priv, 0, sizeof(pCtx->aP384Priv));
@@ -34137,12 +37460,14 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	
 	xrtFree(pCtx);
 }
-XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
+static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool bAllowSocketIO)
 {
-	if ( !pCtx || hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
+	if ( !pCtx ) return XRT_NET_ERROR;
+	if ( bAllowSocketIO && hSocket == XSOCKET_INVALID ) return XRT_NET_ERROR;
 	
 	// 如果有待发送数据，先发送
 	if ( pCtx->tSendBuf.iSize > 0 ) {
+		if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 		size_t iSent = 0;
 		xnet_result iRes = __xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
 		if ( iRes == XRT_NET_OK && iSent > 0 ) {
@@ -34167,6 +37492,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS_CLIENT_WAIT_SH: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34231,7 +37557,12 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 			
 			if ( pCtx->bIsTls12 ) {
 				// TLS 1.2: 不派生握手密钥, 后续消息仍为明文
-				pCtx->iState = XRT_TLS12_CLIENT_WAIT_CERT;
+				if ( pCtx->bSessionResumed ) {
+					__xrt_tls12_derive_keys(pCtx);
+					pCtx->iState = XRT_TLS12_CLIENT_WAIT_CCS;
+				} else {
+					pCtx->iState = XRT_TLS12_CLIENT_WAIT_CERT;
+				}
 				#ifdef DEBUG_TRACE
 					printf("    [TLS] After ServerHello: aRandom: ");
 					for (int i = 0; i < 32; i++) printf("%02x", pCtx->aRandom[i]);
@@ -34251,6 +37582,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS_CLIENT_WAIT_FINISH: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34494,6 +37826,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 			#endif
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34601,6 +37934,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_CLIENT_WAIT_CCS: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34643,6 +37977,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_CLIENT_WAIT_FINISH: {
 			// 事件驱动优化: 缓冲区已有完整记录时跳过 recv
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34694,6 +38029,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 							return XRT_NET_ERROR;
 						}
 						
+						if ( pCtx->bSessionResumed ) {
+							__xrt_tls12_update_hash(pCtx, aPlain, __XRT_TLS_MSGHDR_SIZE + iFinLen);
+							__xrt_tls12_send_ccs_finished(pCtx, false);
+						}
 						pCtx->bHandshakeDone = true;
 						pCtx->iState = XRT_TLS12_CLIENT_CONNECTED;
 						#ifdef DEBUG_TRACE
@@ -34726,6 +38065,10 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 						if ( !__xrt_tls12_verify_finished(pCtx, aPlain + __XRT_TLS_MSGHDR_SIZE, iFinLen, true) ) {
 							return XRT_NET_ERROR;
 						}
+						if ( pCtx->bSessionResumed ) {
+							__xrt_tls12_update_hash(pCtx, aPlain, __XRT_TLS_MSGHDR_SIZE + iFinLen);
+							__xrt_tls12_send_ccs_finished(pCtx, false);
+						}
 						pCtx->bHandshakeDone = true;
 						pCtx->iState = XRT_TLS12_CLIENT_CONNECTED;
 						return XRT_NET_AGAIN;
@@ -34742,6 +38085,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_CLIENT_CONNECTED:
 			// 发送剩余数据
 			if ( pCtx->tSendBuf.iSize > 0 ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				size_t iSent = 0;
 				__xrt_tls_sock_send(hSocket, pCtx->tSendBuf.pData, pCtx->tSendBuf.iSize, &iSent);
 				if ( iSent > 0 ) __xrt_tls_buf_consume(&pCtx->tSendBuf, iSent);
@@ -34752,6 +38096,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS_SERVER_START:
 		{
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34782,8 +38127,15 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 							pCtx->iCipherSuite, pCtx->iTls12Curve, pCtx->iServerSigAlg);
 					#endif
 					__xrt_tls12_update_hash(pCtx, pRecData, iRecLen);
-					if ( !__xrt_tls12_send_server_flight(pCtx) ) return XRT_NET_ERROR;
-					pCtx->iState = XRT_TLS12_SERVER_WAIT_CKE;
+					if ( pCtx->bSessionResumed ) {
+						if ( !__xrt_tls12_send_server_hello(pCtx) ) return XRT_NET_ERROR;
+						__xrt_tls12_derive_keys(pCtx);
+						__xrt_tls12_send_ccs_finished(pCtx, true);
+						pCtx->iState = XRT_TLS12_SERVER_WAIT_CCS;
+					} else {
+						if ( !__xrt_tls12_send_server_flight(pCtx) ) return XRT_NET_ERROR;
+						pCtx->iState = XRT_TLS12_SERVER_WAIT_CKE;
+					}
 				} else {
 					#ifdef DEBUG_TRACE
 						printf("    [TLS13] server negotiated suite=0x%04x group=0x%04x sig=0x%04x\n",
@@ -34803,6 +38155,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		case XRT_TLS12_SERVER_WAIT_CCS:
 		case XRT_TLS12_SERVER_WAIT_FINISH: {
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34881,8 +38234,16 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 						}
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
 						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
-						__xrt_tls12_send_ccs_finished(pCtx, true);
+						if ( !pCtx->bSessionResumed ) {
+							__xrt_tls12_send_ccs_finished(pCtx, true);
+						}
 						pCtx->bHandshakeDone = true;
+						if ( !pCtx->bSessionResumed ) {
+							struct xrt_tls_resume tResume;
+							if ( __xrt_tls_resume_from_ctx(pCtx, &tResume) ) {
+								__xrt_tls_resume_cache_store(&tResume);
+							}
+						}
 						pCtx->iState = XRT_TLS_SERVER_CONNECTED;
 						return XRT_NET_AGAIN;
 					}
@@ -34893,6 +38254,7 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		
 		case XRT_TLS_SERVER_NEGOTIATED: {
 			if ( !__xrt_tls_have_record(pCtx) ) {
+				if ( !bAllowSocketIO ) return XRT_NET_AGAIN;
 				char aBuf[4096];
 				size_t iRecvd = 0;
 				xnet_result iRes = __xrt_tls_sock_recv(hSocket, aBuf, sizeof(aBuf), &iRecvd);
@@ -34966,6 +38328,14 @@ XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 		default:
 			return XRT_NET_ERROR;
 	}
+}
+XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
+{
+	return __xrt_tls_drive_internal(pCtx, hSocket, true);
+}
+XXAPI xnet_result xrtTlsDrive(xtlsctx *pCtx)
+{
+	return __xrt_tls_drive_internal(pCtx, XSOCKET_INVALID, false);
 }
 XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
 {
@@ -35090,10 +38460,30 @@ XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
 	}
 	__xrt_tls_buf_consume(&pCtx->tSendBuf, iLen);
 }
+XXAPI xtlsresume* xrtTlsExportResume(xtlsctx *pCtx)
+{
+	xtlsresume* pResume;
+	if ( !pCtx ) return NULL;
+	pResume = (xtlsresume*)xrtCalloc(1, sizeof(xtlsresume));
+	if ( !pResume ) return NULL;
+	if ( !__xrt_tls_resume_from_ctx(pCtx, pResume) ) {
+		xrtFree(pResume);
+		return NULL;
+	}
+	return pResume;
+}
+XXAPI void xrtTlsResumeDestroy(xtlsresume* pResume)
+{
+	if ( !pResume ) return;
+	memset(pResume, 0, sizeof(*pResume));
+	xrtFree(pResume);
+}
+XXAPI bool xrtTlsWasResumed(xtlsctx *pCtx)
+{
+	return pCtx ? pCtx->bSessionResumed : false;
+}
 static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
 static void __xrt_tls_derive_application_keys(xtlsctx *pCtx);
-static bool __xrt_tls13_build_cert_verify_hash(uint8 *pOut, size_t *pOutLen,
-	const uint8 *pTranscriptHash, size_t iTranscriptHashLen, uint16 iSigAlg, bool bAsServer);
 // Step 12: 服务端 ClientHello 解析 (提取 SNI)
 static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
@@ -35114,6 +38504,9 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	uint8 aP256Peer[65];
 	uint8 aP384Peer[97];
 	bool bHaveX25519 = false, bHaveX448 = false, bHaveP256 = false, bHaveP384 = false;
+	struct xrt_tls_resume tCachedResume;
+	bool bHaveCachedResume = false;
+	bool bAllowTls13 = false;
 	if ( !pCtx ) return false;
 	pCtx->bPeerSigECDSAP256 = false;
 	pCtx->bPeerSigECDSAP384 = false;
@@ -35131,6 +38524,8 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	pCtx->iServerSigAlg = 0;
 	pCtx->sClientSNI[0] = '\0';
 	pCtx->bIsTls12 = false;
+	pCtx->bSessionResumed = false;
+	bAllowTls13 = (pCtx->iMaxVersion == 0 || pCtx->iMaxVersion >= __XRT_TLS_VERSION_1_3);
 	
 	// client_version(2)
 	if ( iPos + 2 > iLen ) return false;
@@ -35323,7 +38718,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 		pCtx->OnSNI(pCtx, pCtx->sClientSNI, pCtx->pSNIUserData);
 	}
 	// 优先协商 TLS 1.3
-	if ( bTls13Supported ) {
+	if ( bAllowTls13 && bTls13Supported ) {
 		if ( bOfferTLS13AES256 ) pCtx->iCipherSuite = __XRT_TLS_AES_256_GCM_SHA384;
 		else if ( bOfferTLS13ChaCha ) pCtx->iCipherSuite = __XRT_TLS_CHACHA20_POLY1305_SHA256;
 		else if ( bOfferTLS13AES128 ) pCtx->iCipherSuite = __XRT_TLS_AES_128_GCM_SHA256;
@@ -35419,6 +38814,22 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	if ( iLegacyVersion != __XRT_TLS_VERSION_1_2 ) return false;
 	// TLS 1.2 中 Ed25519 不是默认互操作路径, 仅在显式允许时作为 ECDHE_ECDSA 认证证书使用。
 	if ( pCtx->bIsEd25519Key && !pCtx->bAllowTLS12Ed25519 ) return false;
+	if ( pCtx->iSessionIdLen > 0
+		&& __xrt_tls_resume_cache_lookup(pCtx->aSessionId, pCtx->iSessionIdLen, &tCachedResume)
+		&& __xrt_tls12_client_offers_suite(tCachedResume.iCipherSuite,
+			bOfferTLS12EcdheEcdsaAES128,
+			bOfferTLS12EcdheEcdsaAES256,
+			bOfferTLS12EcdheEcdsaChaCha,
+			bOfferTLS12EcdheRsaAES128,
+			bOfferTLS12EcdheRsaAES256,
+			bOfferTLS12EcdheRsaChaCha) ) {
+		pCtx->iCipherSuite = tCachedResume.iCipherSuite;
+		if ( !__xrt_tls12_set_cipher_params(pCtx, pCtx->iCipherSuite) ) return false;
+		memcpy(pCtx->aMasterSecret, tCachedResume.aMasterSecret, sizeof(pCtx->aMasterSecret));
+		pCtx->bIsTls12 = true;
+		pCtx->bSessionResumed = true;
+		return true;
+	}
 	if ( pCtx->bIsECPubKey || pCtx->bIsEd25519Key ) {
 		if ( bOfferTLS12EcdheEcdsaAES256 ) pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384;
 		else if ( bOfferTLS12EcdheEcdsaChaCha ) pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256;
@@ -35805,9 +39216,11 @@ XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx *pCtx, bool bAllow)
 }
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile)
 {
+	uint8 *pCertDer = NULL;
+	size_t iCertDerLen = 0;
+	uint8 *pKeyDer = NULL;
+	size_t iKeyDerLen = 0;
 	if ( !pCtx ) return XRT_NET_ERROR;
-	
-	// 释放旧证书数据
 	if ( pCtx->pCertDer ) {
 		xrtFree(pCtx->pCertDer);
 		pCtx->pCertDer = NULL;
@@ -35818,126 +39231,34 @@ XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char
 		pCtx->pKeyDer = NULL;
 		pCtx->iKeyDerLen = 0;
 	}
-	
-	// 加载证书文件
 	if ( sCertFile && sCertFile[0] ) {
-		size_t iFileSize = 0;
-		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sCertFile, &iFileSize);
-		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+		if ( !__xrt_tls_load_der_file(sCertFile, &pCertDer, &iCertDerLen) ) {
 			return XRT_NET_ERROR;
 		}
-		
-		// 检测是否为 PEM 格式
-		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
-			// PEM 格式: 找到 Base64 内容区域
-			const char *pStart = strstr((char*)pFileData, "\n");
-			if ( pStart ) {
-				pStart++;  // 跳过 -----BEGIN xxx-----\n
-				const char *pEnd = strstr(pStart, "-----END ");
-				if ( pEnd ) {
-					// 复制 Base64 内容 (去除换行符)
-					size_t iB64Len = pEnd - pStart;
-					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
-					if ( !pB64 ) {
-						xrtFree(pFileData);
-						return XRT_NET_ERROR;
-					}
-					
-					size_t j = 0;
-					for ( size_t i = 0; i < iB64Len; i++ ) {
-						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
-							pB64[j++] = pStart[i];
-						}
-					}
-					pB64[j] = '\0';
-					
-					// Base64 解码
-					// 补齐 Base64 长度为 4 的倍数
-					while ( j % 4 != 0 ) {
-						pB64[j++] = '=';
-					}
-					pB64[j] = '\0';
-					
-					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
-					if ( pDer && pDer != (uint8*)xCore.sNull ) {
-						pCtx->pCertDer = pDer;
-						pCtx->iCertDerLen = (j / 4) * 3;
-						if ( j > 0 && pB64[j - 1] == '=' ) pCtx->iCertDerLen--;
-						if ( j > 1 && pB64[j - 2] == '=' ) pCtx->iCertDerLen--;
-					}
-					xrtFree(pB64);
-				}
-			}
-		} else {
-			// DER 格式: 直接复制
-			pCtx->pCertDer = (uint8*)xrtMalloc(iFileSize);
-			if ( pCtx->pCertDer ) {
-				memcpy(pCtx->pCertDer, pFileData, iFileSize);
-				pCtx->iCertDerLen = iFileSize;
-			}
-		}
-		xrtFree(pFileData);
 	}
-	
-	// 加载私钥文件
 	if ( sKeyFile && sKeyFile[0] ) {
-		size_t iFileSize = 0;
-		uint8 *pFileData = (uint8*)xrtFileGetAll((str)sKeyFile, &iFileSize);
-		if ( !pFileData || pFileData == (uint8*)xCore.sNull ) {
+		if ( !__xrt_tls_load_der_file(sKeyFile, &pKeyDer, &iKeyDerLen) ) {
+			if ( pCertDer ) xrtFree(pCertDer);
 			return XRT_NET_ERROR;
 		}
-		
-		// 检测是否为 PEM 格式
-		if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
-			// PEM 格式
-			const char *pStart = strstr((char*)pFileData, "\n");
-			if ( pStart ) {
-				pStart++;
-				const char *pEnd = strstr(pStart, "-----END ");
-				if ( pEnd ) {
-					size_t iB64Len = pEnd - pStart;
-					char *pB64 = (char*)xrtMalloc(iB64Len + 1);
-					if ( !pB64 ) {
-						xrtFree(pFileData);
-						return XRT_NET_ERROR;
-					}
-					
-					size_t j = 0;
-					for ( size_t i = 0; i < iB64Len; i++ ) {
-						if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' ) {
-							pB64[j++] = pStart[i];
-						}
-					}
-					pB64[j] = '\0';
-					
-					while ( j % 4 != 0 ) {
-						pB64[j++] = '=';
-					}
-					pB64[j] = '\0';
-					
-					uint8 *pDer = (uint8*)xrtBase64Decode(pB64, j, NULL);
-					if ( pDer && pDer != (uint8*)xCore.sNull ) {
-						pCtx->pKeyDer = pDer;
-						pCtx->iKeyDerLen = (j / 4) * 3;
-						if ( j > 0 && pB64[j - 1] == '=' ) pCtx->iKeyDerLen--;
-						if ( j > 1 && pB64[j - 2] == '=' ) pCtx->iKeyDerLen--;
-					}
-					xrtFree(pB64);
-				}
-			}
-		} else {
-			// DER 格式
-			pCtx->pKeyDer = (uint8*)xrtMalloc(iFileSize);
-			if ( pCtx->pKeyDer ) {
-				memcpy(pCtx->pKeyDer, pFileData, iFileSize);
-				pCtx->iKeyDerLen = iFileSize;
-			}
-		}
-		xrtFree(pFileData);
 	}
-	
-	if ( !__xrt_tls_prepare_server_identity(pCtx) ) return XRT_NET_ERROR;
-	
+	pCtx->pCertDer = pCertDer;
+	pCtx->iCertDerLen = iCertDerLen;
+	pCtx->pKeyDer = pKeyDer;
+	pCtx->iKeyDerLen = iKeyDerLen;
+	if ( !__xrt_tls_prepare_server_identity(pCtx) ) {
+		if ( pCtx->pCertDer ) {
+			xrtFree(pCtx->pCertDer);
+			pCtx->pCertDer = NULL;
+			pCtx->iCertDerLen = 0;
+		}
+		if ( pCtx->pKeyDer ) {
+			xrtFree(pCtx->pKeyDer);
+			pCtx->pKeyDer = NULL;
+			pCtx->iKeyDerLen = 0;
+		}
+		return XRT_NET_ERROR;
+	}
 	return XRT_NET_OK;
 }
 #ifdef DEBUG_TRACE
@@ -36720,6 +40041,57 @@ XXAPI void xrtArrayUnit(xarray pArr)
 	__xrtArrayUnit_NoLock(pArr);
 	xrtOwnerEndMutable(&pArr->Owner);
 }
+XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xarray pArr = xrtArrayCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return pArr;
+}
+XXAPI xarray xrtArrayCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xarray pArr = xrtArrayCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return pArr;
+}
+XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtArrayInitEx(pArr, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtArrayInitExDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtArrayInitEx(pArr, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
+{
+	if ( pArr ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&pArr->Owner, "array belongs to another thread.") ) {
+			return;
+		}
+		xrtArrayUnit(pArr);
+		__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
+		xrtFreeDbg(pArr, sFile, iLine);
+	}
+}
+XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine)
+{
+	if ( pArr == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
+		return;
+	}
+	__xrtArrayUnit_NoLock(pArr);
+	xrtOwnerEndMutable(&pArr->Owner);
+	__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
+}
 XXAPI bool xrtArrayLock(xarray pArr)
 {
 	if ( pArr == NULL ) {
@@ -37267,6 +40639,68 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	objMM->LL_Free = NULL;
 	xrtOwnerEndMutable(&objMM->Owner);
 }
+XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, const char* sFile, uint32 iLine)
+{
+	xfsmempool objMM = xrtFSMemPoolCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMM;
+}
+XXAPI xfsmempool xrtFSMemPoolCreateExDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xfsmempool objMM = xrtFSMemPoolCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMM;
+}
+XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtFSMemPoolInitEx(objMM, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtFSMemPoolInitExDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtFSMemPoolInitEx(objMM, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine)
+{
+	if ( objMM ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+			return;
+		}
+		xrtFSMemPoolUnit(objMM);
+		__xrtMemDebugUnregisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine);
+		xrtFreeDbg(objMM, sFile, iLine);
+	}
+}
+XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine)
+{
+	if ( objMM == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
+		return;
+	}
+	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
+		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
+		if ( pNode->objMMU ) {
+			xrtMemUnitDestroy(pNode->objMMU);
+			pNode->objMMU = NULL;
+		}
+	}
+	xrtBsmmUnit(&objMM->arrMMU);
+	objMM->LL_Idle = NULL;
+	objMM->LL_Full = NULL;
+	objMM->LL_Null = NULL;
+	objMM->LL_Free = NULL;
+	xrtOwnerEndMutable(&objMM->Owner);
+	__xrtMemDebugUnregisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine);
+}
 // 从内存管理器中申请一块内存
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {
@@ -37348,6 +40782,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 	}
 	// 从选定内存管理器单元中申请内存块
 	pResult = xrtMemUnitAlloc_Inline(objMMU);
+	__xrtMemDebugRegisterForeignAlloc(pResult, objMM->ItemLength, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, NULL, 0);
 	xrtOwnerEndMutable(&objMM->Owner);
 	return pResult;
 }
@@ -37428,6 +40863,12 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
+	#ifdef XRT_MEM_DEBUG
+		if ( xrtMemDebugIsEnabled() && !__xrtMemDebugUnregisterForeignAlloc(p, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, NULL, 0) ) {
+			xrtOwnerEndMutable(&objMM->Owner);
+			return;
+		}
+	#endif
 	MMU_ValuePtr v = p - sizeof(MMU_Value);
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
@@ -37660,6 +41101,39 @@ XXAPI void xrtDynStackUnit(xdynstack objSTK)
 		xrtFree(objSTK->MMU.Memory[i]);
 	}
 	xrtPtrArrayUnit(&objSTK->MMU);
+}
+XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xdynstack objSTK = xrtDynStackCreate(iItemLength);
+	__xrtMemDebugRegisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objSTK;
+}
+XXAPI void xrtDynStackInitDbg(xdynstack objSTK, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtDynStackInit(objSTK, iItemLength);
+	__xrtMemDebugRegisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
+{
+	if ( objSTK ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine) ) {
+			return;
+		}
+		xrtDynStackUnit(objSTK);
+		__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
+		xrtFreeDbg(objSTK, sFile, iLine);
+	}
+}
+XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
+{
+	if ( objSTK == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine) ) {
+		return;
+	}
+	xrtDynStackUnit(objSTK);
+	__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
 }
 // 压栈
 XXAPI ptr xrtDynStackPush(xdynstack objSTK)
@@ -38276,6 +41750,57 @@ XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
 	__xrtAVLTreeUnit_NoLock(objAVLT);
 	xrtOwnerEndMutable(&objAVLT->Owner);
 }
+XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine)
+{
+	xavltree objAVLT = xrtAVLTreeCreateEx(iItemLength, procComp, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objAVLT;
+}
+XXAPI xavltree xrtAVLTreeCreateExDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xavltree objAVLT = xrtAVLTreeCreateEx(iItemLength, procComp, iMode);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objAVLT;
+}
+XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine)
+{
+	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtAVLTreeInitExDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, iMode);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
+{
+	if ( objAVLT ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+			return;
+		}
+		xrtAVLTreeUnit(objAVLT);
+		__xrtMemDebugUnregisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine);
+		xrtFreeDbg(objAVLT, sFile, iLine);
+	}
+}
+XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
+{
+	if ( objAVLT == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return;
+	}
+	__xrtAVLTreeUnit_NoLock(objAVLT);
+	xrtOwnerEndMutable(&objAVLT->Owner);
+	__xrtMemDebugUnregisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine);
+}
 XXAPI bool xrtAVLTreeLock(xavltree objAVLT)
 {
 	if ( objAVLT == NULL ) {
@@ -38470,17 +41995,98 @@ XXAPI void xrtMemPoolDestroy(xmempool objMP)
 		xrtFree(objMP);
 	}
 }
-// 初始化内存池（对自维护结构体指针使用，和 MP256_Create 功能类似）
-void MP256_SetFSB(FSB_Item* FSB, int idx, uint32 iSizeMin, uint32 iSizeMax, FSB_Item* left, FSB_Item* right)
+// 初始化内存池（对自维护结构体指针使用）
+static inline uint32 __xrtMemPoolResolveCutoff(int iCustom)
 {
-	FSB[idx].MinLength = iSizeMin;
-	FSB[idx].MaxLength = iSizeMax;
-	FSB[idx].LL_Idle = NULL;
-	FSB[idx].LL_Full = NULL;
-	FSB[idx].LL_Null = NULL;
-	FSB[idx].LL_Free = NULL;
-	FSB[idx].left = left;
-	FSB[idx].right = right;
+	if ( iCustom <= 0 ) {
+		return XRT_MEMPOOL_CUTOFF_DEFAULT;
+	}
+	return (uint32)iCustom;
+}
+static inline uint32 __xrtMemPoolBucketCount(uint32 iCutoff)
+{
+	if ( iCutoff == 0 ) {
+		return 0;
+	}
+	return (uint32)((iCutoff + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE);
+}
+static inline void __xrtMemPoolInitBucket(FSB_Item* pBucket, uint32 iSizeMin, uint32 iSizeMax)
+{
+	pBucket->MinLength = iSizeMin;
+	pBucket->MaxLength = iSizeMax;
+	pBucket->LL_Idle = NULL;
+	pBucket->LL_Full = NULL;
+	pBucket->LL_Null = NULL;
+	pBucket->LL_Free = NULL;
+	pBucket->left = NULL;
+	pBucket->right = NULL;
+}
+static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
+{
+	uint32 iBucketCount;
+	uint32 iBucket;
+	uint32 iSize;
+	objMP->FSB_Memory = NULL;
+	objMP->FSB_RootNode = NULL;
+	objMP->FSB_Lut = NULL;
+	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+	objMP->iBucketCount = 0;
+	objMP->iFallbackCutoff = iCutoff;
+	if ( iCutoff == 0 ) {
+		return TRUE;
+	}
+	iBucketCount = __xrtMemPoolBucketCount(iCutoff);
+	objMP->FSB_Memory = xrtCalloc(iBucketCount, sizeof(FSB_Item));
+	if ( objMP->FSB_Memory == NULL ) {
+		return FALSE;
+	}
+	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * (iCutoff + 1));
+	if ( objMP->FSB_Lut == NULL ) {
+		xrtFree(objMP->FSB_Memory);
+		objMP->FSB_Memory = NULL;
+		return FALSE;
+	}
+	memset(objMP->FSB_Lut, 0, sizeof(uint32) * (iCutoff + 1));
+	objMP->iBucketCount = iBucketCount;
+	objMP->FSB_RootNode = &objMP->FSB_Memory[0];
+	for ( iBucket = 0; iBucket < iBucketCount; iBucket++ ) {
+		uint32 iMin = (iBucket * XRT_MEMPOOL_STEP_SIZE) + 1;
+		uint32 iMax = iMin + XRT_MEMPOOL_STEP_SIZE - 1;
+		if ( iMax > iCutoff ) {
+			iMax = iCutoff;
+		}
+		__xrtMemPoolInitBucket(&objMP->FSB_Memory[iBucket], iMin, iMax);
+	}
+	for ( iSize = 1; iSize <= iCutoff; iSize++ ) {
+		uint32 iClass = (uint32)((iSize - 1) / XRT_MEMPOOL_STEP_SIZE);
+		if ( iClass >= iBucketCount ) {
+			iClass = iBucketCount - 1;
+		}
+		objMP->FSB_Lut[iSize] = iClass;
+	}
+	return TRUE;
+}
+static inline FSB_Item* __xrtMemPoolGetBucketBySize(xmempool objMP, uint32 iSize)
+{
+	if ( objMP == NULL || objMP->FSB_Memory == NULL || objMP->FSB_Lut == NULL ) {
+		return NULL;
+	}
+	if ( iSize == 0 || iSize > objMP->iFallbackCutoff ) {
+		return NULL;
+	}
+	return &objMP->FSB_Memory[objMP->FSB_Lut[iSize]];
+}
+static inline FSB_Item* __xrtMemPoolGetBucketByMMU(xmempool objMP, xmemunit objMMU)
+{
+	uint32 iSize;
+	if ( objMP == NULL || objMMU == NULL ) {
+		return NULL;
+	}
+	iSize = objMMU->ItemLength - sizeof(MMU_Value);
+	if ( iSize == 0 || iSize > objMP->iFallbackCutoff ) {
+		return NULL;
+	}
+	return __xrtMemPoolGetBucketBySize(objMP, iSize);
 }
 XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 {
@@ -38495,117 +42101,36 @@ XXAPI void xrtMemPoolInitEx(xmempool objMP, int iCustom, uint32 iMode)
 	xrtBsmmInitEx(&objMP->arrMMU, sizeof(MMU_LLNode), iMode);
 	xrtBsmmInitEx(&objMP->BigMM, sizeof(MP_BigInfoLL), iMode);
 	objMP->LL_BigFree = NULL;
-	if ( iCustom == 1 ) {
-		// 添加默认的区块区间 (4层树，针对小内存的方案)
-		//
-		// 二叉树视图 (根据建树顺序插入避免旋转产生额外开销)：
-		//								○
-		//								160
-		//				○								○
-		//				64								320
-		//		○				○				○				○
-		//		32				96				224				448
-		//	○		○		○		○		○		○		○		○
-		//	16		48		80		128		192		256		384		512
-		//
-		objMP->FSB_Memory = xrtMalloc(sizeof(FSB_Item) * 15);
-		if ( objMP->FSB_Memory == NULL ) {
-			objMP->FSB_RootNode = NULL;
-			return;
-		}
-		MP256_SetFSB(objMP->FSB_Memory, 0,	1,		16, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 1,	17,		32, &objMP->FSB_Memory[0], &objMP->FSB_Memory[2]);
-		MP256_SetFSB(objMP->FSB_Memory, 2,	33,		48, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 3,	49,		64, &objMP->FSB_Memory[1], &objMP->FSB_Memory[5]);
-		MP256_SetFSB(objMP->FSB_Memory, 4,	65,		80, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 5,	81,		96, &objMP->FSB_Memory[4], &objMP->FSB_Memory[6]);
-		MP256_SetFSB(objMP->FSB_Memory, 6,	97,		128, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 7,	129,	160, &objMP->FSB_Memory[3], &objMP->FSB_Memory[11]);
-		MP256_SetFSB(objMP->FSB_Memory, 8,	161,	192, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 9,	193,	224, &objMP->FSB_Memory[8], &objMP->FSB_Memory[10]);
-		MP256_SetFSB(objMP->FSB_Memory, 10,	225,	256, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 11,	257,	320, &objMP->FSB_Memory[9], &objMP->FSB_Memory[13]);
-		MP256_SetFSB(objMP->FSB_Memory, 12,	321,	384, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 13,	385,	448, &objMP->FSB_Memory[12], &objMP->FSB_Memory[14]);
-		MP256_SetFSB(objMP->FSB_Memory, 14,	449,	512, NULL, NULL);
-		objMP->FSB_RootNode = &objMP->FSB_Memory[7];
-	} else if ( iCustom == 2 ) {
-		// 添加默认的区块区间 (5层树，针对大内存的方案)
-		//
-		// 二叉树视图 (根据建树顺序插入避免旋转产生额外开销)：
-		//																○
-		//																640
-		//								○																○
-		//								160																2304
-		//				○								○								○								○
-		//				64								320								1280							3328
-		//		○				○				○				○				○				○				○				○
-		//		32				96				224				448				896				1792			2816			3840
-		//	○		○		○		○		○		○		○		○		○		○		○		○		○		○		○		○
-		//	16		48		80		128		192		256		384		512		768		1024	1536	2048	2560	3072	3584	4096
-		//
-		objMP->FSB_Memory = xrtMalloc(sizeof(FSB_Item) * 31);
-		if ( objMP->FSB_Memory == NULL ) {
-			objMP->FSB_RootNode = NULL;
-			return;
-		}
-		MP256_SetFSB(objMP->FSB_Memory, 0,	1,		16, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 1,	17,		32, &objMP->FSB_Memory[0], &objMP->FSB_Memory[2]);
-		MP256_SetFSB(objMP->FSB_Memory, 2,	33,		48, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 3,	49,		64, &objMP->FSB_Memory[1], &objMP->FSB_Memory[5]);
-		MP256_SetFSB(objMP->FSB_Memory, 4,	65,		80, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 5,	81,		96, &objMP->FSB_Memory[4], &objMP->FSB_Memory[6]);
-		MP256_SetFSB(objMP->FSB_Memory, 6,	97,		128, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 7,	129,	160, &objMP->FSB_Memory[3], &objMP->FSB_Memory[11]);
-		MP256_SetFSB(objMP->FSB_Memory, 8,	161,	192, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 9,	193,	224, &objMP->FSB_Memory[8], &objMP->FSB_Memory[10]);
-		MP256_SetFSB(objMP->FSB_Memory, 10,	225,	256, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 11,	257,	320, &objMP->FSB_Memory[9], &objMP->FSB_Memory[13]);
-		MP256_SetFSB(objMP->FSB_Memory, 12,	321,	384, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 13,	385,	448, &objMP->FSB_Memory[12], &objMP->FSB_Memory[14]);
-		MP256_SetFSB(objMP->FSB_Memory, 14,	449,	512, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 15,	513,	640, &objMP->FSB_Memory[7], &objMP->FSB_Memory[23]);
-		MP256_SetFSB(objMP->FSB_Memory, 16,	641,	768, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 17,	769,	896, &objMP->FSB_Memory[16], &objMP->FSB_Memory[18]);
-		MP256_SetFSB(objMP->FSB_Memory, 18,	897,	1024, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 19,	1025,	1280, &objMP->FSB_Memory[17], &objMP->FSB_Memory[21]);
-		MP256_SetFSB(objMP->FSB_Memory, 20,	1281,	1536, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 21,	1537,	1792, &objMP->FSB_Memory[20], &objMP->FSB_Memory[22]);
-		MP256_SetFSB(objMP->FSB_Memory, 22,	1793,	2048, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 23,	2049,	2304, &objMP->FSB_Memory[19], &objMP->FSB_Memory[27]);
-		MP256_SetFSB(objMP->FSB_Memory, 24,	2305,	2560, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 25,	2561,	2816, &objMP->FSB_Memory[24], &objMP->FSB_Memory[26]);
-		MP256_SetFSB(objMP->FSB_Memory, 26,	2817,	3072, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 27,	3073,	3328, &objMP->FSB_Memory[25], &objMP->FSB_Memory[29]);
-		MP256_SetFSB(objMP->FSB_Memory, 28,	3329,	3584, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 29,	3585,	3840, &objMP->FSB_Memory[28], &objMP->FSB_Memory[30]);
-		MP256_SetFSB(objMP->FSB_Memory, 30,	3841,	4096, NULL, NULL);
-		objMP->FSB_RootNode = &objMP->FSB_Memory[15];
-	} else {
-		// 未提供方案（回退为 xrtMalloc）
-		objMP->FSB_Memory = NULL;
-		objMP->FSB_RootNode = NULL;
+	if ( !__xrtMemPoolBuildBucketPlan(objMP, __xrtMemPoolResolveCutoff(iCustom)) ) {
+		xrtSetError("Memory Pool : build bucket plan failed.", FALSE);
 	}
 }
-// 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）
+// 释放内存池（对自维护结构体指针使用）
 XXAPI void xrtMemPoolUnit(xmempool objMP)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	// 循环释放所有 MMU
 	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
+			pNode->objMMU = NULL;
 		}
 	}
 	xrtBsmmUnit(&objMP->arrMMU);
+	if ( objMP->FSB_Lut ) {
+		xrtFree(objMP->FSB_Lut);
+		objMP->FSB_Lut = NULL;
+	}
 	if ( objMP->FSB_Memory ) {
 		xrtFree(objMP->FSB_Memory);
 		objMP->FSB_Memory = NULL;
 	}
-	// 循环释放所有大内存块
+	objMP->FSB_RootNode = NULL;
+	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+	objMP->iBucketCount = 0;
+	objMP->iFallbackCutoff = 0;
 	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
@@ -38615,6 +42140,144 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	xrtBsmmUnit(&objMP->BigMM);
 	objMP->LL_BigFree = NULL;
 	xrtOwnerEndMutable(&objMP->Owner);
+}
+XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, const char* sFile, uint32 iLine)
+{
+	xmempool objMP = xrtMemPoolCreateEx(iCustom, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMP;
+}
+XXAPI xmempool xrtMemPoolCreateExDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xmempool objMP = xrtMemPoolCreateEx(iCustom, iMode);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMP;
+}
+XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, const char* sFile, uint32 iLine)
+{
+	xrtMemPoolInitEx(objMP, iCustom, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtMemPoolInitExDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtMemPoolInitEx(objMP, iCustom, iMode);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
+{
+	if ( objMP ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+			return;
+		}
+		xrtMemPoolUnit(objMP);
+		__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
+		xrtFreeDbg(objMP, sFile, iLine);
+	}
+}
+XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
+{
+	if ( objMP == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+		return;
+	}
+	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
+		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
+		if ( pNode->objMMU ) {
+			xrtMemUnitDestroy(pNode->objMMU);
+			pNode->objMMU = NULL;
+		}
+	}
+	xrtBsmmUnit(&objMP->arrMMU);
+	if ( objMP->FSB_Lut ) {
+		xrtFree(objMP->FSB_Lut);
+		objMP->FSB_Lut = NULL;
+	}
+	if ( objMP->FSB_Memory ) {
+		xrtFree(objMP->FSB_Memory);
+		objMP->FSB_Memory = NULL;
+	}
+	objMP->FSB_RootNode = NULL;
+	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+	objMP->iBucketCount = 0;
+	objMP->iFallbackCutoff = 0;
+	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
+		if ( pInfo->Ptr ) {
+			xrtFree(pInfo->Ptr);
+		}
+	}
+	xrtBsmmUnit(&objMP->BigMM);
+	objMP->LL_BigFree = NULL;
+	xrtOwnerEndMutable(&objMP->Owner);
+	__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
+}
+static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
+{
+	xmemunit objMMU = NULL;
+	if ( objFSB->LL_Idle == NULL ) {
+		if ( objFSB->LL_Null ) {
+			objMMU = objFSB->LL_Null->objMMU;
+			objFSB->LL_Idle = objFSB->LL_Null;
+			objFSB->LL_Null = NULL;
+		} else if ( objFSB->LL_Free ) {
+			MMU_LLNode* pNode = objFSB->LL_Free;
+			objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
+			if ( objMMU == NULL ) {
+				return NULL;
+			}
+			objMMU->Flag = pNode->Flag;
+			pNode->objMMU = objMMU;
+			if ( pNode->Next ) {
+				pNode->Next->Prev = NULL;
+			}
+			objFSB->LL_Free = pNode->Next;
+			pNode->Prev = NULL;
+			pNode->Next = NULL;
+			objFSB->LL_Idle = pNode;
+		} else {
+			MMU_LLNode* pNode;
+			objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
+			if ( objMMU == NULL ) {
+				return NULL;
+			}
+			pNode = xrtBsmmAlloc(&objMP->arrMMU);
+			if ( pNode == NULL ) {
+				xrtMemUnitDestroy(objMMU);
+				xrtSetError("Memory Pool : add memory unit failed.", FALSE);
+				return NULL;
+			}
+			pNode->objMMU = objMMU;
+			pNode->Prev = NULL;
+			pNode->Next = NULL;
+			pNode->Flag = MMU_FLAG_USE | ((objMP->arrMMU.Count - 1) << 8);
+			objMMU->Flag = pNode->Flag;
+			objFSB->LL_Idle = pNode;
+		}
+	} else {
+		objMMU = objFSB->LL_Idle->objMMU;
+		if ( objMMU->Count >= 255 ) {
+			MMU_LLNode* pNode = objFSB->LL_Idle;
+			if ( pNode->Next ) {
+				pNode->Next->Prev = NULL;
+			}
+			objFSB->LL_Idle = pNode->Next;
+			pNode->Prev = NULL;
+			pNode->Next = objFSB->LL_Full;
+			if ( objFSB->LL_Full ) {
+				objFSB->LL_Full->Prev = pNode;
+			}
+			objFSB->LL_Full = pNode;
+		}
+	}
+	return objMMU;
 }
 // 从内存池中申请一块内存
 XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
@@ -38627,100 +42290,24 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 		xrtOwnerEndMutable(&objMP->Owner);
 		return NULL;
 	}
-	// 查找符合条件的 FSB 信息
-	FSB_Item* objFSB = objMP->FSB_RootNode;
-	while ( objFSB ) {
-		if ( iSize < objFSB->MinLength ) {
-			objFSB = objFSB->left;
-		} else if ( iSize > objFSB->MaxLength ) {
-			objFSB = objFSB->right;
-		} else {
-			break;
+	{
+		FSB_Item* objFSB = __xrtMemPoolGetBucketBySize(objMP, iSize);
+		if ( objFSB ) {
+			xmemunit objMMU = __xrtMemPoolAcquireUnit(objMP, objFSB);
+			if ( objMMU == NULL ) {
+				xrtOwnerEndMutable(&objMP->Owner);
+				return NULL;
+			}
+			pRet = xrtMemUnitAlloc_Inline(objMMU);
+			__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
+			xrtOwnerEndMutable(&objMP->Owner);
+			return pRet;
 		}
 	}
-	if ( objFSB ) {
-		// 选定了 FSB，根据 FSB 区块信息通过 MMU256 分配内存
-		xmemunit objMMU = NULL;
-		if ( objFSB->LL_Idle == NULL ) {
-			// 如果没有空闲的内存管理单元，优先使用备用的全空单元，或创建一个新的单元
-			if ( objFSB->LL_Null ) {
-				// 使用备用的全空内存管理单元
-				objMMU = objFSB->LL_Null->objMMU;
-				objFSB->LL_Idle = objFSB->LL_Null;
-				objFSB->LL_Null = NULL;
-			} else if ( objFSB->LL_Free ) {
-				// 创建新的内存管理单元，使用已释放的内存管理单元位置
-				objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
-				if ( objMMU == NULL ) {
-					xrtOwnerEndMutable(&objMP->Owner);
-					return NULL;
-				}
-				// 恢复Flag，写入新申请的单元
-				MMU_LLNode* pNode = objFSB->LL_Free;
-				objMMU->Flag = pNode->Flag;
-				pNode->objMMU = objMMU;
-				// 从 LL_Free 中移除
-				if ( pNode->Next ) {
-					pNode->Next->Prev = NULL;
-				}
-				objFSB->LL_Free = pNode->Next;
-				// 添加到 LL_Idle
-				pNode->Prev = NULL;
-				pNode->Next = NULL;
-				objFSB->LL_Idle = pNode;
-			} else {
-				// 创建新的内存管理单元，创建失败就报错处理
-				objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
-				if ( objMMU == NULL ) {
-					xrtOwnerEndMutable(&objMP->Owner);
-					return NULL;
-				}
-				// 将创建好的内存管理单元添加到单元阵列管理器，添加失败就报错处理
-				MMU_LLNode* pNode = xrtBsmmAlloc(&objMP->arrMMU);
-				if ( pNode ) {
-					pNode->objMMU = objMMU;
-					pNode->Prev = NULL;
-					pNode->Next = NULL;
-					pNode->Flag = MMU_FLAG_USE | ((objMP->arrMMU.Count - 1) << 8);
-					objFSB->LL_Idle = pNode;
-					// 标记内存管理器单元的 Flag
-					objMMU->Flag = pNode->Flag;
-				} else {
-					xrtMemUnitDestroy(objMMU);
-					xrtSetError("Memory Pool : add memory unit failed.", FALSE);
-					xrtOwnerEndMutable(&objMP->Owner);
-					return NULL;
-				}
-			}
-		} else {
-			// 有空闲的内存管理单元，优先使用空闲的
-			objMMU = objFSB->LL_Idle->objMMU;
-			// 如果空闲的内存管理单元即将满了，将它转移到满载单元链表
-			if ( objMMU->Count >= 255 ) {
-				MMU_LLNode* pNode = objFSB->LL_Idle;
-				// 从 LL_Idle 中移除
-				if ( pNode->Next ) {
-					pNode->Next->Prev = NULL;
-				}
-				objFSB->LL_Idle = pNode->Next;
-				// 添加到 LL_Full
-				pNode->Prev = NULL;
-				pNode->Next = objFSB->LL_Full;
-				if ( objFSB->LL_Full ) {
-					objFSB->LL_Full->Prev = pNode;
-				}
-				objFSB->LL_Full = pNode;
-			}
-		}
-		pRet = xrtMemUnitAlloc_Inline(objMMU);
-		xrtOwnerEndMutable(&objMP->Owner);
-		return pRet;
-	} else {
-		// 无法选定 FSB，使用 malloc 申请内存
+	{
 		MP_MemHead* pHead = xrtMalloc(sizeof(MP_MemHead) + iSize);
 		if ( pHead ) {
 			if ( objMP->LL_BigFree ) {
-				// 优先复用已释放的 BigMM 元素
 				MP_BigInfoLL* pInfo = objMP->LL_BigFree;
 				objMP->LL_BigFree = pInfo->Next;
 				pInfo->Next = NULL;
@@ -38729,10 +42316,10 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				pInfo->Size = iSize;
 				pInfo->Ptr = pHead;
 				pRet = &pHead[1];
+				__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return pRet;
 			} else {
-				// 没有已释放的 BigMM 元素，就申请一个新的
 				MP_BigInfoLL* pInfo = xrtBsmmAlloc(&objMP->BigMM);
 				if ( pInfo ) {
 					pInfo->Index = objMP->BigMM.Count - 1;
@@ -38742,26 +42329,24 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 					pInfo->Size = iSize;
 					pInfo->Ptr = pHead;
 					pRet = &pHead[1];
+					__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
 					xrtOwnerEndMutable(&objMP->Owner);
 					return pRet;
 				}
 			}
 			xrtFree(pHead);
 		}
-		xrtOwnerEndMutable(&objMP->Owner);
-		return NULL;
 	}
+	xrtOwnerEndMutable(&objMP->Owner);
+	return NULL;
 }
 // 将内存池申请的内存释放掉
 static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, int bLL_Full)
 {
-	// 如果这个内存管理单元已经清空
 	if ( pNode->objMMU->Count == 0 ) {
 		if ( objFSB->LL_Null ) {
-			// 有备用单元时，直接释放掉这个单元
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
-			// 从 LL_Idle 或 LL_Full 中移除
 			if ( pNode->Prev ) {
 				pNode->Prev->Next = pNode->Next;
 			} else {
@@ -38774,7 +42359,6 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 			if ( pNode->Next ) {
 				pNode->Next->Prev = pNode->Prev;
 			}
-			// 添加到 LL_Free
 			pNode->Prev = NULL;
 			pNode->Next = objFSB->LL_Free;
 			if ( objFSB->LL_Free ) {
@@ -38782,8 +42366,6 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 			}
 			objFSB->LL_Free = pNode;
 		} else {
-			// 没有备用单元时，让这个单元备用，避免临界状态反复申请和释放内存管理单元，造成性能损失
-			// 从 LL_Idle 或 LL_Full 中移除
 			if ( pNode->Prev ) {
 				pNode->Prev->Next = pNode->Next;
 			} else {
@@ -38796,7 +42378,6 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 			if ( pNode->Next ) {
 				pNode->Next->Prev = pNode->Prev;
 			}
-			// 添加到 LL_Null
 			objFSB->LL_Null = pNode;
 			pNode->Prev = NULL;
 			pNode->Next = NULL;
@@ -38806,7 +42387,6 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 {
 	if ( pNode->objMMU->Count < 256 ) {
-		// 从 LL_Full 中移除
 		if ( pNode->Prev ) {
 			pNode->Prev->Next = pNode->Next;
 		} else {
@@ -38815,7 +42395,6 @@ static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 		if ( pNode->Next ) {
 			pNode->Next->Prev = pNode->Prev;
 		}
-		// 添加到 LL_Idle
 		pNode->Prev = NULL;
 		pNode->Next = objFSB->LL_Idle;
 		if ( objFSB->LL_Idle ) {
@@ -38826,70 +42405,62 @@ static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 }
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
+	if ( ptr == NULL ) {
+		return;
+	}
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	MMU_ValuePtr v = ptr - sizeof(MMU_Value);
-	if ( (v->ItemFlag & MMU_FLAG_MASK) == MMU_FLAG_MASK ) {
-		// 大内存释放
-		MP_MemHead* pHead = ptr - sizeof(MP_MemHead);
-		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, pHead->Index);
-		if ( pInfo == NULL || pInfo->Ptr == NULL ) {
-			xrtSetError("Memory Pool : BigMM item cannot be null.", FALSE);
+	#ifdef XRT_MEM_DEBUG
+		if ( xrtMemDebugIsEnabled() && !__xrtMemDebugUnregisterForeignAlloc(ptr, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0) ) {
 			xrtOwnerEndMutable(&objMP->Owner);
 			return;
 		}
-		pHead->Flag = 0;
-		xrtFree(pInfo->Ptr);
-		pInfo->Ptr = NULL;
-		pInfo->Next = objMP->LL_BigFree;
-		objMP->LL_BigFree = pInfo;
-	} else {
-		// FSB内存释放
-		if ( v->ItemFlag & MMU_FLAG_USE ) {
+	#endif
+	{
+		MMU_ValuePtr v = (MMU_ValuePtr)((char*)ptr - sizeof(MMU_Value));
+		if ( (v->ItemFlag & MMU_FLAG_MASK) == MMU_FLAG_MASK ) {
+			MP_MemHead* pHead = (MP_MemHead*)((char*)ptr - sizeof(MP_MemHead));
+			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, pHead->Index);
+			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
+				xrtSetError("Memory Pool : BigMM item cannot be null.", FALSE);
+				xrtOwnerEndMutable(&objMP->Owner);
+				return;
+			}
+			pHead->Flag = 0;
+			xrtFree(pInfo->Ptr);
+			pInfo->Ptr = NULL;
+			pInfo->Next = objMP->LL_BigFree;
+			objMP->LL_BigFree = pInfo;
+		} else if ( v->ItemFlag & MMU_FLAG_USE ) {
 			int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
-			unsigned char idx = v->ItemFlag & 0xFF;
-			// 获取对应的内存管理器单元链表结构
+			uint8 idx = v->ItemFlag & 0xFF;
 			MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, iMMU);
+			FSB_Item* objFSB;
 			if ( pNode->objMMU == NULL ) {
 				xrtSetError("Memory Pool : MMU cannot be null.", FALSE);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
-			// 查找符合条件的 FSB 信息
-			FSB_Item* objFSB = objMP->FSB_RootNode;
-			uint32 iMaxSize = pNode->objMMU->ItemLength - sizeof(MMU_Value);
-			while ( objFSB ) {
-				if ( iMaxSize < objFSB->MinLength ) {
-					objFSB = objFSB->left;
-				} else if ( iMaxSize > objFSB->MaxLength ) {
-					objFSB = objFSB->right;
-				} else {
-					break;
-				}
-			}
+			objFSB = __xrtMemPoolGetBucketByMMU(objMP, pNode->objMMU);
 			if ( objFSB == NULL ) {
-				xrtSetError("Memory Pool : find FSB error.", FALSE);
+				xrtSetError("Memory Pool : find bucket error.", FALSE);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
-			// 调用对应 MMU 的释放函数
 			xrtMemUnitFreeIdx_Inline(pNode->objMMU, idx);
 			v->ItemFlag = 0;
-			// 如果是一个满载的内存管理器单元，将它放入空闲单元列表
 			if ( pNode->objMMU->Count >= 255 ) {
 				MP256_LLNode_IdleCheck(objFSB, pNode);
 			}
-			// 如果这个内存管理单元已经清空，将他释放或变为备用单元
 			MP256_LLNode_ClearCheck(objFSB, pNode, 0);
 		}
 	}
 	xrtOwnerEndMutable(&objMP->Owner);
 }
-// 进行一轮GC，将 标记 或 未标记 的内存全部回收
-void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
+// 进行一轮 GC，将 标记 或 未标记 的内存全部回收
+static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 {
-	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objFSB->LL_Idle;
 	while ( pNode ) {
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
@@ -38900,7 +42471,6 @@ void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
-	// 再次遍历所有 空闲的 和 满载的 内存管理单元，将他们归类到正确的分组
 	pNode = objFSB->LL_Idle;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
@@ -38917,33 +42487,24 @@ void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
 		}
 		pNode = pNext;
 	}
-	// 递归调用左子树
-	if ( objFSB->left ) {
-		MP256_GC_RecuFSB(objFSB-> left, bFreeMark);
-	}
-	// 递归调用右子树
-	if ( objFSB->right ) {
-		MP256_GC_RecuFSB(objFSB-> right, bFreeMark);
-	}
 }
 XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	// 递归回收 FSB 标记的内存
-	MP256_GC_RecuFSB(objMP->FSB_RootNode, bFreeMark);
-	// 循环大内存列表进行回收
+	for ( uint32 i = 0; i < objMP->iBucketCount; i++ ) {
+		MP256_GC_Bucket(&objMP->FSB_Memory[i], bFreeMark);
+	}
 	if ( bFreeMark ) {
-		// 被标记的内存将被回收
 		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;
 			}
-			MP_MemHead* pHead = pInfo->Ptr;
-			if ( pHead->Flag & MMU_FLAG_USE ) {
-				if ( pHead->Flag & MMU_FLAG_GC ) {
+			{
+				MP_MemHead* pHead = pInfo->Ptr;
+				if ( (pHead->Flag & MMU_FLAG_USE) && (pHead->Flag & MMU_FLAG_GC) ) {
 					pHead->Flag = 0;
 					xrtFree(pInfo->Ptr);
 					pInfo->Ptr = NULL;
@@ -38953,22 +42514,23 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 			}
 		}
 	} else {
-		// 未被标记的内存将被回收
 		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;
 			}
-			MP_MemHead* pHead = pInfo->Ptr;
-			if ( pHead->Flag & MMU_FLAG_USE ) {
-				if ( pHead->Flag & MMU_FLAG_GC ) {
-					pHead->Flag &= ~MMU_FLAG_GC;
-				} else {
-					pHead->Flag = 0;
-					xrtFree(pInfo->Ptr);
-					pInfo->Ptr = NULL;
-					pInfo->Next = objMP->LL_BigFree;
-					objMP->LL_BigFree = pInfo;
+			{
+				MP_MemHead* pHead = pInfo->Ptr;
+				if ( pHead->Flag & MMU_FLAG_USE ) {
+					if ( pHead->Flag & MMU_FLAG_GC ) {
+						pHead->Flag &= ~MMU_FLAG_GC;
+					} else {
+						pHead->Flag = 0;
+						xrtFree(pInfo->Ptr);
+						pInfo->Ptr = NULL;
+						pInfo->Next = objMP->LL_BigFree;
+						objMP->LL_BigFree = pInfo;
+					}
 				}
 			}
 		}
@@ -39064,6 +42626,57 @@ XXAPI void xrtDictUnit(xdict objHT)
 	}
 	__xrtDictUnit_NoLock(objHT);
 	xrtOwnerEndMutable(&objHT->Owner);
+}
+XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xdict objHT = xrtDictCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objHT;
+}
+XXAPI xdict xrtDictCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xdict objHT = xrtDictCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objHT;
+}
+XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtDictInitEx(objHT, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtDictInitExDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtDictInitEx(objHT, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
+{
+	if ( objHT ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+			return;
+		}
+		xrtDictUnit(objHT);
+		__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
+		xrtFreeDbg(objHT, sFile, iLine);
+	}
+}
+XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine)
+{
+	if ( objHT == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
+		return;
+	}
+	__xrtDictUnit_NoLock(objHT);
+	xrtOwnerEndMutable(&objHT->Owner);
+	__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
 }
 XXAPI bool xrtDictLock(xdict objHT)
 {
@@ -39321,6 +42934,57 @@ XXAPI void xrtListUnit(xlist objList)
 	}
 	__xrtListUnit_NoLock(objList);
 	xrtOwnerEndMutable(&objList->Owner);
+}
+XXAPI xlist xrtListCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xlist objList = xrtListCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objList;
+}
+XXAPI xlist xrtListCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xlist objList = xrtListCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objList;
+}
+XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtListInitEx(objList, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtListInitExDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtListInitEx(objList, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
+{
+	if ( objList ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objList->Owner, "list belongs to another thread.") ) {
+			return;
+		}
+		xrtListUnit(objList);
+		__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
+		xrtFreeDbg(objList, sFile, iLine);
+	}
+}
+XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine)
+{
+	if ( objList == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return;
+	}
+	__xrtListUnit_NoLock(objList);
+	xrtOwnerEndMutable(&objList->Owner);
+	__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
 }
 XXAPI bool xrtListLock(xlist objList)
 {
@@ -52672,6 +56336,17 @@ static void __xrtInitThreadMemState(xrtThreadData* pThreadData)
 	pThreadData->tMem.pLocalAlloc = NULL;
 	pThreadData->tMem.pSharedAlloc = NULL;
 	pThreadData->tMem.pReserved = NULL;
+	__xrtMemGlobalInitThreadCache(pThreadData);
+}
+static void __xrtResetMemTelemetryState(xrtMemTelemetryState* pState)
+{
+	long bEnabled = 0;
+	if ( pState == NULL ) {
+		return;
+	}
+	bEnabled = pState->bEnabled;
+	memset(pState, 0, sizeof(xrtMemTelemetryState));
+	pState->bEnabled = bEnabled;
 }
 static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
 {
@@ -52681,6 +56356,7 @@ static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
 	pThreadData->tMem.iOwnerThreadId = 0;
 	pThreadData->tMem.iFlags = 0;
 	pThreadData->tMem.iReserved = 0;
+	__xrtMemGlobalUnitThreadCache(pThreadData);
 	pThreadData->tMem.pLocalAlloc = NULL;
 	pThreadData->tMem.pSharedAlloc = NULL;
 	pThreadData->tMem.pReserved = NULL;
@@ -52699,43 +56375,33 @@ static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 	pThreadData->iAttachDepth = 1;
 	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
 	pThreadData->bFreeLastError = FALSE;
-	pThreadData->TempMemIdx = 0;
+	pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
+	pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
 	pThreadData->pCleanupTop = NULL;
 	__xrtInitThreadMemState(pThreadData);
 	#ifndef XRT_NO_COROUTINE
 		__xrtCoroRuntimeInitThread(pThreadData);
 	#endif
-	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
-		pThreadData->TempMem[i] = NULL;
-	}
 	__xrtSeedThreadRand(pThreadData);
 	return pThreadData;
 }
 static void __xrtFreeThreadError(xrtThreadData* pThreadData)
 {
-	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 	if ( pThreadData == NULL ) {
 		return;
 	}
 	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
-		procFree(pThreadData->LastError);
+		xrtFree(pThreadData->LastError);
 	}
 	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
 	pThreadData->bFreeLastError = FALSE;
 }
 static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
 {
-	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 	if ( pThreadData == NULL ) {
 		return;
 	}
-	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
-		if ( pThreadData->TempMem[i] ) {
-			procFree(pThreadData->TempMem[i]);
-			pThreadData->TempMem[i] = NULL;
-		}
-	}
-	pThreadData->TempMemIdx = 0;
+	__xrtTempArenaFreeAllThread(pThreadData);
 }
 static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
 {
@@ -52822,6 +56488,426 @@ XXAPI str xrtGetError()
 	}
 	return (str)__xrt_sNullBytes;
 }
+#ifdef XRT_MEM_DEBUG
+static const char* __xrtMemDebugEventName(uint32 iType)
+{
+	switch ( iType ) {
+		case XRT_MEMDEBUG_EVENT_ALLOC: return "ALLOC";
+		case XRT_MEMDEBUG_EVENT_FREE: return "FREE";
+		case XRT_MEMDEBUG_EVENT_REALLOC: return "REALLOC";
+		case XRT_MEMDEBUG_EVENT_LEAK: return "LEAK";
+		case XRT_MEMDEBUG_EVENT_POOL_LEAK: return "POOL_LEAK";
+		case XRT_MEMDEBUG_EVENT_OBJECT_LEAK: return "OBJECT_LEAK";
+		case XRT_MEMDEBUG_EVENT_DOUBLE_FREE: return "DOUBLE_FREE";
+		case XRT_MEMDEBUG_EVENT_INVALID_FREE: return "INVALID_FREE";
+		case XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE: return "WRONG_ALLOCATOR_FREE";
+		case XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT: return "BUFFER_OVERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT: return "BUFFER_UNDERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT: return "USE_AFTER_FREE_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_OBJECT_CREATE: return "OBJECT_CREATE";
+		case XRT_MEMDEBUG_EVENT_OBJECT_DESTROY: return "OBJECT_DESTROY";
+		case XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY: return "OBJECT_DOUBLE_DESTROY";
+		case XRT_MEMDEBUG_EVENT_TEMP_ALLOC: return "TEMP_ALLOC";
+		case XRT_MEMDEBUG_EVENT_TEMP_RESET: return "TEMP_RESET";
+		default: return "UNKNOWN";
+	}
+}
+static const char* __xrtMemDebugObjectTypeName(uint32 iObjectType)
+{
+	switch ( iObjectType ) {
+		case XRT_MEMDEBUG_OBJECT_ARRAY: return "array";
+		case XRT_MEMDEBUG_OBJECT_DICT: return "dict";
+		case XRT_MEMDEBUG_OBJECT_LIST: return "list";
+		case XRT_MEMDEBUG_OBJECT_AVLTREE: return "avltree";
+		case XRT_MEMDEBUG_OBJECT_DYNSTACK: return "dynstack";
+		case XRT_MEMDEBUG_OBJECT_MEMPOOL: return "mempool";
+		case XRT_MEMDEBUG_OBJECT_FSMEMPOOL: return "fsmempool";
+		default: return "unknown";
+	}
+}
+static const char* __xrtMemDebugObjectOriginName(uint32 iOrigin)
+{
+	switch ( iOrigin ) {
+		case XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE: return "create";
+		case XRT_MEMDEBUG_OBJECT_ORIGIN_INIT: return "init";
+		default: return "unknown";
+	}
+}
+static bool __xrtMemDebugEventUsesObjectType(uint32 iType)
+{
+	return iType == XRT_MEMDEBUG_EVENT_OBJECT_CREATE
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_DESTROY
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_LEAK;
+}
+static void __xrtMemDebugJsonWriteString(FILE* pFile, const char* sText)
+{
+	const unsigned char* p = (const unsigned char*)(sText ? sText : "");
+	fputc('"', pFile);
+	while ( *p ) {
+		switch ( *p ) {
+			case '\\': fputs("\\\\", pFile); break;
+			case '"': fputs("\\\"", pFile); break;
+			case '\r': fputs("\\r", pFile); break;
+			case '\n': fputs("\\n", pFile); break;
+			case '\t': fputs("\\t", pFile); break;
+			default:
+				if ( *p < 0x20 ) {
+					fprintf(pFile, "\\u%04x", (unsigned int)*p);
+				} else {
+					fputc(*p, pFile);
+				}
+				break;
+		}
+		p++;
+	}
+	fputc('"', pFile);
+}
+static bool __xrtMemDebugDumpTextFile(FILE* pFile)
+{
+	xrtMemBlockHeader* pHeader;
+	xrtMemDebugForeignAlloc* pForeign;
+	xrtMemDebugObject* pObject;
+	xrtMemDebugSiteStat* pSite;
+	uint32 iCount;
+	if ( pFile == NULL ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	fprintf(pFile, "# XRT Memory Debug Report\n\n");
+	fprintf(pFile, "- live_alloc_count: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
+	fprintf(pFile, "- live_alloc_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
+	fprintf(pFile, "- foreign_live_count: %llu\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);
+	fprintf(pFile, "- foreign_live_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iForeignLiveBytes);
+	fprintf(pFile, "- live_object_count: %llu\n", (unsigned long long)xCore.MemDebug.iLiveObjectCount);
+	fprintf(pFile, "- temp_current_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iTempCurrentBytes);
+	fprintf(pFile, "- temp_peak_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iTempPeakBytes);
+	fprintf(pFile, "- temp_reset_count: %llu\n", (unsigned long long)xCore.MemDebug.iTempResetCount);
+	fprintf(pFile, "- invalid_free_count: %llu\n", (unsigned long long)xCore.MemDebug.iInvalidFreeCount);
+	fprintf(pFile, "- double_free_count: %llu\n", (unsigned long long)xCore.MemDebug.iDoubleFreeCount);
+	fprintf(pFile, "- wrong_allocator_free_count: %llu\n", (unsigned long long)xCore.MemDebug.iWrongAllocatorFreeCount);
+	fprintf(pFile, "- object_double_destroy_count: %llu\n", (unsigned long long)xCore.MemDebug.iObjectDoubleDestroyCount);
+	fprintf(pFile, "- overflow_count: %llu\n", (unsigned long long)xCore.MemDebug.iOverflowCount);
+	fprintf(pFile, "- underflow_count: %llu\n\n", (unsigned long long)xCore.MemDebug.iUnderflowCount);
+	fprintf(pFile, "## Live Allocations\n");
+	for ( pHeader = xCore.MemDebug.pLiveHead; pHeader; pHeader = pHeader->pDebugNext ) {
+		fprintf(pFile,
+			"- LEAK ptr=%p size=%u alloc=%s:%u thread=%llu time_ms=%llu flags=0x%04x\n",
+			__xrtMemGlobalUserFromHeader(pHeader),
+			pHeader->iRequestSize,
+			pHeader->sAllocFile ? pHeader->sAllocFile : "(unknown)",
+			pHeader->iAllocLine,
+			(unsigned long long)pHeader->iAllocThreadId,
+			(unsigned long long)pHeader->iAllocTimeMs,
+			(unsigned int)pHeader->iFlags);
+	}
+	fprintf(pFile, "\n## Foreign Live Allocations\n");
+	for ( pForeign = xCore.MemDebug.pForeignAllocs; pForeign; pForeign = pForeign->pNext ) {
+		fprintf(pFile,
+			"- POOL_LEAK ptr=%p size=%u allocator=%s alloc=%s:%u thread=%llu time_ms=%llu\n",
+			pForeign->pAddress,
+			pForeign->iSize,
+			__xrtMemDebugAllocatorName(pForeign->iAllocatorKind),
+			pForeign->sAllocFile ? pForeign->sAllocFile : "(unknown)",
+			pForeign->iAllocLine,
+			(unsigned long long)pForeign->iAllocThreadId,
+			(unsigned long long)pForeign->iAllocTimeMs);
+	}
+	fprintf(pFile, "\n## Live Objects\n");
+	for ( pObject = xCore.MemDebug.pObjects; pObject; pObject = pObject->pNext ) {
+		if ( pObject->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+			continue;
+		}
+		fprintf(pFile,
+			"- OBJECT_LEAK ptr=%p object=%s origin=%s alloc=%s:%u thread=%llu time_ms=%llu\n",
+			pObject->pAddress,
+			__xrtMemDebugObjectTypeName(pObject->iObjectType),
+			__xrtMemDebugObjectOriginName(pObject->iOrigin),
+			pObject->sAllocFile ? pObject->sAllocFile : "(unknown)",
+			pObject->iAllocLine,
+			(unsigned long long)pObject->iAllocThreadId,
+			(unsigned long long)pObject->iAllocTimeMs);
+	}
+	fprintf(pFile, "\n## Site Stats\n");
+	for ( pSite = xCore.MemDebug.pSiteStats; pSite; pSite = pSite->pNext ) {
+		fprintf(pFile,
+			"- site=%s:%u allocator=%s alloc_count=%llu alloc_bytes=%llu free_count=%llu free_bytes=%llu live_count=%llu live_bytes=%llu peak_live_count=%llu peak_live_bytes=%llu\n",
+			pSite->sFile ? pSite->sFile : "(unknown)",
+			pSite->iLine,
+			__xrtMemDebugAllocatorName(pSite->iAllocatorKind),
+			(unsigned long long)pSite->iAllocCount,
+			(unsigned long long)pSite->iAllocBytes,
+			(unsigned long long)pSite->iFreeCount,
+			(unsigned long long)pSite->iFreeBytes,
+			(unsigned long long)pSite->iLiveCount,
+			(unsigned long long)pSite->iLiveBytes,
+			(unsigned long long)pSite->iPeakLiveCount,
+			(unsigned long long)pSite->iPeakLiveBytes);
+	}
+	fprintf(pFile, "\n## Recent Events\n");
+	iCount = xCore.MemDebug.iEventCount;
+	if ( iCount > 0 ) {
+		uint32 iStart = (xCore.MemDebug.iEventCursor + XRT_MEMDEBUG_EVENT_CAPACITY - iCount) % XRT_MEMDEBUG_EVENT_CAPACITY;
+		for ( uint32 i = 0; i < iCount; i++ ) {
+			xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[(iStart + i) % XRT_MEMDEBUG_EVENT_CAPACITY];
+			fprintf(pFile,
+				"- %s ptr=%p size=%llu kind=%s file=%s:%u thread=%llu time_ms=%llu\n",
+				__xrtMemDebugEventName(pEvent->iType),
+				pEvent->pAddress,
+				(unsigned long long)pEvent->iSize,
+				__xrtMemDebugEventUsesObjectType(pEvent->iType)
+					? __xrtMemDebugObjectTypeName(pEvent->iAllocatorKind)
+					: __xrtMemDebugAllocatorName(pEvent->iAllocatorKind),
+				pEvent->sFile ? pEvent->sFile : "(unknown)",
+				pEvent->iLine,
+				(unsigned long long)pEvent->iThreadId,
+				(unsigned long long)pEvent->iTimeMs);
+		}
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+static bool __xrtMemDebugDumpJsonFile(FILE* pFile)
+{
+	xrtMemBlockHeader* pHeader;
+	xrtMemDebugForeignAlloc* pForeign;
+	xrtMemDebugObject* pObject;
+	xrtMemDebugSiteStat* pSite;
+	uint32 iCount;
+	bool bFirst;
+	if ( pFile == NULL ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	fputs("{\n", pFile);
+	fprintf(pFile, "  \"live_alloc_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
+	fprintf(pFile, "  \"live_alloc_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
+	fprintf(pFile, "  \"foreign_live_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);
+	fprintf(pFile, "  \"foreign_live_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iForeignLiveBytes);
+	fprintf(pFile, "  \"live_object_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveObjectCount);
+	fprintf(pFile, "  \"temp_current_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iTempCurrentBytes);
+	fprintf(pFile, "  \"temp_peak_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iTempPeakBytes);
+	fprintf(pFile, "  \"temp_reset_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iTempResetCount);
+	fprintf(pFile, "  \"invalid_free_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iInvalidFreeCount);
+	fprintf(pFile, "  \"double_free_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iDoubleFreeCount);
+	fprintf(pFile, "  \"wrong_allocator_free_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iWrongAllocatorFreeCount);
+	fprintf(pFile, "  \"object_double_destroy_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iObjectDoubleDestroyCount);
+	fprintf(pFile, "  \"overflow_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iOverflowCount);
+	fprintf(pFile, "  \"underflow_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iUnderflowCount);
+	fputs("  \"live_allocations\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pHeader = xCore.MemDebug.pLiveHead; pHeader; pHeader = pHeader->pDebugNext ) {
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"type\":\"LEAK\",\"ptr\":\"", pFile);
+		fprintf(pFile, "%p", __xrtMemGlobalUserFromHeader(pHeader));
+		fputs("\",\"size\":", pFile);
+		fprintf(pFile, "%u", pHeader->iRequestSize);
+		fputs(",\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pHeader->sAllocFile ? pHeader->sAllocFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}", pHeader->iAllocLine, (unsigned long long)pHeader->iAllocThreadId, (unsigned long long)pHeader->iAllocTimeMs);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+	fputs("  \"foreign_live_allocations\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pForeign = xCore.MemDebug.pForeignAllocs; pForeign; pForeign = pForeign->pNext ) {
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"type\":\"POOL_LEAK\",\"ptr\":\"", pFile);
+		fprintf(pFile, "%p", pForeign->pAddress);
+		fputs("\",\"size\":", pFile);
+		fprintf(pFile, "%u", pForeign->iSize);
+		fputs(",\"allocator\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugAllocatorName(pForeign->iAllocatorKind));
+		fputs(",\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pForeign->sAllocFile ? pForeign->sAllocFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}", pForeign->iAllocLine, (unsigned long long)pForeign->iAllocThreadId, (unsigned long long)pForeign->iAllocTimeMs);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+	fputs("  \"live_objects\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pObject = xCore.MemDebug.pObjects; pObject; pObject = pObject->pNext ) {
+		if ( pObject->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+			continue;
+		}
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"type\":\"OBJECT_LEAK\",\"ptr\":\"", pFile);
+		fprintf(pFile, "%p", pObject->pAddress);
+		fputs("\",\"object\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugObjectTypeName(pObject->iObjectType));
+		fputs(",\"origin\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugObjectOriginName(pObject->iOrigin));
+		fputs(",\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pObject->sAllocFile ? pObject->sAllocFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}",
+			pObject->iAllocLine,
+			(unsigned long long)pObject->iAllocThreadId,
+			(unsigned long long)pObject->iAllocTimeMs);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+	fputs("  \"site_stats\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pSite = xCore.MemDebug.pSiteStats; pSite; pSite = pSite->pNext ) {
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pSite->sFile ? pSite->sFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"allocator\":", pSite->iLine);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugAllocatorName(pSite->iAllocatorKind));
+		fprintf(pFile, ",\"alloc_count\":%llu,\"alloc_bytes\":%llu,\"free_count\":%llu,\"free_bytes\":%llu,\"live_count\":%llu,\"live_bytes\":%llu,\"peak_live_count\":%llu,\"peak_live_bytes\":%llu}",
+			(unsigned long long)pSite->iAllocCount,
+			(unsigned long long)pSite->iAllocBytes,
+			(unsigned long long)pSite->iFreeCount,
+			(unsigned long long)pSite->iFreeBytes,
+			(unsigned long long)pSite->iLiveCount,
+			(unsigned long long)pSite->iLiveBytes,
+			(unsigned long long)pSite->iPeakLiveCount,
+			(unsigned long long)pSite->iPeakLiveBytes);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+	fputs("  \"events\": [\n", pFile);
+	bFirst = TRUE;
+	iCount = xCore.MemDebug.iEventCount;
+	if ( iCount > 0 ) {
+		uint32 iStart = (xCore.MemDebug.iEventCursor + XRT_MEMDEBUG_EVENT_CAPACITY - iCount) % XRT_MEMDEBUG_EVENT_CAPACITY;
+		for ( uint32 i = 0; i < iCount; i++ ) {
+			xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[(iStart + i) % XRT_MEMDEBUG_EVENT_CAPACITY];
+			if ( !bFirst ) {
+				fputs(",\n", pFile);
+			}
+			fputs("    {\"type\":", pFile);
+			__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugEventName(pEvent->iType));
+			fputs(",\"ptr\":\"", pFile);
+			fprintf(pFile, "%p", pEvent->pAddress);
+			fputs("\",\"size\":", pFile);
+			fprintf(pFile, "%llu", (unsigned long long)pEvent->iSize);
+			fputs(",\"kind\":", pFile);
+			__xrtMemDebugJsonWriteString(pFile,
+				__xrtMemDebugEventUsesObjectType(pEvent->iType)
+					? __xrtMemDebugObjectTypeName(pEvent->iAllocatorKind)
+					: __xrtMemDebugAllocatorName(pEvent->iAllocatorKind));
+			fputs(",\"file\":", pFile);
+			__xrtMemDebugJsonWriteString(pFile, pEvent->sFile ? pEvent->sFile : "(unknown)");
+			fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}", pEvent->iLine, (unsigned long long)pEvent->iThreadId, (unsigned long long)pEvent->iTimeMs);
+			bFirst = FALSE;
+		}
+	}
+	fputs("\n  ]\n}\n", pFile);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+#endif
+XXAPI void xrtMemTelemetryEnable(bool bEnable)
+{
+	xCore.MemTelemetry.bEnabled = bEnable ? 1 : 0;
+}
+XXAPI bool xrtMemTelemetryIsEnabled()
+{
+	return xCore.MemTelemetry.bEnabled != 0;
+}
+XXAPI void xrtMemTelemetryReset()
+{
+	__xrtRuntimeLock();
+	__xrtResetMemTelemetryState(&xCore.MemTelemetry);
+	__xrtRuntimeUnlock();
+}
+XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut)
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+	int i;
+	if ( pOut == NULL ) {
+		return;
+	}
+	memset(pOut, 0, sizeof(xrtMemTelemetrySnapshot));
+	pOut->bEnabled = pState->bEnabled != 0;
+	pOut->iClassStep = XRT_MEMPOOL_STEP_SIZE;
+	pOut->iClassCutoff = XRT_MEMPOOL_CUTOFF_DEFAULT;
+	pOut->iClassCount = XRT_MEMPOOL_CLASS_COUNT_DEFAULT;
+	pOut->iMallocCalls = (uint64)pState->iMallocCalls;
+	pOut->iMallocBytes = (uint64)pState->iMallocBytes;
+	pOut->iCallocCalls = (uint64)pState->iCallocCalls;
+	pOut->iCallocBytes = (uint64)pState->iCallocBytes;
+	pOut->iReallocCalls = (uint64)pState->iReallocCalls;
+	pOut->iReallocBytes = (uint64)pState->iReallocBytes;
+	pOut->iFreeCalls = (uint64)pState->iFreeCalls;
+	pOut->iTempCalls = (uint64)pState->iTempCalls;
+	pOut->iTempBytes = (uint64)pState->iTempBytes;
+	pOut->iPooledCandidateCalls = (uint64)pState->iPooledCandidateCalls;
+	pOut->iPooledCandidateBytes = (uint64)pState->iPooledCandidateBytes;
+	pOut->iFallbackCalls = (uint64)pState->iFallbackCalls;
+	pOut->iFallbackBytes = (uint64)pState->iFallbackBytes;
+	for ( i = 0; i < XRT_MEMPOOL_CLASS_COUNT_DEFAULT; i++ ) {
+		pOut->arrClassCalls[i] = (uint64)pState->arrClassCalls[i];
+		pOut->arrClassBytes[i] = (uint64)pState->arrClassBytes[i];
+	}
+}
+XXAPI void xrtMemDebugEnable(bool bEnable)
+{
+	#ifdef XRT_MEM_DEBUG
+		xCore.MemDebug.bEnabled = bEnable ? 1 : 0;
+	#else
+		(void)bEnable;
+	#endif
+}
+XXAPI bool xrtMemDebugIsEnabled()
+{
+	#ifdef XRT_MEM_DEBUG
+		return xCore.MemDebug.bEnabled != 0;
+	#else
+		return FALSE;
+	#endif
+}
+XXAPI void xrtMemDebugReset()
+{
+	#ifdef XRT_MEM_DEBUG
+		__xrtRuntimeLock();
+		__xrtMemDebugResetState(&xCore.MemDebug);
+		__xrtRuntimeUnlock();
+	#endif
+}
+XXAPI bool xrtMemDebugDumpText(str sPath)
+{
+	#ifdef XRT_MEM_DEBUG
+		const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.txt";
+		FILE* pFile = fopen(sOpenPath, "wb");
+		bool bRet;
+		if ( pFile == NULL ) {
+			return FALSE;
+		}
+		bRet = __xrtMemDebugDumpTextFile(pFile);
+		fclose(pFile);
+		return bRet;
+	#else
+		(void)sPath;
+		return FALSE;
+	#endif
+}
+XXAPI bool xrtMemDebugDumpJson(str sPath)
+{
+	#ifdef XRT_MEM_DEBUG
+		const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.json";
+		FILE* pFile = fopen(sOpenPath, "wb");
+		bool bRet;
+		if ( pFile == NULL ) {
+			return FALSE;
+		}
+		bRet = __xrtMemDebugDumpJsonFile(pFile);
+		fclose(pFile);
+		return bRet;
+	#else
+		(void)sPath;
+		return FALSE;
+	#endif
+}
 XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
 	xrtThreadData* pThreadData = __xrtThreadState;
@@ -52859,8 +56945,15 @@ XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
 static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode)
 {
 	if ( pThread ) {
+		#if !defined(_WIN32) && !defined(_WIN64)
+			pthread_mutex_lock(&pThread->FinishLock);
+		#endif
 		pThread->ExitCode = iExitCode;
 		pThread->bFinished = TRUE;
+		#if !defined(_WIN32) && !defined(_WIN64)
+			pthread_cond_broadcast(&pThread->FinishCond);
+			pthread_mutex_unlock(&pThread->FinishLock);
+		#endif
 	}
 	xrtThreadDetachCurrent();
 }
@@ -52879,6 +56972,11 @@ XXAPI xrtGlobalData* xrtInit()
 		xCore.calloc = calloc;
 		xCore.realloc = realloc;
 		xCore.free = free;
+		__xrtMemGlobalInitPlan(&xCore.MemGlobal);
+		__xrtResetMemTelemetryState(&xCore.MemTelemetry);
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugResetState(&xCore.MemDebug);
+		#endif
 		// 初始化高精度时钟频率单位
 		#if defined(_WIN32) || defined(_WIN64)
 			LARGE_INTEGER QPF;
@@ -52951,6 +57049,12 @@ XXAPI void xrtUnit()
 	}
 	// 只有引用计数为 0 时才真正释放资源
 	if ( (xCore.iInitRef == 0) && (xCore.bInit) ) {
+		#ifdef XRT_MEM_DEBUG
+			if ( __xrtMemDebugHasLeaks() ) {
+				xrtMemDebugDumpText("xrt_mem_report_auto.txt");
+				xrtMemDebugDumpJson("xrt_mem_report_auto.json");
+			}
+		#endif
 		// 清理模板引擎
 		#ifndef XRT_NO_TEMPLATE
 			xte_private_unit();
@@ -52960,6 +57064,10 @@ XXAPI void xrtUnit()
 		xCore.AppFile = xCore.sNull;
 		xrtFree(xCore.AppPath);
 		xCore.AppPath = xCore.sNull;
+		__xrtMemGlobalUnitPlan(&xCore.MemGlobal);
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugResetState(&xCore.MemDebug);
+		#endif
 		// 重置初始化标记
 		xCore.bInit = FALSE;
 		// 释放 socket

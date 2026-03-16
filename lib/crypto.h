@@ -519,92 +519,87 @@ XXAPI void xrtSHA384Final(xsha512_ctx *pCtx, uint8 *pOut)
 	memcpy(pOut, aFull, 48);  // SHA-384 截取前 48 字节
 }
 
-XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut)
+static void __xrt_sha512_family(bool bUse384, const ptr pData, size_t iLen, uint8 *pOut)
 {
 	xsha512_ctx tCtx;
-	xrtSHA512Init(&tCtx);
-	xrtSHA512Update(&tCtx, pData, iLen);
-	xrtSHA512Final(&tCtx, pOut);
+
+	if ( bUse384 ) {
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, pData, iLen);
+		xrtSHA384Final(&tCtx, pOut);
+	} else {
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, pData, iLen);
+		xrtSHA512Final(&tCtx, pOut);
+	}
+}
+
+static void __xrt_hmac_sha512_family(bool bUse384,
+	const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
+{
+	xsha512_ctx tCtx;
+	uint8 k[128] = {0};
+	uint8 o_pad[128], i_pad[128];
+	size_t iOutLen = bUse384 ? 48 : 64;
+	unsigned int i;
+
+	memset(i_pad, 0x36, sizeof(i_pad));
+	memset(o_pad, 0x5c, sizeof(o_pad));
+
+	if ( iKeyLen <= sizeof(k) ) {
+		if ( iKeyLen > 0 ) {
+			memmove(k, pKey, iKeyLen);
+		}
+	} else {
+		__xrt_sha512_family(bUse384, (ptr)pKey, iKeyLen, k);
+	}
+
+	for ( i = 0; i < sizeof(k); i++ ) {
+		i_pad[i] ^= k[i];
+		o_pad[i] ^= k[i];
+	}
+
+	if ( bUse384 ) {
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+		xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+		xrtSHA384Final(&tCtx, pOut);
+
+		xrtSHA384Init(&tCtx);
+		xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+		xrtSHA512Update(&tCtx, pOut, iOutLen);
+		xrtSHA384Final(&tCtx, pOut);
+	} else {
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
+		xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
+		xrtSHA512Final(&tCtx, pOut);
+
+		xrtSHA512Init(&tCtx);
+		xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
+		xrtSHA512Update(&tCtx, pOut, iOutLen);
+		xrtSHA512Final(&tCtx, pOut);
+	}
+}
+
+XXAPI void xrtSHA512(const ptr pData, size_t iLen, uint8 *pOut)
+{
+	__xrt_sha512_family(false, pData, iLen, pOut);
 }
 
 XXAPI void xrtSHA384(const ptr pData, size_t iLen, uint8 *pOut)
 {
-	xsha512_ctx tCtx;
-	xrtSHA384Init(&tCtx);
-	xrtSHA512Update(&tCtx, pData, iLen);
-	xrtSHA384Final(&tCtx, pOut);
+	__xrt_sha512_family(true, pData, iLen, pOut);
 }
 
 XXAPI void xrtHMAC_SHA384(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
 {
-	xsha512_ctx tCtx;
-	uint8 k[128] = {0};
-	uint8 o_pad[128], i_pad[128];
-	unsigned int i;
-	
-	memset(i_pad, 0x36, sizeof(i_pad));
-	memset(o_pad, 0x5c, sizeof(o_pad));
-	
-	if ( iKeyLen <= 128 ) {
-		if ( iKeyLen > 0 ) {
-			memmove(k, pKey, iKeyLen);
-		}
-	} else {
-		xrtSHA384Init(&tCtx);
-		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
-		xrtSHA384Final(&tCtx, k);
-	}
-	
-	for ( i = 0; i < sizeof(k); i++ ) {
-		i_pad[i] ^= k[i];
-		o_pad[i] ^= k[i];
-	}
-	
-	xrtSHA384Init(&tCtx);
-	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
-	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
-	xrtSHA384Final(&tCtx, pOut);
-	
-	xrtSHA384Init(&tCtx);
-	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
-	xrtSHA512Update(&tCtx, pOut, 48);
-	xrtSHA384Final(&tCtx, pOut);
+	__xrt_hmac_sha512_family(true, pKey, iKeyLen, pMsg, iMsgLen, pOut);
 }
 
 XXAPI void xrtHMAC_SHA512(const uint8 *pKey, size_t iKeyLen, const uint8 *pMsg, size_t iMsgLen, uint8 *pOut)
 {
-	xsha512_ctx tCtx;
-	uint8 k[128] = {0};
-	uint8 o_pad[128], i_pad[128];
-	unsigned int i;
-	
-	memset(i_pad, 0x36, sizeof(i_pad));
-	memset(o_pad, 0x5c, sizeof(o_pad));
-	
-	if ( iKeyLen <= 128 ) {
-		if ( iKeyLen > 0 ) {
-			memmove(k, pKey, iKeyLen);
-		}
-	} else {
-		xrtSHA512Init(&tCtx);
-		xrtSHA512Update(&tCtx, (ptr)pKey, iKeyLen);
-		xrtSHA512Final(&tCtx, k);
-	}
-	
-	for ( i = 0; i < sizeof(k); i++ ) {
-		i_pad[i] ^= k[i];
-		o_pad[i] ^= k[i];
-	}
-	
-	xrtSHA512Init(&tCtx);
-	xrtSHA512Update(&tCtx, i_pad, sizeof(i_pad));
-	xrtSHA512Update(&tCtx, (ptr)pMsg, iMsgLen);
-	xrtSHA512Final(&tCtx, pOut);
-	
-	xrtSHA512Init(&tCtx);
-	xrtSHA512Update(&tCtx, o_pad, sizeof(o_pad));
-	xrtSHA512Update(&tCtx, pOut, 64);
-	xrtSHA512Final(&tCtx, pOut);
+	__xrt_hmac_sha512_family(false, pKey, iKeyLen, pMsg, iMsgLen, pOut);
 }
 
 

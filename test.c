@@ -19,7 +19,9 @@
 #include "test/test_file.h"
 #include "test/test_thread.h"
 #include "test/test_runtime_phase2.h"
-#include "test/test_coroutine.h"
+#ifndef XRT_NO_COROUTINE
+	#include "test/test_coroutine.h"
+#endif
 #include "test/test_rwlock.h"
 #include "test/test_hash.h"
 #include "test/test_network.h"

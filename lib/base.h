@@ -2,50 +2,271 @@
 
 
 // 申请内存
-XXAPI ptr xrtMalloc(size_t iSize)
+#define __XRT_MEMTELEMETRY_OP_MALLOC 1
+#define __XRT_MEMTELEMETRY_OP_CALLOC 2
+#define __XRT_MEMTELEMETRY_OP_REALLOC 3
+
+static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize);
+static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize);
+static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
+static inline void __xrtMemTelemetryRecordFree();
+static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
+
+XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine)
 {
-	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
-	ptr mem = procMalloc(iSize);
+	ptr mem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
 		return NULL;
 	}
+	__xrtMemTelemetryRecordSizedOp(__XRT_MEMTELEMETRY_OP_MALLOC, iSize);
 	return mem;
+}
+
+XXAPI ptr xrtMalloc(size_t iSize)
+{
+	return xrtMallocDbg(iSize, NULL, 0);
 }
 
 
 
 // 申请类内存
-XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
+XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
 {
-	ptr (*procCalloc)(size_t, size_t) = xCore.calloc ? xCore.calloc : calloc;
-	ptr mem = procCalloc(iNum, iSize);
+	size_t iTotal = __xrtMemTelemetryMulClamp(iNum, iSize);
+	ptr mem = __xrtMemGlobalAllocSite(iTotal, TRUE, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("class memory allocate failed.", FALSE);
+	} else {
+		__xrtMemTelemetryRecordSizedOp(__XRT_MEMTELEMETRY_OP_CALLOC, iTotal);
 	}
 	return mem;
+}
+
+XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
+{
+	return xrtCallocDbg(iNum, iSize, NULL, 0);
 }
 
 
 
 // 重新申请内存
-XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
+XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
-	ptr (*procRealloc)(ptr, size_t) = xCore.realloc ? xCore.realloc : realloc;
-	ptr mem = procRealloc(pMem, iSize);
+	ptr mem;
+	if ( pMem == xCore.sNull ) {
+		pMem = NULL;
+	}
+	mem = __xrtMemGlobalReallocSite(pMem, iSize, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("memory reallocate failed.", FALSE);
+	} else {
+		__xrtMemTelemetryRecordSizedOp(__XRT_MEMTELEMETRY_OP_REALLOC, iSize);
 	}
 	return mem;
+}
+
+XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
+{
+	return xrtReallocDbg(pMem, iSize, NULL, 0);
 }
 
 
 
 // 释放内存（ 会先判断是否为 null ）
+XXAPI void xrtFreeDbg(ptr pmem, const char* sFile, uint32 iLine)
+{
+	if ( pmem && (pmem != xCore.sNull) ) {
+		__xrtMemTelemetryRecordFree();
+		__xrtMemGlobalFreeSite(pmem, sFile, iLine);
+	}
+}
+
 XXAPI void xrtFree(ptr pmem)
 {
-	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
-	if ( pmem && (pmem != xCore.sNull) ) { procFree(pmem); }
+	xrtFreeDbg(pmem, NULL, 0);
+}
+
+static inline size_t __xrtTempArenaBlockHeaderSize()
+{
+	return __xrtMemGlobalAlignSize(sizeof(xrtTempArenaBlock));
+}
+
+static inline ptr __xrtTempArenaBlockUser(xrtTempArenaBlock* pBlock)
+{
+	return (ptr)((char*)pBlock + __xrtTempArenaBlockHeaderSize());
+}
+
+static inline xrtTempArenaBlock* __xrtTempArenaAllocBlock(size_t iCapacity)
+{
+	size_t iTotal;
+	xrtTempArenaBlock* pBlock;
+
+	if ( iCapacity == 0 ) {
+		iCapacity = 1;
+	}
+	iTotal = __xrtTempArenaBlockHeaderSize() + iCapacity;
+	pBlock = (xrtTempArenaBlock*)__xrtMemGlobalProcMalloc()(iTotal);
+	if ( pBlock == NULL ) {
+		return NULL;
+	}
+	memset(pBlock, 0, __xrtTempArenaBlockHeaderSize());
+	pBlock->iCapacity = (uint32)iCapacity;
+	return pBlock;
+}
+
+static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t iSize, bool bSpill)
+{
+	#ifdef XRT_MEM_DEBUG
+		if ( pThreadData == NULL || !__xrtMemDebugEnabled() ) {
+			return;
+		}
+		__xrtMemDebugLock();
+		pThreadData->tTemp.iCurrentBytes += iSize;
+		if ( pThreadData->tTemp.iCurrentBytes > pThreadData->tTemp.iPeakBytes ) {
+			pThreadData->tTemp.iPeakBytes = pThreadData->tTemp.iCurrentBytes;
+		}
+		xCore.MemDebug.iTempCurrentBytes += iSize;
+		if ( xCore.MemDebug.iTempCurrentBytes > xCore.MemDebug.iTempPeakBytes ) {
+			xCore.MemDebug.iTempPeakBytes = xCore.MemDebug.iTempCurrentBytes;
+		}
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_ALLOC, NULL, iSize, bSpill ? XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL : XRT_MEMDEBUG_ALLOCATOR_GLOBAL, NULL, 0);
+		__xrtMemDebugUnlock();
+	#else
+		(void)pThreadData;
+		(void)iSize;
+		(void)bSpill;
+	#endif
+}
+
+static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
+{
+	#ifdef XRT_MEM_DEBUG
+		if ( pThreadData == NULL || !__xrtMemDebugEnabled() ) {
+			return;
+		}
+		__xrtMemDebugLock();
+		if ( xCore.MemDebug.iTempCurrentBytes >= pThreadData->tTemp.iCurrentBytes ) {
+			xCore.MemDebug.iTempCurrentBytes -= pThreadData->tTemp.iCurrentBytes;
+		} else {
+			xCore.MemDebug.iTempCurrentBytes = 0;
+		}
+		xCore.MemDebug.iTempResetCount++;
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_RESET, NULL, pThreadData->tTemp.iCurrentBytes, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, NULL, 0);
+		__xrtMemDebugUnlock();
+	#else
+		(void)pThreadData;
+	#endif
+}
+
+static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_t iNeed)
+{
+	xrtTempArenaBlock* pBlock;
+	size_t iCapacity;
+
+	if ( pThreadData == NULL ) {
+		return FALSE;
+	}
+	if ( pThreadData->tTemp.pCurrent && ((size_t)pThreadData->tTemp.pCurrent->iUsed + iNeed) <= pThreadData->tTemp.pCurrent->iCapacity ) {
+		return TRUE;
+	}
+	if ( pThreadData->tTemp.pCurrent && pThreadData->tTemp.pCurrent->pNext ) {
+		xrtTempArenaBlock* pNext = pThreadData->tTemp.pCurrent->pNext;
+		while ( pNext ) {
+			if ( ((size_t)pNext->iUsed + iNeed) <= pNext->iCapacity ) {
+				pThreadData->tTemp.pCurrent = pNext;
+				return TRUE;
+			}
+			pNext = pNext->pNext;
+		}
+	}
+	if ( pThreadData->tTemp.pCurrent == NULL && pThreadData->tTemp.pBlocks ) {
+		xrtTempArenaBlock* pNext = pThreadData->tTemp.pBlocks;
+		while ( pNext ) {
+			if ( ((size_t)pNext->iUsed + iNeed) <= pNext->iCapacity ) {
+				pThreadData->tTemp.pCurrent = pNext;
+				return TRUE;
+			}
+			pNext = pNext->pNext;
+		}
+	}
+	iCapacity = pThreadData->tTemp.iBlockSize ? pThreadData->tTemp.iBlockSize : XRT_TEMP_ARENA_BLOCK_SIZE;
+	if ( iNeed > iCapacity ) {
+		iCapacity = iNeed;
+	}
+	pBlock = __xrtTempArenaAllocBlock(iCapacity);
+	if ( pBlock == NULL ) {
+		return FALSE;
+	}
+	if ( pThreadData->tTemp.pBlocks == NULL ) {
+		pThreadData->tTemp.pBlocks = pBlock;
+	} else if ( pThreadData->tTemp.pCurrent ) {
+		pThreadData->tTemp.pCurrent->pNext = pBlock;
+	} else {
+		xrtTempArenaBlock* pTail = pThreadData->tTemp.pBlocks;
+		while ( pTail->pNext ) {
+			pTail = pTail->pNext;
+		}
+		pTail->pNext = pBlock;
+	}
+	pThreadData->tTemp.pCurrent = pBlock;
+	return TRUE;
+}
+
+static inline void __xrtTempArenaResetThread(xrtThreadData* pThreadData)
+{
+	xrtTempArenaBlock* pBlock;
+	xrtTempArenaBlock* pSpill;
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	__xrtTempArenaDebugOnReset(pThreadData);
+	for ( pBlock = pThreadData->tTemp.pBlocks; pBlock; pBlock = pBlock->pNext ) {
+		#ifdef XRT_MEM_DEBUG
+			memset(__xrtTempArenaBlockUser(pBlock), 0xE7, pBlock->iCapacity);
+		#endif
+		pBlock->iUsed = 0;
+	}
+	pSpill = pThreadData->tTemp.pSpill;
+	while ( pSpill ) {
+		xrtTempArenaBlock* pNext = pSpill->pNext;
+		#ifdef XRT_MEM_DEBUG
+			memset(__xrtTempArenaBlockUser(pSpill), 0xE7, pSpill->iCapacity);
+		#endif
+		__xrtMemGlobalProcFree()(pSpill);
+		pSpill = pNext;
+	}
+	pThreadData->tTemp.pCurrent = pThreadData->tTemp.pBlocks;
+	pThreadData->tTemp.pSpill = NULL;
+	pThreadData->tTemp.iCurrentBytes = 0;
+	pThreadData->tTemp.iResetCount++;
+}
+
+static inline void __xrtTempArenaFreeAllThread(xrtThreadData* pThreadData)
+{
+	xrtTempArenaBlock* pBlock;
+	xrtTempArenaBlock* pSpill;
+
+	if ( pThreadData == NULL ) {
+		return;
+	}
+	__xrtTempArenaDebugOnReset(pThreadData);
+	pBlock = pThreadData->tTemp.pBlocks;
+	while ( pBlock ) {
+		xrtTempArenaBlock* pNext = pBlock->pNext;
+		__xrtMemGlobalProcFree()(pBlock);
+		pBlock = pNext;
+	}
+	pSpill = pThreadData->tTemp.pSpill;
+	while ( pSpill ) {
+		xrtTempArenaBlock* pNext = pSpill->pNext;
+		__xrtMemGlobalProcFree()(pSpill);
+		pSpill = pNext;
+	}
+	memset(&pThreadData->tTemp, 0, sizeof(xrtTempArenaState));
+	pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
+	pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
 }
 
 
@@ -54,6 +275,10 @@ XXAPI void xrtFree(ptr pmem)
 XXAPI ptr xrtTempMemory(size_t iSize)
 {
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	size_t iNeed;
+	bool bSpill;
+	xrtTempArenaBlock* pBlock;
+	ptr pRet;
 
 	if ( pThreadData == NULL ) {
 		xrtSetError("current thread is not attached to xrt runtime.", FALSE);
@@ -61,26 +286,39 @@ XXAPI ptr xrtTempMemory(size_t iSize)
 	}
 
 	// 申请内存
-	ptr pMem = xrtMalloc(iSize);
-	if ( pMem == NULL ) {
-		return NULL;
+	if ( pThreadData->tTemp.iBlockSize == 0 ) {
+		pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
+	}
+	if ( pThreadData->tTemp.iSpillCutoff == 0 ) {
+		pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
+	}
+	iNeed = __xrtMemGlobalAlignSize(iSize ? iSize : 1);
+	bSpill = iNeed > pThreadData->tTemp.iSpillCutoff;
+	if ( bSpill ) {
+		pBlock = __xrtTempArenaAllocBlock(iNeed);
+		if ( pBlock == NULL ) {
+			xrtSetError("temporary memory allocate failed.", FALSE);
+			return NULL;
+		}
+		pBlock->iUsed = (uint32)iNeed;
+		pBlock->iFlags = 1u;
+		pBlock->pNext = pThreadData->tTemp.pSpill;
+		pThreadData->tTemp.pSpill = pBlock;
+		pRet = __xrtTempArenaBlockUser(pBlock);
+	} else {
+		if ( !__xrtTempArenaEnsureCurrent(pThreadData, iNeed) ) {
+			xrtSetError("temporary memory allocate failed.", FALSE);
+			return NULL;
+		}
+		pBlock = pThreadData->tTemp.pCurrent;
+		pRet = (ptr)((char*)__xrtTempArenaBlockUser(pBlock) + pBlock->iUsed);
+		pBlock->iUsed += (uint32)iNeed;
 	}
 
-	// 释放过期内存
-	if ( pThreadData->TempMem[pThreadData->TempMemIdx] ) {
-		xrtFree(pThreadData->TempMem[pThreadData->TempMemIdx]);
-		pThreadData->TempMem[pThreadData->TempMemIdx] = NULL;
-	}
+	__xrtMemTelemetryRecordTemp(iSize);
+	__xrtTempArenaDebugOnAlloc(pThreadData, iNeed, bSpill);
 
-	// 处理环形临时内存数据
-	pThreadData->TempMem[pThreadData->TempMemIdx] = pMem;
-	pThreadData->TempMemIdx++;
-	if ( pThreadData->TempMemIdx >= XRT_TEMP_SLOT_COUNT ) {
-		pThreadData->TempMemIdx = 0;
-	}
-
-	// 返回内存指针
-	return pMem;
+	return pRet;
 }
 
 
@@ -94,13 +332,7 @@ XXAPI void xrtFreeTempMemory()
 		return;
 	}
 
-	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
-		if ( pThreadData->TempMem[i] ) {
-			xrtFree(pThreadData->TempMem[i]);
-			pThreadData->TempMem[i] = NULL;
-		}
-	}
-	pThreadData->TempMemIdx = 0;
+	__xrtTempArenaResetThread(pThreadData);
 }
 
 
@@ -162,3 +394,100 @@ XXAPI void xrtClearError()
 }
 
 
+static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize)
+{
+	if ( iNum == 0 || iSize == 0 ) {
+		return 0;
+	}
+	if ( iNum > ((size_t)-1) / iSize ) {
+		return (size_t)-1;
+	}
+	return iNum * iSize;
+}
+
+static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize)
+{
+	if ( xCore.MemGlobal.iClassCount == XRT_MEMPOOL_CLASS_COUNT_DEFAULT && iSize <= xCore.MemGlobal.iCutoff ) {
+		if ( iSize == 0 ) {
+			return 0;
+		}
+		return xCore.MemGlobal.arrSizeClassLut[iSize];
+	}
+	if ( iSize <= 1 ) {
+		return 0;
+	}
+	if ( iSize >= XRT_MEMPOOL_CUTOFF_DEFAULT ) {
+		return XRT_MEMPOOL_CLASS_COUNT_DEFAULT - 1;
+	}
+	return (uint32)(((iSize + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE) - 1);
+}
+
+static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize)
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+	uint32 iIdx;
+
+	if ( pState->bEnabled == 0 ) {
+		return;
+	}
+
+	switch ( iOp ) {
+		case __XRT_MEMTELEMETRY_OP_MALLOC:
+			__xrtAtomicAddFetch64(&pState->iMallocCalls, 1);
+			__xrtAtomicAddFetch64(&pState->iMallocBytes, (int64)iSize);
+			break;
+		case __XRT_MEMTELEMETRY_OP_CALLOC:
+			__xrtAtomicAddFetch64(&pState->iCallocCalls, 1);
+			__xrtAtomicAddFetch64(&pState->iCallocBytes, (int64)iSize);
+			break;
+		case __XRT_MEMTELEMETRY_OP_REALLOC:
+			__xrtAtomicAddFetch64(&pState->iReallocCalls, 1);
+			__xrtAtomicAddFetch64(&pState->iReallocBytes, (int64)iSize);
+			break;
+		default:
+			return;
+	}
+
+	if ( iSize <= XRT_MEMPOOL_CUTOFF_DEFAULT ) {
+		iIdx = __xrtMemTelemetryClassIndex(iSize);
+		__xrtAtomicAddFetch64(&pState->iPooledCandidateCalls, 1);
+		__xrtAtomicAddFetch64(&pState->iPooledCandidateBytes, (int64)iSize);
+		__xrtAtomicAddFetch64(&pState->arrClassCalls[iIdx], 1);
+		__xrtAtomicAddFetch64(&pState->arrClassBytes[iIdx], (int64)iSize);
+	} else {
+		__xrtAtomicAddFetch64(&pState->iFallbackCalls, 1);
+		__xrtAtomicAddFetch64(&pState->iFallbackBytes, (int64)iSize);
+	}
+}
+
+static inline void __xrtMemTelemetryRecordFree()
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+
+	if ( pState->bEnabled == 0 ) {
+		return;
+	}
+
+	__xrtAtomicAddFetch64(&pState->iFreeCalls, 1);
+}
+
+static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+
+	if ( pState->bEnabled == 0 ) {
+		return;
+	}
+
+	__xrtAtomicAddFetch64(&pState->iTempCalls, 1);
+	__xrtAtomicAddFetch64(&pState->iTempBytes, (int64)iSize);
+}
+#define __XRT_MEMTELEMETRY_OP_MALLOC 1
+#define __XRT_MEMTELEMETRY_OP_CALLOC 2
+#define __XRT_MEMTELEMETRY_OP_REALLOC 3
+
+static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize);
+static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize);
+static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
+static inline void __xrtMemTelemetryRecordFree();
+static inline void __xrtMemTelemetryRecordTemp(size_t iSize);

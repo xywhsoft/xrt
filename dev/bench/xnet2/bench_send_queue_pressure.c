@@ -252,7 +252,11 @@ int main(int argc, char** argv)
 	bool bPressureObserved = false;
 	xnet_result iLastSendRes = XRT_NET_OK;
 	int iExitCode = 0;
+	uint64_t iObserveDeadlineNs = 0u;
+	uint64_t iDrainDeadlineNs = 0u;
 
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
 	printf("xnet2 bench_send_queue_pressure\n");
 	printf("messages=%u message_size=%u pause_ms=%u drain_timeout_ms=%u\n",
 		(unsigned)iMessages,
@@ -375,7 +379,8 @@ int main(int argc, char** argv)
 
 	iExpectedRecvBytes = (uint64_t)iSentMessages * (uint64_t)iMessageSize;
 
-	for ( uint32_t i = 0; i < 200u; ++i ) {
+	iObserveDeadlineNs = xbenchDeadlineAfterMs(2000u);
+	while ( !xbenchDeadlineReached(iObserveDeadlineNs) ) {
 		(void)xbenchAtomicMax(&tCliCtx.iPeakQueuedBytes, (long)xrtNetStreamPendingSend(pClient));
 		if ( xbenchAtomicLoad(&tCliCtx.iHighWaterCount) > 0 || xrtNetStreamPendingSend(pClient) > 0u ) break;
 		if ( xbenchAtomicLoad(&tCliCtx.iErrorCount) > 0 || xbenchAtomicLoad(&tSrvCtx.iErrorCount) > 0 ) break;
@@ -393,7 +398,8 @@ int main(int argc, char** argv)
 	}
 
 	xbenchTimerStart(&tDrainTimer);
-	for ( uint32_t i = 0; i <= iDrainTimeoutMs; ++i ) {
+	iDrainDeadlineNs = xbenchDeadlineAfterMs(iDrainTimeoutMs);
+	while ( !xbenchDeadlineReached(iDrainDeadlineNs) ) {
 		if ( xrtNetStreamPendingSend(pClient) == 0u && iPendingZeroNs == 0u ) {
 			iPendingZeroNs = xbenchNowNs();
 		}

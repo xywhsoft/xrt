@@ -112,6 +112,17 @@ static long xbenchAtomicLoad(volatile long* pValue)
 	#endif
 }
 
+static bool xbenchDeadlineReached(uint64_t iDeadlineNs)
+{
+	return iDeadlineNs > 0u && xbenchNowNs() >= iDeadlineNs;
+}
+
+static uint64_t xbenchDeadlineAfterMs(uint32_t iTimeoutMs)
+{
+	if ( iTimeoutMs == 0u ) return xbenchNowNs();
+	return xbenchNowNs() + ((uint64_t)iTimeoutMs * 1000000ULL);
+}
+
 static uint64_t xbenchAtomicLoadU64(volatile uint64_t* pValue)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -148,8 +159,8 @@ static long xbenchAtomicMax(volatile long* pValue, long iCandidate)
 
 static bool xbenchWaitMin(volatile long* pValue, long iExpectMin, uint32_t iTimeoutMs)
 {
-	uint32_t iLoops = (iTimeoutMs / 10u) + 1u;
-	for ( uint32_t i = 0; i < iLoops; ++i ) {
+	uint64_t iDeadlineNs = xbenchDeadlineAfterMs(iTimeoutMs);
+	while ( !xbenchDeadlineReached(iDeadlineNs) ) {
 		if ( xbenchAtomicLoad(pValue) >= iExpectMin ) return true;
 		xbenchSleepMs(10u);
 	}
@@ -158,8 +169,8 @@ static bool xbenchWaitMin(volatile long* pValue, long iExpectMin, uint32_t iTime
 
 static bool xbenchWaitEquals(volatile long* pValue, long iExpect, uint32_t iTimeoutMs)
 {
-	uint32_t iLoops = (iTimeoutMs / 10u) + 1u;
-	for ( uint32_t i = 0; i < iLoops; ++i ) {
+	uint64_t iDeadlineNs = xbenchDeadlineAfterMs(iTimeoutMs);
+	while ( !xbenchDeadlineReached(iDeadlineNs) ) {
 		if ( xbenchAtomicLoad(pValue) == iExpect ) return true;
 		xbenchSleepMs(10u);
 	}

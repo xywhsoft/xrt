@@ -24,7 +24,7 @@ void Test_Dict(xrtGlobalData* xCore)
 	
 	
 	
-	xmempool objMP = xrtMemPoolCreate(1);
+	xmempool objMP = xrtMemPoolCreate(0);
 	
 	
 	

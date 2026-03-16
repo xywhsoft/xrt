@@ -1,6 +1,5 @@
 
-
-
+#define XRT_BUILD_CORE
 #include "xrt.h"
 
 
@@ -84,6 +83,7 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 
 
 // 引入子库 - 按依赖关系和裁剪支持重新组织
+#include "lib/memglobal.h"      // 全局内存池核心
 #include "lib/base.h"           // 核心基础，始终包含
 #include "lib/string.h"         // 字符串处理，始终包含
 #include "lib/os.h"             // 操作系统接口，始终包含
@@ -258,6 +258,22 @@ static void __xrtInitThreadMemState(xrtThreadData* pThreadData)
 	pThreadData->tMem.pLocalAlloc = NULL;
 	pThreadData->tMem.pSharedAlloc = NULL;
 	pThreadData->tMem.pReserved = NULL;
+	__xrtMemGlobalInitThreadCache(pThreadData);
+}
+
+
+
+static void __xrtResetMemTelemetryState(xrtMemTelemetryState* pState)
+{
+	long bEnabled = 0;
+
+	if ( pState == NULL ) {
+		return;
+	}
+
+	bEnabled = pState->bEnabled;
+	memset(pState, 0, sizeof(xrtMemTelemetryState));
+	pState->bEnabled = bEnabled;
 }
 
 
@@ -271,6 +287,7 @@ static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
 	pThreadData->tMem.iOwnerThreadId = 0;
 	pThreadData->tMem.iFlags = 0;
 	pThreadData->tMem.iReserved = 0;
+	__xrtMemGlobalUnitThreadCache(pThreadData);
 	pThreadData->tMem.pLocalAlloc = NULL;
 	pThreadData->tMem.pSharedAlloc = NULL;
 	pThreadData->tMem.pReserved = NULL;
@@ -294,16 +311,13 @@ static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 	pThreadData->iAttachDepth = 1;
 	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
 	pThreadData->bFreeLastError = FALSE;
-	pThreadData->TempMemIdx = 0;
+	pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
+	pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
 	pThreadData->pCleanupTop = NULL;
 	__xrtInitThreadMemState(pThreadData);
 	#ifndef XRT_NO_COROUTINE
 		__xrtCoroRuntimeInitThread(pThreadData);
 	#endif
-
-	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
-		pThreadData->TempMem[i] = NULL;
-	}
 
 	__xrtSeedThreadRand(pThreadData);
 
@@ -314,14 +328,12 @@ static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 
 static void __xrtFreeThreadError(xrtThreadData* pThreadData)
 {
-	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
-
 	if ( pThreadData == NULL ) {
 		return;
 	}
 
 	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
-		procFree(pThreadData->LastError);
+		xrtFree(pThreadData->LastError);
 	}
 
 	pThreadData->LastError = xCore.sNull ? xCore.sNull : (str)__xrt_sNullBytes;
@@ -332,20 +344,10 @@ static void __xrtFreeThreadError(xrtThreadData* pThreadData)
 
 static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
 {
-	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
-
 	if ( pThreadData == NULL ) {
 		return;
 	}
-
-	for ( int i = 0; i < XRT_TEMP_SLOT_COUNT; i++ ) {
-		if ( pThreadData->TempMem[i] ) {
-			procFree(pThreadData->TempMem[i]);
-			pThreadData->TempMem[i] = NULL;
-		}
-	}
-
-	pThreadData->TempMemIdx = 0;
+	__xrtTempArenaFreeAllThread(pThreadData);
 }
 
 
@@ -472,6 +474,477 @@ XXAPI str xrtGetError()
 	return (str)__xrt_sNullBytes;
 }
 
+#ifdef XRT_MEM_DEBUG
+static const char* __xrtMemDebugEventName(uint32 iType)
+{
+	switch ( iType ) {
+		case XRT_MEMDEBUG_EVENT_ALLOC: return "ALLOC";
+		case XRT_MEMDEBUG_EVENT_FREE: return "FREE";
+		case XRT_MEMDEBUG_EVENT_REALLOC: return "REALLOC";
+		case XRT_MEMDEBUG_EVENT_LEAK: return "LEAK";
+		case XRT_MEMDEBUG_EVENT_POOL_LEAK: return "POOL_LEAK";
+		case XRT_MEMDEBUG_EVENT_OBJECT_LEAK: return "OBJECT_LEAK";
+		case XRT_MEMDEBUG_EVENT_DOUBLE_FREE: return "DOUBLE_FREE";
+		case XRT_MEMDEBUG_EVENT_INVALID_FREE: return "INVALID_FREE";
+		case XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE: return "WRONG_ALLOCATOR_FREE";
+		case XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT: return "BUFFER_OVERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT: return "BUFFER_UNDERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT: return "USE_AFTER_FREE_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_OBJECT_CREATE: return "OBJECT_CREATE";
+		case XRT_MEMDEBUG_EVENT_OBJECT_DESTROY: return "OBJECT_DESTROY";
+		case XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY: return "OBJECT_DOUBLE_DESTROY";
+		case XRT_MEMDEBUG_EVENT_TEMP_ALLOC: return "TEMP_ALLOC";
+		case XRT_MEMDEBUG_EVENT_TEMP_RESET: return "TEMP_RESET";
+		default: return "UNKNOWN";
+	}
+}
+
+static const char* __xrtMemDebugObjectTypeName(uint32 iObjectType)
+{
+	switch ( iObjectType ) {
+		case XRT_MEMDEBUG_OBJECT_ARRAY: return "array";
+		case XRT_MEMDEBUG_OBJECT_DICT: return "dict";
+		case XRT_MEMDEBUG_OBJECT_LIST: return "list";
+		case XRT_MEMDEBUG_OBJECT_AVLTREE: return "avltree";
+		case XRT_MEMDEBUG_OBJECT_DYNSTACK: return "dynstack";
+		case XRT_MEMDEBUG_OBJECT_MEMPOOL: return "mempool";
+		case XRT_MEMDEBUG_OBJECT_FSMEMPOOL: return "fsmempool";
+		default: return "unknown";
+	}
+}
+
+static const char* __xrtMemDebugObjectOriginName(uint32 iOrigin)
+{
+	switch ( iOrigin ) {
+		case XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE: return "create";
+		case XRT_MEMDEBUG_OBJECT_ORIGIN_INIT: return "init";
+		default: return "unknown";
+	}
+}
+
+static bool __xrtMemDebugEventUsesObjectType(uint32 iType)
+{
+	return iType == XRT_MEMDEBUG_EVENT_OBJECT_CREATE
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_DESTROY
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_LEAK;
+}
+
+static void __xrtMemDebugJsonWriteString(FILE* pFile, const char* sText)
+{
+	const unsigned char* p = (const unsigned char*)(sText ? sText : "");
+
+	fputc('"', pFile);
+	while ( *p ) {
+		switch ( *p ) {
+			case '\\': fputs("\\\\", pFile); break;
+			case '"': fputs("\\\"", pFile); break;
+			case '\r': fputs("\\r", pFile); break;
+			case '\n': fputs("\\n", pFile); break;
+			case '\t': fputs("\\t", pFile); break;
+			default:
+				if ( *p < 0x20 ) {
+					fprintf(pFile, "\\u%04x", (unsigned int)*p);
+				} else {
+					fputc(*p, pFile);
+				}
+				break;
+		}
+		p++;
+	}
+	fputc('"', pFile);
+}
+
+static bool __xrtMemDebugDumpTextFile(FILE* pFile)
+{
+	xrtMemBlockHeader* pHeader;
+	xrtMemDebugForeignAlloc* pForeign;
+	xrtMemDebugObject* pObject;
+	xrtMemDebugSiteStat* pSite;
+	uint32 iCount;
+
+	if ( pFile == NULL ) {
+		return FALSE;
+	}
+
+	__xrtMemDebugLock();
+	fprintf(pFile, "# XRT Memory Debug Report\n\n");
+	fprintf(pFile, "- live_alloc_count: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
+	fprintf(pFile, "- live_alloc_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
+	fprintf(pFile, "- foreign_live_count: %llu\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);
+	fprintf(pFile, "- foreign_live_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iForeignLiveBytes);
+	fprintf(pFile, "- live_object_count: %llu\n", (unsigned long long)xCore.MemDebug.iLiveObjectCount);
+	fprintf(pFile, "- temp_current_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iTempCurrentBytes);
+	fprintf(pFile, "- temp_peak_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iTempPeakBytes);
+	fprintf(pFile, "- temp_reset_count: %llu\n", (unsigned long long)xCore.MemDebug.iTempResetCount);
+	fprintf(pFile, "- invalid_free_count: %llu\n", (unsigned long long)xCore.MemDebug.iInvalidFreeCount);
+	fprintf(pFile, "- double_free_count: %llu\n", (unsigned long long)xCore.MemDebug.iDoubleFreeCount);
+	fprintf(pFile, "- wrong_allocator_free_count: %llu\n", (unsigned long long)xCore.MemDebug.iWrongAllocatorFreeCount);
+	fprintf(pFile, "- object_double_destroy_count: %llu\n", (unsigned long long)xCore.MemDebug.iObjectDoubleDestroyCount);
+	fprintf(pFile, "- overflow_count: %llu\n", (unsigned long long)xCore.MemDebug.iOverflowCount);
+	fprintf(pFile, "- underflow_count: %llu\n\n", (unsigned long long)xCore.MemDebug.iUnderflowCount);
+
+	fprintf(pFile, "## Live Allocations\n");
+	for ( pHeader = xCore.MemDebug.pLiveHead; pHeader; pHeader = pHeader->pDebugNext ) {
+		fprintf(pFile,
+			"- LEAK ptr=%p size=%u alloc=%s:%u thread=%llu time_ms=%llu flags=0x%04x\n",
+			__xrtMemGlobalUserFromHeader(pHeader),
+			pHeader->iRequestSize,
+			pHeader->sAllocFile ? pHeader->sAllocFile : "(unknown)",
+			pHeader->iAllocLine,
+			(unsigned long long)pHeader->iAllocThreadId,
+			(unsigned long long)pHeader->iAllocTimeMs,
+			(unsigned int)pHeader->iFlags);
+	}
+
+	fprintf(pFile, "\n## Foreign Live Allocations\n");
+	for ( pForeign = xCore.MemDebug.pForeignAllocs; pForeign; pForeign = pForeign->pNext ) {
+		fprintf(pFile,
+			"- POOL_LEAK ptr=%p size=%u allocator=%s alloc=%s:%u thread=%llu time_ms=%llu\n",
+			pForeign->pAddress,
+			pForeign->iSize,
+			__xrtMemDebugAllocatorName(pForeign->iAllocatorKind),
+			pForeign->sAllocFile ? pForeign->sAllocFile : "(unknown)",
+			pForeign->iAllocLine,
+			(unsigned long long)pForeign->iAllocThreadId,
+			(unsigned long long)pForeign->iAllocTimeMs);
+	}
+
+	fprintf(pFile, "\n## Live Objects\n");
+	for ( pObject = xCore.MemDebug.pObjects; pObject; pObject = pObject->pNext ) {
+		if ( pObject->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+			continue;
+		}
+		fprintf(pFile,
+			"- OBJECT_LEAK ptr=%p object=%s origin=%s alloc=%s:%u thread=%llu time_ms=%llu\n",
+			pObject->pAddress,
+			__xrtMemDebugObjectTypeName(pObject->iObjectType),
+			__xrtMemDebugObjectOriginName(pObject->iOrigin),
+			pObject->sAllocFile ? pObject->sAllocFile : "(unknown)",
+			pObject->iAllocLine,
+			(unsigned long long)pObject->iAllocThreadId,
+			(unsigned long long)pObject->iAllocTimeMs);
+	}
+
+	fprintf(pFile, "\n## Site Stats\n");
+	for ( pSite = xCore.MemDebug.pSiteStats; pSite; pSite = pSite->pNext ) {
+		fprintf(pFile,
+			"- site=%s:%u allocator=%s alloc_count=%llu alloc_bytes=%llu free_count=%llu free_bytes=%llu live_count=%llu live_bytes=%llu peak_live_count=%llu peak_live_bytes=%llu\n",
+			pSite->sFile ? pSite->sFile : "(unknown)",
+			pSite->iLine,
+			__xrtMemDebugAllocatorName(pSite->iAllocatorKind),
+			(unsigned long long)pSite->iAllocCount,
+			(unsigned long long)pSite->iAllocBytes,
+			(unsigned long long)pSite->iFreeCount,
+			(unsigned long long)pSite->iFreeBytes,
+			(unsigned long long)pSite->iLiveCount,
+			(unsigned long long)pSite->iLiveBytes,
+			(unsigned long long)pSite->iPeakLiveCount,
+			(unsigned long long)pSite->iPeakLiveBytes);
+	}
+
+	fprintf(pFile, "\n## Recent Events\n");
+	iCount = xCore.MemDebug.iEventCount;
+	if ( iCount > 0 ) {
+		uint32 iStart = (xCore.MemDebug.iEventCursor + XRT_MEMDEBUG_EVENT_CAPACITY - iCount) % XRT_MEMDEBUG_EVENT_CAPACITY;
+		for ( uint32 i = 0; i < iCount; i++ ) {
+			xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[(iStart + i) % XRT_MEMDEBUG_EVENT_CAPACITY];
+			fprintf(pFile,
+				"- %s ptr=%p size=%llu kind=%s file=%s:%u thread=%llu time_ms=%llu\n",
+				__xrtMemDebugEventName(pEvent->iType),
+				pEvent->pAddress,
+				(unsigned long long)pEvent->iSize,
+				__xrtMemDebugEventUsesObjectType(pEvent->iType)
+					? __xrtMemDebugObjectTypeName(pEvent->iAllocatorKind)
+					: __xrtMemDebugAllocatorName(pEvent->iAllocatorKind),
+				pEvent->sFile ? pEvent->sFile : "(unknown)",
+				pEvent->iLine,
+				(unsigned long long)pEvent->iThreadId,
+				(unsigned long long)pEvent->iTimeMs);
+		}
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+static bool __xrtMemDebugDumpJsonFile(FILE* pFile)
+{
+	xrtMemBlockHeader* pHeader;
+	xrtMemDebugForeignAlloc* pForeign;
+	xrtMemDebugObject* pObject;
+	xrtMemDebugSiteStat* pSite;
+	uint32 iCount;
+	bool bFirst;
+
+	if ( pFile == NULL ) {
+		return FALSE;
+	}
+
+	__xrtMemDebugLock();
+	fputs("{\n", pFile);
+	fprintf(pFile, "  \"live_alloc_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
+	fprintf(pFile, "  \"live_alloc_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
+	fprintf(pFile, "  \"foreign_live_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);
+	fprintf(pFile, "  \"foreign_live_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iForeignLiveBytes);
+	fprintf(pFile, "  \"live_object_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveObjectCount);
+	fprintf(pFile, "  \"temp_current_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iTempCurrentBytes);
+	fprintf(pFile, "  \"temp_peak_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iTempPeakBytes);
+	fprintf(pFile, "  \"temp_reset_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iTempResetCount);
+	fprintf(pFile, "  \"invalid_free_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iInvalidFreeCount);
+	fprintf(pFile, "  \"double_free_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iDoubleFreeCount);
+	fprintf(pFile, "  \"wrong_allocator_free_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iWrongAllocatorFreeCount);
+	fprintf(pFile, "  \"object_double_destroy_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iObjectDoubleDestroyCount);
+	fprintf(pFile, "  \"overflow_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iOverflowCount);
+	fprintf(pFile, "  \"underflow_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iUnderflowCount);
+
+	fputs("  \"live_allocations\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pHeader = xCore.MemDebug.pLiveHead; pHeader; pHeader = pHeader->pDebugNext ) {
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"type\":\"LEAK\",\"ptr\":\"", pFile);
+		fprintf(pFile, "%p", __xrtMemGlobalUserFromHeader(pHeader));
+		fputs("\",\"size\":", pFile);
+		fprintf(pFile, "%u", pHeader->iRequestSize);
+		fputs(",\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pHeader->sAllocFile ? pHeader->sAllocFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}", pHeader->iAllocLine, (unsigned long long)pHeader->iAllocThreadId, (unsigned long long)pHeader->iAllocTimeMs);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+
+	fputs("  \"foreign_live_allocations\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pForeign = xCore.MemDebug.pForeignAllocs; pForeign; pForeign = pForeign->pNext ) {
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"type\":\"POOL_LEAK\",\"ptr\":\"", pFile);
+		fprintf(pFile, "%p", pForeign->pAddress);
+		fputs("\",\"size\":", pFile);
+		fprintf(pFile, "%u", pForeign->iSize);
+		fputs(",\"allocator\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugAllocatorName(pForeign->iAllocatorKind));
+		fputs(",\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pForeign->sAllocFile ? pForeign->sAllocFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}", pForeign->iAllocLine, (unsigned long long)pForeign->iAllocThreadId, (unsigned long long)pForeign->iAllocTimeMs);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+
+	fputs("  \"live_objects\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pObject = xCore.MemDebug.pObjects; pObject; pObject = pObject->pNext ) {
+		if ( pObject->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+			continue;
+		}
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"type\":\"OBJECT_LEAK\",\"ptr\":\"", pFile);
+		fprintf(pFile, "%p", pObject->pAddress);
+		fputs("\",\"object\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugObjectTypeName(pObject->iObjectType));
+		fputs(",\"origin\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugObjectOriginName(pObject->iOrigin));
+		fputs(",\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pObject->sAllocFile ? pObject->sAllocFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}",
+			pObject->iAllocLine,
+			(unsigned long long)pObject->iAllocThreadId,
+			(unsigned long long)pObject->iAllocTimeMs);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+
+	fputs("  \"site_stats\": [\n", pFile);
+	bFirst = TRUE;
+	for ( pSite = xCore.MemDebug.pSiteStats; pSite; pSite = pSite->pNext ) {
+		if ( !bFirst ) {
+			fputs(",\n", pFile);
+		}
+		fputs("    {\"file\":", pFile);
+		__xrtMemDebugJsonWriteString(pFile, pSite->sFile ? pSite->sFile : "(unknown)");
+		fprintf(pFile, ",\"line\":%u,\"allocator\":", pSite->iLine);
+		__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugAllocatorName(pSite->iAllocatorKind));
+		fprintf(pFile, ",\"alloc_count\":%llu,\"alloc_bytes\":%llu,\"free_count\":%llu,\"free_bytes\":%llu,\"live_count\":%llu,\"live_bytes\":%llu,\"peak_live_count\":%llu,\"peak_live_bytes\":%llu}",
+			(unsigned long long)pSite->iAllocCount,
+			(unsigned long long)pSite->iAllocBytes,
+			(unsigned long long)pSite->iFreeCount,
+			(unsigned long long)pSite->iFreeBytes,
+			(unsigned long long)pSite->iLiveCount,
+			(unsigned long long)pSite->iLiveBytes,
+			(unsigned long long)pSite->iPeakLiveCount,
+			(unsigned long long)pSite->iPeakLiveBytes);
+		bFirst = FALSE;
+	}
+	fputs("\n  ],\n", pFile);
+
+	fputs("  \"events\": [\n", pFile);
+	bFirst = TRUE;
+	iCount = xCore.MemDebug.iEventCount;
+	if ( iCount > 0 ) {
+		uint32 iStart = (xCore.MemDebug.iEventCursor + XRT_MEMDEBUG_EVENT_CAPACITY - iCount) % XRT_MEMDEBUG_EVENT_CAPACITY;
+		for ( uint32 i = 0; i < iCount; i++ ) {
+			xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[(iStart + i) % XRT_MEMDEBUG_EVENT_CAPACITY];
+			if ( !bFirst ) {
+				fputs(",\n", pFile);
+			}
+			fputs("    {\"type\":", pFile);
+			__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugEventName(pEvent->iType));
+			fputs(",\"ptr\":\"", pFile);
+			fprintf(pFile, "%p", pEvent->pAddress);
+			fputs("\",\"size\":", pFile);
+			fprintf(pFile, "%llu", (unsigned long long)pEvent->iSize);
+			fputs(",\"kind\":", pFile);
+			__xrtMemDebugJsonWriteString(pFile,
+				__xrtMemDebugEventUsesObjectType(pEvent->iType)
+					? __xrtMemDebugObjectTypeName(pEvent->iAllocatorKind)
+					: __xrtMemDebugAllocatorName(pEvent->iAllocatorKind));
+			fputs(",\"file\":", pFile);
+			__xrtMemDebugJsonWriteString(pFile, pEvent->sFile ? pEvent->sFile : "(unknown)");
+			fprintf(pFile, ",\"line\":%u,\"thread\":%llu,\"time_ms\":%llu}", pEvent->iLine, (unsigned long long)pEvent->iThreadId, (unsigned long long)pEvent->iTimeMs);
+			bFirst = FALSE;
+		}
+	}
+	fputs("\n  ]\n}\n", pFile);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+#endif
+
+
+
+XXAPI void xrtMemTelemetryEnable(bool bEnable)
+{
+	xCore.MemTelemetry.bEnabled = bEnable ? 1 : 0;
+}
+
+
+
+XXAPI bool xrtMemTelemetryIsEnabled()
+{
+	return xCore.MemTelemetry.bEnabled != 0;
+}
+
+
+
+XXAPI void xrtMemTelemetryReset()
+{
+	__xrtRuntimeLock();
+	__xrtResetMemTelemetryState(&xCore.MemTelemetry);
+	__xrtRuntimeUnlock();
+}
+
+
+
+XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut)
+{
+	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
+	int i;
+
+	if ( pOut == NULL ) {
+		return;
+	}
+
+	memset(pOut, 0, sizeof(xrtMemTelemetrySnapshot));
+	pOut->bEnabled = pState->bEnabled != 0;
+	pOut->iClassStep = XRT_MEMPOOL_STEP_SIZE;
+	pOut->iClassCutoff = XRT_MEMPOOL_CUTOFF_DEFAULT;
+	pOut->iClassCount = XRT_MEMPOOL_CLASS_COUNT_DEFAULT;
+	pOut->iMallocCalls = (uint64)pState->iMallocCalls;
+	pOut->iMallocBytes = (uint64)pState->iMallocBytes;
+	pOut->iCallocCalls = (uint64)pState->iCallocCalls;
+	pOut->iCallocBytes = (uint64)pState->iCallocBytes;
+	pOut->iReallocCalls = (uint64)pState->iReallocCalls;
+	pOut->iReallocBytes = (uint64)pState->iReallocBytes;
+	pOut->iFreeCalls = (uint64)pState->iFreeCalls;
+	pOut->iTempCalls = (uint64)pState->iTempCalls;
+	pOut->iTempBytes = (uint64)pState->iTempBytes;
+	pOut->iPooledCandidateCalls = (uint64)pState->iPooledCandidateCalls;
+	pOut->iPooledCandidateBytes = (uint64)pState->iPooledCandidateBytes;
+	pOut->iFallbackCalls = (uint64)pState->iFallbackCalls;
+	pOut->iFallbackBytes = (uint64)pState->iFallbackBytes;
+	for ( i = 0; i < XRT_MEMPOOL_CLASS_COUNT_DEFAULT; i++ ) {
+		pOut->arrClassCalls[i] = (uint64)pState->arrClassCalls[i];
+		pOut->arrClassBytes[i] = (uint64)pState->arrClassBytes[i];
+	}
+}
+
+
+
+XXAPI void xrtMemDebugEnable(bool bEnable)
+{
+	#ifdef XRT_MEM_DEBUG
+		xCore.MemDebug.bEnabled = bEnable ? 1 : 0;
+	#else
+		(void)bEnable;
+	#endif
+}
+
+
+
+XXAPI bool xrtMemDebugIsEnabled()
+{
+	#ifdef XRT_MEM_DEBUG
+		return xCore.MemDebug.bEnabled != 0;
+	#else
+		return FALSE;
+	#endif
+}
+
+
+
+XXAPI void xrtMemDebugReset()
+{
+	#ifdef XRT_MEM_DEBUG
+		__xrtRuntimeLock();
+		__xrtMemDebugResetState(&xCore.MemDebug);
+		__xrtRuntimeUnlock();
+	#endif
+}
+
+
+
+XXAPI bool xrtMemDebugDumpText(str sPath)
+{
+	#ifdef XRT_MEM_DEBUG
+		const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.txt";
+		FILE* pFile = fopen(sOpenPath, "wb");
+		bool bRet;
+		if ( pFile == NULL ) {
+			return FALSE;
+		}
+		bRet = __xrtMemDebugDumpTextFile(pFile);
+		fclose(pFile);
+		return bRet;
+	#else
+		(void)sPath;
+		return FALSE;
+	#endif
+}
+
+
+
+XXAPI bool xrtMemDebugDumpJson(str sPath)
+{
+	#ifdef XRT_MEM_DEBUG
+		const char* sOpenPath = sPath ? (const char*)sPath : "xrt_mem_report.json";
+		FILE* pFile = fopen(sOpenPath, "wb");
+		bool bRet;
+		if ( pFile == NULL ) {
+			return FALSE;
+		}
+		bRet = __xrtMemDebugDumpJsonFile(pFile);
+		fclose(pFile);
+		return bRet;
+	#else
+		(void)sPath;
+		return FALSE;
+	#endif
+}
+
 
 
 XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
@@ -559,6 +1032,11 @@ XXAPI xrtGlobalData* xrtInit()
 		xCore.calloc = calloc;
 		xCore.realloc = realloc;
 		xCore.free = free;
+		__xrtMemGlobalInitPlan(&xCore.MemGlobal);
+		__xrtResetMemTelemetryState(&xCore.MemTelemetry);
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugResetState(&xCore.MemDebug);
+		#endif
 
 		// 初始化高精度时钟频率单位
 		#if defined(_WIN32) || defined(_WIN64)
@@ -646,6 +1124,12 @@ XXAPI void xrtUnit()
 
 	// 只有引用计数为 0 时才真正释放资源
 	if ( (xCore.iInitRef == 0) && (xCore.bInit) ) {
+		#ifdef XRT_MEM_DEBUG
+			if ( __xrtMemDebugHasLeaks() ) {
+				xrtMemDebugDumpText("xrt_mem_report_auto.txt");
+				xrtMemDebugDumpJson("xrt_mem_report_auto.json");
+			}
+		#endif
 		// 清理模板引擎
 		#ifndef XRT_NO_TEMPLATE
 			xte_private_unit();
@@ -656,6 +1140,10 @@ XXAPI void xrtUnit()
 		xCore.AppFile = xCore.sNull;
 		xrtFree(xCore.AppPath);
 		xCore.AppPath = xCore.sNull;
+		__xrtMemGlobalUnitPlan(&xCore.MemGlobal);
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugResetState(&xCore.MemDebug);
+		#endif
 
 		// 重置初始化标记
 		xCore.bInit = FALSE;

@@ -110,6 +110,23 @@ struct xrt_net_chain {
 	uint32 iBlockCount;
 };
 
+static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
+{
+	if ( !pDst || !pSrc || !pSrc->pHead ) return;
+	if ( pDst->pTail ) {
+		pDst->pTail->pNext = pSrc->pHead;
+	} else {
+		pDst->pHead = pSrc->pHead;
+	}
+	pDst->pTail = pSrc->pTail;
+	pDst->iBytes += pSrc->iBytes;
+	pDst->iBlockCount += pSrc->iBlockCount;
+	pSrc->pHead = NULL;
+	pSrc->pTail = NULL;
+	pSrc->iBytes = 0;
+	pSrc->iBlockCount = 0;
+}
+
 
 
 /* ============================== Config helpers ============================== */

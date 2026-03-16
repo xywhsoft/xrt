@@ -1,10 +1,16 @@
-gcc -m64 test.c xrt.c -lWs2_32 -lIPHLPAPI -DDEBUG_TRACE -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o release/x64/test.exe
-
-@echo;
 @echo off
+setlocal
 
-cd release
-cd x64
-test.exe
+gcc -m64 test.c xrt.c -I . -lWs2_32 -lIPHLPAPI -DDEBUG_TRACE -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o release/x64/test.exe || goto :eof
 
+pushd release\x64
+test.exe || goto :runfail
+popd
+
+echo.
+echo build_GCC_TEST_LEGACY_x64.bat: PASS
 pause
+goto :eof
+
+:runfail
+popd

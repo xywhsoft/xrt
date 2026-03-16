@@ -70,6 +70,58 @@ XXAPI void xrtListUnit(xlist objList)
 	xrtOwnerEndMutable(&objList->Owner);
 }
 
+XXAPI xlist xrtListCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xlist objList = xrtListCreateEx(iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objList;
+}
+XXAPI xlist xrtListCreateExDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xlist objList = xrtListCreateEx(iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objList;
+}
+XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, const char* sFile, uint32 iLine)
+{
+	xrtListInitEx(objList, iItemLength, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtListInitExDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtListInitEx(objList, iItemLength, iMode);
+	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
+{
+	if ( objList ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objList->Owner, "list belongs to another thread.") ) {
+			return;
+		}
+		xrtListUnit(objList);
+		__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
+		xrtFreeDbg(objList, sFile, iLine);
+	}
+}
+XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine)
+{
+	if ( objList == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
+		return;
+	}
+	__xrtListUnit_NoLock(objList);
+	xrtOwnerEndMutable(&objList->Owner);
+	__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
+}
+
 XXAPI bool xrtListLock(xlist objList)
 {
 	if ( objList == NULL ) {

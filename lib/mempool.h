@@ -27,18 +27,114 @@ XXAPI void xrtMemPoolDestroy(xmempool objMP)
 	}
 }
 
-// 初始化内存池（对自维护结构体指针使用，和 MP256_Create 功能类似）
-void MP256_SetFSB(FSB_Item* FSB, int idx, uint32 iSizeMin, uint32 iSizeMax, FSB_Item* left, FSB_Item* right)
+// 初始化内存池（对自维护结构体指针使用）
+static inline uint32 __xrtMemPoolResolveCutoff(int iCustom)
 {
-	FSB[idx].MinLength = iSizeMin;
-	FSB[idx].MaxLength = iSizeMax;
-	FSB[idx].LL_Idle = NULL;
-	FSB[idx].LL_Full = NULL;
-	FSB[idx].LL_Null = NULL;
-	FSB[idx].LL_Free = NULL;
-	FSB[idx].left = left;
-	FSB[idx].right = right;
+	if ( iCustom <= 0 ) {
+		return XRT_MEMPOOL_CUTOFF_DEFAULT;
+	}
+	return (uint32)iCustom;
 }
+
+static inline uint32 __xrtMemPoolBucketCount(uint32 iCutoff)
+{
+	if ( iCutoff == 0 ) {
+		return 0;
+	}
+	return (uint32)((iCutoff + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE);
+}
+
+static inline void __xrtMemPoolInitBucket(FSB_Item* pBucket, uint32 iSizeMin, uint32 iSizeMax)
+{
+	pBucket->MinLength = iSizeMin;
+	pBucket->MaxLength = iSizeMax;
+	pBucket->LL_Idle = NULL;
+	pBucket->LL_Full = NULL;
+	pBucket->LL_Null = NULL;
+	pBucket->LL_Free = NULL;
+	pBucket->left = NULL;
+	pBucket->right = NULL;
+}
+
+static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
+{
+	uint32 iBucketCount;
+	uint32 iBucket;
+	uint32 iSize;
+
+	objMP->FSB_Memory = NULL;
+	objMP->FSB_RootNode = NULL;
+	objMP->FSB_Lut = NULL;
+	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+	objMP->iBucketCount = 0;
+	objMP->iFallbackCutoff = iCutoff;
+
+	if ( iCutoff == 0 ) {
+		return TRUE;
+	}
+
+	iBucketCount = __xrtMemPoolBucketCount(iCutoff);
+	objMP->FSB_Memory = xrtCalloc(iBucketCount, sizeof(FSB_Item));
+	if ( objMP->FSB_Memory == NULL ) {
+		return FALSE;
+	}
+
+	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * (iCutoff + 1));
+	if ( objMP->FSB_Lut == NULL ) {
+		xrtFree(objMP->FSB_Memory);
+		objMP->FSB_Memory = NULL;
+		return FALSE;
+	}
+
+	memset(objMP->FSB_Lut, 0, sizeof(uint32) * (iCutoff + 1));
+	objMP->iBucketCount = iBucketCount;
+	objMP->FSB_RootNode = &objMP->FSB_Memory[0];
+
+	for ( iBucket = 0; iBucket < iBucketCount; iBucket++ ) {
+		uint32 iMin = (iBucket * XRT_MEMPOOL_STEP_SIZE) + 1;
+		uint32 iMax = iMin + XRT_MEMPOOL_STEP_SIZE - 1;
+		if ( iMax > iCutoff ) {
+			iMax = iCutoff;
+		}
+		__xrtMemPoolInitBucket(&objMP->FSB_Memory[iBucket], iMin, iMax);
+	}
+
+	for ( iSize = 1; iSize <= iCutoff; iSize++ ) {
+		uint32 iClass = (uint32)((iSize - 1) / XRT_MEMPOOL_STEP_SIZE);
+		if ( iClass >= iBucketCount ) {
+			iClass = iBucketCount - 1;
+		}
+		objMP->FSB_Lut[iSize] = iClass;
+	}
+
+	return TRUE;
+}
+
+static inline FSB_Item* __xrtMemPoolGetBucketBySize(xmempool objMP, uint32 iSize)
+{
+	if ( objMP == NULL || objMP->FSB_Memory == NULL || objMP->FSB_Lut == NULL ) {
+		return NULL;
+	}
+	if ( iSize == 0 || iSize > objMP->iFallbackCutoff ) {
+		return NULL;
+	}
+	return &objMP->FSB_Memory[objMP->FSB_Lut[iSize]];
+}
+
+static inline FSB_Item* __xrtMemPoolGetBucketByMMU(xmempool objMP, xmemunit objMMU)
+{
+	uint32 iSize;
+
+	if ( objMP == NULL || objMMU == NULL ) {
+		return NULL;
+	}
+	iSize = objMMU->ItemLength - sizeof(MMU_Value);
+	if ( iSize == 0 || iSize > objMP->iFallbackCutoff ) {
+		return NULL;
+	}
+	return __xrtMemPoolGetBucketBySize(objMP, iSize);
+}
+
 XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom)
 {
 	xrtMemPoolInitEx(objMP, iCustom, XRT_OBJMODE_LOCAL);
@@ -52,118 +148,37 @@ XXAPI void xrtMemPoolInitEx(xmempool objMP, int iCustom, uint32 iMode)
 	xrtBsmmInitEx(&objMP->arrMMU, sizeof(MMU_LLNode), iMode);
 	xrtBsmmInitEx(&objMP->BigMM, sizeof(MP_BigInfoLL), iMode);
 	objMP->LL_BigFree = NULL;
-	if ( iCustom == 1 ) {
-		// 添加默认的区块区间 (4层树，针对小内存的方案)
-		//
-		// 二叉树视图 (根据建树顺序插入避免旋转产生额外开销)：
-		//								○
-		//								160
-		//				○								○
-		//				64								320
-		//		○				○				○				○
-		//		32				96				224				448
-		//	○		○		○		○		○		○		○		○
-		//	16		48		80		128		192		256		384		512
-		//
-		objMP->FSB_Memory = xrtMalloc(sizeof(FSB_Item) * 15);
-		if ( objMP->FSB_Memory == NULL ) {
-			objMP->FSB_RootNode = NULL;
-			return;
-		}
-		MP256_SetFSB(objMP->FSB_Memory, 0,	1,		16, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 1,	17,		32, &objMP->FSB_Memory[0], &objMP->FSB_Memory[2]);
-		MP256_SetFSB(objMP->FSB_Memory, 2,	33,		48, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 3,	49,		64, &objMP->FSB_Memory[1], &objMP->FSB_Memory[5]);
-		MP256_SetFSB(objMP->FSB_Memory, 4,	65,		80, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 5,	81,		96, &objMP->FSB_Memory[4], &objMP->FSB_Memory[6]);
-		MP256_SetFSB(objMP->FSB_Memory, 6,	97,		128, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 7,	129,	160, &objMP->FSB_Memory[3], &objMP->FSB_Memory[11]);
-		MP256_SetFSB(objMP->FSB_Memory, 8,	161,	192, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 9,	193,	224, &objMP->FSB_Memory[8], &objMP->FSB_Memory[10]);
-		MP256_SetFSB(objMP->FSB_Memory, 10,	225,	256, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 11,	257,	320, &objMP->FSB_Memory[9], &objMP->FSB_Memory[13]);
-		MP256_SetFSB(objMP->FSB_Memory, 12,	321,	384, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 13,	385,	448, &objMP->FSB_Memory[12], &objMP->FSB_Memory[14]);
-		MP256_SetFSB(objMP->FSB_Memory, 14,	449,	512, NULL, NULL);
-		objMP->FSB_RootNode = &objMP->FSB_Memory[7];
-	} else if ( iCustom == 2 ) {
-		// 添加默认的区块区间 (5层树，针对大内存的方案)
-		//
-		// 二叉树视图 (根据建树顺序插入避免旋转产生额外开销)：
-		//																○
-		//																640
-		//								○																○
-		//								160																2304
-		//				○								○								○								○
-		//				64								320								1280							3328
-		//		○				○				○				○				○				○				○				○
-		//		32				96				224				448				896				1792			2816			3840
-		//	○		○		○		○		○		○		○		○		○		○		○		○		○		○		○		○
-		//	16		48		80		128		192		256		384		512		768		1024	1536	2048	2560	3072	3584	4096
-		//
-		objMP->FSB_Memory = xrtMalloc(sizeof(FSB_Item) * 31);
-		if ( objMP->FSB_Memory == NULL ) {
-			objMP->FSB_RootNode = NULL;
-			return;
-		}
-		MP256_SetFSB(objMP->FSB_Memory, 0,	1,		16, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 1,	17,		32, &objMP->FSB_Memory[0], &objMP->FSB_Memory[2]);
-		MP256_SetFSB(objMP->FSB_Memory, 2,	33,		48, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 3,	49,		64, &objMP->FSB_Memory[1], &objMP->FSB_Memory[5]);
-		MP256_SetFSB(objMP->FSB_Memory, 4,	65,		80, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 5,	81,		96, &objMP->FSB_Memory[4], &objMP->FSB_Memory[6]);
-		MP256_SetFSB(objMP->FSB_Memory, 6,	97,		128, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 7,	129,	160, &objMP->FSB_Memory[3], &objMP->FSB_Memory[11]);
-		MP256_SetFSB(objMP->FSB_Memory, 8,	161,	192, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 9,	193,	224, &objMP->FSB_Memory[8], &objMP->FSB_Memory[10]);
-		MP256_SetFSB(objMP->FSB_Memory, 10,	225,	256, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 11,	257,	320, &objMP->FSB_Memory[9], &objMP->FSB_Memory[13]);
-		MP256_SetFSB(objMP->FSB_Memory, 12,	321,	384, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 13,	385,	448, &objMP->FSB_Memory[12], &objMP->FSB_Memory[14]);
-		MP256_SetFSB(objMP->FSB_Memory, 14,	449,	512, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 15,	513,	640, &objMP->FSB_Memory[7], &objMP->FSB_Memory[23]);
-		MP256_SetFSB(objMP->FSB_Memory, 16,	641,	768, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 17,	769,	896, &objMP->FSB_Memory[16], &objMP->FSB_Memory[18]);
-		MP256_SetFSB(objMP->FSB_Memory, 18,	897,	1024, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 19,	1025,	1280, &objMP->FSB_Memory[17], &objMP->FSB_Memory[21]);
-		MP256_SetFSB(objMP->FSB_Memory, 20,	1281,	1536, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 21,	1537,	1792, &objMP->FSB_Memory[20], &objMP->FSB_Memory[22]);
-		MP256_SetFSB(objMP->FSB_Memory, 22,	1793,	2048, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 23,	2049,	2304, &objMP->FSB_Memory[19], &objMP->FSB_Memory[27]);
-		MP256_SetFSB(objMP->FSB_Memory, 24,	2305,	2560, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 25,	2561,	2816, &objMP->FSB_Memory[24], &objMP->FSB_Memory[26]);
-		MP256_SetFSB(objMP->FSB_Memory, 26,	2817,	3072, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 27,	3073,	3328, &objMP->FSB_Memory[25], &objMP->FSB_Memory[29]);
-		MP256_SetFSB(objMP->FSB_Memory, 28,	3329,	3584, NULL, NULL);
-		MP256_SetFSB(objMP->FSB_Memory, 29,	3585,	3840, &objMP->FSB_Memory[28], &objMP->FSB_Memory[30]);
-		MP256_SetFSB(objMP->FSB_Memory, 30,	3841,	4096, NULL, NULL);
-		objMP->FSB_RootNode = &objMP->FSB_Memory[15];
-	} else {
-		// 未提供方案（回退为 xrtMalloc）
-		objMP->FSB_Memory = NULL;
-		objMP->FSB_RootNode = NULL;
+	if ( !__xrtMemPoolBuildBucketPlan(objMP, __xrtMemPoolResolveCutoff(iCustom)) ) {
+		xrtSetError("Memory Pool : build bucket plan failed.", FALSE);
 	}
 }
 
-// 释放内存池（对自维护结构体指针使用，和 MP256_Destroy 功能类似）
+// 释放内存池（对自维护结构体指针使用）
 XXAPI void xrtMemPoolUnit(xmempool objMP)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	// 循环释放所有 MMU
 	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
+			pNode->objMMU = NULL;
 		}
 	}
 	xrtBsmmUnit(&objMP->arrMMU);
+	if ( objMP->FSB_Lut ) {
+		xrtFree(objMP->FSB_Lut);
+		objMP->FSB_Lut = NULL;
+	}
 	if ( objMP->FSB_Memory ) {
 		xrtFree(objMP->FSB_Memory);
 		objMP->FSB_Memory = NULL;
 	}
-	// 循环释放所有大内存块
+	objMP->FSB_RootNode = NULL;
+	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+	objMP->iBucketCount = 0;
+	objMP->iFallbackCutoff = 0;
 	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
@@ -175,10 +190,153 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	xrtOwnerEndMutable(&objMP->Owner);
 }
 
+XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, const char* sFile, uint32 iLine)
+{
+	xmempool objMP = xrtMemPoolCreateEx(iCustom, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMP;
+}
+XXAPI xmempool xrtMemPoolCreateExDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xmempool objMP = xrtMemPoolCreateEx(iCustom, iMode);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objMP;
+}
+XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, const char* sFile, uint32 iLine)
+{
+	xrtMemPoolInitEx(objMP, iCustom, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtMemPoolInitExDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtMemPoolInitEx(objMP, iCustom, iMode);
+	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
+{
+	if ( objMP ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+			return;
+		}
+		xrtMemPoolUnit(objMP);
+		__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
+		xrtFreeDbg(objMP, sFile, iLine);
+	}
+}
+XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
+{
+	if ( objMP == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
+		return;
+	}
+	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
+		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
+		if ( pNode->objMMU ) {
+			xrtMemUnitDestroy(pNode->objMMU);
+			pNode->objMMU = NULL;
+		}
+	}
+	xrtBsmmUnit(&objMP->arrMMU);
+	if ( objMP->FSB_Lut ) {
+		xrtFree(objMP->FSB_Lut);
+		objMP->FSB_Lut = NULL;
+	}
+	if ( objMP->FSB_Memory ) {
+		xrtFree(objMP->FSB_Memory);
+		objMP->FSB_Memory = NULL;
+	}
+	objMP->FSB_RootNode = NULL;
+	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+	objMP->iBucketCount = 0;
+	objMP->iFallbackCutoff = 0;
+	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
+		if ( pInfo->Ptr ) {
+			xrtFree(pInfo->Ptr);
+		}
+	}
+	xrtBsmmUnit(&objMP->BigMM);
+	objMP->LL_BigFree = NULL;
+	xrtOwnerEndMutable(&objMP->Owner);
+	__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
+}
+
+static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
+{
+	xmemunit objMMU = NULL;
+
+	if ( objFSB->LL_Idle == NULL ) {
+		if ( objFSB->LL_Null ) {
+			objMMU = objFSB->LL_Null->objMMU;
+			objFSB->LL_Idle = objFSB->LL_Null;
+			objFSB->LL_Null = NULL;
+		} else if ( objFSB->LL_Free ) {
+			MMU_LLNode* pNode = objFSB->LL_Free;
+			objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
+			if ( objMMU == NULL ) {
+				return NULL;
+			}
+			objMMU->Flag = pNode->Flag;
+			pNode->objMMU = objMMU;
+			if ( pNode->Next ) {
+				pNode->Next->Prev = NULL;
+			}
+			objFSB->LL_Free = pNode->Next;
+			pNode->Prev = NULL;
+			pNode->Next = NULL;
+			objFSB->LL_Idle = pNode;
+		} else {
+			MMU_LLNode* pNode;
+			objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
+			if ( objMMU == NULL ) {
+				return NULL;
+			}
+			pNode = xrtBsmmAlloc(&objMP->arrMMU);
+			if ( pNode == NULL ) {
+				xrtMemUnitDestroy(objMMU);
+				xrtSetError("Memory Pool : add memory unit failed.", FALSE);
+				return NULL;
+			}
+			pNode->objMMU = objMMU;
+			pNode->Prev = NULL;
+			pNode->Next = NULL;
+			pNode->Flag = MMU_FLAG_USE | ((objMP->arrMMU.Count - 1) << 8);
+			objMMU->Flag = pNode->Flag;
+			objFSB->LL_Idle = pNode;
+		}
+	} else {
+		objMMU = objFSB->LL_Idle->objMMU;
+		if ( objMMU->Count >= 255 ) {
+			MMU_LLNode* pNode = objFSB->LL_Idle;
+			if ( pNode->Next ) {
+				pNode->Next->Prev = NULL;
+			}
+			objFSB->LL_Idle = pNode->Next;
+			pNode->Prev = NULL;
+			pNode->Next = objFSB->LL_Full;
+			if ( objFSB->LL_Full ) {
+				objFSB->LL_Full->Prev = pNode;
+			}
+			objFSB->LL_Full = pNode;
+		}
+	}
+
+	return objMMU;
+}
+
 // 从内存池中申请一块内存
 XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 {
 	void* pRet = NULL;
+
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return NULL;
 	}
@@ -186,100 +344,26 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 		xrtOwnerEndMutable(&objMP->Owner);
 		return NULL;
 	}
-	// 查找符合条件的 FSB 信息
-	FSB_Item* objFSB = objMP->FSB_RootNode;
-	while ( objFSB ) {
-		if ( iSize < objFSB->MinLength ) {
-			objFSB = objFSB->left;
-		} else if ( iSize > objFSB->MaxLength ) {
-			objFSB = objFSB->right;
-		} else {
-			break;
+
+	{
+		FSB_Item* objFSB = __xrtMemPoolGetBucketBySize(objMP, iSize);
+		if ( objFSB ) {
+			xmemunit objMMU = __xrtMemPoolAcquireUnit(objMP, objFSB);
+			if ( objMMU == NULL ) {
+				xrtOwnerEndMutable(&objMP->Owner);
+				return NULL;
+			}
+			pRet = xrtMemUnitAlloc_Inline(objMMU);
+			__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
+			xrtOwnerEndMutable(&objMP->Owner);
+			return pRet;
 		}
 	}
-	if ( objFSB ) {
-		// 选定了 FSB，根据 FSB 区块信息通过 MMU256 分配内存
-		xmemunit objMMU = NULL;
-		if ( objFSB->LL_Idle == NULL ) {
-			// 如果没有空闲的内存管理单元，优先使用备用的全空单元，或创建一个新的单元
-			if ( objFSB->LL_Null ) {
-				// 使用备用的全空内存管理单元
-				objMMU = objFSB->LL_Null->objMMU;
-				objFSB->LL_Idle = objFSB->LL_Null;
-				objFSB->LL_Null = NULL;
-			} else if ( objFSB->LL_Free ) {
-				// 创建新的内存管理单元，使用已释放的内存管理单元位置
-				objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
-				if ( objMMU == NULL ) {
-					xrtOwnerEndMutable(&objMP->Owner);
-					return NULL;
-				}
-				// 恢复Flag，写入新申请的单元
-				MMU_LLNode* pNode = objFSB->LL_Free;
-				objMMU->Flag = pNode->Flag;
-				pNode->objMMU = objMMU;
-				// 从 LL_Free 中移除
-				if ( pNode->Next ) {
-					pNode->Next->Prev = NULL;
-				}
-				objFSB->LL_Free = pNode->Next;
-				// 添加到 LL_Idle
-				pNode->Prev = NULL;
-				pNode->Next = NULL;
-				objFSB->LL_Idle = pNode;
-			} else {
-				// 创建新的内存管理单元，创建失败就报错处理
-				objMMU = xrtMemUnitCreateEx(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
-				if ( objMMU == NULL ) {
-					xrtOwnerEndMutable(&objMP->Owner);
-					return NULL;
-				}
-				// 将创建好的内存管理单元添加到单元阵列管理器，添加失败就报错处理
-				MMU_LLNode* pNode = xrtBsmmAlloc(&objMP->arrMMU);
-				if ( pNode ) {
-					pNode->objMMU = objMMU;
-					pNode->Prev = NULL;
-					pNode->Next = NULL;
-					pNode->Flag = MMU_FLAG_USE | ((objMP->arrMMU.Count - 1) << 8);
-					objFSB->LL_Idle = pNode;
-					// 标记内存管理器单元的 Flag
-					objMMU->Flag = pNode->Flag;
-				} else {
-					xrtMemUnitDestroy(objMMU);
-					xrtSetError("Memory Pool : add memory unit failed.", FALSE);
-					xrtOwnerEndMutable(&objMP->Owner);
-					return NULL;
-				}
-			}
-		} else {
-			// 有空闲的内存管理单元，优先使用空闲的
-			objMMU = objFSB->LL_Idle->objMMU;
-			// 如果空闲的内存管理单元即将满了，将它转移到满载单元链表
-			if ( objMMU->Count >= 255 ) {
-				MMU_LLNode* pNode = objFSB->LL_Idle;
-				// 从 LL_Idle 中移除
-				if ( pNode->Next ) {
-					pNode->Next->Prev = NULL;
-				}
-				objFSB->LL_Idle = pNode->Next;
-				// 添加到 LL_Full
-				pNode->Prev = NULL;
-				pNode->Next = objFSB->LL_Full;
-				if ( objFSB->LL_Full ) {
-					objFSB->LL_Full->Prev = pNode;
-				}
-				objFSB->LL_Full = pNode;
-			}
-		}
-		pRet = xrtMemUnitAlloc_Inline(objMMU);
-		xrtOwnerEndMutable(&objMP->Owner);
-		return pRet;
-	} else {
-		// 无法选定 FSB，使用 malloc 申请内存
+
+	{
 		MP_MemHead* pHead = xrtMalloc(sizeof(MP_MemHead) + iSize);
 		if ( pHead ) {
 			if ( objMP->LL_BigFree ) {
-				// 优先复用已释放的 BigMM 元素
 				MP_BigInfoLL* pInfo = objMP->LL_BigFree;
 				objMP->LL_BigFree = pInfo->Next;
 				pInfo->Next = NULL;
@@ -288,10 +372,10 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				pInfo->Size = iSize;
 				pInfo->Ptr = pHead;
 				pRet = &pHead[1];
+				__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return pRet;
 			} else {
-				// 没有已释放的 BigMM 元素，就申请一个新的
 				MP_BigInfoLL* pInfo = xrtBsmmAlloc(&objMP->BigMM);
 				if ( pInfo ) {
 					pInfo->Index = objMP->BigMM.Count - 1;
@@ -301,27 +385,26 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 					pInfo->Size = iSize;
 					pInfo->Ptr = pHead;
 					pRet = &pHead[1];
+					__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
 					xrtOwnerEndMutable(&objMP->Owner);
 					return pRet;
 				}
 			}
 			xrtFree(pHead);
 		}
-		xrtOwnerEndMutable(&objMP->Owner);
-		return NULL;
 	}
+
+	xrtOwnerEndMutable(&objMP->Owner);
+	return NULL;
 }
 
 // 将内存池申请的内存释放掉
 static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, int bLL_Full)
 {
-	// 如果这个内存管理单元已经清空
 	if ( pNode->objMMU->Count == 0 ) {
 		if ( objFSB->LL_Null ) {
-			// 有备用单元时，直接释放掉这个单元
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
-			// 从 LL_Idle 或 LL_Full 中移除
 			if ( pNode->Prev ) {
 				pNode->Prev->Next = pNode->Next;
 			} else {
@@ -334,7 +417,6 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 			if ( pNode->Next ) {
 				pNode->Next->Prev = pNode->Prev;
 			}
-			// 添加到 LL_Free
 			pNode->Prev = NULL;
 			pNode->Next = objFSB->LL_Free;
 			if ( objFSB->LL_Free ) {
@@ -342,8 +424,6 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 			}
 			objFSB->LL_Free = pNode;
 		} else {
-			// 没有备用单元时，让这个单元备用，避免临界状态反复申请和释放内存管理单元，造成性能损失
-			// 从 LL_Idle 或 LL_Full 中移除
 			if ( pNode->Prev ) {
 				pNode->Prev->Next = pNode->Next;
 			} else {
@@ -356,17 +436,16 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 			if ( pNode->Next ) {
 				pNode->Next->Prev = pNode->Prev;
 			}
-			// 添加到 LL_Null
 			objFSB->LL_Null = pNode;
 			pNode->Prev = NULL;
 			pNode->Next = NULL;
 		}
 	}
 }
+
 static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 {
 	if ( pNode->objMMU->Count < 256 ) {
-		// 从 LL_Full 中移除
 		if ( pNode->Prev ) {
 			pNode->Prev->Next = pNode->Next;
 		} else {
@@ -375,7 +454,6 @@ static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 		if ( pNode->Next ) {
 			pNode->Next->Prev = pNode->Prev;
 		}
-		// 添加到 LL_Idle
 		pNode->Prev = NULL;
 		pNode->Next = objFSB->LL_Idle;
 		if ( objFSB->LL_Idle ) {
@@ -384,73 +462,68 @@ static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 		objFSB->LL_Idle = pNode;
 	}
 }
+
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
+	if ( ptr == NULL ) {
+		return;
+	}
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	MMU_ValuePtr v = ptr - sizeof(MMU_Value);
-	if ( (v->ItemFlag & MMU_FLAG_MASK) == MMU_FLAG_MASK ) {
-		// 大内存释放
-		MP_MemHead* pHead = ptr - sizeof(MP_MemHead);
-		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, pHead->Index);
-		if ( pInfo == NULL || pInfo->Ptr == NULL ) {
-			xrtSetError("Memory Pool : BigMM item cannot be null.", FALSE);
+	#ifdef XRT_MEM_DEBUG
+		if ( xrtMemDebugIsEnabled() && !__xrtMemDebugUnregisterForeignAlloc(ptr, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0) ) {
 			xrtOwnerEndMutable(&objMP->Owner);
 			return;
 		}
-		pHead->Flag = 0;
-		xrtFree(pInfo->Ptr);
-		pInfo->Ptr = NULL;
-		pInfo->Next = objMP->LL_BigFree;
-		objMP->LL_BigFree = pInfo;
-	} else {
-		// FSB内存释放
-		if ( v->ItemFlag & MMU_FLAG_USE ) {
+	#endif
+
+	{
+		MMU_ValuePtr v = (MMU_ValuePtr)((char*)ptr - sizeof(MMU_Value));
+		if ( (v->ItemFlag & MMU_FLAG_MASK) == MMU_FLAG_MASK ) {
+			MP_MemHead* pHead = (MP_MemHead*)((char*)ptr - sizeof(MP_MemHead));
+			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, pHead->Index);
+			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
+				xrtSetError("Memory Pool : BigMM item cannot be null.", FALSE);
+				xrtOwnerEndMutable(&objMP->Owner);
+				return;
+			}
+			pHead->Flag = 0;
+			xrtFree(pInfo->Ptr);
+			pInfo->Ptr = NULL;
+			pInfo->Next = objMP->LL_BigFree;
+			objMP->LL_BigFree = pInfo;
+		} else if ( v->ItemFlag & MMU_FLAG_USE ) {
 			int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
-			unsigned char idx = v->ItemFlag & 0xFF;
-			// 获取对应的内存管理器单元链表结构
+			uint8 idx = v->ItemFlag & 0xFF;
 			MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, iMMU);
+			FSB_Item* objFSB;
 			if ( pNode->objMMU == NULL ) {
 				xrtSetError("Memory Pool : MMU cannot be null.", FALSE);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
-			// 查找符合条件的 FSB 信息
-			FSB_Item* objFSB = objMP->FSB_RootNode;
-			uint32 iMaxSize = pNode->objMMU->ItemLength - sizeof(MMU_Value);
-			while ( objFSB ) {
-				if ( iMaxSize < objFSB->MinLength ) {
-					objFSB = objFSB->left;
-				} else if ( iMaxSize > objFSB->MaxLength ) {
-					objFSB = objFSB->right;
-				} else {
-					break;
-				}
-			}
+			objFSB = __xrtMemPoolGetBucketByMMU(objMP, pNode->objMMU);
 			if ( objFSB == NULL ) {
-				xrtSetError("Memory Pool : find FSB error.", FALSE);
+				xrtSetError("Memory Pool : find bucket error.", FALSE);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
-			// 调用对应 MMU 的释放函数
 			xrtMemUnitFreeIdx_Inline(pNode->objMMU, idx);
 			v->ItemFlag = 0;
-			// 如果是一个满载的内存管理器单元，将它放入空闲单元列表
 			if ( pNode->objMMU->Count >= 255 ) {
 				MP256_LLNode_IdleCheck(objFSB, pNode);
 			}
-			// 如果这个内存管理单元已经清空，将他释放或变为备用单元
 			MP256_LLNode_ClearCheck(objFSB, pNode, 0);
 		}
 	}
+
 	xrtOwnerEndMutable(&objMP->Owner);
 }
 
-// 进行一轮GC，将 标记 或 未标记 的内存全部回收
-void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
+// 进行一轮 GC，将 标记 或 未标记 的内存全部回收
+static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 {
-	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objFSB->LL_Idle;
 	while ( pNode ) {
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
@@ -461,7 +534,7 @@ void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
-	// 再次遍历所有 空闲的 和 满载的 内存管理单元，将他们归类到正确的分组
+
 	pNode = objFSB->LL_Idle;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
@@ -478,33 +551,27 @@ void MP256_GC_RecuFSB(FSB_Item* objFSB, bool bFreeMark)
 		}
 		pNode = pNext;
 	}
-	// 递归调用左子树
-	if ( objFSB->left ) {
-		MP256_GC_RecuFSB(objFSB-> left, bFreeMark);
-	}
-	// 递归调用右子树
-	if ( objFSB->right ) {
-		MP256_GC_RecuFSB(objFSB-> right, bFreeMark);
-	}
 }
+
 XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	// 递归回收 FSB 标记的内存
-	MP256_GC_RecuFSB(objMP->FSB_RootNode, bFreeMark);
-	// 循环大内存列表进行回收
+
+	for ( uint32 i = 0; i < objMP->iBucketCount; i++ ) {
+		MP256_GC_Bucket(&objMP->FSB_Memory[i], bFreeMark);
+	}
+
 	if ( bFreeMark ) {
-		// 被标记的内存将被回收
 		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;
 			}
-			MP_MemHead* pHead = pInfo->Ptr;
-			if ( pHead->Flag & MMU_FLAG_USE ) {
-				if ( pHead->Flag & MMU_FLAG_GC ) {
+			{
+				MP_MemHead* pHead = pInfo->Ptr;
+				if ( (pHead->Flag & MMU_FLAG_USE) && (pHead->Flag & MMU_FLAG_GC) ) {
 					pHead->Flag = 0;
 					xrtFree(pInfo->Ptr);
 					pInfo->Ptr = NULL;
@@ -514,27 +581,27 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 			}
 		}
 	} else {
-		// 未被标记的内存将被回收
 		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;
 			}
-			MP_MemHead* pHead = pInfo->Ptr;
-			if ( pHead->Flag & MMU_FLAG_USE ) {
-				if ( pHead->Flag & MMU_FLAG_GC ) {
-					pHead->Flag &= ~MMU_FLAG_GC;
-				} else {
-					pHead->Flag = 0;
-					xrtFree(pInfo->Ptr);
-					pInfo->Ptr = NULL;
-					pInfo->Next = objMP->LL_BigFree;
-					objMP->LL_BigFree = pInfo;
+			{
+				MP_MemHead* pHead = pInfo->Ptr;
+				if ( pHead->Flag & MMU_FLAG_USE ) {
+					if ( pHead->Flag & MMU_FLAG_GC ) {
+						pHead->Flag &= ~MMU_FLAG_GC;
+					} else {
+						pHead->Flag = 0;
+						xrtFree(pInfo->Ptr);
+						pInfo->Ptr = NULL;
+						pInfo->Next = objMP->LL_BigFree;
+						objMP->LL_BigFree = pInfo;
+					}
 				}
 			}
 		}
 	}
+
 	xrtOwnerEndMutable(&objMP->Owner);
 }
-
-

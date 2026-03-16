@@ -85,6 +85,58 @@ XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
 	xrtOwnerEndMutable(&objAVLT->Owner);
 }
 
+XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine)
+{
+	xavltree objAVLT = xrtAVLTreeCreateEx(iItemLength, procComp, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objAVLT;
+}
+XXAPI xavltree xrtAVLTreeCreateExDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xavltree objAVLT = xrtAVLTreeCreateEx(iItemLength, procComp, iMode);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
+	return objAVLT;
+}
+XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, const char* sFile, uint32 iLine)
+{
+	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, XRT_OBJMODE_LOCAL);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtAVLTreeInitExDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
+{
+	xrtAVLTreeInitEx(objAVLT, iItemLength, procComp, iMode);
+	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
+}
+XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
+{
+	if ( objAVLT ) {
+		if ( !__xrtMemDebugObjectGuardDestroy(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine) ) {
+			return;
+		}
+		if ( !xrtOwnerCheckMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+			return;
+		}
+		xrtAVLTreeUnit(objAVLT);
+		__xrtMemDebugUnregisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine);
+		xrtFreeDbg(objAVLT, sFile, iLine);
+	}
+}
+XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
+{
+	if ( objAVLT == NULL ) {
+		return;
+	}
+	if ( !__xrtMemDebugObjectGuardDestroy(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine) ) {
+		return;
+	}
+	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
+		return;
+	}
+	__xrtAVLTreeUnit_NoLock(objAVLT);
+	xrtOwnerEndMutable(&objAVLT->Owner);
+	__xrtMemDebugUnregisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine);
+}
+
 XXAPI bool xrtAVLTreeLock(xavltree objAVLT)
 {
 	if ( objAVLT == NULL ) {
