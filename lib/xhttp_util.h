@@ -1,5 +1,9 @@
-#ifndef XRT_XHTTP_UTIL_H
+﻿#ifndef XRT_XHTTP_UTIL_H
 #define XRT_XHTTP_UTIL_H
+
+#ifndef XXAPI
+	#define XXAPI
+#endif
 
 #ifndef XHTTP_UTIL_REALLOC
 	#define XHTTP_UTIL_REALLOC realloc
@@ -195,13 +199,13 @@ typedef struct {
 #define XRT_MULTIPART_STREAM_STATE_DONE           4u
 #define XRT_MULTIPART_STREAM_STATE_ERROR          5u
 
-static bool xrtQueryNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
-static bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
-static bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut);
-static bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut);
-static bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut);
-static bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut);
-static bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut);
+XXAPI bool xrtQueryNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
+XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
+XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut);
+XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut);
+XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut);
+XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut);
+XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut);
 
 static char __xrtHttpUtilToLower(char ch)
 {
@@ -309,7 +313,7 @@ static bool __xrtHttpUtilValidateBoundaryN(const char* sBoundary, size_t iBounda
 	return true;
 }
 
-static void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
+XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
 {
 	if ( !pLimits ) return;
 	pLimits->iMaxNameBytes = 256u;
@@ -332,7 +336,7 @@ static const xrthttputillimits* __xrtHttpUtilResolveLimits(const xrthttputillimi
 	return pLocal;
 }
 
-static void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig, const xrthttputillimits* pLimits)
+XXAPI void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -345,7 +349,7 @@ static void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfi
 	}
 }
 
-static bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -360,13 +364,13 @@ static bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttpu
 	return true;
 }
 
-static bool xrtHttpTokenValidate(const char* sText, const xrthttputillimits* pLimits)
+XXAPI bool xrtHttpTokenValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpTokenValidateN(sText, strlen(sText), pLimits);
 }
 
-static bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -382,13 +386,13 @@ static bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttpu
 	return true;
 }
 
-static bool xrtHttpParamValidate(const char* sText, const xrthttputillimits* pLimits)
+XXAPI bool xrtHttpParamValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpParamValidateN(sText, strlen(sText), pLimits);
 }
 
-static bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -404,13 +408,13 @@ static bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputill
 	return true;
 }
 
-static bool xrtQueryValidate(const char* sText, const xrthttputillimits* pLimits)
+XXAPI bool xrtQueryValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtQueryValidateN(sText, strlen(sText), pLimits);
 }
 
-static bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -426,24 +430,24 @@ static bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputil
 	return true;
 }
 
-static bool xrtCookieValidate(const char* sText, const xrthttputillimits* pLimits)
+XXAPI bool xrtCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtCookieValidateN(sText, strlen(sText), pLimits);
 }
 
-static bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	return xrtQueryValidateN(sText, iLen, pLimits);
 }
 
-static bool xrtFormUrlEncodedValidate(const char* sText, const xrthttputillimits* pLimits)
+XXAPI bool xrtFormUrlEncodedValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtFormUrlEncodedValidateN(sText, strlen(sText), pLimits);
 }
 
-static bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -462,13 +466,13 @@ static bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const x
 	return iOffset == iLen;
 }
 
-static bool xrtHttpHeaderBlockValidate(const char* sBlock, const xrthttputillimits* pLimits)
+XXAPI bool xrtHttpHeaderBlockValidate(const char* sBlock, const xrthttputillimits* pLimits)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderBlockValidateN(sBlock, strlen(sBlock), pLimits);
 }
 
-static bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -482,13 +486,13 @@ static bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttpu
 	return true;
 }
 
-static bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLimits)
+XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtSetCookieValidateN(sText, strlen(sText), pLimits);
 }
 
-static bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits)
+XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
@@ -523,7 +527,7 @@ static bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sB
 	return true;
 }
 
-static bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const xrthttputillimits* pLimits)
+XXAPI bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const xrthttputillimits* pLimits)
 {
 	if ( sBody == NULL || sBoundary == NULL ) return false;
 	return xrtMultipartValidateN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pLimits);
@@ -564,7 +568,7 @@ static bool __xrtHttpUtilAppendQuotedString(char* sOut, size_t iOutCap, size_t* 
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\"", 1u);
 }
 
-static bool xrtHttpIsTokenN(const char* sText, size_t iLen)
+XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen)
 {
 	size_t i;
 	if ( sText == NULL || iLen == 0u ) return false;
@@ -574,13 +578,13 @@ static bool xrtHttpIsTokenN(const char* sText, size_t iLen)
 	return true;
 }
 
-static bool xrtHttpIsToken(const char* sText)
+XXAPI bool xrtHttpIsToken(const char* sText)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpIsTokenN(sText, strlen(sText));
 }
 
-static bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iIn;
 	size_t iOut = 0u;
@@ -606,13 +610,13 @@ static bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* s
 	return true;
 }
 
-static bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpQuotedStringDecodeToN(sText, strlen(sText), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -623,13 +627,13 @@ static bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sO
 	return true;
 }
 
-static bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpQuotedStringBuildToN(sText, strlen(sText), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bSpaceAsPlus)
+XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bSpaceAsPlus)
 {
 	size_t iOut = 0u;
 	size_t i;
@@ -687,7 +691,7 @@ static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset
 	return true;
 }
 
-static bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* pCharset, xrtstrview* pLanguage, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* pCharset, xrtstrview* pLanguage, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	xrtstrview tCharset;
 	xrtstrview tLanguage;
@@ -700,13 +704,13 @@ static bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* 
 	return true;
 }
 
-static bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpDecodeExtValueTo(sText, strlen(sText), NULL, NULL, sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t iEncLen = 0u;
@@ -738,13 +742,13 @@ static bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, 
 	return true;
 }
 
-static bool xrtHttpBuildExtValue(const char* sCharset, const char* sLanguage, const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpBuildExtValue(const char* sCharset, const char* sLanguage, const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpBuildExtValueTo(sCharset, sLanguage, sText, strlen(sText), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair* pOut)
+XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair* pOut)
 {
 	size_t iColon = (size_t)-1;
 	size_t i;
@@ -766,13 +770,13 @@ static bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpai
 	return true;
 }
 
-static bool xrtHttpHeaderSplitLine(const char* sLine, xrtheaderpair* pOut)
+XXAPI bool xrtHttpHeaderSplitLine(const char* sLine, xrtheaderpair* pOut)
 {
 	if ( sLine == NULL ) return false;
 	return xrtHttpHeaderSplitLineN(sLine, strlen(sLine), pOut);
 }
 
-static bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t i;
@@ -792,13 +796,13 @@ static bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const c
 	return true;
 }
 
-static bool xrtHttpHeaderBuildLine(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderBuildLine(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderBuildLineTo(sName, strlen(sName), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t i;
@@ -823,13 +827,13 @@ static bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLe
 	return true;
 }
 
-static bool xrtHttpHeaderBuildCanonicalLineTo(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderBuildCanonicalLineTo(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderBuildCanonicalLineToN(sName, strlen(sName), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t iLineLen = 0u;
@@ -853,7 +857,7 @@ static bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCou
 	return true;
 }
 
-static bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t iLineLen = 0u;
@@ -877,7 +881,7 @@ static bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, si
 	return true;
 }
 
-static bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut)
+XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut)
 {
 	size_t iCur;
 	size_t iEnd;
@@ -903,13 +907,13 @@ static bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, x
 	return true;
 }
 
-static bool xrtHttpTokenNext(const char* sText, size_t* pOffset, xrtstrview* pOut)
+XXAPI bool xrtHttpTokenNext(const char* sText, size_t* pOffset, xrtstrview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpTokenNextN(sText, strlen(sText), pOffset, pOut);
 }
 
-static size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
+XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 {
 	size_t iCount = 0u;
 	size_t iOffset = 0u;
@@ -918,13 +922,13 @@ static size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 	return iCount;
 }
 
-static size_t xrtHttpTokenCount(const char* sText)
+XXAPI size_t xrtHttpTokenCount(const char* sText)
 {
 	if ( sText == NULL ) return 0u;
 	return xrtHttpTokenCountN(sText, strlen(sText));
 }
 
-static bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken, size_t iTokenLen, xrtstrview* pOut)
+XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken, size_t iTokenLen, xrtstrview* pOut)
 {
 	size_t iOffset = 0u;
 	xrtstrview tToken;
@@ -939,13 +943,13 @@ static bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken
 	return false;
 }
 
-static bool xrtHttpTokenFind(const char* sText, const char* sToken, xrtstrview* pOut)
+XXAPI bool xrtHttpTokenFind(const char* sText, const char* sToken, xrtstrview* pOut)
 {
 	if ( sText == NULL || sToken == NULL ) return false;
 	return xrtHttpTokenFindN(sText, strlen(sText), sToken, strlen(sToken), pOut);
 }
 
-static bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
@@ -961,13 +965,13 @@ static bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOu
 	return true;
 }
 
-static bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpTokenParseToN(sText, strlen(sText), pOut, iCap, pCount);
 }
 
-static bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken, size_t iTokenLen)
+XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken, size_t iTokenLen)
 {
 	size_t i;
 	if ( sOut == NULL || pOffset == NULL || sToken == NULL || iTokenLen == 0u ) return false;
@@ -980,25 +984,25 @@ static bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, co
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sToken, iTokenLen);
 }
 
-static bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken)
+XXAPI bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken)
 {
 	if ( sToken == NULL ) return false;
 	return xrtHttpTokenAppendTo(sOut, iOutCap, pOffset, sToken, strlen(sToken));
 }
 
-static bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, const char* sToken)
+XXAPI bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, const char* sToken)
 {
 	if ( sValue == NULL || sToken == NULL || sToken[0] == '\0' ) return false;
 	return xrtHttpTokenFindN(sValue, iValueLen, sToken, strlen(sToken), NULL);
 }
 
-static bool xrtHttpHeaderContainsToken(const char* sValue, const char* sToken)
+XXAPI bool xrtHttpHeaderContainsToken(const char* sValue, const char* sToken)
 {
 	if ( sValue == NULL ) return false;
 	return xrtHttpHeaderContainsTokenN(sValue, strlen(sValue), sToken);
 }
 
-static bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut)
+XXAPI bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut)
 {
 	size_t iNameLen;
 	size_t i;
@@ -1013,12 +1017,12 @@ static bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, con
 	return false;
 }
 
-static bool xrtHttpHeaderFind(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut)
+XXAPI bool xrtHttpHeaderFind(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut)
 {
 	return xrtHttpHeaderFindN(pHeaders, iCount, sName, pOut);
 }
 
-static size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen)
+XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen)
 {
 	size_t i;
 	size_t iHits = 0u;
@@ -1029,13 +1033,13 @@ static size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, 
 	return iHits;
 }
 
-static size_t xrtHttpHeaderCount(const xrtheaderpair* pHeaders, size_t iCount, const char* sName)
+XXAPI size_t xrtHttpHeaderCount(const xrtheaderpair* pHeaders, size_t iCount, const char* sName)
 {
 	if ( sName == NULL ) return 0u;
 	return xrtHttpHeaderCountN(pHeaders, iCount, sName, strlen(sName));
 }
 
-static bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pOut)
+XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pOut)
 {
 	size_t i;
 	size_t iSeen = 0u;
@@ -1052,13 +1056,13 @@ static bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, 
 	return false;
 }
 
-static bool xrtHttpHeaderFindNth(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNth, xrtstrview* pOut)
+XXAPI bool xrtHttpHeaderFindNth(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNth, xrtstrview* pOut)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpHeaderFindNthN(pHeaders, iCount, sName, strlen(sName), iNth, pOut);
 }
 
-static size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, xrtstrview* pOut, size_t iOutCap)
+XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, xrtstrview* pOut, size_t iOutCap)
 {
 	size_t i;
 	size_t iHits = 0u;
@@ -1071,13 +1075,13 @@ static size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCou
 	return iHits;
 }
 
-static size_t xrtHttpHeaderFindAllTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut, size_t iOutCap)
+XXAPI size_t xrtHttpHeaderFindAllTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut, size_t iOutCap)
 {
 	if ( sName == NULL ) return 0u;
 	return xrtHttpHeaderFindAllToN(pHeaders, iCount, sName, strlen(sName), pOut, iOutCap);
 }
 
-static bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t i;
 	bool bUpper = true;
@@ -1096,13 +1100,13 @@ static bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen,
 	return true;
 }
 
-static bool xrtHttpHeaderCanonicalizeNameTo(const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderCanonicalizeNameTo(const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpHeaderCanonicalizeNameToN(sName, strlen(sName), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t i;
 	size_t iOff = 0u;
@@ -1118,7 +1122,7 @@ static bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, 
 	return true;
 }
 
-static bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t i;
 	size_t iOff = 0u;
@@ -1139,13 +1143,13 @@ static bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t
 	return true;
 }
 
-static bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpHeaderCollectAndJoinToN(pHeaders, iCount, sName, strlen(sName), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut)
+XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut)
 {
 	size_t iCur;
 	size_t iEnd;
@@ -1174,13 +1178,13 @@ static bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOff
 	return true;
 }
 
-static bool xrtHttpHeaderNextLine(const char* sBlock, size_t* pOffset, xrtheaderpair* pOut)
+XXAPI bool xrtHttpHeaderNextLine(const char* sBlock, size_t* pOffset, xrtheaderpair* pOut)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderNextLineN(sBlock, strlen(sBlock), pOffset, pOut);
 }
 
-static bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* sName, xrtheaderpair* pOut)
+XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* sName, xrtheaderpair* pOut)
 {
 	size_t iOffset = 0u;
 	xrtheaderpair tHeader;
@@ -1196,13 +1200,13 @@ static bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* 
 	return false;
 }
 
-static bool xrtHttpHeaderFindLine(const char* sBlock, const char* sName, xrtheaderpair* pOut)
+XXAPI bool xrtHttpHeaderFindLine(const char* sBlock, const char* sName, xrtheaderpair* pOut)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderFindLineN(sBlock, strlen(sBlock), sName, pOut);
 }
 
-static bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount)
+XXAPI bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
 	size_t iCountOut = 0u;
@@ -1223,13 +1227,13 @@ static bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheade
 	return true;
 }
 
-static bool xrtHttpHeaderParseBlockTo(const char* sBlock, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount)
+XXAPI bool xrtHttpHeaderParseBlockTo(const char* sBlock, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderParseBlockToN(sBlock, strlen(sBlock), pHeaders, iCap, pCount);
 }
 
-static bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
+XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
 	if ( pHeaders == NULL || pCount == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
@@ -1244,13 +1248,13 @@ static bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_
 	return true;
 }
 
-static bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
+XXAPI bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderAppendPairN(pHeaders, iCap, pCount, sName, strlen(sName), sValue, strlen(sValue));
 }
 
-static bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
+XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
 	if ( pHeaders == NULL || pCount == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
@@ -1264,13 +1268,13 @@ static bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* 
 	return xrtHttpHeaderAppendPairN(pHeaders, iCap, pCount, sName, iNameLen, sValue, iValueLen);
 }
 
-static bool xrtHttpHeaderSetPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
+XXAPI bool xrtHttpHeaderSetPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderSetPairN(pHeaders, iCap, pCount, sName, strlen(sName), sValue, strlen(sValue));
 }
 
-static size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const char* sName, size_t iNameLen)
+XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const char* sName, size_t iNameLen)
 {
 	size_t iRead;
 	size_t iWrite = 0u;
@@ -1289,13 +1293,13 @@ static size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, cons
 	return iRemoved;
 }
 
-static size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const char* sName)
+XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const char* sName)
 {
 	if ( sName == NULL ) return 0u;
 	return xrtHttpHeaderRemoveN(pHeaders, pCount, sName, strlen(sName));
 }
 
-static bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut)
+XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut)
 {
 	size_t iCur;
 	size_t iEnd;
@@ -1326,13 +1330,13 @@ static bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtc
 	return true;
 }
 
-static bool xrtCookieNext(const char* sText, size_t* pOffset, xrtcookiepair* pOut)
+XXAPI bool xrtCookieNext(const char* sText, size_t* pOffset, xrtcookiepair* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtCookieNextN(sText, strlen(sText), pOffset, pOut);
 }
 
-static bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrtcookiepair* pOut)
+XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrtcookiepair* pOut)
 {
 	size_t iOffset = 0u;
 	xrtcookiepair tCookie;
@@ -1346,13 +1350,13 @@ static bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, si
 	return false;
 }
 
-static bool xrtCookieFind(const char* sText, const char* sName, xrtcookiepair* pOut)
+XXAPI bool xrtCookieFind(const char* sText, const char* sName, xrtcookiepair* pOut)
 {
 	if ( sText == NULL || sName == NULL ) return false;
 	return xrtCookieFindN(sText, strlen(sText), sName, strlen(sName), pOut);
 }
 
-static bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
@@ -1368,13 +1372,13 @@ static bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOu
 	return true;
 }
 
-static bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
 	return xrtCookieParseToN(sText, strlen(sText), pOut, iCap, pCount);
 }
 
-static bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut)
+XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut)
 {
 	size_t iCur;
 	size_t iEnd;
@@ -1476,13 +1480,13 @@ static bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview*
 	return true;
 }
 
-static bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut)
+XXAPI bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtSetCookieParseN(sText, strlen(sText), pOut);
 }
 
-static bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookieview* pOut)
+XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookieview* pOut)
 {
 	xrtheaderpair tHeader;
 	if ( !xrtHttpHeaderSplitLineN(sLine, iLen, &tHeader) ) return false;
@@ -1490,7 +1494,7 @@ static bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookiev
 	return xrtSetCookieParseN(tHeader.tValue.sPtr, tHeader.tValue.iLen, pOut);
 }
 
-static bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut)
+XXAPI bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut)
 {
 	if ( sLine == NULL ) return false;
 	return xrtSetCookieParseLineN(sLine, strlen(sLine), pOut);
@@ -1498,7 +1502,7 @@ static bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut)
 
 static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut);
 
-static bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut)
+XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut)
 {
 	size_t iCur;
 	size_t iEnd;
@@ -1540,13 +1544,13 @@ static bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, x
 	return true;
 }
 
-static bool xrtHttpParamNext(const char* sText, size_t* pOffset, xrthttpparam* pOut)
+XXAPI bool xrtHttpParamNext(const char* sText, size_t* pOffset, xrthttpparam* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpParamNextN(sText, strlen(sText), pOffset, pOut);
 }
 
-static size_t xrtHttpParamCountN(const char* sText, size_t iLen)
+XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 {
 	size_t iCount = 0u;
 	size_t iOffset = 0u;
@@ -1555,13 +1559,13 @@ static size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 	return iCount;
 }
 
-static size_t xrtHttpParamCount(const char* sText)
+XXAPI size_t xrtHttpParamCount(const char* sText)
 {
 	if ( sText == NULL ) return 0u;
 	return xrtHttpParamCountN(sText, strlen(sText));
 }
 
-static bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrthttpparam* pOut)
+XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrthttpparam* pOut)
 {
 	size_t iOffset = 0u;
 	xrthttpparam tParam;
@@ -1576,13 +1580,13 @@ static bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName,
 	return false;
 }
 
-static bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* pOut)
+XXAPI bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* pOut)
 {
 	if ( sText == NULL || sName == NULL ) return false;
 	return xrtHttpParamFindN(sText, strlen(sText), sName, strlen(sName), pOut);
 }
 
-static bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bQuoteValue)
+XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bQuoteValue)
 {
 	size_t i;
 	if ( sOut == NULL || pOffset == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
@@ -1601,13 +1605,13 @@ static bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen);
 }
 
-static bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue, bool bHasValue, bool bQuoteValue)
+XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue, bool bHasValue, bool bQuoteValue)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpParamAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(sName), sValue, sValue ? strlen(sValue) : 0u, bHasValue, bQuoteValue);
 }
 
-static bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut)
+XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut)
 {
 	size_t iSemi = 0u;
 	size_t iSlash = (size_t)-1;
@@ -1657,13 +1661,13 @@ static bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypev
 	return true;
 }
 
-static bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut)
+XXAPI bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpMediaTypeParseN(sText, strlen(sText), pOut);
 }
 
-static bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -1687,12 +1691,12 @@ static bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, s
 	return true;
 }
 
-static bool xrtHttpMediaTypeBuild(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpMediaTypeBuild(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtHttpMediaTypeBuildTo(pType, sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char* sName, size_t iNameLen, xrthttpparam* pOut)
+XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char* sName, size_t iNameLen, xrthttpparam* pOut)
 {
 	if ( pOut ) memset(pOut, 0, sizeof(xrthttpparam));
 	if ( pType == NULL || sName == NULL || iNameLen == 0u ) return false;
@@ -1700,13 +1704,13 @@ static bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char
 	return xrtHttpParamFindN(pType->tParams.sPtr, pType->tParams.iLen, sName, iNameLen, pOut);
 }
 
-static bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* sName, xrthttpparam* pOut)
+XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* sName, xrthttpparam* pOut)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpMediaTypeFindParamN(pType, sName, strlen(sName), pOut);
 }
 
-static bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut)
+XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut)
 {
 	size_t iSemi = 0u;
 	size_t i;
@@ -1759,13 +1763,13 @@ static bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtc
 	return true;
 }
 
-static bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositionview* pOut)
+XXAPI bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositionview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpContentDispositionParseN(sText, strlen(sText), pOut);
 }
 
-static bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iLen;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -1789,12 +1793,12 @@ static bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositio
 	return true;
 }
 
-static bool xrtHttpContentDispositionDecodeFileName(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpContentDispositionDecodeFileName(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtHttpContentDispositionDecodeFileNameTo(pDisp, sOut, iOutCap, pOutLen);
 }
 
-static bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -1817,12 +1821,12 @@ static bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pD
 	return true;
 }
 
-static bool xrtHttpContentDispositionBuild(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtHttpContentDispositionBuild(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtHttpContentDispositionBuildTo(pDisp, sOut, iOutCap, pOutLen);
 }
 
-static bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
+XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
 	if ( sOut == NULL || pOffset == NULL || sName == NULL ) return false;
@@ -1841,13 +1845,13 @@ static bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, c
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen);
 }
 
-static bool xrtCookieAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
+XXAPI bool xrtCookieAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtCookieAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(sName), sValue, strlen(sValue));
 }
 
-static bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t i;
@@ -1861,7 +1865,7 @@ static bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* s
 	return true;
 }
 
-static bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, size_t iKeyLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bPlusAsSpace)
+XXAPI bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, size_t iKeyLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bPlusAsSpace)
 {
 	size_t iWritten = 0u;
 	if ( sOut == NULL || pOffset == NULL || sKey == NULL ) return false;
@@ -1878,13 +1882,13 @@ static bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, co
 	return true;
 }
 
-static bool xrtQueryAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, const char* sValue)
+XXAPI bool xrtQueryAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, const char* sValue)
 {
 	if ( sKey == NULL ) return false;
 	return xrtQueryAppendPairTo(sOut, iOutCap, pOffset, sKey, strlen(sKey), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL, false);
 }
 
-static bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t i;
@@ -1904,44 +1908,44 @@ static bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOu
 	return true;
 }
 
-static bool xrtFormUrlEncodedNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut)
+XXAPI bool xrtFormUrlEncodedNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut)
 {
 	return xrtQueryNextN(sText, iLen, pOffset, pOut);
 }
 
-static bool xrtFormUrlEncodedNext(const char* sText, size_t* pOffset, xrtquerypair* pOut)
+XXAPI bool xrtFormUrlEncodedNext(const char* sText, size_t* pOffset, xrtquerypair* pOut)
 {
 	return xrtQueryNext(sText, pOffset, pOut);
 }
 
-static bool xrtFormUrlEncodedParseToN(const char* sText, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtFormUrlEncodedParseToN(const char* sText, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	return xrtQueryParseToN(sText, iLen, pOut, iCap, pCount);
 }
 
-static bool xrtFormUrlEncodedParseTo(const char* sText, xrtquerypair* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtFormUrlEncodedParseTo(const char* sText, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
 	return xrtFormUrlEncodedParseToN(sText, strlen(sText), pOut, iCap, pCount);
 }
 
-static bool xrtFormUrlEncodedDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtFormUrlEncodedDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtPercentDecodeTo(sText, iLen, sOut, iOutCap, pOutLen, true);
 }
 
-static bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue)
+XXAPI bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue)
 {
 	return xrtQueryAppendPairTo(sOut, iOutCap, pOffset, sName, iNameLen, sValue, iValueLen, bHasValue, true);
 }
 
-static bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
+XXAPI bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
 	if ( sName == NULL ) return false;
 	return xrtFormUrlEncodedAppendFieldTo(sOut, iOutCap, pOffset, sName, strlen(sName), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL);
 }
 
-static bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t i;
@@ -1960,7 +1964,7 @@ static bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, 
 	return true;
 }
 
-static bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -2021,7 +2025,7 @@ static bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, siz
 	return true;
 }
 
-static bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	size_t iLineLen = 0u;
@@ -2036,7 +2040,7 @@ static bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut,
 	return true;
 }
 
-static bool xrtSetCookieBuildLine(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtSetCookieBuildLine(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtSetCookieBuildLineTo(pCookie, sOut, iOutCap, pOutLen);
 }
@@ -2064,7 +2068,7 @@ static bool __xrtHttpUtilFindParamN(xrtstrview tValue, const char* sName, xrtstr
 	return true;
 }
 
-static bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen, xrtstrview* pOut)
+XXAPI bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen, xrtstrview* pOut)
 {
 	xrtmediatypeview tMediaType;
 	xrtstrview tBoundary;
@@ -2085,13 +2089,13 @@ static bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen
 	return true;
 }
 
-static bool xrtMultipartBoundaryFromContentType(const char* sValue, xrtstrview* pOut)
+XXAPI bool xrtMultipartBoundaryFromContentType(const char* sValue, xrtstrview* pOut)
 {
 	if ( sValue == NULL ) return false;
 	return xrtMultipartBoundaryFromContentTypeN(sValue, strlen(sValue), pOut);
 }
 
-static bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundaryLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundaryLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -2104,7 +2108,7 @@ static bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBounda
 	return true;
 }
 
-static bool xrtMultipartBuildContentType(const char* sBoundary, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtMultipartBuildContentType(const char* sBoundary, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sBoundary == NULL ) return false;
 	return xrtMultipartBuildContentTypeTo(sBoundary, strlen(sBoundary), sOut, iOutCap, pOutLen);
@@ -2175,7 +2179,7 @@ static bool __xrtHttpUtilMultipartParseContentDisposition(xrtstrview tValue, xrt
 	return true;
 }
 
-static bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut)
+XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut)
 {
 	size_t iPos;
 	size_t iAfterBoundary;
@@ -2225,13 +2229,13 @@ static bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBound
 	return true;
 }
 
-static bool xrtMultipartNext(const char* sBody, const char* sBoundary, size_t* pOffset, xrtmultipartpartview* pOut)
+XXAPI bool xrtMultipartNext(const char* sBody, const char* sBoundary, size_t* pOffset, xrtmultipartpartview* pOut)
 {
 	if ( sBody == NULL || sBoundary == NULL ) return false;
 	return xrtMultipartNextN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pOffset, pOut);
 }
 
-static bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
@@ -2247,13 +2251,13 @@ static bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBo
 	return true;
 }
 
-static bool xrtMultipartParseTo(const char* sBody, const char* sBoundary, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtMultipartParseTo(const char* sBody, const char* sBoundary, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sBody == NULL || sBoundary == NULL ) return false;
 	return xrtMultipartParseToN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pOut, iCap, pCount);
 }
 
-static bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iLen;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -2277,12 +2281,12 @@ static bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char
 	return true;
 }
 
-static bool xrtMultipartDecodeFileName(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtMultipartDecodeFileName(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtMultipartDecodeFileNameTo(pPart, sOut, iOutCap, pOutLen);
 }
 
-static void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig)
+XXAPI void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig)
 {
 	if ( !pConfig ) return;
 	pConfig->iMaxBufferedBytes = 256u * 1024u;
@@ -2333,7 +2337,7 @@ static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, s
 	return true;
 }
 
-static bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig)
+XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig)
 {
 	xrtmultipartstreamconfig tConfig;
 	if ( !pStream ) return false;
@@ -2364,7 +2368,7 @@ static bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBou
 	return true;
 }
 
-static void xrtMultipartStreamUnit(xrtmultipartstream* pStream)
+XXAPI void xrtMultipartStreamUnit(xrtmultipartstream* pStream)
 {
 	if ( !pStream ) return;
 	if ( pStream->pBuffer ) {
@@ -2374,7 +2378,7 @@ static void xrtMultipartStreamUnit(xrtmultipartstream* pStream)
 	memset(pStream, 0, sizeof(xrtmultipartstream));
 }
 
-static void xrtMultipartStreamReset(xrtmultipartstream* pStream)
+XXAPI void xrtMultipartStreamReset(xrtmultipartstream* pStream)
 {
 	if ( !pStream ) return;
 	pStream->iBufferLen = 0u;
@@ -2388,7 +2392,7 @@ static void xrtMultipartStreamReset(xrtmultipartstream* pStream)
 	memset(&pStream->tCurrentPart, 0, sizeof(xrtmultipartpartview));
 }
 
-static bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData, size_t iLen)
+XXAPI bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData, size_t iLen)
 {
 	if ( !pStream || pStream->iState == XRT_MULTIPART_STREAM_STATE_ERROR || pStream->iState == XRT_MULTIPART_STREAM_STATE_DONE ) return false;
 	if ( pStream->bFinishedInput ) return false;
@@ -2411,13 +2415,13 @@ static bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pDat
 	return true;
 }
 
-static void xrtMultipartStreamFinish(xrtmultipartstream* pStream)
+XXAPI void xrtMultipartStreamFinish(xrtmultipartstream* pStream)
 {
 	if ( !pStream ) return;
 	pStream->bFinishedInput = true;
 }
 
-static uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream)
+XXAPI uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream)
 {
 	return pStream ? pStream->iError : XRT_MULTIPART_STREAM_ERR_NONE;
 }
@@ -2479,7 +2483,7 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 	return true;
 }
 
-static xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStream, xrtmultipartstreamevent* pEvent)
+XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStream, xrtmultipartstreamevent* pEvent)
 {
 	if ( pEvent ) __xrtHttpUtilMultipartStreamZeroEvent(pEvent);
 	if ( pStream == NULL || pEvent == NULL ) return XRT_MULTIPART_STREAM_RESULT_ERROR;
@@ -2586,7 +2590,7 @@ static xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStre
 	}
 }
 
-static bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
+XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	if ( sOut == NULL || pOffset == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
 	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
@@ -2599,13 +2603,13 @@ static bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pO
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
-static bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sValue)
+XXAPI bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sValue)
 {
 	if ( sBoundary == NULL || sName == NULL || sValue == NULL ) return false;
 	return xrtMultipartAppendFieldPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), sName, strlen(sName), sValue, strlen(sValue));
 }
 
-static bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
+XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
 {
 	size_t i;
 	if ( sOut == NULL || pOffset == NULL || (pHeaders == NULL && iHeaderCount != 0u) || (pBody == NULL && iBodyLen != 0u) ) return false;
@@ -2630,13 +2634,13 @@ static bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOff
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
-static bool xrtMultipartAppendRawPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
+XXAPI bool xrtMultipartAppendRawPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
 {
 	if ( sBoundary == NULL ) return false;
 	return xrtMultipartAppendRawPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), pHeaders, iHeaderCount, pBody, iBodyLen);
 }
 
-static bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sFileNameExt, size_t iFileNameExtLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen)
+XXAPI bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sFileNameExt, size_t iFileNameExtLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen)
 {
 	if ( sOut == NULL || pOffset == NULL || sName == NULL || sFileName == NULL || (sContentType == NULL && iContentTypeLen != 0u) || (pBody == NULL && iBodyLen != 0u) ) return false;
 	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
@@ -2662,7 +2666,7 @@ static bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* 
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
-static bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sFileNameExt, const char* sContentType, const char* pBody, size_t iBodyLen)
+XXAPI bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sFileNameExt, const char* sContentType, const char* pBody, size_t iBodyLen)
 {
 	if ( sBoundary == NULL || sName == NULL || sFileName == NULL || pBody == NULL ) return false;
 	return xrtMultipartAppendFilePartExtTo(
@@ -2683,7 +2687,7 @@ static bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pO
 		iBodyLen);
 }
 
-static bool xrtMultipartAppendFilePartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen)
+XXAPI bool xrtMultipartAppendFilePartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen)
 {
 	return xrtMultipartAppendFilePartExtTo(
 		sOut,
@@ -2703,12 +2707,12 @@ static bool xrtMultipartAppendFilePartTo(char* sOut, size_t iOutCap, size_t* pOf
 		iBodyLen);
 }
 
-static bool xrtMultipartAppendFilePart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sContentType, const char* pBody, size_t iBodyLen)
+XXAPI bool xrtMultipartAppendFilePart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sContentType, const char* pBody, size_t iBodyLen)
 {
 	return xrtMultipartAppendFilePartExt(sOut, iOutCap, pOffset, sBoundary, sName, sFileName, NULL, sContentType, pBody, iBodyLen);
 }
 
-static bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen)
+XXAPI bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen)
 {
 	if ( sOut == NULL || pOffset == NULL ) return false;
 	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
@@ -2717,7 +2721,7 @@ static bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffs
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--\r\n", 4u);
 }
 
-static bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary)
+XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary)
 {
 	if ( sBoundary == NULL ) return false;
 	return xrtMultipartAppendFinishTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary));

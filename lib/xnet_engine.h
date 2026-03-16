@@ -1,4 +1,4 @@
-#ifndef XRT_XNET_ENGINE_H
+﻿#ifndef XRT_XNET_ENGINE_H
 #define XRT_XNET_ENGINE_H
 
 #include "xnet_port_iocp.h"
@@ -572,7 +572,7 @@ static void __xnetEngineStopWorker(xnetworker* pWorker)
 
 /* ============================== Public engine helpers ============================== */
 
-static xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
+XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
 {
 	xnetengineconfig tCfg;
 	xnetengine* pEngine;
@@ -609,7 +609,7 @@ static xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
 	return pEngine;
 }
 
-static void xrtNetEngineDestroy(xnetengine* pEngine)
+XXAPI void xrtNetEngineDestroy(xnetengine* pEngine)
 {
 	if ( !pEngine ) return;
 	if ( pEngine->bRunning ) {
@@ -624,7 +624,7 @@ static void xrtNetEngineDestroy(xnetengine* pEngine)
 	XNET_FREE(pEngine);
 }
 
-static xnet_result xrtNetEngineStart(xnetengine* pEngine)
+XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine)
 {
 	const xnetportops* pOps;
 	xnetportconfig tPortCfg;
@@ -652,7 +652,7 @@ static xnet_result xrtNetEngineStart(xnetengine* pEngine)
 	return XRT_NET_OK;
 }
 
-static void xrtNetEngineStop(xnetengine* pEngine)
+XXAPI void xrtNetEngineStop(xnetengine* pEngine)
 {
 	if ( !pEngine || !pEngine->bRunning ) return;
 	for ( uint32 i = 0; i < pEngine->iWorkerCount; ++i ) {
@@ -661,12 +661,12 @@ static void xrtNetEngineStop(xnetengine* pEngine)
 	pEngine->bRunning = false;
 }
 
-static uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine)
+XXAPI uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine)
 {
 	return pEngine ? pEngine->iWorkerCount : 0;
 }
 
-static xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg)
+XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg)
 {
 	xnetworker* pWorker;
 	__xnet_engine_cmdq* pQ;
@@ -694,7 +694,7 @@ static xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xn
 	return XRT_NET_OK;
 }
 
-static xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
+XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
 {
 	xnetworker* pWorker;
 	__xnet_engine_cmdq* pQ;

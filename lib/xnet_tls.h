@@ -1,4 +1,4 @@
-#ifndef XRT_XNET_TLS_H
+﻿#ifndef XRT_XNET_TLS_H
 #define XRT_XNET_TLS_H
 
 #include <stdlib.h>
@@ -76,7 +76,7 @@ struct xrt_tls_session {
 	bool bIsServer;
 };
 
-static xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer)
+XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer)
 {
 	xtlssession* pSession = (xtlssession*)XNET_ALLOC(sizeof(xtlssession));
 	(void)xrtInit();
@@ -91,7 +91,7 @@ static xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServe
 	return pSession;
 }
 
-static void xrtNetTlsSessionDestroy(xtlssession* pSession)
+XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession)
 {
 	if ( !pSession ) return;
 	if ( pSession->pCtx ) {
@@ -101,58 +101,58 @@ static void xrtNetTlsSessionDestroy(xtlssession* pSession)
 	XNET_FREE(pSession);
 }
 
-static bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
+XXAPI bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
 {
 	return pSession && pSession->pCtx ? xrtTlsIsReady(pSession->pCtx) : false;
 }
 
-static xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession)
+XXAPI xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession)
 {
 	if ( !pSession || !pSession->pCtx ) return XRT_NET_ERROR;
 	return xrtTlsDrive(pSession->pCtx);
 }
 
-static xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)
+XXAPI xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)
 {
 	if ( !pSession || !pSession->pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	return xrtTlsFeed(pSession->pCtx, (const char*)pData, iLen);
 }
 
-static size_t xrtNetTlsSessionPendingCipher(const xtlssession* pSession)
+XXAPI size_t xrtNetTlsSessionPendingCipher(const xtlssession* pSession)
 {
 	return (pSession && pSession->pCtx) ? xrtTlsPendingSend(pSession->pCtx) : 0;
 }
 
-static size_t xrtNetTlsSessionPendingRecv(const xtlssession* pSession)
+XXAPI size_t xrtNetTlsSessionPendingRecv(const xtlssession* pSession)
 {
 	return (pSession && pSession->pCtx) ? xrtTlsPendingRecv(pSession->pCtx) : 0;
 }
 
-static xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
+XXAPI xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
 {
 	if ( !pSession || !pSession->pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
 	return xrtTlsPeekSend(pSession->pCtx, (char*)pBuf, iLen, pRead);
 }
 
-static void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen)
+XXAPI void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen)
 {
 	if ( !pSession || !pSession->pCtx || iLen == 0 ) return;
 	xrtTlsConsumeSend(pSession->pCtx, iLen);
 }
 
-static xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten)
+XXAPI xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten)
 {
 	if ( !pSession || !pSession->pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	return xrtTlsWrite(pSession->pCtx, (const char*)pData, iLen, pWritten);
 }
 
-static xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
+XXAPI xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
 {
 	if ( !pSession || !pSession->pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
 	return xrtTlsRead(pSession->pCtx, (char*)pBuf, iLen, pRead);
 }
 
-static xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession)
+XXAPI xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession)
 {
 	if ( !pSession || !pSession->pCtx ) return XRT_NET_ERROR;
 	return xrtTlsClose(pSession->pCtx);

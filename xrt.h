@@ -2429,19 +2429,33 @@
     /* ------------------------------------ XNet V2 ------------------------------------ */
 
 #ifndef XRT_NO_NETWORK
-    #include "lib/xnet_base.h"
-    #include "lib/xnet_engine.h"
-    #include "lib/xnet_stream.h"
-    #include "lib/xnet_dgram.h"
-    #include "lib/xnet_sync.h"
-    #include "lib/xurl.h"
-    #include "lib/xhttp_util.h"
-    #include "lib/xcodec.h"
-    #include "lib/xcodec_http1.h"
-    #include "lib/xcodec_ws.h"
-    #include "lib/xhttp.h"
-    #include "lib/xhttpd.h"
-    #include "lib/xws.h"
+    #ifndef XRT_BUILD_CORE
+        #include "lib/xnet_base.h"
+        #include "lib/xnet_engine.h"
+        #include "lib/xnet_stream.h"
+        #include "lib/xnet_dgram.h"
+        #include "lib/xnet_sync.h"
+        #ifndef XRT_NO_XURL
+            #include "lib/xurl.h"
+        #endif
+        #ifndef XRT_NO_HTTP_UTIL
+            #include "lib/xhttp_util.h"
+        #endif
+        #ifndef XRT_NO_XCODEC
+            #include "lib/xcodec.h"
+            #include "lib/xcodec_http1.h"
+            #include "lib/xcodec_ws.h"
+        #endif
+        #ifndef XRT_NO_XHTTP
+            #include "lib/xhttp.h"
+        #endif
+        #ifndef XRT_NO_XHTTPD
+            #include "lib/xhttpd.h"
+        #endif
+        #ifndef XRT_NO_XWS
+            #include "lib/xws.h"
+        #endif
+    #endif
 #endif
 
     /* ------------------------------------ TLS ------------------------------------ */

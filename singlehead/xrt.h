@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-17 01:47:32
+    Generated: 2026-03-17 02:45:59
 
     MIT License
 
@@ -6599,11 +6599,10 @@ static void __xnetStreamPrepareDeferredDestroy(xnetstream* pStream)
 static void __xnetStreamAbandonUnownedAccepted(xnetstream* pStream)
 {
 	if ( !pStream ) return;
+	__xnetStreamAddAsyncHold(pStream);
 	__xnetStreamPrepareDeferredDestroy(pStream);
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-	if ( __xnetAtomicLoad32(&pStream->iAsyncHoldCount) == 0 ) {
-		xrtNetStreamDestroy(pStream);
-	}
+	__xnetStreamReleaseAsyncHold(pStream);
 }
 static bool __xnetStreamRegisterSyncWait(xnetstream* pStream, uint32 iWaitKind, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
 {
@@ -22366,7 +22365,7 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 // ========================================
 
 
-// åˆ›å»ºå­—ç¬¦ä¸²å‰¯æœ¬ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰(çº¿ç¨‹å®‰å…¨)
+// ´´½¨×Ö·û´®¸±±¾£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©(Ïß³Ì°²È«)
 XXAPI str xrtCopyStr(str sText, size_t iSize)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
@@ -22409,16 +22408,16 @@ XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize)
 	memcpy(pRet, pMem, iSize);
 	return pRet;
 }
-// æ¯”è¾ƒå­—ç¬¦ä¸²
+// ±È½Ï×Ö·û´®
 XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase)
 {
 	if ( iSize > 0 ) {
 		if ( bCase ) {
 			#if defined(_WIN32) || defined(_WIN64)
-				// windows æ–¹æ¡ˆ
+				// windows ·½°¸
 				return strnicmp(s1, s2, iSize);
 			#else
-				// å…¶ä»–å¹³å°æ–¹æ¡ˆ
+				// ÆäËûÆ½Ì¨·½°¸
 				return strncasecmp(s1, s2, iSize);
 			#endif
 		} else {
@@ -22427,10 +22426,10 @@ XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase)
 	} else {
 		if ( bCase ) {
 			#if defined(_WIN32) || defined(_WIN64)
-				// windows æ–¹æ¡ˆ
+				// windows ·½°¸
 				return stricmp(s1, s2);
 			#else
-				// å…¶ä»–å¹³å°æ–¹æ¡ˆ
+				// ÆäËûÆ½Ì¨·½°¸
 				return strcasecmp(s1, s2);
 			#endif
 		} else {
@@ -22438,7 +22437,7 @@ XXAPI int xrtStrComp(str s1, str s2, size_t iSize, bool bCase)
 		}
 	}
 }
-// å­—ç¬¦ä¸²è½¬ä¸ºå°å†™ï¼ˆ bSrcRevise ä¸º FALSE æ—¶ï¼Œéœ€ä½¿ç”¨ xrtFree é‡Šæ”¾å†…å­˜ ï¼‰
+// ×Ö·û´®×ªÎªĞ¡Ğ´£¨ bSrcRevise Îª FALSE Ê±£¬ĞèÊ¹ÓÃ xrtFree ÊÍ·ÅÄÚ´æ £©
 XXAPI str xrtLCase(str sText, size_t iSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
@@ -22449,29 +22448,29 @@ XXAPI str xrtLCase(str sText, size_t iSize, bool bSrcRevise)
 	for ( int i = 0; i < iSize; i++ ) {
 		unsigned char c = (unsigned char)sRet[i];
 		if ( (c & 0x80) == 0 ) {
-			// ASCII å­—ç¬¦
+			// ASCII ×Ö·û
 			sRet[i] = tolower(sRet[i]);
 		} else if ( (c & 0xE0) == 0xC0 ) {
-			// UTF-8 åŒå­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Ë«×Ö½Ú×Ö·û£¬Ìø¹ı
 			i++;
 		} else if ( (c & 0xF0) == 0xE0 ) {
-			// UTF-8 ä¸‰å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Èı×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 2;
 		} else if ( (c & 0xF8) == 0xF0 ) {
-			// UTF-8 å››å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 ËÄ×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 3;
 		} else if ( (c & 0xFC) == 0xF8 ) {
-			// UTF-8 äº”å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Îå×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 4;
 		} else if ( (c & 0xFE) == 0xFC ) {
-			// UTF-8 å…­å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Áù×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 5;
 		}
-		// å…¶ä»–æƒ…å†µï¼ˆå•ç‹¬çš„ç»­å­—èŠ‚æˆ–å¼‚å¸¸å­—ç¬¦ï¼‰è·³è¿‡
+		// ÆäËûÇé¿ö£¨µ¥¶ÀµÄĞø×Ö½Ú»òÒì³£×Ö·û£©Ìø¹ı
 	}
 	return sRet;
 }
-// å­—ç¬¦ä¸²è½¬ä¸ºå¤§å†™ï¼ˆ bSrcRevise ä¸º FALSE æ—¶ï¼Œéœ€ä½¿ç”¨ xrtFree é‡Šæ”¾å†…å­˜ ï¼‰
+// ×Ö·û´®×ªÎª´óĞ´£¨ bSrcRevise Îª FALSE Ê±£¬ĞèÊ¹ÓÃ xrtFree ÊÍ·ÅÄÚ´æ £©
 XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
@@ -22482,29 +22481,29 @@ XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise)
 	for ( int i = 0; i < iSize; i++ ) {
 		unsigned char c = (unsigned char)sRet[i];
 		if ( (c & 0x80) == 0 ) {
-			// ASCII å­—ç¬¦
+			// ASCII ×Ö·û
 			sRet[i] = toupper(sRet[i]);
 		} else if ( (c & 0xE0) == 0xC0 ) {
-			// UTF-8 åŒå­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Ë«×Ö½Ú×Ö·û£¬Ìø¹ı
 			i++;
 		} else if ( (c & 0xF0) == 0xE0 ) {
-			// UTF-8 ä¸‰å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Èı×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 2;
 		} else if ( (c & 0xF8) == 0xF0 ) {
-			// UTF-8 å››å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 ËÄ×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 3;
 		} else if ( (c & 0xFC) == 0xF8 ) {
-			// UTF-8 äº”å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Îå×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 4;
 		} else if ( (c & 0xFE) == 0xFC ) {
-			// UTF-8 å…­å­—èŠ‚å­—ç¬¦ï¼Œè·³è¿‡
+			// UTF-8 Áù×Ö½Ú×Ö·û£¬Ìø¹ı
 			i += 5;
 		}
-		// å…¶ä»–æƒ…å†µï¼ˆå•ç‹¬çš„ç»­å­—èŠ‚æˆ–å¼‚å¸¸å­—ç¬¦ï¼‰è·³è¿‡
+		// ÆäËûÇé¿ö£¨µ¥¶ÀµÄĞø×Ö½Ú»òÒì³£×Ö·û£©Ìø¹ı
 	}
 	return sRet;
 }
-// æœç´¢å­—ç¬¦ä¸²ï¼ˆ æ²¡æ‰¾åˆ°å­—ç¬¦ä¸²çš„æƒ…å†µä¸‹ä¼šè¿”å› NULL ï¼‰(çº¿ç¨‹å®‰å…¨)
+// ËÑË÷×Ö·û´®£¨ Ã»ÕÒµ½×Ö·û´®µÄÇé¿öÏÂ»á·µ»Ø NULL £©(Ïß³Ì°²È«)
 XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
 	if ( sText == NULL ) { return NULL; }
@@ -22555,7 +22554,7 @@ XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool
 		return 0;
 	}
 }
-// å­—ç¬¦ä¸²æ£€æŸ¥ï¼ˆ sText ä¸­æ˜¯å¦åŒ…å« sSubText åˆ—å‡ºçš„å­—ç¬¦ï¼Œæ”¯æŒ utf-8 mb6 ç¼–ç  ï¼‰
+// ×Ö·û´®¼ì²é£¨ sText ÖĞÊÇ·ñ°üº¬ sSubText ÁĞ³öµÄ×Ö·û£¬Ö§³Ö utf-8 mb6 ±àÂë £©
 XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 {
 	if ( iSize == 0 ) { iSize = strlen(sText); }
@@ -22564,14 +22563,14 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 	if ( iSubSize == 0 ) { return NULL; }
 	for ( int i = 0; i < iSize; i++ ) {
 		if ( (sText[i] & 0b10000000) == 0 ) {
-			// ASCII å…¼å®¹å­—ç¬¦
+			// ASCII ¼æÈİ×Ö·û
 			for ( int j = 0; j < iSubSize; j++ ) {
 				if ( sSubText[j] == sText[i] ) {
 					return &sText[i];
 				}
 			}
 		} else if ( (sText[i] & 0b11000000) == 0b11000000 ) {
-			// åŒå­—èŠ‚å­—ç¬¦
+			// Ë«×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 1;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) ) {
@@ -22580,7 +22579,7 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 			}
 			i++;
 		} else if ( (sText[i] & 0b11100000) == 0b11100000 ) {
-			// ä¸‰å­—èŠ‚å­—ç¬¦
+			// Èı×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 2;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) ) {
@@ -22589,7 +22588,7 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 			}
 			i += 2;
 		} else if ( (sText[i] & 0b11110000) == 0b11110000 ) {
-			// å››å­—èŠ‚å­—ç¬¦
+			// ËÄ×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 3;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) ) {
@@ -22598,7 +22597,7 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 			}
 			i += 3;
 		} else if ( (sText[i] & 0b11111000) == 0b11111000 ) {
-			// äº”å­—èŠ‚å­—ç¬¦
+			// Îå×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 4;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) ) {
@@ -22607,7 +22606,7 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 			}
 			i += 4;
 		} else if ( (sText[i] & 0b11111100) == 0b11111100 ) {
-			// å…­å­—èŠ‚å­—ç¬¦
+			// Áù×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 5;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) && (sSubText[j+5] == sText[i+5]) ) {
@@ -22616,12 +22615,12 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 			}
 			i += 5;
 		} else {
-			// è·³è¿‡å¼‚å¸¸å­—ç¬¦ï¼ˆFEã€FFï¼‰
+			// Ìø¹ıÒì³£×Ö·û£¨FE¡¢FF£©
 		}
 	}
 	return NULL;
 }
-// è£å‰ªå­—ç¬¦ä¸²ï¼ˆ bSrcRevise ä¸º FALSE æ—¶ï¼Œéœ€ä½¿ç”¨ xrtFree é‡Šæ”¾å†…å­˜ ï¼‰
+// ²Ã¼ô×Ö·û´®£¨ bSrcRevise Îª FALSE Ê±£¬ĞèÊ¹ÓÃ xrtFree ÊÍ·ÅÄÚ´æ £©
 XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
@@ -22634,7 +22633,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 	for ( int i = 0; i < iSize; i++ ) {
 		int bBreak = TRUE;
 		if ( (sText[i] & 0b10000000) == 0 ) {
-			// ASCII å…¼å®¹å­—ç¬¦
+			// ASCII ¼æÈİ×Ö·û
 			for ( int j = 0; j < iSubSize; j++ ) {
 				if ( sSubText[j] == sText[i] ) {
 					iCount++;
@@ -22643,7 +22642,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 				}
 			}
 		} else if ( (sText[i] & 0b11000000) == 0b11000000 ) {
-			// åŒå­—èŠ‚å­—ç¬¦
+			// Ë«×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 1;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) ) {
@@ -22654,7 +22653,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 			}
 			i++;
 		} else if ( (sText[i] & 0b11100000) == 0b11100000 ) {
-			// ä¸‰å­—èŠ‚å­—ç¬¦
+			// Èı×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 2;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) ) {
@@ -22665,7 +22664,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 			}
 			i += 2;
 		} else if ( (sText[i] & 0b11110000) == 0b11110000 ) {
-			// å››å­—èŠ‚å­—ç¬¦
+			// ËÄ×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 3;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) ) {
@@ -22676,7 +22675,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 			}
 			i += 3;
 		} else if ( (sText[i] & 0b11111000) == 0b11111000 ) {
-			// äº”å­—èŠ‚å­—ç¬¦
+			// Îå×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 4;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) ) {
@@ -22687,7 +22686,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 			}
 			i += 4;
 		} else if ( (sText[i] & 0b11111100) == 0b11111100 ) {
-			// å…­å­—èŠ‚å­—ç¬¦
+			// Áù×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 5;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) && (sSubText[j+5] == sText[i+5]) ) {
@@ -22698,7 +22697,7 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 			}
 			i += 5;
 		} else {
-			// è·³è¿‡å¼‚å¸¸å­—ç¬¦ï¼ˆFEã€FFï¼‰
+			// Ìø¹ıÒì³£×Ö·û£¨FE¡¢FF£©
 		}
 		if ( bBreak ) {
 			break;
@@ -22727,7 +22726,7 @@ XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		int bBreak = TRUE;
 		if ( (sText[i] & 0b10000000) == 0 ) {
-			// ASCII å…¼å®¹å­—ç¬¦
+			// ASCII ¼æÈİ×Ö·û
 			for ( int j = 0; j < iSubSize; j++ ) {
 				if ( sSubText[j] == sText[i] ) {
 					iCount++;
@@ -22736,12 +22735,12 @@ XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 				}
 			}
 		} else if ( (sText[i] & 0b11000000) == 0b10000000 ) {
-			// UTF-8 ç»­å­—èŠ‚ï¼Œå‘å‰æŸ¥æ‰¾é¦–å­—èŠ‚
+			// UTF-8 Ğø×Ö½Ú£¬ÏòÇ°²éÕÒÊ××Ö½Ú
 			int iEnd = i;
 			while ( (i > 0) && ((sText[i] & 0b11000000) == 0b10000000) ) {
 				i--;
 			}
-			// ç°åœ¨ i æŒ‡å‘é¦–å­—èŠ‚
+			// ÏÖÔÚ i Ö¸ÏòÊ××Ö½Ú
 			int iCharLen = iEnd - i + 1;
 			if ( iCharLen <= iSubSize ) {
 				size_t iLen = iSubSize - iCharLen + 1;
@@ -22760,9 +22759,9 @@ XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 					}
 				}
 			}
-			// i å·²ç»åœ¨é¦–å­—èŠ‚ï¼Œå¾ªç¯ä¼š i-- ç§»åˆ°å‰ä¸€ä¸ªå­—ç¬¦æœ«å°¾
+			// i ÒÑ¾­ÔÚÊ××Ö½Ú£¬Ñ­»·»á i-- ÒÆµ½Ç°Ò»¸ö×Ö·ûÄ©Î²
 		} else {
-			// å­¤ç«‹çš„é¦–å­—èŠ‚æˆ–å¼‚å¸¸å­—ç¬¦ï¼ˆFEã€FFï¼‰ï¼Œè·³è¿‡
+			// ¹ÂÁ¢µÄÊ××Ö½Ú»òÒì³£×Ö·û£¨FE¡¢FF£©£¬Ìø¹ı
 		}
 		if ( bBreak ) {
 			break;
@@ -22788,11 +22787,11 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 	if ( iSubSize == 0 ) { sSubText = " \t\r\n"; iSubSize = 4; }
 	int iCountL = 0;
 	int iCountR = 0;
-	// è£å‰ªå·¦ä¾§
+	// ²Ã¼ô×ó²à
 	for ( int i = 0; i < iSize; i++ ) {
 		int bBreak = TRUE;
 		if ( (sText[i] & 0b10000000) == 0 ) {
-			// ASCII å…¼å®¹å­—ç¬¦
+			// ASCII ¼æÈİ×Ö·û
 			for ( int j = 0; j < iSubSize; j++ ) {
 				if ( sSubText[j] == sText[i] ) {
 					iCountL++;
@@ -22801,7 +22800,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 				}
 			}
 		} else if ( (sText[i] & 0b11000000) == 0b11000000 ) {
-			// åŒå­—èŠ‚å­—ç¬¦
+			// Ë«×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 1;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) ) {
@@ -22812,7 +22811,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 			}
 			i++;
 		} else if ( (sText[i] & 0b11100000) == 0b11100000 ) {
-			// ä¸‰å­—èŠ‚å­—ç¬¦
+			// Èı×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 2;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) ) {
@@ -22823,7 +22822,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 			}
 			i += 2;
 		} else if ( (sText[i] & 0b11110000) == 0b11110000 ) {
-			// å››å­—èŠ‚å­—ç¬¦
+			// ËÄ×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 3;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) ) {
@@ -22834,7 +22833,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 			}
 			i += 3;
 		} else if ( (sText[i] & 0b11111000) == 0b11111000 ) {
-			// äº”å­—èŠ‚å­—ç¬¦
+			// Îå×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 4;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) ) {
@@ -22845,7 +22844,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 			}
 			i += 4;
 		} else if ( (sText[i] & 0b11111100) == 0b11111100 ) {
-			// å…­å­—èŠ‚å­—ç¬¦
+			// Áù×Ö½Ú×Ö·û
 			size_t iLen = iSubSize - 5;
 			for ( int j = 0; j < iLen; j++ ) {
 				if ( (sSubText[j] == sText[i]) && (sSubText[j+1] == sText[i+1]) && (sSubText[j+2] == sText[i+2]) && (sSubText[j+3] == sText[i+3]) && (sSubText[j+4] == sText[i+4]) && (sSubText[j+5] == sText[i+5]) ) {
@@ -22856,19 +22855,19 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 			}
 			i += 5;
 		} else {
-			// è·³è¿‡å¼‚å¸¸å­—ç¬¦ï¼ˆFEã€FFï¼‰
+			// Ìø¹ıÒì³£×Ö·û£¨FE¡¢FF£©
 		}
 		if ( bBreak ) {
 			break;
 		}
 	}
-	// å…¨éƒ¨è£å‰ªéœ€è¦ç‰¹æ®Šå¤„ç†
+	// È«²¿²Ã¼ôĞèÒªÌØÊâ´¦Àí
 	if ( iCountL >= iSize ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	// è£å‰ªå³ä¾§
+	// ²Ã¼ôÓÒ²à
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		int bBreak = TRUE;
 		if ( (sText[i] & 0b10000000) == 0 ) {
-			// ASCII å…¼å®¹å­—ç¬¦
+			// ASCII ¼æÈİ×Ö·û
 			for ( int j = 0; j < iSubSize; j++ ) {
 				if ( sSubText[j] == sText[i] ) {
 					iCountR++;
@@ -22877,12 +22876,12 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 				}
 			}
 		} else if ( (sText[i] & 0b11000000) == 0b10000000 ) {
-			// UTF-8 ç»­å­—èŠ‚ï¼Œå‘å‰æŸ¥æ‰¾é¦–å­—èŠ‚
+			// UTF-8 Ğø×Ö½Ú£¬ÏòÇ°²éÕÒÊ××Ö½Ú
 			int iEnd = i;
 			while ( (i > 0) && ((sText[i] & 0b11000000) == 0b10000000) ) {
 				i--;
 			}
-			// ç°åœ¨ i æŒ‡å‘é¦–å­—èŠ‚
+			// ÏÖÔÚ i Ö¸ÏòÊ××Ö½Ú
 			int iCharLen = iEnd - i + 1;
 			if ( iCharLen <= iSubSize ) {
 				size_t iLen = iSubSize - iCharLen + 1;
@@ -22901,9 +22900,9 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 					}
 				}
 			}
-			// i å·²ç»åœ¨é¦–å­—èŠ‚ï¼Œå¾ªç¯ä¼š i-- ç§»åˆ°å‰ä¸€ä¸ªå­—ç¬¦æœ«å°¾
+			// i ÒÑ¾­ÔÚÊ××Ö½Ú£¬Ñ­»·»á i-- ÒÆµ½Ç°Ò»¸ö×Ö·ûÄ©Î²
 		} else {
-			// å­¤ç«‹çš„é¦–å­—èŠ‚æˆ–å¼‚å¸¸å­—ç¬¦ï¼ˆFEã€FFï¼‰ï¼Œè·³è¿‡
+			// ¹ÂÁ¢µÄÊ××Ö½Ú»òÒì³£×Ö·û£¨FE¡¢FF£©£¬Ìø¹ı
 		}
 		if ( bBreak ) {
 			break;
@@ -22921,7 +22920,7 @@ XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool b
 		return xrtCopyStr(&sText[iCountL], iSize - iCount);
 	}
 }
-// è¿‡æ»¤å­—ç¬¦ä¸²ï¼ˆ bSrcRevise ä¸º FALSE æ—¶ï¼Œéœ€ä½¿ç”¨ xrtFree é‡Šæ”¾å†…å­˜ ï¼‰
+// ¹ıÂË×Ö·û´®£¨ bSrcRevise Îª FALSE Ê±£¬ĞèÊ¹ÓÃ xrtFree ÊÍ·ÅÄÚ´æ £©
 XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
@@ -22930,14 +22929,14 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 	if ( sSubText == NULL ) { if ( bSrcRevise ) { if ( iRetSize ) { *iRetSize = iSize; } return sText; } else { if ( iRetSize ) { *iRetSize = iSize; } return xrtCopyStr(sText, iSize); } }
 	if ( iSubSize == 0 ) { iSubSize = strlen(sSubText); }
 	if ( iSubSize == 0 ) { if ( bSrcRevise ) { if ( iRetSize ) { *iRetSize = iSize; } return sText; } else { if ( iRetSize ) { *iRetSize = iSize; } return xrtCopyStr(sText, iSize); } }
-	// ä¸æ”¹åŠ¨æºæ•°æ®æ—¶ï¼Œç›´æ¥åˆ›å»ºå‰¯æœ¬
+	// ²»¸Ä¶¯Ô´Êı¾İÊ±£¬Ö±½Ó´´½¨¸±±¾
 	if ( bSrcRevise == FALSE ) {
 		sText = xrtCopyStr(sText, iSize);
 	}
 	int iCount = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		if ( (sText[i] & 0b10000000) == 0 ) {
-			// ASCII å…¼å®¹å­—ç¬¦
+			// ASCII ¼æÈİ×Ö·û
 			int bCopy = TRUE;
 			for ( int j = 0; j < iSubSize; j++ ) {
 				if ( sSubText[j] == sText[i] ) {
@@ -22950,7 +22949,7 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 				sText[i - iCount] = sText[i];
 			}
 		} else if ( (sText[i] & 0b11000000) == 0b11000000 ) {
-			// åŒå­—èŠ‚å­—ç¬¦
+			// Ë«×Ö½Ú×Ö·û
 			int bCopy = TRUE;
 			size_t iLen = iSubSize - 1;
 			for ( int j = 0; j < iLen; j++ ) {
@@ -22966,7 +22965,7 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 			}
 			i++;
 		} else if ( (sText[i] & 0b11100000) == 0b11100000 ) {
-			// ä¸‰å­—èŠ‚å­—ç¬¦
+			// Èı×Ö½Ú×Ö·û
 			int bCopy = TRUE;
 			size_t iLen = iSubSize - 2;
 			for ( int j = 0; j < iLen; j++ ) {
@@ -22983,7 +22982,7 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 			}
 			i += 2;
 		} else if ( (sText[i] & 0b11110000) == 0b11110000 ) {
-			// å››å­—èŠ‚å­—ç¬¦
+			// ËÄ×Ö½Ú×Ö·û
 			int bCopy = TRUE;
 			size_t iLen = iSubSize - 3;
 			for ( int j = 0; j < iLen; j++ ) {
@@ -23001,7 +23000,7 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 			}
 			i += 3;
 		} else if ( (sText[i] & 0b11111000) == 0b11111000 ) {
-			// äº”å­—èŠ‚å­—ç¬¦
+			// Îå×Ö½Ú×Ö·û
 			int bCopy = TRUE;
 			size_t iLen = iSubSize - 4;
 			for ( int j = 0; j < iLen; j++ ) {
@@ -23020,7 +23019,7 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 			}
 			i += 4;
 		} else if ( (sText[i] & 0b11111100) == 0b11111100 ) {
-			// å…­å­—èŠ‚å­—ç¬¦
+			// Áù×Ö½Ú×Ö·û
 			int bCopy = TRUE;
 			size_t iLen = iSubSize - 5;
 			for ( int j = 0; j < iLen; j++ ) {
@@ -23040,14 +23039,14 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 			}
 			i += 5;
 		} else {
-			// è·³è¿‡å¼‚å¸¸å­—ç¬¦ï¼ˆFEã€FFï¼‰
+			// Ìø¹ıÒì³£×Ö·û£¨FE¡¢FF£©
 		}
 	}
 	sText[iSize - iCount] = 0;
 	if ( iRetSize ) { *iRetSize = iCount; }
 	return sText;
 }
-// å­—ç¬¦ä¸²æ ¼å¼åŒ–ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
+// ×Ö·û´®¸ñÊ½»¯£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©
 XXAPI str xrtFormat(str sFormat, ...)
 {
 	if ( sFormat == NULL ) { return xCore.sNull; }
@@ -23067,7 +23066,7 @@ XXAPI str xrtFormat(str sFormat, ...)
 		return xCore.sNull;
 	}
 }
-// å­—ç¬¦ä¸²æ›¿æ¢ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
+// ×Ö·û´®Ìæ»»£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©
 XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
@@ -23077,29 +23076,29 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	if ( iSubSize == 0 ) { iSubSize = strlen(sSubText); }
 	if ( iSubSize == 0 ) { if ( iRetSize ) { *iRetSize = iSize; } return xrtCopyStr(sText, iSize); }
 	if ( sRepText == NULL ) { iRepSize = 0; } else { if ( iRepSize == 0 ) { iRepSize = strlen(sRepText); } }
-	// è®¡ç®— sSubText åœ¨ sText ä¸­å‡ºç°çš„æ¬¡æ•°
+	// ¼ÆËã sSubText ÔÚ sText ÖĞ³öÏÖµÄ´ÎÊı
 	size_t iFindCount = 0;
 	str sTextPtr;
 	str sSubPos;
 	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		iFindCount++;
 	}
-	// ä¸ºæ–°å­—ç¬¦ä¸²åˆ†é…å†…å­˜
+	// ÎªĞÂ×Ö·û´®·ÖÅäÄÚ´æ
 	size_t iRet = iSize + iFindCount * (iRepSize - iSubSize);
 	str sRet = (str)xrtMalloc(iRet + 1);
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (str)xCore.sNull; }
-	// å¤åˆ¶åŸå§‹å­—ç¬¦ä¸², æ›¿æ¢éœ€è¦æ”¹å˜çš„éƒ¨åˆ†
+	// ¸´ÖÆÔ­Ê¼×Ö·û´®, Ìæ»»ĞèÒª¸Ä±äµÄ²¿·Ö
 	str sRetPtr = sRet;
 	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		size_t iSkipSize = sSubPos - sTextPtr;
-		// å¤åˆ¶å‰é¢çš„éƒ¨åˆ†ï¼Œç›´åˆ°å‡ºç°è¦æŸ¥æ‰¾çš„å­—ç¬¦ä¸²
+		// ¸´ÖÆÇ°ÃæµÄ²¿·Ö£¬Ö±µ½³öÏÖÒª²éÕÒµÄ×Ö·û´®
 		strncpy(sRetPtr, sTextPtr, iSkipSize);
 		sRetPtr += iSkipSize;
-		// å¤åˆ¶è¦æ›¿æ¢çš„å­—ç¬¦ä¸²
+		// ¸´ÖÆÒªÌæ»»µÄ×Ö·û´®
 		strncpy(sRetPtr, sRepText, iRepSize);
 		sRetPtr += iRepSize;
 	}
-	// å¤åˆ¶æœ€åä¸€æ®µå‰©ä¸‹çš„å­—ç¬¦ä¸²
+	// ¸´ÖÆ×îºóÒ»¶ÎÊ£ÏÂµÄ×Ö·û´®
 	if ( &sText[iSize] > sTextPtr ) {
 		memcpy(sRetPtr, sTextPtr, &sText[iSize] - sTextPtr);
 	}
@@ -23107,7 +23106,7 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	if ( iRetSize ) { *iRetSize = iRet; }
 	return sRet;
 }
-// å­—ç¬¦ä¸²åˆ†å‰²ï¼ˆ ä»»ä½•æƒ…å†µè¿”å›å€¼éƒ½å¿…é¡»ä½¿ç”¨ xrtFree é‡Šæ”¾ï¼ŒbSrcRevise è®¾ç½®ä¸º TRUE æ—¶ä¼šç ´ååŸæ•°æ® ï¼‰
+// ×Ö·û´®·Ö¸î£¨ ÈÎºÎÇé¿ö·µ»ØÖµ¶¼±ØĞëÊ¹ÓÃ xrtFree ÊÍ·Å£¬bSrcRevise ÉèÖÃÎª TRUE Ê±»áÆÆ»µÔ­Êı¾İ £©
 XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool bSrcRevise, size_t* iRetSize)
 {
 	if ( sText == NULL ) { goto return_nullstr; }
@@ -23116,7 +23115,7 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool
 	if ( sSepText == NULL ) { goto return_nullsep; }
 	if ( iSepSize == 0 ) { iSize = strlen(sSepText); }
 	if ( iSepSize == 0 ) { goto return_nullsep; }
-	// ç»Ÿè®¡åˆ†éš”ç¬¦å‡ºç°çš„æ¬¡æ•°
+	// Í³¼Æ·Ö¸ô·û³öÏÖµÄ´ÎÊı
 	int iCount = 0;
 	for ( int i = 0; i < iSize; i++ ) {
 		str pPos = &sText[i];
@@ -23132,11 +23131,11 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool
 			i += iSepSize - 1;
 		}
 	}
-	// å¦‚æœå­—ç¬¦ä¸²æ²¡æœ‰è¢«åˆ†å‰²ï¼ŒæŒ‰ç…§åˆ†éš”ç¬¦ä¸ºç©ºå¤„ç†
+	// Èç¹û×Ö·û´®Ã»ÓĞ±»·Ö¸î£¬°´ÕÕ·Ö¸ô·ûÎª¿Õ´¦Àí
 	if ( iCount == 0 ) {
 		goto return_nullsep;
 	}
-	// å‡†å¤‡è¿”å›çš„æ•°æ® [åˆ†å‰²æŒ‡é’ˆ + NULL + å­—ç¬¦ä¸²è¡¨ + \0]
+	// ×¼±¸·µ»ØµÄÊı¾İ [·Ö¸îÖ¸Õë + NULL + ×Ö·û´®±í + \0]
 	str* sRet;
 	str pData;
 	if ( bSrcRevise ) {
@@ -23152,7 +23151,7 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool
 		}
 		pData = (str)&sRet[iCount + 2];
 	}
-	// å¼€å§‹åˆ†å‰²æ•°æ®
+	// ¿ªÊ¼·Ö¸îÊı¾İ
 	iCount = 0;
 	int iPos = 0;
 	str pAddr = pData;
@@ -23166,7 +23165,7 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool
 			}
 		}
 		if ( bOK ) {
-			// æ‰¾åˆ°åˆ†éš”ç¬¦
+			// ÕÒµ½·Ö¸ô·û
 			sRet[iCount] = pAddr;
 			iCount++;
 			if ( bSrcRevise ) {
@@ -23179,7 +23178,7 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool
 			}
 			i += iSepSize - 1;
 		} else {
-			// æ²¡æ‰¾åˆ°åˆ†éš”ç¬¦ï¼ˆä¸ä¿®æ”¹æºæ•°æ®æ—¶è´Ÿè´£æ•°æ®æ‹·è´ï¼‰
+			// Ã»ÕÒµ½·Ö¸ô·û£¨²»ĞŞ¸ÄÔ´Êı¾İÊ±¸ºÔğÊı¾İ¿½±´£©
 			if ( bSrcRevise == FALSE ) {
 				pData[iPos] = sText[i];
 				iPos++;
@@ -23195,7 +23194,7 @@ XXAPI str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool
 	if ( iRetSize ) { *iRetSize = iCount; }
 	return sRet;
 	
-// å¤„ç†å†…å®¹ä¸º ç©ºå­—ç¬¦ä¸² æˆ– NULL çš„æƒ…å†µï¼ˆåªè¿”å›åŒ…å«ä¸€ä¸ªç©ºå…ƒç´ çš„æ•°ç»„ï¼‰
+// ´¦ÀíÄÚÈİÎª ¿Õ×Ö·û´® »ò NULL µÄÇé¿ö£¨Ö»·µ»Ø°üº¬Ò»¸ö¿ÕÔªËØµÄÊı×é£©
 return_nullstr:
 	sRet = xrtMalloc(2 * sizeof(void*));
 	if ( sRet == NULL ) {
@@ -23206,7 +23205,7 @@ return_nullstr:
 	if ( iRetSize ) { *iRetSize = 1; }
 	return sRet;
 	
-// å¤„ç†åˆ†éš”ç¬¦ä¸º ç©ºå­—ç¬¦ä¸² æˆ– NULL çš„æƒ…å†µï¼ˆåªè¿”å›åŒ…å«ä¸€ä¸ªå†…å®¹çš„æ•°ç»„ï¼‰
+// ´¦Àí·Ö¸ô·ûÎª ¿Õ×Ö·û´® »ò NULL µÄÇé¿ö£¨Ö»·µ»Ø°üº¬Ò»¸öÄÚÈİµÄÊı×é£©
 return_nullsep:
 	if ( bSrcRevise ) {
 		sRet = xrtMalloc(2 * sizeof(void*));
@@ -23228,12 +23227,12 @@ return_nullsep:
 	if ( iRetSize ) { *iRetSize = 1; }
 	return sRet;
 	
-// å†…å­˜ç”³è¯·å¼‚å¸¸è¿”å›
+// ÄÚ´æÉêÇëÒì³£·µ»Ø
 return_error:
 	if ( iRetSize ) { *iRetSize = 0; }
 	return (str*)xCore.sNull;
 }
-// ç”Ÿæˆéšæœºå­—ç¬¦ä¸²ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
+// Éú³ÉËæ»ú×Ö·û´®£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©
 static const str RandStringDefaultTemplate = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 {
@@ -23253,7 +23252,7 @@ XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 	sRet[iLen] = 0;
 	return sRet;
 }
-// HEX ç¼–ç ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
+// HEX ±àÂë£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©
 #define dec2hex(c) (c > 9 ? c + 55 : c + '0')
 XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 {
@@ -23273,7 +23272,7 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 	sRet[iPos] = 0;
 	return sRet;
 }
-// HEX è§£ç ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
+// HEX ½âÂë£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©
 #define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
 XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 {
@@ -23291,7 +23290,7 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 	sRet[iPos] = 0;
 	return sRet;
 }
-// Base64 ç¼–ç ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
+// Base64 ±àÂë£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©
 static const str Base64EncodeTable = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 {
@@ -23299,11 +23298,11 @@ XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 	if ( iSize == 0 ) { iSize = strlen(pMem); }
 	if ( iSize == 0 ) { return xCore.sNull; }
 	if ( sTable == NULL ) { sTable = Base64EncodeTable; }
-	// ç”³è¯·è¿”å›å€¼å†…å­˜
+	// ÉêÇë·µ»ØÖµÄÚ´æ
 	size_t iRet= 4 * ((iSize + 2) / 3);
 	str sRet = xrtMalloc(iRet + 1);
 	if ( sRet == NULL ) { return xCore.sNull; }
-	// å¼€å§‹ç¼–ç 
+	// ¿ªÊ¼±àÂë
 	uint8* pStr = pMem;
 	for ( size_t i = 0, j = 0; i < iSize; ) {
 		uint32_t octet_a = i < iSize ? pStr[i++] : 0;
@@ -23315,15 +23314,15 @@ XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 		sRet[j++] = sTable[(triple >> 1 * 6) & 0x3F];
 		sRet[j++] = sTable[(triple >> 0 * 6) & 0x3F];
 	}
-	// æ·»åŠ å¡«å……å­—ç¬¦ '='
+	// Ìí¼ÓÌî³ä×Ö·û '='
 	for ( size_t i = 0; i < (3 - iSize % 3) % 3; i++ ) {
 		sRet[iRet - 1 - i] = '=';
 	}
-	// è¿”å›ç¼–ç åçš„æ•°æ®
+	// ·µ»Ø±àÂëºóµÄÊı¾İ
 	sRet[iRet] = 0;
 	return sRet;
 }
-// Base64 è§£ç ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
+// Base64 ½âÂë£¨ ĞèÊ¹ÓÃ xrtFree ÊÍ·Å £©
 static const str sErrorBase64_mul4 = "Base64 input length must be multiple of 4 !";
 static const str sErrorBase64_char = "Base64 input contains invalid characters !";
 XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
@@ -23346,33 +23345,33 @@ XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 			Base64DecodeTable[sTable[i]] = i;
 		}
 	}
-	// è®¡ç®—è¾“å‡ºç¼“å†²åŒºå¤§å°
+	// ¼ÆËãÊä³ö»º³åÇø´óĞ¡
 	if ( iSize % 4 != 0 ) {
 		xrtSetError(sErrorBase64_mul4, FALSE);
 		return xCore.sNull;
 	}
-	// è®¡ç®—è¿”å›é•¿åº¦
+	// ¼ÆËã·µ»Ø³¤¶È
 	int iRet = iSize / 4 * 3;
 	if ( sText[iSize - 1] == '=' ) { iRet--; }
 	if ( sText[iSize - 2] == '=' ) { iRet--; }
-	// ç”³è¯·è¿”å›å€¼å†…å­˜
+	// ÉêÇë·µ»ØÖµÄÚ´æ
 	str sRet = xrtMalloc(iRet + 1);
 	if ( sRet == NULL ) {
 		return xCore.sNull;
 	}
-	// å¼€å§‹è§£ç 
+	// ¿ªÊ¼½âÂë
 	for (size_t i = 0, j = 0; i < iSize;) {
 		int8_t sextet_a = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
 		int8_t sextet_b = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
 		int8_t sextet_c = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
 		int8_t sextet_d = sText[i] == '=' ? 0 & i++ : Base64DecodeTable[(int)sText[i++]];
-		// å‘ç°éæ³•å­—ç¬¦
+		// ·¢ÏÖ·Ç·¨×Ö·û
 		if (sextet_a == -1 || sextet_b == -1 || sextet_c == -1 || sextet_d == -1) {
 			xrtSetError(sErrorBase64_char, FALSE);
 			xrtFree(sRet);
 			return xCore.sNull;
 		}
-		// ç»„åˆ 4 ä¸ª 6 ä½å€¼ä¸º 3 ä¸ª 8 ä½å­—èŠ‚
+		// ×éºÏ 4 ¸ö 6 Î»ÖµÎª 3 ¸ö 8 Î»×Ö½Ú
 		uint32_t triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) + (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
 		if ( j < iRet ) { sRet[j++] = (triple >> 2 * 8) & 0xFF; }
 		if ( j < iRet ) { sRet[j++] = (triple >> 1 * 8) & 0xFF; }
@@ -23381,24 +23380,24 @@ XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 	sRet[iRet] = '\0';
 	return sRet;
 }
-// é€šé…ç¬¦åŒ¹é…ï¼ˆ * åŒ¹é…ä»»æ„å­—ç¬¦åºåˆ—ï¼Œ? åŒ¹é…å•ä¸ªUTF-8å­—ç¬¦ï¼ŒbCase ä¸º TRUE æ—¶å¿½ç•¥å¤§å°å†™ ï¼‰
-// ä½¿ç”¨è´ªå©ªåŒ¹é…ç®—æ³•ï¼šO(n*m) æœ€åæ—¶é—´å¤æ‚åº¦ï¼ŒO(1) ç©ºé—´å¤æ‚åº¦
+// Í¨Åä·ûÆ¥Åä£¨ * Æ¥ÅäÈÎÒâ×Ö·ûĞòÁĞ£¬? Æ¥Åäµ¥¸öUTF-8×Ö·û£¬bCase Îª TRUE Ê±ºöÂÔ´óĞ¡Ğ´ £©
+// Ê¹ÓÃÌ°À·Æ¥ÅäËã·¨£ºO(n*m) ×î»µÊ±¼ä¸´ÔÓ¶È£¬O(1) ¿Õ¼ä¸´ÔÓ¶È
 XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize, bool bCase)
 {
-	// å‚æ•°æ£€æŸ¥
+	// ²ÎÊı¼ì²é
 	if ( sPattern == NULL ) { return FALSE; }
 	if ( iPatSize == 0 ) { iPatSize = strlen(sPattern); }
 	
-	// ç©ºæ¨¡å¼åªåŒ¹é…ç©ºå­—ç¬¦ä¸²
+	// ¿ÕÄ£Ê½Ö»Æ¥Åä¿Õ×Ö·û´®
 	if ( iPatSize == 0 ) {
 		if ( sText == NULL ) { return TRUE; }
 		if ( iTextSize == 0 ) { iTextSize = strlen(sText); }
 		return iTextSize == 0;
 	}
 	
-	// å¤„ç†ç©ºæ–‡æœ¬
+	// ´¦Àí¿ÕÎÄ±¾
 	if ( sText == NULL ) {
-		// ç©ºæ–‡æœ¬åªèƒ½åŒ¹é…å…¨æ˜¯ * çš„æ¨¡å¼
+		// ¿ÕÎÄ±¾Ö»ÄÜÆ¥ÅäÈ«ÊÇ * µÄÄ£Ê½
 		for ( size_t i = 0; i < iPatSize; i++ ) {
 			if ( sPattern[i] != '*' ) { return FALSE; }
 		}
@@ -23412,24 +23411,24 @@ XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize
 		return TRUE;
 	}
 	
-	// è´ªå©ªåŒ¹é…ç®—æ³•
-	size_t t = 0;           // æ–‡æœ¬ä½ç½®
-	size_t p = 0;           // æ¨¡å¼ä½ç½®
-	size_t starP = (size_t)-1;   // æœ€è¿‘çš„ * åœ¨æ¨¡å¼ä¸­çš„ä½ç½®
-	size_t starT = 0;       // é‡åˆ° * æ—¶æ–‡æœ¬çš„ä½ç½®
+	// Ì°À·Æ¥ÅäËã·¨
+	size_t t = 0;           // ÎÄ±¾Î»ÖÃ
+	size_t p = 0;           // Ä£Ê½Î»ÖÃ
+	size_t starP = (size_t)-1;   // ×î½üµÄ * ÔÚÄ£Ê½ÖĞµÄÎ»ÖÃ
+	size_t starT = 0;       // Óöµ½ * Ê±ÎÄ±¾µÄÎ»ÖÃ
 	
 	while ( t < iTextSize ) {
 		if ( p < iPatSize && sPattern[p] == '*' ) {
-			// è®°å½• * çš„ä½ç½®ï¼Œå…ˆå‡å®šå®ƒåŒ¹é… 0 ä¸ªå­—ç¬¦
+			// ¼ÇÂ¼ * µÄÎ»ÖÃ£¬ÏÈ¼Ù¶¨ËüÆ¥Åä 0 ¸ö×Ö·û
 			starP = p;
 			starT = t;
 			p++;
 		} else if ( p < iPatSize && sPattern[p] == '?' ) {
-			// ? åŒ¹é…ä¸€ä¸ªå®Œæ•´çš„ UTF-8 å­—ç¬¦
+			// ? Æ¥ÅäÒ»¸öÍêÕûµÄ UTF-8 ×Ö·û
 			int charLen = xrtCharLenU8((unsigned char)sText[t]);
-			// æ£€æŸ¥å‰©ä½™é•¿åº¦æ˜¯å¦è¶³å¤Ÿ
+			// ¼ì²éÊ£Óà³¤¶ÈÊÇ·ñ×ã¹»
 			if ( t + charLen > iTextSize ) {
-				// å­—ç¬¦ä¸å®Œæ•´ï¼Œå°è¯•å›æº¯
+				// ×Ö·û²»ÍêÕû£¬³¢ÊÔ»ØËİ
 				if ( starP == (size_t)-1 ) { return FALSE; }
 				p = starP + 1;
 				starT += xrtCharLenU8((unsigned char)sText[starT]);
@@ -23439,12 +23438,12 @@ XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize
 				p++;
 			}
 		} else {
-			// æ™®é€šå­—ç¬¦åŒ¹é…ï¼ˆå†…è”å­—ç¬¦æ¯”è¾ƒï¼‰
+			// ÆÕÍ¨×Ö·ûÆ¥Åä£¨ÄÚÁª×Ö·û±È½Ï£©
 			unsigned char c1 = (unsigned char)sText[t];
 			unsigned char c2 = (unsigned char)sPattern[p];
 			bool bMatch = (c1 == c2);
 			if ( !bMatch && bCase ) {
-				// å¤§å°å†™ä¸æ•æ„Ÿï¼šåªå¯¹ ASCII å­—æ¯è½¬æ¢
+				// ´óĞ¡Ğ´²»Ãô¸Ğ£ºÖ»¶Ô ASCII ×ÖÄ¸×ª»»
 				if ( c1 >= 'A' && c1 <= 'Z' ) { c1 += 32; }
 				if ( c2 >= 'A' && c2 <= 'Z' ) { c2 += 32; }
 				bMatch = (c1 == c2);
@@ -23453,19 +23452,19 @@ XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize
 				t++;
 				p++;
 			} else {
-				// åŒ¹é…å¤±è´¥ï¼Œå›æº¯åˆ°ä¸Šä¸€ä¸ª *
+				// Æ¥ÅäÊ§°Ü£¬»ØËİµ½ÉÏÒ»¸ö *
 				if ( starP == (size_t)-1 ) { return FALSE; }
-				// è®© * å¤šåŒ¹é…ä¸€ä¸ª UTF-8 å­—ç¬¦
+				// ÈÃ * ¶àÆ¥ÅäÒ»¸ö UTF-8 ×Ö·û
 				p = starP + 1;
 				starT += xrtCharLenU8((unsigned char)sText[starT]);
 				t = starT;
-				// å¦‚æœ starT å·²è¶…å‡ºæ–‡æœ¬èŒƒå›´ï¼Œåˆ™åŒ¹é…å¤±è´¥
+				// Èç¹û starT ÒÑ³¬³öÎÄ±¾·¶Î§£¬ÔòÆ¥ÅäÊ§°Ü
 				if ( starT > iTextSize ) { return FALSE; }
 			}
 		}
 	}
 	
-	// æ–‡æœ¬å·²åŒ¹é…å®Œï¼Œæ£€æŸ¥æ¨¡å¼å‰©ä½™éƒ¨åˆ†æ˜¯å¦å…¨æ˜¯ *
+	// ÎÄ±¾ÒÑÆ¥ÅäÍê£¬¼ì²éÄ£Ê½Ê£Óà²¿·ÖÊÇ·ñÈ«ÊÇ *
 	while ( p < iPatSize && sPattern[p] == '*' ) {
 		p++;
 	}
@@ -23473,19 +23472,19 @@ XXAPI bool xrtStrLike(str sText, size_t iTextSize, str sPattern, size_t iPatSize
 	return p == iPatSize;
 }
 // ============================================================================
-// æ•°å€¼æ ¼å¼åŒ–å‡½æ•°
+// ÊıÖµ¸ñÊ½»¯º¯Êı
 // ============================================================================
-// æŸ¥è¡¨æ³•: åå…­è¿›åˆ¶å­—ç¬¦è¡¨
+// ²é±í·¨: Ê®Áù½øÖÆ×Ö·û±í
 static const char xrt_digit_table[] = "0123456789abcdef0123456789ABCDEF";
-// å†…éƒ¨å‡½æ•°: è§£ææ ¼å¼å­—ç¬¦ä¸²
+// ÄÚ²¿º¯Êı: ½âÎö¸ñÊ½×Ö·û´®
 typedef struct {
-	bool showSign;      // æ˜¾ç¤ºæ­£å·
-	bool thousands;     // åƒåˆ†ä½
-	bool percent;       // ç™¾åˆ†æ¯”
-	bool uppercase;     // å¤§å†™åå…­è¿›åˆ¶
-	int base;           // è¿›åˆ¶ (10, 16, 8, 2)
-	int width;          // å‰å¯¼é›¶å®½åº¦
-	int precision;      // å°æ•°ä½æ•° (-1 è¡¨ç¤ºæœªæŒ‡å®š)
+	bool showSign;      // ÏÔÊ¾ÕıºÅ
+	bool thousands;     // Ç§·ÖÎ»
+	bool percent;       // °Ù·Ö±È
+	bool uppercase;     // ´óĞ´Ê®Áù½øÖÆ
+	int base;           // ½øÖÆ (10, 16, 8, 2)
+	int width;          // Ç°µ¼Áã¿í¶È
+	int precision;      // Ğ¡ÊıÎ»Êı (-1 ±íÊ¾Î´Ö¸¶¨)
 } XrtNumFmtOpts;
 static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
 {
@@ -23511,21 +23510,21 @@ static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
 			case 'o': opts->base = 8; break;
 			case 'b': case 'B': opts->base = 2; break;
 			case '.':
-				// è§£æå°æ•°ä½æ•°
+				// ½âÎöĞ¡ÊıÎ»Êı
 				opts->precision = 0;
 				while ( *p >= '0' && *p <= '9' ) {
 					opts->precision = opts->precision * 10 + (*p++ - '0');
 				}
 				break;
 			case '0':
-				// è§£æå‰å¯¼é›¶å®½åº¦
+				// ½âÎöÇ°µ¼Áã¿í¶È
 				while ( *p >= '0' && *p <= '9' ) {
 					opts->width = opts->width * 10 + (*p++ - '0');
 				}
 				break;
 			default:
 				if ( c >= '1' && c <= '9' ) {
-					// æ•°å­—å¼€å¤´ä¹Ÿè§£æä¸ºå®½åº¦
+					// Êı×Ö¿ªÍ·Ò²½âÎöÎª¿í¶È
 					opts->width = c - '0';
 					while ( *p >= '0' && *p <= '9' ) {
 						opts->width = opts->width * 10 + (*p++ - '0');
@@ -23535,7 +23534,7 @@ static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
 		}
 	}
 }
-// å†…éƒ¨å‡½æ•°: uint64 è½¬éåè¿›åˆ¶å­—ç¬¦ä¸²ï¼ˆä» buffer æœ«å°¾å¾€å‰å†™ï¼‰
+// ÄÚ²¿º¯Êı: uint64 ×ª·ÇÊ®½øÖÆ×Ö·û´®£¨´Ó buffer Ä©Î²ÍùÇ°Ğ´£©
 static inline char* xrt_u64_to_base(char* bufEnd, uint64 value, int base, bool upper)
 {
 	char* p = bufEnd;
@@ -23552,7 +23551,7 @@ static inline char* xrt_u64_to_base(char* bufEnd, uint64 value, int base, bool u
 			value >>= 3;
 		} while ( value );
 	} else {
-		// äºŒè¿›åˆ¶
+		// ¶ş½øÖÆ
 		do {
 			*--p = '0' + (char)(value & 0x1);
 			value >>= 1;
@@ -23561,10 +23560,10 @@ static inline char* xrt_u64_to_base(char* bufEnd, uint64 value, int base, bool u
 	
 	return p;
 }
-// å†…éƒ¨å‡½æ•°: æ·»åŠ åƒåˆ†ä½åˆ†éš”ç¬¦
+// ÄÚ²¿º¯Êı: Ìí¼ÓÇ§·ÖÎ»·Ö¸ô·û
 static inline int xrt_add_thousands(char* dst, const char* src, int srcLen)
 {
-	int commas = (srcLen - 1) / 3;  // éœ€è¦æ’å…¥çš„é€—å·æ•°é‡
+	int commas = (srcLen - 1) / 3;  // ĞèÒª²åÈëµÄ¶ººÅÊıÁ¿
 	int totalLen = srcLen + commas;
 	int pos = totalLen;
 	int cnt = 0;
@@ -23579,32 +23578,32 @@ static inline int xrt_add_thousands(char* dst, const char* src, int srcLen)
 	
 	return totalLen;
 }
-// æ•´æ•°æ ¼å¼åŒ–
+// ÕûÊı¸ñÊ½»¯
 XXAPI str xrtIntFormat(int64 value, str format)
 {
-	// è§£ææ ¼å¼
+	// ½âÎö¸ñÊ½
 	XrtNumFmtOpts opts;
 	xrt_parse_format(format, &opts);
 	
-	// å¤„ç†ç¬¦å·
+	// ´¦Àí·ûºÅ
 	bool negative = (value < 0);
 	uint64 absVal = negative ? (uint64)(-(value + 1)) + 1 : (uint64)value;
 	
-	// è½¬æ¢ä¸ºå­—ç¬¦ä¸²
+	// ×ª»»Îª×Ö·û´®
 	char tmpBuf[96];
 	char* numStart;
 	int numLen;
 	
 	if ( opts.base == 10 ) {
-		// åè¿›åˆ¶: ä½¿ç”¨ xrtI64ToStr
+		// Ê®½øÖÆ: Ê¹ÓÃ xrtI64ToStr
 		numLen = xrtI64ToStr(negative ? value : (int64)absVal, tmpBuf);
 		numStart = tmpBuf;
 		if ( negative ) {
-			numStart++;  // è·³è¿‡è´Ÿå·
+			numStart++;  // Ìø¹ı¸ººÅ
 			numLen--;
 		}
 	} else {
-		// éåè¿›åˆ¶
+		// ·ÇÊ®½øÖÆ
 		char* tmpEnd = tmpBuf + sizeof(tmpBuf);
 		numStart = xrt_u64_to_base(tmpEnd, absVal, opts.base, opts.uppercase);
 		numLen = (int)(tmpEnd - numStart);
@@ -23613,7 +23612,7 @@ XXAPI str xrtIntFormat(int64 value, str format)
 		negative = FALSE;
 	}
 	
-	// è®¡ç®—æ‰€éœ€æ€»é•¿åº¦
+	// ¼ÆËãËùĞè×Ü³¤¶È
 	int signLen = (negative || opts.showSign) ? 1 : 0;
 	int digitLen = numLen;
 	if ( opts.thousands && digitLen > 3 ) {
@@ -23622,21 +23621,21 @@ XXAPI str xrtIntFormat(int64 value, str format)
 	int padLen = (opts.width > digitLen) ? (opts.width - digitLen) : 0;
 	int totalLen = signLen + padLen + digitLen;
 	
-	// åˆ†é…ç¼“å†²åŒº
+	// ·ÖÅä»º³åÇø
 	str buffer = xrtMalloc(totalLen + 1);
 	if ( buffer == NULL ) { return xCore.sNull; }
 	
 	char* out = buffer;
 	
-	// å†™å…¥ç¬¦å·
+	// Ğ´Èë·ûºÅ
 	if ( signLen ) {
 		*out++ = negative ? '-' : '+';
 	}
 	
-	// å†™å…¥å‰å¯¼é›¶
+	// Ğ´ÈëÇ°µ¼Áã
 	while ( padLen-- > 0 ) { *out++ = '0'; }
 	
-	// å†™å…¥æ•°å­—
+	// Ğ´ÈëÊı×Ö
 	if ( opts.thousands && numLen > 3 ) {
 		xrt_add_thousands(out, numStart, numLen);
 		out += digitLen;
@@ -23648,19 +23647,19 @@ XXAPI str xrtIntFormat(int64 value, str format)
 	*out = '\0';
 	return buffer;
 }
-// æµ®ç‚¹æ•°æ ¼å¼åŒ–
+// ¸¡µãÊı¸ñÊ½»¯
 XXAPI str xrtNumFormat(double value, str format)
 {
-	// è§£ææ ¼å¼
+	// ½âÎö¸ñÊ½
 	XrtNumFmtOpts opts;
 	xrt_parse_format(format, &opts);
 	
-	// å¤„ç†ç™¾åˆ†æ¯”
+	// ´¦Àí°Ù·Ö±È
 	if ( opts.percent ) {
 		value *= 100.0;
 	}
 	
-	// å¤„ç†ç‰¹æ®Šå€¼
+	// ´¦ÀíÌØÊâÖµ
 	if ( value != value ) {  // NaN
 		str ret = xrtMalloc(4);
 		if ( ret == NULL ) { return xCore.sNull; }
@@ -23680,15 +23679,15 @@ XXAPI str xrtNumFormat(double value, str format)
 		return ret;
 	}
 	
-	// å¤„ç†ç¬¦å·
+	// ´¦Àí·ûºÅ
 	bool negative = (value < 0);
 	if ( negative ) { value = -value; }
 	
-	// ç¡®å®šå°æ•°ä½æ•°
+	// È·¶¨Ğ¡ÊıÎ»Êı
 	int precision = (opts.precision >= 0) ? opts.precision : 6;
 	if ( precision > 15 ) { precision = 15; }
 	
-	// å››èˆäº”å…¥
+	// ËÄÉáÎåÈë
 	static const double roundTable[] = {
 		0.5, 0.05, 0.005, 0.0005, 0.00005, 0.000005, 0.0000005, 0.00000005,
 		0.000000005, 0.0000000005, 0.00000000005, 0.000000000005,
@@ -23696,16 +23695,16 @@ XXAPI str xrtNumFormat(double value, str format)
 	};
 	value += roundTable[precision];
 	
-	// åˆ†ç¦»æ•´æ•°éƒ¨åˆ†å’Œå°æ•°éƒ¨åˆ†
+	// ·ÖÀëÕûÊı²¿·ÖºÍĞ¡Êı²¿·Ö
 	uint64 intPart = (uint64)value;
 	double fracPart = value - (double)intPart;
 	
-	// è½¬æ¢æ•´æ•°éƒ¨åˆ†: ä½¿ç”¨ xrtI64ToStr
+	// ×ª»»ÕûÊı²¿·Ö: Ê¹ÓÃ xrtI64ToStr
 	char tmpBuf[32];
 	int intLen = xrtI64ToStr((int64)intPart, tmpBuf);
 	char* intStart = tmpBuf;
 	
-	// è®¡ç®—æ‰€éœ€æ€»é•¿åº¦
+	// ¼ÆËãËùĞè×Ü³¤¶È
 	int signLen = (negative || opts.showSign) ? 1 : 0;
 	int intDigitLen = intLen;
 	if ( opts.thousands && intDigitLen > 3 ) {
@@ -23715,20 +23714,20 @@ XXAPI str xrtNumFormat(double value, str format)
 	int percentLen = opts.percent ? 1 : 0;
 	int totalLen = signLen + intDigitLen + fracLen + percentLen;
 	
-	// åˆ†é…ç¼“å†²åŒº
+	// ·ÖÅä»º³åÇø
 	str buffer = xrtMalloc(totalLen + 1);
 	if ( buffer == NULL ) { return xCore.sNull; }
 	
 	char* out = buffer;
 	
-	// å†™å…¥ç¬¦å·
+	// Ğ´Èë·ûºÅ
 	if ( negative ) {
 		*out++ = '-';
 	} else if ( opts.showSign ) {
 		*out++ = '+';
 	}
 	
-	// å†™å…¥æ•´æ•°éƒ¨åˆ†
+	// Ğ´ÈëÕûÊı²¿·Ö
 	if ( opts.thousands && intLen > 3 ) {
 		xrt_add_thousands(out, intStart, intLen);
 		out += intDigitLen;
@@ -23737,7 +23736,7 @@ XXAPI str xrtNumFormat(double value, str format)
 		out += intLen;
 	}
 	
-	// å†™å…¥å°æ•°éƒ¨åˆ†
+	// Ğ´ÈëĞ¡Êı²¿·Ö
 	if ( precision > 0 ) {
 		*out++ = '.';
 		for ( int i = 0; i < precision; i++ ) {
@@ -23748,7 +23747,7 @@ XXAPI str xrtNumFormat(double value, str format)
 		}
 	}
 	
-	// å†™å…¥ç™¾åˆ†å·
+	// Ğ´Èë°Ù·ÖºÅ
 	if ( opts.percent ) {
 		*out++ = '%';
 	}
@@ -23756,62 +23755,62 @@ XXAPI str xrtNumFormat(double value, str format)
 	*out = '\0';
 	return buffer;
 }
-// å­—ç¬¦ä¸²ç›¸ä¼¼åº¦ï¼ˆåŸºäº Levenshtein ç¼–è¾‘è·ç¦»ï¼Œè¿”å› 0.0-1.0ï¼‰
-// é«˜æ€§èƒ½ä¼˜åŒ–ï¼šä¸€ç»´æ•°ç»„ O(min(m,n)) ç©ºé—´ï¼Œå†…è” min è®¡ç®—
+// ×Ö·û´®ÏàËÆ¶È£¨»ùÓÚ Levenshtein ±à¼­¾àÀë£¬·µ»Ø 0.0-1.0£©
+// ¸ßĞÔÄÜÓÅ»¯£ºÒ»Î¬Êı×é O(min(m,n)) ¿Õ¼ä£¬ÄÚÁª min ¼ÆËã
 XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2)
 {
-	// ç©ºæŒ‡é’ˆæ£€æŸ¥
+	// ¿ÕÖ¸Õë¼ì²é
 	if ( s1 == NULL ) { s1 = ""; len1 = 0; }
 	if ( s2 == NULL ) { s2 = ""; len2 = 0; }
 	
-	// è‡ªåŠ¨è®¡ç®—é•¿åº¦
+	// ×Ô¶¯¼ÆËã³¤¶È
 	if ( len1 == 0 ) { len1 = strlen(s1); }
 	if ( len2 == 0 ) { len2 = strlen(s2); }
 	
-	// å¿«é€Ÿè·¯å¾„ï¼šç©ºå­—ç¬¦ä¸²
+	// ¿ìËÙÂ·¾¶£º¿Õ×Ö·û´®
 	if ( len1 == 0 && len2 == 0 ) { return 1.0; }
 	if ( len1 == 0 ) { return 0.0; }
 	if ( len2 == 0 ) { return 0.0; }
 	
-	// å¿«é€Ÿè·¯å¾„ï¼šå®Œå…¨ç›¸åŒ
+	// ¿ìËÙÂ·¾¶£ºÍêÈ«ÏàÍ¬
 	if ( len1 == len2 && memcmp(s1, s2, len1) == 0 ) { return 1.0; }
 	
-	// ç¡®ä¿ s1 æ˜¯è¾ƒé•¿çš„å­—ç¬¦ä¸²ï¼ˆä¼˜åŒ–å†…å­˜è®¿é—®ï¼‰
+	// È·±£ s1 ÊÇ½Ï³¤µÄ×Ö·û´®£¨ÓÅ»¯ÄÚ´æ·ÃÎÊ£©
 	if ( len1 < len2 ) {
 		str ts = s1; s1 = s2; s2 = ts;
 		size_t tl = len1; len1 = len2; len2 = tl;
 	}
 	
-	// åˆ†é…ä¸€ç»´ DP æ•°ç»„ï¼ˆåªéœ€è¦è¾ƒçŸ­å­—ç¬¦ä¸²çš„é•¿åº¦+1ï¼‰
+	// ·ÖÅäÒ»Î¬ DP Êı×é£¨Ö»ĞèÒª½Ï¶Ì×Ö·û´®µÄ³¤¶È+1£©
 	size_t dpSize = len2 + 1;
 	int* dp = (int*)xrtMalloc(dpSize * sizeof(int));
 	if ( dp == NULL ) { return 0.0; }
 	
-	// åˆå§‹åŒ–ç¬¬ä¸€è¡Œï¼šdp[j] = j
+	// ³õÊ¼»¯µÚÒ»ĞĞ£ºdp[j] = j
 	for ( size_t j = 0; j <= len2; j++ ) {
 		dp[j] = (int)j;
 	}
 	
-	// DP è®¡ç®—ï¼ˆè¡Œä¼˜å…ˆéå†ï¼Œå¯¹ç¼“å­˜å‹å¥½ï¼‰
+	// DP ¼ÆËã£¨ĞĞÓÅÏÈ±éÀú£¬¶Ô»º´æÓÑºÃ£©
 	for ( size_t i = 1; i <= len1; i++ ) {
-		int prev = dp[0];  // ä¿å­˜ dp[i-1][j-1]
+		int prev = dp[0];  // ±£´æ dp[i-1][j-1]
 		dp[0] = (int)i;    // dp[i][0] = i
 		
 		unsigned char c1 = (unsigned char)s1[i - 1];
 		
 		for ( size_t j = 1; j <= len2; j++ ) {
-			int temp = dp[j];  // ä¿å­˜å½“å‰å€¼ï¼Œä½œä¸ºä¸‹ä¸€æ¬¡è¿­ä»£çš„ prev
+			int temp = dp[j];  // ±£´æµ±Ç°Öµ£¬×÷ÎªÏÂÒ»´Îµü´úµÄ prev
 			
 			if ( c1 == (unsigned char)s2[j - 1] ) {
-				// å­—ç¬¦ç›¸åŒï¼Œæ— éœ€æ“ä½œ
+				// ×Ö·ûÏàÍ¬£¬ÎŞĞè²Ù×÷
 				dp[j] = prev;
 			} else {
-				// å­—ç¬¦ä¸åŒï¼Œå– min(åˆ é™¤, æ’å…¥, æ›¿æ¢) + 1
+				// ×Ö·û²»Í¬£¬È¡ min(É¾³ı, ²åÈë, Ìæ»») + 1
 				int del = dp[j];      // dp[i-1][j] + 1
 				int ins = dp[j - 1];  // dp[i][j-1] + 1
 				int rep = prev;       // dp[i-1][j-1] + 1
 				
-				// å†…è” min3 è®¡ç®—
+				// ÄÚÁª min3 ¼ÆËã
 				int minVal = del;
 				if ( ins < minVal ) { minVal = ins; }
 				if ( rep < minVal ) { minVal = rep; }
@@ -23823,98 +23822,31 @@ XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2)
 		}
 	}
 	
-	// è·å–ç¼–è¾‘è·ç¦»
+	// »ñÈ¡±à¼­¾àÀë
 	int distance = dp[len2];
 	xrtFree(dp);
 	
-	// è®¡ç®—ç›¸ä¼¼åº¦ï¼š1 - distance / maxLen
+	// ¼ÆËãÏàËÆ¶È£º1 - distance / maxLen
 	size_t maxLen = len1;  // len1 >= len2
 	return 1.0 - (double)distance / (double)maxLen;
 }
-// å­—ç¬¦ä¸²çº¦ç­‰äºï¼ˆä½¿ç”¨ xCore é…ç½®ï¼‰
-// iApproxStrMode=0: é€šé…ç¬¦æ¨¡å¼ï¼ˆä½¿ç”¨ xrtStrLikeï¼Œs2 ä¸ºæ¨¡å¼ä¸²ï¼‰
-// iApproxStrMode=1: ç›¸ä¼¼åº¦æ¨¡å¼ï¼ˆä½¿ç”¨ xrtStrSim å’Œ fApproxStrTol é˜ˆå€¼ï¼‰
+// ×Ö·û´®Ô¼µÈÓÚ£¨Ê¹ÓÃ xCore ÅäÖÃ£©
+// iApproxStrMode=0: Í¨Åä·ûÄ£Ê½£¨Ê¹ÓÃ xrtStrLike£¬s2 ÎªÄ£Ê½´®£©
+// iApproxStrMode=1: ÏàËÆ¶ÈÄ£Ê½£¨Ê¹ÓÃ xrtStrSim ºÍ fApproxStrTol ãĞÖµ£©
 XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 {
 	if ( xCore.iApproxStrMode == XRT_STR_APPROX_LIKE ) {
-		// é€šé…ç¬¦æ¨¡å¼
+		// Í¨Åä·ûÄ£Ê½
 		return xrtStrLike(s1, len1, s2, len2, xCore.bApproxStrCase);
 	} else {
-		// ç›¸ä¼¼åº¦æ¨¡å¼
+		// ÏàËÆ¶ÈÄ£Ê½
 		double threshold = xCore.fApproxStrTol;
 		if ( threshold <= 0.0 || threshold > 1.0 ) {
-			threshold = 0.95;  // æ— æ•ˆé˜ˆå€¼ä½¿ç”¨é»˜è®¤å€¼
+			threshold = 0.95;  // ÎŞĞ§ãĞÖµÊ¹ÓÃÄ¬ÈÏÖµ
 		}
 		double sim = xrtStrSim(s1, len1, s2, len2);
 		return sim >= threshold;
 	}
-}
-// URL ç¼–ç ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
-XXAPI str xrtUrlEncode(str sSrc, size_t iLen)
-{
-	static const char sHex[] = "0123456789ABCDEF";
-	if ( !sSrc ) return NULL;
-	if ( iLen == 0 ) iLen = strlen(sSrc);
-	if ( iLen == 0 ) return xrtCopyStr("", 0);
-	
-	// æœ€åæƒ…å†µæ¯ä¸ªå­—èŠ‚å˜ 3 å­—èŠ‚
-	str sRet = xrtMalloc(iLen * 3 + 1);
-	if ( !sRet ) return NULL;
-	
-	size_t j = 0;
-	for ( size_t i = 0; i < iLen; i++ ) {
-		unsigned char c = (unsigned char)sSrc[i];
-		if ( (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
-			 (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~' ) {
-			sRet[j++] = (char)c;
-		} else {
-			sRet[j++] = '%';
-			sRet[j++] = sHex[c >> 4];
-			sRet[j++] = sHex[c & 0x0F];
-		}
-	}
-	sRet[j] = '\0';
-	return sRet;
-}
-// URL è§£ç ï¼ˆ éœ€ä½¿ç”¨ xrtFree é‡Šæ”¾ ï¼‰
-XXAPI str xrtUrlDecode(str sSrc, size_t iLen)
-{
-	if ( !sSrc ) return NULL;
-	if ( iLen == 0 ) iLen = strlen(sSrc);
-	if ( iLen == 0 ) return xrtCopyStr("", 0);
-	
-	str sRet = xrtMalloc(iLen + 1);
-	if ( !sRet ) return NULL;
-	
-	size_t j = 0;
-	for ( size_t i = 0; i < iLen; i++ ) {
-		if ( sSrc[i] == '%' && (i + 2) < iLen ) {
-			unsigned char hi = (unsigned char)sSrc[i + 1];
-			unsigned char lo = (unsigned char)sSrc[i + 2];
-			// è§£æé«˜ 4 ä½
-			int iHi = -1, iLo = -1;
-			if ( hi >= '0' && hi <= '9' ) iHi = hi - '0';
-			else if ( hi >= 'A' && hi <= 'F' ) iHi = hi - 'A' + 10;
-			else if ( hi >= 'a' && hi <= 'f' ) iHi = hi - 'a' + 10;
-			// è§£æä½ 4 ä½
-			if ( lo >= '0' && lo <= '9' ) iLo = lo - '0';
-			else if ( lo >= 'A' && lo <= 'F' ) iLo = lo - 'A' + 10;
-			else if ( lo >= 'a' && lo <= 'f' ) iLo = lo - 'a' + 10;
-			
-			if ( iHi >= 0 && iLo >= 0 ) {
-				sRet[j++] = (char)((iHi << 4) | iLo);
-				i += 2;
-			} else {
-				sRet[j++] = sSrc[i];
-			}
-		} else if ( sSrc[i] == '+' ) {
-			sRet[j++] = ' ';
-		} else {
-			sRet[j++] = sSrc[i];
-		}
-	}
-	sRet[j] = '\0';
-	return sRet;
 }
 
 // ========================================

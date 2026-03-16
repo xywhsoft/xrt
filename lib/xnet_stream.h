@@ -1,4 +1,4 @@
-#ifndef XRT_XNET_STREAM_H
+﻿#ifndef XRT_XNET_STREAM_H
 #define XRT_XNET_STREAM_H
 
 #include "xnet_engine.h"
@@ -167,8 +167,8 @@ struct xrt_net_stream {
 	bool bDestroyPending;
 };
 
-static void xrtNetStreamDestroy(xnetstream* pStream);
-static void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
+XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
+XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
 static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
 static bool __xnetStreamArmRecvWatch(xnetstream* pStream);
 static bool __xnetStreamArmSendWatch(xnetstream* pStream);
@@ -1729,7 +1729,7 @@ static xnet_result __xnetStreamPostTlsHandshake(xnetstream* pStream)
 
 /* ============================== Listener helpers ============================== */
 
-static xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenconfig* pCfg,
+XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenconfig* pCfg,
 	const xnetlistenerevents* pEvents, const xnetstreamevents* pStreamEvents, ptr pUserData)
 {
 	xnetlistener* pListener;
@@ -1757,7 +1757,7 @@ static xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenc
 	return pListener;
 }
 
-static void xrtNetListenerDestroy(xnetlistener* pListener)
+XXAPI void xrtNetListenerDestroy(xnetlistener* pListener)
 {
 	if ( !pListener ) return;
 	if ( pListener->tAcceptWait.pfnWait != NULL ) {
@@ -1775,7 +1775,7 @@ static void xrtNetListenerDestroy(xnetlistener* pListener)
 	__xnetListenerFinalizeDestroy(pListener);
 }
 
-static xnet_result xrtNetListenerStart(xnetlistener* pListener)
+XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 {
 	struct sockaddr_storage tStorage;
 	socklen_t iAddrLen = 0;
@@ -1808,7 +1808,7 @@ static xnet_result xrtNetListenerStart(xnetlistener* pListener)
 	return XRT_NET_OK;
 }
 
-static void xrtNetListenerStop(xnetlistener* pListener)
+XXAPI void xrtNetListenerStop(xnetlistener* pListener)
 {
 	if ( !pListener ) return;
 	pListener->bRunning = false;
@@ -2085,7 +2085,7 @@ static xnetstream* __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUser
 
 /* ============================== Stream helpers ============================== */
 
-static xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevents* pEvents, ptr pUserData)
+XXAPI xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevents* pEvents, ptr pUserData)
 {
 	xnetstream* pStream;
 	xnetworker* pWorker;
@@ -2110,7 +2110,7 @@ static xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevent
 	return pStream;
 }
 
-static void xrtNetStreamDestroy(xnetstream* pStream)
+XXAPI void xrtNetStreamDestroy(xnetstream* pStream)
 {
 	if ( !pStream ) return;
 	if ( __xnetAtomicLoad32(&pStream->iAsyncHoldCount) != 0 ) {
@@ -2125,7 +2125,7 @@ static void xrtNetStreamDestroy(xnetstream* pStream)
 	XNET_FREE(pStream);
 }
 
-static xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconfig* pCfg)
+XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconfig* pCfg)
 {
 	struct sockaddr_storage tStorage;
 	socklen_t iAddrLen = 0;
@@ -2164,7 +2164,7 @@ static xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectcon
 	return XRT_NET_OK;
 }
 
-static void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
+XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 {
 	if ( !pStream ) return;
 	if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return;
@@ -2208,7 +2208,7 @@ static void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 	__xnetStreamKickWrite(pStream);
 }
 
-static xnet_result xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iLen)
+XXAPI xnet_result xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iLen)
 {
 	if ( !pStream || !pStream->pEngine || !pStream->pEngine->bRunning || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	if ( pStream->bClosing || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return XRT_NET_CLOSED;
@@ -2230,7 +2230,7 @@ static xnet_result xrtNetStreamSend(xnetstream* pStream, const void* pData, size
 	return __xnetStreamAppendSendCopy(pStream, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
 }
 
-static xnet_result xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount)
+XXAPI xnet_result xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount)
 {
 	if ( !pStream || !pStream->pEngine || !pStream->pEngine->bRunning || !pVec || iCount == 0 ) return XRT_NET_ERROR;
 	if ( pStream->bClosing || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return XRT_NET_CLOSED;
@@ -2252,7 +2252,7 @@ static xnet_result xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pVec
 	return __xnetStreamAppendSendVec(pStream, pVec, iCount) ? XRT_NET_OK : XRT_NET_ERROR;
 }
 
-static xnet_result xrtNetStreamSendRef(xnetstream* pStream, const xnetbufref* pRef)
+XXAPI xnet_result xrtNetStreamSendRef(xnetstream* pStream, const xnetbufref* pRef)
 {
 	if ( !pStream || !pStream->pEngine || !pStream->pEngine->bRunning || !pRef ) return XRT_NET_ERROR;
 	if ( pStream->bClosing || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) return XRT_NET_CLOSED;
@@ -2274,13 +2274,13 @@ static xnet_result xrtNetStreamSendRef(xnetstream* pStream, const xnetbufref* pR
 	return __xnetStreamAppendSendRef(pStream, pRef) ? XRT_NET_OK : XRT_NET_ERROR;
 }
 
-static void xrtNetStreamPauseRead(xnetstream* pStream)
+XXAPI void xrtNetStreamPauseRead(xnetstream* pStream)
 {
 	if ( !pStream ) return;
 	pStream->bReadPaused = true;
 }
 
-static void xrtNetStreamResumeRead(xnetstream* pStream)
+XXAPI void xrtNetStreamResumeRead(xnetstream* pStream)
 {
 	if ( !pStream ) return;
 	pStream->bReadPaused = false;
@@ -2301,28 +2301,28 @@ static void xrtNetStreamResumeRead(xnetstream* pStream)
 	}
 }
 
-static size_t xrtNetStreamPendingSend(const xnetstream* pStream)
+XXAPI size_t xrtNetStreamPendingSend(const xnetstream* pStream)
 {
 	return pStream ? pStream->tSendQ.iQueuedBytes : 0;
 }
 
-static const xnetaddr* xrtNetStreamLocalAddr(const xnetstream* pStream)
+XXAPI const xnetaddr* xrtNetStreamLocalAddr(const xnetstream* pStream)
 {
 	return pStream ? &pStream->tLocalAddr : NULL;
 }
 
-static const xnetaddr* xrtNetStreamRemoteAddr(const xnetstream* pStream)
+XXAPI const xnetaddr* xrtNetStreamRemoteAddr(const xnetstream* pStream)
 {
 	return pStream ? &pStream->tRemoteAddr : NULL;
 }
 
-static void xrtNetStreamSetUserData(xnetstream* pStream, ptr pData)
+XXAPI void xrtNetStreamSetUserData(xnetstream* pStream, ptr pData)
 {
 	if ( !pStream ) return;
 	pStream->pUserData = pData;
 }
 
-static ptr xrtNetStreamGetUserData(xnetstream* pStream)
+XXAPI ptr xrtNetStreamGetUserData(xnetstream* pStream)
 {
 	return pStream ? pStream->pUserData : NULL;
 }

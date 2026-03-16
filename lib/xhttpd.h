@@ -1,4 +1,4 @@
-#ifndef XRT_XHTTPD_H
+﻿#ifndef XRT_XHTTPD_H
 #define XRT_XHTTPD_H
 
 #include "xurl.h"
@@ -241,7 +241,7 @@ static bool __xhttpdContainsTokenNoCase(const char* sValue, const char* sToken)
 	return xrtHttpHeaderContainsToken(sValue, sToken);
 }
 
-static const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName)
+XXAPI const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName)
 {
 	if ( !pReq || !sName ) return NULL;
 	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
@@ -250,7 +250,7 @@ static const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* 
 	return NULL;
 }
 
-static const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName)
+XXAPI const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName)
 {
 	if ( !pResp || !sName ) return NULL;
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
@@ -259,7 +259,7 @@ static const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const cha
 	return NULL;
 }
 
-static void xrtHttpdConfigInit(xhttpdconfig* pCfg)
+XXAPI void xrtHttpdConfigInit(xhttpdconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xhttpdconfig));
@@ -268,14 +268,14 @@ static void xrtHttpdConfigInit(xhttpdconfig* pCfg)
 	pCfg->iRecvLimit = 1024u * 1024u;
 }
 
-static void xrtHttpdRequestInit(xhttpdrequest* pReq)
+XXAPI void xrtHttpdRequestInit(xhttpdrequest* pReq)
 {
 	if ( !pReq ) return;
 	memset(pReq, 0, sizeof(xhttpdrequest));
 	pReq->iContentLength = -1;
 }
 
-static void xrtHttpdRequestUnit(xhttpdrequest* pReq)
+XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq)
 {
 	if ( !pReq ) return;
 	if ( pReq->pBody ) {
@@ -286,7 +286,7 @@ static void xrtHttpdRequestUnit(xhttpdrequest* pReq)
 	memset(pReq, 0, sizeof(xhttpdrequest));
 }
 
-static void xrtHttpdResponseInit(xhttpdresponse* pResp)
+XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp)
 {
 	if ( !pResp ) return;
 	memset(pResp, 0, sizeof(xhttpdresponse));
@@ -294,7 +294,7 @@ static void xrtHttpdResponseInit(xhttpdresponse* pResp)
 	pResp->iFlags = XHTTPD_RESP_F_CLOSE;
 }
 
-static void xrtHttpdResponseUnit(xhttpdresponse* pResp)
+XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp)
 {
 	if ( !pResp ) return;
 	if ( pResp->pBody ) {
@@ -305,14 +305,14 @@ static void xrtHttpdResponseUnit(xhttpdresponse* pResp)
 	memset(pResp, 0, sizeof(xhttpdresponse));
 }
 
-static void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason)
+XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason)
 {
 	if ( !pResp ) return;
 	pResp->iStatusCode = iStatusCode;
 	__xhttpdCopyToken(pResp->sReason, sizeof(pResp->sReason), sReason);
 }
 
-static bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue)
+XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue)
 {
 	xhttpdheader* pHeader;
 	if ( !pResp || !sName || !sValue ) return false;
@@ -329,7 +329,7 @@ static bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, 
 	return true;
 }
 
-static bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType)
+XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType)
 {
 	char* pBodyCopy = NULL;
 	if ( !pResp ) return false;
@@ -732,7 +732,7 @@ static const xnetstreamevents* __xhttpdStreamEvents(void)
 	return &tEvents;
 }
 
-static xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData)
+XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData)
 {
 	xhttpdserver* pServer;
 	if ( !pEngine ) return NULL;
@@ -750,12 +750,12 @@ static xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCf
 	return pServer;
 }
 
-static uint16 xrtHttpdBoundPort(const xhttpdserver* pServer)
+XXAPI uint16 xrtHttpdBoundPort(const xhttpdserver* pServer)
 {
 	return (pServer && pServer->pListener) ? pServer->pListener->tConfig.tBindAddr.iPort : 0u;
 }
 
-static xnet_result xrtHttpdStart(xhttpdserver* pServer)
+XXAPI xnet_result xrtHttpdStart(xhttpdserver* pServer)
 {
 	xnetlistenconfig tListenCfg;
 	if ( !pServer || !pServer->pEngine ) return XRT_NET_ERROR;
@@ -784,7 +784,7 @@ static xnet_result xrtHttpdStart(xhttpdserver* pServer)
 	return XRT_NET_OK;
 }
 
-static void xrtHttpdStop(xhttpdserver* pServer)
+XXAPI void xrtHttpdStop(xhttpdserver* pServer)
 {
 	xhttpdconn* pConn;
 	if ( !pServer ) return;
@@ -811,7 +811,7 @@ static void xrtHttpdStop(xhttpdserver* pServer)
 	}
 }
 
-static void xrtHttpdDestroy(xhttpdserver* pServer)
+XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 {
 	if ( !pServer ) return;
 	xrtHttpdStop(pServer);

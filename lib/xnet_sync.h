@@ -1,4 +1,4 @@
-#ifndef XRT_XNET_SYNC_H
+﻿#ifndef XRT_XNET_SYNC_H
 #define XRT_XNET_SYNC_H
 
 #include "xnet_stream.h"
@@ -418,7 +418,7 @@ static __xnet_sync_hidden_state* __xnetSyncHiddenState(void)
 
 /* ============================== Public future helpers ============================== */
 
-static xnetfuture* xrtNetFutureCreate(void)
+XXAPI xnetfuture* xrtNetFutureCreate(void)
 {
 	xnetfuture* pFuture = (xnetfuture*)XNET_ALLOC(sizeof(xnetfuture));
 	if ( !pFuture ) return NULL;
@@ -429,7 +429,7 @@ static xnetfuture* xrtNetFutureCreate(void)
 	return pFuture;
 }
 
-static xnetwaitsrc xrtNetWaitSourceNone(void)
+XXAPI xnetwaitsrc xrtNetWaitSourceNone(void)
 {
 	xnetwaitsrc tSrc;
 	memset(&tSrc, 0, sizeof(tSrc));
@@ -437,7 +437,7 @@ static xnetwaitsrc xrtNetWaitSourceNone(void)
 	return tSrc;
 }
 
-static xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture)
+XXAPI xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture)
 {
 	xnetwaitsrc tSrc;
 	memset(&tSrc, 0, sizeof(tSrc));
@@ -446,7 +446,7 @@ static xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture)
 	return tSrc;
 }
 
-static xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind)
+XXAPI xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind)
 {
 	xnetwaitsrc tSrc;
 	memset(&tSrc, 0, sizeof(tSrc));
@@ -456,7 +456,7 @@ static xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind)
 	return tSrc;
 }
 
-static xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock)
+XXAPI xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock)
 {
 	xnetwaitsrc tSrc;
 	memset(&tSrc, 0, sizeof(tSrc));
@@ -465,7 +465,7 @@ static xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock)
 	return tSrc;
 }
 
-static xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener)
+XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener)
 {
 	xnetwaitsrc tSrc;
 	memset(&tSrc, 0, sizeof(tSrc));
@@ -497,7 +497,7 @@ static bool __xnetFutureDestroyCore(xnetfuture* pFuture)
 	return true;
 }
 
-static void xrtNetFutureDestroy(xnetfuture* pFuture)
+XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
 	if ( !__xnetFutureDestroyCore(pFuture) ) {
@@ -505,7 +505,7 @@ static void xrtNetFutureDestroy(xnetfuture* pFuture)
 	}
 }
 
-static xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 {
 	xnet_result iStatus;
 	if ( !pFuture ) return XRT_NET_ERROR;
@@ -566,7 +566,7 @@ static xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 	return iStatus;
 }
 
-static xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
+XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
 {
 	xnet_result iStatus;
 	if ( !pFuture ) return XRT_NET_ERROR;
@@ -576,7 +576,7 @@ static xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
 	return iStatus;
 }
 
-static ptr xrtNetFutureValue(xnetfuture* pFuture)
+XXAPI ptr xrtNetFutureValue(xnetfuture* pFuture)
 {
 	ptr pValue;
 	if ( !pFuture ) return NULL;
@@ -586,7 +586,7 @@ static ptr xrtNetFutureValue(xnetfuture* pFuture)
 	return pValue;
 }
 
-static xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs)
+XXAPI xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs)
 {
 	int64_t iNowMs;
 	uint64 iRemainMs;
@@ -663,12 +663,12 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 	return (iStatus == XRT_NET_AGAIN) ? XRT_NET_ERROR : iStatus;
 }
 
-static xnet_result xrtNetFutureWaitCoUntil(xnetfuture* pFuture, int64 iDeadlineMs)
+XXAPI xnet_result xrtNetFutureWaitCoUntil(xnetfuture* pFuture, int64 iDeadlineMs)
 {
 	return __xnetFutureWaitCoCore(pFuture, 2, iDeadlineMs, 0);
 }
 
-static xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeoutMs)
 {
 	if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
 		return __xnetFutureWaitCoCore(pFuture, 0, 0, 0);
@@ -677,7 +677,7 @@ static xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeou
 	return __xnetFutureWaitCoCore(pFuture, 1, 0, iTimeoutMs);
 }
 
-static xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture)
+XXAPI xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture)
 {
 	return __xnetFutureWaitCoCore(pFuture, 0, 0, 0);
 }
@@ -687,7 +687,7 @@ static xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture)
 
 /* ============================== Hidden convenience engine helpers ============================== */
 
-static xnetengine* xrtNetSyncGetHiddenEngine(void)
+XXAPI xnetengine* xrtNetSyncGetHiddenEngine(void)
 {
 	__xnet_sync_hidden_state* pState = __xnetSyncHiddenState();
 	xnetengine* pEngine;
@@ -717,7 +717,7 @@ static xnetengine* xrtNetSyncGetHiddenEngine(void)
 	return pEngine;
 }
 
-static void xrtNetSyncShutdownHiddenEngine(void)
+XXAPI void xrtNetSyncShutdownHiddenEngine(void)
 {
 	__xnet_sync_hidden_state* pState = __xnetSyncHiddenState();
 	xnetengine* pEngine;
@@ -1464,12 +1464,12 @@ static xnetfuture* __xnetSyncCreatePostedFuture(xnetengine* pEngine, uint32 iAff
 	return pFuture;
 }
 
-static xnetfuture* xrtNetEnginePostFuture(xnetengine* pEngine, uint32 iAffinityKey, xnet_future_task_fn pfnTask, ptr pArg)
+XXAPI xnetfuture* xrtNetEnginePostFuture(xnetengine* pEngine, uint32 iAffinityKey, xnet_future_task_fn pfnTask, ptr pArg)
 {
 	return __xnetSyncCreatePostedFuture(pEngine, iAffinityKey, 0, pfnTask, pArg, false);
 }
 
-static xnetfuture* xrtNetEnginePostDelayedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg)
+XXAPI xnetfuture* xrtNetEnginePostDelayedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg)
 {
 	return __xnetSyncCreatePostedFuture(pEngine, iAffinityKey, iDelayMs, pfnTask, pArg, true);
 }
@@ -1529,27 +1529,27 @@ static xnetfuture* __xnetSyncCreateStreamFutureWait(xnetstream* pStream, uint32 
 	return pFuture;
 }
 
-static xnetfuture* xrtNetStreamDrainFuture(xnetstream* pStream)
+XXAPI xnetfuture* xrtNetStreamDrainFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_DRAIN);
 }
 
-static xnetfuture* xrtNetStreamWritableFuture(xnetstream* pStream)
+XXAPI xnetfuture* xrtNetStreamWritableFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_WRITABLE);
 }
 
-static xnetfuture* xrtNetStreamCloseFuture(xnetstream* pStream)
+XXAPI xnetfuture* xrtNetStreamCloseFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_CLOSE);
 }
 
-static xnetfuture* xrtNetStreamReadableFuture(xnetstream* pStream)
+XXAPI xnetfuture* xrtNetStreamReadableFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_READABLE);
 }
 
-static xnetfuture* xrtNetStreamFutureEx(xnetstream* pStream, uint32 iWaitKind)
+XXAPI xnetfuture* xrtNetStreamFutureEx(xnetstream* pStream, uint32 iWaitKind)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
 }
@@ -1598,7 +1598,7 @@ static xnetfuture* __xnetSyncCreateListenerFutureAccept(xnetlistener* pListener)
 	return pFuture;
 }
 
-static xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener)
+XXAPI xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener)
 {
 	return __xnetSyncCreateListenerFutureAccept(pListener);
 }
@@ -1655,7 +1655,7 @@ static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 	return pFuture;
 }
 
-static xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock)
+XXAPI xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock)
 {
 	return __xnetSyncCreateDgramFutureRecv(pSock);
 }
@@ -1862,85 +1862,85 @@ static xnet_result __xnetSyncWaitSourceSyncCore(const xnetwaitsrc* pSrc, int iWa
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
-static xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind)
+XXAPI xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceSyncCore(&tSrc, 0, 0, 0);
 }
 
-static xnet_result xrtNetStreamWaitTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetStreamWaitTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceSyncCore(&tSrc, 1, 0, iTimeoutMs);
 }
 
-static xnet_result xrtNetStreamWaitUntilEx(xnetstream* pStream, uint32 iWaitKind, int64_t iDeadlineMs)
+XXAPI xnet_result xrtNetStreamWaitUntilEx(xnetstream* pStream, uint32 iWaitKind, int64_t iDeadlineMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceSyncCore(&tSrc, 2, iDeadlineMs, 0);
 }
 
-static xnet_result xrtNetWaitSourceWait(const xnetwaitsrc* pSrc)
+XXAPI xnet_result xrtNetWaitSourceWait(const xnetwaitsrc* pSrc)
 {
 	return __xnetSyncWaitSourceSyncCore(pSrc, 0, 0, 0);
 }
 
-static xnet_result xrtNetWaitSourceWaitTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetWaitSourceWaitTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitSourceSyncCore(pSrc, 1, 0, iTimeoutMs);
 }
 
-static xnet_result xrtNetWaitSourceWaitUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs)
+XXAPI xnet_result xrtNetWaitSourceWaitUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs)
 {
 	return __xnetSyncWaitSourceSyncCore(pSrc, 2, iDeadlineMs, 0);
 }
 
-static xnet_result xrtNetWaitSourceWaitValue(const xnetwaitsrc* pSrc, ptr* ppValue)
+XXAPI xnet_result xrtNetWaitSourceWaitValue(const xnetwaitsrc* pSrc, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 0, 0, 0, ppValue);
 }
 
-static xnet_result xrtNetWaitSourceWaitValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
+XXAPI xnet_result xrtNetWaitSourceWaitValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 1, 0, iTimeoutMs, ppValue);
 }
 
-static xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue)
+XXAPI xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
 }
 
-static xnet_result xrtNetListenerAccept(xnetlistener* pListener, xnetstream** ppStream)
+XXAPI xnet_result xrtNetListenerAccept(xnetlistener* pListener, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 0, 0, 0, (ptr*)ppStream);
 }
 
-static xnet_result xrtNetListenerAcceptTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
+XXAPI xnet_result xrtNetListenerAcceptTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppStream);
 }
 
-static xnet_result xrtNetListenerAcceptUntil(xnetlistener* pListener, int64_t iDeadlineMs, xnetstream** ppStream)
+XXAPI xnet_result xrtNetListenerAcceptUntil(xnetlistener* pListener, int64_t iDeadlineMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppStream);
 }
 
-static xnet_result xrtNetDgramRecv(xdgramsock* pSock, xnetdgrampkt** ppPacket)
+XXAPI xnet_result xrtNetDgramRecv(xdgramsock* pSock, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 0, 0, 0, (ptr*)ppPacket);
 }
 
-static xnet_result xrtNetDgramRecvTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
+XXAPI xnet_result xrtNetDgramRecvTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppPacket);
 }
 
-static xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, xnetdgrampkt** ppPacket)
+XXAPI xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppPacket);
@@ -2184,149 +2184,149 @@ static xnet_result __xnetSyncWaitSourceCoCore(const xnetwaitsrc* pSrc, int iWait
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
-static xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
-static xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
-static xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
+XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
+XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
+XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
 
-static xnet_result xrtNetStreamWaitDrainCo(xnetstream* pStream)
+XXAPI xnet_result xrtNetStreamWaitDrainCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_DRAIN);
 }
 
-static xnet_result xrtNetStreamWaitDrainCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetStreamWaitDrainCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_DRAIN, iTimeoutMs);
 }
 
-static xnet_result xrtNetStreamWaitDrainCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+XXAPI xnet_result xrtNetStreamWaitDrainCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_DRAIN, iDeadlineMs);
 }
 
-static xnet_result xrtNetStreamWaitWritableCo(xnetstream* pStream)
+XXAPI xnet_result xrtNetStreamWaitWritableCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_WRITABLE);
 }
 
-static xnet_result xrtNetStreamWaitWritableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetStreamWaitWritableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_WRITABLE, iTimeoutMs);
 }
 
-static xnet_result xrtNetStreamWaitWritableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+XXAPI xnet_result xrtNetStreamWaitWritableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_WRITABLE, iDeadlineMs);
 }
 
-static xnet_result xrtNetStreamWaitCloseCo(xnetstream* pStream)
+XXAPI xnet_result xrtNetStreamWaitCloseCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_CLOSE);
 }
 
-static xnet_result xrtNetStreamWaitCloseCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetStreamWaitCloseCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_CLOSE, iTimeoutMs);
 }
 
-static xnet_result xrtNetStreamWaitCloseCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+XXAPI xnet_result xrtNetStreamWaitCloseCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_CLOSE, iDeadlineMs);
 }
 
-static xnet_result xrtNetStreamWaitReadableCo(xnetstream* pStream)
+XXAPI xnet_result xrtNetStreamWaitReadableCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_READABLE);
 }
 
-static xnet_result xrtNetStreamWaitReadableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetStreamWaitReadableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_READABLE, iTimeoutMs);
 }
 
-static xnet_result xrtNetStreamWaitReadableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
+XXAPI xnet_result xrtNetStreamWaitReadableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_READABLE, iDeadlineMs);
 }
 
-static xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind)
+XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceCoCore(&tSrc, 0, 0, 0);
 }
 
-static xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceCoCore(&tSrc, 1, 0, iTimeoutMs);
 }
 
-static xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs)
+XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceCoCore(&tSrc, 2, iDeadlineMs, 0);
 }
 
-static xnet_result xrtNetWaitSourceWaitCo(const xnetwaitsrc* pSrc)
+XXAPI xnet_result xrtNetWaitSourceWaitCo(const xnetwaitsrc* pSrc)
 {
 	return __xnetSyncWaitSourceCoCore(pSrc, 0, 0, 0);
 }
 
-static xnet_result xrtNetWaitSourceWaitCoTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
+XXAPI xnet_result xrtNetWaitSourceWaitCoTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitSourceCoCore(pSrc, 1, 0, iTimeoutMs);
 }
 
-static xnet_result xrtNetWaitSourceWaitCoUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs)
+XXAPI xnet_result xrtNetWaitSourceWaitCoUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs)
 {
 	return __xnetSyncWaitSourceCoCore(pSrc, 2, iDeadlineMs, 0);
 }
 
-static xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppValue)
+XXAPI xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, 0, 0, 0, ppValue);
 }
 
-static xnet_result xrtNetWaitSourceWaitCoValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
+XXAPI xnet_result xrtNetWaitSourceWaitCoValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, 1, 0, iTimeoutMs, ppValue);
 }
 
-static xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue)
+XXAPI xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
 }
 
-static xnet_result xrtNetListenerAcceptCo(xnetlistener* pListener, xnetstream** ppStream)
+XXAPI xnet_result xrtNetListenerAcceptCo(xnetlistener* pListener, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 0, 0, 0, (ptr*)ppStream);
 }
 
-static xnet_result xrtNetListenerAcceptCoTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
+XXAPI xnet_result xrtNetListenerAcceptCoTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppStream);
 }
 
-static xnet_result xrtNetListenerAcceptCoUntil(xnetlistener* pListener, int64 iDeadlineMs, xnetstream** ppStream)
+XXAPI xnet_result xrtNetListenerAcceptCoUntil(xnetlistener* pListener, int64 iDeadlineMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppStream);
 }
 
-static xnet_result xrtNetDgramRecvCo(xdgramsock* pSock, xnetdgrampkt** ppPacket)
+XXAPI xnet_result xrtNetDgramRecvCo(xdgramsock* pSock, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 0, 0, 0, (ptr*)ppPacket);
 }
 
-static xnet_result xrtNetDgramRecvCoTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
+XXAPI xnet_result xrtNetDgramRecvCoTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppPacket);
 }
 
-static xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, xnetdgrampkt** ppPacket)
+XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppPacket);

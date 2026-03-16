@@ -1,5 +1,9 @@
-#ifndef XRT_XURL_H
+﻿#ifndef XRT_XURL_H
 #define XRT_XURL_H
+
+#ifndef XXAPI
+	#define XXAPI
+#endif
 
 /*
     XRT public URL/query utility layer.
@@ -60,7 +64,7 @@ typedef struct {
 	char sPath[XRT_URL_FIXED_PATH_CAP];
 } xurl_struct, *xurl;
 
-static xrtstrview xrtStrView(const char* sPtr, size_t iLen)
+XXAPI xrtstrview xrtStrView(const char* sPtr, size_t iLen)
 {
 	xrtstrview tView;
 	tView.sPtr = sPtr;
@@ -68,12 +72,12 @@ static xrtstrview xrtStrView(const char* sPtr, size_t iLen)
 	return tView;
 }
 
-static bool xrtStrViewIsEmpty(xrtstrview tView)
+XXAPI bool xrtStrViewIsEmpty(xrtstrview tView)
 {
 	return tView.sPtr == NULL || tView.iLen == 0u;
 }
 
-static bool xrtStrViewCopyTo(xrtstrview tView, char* sOut, size_t iOutCap)
+XXAPI bool xrtStrViewCopyTo(xrtstrview tView, char* sOut, size_t iOutCap)
 {
 	if ( sOut == NULL || iOutCap == 0u ) return false;
 	if ( xrtStrViewIsEmpty(tView) ) {
@@ -145,7 +149,7 @@ static bool __xrtUrlParsePort(const char* sText, size_t iLen, uint16* pPort)
 	return true;
 }
 
-static uint16 xrtUrlDefaultPort(xrtstrview tScheme)
+XXAPI uint16 xrtUrlDefaultPort(xrtstrview tScheme)
 {
 	if ( __xrtUrlViewEqNoCase(tScheme, "http") ) return 80u;
 	if ( __xrtUrlViewEqNoCase(tScheme, "ws") ) return 80u;
@@ -154,7 +158,7 @@ static uint16 xrtUrlDefaultPort(xrtstrview tScheme)
 	return 0u;
 }
 
-static bool xrtUrlIsSecureScheme(xrtstrview tScheme)
+XXAPI bool xrtUrlIsSecureScheme(xrtstrview tScheme)
 {
 	return __xrtUrlViewEqNoCase(tScheme, "https") || __xrtUrlViewEqNoCase(tScheme, "wss");
 }
@@ -189,7 +193,7 @@ static bool __xrtUrlAppendPort(char* sOut, size_t iOutCap, size_t* pOffset, uint
 	return __xrtUrlAppendBytes(sOut, iOutCap, pOffset, sBuf, (size_t)iLen);
 }
 
-static bool xrtUrlIsDefaultPort(const xrturlview* pURL)
+XXAPI bool xrtUrlIsDefaultPort(const xrturlview* pURL)
 {
 	uint16 iDefaultPort;
 	if ( pURL == NULL || xrtStrViewIsEmpty(pURL->tScheme) || pURL->iPort == 0u ) return false;
@@ -197,47 +201,47 @@ static bool xrtUrlIsDefaultPort(const xrturlview* pURL)
 	return iDefaultPort != 0u && iDefaultPort == pURL->iPort;
 }
 
-static bool xrtUrlViewIsScheme(const xrturlview* pURL, const char* sScheme)
+XXAPI bool xrtUrlViewIsScheme(const xrturlview* pURL, const char* sScheme)
 {
 	return pURL != NULL && sScheme != NULL && !xrtStrViewIsEmpty(pURL->tScheme) && __xrtUrlViewEqNoCase(pURL->tScheme, sScheme);
 }
 
-static bool xrtUrlViewMatchesScheme2(const xrturlview* pURL, const char* sSchemeA, const char* sSchemeB)
+XXAPI bool xrtUrlViewMatchesScheme2(const xrturlview* pURL, const char* sSchemeA, const char* sSchemeB)
 {
 	return xrtUrlViewIsScheme(pURL, sSchemeA) || xrtUrlViewIsScheme(pURL, sSchemeB);
 }
 
-static bool xrtUrlViewCopySchemeTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlViewCopySchemeTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tScheme, sOut, iOutCap);
 }
 
-static bool xrtUrlViewCopyAuthorityTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlViewCopyAuthorityTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tAuthority, sOut, iOutCap);
 }
 
-static bool xrtUrlViewCopyPathTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlViewCopyPathTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tPath, sOut, iOutCap);
 }
 
-static bool xrtUrlViewCopyQueryTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlViewCopyQueryTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tQuery, sOut, iOutCap);
 }
 
-static bool xrtUrlViewCopyFragmentTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlViewCopyFragmentTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tFragment, sOut, iOutCap);
 }
 
-static bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOut)
+XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iAt = (size_t)-1;
 	size_t iHostStart = 0u;
@@ -298,13 +302,13 @@ static bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pO
 	return true;
 }
 
-static bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut)
+XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtUrlParseAuthorityN(sText, strlen(sText), pOut);
 }
 
-static bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
+XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iQuery = (size_t)-1;
 	size_t iFrag = (size_t)-1;
@@ -337,13 +341,13 @@ static bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 	return true;
 }
 
-static bool xrtUrlParseTarget(const char* sText, xrturlview* pOut)
+XXAPI bool xrtUrlParseTarget(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtUrlParseTargetN(sText, strlen(sText), pOut);
 }
 
-static bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
+XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iSchemeEnd = (size_t)-1;
 	size_t iPos;
@@ -411,19 +415,19 @@ static bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 	return true;
 }
 
-static bool xrtUrlParseView(const char* sText, xrturlview* pOut)
+XXAPI bool xrtUrlParseView(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtUrlParseViewN(sText, strlen(sText), pOut);
 }
 
-static bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL || xrtStrViewIsEmpty(pURL->tHost) ) return false;
 	return xrtStrViewCopyTo(pURL->tHost, sOut, iOutCap);
 }
 
-static bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL || sOut == NULL || iOutCap == 0u ) return false;
 	if ( xrtStrViewIsEmpty(pURL->tTarget) ) {
@@ -442,7 +446,7 @@ static bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iO
 	return xrtStrViewCopyTo(pURL->tTarget, sOut, iOutCap);
 }
 
-static bool xrtUrlMakeHostHeader(const xrturlview* pURL, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlMakeHostHeader(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	bool bDefaultPort;
 	if ( sOut == NULL || iOutCap == 0u || pURL == NULL || xrtStrViewIsEmpty(pURL->tHost) ) return false;
@@ -464,7 +468,7 @@ static bool xrtUrlMakeHostHeader(const xrturlview* pURL, char* sOut, size_t iOut
 		strlen(sOut) < iOutCap;
 }
 
-static bool xrtUrlMakeHostHeaderFixed(const char* sScheme, const char* sHost, uint16 iPort, char* sOut, size_t iOutCap)
+XXAPI bool xrtUrlMakeHostHeaderFixed(const char* sScheme, const char* sHost, uint16 iPort, char* sOut, size_t iOutCap)
 {
 	xrturlview tURL;
 	if ( sScheme == NULL || sHost == NULL || sOut == NULL || iOutCap == 0u ) return false;
@@ -531,7 +535,7 @@ static bool __xrtUrlPopLastSegment(char* sOut, size_t iOutCap, size_t* pOffset, 
 	return true;
 }
 
-static bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	bool bAbsolute;
 	bool bTrailingSlash;
@@ -584,7 +588,7 @@ static bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, si
 	return true;
 }
 
-static bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	if ( pOutLen ) *pOutLen = 0u;
@@ -611,7 +615,7 @@ static bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap
 	return true;
 }
 
-static bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	bool bNeedPort;
@@ -639,7 +643,7 @@ static bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOut
 	return true;
 }
 
-static bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	char sTarget[4096];
@@ -662,7 +666,7 @@ static bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size
 	return true;
 }
 
-static bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRefLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRefLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	xrturlview tRef;
 	xrturlview tOut;
@@ -757,13 +761,13 @@ static bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iR
 	return xrtUrlBuild(&tOut, sOut, iOutCap, pOutLen);
 }
 
-static bool xrtUrlResolve(const xrturlview* pBase, const char* sRef, char* sOut, size_t iOutCap, size_t* pOutLen)
+XXAPI bool xrtUrlResolve(const xrturlview* pBase, const char* sRef, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sRef == NULL ) return false;
 	return xrtUrlResolveTo(pBase, sRef, strlen(sRef), sOut, iOutCap, pOutLen);
 }
 
-static bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtquerypair* pOut)
+XXAPI bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtquerypair* pOut)
 {
 	size_t iCur;
 	size_t iAmp;
@@ -797,13 +801,13 @@ static bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtq
 	return true;
 }
 
-static bool xrtQueryNext(const char* sQuery, size_t* pOffset, xrtquerypair* pOut)
+XXAPI bool xrtQueryNext(const char* sQuery, size_t* pOffset, xrtquerypair* pOut)
 {
 	if ( sQuery == NULL ) return false;
 	return xrtQueryNextN(sQuery, strlen(sQuery), pOffset, pOut);
 }
 
-static size_t xrtQueryCountN(const char* sQuery, size_t iLen)
+XXAPI size_t xrtQueryCountN(const char* sQuery, size_t iLen)
 {
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
@@ -813,13 +817,13 @@ static size_t xrtQueryCountN(const char* sQuery, size_t iLen)
 	return iCount;
 }
 
-static size_t xrtQueryCount(const char* sQuery)
+XXAPI size_t xrtQueryCount(const char* sQuery)
 {
 	if ( sQuery == NULL ) return 0u;
 	return xrtQueryCountN(sQuery, strlen(sQuery));
 }
 
-static bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, xrtquerypair* pOut)
+XXAPI bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, xrtquerypair* pOut)
 {
 	size_t iOffset = 0u;
 	xrtquerypair tPair;
@@ -833,13 +837,13 @@ static bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, siz
 	return false;
 }
 
-static bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut)
+XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut)
 {
 	if ( sQuery == NULL || sKey == NULL ) return false;
 	return xrtQueryFindN(sQuery, strlen(sQuery), sKey, strlen(sKey), pOut);
 }
 
-static bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
@@ -855,7 +859,7 @@ static bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut
 	return true;
 }
 
-static bool xrtQueryParseTo(const char* sQuery, xrtquerypair* pOut, size_t iCap, size_t* pCount)
+XXAPI bool xrtQueryParseTo(const char* sQuery, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sQuery == NULL ) return false;
 	return xrtQueryParseToN(sQuery, strlen(sQuery), pOut, iCap, pCount);
@@ -869,7 +873,7 @@ static int __xrtUrlHexValue(char ch)
 	return -1;
 }
 
-static bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bPlusAsSpace)
+XXAPI bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bPlusAsSpace)
 {
 	size_t iOut = 0u;
 	size_t i;
@@ -897,7 +901,7 @@ static bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_
 	return true;
 }
 
-static bool xrtUrlParseFixedTo(const char* sURL, const char* sSchemeA, const char* sSchemeB, bool* pSchemeB, char* sHost, size_t iHostCap, uint16* pPort, char* sTarget, size_t iTargetCap)
+XXAPI bool xrtUrlParseFixedTo(const char* sURL, const char* sSchemeA, const char* sSchemeB, bool* pSchemeB, char* sHost, size_t iHostCap, uint16* pPort, char* sTarget, size_t iTargetCap)
 {
 	xrturlview tURL;
 	if ( sURL == NULL || sSchemeA == NULL || sHost == NULL || iHostCap == 0u || sTarget == NULL || iTargetCap == 0u ) return false;
@@ -915,7 +919,7 @@ static bool xrtUrlParseFixedTo(const char* sURL, const char* sSchemeA, const cha
 	return true;
 }
 
-static bool xrtUrlParse(const char* sURL, xurl pOut)
+XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 {
 	if ( pOut == NULL || sURL == NULL ) return false;
 	memset(pOut, 0, sizeof(xurl_struct));

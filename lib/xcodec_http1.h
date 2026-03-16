@@ -1,4 +1,4 @@
-#ifndef XRT_XCODEC_HTTP1_H
+﻿#ifndef XRT_XCODEC_HTTP1_H
 #define XRT_XCODEC_HTTP1_H
 
 #include "xcodec.h"
@@ -163,7 +163,7 @@ static bool __xcodecHttpParseHexU64(const char* sText, size_t iLen, uint64* pVal
 	return true;
 }
 
-static const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName)
+XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName)
 {
 	if ( !pMsg || !sName ) return NULL;
 	for ( uint32 i = 0; i < pMsg->iHeaderCount; ++i ) {
@@ -174,7 +174,7 @@ static const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char
 	return NULL;
 }
 
-static void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg)
+XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg)
 {
 	if ( !pMsg ) return;
 	memset(pMsg, 0, sizeof(xcodechttp1msg));
@@ -244,14 +244,14 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 	}
 }
 
-static size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame)
+XXAPI size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame)
 {
 	if ( !pFrame ) return 0u;
 	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) != 0u ) return (size_t)pFrame->iMeta0;
 	return pFrame->iPayloadBytes;
 }
 
-static size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
+XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
 {
 	uint8* pDst = (uint8*)pOut;
 	size_t iWant;
@@ -285,7 +285,7 @@ static size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* 
 
 /* ============================== HTTP/1 parser ============================== */
 
-static xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
+XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg)
 {
 	static const uint8 aHeadEnd[] = { '\r', '\n', '\r', '\n' };
 	char* sHeadBuf;

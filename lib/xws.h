@@ -1,4 +1,4 @@
-#ifndef XRT_XWS_H
+﻿#ifndef XRT_XWS_H
 #define XRT_XWS_H
 
 #include <stdlib.h>
@@ -1300,7 +1300,7 @@ static const xnetstreamevents* __xwsServerStreamEvents(void)
 
 /* ============================== Public API ============================== */
 
-static void xrtWsClientConfigInit(xwsclientconfig* pCfg)
+XXAPI void xrtWsClientConfigInit(xwsclientconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xwsclientconfig));
@@ -1309,7 +1309,7 @@ static void xrtWsClientConfigInit(xwsclientconfig* pCfg)
 	pCfg->bVerifyPeer = true;
 }
 
-static void xrtWsServerConfigInit(xwsserverconfig* pCfg)
+XXAPI void xrtWsServerConfigInit(xwsserverconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xwsserverconfig));
@@ -1317,7 +1317,7 @@ static void xrtWsServerConfigInit(xwsserverconfig* pCfg)
 	pCfg->iRecvLimit = 1024u * 1024u;
 }
 
-static xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData)
+XXAPI xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData)
 {
 	xwsclient* pClient;
 	if ( !pEngine ) return NULL;
@@ -1332,7 +1332,7 @@ static xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* 
 	return pClient;
 }
 
-static xnet_result xrtWsClientStart(xwsclient* pClient)
+XXAPI xnet_result xrtWsClientStart(xwsclient* pClient)
 {
 	xnetconnectconfig tConnCfg;
 	if ( !pClient || !pClient->pEngine || pClient->pStream ) return XRT_NET_ERROR;
@@ -1358,7 +1358,7 @@ static xnet_result xrtWsClientStart(xwsclient* pClient)
 	return XRT_NET_OK;
 }
 
-static void xrtWsClientStop(xwsclient* pClient)
+XXAPI void xrtWsClientStop(xwsclient* pClient)
 {
 	if ( !pClient ) return;
 	if ( pClient->pStream ) {
@@ -1369,44 +1369,44 @@ static void xrtWsClientStop(xwsclient* pClient)
 	__xwsMessageReset(&pClient->pMsgBuf, &pClient->iMsgLen, &pClient->iMsgCap, &pClient->iMsgOpcode);
 }
 
-static void xrtWsClientDestroy(xwsclient* pClient)
+XXAPI void xrtWsClientDestroy(xwsclient* pClient)
 {
 	if ( !pClient ) return;
 	xrtWsClientStop(pClient);
 	XNET_FREE(pClient);
 }
 
-static bool xrtWsClientIsOpen(const xwsclient* pClient)
+XXAPI bool xrtWsClientIsOpen(const xwsclient* pClient)
 {
 	return pClient && __xwsAtomicLoadConst(&pClient->iOpen) != 0 && pClient->pStream != NULL;
 }
 
-static xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen)
+XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen)
 {
 	if ( !pClient || !pClient->pStream || !xrtWsClientIsOpen(pClient) || !sText ) return XRT_NET_ERROR;
 	return __xwsStreamSendFrame(pClient->pStream, true, XCODEC_WS_OPCODE_TEXT, sText, iLen);
 }
 
-static xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen)
+XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen)
 {
 	if ( !pClient || !pClient->pStream || !xrtWsClientIsOpen(pClient) || (!pData && iLen != 0u) ) return XRT_NET_ERROR;
 	return __xwsStreamSendFrame(pClient->pStream, true, XCODEC_WS_OPCODE_BINARY, pData, iLen);
 }
 
-static xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen)
+XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen)
 {
 	if ( !pClient || !pClient->pStream || !xrtWsClientIsOpen(pClient) || iLen > 125u ) return XRT_NET_ERROR;
 	return __xwsStreamSendFrame(pClient->pStream, true, XCODEC_WS_OPCODE_PING, pData, iLen);
 }
 
-static xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason)
+XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason)
 {
 	if ( !pClient || !pClient->pStream ) return XRT_NET_ERROR;
 	if ( __xwsAtomicCompareExchange(&pClient->iClosePosted, 1, 0) != 0 ) return XRT_NET_OK;
 	return __xwsPostClose(pClient->pStream, true, iCode, sReason, false);
 }
 
-static xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData)
+XXAPI xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData)
 {
 	xwsserver* pServer;
 	if ( !pEngine ) return NULL;
@@ -1421,12 +1421,12 @@ static xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* 
 	return pServer;
 }
 
-static uint16 xrtWsServerBoundPort(const xwsserver* pServer)
+XXAPI uint16 xrtWsServerBoundPort(const xwsserver* pServer)
 {
 	return (pServer && pServer->pListener) ? pServer->pListener->tConfig.tBindAddr.iPort : 0u;
 }
 
-static xnet_result xrtWsServerStart(xwsserver* pServer)
+XXAPI xnet_result xrtWsServerStart(xwsserver* pServer)
 {
 	xnetlistenconfig tListenCfg;
 	if ( !pServer || !pServer->pEngine ) return XRT_NET_ERROR;
@@ -1455,7 +1455,7 @@ static xnet_result xrtWsServerStart(xwsserver* pServer)
 	return XRT_NET_OK;
 }
 
-static void xrtWsServerStop(xwsserver* pServer)
+XXAPI void xrtWsServerStop(xwsserver* pServer)
 {
 	xwsconn* pConn;
 	if ( !pServer ) return;
@@ -1488,37 +1488,37 @@ static void xrtWsServerStop(xwsserver* pServer)
 	}
 }
 
-static void xrtWsServerDestroy(xwsserver* pServer)
+XXAPI void xrtWsServerDestroy(xwsserver* pServer)
 {
 	if ( !pServer ) return;
 	xrtWsServerStop(pServer);
 	XNET_FREE(pServer);
 }
 
-static bool xrtWsConnIsOpen(const xwsconn* pConn)
+XXAPI bool xrtWsConnIsOpen(const xwsconn* pConn)
 {
 	return pConn && __xwsAtomicLoadConst(&pConn->iOpen) != 0 && pConn->pStream != NULL;
 }
 
-static xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iLen)
+XXAPI xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iLen)
 {
 	if ( !pConn || !pConn->pStream || !xrtWsConnIsOpen(pConn) || !sText ) return XRT_NET_ERROR;
 	return __xwsStreamSendFrame(pConn->pStream, false, XCODEC_WS_OPCODE_TEXT, sText, iLen);
 }
 
-static xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen)
+XXAPI xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen)
 {
 	if ( !pConn || !pConn->pStream || !xrtWsConnIsOpen(pConn) || (!pData && iLen != 0u) ) return XRT_NET_ERROR;
 	return __xwsStreamSendFrame(pConn->pStream, false, XCODEC_WS_OPCODE_BINARY, pData, iLen);
 }
 
-static xnet_result xrtWsConnPing(xwsconn* pConn, const void* pData, size_t iLen)
+XXAPI xnet_result xrtWsConnPing(xwsconn* pConn, const void* pData, size_t iLen)
 {
 	if ( !pConn || !pConn->pStream || !xrtWsConnIsOpen(pConn) || iLen > 125u ) return XRT_NET_ERROR;
 	return __xwsStreamSendFrame(pConn->pStream, false, XCODEC_WS_OPCODE_PING, pData, iLen);
 }
 
-static xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReason)
+XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReason)
 {
 	if ( !pConn || !pConn->pStream ) return XRT_NET_ERROR;
 	if ( __xwsAtomicCompareExchange(&pConn->iClosePosted, 1, 0) != 0 ) return XRT_NET_OK;

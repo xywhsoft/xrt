@@ -1,4 +1,4 @@
-#ifndef XRT_XHTTP_H
+﻿#ifndef XRT_XHTTP_H
 #define XRT_XHTTP_H
 
 #include "xurl.h"
@@ -320,7 +320,7 @@ static void __xhttpPoolRemove(__xhttp_conn* pConn)
 	__xhttpPoolLockRelease();
 }
 
-static void xrtHttpCloseIdleConnections(xnetengine* pEngine)
+XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine)
 {
 	__xhttp_conn* pList = NULL;
 	__xhttp_conn** ppTail = &pList;
@@ -351,7 +351,7 @@ static void xrtHttpCloseIdleConnections(xnetengine* pEngine)
 	}
 }
 
-static void xrtHttpRequestInit(xhttprequest* pReq)
+XXAPI void xrtHttpRequestInit(xhttprequest* pReq)
 {
 	if ( !pReq ) return;
 	memset(pReq, 0, sizeof(xhttprequest));
@@ -370,14 +370,14 @@ static void __xhttpRequestUnitInternal(xhttprequest* pReq)
 	pReq->iBodyLen = 0;
 }
 
-static void xrtHttpRequestUnit(xhttprequest* pReq)
+XXAPI void xrtHttpRequestUnit(xhttprequest* pReq)
 {
 	if ( !pReq ) return;
 	__xhttpRequestUnitInternal(pReq);
 	memset(pReq, 0, sizeof(xhttprequest));
 }
 
-static bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod)
+XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod)
 {
 	size_t iLen;
 	if ( !pReq || !sMethod || !sMethod[0] ) return false;
@@ -388,7 +388,7 @@ static bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod)
 	return true;
 }
 
-static bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL)
+XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL)
 {
 	size_t iLen;
 	if ( !pReq || !sURL || !sURL[0] ) return false;
@@ -400,7 +400,7 @@ static bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL)
 	return true;
 }
 
-static bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue)
+XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue)
 {
 	xhttpheader* pHeader;
 	if ( !pReq || !sName || !sValue ) return false;
@@ -417,7 +417,7 @@ static bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const
 	return true;
 }
 
-static bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType)
+XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType)
 {
 	char* pBodyCopy = NULL;
 	if ( !pReq ) return false;
@@ -439,19 +439,19 @@ static bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, siz
 	return true;
 }
 
-static void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
+XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
 {
 	if ( !pReq ) return;
 	pReq->iTimeoutMs = iTimeoutMs;
 }
 
-static void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer)
+XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer)
 {
 	if ( !pReq ) return;
 	pReq->bVerifyPeer = bVerifyPeer;
 }
 
-static void xrtHttpResponseDestroy(xhttpresponse* pResp)
+XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp)
 {
 	if ( !pResp ) return;
 	if ( pResp->pBody ) {
@@ -461,7 +461,7 @@ static void xrtHttpResponseDestroy(xhttpresponse* pResp)
 	XNET_FREE(pResp);
 }
 
-static const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName)
+XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName)
 {
 	if ( !pResp || !sName ) return NULL;
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
@@ -816,7 +816,7 @@ static const xnetstreamevents* __xhttpClientEvents(void)
 	return &tEvents;
 }
 
-static xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq)
+XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq)
 {
 	__xhttp_tx* pTx;
 	__xhttp_conn* pConn = NULL;
@@ -920,7 +920,7 @@ static xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* 
 	return pFuture;
 }
 
-static xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus)
+XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus)
 {
 	xnetfuture* pFuture;
 	xnet_result iStatus;

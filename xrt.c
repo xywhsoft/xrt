@@ -109,9 +109,20 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 #endif
 
 #ifndef XRT_NO_NETWORK
+#ifndef XRT_NO_XURL
 #include "lib/xurl.h"
+#endif
+#ifndef XRT_NO_HTTP_UTIL
 #include "lib/xhttp_util.h"
-#include "lib/network.h"
+#endif
+#include "lib/xnet_base.h"
+#include "lib/xnet_mem.h"
+#ifndef XRT_NO_XCODEC
+#include "lib/xcodec.h"
+#include "lib/xcodec_http1.h"
+#include "lib/xcodec_ws.h"
+#endif
+#include "lib/xnet_engine.h"
 #endif
 
 #if defined(__GNUC__)
@@ -129,6 +140,25 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 
 #if defined(__GNUC__)
 	#pragma GCC pop_options
+#endif
+
+#ifndef XRT_NO_NETWORK
+#ifndef XRT_NO_NETTLS
+#include "lib/xnet_tls.h"
+#endif
+#include "lib/xnet_stream.h"
+#include "lib/xnet_dgram.h"
+#include "lib/xnet_sync.h"
+#ifndef XRT_NO_XHTTP
+#include "lib/xhttp.h"
+#endif
+#ifndef XRT_NO_XHTTPD
+#include "lib/xhttpd.h"
+#endif
+#ifndef XRT_NO_XWS
+#include "lib/xws.h"
+#endif
+#include "lib/network.h"
 #endif
 
 #ifndef XRT_NO_XID
@@ -1167,5 +1197,4 @@ XXAPI void xrtUnit()
 	
 	
 #endif
-
 

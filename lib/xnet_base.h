@@ -1,5 +1,9 @@
-#ifndef XRT_XNET_BASE_H
+﻿#ifndef XRT_XNET_BASE_H
 #define XRT_XNET_BASE_H
+
+#ifndef XXAPI
+	#define XXAPI
+#endif
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -320,7 +324,7 @@ static char* __xnetAddrTempBuf(void)
 
 /* ============================== Address public helpers ============================== */
 
-static void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort)
+XXAPI void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort)
 {
 	if ( !pAddr ) return;
 	memset(pAddr, 0, sizeof(xnetaddr));
@@ -328,7 +332,7 @@ static void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort)
 	pAddr->iPort = iPort;
 }
 
-static xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort)
+XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		struct sockaddr_storage tStorage;
@@ -373,7 +377,7 @@ static xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPor
 	return XRT_NET_ERROR;
 }
 
-static xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
+XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 {
 	if ( !sHost || !sHost[0] || !pAddr ) return XRT_NET_ERROR;
 
@@ -411,7 +415,7 @@ static xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 	return XRT_NET_ERROR;
 }
 
-static const char* xrtNetAddrToStr(const xnetaddr* pAddr)
+XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 {
 	char* pBuf = __xnetAddrTempBuf();
 	if ( !pAddr ) return pBuf;
@@ -445,7 +449,7 @@ static const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 
 /* ============================== Default init helpers ============================== */
 
-static void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
+XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xnetengineconfig));
@@ -466,7 +470,7 @@ static void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
 	pCfg->iMaxConnsPerWorker = 0;
 }
 
-static void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
+XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xnetlistenconfig));
@@ -479,7 +483,7 @@ static void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 	pCfg->pTlsConfig = NULL;
 }
 
-static void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
+XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xnetconnectconfig));
@@ -493,7 +497,7 @@ static void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 	pCfg->pTlsConfig = NULL;
 }
 
-static void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
+XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xnetdgramconfig));

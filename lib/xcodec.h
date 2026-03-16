@@ -1,4 +1,4 @@
-#ifndef XRT_XCODEC_H
+﻿#ifndef XRT_XCODEC_H
 #define XRT_XCODEC_H
 
 #include "xnet_mem.h"
@@ -69,20 +69,20 @@ typedef struct {
 	ptr pCtx;
 } xcodecparser;
 
-static void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx)
+XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx)
 {
 	if ( !pParser ) return;
 	pParser->pOps = pOps;
 	pParser->pCtx = pCtx;
 }
 
-static xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetchain* pInput, xcodecframe* pFrame)
+XXAPI xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetchain* pInput, xcodecframe* pFrame)
 {
 	if ( !pParser || !pParser->pOps || !pParser->pOps->Parse ) return XCODEC_STATUS_ERROR;
 	return pParser->pOps->Parse(pParser->pCtx, pInput, pFrame);
 }
 
-static void xrtCodecParserReset(const xcodecparser* pParser)
+XXAPI void xrtCodecParserReset(const xcodecparser* pParser)
 {
 	if ( !pParser || !pParser->pOps || !pParser->pOps->Reset ) return;
 	pParser->pOps->Reset(pParser->pCtx);
@@ -166,13 +166,13 @@ static size_t __xcodecChainFindPattern(const xnetchain* pChain, const uint8* pNe
 	return (size_t)-1;
 }
 
-static void xrtCodecFrameInit(xcodecframe* pFrame)
+XXAPI void xrtCodecFrameInit(xcodecframe* pFrame)
 {
 	if ( !pFrame ) return;
 	memset(pFrame, 0, sizeof(xcodecframe));
 }
 
-static size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
+XXAPI size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
 {
 	size_t iCopyLen;
 	if ( !pInput || !pFrame || !pOut || iLen == 0 ) return 0;
@@ -181,7 +181,7 @@ static size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFra
 	return __xcodecChainPeekAt(pInput, pFrame->iPayloadOffset, pOut, iCopyLen);
 }
 
-static void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
+XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
 {
 	if ( !pInput || !pFrame || pFrame->iFrameBytes == 0 ) return;
 	xrtNetChainConsume(pInput, pFrame->iFrameBytes);
@@ -198,7 +198,7 @@ typedef struct {
 	bool bStripDelimiter;
 } xcodeclinecodec;
 
-static void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
+XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
 {
 	if ( !pCodec ) return;
 	memset(pCodec, 0, sizeof(xcodeclinecodec));
@@ -208,7 +208,7 @@ static void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
 	pCodec->bStripDelimiter = true;
 }
 
-static bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimiter, uint32 iDelimiterLen)
+XXAPI bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimiter, uint32 iDelimiterLen)
 {
 	if ( !pCodec || !pDelimiter || iDelimiterLen == 0 || iDelimiterLen > sizeof(pCodec->aDelimiter) ) return false;
 	memset(pCodec->aDelimiter, 0, sizeof(pCodec->aDelimiter));
@@ -217,7 +217,7 @@ static bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelim
 	return true;
 }
 
-static xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
+XXAPI xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
 {
 	xcodeclinecodec* pCodec = (xcodeclinecodec*)pCtx;
 	size_t iPos;
@@ -243,12 +243,12 @@ static xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecf
 	return XCODEC_STATUS_FRAME;
 }
 
-static void xrtCodecLineReset(ptr pCtx)
+XXAPI void xrtCodecLineReset(ptr pCtx)
 {
 	(void)pCtx;
 }
 
-static const xcodecparserops* xrtCodecLineOps(void)
+XXAPI const xcodecparserops* xrtCodecLineOps(void)
 {
 	static const xcodecparserops tOps = {
 		xrtCodecLineParse,
@@ -268,7 +268,7 @@ typedef struct {
 	uint32 iMaxPayloadBytes;
 } xcodeclengthcodec;
 
-static void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
+XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
 {
 	if ( !pCodec ) return;
 	memset(pCodec, 0, sizeof(xcodeclengthcodec));
@@ -294,7 +294,7 @@ static uint64 __xcodecReadUint(const uint8* pBytes, uint32 iByteCount, bool bBig
 	return iValue;
 }
 
-static xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
+XXAPI xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
 {
 	xcodeclengthcodec* pCodec = (xcodeclengthcodec*)pCtx;
 	uint8 aHeader[8];
@@ -326,12 +326,12 @@ static xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcode
 	return XCODEC_STATUS_FRAME;
 }
 
-static void xrtCodecLengthReset(ptr pCtx)
+XXAPI void xrtCodecLengthReset(ptr pCtx)
 {
 	(void)pCtx;
 }
 
-static const xcodecparserops* xrtCodecLengthOps(void)
+XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 {
 	static const xcodecparserops tOps = {
 		xrtCodecLengthParse,

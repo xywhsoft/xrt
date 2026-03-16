@@ -1,4 +1,4 @@
-#ifndef XRT_XNET_DGRAM_H
+﻿#ifndef XRT_XNET_DGRAM_H
 #define XRT_XNET_DGRAM_H
 
 #include "xnet_engine.h"
@@ -142,7 +142,7 @@ static void __xnetDgramReleaseAsyncHold(xdgramsock* pSock)
 	(void)__xnetAtomicAddFetch32(&pSock->iAsyncHoldCount, -1);
 }
 
-static xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* pData, size_t iLen)
+XXAPI xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* pData, size_t iLen)
 {
 	xnetdgrampkt* pPacket;
 
@@ -160,24 +160,24 @@ static xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* 
 	return pPacket;
 }
 
-static void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket)
+XXAPI void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket)
 {
 	if ( !pPacket ) return;
 	xrtNetChainClear(&pPacket->tChain);
 	XNET_FREE(pPacket);
 }
 
-static const xnetaddr* xrtNetDgramPacketFrom(const xnetdgrampkt* pPacket)
+XXAPI const xnetaddr* xrtNetDgramPacketFrom(const xnetdgrampkt* pPacket)
 {
 	return pPacket ? &pPacket->tFrom : NULL;
 }
 
-static size_t xrtNetDgramPacketBytes(const xnetdgrampkt* pPacket)
+XXAPI size_t xrtNetDgramPacketBytes(const xnetdgrampkt* pPacket)
 {
 	return pPacket ? xrtNetChainBytes(&pPacket->tChain) : 0;
 }
 
-static size_t xrtNetDgramPacketPeek(const xnetdgrampkt* pPacket, ptr pOut, size_t iLen)
+XXAPI size_t xrtNetDgramPacketPeek(const xnetdgrampkt* pPacket, ptr pOut, size_t iLen)
 {
 	return pPacket ? xrtNetChainPeek(&pPacket->tChain, pOut, iLen) : 0;
 }
@@ -518,7 +518,7 @@ static xnet_result __xnetDgramPostAsync(xdgramsock* pSock, __xnet_dgram_async_op
 	return XRT_NET_OK;
 }
 
-static xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* pCfg, const xnetdgramevents* pEvents, ptr pUserData)
+XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* pCfg, const xnetdgramevents* pEvents, ptr pUserData)
 {
 	xdgramsock* pSock;
 	xnetworker* pWorker;
@@ -550,7 +550,7 @@ static xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig*
 	return pSock;
 }
 
-static void xrtNetDgramDestroy(xdgramsock* pSock)
+XXAPI void xrtNetDgramDestroy(xdgramsock* pSock)
 {
 	if ( !pSock ) return;
 	if ( __xnetAtomicLoad32(&pSock->iAsyncHoldCount) != 0 ) {
@@ -562,7 +562,7 @@ static void xrtNetDgramDestroy(xdgramsock* pSock)
 	XNET_FREE(pSock);
 }
 
-static xnet_result xrtNetDgramStart(xdgramsock* pSock)
+XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock)
 {
 	struct sockaddr_storage tStorage;
 	socklen_t iAddrLen = 0;
@@ -592,7 +592,7 @@ static xnet_result xrtNetDgramStart(xdgramsock* pSock)
 	return XRT_NET_OK;
 }
 
-static void xrtNetDgramStop(xdgramsock* pSock)
+XXAPI void xrtNetDgramStop(xdgramsock* pSock)
 {
 	if ( !pSock ) return;
 	if ( __xnetAtomicLoad32(&pSock->iAsyncHoldCount) != 0 ) {
@@ -604,14 +604,14 @@ static void xrtNetDgramStop(xdgramsock* pSock)
 	__xnetDgramFinalizeSocketClose(pSock);
 }
 
-static xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
+XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
 {
 	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || (!pData && iLen > 0) ) return XRT_NET_ERROR;
 	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
 	return __xnetDgramPostAsync(pSock, __xnetDgramAllocAsyncCopy(pSock, pTo, pData, iLen));
 }
 
-static xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount)
+XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount)
 {
 	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || !pVec || iCount == 0 ) return XRT_NET_ERROR;
 	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;

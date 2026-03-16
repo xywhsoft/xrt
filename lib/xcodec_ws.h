@@ -1,4 +1,4 @@
-#ifndef XRT_XCODEC_WS_H
+﻿#ifndef XRT_XCODEC_WS_H
 #define XRT_XCODEC_WS_H
 
 #include "xcodec.h"
@@ -42,13 +42,13 @@ typedef struct {
 
 /* ============================== WebSocket frame parser ============================== */
 
-static void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo)
+XXAPI void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo)
 {
 	if ( !pInfo ) return;
 	memset(pInfo, 0, sizeof(xcodecwsframeinfo));
 }
 
-static xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo)
+XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo)
 {
 	uint8 aHead[14];
 	uint8 iB0;
@@ -117,7 +117,7 @@ static xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* p
 	return XCODEC_STATUS_FRAME;
 }
 
-static void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset)
+XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset)
 {
 	uint8* pBytes = (uint8*)pData;
 	if ( !pBytes || !aMask ) return;
