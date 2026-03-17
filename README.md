@@ -639,14 +639,14 @@ tcc -m64 main.c xrt.c -o app.exe -lws2_32 -liphlpapi
 XRT 坚持“主线统一、能自己掌控的能力尽量自己掌控”，但这并不意味着闭门造车。  
 项目中吸收、移植、参考或受启发于以下优秀开源项目：
 
-| 项目 | 链接 | 在 XRT 中的作用 | 合规说明 |
+| 项目 | 在 XRT 中的作用 | 合规说明 |
 |---|---|---|---|
-| LJSON | [gitee.com/lengjingzju/json](https://gitee.com/lengjingzju/json) | `json` xrt 采用了 JNUM 和 SAX API | 保留版权与许可声明 |
-| bbre | [github.com/max-nurzia/bbre](https://github.com/max-nurzia/bbre) | xrt 采用其作为 `regex` 模块的实现 | 保留版权与免责声明 |
-| nmhash32x | [github.com/gzm55/hash-garage](https://github.com/gzm55/hash-garage) | xrt 采用其作为 32 位哈希实现 | 保留版权与免责声明 |
-| rapidhash | [github.com/Nicoshev/rapidhash](https://github.com/Nicoshev/rapidhash) | xrt 采用其作为 64 位哈希实现 | 保留版权与免责声明 |
-| PCG | [github.com/imneme/pcg-c-basic](https://github.com/imneme/pcg-c-basic) | xrt 采用其作为随机数生成器 | 保留版权与免责声明 |
-| mongoose | [github.com/cesanta/mongoose](https://github.com/cesanta/mongoose) | 启发了 xrt 的 http 和 TLS 相关实现 | 未使用 mongoose 库的代码 |
+| [LJSON](https://gitee.com/lengjingzju/json) | `json` xrt 采用了 JNUM 和 SAX API | 保留版权与许可声明 |
+| [bbre](https://github.com/max-nurzia/bbre) | xrt 采用其作为 `regex` 模块的实现 | 保留版权与免责声明 |
+| [nmhash32x](https://github.com/gzm55/hash-garage) | xrt 采用其作为 32 位哈希实现 | 保留版权与免责声明 |
+| [rapidhash](https://github.com/Nicoshev/rapidhash) | xrt 采用其作为 64 位哈希实现 | 保留版权与免责声明 |
+| [PCG](https://github.com/imneme/pcg-c-basic) | xrt 采用其作为随机数生成器 | 保留版权与免责声明 |
+| [mongoose](https://github.com/cesanta/mongoose) | 启发了 xrt 的 http 和 TLS 相关实现 | 未使用 mongoose 库的代码 |
 
 
 ## 许可证
