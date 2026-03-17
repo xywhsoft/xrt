@@ -31,7 +31,11 @@ XXAPI void xrtSleep(uint32 ms)
 		Sleep(ms);
 	#else
 		// 其他平台方案
-		usleep(ms * 1000);
+		struct timespec req;
+		req.tv_sec = ms / 1000;
+		req.tv_nsec = (long)((ms % 1000) * 1000000L);
+		while ( nanosleep(&req, &req) == -1 && errno == EINTR ) {
+		}
 	#endif
 }
 
@@ -99,8 +103,14 @@ XXAPI xtime xrtTimeSerial(int iHour, int iMinute, int iSecond)
 // 构建日期
 XXAPI xtime xrtDateSerial(int64 iYear, int iMonth, int iDay)
 {
+	int iDaysInMonth;
 	if ( (iMonth < 1) || (iMonth > 12) ) {
 		xrtSetError("Month range error !", FALSE);
+		return 0;
+	}
+	iDaysInMonth = xrtDaysInMonth((int)iYear, iMonth);
+	if ( (iDay < 1) || (iDay > iDaysInMonth) ) {
+		xrtSetError("Day range error !", FALSE);
 		return 0;
 	}
 	xtime iDate = (iDay - 1) * XRT_TIME_DAY;

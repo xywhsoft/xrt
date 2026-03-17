@@ -317,17 +317,27 @@ XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
-			LARGE_INTEGER iPos_stu;
-			iPos_stu.QuadPart = iOffset;
+			LARGE_INTEGER iOffsetStu;
+			LARGE_INTEGER iPosStu;
+			iOffsetStu.QuadPart = iOffset;
 			if ( iMoveMethod == XRT_SEEK_SET ) {
-				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_BEGIN);
-				return iPos_stu.QuadPart;
+				if ( SetFilePointerEx(objFile->obj, iOffsetStu, &iPosStu, FILE_BEGIN) ) {
+					return iPosStu.QuadPart;
+				}
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return 0;
 			} else if ( iMoveMethod == XRT_SEEK_CUR ) {
-				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_CURRENT);
-				return iPos_stu.QuadPart;
+				if ( SetFilePointerEx(objFile->obj, iOffsetStu, &iPosStu, FILE_CURRENT) ) {
+					return iPosStu.QuadPart;
+				}
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return 0;
 			} else if ( iMoveMethod == XRT_SEEK_END ) {
-				SetFilePointerEx(objFile->obj, iPos_stu, NULL, FILE_END);
-				return iPos_stu.QuadPart;
+				if ( SetFilePointerEx(objFile->obj, iOffsetStu, &iPosStu, FILE_END) ) {
+					return iPosStu.QuadPart;
+				}
+				xrtSetError(sErrorFile_Seek, FALSE);
+				return 0;
 			} else {
 				xrtSetError(sErrorFile_Seek, FALSE);
 				return 0;
