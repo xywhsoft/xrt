@@ -1,785 +1,680 @@
-# XRT - X Runtime Library
+# XRT
 
 <div align="center">
 
-<img src="logo/logo.png" alt="XRT Logo" width="480"/>
+<img src="logo/logo.png" alt="XRT Logo" width="420" />
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com)
-[![Language](https://img.shields.io/badge/language-C-brightgreen.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
-[![API Lines](https://img.shields.io/badge/API-2320%20lines-orange.svg)](xrt.h)
-[![Modules](https://img.shields.io/badge/modules-32-green.svg)](lib/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![Language: C](https://img.shields.io/badge/language-C-brightgreen.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](#)
 
-**轻量级、高性能、功能完备的 C 语言运行时库**
+**力求卓越的 互联网 + AI 时代跨平台 C 语言基础设施库**
 
 [English](README.en.md) | 简体中文
 
-**[📚 查看完整 API 文档](docs/README.md)**
-
 </div>
 
----
 
-## 📖 项目简介
+## 项目定位
 
-**xrt**（X Runtime Library）是一个功能完备的 C 语言运行时库，为 C 语言开发者提供现代化、高效的基础设施支持。项目包含 **32 个功能模块**、**2320 行 API 声明**、**31 个测试模块**、**33 份 API 文档**，涵盖内存管理、字符集转换、文件处理、数据结构、动态类型系统、JSON 处理、模板引擎等完整功能链。
+**XRT 不是一个零散函数集合，也不是“拼几个第三方库”的工具箱。**
 
-该库采用**单头文件设计**，零外部依赖，支持跨平台编译，让 C 语言开发者能够像使用现代高级语言一样便捷地进行开发。
+XRT 的目标，是成为一套真正成体系的 C 语言基础设施：
 
-### ✨ 核心特性
+- 既能作为通用应用程序的基础运行时
+- 也能支撑高并发网络服务
+- 还能支撑 LLM、AI Agent、流式处理、结构化数据交换这类现代工作负载
+- 并且从一开始就面向 **Windows / Linux / macOS** 等多平台环境设计
 
-- 🚀 **零依赖设计**：除标准 C 库外无任何外部依赖，无需配置复杂的依赖环境
-- 📦 **单头文件架构**：核心 API 统一定义在 `xrt.h` 中，2320 行完整声明，引入即用
-- 🔧 **32 模块化子库**：功能独立解耦，可按需选择使用，最小化代码体积
-- 🌍 **全平台支持**：Windows、Linux、macOS 三大平台，x86/x64/ARM64 多架构
-- 🔨 **四大编译器兼容**：TCC（极速编译）、GCC、Clang、MSVC 全面支持
-- ⚡ **极致性能优化**：多级内存池、26位引用计数、inline 函数优化、二叉树索引
-- 🎯 **16 种动态类型**：完整的 Value 类型系统，支持自动内存管理和类型转换
-- 💾 **智能内存管理**：线程级临时内存、GC 标记回收、多层次内存池架构
-- 📝 **企业级模板引擎**：支持变量替换、条件判断、循环迭代、子模板嵌套、脚本扩展
-- 🔐 **生产级稳定性**：31 个测试模块全面覆盖，久经验证的代码质量
+它希望让 C 语言在以下场景中，获得更接近现代语言的开发体验：
 
----
+- 通用程序开发
+- 跨平台程序开发
+- 多线程与协程并发开发
+- 高性能网络客户端与服务端开发
+- HTTP / WebSocket / TLS / JSON / 模板等完整应用栈开发
+- AI Agent、LLM API 调用、流式结果处理与工具编排
 
-## 📈 项目优势
 
-### 🏆 为什么选择 XRT？
+## XRT 具备哪些功能
 
-| 特性 | 传统 C 库 | XRT |
-|------|---------|-----|
-| 依赖管理 | 需要配置多个头文件和链接库 | 单头文件 `xrt.h` 即可使用全部功能 |
-| 内存管理 | 手动 malloc/free，易产生内存泄漏 | 26位引用计数自动释放 + GC 标记回收 |
-| 临时内存 | 需要手动跟踪和释放 | 线程级 32 槽位临时内存，常见短期使用无需显式释放 |
-| 数据类型 | 基础类型，缺乏抽象 | 16 种动态类型，支持 Array/List/Dict/Coll |
-| JSON 处理 | 需引入第三方库 | 内置 SAX 模式解析/生成，高效低内存 |
-| 字符集 | 跨平台处理复杂 | UTF-8/16/32 互转，自动检测编码 |
-| 字符串操作 | 函数分散，使用不便 | 统一 API，支持查找/替换/分割/格式化 |
-| 模板引擎 | 无内置支持 | 完整语法：if/for/foreach/define/include |
-| 跨平台 | 需要大量条件编译 | 统一抽象层，代码一次编写多平台运行 |
-| 编译速度 | 依赖编译器 | TCC 支持下毫秒级编译 |
+XRT 当前已经形成一套完整主线，而不是若干互不相干的模块。  
+如果把它看作一张能力地图，大致可以展开成下面这些层次：
 
-### 📊 性能优势
+### 1. 基础运行时
 
-- **内存池架构**：采用二叉树索引的固定大小内存块（FSB），分配时间复杂度 O(log n)
-- **高效哈希算法**：32位使用 nmhash32x，64位使用 rapidhash，BSD-2 协议
-- **AVL 平衡树**：字典和集合采用 AVL 树实现，查找/插入/删除均为 O(log n)
-- **内联函数优化**：关键路径提供 `_Inline` 版本，消除函数调用开销
-- **PCG 随机数**：使用 PCG 算法生成高质量伪随机数，支持 32/64 位
-- **256 元素内存页**：内存管理单元采用 256 元素/页设计，快速分配和释放
+这一层负责把 C 项目最常见、最琐碎、最容易出现平台差异的工作统一收口：
 
----
+- `base`
+	- 基础内存分配
+	- 错误状态
+	- 线程级临时内存
+	- runtime 初始化与清理
+- `os`
+	- 进程启动
+	- 打开文件/目录/URL
+	- 平台相关系统调用封装
+- `string`
+	- 查找、替换、分割、拼接、格式化
+	- 大小写处理
+	- 常用文本变换
+- `charset`
+	- UTF-8 / UTF-16 / UTF-32 转换
+	- BOM 识别
+	- 字符集转换基础能力
+- `time`
+	- 当前时间
+	- 日期序列化
+	- 时间计算与格式处理
+- `file / path`
+	- 文件读写
+	- 目录扫描
+	- 路径拼接、拆分、规范化
+- `hash / math / xid`
+	- 32/64 位哈希
+	- 随机数
+	- 分布式唯一 ID
 
-## 🎯 主要功能模块
+这一层的价值不只是“函数多”，而是让上层模块不必自己重复处理：
 
-### 🔹 基础设施层（5 个模块）
+- 平台差异
+- 编码差异
+- 路径差异
+- 时间和字符串的基础细节
 
-| 模块 | 头文件 | 功能描述 | 主要 API | 特色功能 |
-|------|--------|---------|----------|----------|
-| [**base**](docs/api-base.md) | `base.h` | 内存管理、错误处理 | `xrtMalloc`, `xrtFree`, `xrtTempMemory` | 线程级临时内存与线程级错误状态 |
-| [**charset**](docs/api-charset.md) | `charset.h` | 字符集转换 | `xrtUTF8to16`, `xrtUTF16to8`, `xrtConvCharset` | UTF-8/16/32 互转，支持 BOM 检测 |
-| [**hash**](docs/api-hash.md) | `hash.h` | 哈希计算 | `xrtHash32`, `xrtHash64`, `xrtHash64_Nano` | nmhash32x + rapidhash 高性能算法 |
-| [**math**](docs/api-math.md) | `math.h` | 随机数生成 | `xrtRand32`, `xrtRand64`, `xrtRandRange` | PCG 算法，支持种子设置 |
-| [**time**](docs/api-time.md) | `time.h` | 时间处理 | `xrtNow`, `xrtDateSerial`, `xrtDateAdd` | 支持年/月/日/时/分/秒/星期计算 |
 
-### 🔹 系统交互层（5 个模块）
+### 2. 内存管理
 
-| 模块 | 头文件 | 功能描述 | 主要 API | 特色功能 |
-|------|--------|---------|----------|----------|
-| [**os**](docs/api-os.md) | `os.h` | 系统操作 | `xrtRun`, `xrtStart`, `xrtChain` | 进程启动、文件打开、链式调用 |
-| [**file**](docs/api-file.md) | `file.h` | 文件操作 | `xrtOpen`, `xrtFileReadAll`, `xrtDirScan` | 支持字符集自动转换，递归目录遍历 |
-| [**path**](docs/api-path.md) | `path.h` | 路径处理 | `xrtPathGetName`, `xrtPathGetDir`, `xrtPathJoin` | 跨平台路径处理，支持随机路径生成 |
-| [**network**](docs/api-network.md) | `network.h` | 网络功能 | `xrtGetLocalIP`, `xrtGetLocalMAC`, `xrtGetLocalName` | 获取本机网络信息 |
-| [**thread**](docs/api-thread.md) | `thread.h` | 线程管理 | `xrtThreadCreate` | 跨平台线程创建 |
-| [**coroutine**](docs/api-coroutine.md) | `coroutine.h` | 协程运行时 | `xrtCoCreate`, `xrtCoSchedRun`, `xrtCoWaitEvent` | 栈式协程调度、deadline 等待、事件等待 |
+XRT 并不满足于直接把 `malloc/free` 包一层，而是提供了多种面向不同场景的内存能力：
 
-### 🔹 字符串处理层（3 个模块）
+- `bsmm`
+	- 面向固定结构体的小块分配
+- `memunit`
+	- 面向小对象页式管理
+- `mempool_fs`
+	- 面向固定大小对象的快速内存池
+- `mempool`
+	- 面向通用对象的多级内存池
+- runtime 线程态临时内存
+	- 解决大量“短期结果字符串/短期缓冲”问题
+- 内存跟踪与调试基础
+	- 为后续排查泄露、生命周期问题提供基础
 
-| 模块 | 头文件 | 功能描述 | 主要 API | 特色功能 |
-|------|--------|---------|----------|----------|
-| [**string**](docs/api-string.md) | `string.h` | 字符串操作 | `xrtFindStr`, `xrtReplace`, `xrtSplit`, `xrtFormat` | 支持大小写贪婪/惰性查找、Base64 编解码 |
-| [**jnum**](docs/api-jnum.md) | `jnum.h` | 数字转换 | `xrtI64ToStr`, `xrtParseNum`, `xrtStrToNum` | 高性能数字解析，支持十六进制 |
-| [**template**](docs/api-template.md) | `template.h` | 模板引擎 | `xteParse`, `xteMake`, `xteLexer` | if/for/foreach/define/include/script 完整语法 |
+除了分配性能本身，XRT 还把 **内存调试** 视为基础设施的一部分。  
+它的目标不是只在程序崩溃后“猜哪里有问题”，而是尽量把问题定位到具体代码。
 
-### 🔹 数据结构层（9 个模块）
+当前这条线重点覆盖：
 
-| 模块 | 头文件 | 功能描述 | 数据结构类型 | 特色功能 |
-|------|--------|---------|-------------|----------|
-| [**buffer**](docs/api-buffer.md) | `buffer.h` | 动态缓冲区 | `xbuffer` | 自动扩容，支持 64KB 步进预分配 |
-| [**array**](docs/api-array.md) | `array.h` | 结构体数组 | `xarray` | 256 步进扩容，支持排序/交换 |
-| [**array_point**](docs/api-ptrarray.md) | `array_point.h` | 指针数组 | `xparray` | 专用指针存储，快速空雙填充 |
-| [**stack**](docs/api-stack.md) | `stack.h` | 静态栈 | `xstack` | 固定栈深度，高性能压栈/出栈 |
-| [**stack_dyn**](docs/api-dynstack.md) | `stack_dyn.h` | 动态栈 | `xdynstack` | 256 步进自动扩容，无栈深度限制 |
-| [**llist**](docs/api-llist.md) | `llist.h` | 双向链表 | `xllist` | 内置内存池，O(1) 插入/删除 |
-| [**avltree**](docs/api-avltree.md) | `avltree.h` | AVL 平衡树 | `xavltree` | 内置节点缓存，支持父子树关联 |
-| [**dict**](docs/api-dict.md) | `dict.h` | 字典（字符串键值对） | `xdict` | AVL 树 + 内存池实现，快速查找 |
-| [**list**](docs/api-list.md) | `list.h` | 列表（整数索引） | `xlist` | AVL 树实现，支持稀疏数据存储 |
+- **内存泄露定位**
+	- 能记录分配来源
+	- 能在调试输出中定位到代码文件与行号
+	- 便于追踪哪一条分配路径没有被正确释放
+- **危险操作识别**
+	- 重复释放
+	- 非法释放
+	- 越界写导致的块破坏
+	- 已释放内存继续使用
+	- 未初始化/错误生命周期对象进入池结构
+	- 错线程访问本线程本地对象
+- **对象生命周期排查**
+	- 哪个对象还被持有
+	- 哪个对象已经进入释放态却仍被访问
+	- 哪类容器/池对象在共享与本地语义上被错误使用
+- **线程相关内存问题辅助定位**
+	- 线程级临时内存
+	- 线程级错误槽
+	- 线程绑定内存上下文
+	- owner-thread / shared-mode 相关误用诊断
 
-### 🔹 内存管理层（4 个模块）
+这使得 XRT 的内存体系不是单纯“更快地分配”，而是同时在追求：
 
-| 模块 | 头文件 | 功能描述 | 适用场景 | 特色功能 |
-|------|--------|---------|----------|----------|
-| [**bsmm**](docs/api-bsmm.md) | `bsmm.h` | 块结构内存管理 | 固定大小结构体分配 | 256 元素/页，释放链表复用 |
-| [**memunit**](docs/api-memunit.md) | `memunit.h` | 内存单元管理 | 256 字节页管理 | 支持 GC 标记位，快速批量回收 |
-| [**mempool_fs**](docs/api-mempool-fs.md) | `mempool_fs.h` | 固定大小内存池 | 高频小对象分配 | 空闲/满载链表分组，智能选择分配单元 |
-| [**mempool**](docs/api-mempool.md) | `mempool.h` | 通用内存池 | 多级内存块管理 | 二叉树索引 FSB，支持 15/31 级分块 |
+- 更快的分配性能
+- 更清晰的生命周期
+- 更强的问题定位能力
+- 更可靠的危险操作暴露能力
 
-### 🔹 高级功能层（3 个模块）
+这使得 XRT 在内存层不是“只有一个池”，而是已经形成：
 
-| 模块 | 头文件 | 功能描述 | 特性 | 详细说明 |
-|------|--------|---------|------|----------|
-| [**value**](docs/api-value.md) | `value.h` | 动态类型系统 | 16 种数据类型，26位引用计数 | Empty/Null/Bool/Int/Float/Text/Time/Point/Func/Array/List/Coll/Table/Struct/Object/Custom |
-| [**json**](docs/api-json.md) | `json.h` | JSON 处理 | SAX 解析/生成，无 DOM 开销 | 支持注释、尾逗号、十六进制、特殊浮点数 |
-| [**xid**](docs/api-xid.md) | `xid.h` | 分布式 ID | 192 位唯一 ID | 时间戳 + IP + CPU时钟 + 随机数组合 |
+- 通用分配
+- 固定块分配
+- 小对象优化
+- 线程态短期内存
+- 内存调试与危险操作检测
 
----
+这几条不同用途的主线。
 
-## 📦 核心系统详解
 
-### 🎨 Value 动态类型系统
+### 3. 数据结构
 
-XRT 提供了一套完整的动态类型系统，让 C 语言也能像脚本语言一样灵活处理数据：
+XRT 已经内建了相当丰富的通用数据结构，而不是把程序员丢回原始数组和链表：
 
-| 类型 | 说明 | 类型 | 说明 |
-|------|------|------|------|
-| **Empty** | 不存在的数据 | **Null** | 空值 |
-| **Bool** | 布尔值 (true/false) | **Int** | 64位整数 |
-| **Float** | 双精度浮点数 | **Text** | 字符串 |
-| **Time** | 时间戳 | **Point** | 指针 |
-| **Func** | 函数指针 | **Array** | 动态数组 |
-| **List** | 整数索引列表 | **Coll** | 集合（去重） |
-| **Table** | 字符串键值对字典 | **Struct** | 结构体 |
-| **Object** | 对象 | **Custom** | 自定义类型 |
+- `buffer`
+	- 动态缓冲区
+- `array`
+	- 连续结构体数组
+- `ptrarray`
+	- 指针数组
+- `stack / dynstack`
+	- 固定栈与动态栈
+- `llist`
+	- 双向链表
+- `avltree`
+	- 平衡二叉树
+- `dict`
+	- 字符串键字典
+- `list`
+	- 整数索引列表
 
-**特色功能**：
-- 🔄 **26位引用计数**：最大支持 6700万+ 引用，自动转为静态值防溢出
-- ⚛️ **共享值安全**：共享容器值的顶层引用计数自动走原子路径
-- 🧵 **显式共享根**：Array/List/Coll/Table 默认本线程本地；跨线程场景使用 `xvoCreate*Ex(XRT_OBJMODE_SHARED)`
-- 📦 **集合操作**：差集、交集、并集、对称差集运算
-- 🔗 **父子关联**：List/Coll/Table 支持父级继承查找
-- 📋 **深浅拷贝**：`xvoCopy` 浅拷贝，`xvoDeepCopy` 深拷贝
-- 📊 **调试输出**：`xvoPrintValue` 输出完整数据结构
+而且这些数据结构不是孤立存在，它们已经和：
 
-### 📝 模板引擎详解
+- 内存模型
+- shared/local 语义
+- `xvalue`
+- 并发重构后的对象所有权约定
 
-企业级模板引擎，支持完整的控制流和数据绑定：
+逐步建立联系。
 
-| 语法 | 说明 | 示例 |
-|------|------|------|
-| `{$var}` | 变量替换 | `{$name}` → 输出变量值 |
-| `{%num}` | 数字格式化 | `{%price:¥%.2f}` → 格式化数字 |
-| `{&time}` | 时间格式化 | `{&date:YYYY-MM-DD}` → 格式化时间 |
-| `{?bool:a:b}` | 条件表达式 | `{?active:Yes:No}` → 根据条件选择 |
-| `{*arr:tpl}` | 数组迭代 | 套用子模板处理数组 |
-| `{@func:args}` | 函数调用 | 调用外部函数处理 |
-| `{=sub}` | 子模板调用 | 引用预定义子模板 |
-| `{!comment}` | 注释 | 模板注释，不输出 |
 
-**高级语法**：
-```
-{#define:子模板名}内容{#end}        // 定义子模板
-{#if:表达式}内容{#elseif}内容{#else}内容{#end}  // 条件判断
-{#for:1:10:1}内容{#end}               // 计数循环
-{#foreach:变量名}内容{#end}           // 迭代循环
-{#include:文件名}                      // 包含外部文件
-{#script:语言}代码{#end}                // 嵌入脚本
-```
+### 4. 并发基础设施
 
-### 📄 JSON 处理特性
+XRT 当前已经不只是“有线程 API”，而是已经形成比较完整的并发底座：
 
-**SAX 模式解析**（事件驱动，低内存占用）：
-- 支持 C 风格单行/多行注释（可配置）
-- 支持数组/对象尾部逗号
-- 支持十六进制数字（0x 前缀）
-- 支持特殊浮点数（nan, inf, -inf）
-- 支持单值 JSON（非对象/数组开头）
-- 支持转义字符有效性检查
+- `thread`
+	- 线程创建
+	- attach / detach
+	- 线程级 runtime 状态
+	- 线程级错误信息
+	- 线程级临时内存
+- `coroutine`
+	- 协程创建、恢复、让出、退出
+	- 协程调度器
+	- sleep / deadline / event wait
+	- cleanup 栈
+	- join / cancel / result
 
-**SAX 模式生成**（增量式写入，智能扩容）：
-- 支持格式化/压缩输出
-- 跨平台换行符处理
-- 自动逗号和缩进管理
+这意味着 XRT 在并发层已经能同时支撑：
 
----
+- 多线程服务
+- 单线程多协程
+- deadline 驱动的异步逻辑
+- 线程和协程混合编排
 
-## 🚀 快速开始
 
-### 📥 安装
+### 5. 现代异步运行时
 
-```bash
-# 克隆仓库
-git clone https://gitee.com/xywhsoft/xrt
-cd xrt
-```
+这是 XRT 最近重构后最重要的一条主线之一，也是它和很多传统 C 库差异最大的地方。
 
-### 🔨 编译
+当前已经正式具备：
 
-#### Windows 平台
+- `future`
+	- 异步结果对象
+	- 状态、结果、错误、等待
+- `promise`
+	- 异步结果生产端
+- `task`
+	- 统一任务执行抽象
+- `wait-source`
+	- 统一等待源抽象
+- continuation
+	- `Then / Catch / Finally`
+	- `Current / Engine / Coroutine Scheduler`
+- combinator
+	- `WhenAny / WhenAll / Race`
+- structured concurrency
+	- `task group`
+	- `group join`
+	- `close / reap / destroy`
+	- `nested scope`
+	- `parent cancel propagation`
 
-```batch
-# 使用 TCC 编译 64 位测试程序
-build_TCC_TEST_x64.bat
+这条主线的意义是：
 
-# 使用 GCC 编译 64 位 DLL
-build_GCC_DLL_x64.bat
-```
+XRT 已经不仅仅有线程、协程、网络，而是开始拥有一套统一的异步运行时语义。
 
-#### Linux/macOS 平台
 
-```bash
-# 编译测试程序
-bash build_test.sh
-```
+### 6. 网络基础设施
 
-### 📝 使用示例
+XRT 的网络层不是“简单 socket 封装”，而是已经形成现代网络 runtime 主线：
 
-#### 基础使用
+- `xnet-v2`
+	- engine
+	- stream
+	- dgram
+	- listener
+	- sync
+	- TLS session
+- `future / wait-source` 与网络层打通
+- stream / dgram / listener 的：
+	- 同步等待
+	- 协程等待
+	- timeout / deadline 等待
+	- future bridge
+
+也就是说，网络层已经不仅能“收发数据”，还在统一：
+
+- I/O 等待
+- 任务投递
+- 取消
+- deadline
+- future 化结果
+
+
+### 7. 网络应用层
+
+在网络传输层之上，XRT 已经具备了直接开发应用协议所需的关键能力：
+
+- `http`
+	- HTTP 客户端主线
+- `httpd`
+	- HTTP 服务端主线
+- `websocket`
+	- WebSocket 客户端与服务端基础能力
+- `tls`
+	- 内建 TLS session 主线
+- `url / http util`
+	- URL、Header、Query、表单等基础工具能力
+
+这意味着 XRT 不是“只给 socket，再让你自己重写 HTTP/TLS”，而是已经能直接支撑：
+
+- API 客户端
+- HTTPS 服务
+- WebSocket 服务
+- LLM API 调用
+- 流式网络应用
+
+
+### 8. 结构化数据处理
+
+这也是 XRT 很重要的一条主线，因为现代程序尤其是 AI 应用高度依赖结构化数据。
+
+- `xvalue`
+	- 动态值系统
+	- array / list / coll / table 等容器型值
+	- 更接近脚本语言的数据操作体验
+- `json`
+	- JSON 解析与生成
+	- SAX 模式
+	- 结构化交换数据处理
+
+这让 XRT 可以比较自然地处理：
+
+- 配置
+- 协议数据
+- API 请求与响应
+- AI 结构化输出
+- 动态模板数据
+
+
+### 9. 文本、模板与正则
+
+在很多真实业务里，“文本处理”不是边角料，而是非常核心的工作。
+
+XRT 当前已经具备：
+
+- `template`
+	- 模板渲染
+	- 文本生成
+	- HTML/文本输出基础能力
+- `regex`
+	- 正则匹配
+	- 提取
+	- 替换与模式识别
+- 配合 `string / charset / json / xvalue`
+	- 可以形成完整文本处理链路
+
+这一层对于：
+
+- Web 输出
+- 配置生成
+- 结果格式化
+- Agent 文本处理
+
+都很重要。
+
+
+### 10. 跨平台工程能力
+
+除了功能数量本身，XRT 还有一个经常被低估但非常关键的能力：
+
+它在尽量把这些能力做成 **同一套跨平台主线**。
+
+也就是说，上面这些模块不是只在某一个平台上便利，而是都围绕：
+
+- Windows
+- Linux
+- macOS
+- `gcc / tcc` 等实际开发编译链
+
+去设计和收口。
+
+
+如果把它压缩成一句话：
+
+**XRT 现在已经不是“有一些基础函数”，而是具备了从底层运行时、内存、容器、并发、异步、网络，到上层 HTTP / TLS / WebSocket / JSON / 模板 / 正则的一整套基础设施能力。**
+
+这不是“能做很多事”的堆砌，而是已经初步形成：
+
+**运行时 + 内存 + 数据结构 + 并发 + 异步 + 网络 + 应用协议 + 数据表达 + 文本处理**
+
+这一整套基础设施闭环。
+
+
+## 为什么是“互联网 + AI 时代”的库
+
+因为 XRT 解决的问题，不是传统 C 工程里那种“只把 socket 跑起来”。
+
+它面向的是现代程序真正高频出现的组合需求：
+
+- 同一套代码需要稳定运行在 Windows 和 Linux，并尽量保持一致行为
+- 一个线程里跑多个协程，做并发等待与 deadline 控制
+- 通过统一 `future / task / wait-source` 把线程、协程、网络等待连接起来
+- 用 HTTP / TLS / WebSocket 与外部 API 通信
+- 用 `xvalue / json` 处理复杂结构化数据
+- 用模板与正则生成和提取文本
+- 用统一 runtime 支撑 AI Agent 的工具调用、并发请求、流式等待与结果聚合
+
+如果只看单个模块，这些能力并不新鲜；  
+但把它们在 **一套轻量、统一、零外部依赖主线** 中打通，就是 XRT 的价值。
+
+
+## 核心特征
+
+### 1. 高性能
+
+XRT 不是以“功能全但速度慢”为代价换能力。
+
+已经有实测数据证明，XRT 的现代网络主线正在逼近“卓越”这个目标。
+
+来自当前基准文档：
+
+- [XNET Compare Baseline (2026-03-14)](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
+- [Builtin TLS Validation and Benchmark Report (2026-03-15)](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+
+其中最有代表性的结果包括：
+
+- **Windows TCP echo 总吞吐**
+	- `xnet-v1`: `91.7 msg/s`
+	- `xnet-v2`: `83178.1 msg/s`
+- **Windows TLS echo 总吞吐**
+	- `xnet-v1`: `99.9 msg/s`
+	- `xnet-v2`: `59343.7 msg/s`
+- **Windows UDP burst send**
+	- `xnet-v1`: `322825.4 pps`
+	- `xnet-v2`: `1718877.6 pps`
+- **Debian 13 TCP echo 总吞吐**
+	- `xnet-v1`: `36628.1 msg/s`
+	- `xnet-v2`: `60240.8 msg/s`
+- **Debian 13 UDP burst send**
+	- `xnet-v1`: `340122.5 pps`
+	- `xnet-v2`: `1355287.2 pps`
+
+TLS 专项基准中：
+
+- **Warm full handshake 平均耗时**
+	- `276510.100 us`
+- **TLS 1.2 resumed handshake 平均耗时**
+	- `34466.544 us`
+- **Resume 路径 connect-to-open 延迟**
+	- 约 **8.0x 更低**
+
+这些数字并不意味着 XRT 已经在所有平台、所有场景都达到最终最优，但它们至少说明：
+
+- XRT 有明确的性能目标
+- XRT 已经建立了持续 benchmark 机制
+- XRT 的现代网络主线不是概念实现，而是真正被测量、被比较、被优化的系统
+
+
+### 2. 轻量化
+
+XRT 的目标不是做成一个巨大的框架，而是做成一套：
+
+- 单头文件可分发
+- 零外部运行时依赖
+- 可裁剪
+- 可嵌入
+- 可静态编译
+- 可作为 DLL / 组件 / 运行时基础层使用
+
+当前源码树里已经形成：
+
+- `xrt.h` 统一公开 API
+- `xrt.c` 统一集成实现
+- `singlehead/xrt.h` 单头文件分发形态
+
+它不是把很多外部库原样塞进来，而是把真正需要长期沉淀的能力整合进同一设计体系中。
+
+
+### 3. 跨平台
+
+XRT 从设计上就不是“某一个平台上的便利脚本库”，而是要成为真正可迁移的基础设施。
+
+它关注的不是简单的“能编过”，而是：
+
+- 尽量统一 Windows / Linux / macOS 的调用体验
+- 把线程、时间、文件、路径、网络、字符集等高频差异收敛到运行时内部
+- 让上层业务逻辑尽可能摆脱平台分支
+- 保持 `gcc / tcc` 等实际开发链路可用，方便快速验证与正式构建
+
+这对 XRT 非常重要，因为它服务的不是单机玩具程序，而是：
+
+- 真正要部署的网络服务
+- 需要双平台交付的工具程序
+- 需要长期维护的基础设施项目
+- 需要接入不同运行环境的 AI / Agent 系统
+
+XRT 的价值之一，就是把“跨平台兼容”从业务代码里剥离出来，收口到基础设施层。
+
+
+### 4. 功能强大、完备且成体系
+
+很多 C 库看起来功能很多，但本质上只是：
+
+- 某个容器库
+- 某个 JSON 库
+- 某个网络库
+- 某个随机数库
+- 某个模板库
+
+把它们堆在一起，不等于形成基础设施。
+
+XRT 更强调的是：
+
+- 模块之间的模型一致性
+- 生命周期语义一致
+- 线程 / 协程 / future / wait-source 可以互相协同
+- 网络层和应用层能直接接到 runtime
+- 数据结构、内存管理、结构化数据处理不是孤立模块
+
+也就是说，XRT 追求的是：
+
+**功能强大，不靠拼凑；模块完整，不靠叠加；能力成体系，不靠运气。**
+
+
+## 相比常见 C 库，XRT 的优势是什么
+
+### 不是只解决一个点，而是解决“整条链路”
+
+和只提供单项能力的库相比，XRT 更像一套可直接支撑项目的底座：
+
+| 方向 | 常见单项库 | XRT 的方式 |
+|---|---|---|
+| 基础运行时 | 只补某类 helper | 提供基础运行时主线 |
+| 跨平台 | 业务代码中充满 `#ifdef` | 尽量把平台差异收口在运行时与系统抽象层 |
+| 数据结构 | 单独容器库 | 容器与内存模型、shared/local 语义协同 |
+| 并发 | 只有线程或只有协程 | 同时提供线程、协程、future、task、wait-source |
+| 网络 | 只提供 socket 封装 | 提供传输层、同步等待、异步等待、TLS、HTTP、WS |
+| JSON | 只做 parse / print | 与 `xvalue`、模板、网络层形成闭环 |
+| AI 场景 | 需要手工拼装等待与结果模型 | 已具备统一异步运行时基础 |
+
+
+### 不是“用起来轻”，而是“扩展时也不乱”
+
+很多库在简单示例里很好用，但项目一旦复杂，就会出现：
+
+- 生命周期混乱
+- 错误模型混乱
+- 同步异步两套接口完全分裂
+- 线程和网络之间没有统一抽象
+
+XRT 最近一轮重构的核心方向，就是在提前解决这些问题：
+
+- runtime 全局态 / 线程态拆分
+- 协程 runtime 线程绑定
+- `future / task / promise / wait-source` 正式化
+- `task group / nested scope / parent cancel propagation`
+- `xnet` 与 coroutine / future 的统一等待模型
+
+这正是它和“功能很多的库”之间真正的差异。
+
+
+## 当前规模与成熟度信号
+
+按当前源码树统计，XRT 已经具备：
+
+- `50+` 个实现头文件模块
+- `5694` 行公共头文件声明（`xrt.h`）
+- `93` 个文档文件
+- `59` 个测试文件
+
+同时，项目已经建立了这些工程化资产：
+
+- 主测试流
+- 独立专项测试
+- 竞态 / 生命周期 / ownership 回归
+- bench 基线与专项基准文档
+- 单头文件生成链
+
+这并不意味着“所有部分都已经最终定稿”，但足以证明：
+
+**XRT 已经越过了 demo / 原型期，正在向真正的基础设施工程靠拢。**
+
+
+## 典型适用场景
+
+- 通用 C 应用程序基础运行时
+- Windows / Linux 双平台项目底座
+- 面向多平台交付的命令行工具、服务端程序与嵌入式运行时组件
+- 高并发网络服务
+- TLS / HTTP / WebSocket 客户端与服务端
+- JSON / 动态值 / 模板驱动的数据应用
+- AI Agent 的工具调用、并发请求、deadline 控制、结果聚合
+- LLM API 调用、结构化返回处理、流式交互基础层
+
+
+## 设计原则
+
+XRT 当前已经明确遵循这些方向：
+
+- **高性能**
+	- 真正做 benchmark，而不是口头优化
+- **轻量化**
+	- 不轻易引入外部依赖
+- **单主线**
+	- 尽量清理旧表面、旧命名、旧包装壳
+- **统一模型**
+	- 线程、协程、future、网络等待尽量统一
+- **跨平台优先**
+	- 优先把平台差异消化在基础层，而不是把复杂性甩给业务代码
+- **可裁剪**
+	- 保持作为基础设施库的灵活性
+- **不靠历史包袱维持兼容**
+	- 在项目仍处于可重构阶段时，优先做正确的架构决策
+
+
+## 当前状态说明
+
+XRT 已经具备大量正式能力，但它追求的不是“能用就算完成”，而是“足够强再冻结”。
+
+因此当前更准确的描述是：
+
+- 它已经拥有完整的基础设施蓝图
+- 多个主线模块已经进入正式重构后的新架构
+- 很多核心能力已经接近生产级，部分已经可以按生产级思路使用
+- 但项目仍会继续清理历史表面、统一主线、补齐平台验证与文档体系
+
+这也是 README 强调“力求卓越”的原因：  
+XRT 的目标不是做一个“差不多能用”的库，而是把 C 语言基础设施做得更现代、更系统、更可靠。
+
+
+## 快速开始
+
+最简单的使用方式：
 
 ```c
 #include "xrt.h"
 
-int main() {
-    // 初始化库
-    xrtGlobalData* xCore = xrtInit();
-    
-    // 使用字符串功能
-    str text = xrtReplace("Hello World", 0, "World", 0, "XRT", 0);
-    printf("%s\n", text);  // 输出: Hello XRT
-    xrtFree(text);
-    
-    // 时间处理
-    xtime now = xrtNow();
-    str timeStr = xrtTimeToStr(now, XRT_TIME_FORMAT_DATETIME);
-    printf("当前时间: %s\n", timeStr);
-    xrtFree(timeStr);
-    
-    // 清理资源
-    xrtUnit();
-    return 0;
+int main()
+{
+	xrtInit();
+
+	printf("xrt version: %s\n", XRT_VERSION);
+	printf("rand32: %u\n", xrtRand32());
+
+	xrtUnit();
+	return 0;
 }
 ```
 
-#### 动态类型系统（Value）
+Windows 下常用：
 
-```c
-#include "xrt.h"
-
-int main() {
-    xrtInit();
-    
-    // 创建数组
-    xvalue arr = xvoCreateArray();
-    xvoArrayAppendInt(arr, 123);
-    xvoArrayAppendText(arr, "Hello", 0, FALSE);
-    xvoArrayAppendFloat(arr, 3.14);
-    
-    // 创建表（字典）
-    xvalue table = xvoCreateTable();
-    xvoTableSetText(table, "name", 0, "XRT", 0, FALSE);
-    xvoTableSetInt(table, "version", 0, 1);
-    xvoTableSetBool(table, "active", 0, TRUE);
-    
-    // 获取值
-    str name = xvoTableGetText(table, "name", 0);
-    printf("Name: %s\n", name);
-    
-    // 释放资源（引用计数自动管理）
-    xvoUnref(arr);
-    xvoUnref(table);
-    xrtUnit();
-    return 0;
-}
+```bat
+gcc -m64 main.c xrt.c -o app.exe -lws2_32 -liphlpapi
 ```
 
-#### JSON 处理
+或使用 TCC 做快速验证：
 
-```c
-#include "xrt.h"
-
-int main() {
-    xrtInit();
-    
-    // 解析 JSON
-    str jsonText = "{\"name\":\"xrt\",\"version\":1.0,\"features\":[\"fast\",\"simple\"]}";
-    xvalue json = xrtParseJSON(jsonText, 0);
-    
-    // 读取值
-    str name = xvoTableGetText(json, "name", 0);
-    printf("Project: %s\n", name);
-    
-    // 生成 JSON（格式化输出）
-    xvalue newJson = xvoCreateTable();
-    xvoTableSetText(newJson, "status", 0, "ok", 0, FALSE);
-    xvoTableSetInt(newJson, "code", 0, 200);
-    
-    size_t len = 0;
-    str output = xrtStringifyJSON(newJson, TRUE, &len);  // TRUE = 格式化
-    printf("%s\n", output);
-    xrtFree(output);
-    
-    xvoUnref(json);
-    xvoUnref(newJson);
-    xrtUnit();
-    return 0;
-}
+```bat
+tcc -m64 main.c xrt.c -o app.exe -lws2_32 -liphlpapi
 ```
 
-#### 模板引擎
-
-```c
-#include "xrt.h"
-
-int main() {
-    xrtInit();
-    
-    // 创建模板变量
-    xvalue vars = xvoCreateTable();
-    xvoTableSetText(vars, "title", 0, "XRT Library", 0, FALSE);
-    xvoTableSetInt(vars, "count", 0, 42);
-    
-    // 解析模板
-    str template = "Welcome to {$title}! Count: {%count}";
-    XTE_LiteObject tpl = xteParse(template, 0, NULL);
-    
-    // 生成输出
-    size_t len = 0;
-    str result = xteMake(tpl, vars, NULL, NULL, &len);
-    printf("%s\n", result);  // Welcome to XRT Library! Count: 42
-    xrtFree(result);
-    
-    xteParseFree(tpl);
-    xvoUnref(vars);
-    xrtUnit();
-    return 0;
-}
-```
-
----
-
-## 📁 项目结构
-
-```
-xrt/
-├── lib/                    # 32 个功能子库 (273KB+ 源码)
-│   ├── base.h             # 基础内存管理、错误处理
-│   ├── charset.h          # 字符集转换 (UTF-8/16/32, 27.7KB)
-│   ├── string.h           # 字符串处理 (33.3KB)
-│   ├── jnum.h             # 数字解析 (67.2KB)
-│   ├── value.h            # 动态类型系统 (41.8KB)
-│   ├── json.h             # JSON SAX 解析/生成 (60.6KB)
-│   ├── template.h         # 模板引擎 (45.8KB)
-│   ├── hash.h             # 高性能哈希 (41.4KB)
-│   ├── file.h             # 文件操作 (46.2KB)
-│   ├── mempool.h          # 通用内存池 (16.0KB)
-│   ├── dict.h             # 字典 (AVL树实现)
-│   ├── avltree.h          # AVL 平衡树
-│   └── ...                # 其他 20 个模块
-├── docs/                   # API 文档 (33 份, 500KB+)
-│   ├── api-base.md        # 基础库文档
-│   ├── api-value.md       # Value 类型文档 (29.5KB)
-│   ├── api-json.md        # JSON 库文档
-│   ├── api-template.md    # 模板引擎文档
-│   ├── types.md           # 类型定义文档
-│   └── ...                # 各模块文档
-├── test/                   # 测试文件 (31 个模块)
-│   ├── test_base.h
-│   ├── test_value.h
-│   ├── test_json.h
-│   ├── test_template.h
-│   └── ...
-├── release/                # 编译输出目录
-│   ├── x64/               # 64位编译输出
-│   └── x86/               # 32位编译输出
-├── xrt.h                  # 主头文件（API 声明，2320 行，89.3KB）
-├── xrt.c                  # 主实现文件（包含所有 lib/*.h）
-├── test.c                 # 测试入口
-├── build_TCC_*.bat        # TCC 构建脚本（Windows）
-├── build_GCC_*.bat        # GCC 构建脚本（Windows）
-├── build*.sh              # Linux/macOS 构建脚本
-├── LICENSE                # MIT 开源协议
-├── README.md              # 中文文档
-└── README.en.md           # 英文文档
-```
-
----
-
-## 🔧 构建选项
-
-### 支持的编译器
-
-| 编译器 | 特点 | 适用场景 |
-|--------|------|----------|
-| **TCC** | 毫秒级编译速度 | 快速开发调试、脚本式使用 |
-| **GCC** | 成熟稳定，优化好 | 生产环境，跨平台编译 |
-| **Clang** | LLVM 后端，诊断信息清晰 | macOS/iOS 开发 |
-| **MSVC** | Windows 原生支持 | Visual Studio 集成 |
-
-### 支持的平台
-
-| 平台 | 架构 | 状态 |
-|------|------|------|
-| **Windows** | x86, x64 | ✅ 完全支持 |
-| **Linux** | x86, x64 | ✅ 完全支持 |
-| **macOS** | x64, ARM64 | ✅ 完全支持 |
-
-### 构建目标
-
-| 目标 | 说明 | 输出 |
-|------|------|------|
-| **DLL** | 动态链接库 | `xrt.dll` / `libxrt.so` |
-| **OBJ** | 静态目标文件 | `xrt.o` |
-| **TEST** | 可执行测试程序 | `test.exe` / `test` |
-
----
-
-## 📚 API 文档
-
-> 📖 **完整文档**：请查阅 [docs 目录](docs/README.md) 获取详细的 API 使用文档和示例。
-
-### 内存管理
-
-```c
-ptr xrtMalloc(size_t iSize);                    // 分配内存
-ptr xrtCalloc(size_t iNum, size_t iSize);       // 分配并清零
-ptr xrtRealloc(ptr pMem, size_t iSize);         // 重新分配
-void xrtFree(ptr pmem);                          // 释放内存
-ptr xrtTempMemory(size_t iSize);                // 线程级临时内存（短期自动管理）
-```
-
-### 字符集转换
-
-```c
-u16str xrtUTF8to16(u8str sText, size_t iSize);   // UTF-8 转 UTF-16
-u8str xrtUTF16to8(u16str sText, size_t iSize);   // UTF-16 转 UTF-8
-u32str xrtUTF8to32(u8str sText, size_t iSize);   // UTF-8 转 UTF-32
-ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP);  // 任意编码转换
-bool xrtIsUTF8(str sText, size_t iSize);         // 判断是否 UTF-8
-int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM);  // 自动检测编码
-```
-
-### 字符串操作
-
-```c
-str xrtCopyStr(str sText, size_t iSize);         // 复制字符串
-str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase);
-str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize);
-str* xrtSplit(str sText, size_t iSize, str sSepText, size_t iSepSize, bool bSrcRevise);
-str xrtFormat(str sFormat, ...);                 // 格式化字符串
-str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise);
-str xrtBase64Encode(ptr pMem, size_t iSize, str sTable);  // Base64 编码
-ptr xrtBase64Decode(str sText, size_t iSize, str sTable);  // Base64 解码
-```
-
-### 文件操作
-
-```c
-xfile xrtOpen(str sPath, int bReadOnly, int iCharset);  // 打开文件
-void xrtClose(xfile objFile);                    // 关闭文件
-str xrtFileReadAll(str sPath, int iCharset);     // 读取全部内容
-int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset);
-bool xrtFileExists(str sPath);                   // 判断文件是否存在
-bool xrtDirExists(str sPath);                    // 判断目录是否存在
-int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);  // 遍历目录
-bool xrtDirCreateAll(str sPath);                 // 创建多级目录
-```
-
-### 时间处理
-
-```c
-xtime xrtNow();                                   // 当前日期时间
-xtime xrtDateSerial(int64 iYear, int iMonth, int iDay);  // 构建日期
-xtime xrtDateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond);
-str xrtTimeToStr(xtime iTime, int iFormat);      // 时间转字符串
-xtime xrtDateAdd(int interval, int64 iValue, xtime iTime);  // 时间加减
-int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2);  // 时间差
-int64 xrtYear(xtime iTime);                      // 获取年份
-int xrtMonth(xtime iTime);                       // 获取月份
-int xrtDay(xtime iTime);                         // 获取日期
-```
-
-### Value 动态类型
-
-```c
-// 创建值
-xvalue xvoCreateNull();                          // 空值
-xvalue xvoCreateBool(bool bVal);                 // 布尔值
-xvalue xvoCreateInt(int64 iVal);                 // 整数
-xvalue xvoCreateFloat(double fVal);              // 浮点数
-xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc);  // 字符串
-xvalue xvoCreateTime(xtime tVal);                // 时间
-xvalue xvoCreateArray();                         // 数组
-xvalue xvoCreateList();                          // 列表
-xvalue xvoCreateColl();                          // 集合
-xvalue xvoCreateTable();                         // 表（字典）
-
-// 引用计数
-void xvoAddRef(xvalue pVal);                     // 增加引用
-void xvoUnref(xvalue pVal);                      // 减少引用（归零自动释放）
-
-// 数组操作
-xvoArrayAppendInt(arr, value);                   // 追加整数
-xvoArrayAppendText(arr, str, len, colloc);       // 追加字符串
-xvalue xvoArrayGetValue(xvalue pArr, uint32 index);  // 获取值
-uint32 xvoArrayItemCount(xvalue pArr);           // 获取数量
-
-// 表操作
-xvoTableSetInt(table, key, keylen, value);       // 设置整数
-xvoTableSetText(table, key, keylen, str, len, colloc);  // 设置字符串
-str xvoTableGetText(xvalue pTbl, str key, uint32 kl);  // 获取字符串
-```
-
-### JSON 处理
-
-```c
-xvalue xrtParseJSON(str sText, size_t iSize);    // 解析 JSON 字符串
-xvalue xrtParseJSON_File(str sFile);             // 解析 JSON 文件
-str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize);  // 生成 JSON
-int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat);    // 保存到文件
-```
-
----
-
-## 🎤 设计亮点
-
-### 1. 💾 线程级临时内存
-
-每个已附加到 XRT 运行时的线程都拥有独立的 32 槽位临时内存，不会与其他线程互相覆盖：
-
-```c
-str temp1 = xrtTempMemory(1024);	// 当前线程使用槽位 0
-str temp2 = xrtTempMemory(2048);	// 当前线程使用槽位 1
-// 当前线程继续分配到槽位 31 后，会回收本线程最早的槽位
-// 无需手动 free，适合函数内临时返回值
-```
-
-主线程在 `xrtInit()` 后自动附加到运行时，`xrtThreadCreate()` 创建的线程也会自动附加，因此在线程函数里可以像单线程一样直接调用 `xrtTempMemory()`、`xrtRand32()`、`xrtSetError()` 等运行时 API。
-
-### 2. 🔄 引用计数 GC
-
-Value 类型系统采用 26 位引用计数自动管理内存（最大 67,108,863 次引用）：
-
-```c
-xvalue v = xvoCreateInt(123);  // RefCount = 1
-xvoAddRef(v);                   // RefCount = 2
-xvoUnref(v);                    // RefCount = 1
-xvoUnref(v);                    // RefCount = 0，自动释放
-// 超过最大引用次数时自动转为静态值，避免溢出
-```
-
-跨线程场景下，Array/List/Coll/Table 建议显式创建为 shared root：
-
-```c
-xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
-xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
-
-xvoCollSetText(tags, "ai", 0, FALSE);
-xvoTableSetValue(table, "tags", 4, tags, FALSE);	// 允许：tags 已是 real shared root
-```
-
-说明：
-- `xvoCreateArray/List/Coll/Table()` 仍然是默认的本线程本地对象
-- shared 容器只接受基础值或已经拥有 real shared root 的嵌套容器值
-- 这条规则不会改变脚本式 API 的使用方式，只是把跨线程边界变成显式契约
-
-### 3. 🏭 多级内存池架构
-
-| 内存池 | 功能 | 特点 |
-|--------|------|------|
-| **BSMM** | 块结构内存管理 | 256 元素/页，释放链表复用 |
-| **MemUnit** | 256 字节页管理 | 支持 GC 标记回收 |
-| **FSMemPool** | 固定大小内存池 | 空闲/满载链表分组 |
-| **MemPool** | 通用内存池 | 二叉树 FSB 索引，15/31 级分块 |
-
-### 4. 🎲 分布式 ID 生成
-
-192 位唯一 ID，可用于分布式系统标识：
-
-```c
-// 结构：时间戳(64bit) + IP地址(32bit) + CPU时钟(32bit) + 随机数(64bit)
-str xid = xrtMakeXIDS();     // 生成全局唯一 ID 字符串
-xid objXID = xrtMakeXID();   // 生成 XID 结构体
-bool same = xrtCompXID(xid1, xid2);  // 比较两个 XID
-xrtFree(xid);
-```
-
-### 5. ✨ 16 种 Value 数据类型
-
-Value 类型采用紧凑的 16 字节结构：
-
-| 类型 | 说明 | 类型 | 说明 |
-|------|------|------|------|
-| Empty | 不存在的数据 | Null | 空值 |
-| Bool | 布尔值 | Int | 64位整数 |
-| Float | 双精度浮点 | Text | 字符串 |
-| Time | 时间戳 | Point | 指针 |
-| Func | 函数指针 | Array | 数组 |
-| List | 列表 | Coll | 集合 |
-| Table | 表/字典 | Struct | 结构体 |
-| Object | 对象 | Custom | 自定义 |
-
-### 6. 🚀 高性能哈希算法
-
-```c
-uint32 hash32 = xrtHash32(data, len);           // 32位 nmhash32x
-uint64 hash64 = xrtHash64(data, len);           // 64位 rapidhash
-uint64 nano = xrtHash64_Nano(data, len);        // 超轻量版本
-```
-
-### 7. 📊 JSON SAX 模式
-
-采用事件驱动的 SAX 模式解析/生成 JSON，内存效率高：
-
-```c
-// 解析：流式读取，边解析边回调
-xrtJsonParseSAX(jsonText, len, callback);
-
-// 生成：增量式写入，智能扩容
-json_sax_print_hd hd = xrtJsonPrintStart(&choice);
-xrtJsonPrintObject(hd, NULL, JSON_SAX_START);
-xrtJsonPrintString(hd, &key, &value);
-xrtJsonPrintObject(hd, NULL, JSON_SAX_FINISH);
-str result = xrtJsonPrintFinish(hd, &len, NULL);
-```
-
-### 8. 📝 全面字符集支持
-
-```c
-// UTF-8/16/32 相互转换
-u16str utf16 = xrtUTF8to16(utf8Text, 0);     // UTF-8 → UTF-16
-u8str utf8 = xrtUTF16to8(utf16Text, 0);      // UTF-16 → UTF-8
-u32str utf32 = xrtUTF8to32(utf8Text, 0);     // UTF-8 → UTF-32
-
-// 自动检测编码
-bool isUtf8 = xrtIsUTF8(text, len);          // 判断是否 UTF-8
-int charset = xrtDetectCharset(text, len, TRUE);  // 自动检测编码（包括 BOM）
-
-// 任意编码转换
-ptr result = xrtConvCharset(text, len, XRT_CP_UTF8, XRT_CP_UTF16);
-```
-
----
-
-## 🧪 测试
-
-项目包含 **31 个测试模块**，100% 覆盖所有功能：
-
-| 测试类别 | 测试模块 |
-|----------|----------|
-| 基础功能 | base, charset, os, math, string, path, time, file, thread, hash, network, xid |
-| 数据结构 | buffer, array_ptr, array_struct, bsmm, memunit, mempool_fs, mempool |
-| 栈结构 | stack_ptr, stack, dynstack_ptr, dynstack |
-| 树/字典 | llist, avltree, dict, list |
-| 高级功能 | value, json, template |
-
-```c
-// 在 test.c 中启用需要测试的模块
-Test_Base(xCore);        // 基础功能测试
-Test_Charset(xCore);     // 字符集测试
-Test_String(xCore);      // 字符串测试
-Test_File(xCore);        // 文件测试
-Test_Value_Basic(xCore); // Value 类型测试
-Test_JSON(xCore);        // JSON 测试
-Test_Template(xCore);    // 模板引擎测试
-Test_Dict(xCore);        // 字典测试
-Test_MemPool(xCore);     // 内存池测试
-// ...
-```
-
-运行测试：
-
-```batch
-# Windows
-build_TCC_TEST_x64.bat
-cd release\x64
-test.exe
-
-# Linux/macOS
-bash build_test.sh
-./test
-```
-
----
-
-## 💡 适用场景
-
-XRT 适合以下开发场景：
-
-### 🛠️ 工具类开发
-- 命令行工具、系统辅助程序
-- 文件处理、批量转换工具
-- 配置文件解析器
-
-### 🌐 服务端开发
-- 轻量级 Web 服务
-- JSON API 服务
-- 模板驱动的内容生成
-
-### 💻 嵌入式开发
-- 资源受限环境
-- 需要精细内存控制
-- 跨平台嵌入式系统
-
-### 📚 学习用途
-- C 语言数据结构学习
-- 内存管理机制研究
-- 编译器原理实践（模板引擎、JSON 解析）
-
----
-
-## 📄 许可证
-
-本项目采用 [MIT License](LICENSE) 开源协议。
-
-```
-Copyright (c) 2025 xLeaves [xywhsoft] <xywhsoft@qq.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction...
-```
-
----
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
-
----
-
-## 📧 联系方式
-
-- **作者**：xLeaves [xywhsoft]
-- **邮箱**：xywhsoft@qq.com
-- **项目主页**：[Git](https://gitee.com/xywhsoft/xrt)
-
----
-
-## 🌟 Star History
-
-如果这个项目对你有帮助，请给一个 ⭐ Star 支持一下！
-
----
-
-## 🙏 致谢
-
-感谢以下开源项目为 XRT 提供的支持：
-
-| 项目 | 功能 | 许可证 |
-|------|------|--------|
-| [LJSON](https://github.com/lengjingzju/json) | jnum 和 json 功能 | MIT License |
-| [nmhash32x](https://github.com/gzm55/hash-garage) | 32位高性能哈希算法 | BSD-2-Clause License |
-| [rapidhash](https://github.com/Nicoshev/rapidhash) | 64位高性能哈希算法 | MIT License |
-| [PCG](https://github.com/imneme/pcg-c) | 高质量伪随机数生成器 | Apache-2.0 / MIT License |
-
----
-
-<div align="center">
-
-**Made with ❤️ by xLeaves**
-
-</div>
+
+## 文档
+
+- 总文档入口：[docs/README.md](/D:/git/xrt/docs/README.md)
+- 下一阶段蓝图：[dev/XRT_ROADMAP_NEXT.md](/D:/git/xrt/dev/XRT_ROADMAP_NEXT.md)
+- 网络基准：[dev/bench/XNET_COMPARE_20260314.md](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
+- TLS 专项验证：[dev/bench/TLS_BENCH_20260315.md](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+
+
+## 致谢
+
+XRT 坚持“主线统一、能自己掌控的能力尽量自己掌控”，但这并不意味着闭门造车。  
+项目中吸收、移植、参考或受启发于以下优秀开源项目：
+
+| 项目 | 链接 | 在 XRT 中的作用 | 合规说明 |
+|---|---|---|---|
+| LJSON | [gitee.com/lengjingzju/json](https://gitee.com/lengjingzju/json) | `json` xrt 采用了 JNUM 和 SAX API | 保留版权与许可声明 |
+| bbre | [github.com/max-nurzia/bbre](https://github.com/max-nurzia/bbre) | xrt 采用其作为 `regex` 模块的实现 | 保留版权与免责声明 |
+| nmhash32x | [github.com/gzm55/hash-garage](https://github.com/gzm55/hash-garage) | xrt 采用其作为 32 位哈希实现 | 保留版权与免责声明 |
+| rapidhash | [github.com/Nicoshev/rapidhash](https://github.com/Nicoshev/rapidhash) | xrt 采用其作为 64 位哈希实现 | 保留版权与免责声明 |
+| PCG | [github.com/imneme/pcg-c-basic](https://github.com/imneme/pcg-c-basic) | xrt 采用其作为随机数生成器 | 保留版权与免责声明 |
+| mongoose | [github.com/cesanta/mongoose](https://github.com/cesanta/mongoose) | 启发了 xrt 的 http 和 TLS 相关实现 | 未使用 mongoose 库的代码 |
+
+
+## 许可证
+
+XRT 主项目采用 [MIT License](LICENSE)。
+
+但 XRT 内部吸收的第三方实现，仍然分别遵守其各自许可证要求。  
+如果你再分发 XRT，除了遵守 XRT 主许可证外，也应同步保留这些第三方组件要求保留的版权声明、免责声明与附加 notice。
+
+
+## 最后
+
+如果你正在寻找的不是一个“只会做一件事”的小库，  
+而是一套能够支撑：
+
+- 基础运行时
+- 高并发
+- 现代网络
+- 结构化数据
+- AI / Agent 工作负载
+
+的 **C 语言基础设施主线**，
+
+那么 XRT 正在朝这个方向持续推进。
+
+它不是在追求“功能看起来很多”，  
+而是在追求：
+
+**高性能、轻量化、功能强大、完备且成体系，并且力求卓越。**
