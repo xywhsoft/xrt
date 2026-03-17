@@ -1,68 +1,12 @@
-﻿#ifndef XRT_XURL_H
+#ifndef XRT_XURL_H
 #define XRT_XURL_H
 
-#ifndef XXAPI
-	#define XXAPI
-#endif
-
 /*
-    XRT public URL/query utility layer.
+    XRT URL/query implementation layer.
 
-    Design rules:
-      - view-first parsing, no heap allocation on hot path
-      - strict length-bounded parsing
-      - explicit failure for malformed or overflowing input
-      - convenience fixed-buffer wrapper kept for simple callers
+    Public declarations live in xrt.h.
+    This file is intended to be expanded only from xrt.c / single-head generation.
 */
-
-#define XRT_URL_F_NONE           0x00000000u
-#define XRT_URL_F_ABSOLUTE       0x00000001u
-#define XRT_URL_F_TARGET_ONLY    0x00000002u
-#define XRT_URL_F_HAS_AUTHORITY  0x00000004u
-#define XRT_URL_F_HAS_USERINFO   0x00000008u
-#define XRT_URL_F_HAS_HOST       0x00000010u
-#define XRT_URL_F_HAS_PORT       0x00000020u
-#define XRT_URL_F_HAS_PATH       0x00000040u
-#define XRT_URL_F_HAS_QUERY      0x00000080u
-#define XRT_URL_F_HAS_FRAGMENT   0x00000100u
-#define XRT_URL_F_SECURE         0x00000200u
-
-#define XRT_QUERY_F_NONE         0x00000000u
-#define XRT_QUERY_F_HAS_VALUE    0x00000001u
-
-#define XRT_URL_FIXED_HOST_CAP   256u
-#define XRT_URL_FIXED_PATH_CAP   2048u
-
-typedef struct {
-	const char* sPtr;
-	size_t iLen;
-} xrtstrview;
-
-typedef struct {
-	uint32 iFlags;
-	uint16 iPort;
-	xrtstrview tScheme;
-	xrtstrview tAuthority;
-	xrtstrview tUserInfo;
-	xrtstrview tHost;
-	xrtstrview tPath;
-	xrtstrview tQuery;
-	xrtstrview tFragment;
-	xrtstrview tTarget;
-} xrturlview;
-
-typedef struct {
-	uint32 iFlags;
-	xrtstrview tKey;
-	xrtstrview tValue;
-} xrtquerypair;
-
-typedef struct {
-	bool bHttps;
-	char sHost[XRT_URL_FIXED_HOST_CAP];
-	uint16 iPort;
-	char sPath[XRT_URL_FIXED_PATH_CAP];
-} xurl_struct, *xurl;
 
 XXAPI xrtstrview xrtStrView(const char* sPtr, size_t iLen)
 {

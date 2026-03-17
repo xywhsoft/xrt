@@ -1,7 +1,3 @@
-#include "../lib/xcodec_http1.h"
-#include "../lib/xcodec_ws.h"
-
-
 void Test_XNet2_Codec(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Codec Scaffolding Test:\n\n");

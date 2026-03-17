@@ -1,18 +1,7 @@
 #ifndef XRT_XNET_PORT_URING_H
 #define XRT_XNET_PORT_URING_H
 
-#include "xnet_port.h"
-
 #if defined(__linux__)
-	#include <errno.h>
-	#include <poll.h>
-	#include <pthread.h>
-	#include <sys/mman.h>
-	#include <sys/syscall.h>
-	#include <sys/eventfd.h>
-	#include <sys/uio.h>
-	#include <unistd.h>
-
 	/*
 	    XRT mainline Linux network backend.
 

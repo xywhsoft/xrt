@@ -1,19 +1,6 @@
 ﻿#ifndef XRT_XNET_SYNC_H
 #define XRT_XNET_SYNC_H
 
-#include "xnet_stream.h"
-#include "xnet_dgram.h"
-
-#if defined(_WIN32) || defined(_WIN64)
-	#include <windows.h>
-#else
-	#include <errno.h>
-	#include <pthread.h>
-	#include <time.h>
-	#include <unistd.h>
-#endif
-
-
 /*
     XRT mainline synchronous wait and convenience runtime.
 
@@ -66,13 +53,17 @@ struct xrt_net_future {
 	#endif
 };
 
+#if !defined(XRT_BUILD_CORE)
 typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
+#endif
 
 typedef struct {
 	xnetfuture* pFuture;
 	xnet_future_task_fn pfnTask;
 	ptr pArg;
 } __xnet_future_task_ctx;
+
+#if !defined(XRT_BUILD_CORE)
 
 typedef struct {
 	uint32 iKind;
@@ -86,6 +77,8 @@ typedef struct {
 		xnetlistener* pListener;
 	} u;
 } xnetwaitsrc;
+
+#endif /* !XRT_BUILD_CORE */
 
 typedef struct {
 	xnetfuture* pFuture;

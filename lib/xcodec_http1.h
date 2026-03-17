@@ -1,9 +1,6 @@
 ﻿#ifndef XRT_XCODEC_HTTP1_H
 #define XRT_XCODEC_HTTP1_H
 
-#include "xcodec.h"
-
-
 /*
     XRT mainline HTTP/1.1 codec.
 
@@ -16,6 +13,8 @@
 
 
 /* ============================== HTTP/1 public model ============================== */
+
+#if !defined(XRT_BUILD_CORE)
 
 #define XCODEC_HTTP1_MAX_HEADERS 32u
 #define XCODEC_HTTP1_TOKEN_CAP   32u
@@ -47,6 +46,8 @@ typedef struct {
 	char sReason[XCODEC_HTTP1_REASON_CAP];
 	xcodechttp1header arrHeaders[XCODEC_HTTP1_MAX_HEADERS];
 } xcodechttp1msg;
+
+#endif /* !XRT_BUILD_CORE */
 
 
 

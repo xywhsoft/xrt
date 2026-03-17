@@ -1,12 +1,6 @@
 ﻿#ifndef XRT_XHTTP_H
 #define XRT_XHTTP_H
 
-#include "xurl.h"
-#include "xhttp_util.h"
-#include "xcodec_http1.h"
-#include "xnet_stream.h"
-#include "xnet_sync.h"
-
 /*
     XRT mainline HTTP/1.1 client on top of xnet.
 
@@ -22,6 +16,7 @@
       - streaming request/response bodies are still deferred
 */
 
+#if !defined(XRT_BUILD_CORE)
 #define XHTTP_METHOD_CAP         16u
 #define XHTTP_URL_CAP            1024u
 #define XHTTP_HOST_CAP           256u
@@ -70,6 +65,7 @@ typedef struct {
 	char* pBody;
 	size_t iBodyLen;
 } xhttpresponse;
+#endif
 
 typedef struct {
 	volatile long iRefCount;

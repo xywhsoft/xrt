@@ -1,15 +1,6 @@
 ﻿#ifndef XRT_XHTTPD_H
 #define XRT_XHTTPD_H
 
-#include "xurl.h"
-#include "xhttp_util.h"
-#include "xcodec_http1.h"
-#include "xnet_stream.h"
-
-#if !defined(_WIN32) && !defined(_WIN64)
-	#include <sched.h>
-#endif
-
 /*
     XRT mainline HTTP/1.1 server on top of xnet.
 
@@ -24,6 +15,7 @@
       - static files, routing tables, and generic upgrade dispatch are deferred
 */
 
+#if !defined(XRT_BUILD_CORE)
 #define XHTTPD_METHOD_CAP         16u
 #define XHTTPD_TARGET_CAP         256u
 #define XHTTPD_PATH_CAP           256u
@@ -88,6 +80,7 @@ typedef struct {
 	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
 	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
 } xhttpdevents;
+#endif
 
 struct xrt_httpd_conn {
 	struct xrt_httpd_conn* pNext;

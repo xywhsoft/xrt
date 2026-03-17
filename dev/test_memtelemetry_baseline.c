@@ -1,4 +1,4 @@
-#include "../xrt.h"
+#include "test_xnet_impl_env.h"
 #include "../test/test_runtime_phase2.h"
 #include "../test/test_coroutine.h"
 #include "../test/test_xnet2_base.h"

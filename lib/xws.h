@@ -1,19 +1,6 @@
 ﻿#ifndef XRT_XWS_H
 #define XRT_XWS_H
 
-#include <stdlib.h>
-
-#include "xurl.h"
-#include "xhttp_util.h"
-#include "xcodec_http1.h"
-#include "xcodec_ws.h"
-#include "xnet_stream.h"
-
-#if !defined(_WIN32) && !defined(_WIN64)
-	#include <sched.h>
-#endif
-
-
 /*
     XRT mainline WebSocket layer on top of xnet.
 
@@ -29,6 +16,8 @@
 
 
 /* ============================== Public model ============================== */
+
+#if !defined(XRT_BUILD_CORE)
 
 #define XWS_URL_CAP              1024u
 #define XWS_HOST_CAP             256u
@@ -85,6 +74,8 @@ typedef struct {
 	void (*OnPing)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
 	void (*OnPong)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
 } xwsserverevents;
+
+#endif /* !XRT_BUILD_CORE */
 
 typedef struct {
 	bool bSecure;

@@ -1,7 +1,3 @@
-#include "../lib/xnet_base.h"
-
-
-
 void Test_XNet2_Base(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Base Address Test:\n\n");

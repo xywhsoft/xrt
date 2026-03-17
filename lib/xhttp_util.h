@@ -1,9 +1,5 @@
-﻿#ifndef XRT_XHTTP_UTIL_H
+#ifndef XRT_XHTTP_UTIL_H
 #define XRT_XHTTP_UTIL_H
-
-#ifndef XXAPI
-	#define XXAPI
-#endif
 
 #ifndef XHTTP_UTIL_REALLOC
 	#define XHTTP_UTIL_REALLOC realloc
@@ -13,199 +9,19 @@
 	#define XHTTP_UTIL_FREE free
 #endif
 
+#define XRT_MULTIPART_STREAM_STATE_SEEK_BOUNDARY 1u
+#define XRT_MULTIPART_STREAM_STATE_HEADERS       2u
+#define XRT_MULTIPART_STREAM_STATE_BODY          3u
+#define XRT_MULTIPART_STREAM_STATE_PART_END      4u
+#define XRT_MULTIPART_STREAM_STATE_DONE          5u
+#define XRT_MULTIPART_STREAM_STATE_ERROR         6u
+
 /*
-    XRT public HTTP utility layer.
+    XRT HTTP utility implementation layer.
 
-    This header intentionally exposes only hot-path-safe helpers:
-      - length-bounded header line splitting
-      - case-insensitive header token matching
-      - semicolon-parameter parsing for HTTP header values
-      - cookie / Set-Cookie parsing without heap allocation
-      - bounded percent-encode and query/form/cookie append helpers
+    Public declarations live in xrt.h.
+    This file is intended to be expanded only from xrt.c / single-head generation.
 */
-
-typedef struct {
-	xrtstrview tName;
-	xrtstrview tValue;
-} xrtheaderpair;
-
-typedef struct {
-	xrtstrview tName;
-	xrtstrview tValue;
-} xrtcookiepair;
-
-#define XRT_HTTP_PARAM_F_NONE       0x00000000u
-#define XRT_HTTP_PARAM_F_HAS_VALUE  0x00000001u
-
-typedef struct {
-	uint32 iFlags;
-	xrtstrview tName;
-	xrtstrview tValue;
-} xrthttpparam;
-
-#define XRT_HTTP_MEDIA_TYPE_F_NONE        0x00000000u
-#define XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX  0x00000001u
-#define XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS  0x00000002u
-
-typedef struct {
-	uint32 iFlags;
-	xrtstrview tType;
-	xrtstrview tSubType;
-	xrtstrview tSuffix;
-	xrtstrview tParams;
-} xrtmediatypeview;
-
-#define XRT_HTTP_CONTENT_DISPOSITION_F_NONE              0x00000000u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_PARAMS        0x00000001u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_NAME          0x00000002u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME      0x00000004u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME_EXT  0x00000008u
-
-typedef struct {
-	uint32 iFlags;
-	xrtstrview tType;
-	xrtstrview tParams;
-	xrtstrview tName;
-	xrtstrview tFileName;
-	xrtstrview tFileNameExt;
-	xrtstrview tFileNameCharset;
-	xrtstrview tFileNameLanguage;
-} xrtcontentdispositionview;
-
-#define XRT_SET_COOKIE_F_NONE            0x00000000u
-#define XRT_SET_COOKIE_F_HAS_VALUE       0x00000001u
-#define XRT_SET_COOKIE_F_HAS_DOMAIN      0x00000002u
-#define XRT_SET_COOKIE_F_HAS_PATH        0x00000004u
-#define XRT_SET_COOKIE_F_HAS_EXPIRES     0x00000008u
-#define XRT_SET_COOKIE_F_HAS_MAX_AGE     0x00000010u
-#define XRT_SET_COOKIE_F_HAS_SAME_SITE   0x00000020u
-#define XRT_SET_COOKIE_F_SECURE          0x00000040u
-#define XRT_SET_COOKIE_F_HTTP_ONLY       0x00000080u
-#define XRT_SET_COOKIE_F_PARTITIONED     0x00000100u
-#define XRT_SET_COOKIE_F_SAME_PARTY      0x00000200u
-#define XRT_SET_COOKIE_F_HAS_PRIORITY    0x00000400u
-
-#define XRT_SAME_SITE_UNSPECIFIED        0u
-#define XRT_SAME_SITE_LAX                1u
-#define XRT_SAME_SITE_STRICT             2u
-#define XRT_SAME_SITE_NONE               3u
-
-#define XRT_COOKIE_PRIORITY_UNSPECIFIED  0u
-#define XRT_COOKIE_PRIORITY_LOW          1u
-#define XRT_COOKIE_PRIORITY_MEDIUM       2u
-#define XRT_COOKIE_PRIORITY_HIGH         3u
-
-typedef struct {
-	uint32 iFlags;
-	int32_t iMaxAge;
-	uint8 iSameSite;
-	uint8 iPriority;
-	xrtstrview tName;
-	xrtstrview tValue;
-	xrtstrview tDomain;
-	xrtstrview tPath;
-	xrtstrview tExpires;
-} xrtsetcookieview;
-
-#define XRT_MULTIPART_F_NONE                   0x00000000u
-#define XRT_MULTIPART_F_HAS_CONTENT_DISP       0x00000001u
-#define XRT_MULTIPART_F_HAS_NAME               0x00000002u
-#define XRT_MULTIPART_F_HAS_FILENAME           0x00000004u
-#define XRT_MULTIPART_F_HAS_CONTENT_TYPE       0x00000008u
-#define XRT_MULTIPART_F_HAS_TRANSFER_ENCODING  0x00000010u
-#define XRT_MULTIPART_F_HAS_FILENAME_EXT       0x00000020u
-
-typedef struct {
-	uint32 iFlags;
-	xrtstrview tHeaders;
-	xrtstrview tBody;
-	xrtstrview tContentDisposition;
-	xrtstrview tName;
-	xrtstrview tFileName;
-	xrtstrview tFileNameExt;
-	xrtstrview tFileNameCharset;
-	xrtstrview tFileNameLanguage;
-	xrtstrview tContentType;
-	xrtstrview tTransferEncoding;
-} xrtmultipartpartview;
-
-typedef struct {
-	size_t iMaxBufferedBytes;
-	size_t iMaxHeaderBytes;
-	size_t iMaxPartHeaders;
-	size_t iTailReserve;
-} xrtmultipartstreamconfig;
-
-typedef struct {
-	size_t iMaxNameBytes;
-	size_t iMaxValueBytes;
-	size_t iMaxPairs;
-	size_t iMaxHeaderLineBytes;
-	size_t iMaxHeaderBytes;
-	size_t iMaxHeaderCount;
-	size_t iMaxTokenBytes;
-	size_t iMaxBoundaryBytes;
-	size_t iMaxMultipartHeaders;
-	size_t iMaxMultipartParts;
-	size_t iMaxMultipartBytes;
-} xrthttputillimits;
-
-typedef enum {
-	XRT_MULTIPART_STREAM_RESULT_ERROR     = -1,
-	XRT_MULTIPART_STREAM_RESULT_NEED_MORE = 0,
-	XRT_MULTIPART_STREAM_RESULT_PART_BEGIN = 1,
-	XRT_MULTIPART_STREAM_RESULT_DATA      = 2,
-	XRT_MULTIPART_STREAM_RESULT_PART_END  = 3,
-	XRT_MULTIPART_STREAM_RESULT_END       = 4
-} xrtmultipartstreamresult;
-
-#define XRT_MULTIPART_STREAM_ERR_NONE             0u
-#define XRT_MULTIPART_STREAM_ERR_INVALID_BOUNDARY 1u
-#define XRT_MULTIPART_STREAM_ERR_BUFFER_LIMIT     2u
-#define XRT_MULTIPART_STREAM_ERR_HEADER_LIMIT     3u
-#define XRT_MULTIPART_STREAM_ERR_INVALID_HEADER   4u
-#define XRT_MULTIPART_STREAM_ERR_TRUNCATED        5u
-
-typedef struct {
-	xrtmultipartstreamresult iResult;
-	xrtmultipartpartview tPart;
-	xrtstrview tData;
-} xrtmultipartstreamevent;
-
-typedef struct {
-	char* pBuffer;
-	size_t iBufferLen;
-	size_t iBufferCap;
-	size_t iCursor;
-	size_t iBoundaryPos;
-	size_t iAfterBoundary;
-	size_t iBoundaryLen;
-	size_t iMaxBufferedBytes;
-	size_t iMaxHeaderBytes;
-	size_t iMaxPartHeaders;
-	size_t iTailReserve;
-	uint32 iError;
-	uint32 iState;
-	bool bFinalBoundary;
-	bool bFinishedInput;
-	xrtmultipartpartview tCurrentPart;
-	char aBoundary[71];
-} xrtmultipartstream;
-
-#define XRT_MULTIPART_STREAM_STATE_SEEK_BOUNDARY  0u
-#define XRT_MULTIPART_STREAM_STATE_HEADERS        1u
-#define XRT_MULTIPART_STREAM_STATE_BODY           2u
-#define XRT_MULTIPART_STREAM_STATE_PART_END       3u
-#define XRT_MULTIPART_STREAM_STATE_DONE           4u
-#define XRT_MULTIPART_STREAM_STATE_ERROR          5u
-
-XXAPI bool xrtQueryNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
-XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
-XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut);
-XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut);
-XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut);
-XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut);
-XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut);
 
 static char __xrtHttpUtilToLower(char ch)
 {

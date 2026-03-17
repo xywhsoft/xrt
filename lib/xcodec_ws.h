@@ -1,9 +1,6 @@
 ﻿#ifndef XRT_XCODEC_WS_H
 #define XRT_XCODEC_WS_H
 
-#include "xcodec.h"
-
-
 /*
     XRT mainline WebSocket frame codec.
 
@@ -17,6 +14,8 @@
 
 
 /* ============================== WebSocket public model ============================== */
+
+#if !defined(XRT_BUILD_CORE)
 
 #define XCODEC_WS_OPCODE_CONT   0x0u
 #define XCODEC_WS_OPCODE_TEXT   0x1u
@@ -37,6 +36,8 @@ typedef struct {
 	uint64 iPayloadLen;
 	size_t iHeaderBytes;
 } xcodecwsframeinfo;
+
+#endif /* !XRT_BUILD_CORE */
 
 
 

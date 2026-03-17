@@ -1,17 +1,6 @@
 ﻿#ifndef XRT_XNET_ENGINE_H
 #define XRT_XNET_ENGINE_H
 
-#include "xnet_port_iocp.h"
-#include "xnet_port_uring.h"
-
-#if defined(_WIN32) || defined(_WIN64)
-	#include <windows.h>
-#else
-	#include <pthread.h>
-	#include <unistd.h>
-#endif
-
-
 /*
     XRT mainline network engine and worker runtime.
 

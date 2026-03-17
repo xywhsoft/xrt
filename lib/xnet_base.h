@@ -1,27 +1,6 @@
 ﻿#ifndef XRT_XNET_BASE_H
 #define XRT_XNET_BASE_H
 
-#ifndef XXAPI
-	#define XXAPI
-#endif
-
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-
-#if defined(_WIN32) || defined(_WIN64)
-	#include <winsock2.h>
-	#include <ws2tcpip.h>
-	#include <windows.h>
-#else
-	#include <arpa/inet.h>
-	#include <netdb.h>
-	#include <sys/socket.h>
-#endif
-
-
 /*
     XRT mainline network base model.
 
@@ -92,6 +71,8 @@
 
 
 /* ============================== Opaque handles ============================== */
+
+#if !defined(XRT_BUILD_CORE)
 
 typedef struct xrt_net_engine   xnetengine;
 typedef struct xrt_net_mem_ctx  xnetmemctx;
@@ -206,6 +187,8 @@ typedef struct {
 	uint32 iRecvBatch;
 	uint32 iSendQueueLimit;
 } xnetdgramconfig;
+
+#endif /* !XRT_BUILD_CORE */
 
 
 

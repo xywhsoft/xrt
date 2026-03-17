@@ -1,9 +1,6 @@
 ﻿#ifndef XRT_XCODEC_H
 #define XRT_XCODEC_H
 
-#include "xnet_mem.h"
-
-
 /*
     XRT mainline codec adapter and framing helpers.
 
@@ -16,6 +13,8 @@
 
 
 /* ============================== Common codec status and frame types ============================== */
+
+#if !defined(XRT_BUILD_CORE)
 
 typedef enum {
 	XCODEC_STATUS_ERROR = -1,
@@ -68,6 +67,8 @@ typedef struct {
 	const xcodecparserops* pOps;
 	ptr pCtx;
 } xcodecparser;
+
+#endif /* !XRT_BUILD_CORE */
 
 XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx)
 {
@@ -191,12 +192,14 @@ XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
 
 /* ============================== Line codec ============================== */
 
+#if !defined(XRT_BUILD_CORE)
 typedef struct {
 	uint8 aDelimiter[4];
 	uint32 iDelimiterLen;
 	uint32 iMaxLineBytes;
 	bool bStripDelimiter;
 } xcodeclinecodec;
+#endif
 
 XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
 {
@@ -261,12 +264,14 @@ XXAPI const xcodecparserops* xrtCodecLineOps(void)
 
 /* ============================== Length-field codec ============================== */
 
+#if !defined(XRT_BUILD_CORE)
 typedef struct {
 	uint8 iFieldBytes;
 	bool bBigEndian;
 	int32_t iLengthAdjust;
 	uint32 iMaxPayloadBytes;
 } xcodeclengthcodec;
+#endif
 
 XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
 {

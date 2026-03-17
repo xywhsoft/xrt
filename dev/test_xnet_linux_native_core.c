@@ -1,5 +1,4 @@
-#include "../xrt.h"
-#include "../lib/xnet_port_uring.h"
+#include "test_xnet_impl_env.h"
 
 #if defined(__linux__)
 	#include <stdio.h>

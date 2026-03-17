@@ -1,4 +1,4 @@
-#include "../lib/xnet_port.h"
+#include "test_xnet_impl_env.h"
 #include "../test/test_xnet2_port.h"
 #include "../test/test_xnet2_engine.h"
 #include "../test/test_xnet2_stream.h"
@@ -11,11 +11,6 @@
 #include "../test/test_xnet_ws.h"
 #include "../test/test_xnet2_base.h"
 #include "../test/test_xnet2_mem.h"
-
-#if defined(_WIN32) || defined(_WIN64)
-	#include <winsock2.h>
-#endif
-
 
 int main(void)
 {

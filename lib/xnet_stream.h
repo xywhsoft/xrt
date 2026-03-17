@@ -1,23 +1,6 @@
 ﻿#ifndef XRT_XNET_STREAM_H
 #define XRT_XNET_STREAM_H
 
-#include "xnet_engine.h"
-#include "xnet_tls.h"
-
-#if defined(_WIN32) || defined(_WIN64)
-	#include <mswsock.h>
-	#if defined(XNET_DEBUG_IOCP_NATIVE)
-		#include <stdio.h>
-	#endif
-#else
-	#include <errno.h>
-	#include <fcntl.h>
-	#include <sys/ioctl.h>
-	#include <netinet/tcp.h>
-	#include <unistd.h>
-#endif
-
-
 /*
     XNet mainline stream and listener layer.
 
@@ -35,6 +18,8 @@
 
 /* ============================== Event tables ============================== */
 
+#if !defined(XRT_BUILD_CORE)
+
 typedef struct {
 	bool (*OnAccept)(ptr pOwner, xnetlistener* pListener, xnetstream* pStream);
 	void (*OnError)(ptr pOwner, xnetlistener* pListener, int iSysErr);
@@ -49,6 +34,8 @@ typedef struct {
 	void (*OnHighWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
 	void (*OnLowWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
 } xnetstreamevents;
+
+#endif /* !XRT_BUILD_CORE */
 
 
 
@@ -112,10 +99,12 @@ typedef struct {
 #define __XNET_STREAM_WAIT_CLOSE    3u
 #define __XNET_STREAM_WAIT_COUNT    4u
 
+#if !defined(XRT_BUILD_CORE)
 #define XNET_STREAM_WAIT_READABLE __XNET_STREAM_WAIT_READABLE
 #define XNET_STREAM_WAIT_WRITABLE __XNET_STREAM_WAIT_WRITABLE
 #define XNET_STREAM_WAIT_DRAIN    __XNET_STREAM_WAIT_DRAIN
 #define XNET_STREAM_WAIT_CLOSE    __XNET_STREAM_WAIT_CLOSE
+#endif
 
 
 

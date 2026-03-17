@@ -1,10 +1,3 @@
-
-
-
-#include "../lib/xnet_base.h"
-#include "../lib/xnet_mem.h"
-
-
 static void __Test_XNet2_ReleaseRef(ptr pCtx, const void* pData, size_t iLen)
 {
 	int* pCount = (int*)pCtx;

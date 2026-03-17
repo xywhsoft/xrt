@@ -4,11 +4,6 @@
 #ifndef XRT_XNET_MEM_H
 #define XRT_XNET_MEM_H
 
-#include <stdlib.h>
-#include <string.h>
-
-#include "xnet_base.h"
-
 /*
     XRT mainline network memory blocks and chains.
 
@@ -41,6 +36,8 @@
 #define XNET_BLK_F_REF          0x0001u
 
 #define __XNET_BLK_MIN_CAPACITY 256u
+
+#if !defined(XRT_BUILD_CORE)
 
 typedef struct __xnet_blk __xnet_blk;
 
@@ -85,6 +82,15 @@ struct xrt_net_mem_ctx {
 
 /* ============================== Block model ============================== */
 
+struct xrt_net_chain {
+	__xnet_blk* pHead;
+	__xnet_blk* pTail;
+	ptr pMemCtx;
+	uint32 iBytes;
+	uint32 iBlockCount;
+};
+#endif /* !XRT_BUILD_CORE */
+
 struct __xnet_blk {
 	__xnet_blk* pNext;
 	xnetmemctx* pMemCtx;
@@ -100,14 +106,6 @@ struct __xnet_blk {
 	void (*pfnRelease)(ptr pCtx, const void* pData, size_t iLen);
 	ptr pReleaseCtx;
 	uint8 aData[1];
-};
-
-struct xrt_net_chain {
-	__xnet_blk* pHead;
-	__xnet_blk* pTail;
-	ptr pMemCtx;
-	uint32 iBytes;
-	uint32 iBlockCount;
 };
 
 static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
@@ -131,7 +129,7 @@ static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
 
 /* ============================== Config helpers ============================== */
 
-static void xrtNetMemConfigInit(xnetmemconfig* pCfg)
+XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg)
 {
 	if ( !pCfg ) return;
 	memset(pCfg, 0, sizeof(xnetmemconfig));
@@ -157,7 +155,7 @@ static void __xnetMemNormalizeConfig(xnetmemconfig* pCfg)
 	}
 }
 
-static void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg)
+XXAPI void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg)
 {
 	if ( !pCtx ) return;
 	memset(pCtx, 0, sizeof(xnetmemctx));
@@ -420,7 +418,7 @@ static void __xnetMemTrimList(__xnet_blk** ppHead, uint32* pCached, uint32 iTarg
 
 /* ============================== Allocator public helpers ============================== */
 
-static void xrtNetMemCtxTrim(xnetmemctx* pCtx)
+XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx)
 {
 	if ( !pCtx ) return;
 	__xnetMemTrimList(&pCtx->pSmallFree, &pCtx->tStats.iSmallCached, 0);
@@ -428,14 +426,14 @@ static void xrtNetMemCtxTrim(xnetmemctx* pCtx)
 	__xnetMemTrimList(&pCtx->pLargeFree, &pCtx->tStats.iLargeCached, 0);
 }
 
-static void xrtNetMemCtxUnit(xnetmemctx* pCtx)
+XXAPI void xrtNetMemCtxUnit(xnetmemctx* pCtx)
 {
 	if ( !pCtx ) return;
 	xrtNetMemCtxTrim(pCtx);
 	memset(pCtx, 0, sizeof(xnetmemctx));
 }
 
-static void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats)
+XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats)
 {
 	if ( !pStats ) return;
 	memset(pStats, 0, sizeof(xnetmemstats));
@@ -447,19 +445,19 @@ static void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats)
 
 /* ============================== Chain lifecycle ============================== */
 
-static void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx)
+XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx)
 {
 	if ( !pChain ) return;
 	memset(pChain, 0, sizeof(xnetchain));
 	pChain->pMemCtx = pMemCtx;
 }
 
-static void xrtNetChainInit(xnetchain* pChain)
+XXAPI void xrtNetChainInit(xnetchain* pChain)
 {
 	xrtNetChainInitEx(pChain, NULL);
 }
 
-static void xrtNetChainClear(xnetchain* pChain)
+XXAPI void xrtNetChainClear(xnetchain* pChain)
 {
 	if ( !pChain ) return;
 	while ( pChain->pHead ) {
@@ -476,7 +474,7 @@ static void xrtNetChainClear(xnetchain* pChain)
 
 /* ============================== Chain append ============================== */
 
-static bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iLen)
+XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iLen)
 {
 	if ( !pChain || !pData || iLen == 0 ) return false;
 	
@@ -513,7 +511,7 @@ static bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t i
 	return true;
 }
 
-static bool xrtNetChainAppendRef(xnetchain* pChain, const xnetbufref* pRef)
+XXAPI bool xrtNetChainAppendRef(xnetchain* pChain, const xnetbufref* pRef)
 {
 	if ( !pChain || !pRef || !pRef->pData || pRef->iLen == 0 ) return false;
 
@@ -528,12 +526,12 @@ static bool xrtNetChainAppendRef(xnetchain* pChain, const xnetbufref* pRef)
 
 /* ============================== Public chain queries ============================== */
 
-static size_t xrtNetChainBytes(const xnetchain* pChain)
+XXAPI size_t xrtNetChainBytes(const xnetchain* pChain)
 {
 	return pChain ? pChain->iBytes : 0;
 }
 
-static uint32 xrtNetChainSpanCount(const xnetchain* pChain)
+XXAPI uint32 xrtNetChainSpanCount(const xnetchain* pChain)
 {
 	if ( !pChain ) return 0;
 	uint32 iCount = 0;
@@ -543,7 +541,7 @@ static uint32 xrtNetChainSpanCount(const xnetchain* pChain)
 	return iCount;
 }
 
-static uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32 iMaxCount)
+XXAPI uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32 iMaxCount)
 {
 	if ( !pChain || !pOut || iMaxCount == 0 ) return 0;
 	
@@ -558,7 +556,7 @@ static uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint3
 	return iCount;
 }
 
-static size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
+XXAPI size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
 {
 	if ( !pChain || !pOut || iLen == 0 ) return 0;
 	
@@ -577,7 +575,7 @@ static size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
 	return iCopied;
 }
 
-static size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff)
+XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff)
 {
 	if ( !pChain || iStartOff >= pChain->iBytes ) return (size_t)-1;
 	
@@ -608,7 +606,7 @@ static size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iSta
 
 /* ============================== Public chain consume ============================== */
 
-static void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
+XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 {
 	if ( !pChain || iLen == 0 ) return;
 	if ( iLen >= pChain->iBytes ) {

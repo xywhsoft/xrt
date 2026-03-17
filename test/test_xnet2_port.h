@@ -1,6 +1,3 @@
-#include "../lib/xnet_port_iocp.h"
-#include "../lib/xnet_port_uring.h"
-
 #if defined(_WIN32) || defined(_WIN64)
 	#include <windows.h>
 #else

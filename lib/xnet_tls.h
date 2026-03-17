@@ -1,12 +1,6 @@
 ﻿#ifndef XRT_XNET_TLS_H
 #define XRT_XNET_TLS_H
 
-#include <stdlib.h>
-#include <string.h>
-
-#include "xnet_base.h"
-
-
 /*
     XRT mainline builtin TLS adapter.
 

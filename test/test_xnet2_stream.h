@@ -1,5 +1,3 @@
-#include "../lib/xnet_stream.h"
-
 #if defined(_WIN32) || defined(_WIN64)
 	#include <windows.h>
 #else

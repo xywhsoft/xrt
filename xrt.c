@@ -12,6 +12,9 @@
 		#include <shellapi.h>
 		#include <iphlpapi.h>
 	#endif
+	#if defined(XNET_DEBUG_IOCP_NATIVE)
+		#include <stdio.h>
+	#endif
 	#include <sys/types.h>
 	#include <sys/stat.h>
 	#include <wchar.h>
@@ -23,6 +26,11 @@
 	#include <sys/stat.h>
 	#include <net/if.h>
 	#include <sys/ioctl.h>
+	#include <poll.h>
+	#include <sys/syscall.h>
+	#include <sys/eventfd.h>
+	#include <sys/uio.h>
+	#include <sched.h>
 	#include <errno.h>
 	#include <wchar.h>
 	#include <netdb.h>
@@ -117,6 +125,9 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 #endif
 #include "lib/xnet_base.h"
 #include "lib/xnet_mem.h"
+#include "lib/xnet_port.h"
+#include "lib/xnet_port_iocp.h"
+#include "lib/xnet_port_uring.h"
 #ifndef XRT_NO_XCODEC
 #include "lib/xcodec.h"
 #include "lib/xcodec_http1.h"
@@ -1197,4 +1208,3 @@ XXAPI void xrtUnit()
 	
 	
 #endif
-

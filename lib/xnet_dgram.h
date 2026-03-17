@@ -1,23 +1,12 @@
 ﻿#ifndef XRT_XNET_DGRAM_H
 #define XRT_XNET_DGRAM_H
 
-#include "xnet_engine.h"
-
-#if defined(XNET_DEBUG_IOCP_NATIVE)
-	#include <stdio.h>
-#endif
-
-#if !defined(_WIN32) && !defined(_WIN64)
-	#include <errno.h>
-	#include <fcntl.h>
-	#include <unistd.h>
-#endif
-
-
+#if !defined(XRT_BUILD_CORE)
 typedef struct {
 	void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
 	void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
 } xnetdgramevents;
+#endif
 
 #define __XNET_DGRAM_ASYNC_SEND_COPY   1u
 #define __XNET_DGRAM_ASYNC_SEND_NATIVE 2u
@@ -30,10 +19,17 @@ typedef struct {
 	uint8 aData[1];
 } __xnet_dgram_async_op;
 
+#if !defined(XRT_BUILD_CORE)
 typedef struct xrt_net_dgram_packet {
 	xnetaddr tFrom;
 	xnetchain tChain;
 } xnetdgrampkt;
+#else
+struct xrt_net_dgram_packet {
+	xnetaddr tFrom;
+	xnetchain tChain;
+};
+#endif
 
 typedef void (*__xnet_dgram_sync_wait_fn)(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket, ptr pCtx);
 

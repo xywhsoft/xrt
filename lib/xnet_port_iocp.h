@@ -1,13 +1,7 @@
 #ifndef XRT_XNET_PORT_IOCP_H
 #define XRT_XNET_PORT_IOCP_H
 
-#include "xnet_port.h"
-
 #if defined(_WIN32) || defined(_WIN64)
-	#include <mswsock.h>
-	#if defined(XNET_DEBUG_IOCP_NATIVE)
-		#include <stdio.h>
-	#endif
 
 	/*
 	    XRT mainline Windows network backend.

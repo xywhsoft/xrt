@@ -1,9 +1,6 @@
 #ifndef XRT_XNET_PORT_H
 #define XRT_XNET_PORT_H
 
-#include "xnet_mem.h"
-
-
 /*
     XRT mainline backend-neutral network port interface.
 

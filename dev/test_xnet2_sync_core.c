@@ -1,4 +1,4 @@
-#include "../xrt.h"
+#include "test_xnet_impl_env.h"
 #include "../test/test_xnet2_sync.h"
 
 #if defined(_WIN32) || defined(_WIN64)
