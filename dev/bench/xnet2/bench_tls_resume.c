@@ -24,7 +24,7 @@ static void __benchTlsResumeOnOpen(ptr pOwner, xnetstream* pStream)
 	__bench_tls_resume_stats* pStats = (__bench_tls_resume_stats*)pOwner;
 	if ( !pStats ) return;
 	(void)xbenchAtomicSetOnceU64(&pStats->iLastOpenNs, xbenchNowNs());
-	if ( pStream && pStream->pTls && pStream->pTls->pCtx && xrtTlsWasResumed(pStream->pTls->pCtx) ) {
+	if ( pStream && pStream->pTls && xrtNetTlsSessionWasResumed(pStream->pTls) ) {
 		xbenchAtomicInc(&pStats->iResumedCount);
 	}
 	xbenchAtomicInc(&pStats->iOpenCount);
@@ -225,8 +225,8 @@ int main(int argc, char** argv)
 			goto cleanup;
 		}
 
-		if ( pWarmClient->pTls && pWarmClient->pTls->pCtx ) {
-			pResume = xrtTlsExportResume(pWarmClient->pTls->pCtx);
+		if ( pWarmClient->pTls ) {
+			pResume = xrtNetTlsSessionExportResume(pWarmClient->pTls);
 		}
 		if ( !pResume ) {
 			printf("warm_resume_export_failed\n");
@@ -405,7 +405,7 @@ int main(int argc, char** argv)
 	xbenchPrintMetricU64("resumed_payload_ok_count", iPayloadOkCount);
 
 cleanup:
-	if ( pResume ) xrtTlsResumeDestroy(pResume);
+	if ( pResume ) xrtNetTlsResumeDestroy(pResume);
 	if ( pListener ) {
 		xrtNetListenerStop(pListener);
 		xrtNetListenerDestroy(pListener);

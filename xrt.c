@@ -154,9 +154,6 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 #endif
 
 #ifndef XRT_NO_NETWORK
-#ifndef XRT_NO_NETTLS
-#include "lib/xnet_tls.h"
-#endif
 #include "lib/xnet_stream.h"
 #include "lib/xnet_dgram.h"
 #include "lib/xnet_sync.h"
@@ -1035,6 +1032,23 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 	}
 
 	xrtThreadDetachCurrent();
+
+	if ( pThread && pThread->bAutoDestroy ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( pThread->Handle ) {
+				CloseHandle(pThread->Handle);
+				pThread->Handle = NULL;
+			}
+		#else
+			if ( pThread->Handle ) {
+				pthread_detach((pthread_t)pThread->Handle);
+				pThread->Handle = NULL;
+			}
+			pthread_cond_destroy(&pThread->FinishCond);
+			pthread_mutex_destroy(&pThread->FinishLock);
+		#endif
+		xrtFree(pThread);
+	}
 }
 
 

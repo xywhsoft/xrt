@@ -759,6 +759,9 @@
 		xrtThreadMemState tMem;
 		xrtCoroRuntimeState tCoro;
 		xrtThreadCleanup* pCleanupTop;
+		ptr pFutureDeferredHead;
+		ptr pFutureDeferredTail;
+		bool bFutureDeferredCleanupRegistered;
 	};
 	
 	// 全局数据
@@ -1033,6 +1036,11 @@
 		pOwner->iSharedDepth = 0;
 	}
 
+	static inline str __xrtOwnerSharedPendingError(void)
+	{
+		return (str)"shared object is not published yet; cross-thread access is not allowed before publish.";
+	}
+
 	static inline bool xrtOwnerLock(xrtOwnerInfo* pOwner, str sError)
 	{
 		uint64 iThreadId;
@@ -1045,7 +1053,7 @@
 				if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
 					return TRUE;
 				}
-				xrtSetError((str)"shared mode synchronization is not implemented yet.", FALSE);
+				xrtSetError(__xrtOwnerSharedPendingError(), FALSE);
 				return FALSE;
 			}
 			if ( pOwner->iSharedOwnerThreadId == iThreadId && pOwner->iSharedDepth > 0 ) {
@@ -1112,7 +1120,7 @@
 			if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
 				return TRUE;
 			}
-			xrtSetError((str)"shared mode synchronization is not implemented yet.", FALSE);
+			xrtSetError(__xrtOwnerSharedPendingError(), FALSE);
 			return FALSE;
 		}
 		if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
@@ -1680,12 +1688,13 @@
 		uint64 TID;								// 线程ID
 		uint32 (*Proc)(ptr param);				// 用户回调函数
 		ptr Param;								// 用户参数
-		volatile int StopFlag;					// 停止信号标志
-		volatile int bFinished;					// 是否已经结束
-		volatile int bJoined;					// 是否已经完成等待
-		uint32 ExitCode;						// 线程退出码
-		#if !defined(_WIN32) && !defined(_WIN64)
-			pthread_mutex_t FinishLock;			// 结束状态锁（POSIX）
+	volatile int StopFlag;					// 停止信号标志
+	volatile int bFinished;					// 是否已经结束
+	volatile int bJoined;					// 是否已经完成等待
+	volatile int bAutoDestroy;				// 线程退出后自动释放管理对象
+	uint32 ExitCode;						// 线程退出码
+	#if !defined(_WIN32) && !defined(_WIN64)
+		pthread_mutex_t FinishLock;			// 结束状态锁（POSIX）
 			pthread_cond_t FinishCond;			// 结束条件变量（POSIX，monotonic）
 		#endif
 	} xthread_struct, *xthread;
@@ -2307,13 +2316,14 @@
     /* ------------------------------------ Shared network/TLS status ------------------------------------ */
 
     /* ---- Shared network result ---- */
-    typedef enum {
-        XRT_NET_OK        =  0,
-        XRT_NET_ERROR     = -1,
-        XRT_NET_AGAIN     = -2,
-        XRT_NET_TIMEOUT   = -3,
-        XRT_NET_CLOSED    = -4,
-    } xnet_result;
+typedef enum {
+	XRT_NET_OK        =  0,
+	XRT_NET_ERROR     = -1,
+	XRT_NET_AGAIN     = -2,
+	XRT_NET_TIMEOUT   = -3,
+	XRT_NET_CLOSED    = -4,
+	XRT_NET_CANCELLED = -5,
+} xnet_result;
 
     /* ---- Shared socket handle ---- */
     #if defined(_WIN32) || defined(_WIN64)
@@ -2325,21 +2335,21 @@
     #endif
     #define XRT_XSOCKET_DEFINED 1
 
-    /* ---- TLS context/config ---- */
-    typedef struct xrt_tls_context xtlsctx;
-    typedef struct xrt_tls_resume xtlsresume;
-    typedef struct {
-        const char* sCertFile;
-        const char* sKeyFile;
-        const char* sCaFile;
-        const char* sHostName;
-        bool bVerifyPeer;
-        void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
-        ptr pSNIUserData;
-        bool bAllowTLS12Ed25519;
-        uint16 iMaxVersion;
-        const xtlsresume* pResume;
-    } xtlsconfig;
+	/* ---- TLS session/config ---- */
+	typedef struct xrt_tls_session xtlssession;
+	typedef struct xrt_tls_resume xtlsresume;
+	typedef struct {
+		const char* sCertFile;
+		const char* sKeyFile;
+		const char* sCaFile;
+		const char* sHostName;
+		bool bVerifyPeer;
+		void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);
+		ptr pSNIUserData;
+		bool bAllowTLS12Ed25519;
+		uint16 iMaxVersion;
+		const xtlsresume* pResume;
+	} xtlsconfig;
 
 	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
 	
@@ -2498,8 +2508,11 @@ typedef struct xrt_net_stream   xnetstream;
 typedef struct xrt_net_dgram    xdgramsock;
 typedef struct xrt_net_chain    xnetchain;
 typedef struct xrt_net_future   xnetfuture;
-typedef struct xrt_tls_session  xtlssession;
+typedef struct xrt_promise      xpromise;
+typedef struct xrt_task         xtask;
+typedef struct xrt_task_group   xtaskgroup;
 typedef struct xrt_net_dgram_packet xnetdgrampkt;
+typedef xnetfuture xfuture;
 
 typedef void (*xnet_task_fn)(xnetworker* pWorker, ptr pArg);
 
@@ -3008,18 +3021,64 @@ typedef struct {
 
 typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
 
+typedef enum {
+	XFUTURE_PENDING = 0,
+	XFUTURE_RESOLVED,
+	XFUTURE_REJECTED,
+	XFUTURE_CANCELLED,
+	XFUTURE_CLOSED
+} xfuture_state;
+
+typedef enum {
+	XTASK_CREATED = 0,
+	XTASK_QUEUED,
+	XTASK_RUNNING,
+	XTASK_DONE,
+	XTASK_CANCELLED,
+	XTASK_CLOSED
+} xtask_state;
+
+#define XFUTURE_RESULT_F_NONE        0x00000000u
+#define XFUTURE_RESULT_F_OWN_VALUE   0x00000001u
+#define XFUTURE_RESULT_F_OWN_ERROR   0x00000002u
+#define XFUTURE_RESULT_F_SYS_ERROR   0x00000004u
+#define XFUTURE_RESULT_F_TIMEOUT     0x00000008u
+#define XFUTURE_RESULT_F_CANCELLED   0x00000010u
+#define XFUTURE_RESULT_F_CLOSED      0x00000020u
+#define XFUTURE_RESULT_F_GROUP_ALL   0x00000040u
+
 typedef struct {
-    uint32 iKind;
-    union {
-        xnetfuture* pFuture;
+	int32 iStatus;
+	ptr pValue;
+	str sError;
+	uint32 iFlags;
+} xfuture_result;
+
+typedef struct {
+	int iCount;
+	ptr* arrValue;
+} xfuture_all_value;
+
+typedef int32 (*xtask_engine_fn)(xnetworker* pWorker, ptr pArg, xfuture_result* pOut);
+typedef int32 (*xtask_thread_fn)(ptr pArg, xfuture_result* pOut);
+typedef int32 (*xtask_co_fn)(ptr pArg, xfuture_result* pOut);
+typedef int32 (*xfuture_cont_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
+typedef void (*xfuture_finally_fn)(const xfuture_result* pIn, ptr pArg);
+
+typedef struct {
+	uint32 iKind;
+	union {
+		xnetfuture* pFuture;
         struct {
             xnetstream* pStream;
             uint32 iWaitKind;
         } tStream;
         xdgramsock* pDgram;
-        xnetlistener* pListener;
-    } u;
+		xnetlistener* pListener;
+	} u;
 } xnetwaitsrc;
+
+typedef xnetwaitsrc xwaitsrc;
 
 #ifndef XRT_NO_XHTTP
 /* ============================== xhttp ============================== */
@@ -3477,6 +3536,12 @@ XXAPI void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen);
 XXAPI xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten);
 XXAPI xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead);
 XXAPI xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession);
+XXAPI xtlsresume* xrtNetTlsSessionExportResume(const xtlssession* pSession);
+XXAPI void xrtNetTlsResumeDestroy(xtlsresume* pResume);
+XXAPI bool xrtNetTlsSessionWasResumed(const xtlssession* pSession);
+XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession);
+XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile);
+XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow);
 
 XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
 XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
@@ -3513,11 +3578,102 @@ XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, cons
 XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount);
 
 XXAPI xnetfuture* xrtNetFutureCreate(void);
+XXAPI xfuture* xFutureCreate(void);
+XXAPI xfuture* xFutureAddRef(xfuture* pFuture);
+XXAPI void xFutureRelease(xfuture* pFuture);
+XXAPI xfuture_state xFutureState(xfuture* pFuture);
+XXAPI int32 xFutureStatus(xfuture* pFuture);
+XXAPI ptr xFutureValue(xfuture* pFuture);
+XXAPI str xFutureError(xfuture* pFuture);
+XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut);
+XXAPI bool xFutureSetDebugName(xfuture* pFuture, str sDebugName);
+XXAPI str xFutureGetDebugName(xfuture* pFuture);
+XXAPI uint64 xFutureGetCreateTimeMs(xfuture* pFuture);
+XXAPI uint64 xFutureGetCompleteTimeMs(xfuture* pFuture);
+XXAPI int xFutureGetPendingContinuationCount(xfuture* pFuture);
+XXAPI int xFutureGetGroupSourceIndex(xfuture* pFuture);
+XXAPI xfuture* xFutureGetGroupSource(xfuture* pFuture);
+XXAPI xfuture* xFuturePeekGroupSource(xfuture* pFuture);
+XXAPI const xfuture_all_value* xFuturePeekAllValue(xfuture* pFuture);
+XXAPI int xFutureGetAllValueCount(xfuture* pFuture);
+XXAPI ptr xFutureGetAllValueItem(xfuture* pFuture, int iIndex);
+XXAPI bool xFutureWait(xfuture* pFuture);
+XXAPI bool xFutureWaitTimeout(xfuture* pFuture, int64 iTimeoutMs);
+XXAPI bool xFutureWaitUntil(xfuture* pFuture, int64 iDeadlineMs);
+XXAPI bool xFutureWaitCo(xfuture* pFuture);
+XXAPI bool xFutureWaitCoTimeout(xfuture* pFuture, int64 iTimeoutMs);
+XXAPI bool xFutureWaitCoUntil(xfuture* pFuture, int64 iDeadlineMs);
+XXAPI ptr xFutureWaitValue(xfuture* pFuture);
+XXAPI ptr xFutureWaitValueTimeout(xfuture* pFuture, int64 iTimeoutMs);
+XXAPI ptr xFutureWaitValueUntil(xfuture* pFuture, int64 iDeadlineMs);
+XXAPI ptr xFutureWaitCoValue(xfuture* pFuture);
+XXAPI ptr xFutureWaitCoValueTimeout(xfuture* pFuture, int64 iTimeoutMs);
+XXAPI ptr xFutureWaitCoValueUntil(xfuture* pFuture, int64 iDeadlineMs);
+XXAPI bool xFutureRequestCancel(xfuture* pFuture);
+XXAPI xpromise* xPromiseCreate(xfuture* pFuture);
+XXAPI void xPromiseDestroy(xpromise* pPromise);
+XXAPI xfuture* xPromiseGetFuture(xpromise* pPromise);
+XXAPI xfuture* xPromisePeekFuture(xpromise* pPromise);
+XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue);
+XXAPI bool xPromiseReject(xpromise* pPromise, int32 iStatus, str sError);
+XXAPI bool xPromiseCancel(xpromise* pPromise, str sError);
+XXAPI bool xPromiseClose(xpromise* pPromise, str sError);
+XXAPI xfuture* xTaskRunEngine(xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
+XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
+XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+#if !defined(XRT_NO_COROUTINE)
+XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
+#endif
+XXAPI xfuture* xFutureThenInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureCatchInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureCatchCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureFinallyCurrent(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureThenEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureCatchEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+XXAPI xfuture* xFutureFinallyEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg);
+#if !defined(XRT_NO_COROUTINE)
+XXAPI xfuture* xFutureThenCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+XXAPI xfuture* xFutureCatchCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+XXAPI xfuture* xFutureFinallyCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, size_t iStackSize);
+#endif
+XXAPI xfuture* xFutureWhenAny(xfuture** arrFuture, int iCount);
+XXAPI xfuture* xFutureWhenAll(xfuture** arrFuture, int iCount);
+XXAPI xfuture* xFutureRace(xfuture** arrFuture, int iCount);
+XXAPI int xFuturePumpCurrentContinuations(int iMaxCount);
+XXAPI xtaskgroup* xTaskGroupCreate(void);
+XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup);
+XXAPI void xTaskGroupClose(xtaskgroup* pGroup);
+XXAPI xtaskgroup* xTaskGroupCreateChild(xtaskgroup* pParent);
+XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent);
+XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture);
+XXAPI int xTaskGroupCount(xtaskgroup* pGroup);
+XXAPI int xTaskGroupReapCompleted(xtaskgroup* pGroup);
+XXAPI xfuture* xTaskGroupJoinFuture(xtaskgroup* pGroup);
+XXAPI bool xTaskGroupJoin(xtaskgroup* pGroup);
+XXAPI bool xTaskGroupJoinTimeout(xtaskgroup* pGroup, int64 iTimeoutMs);
+XXAPI bool xTaskGroupJoinUntil(xtaskgroup* pGroup, int64 iDeadlineMs);
+XXAPI bool xTaskGroupWait(xtaskgroup* pGroup);
+XXAPI bool xTaskGroupWaitTimeout(xtaskgroup* pGroup, int64 iTimeoutMs);
+XXAPI bool xTaskGroupWaitUntil(xtaskgroup* pGroup, int64 iDeadlineMs);
+XXAPI void xTaskGroupCancel(xtaskgroup* pGroup);
+XXAPI xfuture* xTaskGroupRunEngine(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
+XXAPI xfuture* xTaskGroupRunDelayed(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
+XXAPI xfuture* xTaskGroupRunThread(xtaskgroup* pGroup, xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+#if !defined(XRT_NO_COROUTINE)
+XXAPI xfuture* xTaskGroupRunCo(xtaskgroup* pGroup, xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
+#endif
 XXAPI xnetwaitsrc xrtNetWaitSourceNone(void);
+XXAPI xwaitsrc xWaitSourceNone(void);
 XXAPI xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture);
+XXAPI xwaitsrc xWaitSourceFromFuture(xfuture* pFuture);
 XXAPI xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind);
+XXAPI xwaitsrc xWaitSourceFromStream(xnetstream* pStream, uint32 iWaitKind);
 XXAPI xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock);
+XXAPI xwaitsrc xWaitSourceFromDgramRecv(xdgramsock* pSock);
 XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener);
+XXAPI xwaitsrc xWaitSourceFromListenerAccept(xnetlistener* pListener);
 XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture);
 XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs);
 XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture);
@@ -3541,11 +3697,17 @@ XXAPI xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind);
 XXAPI xnet_result xrtNetStreamWaitTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
 XXAPI xnet_result xrtNetStreamWaitUntilEx(xnetstream* pStream, uint32 iWaitKind, int64_t iDeadlineMs);
 XXAPI xnet_result xrtNetWaitSourceWait(const xnetwaitsrc* pSrc);
+XXAPI bool xWaitSourceWait(const xwaitsrc* pSrc);
 XXAPI xnet_result xrtNetWaitSourceWaitTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs);
+XXAPI bool xWaitSourceWaitTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
 XXAPI xnet_result xrtNetWaitSourceWaitUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs);
+XXAPI bool xWaitSourceWaitUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
 XXAPI xnet_result xrtNetWaitSourceWaitValue(const xnetwaitsrc* pSrc, ptr* ppValue);
+XXAPI ptr xWaitSourceWaitValue(const xwaitsrc* pSrc);
 XXAPI xnet_result xrtNetWaitSourceWaitValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue);
+XXAPI ptr xWaitSourceWaitValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
 XXAPI xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue);
+XXAPI ptr xWaitSourceWaitValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
 XXAPI xnet_result xrtNetListenerAccept(xnetlistener* pListener, xnetstream** ppStream);
 XXAPI xnet_result xrtNetListenerAcceptTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream);
 XXAPI xnet_result xrtNetListenerAcceptUntil(xnetlistener* pListener, int64_t iDeadlineMs, xnetstream** ppStream);
@@ -3571,11 +3733,17 @@ XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
 XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
 XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
 XXAPI xnet_result xrtNetWaitSourceWaitCo(const xnetwaitsrc* pSrc);
+XXAPI bool xWaitSourceWaitCo(const xwaitsrc* pSrc);
 XXAPI xnet_result xrtNetWaitSourceWaitCoTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs);
+XXAPI bool xWaitSourceWaitCoTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
 XXAPI xnet_result xrtNetWaitSourceWaitCoUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs);
+XXAPI bool xWaitSourceWaitCoUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
 XXAPI xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppValue);
+XXAPI ptr xWaitSourceWaitCoValue(const xwaitsrc* pSrc);
 XXAPI xnet_result xrtNetWaitSourceWaitCoValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue);
+XXAPI ptr xWaitSourceWaitCoValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
 XXAPI xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue);
+XXAPI ptr xWaitSourceWaitCoValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
 XXAPI xnet_result xrtNetListenerAcceptCo(xnetlistener* pListener, xnetstream** ppStream);
 XXAPI xnet_result xrtNetListenerAcceptCoTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream);
 XXAPI xnet_result xrtNetListenerAcceptCoUntil(xnetlistener* pListener, int64 iDeadlineMs, xnetstream** ppStream);
@@ -3649,25 +3817,6 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
     /* ------------------------------------ TLS ------------------------------------ */
 
 #ifndef XRT_NO_NETTLS
-    XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig* pConfig, bool bIsServer);
-    XXAPI void xrtTlsDestroy(xtlsctx* pCtx);
-    XXAPI xnet_result xrtTlsHandshake(xtlsctx* pCtx, xsocket hSocket);
-    XXAPI xnet_result xrtTlsDrive(xtlsctx* pCtx);
-    XXAPI xnet_result xrtTlsRead(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
-    XXAPI xnet_result xrtTlsWrite(xtlsctx* pCtx, const char* pData, size_t iLen, size_t* pWritten);
-    XXAPI xnet_result xrtTlsClose(xtlsctx* pCtx);
-    XXAPI bool xrtTlsIsReady(xtlsctx* pCtx);
-    XXAPI xnet_result xrtTlsFeed(xtlsctx* pCtx, const char* pData, size_t iLen);
-    XXAPI size_t xrtTlsPendingSend(xtlsctx* pCtx);
-    XXAPI size_t xrtTlsPendingRecv(xtlsctx* pCtx);
-    XXAPI xnet_result xrtTlsPeekSend(xtlsctx* pCtx, char* pBuf, size_t iLen, size_t* pRead);
-    XXAPI void xrtTlsConsumeSend(xtlsctx* pCtx, size_t iLen);
-    XXAPI xtlsresume* xrtTlsExportResume(xtlsctx* pCtx);
-    XXAPI void xrtTlsResumeDestroy(xtlsresume* pResume);
-    XXAPI bool xrtTlsWasResumed(xtlsctx* pCtx);
-    XXAPI const char* xrtTlsGetSNI(xtlsctx* pCtx);
-    XXAPI xnet_result xrtTlsSetCert(xtlsctx* pCtx, const char* sCertFile, const char* sKeyFile);
-    XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx* pCtx, bool bAllow);
 #endif
 
 	/* ------------------------------------ XID 函数库 ------------------------------------ */

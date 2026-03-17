@@ -60,7 +60,8 @@
 		XRT_NET_ERROR   = -1,
 		XRT_NET_AGAIN   = -2,
 		XRT_NET_TIMEOUT = -3,
-		XRT_NET_CLOSED  = -4
+		XRT_NET_CLOSED  = -4,
+		XRT_NET_CANCELLED = -5
 	} xnet_result;
 #endif
 

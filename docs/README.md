@@ -23,6 +23,7 @@
 | **File** | [文件操作](api-file.md) | 文件读写、目录管理 |
 | **Thread** | [线程管理](api-thread.md) | 多线程支持 |
 | **Coroutine** | [协程运行时](api-coroutine.md) | 栈式协程运行时与调度器 |
+| **Future/Task/Promise** | [正式异步模型](api-future-task-promise.md) | future、promise、task、wait-source、task group |
 | **Hash** | [哈希计算](api-hash.md) | 32/64位哈希函数 |
 | **Network** | [网络功能](api-network.md) | 本机网络信息 |
 | **XID** | [分布式ID](api-xid.md) | 唯一ID生成器 |

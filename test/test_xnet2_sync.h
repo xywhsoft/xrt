@@ -574,6 +574,56 @@ static xnet_result __Test_XNet2_SyncPostFutureTask(xnetworker* pWorker, ptr pArg
 	return XRT_NET_OK;
 }
 
+static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	if ( !pCase || !pOut ) {
+		return XRT_NET_ERROR;
+	}
+	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
+	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, pWorker ? (long)pWorker->iId : -1);
+	pOut->iStatus = XRT_NET_OK;
+	pOut->pValue = &pCase->iPayload;
+	pOut->sError = NULL;
+	pOut->iFlags = XFUTURE_RESULT_F_NONE;
+	return XRT_NET_OK;
+}
+
+static int32 __Test_XNet2_TaskRunThreadProc(ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	if ( !pCase || !pOut ) {
+		return XRT_NET_ERROR;
+	}
+	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
+	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, -2);
+	pOut->iStatus = XRT_NET_OK;
+	pOut->pValue = &pCase->iPayload;
+	pOut->sError = NULL;
+	pOut->iFlags = XFUTURE_RESULT_F_NONE;
+	return XRT_NET_OK;
+}
+
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static int32 __Test_XNet2_TaskRunCoProc(ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	if ( !pCase || !pOut ) {
+		return XRT_NET_ERROR;
+	}
+	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
+	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, -3);
+	pOut->iStatus = XRT_NET_OK;
+	pOut->pValue = &pCase->iPayload;
+	pOut->sError = NULL;
+	pOut->iFlags = XFUTURE_RESULT_F_NONE;
+	return XRT_NET_OK;
+}
+#endif
+
 static void __Test_XNet2_SyncStreamDrainTask(xnetworker* pWorker, ptr pArg)
 {
 	xnetstream* pStream = (xnetstream*)pArg;
@@ -694,6 +744,113 @@ void Test_XNet2_Sync(void)
 			xrtNetFutureDestroy(pFuture);
 		}
 	}
+
+	{
+		xfuture* pFuture = xFutureCreate();
+		xpromise* pPromise = xPromiseCreate(pFuture);
+		xwaitsrc tSrc = xWaitSourceNone();
+		xfuture_result tResult;
+		int iValue = 4321;
+		ptr pWaitValue = NULL;
+		memset(&tResult, 0, sizeof(tResult));
+		printf("  Generic future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  Generic promise create : %s\n", pPromise != NULL ? "PASS" : "FAIL");
+		printf("  Generic future initial state : %s\n",
+			pFuture && xFutureState(pFuture) == XFUTURE_PENDING ? "PASS" : "FAIL");
+		printf("  Generic future pending wait timeout : %s\n",
+			pFuture && !xFutureWaitTimeout(pFuture, 20) ? "PASS" : "FAIL");
+		printf("  Generic promise resolve : %s\n",
+			pPromise && xPromiseResolve(pPromise, &iValue) ? "PASS" : "FAIL");
+		printf("  Generic future resolved state : %s\n",
+			pFuture && xFutureState(pFuture) == XFUTURE_RESOLVED ? "PASS" : "FAIL");
+		printf("  Generic future resolved wait : %s\n",
+			pFuture && xFutureWait(pFuture) ? "PASS" : "FAIL");
+		printf("  Generic future value : %s\n",
+			pFuture && xFutureValue(pFuture) == &iValue ? "PASS" : "FAIL");
+		printf("  Generic future result snapshot : %s\n",
+			pFuture && xFutureGetResult(pFuture, &tResult) && tResult.iStatus == XRT_NET_OK && tResult.pValue == &iValue ? "PASS" : "FAIL");
+		if ( pFuture ) {
+			tSrc = xWaitSourceFromFuture(pFuture);
+			pWaitValue = xWaitSourceWaitValue(&tSrc);
+		}
+		printf("  Generic wait source future value : %s\n",
+			pFuture && pWaitValue == &iValue ? "PASS" : "FAIL");
+		if ( pPromise ) xPromiseDestroy(pPromise);
+		if ( pFuture ) xFutureRelease(pFuture);
+	}
+
+	{
+		__test_xnet2_sync_postfuture_case tTaskCase;
+		xfuture* pFuture = NULL;
+		memset(&tTaskCase, 0, sizeof(tTaskCase));
+		tTaskCase.iPayload = 9527;
+		pFuture = xTaskRunEngine(NULL, 0, __Test_XNet2_TaskRunEngineProc, &tTaskCase);
+		printf("  Generic task run engine create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  Generic task run engine wait : %s\n",
+			pFuture && xFutureWaitTimeout(pFuture, 500) ? "PASS" : "FAIL");
+		printf("  Generic task run engine value : %s\n",
+			pFuture && xFutureValue(pFuture) == &tTaskCase.iPayload ? "PASS" : "FAIL");
+		printf("  Generic task run engine hit count : %s\n", tTaskCase.iHitCount == 1 ? "PASS" : "FAIL");
+		printf("  Generic task run engine worker id valid : %s\n", tTaskCase.iWorkerId >= 0 ? "PASS" : "FAIL");
+		if ( pFuture ) xFutureRelease(pFuture);
+	}
+
+	{
+		__test_xnet2_sync_postfuture_case tTaskCase;
+		xfuture* pFuture = NULL;
+		memset(&tTaskCase, 0, sizeof(tTaskCase));
+		tTaskCase.iPayload = 9528;
+		pFuture = xTaskRunDelayed(NULL, 0, 30, __Test_XNet2_TaskRunEngineProc, &tTaskCase);
+		printf("  Generic task run delayed create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  Generic task run delayed first timeout : %s\n",
+			pFuture && !xFutureWaitTimeout(pFuture, 5) ? "PASS" : "FAIL");
+		printf("  Generic task run delayed eventual wait : %s\n",
+			pFuture && xFutureWaitTimeout(pFuture, 500) ? "PASS" : "FAIL");
+		printf("  Generic task run delayed value : %s\n",
+			pFuture && xFutureValue(pFuture) == &tTaskCase.iPayload ? "PASS" : "FAIL");
+		printf("  Generic task run delayed hit count : %s\n", tTaskCase.iHitCount == 1 ? "PASS" : "FAIL");
+		if ( pFuture ) xFutureRelease(pFuture);
+	}
+
+	{
+		__test_xnet2_sync_postfuture_case tTaskCase;
+		xfuture* pFuture = NULL;
+		memset(&tTaskCase, 0, sizeof(tTaskCase));
+		tTaskCase.iPayload = 9529;
+		pFuture = xTaskRunThread(__Test_XNet2_TaskRunThreadProc, &tTaskCase, 0);
+		printf("  Generic task run thread create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  Generic task run thread wait : %s\n",
+			pFuture && xFutureWaitTimeout(pFuture, 500) ? "PASS" : "FAIL");
+		printf("  Generic task run thread value : %s\n",
+			pFuture && xFutureValue(pFuture) == &tTaskCase.iPayload ? "PASS" : "FAIL");
+		printf("  Generic task run thread hit count : %s\n", tTaskCase.iHitCount == 1 ? "PASS" : "FAIL");
+		printf("  Generic task run thread marker : %s\n", tTaskCase.iWorkerId == -2 ? "PASS" : "FAIL");
+		if ( pFuture ) xFutureRelease(pFuture);
+	}
+
+	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+	{
+		__test_xnet2_sync_postfuture_case tTaskCase;
+		xfuture* pFuture = NULL;
+		xcosched* pSched = NULL;
+		memset(&tTaskCase, 0, sizeof(tTaskCase));
+		tTaskCase.iPayload = 9530;
+		pSched = xrtCoSchedCreate();
+		pFuture = pSched ? xTaskRunCo(pSched, __Test_XNet2_TaskRunCoProc, &tTaskCase, 0) : NULL;
+		printf("  Generic task run coroutine create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		if ( pSched ) {
+			xrtCoSchedRun(pSched);
+		}
+		printf("  Generic task run coroutine wait : %s\n",
+			pFuture && xFutureWait(pFuture) ? "PASS" : "FAIL");
+		printf("  Generic task run coroutine value : %s\n",
+			pFuture && xFutureValue(pFuture) == &tTaskCase.iPayload ? "PASS" : "FAIL");
+		printf("  Generic task run coroutine hit count : %s\n", tTaskCase.iHitCount == 1 ? "PASS" : "FAIL");
+		printf("  Generic task run coroutine marker : %s\n", tTaskCase.iWorkerId == -3 ? "PASS" : "FAIL");
+		if ( pFuture ) xFutureRelease(pFuture);
+		if ( pSched ) xrtCoSchedDestroy(pSched);
+	}
+	#endif
 
 	{
 		xnetwaitsrc tInvalidSrc = xrtNetWaitSourceNone();

@@ -48,6 +48,7 @@
 #include "test/test_json.h"
 #include "test/test_template.h"
 #include "test/test_other.h"
+#include "test/test_future_core.h"
 
 
 
@@ -218,7 +219,10 @@ int main(int argc, char** argv)
 	/* Coroutine 协程库测试 */
 	// Test_Coroutine(xCore);
 	// Coroutine refactor uses the dedicated harness in dev/test_coroutine_core.c
-	
+
+	/* Future/Task/Promise 正式异步主线测试 */
+	Test_FutureCore(xCore);
+
 	/* 自定义测试 */
 	// Test_Other(xCore);
 	

@@ -92,6 +92,7 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 	pThread->StopFlag = 0;
 	pThread->bFinished = FALSE;
 	pThread->bJoined = FALSE;
+	pThread->bAutoDestroy = FALSE;
 	pThread->ExitCode = 0;
 	pThread->TID = 0;
 

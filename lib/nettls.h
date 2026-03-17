@@ -16,6 +16,11 @@
       - builtin client/server operation with no external TLS dependency
 */
 
+typedef struct xrt_tls_context xtlsctx;
+
+XXAPI void xrtTlsDestroy(xtlsctx *pCtx);
+XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile);
+
 typedef struct {
 	char* pBase;
 	char* pData;
@@ -1326,8 +1331,9 @@ struct xrt_tls_context {
 	
 	// 服务端 SNI
 	char sClientSNI[254];         // 服务端: 客户端请求的 SNI hostname
-	void (*OnSNI)(xtlsctx *pCtx, const char *sHostName, ptr pUserData);
+	void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);
 	ptr pSNIUserData;
+	xtlssession* pSession;
 	
 	// 证书数据
 	uint8 *pCertDer;
@@ -5189,7 +5195,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 
 	// 根据 SNI 动态切换证书后，再选择签名算法和握手参数
 	if ( pCtx->sClientSNI[0] != '\0' && pCtx->OnSNI ) {
-		pCtx->OnSNI(pCtx, pCtx->sClientSNI, pCtx->pSNIUserData);
+		pCtx->OnSNI(pCtx->pSession, pCtx->sClientSNI, pCtx->pSNIUserData);
 	}
 
 	// 优先协商 TLS 1.3
@@ -5794,6 +5800,163 @@ XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char
 	}
 
 	return XRT_NET_OK;
+}
+
+
+
+struct xrt_tls_session {
+	xtlsctx* pCtx;
+	bool bIsServer;
+};
+
+static xtlsctx* __xrtNetTlsSessionCtx(const xtlssession* pSession)
+{
+	return pSession ? pSession->pCtx : NULL;
+}
+
+XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer)
+{
+	xtlssession* pSession;
+
+	(void)xrtInit();
+	pSession = (xtlssession*)xrtCalloc(1, sizeof(xtlssession));
+	if ( !pSession ) {
+		return NULL;
+	}
+	pSession->pCtx = xrtTlsCreate(pCfg, bIsServer);
+	if ( !pSession->pCtx ) {
+		xrtFree(pSession);
+		return NULL;
+	}
+	pSession->pCtx->pSession = pSession;
+	pSession->bIsServer = bIsServer;
+	return pSession;
+}
+
+XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession)
+{
+	if ( !pSession ) {
+		return;
+	}
+	if ( pSession->pCtx ) {
+		pSession->pCtx->pSession = NULL;
+		xrtTlsDestroy(pSession->pCtx);
+		pSession->pCtx = NULL;
+	}
+	xrtFree(pSession);
+}
+
+XXAPI bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsIsReady(pCtx) : false;
+}
+
+XXAPI xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsDrive(pCtx) : XRT_NET_ERROR;
+}
+
+XXAPI xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	if ( !pCtx || !pData || iLen == 0 ) {
+		return XRT_NET_ERROR;
+	}
+	return xrtTlsFeed(pCtx, (const char*)pData, iLen);
+}
+
+XXAPI size_t xrtNetTlsSessionPendingCipher(const xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsPendingSend(pCtx) : 0;
+}
+
+XXAPI size_t xrtNetTlsSessionPendingRecv(const xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsPendingRecv(pCtx) : 0;
+}
+
+XXAPI xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	if ( !pCtx || !pBuf || iLen == 0 ) {
+		return XRT_NET_ERROR;
+	}
+	return xrtTlsPeekSend(pCtx, (char*)pBuf, iLen, pRead);
+}
+
+XXAPI void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	if ( !pCtx || iLen == 0 ) {
+		return;
+	}
+	xrtTlsConsumeSend(pCtx, iLen);
+}
+
+XXAPI xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	if ( !pCtx || !pData || iLen == 0 ) {
+		return XRT_NET_ERROR;
+	}
+	return xrtTlsWrite(pCtx, (const char*)pData, iLen, pWritten);
+}
+
+XXAPI xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	if ( !pCtx || !pBuf || iLen == 0 ) {
+		return XRT_NET_ERROR;
+	}
+	return xrtTlsRead(pCtx, (char*)pBuf, iLen, pRead);
+}
+
+XXAPI xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsClose(pCtx) : XRT_NET_ERROR;
+}
+
+XXAPI xtlsresume* xrtNetTlsSessionExportResume(const xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsExportResume(pCtx) : NULL;
+}
+
+XXAPI void xrtNetTlsResumeDestroy(xtlsresume* pResume)
+{
+	xrtTlsResumeDestroy(pResume);
+}
+
+XXAPI bool xrtNetTlsSessionWasResumed(const xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsWasResumed(pCtx) : false;
+}
+
+XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsGetSNI(pCtx) : NULL;
+}
+
+XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsSetCert(pCtx, sCertFile, sKeyFile) : XRT_NET_ERROR;
+}
+
+XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	if ( !pCtx ) {
+		return;
+	}
+	xrtTlsSetAllowTLS12Ed25519(pCtx, bAllow);
 }
 
 #ifdef DEBUG_TRACE

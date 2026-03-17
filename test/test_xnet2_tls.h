@@ -424,8 +424,8 @@ void Test_XNet2_TLS(void)
 			bWarmOpen = __Test_XNet2_TLSWaitMin(&tClientStats1.iOpenCount, 1, 3000)
 				&& __Test_XNet2_TLSWaitMin(&tServerStats1.iOpenCount, 1, 3000);
 		}
-		if ( bWarmOpen && pClient1 && pClient1->pTls && pClient1->pTls->pCtx ) {
-			pResume = xrtTlsExportResume(pClient1->pTls->pCtx);
+		if ( bWarmOpen && pClient1 && pClient1->pTls ) {
+			pResume = xrtNetTlsSessionExportResume(pClient1->pTls);
 			bResumeExported = (pResume != NULL);
 		}
 		if ( pClient1 ) xrtNetStreamClose(pClient1, XNET_CLOSE_F_GRACEFUL);
@@ -450,11 +450,11 @@ void Test_XNet2_TLS(void)
 				bResumeOpen = __Test_XNet2_TLSWaitMin(&tClientStats2.iOpenCount, 1, 3000)
 					&& __Test_XNet2_TLSWaitMin(&tServerStats2.iOpenCount, 1, 3000);
 			}
-			if ( bResumeOpen && pClient2 && pClient2->pTls && pClient2->pTls->pCtx ) {
-				bClientResumed = xrtTlsWasResumed(pClient2->pTls->pCtx);
+			if ( bResumeOpen && pClient2 && pClient2->pTls ) {
+				bClientResumed = xrtNetTlsSessionWasResumed(pClient2->pTls);
 			}
-			if ( bResumeOpen && pAccepted2 && pAccepted2->pTls && pAccepted2->pTls->pCtx ) {
-				bServerResumed = xrtTlsWasResumed(pAccepted2->pTls->pCtx);
+			if ( bResumeOpen && pAccepted2 && pAccepted2->pTls ) {
+				bServerResumed = xrtNetTlsSessionWasResumed(pAccepted2->pTls);
 			}
 			if ( bResumeOpen ) {
 				(void)xrtNetStreamSend(pClient2, "resume tls", 10);
@@ -474,7 +474,7 @@ void Test_XNet2_TLS(void)
 		(void)__Test_XNet2_TLSWaitMin(&tServerStats2.iCloseCount, 1, 3000);
 		if ( pAccepted2 ) xrtNetStreamDestroy(pAccepted2);
 		if ( pClient2 ) xrtNetStreamDestroy(pClient2);
-		if ( pResume ) xrtTlsResumeDestroy(pResume);
+		if ( pResume ) xrtNetTlsResumeDestroy(pResume);
 		if ( pListener ) {
 			xrtNetListenerStop(pListener);
 			xrtNetListenerDestroy(pListener);
