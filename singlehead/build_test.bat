@@ -1,4 +1,6 @@
 @echo off
+cd /d "%~dp0"
+
 echo ========================================
 echo   XRT Single Header Test Builder
 echo ========================================

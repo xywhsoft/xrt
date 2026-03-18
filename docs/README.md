@@ -1,280 +1,154 @@
-# XRT API 完整文档
+# XRT 文档中心
 
-> XRT (X Runtime Library) API 参考手册
+> XRT 当前正式文档入口。API 参考已统一收纳到 `docs/api/`，为后续零基础教学文档、范例解析文档和专题说明留出独立结构。
 
----
-
-## 📚 文档导航
-
-### 🔹 基础类型定义
-- [基础类型定义](types.md) - 所有基础数据类型、宏定义和全局结构
-
-### 🔹 核心功能模块
-
-| 模块 | 文档链接 | 说明 |
-|------|---------|------|
-| **Base** | [基础函数库](api-base.md) | 内存管理、错误处理 |
-| **Charset** | [字符集转换](api-charset.md) | UTF-8/16/32 编码转换 |
-| **OS** | [操作系统](api-os.md) | 进程管理、系统调用 |
-| **Math** | [数学运算](api-math.md) | 随机数生成 |
-| **String** | [字符串处理](api-string.md) | 字符串操作、编码解码 |
-| **Path** | [路径处理](api-path.md) | 文件路径操作 |
-| **Time** | [时间处理](api-time.md) | 日期时间计算 |
-| **File** | [文件操作](api-file.md) | 文件读写、目录管理 |
-| **Thread** | [线程管理](api-thread.md) | 多线程支持 |
-| **Coroutine** | [协程运行时](api-coroutine.md) | 栈式协程运行时与调度器 |
-| **Future/Task/Promise** | [正式异步模型](api-future-task-promise.md) | future、promise、task、wait-source、task group |
-| **Hash** | [哈希计算](api-hash.md) | 32/64位哈希函数 |
-| **Network** | [网络功能](api-network.md) | 本机网络信息 |
-| **XID** | [分布式ID](api-xid.md) | 唯一ID生成器 |
-
-### 🔹 数据结构模块
-
-| 模块 | 文档链接 | 说明 |
-|------|---------|------|
-| **Buffer** | [动态缓冲区](api-buffer.md) | 内存缓冲区管理 |
-| **Array** | [结构体数组](api-array.md) | 动态数组 |
-| **PtrArray** | [指针数组](api-ptrarray.md) | 指针动态数组 |
-| **BSMM** | [块结构内存](api-bsmm.md) | 块内存管理器 |
-| **MemUnit** | [内存单元](api-memunit.md) | 256字节页管理 |
-| **FSMemPool** | [固定内存池](api-mempool-fs.md) | 固定大小内存池 |
-| **Stack** | [静态栈](api-stack.md) | 固定深度栈 |
-| **DynStack** | [动态栈](api-dynstack.md) | 可变深度栈 |
-| **LList** | [双向链表](api-llist.md) | 链表数据结构 |
-| **LList-Base** | [链表基础操作](api-llist-base.md) | 链表底层操作 |
-| **AVLTree** | [AVL树](api-avltree.md) | 平衡二叉树 |
-| **AVLTree-Base** | [AVL树基础操作](api-avltree-base.md) | AVL树底层操作 |
-| **MemPool** | [通用内存池](api-mempool.md) | 多级内存池 |
-| **Dict** | [字典](api-dict.md) | 键值对存储 |
-| **List** | [列表](api-list.md) | 整数索引列表 |
-
-### 🔹 高级功能模块
-
-| 模块 | 文档链接 | 说明 |
-|------|---------|------|
-| **Value** | [动态类型系统](api-value.md) | 15种动态数据类型 |
-| **JNUM** | [数值转换](api-jnum.md) | 数字与字符串转换 |
-| **JSON** | [JSON处理](api-json.md) | JSON 解析与生成 |
-| **Template** | [模板引擎](api-template.md) | 字符串模板处理 |
+[English](README.en.md) | [项目简介](/D:/git/xrt/README.md)
 
 ---
 
-## 📖 快速索引
+## 文档结构
 
-### 类型定义速查
+当前 `docs/` 目录分为 3 个层次：
 
-#### 基础类型
-```c
-typedef unsigned char* str;        // 字符串
-typedef char i8;                    // 8位整数
-typedef unsigned char u8;           // 无符号8位整数
-typedef short i16;                  // 16位整数
-typedef unsigned short u16;         // 无符号16位整数
-typedef int i32;                    // 32位整数
-typedef unsigned int u32;           // 无符号32位整数
-typedef long long i64;              // 64位整数
-typedef unsigned long long u64;     // 无符号64位整数
-typedef float f32;                  // 32位浮点数
-typedef double f64;                 // 64位浮点数
-typedef void* ptr;                  // 通用指针
-typedef int64 xtime;                // 时间类型
-```
+### 1. 文档中心
 
-#### 数据结构类型
-```c
-typedef struct xbuffer_struct* xbuffer;       // 缓冲区
-typedef struct xparray_struct* xparray;       // 指针数组
-typedef struct xarray_struct* xarray;         // 结构体数组
-typedef struct xbsmm_struct* xbsmm;           // 块内存管理器
-typedef struct xmemunit_struct* xmemunit;     // 内存单元
-typedef struct xfsmempool_struct* xfsmempool; // 固定大小内存池
-typedef struct xstack_struct* xstack;         // 静态栈
-typedef struct xdynstack_struct* xdynstack;   // 动态栈
-typedef struct xllist_struct* xllist;         // 双向链表
-typedef struct xavltree_struct* xavltree;     // AVL树
-typedef struct xmempool_struct* xmempool;     // 通用内存池
-typedef struct xdict_struct* xdict;           // 字典
-typedef struct xlist_struct* xlist;           // 列表
-typedef struct xvalue_struct* xvalue;         // 动态类型
-typedef struct xfile_struct* xfile;           // 文件对象
-typedef struct xthread_struct* xthread;       // 线程对象
-typedef struct xid_struct* xid;               // 分布式ID
-```
+- 当前页 [README.md](README.md)
 
-### 常用函数速查
+负责：
 
-#### 初始化与清理
-```c
-xrtGlobalData* xrtInit();           // 初始化库
-void xrtUnit();                      // 释放库资源
-```
+- 说明文档结构
+- 提供统一入口
+- 指向当前正式主线
 
-说明：
-- `xrtInit()` 会初始化全局运行时，并自动附加当前线程
-- `xrtUnit()` 会分离当前线程；当全局引用计数归零时再释放全局资源
-- `xvoCreateArray/List/Coll/Table()` 默认创建本线程本地 root；跨线程共享请使用 `xvoCreate*Ex(..., XRT_OBJMODE_SHARED)`
-- shared root 下的 `xvalue` 顶层引用计数会自动进入共享路径；如果继续直接使用底层 root 指针、walk 或 iterator，请配合对应 `Lock/Unlock`
+### 2. API 参考
 
-#### 内存管理
-```c
-ptr xrtMalloc(size_t iSize);                 // 分配内存
-ptr xrtCalloc(size_t iNum, size_t iSize);   // 分配并清零
-ptr xrtRealloc(ptr pMem, size_t iSize);     // 重新分配
-void xrtFree(ptr pmem);                      // 释放内存
-ptr xrtTempMemory(size_t iSize);            // 线程级临时内存（短期自动管理）
-str xrtGetError();                           // 获取当前线程错误信息
-```
+- [API 索引](api/README.md)
 
-#### 字符串操作
-```c
-str xrtCopyStr(str sText, size_t iSize);                     // 复制字符串
-str xrtFindStr(str sText, size_t iSize, str sSubText, ...); // 查找字符串
-str xrtReplace(str sText, ..., str sRepText, ...);          // 替换字符串
-str* xrtSplit(str sText, ..., str sSepText, ...);           // 分割字符串
-str xrtFormat(str sFormat, ...);                             // 格式化字符串
-```
+负责：
 
-#### 文件操作
-```c
-xfile xrtOpen(str sPath, int bReadOnly, int iCharset);  // 打开文件
-void xrtClose(xfile objFile);                            // 关闭文件
-str xrtFileReadAll(str sPath, int iCharset);            // 读取全部内容
-bool xrtFileWriteAll(str sPath, str sText, ...);        // 写入全部内容
-bool xrtFileExists(str sPath);                           // 判断文件是否存在
-```
+- 类型
+- 基础运行时
+- 线程与协程
+- future / task / promise / wait-source
+- 内存与容器
+- 数据与文本
+- 当前网络主线 API
 
-#### 时间处理
-```c
-xtime xrtNow();                                          // 当前时间
-xtime xrtDateSerial(int64 iYear, int iMonth, int iDay); // 构建日期
-str xrtTimeToStr(xtime iTime, int iFormat);             // 时间转字符串
-xtime xrtDateAdd(int interval, int64 iValue, xtime);    // 时间加减
-```
+### 3. 辅助文档
 
-#### Value 动态类型
-```c
-xvalue xvoCreateNull();                                  // 创建 null
-xvalue xvoCreateInt(int64 iVal);                        // 创建整数
-xvalue xvoCreateText(ptr sVal, uint32 iSize, bool);     // 创建字符串
-xvalue xvoCreateArray();                                 // 创建数组
-xvalue xvoCreateTable();                                 // 创建表
-void xvoUnref(xvalue pVal);                             // 释放引用
-```
+负责：
 
----
+- 架构
+- 裁剪宏
+- 迁移
+- FAQ
+- 最佳实践
+- 示例
+- 性能说明
+- 零基础教学
+- 范例解析
 
-## 🎯 使用指南
+为了避免 API 文档、教学文档、案例文档彼此混杂，当前结构明确约定为：
 
-### 1. 库初始化
+- `docs/api/`：API 合同、模块能力、当前主线说明
+- `docs/guide/`：零基础教学、循序渐进教程、概念解释
+- `docs/case/`：完整案例、组合用法、实战拆解
 
-在使用任何 XRT 功能之前，必须先初始化：
+后续新增文档时，应优先判断它属于“合同说明”还是“教学/案例”，再决定落在哪个子目录。
 
-```c
-#include "xrt.h"
 
-int main() {
-    // 初始化 XRT 库
-    xrtGlobalData* xCore = xrtInit();
-    
-    // 使用 XRT 功能
-    // ...
-    
-    // 清理资源
-    xrtUnit();
-    return 0;
-}
-```
+## 当前主线入口
 
-### 2. 内存管理规范
+### 项目定位
 
-**需要释放的函数：**
-- 所有注释中标注"需使用 xrtFree 释放"的函数
-- 使用 `xrtMalloc/xrtCalloc/xrtRealloc` 分配的内存
+- 根目录 [README.md](/D:/git/xrt/README.md)
 
-**无需释放的函数：**
-- `xrtTempMemory` - 使用线程级临时内存，自动管理
-- 返回常量字符串的函数
+### API 参考
 
-线程说明：
-- 主线程在 `xrtInit()` 后自动进入 XRT 运行时上下文
-- `xrtThreadCreate()` 创建的线程会自动附加到运行时，可直接调用运行时相关 API
-- 宿主自行创建的线程如需调用运行时相关 API，应先调用 `xrtThreadAttachCurrent()`，结束前调用 `xrtThreadDetachCurrent()`
+- [API 索引](api/README.md)
 
-### 3. 字符集处理
+当前最值得优先阅读的 API 主线：
 
-XRT 支持多种字符集编码：
+- [Base 基础运行时](api/api-base.md)
+- [Thread 线程管理库](api/api-thread.md)
+- [Coroutine 协程运行时](api/api-coroutine.md)
+- [Future / Task / Promise](api/api-future-task-promise.md)
+- [XNet v2 网络主线](api/api-xnet-v2.md)
+- [Network TLS](api/api-network-tls.md)
+- [XHTTP](api/api-xhttp.md)
+- [XHTTPD](api/api-xhttpd.md)
+- [XWS](api/api-xws.md)
 
-```c
-// 字符集常量
-XRT_CP_AUTO     // 自动识别
-XRT_CP_BINARY   // 二进制
-XRT_CP_OEM      // 本机编码
-XRT_CP_UTF8     // UTF-8
-XRT_CP_UTF16    // UTF-16
-XRT_CP_UTF32    // UTF-32
-```
+### 架构与基线
 
-### 4. 错误处理
+- [架构设计](ARCHITECTURE.md)
+- [裁剪宏定义说明](裁剪宏定义说明.md)
 
-```c
-// 设置错误回调
-void OnError(str sError) {
-    printf("Error: %s\n", sError);
-}
+### 辅助文档
 
-xCore->OnError = OnError;
+- [迁移指南](MIGRATION.md)
+- [最佳实践](BEST_PRACTICES.md)
+- [常见问题](FAQ.md)
+- [示例项目](EXAMPLES.md)
+- [性能说明](PERFORMANCE.md)
+- [教学文档](guide/README.md)
+- [范例解析](case/README.md)
 
-// 检查错误
-if (xrtGetError() != xCore->sNull) {
-    printf("Last Error: %s\n", xrtGetError());
-}
-```
+
+## 当前文档重建规则
+
+当前文档正在按以下规则重建：
+
+- 先完整生成中文版本
+- 中文审阅通过后，再统一同步英文版本
+- API 文档统一放到 `docs/api/`
+- 已淘汰的旧网络/TLS 文档迁移到 `dev/` 归档
+- 已存在且仍有效的文档，也必须逐篇和当前代码重新对齐
+- 缺失但主线已存在的文档，必须补齐后才能算当前阶段完成
+
+
+## 历史文档说明
+
+以下文档不再属于当前正式入口：
+
+- 旧网络模块族
+- 旧 `nettls`
+
+它们已经从 `docs/` 迁出，后续统一在 `dev/` 中以归档文档形式保留。
 
 ---
 
-## 📊 API 统计
+## 当前建议阅读顺序
 
-| 类别 | 数量 |
-|------|------|
-| 基础类型定义 | 30+ |
-| 宏定义 | 150+ |
-| 数据结构 | 25+ |
-| 函数声明 | 300+ |
-| 内联函数 | 20+ |
+如果你是第一次进入 XRT 当前主线，建议按这个顺序阅读：
 
----
+1. [项目简介](/D:/git/xrt/README.md)
+2. [架构设计](ARCHITECTURE.md)
+3. [API 索引](api/README.md)
+4. [示例说明](EXAMPLES.md)
+5. [迁移指南](MIGRATION.md)
 
-## 📝 文档约定
+如果你准备直接写代码，建议优先阅读：
 
-### 函数原型说明
+1. [Base](api/api-base.md)
+2. [Value](api/api-value.md)
+3. [Thread](api/api-thread.md)
+4. [Coroutine](api/api-coroutine.md)
+5. [Future / Task / Promise](api/api-future-task-promise.md)
+6. [XNet v2](api/api-xnet-v2.md)
 
-```c
-XXAPI 返回类型 函数名(参数类型 参数名, ...);
-```
+如果你是第一次接触 XRT，建议再接着读：
 
-- `XXAPI` - 导出标记（DLL编译时使用）
-- 参数说明中的 `size_t iSize` - 当值为 0 时会自动计算字符串长度
-- `bool bSrcRevise` - TRUE 时会修改源数据，FALSE 时返回新分配的内存
+1. [runtime 与线程附加](guide/runtime-thread-attach.md)
+2. [xvalue 与 JSON 入门](guide/xvalue-json-intro.md)
+3. [协程、future、task 入门](guide/coroutine-future-task-intro.md)
+4. [xnet-v2 与 TLS 主线](guide/xnet-v2-tls-intro.md)
+5. [流式 LLM API 教学](guide/streaming-llm-api-intro.md)
 
-### 内存释放标注
+如果你想直接看完整组合案例，建议优先阅读：
 
-- ✅ **需释放** - 必须使用 `xrtFree` 释放
-- ⭕ **自动管理** - 由库自动管理
-- 🔄 **引用计数** - 使用 `xvoUnref` 释放
-
----
-
-## 🔗 相关链接
-
-- [项目主页](../README.md)
-- [快速开始](../README.md#快速开始)
-- [示例代码](../test/)
-- [许可证](../README.md#许可证)
-
----
-
-<div align="center">
-
-**XRT API 文档** | 版本 1.0 | 最后更新: 2025-01
-
-</div>
+1. [最小 HTTP 服务](case/minimal-http-service.md)
+2. [线程、协程与 future 分工](case/thread-coroutine-future.md)
+3. [流式 LLM API](case/streaming-llm-api.md)
+4. [HTTP + JSON + template 完整链路](case/http-json-template-chain.md)
+5. [xnet-v2 Stream Wait-Source 实战](case/xnet-stream-wait-source.md)

@@ -26,7 +26,7 @@
 **场景**：函数内临时使用，需要自动释放
 
 ```c
-// ✅ 好的做法：使用 32 殽位环形临时内存
+// ✅ 好的做法：使用线程级临时内存
 void process_data() {
     str temp1 = xrtTempMemory(1024);
     str temp2 = xrtTempMemory(2048);
@@ -50,7 +50,7 @@ void process_data_bad() {
 
 **优点**：
 - 自动释放，不会内存泄漏
-- 32槽位循环使用，无需计数
+- 线程之间互不干扰
 - 高性能，无额外开销
 
 ### 2. 内存池优化
@@ -60,11 +60,11 @@ void process_data_bad() {
 ```c
 // ✅ 好的做法：使用内存池
 void process_many_objects() {
-    xvalue pool = xvoCreateArray();  // 使用 Array 作为对象池
+    xvalue pool = xvoCreateArray();  // 使用 Array 统一托管对象生命周期
     
     for (int i = 0; i < 10000; i++) {
-        xvalue obj = create_object();  // 分配对象
-        xvoArrayAppendInt(arr, i);  // 加入到池中
+        xvalue obj = create_object();
+        xvoArrayAppendValue(pool, obj, TRUE);
     }
     
     // ... 使用对象 ...
@@ -89,10 +89,9 @@ void process_many_objects_bad() {
 
 **检查方法**：
 ```c
-// 使用 xrtInit() 和 xrtUnit()
-xrtGlobalData* xCore = xrtInit();
+xrtInit();
 // ... 程序逻辑 ...
-xrtUnit();  // 自动检测内存泄漏
+xrtUnit();  // 结合调试能力与测试环境做资源收尾检查
 
 // 使用 valgrind 检测
 // valgrind --leak-check=full ./program
@@ -116,6 +115,22 @@ str data = xrtMemPoolAlloc(pool, 2048);
 // 大对象（>4KB）：直接分配
 str large = xrtMalloc(8192);
 ```
+
+### 5. 使用内存调试能力定位问题
+
+当前主线的内存调试重点不只是“统计”，而是尽量帮助暴露危险操作。
+
+应重点使用和验证的方向包括：
+
+- 内存泄露定位到文件和行号
+- 重复释放
+- 非法释放
+- 越界写导致的块破坏
+- 已释放内存继续使用
+- 错线程访问本线程本地对象
+- 对象生命周期错误进入池结构
+
+对于基础设施代码，建议在 debug / test 构建里尽量打开相关调试路径，而不要只依赖最终崩溃时再回溯。
 
 ---
 
@@ -202,15 +217,13 @@ void process_strings_bad() {
 
 // ✅ 好的做法：使用临时内存
 void process_strings_good() {
-    str result1 = xrtTempMemory(100);
-    sprintf(result1, "Hello %s", name);
+    str result1 = xrtFormat("Hello %s", name);
     // ... 使用 result1 ...
-    xrtFree(result1);  // 自动释放
+    xrtFree(result1);
     
-    str result2 = xrtTempMemory(50);
-    sprintf(result2, "Value: %d", value);
+    str result2 = xrtFormat("Value: %d", value);
     // ... 使用 result2 ...
-    // 自动释放
+    xrtFree(result2);
 }
 ```
 
@@ -286,7 +299,7 @@ for (int i = 0; i < 100; i++) {
 xvalue arr = xvoCreateArray();
 xvoArrayAlloc(arr, 100);  // 预分配
 for (int i = 0; i < 100; i++) {
-    xvoArraySetInt(arr, i, data[i]);
+    xvoArrayAppendInt(arr, data[i]);
 }
 ```
 
@@ -316,6 +329,21 @@ xvalue coll = xvoCreateColl();
 | List | O(log n) | O(log n) | O(log n) |
 | Array | O(1) | O(1) | O(n) |
 | Coll | O(log n) | O(log n) | O(log n) |
+
+### 5. 跨线程共享时显式创建 shared root
+
+phase-2 之后，容器默认都是本线程本地对象。  
+如果确实需要跨线程共享，必须显式创建 shared root：
+
+```c
+xvalue tblConfig = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue arrNodes = xvoCreateArrayEx(XRT_OBJMODE_SHARED);
+
+xvoArrayAppendText(arrNodes, "node-a", 0, FALSE);
+xvoTableSetValue(tblConfig, "nodes", 0, arrNodes, TRUE);
+```
+
+不要把 local root 直接拿去跨线程改写，也不要假设 shared root 等于“所有组合访问天然无锁安全”。复杂遍历仍然应使用 root lock。
 
 ---
 
@@ -406,7 +434,7 @@ FILE* fp = fopen("large.json", "r");
 char buffer[4096];
 while (!feof(fp)) {
     size_t len = fread(buffer, 1, 4096, fp);
-    xrtJsonParseSAX(buffer, len, &cb);
+    xrtJsonParseSAX(buffer, len, cb);
 }
 fclose(fp);
 ```
@@ -455,6 +483,30 @@ xvoUnref(json1);
 
 **性能提升**：浅拷贝比深拷贝快 100-1000 倍
 
+### 4. JSON 数据跨线程共享时直接使用 shared root
+
+JSON 在 XRT 中建立在 `xvalue` 上，因此跨线程共享 JSON 结构时也应遵守同一套 shared root 合同，而不是把它当成一套独立的线程安全 JSON DOM。
+
+### 5. HTTP / AI 场景中优先沿统一数据主线组织 JSON
+
+当前主线最推荐的组织方式不是：
+
+- 一份 HTTP 层 JSON
+- 一份业务层结构体
+- 一份模板层变量表
+
+而是尽量收成：
+
+- `xvalue` 作为程序内部主数据
+- JSON 只作为输入输出交换格式
+- template / HTTP / LLM API 都围绕同一份 `xvalue` 数据流工作
+
+这样做的好处是：
+
+- 减少重复转换
+- 降低数据模型漂移
+- 更容易接入 shared root、future、协程和网络主线
+
 ---
 
 ## 错误处理最佳实践
@@ -468,14 +520,14 @@ void on_error(str sError) {
 }
 
 int main() {
-    xrtGlobalData* xCore = xrtInit();
-    xCore->OnError = on_error;
+    xrtInit();
     
     // ... 程序逻辑 ...
     
     // 检查错误
-    if (xCore->LastError != xCore->sNull) {
-        fprintf(stderr, "Last Error: %s\n", xCore->LastError);
+    if (xrtGetError()[0] != '\0') {
+        fprintf(stderr, "Last Error: %s\n", xrtGetError());
+        xrtUnit();
         return 1;
     }
     
@@ -488,17 +540,21 @@ int main() {
 
 ```c
 // ❌ 不好的做法：不检查返回值
+xvalue list = xvoCreateArray();
 xvalue val = xvoCreateInt(123);
 // ... 不检查 val 是否创建成功
-xvoArrayAppendInt(arr, 123);  // 如果 val==NULL 会崩溃
+xvoArrayAppendInt(list, 123);  // 如果 val==NULL 会崩溃
 
 // ✅ 好的做法：检查返回值
+xvalue list = xvoCreateArray();
 xvalue val = xvoCreateInt(123);
 if (!val) {
     fprintf(stderr, "Failed to create value!\n");
+    xvoUnref(list);
     return 1;
 }
-xvoArrayAppendInt(arr, 123);
+xvoArrayAppendInt(list, 123);
+xvoUnref(list);
 ```
 
 ### 3. 错误恢复
@@ -527,7 +583,7 @@ int save_data() {
 
 **使用内置性能测试**：
 ```c
-xrtGlobalData* xCore = xrtInit();
+xrtInit();
 
 xtime start = xrtNow();
 
@@ -561,7 +617,8 @@ valgrind --tool=massif ./program
 | 数组扩容 | 使用预分配 | 50% |
 | JSON 解析 | 使用 SAX 模式 | 50% |
 | 小对象分配 | 使用内存池 | 60% |
-| 临时内存 | 使用 32 槽位 | 自动管理 |
+| 临时内存 | 使用线程级 TempMemory | 自动管理 |
+| 跨线程共享 | 显式 shared root + root lock | 正确性优先 |
 
 ### 4. 编译优化
 
@@ -631,7 +688,7 @@ xrtFileWriteAll("out.txt", content, len, XRT_CP_UTF8);  // 统一UTF-8输出
 #endif
 
 // ✅ 好的做法：使用 XRT API
-xrtSleepMs(1000);  // 跨平台睡眠
+xrtSleep(1000);  // 跨平台睡眠，单位毫秒
 ```
 
 ---
@@ -656,7 +713,9 @@ xrtSleepMs(1000);  // 跨平台睡眠
 - [ ] 使用浅拷贝替代深拷贝
 - [ ] 使用 Dict/List 替代线性查找
 - [ ] 选择合适的容器类型
+- [ ] 跨线程共享时显式创建 shared root
+- [ ] 复杂 shared 遍历时使用 root lock
 
 ---
 
-**XRT 最佳实践文档版本：1.0** | **最后更新：2025-01**
+**XRT 最佳实践文档版本：当前主线重建版**

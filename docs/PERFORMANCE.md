@@ -1,490 +1,278 @@
-# XRT 性能优化指南
+# XRT 性能说明
 
-> XRT 的性能优化策略、基准测试结果、性能调优技巧
+> 面向当前主线的性能说明。本文不再维护旧年代零散 benchmark 叙述，而是说明 XRT 当前在性能设计上追求什么、已经有哪些基线、应该如何理解这些结果。
 
 [English Version](PERFORMANCE.en.md) | [返回索引](README.md)
 
 ---
 
-## 📑 目录
+## 目录
 
-- [性能优化原则](#性能优化原则)
-- [各模块性能特性](#各模块性能特性)
-- [性能基准测试结果](#性能基准测试结果)
-- [性能优化技巧](#性能优化技巧)
-- [性能对比数据](#性能对比数据)
-
----
-
-## 性能优化原则
-
-### 1. 空间换时间
-
-**原则**：合理使用内存换区，提高访问速度
-
-**示例**：
-```c
-// 预分配大块内存，避免频繁分配
-xvalue arr = xvoCreateArray();
-xvoArrayAlloc(arr, 1000);  // 预分配1000个元素
-for (int i = 0; i < 1000; i++) {
-    xvoArrayAppendInt(arr, i);
-}
-```
-
-### 2. 时间换空间
-
-**原则**：使用高效算法和数据结构，减少时间复杂度
-
-**示例**：
-```c
-// 使用 AVL 树实现字典，查找 O(log n)
-xvalue table = xvoCreateTable();
-xvoTableSetText(table, "key1", 0, "value1", 0, FALSE);
-xvoTableSetText(table, "key2", 0, "value2", 0, FALSE);
-str val = xvoTableGetText(table, "key1", 0);  // O(log n) 查找
-```
-
-### 3. 避免内存拷贝
-
-**原则**：使用指针和引用，减少数据拷贝
-
-**示例**：
-```c
-// 使用引用计数，避免深拷贝
-xvalue data = xvoCreateText("Hello XRT", 0, FALSE);
-xvalue copy = xvoCopy(data);  // 只增加引用计数，不拷贝数据
-// ... 使用 copy ...
-xvoUnref(copy);  // 减少引用计数
-xvoUnref(data);  // 数据只有一份
-```
-
-### 4. 使用临时内存
-
-**原则**：使用 32 槽位环形临时内存，自动释放
-
-**示例**：
-```c
-// 函数内临时使用
-str temp1 = xrtTempMemory(1024);
-str temp2 = xrtTempMemory(2048);
-// ... 使用临时内存 ...
-// 函数返回时自动释放，无需手动管理
-```
+- [性能设计目标](#性能设计目标)
+- [当前主线的性能策略](#当前主线的性能策略)
+- [已经建立的性能基线](#已经建立的性能基线)
+- [各子系统的性能理解方式](#各子系统的性能理解方式)
+- [如何正确做性能测试](#如何正确做性能测试)
 
 ---
 
-## 各模块性能特性
+## 性能设计目标
 
-### 字符串模块（string.h）
+XRT 追求的不是“单个函数跑分漂亮”，而是：
 
-| 操作 | 时间复杂度 | 空间复杂度 | 特性 |
-|------|-----------|------------|------|
-| 复制 | O(n) | O(n) | 内联优化 |
-| 查找 | O(n) | O(1) | 支持 Boyer-Moore |
-| 替换 | O(n) | O(n) | 支持大小写 |
-| 分割 | O(n) | O(n) | 动态扩容 |
-| 格式化 | O(n) | O(n) | 高效实现 |
+- 高性能
+- 轻量化
+- 跨平台
+- 成体系
+- 在真实基础设施场景里维持稳定吞吐、延迟和资源利用率
 
-### 数据结构模块
+因此，当前主线的性能目标包括：
 
-| 数据结构 | 查找 | 插入 | 删除 | 内存 |
-|---------|------|------|------|------|
-| Array | O(1) | O(1) | O(n) | 8字节/元素 |
-| List (AVL) | O(log n) | O(log n) | O(log n) | 32字节/元素 |
-| Coll (AVL) | O(log n) | O(log n) | O(log n) | 40字节/元素 |
-| Dict (AVL) | O(log n) | O(log n) | O(log n) | 40字节/元素 |
-| Stack | O(1) | O(1) | O(1) | 0额外内存 |
-| DynStack | O(1) | O(1) | O(1) | 8字节/元素 |
-
-### 内存管理模块
-
-| 分配器 | 时间 | 空间 | 特点 |
-|--------|------|------|------|
-| Malloc | O(1) | 系统管理 | 最灵活 |
-| TempMemory | O(1) | 32槽位环形 | 自动释放 |
-| MemPool | O(log n) | 低碎片 | 二叉树索引 |
-| BSMM | O(1) | 高效率 | 固定大小块 |
-
-### JSON 模块
-
-| 操作 | 时间 | 空间 | 特性 |
-|------|------|------|------|
-| 解析 SAX | O(n) | O(1) | 流式处理 |
-| 生成 SAX | O(n) | O(n) | 智能扩容 |
-| 格式化 | O(n) | O(n) | 缩进管理 |
-
-### Value 类型系统
-
-| 操作 | 时间 | 特性 |
-|------|------|------|
-| 创建 | O(1) | 零拷贝优化 |
-| 引用计数 | O(1) | 原子操作 |
-| 拷贝 | O(1) | 只增加引用 |
-| 深拷贝 | O(n) | 递归拷贝 |
+1. 低层运行时和常用工具函数足够轻
+2. 内存与容器在当前线程本地路径上保持快速
+3. 协程、future、wait-source 不引入多余的执行层分裂
+4. `xnet-v2` 在真实网络场景中显著优于旧主线
+5. 网络应用层能够建立在统一网络底座之上，而不是每层重复造轮子
 
 ---
 
-## 性能基准测试结果
+## 当前主线的性能策略
 
-### 测试环境
+### 1. 线程本地快路径优先
 
-```
-硬件环境：
-- CPU: Intel i7-9700K @ 3.6GHz
-- 内存: 16GB DDR4 3200MHz
-- 硬盘: NVMe SSD
+当前 runtime、默认 RNG、临时内存、很多轻量能力都已经迁到线程状态。
 
-软件环境：
-- 操作系统: Windows 10
-- 编译器: GCC 9.4.0 (MinGW-w64)
-- 编译选项: -O3 -march=native
-- XRT 版本: 1.0
-```
+这条设计的核心目的就是：
 
-### 字符串操作性能
+- 让最常见路径尽量不走全局锁
+- 为后续线程绑定内存上下文和 shared-mode 奠定基础
 
-**测试1：字符串拼接（10000次）**
+### 2. local / shared 显式分离
 
-```c
-// 标准C库方法
-char result1[1024];
-result1[0] = '\0';
-strcat(result1, "Hello");
-strcat(result1, " ");
-strcat(result1, "XRT");
-// 耗时: 45ms
+当前 phase-2 之后的内存/容器模型，不再假设“所有对象都天然线程安全”。
 
-// XRT 方法
-str result2 = xrtFormat("%s %s", "Hello", "XRT");
-xrtFree(result2);
-// 耗时: 12ms
+而是明确区分：
 
-性能提升: 73%
-```
+- local root：本线程快路径
+- shared root：显式共享路径
 
-**测试2：字符串查找（10000次）**
+这让本地性能不会被“为了全局线程安全而处处加锁”拖垮。
 
-```c
-// 标准C库方法
-char* p = strstr("Hello XRT Library", "XRT");
-// 耗时: 25ms
+### 3. 统一异步主线
 
-// XRT 方法
-str result = xrtFindStr("Hello XRT Library", 0, "XRT", 0, FALSE);
-xrtFree(result);
-// 耗时: 18ms
+当前已经建立：
 
-性能提升: 28%
-```
+- future
+- task
+- promise
+- wait-source
+- coroutine wait
+- thread wait
 
-### 数据结构性能
+这条统一异步主线的意义不只是“API 更整齐”，也包括性能：
 
-**测试：字典操作（10000次）**
+- 避免每个模块都维护一套独立的异步结果与等待模型
+- 减少中间包装和无效桥接
 
-```
-数据规模: 10000个键值对
-操作: 随机插入和查找
-```
+### 4. 网络主线统一到底层
 
-| 操作 | STL unordered_map | XRT Dict | 提升 |
-|------|----------------|----------|------|
-| 插入 | 85ms | 42ms | 51% |
-| 查找 | 35ms | 18ms | 49% |
-| 删除 | 70ms | 30ms | 57% |
-| 内存 | 2.4MB | 1.8MB | 25% |
+当前 `xnet-v2` 的 stream / dgram / listener / future / wait-source / TLS session 已经开始收口成单主线。
 
-**结论**：XRT Dict 性能优于 C++ STL unordered_map
+这使得：
 
-### 内存管理性能
+- HTTP
+- HTTPD
+- WebSocket
+- 协程等待
+- future 等待
 
-**测试：内存分配（100000次）**
-
-| 分配器 | 耗时 | 内存占用 | 碎片率 |
-|--------|------|---------|--------|
-| malloc | 125ms | 100MB | 12% |
-| TempMemory | 18ms | 50MB | 2% |
-| MemPool | 35ms | 80MB | 3% |
-
-**结论**：
-- TempMemory 适合临时内存（最快，自动释放）
-- MemPool 适合频繁分配（低碎片，内存复用）
-- malloc 适合大块分配（系统优化）
-
-### JSON 处理性能
-
-**测试：JSON 解析（1000次，10KB文件）**
-
-```
-JSON 文件内容: {"users":[{"id":1,"name":"Alice"},{"id":2,"name":"Bob"},...]}
-```
-
-| 库 | 耗时 | 内存占用 |
-|-----|------|---------|
-| cJSON | 420ms | 8.5MB |
-| Jansson | 380ms | 7.8MB |
-| **XRT** | **185ms** | **4.2MB** |
-
-**性能提升**：56% vs cJSON, 51% vs Jansson
-**内存节省**：51% vs cJSON, 46% vs Jansson
-
-**原因分析**：
-1. XRT 使用 SAX 模式，不构建完整 DOM 树
-2. XRT 内存池复用分配，减少系统调用
-3. XRT 内联函数优化，消除函数调用开销
+都能复用同一底层，而不是每层自己再叠加一套状态机。
 
 ---
 
-## 性能优化技巧
+## 已经建立的性能基线
 
-### 1. 字符串优化
+### 1. 网络新旧主线对比基线
 
-**技巧1：预分配内存**
-```c
-// 不好：频繁重新分配
-for (int i = 0; i < 100; i++) {
-    str result = xrtFormat("item%d", i);  // 每次都分配
-    // ... 使用 result ...
-    xrtFree(result);
-}
+当前已经有正式 bench 资产，位于：
 
-// 好：预分配数组
-xvalue arr = xvoCreateArray();
-xvoArrayAlloc(arr, 100);
-for (int i = 0; i < 100; i++) {
-    xvoArraySetInt(arr, i, i);
-}
-```
+- [XNET_COMPARE_20260314.md](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
+- [XRT_FOUNDATION_BENCHMARK_METHOD.md](/D:/git/xrt/dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
+- [TLS_BENCH_20260315.md](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
 
-**技巧2：使用临时内存**
-```c
-// 函数内临时使用
-str temp = xrtTempMemory(1024);
-// ... 使用临时内存 ...
-// 函数返回时自动释放，无需手动管理
-```
+这些文档已经建立了：
 
-**技巧3：避免字符串拷贝**
-```c
-// 使用引用计数
-str str1 = xrtCopyStr("Hello", 0);
-str str2 = xrtCopyStr(" XRT", 0);
-str result = xrtConcat(str1, str2);  // 生成新字符串
-xrtFree(str1);
-xrtFree(str2);
-xrtFree(result);
-```
+- Windows / Linux 平台对比
+- TCP echo
+- TLS echo
+- UDP burst
+- queue pressure
 
-### 2. 数据结构优化
+### 2. 已记录的代表性结果
 
-**技巧1：使用合适的容器**
+以之前建立的基线为例：
 
-```c
-// 场景1：需要快速查找 -> 使用 Dict
-xvalue dict = xvoCreateTable();
+- Windows 上，`xnet-v2` 相比旧主线：
+	- TCP total：`91.7 -> 83178.1 msg/s`
+	- TLS total：`99.9 -> 59343.7 msg/s`
+	- UDP send：`322825.4 -> 1718877.6 pps`
+- Debian 上，`xnet-v2` 相比旧主线：
+	- TCP total：`36628.1 -> 60240.8 msg/s`
+	- TLS：旧主线当时不稳定，`xnet-v2` 可稳定完成，约 `39332.4 msg/s`
+	- UDP send：`340122.5 -> 1355287.2 pps`
 
-// 场景2：需要有序访问 -> 使用 List
-xvalue list = xvoCreateList();
+这说明“新网络主线明显优于旧主线”不是口号，而是已经有基线支撑。
 
-// 场景3：随机访问 -> 使用 Array
-xvalue arr = xvoCreateArray();
-```
+### 3. 这些数据的正确理解方式
 
-**技巧2：预分配容量**
-```c
-// 已知需要100个元素，预分配
-xvalue arr = xvoCreateArray();
-xvoArrayAlloc(arr, 100);
-// 添加元素
-for (int i = 0; i < 100; i++) {
-    xvoArraySetInt(arr, i, i);
-}
-```
+这些数据能证明：
 
-**技巧3：批量操作**
-```c
-// 不好：逐个添加
-for (int i = 0; i < 100; i++) {
-    xvoArrayAppendInt(arr, data[i]);
-}
+- `xnet-v2` 方向是对的
+- 新主线已经不是“架构更漂亮但跑不快”
 
-// 好：批量添加
-xvalue src = xvoCreateArray();
-for (int i = 0; i < 100; i++) {
-    xvoArrayAppendInt(src, data[i]);
-}
-xvoArrayMerge(arr, src);
-xvoUnref(src);
-```
+但这些数据不意味着：
 
-### 3. Value 类型优化
+- 所有平台所有场景已经全部收口到最终生产级
 
-**技巧1：使用浅拷贝**
-```c
-// 场景：只需要读取数据
-xvalue data1 = xvoCreateText("Hello", 0, FALSE);
-xvalue data2 = xvoCopy(data1);  // 浅拷贝，只增加引用计数
-// ... 使用 data2 ...
-xvoUnref(data2);
-xvoUnref(data1);  // 数据只有一份
-```
-
-**技巧2：避免频繁转换**
-```c
-// 不好：频繁类型转换
-for (int i = 0; i < 100; i++) {
-    int64 val = xvoGetInt(xvoGetArray(arr, i));
-    // ... 使用 val ...
-}
-
-// 好：保持 Value 类型
-for (int i = 0; i < 100; i++) {
-    xvalue val = xvoArrayGetValue(arr, i);
-    int64 ival = xvoGetInt(val);
-    // ... 使用 ival ...
-}
-```
-
-**技巧3：使用批量操作**
-```c
-// 不好：逐个添加
-xvalue arr = xvoCreateArray();
-xvoArrayAppendInt(arr, 1);
-xvoArrayAppendInt(arr, 2);
-xvoArrayAppendInt(arr, 3);
-
-// 好：预分配并设置
-xvalue arr = xvoCreateArray();
-xvoArrayAlloc(arr, 3);
-xvoArraySetInt(arr, 0, 1);
-xvoArraySetInt(arr, 1, 2);
-xvoArraySetInt(arr, 2, 3);
-```
-
-### 4. JSON 处理优化
-
-**技巧1：使用 SAX 模式**
-```c
-// SAX 事件驱动，低内存占用
-json_sax_cb_t cb = {
-    .on_string = on_json_string,
-    .on_number = on_json_number,
-    .on_start_object = on_json_start,
-    // ... 其他回调
-};
-xrtJsonParseSAX(json_text, json_len, &cb);
-```
-
-**技巧2：流式处理大文件**
-```c
-// 不好：一次性读取整个文件
-str json = xrtFileReadAll("large.json", XRT_CP_UTF8);
-xvalue data = xrtParseJSON(json, 0);
-xrtFree(json);
-
-// 好：流式读取
-xfile file = xrtOpen("large.json", FALSE, XRT_CP_UTF8);
-char buffer[4096];
-while (!xrtFileEof(file)) {
-    xrtFileRead(file, buffer, 4096);
-    // ... 处理 buffer ...
-}
-xrtClose(file);
-```
-
-**技巧3：压缩 JSON 输出**
-```c
-// 不格式化输出（节省空间）
-size_t len = 0;
-str json = xrtStringifyJSON(data, FALSE, &len);  // FALSE = 不格式化
-xrtFree(json);
-
-// 格式化输出（可读性好）
-size_t len = 0;
-str json = xrtStringifyJSON(data, TRUE, &len);  // TRUE = 格式化
-xrtFree(json);
-```
-
-### 5. 模板引擎优化
-
-**技巧1：预编译模板**
-```c
-// 预编译模板
-XTE_LiteObject tpl = xteParse(template, 0, NULL);
-
-// 多次渲染，避免重复解析
-for (int i = 0; i < 1000; i++) {
-    str output = xteMake(tpl, vars, NULL, NULL, &len);
-    // ... 使用 output ...
-    xrtFree(output);
-}
-
-xteParseFree(tpl);
-```
-
-**技巧2：缓存变量**
-```c
-// 预加载常用变量到表
-xvalue cache = xvoCreateTable();
-xvoTableSetText(cache, "site_name", 0, "XRT", 0, FALSE);
-xvoTableSetInt(cache, "version", 0, 1);
-
-// 多次使用缓存的变量
-for (int i = 0; i < 100; i++) {
-    str output = xteParse(tpl, cache, NULL, NULL, &len);
-    xrtFree(output);
-}
-```
+因此，性能结论应当和稳定性、竞态验证一起看。
 
 ---
 
-## 性能对比数据
+## 各子系统的性能理解方式
 
-### 与标准库对比
+### 1. 内存与容器
 
-| 操作 | 标准 C 库 | XRT | 提升 |
-|------|----------|-----|------|
-| 字符串拷贝 (1KB) | 0.8ms | 0.5ms | 38% |
-| 字符串拼接 | 2.5ms | 1.2ms | 52% |
-| 数组查找 | 8ms | 0.8ms | 90% |
-| 内存分配 | 0.015ms | 0.018ms | -17% |
-| 时间格式化 | 0.5ms | 0.3ms | 40% |
+当前重点不是孤立地追求“单个容器 micro-benchmark 最大化”，而是：
 
-### 与第三方库对比
+- local root 快路径保持轻
+- shared root 明确边界
+- 错线程访问及时拒绝
+- 为未来线程绑定内存上下文留出空间
 
-| 库 | 功能 | 代码大小 | 性能 | 内存使用 |
-|-----|------|---------|------|---------|
-| **XRT** | 全功能栈 | 370KB | 优秀 | 低 |
-| cJSON | JSON | 50KB | 中等 | 中等 |
-| libcurl | HTTP | 500KB | 优秀 | 中等 |
-| OpenSSL | TLS | 5MB | 优秀 | 高 |
-| RapidJSON | JSON | 80KB | 优秀 | 低 |
+### 2. 协程
 
-**综合对比**：
-- **代码大小**：XRT 提供所有功能，代码大小适中（370KB）
-- **性能**：XRT 各模块性能达到优秀水平
-- **内存**：XRT 内存管理优秀，低碎片
-- **完整性**：XRT 功能最全面（37个模块，300+ API）
+当前协程主线已经做了：
+
+- 线程绑定 runtime
+- scheduler core
+- stack allocator
+- future / wait-source 接线
+
+性能上更重要的是：
+
+- 减少等待模型分裂
+- 减少无意义轮询
+- 让网络等待和协程等待走同一条主线
+
+### 3. future / task / promise
+
+这条主线的性能价值在于：
+
+- 统一执行与结果模型
+- 减少模块间重复包装
+- 让 continuation / combinator / task group 建立在一个核心上
+
+后续性能重点应放在：
+
+- 压力回归
+- 长时间运行
+- destroy / cancel / close 竞争
+
+继续深入时，还应特别关注：
+
+- combinator（`WhenAny / WhenAll / Race`）在并发完成下的稳定性
+- `task group / nested scope` 在批量 child 场景下的 join / reap / cancel 开销
+- current-thread deferred continuation 在真实业务等待链路里的推进成本
+
+而不是只看单个 `future` 的微基准。
+
+### 4. 网络与网络应用层
+
+当前网络底层性能主线已经比较清楚：
+
+- engine / worker
+- stream / dgram / listener
+- future / wait-source
+- TLS session
+
+上层 HTTP / WebSocket 的性能评估，应该建立在这个统一底座上，而不是单独拆开孤立看。
 
 ---
 
-## 总结
+## 如何正确做性能测试
 
-XRT 通过以下策略实现高性能：
+### 1. 明确测试目标
 
-1. ✅ **算法优化**：O(log n) 算法，内联函数
-2. ✅ **内存优化**：多级内存池，减少碎片
-3. **架构优化**：分层设计，模块化解耦
-4. **编译器优化**：支持 TCC/GCC/Clang/MSVC，编译器优化
-5. **API 设计**：简洁高效，避免冗余操作
+先说明你测的是哪一类：
 
-**性能测试结论**：
-- 字符串操作比标准库快 30-50%
-- 数据结构比 STL 快 40-60%
-- 内存管理比系统 malloc 快 50-85%
-- JSON 处理比 cJSON 快 50%，比 Jansson 快 50%
-- 内存占用比其他库少 25-50%
+- 吞吐
+- 延迟
+- 内存占用
+- 抖动
+- 长时间稳定性
+
+不要把这些混成一个“快不快”的模糊结论。
+
+### 2. 固定测试条件
+
+每次 benchmark 最好固定：
+
+- 平台
+- 编译器
+- 编译选项
+- 核心数
+- 是否绑核
+- 测试时长
+- 数据规模
+
+### 3. 同时记录吞吐与延迟
+
+只记录吞吐不够，至少还应记录：
+
+- 平均延迟
+- p50 / p95 / p99（如果场景适合）
+
+### 4. 网络 benchmark 要分层看
+
+建议分开看：
+
+- TLS on / off
+- localhost / real network
+- client / server
+- queue pressure / normal path
+
+### 5. 压力测试和正确性一起做
+
+对于基础设施库，“跑得快但 destroy/cancel 竞争会炸”不能算真正完成。
+
+因此 benchmark 最好和这些测试一起做：
+
+- timeout / deadline
+- cancel / close
+- destroy / release
+- 多等待者 / 多 continuation
+- listener / stream / dgram 的竞争回归
+
+对于当前异步主线，还建议把这些也纳入长期基线：
+
+- `WhenAny / Race` 的并发完成压力
+- `task group` 的批量 child、close / destroy 边界
+- 多 parent cancel 传播
+- nested scope 的 join 完成时机
 
 ---
 
-**XRT 性能文档版本：1.0** | **最后更新：2025-01**
+## 相关文档
+
+- [项目简介](/D:/git/xrt/README.md)
+- [架构设计](ARCHITECTURE.md)
+- [最佳实践](BEST_PRACTICES.md)
+- [XNet V2](api/api-xnet-v2.md)
+- [Future / Task / Promise](api/api-future-task-promise.md)
+- [性能基线方法](/D:/git/xrt/dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
+- [XNet 对比基线](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
+- [TLS 基线](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+
+---
+
+**XRT 性能文档版本：当前主线重建版**

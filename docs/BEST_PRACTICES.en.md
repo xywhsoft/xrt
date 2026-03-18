@@ -1,662 +1,342 @@
 # XRT Best Practices Guide
 
-> Best practices, common patterns, and performance tuning tips for XRT
+> Current-mainline practices for runtime, structured data, concurrency, networking, and cross-platform development
 
-[English Version](BEST_PRACTICES.en.md) | [Back to Index](README.md)
-
----
-
-## 📑 Table of Contents
-
-- [Memory Management Best Practices](#memory-management-best-practices)
-- [String Handling Best Practices](#string-handling-best-practices)
-- [Value Type Usage Best Practices](#value-type-usage-best-practices)
-- [Data Structure Selection Guide](#data-structure-selection-guide)
-- [JSON Processing Best Practices](#json-processing-best-practices)
-- [Error Handling Best Practices](#error-handling-best-practices)
-- [Performance Tuning Best Practices](#performance-tuning-best-practices)
-- [Cross-Platform Development Best Practices](#cross-platform-development-best-practices)
+[English Version](BEST_PRACTICES.en.md) | [Back to Index](README.en.md)
 
 ---
 
-## Memory Management Best Practices
+## Table of Contents
 
-### 1. Using Temporary Memory
+- [Runtime and Error Handling](#runtime-and-error-handling)
+- [Temporary Memory and Ownership](#temporary-memory-and-ownership)
+- [Memory Debugging and Dangerous Operation Detection](#memory-debugging-and-dangerous-operation-detection)
+- [Structured Data Mainline](#structured-data-mainline)
+- [Shared Root and Cross-Thread Rules](#shared-root-and-cross-thread-rules)
+- [Thread, Coroutine, and Async Mainline](#thread-coroutine-and-async-mainline)
+- [Network and TLS Mainline](#network-and-tls-mainline)
+- [Template and JSON Mainline](#template-and-json-mainline)
+- [Performance Practices](#performance-practices)
+- [Cross-Platform Practices](#cross-platform-practices)
 
-**Scenario**: Temporary use within a function, automatic release needed
+---
 
-```c
-// ✅ Good practice: Use 32-slot circular temporary memory
-void process_data() {
-    str temp1 = xrtTempMemory(1024);
-    str temp2 = xrtTempMemory(2048);
+## Runtime and Error Handling
 
-    // ... use temporary memory ...
+### 1. Always treat the runtime as an explicit execution context
 
-    // Automatically released when function returns, no manual free needed
-}
+If code uses runtime-bound features such as:
 
-// ❌ Bad practice: Manually managing temporary memory
-void process_data_bad() {
-    str temp1 = xrtMalloc(1024);
-    str temp2 = xrtMalloc(2048);
+- `xrtGetError()`
+- `xrtTempMemory()`
+- `xrtRand32()` / `xrtRand64()`
+- coroutine runtime
+- future/task/wait-source helpers
 
-    // ... use temporary memory ...
+then the thread must be inside the XRT runtime.
 
-    xrtFree(temp1);
-    xrtFree(temp2);  // Easy to miss
-}
-```
-
-**Advantages**:
-- Automatic release, no memory leaks
-- 32-slot circular reuse, no counting needed
-- High performance, no overhead
-
-### 2. Memory Pool Optimization
-
-**Scenario**: High-frequency small object allocation
+### 2. Pair `xrtInit()` and `xrtUnit()`
 
 ```c
-// ✅ Good practice: Use memory pool
-void process_many_objects() {
-    xvalue pool = xvoCreateArray();  // Use Array as object pool
+int main(void)
+{
+	xrtInit();
 
-    for (int i = 0; i < 10000; i++) {
-        xvalue obj = create_object();  // Allocate object
-        xvoArrayAppendInt(arr, i);  // Add to pool
-    }
+	/* ... program logic ... */
 
-    // ... use objects ...
-
-    // Release entire pool, automatic management
-    xvoUnref(pool);
-}
-
-// ❌ Bad practice: Frequent malloc/free
-void process_many_objects_bad() {
-    for (int i = 0; i < 10000; i++) {
-        xvalue obj = create_object();
-        // ... use object ...
-        xvoUnref(obj);  // Frequent allocation/deallocation
-    }
+	xrtUnit();
+	return 0;
 }
 ```
 
-**Performance improvement**: 60-80%
+### 3. Use `xrtGetError()` instead of touching runtime internals
 
-### 3. Avoiding Memory Leaks
-
-**Detection methods**:
 ```c
-// Use xrtInit() and xrtUnit()
-xrtGlobalData* xCore = xrtInit();
-// ... program logic ...
-xrtUnit();  // Automatically detect memory leaks
-
-// Use valgrind to detect
-// valgrind --leak-check=full ./program
+if ( pValue == NULL ) {
+	printf("error: %s\n", (char*)xrtGetError());
+}
 ```
 
-**Common leak scenarios**:
-1. Forgetting to call `xrtFree` to release malloc'd memory
-2. Leaks caused by circular references
-3. Unreleased resources on exception paths
+### 4. For host-created threads, attach explicitly
 
-### 4. Memory Allocation Size Selection
+Threads created by `xrtThreadCreate()` are attached automatically.  
+External threads should use:
 
 ```c
-// ✅ Appropriate memory allocation
-// Small objects (<256 bytes): TempMemory
-str temp1 = xrtTempMemory(128);
-
-// Medium objects (256B-4KB): MemPool
-str data = xrtMemPoolAlloc(pool, 2048);
-
-// Large objects (>4KB): Direct allocation
-str large = xrtMalloc(8192);
+xrtThreadAttachCurrent();
+/* ... */
+xrtThreadDetachCurrent();
 ```
 
 ---
 
-## String Handling Best Practices
+## Temporary Memory and Ownership
 
-### 1. String Concatenation Optimization
+### 1. Use `xrtTempMemory()` only for short-lived, same-thread temporary work
 
-**Scenario**: Concatenating multiple strings
+Good fit:
 
-```c
-// ❌ Bad practice: Multiple allocations
-void concat_bad() {
-    str result = xrtConcat("Hello", " ");
-    result = xrtConcat(result, "XRT");
-    result = xrtConcat(result, "!");
-    // ... 3 allocations and copies
-    xrtFree(result);
-}
+- formatting intermediate text
+- temporary buffers
+- local conversion output
 
-// ✅ Good practice: Single allocation
-void concat_good() {
-    str result = xrtFormat("%s %s %s!", "Hello", "XRT", "!");
-    // ... use result ...
-    xrtFree(result);
-}
-```
+Bad fit:
 
-**Performance improvement**: 70%
+- storing long-lived data
+- sharing across threads
+- returning as if it were owned heap memory
 
-### 2. String Search Optimization
+### 2. Prefer clear ownership rules
 
-```c
-// ❌ Bad practice: Linear search
-int find_bad(const char* text, const char* sub) {
-    return strstr(text, sub) != NULL ? 1 : 0;
-}
+When an API returns data, know whether it is:
 
-// ✅ Good practice: Use search algorithm
-int find_good(const char* text, const char* sub) {
-    str result = xrtFindStr(text, 0, sub, 0, FALSE);
-    int found = (result != NULL);
-    if (found) {
-        xrtFree(result);
-    }
-    return found;
-}
-```
+- owned and must be released
+- borrowed
+- temporary
 
-**Performance improvement**: 30-50% for long strings
+### 3. Distinguish `Get*` and `Peek*`
 
-### 3. Avoid String Copying
+Current mainline convention:
 
-```c
-// ❌ Bad practice: Create new string every time
-void process_bad(const char* data) {
-    str copy = xrtCopyStr(data, 0);  // Copy data
-    // ... process data ...
-    xrtFree(copy);  // Need to release
-}
+- `Get*` usually returns a retained or owned reference
+- `Peek*` usually returns a borrowed reference
 
-// ✅ Good practice: Use directly or use reference counting
-void process_good(const char* data) {
-    str temp = xrtTempMemory(strlen(data));
-    memcpy(temp, data, strlen(data) + 1);
-    // ... process data ...
-    // Automatically released
-}
-```
-
-**Performance improvement**: Save allocation time
-
-### 4. Use Temporary Memory
-
-```c
-// ❌ Bad practice: Manual management
-void process_strings_bad() {
-    str result1 = xrtFormat("Hello %s", name);
-    // ... use result1 ...
-    str result2 = xrtFormat("Value: %d", value);
-    // ... use result2 ...
-    xrtFree(result1);
-    xrtFree(result2);
-}
-
-// ✅ Good practice: Use temporary memory
-void process_strings_good() {
-    str result1 = xrtTempMemory(100);
-    sprintf(result1, "Hello %s", name);
-    // ... use result1 ...
-    xrtFree(result1);  // Automatically released
-
-    str result2 = xrtTempMemory(50);
-    sprintf(result2, "Value: %d", value);
-    // ... use result2 ...
-    // Automatically released
-}
-```
+Do not treat them as interchangeable.
 
 ---
 
-## Value Type Usage Best Practices
+## Memory Debugging and Dangerous Operation Detection
 
-### 1. Reference Count Management
+XRT memory facilities are not only about allocation speed.  
+They are also designed to help expose mistakes early.
 
-**Basic principles**:
-```c
-// ✅ Basic rules
-// 1. Values created with xvoCreate* must be released with xvoUnref
-xvalue val = xvoCreateInt(123);
-// ... use val ...
-xvoUnref(val);
+Current memory-related debugging capability can help with:
 
-// 2. Values returned by xvoCopy have reference count +1, no additional management needed
-xvalue copy = xvoCopy(val);
-// ... use copy ...
-xvoUnref(copy);  // Shares reference count with val
-```
+- locating memory leaks back to source file and line
+- detecting double free
+- detecting invalid free
+- detecting block corruption caused by out-of-bounds writes
+- exposing use-after-free style lifecycle errors
+- diagnosing wrong-thread access to thread-local or local-root objects
+- surfacing container misuse that would otherwise silently corrupt internal state
 
-**Circular reference problem**:
-```c
-// ❌ Circular reference (needs manual breaking)
-xvalue table1 = xvoCreateTable();
-xvalue table2 = xvoCreateTable();
-xvoTableSetText(table1, "ref", 0, "table2", 0, FALSE);
-xvoTableSetText(table2, "ref", 0, "table1", 0, FALSE);
-// table1 and table2 reference each other, never released!
+### Recommended practice
 
-// ✅ Manually break circular reference
-xvoTableRemove(table2, "ref", 0);
-xvoUnref(table2);
-xvoUnref(table1);
-```
-
-### 2. Using Shallow Copy
-
-```c
-// ✅ Good practice: Shallow copy
-void shallow_copy_example(xvalue data) {
-    xvalue copy = xvoCopy(data);  // Only increase reference count
-
-    // ... read-only operations, won't modify data ...
-
-    xvoUnref(copy);
-    xvoUnref(data);  // Only one copy of data
-}
-
-// ❌ Bad practice: Deep copy (unnecessary performance overhead)
-void deep_copy_example(xvalue data) {
-    xvalue copy = xvoDeepCopy(data);  // Recursive copy
-
-    // ... read-only operations ...
-
-    xvoUnref(copy);
-    xvoUnref(data);  // Two copies of data in memory
-}
-```
-
-### 3. Batch Operations
-
-```c
-// ❌ Bad practice: Add one by one
-xvalue arr = xvoCreateArray();
-for (int i = 0; i < 100; i++) {
-    xvoArrayAppendInt(arr, data[i]);
-}
-
-// ✅ Good practice: Pre-allocate
-xvalue arr = xvoCreateArray();
-xvoArrayAlloc(arr, 100);  // Pre-allocate
-for (int i = 0; i < 100; i++) {
-    xvoArraySetInt(arr, i, data[i]);
-}
-```
-
-**Performance improvement**: Pre-allocation can improve by 50%+
-
-### 4. Choose Appropriate Container
-
-```c
-// ✅ Selection guide
-// Scenario 1: Need fast lookup -> Dict
-xvalue dict = xvoCreateTable();
-
-// Scenario 2: Need ordered access -> List
-xvalue list = xvoCreateList();
-
-// Scenario 3: Random access -> Array
-xvalue arr = xvoCreateArray();
-
-// Scenario 4: Automatic deduplication -> Coll
-xvalue coll = xvoCreateColl();
-```
-
-**Complexity comparison**:
-| Container | Lookup | Insert | Delete |
-|-----------|--------|--------|--------|
-| Dict | O(log n) | O(log n) | O(log n) |
-| List | O(log n) | O(log n) | O(log n) |
-| Array | O(1) | O(1) | O(n) |
-| Coll | O(log n) | O(log n) | O(log n) |
+- keep debug-oriented builds available during development
+- prefer XRT-managed allocation paths when you want diagnostics
+- do not bypass runtime ownership rules just to “save a call”
 
 ---
 
-## Data Structure Selection Guide
+## Structured Data Mainline
 
-### 1. Choose Based on Access Pattern
+### 1. Use `xvalue` as the internal structured data model
 
-**Fast lookup scenario**:
-```c
-// ✅ Use Dict (dictionary)
-xvalue users = xvoCreateTable();
-xvoTableSetText(users, "user1", 0, "Alice", 0, FALSE);
-xvoTableSetText(users, "user2", 0, "Bob", 0, FALSE);
-str name = xvoTableGetText(users, "user1", 0);  // O(log n) lookup
-```
+For modern XRT application code, the preferred internal model is:
 
-**Ordered traversal scenario**:
-```c
-// ✅ Use List (list)
-xvalue list = xvoCreateList();
-xvoListSetValue(list, 0, 123);
-xvoListSetValue(list, 1, 456);
-for (int64 i = 0; i < xvoListItemCount(list); i++) {
-    int64 val = xvoListGetInt(list, i);
-    // ... process each element
-}
-```
+- `xvalue`
+- `table`
+- `array`
+- `list`
+- `coll`
 
-**Random access scenario**:
-```c
-// ✅ Use Array (array)
-xvalue arr = xvoCreateArray();
-xvoArraySetInt(arr, 0, 123);
-xvoArraySetInt(arr, 10, 456);
-int64 val = xvoArrayGetInt(arr, 10);  // O(1) access
-```
+### 2. Treat JSON as an exchange format
 
-**Automatic deduplication scenario**:
-```c
-// ✅ Use Coll (collection)
-xvalue coll = xvoCreateColl();
-xvoCollSetValue(coll, 123);
-xvoCollSetValue(coll, 123);  // Automatically deduplicate
-uint32 count = xvoCollItemCount(coll);
-```
+Recommended:
 
-### 2. Pre-allocation Strategy
+- parse JSON into `xvalue`
+- process data in `xvalue`
+- stringify back to JSON at the boundary
 
-```c
-// ❌ Bad practice: Frequent expansion
-xvalue arr = xvoCreateArray();
-for (int i = 0; i < 1000; i++) {
-    xvoArrayAppendInt(arr, i);  // May trigger multiple expansions
-}
+### 3. Choose the right container
 
-// ✅ Good practice: Pre-allocate
-xvalue arr = xvoCreateArray();
-xvoArrayAlloc(arr, 1000);  // One-time allocation
-for (int i = 0; i < 1000; i++) {
-    xvoArraySetInt(arr, i, i);
-}
-```
-
-**Performance improvement**: Pre-allocation can improve by 50-80%
+- `table / dict`: keyed lookup
+- `array`: contiguous indexed storage
+- `list`: ordered structure with different update characteristics
+- `coll`: deduplicated or set-like semantics
 
 ---
 
-## JSON Processing Best Practices
+## Shared Root and Cross-Thread Rules
 
-### 1. Use SAX Mode Parsing
+### 1. Local is the default
 
-**Scenario**: Parse large JSON files
+The default assumption is:
 
-```c
-// ❌ Bad practice: Parse to DOM at once
-str json = xrtFileReadAll("large.json", XRT_CP_UTF8);
-xvalue data = xrtParseJSON(json, 0);
-// If file is large, memory usage will be high
+- newly created root objects are local
+- cross-thread mutation is not allowed unless explicitly shared
 
-// ✅ Good practice: SAX streaming parsing
-json_sax_cb_t cb = {
-    .on_string = on_json_string,
-    .on_number = on_json_number,
-    // ... other callbacks
-};
-
-FILE* fp = fopen("large.json", "r");
-char buffer[4096];
-while (!feof(fp)) {
-    size_t len = fread(buffer, 1, 4096, fp);
-    xrtJsonParseSAX(buffer, len, &cb);
-}
-fclose(fp);
-```
-
-**Advantages**:
-- Low memory usage (O(1))
-- Suitable for streaming processing
-- Supports ultra-large files
-
-### 2. Compress JSON Output
+### 2. Use explicit shared roots when crossing threads
 
 ```c
-// ❌ Bad practice: Formatted output (large file)
-xvalue data = create_large_data();
-size_t len = 0;
-str json = xrtStringifyJSON(data, TRUE, &len);  // TRUE = formatted
-xrtFileWriteAll("output.json", json, len, XRT_CP_UTF8);
-// File will be large, takes lots of space
-
-// ✅ Good practice: Unformatted output (production environment)
-xvalue data = create_large_data();
-size_t len = 0;
-str json = xrtStringifyJSON(data, FALSE, &len);  // FALSE = unformatted
-xrtFileWriteAll("output.json", json, len, XRT_CP_UTF8);
-// File is smaller, parsing is faster
+xvalue pShared = xvoCreateTableEx(XRT_OBJMODE_SHARED);
 ```
 
-**File size difference**:
-- Formatted output: ~2MB
-- Unformatted output: ~1MB
+### 3. Do not expect hidden lock-free magic
 
-### 3. Avoid Deep Copy
+Shared mode does not mean every view operation is universally safe without rules.
 
-```c
-// ❌ Bad practice: Deep copy all nodes
-xvalue json1 = xrtParseJSON(json_str1, 0);
-xvalue json2 = xvoDeepCopy(json1);  // Recursive deep copy, very slow
+### 4. Let wrong-thread misuse fail loudly
 
-// ✅ Good practice: Shallow copy (read-only scenario)
-xvalue json1 = xrtParseJSON(json_str1, 0);
-xvalue json2 = xvoCopy(json1);  // Shallow copy, fast
-// ... read-only operations ...
-xvoUnref(json2);
-xvoUnref(json1);
-```
-
-**Performance improvement**: Shallow copy is 100-1000 times faster than deep copy
+The current mainline prefers to reject invalid cross-thread mutation rather than silently corrupt internal state.
 
 ---
 
-## Error Handling Best Practices
+## Thread, Coroutine, and Async Mainline
 
-### 1. Using XRT Error Handling
+### 1. Prefer one unified async model
 
-```c
-// Set error callback
-void on_error(str sError) {
-    fprintf(stderr, "Error: %s\n", sError);
-}
+Current mainline is built around:
 
-int main() {
-    xrtGlobalData* xCore = xrtInit();
-    xCore->OnError = on_error;
+- thread runtime
+- coroutine runtime
+- future / task / promise
+- wait-source
 
-    // ... program logic ...
+### 2. Use task/future for structured async workflows
 
-    // Check error
-    if (xCore->LastError != xCore->sNull) {
-        fprintf(stderr, "Last Error: %s\n", xCore->LastError);
-        return 1;
-    }
+Prefer:
 
-    xrtUnit();
-    return 0;
-}
-```
+- `xTaskRunThread`
+- `xTaskRunCo`
+- `xTaskRunEngine`
+- `xFutureWait*`
+- `xTaskGroup*`
 
-### 2. Return Value Checking
+### 3. Use task groups for scope control
 
-```c
-// ❌ Bad practice: Don't check return values
-xvalue val = xvoCreateInt(123);
-// ... don't check if val was created successfully
-xvoArrayAppendInt(arr, 123);  // Will crash if val==NULL
+If a set of child async operations belongs to one logical scope, prefer:
 
-// ✅ Good practice: Check return values
-xvalue val = xvoCreateInt(123);
-if (!val) {
-    fprintf(stderr, "Failed to create value!\n");
-    return 1;
-}
-xvoArrayAppendInt(arr, 123);
-```
+- `xTaskGroupCreate`
+- `xTaskGroupRun*`
+- `xTaskGroupJoin*`
+- `xTaskGroupClose`
+- `xTaskGroupDestroy`
 
-### 3. Error Recovery
+### 4. Prefer current-mainline continuation targets
 
-```c
-// ✅ Good practice: Graceful degradation
-int save_data() {
-    xvalue data = xrtParseJSON(json_text, 0);
-    if (!data) {
-        fprintf(stderr, "Failed to parse JSON, using fallback\n");
-        data = xvoCreateNull();  // Use null value for degradation
-    }
+Continuation targets already have an explicit model:
 
-    // ... process data ...
-
-    xvoUnref(data);
-    return 0;
-}
-```
+- inline
+- current-thread deferred
+- engine
+- coroutine scheduler
 
 ---
 
-## Performance Tuning Best Practices
+## Network and TLS Mainline
 
-### 1. Performance Analysis
+### 1. Use `xnet-v2` as the active network mainline
 
-**Using built-in performance testing**:
-```c
-xrtGlobalData* xCore = xrtInit();
+For new code, prefer:
 
-xtime start = xrtNow();
+- `xnet-v2`
+- stream / dgram / listener
+- future / wait-source integration
 
-// ... execute code ...
+### 2. Use TLS session mainline
 
-xtime end = xrtNow();
-int64 diff = xrtDateDiff(XRT_TIME_INTERVAL_SECOND, start, end);
-printf("Time: %lldms\n", diff);
+Current public TLS mainline is:
 
-xrtUnit();
-```
+- `xtlssession`
+- `xrtNetTlsSession*`
 
-### 2. Memory Analysis
+### 3. Prefer wait-source based waiting
 
-**View memory usage**:
-```bash
-# Linux/macOS
-valgrind --tool=massif ./program
+For network waiting logic, the recommended shape is:
 
-# Windows
-# Use Dr. Memory or Visual Studio memory diagnostics tools
-```
-
-### 3. Hotspot Optimization
-
-**Common hotspots and optimization methods**:
-
-| Hotspot | Optimization Method | Improvement |
-|---------|---------------------|-------------|
-| String concatenation | Use xrtFormat | 70% |
-| Array expansion | Use pre-allocation | 50% |
-| JSON parsing | Use SAX mode | 50% |
-| Small object allocation | Use memory pool | 60% |
-| Temporary memory | Use 32 slots | Automatic management |
-
-### 4. Compilation Optimization
-
-```bash
-# GCC optimized compilation
-gcc -O3 -march=native -flto -funroll-loops program.c -o program
-
-# TCC fast compilation
-tcc -O3 -run program.c
-
-# MSVC optimized compilation
-cl /O2 /Oi /Ot program.c
-```
+- network object
+- wait-source or future
+- thread/co wait through unified wait APIs
 
 ---
 
-## Cross-Platform Development Best Practices
+## Template and JSON Mainline
 
-### 1. Path Handling
+### 1. Keep one data model through the pipeline
 
-```c
-// ❌ Bad practice: Hardcode path separators
-#ifdef _WIN32
-    char* path = "config\\settings.ini";
-#else
-    char* path = "config/settings.ini";
-#endif
+Recommended chain:
 
-// ✅ Good practice: Use XRT path API
-str config_path = xrtPathJoin("config", "settings.ini");
-xrtPathJoin(...);  // Automatically handle separators
-```
+- HTTP input
+- JSON parse
+- `xvalue`
+- business logic
+- template render or JSON stringify
 
-### 2. File System Operations
+### 2. Use template for rendering, not for business logic
 
-```c
-// ❌ Bad practice: Distinguish files and directories
-#ifdef _WIN32
-    if (GetFileAttributes(path) & FILE_ATTRIBUTE_DIRECTORY) { ... }
-#else
-    struct stat st;
-    if (S_ISDIR(st.st_mode)) { ... }
-#endif
+Templates can do selection, loops, and formatting, but core business logic should remain in C and in runtime data structures.
 
-// ✅ Good practice: Unified API
-bool is_file = xrtFileExists(path);
-bool is_dir = xrtDirExists(path);
-```
+### 3. In AI flows, keep transport and structure separate
 
-### 3. Character Set Handling
+Recommended pattern:
 
-```c
-// ✅ Good practice: Auto-detect character set
-str content = xrtFileReadAll("data.txt", XRT_CP_AUTO);  // Auto-detect UTF-8/GB18030/UTF-16
-// ... process content ...
-xrtFileWriteAll("out.txt", content, len, XRT_CP_UTF8);  // Unified UTF-8 output
-```
+- `xhttp` / `xtlssession` for transport
+- `json` for exchange
+- `xvalue` for internal structure
+- `template` for prompt or human-facing output assembly
 
-### 4. Platform-Specific Features
+---
 
-```c
-// ❌ Bad practice: Use platform-specific APIs
-#ifdef _WIN32
-    Sleep(1000);
-#else
-    usleep(1000000);  // 1 second = 1000000 microseconds
-#endif
+## Performance Practices
 
-// ✅ Good practice: Use XRT API
-xrtSleepMs(1000);  // Cross-platform sleep
-```
+### 1. Avoid optimizing against the wrong layer
+
+Examples:
+
+- do not replace `xvalue` with ad-hoc string maps just because JSON exists
+- do not replace a structured future/task chain with callback spaghetti for imagined micro-speed
+
+### 2. Reuse compiled/renderable artifacts
+
+- parse templates once, render many times
+- reuse compiled task/future composition patterns
+- prefer stable data pipelines over repeated ad-hoc rebuilding
+
+### 3. Pay attention to the real async hotspots
+
+Important hotspots include:
+
+- continuation fan-out
+- `WhenAny / Race` concurrent completion
+- task-group join/reap/cancel behavior
+- stream wait-source registration and teardown
+
+---
+
+## Cross-Platform Practices
+
+### 1. Keep platform branching inside the runtime when possible
+
+Prefer XRT abstractions over scattering platform-specific code through application layers.
+
+### 2. Treat compiler and backend differences explicitly
+
+This matters especially in:
+
+- thread local runtime behavior
+- coroutine backend selection
+- networking backends
+- single-header distribution
+
+### 3. Keep source-tree mainline and single-header distribution distinct
+
+For development and verification:
+
+- prefer the source tree mainline
+
+Use single-header mode as a distribution form, not as the conceptual center of all examples and documentation.
 
 ---
 
 ## Summary
 
-### Core Principles
+The current XRT mainline is strongest when you keep these rules together:
 
-1. ✅ **Memory safety**: Use temporary memory and reference counting, avoid memory leaks
-2. ✅ **Performance first**: Choose appropriate algorithms and data structures
-3. ✅ **Code simplicity**: Use XRT's concise APIs, reduce boilerplate code
-4. ✅ **Error handling**: Check return values, graceful degradation
-5. ✅ **Cross-platform**: Use XRT's cross-platform APIs
-
-### Performance Checklist
-
-- [ ] Use temporary memory instead of manual malloc/free
-- [ ] Use memory pool for high-frequency small objects
-- [ ] Use xrtFormat instead of string concatenation
-- [ ] Use pre-allocation to reduce frequent expansion
-- [ ] Use SAX mode for large JSON
-- [ ] Use shallow copy instead of deep copy
-- [ ] Use Dict/List instead of linear search
-- [ ] Choose appropriate container types
-
----
-
-**XRT Best Practices Document Version: 1.0** | **Last Updated: 2025-01**
+- explicit runtime context
+- explicit ownership
+- `xvalue` as the structured data center
+- explicit shared roots for cross-thread work
+- unified async model through future/task/promise/wait-source
+- `xnet-v2 + xtlssession` as the networking mainline
+- JSON and template as boundary tools, not competing internal models

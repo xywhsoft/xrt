@@ -1,279 +1,159 @@
-# XRT API Complete Documentation
+# XRT Documentation Hub
 
-> XRT (X Runtime Library) API Reference Manual
+> The current official documentation entry for XRT. API references are organized under `docs/api/`, leaving a clear structure for beginner guides, case studies, and topic-specific documents.
 
----
-
-## 📚 Documentation Navigation
-
-### 🔹 Basic Type Definitions
-- [Basic Type Definitions](types.en.md) - All basic data types, macro definitions and global structures
-
-### 🔹 Core Modules
-
-| Module | Documentation Link | Description |
-|--------|-------------------|-------------|
-| **Base** | [Base Functions](api-base.en.md) | Memory management, error handling |
-| **Charset** | [Character Set Conversion](api-charset.en.md) | UTF-8/16/32 encoding conversion |
-| **OS** | [Operating System](api-os.en.md) | Process management, system calls |
-| **Math** | [Math Operations](api-math.en.md) | Random number generation |
-| **String** | [String Processing](api-string.en.md) | String operations, encoding/decoding |
-| **Path** | [Path Processing](api-path.en.md) | File path operations |
-| **Time** | [Time Processing](api-time.en.md) | Date and time calculations |
-| **File** | [File Operations](api-file.en.md) | File read/write, directory management |
-| **Thread** | [Thread Management](api-thread.en.md) | Multi-threading support |
-| **Coroutine** | [Coroutine Runtime](api-coroutine.en.md) | Stackful coroutine runtime and scheduler |
-| **Hash** | [Hash Computation](api-hash.en.md) | 32/64-bit hash functions |
-| **Network** | [Network Functions](api-network.en.md) | Local network information |
-| **XID** | [Distributed ID](api-xid.en.md) | Unique ID generator |
-
-### 🔹 Data Structure Modules
-
-| Module | Documentation Link | Description |
-|--------|-------------------|-------------|
-| **Buffer** | [Dynamic Buffer](api-buffer.en.md) | Memory buffer management |
-| **Array** | [Struct Array](api-array.en.md) | Dynamic array |
-| **PtrArray** | [Pointer Array](api-ptrarray.en.md) | Pointer dynamic array |
-| **BSMM** | [Block Structured Memory](api-bsmm.en.md) | Block memory manager |
-| **MemUnit** | [Memory Unit](api-memunit.en.md) | 256-byte page management |
-| **FSMemPool** | [Fixed Size Memory Pool](api-mempool-fs.en.md) | Fixed size memory pool |
-| **Stack** | [Static Stack](api-stack.en.md) | Fixed depth stack |
-| **DynStack** | [Dynamic Stack](api-dynstack.en.md) | Variable depth stack |
-| **LList** | [Doubly Linked List](api-llist.en.md) | Linked list data structure |
-| **LList-Base** | [Linked List Base Operations](api-llist-base.en.md) | Low-level linked list operations |
-| **AVLTree** | [AVL Tree](api-avltree.en.md) | Balanced binary tree |
-| **AVLTree-Base** | [AVL Tree Base Operations](api-avltree-base.en.md) | Low-level AVL tree operations |
-| **MemPool** | [General Memory Pool](api-mempool.en.md) | Multi-level memory pool |
-| **Dict** | [Dictionary](api-dict.en.md) | Key-value storage |
-| **List** | [List](api-list.en.md) | Integer-indexed list |
-
-### 🔹 Advanced Modules
-
-| Module | Documentation Link | Description |
-|--------|-------------------|-------------|
-| **Value** | [Dynamic Type System](api-value.en.md) | 15 dynamic data types |
-| **JNUM** | [Number Conversion](api-jnum.en.md) | Number-string conversion |
-| **JSON** | [JSON Processing](api-json.en.md) | JSON parsing and generation |
-| **Template** | [Template Engine](api-template.en.md) | String template processing |
+[中文](README.md) | [Project Overview](/D:/git/xrt/README.en.md)
 
 ---
 
-## 📖 Quick Reference
+## Documentation Structure
 
-### Type Definition Quick Reference
+The current `docs/` tree is organized into 3 layers:
 
-#### Basic Types
-```c
-typedef unsigned char* str;        // String
-typedef char i8;                    // 8-bit integer
-typedef unsigned char u8;           // Unsigned 8-bit integer
-typedef short i16;                  // 16-bit integer
-typedef unsigned short u16;         // Unsigned 16-bit integer
-typedef int i32;                    // 32-bit integer
-typedef unsigned int u32;           // Unsigned 32-bit integer
-typedef long long i64;              // 64-bit integer
-typedef unsigned long long u64;     // Unsigned 64-bit integer
-typedef float f32;                  // 32-bit floating point
-typedef double f64;                 // 64-bit floating point
-typedef void* ptr;                  // Generic pointer
-typedef int64 xtime;                // Time type
-```
+### 1. Documentation Hub
 
-#### Data Structure Types
-```c
-typedef struct xbuffer_struct* xbuffer;       // Buffer
-typedef struct xparray_struct* xparray;       // Pointer array
-typedef struct xarray_struct* xarray;         // Struct array
-typedef struct xbsmm_struct* xbsmm;           // Block memory manager
-typedef struct xmemunit_struct* xmemunit;     // Memory unit
-typedef struct xfsmempool_struct* xfsmempool; // Fixed size memory pool
-typedef struct xstack_struct* xstack;         // Static stack
-typedef struct xdynstack_struct* xdynstack;   // Dynamic stack
-typedef struct xllist_struct* xllist;         // Doubly linked list
-typedef struct xavltree_struct* xavltree;     // AVL tree
-typedef struct xmempool_struct* xmempool;     // General memory pool
-typedef struct xdict_struct* xdict;           // Dictionary
-typedef struct xlist_struct* xlist;           // List
-typedef struct xvalue_struct* xvalue;         // Dynamic type
-typedef struct xfile_struct* xfile;           // File object
-typedef struct xthread_struct* xthread;       // Thread object
-typedef struct xid_struct* xid;               // Distributed ID
-```
+- Current page [README.en.md](README.en.md)
 
-### Common Functions Quick Reference
+Responsibilities:
 
-#### Initialization and Cleanup
-```c
-xrtGlobalData* xrtInit();           // Initialize library
-void xrtUnit();                      // Release library resources
-```
+- Explain the documentation structure
+- Provide a unified entry point
+- Point to the current official mainline
 
-Notes:
-- `xrtInit()` initializes the process-global runtime and automatically attaches the current thread
-- `xrtUnit()` detaches the current thread; global resources are released only when the global init refcount reaches zero
-- `xvoCreateArray/List/Coll/Table()` create local roots by default; use `xvoCreate*Ex(..., XRT_OBJMODE_SHARED)` for cross-thread sharing
-- On shared roots, top-level `xvalue` refcounting automatically enters the shared path; if you keep using underlying root pointers, walks, or iterators directly, pair them with the matching `Lock/Unlock` APIs
+### 2. API Reference
 
-#### Memory Management
-```c
-ptr xrtMalloc(size_t iSize);                 // Allocate memory
-ptr xrtCalloc(size_t iNum, size_t iSize);   // Allocate and zero-fill
-ptr xrtRealloc(ptr pMem, size_t iSize);     // Reallocate
-void xrtFree(ptr pmem);                      // Free memory
-ptr xrtTempMemory(size_t iSize);            // Thread-local temporary memory
-str xrtGetError();                           // Get current-thread error message
-```
+- [API Index](api/README.en.md)
 
-#### String Operations
-```c
-str xrtCopyStr(str sText, size_t iSize);                     // Copy string
-str xrtFindStr(str sText, size_t iSize, str sSubText, ...); // Find string
-str xrtReplace(str sText, ..., str sRepText, ...);          // Replace string
-str* xrtSplit(str sText, ..., str sSepText, ...);           // Split string
-str xrtFormat(str sFormat, ...);                             // Format string
-```
+Responsibilities:
 
-#### File Operations
-```c
-xfile xrtOpen(str sPath, int bReadOnly, int iCharset);  // Open file
-void xrtClose(xfile objFile);                            // Close file
-str xrtFileReadAll(str sPath, int iCharset);            // Read all content
-bool xrtFileWriteAll(str sPath, str sText, ...);        // Write all content
-bool xrtFileExists(str sPath);                           // Check if file exists
-```
+- Types
+- Core runtime
+- Threads and coroutines
+- future / task / promise / wait-source
+- Memory and containers
+- Data and text handling
+- Current network mainline APIs
 
-#### Time Processing
-```c
-xtime xrtNow();                                          // Current time
-xtime xrtDateSerial(int64 iYear, int iMonth, int iDay); // Build date
-str xrtTimeToStr(xtime iTime, int iFormat);             // Time to string
-xtime xrtDateAdd(int interval, int64 iValue, xtime);    // Add/subtract time
-```
+### 3. Supporting Documents
 
-#### Value Dynamic Type
-```c
-xvalue xvoCreateNull();                                  // Create null
-xvalue xvoCreateInt(int64 iVal);                        // Create integer
-xvalue xvoCreateText(ptr sVal, uint32 iSize, bool);     // Create string
-xvalue xvoCreateArray();                                 // Create array
-xvalue xvoCreateTable();                                 // Create table
-void xvoUnref(xvalue pVal);                             // Release reference
-```
+Responsibilities:
 
----
+- Architecture
+- feature trimming macros
+- migration
+- FAQ
+- best practices
+- examples
+- performance notes
+- beginner guides
+- case studies
 
-## 🎯 Usage Guide
+To keep API docs, guides, and case studies from being mixed together, the structure is explicitly defined as:
 
-### 1. Library Initialization
+- `docs/api/`: API contracts, module capabilities, current mainline behavior
+- `docs/guide/`: beginner guides, progressive tutorials, concept explanations
+- `docs/case/`: complete cases, combined usage, real-world walkthroughs
 
-Before using any XRT functions, you must initialize:
+When adding new documents later, decide first whether they are:
 
-```c
-#include "xrt.h"
+- contract / reference documents
+- or guide / case documents
 
-int main() {
-    // Initialize XRT library
-    xrtGlobalData* xCore = xrtInit();
-    
-    // Use XRT functions
-    // ...
-    
-    // Clean up resources
-    xrtUnit();
-    return 0;
-}
-```
+then place them in the proper subdirectory.
 
-### 2. Memory Management Guidelines
 
-**Functions requiring release:**
-- All functions annotated with "requires xrtFree to release"
-- Memory allocated with `xrtMalloc/xrtCalloc/xrtRealloc`
+## Current Mainline Entry Points
 
-**Functions not requiring release:**
-- `xrtTempMemory` - Uses thread-local temporary memory, automatically managed
-- Functions returning constant strings
+### Project Positioning
 
-Runtime notes:
-- The bootstrap thread is attached automatically after `xrtInit()`
-- Threads created by `xrtThreadCreate()` are attached automatically and can call runtime-bound APIs directly
-- Host-created threads that need runtime-bound APIs should call `xrtThreadAttachCurrent()` before use and `xrtThreadDetachCurrent()` before exit
+- Root [README.en.md](/D:/git/xrt/README.en.md)
 
-### 3. Character Set Handling
+### API Reference
 
-XRT supports multiple character set encodings:
+- [API Index](api/README.en.md)
 
-```c
-// Character set constants
-XRT_CP_AUTO     // Auto-detect
-XRT_CP_BINARY   // Binary
-XRT_CP_OEM      // Native encoding
-XRT_CP_UTF8     // UTF-8
-XRT_CP_UTF16    // UTF-16
-XRT_CP_UTF32    // UTF-32
-```
+The most important API mainline documents to read first are:
 
-### 4. Error Handling
+- [Base Runtime](api/api-base.en.md)
+- [Thread Runtime](api/api-thread.en.md)
+- [Coroutine Runtime](api/api-coroutine.en.md)
+- [Future / Task / Promise](api/api-future-task-promise.en.md)
+- [XNet v2](api/api-xnet-v2.en.md)
+- [Network TLS](api/api-network-tls.en.md)
+- [XHTTP](api/api-xhttp.en.md)
+- [XHTTPD](api/api-xhttpd.en.md)
+- [XWS](api/api-xws.en.md)
 
-```c
-// Set error callback
-void OnError(str sError) {
-    printf("Error: %s\n", sError);
-}
+### Architecture and Baseline Documents
 
-xCore->OnError = OnError;
+- [Architecture](ARCHITECTURE.en.md)
+- [Feature Trimming Macros](FEATURE_TRIMMING_MACROS.en.md)
 
-// Check for errors
-if (xrtGetError() != xCore->sNull) {
-    printf("Last Error: %s\n", xrtGetError());
-}
-```
+### Supporting Documents
+
+- [Migration Guide](MIGRATION.en.md)
+- [Best Practices](BEST_PRACTICES.en.md)
+- [FAQ](FAQ.en.md)
+- [Examples](EXAMPLES.en.md)
+- [Performance](PERFORMANCE.en.md)
+- [Guides](guide/README.en.md)
+- [Case Studies](case/README.en.md)
+
+
+## Current Documentation Rebuild Rules
+
+The rebuild currently follows these rules:
+
+- Chinese is fully rebuilt first
+- English is synchronized after the Chinese version is reviewed
+- API documents are grouped under `docs/api/`
+- obsolete old network/TLS documents are moved to `dev/` as archives
+- existing documents that are still valid must still be aligned against current code
+- missing documents for already-existing mainline features must be added before this phase is considered complete
+
+
+## Historical Documentation Note
+
+The following are no longer part of the current official documentation entry:
+
+- the legacy network module family
+- old `nettls`
+
+They have been moved out of `docs/` and are kept under `dev/` as archived historical material.
 
 ---
 
-## 📊 API Statistics
+## Suggested Reading Order
 
-| Category | Count |
-|----------|-------|
-| Basic Type Definitions | 30+ |
-| Macro Definitions | 150+ |
-| Data Structures | 25+ |
-| Function Declarations | 300+ |
-| Inline Functions | 20+ |
+If this is your first time entering the current XRT mainline, read in this order:
 
----
+1. [Project Overview](/D:/git/xrt/README.en.md)
+2. [Architecture](ARCHITECTURE.en.md)
+3. [API Index](api/README.en.md)
+4. [Examples](EXAMPLES.en.md)
+5. [Migration Guide](MIGRATION.en.md)
 
-## 📝 Documentation Conventions
+If you want to start writing code directly, read these first:
 
-### Function Prototype Format
+1. [Base](api/api-base.en.md)
+2. [Value](api/api-value.en.md)
+3. [Thread](api/api-thread.en.md)
+4. [Coroutine](api/api-coroutine.en.md)
+5. [Future / Task / Promise](api/api-future-task-promise.en.md)
+6. [XNet v2](api/api-xnet-v2.en.md)
 
-```c
-XXAPI ReturnType FunctionName(ParamType paramName, ...);
-```
+If you want the first full learning path after that, continue with:
 
-- `XXAPI` - Export marker (used for DLL compilation)
-- `size_t iSize` parameter - When value is 0, string length is calculated automatically
-- `bool bSrcRevise` - TRUE modifies source data, FALSE returns newly allocated memory
+1. [Runtime and Thread Attach](guide/runtime-thread-attach.en.md)
+2. [xvalue and JSON Intro](guide/xvalue-json-intro.en.md)
+3. [Coroutine, Future, and Task Intro](guide/coroutine-future-task-intro.en.md)
+4. [xnet-v2 and TLS Mainline Intro](guide/xnet-v2-tls-intro.en.md)
+5. [Streaming LLM API Intro](guide/streaming-llm-api-intro.en.md)
 
-### Memory Release Labels
+If you prefer complete combined examples, continue with:
 
-- ✅ **Requires Release** - Must be released with `xrtFree`
-- ⭕ **Auto-managed** - Managed automatically by the library
-- 🔄 **Reference Counted** - Release with `xvoUnref`
-
----
-
-## 🔗 Related Links
-
-- [Project Home](../README.md)
-- [Quick Start](../README.md#quick-start)
-- [Example Code](../test/)
-- [License](../README.md#license)
-
----
-
-<div align="center">
-
-**XRT API Documentation** | Version 1.0 | Last Updated: 2025-01
-
-</div>
+1. [Minimal HTTP Service](case/minimal-http-service.en.md)
+2. [Thread, Coroutine, and Future Coordination](case/thread-coroutine-future.en.md)
+3. [Streaming LLM API](case/streaming-llm-api.en.md)
+4. [HTTP + JSON + Template Full Chain](case/http-json-template-chain.en.md)
+5. [xnet-v2 Stream Wait-Source Walkthrough](case/xnet-stream-wait-source.en.md)

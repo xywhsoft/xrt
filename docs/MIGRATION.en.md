@@ -1,555 +1,364 @@
 # XRT Migration Guide
 
-> Guide for migrating from other libraries to XRT, and upgrading between XRT versions
+> Migration notes for the current mainline. This document no longer treats old network/TLS public surfaces as long-term compatibility targets. Its goal is to help you move onto the current formal mainline.
 
-[Chinese Version](MIGRATION.md) | [Back to Index](README.md)
+[中文](MIGRATION.md) | [Back to Docs Hub](README.en.md)
 
 ---
 
-## 📑 Table of Contents
+## Contents
 
-- [Migration from Standard Library](#migration-from-standard-library)
-- [Migration from Common Libraries](#migration-from-common-libraries)
-- [Version Migration](#version-migration)
+- [Current Migration Principles](#current-migration-principles)
+- [Source Tree and Single Header](#source-tree-and-single-header)
+- [Runtime Migration](#runtime-migration)
+- [Thread Migration](#thread-migration)
+- [Container and Shared Root Migration](#container-and-shared-root-migration)
+- [Coroutine and Async Mainline Migration](#coroutine-and-async-mainline-migration)
+- [Network and TLS Migration](#network-and-tls-migration)
 - [Migration Checklist](#migration-checklist)
 
 ---
 
-## Migration from Standard Library
+## Current Migration Principles
 
-### 1. String Processing
+This migration round follows 3 principles:
 
-#### C Standard Library → XRT
+1. treat the current source mainline as the single source of truth
+2. do not carry long-term compatibility baggage for old surfaces that have not been widely adopted
+3. if something can be collapsed into one mainline, do not keep dual public surfaces alive
 
-```c
-// ❌ C Standard Library approach
-#include <string.h>
-char* result = malloc(strlen(s1) + strlen(s2) + 1);
-strcpy(result, s1);
-strcat(result, s2);
-free(result);
+So the focus is not:
 
-// ✅ XRT approach (recommended)
-#include "xrt.h"
-xrtInit();
-str result = xrtFormat("%s%s", s1, s2);
-xrtFree(result);
-xrtUnit();
-```
+- “keep every old API alive forever”
 
-**Advantages**:
-- Automatic memory management, no manual free needed
-- Built-in safety checks
-- Supports formatted strings
+but instead:
 
-**API Mapping Table**:
-
-| C Standard Library | XRT API | Description |
-|--------------------|---------|-------------|
-| strlen | xrtStrLen | String length |
-| strcpy | xrtCopyStr | Copy string |
-| strcmp | xrtCmpStr | Compare strings |
-| strstr | xrtFindStr | Find string |
-| malloc+free | xrtTempMemory | Thread-local temporary memory |
-| sprintf | xrtFormat | Format string |
+- move onto the current formal mainline quickly
+- make future API freezing cleaner
 
 ---
 
-### 2. Time Processing
+## Source Tree and Single Header
+
+### 1. The source tree is the current explanation model
+
+Recommended:
+
+```bash
+gcc main.c xrt.c -o app
+```
+
+or:
+
+```bash
+tcc main.c xrt.c -o app.exe
+```
+
+The current docs and examples explain the mainline through the source-tree model.
+
+### 2. Single-header distribution still exists, but it is no longer the default migration target
+
+If old code still uses:
 
 ```c
-// ❌ C Standard Library approach
-#include <time.h>
-time_t now = time(NULL);
-struct tm* t = localtime(&now);
-char buf[100];
-strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", t);
-
-// ✅ XRT approach (recommended)
-#include "xrt.h"
-xrtInit();
-xtime now = xrtNow();
-str formatted = xrtTimeToStr(now, "%Y-%m-%d %H:%M:%S");
-printf("%s\n", formatted);
-xrtFree(formatted);
-xrtUnit();
-```
-
-**API Mapping Table**:
-
-| C Standard Library | XRT API | Description |
-|--------------------|---------|-------------|
-| time | xrtNow | Current timestamp |
-| localtime | xrtToLocal | Convert to local time |
-| strftime | xrtTimeToStr | Format time |
-| mktime | xrtToSerial | Create from time components |
-
----
-
-## Migration from Common Libraries
-
-### 1. JSON Processing
-
-#### cJSON → XRT
-
-```c
-// ❌ cJSON approach
-#include "cJSON.h"
-cJSON* root = cJSON_Parse(json_str);
-cJSON* name = cJSON_GetObjectItem(root, "name");
-const char* name_value = name->valuestring;
-cJSON_Delete(root);
-
-// ✅ XRT approach (recommended)
-#include "xrt.h"
-xrtInit();
-xvalue data = xrtParseJSON(json_str, 0);
-str name = xvoTableGetText(data, "name", 4);
-printf("Name: %s\n", name);
-xvoUnref(data);
-xrtUnit();
-```
-
-**Migration Steps**:
-1. Replace `#include "cJSON.h"` with `#define XRT_IMPLEMENTATION #include "xrt.h"`
-2. Change `cJSON_Parse` to `xrtParseJSON`
-3. Change `cJSON_GetObjectItem` to `xvoTableGetValue`
-4. Change `cJSON_GetObjectItemCaseSensitive` to `xvoTableGetValue`
-5. Change `cJSON_Delete` to `xvoUnref`
-6. Reference counting automatically managed, no need to manually free child nodes
-
-**API Comparison**:
-
-| cJSON | XRT API | Description |
-|-------|---------|-------------|
-| cJSON_Parse | xrtParseJSON | Parse JSON string |
-| cJSON_CreateObject | xvoCreateTable | Create object |
-| cJSON_CreateArray | xvoCreateArray | Create array |
-| cJSON_AddStringToObject | xvoTableSetText | Add string |
-| cJSON_GetObjectItem | xvoTableGetValue | Get value |
-| cJSON_Delete | xvoUnref | Free object |
-
----
-
-### 2. String Processing
-
-#### GLib/GString → XRT
-
-```c
-// ❌ GLib approach
-#include <glib.h>
-GString* str = g_string_new("Hello");
-g_string_append(str, " World");
-char* result = str->str;
-g_string_free(str);
-
-// ✅ XRT approach (recommended)
-#include "xrt.h"
-xrtInit();
-str result = xrtFormat("%s %s", "Hello", "World");
-// ... use result ...
-xrtFree(result);
-xrtUnit();
-```
-
----
-
-### 3. Data Structures
-
-#### std::vector → XRT Array
-
-```cpp
-// ❌ C++ std::vector approach
-#include <vector>
-std::vector<int> vec;
-vec.push_back(1);
-vec.push_back(2);
-vec.push_back(3);
-int value = vec[1]; // 2
-
-// ✅ XRT Array approach (recommended)
-#include "xrt.h"
-xrtInit();
-xvalue arr = xvoCreateArray();
-xvoArrayAppendInt(arr, 1);
-xvoArrayAppendInt(arr, 2);
-xvoArrayAppendInt(arr, 3);
-int64 value = xvoArrayGetInt(arr, 1); // 2
-xvoUnref(arr);
-xrtUnit();
-```
-
-#### std::map → XRT Table
-
-```cpp
-// ❌ C++ std::map approach
-#include <map>
-std::map<std::string, int> map;
-map["name"] = 123;
-int value = map["name"];
-
-// ✅ XRT Table approach (recommended)
-#include "xrt.h"
-xrtInit();
-xvalue table = xvoCreateTable();
-xvoTableSetInt(table, "name", 4, 123);
-int64 value = xvoTableGetInt(table, "name", 4);
-xvoUnref(table);
-xrtUnit();
-```
-
----
-
-### 4. HTTP Client
-
-#### libcurl → XRT
-
-```c
-// ❌ libcurl approach
-#include <curl/curl.h>
-CURL* curl = curl_easy_init();
-curl_easy_setopt(curl, CURLOPT_URL, "https://api.example.com");
-CURLcode res = curl_easy_perform(curl);
-curl_easy_cleanup(curl);
-
-// ✅ XRT HTTP client (recommended)
-#include "xrt.h"
-xrtInit();
-xvalue result = xrtHttpGet("https://api.example.com", NULL, NULL, NULL);
-if (result && xvoGetInt(result, 0) == 200) {
-    str body = xvoTableGetText(result, "body", 4);
-    printf("Response: %s\n", body);
-}
-xvoUnref(result);
-xrtUnit();
-```
-
----
-
-## Version Migration
-
-### Migrating from XRT 1.x to 2.x
-
-#### Major Changes
-
-1. **Header Inclusion Method Change**
-
-```c
-// ❌ Old method (1.x)
-#include "xrt/all.h"
-
-// ✅ New method (2.x)
 #define XRT_IMPLEMENTATION
 #include "xrt.h"
 ```
 
-2. **Initialization/Cleanup**
-
-```c
-// ❌ Old method (1.x)
-// No initialization needed
-
-// ✅ New method (2.x)
-xrtInit();
-// ... use XRT ...
-xrtUnit();  // Automatically detect memory leaks
-```
-
-3. **Value API Renaming**
-
-| Old API (1.x) | New API (2.x) | Description |
-|---------------|---------------|-------------|
-| xValueCreateInt | xvoCreateInt | Function name changed |
-| xValueCopy | xvoCopy | Function name changed |
-| xValueUnref | xvoUnref | Function name changed |
+that does not mean it stops working immediately; but if you are migrating a long-lived codebase, prefer moving to the source tree first.
 
 ---
 
-### Migrating from XRT 2.x to 3.x
+## Runtime Migration
 
-#### Major Changes
+### 1. Move from “global error/temp state” to thread runtime state
 
-1. **Runtime State Split**
+Older habits often treated errors and temporary state as globally shared.
+
+The current mainline now separates:
+
+- process-level state
+- thread-level state
+
+Migration focus:
+
+- use `xrtGetError()` instead of depending on `xCore.LastError`
+- treat `xrtTempMemory()` as thread-local temporary memory
+- understand that the default random generators also belong to the current thread state
+
+### 2. `xrtInit()` / `xrtUnit()` remain the formal entry and exit points
 
 ```c
-// Old habit: error state and temp memory mixed into xCore
-printf("%s\n", xCore.LastError);
-
-// New habit: error state and temp memory belong to the current thread
-printf("%s\n", xrtGetError());
+xrtInit();
+/* ... */
+xrtUnit();
 ```
 
-2. **Thread Attach Model**
+Any program that uses runtime-bound thread state should keep this pair.
+
+---
+
+## Thread Migration
+
+### 1. Main thread and XRT-created threads are attached automatically
+
+The current formal contract is:
+
+- main thread: attached automatically after `xrtInit()`
+- thread created by `xrtThreadCreate()`: attached automatically
+
+### 2. Host-created threads must attach explicitly
+
+If the thread was not created by `xrtThreadCreate()`, migrate it to:
 
 ```c
-// Bootstrap thread
-xrtInit();  // Automatically attaches the current thread
-
-// XRT-managed thread
-xthread th = xrtThreadCreate(procWorker, pArg, 0);  // Automatically attaches the new thread
-
-// Host-created thread
 xrtThreadAttachCurrent();
-// ... use runtime-bound APIs ...
+/* ... use runtime-bound APIs ... */
 xrtThreadDetachCurrent();
 ```
 
-3. **Stricter Thread Destroy Semantics**
+### 3. `Destroy` semantics are stricter now
+
+Old habit:
 
 ```c
-// Old habit: destroy the thread object directly
-xrtThreadDestroy(th);
-
-// New habit: wait first, then destroy the thread object
-xrtThreadWait(th);
-xrtThreadDestroy(th);
+xrtThreadDestroy(pThread);
 ```
 
-4. **Cross-thread containers now use explicit shared roots**
+Current recommendation:
 
 ```c
-// Old habit: cross-thread objects still used default constructors
-xvalue table = xvoCreateTable();
-xvalue tags = xvoCreateColl();
-
-// New habit: cross-thread roots are explicitly declared shared
-xvalue table = xvoCreateTableEx(XRT_OBJMODE_SHARED);
-xvalue tags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
-xvoCollSetText(tags, "ai", 0, FALSE);
-xvoTableSetValue(table, "tags", 4, tags, FALSE);
+xrtThreadWait(pThread);
+xrtThreadDestroy(pThread);
 ```
 
-Notes:
-- `xvoCreateArray/List/Coll/Table()` are still the right default for single-thread local objects
-- shared containers accept primitive values or nested container values that already own a real shared root
-- if you want to store `list/coll/table/array` as child values inside a shared container, create that child container as a shared root first
+`Destroy` only releases the thread management object now. It no longer stands in for “implicit detach / terminate thread”.
+
+---
+
+## Container and Shared Root Migration
+
+This is one of the most important migration areas.
+
+### 1. Default containers are now local roots
+
+These default constructors create thread-local objects:
+
+- `xvoCreateArray()`
+- `xvoCreateList()`
+- `xvoCreateColl()`
+- `xvoCreateTable()`
+
+### 2. Cross-thread sharing now requires explicit shared roots
+
+Old style:
+
+```c
+xvalue pTable = xvoCreateTable();
+xvalue pTags = xvoCreateColl();
+```
+
+New style:
+
+```c
+xvalue pTable = xvoCreateTableEx(XRT_OBJMODE_SHARED);
+xvalue pTags = xvoCreateCollEx(XRT_OBJMODE_SHARED);
+xvoCollSetText(pTags, "ai", 0, FALSE);
+xvoTableSetValue(pTable, "tags", 4, pTags, FALSE);
+```
+
+### 3. Nested shared containers must also be shared
+
+If an array/list/coll/table is inserted into a shared container as a child, and it must also participate in cross-thread sharing, that child container itself must be a real shared root.
+
+Otherwise the current mainline rejects the operation instead of silently mixing local and shared objects.
+
+### 4. Shared does not mean “everything is lock-free”
+
+Shared roots solve whether an object may be shared across threads. They do not automatically guarantee that:
+
+- walk
+- iterator
+- pointer view
+
+are all naturally safe without locks. Complex traversal should still use explicit root locking.
+
+---
+
+## Coroutine and Async Mainline Migration
+
+### 1. Coroutine high-level abstractions are now stable
+
+You should think in terms of:
+
+- coroutines for execution and suspension
+- scheduler for orchestration
+- event / deadline for native waiting
+- future / task / promise / wait-source for the unified async mainline
+
+### 2. Prefer migrating waits onto future / wait-source
+
+If old coroutine code still implements its own polling loop, migrate it to:
+
+- `xFutureWaitCo*`
+- `xrtNetFutureWaitCo*`
+- `xrtNetWaitSourceWaitCo*`
+
+This lets coroutines, threads, and network waits all share the same async model.
+
+### 3. Current-thread deferred continuation now auto-pumps
+
+If you have already migrated to:
+
+- `ThenCurrent`
+- `CatchCurrent`
+- `FinallyCurrent`
+
+then `xFutureWait*()` on the current thread will automatically advance these continuations. You no longer need to manually pump every step.
+
+### 4. The new async mainline is not just a set of future helpers
+
+The formal migration target should be understood as:
+
+- `xfuture`
+- `xpromise`
+- `xtask`
+- `xwaitsrc`
+- `task group`
+- `nested scope`
+
+If old code currently has:
+
+- one callback model for thread tasks
+- another callback model for coroutine tasks
+- another wait model for network async
+
+then the migration goal should be to collapse them into this unified mainline rather than preserving multiple result models.
+
+### 5. Scope-shaped concurrency should migrate to `task group`
+
+If old code has:
+
+- a set of child tasks running concurrently
+- a parent waiting for all of them
+- cancellation that must propagate downward
+
+then after migration you should prefer:
+
+- `xTaskGroupRun*`
+- `xTaskGroupJoin*`
+- `xTaskGroupCreateChild`
+
+instead of continuing to hand-manage arrays of futures and cancellation chains.
+
+---
+
+## Network and TLS Migration
+
+### 1. The old network mainline is retired
+
+It is no longer recommended to keep building long-term code around:
+
+- `nettcp`
+- `netudp`
+- `nethttp`
+- `netpoll`
+
+Prefer moving to:
+
+- `xnet-v2`
+- `xtlssession`
+- `xhttp`
+- `xhttpd`
+- `xws`
+
+### 2. TLS has been collapsed into one formal public surface
+
+Old public surface:
+
+- `xtlsctx`
+- `xrtTls*`
+
+It is no longer the formal outward-facing mainline.
+
+Migration target:
+
+- `xtlssession`
+- `xrtNetTlsSession*`
+
+### 3. Recommended migration order
+
+If you are migrating old networking logic, do it in this order:
+
+1. move to low-level `xnet-v2`
+2. move waits onto `future / wait-source`
+3. switch to TLS sessions
+4. then move to `xhttp / xhttpd / xws`
+
+This minimizes risk and matches the current architecture more closely.
+
+### 4. Do not keep migrating the application layer around old public surfaces
+
+If you are migrating:
+
+- an HTTP client
+- an HTTP server
+- a WebSocket service
+
+then build the new mainline directly around:
+
+- `xhttp`
+- `xhttpd`
+- `xws`
+
+instead of wrapping old TCP / HTTP surfaces and extending the historical chain.
 
 ---
 
 ## Migration Checklist
 
-### Pre-Migration Preparation
+### Entry and Build
 
-- [ ] Read target API documentation
-- [ ] Backup existing code
-- [ ] Test existing functionality
-- [ ] Identify dependencies
+- [ ] the mainline build has been moved to the source-tree model
+- [ ] `xrtInit()` / `xrtUnit()` remain in place
 
-### Code Migration
+### Runtime
 
-- [ ] Update header inclusions
-- [ ] Replace API function calls
-- [ ] Update data types
-- [ ] Modify memory management code
-- [ ] Move cross-thread container roots to `xvoCreate*Ex(..., XRT_OBJMODE_SHARED)`
-- [ ] Test compilation passes
+- [ ] no direct dependence on `xCore.LastError`
+- [ ] runtime-bound APIs are understood through `xrtGetError()` / `xrtTempMemory()`
+- [ ] host-created threads explicitly use `AttachCurrent / DetachCurrent`
 
-### Functionality Verification
+### Concurrency
 
-- [ ] Unit tests
-- [ ] Integration tests
-- [ ] Performance tests
-- [ ] Memory leak detection
-- [ ] Boundary condition tests
+- [ ] `xrtThreadDestroy()` usage is updated to `Wait -> Destroy`
+- [ ] coroutine waits are migrated to future / wait-source where possible
 
-### Optimization and Adjustment
+### Containers
 
-- [ ] Optimize based on performance tests
-- [ ] Adjust APIs based on usage
-- [ ] Remove unused code
+- [ ] cross-thread containers use `xvoCreate*Ex(XRT_OBJMODE_SHARED)`
+- [ ] nested containers inside shared roots are also explicitly shared
+- [ ] complex shared traversal uses root locking
+
+### Networking
+
+- [ ] new logic is built on `xnet-v2`
+- [ ] TLS has been migrated to `xtlssession`
+- [ ] no new code is added on top of retired old network public surfaces
 
 ---
 
-## Common Migration Scenarios
+## Related Documents
 
-### Scenario 1: Migrating from C++ to Pure C
-
-```c
-// C++ code (old)
-class Person {
-public:
-    std::string name;
-    int age;
-    std::vector<Person*> friends;
-};
-
-// XRT code (new)
-typedef struct {
-    str name;
-    int age;
-    xvalue friends;  // Array
-} Person;
-
-void create_person(Person* p) {
-    p->name = xrtCopyStr("Alice", 0);
-    p->age = 25;
-    p->friends = xvoCreateArray();
-}
-
-void free_person(Person* p) {
-    xrtFree(p->name);
-    xvoUnref(p->friends);
-}
-```
+- [Project Overview](/D:/git/xrt/README.en.md)
+- [Architecture](ARCHITECTURE.en.md)
+- [API Index](api/README.en.md)
+- [Thread](api/api-thread.en.md)
+- [Coroutine](api/api-coroutine.en.md)
+- [Future / Task / Promise](api/api-future-task-promise.en.md)
+- [Value](api/api-value.en.md)
+- [XNet V2](api/api-xnet-v2.en.md)
+- [Network TLS](api/api-network-tls.en.md)
 
 ---
 
-### Scenario 2: Migrating from Multi-file Project
-
-```c
-// Old method (multi-file)
-// utils.h / utils.c
-// json.h / json.c
-// config.h / config.c
-// ... need to compile multiple files
-
-// New method (single file)
-#define XRT_IMPLEMENTATION
-#include "xrt.h"  // Only need one file
-// All features automatically available
-```
-
----
-
-### Scenario 3: Migrating from Dynamic Library to Static Library
-
-```bash
-# Old method (dynamic library)
-gcc -o program program.c -lxrt -L./lib
-./program
-
-# New method (static library)
-gcc -o program program.c -DXRT_IMPLEMENTATION ./xrt.h
-./program
-```
-
----
-
-## Performance Comparison
-
-### Performance Comparison Before and After Migration
-
-| Operation | Standard Library | XRT | Improvement |
-|-----------|------------------|-----|-------------|
-| String concatenation | 0.5ms | 0.1ms | 5x |
-| JSON parsing (100KB) | 5ms | 1ms | 5x |
-| JSON generation | 3ms | 0.6ms | 5x |
-| Memory allocation (1000 times) | 2ms | 0.5ms | 4x |
-| Dictionary lookup | 0.1ms | 0.04ms | 2.5x |
-
----
-
-## Tools and Scripts
-
-### Automated Migration Script
-
-```python
-#!/usr/bin/env python3
-import re
-import sys
-
-def migrate_c_file(input_file, output_file):
-    """Migrate C file to XRT"""
-    with open(input_file, 'r') as f:
-        content = f.read()
-    
-    # Add XRT header
-    content = '#define XRT_IMPLEMENTATION\n#include "xrt.h"\n' + content
-    
-    # Replace standard library functions
-    replacements = [
-        ('strlen(', 'xrtStrLen('),
-        ('strcpy(', 'xrtCopyStr('),
-        ('strcmp(', 'xrtCmpStr('),
-        ('malloc(', 'xrtMalloc('),
-        ('free(', 'xrtFree('),
-    ]
-    
-    for old, new in replacements:
-        content = content.replace(old, new)
-    
-    with open(output_file, 'w') as f:
-        f.write(content)
-
-if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <input.c> <output.c>")
-        sys.exit(1)
-    
-    migrate_c_file(sys.argv[1], sys.argv[2])
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-#### Issue 1: Compilation Error - Undefined Symbol
-
-**Error Message**:
-```
-undefined reference to `xrtMalloc'
-```
-
-**Solution**:
-```c
-// Ensure this is added before using XRT API
-#define XRT_IMPLEMENTATION
-#include "xrt.h"
-```
-
----
-
-#### Issue 2: Link Error
-
-**Error Message**:
-```
-undefined reference to `xrtInit'
-```
-
-**Solution**:
-- Ensure only one source file defines `XRT_IMPLEMENTATION`
-- Other files directly `#include "xrt.h"` (without defining `XRT_IMPLEMENTATION`)
-
----
-
-#### Issue 3: Memory Leak
-
-**Problem Symptoms**:
-```bash
-valgrind --leak-check=full ./program
-# Reports memory leaks
-```
-
-**Solution**:
-1. Ensure calling `xrtInit()` and `xrtUnit()`
-2. Call `xrtFree` for all memory allocated with `xrtMalloc`
-3. Call `xvoUnref` for all values created with `xvoCreate*`
-4. Use `xrtTempMemory` only for short-lived temporary data inside an attached thread
-
----
-
-## Summary
-
-### Migration Recommendations
-
-1. **Gradual Migration**: Do not migrate all code at once
-2. **Keep Backups**: Ensure code is backed up before migration
-3. **Adequate Testing**: Perform thorough testing after each migration
-4. **Performance Monitoring**: Monitor performance changes after migration
-5. **Documentation**: Record issues and solutions encountered during migration
-
-### Migration Benefits
-
-After migrating to XRT, you will gain:
-
-1. ✅ **Fewer Dependencies**: Only one header file needed
-2. ✅ **Better Performance**: High-performance memory management and data structures
-3. ✅ **Simpler Code**: Concise APIs, reduced boilerplate code
-4. ✅ **Better Maintainability**: Unified memory management, reduced memory leaks
-5. ✅ **Cross-platform Support**: Full compatibility with Windows/Linux/macOS
-
----
-
-**XRT Migration Guide Version: 1.0** | **Last Updated: 2025-01**
+**XRT Migration Guide Version: current mainline rebuild edition**

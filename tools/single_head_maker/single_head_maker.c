@@ -134,6 +134,13 @@ char* ReadFileContent(const char* path)
 	
 	content[readSize] = '\0';
 	fclose(fp);
+
+	if ( readSize >= 3 &&
+		(unsigned char)content[0] == 0xEF &&
+		(unsigned char)content[1] == 0xBB &&
+		(unsigned char)content[2] == 0xBF ) {
+		memmove(content, content + 3, readSize - 2);
+	}
 	
 	return content;
 }
@@ -447,29 +454,29 @@ int MergeFiles(const char* xrtCPath, const char* sourceDir, const char* outputFi
 		fclose(out);
 		return 0;
 	}
-	
+
 	g_ProcessedCount = 0;
 	int implLines = 0;
-	
+
 	printf("Processing implementation file...\n");
 	ProcessIncludes(out, xrtCPath, 0, &implLines, sourceDir, "xrt.h");
 	printf("  Implementation processed: %d lines\n", implLines);
 	printf("  Files processed: %d\n\n", g_ProcessedCount);
-	
+
 	if ( !WriteImplementationFooter(out) ) {
 		fclose(out);
 		return 0;
 	}
-	
+
 	if ( !WriteFooter(out) ) {
 		fclose(out);
 		return 0;
 	}
-	
+
 	fclose(out);
-	
+
 	totalLines += implLines;
-	
+
 	printf("✅ Successfully generated single header file\n");
 	printf("   Total lines: %d (header: %d, implementation: %d)\n", totalLines, totalLines - implLines, implLines);
 	printf("   Output: %s\n\n", outputFile);
