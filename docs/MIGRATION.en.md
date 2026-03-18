@@ -349,7 +349,7 @@ instead of wrapping old TCP / HTTP surfaces and extending the historical chain.
 
 ## Related Documents
 
-- [Project Overview](/D:/git/xrt/README.en.md)
+- [Project Overview](../../README.en.md)
 - [Architecture](ARCHITECTURE.en.md)
 - [API Index](api/README.en.md)
 - [Thread](api/api-thread.en.md)

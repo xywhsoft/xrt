@@ -10,7 +10,7 @@
 
 XRT 当前 TLS 主线采用：
 
-- 内部核心实现：TLS 引擎核心仍在 [nettls.h](/D:/git/xrt/lib/nettls.h)
+- 内部核心实现：TLS 引擎核心仍在 [nettls.h](../../../lib/nettls.h)
 - 对外正式表面：`xtlssession` 与 `xrtNetTlsSession*`
 
 这意味着：

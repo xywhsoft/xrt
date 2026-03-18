@@ -2,7 +2,7 @@
 
 > XRT 当前正式文档入口。API 参考已统一收纳到 `docs/api/`，为后续零基础教学文档、范例解析文档和专题说明留出独立结构。
 
-[English](README.en.md) | [项目简介](/D:/git/xrt/README.md)
+[English](README.en.md) | [项目简介](../../README.md)
 
 ---
 
@@ -61,7 +61,7 @@
 
 ### 项目定位
 
-- 根目录 [README.md](/D:/git/xrt/README.md)
+- 根目录 [README.md](../../README.md)
 
 ### API 参考
 
@@ -122,7 +122,7 @@
 
 如果你是第一次进入 XRT 当前主线，建议按这个顺序阅读：
 
-1. [项目简介](/D:/git/xrt/README.md)
+1. [项目简介](../../README.md)
 2. [架构设计](ARCHITECTURE.md)
 3. [API 索引](api/README.md)
 4. [示例说明](EXAMPLES.md)

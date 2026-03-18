@@ -48,7 +48,7 @@ Goals:
 
 Suggested entry points:
 
-- [Project Overview](/D:/git/xrt/README.en.md)
+- [Project Overview](../../../README.en.md)
 - [Documentation Hub](../README.en.md)
 - [Architecture](../ARCHITECTURE.en.md)
 

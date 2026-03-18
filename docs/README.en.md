@@ -2,7 +2,7 @@
 
 > The current official documentation entry for XRT. API references are organized under `docs/api/`, leaving a clear structure for beginner guides, case studies, and topic-specific documents.
 
-[中文](README.md) | [Project Overview](/D:/git/xrt/README.en.md)
+[中文](README.md) | [Project Overview](../../README.en.md)
 
 ---
 
@@ -66,7 +66,7 @@ then place them in the proper subdirectory.
 
 ### Project Positioning
 
-- Root [README.en.md](/D:/git/xrt/README.en.md)
+- Root [README.en.md](../../README.en.md)
 
 ### API Reference
 
@@ -127,7 +127,7 @@ They have been moved out of `docs/` and are kept under `dev/` as archived histor
 
 If this is your first time entering the current XRT mainline, read in this order:
 
-1. [Project Overview](/D:/git/xrt/README.en.md)
+1. [Project Overview](../../README.en.md)
 2. [Architecture](ARCHITECTURE.en.md)
 3. [API Index](api/README.en.md)
 4. [Examples](EXAMPLES.en.md)

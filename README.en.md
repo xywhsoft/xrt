@@ -1,6 +1,6 @@
-# XRT
-
 <div align="center">
+
+# XRT
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Language: C](https://img.shields.io/badge/language-C-brightgreen.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
@@ -11,6 +11,8 @@
 English | [简体中文](README.md)
 
 </div>
+
+**Documentation:** [Docs Home](docs/README.en.md) | [API Index](docs/api/README.en.md) | [Guides](docs/guide/README.en.md) | [Cases](docs/case/README.en.md)
 
 
 ## Positioning
@@ -375,8 +377,8 @@ There is already measured evidence that the modern XRT network mainline is pushi
 
 Current benchmark references:
 
-- [XNET Compare Baseline (2026-03-14)](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
-- [Builtin TLS Validation and Benchmark Report (2026-03-15)](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+- [XNET Compare Baseline (2026-03-14)](../dev/bench/XNET_COMPARE_20260314.md)
+- [Builtin TLS Validation and Benchmark Report (2026-03-15)](../dev/bench/TLS_BENCH_20260315.md)
 
 Representative results include:
 
@@ -618,10 +620,10 @@ tcc -m64 main.c xrt.c -o app.exe -lws2_32 -liphlpapi
 
 ## Documentation
 
-- Main docs index: [docs/README.en.md](/D:/git/xrt/docs/README.en.md)
-- Next-stage roadmap: [dev/XRT_ROADMAP_NEXT.md](/D:/git/xrt/dev/XRT_ROADMAP_NEXT.md)
-- Network benchmarks: [dev/bench/XNET_COMPARE_20260314.md](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
-- TLS validation: [dev/bench/TLS_BENCH_20260315.md](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+- Main docs index: [docs/README.en.md](docs/README.en.md)
+- Next-stage roadmap: [dev/XRT_ROADMAP_NEXT.md](dev/XRT_ROADMAP_NEXT.md)
+- Network benchmarks: [dev/bench/XNET_COMPARE_20260314.md](dev/bench/XNET_COMPARE_20260314.md)
+- TLS validation: [dev/bench/TLS_BENCH_20260315.md](dev/bench/TLS_BENCH_20260315.md)
 
 
 ## Acknowledgements

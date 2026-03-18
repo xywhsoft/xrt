@@ -48,7 +48,7 @@
 
 建议入口：
 
-- [项目简介](/D:/git/xrt/README.md)
+- [项目简介](../../../README.md)
 - [文档中心](../README.md)
 - [架构设计](../ARCHITECTURE.md)
 

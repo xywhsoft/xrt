@@ -96,9 +96,9 @@ XRT 追求的不是“单个函数跑分漂亮”，而是：
 
 当前已经有正式 bench 资产，位于：
 
-- [XNET_COMPARE_20260314.md](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
-- [XRT_FOUNDATION_BENCHMARK_METHOD.md](/D:/git/xrt/dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
-- [TLS_BENCH_20260315.md](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+- [XNET_COMPARE_20260314.md](../../dev/bench/XNET_COMPARE_20260314.md)
+- [XRT_FOUNDATION_BENCHMARK_METHOD.md](../../dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
+- [TLS_BENCH_20260315.md](../../dev/bench/TLS_BENCH_20260315.md)
 
 这些文档已经建立了：
 
@@ -264,14 +264,14 @@ XRT 追求的不是“单个函数跑分漂亮”，而是：
 
 ## 相关文档
 
-- [项目简介](/D:/git/xrt/README.md)
+- [项目简介](../../README.md)
 - [架构设计](ARCHITECTURE.md)
 - [最佳实践](BEST_PRACTICES.md)
 - [XNet V2](api/api-xnet-v2.md)
 - [Future / Task / Promise](api/api-future-task-promise.md)
-- [性能基线方法](/D:/git/xrt/dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
-- [XNet 对比基线](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
-- [TLS 基线](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+- [性能基线方法](../../dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
+- [XNet 对比基线](../../dev/bench/XNET_COMPARE_20260314.md)
+- [TLS 基线](../../dev/bench/TLS_BENCH_20260315.md)
 
 ---
 

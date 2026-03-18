@@ -1,6 +1,6 @@
-# XRT
-
 <div align="center">
+
+# XRT
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![Language: C](https://img.shields.io/badge/language-C-brightgreen.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
@@ -11,6 +11,8 @@
 [English](README.en.md) | 简体中文
 
 </div>
+
+**文档入口：** [中文文档](docs/README.md) | [API 索引](docs/api/README.md) | [教学文档](docs/guide/README.md) | [案例文档](docs/case/README.md)
 
 
 ## 项目定位
@@ -385,8 +387,8 @@ XRT 不是以“功能全但速度慢”为代价换能力。
 
 来自当前基准文档：
 
-- [XNET Compare Baseline (2026-03-14)](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
-- [Builtin TLS Validation and Benchmark Report (2026-03-15)](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+- [XNET Compare Baseline (2026-03-14)](../dev/bench/XNET_COMPARE_20260314.md)
+- [Builtin TLS Validation and Benchmark Report (2026-03-15)](../dev/bench/TLS_BENCH_20260315.md)
 
 其中最有代表性的结果包括：
 
@@ -628,10 +630,10 @@ tcc -m64 main.c xrt.c -o app.exe -lws2_32 -liphlpapi
 
 ## 文档
 
-- 总文档入口：[docs/README.md](/D:/git/xrt/docs/README.md)
-- 下一阶段蓝图：[dev/XRT_ROADMAP_NEXT.md](/D:/git/xrt/dev/XRT_ROADMAP_NEXT.md)
-- 网络基准：[dev/bench/XNET_COMPARE_20260314.md](/D:/git/xrt/dev/bench/XNET_COMPARE_20260314.md)
-- TLS 专项验证：[dev/bench/TLS_BENCH_20260315.md](/D:/git/xrt/dev/bench/TLS_BENCH_20260315.md)
+- 总文档入口：[docs/README.md](docs/README.md)
+- 下一阶段蓝图：[dev/XRT_ROADMAP_NEXT.md](dev/XRT_ROADMAP_NEXT.md)
+- 网络基准：[dev/bench/XNET_COMPARE_20260314.md](dev/bench/XNET_COMPARE_20260314.md)
+- TLS 专项验证：[dev/bench/TLS_BENCH_20260315.md](dev/bench/TLS_BENCH_20260315.md)
 
 
 ## 致谢

@@ -46,8 +46,8 @@ tcc main.c xrt.c -o app.exe
 
 最常见原因：
 
-- 只编译了 `main.c`，没有把 [xrt.c](/D:/git/xrt/xrt.c) 一起编译
-- 只包含了 [xrt.h](/D:/git/xrt/xrt.h)，但没链接实现
+- 只编译了 `main.c`，没有把 [xrt.c](../../xrt.c) 一起编译
+- 只包含了 [xrt.h](../../xrt.h)，但没链接实现
 - 单头文件和源码树用法混在一起
 
 优先检查：
@@ -341,7 +341,7 @@ xFuturePumpCurrentContinuations(0);
 
 推荐顺序：
 
-1. [项目简介](/D:/git/xrt/README.md)
+1. [项目简介](../../README.md)
 2. [架构设计](ARCHITECTURE.md)
 3. [API 索引](api/README.md)
 4. [示例说明](EXAMPLES.md)
@@ -366,7 +366,7 @@ xFuturePumpCurrentContinuations(0);
 
 ## 相关文档
 
-- [项目简介](/D:/git/xrt/README.md)
+- [项目简介](../../README.md)
 - [架构设计](ARCHITECTURE.md)
 - [API 索引](api/README.md)
 - [最佳实践](BEST_PRACTICES.md)

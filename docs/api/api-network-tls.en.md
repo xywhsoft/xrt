@@ -10,7 +10,7 @@
 
 The current TLS mainline in XRT is split like this:
 
-- internal core implementation: still carried by [nettls.h](/D:/git/xrt/lib/nettls.h)
+- internal core implementation: still carried by [nettls.h](../../../lib/nettls.h)
 - formal public surface: `xtlssession` and `xrtNetTlsSession*`
 
 That means the new network mainline, HTTP client, HTTP server, and WebSocket all work around the session layer instead of exposing the TLS core context directly.

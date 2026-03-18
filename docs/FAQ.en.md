@@ -46,8 +46,8 @@ The source-tree mainline is the default explanation model now.
 
 The most common reasons are:
 
-- you compiled only `main.c` and forgot to compile [xrt.c](/D:/git/xrt/xrt.c)
-- you included [xrt.h](/D:/git/xrt/xrt.h) but did not link the implementation
+- you compiled only `main.c` and forgot to compile [xrt.c](../../xrt.c)
+- you included [xrt.h](../../xrt.h) but did not link the implementation
 - you mixed single-header usage and source-tree usage
 
 The first thing to verify is:
@@ -367,7 +367,7 @@ This is usually a better way to understand the current mainline than reading a s
 
 Recommended order:
 
-1. [Project Overview](/D:/git/xrt/README.en.md)
+1. [Project Overview](../../README.en.md)
 2. [Architecture](ARCHITECTURE.en.md)
 3. [API Index](api/README.en.md)
 4. [Examples](EXAMPLES.en.md)
@@ -392,7 +392,7 @@ If you want a quick “Internet + AI mainline” overview after that, continue w
 
 ## Related Documents
 
-- [Project Overview](/D:/git/xrt/README.en.md)
+- [Project Overview](../../README.en.md)
 - [Architecture](ARCHITECTURE.en.md)
 - [API Index](api/README.en.md)
 - [Best Practices](BEST_PRACTICES.en.md)
