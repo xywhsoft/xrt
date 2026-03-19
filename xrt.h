@@ -1551,6 +1551,10 @@
 	
 	
 	/* ------------------------------------ File 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			Time 函数库
+	*/
 	
 	// 文件对象
 	typedef struct {
@@ -1673,6 +1677,10 @@
 	
 	
 	/* ------------------------------------ Thread 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			Time 函数库
+	*/
 	
 	// 线程状态
 	#define XRT_THREAD_STOPPED		0			// 已停止
@@ -1690,13 +1698,13 @@
 		uint64 TID;								// 线程ID
 		uint32 (*Proc)(ptr param);				// 用户回调函数
 		ptr Param;								// 用户参数
-	volatile int StopFlag;					// 停止信号标志
-	volatile int bFinished;					// 是否已经结束
-	volatile int bJoined;					// 是否已经完成等待
-	volatile int bAutoDestroy;				// 线程退出后自动释放管理对象
-	uint32 ExitCode;						// 线程退出码
+	volatile int StopFlag;						// 停止信号标志
+	volatile int bFinished;						// 是否已经结束
+	volatile int bJoined;						// 是否已经完成等待
+	volatile int bAutoDestroy;					// 线程退出后自动释放管理对象
+	uint32 ExitCode;							// 线程退出码
 	#if !defined(_WIN32) && !defined(_WIN64)
-		pthread_mutex_t FinishLock;			// 结束状态锁（POSIX）
+		pthread_mutex_t FinishLock;				// 结束状态锁（POSIX）
 			pthread_cond_t FinishCond;			// 结束条件变量（POSIX，monotonic）
 		#endif
 	} xthread_struct, *xthread;
@@ -1713,21 +1721,21 @@
 	// 信号量数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
-			HANDLE objSem;					// Windows：内核信号量句柄（直接嵌入）
+			HANDLE objSem;						// Windows：内核信号量句柄（直接嵌入）
 		#else
-			pthread_mutex_t objLock;		// POSIX：自维护锁（monotonic wait）
-			pthread_cond_t objCond;			// POSIX：自维护条件变量（monotonic wait）
-			uint32 iValue;					// 当前计数
-			uint32 iMaxValue;				// 最大计数
+			pthread_mutex_t objLock;			// POSIX：自维护锁（monotonic wait）
+			pthread_cond_t objCond;				// POSIX：自维护条件变量（monotonic wait）
+			uint32 iValue;						// 当前计数
+			uint32 iMaxValue;					// 最大计数
 		#endif
 	} xsem_struct, *xsem;
 	
 	// 条件变量数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
-			CONDITION_VARIABLE objCond;		// Windows：条件变量对象（直接嵌入）
+			CONDITION_VARIABLE objCond;			// Windows：条件变量对象（直接嵌入）
 		#else
-			pthread_cond_t objCond;			// POSIX：条件变量对象（直接嵌入，无需额外 malloc）
+			pthread_cond_t objCond;				// POSIX：条件变量对象（直接嵌入，无需额外 malloc）
 		#endif
 	} xcond_struct, *xcond;
 	
@@ -1891,6 +1899,11 @@
 	
 	
 	/* ------------------------------------ Coroutine 协程库 ------------------------------------ */
+	/*
+		依赖项：
+			Thread 函数库
+			Time 函数库
+	*/
 	
 	// 协程状态
 	#define XRT_CO_READY         0      // 已创建，尚未运行
@@ -2181,7 +2194,6 @@
 	/* ------------------------------------ Crypto 加密算法库 ------------------------------------ */
 	
 	/*
-		基于 mongoose 内建 TLS 移植，提供独立可用的加密原语
 		算法来源：
 			SHA-256:            Brad Conte (Public Domain)
 			SHA-512/384:        原创实现 (FIPS 180-4)
@@ -2313,31 +2325,34 @@
 	// 加密安全随机数 (Windows: RtlGenRandom, Linux: /dev/urandom)
 	XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen);
 
+	/* ------------------------------------ Network / TLS 共享状态定义 ------------------------------------ */
+	/*
+		依赖项：
+			Network 函数库
+			Crypto 加密算法库
+	*/
 
-
-    /* ------------------------------------ Shared network/TLS status ------------------------------------ */
-
-    /* ---- Shared network result ---- */
-typedef enum {
+	/* ---- 共享网络状态码 ---- */
+	typedef enum {
 	XRT_NET_OK        =  0,
 	XRT_NET_ERROR     = -1,
 	XRT_NET_AGAIN     = -2,
 	XRT_NET_TIMEOUT   = -3,
 	XRT_NET_CLOSED    = -4,
 	XRT_NET_CANCELLED = -5,
-} xnet_result;
+	} xnet_result;
 
-    /* ---- Shared socket handle ---- */
-    #if defined(_WIN32) || defined(_WIN64)
-        typedef SOCKET xsocket;
-        #define XSOCKET_INVALID INVALID_SOCKET
-    #else
-        typedef int xsocket;
-        #define XSOCKET_INVALID (-1)
-    #endif
-    #define XRT_XSOCKET_DEFINED 1
+	/* ---- 共享套接字句柄类型 ---- */
+	#if defined(_WIN32) || defined(_WIN64)
+		typedef SOCKET xsocket;
+		#define XSOCKET_INVALID INVALID_SOCKET
+	#else
+		typedef int xsocket;
+		#define XSOCKET_INVALID (-1)
+	#endif
+	#define XRT_XSOCKET_DEFINED 1
 
-	/* ---- TLS session/config ---- */
+	/* ---- TLS 会话与配置前置声明 ---- */
 	typedef struct xrt_tls_session xtlssession;
 	typedef struct xrt_tls_resume xtlsresume;
 	typedef struct {
@@ -2355,7 +2370,7 @@ typedef enum {
 
 	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
 	
-#ifndef XRT_NO_REGEX
+	#ifndef XRT_NO_REGEX
 	// bbre 错误码
 	#define BBRE_ERR_MEM   (-1)  // 内存不足
 	#define BBRE_ERR_PARSE (-2)  // 解析失败
@@ -2434,1394 +2449,1457 @@ typedef enum {
 	
 	// 版本号
 	XXAPI const char *bbre_version(void);
-#endif // XRT_NO_REGEX
-
-
-
-    /* ------------------------------------ XNet V2 ------------------------------------ */
-
-#ifndef XRT_NO_NETWORK
-    #if defined(XRT_NO_XURL)
-        #ifndef XRT_NO_HTTP_UTIL
-            #define XRT_NO_HTTP_UTIL
-        #endif
-        #ifndef XRT_NO_XHTTP
-            #define XRT_NO_XHTTP
-        #endif
-        #ifndef XRT_NO_XHTTPD
-            #define XRT_NO_XHTTPD
-        #endif
-        #ifndef XRT_NO_XWS
-            #define XRT_NO_XWS
-        #endif
-    #endif
-    #if defined(XRT_NO_HTTP_UTIL)
-        #ifndef XRT_NO_XHTTP
-            #define XRT_NO_XHTTP
-        #endif
-        #ifndef XRT_NO_XHTTPD
-            #define XRT_NO_XHTTPD
-        #endif
-        #ifndef XRT_NO_XWS
-            #define XRT_NO_XWS
-        #endif
-    #endif
-    #if defined(XRT_NO_XCODEC)
-        #ifndef XRT_NO_XHTTP
-            #define XRT_NO_XHTTP
-        #endif
-        #ifndef XRT_NO_XHTTPD
-            #define XRT_NO_XHTTPD
-        #endif
-        #ifndef XRT_NO_XWS
-            #define XRT_NO_XWS
-        #endif
-    #endif
-#else
-    #ifndef XRT_NO_XURL
-        #define XRT_NO_XURL
-    #endif
-    #ifndef XRT_NO_HTTP_UTIL
-        #define XRT_NO_HTTP_UTIL
-    #endif
-    #ifndef XRT_NO_XCODEC
-        #define XRT_NO_XCODEC
-    #endif
-    #ifndef XRT_NO_XHTTP
-        #define XRT_NO_XHTTP
-    #endif
-    #ifndef XRT_NO_XHTTPD
-        #define XRT_NO_XHTTPD
-    #endif
-    #ifndef XRT_NO_XWS
-        #define XRT_NO_XWS
-    #endif
-#endif
-
-#if !defined(XRT_NO_NETWORK)
-
-/* ============================== xnet base ============================== */
-
-typedef struct xrt_net_engine   xnetengine;
-typedef struct xrt_net_mem_ctx  xnetmemctx;
-typedef struct xrt_net_worker   xnetworker;
-typedef struct xrt_net_listener xnetlistener;
-typedef struct xrt_net_stream   xnetstream;
-typedef struct xrt_net_dgram    xdgramsock;
-typedef struct xrt_net_chain    xnetchain;
-typedef struct xrt_net_future   xnetfuture;
-typedef struct xrt_promise      xpromise;
-typedef struct xrt_task         xtask;
-typedef struct xrt_task_group   xtaskgroup;
-typedef struct xrt_net_dgram_packet xnetdgrampkt;
-typedef xnetfuture xfuture;
-
-typedef void (*xnet_task_fn)(xnetworker* pWorker, ptr pArg);
-
-typedef struct {
-    uint16 iFamily;
-    uint16 iPort;
-    uint32 iScopeId;
-    uint8 aAddr[16];
-} xnetaddr;
-
-typedef struct {
-    const void* pData;
-    uint32 iLen;
-} xnetspan;
-
-typedef struct {
-    const void* pData;
-    uint32 iLen;
-    void (*pfnRelease)(ptr pCtx, const void* pData, size_t iLen);
-    ptr pReleaseCtx;
-} xnetbufref;
-
-#define XNET_ENGINE_F_NONE            0x00000000u
-#define XNET_ENGINE_F_AUTO_WORKERS    0x00000001u
-#define XNET_LISTEN_F_NONE            0x00000000u
-#define XNET_LISTEN_F_REUSE_ADDR      0x00000001u
-#define XNET_LISTEN_F_REUSE_PORT      0x00000002u
-#define XNET_LISTEN_F_NO_DELAY        0x00000004u
-#define XNET_LISTEN_F_KEEPALIVE       0x00000008u
-#define XNET_CONNECT_F_NONE           0x00000000u
-#define XNET_CONNECT_F_NO_DELAY       0x00000001u
-#define XNET_CONNECT_F_KEEPALIVE      0x00000002u
-#define XNET_DGRAM_F_NONE             0x00000000u
-#define XNET_DGRAM_F_REUSE_ADDR       0x00000001u
-#define XNET_DGRAM_F_REUSE_PORT       0x00000002u
-#define XNET_CLOSE_F_ABORT            0x00000001u
-#define XNET_CLOSE_F_GRACEFUL         0x00000002u
-#define XNET_CLOSE_F_WAIT_PEER        0x00000004u
-
-typedef struct {
-    uint32 iWorkerCount;
-    uint32 iFlags;
-    uint32 iSqEntries;
-    uint32 iCqEntries;
-    uint32 iAcceptBatch;
-    uint32 iCmdQueueSize;
-    uint32 iTimerTickMs;
-    uint32 iTimerWheelSlots;
-    uint32 iDefaultHighWater;
-    uint32 iDefaultLowWater;
-    uint32 iSmallBlockSize;
-    uint32 iMediumBlockSize;
-    uint32 iLargeBlockSize;
-    uint32 iBlockCachePerWorker;
-    uint32 iMaxConnsPerWorker;
-} xnetengineconfig;
-
-typedef struct {
-    xnetaddr tBindAddr;
-    uint32 iFlags;
-    uint32 iBacklog;
-    uint32 iHighWater;
-    uint32 iLowWater;
-    uint32 iRecvLimit;
-    const xtlsconfig* pTlsConfig;
-} xnetlistenconfig;
-
-typedef struct {
-    const char* sHost;
-    uint16 iPort;
-    uint32 iFlags;
-    uint32 iConnectTimeoutMs;
-    uint32 iHighWater;
-    uint32 iLowWater;
-    uint32 iRecvLimit;
-    const xtlsconfig* pTlsConfig;
-} xnetconnectconfig;
-
-typedef struct {
-    xnetaddr tBindAddr;
-    uint32 iFlags;
-    uint32 iRecvBatch;
-    uint32 iSendQueueLimit;
-} xnetdgramconfig;
-
-/* ============================== xnet mem ============================== */
-
-#define XNET_MEM_CLASS_SMALL    1u
-#define XNET_MEM_CLASS_MEDIUM   2u
-#define XNET_MEM_CLASS_LARGE    3u
-#define XNET_MEM_CLASS_DYNAMIC  4u
-#define XNET_MEM_CLASS_REF      5u
-#define XNET_BLK_F_REF          0x0001u
-
-typedef struct __xnet_blk __xnet_blk;
-
-typedef struct {
-    uint32 iSmallBlockSize;
-    uint32 iMediumBlockSize;
-    uint32 iLargeBlockSize;
-    uint32 iSmallCacheLimit;
-    uint32 iMediumCacheLimit;
-    uint32 iLargeCacheLimit;
-} xnetmemconfig;
-
-typedef struct {
-    uint32 iSmallCached;
-    uint32 iMediumCached;
-    uint32 iLargeCached;
-    uint64 iSmallAllocCount;
-    uint64 iMediumAllocCount;
-    uint64 iLargeAllocCount;
-    uint64 iDynamicAllocCount;
-    uint64 iRefAllocCount;
-    uint64 iSmallReuseCount;
-    uint64 iMediumReuseCount;
-    uint64 iLargeReuseCount;
-    uint64 iDynamicFreeCount;
-    uint64 iRefFreeCount;
-} xnetmemstats;
-
-struct xrt_net_mem_ctx {
-    xnetmemconfig tConfig;
-    __xnet_blk* pSmallFree;
-    __xnet_blk* pMediumFree;
-    __xnet_blk* pLargeFree;
-    xnetmemstats tStats;
-};
-
-struct xrt_net_chain {
-    __xnet_blk* pHead;
-    __xnet_blk* pTail;
-    ptr pMemCtx;
-    uint32 iBytes;
-    uint32 iBlockCount;
-};
-
-#ifndef XRT_NO_XURL
-/* ============================== xurl ============================== */
-
-#define XRT_URL_F_NONE           0x00000000u
-#define XRT_URL_F_ABSOLUTE       0x00000001u
-#define XRT_URL_F_TARGET_ONLY    0x00000002u
-#define XRT_URL_F_HAS_AUTHORITY  0x00000004u
-#define XRT_URL_F_HAS_USERINFO   0x00000008u
-#define XRT_URL_F_HAS_HOST       0x00000010u
-#define XRT_URL_F_HAS_PORT       0x00000020u
-#define XRT_URL_F_HAS_PATH       0x00000040u
-#define XRT_URL_F_HAS_QUERY      0x00000080u
-#define XRT_URL_F_HAS_FRAGMENT   0x00000100u
-#define XRT_URL_F_SECURE         0x00000200u
-#define XRT_QUERY_F_NONE         0x00000000u
-#define XRT_QUERY_F_HAS_VALUE    0x00000001u
-#define XRT_URL_FIXED_HOST_CAP   256u
-#define XRT_URL_FIXED_PATH_CAP   2048u
-
-typedef struct {
-    const char* sPtr;
-    size_t iLen;
-} xrtstrview;
-
-typedef struct {
-    uint32 iFlags;
-    uint16 iPort;
-    xrtstrview tScheme;
-    xrtstrview tAuthority;
-    xrtstrview tUserInfo;
-    xrtstrview tHost;
-    xrtstrview tPath;
-    xrtstrview tQuery;
-    xrtstrview tFragment;
-    xrtstrview tTarget;
-} xrturlview;
-
-typedef struct {
-    uint32 iFlags;
-    xrtstrview tKey;
-    xrtstrview tValue;
-} xrtquerypair;
-
-typedef struct {
-    bool bHttps;
-    char sHost[XRT_URL_FIXED_HOST_CAP];
-    uint16 iPort;
-    char sPath[XRT_URL_FIXED_PATH_CAP];
-} xurl_struct, *xurl;
-#endif /* !XRT_NO_XURL */
-
-#ifndef XRT_NO_HTTP_UTIL
-/* ============================== http util ============================== */
-
-typedef struct {
-    xrtstrview tName;
-    xrtstrview tValue;
-} xrtheaderpair;
-
-typedef struct {
-    xrtstrview tName;
-    xrtstrview tValue;
-} xrtcookiepair;
-
-#define XRT_HTTP_PARAM_F_NONE       0x00000000u
-#define XRT_HTTP_PARAM_F_HAS_VALUE  0x00000001u
-
-typedef struct {
-    uint32 iFlags;
-    xrtstrview tName;
-    xrtstrview tValue;
-} xrthttpparam;
-
-#define XRT_HTTP_MEDIA_TYPE_F_NONE        0x00000000u
-#define XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX  0x00000001u
-#define XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS  0x00000002u
-
-typedef struct {
-    uint32 iFlags;
-    xrtstrview tType;
-    xrtstrview tSubType;
-    xrtstrview tSuffix;
-    xrtstrview tParams;
-} xrtmediatypeview;
-
-#define XRT_HTTP_CONTENT_DISPOSITION_F_NONE              0x00000000u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_PARAMS        0x00000001u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_NAME          0x00000002u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME      0x00000004u
-#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME_EXT  0x00000008u
-
-typedef struct {
-    uint32 iFlags;
-    xrtstrview tType;
-    xrtstrview tParams;
-    xrtstrview tName;
-    xrtstrview tFileName;
-    xrtstrview tFileNameExt;
-    xrtstrview tFileNameCharset;
-    xrtstrview tFileNameLanguage;
-} xrtcontentdispositionview;
-
-#define XRT_SET_COOKIE_F_NONE            0x00000000u
-#define XRT_SET_COOKIE_F_HAS_VALUE       0x00000001u
-#define XRT_SET_COOKIE_F_HAS_DOMAIN      0x00000002u
-#define XRT_SET_COOKIE_F_HAS_PATH        0x00000004u
-#define XRT_SET_COOKIE_F_HAS_EXPIRES     0x00000008u
-#define XRT_SET_COOKIE_F_HAS_MAX_AGE     0x00000010u
-#define XRT_SET_COOKIE_F_HAS_SAME_SITE   0x00000020u
-#define XRT_SET_COOKIE_F_SECURE          0x00000040u
-#define XRT_SET_COOKIE_F_HTTP_ONLY       0x00000080u
-#define XRT_SET_COOKIE_F_PARTITIONED     0x00000100u
-#define XRT_SET_COOKIE_F_SAME_PARTY      0x00000200u
-#define XRT_SET_COOKIE_F_HAS_PRIORITY    0x00000400u
-#define XRT_SAME_SITE_UNSPECIFIED        0u
-#define XRT_SAME_SITE_LAX                1u
-#define XRT_SAME_SITE_STRICT             2u
-#define XRT_SAME_SITE_NONE               3u
-#define XRT_COOKIE_PRIORITY_UNSPECIFIED  0u
-#define XRT_COOKIE_PRIORITY_LOW          1u
-#define XRT_COOKIE_PRIORITY_MEDIUM       2u
-#define XRT_COOKIE_PRIORITY_HIGH         3u
-
-typedef struct {
-    uint32 iFlags;
-    int32_t iMaxAge;
-    uint8 iSameSite;
-    uint8 iPriority;
-    xrtstrview tName;
-    xrtstrview tValue;
-    xrtstrview tDomain;
-    xrtstrview tPath;
-    xrtstrview tExpires;
-} xrtsetcookieview;
-
-#define XRT_MULTIPART_F_NONE                   0x00000000u
-#define XRT_MULTIPART_F_HAS_CONTENT_DISP       0x00000001u
-#define XRT_MULTIPART_F_HAS_NAME               0x00000002u
-#define XRT_MULTIPART_F_HAS_FILENAME           0x00000004u
-#define XRT_MULTIPART_F_HAS_CONTENT_TYPE       0x00000008u
-#define XRT_MULTIPART_F_HAS_TRANSFER_ENCODING  0x00000010u
-#define XRT_MULTIPART_F_HAS_FILENAME_EXT       0x00000020u
-
-typedef struct {
-    uint32 iFlags;
-    xrtstrview tHeaders;
-    xrtstrview tBody;
-    xrtstrview tContentDisposition;
-    xrtstrview tName;
-    xrtstrview tFileName;
-    xrtstrview tFileNameExt;
-    xrtstrview tFileNameCharset;
-    xrtstrview tFileNameLanguage;
-    xrtstrview tContentType;
-    xrtstrview tTransferEncoding;
-} xrtmultipartpartview;
-
-typedef struct {
-    size_t iMaxBufferedBytes;
-    size_t iMaxHeaderBytes;
-    size_t iMaxPartHeaders;
-    size_t iTailReserve;
-} xrtmultipartstreamconfig;
-
-typedef struct {
-    size_t iMaxNameBytes;
-    size_t iMaxValueBytes;
-    size_t iMaxPairs;
-    size_t iMaxHeaderLineBytes;
-    size_t iMaxHeaderBytes;
-    size_t iMaxHeaderCount;
-    size_t iMaxTokenBytes;
-    size_t iMaxBoundaryBytes;
-    size_t iMaxMultipartHeaders;
-    size_t iMaxMultipartParts;
-    size_t iMaxMultipartBytes;
-} xrthttputillimits;
-
-typedef enum {
-    XRT_MULTIPART_STREAM_RESULT_ERROR      = -1,
-    XRT_MULTIPART_STREAM_RESULT_NEED_MORE  = 0,
-    XRT_MULTIPART_STREAM_RESULT_PART_BEGIN = 1,
-    XRT_MULTIPART_STREAM_RESULT_DATA       = 2,
-    XRT_MULTIPART_STREAM_RESULT_PART_END   = 3,
-    XRT_MULTIPART_STREAM_RESULT_END        = 4
-} xrtmultipartstreamresult;
-
-#define XRT_MULTIPART_STREAM_ERR_NONE             0u
-#define XRT_MULTIPART_STREAM_ERR_INVALID_BOUNDARY 1u
-#define XRT_MULTIPART_STREAM_ERR_BUFFER_LIMIT     2u
-#define XRT_MULTIPART_STREAM_ERR_HEADER_LIMIT     3u
-#define XRT_MULTIPART_STREAM_ERR_INVALID_HEADER   4u
-#define XRT_MULTIPART_STREAM_ERR_TRUNCATED        5u
-
-typedef struct {
-    xrtmultipartstreamresult iResult;
-    xrtmultipartpartview tPart;
-    xrtstrview tData;
-} xrtmultipartstreamevent;
-
-typedef struct {
-    char* pBuffer;
-    size_t iBufferLen;
-    size_t iBufferCap;
-    size_t iCursor;
-    size_t iBoundaryPos;
-    size_t iAfterBoundary;
-    size_t iBoundaryLen;
-    size_t iMaxBufferedBytes;
-    size_t iMaxHeaderBytes;
-    size_t iMaxPartHeaders;
-    size_t iTailReserve;
-    uint32 iError;
-    uint32 iState;
-    bool bFinalBoundary;
-    bool bFinishedInput;
-    xrtmultipartpartview tCurrentPart;
-    char aBoundary[71];
-} xrtmultipartstream;
-#endif
-
-#ifndef XRT_NO_XCODEC
-/* ============================== codec ============================== */
-
-typedef enum {
-    XCODEC_STATUS_ERROR = -1,
-    XCODEC_STATUS_NEED_MORE = 0,
-    XCODEC_STATUS_FRAME = 1
-} xcodecstatus;
-
-#define XCODEC_KIND_NONE    0u
-#define XCODEC_KIND_LINE    1u
-#define XCODEC_KIND_LENGTH  2u
-#define XCODEC_KIND_HTTP1   3u
-#define XCODEC_KIND_WS      4u
-#define XCODEC_FRAME_F_NONE        0x00000000u
-#define XCODEC_FRAME_F_TEXT        0x00000001u
-#define XCODEC_FRAME_F_BINARY      0x00000002u
-#define XCODEC_FRAME_F_REQUEST     0x00000004u
-#define XCODEC_FRAME_F_RESPONSE    0x00000008u
-#define XCODEC_FRAME_F_FIN         0x00000010u
-#define XCODEC_FRAME_F_MASKED      0x00000020u
-#define XCODEC_FRAME_F_UPGRADE     0x00000040u
-#define XCODEC_FRAME_F_KEEPALIVE   0x00000080u
-#define XCODEC_FRAME_F_CHUNKED     0x00000100u
-#define XCODEC_FRAME_F_CONTROL     0x00000200u
-
-typedef struct {
-    uint32 iKind;
-    uint32 iFlags;
-    size_t iHeaderBytes;
-    size_t iPayloadOffset;
-    size_t iPayloadBytes;
-    size_t iFrameBytes;
-    uint64 iMeta0;
-    uint64 iMeta1;
-} xcodecframe;
-
-typedef xcodecstatus (*xcodec_parse_fn)(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame);
-typedef void (*xcodec_reset_fn)(ptr pCtx);
-
-typedef struct {
-    xcodec_parse_fn Parse;
-    xcodec_reset_fn Reset;
-} xcodecparserops;
-
-typedef struct {
-    const xcodecparserops* pOps;
-    ptr pCtx;
-} xcodecparser;
-
-typedef struct {
-    uint8 aDelimiter[4];
-    uint32 iDelimiterLen;
-    uint32 iMaxLineBytes;
-    bool bStripDelimiter;
-} xcodeclinecodec;
-
-typedef struct {
-    uint8 iFieldBytes;
-    bool bBigEndian;
-    int32_t iLengthAdjust;
-    uint32 iMaxPayloadBytes;
-} xcodeclengthcodec;
-
-#define XCODEC_HTTP1_MAX_HEADERS 32u
-#define XCODEC_HTTP1_TOKEN_CAP   32u
-#define XCODEC_HTTP1_TARGET_CAP  256u
-#define XCODEC_HTTP1_VALUE_CAP   256u
-#define XCODEC_HTTP1_REASON_CAP  128u
-#define XCODEC_HTTP1_F_NONE       0x00000000u
-#define XCODEC_HTTP1_F_REQUEST    0x00000001u
-#define XCODEC_HTTP1_F_RESPONSE   0x00000002u
-#define XCODEC_HTTP1_F_CHUNKED    0x00000004u
-#define XCODEC_HTTP1_F_KEEPALIVE  0x00000008u
-#define XCODEC_HTTP1_F_UPGRADE    0x00000010u
-
-typedef struct {
-    char sName[XCODEC_HTTP1_TOKEN_CAP];
-    char sValue[XCODEC_HTTP1_VALUE_CAP];
-} xcodechttp1header;
-
-typedef struct {
-    uint32 iFlags;
-    uint32 iHeaderCount;
-    uint32 iStatusCode;
-    int64_t iContentLength;
-    size_t iHeadBytes;
-    char sMethod[XCODEC_HTTP1_TOKEN_CAP];
-    char sTarget[XCODEC_HTTP1_TARGET_CAP];
-    char sVersion[XCODEC_HTTP1_TOKEN_CAP];
-    char sReason[XCODEC_HTTP1_REASON_CAP];
-    xcodechttp1header arrHeaders[XCODEC_HTTP1_MAX_HEADERS];
-} xcodechttp1msg;
-
-#define XCODEC_WS_OPCODE_CONT   0x0u
-#define XCODEC_WS_OPCODE_TEXT   0x1u
-#define XCODEC_WS_OPCODE_BINARY 0x2u
-#define XCODEC_WS_OPCODE_CLOSE  0x8u
-#define XCODEC_WS_OPCODE_PING   0x9u
-#define XCODEC_WS_OPCODE_PONG   0xAu
-#define XCODEC_WS_F_NONE     0x00000000u
-#define XCODEC_WS_F_FIN      0x00000001u
-#define XCODEC_WS_F_MASKED   0x00000002u
-#define XCODEC_WS_F_CONTROL  0x00000004u
-
-typedef struct {
-    uint32 iFlags;
-    uint8 iOpcode;
-    uint8 aMask[4];
-    uint64 iPayloadLen;
-    size_t iHeaderBytes;
-} xcodecwsframeinfo;
-#endif
-
-/* ============================== xnet stream/dgram/sync ============================== */
-
-typedef struct {
-    bool (*OnAccept)(ptr pOwner, xnetlistener* pListener, xnetstream* pStream);
-    void (*OnError)(ptr pOwner, xnetlistener* pListener, int iSysErr);
-} xnetlistenerevents;
-
-typedef struct {
-    void (*OnOpen)(ptr pOwner, xnetstream* pStream);
-    void (*OnRecv)(ptr pOwner, xnetstream* pStream, xnetchain* pChain);
-    void (*OnDrain)(ptr pOwner, xnetstream* pStream);
-    void (*OnClose)(ptr pOwner, xnetstream* pStream, xnet_result iReason);
-    void (*OnError)(ptr pOwner, xnetstream* pStream, int iSysErr);
-    void (*OnHighWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
-    void (*OnLowWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
-} xnetstreamevents;
-
-#define XNET_STREAM_WAIT_READABLE 0u
-#define XNET_STREAM_WAIT_WRITABLE 1u
-#define XNET_STREAM_WAIT_DRAIN    2u
-#define XNET_STREAM_WAIT_CLOSE    3u
-
-typedef struct {
-    void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
-    void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
-} xnetdgramevents;
-
-#define XNET_WAIT_INFINITE UINT32_C(0xffffffff)
-#define XNET_WAITSRC_NONE     0u
-#define XNET_WAITSRC_FUTURE   1u
-#define XNET_WAITSRC_STREAM   2u
-#define XNET_WAITSRC_DGRAM    3u
-#define XNET_WAITSRC_LISTENER 4u
-
-typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
-
-typedef enum {
+	#endif // XRT_NO_REGEX
+
+	/* ------------------------------------ XNet V2 ------------------------------------ */
+	/*
+		依赖项：
+			Thread 函数库
+			Time 函数库
+			Network / TLS 共享状态定义
+			Crypto 加密算法库
+		子库依赖：
+			http util -> Time 函数库
+			xcodec -> Crypto 加密算法库
+			xhttp -> xurl、http util、xcodec、TLS
+			xhttpd -> http util、xcodec、TLS
+			xws -> xurl、xcodec、Crypto 加密算法库、TLS
+			future / task 协程扩展 -> Coroutine 协程库（仅协程接口）
+	*/
+
+	#ifndef XRT_NO_NETWORK
+	// 根据子库开关自动裁剪依赖更高的协议层接口
+	#if defined(XRT_NO_XURL)
+		#ifndef XRT_NO_HTTP_UTIL
+			#define XRT_NO_HTTP_UTIL
+		#endif
+		#ifndef XRT_NO_XHTTP
+			#define XRT_NO_XHTTP
+		#endif
+		#ifndef XRT_NO_XHTTPD
+			#define XRT_NO_XHTTPD
+		#endif
+		#ifndef XRT_NO_XWS
+			#define XRT_NO_XWS
+		#endif
+	#endif
+	#if defined(XRT_NO_HTTP_UTIL)
+		#ifndef XRT_NO_XHTTP
+			#define XRT_NO_XHTTP
+		#endif
+		#ifndef XRT_NO_XHTTPD
+			#define XRT_NO_XHTTPD
+		#endif
+		#ifndef XRT_NO_XWS
+			#define XRT_NO_XWS
+		#endif
+	#endif
+	#if defined(XRT_NO_XCODEC)
+		#ifndef XRT_NO_XHTTP
+			#define XRT_NO_XHTTP
+		#endif
+		#ifndef XRT_NO_XHTTPD
+			#define XRT_NO_XHTTPD
+		#endif
+		#ifndef XRT_NO_XWS
+			#define XRT_NO_XWS
+		#endif
+	#endif
+	#else
+	#ifndef XRT_NO_XURL
+		#define XRT_NO_XURL
+	#endif
+	#ifndef XRT_NO_HTTP_UTIL
+		#define XRT_NO_HTTP_UTIL
+	#endif
+	#ifndef XRT_NO_XCODEC
+		#define XRT_NO_XCODEC
+	#endif
+	#ifndef XRT_NO_XHTTP
+		#define XRT_NO_XHTTP
+	#endif
+	#ifndef XRT_NO_XHTTPD
+		#define XRT_NO_XHTTPD
+	#endif
+	#ifndef XRT_NO_XWS
+		#define XRT_NO_XWS
+	#endif
+	#endif
+
+	#if !defined(XRT_NO_NETWORK)
+
+	/* ============================== xnet base ============================== */
+
+	// XNet 核心对象前向声明
+	typedef struct xrt_net_engine   xnetengine;
+	typedef struct xrt_net_mem_ctx  xnetmemctx;
+	typedef struct xrt_net_worker   xnetworker;
+	typedef struct xrt_net_listener xnetlistener;
+	typedef struct xrt_net_stream   xnetstream;
+	typedef struct xrt_net_dgram    xdgramsock;
+	typedef struct xrt_net_chain    xnetchain;
+	typedef struct xrt_net_future   xnetfuture;
+	typedef struct xrt_promise      xpromise;
+	typedef struct xrt_task         xtask;
+	typedef struct xrt_task_group   xtaskgroup;
+	typedef struct xrt_net_dgram_packet xnetdgrampkt;
+	typedef xnetfuture xfuture;
+
+	// 投递到网络引擎线程执行的任务回调
+	typedef void (*xnet_task_fn)(xnetworker* pWorker, ptr pArg);
+
+	// 网络地址、数据片段和引用块描述
+	typedef struct {
+	uint16 iFamily;
+	uint16 iPort;
+	uint32 iScopeId;
+	uint8 aAddr[16];
+	} xnetaddr;
+
+	typedef struct {
+	const void* pData;
+	uint32 iLen;
+	} xnetspan;
+
+	typedef struct {
+	const void* pData;
+	uint32 iLen;
+	void (*pfnRelease)(ptr pCtx, const void* pData, size_t iLen);
+	ptr pReleaseCtx;
+	} xnetbufref;
+
+	// 引擎、监听、连接、UDP 与关闭行为标志
+	#define XNET_ENGINE_F_NONE            0x00000000u
+	#define XNET_ENGINE_F_AUTO_WORKERS    0x00000001u
+	#define XNET_LISTEN_F_NONE            0x00000000u
+	#define XNET_LISTEN_F_REUSE_ADDR      0x00000001u
+	#define XNET_LISTEN_F_REUSE_PORT      0x00000002u
+	#define XNET_LISTEN_F_NO_DELAY        0x00000004u
+	#define XNET_LISTEN_F_KEEPALIVE       0x00000008u
+	#define XNET_CONNECT_F_NONE           0x00000000u
+	#define XNET_CONNECT_F_NO_DELAY       0x00000001u
+	#define XNET_CONNECT_F_KEEPALIVE      0x00000002u
+	#define XNET_DGRAM_F_NONE             0x00000000u
+	#define XNET_DGRAM_F_REUSE_ADDR       0x00000001u
+	#define XNET_DGRAM_F_REUSE_PORT       0x00000002u
+	#define XNET_CLOSE_F_ABORT            0x00000001u
+	#define XNET_CLOSE_F_GRACEFUL         0x00000002u
+	#define XNET_CLOSE_F_WAIT_PEER        0x00000004u
+
+	// 引擎、监听、连接和 UDP 套接字配置
+	typedef struct {
+	uint32 iWorkerCount;
+	uint32 iFlags;
+	uint32 iSqEntries;
+	uint32 iCqEntries;
+	uint32 iAcceptBatch;
+	uint32 iCmdQueueSize;
+	uint32 iTimerTickMs;
+	uint32 iTimerWheelSlots;
+	uint32 iDefaultHighWater;
+	uint32 iDefaultLowWater;
+	uint32 iSmallBlockSize;
+	uint32 iMediumBlockSize;
+	uint32 iLargeBlockSize;
+	uint32 iBlockCachePerWorker;
+	uint32 iMaxConnsPerWorker;
+	} xnetengineconfig;
+
+	typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iBacklog;
+	uint32 iHighWater;
+	uint32 iLowWater;
+	uint32 iRecvLimit;
+	const xtlsconfig* pTlsConfig;
+	} xnetlistenconfig;
+
+	typedef struct {
+	const char* sHost;
+	uint16 iPort;
+	uint32 iFlags;
+	uint32 iConnectTimeoutMs;
+	uint32 iHighWater;
+	uint32 iLowWater;
+	uint32 iRecvLimit;
+	const xtlsconfig* pTlsConfig;
+	} xnetconnectconfig;
+
+	typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iRecvBatch;
+	uint32 iSendQueueLimit;
+	} xnetdgramconfig;
+
+	/* ============================== xnet mem ============================== */
+
+	// XNet 内存块分类与引用块标记
+	#define XNET_MEM_CLASS_SMALL    1u
+	#define XNET_MEM_CLASS_MEDIUM   2u
+	#define XNET_MEM_CLASS_LARGE    3u
+	#define XNET_MEM_CLASS_DYNAMIC  4u
+	#define XNET_MEM_CLASS_REF      5u
+	#define XNET_BLK_F_REF          0x0001u
+
+	typedef struct __xnet_blk __xnet_blk;
+
+	// XNet 内存池配置、统计和上下文结构
+	typedef struct {
+	uint32 iSmallBlockSize;
+	uint32 iMediumBlockSize;
+	uint32 iLargeBlockSize;
+	uint32 iSmallCacheLimit;
+	uint32 iMediumCacheLimit;
+	uint32 iLargeCacheLimit;
+	} xnetmemconfig;
+
+	typedef struct {
+	uint32 iSmallCached;
+	uint32 iMediumCached;
+	uint32 iLargeCached;
+	uint64 iSmallAllocCount;
+	uint64 iMediumAllocCount;
+	uint64 iLargeAllocCount;
+	uint64 iDynamicAllocCount;
+	uint64 iRefAllocCount;
+	uint64 iSmallReuseCount;
+	uint64 iMediumReuseCount;
+	uint64 iLargeReuseCount;
+	uint64 iDynamicFreeCount;
+	uint64 iRefFreeCount;
+	} xnetmemstats;
+
+	struct xrt_net_mem_ctx {
+	xnetmemconfig tConfig;
+	__xnet_blk* pSmallFree;
+	__xnet_blk* pMediumFree;
+	__xnet_blk* pLargeFree;
+	xnetmemstats tStats;
+	};
+
+	struct xrt_net_chain {
+	__xnet_blk* pHead;
+	__xnet_blk* pTail;
+	ptr pMemCtx;
+	uint32 iBytes;
+	uint32 iBlockCount;
+	};
+
+	#ifndef XRT_NO_XURL
+	/* ============================== xurl ============================== */
+
+	// URL 解析结果标记与固定缓冲区容量
+	#define XRT_URL_F_NONE           0x00000000u
+	#define XRT_URL_F_ABSOLUTE       0x00000001u
+	#define XRT_URL_F_TARGET_ONLY    0x00000002u
+	#define XRT_URL_F_HAS_AUTHORITY  0x00000004u
+	#define XRT_URL_F_HAS_USERINFO   0x00000008u
+	#define XRT_URL_F_HAS_HOST       0x00000010u
+	#define XRT_URL_F_HAS_PORT       0x00000020u
+	#define XRT_URL_F_HAS_PATH       0x00000040u
+	#define XRT_URL_F_HAS_QUERY      0x00000080u
+	#define XRT_URL_F_HAS_FRAGMENT   0x00000100u
+	#define XRT_URL_F_SECURE         0x00000200u
+	#define XRT_QUERY_F_NONE         0x00000000u
+	#define XRT_QUERY_F_HAS_VALUE    0x00000001u
+	#define XRT_URL_FIXED_HOST_CAP   256u
+	#define XRT_URL_FIXED_PATH_CAP   2048u
+
+	// 字符串视图、URL 视图、查询参数与固定 URL 结构
+	typedef struct {
+	const char* sPtr;
+	size_t iLen;
+	} xrtstrview;
+
+	typedef struct {
+	uint32 iFlags;
+	uint16 iPort;
+	xrtstrview tScheme;
+	xrtstrview tAuthority;
+	xrtstrview tUserInfo;
+	xrtstrview tHost;
+	xrtstrview tPath;
+	xrtstrview tQuery;
+	xrtstrview tFragment;
+	xrtstrview tTarget;
+	} xrturlview;
+
+	typedef struct {
+	uint32 iFlags;
+	xrtstrview tKey;
+	xrtstrview tValue;
+	} xrtquerypair;
+
+	typedef struct {
+	bool bHttps;
+	char sHost[XRT_URL_FIXED_HOST_CAP];
+	uint16 iPort;
+	char sPath[XRT_URL_FIXED_PATH_CAP];
+	} xurl_struct, *xurl;
+	#endif /* !XRT_NO_XURL */
+
+	#ifndef XRT_NO_HTTP_UTIL
+	/* ============================== http util ============================== */
+
+	// HTTP 头、Cookie 与参数视图结构
+	typedef struct {
+	xrtstrview tName;
+	xrtstrview tValue;
+	} xrtheaderpair;
+
+	typedef struct {
+	xrtstrview tName;
+	xrtstrview tValue;
+	} xrtcookiepair;
+
+	#define XRT_HTTP_PARAM_F_NONE       0x00000000u
+	#define XRT_HTTP_PARAM_F_HAS_VALUE  0x00000001u
+
+	typedef struct {
+	uint32 iFlags;
+	xrtstrview tName;
+	xrtstrview tValue;
+	} xrthttpparam;
+
+	#define XRT_HTTP_MEDIA_TYPE_F_NONE        0x00000000u
+	#define XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX  0x00000001u
+	#define XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS  0x00000002u
+
+	// Media-Type 与 Content-Disposition 视图
+	typedef struct {
+	uint32 iFlags;
+	xrtstrview tType;
+	xrtstrview tSubType;
+	xrtstrview tSuffix;
+	xrtstrview tParams;
+	} xrtmediatypeview;
+
+	#define XRT_HTTP_CONTENT_DISPOSITION_F_NONE              0x00000000u
+	#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_PARAMS        0x00000001u
+	#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_NAME          0x00000002u
+	#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME      0x00000004u
+	#define XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME_EXT  0x00000008u
+
+	typedef struct {
+	uint32 iFlags;
+	xrtstrview tType;
+	xrtstrview tParams;
+	xrtstrview tName;
+	xrtstrview tFileName;
+	xrtstrview tFileNameExt;
+	xrtstrview tFileNameCharset;
+	xrtstrview tFileNameLanguage;
+	} xrtcontentdispositionview;
+
+	#define XRT_SET_COOKIE_F_NONE            0x00000000u
+	#define XRT_SET_COOKIE_F_HAS_VALUE       0x00000001u
+	#define XRT_SET_COOKIE_F_HAS_DOMAIN      0x00000002u
+	#define XRT_SET_COOKIE_F_HAS_PATH        0x00000004u
+	#define XRT_SET_COOKIE_F_HAS_EXPIRES     0x00000008u
+	#define XRT_SET_COOKIE_F_HAS_MAX_AGE     0x00000010u
+	#define XRT_SET_COOKIE_F_HAS_SAME_SITE   0x00000020u
+	#define XRT_SET_COOKIE_F_SECURE          0x00000040u
+	#define XRT_SET_COOKIE_F_HTTP_ONLY       0x00000080u
+	#define XRT_SET_COOKIE_F_PARTITIONED     0x00000100u
+	#define XRT_SET_COOKIE_F_SAME_PARTY      0x00000200u
+	#define XRT_SET_COOKIE_F_HAS_PRIORITY    0x00000400u
+	#define XRT_SAME_SITE_UNSPECIFIED        0u
+	#define XRT_SAME_SITE_LAX                1u
+	#define XRT_SAME_SITE_STRICT             2u
+	#define XRT_SAME_SITE_NONE               3u
+	#define XRT_COOKIE_PRIORITY_UNSPECIFIED  0u
+	#define XRT_COOKIE_PRIORITY_LOW          1u
+	#define XRT_COOKIE_PRIORITY_MEDIUM       2u
+	#define XRT_COOKIE_PRIORITY_HIGH         3u
+
+	// Set-Cookie 视图
+	typedef struct {
+	uint32 iFlags;
+	int32_t iMaxAge;
+	uint8 iSameSite;
+	uint8 iPriority;
+	xrtstrview tName;
+	xrtstrview tValue;
+	xrtstrview tDomain;
+	xrtstrview tPath;
+	xrtstrview tExpires;
+	} xrtsetcookieview;
+
+	#define XRT_MULTIPART_F_NONE                   0x00000000u
+	#define XRT_MULTIPART_F_HAS_CONTENT_DISP       0x00000001u
+	#define XRT_MULTIPART_F_HAS_NAME               0x00000002u
+	#define XRT_MULTIPART_F_HAS_FILENAME           0x00000004u
+	#define XRT_MULTIPART_F_HAS_CONTENT_TYPE       0x00000008u
+	#define XRT_MULTIPART_F_HAS_TRANSFER_ENCODING  0x00000010u
+	#define XRT_MULTIPART_F_HAS_FILENAME_EXT       0x00000020u
+
+	// Multipart 视图、流式解析配置和限额配置
+	typedef struct {
+	uint32 iFlags;
+	xrtstrview tHeaders;
+	xrtstrview tBody;
+	xrtstrview tContentDisposition;
+	xrtstrview tName;
+	xrtstrview tFileName;
+	xrtstrview tFileNameExt;
+	xrtstrview tFileNameCharset;
+	xrtstrview tFileNameLanguage;
+	xrtstrview tContentType;
+	xrtstrview tTransferEncoding;
+	} xrtmultipartpartview;
+
+	typedef struct {
+	size_t iMaxBufferedBytes;
+	size_t iMaxHeaderBytes;
+	size_t iMaxPartHeaders;
+	size_t iTailReserve;
+	} xrtmultipartstreamconfig;
+
+	typedef struct {
+	size_t iMaxNameBytes;
+	size_t iMaxValueBytes;
+	size_t iMaxPairs;
+	size_t iMaxHeaderLineBytes;
+	size_t iMaxHeaderBytes;
+	size_t iMaxHeaderCount;
+	size_t iMaxTokenBytes;
+	size_t iMaxBoundaryBytes;
+	size_t iMaxMultipartHeaders;
+	size_t iMaxMultipartParts;
+	size_t iMaxMultipartBytes;
+	} xrthttputillimits;
+
+	typedef enum {
+	XRT_MULTIPART_STREAM_RESULT_ERROR      = -1,
+	XRT_MULTIPART_STREAM_RESULT_NEED_MORE  = 0,
+	XRT_MULTIPART_STREAM_RESULT_PART_BEGIN = 1,
+	XRT_MULTIPART_STREAM_RESULT_DATA       = 2,
+	XRT_MULTIPART_STREAM_RESULT_PART_END   = 3,
+	XRT_MULTIPART_STREAM_RESULT_END        = 4
+	} xrtmultipartstreamresult;
+
+	#define XRT_MULTIPART_STREAM_ERR_NONE             0u
+	#define XRT_MULTIPART_STREAM_ERR_INVALID_BOUNDARY 1u
+	#define XRT_MULTIPART_STREAM_ERR_BUFFER_LIMIT     2u
+	#define XRT_MULTIPART_STREAM_ERR_HEADER_LIMIT     3u
+	#define XRT_MULTIPART_STREAM_ERR_INVALID_HEADER   4u
+	#define XRT_MULTIPART_STREAM_ERR_TRUNCATED        5u
+
+	// Multipart 流式事件与解析状态
+	typedef struct {
+	xrtmultipartstreamresult iResult;
+	xrtmultipartpartview tPart;
+	xrtstrview tData;
+	} xrtmultipartstreamevent;
+
+	typedef struct {
+	char* pBuffer;
+	size_t iBufferLen;
+	size_t iBufferCap;
+	size_t iCursor;
+	size_t iBoundaryPos;
+	size_t iAfterBoundary;
+	size_t iBoundaryLen;
+	size_t iMaxBufferedBytes;
+	size_t iMaxHeaderBytes;
+	size_t iMaxPartHeaders;
+	size_t iTailReserve;
+	uint32 iError;
+	uint32 iState;
+	bool bFinalBoundary;
+	bool bFinishedInput;
+	xrtmultipartpartview tCurrentPart;
+	char aBoundary[71];
+	} xrtmultipartstream;
+	#endif
+
+	#ifndef XRT_NO_XCODEC
+	/* ============================== codec ============================== */
+
+	// 协议编解码器状态码
+	typedef enum {
+	XCODEC_STATUS_ERROR = -1,
+	XCODEC_STATUS_NEED_MORE = 0,
+	XCODEC_STATUS_FRAME = 1
+	} xcodecstatus;
+
+	// 编解码器种类与帧标记
+	#define XCODEC_KIND_NONE    0u
+	#define XCODEC_KIND_LINE    1u
+	#define XCODEC_KIND_LENGTH  2u
+	#define XCODEC_KIND_HTTP1   3u
+	#define XCODEC_KIND_WS      4u
+	#define XCODEC_FRAME_F_NONE        0x00000000u
+	#define XCODEC_FRAME_F_TEXT        0x00000001u
+	#define XCODEC_FRAME_F_BINARY      0x00000002u
+	#define XCODEC_FRAME_F_REQUEST     0x00000004u
+	#define XCODEC_FRAME_F_RESPONSE    0x00000008u
+	#define XCODEC_FRAME_F_FIN         0x00000010u
+	#define XCODEC_FRAME_F_MASKED      0x00000020u
+	#define XCODEC_FRAME_F_UPGRADE     0x00000040u
+	#define XCODEC_FRAME_F_KEEPALIVE   0x00000080u
+	#define XCODEC_FRAME_F_CHUNKED     0x00000100u
+	#define XCODEC_FRAME_F_CONTROL     0x00000200u
+
+	// 通用帧描述与解析器操作表
+	typedef struct {
+	uint32 iKind;
+	uint32 iFlags;
+	size_t iHeaderBytes;
+	size_t iPayloadOffset;
+	size_t iPayloadBytes;
+	size_t iFrameBytes;
+	uint64 iMeta0;
+	uint64 iMeta1;
+	} xcodecframe;
+
+	typedef xcodecstatus (*xcodec_parse_fn)(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame);
+	typedef void (*xcodec_reset_fn)(ptr pCtx);
+
+	typedef struct {
+	xcodec_parse_fn Parse;
+	xcodec_reset_fn Reset;
+	} xcodecparserops;
+
+	typedef struct {
+	const xcodecparserops* pOps;
+	ptr pCtx;
+	} xcodecparser;
+
+	// 行分隔与长度前缀解析器配置
+	typedef struct {
+	uint8 aDelimiter[4];
+	uint32 iDelimiterLen;
+	uint32 iMaxLineBytes;
+	bool bStripDelimiter;
+	} xcodeclinecodec;
+
+	typedef struct {
+	uint8 iFieldBytes;
+	bool bBigEndian;
+	int32_t iLengthAdjust;
+	uint32 iMaxPayloadBytes;
+	} xcodeclengthcodec;
+
+	#define XCODEC_HTTP1_MAX_HEADERS 32u
+	#define XCODEC_HTTP1_TOKEN_CAP   32u
+	#define XCODEC_HTTP1_TARGET_CAP  256u
+	#define XCODEC_HTTP1_VALUE_CAP   256u
+	#define XCODEC_HTTP1_REASON_CAP  128u
+	#define XCODEC_HTTP1_F_NONE       0x00000000u
+	#define XCODEC_HTTP1_F_REQUEST    0x00000001u
+	#define XCODEC_HTTP1_F_RESPONSE   0x00000002u
+	#define XCODEC_HTTP1_F_CHUNKED    0x00000004u
+	#define XCODEC_HTTP1_F_KEEPALIVE  0x00000008u
+	#define XCODEC_HTTP1_F_UPGRADE    0x00000010u
+
+	// HTTP/1 报文与 WebSocket 帧头结构
+	typedef struct {
+	char sName[XCODEC_HTTP1_TOKEN_CAP];
+	char sValue[XCODEC_HTTP1_VALUE_CAP];
+	} xcodechttp1header;
+
+	typedef struct {
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	uint32 iStatusCode;
+	int64_t iContentLength;
+	size_t iHeadBytes;
+	char sMethod[XCODEC_HTTP1_TOKEN_CAP];
+	char sTarget[XCODEC_HTTP1_TARGET_CAP];
+	char sVersion[XCODEC_HTTP1_TOKEN_CAP];
+	char sReason[XCODEC_HTTP1_REASON_CAP];
+	xcodechttp1header arrHeaders[XCODEC_HTTP1_MAX_HEADERS];
+	} xcodechttp1msg;
+
+	#define XCODEC_WS_OPCODE_CONT   0x0u
+	#define XCODEC_WS_OPCODE_TEXT   0x1u
+	#define XCODEC_WS_OPCODE_BINARY 0x2u
+	#define XCODEC_WS_OPCODE_CLOSE  0x8u
+	#define XCODEC_WS_OPCODE_PING   0x9u
+	#define XCODEC_WS_OPCODE_PONG   0xAu
+	#define XCODEC_WS_F_NONE     0x00000000u
+	#define XCODEC_WS_F_FIN      0x00000001u
+	#define XCODEC_WS_F_MASKED   0x00000002u
+	#define XCODEC_WS_F_CONTROL  0x00000004u
+
+	typedef struct {
+	uint32 iFlags;
+	uint8 iOpcode;
+	uint8 aMask[4];
+	uint64 iPayloadLen;
+	size_t iHeaderBytes;
+	} xcodecwsframeinfo;
+	#endif
+
+	/* ============================== xnet stream/dgram/sync ============================== */
+
+	// 监听器、流和 UDP 套接字事件回调
+	typedef struct {
+	bool (*OnAccept)(ptr pOwner, xnetlistener* pListener, xnetstream* pStream);
+	void (*OnError)(ptr pOwner, xnetlistener* pListener, int iSysErr);
+	} xnetlistenerevents;
+
+	typedef struct {
+	void (*OnOpen)(ptr pOwner, xnetstream* pStream);
+	void (*OnRecv)(ptr pOwner, xnetstream* pStream, xnetchain* pChain);
+	void (*OnDrain)(ptr pOwner, xnetstream* pStream);
+	void (*OnClose)(ptr pOwner, xnetstream* pStream, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xnetstream* pStream, int iSysErr);
+	void (*OnHighWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
+	void (*OnLowWater)(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes);
+	} xnetstreamevents;
+
+	#define XNET_STREAM_WAIT_READABLE 0u
+	#define XNET_STREAM_WAIT_WRITABLE 1u
+	#define XNET_STREAM_WAIT_DRAIN    2u
+	#define XNET_STREAM_WAIT_CLOSE    3u
+
+	typedef struct {
+	void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
+	void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
+	} xnetdgramevents;
+
+	#define XNET_WAIT_INFINITE UINT32_C(0xffffffff)
+	#define XNET_WAITSRC_NONE     0u
+	#define XNET_WAITSRC_FUTURE   1u
+	#define XNET_WAITSRC_STREAM   2u
+	#define XNET_WAITSRC_DGRAM    3u
+	#define XNET_WAITSRC_LISTENER 4u
+
+	// Future / Task 回调与状态结构
+	typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
+
+	typedef enum {
 	XFUTURE_PENDING = 0,
 	XFUTURE_RESOLVED,
 	XFUTURE_REJECTED,
 	XFUTURE_CANCELLED,
 	XFUTURE_CLOSED
-} xfuture_state;
+	} xfuture_state;
 
-typedef enum {
+	typedef enum {
 	XTASK_CREATED = 0,
 	XTASK_QUEUED,
 	XTASK_RUNNING,
 	XTASK_DONE,
 	XTASK_CANCELLED,
 	XTASK_CLOSED
-} xtask_state;
+	} xtask_state;
 
-#define XFUTURE_RESULT_F_NONE        0x00000000u
-#define XFUTURE_RESULT_F_OWN_VALUE   0x00000001u
-#define XFUTURE_RESULT_F_OWN_ERROR   0x00000002u
-#define XFUTURE_RESULT_F_SYS_ERROR   0x00000004u
-#define XFUTURE_RESULT_F_TIMEOUT     0x00000008u
-#define XFUTURE_RESULT_F_CANCELLED   0x00000010u
-#define XFUTURE_RESULT_F_CLOSED      0x00000020u
-#define XFUTURE_RESULT_F_GROUP_ALL   0x00000040u
+	#define XFUTURE_RESULT_F_NONE        0x00000000u
+	#define XFUTURE_RESULT_F_OWN_VALUE   0x00000001u
+	#define XFUTURE_RESULT_F_OWN_ERROR   0x00000002u
+	#define XFUTURE_RESULT_F_SYS_ERROR   0x00000004u
+	#define XFUTURE_RESULT_F_TIMEOUT     0x00000008u
+	#define XFUTURE_RESULT_F_CANCELLED   0x00000010u
+	#define XFUTURE_RESULT_F_CLOSED      0x00000020u
+	#define XFUTURE_RESULT_F_GROUP_ALL   0x00000040u
 
-typedef struct {
+	typedef struct {
 	int32 iStatus;
 	ptr pValue;
 	str sError;
 	uint32 iFlags;
-} xfuture_result;
+	} xfuture_result;
 
-typedef struct {
+	typedef struct {
 	int iCount;
 	ptr* arrValue;
-} xfuture_all_value;
+	} xfuture_all_value;
 
-typedef int32 (*xtask_engine_fn)(xnetworker* pWorker, ptr pArg, xfuture_result* pOut);
-typedef int32 (*xtask_thread_fn)(ptr pArg, xfuture_result* pOut);
-typedef int32 (*xtask_co_fn)(ptr pArg, xfuture_result* pOut);
-typedef int32 (*xfuture_cont_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
-typedef void (*xfuture_finally_fn)(const xfuture_result* pIn, ptr pArg);
+	typedef int32 (*xtask_engine_fn)(xnetworker* pWorker, ptr pArg, xfuture_result* pOut);
+	typedef int32 (*xtask_thread_fn)(ptr pArg, xfuture_result* pOut);
+	typedef int32 (*xtask_co_fn)(ptr pArg, xfuture_result* pOut);
+	typedef int32 (*xfuture_cont_fn)(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut);
+	typedef void (*xfuture_finally_fn)(const xfuture_result* pIn, ptr pArg);
 
-typedef struct {
+	typedef struct {
 	uint32 iKind;
 	union {
 		xnetfuture* pFuture;
-        struct {
-            xnetstream* pStream;
-            uint32 iWaitKind;
-        } tStream;
-        xdgramsock* pDgram;
+		struct {
+			xnetstream* pStream;
+			uint32 iWaitKind;
+		} tStream;
+		xdgramsock* pDgram;
 		xnetlistener* pListener;
 	} u;
-} xnetwaitsrc;
+	} xnetwaitsrc;
 
-typedef xnetwaitsrc xwaitsrc;
+	typedef xnetwaitsrc xwaitsrc;
 
-#ifndef XRT_NO_XHTTP
-/* ============================== xhttp ============================== */
+	#ifndef XRT_NO_XHTTP
+	/* ============================== xhttp ============================== */
 
-#define XHTTP_METHOD_CAP         16u
-#define XHTTP_URL_CAP            1024u
-#define XHTTP_HOST_CAP           256u
-#define XHTTP_PATH_CAP           1024u
-#define XHTTP_HEADER_NAME_CAP    64u
-#define XHTTP_HEADER_VALUE_CAP   256u
-#define XHTTP_MAX_HEADERS        32u
-#define XHTTP_RESP_F_NONE        0x00000000u
-#define XHTTP_RESP_F_CHUNKED     0x00000001u
-#define XHTTP_RESP_F_KEEPALIVE   0x00000002u
-#define XHTTP_RESP_F_UPGRADE     0x00000004u
+	#define XHTTP_METHOD_CAP         16u
+	#define XHTTP_URL_CAP            1024u
+	#define XHTTP_HOST_CAP           256u
+	#define XHTTP_PATH_CAP           1024u
+	#define XHTTP_HEADER_NAME_CAP    64u
+	#define XHTTP_HEADER_VALUE_CAP   256u
+	#define XHTTP_MAX_HEADERS        32u
+	#define XHTTP_RESP_F_NONE        0x00000000u
+	#define XHTTP_RESP_F_CHUNKED     0x00000001u
+	#define XHTTP_RESP_F_KEEPALIVE   0x00000002u
+	#define XHTTP_RESP_F_UPGRADE     0x00000004u
 
-typedef struct {
-    char sName[XHTTP_HEADER_NAME_CAP];
-    char sValue[XHTTP_HEADER_VALUE_CAP];
-} xhttpheader;
+	typedef struct {
+	char sName[XHTTP_HEADER_NAME_CAP];
+	char sValue[XHTTP_HEADER_VALUE_CAP];
+	} xhttpheader;
 
-typedef struct {
-    bool bHttps;
-    uint16 iPort;
-    char sHost[XHTTP_HOST_CAP];
-    char sPath[XHTTP_PATH_CAP];
-} xhttpurl;
+	typedef struct {
+	bool bHttps;
+	uint16 iPort;
+	char sHost[XHTTP_HOST_CAP];
+	char sPath[XHTTP_PATH_CAP];
+	} xhttpurl;
 
-typedef struct {
-    char sMethod[XHTTP_METHOD_CAP];
-    char sURL[XHTTP_URL_CAP];
-    xhttpurl tURL;
-    xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
-    uint32 iHeaderCount;
-    char* pBody;
-    size_t iBodyLen;
-    uint32 iTimeoutMs;
-    bool bVerifyPeer;
-} xhttprequest;
+	typedef struct {
+	char sMethod[XHTTP_METHOD_CAP];
+	char sURL[XHTTP_URL_CAP];
+	xhttpurl tURL;
+	xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
+	uint32 iHeaderCount;
+	char* pBody;
+	size_t iBodyLen;
+	uint32 iTimeoutMs;
+	bool bVerifyPeer;
+	} xhttprequest;
 
-typedef struct {
-    uint32 iStatusCode;
-    uint32 iFlags;
-    uint32 iHeaderCount;
-    int64_t iContentLength;
-    char sVersion[XCODEC_HTTP1_TOKEN_CAP];
-    char sReason[XCODEC_HTTP1_REASON_CAP];
-    xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
-    char* pBody;
-    size_t iBodyLen;
-} xhttpresponse;
-#endif
+	typedef struct {
+	uint32 iStatusCode;
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	int64_t iContentLength;
+	char sVersion[XCODEC_HTTP1_TOKEN_CAP];
+	char sReason[XCODEC_HTTP1_REASON_CAP];
+	xhttpheader arrHeaders[XHTTP_MAX_HEADERS];
+	char* pBody;
+	size_t iBodyLen;
+	} xhttpresponse;
+	#endif
 
-#ifndef XRT_NO_XHTTPD
-/* ============================== xhttpd ============================== */
+	#ifndef XRT_NO_XHTTPD
+	/* ============================== xhttpd ============================== */
 
-typedef struct xrt_httpd_server xhttpdserver;
-typedef struct xrt_httpd_conn xhttpdconn;
+	typedef struct xrt_httpd_server xhttpdserver;
+	typedef struct xrt_httpd_conn xhttpdconn;
 
-#define XHTTPD_METHOD_CAP         16u
-#define XHTTPD_TARGET_CAP         256u
-#define XHTTPD_PATH_CAP           256u
-#define XHTTPD_QUERY_CAP          256u
-#define XHTTPD_VERSION_CAP        32u
-#define XHTTPD_REASON_CAP         128u
-#define XHTTPD_HEADER_NAME_CAP    64u
-#define XHTTPD_HEADER_VALUE_CAP   256u
-#define XHTTPD_MAX_HEADERS        32u
-#define XHTTPD_REQ_F_NONE         0x00000000u
-#define XHTTPD_REQ_F_KEEPALIVE    0x00000001u
-#define XHTTPD_REQ_F_CHUNKED      0x00000002u
-#define XHTTPD_REQ_F_UPGRADE      0x00000004u
-#define XHTTPD_RESP_F_NONE        0x00000000u
-#define XHTTPD_RESP_F_CLOSE       0x00000001u
+	#define XHTTPD_METHOD_CAP         16u
+	#define XHTTPD_TARGET_CAP         256u
+	#define XHTTPD_PATH_CAP           256u
+	#define XHTTPD_QUERY_CAP          256u
+	#define XHTTPD_VERSION_CAP        32u
+	#define XHTTPD_REASON_CAP         128u
+	#define XHTTPD_HEADER_NAME_CAP    64u
+	#define XHTTPD_HEADER_VALUE_CAP   256u
+	#define XHTTPD_MAX_HEADERS        32u
+	#define XHTTPD_REQ_F_NONE         0x00000000u
+	#define XHTTPD_REQ_F_KEEPALIVE    0x00000001u
+	#define XHTTPD_REQ_F_CHUNKED      0x00000002u
+	#define XHTTPD_REQ_F_UPGRADE      0x00000004u
+	#define XHTTPD_RESP_F_NONE        0x00000000u
+	#define XHTTPD_RESP_F_CLOSE       0x00000001u
 
-typedef struct {
-    char sName[XHTTPD_HEADER_NAME_CAP];
-    char sValue[XHTTPD_HEADER_VALUE_CAP];
-} xhttpdheader;
+	typedef struct {
+	char sName[XHTTPD_HEADER_NAME_CAP];
+	char sValue[XHTTPD_HEADER_VALUE_CAP];
+	} xhttpdheader;
 
-typedef struct {
-    uint32 iFlags;
-    uint32 iHeaderCount;
-    int64_t iContentLength;
-    char sMethod[XHTTPD_METHOD_CAP];
-    char sTarget[XHTTPD_TARGET_CAP];
-    char sPath[XHTTPD_PATH_CAP];
-    char sQuery[XHTTPD_QUERY_CAP];
-    char sVersion[XHTTPD_VERSION_CAP];
-    xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
-    char* pBody;
-    size_t iBodyLen;
-} xhttpdrequest;
+	typedef struct {
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	int64_t iContentLength;
+	char sMethod[XHTTPD_METHOD_CAP];
+	char sTarget[XHTTPD_TARGET_CAP];
+	char sPath[XHTTPD_PATH_CAP];
+	char sQuery[XHTTPD_QUERY_CAP];
+	char sVersion[XHTTPD_VERSION_CAP];
+	xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
+	char* pBody;
+	size_t iBodyLen;
+	} xhttpdrequest;
 
-typedef struct {
-    uint32 iStatusCode;
-    uint32 iFlags;
-    uint32 iHeaderCount;
-    char sReason[XHTTPD_REASON_CAP];
-    xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
-    char* pBody;
-    size_t iBodyLen;
-} xhttpdresponse;
+	typedef struct {
+	uint32 iStatusCode;
+	uint32 iFlags;
+	uint32 iHeaderCount;
+	char sReason[XHTTPD_REASON_CAP];
+	xhttpdheader arrHeaders[XHTTPD_MAX_HEADERS];
+	char* pBody;
+	size_t iBodyLen;
+	} xhttpdresponse;
 
-typedef struct {
-    xnetaddr tBindAddr;
-    uint32 iFlags;
-    uint32 iBacklog;
-    uint32 iRecvLimit;
-    const xtlsconfig* pTlsConfig;
-} xhttpdconfig;
+	typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iBacklog;
+	uint32 iRecvLimit;
+	const xtlsconfig* pTlsConfig;
+	} xhttpdconfig;
 
-typedef struct {
-    void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
-    bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
-    void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
-    void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
-} xhttpdevents;
-#endif
+	typedef struct {
+	void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
+	bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
+	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
+	} xhttpdevents;
+	#endif
 
-#ifndef XRT_NO_XWS
-/* ============================== xws ============================== */
+	#ifndef XRT_NO_XWS
+	/* ============================== xws ============================== */
 
-typedef struct xrt_ws_client xwsclient;
-typedef struct xrt_ws_server xwsserver;
-typedef struct xrt_ws_conn   xwsconn;
+	typedef struct xrt_ws_client xwsclient;
+	typedef struct xrt_ws_server xwsserver;
+	typedef struct xrt_ws_conn   xwsconn;
 
-#define XWS_URL_CAP              1024u
-#define XWS_HOST_CAP             256u
-#define XWS_PATH_CAP             1024u
-#define XWS_ORIGIN_CAP           256u
-#define XWS_PROTOCOL_CAP         128u
-#define XWS_CLOSE_REASON_CAP     123u
-#define XWS_CLOSE_NORMAL         1000u
-#define XWS_CLOSE_GOING_AWAY     1001u
-#define XWS_CLOSE_PROTOCOL       1002u
-#define XWS_CLOSE_UNSUPPORTED    1003u
-#define XWS_CLOSE_TOO_BIG        1009u
-#define XWS_CLOSE_INTERNAL       1011u
+	#define XWS_URL_CAP              1024u
+	#define XWS_HOST_CAP             256u
+	#define XWS_PATH_CAP             1024u
+	#define XWS_ORIGIN_CAP           256u
+	#define XWS_PROTOCOL_CAP         128u
+	#define XWS_CLOSE_REASON_CAP     123u
+	#define XWS_CLOSE_NORMAL         1000u
+	#define XWS_CLOSE_GOING_AWAY     1001u
+	#define XWS_CLOSE_PROTOCOL       1002u
+	#define XWS_CLOSE_UNSUPPORTED    1003u
+	#define XWS_CLOSE_TOO_BIG        1009u
+	#define XWS_CLOSE_INTERNAL       1011u
 
-typedef struct {
-    char sURL[XWS_URL_CAP];
-    char sOrigin[XWS_ORIGIN_CAP];
-    char sProtocol[XWS_PROTOCOL_CAP];
-    uint32 iConnectTimeoutMs;
-    uint32 iRecvLimit;
-    bool bVerifyPeer;
-} xwsclientconfig;
+	typedef struct {
+	char sURL[XWS_URL_CAP];
+	char sOrigin[XWS_ORIGIN_CAP];
+	char sProtocol[XWS_PROTOCOL_CAP];
+	uint32 iConnectTimeoutMs;
+	uint32 iRecvLimit;
+	bool bVerifyPeer;
+	} xwsclientconfig;
 
-typedef struct {
-    xnetaddr tBindAddr;
-    uint32 iFlags;
-    uint32 iBacklog;
-    uint32 iRecvLimit;
-    const xtlsconfig* pTlsConfig;
-    char sProtocol[XWS_PROTOCOL_CAP];
-} xwsserverconfig;
+	typedef struct {
+	xnetaddr tBindAddr;
+	uint32 iFlags;
+	uint32 iBacklog;
+	uint32 iRecvLimit;
+	const xtlsconfig* pTlsConfig;
+	char sProtocol[XWS_PROTOCOL_CAP];
+	} xwsserverconfig;
 
-typedef struct {
-    void (*OnOpen)(ptr pOwner, xwsclient* pClient);
-    void (*OnText)(ptr pOwner, xwsclient* pClient, const char* pData, size_t iLen);
-    void (*OnBinary)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
-    void (*OnClose)(ptr pOwner, xwsclient* pClient, xnet_result iReason);
-    void (*OnError)(ptr pOwner, xwsclient* pClient, int iSysErr);
-    void (*OnPing)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
-    void (*OnPong)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
-} xwsclientevents;
+	typedef struct {
+	void (*OnOpen)(ptr pOwner, xwsclient* pClient);
+	void (*OnText)(ptr pOwner, xwsclient* pClient, const char* pData, size_t iLen);
+	void (*OnBinary)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
+	void (*OnClose)(ptr pOwner, xwsclient* pClient, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xwsclient* pClient, int iSysErr);
+	void (*OnPing)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
+	void (*OnPong)(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen);
+	} xwsclientevents;
 
-typedef struct {
-    void (*OnOpen)(ptr pOwner, xwsserver* pServer, xwsconn* pConn);
-    void (*OnText)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const char* pData, size_t iLen);
-    void (*OnBinary)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
-    void (*OnClose)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, xnet_result iReason);
-    void (*OnError)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, int iSysErr);
-    void (*OnPing)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
-    void (*OnPong)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
-} xwsserverevents;
-#endif
-XXAPI void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort);
-XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort);
-XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr);
-XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr);
-XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg);
-XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg);
-XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg);
-XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg);
+	typedef struct {
+	void (*OnOpen)(ptr pOwner, xwsserver* pServer, xwsconn* pConn);
+	void (*OnText)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const char* pData, size_t iLen);
+	void (*OnBinary)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
+	void (*OnClose)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, xnet_result iReason);
+	void (*OnError)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, int iSysErr);
+	void (*OnPing)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
+	void (*OnPong)(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen);
+	} xwsserverevents;
+	#endif
+	XXAPI void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort);
+	XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort);
+	XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr);
+	XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr);
+	// 默认配置初始化
+	XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg);
+	XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg);
+	XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg);
+	XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg);
 
-XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg);
-XXAPI void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg);
-XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx);
-XXAPI void xrtNetMemCtxUnit(xnetmemctx* pCtx);
-XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats);
-XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx);
-XXAPI void xrtNetChainInit(xnetchain* pChain);
-XXAPI void xrtNetChainClear(xnetchain* pChain);
-XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iLen);
-XXAPI bool xrtNetChainAppendRef(xnetchain* pChain, const xnetbufref* pRef);
-XXAPI size_t xrtNetChainBytes(const xnetchain* pChain);
-XXAPI uint32 xrtNetChainSpanCount(const xnetchain* pChain);
-XXAPI uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32 iMaxCount);
-XXAPI size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen);
-XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff);
-XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen);
+	// XNet 内存上下文与数据链操作
+	XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg);
+	XXAPI void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg);
+	XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx);
+	XXAPI void xrtNetMemCtxUnit(xnetmemctx* pCtx);
+	XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats);
+	XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx);
+	XXAPI void xrtNetChainInit(xnetchain* pChain);
+	XXAPI void xrtNetChainClear(xnetchain* pChain);
+	XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iLen);
+	XXAPI bool xrtNetChainAppendRef(xnetchain* pChain, const xnetbufref* pRef);
+	XXAPI size_t xrtNetChainBytes(const xnetchain* pChain);
+	XXAPI uint32 xrtNetChainSpanCount(const xnetchain* pChain);
+	XXAPI uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32 iMaxCount);
+	XXAPI size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen);
+	XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff);
+	XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen);
 
-#ifndef XRT_NO_XURL
-XXAPI xrtstrview xrtStrView(const char* sPtr, size_t iLen);
-XXAPI bool xrtStrViewIsEmpty(xrtstrview tView);
-XXAPI bool xrtStrViewCopyTo(xrtstrview tView, char* sOut, size_t iOutCap);
-XXAPI uint16 xrtUrlDefaultPort(xrtstrview tScheme);
-XXAPI bool xrtUrlIsSecureScheme(xrtstrview tScheme);
-XXAPI bool xrtUrlIsDefaultPort(const xrturlview* pURL);
-XXAPI bool xrtUrlViewIsScheme(const xrturlview* pURL, const char* sScheme);
-XXAPI bool xrtUrlViewMatchesScheme2(const xrturlview* pURL, const char* sSchemeA, const char* sSchemeB);
-XXAPI bool xrtUrlViewCopySchemeTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlViewCopyAuthorityTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlViewCopyPathTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlViewCopyQueryTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlViewCopyFragmentTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOut);
-XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut);
-XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut);
-XXAPI bool xrtUrlParseTarget(const char* sText, xrturlview* pOut);
-XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut);
-XXAPI bool xrtUrlParseView(const char* sText, xrturlview* pOut);
-XXAPI bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlMakeHostHeader(const xrturlview* pURL, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlMakeHostHeaderFixed(const char* sScheme, const char* sHost, uint16 iPort, char* sOut, size_t iOutCap);
-XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRefLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtUrlResolve(const xrturlview* pBase, const char* sRef, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
-XXAPI bool xrtQueryNext(const char* sQuery, size_t* pOffset, xrtquerypair* pOut);
-XXAPI size_t xrtQueryCountN(const char* sQuery, size_t iLen);
-XXAPI size_t xrtQueryCount(const char* sQuery);
-XXAPI bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, xrtquerypair* pOut);
-XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut);
-XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtQueryParseTo(const char* sQuery, xrtquerypair* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bPlusAsSpace);
-XXAPI bool xrtUrlParseFixedTo(const char* sURL, const char* sSchemeA, const char* sSchemeB, bool* pSchemeB, char* sHost, size_t iHostCap, uint16* pPort, char* sTarget, size_t iTargetCap);
-XXAPI bool xrtUrlParse(const char* sURL, xurl pOut);
+	#ifndef XRT_NO_XURL
+	// URL / Query 解析、拷贝、拼装与归一化
+	XXAPI xrtstrview xrtStrView(const char* sPtr, size_t iLen);
+	XXAPI bool xrtStrViewIsEmpty(xrtstrview tView);
+	XXAPI bool xrtStrViewCopyTo(xrtstrview tView, char* sOut, size_t iOutCap);
+	XXAPI uint16 xrtUrlDefaultPort(xrtstrview tScheme);
+	XXAPI bool xrtUrlIsSecureScheme(xrtstrview tScheme);
+	XXAPI bool xrtUrlIsDefaultPort(const xrturlview* pURL);
+	XXAPI bool xrtUrlViewIsScheme(const xrturlview* pURL, const char* sScheme);
+	XXAPI bool xrtUrlViewMatchesScheme2(const xrturlview* pURL, const char* sSchemeA, const char* sSchemeB);
+	XXAPI bool xrtUrlViewCopySchemeTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlViewCopyAuthorityTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlViewCopyPathTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlViewCopyQueryTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlViewCopyFragmentTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOut);
+	XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut);
+	XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut);
+	XXAPI bool xrtUrlParseTarget(const char* sText, xrturlview* pOut);
+	XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut);
+	XXAPI bool xrtUrlParseView(const char* sText, xrturlview* pOut);
+	XXAPI bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlMakeHostHeader(const xrturlview* pURL, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlMakeHostHeaderFixed(const char* sScheme, const char* sHost, uint16 iPort, char* sOut, size_t iOutCap);
+	XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRefLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtUrlResolve(const xrturlview* pBase, const char* sRef, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
+	XXAPI bool xrtQueryNext(const char* sQuery, size_t* pOffset, xrtquerypair* pOut);
+	XXAPI size_t xrtQueryCountN(const char* sQuery, size_t iLen);
+	XXAPI size_t xrtQueryCount(const char* sQuery);
+	XXAPI bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, xrtquerypair* pOut);
+	XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut);
+	XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtQueryParseTo(const char* sQuery, xrtquerypair* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bPlusAsSpace);
+	XXAPI bool xrtUrlParseFixedTo(const char* sURL, const char* sSchemeA, const char* sSchemeB, bool* pSchemeB, char* sHost, size_t iHostCap, uint16* pPort, char* sTarget, size_t iTargetCap);
+	XXAPI bool xrtUrlParse(const char* sURL, xurl pOut);
 
-#endif
+	#endif
 
-#ifndef XRT_NO_HTTP_UTIL
-XXAPI bool xrtQueryNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
-XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
-XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut);
-XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut);
-XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut);
-XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut);
-XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut);
-XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits);
-XXAPI void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig, const xrthttputillimits* pLimits);
-XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtHttpTokenValidate(const char* sText, const xrthttputillimits* pLimits);
-XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtHttpParamValidate(const char* sText, const xrthttputillimits* pLimits);
-XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtQueryValidate(const char* sText, const xrthttputillimits* pLimits);
-XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtCookieValidate(const char* sText, const xrthttputillimits* pLimits);
-XXAPI bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtFormUrlEncodedValidate(const char* sText, const xrthttputillimits* pLimits);
-XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtHttpHeaderBlockValidate(const char* sBlock, const xrthttputillimits* pLimits);
-XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLimits);
-XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits);
-XXAPI bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const xrthttputillimits* pLimits);
-XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen);
-XXAPI bool xrtHttpIsToken(const char* sText);
-XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bSpaceAsPlus);
-XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* pCharset, xrtstrview* pLanguage, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpBuildExtValue(const char* sCharset, const char* sLanguage, const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair* pOut);
-XXAPI bool xrtHttpHeaderSplitLine(const char* sLine, xrtheaderpair* pOut);
-XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderBuildLine(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderBuildCanonicalLineTo(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
-XXAPI bool xrtHttpTokenNext(const char* sText, size_t* pOffset, xrtstrview* pOut);
-XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen);
-XXAPI size_t xrtHttpTokenCount(const char* sText);
-XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken, size_t iTokenLen, xrtstrview* pOut);
-XXAPI bool xrtHttpTokenFind(const char* sText, const char* sToken, xrtstrview* pOut);
-XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken, size_t iTokenLen);
-XXAPI bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken);
-XXAPI bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, const char* sToken);
-XXAPI bool xrtHttpHeaderContainsToken(const char* sValue, const char* sToken);
-XXAPI bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut);
-XXAPI bool xrtHttpHeaderFind(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut);
-XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen);
-XXAPI size_t xrtHttpHeaderCount(const xrtheaderpair* pHeaders, size_t iCount, const char* sName);
-XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pOut);
-XXAPI bool xrtHttpHeaderFindNth(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNth, xrtstrview* pOut);
-XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, xrtstrview* pOut, size_t iOutCap);
-XXAPI size_t xrtHttpHeaderFindAllTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut, size_t iOutCap);
-XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderCanonicalizeNameTo(const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut);
-XXAPI bool xrtHttpHeaderNextLine(const char* sBlock, size_t* pOffset, xrtheaderpair* pOut);
-XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* sName, xrtheaderpair* pOut);
-XXAPI bool xrtHttpHeaderFindLine(const char* sBlock, const char* sName, xrtheaderpair* pOut);
-XXAPI bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount);
-XXAPI bool xrtHttpHeaderParseBlockTo(const char* sBlock, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount);
-XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
-XXAPI bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue);
-XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
-XXAPI bool xrtHttpHeaderSetPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue);
-XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const char* sName, size_t iNameLen);
-XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const char* sName);
-XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut);
-XXAPI bool xrtCookieNext(const char* sText, size_t* pOffset, xrtcookiepair* pOut);
-XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrtcookiepair* pOut);
-XXAPI bool xrtCookieFind(const char* sText, const char* sName, xrtcookiepair* pOut);
-XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut);
-XXAPI bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut);
-XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookieview* pOut);
-XXAPI bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut);
-XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut);
-XXAPI bool xrtHttpParamNext(const char* sText, size_t* pOffset, xrthttpparam* pOut);
-XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen);
-XXAPI size_t xrtHttpParamCount(const char* sText);
-XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrthttpparam* pOut);
-XXAPI bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* pOut);
-XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bQuoteValue);
-XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue, bool bHasValue, bool bQuoteValue);
-XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut);
-XXAPI bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut);
-XXAPI bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpMediaTypeBuild(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char* sName, size_t iNameLen, xrthttpparam* pOut);
-XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* sName, xrthttpparam* pOut);
-XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut);
-XXAPI bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositionview* pOut);
-XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpContentDispositionDecodeFileName(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtHttpContentDispositionBuild(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
-XXAPI bool xrtCookieAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue);
-XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, size_t iKeyLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bPlusAsSpace);
-XXAPI bool xrtQueryAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, const char* sValue);
-XXAPI bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtFormUrlEncodedNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
-XXAPI bool xrtFormUrlEncodedNext(const char* sText, size_t* pOffset, xrtquerypair* pOut);
-XXAPI bool xrtFormUrlEncodedParseToN(const char* sText, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtFormUrlEncodedParseTo(const char* sText, xrtquerypair* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtFormUrlEncodedDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue);
-XXAPI bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue);
-XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtSetCookieBuildLine(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen, xrtstrview* pOut);
-XXAPI bool xrtMultipartBoundaryFromContentType(const char* sValue, xrtstrview* pOut);
-XXAPI bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundaryLen, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtMultipartBuildContentType(const char* sBoundary, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut);
-XXAPI bool xrtMultipartNext(const char* sBody, const char* sBoundary, size_t* pOffset, xrtmultipartpartview* pOut);
-XXAPI bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtMultipartParseTo(const char* sBody, const char* sBoundary, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount);
-XXAPI bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI bool xrtMultipartDecodeFileName(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen);
-XXAPI void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig);
-XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig);
-XXAPI void xrtMultipartStreamUnit(xrtmultipartstream* pStream);
-XXAPI void xrtMultipartStreamReset(xrtmultipartstream* pStream);
-XXAPI bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData, size_t iLen);
-XXAPI void xrtMultipartStreamFinish(xrtmultipartstream* pStream);
-XXAPI uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream);
-XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStream, xrtmultipartstreamevent* pEvent);
-XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
-XXAPI bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sValue);
-XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen);
-XXAPI bool xrtMultipartAppendRawPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen);
-XXAPI bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sFileNameExt, size_t iFileNameExtLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen);
-XXAPI bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sFileNameExt, const char* sContentType, const char* pBody, size_t iBodyLen);
-XXAPI bool xrtMultipartAppendFilePartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen);
-XXAPI bool xrtMultipartAppendFilePart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sContentType, const char* pBody, size_t iBodyLen);
-XXAPI bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen);
-XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary);
+	#ifndef XRT_NO_HTTP_UTIL
+	// HTTP Token、Header、Cookie、参数与 Multipart 工具函数
+	XXAPI bool xrtQueryNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
+	XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
+	XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut);
+	XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut);
+	XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut);
+	XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut);
+	XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut);
+	XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits);
+	XXAPI void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig, const xrthttputillimits* pLimits);
+	XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtHttpTokenValidate(const char* sText, const xrthttputillimits* pLimits);
+	XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtHttpParamValidate(const char* sText, const xrthttputillimits* pLimits);
+	XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtQueryValidate(const char* sText, const xrthttputillimits* pLimits);
+	XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtCookieValidate(const char* sText, const xrthttputillimits* pLimits);
+	XXAPI bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtFormUrlEncodedValidate(const char* sText, const xrthttputillimits* pLimits);
+	XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtHttpHeaderBlockValidate(const char* sBlock, const xrthttputillimits* pLimits);
+	XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLimits);
+	XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits);
+	XXAPI bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const xrthttputillimits* pLimits);
+	XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen);
+	XXAPI bool xrtHttpIsToken(const char* sText);
+	XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bSpaceAsPlus);
+	XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* pCharset, xrtstrview* pLanguage, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpBuildExtValue(const char* sCharset, const char* sLanguage, const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair* pOut);
+	XXAPI bool xrtHttpHeaderSplitLine(const char* sLine, xrtheaderpair* pOut);
+	XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderBuildLine(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderBuildCanonicalLineTo(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut);
+	XXAPI bool xrtHttpTokenNext(const char* sText, size_t* pOffset, xrtstrview* pOut);
+	XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen);
+	XXAPI size_t xrtHttpTokenCount(const char* sText);
+	XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken, size_t iTokenLen, xrtstrview* pOut);
+	XXAPI bool xrtHttpTokenFind(const char* sText, const char* sToken, xrtstrview* pOut);
+	XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken, size_t iTokenLen);
+	XXAPI bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken);
+	XXAPI bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, const char* sToken);
+	XXAPI bool xrtHttpHeaderContainsToken(const char* sValue, const char* sToken);
+	XXAPI bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut);
+	XXAPI bool xrtHttpHeaderFind(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut);
+	XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen);
+	XXAPI size_t xrtHttpHeaderCount(const xrtheaderpair* pHeaders, size_t iCount, const char* sName);
+	XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pOut);
+	XXAPI bool xrtHttpHeaderFindNth(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNth, xrtstrview* pOut);
+	XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, xrtstrview* pOut, size_t iOutCap);
+	XXAPI size_t xrtHttpHeaderFindAllTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut, size_t iOutCap);
+	XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderCanonicalizeNameTo(const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut);
+	XXAPI bool xrtHttpHeaderNextLine(const char* sBlock, size_t* pOffset, xrtheaderpair* pOut);
+	XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* sName, xrtheaderpair* pOut);
+	XXAPI bool xrtHttpHeaderFindLine(const char* sBlock, const char* sName, xrtheaderpair* pOut);
+	XXAPI bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount);
+	XXAPI bool xrtHttpHeaderParseBlockTo(const char* sBlock, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount);
+	XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
+	XXAPI bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue);
+	XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
+	XXAPI bool xrtHttpHeaderSetPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue);
+	XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const char* sName, size_t iNameLen);
+	XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const char* sName);
+	XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut);
+	XXAPI bool xrtCookieNext(const char* sText, size_t* pOffset, xrtcookiepair* pOut);
+	XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrtcookiepair* pOut);
+	XXAPI bool xrtCookieFind(const char* sText, const char* sName, xrtcookiepair* pOut);
+	XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut);
+	XXAPI bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut);
+	XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookieview* pOut);
+	XXAPI bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut);
+	XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut);
+	XXAPI bool xrtHttpParamNext(const char* sText, size_t* pOffset, xrthttpparam* pOut);
+	XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen);
+	XXAPI size_t xrtHttpParamCount(const char* sText);
+	XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrthttpparam* pOut);
+	XXAPI bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* pOut);
+	XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bQuoteValue);
+	XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue, bool bHasValue, bool bQuoteValue);
+	XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut);
+	XXAPI bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut);
+	XXAPI bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpMediaTypeBuild(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char* sName, size_t iNameLen, xrthttpparam* pOut);
+	XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* sName, xrthttpparam* pOut);
+	XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut);
+	XXAPI bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositionview* pOut);
+	XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpContentDispositionDecodeFileName(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtHttpContentDispositionBuild(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
+	XXAPI bool xrtCookieAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue);
+	XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, size_t iKeyLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bPlusAsSpace);
+	XXAPI bool xrtQueryAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, const char* sValue);
+	XXAPI bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtFormUrlEncodedNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut);
+	XXAPI bool xrtFormUrlEncodedNext(const char* sText, size_t* pOffset, xrtquerypair* pOut);
+	XXAPI bool xrtFormUrlEncodedParseToN(const char* sText, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtFormUrlEncodedParseTo(const char* sText, xrtquerypair* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtFormUrlEncodedDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue);
+	XXAPI bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue);
+	XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtSetCookieBuildLine(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen, xrtstrview* pOut);
+	XXAPI bool xrtMultipartBoundaryFromContentType(const char* sValue, xrtstrview* pOut);
+	XXAPI bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundaryLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtMultipartBuildContentType(const char* sBoundary, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut);
+	XXAPI bool xrtMultipartNext(const char* sBody, const char* sBoundary, size_t* pOffset, xrtmultipartpartview* pOut);
+	XXAPI bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtMultipartParseTo(const char* sBody, const char* sBoundary, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount);
+	XXAPI bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI bool xrtMultipartDecodeFileName(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen);
+	XXAPI void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig);
+	XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig);
+	XXAPI void xrtMultipartStreamUnit(xrtmultipartstream* pStream);
+	XXAPI void xrtMultipartStreamReset(xrtmultipartstream* pStream);
+	XXAPI bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData, size_t iLen);
+	XXAPI void xrtMultipartStreamFinish(xrtmultipartstream* pStream);
+	XXAPI uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream);
+	XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStream, xrtmultipartstreamevent* pEvent);
+	XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen);
+	XXAPI bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sValue);
+	XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen);
+	XXAPI bool xrtMultipartAppendRawPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen);
+	XXAPI bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sFileNameExt, size_t iFileNameExtLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen);
+	XXAPI bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sFileNameExt, const char* sContentType, const char* pBody, size_t iBodyLen);
+	XXAPI bool xrtMultipartAppendFilePartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen);
+	XXAPI bool xrtMultipartAppendFilePart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sContentType, const char* pBody, size_t iBodyLen);
+	XXAPI bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen);
+	XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary);
 
-#endif
+	#endif
 
-#ifndef XRT_NO_XCODEC
-XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx);
-XXAPI xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetchain* pInput, xcodecframe* pFrame);
-XXAPI void xrtCodecParserReset(const xcodecparser* pParser);
-XXAPI void xrtCodecFrameInit(xcodecframe* pFrame);
-XXAPI size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen);
-XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame);
-XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec);
-XXAPI bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimiter, uint32 iDelimiterLen);
-XXAPI xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame);
-XXAPI void xrtCodecLineReset(ptr pCtx);
-XXAPI const xcodecparserops* xrtCodecLineOps(void);
-XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec);
-XXAPI xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame);
-XXAPI void xrtCodecLengthReset(ptr pCtx);
-XXAPI const xcodecparserops* xrtCodecLengthOps(void);
+	#ifndef XRT_NO_XCODEC
+	// 通用编解码器与 HTTP/1 / WebSocket 解析接口
+	XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx);
+	XXAPI xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetchain* pInput, xcodecframe* pFrame);
+	XXAPI void xrtCodecParserReset(const xcodecparser* pParser);
+	XXAPI void xrtCodecFrameInit(xcodecframe* pFrame);
+	XXAPI size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen);
+	XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame);
+	XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec);
+	XXAPI bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimiter, uint32 iDelimiterLen);
+	XXAPI xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame);
+	XXAPI void xrtCodecLineReset(ptr pCtx);
+	XXAPI const xcodecparserops* xrtCodecLineOps(void);
+	XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec);
+	XXAPI xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame);
+	XXAPI void xrtCodecLengthReset(ptr pCtx);
+	XXAPI const xcodecparserops* xrtCodecLengthOps(void);
 
-XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName);
-XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg);
-XXAPI size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame);
-XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen);
-XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg);
+	XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName);
+	XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg);
+	XXAPI size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame);
+	XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen);
+	XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFrame, xcodechttp1msg* pMsg);
 
-XXAPI void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo);
-XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo);
-XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset);
+	XXAPI void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo);
+	XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo);
+	XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset);
 
-#endif
+	#endif
 
-XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg);
-XXAPI void xrtNetEngineDestroy(xnetengine* pEngine);
-XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine);
-XXAPI void xrtNetEngineStop(xnetengine* pEngine);
-XXAPI uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine);
-XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg);
-XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
+	// 网络引擎生命周期与任务投递
+	XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg);
+	XXAPI void xrtNetEngineDestroy(xnetengine* pEngine);
+	XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine);
+	XXAPI void xrtNetEngineStop(xnetengine* pEngine);
+	XXAPI uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine);
+	XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg);
+	XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
 
-XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer);
-XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession);
-XXAPI bool xrtNetTlsSessionIsReady(const xtlssession* pSession);
-XXAPI xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession);
-XXAPI xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen);
-XXAPI size_t xrtNetTlsSessionPendingCipher(const xtlssession* pSession);
-XXAPI size_t xrtNetTlsSessionPendingRecv(const xtlssession* pSession);
-XXAPI xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead);
-XXAPI void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen);
-XXAPI xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten);
-XXAPI xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead);
-XXAPI xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession);
-XXAPI xtlsresume* xrtNetTlsSessionExportResume(const xtlssession* pSession);
-XXAPI void xrtNetTlsResumeDestroy(xtlsresume* pResume);
-XXAPI bool xrtNetTlsSessionWasResumed(const xtlssession* pSession);
-XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession);
-XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile);
-XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow);
+	// TLS 会话驱动与恢复
+	XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer);
+	XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession);
+	XXAPI bool xrtNetTlsSessionIsReady(const xtlssession* pSession);
+	XXAPI xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession);
+	XXAPI xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen);
+	XXAPI size_t xrtNetTlsSessionPendingCipher(const xtlssession* pSession);
+	XXAPI size_t xrtNetTlsSessionPendingRecv(const xtlssession* pSession);
+	XXAPI xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead);
+	XXAPI void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen);
+	XXAPI xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten);
+	XXAPI xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead);
+	XXAPI xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession);
+	XXAPI xtlsresume* xrtNetTlsSessionExportResume(const xtlssession* pSession);
+	XXAPI void xrtNetTlsResumeDestroy(xtlsresume* pResume);
+	XXAPI bool xrtNetTlsSessionWasResumed(const xtlssession* pSession);
+	XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession);
+	XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile);
+	XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow);
 
-XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
-XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
-XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenconfig* pCfg,
+	// TCP 流与监听器操作
+	XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
+	XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
+	XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenconfig* pCfg,
 	const xnetlistenerevents* pEvents, const xnetstreamevents* pStreamEvents, ptr pUserData);
-XXAPI void xrtNetListenerDestroy(xnetlistener* pListener);
-XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener);
-XXAPI void xrtNetListenerStop(xnetlistener* pListener);
-XXAPI xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevents* pEvents, ptr pUserData);
-XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
-XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconfig* pCfg);
-XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
-XXAPI xnet_result xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iLen);
-XXAPI xnet_result xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount);
-XXAPI xnet_result xrtNetStreamSendRef(xnetstream* pStream, const xnetbufref* pRef);
-XXAPI void xrtNetStreamPauseRead(xnetstream* pStream);
-XXAPI void xrtNetStreamResumeRead(xnetstream* pStream);
-XXAPI size_t xrtNetStreamPendingSend(const xnetstream* pStream);
-XXAPI const xnetaddr* xrtNetStreamLocalAddr(const xnetstream* pStream);
-XXAPI const xnetaddr* xrtNetStreamRemoteAddr(const xnetstream* pStream);
-XXAPI void xrtNetStreamSetUserData(xnetstream* pStream, ptr pData);
-XXAPI ptr xrtNetStreamGetUserData(xnetstream* pStream);
+	XXAPI void xrtNetListenerDestroy(xnetlistener* pListener);
+	XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener);
+	XXAPI void xrtNetListenerStop(xnetlistener* pListener);
+	XXAPI xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevents* pEvents, ptr pUserData);
+	XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
+	XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconfig* pCfg);
+	XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
+	XXAPI xnet_result xrtNetStreamSend(xnetstream* pStream, const void* pData, size_t iLen);
+	XXAPI xnet_result xrtNetStreamSendVec(xnetstream* pStream, const xnetspan* pVec, uint32 iCount);
+	XXAPI xnet_result xrtNetStreamSendRef(xnetstream* pStream, const xnetbufref* pRef);
+	XXAPI void xrtNetStreamPauseRead(xnetstream* pStream);
+	XXAPI void xrtNetStreamResumeRead(xnetstream* pStream);
+	XXAPI size_t xrtNetStreamPendingSend(const xnetstream* pStream);
+	XXAPI const xnetaddr* xrtNetStreamLocalAddr(const xnetstream* pStream);
+	XXAPI const xnetaddr* xrtNetStreamRemoteAddr(const xnetstream* pStream);
+	XXAPI void xrtNetStreamSetUserData(xnetstream* pStream, ptr pData);
+	XXAPI ptr xrtNetStreamGetUserData(xnetstream* pStream);
 
-XXAPI xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* pData, size_t iLen);
-XXAPI void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket);
-XXAPI const xnetaddr* xrtNetDgramPacketFrom(const xnetdgrampkt* pPacket);
-XXAPI size_t xrtNetDgramPacketBytes(const xnetdgrampkt* pPacket);
-XXAPI size_t xrtNetDgramPacketPeek(const xnetdgrampkt* pPacket, ptr pOut, size_t iLen);
-XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* pCfg, const xnetdgramevents* pEvents, ptr pUserData);
-XXAPI void xrtNetDgramDestroy(xdgramsock* pSock);
-XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock);
-XXAPI void xrtNetDgramStop(xdgramsock* pSock);
-XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen);
-XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount);
+	// UDP 数据报对象与套接字操作
+	XXAPI xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* pData, size_t iLen);
+	XXAPI void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket);
+	XXAPI const xnetaddr* xrtNetDgramPacketFrom(const xnetdgrampkt* pPacket);
+	XXAPI size_t xrtNetDgramPacketBytes(const xnetdgrampkt* pPacket);
+	XXAPI size_t xrtNetDgramPacketPeek(const xnetdgrampkt* pPacket, ptr pOut, size_t iLen);
+	XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* pCfg, const xnetdgramevents* pEvents, ptr pUserData);
+	XXAPI void xrtNetDgramDestroy(xdgramsock* pSock);
+	XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock);
+	XXAPI void xrtNetDgramStop(xdgramsock* pSock);
+	XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen);
+	XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount);
 
-XXAPI xnetfuture* xrtNetFutureCreate(void);
-XXAPI xfuture* xFutureCreate(void);
-XXAPI xfuture* xFutureAddRef(xfuture* pFuture);
-XXAPI void xFutureRelease(xfuture* pFuture);
-XXAPI xfuture_state xFutureState(xfuture* pFuture);
-XXAPI int32 xFutureStatus(xfuture* pFuture);
-XXAPI ptr xFutureValue(xfuture* pFuture);
-XXAPI str xFutureError(xfuture* pFuture);
-XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut);
-XXAPI bool xFutureSetDebugName(xfuture* pFuture, str sDebugName);
-XXAPI str xFutureGetDebugName(xfuture* pFuture);
-XXAPI uint64 xFutureGetCreateTimeMs(xfuture* pFuture);
-XXAPI uint64 xFutureGetCompleteTimeMs(xfuture* pFuture);
-XXAPI int xFutureGetPendingContinuationCount(xfuture* pFuture);
-XXAPI int xFutureGetGroupSourceIndex(xfuture* pFuture);
-XXAPI xfuture* xFutureGetGroupSource(xfuture* pFuture);
-XXAPI xfuture* xFuturePeekGroupSource(xfuture* pFuture);
-XXAPI const xfuture_all_value* xFuturePeekAllValue(xfuture* pFuture);
-XXAPI int xFutureGetAllValueCount(xfuture* pFuture);
-XXAPI ptr xFutureGetAllValueItem(xfuture* pFuture, int iIndex);
-XXAPI bool xFutureWait(xfuture* pFuture);
-XXAPI bool xFutureWaitTimeout(xfuture* pFuture, int64 iTimeoutMs);
-XXAPI bool xFutureWaitUntil(xfuture* pFuture, int64 iDeadlineMs);
-XXAPI bool xFutureWaitCo(xfuture* pFuture);
-XXAPI bool xFutureWaitCoTimeout(xfuture* pFuture, int64 iTimeoutMs);
-XXAPI bool xFutureWaitCoUntil(xfuture* pFuture, int64 iDeadlineMs);
-XXAPI ptr xFutureWaitValue(xfuture* pFuture);
-XXAPI ptr xFutureWaitValueTimeout(xfuture* pFuture, int64 iTimeoutMs);
-XXAPI ptr xFutureWaitValueUntil(xfuture* pFuture, int64 iDeadlineMs);
-XXAPI ptr xFutureWaitCoValue(xfuture* pFuture);
-XXAPI ptr xFutureWaitCoValueTimeout(xfuture* pFuture, int64 iTimeoutMs);
-XXAPI ptr xFutureWaitCoValueUntil(xfuture* pFuture, int64 iDeadlineMs);
-XXAPI bool xFutureRequestCancel(xfuture* pFuture);
-XXAPI xpromise* xPromiseCreate(xfuture* pFuture);
-XXAPI void xPromiseDestroy(xpromise* pPromise);
-XXAPI xfuture* xPromiseGetFuture(xpromise* pPromise);
-XXAPI xfuture* xPromisePeekFuture(xpromise* pPromise);
-XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue);
-XXAPI bool xPromiseReject(xpromise* pPromise, int32 iStatus, str sError);
-XXAPI bool xPromiseCancel(xpromise* pPromise, str sError);
-XXAPI bool xPromiseClose(xpromise* pPromise, str sError);
-XXAPI xfuture* xTaskRunEngine(xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
-XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
-XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
-#if !defined(XRT_NO_COROUTINE)
-XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
-#endif
-XXAPI xfuture* xFutureThenInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureCatchInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureCatchCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureFinallyCurrent(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureThenEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureCatchEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
-XXAPI xfuture* xFutureFinallyEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg);
-#if !defined(XRT_NO_COROUTINE)
-XXAPI xfuture* xFutureThenCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
-XXAPI xfuture* xFutureCatchCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
-XXAPI xfuture* xFutureFinallyCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, size_t iStackSize);
-#endif
-XXAPI xfuture* xFutureWhenAny(xfuture** arrFuture, int iCount);
-XXAPI xfuture* xFutureWhenAll(xfuture** arrFuture, int iCount);
-XXAPI xfuture* xFutureRace(xfuture** arrFuture, int iCount);
-XXAPI int xFuturePumpCurrentContinuations(int iMaxCount);
-XXAPI xtaskgroup* xTaskGroupCreate(void);
-XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup);
-XXAPI void xTaskGroupClose(xtaskgroup* pGroup);
-XXAPI xtaskgroup* xTaskGroupCreateChild(xtaskgroup* pParent);
-XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent);
-XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture);
-XXAPI int xTaskGroupCount(xtaskgroup* pGroup);
-XXAPI int xTaskGroupReapCompleted(xtaskgroup* pGroup);
-XXAPI xfuture* xTaskGroupJoinFuture(xtaskgroup* pGroup);
-XXAPI bool xTaskGroupJoin(xtaskgroup* pGroup);
-XXAPI bool xTaskGroupJoinTimeout(xtaskgroup* pGroup, int64 iTimeoutMs);
-XXAPI bool xTaskGroupJoinUntil(xtaskgroup* pGroup, int64 iDeadlineMs);
-XXAPI bool xTaskGroupWait(xtaskgroup* pGroup);
-XXAPI bool xTaskGroupWaitTimeout(xtaskgroup* pGroup, int64 iTimeoutMs);
-XXAPI bool xTaskGroupWaitUntil(xtaskgroup* pGroup, int64 iDeadlineMs);
-XXAPI void xTaskGroupCancel(xtaskgroup* pGroup);
-XXAPI xfuture* xTaskGroupRunEngine(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
-XXAPI xfuture* xTaskGroupRunDelayed(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
-XXAPI xfuture* xTaskGroupRunThread(xtaskgroup* pGroup, xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
-#if !defined(XRT_NO_COROUTINE)
-XXAPI xfuture* xTaskGroupRunCo(xtaskgroup* pGroup, xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
-#endif
-XXAPI xnetwaitsrc xrtNetWaitSourceNone(void);
-XXAPI xwaitsrc xWaitSourceNone(void);
-XXAPI xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture);
-XXAPI xwaitsrc xWaitSourceFromFuture(xfuture* pFuture);
-XXAPI xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind);
-XXAPI xwaitsrc xWaitSourceFromStream(xnetstream* pStream, uint32 iWaitKind);
-XXAPI xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock);
-XXAPI xwaitsrc xWaitSourceFromDgramRecv(xdgramsock* pSock);
-XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener);
-XXAPI xwaitsrc xWaitSourceFromListenerAccept(xnetlistener* pListener);
-XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture);
-XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture);
-XXAPI ptr xrtNetFutureValue(xnetfuture* pFuture);
-XXAPI xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs);
-XXAPI xnet_result xrtNetFutureWaitCoUntil(xnetfuture* pFuture, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture);
-XXAPI xnetengine* xrtNetSyncGetHiddenEngine(void);
-XXAPI void xrtNetSyncShutdownHiddenEngine(void);
-XXAPI xnetfuture* xrtNetEnginePostFuture(xnetengine* pEngine, uint32 iAffinityKey, xnet_future_task_fn pfnTask, ptr pArg);
-XXAPI xnetfuture* xrtNetEnginePostDelayedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg);
-XXAPI xnetfuture* xrtNetStreamDrainFuture(xnetstream* pStream);
-XXAPI xnetfuture* xrtNetStreamWritableFuture(xnetstream* pStream);
-XXAPI xnetfuture* xrtNetStreamCloseFuture(xnetstream* pStream);
-XXAPI xnetfuture* xrtNetStreamReadableFuture(xnetstream* pStream);
-XXAPI xnetfuture* xrtNetStreamFutureEx(xnetstream* pStream, uint32 iWaitKind);
-XXAPI xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener);
-XXAPI xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock);
-XXAPI xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind);
-XXAPI xnet_result xrtNetStreamWaitTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetStreamWaitUntilEx(xnetstream* pStream, uint32 iWaitKind, int64_t iDeadlineMs);
-XXAPI xnet_result xrtNetWaitSourceWait(const xnetwaitsrc* pSrc);
-XXAPI bool xWaitSourceWait(const xwaitsrc* pSrc);
-XXAPI xnet_result xrtNetWaitSourceWaitTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs);
-XXAPI bool xWaitSourceWaitTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
-XXAPI xnet_result xrtNetWaitSourceWaitUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs);
-XXAPI bool xWaitSourceWaitUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetWaitSourceWaitValue(const xnetwaitsrc* pSrc, ptr* ppValue);
-XXAPI ptr xWaitSourceWaitValue(const xwaitsrc* pSrc);
-XXAPI xnet_result xrtNetWaitSourceWaitValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue);
-XXAPI ptr xWaitSourceWaitValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
-XXAPI xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue);
-XXAPI ptr xWaitSourceWaitValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetListenerAccept(xnetlistener* pListener, xnetstream** ppStream);
-XXAPI xnet_result xrtNetListenerAcceptTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream);
-XXAPI xnet_result xrtNetListenerAcceptUntil(xnetlistener* pListener, int64_t iDeadlineMs, xnetstream** ppStream);
-XXAPI xnet_result xrtNetDgramRecv(xdgramsock* pSock, xnetdgrampkt** ppPacket);
-XXAPI xnet_result xrtNetDgramRecvTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket);
-XXAPI xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, xnetdgrampkt** ppPacket);
-XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
-XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetStreamWaitDrainCo(xnetstream* pStream);
-XXAPI xnet_result xrtNetStreamWaitDrainCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetStreamWaitDrainCoUntil(xnetstream* pStream, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetStreamWaitWritableCo(xnetstream* pStream);
-XXAPI xnet_result xrtNetStreamWaitWritableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetStreamWaitWritableCoUntil(xnetstream* pStream, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetStreamWaitCloseCo(xnetstream* pStream);
-XXAPI xnet_result xrtNetStreamWaitCloseCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetStreamWaitCloseCoUntil(xnetstream* pStream, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetStreamWaitReadableCo(xnetstream* pStream);
-XXAPI xnet_result xrtNetStreamWaitReadableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetStreamWaitReadableCoUntil(xnetstream* pStream, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
-XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
-XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetWaitSourceWaitCo(const xnetwaitsrc* pSrc);
-XXAPI bool xWaitSourceWaitCo(const xwaitsrc* pSrc);
-XXAPI xnet_result xrtNetWaitSourceWaitCoTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs);
-XXAPI bool xWaitSourceWaitCoTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
-XXAPI xnet_result xrtNetWaitSourceWaitCoUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs);
-XXAPI bool xWaitSourceWaitCoUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppValue);
-XXAPI ptr xWaitSourceWaitCoValue(const xwaitsrc* pSrc);
-XXAPI xnet_result xrtNetWaitSourceWaitCoValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue);
-XXAPI ptr xWaitSourceWaitCoValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
-XXAPI xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue);
-XXAPI ptr xWaitSourceWaitCoValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
-XXAPI xnet_result xrtNetListenerAcceptCo(xnetlistener* pListener, xnetstream** ppStream);
-XXAPI xnet_result xrtNetListenerAcceptCoTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream);
-XXAPI xnet_result xrtNetListenerAcceptCoUntil(xnetlistener* pListener, int64 iDeadlineMs, xnetstream** ppStream);
-XXAPI xnet_result xrtNetDgramRecvCo(xdgramsock* pSock, xnetdgrampkt** ppPacket);
-XXAPI xnet_result xrtNetDgramRecvCoTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket);
-XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, xnetdgrampkt** ppPacket);
+	// Future / Promise / Task 基础接口
+	XXAPI xnetfuture* xrtNetFutureCreate(void);
+	XXAPI xfuture* xFutureCreate(void);
+	XXAPI xfuture* xFutureAddRef(xfuture* pFuture);
+	XXAPI void xFutureRelease(xfuture* pFuture);
+	XXAPI xfuture_state xFutureState(xfuture* pFuture);
+	XXAPI int32 xFutureStatus(xfuture* pFuture);
+	XXAPI ptr xFutureValue(xfuture* pFuture);
+	XXAPI str xFutureError(xfuture* pFuture);
+	XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut);
+	XXAPI bool xFutureSetDebugName(xfuture* pFuture, str sDebugName);
+	XXAPI str xFutureGetDebugName(xfuture* pFuture);
+	XXAPI uint64 xFutureGetCreateTimeMs(xfuture* pFuture);
+	XXAPI uint64 xFutureGetCompleteTimeMs(xfuture* pFuture);
+	XXAPI int xFutureGetPendingContinuationCount(xfuture* pFuture);
+	XXAPI int xFutureGetGroupSourceIndex(xfuture* pFuture);
+	XXAPI xfuture* xFutureGetGroupSource(xfuture* pFuture);
+	XXAPI xfuture* xFuturePeekGroupSource(xfuture* pFuture);
+	XXAPI const xfuture_all_value* xFuturePeekAllValue(xfuture* pFuture);
+	XXAPI int xFutureGetAllValueCount(xfuture* pFuture);
+	XXAPI ptr xFutureGetAllValueItem(xfuture* pFuture, int iIndex);
+	XXAPI bool xFutureWait(xfuture* pFuture);
+	XXAPI bool xFutureWaitTimeout(xfuture* pFuture, int64 iTimeoutMs);
+	XXAPI bool xFutureWaitUntil(xfuture* pFuture, int64 iDeadlineMs);
+	XXAPI bool xFutureWaitCo(xfuture* pFuture);
+	XXAPI bool xFutureWaitCoTimeout(xfuture* pFuture, int64 iTimeoutMs);
+	XXAPI bool xFutureWaitCoUntil(xfuture* pFuture, int64 iDeadlineMs);
+	XXAPI ptr xFutureWaitValue(xfuture* pFuture);
+	XXAPI ptr xFutureWaitValueTimeout(xfuture* pFuture, int64 iTimeoutMs);
+	XXAPI ptr xFutureWaitValueUntil(xfuture* pFuture, int64 iDeadlineMs);
+	XXAPI ptr xFutureWaitCoValue(xfuture* pFuture);
+	XXAPI ptr xFutureWaitCoValueTimeout(xfuture* pFuture, int64 iTimeoutMs);
+	XXAPI ptr xFutureWaitCoValueUntil(xfuture* pFuture, int64 iDeadlineMs);
+	XXAPI bool xFutureRequestCancel(xfuture* pFuture);
+	XXAPI xpromise* xPromiseCreate(xfuture* pFuture);
+	XXAPI void xPromiseDestroy(xpromise* pPromise);
+	XXAPI xfuture* xPromiseGetFuture(xpromise* pPromise);
+	XXAPI xfuture* xPromisePeekFuture(xpromise* pPromise);
+	XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue);
+	XXAPI bool xPromiseReject(xpromise* pPromise, int32 iStatus, str sError);
+	XXAPI bool xPromiseCancel(xpromise* pPromise, str sError);
+	XXAPI bool xPromiseClose(xpromise* pPromise, str sError);
+	XXAPI xfuture* xTaskRunEngine(xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
+	XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
+	XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+	#if !defined(XRT_NO_COROUTINE)
+	XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
+	#endif
+	XXAPI xfuture* xFutureThenInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyCurrent(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureThenEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureCatchEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg);
+	XXAPI xfuture* xFutureFinallyEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg);
+	#if !defined(XRT_NO_COROUTINE)
+	XXAPI xfuture* xFutureThenCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+	XXAPI xfuture* xFutureCatchCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize);
+	XXAPI xfuture* xFutureFinallyCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, size_t iStackSize);
+	#endif
+	XXAPI xfuture* xFutureWhenAny(xfuture** arrFuture, int iCount);
+	XXAPI xfuture* xFutureWhenAll(xfuture** arrFuture, int iCount);
+	XXAPI xfuture* xFutureRace(xfuture** arrFuture, int iCount);
+	XXAPI int xFuturePumpCurrentContinuations(int iMaxCount);
+	XXAPI xtaskgroup* xTaskGroupCreate(void);
+	XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup);
+	XXAPI void xTaskGroupClose(xtaskgroup* pGroup);
+	XXAPI xtaskgroup* xTaskGroupCreateChild(xtaskgroup* pParent);
+	XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent);
+	XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture);
+	XXAPI int xTaskGroupCount(xtaskgroup* pGroup);
+	XXAPI int xTaskGroupReapCompleted(xtaskgroup* pGroup);
+	XXAPI xfuture* xTaskGroupJoinFuture(xtaskgroup* pGroup);
+	XXAPI bool xTaskGroupJoin(xtaskgroup* pGroup);
+	XXAPI bool xTaskGroupJoinTimeout(xtaskgroup* pGroup, int64 iTimeoutMs);
+	XXAPI bool xTaskGroupJoinUntil(xtaskgroup* pGroup, int64 iDeadlineMs);
+	XXAPI bool xTaskGroupWait(xtaskgroup* pGroup);
+	XXAPI bool xTaskGroupWaitTimeout(xtaskgroup* pGroup, int64 iTimeoutMs);
+	XXAPI bool xTaskGroupWaitUntil(xtaskgroup* pGroup, int64 iDeadlineMs);
+	XXAPI void xTaskGroupCancel(xtaskgroup* pGroup);
+	XXAPI xfuture* xTaskGroupRunEngine(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
+	XXAPI xfuture* xTaskGroupRunDelayed(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
+	XXAPI xfuture* xTaskGroupRunThread(xtaskgroup* pGroup, xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+	#if !defined(XRT_NO_COROUTINE)
+	XXAPI xfuture* xTaskGroupRunCo(xtaskgroup* pGroup, xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
+	#endif
 
-#ifndef XRT_NO_XHTTP
-XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
-XXAPI void xrtHttpRequestInit(xhttprequest* pReq);
-XXAPI void xrtHttpRequestUnit(xhttprequest* pReq);
-XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod);
-XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL);
-XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue);
-XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType);
-XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
-XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
-XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp);
-XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName);
-XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq);
-XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus);
+	// 统一等待源封装
+	XXAPI xnetwaitsrc xrtNetWaitSourceNone(void);
+	XXAPI xwaitsrc xWaitSourceNone(void);
+	XXAPI xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture);
+	XXAPI xwaitsrc xWaitSourceFromFuture(xfuture* pFuture);
+	XXAPI xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind);
+	XXAPI xwaitsrc xWaitSourceFromStream(xnetstream* pStream, uint32 iWaitKind);
+	XXAPI xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock);
+	XXAPI xwaitsrc xWaitSourceFromDgramRecv(xdgramsock* pSock);
+	XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener);
+	XXAPI xwaitsrc xWaitSourceFromListenerAccept(xnetlistener* pListener);
+	XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture);
+	XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture);
+	XXAPI ptr xrtNetFutureValue(xnetfuture* pFuture);
+	XXAPI xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs);
+	XXAPI xnet_result xrtNetFutureWaitCoUntil(xnetfuture* pFuture, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture);
+	XXAPI xnetengine* xrtNetSyncGetHiddenEngine(void);
+	XXAPI void xrtNetSyncShutdownHiddenEngine(void);
+	XXAPI xnetfuture* xrtNetEnginePostFuture(xnetengine* pEngine, uint32 iAffinityKey, xnet_future_task_fn pfnTask, ptr pArg);
+	XXAPI xnetfuture* xrtNetEnginePostDelayedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg);
+	XXAPI xnetfuture* xrtNetStreamDrainFuture(xnetstream* pStream);
+	XXAPI xnetfuture* xrtNetStreamWritableFuture(xnetstream* pStream);
+	XXAPI xnetfuture* xrtNetStreamCloseFuture(xnetstream* pStream);
+	XXAPI xnetfuture* xrtNetStreamReadableFuture(xnetstream* pStream);
+	XXAPI xnetfuture* xrtNetStreamFutureEx(xnetstream* pStream, uint32 iWaitKind);
+	XXAPI xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener);
+	XXAPI xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock);
 
-#endif
+	// 同步等待接口
+	XXAPI xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind);
+	XXAPI xnet_result xrtNetStreamWaitTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetStreamWaitUntilEx(xnetstream* pStream, uint32 iWaitKind, int64_t iDeadlineMs);
+	XXAPI xnet_result xrtNetWaitSourceWait(const xnetwaitsrc* pSrc);
+	XXAPI bool xWaitSourceWait(const xwaitsrc* pSrc);
+	XXAPI xnet_result xrtNetWaitSourceWaitTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs);
+	XXAPI bool xWaitSourceWaitTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
+	XXAPI xnet_result xrtNetWaitSourceWaitUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs);
+	XXAPI bool xWaitSourceWaitUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetWaitSourceWaitValue(const xnetwaitsrc* pSrc, ptr* ppValue);
+	XXAPI ptr xWaitSourceWaitValue(const xwaitsrc* pSrc);
+	XXAPI xnet_result xrtNetWaitSourceWaitValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue);
+	XXAPI ptr xWaitSourceWaitValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
+	XXAPI xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue);
+	XXAPI ptr xWaitSourceWaitValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetListenerAccept(xnetlistener* pListener, xnetstream** ppStream);
+	XXAPI xnet_result xrtNetListenerAcceptTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream);
+	XXAPI xnet_result xrtNetListenerAcceptUntil(xnetlistener* pListener, int64_t iDeadlineMs, xnetstream** ppStream);
+	XXAPI xnet_result xrtNetDgramRecv(xdgramsock* pSock, xnetdgrampkt** ppPacket);
+	XXAPI xnet_result xrtNetDgramRecvTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket);
+	XXAPI xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, xnetdgrampkt** ppPacket);
 
-#ifndef XRT_NO_XHTTPD
-XXAPI const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName);
-XXAPI const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName);
-XXAPI void xrtHttpdConfigInit(xhttpdconfig* pCfg);
-XXAPI void xrtHttpdRequestInit(xhttpdrequest* pReq);
-XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq);
-XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp);
-XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp);
-XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
-XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
-XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
-XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData);
-XXAPI uint16 xrtHttpdBoundPort(const xhttpdserver* pServer);
-XXAPI xnet_result xrtHttpdStart(xhttpdserver* pServer);
-XXAPI void xrtHttpdStop(xhttpdserver* pServer);
-XXAPI void xrtHttpdDestroy(xhttpdserver* pServer);
+	// 协程等待接口
+	XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
+	XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetStreamWaitDrainCo(xnetstream* pStream);
+	XXAPI xnet_result xrtNetStreamWaitDrainCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetStreamWaitDrainCoUntil(xnetstream* pStream, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetStreamWaitWritableCo(xnetstream* pStream);
+	XXAPI xnet_result xrtNetStreamWaitWritableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetStreamWaitWritableCoUntil(xnetstream* pStream, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetStreamWaitCloseCo(xnetstream* pStream);
+	XXAPI xnet_result xrtNetStreamWaitCloseCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetStreamWaitCloseCoUntil(xnetstream* pStream, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetStreamWaitReadableCo(xnetstream* pStream);
+	XXAPI xnet_result xrtNetStreamWaitReadableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetStreamWaitReadableCoUntil(xnetstream* pStream, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
+	XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
+	XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetWaitSourceWaitCo(const xnetwaitsrc* pSrc);
+	XXAPI bool xWaitSourceWaitCo(const xwaitsrc* pSrc);
+	XXAPI xnet_result xrtNetWaitSourceWaitCoTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs);
+	XXAPI bool xWaitSourceWaitCoTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
+	XXAPI xnet_result xrtNetWaitSourceWaitCoUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs);
+	XXAPI bool xWaitSourceWaitCoUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppValue);
+	XXAPI ptr xWaitSourceWaitCoValue(const xwaitsrc* pSrc);
+	XXAPI xnet_result xrtNetWaitSourceWaitCoValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue);
+	XXAPI ptr xWaitSourceWaitCoValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs);
+	XXAPI xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue);
+	XXAPI ptr xWaitSourceWaitCoValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs);
+	XXAPI xnet_result xrtNetListenerAcceptCo(xnetlistener* pListener, xnetstream** ppStream);
+	XXAPI xnet_result xrtNetListenerAcceptCoTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream);
+	XXAPI xnet_result xrtNetListenerAcceptCoUntil(xnetlistener* pListener, int64 iDeadlineMs, xnetstream** ppStream);
+	XXAPI xnet_result xrtNetDgramRecvCo(xdgramsock* pSock, xnetdgrampkt** ppPacket);
+	XXAPI xnet_result xrtNetDgramRecvCoTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket);
+	XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, xnetdgrampkt** ppPacket);
 
-#endif
+	#ifndef XRT_NO_XHTTP
+	// XNet 内建 HTTP 客户端
+	XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
+	XXAPI void xrtHttpRequestInit(xhttprequest* pReq);
+	XXAPI void xrtHttpRequestUnit(xhttprequest* pReq);
+	XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod);
+	XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL);
+	XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue);
+	XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType);
+	XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
+	XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
+	XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp);
+	XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName);
+	XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq);
+	XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus);
 
-#ifndef XRT_NO_XWS
-XXAPI void xrtWsClientConfigInit(xwsclientconfig* pCfg);
-XXAPI void xrtWsServerConfigInit(xwsserverconfig* pCfg);
-XXAPI xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData);
-XXAPI xnet_result xrtWsClientStart(xwsclient* pClient);
-XXAPI void xrtWsClientStop(xwsclient* pClient);
-XXAPI void xrtWsClientDestroy(xwsclient* pClient);
-XXAPI bool xrtWsClientIsOpen(const xwsclient* pClient);
-XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen);
-XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen);
-XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen);
-XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
-XXAPI xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData);
-XXAPI uint16 xrtWsServerBoundPort(const xwsserver* pServer);
-XXAPI xnet_result xrtWsServerStart(xwsserver* pServer);
-XXAPI void xrtWsServerStop(xwsserver* pServer);
-XXAPI void xrtWsServerDestroy(xwsserver* pServer);
-XXAPI bool xrtWsConnIsOpen(const xwsconn* pConn);
-XXAPI xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iLen);
-XXAPI xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen);
-XXAPI xnet_result xrtWsConnPing(xwsconn* pConn, const void* pData, size_t iLen);
-XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReason);
+	#endif
 
-#endif
+	#ifndef XRT_NO_XHTTPD
+	// XNet 内建 HTTP 服务端
+	XXAPI const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName);
+	XXAPI const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName);
+	XXAPI void xrtHttpdConfigInit(xhttpdconfig* pCfg);
+	XXAPI void xrtHttpdRequestInit(xhttpdrequest* pReq);
+	XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq);
+	XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp);
+	XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp);
+	XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
+	XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
+	XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
+	XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData);
+	XXAPI uint16 xrtHttpdBoundPort(const xhttpdserver* pServer);
+	XXAPI xnet_result xrtHttpdStart(xhttpdserver* pServer);
+	XXAPI void xrtHttpdStop(xhttpdserver* pServer);
+	XXAPI void xrtHttpdDestroy(xhttpdserver* pServer);
 
-#endif /* !XRT_NO_NETWORK && !XRT_BUILD_CORE */
+	#endif
 
-    /* ------------------------------------ TLS ------------------------------------ */
+	#ifndef XRT_NO_XWS
+	// XNet 内建 WebSocket 客户端与服务端
+	XXAPI void xrtWsClientConfigInit(xwsclientconfig* pCfg);
+	XXAPI void xrtWsServerConfigInit(xwsserverconfig* pCfg);
+	XXAPI xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* pCfg, const xwsclientevents* pEvents, ptr pUserData);
+	XXAPI xnet_result xrtWsClientStart(xwsclient* pClient);
+	XXAPI void xrtWsClientStop(xwsclient* pClient);
+	XXAPI void xrtWsClientDestroy(xwsclient* pClient);
+	XXAPI bool xrtWsClientIsOpen(const xwsclient* pClient);
+	XXAPI xnet_result xrtWsClientSendText(xwsclient* pClient, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsClientSendBinary(xwsclient* pClient, const void* pData, size_t iLen);
+	XXAPI xnet_result xrtWsClientPing(xwsclient* pClient, const void* pData, size_t iLen);
+	XXAPI xnet_result xrtWsClientClose(xwsclient* pClient, uint16 iCode, const char* sReason);
+	XXAPI xwsserver* xrtWsServerCreate(xnetengine* pEngine, const xwsserverconfig* pCfg, const xwsserverevents* pEvents, ptr pUserData);
+	XXAPI uint16 xrtWsServerBoundPort(const xwsserver* pServer);
+	XXAPI xnet_result xrtWsServerStart(xwsserver* pServer);
+	XXAPI void xrtWsServerStop(xwsserver* pServer);
+	XXAPI void xrtWsServerDestroy(xwsserver* pServer);
+	XXAPI bool xrtWsConnIsOpen(const xwsconn* pConn);
+	XXAPI xnet_result xrtWsConnSendText(xwsconn* pConn, const char* sText, size_t iLen);
+	XXAPI xnet_result xrtWsConnSendBinary(xwsconn* pConn, const void* pData, size_t iLen);
+	XXAPI xnet_result xrtWsConnPing(xwsconn* pConn, const void* pData, size_t iLen);
+	XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReason);
+
+	#endif
+
+	#endif /* !XRT_NO_NETWORK && !XRT_BUILD_CORE */
+	/* ------------------------------------ TLS ------------------------------------ */
+	/*
+		依赖项：
+			Network / TLS 共享状态定义
+			Crypto 加密算法库
+			XNet V2
+	*/
 
 #ifndef XRT_NO_NETTLS
 #endif
 
 	/* ------------------------------------ XID 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			Time 函数库
+			Network 函数库
+	*/
 	
 	// XID 数据结构 ( 192 bit )
 	typedef struct {
@@ -4053,6 +4131,10 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	/* ------------------------------------ BSMM 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			Point Array 函数库
+	*/
 	
 	/*
 		Blocks Struct Memory Management [块结构内存管理器]
@@ -4227,6 +4309,11 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	/* ------------------------------------ Fixed-Size Memory Pool 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			BSMM 函数库
+			Memory Unit 函数库
+	*/
 	
 	// 内存管理器链表结构
 	typedef struct MMU_LLNode {
@@ -4314,6 +4401,10 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	/* ------------------------------------ Dynamic Stack 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			Point Array 函数库
+	*/
 	
 	/*
 		结构体动态栈，结构体内存256个递增，栈最大深度不固定
@@ -4462,6 +4553,11 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	/* ------------------------------------ AVLTree 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			AVLTree Base 函数库
+			Fixed-Size Memory Pool 函数库
+	*/
 	
 	// 键释放回调函数 ( 如果 key 中有额外需要释放的值时使用 )
 	typedef void (*AVLTree_FreeProc)(ptr objTree, ptr pNode);
@@ -4529,6 +4625,11 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	/* ------------------------------------ Memory Pool 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			BSMM 函数库
+			Fixed-Size Memory Pool 函数库
+	*/
 	
 	// MP256 or MP64K 大内存结构体前置结构
 	typedef struct {
@@ -4597,6 +4698,11 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	/* ------------------------------------ Dict 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			AVLTree 函数库
+			Memory Pool 函数库
+	*/
 	
 	// 字典 Key 数据结构
 	typedef struct {
@@ -4733,6 +4839,10 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	/* ------------------------------------ List 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			AVLTree 函数库
+	*/
 	
 	// 列表对象数据结构
 	typedef struct {
@@ -4813,10 +4923,74 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 		int64* __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree); \
 		for ( int64 idx = __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) ? __XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[0] : 0; __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) != NULL; __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree), idx = __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) ? __XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[0] : 0, __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1 ) \
 			for ( type val = (type)(&__XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
+
+	
+	
+	/* ------------------------------------ JNUM 函数库 ------------------------------------ */
+	
+	// 数值类型
+	typedef enum {
+		JNUM_NULL,
+		JNUM_BOOL,
+		JNUM_INT,
+		JNUM_HEX,
+		JNUM_LINT,
+		JNUM_LHEX,
+		JNUM_DOUBLE,
+	} jnum_type_t;
+	
+	// 数值
+	typedef union {
+		bool vbool;
+		int32_t vint;
+		uint32_t vhex;
+		int64_t vlint;
+		uint64_t vlhex;
+		double vdbl;
+	} jnum_value_t;
+	
+	// 数字转字符串
+	XXAPI int xrtI32ToStr(int32_t num, char* buffer);
+	XXAPI int xrtI64ToStr(int64_t num, char* buffer);
+	XXAPI int xrtU32ToStr(uint32_t num, char* buffer);
+	XXAPI int xrtU64ToStr(uint64_t num, char* buffer);
+	XXAPI int xrtNumToStr(double num, char* buffer);
+	
+	// 解析数字字符串
+	XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
+	
+	// 解析字符串（自动跳过前导空白字符）
+	static inline int xrtParseNumSkipSpace(const char *str, jnum_type_t *type, jnum_value_t *value)
+	{
+		const char *s = str;
+		while (1) {
+			switch (*s) {
+			case '\b': case '\f': case '\n': case '\r': case '\t': case '\v': case ' ': ++s; break;
+			default: goto next;
+			}
+		}
+	next:
+		return (int)(xrtParseNum(s, type, value) + (s - str));
+	}
+	
+	// 字符串转数字
+	XXAPI int32_t xrtStrToI32(const char* pStr);
+	XXAPI int64_t xrtStrToI64(const char* pStr);
+	XXAPI uint32_t xrtStrToU32(const char* pStr);
+	XXAPI uint64_t xrtStrToU64(const char* pStr);
+	XXAPI double xrtStrToNum(const char* pStr);
 	
 	
 	
 	/* ------------------------------------ Value 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			Point Array 函数库
+			List 函数库
+			AVLTree 函数库
+			Dict 函数库
+			Time 函数库
+	*/
 	
 	// 数据类型 - 主类型
 	#define XVO_DT_NULL				0				// null
@@ -4834,6 +5008,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	#define XVO_DT_CLASS			12				// 结构体
 	#define XVO_DT_CUSTOM			15				// 自定义
 
+	// Value 头部位定义（共享、静态和引用计数都编码在 Header 中）
 	#define XVO_HEADER_SHARED_MASK		0x00000010u
 	#define XVO_HEADER_STATIC_MASK		0x00000020u
 	#define XVO_HEADER_REFCOUNT_SHIFT	6u
@@ -4875,7 +5050,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	// 函数指针类型定义
 	typedef xvalue (*xfunction)(xvalue pENV, xvalue arrParam);
 	
-	// Custom 类 [ 16 bytes ]
+	// Custom 类虚表（用于自定义对象接入 Value 生命周期）
 	struct xcustom_struct {
 		void (*construct)(xvalue var);
 		void (*destruct)(xvalue var);
@@ -4885,6 +5060,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 		ptr value;
 	};
 
+	// Value 头部与共享状态的内联辅助函数
 	static inline uint32 __xvoAtomicCompareExchange32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
 	{
 		return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, (long)iExchange, (long)iComparand);
@@ -5182,7 +5358,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 		xvalue Value;
 	} Coll_Key;
 	
-	// 构建 Coll_Key
+	// 构建 Coll_Key（文本值额外编码长度与哈希，其他值复用类型位和数值位）
 	#if defined(__x86_64__) || defined(_M_X64)
 		// 64 bit
 		#define MAKE_COLL_KEY(k, v) if ( v->Type == XVO_DT_TEXT ) { uint64 iHash = xrtHash64(v->vText, v->Size); k.Hash = ((uint64)v->Type << 60) | ((uint64)v->Size << 28) | (iHash & 0xFFFFFFF); } else if ( v->Type == XVO_DT_BOOL ) { k.Hash = ((uint64)v->Type << 60) | v->vBool; } else if ( v->Type == XVO_DT_NULL ) { k.Hash = (uint64)v->Type << 60; } else { k.Hash = ((uint64)v->Type << 60) | (v->vInt & 0xFFFFFFFFFFFFFFF); } k.Value = v;
@@ -5322,63 +5498,13 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	
-	/* ------------------------------------ JNUM 函数库 ------------------------------------ */
-	
-	// 数值类型
-	typedef enum {
-		JNUM_NULL,
-		JNUM_BOOL,
-		JNUM_INT,
-		JNUM_HEX,
-		JNUM_LINT,
-		JNUM_LHEX,
-		JNUM_DOUBLE,
-	} jnum_type_t;
-	
-	// 数值
-	typedef union {
-		bool vbool;
-		int32_t vint;
-		uint32_t vhex;
-		int64_t vlint;
-		uint64_t vlhex;
-		double vdbl;
-	} jnum_value_t;
-	
-	// 数字转字符串
-	XXAPI int xrtI32ToStr(int32_t num, char* buffer);
-	XXAPI int xrtI64ToStr(int64_t num, char* buffer);
-	XXAPI int xrtU32ToStr(uint32_t num, char* buffer);
-	XXAPI int xrtU64ToStr(uint64_t num, char* buffer);
-	XXAPI int xrtNumToStr(double num, char* buffer);
-	
-	// 解析数字字符串
-	XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
-	
-	// 解析字符串
-	static inline int xrtParseNumSkipSpace(const char *str, jnum_type_t *type, jnum_value_t *value)
-	{
-		const char *s = str;
-		while (1) {
-			switch (*s) {
-			case '\b': case '\f': case '\n': case '\r': case '\t': case '\v': case ' ': ++s; break;
-			default: goto next;
-			}
-		}
-	next:
-		return (int)(xrtParseNum(s, type, value) + (s - str));
-	}
-	
-	// 字符串转数字
-	XXAPI int32_t xrtStrToI32(const char* pStr);
-	XXAPI int64_t xrtStrToI64(const char* pStr);
-	XXAPI uint32_t xrtStrToU32(const char* pStr);
-	XXAPI uint64_t xrtStrToU64(const char* pStr);
-	XXAPI double xrtStrToNum(const char* pStr);
-	
-	
-	
 	/* ------------------------------------ JSON 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			File 函数库
+			Value 函数库
+			JNUM 函数库
+	*/
 	
 	// 链表节点
 	struct json_list {
@@ -5467,6 +5593,8 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 		JSON_SAX_PARSE_CONTINUE = 0,
 		JSON_SAX_PARSE_STOP
 	} json_sax_ret_t;
+
+	// SAX 回调函数类型
 	typedef json_sax_ret_t (*json_sax_cb_t)(json_sax_parser_t *parser);
 	
 	// 获取json_string_t的信息（str含有 `"  \  \b  \f  \n  \r  \t  \v` 字符时会设置escaped）
@@ -5530,6 +5658,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	// SAX打印json对象
 	XXAPI int xrtJsonPrintValue(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value);
+	// SAX 打印快捷包装
 	static inline int xrtJsonPrintNull(json_sax_print_hd handle, json_string_t *jkey) { return xrtJsonPrintValue(handle, JSON_NULL, jkey, NULL); }
 	static inline int xrtJsonPrintBool(json_sax_print_hd handle, json_string_t *jkey, bool value) { return xrtJsonPrintValue(handle, JSON_BOOL, jkey, &value); }
 	static inline int xrtJsonPrintInt(json_sax_print_hd handle, json_string_t *jkey, int32_t value) { return xrtJsonPrintValue(handle, JSON_INT, jkey, &value); }
@@ -5541,6 +5670,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	static inline int xrtJsonPrintArray(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return xrtJsonPrintValue(handle, JSON_ARRAY, jkey, &value); }
 	static inline int xrtJsonPrintObject(json_sax_print_hd handle, json_string_t *jkey, json_sax_cmd_t value) { return xrtJsonPrintValue(handle, JSON_OBJECT, jkey, &value); }
 	
+	// SAX 打印集合快捷宏
 	#define xrtJsonPrintArrayNull(handle)         xrtJsonPrintNull  (handle, NULL, NULL)
 	#define xrtJsonPrintArrayStart(handle, jkey)  xrtJsonPrintArray (handle, jkey, JSON_SAX_START)
 	#define xrtJsonPrintArrayFinish(handle)       xrtJsonPrintArray (handle, NULL, JSON_SAX_FINISH)
@@ -5562,116 +5692,17 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	
 	
 	
-	/* ------------------------------------ HTTP Client ------------------------------------ */
-	
-	/* ---- HTTP 方法 ---- */
-	typedef enum {
-		XHTTP_GET = 0, XHTTP_POST, XHTTP_PUT, XHTTP_DELETE, XHTTP_PATCH, XHTTP_HEAD
-	} xhttp_method;
-	
-	/* ---- HTTP 回调函数 ---- */
-	// pBuf: 自增缓冲区，包含截至目前已接收的全部数据
-	// iTotal: Content-Length (已知时为正数，未知时为 0)
-	// iReceived: 已接收字节数
-	// 返回值: true 继续, false 中止传输
-	typedef bool (*xhttp_proc)(xbuffer pBuf, size_t iTotal, size_t iReceived);
-	
-	/* ---- HTTP 响应对象 ---- */
-	typedef struct {
-		int iStatusCode;              // HTTP 状态码 (200, 404, ...)
-		xbuffer_struct tBody;         // 响应正文 (xbuffer 自增缓冲区)
-		xbuffer_struct tRawHeaders;   // 原始响应头 (完整文本)
-		char sVersion[16];            // "HTTP/1.1"
-		char sStatusText[64];         // "OK", "Not Found" 等
-		char sContentType[128];       // Content-Type 值
-		size_t iContentLength;        // Content-Length (-1 表示未知)
-	} xhttpresp_struct, *xhttpresp;
-	
-	/* ---- HTTP 请求对象 ---- */
-	typedef struct {
-		xhttp_method iMethod;           // 请求方法
-		char sURL[2048];                // 完整 URL
-		xbuffer_struct tHeaders;        // 自定义请求头 (Key: Value\r\n 格式追加)
-		xbuffer_struct tBody;           // 请求正文
-		int iMaxRedirects;              // 最大重定向次数 (默认 5)
-		int iTimeoutSec;                // 超时秒数 (默认 10)
-		bool bVerifySSL;                // SSL 证书验证 (默认 true)
-		xhttp_proc procOnData;          // 流式数据回调
-		ptr pUserData;                  // 用户自定义数据
-		bool bIsMultipart;              // 是否为 multipart 请求
-		xbuffer_struct tMultipart;      // multipart body 构建缓冲区
-		char sBoundary[64];             // multipart boundary
-		xdict pCookies;                 // Cookie 字典 (始终用于 cookies 管理)
-		bool bCookiePersist;            // 持久化标志 (TRUE=jar 模式, 自动保存 Set-Cookie)
-	} xhttpreq_struct, *xhttpreq;
-	
-	/* ---- 极简 API ---- */
-	
-	// GET 请求 - 返回响应对象，sHeaders 可为 NULL，pProc 可为 NULL
-	XXAPI xhttpresp xrtHttpGet(str sURL, str sHeaders, xhttp_proc pProc);
-	
-	// POST 请求 - sBody 为请求正文 (默认 application/x-www-form-urlencoded)
-	XXAPI xhttpresp xrtHttpPost(str sURL, str sBody, str sHeaders, xhttp_proc pProc);
-	
-	// GET 下载文件 - 数据写入 sFilePath，sHeaders 可为 NULL，pProc 用于进度回调
-	XXAPI bool xrtHttpGetFile(str sURL, str sFilePath, str sHeaders, xhttp_proc pProc);
-	
-	// POST 下载文件 - sHeaders 可为 NULL
-	XXAPI bool xrtHttpPostFile(str sURL, str sBody, str sFilePath, str sHeaders, xhttp_proc pProc);
-	
-	// 释放响应对象
-	XXAPI void xrtHttpRespFree(xhttpresp pResp);
-	
-	/* ---- 完整 API ---- */
-	
-	// 创建/销毁请求对象
-	XXAPI xhttpreq xrtHttpReqCreate(xhttp_method iMethod, str sURL);
-	XXAPI void xrtHttpReqFree(xhttpreq pReq);
-	
-	// 设置请求头 (可多次调用追加不同 Header)
-	XXAPI void xrtHttpReqSetHeader(xhttpreq pReq, str sName, str sValue);
-	
-	// 设置请求正文 (原始 body)
-	XXAPI void xrtHttpReqSetBody(xhttpreq pReq, str pData, size_t iLen, str sContentType);
-	
-	// 添加表单字段 (application/x-www-form-urlencoded)
-	XXAPI void xrtHttpReqAddField(xhttpreq pReq, str sName, str sValue);
-	
-	// 添加 Multipart 表单字段
-	XXAPI void xrtHttpReqAddFormField(xhttpreq pReq, str sName, str sValue);
-	
-	// 添加 Multipart 文件
-	XXAPI void xrtHttpReqAddFormFile(xhttpreq pReq, str sFieldName, str sFilePath, str sMimeType);
-	
-	// 添加 Multipart 内存数据 (作为文件上传)
-	XXAPI void xrtHttpReqAddFormData(xhttpreq pReq, str sFieldName, str sFileName, str pData, size_t iLen, str sMimeType);
-	
-	// 配置选项
-	XXAPI void xrtHttpReqSetTimeout(xhttpreq pReq, int iTimeoutSec);
-	XXAPI void xrtHttpReqSetRedirect(xhttpreq pReq, int iMaxRedirects);
-	XXAPI void xrtHttpReqSetVerifySSL(xhttpreq pReq, bool bVerify);
-	XXAPI void xrtHttpReqSetCallback(xhttpreq pReq, xhttp_proc pProc);
-	XXAPI void xrtHttpReqSetUserData(xhttpreq pReq, ptr pData);
-	
-	// Cookie 管理
-	XXAPI void xrtHttpReqEnableCookies(xhttpreq pReq, bool bEnable);
-	XXAPI void xrtHttpReqSetCookie(xhttpreq pReq, str sName, str sValue);
-	XXAPI void xrtHttpReqRemoveCookie(xhttpreq pReq, str sName);
-	
-	// 执行请求 (阻塞, 返回响应对象)
-	XXAPI xhttpresp xrtHttpReqExecute(xhttpreq pReq);
-	
-	// 响应对象读取函数
-	XXAPI int xrtHttpRespCode(xhttpresp pResp);
-	XXAPI str xrtHttpRespBody(xhttpresp pResp);
-	XXAPI size_t xrtHttpRespBodyLen(xhttpresp pResp);
-	XXAPI str xrtHttpRespHeader(xhttpresp pResp, str sName);
-	XXAPI str xrtHttpRespCookie(xhttpresp pResp, str sName);
-	XXAPI str xrtHttpRespContentType(xhttpresp pResp);
-	
-	
-	
 	/* ------------------------------------ Template 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			File 函数库
+			Array 函数库
+			Point Array 函数库
+			Dict 函数库
+			List 函数库
+			Value 函数库
+			JNUM 函数库
+	*/
 	
 	// 最大支持参数数量
 	#define XTE_PARAM_MAXCOUNT		6
@@ -5703,7 +5734,8 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	#define XTE_TK_END				0xFFFFFF		// 语句结束
 	#define XTE_TK_USER				0x1000000		// 大于这个编号的，XTE模板后续更新不会使用，可以安全的用于扩展
 	
-	#define XTE_IDTPE_DEFAULT		0				// 
+	// 标识符分类
+	#define XTE_IDTPE_DEFAULT		0				// 单语句标识符
 	#define XTE_IDTPE_BLOCK			1
 	
 	// Ident Info 数据结构（用于定义标识符）
@@ -5911,44 +5943,177 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	XXAPI int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
 	
 	
-#ifdef XRT_MEM_DEBUG
-XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine);
-XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine);
+	
+	/* ------------------------------------ HTTP Client ------------------------------------ */
+	/*
+		依赖项：
+			Buffer 函数库
+			Dict 函数库
+			File 函数库
+			Network 函数库
+			Crypto 加密算法库
+			TLS
+	*/
+	
+	/* ---- HTTP 方法 ---- */
+	typedef enum {
+		XHTTP_GET = 0, XHTTP_POST, XHTTP_PUT, XHTTP_DELETE, XHTTP_PATCH, XHTTP_HEAD
+	} xhttp_method;
+	
+	/* ---- HTTP 回调函数 ---- */
+	// pBuf: 自增缓冲区，包含截至目前已接收的全部数据
+	// iTotal: Content-Length (已知时为正数，未知时为 0)
+	// iReceived: 已接收字节数
+	// 返回值: true 继续, false 中止传输
+	typedef bool (*xhttp_proc)(xbuffer pBuf, size_t iTotal, size_t iReceived);
+	
+	/* ---- HTTP 响应对象 ---- */
+	typedef struct {
+		int iStatusCode;              // HTTP 状态码 (200, 404, ...)
+		xbuffer_struct tBody;         // 响应正文 (xbuffer 自增缓冲区)
+		xbuffer_struct tRawHeaders;   // 原始响应头 (完整文本)
+		char sVersion[16];            // "HTTP/1.1"
+		char sStatusText[64];         // "OK", "Not Found" 等
+		char sContentType[128];       // Content-Type 值
+		size_t iContentLength;        // Content-Length (-1 表示未知)
+	} xhttpresp_struct, *xhttpresp;
+	
+	/* ---- HTTP 请求对象 ---- */
+	typedef struct {
+		xhttp_method iMethod;           // 请求方法
+		char sURL[2048];                // 完整 URL
+		xbuffer_struct tHeaders;        // 自定义请求头 (Key: Value\r\n 格式追加)
+		xbuffer_struct tBody;           // 请求正文
+		int iMaxRedirects;              // 最大重定向次数 (默认 5)
+		int iTimeoutSec;                // 超时秒数 (默认 10)
+		bool bVerifySSL;                // SSL 证书验证 (默认 true)
+		xhttp_proc procOnData;          // 流式数据回调
+		ptr pUserData;                  // 用户自定义数据
+		bool bIsMultipart;              // 是否为 multipart 请求
+		xbuffer_struct tMultipart;      // multipart body 构建缓冲区
+		char sBoundary[64];             // multipart boundary
+		xdict pCookies;                 // Cookie 字典 (始终用于 cookies 管理)
+		bool bCookiePersist;            // 持久化标志 (TRUE=jar 模式, 自动保存 Set-Cookie)
+	} xhttpreq_struct, *xhttpreq;
+	
+	/* ---- 极简 API ---- */
+	
+	// GET 请求 - 返回响应对象，sHeaders 可为 NULL，pProc 可为 NULL
+	XXAPI xhttpresp xrtHttpGet(str sURL, str sHeaders, xhttp_proc pProc);
+	
+	// POST 请求 - sBody 为请求正文 (默认 application/x-www-form-urlencoded)
+	XXAPI xhttpresp xrtHttpPost(str sURL, str sBody, str sHeaders, xhttp_proc pProc);
+	
+	// GET 下载文件 - 数据写入 sFilePath，sHeaders 可为 NULL，pProc 用于进度回调
+	XXAPI bool xrtHttpGetFile(str sURL, str sFilePath, str sHeaders, xhttp_proc pProc);
+	
+	// POST 下载文件 - sHeaders 可为 NULL
+	XXAPI bool xrtHttpPostFile(str sURL, str sBody, str sFilePath, str sHeaders, xhttp_proc pProc);
+	
+	// 释放响应对象
+	XXAPI void xrtHttpRespFree(xhttpresp pResp);
+	
+	/* ---- 完整 API ---- */
+	
+	// 创建/销毁请求对象
+	XXAPI xhttpreq xrtHttpReqCreate(xhttp_method iMethod, str sURL);
+	XXAPI void xrtHttpReqFree(xhttpreq pReq);
+	
+	// 设置请求头 (可多次调用追加不同 Header)
+	XXAPI void xrtHttpReqSetHeader(xhttpreq pReq, str sName, str sValue);
+	
+	// 设置请求正文 (原始 body)
+	XXAPI void xrtHttpReqSetBody(xhttpreq pReq, str pData, size_t iLen, str sContentType);
+	
+	// 添加表单字段 (application/x-www-form-urlencoded)
+	XXAPI void xrtHttpReqAddField(xhttpreq pReq, str sName, str sValue);
+	
+	// 添加 Multipart 表单字段
+	XXAPI void xrtHttpReqAddFormField(xhttpreq pReq, str sName, str sValue);
+	
+	// 添加 Multipart 文件
+	XXAPI void xrtHttpReqAddFormFile(xhttpreq pReq, str sFieldName, str sFilePath, str sMimeType);
+	
+	// 添加 Multipart 内存数据 (作为文件上传)
+	XXAPI void xrtHttpReqAddFormData(xhttpreq pReq, str sFieldName, str sFileName, str pData, size_t iLen, str sMimeType);
+	
+	// 配置选项
+	XXAPI void xrtHttpReqSetTimeout(xhttpreq pReq, int iTimeoutSec);
+	XXAPI void xrtHttpReqSetRedirect(xhttpreq pReq, int iMaxRedirects);
+	XXAPI void xrtHttpReqSetVerifySSL(xhttpreq pReq, bool bVerify);
+	XXAPI void xrtHttpReqSetCallback(xhttpreq pReq, xhttp_proc pProc);
+	XXAPI void xrtHttpReqSetUserData(xhttpreq pReq, ptr pData);
+	
+	// Cookie 管理
+	XXAPI void xrtHttpReqEnableCookies(xhttpreq pReq, bool bEnable);
+	XXAPI void xrtHttpReqSetCookie(xhttpreq pReq, str sName, str sValue);
+	XXAPI void xrtHttpReqRemoveCookie(xhttpreq pReq, str sName);
+	
+	// 执行请求 (阻塞, 返回响应对象)
+	XXAPI xhttpresp xrtHttpReqExecute(xhttpreq pReq);
+	
+	// 响应对象读取辅助
+	XXAPI int xrtHttpRespCode(xhttpresp pResp);
+	XXAPI str xrtHttpRespBody(xhttpresp pResp);
+	XXAPI size_t xrtHttpRespBodyLen(xhttpresp pResp);
+	XXAPI str xrtHttpRespHeader(xhttpresp pResp, str sName);
+	XXAPI str xrtHttpRespCookie(xhttpresp pResp, str sName);
+	XXAPI str xrtHttpRespContentType(xhttpresp pResp);
+	
+	
+	
+	/* ------------------------------------ Memory Debug Helper 调试包装 ------------------------------------ */
+	/*
+		依赖项：
+			Array 函数库
+			Dict 函数库
+			List 函数库
+			AVLTree 函数库
+			Dynamic Stack 函数库
+			Memory Pool 函数库
+			Fixed-Size Memory Pool 函数库
+	*/
 
-XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine);
-XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine);
+	#ifdef XRT_MEM_DEBUG
+		// 调试包装创建函数（为容器记录来源文件与行号）
+	XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine);
+	XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine);
 
-XXAPI xlist xrtListCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine);
-XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine);
+	XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine);
+	XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine);
 
-XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
-XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
+	XXAPI xlist xrtListCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine);
+	XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine);
 
-XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
-XXAPI void xrtDynStackInitDbg(xdynstack objSTK, uint32 iItemLength, const char* sFile, uint32 iLine);
-XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
-XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
+	XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
+	XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine);
 
-XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine);
-XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine);
+	XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine);
+	XXAPI void xrtDynStackInitDbg(xdynstack objSTK, uint32 iItemLength, const char* sFile, uint32 iLine);
+	XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
+	XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine);
 
-XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
-XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
-XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
-#endif
+	XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine);
+	XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine);
 
-#if defined(XRT_MEM_DEBUG) && !defined(XRT_BUILD_CORE)
+	XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine);
+	XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
+	XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine);
+	#endif
+
+	#if defined(XRT_MEM_DEBUG) && !defined(XRT_BUILD_CORE)
+		// 调试包装宏（自动注入调用位置）
 	#define xrtArrayCreate(iItemLength, iMode) xrtArrayCreateDbg((iItemLength), (iMode), __FILE__, __LINE__)
 	#define xrtArrayInit(pArr, iItemLength, iMode) xrtArrayInitDbg((pArr), (iItemLength), (iMode), __FILE__, __LINE__)
 	#define xrtArrayDestroy(pArr) xrtArrayDestroyDbg((pArr), __FILE__, __LINE__)
@@ -5983,9 +6148,8 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 	#define xrtFSMemPoolInit(objMM, iItemLength, iMode) xrtFSMemPoolInitDbg((objMM), (iItemLength), (iMode), __FILE__, __LINE__)
 	#define xrtFSMemPoolDestroy(objMM) xrtFSMemPoolDestroyDbg((objMM), __FILE__, __LINE__)
 	#define xrtFSMemPoolUnit(objMM) xrtFSMemPoolUnitDbg((objMM), __FILE__, __LINE__)
-#endif
+	#endif
 
 #endif
-
 
 
