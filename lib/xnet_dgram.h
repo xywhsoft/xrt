@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XNET_DGRAM_H
+#ifndef XRT_XNET_DGRAM_H
 #define XRT_XNET_DGRAM_H
 
 #if !defined(XRT_BUILD_CORE)

@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XNET_STREAM_H
+#ifndef XRT_XNET_STREAM_H
 #define XRT_XNET_STREAM_H
 
 /*

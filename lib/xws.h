@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XWS_H
+#ifndef XRT_XWS_H
 #define XRT_XWS_H
 
 /*

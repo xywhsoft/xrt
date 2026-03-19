@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XHTTPD_H
+#ifndef XRT_XHTTPD_H
 #define XRT_XHTTPD_H
 
 /*

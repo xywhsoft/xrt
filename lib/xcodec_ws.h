@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XCODEC_WS_H
+#ifndef XRT_XCODEC_WS_H
 #define XRT_XCODEC_WS_H
 
 /*

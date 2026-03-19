@@ -8,6 +8,7 @@
 int main(void)
 {
 	xrtGlobalData* pCore;
+	int iRet;
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 	#if defined(_WIN32) || defined(_WIN64)
@@ -25,11 +26,11 @@ int main(void)
 		return 1;
 	}
 
-	Test_XNet2_Sync();
+	iRet = Test_XNet2_Sync();
 
 	xrtUnit();
 	#if defined(_WIN32) || defined(_WIN64)
 		WSACleanup();
 	#endif
-	return 0;
+	return iRet;
 }

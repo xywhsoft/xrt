@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XCODEC_HTTP1_H
+#ifndef XRT_XCODEC_HTTP1_H
 #define XRT_XCODEC_HTTP1_H
 
 /*

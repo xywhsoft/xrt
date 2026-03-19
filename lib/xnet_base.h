@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XNET_BASE_H
+#ifndef XRT_XNET_BASE_H
 #define XRT_XNET_BASE_H
 
 /*

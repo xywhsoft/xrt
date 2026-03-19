@@ -51,6 +51,8 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
 		#include <winapi/winsock2.h>
+		#include <winapi/ws2tcpip.h>
+		#include <winapi/mswsock.h>
 		#ifndef XRT_THREAD_INIT
 			#define XRT_THREAD_INIT
 			typedef struct { PVOID Ptr; } SRWLOCK, *PSRWLOCK;

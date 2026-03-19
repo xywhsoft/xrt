@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XHTTP_H
+#ifndef XRT_XHTTP_H
 #define XRT_XHTTP_H
 
 /*
