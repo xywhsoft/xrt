@@ -73,7 +73,6 @@
 #include "test/test_path.h"
 #include "test/test_time.h"
 #include "test/test_file.h"
-#include "test/test_thread.h"
 #include "test/test_thread_core.h"
 #include "test/test_runtime_phase2.h"
 #ifndef XRT_NO_COROUTINE
@@ -218,7 +217,6 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_String, Test_String)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Path, Test_Path)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Time, Test_Time)
 XRT_TEST_WRAP_CORE(__xrtTestRun_File, Test_File)
-XRT_TEST_WRAP_CORE(__xrtTestRun_Thread, Test_Thread)
 XRT_TEST_WRAP_INT(__xrtTestRun_ThreadCore, Test_ThreadCore)
 XRT_TEST_WRAP_CORE(__xrtTestRun_RuntimePhase2, Test_Runtime_Phase2)
 #ifndef XRT_NO_COROUTINE
@@ -336,7 +334,6 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "path", "Path", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Path },
 	{ "time", "Time", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Time },
 	{ "file", "File", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_File },
-	{ "thread", "Thread", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_Thread },
 	{ "thread_core", "Thread Core", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_ThreadCore },
 	{ "runtime_phase2", "Runtime Phase2", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_RuntimePhase2 },
 	#ifndef XRT_NO_COROUTINE
@@ -424,7 +421,6 @@ static const char* __g_arrPresetRuntimeSmoke[] = {
 	"os",
 	"time",
 	"file",
-	"thread",
 	"thread_core",
 	"runtime_phase2",
 	#ifndef XRT_NO_COROUTINE

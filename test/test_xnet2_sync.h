@@ -1,12 +1,5 @@
 #include <stdarg.h>
 
-#if defined(_WIN32) || defined(_WIN64)
-	#include <windows.h>
-#else
-	#include <time.h>
-	#include <unistd.h>
-#endif
-
 
 typedef struct {
 	xnetfuture* pFuture;
@@ -99,57 +92,7 @@ typedef struct {
 	bool bDone;
 } __test_xnet2_sync_connect_case;
 
-
-static void __Test_XNet2_SyncSleepMs(uint32 iDelayMs)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		Sleep(iDelayMs);
-	#else
-		usleep((useconds_t)iDelayMs * 1000u);
-	#endif
-}
-
-static long __Test_XNet2_SyncAtomicInc(volatile long* pValue)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedIncrement((volatile LONG*)pValue);
-	#else
-		return __sync_add_and_fetch(pValue, 1);
-	#endif
-}
-
-static void __Test_XNet2_SyncAtomicStore(volatile long* pValue, long iValue)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		InterlockedExchange((volatile LONG*)pValue, iValue);
-	#else
-		__sync_lock_test_and_set(pValue, iValue);
-	#endif
-}
-
-static int64_t __Test_XNet2_SyncNowMs(void)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		return (int64_t)GetTickCount64();
-	#else
-		struct timespec tNow;
-		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) return 0;
-		return ((int64_t)tNow.tv_sec * 1000LL) + ((int64_t)tNow.tv_nsec / 1000000LL);
-	#endif
-}
-
-static bool __Test_XNet2_SyncDgramPacketTextEquals(const xnetdgrampkt* pPacket, const char* sText)
-{
-	char aBuf[128];
-	size_t iWantLen;
-	size_t iCopyLen;
-
-	if ( !pPacket || !sText ) return false;
-	memset(aBuf, 0, sizeof(aBuf));
-	iWantLen = strlen(sText);
-	iCopyLen = xrtNetDgramPacketPeek(pPacket, aBuf, sizeof(aBuf) - 1u);
-	return iCopyLen == iWantLen && memcmp(aBuf, sText, iWantLen) == 0;
-}
+#include "test_xnet2_sync_support.h"
 
 static bool __Test_XNet2_SyncDgramEventTextEquals(const __test_xnet2_sync_dgram_event_case* pCase, const char* sText)
 {
@@ -158,165 +101,6 @@ static bool __Test_XNet2_SyncDgramEventTextEquals(const __test_xnet2_sync_dgram_
 	if ( !pCase || !sText ) return false;
 	iWantLen = strlen(sText);
 	return pCase->iPayloadLen == (long)iWantLen && memcmp(pCase->aPayload, sText, iWantLen) == 0;
-}
-
-static bool __Test_XNet2_SyncWaitStreamOpen(xnetstream* pStream, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-	if ( !pStream ) return false;
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		if ( (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0 ) {
-			return true;
-		}
-		__Test_XNet2_SyncSleepMs(5);
-	}
-	return (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0;
-}
-
-static bool __Test_XNet2_SyncWaitStreamWaitCleared(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-
-	if ( !pStream || iWaitKind >= __XNET_STREAM_WAIT_COUNT ) return false;
-
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		if ( pStream->arrSyncWait[iWaitKind].pfnWait == NULL ) {
-			return true;
-		}
-		__Test_XNet2_SyncSleepMs(1);
-	}
-
-	return pStream->arrSyncWait[iWaitKind].pfnWait == NULL;
-}
-
-static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamSync(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-	xnet_result iStatus = XRT_NET_ERROR;
-
-	if ( !pStream ) return XRT_NET_ERROR;
-
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
-		iStatus = xrtNetWaitSourceWait(&tSrc);
-		if ( iStatus != XRT_NET_ERROR ) {
-			return iStatus;
-		}
-		__Test_XNet2_SyncSleepMs(1);
-	}
-
-	return iStatus;
-}
-
-static xnet_result __Test_XNet2_SyncRetryStreamTimeoutSync(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-	xnet_result iStatus = XRT_NET_ERROR;
-
-	if ( !pStream ) return XRT_NET_ERROR;
-
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		iStatus = xrtNetStreamWaitTimeoutEx(pStream, iWaitKind, 30);
-		if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_CLOSED ) {
-			return iStatus;
-		}
-		__Test_XNet2_SyncSleepMs(1);
-	}
-
-	return iStatus;
-}
-
-static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamValueTimeoutSync(xnetstream* pStream, uint32 iWaitKind, ptr* ppValue, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-	xnet_result iStatus = XRT_NET_ERROR;
-
-	if ( ppValue ) *ppValue = NULL;
-	if ( !pStream ) return XRT_NET_ERROR;
-
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
-
-		if ( ppValue ) *ppValue = (ptr)1;
-		iStatus = xrtNetWaitSourceWaitValueTimeout(&tSrc, 30, ppValue);
-		if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_CLOSED ) {
-			return iStatus;
-		}
-		__Test_XNet2_SyncSleepMs(1);
-	}
-
-	return iStatus;
-}
-
-static xnet_result __Test_XNet2_SyncRetryDgramRecvSync(xdgramsock* pSock, xnetdgrampkt** ppPacket, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-	xnet_result iStatus = XRT_NET_TIMEOUT;
-
-	if ( ppPacket ) *ppPacket = NULL;
-	if ( !pSock ) return XRT_NET_ERROR;
-
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		if ( ppPacket ) *ppPacket = NULL;
-		iStatus = xrtNetDgramRecvUntil(pSock, __Test_XNet2_SyncNowMs() + 30, ppPacket);
-		if ( iStatus == XRT_NET_OK || iStatus == XRT_NET_CLOSED ) {
-			return iStatus;
-		}
-		__Test_XNet2_SyncSleepMs(1);
-	}
-
-	return iStatus;
-}
-
-static xnet_result __Test_XNet2_SyncRetryWaitSourceDgramSync(xdgramsock* pSock, xnetdgrampkt** ppPacket, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-	xnet_result iStatus = XRT_NET_TIMEOUT;
-
-	if ( ppPacket ) *ppPacket = NULL;
-	if ( !pSock ) return XRT_NET_ERROR;
-
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
-
-		if ( ppPacket ) *ppPacket = NULL;
-		iStatus = xrtNetWaitSourceWaitValueTimeout(&tSrc, 30, (ptr*)ppPacket);
-		if ( iStatus == XRT_NET_OK || iStatus == XRT_NET_CLOSED ) {
-			return iStatus;
-		}
-		__Test_XNet2_SyncSleepMs(1);
-	}
-
-	return iStatus;
-}
-
-static bool __Test_XNet2_SyncWaitDgramRecvWaitCleared(xdgramsock* pSock, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-
-	if ( !pSock ) return false;
-
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		if ( pSock->tRecvWait.pfnWait == NULL ) {
-			return true;
-		}
-		__Test_XNet2_SyncSleepMs(1);
-	}
-
-	return pSock->tRecvWait.pfnWait == NULL;
-}
-
-static bool __Test_XNet2_SyncWaitListenerAcceptRegistered(xnetlistener* pListener, uint32 iTimeoutMs)
-{
-	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
-	if ( !pListener ) return false;
-	while ( __Test_XNet2_SyncNowMs() < iDeadlineMs ) {
-		if ( pListener->tAcceptWait.pfnWait != NULL ) {
-			return true;
-		}
-		__Test_XNet2_SyncSleepMs(5);
-	}
-	return pListener->tAcceptWait.pfnWait != NULL;
 }
 
 static void __Test_XNet2_SyncDgramOnRecv(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain)
@@ -380,6 +164,29 @@ static uint32 __Test_XNet2_SyncConnectWorker(ptr pArg)
 	return 0;
 }
 
+static xthread __Test_XNet2_SyncStartWorkerThread(uint32 (*Proc)(ptr), ptr pArg)
+{
+	if ( !Proc ) return NULL;
+	return xrtThreadCreate(Proc, pArg, 0);
+}
+
+static void __Test_XNet2_SyncJoinThread(xthread* phThread)
+{
+	if ( !phThread || !*phThread ) return;
+	xrtThreadWait(*phThread);
+	xrtThreadDestroy(*phThread);
+	*phThread = NULL;
+}
+
+static void __Test_XNet2_SyncRunSchedWithWorker(xcosched* pSched, xthread* phThread, uint32 (*Proc)(ptr), ptr pArg)
+{
+	if ( !pSched ) return;
+	if ( phThread ) {
+		*phThread = __Test_XNet2_SyncStartWorkerThread(Proc, pArg);
+	}
+	xrtCoSchedRun(pSched);
+}
+
 static void __Test_XNet2_SyncResolveTask(xnetworker* pWorker, ptr pArg)
 {
 	__test_xnet2_sync_task_ctx* pCtx = (__test_xnet2_sync_task_ctx*)pArg;
@@ -390,376 +197,239 @@ static void __Test_XNet2_SyncResolveTask(xnetworker* pWorker, ptr pArg)
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
-static void __Test_XNet2_SyncFutureWaitCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
+#define __TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(procName, Body) \
+static void procName(ptr pArg) \
+{ \
+	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg; \
+\
+	if ( !pCase ) return; \
+	Body \
+}
 
-	if ( !pCase ) return;
+#define __TEST_XNET2_SYNC_DEFINE_MULTI_CORO_CASE_PROC(procName, Body) \
+static void procName(ptr pArg) \
+{ \
+	__test_xnet2_sync_multi_coro_case* pCase = (__test_xnet2_sync_multi_coro_case*)pArg; \
+\
+	if ( !pCase ) return; \
+	Body \
+}
+
+#define __TEST_XNET2_SYNC_DEFINE_LISTENER_CORO_CASE_PROC(procName, Body) \
+static void procName(ptr pArg) \
+{ \
+	__test_xnet2_sync_listener_coro_case* pCase = (__test_xnet2_sync_listener_coro_case*)pArg; \
+\
+	if ( !pCase ) return; \
+	Body \
+}
+
+#define __TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(procName, Body) \
+static void procName(ptr pArg) \
+{ \
+	__test_xnet2_sync_dgram_coro_case* pCase = (__test_xnet2_sync_dgram_coro_case*)pArg; \
+\
+	if ( !pCase ) return; \
+	Body \
+}
+
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncFutureWaitCo,
 	pCase->iWaitStatus = xrtNetFutureWaitCo(pCase->pFuture);
 	pCase->pResolvedValue = xrtNetFutureValue(pCase->pFuture);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncFutureWaitCoMulti1(ptr pArg)
-{
-	__test_xnet2_sync_multi_coro_case* pCase = (__test_xnet2_sync_multi_coro_case*)pArg;
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_MULTI_CORO_CASE_PROC(__Test_XNet2_SyncFutureWaitCoMulti1,
 	pCase->arrStatus[0] = xrtNetFutureWaitCo(pCase->pFuture);
 	pCase->arrValues[0] = xrtNetFutureValue(pCase->pFuture);
 	pCase->arrDone[0] = true;
-}
+)
 
-static void __Test_XNet2_SyncFutureWaitCoMulti2(ptr pArg)
-{
-	__test_xnet2_sync_multi_coro_case* pCase = (__test_xnet2_sync_multi_coro_case*)pArg;
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_MULTI_CORO_CASE_PROC(__Test_XNet2_SyncFutureWaitCoMulti2,
 	pCase->arrStatus[1] = xrtNetFutureWaitCo(pCase->pFuture);
 	pCase->arrValues[1] = xrtNetFutureValue(pCase->pFuture);
 	pCase->arrDone[1] = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceFutureCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceFuture(pCase->pFuture);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceFutureCo,
+	xnetwaitsrc tSrc = xrtNetWaitSourceFuture(pCase->pFuture);
 	pCase->iWaitStatus = xrtNetWaitSourceWaitCoValue(&tSrc, &pCase->pResolvedValue);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncFutureWaitCoTimeout(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncFutureWaitCoTimeout,
 	pCase->iTimeoutStatus = xrtNetFutureWaitCoTimeout(pCase->pFuture, 40);
 	pCase->pTimeoutValue = xrtNetFutureValue(pCase->pFuture);
 	pCase->bTimeoutDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceFutureCoTimeout(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceFuture(pCase->pFuture);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceFutureCoTimeout,
+	xnetwaitsrc tSrc = xrtNetWaitSourceFuture(pCase->pFuture);
 	pCase->iTimeoutStatus = xrtNetWaitSourceWaitCoValueTimeout(&tSrc, 40, &pCase->pTimeoutValue);
 	pCase->bTimeoutDone = true;
-}
+)
 
-static void __Test_XNet2_SyncFutureWaitCoUntil(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iDeadlineStatus = xrtNetFutureWaitCoUntil(pCase->pFuture, iNowMs + 45);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncFutureWaitCoUntil,
+	pCase->iDeadlineStatus = xrtNetFutureWaitCoUntil(pCase->pFuture, __Test_XNet2_SyncDeadlineFromTimer(45));
 	pCase->pDeadlineValue = xrtNetFutureValue(pCase->pFuture);
 	pCase->bDeadlineDone = true;
-}
+)
 
-static void __Test_XNet2_SyncListenerAcceptCo(ptr pArg)
-{
-	__test_xnet2_sync_listener_coro_case* pCase = (__test_xnet2_sync_listener_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_LISTENER_CORO_CASE_PROC(__Test_XNet2_SyncListenerAcceptCo,
 	pCase->iWaitStatus = xrtNetListenerAcceptCo(pCase->pListener, &pCase->pAccepted);
 	pCase->pResolvedValue = pCase->pAccepted;
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceListenerAcceptCo(ptr pArg)
-{
-	__test_xnet2_sync_listener_coro_case* pCase = (__test_xnet2_sync_listener_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceListenerAccept(pCase->pListener);
+__TEST_XNET2_SYNC_DEFINE_LISTENER_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceListenerAcceptCo,
+	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pCase->pListener);
 	pCase->iWaitStatus = xrtNetWaitSourceWaitCoValue(&tSrc, &pCase->pResolvedValue);
 	pCase->pAccepted = (xnetstream*)pCase->pResolvedValue;
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncListenerAcceptCoUntil(ptr pArg)
-{
-	__test_xnet2_sync_listener_coro_case* pCase = (__test_xnet2_sync_listener_coro_case*)pArg;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iDeadlineStatus = xrtNetListenerAcceptCoUntil(pCase->pListener, iNowMs + 35, &pCase->pDeadlineAccepted);
+__TEST_XNET2_SYNC_DEFINE_LISTENER_CORO_CASE_PROC(__Test_XNet2_SyncListenerAcceptCoUntil,
+	pCase->iDeadlineStatus = xrtNetListenerAcceptCoUntil(pCase->pListener, __Test_XNet2_SyncDeadlineFromTimer(__TEST_XNET2_SYNC_WAIT_DEADLINE_MS), &pCase->pDeadlineAccepted);
 	pCase->pDeadlineValue = pCase->pDeadlineAccepted;
 	pCase->bDeadlineDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamReadableWaitCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamReadableWaitCo,
 	pCase->iWaitStatus = xrtNetStreamWaitReadableCo(pCase->pStream);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamWaitCoExReadable(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamWaitCoExReadable,
 	pCase->iWaitStatus = xrtNetStreamWaitCoEx(pCase->pStream, XNET_STREAM_WAIT_READABLE);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamReadableCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_READABLE);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamReadableCo,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_READABLE);
 	pCase->iWaitStatus = xrtNetWaitSourceWaitCoValue(&tSrc, &pCase->pResolvedValue);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamReadableWaitCoTimeout(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
-	pCase->iTimeoutStatus = xrtNetStreamWaitReadableCoTimeout(pCase->pStream, 30);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamReadableWaitCoTimeout,
+	pCase->iTimeoutStatus = xrtNetStreamWaitReadableCoTimeout(pCase->pStream, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS);
 	pCase->bTimeoutDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamReadableWaitCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
-	pCase->iWaitStatus = xrtNetStreamWaitReadableCoTimeout(pCase->pStream, 30);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamReadableWaitCoRetry,
+	pCase->iWaitStatus = xrtNetStreamWaitReadableCoTimeout(pCase->pStream, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamReadableCoTimeout(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_READABLE);
-	pCase->iTimeoutStatus = xrtNetWaitSourceWaitCoValueTimeout(&tSrc, 30, &pCase->pTimeoutValue);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamReadableCoTimeout,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_READABLE);
+	pCase->iTimeoutStatus = xrtNetWaitSourceWaitCoValueTimeout(&tSrc, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS, &pCase->pTimeoutValue);
 	pCase->bTimeoutDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamReadableCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_READABLE);
-	pCase->iWaitStatus = xrtNetWaitSourceWaitCoTimeout(&tSrc, 30);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamReadableCoRetry,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_READABLE);
+	pCase->iWaitStatus = xrtNetWaitSourceWaitCoTimeout(&tSrc, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamWritableCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_WRITABLE);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamWritableCo,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_WRITABLE);
 	pCase->iWaitStatus = xrtNetWaitSourceWaitCo(&tSrc);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamWritableCoUntil(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_WRITABLE);
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iDeadlineStatus = xrtNetWaitSourceWaitCoUntil(&tSrc, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamWritableCoUntil,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_WRITABLE);
+	pCase->iDeadlineStatus = __Test_XNet2_SyncWaitSourceCoUntilDelay(&tSrc, __TEST_XNET2_SYNC_WAIT_DEADLINE_MS);
 	pCase->bDeadlineDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamWritableWaitCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamWritableWaitCo,
 	pCase->iWaitStatus = xrtNetStreamWaitWritableCo(pCase->pStream);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamWritableWaitCoUntil(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iDeadlineStatus = xrtNetStreamWaitWritableCoUntil(pCase->pStream, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamWritableWaitCoUntil,
+	pCase->iDeadlineStatus = xrtNetStreamWaitWritableCoUntil(pCase->pStream, __Test_XNet2_SyncDeadlineFromTimer(__TEST_XNET2_SYNC_WAIT_DEADLINE_MS));
 	pCase->bDeadlineDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamWritableCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_WRITABLE);
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iWaitStatus = xrtNetWaitSourceWaitCoUntil(&tSrc, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamWritableCoRetry,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_WRITABLE);
+	pCase->iWaitStatus = __Test_XNet2_SyncWaitSourceCoUntilDelay(&tSrc, __TEST_XNET2_SYNC_WAIT_DEADLINE_MS);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamWritableWaitCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iWaitStatus = xrtNetStreamWaitWritableCoUntil(pCase->pStream, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamWritableWaitCoRetry,
+	pCase->iWaitStatus = xrtNetStreamWaitWritableCoUntil(pCase->pStream, __Test_XNet2_SyncDeadlineFromTimer(__TEST_XNET2_SYNC_WAIT_DEADLINE_MS));
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamDrainCoTimeout(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_DRAIN);
-	pCase->iTimeoutStatus = xrtNetWaitSourceWaitCoTimeout(&tSrc, 30);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamDrainCoTimeout,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_DRAIN);
+	pCase->iTimeoutStatus = xrtNetWaitSourceWaitCoTimeout(&tSrc, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS);
 	pCase->bTimeoutDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamDrainCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_DRAIN);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamDrainCo,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_DRAIN);
 	pCase->iWaitStatus = xrtNetWaitSourceWaitCo(&tSrc);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamDrainWaitCoTimeout(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
-	pCase->iTimeoutStatus = xrtNetStreamWaitDrainCoTimeout(pCase->pStream, 30);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamDrainWaitCoTimeout,
+	pCase->iTimeoutStatus = xrtNetStreamWaitDrainCoTimeout(pCase->pStream, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS);
 	pCase->bTimeoutDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamDrainWaitCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamDrainWaitCo,
 	pCase->iWaitStatus = xrtNetStreamWaitDrainCo(pCase->pStream);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamDrainCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_DRAIN);
-	pCase->iWaitStatus = xrtNetWaitSourceWaitCoTimeout(&tSrc, 30);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamDrainCoRetry,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_DRAIN);
+	pCase->iWaitStatus = xrtNetWaitSourceWaitCoTimeout(&tSrc, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamDrainWaitCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
-	pCase->iWaitStatus = xrtNetStreamWaitDrainCoTimeout(pCase->pStream, 30);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamDrainWaitCoRetry,
+	pCase->iWaitStatus = xrtNetStreamWaitDrainCoTimeout(pCase->pStream, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamCloseCoUntil(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_CLOSE);
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iDeadlineStatus = xrtNetWaitSourceWaitCoUntil(&tSrc, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamCloseCoUntil,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_CLOSE);
+	pCase->iDeadlineStatus = __Test_XNet2_SyncWaitSourceCoUntilDelay(&tSrc, __TEST_XNET2_SYNC_WAIT_DEADLINE_MS);
 	pCase->bDeadlineDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamCloseCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_CLOSE);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamCloseCo,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_CLOSE);
 	pCase->iWaitStatus = xrtNetWaitSourceWaitCo(&tSrc);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamCloseWaitCoUntil(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iDeadlineStatus = xrtNetStreamWaitCloseCoUntil(pCase->pStream, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamCloseWaitCoUntil,
+	pCase->iDeadlineStatus = xrtNetStreamWaitCloseCoUntil(pCase->pStream, __Test_XNet2_SyncDeadlineFromTimer(__TEST_XNET2_SYNC_WAIT_DEADLINE_MS));
 	pCase->bDeadlineDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamCloseWaitCo(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamCloseWaitCo,
 	pCase->iWaitStatus = xrtNetStreamWaitCloseCo(pCase->pStream);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceStreamCloseCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_CLOSE);
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iWaitStatus = xrtNetWaitSourceWaitCoUntil(&tSrc, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceStreamCloseCoRetry,
+	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pCase->pStream, XNET_STREAM_WAIT_CLOSE);
+	pCase->iWaitStatus = __Test_XNet2_SyncWaitSourceCoUntilDelay(&tSrc, __TEST_XNET2_SYNC_WAIT_DEADLINE_MS);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncStreamCloseWaitCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
-	int64 iNowMs = 0;
-
-	if ( !pCase ) return;
-	iNowMs = (int64)(xrtTimer() * 1000.0);
-	pCase->iWaitStatus = xrtNetStreamWaitCloseCoUntil(pCase->pStream, iNowMs + 35);
+__TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamCloseWaitCoRetry,
+	pCase->iWaitStatus = xrtNetStreamWaitCloseCoUntil(pCase->pStream, __Test_XNet2_SyncDeadlineFromTimer(__TEST_XNET2_SYNC_WAIT_DEADLINE_MS));
 	pCase->bDone = true;
-}
+)
 
 static uint32 __Test_XNet2_SyncFutureResolveWorker(ptr pArg)
 {
@@ -797,15 +467,13 @@ static xnet_result __Test_XNet2_SyncPostFutureTask(xnetworker* pWorker, ptr pArg
 	return XRT_NET_OK;
 }
 
-static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
+static int32 __Test_XNet2_SyncFillTaskResult(__test_xnet2_sync_postfuture_case* pCase, long iWorkerId, xfuture_result* pOut)
 {
-	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
-
 	if ( !pCase || !pOut ) {
 		return XRT_NET_ERROR;
 	}
 	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
-	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, pWorker ? (long)pWorker->iId : -1);
+	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, iWorkerId);
 	pOut->iStatus = XRT_NET_OK;
 	pOut->pValue = &pCase->iPayload;
 	pOut->sError = NULL;
@@ -813,20 +481,18 @@ static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfutu
 	return XRT_NET_OK;
 }
 
+static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	return __Test_XNet2_SyncFillTaskResult(pCase, pWorker ? (long)pWorker->iId : -1, pOut);
+}
+
 static int32 __Test_XNet2_TaskRunThreadProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
 
-	if ( !pCase || !pOut ) {
-		return XRT_NET_ERROR;
-	}
-	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
-	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, -2);
-	pOut->iStatus = XRT_NET_OK;
-	pOut->pValue = &pCase->iPayload;
-	pOut->sError = NULL;
-	pOut->iFlags = XFUTURE_RESULT_F_NONE;
-	return XRT_NET_OK;
+	return __Test_XNet2_SyncFillTaskResult(pCase, -2, pOut);
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
@@ -834,16 +500,7 @@ static int32 __Test_XNet2_TaskRunCoProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
 
-	if ( !pCase || !pOut ) {
-		return XRT_NET_ERROR;
-	}
-	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
-	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, -3);
-	pOut->iStatus = XRT_NET_OK;
-	pOut->pValue = &pCase->iPayload;
-	pOut->sError = NULL;
-	pOut->iFlags = XFUTURE_RESULT_F_NONE;
-	return XRT_NET_OK;
+	return __Test_XNet2_SyncFillTaskResult(pCase, -3, pOut);
 }
 #endif
 
@@ -883,65 +540,38 @@ static void __Test_XNet2_SyncStreamWritableTask(xnetworker* pWorker, ptr pArg)
 	}
 }
 
-static void __Test_XNet2_SyncDgramRecvCo(ptr pArg)
-{
-	__test_xnet2_sync_dgram_coro_case* pCase = (__test_xnet2_sync_dgram_coro_case*)pArg;
-
-	if ( !pCase ) return;
+__TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(__Test_XNet2_SyncDgramRecvCo,
 	pCase->iWaitStatus = xrtNetDgramRecvCo(pCase->pSock, &pCase->pPacket);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceDgramRecvCo(ptr pArg)
-{
-	__test_xnet2_sync_dgram_coro_case* pCase = (__test_xnet2_sync_dgram_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceDgramRecv(pCase->pSock);
+__TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceDgramRecvCo,
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pCase->pSock);
 	pCase->iWaitStatus = xrtNetWaitSourceWaitCoValue(&tSrc, (ptr*)&pCase->pPacket);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceDgramRecvCoTimeout(ptr pArg)
-{
-	__test_xnet2_sync_dgram_coro_case* pCase = (__test_xnet2_sync_dgram_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceDgramRecv(pCase->pSock);
-	pCase->iTimeoutStatus = xrtNetWaitSourceWaitCoValueTimeout(&tSrc, 30, (ptr*)&pCase->pTimeoutPacket);
+__TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceDgramRecvCoTimeout,
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pCase->pSock);
+	pCase->iTimeoutStatus = xrtNetWaitSourceWaitCoValueTimeout(&tSrc, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS, (ptr*)&pCase->pTimeoutPacket);
 	pCase->bTimeoutDone = true;
-}
+)
 
-static void __Test_XNet2_SyncDgramRecvCoUntil(ptr pArg)
-{
-	__test_xnet2_sync_dgram_coro_case* pCase = (__test_xnet2_sync_dgram_coro_case*)pArg;
-
-	if ( !pCase ) return;
-	pCase->iDeadlineStatus = xrtNetDgramRecvCoUntil(pCase->pSock, __Test_XNet2_SyncNowMs() + 30, &pCase->pTimeoutPacket);
+__TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(__Test_XNet2_SyncDgramRecvCoUntil,
+	pCase->iDeadlineStatus = xrtNetDgramRecvCoUntil(pCase->pSock, __Test_XNet2_SyncNowMs() + __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS, &pCase->pTimeoutPacket);
 	pCase->bDeadlineDone = true;
-}
+)
 
-static void __Test_XNet2_SyncDgramRecvCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_dgram_coro_case* pCase = (__test_xnet2_sync_dgram_coro_case*)pArg;
-
-	if ( !pCase ) return;
-	pCase->iWaitStatus = xrtNetDgramRecvCoTimeout(pCase->pSock, 30, &pCase->pPacket);
+__TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(__Test_XNet2_SyncDgramRecvCoRetry,
+	pCase->iWaitStatus = xrtNetDgramRecvCoTimeout(pCase->pSock, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS, &pCase->pPacket);
 	pCase->bDone = true;
-}
+)
 
-static void __Test_XNet2_SyncWaitSourceDgramRecvCoRetry(ptr pArg)
-{
-	__test_xnet2_sync_dgram_coro_case* pCase = (__test_xnet2_sync_dgram_coro_case*)pArg;
-	xnetwaitsrc tSrc;
-
-	if ( !pCase ) return;
-	tSrc = xrtNetWaitSourceDgramRecv(pCase->pSock);
-	pCase->iWaitStatus = xrtNetWaitSourceWaitCoValueTimeout(&tSrc, 30, (ptr*)&pCase->pPacket);
+__TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceDgramRecvCoRetry,
+	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pCase->pSock);
+	pCase->iWaitStatus = xrtNetWaitSourceWaitCoValueTimeout(&tSrc, __TEST_XNET2_SYNC_WAIT_TIMEOUT_MS, (ptr*)&pCase->pPacket);
 	pCase->bDone = true;
-}
+)
 
 static bool __Test_XNet2_SyncRetryDgramCoCase(xcosched* pSched, __test_xnet2_sync_dgram_coro_case* pCase, void (*Proc)(ptr), xnet_result iExpectStatus, uint32 iTimeoutMs)
 {
@@ -987,6 +617,56 @@ static bool __Test_XNet2_SyncRetryWaitCoCase(xcosched* pSched, __test_xnet2_sync
 
 	return pCase->iWaitStatus == iExpectStatus && pCase->bDone;
 }
+
+static bool __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+	xcosched* pSched,
+	__test_xnet2_sync_coro_case* pCase,
+	void (*Proc)(ptr),
+	xnetstream* pStream,
+	uint32 iWaitKind,
+	uint32 iTimeoutMs)
+{
+	if ( !pSched || !pCase || !Proc || !pStream ) return false;
+	(void)xrtCoSchedSpawn(pSched, Proc, pCase, 0);
+	xrtCoSchedRun(pSched);
+	return __Test_XNet2_SyncWaitStreamWaitCleared(pStream, iWaitKind, iTimeoutMs);
+}
+
+static bool __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
+	xnetengine* pEngine,
+	xnetstream* pStream,
+	xcosched* pSched,
+	__test_xnet2_sync_coro_case* pCase,
+	uint32 iDelayMs,
+	void (*TaskProc)(xnetworker*, ptr),
+	void (*RetryProc)(ptr),
+	xnet_result iExpectStatus,
+	uint32 iTimeoutMs)
+{
+	if ( !pEngine || !pStream || !pSched || !pCase || !TaskProc || !RetryProc ) return false;
+	if ( !__Test_XNet2_SyncPostStreamTaskDelayed(pEngine, pStream, iDelayMs, TaskProc) ) return false;
+	return __Test_XNet2_SyncRetryWaitCoCase(pSched, pCase, RetryProc, iExpectStatus, iTimeoutMs);
+}
+
+static bool __Test_XNet2_SyncPostRecvAndRetryWaitCo(
+	xcosched* pSched,
+	__test_xnet2_sync_coro_case* pCase,
+	xnetstream* pStream,
+	const char* sPayload,
+	size_t iPayloadLen,
+	void (*RetryProc)(ptr),
+	xnet_result iExpectStatus,
+	uint32 iTimeoutMs)
+{
+	if ( !pSched || !pCase || !pStream || !sPayload || !RetryProc ) return false;
+	(void)__xnetStreamPostRecvCopy(pStream, sPayload, iPayloadLen);
+	return __Test_XNet2_SyncRetryWaitCoCase(pSched, pCase, RetryProc, iExpectStatus, iTimeoutMs);
+}
+
+#undef __TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC
+#undef __TEST_XNET2_SYNC_DEFINE_MULTI_CORO_CASE_PROC
+#undef __TEST_XNET2_SYNC_DEFINE_LISTENER_CORO_CASE_PROC
+#undef __TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC
 #endif
 
 static int __Test_XNet2_SyncTrackedPrintf(int* piFailCount, const char* sFormat, ...)
@@ -1194,13 +874,11 @@ int Test_XNet2_Sync(void)
 		xnetfuture* pFuture = xrtNetFutureCreate();
 		xnetwaitsrc tSrc = xrtNetWaitSourceNone();
 		xnet_result iDeadlineStatus = XRT_NET_ERROR;
-		int64_t iNowMs = 0;
 		ptr pDeadlineValue = (ptr)1;
 
 		if ( pFuture ) {
 			tSrc = xrtNetWaitSourceFuture(pFuture);
-			iNowMs = __xnetSyncNowMs();
-			iDeadlineStatus = xrtNetWaitSourceWaitValueUntil(&tSrc, iNowMs + 20, &pDeadlineValue);
+			iDeadlineStatus = xrtNetWaitSourceWaitValueUntil(&tSrc, __Test_XNet2_SyncDeadlineFromTimer(20), &pDeadlineValue);
 		}
 
 		printf("  Wait source future sync deadline create : %s\n", pFuture ? "PASS" : "FAIL");
@@ -1437,8 +1115,11 @@ int Test_XNet2_Sync(void)
 		ptr pTimeoutValue = (ptr)1;
 		xnetdgrampkt* pRetryPacket = NULL;
 		bool bRecvWaitCleared = false;
+		xthread pThread = NULL;
+		__test_xnet2_sync_dgram_send_case tSendCase;
 
 		memset(&tServerAddr, 0, sizeof(tServerAddr));
+		memset(&tSendCase, 0, sizeof(tSendCase));
 		xrtNetEngineConfigInit(&tCfg);
 		tCfg.iWorkerCount = 1;
 		xrtNetDgramConfigInit(&tServerCfg);
@@ -1455,11 +1136,19 @@ int Test_XNet2_Sync(void)
 			(void)xrtNetAddrParse(&tServerAddr, "127.0.0.1", pServer->tLocalAddr.iPort);
 			tSrc = xrtNetWaitSourceDgramRecv(pServer);
 			iTimeoutStatus = xrtNetWaitSourceWaitValueTimeout(&tSrc, 30, &pTimeoutValue);
-			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, 250);
+			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pClient && pServer && bRecvWaitCleared ) {
-			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "retry", 5);
-			iRetryStatus = __Test_XNet2_SyncRetryWaitSourceDgramSync(pServer, &pRetryPacket, 250);
+			tSendCase.pSock = pClient;
+			tSendCase.tPeerAddr = tServerAddr;
+			tSendCase.sPayload = "retry";
+			tSendCase.iDelayMs = 10;
+			pThread = xrtThreadCreate(__Test_XNet2_SyncDgramSendWorker, &tSendCase, 0);
+			iRetryStatus = __Test_XNet2_SyncRetryWaitSourceDgramSync(pServer, &pRetryPacket, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
+		}
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			xrtThreadDestroy(pThread);
 		}
 
 		printf("  Wait source dgram timeout helper create : %s\n", pEngine && pServer && pClient ? "PASS" : "FAIL");
@@ -1632,8 +1321,11 @@ int Test_XNet2_Sync(void)
 		xnetdgrampkt* pTimeoutPacket = (xnetdgrampkt*)1;
 		xnetdgrampkt* pRetryPacket = NULL;
 		bool bRecvWaitCleared = false;
+		xthread pThread = NULL;
+		__test_xnet2_sync_dgram_send_case tSendCase;
 
 		memset(&tServerAddr, 0, sizeof(tServerAddr));
+		memset(&tSendCase, 0, sizeof(tSendCase));
 		xrtNetEngineConfigInit(&tCfg);
 		tCfg.iWorkerCount = 1;
 		xrtNetDgramConfigInit(&tServerCfg);
@@ -1649,11 +1341,19 @@ int Test_XNet2_Sync(void)
 		if ( pServer ) {
 			(void)xrtNetAddrParse(&tServerAddr, "127.0.0.1", pServer->tLocalAddr.iPort);
 			iDeadlineStatus = xrtNetDgramRecvUntil(pServer, __Test_XNet2_SyncNowMs() + 30, &pTimeoutPacket);
-			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, 250);
+			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pClient && pServer && bRecvWaitCleared ) {
-			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "dgun", 4);
-			iRetryStatus = __Test_XNet2_SyncRetryDgramRecvSync(pServer, &pRetryPacket, 250);
+			tSendCase.pSock = pClient;
+			tSendCase.tPeerAddr = tServerAddr;
+			tSendCase.sPayload = "dgun";
+			tSendCase.iDelayMs = 10;
+			pThread = xrtThreadCreate(__Test_XNet2_SyncDgramSendWorker, &tSendCase, 0);
+			iRetryStatus = __Test_XNet2_SyncRetryDgramRecvSync(pServer, &pRetryPacket, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
+		}
+		if ( pThread ) {
+			xrtThreadWait(pThread);
+			xrtThreadDestroy(pThread);
 		}
 
 		printf("  Dgram recv deadline helper create : %s\n", pEngine && pServer && pClient ? "PASS" : "FAIL");
@@ -1868,16 +1568,13 @@ int Test_XNet2_Sync(void)
 		xdgramsock* pClient = NULL;
 		xnetaddr tServerAddr;
 		xcosched* pSched = NULL;
-		xthread pThread = NULL;
 		__test_xnet2_sync_dgram_coro_case tDeadlineCase;
 		__test_xnet2_sync_dgram_coro_case tRetryCase;
-		__test_xnet2_sync_dgram_send_case tSendCase;
 		bool bRecvWaitCleared = false;
 		bool bRetryOk = false;
 
 		memset(&tDeadlineCase, 0, sizeof(tDeadlineCase));
 		memset(&tRetryCase, 0, sizeof(tRetryCase));
-		memset(&tSendCase, 0, sizeof(tSendCase));
 		memset(&tServerAddr, 0, sizeof(tServerAddr));
 		xrtNetEngineConfigInit(&tCfg);
 		tCfg.iWorkerCount = 1;
@@ -1894,25 +1591,16 @@ int Test_XNet2_Sync(void)
 		if ( pServer ) (void)xrtNetAddrParse(&tServerAddr, "127.0.0.1", pServer->tLocalAddr.iPort);
 		tDeadlineCase.pSock = pServer;
 		tRetryCase.pSock = pServer;
-		tSendCase.pSock = pClient;
-		tSendCase.tPeerAddr = tServerAddr;
-		tSendCase.sPayload = "dcud";
-		tSendCase.iDelayMs = 40;
 		pSched = xrtCoSchedCreate();
 		if ( pSched && pServer ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncDgramRecvCoUntil, &tDeadlineCase, 0);
 			xrtCoSchedRun(pSched);
-			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, 250);
+			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pSched && pServer && pClient && bRecvWaitCleared ) {
 			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "dcud", 4);
-			bRetryOk = __Test_XNet2_SyncRetryDgramRecvSync(pServer, &tRetryCase.pPacket, 250) == XRT_NET_OK;
+			bRetryOk = __Test_XNet2_SyncRetryDgramRecvSync(pServer, &tRetryCase.pPacket, __TEST_XNET2_SYNC_RETRY_WINDOW_MS) == XRT_NET_OK;
 		}
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
-
 		printf("  Dgram coroutine deadline helper create : %s\n", pEngine && pServer && pClient && pSched ? "PASS" : "FAIL");
 		printf("  Dgram coroutine deadline helper status : %s\n", tDeadlineCase.iDeadlineStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
 		printf("  Dgram coroutine deadline helper leaves null packet : %s\n", tDeadlineCase.pTimeoutPacket == NULL ? "PASS" : "FAIL");
@@ -1946,14 +1634,10 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pSched && tCase.pFuture ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCo, &tCase, 0);
-			pThread = xrtThreadCreate(__Test_XNet2_SyncFutureResolveWorker, &tCase, 0);
-			xrtCoSchedRun(pSched);
+			__Test_XNet2_SyncRunSchedWithWorker(pSched, &pThread, __Test_XNet2_SyncFutureResolveWorker, &tCase);
 		}
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
+		__Test_XNet2_SyncJoinThread(&pThread);
 
 		printf("  Future coroutine wait create : %s\n", tCase.pFuture && pSched ? "PASS" : "FAIL");
 		printf("  Future coroutine wait status : %s\n", tCase.iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
@@ -1976,14 +1660,10 @@ int Test_XNet2_Sync(void)
 		if ( pSched && tCase.pFuture ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCoMulti1, &tCase, 0);
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCoMulti2, &tCase, 0);
-			pThread = xrtThreadCreate(__Test_XNet2_SyncFutureResolveWorkerMulti, &tCase, 0);
-			xrtCoSchedRun(pSched);
+			__Test_XNet2_SyncRunSchedWithWorker(pSched, &pThread, __Test_XNet2_SyncFutureResolveWorkerMulti, &tCase);
 		}
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
+		__Test_XNet2_SyncJoinThread(&pThread);
 
 		printf("  Future multi coroutine wait create : %s\n", tCase.pFuture && pSched ? "PASS" : "FAIL");
 		printf("  Future multi waiter #1 : %s\n", (tCase.arrDone[0] && tCase.arrStatus[0] == XRT_NET_OK && tCase.arrValues[0] == &tCase.iPayload) ? "PASS" : "FAIL");
@@ -2102,13 +1782,9 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pSched && pServer && pClient ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceDgramRecvCo, &tCase, 0);
-			pThread = xrtThreadCreate(__Test_XNet2_SyncDgramSendWorker, &tSendCase, 0);
-			xrtCoSchedRun(pSched);
+			__Test_XNet2_SyncRunSchedWithWorker(pSched, &pThread, __Test_XNet2_SyncDgramSendWorker, &tSendCase);
 		}
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
+		__Test_XNet2_SyncJoinThread(&pThread);
 
 		printf("  Wait source dgram coroutine helper create : %s\n", pEngine && pServer && pClient && pSched ? "PASS" : "FAIL");
 		printf("  Wait source dgram coroutine helper status : %s\n", tCase.iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
@@ -2141,16 +1817,13 @@ int Test_XNet2_Sync(void)
 		xdgramsock* pClient = NULL;
 		xnetaddr tServerAddr;
 		xcosched* pSched = NULL;
-		xthread pThread = NULL;
 		__test_xnet2_sync_dgram_coro_case tTimeoutCase;
 		__test_xnet2_sync_dgram_coro_case tRetryCase;
-		__test_xnet2_sync_dgram_send_case tSendCase;
 		bool bRecvWaitCleared = false;
 		bool bRetryOk = false;
 
 		memset(&tTimeoutCase, 0, sizeof(tTimeoutCase));
 		memset(&tRetryCase, 0, sizeof(tRetryCase));
-		memset(&tSendCase, 0, sizeof(tSendCase));
 		memset(&tServerAddr, 0, sizeof(tServerAddr));
 		xrtNetEngineConfigInit(&tCfg);
 		tCfg.iWorkerCount = 1;
@@ -2167,25 +1840,16 @@ int Test_XNet2_Sync(void)
 		if ( pServer ) (void)xrtNetAddrParse(&tServerAddr, "127.0.0.1", pServer->tLocalAddr.iPort);
 		tTimeoutCase.pSock = pServer;
 		tRetryCase.pSock = pServer;
-		tSendCase.pSock = pClient;
-		tSendCase.tPeerAddr = tServerAddr;
-		tSendCase.sPayload = "wgto";
-		tSendCase.iDelayMs = 40;
 		pSched = xrtCoSchedCreate();
 		if ( pSched && pServer ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceDgramRecvCoTimeout, &tTimeoutCase, 0);
 			xrtCoSchedRun(pSched);
-			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, 250);
+			bRecvWaitCleared = __Test_XNet2_SyncWaitDgramRecvWaitCleared(pServer, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pSched && pServer && pClient && bRecvWaitCleared ) {
 			(void)xrtNetDgramSendTo(pClient, &tServerAddr, "wgto", 4);
-			bRetryOk = __Test_XNet2_SyncRetryWaitSourceDgramSync(pServer, &tRetryCase.pPacket, 250) == XRT_NET_OK;
+			bRetryOk = __Test_XNet2_SyncRetryWaitSourceDgramSync(pServer, &tRetryCase.pPacket, __TEST_XNET2_SYNC_RETRY_WINDOW_MS) == XRT_NET_OK;
 		}
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
-
 		printf("  Wait source dgram coroutine timeout helper create : %s\n", pEngine && pServer && pClient && pSched ? "PASS" : "FAIL");
 		printf("  Wait source dgram coroutine timeout helper status : %s\n", tTimeoutCase.iTimeoutStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
 		printf("  Wait source dgram coroutine timeout helper leaves null value : %s\n", tTimeoutCase.pTimeoutPacket == NULL ? "PASS" : "FAIL");
@@ -2219,14 +1883,10 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pSched && tCase.pFuture ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceFutureCo, &tCase, 0);
-			pThread = xrtThreadCreate(__Test_XNet2_SyncFutureResolveWorker, &tCase, 0);
-			xrtCoSchedRun(pSched);
+			__Test_XNet2_SyncRunSchedWithWorker(pSched, &pThread, __Test_XNet2_SyncFutureResolveWorker, &tCase);
 		}
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
+		__Test_XNet2_SyncJoinThread(&pThread);
 
 		printf("  Wait source future coroutine create : %s\n", tCase.pFuture && pSched ? "PASS" : "FAIL");
 		printf("  Wait source future coroutine status : %s\n", tCase.iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
@@ -2439,7 +2099,7 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && tWaitCase.pFuture && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCo, &tWaitCase, 0);
-			(void)xrtNetEnginePostDelayed(pEngine, pStream->pWorker ? pStream->pWorker->iId : 0, 40, __Test_XNet2_SyncStreamDrainTask, pStream);
+			(void)__Test_XNet2_SyncPostStreamTaskDelayed(pEngine, pStream, 40, __Test_XNet2_SyncStreamDrainTask);
 			xrtCoSchedRun(pSched);
 		}
 
@@ -2498,23 +2158,25 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncStreamDrainWaitCoTimeout, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bTimeoutUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_DRAIN, 250);
+			bTimeoutUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncStreamDrainWaitCoTimeout,
+				pStream,
+				__XNET_STREAM_WAIT_DRAIN,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bTimeoutUnregistered ) {
-			(void)xrtNetEnginePostDelayed(
+			bRetryOk = __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamDrainTask,
-				pStream);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+				pStream,
 				pSched,
 				&tRetryCase,
+				40,
+				__Test_XNet2_SyncStreamDrainTask,
 				__Test_XNet2_SyncStreamDrainWaitCoRetry,
 				XRT_NET_OK,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Stream drain coroutine timeout helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -2557,23 +2219,25 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceStreamDrainCoTimeout, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bTimeoutUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_DRAIN, 250);
+			bTimeoutUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncWaitSourceStreamDrainCoTimeout,
+				pStream,
+				__XNET_STREAM_WAIT_DRAIN,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bTimeoutUnregistered ) {
-			(void)xrtNetEnginePostDelayed(
+			bRetryOk = __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamDrainTask,
-				pStream);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+				pStream,
 				pSched,
 				&tRetryCase,
+				40,
+				__Test_XNet2_SyncStreamDrainTask,
 				__Test_XNet2_SyncWaitSourceStreamDrainCoRetry,
 				XRT_NET_OK,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream drain timeout helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -2672,7 +2336,7 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			xrtNetStreamPauseRead(pStream);
-			iTimeoutStatus = __Test_XNet2_SyncRetryStreamTimeoutSync(pStream, XNET_STREAM_WAIT_READABLE, 250);
+			iTimeoutStatus = __Test_XNet2_SyncRetryStreamTimeoutSync(pStream, XNET_STREAM_WAIT_READABLE, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 			(void)__xnetStreamPostRecvCopy(pStream, "retry", 5);
 			iRetryStatus = xrtNetStreamWaitEx(pStream, XNET_STREAM_WAIT_READABLE);
 		}
@@ -2694,7 +2358,6 @@ int Test_XNet2_Sync(void)
 		xnetstream* pStream = NULL;
 		xnet_result iTimeoutStatus = XRT_NET_ERROR;
 		xnet_result iRetryStatus = XRT_NET_ERROR;
-		ptr pTimeoutValue = (ptr)1;
 		bool bTimeoutUnregistered = false;
 
 		xrtNetEngineConfigInit(&tCfg);
@@ -2706,20 +2369,26 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			(void)xrtNetStreamSend(pStream, "drain", 5);
-			tSrc = xrtNetWaitSourceStream(pStream, XNET_STREAM_WAIT_DRAIN);
-			iTimeoutStatus = xrtNetWaitSourceWaitTimeout(&tSrc, 30);
-			(void)xrtNetEnginePostDelayed(
+			iTimeoutStatus = __Test_XNet2_SyncRetryWaitSourceStreamTimeoutSync(
+				pStream,
+				XNET_STREAM_WAIT_DRAIN,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
+			bTimeoutUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_DRAIN, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
+		}
+		if ( pEngine && pStream && bTimeoutUnregistered ) {
+			iRetryStatus = __Test_XNet2_SyncPostStreamTaskAndRetryWaitSource(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
+				pStream,
 				40,
 				__Test_XNet2_SyncStreamDrainTask,
-				pStream);
-			iRetryStatus = xrtNetWaitSourceWait(&tSrc);
+				XNET_STREAM_WAIT_DRAIN,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream drain sync timeout helper create : %s\n", pEngine && pStream ? "PASS" : "FAIL");
 		printf("  Wait source stream drain sync timeout helper status : %s\n", iTimeoutStatus == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
-		printf("  Wait source stream drain sync timeout helper unregisters waiter : %s\n", iRetryStatus == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Wait source stream drain sync timeout helper unregisters waiter : %s\n",
+			bTimeoutUnregistered && iRetryStatus == XRT_NET_OK ? "PASS" : "FAIL");
 
 		if ( pStream ) xrtNetStreamDestroy(pStream);
 		if ( pEngine ) {
@@ -2736,6 +2405,7 @@ int Test_XNet2_Sync(void)
 		xnet_result iRetryStatus = XRT_NET_ERROR;
 		xnetwaitsrc tSrc = xrtNetWaitSourceNone();
 		ptr pTimeoutValue = (ptr)1;
+		bool bTimeoutUnregistered = false;
 
 		xrtNetEngineConfigInit(&tCfg);
 		tCfg.iWorkerCount = 1;
@@ -2750,12 +2420,12 @@ int Test_XNet2_Sync(void)
 				pStream,
 				XNET_STREAM_WAIT_READABLE,
 				&pTimeoutValue,
-				250);
-			bTimeoutUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_READABLE, 250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
+			bTimeoutUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_READABLE, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && bTimeoutUnregistered ) {
 			(void)__xnetStreamPostRecvCopy(pStream, "wsrt", 4);
-			iRetryStatus = __Test_XNet2_SyncRetryWaitSourceStreamSync(pStream, XNET_STREAM_WAIT_READABLE, 250);
+			iRetryStatus = __Test_XNet2_SyncRetryWaitSourceStreamSync(pStream, XNET_STREAM_WAIT_READABLE, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream sync timeout helper create : %s\n", pEngine && pStream ? "PASS" : "FAIL");
@@ -2817,7 +2487,6 @@ int Test_XNet2_Sync(void)
 		xnet_result iDeadlineStatus = XRT_NET_ERROR;
 		xnet_result iRetryStatus = XRT_NET_ERROR;
 		xnetwaitsrc tSrc = xrtNetWaitSourceNone();
-		int64 iNowMs = 0;
 		bool bDeadlineUnregistered = false;
 
 		xrtNetEngineConfigInit(&tCfg);
@@ -2829,15 +2498,14 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			tSrc = xrtNetWaitSourceStream(pStream, XNET_STREAM_WAIT_CLOSE);
-			iNowMs = (int64)(xrtTimer() * 1000.0);
-			iDeadlineStatus = xrtNetWaitSourceWaitUntil(&tSrc, iNowMs + 35);
-			(void)xrtNetEnginePostDelayed(
+			iDeadlineStatus = __Test_XNet2_SyncWaitSourceUntilDelay(&tSrc, __TEST_XNET2_SYNC_WAIT_DEADLINE_MS);
+			iRetryStatus = __Test_XNet2_SyncPostStreamTaskAndRetryWaitSource(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
+				pStream,
 				40,
 				__Test_XNet2_SyncStreamCloseTask,
-				pStream);
-			iRetryStatus = __Test_XNet2_SyncRetryWaitSourceStreamSync(pStream, XNET_STREAM_WAIT_CLOSE, 250);
+				XNET_STREAM_WAIT_CLOSE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream close sync deadline helper create : %s\n", pEngine && pStream ? "PASS" : "FAIL");
@@ -2877,18 +2545,24 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceStreamReadableCoTimeout, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bTimeoutUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_READABLE, 250);
+			bTimeoutUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncWaitSourceStreamReadableCoTimeout,
+				pStream,
+				__XNET_STREAM_WAIT_READABLE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bTimeoutUnregistered ) {
-			(void)__xnetStreamPostRecvCopy(pStream, "wstr", 4);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+			bRetryOk = __Test_XNet2_SyncPostRecvAndRetryWaitCo(
 				pSched,
 				&tRetryCase,
+				pStream,
+				"wstr",
+				4,
 				__Test_XNet2_SyncWaitSourceStreamReadableCoRetry,
 				XRT_NET_OK,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream coroutine timeout helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -2932,18 +2606,24 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncStreamReadableWaitCoTimeout, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bTimeoutUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_READABLE, 250);
+			bTimeoutUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncStreamReadableWaitCoTimeout,
+				pStream,
+				__XNET_STREAM_WAIT_READABLE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bTimeoutUnregistered ) {
-			(void)__xnetStreamPostRecvCopy(pStream, "retry", 5);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+			bRetryOk = __Test_XNet2_SyncPostRecvAndRetryWaitCo(
 				pSched,
 				&tRetryCase,
+				pStream,
+				"retry",
+				5,
 				__Test_XNet2_SyncStreamReadableWaitCoRetry,
 				XRT_NET_OK,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Stream readable coroutine timeout helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -2985,23 +2665,25 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncStreamCloseWaitCoUntil, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bDeadlineUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_CLOSE, 250);
+			bDeadlineUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncStreamCloseWaitCoUntil,
+				pStream,
+				__XNET_STREAM_WAIT_CLOSE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bDeadlineUnregistered ) {
-			(void)xrtNetEnginePostDelayed(
+			bRetryOk = __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamCloseTask,
-				pStream);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+				pStream,
 				pSched,
 				&tRetryCase,
+				40,
+				__Test_XNet2_SyncStreamCloseTask,
 				__Test_XNet2_SyncStreamCloseWaitCoRetry,
 				XRT_NET_CLOSED,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Stream close coroutine deadline helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -3043,23 +2725,25 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceStreamCloseCoUntil, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bDeadlineUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_CLOSE, 250);
+			bDeadlineUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncWaitSourceStreamCloseCoUntil,
+				pStream,
+				__XNET_STREAM_WAIT_CLOSE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bDeadlineUnregistered ) {
-			(void)xrtNetEnginePostDelayed(
+			bRetryOk = __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamCloseTask,
-				pStream);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+				pStream,
 				pSched,
 				&tRetryCase,
+				40,
+				__Test_XNet2_SyncStreamCloseTask,
 				__Test_XNet2_SyncWaitSourceStreamCloseCoRetry,
 				XRT_NET_CLOSED,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream close deadline helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -3097,7 +2781,7 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && tWaitCase.pFuture && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCo, &tWaitCase, 0);
-			(void)xrtNetEnginePostDelayed(pEngine, pStream->pWorker ? pStream->pWorker->iId : 0, 40, __Test_XNet2_SyncStreamCloseTask, pStream);
+			(void)__Test_XNet2_SyncPostStreamTaskDelayed(pEngine, pStream, 40, __Test_XNet2_SyncStreamCloseTask);
 			xrtCoSchedRun(pSched);
 		}
 
@@ -3279,7 +2963,6 @@ int Test_XNet2_Sync(void)
 		xnet_result iDeadlineStatus = XRT_NET_ERROR;
 		xnet_result iRetryStatus = XRT_NET_ERROR;
 		xnetwaitsrc tSrc = xrtNetWaitSourceNone();
-		int64 iNowMs = 0;
 		bool bDeadlineUnregistered = false;
 
 		xrtNetEngineConfigInit(&tCfg);
@@ -3293,18 +2976,17 @@ int Test_XNet2_Sync(void)
 			__xnetStreamApplyWatermark(pStream, 8, 4);
 			(void)xrtNetStreamSend(pStream, "0123456789AB", 12);
 			tSrc = xrtNetWaitSourceStream(pStream, XNET_STREAM_WAIT_WRITABLE);
-			iNowMs = (int64)(xrtTimer() * 1000.0);
-			iDeadlineStatus = xrtNetWaitSourceWaitUntil(&tSrc, iNowMs + 35);
-			bDeadlineUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_WRITABLE, 250);
+			iDeadlineStatus = __Test_XNet2_SyncWaitSourceUntilDelay(&tSrc, __TEST_XNET2_SYNC_WAIT_DEADLINE_MS);
+			bDeadlineUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_WRITABLE, __TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && bDeadlineUnregistered ) {
-			(void)xrtNetEnginePostDelayed(
+			iRetryStatus = __Test_XNet2_SyncPostStreamTaskAndRetryWaitSource(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
+				pStream,
 				40,
 				__Test_XNet2_SyncStreamWritableTask,
-				pStream);
-			iRetryStatus = __Test_XNet2_SyncRetryWaitSourceStreamSync(pStream, XNET_STREAM_WAIT_WRITABLE, 250);
+				XNET_STREAM_WAIT_WRITABLE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream writable sync deadline helper create : %s\n", pEngine && pStream ? "PASS" : "FAIL");
@@ -3390,12 +3072,7 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && tWaitCase.pFuture && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncFutureWaitCo, &tWaitCase, 0);
-			(void)xrtNetEnginePostDelayed(
-				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamWritableTask,
-				pStream);
+			(void)__Test_XNet2_SyncPostStreamTaskDelayed(pEngine, pStream, 40, __Test_XNet2_SyncStreamWritableTask);
 			xrtCoSchedRun(pSched);
 		}
 
@@ -3452,12 +3129,7 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncStreamWritableWaitCo, &tWaitCase, 0);
-			(void)xrtNetEnginePostDelayed(
-				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamWritableTask,
-				pStream);
+			(void)__Test_XNet2_SyncPostStreamTaskDelayed(pEngine, pStream, 40, __Test_XNet2_SyncStreamWritableTask);
 			xrtCoSchedRun(pSched);
 		}
 
@@ -3502,23 +3174,25 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncStreamWritableWaitCoUntil, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bDeadlineUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_WRITABLE, 250);
+			bDeadlineUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncStreamWritableWaitCoUntil,
+				pStream,
+				__XNET_STREAM_WAIT_WRITABLE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bDeadlineUnregistered ) {
-			(void)xrtNetEnginePostDelayed(
+			bRetryOk = __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamWritableTask,
-				pStream);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+				pStream,
 				pSched,
 				&tRetryCase,
+				40,
+				__Test_XNet2_SyncStreamWritableTask,
 				__Test_XNet2_SyncStreamWritableWaitCoRetry,
 				XRT_NET_OK,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Stream writable coroutine deadline helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -3562,23 +3236,25 @@ int Test_XNet2_Sync(void)
 		}
 		pSched = xrtCoSchedCreate();
 		if ( pEngine && pStream && pSched ) {
-			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceStreamWritableCoUntil, &tWaitCase, 0);
-			xrtCoSchedRun(pSched);
-			bDeadlineUnregistered = __Test_XNet2_SyncWaitStreamWaitCleared(pStream, __XNET_STREAM_WAIT_WRITABLE, 250);
+			bDeadlineUnregistered = __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
+				pSched,
+				&tWaitCase,
+				__Test_XNet2_SyncWaitSourceStreamWritableCoUntil,
+				pStream,
+				__XNET_STREAM_WAIT_WRITABLE,
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 		if ( pEngine && pStream && pSched && bDeadlineUnregistered ) {
-			(void)xrtNetEnginePostDelayed(
+			bRetryOk = __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 				pEngine,
-				pStream->pWorker ? pStream->pWorker->iId : 0,
-				40,
-				__Test_XNet2_SyncStreamWritableTask,
-				pStream);
-			bRetryOk = __Test_XNet2_SyncRetryWaitCoCase(
+				pStream,
 				pSched,
 				&tRetryCase,
+				40,
+				__Test_XNet2_SyncStreamWritableTask,
 				__Test_XNet2_SyncWaitSourceStreamWritableCoRetry,
 				XRT_NET_OK,
-				250);
+				__TEST_XNET2_SYNC_RETRY_WINDOW_MS);
 		}
 
 		printf("  Wait source stream writable deadline helper create : %s\n", pEngine && pStream && pSched ? "PASS" : "FAIL");
@@ -3627,8 +3303,7 @@ int Test_XNet2_Sync(void)
 		pSched = xrtCoSchedCreate();
 		if ( pListener && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncWaitSourceListenerAcceptCo, &tCase, 0);
-			pThread = xrtThreadCreate(__Test_XNet2_SyncConnectWorker, &tConnCase, 0);
-			xrtCoSchedRun(pSched);
+			__Test_XNet2_SyncRunSchedWithWorker(pSched, &pThread, __Test_XNet2_SyncConnectWorker, &tConnCase);
 			bOpenEmitted = __Test_XNet2_SyncWaitStreamOpen(tCase.pAccepted, 200);
 		}
 
@@ -3639,10 +3314,7 @@ int Test_XNet2_Sync(void)
 		printf("  Wait source listener coroutine client connect : %s\n", tConnCase.iConnectResult == 1 ? "PASS" : "FAIL");
 		printf("  Wait source listener coroutine accepted stream opens : %s\n", bOpenEmitted ? "PASS" : "FAIL");
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
+		__Test_XNet2_SyncJoinThread(&pThread);
 		if ( pSched ) xrtCoSchedDestroy(pSched);
 		if ( tCase.pAccepted ) {
 			xrtNetStreamClose(tCase.pAccepted, XNET_CLOSE_F_ABORT);
@@ -3697,8 +3369,7 @@ int Test_XNet2_Sync(void)
 		}
 		if ( pListener && pSched ) {
 			(void)xrtCoSchedSpawn(pSched, __Test_XNet2_SyncListenerAcceptCo, &tRetryCase, 0);
-			pThread = xrtThreadCreate(__Test_XNet2_SyncConnectWorker, &tConnCase, 0);
-			xrtCoSchedRun(pSched);
+			__Test_XNet2_SyncRunSchedWithWorker(pSched, &pThread, __Test_XNet2_SyncConnectWorker, &tConnCase);
 			bOpenEmitted = __Test_XNet2_SyncWaitStreamOpen(tRetryCase.pAccepted, 200);
 		}
 
@@ -3710,10 +3381,7 @@ int Test_XNet2_Sync(void)
 		printf("  Listener coroutine retry client connect : %s\n", tConnCase.iConnectResult == 1 ? "PASS" : "FAIL");
 		printf("  Listener coroutine retry accepted stream opens : %s\n", bOpenEmitted ? "PASS" : "FAIL");
 
-		if ( pThread ) {
-			xrtThreadWait(pThread);
-			xrtThreadDestroy(pThread);
-		}
+		__Test_XNet2_SyncJoinThread(&pThread);
 		if ( pSched ) xrtCoSchedDestroy(pSched);
 		if ( tRetryCase.pAccepted ) {
 			xrtNetStreamClose(tRetryCase.pAccepted, XNET_CLOSE_F_ABORT);
