@@ -312,7 +312,7 @@ XXAPI void xrtClose(xfile objFile)
 
 
 // 设置游标位置
-XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod)
+XXAPI size_t xrtSeek(xfile objFile, int64 iOffset, int iMoveMethod)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案

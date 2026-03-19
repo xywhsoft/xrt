@@ -170,7 +170,7 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI size_t xrtSeek(xfile objFile, long iOffset, int iMoveMethod);
+XXAPI size_t xrtSeek(xfile objFile, int64 iOffset, int iMoveMethod);
 ```
 
 **参数：**
