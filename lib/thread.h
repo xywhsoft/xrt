@@ -38,6 +38,20 @@
 	}
 #endif
 
+static inline ptr __xrtThreadObjAlloc(size_t iSize)
+{
+	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
+	return procMalloc(iSize);
+}
+
+static inline void __xrtThreadObjFree(ptr pMem)
+{
+	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
+	if ( pMem ) {
+		procFree(pMem);
+	}
+}
+
 // 线程包装函数（统一完成 attach / detach / exit code 保存）
 #if defined(_WIN32) || defined(_WIN64)
 static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
@@ -84,7 +98,7 @@ static void* xrtThreadWrapper(void* pParameter)
 // 创建线程
 XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 {
-	xthread pThread = xrtMalloc(sizeof(xthread_struct));
+	xthread pThread = __xrtThreadObjAlloc(sizeof(xthread_struct));
 	if ( !pThread ) return NULL;
 
 	pThread->Proc = pProc;
@@ -101,19 +115,19 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 		pThread->Handle = CreateThread(NULL, iStackSize, xrtThreadWrapper, pThread, 0, &iThreadID);
 		pThread->TID = iThreadID;
 		if ( !pThread->Handle ) {
-			xrtFree(pThread);
+			__xrtThreadObjFree(pThread);
 			return NULL;
 		}
 	#else
 		pthread_t tid;
 		pthread_attr_t attr;
 		if ( pthread_mutex_init(&pThread->FinishLock, NULL) != 0 ) {
-			xrtFree(pThread);
+			__xrtThreadObjFree(pThread);
 			return NULL;
 		}
 		if ( !__xrtThreadInitMonotonicCond(&pThread->FinishCond) ) {
 			pthread_mutex_destroy(&pThread->FinishLock);
-			xrtFree(pThread);
+			__xrtThreadObjFree(pThread);
 			return NULL;
 		}
 		pthread_attr_init(&attr);
@@ -124,7 +138,7 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 			pthread_attr_destroy(&attr);
 			pthread_cond_destroy(&pThread->FinishCond);
 			pthread_mutex_destroy(&pThread->FinishLock);
-			xrtFree(pThread);
+			__xrtThreadObjFree(pThread);
 			return NULL;
 		}
 		pthread_attr_destroy(&attr);
@@ -158,7 +172,7 @@ XXAPI void xrtThreadDestroy(xthread pThread)
 			pthread_mutex_destroy(&pThread->FinishLock);
 			pThread->Handle = NULL;
 		#endif
-		xrtFree(pThread);
+		__xrtThreadObjFree(pThread);
 	}
 }
 
@@ -340,7 +354,7 @@ XXAPI void xrtThreadYield()
 // 创建互斥体
 XXAPI xmutex xrtMutexCreate()
 {
-	xmutex pMutex = xrtMalloc(sizeof(xmutex_struct));
+	xmutex pMutex = __xrtThreadObjAlloc(sizeof(xmutex_struct));
 	if ( !pMutex ) return NULL;
 	
 	#if defined(_WIN32) || defined(_WIN64)
@@ -352,7 +366,7 @@ XXAPI xmutex xrtMutexCreate()
 		int ret = pthread_mutex_init(&pMutex->objLock, &attr);
 		pthread_mutexattr_destroy(&attr);
 		if ( ret != 0 ) {
-			xrtFree(pMutex);
+			__xrtThreadObjFree(pMutex);
 			pMutex = NULL;
 			return NULL;
 		}
@@ -368,7 +382,7 @@ XXAPI void xrtMutexDestroy(xmutex pMutex)
 {
 	if ( pMutex ) {
 		xrtMutexUnit(pMutex);
-		xrtFree(pMutex);
+		__xrtThreadObjFree(pMutex);
 	}
 }
 
@@ -454,23 +468,23 @@ XXAPI void xrtMutexUnlock(xmutex pMutex)
 // 创建信号量
 XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue)
 {
-	xsem pSem = xrtMalloc(sizeof(xsem_struct));
+	xsem pSem = __xrtThreadObjAlloc(sizeof(xsem_struct));
 	if ( !pSem ) return NULL;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		pSem->objSem = CreateSemaphoreW(NULL, iInitValue, iMaxValue, NULL);
 		if ( !pSem->objSem ) {
-			xrtFree(pSem);
+			__xrtThreadObjFree(pSem);
 			return NULL;
 		}
 	#else
 		if ( pthread_mutex_init(&pSem->objLock, NULL) != 0 ) {
-			xrtFree(pSem);
+			__xrtThreadObjFree(pSem);
 			return NULL;
 		}
 		if ( !__xrtThreadInitMonotonicCond(&pSem->objCond) ) {
 			pthread_mutex_destroy(&pSem->objLock);
-			xrtFree(pSem);
+			__xrtThreadObjFree(pSem);
 			return NULL;
 		}
 		pSem->iValue = iInitValue;
@@ -485,7 +499,7 @@ XXAPI void xrtSemDestroy(xsem pSem)
 {
 	if ( pSem ) {
 		xrtSemUnit(pSem);
-		xrtFree(pSem);
+		__xrtThreadObjFree(pSem);
 	}
 }
 
@@ -636,14 +650,14 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 
 XXAPI xcond xrtCondCreate()
 {
-	xcond pCond = xrtMalloc(sizeof(xcond_struct));
+	xcond pCond = __xrtThreadObjAlloc(sizeof(xcond_struct));
 	if ( !pCond ) return NULL;
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeConditionVariable(&pCond->objCond);
 	#else
 		if ( !__xrtThreadInitMonotonicCond(&pCond->objCond) ) {
-			xrtFree(pCond);
+			__xrtThreadObjFree(pCond);
 			return NULL;
 		}
 	#endif
@@ -656,7 +670,7 @@ XXAPI void xrtCondDestroy(xcond pCond)
 {
 	if ( pCond ) {
 		xrtCondUnit(pCond);
-		xrtFree(pCond);
+		__xrtThreadObjFree(pCond);
 	}
 }
 
@@ -770,7 +784,7 @@ XXAPI void xrtCondBroadcast(xcond pCond)
 // 创建读写锁
 XXAPI xrwlock xrtRWLockCreate()
 {
-	xrwlock pRWLock = xrtMalloc(sizeof(xrwlock_struct));
+	xrwlock pRWLock = __xrtThreadObjAlloc(sizeof(xrwlock_struct));
 	if ( !pRWLock ) return NULL;
 	xrtRWLockInit(pRWLock);
 	return pRWLock;
@@ -782,7 +796,7 @@ XXAPI void xrtRWLockDestroy(xrwlock pRWLock)
 {
 	if ( pRWLock ) {
 		xrtRWLockUnit(pRWLock);
-		xrtFree(pRWLock);
+		__xrtThreadObjFree(pRWLock);
 	}
 }
 

@@ -454,12 +454,14 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	#ifdef XRT_MEM_DEBUG
-		if ( xrtMemDebugIsEnabled() && !__xrtMemDebugUnregisterForeignAlloc(ptr, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0) ) {
-			xrtOwnerEndMutable(&objMP->Owner);
-			return;
-		}
-	#endif
+	if ( !__xrtMemDebugUnregisterForeignAlloc(ptr, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0) ) {
+		#ifdef XRT_MEM_DEBUG
+			if ( xrtMemDebugIsEnabled() ) {
+				xrtOwnerEndMutable(&objMP->Owner);
+				return;
+			}
+		#endif
+	}
 
 	{
 		MMU_ValuePtr v = (MMU_ValuePtr)((char*)ptr - sizeof(MMU_Value));

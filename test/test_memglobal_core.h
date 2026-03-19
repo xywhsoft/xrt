@@ -9,6 +9,56 @@ static void __Test_MemGlobalCoreRequire(bool bCond, const char* sMsg)
 	}
 }
 
+typedef struct
+{
+	xsem pReady;
+	xsem pGo;
+} __Test_MemGlobalCoreThreadCtx;
+
+static void __Test_MemGlobalCoreRequireAllocatorError(void)
+{
+	str sError = xrtGetError();
+
+	__Test_MemGlobalCoreRequire(sError != NULL, "allocator error should not be null");
+	__Test_MemGlobalCoreRequire(strcmp(sError, "memory belongs to an explicit pool allocator.") == 0, "allocator error message mismatch");
+}
+
+static uint32 __Test_MemGlobalCoreHoldRuntimeWorker(ptr pParam)
+{
+	__Test_MemGlobalCoreThreadCtx* pCtx = (__Test_MemGlobalCoreThreadCtx*)pParam;
+	ptr pHeap;
+	ptr pTemp;
+
+	if ( pCtx == NULL ) {
+		return 1;
+	}
+	if ( xrtThreadGetCurrent() == NULL ) {
+		return 2;
+	}
+	if ( !xrtSemPost(pCtx->pReady) ) {
+		return 3;
+	}
+
+	xrtSemWait(pCtx->pGo);
+
+	pHeap = xrtMalloc(96);
+	if ( pHeap == NULL ) {
+		return 4;
+	}
+	memset(pHeap, 0x3C, 96);
+
+	pTemp = xrtTempMemory(64);
+	if ( pTemp == NULL ) {
+		xrtFree(pHeap);
+		return 5;
+	}
+	memset(pTemp, 0xA5, 64);
+
+	xrtFree(pHeap);
+	xrtFreeTempMemory();
+	return 0;
+}
+
 static void Test_MemGlobalCore(void)
 {
 	xrtThreadData* pThreadData;
@@ -21,6 +71,13 @@ static void Test_MemGlobalCore(void)
 	ptr pBigGrow;
 	ptr pBigShrink;
 	ptr pNullGrow;
+	xfsmempool objFSMemPool;
+	ptr pFSMem;
+	xmempool objMemPool;
+	ptr pMemPool;
+	__Test_MemGlobalCoreThreadCtx tThreadCtx;
+	xthread pThread;
+	xrtGlobalData* pCore;
 	xrtMemBlockHeader* pHeader;
 
 	printf("[memglobal-core] start\n");
@@ -90,9 +147,67 @@ static void Test_MemGlobalCore(void)
 	__Test_MemGlobalCoreRequire(pNullGrow != NULL, "realloc(NULL, size) should allocate");
 	__Test_MemGlobalCoreRequire(xrtRealloc(pNullGrow, 0) == NULL, "realloc(ptr, 0) should return NULL");
 
+	objFSMemPool = xrtFSMemPoolCreate(64, 0);
+	__Test_MemGlobalCoreRequire(objFSMemPool != NULL, "fixed-size memory pool create failed");
+	pFSMem = xrtFSMemPoolAlloc(objFSMemPool);
+	__Test_MemGlobalCoreRequire(pFSMem != NULL, "fixed-size memory pool alloc failed");
+
+	xrtClearError();
+	xrtFree(pFSMem);
+	__Test_MemGlobalCoreRequireAllocatorError();
+
+	xrtClearError();
+	__Test_MemGlobalCoreRequire(xrtRealloc(pFSMem, 80) == NULL, "fixed-size pool realloc should fail");
+	__Test_MemGlobalCoreRequireAllocatorError();
+
+	xrtFSMemPoolFree(objFSMemPool, pFSMem);
+	xrtFSMemPoolDestroy(objFSMemPool);
+
+	objMemPool = xrtMemPoolCreate(0, 0);
+	__Test_MemGlobalCoreRequire(objMemPool != NULL, "memory pool create failed");
+	pMemPool = xrtMemPoolAlloc(objMemPool, 48);
+	__Test_MemGlobalCoreRequire(pMemPool != NULL, "memory pool alloc failed");
+
+	xrtClearError();
+	xrtFree(pMemPool);
+	__Test_MemGlobalCoreRequireAllocatorError();
+
+	xrtClearError();
+	__Test_MemGlobalCoreRequire(xrtRealloc(pMemPool, 96) == NULL, "memory pool realloc should fail");
+	__Test_MemGlobalCoreRequireAllocatorError();
+
+	xrtMemPoolFree(objMemPool, pMemPool);
+	xrtMemPoolDestroy(objMemPool);
+
 	xrtFree(pZero);
 	xrtFree(pReallocGrow);
 	xrtFree(pBigShrink);
+
+	memset(&tThreadCtx, 0, sizeof(tThreadCtx));
+	tThreadCtx.pReady = xrtSemCreate(0, 1);
+	tThreadCtx.pGo = xrtSemCreate(0, 1);
+	__Test_MemGlobalCoreRequire(tThreadCtx.pReady != NULL, "ready semaphore create failed");
+	__Test_MemGlobalCoreRequire(tThreadCtx.pGo != NULL, "go semaphore create failed");
+
+	pThread = xrtThreadCreate(__Test_MemGlobalCoreHoldRuntimeWorker, &tThreadCtx, 0);
+	__Test_MemGlobalCoreRequire(pThread != NULL, "worker thread create failed");
+	__Test_MemGlobalCoreRequire(xrtSemWaitTimeout(tThreadCtx.pReady, 5000) == XRT_WAIT_OK, "worker ready wait timeout");
+
+	xrtUnit();
+	__Test_MemGlobalCoreRequire(xCore.bInit == TRUE, "runtime should stay initialized while worker is attached");
+
+	__Test_MemGlobalCoreRequire(xrtSemPost(tThreadCtx.pGo) == TRUE, "worker go post failed");
+	__Test_MemGlobalCoreRequire(xrtThreadWaitTimeout(pThread, 5000) == XRT_WAIT_OK, "worker join timeout");
+	__Test_MemGlobalCoreRequire(xrtThreadGetExitCode(pThread) == 0, "worker exit code mismatch");
+
+	xrtThreadDestroy(pThread);
+	xrtSemDestroy(tThreadCtx.pReady);
+	xrtSemDestroy(tThreadCtx.pGo);
+	__Test_MemGlobalCoreRequire(xCore.bInit == FALSE, "runtime should finalize after last worker detach");
+
+	pCore = xrtInit();
+	__Test_MemGlobalCoreRequire(pCore != NULL, "runtime reinit failed");
+	__Test_MemGlobalCoreRequire(xrtThreadGetCurrent() != NULL, "main thread should reattach after reinit");
 
 	printf("[memglobal-core] PASS\n");
 }

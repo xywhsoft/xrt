@@ -43,7 +43,10 @@ static inline ptr __xrtReallocSite(ptr pMem, size_t iSize, const char* sFile, ui
 	}
 	mem = __xrtMemGlobalReallocSite(pMem, iSize, sFile, iLine);
 	if ( mem == NULL ) {
-		xrtSetError("memory reallocate failed.", FALSE);
+		str sError = xrtGetError();
+		if ( iSize != 0 && (sError == NULL || sError == xCore.sNull || sError[0] == '\0') ) {
+			xrtSetError("memory reallocate failed.", FALSE);
+		}
 	} else {
 		__xrtMemTelemetryRecordSizedOp(__XRT_MEMTELEMETRY_OP_REALLOC, iSize);
 	}
@@ -507,6 +510,7 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 		return;
 	}
 
+	// temp arena 单独统计，不折算进 malloc/free/pooled 候选通道。
 	__xrtAtomicAddFetch64(&pState->iTempCalls, 1);
 	__xrtAtomicAddFetch64(&pState->iTempBytes, (int64)iSize);
 }

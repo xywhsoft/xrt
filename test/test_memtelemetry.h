@@ -56,24 +56,24 @@ static void Test_MemTelemetry(void)
 	iIdx48 = 2;
 
 	__Test_MemTelemetryRequire(tSnap.bEnabled == TRUE, "telemetry should be enabled");
-	__Test_MemTelemetryRequire(tSnap.iMallocCalls == 3, "malloc call count mismatch");
-	__Test_MemTelemetryRequire(tSnap.iMallocBytes == (8u + 2048u + 20u), "malloc bytes mismatch");
+	__Test_MemTelemetryRequire(tSnap.iMallocCalls == 2, "malloc call count mismatch");
+	__Test_MemTelemetryRequire(tSnap.iMallocBytes == (8u + 2048u), "malloc bytes mismatch");
 	__Test_MemTelemetryRequire(tSnap.iCallocCalls == 1, "calloc call count mismatch");
 	__Test_MemTelemetryRequire(tSnap.iCallocBytes == 24, "calloc bytes mismatch");
 	__Test_MemTelemetryRequire(tSnap.iReallocCalls == 1, "realloc call count mismatch");
 	__Test_MemTelemetryRequire(tSnap.iReallocBytes == 40, "realloc bytes mismatch");
-	__Test_MemTelemetryRequire(tSnap.iFreeCalls == 5, "free call count mismatch");
+	__Test_MemTelemetryRequire(tSnap.iFreeCalls == 4, "free call count mismatch");
 	__Test_MemTelemetryRequire(tSnap.iTempCalls == 1, "temp call count mismatch");
 	__Test_MemTelemetryRequire(tSnap.iTempBytes == 20, "temp bytes mismatch");
-	__Test_MemTelemetryRequire(tSnap.iPooledCandidateCalls == 4, "pooled candidate count mismatch");
-	__Test_MemTelemetryRequire(tSnap.iPooledCandidateBytes == (8u + 24u + 40u + 20u), "pooled candidate bytes mismatch");
+	__Test_MemTelemetryRequire(tSnap.iPooledCandidateCalls == 3, "pooled candidate count mismatch");
+	__Test_MemTelemetryRequire(tSnap.iPooledCandidateBytes == (8u + 24u + 40u), "pooled candidate bytes mismatch");
 	__Test_MemTelemetryRequire(tSnap.iFallbackCalls == 1, "fallback count mismatch");
 	__Test_MemTelemetryRequire(tSnap.iFallbackBytes == 2048, "fallback bytes mismatch");
 	__Test_MemTelemetryRequire(tSnap.arrClassCalls[iIdx16] == 1, "16-byte class count mismatch");
-	__Test_MemTelemetryRequire(tSnap.arrClassCalls[iIdx32] == 2, "32-byte class count mismatch");
+	__Test_MemTelemetryRequire(tSnap.arrClassCalls[iIdx32] == 1, "32-byte class count mismatch");
 	__Test_MemTelemetryRequire(tSnap.arrClassCalls[iIdx48] == 1, "48-byte class count mismatch");
 	__Test_MemTelemetryRequire(tSnap.arrClassBytes[iIdx16] == 8, "16-byte class bytes mismatch");
-	__Test_MemTelemetryRequire(tSnap.arrClassBytes[iIdx32] == (24u + 20u), "32-byte class bytes mismatch");
+	__Test_MemTelemetryRequire(tSnap.arrClassBytes[iIdx32] == 24, "32-byte class bytes mismatch");
 	__Test_MemTelemetryRequire(tSnap.arrClassBytes[iIdx48] == 40, "48-byte class bytes mismatch");
 
 	xrtMemTelemetryReset();

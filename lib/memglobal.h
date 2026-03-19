@@ -836,32 +836,120 @@ static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeade
 	return TRUE;
 }
 
+static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignReleaseNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocList;
+
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			if ( ppPrev ) {
+				*ppPrev = pPrev;
+			}
+			return pNode;
+		}
+		pPrev = pNode;
+		pNode = pNode->pNext;
+	}
+
+	if ( ppPrev ) {
+		*ppPrev = NULL;
+	}
+
+	return NULL;
+}
+
 static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
-	(void)pAddress;
-	(void)iSize;
-	(void)iAllocatorKind;
-	(void)sFile;
-	(void)iLine;
+	xrtMemDebugForeignAlloc* pNode;
+
+	if ( pAddress == NULL ) {
+		return;
+	}
+
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	if ( __xrtMemDebugFindForeignReleaseNoLock(pAddress, NULL) != NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return;
+	}
+
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugForeignAlloc));
+	if ( pNode == NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return;
+	}
+
+	pNode->pAddress = pAddress;
+	pNode->iSize = (uint32)iSize;
+	pNode->iAllocatorKind = iAllocatorKind;
+	pNode->sAllocFile = sFile;
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	pNode->pNext = __xrtMemForeignAllocList;
+	__xrtMemForeignAllocList = pNode;
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
 }
 
 static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
-	(void)pAddress;
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+
 	(void)iAllocatorKind;
 	(void)sFile;
 	(void)iLine;
+
+	if ( pAddress == NULL ) {
+		return FALSE;
+	}
+
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	pNode = __xrtMemDebugFindForeignReleaseNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return FALSE;
+	}
+
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		__xrtMemForeignAllocList = pNode->pNext;
+	}
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+	__xrtMemGlobalProcFree()(pNode);
 	return TRUE;
 }
 
 static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
 {
-	(void)pAddress;
-	(void)pAllocatorKind;
-	(void)pSize;
-	(void)psFile;
-	(void)pLine;
-	return FALSE;
+	xrtMemDebugForeignAlloc* pNode;
+
+	if ( pAddress == NULL ) {
+		return FALSE;
+	}
+
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	pNode = __xrtMemDebugFindForeignReleaseNoLock(pAddress, NULL);
+	if ( pNode == NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return FALSE;
+	}
+
+	if ( pAllocatorKind ) {
+		*pAllocatorKind = pNode->iAllocatorKind;
+	}
+	if ( pSize ) {
+		*pSize = pNode->iSize;
+	}
+	if ( psFile ) {
+		*psFile = pNode->sAllocFile;
+	}
+	if ( pLine ) {
+		*pLine = pNode->iAllocLine;
+	}
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+	return TRUE;
 }
 
 static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
@@ -926,6 +1014,15 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 static inline void __xrtMemDebugResetState(ptr pState)
 {
 	(void)pState;
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	while ( __xrtMemForeignAllocList ) {
+		xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocList;
+		__xrtMemForeignAllocList = pNode->pNext;
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		__xrtMemGlobalProcFree()(pNode);
+		__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	}
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
 }
 
 static inline bool __xrtMemDebugHasLeaks()
@@ -1424,6 +1521,13 @@ static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* 
 
 	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
 	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		uint32 iAllocatorKind = 0;
+		size_t iForeignSize = 0;
+		if ( __xrtMemDebugLookupForeignAlloc(pMem, &iAllocatorKind, &iForeignSize, NULL, NULL) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE, pMem, iForeignSize, iAllocatorKind, sFile, iLine);
+			xrtSetError("memory belongs to an explicit pool allocator.", FALSE);
+			return NULL;
+		}
 		return __xrtMemGlobalProcRealloc()(pMem, iSize);
 	}
 

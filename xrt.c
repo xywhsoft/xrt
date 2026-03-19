@@ -72,6 +72,13 @@ xrtGlobalData xCore = { FALSE };
 
 static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
 
+#ifndef XRT_MEM_DEBUG
+static volatile long __xrtMemForeignAllocLock = 0;
+static xrtMemDebugForeignAlloc* __xrtMemForeignAllocList = NULL;
+#endif
+
+static uint32 __xrtRuntimeThreadRefCount = 0;
+
 static uint64 __xrtGetSeedTick();
 static void __xrtSeedThreadRand(xrtThreadData* pThreadData);
 static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread);
@@ -82,6 +89,7 @@ static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData);
 static void __xrtRunThreadCleanup(xrtThreadData* pThreadData);
 static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread);
 static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode);
+static void __xrtRuntimeFinalizeLocked();
 
 
 
@@ -392,6 +400,46 @@ static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
 
 
 
+static void __xrtRuntimeFinalizeLocked()
+{
+	if ( !xCore.bInit ) {
+		return;
+	}
+
+	#ifdef XRT_MEM_DEBUG
+		if ( __xrtMemDebugHasLeaks() ) {
+			xrtMemDebugDumpText("xrt_mem_report_auto.txt");
+			xrtMemDebugDumpJson("xrt_mem_report_auto.json");
+		}
+	#endif
+
+	#ifndef XRT_NO_TEMPLATE
+		xte_private_unit();
+	#endif
+
+	xrtFree(xCore.AppFile);
+	xCore.AppFile = xCore.sNull;
+	xrtFree(xCore.AppPath);
+	xCore.AppPath = xCore.sNull;
+	__xrtMemGlobalUnitPlan(&xCore.MemGlobal);
+	#ifdef XRT_MEM_DEBUG
+		__xrtMemDebugResetState(&xCore.MemDebug);
+	#else
+		__xrtMemDebugResetState(NULL);
+	#endif
+
+	xCore.bInit = FALSE;
+	__xrtRuntimeThreadRefCount = 0;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		#if __XRT_RUNTIME_NEED_WSA
+			WSACleanup();
+		#endif
+	#endif
+}
+
+
+
 static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
 {
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
@@ -438,16 +486,22 @@ XXAPI xrtThreadData* xrtThreadAttachCurrent()
 		return pThreadData;
 	}
 
+	__xrtRuntimeLock();
+
 	if ( !xCore.bInit ) {
+		__xrtRuntimeUnlock();
 		return NULL;
 	}
 
 	pThreadData = __xrtCreateThreadState(NULL);
 	if ( pThreadData == NULL ) {
+		__xrtRuntimeUnlock();
 		return NULL;
 	}
 
+	__xrtRuntimeThreadRefCount++;
 	__xrtThreadState = pThreadData;
+	__xrtRuntimeUnlock();
 	return pThreadData;
 }
 
@@ -495,6 +549,15 @@ XXAPI void xrtThreadDetachCurrent()
 
 	__xrtThreadState = NULL;
 	procFree(pThreadData);
+
+	__xrtRuntimeLock();
+	if ( __xrtRuntimeThreadRefCount > 0 ) {
+		__xrtRuntimeThreadRefCount--;
+	}
+	if ( (xCore.iInitRef == 0) && (__xrtRuntimeThreadRefCount == 0) && xCore.bInit ) {
+		__xrtRuntimeFinalizeLocked();
+	}
+	__xrtRuntimeUnlock();
 }
 
 
@@ -1047,7 +1110,7 @@ static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitC
 			pthread_cond_destroy(&pThread->FinishCond);
 			pthread_mutex_destroy(&pThread->FinishLock);
 		#endif
-		xrtFree(pThread);
+		__xrtThreadObjFree(pThread);
 	}
 }
 
@@ -1161,38 +1224,8 @@ XXAPI void xrtUnit()
 		xCore.iInitRef--;
 	}
 
-	// 只有引用计数为 0 时才真正释放资源
-	if ( (xCore.iInitRef == 0) && (xCore.bInit) ) {
-		#ifdef XRT_MEM_DEBUG
-			if ( __xrtMemDebugHasLeaks() ) {
-				xrtMemDebugDumpText("xrt_mem_report_auto.txt");
-				xrtMemDebugDumpJson("xrt_mem_report_auto.json");
-			}
-		#endif
-		// 清理模板引擎
-		#ifndef XRT_NO_TEMPLATE
-			xte_private_unit();
-		#endif
-
-		// 释放应用路径
-		xrtFree(xCore.AppFile);
-		xCore.AppFile = xCore.sNull;
-		xrtFree(xCore.AppPath);
-		xCore.AppPath = xCore.sNull;
-		__xrtMemGlobalUnitPlan(&xCore.MemGlobal);
-		#ifdef XRT_MEM_DEBUG
-			__xrtMemDebugResetState(&xCore.MemDebug);
-		#endif
-
-		// 重置初始化标记
-		xCore.bInit = FALSE;
-
-		// 释放 socket
-		#if defined(_WIN32) || defined(_WIN64)
-			#if __XRT_RUNTIME_NEED_WSA
-				WSACleanup();
-			#endif
-		#endif
+	if ( (xCore.iInitRef == 0) && (__xrtRuntimeThreadRefCount == 0) && xCore.bInit ) {
+		__xrtRuntimeFinalizeLocked();
 	}
 
 	__xrtRuntimeUnlock();

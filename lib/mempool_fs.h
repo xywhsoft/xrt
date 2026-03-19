@@ -277,12 +277,14 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
-	#ifdef XRT_MEM_DEBUG
-		if ( xrtMemDebugIsEnabled() && !__xrtMemDebugUnregisterForeignAlloc(p, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, NULL, 0) ) {
-			xrtOwnerEndMutable(&objMM->Owner);
-			return;
-		}
-	#endif
+	if ( !__xrtMemDebugUnregisterForeignAlloc(p, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, NULL, 0) ) {
+		#ifdef XRT_MEM_DEBUG
+			if ( xrtMemDebugIsEnabled() ) {
+				xrtOwnerEndMutable(&objMM->Owner);
+				return;
+			}
+		#endif
+	}
 	MMU_ValuePtr v = p - sizeof(MMU_Value);
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
