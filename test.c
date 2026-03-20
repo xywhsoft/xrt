@@ -71,6 +71,9 @@
 #include "test/test_os.h"
 #include "test/test_math.h"
 #include "test/test_string.h"
+#ifndef XRT_NO_REGEX
+	#include "test/test_regex.h"
+#endif
 #include "test/test_path.h"
 #include "test/test_time.h"
 #include "test/test_file.h"
@@ -224,6 +227,9 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_OS, Test_OS)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Math, Test_Math)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Approx, Test_Approx)
 XRT_TEST_WRAP_CORE(__xrtTestRun_String, Test_String)
+#ifndef XRT_NO_REGEX
+	XRT_TEST_WRAP_INT(__xrtTestRun_Regex, Test_Regex)
+#endif
 XRT_TEST_WRAP_CORE(__xrtTestRun_Path, Test_Path)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Time, Test_Time)
 XRT_TEST_WRAP_CORE(__xrtTestRun_File, Test_File)
@@ -378,6 +384,9 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "math", "Math", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Math },
 	{ "approx", "Approx", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Approx },
 	{ "string", "String", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_String },
+	#ifndef XRT_NO_REGEX
+		{ "regex", "Regex", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_Regex },
+	#endif
 	{ "path", "Path", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Path },
 	{ "time", "Time", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Time },
 	{ "file", "File", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_File },
@@ -496,6 +505,9 @@ static const char* __g_arrPresetContainerSmoke[] = {
 	"list",
 	"value_full",
 	"json",
+	#ifndef XRT_NO_REGEX
+		"regex",
+	#endif
 	"template",
 };
 

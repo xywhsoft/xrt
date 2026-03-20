@@ -8,6 +8,98 @@
 
 #ifndef XRT_NO_REGEX
 
+/*
+ * 内部 ABI 前导定义：
+ * 当前 xrt.h 已接管公开 regex API，但原始 bbre 实现文件仍依赖
+ * bbre 的公共类型与常量名，因此这里保留一份最小前导定义供实现使用。
+ */
+#define BBRE_ERR_MEM   (-1)
+#define BBRE_ERR_PARSE (-2)
+#define BBRE_ERR_LIMIT (-3)
+
+typedef void *(*bbre_alloc_cb)(void *user, void *ptr, size_t prev, size_t next);
+
+typedef struct bbre_alloc {
+  void *user;
+  bbre_alloc_cb cb;
+} bbre_alloc;
+
+typedef enum bbre_flags {
+  BBRE_FLAG_INSENSITIVE = 1,
+  BBRE_FLAG_MULTILINE = 2,
+  BBRE_FLAG_DOTNEWLINE = 4,
+  BBRE_FLAG_UNGREEDY = 8
+} bbre_flags;
+
+typedef struct bbre_builder bbre_builder;
+typedef struct bbre bbre;
+typedef struct bbre_set_builder bbre_set_builder;
+typedef struct bbre_set bbre_set;
+
+typedef struct bbre_span {
+  size_t begin;
+  size_t end;
+} bbre_span;
+
+int bbre_builder_init(
+    bbre_builder **pbuild, const char *pat, size_t pat_size,
+    const bbre_alloc *alloc);
+void bbre_builder_destroy(bbre_builder *build);
+void bbre_builder_flags(bbre_builder *build, bbre_flags flags);
+
+bbre *bbre_init_pattern(const char *pat_nt);
+int bbre_init(bbre **preg, const bbre_builder *build, const bbre_alloc *alloc);
+void bbre_destroy(bbre *reg);
+const char *bbre_get_err_msg(const bbre *reg);
+size_t bbre_get_err_pos(const bbre *reg);
+int bbre_is_match(bbre *reg, const char *text, size_t text_size);
+int bbre_find(
+    bbre *reg, const char *text, size_t text_size, bbre_span *out_bounds);
+int bbre_captures(
+    bbre *reg, const char *text, size_t text_size, bbre_span *out_captures,
+    unsigned int num_captures);
+int bbre_which_captures(
+    bbre *reg, const char *text, size_t text_size, bbre_span *out_captures,
+    unsigned int *out_captures_did_match, unsigned int out_captures_size);
+int bbre_is_match_at(
+    bbre *reg, const char *text, size_t text_size, size_t pos);
+int bbre_find_at(
+    bbre *reg, const char *text, size_t text_size, size_t pos,
+    bbre_span *out_bounds);
+int bbre_captures_at(
+    bbre *reg, const char *text, size_t text_size, size_t pos,
+    bbre_span *out_captures, unsigned int num_captures);
+int bbre_which_captures_at(
+    bbre *reg, const char *text, size_t text_size, size_t pos,
+    bbre_span *out_captures, unsigned int *out_captures_did_match,
+    unsigned int out_captures_size);
+unsigned int bbre_capture_count(const bbre *reg);
+const char *bbre_capture_name(
+    const bbre *reg, unsigned int capture_idx, size_t *out_name_size);
+
+int bbre_set_builder_init(bbre_set_builder **pbuild, const bbre_alloc *alloc);
+void bbre_set_builder_destroy(bbre_set_builder *build);
+int bbre_set_builder_add(bbre_set_builder *build, const bbre *reg);
+bbre_set *bbre_set_init_patterns(const char *const *pats_nt, size_t num_pats);
+int bbre_set_init(
+    bbre_set **pset, const bbre_set_builder *build, const bbre_alloc *alloc);
+void bbre_set_destroy(bbre_set *set);
+const char *bbre_set_get_err_msg(const bbre_set *set);
+size_t bbre_set_get_err_pos(const bbre_set *set);
+int bbre_set_is_match(bbre_set *set, const char *text, size_t text_size);
+int bbre_set_matches(
+    bbre_set *set, const char *text, size_t text_size, unsigned int *out_idxs,
+    unsigned int out_idxs_size, unsigned int *out_num_idxs);
+int bbre_set_is_match_at(
+    bbre_set *set, const char *text, size_t text_size, size_t pos);
+int bbre_set_matches_at(
+    bbre_set *set, const char *text, size_t text_size, size_t pos,
+    unsigned int *out_idxs, unsigned int out_idxs_size,
+    unsigned int *out_num_idxs);
+int bbre_clone(bbre **pout, const bbre *reg, const bbre_alloc *alloc);
+int bbre_set_clone(
+    bbre_set **pout, const bbre_set *set, const bbre_alloc *alloc);
+
 
 
 #ifdef BBRE_CONFIG_HEADER_FILE

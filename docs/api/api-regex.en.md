@@ -1,6 +1,6 @@
 # Regex Mainline
 
-> The current regular-expression mainline integrated from `bbre`, aimed at lightweight, high-performance, embeddable text-matching scenarios.
+> XRT's regex module currently uses the built-in `bbre` engine internally, while its public surface is now exposed as native XRT API.
 
 [Back to Index](README.en.md)
 
@@ -8,72 +8,237 @@
 
 ## 1. Positioning
 
-XRT's current regex module is built on [bbre](https://github.com/max-nurzia/bbre) and folded directly into the mainline.
-
-It is suitable for:
+This module is aimed at:
 
 - text matching
 - substring search
 - capture extraction
-- multi-pattern matching
-- rule checks over config, logs, HTTP text, and template fragments
+- multi-pattern batch scanning
+- lightweight rule checks over config, logs, HTTP text, and template fragments
 
-The goal is not to build the heaviest “scripting-language regex ecosystem”, but to provide:
+Its design goals are:
 
-- a light footprint
+- lightweight footprint
 - embeddability
 - cross-platform use
-- direct usefulness to XRT text and network application layers
+- public naming and types aligned with the XRT API system
 
----
 
-## 2. Core Capability Areas
+## 2. Core Types
 
-The current mainline provides:
+### `xregex`
 
-- single-pattern compile and match
-- capture extraction
-- regex cloning for parallel use
-- multi-pattern set matching
+Single regex object.
 
----
+Typical flow:
 
-## 3. Official API
+1. `xrtRegexCreate()` or `xrtRegexCreateFromBuilder()`
+2. `xrtRegexIsMatch()` / `xrtRegexFind()` / `xrtRegexCaptures()`
+3. `xrtRegexDestroy()`
+
+
+### `xregexbuilder`
+
+Advanced builder.
+
+Useful when you need to:
+
+- pass explicit pattern length
+- set flags
+- specify a custom allocator
+
+
+### `xregexset`
+
+Multi-pattern set object.
+
+Useful when you need to:
+
+- test multiple rules together
+- scan the same text against many patterns
+
+
+### `xregexsetbuilder`
+
+Builder for regex sets.
+
+Useful when you need to:
+
+- build multiple `xregex` objects first
+- assemble them into one `xregexset`
+
+
+### `xregexspan`
+
+Match range:
 
 ```c
-XXAPI bbre* bbre_init_pattern(const char* pat_nt);
-XXAPI int bbre_init(bbre** preg, const bbre_builder* build, const bbre_alloc* alloc);
-XXAPI void bbre_destroy(bbre* reg);
-XXAPI int bbre_is_match(bbre* reg, const char* text, size_t text_size);
-XXAPI int bbre_find(bbre* reg, const char* text, size_t text_size, bbre_span* out_bounds);
-XXAPI int bbre_captures(bbre* reg, const char* text, size_t text_size, bbre_span* out_captures, unsigned int out_captures_size);
-XXAPI int bbre_clone(bbre** pout, const bbre* reg, const bbre_alloc* alloc);
-XXAPI bbre_set* bbre_set_init_patterns(const char* const* ppats_nt, size_t num_pats);
-XXAPI int bbre_set_matches(bbre_set* set, const char* text, size_t text_size, unsigned int* out_idxs, unsigned int out_idxs_size, unsigned int* out_num_idxs);
-XXAPI void bbre_set_destroy(bbre_set* set);
+typedef struct {
+	size_t iBegin;
+	size_t iEnd;
+} xregexspan;
 ```
 
----
+Commonly used with:
 
-## 4. Recommended Use
+- `xrtRegexFind()`
+- `xrtRegexCaptures()`
 
-- use `bbre_init_pattern` for simple one-off rules
-- use `bbre_builder` when you need explicit flags
-- use `bbre_clone` when different threads or contexts should not share one regex object
-- use `bbre_set` for blacklists, whitelists, and multi-rule scans
 
----
+### `xregexalloc`
 
-## 5. Relationship to Other Modules
+Custom allocator:
 
-- `string` handles construction, slicing, and formatting
-- `regex` handles rule matching and extraction
-- upper HTTP / WebSocket / template / log processing can use regex as a lightweight rule layer
+```c
+typedef ptr (*xregexallocproc)(ptr pUserData, ptr pMem, size_t iPrevSize, size_t iNextSize);
 
----
+typedef struct {
+	ptr pUserData;
+	xregexallocproc procAlloc;
+} xregexalloc;
+```
 
-## 6. Suggested Reading
 
-- [String](api-string.en.md)
-- [Template](api-template.en.md)
-- [XHTTP](api-xhttp.en.md)
+## 3. Flags And Error Codes
+
+### 3.1 Flags
+
+```c
+XRT_REGEX_FLAG_INSENSITIVE
+XRT_REGEX_FLAG_MULTILINE
+XRT_REGEX_FLAG_DOTNEWLINE
+XRT_REGEX_FLAG_UNGREEDY
+```
+
+They mean:
+
+- case-insensitive matching
+- multiline mode
+- `.` matches newline
+- ungreedy quantifiers
+
+
+### 3.2 Error Codes
+
+```c
+XRT_REGEX_ERR_MEM
+XRT_REGEX_ERR_PARSE
+XRT_REGEX_ERR_LIMIT
+```
+
+
+## 4. Public API
+
+### 4.1 Single Pattern
+
+```c
+XXAPI xregex* xrtRegexCreate(const char* sPatternNt);
+XXAPI int xrtRegexCreateFromBuilder(xregex** ppRegex, const xregexbuilder* pBuilder, const xregexalloc* pAlloc);
+XXAPI void xrtRegexDestroy(xregex* pRegex);
+
+XXAPI int xrtRegexIsMatch(xregex* pRegex, const char* sText, size_t iTextSize);
+XXAPI int xrtRegexFind(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutSpan);
+XXAPI int xrtRegexCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32 iCaptureCount);
+
+XXAPI int xrtRegexClone(xregex** ppOut, const xregex* pRegex, const xregexalloc* pAlloc);
+```
+
+
+### 4.2 Builder
+
+```c
+XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc);
+XXAPI void xrtRegexBuilderDestroy(xregexbuilder* pBuilder);
+XXAPI void xrtRegexBuilderSetFlags(xregexbuilder* pBuilder, xregexflags iFlags);
+```
+
+
+### 4.3 Multi-Pattern
+
+```c
+XXAPI int xrtRegexSetBuilderCreate(xregexsetbuilder** ppBuilder, const xregexalloc* pAlloc);
+XXAPI void xrtRegexSetBuilderDestroy(xregexsetbuilder* pBuilder);
+XXAPI int xrtRegexSetBuilderAdd(xregexsetbuilder* pBuilder, const xregex* pRegex);
+
+XXAPI xregexset* xrtRegexSetCreate(const char* const* arrPatternsNt, size_t iPatternCount);
+XXAPI int xrtRegexSetCreateFromBuilder(xregexset** ppSet, const xregexsetbuilder* pBuilder, const xregexalloc* pAlloc);
+XXAPI void xrtRegexSetDestroy(xregexset* pSet);
+
+XXAPI int xrtRegexSetIsMatch(xregexset* pSet, const char* sText, size_t iTextSize);
+XXAPI int xrtRegexSetMatches(xregexset* pSet, const char* sText, size_t iTextSize, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
+XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc);
+```
+
+
+## 5. Examples
+
+### 5.1 Quick Match
+
+```c
+xregex* pRegex = xrtRegexCreate("hello");
+if ( pRegex ) {
+	int iMatch = xrtRegexIsMatch(pRegex, "hello world", strlen("hello world"));
+	xrtRegexDestroy(pRegex);
+}
+```
+
+
+### 5.2 Find The First Match Range
+
+```c
+xregexspan tSpan;
+xregex* pRegex = xrtRegexCreate("[0-9]+");
+
+if ( pRegex ) {
+	if ( xrtRegexFind(pRegex, "id=12345", strlen("id=12345"), &tSpan) > 0 ) {
+		printf("begin=%zu end=%zu\n", tSpan.iBegin, tSpan.iEnd);
+	}
+	xrtRegexDestroy(pRegex);
+}
+```
+
+
+### 5.3 Get Captures
+
+```c
+xregexspan arrCaps[8];
+xregex* pRegex = xrtRegexCreate("([A-Za-z]+)=([0-9]+)");
+
+if ( pRegex ) {
+	int iRet = xrtRegexCaptures(pRegex, "count=42", strlen("count=42"), arrCaps, 8u);
+	if ( iRet > 0 ) {
+		printf("all=%zu..%zu\n", arrCaps[0].iBegin, arrCaps[0].iEnd);
+		printf("key=%zu..%zu\n", arrCaps[1].iBegin, arrCaps[1].iEnd);
+		printf("val=%zu..%zu\n", arrCaps[2].iBegin, arrCaps[2].iEnd);
+	}
+	xrtRegexDestroy(pRegex);
+}
+```
+
+
+### 5.4 Multi-Pattern Batch Scan
+
+```c
+const char* arrPatterns[] = {
+	"error",
+	"warn",
+	"timeout"
+};
+uint32 arrIndexes[8];
+uint32 iCount = 0;
+const char* sText = "warn: network timeout";
+xregexset* pSet = xrtRegexSetCreate(arrPatterns, 3u);
+
+if ( pSet ) {
+	xrtRegexSetMatches(pSet, sText, strlen(sText), arrIndexes, 8u, &iCount);
+	xrtRegexSetDestroy(pSet);
+}
+```
+
+
+## 6. Notes
+
+- The current engine implementation comes from `bbre`, but business code should no longer expose `bbre_*` directly.
+- External code should use `xregex`, `xregexset`, `xregexspan`, and `xrtRegex*`.
+- The public wrappers for `xrtRegexFind()` and `xrtRegexCaptures()` handle output-buffer adaptation instead of exposing low-level assertion constraints directly.
+- For multi-threaded use, clone the object with `xrtRegexClone()` or `xrtRegexSetClone()` when you need an independent instance.
