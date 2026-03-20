@@ -31,3 +31,4 @@ release/x86/test/test_size.txt
 release/x86/test/test_write_u16.txt
 release/x86/test/test_write_u16be.txt
 release/x86/test/test_write_u32.txt
+/AGENTS.md

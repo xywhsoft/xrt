@@ -1,1 +1,0 @@
-https://[2001:db8::1]:8443/api/v1/chat?model=gpt-5&stream=1#frag

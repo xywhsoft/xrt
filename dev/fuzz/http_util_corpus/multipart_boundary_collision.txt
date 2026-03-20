@@ -1,9 +1,0 @@
---fuzz-boundary
-Content-Disposition: form-data; name="field"
-
-value
---fuzz-boundaryX
-Content-Disposition: form-data; name="field2"
-
-value2
---fuzz-boundary--

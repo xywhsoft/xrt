@@ -1,1 +1,0 @@
-sid=abc123; Path=/; Secure; HttpOnly; SameParty; Priority=High; Partitioned

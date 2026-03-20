@@ -1,6 +1,0 @@
---fuzz-boundary
-Content-Disposition: form-data; name="file"; filename="fallback.txt"; filename*=UTF-8''%E4%B8%AD%E6%96%87.txt
-Content-Type: text/plain
-
-payload
---fuzz-boundary--
