@@ -1723,6 +1723,9 @@
 	// 向已打开的文件写入数据 ( iSize 为要写入的字节数 )
 	XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize);
 	
+	// 从已打开的文件读取二进制数据到特定位置
+	XXAPI size_t xrtGetBuffer(xfile objFile, ptr sBuff, size_t iSize);
+	
 	// 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
 	XXAPI ptr xrtGet(xfile objFile, size_t iSize, size_t* iRetSize);
 	

@@ -644,6 +644,46 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 
 
 
+// 从已打开的文件读取二进制数据到特定位置
+XXAPI size_t xrtGetBuffer(xfile objFile, ptr sBuff, size_t iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			if ( iSize == 0 ) { return 0; }
+			// 读取数据
+			DWORD iRet;
+			if ( ReadFile(objFile->obj, sBuff, iSize, &iRet, NULL) ) {
+				return iRet;
+			} else {
+				xrtSetError(sErrorFile_Read, FALSE);
+				return 0;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
+	#else
+		// 其他平台方案
+		if ( objFile && (objFile->idx != -1) ) {
+			if ( iSize == 0 ) { return 0; }
+			// 读取数据
+			ssize_t iRet = read(objFile->idx, sBuff, iSize);
+			if ( iRet >= 0 ) {
+				return (size_t)iRet;
+			} else {
+				xrtSetError(sErrorFile_Read, FALSE);
+				return 0;
+			}
+		} else {
+			xrtSetError(sErrorFile_Handle, FALSE);
+			return 0;
+		}
+	#endif
+}
+
+
+
 // 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
 XXAPI ptr xrtGet(xfile objFile, size_t iSize, size_t* iRetSize)
 {
