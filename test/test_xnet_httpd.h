@@ -451,6 +451,7 @@ void Test_XNet_Httpd(void)
 		xnet_result iStatus = XRT_NET_ERROR;
 		char sURL[256];
 		xtlsconfig tTlsCfg;
+		bool bHasTlsFixtures;
 
 		memset(&tCtx, 0, sizeof(tCtx));
 		memset(&tEvents, 0, sizeof(tEvents));
@@ -461,34 +462,39 @@ void Test_XNet_Httpd(void)
 		tEvents.OnError = __Test_XHttpdOnError;
 		tTlsCfg.sCertFile = "dev/xnet2_tls_test_cert.pem";
 		tTlsCfg.sKeyFile = "dev/xnet2_tls_test_key.pem";
+		bHasTlsFixtures = __Test_XHttpdFileExists(tTlsCfg.sCertFile) && __Test_XHttpdFileExists(tTlsCfg.sKeyFile);
 
-		xrtNetEngineConfigInit(&tEngineCfg);
-		tEngineCfg.iWorkerCount = 1;
-		pServerEngine = xrtNetEngineCreate(&tEngineCfg);
-		printf("  HTTPD TLS fixture files exist : %s\n", __Test_XHttpdFileExists(tTlsCfg.sCertFile) && __Test_XHttpdFileExists(tTlsCfg.sKeyFile) ? "PASS" : "FAIL");
-		printf("  HTTPD TLS server engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
-		if ( pServerEngine ) printf("  HTTPD TLS server engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+		if ( !bHasTlsFixtures ) {
+			printf("  HTTPD TLS fixture files missing : SKIP\n");
+		} else {
+			printf("  HTTPD TLS fixture files exist : PASS\n");
+			xrtNetEngineConfigInit(&tEngineCfg);
+			tEngineCfg.iWorkerCount = 1;
+			pServerEngine = xrtNetEngineCreate(&tEngineCfg);
+			printf("  HTTPD TLS server engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
+			if ( pServerEngine ) printf("  HTTPD TLS server engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
 
-		xrtHttpdConfigInit(&tSrvCfg);
-		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
-		tSrvCfg.pTlsConfig = &tTlsCfg;
-		pServer = pServerEngine ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
-		printf("  HTTPD TLS server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
-		printf("  HTTPD TLS server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+			xrtHttpdConfigInit(&tSrvCfg);
+			(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+			tSrvCfg.pTlsConfig = &tTlsCfg;
+			pServer = pServerEngine ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
+			printf("  HTTPD TLS server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD TLS server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
 
-		xrtHttpRequestInit(&tReq);
-		snprintf(sURL, sizeof(sURL), "https://127.0.0.1:%u/secure", (unsigned)xrtHttpdBoundPort(pServer));
-		(void)xrtHttpRequestSetURL(&tReq, sURL);
-		xrtHttpRequestSetVerifyPeer(&tReq, false);
-		pResp = pServer ? xrtHttpExecuteSync(NULL, &tReq, &iStatus) : NULL;
-		printf("  HTTPD TLS client status : %s\n", iStatus == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  HTTPD TLS response code : %s\n", pResp && pResp->iStatusCode == 200 ? "PASS" : "FAIL");
-		printf("  HTTPD TLS response body : %s\n", pResp && pResp->iBodyLen == 6 && memcmp(pResp->pBody, "secure", 6) == 0 ? "PASS" : "FAIL");
-		printf("  HTTPD TLS request callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iRequestCount, 1, 2000u) ? "PASS" : "FAIL");
-		printf("  HTTPD TLS saw path : %s\n", strcmp(tCtx.aLastPath, "/secure") == 0 ? "PASS" : "FAIL");
-		xrtHttpCloseIdleConnections(xrtNetSyncGetHiddenEngine());
-		printf("  HTTPD TLS close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
-		printf("  HTTPD TLS path error free : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+			xrtHttpRequestInit(&tReq);
+			snprintf(sURL, sizeof(sURL), "https://127.0.0.1:%u/secure", (unsigned)xrtHttpdBoundPort(pServer));
+			(void)xrtHttpRequestSetURL(&tReq, sURL);
+			xrtHttpRequestSetVerifyPeer(&tReq, false);
+			pResp = pServer ? xrtHttpExecuteSync(NULL, &tReq, &iStatus) : NULL;
+			printf("  HTTPD TLS client status : %s\n", iStatus == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  HTTPD TLS response code : %s\n", pResp && pResp->iStatusCode == 200 ? "PASS" : "FAIL");
+			printf("  HTTPD TLS response body : %s\n", pResp && pResp->iBodyLen == 6 && memcmp(pResp->pBody, "secure", 6) == 0 ? "PASS" : "FAIL");
+			printf("  HTTPD TLS request callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iRequestCount, 1, 2000u) ? "PASS" : "FAIL");
+			printf("  HTTPD TLS saw path : %s\n", strcmp(tCtx.aLastPath, "/secure") == 0 ? "PASS" : "FAIL");
+			xrtHttpCloseIdleConnections(xrtNetSyncGetHiddenEngine());
+			printf("  HTTPD TLS close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
+			printf("  HTTPD TLS path error free : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+		}
 
 		if ( pResp ) xrtHttpResponseDestroy(pResp);
 		xrtHttpRequestUnit(&tReq);

@@ -16,6 +16,7 @@
 - 同步执行与异步执行
 - 基于 `xnetengine` 的统一执行模型
 - 对 `http / https` 的统一支持
+- 对 `SOCKS5 CONNECT / HTTP CONNECT` 代理的统一支持
 - 同源串行 keep-alive 连接复用
 
 它的设计目标不是做一个巨大而复杂的客户端框架，而是提供：
@@ -41,12 +42,14 @@
 - `pBody / iBodyLen`
 - `iTimeoutMs`
 - `bVerifyPeer`
+- `pProxy`
 
 它的设计特点是：
 
 - 默认适合 whole-body 请求
 - URL 既可保留原始串，也会解析到固定结构
 - 头字段采用固定数组，避免过重依赖
+- 代理不内嵌在请求连接结构里，而是通过共享 `xnetproxy` 对象透传
 
 
 ### `xhttpresponse`
@@ -90,8 +93,9 @@ XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
 3. 按需设置 Header
 4. 按需设置 Body
 5. 设置超时与证书校验策略
-6. 执行请求
-7. `RequestUnit`
+6. 按需设置 `pProxy`
+7. 执行请求
+8. `RequestUnit`
 
 
 ### 响应对象
@@ -120,6 +124,7 @@ XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
 - `ExecuteAsync`：返回 future，适合和协程 / task / wait-source 主线组合
 - `ExecuteSync`：同步等待一笔请求完成
 - `CloseIdleConnections`：主动关闭空闲 keep-alive 连接
+- 请求本身没有额外的 `SetProxy` helper，直接给 `xhttprequest.pProxy` 赋共享代理对象即可
 
 
 ## 4. 连接与协议行为
@@ -128,9 +133,16 @@ XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
 
 - 基于 `xnet_stream`
 - 支持明文 HTTP 与内建 TLS
+- 支持 `SOCKS5 CONNECT` 与 `HTTP CONNECT`
 - 按 origin 进行串行 keep-alive 复用
 - chunked transfer 已支持
 - trailer 当前仍更偏元数据保留
+
+代理相关行为：
+
+- 连接预打开时序为：`TCP -> proxy handshake -> TLS -> HTTP request`
+- keep-alive 连接池会把代理对象维度纳入匹配，不会把“相同目标站点、不同代理”的连接混用
+- 未配置 `pProxy` 时保持直连
 
 这意味着：
 
@@ -197,6 +209,35 @@ xrtHttpRequestSetBodyCopy(&tReq, sJson, strlen(sJson), "application/json");
 ```
 
 
+### 5.4 通过代理访问 HTTPS
+
+```c
+xnetproxyconfig tProxyCfg;
+xnetproxy* pProxy;
+
+xrtNetProxyConfigInit(&tProxyCfg);
+tProxyCfg.iType = XNET_PROXY_HTTP_CONNECT;
+strcpy(tProxyCfg.sHost, "127.0.0.1");
+tProxyCfg.iPort = 7897u;
+
+pProxy = xrtNetProxyCreate(&tProxyCfg);
+
+xrtHttpRequestInit(&tReq);
+xrtHttpRequestSetURL(&tReq, "https://example.com/api");
+tReq.pProxy = xrtNetProxyAddRef(pProxy);
+
+pResp = xrtHttpExecuteSync(pEngine, &tReq, &iStatus);
+
+xrtHttpRequestUnit(&tReq);
+xrtNetProxyRelease(pProxy);
+```
+
+说明：
+
+- `RequestUnit` 会释放 `tReq.pProxy` 这一份引用
+- 外部创建者仍应在最后 `xrtNetProxyRelease(pProxy)`
+
+
 ## 7. 与其他模块的关系
 
 ### 与 `xurl`
@@ -210,6 +251,7 @@ xrtHttpRequestSetBodyCopy(&tReq, sJson, strlen(sJson), "application/json");
 ### 与 `xtlssession`
 
 - `https` 路径通过当前 TLS session 主线工作
+- 走代理时，TLS 建立在代理隧道之后
 
 ### 与 `future / task / promise`
 

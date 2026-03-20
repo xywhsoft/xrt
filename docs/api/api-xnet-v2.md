@@ -13,6 +13,7 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 - 高性能
 - 跨平台
 - 线程、协程、future 一致的异步语义
+- 共享代理对象与可选代理握手阶段
 - 可继续向 HTTP / WebSocket / AI 场景上层扩展
 
 它不是旧 TCP/UDP 客户端库的简单替代，而是新的统一网络底座。
@@ -44,6 +45,7 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 - 基础类型
 - socket / addr / result
+- 共享代理对象与代理配置
 - 内存与链表辅助
 - 平台端口层
 
@@ -134,7 +136,25 @@ XXAPI bool xrtNetTlsSessionIsReady(const xtlssession* pSession);
 
 - [api-network-tls.md](api-network-tls.md)
 
-### 3.3 Listener
+### 3.3 Proxy
+
+```c
+XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg);
+XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg);
+XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy);
+XXAPI void xrtNetProxyRelease(xnetproxy* pProxy);
+```
+
+说明：
+
+- `xnetproxy` 是共享、引用计数式的代理对象
+- 连接运行态只保存 `xnetproxy*`，不会把整份代理配置拷入每个连接结构体
+- 当前正式支持：
+	- `SOCKS5 CONNECT`
+	- `HTTP CONNECT`
+- `xnetconnectconfig.pProxy == NULL` 表示直连
+
+### 3.4 Listener
 
 ```c
 XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenconfig* pCfg, ...);
@@ -143,7 +163,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener);
 XXAPI void xrtNetListenerStop(xnetlistener* pListener);
 ```
 
-### 3.4 Future / Wait-Source
+### 3.5 Future / Wait-Source
 
 ```c
 XXAPI xnetfuture* xrtNetFutureCreate(void);
@@ -222,6 +242,19 @@ XXAPI xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppVa
 - `xrtNetStreamWaitCoEx / WaitCoTimeoutEx / WaitCoUntilEx`
 
 而把 `Readable / Writable / Drain / Close` 这些专名 helper 看成更易读的薄封装。
+
+当前 stream 的预打开时序为：
+
+- `TCP connect`
+- 如果配置了 `pProxy`，先完成代理握手
+- 如果配置了 TLS，再完成 TLS 握手
+- 最后才触发 `OnOpen`
+
+这带来几个重要语义：
+
+- `OnOpen` 之前，`xrtNetStreamSend / SendVec / SendRef` 统一返回 `XRT_NET_AGAIN`
+- `iConnectTimeoutMs` 覆盖整个预打开阶段，而不只是裸 `connect`
+- `xrtNetStreamRemoteAddr()` 保持返回实际 socket 对端地址；启用代理时这里是代理地址，不是目标地址
 
 ### 4.3 Dgram
 
@@ -322,6 +355,7 @@ XNet V2 不再只是回调式网络层。
 - 统一 future/wait-source 桥接
 - 统一协程等待入口
 - stream / dgram / listener 都能接入相同等待语义
+- 代理已重新并入主线，而且以共享对象方式接入，不放大每连接常驻内存
 - TLS 已收成 session 主线
 - 更适合继续承载 HTTP / WebSocket / AI 场景的流式网络能力
 

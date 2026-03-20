@@ -490,23 +490,27 @@ void Test_XNet_Http(void)
 		memset(&tTlsCfg, 0, sizeof(tTlsCfg));
 		tTlsCfg.sCertFile = "dev/xnet2_tls_test_cert.pem";
 		tTlsCfg.sKeyFile = "dev/xnet2_tls_test_key.pem";
-		printf("  HTTP TLS fixture files exist : %s\n", __Test_XHttpFileExists(tTlsCfg.sCertFile) && __Test_XHttpFileExists(tTlsCfg.sKeyFile) ? "PASS" : "FAIL");
-		printf("  HTTP TLS server start : %s\n", __Test_XHttpServerStart(&tServer, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: keep-alive\r\n\r\nsecure", &tTlsCfg) ? "PASS" : "FAIL");
-		snprintf(sURL, sizeof(sURL), "https://127.0.0.1:%u/secure", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
-		xrtHttpRequestInit(&tReq);
-		(void)xrtHttpRequestSetURL(&tReq, sURL);
-		xrtHttpRequestSetVerifyPeer(&tReq, false);
-		pResp = xrtHttpExecuteSync(NULL, &tReq, &iStatus);
-		printf("  HTTP sync status : %s\n", iStatus == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  HTTP sync HTTPS body : %s\n", pResp && pResp->iBodyLen == 6 && memcmp(pResp->pBody, "secure", 6) == 0 ? "PASS" : "FAIL");
-		printf("  HTTP sync HTTPS code : %s\n", pResp && pResp->iStatusCode == 200 ? "PASS" : "FAIL");
-		printf("  HTTP sync hidden engine path : %s\n", xrtNetSyncGetHiddenEngine() != NULL ? "PASS" : "FAIL");
-		printf("  HTTP TLS server saw target : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 2000) && strcmp(tServer.aLastTarget, "/secure") == 0 ? "PASS" : "FAIL");
-		printf("  HTTP TLS path error free : %s\n", __Test_XHttpAtomicLoad(&tServer.iErrorCount) == 0 ? "PASS" : "FAIL");
-		if ( pResp ) xrtHttpResponseDestroy(pResp);
-		xrtHttpRequestUnit(&tReq);
-		xrtHttpCloseIdleConnections(xrtNetSyncGetHiddenEngine());
-		xrtNetSyncShutdownHiddenEngine();
-		__Test_XHttpServerStop(&tServer);
+		if ( __Test_XHttpFileExists(tTlsCfg.sCertFile) && __Test_XHttpFileExists(tTlsCfg.sKeyFile) ) {
+			printf("  HTTP TLS fixture files exist : PASS\n");
+			printf("  HTTP TLS server start : %s\n", __Test_XHttpServerStart(&tServer, "HTTP/1.1 200 OK\r\nContent-Length: 6\r\nConnection: keep-alive\r\n\r\nsecure", &tTlsCfg) ? "PASS" : "FAIL");
+			snprintf(sURL, sizeof(sURL), "https://127.0.0.1:%u/secure", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+			xrtHttpRequestInit(&tReq);
+			(void)xrtHttpRequestSetURL(&tReq, sURL);
+			xrtHttpRequestSetVerifyPeer(&tReq, false);
+			pResp = xrtHttpExecuteSync(NULL, &tReq, &iStatus);
+			printf("  HTTP sync status : %s\n", iStatus == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  HTTP sync HTTPS body : %s\n", pResp && pResp->iBodyLen == 6 && memcmp(pResp->pBody, "secure", 6) == 0 ? "PASS" : "FAIL");
+			printf("  HTTP sync HTTPS code : %s\n", pResp && pResp->iStatusCode == 200 ? "PASS" : "FAIL");
+			printf("  HTTP sync hidden engine path : %s\n", xrtNetSyncGetHiddenEngine() != NULL ? "PASS" : "FAIL");
+			printf("  HTTP TLS server saw target : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 2000) && strcmp(tServer.aLastTarget, "/secure") == 0 ? "PASS" : "FAIL");
+			printf("  HTTP TLS path error free : %s\n", __Test_XHttpAtomicLoad(&tServer.iErrorCount) == 0 ? "PASS" : "FAIL");
+			if ( pResp ) xrtHttpResponseDestroy(pResp);
+			xrtHttpRequestUnit(&tReq);
+			xrtHttpCloseIdleConnections(xrtNetSyncGetHiddenEngine());
+			xrtNetSyncShutdownHiddenEngine();
+			__Test_XHttpServerStop(&tServer);
+		} else {
+			printf("  HTTP TLS fixture files missing : SKIP\n");
+		}
 	}
 }

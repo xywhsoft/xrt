@@ -302,19 +302,27 @@ void Test_XNet2_Stream(void)
 		printf("  Client stream pending send == 0 : %s\n", pClientStream && xrtNetStreamPendingSend(pClientStream) == 0 ? "PASS" : "FAIL");
 		printf("  Client stream connect placeholder error : %s\n", pClientStream && xrtNetStreamConnect(pClientStream, NULL) == XRT_NET_ERROR ? "PASS" : "FAIL");
 
-		printf("  Direct send copy queues bytes : %s\n", pAccepted1 && xrtNetStreamSend(pAccepted1, "abc", 3) == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Pre-open send copy returns AGAIN : %s\n", pAccepted1 && xrtNetStreamSend(pAccepted1, "abc", 3) == XRT_NET_AGAIN ? "PASS" : "FAIL");
 		arrVec[0].pData = "de";
 		arrVec[0].iLen = 2;
 		arrVec[1].pData = "fgh";
 		arrVec[1].iLen = 3;
-		printf("  Direct send vec queues bytes : %s\n", pAccepted1 && xrtNetStreamSendVec(pAccepted1, arrVec, 2) == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Pre-open send vec returns AGAIN : %s\n", pAccepted1 && xrtNetStreamSendVec(pAccepted1, arrVec, 2) == XRT_NET_AGAIN ? "PASS" : "FAIL");
 
 		memset(&tSendRef, 0, sizeof(tSendRef));
 		tSendRef.pData = sSendRef;
 		tSendRef.iLen = 3;
 		tSendRef.pfnRelease = __Test_XNet2_StreamRelease;
 		tSendRef.pReleaseCtx = (ptr)&tAcceptedStats1.iReleaseCount;
-		printf("  Direct send ref queues bytes : %s\n", pAccepted1 && xrtNetStreamSendRef(pAccepted1, &tSendRef) == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Pre-open send ref returns AGAIN : %s\n", pAccepted1 && xrtNetStreamSendRef(pAccepted1, &tSendRef) == XRT_NET_AGAIN ? "PASS" : "FAIL");
+		printf("  Pre-open pending send stays zero : %s\n", pAccepted1 && xrtNetStreamPendingSend(pAccepted1) == 0 ? "PASS" : "FAIL");
+		printf("  Pre-open high-water stays quiet : %s\n", __Test_XNet2_StreamAtomicLoad(&tAcceptedStats1.iHighWaterCount) == 0 ? "PASS" : "FAIL");
+		if ( pAccepted1 ) {
+			pAccepted1->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
+		}
+		printf("  Direct send copy queues bytes after open gate : %s\n", pAccepted1 && xrtNetStreamSend(pAccepted1, "abc", 3) == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Direct send vec queues bytes after open gate : %s\n", pAccepted1 && xrtNetStreamSendVec(pAccepted1, arrVec, 2) == XRT_NET_OK ? "PASS" : "FAIL");
+		printf("  Direct send ref queues bytes after open gate : %s\n", pAccepted1 && xrtNetStreamSendRef(pAccepted1, &tSendRef) == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Pending send reflects direct queue : %s\n", pAccepted1 && xrtNetStreamPendingSend(pAccepted1) == 11 ? "PASS" : "FAIL");
 		printf("  High-water callback fires once : %s\n", __Test_XNet2_StreamAtomicLoad(&tAcceptedStats1.iHighWaterCount) == 1 ? "PASS" : "FAIL");
 		printf("  Gather write begins : %s\n", pAccepted1 && __xnetStreamTryBeginWrite(pAccepted1, arrWriteVec, 8, &iSpanCount) ? "PASS" : "FAIL");
@@ -369,6 +377,7 @@ void Test_XNet2_Stream(void)
 		printf("  Stream set user data : %s\n", pClientStream && xrtNetStreamGetUserData(pClientStream) == NULL ? "PASS" : "FAIL");
 
 		if ( pAbortStream ) {
+			pAbortStream->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
 			printf("  Abort stream send copy : %s\n", xrtNetStreamSend(pAbortStream, "bye", 3) == XRT_NET_OK ? "PASS" : "FAIL");
 			xrtNetStreamClose(pAbortStream, XNET_CLOSE_F_ABORT);
 			printf("  Abort close callback fires : %s\n", __Test_XNet2_StreamAtomicLoad(&tAbortStats.iCloseCount) == 1 ? "PASS" : "FAIL");

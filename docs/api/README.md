@@ -72,13 +72,13 @@
 
 | 模块 | 文档 | 状态 |
 |------|------|------|
-| XNet V2 | [api-xnet-v2.md](api-xnet-v2.md) | 已建立总览文档 |
+| XNet V2 | [api-xnet-v2.md](api-xnet-v2.md) | 已建立总览文档，包含共享代理对象 |
 | Network TLS | [api-network-tls.md](api-network-tls.md) | 当前 TLS session 主线 |
 | XURL | [api-xurl.md](api-xurl.md) | URL / authority / target 解析与构建 |
 | HTTP Util | [api-http-util.md](api-http-util.md) | header/query/cookie/media type/multipart 工具 |
-| XHTTP | [api-xhttp.md](api-xhttp.md) | 当前 HTTP/1.1 客户端主线 |
+| XHTTP | [api-xhttp.md](api-xhttp.md) | 当前 HTTP/1.1 客户端主线，支持代理透传 |
 | XHTTPD | [api-xhttpd.md](api-xhttpd.md) | 当前 HTTP/1.1 服务端主线 |
-| XWS | [api-xws.md](api-xws.md) | 当前 WebSocket client / server 主线 |
+| XWS | [api-xws.md](api-xws.md) | 当前 WebSocket client / server 主线，客户端支持代理 |
 
 
 ## 6. 当前说明

@@ -420,53 +420,57 @@ void Test_XNet_Ws(void)
 		tEngineCfg.iWorkerCount = 1;
 		pServerEngine = xrtNetEngineCreate(&tEngineCfg);
 		pClientEngine = xrtNetEngineCreate(&tEngineCfg);
-		printf("  WS TLS fixture files exist : %s\n", __Test_XWsFileExists(tTlsCfg.sCertFile) && __Test_XWsFileExists(tTlsCfg.sKeyFile) ? "PASS" : "FAIL");
-		printf("  WS TLS server engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
-		printf("  WS TLS client engine create : %s\n", pClientEngine != NULL ? "PASS" : "FAIL");
-		if ( pServerEngine ) printf("  WS TLS server engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
-		if ( pClientEngine ) printf("  WS TLS client engine start : %s\n", xrtNetEngineStart(pClientEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+		if ( __Test_XWsFileExists(tTlsCfg.sCertFile) && __Test_XWsFileExists(tTlsCfg.sKeyFile) ) {
+			printf("  WS TLS fixture files exist : PASS\n");
+			printf("  WS TLS server engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
+			printf("  WS TLS client engine create : %s\n", pClientEngine != NULL ? "PASS" : "FAIL");
+			if ( pServerEngine ) printf("  WS TLS server engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+			if ( pClientEngine ) printf("  WS TLS client engine start : %s\n", xrtNetEngineStart(pClientEngine) == XRT_NET_OK ? "PASS" : "FAIL");
 
-		xrtWsServerConfigInit(&tSrvCfg);
-		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
-		tSrvCfg.pTlsConfig = &tTlsCfg;
-		pServer = (pServerEngine && pClientEngine) ? xrtWsServerCreate(pServerEngine, &tSrvCfg, &tSrvEvents, &tSrvCtx) : NULL;
-		printf("  WS TLS server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
-		printf("  WS TLS server start : %s\n", pServer && xrtWsServerStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+			xrtWsServerConfigInit(&tSrvCfg);
+			(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+			tSrvCfg.pTlsConfig = &tTlsCfg;
+			pServer = (pServerEngine && pClientEngine) ? xrtWsServerCreate(pServerEngine, &tSrvCfg, &tSrvEvents, &tSrvCtx) : NULL;
+			printf("  WS TLS server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
+			printf("  WS TLS server start : %s\n", pServer && xrtWsServerStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
 
-		xrtWsClientConfigInit(&tCliCfg);
-		snprintf(sURL, sizeof(sURL), "wss://127.0.0.1:%u/secure", (unsigned)xrtWsServerBoundPort(pServer));
-		snprintf(tCliCfg.sURL, sizeof(tCliCfg.sURL), "%s", sURL);
-		tCliCfg.bVerifyPeer = false;
-		pClient = pClientEngine ? xrtWsClientCreate(pClientEngine, &tCliCfg, &tCliEvents, &tCliCtx) : NULL;
-		printf("  WS TLS client create : %s\n", pClient != NULL ? "PASS" : "FAIL");
-		printf("  WS TLS client start : %s\n", pClient && xrtWsClientStart(pClient) == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  WS TLS server open : %s\n", __Test_XWsWaitMin(&tSrvCtx.iOpenCount, 1, 4000u) ? "PASS" : "FAIL");
-		printf("  WS TLS client open : %s\n", __Test_XWsWaitMin(&tCliCtx.iOpenCount, 1, 4000u) ? "PASS" : "FAIL");
-		printf("  WS TLS send text : %s\n", pClient && xrtWsClientSendText(pClient, "secure-ws", 9u) == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  WS TLS server text callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iTextCount, 1, 4000u) ? "PASS" : "FAIL");
-		printf("  WS TLS client text echo : %s\n", __Test_XWsWaitMin(&tCliCtx.iTextCount, 1, 4000u) ? "PASS" : "FAIL");
-		printf("  WS TLS echoed text : %s\n", strcmp(tCliCtx.aLastText, "secure-ws") == 0 ? "PASS" : "FAIL");
+			xrtWsClientConfigInit(&tCliCfg);
+			snprintf(sURL, sizeof(sURL), "wss://127.0.0.1:%u/secure", (unsigned)xrtWsServerBoundPort(pServer));
+			snprintf(tCliCfg.sURL, sizeof(tCliCfg.sURL), "%s", sURL);
+			tCliCfg.bVerifyPeer = false;
+			pClient = pClientEngine ? xrtWsClientCreate(pClientEngine, &tCliCfg, &tCliEvents, &tCliCtx) : NULL;
+			printf("  WS TLS client create : %s\n", pClient != NULL ? "PASS" : "FAIL");
+			printf("  WS TLS client start : %s\n", pClient && xrtWsClientStart(pClient) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS TLS server open : %s\n", __Test_XWsWaitMin(&tSrvCtx.iOpenCount, 1, 4000u) ? "PASS" : "FAIL");
+			printf("  WS TLS client open : %s\n", __Test_XWsWaitMin(&tCliCtx.iOpenCount, 1, 4000u) ? "PASS" : "FAIL");
+			printf("  WS TLS send text : %s\n", pClient && xrtWsClientSendText(pClient, "secure-ws", 9u) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS TLS server text callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iTextCount, 1, 4000u) ? "PASS" : "FAIL");
+			printf("  WS TLS client text echo : %s\n", __Test_XWsWaitMin(&tCliCtx.iTextCount, 1, 4000u) ? "PASS" : "FAIL");
+			printf("  WS TLS echoed text : %s\n", strcmp(tCliCtx.aLastText, "secure-ws") == 0 ? "PASS" : "FAIL");
 
-		{
-			long iSrvTextBefore = __Test_XWsAtomicLoad(&tSrvCtx.iTextCount);
-			long iSrvPingBefore = __Test_XWsAtomicLoad(&tSrvCtx.iPingCount);
-			long iCliPongBefore = __Test_XWsAtomicLoad(&tCliCtx.iPongCount);
-			long iCliTextBefore = __Test_XWsAtomicLoad(&tCliCtx.iTextCount);
-			printf("  WS TLS fragmented client text frame1 : %s\n", pClient && __xwsStreamSendFrameEx(pClient->pStream, false, true, XCODEC_WS_OPCODE_TEXT, "tls-", 4u) == XRT_NET_OK ? "PASS" : "FAIL");
-			printf("  WS TLS fragmented client ping : %s\n", pClient && __xwsStreamSendFrameEx(pClient->pStream, true, true, XCODEC_WS_OPCODE_PING, "ts", 2u) == XRT_NET_OK ? "PASS" : "FAIL");
-			printf("  WS TLS fragmented client text cont : %s\n", pClient && __xwsStreamSendFrameEx(pClient->pStream, true, true, XCODEC_WS_OPCODE_CONT, "frag", 4u) == XRT_NET_OK ? "PASS" : "FAIL");
-			printf("  WS TLS fragmented server text callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iTextCount, iSrvTextBefore + 1, 4000u) ? "PASS" : "FAIL");
-			printf("  WS TLS fragmented server ping callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iPingCount, iSrvPingBefore + 1, 4000u) ? "PASS" : "FAIL");
-			printf("  WS TLS fragmented client pong callback : %s\n", __Test_XWsWaitMin(&tCliCtx.iPongCount, iCliPongBefore + 1, 4000u) ? "PASS" : "FAIL");
-			printf("  WS TLS fragmented client text echo : %s\n", __Test_XWsWaitMin(&tCliCtx.iTextCount, iCliTextBefore + 1, 4000u) ? "PASS" : "FAIL");
-			printf("  WS TLS fragmented text reassembled : %s\n", strcmp(tSrvCtx.aLastText, "tls-frag") == 0 && strcmp(tCliCtx.aLastText, "tls-frag") == 0 ? "PASS" : "FAIL");
+			{
+				long iSrvTextBefore = __Test_XWsAtomicLoad(&tSrvCtx.iTextCount);
+				long iSrvPingBefore = __Test_XWsAtomicLoad(&tSrvCtx.iPingCount);
+				long iCliPongBefore = __Test_XWsAtomicLoad(&tCliCtx.iPongCount);
+				long iCliTextBefore = __Test_XWsAtomicLoad(&tCliCtx.iTextCount);
+				printf("  WS TLS fragmented client text frame1 : %s\n", pClient && __xwsStreamSendFrameEx(pClient->pStream, false, true, XCODEC_WS_OPCODE_TEXT, "tls-", 4u) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  WS TLS fragmented client ping : %s\n", pClient && __xwsStreamSendFrameEx(pClient->pStream, true, true, XCODEC_WS_OPCODE_PING, "ts", 2u) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  WS TLS fragmented client text cont : %s\n", pClient && __xwsStreamSendFrameEx(pClient->pStream, true, true, XCODEC_WS_OPCODE_CONT, "frag", 4u) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  WS TLS fragmented server text callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iTextCount, iSrvTextBefore + 1, 4000u) ? "PASS" : "FAIL");
+				printf("  WS TLS fragmented server ping callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iPingCount, iSrvPingBefore + 1, 4000u) ? "PASS" : "FAIL");
+				printf("  WS TLS fragmented client pong callback : %s\n", __Test_XWsWaitMin(&tCliCtx.iPongCount, iCliPongBefore + 1, 4000u) ? "PASS" : "FAIL");
+				printf("  WS TLS fragmented client text echo : %s\n", __Test_XWsWaitMin(&tCliCtx.iTextCount, iCliTextBefore + 1, 4000u) ? "PASS" : "FAIL");
+				printf("  WS TLS fragmented text reassembled : %s\n", strcmp(tSrvCtx.aLastText, "tls-frag") == 0 && strcmp(tCliCtx.aLastText, "tls-frag") == 0 ? "PASS" : "FAIL");
+			}
+
+			printf("  WS TLS close request : %s\n", pClient && xrtWsClientClose(pClient, XWS_CLOSE_NORMAL, NULL) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  WS TLS client close callback : %s\n", __Test_XWsWaitMin(&tCliCtx.iCloseCount, 1, 4000u) ? "PASS" : "FAIL");
+			printf("  WS TLS server close callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iCloseCount, 1, 4000u) ? "PASS" : "FAIL");
+			printf("  WS TLS client error free : %s\n", __Test_XWsAtomicLoad(&tCliCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+			printf("  WS TLS server error free : %s\n", __Test_XWsAtomicLoad(&tSrvCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+		} else {
+			printf("  WS TLS fixture files missing : SKIP\n");
 		}
-
-		printf("  WS TLS close request : %s\n", pClient && xrtWsClientClose(pClient, XWS_CLOSE_NORMAL, NULL) == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  WS TLS client close callback : %s\n", __Test_XWsWaitMin(&tCliCtx.iCloseCount, 1, 4000u) ? "PASS" : "FAIL");
-		printf("  WS TLS server close callback : %s\n", __Test_XWsWaitMin(&tSrvCtx.iCloseCount, 1, 4000u) ? "PASS" : "FAIL");
-		printf("  WS TLS client error free : %s\n", __Test_XWsAtomicLoad(&tCliCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
-		printf("  WS TLS server error free : %s\n", __Test_XWsAtomicLoad(&tSrvCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
 
 		if ( pClient ) xrtWsClientDestroy(pClient);
 		if ( pServer ) xrtWsServerDestroy(pServer);

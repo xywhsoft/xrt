@@ -138,6 +138,7 @@
 	#include "test/test_xnet_native_core.h"
 	#include "test/test_xnet2_listener_accept_core.h"
 	#include "test/test_xnet_ws.h"
+	#include "test/test_xnet_proxy.h"
 	#ifndef XRT_NO_NETTLS
 		#include "test/test_xnet2_tls.h"
 		#include "test/test_tls_boundary.h"
@@ -321,6 +322,7 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttpd, Test_XNet_Httpd)
 	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2ListenerAcceptCore, Test_XNet2_ListenerAcceptCore)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetWs, Test_XNet_Ws)
+	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetProxy, Test_XNet_Proxy)
 	#ifndef XRT_NO_NETTLS
 		XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2TLS, Test_XNet2_TLS)
 		static int __xrtTestRun_TLSBoundaryStress(xrtGlobalData* pCore)
@@ -445,6 +447,7 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 		{ "xnet_native_core", "XNet Native Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetNativeCore },
 		{ "xnet2_listener_accept_core", "XNet2 Listener Accept Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2ListenerAcceptCore },
 		{ "xnet_ws", "XNet WS", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetWs },
+		{ "xnet_proxy", "XNet Proxy", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetProxy },
 		#ifndef XRT_NO_NETTLS
 			{ "xnet2_tls", "XNet2 TLS", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2TLS },
 			{ "tls_boundary", "TLS Boundary", "net", XRT_TEST_FLAG_SELF_INIT, __xrtTestRun_TLSBoundaryStress },
@@ -514,6 +517,7 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 		"xnet_http",
 		"xnet_httpd",
 		"xnet_ws",
+		"xnet_proxy",
 		"xnet2_mem",
 		#ifndef XRT_NO_NETTLS
 			"xnet2_tls",
@@ -537,6 +541,7 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 		"xnet_http",
 		"xnet_httpd",
 		"xnet_ws",
+		"xnet_proxy",
 		"xnet2_mem",
 	};
 

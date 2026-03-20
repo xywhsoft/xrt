@@ -2086,6 +2086,7 @@ int Test_XNet2_Sync(void)
 		}
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "drain", 5);
 			tWaitCase.pFuture = xrtNetStreamDrainFuture(pStream);
 		}
@@ -2152,6 +2153,7 @@ int Test_XNet2_Sync(void)
 		}
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "drain", 5);
 			tWaitCase.pStream = pStream;
 			tRetryCase.pStream = pStream;
@@ -2213,6 +2215,7 @@ int Test_XNet2_Sync(void)
 		}
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "drain", 5);
 			tWaitCase.pStream = pStream;
 			tRetryCase.pStream = pStream;
@@ -2368,6 +2371,7 @@ int Test_XNet2_Sync(void)
 		}
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "drain", 5);
 			iTimeoutStatus = __Test_XNet2_SyncRetryWaitSourceStreamTimeoutSync(
 				pStream,
@@ -2974,6 +2978,7 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			__xnetStreamApplyWatermark(pStream, 8, 4);
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "0123456789AB", 12);
 			tSrc = xrtNetWaitSourceStream(pStream, XNET_STREAM_WAIT_WRITABLE);
 			iDeadlineStatus = __Test_XNet2_SyncWaitSourceUntilDelay(&tSrc, __TEST_XNET2_SYNC_WAIT_DEADLINE_MS);
@@ -3059,6 +3064,7 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			__xnetStreamApplyWatermark(pStream, 8, 4);
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "0123456789AB", 12);
 			tWaitCase.pFuture = xrtNetStreamWritableFuture(pStream);
 		}
@@ -3123,6 +3129,7 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			__xnetStreamApplyWatermark(pStream, 8, 4);
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "0123456789AB", 12);
 			tWaitCase.pStream = pStream;
 		}
@@ -3168,6 +3175,7 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			__xnetStreamApplyWatermark(pStream, 8, 4);
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "0123456789AB", 12);
 			tWaitCase.pStream = pStream;
 			tRetryCase.pStream = pStream;
@@ -3230,6 +3238,7 @@ int Test_XNet2_Sync(void)
 		pStream = pEngine ? xrtNetStreamCreate(pEngine, NULL, NULL) : NULL;
 		if ( pStream ) {
 			__xnetStreamApplyWatermark(pStream, 8, 4);
+			__Test_XNet2_SyncMarkStreamOpen(pStream);
 			(void)xrtNetStreamSend(pStream, "0123456789AB", 12);
 			tWaitCase.pStream = pStream;
 			tRetryCase.pStream = pStream;

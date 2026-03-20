@@ -15,6 +15,7 @@
 - WebSocket client
 - WebSocket server
 - HTTP upgrade 握手
+- WebSocket client 代理接入
 - text / binary 消息
 - ping / pong
 - close
@@ -39,6 +40,7 @@
 - `iConnectTimeoutMs`
 - `iRecvLimit`
 - `bVerifyPeer`
+- `pProxy`
 
 
 ### `xwsserverconfig`
@@ -104,6 +106,11 @@ XXAPI void xrtWsClientDestroy(xwsclient* pClient);
 XXAPI bool xrtWsClientIsOpen(const xwsclient* pClient);
 ```
 
+说明：
+
+- `xwsclientconfig.pProxy` 为可选共享代理对象
+- client create 时会为该对象增加引用；client destroy 时释放
+
 
 ### 客户端发送控制
 
@@ -142,6 +149,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 当前主线提供的协议能力包括：
 
 - HTTP upgrade 握手
+- client 侧代理握手
 - `Sec-WebSocket-Key / Accept` 处理
 - text / binary frame 收发
 - ping / pong
@@ -153,6 +161,13 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 - extension
 - `permessage-deflate`
 - 复杂的 subprotocol 协商策略
+
+客户端建连时序为：
+
+- `TCP connect`
+- 如果配置了 `pProxy`，先完成代理握手
+- 如果是 `wss://`，再完成 TLS 握手
+- 最后完成 HTTP upgrade，并进入 WebSocket open
 
 
 ## 5. 常见用法
@@ -172,14 +187,36 @@ xrtWsClientStart(pClient);
 ```
 
 
-### 5.2 客户端发送文本
+### 5.2 通过代理建立 WebSocket 客户端
+
+```c
+xnetproxyconfig tProxyCfg;
+xnetproxy* pProxy;
+
+xrtNetProxyConfigInit(&tProxyCfg);
+tProxyCfg.iType = XNET_PROXY_SOCKS5;
+strcpy(tProxyCfg.sHost, "127.0.0.1");
+tProxyCfg.iPort = 7897u;
+
+pProxy = xrtNetProxyCreate(&tProxyCfg);
+
+xrtWsClientConfigInit(&tCfg);
+strcpy(tCfg.sURL, "wss://example.com/ws");
+tCfg.pProxy = pProxy;
+
+pClient = xrtWsClientCreate(pEngine, &tCfg, &tEvents, pUserData);
+xrtNetProxyRelease(pProxy);
+xrtWsClientStart(pClient);
+```
+
+### 5.3 客户端发送文本
 
 ```c
 xrtWsClientSendText(pClient, sText, strlen(sText));
 ```
 
 
-### 5.3 WebSocket 服务端
+### 5.4 WebSocket 服务端
 
 ```c
 xwsserverconfig tCfg;
@@ -192,7 +229,7 @@ xrtWsServerStart(pServer);
 ```
 
 
-### 5.4 服务端连接发消息
+### 5.5 服务端连接发消息
 
 ```c
 xrtWsConnSendText(pConn, sText, strlen(sText));
@@ -208,7 +245,7 @@ xrtWsConnSendText(pConn, sText, strlen(sText));
 ### 与 `xnet_stream`
 
 - WebSocket 连接建立在 stream 之上
-- 关闭、TLS、收发链都来自 stream 主线
+- 关闭、代理、TLS、收发链都来自 stream 主线
 
 ### 与 `xtlssession`
 

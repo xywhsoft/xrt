@@ -126,6 +126,12 @@ static bool __Test_XNet2_SyncWaitStreamOpen(xnetstream* pStream, uint32 iTimeout
 	return (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0;
 }
 
+static void __Test_XNet2_SyncMarkStreamOpen(xnetstream* pStream)
+{
+	if ( !pStream ) return;
+	pStream->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
+}
+
 static bool __Test_XNet2_SyncWaitStreamWaitCleared(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
