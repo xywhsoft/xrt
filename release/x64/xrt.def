@@ -608,6 +608,10 @@ xrtNetMemCtxGetStats
 xrtNetMemCtxInit
 xrtNetMemCtxTrim
 xrtNetMemCtxUnit
+xrtNetProxyAddRef
+xrtNetProxyConfigInit
+xrtNetProxyCreate
+xrtNetProxyRelease
 xrtNetResolve
 xrtNetStreamClose
 xrtNetStreamCloseFuture
