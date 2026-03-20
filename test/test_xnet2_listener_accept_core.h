@@ -1,7 +1,7 @@
 #ifndef TEST_XNET2_LISTENER_ACCEPT_CORE_H
 #define TEST_XNET2_LISTENER_ACCEPT_CORE_H
 
-#include "test_xnet_impl_env.h"
+#include "test_xnet_internal_env.h"
 
 #include <stdio.h>
 

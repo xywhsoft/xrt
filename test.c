@@ -1,5 +1,5 @@
 
-#include "test/test_xnet_impl_env.h"
+#include "test/test_xnet_internal_env.h"
 
 
 
@@ -16,6 +16,7 @@
  * - "memglobal_core"
  * - "mempool_core"
  * - "memtelemetry"
+ * - "memtelemetry_baseline"
  * - "temparena_core"
  * - "xurl_core"
  * - "xnet2_sync"
@@ -109,6 +110,11 @@
 #include "test/test_memglobal_core.h"
 #include "test/test_mempool_core.h"
 #include "test/test_memtelemetry.h"
+#ifndef XRT_NO_NETWORK
+	#ifndef XRT_NO_COROUTINE
+		#include "test/test_memtelemetry_baseline.h"
+	#endif
+#endif
 #include "test/test_temparena_core.h"
 #ifdef XRT_MEM_DEBUG
 	#include "test/test_memdebug_core.h"
@@ -165,6 +171,9 @@ typedef struct
 	size_t iFailCount;
 	size_t iSkipCount;
 } xrt_test_summary;
+
+static int __g_iXrtTestExtraArgCount = 0;
+static char** __g_arrXrtTestExtraArgs = NULL;
 
 
 
@@ -254,6 +263,11 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_Other, Test_Other)
 XRT_TEST_WRAP_VOID(__xrtTestRun_MemGlobalCore, Test_MemGlobalCore)
 XRT_TEST_WRAP_VOID(__xrtTestRun_MemPoolCore, Test_MemPoolCore)
 XRT_TEST_WRAP_VOID(__xrtTestRun_MemTelemetry, Test_MemTelemetry)
+#ifndef XRT_NO_NETWORK
+	#ifndef XRT_NO_COROUTINE
+		XRT_TEST_WRAP_CORE(__xrtTestRun_MemTelemetryBaseline, Test_MemTelemetryBaseline)
+	#endif
+#endif
 XRT_TEST_WRAP_VOID(__xrtTestRun_TempArenaCore, Test_TempArenaCore)
 
 static int __xrtTestRun_FutureCore(xrtGlobalData* pCore)
@@ -305,7 +319,6 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Sync, Test_XNet2_Sync)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttp, Test_XNet_Http)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttpd, Test_XNet_Httpd)
-	XRT_TEST_WRAP_INT(__xrtTestRun_XNetNativeCore, Test_XNetNativeCore)
 	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2ListenerAcceptCore, Test_XNet2_ListenerAcceptCore)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetWs, Test_XNet_Ws)
 	#ifndef XRT_NO_NETTLS
@@ -318,6 +331,38 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 			return 0;
 		}
 	#endif
+#endif
+
+static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue)
+{
+	char* sEnd = NULL;
+	unsigned long iValue;
+
+	if ( (__g_arrXrtTestExtraArgs == NULL) || (iIndex < 0) || (iIndex >= __g_iXrtTestExtraArgCount) ) {
+		return iDefaultValue;
+	}
+
+	iValue = strtoul(__g_arrXrtTestExtraArgs[iIndex], &sEnd, 10);
+	if ( (sEnd == __g_arrXrtTestExtraArgs[iIndex]) || (sEnd == NULL) || (*sEnd != '\0') ) {
+		return iDefaultValue;
+	}
+
+	return (uint32)iValue;
+}
+
+#ifndef XRT_NO_NETWORK
+static int __xrtTestRun_XNetNativeCore(xrtGlobalData* pCore)
+{
+	(void)pCore;
+
+	if ( __g_iXrtTestExtraArgCount <= 0 ) {
+		return Test_XNetNativeCore();
+	}
+
+	return Test_XNetNativeCoreWithRounds(
+		__xrtTestParseUint32ExtraArg(0, __Test_XNetNativeCore_DefaultPlainRounds()),
+		__xrtTestParseUint32ExtraArg(1, __Test_XNetNativeCore_DefaultTlsRounds()));
+}
 #endif
 
 
@@ -372,6 +417,11 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "memglobal_core", "MemGlobal Core", "memory", XRT_TEST_FLAG_NONE, __xrtTestRun_MemGlobalCore },
 	{ "mempool_core", "MemPool Core", "memory", XRT_TEST_FLAG_NONE, __xrtTestRun_MemPoolCore },
 	{ "memtelemetry", "MemTelemetry", "memory", XRT_TEST_FLAG_NONE, __xrtTestRun_MemTelemetry },
+	#ifndef XRT_NO_NETWORK
+		#ifndef XRT_NO_COROUTINE
+			{ "memtelemetry_baseline", "MemTelemetry Baseline", "memory", XRT_TEST_FLAG_NONE, __xrtTestRun_MemTelemetryBaseline },
+		#endif
+	#endif
 	{ "temparena_core", "TempArena Core", "memory", XRT_TEST_FLAG_NONE, __xrtTestRun_TempArenaCore },
 	#ifdef XRT_MEM_DEBUG
 		{ "memdebug_core", "MemDebug Core", "memory", XRT_TEST_FLAG_NONE, __xrtTestRun_MemDebugCore },
@@ -704,6 +754,9 @@ static int __xrtTestResolveCli(int argc, char** argv, int* piRunMode, const char
 		return 9300;
 	}
 
+	__g_iXrtTestExtraArgCount = 0;
+	__g_arrXrtTestExtraArgs = NULL;
+
 	if ( argc <= 1 || argv == NULL ) {
 		return 0;
 	}
@@ -725,6 +778,10 @@ static int __xrtTestResolveCli(int argc, char** argv, int* piRunMode, const char
 
 	*piRunMode = XRT_TEST_MODE_SINGLE;
 	*psRunId = argv[1];
+	if ( argc > 2 ) {
+		__g_iXrtTestExtraArgCount = argc - 2;
+		__g_arrXrtTestExtraArgs = &argv[2];
+	}
 	return 0;
 }
 

@@ -15,5 +15,7 @@ case "$(uname -s)" in
 		;;
 esac
 
-gcc -m64 dev/test_xurl_core.c xrt.c -I . $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o "release/x64/xrt_test_xurl_core$EXE"
-"./release/x64/xrt_test_xurl_core$EXE"
+OUT="release/x64/xrt_test_xurl_core$EXE"
+
+gcc -m64 test.c -I . $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o "$OUT"
+"$OUT" xurl_core

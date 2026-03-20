@@ -15,5 +15,5 @@ case "$(uname -s)" in
 		;;
 esac
 
-gcc -m64 dev/test_xnet2_stage.c -I . $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o "$OUT"
-"$OUT"
+gcc -m64 test.c -I . $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o "$OUT"
+"$OUT" preset:xnet2_stage

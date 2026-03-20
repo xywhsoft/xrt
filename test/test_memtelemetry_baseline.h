@@ -1,45 +1,51 @@
-#include "test_xnet_impl_env.h"
-#include "../test/test_runtime_phase2.h"
-#include "../test/test_coroutine.h"
-#include "../test/test_xnet2_base.h"
-#include "../test/test_xnet2_port.h"
-#include "../test/test_xnet2_engine.h"
-#include "../test/test_xnet2_stream.h"
-#include "../test/test_xnet2_dgram.h"
-#include "../test/test_xnet2_tls.h"
-#include "../test/test_xnet2_sync.h"
-#include "../test/test_xnet2_codec.h"
-#include "../test/test_xnet_http.h"
-#include "../test/test_xnet_httpd.h"
-#include "../test/test_xnet_ws.h"
-#include "../test/test_xnet2_mem.h"
+#ifndef TEST_MEMTELEMETRY_BASELINE_H
+#define TEST_MEMTELEMETRY_BASELINE_H
 
-#if defined(_WIN32) || defined(_WIN64)
-#include <winsock2.h>
+#include "../xrt.h"
+
+void Test_Runtime_Phase2(xrtGlobalData* xCore);
+void Test_Coroutine(xrtGlobalData* xCore);
+void Test_XNet2_Base(void);
+void Test_XNet2_Port(void);
+void Test_XNet2_Engine(void);
+void Test_XNet2_Stream(void);
+void Test_XNet2_Dgram(void);
+#ifndef XRT_NO_NETTLS
+	void Test_XNet2_TLS(void);
 #endif
+int Test_XNet2_Sync(void);
+void Test_XNet2_Codec(void);
+void Test_XNet_Http(void);
+void Test_XNet_Httpd(void);
+void Test_XNet_Ws(void);
+void Test_XNet2_Mem(void);
 
-typedef void (*__test_memtelemetry_lane_proc)(xrtGlobalData* pCore);
+typedef void (*__test_memtelemetry_baseline_lane_proc)(xrtGlobalData* pCore);
 
 static void __Test_MemTelemetryBaselinePrintTopClasses(const xrtMemTelemetrySnapshot* pSnap, int iTopN)
 {
 	int iRank;
 	int iPicked[XRT_MEMPOOL_CLASS_COUNT_DEFAULT];
+
 	memset(iPicked, 0, sizeof(iPicked));
 
 	for ( iRank = 0; iRank < iTopN; iRank++ ) {
-		int i;
+		int iClass;
 		int iBest = -1;
 		uint64 iBestCalls = 0;
-		for ( i = 0; i < (int)pSnap->iClassCount; i++ ) {
-			if ( iPicked[i] ) continue;
-			if ( pSnap->arrClassCalls[i] > iBestCalls ) {
-				iBestCalls = pSnap->arrClassCalls[i];
-				iBest = i;
+
+		for ( iClass = 0; iClass < (int)pSnap->iClassCount; iClass++ ) {
+			if ( iPicked[iClass] ) continue;
+			if ( pSnap->arrClassCalls[iClass] > iBestCalls ) {
+				iBestCalls = pSnap->arrClassCalls[iClass];
+				iBest = iClass;
 			}
 		}
-		if ( iBest < 0 || iBestCalls == 0 ) {
+
+		if ( (iBest < 0) || (iBestCalls == 0) ) {
 			break;
 		}
+
 		iPicked[iBest] = 1;
 		printf("  class[%d] <= %uB : calls=%llu bytes=%llu\n",
 			iBest,
@@ -76,9 +82,10 @@ static void __Test_MemTelemetryBaselinePrintSnapshot(const char* sLane, const xr
 	__Test_MemTelemetryBaselinePrintTopClasses(pSnap, 8);
 }
 
-static void __Test_MemTelemetryBaselineRunLane(const char* sLane, __test_memtelemetry_lane_proc Proc, xrtGlobalData* pCore)
+static void __Test_MemTelemetryBaselineRunLane(const char* sLane, __test_memtelemetry_baseline_lane_proc Proc, xrtGlobalData* pCore)
 {
 	xrtMemTelemetrySnapshot tSnap;
+
 	memset(&tSnap, 0, sizeof(tSnap));
 	xrtMemTelemetryReset();
 	Proc(pCore);
@@ -86,17 +93,17 @@ static void __Test_MemTelemetryBaselineRunLane(const char* sLane, __test_memtele
 	__Test_MemTelemetryBaselinePrintSnapshot(sLane, &tSnap);
 }
 
-static void __Test_MemTelemetryLane_Runtime(xrtGlobalData* pCore)
+static void __Test_MemTelemetryBaselineLane_Runtime(xrtGlobalData* pCore)
 {
 	Test_Runtime_Phase2(pCore);
 }
 
-static void __Test_MemTelemetryLane_Coroutine(xrtGlobalData* pCore)
+static void __Test_MemTelemetryBaselineLane_Coroutine(xrtGlobalData* pCore)
 {
 	Test_Coroutine(pCore);
 }
 
-static void __Test_MemTelemetryLane_XNet(xrtGlobalData* pCore)
+static void __Test_MemTelemetryBaselineLane_XNet(xrtGlobalData* pCore)
 {
 	(void)pCore;
 	Test_XNet2_Base();
@@ -104,8 +111,10 @@ static void __Test_MemTelemetryLane_XNet(xrtGlobalData* pCore)
 	Test_XNet2_Engine();
 	Test_XNet2_Stream();
 	Test_XNet2_Dgram();
-	Test_XNet2_TLS();
-	Test_XNet2_Sync();
+	#ifndef XRT_NO_NETTLS
+		Test_XNet2_TLS();
+	#endif
+	(void)Test_XNet2_Sync();
 	Test_XNet2_Codec();
 	Test_XNet_Http();
 	Test_XNet_Httpd();
@@ -113,39 +122,17 @@ static void __Test_MemTelemetryLane_XNet(xrtGlobalData* pCore)
 	Test_XNet2_Mem();
 }
 
-int main(void)
+static int Test_MemTelemetryBaseline(xrtGlobalData* pCore)
 {
-	xrtGlobalData* pCore;
-
-	setvbuf(stdout, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
-
-#if defined(_WIN32) || defined(_WIN64)
-	{
-		WSADATA tWSA;
-		if ( WSAStartup(MAKEWORD(2, 2), &tWSA) != 0 ) {
-			return 1;
-		}
-	}
-#endif
-
-	pCore = xrtInit();
-	if ( !pCore ) {
-		return 2;
-	}
+	if ( !pCore ) return 1;
 
 	xrtMemTelemetryEnable(TRUE);
-
-	__Test_MemTelemetryBaselineRunLane("runtime_phase2", __Test_MemTelemetryLane_Runtime, pCore);
-	__Test_MemTelemetryBaselineRunLane("coroutine", __Test_MemTelemetryLane_Coroutine, pCore);
-	__Test_MemTelemetryBaselineRunLane("xnet_modern", __Test_MemTelemetryLane_XNet, pCore);
-
+	__Test_MemTelemetryBaselineRunLane("runtime_phase2", __Test_MemTelemetryBaselineLane_Runtime, pCore);
+	__Test_MemTelemetryBaselineRunLane("coroutine", __Test_MemTelemetryBaselineLane_Coroutine, pCore);
+	__Test_MemTelemetryBaselineRunLane("xnet_modern", __Test_MemTelemetryBaselineLane_XNet, pCore);
 	xrtMemTelemetryEnable(FALSE);
-	xrtUnit();
-
-#if defined(_WIN32) || defined(_WIN64)
-	WSACleanup();
-#endif
 
 	return 0;
 }
+
+#endif

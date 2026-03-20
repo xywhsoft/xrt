@@ -13,7 +13,12 @@ dev/bench/**/*.log
 dev/bench/**/*.o
 
 # Generated release-side validation artifacts
-release/x64/xrt_test_*.exe
+release/x64/test*.exe
+release/x64/test/out_*.txt
+release/x64/test/test_ptr.txt
+release/x64/test/test_put.txt
+release/x64/test/test_putall.txt
+release/x64/xrt_test*
 release/x64/test/test_copy.txt
 release/x64/test/test_move.txt
 release/x64/test/test_size.txt
