@@ -216,6 +216,12 @@ void Test_File(xrtGlobalData* xCore)
 	printf("xrtSeek : seek to position 6\n");
 	xrtSeek(fPtr1, 6, XRT_SEEK_SET);
 	printf("xrtTell : current position = %d\n", xrtTell(fPtr1));
+	int64 iLargeSeek = ((int64)5 * 1024 * 1024 * 1024) + 123;
+	xrtSeek(fPtr1, iLargeSeek, XRT_SEEK_SET);
+	printf("xrtSeek : seek to >4GB position = %lld\n", iLargeSeek);
+	printf("xrtTell : large position = %llu\n", (unsigned long long)xrtTell(fPtr1));
+	printf("xrtSeek large : %s\n", ((uint64)xrtTell(fPtr1) == (uint64)iLargeSeek) ? "PASS" : "FAIL");
+	xrtSeek(fPtr1, 6, XRT_SEEK_SET);
 	printf("xrtEOF : EOF = %d\n", xrtEOF(fPtr1));
 	printf("xrtGetEOF : file size = %d\n", xrtGetEOF(fPtr1));
 	xrtClose(fPtr1);
