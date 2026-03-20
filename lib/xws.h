@@ -44,6 +44,7 @@ typedef struct {
 	uint32 iConnectTimeoutMs;
 	uint32 iRecvLimit;
 	bool bVerifyPeer;
+	xnetproxy* pProxy;
 } xwsclientconfig;
 
 typedef struct {
@@ -1318,6 +1319,9 @@ XXAPI xwsclient* xrtWsClientCreate(xnetengine* pEngine, const xwsclientconfig* p
 	pClient->pEngine = pEngine;
 	if ( pCfg ) pClient->tConfig = *pCfg;
 	else xrtWsClientConfigInit(&pClient->tConfig);
+	if ( pClient->tConfig.pProxy ) {
+		pClient->tConfig.pProxy = xrtNetProxyAddRef(pClient->tConfig.pProxy);
+	}
 	if ( pEvents ) pClient->tEvents = *pEvents;
 	pClient->pUserData = pUserData;
 	return pClient;
@@ -1335,6 +1339,7 @@ XXAPI xnet_result xrtWsClientStart(xwsclient* pClient)
 	tConnCfg.iPort = pClient->tURL.iPort;
 	tConnCfg.iConnectTimeoutMs = pClient->tConfig.iConnectTimeoutMs;
 	tConnCfg.iRecvLimit = pClient->tConfig.iRecvLimit;
+	tConnCfg.pProxy = pClient->tConfig.pProxy;
 	if ( pClient->tURL.bSecure ) {
 		memset(&pClient->tTlsCfg, 0, sizeof(pClient->tTlsCfg));
 		pClient->tTlsCfg.sHostName = pClient->tURL.sHost;
@@ -1364,6 +1369,10 @@ XXAPI void xrtWsClientDestroy(xwsclient* pClient)
 {
 	if ( !pClient ) return;
 	xrtWsClientStop(pClient);
+	if ( pClient->tConfig.pProxy ) {
+		xrtNetProxyRelease(pClient->tConfig.pProxy);
+		pClient->tConfig.pProxy = NULL;
+	}
 	XNET_FREE(pClient);
 }
 

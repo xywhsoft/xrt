@@ -2663,6 +2663,7 @@
 	typedef struct xrt_net_dgram    xdgramsock;
 	typedef struct xrt_net_chain    xnetchain;
 	typedef struct xrt_net_future   xnetfuture;
+	typedef struct xrt_net_proxy    xnetproxy;
 	typedef struct xrt_promise      xpromise;
 	typedef struct xrt_task         xtask;
 	typedef struct xrt_task_group   xtaskgroup;
@@ -2703,6 +2704,12 @@
 	#define XNET_CONNECT_F_NONE           0x00000000u
 	#define XNET_CONNECT_F_NO_DELAY       0x00000001u
 	#define XNET_CONNECT_F_KEEPALIVE      0x00000002u
+	#define XNET_PROXY_NONE               0
+	#define XNET_PROXY_SOCKS5             1
+	#define XNET_PROXY_HTTP_CONNECT       2
+	#define XNET_PROXY_HOST_CAP           256u
+	#define XNET_PROXY_USER_CAP           128u
+	#define XNET_PROXY_PASS_CAP           128u
 	#define XNET_DGRAM_F_NONE             0x00000000u
 	#define XNET_DGRAM_F_REUSE_ADDR       0x00000001u
 	#define XNET_DGRAM_F_REUSE_PORT       0x00000002u
@@ -2740,6 +2747,19 @@
 	} xnetlistenconfig;
 
 	typedef struct {
+	int iType;
+	char sHost[XNET_PROXY_HOST_CAP];
+	uint16 iPort;
+	char sUser[XNET_PROXY_USER_CAP];
+	char sPass[XNET_PROXY_PASS_CAP];
+	} xnetproxyconfig;
+
+	struct xrt_net_proxy {
+	volatile long iRefCount;
+	xnetproxyconfig tConfig;
+	};
+
+	typedef struct {
 	const char* sHost;
 	uint16 iPort;
 	uint32 iFlags;
@@ -2748,6 +2768,7 @@
 	uint32 iLowWater;
 	uint32 iRecvLimit;
 	const xtlsconfig* pTlsConfig;
+	xnetproxy* pProxy;
 	} xnetconnectconfig;
 
 	typedef struct {
@@ -3292,6 +3313,7 @@
 	size_t iBodyLen;
 	uint32 iTimeoutMs;
 	bool bVerifyPeer;
+	xnetproxy* pProxy;
 	} xhttprequest;
 
 	typedef struct {
@@ -3401,6 +3423,7 @@
 	uint32 iConnectTimeoutMs;
 	uint32 iRecvLimit;
 	bool bVerifyPeer;
+	xnetproxy* pProxy;
 	} xwsclientconfig;
 
 	typedef struct {
@@ -3439,6 +3462,10 @@
 	// 默认配置初始化
 	XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg);
 	XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg);
+	XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg);
+	XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg);
+	XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy);
+	XXAPI void xrtNetProxyRelease(xnetproxy* pProxy);
 	XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg);
 	XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg);
 

@@ -83,6 +83,7 @@ typedef struct xrt_net_stream   xnetstream;
 typedef struct xrt_net_dgram    xdgramsock;
 typedef struct xrt_net_chain    xnetchain;
 typedef struct xrt_net_future   xnetfuture;
+typedef struct xrt_net_proxy    xnetproxy;
 typedef struct xrt_tls_session  xtlssession;
 
 typedef void (*xnet_task_fn)(xnetworker* pWorker, ptr pArg);
@@ -131,6 +132,14 @@ typedef struct {
 #define XNET_CONNECT_F_NO_DELAY       0x00000001u
 #define XNET_CONNECT_F_KEEPALIVE      0x00000002u
 
+#define XNET_PROXY_NONE               0
+#define XNET_PROXY_SOCKS5             1
+#define XNET_PROXY_HTTP_CONNECT       2
+
+#define XNET_PROXY_HOST_CAP           256u
+#define XNET_PROXY_USER_CAP           128u
+#define XNET_PROXY_PASS_CAP           128u
+
 #define XNET_DGRAM_F_NONE             0x00000000u
 #define XNET_DGRAM_F_REUSE_ADDR       0x00000001u
 #define XNET_DGRAM_F_REUSE_PORT       0x00000002u
@@ -172,6 +181,19 @@ typedef struct {
 } xnetlistenconfig;
 
 typedef struct {
+	int iType;
+	char sHost[XNET_PROXY_HOST_CAP];
+	uint16 iPort;
+	char sUser[XNET_PROXY_USER_CAP];
+	char sPass[XNET_PROXY_PASS_CAP];
+} xnetproxyconfig;
+
+struct xrt_net_proxy {
+	volatile long iRefCount;
+	xnetproxyconfig tConfig;
+};
+
+typedef struct {
 	const char* sHost;
 	uint16 iPort;
 	uint32 iFlags;
@@ -180,6 +202,7 @@ typedef struct {
 	uint32 iLowWater;
 	uint32 iRecvLimit;
 	const xtlsconfig* pTlsConfig;
+	xnetproxy* pProxy;
 } xnetconnectconfig;
 
 typedef struct {
@@ -268,6 +291,26 @@ static bool __xnetAddrFromSockAddr(xnetaddr* pAddr, const struct sockaddr* pSA)
 		return true;
 	}
 	return false;
+}
+
+static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
+{
+	size_t iLen;
+	if ( !sDst || iDstCap == 0 ) return;
+	sDst[0] = '\0';
+	if ( !sSrc || !sSrc[0] ) return;
+	iLen = strlen(sSrc);
+	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
+	memcpy(sDst, sSrc, iLen);
+	sDst[iLen] = '\0';
+}
+
+static bool __xnetProxyConfigIsValid(const xnetproxyconfig* pCfg)
+{
+	if ( !pCfg ) return false;
+	if ( pCfg->iType != XNET_PROXY_SOCKS5 && pCfg->iType != XNET_PROXY_HTTP_CONNECT ) return false;
+	if ( !pCfg->sHost[0] || pCfg->iPort == 0 ) return false;
+	return true;
 }
 
 static bool __xnetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_storage* pStorage, socklen_t* pLen)
@@ -467,6 +510,44 @@ XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 	pCfg->pTlsConfig = NULL;
 }
 
+XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg)
+{
+	if ( !pCfg ) return;
+	memset(pCfg, 0, sizeof(xnetproxyconfig));
+	pCfg->iType = XNET_PROXY_NONE;
+}
+
+XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg)
+{
+	xnetproxy* pProxy;
+	if ( !__xnetProxyConfigIsValid(pCfg) ) return NULL;
+	pProxy = (xnetproxy*)xrtMalloc(sizeof(xnetproxy));
+	if ( !pProxy ) return NULL;
+	memset(pProxy, 0, sizeof(xnetproxy));
+	pProxy->iRefCount = 1;
+	pProxy->tConfig.iType = pCfg->iType;
+	pProxy->tConfig.iPort = pCfg->iPort;
+	__xnetCopyFixedString(pProxy->tConfig.sHost, sizeof(pProxy->tConfig.sHost), pCfg->sHost);
+	__xnetCopyFixedString(pProxy->tConfig.sUser, sizeof(pProxy->tConfig.sUser), pCfg->sUser);
+	__xnetCopyFixedString(pProxy->tConfig.sPass, sizeof(pProxy->tConfig.sPass), pCfg->sPass);
+	return pProxy;
+}
+
+XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy)
+{
+	if ( !pProxy ) return NULL;
+	(void)__xnetAtomicAddFetch32(&pProxy->iRefCount, 1);
+	return pProxy;
+}
+
+XXAPI void xrtNetProxyRelease(xnetproxy* pProxy)
+{
+	if ( !pProxy ) return;
+	if ( __xnetAtomicAddFetch32(&pProxy->iRefCount, -1) == 0 ) {
+		xrtFree(pProxy);
+	}
+}
+
 XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 {
 	if ( !pCfg ) return;
@@ -479,6 +560,7 @@ XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 	pCfg->iLowWater = 65536;
 	pCfg->iRecvLimit = 1048576;
 	pCfg->pTlsConfig = NULL;
+	pCfg->pProxy = NULL;
 }
 
 XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)

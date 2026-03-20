@@ -162,6 +162,7 @@ static void __xrtRuntimeFinalizeLocked();
 #endif
 
 #ifndef XRT_NO_NETWORK
+#include "lib/xnet_proxy.h"
 #include "lib/xnet_stream.h"
 #include "lib/xnet_dgram.h"
 #include "lib/xnet_sync.h"

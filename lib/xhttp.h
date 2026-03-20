@@ -52,6 +52,7 @@ typedef struct {
 	size_t iBodyLen;
 	uint32 iTimeoutMs;
 	bool bVerifyPeer;
+	xnetproxy* pProxy;
 } xhttprequest;
 
 typedef struct {
@@ -92,6 +93,7 @@ typedef struct __xhttp_conn {
 	uint16 iPort;
 	bool bHttps;
 	bool bVerifyPeer;
+	xnetproxy* pProxy;
 	bool bOpen;
 	bool bIdle;
 	int iLastSysErr;
@@ -261,6 +263,7 @@ static bool __xhttpConnMatchesReq(const __xhttp_conn* pConn, xnetengine* pEngine
 	if ( pConn->iPort != pReq->tURL.iPort ) return false;
 	if ( pConn->bHttps != pReq->tURL.bHttps ) return false;
 	if ( pConn->bVerifyPeer != pReq->bVerifyPeer ) return false;
+	if ( pConn->pProxy != pReq->pProxy ) return false;
 	if ( strcmp(pConn->sHost, pReq->tURL.sHost) != 0 ) return false;
 	if ( !pConn->bOpen || pConn->pStream == NULL || pConn->pTx != NULL ) return false;
 	return true;
@@ -364,6 +367,10 @@ static void __xhttpRequestUnitInternal(xhttprequest* pReq)
 		pReq->pBody = NULL;
 	}
 	pReq->iBodyLen = 0;
+	if ( pReq->pProxy ) {
+		xrtNetProxyRelease(pReq->pProxy);
+		pReq->pProxy = NULL;
+	}
 }
 
 XXAPI void xrtHttpRequestUnit(xhttprequest* pReq)
@@ -479,6 +486,7 @@ static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc)
 	pDst->iHeaderCount = pSrc->iHeaderCount;
 	pDst->iTimeoutMs = pSrc->iTimeoutMs;
 	pDst->bVerifyPeer = pSrc->bVerifyPeer;
+	pDst->pProxy = pSrc->pProxy ? xrtNetProxyAddRef(pSrc->pProxy) : NULL;
 	if ( pSrc->pBody && pSrc->iBodyLen > 0 ) {
 		pDst->pBody = (char*)XNET_ALLOC(pSrc->iBodyLen);
 		if ( !pDst->pBody ) {
@@ -660,6 +668,10 @@ static void __xhttpConnCleanupTask(xnetworker* pWorker, ptr pArg)
 	if ( pConn->pStream ) {
 		xrtNetStreamDestroy(pConn->pStream);
 		pConn->pStream = NULL;
+	}
+	if ( pConn->pProxy ) {
+		xrtNetProxyRelease(pConn->pProxy);
+		pConn->pProxy = NULL;
 	}
 	XNET_FREE(pConn);
 }
@@ -867,9 +879,14 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 		pConn->iPort = pTx->tReq.tURL.iPort;
 		pConn->bHttps = pTx->tReq.tURL.bHttps;
 		pConn->bVerifyPeer = pTx->tReq.bVerifyPeer;
+		pConn->pProxy = pTx->tReq.pProxy ? xrtNetProxyAddRef(pTx->tReq.pProxy) : NULL;
 		pConn->pStream = xrtNetStreamCreate(pResolvedEngine, __xhttpClientEvents(), pConn);
 		if ( !pConn->pStream ) {
 			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
+			if ( pConn->pProxy ) {
+				xrtNetProxyRelease(pConn->pProxy);
+				pConn->pProxy = NULL;
+			}
 			XNET_FREE(pConn);
 			__xhttpTxRelease(pTx);
 			return pFuture;
@@ -886,6 +903,7 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 		tConnCfg.iPort = pTx->tReq.tURL.iPort;
 		tConnCfg.iConnectTimeoutMs = pTx->tReq.iTimeoutMs;
 		tConnCfg.iRecvLimit = 1024u * 1024u;
+		tConnCfg.pProxy = pConn->pProxy;
 		if ( pTx->tReq.tURL.bHttps ) {
 			memset(&pConn->tTlsCfg, 0, sizeof(pConn->tTlsCfg));
 			pConn->tTlsCfg.sHostName = pTx->tReq.tURL.sHost;
@@ -899,6 +917,10 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 			pConn->pTx = NULL;
 			pTx->pConn = NULL;
 			pTx->pStream = NULL;
+			if ( pConn->pProxy ) {
+				xrtNetProxyRelease(pConn->pProxy);
+				pConn->pProxy = NULL;
+			}
 			XNET_FREE(pConn);
 			__xhttpTxRelease(pTx);
 			return pFuture;
