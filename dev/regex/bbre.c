@@ -1508,7 +1508,7 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
         }
         if ((err = bbre_buf_push(&r->alloc, &r->group_names, name))) {
           /* clean up allocated name, preserves atomicity */
-          bbre_alloci(&r->alloc, name.name, name.name_size, 0);
+          bbre_alloci(&r->alloc, name.name, name.name_size + 1, 0);
           goto error;
         }
       }
@@ -4485,7 +4485,7 @@ void bbre_destroy(bbre *r)
   bbre_buf_destroy(&r->alloc, (void **)&r->ast);
   for (i = 0; i < bbre_buf_size(r->group_names); i++)
     bbre_alloci(
-        &r->alloc, r->group_names[i].name, r->group_names[i].name_size, 0);
+        &r->alloc, r->group_names[i].name, r->group_names[i].name_size + 1, 0);
   bbre_buf_destroy(&r->alloc, &r->group_names);
   bbre_buf_destroy(&r->alloc, &r->op_stk),
       bbre_buf_destroy(&r->alloc, &r->comp_stk);
@@ -4708,12 +4708,40 @@ int bbre_set_matches_at(
       set, s, n, pos, out_idxs, out_idxs_size, out_num_idxs);
 }
 
+static int bbre_group_names_clone(bbre *out, const bbre *in)
+{
+  int err = 0;
+  size_t i;
+  for (i = 0; i < bbre_buf_size(in->group_names); i++) {
+    const bbre_group_name *src_name = &in->group_names[i];
+    bbre_group_name dst_name;
+    dst_name.name = NULL;
+    dst_name.name_size = src_name->name_size;
+    if (src_name->name) {
+      dst_name.name = bbre_alloci(&out->alloc, NULL, 0, dst_name.name_size + 1);
+      if (!dst_name.name) {
+        err = BBRE_ERR_MEM;
+        goto error;
+      }
+      memcpy(dst_name.name, src_name->name, dst_name.name_size + 1);
+    }
+    if ((err = bbre_buf_push(&out->alloc, &out->group_names, dst_name))) {
+      bbre_alloci(&out->alloc, dst_name.name, dst_name.name_size + 1, 0);
+      goto error;
+    }
+  }
+error:
+  return err;
+}
+
 int bbre_clone(bbre **pout, const bbre *reg, const bbre_alloc *alloc)
 {
   int err = 0;
   if ((err = bbre_init_internal(pout, alloc)))
     goto error;
   if ((err = bbre_prog_clone(&(*pout)->prog, &reg->prog)))
+    goto error;
+  if ((err = bbre_group_names_clone(*pout, reg)))
     goto error;
 error:
   return err;

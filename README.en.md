@@ -634,7 +634,7 @@ The project has borrowed from, integrated, learned from, or been inspired by the
 | Project | Role in XRT | Compliance Note |
 |---|---|---|
 | [LJSON](https://gitee.com/lengjingzju/json) | XRT adopted its JNUM and SAX-side ideas in the `json` line | Keep copyright and license notices |
-| [bbre](https://github.com/max-nurzia/bbre) | Used as the implementation foundation of the `regex` module | Keep copyright and disclaimer notices |
+| [bbre](https://github.com/mnurzia/bbre) | Used as the implementation foundation of the `regex` module | Keep copyright and disclaimer notices |
 | [nmhash32x](https://github.com/gzm55/hash-garage) | Used as the 32-bit hash implementation | Keep copyright and disclaimer notices |
 | [rapidhash](https://github.com/Nicoshev/rapidhash) | Used as the 64-bit hash implementation | Keep copyright and disclaimer notices |
 | [PCG](https://github.com/imneme/pcg-c-basic) | Used as the random number generator foundation | Keep copyright and disclaimer notices |

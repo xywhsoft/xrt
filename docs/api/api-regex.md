@@ -1,6 +1,6 @@
 # Regex 正则表达式模块
 
-> 基于 `bbre` 集成的当前正则表达式主线，面向轻量、高性能、可嵌入的文本匹配场景。
+> XRT 的 regex 模块当前以内置 `bbre` 引擎为实现基础，但公开接口已经收口为 XRT 自有 API。
 
 [返回索引](README.md)
 
@@ -8,93 +8,106 @@
 
 ## 1. 定位
 
-XRT 当前正则模块建立在 [bbre](https://github.com/max-nurzia/bbre) 之上，并直接把核心能力纳入主线。
-
-它适合这些场景：
+该模块面向以下场景：
 
 - 文本匹配
 - 子串搜索
 - 捕获组提取
-- 多模式匹配
-- 配置、日志、HTTP 文本、模板片段的规则识别
+- 多模式批量扫描
+- 配置、日志、HTTP 文本、模板片段等轻量规则识别
 
-它的目标不是做最重的“脚本语言级正则生态”，而是：
+设计目标：
 
 - 轻量
 - 可嵌入
 - 跨平台
-- 直接服务于 XRT 的文本处理与网络应用层
+- 公开 API 服从 XRT 命名和类型体系
 
 
-## 2. 核心能力
+## 2. 核心类型
 
-当前主线提供了 4 类能力：
+### `xregex`
 
-- 单模式编译与匹配
-- 捕获组提取
-- 模式克隆（适合多线程场景）
-- 多模式集合匹配
-
-
-## 3. 核心类型
-
-### `bbre`
-
-单个正则表达式对象。
+单个正则对象。
 
 典型流程：
 
-1. 编译
-2. 匹配 / 查找 / 捕获
-3. 销毁
+1. `xrtRegexCreate()` 或 `xrtRegexCreateFromBuilder()`
+2. `xrtRegexIsMatch()` / `xrtRegexFind()` / `xrtRegexCaptures()`
+3. `xrtRegexDestroy()`
 
 
-### `bbre_builder`
+### `xregexbuilder`
 
 高级构建器。
 
 适合：
 
-- 按需设置标志
-- 显式控制编译选项
+- 显式传入 pattern 长度
+- 设置标志位
+- 指定自定义 allocator
 
 
-### `bbre_set`
+### `xregexset`
 
-多模式集合匹配对象。
+多模式集合对象。
 
 适合：
 
 - 同时检查多条规则
-- 批量扫描文本
+- 批量扫描同一段文本
 
 
-### `bbre_span`
+### `xregexsetbuilder`
+
+多模式构建器。
+
+适合：
+
+- 先构建多个 `xregex`
+- 再统一生成 `xregexset`
+
+
+### `xregexspan`
 
 匹配范围：
 
 ```c
-typedef struct bbre_span {
-	size_t begin;
-	size_t end;
-} bbre_span;
+typedef struct {
+	size_t iBegin;
+	size_t iEnd;
+} xregexspan;
 ```
 
 常用于：
 
-- `find`
-- `captures`
+- `xrtRegexFind()`
+- `xrtRegexCaptures()`
 
 
-### `bbre_flags`
+### `xregexalloc`
 
-当前公开标志包括：
+自定义分配器：
 
 ```c
-BBRE_FLAG_INSENSITIVE
-BBRE_FLAG_MULTILINE
-BBRE_FLAG_DOTNEWLINE
-BBRE_FLAG_UNGREEDY
+typedef ptr (*xregexallocproc)(ptr pUserData, ptr pMem, size_t iPrevSize, size_t iNextSize);
+
+typedef struct {
+	ptr pUserData;
+	xregexallocproc procAlloc;
+} xregexalloc;
+```
+
+
+## 3. 标志与错误码
+
+### 3.1 标志位
+
+```c
+XRT_REGEX_FLAG_INSENSITIVE
+XRT_REGEX_FLAG_MULTILINE
+XRT_REGEX_FLAG_DOTNEWLINE
+XRT_REGEX_FLAG_UNGREEDY
 ```
 
 含义分别是：
@@ -105,210 +118,127 @@ BBRE_FLAG_UNGREEDY
 - 非贪婪量词
 
 
-## 4. 当前正式 API
-
-### 4.1 快速创建
+### 3.2 错误码
 
 ```c
-XXAPI bbre* bbre_init_pattern(const char* pat_nt);
-```
-
-适合：
-
-- 单条简单规则
-- 快速验证
-- 脚本式开发
-
-
-### 4.2 完整创建与销毁
-
-```c
-XXAPI int bbre_init(bbre** preg, const bbre_builder* build, const bbre_alloc* alloc);
-XXAPI void bbre_destroy(bbre* reg);
+XRT_REGEX_ERR_MEM
+XRT_REGEX_ERR_PARSE
+XRT_REGEX_ERR_LIMIT
 ```
 
 
-### 4.3 匹配 API
+## 4. 公开 API
+
+### 4.1 单模式
 
 ```c
-XXAPI int bbre_is_match(bbre* reg, const char* text, size_t text_size);
-XXAPI int bbre_find(bbre* reg, const char* text, size_t text_size, bbre_span* out_bounds);
-XXAPI int bbre_captures(
-	bbre* reg,
-	const char* text,
-	size_t text_size,
-	bbre_span* out_captures,
-	unsigned int out_captures_size
-);
-```
+XXAPI xregex* xrtRegexCreate(const char* sPatternNt);
+XXAPI int xrtRegexCreateFromBuilder(xregex** ppRegex, const xregexbuilder* pBuilder, const xregexalloc* pAlloc);
+XXAPI void xrtRegexDestroy(xregex* pRegex);
 
-用途：
+XXAPI int xrtRegexIsMatch(xregex* pRegex, const char* sText, size_t iTextSize);
+XXAPI int xrtRegexFind(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutSpan);
+XXAPI int xrtRegexCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32 iCaptureCount);
 
-- `is_match`：判断是否命中
-- `find`：返回首个命中范围
-- `captures`：返回捕获组范围
-
-
-### 4.4 Builder API
-
-```c
-XXAPI int bbre_builder_init(
-	bbre_builder** pbuild,
-	const char* pat,
-	size_t pat_size,
-	const bbre_alloc* alloc
-);
-XXAPI void bbre_builder_destroy(bbre_builder* build);
-XXAPI void bbre_builder_flags(bbre_builder* build, bbre_flags flags);
+XXAPI int xrtRegexClone(xregex** ppOut, const xregex* pRegex, const xregexalloc* pAlloc);
 ```
 
 
-### 4.5 克隆 API
+### 4.2 Builder
 
 ```c
-XXAPI int bbre_clone(bbre** pout, const bbre* reg, const bbre_alloc* alloc);
-```
-
-用途：
-
-- 在多线程场景中复制一份独立 regex 对象
-- 避免不同执行上下文共享同一内部状态
-
-
-### 4.6 多模式集合 API
-
-```c
-XXAPI int bbre_set_builder_init(bbre_set_builder** pbuild, const bbre_alloc* alloc);
-XXAPI void bbre_set_builder_destroy(bbre_set_builder* build);
-XXAPI int bbre_set_builder_add(bbre_set_builder* build, const bbre* reg);
-XXAPI bbre_set* bbre_set_init_patterns(const char* const* ppats_nt, size_t num_pats);
-XXAPI int bbre_set_init(bbre_set** pset, const bbre_set_builder* build, const bbre_alloc* alloc);
-XXAPI void bbre_set_destroy(bbre_set* set);
-XXAPI int bbre_set_is_match(bbre_set* set, const char* text, size_t text_size);
-XXAPI int bbre_set_matches(
-	bbre_set* set,
-	const char* text,
-	size_t text_size,
-	unsigned int* out_idxs,
-	unsigned int out_idxs_size,
-	unsigned int* out_num_idxs
-);
-XXAPI int bbre_set_clone(bbre_set** pout, const bbre_set* set, const bbre_alloc* alloc);
-```
-
-适合：
-
-- 多规则扫描
-- 黑名单 / 白名单匹配
-- 需要快速判断“命中了哪几条规则”的场景
-
-
-### 4.7 版本
-
-```c
-XXAPI const char* bbre_version(void);
+XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc);
+XXAPI void xrtRegexBuilderDestroy(xregexbuilder* pBuilder);
+XXAPI void xrtRegexBuilderSetFlags(xregexbuilder* pBuilder, xregexflags iFlags);
 ```
 
 
-## 5. 常见用法
-
-### 5.1 简单匹配
+### 4.3 多模式
 
 ```c
-bbre* pReg = bbre_init_pattern("hello");
-if ( pReg != NULL ) {
-	int iMatch = bbre_is_match(pReg, "hello world", strlen("hello world"));
-	bbre_destroy(pReg);
+XXAPI int xrtRegexSetBuilderCreate(xregexsetbuilder** ppBuilder, const xregexalloc* pAlloc);
+XXAPI void xrtRegexSetBuilderDestroy(xregexsetbuilder* pBuilder);
+XXAPI int xrtRegexSetBuilderAdd(xregexsetbuilder* pBuilder, const xregex* pRegex);
+
+XXAPI xregexset* xrtRegexSetCreate(const char* const* arrPatternsNt, size_t iPatternCount);
+XXAPI int xrtRegexSetCreateFromBuilder(xregexset** ppSet, const xregexsetbuilder* pBuilder, const xregexalloc* pAlloc);
+XXAPI void xrtRegexSetDestroy(xregexset* pSet);
+
+XXAPI int xrtRegexSetIsMatch(xregexset* pSet, const char* sText, size_t iTextSize);
+XXAPI int xrtRegexSetMatches(xregexset* pSet, const char* sText, size_t iTextSize, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
+XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc);
+```
+
+
+## 5. 示例
+
+### 5.1 快速匹配
+
+```c
+xregex* pRegex = xrtRegexCreate("hello");
+if ( pRegex ) {
+	int iMatch = xrtRegexIsMatch(pRegex, "hello world", strlen("hello world"));
+	xrtRegexDestroy(pRegex);
 }
 ```
 
 
-### 5.2 查找首个命中
+### 5.2 查找首个匹配范围
 
 ```c
-bbre_span tSpan;
-bbre* pReg = bbre_init_pattern("[0-9]+");
+xregexspan tSpan;
+xregex* pRegex = xrtRegexCreate("[0-9]+");
 
-if ( pReg != NULL ) {
-	if ( bbre_find(pReg, "id=12345", strlen("id=12345"), &tSpan) > 0 ) {
-		/* tSpan.begin ~ tSpan.end 为命中范围 */
+if ( pRegex ) {
+	if ( xrtRegexFind(pRegex, "id=12345", strlen("id=12345"), &tSpan) > 0 ) {
+		printf("begin=%zu end=%zu\n", tSpan.iBegin, tSpan.iEnd);
 	}
-	bbre_destroy(pReg);
+	xrtRegexDestroy(pRegex);
 }
 ```
 
 
-### 5.3 使用捕获组
+### 5.3 获取捕获组
 
 ```c
-bbre_span arrCaps[8];
-bbre* pReg = bbre_init_pattern("([A-Za-z]+)=([0-9]+)");
+xregexspan arrCaps[8];
+xregex* pRegex = xrtRegexCreate("([A-Za-z]+)=([0-9]+)");
 
-if ( pReg != NULL ) {
-	int iRet = bbre_captures(pReg, "count=42", strlen("count=42"), arrCaps, 8u);
+if ( pRegex ) {
+	int iRet = xrtRegexCaptures(pRegex, "count=42", strlen("count=42"), arrCaps, 8u);
 	if ( iRet > 0 ) {
-		/* arrCaps 中包含整体匹配和捕获组范围 */
+		printf("all=%zu..%zu\n", arrCaps[0].iBegin, arrCaps[0].iEnd);
+		printf("key=%zu..%zu\n", arrCaps[1].iBegin, arrCaps[1].iEnd);
+		printf("val=%zu..%zu\n", arrCaps[2].iBegin, arrCaps[2].iEnd);
 	}
-	bbre_destroy(pReg);
+	xrtRegexDestroy(pRegex);
 }
 ```
 
 
-### 5.4 多模式匹配
+### 5.4 多模式批量扫描
 
 ```c
 const char* arrPatterns[] = {
 	"error",
-	"warning",
+	"warn",
 	"timeout"
 };
+uint32 arrIndexes[8];
+uint32 iCount = 0;
+const char* sText = "warn: network timeout";
+xregexset* pSet = xrtRegexSetCreate(arrPatterns, 3u);
 
-bbre_set* pSet = bbre_set_init_patterns(arrPatterns, 3u);
-if ( pSet != NULL ) {
-	unsigned int arrIdx[8];
-	unsigned int iCount = 0u;
-	bbre_set_matches(pSet, sText, strlen(sText), arrIdx, 8u, &iCount);
-	bbre_set_destroy(pSet);
+if ( pSet ) {
+	xrtRegexSetMatches(pSet, sText, strlen(sText), arrIndexes, 8u, &iCount);
+	xrtRegexSetDestroy(pSet);
 }
 ```
 
 
-## 6. 使用建议
+## 6. 说明
 
-- 简单规则优先使用 `bbre_init_pattern`
-- 需要 flags 时使用 builder
-- 多线程下优先 clone，而不是共享同一个 `bbre*`
-- 多模式扫描优先使用 `bbre_set`
-- 处理大文本时，优先先缩小搜索范围，再做 regex 匹配
-
-
-## 7. 与其他模块的关系
-
-### 与字符串模块
-
-- `regex` 负责规则匹配
-- `string` 负责构造、切片、格式化
-
-### 与网络应用层
-
-- 可用于 HTTP header / 路由片段 / WebSocket 文本内容匹配
-
-### 与模板 / JSON / 日志处理
-
-- 适合做抽取、校验、替换前的规则判断
-
-
-## 8. 当前边界
-
-当前文档覆盖的是：
-
-- 正则对象
-- builder
-- clone
-- set 匹配
-
-当前主线的定位是：
-
-- 轻量 regex 基础设施
-- 不是脚本引擎级 regex 包装层
-
+- 当前引擎实现来自 `bbre`，但不建议再面向业务代码直接暴露 `bbre_*`。
+- 对外统一使用 `xregex`、`xregexset`、`xregexspan` 和 `xrtRegex*`。
+- `xrtRegexFind()` 和 `xrtRegexCaptures()` 的公开包装层会处理输出缓冲区适配，不直接把上层调用暴露给底层断言约束。
+- 多线程场景下，如需独立对象，请使用 `xrtRegexClone()` 或 `xrtRegexSetClone()`。

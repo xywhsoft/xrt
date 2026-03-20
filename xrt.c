@@ -1233,6 +1233,208 @@ XXAPI void xrtUnit()
 }
 
 
+#ifndef XRT_NO_REGEX
+
+static const bbre_alloc* __xrtRegexGetAlloc(const xregexalloc* pAlloc, bbre_alloc* pOut)
+{
+	if ( (pAlloc == NULL) || (pAlloc->procAlloc == NULL) ) {
+		return NULL;
+	}
+
+	pOut->user = pAlloc->pUserData;
+	pOut->cb = (bbre_alloc_cb)pAlloc->procAlloc;
+
+	return pOut;
+}
+
+static void __xrtRegexCopySpan(xregexspan* pOut, const bbre_span* pIn)
+{
+	if ( (pOut == NULL) || (pIn == NULL) ) {
+		return;
+	}
+
+	pOut->iBegin = pIn->begin;
+	pOut->iEnd = pIn->end;
+}
+
+static void __xrtRegexCopySpans(xregexspan* pOut, const bbre_span* pIn, uint32 iCount)
+{
+	uint32 i;
+
+	if ( (pOut == NULL) || (pIn == NULL) ) {
+		return;
+	}
+
+	for ( i = 0; i < iCount; i++ ) {
+		__xrtRegexCopySpan(&pOut[i], &pIn[i]);
+	}
+}
+
+XXAPI xregex* xrtRegexCreate(const char* sPatternNt)
+{
+	return (xregex*)bbre_init_pattern(sPatternNt);
+}
+
+XXAPI int xrtRegexCreateFromBuilder(xregex** ppRegex, const xregexbuilder* pBuilder, const xregexalloc* pAlloc)
+{
+	bbre_alloc tAlloc;
+
+	return bbre_init((bbre**)ppRegex, (const bbre_builder*)pBuilder, __xrtRegexGetAlloc(pAlloc, &tAlloc));
+}
+
+XXAPI void xrtRegexDestroy(xregex* pRegex)
+{
+	bbre_destroy((bbre*)pRegex);
+}
+
+XXAPI int xrtRegexIsMatch(xregex* pRegex, const char* sText, size_t iTextSize)
+{
+	return bbre_is_match((bbre*)pRegex, sText, iTextSize);
+}
+
+XXAPI int xrtRegexFind(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutSpan)
+{
+	int iRet;
+	bbre_span tSpan;
+
+	iRet = bbre_find((bbre*)pRegex, sText, iTextSize, &tSpan);
+	if ( (iRet > 0) && (pOutSpan != NULL) ) {
+		__xrtRegexCopySpan(pOutSpan, &tSpan);
+	}
+
+	return iRet;
+}
+
+XXAPI int xrtRegexCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32 iCaptureCount)
+{
+	int iRet;
+	size_t iAllocSize;
+	bbre_span* pTempCaptures = NULL;
+
+	if ( iCaptureCount > 0 ) {
+		if ( (size_t)iCaptureCount > (((size_t)-1) / sizeof(bbre_span)) ) {
+			return XRT_REGEX_ERR_LIMIT;
+		}
+
+		iAllocSize = sizeof(bbre_span) * (size_t)iCaptureCount;
+		pTempCaptures = (bbre_span*)xrtMalloc(iAllocSize);
+		if ( pTempCaptures == NULL ) {
+			return XRT_REGEX_ERR_MEM;
+		}
+	}
+
+	iRet = bbre_captures((bbre*)pRegex, sText, iTextSize, pTempCaptures, (unsigned int)iCaptureCount);
+	if ( (iRet > 0) && (pOutCaptures != NULL) && (pTempCaptures != NULL) ) {
+		__xrtRegexCopySpans(pOutCaptures, pTempCaptures, iCaptureCount);
+	}
+
+	if ( pTempCaptures != NULL ) {
+		xrtFree(pTempCaptures);
+	}
+
+	return iRet;
+}
+
+XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc)
+{
+	bbre_alloc tAlloc;
+
+	return bbre_builder_init((bbre_builder**)ppBuilder, sPattern, iPatternSize, __xrtRegexGetAlloc(pAlloc, &tAlloc));
+}
+
+XXAPI void xrtRegexBuilderDestroy(xregexbuilder* pBuilder)
+{
+	bbre_builder_destroy((bbre_builder*)pBuilder);
+}
+
+XXAPI void xrtRegexBuilderSetFlags(xregexbuilder* pBuilder, xregexflags iFlags)
+{
+	bbre_builder_flags((bbre_builder*)pBuilder, (bbre_flags)iFlags);
+}
+
+XXAPI int xrtRegexClone(xregex** ppOut, const xregex* pRegex, const xregexalloc* pAlloc)
+{
+	bbre_alloc tAlloc;
+
+	return bbre_clone((bbre**)ppOut, (const bbre*)pRegex, __xrtRegexGetAlloc(pAlloc, &tAlloc));
+}
+
+XXAPI int xrtRegexSetBuilderCreate(xregexsetbuilder** ppBuilder, const xregexalloc* pAlloc)
+{
+	bbre_alloc tAlloc;
+
+	return bbre_set_builder_init((bbre_set_builder**)ppBuilder, __xrtRegexGetAlloc(pAlloc, &tAlloc));
+}
+
+XXAPI void xrtRegexSetBuilderDestroy(xregexsetbuilder* pBuilder)
+{
+	bbre_set_builder_destroy((bbre_set_builder*)pBuilder);
+}
+
+XXAPI int xrtRegexSetBuilderAdd(xregexsetbuilder* pBuilder, const xregex* pRegex)
+{
+	return bbre_set_builder_add((bbre_set_builder*)pBuilder, (const bbre*)pRegex);
+}
+
+XXAPI xregexset* xrtRegexSetCreate(const char* const* arrPatternsNt, size_t iPatternCount)
+{
+	return (xregexset*)bbre_set_init_patterns(arrPatternsNt, iPatternCount);
+}
+
+XXAPI int xrtRegexSetCreateFromBuilder(xregexset** ppSet, const xregexsetbuilder* pBuilder, const xregexalloc* pAlloc)
+{
+	bbre_alloc tAlloc;
+
+	return bbre_set_init((bbre_set**)ppSet, (const bbre_set_builder*)pBuilder, __xrtRegexGetAlloc(pAlloc, &tAlloc));
+}
+
+XXAPI void xrtRegexSetDestroy(xregexset* pSet)
+{
+	bbre_set_destroy((bbre_set*)pSet);
+}
+
+XXAPI int xrtRegexSetIsMatch(xregexset* pSet, const char* sText, size_t iTextSize)
+{
+	return bbre_set_is_match((bbre_set*)pSet, sText, iTextSize);
+}
+
+XXAPI int xrtRegexSetMatches(xregexset* pSet, const char* sText, size_t iTextSize, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount)
+{
+	int iRet;
+	size_t iAllocSize;
+	uint32* pTempIndexes = pOutIndexes;
+
+	if ( (iMaxIndexes > 0) && (pTempIndexes == NULL) ) {
+		if ( (size_t)iMaxIndexes > (((size_t)-1) / sizeof(uint32)) ) {
+			return XRT_REGEX_ERR_LIMIT;
+		}
+
+		iAllocSize = sizeof(uint32) * (size_t)iMaxIndexes;
+		pTempIndexes = (uint32*)xrtMalloc(iAllocSize);
+		if ( pTempIndexes == NULL ) {
+			return XRT_REGEX_ERR_MEM;
+		}
+	}
+
+	iRet = bbre_set_matches((bbre_set*)pSet, sText, iTextSize, (unsigned int*)pTempIndexes, (unsigned int)iMaxIndexes, (unsigned int*)pOutIndexCount);
+
+	if ( pTempIndexes != pOutIndexes ) {
+		xrtFree(pTempIndexes);
+	}
+
+	return iRet;
+}
+
+XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc)
+{
+	bbre_alloc tAlloc;
+
+	return bbre_set_clone((bbre_set**)ppOut, (const bbre_set*)pSet, __xrtRegexGetAlloc(pAlloc, &tAlloc));
+}
+
+#endif
+
+
 
 #ifdef DBUILD_DLL
 	
