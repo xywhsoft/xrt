@@ -146,6 +146,7 @@
 	#ifndef XRT_NO_NETTLS
 		#include "test/test_xnet2_tls.h"
 		#include "test/test_tls_boundary.h"
+		#include "test/test_tls_anchor_verify.h"
 	#endif
 #endif
 
@@ -340,6 +341,7 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 			xrtUnit();
 			return 0;
 		}
+		XRT_TEST_WRAP_INT(__xrtTestRun_TLSAnchorVerify, Test_TLSAnchorVerify)
 	#endif
 #endif
 
@@ -463,6 +465,7 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 		#ifndef XRT_NO_NETTLS
 			{ "xnet2_tls", "XNet2 TLS", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2TLS },
 			{ "tls_boundary", "TLS Boundary", "net", XRT_TEST_FLAG_SELF_INIT, __xrtTestRun_TLSBoundaryStress },
+			{ "tls_anchor_verify", "TLS Anchor Verify", "net", XRT_TEST_FLAG_SELF_INIT, __xrtTestRun_TLSAnchorVerify },
 		#endif
 	#endif
 };

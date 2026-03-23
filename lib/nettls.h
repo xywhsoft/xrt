@@ -639,6 +639,11 @@ struct __xrt_x509_cert {
 	size_t iEdPubSz;
 };
 
+enum __xrt_x509_parse_mode {
+	__XRT_X509_PARSE_STRICT = 0,
+	__XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG
+};
+
 static int __xrt_tls_ascii_tolower(int c)
 {
 	if ( c >= 'A' && c <= 'Z' ) return c + ('a' - 'A');
@@ -915,6 +920,21 @@ static bool __xrt_x509_parse_signature_algorithm(const struct __xrt_der_tlv *pAl
 	return false;
 }
 
+static bool __xrt_x509_parse_signature_algorithm_ex(const struct __xrt_der_tlv *pAlgSeq,
+	enum __xrt_x509_sig_alg *pSigAlg, size_t *pHashLen, enum __xrt_x509_parse_mode iMode)
+{
+	struct __xrt_der_tlv tSeq, tOID;
+
+	if ( __xrt_x509_parse_signature_algorithm(pAlgSeq, pSigAlg, pHashLen) ) return true;
+	if ( iMode != __XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG ) return false;
+	if ( !pAlgSeq || pAlgSeq->iType != 0x30 || !pSigAlg || !pHashLen ) return false;
+
+	*pSigAlg = __XRT_X509_SIGALG_UNKNOWN;
+	*pHashLen = 0;
+	tSeq = *pAlgSeq;
+	return __xrt_der_next(&tSeq, &tOID) > 0 && tOID.iType == 0x06;
+}
+
 static void __xrt_x509_add_dns_name(struct __xrt_x509_cert *pCert, const uint8 *pName, size_t iNameLen)
 {
 	size_t iCopy;
@@ -1117,7 +1137,8 @@ static bool __xrt_x509_parse_extensions(struct __xrt_x509_cert *pCert, const str
 	return true;
 }
 
-static bool __xrt_x509_parse(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert)
+static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert,
+	enum __xrt_x509_parse_mode iMode)
 {
 	struct __xrt_der_tlv tRoot, tTbs, tSigAlg, tSigValue;
 	struct __xrt_der_tlv tFields, tField, tValidity, tTime;
@@ -1131,7 +1152,9 @@ static bool __xrt_x509_parse(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509
 	if ( __xrt_der_next(&tRoot, &tTbs) <= 0 || tTbs.iType != 0x30 ) return false;
 	if ( __xrt_der_next(&tRoot, &tSigAlg) <= 0 || tSigAlg.iType != 0x30 ) return false;
 	if ( __xrt_der_next(&tRoot, &tSigValue) <= 0 || tSigValue.iType != 0x03 || tSigValue.iLen < 2 ) return false;
-	if ( !__xrt_x509_parse_signature_algorithm(&tSigAlg, &pCert->iSigAlg, &pCert->iSigHashLen) ) return false;
+	if ( !__xrt_x509_parse_signature_algorithm_ex(&tSigAlg, &pCert->iSigAlg, &pCert->iSigHashLen, iMode) ) {
+		return false;
+	}
 
 	pCert->pTbs = tTbs.pRaw;
 	pCert->iTbsLen = tTbs.iTotalLen;
@@ -1177,6 +1200,16 @@ static bool __xrt_x509_parse(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509
 	return true;
 }
 
+static bool __xrt_x509_parse(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert)
+{
+	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_STRICT);
+}
+
+static bool __xrt_x509_parse_for_chain(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert)
+{
+	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG);
+}
+
 static bool __xrt_x509_is_time_valid(const struct __xrt_x509_cert *pCert, time_t iNow)
 {
 	if ( !pCert || !pCert->bHasValidity ) return false;
@@ -1186,6 +1219,37 @@ static bool __xrt_x509_is_time_valid(const struct __xrt_x509_cert *pCert, time_t
 static bool __xrt_x509_name_eq(const uint8 *pA, size_t iALen, const uint8 *pB, size_t iBLen)
 {
 	return pA && pB && iALen == iBLen && memcmp(pA, pB, iALen) == 0;
+}
+
+static bool __xrt_x509_public_key_eq(const struct __xrt_x509_cert *pA, const struct __xrt_x509_cert *pB)
+{
+	if ( !pA || !pB ) return false;
+	if ( pA->bIsECPubKey != pB->bIsECPubKey ) return false;
+	if ( pA->bIsEd25519Key != pB->bIsEd25519Key ) return false;
+	if ( pA->bIsRSAPSSKey != pB->bIsRSAPSSKey ) return false;
+
+	if ( pA->bIsEd25519Key ) {
+		return pA->pEdPub && pB->pEdPub && pA->iEdPubSz == pB->iEdPubSz &&
+			memcmp(pA->pEdPub, pB->pEdPub, pA->iEdPubSz) == 0;
+	}
+	if ( pA->bIsECPubKey ) {
+		return pA->pECPub && pB->pECPub && pA->iECPubSz == pB->iECPubSz &&
+			memcmp(pA->pECPub, pB->pECPub, pA->iECPubSz) == 0;
+	}
+	return pA->pMod && pB->pMod && pA->pExp && pB->pExp &&
+		pA->iModSz == pB->iModSz && pA->iExpSz == pB->iExpSz &&
+		memcmp(pA->pMod, pB->pMod, pA->iModSz) == 0 &&
+		memcmp(pA->pExp, pB->pExp, pA->iExpSz) == 0;
+}
+
+static bool __xrt_x509_anchor_matches(const struct __xrt_x509_cert *pCert, const struct __xrt_x509_cert *pAnchor)
+{
+	if ( !pCert || !pAnchor ) return false;
+	if ( !__xrt_x509_name_eq(pCert->pSubjectRaw, pCert->iSubjectRawLen,
+		pAnchor->pSubjectRaw, pAnchor->iSubjectRawLen) ) {
+		return false;
+	}
+	return __xrt_x509_public_key_eq(pCert, pAnchor);
 }
 
 static bool __xrt_x509_verify_signature(const struct __xrt_x509_cert *pChild, const struct __xrt_x509_cert *pIssuer)
@@ -1230,6 +1294,20 @@ static bool __xrt_x509_is_ca_usable(const struct __xrt_x509_cert *pCert)
 	if ( pCert->bHasBasicConstraints && !pCert->bIsCA ) return false;
 	if ( pCert->bHasKeyUsage && (pCert->iKeyUsage & (1u << 5)) == 0 ) return false;
 	return true;
+}
+
+static bool __xrt_tls_current_cert_trusted_by_anchor(const struct __xrt_x509_cert *pCurrent,
+	const struct __xrt_x509_cert *pAnchor, time_t iNow)
+{
+	if ( !pCurrent || !pAnchor ) return false;
+	if ( !__xrt_x509_is_ca_usable(pAnchor) ) return false;
+	if ( !__xrt_x509_is_time_valid(pAnchor, iNow) ) return false;
+	if ( __xrt_x509_anchor_matches(pCurrent, pAnchor) ) return true;
+	if ( !__xrt_x509_name_eq(pCurrent->pIssuerRaw, pCurrent->iIssuerRawLen,
+		pAnchor->pSubjectRaw, pAnchor->iSubjectRawLen) ) {
+		return false;
+	}
+	return __xrt_x509_verify_signature(pCurrent, pAnchor);
 }
 
 
@@ -1682,7 +1760,7 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 	}
 
 	for ( i = 0; i < iCertCount; i++ ) {
-		if ( !__xrt_x509_parse(apCertData[i], apCertLen[i], &aCerts[i]) ) return false;
+		if ( !__xrt_x509_parse_for_chain(apCertData[i], apCertLen[i], &aCerts[i]) ) return false;
 	}
 	if ( !__xrt_tls_validate_leaf_server_cert(pCtx, &aCerts[0]) ) return false;
 	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &aCerts[0]) ) return false;
@@ -1720,12 +1798,8 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 				bool bOK = false;
 
 				if ( !__xrt_tls_ca_bundle_next(pCtx, &iOffset, &pAnchorDer, &iAnchorLen, &bOwned) ) break;
-				if ( __xrt_x509_parse(pAnchorDer, iAnchorLen, &tAnchor) &&
-					__xrt_x509_name_eq(aCerts[iCurrent].pIssuerRaw, aCerts[iCurrent].iIssuerRawLen,
-						tAnchor.pSubjectRaw, tAnchor.iSubjectRawLen) &&
-					__xrt_x509_is_ca_usable(&tAnchor) &&
-					__xrt_x509_is_time_valid(&tAnchor, iNow) &&
-					__xrt_x509_verify_signature(&aCerts[iCurrent], &tAnchor) ) {
+				if ( __xrt_x509_parse_for_chain(pAnchorDer, iAnchorLen, &tAnchor) &&
+					__xrt_tls_current_cert_trusted_by_anchor(&aCerts[iCurrent], &tAnchor, iNow) ) {
 					bOK = true;
 				}
 				if ( bOwned ) xrtFree(pAnchorDer);
@@ -1746,14 +1820,8 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 			bool bTrusted = false;
 
 			if ( !__xrt_tls_ca_bundle_next(pCtx, &iOffset, &pAnchorDer, &iAnchorLen, &bOwned) ) break;
-			if ( __xrt_x509_parse(pAnchorDer, iAnchorLen, &tAnchor) &&
-				__xrt_x509_is_ca_usable(&tAnchor) &&
-				__xrt_x509_is_time_valid(&tAnchor, iNow) &&
-				__xrt_x509_name_eq(aCerts[iCurrent].pSubjectRaw, aCerts[iCurrent].iSubjectRawLen,
-					tAnchor.pSubjectRaw, tAnchor.iSubjectRawLen) &&
-				__xrt_x509_name_eq(aCerts[iCurrent].pIssuerRaw, aCerts[iCurrent].iIssuerRawLen,
-					tAnchor.pIssuerRaw, tAnchor.iIssuerRawLen) &&
-				__xrt_x509_verify_signature(&aCerts[iCurrent], &tAnchor) ) {
+			if ( __xrt_x509_parse_for_chain(pAnchorDer, iAnchorLen, &tAnchor) &&
+				__xrt_tls_current_cert_trusted_by_anchor(&aCerts[iCurrent], &tAnchor, iNow) ) {
 				bTrusted = true;
 			}
 			if ( bOwned ) xrtFree(pAnchorDer);
@@ -1959,6 +2027,7 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 	tPemBuf.iCapacity = 0;
 	return true;
 }
+
 #endif
 
 static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
