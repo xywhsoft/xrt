@@ -5,7 +5,7 @@
 XXAPI str xrtPathGetNameExt(str sPath, size_t iSize)
 {
 	if ( sPath == NULL ) { return xCore.sNull; }
-	if ( iSize == 0 ) { iSize = strlen(sPath); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
@@ -25,7 +25,7 @@ XXAPI str xrtPathGetNameExt(str sPath, size_t iSize)
 XXAPI str xrtPathGetName(str sPath, size_t iSize)
 {
 	if ( sPath == NULL ) { return xCore.sNull; }
-	if ( iSize == 0 ) { iSize = strlen(sPath); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
 	uint iPointPos = 0;
 	for ( int i = iSize - 1; i >= 0; i-- ) {
@@ -48,7 +48,7 @@ XXAPI str xrtPathGetName(str sPath, size_t iSize)
 XXAPI str xrtPathGetExt(str sPath, size_t iSize)
 {
 	if ( sPath == NULL ) { return xCore.sNull; }
-	if ( iSize == 0 ) { iSize = strlen(sPath); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		if ( sPath[i] == L'.' ) {
@@ -66,7 +66,7 @@ XXAPI str xrtPathGetExt(str sPath, size_t iSize)
 XXAPI str xrtPathGetDir(str sPath, size_t iSize)
 {
 	if ( sPath == NULL ) { return xCore.sNull; }
-	if ( iSize == 0 ) { iSize = strlen(sPath); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
 	for ( int i = iSize - 1; i >= 0; i-- ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
@@ -86,12 +86,12 @@ XXAPI str xrtPathGetDir(str sPath, size_t iSize)
 XXAPI bool xrtPathIsAbs(str sPath, size_t iSize)
 {
 	if ( sPath == NULL ) { return FALSE; }
-	if ( iSize == 0 ) { iSize = strlen(sPath); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return FALSE; }
 	if ( sPath[0] == '/' ) {
 		return TRUE;
 	}
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		if ( sPath[i] == ':' ) {
 			return TRUE;
 		}
@@ -105,13 +105,13 @@ XXAPI bool xrtPathIsAbs(str sPath, size_t iSize)
 XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize, size_t iLen)
 {
 	if ( sHead ) {
-		if ( iHeadSize == 0 ) { iHeadSize = strlen(sHead); }
+		if ( iHeadSize == 0 ) { iHeadSize = strlen((const char*)sHead); }
 		if ( iHeadSize == 0 ) { sHead = NULL; }
 	} else {
 		iHeadSize = 0;
 	}
 	if ( sFoot ) {
-		if ( iFootSize == 0 ) { iFootSize = strlen(sFoot); }
+		if ( iFootSize == 0 ) { iFootSize = strlen((const char*)sFoot); }
 		if ( iFootSize == 0 ) { sFoot = NULL; }
 	} else {
 		iFootSize = 0;
@@ -125,7 +125,7 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 	if ( sHead ) {
 		memcpy(sRet, sHead, iHeadSize);
 	}
-	for ( int i = 0; i < iLen; i++ ) {
+	for ( size_t i = 0; i < iLen; i++ ) {
 		int idx = xrtRandRange(0, 61);		// 这里写 61，可以忽略 - 和 _ 字符
 		sRet[iHeadSize + i] = RandStringDefaultTemplate[idx];
 	}
@@ -149,10 +149,10 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 	va_list args;
 	va_start(args, iCount);
 	size_t iPos = 0;
-	for ( int i = 0; i < iCount; i++ ) {
+	for ( uint i = 0; i < iCount; i++ ) {
 		str sPath = va_arg(args, str);
 		if ( sPath == NULL ) { continue; }
-		size_t iSize = strlen(sPath);
+		size_t iSize = strlen((const char*)sPath);
 		if ( iSize == 0 ) { continue; }
 		if ( (iPos + iSize) > 4094 ) { xrtFree(sRet); return xCore.sNull; }
 		memcpy(&sRet[iPos], sPath, iSize);

@@ -983,7 +983,7 @@
 	#endif
 	
 	// 设置错误
-	XXAPI void xrtSetError(str sError, bool bFree);
+	XXAPI void xrtSetError(const void* sError, bool bFree);
 	XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree);
 	XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree);
 	
@@ -1167,7 +1167,7 @@
 		return (str)"shared object is not published yet; cross-thread access is not allowed before publish.";
 	}
 
-	static inline bool xrtOwnerLock(xrtOwnerInfo* pOwner, str sError)
+	static inline bool xrtOwnerLock(xrtOwnerInfo* pOwner, const void* sError)
 	{
 		uint64 iThreadId;
 		if ( pOwner == NULL ) {
@@ -1194,7 +1194,7 @@
 		if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
 			return TRUE;
 		}
-		xrtSetError(sError ? sError : (str)"runtime object belongs to another thread.", FALSE);
+		xrtSetError(sError ? sError : "runtime object belongs to another thread.", FALSE);
 		return FALSE;
 	}
 
@@ -1219,7 +1219,7 @@
 		}
 	}
 
-	static inline bool xrtOwnerBeginMutable(xrtOwnerInfo* pOwner, str sError)
+	static inline bool xrtOwnerBeginMutable(xrtOwnerInfo* pOwner, const void* sError)
 	{
 		return xrtOwnerLock(pOwner, sError);
 	}
@@ -1230,7 +1230,7 @@
 	}
 
 	// 检查当前线程是否允许修改对象
-	static inline bool xrtOwnerCheckMutable(xrtOwnerInfo* pOwner, str sError)
+	static inline bool xrtOwnerCheckMutable(xrtOwnerInfo* pOwner, const void* sError)
 	{
 		uint64 iThreadId;
 		xrtThreadData* pThreadData;
@@ -1252,7 +1252,7 @@
 		if ( pOwner->iOwnerThreadId == 0 || pOwner->iOwnerThreadId == iThreadId ) {
 			return TRUE;
 		}
-		xrtSetError(sError ? sError : (str)"runtime object belongs to another thread.", FALSE);
+		xrtSetError(sError ? sError : "runtime object belongs to another thread.", FALSE);
 		return FALSE;
 	}
 	
@@ -1397,7 +1397,7 @@
 	XXAPI str xrtFilterStr(str sText, size_t iSize, str sFilter, size_t iSubSize, bool bSrcRevise, size_t* iRetSize);
 	
 	// 字符串格式化（ 需使用 xrtFree 释放 ）
-	XXAPI str xrtFormat(str sFormat, ...);
+	XXAPI str xrtFormat(const void* sFormat, ...);
 	
 	// 字符串替换（ 需使用 xrtFree 释放 ）
 	XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str sRepText, size_t iRepSize, size_t* iRetSize);
@@ -1662,7 +1662,7 @@
 	// 格式占位符: yyyy/yy(年), mm/m(月,h后=分钟), mmm/mmmm(英文月份),
 	//             dd/d(日), hh/h(24时), HH/H(12时), nn/n(分钟),
 	//             ss/s(秒), ap/AP(am/pm), w/ww/www(星期), q(季度)
-	XXAPI str xrtTimeFormat(xtime iTime, str sFormat);
+	XXAPI str xrtTimeFormat(xtime iTime, const void* sFormat);
 	
 	// 字符串解析为时间
 	// 格式占位符同 xrtTimeFormat，另支持: *(跳过任意非数字), .(至少1个非数字), ?(跳过1字符), 空格(跳过空白)
@@ -5097,9 +5097,10 @@
 	XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
 	
 	// 解析字符串（自动跳过前导空白字符）
-	static inline int xrtParseNumSkipSpace(const char *str, jnum_type_t *type, jnum_value_t *value)
+	static inline int xrtParseNumSkipSpace(const void *str, jnum_type_t *type, jnum_value_t *value)
 	{
-		const char *s = str;
+		const char *pBase = (const char*)str;
+		const char *s = pBase;
 		while (1) {
 			switch (*s) {
 			case '\b': case '\f': case '\n': case '\r': case '\t': case '\v': case ' ': ++s; break;
@@ -5107,15 +5108,15 @@
 			}
 		}
 	next:
-		return (int)(xrtParseNum(s, type, value) + (s - str));
+		return (int)(xrtParseNum(s, type, value) + (s - pBase));
 	}
 	
 	// 字符串转数字
-	XXAPI int32_t xrtStrToI32(const char* pStr);
-	XXAPI int64_t xrtStrToI64(const char* pStr);
-	XXAPI uint32_t xrtStrToU32(const char* pStr);
-	XXAPI uint64_t xrtStrToU64(const char* pStr);
-	XXAPI double xrtStrToNum(const char* pStr);
+	XXAPI int32_t xrtStrToI32(const void* pStr);
+	XXAPI int64_t xrtStrToI64(const void* pStr);
+	XXAPI uint32_t xrtStrToU32(const void* pStr);
+	XXAPI uint64_t xrtStrToU64(const void* pStr);
+	XXAPI double xrtStrToNum(const void* pStr);
 	
 	
 	
@@ -5568,7 +5569,7 @@
 	XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl);
 	
 	// Table 读数据
-	XXAPI xvalue xvoTableGetValue(xvalue pTbl, str key, uint32 kl);
+	XXAPI xvalue xvoTableGetValue(xvalue pTbl, const void* key, uint32 kl);
 	#define xvoTableGetBool(pTbl, key, kl)														xvoGetBool(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetInt(pTbl, key, kl)														xvoGetInt(xvoTableGetValue(pTbl, key, kl))
 	#define xvoTableGetFloat(pTbl, key, kl)														xvoGetFloat(xvoTableGetValue(pTbl, key, kl))
@@ -5584,7 +5585,7 @@
 	#define xvoTableGetCustom(pTbl, key, kl)													xvoGetCustom(xvoTableGetValue(pTbl, key, kl))
 	
 	// Table 写数据
-	XXAPI bool xvoTableSetValue(xvalue pTbl, str key, uint32 kl, xvalue pVal, bool bColloc);
+	XXAPI bool xvoTableSetValue(xvalue pTbl, const void* key, uint32 kl, xvalue pVal, bool bColloc);
 	#define xvoTableSetNull(pTbl, key, kl)														xvoTableSetValue(pTbl, key, kl, xvoCreateNull(), TRUE)
 	#define xvoTableSetBool(pTbl, key, kl, bVal)												xvoTableSetValue(pTbl, key, kl, xvoCreateBool(bVal), TRUE)
 	#define xvoTableSetInt(pTbl, key, kl, iVal)													xvoTableSetValue(pTbl, key, kl, xvoCreateInt(iVal), TRUE)

@@ -18,9 +18,11 @@
 	#include <sys/types.h>
 	#include <sys/stat.h>
 	#include <wchar.h>
-	#pragma comment (lib, "shell32")
-	#pragma comment (lib, "Ws2_32")
-	#pragma comment (lib, "IPHLPAPI")
+	#if defined(_MSC_VER)
+		#pragma comment (lib, "shell32")
+		#pragma comment (lib, "Ws2_32")
+		#pragma comment (lib, "IPHLPAPI")
+	#endif
 #else
 	#include <fcntl.h>
 	#include <sys/stat.h>

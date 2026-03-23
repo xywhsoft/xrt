@@ -2,13 +2,13 @@
 
 
 // 错误描述定义
-static const str sErrorFile_Open = "Failed to open file !";
-static const str sErrorFile_OpenDir = "Failed to open dir !";
-static const str sErrorFile_Handle = "Incorrect file handle !";
-static const str sErrorFile_BOM = "Incorrect BOM data !";
-static const str sErrorFile_Seek = "Incorrect seek method !";
-static const str sErrorFile_Read = "File read failure !";
-static const str sErrorFile_Write = "File write failure !";
+static const str sErrorFile_Open = (str)"Failed to open file !";
+static const str sErrorFile_OpenDir = (str)"Failed to open dir !";
+static const str sErrorFile_Handle = (str)"Incorrect file handle !";
+static const str sErrorFile_BOM = (str)"Incorrect BOM data !";
+static const str sErrorFile_Seek = (str)"Incorrect seek method !";
+static const str sErrorFile_Read = (str)"File read failure !";
+static const str sErrorFile_Write = (str)"File write failure !";
 
 
 
@@ -577,7 +577,7 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
 			if ( sText == NULL ) { return 0; }
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 			if ( iSize == 0 ) { return 0; }
 			DWORD iRetSize;
 			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
@@ -786,7 +786,7 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset)
 {
 	if ( sText == NULL ) { return 0; }
-	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 	if ( iSize == 0 ) { return 0; }
 	xfile objFile = xrtOpen(sPath, FALSE, iCharset);
 	if ( objFile ) {
@@ -804,7 +804,7 @@ XXAPI int xrtFileAppend(str sPath, str sText, size_t iSize, int iCharset)
 XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset)
 {
 	if ( sText == NULL ) { return 0; }
-	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 	if ( iSize == 0 ) { return 0; }
 	xfile objFile = xrtOpen(sPath, FALSE, iCharset);
 	if ( objFile ) {
@@ -1179,7 +1179,7 @@ XXAPI int64 xrtFileGetAccessTime(str sPath)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		struct _stat fileStat;
-		int iRet = _stat(sPath, &fileStat);
+		int iRet = _stat((const char*)sPath, &fileStat);
 		if ( iRet == 0 ) {
 			return fileStat.st_atime + XRT_TIME_19700101;
 		} else {
@@ -1205,7 +1205,7 @@ XXAPI int64 xrtFileGetChangeTime(str sPath)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		struct _stat fileStat;
-		int iRet = _stat(sPath, &fileStat);
+		int iRet = _stat((const char*)sPath, &fileStat);
 		if ( iRet == 0 ) {
 			return fileStat.st_mtime + XRT_TIME_19700101;
 		} else {
@@ -1371,6 +1371,7 @@ XXAPI bool xrtFileDelete(str sPath)
 	// windows 方案
 	int __pri__DirScan_Proc(str sPath, size_t iSize, int bRecu, ptr pProc, ptr Param)
 	{
+		(void)iSize;
 		int (*pCallBack)(ptr sPath, size_t iSize, int bDir, ptr pData, ptr Param) = pProc;
 		int iFileCount = 0;
 		WIN32_FIND_DATAW objFindData;
@@ -1392,7 +1393,7 @@ XXAPI bool xrtFileDelete(str sPath)
 				} else {
 					str sFileName = xrtUTF16to8(objFindData.cFileName, 0, NULL);
 					str sDir = xrtPathJoin(2, sPath, sFileName);
-					size_t iDirSize = strlen(sDir);
+					size_t iDirSize = strlen((const char*)sDir);
 					xrtFree(sFileName);
 					// 处理文件夹 - 进入
 					if ( pProc ) {
@@ -1412,7 +1413,7 @@ XXAPI bool xrtFileDelete(str sPath)
 				// 处理文件
 				str sFileName = xrtUTF16to8(objFindData.cFileName, 0, NULL);
 				str sFile = xrtPathJoin(2, sPath, sFileName);
-				size_t iFileSize = strlen(sFile);
+				size_t iFileSize = strlen((const char*)sFile);
 				xrtFree(sFileName);
 				if ( pProc ) {
 					bExit = pCallBack(sFile, iFileSize, 0, &objFindData, Param);
@@ -1487,14 +1488,14 @@ XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( sPath == NULL ) { return 0; }
-		size_t iSize = strlen(sPath);
+		size_t iSize = strlen((const char*)sPath);
 		if ( iSize == 0 ) { return 0; }
 		int iFileCount = __pri__DirScan_Proc(sPath, iSize, bRecu, pProc, Param);
 		return iFileCount;
 	#else
 		// 其他平台方案
 		if ( sPath == NULL ) { return 0; }
-		size_t iSize = strlen(sPath);
+		size_t iSize = strlen((const char*)sPath);
 		if ( iSize == 0 ) { return 0; }
 		int iFileCount = __pri__DirScan_Proc(sPath, iSize, bRecu, pProc, Param);
 		return iFileCount;
@@ -1540,7 +1541,7 @@ XXAPI bool xrtDirCreateAll(str sPath)
 			return FALSE;
 		}
 		size_t iCurPos = 0;
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			if ( (sPathW[i] == L'/') || (sPathW[i] == L'\\') ) {
 				sCurPath[iCurPos] = 0;
 				CreateDirectoryW(sCurPath, NULL);
@@ -1593,6 +1594,8 @@ XXAPI bool xrtDirCreateAll(str sPath)
 	} xrtCopyFolder_Info;
 	int __pri__DirCopyProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
+		(void)iSize;
+		(void)pData;
 		if ( bDir == 0 ) {
 			str sDstPath = xrtPathJoin(2, pInfo->DstPath, &sPath[pInfo->SrcSize]);
 			//printf("\tcopy file   : %S -> %S\n", sPath, sDstPath);
@@ -1657,10 +1660,10 @@ XXAPI int xrtDirCopy(str sSrc, str sDst, bool bReWrite)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( sSrc == NULL ) { return 0; }
-		size_t iSrcSize = strlen(sSrc);
+		size_t iSrcSize = strlen((const char*)sSrc);
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
-		size_t iDstSize = strlen(sDst);
+		size_t iDstSize = strlen((const char*)sDst);
 		if ( iDstSize == 0 ) { return 0; }
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
@@ -1673,10 +1676,10 @@ XXAPI int xrtDirCopy(str sSrc, str sDst, bool bReWrite)
 	#else
 		// 其他平台方案
 		if ( sSrc == NULL ) { return 0; }
-		size_t iSrcSize = strlen(sSrc);
+		size_t iSrcSize = strlen((const char*)sSrc);
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
-		size_t iDstSize = strlen(sDst);
+		size_t iDstSize = strlen((const char*)sDst);
 		if ( iDstSize == 0 ) { return 0; }
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
@@ -1741,6 +1744,8 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 #if defined(_WIN32) || defined(_WIN64)
 	int __pri__DirDeleteProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
+		(void)pData;
+		(void)pInfo;
 		if ( bDir == 0 ) {
 			//printf("\tremove file : %S\n", sPath);
 			xrtFileDelete(sPath);
@@ -1770,7 +1775,7 @@ XXAPI int xrtDirDelete(str sPath)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( sPath == NULL ) { return 0; }
-		size_t iSize = strlen(sPath);
+		size_t iSize = strlen((const char*)sPath);
 		if ( iSize == 0 ) { return 0; }
 		int iRet = xrtDirScan(sPath, TRUE, __pri__DirDeleteProc, NULL);
 		u16str sPathW = xrtUTF8to16(sPath, iSize, NULL);

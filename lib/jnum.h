@@ -1641,7 +1641,7 @@ overflow2:
 }
 
 #define jnum_to_func(rtype, fname)                      \
-XXAPI rtype fname(const char* pStr)                     \
+XXAPI rtype fname(const void* pStr)                     \
 {                                                       \
     jnum_type_t type;                                   \
     jnum_value_t value;                                 \

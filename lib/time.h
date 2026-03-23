@@ -122,8 +122,8 @@ XXAPI xtime xrtDateSerial(int64 iYear, int iMonth, int iDay)
 		iYear = llabs(iYear);
 		uint64 iYear400 = iYear / 400;
 		uint64 iYearMod = iYear % 400;
-		for ( int i = 0; i < iYearMod; i++ ) {
-			iDate += xrtDaysInYear(i) * XRT_TIME_DAY;
+		for ( uint64 i = 0; i < iYearMod; i++ ) {
+			iDate += xrtDaysInYear((int)i) * XRT_TIME_DAY;
 		}
 		iDate += iYear400 * XRT_TIME_400YEAR;
 		iDate = iDate * -1;
@@ -131,8 +131,8 @@ XXAPI xtime xrtDateSerial(int64 iYear, int iMonth, int iDay)
 		// 公元后
 		uint64 iYear400 = iYear / 400;
 		uint64 iYearMod = iYear % 400;
-		for ( int i = 0; i < iYearMod; i++ ) {
-			iDate += xrtDaysInYear(i) * XRT_TIME_DAY;
+		for ( uint64 i = 0; i < iYearMod; i++ ) {
+			iDate += xrtDaysInYear((int)i) * XRT_TIME_DAY;
 		}
 		iDate += iYear400 * XRT_TIME_400YEAR;
 	}
@@ -179,7 +179,6 @@ XXAPI int xrtHour(xtime iTime)
 XXAPI int xrtDay(xtime iTime)
 {
 	xtime iTimeAbs = llabs(iTime);
-	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
 	uint64 iYear = 0;
 	for ( int i = 0; i < 400; i++ ) {
@@ -219,7 +218,6 @@ XXAPI int xrtDay(xtime iTime)
 XXAPI int xrtMonth(xtime iTime)
 {
 	xtime iTimeAbs = llabs(iTime);
-	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
 	uint64 iYear = 0;
 	for ( int i = 0; i < 400; i++ ) {
@@ -853,12 +851,12 @@ XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime)
 XXAPI xtime xrtStrToTime(str sTime, size_t iSize)
 {
 	if ( !sTime ) return 0;
-	if ( iSize == 0 ) iSize = strlen(sTime);
+	if ( iSize == 0 ) iSize = strlen((const char*)sTime);
 	if ( iSize == 0 ) return 0;
 	
 	int year = 0, month = 1, day = 1, hour = 0, minute = 0, second = 0;
-	const char* p = sTime;
-	const char* end = sTime + iSize;
+	const char* p = (const char*)sTime;
+	const char* end = (const char*)sTime + iSize;
 	
 	// 跳过前导非数字
 	while ( p < end && (*p < '0' || *p > '9') ) p++;
@@ -1204,7 +1202,7 @@ static void _xrtParseFormat(const char* fmt, _XrtFmtResult* result, int forParse
 }
 
 // 时间格式化为字符串
-XXAPI str xrtTimeFormat(xtime iTime, str sFormat)
+XXAPI str xrtTimeFormat(xtime iTime, const void* sFormat)
 {
 	if (!sFormat) return NULL;
 	_XrtFmtResult fmt;
@@ -1230,10 +1228,10 @@ XXAPI str xrtTimeFormat(xtime iTime, str sFormat)
 			case _XRT_FMT_MONTH2: _xrtWrite2Digit(buf + pos, iMonth); pos += 2; break;
 			case _XRT_FMT_MONTH1: pos += snprintf(buf + pos, bufSize - pos, "%d", iMonth); break;
 			case _XRT_FMT_MONTH_SHORT:
-				if (iMonth >= 1 && iMonth <= 12) { size_t len = strlen(_xrtMonthShort[iMonth - 1]); memcpy(buf + pos, _xrtMonthShort[iMonth - 1], len); pos += len; }
+				if (iMonth >= 1 && iMonth <= 12) { size_t len = strlen((const char*)_xrtMonthShort[iMonth - 1]); memcpy(buf + pos, _xrtMonthShort[iMonth - 1], len); pos += len; }
 				break;
 			case _XRT_FMT_MONTH_FULL:
-				if (iMonth >= 1 && iMonth <= 12) { size_t len = strlen(_xrtMonthFull[iMonth - 1]); memcpy(buf + pos, _xrtMonthFull[iMonth - 1], len); pos += len; }
+				if (iMonth >= 1 && iMonth <= 12) { size_t len = strlen((const char*)_xrtMonthFull[iMonth - 1]); memcpy(buf + pos, _xrtMonthFull[iMonth - 1], len); pos += len; }
 				break;
 			case _XRT_FMT_DAY2: _xrtWrite2Digit(buf + pos, iDay); pos += 2; break;
 			case _XRT_FMT_DAY1: pos += snprintf(buf + pos, bufSize - pos, "%d", iDay); break;
@@ -1249,17 +1247,17 @@ XXAPI str xrtTimeFormat(xtime iTime, str sFormat)
 			case _XRT_FMT_AMPM_UPPER: buf[pos++] = isPM ? 'P' : 'A'; buf[pos++] = 'M'; break;
 			case _XRT_FMT_WEEKDAY_NUM: buf[pos++] = '0' + iWeekday; break;
 			case _XRT_FMT_WEEKDAY_SHORT:
-				if (iWeekday >= 0 && iWeekday <= 6) { size_t len = strlen(_xrtWeekShort[iWeekday]); memcpy(buf + pos, _xrtWeekShort[iWeekday], len); pos += len; }
+				if (iWeekday >= 0 && iWeekday <= 6) { size_t len = strlen((const char*)_xrtWeekShort[iWeekday]); memcpy(buf + pos, _xrtWeekShort[iWeekday], len); pos += len; }
 				break;
 			case _XRT_FMT_WEEKDAY_FULL:
-				if (iWeekday >= 0 && iWeekday <= 6) { size_t len = strlen(_xrtWeekFull[iWeekday]); memcpy(buf + pos, _xrtWeekFull[iWeekday], len); pos += len; }
+				if (iWeekday >= 0 && iWeekday <= 6) { size_t len = strlen((const char*)_xrtWeekFull[iWeekday]); memcpy(buf + pos, _xrtWeekFull[iWeekday], len); pos += len; }
 				break;
 			case _XRT_FMT_QUARTER: buf[pos++] = '0' + iQuarter; break;
 			default: break;
 		}
 	}
 	buf[pos] = '\0';
-	return buf;
+	return (str)buf;
 }
 
 // 字符串解析为时间
@@ -1267,10 +1265,10 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 {
 	if (!sTime || !sFormat) return 0;
 	_XrtFmtResult fmt;
-	_xrtParseFormat(sFormat, &fmt, 1);
+	_xrtParseFormat((const char*)sFormat, &fmt, 1);
 	if (fmt.count == 0) return 0;
-	const char* s = sTime;
-	const char* end = sTime + strlen(sTime);
+	const char* s = (const char*)sTime;
+	const char* end = (const char*)sTime + strlen((const char*)sTime);
 	int year = 0, month = 1, day = 1, hour = 0, minute = 0, second = 0;
 	int isPM = -1, is12Hour = 0;
 	for (int i = 0; i < fmt.count && s < end; i++) {

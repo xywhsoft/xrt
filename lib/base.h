@@ -369,13 +369,14 @@ XXAPI void xrtFreeTempMemory()
 
 
 // 设置错误（线程级）
-XXAPI void xrtSetError(str sError, bool bFree)
+XXAPI void xrtSetError(const void* sError, bool bFree)
 {
+	str sErrorText = (str)sError;
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
 
 	// 回调通知
 	if ( xCore.OnError ) {
-		xCore.OnError(sError);
+		xCore.OnError(sErrorText);
 	}
 
 	if ( pThreadData == NULL ) {
@@ -386,7 +387,7 @@ XXAPI void xrtSetError(str sError, bool bFree)
 	if ( pThreadData->bFreeLastError && pThreadData->LastError && pThreadData->LastError != xCore.sNull ) {
 		xrtFree(pThreadData->LastError);
 	}
-	pThreadData->LastError = sError;
+	pThreadData->LastError = sErrorText;
 	pThreadData->bFreeLastError = bFree;
 }
 XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree)
