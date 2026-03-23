@@ -51,6 +51,7 @@ typedef struct {
 	char* pBody;
 	size_t iBodyLen;
 	uint32 iTimeoutMs;
+	uint32 iIdleTimeoutMs;
 	bool bVerifyPeer;
 	xnetproxy* pProxy;
 } xhttprequest;
@@ -72,6 +73,7 @@ typedef struct {
 	volatile long iRefCount;
 	volatile long iCleanupPosted;
 	volatile long iComplete;
+	volatile long iIdleTimerGen;
 	xnetengine* pEngine;
 	struct __xhttp_conn* pConn;
 	xnetstream* pStream;
@@ -82,6 +84,11 @@ typedef struct {
 	int iLastSysErr;
 	xtlsconfig tTlsCfg;
 } __xhttp_tx;
+
+typedef struct {
+	__xhttp_tx* pTx;
+	long iGeneration;
+} __xhttp_idle_timer_ctx;
 
 typedef struct __xhttp_conn {
 	struct __xhttp_conn* pNext;
@@ -208,6 +215,8 @@ static void __xhttpRequestUnitInternal(xhttprequest* pReq);
 static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, size_t* pOutLen);
 static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain);
 static void __xhttpConnPostCleanup(__xhttp_conn* pConn);
+static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx);
+static uint32 __xhttpResolveConnectTimeoutMs(const xhttprequest* pReq);
 
 static void __xhttpPoolLockAcquire(void)
 {
@@ -356,6 +365,7 @@ XXAPI void xrtHttpRequestInit(xhttprequest* pReq)
 	memset(pReq, 0, sizeof(xhttprequest));
 	strcpy(pReq->sMethod, "GET");
 	pReq->iTimeoutMs = 30000u;
+	pReq->iIdleTimeoutMs = 0u;
 	pReq->bVerifyPeer = true;
 }
 
@@ -448,6 +458,12 @@ XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
 	pReq->iTimeoutMs = iTimeoutMs;
 }
 
+XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
+{
+	if ( !pReq ) return;
+	pReq->iIdleTimeoutMs = iTimeoutMs;
+}
+
 XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer)
 {
 	if ( !pReq ) return;
@@ -485,6 +501,7 @@ static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc)
 	memcpy(pDst->arrHeaders, pSrc->arrHeaders, sizeof(pDst->arrHeaders));
 	pDst->iHeaderCount = pSrc->iHeaderCount;
 	pDst->iTimeoutMs = pSrc->iTimeoutMs;
+	pDst->iIdleTimeoutMs = pSrc->iIdleTimeoutMs;
 	pDst->bVerifyPeer = pSrc->bVerifyPeer;
 	pDst->pProxy = pSrc->pProxy ? xrtNetProxyAddRef(pSrc->pProxy) : NULL;
 	if ( pSrc->pBody && pSrc->iBodyLen > 0 ) {
@@ -699,6 +716,65 @@ static bool __xhttpResponseReusable(const __xhttp_tx* pTx, const xcodechttp1msg*
 	return pTx->pConn->pStream != NULL && pTx->pConn->bOpen;
 }
 
+static void __xhttpTxAbortStream(__xhttp_tx* pTx)
+{
+	if ( !pTx ) return;
+	if ( pTx->pConn && pTx->pConn->pStream ) xrtNetStreamClose(pTx->pConn->pStream, XNET_CLOSE_F_ABORT);
+	else if ( pTx->pStream ) xrtNetStreamClose(pTx->pStream, XNET_CLOSE_F_ABORT);
+}
+
+static void __xhttpIdleTimeoutTask(xnetworker* pWorker, ptr pArg)
+{
+	__xhttp_idle_timer_ctx* pCtx = (__xhttp_idle_timer_ctx*)pArg;
+	__xhttp_tx* pTx;
+	(void)pWorker;
+	if ( !pCtx ) return;
+	pTx = pCtx->pTx;
+	if ( pTx &&
+		__xhttpAtomicLoad(&pTx->iComplete) == 0 &&
+		__xhttpAtomicLoad(&pTx->iIdleTimerGen) == pCtx->iGeneration ) {
+		(void)__xhttpTxComplete(pTx, XRT_NET_TIMEOUT, NULL);
+		__xhttpTxAbortStream(pTx);
+	}
+	if ( pTx ) __xhttpTxRelease(pTx);
+	XNET_FREE(pCtx);
+}
+
+static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx)
+{
+	__xhttp_idle_timer_ctx* pCtx;
+	uint32 iTimeoutMs;
+	long iGeneration;
+	uint32 iAffinity = 0u;
+
+	if ( !pTx || !pTx->pEngine ) return;
+	iTimeoutMs = pTx->tReq.iIdleTimeoutMs;
+	if ( iTimeoutMs == 0u ) return;
+
+	iGeneration = __xhttpAtomicAdd(&pTx->iIdleTimerGen, 1);
+	pCtx = (__xhttp_idle_timer_ctx*)XNET_ALLOC(sizeof(__xhttp_idle_timer_ctx));
+	if ( !pCtx ) return;
+	memset(pCtx, 0, sizeof(__xhttp_idle_timer_ctx));
+	pCtx->pTx = pTx;
+	pCtx->iGeneration = iGeneration;
+	__xhttpTxAddRef(pTx);
+
+	if ( pTx->pStream && pTx->pStream->pWorker ) iAffinity = pTx->pStream->pWorker->iId;
+	else if ( pTx->pConn && pTx->pConn->pStream && pTx->pConn->pStream->pWorker ) iAffinity = pTx->pConn->pStream->pWorker->iId;
+
+	if ( xrtNetEnginePostDelayed(pTx->pEngine, iAffinity, iTimeoutMs, __xhttpIdleTimeoutTask, pCtx) != XRT_NET_OK ) {
+		__xhttpTxRelease(pTx);
+		XNET_FREE(pCtx);
+	}
+}
+
+static uint32 __xhttpResolveConnectTimeoutMs(const xhttprequest* pReq)
+{
+	if ( !pReq ) return 0u;
+	if ( pReq->iTimeoutMs > 0u ) return pReq->iTimeoutMs;
+	return pReq->iIdleTimeoutMs;
+}
+
 static bool __xhttpConnSendActiveTx(__xhttp_conn* pConn)
 {
 	__xhttp_tx* pTx;
@@ -710,6 +786,7 @@ static bool __xhttpConnSendActiveTx(__xhttp_conn* pConn)
 		xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
 		return false;
 	}
+	__xhttpTxRefreshIdleTimeout(pTx);
 	return true;
 }
 
@@ -720,8 +797,7 @@ static void __xhttpTxTimeoutTask(xnetworker* pWorker, ptr pArg)
 	if ( !pTx ) return;
 	if ( __xhttpAtomicLoad(&pTx->iComplete) == 0 ) {
 		(void)__xhttpTxComplete(pTx, XRT_NET_TIMEOUT, NULL);
-		if ( pTx->pConn && pTx->pConn->pStream ) xrtNetStreamClose(pTx->pConn->pStream, XNET_CLOSE_F_ABORT);
-		else if ( pTx->pStream ) xrtNetStreamClose(pTx->pStream, XNET_CLOSE_F_ABORT);
+		__xhttpTxAbortStream(pTx);
 	}
 	__xhttpTxRelease(pTx);
 }
@@ -745,6 +821,7 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	bool bReusable;
 	xhttpresponse* pResp;
 	if ( !pTx || !pStream || !pChain ) return;
+	__xhttpTxRefreshIdleTimeout(pTx);
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
 	if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
 	if ( iParse == XCODEC_STATUS_ERROR ) {
@@ -901,7 +978,7 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 		xrtNetConnectConfigInit(&tConnCfg);
 		tConnCfg.sHost = pTx->tReq.tURL.sHost;
 		tConnCfg.iPort = pTx->tReq.tURL.iPort;
-		tConnCfg.iConnectTimeoutMs = pTx->tReq.iTimeoutMs;
+		tConnCfg.iConnectTimeoutMs = __xhttpResolveConnectTimeoutMs(&pTx->tReq);
 		tConnCfg.iRecvLimit = 1024u * 1024u;
 		tConnCfg.pProxy = pConn->pProxy;
 		if ( pTx->tReq.tURL.bHttps ) {

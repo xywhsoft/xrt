@@ -3296,6 +3296,7 @@
 	char* pBody;
 	size_t iBodyLen;
 	uint32 iTimeoutMs;
+	uint32 iIdleTimeoutMs;
 	bool bVerifyPeer;
 	xnetproxy* pProxy;
 	} xhttprequest;
@@ -3963,6 +3964,7 @@
 	XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue);
 	XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType);
 	XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
+	XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs);
 	XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer);
 	XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp);
 	XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName);

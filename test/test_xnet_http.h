@@ -21,6 +21,9 @@ typedef struct {
 	char aLastBody[256];
 	char aResponse[2048];
 	uint32 iResponseLen;
+	char aResponseFollowup[2048];
+	uint32 iResponseFollowupLen;
+	uint32 iResponseFollowupDelayMs;
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE hThread;
 #else
@@ -28,6 +31,13 @@ typedef struct {
 	bool bThreadStarted;
 #endif
 } __test_xhttp_server;
+
+typedef struct {
+	__test_xhttp_server* pServer;
+	xnetstream* pStream;
+} __test_xhttp_delayed_send_ctx;
+
+static void __Test_XHttpServerDelayedSendTask(xnetworker* pWorker, ptr pArg);
 
 static void __Test_XHttpSleepMs(uint32 iDelayMs)
 {
@@ -123,7 +133,30 @@ static void __Test_XHttpServerOnRecv(ptr pOwner, xnetstream* pStream, xnetchain*
 		(void)xrtCodecHttp1CopyBody(pChain, &tFrame, pServer->aLastBody, iCopy);
 	}
 	xrtCodecFrameConsume(pChain, &tFrame);
-	(void)xrtNetStreamSend(pStream, pServer->aResponse, pServer->iResponseLen);
+	if ( pServer->iResponseLen > 0u ) {
+		(void)xrtNetStreamSend(pStream, pServer->aResponse, pServer->iResponseLen);
+	}
+	if ( pServer->iResponseFollowupLen > 0u ) {
+		if ( pServer->iResponseFollowupDelayMs == 0u ) {
+			(void)xrtNetStreamSend(pStream, pServer->aResponseFollowup, pServer->iResponseFollowupLen);
+		} else {
+			__test_xhttp_delayed_send_ctx* pCtx =
+				(__test_xhttp_delayed_send_ctx*)XNET_ALLOC(sizeof(__test_xhttp_delayed_send_ctx));
+			if ( pCtx ) {
+				memset(pCtx, 0, sizeof(__test_xhttp_delayed_send_ctx));
+				pCtx->pServer = pServer;
+				pCtx->pStream = pStream;
+				if ( xrtNetEnginePostDelayed(
+					pServer->pEngine,
+					(pStream && pStream->pWorker) ? pStream->pWorker->iId : 0u,
+					pServer->iResponseFollowupDelayMs,
+					__Test_XHttpServerDelayedSendTask,
+					pCtx) != XRT_NET_OK ) {
+					XNET_FREE(pCtx);
+				}
+			}
+		}
+	}
 }
 
 static void __Test_XHttpServerOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
@@ -185,11 +218,29 @@ static void* __Test_XHttpAcceptThread(void* pArg)
 	#endif
 }
 
-static bool __Test_XHttpServerStart(__test_xhttp_server* pServer, const char* sResponse, const xtlsconfig* pTlsCfg)
+static void __Test_XHttpServerDelayedSendTask(xnetworker* pWorker, ptr pArg)
+{
+	__test_xhttp_delayed_send_ctx* pCtx = (__test_xhttp_delayed_send_ctx*)pArg;
+	(void)pWorker;
+	if ( pCtx && pCtx->pServer && pCtx->pStream && pCtx->pServer->iResponseFollowupLen > 0u ) {
+		(void)xrtNetStreamSend(
+			pCtx->pStream,
+			pCtx->pServer->aResponseFollowup,
+			pCtx->pServer->iResponseFollowupLen);
+	}
+	if ( pCtx ) XNET_FREE(pCtx);
+}
+
+static bool __Test_XHttpServerStartEx(
+	__test_xhttp_server* pServer,
+	const char* sResponse,
+	const char* sResponseFollowup,
+	uint32 iResponseFollowupDelayMs,
+	const xtlsconfig* pTlsCfg)
 {
 	xnetengineconfig tEngineCfg;
 	xnetlistenconfig tListenCfg;
-	if ( !pServer || !sResponse ) return false;
+	if ( !pServer ) return false;
 	memset(pServer, 0, sizeof(__test_xhttp_server));
 	xrtNetEngineConfigInit(&tEngineCfg);
 	tEngineCfg.iWorkerCount = 1;
@@ -203,8 +254,14 @@ static bool __Test_XHttpServerStart(__test_xhttp_server* pServer, const char* sR
 		__Test_XHttpListenerEvents(), __Test_XHttpStreamEvents(), pServer);
 	if ( !pServer->pListener ) return false;
 	if ( xrtNetListenerStart(pServer->pListener) != XRT_NET_OK ) return false;
-	__xhttpCopyToken(pServer->aResponse, sizeof(pServer->aResponse), sResponse);
+	__xhttpCopyToken(pServer->aResponse, sizeof(pServer->aResponse), sResponse ? sResponse : "");
 	pServer->iResponseLen = (uint32)strlen(pServer->aResponse);
+	__xhttpCopyToken(
+		pServer->aResponseFollowup,
+		sizeof(pServer->aResponseFollowup),
+		sResponseFollowup ? sResponseFollowup : "");
+	pServer->iResponseFollowupLen = (uint32)strlen(pServer->aResponseFollowup);
+	pServer->iResponseFollowupDelayMs = iResponseFollowupDelayMs;
 	__Test_XHttpAtomicStore(&pServer->bRun, 1);
 	#if defined(_WIN32) || defined(_WIN64)
 		pServer->hThread = CreateThread(NULL, 0, __Test_XHttpAcceptThread, pServer, 0, NULL);
@@ -214,6 +271,11 @@ static bool __Test_XHttpServerStart(__test_xhttp_server* pServer, const char* sR
 		pServer->bThreadStarted = true;
 	#endif
 	return true;
+}
+
+static bool __Test_XHttpServerStart(__test_xhttp_server* pServer, const char* sResponse, const xtlsconfig* pTlsCfg)
+{
+	return __Test_XHttpServerStartEx(pServer, sResponse, NULL, 0u, pTlsCfg);
 }
 
 static void __Test_XHttpServerStop(__test_xhttp_server* pServer)
@@ -473,6 +535,126 @@ void Test_XNet_Http(void)
 		if ( pResp ) xrtHttpResponseDestroy(pResp);
 		if ( pFuture ) xrtNetFutureDestroy(pFuture);
 		xrtHttpRequestUnit(&tReq);
+		if ( pClientEngine ) {
+			xrtNetEngineStop(pClientEngine);
+			xrtNetEngineDestroy(pClientEngine);
+		}
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xhttpresponse* pResp = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		printf("  HTTP idle reset server start : %s\n",
+			__Test_XHttpServerStartEx(
+				&tServer,
+				"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\n\r\nchu",
+				"nked!",
+				80u,
+				NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/idle-reset", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) (void)xrtNetEngineStart(pClientEngine);
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		xrtHttpRequestSetTimeout(&tReq, 1000u);
+		xrtHttpRequestSetIdleTimeout(&tReq, 200u);
+		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
+		printf("  HTTP idle reset future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  HTTP idle reset future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 1500u)) == XRT_NET_OK ? "PASS" : "FAIL");
+		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
+		printf("  HTTP idle reset response body : %s\n", pResp && pResp->iBodyLen == 8 && memcmp(pResp->pBody, "chunked!", 8) == 0 ? "PASS" : "FAIL");
+		printf("  HTTP idle reset request reached server : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 1000u) ? "PASS" : "FAIL");
+		if ( pResp ) xrtHttpResponseDestroy(pResp);
+		if ( pFuture ) xrtNetFutureDestroy(pFuture);
+		xrtHttpRequestUnit(&tReq);
+		xrtHttpCloseIdleConnections(pClientEngine);
+		if ( pClientEngine ) {
+			xrtNetEngineStop(pClientEngine);
+			xrtNetEngineDestroy(pClientEngine);
+		}
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		printf("  HTTP idle timeout server start : %s\n",
+			__Test_XHttpServerStartEx(
+				&tServer,
+				"HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\n\r\ntime",
+				"out!",
+				250u,
+				NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/idle-timeout", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) (void)xrtNetEngineStart(pClientEngine);
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		xrtHttpRequestSetTimeout(&tReq, 1000u);
+		xrtHttpRequestSetIdleTimeout(&tReq, 100u);
+		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
+		printf("  HTTP idle timeout future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  HTTP idle timeout status : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 1500u)) == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
+		printf("  HTTP idle timeout request reached server : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 1000u) ? "PASS" : "FAIL");
+		__Test_XHttpSleepMs(320u);
+		if ( pFuture ) xrtNetFutureDestroy(pFuture);
+		xrtHttpRequestUnit(&tReq);
+		xrtHttpCloseIdleConnections(pClientEngine);
+		if ( pClientEngine ) {
+			xrtNetEngineStop(pClientEngine);
+			xrtNetEngineDestroy(pClientEngine);
+		}
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		printf("  HTTP total+idle timeout server start : %s\n",
+			__Test_XHttpServerStartEx(
+				&tServer,
+				NULL,
+				"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nlater",
+				250u,
+				NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/total-timeout", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) (void)xrtNetEngineStart(pClientEngine);
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		xrtHttpRequestSetTimeout(&tReq, 100u);
+		xrtHttpRequestSetIdleTimeout(&tReq, 400u);
+		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
+		printf("  HTTP total+idle future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  HTTP total+idle total timeout wins : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 1200u)) == XRT_NET_TIMEOUT ? "PASS" : "FAIL");
+		printf("  HTTP total+idle request reached server : %s\n", __Test_XHttpWaitMin(&tServer.iRecvCount, 1, 1000u) ? "PASS" : "FAIL");
+		__Test_XHttpSleepMs(320u);
+		if ( pFuture ) xrtNetFutureDestroy(pFuture);
+		xrtHttpRequestUnit(&tReq);
+		xrtHttpCloseIdleConnections(pClientEngine);
 		if ( pClientEngine ) {
 			xrtNetEngineStop(pClientEngine);
 			xrtNetEngineDestroy(pClientEngine);

@@ -16,6 +16,14 @@
       - builtin client/server operation with no external TLS dependency
 */
 
+#if defined(_WIN32) || defined(_WIN64)
+	#ifdef __TINYC__
+		#include <winapi/wincrypt.h>
+	#else
+		#include <wincrypt.h>
+	#endif
+#endif
+
 typedef struct xrt_tls_context xtlsctx;
 
 XXAPI void xrtTlsDestroy(xtlsctx *pCtx);
@@ -1838,6 +1846,121 @@ static bool __xrt_tls_load_der_file(const char *sFile, uint8 **ppDer, size_t *pD
 	}
 }
 
+static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, size_t iDerLen)
+{
+	static const char sBegin[] = "-----BEGIN CERTIFICATE-----\n";
+	static const char sEnd[] = "-----END CERTIFICATE-----\n";
+	str sBase64;
+	size_t iBase64Len;
+	size_t iOffset;
+
+	if ( !pBuf || !pDer || iDerLen == 0 ) return false;
+
+	sBase64 = xrtBase64Encode((ptr)pDer, iDerLen, NULL);
+	if ( !sBase64 || sBase64 == xCore.sNull ) return false;
+
+	iBase64Len = strlen(sBase64);
+	if ( !__xrt_tls_buf_append(pBuf, sBegin, sizeof(sBegin) - 1) ) {
+		xrtFree(sBase64);
+		return false;
+	}
+
+	for ( iOffset = 0; iOffset < iBase64Len; iOffset += 64 ) {
+		size_t iChunk = iBase64Len - iOffset;
+		if ( iChunk > 64 ) iChunk = 64;
+		if ( !__xrt_tls_buf_append(pBuf, sBase64 + iOffset, iChunk)
+			|| !__xrt_tls_buf_append(pBuf, "\n", 1) ) {
+			xrtFree(sBase64);
+			return false;
+		}
+	}
+
+	xrtFree(sBase64);
+	return __xrt_tls_buf_append(pBuf, sEnd, sizeof(sEnd) - 1);
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
+{
+	typedef HCERTSTORE (WINAPI *procCertOpenStore_t)(LPCSTR, DWORD, ULONG_PTR, DWORD, const void*);
+	typedef PCCERT_CONTEXT (WINAPI *procCertEnumCertificatesInStore_t)(HCERTSTORE, PCCERT_CONTEXT);
+	typedef BOOL (WINAPI *procCertCloseStore_t)(HCERTSTORE, DWORD);
+
+	static procCertOpenStore_t procCertOpenStore = NULL;
+	static procCertEnumCertificatesInStore_t procCertEnumCertificatesInStore = NULL;
+	static procCertCloseStore_t procCertCloseStore = NULL;
+	static bool bCrypt32Loaded = false;
+	static const DWORD arrStoreFlags[] = {
+		CERT_SYSTEM_STORE_CURRENT_USER,
+		CERT_SYSTEM_STORE_LOCAL_MACHINE
+	};
+
+	__xrt_tls_buf tPemBuf;
+	HCERTSTORE hStore = NULL;
+	PCCERT_CONTEXT pCert = NULL;
+	size_t i;
+	bool bAnyLoaded = false;
+
+	if ( !pCtx ) return false;
+
+	if ( !bCrypt32Loaded ) {
+		HMODULE hLib = LoadLibraryA("crypt32.dll");
+		if ( hLib ) {
+			procCertOpenStore = (procCertOpenStore_t)GetProcAddress(hLib, "CertOpenStore");
+			procCertEnumCertificatesInStore =
+				(procCertEnumCertificatesInStore_t)GetProcAddress(hLib, "CertEnumCertificatesInStore");
+			procCertCloseStore = (procCertCloseStore_t)GetProcAddress(hLib, "CertCloseStore");
+		}
+		bCrypt32Loaded = true;
+	}
+
+	if ( !procCertOpenStore || !procCertEnumCertificatesInStore || !procCertCloseStore ) {
+		return false;
+	}
+
+	if ( !__xrt_tls_buf_init(&tPemBuf, 4096) ) {
+		return false;
+	}
+
+	for ( i = 0; i < sizeof(arrStoreFlags) / sizeof(arrStoreFlags[0]); i++ ) {
+		hStore = procCertOpenStore(
+			CERT_STORE_PROV_SYSTEM_A,
+			0,
+			0,
+			CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG | arrStoreFlags[i],
+			"ROOT");
+		if ( !hStore ) continue;
+
+		pCert = NULL;
+		while ( (pCert = procCertEnumCertificatesInStore(hStore, pCert)) != NULL ) {
+			if ( !pCert->pbCertEncoded || pCert->cbCertEncoded == 0 ) continue;
+			if ( !__xrt_tls_append_pem_cert(&tPemBuf, pCert->pbCertEncoded, pCert->cbCertEncoded) ) {
+				procCertCloseStore(hStore, 0);
+				__xrt_tls_buf_free(&tPemBuf);
+				return false;
+			}
+			bAnyLoaded = true;
+		}
+
+		procCertCloseStore(hStore, 0);
+		hStore = NULL;
+	}
+
+	if ( !bAnyLoaded || !__xrt_tls_buf_append(&tPemBuf, "\0", 1) ) {
+		__xrt_tls_buf_free(&tPemBuf);
+		return false;
+	}
+
+	pCtx->pCaData = (uint8*)tPemBuf.pBase;
+	pCtx->iCaDataLen = tPemBuf.iSize - 1;
+	tPemBuf.pBase = NULL;
+	tPemBuf.pData = NULL;
+	tPemBuf.iSize = 0;
+	tPemBuf.iCapacity = 0;
+	return true;
+}
+#endif
+
 static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 {
 	static const char *aDefaultPaths[] = {
@@ -1867,12 +1990,18 @@ static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 		return true;
 	}
 
-	for ( i = 0; i < sizeof(aDefaultPaths) / sizeof(aDefaultPaths[0]); i++ ) {
-		if ( xrtFileExists((str)aDefaultPaths[i]) &&
-			__xrt_tls_load_file_copy(aDefaultPaths[i], &pCtx->pCaData, &pCtx->iCaDataLen) ) {
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( __xrt_tls_load_windows_root_store(pCtx) ) {
 			return true;
 		}
-	}
+	#else
+		for ( i = 0; i < sizeof(aDefaultPaths) / sizeof(aDefaultPaths[0]); i++ ) {
+			if ( xrtFileExists((str)aDefaultPaths[i]) &&
+				__xrt_tls_load_file_copy(aDefaultPaths[i], &pCtx->pCaData, &pCtx->iCaDataLen) ) {
+				return true;
+			}
+		}
+	#endif
 	return false;
 }
 
