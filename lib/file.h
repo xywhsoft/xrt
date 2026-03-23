@@ -1287,6 +1287,9 @@ XXAPI bool xrtFileCopy(str sSrc, str sDst, bool bReWrite)
 			xrtFree(sText);
 			return FALSE;
 		}
+		close(fsrc);
+		close(fdst);
+		xrtFree(sText);
 		return TRUE;
 	#endif
 }
