@@ -35,7 +35,15 @@ static long __Test_XNet2_DgramAtomicInc(volatile long* pValue)
 
 static long __Test_XNet2_DgramAtomicAdd(volatile long* pValue, long iDelta)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		long iPrev;
+		long iNext;
+		do {
+			iPrev = (long)InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
+			iNext = iPrev + iDelta;
+		} while ( (long)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iNext, (LONG)iPrev) != iPrev );
+		return iNext;
+	#elif defined(_WIN32) || defined(_WIN64)
 		return InterlockedAdd((volatile LONG*)pValue, iDelta);
 	#else
 		return __sync_add_and_fetch(pValue, iDelta);

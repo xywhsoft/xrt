@@ -46,6 +46,8 @@
 	- `for`
 	- `foreach`
 	- `break / continue`
+	- `define`
+	- `script`
 	- `include`
 - 预编译模板保存/加载（`XTE_ENABLE_FILE`）
 - 调试结构输出（`XTE_DEBUGMODE`）
@@ -342,18 +344,58 @@ xteDestroyEngine(hEngine);
 {#end}
 ```
 
+### define / 子模板
+
+```text
+A{#define:'card'}[{$user.name}]{#end}B{#include:'card'}C
+```
+
+`define` 是编译期登记的块语句：
+
+- `define` 自身不会直接输出内容
+- 其 `body` 会登记到当前模板对象的本地子模板表
+- 后续 `{#include:'card'}` 会优先命中本地 `define`
+
+支持两种写法：
+
+- `{#define:'card'}...{#end}`
+- `{#define:name='card'}...{#end}`
+
+子模板名当前要求是静态的文本或标识符路径样式名字，不能依赖运行时值。
+
+---
+
 ### include
 
 ```text
 X{#include:'card'}Y
 ```
 
-渲染时通过 `pIncludeMap` 提供模板映射：
+`include` 的查找顺序是：
+
+- 先查当前模板内部由 `define` 登记的本地子模板
+- 未命中时，再查 `pIncludeMap`
+
+外部模板映射示例：
 
 ```c
 xdict tblInclude = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
 xrtDictSetPtr(tblInclude, "card", 0, hCardTemplate, NULL);
 ```
+
+---
+
+### script
+
+```text
+{#script}{#if:active}{$user.name}{#end}{#end}
+```
+
+`script` 是内建 `RAW_BODY` 块语句：
+
+- block 内部不会继续按模板语法递归解析
+- 渲染时原样输出 raw body
+- 适合嵌入脚本片段、模板源码片段、或需要延迟处理的内容
 
 ---
 
@@ -396,16 +438,86 @@ typedef struct XTE_StatementDef_Struct {
 XXAPI uint32 xteArgCount(const XTE_ArgList* pArgs);
 XXAPI const XTE_ArgItem* xteArgAt(const XTE_ArgList* pArgs, uint32 iIndex);
 XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* sName, size_t iNameSize);
+XXAPI const char* xteArgNameText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
+XXAPI const char* xteArgRawText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
+XXAPI uint32 xteArgExprType(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
 
 XXAPI xvalue xteEvalArgValue(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
 XXAPI int xteEvalArgBool(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut);
 XXAPI int xteEvalArgInt(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut);
 XXAPI int xteEvalArgFloat(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut);
 XXAPI char* xteEvalArgText(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
+XXAPI int xteEvalArgBoolStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut);
+XXAPI int xteEvalArgIntStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut);
+XXAPI int xteEvalArgFloatStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut);
+XXAPI char* xteEvalArgTextStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
+
+XXAPI const XTE_ArgItem* xteStmtParseRequireArg(XTE_StmtParseCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtParseRequireNamedArg(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtParseRequireExprType(XTE_StmtParseCtx* pCtx, uint32 iIndex, uint32 iExprType, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtParseRequireNamedExprType(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, uint32 iExprType, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtRequireArg(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtRequireNamedArg(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI int xteStmtRequireBoolStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc);
+XXAPI int xteStmtRequireNamedBoolStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc);
+XXAPI int xteStmtRequireIntStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc);
+XXAPI int xteStmtRequireNamedIntStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc);
+XXAPI int xteStmtRequireFloatStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc);
+XXAPI int xteStmtRequireNamedFloatStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc);
+XXAPI char* xteStmtRequireTextStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI char* xteStmtRequireNamedTextStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI const XTE_ArgItem* xteFuncRequireArg(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI const XTE_ArgItem* xteFuncRequireNamedArg(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI int xteFuncRequireBoolStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc);
+XXAPI int xteFuncRequireNamedBoolStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc);
+XXAPI int xteFuncRequireIntStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc);
+XXAPI int xteFuncRequireNamedIntStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc);
+XXAPI int xteFuncRequireFloatStrict(XTE_FuncCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc);
+XXAPI int xteFuncRequireNamedFloatStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc);
+XXAPI char* xteFuncRequireTextStrict(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI char* xteFuncRequireNamedTextStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+
+XXAPI int xteStmtParseSetError(XTE_StmtParseCtx* pCtx, int iCode, const char* sDesc);
+XXAPI XTE_Flow xteStmtSetError(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc);
+XXAPI int xteFuncSetError(XTE_FuncCtx* pCtx, int iCode, const char* sDesc);
 
 XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize);
 XXAPI int xteStmtRenderBody(XTE_StmtRenderCtx* pCtx);
 XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xvalue pCurrent);
+```
+
+这 3 个错误辅助接口的用法约定是：
+
+- `xteStmtParseSetError()` 适合在 `procParse()` 中直接 `return xteStmtParseSetError(...)`
+- `xteStmtSetError()` 适合在 `procRender()` 中直接 `return xteStmtSetError(...)`
+- `xteFuncSetError()` 适合在 `procCall()` 中直接 `return xteFuncSetError(...)`
+
+建议优先使用这组参数辅助接口：
+
+- `xteStmtParseRequireArg()` / `xteStmtParseRequireNamedArg()`：parse 回调里做缺参校验
+- `xteStmtParseRequireExprType()` / `xteStmtParseRequireNamedExprType()`：parse 回调里一步完成“取参 + 表达式类型校验 + 设错”
+- `xteStmtRequireArg()` / `xteStmtRequireNamedArg()`：语句渲染回调里做缺参校验
+- `xteFuncRequireArg()` / `xteFuncRequireNamedArg()`：函数回调里做缺参校验
+- `xteArgExprType()`：检查参数是路径、文本字面量、整型、布尔或布尔表达式
+- `xteArgRawText()`：读取参数的原始源码文本
+- `xteEvalArgBool/Int/Float/Text()`：宽松转换，适合兼容型模板
+- `xteEvalArgBoolStrict/IntStrict/FloatStrict/TextStrict()`：严格类型校验，不做文本转数值、数值转文本
+- `xteStmtRequire*Strict()` / `xteStmtRequireNamed*Strict()`：语句回调里一步完成“缺参校验 + 严格类型校验 + 设错”
+- `xteFuncRequire*Strict()` / `xteFuncRequireNamed*Strict()`：函数回调里一步完成“缺参校验 + 严格类型校验 + 设错”
+
+示例：
+
+```c
+static int procParse(XTE_StmtParseCtx* pCtx, void** ppData)
+{
+	const XTE_ArgItem* pArg = xteStmtParseRequireExprType(pCtx, 0, XTE_EXPR_TEXT, "prefix requires text literal");
+
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	ppData[0] = xrtCopyStr(xteArgRawText(pCtx->pArgs, pArg), pArg->iRawSize);
+	return (ppData[0] != NULL);
+}
 ```
 
 ---
@@ -445,6 +557,12 @@ XXAPI int xteTemplateSaveFile(xtetemplate hTemplate, const char* sFilePath, uint
 XXAPI xtetemplate xteTemplateLoadFile(xteengine hEngine, const char* sFilePath, uint32 iFlags, XTE_Error* pError);
 ```
 
+文件加载行为补充：
+
+- 加载后会按当前 `engine` 的语句注册表重新绑定 `StatementDef`
+- 若某语句带 `procParse()`，加载时会重新执行它以重建私有 `pData`
+- 若文件里引用了当前 `engine` 未注册的自定义语句，`xteTemplateLoadFile()` 会直接返回 load error，而不是拖到 render 阶段
+
 ### `XTE_DEBUGMODE`
 
 启用内部结构调试输出：
@@ -455,6 +573,14 @@ XXAPI int xteTemplateDumpConsole(xtetemplate hTemplate, uint32 iFlags);
 ```
 
 `DEBUGMODE` 目的仅是方便查看内部结构，不参与发布版热路径。
+
+当前 dump 输出会包含：
+
+- 节点类型
+- 语句名 / 函数名
+- 语句参数 / 函数参数的原始文本
+- 参数对应的编译表达式类型和值
+- 普通输出 / 行内布尔分支的表达式类型标记，例如 `OUTPUT(PATH): user.name`
 
 ---
 
@@ -476,4 +602,4 @@ XXAPI int xteTemplateDumpConsole(xtetemplate hTemplate, uint32 iFlags);
 3. 用 `xteParseEx()` 预编译模板
 4. 需要高频渲染时复用 `xtetemplate`
 5. 需要缓存时，在 `XTE_ENABLE_FILE` 下保存为预编译文件
-6. 调试复杂模板时，在 `XTE_DEBUGMODE` 下直接 dump
+6. 调试复杂模板时，在 `XTE_DEBUGMODE` 下直接 dump，直接核对原始参数文本和编译后的表达式类型

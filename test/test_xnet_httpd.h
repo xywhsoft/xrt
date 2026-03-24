@@ -100,6 +100,20 @@ static bool __Test_XHttpdSendAll(xsocket hSocket, const char* pData, size_t iLen
 	return true;
 }
 
+static size_t __Test_XHttpdParseSizeDec(const char* sText)
+{
+	size_t iValue = 0u;
+
+	if ( !sText ) return 0u;
+
+	while ( *sText >= '0' && *sText <= '9' ) {
+		iValue = (iValue * 10u) + (size_t)(*sText - '0');
+		sText++;
+	}
+
+	return iValue;
+}
+
 static bool __Test_XHttpdTryParseResponse(const char* pBuf, size_t iLen, size_t* pTotalLen)
 {
 	size_t iHeaderLen = 0u;
@@ -123,7 +137,7 @@ static bool __Test_XHttpdTryParseResponse(const char* pBuf, size_t iLen, size_t*
 			aDigits[iDigits++] = *pCl++;
 		}
 		aDigits[iDigits] = '\0';
-		iBodyLen = iDigits > 0u ? (size_t)strtoull(aDigits, NULL, 10) : 0u;
+		iBodyLen = iDigits > 0u ? __Test_XHttpdParseSizeDec(aDigits) : 0u;
 	}
 	if ( iLen < iHeaderLen + iBodyLen ) return false;
 	*pTotalLen = iHeaderLen + iBodyLen;

@@ -9,6 +9,12 @@ typedef struct {
 	volatile long iWorkerId;
 } __test_xnet2_sync_task_ctx;
 
+typedef struct {
+	int iPayload;
+	volatile long iHitCount;
+	volatile long iWorkerId;
+} __test_xnet2_sync_postfuture_case;
+
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 typedef struct {
 	xnetfuture* pFuture;
@@ -32,12 +38,6 @@ typedef struct {
 	ptr arrValues[2];
 	bool arrDone[2];
 } __test_xnet2_sync_multi_coro_case;
-
-typedef struct {
-	int iPayload;
-	volatile long iHitCount;
-	volatile long iWorkerId;
-} __test_xnet2_sync_postfuture_case;
 
 typedef struct {
 	xdgramsock* pSock;
@@ -451,59 +451,6 @@ static uint32 __Test_XNet2_SyncFutureResolveWorkerMulti(ptr pArg)
 	return 0;
 }
 
-static xnet_result __Test_XNet2_SyncPostFutureTask(xnetworker* pWorker, ptr pArg, ptr* ppValue)
-{
-	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
-
-	if ( !pCase ) {
-		return XRT_NET_ERROR;
-	}
-
-	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
-	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, pWorker ? (long)pWorker->iId : -1);
-	if ( ppValue ) {
-		*ppValue = &pCase->iPayload;
-	}
-	return XRT_NET_OK;
-}
-
-static int32 __Test_XNet2_SyncFillTaskResult(__test_xnet2_sync_postfuture_case* pCase, long iWorkerId, xfuture_result* pOut)
-{
-	if ( !pCase || !pOut ) {
-		return XRT_NET_ERROR;
-	}
-	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
-	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, iWorkerId);
-	pOut->iStatus = XRT_NET_OK;
-	pOut->pValue = &pCase->iPayload;
-	pOut->sError = NULL;
-	pOut->iFlags = XFUTURE_RESULT_F_NONE;
-	return XRT_NET_OK;
-}
-
-static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
-{
-	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
-
-	return __Test_XNet2_SyncFillTaskResult(pCase, pWorker ? (long)pWorker->iId : -1, pOut);
-}
-
-static int32 __Test_XNet2_TaskRunThreadProc(ptr pArg, xfuture_result* pOut)
-{
-	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
-
-	return __Test_XNet2_SyncFillTaskResult(pCase, -2, pOut);
-}
-
-#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
-static int32 __Test_XNet2_TaskRunCoProc(ptr pArg, xfuture_result* pOut)
-{
-	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
-
-	return __Test_XNet2_SyncFillTaskResult(pCase, -3, pOut);
-}
-#endif
-
 static void __Test_XNet2_SyncStreamDrainTask(xnetworker* pWorker, ptr pArg)
 {
 	xnetstream* pStream = (xnetstream*)pArg;
@@ -667,6 +614,59 @@ static bool __Test_XNet2_SyncPostRecvAndRetryWaitCo(
 #undef __TEST_XNET2_SYNC_DEFINE_MULTI_CORO_CASE_PROC
 #undef __TEST_XNET2_SYNC_DEFINE_LISTENER_CORO_CASE_PROC
 #undef __TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC
+#endif
+
+static xnet_result __Test_XNet2_SyncPostFutureTask(xnetworker* pWorker, ptr pArg, ptr* ppValue)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	if ( !pCase ) {
+		return XRT_NET_ERROR;
+	}
+
+	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
+	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, pWorker ? (long)pWorker->iId : -1);
+	if ( ppValue ) {
+		*ppValue = &pCase->iPayload;
+	}
+	return XRT_NET_OK;
+}
+
+static int32 __Test_XNet2_SyncFillTaskResult(__test_xnet2_sync_postfuture_case* pCase, long iWorkerId, xfuture_result* pOut)
+{
+	if ( !pCase || !pOut ) {
+		return XRT_NET_ERROR;
+	}
+	__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
+	__Test_XNet2_SyncAtomicStore(&pCase->iWorkerId, iWorkerId);
+	pOut->iStatus = XRT_NET_OK;
+	pOut->pValue = &pCase->iPayload;
+	pOut->sError = NULL;
+	pOut->iFlags = XFUTURE_RESULT_F_NONE;
+	return XRT_NET_OK;
+}
+
+static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	return __Test_XNet2_SyncFillTaskResult(pCase, pWorker ? (long)pWorker->iId : -1, pOut);
+}
+
+static int32 __Test_XNet2_TaskRunThreadProc(ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	return __Test_XNet2_SyncFillTaskResult(pCase, -2, pOut);
+}
+
+#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+static int32 __Test_XNet2_TaskRunCoProc(ptr pArg, xfuture_result* pOut)
+{
+	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
+
+	return __Test_XNet2_SyncFillTaskResult(pCase, -3, pOut);
+}
 #endif
 
 static int __Test_XNet2_SyncTrackedPrintf(int* piFailCount, const char* sFormat, ...)

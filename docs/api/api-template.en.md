@@ -46,6 +46,8 @@ Current mainline supports:
 	- `for`
 	- `foreach`
 	- `break / continue`
+	- `define`
+	- `script`
 	- `include`
 - compiled template save/load (`XTE_ENABLE_FILE`)
 - debug structure dump (`XTE_DEBUGMODE`)
@@ -342,18 +344,58 @@ Loop locals:
 {#end}
 ```
 
+### define / local subtemplates
+
+```text
+A{#define:'card'}[{$user.name}]{#end}B{#include:'card'}C
+```
+
+`define` is a compile-time block statement:
+
+- `define` itself does not render output
+- its body is registered into the current template's local subtemplate table
+- later `{#include:'card'}` resolves local `define` entries first
+
+Supported forms:
+
+- `{#define:'card'}...{#end}`
+- `{#define:name='card'}...{#end}`
+
+The local subtemplate name must currently be static text or an identifier-style path name. It cannot depend on runtime values.
+
+---
+
 ### include
 
 ```text
 X{#include:'card'}Y
 ```
 
-Provide the template map through `pIncludeMap`:
+`include` resolves in this order:
+
+- local subtemplates registered by `define`
+- `pIncludeMap` when no local match exists
+
+External template-map example:
 
 ```c
 xdict tblInclude = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
 xrtDictSetPtr(tblInclude, "card", 0, hCardTemplate, NULL);
 ```
+
+---
+
+### script
+
+```text
+{#script}{#if:active}{$user.name}{#end}{#end}
+```
+
+`script` is a builtin `RAW_BODY` block statement:
+
+- its body is not recursively parsed as template syntax
+- render writes the raw body back unchanged
+- useful for embedded script fragments, template-source fragments, or delayed processing
 
 ---
 
@@ -396,16 +438,86 @@ Examples:
 XXAPI uint32 xteArgCount(const XTE_ArgList* pArgs);
 XXAPI const XTE_ArgItem* xteArgAt(const XTE_ArgList* pArgs, uint32 iIndex);
 XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* sName, size_t iNameSize);
+XXAPI const char* xteArgNameText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
+XXAPI const char* xteArgRawText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
+XXAPI uint32 xteArgExprType(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
 
 XXAPI xvalue xteEvalArgValue(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
 XXAPI int xteEvalArgBool(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut);
 XXAPI int xteEvalArgInt(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut);
 XXAPI int xteEvalArgFloat(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut);
 XXAPI char* xteEvalArgText(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
+XXAPI int xteEvalArgBoolStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut);
+XXAPI int xteEvalArgIntStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut);
+XXAPI int xteEvalArgFloatStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut);
+XXAPI char* xteEvalArgTextStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
+
+XXAPI const XTE_ArgItem* xteStmtParseRequireArg(XTE_StmtParseCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtParseRequireNamedArg(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtParseRequireExprType(XTE_StmtParseCtx* pCtx, uint32 iIndex, uint32 iExprType, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtParseRequireNamedExprType(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, uint32 iExprType, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtRequireArg(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI const XTE_ArgItem* xteStmtRequireNamedArg(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI int xteStmtRequireBoolStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc);
+XXAPI int xteStmtRequireNamedBoolStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc);
+XXAPI int xteStmtRequireIntStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc);
+XXAPI int xteStmtRequireNamedIntStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc);
+XXAPI int xteStmtRequireFloatStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc);
+XXAPI int xteStmtRequireNamedFloatStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc);
+XXAPI char* xteStmtRequireTextStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI char* xteStmtRequireNamedTextStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI const XTE_ArgItem* xteFuncRequireArg(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI const XTE_ArgItem* xteFuncRequireNamedArg(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+XXAPI int xteFuncRequireBoolStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc);
+XXAPI int xteFuncRequireNamedBoolStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc);
+XXAPI int xteFuncRequireIntStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc);
+XXAPI int xteFuncRequireNamedIntStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc);
+XXAPI int xteFuncRequireFloatStrict(XTE_FuncCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc);
+XXAPI int xteFuncRequireNamedFloatStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc);
+XXAPI char* xteFuncRequireTextStrict(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc);
+XXAPI char* xteFuncRequireNamedTextStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+
+XXAPI int xteStmtParseSetError(XTE_StmtParseCtx* pCtx, int iCode, const char* sDesc);
+XXAPI XTE_Flow xteStmtSetError(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc);
+XXAPI int xteFuncSetError(XTE_FuncCtx* pCtx, int iCode, const char* sDesc);
 
 XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize);
 XXAPI int xteStmtRenderBody(XTE_StmtRenderCtx* pCtx);
 XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xvalue pCurrent);
+```
+
+These three helpers are intended to be used like this:
+
+- `xteStmtParseSetError()` from `procParse()` as `return xteStmtParseSetError(...)`
+- `xteStmtSetError()` from `procRender()` as `return xteStmtSetError(...)`
+- `xteFuncSetError()` from `procCall()` as `return xteFuncSetError(...)`
+
+Recommended argument-validation helpers:
+
+- `xteStmtParseRequireArg()` / `xteStmtParseRequireNamedArg()` for parse callbacks
+- `xteStmtParseRequireExprType()` / `xteStmtParseRequireNamedExprType()` to fetch an argument, validate its compiled expression type, and set parse errors in one step
+- `xteStmtRequireArg()` / `xteStmtRequireNamedArg()` for statement render callbacks
+- `xteFuncRequireArg()` / `xteFuncRequireNamedArg()` for function callbacks
+- `xteArgExprType()` when you need to validate expression shape
+- `xteArgRawText()` when you need the original source text
+- `xteEvalArgBool/Int/Float/Text()` for permissive coercion
+- `xteEvalArgBoolStrict/IntStrict/FloatStrict/TextStrict()` for strict type checks without coercion
+- `xteStmtRequire*Strict()` / `xteStmtRequireNamed*Strict()` to combine missing-arg checks, strict type checks, and error reporting in statement callbacks
+- `xteFuncRequire*Strict()` / `xteFuncRequireNamed*Strict()` to combine missing-arg checks, strict type checks, and error reporting in one step
+
+Example:
+
+```c
+static int procParse(XTE_StmtParseCtx* pCtx, void** ppData)
+{
+	const XTE_ArgItem* pArg = xteStmtParseRequireExprType(pCtx, 0, XTE_EXPR_TEXT, "prefix requires text literal");
+
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	ppData[0] = xrtCopyStr(xteArgRawText(pCtx->pArgs, pArg), pArg->iRawSize);
+	return (ppData[0] != NULL);
+}
 ```
 
 ---
@@ -445,6 +557,12 @@ XXAPI int xteTemplateSaveFile(xtetemplate hTemplate, const char* sFilePath, uint
 XXAPI xtetemplate xteTemplateLoadFile(xteengine hEngine, const char* sFilePath, uint32 iFlags, XTE_Error* pError);
 ```
 
+Additional load behavior:
+
+- statement definitions are rebound against the current engine registry
+- if a statement provides `procParse()`, it is executed again during load to rebuild private `pData`
+- if the file references a custom statement that is not registered in the target engine, `xteTemplateLoadFile()` fails immediately instead of deferring the error to render time
+
 ### `XTE_DEBUGMODE`
 
 Enables debug dump of internal structure:
@@ -455,6 +573,14 @@ XXAPI int xteTemplateDumpConsole(xtetemplate hTemplate, uint32 iFlags);
 ```
 
 `XTE_DEBUGMODE` is for inspection and debugging only. It is not part of the release hot path.
+
+The current dump output includes:
+
+- node kind
+- statement / function name
+- raw statement / function argument text
+- compiled argument expression type and value
+- expression type markers for plain outputs / inline boolean nodes, for example `OUTPUT(PATH): user.name`
 
 ---
 
@@ -477,4 +603,4 @@ Use XTE in this order:
 4. compile with `xteParseEx()`
 5. reuse `xtetemplate` for repeated renders
 6. if you need cache persistence, enable `XTE_ENABLE_FILE`
-7. if you need internal visibility, enable `XTE_DEBUGMODE`
+7. if you need internal visibility, enable `XTE_DEBUGMODE` and inspect both raw argument text and compiled expression types

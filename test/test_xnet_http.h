@@ -213,7 +213,9 @@ static void* __Test_XHttpAcceptThread(void* pArg)
 		}
 		__Test_XHttpSleepMs(5);
 	}
-	#if !defined(_WIN32) && !defined(_WIN64)
+	#if defined(_WIN32) || defined(_WIN64)
+		return 0;
+	#else
 		return NULL;
 	#endif
 }

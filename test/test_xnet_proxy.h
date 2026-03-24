@@ -353,7 +353,9 @@ static void* __Test_XNetProxyServerThread(void* pArg)
 		else (void)__Test_XNetProxyHandleSocks5(pServer, hClient);
 		if ( __xnetSocketIsValid(hClient) ) __xnetSocketCloseHandle(&hClient);
 	}
-	#if !defined(_WIN32) && !defined(_WIN64)
+	#if defined(_WIN32) || defined(_WIN64)
+		return 0;
+	#else
 		return NULL;
 	#endif
 }
@@ -420,7 +422,9 @@ static void* __Test_XNetProxyEchoThread(void* pArg)
 		}
 		__xnetSocketCloseHandle(&hClient);
 	}
-	#if !defined(_WIN32) && !defined(_WIN64)
+	#if defined(_WIN32) || defined(_WIN64)
+		return 0;
+	#else
 		return NULL;
 	#endif
 }

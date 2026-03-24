@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-24 15:17:03
+    Generated: 2026-03-24 17:24:04
 
     MIT License
 
@@ -5790,11 +5790,45 @@
 	XXAPI uint32 xteArgCount(const XTE_ArgList* pArgs);
 	XXAPI const XTE_ArgItem* xteArgAt(const XTE_ArgList* pArgs, uint32 iIndex);
 	XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* sName, size_t iNameSize);
+	XXAPI const char* xteArgNameText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
+	XXAPI const char* xteArgRawText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
+	XXAPI uint32 xteArgExprType(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg);
 	XXAPI xvalue xteEvalArgValue(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
 	XXAPI int xteEvalArgBool(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut);
 	XXAPI int xteEvalArgInt(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut);
 	XXAPI int xteEvalArgFloat(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut);
 	XXAPI char* xteEvalArgText(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
+	XXAPI int xteEvalArgBoolStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut);
+	XXAPI int xteEvalArgIntStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut);
+	XXAPI int xteEvalArgFloatStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut);
+	XXAPI char* xteEvalArgTextStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
+	XXAPI const XTE_ArgItem* xteStmtParseRequireArg(XTE_StmtParseCtx* pCtx, uint32 iIndex, const char* sDesc);
+	XXAPI const XTE_ArgItem* xteStmtParseRequireNamedArg(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+	XXAPI const XTE_ArgItem* xteStmtParseRequireExprType(XTE_StmtParseCtx* pCtx, uint32 iIndex, uint32 iExprType, const char* sDesc);
+	XXAPI const XTE_ArgItem* xteStmtParseRequireNamedExprType(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, uint32 iExprType, const char* sDesc);
+	XXAPI const XTE_ArgItem* xteStmtRequireArg(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc);
+	XXAPI const XTE_ArgItem* xteStmtRequireNamedArg(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+	XXAPI int xteStmtRequireBoolStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc);
+	XXAPI int xteStmtRequireNamedBoolStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc);
+	XXAPI int xteStmtRequireIntStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc);
+	XXAPI int xteStmtRequireNamedIntStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc);
+	XXAPI int xteStmtRequireFloatStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc);
+	XXAPI int xteStmtRequireNamedFloatStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc);
+	XXAPI char* xteStmtRequireTextStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc);
+	XXAPI char* xteStmtRequireNamedTextStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+	XXAPI const XTE_ArgItem* xteFuncRequireArg(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc);
+	XXAPI const XTE_ArgItem* xteFuncRequireNamedArg(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+	XXAPI int xteFuncRequireBoolStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc);
+	XXAPI int xteFuncRequireNamedBoolStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc);
+	XXAPI int xteFuncRequireIntStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc);
+	XXAPI int xteFuncRequireNamedIntStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc);
+	XXAPI int xteFuncRequireFloatStrict(XTE_FuncCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc);
+	XXAPI int xteFuncRequireNamedFloatStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc);
+	XXAPI char* xteFuncRequireTextStrict(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc);
+	XXAPI char* xteFuncRequireNamedTextStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc);
+	XXAPI int xteStmtParseSetError(XTE_StmtParseCtx* pCtx, int iCode, const char* sDesc);
+	XXAPI XTE_Flow xteStmtSetError(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc);
+	XXAPI int xteFuncSetError(XTE_FuncCtx* pCtx, int iCode, const char* sDesc);
 	XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize);
 	XXAPI int xteStmtRenderBody(XTE_StmtRenderCtx* pCtx);
 	XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xvalue pCurrent);
@@ -61495,6 +61529,12 @@ typedef struct
 } XTE_PrivateFunctionReg;
 typedef struct
 {
+	uint32 iNameOff;
+	uint32 iNameSize;
+	XTE_NodeSpan tBody;
+} XTE_PrivateSubTemplateItem;
+typedef struct
+{
 	const char* sText;
 	uint32 iSize;
 } XTE_PrivateView;
@@ -61584,6 +61624,7 @@ struct XTE_Template_Struct
 	xarray_struct arrNode;
 	xarray_struct arrExpr;
 	xarray_struct arrArg;
+	xarray_struct arrSubTemplate;
 	XTE_NodeSpan tRoot;
 };
 struct XTE_RenderCtx_Struct
@@ -61598,11 +61639,14 @@ struct XTE_RenderCtx_Struct
 	xvalue pGlobal;
 	XTE_Error* pError;
 	uint32 iFlags;
+	uint32 iLoopDepth;
 };
 static XTE_Node* xte_private_template_get_node(xtetemplate hTemplate, uint32 iIndex);
 static XTE_ExprNode* xte_private_template_get_expr(xtetemplate hTemplate, uint32 iIndex);
 static XTE_ArgItem* xte_private_template_get_arg(xtetemplate hTemplate, uint32 iIndex);
+static XTE_PrivateSubTemplateItem* xte_private_template_get_subtemplate(xtetemplate hTemplate, uint32 iIndex);
 static const char* xte_private_pool_ptr(xtetemplate hTemplate, uint32 iOff);
+static uint32 xte_private_pool_add_copy(xtetemplate hTemplate, const char* sText, uint32 iSize);
 static int xte_private_value_truthy(xvalue pVal);
 static char* xte_private_value_to_text(xvalue pVal);
 #ifdef XTE_ENABLE_FILE
@@ -62441,6 +62485,160 @@ static void xte_private_make_arg_list(xtetemplate hTemplate, const XTE_Node* pNo
 	}
 	xte_private_fill_arg_list(hTemplate, pNode->Data.Statement.iArgStart, pNode->Data.Statement.iArgCount, pArgs);
 }
+static void xte_private_fill_node_error(const XTE_Node* pNode, XTE_Error* pError, int iCode, const char* sDesc)
+{
+	if ( pError == NULL ) {
+		return;
+	}
+	memset(pError, 0, sizeof(*pError));
+	pError->iCode = iCode;
+	pError->sDesc = sDesc;
+	pError->iLine = 1u;
+	pError->iColumn = 1u;
+	pError->iRefLine = 1u;
+	pError->iRefColumn = 1u;
+	if ( pNode != NULL ) {
+		pError->iPos = pNode->iPos;
+		pError->iRefPos = pNode->iPos;
+	}
+}
+static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNode, const XTE_StatementDef* pDef, int iDefaultCode, const char* sDefaultDesc)
+{
+	const char* sName = NULL;
+	XTE_ArgList tArgs = { 0 };
+	XTE_NodeSpan* pBody = NULL;
+	const char* sRawBody = NULL;
+	XTE_StmtParseCtx tCtx = { 0 };
+	void* pData = NULL;
+	if ( (hTemplate == NULL) || (pNode == NULL) || (pNode->iType != XTE_NODE_STATEMENT) ) {
+		return 1;
+	}
+	if ( pDef == NULL ) {
+		sName = xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iStmtNameOff);
+		pDef = xte_private_find_statement(hTemplate->hEngine, sName, pNode->Data.Statement.iStmtNameSize);
+	}
+	if ( pDef == NULL ) {
+		xte_private_fill_node_error(pNode, &hTemplate->LastError, XTE_ERROR_UNKNOWN_STATEMENT, "template statement is not registered");
+		return 0;
+	}
+	if ( pNode->Data.Statement.pData != NULL ) {
+		if ( pDef->procFreeData != NULL ) {
+			pDef->procFreeData(pNode->Data.Statement.pData);
+		}
+		pNode->Data.Statement.pData = NULL;
+	}
+	if ( pDef->procParse == NULL ) {
+		return 1;
+	}
+	xte_private_make_arg_list(hTemplate, pNode, &tArgs);
+	pBody = (pNode->Data.Statement.tBody.iCount != 0u) ? &pNode->Data.Statement.tBody : NULL;
+	sRawBody = (pNode->Data.Statement.iRawBodyOff != XTE_PRIVATE_INVALID_INDEX) ? xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iRawBodyOff) : NULL;
+	tCtx.hEngine = hTemplate->hEngine;
+	tCtx.hTemplate = hTemplate;
+	tCtx.pDef = pDef;
+	tCtx.pArgs = &tArgs;
+	tCtx.pBody = pBody;
+	tCtx.sRawBody = sRawBody;
+	tCtx.iRawBodySize = pNode->Data.Statement.iRawBodySize;
+	tCtx.pError = &hTemplate->LastError;
+	tCtx.pUserData = pDef->pUserData;
+	xte_private_clear_error(&hTemplate->LastError);
+	if ( pDef->procParse(&tCtx, &pData) == 0 ) {
+		if ( hTemplate->LastError.iCode == 0 ) {
+			xte_private_fill_node_error(pNode, &hTemplate->LastError, iDefaultCode, sDefaultDesc);
+		}
+		return 0;
+	}
+	pNode->Data.Statement.pData = pData;
+	return 1;
+}
+static int xte_private_rebuild_statement_data(xtetemplate hTemplate, int iDefaultCode, const char* sDefaultDesc)
+{
+	uint32 i = 0;
+	if ( hTemplate == NULL ) {
+		return 0;
+	}
+	for ( i = 0; i < hTemplate->arrNode.Count; i++ ) {
+		XTE_Node* pNode = xte_private_template_get_node(hTemplate, i);
+		if ( (pNode == NULL) || (pNode->iType != XTE_NODE_STATEMENT) ) {
+			continue;
+		}
+		if ( !xte_private_bind_statement_node(hTemplate, pNode, NULL, iDefaultCode, sDefaultDesc) ) {
+			return 0;
+		}
+	}
+	return 1;
+}
+static const XTE_PrivateSubTemplateItem* xte_private_find_subtemplate(xtetemplate hTemplate, const char* sName, uint32 iNameSize)
+{
+	uint32 i = 0;
+	if ( (hTemplate == NULL) || (sName == NULL) ) {
+		return NULL;
+	}
+	if ( iNameSize == 0u ) {
+		iNameSize = (uint32)strlen(sName);
+	}
+	for ( i = 0; i < hTemplate->arrSubTemplate.Count; i++ ) {
+		XTE_PrivateSubTemplateItem* pItem = xte_private_template_get_subtemplate(hTemplate, i);
+		const char* sItemName = NULL;
+		if ( pItem == NULL ) {
+			continue;
+		}
+		sItemName = xte_private_pool_ptr(hTemplate, pItem->iNameOff);
+		if ( xte_private_str_eq(sItemName, pItem->iNameSize, sName, iNameSize) ) {
+			return pItem;
+		}
+	}
+	return NULL;
+}
+static int xte_private_rebuild_subtemplates(xtetemplate hTemplate, int iErrorCode, const char* sDefaultDesc)
+{
+	uint32 i = 0;
+	if ( hTemplate == NULL ) {
+		return 0;
+	}
+	xrtArrayUnit(&hTemplate->arrSubTemplate);
+	xrtArrayInit(&hTemplate->arrSubTemplate, sizeof(XTE_PrivateSubTemplateItem), XRT_OBJMODE_LOCAL);
+	for ( i = 0; i < hTemplate->arrNode.Count; i++ ) {
+		XTE_Node* pNode = xte_private_template_get_node(hTemplate, i);
+		XTE_PrivateSubTemplateItem tItem = { 0 };
+		const char* sStmtName = NULL;
+		const char* sDefineName = NULL;
+		uint32 iDefineNameSize = 0;
+		uint32 iIndex = 0;
+		if ( (pNode == NULL) || (pNode->iType != XTE_NODE_STATEMENT) ) {
+			continue;
+		}
+		sStmtName = xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iStmtNameOff);
+		if ( !xte_private_str_eq(sStmtName, pNode->Data.Statement.iStmtNameSize, "define", 6) ) {
+			continue;
+		}
+		sDefineName = (const char*)pNode->Data.Statement.pData;
+		if ( (sDefineName == NULL) || (sDefineName[0] == 0) ) {
+			xte_private_fill_node_error(pNode, &hTemplate->LastError, iErrorCode, sDefaultDesc);
+			return 0;
+		}
+		iDefineNameSize = (uint32)strlen(sDefineName);
+		if ( xte_private_find_subtemplate(hTemplate, sDefineName, iDefineNameSize) != NULL ) {
+			xte_private_fill_node_error(pNode, &hTemplate->LastError, iErrorCode, "template define name is duplicated");
+			return 0;
+		}
+		tItem.iNameOff = xte_private_pool_add_copy(hTemplate, sDefineName, iDefineNameSize);
+		tItem.iNameSize = iDefineNameSize;
+		tItem.tBody = pNode->Data.Statement.tBody;
+		if ( tItem.iNameOff == XTE_PRIVATE_INVALID_INDEX ) {
+			xte_private_fill_node_error(pNode, &hTemplate->LastError, XTE_ERROR_MALLOC, "template sub template alloc failed");
+			return 0;
+		}
+		iIndex = xrtArrayAppend(&hTemplate->arrSubTemplate, 1u);
+		if ( iIndex == 0u ) {
+			xte_private_fill_node_error(pNode, &hTemplate->LastError, XTE_ERROR_MALLOC, "template sub template alloc failed");
+			return 0;
+		}
+		memcpy(xrtArrayGet_Inline(&hTemplate->arrSubTemplate, iIndex), &tItem, sizeof(tItem));
+	}
+	return 1;
+}
 static void xte_private_ast_list_init(XTE_PrivateAstList* pList)
 {
 	xrtArrayInit(&pList->arrNode, sizeof(XTE_PrivateAstNode), XRT_OBJMODE_LOCAL);
@@ -62525,6 +62723,13 @@ static XTE_ArgItem* xte_private_template_get_arg(xtetemplate hTemplate, uint32 i
 		return NULL;
 	}
 	return xrtArrayGet_Inline(&hTemplate->arrArg, iIndex + 1u);
+}
+static XTE_PrivateSubTemplateItem* xte_private_template_get_subtemplate(xtetemplate hTemplate, uint32 iIndex)
+{
+	if ( (hTemplate == NULL) || (iIndex >= hTemplate->arrSubTemplate.Count) ) {
+		return NULL;
+	}
+	return xrtArrayGet_Inline(&hTemplate->arrSubTemplate, iIndex + 1u);
 }
 static uint32 xte_private_pool_add_copy(xtetemplate hTemplate, const char* sText, uint32 iSize)
 {
@@ -63214,6 +63419,7 @@ static xtetemplate xte_private_template_create(xteengine hEngine, int bOwnEngine
 	xrtArrayInit(&hTemplate->arrNode, sizeof(XTE_Node), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hTemplate->arrExpr, sizeof(XTE_ExprNode), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hTemplate->arrArg, sizeof(XTE_ArgItem), XRT_OBJMODE_LOCAL);
+	xrtArrayInit(&hTemplate->arrSubTemplate, sizeof(XTE_PrivateSubTemplateItem), XRT_OBJMODE_LOCAL);
 	return hTemplate;
 }
 static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstList* pList, XTE_NodeSpan* pSpan);
@@ -63352,32 +63558,9 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 				}
 			}
 			if ( pAstNode->Data.Statement.pDef && pAstNode->Data.Statement.pDef->procParse ) {
-				XTE_ArgList tArgs = { 0 };
-				XTE_NodeSpan* pBody = (pNode->Data.Statement.tBody.iCount != 0u) ? &pNode->Data.Statement.tBody : NULL;
-				const char* sRawBody = (pNode->Data.Statement.iRawBodyOff != XTE_PRIVATE_INVALID_INDEX) ? xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iRawBodyOff) : NULL;
-				XTE_StmtParseCtx tCtx = { 0 };
-				void* pData = NULL;
-				tArgs.hTemplate = hTemplate;
-				tArgs.iCount = pNode->Data.Statement.iArgCount;
-				tArgs.pItems = (tArgs.iCount != 0u) ? xte_private_template_get_arg(hTemplate, pNode->Data.Statement.iArgStart) : NULL;
-				tCtx.hEngine = hTemplate->hEngine;
-				tCtx.hTemplate = hTemplate;
-				tCtx.pDef = pAstNode->Data.Statement.pDef;
-				tCtx.pArgs = &tArgs;
-				tCtx.pBody = pBody;
-				tCtx.sRawBody = sRawBody;
-				tCtx.iRawBodySize = pNode->Data.Statement.iRawBodySize;
-				tCtx.pError = &hTemplate->LastError;
-				tCtx.pUserData = pAstNode->Data.Statement.pDef->pUserData;
-				xte_private_clear_error(&hTemplate->LastError);
-				if ( pAstNode->Data.Statement.pDef->procParse(&tCtx, &pData) == 0 ) {
-					if ( hTemplate->LastError.iCode == 0 ) {
-						hTemplate->LastError.iCode = XTE_ERROR_PARSE;
-						hTemplate->LastError.sDesc = "template statement parse callback failed";
-					}
+				if ( !xte_private_bind_statement_node(hTemplate, pNode, pAstNode->Data.Statement.pDef, XTE_ERROR_PARSE, "template statement parse callback failed") ) {
 					return 0;
 				}
-				pNode->Data.Statement.pData = pData;
 			}
 		}
 	}
@@ -63495,6 +63678,10 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 	int bOk = 1;
 	if ( pNode->Data.Output.iOutputType == XTE_OUTPUT_FUNC ) {
 		pVal = xte_private_call_output_function(pCtx, pNode);
+		if ( (pCtx->pError != NULL) && (pCtx->pError->iCode != 0) ) {
+			xvoUnref(pVal);
+			return 0;
+		}
 		sOut = xte_private_value_to_text(pVal);
 	} else {
 		pVal = xte_private_eval_expr_value(pCtx, pNode->Data.Output.iExprIndex);
@@ -63566,13 +63753,62 @@ static XTE_Flow xte_private_render_body_with_scope_ex(XTE_StmtRenderCtx* pCtx, x
 	pCtx->pRender->pCurrent = pOldCurrent;
 	return iFlow;
 }
-static XTE_Flow xte_private_stmt_render_error(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc)
+static XTE_Flow xte_private_stmt_render_error(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc);
+static int xte_private_stmt_parse_define(XTE_StmtParseCtx* pCtx, void** ppData)
 {
-	if ( (pCtx != NULL) && (pCtx->pRender != NULL) && (pCtx->pRender->pError != NULL) && (pCtx->pRender->pError->iCode == 0) ) {
-		pCtx->pRender->pError->iCode = iCode;
-		pCtx->pRender->pError->sDesc = sDesc;
+	const XTE_ArgItem* pArg = NULL;
+	XTE_ExprNode* pExpr = NULL;
+	const char* sText = NULL;
+	char* sName = NULL;
+	if ( ppData != NULL ) {
+		ppData[0] = NULL;
 	}
-	return XTE_FLOW_ERROR;
+	if ( (pCtx == NULL) || (pCtx->hTemplate == NULL) || (ppData == NULL) ) {
+		return 0;
+	}
+	pArg = xteFindNamedArg(pCtx->pArgs, "name", 4u);
+	if ( pArg == NULL ) {
+		pArg = xteArgAt(pCtx->pArgs, 0u);
+	}
+	if ( pArg == NULL ) {
+		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define name is required");
+	}
+	if ( (xteArgExprType(pCtx->pArgs, pArg) != XTE_EXPR_TEXT) && (xteArgExprType(pCtx->pArgs, pArg) != XTE_EXPR_PATH) ) {
+		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define name must be text or path");
+	}
+	pExpr = xte_private_template_get_expr(pCtx->hTemplate, pArg->iExprIndex);
+	if ( (pExpr == NULL) || (pExpr->iTextOff == XTE_PRIVATE_INVALID_INDEX) ) {
+		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define expr is invalid");
+	}
+	sText = xte_private_pool_ptr(pCtx->hTemplate, pExpr->iTextOff);
+	sName = xte_private_copy_view(sText, pExpr->iTextSize);
+	if ( (pExpr->iTextSize != 0u) && (sName == NULL) ) {
+		return xteStmtParseSetError(pCtx, XTE_ERROR_MALLOC, "template define name alloc failed");
+	}
+	if ( (sName == NULL) || (sName[0] == 0) ) {
+		xrtFree(sName);
+		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define name is empty");
+	}
+	ppData[0] = sName;
+	return 1;
+}
+static XTE_Flow xte_private_stmt_render_define(XTE_StmtRenderCtx* pCtx)
+{
+	(void)pCtx;
+	return XTE_FLOW_OK;
+}
+static XTE_Flow xte_private_stmt_render_script(XTE_StmtRenderCtx* pCtx)
+{
+	if ( pCtx == NULL ) {
+		return XTE_FLOW_ERROR;
+	}
+	if ( (pCtx->sRawBody == NULL) || (pCtx->iRawBodySize == 0u) ) {
+		return XTE_FLOW_OK;
+	}
+	if ( xteStmtWrite(pCtx, pCtx->sRawBody, pCtx->iRawBodySize) ) {
+		return XTE_FLOW_OK;
+	}
+	return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template script write failed");
 }
 static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 {
@@ -63636,12 +63872,22 @@ static XTE_Flow xte_private_stmt_render_elseif(XTE_StmtRenderCtx* pCtx)
 }
 static XTE_Flow xte_private_stmt_render_break(XTE_StmtRenderCtx* pCtx)
 {
-	(void)pCtx;
+	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
+		return XTE_FLOW_ERROR;
+	}
+	if ( pCtx->pRender->iLoopDepth == 0u ) {
+		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template break must be inside loop");
+	}
 	return XTE_FLOW_BREAK;
 }
 static XTE_Flow xte_private_stmt_render_continue(XTE_StmtRenderCtx* pCtx)
 {
-	(void)pCtx;
+	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
+		return XTE_FLOW_ERROR;
+	}
+	if ( pCtx->pRender->iLoopDepth == 0u ) {
+		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template continue must be inside loop");
+	}
 	return XTE_FLOW_CONTINUE;
 }
 static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
@@ -63651,6 +63897,7 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 	int64 iStep = 0;
 	int64 iIndex = 0;
 	uint32 iLoopCount = 0;
+	uint32 iPrevLoopDepth = 0;
 	xvalue pLocal = NULL;
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
 		return XTE_FLOW_ERROR;
@@ -63678,16 +63925,20 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 	if ( pLocal == NULL ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_MALLOC, "template for local alloc failed");
 	}
+	iPrevLoopDepth = pCtx->pRender->iLoopDepth;
+	pCtx->pRender->iLoopDepth = iPrevLoopDepth + 1u;
 	for ( iIndex = iStart;
 		((iStep > 0) && (iIndex <= iEnd)) || ((iStep < 0) && (iIndex >= iEnd));
 		iIndex += iStep ) {
 		XTE_Flow iFlow = XTE_FLOW_OK;
 		iLoopCount++;
 		if ( iLoopCount > XTE_PRIVATE_LOOP_MAX_ITERATIONS ) {
+			pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 			xvoUnref(pLocal);
 			return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for exceeded max iterations");
 		}
 		if ( !xvoTableSetInt(pLocal, "__index__", 0, iIndex) ) {
+			pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 			xvoUnref(pLocal);
 			return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for local set failed");
 		}
@@ -63699,10 +63950,12 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 			continue;
 		}
 		if ( iFlow == XTE_FLOW_ERROR ) {
+			pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 			xvoUnref(pLocal);
 			return iFlow;
 		}
 	}
+	pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 	xvoUnref(pLocal);
 	return XTE_FLOW_OK;
 }
@@ -63711,6 +63964,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 	xvalue pIter = NULL;
 	xvalue pLocal = NULL;
 	uint32 iLoopCount = 0;
+	uint32 iPrevLoopDepth = 0;
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
 		return XTE_FLOW_ERROR;
 	}
@@ -63723,6 +63977,8 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 		xvoUnref(pIter);
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_MALLOC, "template foreach local alloc failed");
 	}
+	iPrevLoopDepth = pCtx->pRender->iLoopDepth;
+	pCtx->pRender->iLoopDepth = iPrevLoopDepth + 1u;
 	if ( pIter->Type == XVO_DT_ARRAY ) {
 		uint32 i = 0;
 		uint32 iCount = xvoArrayItemCount(pIter);
@@ -63731,12 +63987,14 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 			xvalue pItem = xvoArrayGetValue(pIter, i);
 			iLoopCount++;
 			if ( iLoopCount > XTE_PRIVATE_LOOP_MAX_ITERATIONS ) {
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach exceeded max iterations");
 			}
 			xvoTableClear(pLocal);
 			if ( !xvoTableSetInt(pLocal, "__index__", 0, (int64)i) || !xvoTableSetValue(pLocal, "__value__", 0, pItem, FALSE) ) {
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach local set failed");
@@ -63749,6 +64007,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 				continue;
 			}
 			if ( iFlow == XTE_FLOW_ERROR ) {
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return iFlow;
@@ -63762,12 +64021,14 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 			xvalue pItem = xvoListGetValue(pIter, i);
 			iLoopCount++;
 			if ( iLoopCount > XTE_PRIVATE_LOOP_MAX_ITERATIONS ) {
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach exceeded max iterations");
 			}
 			xvoTableClear(pLocal);
 			if ( !xvoTableSetInt(pLocal, "__index__", 0, (int64)i) || !xvoTableSetValue(pLocal, "__value__", 0, pItem, FALSE) ) {
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach local set failed");
@@ -63780,6 +64041,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 				continue;
 			}
 			if ( iFlow == XTE_FLOW_ERROR ) {
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return iFlow;
@@ -63799,6 +64061,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 			iLoopCount++;
 			if ( iLoopCount > XTE_PRIVATE_LOOP_MAX_ITERATIONS ) {
 				xrtDictIterEnd(pDict);
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach exceeded max iterations");
@@ -63809,6 +64072,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 				|| !xvoTableSetText(pLocal, "__key__", 0, pKey->Key, pKey->KeyLen, FALSE)
 				|| !xvoTableSetValue(pLocal, "__value__", 0, ppItem[0], FALSE) ) {
 				xrtDictIterEnd(pDict);
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach local set failed");
@@ -63823,6 +64087,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 			}
 			if ( iFlow == XTE_FLOW_ERROR ) {
 				xrtDictIterEnd(pDict);
+				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 				xvoUnref(pLocal);
 				xvoUnref(pIter);
 				return iFlow;
@@ -63831,6 +64096,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 		}
 		xrtDictIterEnd(pDict);
 	}
+	pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 	xvoUnref(pLocal);
 	xvoUnref(pIter);
 	return XTE_FLOW_OK;
@@ -63839,16 +64105,24 @@ static XTE_Flow xte_private_stmt_render_include(XTE_StmtRenderCtx* pCtx)
 {
 	char* sName = NULL;
 	xtetemplate hTemplate = NULL;
+	const XTE_PrivateSubTemplateItem* pSubTemplate = NULL;
 	XTE_Flow iFlow = XTE_FLOW_OK;
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
 		return XTE_FLOW_ERROR;
 	}
-	if ( pCtx->pRender->pIncludeMap == NULL ) {
-		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template include map is null");
-	}
 	sName = xteEvalArgText(pCtx->pRender, xteArgAt(pCtx->pArgs, 0));
 	if ( sName == NULL ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_MALLOC, "template include name alloc failed");
+	}
+	pSubTemplate = xte_private_find_subtemplate(pCtx->pRender->hTemplate, sName, 0u);
+	if ( pSubTemplate != NULL ) {
+		iFlow = xte_private_render_span(pCtx->pRender, pSubTemplate->tBody);
+		xrtFree(sName);
+		return iFlow;
+	}
+	if ( pCtx->pRender->pIncludeMap == NULL ) {
+		xrtFree(sName);
+		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template include target not found");
 	}
 	hTemplate = (xtetemplate)xrtDictGetPtr(pCtx->pRender->pIncludeMap, sName, 0);
 	if ( hTemplate == NULL ) {
@@ -63876,7 +64150,9 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 		}
 		case XTE_NODE_OUTPUT:
 			if ( !xte_private_render_output_node(pCtx, pNode) ) {
-				xte_private_fill_error_pos("", 0, 0, pCtx->pError, XTE_ERROR_RENDER, "template output render failed");
+				if ( (pCtx->pError != NULL) && (pCtx->pError->iCode == 0) ) {
+					xte_private_fill_error_pos("", 0, 0, pCtx->pError, XTE_ERROR_RENDER, "template output render failed");
+				}
 				return XTE_FLOW_ERROR;
 			}
 			return XTE_FLOW_OK;
@@ -63957,7 +64233,29 @@ static int xte_private_dump_indent(XTE_Writer* pWriter, uint32 iDepth)
 	}
 	return 1;
 }
-static int xte_private_dump_expr(XTE_Writer* pWriter, xtetemplate hTemplate, uint32 iExprIndex)
+static const char* xte_private_expr_type_name(uint32 iType)
+{
+	switch ( iType ) {
+		case XTE_EXPR_PATH:
+			return "PATH";
+		case XTE_EXPR_TEXT:
+			return "TEXT";
+		case XTE_EXPR_INT:
+			return "INT";
+		case XTE_EXPR_BOOL:
+			return "BOOL";
+		case XTE_EXPR_BOOL_EXPR:
+			return "BOOL_EXPR";
+		default:
+			return "EXPR";
+	}
+}
+static const char* xte_private_expr_type_name_by_index(xtetemplate hTemplate, uint32 iExprIndex)
+{
+	XTE_ExprNode* pExpr = xte_private_template_get_expr(hTemplate, iExprIndex);
+	return pExpr ? xte_private_expr_type_name(pExpr->iType) : "INVALID";
+}
+static int xte_private_dump_expr_value(XTE_Writer* pWriter, xtetemplate hTemplate, uint32 iExprIndex)
 {
 	XTE_ExprNode* pExpr = xte_private_template_get_expr(hTemplate, iExprIndex);
 	char sBuf[128] = { 0 };
@@ -63977,6 +64275,72 @@ static int xte_private_dump_expr(XTE_Writer* pWriter, xtetemplate hTemplate, uin
 		default:
 			return xte_private_writer_write(pWriter, "<expr>", 6);
 	}
+}
+static int xte_private_dump_expr_typed(XTE_Writer* pWriter, xtetemplate hTemplate, uint32 iExprIndex)
+{
+	XTE_ExprNode* pExpr = xte_private_template_get_expr(hTemplate, iExprIndex);
+	const char* sType = NULL;
+	if ( pExpr == NULL ) {
+		return xte_private_writer_write(pWriter, "INVALID: <invalid-expr>", 23);
+	}
+	sType = xte_private_expr_type_name(pExpr->iType);
+	if ( !xte_private_writer_write(pWriter, sType, strlen(sType)) ) {
+		return 0;
+	}
+	if ( !xte_private_writer_write(pWriter, ": ", 2) ) {
+		return 0;
+	}
+	return xte_private_dump_expr_value(pWriter, hTemplate, iExprIndex);
+}
+static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter, uint32 iArgStart, uint32 iArgCount, uint32 iDepth)
+{
+	uint32 i = 0;
+	for ( i = 0; i < iArgCount; i++ ) {
+		XTE_ArgItem* pArg = xte_private_template_get_arg(hTemplate, iArgStart + i);
+		if ( pArg == NULL ) {
+			return 0;
+		}
+		if ( !xte_private_dump_indent(pWriter, iDepth) ) {
+			return 0;
+		}
+		if ( !xte_private_writer_write(pWriter, "ARG", 3) ) {
+			return 0;
+		}
+		if ( pArg->iNameSize != 0u ) {
+			if ( !xte_private_writer_write(pWriter, " ", 1) ) {
+				return 0;
+			}
+			if ( !xte_private_writer_write(pWriter, xte_private_pool_ptr(hTemplate, pArg->iNameOff), pArg->iNameSize) ) {
+				return 0;
+			}
+		}
+		if ( !xte_private_writer_write(pWriter, ": ", 2) ) {
+			return 0;
+		}
+		if ( pArg->iRawSize != 0u ) {
+			if ( !xte_private_writer_write(pWriter, xte_private_pool_ptr(hTemplate, pArg->iRawOff), pArg->iRawSize) ) {
+				return 0;
+			}
+		}
+		if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
+			return 0;
+		}
+		if ( pArg->iFlags & XTE_PRIVATE_ARG_HAS_EXPR ) {
+			if ( !xte_private_dump_indent(pWriter, iDepth + 1u) ) {
+				return 0;
+			}
+			if ( !xte_private_writer_write(pWriter, "EXPR ", 5) ) {
+				return 0;
+			}
+			if ( !xte_private_dump_expr_typed(pWriter, hTemplate, pArg->iExprIndex) ) {
+				return 0;
+			}
+			if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
+				return 0;
+			}
+		}
+	}
+	return 1;
 }
 static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE_NodeSpan tSpan, uint32 iDepth)
 {
@@ -64012,12 +64376,23 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 					if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
 						return 0;
 					}
+					if ( pNode->Data.Output.iArgCount != 0u ) {
+						if ( !xte_private_dump_arg_list(hTemplate, pWriter, pNode->Data.Output.iArgStart, pNode->Data.Output.iArgCount, iDepth + 1u) ) {
+							return 0;
+						}
+					}
 					break;
 				}
-				if ( !xte_private_writer_write(pWriter, "OUTPUT: ", 8) ) {
+				if ( !xte_private_writer_write(pWriter, "OUTPUT(", 7) ) {
 					return 0;
 				}
-				if ( !xte_private_dump_expr(pWriter, hTemplate, pNode->Data.Output.iExprIndex) ) {
+				if ( !xte_private_writer_write(pWriter, xte_private_expr_type_name_by_index(hTemplate, pNode->Data.Output.iExprIndex), strlen(xte_private_expr_type_name_by_index(hTemplate, pNode->Data.Output.iExprIndex))) ) {
+					return 0;
+				}
+				if ( !xte_private_writer_write(pWriter, "): ", 3) ) {
+					return 0;
+				}
+				if ( !xte_private_dump_expr_value(pWriter, hTemplate, pNode->Data.Output.iExprIndex) ) {
 					return 0;
 				}
 				if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
@@ -64025,10 +64400,16 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 				}
 				break;
 			case XTE_NODE_INLINE_BOOL:
-				if ( !xte_private_writer_write(pWriter, "INLINE_BOOL: ", 13) ) {
+				if ( !xte_private_writer_write(pWriter, "INLINE_BOOL(", 12) ) {
 					return 0;
 				}
-				if ( !xte_private_dump_expr(pWriter, hTemplate, pNode->Data.InlineBool.iExprIndex) ) {
+				if ( !xte_private_writer_write(pWriter, xte_private_expr_type_name_by_index(hTemplate, pNode->Data.InlineBool.iExprIndex), strlen(xte_private_expr_type_name_by_index(hTemplate, pNode->Data.InlineBool.iExprIndex))) ) {
+					return 0;
+				}
+				if ( !xte_private_writer_write(pWriter, "): ", 3) ) {
+					return 0;
+				}
+				if ( !xte_private_dump_expr_value(pWriter, hTemplate, pNode->Data.InlineBool.iExprIndex) ) {
 					return 0;
 				}
 				if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
@@ -64044,6 +64425,11 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 				}
 				if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
 					return 0;
+				}
+				if ( pNode->Data.Statement.iArgCount != 0u ) {
+					if ( !xte_private_dump_arg_list(hTemplate, pWriter, pNode->Data.Statement.iArgStart, pNode->Data.Statement.iArgCount, iDepth + 1u) ) {
+						return 0;
+					}
 				}
 				if ( pNode->Data.Statement.tBody.iCount ) {
 					if ( !xte_private_dump_span(hTemplate, pWriter, pNode->Data.Statement.tBody, iDepth + 1u) ) {
@@ -64132,6 +64518,22 @@ XXAPI int xteRegisterBuiltinStatements(xteengine hEngine)
 		.iMaxArgs = 0,
 		.procRender = xte_private_stmt_render_continue
 	};
+	static const XTE_StatementDef tDefine = {
+		.sName = "define",
+		.iFlags = XTE_STMT_BLOCK | XTE_STMT_ALLOW_NAMED_ARGS,
+		.iMinArgs = 1,
+		.iMaxArgs = 1,
+		.procParse = xte_private_stmt_parse_define,
+		.procRender = xte_private_stmt_render_define,
+		.procFreeData = xrtFree
+	};
+	static const XTE_StatementDef tScript = {
+		.sName = "script",
+		.iFlags = XTE_STMT_BLOCK | XTE_STMT_RAW_BODY,
+		.iMinArgs = 0,
+		.iMaxArgs = 0,
+		.procRender = xte_private_stmt_render_script
+	};
 	static const XTE_StatementDef tInclude = {
 		.sName = "include",
 		.iFlags = XTE_STMT_INLINE,
@@ -64161,6 +64563,12 @@ XXAPI int xteRegisterBuiltinStatements(xteengine hEngine)
 		return 0;
 	}
 	if ( !xte_private_find_statement(hEngine, "continue", 8) && !xteRegisterStatement(hEngine, &tContinue) ) {
+		return 0;
+	}
+	if ( !xte_private_find_statement(hEngine, "define", 6) && !xteRegisterStatement(hEngine, &tDefine) ) {
+		return 0;
+	}
+	if ( !xte_private_find_statement(hEngine, "script", 6) && !xteRegisterStatement(hEngine, &tScript) ) {
 		return 0;
 	}
 	if ( !xte_private_find_statement(hEngine, "include", 7) && !xteRegisterStatement(hEngine, &tInclude) ) {
@@ -64266,6 +64674,12 @@ XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize,
 		xteDestroyTemplate(hTemplate);
 		return NULL;
 	}
+	if ( !xte_private_rebuild_subtemplates(hTemplate, XTE_ERROR_PARSE, "template define compile failed") ) {
+		xte_private_copy_error(pError, &hTemplate->LastError);
+		xte_private_ast_list_unit(&tAstRoot);
+		xteDestroyTemplate(hTemplate);
+		return NULL;
+	}
 	xte_private_ast_list_unit(&tAstRoot);
 	xte_private_copy_error(pError, &hTemplate->LastError);
 	return hTemplate;
@@ -64295,6 +64709,7 @@ XXAPI void xteDestroyTemplate(xtetemplate hTemplate)
 	xrtArrayUnit(&hTemplate->arrArg);
 	xrtArrayUnit(&hTemplate->arrExpr);
 	xrtArrayUnit(&hTemplate->arrNode);
+	xrtArrayUnit(&hTemplate->arrSubTemplate);
 	xrtBufferUnit(&hTemplate->tStringPool);
 	if ( hTemplate->bOwnEngine && hTemplate->hEngine ) {
 		xteDestroyEngine(hTemplate->hEngine);
@@ -64324,7 +64739,16 @@ XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, 
 	tCtx.pError = pError;
 	tCtx.iFlags = pOptions->iFlags;
 	iFlow = xte_private_render_span(&tCtx, hTemplate->tRoot);
-	return (iFlow != XTE_FLOW_ERROR) ? 1 : 0;
+	if ( iFlow == XTE_FLOW_OK ) {
+		return 1;
+	}
+	if ( (iFlow == XTE_FLOW_BREAK) && (pError != NULL) && (pError->iCode == 0) ) {
+		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template break must be inside loop");
+	}
+	if ( (iFlow == XTE_FLOW_CONTINUE) && (pError != NULL) && (pError->iCode == 0) ) {
+		xte_private_fill_error_pos("", 0, 0, pError, XTE_ERROR_RENDER, "template continue must be inside loop");
+	}
+	return 0;
 }
 XXAPI char* xteMake(xtetemplate hTemplate, xvalue pCurrent, xvalue pGlobal, xdict pIncludeMap, size_t* pRetSize)
 {
@@ -64505,6 +64929,29 @@ XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* s
 	}
 	return NULL;
 }
+XXAPI const char* xteArgNameText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg)
+{
+	if ( (pArgs == NULL) || (pArg == NULL) || (pArg->iNameSize == 0u) ) {
+		return NULL;
+	}
+	return xteTemplateGetString(pArgs->hTemplate, pArg->iNameOff);
+}
+XXAPI const char* xteArgRawText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg)
+{
+	if ( (pArgs == NULL) || (pArg == NULL) || (pArg->iRawSize == 0u) ) {
+		return NULL;
+	}
+	return xteTemplateGetString(pArgs->hTemplate, pArg->iRawOff);
+}
+XXAPI uint32 xteArgExprType(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg)
+{
+	const XTE_ExprNode* pExpr = NULL;
+	if ( (pArgs == NULL) || (pArg == NULL) ) {
+		return 0u;
+	}
+	pExpr = xteTemplateGetExpr(pArgs->hTemplate, pArg->iExprIndex);
+	return pExpr ? pExpr->iType : 0u;
+}
 XXAPI xvalue xteEvalArgValue(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 {
 	if ( (pCtx == NULL) || (pArg == NULL) ) {
@@ -64558,6 +65005,377 @@ XXAPI char* xteEvalArgText(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 	xvoUnref(pVal);
 	return sRet;
 }
+static int xte_private_eval_arg_strict_type(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, uint32 iType, xvalue* ppVal)
+{
+	xvalue pVal = xteEvalArgValue(pCtx, pArg);
+	if ( (pVal == NULL) || ((uint32)pVal->Type != iType) ) {
+		xvoUnref(pVal);
+		if ( ppVal != NULL ) {
+			ppVal[0] = NULL;
+		}
+		return 0;
+	}
+	if ( ppVal != NULL ) {
+		ppVal[0] = pVal;
+		return 1;
+	}
+	xvoUnref(pVal);
+	return 1;
+}
+XXAPI int xteEvalArgBoolStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut)
+{
+	xvalue pVal = NULL;
+	if ( !xte_private_eval_arg_strict_type(pCtx, pArg, XVO_DT_BOOL, &pVal) ) {
+		return 0;
+	}
+	if ( pOut != NULL ) {
+		*pOut = xvoGetBool(pVal) ? 1 : 0;
+	}
+	xvoUnref(pVal);
+	return 1;
+}
+XXAPI int xteEvalArgIntStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut)
+{
+	xvalue pVal = NULL;
+	if ( !xte_private_eval_arg_strict_type(pCtx, pArg, XVO_DT_INT, &pVal) ) {
+		return 0;
+	}
+	if ( pOut != NULL ) {
+		*pOut = xvoGetInt(pVal);
+	}
+	xvoUnref(pVal);
+	return 1;
+}
+XXAPI int xteEvalArgFloatStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut)
+{
+	xvalue pVal = NULL;
+	if ( !xte_private_eval_arg_strict_type(pCtx, pArg, XVO_DT_FLOAT, &pVal) ) {
+		return 0;
+	}
+	if ( pOut != NULL ) {
+		*pOut = xvoGetFloat(pVal);
+	}
+	xvoUnref(pVal);
+	return 1;
+}
+XXAPI char* xteEvalArgTextStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
+{
+	xvalue pVal = NULL;
+	char* sRet = NULL;
+	if ( !xte_private_eval_arg_strict_type(pCtx, pArg, XVO_DT_TEXT, &pVal) ) {
+		return NULL;
+	}
+	sRet = (char*)xrtCopyStr(xvoGetText(pVal), pVal->Size);
+	xvoUnref(pVal);
+	return sRet;
+}
+XXAPI const XTE_ArgItem* xteStmtParseRequireArg(XTE_StmtParseCtx* pCtx, uint32 iIndex, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteArgAt(pCtx ? pCtx->pArgs : NULL, iIndex);
+	if ( pArg != NULL ) {
+		return pArg;
+	}
+	xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, sDesc ? sDesc : "template argument is required");
+	return NULL;
+}
+XXAPI const XTE_ArgItem* xteStmtParseRequireNamedArg(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFindNamedArg(pCtx ? pCtx->pArgs : NULL, sName, iNameSize);
+	if ( pArg != NULL ) {
+		return pArg;
+	}
+	xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, sDesc ? sDesc : "template named argument is required");
+	return NULL;
+}
+static const char* xte_private_parse_expr_desc(uint32 iExprType, int bNamed)
+{
+	switch ( iExprType ) {
+		case XTE_EXPR_PATH:
+			return bNamed ? "template named argument must be path expression" : "template argument must be path expression";
+		case XTE_EXPR_TEXT:
+			return bNamed ? "template named argument must be text literal" : "template argument must be text literal";
+		case XTE_EXPR_INT:
+			return bNamed ? "template named argument must be int literal" : "template argument must be int literal";
+		case XTE_EXPR_BOOL:
+			return bNamed ? "template named argument must be bool literal" : "template argument must be bool literal";
+		case XTE_EXPR_BOOL_EXPR:
+			return bNamed ? "template named argument must be bool expression" : "template argument must be bool expression";
+		default:
+			return bNamed ? "template named argument expression type mismatch" : "template argument expression type mismatch";
+	}
+}
+XXAPI const XTE_ArgItem* xteStmtParseRequireExprType(XTE_StmtParseCtx* pCtx, uint32 iIndex, uint32 iExprType, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtParseRequireArg(pCtx, iIndex, NULL);
+	if ( pArg == NULL ) {
+		return NULL;
+	}
+	if ( xteArgExprType((pCtx != NULL) ? pCtx->pArgs : NULL, pArg) == iExprType ) {
+		return pArg;
+	}
+	xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, sDesc ? sDesc : xte_private_parse_expr_desc(iExprType, 0));
+	return NULL;
+}
+XXAPI const XTE_ArgItem* xteStmtParseRequireNamedExprType(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, uint32 iExprType, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtParseRequireNamedArg(pCtx, sName, iNameSize, NULL);
+	if ( pArg == NULL ) {
+		return NULL;
+	}
+	if ( xteArgExprType((pCtx != NULL) ? pCtx->pArgs : NULL, pArg) == iExprType ) {
+		return pArg;
+	}
+	xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, sDesc ? sDesc : xte_private_parse_expr_desc(iExprType, 1));
+	return NULL;
+}
+XXAPI const XTE_ArgItem* xteStmtRequireArg(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteArgAt((pCtx != NULL) ? pCtx->pArgs : NULL, iIndex);
+	if ( pArg != NULL ) {
+		return pArg;
+	}
+	xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template argument is required");
+	return NULL;
+}
+XXAPI const XTE_ArgItem* xteStmtRequireNamedArg(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFindNamedArg((pCtx != NULL) ? pCtx->pArgs : NULL, sName, iNameSize);
+	if ( pArg != NULL ) {
+		return pArg;
+	}
+	xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template named argument is required");
+	return NULL;
+}
+XXAPI int xteStmtRequireBoolStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgBoolStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool") == XTE_FLOW_ERROR) ? 0 : 1;
+}
+XXAPI int xteStmtRequireNamedBoolStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgBoolStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool") == XTE_FLOW_ERROR) ? 0 : 1;
+}
+XXAPI int xteStmtRequireIntStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgIntStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int") == XTE_FLOW_ERROR) ? 0 : 1;
+}
+XXAPI int xteStmtRequireNamedIntStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgIntStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int") == XTE_FLOW_ERROR) ? 0 : 1;
+}
+XXAPI int xteStmtRequireFloatStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgFloatStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float") == XTE_FLOW_ERROR) ? 0 : 1;
+}
+XXAPI int xteStmtRequireNamedFloatStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgFloatStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float") == XTE_FLOW_ERROR) ? 0 : 1;
+}
+XXAPI char* xteStmtRequireTextStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
+	char* sRet = NULL;
+	if ( pArg == NULL ) {
+		return NULL;
+	}
+	sRet = xteEvalArgTextStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg);
+	if ( sRet != NULL ) {
+		return sRet;
+	}
+	xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template text argument must stay text");
+	return NULL;
+}
+XXAPI char* xteStmtRequireNamedTextStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	char* sRet = NULL;
+	if ( pArg == NULL ) {
+		return NULL;
+	}
+	sRet = xteEvalArgTextStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg);
+	if ( sRet != NULL ) {
+		return sRet;
+	}
+	xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template text argument must stay text");
+	return NULL;
+}
+XXAPI const XTE_ArgItem* xteFuncRequireArg(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteArgAt((pCtx != NULL) ? pCtx->pArgs : NULL, iIndex);
+	if ( pArg != NULL ) {
+		return pArg;
+	}
+	xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template argument is required");
+	return NULL;
+}
+XXAPI const XTE_ArgItem* xteFuncRequireNamedArg(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFindNamedArg((pCtx != NULL) ? pCtx->pArgs : NULL, sName, iNameSize);
+	if ( pArg != NULL ) {
+		return pArg;
+	}
+	xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template named argument is required");
+	return NULL;
+}
+XXAPI int xteFuncRequireBoolStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgBoolStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool");
+}
+XXAPI int xteFuncRequireNamedBoolStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgBoolStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool");
+}
+XXAPI int xteFuncRequireIntStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgIntStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int");
+}
+XXAPI int xteFuncRequireNamedIntStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgIntStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int");
+}
+XXAPI int xteFuncRequireFloatStrict(XTE_FuncCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgFloatStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float");
+}
+XXAPI int xteFuncRequireNamedFloatStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	if ( pArg == NULL ) {
+		return 0;
+	}
+	if ( xteEvalArgFloatStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg, pOut) ) {
+		return 1;
+	}
+	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float");
+}
+XXAPI char* xteFuncRequireTextStrict(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
+	char* sRet = NULL;
+	if ( pArg == NULL ) {
+		return NULL;
+	}
+	sRet = xteEvalArgTextStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg);
+	if ( sRet != NULL ) {
+		return sRet;
+	}
+	xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template text argument must stay text");
+	return NULL;
+}
+XXAPI char* xteFuncRequireNamedTextStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
+{
+	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
+	char* sRet = NULL;
+	if ( pArg == NULL ) {
+		return NULL;
+	}
+	sRet = xteEvalArgTextStrict((pCtx != NULL) ? pCtx->pRender : NULL, pArg);
+	if ( sRet != NULL ) {
+		return sRet;
+	}
+	xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template text argument must stay text");
+	return NULL;
+}
+XXAPI int xteStmtParseSetError(XTE_StmtParseCtx* pCtx, int iCode, const char* sDesc)
+{
+	if ( (pCtx != NULL) && (pCtx->pError != NULL) && (pCtx->pError->iCode == 0) ) {
+		pCtx->pError->iCode = iCode;
+		pCtx->pError->sDesc = sDesc;
+	}
+	return 0;
+}
+XXAPI XTE_Flow xteStmtSetError(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc)
+{
+	if ( (pCtx != NULL) && (pCtx->pRender != NULL) && (pCtx->pRender->pError != NULL) && (pCtx->pRender->pError->iCode == 0) ) {
+		pCtx->pRender->pError->iCode = iCode;
+		pCtx->pRender->pError->sDesc = sDesc;
+	}
+	return XTE_FLOW_ERROR;
+}
+XXAPI int xteFuncSetError(XTE_FuncCtx* pCtx, int iCode, const char* sDesc)
+{
+	if ( (pCtx != NULL) && (pCtx->pRender != NULL) && (pCtx->pRender->pError != NULL) && (pCtx->pRender->pError->iCode == 0) ) {
+		pCtx->pRender->pError->iCode = iCode;
+		pCtx->pRender->pError->sDesc = sDesc;
+	}
+	return 0;
+}
 XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize)
 {
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
@@ -64581,6 +65399,10 @@ XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xva
 		return 1;
 	}
 	return xte_private_render_body_with_scope_ex(pCtx, pLocal, pCurrent) != XTE_FLOW_ERROR;
+}
+static XTE_Flow xte_private_stmt_render_error(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc)
+{
+	return xteStmtSetError(pCtx, iCode, sDesc);
 }
 #ifdef XTE_ENABLE_FILE
 XXAPI int xteTemplateSaveFile(xtetemplate hTemplate, const char* sFilePath, uint32 iFlags, XTE_Error* pError)
@@ -64732,6 +65554,18 @@ XXAPI xtetemplate xteTemplateLoadFile(xteengine hEngine, const char* sFilePath, 
 		memcpy(hTemplate->arrNode.Memory, (char*)pMem + iOffset, pHeader->iNodeCount * sizeof(XTE_Node));
 	}
 	hTemplate->tRoot = pHeader->tRoot;
+	if ( !xte_private_rebuild_statement_data(hTemplate, XTE_ERROR_FILE, "template statement load parse callback failed") ) {
+		xte_private_copy_error(pError, &hTemplate->LastError);
+		xteDestroyTemplate(hTemplate);
+		xrtFree(pMem);
+		return NULL;
+	}
+	if ( !xte_private_rebuild_subtemplates(hTemplate, XTE_ERROR_FILE, "template define load failed") ) {
+		xte_private_copy_error(pError, &hTemplate->LastError);
+		xteDestroyTemplate(hTemplate);
+		xrtFree(pMem);
+		return NULL;
+	}
 	xrtFree(pMem);
 	return hTemplate;
 }

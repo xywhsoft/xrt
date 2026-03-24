@@ -136,11 +136,15 @@
 	#include "test/test_xnet2_mem.h"
 	#include "test/test_xnet2_port.h"
 	#include "test/test_xnet2_stream.h"
-	#include "test/test_xnet2_sync.h"
+	#ifndef XRT_NO_COROUTINE
+		#include "test/test_xnet2_sync.h"
+	#endif
 	#include "test/test_xnet_http.h"
 	#include "test/test_xnet_httpd.h"
 	#include "test/test_xnet_native_core.h"
-	#include "test/test_xnet2_listener_accept_core.h"
+	#ifndef XRT_NO_COROUTINE
+		#include "test/test_xnet2_listener_accept_core.h"
+	#endif
 	#include "test/test_xnet_ws.h"
 	#include "test/test_xnet_proxy.h"
 	#ifndef XRT_NO_NETTLS
@@ -326,10 +330,14 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2Mem, Test_XNet2_Mem)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2Port, Test_XNet2_Port)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2Stream, Test_XNet2_Stream)
-	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Sync, Test_XNet2_Sync)
+	#ifndef XRT_NO_COROUTINE
+		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Sync, Test_XNet2_Sync)
+	#endif
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttp, Test_XNet_Http)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetHttpd, Test_XNet_Httpd)
-	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2ListenerAcceptCore, Test_XNet2_ListenerAcceptCore)
+	#ifndef XRT_NO_COROUTINE
+		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2ListenerAcceptCore, Test_XNet2_ListenerAcceptCore)
+	#endif
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetWs, Test_XNet_Ws)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetProxy, Test_XNet_Proxy)
 	#ifndef XRT_NO_NETTLS
@@ -455,11 +463,15 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 		{ "xnet2_mem", "XNet2 Mem", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2Mem },
 		{ "xnet2_port", "XNet2 Port", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2Port },
 		{ "xnet2_stream", "XNet2 Stream", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2Stream },
-		{ "xnet2_sync", "XNet2 Sync", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2Sync },
+		#ifndef XRT_NO_COROUTINE
+			{ "xnet2_sync", "XNet2 Sync", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2Sync },
+		#endif
 		{ "xnet_http", "XNet HTTP", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetHttp },
 		{ "xnet_httpd", "XNet HTTPD", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetHttpd },
 		{ "xnet_native_core", "XNet Native Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetNativeCore },
-		{ "xnet2_listener_accept_core", "XNet2 Listener Accept Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2ListenerAcceptCore },
+		#ifndef XRT_NO_COROUTINE
+			{ "xnet2_listener_accept_core", "XNet2 Listener Accept Core", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNet2ListenerAcceptCore },
+		#endif
 		{ "xnet_ws", "XNet WS", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetWs },
 		{ "xnet_proxy", "XNet Proxy", "net", XRT_TEST_FLAG_NONE, __xrtTestRun_XNetProxy },
 		#ifndef XRT_NO_NETTLS
@@ -530,7 +542,9 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 		"xnet2_engine",
 		"xnet2_stream",
 		"xnet2_dgram",
-		"xnet2_sync",
+		#ifndef XRT_NO_COROUTINE
+			"xnet2_sync",
+		#endif
 		"xnet2_codec",
 		"xnet_http",
 		"xnet_httpd",
@@ -554,7 +568,9 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 		#ifndef XRT_NO_NETTLS
 			"xnet2_tls",
 		#endif
-		"xnet2_sync",
+		#ifndef XRT_NO_COROUTINE
+			"xnet2_sync",
+		#endif
 		"xnet2_codec",
 		"xnet_http",
 		"xnet_httpd",
@@ -564,7 +580,9 @@ static const char* __g_arrPresetNetworkSmoke[] = {
 	};
 
 	static const char* __g_arrPresetNetworkEdges[] = {
-		"xnet2_listener_accept_core",
+		#ifndef XRT_NO_COROUTINE
+			"xnet2_listener_accept_core",
+		#endif
 		"xnet_native_core",
 		#ifndef XRT_NO_NETTLS
 			"tls_boundary",
