@@ -46,8 +46,8 @@ typedef enum {
     JSON_LHEX,          // uint64 十六进制，值在 vlhex
     JSON_DOUBLE,        // double，值在 vdbl
     JSON_STRING,        // 字符串，值在 vstr
-    JSON_ARRAY,         // 数组，子节点在 head
-    JSON_OBJECT         // 对象，子节点在 head
+    JSON_ARRAY,         // 数组
+    JSON_OBJECT         // 对象
 } json_type_t;
 ```
 
@@ -194,7 +194,6 @@ typedef struct {
 
 // 打印参数设置
 typedef struct {
-    size_t str_len;       // 预估字符串长度
     size_t plus_size;     // 扩容步长（默认8192）
     size_t item_size;     // 单项预估大小
     int item_total;       // 预估项数（默认1024）

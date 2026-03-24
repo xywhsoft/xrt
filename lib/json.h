@@ -139,20 +139,18 @@
 
 
 typedef struct _json_parse_t {
-    size_t size;
-    size_t offset;
-    bool reuse_flag;
+	size_t size;
+	size_t offset;
 
-    char *str;
+	char *str;
 
-    void (*skip_blank)(struct _json_parse_t *parse_ptr);
-    int (*parse_string)(struct _json_parse_t *parse_ptr, char end_ch, char **ppstr,
-        json_strinfo_t *pinfo, bool is_key);
-    int (*parse_value)(struct _json_parse_t *parse_ptr, json_object **root);
+	void (*skip_blank)(struct _json_parse_t *parse_ptr);
+	int (*parse_string)(struct _json_parse_t *parse_ptr, char end_ch, char **ppstr,
+		json_strinfo_t *pinfo, bool is_key);
 
-    json_sax_parser_t parser;
-    json_sax_cb_t cb;
-    json_sax_ret_t ret;
+	json_sax_parser_t parser;
+	json_sax_cb_t cb;
+	json_sax_ret_t ret;
 } json_parse_t;
 
 #define IS_BLANK(c)      ((((c) + 0xdf) & 0xff) > 0xdf)
