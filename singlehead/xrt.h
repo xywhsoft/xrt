@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-23 21:16:24
+    Generated: 2026-03-24 11:38:08
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/Git/xrt/xrt.h
+// File: D:/git/xrt/xrt.h
 // ========================================
 
 
@@ -2444,9 +2444,18 @@
 	XXAPI xregex* xrtRegexCreate(const char* sPatternNt);
 	XXAPI int xrtRegexCreateFromBuilder(xregex** ppRegex, const xregexbuilder* pBuilder, const xregexalloc* pAlloc);
 	XXAPI void xrtRegexDestroy(xregex* pRegex);
+	XXAPI const char* xrtRegexGetErrorMsg(const xregex* pRegex);
+	XXAPI size_t xrtRegexGetErrorPos(const xregex* pRegex);
 	XXAPI int xrtRegexIsMatch(xregex* pRegex, const char* sText, size_t iTextSize);
 	XXAPI int xrtRegexFind(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutSpan);
 	XXAPI int xrtRegexCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32 iCaptureCount);
+	XXAPI int xrtRegexWhichCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32* pOutCapturesDidMatch, uint32 iCaptureCount);
+	XXAPI int xrtRegexIsMatchAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos);
+	XXAPI int xrtRegexFindAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutSpan);
+	XXAPI int xrtRegexCapturesAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutCaptures, uint32 iCaptureCount);
+	XXAPI int xrtRegexWhichCapturesAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutCaptures, uint32* pOutCapturesDidMatch, uint32 iCaptureCount);
+	XXAPI uint32 xrtRegexCaptureCount(const xregex* pRegex);
+	XXAPI const char* xrtRegexCaptureName(const xregex* pRegex, uint32 iCaptureIndex, size_t* pOutNameSize);
 	
 	// Builder
 	XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc);
@@ -2463,8 +2472,12 @@
 	XXAPI xregexset* xrtRegexSetCreate(const char* const* arrPatternsNt, size_t iPatternCount);
 	XXAPI int xrtRegexSetCreateFromBuilder(xregexset** ppSet, const xregexsetbuilder* pBuilder, const xregexalloc* pAlloc);
 	XXAPI void xrtRegexSetDestroy(xregexset* pSet);
+	XXAPI const char* xrtRegexSetGetErrorMsg(const xregexset* pSet);
+	XXAPI size_t xrtRegexSetGetErrorPos(const xregexset* pSet);
 	XXAPI int xrtRegexSetIsMatch(xregexset* pSet, const char* sText, size_t iTextSize);
 	XXAPI int xrtRegexSetMatches(xregexset* pSet, const char* sText, size_t iTextSize, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
+	XXAPI int xrtRegexSetIsMatchAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos);
+	XXAPI int xrtRegexSetMatchesAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
 	XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc);
 	
 	#endif // XRT_NO_REGEX
@@ -6051,7 +6064,7 @@
 
 
 // ========================================
-// File: D:\Git\xrt/xrt.c
+// File: D:\git\xrt/xrt.c
 // ========================================
 
 
@@ -6139,7 +6152,7 @@ static void __xrtRuntimeFinalizeLocked();
 // 引入补充依赖库
 
 // ========================================
-// File: D:/Git/xrt/lib/suplib.h
+// File: D:/git/xrt/lib/suplib.h
 // ========================================
 
 
@@ -6192,7 +6205,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
-// File: D:/Git/xrt/lib/memglobal.h
+// File: D:/git/xrt/lib/memglobal.h
 // ========================================
 
 
@@ -7620,7 +7633,7 @@ static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/base.h
+// File: D:/git/xrt/lib/base.h
 // ========================================
 
 
@@ -8081,7 +8094,7 @@ static inline void __xrtMemTelemetryRecordFree();
 static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
 // ========================================
-// File: D:/Git/xrt/lib/string.h
+// File: D:/git/xrt/lib/string.h
 // ========================================
 
 
@@ -9577,7 +9590,7 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/os.h
+// File: D:/git/xrt/lib/os.h
 // ========================================
 
 
@@ -9693,7 +9706,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/hash.h
+// File: D:/git/xrt/lib/hash.h
 // ========================================
 
 
@@ -10859,7 +10872,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/charset.h
+// File: D:/git/xrt/lib/charset.h
 // ========================================
 
 
@@ -11731,7 +11744,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/math.h
+// File: D:/git/xrt/lib/math.h
 // ========================================
 
 
@@ -11892,7 +11905,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/path.h
+// File: D:/git/xrt/lib/path.h
 // ========================================
 
 
@@ -12065,7 +12078,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 #ifndef XRT_NO_TIME
 
 // ========================================
-// File: D:/Git/xrt/lib/time.h
+// File: D:/git/xrt/lib/time.h
 // ========================================
 
 
@@ -13312,7 +13325,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 #ifndef XRT_NO_FILE
 
 // ========================================
-// File: D:/Git/xrt/lib/file.h
+// File: D:/git/xrt/lib/file.h
 // ========================================
 
 
@@ -15009,7 +15022,7 @@ XXAPI int xrtDirDelete(str sPath)
 #ifndef XRT_NO_THREAD
 
 // ========================================
-// File: D:/Git/xrt/lib/thread.h
+// File: D:/git/xrt/lib/thread.h
 // ========================================
 
 
@@ -15842,7 +15855,7 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 #ifndef XRT_NO_COROUTINE
 
 // ========================================
-// File: D:/Git/xrt/lib/coroutine.h
+// File: D:/git/xrt/lib/coroutine.h
 // ========================================
 
 
@@ -18240,7 +18253,7 @@ XXAPI void xrtCoSleep(uint32 iMs)
 #ifndef XRT_NO_XURL
 
 // ========================================
-// File: D:/Git/xrt/lib/xurl.h
+// File: D:/git/xrt/lib/xurl.h
 // ========================================
 
 #ifndef XRT_XURL_H
@@ -19064,7 +19077,7 @@ XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 #ifndef XRT_NO_HTTP_UTIL
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttp_util.h
+// File: D:/git/xrt/lib/xhttp_util.h
 // ========================================
 
 #ifndef XRT_XHTTP_UTIL_H
@@ -21437,7 +21450,7 @@ XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset,
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_base.h
+// File: D:/git/xrt/lib/xnet_base.h
 // ========================================
 
 #ifndef XRT_XNET_BASE_H
@@ -21928,7 +21941,7 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_mem.h
+// File: D:/git/xrt/lib/xnet_mem.h
 // ========================================
 
 
@@ -22493,7 +22506,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port.h
+// File: D:/git/xrt/lib/xnet_port.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_H
@@ -22667,7 +22680,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port_iocp.h
+// File: D:/git/xrt/lib/xnet_port_iocp.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_IOCP_H
@@ -23557,7 +23570,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port_uring.h
+// File: D:/git/xrt/lib/xnet_port_uring.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_URING_H
@@ -24567,7 +24580,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #ifndef XRT_NO_XCODEC
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec.h
+// File: D:/git/xrt/lib/xcodec.h
 // ========================================
 
 #ifndef XRT_XCODEC_H
@@ -24858,7 +24871,7 @@ XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec_http1.h
+// File: D:/git/xrt/lib/xcodec_http1.h
 // ========================================
 
 #ifndef XRT_XCODEC_HTTP1_H
@@ -25288,7 +25301,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec_ws.h
+// File: D:/git/xrt/lib/xcodec_ws.h
 // ========================================
 
 #ifndef XRT_XCODEC_WS_H
@@ -25398,7 +25411,7 @@ XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_engine.h
+// File: D:/git/xrt/lib/xnet_engine.h
 // ========================================
 
 #ifndef XRT_XNET_ENGINE_H
@@ -26019,7 +26032,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 #ifndef XRT_NO_CRYPTO
 
 // ========================================
-// File: D:/Git/xrt/lib/crypto.h
+// File: D:/git/xrt/lib/crypto.h
 // ========================================
 
 
@@ -30583,7 +30596,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 #ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/Git/xrt/lib/nettls.h
+// File: D:/git/xrt/lib/nettls.h
 // ========================================
 
 /*
@@ -36473,7 +36486,7 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #ifndef XRT_NO_NETWORK
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_proxy.h
+// File: D:/git/xrt/lib/xnet_proxy.h
 // ========================================
 
 #ifndef XRT_XNET_PROXY_H
@@ -36790,7 +36803,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_stream.h
+// File: D:/git/xrt/lib/xnet_stream.h
 // ========================================
 
 #ifndef XRT_XNET_STREAM_H
@@ -39225,7 +39238,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_dgram.h
+// File: D:/git/xrt/lib/xnet_dgram.h
 // ========================================
 
 #ifndef XRT_XNET_DGRAM_H
@@ -39857,7 +39870,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_sync.h
+// File: D:/git/xrt/lib/xnet_sync.h
 // ========================================
 
 #ifndef XRT_XNET_SYNC_H
@@ -44278,7 +44291,7 @@ XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, x
 #ifndef XRT_NO_XHTTP
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttp.h
+// File: D:/git/xrt/lib/xhttp.h
 // ========================================
 
 #ifndef XRT_XHTTP_H
@@ -45229,7 +45242,7 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 #ifndef XRT_NO_XHTTPD
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttpd.h
+// File: D:/git/xrt/lib/xhttpd.h
 // ========================================
 
 #ifndef XRT_XHTTPD_H
@@ -45984,7 +45997,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 #ifndef XRT_NO_XWS
 
 // ========================================
-// File: D:/Git/xrt/lib/xws.h
+// File: D:/git/xrt/lib/xws.h
 // ========================================
 
 #ifndef XRT_XWS_H
@@ -47398,7 +47411,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/network.h
+// File: D:/git/xrt/lib/network.h
 // ========================================
 
 
@@ -47602,7 +47615,7 @@ str xrtGetLocalName()
 #ifndef XRT_NO_XID
 
 // ========================================
-// File: D:/Git/xrt/lib/xid.h
+// File: D:/git/xrt/lib/xid.h
 // ========================================
 
 
@@ -47667,7 +47680,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 #ifndef XRT_NO_BUFFER
 
 // ========================================
-// File: D:/Git/xrt/lib/buffer.h
+// File: D:/git/xrt/lib/buffer.h
 // ========================================
 
 
@@ -47779,7 +47792,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 #ifndef XRT_NO_ARRAY
 
 // ========================================
-// File: D:/Git/xrt/lib/array_point.h
+// File: D:/git/xrt/lib/array_point.h
 // ========================================
 
 
@@ -48066,7 +48079,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/array.h
+// File: D:/git/xrt/lib/array.h
 // ========================================
 
 
@@ -48355,7 +48368,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 #ifndef XRT_NO_BSMN
 
 // ========================================
-// File: D:/Git/xrt/lib/bsmm.h
+// File: D:/git/xrt/lib/bsmm.h
 // ========================================
 
 
@@ -48498,7 +48511,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 #ifndef XRT_NO_MEMUNIT
 
 // ========================================
-// File: D:/Git/xrt/lib/memunit.h
+// File: D:/git/xrt/lib/memunit.h
 // ========================================
 
 
@@ -48664,7 +48677,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 #ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool_fs.h
+// File: D:/git/xrt/lib/mempool_fs.h
 // ========================================
 
 
@@ -49009,7 +49022,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 #ifndef XRT_NO_STACK
 
 // ========================================
-// File: D:/Git/xrt/lib/stack.h
+// File: D:/git/xrt/lib/stack.h
 // ========================================
 
 
@@ -49140,7 +49153,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/stack_dyn.h
+// File: D:/git/xrt/lib/stack_dyn.h
 // ========================================
 
 
@@ -49332,7 +49345,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 #ifndef XRT_NO_AVLTREE
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree_base.h
+// File: D:/git/xrt/lib/avltree_base.h
 // ========================================
 
 
@@ -49745,7 +49758,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree.h
+// File: D:/git/xrt/lib/avltree.h
 // ========================================
 
 
@@ -50029,7 +50042,7 @@ XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 #ifndef XRT_NO_MEMPOOL
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool.h
+// File: D:/git/xrt/lib/mempool.h
 // ========================================
 
 
@@ -50588,7 +50601,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 #ifndef XRT_NO_DICT
 
 // ========================================
-// File: D:/Git/xrt/lib/dict.h
+// File: D:/git/xrt/lib/dict.h
 // ========================================
 
 
@@ -50899,7 +50912,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_LIST
 
 // ========================================
-// File: D:/Git/xrt/lib/list.h
+// File: D:/git/xrt/lib/list.h
 // ========================================
 
 
@@ -51193,98 +51206,31 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_REGEX
 
 // ========================================
-// File: D:/Git/xrt/lib/regex.h
+// File: D:/git/xrt/lib/regex.h
 // ========================================
 
 /* 
- * regex.h - 正则表达式引擎实现
- * 基于 bbre 0.0.2 (https://github.com/mnurzia/bbre)
+ * regex.h - 濮濓絽鍨悰銊ㄦ彧瀵繐绱╅幙搴＄杽閻?
+ * 閸╄桨绨?xregex 0.0.2 (https://github.com/mnurzia/xregex)
  * MIT License - Copyright (c) 2024 Max Nurzia
  */
 #ifndef XRT_NO_REGEX
 /*
- * 内部 ABI 前导定义：
- * 当前 xrt.h 已接管公开 regex API，但原始 bbre 实现文件仍依赖
- * bbre 的公共类型与常量名，因此这里保留一份最小前导定义供实现使用。
- */
-#define BBRE_ERR_MEM   (-1)
-#define BBRE_ERR_PARSE (-2)
-#define BBRE_ERR_LIMIT (-3)
-typedef void *(*bbre_alloc_cb)(void *user, void *ptr, size_t prev, size_t next);
-typedef struct bbre_alloc {
-  void *user;
-  bbre_alloc_cb cb;
-} bbre_alloc;
-typedef enum bbre_flags {
-  BBRE_FLAG_INSENSITIVE = 1,
-  BBRE_FLAG_MULTILINE = 2,
-  BBRE_FLAG_DOTNEWLINE = 4,
-  BBRE_FLAG_UNGREEDY = 8
-} bbre_flags;
-typedef struct bbre_builder bbre_builder;
-typedef struct bbre bbre;
-typedef struct bbre_set_builder bbre_set_builder;
-typedef struct bbre_set bbre_set;
-typedef struct bbre_span {
-  size_t begin;
-  size_t end;
-} bbre_span;
-int bbre_builder_init(
-    bbre_builder **pbuild, const char *pat, size_t pat_size,
-    const bbre_alloc *alloc);
-void bbre_builder_destroy(bbre_builder *build);
-void bbre_builder_flags(bbre_builder *build, bbre_flags flags);
-bbre *bbre_init_pattern(const char *pat_nt);
-int bbre_init(bbre **preg, const bbre_builder *build, const bbre_alloc *alloc);
-void bbre_destroy(bbre *reg);
-const char *bbre_get_err_msg(const bbre *reg);
-size_t bbre_get_err_pos(const bbre *reg);
-int bbre_is_match(bbre *reg, const char *text, size_t text_size);
-int bbre_find(
-    bbre *reg, const char *text, size_t text_size, bbre_span *out_bounds);
-int bbre_captures(
-    bbre *reg, const char *text, size_t text_size, bbre_span *out_captures,
-    unsigned int num_captures);
-int bbre_which_captures(
-    bbre *reg, const char *text, size_t text_size, bbre_span *out_captures,
-    unsigned int *out_captures_did_match, unsigned int out_captures_size);
-int bbre_is_match_at(
-    bbre *reg, const char *text, size_t text_size, size_t pos);
-int bbre_find_at(
-    bbre *reg, const char *text, size_t text_size, size_t pos,
-    bbre_span *out_bounds);
-int bbre_captures_at(
-    bbre *reg, const char *text, size_t text_size, size_t pos,
-    bbre_span *out_captures, unsigned int num_captures);
-int bbre_which_captures_at(
-    bbre *reg, const char *text, size_t text_size, size_t pos,
-    bbre_span *out_captures, unsigned int *out_captures_did_match,
-    unsigned int out_captures_size);
-unsigned int bbre_capture_count(const bbre *reg);
-const char *bbre_capture_name(
-    const bbre *reg, unsigned int capture_idx, size_t *out_name_size);
-int bbre_set_builder_init(bbre_set_builder **pbuild, const bbre_alloc *alloc);
-void bbre_set_builder_destroy(bbre_set_builder *build);
-int bbre_set_builder_add(bbre_set_builder *build, const bbre *reg);
-bbre_set *bbre_set_init_patterns(const char *const *pats_nt, size_t num_pats);
-int bbre_set_init(
-    bbre_set **pset, const bbre_set_builder *build, const bbre_alloc *alloc);
-void bbre_set_destroy(bbre_set *set);
-const char *bbre_set_get_err_msg(const bbre_set *set);
-size_t bbre_set_get_err_pos(const bbre_set *set);
-int bbre_set_is_match(bbre_set *set, const char *text, size_t text_size);
-int bbre_set_matches(
-    bbre_set *set, const char *text, size_t text_size, unsigned int *out_idxs,
-    unsigned int out_idxs_size, unsigned int *out_num_idxs);
-int bbre_set_is_match_at(
-    bbre_set *set, const char *text, size_t text_size, size_t pos);
-int bbre_set_matches_at(
-    bbre_set *set, const char *text, size_t text_size, size_t pos,
-    unsigned int *out_idxs, unsigned int out_idxs_size,
-    unsigned int *out_num_idxs);
-int bbre_clone(bbre **pout, const bbre *reg, const bbre_alloc *alloc);
-int bbre_set_clone(
-    bbre_set **pout, const bbre_set *set, const bbre_alloc *alloc);
+ * 閸忣剙绱?regex 缁鐎烽悽?xrt.h 閹绘劒绶甸敍宀冪箹闁插苯褰ф穱婵堟殌鐎圭偟骞囨笟褔娓剁憰浣瑰絹閸撳秴锛愰弰搴ｆ畱
+ * 閸忣剙绱?API 閸樼喎鐎烽敍宀勪缉閸忓秴鎮楃紒顓炵杽閻滄澘婀€规矮绠熼崜宥呫亼閸樿鍤遍弫鏉匡紣閺勫簺鈧? */
+XXAPI const char* xrtRegexGetErrorMsg(const xregex* pRegex);
+XXAPI size_t xrtRegexGetErrorPos(const xregex* pRegex);
+XXAPI int xrtRegexWhichCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32* pOutCapturesDidMatch, uint32 iCaptureCount);
+XXAPI int xrtRegexIsMatchAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos);
+XXAPI int xrtRegexFindAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutSpan);
+XXAPI int xrtRegexCapturesAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutCaptures, uint32 iCaptureCount);
+XXAPI int xrtRegexWhichCapturesAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutCaptures, uint32* pOutCapturesDidMatch, uint32 iCaptureCount);
+XXAPI uint32 xrtRegexCaptureCount(const xregex* pRegex);
+XXAPI const char* xrtRegexCaptureName(const xregex* pRegex, uint32 iCaptureIndex, size_t* pOutNameSize);
+XXAPI const char* xrtRegexSetGetErrorMsg(const xregexset* pSet);
+XXAPI size_t xrtRegexSetGetErrorPos(const xregexset* pSet);
+XXAPI int xrtRegexSetIsMatchAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos);
+XXAPI int xrtRegexSetMatchesAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
 #ifdef BBRE_CONFIG_HEADER_FILE
   #include BBRE_CONFIG_HEADER_FILE
 #endif
@@ -51398,7 +51344,7 @@ typedef struct bbre_rune_range {
   bbre_uint h; /* max ordinal */
 } bbre_rune_range;
 /* Enumeration of the various flags a group can set or clear. Note that some of
- * these flags are duplicates of `bbre_flags`, and some are not. I think it's a
+ * these flags are duplicates of `xregexflags`, and some are not. I think it's a
  * good idea to keep the ABI flags separate from our internal flags. */
 typedef enum bbre_group_flag {
   BBRE_GROUP_FLAG_INSENSITIVE = 1,   /* case-insensitive matching */
@@ -51448,7 +51394,7 @@ typedef enum bbre_group_flag {
  * inside of the instructions, stores the exit points. This list is tracked by
  * `head` and `tail`. */
 /* When the compiler is evaluating a character class (resolving ands/ors/nots)
- * it uses head and tail to refer to offsets in the `bbre.cc_store` array--
+ * it uses head and tail to refer to offsets in the `xregex.cc_store` array--
  * `head` and `tail`, in this case, form the ends of a linked list containing
  * all of the character class components (rune ranges).*/
 typedef struct bbre_compframe {
@@ -51536,11 +51482,11 @@ typedef enum bbre_prog_entry {
   BBRE_PROG_ENTRY_MAX = 4
 } bbre_prog_entry;
 /* A builder class for regular expressions. */
-struct bbre_builder {
-  bbre_alloc alloc;      /* allocator function */
+struct xrt_regex_builder {
+  xregexalloc alloc;      /* allocator function */
   const bbre_byte *expr; /* the expression itself */
   size_t expr_size;      /* the length of the expression in bytes */
-  bbre_flags flags;      /* regex flags used for parsing / the root AST */
+  xregexflags flags;      /* regex flags used for parsing / the root AST */
 };
 /* Forward declaration */
 typedef struct bbre_exec bbre_exec;
@@ -51551,7 +51497,7 @@ typedef struct bbre_error {
 } bbre_error;
 /* The compiled form of a regular expression. */
 typedef struct bbre_prog {
-  bbre_alloc alloc;                     /* allocator function */
+  xregexalloc alloc;                     /* allocator function */
   bbre_buf(bbre_inst) insts;            /* The compiled instructions */
   bbre_buf(bbre_uint) set_idxs;         /* pattern index for each instruction */
   bbre_uint entry[BBRE_PROG_ENTRY_MAX]; /* entry points for the program */
@@ -51564,8 +51510,8 @@ typedef struct bbre_group_name {
   size_t name_size; /* The size of the name (allocation is this + 1) */
 } bbre_group_name;
 /* A compiled regular expression. */
-struct bbre {
-  bbre_alloc alloc;                      /* allocator function */
+struct xrt_regex {
+  xregexalloc alloc;                      /* allocator function */
   bbre_buf(bbre_uint) ast;               /* AST arena */
   bbre_uint ast_root_hdl;                /* AST root node reference */
   bbre_buf(bbre_group_name) group_names; /* Named group names */
@@ -51580,13 +51526,13 @@ struct bbre {
   bbre_exec *exec; /* local execution context, NULL until actually used */
 };
 /* A builder class for regular expression sets. */
-struct bbre_set_builder {
-  bbre_alloc alloc;            /* allocator function */
-  bbre_buf(const bbre *) pats; /* patterns that compose this set */
+struct xrt_regex_set_builder {
+  xregexalloc alloc;            /* allocator function */
+  bbre_buf(const xregex *) pats; /* patterns that compose this set */
 };
 /* A set of compiled regular expressions. */
-struct bbre_set {
-  bbre_alloc alloc; /* allocator function */
+struct xrt_regex_set {
+  xregexalloc alloc; /* allocator function */
   bbre_prog prog;   /* compiled program */
   bbre_exec *exec;  /* local execution context, NULL until actually used */
   bbre_error error; /* error info */
@@ -51724,7 +51670,7 @@ typedef struct bbre_dfa {
   bbre_buf(bbre_uint) set_buf;
 } bbre_dfa;
 /* Execution context that is shared between the NFA and DFA, and embedded in
- * both `bbre` and `bbre_set` structs. */
+ * both `xregex` and `xregexset` structs. */
 struct bbre_exec {
   /* Source thread set; the threads that resulted from the previous character */
   /* Also used to keep track of which threads were found when exploring epsilon
@@ -51734,7 +51680,7 @@ struct bbre_exec {
    * epsilon transitions in `src` */
   bbre_sset dst;
   /* Allocator callback */
-  bbre_alloc alloc;
+  xregexalloc alloc;
   /* NFA program */
   const bbre_prog *prog;
   /* NFA executor */
@@ -51769,11 +51715,11 @@ bbre_default_alloc(void *user, void *in_ptr, size_t prev, size_t next)
 }
   #define BBRE_DEFAULT_ALLOC bbre_default_alloc
 #endif
-/* Call alloc->cb and get/free memory, given a `bbre_alloc` object. */
+/* Call alloc->procAlloc and get/free memory, given a `xregexalloc` object. */
 static void *
-bbre_alloci(bbre_alloc *alloc, void *old_ptr, size_t old_size, size_t new_size)
+bbre_alloci(xregexalloc *alloc, void *old_ptr, size_t old_size, size_t new_size)
 {
-  return alloc->cb(alloc->user, old_ptr, old_size, new_size);
+  return alloc->procAlloc(alloc->pUserData, old_ptr, old_size, new_size);
 }
 /* For a library like this, you really need a convenient way to represent
  * dynamically-sized arrays of many different types. There's a million ways to
@@ -51863,7 +51809,7 @@ static size_t bbre_buf_size_t(void *buf) { return bbre_buf_get_hdr(buf)->size; }
  * different from C++'s std::vector::reserve() in that it actually sets the used
  * size of the dynamic array. The caller must initialize the newly available
  * elements. */
-static int bbre_buf_resize_t(bbre_alloc *a, void **buf, size_t size)
+static int bbre_buf_resize_t(xregexalloc *a, void **buf, size_t size)
 {
   bbre_buf_hdr *hdr = NULL;
   size_t next_alloc;
@@ -51891,7 +51837,7 @@ static int bbre_buf_resize_t(bbre_alloc *a, void **buf, size_t size)
       hdr->alloc ? sizeof(bbre_buf_hdr) + hdr->alloc : /* sentinel */ 0,
       sizeof(bbre_buf_hdr) + next_alloc);
   if (!next_ptr) {
-    err = BBRE_ERR_MEM;
+    err = XRT_REGEX_ERR_MEM;
     goto error;
   }
   hdr = next_ptr;
@@ -51911,7 +51857,7 @@ static void bbre_buf_init_t(void **b)
   assert(bbre_buf_get_hdr(*b)->size == 0 && bbre_buf_get_hdr(*b)->alloc == 0);
 }
 /* Destroy a dynamic array. */
-static void bbre_buf_destroy_t(bbre_alloc *a, void **buf)
+static void bbre_buf_destroy_t(xregexalloc *a, void **buf)
 {
   bbre_buf_hdr *hdr;
   assert(buf && *buf);
@@ -51920,7 +51866,7 @@ static void bbre_buf_destroy_t(bbre_alloc *a, void **buf)
     bbre_alloci(a, hdr, sizeof(*hdr) + hdr->alloc, 0);
 }
 /* Increase size by `incr`. */
-static int bbre_buf_grow_t(bbre_alloc *a, void **buf, size_t incr)
+static int bbre_buf_grow_t(xregexalloc *a, void **buf, size_t incr)
 {
   assert(buf);
   return bbre_buf_resize_t(a, buf, bbre_buf_size_t(*buf) + incr);
@@ -51959,7 +51905,7 @@ static void bbre_buf_clear(void *buf)
 /* Push an element. */
 #define bbre_buf_push(r, b, e)                                                 \
   (bbre_buf_grow_t((r), (void **)(b), bbre_buf_esz(b))                         \
-       ? BBRE_ERR_MEM                                                          \
+       ? XRT_REGEX_ERR_MEM                                                          \
        : (((*(b))                                                              \
                [bbre_buf_tail_t((void *)(*b), bbre_buf_esz(b)) /               \
                 bbre_buf_esz(b)]) = (e),                                       \
@@ -51978,14 +51924,14 @@ static void bbre_buf_clear(void *buf)
 #define bbre_buf_size(b) (bbre_buf_size_t((void *)(b)) / sizeof(*(b)))
 /* Destroy a dynamic array. */
 #define bbre_buf_destroy(r, b) (bbre_buf_destroy_t((r), (void **)(b)))
-static bbre_alloc bbre_alloc_make(const bbre_alloc *input)
+static xregexalloc bbre_alloc_make(const xregexalloc *input)
 {
-  bbre_alloc out;
+  xregexalloc out;
   if (input)
     out = *input;
   else {
-    out.cb = bbre_default_alloc;
-    out.user = NULL;
+    out.procAlloc = bbre_default_alloc;
+    out.pUserData = NULL;
   }
   return out;
 }
@@ -52033,24 +51979,24 @@ static bbre_uint bbre_hash(bbre_uint x)
   return x;
 }
 /* Create and propagate a parsing error.
- * Returns `BBRE_ERR_PARSE` unconditionally. */
-static int bbre_err_parse(bbre *r, const char *msg)
+ * Returns `XRT_REGEX_ERR_PARSE` unconditionally. */
+static int bbre_err_parse(xregex *r, const char *msg)
 {
   bbre_error_set(&r->error, msg);
   r->error.pos = r->expr_pos;
-  return BBRE_ERR_PARSE;
+  return XRT_REGEX_ERR_PARSE;
 }
 /* Check if we are at the end of the regex string. */
-static int bbre_parse_has_more(bbre *r) { return r->expr_pos != r->expr_size; }
+static int bbre_parse_has_more(xregex *r) { return r->expr_pos != r->expr_size; }
 /* These functions are defined near the automatically-generated parts of the
  * file (the end) for readability purposes. */
 static bbre_uint
 bbre_utf8_decode(bbre_uint *state, bbre_uint *codep, bbre_uint byte);
-static int bbre_parse_check_well_formed_utf8(bbre *r);
+static int bbre_parse_check_well_formed_utf8(xregex *r);
 /* Get the next input codepoint. This function assumes that there is a valid
  * codepoint left in the input string, so it will abort the program if there is
  * none. */
-static bbre_uint bbre_parse_next(bbre *r)
+static bbre_uint bbre_parse_next(xregex *r)
 {
   bbre_uint state = 0, codep;
   assert(bbre_parse_has_more(r));
@@ -52061,7 +52007,7 @@ static bbre_uint bbre_parse_next(bbre *r)
 }
 /* Get the next input codepoint, or raise a parse error with the given error
  * message if there is no more input. */
-static int bbre_parse_next_or(bbre *r, bbre_uint *codep, const char *else_msg)
+static int bbre_parse_next_or(xregex *r, bbre_uint *codep, const char *else_msg)
 {
   int err = 0;
   assert(else_msg);
@@ -52075,7 +52021,7 @@ error:
 }
 /* Helper function to check the next character of input without advancing the
  * parser past it. */
-static bbre_uint bbre_peek_next(bbre *r)
+static bbre_uint bbre_peek_next(xregex *r)
 {
   size_t prev_pos = r->expr_pos;
   bbre_uint out = bbre_parse_next(r);
@@ -52087,7 +52033,7 @@ static bbre_uint bbre_peek_next(bbre *r)
 /* Make a new AST node within the regular expression. Variadic for convenience
  * when creating new nodes, which is done frequently in the parser. */
 static int
-bbre_ast_make(bbre *r, bbre_uint *out_node_hdl, bbre_ast_type type, ...)
+bbre_ast_make(xregex *r, bbre_uint *out_node_hdl, bbre_ast_type type, ...)
 {
   va_list in_args;
   bbre_uint args[6], arg_idx = 0, i = 0;
@@ -52103,7 +52049,7 @@ bbre_ast_make(bbre *r, bbre_uint *out_node_hdl, bbre_ast_type type, ...)
   for (i = 0; i < arg_idx; i++) {
     if (bbre_buf_size(r->ast) == BBRE_LIMIT_AST_SIZE) {
       bbre_error_set(&r->error, "regular expression is too complex");
-      err = BBRE_ERR_LIMIT;
+      err = XRT_REGEX_ERR_LIMIT;
       goto error;
     }
     if ((err = bbre_buf_push(&r->alloc, &r->ast, args[i])))
@@ -52114,7 +52060,7 @@ error:
   return err;
 }
 /* Decompose a given AST node, given its reference, into `out_args`. */
-static void bbre_ast_decompose(bbre *r, bbre_uint node_hdl, bbre_uint *out_args)
+static void bbre_ast_decompose(xregex *r, bbre_uint node_hdl, bbre_uint *out_args)
 {
   bbre_uint *in_args = r->ast + node_hdl;
   bbre_uint i;
@@ -52122,13 +52068,13 @@ static void bbre_ast_decompose(bbre *r, bbre_uint node_hdl, bbre_uint *out_args)
     out_args[i] = in_args[i + 1];
 }
 /* Get the type of the given AST node. */
-static bbre_uint *bbre_ast_type_ptr(bbre *r, bbre_uint node_hdl)
+static bbre_uint *bbre_ast_type_ptr(xregex *r, bbre_uint node_hdl)
 {
   assert(node_hdl != BBRE_NIL);
   return r->ast + node_hdl;
 }
 /* Get a pointer to the `n`'th parameter of the given AST node. */
-static bbre_uint *bbre_ast_param_ptr(bbre *r, bbre_uint node_hdl, bbre_uint n)
+static bbre_uint *bbre_ast_param_ptr(xregex *r, bbre_uint node_hdl, bbre_uint n)
 {
   assert(bbre_ast_type_infos[*bbre_ast_type_ptr(r, node_hdl)].size > n);
   return r->ast + node_hdl + 1 + n;
@@ -52143,7 +52089,7 @@ static int bbre_ast_type_is_cc(bbre_ast_type ast_type)
 }
 /* Based on node precedence, pop nodes on the operator stack. This will pop
  * nodes until a node of equal or greater precedence is at the top. */
-static bbre_uint bbre_ast_pop_prec(bbre *r, bbre_ast_type pop_type)
+static bbre_uint bbre_ast_pop_prec(xregex *r, bbre_ast_type pop_type)
 {
   bbre_uint popped_hdl = BBRE_NIL;
   assert(bbre_buf_size(r->op_stk));
@@ -52162,7 +52108,7 @@ static bbre_uint bbre_ast_pop_prec(bbre *r, bbre_ast_type pop_type)
   return popped_hdl;
 }
 /* Link the top node on the AST stack to the preceding node on the stack. */
-static void bbre_ast_fix(bbre *r)
+static void bbre_ast_fix(xregex *r)
 {
   bbre_uint top_hdl;
   assert(bbre_buf_size(r->op_stk) > 0);
@@ -52179,7 +52125,7 @@ static void bbre_ast_fix(bbre *r)
 }
 /* Push an AST node to the operator stack, and fixup the furthest right child
  * pointer of the parent node. */
-static int bbre_ast_push(bbre *r, bbre_uint node_hdl)
+static int bbre_ast_push(xregex *r, bbre_uint node_hdl)
 {
   int err = 0;
   if ((err = bbre_buf_push(&r->alloc, &r->op_stk, node_hdl)))
@@ -52189,7 +52135,7 @@ error:
   return err;
 }
 /* Create a CAT node on the top of the stack. */
-static int bbre_ast_cat(bbre *r, bbre_uint right_child_hdl)
+static int bbre_ast_cat(xregex *r, bbre_uint right_child_hdl)
 {
   int err = 0;
   bbre_uint *top;
@@ -52210,15 +52156,15 @@ error:
 }
 /* Create a BBRE_AST_TYPE_CC_NOT node with the given character class. */
 static int
-bbre_ast_cls_invert(bbre *r, bbre_uint *out_node_hdl, bbre_uint child_hdl)
+bbre_ast_cls_invert(xregex *r, bbre_uint *out_node_hdl, bbre_uint child_hdl)
 {
   assert(bbre_ast_type_is_cc(*bbre_ast_type_ptr(r, child_hdl)));
   return bbre_ast_make(r, out_node_hdl, BBRE_AST_TYPE_CC_NOT, child_hdl);
 }
 /* Helper function to add a character to the argument stack.
- * Returns `BBRE_ERR_MEM` if out of memory. */
+ * Returns `XRT_REGEX_ERR_MEM` if out of memory. */
 static int bbre_parse_escape_addchr(
-    bbre *r, bbre_uint ch, bbre_uint allowed_outputs, bbre_uint *out_node_hdl)
+    xregex *r, bbre_uint ch, bbre_uint allowed_outputs, bbre_uint *out_node_hdl)
 {
   int err = 0;
   (void)allowed_outputs, assert(allowed_outputs & (1 << BBRE_AST_TYPE_CHR));
@@ -52229,7 +52175,7 @@ error:
 }
 /* Convert a hexadecimal digit to a number.
  * Returns ERR_PARSE on invalid hex digit. */
-static int bbre_parse_hexdig(bbre *r, bbre_uint ch, bbre_uint *hex_digit)
+static int bbre_parse_hexdig(xregex *r, bbre_uint ch, bbre_uint *hex_digit)
 {
   int err = 0;
   if (ch >= '0' && ch <= '9')
@@ -52253,18 +52199,18 @@ static int bbre_parse_is_octdig(bbre_uint ch)
  * to look up a charclass by name and create an AST node representing that
  * charclass.*/
 static int bbre_builtin_cc_ascii(
-    bbre *r, const bbre_byte *name, size_t name_len, bbre_uint *out_node_hdl);
+    xregex *r, const bbre_byte *name, size_t name_len, bbre_uint *out_node_hdl);
 static int bbre_builtin_cc_unicode_property(
-    bbre *r, const bbre_byte *name, size_t name_len, bbre_uint *out_node_hdl);
+    xregex *r, const bbre_byte *name, size_t name_len, bbre_uint *out_node_hdl);
 static int bbre_builtin_cc_perl(
-    bbre *r, const bbre_byte *name, size_t name_len, bbre_uint *out_node_hdl);
+    xregex *r, const bbre_byte *name, size_t name_len, bbre_uint *out_node_hdl);
 /* This function is called after receiving a \ character when parsing an
  * expression or character class. Since some escape sequences are forbidden
  * within different contexts (for example: charclasses), a bitmap
  * `allowed_outputs` encodes, at each bit position, the respective ast_type that
  * is allowed to be created in this context. */
 static int
-bbre_parse_escape(bbre *r, bbre_uint allowed_outputs, bbre_uint *out_node_hdl)
+bbre_parse_escape(xregex *r, bbre_uint allowed_outputs, bbre_uint *out_node_hdl)
 {
   bbre_uint ch;
   int err = 0;
@@ -52468,7 +52414,7 @@ error:
   return err;
 }
 /* Parse a decimal number, up to `max_digits`, into *out. */
-static int bbre_parse_number(bbre *r, bbre_uint *out, bbre_uint max_digits)
+static int bbre_parse_number(xregex *r, bbre_uint *out, bbre_uint max_digits)
 {
   int err = 0;
   bbre_uint ch, acc = 0, ndigs = 0;
@@ -52493,7 +52439,7 @@ error:
 }
 /* Parse a regular expression, storing its resulting AST node into *root. */
 static int
-bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
+bbre_parse(xregex *r, const bbre_byte *ts, size_t tsz, xregexflags start_flags)
 {
   int err;
   r->expr = ts;
@@ -52658,7 +52604,7 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
       assert(BBRE_IMPLIES(named_group, !inline_group));
       if (named_group && (name_end - name_start) > BBRE_LIMIT_GROUP_NAME_SIZE) {
         bbre_error_set(&r->error, "group name exceeds maximum length");
-        err = BBRE_ERR_LIMIT;
+        err = XRT_REGEX_ERR_LIMIT;
         goto error;
       }
       if (!inline_group) {
@@ -52680,7 +52626,7 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
         if (named_group) {
           if (!(name.name =
                     bbre_alloci(&r->alloc, name.name, 0, name.name_size + 1))) {
-            err = BBRE_ERR_MEM;
+            err = XRT_REGEX_ERR_MEM;
             goto error;
           }
           memcpy(name.name, r->expr + name_start, name.name_size);
@@ -52873,12 +52819,12 @@ bbre_parse(bbre *r, const bbre_byte *ts, size_t tsz, bbre_flags start_flags)
            BBRE_GROUP_FLAG_EXPRESSION |
                /* convert ABI flags to internal flags */
                BBRE_GROUP_FLAG_INSENSITIVE *
-                   !!(start_flags & BBRE_FLAG_INSENSITIVE) |
+                   !!(start_flags & XRT_REGEX_FLAG_INSENSITIVE) |
                BBRE_GROUP_FLAG_MULTILINE *
-                   !!(start_flags & BBRE_FLAG_MULTILINE) |
+                   !!(start_flags & XRT_REGEX_FLAG_MULTILINE) |
                BBRE_GROUP_FLAG_DOTNEWLINE *
-                   !!(start_flags & BBRE_FLAG_DOTNEWLINE) |
-               BBRE_GROUP_FLAG_UNGREEDY * !!(start_flags & BBRE_FLAG_UNGREEDY),
+                   !!(start_flags & XRT_REGEX_FLAG_DOTNEWLINE) |
+               BBRE_GROUP_FLAG_UNGREEDY * !!(start_flags & XRT_REGEX_FLAG_UNGREEDY),
            0, 0)))
     goto error;
 error:
@@ -52923,7 +52869,7 @@ static bbre_uint bbre_inst_match_param_idx(bbre_uint param)
   return param >> 1;
 }
 /* Initialize a NFA program. */
-static void bbre_prog_init(bbre_prog *prog, bbre_alloc alloc, bbre_error *error)
+static void bbre_prog_init(bbre_prog *prog, xregexalloc alloc, bbre_error *error)
 {
   prog->alloc = alloc;
   bbre_buf_init(&prog->insts), bbre_buf_init(&prog->set_idxs);
@@ -52980,7 +52926,7 @@ static int bbre_prog_emit(bbre_prog *prog, bbre_inst i, bbre_uint pat_idx)
 {
   int err = 0;
   if (bbre_prog_size(prog) == BBRE_PROG_LIMIT_MAX_INSTS) {
-    err = BBRE_ERR_LIMIT;
+    err = XRT_REGEX_ERR_LIMIT;
     bbre_error_set(prog->error, "maximum compiled program size exceeded");
     goto error;
   }
@@ -52996,7 +52942,7 @@ error:
  * The LSB of `pc_secondary` encodes whether or not to use the `next` or the
  * `param` field for the target instruction. The rest of the bits in
  * `pc_secondary` encode the actual PC. */
-static bbre_inst bbre_patch_set(bbre *r, bbre_uint pc_secondary, bbre_uint val)
+static bbre_inst bbre_patch_set(xregex *r, bbre_uint pc_secondary, bbre_uint val)
 {
   bbre_inst prev = bbre_prog_get(&r->prog, pc_secondary >> 1);
   assert(pc_secondary);
@@ -53013,7 +52959,7 @@ static bbre_inst bbre_patch_set(bbre *r, bbre_uint pc_secondary, bbre_uint val)
 /* Add `dest_pc` to `f`'s linked list of patches. If `secondary` is 1, then the
  * secondary branch target of the instruction at `dest_pc` will be used. */
 static void
-bbre_patch_add(bbre *r, bbre_compframe *f, bbre_uint dest_pc, int secondary)
+bbre_patch_add(xregex *r, bbre_compframe *f, bbre_uint dest_pc, int secondary)
 {
   bbre_uint out_val = dest_pc << 1 | !!secondary;
   assert(dest_pc);
@@ -53027,7 +52973,7 @@ bbre_patch_add(bbre *r, bbre_compframe *f, bbre_uint dest_pc, int secondary)
   }
 }
 /* Concatenate the patches in `p` with the patches in `q`. */
-static void bbre_patch_merge(bbre *r, bbre_compframe *p, bbre_compframe *q)
+static void bbre_patch_merge(xregex *r, bbre_compframe *p, bbre_compframe *q)
 {
   if (!p->head) {
     p->head = q->head;
@@ -53051,7 +52997,7 @@ static void bbre_patch_xfer(bbre_compframe *dst, bbre_compframe *src)
 }
 /* Rip through the patch list in `f`, setting each branch target in the
  * instruction list to `dest_pc`. */
-static void bbre_patch_apply(bbre *r, bbre_compframe *f, bbre_uint dest_pc)
+static void bbre_patch_apply(xregex *r, bbre_compframe *f, bbre_uint dest_pc)
 {
   bbre_uint i = f->head;
   while (i) {
@@ -53062,9 +53008,9 @@ static void bbre_patch_apply(bbre *r, bbre_compframe *f, bbre_uint dest_pc)
 }
 /* This function is automatically generated and is defined later on. */
 static int bbre_compcc_fold_range(
-    bbre *r, bbre_rune_range range, bbre_compframe *frame, bbre_uint prev);
+    xregex *r, bbre_rune_range range, bbre_compframe *frame, bbre_uint prev);
 static int bbre_compile_ranges_append(
-    bbre *r, bbre_compframe *frame, bbre_uint prev, bbre_rune_range range)
+    xregex *r, bbre_compframe *frame, bbre_uint prev, bbre_rune_range range)
 {
   int err = 0;
   bbre_cc_elem elem = {0};
@@ -53105,14 +53051,14 @@ error:
   return err;
 }
 static void bbre_compile_ranges_append_unwrapped(
-    bbre *r, bbre_compframe *frame, bbre_uint prev, bbre_rune_range range)
+    xregex *r, bbre_compframe *frame, bbre_uint prev, bbre_rune_range range)
 {
   int err = bbre_compile_ranges_append(r, frame, prev, range);
   assert(!err);
   (void)(err); /* for when assert() is not defined */
 }
 static bbre_rune_range
-bbre_compile_ranges_pop_front(bbre *r, bbre_compframe *frame)
+bbre_compile_ranges_pop_front(xregex *r, bbre_compframe *frame)
 {
   bbre_uint ref;
   assert(frame->head && frame->tail); /* list must contain elements */
@@ -53125,7 +53071,7 @@ bbre_compile_ranges_pop_front(bbre *r, bbre_compframe *frame)
 }
 /* Link two nonempty lists. */
 static void
-bbre_compile_ranges_link(bbre *r, bbre_compframe *a, bbre_compframe *b)
+bbre_compile_ranges_link(xregex *r, bbre_compframe *a, bbre_compframe *b)
 {
   assert(a->head && a->tail && b->head && b->tail);
   r->compcc.store[a->tail].next_hdl = b->head;
@@ -53133,7 +53079,7 @@ bbre_compile_ranges_link(bbre *r, bbre_compframe *a, bbre_compframe *b)
 }
 /* An excellent algorithm by Simon Tatham, of PuTTY fame:
  * https://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.c */
-static void bbre_compile_ranges_normalize(bbre *r, bbre_compframe *frame)
+static void bbre_compile_ranges_normalize(xregex *r, bbre_compframe *frame)
 {
   bbre_uint num_merges = 0, p, q, k = 1, p_size, q_size;
   if (!frame->head || !(frame->flags & BBRE_GROUP_FLAG_CC_DENORM))
@@ -53207,7 +53153,7 @@ done:
   return;
 }
 /* Helper function to casefold a character class being built in frame. */
-static int bbre_compile_ranges_casefold(bbre *r, bbre_compframe *frame)
+static int bbre_compile_ranges_casefold(xregex *r, bbre_compframe *frame)
 {
   int err = 0;
   bbre_compframe new_frame = *frame;
@@ -53228,7 +53174,7 @@ error:
  * `node` is the contents of the node itself, and `out_hdl` is the output node
  * ID (i.e. arena index) */
 static int bbre_compcc_tree_new(
-    bbre *r, bbre_buf(bbre_compcc_tree) * cc_out, bbre_compcc_tree node,
+    xregex *r, bbre_buf(bbre_compcc_tree) * cc_out, bbre_compcc_tree node,
     bbre_uint *out_hdl)
 {
   int err = 0;
@@ -53250,7 +53196,7 @@ error:
  * bbre_byte_range_to_u32()), `parent_hdl` is the node ID of the parent node to
  * add to, and `out_hdl` is the output node ID. */
 static int bbre_compcc_tree_append(
-    bbre *r, bbre_buf(bbre_compcc_tree) * cc, bbre_uint byte_range,
+    xregex *r, bbre_buf(bbre_compcc_tree) * cc, bbre_uint byte_range,
     bbre_uint parent_hdl, bbre_uint *out_hdl)
 {
   bbre_compcc_tree *parent_node, child_node = {0};
@@ -53279,7 +53225,7 @@ error:
 /* Given a rune range and first/rest bits, add node(s) to the tree and
  * optionally compile the rest. */
 static int bbre_compcc_tree_build_one(
-    bbre *r, bbre_buf(bbre_compcc_tree) * cc_out, bbre_uint parent,
+    xregex *r, bbre_buf(bbre_compcc_tree) * cc_out, bbre_uint parent,
     bbre_uint min, bbre_uint max, bbre_uint rest_bits, bbre_uint first_bits)
 {
   bbre_uint rest_mask = (1 << rest_bits) - 1 /* mask for only rest bits */,
@@ -53392,7 +53338,7 @@ error:
  * rune range amount UTF-8 length boundaries, then calls
  * `bbre_compcc_tree_build_one` on each split range. */
 static int bbre_compcc_tree_build(
-    bbre *r, bbre_compframe *frame_in, bbre_buf(bbre_compcc_tree) * cc_out)
+    xregex *r, bbre_compframe *frame_in, bbre_buf(bbre_compcc_tree) * cc_out)
 {
   size_t len_idx = 0 /* current UTF-8 length */,
          min_bound = 0 /* current UTF-8 length minimum bound */;
@@ -53480,7 +53426,7 @@ static void bbre_compcc_tree_merge_one(
 }
 /* Initialize tree reduction hash table. */
 static int bbre_compcc_hash_init(
-    bbre *r, const bbre_buf(bbre_compcc_tree) cc_tree_in,
+    xregex *r, const bbre_buf(bbre_compcc_tree) cc_tree_in,
     bbre_buf(bbre_uint) * cc_ht_out)
 {
   int err = 0;
@@ -53496,7 +53442,7 @@ error:
  * subtrees. This is the final optimization opportunity for reducing the
  * resulting amount of instructions. */
 static void bbre_compcc_tree_hash(
-    bbre *r, bbre_buf(bbre_compcc_tree) cc_tree_in, bbre_uint parent_hdl)
+    xregex *r, bbre_buf(bbre_compcc_tree) cc_tree_in, bbre_uint parent_hdl)
 {
   /* We also flip sibling -> sibling links backwards -- this reorders the byte
    * ranges into ascending order. */
@@ -53556,7 +53502,7 @@ static void bbre_compcc_tree_hash(
 }
 /* Reduce nodes in the tree (eliminate common suffixes) */
 static void bbre_compcc_tree_reduce(
-    bbre *r, bbre_buf(bbre_compcc_tree) cc_tree_in, bbre_buf(bbre_uint) cc_ht,
+    xregex *r, bbre_buf(bbre_compcc_tree) cc_tree_in, bbre_buf(bbre_uint) cc_ht,
     bbre_uint node_hdl, bbre_uint *my_out_hdl)
 {
   bbre_uint prev_sibling_hdl = 0;
@@ -53610,7 +53556,7 @@ done:
  * instructions, once they are compiled. `frame` allows us to keep track of
  * patch exit points. */
 static int bbre_compcc_tree_render(
-    bbre *r, bbre_buf(bbre_compcc_tree) cc_tree_in, bbre_uint node_hdl,
+    xregex *r, bbre_buf(bbre_compcc_tree) cc_tree_in, bbre_uint node_hdl,
     bbre_uint *my_out_pc, bbre_compframe *frame)
 {
   int err = 0;
@@ -53735,7 +53681,7 @@ static void bbre_compcc_tree_xpose(
  * allocated for the resulting instructions, `ranges` is the normalized set of
  * rune ranges that comprise this character class, and `reversed` tells us
  * whether to compile the charclass in reverse. */
-static int bbre_compcc(bbre *r, bbre_compframe *frame, int reversed)
+static int bbre_compcc(xregex *r, bbre_compframe *frame, int reversed)
 {
   int err = 0;
   bbre_uint start_pc = 0; /* start PC of the compiled charclass, this is filled
@@ -53774,7 +53720,7 @@ static int bbre_compcc(bbre *r, bbre_compframe *frame, int reversed)
     bbre_buf_clear(&r->compcc.tree_2);
     for (i = 1 /* skip sentinel */; i < bbre_buf_size(r->compcc.tree); i++) {
       if ((err = bbre_compcc_tree_new(
-               r, &r->compcc.tree_2, r->compcc.tree[i], NULL)) == BBRE_ERR_MEM)
+               r, &r->compcc.tree_2, r->compcc.tree[i], NULL)) == XRT_REGEX_ERR_MEM)
         goto error;
       assert(!err);
     }
@@ -53821,7 +53767,7 @@ bbre_inst_relocate(bbre_inst inst, bbre_uint src, bbre_uint dst)
  * instructions, and return the duplicate in `dst` as if it was just compiled by
  * an iteration of the compiler loop. */
 static int bbre_compile_dup(
-    bbre *r, bbre_compframe *src, bbre_uint src_end, bbre_compframe *dst,
+    xregex *r, bbre_compframe *src, bbre_uint src_end, bbre_compframe *dst,
     bbre_uint dest_pc)
 {
   bbre_uint i;
@@ -53892,11 +53838,11 @@ error:
 }
 /* This function reads from the builtin CC ROM and is defined later. */
 static int bbre_builtin_cc_decode(
-    bbre *r, bbre_uint start, bbre_uint num_range, bbre_compframe *frame);
+    xregex *r, bbre_uint start, bbre_uint num_range, bbre_compframe *frame);
 /* Main compiler function. Given an AST node through `ast_root`, convert it to
  * compiled instructions. Optionally generate the reversed program if `reverse`
  * is specified. */
-static int bbre_compile_internal(bbre *r, bbre_uint ast_root, bbre_uint reverse)
+static int bbre_compile_internal(xregex *r, bbre_uint ast_root, bbre_uint reverse)
 {
   int err = 0;
   bbre_compframe
@@ -54360,15 +54306,15 @@ static int bbre_compile_internal(bbre *r, bbre_uint ast_root, bbre_uint reverse)
 error:
   return err;
 }
-static int bbre_set_compile(bbre_set *set, const bbre **rs, size_t n);
-int bbre_set_init_internal(bbre_set **pset, const bbre_alloc *palloc)
+static int bbre_set_compile(xregexset *set, const xregex **rs, size_t n);
+int bbre_set_init_internal(xregexset **pset, const xregexalloc *palloc)
 {
   int err = 0;
-  bbre_set *set;
-  bbre_alloc alloc = bbre_alloc_make(palloc);
-  *pset = bbre_alloci(&alloc, NULL, 0, sizeof(bbre_set));
+  xregexset *set;
+  xregexalloc alloc = bbre_alloc_make(palloc);
+  *pset = bbre_alloci(&alloc, NULL, 0, sizeof(xregexset));
   if (!*pset) {
-    err = BBRE_ERR_MEM;
+    err = XRT_REGEX_ERR_MEM;
     goto error;
   }
   set = *pset;
@@ -54379,7 +54325,7 @@ int bbre_set_init_internal(bbre_set **pset, const bbre_alloc *palloc)
 error:
   return err;
 }
-static int bbre_set_compile(bbre_set *set, const bbre **rs, size_t n)
+static int bbre_set_compile(xregexset *set, const xregex **rs, size_t n)
 {
   int err = 0;
   size_t i;
@@ -54393,7 +54339,7 @@ static int bbre_set_compile(bbre_set *set, const bbre **rs, size_t n)
   set->prog.entry[0] = bbre_prog_size(&set->prog);
   for (i = 0; i < n; i++) {
     /* relocate all subpatterns */
-    const bbre *r = rs[i];
+    const xregex *r = rs[i];
     bbre_uint src_pc, dst_pc;
     if (i) {
       assert(prev_split);
@@ -54531,7 +54477,7 @@ bbre_save_slots_new(bbre_exec *exec, bbre_save_slots *s, bbre_uint *next)
           &exec->alloc, s->slots, s->slots_alloc * sizeof(size_t),
           new_alloc * sizeof(size_t));
       if (!new_slots) {
-        err = BBRE_ERR_MEM;
+        err = XRT_REGEX_ERR_MEM;
         goto error;
       }
       s->slots = new_slots, s->slots_alloc = new_alloc;
@@ -54616,7 +54562,7 @@ static void bbre_nfa_init(bbre_nfa *n)
 }
 #define BBRE_BITS_PER_U32 (sizeof(bbre_uint) * CHAR_BIT)
 static int
-bbre_bmp_init(bbre_alloc alloc, bbre_buf(bbre_uint) * b, bbre_uint size)
+bbre_bmp_init(xregexalloc alloc, bbre_buf(bbre_uint) * b, bbre_uint size)
 {
   bbre_uint i;
   int err = 0;
@@ -54737,7 +54683,7 @@ static int bbre_nfa_eps(bbre_exec *exec, size_t pos, bbre_assert_flag ass)
        * one of its branch targets set to the address of the instruction
        * itself. I observed this happening after a fuzzington run that
        * produced a regexp with nested empty-width quantifiers: a{0,0}*.
-       * The way that bbre works now, this is harmless. Preventing these
+       * The way that xregex works now, this is harmless. Preventing these
        * instructions from being emitted would add some complexity to the
        * program for no clear benefit. */
       /* assert(pri.pc != thrd.pc && sec.pc != thrd.pc); */
@@ -54842,7 +54788,7 @@ bbre_make_assert_flag(bbre_uint prev_ch, bbre_uint next_ch)
       bbre_is_word_char(prev_ch), next_ch);
 }
 static int bbre_nfa_end(
-    bbre_exec *exec, size_t pos, bbre_uint max_span, bbre_span *out_span,
+    bbre_exec *exec, size_t pos, bbre_uint max_span, xregexspan *out_span,
     unsigned int *out_which_span, bbre_uint prev_ch)
 {
   int err = 0;
@@ -54856,12 +54802,12 @@ static int bbre_nfa_end(
   slot = exec->nfa.pri_stk[sets];
   for (j = 0; (j < max_span) && out_span; j++) {
     int span_good;
-    out_span[j].begin = bbre_save_slots_get(&exec->nfa.slots, slot, j * 2);
-    out_span[j].end = bbre_save_slots_get(&exec->nfa.slots, slot, j * 2 + 1);
+    out_span[j].iBegin = bbre_save_slots_get(&exec->nfa.slots, slot, j * 2);
+    out_span[j].iEnd = bbre_save_slots_get(&exec->nfa.slots, slot, j * 2 + 1);
     span_good =
-        !(out_span[j].begin == BBRE_UNSET_POSN ||
-          out_span[j].end == BBRE_UNSET_POSN);
-    out_span[j].begin *= span_good, out_span[j].end *= span_good;
+        !(out_span[j].iBegin == BBRE_UNSET_POSN ||
+          out_span[j].iEnd == BBRE_UNSET_POSN);
+    out_span[j].iBegin *= span_good, out_span[j].iEnd *= span_good;
     if (out_which_span)
       out_which_span[j] = span_good;
     if (j == 0)
@@ -54961,7 +54907,7 @@ static int bbre_dfa_construct(
         &exec->alloc, NULL, 0,
         sizeof(bbre_dfa_state *) * BBRE_DFA_MAX_NUM_STATES);
     if (!next_cache) {
-      err = BBRE_ERR_MEM;
+      err = XRT_REGEX_ERR_MEM;
       goto error;
     }
     memset(next_cache, 0, sizeof(bbre_dfa_state *) * BBRE_DFA_MAX_NUM_STATES);
@@ -55027,7 +54973,7 @@ static int bbre_dfa_construct(
         next_state = bbre_alloci(
             &exec->alloc, d->states[table_pos], prev_alloc, next_alloc);
         if (!next_state) {
-          err = BBRE_ERR_MEM;
+          err = XRT_REGEX_ERR_MEM;
           goto error;
         }
         d->states[table_pos] = next_state;
@@ -55308,15 +55254,15 @@ error:
   return err;
 }
 static int bbre_exec_init(
-    bbre_exec **pexec, const bbre_prog *prog, const bbre_alloc *palloc)
+    bbre_exec **pexec, const bbre_prog *prog, const xregexalloc *palloc)
 {
   int err = 0;
-  bbre_alloc alloc = bbre_alloc_make(palloc);
+  xregexalloc alloc = bbre_alloc_make(palloc);
   bbre_exec *exec = bbre_alloci(&alloc, NULL, 0, sizeof(bbre_exec));
   *pexec = exec;
   assert(bbre_prog_size(prog));
   if (!exec) {
-    err = BBRE_ERR_MEM;
+    err = XRT_REGEX_ERR_MEM;
     goto error;
   }
   memset(exec, 0, sizeof(bbre_exec));
@@ -55339,7 +55285,7 @@ static void bbre_exec_destroy(bbre_exec *exec)
 done:
   return;
 }
-static int bbre_compile(bbre *r)
+static int bbre_compile(xregex *r)
 {
   int err = 0;
   assert(!bbre_prog_size(&r->prog));
@@ -55351,7 +55297,7 @@ error:
   return err;
 }
 static int bbre_exec_match(
-    bbre_exec *exec, const char *s, size_t n, size_t pos, bbre_span *out_span,
+    bbre_exec *exec, const char *s, size_t n, size_t pos, xregexspan *out_span,
     unsigned int *which_spans, bbre_uint max_span)
 {
   int err = 0;
@@ -55366,18 +55312,18 @@ static int bbre_exec_match(
     goto error;
   } else if (max_span == 1) {
     err = bbre_dfa_match(
-        exec, (bbre_byte *)s, n, pos, &out_span[0].end,
+        exec, (bbre_byte *)s, n, pos, &out_span[0].iEnd,
         BBRE_DFA_MATCH_FLAG_PRI);
     if (err <= 0)
       goto error;
     err = bbre_dfa_match(
-        exec, (bbre_byte *)s, n, out_span[0].end, &out_span[0].begin,
+        exec, (bbre_byte *)s, n, out_span[0].iEnd, &out_span[0].iBegin,
         BBRE_DFA_MATCH_FLAG_REVERSED);
     if (err < 0)
       goto error;
     assert(
-        err == 1 && out_span[0].begin != BBRE_UNSET_POSN &&
-        out_span[0].end != BBRE_UNSET_POSN);
+        err == 1 && out_span[0].iBegin != BBRE_UNSET_POSN &&
+        out_span[0].iEnd != BBRE_UNSET_POSN);
     if (which_spans)
       *which_spans = 1;
     err = 1;
@@ -55397,7 +55343,7 @@ error:
   return err;
 }
 static int bbre_match_internal(
-    bbre *r, const char *s, size_t n, size_t pos, bbre_span *out_spans,
+    xregex *r, const char *s, size_t n, size_t pos, xregexspan *out_spans,
     bbre_uint *which_spans, bbre_uint out_spans_size)
 {
   int err = 0;
@@ -55440,7 +55386,7 @@ error:
   return err;
 }
 static int bbre_set_match_internal(
-    bbre_set *set, const char *s, size_t n, size_t pos, bbre_uint *out_idxs,
+    xregexset *set, const char *s, size_t n, size_t pos, bbre_uint *out_idxs,
     bbre_uint out_idxs_size, bbre_uint *out_num_idxs)
 {
   int err = 0;
@@ -55454,16 +55400,16 @@ error:
   return err;
 }
 /* API */
-int bbre_builder_init(
-    bbre_builder **pbuild, const char *s, size_t n, const bbre_alloc *palloc)
+int xrtRegexBuilderCreate(
+    xregexbuilder **pbuild, const char *s, size_t n, const xregexalloc *palloc)
 {
   int err = 0;
-  bbre_builder *build;
-  bbre_alloc alloc = bbre_alloc_make(palloc);
-  build = bbre_alloci(&alloc, NULL, 0, sizeof(bbre_builder));
+  xregexbuilder *build;
+  xregexalloc alloc = bbre_alloc_make(palloc);
+  build = bbre_alloci(&alloc, NULL, 0, sizeof(xregexbuilder));
   *pbuild = build;
   if (!build) {
-    err = BBRE_ERR_MEM;
+    err = XRT_REGEX_ERR_MEM;
     goto error;
   }
   memset(build, 0, sizeof(*build));
@@ -55474,45 +55420,45 @@ int bbre_builder_init(
 error:
   return err;
 }
-void bbre_builder_destroy(bbre_builder *build)
+void xrtRegexBuilderDestroy(xregexbuilder *build)
 {
   if (!build)
     goto done;
-  bbre_alloci(&build->alloc, build, sizeof(bbre_builder), 0);
+  bbre_alloci(&build->alloc, build, sizeof(xregexbuilder), 0);
 done:
   return;
 }
-void bbre_builder_flags(bbre_builder *build, bbre_flags flags)
+void xrtRegexBuilderSetFlags(xregexbuilder *build, xregexflags flags)
 {
   build->flags = flags;
 }
-bbre *bbre_init_pattern(const char *pat_nt)
+xregex *xrtRegexCreate(const char *pat_nt)
 {
   int err = 0;
-  bbre *r = NULL;
-  bbre_builder *spec = NULL;
-  if ((err = bbre_builder_init(&spec, pat_nt, strlen(pat_nt), NULL)))
+  xregex *r = NULL;
+  xregexbuilder *spec = NULL;
+  if ((err = xrtRegexBuilderCreate(&spec, pat_nt, strlen(pat_nt), NULL)))
     goto error;
-  if ((err = bbre_init(&r, (const bbre_builder*)spec, NULL)))
+  if ((err = xrtRegexCreateFromBuilder(&r, spec, NULL)))
     goto error;
-  bbre_builder_destroy(spec);
+  xrtRegexBuilderDestroy(spec);
   return r;
 error:
-  /* bbre_builder_destroy() accepts NULL */
-  bbre_builder_destroy(spec);
-  bbre_destroy(r);
+  /* xrtRegexBuilderDestroy() accepts NULL */
+  xrtRegexBuilderDestroy(spec);
+  xrtRegexDestroy(r);
   return NULL;
 }
-/* Initialize a bare `bbre` (no regexp parsed yet) */
-static int bbre_init_internal(bbre **pr, const bbre_alloc *palloc)
+/* Initialize a bare `xregex` (no regexp parsed yet) */
+static int bbre_init_internal(xregex **pr, const xregexalloc *palloc)
 {
   int err = 0;
-  bbre *r;
-  bbre_alloc alloc = bbre_alloc_make(palloc);
-  r = bbre_alloci(&alloc, NULL, 0, sizeof(bbre));
+  xregex *r;
+  xregexalloc alloc = bbre_alloc_make(palloc);
+  r = bbre_alloci(&alloc, NULL, 0, sizeof(xregex));
   *pr = r;
   if (!r) {
-    err = BBRE_ERR_MEM;
+    err = XRT_REGEX_ERR_MEM;
     goto error;
   }
   r->alloc = alloc;
@@ -55530,7 +55476,8 @@ static int bbre_init_internal(bbre **pr, const bbre_alloc *palloc)
 error:
   return err;
 }
-int bbre_init(bbre **pr, const bbre_builder *spec, const bbre_alloc *palloc)
+int xrtRegexCreateFromBuilder(
+    xregex **pr, const xregexbuilder *spec, const xregexalloc *palloc)
 {
   int err = 0;
   if ((err = bbre_init_internal(pr, palloc)))
@@ -55543,7 +55490,7 @@ int bbre_init(bbre **pr, const bbre_builder *spec, const bbre_alloc *palloc)
 error:
   return err;
 }
-void bbre_destroy(bbre *r)
+void xrtRegexDestroy(xregex *r)
 {
   size_t i;
   if (!r)
@@ -55565,64 +55512,64 @@ void bbre_destroy(bbre *r)
 done:
   return;
 }
-const char *bbre_get_err_msg(const bbre *reg) { return reg->error.msg; }
-size_t bbre_get_err_pos(const bbre *reg) { return reg->error.pos; }
-int bbre_is_match(bbre *reg, const char *text, size_t text_size)
+const char *xrtRegexGetErrorMsg(const xregex *reg) { return reg->error.msg; }
+size_t xrtRegexGetErrorPos(const xregex *reg) { return reg->error.pos; }
+int xrtRegexIsMatch(xregex *reg, const char *text, size_t text_size)
 {
   return bbre_match_internal(reg, text, text_size, 0, NULL, NULL, 0);
 }
-int bbre_find(
-    bbre *reg, const char *text, size_t text_size, bbre_span *out_bounds)
+int xrtRegexFind(
+    xregex *reg, const char *text, size_t text_size, xregexspan *out_bounds)
 {
   return bbre_match_internal(reg, text, text_size, 0, out_bounds, NULL, 1);
 }
-int bbre_captures(
-    bbre *reg, const char *text, size_t text_size, bbre_span *out_captures,
-    bbre_uint out_captures_size)
+int xrtRegexCaptures(
+    xregex *reg, const char *text, size_t text_size, xregexspan *out_captures,
+    uint32 out_captures_size)
 {
   return bbre_match_internal(
-      reg, text, text_size, 0, out_captures, NULL, out_captures_size);
+      reg, text, text_size, 0, out_captures, NULL, (bbre_uint)out_captures_size);
 }
-int bbre_which_captures(
-    bbre *reg, const char *text, size_t text_size, bbre_span *out_captures,
-    unsigned int *out_captures_did_match, unsigned int out_captures_size)
+int xrtRegexWhichCaptures(
+    xregex *reg, const char *text, size_t text_size, xregexspan *out_captures,
+    uint32 *out_captures_did_match, uint32 out_captures_size)
 {
   return bbre_match_internal(
-      reg, text, text_size, 0, out_captures, out_captures_did_match,
-      out_captures_size);
+      reg, text, text_size, 0, out_captures, (bbre_uint*)out_captures_did_match,
+      (bbre_uint)out_captures_size);
 }
-int bbre_is_match_at(bbre *reg, const char *text, size_t text_size, size_t pos)
+int xrtRegexIsMatchAt(xregex *reg, const char *text, size_t text_size, size_t pos)
 {
   return bbre_match_internal(reg, text, text_size, pos, NULL, NULL, 0);
 }
-int bbre_find_at(
-    bbre *reg, const char *text, size_t text_size, size_t pos,
-    bbre_span *out_bounds)
+int xrtRegexFindAt(
+    xregex *reg, const char *text, size_t text_size, size_t pos,
+    xregexspan *out_bounds)
 {
   return bbre_match_internal(reg, text, text_size, pos, out_bounds, NULL, 1);
 }
-int bbre_captures_at(
-    bbre *reg, const char *text, size_t text_size, size_t pos,
-    bbre_span *out_captures, bbre_uint num_captures)
+int xrtRegexCapturesAt(
+    xregex *reg, const char *text, size_t text_size, size_t pos,
+    xregexspan *out_captures, uint32 num_captures)
 {
   return bbre_match_internal(
-      reg, text, text_size, pos, out_captures, NULL, num_captures);
+      reg, text, text_size, pos, out_captures, NULL, (bbre_uint)num_captures);
 }
-int bbre_which_captures_at(
-    bbre *reg, const char *text, size_t text_size, size_t pos,
-    bbre_span *out_captures, unsigned int *out_captures_did_match,
-    unsigned int out_captures_size)
+int xrtRegexWhichCapturesAt(
+    xregex *reg, const char *text, size_t text_size, size_t pos,
+    xregexspan *out_captures, uint32 *out_captures_did_match,
+    uint32 out_captures_size)
 {
   return bbre_match_internal(
-      reg, text, text_size, pos, out_captures, out_captures_did_match,
-      out_captures_size);
+      reg, text, text_size, pos, out_captures, (bbre_uint*)out_captures_did_match,
+      (bbre_uint)out_captures_size);
 }
-unsigned int bbre_capture_count(const bbre *reg)
+uint32 xrtRegexCaptureCount(const xregex *reg)
 {
-  return bbre_buf_size(reg->group_names) + 1;
+  return (uint32)(bbre_buf_size(reg->group_names) + 1);
 }
-const char *bbre_capture_name(
-    const bbre *reg, unsigned int capture_idx, size_t *out_name_size)
+const char *xrtRegexCaptureName(
+    const xregex *reg, uint32 capture_idx, size_t *out_name_size)
 {
   const char *out = NULL;
   size_t size = 0;
@@ -55639,15 +55586,15 @@ done:
     *out_name_size = size;
   return out;
 }
-int bbre_set_builder_init(bbre_set_builder **pspec, const bbre_alloc *palloc)
+int xrtRegexSetBuilderCreate(xregexsetbuilder **pspec, const xregexalloc *palloc)
 {
   int err = 0;
-  bbre_set_builder *spec;
-  bbre_alloc alloc = bbre_alloc_make(palloc);
-  spec = bbre_alloci(&alloc, NULL, 0, sizeof(bbre_builder));
+  xregexsetbuilder *spec;
+  xregexalloc alloc = bbre_alloc_make(palloc);
+  spec = bbre_alloci(&alloc, NULL, 0, sizeof(xregexsetbuilder));
   *pspec = spec;
   if (!spec) {
-    err = BBRE_ERR_MEM;
+    err = XRT_REGEX_ERR_MEM;
     goto error;
   }
   memset(spec, 0, sizeof(*spec));
@@ -55656,58 +55603,58 @@ int bbre_set_builder_init(bbre_set_builder **pspec, const bbre_alloc *palloc)
 error:
   return err;
 }
-void bbre_set_builder_destroy(bbre_set_builder *spec)
+void xrtRegexSetBuilderDestroy(xregexsetbuilder *spec)
 {
   if (!spec)
     goto done;
   bbre_buf_destroy(&spec->alloc, &spec->pats);
-  bbre_alloci(&spec->alloc, spec, sizeof(bbre_builder), 0);
+  bbre_alloci(&spec->alloc, spec, sizeof(xregexsetbuilder), 0);
 done:
   return;
 }
-int bbre_set_builder_add(bbre_set_builder *set, const bbre *b)
+int xrtRegexSetBuilderAdd(xregexsetbuilder *set, const xregex *b)
 {
   return bbre_buf_push(&set->alloc, &set->pats, b);
 }
-bbre_set *bbre_set_init_patterns(const char *const *pats_nt, size_t num_pats)
+xregexset *xrtRegexSetCreate(const char *const *pats_nt, size_t num_pats)
 {
   int err = 0;
   size_t i;
-  bbre_alloc a = bbre_alloc_make(NULL);
-  bbre **regs = bbre_alloci(&a, NULL, 0, sizeof(bbre *) * num_pats);
-  bbre_set *set = NULL;
-  bbre_set_builder *spec = NULL;
+  xregexalloc a = bbre_alloc_make(NULL);
+  xregex **regs = bbre_alloci(&a, NULL, 0, sizeof(xregex *) * num_pats);
+  xregexset *set = NULL;
+  xregexsetbuilder *spec = NULL;
   if (!regs)
     goto done;
   for (i = 0; i < num_pats; i++)
     regs[i] = NULL;
   for (i = 0; i < num_pats; i++) {
-    regs[i] = bbre_init_pattern(pats_nt[i]);
+    regs[i] = xrtRegexCreate(pats_nt[i]);
     if (!regs[i])
       goto done;
   }
-  if ((err = bbre_set_builder_init(&spec, &a)))
+  if ((err = xrtRegexSetBuilderCreate(&spec, &a)))
     goto done;
   for (i = 0; i < num_pats; i++) {
-    if ((err = bbre_set_builder_add(spec, regs[i])))
+    if ((err = xrtRegexSetBuilderAdd(spec, regs[i])))
       goto done;
   }
-  if ((err = bbre_set_init(&set, spec, &a))) {
-    bbre_set_destroy(set);
+  if ((err = xrtRegexSetCreateFromBuilder(&set, spec, &a))) {
+    xrtRegexSetDestroy(set);
     set = NULL;
     goto done;
   }
 done:
-  bbre_set_builder_destroy(spec);
+  xrtRegexSetBuilderDestroy(spec);
   if (regs) {
     for (i = 0; i < num_pats; i++)
-      bbre_destroy(regs[i]);
-    bbre_alloci(&a, regs, sizeof(bbre *) * num_pats, 0);
+      xrtRegexDestroy(regs[i]);
+    bbre_alloci(&a, regs, sizeof(xregex *) * num_pats, 0);
   }
   return set;
 }
-int bbre_set_init(
-    bbre_set **pset, const bbre_set_builder *spec, const bbre_alloc *palloc)
+int xrtRegexSetCreateFromBuilder(
+    xregexset **pset, const xregexsetbuilder *spec, const xregexalloc *palloc)
 {
   int err = 0;
   if ((err = bbre_set_init_internal(pset, palloc)))
@@ -55717,7 +55664,7 @@ int bbre_set_init(
 error:
   return err;
 }
-void bbre_set_destroy(bbre_set *set)
+void xrtRegexSetDestroy(xregexset *set)
 {
   if (!set)
     goto done;
@@ -55728,30 +55675,40 @@ void bbre_set_destroy(bbre_set *set)
 done:
   return;
 }
-int bbre_set_is_match(bbre_set *set, const char *text, size_t text_size)
+const char *xrtRegexSetGetErrorMsg(const xregexset *set)
+{
+  return set->error.msg;
+}
+size_t xrtRegexSetGetErrorPos(const xregexset *set)
+{
+  return set->error.pos;
+}
+int xrtRegexSetIsMatch(xregexset *set, const char *text, size_t text_size)
 {
   return bbre_set_match_internal(set, text, text_size, 0, NULL, 0, NULL);
 }
-int bbre_set_matches(
-    bbre_set *set, const char *text, size_t text_size, bbre_uint *out_idxs,
-    bbre_uint out_idxs_size, bbre_uint *out_num_idxs)
+int xrtRegexSetMatches(
+    xregexset *set, const char *text, size_t text_size, uint32 *out_idxs,
+    uint32 out_idxs_size, uint32 *out_num_idxs)
 {
   return bbre_set_match_internal(
-      set, text, text_size, 0, out_idxs, out_idxs_size, out_num_idxs);
+      set, text, text_size, 0, (bbre_uint*)out_idxs, (bbre_uint)out_idxs_size,
+      (bbre_uint*)out_num_idxs);
 }
-int bbre_set_is_match_at(
-    bbre_set *set, const char *text, size_t text_size, size_t pos)
+int xrtRegexSetIsMatchAt(
+    xregexset *set, const char *text, size_t text_size, size_t pos)
 {
   return bbre_set_match_internal(set, text, text_size, pos, NULL, 0, NULL);
 }
-int bbre_set_matches_at(
-    bbre_set *set, const char *s, size_t n, size_t pos, bbre_uint *out_idxs,
-    bbre_uint out_idxs_size, bbre_uint *out_num_idxs)
+int xrtRegexSetMatchesAt(
+    xregexset *set, const char *s, size_t n, size_t pos, uint32 *out_idxs,
+    uint32 out_idxs_size, uint32 *out_num_idxs)
 {
   return bbre_set_match_internal(
-      set, s, n, pos, out_idxs, out_idxs_size, out_num_idxs);
+      set, s, n, pos, (bbre_uint*)out_idxs, (bbre_uint)out_idxs_size,
+      (bbre_uint*)out_num_idxs);
 }
-static int bbre_group_names_clone(bbre *out, const bbre *in)
+static int bbre_group_names_clone(xregex *out, const xregex *in)
 {
   int err = 0;
   size_t i;
@@ -55763,7 +55720,7 @@ static int bbre_group_names_clone(bbre *out, const bbre *in)
     if (src_name->name) {
       dst_name.name = bbre_alloci(&out->alloc, NULL, 0, dst_name.name_size + 1);
       if (!dst_name.name) {
-        err = BBRE_ERR_MEM;
+        err = XRT_REGEX_ERR_MEM;
         goto error;
       }
       memcpy(dst_name.name, src_name->name, dst_name.name_size + 1);
@@ -55776,7 +55733,7 @@ static int bbre_group_names_clone(bbre *out, const bbre *in)
 error:
   return err;
 }
-int bbre_clone(bbre **pout, const bbre *reg, const bbre_alloc *alloc)
+int xrtRegexClone(xregex **pout, const xregex *reg, const xregexalloc *alloc)
 {
   int err = 0;
   if ((err = bbre_init_internal(pout, alloc)))
@@ -55788,8 +55745,8 @@ int bbre_clone(bbre **pout, const bbre *reg, const bbre_alloc *alloc)
 error:
   return err;
 }
-int bbre_set_clone(
-    bbre_set **pout, const bbre_set *set, const bbre_alloc *alloc)
+int xrtRegexSetClone(
+    xregexset **pout, const xregexset *set, const xregexalloc *alloc)
 {
   int err = 0;
   if ((err = bbre_set_init_internal(pout, alloc)))
@@ -55859,7 +55816,7 @@ bbre_utf8_decode(bbre_uint *state, bbre_uint *codep, bbre_uint byte)
   return *state;
 }
 /* Check that the input string is well-formed UTF-8. */
-static int bbre_parse_check_well_formed_utf8(bbre *r)
+static int bbre_parse_check_well_formed_utf8(xregex *r)
 {
   bbre_uint state = 0, codep;
   int err = 0;
@@ -56089,7 +56046,7 @@ static int bbre_compcc_fold_next(bbre_uint rune)
        (rune & 0x01)];
 }
 static int bbre_compcc_fold_range(
-    bbre *r, bbre_rune_range range, bbre_compframe *frame, bbre_uint prev)
+    xregex *r, bbre_rune_range range, bbre_compframe *frame, bbre_uint prev)
 {
   bbre_uint current, x0, x1, x2, x3, x4, x5, begin = range.l, end = range.h;
   int err = 0;
@@ -56678,7 +56635,7 @@ static int bbre_builtin_cc_next_bit(const bbre_uint **p, bbre_uint *idx)
   return (int)!!out;
 }
 static int bbre_builtin_cc_make(
-    bbre *r, const bbre_byte *name, size_t name_len,
+    xregex *r, const bbre_byte *name, size_t name_len,
     const bbre_builtin_cc *start, bbre_uint *out_hdl)
 {
   const bbre_builtin_cc *p = NULL, *found = NULL;
@@ -56725,7 +56682,7 @@ error:
   return err;
 }
 static int bbre_builtin_cc_decode(
-    bbre *r, bbre_uint start, bbre_uint num_range, bbre_compframe *frame)
+    xregex *r, bbre_uint start, bbre_uint num_range, bbre_compframe *frame)
 {
   const bbre_uint *read; /* pointer to compressed data */
   bbre_uint i, bit_idx, prev = BBRE_UTF_MAX + 1, accum = 0, range[2];
@@ -56777,19 +56734,19 @@ error:
   return err;
 }
 static int bbre_builtin_cc_unicode_property(
-    bbre *r, const bbre_byte *name, size_t name_len, bbre_uint *out_hdl)
+    xregex *r, const bbre_byte *name, size_t name_len, bbre_uint *out_hdl)
 {
   return bbre_builtin_cc_make(
       r, name, name_len, bbre_builtin_ccs_unicode_property, out_hdl);
 }
 static int bbre_builtin_cc_ascii(
-    bbre *r, const bbre_byte *name, size_t name_len, bbre_uint *out_hdl)
+    xregex *r, const bbre_byte *name, size_t name_len, bbre_uint *out_hdl)
 {
   return bbre_builtin_cc_make(
       r, name, name_len, bbre_builtin_ccs_ascii, out_hdl);
 }
 static int bbre_builtin_cc_perl(
-    bbre *r, const bbre_byte *name, size_t name_len, bbre_uint *out_hdl)
+    xregex *r, const bbre_byte *name, size_t name_len, bbre_uint *out_hdl)
 {
   return bbre_builtin_cc_make(
       r, name, name_len, bbre_builtin_ccs_perl, out_hdl);
@@ -56823,7 +56780,7 @@ static int bbre_builtin_cc_perl(
 #ifndef XRT_NO_VALUE
 
 // ========================================
-// File: D:/Git/xrt/lib/value.h
+// File: D:/git/xrt/lib/value.h
 // ========================================
 
 
@@ -58424,7 +58381,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 #ifndef XRT_NO_JNUM
 
 // ========================================
-// File: D:/Git/xrt/lib/jnum.h
+// File: D:/git/xrt/lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -59924,7 +59881,7 @@ jnum_to_func(double, xrtStrToNum)
 #ifndef XRT_NO_JSON
 
 // ========================================
-// File: D:/Git/xrt/lib/json.h
+// File: D:/git/xrt/lib/json.h
 // ========================================
 
 
@@ -61565,7 +61522,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 #ifndef XRT_NO_TEMPLATE
 
 // ========================================
-// File: D:/Git/xrt/lib/template.h
+// File: D:/git/xrt/lib/template.h
 // ========================================
 
 
@@ -65206,99 +65163,6 @@ XXAPI void xrtUnit()
 	}
 	__xrtRuntimeUnlock();
 }
-#ifndef XRT_NO_REGEX
-static const bbre_alloc* __xrtRegexGetAlloc(const xregexalloc* pAlloc, bbre_alloc* pOut)
-{
-	if ( (pAlloc == NULL) || (pAlloc->procAlloc == NULL) ) {
-		return NULL;
-	}
-	pOut->user = pAlloc->pUserData;
-	pOut->cb = (bbre_alloc_cb)pAlloc->procAlloc;
-	return pOut;
-}
-XXAPI xregex* xrtRegexCreate(const char* sPatternNt)
-{
-	return (xregex*)bbre_init_pattern(sPatternNt);
-}
-XXAPI int xrtRegexCreateFromBuilder(xregex** ppRegex, const xregexbuilder* pBuilder, const xregexalloc* pAlloc)
-{
-	bbre_alloc tAlloc;
-	return bbre_init((bbre**)ppRegex, (const bbre_builder*)pBuilder, __xrtRegexGetAlloc(pAlloc, &tAlloc));
-}
-XXAPI void xrtRegexDestroy(xregex* pRegex)
-{
-	bbre_destroy((bbre*)pRegex);
-}
-XXAPI int xrtRegexIsMatch(xregex* pRegex, const char* sText, size_t iTextSize)
-{
-	return bbre_is_match((bbre*)pRegex, sText, iTextSize);
-}
-XXAPI int xrtRegexFind(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutSpan)
-{
-	return bbre_find((bbre*)pRegex, sText, iTextSize, (bbre_span*)pOutSpan);
-}
-XXAPI int xrtRegexCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32 iCaptureCount)
-{
-	return bbre_captures((bbre*)pRegex, sText, iTextSize, (bbre_span*)pOutCaptures, (unsigned int)iCaptureCount);
-}
-XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern, size_t iPatternSize, const xregexalloc* pAlloc)
-{
-	bbre_alloc tAlloc;
-	return bbre_builder_init((bbre_builder**)ppBuilder, sPattern, iPatternSize, __xrtRegexGetAlloc(pAlloc, &tAlloc));
-}
-XXAPI void xrtRegexBuilderDestroy(xregexbuilder* pBuilder)
-{
-	bbre_builder_destroy((bbre_builder*)pBuilder);
-}
-XXAPI void xrtRegexBuilderSetFlags(xregexbuilder* pBuilder, xregexflags iFlags)
-{
-	bbre_builder_flags((bbre_builder*)pBuilder, (bbre_flags)iFlags);
-}
-XXAPI int xrtRegexClone(xregex** ppOut, const xregex* pRegex, const xregexalloc* pAlloc)
-{
-	bbre_alloc tAlloc;
-	return bbre_clone((bbre**)ppOut, (const bbre*)pRegex, __xrtRegexGetAlloc(pAlloc, &tAlloc));
-}
-XXAPI int xrtRegexSetBuilderCreate(xregexsetbuilder** ppBuilder, const xregexalloc* pAlloc)
-{
-	bbre_alloc tAlloc;
-	return bbre_set_builder_init((bbre_set_builder**)ppBuilder, __xrtRegexGetAlloc(pAlloc, &tAlloc));
-}
-XXAPI void xrtRegexSetBuilderDestroy(xregexsetbuilder* pBuilder)
-{
-	bbre_set_builder_destroy((bbre_set_builder*)pBuilder);
-}
-XXAPI int xrtRegexSetBuilderAdd(xregexsetbuilder* pBuilder, const xregex* pRegex)
-{
-	return bbre_set_builder_add((bbre_set_builder*)pBuilder, (const bbre*)pRegex);
-}
-XXAPI xregexset* xrtRegexSetCreate(const char* const* arrPatternsNt, size_t iPatternCount)
-{
-	return (xregexset*)bbre_set_init_patterns(arrPatternsNt, iPatternCount);
-}
-XXAPI int xrtRegexSetCreateFromBuilder(xregexset** ppSet, const xregexsetbuilder* pBuilder, const xregexalloc* pAlloc)
-{
-	bbre_alloc tAlloc;
-	return bbre_set_init((bbre_set**)ppSet, (const bbre_set_builder*)pBuilder, __xrtRegexGetAlloc(pAlloc, &tAlloc));
-}
-XXAPI void xrtRegexSetDestroy(xregexset* pSet)
-{
-	bbre_set_destroy((bbre_set*)pSet);
-}
-XXAPI int xrtRegexSetIsMatch(xregexset* pSet, const char* sText, size_t iTextSize)
-{
-	return bbre_set_is_match((bbre_set*)pSet, sText, iTextSize);
-}
-XXAPI int xrtRegexSetMatches(xregexset* pSet, const char* sText, size_t iTextSize, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount)
-{
-	return bbre_set_matches((bbre_set*)pSet, sText, iTextSize, (unsigned int*)pOutIndexes, (unsigned int)iMaxIndexes, (unsigned int*)pOutIndexCount);
-}
-XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc)
-{
-	bbre_alloc tAlloc;
-	return bbre_set_clone((bbre_set**)ppOut, (const bbre_set*)pSet, __xrtRegexGetAlloc(pAlloc, &tAlloc));
-}
-#endif
 #ifdef DBUILD_DLL
 	
 	

@@ -135,17 +135,21 @@ static int __Test_Regex_FindAndCaptures(void)
 	xregex* pRegex = NULL;
 	xregexspan tSpan;
 	xregexspan arrCaptures[3];
+	uint32 arrCaptureFlags[3];
 	const char* sTextFind = "Order: 12345, Price: 99";
 	const char* sTextCapture = "count=42";
 
 	printf("\nRegex test subject 2 : find and captures\n");
 
 	memset(&tSpan, 0, sizeof(tSpan));
+	memset(arrCaptureFlags, 0, sizeof(arrCaptureFlags));
 	pRegex = xrtRegexCreate("[0-9]+");
 	iFail += __Test_Regex_Check("find regex create", pRegex != NULL);
 	if ( pRegex != NULL ) {
 		iFail += __Test_Regex_Check("find first number", xrtRegexFind(pRegex, sTextFind, strlen(sTextFind), &tSpan) == 1);
 		iFail += __Test_Regex_Check("find span text", __Test_Regex_SpanEquals(sTextFind, strlen(sTextFind), tSpan, "12345"));
+		iFail += __Test_Regex_Check("find at next number", xrtRegexFindAt(pRegex, sTextFind, strlen(sTextFind), 13u, &tSpan) == 1);
+		iFail += __Test_Regex_Check("find at span text", __Test_Regex_SpanEquals(sTextFind, strlen(sTextFind), tSpan, "99"));
 		iFail += __Test_Regex_Check("find no match", xrtRegexFind(pRegex, "abc", 3u, &tSpan) == 0);
 		xrtRegexDestroy(pRegex);
 	}
@@ -155,9 +159,11 @@ static int __Test_Regex_FindAndCaptures(void)
 	iFail += __Test_Regex_Check("captures regex create", pRegex != NULL);
 	if ( pRegex != NULL ) {
 		iFail += __Test_Regex_Check("captures match", xrtRegexCaptures(pRegex, sTextCapture, strlen(sTextCapture), arrCaptures, 3u) == 1);
+		iFail += __Test_Regex_Check("captures which", xrtRegexWhichCaptures(pRegex, sTextCapture, strlen(sTextCapture), arrCaptures, arrCaptureFlags, 3u) == 1);
 		iFail += __Test_Regex_Check("captures full span", __Test_Regex_SpanEquals(sTextCapture, strlen(sTextCapture), arrCaptures[0], "count=42"));
 		iFail += __Test_Regex_Check("captures key span", __Test_Regex_SpanEquals(sTextCapture, strlen(sTextCapture), arrCaptures[1], "count"));
 		iFail += __Test_Regex_Check("captures value span", __Test_Regex_SpanEquals(sTextCapture, strlen(sTextCapture), arrCaptures[2], "42"));
+		iFail += __Test_Regex_Check("captures which flags", (arrCaptureFlags[0] == 1u) && (arrCaptureFlags[1] == 1u) && (arrCaptureFlags[2] == 1u));
 		xrtRegexDestroy(pRegex);
 	}
 
@@ -248,6 +254,9 @@ static int __Test_Regex_SetApi(void)
 		iFail += __Test_Regex_Check("set match count", iCount == 2u);
 		iFail += __Test_Regex_Check("set match index apple", __Test_Regex_HasIndex(arrIndexes, iCount, 0u));
 		iFail += __Test_Regex_Check("set match index cherry", __Test_Regex_HasIndex(arrIndexes, iCount, 2u));
+		iFail += __Test_Regex_Check("set matches at", xrtRegexSetMatchesAt(pSet, sText, strlen(sText), 3u, arrIndexes, 4u, &iCount) == 1);
+		iFail += __Test_Regex_Check("set matches at count", iCount == 1u);
+		iFail += __Test_Regex_Check("set matches at apple", __Test_Regex_HasIndex(arrIndexes, iCount, 0u));
 		iFail += __Test_Regex_Check("set clone", xrtRegexSetClone(&pClone, pSet, NULL) == 0 && pClone != NULL);
 	}
 
@@ -306,32 +315,32 @@ static int __Test_Regex_SetBuilderApi(void)
 static int __Test_Regex_InternalRegression(void)
 {
 	int iFail = 0;
-	bbre* pRegex = NULL;
-	bbre* pClone = NULL;
+	xregex* pRegex = NULL;
+	xregex* pClone = NULL;
 	size_t iNameSize = 0u;
 	const char* sName = NULL;
 
 	printf("\nRegex test subject 6 : internal regression\n");
 
-	pRegex = bbre_init_pattern("(?<test>AAA)|(?<abcdef>[6]*)");
+	pRegex = xrtRegexCreate("(?<test>AAA)|(?<abcdef>[6]*)");
 	iFail += __Test_Regex_Check("internal named regex create", pRegex != NULL);
 	if ( pRegex != NULL ) {
-		iFail += __Test_Regex_Check("internal clone", bbre_clone(&pClone, pRegex, NULL) == 0 && pClone != NULL);
+		iFail += __Test_Regex_Check("internal clone", xrtRegexClone(&pClone, pRegex, NULL) == 0 && pClone != NULL);
 	}
 
 	if ( pClone != NULL ) {
-		iFail += __Test_Regex_Check("clone capture count", bbre_capture_count(pClone) == 3u);
-		sName = bbre_capture_name(pClone, 1u, &iNameSize);
+		iFail += __Test_Regex_Check("clone capture count", xrtRegexCaptureCount(pClone) == 3u);
+		sName = xrtRegexCaptureName(pClone, 1u, &iNameSize);
 		iFail += __Test_Regex_Check("clone capture name #1", sName != NULL && strcmp(sName, "test") == 0 && iNameSize == 4u);
-		sName = bbre_capture_name(pClone, 2u, &iNameSize);
+		sName = xrtRegexCaptureName(pClone, 2u, &iNameSize);
 		iFail += __Test_Regex_Check("clone capture name #2", sName != NULL && strcmp(sName, "abcdef") == 0 && iNameSize == 6u);
 	}
 
 	if ( pClone != NULL ) {
-		bbre_destroy(pClone);
+		xrtRegexDestroy(pClone);
 	}
 	if ( pRegex != NULL ) {
-		bbre_destroy(pRegex);
+		xrtRegexDestroy(pRegex);
 	}
 
 	return iFail ? 1 : 0;
