@@ -35,6 +35,11 @@ typedef struct {
 	uintptr_t Values[8];
 } singlehead_queue_drain_ctx;
 
+typedef struct {
+	volatile uint32 Value;
+	uint32 Guard;
+} singlehead_atomic_width_probe;
+
 static void singlehead_print_result(const char* sName, bool bPassed)
 {
 	printf("  [%s] %s\n", bPassed ? "OK" : "FAIL", sName);
@@ -265,6 +270,26 @@ cleanup:
 	return bOk;
 }
 
+static bool singlehead_internal_atomic_width_smoke(void)
+{
+	singlehead_atomic_width_probe tProbe;
+
+	tProbe.Value = 1u;
+	tProbe.Guard = 0x1a2b3c4du;
+	__xrtAtomicStoreU32(&tProbe.Value, 7u);
+	if ( __xrtAtomicLoadU32(&tProbe.Value) != 7u ||
+		tProbe.Value != 7u ||
+		tProbe.Guard != 0x1a2b3c4du ) {
+		return FALSE;
+	}
+
+	tProbe.Value = 1u;
+	tProbe.Guard = 0x1a2b3c4du;
+	return __xvoAtomicCompareExchange32(&tProbe.Value, 2u, 1u) == 1u &&
+		tProbe.Value == 2u &&
+		tProbe.Guard == 0x1a2b3c4du;
+}
+
 static uint32 singlehead_worker(ptr pParam)
 {
 	singlehead_shared_ctx* pCtx = (singlehead_shared_ctx*)pParam;
@@ -315,6 +340,7 @@ int main(void)
 	bool bOk = TRUE;
 	bool bQueueOk = TRUE;
 	bool bQueueFailureOk = TRUE;
+	bool bAtomicWidthOk = TRUE;
 	char* pTemp = NULL;
 	xvalue pTable = NULL;
 	xvalue pTags = NULL;
@@ -364,6 +390,13 @@ int main(void)
 	bQueueFailureOk = singlehead_queue_failure_smoke();
 	singlehead_print_result("queue failure smoke", bQueueFailureOk);
 	if ( !bQueueFailureOk ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+	bAtomicWidthOk = singlehead_internal_atomic_width_smoke();
+	singlehead_print_result("internal atomic width guard", bAtomicWidthOk);
+	if ( !bAtomicWidthOk ) {
 		bOk = FALSE;
 		goto cleanup;
 	}

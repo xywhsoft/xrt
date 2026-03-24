@@ -40,6 +40,11 @@ typedef struct {
 	uint32 iTotalCount;
 } __test_queue_core_mpmc_cons_ctx;
 
+typedef struct {
+	volatile uint32 iValue;
+	uint32 iGuard;
+} __test_queue_core_u32_atomic_probe;
+
 #define __TEST_QUEUE_CORE_MPSC_PRODUCER_COUNT 4u
 #define __TEST_QUEUE_CORE_MPSC_ITEMS_PER_PRODUCER 1024u
 #define __TEST_QUEUE_CORE_MPSC_TOTAL_ITEMS (__TEST_QUEUE_CORE_MPSC_PRODUCER_COUNT * __TEST_QUEUE_CORE_MPSC_ITEMS_PER_PRODUCER)
@@ -215,6 +220,18 @@ static int __Test_QueueCore_Check(const char* sName, int bOk)
 	return bOk ? 0 : 1;
 }
 
+static int __Test_QueueCore_U32AtomicLoadStoreGuard(void)
+{
+	__test_queue_core_u32_atomic_probe tProbe;
+
+	tProbe.iValue = 1u;
+	tProbe.iGuard = 0x5c6d7e8fu;
+	__xrtAtomicStoreU32(&tProbe.iValue, 7u);
+	return __xrtAtomicLoadU32(&tProbe.iValue) == 7u &&
+		tProbe.iValue == 7u &&
+		tProbe.iGuard == 0x5c6d7e8fu;
+}
+
 static int Test_QueueCore(void)
 {
 	int iFail = 0;
@@ -249,6 +266,8 @@ static int Test_QueueCore(void)
 	volatile long iMpmcFailure = 0;
 	int bMpmcThreadedOk = TRUE;
 	xqueuebase tUnknownBase;
+	ptr* pSpscItems = NULL;
+	__test_queue_core_u32_atomic_probe tAtomicProbe;
 
 	printf("\n\n------------------------------------\n\n Queue Core Test:\n\n");
 
@@ -273,6 +292,10 @@ static int Test_QueueCore(void)
 	tUnknownBase.iKind = 99u;
 	tUnknownBase.bClosed = 1u;
 	iFail += __Test_QueueCore_Check("queue helper unknown kind not drained", xrtQueueIsDrained(&tUnknownBase) == FALSE);
+	iFail += __Test_QueueCore_Check("u32 atomic load/store guard", __Test_QueueCore_U32AtomicLoadStoreGuard());
+	tAtomicProbe.iValue = 1u;
+	tAtomicProbe.iGuard = 0x6b7c8d9eu;
+	iFail += __Test_QueueCore_Check("xvo atomic width guard", __xvoAtomicCompareExchange32(&tAtomicProbe.iValue, 2u, 1u) == 1u && tAtomicProbe.iValue == 2u && tAtomicProbe.iGuard == 0x6b7c8d9eu);
 
 	memset(&tCfg, 0, sizeof(tCfg));
 	tCfg.iCapacity = 3;
@@ -292,8 +315,10 @@ static int Test_QueueCore(void)
 	if ( hQueue == NULL ) {
 		return 1;
 	}
+	pSpscItems = hQueue->arrItems;
 
 	iFail += __Test_QueueCore_Check("spsc rounded capacity", hQueue->iCapacity == 4u);
+	iFail += __Test_QueueCore_Check("spsc buffer init", pSpscItems != NULL);
 	iFail += __Test_QueueCore_Check("queue initially open", xrtQueueIsClosed(&hQueue->tBase) == FALSE);
 	iFail += __Test_QueueCore_Check("queue initially not drained", xrtQueueIsDrained(&hQueue->tBase) == FALSE);
 	iFail += __Test_QueueCore_Check("spsc pop null out error", xrtSPSCQTryPop(hQueue, NULL) == XQUEUE_ERROR);
@@ -305,7 +330,7 @@ static int Test_QueueCore(void)
 	iFail += __Test_QueueCore_Check("queue close empty reset", xrtSPSCQReset(hQueue) == TRUE);
 	iFail += __Test_QueueCore_Check("pop empty", xrtSPSCQTryPop(hQueue, &pItem) == XQUEUE_EMPTY);
 
-	iFail += __Test_QueueCore_Check("push #1", xrtSPSCQTryPush(hQueue, (ptr)(uintptr_t)1u) == XQUEUE_OK);
+	iFail += __Test_QueueCore_Check("push #1", xrtSPSCQTryPush(hQueue, (ptr)(uintptr_t)1u) == XQUEUE_OK && hQueue->arrItems == pSpscItems);
 	iFail += __Test_QueueCore_Check("push #2", xrtSPSCQTryPush(hQueue, (ptr)(uintptr_t)2u) == XQUEUE_OK);
 	iFail += __Test_QueueCore_Check("push #3", xrtSPSCQTryPush(hQueue, (ptr)(uintptr_t)3u) == XQUEUE_OK);
 	iFail += __Test_QueueCore_Check("push #4", xrtSPSCQTryPush(hQueue, (ptr)(uintptr_t)4u) == XQUEUE_OK);

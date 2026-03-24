@@ -4,12 +4,12 @@
 
 static inline uint32 __xrtQueueAtomicLoad32(const volatile uint32* pValue)
 {
-	return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, 0, 0);
+	return __xrtAtomicLoadU32(pValue);
 }
 
 static inline void __xrtQueueAtomicStore32(volatile uint32* pValue, uint32 iValue)
 {
-	(void)__xrtAtomicExchange32((volatile long*)pValue, (long)iValue);
+	__xrtAtomicStoreU32(pValue, iValue);
 }
 
 static inline uint64 __xrtQueueAtomicLoad64(const volatile uint64* pValue)

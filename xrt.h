@@ -1045,6 +1045,34 @@
 		#endif
 	}
 
+	/* Keep dedicated 32-bit atomics for uint32 fields. LP64 builds make long-based helpers 64-bit wide. */
+	static inline uint32 __xrtAtomicCompareExchangeU32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
+	{
+		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+			return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, (long)iExchange, (long)iComparand);
+		#elif defined(_WIN32) || defined(_WIN64)
+			return (uint32)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
+		#else
+			return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
+		#endif
+	}
+
+	static inline uint32 __xrtAtomicLoadU32(const volatile uint32* pValue)
+	{
+		return __xrtAtomicCompareExchangeU32((volatile uint32*)pValue, 0u, 0u);
+	}
+
+	static inline void __xrtAtomicStoreU32(volatile uint32* pValue, uint32 iValue)
+	{
+		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+			(void)__xrtAtomicExchange32((volatile long*)pValue, (long)iValue);
+		#elif defined(_WIN32) || defined(_WIN64)
+			(void)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
+		#else
+			(void)__sync_lock_test_and_set(pValue, iValue);
+		#endif
+	}
+
 	static inline long __xrtAtomicAddFetch32(volatile long* pValue, long iDelta)
 	{
 		#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
@@ -5372,7 +5400,7 @@
 	// Value 头部与共享状态的内联辅助函数
 	static inline uint32 __xvoAtomicCompareExchange32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
 	{
-		return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, (long)iExchange, (long)iComparand);
+		return __xrtAtomicCompareExchangeU32(pValue, iExchange, iComparand);
 	}
 
 	static inline void xvoInitHeader(xvalue pVal, uint32 iType, bool bStatic, bool bShared, uint32 iRefCount)

@@ -112,6 +112,32 @@ Current note:
   separate lane instead of silently merging into the current resume baseline
 
 
+### Queue Throughput
+
+Primary report:
+
+- `dev/bench/QUEUE_BENCH_20260324.md`
+
+Primary bench/test entrypoints:
+
+- `dev/bench/queue/bench_queue_pointer.c`
+- `dev/bench/run_queue_bench_windows.ps1`
+- `dev/bench/run_queue_bench_linux.sh`
+
+Current scope:
+
+- `SPSC` pointer-queue throughput
+- `MPSC` pointer-queue throughput
+- `MPMC` pointer-queue throughput
+
+Current note:
+
+- the current queue baseline is throughput-oriented and currently has Windows
+  and Linux baseline runs under the same default matrix
+- if future queue reports change policy, platform, or matrix, they should
+  explicitly cite the runner and the matrix used
+
+
 ## Environment Policy
 
 ### Windows
@@ -147,6 +173,7 @@ The current benchmark/report set for the finalized foundation is:
 - `dev/bench/XNET_COMPARE_20260314.md`
 - `dev/bench/XNET_COMPARE_SWEEP_20260314.md`
 - `dev/bench/TLS_BENCH_20260315.md`
+- `dev/bench/QUEUE_BENCH_20260324.md`
 
 If a future report supersedes one of these, it should say so explicitly instead
 of silently replacing the methodology.
