@@ -34,12 +34,6 @@ typedef struct __xnet_engine_timer {
 
 typedef void (*xnet_port_event_fn)(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
 
-#if defined(_WIN32) || defined(_WIN64)
-	typedef CRITICAL_SECTION __xnet_mutex;
-#else
-	typedef pthread_mutex_t __xnet_mutex;
-#endif
-
 #if defined(XXRTL_CORE) && !defined(XRT_NO_THREAD)
 	#define __XNET_ENGINE_USE_XRT_THREAD	1
 #else
@@ -47,9 +41,11 @@ typedef void (*xnet_port_event_fn)(xnetworker* pWorker, const xnetportevent* pEv
 #endif
 
 typedef struct {
-	__xnet_engine_cmd* pHead;
-	__xnet_engine_cmd* pTail;
-	__xnet_mutex tLock;
+	xmpscq_struct tQueue;
+	volatile long iFreeLock;
+	__xnet_engine_cmd* pFreeList;
+	uint32 iFreeCount;
+	uint32 iFreeLimit;
 } __xnet_engine_cmdq;
 
 typedef struct {
@@ -63,6 +59,8 @@ typedef struct {
 #define __XNET_ENGINE_CMD_TIMER_ADD  2u
 #define __XNET_ENGINE_TIMER_PULSE_ID UINT64_C(0xffffffffffffffff)
 #define __XNET_ENGINE_HARVEST_BATCH  128u
+#define __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY 65536u
+#define __XNET_ENGINE_CMDQ_DEFAULT_CACHE_LIMIT 256u
 
 
 
@@ -168,94 +166,145 @@ static void __xnetEngineInitPortConfig(xnetportconfig* pPortCfg, const xnetengin
 
 /* ============================== Internal queue helpers ============================== */
 
-static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ)
+static void __xnetCmdQFreeNode(ptr pItem, ptr pUserData)
 {
+	(void)pUserData;
+	if ( pItem ) {
+		XNET_FREE(pItem);
+	}
+}
+
+static uint32 __xnetCmdQResolveFreeLimit(uint32 iCapacity)
+{
+	uint32 iLimit = (iCapacity != 0) ? iCapacity : __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY;
+	if ( iLimit > __XNET_ENGINE_CMDQ_DEFAULT_CACHE_LIMIT ) {
+		iLimit = __XNET_ENGINE_CMDQ_DEFAULT_CACHE_LIMIT;
+	}
+	return (iLimit == 0) ? 1u : iLimit;
+}
+
+static __xnet_engine_cmd* __xnetCmdQAllocNode(__xnet_engine_cmdq* pQ)
+{
+	__xnet_engine_cmd* pCmd = NULL;
+
+	if ( pQ == NULL ) {
+		return NULL;
+	}
+
+	__xrtOwnerSpinLock(&pQ->iFreeLock);
+	pCmd = pQ->pFreeList;
+	if ( pCmd != NULL ) {
+		pQ->pFreeList = pCmd->pNext;
+		pQ->iFreeCount--;
+	}
+	__xrtOwnerSpinUnlock(&pQ->iFreeLock);
+
+	if ( pCmd == NULL ) {
+		pCmd = (__xnet_engine_cmd*)XNET_ALLOC(sizeof(__xnet_engine_cmd));
+		if ( pCmd == NULL ) {
+			return NULL;
+		}
+	}
+
+	memset(pCmd, 0, sizeof(__xnet_engine_cmd));
+	return pCmd;
+}
+
+static void __xnetCmdQRecycleNode(__xnet_engine_cmdq* pQ, __xnet_engine_cmd* pCmd)
+{
+	int bCached = FALSE;
+
+	if ( pCmd == NULL ) {
+		return;
+	}
+
+	pCmd->pNext = NULL;
+	if ( pQ != NULL && pQ->iFreeLimit != 0 ) {
+		__xrtOwnerSpinLock(&pQ->iFreeLock);
+		if ( pQ->iFreeCount < pQ->iFreeLimit ) {
+			pCmd->pNext = pQ->pFreeList;
+			pQ->pFreeList = pCmd;
+			pQ->iFreeCount++;
+			bCached = TRUE;
+		}
+		__xrtOwnerSpinUnlock(&pQ->iFreeLock);
+	}
+
+	if ( !bCached ) {
+		XNET_FREE(pCmd);
+	}
+}
+
+static void __xnetCmdQFreeCached(__xnet_engine_cmdq* pQ)
+{
+	__xnet_engine_cmd* pList;
+
+	if ( pQ == NULL ) {
+		return;
+	}
+
+	__xrtOwnerSpinLock(&pQ->iFreeLock);
+	pList = pQ->pFreeList;
+	pQ->pFreeList = NULL;
+	pQ->iFreeCount = 0;
+	__xrtOwnerSpinUnlock(&pQ->iFreeLock);
+
+	while ( pList != NULL ) {
+		__xnet_engine_cmd* pNext = pList->pNext;
+		XNET_FREE(pList);
+		pList = pNext;
+	}
+}
+
+static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ, uint32 iCapacity)
+{
+	xqueue_config tCfg;
 	if ( !pQ ) return false;
 	memset(pQ, 0, sizeof(__xnet_engine_cmdq));
-	#if defined(_WIN32) || defined(_WIN64)
-		InitializeCriticalSection(&pQ->tLock);
-		return true;
-	#else
-		return pthread_mutex_init(&pQ->tLock, NULL) == 0;
-	#endif
+	memset(&tCfg, 0, sizeof(tCfg));
+	tCfg.iCapacity = (iCapacity != 0) ? iCapacity : __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY;
+	if ( !xrtMPSCQInit(&pQ->tQueue, &tCfg) ) {
+		return false;
+	}
+	pQ->iFreeLimit = __xnetCmdQResolveFreeLimit(tCfg.iCapacity);
+	return true;
 }
 
 static void __xnetCmdQUnit(__xnet_engine_cmdq* pQ)
 {
-	__xnet_engine_cmd* pNode;
 	if ( !pQ ) return;
-	for ( ;; ) {
-		pNode = pQ->pHead;
-		if ( !pNode ) break;
-		pQ->pHead = pNode->pNext;
-		XNET_FREE(pNode);
+	if ( pQ->tQueue.arrSlots ) {
+		xrtMPSCQClose(&pQ->tQueue);
+		(void)xrtMPSCQDrain(&pQ->tQueue, __xnetCmdQFreeNode, NULL);
+		xrtMPSCQUnit(&pQ->tQueue);
 	}
-	pQ->pTail = NULL;
-	#if defined(_WIN32) || defined(_WIN64)
-		DeleteCriticalSection(&pQ->tLock);
-	#else
-		pthread_mutex_destroy(&pQ->tLock);
-	#endif
+	__xnetCmdQFreeCached(pQ);
 }
 
-static void __xnetCmdQLock(__xnet_engine_cmdq* pQ)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		EnterCriticalSection(&pQ->tLock);
-	#else
-		pthread_mutex_lock(&pQ->tLock);
-	#endif
-}
+static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
 
-static void __xnetCmdQUnlock(__xnet_engine_cmdq* pQ)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		LeaveCriticalSection(&pQ->tLock);
-	#else
-		pthread_mutex_unlock(&pQ->tLock);
-	#endif
-}
-
-static bool __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
-
-static bool __xnetCmdQPush(__xnet_engine_cmdq* pQ, xnet_task_fn pfnTask, ptr pArg)
+static xqueue_result __xnetCmdQPush(__xnet_engine_cmdq* pQ, xnet_task_fn pfnTask, ptr pArg)
 {
 	return __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TASK, 0, pfnTask, pArg);
 }
 
-static bool __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
+static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
 {
 	__xnet_engine_cmd* pCmd;
-	if ( !pQ || !pfnTask ) return false;
-	pCmd = (__xnet_engine_cmd*)XNET_ALLOC(sizeof(__xnet_engine_cmd));
-	if ( !pCmd ) return false;
-	memset(pCmd, 0, sizeof(__xnet_engine_cmd));
+	xqueue_result iRet;
+	if ( !pQ || !pfnTask ) return XQUEUE_ERROR;
+	pCmd = __xnetCmdQAllocNode(pQ);
+	if ( !pCmd ) return XQUEUE_ERROR;
 	pCmd->iType = iType;
 	pCmd->iDelayMs = iDelayMs;
 	pCmd->pfnTask = pfnTask;
 	pCmd->pArg = pArg;
 
-	__xnetCmdQLock(pQ);
-	if ( pQ->pTail ) {
-		pQ->pTail->pNext = pCmd;
-	} else {
-		pQ->pHead = pCmd;
+	iRet = xrtMPSCQTryPush(&pQ->tQueue, pCmd);
+	if ( iRet != XQUEUE_OK ) {
+		__xnetCmdQRecycleNode(pQ, pCmd);
 	}
-	pQ->pTail = pCmd;
-	__xnetCmdQUnlock(pQ);
-	return true;
-}
-
-static __xnet_engine_cmd* __xnetCmdQPopAll(__xnet_engine_cmdq* pQ)
-{
-	__xnet_engine_cmd* pHead;
-	if ( !pQ ) return NULL;
-	__xnetCmdQLock(pQ);
-	pHead = pQ->pHead;
-	pQ->pHead = NULL;
-	pQ->pTail = NULL;
-	__xnetCmdQUnlock(pQ);
-	return pHead;
+	return iRet;
 }
 
 
@@ -378,17 +427,24 @@ static void __xnetEngineDrainCommands(xnetworker* pWorker)
 	__xnet_engine_cmdq* pQ = pWorker ? (__xnet_engine_cmdq*)pWorker->pCmdQ : NULL;
 	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
 	__xnet_engine_cmd* pNode;
+	ptr pItem = NULL;
+	xqueue_result iRet;
 	if ( !pQ ) return;
-	pNode = __xnetCmdQPopAll(pQ);
-	while ( pNode ) {
-		__xnet_engine_cmd* pNext = pNode->pNext;
+	for ( ;; ) {
+		iRet = xrtMPSCQTryPop(&pQ->tQueue, &pItem);
+		if ( iRet != XQUEUE_OK ) {
+			break;
+		}
+		pNode = (__xnet_engine_cmd*)pItem;
+		if ( !pNode ) {
+			continue;
+		}
 		if ( pNode->iType == __XNET_ENGINE_CMD_TIMER_ADD ) {
 			(void)__xnetTimerWheelSchedule(pWheel, pNode->iDelayMs, pNode->pfnTask, pNode->pArg);
 		} else if ( pNode->pfnTask ) {
 			pNode->pfnTask(pWorker, pNode->pArg);
 		}
-		XNET_FREE(pNode);
-		pNode = pNext;
+		__xnetCmdQRecycleNode(pQ, pNode);
 	}
 }
 
@@ -505,7 +561,7 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 
 	pWorker->pCmdQ = XNET_ALLOC(sizeof(__xnet_engine_cmdq));
 	if ( !pWorker->pCmdQ ) return XRT_NET_ERROR;
-	if ( !__xnetCmdQInit((__xnet_engine_cmdq*)pWorker->pCmdQ) ) {
+	if ( !__xnetCmdQInit((__xnet_engine_cmdq*)pWorker->pCmdQ, pEngineCfg->iCmdQueueSize) ) {
 		XNET_FREE(pWorker->pCmdQ);
 		pWorker->pCmdQ = NULL;
 		return XRT_NET_ERROR;
@@ -659,6 +715,7 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 {
 	xnetworker* pWorker;
 	__xnet_engine_cmdq* pQ;
+	xqueue_result iPushRet;
 	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
 		return XRT_NET_ERROR;
 	}
@@ -669,7 +726,11 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 	}
 
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
-	if ( !__xnetCmdQPush(pQ, pfnTask, pArg) ) {
+	iPushRet = __xnetCmdQPush(pQ, pfnTask, pArg);
+	if ( iPushRet == XQUEUE_FULL ) {
+		return XRT_NET_AGAIN;
+	}
+	if ( iPushRet != XQUEUE_OK ) {
 		return XRT_NET_ERROR;
 	}
 
@@ -687,6 +748,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 {
 	xnetworker* pWorker;
 	__xnet_engine_cmdq* pQ;
+	xqueue_result iPushRet;
 	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
 		return XRT_NET_ERROR;
 	}
@@ -697,7 +759,11 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 	}
 
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
-	if ( !__xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TIMER_ADD, iDelayMs, pfnTask, pArg) ) {
+	iPushRet = __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TIMER_ADD, iDelayMs, pfnTask, pArg);
+	if ( iPushRet == XQUEUE_FULL ) {
+		return XRT_NET_AGAIN;
+	}
+	if ( iPushRet != XQUEUE_OK ) {
 		return XRT_NET_ERROR;
 	}
 

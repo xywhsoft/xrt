@@ -10,6 +10,12 @@ typedef struct {
 	volatile long arrWorkerHits[8];
 } __test_xnet2_engine_counter;
 
+typedef struct {
+	xsem hStarted;
+	xsem hRelease;
+	volatile long iCount;
+} __test_xnet2_engine_block_ctx;
+
 
 static void __Test_XNet2_EngineSleepMs(uint32 iDelayMs)
 {
@@ -38,6 +44,22 @@ static long __Test_XNet2_AtomicLoad(volatile long* pValue)
 	#endif
 }
 
+static uint32 __Test_XNet2_EngineCmdQFreeCount(xnetengine* pEngine, uint32 iWorkerId)
+{
+	__xnet_engine_cmdq* pQ;
+	uint32 iCount = 0;
+
+	if ( pEngine == NULL || iWorkerId >= pEngine->iWorkerCount || pEngine->arrWorkers[iWorkerId].pCmdQ == NULL ) {
+		return 0;
+	}
+
+	pQ = (__xnet_engine_cmdq*)pEngine->arrWorkers[iWorkerId].pCmdQ;
+	__xrtOwnerSpinLock(&pQ->iFreeLock);
+	iCount = pQ->iFreeCount;
+	__xrtOwnerSpinUnlock(&pQ->iFreeLock);
+	return iCount;
+}
+
 static void __Test_XNet2_EngineTask(xnetworker* pWorker, ptr pArg)
 {
 	__test_xnet2_engine_counter* pCounter = (__test_xnet2_engine_counter*)pArg;
@@ -51,6 +73,20 @@ static void __Test_XNet2_EngineTask(xnetworker* pWorker, ptr pArg)
 static void __Test_XNet2_EngineTimerTask(xnetworker* pWorker, ptr pArg)
 {
 	__Test_XNet2_EngineTask(pWorker, pArg);
+}
+
+static void __Test_XNet2_EngineBlockingTask(xnetworker* pWorker, ptr pArg)
+{
+	__test_xnet2_engine_block_ctx* pCtx = (__test_xnet2_engine_block_ctx*)pArg;
+	(void)pWorker;
+	if ( !pCtx ) return;
+	if ( pCtx->hStarted ) {
+		(void)xrtSemPost(pCtx->hStarted);
+	}
+	if ( pCtx->hRelease ) {
+		(void)xrtSemWaitTimeout(pCtx->hRelease, 1000);
+	}
+	__Test_XNet2_AtomicInc(&pCtx->iCount);
 }
 
 
@@ -124,6 +160,232 @@ void Test_XNet2_Engine(void)
 
 			xrtNetEngineDestroy(pEngine);
 			printf("  Engine destroy : PASS\n");
+		}
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetengine* pEngine;
+		__test_xnet2_engine_counter tCounter;
+		__test_xnet2_engine_counter tTimerCounter;
+		__test_xnet2_engine_block_ctx tBlockCtx;
+		long iCount = 0;
+		int bStarted = 0;
+
+		memset(&tCounter, 0, sizeof(tCounter));
+		memset(&tTimerCounter, 0, sizeof(tTimerCounter));
+		memset(&tBlockCtx, 0, sizeof(tBlockCtx));
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		tCfg.iCmdQueueSize = 2;
+		tCfg.iTimerTickMs = 10;
+		tCfg.iTimerWheelSlots = 64;
+
+		tBlockCtx.hStarted = xrtSemCreate(0, 1);
+		tBlockCtx.hRelease = xrtSemCreate(0, 1);
+		pEngine = xrtNetEngineCreate(&tCfg);
+		printf("  Engine create small cmdq : %s\n", (pEngine != NULL && tBlockCtx.hStarted != NULL && tBlockCtx.hRelease != NULL) ? "PASS" : "FAIL");
+
+		if ( pEngine && tBlockCtx.hStarted && tBlockCtx.hRelease ) {
+			bStarted = (xrtNetEngineStart(pEngine) == XRT_NET_OK);
+			printf("  Engine start small cmdq : %s\n", bStarted ? "PASS" : "FAIL");
+			if ( bStarted ) {
+				printf("  Blocking post : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineBlockingTask, &tBlockCtx) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Blocking task starts : %s\n", xrtSemWaitTimeout(tBlockCtx.hStarted, 1000) == XRT_WAIT_OK ? "PASS" : "FAIL");
+				printf("  Queue fill post #1 : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineTask, &tCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Queue fill post #2 : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineTask, &tCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Queue full returns again : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineTask, &tCounter) == XRT_NET_AGAIN ? "PASS" : "FAIL");
+				printf("  Delayed queue full returns again : %s\n",
+					xrtNetEnginePostDelayed(pEngine, 0, 10, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_AGAIN ? "PASS" : "FAIL");
+				(void)xrtSemPost(tBlockCtx.hRelease);
+
+				for ( int iLoop = 0; iLoop < 100; ++iLoop ) {
+					iCount = __Test_XNet2_AtomicLoad(&tCounter.iCount);
+					if ( iCount >= 2 && __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 1 ) break;
+					__Test_XNet2_EngineSleepMs(10);
+				}
+
+				printf("  Queue resumes after release : %s\n", iCount == 2 && __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) == 1 ? "PASS" : "FAIL");
+				printf("  Full delayed post stays dropped : %s\n", __Test_XNet2_AtomicLoad(&tTimerCounter.iCount) == 0 ? "PASS" : "FAIL");
+			}
+			xrtNetEngineDestroy(pEngine);
+			printf("  Engine destroy small cmdq : PASS\n");
+		} else if ( pEngine ) {
+			xrtNetEngineDestroy(pEngine);
+		}
+
+		if ( tBlockCtx.hStarted ) {
+			xrtSemDestroy(tBlockCtx.hStarted);
+		}
+		if ( tBlockCtx.hRelease ) {
+			xrtSemDestroy(tBlockCtx.hRelease);
+		}
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetengine* pEngine;
+		__test_xnet2_engine_counter tCounter;
+		__test_xnet2_engine_block_ctx tBlockCtx;
+		uint32 iFreeBefore = 0;
+		uint32 iFreeDuring = 0;
+		uint32 iFreeAfter = 0;
+		int bStarted = 0;
+
+		memset(&tCounter, 0, sizeof(tCounter));
+		memset(&tBlockCtx, 0, sizeof(tBlockCtx));
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		tCfg.iCmdQueueSize = 8;
+		tCfg.iTimerTickMs = 10;
+		tCfg.iTimerWheelSlots = 64;
+
+		tBlockCtx.hStarted = xrtSemCreate(0, 1);
+		tBlockCtx.hRelease = xrtSemCreate(0, 1);
+		pEngine = xrtNetEngineCreate(&tCfg);
+		printf("  Engine create cmd cache test : %s\n", (pEngine != NULL && tBlockCtx.hStarted != NULL && tBlockCtx.hRelease != NULL) ? "PASS" : "FAIL");
+
+		if ( pEngine && tBlockCtx.hStarted && tBlockCtx.hRelease ) {
+			bStarted = (xrtNetEngineStart(pEngine) == XRT_NET_OK);
+			printf("  Engine start cmd cache test : %s\n", bStarted ? "PASS" : "FAIL");
+			if ( bStarted ) {
+				printf("  Cache warm blocker post : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineBlockingTask, &tBlockCtx) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Cache warm blocker starts : %s\n", xrtSemWaitTimeout(tBlockCtx.hStarted, 1000) == XRT_WAIT_OK ? "PASS" : "FAIL");
+				printf("  Cache warm post #1 : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineTask, &tCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Cache warm post #2 : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineTask, &tCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+				(void)xrtSemPost(tBlockCtx.hRelease);
+
+				for ( int iLoop = 0; iLoop < 100; ++iLoop ) {
+					iFreeBefore = __Test_XNet2_EngineCmdQFreeCount(pEngine, 0);
+					if ( __Test_XNet2_AtomicLoad(&tCounter.iCount) >= 2 &&
+						__Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 1 &&
+						iFreeBefore >= 3u ) {
+						break;
+					}
+					__Test_XNet2_EngineSleepMs(10);
+				}
+
+				printf("  Cmd node cache warm count : tasks=%ld blocks=%ld free=%u\n",
+					__Test_XNet2_AtomicLoad(&tCounter.iCount),
+					__Test_XNet2_AtomicLoad(&tBlockCtx.iCount),
+					iFreeBefore);
+				printf("  Cmd node cache warms : %s\n", __Test_XNet2_AtomicLoad(&tCounter.iCount) == 2 &&
+					__Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 1 &&
+					iFreeBefore >= 3u ? "PASS" : "FAIL");
+				printf("  Blocking cache post : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineBlockingTask, &tBlockCtx) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Blocking cache task starts : %s\n", xrtSemWaitTimeout(tBlockCtx.hStarted, 1000) == XRT_WAIT_OK ? "PASS" : "FAIL");
+
+				iFreeDuring = __Test_XNet2_EngineCmdQFreeCount(pEngine, 0);
+				printf("  Cmd node cache reuses entry : %s\n", iFreeBefore > 0u && iFreeDuring + 1u == iFreeBefore ? "PASS" : "FAIL");
+
+				(void)xrtSemPost(tBlockCtx.hRelease);
+				for ( int iLoop = 0; iLoop < 100; ++iLoop ) {
+					iFreeAfter = __Test_XNet2_EngineCmdQFreeCount(pEngine, 0);
+					if ( __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 2 && iFreeAfter >= iFreeBefore ) break;
+					__Test_XNet2_EngineSleepMs(10);
+				}
+
+				printf("  Cmd node cache returns entry : %s\n", __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 2 && iFreeAfter >= iFreeBefore ? "PASS" : "FAIL");
+			}
+
+			xrtNetEngineDestroy(pEngine);
+			printf("  Engine destroy cmd cache test : PASS\n");
+		} else if ( pEngine ) {
+			xrtNetEngineDestroy(pEngine);
+		}
+
+		if ( tBlockCtx.hStarted ) {
+			xrtSemDestroy(tBlockCtx.hStarted);
+		}
+		if ( tBlockCtx.hRelease ) {
+			xrtSemDestroy(tBlockCtx.hRelease);
+		}
+	}
+
+	{
+		xnetengineconfig tCfg;
+		xnetengine* pEngine;
+		__test_xnet2_engine_counter tTimerCounter;
+		__test_xnet2_engine_block_ctx tBlockCtx;
+		uint32 iFreeWarm = 0;
+		uint32 iFreeDuringBlock = 0;
+		uint32 iFreeDuringQueued = 0;
+		uint32 iFreeAfter = 0;
+		int bStarted = 0;
+
+		memset(&tTimerCounter, 0, sizeof(tTimerCounter));
+		memset(&tBlockCtx, 0, sizeof(tBlockCtx));
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		tCfg.iCmdQueueSize = 8;
+		tCfg.iTimerTickMs = 10;
+		tCfg.iTimerWheelSlots = 64;
+
+		tBlockCtx.hStarted = xrtSemCreate(0, 1);
+		tBlockCtx.hRelease = xrtSemCreate(0, 1);
+		pEngine = xrtNetEngineCreate(&tCfg);
+		printf("  Engine create delayed cmd cache test : %s\n", (pEngine != NULL && tBlockCtx.hStarted != NULL && tBlockCtx.hRelease != NULL) ? "PASS" : "FAIL");
+
+		if ( pEngine && tBlockCtx.hStarted && tBlockCtx.hRelease ) {
+			bStarted = (xrtNetEngineStart(pEngine) == XRT_NET_OK);
+			printf("  Engine start delayed cmd cache test : %s\n", bStarted ? "PASS" : "FAIL");
+			if ( bStarted ) {
+				printf("  Delayed cache warm blocker post : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineBlockingTask, &tBlockCtx) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Delayed cache warm blocker starts : %s\n", xrtSemWaitTimeout(tBlockCtx.hStarted, 1000) == XRT_WAIT_OK ? "PASS" : "FAIL");
+				printf("  Delayed cache warm post #1 : %s\n", xrtNetEnginePostDelayed(pEngine, 0, 20, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Delayed cache warm post #2 : %s\n", xrtNetEnginePostDelayed(pEngine, 0, 30, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+				(void)xrtSemPost(tBlockCtx.hRelease);
+
+				for ( int iLoop = 0; iLoop < 100; ++iLoop ) {
+					iFreeWarm = __Test_XNet2_EngineCmdQFreeCount(pEngine, 0);
+					if ( __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 1 &&
+						__Test_XNet2_AtomicLoad(&tTimerCounter.iCount) >= 2 &&
+						iFreeWarm >= 3u ) {
+						break;
+					}
+					__Test_XNet2_EngineSleepMs(10);
+				}
+
+				printf("  Delayed cmd cache warms : %s\n", __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 1 &&
+					__Test_XNet2_AtomicLoad(&tTimerCounter.iCount) >= 2 &&
+					iFreeWarm >= 3u ? "PASS" : "FAIL");
+				printf("  Delayed blocker post : %s\n", xrtNetEnginePost(pEngine, 0, __Test_XNet2_EngineBlockingTask, &tBlockCtx) == XRT_NET_OK ? "PASS" : "FAIL");
+				printf("  Delayed blocker starts : %s\n", xrtSemWaitTimeout(tBlockCtx.hStarted, 1000) == XRT_WAIT_OK ? "PASS" : "FAIL");
+
+				iFreeDuringBlock = __Test_XNet2_EngineCmdQFreeCount(pEngine, 0);
+				printf("  Blocking task reuses cached cmd node : %s\n", iFreeWarm > 0u && iFreeDuringBlock + 1u == iFreeWarm ? "PASS" : "FAIL");
+				printf("  Delayed cached post : %s\n", xrtNetEnginePostDelayed(pEngine, 0, 20, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+
+				iFreeDuringQueued = __Test_XNet2_EngineCmdQFreeCount(pEngine, 0);
+				printf("  Delayed cmd reuses cached node : %s\n", iFreeDuringBlock > 0u && iFreeDuringQueued + 1u == iFreeDuringBlock ? "PASS" : "FAIL");
+
+				(void)xrtSemPost(tBlockCtx.hRelease);
+				for ( int iLoop = 0; iLoop < 100; ++iLoop ) {
+					iFreeAfter = __Test_XNet2_EngineCmdQFreeCount(pEngine, 0);
+					if ( __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 1 &&
+						__Test_XNet2_AtomicLoad(&tTimerCounter.iCount) >= 3 &&
+						iFreeAfter >= iFreeWarm ) {
+						break;
+					}
+					__Test_XNet2_EngineSleepMs(10);
+				}
+
+				printf("  Delayed cmd cache returns entries : %s\n", __Test_XNet2_AtomicLoad(&tBlockCtx.iCount) >= 1 &&
+					__Test_XNet2_AtomicLoad(&tTimerCounter.iCount) >= 3 &&
+					iFreeAfter >= iFreeWarm ? "PASS" : "FAIL");
+			}
+
+			xrtNetEngineDestroy(pEngine);
+			printf("  Engine destroy delayed cmd cache test : PASS\n");
+		} else if ( pEngine ) {
+			xrtNetEngineDestroy(pEngine);
+		}
+
+		if ( tBlockCtx.hStarted ) {
+			xrtSemDestroy(tBlockCtx.hStarted);
+		}
+		if ( tBlockCtx.hRelease ) {
+			xrtSemDestroy(tBlockCtx.hRelease);
 		}
 	}
 

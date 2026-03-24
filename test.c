@@ -17,6 +17,7 @@
  * - "mempool_core"
  * - "memtelemetry"
  * - "memtelemetry_baseline"
+ * - "queue_core"
  * - "temparena_core"
  * - "xurl_core"
  * - "xnet2_sync"
@@ -79,6 +80,9 @@
 #include "test/test_file.h"
 #include "test/test_file_core.h"
 #include "test/test_thread_core.h"
+#ifndef XRT_NO_QUEUE
+	#include "test/test_queue_core.h"
+#endif
 #include "test/test_runtime_phase2.h"
 #ifndef XRT_NO_COROUTINE
 	#include "test/test_coroutine.h"
@@ -241,6 +245,9 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_Time, Test_Time)
 XRT_TEST_WRAP_CORE(__xrtTestRun_File, Test_File)
 XRT_TEST_WRAP_CORE(__xrtTestRun_FileCore, Test_FileCore)
 XRT_TEST_WRAP_INT(__xrtTestRun_ThreadCore, Test_ThreadCore)
+#ifndef XRT_NO_QUEUE
+	XRT_TEST_WRAP_INT(__xrtTestRun_QueueCore, Test_QueueCore)
+#endif
 XRT_TEST_WRAP_CORE(__xrtTestRun_RuntimePhase2, Test_Runtime_Phase2)
 #ifndef XRT_NO_COROUTINE
 	XRT_TEST_WRAP_CORE(__xrtTestRun_Coroutine, Test_Coroutine)
@@ -404,6 +411,9 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "file", "File", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_File },
 	{ "file_core", "File Core", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_FileCore },
 	{ "thread_core", "Thread Core", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_ThreadCore },
+	#ifndef XRT_NO_QUEUE
+		{ "queue_core", "Queue Core", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_QueueCore },
+	#endif
 	{ "runtime_phase2", "Runtime Phase2", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_RuntimePhase2 },
 	#ifndef XRT_NO_COROUTINE
 		{ "coroutine", "Coroutine", "async", XRT_TEST_FLAG_NONE, __xrtTestRun_Coroutine },
@@ -502,6 +512,9 @@ static const char* __g_arrPresetRuntimeSmoke[] = {
 	"time",
 	"file",
 	"thread_core",
+	#ifndef XRT_NO_QUEUE
+		"queue_core",
+	#endif
 	"runtime_phase2",
 	#ifndef XRT_NO_COROUTINE
 		"coroutine_min",

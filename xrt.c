@@ -122,6 +122,10 @@ static void __xrtRuntimeFinalizeLocked();
 #include "lib/thread.h"
 #endif
 
+#ifndef XRT_NO_QUEUE
+#include "lib/queue.h"
+#endif
+
 #ifndef XRT_NO_COROUTINE
 #include "lib/coroutine.h"
 #endif

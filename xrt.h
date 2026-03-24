@@ -186,6 +186,7 @@
 	#define XRT_NO_TIME
 	#define XRT_NO_FILE
 	#define XRT_NO_THREAD
+	#define XRT_NO_QUEUE
 	#define XRT_NO_COROUTINE
 	#define XRT_NO_NETWORK
 	#define XRT_NO_CRYPTO
@@ -393,6 +394,15 @@
 		XRT_CUT_WARN("XRT_NO_THREAD ignored because current runtime core requires THREAD support.")
 	#endif
 	#undef XRT_NO_THREAD
+#endif
+
+#if defined(XRT_NO_QUEUE) && !defined(XRT_NO_NETWORK)
+	#if defined(__clang__) || defined(__GNUC__) || defined(__TINYC__)
+		#warning "XRT_NO_QUEUE ignored because current XNET runtime requires QUEUE support."
+	#else
+		XRT_CUT_WARN("XRT_NO_QUEUE ignored because current XNET runtime requires QUEUE support.")
+	#endif
+	#undef XRT_NO_QUEUE
 #endif
 
 #if defined(XRT_NO_TIME) && (!defined(XRT_NO_VALUE) || !defined(XRT_NO_TEMPLATE) || !defined(XRT_NO_XID))
@@ -1066,6 +1076,36 @@
 			return (int64)InterlockedExchangeAdd64((volatile LONG64*)pValue, (LONG64)iDelta) + iDelta;
 		#else
 			return __sync_add_and_fetch(pValue, iDelta);
+		#endif
+	}
+
+	static inline int64 __xrtAtomicCompareExchange64(volatile int64* pValue, int64 iExchange, int64 iComparand)
+	{
+		#if defined(__TINYC__) && defined(_WIN32)
+			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
+		#elif defined(_WIN32) || defined(_WIN64)
+			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
+		#else
+			return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
+		#endif
+	}
+
+	static inline int64 __xrtAtomicLoad64(const volatile int64* pValue)
+	{
+		return __xrtAtomicCompareExchange64((volatile int64*)pValue, 0, 0);
+	}
+
+	static inline void __xrtAtomicStore64(volatile int64* pValue, int64 iValue)
+	{
+		#if defined(__TINYC__) && defined(_WIN32)
+			int64 iPrev;
+			do {
+				iPrev = __xrtAtomicLoad64(pValue);
+			} while ( __xrtAtomicCompareExchange64(pValue, iValue, iPrev) != iPrev );
+		#elif defined(_WIN32) || defined(_WIN64)
+			(void)InterlockedExchange64((volatile LONG64*)pValue, (LONG64)iValue);
+		#else
+			(void)__sync_lock_test_and_set(pValue, iValue);
 		#endif
 	}
 
@@ -2022,6 +2062,124 @@
 	
 	// 读锁升级为写锁（可能失败，需要释放后重新获取）
 	XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock);
+
+
+
+	/* ------------------------------------ Queue 队列库 ------------------------------------ */
+
+	#ifndef XRT_NO_QUEUE
+
+		typedef enum xqueue_result
+		{
+			XQUEUE_OK = 0,
+			XQUEUE_EMPTY = 1,
+			XQUEUE_FULL = 2,
+			XQUEUE_CLOSED = 3,
+			XQUEUE_TIMEOUT = 4,
+			XQUEUE_ERROR = -1
+		} xqueue_result;
+
+		typedef enum xqueue_kind
+		{
+			XQUEUE_KIND_SPSC = 1,
+			XQUEUE_KIND_MPSC = 2,
+			XQUEUE_KIND_MPMC = 3
+		} xqueue_kind;
+
+		typedef struct xqueuebase_struct
+		{
+			uint32 iKind;
+			volatile uint32 bClosed;
+		} xqueuebase;
+
+		typedef struct xqueue_config
+		{
+			uint32 iCapacity;
+			uint32 iFlags;
+		} xqueue_config;
+
+		typedef void (*xqueue_drain_fn)(ptr pItem, ptr pUserData);
+
+		typedef struct xspscq_struct
+		{
+			xqueuebase tBase;
+			uint32 iCapacity;
+			uint32 iMask;
+			volatile uint32 iHead;
+			uint8 _pad0[64];
+			volatile uint32 iTail;
+			ptr* arrItems;
+		} xspscq_struct, *xspscq;
+
+		typedef struct xmpscq_slot
+		{
+			volatile uint64 iSeq;
+			ptr pItem;
+		} xmpscq_slot;
+
+		typedef struct xmpscq_struct
+		{
+			xqueuebase tBase;
+			uint32 iCapacity;
+			uint32 iMask;
+			uint8 _pad0[64];
+			volatile uint64 iHead;
+			uint8 _pad1[64];
+			volatile uint64 iTail;
+			xmpscq_slot* arrSlots;
+		} xmpscq_struct, *xmpscq;
+
+		typedef xmpscq_slot xmpmcq_slot;
+
+		typedef struct xmpmcq_struct
+		{
+			xqueuebase tBase;
+			uint32 iCapacity;
+			uint32 iMask;
+			uint8 _pad0[64];
+			volatile uint64 iHead;
+			uint8 _pad1[64];
+			volatile uint64 iTail;
+			xmpmcq_slot* arrSlots;
+		} xmpmcq_struct, *xmpmcq;
+
+		XXAPI bool xrtSPSCQInit(xspscq pQueue, const xqueue_config* pCfg);
+		XXAPI void xrtSPSCQUnit(xspscq pQueue);
+		XXAPI xspscq xrtSPSCQCreate(const xqueue_config* pCfg);
+		XXAPI void xrtSPSCQDestroy(xspscq pQueue);
+		XXAPI xqueue_result xrtSPSCQTryPush(xspscq pQueue, ptr pItem);
+		XXAPI xqueue_result xrtSPSCQTryPop(xspscq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtSPSCQApproxCount(xspscq pQueue);
+		XXAPI void xrtSPSCQClose(xspscq pQueue);
+		XXAPI uint32 xrtSPSCQDrain(xspscq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
+		XXAPI bool xrtSPSCQReset(xspscq pQueue);
+
+		XXAPI bool xrtMPSCQInit(xmpscq pQueue, const xqueue_config* pCfg);
+		XXAPI void xrtMPSCQUnit(xmpscq pQueue);
+		XXAPI xmpscq xrtMPSCQCreate(const xqueue_config* pCfg);
+		XXAPI void xrtMPSCQDestroy(xmpscq pQueue);
+		XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem);
+		XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPSCQApproxCount(xmpscq pQueue);
+		XXAPI void xrtMPSCQClose(xmpscq pQueue);
+		XXAPI uint32 xrtMPSCQDrain(xmpscq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
+		XXAPI bool xrtMPSCQReset(xmpscq pQueue);
+
+		XXAPI bool xrtMPMCQInit(xmpmcq pQueue, const xqueue_config* pCfg);
+		XXAPI void xrtMPMCQUnit(xmpmcq pQueue);
+		XXAPI xmpmcq xrtMPMCQCreate(const xqueue_config* pCfg);
+		XXAPI void xrtMPMCQDestroy(xmpmcq pQueue);
+		XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem);
+		XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPMCQApproxCount(xmpmcq pQueue);
+		XXAPI void xrtMPMCQClose(xmpmcq pQueue);
+		XXAPI uint32 xrtMPMCQDrain(xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
+		XXAPI bool xrtMPMCQReset(xmpmcq pQueue);
+
+		XXAPI bool xrtQueueIsClosed(const xqueuebase* pQueue);
+		XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue);
+
+	#endif
 	
 	
 	

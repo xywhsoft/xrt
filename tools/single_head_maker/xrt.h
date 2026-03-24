@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-24 17:24:04
+    Generated: 2026-03-24 22:26:07
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/git/xrt/xrt.h
+// File: ./xrt.h
 // ========================================
 
 
@@ -228,6 +228,7 @@
 	#define XRT_NO_TIME
 	#define XRT_NO_FILE
 	#define XRT_NO_THREAD
+	#define XRT_NO_QUEUE
 	#define XRT_NO_COROUTINE
 	#define XRT_NO_NETWORK
 	#define XRT_NO_CRYPTO
@@ -416,6 +417,14 @@
 		XRT_CUT_WARN("XRT_NO_THREAD ignored because current runtime core requires THREAD support.")
 	#endif
 	#undef XRT_NO_THREAD
+#endif
+#if defined(XRT_NO_QUEUE) && !defined(XRT_NO_NETWORK)
+	#if defined(__clang__) || defined(__GNUC__) || defined(__TINYC__)
+		#warning "XRT_NO_QUEUE ignored because current XNET runtime requires QUEUE support."
+	#else
+		XRT_CUT_WARN("XRT_NO_QUEUE ignored because current XNET runtime requires QUEUE support.")
+	#endif
+	#undef XRT_NO_QUEUE
 #endif
 #if defined(XRT_NO_TIME) && (!defined(XRT_NO_VALUE) || !defined(XRT_NO_TEMPLATE) || !defined(XRT_NO_XID))
 	#if defined(__clang__) || defined(__GNUC__) || defined(__TINYC__)
@@ -1032,6 +1041,33 @@
 			return (int64)InterlockedExchangeAdd64((volatile LONG64*)pValue, (LONG64)iDelta) + iDelta;
 		#else
 			return __sync_add_and_fetch(pValue, iDelta);
+		#endif
+	}
+	static inline int64 __xrtAtomicCompareExchange64(volatile int64* pValue, int64 iExchange, int64 iComparand)
+	{
+		#if defined(__TINYC__) && defined(_WIN32)
+			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
+		#elif defined(_WIN32) || defined(_WIN64)
+			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
+		#else
+			return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
+		#endif
+	}
+	static inline int64 __xrtAtomicLoad64(const volatile int64* pValue)
+	{
+		return __xrtAtomicCompareExchange64((volatile int64*)pValue, 0, 0);
+	}
+	static inline void __xrtAtomicStore64(volatile int64* pValue, int64 iValue)
+	{
+		#if defined(__TINYC__) && defined(_WIN32)
+			int64 iPrev;
+			do {
+				iPrev = __xrtAtomicLoad64(pValue);
+			} while ( __xrtAtomicCompareExchange64(pValue, iValue, iPrev) != iPrev );
+		#elif defined(_WIN32) || defined(_WIN64)
+			(void)InterlockedExchange64((volatile LONG64*)pValue, (LONG64)iValue);
+		#else
+			(void)__sync_lock_test_and_set(pValue, iValue);
 		#endif
 	}
 	static inline long __xrtOwnerAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
@@ -1972,6 +2008,105 @@
 	
 	// 读锁升级为写锁（可能失败，需要释放后重新获取）
 	XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock);
+	/* ------------------------------------ Queue 队列库 ------------------------------------ */
+	#ifndef XRT_NO_QUEUE
+		typedef enum xqueue_result
+		{
+			XQUEUE_OK = 0,
+			XQUEUE_EMPTY = 1,
+			XQUEUE_FULL = 2,
+			XQUEUE_CLOSED = 3,
+			XQUEUE_TIMEOUT = 4,
+			XQUEUE_ERROR = -1
+		} xqueue_result;
+		typedef enum xqueue_kind
+		{
+			XQUEUE_KIND_SPSC = 1,
+			XQUEUE_KIND_MPSC = 2,
+			XQUEUE_KIND_MPMC = 3
+		} xqueue_kind;
+		typedef struct xqueuebase_struct
+		{
+			uint32 iKind;
+			volatile uint32 bClosed;
+		} xqueuebase;
+		typedef struct xqueue_config
+		{
+			uint32 iCapacity;
+			uint32 iFlags;
+		} xqueue_config;
+		typedef void (*xqueue_drain_fn)(ptr pItem, ptr pUserData);
+		typedef struct xspscq_struct
+		{
+			xqueuebase tBase;
+			uint32 iCapacity;
+			uint32 iMask;
+			volatile uint32 iHead;
+			uint8 _pad0[64];
+			volatile uint32 iTail;
+			ptr* arrItems;
+		} xspscq_struct, *xspscq;
+		typedef struct xmpscq_slot
+		{
+			volatile uint64 iSeq;
+			ptr pItem;
+		} xmpscq_slot;
+		typedef struct xmpscq_struct
+		{
+			xqueuebase tBase;
+			uint32 iCapacity;
+			uint32 iMask;
+			uint8 _pad0[64];
+			volatile uint64 iHead;
+			uint8 _pad1[64];
+			volatile uint64 iTail;
+			xmpscq_slot* arrSlots;
+		} xmpscq_struct, *xmpscq;
+		typedef xmpscq_slot xmpmcq_slot;
+		typedef struct xmpmcq_struct
+		{
+			xqueuebase tBase;
+			uint32 iCapacity;
+			uint32 iMask;
+			uint8 _pad0[64];
+			volatile uint64 iHead;
+			uint8 _pad1[64];
+			volatile uint64 iTail;
+			xmpmcq_slot* arrSlots;
+		} xmpmcq_struct, *xmpmcq;
+		XXAPI bool xrtSPSCQInit(xspscq pQueue, const xqueue_config* pCfg);
+		XXAPI void xrtSPSCQUnit(xspscq pQueue);
+		XXAPI xspscq xrtSPSCQCreate(const xqueue_config* pCfg);
+		XXAPI void xrtSPSCQDestroy(xspscq pQueue);
+		XXAPI xqueue_result xrtSPSCQTryPush(xspscq pQueue, ptr pItem);
+		XXAPI xqueue_result xrtSPSCQTryPop(xspscq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtSPSCQApproxCount(xspscq pQueue);
+		XXAPI void xrtSPSCQClose(xspscq pQueue);
+		XXAPI uint32 xrtSPSCQDrain(xspscq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
+		XXAPI bool xrtSPSCQReset(xspscq pQueue);
+		XXAPI bool xrtMPSCQInit(xmpscq pQueue, const xqueue_config* pCfg);
+		XXAPI void xrtMPSCQUnit(xmpscq pQueue);
+		XXAPI xmpscq xrtMPSCQCreate(const xqueue_config* pCfg);
+		XXAPI void xrtMPSCQDestroy(xmpscq pQueue);
+		XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem);
+		XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPSCQApproxCount(xmpscq pQueue);
+		XXAPI void xrtMPSCQClose(xmpscq pQueue);
+		XXAPI uint32 xrtMPSCQDrain(xmpscq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
+		XXAPI bool xrtMPSCQReset(xmpscq pQueue);
+		XXAPI bool xrtMPMCQInit(xmpmcq pQueue, const xqueue_config* pCfg);
+		XXAPI void xrtMPMCQUnit(xmpmcq pQueue);
+		XXAPI xmpmcq xrtMPMCQCreate(const xqueue_config* pCfg);
+		XXAPI void xrtMPMCQDestroy(xmpmcq pQueue);
+		XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem);
+		XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPMCQApproxCount(xmpmcq pQueue);
+		XXAPI void xrtMPMCQClose(xmpmcq pQueue);
+		XXAPI uint32 xrtMPMCQDrain(xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
+		XXAPI bool xrtMPMCQReset(xmpmcq pQueue);
+		XXAPI bool xrtQueueIsClosed(const xqueuebase* pQueue);
+		XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue);
+	#endif
 	
 	
 	
@@ -6044,7 +6179,7 @@
 
 
 // ========================================
-// File: D:\git\xrt/xrt.c
+// File: xrt.c
 // ========================================
 
 
@@ -6132,7 +6267,7 @@ static void __xrtRuntimeFinalizeLocked();
 // 引入补充依赖库
 
 // ========================================
-// File: D:/git/xrt/lib/suplib.h
+// File: ./lib/suplib.h
 // ========================================
 
 
@@ -6185,7 +6320,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
-// File: D:/git/xrt/lib/memglobal.h
+// File: ./lib/memglobal.h
 // ========================================
 
 
@@ -7613,7 +7748,7 @@ static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/base.h
+// File: ./lib/base.h
 // ========================================
 
 
@@ -8074,7 +8209,7 @@ static inline void __xrtMemTelemetryRecordFree();
 static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
 // ========================================
-// File: D:/git/xrt/lib/string.h
+// File: ./lib/string.h
 // ========================================
 
 
@@ -9570,7 +9705,7 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/os.h
+// File: ./lib/os.h
 // ========================================
 
 
@@ -9686,7 +9821,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/hash.h
+// File: ./lib/hash.h
 // ========================================
 
 
@@ -10852,7 +10987,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/charset.h
+// File: ./lib/charset.h
 // ========================================
 
 
@@ -11724,7 +11859,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/math.h
+// File: ./lib/math.h
 // ========================================
 
 
@@ -11885,7 +12020,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/path.h
+// File: ./lib/path.h
 // ========================================
 
 
@@ -12058,7 +12193,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 #ifndef XRT_NO_TIME
 
 // ========================================
-// File: D:/git/xrt/lib/time.h
+// File: ./lib/time.h
 // ========================================
 
 
@@ -13305,7 +13440,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 #ifndef XRT_NO_FILE
 
 // ========================================
-// File: D:/git/xrt/lib/file.h
+// File: ./lib/file.h
 // ========================================
 
 
@@ -15002,7 +15137,7 @@ XXAPI int xrtDirDelete(str sPath)
 #ifndef XRT_NO_THREAD
 
 // ========================================
-// File: D:/git/xrt/lib/thread.h
+// File: ./lib/thread.h
 // ========================================
 
 
@@ -15832,10 +15967,628 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 	#endif
 }
 #endif
+#ifndef XRT_NO_QUEUE
+
+// ========================================
+// File: ./lib/queue.h
+// ========================================
+
+#ifndef __XRT_QUEUE_MAX_CAPACITY
+	#define __XRT_QUEUE_MAX_CAPACITY (1u << 30)
+#endif
+static inline uint32 __xrtQueueAtomicLoad32(const volatile uint32* pValue)
+{
+	return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, 0, 0);
+}
+static inline void __xrtQueueAtomicStore32(volatile uint32* pValue, uint32 iValue)
+{
+	(void)__xrtAtomicExchange32((volatile long*)pValue, (long)iValue);
+}
+static inline uint64 __xrtQueueAtomicLoad64(const volatile uint64* pValue)
+{
+	return (uint64)__xrtAtomicLoad64((const volatile int64*)pValue);
+}
+static inline void __xrtQueueAtomicStore64(volatile uint64* pValue, uint64 iValue)
+{
+	__xrtAtomicStore64((volatile int64*)pValue, (int64)iValue);
+}
+static inline bool __xrtQueueAtomicCAS64(volatile uint64* pValue, uint64 iExpected, uint64 iDesired)
+{
+	return (uint64)__xrtAtomicCompareExchange64((volatile int64*)pValue, (int64)iDesired, (int64)iExpected) == iExpected;
+}
+static inline uint32 __xrtQueueRoundUpPow2(uint32 iCapacity)
+{
+	if ( iCapacity == 0 || iCapacity > __XRT_QUEUE_MAX_CAPACITY ) {
+		return 0;
+	}
+	iCapacity--;
+	iCapacity |= (iCapacity >> 1);
+	iCapacity |= (iCapacity >> 2);
+	iCapacity |= (iCapacity >> 4);
+	iCapacity |= (iCapacity >> 8);
+	iCapacity |= (iCapacity >> 16);
+	iCapacity++;
+	if ( iCapacity == 0 || iCapacity > __XRT_QUEUE_MAX_CAPACITY ) {
+		return 0;
+	}
+	return iCapacity;
+}
+static inline bool __xrtQueueResolveCapacity(const xqueue_config* pCfg, uint32* pCapacity)
+{
+	uint32 iCapacity;
+	if ( pCapacity == NULL || pCfg == NULL ) {
+		return FALSE;
+	}
+	iCapacity = __xrtQueueRoundUpPow2(pCfg->iCapacity);
+	if ( iCapacity == 0 ) {
+		xrtSetError("invalid queue capacity.", FALSE);
+		return FALSE;
+	}
+	*pCapacity = iCapacity;
+	return TRUE;
+}
+static inline uint32 __xrtQueueSPSCCount(const xspscq pQueue)
+{
+	uint32 iHead;
+	uint32 iTail;
+	if ( pQueue == NULL || pQueue->arrItems == NULL ) {
+		return 0;
+	}
+	iHead = __xrtQueueAtomicLoad32(&pQueue->iHead);
+	iTail = __xrtQueueAtomicLoad32(&pQueue->iTail);
+	return (uint32)(iTail - iHead);
+}
+static inline uint32 __xrtQueueMPSCCount(const xmpscq pQueue)
+{
+	uint64 iHead;
+	uint64 iTail;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
+		return 0;
+	}
+	iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+	iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+	if ( iTail <= iHead ) {
+		return 0;
+	}
+	if ( (iTail - iHead) > 0xffffffffULL ) {
+		return 0xffffffffu;
+	}
+	return (uint32)(iTail - iHead);
+}
+static inline uint32 __xrtQueueMPMCCount(const xmpmcq pQueue)
+{
+	uint64 iHead;
+	uint64 iTail;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
+		return 0;
+	}
+	iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+	iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+	if ( iTail <= iHead ) {
+		return 0;
+	}
+	if ( (iTail - iHead) > 0xffffffffULL ) {
+		return 0xffffffffu;
+	}
+	return (uint32)(iTail - iHead);
+}
+XXAPI bool xrtSPSCQInit(xspscq pQueue, const xqueue_config* pCfg)
+{
+	uint32 iCapacity;
+	ptr* arrItems;
+	if ( pQueue == NULL ) {
+		return FALSE;
+	}
+	if ( !__xrtQueueResolveCapacity(pCfg, &iCapacity) ) {
+		memset(pQueue, 0, sizeof(xspscq_struct));
+		return FALSE;
+	}
+	arrItems = (ptr*)xrtCalloc(iCapacity, sizeof(ptr));
+	if ( arrItems == NULL ) {
+		memset(pQueue, 0, sizeof(xspscq_struct));
+		return FALSE;
+	}
+	memset(pQueue, 0, sizeof(xspscq_struct));
+	pQueue->tBase.iKind = XQUEUE_KIND_SPSC;
+	pQueue->tBase.bClosed = 0;
+	pQueue->iCapacity = iCapacity;
+	pQueue->iMask = iCapacity - 1u;
+	pQueue->arrItems = arrItems;
+	return TRUE;
+}
+XXAPI void xrtSPSCQUnit(xspscq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	if ( pQueue->arrItems != NULL ) {
+		xrtFree(pQueue->arrItems);
+	}
+	memset(pQueue, 0, sizeof(xspscq_struct));
+}
+XXAPI xspscq xrtSPSCQCreate(const xqueue_config* pCfg)
+{
+	xspscq pQueue = (xspscq)xrtCalloc(1, sizeof(xspscq_struct));
+	if ( pQueue == NULL ) {
+		return NULL;
+	}
+	if ( !xrtSPSCQInit(pQueue, pCfg) ) {
+		xrtFree(pQueue);
+		return NULL;
+	}
+	return pQueue;
+}
+XXAPI void xrtSPSCQDestroy(xspscq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	xrtSPSCQUnit(pQueue);
+	xrtFree(pQueue);
+}
+XXAPI xqueue_result xrtSPSCQTryPush(xspscq pQueue, ptr pItem)
+{
+	uint32 iHead;
+	uint32 iTail;
+	if ( pQueue == NULL || pQueue->arrItems == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+		return XQUEUE_CLOSED;
+	}
+	iTail = __xrtQueueAtomicLoad32(&pQueue->iTail);
+	iHead = __xrtQueueAtomicLoad32(&pQueue->iHead);
+	if ( (uint32)(iTail - iHead) >= pQueue->iCapacity ) {
+		return XQUEUE_FULL;
+	}
+	pQueue->arrItems[iTail & pQueue->iMask] = pItem;
+	__xrtQueueAtomicStore32(&pQueue->iTail, iTail + 1u);
+	return XQUEUE_OK;
+}
+XXAPI xqueue_result xrtSPSCQTryPop(xspscq pQueue, ptr* ppItem)
+{
+	uint32 iHead;
+	uint32 iTail;
+	ptr pItem;
+	if ( pQueue == NULL || pQueue->arrItems == NULL || ppItem == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	iHead = __xrtQueueAtomicLoad32(&pQueue->iHead);
+	iTail = __xrtQueueAtomicLoad32(&pQueue->iTail);
+	if ( iHead == iTail ) {
+		*ppItem = NULL;
+		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+			return XQUEUE_CLOSED;
+		}
+		return XQUEUE_EMPTY;
+	}
+	pItem = pQueue->arrItems[iHead & pQueue->iMask];
+	pQueue->arrItems[iHead & pQueue->iMask] = NULL;
+	__xrtQueueAtomicStore32(&pQueue->iHead, iHead + 1u);
+	*ppItem = pItem;
+	return XQUEUE_OK;
+}
+XXAPI uint32 xrtSPSCQApproxCount(xspscq pQueue)
+{
+	return __xrtQueueSPSCCount(pQueue);
+}
+XXAPI void xrtSPSCQClose(xspscq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 1u);
+}
+XXAPI uint32 xrtSPSCQDrain(xspscq pQueue, xqueue_drain_fn procDrain, ptr pUserData)
+{
+	uint32 iCount = 0;
+	ptr pItem = NULL;
+	xqueue_result iRet;
+	if ( pQueue == NULL || procDrain == NULL ) {
+		return 0;
+	}
+	for ( ;; ) {
+		iRet = xrtSPSCQTryPop(pQueue, &pItem);
+		if ( iRet != XQUEUE_OK ) {
+			break;
+		}
+		procDrain(pItem, pUserData);
+		iCount++;
+	}
+	return iCount;
+}
+XXAPI bool xrtSPSCQReset(xspscq pQueue)
+{
+	if ( pQueue == NULL || pQueue->arrItems == NULL ) {
+		return FALSE;
+	}
+	if ( xrtSPSCQApproxCount(pQueue) != 0 ) {
+		return FALSE;
+	}
+	memset(pQueue->arrItems, 0, sizeof(ptr) * pQueue->iCapacity);
+	__xrtQueueAtomicStore32(&pQueue->iHead, 0u);
+	__xrtQueueAtomicStore32(&pQueue->iTail, 0u);
+	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 0u);
+	return TRUE;
+}
+XXAPI bool xrtMPSCQInit(xmpscq pQueue, const xqueue_config* pCfg)
+{
+	uint32 iCapacity;
+	xmpscq_slot* arrSlots;
+	uint32 i;
+	if ( pQueue == NULL ) {
+		return FALSE;
+	}
+	if ( !__xrtQueueResolveCapacity(pCfg, &iCapacity) ) {
+		memset(pQueue, 0, sizeof(xmpscq_struct));
+		return FALSE;
+	}
+	arrSlots = (xmpscq_slot*)xrtCalloc(iCapacity, sizeof(xmpscq_slot));
+	if ( arrSlots == NULL ) {
+		memset(pQueue, 0, sizeof(xmpscq_struct));
+		return FALSE;
+	}
+	memset(pQueue, 0, sizeof(xmpscq_struct));
+	pQueue->tBase.iKind = XQUEUE_KIND_MPSC;
+	pQueue->tBase.bClosed = 0;
+	pQueue->iCapacity = iCapacity;
+	pQueue->iMask = iCapacity - 1u;
+	pQueue->arrSlots = arrSlots;
+	for ( i = 0; i < iCapacity; ++i ) {
+		pQueue->arrSlots[i].iSeq = (uint64)i;
+		pQueue->arrSlots[i].pItem = NULL;
+	}
+	return TRUE;
+}
+XXAPI void xrtMPSCQUnit(xmpscq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	if ( pQueue->arrSlots != NULL ) {
+		xrtFree(pQueue->arrSlots);
+	}
+	memset(pQueue, 0, sizeof(xmpscq_struct));
+}
+XXAPI xmpscq xrtMPSCQCreate(const xqueue_config* pCfg)
+{
+	xmpscq pQueue = (xmpscq)xrtCalloc(1, sizeof(xmpscq_struct));
+	if ( pQueue == NULL ) {
+		return NULL;
+	}
+	if ( !xrtMPSCQInit(pQueue, pCfg) ) {
+		xrtFree(pQueue);
+		return NULL;
+	}
+	return pQueue;
+}
+XXAPI void xrtMPSCQDestroy(xmpscq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	xrtMPSCQUnit(pQueue);
+	xrtFree(pQueue);
+}
+XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem)
+{
+	uint64 iTail;
+	xmpscq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	for ( ;; ) {
+		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+			return XQUEUE_CLOSED;
+		}
+		iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+		pSlot = &pQueue->arrSlots[(uint32)(iTail & pQueue->iMask)];
+		iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+		iDiff = (int64)iSeq - (int64)iTail;
+		if ( iDiff == 0 ) {
+			if ( __xrtQueueAtomicCAS64(&pQueue->iTail, iTail, iTail + 1u) ) {
+				pSlot->pItem = pItem;
+				__xrtQueueAtomicStore64(&pSlot->iSeq, iTail + 1u);
+				return XQUEUE_OK;
+			}
+			xrtThreadYield();
+			continue;
+		}
+		if ( iDiff < 0 ) {
+			return XQUEUE_FULL;
+		}
+		xrtThreadYield();
+	}
+}
+XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem)
+{
+	uint64 iHead;
+	xmpscq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	uint64 iTail;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL || ppItem == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+	pSlot = &pQueue->arrSlots[(uint32)(iHead & pQueue->iMask)];
+	iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+	iDiff = (int64)iSeq - (int64)(iHead + 1u);
+	if ( iDiff == 0 ) {
+		*ppItem = pSlot->pItem;
+		pSlot->pItem = NULL;
+		__xrtQueueAtomicStore64(&pQueue->iHead, iHead + 1u);
+		__xrtQueueAtomicStore64(&pSlot->iSeq, iHead + pQueue->iCapacity);
+		return XQUEUE_OK;
+	}
+	*ppItem = NULL;
+	if ( iDiff < 0 ) {
+		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+			iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+			if ( iTail == iHead ) {
+				return XQUEUE_CLOSED;
+			}
+		}
+		return XQUEUE_EMPTY;
+	}
+	return XQUEUE_EMPTY;
+}
+XXAPI uint32 xrtMPSCQApproxCount(xmpscq pQueue)
+{
+	return __xrtQueueMPSCCount(pQueue);
+}
+XXAPI void xrtMPSCQClose(xmpscq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 1u);
+}
+XXAPI uint32 xrtMPSCQDrain(xmpscq pQueue, xqueue_drain_fn procDrain, ptr pUserData)
+{
+	uint32 iCount = 0;
+	ptr pItem = NULL;
+	xqueue_result iRet;
+	if ( pQueue == NULL || procDrain == NULL ) {
+		return 0;
+	}
+	for ( ;; ) {
+		iRet = xrtMPSCQTryPop(pQueue, &pItem);
+		if ( iRet != XQUEUE_OK ) {
+			break;
+		}
+		procDrain(pItem, pUserData);
+		iCount++;
+	}
+	return iCount;
+}
+XXAPI bool xrtMPSCQReset(xmpscq pQueue)
+{
+	uint32 i;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
+		return FALSE;
+	}
+	if ( xrtMPSCQApproxCount(pQueue) != 0 ) {
+		return FALSE;
+	}
+	for ( i = 0; i < pQueue->iCapacity; ++i ) {
+		pQueue->arrSlots[i].pItem = NULL;
+		__xrtQueueAtomicStore64(&pQueue->arrSlots[i].iSeq, (uint64)i);
+	}
+	__xrtQueueAtomicStore64(&pQueue->iHead, 0u);
+	__xrtQueueAtomicStore64(&pQueue->iTail, 0u);
+	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 0u);
+	return TRUE;
+}
+XXAPI bool xrtMPMCQInit(xmpmcq pQueue, const xqueue_config* pCfg)
+{
+	uint32 iCapacity;
+	xmpmcq_slot* arrSlots;
+	uint32 i;
+	if ( pQueue == NULL ) {
+		return FALSE;
+	}
+	if ( !__xrtQueueResolveCapacity(pCfg, &iCapacity) ) {
+		memset(pQueue, 0, sizeof(xmpmcq_struct));
+		return FALSE;
+	}
+	arrSlots = (xmpmcq_slot*)xrtCalloc(iCapacity, sizeof(xmpmcq_slot));
+	if ( arrSlots == NULL ) {
+		memset(pQueue, 0, sizeof(xmpmcq_struct));
+		return FALSE;
+	}
+	memset(pQueue, 0, sizeof(xmpmcq_struct));
+	pQueue->tBase.iKind = XQUEUE_KIND_MPMC;
+	pQueue->tBase.bClosed = 0;
+	pQueue->iCapacity = iCapacity;
+	pQueue->iMask = iCapacity - 1u;
+	pQueue->arrSlots = arrSlots;
+	for ( i = 0; i < iCapacity; ++i ) {
+		pQueue->arrSlots[i].iSeq = (uint64)i;
+		pQueue->arrSlots[i].pItem = NULL;
+	}
+	return TRUE;
+}
+XXAPI void xrtMPMCQUnit(xmpmcq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	if ( pQueue->arrSlots != NULL ) {
+		xrtFree(pQueue->arrSlots);
+	}
+	memset(pQueue, 0, sizeof(xmpmcq_struct));
+}
+XXAPI xmpmcq xrtMPMCQCreate(const xqueue_config* pCfg)
+{
+	xmpmcq pQueue = (xmpmcq)xrtCalloc(1, sizeof(xmpmcq_struct));
+	if ( pQueue == NULL ) {
+		return NULL;
+	}
+	if ( !xrtMPMCQInit(pQueue, pCfg) ) {
+		xrtFree(pQueue);
+		return NULL;
+	}
+	return pQueue;
+}
+XXAPI void xrtMPMCQDestroy(xmpmcq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	xrtMPMCQUnit(pQueue);
+	xrtFree(pQueue);
+}
+XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem)
+{
+	uint64 iTail;
+	xmpmcq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	for ( ;; ) {
+		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+			return XQUEUE_CLOSED;
+		}
+		iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+		pSlot = &pQueue->arrSlots[(uint32)(iTail & pQueue->iMask)];
+		iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+		iDiff = (int64)iSeq - (int64)iTail;
+		if ( iDiff == 0 ) {
+			if ( __xrtQueueAtomicCAS64(&pQueue->iTail, iTail, iTail + 1u) ) {
+				pSlot->pItem = pItem;
+				__xrtQueueAtomicStore64(&pSlot->iSeq, iTail + 1u);
+				return XQUEUE_OK;
+			}
+			xrtThreadYield();
+			continue;
+		}
+		if ( iDiff < 0 ) {
+			return XQUEUE_FULL;
+		}
+		xrtThreadYield();
+	}
+}
+XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem)
+{
+	uint64 iHead;
+	xmpmcq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	uint64 iTail;
+	ptr pItem;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL || ppItem == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	for ( ;; ) {
+		iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+		pSlot = &pQueue->arrSlots[(uint32)(iHead & pQueue->iMask)];
+		iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+		iDiff = (int64)iSeq - (int64)(iHead + 1u);
+		if ( iDiff == 0 ) {
+			if ( __xrtQueueAtomicCAS64(&pQueue->iHead, iHead, iHead + 1u) ) {
+				pItem = pSlot->pItem;
+				pSlot->pItem = NULL;
+				__xrtQueueAtomicStore64(&pSlot->iSeq, iHead + pQueue->iCapacity);
+				*ppItem = pItem;
+				return XQUEUE_OK;
+			}
+			xrtThreadYield();
+			continue;
+		}
+		*ppItem = NULL;
+		if ( iDiff < 0 ) {
+			if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+				iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+				if ( iTail == iHead ) {
+					return XQUEUE_CLOSED;
+				}
+			}
+			return XQUEUE_EMPTY;
+		}
+		xrtThreadYield();
+	}
+}
+XXAPI uint32 xrtMPMCQApproxCount(xmpmcq pQueue)
+{
+	return __xrtQueueMPMCCount(pQueue);
+}
+XXAPI void xrtMPMCQClose(xmpmcq pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 1u);
+}
+XXAPI uint32 xrtMPMCQDrain(xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserData)
+{
+	uint32 iCount = 0;
+	ptr pItem = NULL;
+	xqueue_result iRet;
+	if ( pQueue == NULL || procDrain == NULL ) {
+		return 0;
+	}
+	for ( ;; ) {
+		iRet = xrtMPMCQTryPop(pQueue, &pItem);
+		if ( iRet != XQUEUE_OK ) {
+			break;
+		}
+		procDrain(pItem, pUserData);
+		iCount++;
+	}
+	return iCount;
+}
+XXAPI bool xrtMPMCQReset(xmpmcq pQueue)
+{
+	uint32 i;
+	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
+		return FALSE;
+	}
+	if ( xrtMPMCQApproxCount(pQueue) != 0 ) {
+		return FALSE;
+	}
+	for ( i = 0; i < pQueue->iCapacity; ++i ) {
+		pQueue->arrSlots[i].pItem = NULL;
+		__xrtQueueAtomicStore64(&pQueue->arrSlots[i].iSeq, (uint64)i);
+	}
+	__xrtQueueAtomicStore64(&pQueue->iHead, 0u);
+	__xrtQueueAtomicStore64(&pQueue->iTail, 0u);
+	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 0u);
+	return TRUE;
+}
+XXAPI bool xrtQueueIsClosed(const xqueuebase* pQueue)
+{
+	if ( pQueue == NULL ) {
+		return FALSE;
+	}
+	return __xrtQueueAtomicLoad32(&pQueue->bClosed) != 0;
+}
+XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue)
+{
+	if ( pQueue == NULL || !xrtQueueIsClosed(pQueue) ) {
+		return FALSE;
+	}
+	switch ( pQueue->iKind ) {
+		case XQUEUE_KIND_SPSC:
+			return __xrtQueueSPSCCount((xspscq)pQueue) == 0;
+		case XQUEUE_KIND_MPSC:
+			return __xrtQueueMPSCCount((xmpscq)pQueue) == 0;
+		case XQUEUE_KIND_MPMC:
+			return __xrtQueueMPMCCount((xmpmcq)pQueue) == 0;
+		default:
+			break;
+	}
+	return FALSE;
+}
+#endif
 #ifndef XRT_NO_COROUTINE
 
 // ========================================
-// File: D:/git/xrt/lib/coroutine.h
+// File: ./lib/coroutine.h
 // ========================================
 
 
@@ -18233,7 +18986,7 @@ XXAPI void xrtCoSleep(uint32 iMs)
 #ifndef XRT_NO_XURL
 
 // ========================================
-// File: D:/git/xrt/lib/xurl.h
+// File: ./lib/xurl.h
 // ========================================
 
 #ifndef XRT_XURL_H
@@ -19057,7 +19810,7 @@ XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 #ifndef XRT_NO_HTTP_UTIL
 
 // ========================================
-// File: D:/git/xrt/lib/xhttp_util.h
+// File: ./lib/xhttp_util.h
 // ========================================
 
 #ifndef XRT_XHTTP_UTIL_H
@@ -21430,7 +22183,7 @@ XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset,
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_base.h
+// File: ./lib/xnet_base.h
 // ========================================
 
 #ifndef XRT_XNET_BASE_H
@@ -21921,7 +22674,7 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_mem.h
+// File: ./lib/xnet_mem.h
 // ========================================
 
 
@@ -22486,7 +23239,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port.h
+// File: ./lib/xnet_port.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_H
@@ -22660,7 +23413,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port_iocp.h
+// File: ./lib/xnet_port_iocp.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_IOCP_H
@@ -23550,7 +24303,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port_uring.h
+// File: ./lib/xnet_port_uring.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_URING_H
@@ -24560,7 +25313,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #ifndef XRT_NO_XCODEC
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec.h
+// File: ./lib/xcodec.h
 // ========================================
 
 #ifndef XRT_XCODEC_H
@@ -24851,7 +25604,7 @@ XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec_http1.h
+// File: ./lib/xcodec_http1.h
 // ========================================
 
 #ifndef XRT_XCODEC_HTTP1_H
@@ -25281,7 +26034,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec_ws.h
+// File: ./lib/xcodec_ws.h
 // ========================================
 
 #ifndef XRT_XCODEC_WS_H
@@ -25391,7 +26144,7 @@ XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_engine.h
+// File: ./lib/xnet_engine.h
 // ========================================
 
 #ifndef XRT_XNET_ENGINE_H
@@ -25421,20 +26174,17 @@ typedef struct __xnet_engine_timer {
 	ptr pArg;
 } __xnet_engine_timer;
 typedef void (*xnet_port_event_fn)(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
-#if defined(_WIN32) || defined(_WIN64)
-	typedef CRITICAL_SECTION __xnet_mutex;
-#else
-	typedef pthread_mutex_t __xnet_mutex;
-#endif
 #if defined(XXRTL_CORE) && !defined(XRT_NO_THREAD)
 	#define __XNET_ENGINE_USE_XRT_THREAD	1
 #else
 	#define __XNET_ENGINE_USE_XRT_THREAD	0
 #endif
 typedef struct {
-	__xnet_engine_cmd* pHead;
-	__xnet_engine_cmd* pTail;
-	__xnet_mutex tLock;
+	xmpscq_struct tQueue;
+	volatile long iFreeLock;
+	__xnet_engine_cmd* pFreeList;
+	uint32 iFreeCount;
+	uint32 iFreeLimit;
 } __xnet_engine_cmdq;
 typedef struct {
 	uint32 iTickMs;
@@ -25446,6 +26196,8 @@ typedef struct {
 #define __XNET_ENGINE_CMD_TIMER_ADD  2u
 #define __XNET_ENGINE_TIMER_PULSE_ID UINT64_C(0xffffffffffffffff)
 #define __XNET_ENGINE_HARVEST_BATCH  128u
+#define __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY 65536u
+#define __XNET_ENGINE_CMDQ_DEFAULT_CACHE_LIMIT 256u
 /* ============================== Public object layout ============================== */
 struct xrt_net_worker {
 	xnetengine* pEngine;
@@ -25533,86 +26285,125 @@ static void __xnetEngineInitPortConfig(xnetportconfig* pPortCfg, const xnetengin
 	pPortCfg->iAcceptBatch = pCfg->iAcceptBatch;
 }
 /* ============================== Internal queue helpers ============================== */
-static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ)
+static void __xnetCmdQFreeNode(ptr pItem, ptr pUserData)
 {
+	(void)pUserData;
+	if ( pItem ) {
+		XNET_FREE(pItem);
+	}
+}
+static uint32 __xnetCmdQResolveFreeLimit(uint32 iCapacity)
+{
+	uint32 iLimit = (iCapacity != 0) ? iCapacity : __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY;
+	if ( iLimit > __XNET_ENGINE_CMDQ_DEFAULT_CACHE_LIMIT ) {
+		iLimit = __XNET_ENGINE_CMDQ_DEFAULT_CACHE_LIMIT;
+	}
+	return (iLimit == 0) ? 1u : iLimit;
+}
+static __xnet_engine_cmd* __xnetCmdQAllocNode(__xnet_engine_cmdq* pQ)
+{
+	__xnet_engine_cmd* pCmd = NULL;
+	if ( pQ == NULL ) {
+		return NULL;
+	}
+	__xrtOwnerSpinLock(&pQ->iFreeLock);
+	pCmd = pQ->pFreeList;
+	if ( pCmd != NULL ) {
+		pQ->pFreeList = pCmd->pNext;
+		pQ->iFreeCount--;
+	}
+	__xrtOwnerSpinUnlock(&pQ->iFreeLock);
+	if ( pCmd == NULL ) {
+		pCmd = (__xnet_engine_cmd*)XNET_ALLOC(sizeof(__xnet_engine_cmd));
+		if ( pCmd == NULL ) {
+			return NULL;
+		}
+	}
+	memset(pCmd, 0, sizeof(__xnet_engine_cmd));
+	return pCmd;
+}
+static void __xnetCmdQRecycleNode(__xnet_engine_cmdq* pQ, __xnet_engine_cmd* pCmd)
+{
+	int bCached = FALSE;
+	if ( pCmd == NULL ) {
+		return;
+	}
+	pCmd->pNext = NULL;
+	if ( pQ != NULL && pQ->iFreeLimit != 0 ) {
+		__xrtOwnerSpinLock(&pQ->iFreeLock);
+		if ( pQ->iFreeCount < pQ->iFreeLimit ) {
+			pCmd->pNext = pQ->pFreeList;
+			pQ->pFreeList = pCmd;
+			pQ->iFreeCount++;
+			bCached = TRUE;
+		}
+		__xrtOwnerSpinUnlock(&pQ->iFreeLock);
+	}
+	if ( !bCached ) {
+		XNET_FREE(pCmd);
+	}
+}
+static void __xnetCmdQFreeCached(__xnet_engine_cmdq* pQ)
+{
+	__xnet_engine_cmd* pList;
+	if ( pQ == NULL ) {
+		return;
+	}
+	__xrtOwnerSpinLock(&pQ->iFreeLock);
+	pList = pQ->pFreeList;
+	pQ->pFreeList = NULL;
+	pQ->iFreeCount = 0;
+	__xrtOwnerSpinUnlock(&pQ->iFreeLock);
+	while ( pList != NULL ) {
+		__xnet_engine_cmd* pNext = pList->pNext;
+		XNET_FREE(pList);
+		pList = pNext;
+	}
+}
+static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ, uint32 iCapacity)
+{
+	xqueue_config tCfg;
 	if ( !pQ ) return false;
 	memset(pQ, 0, sizeof(__xnet_engine_cmdq));
-	#if defined(_WIN32) || defined(_WIN64)
-		InitializeCriticalSection(&pQ->tLock);
-		return true;
-	#else
-		return pthread_mutex_init(&pQ->tLock, NULL) == 0;
-	#endif
+	memset(&tCfg, 0, sizeof(tCfg));
+	tCfg.iCapacity = (iCapacity != 0) ? iCapacity : __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY;
+	if ( !xrtMPSCQInit(&pQ->tQueue, &tCfg) ) {
+		return false;
+	}
+	pQ->iFreeLimit = __xnetCmdQResolveFreeLimit(tCfg.iCapacity);
+	return true;
 }
 static void __xnetCmdQUnit(__xnet_engine_cmdq* pQ)
 {
-	__xnet_engine_cmd* pNode;
 	if ( !pQ ) return;
-	for ( ;; ) {
-		pNode = pQ->pHead;
-		if ( !pNode ) break;
-		pQ->pHead = pNode->pNext;
-		XNET_FREE(pNode);
+	if ( pQ->tQueue.arrSlots ) {
+		xrtMPSCQClose(&pQ->tQueue);
+		(void)xrtMPSCQDrain(&pQ->tQueue, __xnetCmdQFreeNode, NULL);
+		xrtMPSCQUnit(&pQ->tQueue);
 	}
-	pQ->pTail = NULL;
-	#if defined(_WIN32) || defined(_WIN64)
-		DeleteCriticalSection(&pQ->tLock);
-	#else
-		pthread_mutex_destroy(&pQ->tLock);
-	#endif
+	__xnetCmdQFreeCached(pQ);
 }
-static void __xnetCmdQLock(__xnet_engine_cmdq* pQ)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		EnterCriticalSection(&pQ->tLock);
-	#else
-		pthread_mutex_lock(&pQ->tLock);
-	#endif
-}
-static void __xnetCmdQUnlock(__xnet_engine_cmdq* pQ)
-{
-	#if defined(_WIN32) || defined(_WIN64)
-		LeaveCriticalSection(&pQ->tLock);
-	#else
-		pthread_mutex_unlock(&pQ->tLock);
-	#endif
-}
-static bool __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
-static bool __xnetCmdQPush(__xnet_engine_cmdq* pQ, xnet_task_fn pfnTask, ptr pArg)
+static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
+static xqueue_result __xnetCmdQPush(__xnet_engine_cmdq* pQ, xnet_task_fn pfnTask, ptr pArg)
 {
 	return __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TASK, 0, pfnTask, pArg);
 }
-static bool __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
+static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
 {
 	__xnet_engine_cmd* pCmd;
-	if ( !pQ || !pfnTask ) return false;
-	pCmd = (__xnet_engine_cmd*)XNET_ALLOC(sizeof(__xnet_engine_cmd));
-	if ( !pCmd ) return false;
-	memset(pCmd, 0, sizeof(__xnet_engine_cmd));
+	xqueue_result iRet;
+	if ( !pQ || !pfnTask ) return XQUEUE_ERROR;
+	pCmd = __xnetCmdQAllocNode(pQ);
+	if ( !pCmd ) return XQUEUE_ERROR;
 	pCmd->iType = iType;
 	pCmd->iDelayMs = iDelayMs;
 	pCmd->pfnTask = pfnTask;
 	pCmd->pArg = pArg;
-	__xnetCmdQLock(pQ);
-	if ( pQ->pTail ) {
-		pQ->pTail->pNext = pCmd;
-	} else {
-		pQ->pHead = pCmd;
+	iRet = xrtMPSCQTryPush(&pQ->tQueue, pCmd);
+	if ( iRet != XQUEUE_OK ) {
+		__xnetCmdQRecycleNode(pQ, pCmd);
 	}
-	pQ->pTail = pCmd;
-	__xnetCmdQUnlock(pQ);
-	return true;
-}
-static __xnet_engine_cmd* __xnetCmdQPopAll(__xnet_engine_cmdq* pQ)
-{
-	__xnet_engine_cmd* pHead;
-	if ( !pQ ) return NULL;
-	__xnetCmdQLock(pQ);
-	pHead = pQ->pHead;
-	pQ->pHead = NULL;
-	pQ->pTail = NULL;
-	__xnetCmdQUnlock(pQ);
-	return pHead;
+	return iRet;
 }
 /* ============================== Internal timer wheel helpers ============================== */
 static bool __xnetTimerWheelInit(__xnet_engine_timerwheel* pWheel, uint32 iTickMs, uint32 iSlotCount)
@@ -25719,17 +26510,24 @@ static void __xnetEngineDrainCommands(xnetworker* pWorker)
 	__xnet_engine_cmdq* pQ = pWorker ? (__xnet_engine_cmdq*)pWorker->pCmdQ : NULL;
 	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
 	__xnet_engine_cmd* pNode;
+	ptr pItem = NULL;
+	xqueue_result iRet;
 	if ( !pQ ) return;
-	pNode = __xnetCmdQPopAll(pQ);
-	while ( pNode ) {
-		__xnet_engine_cmd* pNext = pNode->pNext;
+	for ( ;; ) {
+		iRet = xrtMPSCQTryPop(&pQ->tQueue, &pItem);
+		if ( iRet != XQUEUE_OK ) {
+			break;
+		}
+		pNode = (__xnet_engine_cmd*)pItem;
+		if ( !pNode ) {
+			continue;
+		}
 		if ( pNode->iType == __XNET_ENGINE_CMD_TIMER_ADD ) {
 			(void)__xnetTimerWheelSchedule(pWheel, pNode->iDelayMs, pNode->pfnTask, pNode->pArg);
 		} else if ( pNode->pfnTask ) {
 			pNode->pfnTask(pWorker, pNode->pArg);
 		}
-		XNET_FREE(pNode);
-		pNode = pNext;
+		__xnetCmdQRecycleNode(pQ, pNode);
 	}
 }
 static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
@@ -25837,7 +26635,7 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 	if ( !pWorker || !pEngineCfg || !pOps || !pPortCfg || !pMemCfg ) return XRT_NET_ERROR;
 	pWorker->pCmdQ = XNET_ALLOC(sizeof(__xnet_engine_cmdq));
 	if ( !pWorker->pCmdQ ) return XRT_NET_ERROR;
-	if ( !__xnetCmdQInit((__xnet_engine_cmdq*)pWorker->pCmdQ) ) {
+	if ( !__xnetCmdQInit((__xnet_engine_cmdq*)pWorker->pCmdQ, pEngineCfg->iCmdQueueSize) ) {
 		XNET_FREE(pWorker->pCmdQ);
 		pWorker->pCmdQ = NULL;
 		return XRT_NET_ERROR;
@@ -25966,6 +26764,7 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 {
 	xnetworker* pWorker;
 	__xnet_engine_cmdq* pQ;
+	xqueue_result iPushRet;
 	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
 		return XRT_NET_ERROR;
 	}
@@ -25974,7 +26773,11 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 		return XRT_NET_ERROR;
 	}
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
-	if ( !__xnetCmdQPush(pQ, pfnTask, pArg) ) {
+	iPushRet = __xnetCmdQPush(pQ, pfnTask, pArg);
+	if ( iPushRet == XQUEUE_FULL ) {
+		return XRT_NET_AGAIN;
+	}
+	if ( iPushRet != XQUEUE_OK ) {
 		return XRT_NET_ERROR;
 	}
 	if ( xrtNetPortWake(&pWorker->tPort) != XRT_NET_OK ) {
@@ -25989,6 +26792,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 {
 	xnetworker* pWorker;
 	__xnet_engine_cmdq* pQ;
+	xqueue_result iPushRet;
 	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
 		return XRT_NET_ERROR;
 	}
@@ -25997,7 +26801,11 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 		return XRT_NET_ERROR;
 	}
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
-	if ( !__xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TIMER_ADD, iDelayMs, pfnTask, pArg) ) {
+	iPushRet = __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TIMER_ADD, iDelayMs, pfnTask, pArg);
+	if ( iPushRet == XQUEUE_FULL ) {
+		return XRT_NET_AGAIN;
+	}
+	if ( iPushRet != XQUEUE_OK ) {
 		return XRT_NET_ERROR;
 	}
 	(void)xrtNetPortWake(&pWorker->tPort);
@@ -26012,7 +26820,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 #ifndef XRT_NO_CRYPTO
 
 // ========================================
-// File: D:/git/xrt/lib/crypto.h
+// File: ./lib/crypto.h
 // ========================================
 
 
@@ -30576,7 +31384,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 #ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/git/xrt/lib/nettls.h
+// File: ./lib/nettls.h
 // ========================================
 
 /*
@@ -36466,7 +37274,7 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #ifndef XRT_NO_NETWORK
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_proxy.h
+// File: ./lib/xnet_proxy.h
 // ========================================
 
 #ifndef XRT_XNET_PROXY_H
@@ -36783,7 +37591,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_stream.h
+// File: ./lib/xnet_stream.h
 // ========================================
 
 #ifndef XRT_XNET_STREAM_H
@@ -39218,7 +40026,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_dgram.h
+// File: ./lib/xnet_dgram.h
 // ========================================
 
 #ifndef XRT_XNET_DGRAM_H
@@ -39850,7 +40658,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_sync.h
+// File: ./lib/xnet_sync.h
 // ========================================
 
 #ifndef XRT_XNET_SYNC_H
@@ -44271,7 +45079,7 @@ XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, x
 #ifndef XRT_NO_XHTTP
 
 // ========================================
-// File: D:/git/xrt/lib/xhttp.h
+// File: ./lib/xhttp.h
 // ========================================
 
 #ifndef XRT_XHTTP_H
@@ -45222,7 +46030,7 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 #ifndef XRT_NO_XHTTPD
 
 // ========================================
-// File: D:/git/xrt/lib/xhttpd.h
+// File: ./lib/xhttpd.h
 // ========================================
 
 #ifndef XRT_XHTTPD_H
@@ -45977,7 +46785,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 #ifndef XRT_NO_XWS
 
 // ========================================
-// File: D:/git/xrt/lib/xws.h
+// File: ./lib/xws.h
 // ========================================
 
 #ifndef XRT_XWS_H
@@ -47391,7 +48199,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/network.h
+// File: ./lib/network.h
 // ========================================
 
 
@@ -47595,7 +48403,7 @@ str xrtGetLocalName()
 #ifndef XRT_NO_XID
 
 // ========================================
-// File: D:/git/xrt/lib/xid.h
+// File: ./lib/xid.h
 // ========================================
 
 
@@ -47660,7 +48468,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 #ifndef XRT_NO_BUFFER
 
 // ========================================
-// File: D:/git/xrt/lib/buffer.h
+// File: ./lib/buffer.h
 // ========================================
 
 
@@ -47772,7 +48580,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 #ifndef XRT_NO_ARRAY
 
 // ========================================
-// File: D:/git/xrt/lib/array_point.h
+// File: ./lib/array_point.h
 // ========================================
 
 
@@ -48059,7 +48867,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/array.h
+// File: ./lib/array.h
 // ========================================
 
 
@@ -48348,7 +49156,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 #ifndef XRT_NO_BSMN
 
 // ========================================
-// File: D:/git/xrt/lib/bsmm.h
+// File: ./lib/bsmm.h
 // ========================================
 
 
@@ -48491,7 +49299,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 #ifndef XRT_NO_MEMUNIT
 
 // ========================================
-// File: D:/git/xrt/lib/memunit.h
+// File: ./lib/memunit.h
 // ========================================
 
 
@@ -48657,7 +49465,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 #ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
-// File: D:/git/xrt/lib/mempool_fs.h
+// File: ./lib/mempool_fs.h
 // ========================================
 
 
@@ -49002,7 +49810,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 #ifndef XRT_NO_STACK
 
 // ========================================
-// File: D:/git/xrt/lib/stack.h
+// File: ./lib/stack.h
 // ========================================
 
 
@@ -49133,7 +49941,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/stack_dyn.h
+// File: ./lib/stack_dyn.h
 // ========================================
 
 
@@ -49325,7 +50133,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 #ifndef XRT_NO_AVLTREE
 
 // ========================================
-// File: D:/git/xrt/lib/avltree_base.h
+// File: ./lib/avltree_base.h
 // ========================================
 
 
@@ -49738,7 +50546,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/avltree.h
+// File: ./lib/avltree.h
 // ========================================
 
 
@@ -50022,7 +50830,7 @@ XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 #ifndef XRT_NO_MEMPOOL
 
 // ========================================
-// File: D:/git/xrt/lib/mempool.h
+// File: ./lib/mempool.h
 // ========================================
 
 
@@ -50581,7 +51389,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 #ifndef XRT_NO_DICT
 
 // ========================================
-// File: D:/git/xrt/lib/dict.h
+// File: ./lib/dict.h
 // ========================================
 
 
@@ -50892,7 +51700,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_LIST
 
 // ========================================
-// File: D:/git/xrt/lib/list.h
+// File: ./lib/list.h
 // ========================================
 
 
@@ -51186,7 +51994,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_REGEX
 
 // ========================================
-// File: D:/git/xrt/lib/regex.h
+// File: ./lib/regex.h
 // ========================================
 
 /* 
@@ -56760,7 +57568,7 @@ static int bbre_builtin_cc_perl(
 #ifndef XRT_NO_VALUE
 
 // ========================================
-// File: D:/git/xrt/lib/value.h
+// File: ./lib/value.h
 // ========================================
 
 
@@ -58361,7 +59169,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 #ifndef XRT_NO_JNUM
 
 // ========================================
-// File: D:/git/xrt/lib/jnum.h
+// File: ./lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -59861,7 +60669,7 @@ jnum_to_func(double, xrtStrToNum)
 #ifndef XRT_NO_JSON
 
 // ========================================
-// File: D:/git/xrt/lib/json.h
+// File: ./lib/json.h
 // ========================================
 
 
@@ -61500,7 +62308,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 #ifndef XRT_NO_TEMPLATE
 
 // ========================================
-// File: D:/git/xrt/lib/template.h
+// File: ./lib/template.h
 // ========================================
 
 #include <string.h>

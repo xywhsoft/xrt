@@ -39,6 +39,7 @@
 - 为 `xnet / future / task / thread pool` 等模块提供统一底座
 - 生命周期、关闭语义、等待语义从一开始收口
 - 保持 API 简洁，不把业务语义塞进基础队列层
+- 保持 `xrt` 轻量级定位，不让 `xqueue` 反向带动 public surface、single-head 体积、默认依赖快速膨胀
 
 
 
@@ -51,6 +52,8 @@
 - 不在 V1 中实现覆盖写环形缓冲
 - 不在 V1 中内建对象析构、引用计数、GC、hazard pointer、epoch reclaim
 - 不在 V1 中把阻塞等待揉进无锁核心算法本体
+- 不为了“API 对称”一次性铺满 `pointer/blob/wait/batch/debug stats` 全矩阵
+- 不为了减少少量重复而引入过重的宏生成、模板化代码展开或多后端并存
 
 
 
@@ -136,6 +139,32 @@ V1 全部采用固定容量、2 的幂、环形数组模型。
 - 让“长度精确值”成为强合同
 
 
+### 5.5 轻量级定位优先于功能铺满
+
+`xqueue` 的目标是补齐 `xrt` 缺失的并发底座，不是把整个库带向“并发大而全框架”。
+
+因此建议明确：
+
+- V1 只承诺最有主线价值的 `pointer queue`
+- `blob queue / wait wrapper / 更丰富调试字段` 都应延后到真实需求出现后再补
+- 不为了 API 对称把 `SPSC / MPSC / MPMC` 的所有扩展接口一次性做满
+- 非热路径逻辑尽量放入 `xqueue_common` 复用；热路径保留必要专门化，但避免复制整套生命周期/错误处理代码
+- 如果某个能力没有真实调用方，就不应因为“以后可能会用到”而提前并入主线
+
+
+### 5.6 裁剪友好优先
+
+`xqueue` 既然要进入 `xrt` 主树，就应服从现有 feature trimming 体系，而不是默认永久扩大库体积。
+
+建议：
+
+- 引入独立裁剪开关：`XRT_NO_QUEUE`
+- 如后续有等待包装层，再单独使用 `XRT_NO_QUEUE_WAIT`
+- `XRT_NO_THREAD` 生效时，应隐含关闭 `XQUEUE`
+- 关闭 `XQUEUE` 后，不应在 `xrt.h / singlehead/xrt.h` 中继续保留无意义声明和实现
+- bench、probe、实验性 helper 不进入 public surface，也不应为了 `singlehead` 方便而并入正式实现
+
+
 
 ## 6. 模块划分
 
@@ -157,15 +186,54 @@ V1 全部采用固定容量、2 的幂、环形数组模型。
 - `xqueue_bench`
 	- 基准测试与回归用例
 
-对外导出建议统一收口到：
+模块拆分时还建议遵守一条轻量约束：
+
+- `xqueue_common` 只放真正跨模型共享且不在热路径上的公共逻辑
+- 不为了“文件看起来整齐”拆出过多仅服务于 `xqueue` 的微型头文件
+- `xqueue_wait` 在 V1 最好保持单独裁剪，不作为 `xqueue` 默认组成部分
+- `xqueue_bench`、probe、对比脚本仅留在 `dev/bench`，不进入正式库实现
+
+### 6.1 对象暴露策略
+
+由于 V1 同时要求支持：
+
+- `Create / Destroy`
+- `Init / Unit`
+- 通用 `xqueuebase` 辅助查询
+
+因此 V1 不建议采用“只有 opaque handle、完全隐藏结构体布局”的路线，而应显式选择：
+
+> 公开 concrete struct + handle alias + 公共头部
+
+建议最小形态：
 
 ```c
-typedef struct xspscq_struct* xspscq;
-typedef struct xmpscq_struct* xmpscq;
-typedef struct xmpmcq_struct* xmpmcq;
+typedef enum xqueue_kind
+{
+	XQUEUE_KIND_SPSC = 1,
+	XQUEUE_KIND_MPSC = 2,
+	XQUEUE_KIND_MPMC = 3
+} xqueue_kind;
+
+typedef struct xqueuebase_struct
+{
+	uint32 iKind;
+	volatile uint32 bClosed;
+} xqueuebase;
+
+typedef struct xspscq_struct xspscq_struct, *xspscq;
+typedef struct xmpscq_struct xmpscq_struct, *xmpscq;
+typedef struct xmpmcq_struct xmpmcq_struct, *xmpmcq;
 ```
 
-也可以采用嵌入式 `Init / Unit` 结构体风格。V1 建议同时支持：
+并约束：
+
+- `xqueuebase` 必须位于所有具体队列结构体首字段
+- `Create / Destroy` 只是 concrete struct 的堆分配封装
+- `Init / Unit` 面向嵌入式对象
+- 如果未来要补纯 opaque wrapper，应作为外层包装，而不是反过来限制 V1 基础对象
+
+V1 建议同时支持：
 
 - `Create / Destroy`
 - `Init / Unit`
@@ -174,6 +242,7 @@ typedef struct xmpmcq_struct* xmpmcq;
 
 - `xrt` 当前大量模块同时存在这两种用法
 - 队列既可能做独立句柄，也可能嵌入更大对象
+- 这样 `xrtQueueIsClosed / xrtQueueIsDrained` 之类的通用辅助 API 才有稳定落点
 
 
 
@@ -274,6 +343,42 @@ V1 建议优先支持两种承载方式：
 因此 `MPSC / MPMC` 不建议对外承诺“任意时刻精确长度”。
 
 
+### 8.4 指针所有权合同
+
+既然 V1 以 `pointer queue` 为主，就应把 ownership 语义写死，而不是交给调用方猜。
+
+建议统一为：
+
+- 队列只搬运指针，不做引用计数、不做 retain/release、不做析构
+- `TryPush` 成功后，元素的“待处理责任”转移到队列，直到它被 `TryPop/PopBatch/Drain` 取走
+- `TryPush` 失败时，元素所有权仍留在调用方
+- `TryPop` 成功后，元素责任转移给调用方
+- `Drain` 回调收到元素时，元素责任转移给回调
+- `Destroy/Unit` 不隐式清理未排空元素；调用方必须先 `Close + Drain`，或明确保证队列已空
+
+这与 `xrt` 现有“Borrowed / Owned 明确区分”的整体风格更一致。
+
+
+### 8.5 序号与容量边界
+
+对于 `MPSC / MPMC` 的 sequence-based ring，建议在 V1 就把数值合同写清：
+
+- `iHead / iTail / slot.iSeq` 都是单调递增的绝对序号，不对外暴露取模后的值
+- `slot.iSeq` 初始值为槽位下标 `slot_index`
+- producer 在绝对位置 `pos` 上发布成功时，先写 `pItem`，再把 `slot.iSeq` 发布为 `pos + 1`
+- consumer 在绝对位置 `pos` 上消费成功后，把槽位回收为 `pos + iCapacity`
+- 比较逻辑必须基于绝对序号与期望序号，而不是仅靠 `head & mask / tail & mask`
+
+容量方面建议统一：
+
+- 对外 `iCapacity` 仍为 `uint32`
+- 实际容量向上对齐到 2 的幂后，V1 有效容量上限建议保守冻结为 `1u << 30`
+- 超过上限时 `Init/Create` 直接失败，而不是静默截断
+- 如果某个平台无法稳定提供 64 位原子序号，则降级为 fallback backend，而不是改变 public contract
+
+这样可以避免把 wrap、符号差值、平台差异同时压到算法细节里。
+
+
 
 ## 9. 生命周期合同
 
@@ -364,6 +469,7 @@ typedef enum xqueue_result
 ```c
 typedef struct xspscq_struct
 {
+	xqueuebase tBase;
 	uint32 iCapacity;
 	uint32 iMask;
 	volatile uint32 iHead;
@@ -467,9 +573,9 @@ typedef struct xmpscq_slot
 
 typedef struct xmpscq_struct
 {
+	xqueuebase tBase;
 	uint32 iCapacity;
 	uint32 iMask;
-	volatile uint32 bClosed;
 	uint8 _pad0[64];
 	volatile uint64 iHead;
 	uint8 _pad1[64];
@@ -521,9 +627,9 @@ typedef struct xmpmcq_slot
 
 typedef struct xmpmcq_struct
 {
+	xqueuebase tBase;
 	uint32 iCapacity;
 	uint32 iMask;
-	volatile uint32 bClosed;
 	uint8 _pad0[64];
 	volatile uint64 iHead;
 	uint8 _pad1[64];
@@ -555,6 +661,8 @@ typedef struct xmpmcq_struct
 
 这是队列模块必须从 V1 就定清的部分。
 
+### 14.1 基础合同
+
 建议合同：
 
 - `Close`
@@ -578,6 +686,32 @@ XXAPI bool xrtQueueIsDrained( const xqueuebase* pQueue );
 - worker 退出判定
 - 线程池关闭收尾
 - 生产者结束后的消费者清理
+
+
+### 14.2 `Close` 与并发 `Push` 的关系
+
+`MPSC / MPMC` 下必须明确：
+
+- `Close` 的目标是阻止“新的 claim”，而不是回滚已经成功的 claim
+- 如果某个 producer 在 `Close` 生效前已经成功保留了槽位，那么它仍允许完成 publish，并返回成功
+- 因此 `Close` 不是“全局瞬时屏障”，不能承诺调用返回后系统中绝对不会再出现一个新元素
+- 真正可靠的关停流程应是：`Close` -> 停止 producer -> harvest/drain 剩余元素
+
+换句话说，`Close` 保证的是“最终不再有新元素进入”，不是“调用瞬间起零新增”。
+
+
+### 14.3 `Drain` 与 `IsDrained` 的使用边界
+
+这两个接口建议定义为 shutdown-path helper，而不是任意时刻的强实时判定：
+
+- `Drain` 不应与并发 producer 同时使用
+- `Drain` 在 `MPSC / MPMC` 下也不应与其他 consumer 并发使用
+- `IsDrained` 的强语义应建立在 producer 已 quiesce 的前提上
+- 如果实现无法精确观测“已 claim 但未 publish”的 in-flight writer，则必须在文档中明确：`IsDrained` 只用于关闭收尾，不用于热路径调度判断
+
+推荐实践是：
+
+> `Close` 只负责封口；`Drain` 只负责收尾；“系统已完全排空” 的判定必须包含 producer 已停止这一外部条件。
 
 
 
@@ -688,6 +822,14 @@ XXAPI uint32 xrtMPMCQPopBatch( xmpmcq pQueue, ptr* arrItems, uint32 iCap );
 - 对高并发系统，批量收割能明显减少原子争用
 - `xnet`、线程池、调度器都可能直接受益
 
+批量接口合同建议一并写清：
+
+- 返回值表示“实际成功提交/提取的元素个数”
+- `PushBatch` 按输入顺序从前往后尽力提交，遇到 `FULL/CLOSED` 即停止，不回滚已成功部分
+- `PopBatch` 按 FIFO 顺序填充 `arrItems`
+- 批量接口允许部分成功
+- 当返回 `0` 时，不单独区分 `EMPTY`、`CLOSED`、`FULL`；调用方如需精确原因，应再调用单元素接口或辅助状态接口
+
 
 ### 16.3 Drain API
 
@@ -705,6 +847,14 @@ XXAPI uint32 xrtMPMCQDrain( xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserD
 - 关闭收尾
 - 异常回滚
 - 单测清理
+
+`Drain` 合同建议补充：
+
+- 回调在调用线程同步执行
+- 回调顺序必须与 `Pop` 顺序一致
+- 元素 responsibility 在回调触发时转移给回调
+- 回调不应再并发操作同一个队列实例
+- `Drain` 的前提仍然是：没有并发 producer，且没有其他 consumer 在抢占同一队列
 
 
 
@@ -748,11 +898,29 @@ XXAPI uint32 xrtMPMCQDrain( xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserD
 - `slot` 建议尽量紧凑，避免过大
 - 如果需要调试字段，应在 debug 模式单独放置，避免污染热路径
 
+还应明确：
+
+- 仅靠 `uint8 _pad[64]` 不能代替“真实对齐”
+- 队列对象本体最好按 cache line 对齐
+- `head / tail / closed` 所在子结构最好分别独立对齐
+- 如果编译器缺少对齐能力，内部 allocator 应负责 over-aligned 分配
+- debug/test 构建应通过 `offsetof/static assert` 校验热字段布局
+
 建议统一 cache line 常量：
 
 ```c
 #ifndef XRT_CACHELINE_SIZE
 	#define XRT_CACHELINE_SIZE 64u
+#endif
+
+#ifndef XRT_ALIGNAS
+	#if defined(_MSC_VER)
+		#define XRT_ALIGNAS(n) __declspec(align(n))
+	#elif defined(__GNUC__) || defined(__clang__)
+		#define XRT_ALIGNAS(n) __attribute__((aligned(n)))
+	#else
+		#define XRT_ALIGNAS(n)
+	#endif
 #endif
 ```
 
@@ -807,6 +975,21 @@ V1 主要保证：
 
 这样可以把 `queue` 的第一轮价值直接落到真实主线，而不是只停留在 demo。
 
+接入时还建议补清以下行为变化：
+
+- `xnetengineconfig.iCmdQueueSize` 从“宽松配置项”升级为真实有界容量
+- 该容量应沿用 `XQUEUE` 的规则：大于 0、向上对齐到 2 的幂、达到上限后不扩容
+- `xrtNetEnginePost` 在“仅仅是队列已满”时，建议返回 `XRT_NET_AGAIN`，而不是笼统的 `XRT_NET_ERROR`
+- `wake` 失败如果发生在 enqueue 成功之后，不回滚已入队命令，而是退化为依赖下次 harvest/tick 推进
+
+还要特别注意命令对象分配策略：
+
+- 如果 `xnet` V1 先接 `pointer queue`，不能继续把每次 `post` 的 `malloc/free` 噪音混在队列收益里
+- 至少应把 `__xnet_engine_cmd` 切到每 worker 固定尺寸池、轻量 mempool、或等价的预分配路径
+- bench 最好拆开看三组对比：`list + malloc`、`queue + malloc`、`queue + pool`
+
+否则很容易出现“换了队列结构，但实际瓶颈仍是分配器”的假结论。
+
 
 ### 20.2 `future / task`
 
@@ -834,6 +1017,10 @@ V1 主要保证：
 
 建议按以下顺序推进：
 
+并额外增加一条合入纪律：
+
+> 每个阶段应单独合入、单独验证，不把 `xatomic + SPSC + MPSC + MPMC + wait wrapper` 一次性打包进主线。
+
 ### 阶段 1
 
 - 补齐 `xatomic`
@@ -859,6 +1046,8 @@ V1 主要保证：
 
 - 增加 `waitable wrapper`
 - 视需要接入线程池 / executor 主线
+
+这样做的目的不仅是降低风险，也是在控制 `xrt` 体积和复杂度的增长速度。
 
 
 
@@ -960,8 +1149,155 @@ V1 主要保证：
 - 批量接口的最终命名细节
 
 
+### 25.1 建议冻结的强合同
 
-## 26. 最终建议
+这部分一旦进入 V1，就应尽量只改实现，不改 public contract：
+
+- 对象模型
+	- concrete struct + handle alias + `xqueuebase` 公共头部
+- 并发模型分型
+	- `SPSC / MPSC / MPMC` 显式分离，不走“单一万能队列 + flags 切语义”
+- 生命周期
+	- `Init / Unit / Create / Destroy / Close / Drain / Reset` 的根语义
+- 状态码
+	- `XQUEUE_OK / EMPTY / FULL / CLOSED / TIMEOUT / ERROR`
+- 容量合同
+	- 固定容量、向上对齐到 2 的幂、满时失败、绝不自动扩容
+- 指针 ownership
+	- 成功 push 后责任进队列，失败则仍归调用方
+- 长度语义
+	- `SPSC` 可强语义，`MPSC / MPMC` 只承诺近似值
+- 关闭语义
+	- `Close` 封口但不回滚已 claim 的 in-flight publish
+
+
+### 25.2 建议只冻结方向、不冻结细节的部分
+
+这些部分建议先冻结设计方向，但保留接口细节和内部实现的调整空间：
+
+- `PushBatch / PopBatch`
+	- 保留“批量收割”方向，但命名、返回细节、是否加 result 版可后续微调
+- `waitable wrapper`
+	- 冻结“包装层，不侵入核心”的方向，不冻结具体 `xsem/xcond` 组合
+- fallback backend
+	- 冻结“同名 API + 内部降级”的策略，不冻结每个平台具体后端
+- cache line / aligned allocation
+	- 冻结“必须真实对齐”的原则，不冻结具体宏名和 allocator 细节
+- `xnet` 集成
+	- 冻结“worker post queue 首先接入”的路线，不冻结一次性替换范围
+- 裁剪宏
+	- 冻结“`XQUEUE` 必须可独立裁剪”的方向，不冻结最终宏名细节
+
+
+### 25.3 明确不应在 V1 冻结的部分
+
+以下内容建议显式标记为 `non-frozen`，避免后续被误当成兼容承诺：
+
+- `blob queue` 的最终 public shape
+- 调试统计字段
+- 内部 sequence 调试辅助字段
+- batch API 的最终命名和错误细分
+- `waitable queue` 的 full-wait 策略
+- thread pool / executor 对 queue 的二次封装
+- 更激进的无锁 backend 或平台特化快路径
+
+
+## 26. 实施 Checklist
+
+为了让设计文档能直接指导落地，建议在实现阶段按下面清单推进。
+
+
+### 26.1 Phase 0: 公共基础设施
+
+- 补齐 `xatomic` 所需的 `load/store/cas64/exchange64/fence/cpu relax`
+- 增加 `XRT_CACHELINE_SIZE`
+- 增加 `XRT_ALIGNAS` 或等价对齐宏
+- 明确 over-aligned 分配策略
+- 增加 `xqueuebase / xqueue_kind / xqueue_result / xqueue_config`
+- 写最小 smoke test，验证不同编译器/平台能编过
+
+
+### 26.2 Phase 1: `SPSC`
+
+- 落地 ring buffer 结构
+- 保证 producer/consumer 热字段分离
+- 实现 `Init / Unit / Create / Destroy`
+- 实现 `TryPush / TryPop / Close / ApproxCount / Reset`
+- 补空/满/close/reset 单测
+- 跑单线程与双线程基准，作为后续上限参考
+
+
+### 26.3 Phase 2: `MPSC`
+
+- 先把 `slot.iSeq` 初始化和回收规则写成注释级合同
+- 实现 claim/publish 分离
+- 明确 `Close` 与 in-flight producer 的竞态处理
+- 实现 `Drain`
+- 补多 producer 无丢失、无重复、无越序消费测试
+- 补高争用小容量与长时压测
+
+
+### 26.4 Phase 2.5: `xnet` 验证闭环
+
+- 把 `xnetengineconfig.iCmdQueueSize` 映射为真实队列容量
+- 明确“队列满”时 `xrtNetEnginePost` 的返回值
+- 保留现有链表版本作为对照
+- 把 `__xnet_engine_cmd` 分配切到池化路径，避免 allocator 噪音污染结论
+- 跑三组对比：
+	- `list + malloc`
+	- `queue + malloc`
+	- `queue + pool`
+- 确认收益来自 queue，而不是偶然来自其他改动
+
+
+### 26.5 Phase 3: `MPMC`
+
+- 在 `MPSC` 稳定后再进入
+- 实现 head/tail 双边竞争
+- 补多 consumer 下的正确性测试
+- 补 wrap 边界与小容量极端路径
+- 补 batch API
+- 更新 bench 曲线和平台矩阵
+
+
+### 26.6 Phase 4: 等待包装层
+
+- 先实现 `pop wait`
+- 保证 `Close` 能唤醒 waiter
+- 证明等待层不侵入核心 lock-free fast path
+- 只有在真实需求出现时再做通用 `push wait`
+
+
+### 26.7 合入前验收
+
+- public contract 与本草案一致
+- 单测、压力测、长时测齐全
+- Windows x64 / Linux x64 跑通
+- fallback 平台至少保证编译与功能正确
+- `xnet` 替换分支拿到可重复 bench 结果
+- 文档补齐 API、ownership、close/drain 语义
+
+
+### 26.8 体积与复杂度验收
+
+为了防止 `xrt` 失去轻量定位，建议每次引入新阶段能力时，额外记录：
+
+- `xrt.h` 导出 API 增量
+- `singlehead/xrt.h` 的行数或 diff 规模
+- 新增 public 宏数量
+- 是否引入新的默认依赖链
+- 是否新增不可裁剪的实现块
+
+并执行以下约束：
+
+- 没有真实调用方的扩展能力不合入
+- `wait wrapper`、`blob queue`、额外调试字段不能搭车进入 `MPSC` 主线 PR
+- 如果某阶段收益主要来自 bench/demo，而不是主线模块，就先留在 `dev/` 验证，不急于进入正式库
+- 任何显著放大 `singlehead` 体积的改动，都应附带“为何不能继续放在 `dev/` 或后续阶段”的说明
+
+
+
+## 27. 最终建议
 
 `XQUEUE` 应作为 `xrt` 的正式并发基础模块引入，但必须保持边界克制。
 

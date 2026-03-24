@@ -31,4 +31,7 @@ release/x86/test/test_size.txt
 release/x86/test/test_write_u16.txt
 release/x86/test/test_write_u16be.txt
 release/x86/test/test_write_u32.txt
+release/x64/xrt_*_local.dll
+release/x64/xrt_size_report.txt
+release/x64/xrt_size_*.dll
 /AGENTS.md
