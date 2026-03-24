@@ -1,7 +1,5 @@
 
-#define XRT_NO_COROUTINE
-#define XRT_IMPLEMENTATION
-#include "xrt.h"
+#include "../../xrt.h"
 
 
 #define MAKER_MAX_PATH 4096

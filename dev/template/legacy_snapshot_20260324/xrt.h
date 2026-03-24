@@ -5657,6 +5657,11 @@
 			JNUM 函数库
 	*/
 	
+	// 链表节点
+	struct json_list {
+		struct json_list *next;
+	};
+	
 	// json对象的类型
 	typedef enum {
 		JSON_NULL = 0,              /* It doesn't has value variable: null */
@@ -5667,8 +5672,8 @@
 		JSON_LHEX,                  /* Its value variable is vlhex */
 		JSON_DOUBLE,                /* Its value variable is vdbl */
 		JSON_STRING,                /* Its value variable is vstr */
-		JSON_ARRAY,                 /* Collection type: array */
-		JSON_OBJECT                 /* Collection type: object */
+		JSON_ARRAY,                 /* Its value variable is head */
+		JSON_OBJECT                 /* Its value variable is head */
 	} json_type_t;
 	
 	// json对象的键或字符串类型的值的信息（LJSON使用此结构就知道了字符串长度，可以加快数据处理）
@@ -5695,6 +5700,22 @@
 		uint64_t vlhex;
 		double vdbl;
 	} json_number_t;
+	
+	// json对象的值（LJSON使用union管理对象的值从而节省内存空间）
+	typedef union {
+		json_number_t vnum;			// 数字类型的值
+		char *vstr;					// 字符串类型的值
+		struct json_list head;		// 集合对象的子节点挂载的链表头，指向最后一个元素(非空时)或自己(空时)
+	} json_value_t;
+	
+	// json对象（LJSON使用更紧凑的内存结构以节省内存）
+	typedef struct {
+		struct json_list list;		// 链表节点，指向下一个对象或父对象的链表头
+		char *key;					// json对象的键值，只有JSON_OBJECT的子对象才有键值
+		json_strinfo_t ikey;		// key字符串信息(含json类型)
+		json_strinfo_t istr;		// value.str字符串信息
+		json_value_t value;			// json对象的值
+	} json_object;
 	
 	// SAX APIs中指示JSON_ARRAY或JSON_OBJECT的开始和结束（集合类型是括号包起来的，JSON_SAX_START表示左边括号, JSON_SAX_FINISH指示右边括号）
 	typedef enum {
@@ -5748,6 +5769,7 @@
 	
 	// 打印参数设置
 	typedef struct {
+		size_t str_len;
 		size_t plus_size;
 		size_t item_size;
 		int item_total;
@@ -5833,240 +5855,243 @@
 			JNUM 函数库
 	*/
 	
-	typedef struct XTE_Engine_Struct* xteengine;
-	typedef struct XTE_Template_Struct* xtetemplate;
-	typedef struct XTE_RenderCtx_Struct XTE_RenderCtx;
-	typedef struct XTE_StmtParseCtx_Struct XTE_StmtParseCtx;
-	typedef struct XTE_StmtRenderCtx_Struct XTE_StmtRenderCtx;
-	typedef struct XTE_FuncCtx_Struct XTE_FuncCtx;
-
-	#define XTE_NODE_TEXT					1
-	#define XTE_NODE_OUTPUT					2
-	#define XTE_NODE_INLINE_BOOL			3
-	#define XTE_NODE_STATEMENT				4
-
-	#define XTE_EXPR_PATH					1
-	#define XTE_EXPR_TEXT					2
-	#define XTE_EXPR_INT					3
-	#define XTE_EXPR_BOOL					4
-	#define XTE_EXPR_BOOL_EXPR				5
-
-	#define XTE_OUTPUT_TEXT					1
-	#define XTE_OUTPUT_NUM					2
-	#define XTE_OUTPUT_TIME					3
-	#define XTE_OUTPUT_FUNC					4
-
-	#define XTE_STMT_INLINE					0x0001
-	#define XTE_STMT_BLOCK					0x0002
-	#define XTE_STMT_HYBRID					(XTE_STMT_INLINE | XTE_STMT_BLOCK)
-	#define XTE_STMT_RAW_BODY				0x0004
-	#define XTE_STMT_ALLOW_NAMED_ARGS		0x0008
-
+	// 最大支持参数数量
+	#define XTE_PARAM_MAXCOUNT		6
+	
+	// Token 定义编号
+	#define XTE_TK_TEXT				0				// 文本内容
+	#define XTE_TK_COMMEN			1				// 注释				{! * }
+	#define XTE_TK_VAR				0x100			// 代入变量			{$ * : *}			参数：为 NULL 默认值
+	#define XTE_TK_NUM				0x101			// 代入数字变量		{% * : *}			参数：格式
+	#define XTE_TK_TIME				0x102			// 代入时间变量		{& * : *}			参数：格式
+	#define XTE_TK_BOOL				0x103			// 根据逻辑代入值		{? * : * : * }		参数：为真时的值和为假时的值
+	#define XTE_TK_ARR				0x104			// 代入数组			{* * : *}			参数：套用子模板
+	#define XTE_TK_PROC				0x105			// 代入函数或流程		{@ * : * ...}		参数：函数参数列表
+	#define XTE_TK_SUBTEMPLATE		0x106			// 代入子模板			{= * : * }			参数：子模板环境变量名
+	#define XTE_TK_SYMBOL			0xFFFF			// 预定义符号			{# * : * ...}		参数：语句参数列表
+	#define XTE_MODE_BLOCK			0xFFFE			// 特殊符号，表示进入数据块采集模式，以 {#end} 结尾
+	
+	// Token 扩展编号
+	#define XTE_TK_INCLUDE			0x10000			// 引用外部文件
+	#define XTE_TK_DEFINE			0x10001			// 定义子模板
+	#define XTE_TK_SCRIPT			0x10002			// 脚本块
+	#define XTE_TK_IF				0x20000			// 判断语句
+	#define XTE_TK_ELSEIF			0x20001			// 判断语句
+	#define XTE_TK_ELSE				0x20002			// 判断语句
+	#define XTE_TK_FOR				0x30000			// 循环语句
+	#define XTE_TK_FOREACH			0x30001			// 迭代循环语句
+	#define XTE_TK_BREAK			0x30002			// 跳出循环
+	#define XTE_TK_CONTINUE			0x30003			// 继续下一轮循环
+	#define XTE_TK_END				0xFFFFFF		// 语句结束
+	#define XTE_TK_USER				0x1000000		// 大于这个编号的，XTE模板后续更新不会使用，可以安全的用于扩展
+	
+	// 标识符分类
+	#define XTE_IDTPE_DEFAULT		0				// 单语句标识符
+	#define XTE_IDTPE_BLOCK			1
+	
+	// Ident Info 数据结构（用于定义标识符）
 	typedef struct {
-		int iCode;
-		const char* sDesc;
-		uint32 iLine;
-		uint32 iColumn;
-		uint32 iPos;
-		uint32 iRefLine;
-		uint32 iRefColumn;
-		uint32 iRefPos;
-	} XTE_Error;
-
+		char* Ident;								// 标识符
+		uint32 TokenIndex;					// 对应的 Token 编号
+		unsigned short Type;						// 0 = 单语句、1 = 独立语句块(以 {#end} 结尾)
+		unsigned short Size;						// 标识符长度
+		unsigned short MinParamCount;				// 最小参数数量
+		unsigned short MaxParamCount;				// 最大参数数量
+		uint32 Hash;							// 标识符哈希值
+	} XTE_IdentInfo_Struct, *XTE_IdentInfo;
+	
+	// Token Item 数据结构
 	typedef struct {
-		int (*procWrite)(void* pUserData, const char* sText, size_t iSize);
-		void* pUserData;
-		size_t iWritten;
-	} XTE_Writer;
-
+		uint32 Type;							// Token 定义编号
+		char* Text;									// 关联文本
+		size_t Size;								// 关联文本长度
+		uint32 ParamCount;					// 参数数量
+		char* ParamText[XTE_PARAM_MAXCOUNT];		// 参数文本
+		uint32 ParamSize[XTE_PARAM_MAXCOUNT];	// 参数长度
+		XTE_IdentInfo IdentInfo;					// 标识符语句对应的标识符信息结构体指针
+		uint32 RefLine;						// 语句在源文件中所在行
+		uint32 RefLinePos;					// 语句在源文件中所在行的位置
+		uint32 RefPos;						// 语句在源文件中所在的位置
+		uint32 RefSize;						// 语句在源文件中的长度
+	} XTE_TokenItem_Struct, *XTE_TokenItem;
+	
+	// Token List 数据结构
 	typedef struct {
-		const char* sBracket;
-		uint32 iFlags;
-	} XTE_ParseOptions;
-
+		int Success;								// 解析是否成功
+		int ErrorCode;								// 错误代码（0=成功）
+		const char* ErrorDesc;						// 错误描述
+		uint32 ErrorLine;						// 错误行号
+		uint32 ErrorLinePos;					// 错误行位置
+		uint32 ErrorPos;						// 错误位置
+		uint32 ErrorRefLine;					// 出错参考行
+		uint32 ErrorRefLinePos;				// 出错参考行位置
+		uint32 ErrorRefPos;					// 错误参考位置
+		xarray_struct Tokens;						// Token 列表
+	} XTE_TokenList_Struct, *XTE_TokenList;
+	
+	// xTemplate Engine Lite 数据结构
 	typedef struct {
-		xvalue pRoot;
-		xvalue pCurrent;
-		xvalue pGlobal;
-		xdict pIncludeMap;
-		XTE_Writer* pWriter;
-		uint32 iFlags;
-	} XTE_RenderOptions;
-
+		int Success;								// 解析是否成功
+		int ErrorCode;								// 错误代码（0=成功）
+		const char* ErrorDesc;						// 错误描述
+		uint32 ErrorLine;						// 错误行号
+		uint32 ErrorLinePos;					// 错误行位置
+		uint32 ErrorPos;						// 错误位置
+		uint32 ErrorRefLine;					// 出错参考行
+		uint32 ErrorRefLinePos;				// 出错参考行位置
+		uint32 ErrorRefPos;					// 错误参考位置
+		xarray_struct Tokens;								// Token 列表
+		xparray_struct Actions;						// 编译后的动作列表
+		xdict_struct SubTemplates;					// 子模板列表（哈希表）
+	} XTE_LiteStruct, *XTE_LiteObject;
+	
+	// 创建关键字列表（失败返回 NULL）
+	XXAPI xarray xteCreateIdentList();
+	
+	// 销毁关键字列表
+	XXAPI void xteDestroyIdentList(xarray objList);
+	
+	// 添加一个关键字到列表
+	XXAPI int xteAddIdentToList(xarray objList, char* sID, uint32 iSize, uint32 iIndex, uint32 iType, uint32 iMinParamCount, uint32 iMaxParamCount);
+	
+	// 释放 XTE_TokenList
+	XXAPI void xteLexerFree(XTE_TokenList arrToken);
+	
+	// 解析模板文件为 Token 列表
+	XXAPI XTE_TokenList xteLexer(char* sText, size_t iSize, xarray objIdentList, char* sBracket);
+	
+	// 将 XTE_TokenList 转换为 XTE_LiteObject（XTE_TokenList将被释放）
+	XXAPI XTE_LiteObject xteParseFromTokenList(XTE_TokenList objToks);
+	
+	// 解析返回语法列表
+	XXAPI XTE_LiteObject xteParse(char* sText, size_t iSize, char* sBracket);
+	
+	// 释放 XTE_LiteObject 对象
+	XXAPI void xteParseFree(XTE_LiteObject objLite);
+	
+	// 根据 XTE_LiteObject 模板对象生成文档
+	XXAPI char* xteMakeActions(xparray arrAction, XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblRoot, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
+	XXAPI char* xteMake(XTE_LiteObject objTemplate, xvalue tblVal, xvalue tblENV, xdict tblInclude, size_t* pRetSize);
+	
+	// 路径解析器：支持 a.b.c 和 arr[0] 语法
+	// path: 路径字符串（如 "user.profile.name" 或 "items[0].title"）
+	// pathLen: 路径长度（传0则自动计算）
+	// tblVal: 当前作用域
+	// tblRoot: 根作用域
+	// tblENV: 环境变量
+	// 返回: 解析到的 xvalue，失败返回 &XVO_VALUE_NULL
+	XXAPI xvalue xteResolvePath(const char* path, size_t pathLen, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
+	
+	
+	
+	/* -------------------- 表达式解析器 (Expression Parser) -------------------- */
+	
+	// 表达式 Token 类型
+	#define XTE_ETK_EOF			0			// 结束
+	#define XTE_ETK_NUM			1			// 数字（整数或浮点数）
+	#define XTE_ETK_STR			2			// 字符串字面量
+	#define XTE_ETK_BOOL		3			// 布尔值 (true/false)
+	#define XTE_ETK_IDENT		4			// 标识符/变量名（支持路径）
+	#define XTE_ETK_LPAREN		10			// (
+	#define XTE_ETK_RPAREN		11			// )
+	// 运算符
+	#define XTE_ETK_OP_EQ		20			// =
+	#define XTE_ETK_OP_NE		21			// !=
+	#define XTE_ETK_OP_AE		22			// ~= (约等于)
+	#define XTE_ETK_OP_GT		23			// >
+	#define XTE_ETK_OP_LT		24			// <
+	#define XTE_ETK_OP_GE		25			// >=
+	#define XTE_ETK_OP_LE		26			// <=
+	#define XTE_ETK_OP_AND		30			// and
+	#define XTE_ETK_OP_OR		31			// or
+	#define XTE_ETK_OP_NOT		32			// not
+	
+	// 表达式 Token 结构体
 	typedef struct {
-		uint32 iStart;
-		uint32 iCount;
-	} XTE_NodeSpan;
-
-	typedef struct {
-		uint32 iType;
-		uint32 iFlags;
-		uint32 iTextOff;
-		uint32 iTextSize;
-		int64 iIntValue;
-		int iBoolValue;
-	} XTE_ExprNode;
-
-	typedef struct {
-		uint32 iNameOff;
-		uint32 iNameSize;
-		uint32 iRawOff;
-		uint32 iRawSize;
-		uint32 iFlags;
-		uint32 iExprIndex;
-	} XTE_ArgItem;
-
-	typedef struct {
-		xtetemplate hTemplate;
-		const XTE_ArgItem* pItems;
-		uint32 iCount;
-	} XTE_ArgList;
-
-	typedef struct {
-		uint32 iType;
-		uint32 iFlags;
-		uint32 iPos;
-		uint32 iSize;
+		uint32 Type;						// Token 类型
 		union {
+			int64 IntVal;					// 整数值
+			double NumVal;					// 浮点数值
+			int BoolVal;						// 布尔值
 			struct {
-				uint32 iTextOff;
-				uint32 iTextSize;
-			} Text;
+				const char* Ptr;			// 字符串/标识符指针
+				size_t Len;					// 长度
+			} Str;
+		} Value;
+		int IsFloat;							// 数字是否为浮点数
+		size_t Pos;							// 在表达式中的位置
+	} XTE_ExprToken_Struct, *XTE_ExprToken;
+	
+	// AST 节点类型
+	#define XTE_AST_LITERAL		1			// 字面量（数字、字符串、布尔）
+	#define XTE_AST_VARIABLE	2			// 变量引用
+	#define XTE_AST_UNARY		3			// 一元运算 (not)
+	#define XTE_AST_BINARY		4			// 二元运算
+	
+	// 字面量类型
+	#define XTE_LIT_INT			1			// 整数
+	#define XTE_LIT_FLOAT		2			// 浮点数
+	#define XTE_LIT_STRING		3			// 字符串
+	#define XTE_LIT_BOOL		4			// 布尔
+	
+	// AST 节点结构体（前向声明）
+	typedef struct XTE_ASTNode_Struct XTE_ASTNode_Struct;
+	typedef XTE_ASTNode_Struct* XTE_ASTNode;
+	
+	struct XTE_ASTNode_Struct {
+		uint32 Type;						// 节点类型
+		union {
+			// 字面量节点
 			struct {
-				uint32 iOutputType;
-				uint32 iExprIndex;
-				uint32 iFormatOff;
-				uint32 iFormatSize;
-				uint32 iNameOff;
-				uint32 iNameSize;
-				uint32 iArgStart;
-				uint32 iArgCount;
-			} Output;
+				uint32 LitType;			// 字面量类型
+				union {
+					int64 IntVal;
+					double NumVal;
+					int BoolVal;
+					struct {
+						char* Ptr;			// 已复制的字符串
+						size_t Len;
+					} Str;
+				} Val;
+			} Literal;
+			// 变量节点
 			struct {
-				uint32 iExprIndex;
-				uint32 iTrueOff;
-				uint32 iTrueSize;
-				uint32 iFalseOff;
-				uint32 iFalseSize;
-			} InlineBool;
+				char* Path;					// 路径字符串（已复制）
+				size_t PathLen;
+			} Variable;
+			// 一元运算节点
 			struct {
-				uint32 iStmtNameOff;
-				uint32 iStmtNameSize;
-				uint32 iArgStart;
-				uint32 iArgCount;
-				XTE_NodeSpan tBody;
-				uint32 iRawBodyOff;
-				uint32 iRawBodySize;
-				ptr pData;
-			} Statement;
+				uint32 Op;				// 运算符
+				XTE_ASTNode Operand;		// 操作数
+			} Unary;
+			// 二元运算节点
+			struct {
+				uint32 Op;				// 运算符
+				XTE_ASTNode Left;			// 左操作数
+				XTE_ASTNode Right;			// 右操作数
+			} Binary;
 		} Data;
-	} XTE_Node;
-
-	typedef enum {
-		XTE_FLOW_OK = 0,
-		XTE_FLOW_BREAK = 1,
-		XTE_FLOW_CONTINUE = 2,
-		XTE_FLOW_ERROR = -1
-	} XTE_Flow;
-
-	typedef struct XTE_StatementDef_Struct {
-		const char* sName;
-		uint32 iFlags;
-		uint16 iMinArgs;
-		uint16 iMaxArgs;
-		void* pUserData;
-
-		int (*procParse)(XTE_StmtParseCtx* pCtx, void** ppData);
-		XTE_Flow (*procRender)(XTE_StmtRenderCtx* pCtx);
-		void (*procFreeData)(void* pData);
-	} XTE_StatementDef;
-
-	typedef struct XTE_FunctionDef_Struct {
-		const char* sName;
-		uint16 iMinArgs;
-		uint16 iMaxArgs;
-		void* pUserData;
-		int (*procCall)(XTE_FuncCtx* pCtx, xvalue* ppRet);
-	} XTE_FunctionDef;
-
-	struct XTE_StmtParseCtx_Struct {
-		xteengine hEngine;
-		xtetemplate hTemplate;
-		const XTE_StatementDef* pDef;
-		const XTE_ArgList* pArgs;
-		const XTE_NodeSpan* pBody;
-		const char* sRawBody;
-		size_t iRawBodySize;
-		XTE_Error* pError;
-		void* pUserData;
 	};
-
-	struct XTE_StmtRenderCtx_Struct {
-		XTE_RenderCtx* pRender;
-		const XTE_StatementDef* pDef;
-		const XTE_ArgList* pArgs;
-		const XTE_NodeSpan* pBody;
-		const char* sRawBody;
-		size_t iRawBodySize;
-		void* pData;
-		void* pUserData;
-	};
-
-	struct XTE_FuncCtx_Struct {
-		XTE_RenderCtx* pRender;
-		const XTE_FunctionDef* pDef;
-		const XTE_ArgList* pArgs;
-		void* pUserData;
-	};
-
-	XXAPI xteengine xteCreateEngine(void);
-	XXAPI void xteDestroyEngine(xteengine hEngine);
-	XXAPI int xteRegisterBuiltinStatements(xteengine hEngine);
-	XXAPI int xteRegisterStatement(xteengine hEngine, const XTE_StatementDef* pDef);
-	XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef);
-
-	XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize, const XTE_ParseOptions* pOptions, XTE_Error* pError);
-	XXAPI xtetemplate xteParse(const char* sText, size_t iSize, const char* sBracket);
-	XXAPI void xteDestroyTemplate(xtetemplate hTemplate);
-	XXAPI void xteParseFree(xtetemplate hTemplate);
-
-	XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, XTE_Error* pError);
-	XXAPI char* xteMake(xtetemplate hTemplate, xvalue pCurrent, xvalue pGlobal, xdict pIncludeMap, size_t* pRetSize);
-
-	XXAPI xvalue xteResolvePath(const char* sPath, size_t iPathSize, xvalue pCurrent, xvalue pRoot, xvalue pLocal, xvalue pGlobal);
-
-	XXAPI uint32 xteTemplateGetNodeCount(xtetemplate hTemplate);
-	XXAPI uint32 xteTemplateGetExprCount(xtetemplate hTemplate);
-	XXAPI uint32 xteTemplateGetArgCount(xtetemplate hTemplate);
-	XXAPI uint32 xteTemplateGetStringPoolSize(xtetemplate hTemplate);
-	XXAPI XTE_NodeSpan xteTemplateGetRootSpan(xtetemplate hTemplate);
-	XXAPI const XTE_Node* xteTemplateGetNode(xtetemplate hTemplate, uint32 iIndex);
-	XXAPI const XTE_ExprNode* xteTemplateGetExpr(xtetemplate hTemplate, uint32 iIndex);
-	XXAPI const XTE_ArgItem* xteTemplateGetArg(xtetemplate hTemplate, uint32 iIndex);
-	XXAPI const char* xteTemplateGetString(xtetemplate hTemplate, uint32 iOff);
-
-	XXAPI uint32 xteArgCount(const XTE_ArgList* pArgs);
-	XXAPI const XTE_ArgItem* xteArgAt(const XTE_ArgList* pArgs, uint32 iIndex);
-	XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* sName, size_t iNameSize);
-	XXAPI xvalue xteEvalArgValue(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
-	XXAPI int xteEvalArgBool(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut);
-	XXAPI int xteEvalArgInt(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut);
-	XXAPI int xteEvalArgFloat(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut);
-	XXAPI char* xteEvalArgText(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg);
-
-	XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize);
-	XXAPI int xteStmtRenderBody(XTE_StmtRenderCtx* pCtx);
-	XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xvalue pCurrent);
-
-	#ifdef XTE_ENABLE_FILE
-	XXAPI int xteTemplateSaveFile(xtetemplate hTemplate, const char* sFilePath, uint32 iFlags, XTE_Error* pError);
-	XXAPI xtetemplate xteTemplateLoadFile(xteengine hEngine, const char* sFilePath, uint32 iFlags, XTE_Error* pError);
-	#endif
-
-	#ifdef XTE_DEBUGMODE
-	XXAPI int xteTemplateDump(xtetemplate hTemplate, XTE_Writer* pWriter, uint32 iFlags);
-	XXAPI int xteTemplateDumpConsole(xtetemplate hTemplate, uint32 iFlags);
-	#endif
+	
+	// 表达式解析结果
+	typedef struct {
+		int Success;							// 解析是否成功
+		const char* ErrorDesc;					// 错误描述
+		size_t ErrorPos;						// 错误位置
+		XTE_ASTNode Root;						// AST 根节点
+	} XTE_ExprResult_Struct, *XTE_ExprResult;
+	
+	// 解析表达式字符串，返回 AST
+	XXAPI XTE_ExprResult xteExprParse(const char* expr, size_t len);
+	
+	// 释放表达式解析结果
+	XXAPI void xteExprFree(XTE_ExprResult result);
+	
+	// 求值表达式，返回 xvalue 结果（调用者负责 unref）
+	XXAPI xvalue xteExprEval(XTE_ASTNode ast, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
+	
+	// 便捷函数：解析并求值表达式，返回布尔结果
+	XXAPI int xteExprEvalBool(const char* expr, size_t len, xvalue tblVal, xvalue tblRoot, xvalue tblENV);
 	
 	
 	

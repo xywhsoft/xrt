@@ -36,7 +36,7 @@ if exist "%OUTPUT_DIR%\single_head_maker.exe" (
 
 echo Compiling single_head_maker.c...
 
-tcc single_head_maker.c -o "%OUTPUT_DIR%\single_head_maker.exe"
+tcc -DXRT_NO_COROUTINE single_head_maker.c "%SOURCE_DIR%\xrt.c" -I "%SOURCE_DIR%" -lShell32 -lWs2_32 -lIPHLPAPI -o "%OUTPUT_DIR%\single_head_maker.exe"
 
 if errorlevel 1 (
     echo.
@@ -69,6 +69,8 @@ echo.
 cd /d "%SCRIPT_DIR%"
 
 if exist "%OUTPUT_DIR%\xrt.h" (
+    copy /y "%OUTPUT_DIR%\xrt.h" "%TOOLS_DIR%\xrt.h" >nul
+
     for %%A in ("%OUTPUT_DIR%\xrt.h") do set SIZE=%%~zA
     echo Generated file size: !SIZE! bytes
     
