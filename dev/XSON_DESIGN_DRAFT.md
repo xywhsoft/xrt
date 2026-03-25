@@ -1,120 +1,67 @@
-# XSON 设计草案
+# XSON 设计文档
 
-版本: `0.1`
+版本: `0.2`
 状态: `draft`
-更新时间: `2026-03-24`
+更新时间: `2026-03-25`
 
 
 
-## 1. 背景
+## 1. 定位
 
-当前 `JSON -> xvalue` 和 `xvalue -> JSON` 的适配只覆盖了标准 JSON 能直接表达的主类型：
+`XSON` 是 `JSON` 的私有扩展格式，用于完整序列化和反序列化 `xvalue`。
+
+设计定位如下：
+
+- `JSON` 仍然是通用标准格式
+- `XSON` 是面向 `xvalue` 的扩展格式
+- 所有合法 `JSON` 文本都必须是合法 `XSON` 文本
+- 所有合法 `JSON` 文本在 `XSON` 中的语义必须保持不变
+
+因此：
+
+- `xrtParseJSON()` 只处理 JSON
+- `xrtParseXSON()` 处理 XSON
+- `XSON` 可以读取纯 JSON
+- `JSON` 不需要理解 XSON 扩展语法
+
+
+
+## 2. 支持范围
+
+`XSON` 当前支持以下 `xvalue` 类型：
 
 - `null`
 - `bool`
 - `int`
 - `float`
 - `text`
-- `array`
-- `table`
-
-这意味着以下 `xvalue` 类型目前无法完整往返：
-
 - `time`
-- `list`
-- `coll(set)`
-- `class`
-- `custom`
-- `point`
-- `func`
-
-其中前 4 类是明确需要进入持久化体系的；`custom / point / func` 则需要更谨慎地定义边界。
-
-因此需要在现有 JSON 设施之外，引入一个私有扩展格式 `XSON`，用于完成 `xvalue` 的完整序列化与反序列化。
-
-
-
-## 2. 设计目标
-
-- 保持 `JSON` 作为通用、标准、对外交换格式
-- 新增 `XSON` 作为私有、面向 `xvalue` 的完整序列化格式
-- 不污染现有 JSON API 与 JSON 语义
-- 尽量复用现有 JSON 的字符串、数字、容器、格式化输出等基础设施
-- 支持 `time / list / coll / class` 的稳定往返
-- 为 `custom` 预留编解码器扩展点
-- 明确区分“同构快照能力”和“跨平台可移植能力”
-
-
-
-## 3. 非目标
-
-- 不让 `xrtParseJSON()` 直接接受 XSON
-- 不扩展现有 `json_type_t` 去承载 `time / list / coll / class / custom`
-- 不承诺 `class` 的原始二进制在不同 ABI、不同编译器、不同打包方式之间天然可移植
-- 不默认支持 `point / func` 的通用反序列化
-
-
-
-## 4. 共存策略
-
-`JSON` 和 `XSON` 采用双入口并存：
-
-- `JSON`
-	- 面向开放协议、配置文件、通用交换
-	- 语义保持标准 JSON
-	- 继续使用现有 `xrtParseJSON()` / `xrtStringifyJSON()`
-- `XSON`
-	- 面向内部快照、缓存、调试落盘、私有数据交换
-	- 允许扩展语法
-	- 新增独立 API
-
-推荐 API：
-
-```c
-xvalue xrtParseXSON( str sText, size_t iSize );
-xvalue xrtParseXSON_File( str sFile );
-
-char* xrtStringifyXSON( xvalue varVal, int bFormat, uint32 iFlags, size_t* pRetSize );
-bool xrtStringifyXSON_File( str sFile, xvalue varVal, int bFormat, uint32 iFlags );
-```
-
-建议同时补一组带错误结构的扩展接口：
-
-```c
-typedef struct xson_error_t
-{
-	int iCode;
-	size_t iOffset;
-	size_t iLine;
-	size_t iColumn;
-	char sMsg[128];
-} xson_error_t;
-
-xvalue xrtParseXSONEx( str sText, size_t iSize, uint32 iFlags, xson_error_t* pErr );
-```
-
-原因：
-
-- 当前 JSON 入口存在“解析失败”和“值本身就是 `null`”难以区分的问题
-- `XSON` 作为私有格式，应该从一开始就把错误定位补完整
-
-
-
-## 5. 类型映射
-
-### 5.1 与 JSON 完全一致的类型
-
-以下类型在 `XSON` 中沿用 JSON 原生写法：
-
-- `null`
-- `bool`
-- `int`
-- `float`
-- `text`
 - `array`
-- `table`
+- `list`
+- `dict(table)`
+- `set(coll)`
+- `class`
 
-示例：
+`XSON` 明确不支持以下类型的序列化和反序列化：
+
+- `ptr(point)`
+- `func`
+- `custom`
+
+约束：
+
+- 默认情况下，序列化时遇到不支持类型应返回错误
+- 默认情况下，反序列化时遇到不支持类型语法应返回错误
+- 可通过解析和序列化参数忽略不支持类型错误
+- 不允许静默退化为 `null`
+
+
+
+## 3. 总体语法
+
+### 3.1 JSON 兼容
+
+以下 JSON 写法在 XSON 中保持原义：
 
 ```xson
 null
@@ -127,480 +74,377 @@ true
 ```
 
 
-### 5.2 `time`
-
-语法：
-
-```xson
-#2026-03-24 16:30:00#
-```
-
-规则：
-
-- 使用 `#` 作为包裹符
-- 内部时间文本固定为 `YYYY-MM-DD HH:MM:SS`
-- 解析时转换为 `XVO_DT_TIME`
-- 输出时默认也使用这一格式
-
-说明：
-
-- `#...#` 不属于 JSON 语法，因此只能在 `XSON` 入口使用
-- 如后续需要毫秒、UTC 偏移、纯日期等能力，应新增 flag 或扩展写法，但 V1 不建议一次做太多
-
-
-### 5.3 `coll(set)`
-
-语法：
-
-```xson
-{1, 2, "abc", #2026-03-24 16:30:00#}
-```
-
-规则：
-
-- 非空花括号中，如果首个顶层分隔关系不是 `key:value`，则按 `set` 解析
-- 输出时按集合元素顺序打印
-
-说明：
-
-- `coll` 底层是集合语义，不保留 JSON object 的键值结构
-- 集合顺序应遵循当前 `coll` 容器的遍历顺序，不额外伪造插入顺序
-
-
-### 5.4 `list`
-
-语法：
-
-```xson
-[1:"a", 2:100, -5:#2026-03-24 16:30:00#]
-```
-
-规则：
-
-- 非空方括号中，如果首个顶层元素形如 `int64:value`，则按 `list` 解析
-- `list` 的索引允许为负数，也允许稀疏
-- 输出时按当前 `list` 的遍历顺序打印
-
-说明：
-
-- `list` 在 XRT 中不是 JSON array 的别名，而是“整型索引到值”的映射结构
-- 因此必须与普通 `array` 做语义区分
-
-
-### 5.5 `class`
-
-默认采用 tagged form：
-
-```xson
-{
-	"__xson_type__":"class",
-	"size":24,
-	"data":"BASE64..."
-}
-```
-
-建议可选保留元信息：
-
-```xson
-{
-	"__xson_type__":"class",
-	"size":24,
-	"data":"BASE64...",
-	"abi":"msvc-x64",
-	"name":"my_struct_v1"
-}
-```
-
-规则：
-
-- `data` 为结构体原始内存的 `BASE64`
-- `size` 为原始字节数
-- V1 默认只保证“同构快照”可逆，不保证跨 ABI 可移植
-
-说明：
-
-- 如果结构体中包含指针、函数指针、平台相关对齐、不同编译器打包差异，则原始字节只适合同平台、同 ABI、同版本回灌
-- 若需要跨平台可移植，应由业务自行提供 codec，把结构体展开为稳定字段
-
-
-### 5.6 `custom`
-
-默认不做裸内存序列化，采用 codec 扩展：
-
-```xson
-{
-	"__xson_type__":"custom",
-	"codec":"MyCodecV1",
-	"payload":{...}
-}
-```
-
-规则：
-
-- `codec` 必须能在运行时注册并查找到对应编解码器
-- `payload` 的具体结构由 codec 自己定义
-
-说明：
-
-- `custom` 不适合做“通用自动持久化”
-- 如果没有 codec，反序列化应明确报错，而不是静默退化为 `null`
-
-
-### 5.7 `point / func`
-
-V1 默认策略：
-
-- 不支持通用序列化
-- `xrtStringifyXSON()` 遇到此类值时返回错误
-
-未来若确有需求，可引入符号注册方式：
-
-```xson
-{
-	"__xson_type__":"func",
-	"symbol":"procTest"
-}
-```
-
-但这不应进入 V1 主线。
-
-
-
-## 6. 语法规则
-
-### 6.1 根值
-
-`XSON` 根值允许为任意单值，与当前 JSON 宽松根值策略保持一致：
-
-- 标量
-- `array`
-- `table`
-- `time`
-- `set`
-- `list`
-
-
-### 6.2 容器歧义处理
-
-XSON 必须处理以下歧义：
-
-- `{...}` 可能是 `object`
-- `{...}` 也可能是 `set`
-- `[...]` 可能是 `array`
-- `[...]` 也可能是 `list`
-
-推荐判定规则：
-
-- `{}` 固定表示空 `object`
-- `[]` 固定表示空 `array`
-- 非空 `{...}`：
-	- 如果首个顶层分隔关系是 `name:value`，按 `object`
-	- 否则按 `set`
-- 非空 `[...]`：
-	- 如果首个顶层分隔关系是 `int64:value`，按 `list`
-	- 否则按 `array`
-
-这意味着：
-
-- 空 `set` 不能写成 `{}`
-- 空 `list` 不能写成 `[]`
-
-V1 对空 `set / list` 统一采用 tagged form：
-
-```xson
-{"__xson_type__":"coll","items":[]}
-{"__xson_type__":"list","items":[]}
-```
-
-
-### 6.3 保留字段
-
-为避免和普通业务表冲突，XSON 预留以下保留字段：
-
-- `__xson_type__`
-- `codec`
-- `payload`
-- `size`
-- `data`
-- `items`
+### 3.2 XSON 扩展前缀
+
+XSON 在 JSON 基础上增加以下前缀语法：
+
+- `array[ ... ]`
+- `list[ ... ]`
+- `dict{ ... }`
+- `set{ ... }`
+- `time( ... )`
+- `class( ... )`
 
 约束：
 
-- 仅当 object 命中 `__xson_type__` 时，才进入 tagged form 分支
-- 普通 object 即使包含 `size`、`data` 等字段，也不应被误判为特殊类型
+- 前缀和后续开启符之间不允许插入空白
+- `array[`、`list[`、`dict{`、`set{`、`time(`、`class(` 视为完整语法入口
+- 扩展前缀只在 `XSON` 入口生效
 
 
 
-## 7. 格式化输出策略
+## 4. 各类型表示
 
-### 7.1 一般规则
+### 4.1 `array`
 
-- 复用现有 JSON 格式化风格
-- 支持压缩模式和格式化模式
-- 对 `time / set / list` 也使用与 JSON 一致的缩进、换行和逗号策略
+显式写法：
+
+```xson
+array[1, 2, 3]
+```
+
+兼容写法：
+
+```xson
+[1, 2, 3]
+```
+
+空值：
+
+```xson
+[]
+array[]
+```
+
+说明：
+
+- `[]` 在 XSON 中固定表示空数组
+- `array[...]` 强制按数组解析
+- 不带前缀的非空 `[...]` 可通过判定规则识别为数组或列表
 
 
-### 7.2 稳定性
+### 4.2 `list`
 
-建议增加以下可选输出 flag：
+显式写法：
+
+```xson
+list[1:"a", 2:100, -5:time(2026-03-25 12:00:00)]
+```
+
+兼容写法：
+
+```xson
+[1:"a", 2:100, -5:time(2026-03-25 12:00:00)]
+```
+
+空值：
+
+```xson
+list[]
+```
+
+说明：
+
+- `list` 是“整数索引到值”的映射结构，不是 JSON array 的别名
+- 空列表必须写为 `list[]`
+- 不带前缀的非空 `[...]` 若命中列表判定规则，则按 `list` 解析
+
+
+### 4.3 `dict(table)`
+
+显式写法：
+
+```xson
+dict{"name":"xrt","ok":true}
+```
+
+兼容写法：
+
+```xson
+{"name":"xrt","ok":true}
+```
+
+空值：
+
+```xson
+{}
+dict{}
+```
+
+说明：
+
+- `{}` 在 XSON 中固定表示空字典
+- `dict{...}` 强制按字典解析
+- 不带前缀的非空 `{...}` 可通过判定规则识别为字典或集合
+- 字典键语法沿用 JSON object 的键语法
+
+
+### 4.4 `set(coll)`
+
+显式写法：
+
+```xson
+set{1, 2, "abc", time(2026-03-25 12:00:00)}
+```
+
+兼容写法：
+
+```xson
+{1, 2, "abc", time(2026-03-25 12:00:00)}
+```
+
+空值：
+
+```xson
+set{}
+```
+
+说明：
+
+- `set` 是集合语义，不保留字典键值结构
+- 空集合必须写为 `set{}`
+- 不带前缀的非空 `{...}` 若命中集合判定规则，则按 `set` 解析
+
+
+### 4.5 `time`
+
+写法：
+
+```xson
+time(2000-01-02 12:00:00)
+```
+
+说明：
+
+- `time(...)` 内部文本固定为 `YYYY-MM-DD HH:MM:SS`
+- V1 不支持毫秒、时区偏移和其他时间字面量格式
+- `time(...)` 可以出现在任意值位置，也可以作为根值
+
+
+### 4.6 `class`
+
+写法：
+
+```xson
+class(SGVsbG8=)
+```
+
+说明：
+
+- `class(...)` 内部内容为结构体原始二进制的 `BASE64`
+- `BASE64` 解码后的字节长度就是结构体数据长度
+- `class(...)` 可以出现在任意值位置，也可以作为根值
+
+边界：
+
+- 当前 `class` 只定义为原始内存快照
+- 不携带类型名、字段信息、ABI 信息和版本信息
+- 仅保证“同构快照”可逆，不保证跨平台、跨 ABI、跨编译器可移植
+
+
+
+## 5. 容器判定规则
+
+### 5.1 显式前缀优先
+
+如果存在显式前缀，则不再做歧义判断：
+
+- `array[...]` 一定是 `array`
+- `list[...]` 一定是 `list`
+- `dict{...}` 一定是 `dict`
+- `set{...}` 一定是 `set`
+
+
+### 5.2 非空 `[...]` 的判定
+
+对于不带前缀的非空 `[...]`：
+
+- 如果首个顶层元素匹配 `int64:value`，则整个容器按 `list` 解析
+- 否则按 `array` 解析
+
+附加约束：
+
+- 一旦按 `list` 进入解析，则所有顶层元素都必须满足 `int64:value`
+- `list` 索引允许负数
+- `list` 索引不允许浮点数
+
+
+### 5.3 非空 `{...}` 的判定
+
+对于不带前缀的非空 `{...}`：
+
+- 如果首个顶层元素匹配 `key:value`，则整个容器按 `dict` 解析
+- 否则按 `set` 解析
+
+附加约束：
+
+- 一旦按 `dict` 进入解析，则所有顶层元素都必须满足 `key:value`
+- `dict` 的键规则沿用 JSON object
+
+
+### 5.4 空容器的固定语义
+
+空容器不参与歧义判断：
+
+- `[]` 固定为 `array`
+- `{}` 固定为 `dict`
+- `list[]` 固定为 `list`
+- `set{}` 固定为 `set`
+
+
+
+## 6. 推荐输出规则
+
+为保证可读性、稳定性和与 JSON 的共存，`xrtStringifyXSON()` 的推荐输出形式如下：
+
+- `array` 输出为 `[...]`
+- `dict` 输出为 `{...}`
+- `list` 输出为 `list[...]`
+- `set` 输出为 `set{...}`
+- `time` 输出为 `time(YYYY-MM-DD HH:MM:SS)`
+- `class` 输出为 `class(BASE64)`
+
+说明：
+
+- 解析器同时接受显式前缀写法和无前缀兼容写法
+- 生成器优先输出无歧义形式
+- 因此对 `list / set / time / class`，生成器应使用显式前缀
+
+
+
+## 7. 根值规则
+
+`XSON` 根值允许为任意单个值，包括：
+
+- 标量
+- `array`
+- `list`
+- `dict`
+- `set`
+- `time`
+- `class`
+
+示例：
+
+```xson
+time(2000-01-02 12:00:00)
+```
+
+```xson
+set{1, 2, 3}
+```
+
+```xson
+class(AAECAwQ=)
+```
+
+
+
+## 8. 与 JSON 的关系
+
+`XSON` 与 `JSON` 的关系明确如下：
+
+- `JSON` 是 `XSON` 的子集
+- 纯 JSON 文本可以直接由 `xrtParseXSON()` 解析
+- `xrtParseJSON()` 不要求支持 `XSON`
+- `xrtStringifyJSON()` 不负责表达 `time / list / set / class`
+- `xrtStringifyXSON()` 才负责完整表达这些扩展类型
+
+
+
+## 9. 错误处理边界
+
+以下情况必须报错：
+
+- `list[...]` 中存在非 `int64:value` 元素
+- `dict{...}` 中存在非法 `key:value` 元素
+- `time(...)` 中时间文本不符合 `YYYY-MM-DD HH:MM:SS`
+- `class(...)` 中内容不是合法 `BASE64`
+- 序列化遇到 `ptr(point) / func / custom`
+- 反序列化遇到未定义前缀类型
+
+但允许通过参数改为“忽略不支持类型”模式。
+
+建议增加类似 flag：
 
 ```c
-#define XSON_F_NONE				0x0000
-#define XSON_F_CANONICAL			0x0001
-#define XSON_F_PORTABLE_CLASS		0x0002
-#define XSON_F_ALLOW_TAGGED_EMPTY	0x0004
+#define XSON_F_IGNORE_UNSUPPORTED_ENCODE	0x0001
+#define XSON_F_IGNORE_UNSUPPORTED_DECODE	0x0002
 ```
 
 建议语义：
 
-- `XSON_F_CANONICAL`
-	- 尽量输出稳定、可比对的文本
-	- `table` / tagged form 字段顺序固定
-- `XSON_F_PORTABLE_CLASS`
-	- 遇到 `class` 时不走裸字节方案，必须交由 codec 或直接报错
-- `XSON_F_ALLOW_TAGGED_EMPTY`
-	- 允许空 `set / list` 强制使用 tagged form
+- `XSON_F_IGNORE_UNSUPPORTED_ENCODE`
+	- 序列化遇到 `ptr(point) / func / custom` 时跳过该值，而不是整体失败
+- `XSON_F_IGNORE_UNSUPPORTED_DECODE`
+	- 反序列化遇到未支持类型前缀时跳过该值，而不是整体失败
 
+建议约束：
 
+- 根值如果是不支持类型，即使开启忽略模式，也应返回错误
+- 容器内部元素若被跳过，不应自动补成 `null`
+- `dict` 中被跳过的键值对应整体移除
+- `set` / `array` / `list` 中被跳过的元素应直接省略
+- “忽略不支持类型”只针对类型不支持，不应用于普通语法错误
+- 例如括号不匹配、时间格式错误、BASE64 非法，仍应报错
 
-## 8. 实现分层建议
+不允许的行为：
 
-推荐新增独立模块，而不是继续堆在 `lib/json.h` 里：
+- 把不支持类型自动转成字符串
+- 把普通语法错误自动转成 `null`
+- 在 `JSON` 入口偷偷接受 `XSON` 扩展
 
-- `lib/xson.h`
-	- XSON parser / printer 主实现
-- `docs/api/api-xson.md`
-	- 面向用户的 API 文档
-- `test/test_xson.h`
-	- 单元测试
 
-头文件导出建议：
 
-- 在 `xrt.h` 中公开 XSON API
-- 不修改现有 JSON 公共结构体
-- 不新增 XSON 到 `json_type_t`
+## 10. `class` 的边界说明
 
-内部复用建议：
+`class(BASE64)` 只表示原始字节数据，不表示可移植对象模型。
 
-- 复用现有字符串转义与打印逻辑
-- 复用现有数字解析与输出逻辑
-- 复用 `xrtStrToTime()` / `xrtDecodeSerial()` 等时间工具
-- 复用 `xrtBase64Encode()` / `xrtBase64Decode()` 处理 `class`
-- 复用 `xarray / xlist / xdict / xavltree` 遍历能力组装 `xvalue`
+当前明确边界如下：
 
+- 适合进程内快照、调试落盘、同 ABI 回灌
+- 不承诺 Windows 和 Linux 间可直接互通
+- 不承诺 32 位和 64 位间可直接互通
+- 不承诺不同编译器打包布局一致
+- 若结构体中包含指针，恢复结果仅是原始字节恢复，不代表指针目标可用
 
+因此：
 
-## 9. 解析器方案
+- `class` 当前是“二进制快照能力”
+- 不是“可移植结构体协议”
 
-### 9.1 不污染 JSON
 
-不建议在现有 `xrtJsonParseSAX()` 上继续打补丁去兼容 XSON。
 
-原因：
+## 11. API 边界
 
-- JSON 是标准格式，不应被私有语法污染
-- `time / set / list` 语义判断明显超出 JSON 范畴
-- 若继续混用，后续错误处理、文档、兼容性都会变得混乱
-
-正确做法：
-
-- 独立入口 `xrtParseXSON()`
-- 内部可借鉴 JSON 的 tokenizer、字符串处理、数字处理思路
-- 但语法状态机单独维护
-
-
-### 9.2 解析流程
-
-建议流程：
-
-1. 跳过空白
-2. 看首字符决定进入哪类分支
-3. `"` 进入字符串
-4. 数字、`+`、`-`、`.` 进入数值
-5. `#` 进入时间
-6. `{` 进入 `object/set` 二义性解析
-7. `[` 进入 `array/list` 二义性解析
-8. 命中 `true / false / null / nan / inf` 等关键字时，沿用当前宽松 JSON 数值策略
-
-
-### 9.3 object 与 set 判定
-
-`{` 后建议先做一次轻量探测：
-
-- 扫描首个顶层元素
-- 若遇到合法 `key:value` 结构，则按 object
-- 若遇到逗号或 `}` 前都没有出现 object 的 `:` 关系，则按 set
-
-注意：
-
-- 这里的 `:` 必须是“首个元素顶层层级”的 `:`
-- 字符串、嵌套对象、嵌套数组内部的 `:` 不参与判定
-
-
-### 9.4 array 与 list 判定
-
-`[` 后也做轻量探测：
-
-- 扫描首个顶层元素
-- 若左侧为合法 `int64`，且顶层出现 `:`，则按 list
-- 否则按 array
-
-注意：
-
-- `list` 左侧索引必须是整数文本
-- 不接受浮点索引
-- `1 : "a"` 这种含空白的形式允许，但最终仍按 `int64:value` 解释
-
-
-
-## 10. 序列化器方案
-
-打印逻辑建议分 3 层：
-
-### 10.1 基础打印层
-
-复用或抽出通用能力：
-
-- 缓冲扩容
-- 缩进
-- 逗号控制
-- 字符串转义
-- 数字输出
-
-
-### 10.2 容器打印层
-
-为以下类型单独提供打印函数：
-
-- `array`
-- `table`
-- `list`
-- `coll`
-- tagged object
-
-
-### 10.3 特殊值打印层
-
-为以下类型提供专门逻辑：
-
-- `time`
-- `class`
-- `custom`
-- 错误分支
-
-建议默认行为：
-
-- `time` 直接输出 `#YYYY-MM-DD HH:MM:SS#`
-- `class` 输出 tagged form
-- `custom` 若无 codec，则报错
-- `point / func` 报错
-
-
-
-## 11. `class` 的可移植性边界
-
-这是 XSON 设计中最需要提前说清楚的点。
-
-`class -> BASE64(raw bytes)` 只能保证以下场景可逆：
-
-- 同平台
-- 同 CPU 架构
-- 同 ABI
-- 同编译器或兼容 ABI
-- 同结构体定义
-
-以下情况默认不保证：
-
-- Windows 写入，Linux 读取
-- 32 位写入，64 位读取
-- 不同编译器打包方式不同
-- 结构体内部包含指针，需要深层对象重建
-
-因此建议把 `class` 支持分成两档：
-
-- `Snapshot Mode`
-	- 直接保存 raw bytes
-	- 适合缓存、调试快照、同构进程落盘
-- `Portable Mode`
-	- 必须由 codec 将结构体映射为稳定字段
-	- 适合跨平台、跨版本持久化
-
-`XSON_F_PORTABLE_CLASS` 就是为此准备的。
-
-
-
-## 12. `custom` 的扩展模型
-
-推荐未来提供一套注册接口：
+建议保留独立 XSON API：
 
 ```c
-typedef bool (*xson_custom_encode_proc)( xvalue varVal, xvalue* pOutPayload );
-typedef xvalue (*xson_custom_decode_proc)( xvalue varPayload );
+xvalue xrtParseXSON( str sText, size_t iSize );
+xvalue xrtParseXSON_File( str sFile );
 
-bool xrtXSONRegisterCustomCodec(
-	str sCodec,
-	xson_custom_encode_proc procEncode,
-	xson_custom_decode_proc procDecode
-);
+char* xrtStringifyXSON( xvalue varVal, int bFormat, uint32 iFlags, size_t* pRetSize );
+bool xrtStringifyXSON_File( str sFile, xvalue varVal, int bFormat, uint32 iFlags );
 ```
 
-约束：
+说明：
 
-- `payload` 本身仍应是可由 XSON 表达的值
-- codec 名称必须稳定
-- 找不到 codec 时应返回明确错误
-
-V1 可以只预留设计，不立即实现完整注册体系。
+- `JSON` API 和 `XSON` API 分离
+- `XSON` 内部可以复用现有 JSON 的字符串、数字、格式化输出设施
+- 但语法入口和类型语义保持独立
 
 
 
-## 13. 推荐落地步骤
+## 12. 最终结论
 
-### Phase 1
+当前 XSON 的明确设计如下：
 
-- 新增 `dev` 设计文档
-- 整理 API 草案
-- 清理 JSON/XSON 职责边界
-
-
-### Phase 2
-
-- 新增 `lib/xson.h`
-- 实现 `time / list / coll / class` 的 parser + printer
-- 增加 `xrtParseXSONEx()` 错误结构
-- 增加 `test/test_xson.h`
-
-
-### Phase 3
-
-- 增加 `custom` codec 扩展
-- 增加 `XSON_F_CANONICAL`
-- 补齐 `docs/api/api-xson.md`
-- 为单头生成器补充 XSON 导出
-
-
-### Phase 4
-
-- 评估是否要支持 `point / func` 的符号化序列化
-- 评估是否要支持更丰富的时间文本格式
-- 评估是否需要 XSON SAX 或流式接口
-
-
-
-## 14. 最终建议
-
-当前最稳妥的方案是：
-
-- `JSON` 保持标准和纯净
-- `XSON` 单独建立入口
-- `time / set / list` 使用轻量语法糖
-- `class / custom` 使用 tagged form
-- `class` 明确区分“同构快照”与“可移植持久化”
-- `point / func` 暂不纳入 V1
-
-这样做的优点是：
-
-- 对现有 JSON 主线侵入最小
-- 对 `xvalue` 的覆盖最完整
-- 语法可读性较好
-- 后续可渐进扩展，不会一开始就把体系做死
+- `XSON` 是 `JSON` 的超集，并保持对 JSON 的完全兼容
+- 扩展类型通过前缀表示：`array / list / dict / set / time / class`
+- `[]` 固定为空数组，`{}` 固定为空字典
+- `list[]` 固定为空列表，`set{}` 固定为空集合
+- 非空无前缀 `[...]` 和 `{...}` 仍允许通过 `:` 规则判定为数组、列表、字典或集合
+- `time` 使用 `time(YYYY-MM-DD HH:MM:SS)`
+- `class` 使用 `class(BASE64)`
+- `ptr(point) / func / custom` 不支持序列化和反序列化
+- `class` 仅提供二进制快照能力，不承诺跨平台可移植
