@@ -40,6 +40,17 @@ typedef struct {
 	uint32 Guard;
 } singlehead_atomic_width_probe;
 
+#ifndef XRT_NO_QUEUE_WAIT
+typedef struct {
+	xmpscqwait hQueue;
+	xsem hReady;
+	uint32 TimeoutMs;
+	xqueue_result Result;
+	uintptr_t Value;
+	volatile int Failure;
+} singlehead_wait_consumer_ctx;
+#endif
+
 static void singlehead_print_result(const char* sName, bool bPassed)
 {
 	printf("  [%s] %s\n", bPassed ? "OK" : "FAIL", sName);
@@ -181,6 +192,7 @@ static bool singlehead_queue_failure_smoke(void)
 	xmpscq hMPSC = NULL;
 	xmpmcq hMPMC = NULL;
 	singlehead_queue_drain_ctx tDrain;
+	ptr arrBatch[3];
 	ptr pItem = NULL;
 	bool bOk = TRUE;
 
@@ -204,6 +216,10 @@ static bool singlehead_queue_failure_smoke(void)
 		xrtMPSCQInit(NULL, &tCfg) != FALSE ||
 		xrtMPSCQTryPush(NULL, (ptr)(uintptr_t)1u) != XQUEUE_ERROR ||
 		xrtMPSCQTryPop(NULL, &pItem) != XQUEUE_ERROR ||
+		xrtMPSCQPushBatch(NULL, arrBatch, 1u) != 0u ||
+		xrtMPSCQPushBatch((xmpscq)(uintptr_t)1u, NULL, 1u) != 0u ||
+		xrtMPSCQPopBatch(NULL, arrBatch, 1u) != 0u ||
+		xrtMPSCQPopBatch((xmpscq)(uintptr_t)1u, NULL, 1u) != 0u ||
 		xrtMPSCQApproxCount(NULL) != 0u ||
 		xrtMPSCQDrain(NULL, singlehead_queue_drain_proc, &tDrain) != 0u ||
 		xrtMPSCQReset(NULL) != FALSE ) {
@@ -215,6 +231,10 @@ static bool singlehead_queue_failure_smoke(void)
 		xrtMPMCQInit(NULL, &tCfg) != FALSE ||
 		xrtMPMCQTryPush(NULL, (ptr)(uintptr_t)1u) != XQUEUE_ERROR ||
 		xrtMPMCQTryPop(NULL, &pItem) != XQUEUE_ERROR ||
+		xrtMPMCQPushBatch(NULL, arrBatch, 1u) != 0u ||
+		xrtMPMCQPushBatch((xmpmcq)(uintptr_t)1u, NULL, 1u) != 0u ||
+		xrtMPMCQPopBatch(NULL, arrBatch, 1u) != 0u ||
+		xrtMPMCQPopBatch((xmpmcq)(uintptr_t)1u, NULL, 1u) != 0u ||
 		xrtMPMCQApproxCount(NULL) != 0u ||
 		xrtMPMCQDrain(NULL, singlehead_queue_drain_proc, &tDrain) != 0u ||
 		xrtMPMCQReset(NULL) != FALSE ) {
@@ -269,6 +289,227 @@ cleanup:
 
 	return bOk;
 }
+
+static bool singlehead_queue_batch_smoke(void)
+{
+	xqueue_config tCfg;
+	xmpscq hMPSC = NULL;
+	xmpmcq hMPMC = NULL;
+	ptr arrPush[3];
+	ptr arrPop[4];
+	uint32 iCount = 0;
+	bool bOk = TRUE;
+
+	memset(&tCfg, 0, sizeof(tCfg));
+	tCfg.iCapacity = 3;
+	arrPush[0] = (ptr)(uintptr_t)30u;
+	arrPush[1] = (ptr)(uintptr_t)40u;
+	arrPush[2] = (ptr)(uintptr_t)50u;
+
+	hMPSC = xrtMPSCQCreate(&tCfg);
+	if ( hMPSC == NULL ) {
+		return FALSE;
+	}
+	if ( xrtMPSCQTryPush(hMPSC, (ptr)(uintptr_t)10u) != XQUEUE_OK ||
+		xrtMPSCQTryPush(hMPSC, (ptr)(uintptr_t)20u) != XQUEUE_OK ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	iCount = xrtMPSCQPushBatch(hMPSC, arrPush, 3u);
+	if ( iCount != 2u || xrtMPSCQApproxCount(hMPSC) != 4u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	arrPop[0] = (ptr)(uintptr_t)90u;
+	arrPop[1] = (ptr)(uintptr_t)91u;
+	arrPop[2] = (ptr)(uintptr_t)92u;
+	arrPop[3] = (ptr)(uintptr_t)93u;
+	iCount = xrtMPSCQPopBatch(hMPSC, arrPop, 3u);
+	if ( iCount != 3u ||
+		(uintptr_t)arrPop[0] != 10u ||
+		(uintptr_t)arrPop[1] != 20u ||
+		(uintptr_t)arrPop[2] != 30u ||
+		(uintptr_t)arrPop[3] != 93u ||
+		xrtMPSCQApproxCount(hMPSC) != 1u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	xrtMPSCQClose(hMPSC);
+	if ( xrtMPSCQPushBatch(hMPSC, arrPush, 2u) != 0u ||
+		xrtMPSCQPopBatch(hMPSC, arrPop, 2u) != 1u ||
+		(uintptr_t)arrPop[0] != 40u ||
+		xrtMPSCQPopBatch(hMPSC, arrPop, 1u) != 0u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+	hMPMC = xrtMPMCQCreate(&tCfg);
+	if ( hMPMC == NULL ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	if ( xrtMPMCQTryPush(hMPMC, (ptr)(uintptr_t)110u) != XQUEUE_OK ||
+		xrtMPMCQTryPush(hMPMC, (ptr)(uintptr_t)120u) != XQUEUE_OK ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	iCount = xrtMPMCQPushBatch(hMPMC, arrPush, 3u);
+	if ( iCount != 2u || xrtMPMCQApproxCount(hMPMC) != 4u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	arrPop[0] = (ptr)(uintptr_t)190u;
+	arrPop[1] = (ptr)(uintptr_t)191u;
+	arrPop[2] = (ptr)(uintptr_t)192u;
+	arrPop[3] = (ptr)(uintptr_t)193u;
+	iCount = xrtMPMCQPopBatch(hMPMC, arrPop, 3u);
+	if ( iCount != 3u ||
+		(uintptr_t)arrPop[0] != 110u ||
+		(uintptr_t)arrPop[1] != 120u ||
+		(uintptr_t)arrPop[2] != 30u ||
+		(uintptr_t)arrPop[3] != 193u ||
+		xrtMPMCQApproxCount(hMPMC) != 1u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	xrtMPMCQClose(hMPMC);
+	if ( xrtMPMCQPushBatch(hMPMC, arrPush, 2u) != 0u ||
+		xrtMPMCQPopBatch(hMPMC, arrPop, 2u) != 1u ||
+		(uintptr_t)arrPop[0] != 40u ||
+		xrtMPMCQPopBatch(hMPMC, arrPop, 1u) != 0u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+cleanup:
+	if ( hMPSC ) {
+		xrtMPSCQDestroy(hMPSC);
+	}
+	if ( hMPMC ) {
+		xrtMPMCQDestroy(hMPMC);
+	}
+	return bOk;
+}
+
+#ifndef XRT_NO_QUEUE_WAIT
+static uint32 singlehead_wait_consumer(ptr pArg)
+{
+	singlehead_wait_consumer_ctx* pCtx = (singlehead_wait_consumer_ctx*)pArg;
+	ptr pItem = NULL;
+
+	if ( pCtx == NULL || pCtx->hQueue == NULL ) {
+		return 40;
+	}
+
+	if ( pCtx->hReady != NULL ) {
+		(void)xrtSemPost(pCtx->hReady);
+	}
+
+	pCtx->Result = xrtMPSCQWaitPopTimeout(pCtx->hQueue, &pItem, pCtx->TimeoutMs);
+	pCtx->Value = (uintptr_t)pItem;
+	if ( pCtx->Result == XQUEUE_ERROR ) {
+		pCtx->Failure = 1;
+		return 41;
+	}
+	return 0;
+}
+
+static bool singlehead_queue_wait_smoke(void)
+{
+	xqueue_config tCfg;
+	xmpscqwait hQueue = NULL;
+	xthread hThread = NULL;
+	xsem hReady = NULL;
+	singlehead_wait_consumer_ctx tCtx;
+	ptr pItem = NULL;
+	bool bOk = TRUE;
+
+	memset(&tCfg, 0, sizeof(tCfg));
+	tCfg.iCapacity = 3;
+
+	hQueue = xrtMPSCQWaitCreate(&tCfg);
+	if ( hQueue == NULL ) {
+		return FALSE;
+	}
+
+	if ( xrtMPSCQWaitTryPop(hQueue, &pItem) != XQUEUE_EMPTY ||
+		xrtMPSCQWaitPopTimeout(hQueue, &pItem, 0u) != XQUEUE_TIMEOUT ||
+		xrtMPSCQWaitTryPush(hQueue, (ptr)(uintptr_t)10u) != XQUEUE_OK ||
+		xrtMPSCQWaitApproxCount(hQueue) != 1u ||
+		xrtMPSCQWaitTryPop(hQueue, &pItem) != XQUEUE_OK ||
+		(uintptr_t)pItem != 10u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+	hReady = xrtSemCreate(0u, 1u);
+	if ( hReady == NULL ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.hQueue = hQueue;
+	tCtx.hReady = hReady;
+	tCtx.TimeoutMs = 1000u;
+	hThread = xrtThreadCreate((ptr)singlehead_wait_consumer, &tCtx, 0);
+	if ( hThread == NULL ||
+		xrtSemWaitTimeout(hReady, 1000u) != XRT_WAIT_OK ||
+		xrtMPSCQWaitTryPush(hQueue, (ptr)(uintptr_t)20u) != XQUEUE_OK ||
+		xrtThreadWaitTimeout(hThread, 5000u) != XRT_WAIT_OK ||
+		xrtThreadGetExitCode(hThread) != 0u ||
+		tCtx.Failure != 0 ||
+		tCtx.Result != XQUEUE_OK ||
+		tCtx.Value != 20u ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+	xrtThreadDestroy(hThread);
+	hThread = NULL;
+	xrtSemDestroy(hReady);
+	hReady = NULL;
+
+	hReady = xrtSemCreate(0u, 1u);
+	if ( hReady == NULL ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.hQueue = hQueue;
+	tCtx.hReady = hReady;
+	tCtx.TimeoutMs = 1000u;
+	hThread = xrtThreadCreate((ptr)singlehead_wait_consumer, &tCtx, 0);
+	if ( hThread == NULL ||
+		xrtSemWaitTimeout(hReady, 1000u) != XRT_WAIT_OK ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+	xrtMPSCQWaitClose(hQueue);
+	if ( xrtThreadWaitTimeout(hThread, 5000u) != XRT_WAIT_OK ||
+		xrtThreadGetExitCode(hThread) != 0u ||
+		tCtx.Failure != 0 ||
+		tCtx.Result != XQUEUE_CLOSED ||
+		xrtMPSCQWaitTryPush(hQueue, (ptr)(uintptr_t)30u) != XQUEUE_CLOSED ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+cleanup:
+	if ( hThread ) {
+		xrtThreadWaitTimeout(hThread, 5000u);
+		xrtThreadDestroy(hThread);
+	}
+	if ( hReady ) {
+		xrtSemDestroy(hReady);
+	}
+	if ( hQueue ) {
+		xrtMPSCQWaitDestroy(hQueue);
+	}
+	return bOk;
+}
+#endif
 
 static bool singlehead_internal_atomic_width_smoke(void)
 {
@@ -339,7 +580,9 @@ int main(void)
 {
 	bool bOk = TRUE;
 	bool bQueueOk = TRUE;
+	bool bQueueBatchOk = TRUE;
 	bool bQueueFailureOk = TRUE;
+	bool bQueueWaitOk = TRUE;
 	bool bAtomicWidthOk = TRUE;
 	char* pTemp = NULL;
 	xvalue pTable = NULL;
@@ -393,6 +636,22 @@ int main(void)
 		bOk = FALSE;
 		goto cleanup;
 	}
+
+	bQueueBatchOk = singlehead_queue_batch_smoke();
+	singlehead_print_result("queue batch smoke", bQueueBatchOk);
+	if ( !bQueueBatchOk ) {
+		bOk = FALSE;
+		goto cleanup;
+	}
+
+	#ifndef XRT_NO_QUEUE_WAIT
+		bQueueWaitOk = singlehead_queue_wait_smoke();
+		singlehead_print_result("queue wait smoke", bQueueWaitOk);
+		if ( !bQueueWaitOk ) {
+			bOk = FALSE;
+			goto cleanup;
+		}
+	#endif
 
 	bAtomicWidthOk = singlehead_internal_atomic_width_smoke();
 	singlehead_print_result("internal atomic width guard", bAtomicWidthOk);

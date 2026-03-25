@@ -45,6 +45,17 @@ typedef struct {
 	uint32 iGuard;
 } __test_queue_core_u32_atomic_probe;
 
+#ifndef XRT_NO_QUEUE_WAIT
+typedef struct {
+	xmpscqwait hQueue;
+	xsem hReady;
+	uint32 iTimeoutMs;
+	xqueue_result iResult;
+	uintptr_t iValue;
+	volatile int iFailure;
+} __test_queue_core_mpscwait_cons_ctx;
+#endif
+
 #define __TEST_QUEUE_CORE_MPSC_PRODUCER_COUNT 4u
 #define __TEST_QUEUE_CORE_MPSC_ITEMS_PER_PRODUCER 1024u
 #define __TEST_QUEUE_CORE_MPSC_TOTAL_ITEMS (__TEST_QUEUE_CORE_MPSC_PRODUCER_COUNT * __TEST_QUEUE_CORE_MPSC_ITEMS_PER_PRODUCER)
@@ -214,6 +225,30 @@ static uint32 __Test_QueueCore_MPMCConsumer(ptr pArg)
 	}
 }
 
+#ifndef XRT_NO_QUEUE_WAIT
+static uint32 __Test_QueueCore_MPSCWaitConsumer(ptr pArg)
+{
+	__test_queue_core_mpscwait_cons_ctx* pCtx = (__test_queue_core_mpscwait_cons_ctx*)pArg;
+	ptr pItem = NULL;
+
+	if ( pCtx == NULL || pCtx->hQueue == NULL ) {
+		return 50;
+	}
+
+	if ( pCtx->hReady != NULL ) {
+		(void)xrtSemPost(pCtx->hReady);
+	}
+
+	pCtx->iResult = xrtMPSCQWaitPopTimeout(pCtx->hQueue, &pItem, pCtx->iTimeoutMs);
+	pCtx->iValue = (uintptr_t)pItem;
+	if ( pCtx->iResult == XQUEUE_ERROR ) {
+		pCtx->iFailure = 1;
+		return 51;
+	}
+	return 0;
+}
+#endif
+
 static int __Test_QueueCore_Check(const char* sName, int bOk)
 {
 	printf("  %s : %s\n", sName, bOk ? "PASS" : "FAIL");
@@ -257,8 +292,11 @@ static int Test_QueueCore(void)
 	xthread arrMpmcConsumer[__TEST_QUEUE_CORE_MPMC_CONSUMER_COUNT];
 	uint8 arrMpscSeen[__TEST_QUEUE_CORE_MPSC_TOTAL_ITEMS];
 	volatile long arrMpmcSeen[__TEST_QUEUE_CORE_MPMC_TOTAL_ITEMS];
+	ptr arrBatchIn[5];
+	ptr arrBatchOut[5];
 	ptr pItem = NULL;
 	uint32 iExpected = 0;
+	uint32 iBatchCount = 0;
 	uint32 i;
 	uint32 iReceived = 0;
 	int bMpscThreadedOk = TRUE;
@@ -268,6 +306,12 @@ static int Test_QueueCore(void)
 	xqueuebase tUnknownBase;
 	ptr* pSpscItems = NULL;
 	__test_queue_core_u32_atomic_probe tAtomicProbe;
+	#ifndef XRT_NO_QUEUE_WAIT
+		xmpscqwait hMPSCWait = NULL;
+		xthread hMPSCWaitThread = NULL;
+		xsem hMPSCWaitReady = NULL;
+		__test_queue_core_mpscwait_cons_ctx tMPSCWaitCtx;
+	#endif
 
 	printf("\n\n------------------------------------\n\n Queue Core Test:\n\n");
 
@@ -412,6 +456,10 @@ static int Test_QueueCore(void)
 	iFail += __Test_QueueCore_Check("mpsc init null cfg fails", xrtMPSCQInit(&tInvalidMPSC, NULL) == FALSE && tInvalidMPSC.arrSlots == NULL);
 	iFail += __Test_QueueCore_Check("mpsc push null queue error", xrtMPSCQTryPush(NULL, (ptr)(uintptr_t)1u) == XQUEUE_ERROR);
 	iFail += __Test_QueueCore_Check("mpsc pop null queue error", xrtMPSCQTryPop(NULL, &pItem) == XQUEUE_ERROR);
+	iFail += __Test_QueueCore_Check("mpsc push batch null queue zero", xrtMPSCQPushBatch(NULL, arrBatchIn, 1u) == 0u);
+	iFail += __Test_QueueCore_Check("mpsc push batch null items zero", xrtMPSCQPushBatch((xmpscq)(uintptr_t)1u, NULL, 1u) == 0u);
+	iFail += __Test_QueueCore_Check("mpsc pop batch null queue zero", xrtMPSCQPopBatch(NULL, arrBatchOut, 1u) == 0u);
+	iFail += __Test_QueueCore_Check("mpsc pop batch null items zero", xrtMPSCQPopBatch((xmpscq)(uintptr_t)1u, NULL, 1u) == 0u);
 	iFail += __Test_QueueCore_Check("mpsc approx null zero", xrtMPSCQApproxCount(NULL) == 0u);
 	memset(&tDrainCtx, 0, sizeof(tDrainCtx));
 	iFail += __Test_QueueCore_Check("mpsc drain null queue zero", xrtMPSCQDrain(NULL, __Test_QueueCore_DrainProc, &tDrainCtx) == 0u && tDrainCtx.iCount == 0u);
@@ -446,15 +494,33 @@ static int Test_QueueCore(void)
 	iFail += __Test_QueueCore_Check("mpsc pop #1", xrtMPSCQTryPop(hMPSC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 1u);
 	iFail += __Test_QueueCore_Check("mpsc pop #2", xrtMPSCQTryPop(hMPSC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 2u);
 	iFail += __Test_QueueCore_Check("mpsc count after pops", xrtMPSCQApproxCount(hMPSC) == 2u);
+	arrBatchIn[0] = (ptr)(uintptr_t)5u;
+	arrBatchIn[1] = (ptr)(uintptr_t)6u;
+	arrBatchIn[2] = (ptr)(uintptr_t)7u;
+	iBatchCount = xrtMPSCQPushBatch(hMPSC, arrBatchIn, 3u);
+	iFail += __Test_QueueCore_Check("mpsc push batch partial", iBatchCount == 2u && xrtMPSCQApproxCount(hMPSC) == 4u);
+	arrBatchOut[0] = (ptr)(uintptr_t)90u;
+	arrBatchOut[1] = (ptr)(uintptr_t)91u;
+	arrBatchOut[2] = (ptr)(uintptr_t)92u;
+	arrBatchOut[3] = (ptr)(uintptr_t)93u;
+	iBatchCount = xrtMPSCQPopBatch(hMPSC, arrBatchOut, 3u);
+	iFail += __Test_QueueCore_Check("mpsc pop batch fifo", iBatchCount == 3u &&
+		(uintptr_t)arrBatchOut[0] == 3u &&
+		(uintptr_t)arrBatchOut[1] == 4u &&
+		(uintptr_t)arrBatchOut[2] == 5u &&
+		(uintptr_t)arrBatchOut[3] == 93u);
+	iFail += __Test_QueueCore_Check("mpsc count after batch pop", xrtMPSCQApproxCount(hMPSC) == 1u);
 
 	xrtMPSCQClose(hMPSC);
 	iFail += __Test_QueueCore_Check("mpsc queue closed", xrtQueueIsClosed(&hMPSC->tBase) == TRUE);
 	iFail += __Test_QueueCore_Check("mpsc push closed", xrtMPSCQTryPush(hMPSC, (ptr)(uintptr_t)6u) == XQUEUE_CLOSED);
+	iFail += __Test_QueueCore_Check("mpsc push batch closed zero", xrtMPSCQPushBatch(hMPSC, arrBatchIn, 2u) == 0u);
 
 	memset(&tDrainCtx, 0, sizeof(tDrainCtx));
-	iFail += __Test_QueueCore_Check("mpsc drain count", xrtMPSCQDrain(hMPSC, __Test_QueueCore_DrainProc, &tDrainCtx) == 2u);
-	iFail += __Test_QueueCore_Check("mpsc drain order", tDrainCtx.iCount == 2u && (uintptr_t)tDrainCtx.arrItems[0] == 3u && (uintptr_t)tDrainCtx.arrItems[1] == 4u);
+	iFail += __Test_QueueCore_Check("mpsc drain count", xrtMPSCQDrain(hMPSC, __Test_QueueCore_DrainProc, &tDrainCtx) == 1u);
+	iFail += __Test_QueueCore_Check("mpsc drain order", tDrainCtx.iCount == 1u && (uintptr_t)tDrainCtx.arrItems[0] == 6u);
 	iFail += __Test_QueueCore_Check("mpsc pop closed empty", xrtMPSCQTryPop(hMPSC, &pItem) == XQUEUE_CLOSED);
+	iFail += __Test_QueueCore_Check("mpsc pop batch closed empty zero", xrtMPSCQPopBatch(hMPSC, arrBatchOut, 2u) == 0u);
 	iFail += __Test_QueueCore_Check("mpsc queue drained", xrtQueueIsDrained(&hMPSC->tBase) == TRUE);
 	iFail += __Test_QueueCore_Check("mpsc reset drained queue", xrtMPSCQReset(hMPSC) == TRUE);
 	iFail += __Test_QueueCore_Check("mpsc reopened after reset", xrtQueueIsClosed(&hMPSC->tBase) == FALSE && xrtMPSCQApproxCount(hMPSC) == 0u);
@@ -545,6 +611,80 @@ static int Test_QueueCore(void)
 	iFail += __Test_QueueCore_Check("mpsc threaded pop closed", xrtMPSCQTryPop(hMPSC, &pItem) == XQUEUE_CLOSED);
 	xrtMPSCQDestroy(hMPSC);
 
+	#ifndef XRT_NO_QUEUE_WAIT
+		memset(&tCfg, 0, sizeof(tCfg));
+		tCfg.iCapacity = 3;
+		iFail += __Test_QueueCore_Check("mpsc wait create null cfg fails", xrtMPSCQWaitCreate(NULL) == NULL);
+		iFail += __Test_QueueCore_Check("mpsc wait init null queue fails", xrtMPSCQWaitInit(NULL, &tCfg) == FALSE);
+		iFail += __Test_QueueCore_Check("mpsc wait try push null queue error", xrtMPSCQWaitTryPush(NULL, (ptr)(uintptr_t)1u) == XQUEUE_ERROR);
+		iFail += __Test_QueueCore_Check("mpsc wait try pop null queue error", xrtMPSCQWaitTryPop(NULL, &pItem) == XQUEUE_ERROR);
+		iFail += __Test_QueueCore_Check("mpsc wait pop timeout null queue error", xrtMPSCQWaitPopTimeout(NULL, &pItem, 1u) == XQUEUE_ERROR);
+		iFail += __Test_QueueCore_Check("mpsc wait approx null zero", xrtMPSCQWaitApproxCount(NULL) == 0u);
+
+		hMPSCWait = xrtMPSCQWaitCreate(&tCfg);
+		iFail += __Test_QueueCore_Check("mpsc wait create", hMPSCWait != NULL);
+		if ( hMPSCWait == NULL ) {
+			return iFail ? 1 : 0;
+		}
+
+		iFail += __Test_QueueCore_Check("mpsc wait initial empty", xrtMPSCQWaitTryPop(hMPSCWait, &pItem) == XQUEUE_EMPTY);
+		iFail += __Test_QueueCore_Check("mpsc wait timeout empty", xrtMPSCQWaitPopTimeout(hMPSCWait, &pItem, 0u) == XQUEUE_TIMEOUT);
+		iFail += __Test_QueueCore_Check("mpsc wait push #1", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)101u) == XQUEUE_OK);
+		iFail += __Test_QueueCore_Check("mpsc wait approx count #1", xrtMPSCQWaitApproxCount(hMPSCWait) == 1u);
+		iFail += __Test_QueueCore_Check("mpsc wait try pop #1", xrtMPSCQWaitTryPop(hMPSCWait, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 101u);
+
+		hMPSCWaitReady = xrtSemCreate(0u, 1u);
+		iFail += __Test_QueueCore_Check("mpsc wait ready sem create", hMPSCWaitReady != NULL);
+		memset(&tMPSCWaitCtx, 0, sizeof(tMPSCWaitCtx));
+		tMPSCWaitCtx.hQueue = hMPSCWait;
+		tMPSCWaitCtx.hReady = hMPSCWaitReady;
+		tMPSCWaitCtx.iTimeoutMs = 1000u;
+		hMPSCWaitThread = xrtThreadCreate(__Test_QueueCore_MPSCWaitConsumer, &tMPSCWaitCtx, 0);
+		iFail += __Test_QueueCore_Check("mpsc wait consumer create", hMPSCWaitThread != NULL);
+		if ( hMPSCWaitReady != NULL ) {
+			iFail += __Test_QueueCore_Check("mpsc wait consumer ready", xrtSemWaitTimeout(hMPSCWaitReady, 1000u) == XRT_WAIT_OK);
+		}
+		iFail += __Test_QueueCore_Check("mpsc wait push wakes consumer", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)202u) == XQUEUE_OK);
+		if ( hMPSCWaitThread != NULL ) {
+			iFail += __Test_QueueCore_Check("mpsc wait consumer join", xrtThreadWaitTimeout(hMPSCWaitThread, 5000u) == XRT_WAIT_OK);
+			iFail += __Test_QueueCore_Check("mpsc wait consumer exit", xrtThreadGetExitCode(hMPSCWaitThread) == 0u);
+			iFail += __Test_QueueCore_Check("mpsc wait consumer result", tMPSCWaitCtx.iFailure == 0 && tMPSCWaitCtx.iResult == XQUEUE_OK && tMPSCWaitCtx.iValue == 202u);
+			xrtThreadDestroy(hMPSCWaitThread);
+			hMPSCWaitThread = NULL;
+		}
+		if ( hMPSCWaitReady != NULL ) {
+			xrtSemDestroy(hMPSCWaitReady);
+			hMPSCWaitReady = NULL;
+		}
+
+		hMPSCWaitReady = xrtSemCreate(0u, 1u);
+		iFail += __Test_QueueCore_Check("mpsc wait close sem create", hMPSCWaitReady != NULL);
+		memset(&tMPSCWaitCtx, 0, sizeof(tMPSCWaitCtx));
+		tMPSCWaitCtx.hQueue = hMPSCWait;
+		tMPSCWaitCtx.hReady = hMPSCWaitReady;
+		tMPSCWaitCtx.iTimeoutMs = 1000u;
+		hMPSCWaitThread = xrtThreadCreate(__Test_QueueCore_MPSCWaitConsumer, &tMPSCWaitCtx, 0);
+		iFail += __Test_QueueCore_Check("mpsc wait close consumer create", hMPSCWaitThread != NULL);
+		if ( hMPSCWaitReady != NULL ) {
+			iFail += __Test_QueueCore_Check("mpsc wait close consumer ready", xrtSemWaitTimeout(hMPSCWaitReady, 1000u) == XRT_WAIT_OK);
+		}
+		xrtMPSCQWaitClose(hMPSCWait);
+		if ( hMPSCWaitThread != NULL ) {
+			iFail += __Test_QueueCore_Check("mpsc wait close consumer join", xrtThreadWaitTimeout(hMPSCWaitThread, 5000u) == XRT_WAIT_OK);
+			iFail += __Test_QueueCore_Check("mpsc wait close consumer exit", xrtThreadGetExitCode(hMPSCWaitThread) == 0u);
+			iFail += __Test_QueueCore_Check("mpsc wait close wakes consumer", tMPSCWaitCtx.iFailure == 0 && tMPSCWaitCtx.iResult == XQUEUE_CLOSED);
+			xrtThreadDestroy(hMPSCWaitThread);
+			hMPSCWaitThread = NULL;
+		}
+		if ( hMPSCWaitReady != NULL ) {
+			xrtSemDestroy(hMPSCWaitReady);
+			hMPSCWaitReady = NULL;
+		}
+
+		iFail += __Test_QueueCore_Check("mpsc wait push closed", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)303u) == XQUEUE_CLOSED);
+		xrtMPSCQWaitDestroy(hMPSCWait);
+	#endif
+
 	memset(&tCfg, 0, sizeof(tCfg));
 	tCfg.iCapacity = 3;
 	iFail += __Test_QueueCore_Check("mpmc create null cfg fails", xrtMPMCQCreate(NULL) == NULL);
@@ -553,6 +693,10 @@ static int Test_QueueCore(void)
 	iFail += __Test_QueueCore_Check("mpmc init null cfg fails", xrtMPMCQInit(&tInvalidMPMC, NULL) == FALSE && tInvalidMPMC.arrSlots == NULL);
 	iFail += __Test_QueueCore_Check("mpmc push null queue error", xrtMPMCQTryPush(NULL, (ptr)(uintptr_t)1u) == XQUEUE_ERROR);
 	iFail += __Test_QueueCore_Check("mpmc pop null queue error", xrtMPMCQTryPop(NULL, &pItem) == XQUEUE_ERROR);
+	iFail += __Test_QueueCore_Check("mpmc push batch null queue zero", xrtMPMCQPushBatch(NULL, arrBatchIn, 1u) == 0u);
+	iFail += __Test_QueueCore_Check("mpmc push batch null items zero", xrtMPMCQPushBatch((xmpmcq)(uintptr_t)1u, NULL, 1u) == 0u);
+	iFail += __Test_QueueCore_Check("mpmc pop batch null queue zero", xrtMPMCQPopBatch(NULL, arrBatchOut, 1u) == 0u);
+	iFail += __Test_QueueCore_Check("mpmc pop batch null items zero", xrtMPMCQPopBatch((xmpmcq)(uintptr_t)1u, NULL, 1u) == 0u);
 	iFail += __Test_QueueCore_Check("mpmc approx null zero", xrtMPMCQApproxCount(NULL) == 0u);
 	memset(&tDrainCtx, 0, sizeof(tDrainCtx));
 	iFail += __Test_QueueCore_Check("mpmc drain null queue zero", xrtMPMCQDrain(NULL, __Test_QueueCore_DrainProc, &tDrainCtx) == 0u && tDrainCtx.iCount == 0u);
@@ -587,15 +731,33 @@ static int Test_QueueCore(void)
 	iFail += __Test_QueueCore_Check("mpmc pop #1", xrtMPMCQTryPop(hMPMC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 1u);
 	iFail += __Test_QueueCore_Check("mpmc pop #2", xrtMPMCQTryPop(hMPMC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 2u);
 	iFail += __Test_QueueCore_Check("mpmc count after pops", xrtMPMCQApproxCount(hMPMC) == 2u);
+	arrBatchIn[0] = (ptr)(uintptr_t)5u;
+	arrBatchIn[1] = (ptr)(uintptr_t)6u;
+	arrBatchIn[2] = (ptr)(uintptr_t)7u;
+	iBatchCount = xrtMPMCQPushBatch(hMPMC, arrBatchIn, 3u);
+	iFail += __Test_QueueCore_Check("mpmc push batch partial", iBatchCount == 2u && xrtMPMCQApproxCount(hMPMC) == 4u);
+	arrBatchOut[0] = (ptr)(uintptr_t)190u;
+	arrBatchOut[1] = (ptr)(uintptr_t)191u;
+	arrBatchOut[2] = (ptr)(uintptr_t)192u;
+	arrBatchOut[3] = (ptr)(uintptr_t)193u;
+	iBatchCount = xrtMPMCQPopBatch(hMPMC, arrBatchOut, 3u);
+	iFail += __Test_QueueCore_Check("mpmc pop batch fifo", iBatchCount == 3u &&
+		(uintptr_t)arrBatchOut[0] == 3u &&
+		(uintptr_t)arrBatchOut[1] == 4u &&
+		(uintptr_t)arrBatchOut[2] == 5u &&
+		(uintptr_t)arrBatchOut[3] == 193u);
+	iFail += __Test_QueueCore_Check("mpmc count after batch pop", xrtMPMCQApproxCount(hMPMC) == 1u);
 
 	xrtMPMCQClose(hMPMC);
 	iFail += __Test_QueueCore_Check("mpmc queue closed", xrtQueueIsClosed(&hMPMC->tBase) == TRUE);
 	iFail += __Test_QueueCore_Check("mpmc push closed", xrtMPMCQTryPush(hMPMC, (ptr)(uintptr_t)6u) == XQUEUE_CLOSED);
+	iFail += __Test_QueueCore_Check("mpmc push batch closed zero", xrtMPMCQPushBatch(hMPMC, arrBatchIn, 2u) == 0u);
 
 	memset(&tDrainCtx, 0, sizeof(tDrainCtx));
-	iFail += __Test_QueueCore_Check("mpmc drain count", xrtMPMCQDrain(hMPMC, __Test_QueueCore_DrainProc, &tDrainCtx) == 2u);
-	iFail += __Test_QueueCore_Check("mpmc drain order", tDrainCtx.iCount == 2u && (uintptr_t)tDrainCtx.arrItems[0] == 3u && (uintptr_t)tDrainCtx.arrItems[1] == 4u);
+	iFail += __Test_QueueCore_Check("mpmc drain count", xrtMPMCQDrain(hMPMC, __Test_QueueCore_DrainProc, &tDrainCtx) == 1u);
+	iFail += __Test_QueueCore_Check("mpmc drain order", tDrainCtx.iCount == 1u && (uintptr_t)tDrainCtx.arrItems[0] == 6u);
 	iFail += __Test_QueueCore_Check("mpmc pop closed empty", xrtMPMCQTryPop(hMPMC, &pItem) == XQUEUE_CLOSED);
+	iFail += __Test_QueueCore_Check("mpmc pop batch closed empty zero", xrtMPMCQPopBatch(hMPMC, arrBatchOut, 2u) == 0u);
 	iFail += __Test_QueueCore_Check("mpmc queue drained", xrtQueueIsDrained(&hMPMC->tBase) == TRUE);
 	iFail += __Test_QueueCore_Check("mpmc reset drained queue", xrtMPMCQReset(hMPMC) == TRUE);
 	iFail += __Test_QueueCore_Check("mpmc reopened after reset", xrtQueueIsClosed(&hMPMC->tBase) == FALSE && xrtMPMCQApproxCount(hMPMC) == 0u);

@@ -231,6 +231,12 @@
 	#endif
 #endif
 
+#if defined(XRT_NO_QUEUE)
+	#ifndef XRT_NO_QUEUE_WAIT
+		#define XRT_NO_QUEUE_WAIT
+	#endif
+#endif
+
 // 裁剪依赖警告辅助
 #if defined(_MSC_VER)
 	#define XRT_CUT_WARN_STR2(x) #x
@@ -2188,6 +2194,8 @@
 		XXAPI void xrtMPSCQDestroy(xmpscq pQueue);
 		XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem);
 		XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPSCQPushBatch(xmpscq pQueue, ptr* arrItems, uint32 iCount);
+		XXAPI uint32 xrtMPSCQPopBatch(xmpscq pQueue, ptr* arrItems, uint32 iCap);
 		XXAPI uint32 xrtMPSCQApproxCount(xmpscq pQueue);
 		XXAPI void xrtMPSCQClose(xmpscq pQueue);
 		XXAPI uint32 xrtMPSCQDrain(xmpscq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
@@ -2199,6 +2207,8 @@
 		XXAPI void xrtMPMCQDestroy(xmpmcq pQueue);
 		XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem);
 		XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPMCQPushBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCount);
+		XXAPI uint32 xrtMPMCQPopBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCap);
 		XXAPI uint32 xrtMPMCQApproxCount(xmpmcq pQueue);
 		XXAPI void xrtMPMCQClose(xmpmcq pQueue);
 		XXAPI uint32 xrtMPMCQDrain(xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
@@ -2206,6 +2216,28 @@
 
 		XXAPI bool xrtQueueIsClosed(const xqueuebase* pQueue);
 		XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue);
+
+		#ifndef XRT_NO_QUEUE_WAIT
+
+			typedef struct xmpscqwait_struct
+			{
+				xmpscq_struct tQueue;
+				xsem hItems;
+				volatile long iWaiters;
+			} xmpscqwait_struct, *xmpscqwait;
+
+			XXAPI bool xrtMPSCQWaitInit(xmpscqwait pQueue, const xqueue_config* pCfg);
+			XXAPI void xrtMPSCQWaitUnit(xmpscqwait pQueue);
+			XXAPI xmpscqwait xrtMPSCQWaitCreate(const xqueue_config* pCfg);
+			XXAPI void xrtMPSCQWaitDestroy(xmpscqwait pQueue);
+			XXAPI xqueue_result xrtMPSCQWaitTryPush(xmpscqwait pQueue, ptr pItem);
+			XXAPI xqueue_result xrtMPSCQWaitTryPop(xmpscqwait pQueue, ptr* ppItem);
+			XXAPI xqueue_result xrtMPSCQWaitPop(xmpscqwait pQueue, ptr* ppItem);
+			XXAPI xqueue_result xrtMPSCQWaitPopTimeout(xmpscqwait pQueue, ptr* ppItem, uint32 iTimeoutMs);
+			XXAPI uint32 xrtMPSCQWaitApproxCount(xmpscqwait pQueue);
+			XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue);
+
+		#endif
 
 	#endif
 	

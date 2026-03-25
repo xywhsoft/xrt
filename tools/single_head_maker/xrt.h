@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-25 00:11:45
+    Generated: 2026-03-25 01:49:20
 
     MIT License
 
@@ -269,6 +269,11 @@
 	#endif
 	#ifndef XRT_NO_XWS
 		#define XRT_NO_XWS
+	#endif
+#endif
+#if defined(XRT_NO_QUEUE)
+	#ifndef XRT_NO_QUEUE_WAIT
+		#define XRT_NO_QUEUE_WAIT
 	#endif
 #endif
 // 裁剪依赖警告辅助
@@ -2115,6 +2120,8 @@
 		XXAPI void xrtMPSCQDestroy(xmpscq pQueue);
 		XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem);
 		XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPSCQPushBatch(xmpscq pQueue, ptr* arrItems, uint32 iCount);
+		XXAPI uint32 xrtMPSCQPopBatch(xmpscq pQueue, ptr* arrItems, uint32 iCap);
 		XXAPI uint32 xrtMPSCQApproxCount(xmpscq pQueue);
 		XXAPI void xrtMPSCQClose(xmpscq pQueue);
 		XXAPI uint32 xrtMPSCQDrain(xmpscq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
@@ -2125,12 +2132,32 @@
 		XXAPI void xrtMPMCQDestroy(xmpmcq pQueue);
 		XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem);
 		XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem);
+		XXAPI uint32 xrtMPMCQPushBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCount);
+		XXAPI uint32 xrtMPMCQPopBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCap);
 		XXAPI uint32 xrtMPMCQApproxCount(xmpmcq pQueue);
 		XXAPI void xrtMPMCQClose(xmpmcq pQueue);
 		XXAPI uint32 xrtMPMCQDrain(xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserData);
 		XXAPI bool xrtMPMCQReset(xmpmcq pQueue);
 		XXAPI bool xrtQueueIsClosed(const xqueuebase* pQueue);
 		XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue);
+		#ifndef XRT_NO_QUEUE_WAIT
+			typedef struct xmpscqwait_struct
+			{
+				xmpscq_struct tQueue;
+				xsem hItems;
+				volatile long iWaiters;
+			} xmpscqwait_struct, *xmpscqwait;
+			XXAPI bool xrtMPSCQWaitInit(xmpscqwait pQueue, const xqueue_config* pCfg);
+			XXAPI void xrtMPSCQWaitUnit(xmpscqwait pQueue);
+			XXAPI xmpscqwait xrtMPSCQWaitCreate(const xqueue_config* pCfg);
+			XXAPI void xrtMPSCQWaitDestroy(xmpscqwait pQueue);
+			XXAPI xqueue_result xrtMPSCQWaitTryPush(xmpscqwait pQueue, ptr pItem);
+			XXAPI xqueue_result xrtMPSCQWaitTryPop(xmpscqwait pQueue, ptr* ppItem);
+			XXAPI xqueue_result xrtMPSCQWaitPop(xmpscqwait pQueue, ptr* ppItem);
+			XXAPI xqueue_result xrtMPSCQWaitPopTimeout(xmpscqwait pQueue, ptr* ppItem, uint32 iTimeoutMs);
+			XXAPI uint32 xrtMPSCQWaitApproxCount(xmpscqwait pQueue);
+			XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue);
+		#endif
 	#endif
 	
 	
@@ -16097,6 +16124,117 @@ static inline uint32 __xrtQueueMPMCCount(const xmpmcq pQueue)
 	}
 	return (uint32)(iTail - iHead);
 }
+#ifndef XRT_NO_QUEUE_WAIT
+static inline uint64 __xrtQueueWaitNowMs(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetTickCount64();
+	#else
+		struct timespec tNow;
+		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) {
+			return 0;
+		}
+		return ((uint64)tNow.tv_sec * 1000u) + ((uint64)tNow.tv_nsec / 1000000u);
+	#endif
+}
+static inline long __xrtQueueWaitLoadLong(const volatile long* pValue)
+{
+	return __xrtAtomicCompareExchange32((volatile long*)pValue, 0, 0);
+}
+static inline void __xrtQueueWaitAddLong(volatile long* pValue, long iDelta)
+{
+	(void)__xrtAtomicAddFetch32(pValue, iDelta);
+}
+static inline bool __xrtMPSCQWaitIsClosedAndDrained(const xmpscqwait pQueue)
+{
+	return pQueue != NULL && xrtQueueIsClosed(&pQueue->tQueue.tBase) && xrtQueueIsDrained(&pQueue->tQueue.tBase);
+}
+static inline void __xrtMPSCQWaitWakeAll(xmpscqwait pQueue)
+{
+	long iWaiters;
+	uint32 iWakeCount;
+	if ( pQueue == NULL || pQueue->hItems == NULL ) {
+		return;
+	}
+	iWaiters = __xrtQueueWaitLoadLong(&pQueue->iWaiters);
+	if ( iWaiters <= 0 ) {
+		return;
+	}
+	iWakeCount = (iWaiters > (long)0xffffffffu) ? 0xffffffffu : (uint32)iWaiters;
+	(void)xrtSemPostMultiple(pQueue->hItems, iWakeCount);
+}
+static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool bInfinite, uint32 iTimeoutMs)
+{
+	uint64 iDeadlineMs = 0;
+	if ( pQueue == NULL || pQueue->hItems == NULL || ppItem == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	*ppItem = NULL;
+	if ( !bInfinite ) {
+		iDeadlineMs = __xrtQueueWaitNowMs() + (uint64)iTimeoutMs;
+	}
+	for ( ;; ) {
+		bool bHasToken = FALSE;
+		xqueue_result iRet;
+		if ( xrtSemTryWait(pQueue->hItems) ) {
+			bHasToken = TRUE;
+		}
+		else {
+			if ( __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
+				return XQUEUE_CLOSED;
+			}
+			__xrtQueueWaitAddLong(&pQueue->iWaiters, 1);
+			if ( xrtSemTryWait(pQueue->hItems) ) {
+				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
+				bHasToken = TRUE;
+			}
+			else if ( __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
+				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
+				return XQUEUE_CLOSED;
+			}
+			else if ( bInfinite ) {
+				xrtSemWait(pQueue->hItems);
+				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
+				bHasToken = TRUE;
+			}
+			else {
+				uint64 iNowMs = __xrtQueueWaitNowMs();
+				uint64 iRemainMs;
+				int iWaitRet;
+				if ( iNowMs >= iDeadlineMs ) {
+					__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
+					return XQUEUE_TIMEOUT;
+				}
+				iRemainMs = iDeadlineMs - iNowMs;
+				if ( iRemainMs > 0xffffffffu ) {
+					iRemainMs = 0xffffffffu;
+				}
+				iWaitRet = xrtSemWaitTimeout(pQueue->hItems, (uint32)iRemainMs);
+				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
+				if ( iWaitRet == XRT_WAIT_OK ) {
+					bHasToken = TRUE;
+				}
+				else if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
+					if ( __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
+						return XQUEUE_CLOSED;
+					}
+					return XQUEUE_TIMEOUT;
+				}
+				else {
+					return XQUEUE_ERROR;
+				}
+			}
+		}
+		iRet = xrtMPSCQTryPop(&pQueue->tQueue, ppItem);
+		if ( iRet == XQUEUE_OK || iRet == XQUEUE_CLOSED || iRet == XQUEUE_ERROR ) {
+			return iRet;
+		}
+		if ( bHasToken && __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
+			return XQUEUE_CLOSED;
+		}
+	}
+}
+#endif
 XXAPI bool xrtSPSCQInit(xspscq pQueue, const xqueue_config* pCfg)
 {
 	uint32 iCapacity;
@@ -16360,6 +16498,97 @@ XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem)
 	}
 	return XQUEUE_EMPTY;
 }
+XXAPI uint32 xrtMPSCQPushBatch(xmpscq pQueue, ptr* arrItems, uint32 iCount)
+{
+	uint64 iTail;
+	uint32 iReady;
+	uint32 i;
+	uint64 iPos;
+	xmpscq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	if ( pQueue == NULL || arrItems == NULL || iCount == 0u ) {
+		return 0u;
+	}
+	if ( pQueue->arrSlots == NULL ) {
+		return 0u;
+	}
+	for ( ;; ) {
+		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+			return 0u;
+		}
+		iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+		iReady = 0u;
+		iDiff = 0;
+		while ( iReady < iCount ) {
+			iPos = iTail + iReady;
+			pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+			iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+			iDiff = (int64)iSeq - (int64)iPos;
+			if ( iDiff == 0 ) {
+				iReady++;
+				continue;
+			}
+			break;
+		}
+		if ( iReady == 0u ) {
+			if ( iDiff < 0 ) {
+				return 0u;
+			}
+			xrtThreadYield();
+			continue;
+		}
+		if ( __xrtQueueAtomicCAS64(&pQueue->iTail, iTail, iTail + iReady) ) {
+			for ( i = 0; i < iReady; ++i ) {
+				iPos = iTail + i;
+				pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+				pSlot->pItem = arrItems[i];
+				__xrtQueueAtomicStore64(&pSlot->iSeq, iPos + 1u);
+			}
+			return iReady;
+		}
+		xrtThreadYield();
+	}
+}
+XXAPI uint32 xrtMPSCQPopBatch(xmpscq pQueue, ptr* arrItems, uint32 iCap)
+{
+	uint64 iHead;
+	uint32 iPopped;
+	uint32 i;
+	uint64 iPos;
+	xmpscq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	if ( pQueue == NULL || arrItems == NULL || iCap == 0u ) {
+		return 0u;
+	}
+	if ( pQueue->arrSlots == NULL ) {
+		return 0u;
+	}
+	iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+	iPopped = 0u;
+	while ( iPopped < iCap ) {
+		iPos = iHead + iPopped;
+		pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+		iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+		iDiff = (int64)iSeq - (int64)(iPos + 1u);
+		if ( iDiff != 0 ) {
+			break;
+		}
+		iPopped++;
+	}
+	for ( i = 0; i < iPopped; ++i ) {
+		iPos = iHead + i;
+		pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+		arrItems[i] = pSlot->pItem;
+		pSlot->pItem = NULL;
+		__xrtQueueAtomicStore64(&pSlot->iSeq, iPos + pQueue->iCapacity);
+	}
+	if ( iPopped != 0u ) {
+		__xrtQueueAtomicStore64(&pQueue->iHead, iHead + iPopped);
+	}
+	return iPopped;
+}
 XXAPI uint32 xrtMPSCQApproxCount(xmpscq pQueue)
 {
 	return __xrtQueueMPSCCount(pQueue);
@@ -16538,6 +16767,108 @@ XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem)
 		xrtThreadYield();
 	}
 }
+XXAPI uint32 xrtMPMCQPushBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCount)
+{
+	uint64 iTail;
+	uint32 iReady;
+	uint32 i;
+	uint64 iPos;
+	xmpmcq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	if ( pQueue == NULL || arrItems == NULL || iCount == 0u ) {
+		return 0u;
+	}
+	if ( pQueue->arrSlots == NULL ) {
+		return 0u;
+	}
+	for ( ;; ) {
+		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+			return 0u;
+		}
+		iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+		iReady = 0u;
+		iDiff = 0;
+		while ( iReady < iCount ) {
+			iPos = iTail + iReady;
+			pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+			iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+			iDiff = (int64)iSeq - (int64)iPos;
+			if ( iDiff == 0 ) {
+				iReady++;
+				continue;
+			}
+			break;
+		}
+		if ( iReady == 0u ) {
+			if ( iDiff < 0 ) {
+				return 0u;
+			}
+			xrtThreadYield();
+			continue;
+		}
+		if ( __xrtQueueAtomicCAS64(&pQueue->iTail, iTail, iTail + iReady) ) {
+			for ( i = 0; i < iReady; ++i ) {
+				iPos = iTail + i;
+				pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+				pSlot->pItem = arrItems[i];
+				__xrtQueueAtomicStore64(&pSlot->iSeq, iPos + 1u);
+			}
+			return iReady;
+		}
+		xrtThreadYield();
+	}
+}
+XXAPI uint32 xrtMPMCQPopBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCap)
+{
+	uint64 iHead;
+	uint32 iPopped;
+	uint32 i;
+	uint64 iPos;
+	xmpmcq_slot* pSlot;
+	uint64 iSeq;
+	int64 iDiff;
+	if ( pQueue == NULL || arrItems == NULL || iCap == 0u ) {
+		return 0u;
+	}
+	if ( pQueue->arrSlots == NULL ) {
+		return 0u;
+	}
+	for ( ;; ) {
+		iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+		iPopped = 0u;
+		iDiff = 0;
+		while ( iPopped < iCap ) {
+			iPos = iHead + iPopped;
+			pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+			iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+			iDiff = (int64)iSeq - (int64)(iPos + 1u);
+			if ( iDiff == 0 ) {
+				iPopped++;
+				continue;
+			}
+			break;
+		}
+		if ( iPopped == 0u ) {
+			if ( iDiff < 0 ) {
+				return 0u;
+			}
+			xrtThreadYield();
+			continue;
+		}
+		if ( __xrtQueueAtomicCAS64(&pQueue->iHead, iHead, iHead + iPopped) ) {
+			for ( i = 0; i < iPopped; ++i ) {
+				iPos = iHead + i;
+				pSlot = &pQueue->arrSlots[(uint32)(iPos & pQueue->iMask)];
+				arrItems[i] = pSlot->pItem;
+				pSlot->pItem = NULL;
+				__xrtQueueAtomicStore64(&pSlot->iSeq, iPos + pQueue->iCapacity);
+			}
+			return iPopped;
+		}
+		xrtThreadYield();
+	}
+}
 XXAPI uint32 xrtMPMCQApproxCount(xmpmcq pQueue)
 {
 	return __xrtQueueMPMCCount(pQueue);
@@ -16609,6 +16940,117 @@ XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue)
 	}
 	return FALSE;
 }
+#ifndef XRT_NO_QUEUE_WAIT
+XXAPI bool xrtMPSCQWaitInit(xmpscqwait pQueue, const xqueue_config* pCfg)
+{
+	if ( pQueue == NULL ) {
+		return FALSE;
+	}
+	memset(pQueue, 0, sizeof(xmpscqwait_struct));
+	if ( !xrtMPSCQInit(&pQueue->tQueue, pCfg) ) {
+		memset(pQueue, 0, sizeof(xmpscqwait_struct));
+		return FALSE;
+	}
+	pQueue->hItems = xrtSemCreate(0u, 0x7fffffffu);
+	if ( pQueue->hItems == NULL ) {
+		xrtMPSCQUnit(&pQueue->tQueue);
+		memset(pQueue, 0, sizeof(xmpscqwait_struct));
+		xrtSetError("mpsc wait queue semaphore init failed.", FALSE);
+		return FALSE;
+	}
+	pQueue->iWaiters = 0;
+	return TRUE;
+}
+XXAPI void xrtMPSCQWaitUnit(xmpscqwait pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	if ( pQueue->hItems != NULL ) {
+		xrtSemDestroy(pQueue->hItems);
+		pQueue->hItems = NULL;
+	}
+	xrtMPSCQUnit(&pQueue->tQueue);
+	memset(pQueue, 0, sizeof(xmpscqwait_struct));
+}
+XXAPI xmpscqwait xrtMPSCQWaitCreate(const xqueue_config* pCfg)
+{
+	xmpscqwait pQueue = (xmpscqwait)xrtCalloc(1, sizeof(xmpscqwait_struct));
+	if ( pQueue == NULL ) {
+		return NULL;
+	}
+	if ( !xrtMPSCQWaitInit(pQueue, pCfg) ) {
+		xrtFree(pQueue);
+		return NULL;
+	}
+	return pQueue;
+}
+XXAPI void xrtMPSCQWaitDestroy(xmpscqwait pQueue)
+{
+	if ( pQueue == NULL ) {
+		return;
+	}
+	xrtMPSCQWaitUnit(pQueue);
+	xrtFree(pQueue);
+}
+XXAPI xqueue_result xrtMPSCQWaitTryPush(xmpscqwait pQueue, ptr pItem)
+{
+	xqueue_result iRet;
+	if ( pQueue == NULL || pQueue->hItems == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	iRet = xrtMPSCQTryPush(&pQueue->tQueue, pItem);
+	if ( iRet != XQUEUE_OK ) {
+		return iRet;
+	}
+	if ( !xrtSemPost(pQueue->hItems) ) {
+		xrtSetError("mpsc wait queue semaphore post failed.", FALSE);
+		return XQUEUE_ERROR;
+	}
+	return XQUEUE_OK;
+}
+XXAPI xqueue_result xrtMPSCQWaitTryPop(xmpscqwait pQueue, ptr* ppItem)
+{
+	xqueue_result iRet;
+	if ( pQueue == NULL || pQueue->hItems == NULL || ppItem == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	*ppItem = NULL;
+	if ( !xrtSemTryWait(pQueue->hItems) ) {
+		return __xrtMPSCQWaitIsClosedAndDrained(pQueue) ? XQUEUE_CLOSED : XQUEUE_EMPTY;
+	}
+	iRet = xrtMPSCQTryPop(&pQueue->tQueue, ppItem);
+	if ( iRet == XQUEUE_OK || iRet == XQUEUE_CLOSED || iRet == XQUEUE_ERROR ) {
+		return iRet;
+	}
+	return __xrtMPSCQWaitIsClosedAndDrained(pQueue) ? XQUEUE_CLOSED : XQUEUE_EMPTY;
+}
+XXAPI xqueue_result xrtMPSCQWaitPop(xmpscqwait pQueue, ptr* ppItem)
+{
+	return __xrtMPSCQWaitPopCore(pQueue, ppItem, TRUE, 0u);
+}
+XXAPI xqueue_result xrtMPSCQWaitPopTimeout(xmpscqwait pQueue, ptr* ppItem, uint32 iTimeoutMs)
+{
+	return __xrtMPSCQWaitPopCore(pQueue, ppItem, FALSE, iTimeoutMs);
+}
+XXAPI uint32 xrtMPSCQWaitApproxCount(xmpscqwait pQueue)
+{
+	if ( pQueue == NULL ) {
+		return 0u;
+	}
+	return xrtMPSCQApproxCount(&pQueue->tQueue);
+}
+XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
+{
+	if ( pQueue == NULL || pQueue->hItems == NULL ) {
+		return;
+	}
+	if ( __xrtAtomicCompareExchangeU32(&pQueue->tQueue.tBase.bClosed, 1u, 0u) != 0u ) {
+		return;
+	}
+	__xrtMPSCQWaitWakeAll(pQueue);
+}
+#endif
 #endif
 #ifndef XRT_NO_COROUTINE
 

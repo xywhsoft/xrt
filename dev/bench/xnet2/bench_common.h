@@ -203,16 +203,9 @@ static bool xbenchFileExists(const char* sPath)
 	return true;
 }
 
-static bool xbenchNetInit(void)
+static void xbenchApplyCpuPinFromEnv(void)
 {
 	const char* sCpuPin = getenv("XBENCH_PIN_CPU");
-
-	#if defined(_WIN32) || defined(_WIN64)
-		WSADATA tWSA;
-		if ( WSAStartup(MAKEWORD(2, 2), &tWSA) != 0 ) return false;
-	#else
-		/* no-op */
-	#endif
 
 	if ( sCpuPin && sCpuPin[0] != '\0' ) {
 		char* pEnd = NULL;
@@ -243,6 +236,18 @@ static bool xbenchNetInit(void)
 			#endif
 		}
 	}
+}
+
+static bool xbenchNetInit(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		WSADATA tWSA;
+		if ( WSAStartup(MAKEWORD(2, 2), &tWSA) != 0 ) return false;
+	#else
+		/* no-op */
+	#endif
+
+	xbenchApplyCpuPinFromEnv();
 
 	return true;
 }

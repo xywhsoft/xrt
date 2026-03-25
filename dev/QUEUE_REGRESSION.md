@@ -87,6 +87,15 @@ size guardrails easy to rerun without widening XRT's default maintenance cost.
 - shared `__xrtAtomicLoadU32` / `__xrtAtomicStoreU32` /
   `__xrtAtomicCompareExchangeU32` helpers must stay on `uint32` fields;
   long-based atomics remain for `volatile long` state only
+- the first batch cut (`xrtMPSCQPushBatch/PopBatch`, `xrtMPMCQPushBatch/PopBatch`)
+  must preserve:
+  - partial-success return counts
+  - FIFO pop order
+  - `0` on closed/full/empty boundaries without inventing a new result code
+- the first wait-wrapper cut (`xmpscqwait`) must preserve:
+  - empty timeout behavior
+  - push-to-pop wakeups
+  - close-to-pop wakeups
 
 ### XNet Integration
 
@@ -102,6 +111,7 @@ size guardrails easy to rerun without widening XRT's default maintenance cost.
 `test_trim.c` and `singlehead/test_singlehead_trim.c` guard:
 
 - `XRT_NO_QUEUE`
+- `XRT_NO_QUEUE_WAIT`
 - `XRT_NO_NETWORK`
 - thread/runtime basics that should still work in trimmed builds
 
@@ -143,11 +153,11 @@ full/trim DLL artifacts after a successful run. Set
 
 ## Current Observed Baseline
 
-Observed on March 24, 2026 from `build_GCC_SIZE_GUARD_x64.bat`:
+Observed on March 25, 2026 from `build_GCC_SIZE_GUARD_x64.bat`:
 
-- full DLL: `864768` bytes
+- full DLL: `868864` bytes
 - trim DLL: `611328` bytes
-- delta: `253440` bytes
+- delta: `257536` bytes
 - trim percent: `70%`
 
 These numbers are a working baseline, not a frozen ABI target.
