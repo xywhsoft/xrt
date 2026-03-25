@@ -1,7 +1,7 @@
 # XSON 设计文档
 
-版本: `0.2`
-状态: `draft`
+版本: `0.3`
+状态: `implemented`
 更新时间: `2026-03-25`
 
 
@@ -365,21 +365,21 @@ class(AAECAwQ=)
 
 但允许通过参数改为“忽略不支持类型”模式。
 
-建议增加类似 flag：
+当前实现 flags：
 
 ```c
 #define XSON_F_IGNORE_UNSUPPORTED_ENCODE	0x0001
 #define XSON_F_IGNORE_UNSUPPORTED_DECODE	0x0002
 ```
 
-建议语义：
+当前语义：
 
 - `XSON_F_IGNORE_UNSUPPORTED_ENCODE`
 	- 序列化遇到 `ptr(point) / func / custom` 时跳过该值，而不是整体失败
 - `XSON_F_IGNORE_UNSUPPORTED_DECODE`
 	- 反序列化遇到未支持类型前缀时跳过该值，而不是整体失败
 
-建议约束：
+当前约束：
 
 - 根值如果是不支持类型，即使开启忽略模式，也应返回错误
 - 容器内部元素若被跳过，不应自动补成 `null`
@@ -417,7 +417,7 @@ class(AAECAwQ=)
 
 ## 11. API 边界
 
-建议保留独立 XSON API：
+当前实现保留独立 XSON API：
 
 ```c
 xvalue xrtParseXSON( str sText, size_t iSize );
@@ -433,12 +433,113 @@ int xrtStringifyXSON_File( str sFile, xvalue varVal, int bFormat, uint32 iFlags 
 
 - `JSON` API 和 `XSON` API 分离
 - 默认入口保留无 flags 版本，带 flags 的能力通过 `Ex` 版本提供
-- `XSON` 内部可以复用现有 JSON 的字符串、数字、格式化输出设施
-- 但语法入口和类型语义保持独立
+- `XSON` 内部复用了部分 JSON 的字符串、数字和格式化输出基础设施
+- 语法入口和类型语义保持独立
 
 
 
-## 12. 最终结论
+## 12. 当前实现状态
+
+截至 `2026-03-25`，当前实现状态如下：
+
+- 已实现 `xrtParseXSON()`、`xrtParseXSONEx()`、`xrtParseXSON_File()`、`xrtParseXSON_FileEx()`
+- 已实现 `xrtStringifyXSON()`、`xrtStringifyXSON_File()`
+- 已支持 `null / bool / int / float / text / time / array / list / dict(table) / set(coll) / class`
+- 已支持 `XSON_F_IGNORE_UNSUPPORTED_ENCODE` 和 `XSON_F_IGNORE_UNSUPPORTED_DECODE`
+- `ptr(point) / func / custom` 默认仍然视为不支持类型
+- 纯 `JSON` 文本可以直接由 `xrtParseXSON()` 解析，且保持原义
+- `xrtStringifyXSON()` 对 `list / set / time / class` 默认输出显式前缀形式，避免歧义
+
+当前仓库已包含以下验证内容：
+
+- `test/test_xson.h`
+	- 覆盖 JSON 兼容、显式前缀、隐式判定、`time`、`class`、忽略不支持类型等场景
+- `test/test_json_xson_bench.h`
+	- 覆盖 JSON 与 XSON 的解析和序列化性能对比
+- `examples/xson`
+	- 提供基础解析、生成和文件读写示例
+
+
+
+## 13. 性能基准测试
+
+当前仓库已内置 `json_xson_bench` 基准入口：
+
+```bash
+release/x64/test.exe json_xson_bench
+release/x64/test.exe json_xson_bench [rounds] [items]
+```
+
+本次写入文档的结果来自 `2026-03-25` 在当前工作机上的一次实测，参数为：
+
+- `rounds=100`
+- `warmup=10`
+- `items=128`
+
+测试说明：
+
+- `JSON-compatible payload` 使用同一份纯 JSON 文本，对比 `xrtParseJSON()/xrtStringifyJSON()` 与 `xrtParseXSON()/xrtStringifyXSON()`
+- `XSON extended payload` 是包含 `list / set / time / class` 的扩展负载，只反映 XSON 自身绝对性能，不与 JSON 做直接对比
+- 结果会受 CPU、编译参数、运行时抖动和负载结构影响，以下数据仅代表当前机器和当前默认负载
+
+负载规模：
+
+- `json_text=21075 bytes`
+- `xson_text=19500 bytes`
+
+### 13.1 纯 JSON 负载对比
+
+解析：
+
+| 项目 | total | avg | throughput |
+| --- | --- | --- | --- |
+| JSON parse | `1376.023 ms` | `13760.234 us/op` | `1.46 MiB/s` |
+| XSON parse | `1420.410 ms` | `14204.102 us/op` | `1.41 MiB/s` |
+
+结论：
+
+- 在当前纯 JSON 负载下，`XSON parse` 比 `JSON parse` 慢 `3.23%`，约 `1.032x`
+
+紧凑序列化：
+
+| 项目 | total | avg | throughput |
+| --- | --- | --- | --- |
+| JSON stringify | `8.230 ms` | `82.297 us/op` | `244.22 MiB/s` |
+| XSON stringify | `13.010 ms` | `130.097 us/op` | `154.49 MiB/s` |
+
+结论：
+
+- 在当前纯 JSON 负载下，`XSON stringify` 比 `JSON stringify` 慢 `58.08%`，约 `1.581x`
+
+格式化序列化：
+
+| 项目 | total | avg | throughput |
+| --- | --- | --- | --- |
+| JSON stringify fmt | `7.880 ms` | `78.805 us/op` | `353.04 MiB/s` |
+| XSON stringify fmt | `15.366 ms` | `153.658 us/op` | `196.14 MiB/s` |
+
+结论：
+
+- 在当前纯 JSON 负载下，`XSON stringify fmt` 比 `JSON stringify fmt` 慢 `94.99%`，约 `1.950x`
+
+
+### 13.2 XSON 扩展负载
+
+| 项目 | total | avg | throughput |
+| --- | --- | --- | --- |
+| XSON parse ext | `3829.897 ms` | `38298.974 us/op` | `0.49 MiB/s` |
+| XSON stringify ext | `17.548 ms` | `175.477 us/op` | `105.98 MiB/s` |
+| XSON stringify ext fmt | `23.420 ms` | `234.195 us/op` | `117.05 MiB/s` |
+
+说明：
+
+- 这组结果对应包含 `time / list / set / class` 的扩展负载
+- 该负载主要用于衡量 XSON 自身在扩展类型场景下的绝对开销
+- 由于 JSON 无法表达该负载，因此不提供 JSON 对照组
+
+
+
+## 14. 最终结论
 
 当前 XSON 的明确设计如下：
 

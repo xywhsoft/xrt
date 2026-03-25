@@ -63,6 +63,10 @@
 
 #define XRT_COUNT_OF(arr)		(sizeof(arr) / sizeof((arr)[0]))
 
+static int __g_iXrtTestExtraArgCount;
+static char** __g_arrXrtTestExtraArgs;
+static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
+
 
 
 #include "test/test_jnum.h"
@@ -112,6 +116,7 @@
 #include "test/test_list_iterator.h"
 #include "test/test_value.h"
 #include "test/test_json.h"
+#include "test/test_json_xson_bench.h"
 #include "test/test_xson.h"
 #include "test/test_template.h"
 #include "test/test_other.h"
@@ -280,6 +285,7 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_ValueBasic, Test_Value_Basic)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ValueOperations, Test_Value_Operations)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ValueFull, Test_Value_Full)
 XRT_TEST_WRAP_CORE(__xrtTestRun_JSON, Test_JSON)
+XRT_TEST_WRAP_INT(__xrtTestRun_JSONXSONBench, Test_JSON_XSON_Bench)
 XRT_TEST_WRAP_INT(__xrtTestRun_XSON, Test_XSON)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Template, Test_Template)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Other, Test_Other)
@@ -447,6 +453,7 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "value_operations", "Value Operations", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueOperations },
 	{ "value_full", "Value Full", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueFull },
 	{ "json", "JSON", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_JSON },
+	{ "json_xson_bench", "JSON XSON Bench", "benchmark", XRT_TEST_FLAG_NONE, __xrtTestRun_JSONXSONBench },
 	{ "xson", "XSON", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_XSON },
 	{ "template", "Template", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_Template },
 	{ "other", "Other", "misc", XRT_TEST_FLAG_NONE, __xrtTestRun_Other },
