@@ -421,15 +421,18 @@ class(AAECAwQ=)
 
 ```c
 xvalue xrtParseXSON( str sText, size_t iSize );
+xvalue xrtParseXSONEx( str sText, size_t iSize, uint32 iFlags );
 xvalue xrtParseXSON_File( str sFile );
+xvalue xrtParseXSON_FileEx( str sFile, uint32 iFlags );
 
 char* xrtStringifyXSON( xvalue varVal, int bFormat, uint32 iFlags, size_t* pRetSize );
-bool xrtStringifyXSON_File( str sFile, xvalue varVal, int bFormat, uint32 iFlags );
+int xrtStringifyXSON_File( str sFile, xvalue varVal, int bFormat, uint32 iFlags );
 ```
 
 说明：
 
 - `JSON` API 和 `XSON` API 分离
+- 默认入口保留无 flags 版本，带 flags 的能力通过 `Ex` 版本提供
 - `XSON` 内部可以复用现有 JSON 的字符串、数字、格式化输出设施
 - 但语法入口和类型语义保持独立
 

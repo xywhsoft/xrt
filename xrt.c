@@ -246,6 +246,7 @@ static void __xrtRuntimeFinalizeLocked();
 
 #ifndef XRT_NO_JSON
 #include "lib/json.h"
+#include "lib/xson.h"
 #endif
 
 #ifndef XRT_NO_TEMPLATE

@@ -112,6 +112,7 @@
 #include "test/test_list_iterator.h"
 #include "test/test_value.h"
 #include "test/test_json.h"
+#include "test/test_xson.h"
 #include "test/test_template.h"
 #include "test/test_other.h"
 #include "test/test_future_core.h"
@@ -279,6 +280,7 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_ValueBasic, Test_Value_Basic)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ValueOperations, Test_Value_Operations)
 XRT_TEST_WRAP_CORE(__xrtTestRun_ValueFull, Test_Value_Full)
 XRT_TEST_WRAP_CORE(__xrtTestRun_JSON, Test_JSON)
+XRT_TEST_WRAP_INT(__xrtTestRun_XSON, Test_XSON)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Template, Test_Template)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Other, Test_Other)
 XRT_TEST_WRAP_VOID(__xrtTestRun_MemGlobalCore, Test_MemGlobalCore)
@@ -445,6 +447,7 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "value_operations", "Value Operations", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueOperations },
 	{ "value_full", "Value Full", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_ValueFull },
 	{ "json", "JSON", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_JSON },
+	{ "xson", "XSON", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_XSON },
 	{ "template", "Template", "container", XRT_TEST_FLAG_NONE, __xrtTestRun_Template },
 	{ "other", "Other", "misc", XRT_TEST_FLAG_NONE, __xrtTestRun_Other },
 	{ "future_core", "Future Core", "async", XRT_TEST_FLAG_NONE, __xrtTestRun_FutureCore },
@@ -536,6 +539,7 @@ static const char* __g_arrPresetContainerSmoke[] = {
 	"list",
 	"value_full",
 	"json",
+	"xson",
 	#ifndef XRT_NO_REGEX
 		"regex",
 	#endif

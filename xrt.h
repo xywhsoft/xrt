@@ -6040,6 +6040,31 @@
 	
 	
 	
+	/* ------------------------------------ XSON 函数库 ------------------------------------ */
+	/*
+		依赖项：
+			File 函数库
+			Value 函数库
+			Time 函数库
+			JNUM 函数库
+			JSON 函数库
+	*/
+	
+	#define XSON_F_IGNORE_UNSUPPORTED_ENCODE	0x0001u
+	#define XSON_F_IGNORE_UNSUPPORTED_DECODE	0x0002u
+	
+	// 解析 XSON（保持对 JSON 的兼容）
+	XXAPI xvalue xrtParseXSON(str sText, size_t iSize);
+	XXAPI xvalue xrtParseXSONEx(str sText, size_t iSize, uint32 iFlags);
+	XXAPI xvalue xrtParseXSON_File(str sFile);
+	XXAPI xvalue xrtParseXSON_FileEx(str sFile, uint32 iFlags);
+	
+	// 将 xvalue 转换为 XSON
+	XXAPI str xrtStringifyXSON(xvalue varVal, int bFormat, uint32 iFlags, size_t* pRetSize);
+	XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iFlags);
+	
+	
+	
 	/* ------------------------------------ Template 函数库 ------------------------------------ */
 	/*
 		依赖项：
