@@ -14,6 +14,7 @@
 - synchronous and asynchronous execution
 - one execution model built on `xnetengine`
 - one path for both `http` and `https`
+- one path for `SOCKS5 CONNECT / HTTP CONNECT` proxy access
 - origin-based keep-alive reuse
 
 It is designed to stay lightweight, infrastructure-friendly, and easy to connect with the unified async mainline.
@@ -33,6 +34,7 @@ The request object carries:
 - body
 - timeout
 - peer-verification policy
+- shared proxy object
 
 ### `xhttpresponse`
 
@@ -68,6 +70,11 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine);
 ```
 
+Notes:
+
+- there is no extra `SetProxy` helper on the request object
+- assign a shared proxy directly through `xhttprequest.pProxy`
+
 ---
 
 ## 4. Current Mainline Behavior
@@ -76,9 +83,16 @@ The current `xhttp` mainline:
 
 - is built on `xnet_stream`
 - supports plain HTTP and built-in TLS
+- supports `SOCKS5 CONNECT` and `HTTP CONNECT`
 - reuses keep-alive connections serially by origin
 - supports chunked transfer
 - is best suited today for whole-body request / whole-body response flows
+
+Proxy-related behavior:
+
+- pre-open sequencing is `TCP -> proxy handshake -> TLS -> HTTP request`
+- keep-alive matching includes the proxy dimension, so identical origins behind different proxies are not mixed
+- when `pProxy == NULL`, the request stays direct
 
 This makes it a good fit for:
 
@@ -94,6 +108,7 @@ This makes it a good fit for:
 - `xurl` handles URL parsing and host/header construction
 - `xhttp_util` handles lower-level HTTP text helpers
 - `xtlssession` handles the HTTPS path
+- when a proxy is configured, TLS is established after the proxy tunnel is ready
 - `ExecuteAsync` returns a future and can plug directly into coroutine and task orchestration
 
 ---

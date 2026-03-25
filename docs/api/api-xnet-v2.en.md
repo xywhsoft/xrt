@@ -44,7 +44,40 @@ XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg);
 XXAPI void xrtNetEngineDestroy(xnetengine* pEngine);
 XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine);
 XXAPI void xrtNetEngineStop(xnetengine* pEngine);
+XXAPI uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine);
+XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg);
+XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
 ```
+
+### TLS Session
+
+```c
+XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer);
+XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession);
+XXAPI bool xrtNetTlsSessionIsReady(const xtlssession* pSession);
+```
+
+See also:
+
+- [Network TLS](api-network-tls.en.md)
+
+### Proxy
+
+```c
+XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg);
+XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg);
+XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy);
+XXAPI void xrtNetProxyRelease(xnetproxy* pProxy);
+```
+
+Notes:
+
+- `xnetproxy` is a shared, refcounted proxy object
+- live connection state stores only `xnetproxy*`, not a copied full config block
+- currently supported:
+	- `SOCKS5 CONNECT`
+	- `HTTP CONNECT`
+- `xnetconnectconfig.pProxy == NULL` means direct connection
 
 ### Listener
 

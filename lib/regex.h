@@ -1,29 +1,12 @@
 /* 
- * regex.h - 濮濓絽鍨悰銊ㄦ彧瀵繐绱╅幙搴＄杽閻?
- * 閸╄桨绨?xregex 0.0.2 (https://github.com/mnurzia/xregex)
+ * regex.h - 正则表达式引擎实现
+ * 基于 bbre 0.0.2 (https://github.com/mnurzia/bbre)
  * MIT License - Copyright (c) 2024 Max Nurzia
  */
 
 
 
 #ifndef XRT_NO_REGEX
-
-/*
- * 閸忣剙绱?regex 缁鐎烽悽?xrt.h 閹绘劒绶甸敍宀冪箹闁插苯褰ф穱婵堟殌鐎圭偟骞囨笟褔娓剁憰浣瑰絹閸撳秴锛愰弰搴ｆ畱
- * 閸忣剙绱?API 閸樼喎鐎烽敍宀勪缉閸忓秴鎮楃紒顓炵杽閻滄澘婀€规矮绠熼崜宥呫亼閸樿鍤遍弫鏉匡紣閺勫簺鈧? */
-XXAPI const char* xrtRegexGetErrorMsg(const xregex* pRegex);
-XXAPI size_t xrtRegexGetErrorPos(const xregex* pRegex);
-XXAPI int xrtRegexWhichCaptures(xregex* pRegex, const char* sText, size_t iTextSize, xregexspan* pOutCaptures, uint32* pOutCapturesDidMatch, uint32 iCaptureCount);
-XXAPI int xrtRegexIsMatchAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos);
-XXAPI int xrtRegexFindAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutSpan);
-XXAPI int xrtRegexCapturesAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutCaptures, uint32 iCaptureCount);
-XXAPI int xrtRegexWhichCapturesAt(xregex* pRegex, const char* sText, size_t iTextSize, size_t iPos, xregexspan* pOutCaptures, uint32* pOutCapturesDidMatch, uint32 iCaptureCount);
-XXAPI uint32 xrtRegexCaptureCount(const xregex* pRegex);
-XXAPI const char* xrtRegexCaptureName(const xregex* pRegex, uint32 iCaptureIndex, size_t* pOutNameSize);
-XXAPI const char* xrtRegexSetGetErrorMsg(const xregexset* pSet);
-XXAPI size_t xrtRegexSetGetErrorPos(const xregexset* pSet);
-XXAPI int xrtRegexSetIsMatchAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos);
-XXAPI int xrtRegexSetMatchesAt(xregexset* pSet, const char* sText, size_t iTextSize, size_t iPos, uint32* pOutIndexes, uint32 iMaxIndexes, uint32* pOutIndexCount);
 
 
 

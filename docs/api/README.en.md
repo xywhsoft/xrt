@@ -29,6 +29,7 @@
 | Module | Document | Description |
 |------|------|------|
 | Thread | [api-thread.en.md](api-thread.en.md) | Threads, runtime attach, cleanup, sync primitives |
+| Queue | [api-queue.en.md](api-queue.en.md) | Bounded concurrent queues and the MPSC wait wrapper |
 | Coroutine | [api-coroutine.en.md](api-coroutine.en.md) | Coroutine runtime, scheduler, event waiting |
 | Future / Task / Promise | [api-future-task-promise.en.md](api-future-task-promise.en.md) | Unified async model, continuation, task group |
 
@@ -72,20 +73,20 @@
 
 | Module | Document | Status |
 |------|------|------|
-| XNet V2 | [api-xnet-v2.en.md](api-xnet-v2.en.md) | Mainline overview |
+| XNet V2 | [api-xnet-v2.en.md](api-xnet-v2.en.md) | Mainline overview, including shared proxy objects |
 | Network TLS | [api-network-tls.en.md](api-network-tls.en.md) | Current TLS session mainline |
 | XURL | [api-xurl.en.md](api-xurl.en.md) | URL / authority / target parsing and building |
 | HTTP Util | [api-http-util.en.md](api-http-util.en.md) | header/query/cookie/media-type/multipart helpers |
-| XHTTP | [api-xhttp.en.md](api-xhttp.en.md) | Current HTTP/1.1 client mainline |
+| XHTTP | [api-xhttp.en.md](api-xhttp.en.md) | Current HTTP/1.1 client mainline with shared proxy support |
 | XHTTPD | [api-xhttpd.en.md](api-xhttpd.en.md) | Current HTTP/1.1 server mainline |
-| XWS | [api-xws.en.md](api-xws.en.md) | Current WebSocket client/server mainline |
+| XWS | [api-xws.en.md](api-xws.en.md) | Current WebSocket client/server mainline, with client-side proxy support |
 
 
 ## 6. Current Notes
 
 - English API docs are synchronized after the Chinese versions are reviewed
 - obsolete old network/TLS API docs have been archived under `dev/`
-- the current mainline is organized around runtime / concurrency / async / xnet-v2 / TLS session / HTTP / WebSocket
+- the current mainline is organized around runtime / concurrency / queue / async / xnet-v2 / TLS session / HTTP / WebSocket
 
 
 ## 7. Suggested Reading Order
@@ -95,14 +96,15 @@ If you want to understand the current mainline quickly, read in this order:
 1. [types.en.md](types.en.md)
 2. [api-base.en.md](api-base.en.md)
 3. [api-thread.en.md](api-thread.en.md)
-4. [api-coroutine.en.md](api-coroutine.en.md)
-5. [api-future-task-promise.en.md](api-future-task-promise.en.md)
-6. [api-value.en.md](api-value.en.md)
-7. [api-xnet-v2.en.md](api-xnet-v2.en.md)
-8. [api-network-tls.en.md](api-network-tls.en.md)
-9. [api-xhttp.en.md](api-xhttp.en.md)
-10. [api-xhttpd.en.md](api-xhttpd.en.md)
-11. [api-xws.en.md](api-xws.en.md)
+4. [api-queue.en.md](api-queue.en.md)
+5. [api-coroutine.en.md](api-coroutine.en.md)
+6. [api-future-task-promise.en.md](api-future-task-promise.en.md)
+7. [api-value.en.md](api-value.en.md)
+8. [api-xnet-v2.en.md](api-xnet-v2.en.md)
+9. [api-network-tls.en.md](api-network-tls.en.md)
+10. [api-xhttp.en.md](api-xhttp.en.md)
+11. [api-xhttpd.en.md](api-xhttpd.en.md)
+12. [api-xws.en.md](api-xws.en.md)
 
 
 ## 8. Boundary with Guides and Case Studies

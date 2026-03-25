@@ -29,6 +29,7 @@
 | 模块 | 文档 | 说明 |
 |------|------|------|
 | Thread | [api-thread.md](api-thread.md) | 线程、附加运行时、cleanup、同步原语 |
+| Queue | [api-queue.md](api-queue.md) | 有界并发队列与 MPSC wait 包装 |
 | Coroutine | [api-coroutine.md](api-coroutine.md) | 协程运行时、调度器、事件等待 |
 | Future / Task / Promise | [api-future-task-promise.md](api-future-task-promise.md) | 统一异步模型、continuation、task group |
 
@@ -86,7 +87,7 @@
 - 当前 API 文档优先维护中文版本
 - 英文版本将在中文审阅通过后统一同步
 - 已淘汰的旧网络/TLS API 文档已迁入 `dev/` 归档
-- 当前主线优先围绕“运行时 / 并发 / 异步 / xnet-v2 / TLS session / HTTP / WebSocket”组织
+- 当前主线优先围绕“运行时 / 并发 / 队列 / 异步 / xnet-v2 / TLS session / HTTP / WebSocket”组织
 
 
 ## 7. 推荐阅读顺序
@@ -96,14 +97,15 @@
 1. [types.md](types.md)
 2. [api-base.md](api-base.md)
 3. [api-thread.md](api-thread.md)
-4. [api-coroutine.md](api-coroutine.md)
-5. [api-future-task-promise.md](api-future-task-promise.md)
-6. [api-value.md](api-value.md)
-7. [api-xnet-v2.md](api-xnet-v2.md)
-8. [api-network-tls.md](api-network-tls.md)
-9. [api-xhttp.md](api-xhttp.md)
-10. [api-xhttpd.md](api-xhttpd.md)
-11. [api-xws.md](api-xws.md)
+4. [api-queue.md](api-queue.md)
+5. [api-coroutine.md](api-coroutine.md)
+6. [api-future-task-promise.md](api-future-task-promise.md)
+7. [api-value.md](api-value.md)
+8. [api-xnet-v2.md](api-xnet-v2.md)
+9. [api-network-tls.md](api-network-tls.md)
+10. [api-xhttp.md](api-xhttp.md)
+11. [api-xhttpd.md](api-xhttpd.md)
+12. [api-xws.md](api-xws.md)
 
 
 ## 8. 与教学 / 案例文档的边界

@@ -1,8 +1,5 @@
-#include <string.h>
 
-#ifdef XTE_DEBUGMODE
-#include <stdio.h>
-#endif
+
 
 #define XTE_PRIVATE_INVALID_INDEX		0xFFFFFFFFu
 #define XTE_PRIVATE_FILE_VERSION		2u

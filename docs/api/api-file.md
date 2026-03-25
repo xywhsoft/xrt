@@ -429,6 +429,51 @@ int main() {
 
 ---
 
+### xrtGetBuffer
+
+从文件读取二进制数据到调用方提供的缓冲区。
+
+**函数原型：**
+```c
+XXAPI size_t xrtGetBuffer(xfile objFile, ptr sBuff, size_t iSize);
+```
+
+**参数：**
+- `objFile` - 文件对象
+- `sBuff` - 目标缓冲区
+- `iSize` - 期望读取的字节数
+
+**返回值：**
+- 实际读取的字节数
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+	xrtInit();
+	
+	xfile f = xrtOpen((str)"header.bin", TRUE, -1);
+	if (f) {
+		unsigned char arrHead[16];
+		size_t iRead = xrtGetBuffer(f, arrHead, sizeof(arrHead));
+		printf("读取了 %zu 字节\n", iRead);
+		xrtClose(f);
+	}
+	
+	xrtUnit();
+	return 0;
+}
+```
+
+**补充说明：**
+- 不分配新内存，直接写入调用方缓冲区
+- 不进行字符集转换，适合固定头部、分块读取、循环读取
+- `iSize == 0` 时直接返回 `0`
+
+---
+
 ### xrtGet
 
 从文件读取二进制数据。

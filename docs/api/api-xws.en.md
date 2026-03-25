@@ -13,6 +13,7 @@
 - WebSocket client
 - WebSocket server
 - HTTP upgrade handshake
+- WebSocket client proxy access
 - text / binary messaging
 - ping / pong
 - close
@@ -35,7 +36,7 @@ Important configuration and event types include:
 - `xwsclientevents`
 - `xwsserverevents`
 
-These define URL / origin / protocol, timeout / recv limit, TLS config for server mode, and message/lifecycle callbacks.
+These define URL / origin / protocol, timeout / recv limit, optional shared proxy objects, TLS config for server mode, and message/lifecycle callbacks.
 
 ---
 
@@ -60,6 +61,12 @@ XXAPI void xrtWsServerStop(xwsserver* pServer);
 XXAPI void xrtWsServerDestroy(xwsserver* pServer);
 ```
 
+Client notes:
+
+- `xwsclientconfig.pProxy` is an optional shared proxy object
+- create-time retains one reference
+- destroy-time releases that reference
+
 ---
 
 ## 4. Current Protocol Coverage
@@ -67,6 +74,7 @@ XXAPI void xrtWsServerDestroy(xwsserver* pServer);
 The current mainline includes:
 
 - HTTP upgrade handshake
+- client-side proxy handshake
 - `Sec-WebSocket-Key / Accept`
 - text / binary frames
 - ping / pong
@@ -79,6 +87,13 @@ Still explicitly deferred:
 - `permessage-deflate`
 - more complex subprotocol negotiation strategies
 
+Client connect sequencing is:
+
+- `TCP connect`
+- if `pProxy` is configured, complete the proxy handshake first
+- if the URL is `wss://`, complete TLS next
+- finally complete HTTP upgrade and enter the open state
+
 ---
 
 ## 5. Relationship to Other Modules
@@ -86,6 +101,7 @@ Still explicitly deferred:
 - the handshake phase reuses HTTP upgrade semantics
 - each WebSocket connection is carried by `xnet_stream`
 - `wss://` uses the current TLS session mainline
+- when a proxy is configured, it is negotiated before the TLS / upgrade path
 - the mainline is event-driven today, but already sits on the same async/network foundation as the rest of XRT
 
 ---

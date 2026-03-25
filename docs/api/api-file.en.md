@@ -363,18 +363,65 @@ int main() {
 
 ---
 
+### xrtGetBuffer
+
+Read binary data from a file directly into a caller-provided buffer.
+
+**Function Prototype:**
+```c
+XXAPI size_t xrtGetBuffer(xfile pFile, ptr pBuff, size_t iLen);
+```
+
+**Parameters:**
+- `pFile` - File handle
+- `pBuff` - Destination buffer
+- `iLen` - Number of bytes requested
+
+**Return Value:**
+- Number of bytes actually read
+
+**Notes:**
+- Does not allocate memory
+- Does not perform charset conversion
+- Useful for fixed headers, chunked reads, and read loops
+- Returns `0` immediately when `iLen == 0`
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int main() {
+	xrtInit();
+	
+	xfile f = xrtOpen((str)"header.bin", TRUE, -1);
+	if (f) {
+		unsigned char arrHead[16];
+		size_t iRead = xrtGetBuffer(f, arrHead, sizeof(arrHead));
+		printf("Read %zu bytes\n", iRead);
+		xrtClose(f);
+	}
+	
+	xrtUnit();
+	return 0;
+}
+```
+
+---
+
 ### xrtGet
 
 Read specified number of bytes from file.
 
 **Function Prototype:**
 ```c
-XXAPI ptr xrtGet(xfile pFile, size_t iLen);
+XXAPI ptr xrtGet(xfile pFile, size_t iLen, size_t* pOutRead);
 ```
 
 **Parameters:**
 - `pFile` - File handle
 - `iLen` - Number of bytes to read
+- `pOutRead` - Optional out parameter for the actual byte count
 
 **Return Value:**
 - Data read (needs to be freed with `xrtFree`)
@@ -391,12 +438,13 @@ Read string from file.
 
 **Function Prototype:**
 ```c
-XXAPI str xrtRead(xfile pFile, size_t iLen);
+XXAPI str xrtRead(xfile pFile, size_t iLen, size_t* pOutRead);
 ```
 
 **Parameters:**
 - `pFile` - File handle
-- `iLen` - Number of characters to read
+- `iLen` - Number of bytes requested
+- `pOutRead` - Optional out parameter for the actual byte count
 
 **Return Value:**
 - String read (needs to be freed with `xrtFree`)
@@ -404,7 +452,7 @@ XXAPI str xrtRead(xfile pFile, size_t iLen);
 
 **Notes:**
 - Reads content based on file's character encoding
-- `iLen` is character count, not byte count
+- `iLen` is the requested byte count before charset conversion
 
 ---
 
