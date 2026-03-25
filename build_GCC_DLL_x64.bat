@@ -1,15 +1,15 @@
 @echo off
 cd /d "%~dp0"
 
-echo This compatibility entry updates the tracked release\x64\xrt.dll artifact.
-echo For day-to-day local validation, prefer build_GCC_DLL_x64_local.bat.
-echo.
+if not exist release\x64 (
+	mkdir release\x64 || goto :end
+)
 
-call build_GCC_DLL_x64_release.bat
+gcc -m64 -shared xrt.c -O2 -s -fPIC -ffunction-sections -fdata-sections -Wl,--gc-sections -DBUILD_DLL -lWs2_32 -lIPHLPAPI -o release/x64/xrt.dll
 if errorlevel 1 goto :end
 
 echo.
-echo build_GCC_DLL_x64.bat: PASS
+echo Build successful: release\x64\xrt.dll
 
 :end
 pause

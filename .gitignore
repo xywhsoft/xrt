@@ -31,12 +31,6 @@ release/x86/test/test_size.txt
 release/x86/test/test_write_u16.txt
 release/x86/test/test_write_u16be.txt
 release/x86/test/test_write_u32.txt
-release/x64/xrt_*_local.dll
-release/x64/xrt_*_local.def
-release/x64/xrt_size_report.txt
-release/x64/xrt_size_*.dll
 release/linux/test_queue_linux
-release/linux/test_trim_linux
 release/linux/test_singlehead_queue_linux
-release/linux/test_singlehead_trim_linux
 /AGENTS.md

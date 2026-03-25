@@ -637,7 +637,7 @@ tcc -m64 main.c xrt.c -o app.exe -lws2_32 -liphlpapi
 - 下一阶段蓝图：[dev/XRT_ROADMAP_NEXT.md](dev/XRT_ROADMAP_NEXT.md)
 - 网络基准：[dev/bench/XNET_COMPARE_20260314.md](dev/bench/XNET_COMPARE_20260314.md)
 - TLS 专项验证：[dev/bench/TLS_BENCH_20260315.md](dev/bench/TLS_BENCH_20260315.md)
-- Queue / trim / size regression：[dev/QUEUE_REGRESSION.md](dev/QUEUE_REGRESSION.md)
+- Queue regression：[dev/QUEUE_REGRESSION.md](dev/QUEUE_REGRESSION.md)
 
 
 ## 致谢

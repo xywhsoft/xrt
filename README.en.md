@@ -624,7 +624,7 @@ tcc -m64 main.c xrt.c -o app.exe -lws2_32 -liphlpapi
 - Next-stage roadmap: [dev/XRT_ROADMAP_NEXT.md](dev/XRT_ROADMAP_NEXT.md)
 - Network benchmarks: [dev/bench/XNET_COMPARE_20260314.md](dev/bench/XNET_COMPARE_20260314.md)
 - TLS validation: [dev/bench/TLS_BENCH_20260315.md](dev/bench/TLS_BENCH_20260315.md)
-- Queue / trim / size regression notes: [dev/QUEUE_REGRESSION.md](dev/QUEUE_REGRESSION.md)
+- Queue regression notes: [dev/QUEUE_REGRESSION.md](dev/QUEUE_REGRESSION.md)
 
 
 ## Acknowledgements

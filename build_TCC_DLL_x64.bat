@@ -1,13 +1,16 @@
 @echo off
-setlocal
+cd /d "%~dp0"
 
-echo This compatibility entry updates the tracked release\x64\xrt.dll artifact.
-echo For day-to-day local validation, prefer build_TCC_DLL_x64_local.bat.
+if not exist release\x64 (
+	mkdir release\x64 || goto :end
+)
+
+rem TCC currently does not support XRT's production coroutine backend.
+tcc -m64 -shared xrt.c -std=c99 -DBUILD_DLL -DXRT_NO_COROUTINE -lWs2_32 -lIPHLPAPI -lShell32 -o release/x64/xrt.dll
+if errorlevel 1 goto :end
+
 echo.
+echo Build successful: release\x64\xrt.dll
 
-call build_TCC_DLL_x64_release.bat
-if errorlevel 1 goto :eof
-
-echo.
-echo build_TCC_DLL_x64.bat: PASS
+:end
 pause

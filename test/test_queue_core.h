@@ -309,8 +309,10 @@ static int Test_QueueCore(void)
 	#ifndef XRT_NO_QUEUE_WAIT
 		xmpscqwait hMPSCWait = NULL;
 		xthread hMPSCWaitThread = NULL;
+		xthread arrMPSCWaitRaceThread[2] = { 0 };
 		xsem hMPSCWaitReady = NULL;
 		__test_queue_core_mpscwait_cons_ctx tMPSCWaitCtx;
+		__test_queue_core_mpscwait_cons_ctx arrMPSCWaitRaceCtx[2];
 	#endif
 
 	printf("\n\n------------------------------------\n\n Queue Core Test:\n\n");
@@ -682,6 +684,77 @@ static int Test_QueueCore(void)
 		}
 
 		iFail += __Test_QueueCore_Check("mpsc wait push closed", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)303u) == XQUEUE_CLOSED);
+		xrtMPSCQWaitDestroy(hMPSCWait);
+
+		memset(&tCfg, 0, sizeof(tCfg));
+		tCfg.iCapacity = 4u;
+		hMPSCWait = xrtMPSCQWaitCreate(&tCfg);
+		iFail += __Test_QueueCore_Check("mpsc wait race create", hMPSCWait != NULL);
+		if ( hMPSCWait == NULL ) {
+			return iFail ? 1 : 0;
+		}
+
+		hMPSCWaitReady = xrtSemCreate(0u, 2u);
+		iFail += __Test_QueueCore_Check("mpsc wait race ready sem create", hMPSCWaitReady != NULL);
+		if ( hMPSCWaitReady == NULL ) {
+			xrtMPSCQWaitDestroy(hMPSCWait);
+			return iFail ? 1 : 0;
+		}
+
+		xrtMutexLock(hMPSCWait->hPopLock);
+		iFail += __Test_QueueCore_Check("mpsc wait race push item", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)404u) == XQUEUE_OK);
+		xrtMPSCQWaitClose(hMPSCWait);
+		memset(arrMPSCWaitRaceCtx, 0, sizeof(arrMPSCWaitRaceCtx));
+		for ( i = 0; i < 2u; ++i ) {
+			arrMPSCWaitRaceCtx[i].hQueue = hMPSCWait;
+			arrMPSCWaitRaceCtx[i].hReady = hMPSCWaitReady;
+			arrMPSCWaitRaceCtx[i].iTimeoutMs = 1000u;
+			arrMPSCWaitRaceThread[i] = xrtThreadCreate(__Test_QueueCore_MPSCWaitConsumer, &arrMPSCWaitRaceCtx[i], 0);
+			iFail += __Test_QueueCore_Check("mpsc wait race consumer create", arrMPSCWaitRaceThread[i] != NULL);
+		}
+		for ( i = 0; i < 2u; ++i ) {
+			iFail += __Test_QueueCore_Check("mpsc wait race consumer ready", xrtSemWaitTimeout(hMPSCWaitReady, 1000u) == XRT_WAIT_OK);
+		}
+		{
+			uint64 iDeadline = (uint64)(xrtTimer() * 1000.0) + 1000u;
+			while ( __Test_QueueCore_AtomicLoad(&hMPSCWait->iWaiters) == 0 ) {
+				if ( (uint64)(xrtTimer() * 1000.0) >= iDeadline ) {
+					break;
+				}
+				xrtThreadYield();
+			}
+		}
+		iFail += __Test_QueueCore_Check("mpsc wait race waiter queued", __Test_QueueCore_AtomicLoad(&hMPSCWait->iWaiters) > 0);
+		xrtMutexUnlock(hMPSCWait->hPopLock);
+		for ( i = 0; i < 2u; ++i ) {
+			if ( arrMPSCWaitRaceThread[i] != NULL ) {
+				iFail += __Test_QueueCore_Check("mpsc wait race consumer join", xrtThreadWaitTimeout(arrMPSCWaitRaceThread[i], 5000u) == XRT_WAIT_OK);
+				iFail += __Test_QueueCore_Check("mpsc wait race consumer exit", xrtThreadGetExitCode(arrMPSCWaitRaceThread[i]) == 0u);
+				xrtThreadDestroy(arrMPSCWaitRaceThread[i]);
+				arrMPSCWaitRaceThread[i] = NULL;
+			}
+		}
+		{
+			uint32 iOkCount = 0u;
+			uint32 iClosedCount = 0u;
+			for ( i = 0; i < 2u; ++i ) {
+				if ( arrMPSCWaitRaceCtx[i].iFailure != 0 ) {
+					continue;
+				}
+				if ( arrMPSCWaitRaceCtx[i].iResult == XQUEUE_OK && arrMPSCWaitRaceCtx[i].iValue == 404u ) {
+					iOkCount++;
+				}
+				else if ( arrMPSCWaitRaceCtx[i].iResult == XQUEUE_CLOSED ) {
+					iClosedCount++;
+				}
+			}
+			iFail += __Test_QueueCore_Check("mpsc wait race results", iOkCount == 1u && iClosedCount == 1u);
+		}
+		iFail += __Test_QueueCore_Check("mpsc wait race drained", xrtQueueIsDrained(&hMPSCWait->tQueue.tBase) == TRUE);
+		if ( hMPSCWaitReady != NULL ) {
+			xrtSemDestroy(hMPSCWaitReady);
+			hMPSCWaitReady = NULL;
+		}
 		xrtMPSCQWaitDestroy(hMPSCWait);
 	#endif
 

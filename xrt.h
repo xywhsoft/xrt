@@ -2223,6 +2223,7 @@
 			{
 				xmpscq_struct tQueue;
 				xsem hItems;
+				xmutex hPopLock;
 				volatile long iWaiters;
 			} xmpscqwait_struct, *xmpscqwait;
 

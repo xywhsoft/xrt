@@ -2,79 +2,49 @@
 
 ## Purpose
 
-This note records the lightweight regression entry points added for the
-`xqueue` rollout. The goal is to keep queue behavior, trim behavior, and DLL
-size guardrails easy to rerun without widening XRT's default maintenance cost.
+This note records the queue-related regression coverage kept after the
+`xqueue` rollout was merged into the existing test system.
+
+The goal is to keep queue behavior, wait-wrapper behavior, and `xnet`
+integration easy to rerun without expanding XRT's default maintenance cost.
 
 
 ## Primary Scripts
 
-- `build_GCC_QUEUE_REGRESSION_x64.bat`
-  - Main GCC regression entry for the queue work.
-  - Builds and runs:
-    - `queue_core`
-    - `thread_core`
-    - `xnet2_engine`
-    - `test_trim.c`
-    - `singlehead/test_singlehead.c`
-    - `singlehead/test_singlehead_trim.c`
-  - Also runs two negative compile probes to ensure `XRT_NO_QUEUE` actually
-    hides `xqueue_config` in both normal-header and single-header builds.
+- `build_GCC_TEST_x64.bat`
+	- Main GCC test entry on Windows x64.
+	- Queue-related coverage now comes from:
+		- `preset:runtime_smoke`
+		- `preset:xnet2_stage`
+		- `singlehead/test_singlehead.c`
 
-- `build_GCC_QUEUE_REGRESSION_linux.sh`
-  - Linux GCC regression entry for the same queue-focused surface.
-  - Builds and runs:
-    - `queue_core`
-    - `thread_core`
-    - `xnet2_engine`
-    - `test_trim.c`
-    - `singlehead/test_singlehead.c`
-    - `singlehead/test_singlehead_trim.c`
-  - Also runs the same normal-header and single-header negative no-queue
-    compile probes.
-
-- `build_GCC_SIZE_GUARD_x64.bat`
-  - Builds a full DLL and a trim DLL with:
-    - full: default `xrt.dll`
-    - trim: `-DXRT_NO_QUEUE -DXRT_NO_NETWORK`
-  - Fails if the trim DLL is not smaller than the full DLL.
-  - Fails if the trim DLL exceeds the configured size thresholds.
+- `build_test.sh`
+	- Main shell test entry.
+	- Queue-related coverage now comes from:
+		- `preset:runtime_smoke`
+		- `preset:xnet2_stage`
+		- `singlehead/test_singlehead.c`
 
 - `singlehead/build_test.bat`
-  - Local single-header convenience entry.
-  - Runs both:
-    - `test_singlehead.exe`
-    - `test_singlehead_trim.exe`
+	- Local single-header convenience entry.
+	- Builds and runs `test_singlehead.c`.
 
-- `build_GCC_DLL_x64_local.bat`
-  - Builds a local GCC DLL to `release/x64/xrt_gcc_local.dll`.
-  - Use this when you want a fresh DLL without touching the tracked
-    `release/x64/xrt.dll` artifact.
+- `build_GCC_DLL_x64.bat`
+	- GCC DLL build entry on Windows x64.
+	- Produces `release/x64/xrt.dll`.
 
-- `build_TCC_DLL_x64_local.bat`
-  - Builds a local TCC DLL to `release/x64/xrt_tcc_local.dll`.
-  - Mirrors the GCC local-build intent for quick local validation.
-  - Cleans the temporary local `.def` companion file after a successful build.
-
-- `build_GCC_DLL_x64_release.bat`
-  - Explicitly updates the tracked `release/x64/xrt.dll` with GCC.
-  - Use this when the repository artifact itself should move forward.
-
-- `build_TCC_DLL_x64_release.bat`
-  - Explicitly updates the tracked `release/x64/xrt.dll` with TCC.
-  - Keeps the tracked-artifact lane separate from local validation.
-
-- `build_GCC_DLL_x64.bat` / `build_TCC_DLL_x64.bat`
-  - Compatibility wrappers.
-  - They still update the tracked DLL, but now print a reminder that
-    `*_local.bat` is the safer default for day-to-day development.
+- `build_TCC_DLL_x64.bat`
+	- TCC DLL build entry on Windows x64.
+	- Produces `release/x64/xrt.dll`.
+	- Keeps the current `-DXRT_NO_COROUTINE` workaround.
 
 
 ## Guarded Behaviors
 
 ### Queue API
 
-`queue_core` now locks down these contracts for `SPSC`, `MPSC`, and `MPMC`:
+`preset:runtime_smoke` includes `queue_core` and `thread_core`, and together
+they lock down these contracts for `SPSC`, `MPSC`, and `MPMC`:
 
 - zero-capacity and oversized-capacity creation must fail
 - `NULL` queue inputs must return `XQUEUE_ERROR` or a zero/false result
@@ -89,35 +59,31 @@ size guardrails easy to rerun without widening XRT's default maintenance cost.
   long-based atomics remain for `volatile long` state only
 - the first batch cut (`xrtMPSCQPushBatch/PopBatch`, `xrtMPMCQPushBatch/PopBatch`)
   must preserve:
-  - partial-success return counts
-  - FIFO pop order
-  - `0` on closed/full/empty boundaries without inventing a new result code
+	- partial-success return counts
+	- FIFO pop order
+	- `0` on closed/full/empty boundaries without inventing a new result code
 - the first wait-wrapper cut (`xmpscqwait`) must preserve:
-  - empty timeout behavior
-  - push-to-pop wakeups
-  - close-to-pop wakeups
+	- empty timeout behavior
+	- push-to-pop wakeups
+	- close-to-pop wakeups
+	- close-after-last-pop wakeups for late waiters
 
 ### XNet Integration
 
-`xnet2_engine` now guards:
+`preset:xnet2_stage` includes `xnet2_engine`, which now guards:
 
 - bounded worker command queues returning `XRT_NET_AGAIN` on pressure
 - delayed posts also returning `XRT_NET_AGAIN` when the command queue is full
 - failed delayed posts not executing later by accident
 - worker command-node freelist warm/reuse/return behavior
 
-### Trim Paths
+### Single-Header Surface
 
-`test_trim.c` and `singlehead/test_singlehead_trim.c` guard:
+The appended `singlehead/test_singlehead.c` smoke guards:
 
-- `XRT_NO_QUEUE`
-- `XRT_NO_QUEUE_WAIT`
-- `XRT_NO_NETWORK`
-- thread/runtime basics that should still work in trimmed builds
-
-The negative compile probes exist to catch a more subtle regression:
-`XRT_NO_QUEUE` must remove queue types from the public surface, not merely stop
-using them at runtime.
+- single-header generation staying buildable
+- queue APIs matching the normal-header surface
+- queue/runtime integration staying intact after regeneration
 
 The current Linux regression lane also matters for a second reason:
 the first Debian 13 queue benchmark run exposed a `uint32* -> long*` atomic
@@ -127,53 +93,14 @@ Those guards cover both the shared `uint32` helper layer in `xrt.h` and the
 `xvalue` CAS wrapper that sits on top of it.
 
 
-## Size Guard Thresholds
-
-`build_GCC_SIZE_GUARD_x64.bat` currently uses:
-
-- `XRT_SIZE_GUARD_MAX_TRIM_PERCENT=80`
-- `XRT_SIZE_GUARD_MIN_DELTA_BYTES=131072`
-- `XRT_SIZE_GUARD_KEEP_ARTIFACTS=0`
-
-These can be overridden by environment variables before running the script.
-
-Example:
-
-```bat
-set XRT_SIZE_GUARD_MAX_TRIM_PERCENT=75
-set XRT_SIZE_GUARD_MIN_DELTA_BYTES=200000
-set XRT_SIZE_GUARD_KEEP_ARTIFACTS=1
-cmd /c build_GCC_SIZE_GUARD_x64.bat
-```
-
-By default the script keeps `xrt_size_report.txt` and removes the temporary
-full/trim DLL artifacts after a successful run. Set
-`XRT_SIZE_GUARD_KEEP_ARTIFACTS=1` when you want to inspect those DLLs directly.
-
-
-## Current Observed Baseline
-
-Observed on March 25, 2026 from `build_GCC_SIZE_GUARD_x64.bat`:
-
-- full DLL: `868864` bytes
-- trim DLL: `611328` bytes
-- delta: `257536` bytes
-- trim percent: `70%`
-
-These numbers are a working baseline, not a frozen ABI target.
-
-
 ## Update Rule
 
-If queue-related code intentionally changes binary size or trim behavior:
+If queue-related code intentionally changes behavior:
 
-1. Run `build_GCC_QUEUE_REGRESSION_x64.bat`.
-2. Record the new size result.
-3. Only change guard thresholds when there is a measured reason.
-4. Keep trim builds meaningfully smaller than full builds.
-
-For Linux queue/runtime regressions, run `build_GCC_QUEUE_REGRESSION_linux.sh`
-in the same source tree or in a synchronized remote worktree.
+1. Run `build_GCC_TEST_x64.bat`.
+2. If the change is platform-sensitive, also run `build_test.sh`.
+3. If the change only touches single-header generation flow, `singlehead/build_test.bat`
+   remains the fastest local convenience entry.
 
 
 ## Out Of Scope
@@ -182,5 +109,5 @@ These scripts do not replace:
 
 - full repository regression runs
 - performance benchmarking
-- future `wait wrapper` validation
+- release-candidate wide validation
 - warning-clean builds across the whole tree

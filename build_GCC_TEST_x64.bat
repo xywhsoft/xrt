@@ -1,13 +1,19 @@
 @echo off
 setlocal
 
-gcc -m64 test.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o release/x64/test.exe || goto :eof
+if not exist release\x64 (
+	mkdir release\x64 || exit /b 1
+)
 
-release\x64\test.exe coroutine_min || goto :eof
-release\x64\test.exe coroutine || goto :eof
-release\x64\test.exe xurl_core || goto :eof
-release\x64\test.exe preset:xnet2_stage || goto :eof
+gcc -m64 test.c -I . -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o release/x64/test.exe || exit /b 1
+
+release\x64\test.exe preset:runtime_smoke || exit /b 1
+release\x64\test.exe xurl_core || exit /b 1
+release\x64\test.exe preset:xnet2_stage || exit /b 1
+
+gcc -m64 singlehead\test_singlehead.c -I singlehead -lWs2_32 -lIPHLPAPI -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o release/x64/test_singlehead_queue.exe || exit /b 1
+release\x64\test_singlehead_queue.exe || exit /b 1
 
 echo.
 echo build_GCC_TEST_x64.bat: PASS
-goto :eof
+exit /b 0

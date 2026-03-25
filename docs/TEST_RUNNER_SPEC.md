@@ -10,7 +10,7 @@
 - `FutureCore` 已不再反向依赖 `dev/test_future_core.c`，实现落在 [test_future_core_impl.h](/D:/git/xrt/test/test_future_core_impl.h)。
 - `memtelemetry baseline` 已进入 `test/` 体系：[test_memtelemetry_baseline.h](/D:/git/xrt/test/test_memtelemetry_baseline.h)。
 - `dev/test*.c` 独立入口已经清空。
-- 默认脚本 [build_test.sh](/D:/git/xrt/build_test.sh) 与 [build_GCC_TEST_x64.bat](/D:/git/xrt/build_GCC_TEST_x64.bat) 已直接编译并调用 [test.c](/D:/git/xrt/test.c)。
+- 默认脚本 [build_test.sh](/D:/git/xrt/build_test.sh) 与 [build_GCC_TEST_x64.bat](/D:/git/xrt/build_GCC_TEST_x64.bat) 已直接编译并调用 [test.c](/D:/git/xrt/test.c)，并在脚本末尾补跑 `singlehead` smoke。
 - Windows 脚本不再切换到 `release/x64` 目录执行 runner，避免 TLS/HTTP/WS 测试因为工作目录变化而丢失相对路径夹具。
 - `xnet_native_core` 专项脚本已在两端补齐：
 	- [build_test_xnet_native_core.sh](/D:/git/xrt/build_test_xnet_native_core.sh)

@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-25 01:49:20
+    Generated: 2026-03-25 11:31:08
 
     MIT License
 
@@ -2145,6 +2145,7 @@
 			{
 				xmpscq_struct tQueue;
 				xsem hItems;
+				xmutex hPopLock;
 				volatile long iWaiters;
 			} xmpscqwait_struct, *xmpscqwait;
 			XXAPI bool xrtMPSCQWaitInit(xmpscqwait pQueue, const xqueue_config* pCfg);
@@ -16163,10 +16164,29 @@ static inline void __xrtMPSCQWaitWakeAll(xmpscqwait pQueue)
 	iWakeCount = (iWaiters > (long)0xffffffffu) ? 0xffffffffu : (uint32)iWaiters;
 	(void)xrtSemPostMultiple(pQueue->hItems, iWakeCount);
 }
+static xqueue_result __xrtMPSCQWaitPopWithToken(xmpscqwait pQueue, ptr* ppItem)
+{
+	xqueue_result iRet;
+	bool bWake = FALSE;
+	if ( pQueue == NULL || pQueue->hPopLock == NULL || ppItem == NULL ) {
+		return XQUEUE_ERROR;
+	}
+	xrtMutexLock(pQueue->hPopLock);
+	iRet = xrtMPSCQTryPop(&pQueue->tQueue, ppItem);
+	bWake = __xrtMPSCQWaitIsClosedAndDrained(pQueue);
+	xrtMutexUnlock(pQueue->hPopLock);
+	if ( bWake ) {
+		__xrtMPSCQWaitWakeAll(pQueue);
+	}
+	if ( iRet == XQUEUE_OK || iRet == XQUEUE_CLOSED || iRet == XQUEUE_ERROR ) {
+		return iRet;
+	}
+	return __xrtMPSCQWaitIsClosedAndDrained(pQueue) ? XQUEUE_CLOSED : XQUEUE_EMPTY;
+}
 static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool bInfinite, uint32 iTimeoutMs)
 {
 	uint64 iDeadlineMs = 0;
-	if ( pQueue == NULL || pQueue->hItems == NULL || ppItem == NULL ) {
+	if ( pQueue == NULL || pQueue->hItems == NULL || pQueue->hPopLock == NULL || ppItem == NULL ) {
 		return XQUEUE_ERROR;
 	}
 	*ppItem = NULL;
@@ -16174,10 +16194,8 @@ static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool 
 		iDeadlineMs = __xrtQueueWaitNowMs() + (uint64)iTimeoutMs;
 	}
 	for ( ;; ) {
-		bool bHasToken = FALSE;
-		xqueue_result iRet;
 		if ( xrtSemTryWait(pQueue->hItems) ) {
-			bHasToken = TRUE;
+			return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
 		}
 		else {
 			if ( __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
@@ -16186,7 +16204,7 @@ static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool 
 			__xrtQueueWaitAddLong(&pQueue->iWaiters, 1);
 			if ( xrtSemTryWait(pQueue->hItems) ) {
 				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
-				bHasToken = TRUE;
+				return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
 			}
 			else if ( __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
 				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
@@ -16195,7 +16213,7 @@ static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool 
 			else if ( bInfinite ) {
 				xrtSemWait(pQueue->hItems);
 				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
-				bHasToken = TRUE;
+				return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
 			}
 			else {
 				uint64 iNowMs = __xrtQueueWaitNowMs();
@@ -16212,7 +16230,7 @@ static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool 
 				iWaitRet = xrtSemWaitTimeout(pQueue->hItems, (uint32)iRemainMs);
 				__xrtQueueWaitAddLong(&pQueue->iWaiters, -1);
 				if ( iWaitRet == XRT_WAIT_OK ) {
-					bHasToken = TRUE;
+					return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
 				}
 				else if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
 					if ( __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
@@ -16224,13 +16242,6 @@ static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool 
 					return XQUEUE_ERROR;
 				}
 			}
-		}
-		iRet = xrtMPSCQTryPop(&pQueue->tQueue, ppItem);
-		if ( iRet == XQUEUE_OK || iRet == XQUEUE_CLOSED || iRet == XQUEUE_ERROR ) {
-			return iRet;
-		}
-		if ( bHasToken && __xrtMPSCQWaitIsClosedAndDrained(pQueue) ) {
-			return XQUEUE_CLOSED;
 		}
 	}
 }
@@ -16958,6 +16969,15 @@ XXAPI bool xrtMPSCQWaitInit(xmpscqwait pQueue, const xqueue_config* pCfg)
 		xrtSetError("mpsc wait queue semaphore init failed.", FALSE);
 		return FALSE;
 	}
+	pQueue->hPopLock = xrtMutexCreate();
+	if ( pQueue->hPopLock == NULL ) {
+		xrtSemDestroy(pQueue->hItems);
+		pQueue->hItems = NULL;
+		xrtMPSCQUnit(&pQueue->tQueue);
+		memset(pQueue, 0, sizeof(xmpscqwait_struct));
+		xrtSetError("mpsc wait queue mutex init failed.", FALSE);
+		return FALSE;
+	}
 	pQueue->iWaiters = 0;
 	return TRUE;
 }
@@ -16965,6 +16985,10 @@ XXAPI void xrtMPSCQWaitUnit(xmpscqwait pQueue)
 {
 	if ( pQueue == NULL ) {
 		return;
+	}
+	if ( pQueue->hPopLock != NULL ) {
+		xrtMutexDestroy(pQueue->hPopLock);
+		pQueue->hPopLock = NULL;
 	}
 	if ( pQueue->hItems != NULL ) {
 		xrtSemDestroy(pQueue->hItems);
@@ -17011,7 +17035,6 @@ XXAPI xqueue_result xrtMPSCQWaitTryPush(xmpscqwait pQueue, ptr pItem)
 }
 XXAPI xqueue_result xrtMPSCQWaitTryPop(xmpscqwait pQueue, ptr* ppItem)
 {
-	xqueue_result iRet;
 	if ( pQueue == NULL || pQueue->hItems == NULL || ppItem == NULL ) {
 		return XQUEUE_ERROR;
 	}
@@ -17019,11 +17042,7 @@ XXAPI xqueue_result xrtMPSCQWaitTryPop(xmpscqwait pQueue, ptr* ppItem)
 	if ( !xrtSemTryWait(pQueue->hItems) ) {
 		return __xrtMPSCQWaitIsClosedAndDrained(pQueue) ? XQUEUE_CLOSED : XQUEUE_EMPTY;
 	}
-	iRet = xrtMPSCQTryPop(&pQueue->tQueue, ppItem);
-	if ( iRet == XQUEUE_OK || iRet == XQUEUE_CLOSED || iRet == XQUEUE_ERROR ) {
-		return iRet;
-	}
-	return __xrtMPSCQWaitIsClosedAndDrained(pQueue) ? XQUEUE_CLOSED : XQUEUE_EMPTY;
+	return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
 }
 XXAPI xqueue_result xrtMPSCQWaitPop(xmpscqwait pQueue, ptr* ppItem)
 {
