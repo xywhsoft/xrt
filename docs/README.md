@@ -70,6 +70,9 @@
 当前最值得优先阅读的 API 主线：
 
 - [Base 基础运行时](api/api-base.md)
+- [Value 动态类型系统](api/api-value.md)
+- [JSON 处理库](api/api-json.md)
+- [XSON 处理库](api/api-xson.md)
 - [Thread 线程管理库](api/api-thread.md)
 - [Coroutine 协程运行时](api/api-coroutine.md)
 - [Future / Task / Promise](api/api-future-task-promise.md)
@@ -132,10 +135,12 @@
 
 1. [Base](api/api-base.md)
 2. [Value](api/api-value.md)
-3. [Thread](api/api-thread.md)
-4. [Coroutine](api/api-coroutine.md)
-5. [Future / Task / Promise](api/api-future-task-promise.md)
-6. [XNet v2](api/api-xnet-v2.md)
+3. [JSON](api/api-json.md)
+4. [XSON](api/api-xson.md)
+5. [Thread](api/api-thread.md)
+6. [Coroutine](api/api-coroutine.md)
+7. [Future / Task / Promise](api/api-future-task-promise.md)
+8. [XNet v2](api/api-xnet-v2.md)
 
 如果你是第一次接触 XRT，建议再接着读：
 

@@ -9,6 +9,7 @@
 ## 📑 目录
 
 - [重要说明](#重要说明)
+- [JSON 与 XSON 的边界](#json-与-xson-的边界)
 - [JSON类型系统](#json类型系统)
 - [SAX解析](#sax解析)
 - [JSON生成](#json生成)
@@ -29,6 +30,31 @@
 - 大文件、流式处理、只做边读边消费：使用 SAX
 - 需要跨线程共享 JSON 风格结构时，直接使用 `xvoCreate*Ex(XRT_OBJMODE_SHARED)` 构造 shared root，再交给业务线程共享
 - 程序内部长期持有、跨模块流转、进入 HTTP / 模板 / AI 调用链的数据，优先收敛到 `xvalue`，JSON 主要作为交换格式而不是内部主数据结构
+
+---
+
+## JSON 与 XSON 的边界
+
+当前主线里，`JSON` 和 `XSON` 的职责应明确区分：
+
+- `JSON`
+	- 通用标准格式
+	- 对外协议、开放配置、标准交换优先使用
+	- 使用 `xrtParseJSON()` / `xrtStringifyJSON()`
+- `XSON`
+	- XRT 私有扩展格式
+	- 面向 `xvalue` 完整序列化
+	- 在保持 JSON 兼容的基础上，扩展 `time / list / set / class`
+	- 使用 `xrtParseXSON()` / `xrtStringifyXSON()`
+
+如果一份 `xvalue` 中出现以下类型，就不应继续使用 JSON 序列化：
+
+- `time`
+- `list`
+- `set(coll)`
+- `class`
+
+这类数据应切换到 [XSON 处理库](api-xson.md)。
 
 ---
 

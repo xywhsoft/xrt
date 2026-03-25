@@ -98,8 +98,18 @@ xvoTableSetValue( vRoot, "tags", vTags );
 
 - `xvalue`：程序内部的数据模型
 - `JSON`：数据交换格式
+- `XSON`：当 `xvalue` 需要完整保留 `time / list / coll / class` 时使用的私有扩展交换格式
 
 也就是说，程序内部应优先操作 `xvalue`，在需要对外交换、落盘、传输时，再做 JSON 编解码。
+
+如果数据里包含标准 JSON 无法完整表达的类型，例如：
+
+- `time`
+- `list`
+- `coll(set)`
+- `class`
+
+则应切换到 `XSON`，而不是继续强行使用 JSON。
 
 这比“到处直接拼 JSON 字符串”更稳，也更适合后续演进。
 

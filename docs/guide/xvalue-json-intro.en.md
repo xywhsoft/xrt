@@ -97,8 +97,18 @@ The recommended way to think about them is:
 
 - `xvalue`: the internal program data model
 - `JSON`: a data exchange format
+- `XSON`: the private extension exchange format when `xvalue` must preserve `time / list / coll / class`
 
 That means the program should usually manipulate `xvalue` internally, and only encode or decode JSON when exchanging data with the outside world.
+
+If the data contains types that standard JSON cannot fully express, such as:
+
+- `time`
+- `list`
+- `coll(set)`
+- `class`
+
+then the boundary format should switch from JSON to XSON.
 
 ### 4.1 Parse JSON into xvalue
 

@@ -9,6 +9,7 @@
 ## Table of Contents
 
 - [Position in the Current Mainline](#position-in-the-current-mainline)
+- [Boundary Between JSON and XSON](#boundary-between-json-and-xson)
 - [What This Module Solves](#what-this-module-solves)
 - [Two Ways to Work with JSON](#two-ways-to-work-with-json)
 - [Recommended Mainline: xvalue + JSON](#recommended-mainline-xvalue--json)
@@ -36,6 +37,32 @@ The mainline is:
 The preferred model is:
 
 **JSON in, `xvalue` inside, JSON out**
+
+---
+
+## Boundary Between JSON and XSON
+
+In the current mainline, JSON and XSON have different responsibilities:
+
+- `JSON`
+	- standard exchange format
+	- use `xrtParseJSON()` / `xrtStringifyJSON()`
+- `XSON`
+	- XRT private extension format
+	- full `xvalue` serialization
+	- remains JSON-compatible while adding `time / list / set / class`
+	- use `xrtParseXSON()` / `xrtStringifyXSON()`
+
+If your data contains any of these types, switch from JSON to XSON:
+
+- `time`
+- `list`
+- `set(coll)`
+- `class`
+
+See:
+
+- [XSON Processing Library](api-xson.en.md)
 
 ---
 

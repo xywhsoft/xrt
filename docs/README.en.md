@@ -75,6 +75,9 @@ then place them in the proper subdirectory.
 The most important API mainline documents to read first are:
 
 - [Base Runtime](api/api-base.en.md)
+- [Value Dynamic Type System](api/api-value.en.md)
+- [JSON Processing Library](api/api-json.en.md)
+- [XSON Processing Library](api/api-xson.en.md)
 - [Thread Runtime](api/api-thread.en.md)
 - [Coroutine Runtime](api/api-coroutine.en.md)
 - [Future / Task / Promise](api/api-future-task-promise.en.md)
@@ -137,10 +140,12 @@ If you want to start writing code directly, read these first:
 
 1. [Base](api/api-base.en.md)
 2. [Value](api/api-value.en.md)
-3. [Thread](api/api-thread.en.md)
-4. [Coroutine](api/api-coroutine.en.md)
-5. [Future / Task / Promise](api/api-future-task-promise.en.md)
-6. [XNet v2](api/api-xnet-v2.en.md)
+3. [JSON](api/api-json.en.md)
+4. [XSON](api/api-xson.en.md)
+5. [Thread](api/api-thread.en.md)
+6. [Coroutine](api/api-coroutine.en.md)
+7. [Future / Task / Promise](api/api-future-task-promise.en.md)
+8. [XNet v2](api/api-xnet-v2.en.md)
 
 If you want the first full learning path after that, continue with:
 

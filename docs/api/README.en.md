@@ -62,6 +62,7 @@
 | Value | [api-value.en.md](api-value.en.md) | 16 dynamic data types, shared roots, reference management |
 | JNUM | [api-jnum.en.md](api-jnum.en.md) | Number/string conversion |
 | JSON | [api-json.en.md](api-json.en.md) | JSON parsing and generation |
+| XSON | [api-xson.en.md](api-xson.en.md) | Full `xvalue` serialization, JSON-compatible with `time / list / set / class` extensions |
 | Template | [api-template.en.md](api-template.en.md) | Template engine |
 | Crypto | [api-crypto.en.md](api-crypto.en.md) | Cryptographic building blocks |
 | Regex | [api-regex.en.md](api-regex.en.md) | Regular expressions and multi-pattern matching |

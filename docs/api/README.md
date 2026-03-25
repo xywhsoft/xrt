@@ -62,6 +62,7 @@
 | Value | [api-value.md](api-value.md) | 16 种动态数据类型、shared root、引用管理 |
 | JNUM | [api-jnum.md](api-jnum.md) | 数值与字符串转换 |
 | JSON | [api-json.md](api-json.md) | JSON 解析与生成 |
+| XSON | [api-xson.md](api-xson.md) | `xvalue` 完整序列化，兼容 JSON 并扩展 `time / list / set / class` |
 | Template | [api-template.md](api-template.md) | 模板引擎 |
 | Crypto | [api-crypto.md](api-crypto.md) | 加密基础能力 |
 | Regex | [api-regex.md](api-regex.md) | 正则表达式与多模式匹配 |
