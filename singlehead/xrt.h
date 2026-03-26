@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-25 16:07:50
+    Generated: 2026-03-26 16:40:36
 
     MIT License
 
@@ -6312,9 +6312,7 @@ xrtGlobalData xCore = { FALSE };
 	static SRWLOCK __xrtRuntimeLockObj = SRWLOCK_INIT;
 	#define __xrtRuntimeLock()		AcquireSRWLockExclusive(&__xrtRuntimeLockObj)
 	#define __xrtRuntimeUnlock()	ReleaseSRWLockExclusive(&__xrtRuntimeLockObj)
-	#if defined(__TINYC__)
-		#define XRT_TLS_STORAGE		__declspec(thread)
-	#elif defined(__GNUC__)
+	#if defined(__GNUC__)
 		#define XRT_TLS_STORAGE		__thread
 	#else
 		#define XRT_TLS_STORAGE		__declspec(thread)
@@ -6325,7 +6323,73 @@ xrtGlobalData xCore = { FALSE };
 	#define __xrtRuntimeUnlock()	pthread_mutex_unlock(&__xrtRuntimeLockObj)
 	#define XRT_TLS_STORAGE			__thread
 #endif
-static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__)
+		static DWORD __xrtThreadTlsSlot = TLS_OUT_OF_INDEXES;
+		static bool __xrtThreadStateInitStorage()
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				return TRUE;
+			}
+			__xrtThreadTlsSlot = TlsAlloc();
+			return __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES;
+		}
+		static void __xrtThreadStateUnitStorage()
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				TlsFree(__xrtThreadTlsSlot);
+				__xrtThreadTlsSlot = TLS_OUT_OF_INDEXES;
+			}
+		}
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			if ( __xrtThreadTlsSlot == TLS_OUT_OF_INDEXES ) {
+				return NULL;
+			}
+			return (xrtThreadData*)TlsGetValue(__xrtThreadTlsSlot);
+		}
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				(void)TlsSetValue(__xrtThreadTlsSlot, pThreadData);
+			}
+		}
+	#else
+		static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+		static bool __xrtThreadStateInitStorage()
+		{
+			return TRUE;
+		}
+		static void __xrtThreadStateUnitStorage()
+		{
+		}
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			return __xrtThreadState;
+		}
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			__xrtThreadState = pThreadData;
+		}
+	#endif
+#else
+	static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+	static bool __xrtThreadStateInitStorage()
+	{
+		return TRUE;
+	}
+	static void __xrtThreadStateUnitStorage()
+	{
+	}
+	static xrtThreadData* __xrtThreadStateGet()
+	{
+		return __xrtThreadState;
+	}
+	static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+	{
+		__xrtThreadState = pThreadData;
+	}
+#endif
 #ifndef XRT_MEM_DEBUG
 static volatile long __xrtMemForeignAllocLock = 0;
 static xrtMemDebugForeignAlloc* __xrtMemForeignAllocList = NULL;
@@ -17116,7 +17180,19 @@ XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 #endif
 #define __XRT_CO_BACKEND_TIER_PRODUCTION	2
 #define __XRT_CO_BACKEND_STYLE_INLINE_ASM	2
-#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#if defined(__TINYC__)
+	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
+		#define __XRT_CO_ASM_X64_WIN
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64-tcc"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#elif !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		#define __XRT_CO_ASM_X64
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-sysv-tcc"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#endif
+#elif defined(__GNUC__) || defined(__clang__)
 	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
 		#define __XRT_CO_ASM_X64_WIN
 		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64"
@@ -17582,6 +17658,55 @@ static void __xrt_co_sleep_ms(int iMs)
 	#endif
 }
 /* ================================ 后端实现: x86_64 内联汇编 ================================ */
+#define __XRT_CO_JMP_RDX	"jmp *0x00(%%rdx)\n\t"
+#define __XRT_CO_JMP_RSI	"jmp *0x00(%%rsi)\n\t"
+#if defined(__TINYC__) && defined(__XRT_CO_ASM_X64_WIN)
+	/*
+		TCC x64 Windows inline asm 只能解析部分 XMM 指令/寄存器名。
+		这里让 xmm6/xmm7 继续走可读语法，其余高位寄存器使用 .byte 编码。
+	*/
+	#define __XRT_CO_WIN64_SAVE_XMM6	"movups %%xmm6,  0x50(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM7	"movups %%xmm7,  0x60(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM8	".byte 0x44,0x0f,0x11,0x41,0x70\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM9	".byte 0x44,0x0f,0x11,0x89,0x80,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM10	".byte 0x44,0x0f,0x11,0x91,0x90,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM11	".byte 0x44,0x0f,0x11,0x99,0xA0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM12	".byte 0x44,0x0f,0x11,0xA1,0xB0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM13	".byte 0x44,0x0f,0x11,0xA9,0xC0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM14	".byte 0x44,0x0f,0x11,0xB1,0xD0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM15	".byte 0x44,0x0f,0x11,0xB9,0xE0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM15	".byte 0x44,0x0f,0x10,0xBA,0xE0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM14	".byte 0x44,0x0f,0x10,0xB2,0xD0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM13	".byte 0x44,0x0f,0x10,0xAA,0xC0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM12	".byte 0x44,0x0f,0x10,0xA2,0xB0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM11	".byte 0x44,0x0f,0x10,0x9A,0xA0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM10	".byte 0x44,0x0f,0x10,0x92,0x90,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM9	".byte 0x44,0x0f,0x10,0x8A,0x80,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM8	".byte 0x44,0x0f,0x10,0x42,0x70\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM7	"movups 0x60(%%rdx), %%xmm7\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM6	"movups 0x50(%%rdx), %%xmm6\n\t"
+#else
+	#define __XRT_CO_WIN64_SAVE_XMM6	"movdqu %%xmm6,  0x50(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM7	"movdqu %%xmm7,  0x60(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM8	"movdqu %%xmm8,  0x70(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM9	"movdqu %%xmm9,  0x80(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM10	"movdqu %%xmm10, 0x90(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM11	"movdqu %%xmm11, 0xA0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM12	"movdqu %%xmm12, 0xB0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM13	"movdqu %%xmm13, 0xC0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM14	"movdqu %%xmm14, 0xD0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM15	"movdqu %%xmm15, 0xE0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM15	"movdqu 0xE0(%%rdx), %%xmm15\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM14	"movdqu 0xD0(%%rdx), %%xmm14\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM13	"movdqu 0xC0(%%rdx), %%xmm13\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM12	"movdqu 0xB0(%%rdx), %%xmm12\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM11	"movdqu 0xA0(%%rdx), %%xmm11\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM10	"movdqu 0x90(%%rdx), %%xmm10\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM9	"movdqu 0x80(%%rdx), %%xmm9\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM8	"movdqu 0x70(%%rdx), %%xmm8\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM7	"movdqu 0x60(%%rdx), %%xmm7\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM6	"movdqu 0x50(%%rdx), %%xmm6\n\t"
+#endif
 #ifdef __XRT_CO_ASM_X64_WIN
 /*
 	Windows x64 ABI callee-saved 寄存器:
@@ -17620,26 +17745,26 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq %%r13, 0x38(%%rcx)\n\t"
 		"movq %%r14, 0x40(%%rcx)\n\t"
 		"movq %%r15, 0x48(%%rcx)\n\t"
-		"movdqu %%xmm6,  0x50(%%rcx)\n\t"
-		"movdqu %%xmm7,  0x60(%%rcx)\n\t"
-		"movdqu %%xmm8,  0x70(%%rcx)\n\t"
-		"movdqu %%xmm9,  0x80(%%rcx)\n\t"
-		"movdqu %%xmm10, 0x90(%%rcx)\n\t"
-		"movdqu %%xmm11, 0xA0(%%rcx)\n\t"
-		"movdqu %%xmm12, 0xB0(%%rcx)\n\t"
-		"movdqu %%xmm13, 0xC0(%%rcx)\n\t"
-		"movdqu %%xmm14, 0xD0(%%rcx)\n\t"
-		"movdqu %%xmm15, 0xE0(%%rcx)\n\t"
-		"movdqu 0xE0(%%rdx), %%xmm15\n\t"
-		"movdqu 0xD0(%%rdx), %%xmm14\n\t"
-		"movdqu 0xC0(%%rdx), %%xmm13\n\t"
-		"movdqu 0xB0(%%rdx), %%xmm12\n\t"
-		"movdqu 0xA0(%%rdx), %%xmm11\n\t"
-		"movdqu 0x90(%%rdx), %%xmm10\n\t"
-		"movdqu 0x80(%%rdx), %%xmm9\n\t"
-		"movdqu 0x70(%%rdx), %%xmm8\n\t"
-		"movdqu 0x60(%%rdx), %%xmm7\n\t"
-		"movdqu 0x50(%%rdx), %%xmm6\n\t"
+		__XRT_CO_WIN64_SAVE_XMM6
+		__XRT_CO_WIN64_SAVE_XMM7
+		__XRT_CO_WIN64_SAVE_XMM8
+		__XRT_CO_WIN64_SAVE_XMM9
+		__XRT_CO_WIN64_SAVE_XMM10
+		__XRT_CO_WIN64_SAVE_XMM11
+		__XRT_CO_WIN64_SAVE_XMM12
+		__XRT_CO_WIN64_SAVE_XMM13
+		__XRT_CO_WIN64_SAVE_XMM14
+		__XRT_CO_WIN64_SAVE_XMM15
+		__XRT_CO_WIN64_LOAD_XMM15
+		__XRT_CO_WIN64_LOAD_XMM14
+		__XRT_CO_WIN64_LOAD_XMM13
+		__XRT_CO_WIN64_LOAD_XMM12
+		__XRT_CO_WIN64_LOAD_XMM11
+		__XRT_CO_WIN64_LOAD_XMM10
+		__XRT_CO_WIN64_LOAD_XMM9
+		__XRT_CO_WIN64_LOAD_XMM8
+		__XRT_CO_WIN64_LOAD_XMM7
+		__XRT_CO_WIN64_LOAD_XMM6
 		"movq 0x48(%%rdx), %%r15\n\t"
 		"movq 0x40(%%rdx), %%r14\n\t"
 		"movq 0x38(%%rdx), %%r13\n\t"
@@ -17649,7 +17774,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq 0x18(%%rdx), %%rbx\n\t"
 		"movq 0x10(%%rdx), %%rbp\n\t"
 		"movq 0x08(%%rdx), %%rsp\n\t"
-		"jmpq *0x00(%%rdx)\n\t"
+		__XRT_CO_JMP_RDX
 		"1:\n\t"
 		:
 		: "c"(pFrom), "d"(pTo)
@@ -17688,7 +17813,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq 0x18(%%rsi), %%rbx\n\t"
 		"movq 0x10(%%rsi), %%rbp\n\t"
 		"movq 0x08(%%rsi), %%rsp\n\t"
-		"jmpq *0x00(%%rsi)\n\t"
+		__XRT_CO_JMP_RSI
 		"1:\n\t"
 		: : "D"(pFrom), "S"(pTo)
 		: "memory", "rax", "rcx", "rdx",
@@ -68313,6 +68438,7 @@ static void __xrtRuntimeFinalizeLocked()
 	#endif
 	xCore.bInit = FALSE;
 	__xrtRuntimeThreadRefCount = 0;
+	__xrtThreadStateUnitStorage();
 	#if defined(_WIN32) || defined(_WIN64)
 		#if __XRT_RUNTIME_NEED_WSA
 			WSACleanup();
@@ -68336,15 +68462,15 @@ static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
 }
 XXAPI xrtThreadData* xrtThreadGetCurrent()
 {
-	return __xrtThreadState;
+	return __xrtThreadStateGet();
 }
 XXAPI bool xrtThreadIsAttached()
 {
-	return __xrtThreadState != NULL;
+	return __xrtThreadStateGet() != NULL;
 }
 XXAPI xrtThreadData* xrtThreadAttachCurrent()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	if ( pThreadData ) {
 		pThreadData->iAttachDepth++;
 		return pThreadData;
@@ -68354,13 +68480,17 @@ XXAPI xrtThreadData* xrtThreadAttachCurrent()
 		__xrtRuntimeUnlock();
 		return NULL;
 	}
+	if ( !__xrtThreadStateInitStorage() ) {
+		__xrtRuntimeUnlock();
+		return NULL;
+	}
 	pThreadData = __xrtCreateThreadState(NULL);
 	if ( pThreadData == NULL ) {
 		__xrtRuntimeUnlock();
 		return NULL;
 	}
 	__xrtRuntimeThreadRefCount++;
-	__xrtThreadState = pThreadData;
+	__xrtThreadStateSet(pThreadData);
 	__xrtRuntimeUnlock();
 	return pThreadData;
 }
@@ -68379,7 +68509,7 @@ static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
 }
 XXAPI void xrtThreadDetachCurrent()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 	if ( pThreadData == NULL ) {
 		return;
@@ -68395,7 +68525,7 @@ XXAPI void xrtThreadDetachCurrent()
 		__xrtCoroRuntimeUnitThread(pThreadData);
 	#endif
 	__xrtUnitThreadMemState(pThreadData);
-	__xrtThreadState = NULL;
+	__xrtThreadStateSet(NULL);
 	procFree(pThreadData);
 	__xrtRuntimeLock();
 	if ( __xrtRuntimeThreadRefCount > 0 ) {
@@ -68408,7 +68538,7 @@ XXAPI void xrtThreadDetachCurrent()
 }
 XXAPI str xrtGetError()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	if ( pThreadData ) {
 		return pThreadData->LastError;
 	}
@@ -68821,7 +68951,7 @@ XXAPI bool xrtMemDebugDumpJson(str sPath)
 #endif
 XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	xrtThreadCleanup* pCleanup = NULL;
 	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
 	if ( pThreadData == NULL || proc == NULL ) {
@@ -68839,7 +68969,7 @@ XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 }
 XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	xrtThreadCleanup* pCleanup = NULL;
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 	if ( pThreadData == NULL || pThreadData->pCleanupTop == NULL ) {
