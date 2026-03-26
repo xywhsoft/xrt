@@ -2386,10 +2386,10 @@
 		uint32 iTermReason;     // 终态原因 (XRT_CO_TERM_*)
 		uint32 __iReserved;
 		size_t iStackSize;      // 栈大小
-		ptr __pStack;           // 分配的栈内存
-		ptr __pStackMem;        // 栈保留区起始地址（含 guard page）
-		size_t __iStackAllocSize; // 栈保留区总大小
-		size_t __iStackGuardSize; // guard page 大小
+		ptr __pStack;           // 自管栈内存（仅 inline asm backend 使用）
+		ptr __pStackMem;        // 自管栈保留区起始地址（含 guard page）
+		size_t __iStackAllocSize; // 自管栈保留区总大小
+		size_t __iStackGuardSize; // 自管栈 guard page 大小
 		__xrt_co_ctx __tCtx;    // 上下文（汇编/ucontext 后端使用）
 		ptr __hFiber;           // Windows Fiber 句柄
 		ptr __pSched;           // 所属调度器指针（NULL=无调度器）

@@ -640,7 +640,11 @@ void Test_Coroutine(xrtGlobalData* xCore)
 		int iTier = xrtCoGetBackendTier();
 		int iStyle = xrtCoGetBackendStyle();
 		bool bTier = (iTier == XRT_CO_BACKEND_TIER_PRODUCTION);
-		bool bStyle = (iStyle == XRT_CO_BACKEND_STYLE_INLINE_ASM);
+		#if defined(_MSC_VER) && !defined(__clang__) && (defined(_WIN32) || defined(_WIN64))
+			bool bStyle = (iStyle == XRT_CO_BACKEND_STYLE_FIBER);
+		#else
+			bool bStyle = (iStyle == XRT_CO_BACKEND_STYLE_INLINE_ASM);
+		#endif
 		bool bName = (sBackend != NULL) && (sBackend[0] != 0);
 		sBackendText = bName ? (const char*)sBackend : "(null)";
 

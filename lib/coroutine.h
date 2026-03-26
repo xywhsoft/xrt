@@ -19,7 +19,7 @@
 #define __XRT_CO_BACKEND_STYLE_INLINE_ASM	2
 #define __XRT_CO_BACKEND_STYLE_FIBER		3
 
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
+#if defined(_MSC_VER) && !defined(__clang__) && (defined(_WIN32) || defined(_WIN64))
 	#define __XRT_CO_FIBER_WIN
 	#if defined(_WIN64)
 		#define __XRT_CO_BACKEND_NAME	"fiber-win64-msvc"
@@ -75,6 +75,12 @@
 
 #if XRT_CO_REQUIRE_PRODUCTION_BACKEND && (__XRT_CO_BACKEND_TIER != __XRT_CO_BACKEND_TIER_PRODUCTION)
 	#error "XRT coroutine production backend is required, but current target is not using a production backend."
+#endif
+
+#ifdef __XRT_CO_FIBER_WIN
+	#define __XRT_CO_BACKEND_NEEDS_STACK_ALLOC	0
+#else
+	#define __XRT_CO_BACKEND_NEEDS_STACK_ALLOC	1
 #endif
 
 
@@ -446,6 +452,23 @@ static size_t __xrt_co_align_up(size_t iValue, size_t iAlign)
 	return (iValue + iAlign - 1) & ~(iAlign - 1);
 }
 
+static size_t __xrt_co_normalize_stack_size(size_t iStackSize)
+{
+	size_t iPageSize = __xrt_co_stack_page_size();
+
+	if ( iStackSize == 0 ) {
+		iStackSize = XRT_CO_STACK_DEFAULT;
+	}
+	if ( iStackSize < XRT_CO_STACK_MIN ) {
+		iStackSize = XRT_CO_STACK_MIN;
+	}
+	if ( iStackSize > XRT_CO_STACK_MAX ) {
+		iStackSize = XRT_CO_STACK_MAX;
+	}
+
+	return __xrt_co_align_up(iStackSize, iPageSize);
+}
+
 static bool __xrt_co_stack_alloc(xcoro pCo)
 {
 	size_t iPageSize = 0;
@@ -460,13 +483,7 @@ static bool __xrt_co_stack_alloc(xcoro pCo)
 
 	iPageSize = __xrt_co_stack_page_size();
 	iGuardSize = iPageSize;
-	iStackSize = __xrt_co_align_up(pCo->iStackSize, iPageSize);
-	if ( iStackSize < XRT_CO_STACK_MIN ) {
-		iStackSize = __xrt_co_align_up(XRT_CO_STACK_MIN, iPageSize);
-	}
-	if ( iStackSize > XRT_CO_STACK_MAX ) {
-		iStackSize = __xrt_co_align_up(XRT_CO_STACK_MAX, iPageSize);
-	}
+	iStackSize = __xrt_co_normalize_stack_size(pCo->iStackSize);
 	if ( iStackSize > (SIZE_MAX - iGuardSize) ) {
 		xrtSetError("coroutine stack size overflow.", FALSE);
 		return FALSE;
@@ -1420,9 +1437,7 @@ XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args*
 	}
 
 	// 栈大小处理
-	if ( iStackSize == 0 ) iStackSize = XRT_CO_STACK_DEFAULT;
-	if ( iStackSize < XRT_CO_STACK_MIN ) iStackSize = XRT_CO_STACK_MIN;
-	if ( iStackSize > XRT_CO_STACK_MAX ) iStackSize = XRT_CO_STACK_MAX;
+	iStackSize = __xrt_co_normalize_stack_size(iStackSize);
 
 	// 分配协程结构体
 	pCo = (xcoro)xrtMalloc(sizeof(xcoro_struct));
@@ -1442,12 +1457,19 @@ XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args*
 	pCo->iTermReason = XRT_CO_TERM_NONE;
 	pCo->iStackSize = iStackSize;
 
-	if ( !__xrt_co_stack_alloc(pCo) ) {
+	if ( !__xrt_co_prepare_backend_main(pRuntime) ) {
 		xrtFree(pCo);
 		return NULL;
 	}
 
-	if ( !__xrt_co_prepare_backend_main(pRuntime) || !__xrt_co_init_ctx(pCo) ) {
+	#if __XRT_CO_BACKEND_NEEDS_STACK_ALLOC
+		if ( !__xrt_co_stack_alloc(pCo) ) {
+			xrtFree(pCo);
+			return NULL;
+		}
+	#endif
+
+	if ( !__xrt_co_init_ctx(pCo) ) {
 		__xrt_co_destroy_raw(pCo);
 		return NULL;
 	}
