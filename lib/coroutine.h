@@ -18,7 +18,19 @@
 #define __XRT_CO_BACKEND_TIER_PRODUCTION	2
 #define __XRT_CO_BACKEND_STYLE_INLINE_ASM	2
 
-#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#if defined(__TINYC__)
+	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
+		#define __XRT_CO_ASM_X64_WIN
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64-tcc"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#elif !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		#define __XRT_CO_ASM_X64
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-sysv-tcc"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#endif
+#elif defined(__GNUC__) || defined(__clang__)
 	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
 		#define __XRT_CO_ASM_X64_WIN
 		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64"
@@ -592,6 +604,57 @@ static void __xrt_co_sleep_ms(int iMs)
 
 /* ================================ 后端实现: x86_64 内联汇编 ================================ */
 
+#define __XRT_CO_JMP_RDX	"jmp *0x00(%%rdx)\n\t"
+#define __XRT_CO_JMP_RSI	"jmp *0x00(%%rsi)\n\t"
+
+#if defined(__TINYC__) && defined(__XRT_CO_ASM_X64_WIN)
+	/*
+		TCC x64 Windows inline asm 只能解析部分 XMM 指令/寄存器名。
+		这里让 xmm6/xmm7 继续走可读语法，其余高位寄存器使用 .byte 编码。
+	*/
+	#define __XRT_CO_WIN64_SAVE_XMM6	"movups %%xmm6,  0x50(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM7	"movups %%xmm7,  0x60(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM8	".byte 0x44,0x0f,0x11,0x41,0x70\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM9	".byte 0x44,0x0f,0x11,0x89,0x80,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM10	".byte 0x44,0x0f,0x11,0x91,0x90,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM11	".byte 0x44,0x0f,0x11,0x99,0xA0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM12	".byte 0x44,0x0f,0x11,0xA1,0xB0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM13	".byte 0x44,0x0f,0x11,0xA9,0xC0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM14	".byte 0x44,0x0f,0x11,0xB1,0xD0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM15	".byte 0x44,0x0f,0x11,0xB9,0xE0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM15	".byte 0x44,0x0f,0x10,0xBA,0xE0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM14	".byte 0x44,0x0f,0x10,0xB2,0xD0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM13	".byte 0x44,0x0f,0x10,0xAA,0xC0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM12	".byte 0x44,0x0f,0x10,0xA2,0xB0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM11	".byte 0x44,0x0f,0x10,0x9A,0xA0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM10	".byte 0x44,0x0f,0x10,0x92,0x90,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM9	".byte 0x44,0x0f,0x10,0x8A,0x80,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM8	".byte 0x44,0x0f,0x10,0x42,0x70\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM7	"movups 0x60(%%rdx), %%xmm7\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM6	"movups 0x50(%%rdx), %%xmm6\n\t"
+#else
+	#define __XRT_CO_WIN64_SAVE_XMM6	"movdqu %%xmm6,  0x50(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM7	"movdqu %%xmm7,  0x60(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM8	"movdqu %%xmm8,  0x70(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM9	"movdqu %%xmm9,  0x80(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM10	"movdqu %%xmm10, 0x90(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM11	"movdqu %%xmm11, 0xA0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM12	"movdqu %%xmm12, 0xB0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM13	"movdqu %%xmm13, 0xC0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM14	"movdqu %%xmm14, 0xD0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM15	"movdqu %%xmm15, 0xE0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM15	"movdqu 0xE0(%%rdx), %%xmm15\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM14	"movdqu 0xD0(%%rdx), %%xmm14\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM13	"movdqu 0xC0(%%rdx), %%xmm13\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM12	"movdqu 0xB0(%%rdx), %%xmm12\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM11	"movdqu 0xA0(%%rdx), %%xmm11\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM10	"movdqu 0x90(%%rdx), %%xmm10\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM9	"movdqu 0x80(%%rdx), %%xmm9\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM8	"movdqu 0x70(%%rdx), %%xmm8\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM7	"movdqu 0x60(%%rdx), %%xmm7\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM6	"movdqu 0x50(%%rdx), %%xmm6\n\t"
+#endif
+
 #ifdef __XRT_CO_ASM_X64_WIN
 
 /*
@@ -632,26 +695,26 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq %%r13, 0x38(%%rcx)\n\t"
 		"movq %%r14, 0x40(%%rcx)\n\t"
 		"movq %%r15, 0x48(%%rcx)\n\t"
-		"movdqu %%xmm6,  0x50(%%rcx)\n\t"
-		"movdqu %%xmm7,  0x60(%%rcx)\n\t"
-		"movdqu %%xmm8,  0x70(%%rcx)\n\t"
-		"movdqu %%xmm9,  0x80(%%rcx)\n\t"
-		"movdqu %%xmm10, 0x90(%%rcx)\n\t"
-		"movdqu %%xmm11, 0xA0(%%rcx)\n\t"
-		"movdqu %%xmm12, 0xB0(%%rcx)\n\t"
-		"movdqu %%xmm13, 0xC0(%%rcx)\n\t"
-		"movdqu %%xmm14, 0xD0(%%rcx)\n\t"
-		"movdqu %%xmm15, 0xE0(%%rcx)\n\t"
-		"movdqu 0xE0(%%rdx), %%xmm15\n\t"
-		"movdqu 0xD0(%%rdx), %%xmm14\n\t"
-		"movdqu 0xC0(%%rdx), %%xmm13\n\t"
-		"movdqu 0xB0(%%rdx), %%xmm12\n\t"
-		"movdqu 0xA0(%%rdx), %%xmm11\n\t"
-		"movdqu 0x90(%%rdx), %%xmm10\n\t"
-		"movdqu 0x80(%%rdx), %%xmm9\n\t"
-		"movdqu 0x70(%%rdx), %%xmm8\n\t"
-		"movdqu 0x60(%%rdx), %%xmm7\n\t"
-		"movdqu 0x50(%%rdx), %%xmm6\n\t"
+		__XRT_CO_WIN64_SAVE_XMM6
+		__XRT_CO_WIN64_SAVE_XMM7
+		__XRT_CO_WIN64_SAVE_XMM8
+		__XRT_CO_WIN64_SAVE_XMM9
+		__XRT_CO_WIN64_SAVE_XMM10
+		__XRT_CO_WIN64_SAVE_XMM11
+		__XRT_CO_WIN64_SAVE_XMM12
+		__XRT_CO_WIN64_SAVE_XMM13
+		__XRT_CO_WIN64_SAVE_XMM14
+		__XRT_CO_WIN64_SAVE_XMM15
+		__XRT_CO_WIN64_LOAD_XMM15
+		__XRT_CO_WIN64_LOAD_XMM14
+		__XRT_CO_WIN64_LOAD_XMM13
+		__XRT_CO_WIN64_LOAD_XMM12
+		__XRT_CO_WIN64_LOAD_XMM11
+		__XRT_CO_WIN64_LOAD_XMM10
+		__XRT_CO_WIN64_LOAD_XMM9
+		__XRT_CO_WIN64_LOAD_XMM8
+		__XRT_CO_WIN64_LOAD_XMM7
+		__XRT_CO_WIN64_LOAD_XMM6
 		"movq 0x48(%%rdx), %%r15\n\t"
 		"movq 0x40(%%rdx), %%r14\n\t"
 		"movq 0x38(%%rdx), %%r13\n\t"
@@ -661,7 +724,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq 0x18(%%rdx), %%rbx\n\t"
 		"movq 0x10(%%rdx), %%rbp\n\t"
 		"movq 0x08(%%rdx), %%rsp\n\t"
-		"jmpq *0x00(%%rdx)\n\t"
+		__XRT_CO_JMP_RDX
 		"1:\n\t"
 		:
 		: "c"(pFrom), "d"(pTo)
@@ -704,7 +767,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq 0x18(%%rsi), %%rbx\n\t"
 		"movq 0x10(%%rsi), %%rbp\n\t"
 		"movq 0x08(%%rsi), %%rsp\n\t"
-		"jmpq *0x00(%%rsi)\n\t"
+		__XRT_CO_JMP_RSI
 		"1:\n\t"
 		: : "D"(pFrom), "S"(pTo)
 		: "memory", "rax", "rcx", "rdx",

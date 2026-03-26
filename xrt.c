@@ -58,9 +58,7 @@ xrtGlobalData xCore = { FALSE };
 	static SRWLOCK __xrtRuntimeLockObj = SRWLOCK_INIT;
 	#define __xrtRuntimeLock()		AcquireSRWLockExclusive(&__xrtRuntimeLockObj)
 	#define __xrtRuntimeUnlock()	ReleaseSRWLockExclusive(&__xrtRuntimeLockObj)
-	#if defined(__TINYC__)
-		#define XRT_TLS_STORAGE		__declspec(thread)
-	#elif defined(__GNUC__)
+	#if defined(__GNUC__)
 		#define XRT_TLS_STORAGE		__thread
 	#else
 		#define XRT_TLS_STORAGE		__declspec(thread)
@@ -72,7 +70,87 @@ xrtGlobalData xCore = { FALSE };
 	#define XRT_TLS_STORAGE			__thread
 #endif
 
-static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__)
+		static DWORD __xrtThreadTlsSlot = TLS_OUT_OF_INDEXES;
+
+		static bool __xrtThreadStateInitStorage()
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				return TRUE;
+			}
+
+			__xrtThreadTlsSlot = TlsAlloc();
+			return __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES;
+		}
+
+		static void __xrtThreadStateUnitStorage()
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				TlsFree(__xrtThreadTlsSlot);
+				__xrtThreadTlsSlot = TLS_OUT_OF_INDEXES;
+			}
+		}
+
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			if ( __xrtThreadTlsSlot == TLS_OUT_OF_INDEXES ) {
+				return NULL;
+			}
+
+			return (xrtThreadData*)TlsGetValue(__xrtThreadTlsSlot);
+		}
+
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				(void)TlsSetValue(__xrtThreadTlsSlot, pThreadData);
+			}
+		}
+	#else
+		static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+
+		static bool __xrtThreadStateInitStorage()
+		{
+			return TRUE;
+		}
+
+		static void __xrtThreadStateUnitStorage()
+		{
+		}
+
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			return __xrtThreadState;
+		}
+
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			__xrtThreadState = pThreadData;
+		}
+	#endif
+#else
+	static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+
+	static bool __xrtThreadStateInitStorage()
+	{
+		return TRUE;
+	}
+
+	static void __xrtThreadStateUnitStorage()
+	{
+	}
+
+	static xrtThreadData* __xrtThreadStateGet()
+	{
+		return __xrtThreadState;
+	}
+
+	static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+	{
+		__xrtThreadState = pThreadData;
+	}
+#endif
 
 #ifndef XRT_MEM_DEBUG
 static volatile long __xrtMemForeignAllocLock = 0;
@@ -438,6 +516,7 @@ static void __xrtRuntimeFinalizeLocked()
 
 	xCore.bInit = FALSE;
 	__xrtRuntimeThreadRefCount = 0;
+	__xrtThreadStateUnitStorage();
 
 	#if defined(_WIN32) || defined(_WIN64)
 		#if __XRT_RUNTIME_NEED_WSA
@@ -473,21 +552,21 @@ static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
 
 XXAPI xrtThreadData* xrtThreadGetCurrent()
 {
-	return __xrtThreadState;
+	return __xrtThreadStateGet();
 }
 
 
 
 XXAPI bool xrtThreadIsAttached()
 {
-	return __xrtThreadState != NULL;
+	return __xrtThreadStateGet() != NULL;
 }
 
 
 
 XXAPI xrtThreadData* xrtThreadAttachCurrent()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 
 	if ( pThreadData ) {
 		pThreadData->iAttachDepth++;
@@ -501,6 +580,11 @@ XXAPI xrtThreadData* xrtThreadAttachCurrent()
 		return NULL;
 	}
 
+	if ( !__xrtThreadStateInitStorage() ) {
+		__xrtRuntimeUnlock();
+		return NULL;
+	}
+
 	pThreadData = __xrtCreateThreadState(NULL);
 	if ( pThreadData == NULL ) {
 		__xrtRuntimeUnlock();
@@ -508,7 +592,7 @@ XXAPI xrtThreadData* xrtThreadAttachCurrent()
 	}
 
 	__xrtRuntimeThreadRefCount++;
-	__xrtThreadState = pThreadData;
+	__xrtThreadStateSet(pThreadData);
 	__xrtRuntimeUnlock();
 	return pThreadData;
 }
@@ -535,7 +619,7 @@ static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
 
 XXAPI void xrtThreadDetachCurrent()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 
 	if ( pThreadData == NULL ) {
@@ -555,7 +639,7 @@ XXAPI void xrtThreadDetachCurrent()
 	#endif
 	__xrtUnitThreadMemState(pThreadData);
 
-	__xrtThreadState = NULL;
+	__xrtThreadStateSet(NULL);
 	procFree(pThreadData);
 
 	__xrtRuntimeLock();
@@ -572,7 +656,7 @@ XXAPI void xrtThreadDetachCurrent()
 
 XXAPI str xrtGetError()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 
 	if ( pThreadData ) {
 		return pThreadData->LastError;
@@ -1042,7 +1126,7 @@ XXAPI bool xrtMemDebugDumpJson(str sPath)
 
 XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	xrtThreadCleanup* pCleanup = NULL;
 	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
 
@@ -1067,7 +1151,7 @@ XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 
 XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	xrtThreadCleanup* pCleanup = NULL;
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 

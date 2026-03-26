@@ -87,7 +87,15 @@ static void xbenchSleepMs(uint32_t iDelayMs)
 
 static long xbenchAtomicInc(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		long iPrev;
+		long iNext;
+		do {
+			iPrev = InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
+			iNext = iPrev + 1;
+		} while ( InterlockedCompareExchange((volatile LONG*)pValue, iNext, iPrev) != iPrev );
+		return iNext;
+	#elif defined(_WIN32) || defined(_WIN64)
 		return InterlockedIncrement((volatile LONG*)pValue);
 	#else
 		return __sync_add_and_fetch(pValue, 1);
@@ -96,7 +104,15 @@ static long xbenchAtomicInc(volatile long* pValue)
 
 static long xbenchAtomicAdd(volatile long* pValue, long iDelta)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		long iPrev;
+		long iNext;
+		do {
+			iPrev = InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
+			iNext = iPrev + iDelta;
+		} while ( InterlockedCompareExchange((volatile LONG*)pValue, iNext, iPrev) != iPrev );
+		return iNext;
+	#elif defined(_WIN32) || defined(_WIN64)
 		return InterlockedExchangeAdd((volatile LONG*)pValue, iDelta) + iDelta;
 	#else
 		return __sync_add_and_fetch(pValue, iDelta);
