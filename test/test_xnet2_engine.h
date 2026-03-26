@@ -4,6 +4,8 @@
 	#include <unistd.h>
 #endif
 
+#include "test_atomic_compat.h"
+
 
 typedef struct {
 	volatile long iCount;
@@ -28,20 +30,12 @@ static void __Test_XNet2_EngineSleepMs(uint32 iDelayMs)
 
 static long __Test_XNet2_AtomicInc(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedIncrement((volatile LONG*)pValue);
-	#else
-		return __sync_add_and_fetch(pValue, 1);
-	#endif
+	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
 static long __Test_XNet2_AtomicLoad(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
-	#else
-		return __sync_add_and_fetch(pValue, 0);
-	#endif
+	return __xrtTestAtomicLoadLong(pValue);
 }
 
 static uint32 __Test_XNet2_EngineCmdQFreeCount(xnetengine* pEngine, uint32 iWorkerId)

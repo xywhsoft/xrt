@@ -2,6 +2,7 @@
 #define TEST_QUEUE_CORE_H
 
 #include "../xrt.h"
+#include "test_atomic_compat.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -78,29 +79,17 @@ static void __Test_QueueCore_DrainProc(ptr pItem, ptr pUserData)
 
 static long __Test_QueueCore_AtomicInc(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedIncrement((volatile LONG*)pValue);
-	#else
-		return __sync_add_and_fetch(pValue, 1);
-	#endif
+	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
 static long __Test_QueueCore_AtomicLoad(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
-	#else
-		return __sync_add_and_fetch(pValue, 0);
-	#endif
+	return __xrtTestAtomicLoadLong(pValue);
 }
 
 static long __Test_QueueCore_AtomicCAS(volatile long* pValue, long iExchange, long iComparand)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
-	#else
-		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
-	#endif
+	return __xrtTestAtomicCompareExchangeLong(pValue, iExchange, iComparand);
 }
 
 static uint32 __Test_QueueCore_SPSCProducer(ptr pArg)

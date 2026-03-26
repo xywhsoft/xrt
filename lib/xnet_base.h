@@ -232,7 +232,9 @@ typedef struct {
 
 static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
+	#elif defined(_WIN32) || defined(_WIN64)
 		return (long)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
 	#else
 		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
@@ -241,7 +243,9 @@ static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange,
 
 static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		return __xrtAtomicExchange32(pValue, iValue);
+	#elif defined(_WIN32) || defined(_WIN64)
 		return (long)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
 	#else
 		return __sync_lock_test_and_set(pValue, iValue);
@@ -250,7 +254,9 @@ static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
 
 static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 {
-	#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		return __xrtAtomicAddFetch32(pValue, iDelta);
+	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 		long iPrev;
 		long iNext;
 		do {

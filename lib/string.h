@@ -171,8 +171,8 @@ XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, boo
 		if ( sSub ) {
 			sSub = &sText[sSub - sText1];
 		}
-		free(sText1);
-		free(sText2);
+		xrtFree(sText1);
+		xrtFree(sText2);
 	} else {
 		sSub = memmem(sText, iSize, sSubText, iSubSize);
 	}
@@ -194,8 +194,8 @@ XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool
 		if ( sSub ) {
 			sSub = &sText[sSub - sText1];
 		}
-		free(sText1);
-		free(sText2);
+		xrtFree(sText1);
+		xrtFree(sText2);
 	} else {
 		sSub = memmem(sText, iSize, sSubText, iSubSize);
 	}

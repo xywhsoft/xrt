@@ -38,6 +38,14 @@ typedef struct
 	bool bEchoBack;
 } __test_xnet_native_core_stream_ctx;
 
+static bool __Test_XNetNativeCore_FileExists(const char* sPath)
+{
+	FILE* pFile = fopen(sPath, "rb");
+	if ( !pFile ) return false;
+	fclose(pFile);
+	return true;
+}
+
 static void __Test_XNetNativeCore_SleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -391,6 +399,7 @@ static int Test_XNetNativeCoreWithRounds(uint32 iPlainRounds, uint32 iTlsRounds)
 {
 	bool bPlainOk;
 	bool bTlsOk;
+	bool bTlsSkip = false;
 
 	#if !defined(_WIN32) && !defined(_WIN64) && !defined(__linux__)
 		(void)iPlainRounds;
@@ -401,9 +410,15 @@ static int Test_XNetNativeCoreWithRounds(uint32 iPlainRounds, uint32 iTlsRounds)
 		printf("XNet native backend core test:\n");
 		printf("  plain rounds=%u tls rounds=%u\n", (unsigned)iPlainRounds, (unsigned)iTlsRounds);
 		bPlainOk = __Test_XNetNativeCore_RunRounds(iPlainRounds, false);
-		bTlsOk = __Test_XNetNativeCore_RunRounds(iTlsRounds, true);
+		if ( !__Test_XNetNativeCore_FileExists("dev/xnet2_tls_test_cert.pem") ||
+			!__Test_XNetNativeCore_FileExists("dev/xnet2_tls_test_key.pem") ) {
+			bTlsSkip = true;
+			bTlsOk = true;
+		} else {
+			bTlsOk = __Test_XNetNativeCore_RunRounds(iTlsRounds, true);
+		}
 		printf("  native TCP repeated connect/echo/close : %s\n", bPlainOk ? "PASS" : "FAIL");
-		printf("  native TLS repeated connect/echo/close : %s\n", bTlsOk ? "PASS" : "FAIL");
+		printf("  native TLS repeated connect/echo/close : %s\n", bTlsSkip ? "SKIP" : (bTlsOk ? "PASS" : "FAIL"));
 		return (bPlainOk && bTlsOk) ? 0 : 1;
 	#endif
 }

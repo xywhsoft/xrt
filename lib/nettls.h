@@ -193,7 +193,11 @@ static uint64 __xrt_tls_resume_cache_gen = 0;
 
 static void __xrt_tls_resume_lock_acquire(void)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		while ( __xrtAtomicExchange32(&__xrt_tls_resume_lock, 1) != 0 ) {
+			xrtThreadYield();
+		}
+	#elif defined(_WIN32) || defined(_WIN64)
 		while ( InterlockedCompareExchange((volatile LONG*)&__xrt_tls_resume_lock, 1, 0) != 0 ) {
 			xrtThreadYield();
 		}
@@ -206,7 +210,9 @@ static void __xrt_tls_resume_lock_acquire(void)
 
 static void __xrt_tls_resume_lock_release(void)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		__xrtAtomicExchange32(&__xrt_tls_resume_lock, 0);
+	#elif defined(_WIN32) || defined(_WIN64)
 		InterlockedExchange((volatile LONG*)&__xrt_tls_resume_lock, 0);
 	#else
 		__sync_lock_release(&__xrt_tls_resume_lock);

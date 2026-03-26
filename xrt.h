@@ -1090,9 +1090,107 @@
 		return NULL;
 	}
 
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		/* Linux TCC x64 lacks __sync_* builtins, so use the underlying x86_64 atomics directly. */
+		static inline long __xrtAtomicTccLinuxX64CompareExchangeLong(volatile long* pValue, long iExchange, long iComparand)
+		{
+			long iPrev;
+			__asm__ volatile (
+				"lock; cmpxchgq %2, %1"
+				: "=a"(iPrev), "+m"(*pValue)
+				: "r"(iExchange), "0"(iComparand)
+				: "cc", "memory"
+			);
+			return iPrev;
+		}
+
+		static inline long __xrtAtomicTccLinuxX64ExchangeLong(volatile long* pValue, long iValue)
+		{
+			__asm__ volatile (
+				"xchgq %0, %1"
+				: "+r"(iValue), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iValue;
+		}
+
+		static inline long __xrtAtomicTccLinuxX64AddFetchLong(volatile long* pValue, long iDelta)
+		{
+			long iPrev = iDelta;
+			__asm__ volatile (
+				"lock; xaddq %0, %1"
+				: "+r"(iPrev), "+m"(*pValue)
+				:
+				: "cc", "memory"
+			);
+			return iPrev + iDelta;
+		}
+
+		static inline uint32 __xrtAtomicTccLinuxX64CompareExchangeU32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
+		{
+			uint32 iPrev;
+			__asm__ volatile (
+				"lock; cmpxchgl %2, %1"
+				: "=a"(iPrev), "+m"(*pValue)
+				: "r"(iExchange), "0"(iComparand)
+				: "cc", "memory"
+			);
+			return iPrev;
+		}
+
+		static inline uint32 __xrtAtomicTccLinuxX64ExchangeU32(volatile uint32* pValue, uint32 iValue)
+		{
+			__asm__ volatile (
+				"xchgl %0, %1"
+				: "+r"(iValue), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iValue;
+		}
+
+		static inline int64 __xrtAtomicTccLinuxX64CompareExchange64(volatile int64* pValue, int64 iExchange, int64 iComparand)
+		{
+			int64 iPrev;
+			__asm__ volatile (
+				"lock; cmpxchgq %2, %1"
+				: "=a"(iPrev), "+m"(*pValue)
+				: "r"(iExchange), "0"(iComparand)
+				: "cc", "memory"
+			);
+			return iPrev;
+		}
+
+		static inline int64 __xrtAtomicTccLinuxX64Exchange64(volatile int64* pValue, int64 iValue)
+		{
+			__asm__ volatile (
+				"xchgq %0, %1"
+				: "+r"(iValue), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iValue;
+		}
+
+		static inline int64 __xrtAtomicTccLinuxX64AddFetch64(volatile int64* pValue, int64 iDelta)
+		{
+			int64 iPrev = iDelta;
+			__asm__ volatile (
+				"lock; xaddq %0, %1"
+				: "+r"(iPrev), "+m"(*pValue)
+				:
+				: "cc", "memory"
+			);
+			return iPrev + iDelta;
+		}
+	#endif
+
 	static inline long __xrtAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64CompareExchangeLong(pValue, iExchange, iComparand);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			long iPrev;
 			__asm__ volatile (
 				"lock; cmpxchgl %2, %1"
@@ -1110,7 +1208,9 @@
 
 	static inline long __xrtAtomicExchange32(volatile long* pValue, long iValue)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64ExchangeLong(pValue, iValue);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			__asm__ volatile (
 				"xchgl %0, %1"
 				: "+r"(iValue), "+m"(*pValue)
@@ -1128,7 +1228,9 @@
 	/* Keep dedicated 32-bit atomics for uint32 fields. LP64 builds make long-based helpers 64-bit wide. */
 	static inline uint32 __xrtAtomicCompareExchangeU32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64CompareExchangeU32(pValue, iExchange, iComparand);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, (long)iExchange, (long)iComparand);
 		#elif defined(_WIN32) || defined(_WIN64)
 			return (uint32)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
@@ -1144,7 +1246,9 @@
 
 	static inline void __xrtAtomicStoreU32(volatile uint32* pValue, uint32 iValue)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			(void)__xrtAtomicTccLinuxX64ExchangeU32(pValue, iValue);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			(void)__xrtAtomicExchange32((volatile long*)pValue, (long)iValue);
 		#elif defined(_WIN32) || defined(_WIN64)
 			(void)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
@@ -1155,7 +1259,9 @@
 
 	static inline long __xrtAtomicAddFetch32(volatile long* pValue, long iDelta)
 	{
-		#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64AddFetchLong(pValue, iDelta);
+		#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 			long iPrev;
 			long iNext;
 			do {
@@ -1172,7 +1278,9 @@
 
 	static inline int64 __xrtAtomicAddFetch64(volatile int64* pValue, int64 iDelta)
 	{
-		#if defined(__TINYC__) && defined(_WIN32)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64AddFetch64(pValue, iDelta);
+		#elif defined(__TINYC__) && defined(_WIN32)
 			int64 iPrev;
 			int64 iNext;
 			do {
@@ -1189,7 +1297,9 @@
 
 	static inline int64 __xrtAtomicCompareExchange64(volatile int64* pValue, int64 iExchange, int64 iComparand)
 	{
-		#if defined(__TINYC__) && defined(_WIN32)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64CompareExchange64(pValue, iExchange, iComparand);
+		#elif defined(__TINYC__) && defined(_WIN32)
 			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
 		#elif defined(_WIN32) || defined(_WIN64)
 			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
@@ -1205,7 +1315,9 @@
 
 	static inline void __xrtAtomicStore64(volatile int64* pValue, int64 iValue)
 	{
-		#if defined(__TINYC__) && defined(_WIN32)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			(void)__xrtAtomicTccLinuxX64Exchange64(pValue, iValue);
+		#elif defined(__TINYC__) && defined(_WIN32)
 			int64 iPrev;
 			do {
 				iPrev = __xrtAtomicLoad64(pValue);

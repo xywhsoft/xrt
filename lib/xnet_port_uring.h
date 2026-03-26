@@ -146,6 +146,38 @@
 		bool bReady;
 	} __xnet_uring_native_ring;
 
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		static uint32 __xnetPortUringAtomicLoadAcquireU32(const volatile uint32* pValue)
+		{
+			return __xrtAtomicLoadU32(pValue);
+		}
+
+		static uint32 __xnetPortUringAtomicLoadRelaxedU32(const volatile uint32* pValue)
+		{
+			return *(const volatile uint32*)pValue;
+		}
+
+		static void __xnetPortUringAtomicStoreReleaseU32(volatile uint32* pValue, uint32 iValue)
+		{
+			__xrtAtomicStoreU32(pValue, iValue);
+		}
+	#else
+		static uint32 __xnetPortUringAtomicLoadAcquireU32(const volatile uint32* pValue)
+		{
+			return __atomic_load_n(pValue, __ATOMIC_ACQUIRE);
+		}
+
+		static uint32 __xnetPortUringAtomicLoadRelaxedU32(const volatile uint32* pValue)
+		{
+			return __atomic_load_n(pValue, __ATOMIC_RELAXED);
+		}
+
+		static void __xnetPortUringAtomicStoreReleaseU32(volatile uint32* pValue, uint32 iValue)
+		{
+			__atomic_store_n(pValue, iValue, __ATOMIC_RELEASE);
+		}
+	#endif
+
 	typedef struct __xnet_uring_io {
 		struct __xnet_uring_io* pNext;
 		uint16 iOpType;
@@ -435,12 +467,12 @@
 		uint32 iTail;
 		uint32 iEntries;
 		if ( !pRing || !pRing->bReady || !pTail || !pSlot ) return NULL;
-		iHead = __atomic_load_n(pRing->pSqHead, __ATOMIC_ACQUIRE);
-		iTail = __atomic_load_n(pRing->pSqTail, __ATOMIC_RELAXED);
-		iEntries = __atomic_load_n(pRing->pSqEntries, __ATOMIC_RELAXED);
+		iHead = __xnetPortUringAtomicLoadAcquireU32(pRing->pSqHead);
+		iTail = __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqTail);
+		iEntries = __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqEntries);
 		if ( (iTail - iHead) >= iEntries ) return NULL;
 		*pTail = iTail;
-		*pSlot = iTail & __atomic_load_n(pRing->pSqMask, __ATOMIC_RELAXED);
+		*pSlot = iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask);
 		memset(&pRing->pSqes[*pSlot], 0, sizeof(__xnet_io_uring_sqe));
 		return &pRing->pSqes[*pSlot];
 	}
@@ -448,8 +480,8 @@
 	static void __xnetPortUringNativeCommitSqe(__xnet_uring_native_ring* pRing, uint32 iTail, uint32 iSlot)
 	{
 		if ( !pRing || !pRing->bReady ) return;
-		pRing->pSqArray[iTail & __atomic_load_n(pRing->pSqMask, __ATOMIC_RELAXED)] = iSlot;
-		__atomic_store_n(pRing->pSqTail, iTail + 1u, __ATOMIC_RELEASE);
+		pRing->pSqArray[iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask)] = iSlot;
+		__xnetPortUringAtomicStoreReleaseU32(pRing->pSqTail, iTail + 1u);
 	}
 
 	static xnet_result __xnetPortUringNativeEnter(__xnet_uring_native_ring* pRing, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
@@ -686,10 +718,10 @@
 		uint32 iHead;
 		uint32 iTail;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 || !pCtx->tNativeRing.bReady ) return 0;
-		iHead = __atomic_load_n(pCtx->tNativeRing.pCqHead, __ATOMIC_ACQUIRE);
-		iTail = __atomic_load_n(pCtx->tNativeRing.pCqTail, __ATOMIC_ACQUIRE);
+		iHead = __xnetPortUringAtomicLoadAcquireU32(pCtx->tNativeRing.pCqHead);
+		iTail = __xnetPortUringAtomicLoadAcquireU32(pCtx->tNativeRing.pCqTail);
 		while ( iHead != iTail && iCount < iMaxEvents ) {
-			__xnet_io_uring_cqe* pCqe = &pCtx->tNativeRing.pCqes[iHead & __atomic_load_n(pCtx->tNativeRing.pCqMask, __ATOMIC_RELAXED)];
+			__xnet_io_uring_cqe* pCqe = &pCtx->tNativeRing.pCqes[iHead & __xnetPortUringAtomicLoadRelaxedU32(pCtx->tNativeRing.pCqMask)];
 			__xnet_uring_io* pIo = (__xnet_uring_io*)(uintptr_t)pCqe->iUserData;
 			if ( pIo ) {
 				__xnetPortUringUntrackIo(pCtx, pIo);
@@ -700,7 +732,7 @@
 			}
 			++iHead;
 		}
-		__atomic_store_n(pCtx->tNativeRing.pCqHead, iHead, __ATOMIC_RELEASE);
+		__xnetPortUringAtomicStoreReleaseU32(pCtx->tNativeRing.pCqHead, iHead);
 		return iCount;
 	}
 

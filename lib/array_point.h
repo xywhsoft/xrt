@@ -287,6 +287,9 @@ XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal)
 XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 {
 	if ( pObject ) {
+		if ( procCompar == NULL ) {
+			return FALSE;
+		}
 		if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
 			return FALSE;
 		}

@@ -4,6 +4,8 @@
 	#include <unistd.h>
 #endif
 
+#include "test_atomic_compat.h"
+
 
 typedef struct {
 	volatile long iOpenCount;
@@ -27,29 +29,17 @@ static void __Test_XNet2_TLSSleepMs(uint32 iDelayMs)
 
 static long __Test_XNet2_TLSAtomicInc(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedIncrement((volatile LONG*)pValue);
-	#else
-		return __sync_add_and_fetch(pValue, 1);
-	#endif
+	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
 static long __Test_XNet2_TLSAtomicLoad(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
-	#else
-		return __sync_add_and_fetch(pValue, 0);
-	#endif
+	return __xrtTestAtomicLoadLong(pValue);
 }
 
 static void __Test_XNet2_TLSAtomicStore(volatile long* pValue, long iValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		InterlockedExchange((volatile LONG*)pValue, iValue);
-	#else
-		__sync_lock_test_and_set(pValue, iValue);
-	#endif
+	__xrtTestAtomicStoreLong(pValue, iValue);
 }
 
 static bool __Test_XNet2_TLSWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)

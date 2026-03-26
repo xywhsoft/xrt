@@ -701,6 +701,83 @@ XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count)
 	}
 	return xrtPtrArrayMalloc(pArr->vArray, count);
 }
+
+static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
+{
+	uintptr_t iLeftAddr;
+	uintptr_t iRightAddr;
+
+	if ( pLeft == pRight ) {
+		return 0;
+	}
+
+	if ( pLeft == NULL || pLeft->Type == XVO_DT_NULL ) {
+		return (pRight == NULL || pRight->Type == XVO_DT_NULL) ? 0 : -1;
+	}
+	if ( pRight == NULL || pRight->Type == XVO_DT_NULL ) {
+		return 1;
+	}
+
+	if ( pLeft->Type != pRight->Type ) {
+		return (pLeft->Type < pRight->Type) ? -1 : 1;
+	}
+
+	switch ( pLeft->Type ) {
+		case XVO_DT_BOOL:
+			return (pLeft->vBool > pRight->vBool) - (pLeft->vBool < pRight->vBool);
+		case XVO_DT_INT:
+			return (pLeft->vInt > pRight->vInt) ? 1 : ((pLeft->vInt < pRight->vInt) ? -1 : 0);
+		case XVO_DT_FLOAT:
+			return (pLeft->vFloat > pRight->vFloat) ? 1 : ((pLeft->vFloat < pRight->vFloat) ? -1 : 0);
+		case XVO_DT_TEXT:
+		{
+			uint32 iMinSize = (pLeft->Size < pRight->Size) ? pLeft->Size : pRight->Size;
+			int iCmp = xrtStrComp(pLeft->vText, pRight->vText, iMinSize, FALSE);
+			if ( iCmp != 0 ) {
+				return (iCmp < 0) ? -1 : 1;
+			}
+			return (pLeft->Size > pRight->Size) ? 1 : ((pLeft->Size < pRight->Size) ? -1 : 0);
+		}
+		case XVO_DT_TIME:
+			return (pLeft->vTime > pRight->vTime) ? 1 : ((pLeft->vTime < pRight->vTime) ? -1 : 0);
+		case XVO_DT_POINT:
+			iLeftAddr = (uintptr_t)pLeft->vPoint;
+			iRightAddr = (uintptr_t)pRight->vPoint;
+			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+		case XVO_DT_FUNC:
+			iLeftAddr = (uintptr_t)pLeft->vFunc;
+			iRightAddr = (uintptr_t)pRight->vFunc;
+			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+		case XVO_DT_ARRAY:
+			return (pLeft->vArray->Count > pRight->vArray->Count) ? 1 : ((pLeft->vArray->Count < pRight->vArray->Count) ? -1 : 0);
+		case XVO_DT_LIST:
+			return (pLeft->vList->AVLT.Count > pRight->vList->AVLT.Count) ? 1 : ((pLeft->vList->AVLT.Count < pRight->vList->AVLT.Count) ? -1 : 0);
+		case XVO_DT_COLL:
+			return (pLeft->vColl->Count > pRight->vColl->Count) ? 1 : ((pLeft->vColl->Count < pRight->vColl->Count) ? -1 : 0);
+		case XVO_DT_TABLE:
+			return (pLeft->vTable->AVLT.Count > pRight->vTable->AVLT.Count) ? 1 : ((pLeft->vTable->AVLT.Count < pRight->vTable->AVLT.Count) ? -1 : 0);
+		case XVO_DT_CLASS:
+		case XVO_DT_CUSTOM:
+			if ( pLeft->Size != pRight->Size ) {
+				return (pLeft->Size > pRight->Size) ? 1 : -1;
+			}
+			break;
+		default:
+			break;
+	}
+
+	iLeftAddr = (uintptr_t)pLeft;
+	iRightAddr = (uintptr_t)pRight;
+	return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+}
+
+static int __xvoArraySortDefaultCompareProc(const void* pLeft, const void* pRight)
+{
+	xvalue pLeftValue = pLeft ? *(const xvalue*)pLeft : NULL;
+	xvalue pRightValue = pRight ? *(const xvalue*)pRight : NULL;
+	return __xvoArraySortDefaultCompareValue(pLeftValue, pRightValue);
+}
+
 XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
 {
 	if ( pArr == NULL ) {
@@ -708,6 +785,9 @@ XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
+	}
+	if ( proc == NULL ) {
+		proc = (ptr)__xvoArraySortDefaultCompareProc;
 	}
 	return xrtPtrArraySort(pArr->vArray, proc);
 }

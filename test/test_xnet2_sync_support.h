@@ -8,6 +8,8 @@
 	#include <unistd.h>
 #endif
 
+#include "test_atomic_compat.h"
+
 enum {
 	__TEST_XNET2_SYNC_WAIT_TIMEOUT_MS = 30,
 	__TEST_XNET2_SYNC_WAIT_DEADLINE_MS = 35,
@@ -26,20 +28,12 @@ static void __Test_XNet2_SyncSleepMs(uint32 iDelayMs)
 
 static long __Test_XNet2_SyncAtomicInc(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedIncrement((volatile LONG*)pValue);
-	#else
-		return __sync_add_and_fetch(pValue, 1);
-	#endif
+	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
 static void __Test_XNet2_SyncAtomicStore(volatile long* pValue, long iValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		InterlockedExchange((volatile LONG*)pValue, iValue);
-	#else
-		__sync_lock_test_and_set(pValue, iValue);
-	#endif
+	__xrtTestAtomicStoreLong(pValue, iValue);
 }
 
 static int64_t __Test_XNet2_SyncNowMs(void)

@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-25 16:07:50
+    Generated: 2026-03-27 03:47:47
 
     MIT License
 
@@ -51,10 +51,10 @@
 
 
 // ========================================
-// File: D:/git/xrt/xrt.h
+// File: D:/Git/xrt/xrt.h
 // ========================================
 
-
+#pragma once
 /*
 	
 	MIT License
@@ -85,7 +85,6 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <wctype.h>
@@ -95,6 +94,77 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>
+#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
+	#include <io.h>
+	#include <direct.h>
+	#include <process.h>
+	#include <BaseTsd.h>
+	#ifndef XRT_MSC_RUNTIME_COMPAT_DEFINED
+		#define XRT_MSC_RUNTIME_COMPAT_DEFINED
+	#endif
+	#ifndef ssize_t
+		typedef SSIZE_T ssize_t;
+	#endif
+	#ifndef mode_t
+		typedef int mode_t;
+	#endif
+	#ifndef pid_t
+		typedef int pid_t;
+	#endif
+	#ifndef strcasecmp
+		#define strcasecmp _stricmp
+	#endif
+	#ifndef strncasecmp
+		#define strncasecmp _strnicmp
+	#endif
+	#ifndef strdup
+		#define strdup _strdup
+	#endif
+	#ifndef getpid
+		#define getpid _getpid
+	#endif
+	#ifndef access
+		#define access _access
+	#endif
+	#ifndef mkdir
+		#define mkdir(sPath, iMode) _mkdir(sPath)
+	#endif
+	#ifndef rmdir
+		#define rmdir _rmdir
+	#endif
+	#ifndef unlink
+		#define unlink _unlink
+	#endif
+	#ifndef fileno
+		#define fileno _fileno
+	#endif
+	#ifndef popen
+		#define popen _popen
+	#endif
+	#ifndef pclose
+		#define pclose _pclose
+	#endif
+	#ifndef __func__
+		#define __func__ __FUNCTION__
+	#endif
+	#ifndef XRT_MSC_TIME_COMPAT_DEFINED
+		#define XRT_MSC_TIME_COMPAT_DEFINED
+		static inline struct tm* localtime_r(const time_t* pRawTime, struct tm* pResult)
+		{
+			return localtime_s(pResult, pRawTime) == 0 ? pResult : NULL;
+		}
+		static inline struct tm* gmtime_r(const time_t* pRawTime, struct tm* pResult)
+		{
+			return gmtime_s(pResult, pRawTime) == 0 ? pResult : NULL;
+		}
+		static inline time_t timegm(struct tm* pTM)
+		{
+			return _mkgmtime(pTM);
+		}
+	#endif
+#else
+	#include <unistd.h>
+#endif
 // 跨平台头文件
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
@@ -983,9 +1053,99 @@
 		}
 		return NULL;
 	}
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		/* Linux TCC x64 lacks __sync_* builtins, so use the underlying x86_64 atomics directly. */
+		static inline long __xrtAtomicTccLinuxX64CompareExchangeLong(volatile long* pValue, long iExchange, long iComparand)
+		{
+			long iPrev;
+			__asm__ volatile (
+				"lock; cmpxchgq %2, %1"
+				: "=a"(iPrev), "+m"(*pValue)
+				: "r"(iExchange), "0"(iComparand)
+				: "cc", "memory"
+			);
+			return iPrev;
+		}
+		static inline long __xrtAtomicTccLinuxX64ExchangeLong(volatile long* pValue, long iValue)
+		{
+			__asm__ volatile (
+				"xchgq %0, %1"
+				: "+r"(iValue), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iValue;
+		}
+		static inline long __xrtAtomicTccLinuxX64AddFetchLong(volatile long* pValue, long iDelta)
+		{
+			long iPrev = iDelta;
+			__asm__ volatile (
+				"lock; xaddq %0, %1"
+				: "+r"(iPrev), "+m"(*pValue)
+				:
+				: "cc", "memory"
+			);
+			return iPrev + iDelta;
+		}
+		static inline uint32 __xrtAtomicTccLinuxX64CompareExchangeU32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
+		{
+			uint32 iPrev;
+			__asm__ volatile (
+				"lock; cmpxchgl %2, %1"
+				: "=a"(iPrev), "+m"(*pValue)
+				: "r"(iExchange), "0"(iComparand)
+				: "cc", "memory"
+			);
+			return iPrev;
+		}
+		static inline uint32 __xrtAtomicTccLinuxX64ExchangeU32(volatile uint32* pValue, uint32 iValue)
+		{
+			__asm__ volatile (
+				"xchgl %0, %1"
+				: "+r"(iValue), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iValue;
+		}
+		static inline int64 __xrtAtomicTccLinuxX64CompareExchange64(volatile int64* pValue, int64 iExchange, int64 iComparand)
+		{
+			int64 iPrev;
+			__asm__ volatile (
+				"lock; cmpxchgq %2, %1"
+				: "=a"(iPrev), "+m"(*pValue)
+				: "r"(iExchange), "0"(iComparand)
+				: "cc", "memory"
+			);
+			return iPrev;
+		}
+		static inline int64 __xrtAtomicTccLinuxX64Exchange64(volatile int64* pValue, int64 iValue)
+		{
+			__asm__ volatile (
+				"xchgq %0, %1"
+				: "+r"(iValue), "+m"(*pValue)
+				:
+				: "memory"
+			);
+			return iValue;
+		}
+		static inline int64 __xrtAtomicTccLinuxX64AddFetch64(volatile int64* pValue, int64 iDelta)
+		{
+			int64 iPrev = iDelta;
+			__asm__ volatile (
+				"lock; xaddq %0, %1"
+				: "+r"(iPrev), "+m"(*pValue)
+				:
+				: "cc", "memory"
+			);
+			return iPrev + iDelta;
+		}
+	#endif
 	static inline long __xrtAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64CompareExchangeLong(pValue, iExchange, iComparand);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			long iPrev;
 			__asm__ volatile (
 				"lock; cmpxchgl %2, %1"
@@ -1002,7 +1162,9 @@
 	}
 	static inline long __xrtAtomicExchange32(volatile long* pValue, long iValue)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64ExchangeLong(pValue, iValue);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			__asm__ volatile (
 				"xchgl %0, %1"
 				: "+r"(iValue), "+m"(*pValue)
@@ -1019,7 +1181,9 @@
 	/* Keep dedicated 32-bit atomics for uint32 fields. LP64 builds make long-based helpers 64-bit wide. */
 	static inline uint32 __xrtAtomicCompareExchangeU32(volatile uint32* pValue, uint32 iExchange, uint32 iComparand)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64CompareExchangeU32(pValue, iExchange, iComparand);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			return (uint32)__xrtAtomicCompareExchange32((volatile long*)pValue, (long)iExchange, (long)iComparand);
 		#elif defined(_WIN32) || defined(_WIN64)
 			return (uint32)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
@@ -1033,7 +1197,9 @@
 	}
 	static inline void __xrtAtomicStoreU32(volatile uint32* pValue, uint32 iValue)
 	{
-		#if defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			(void)__xrtAtomicTccLinuxX64ExchangeU32(pValue, iValue);
+		#elif defined(__TINYC__) && defined(_WIN32) && !defined(_WIN64)
 			(void)__xrtAtomicExchange32((volatile long*)pValue, (long)iValue);
 		#elif defined(_WIN32) || defined(_WIN64)
 			(void)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
@@ -1043,7 +1209,9 @@
 	}
 	static inline long __xrtAtomicAddFetch32(volatile long* pValue, long iDelta)
 	{
-		#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64AddFetchLong(pValue, iDelta);
+		#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 			long iPrev;
 			long iNext;
 			do {
@@ -1059,7 +1227,9 @@
 	}
 	static inline int64 __xrtAtomicAddFetch64(volatile int64* pValue, int64 iDelta)
 	{
-		#if defined(__TINYC__) && defined(_WIN32)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64AddFetch64(pValue, iDelta);
+		#elif defined(__TINYC__) && defined(_WIN32)
 			int64 iPrev;
 			int64 iNext;
 			do {
@@ -1075,7 +1245,9 @@
 	}
 	static inline int64 __xrtAtomicCompareExchange64(volatile int64* pValue, int64 iExchange, int64 iComparand)
 	{
-		#if defined(__TINYC__) && defined(_WIN32)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			return __xrtAtomicTccLinuxX64CompareExchange64(pValue, iExchange, iComparand);
+		#elif defined(__TINYC__) && defined(_WIN32)
 			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
 		#elif defined(_WIN32) || defined(_WIN64)
 			return (int64)InterlockedCompareExchange64((volatile LONG64*)pValue, (LONG64)iExchange, (LONG64)iComparand);
@@ -1089,7 +1261,9 @@
 	}
 	static inline void __xrtAtomicStore64(volatile int64* pValue, int64 iValue)
 	{
-		#if defined(__TINYC__) && defined(_WIN32)
+		#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+			(void)__xrtAtomicTccLinuxX64Exchange64(pValue, iValue);
+		#elif defined(__TINYC__) && defined(_WIN32)
 			int64 iPrev;
 			do {
 				iPrev = __xrtAtomicLoad64(pValue);
@@ -1856,6 +2030,7 @@
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
 			SRWLOCK objLock;					// Windows SRWLOCK（最高性能，无递归锁支持）
+			DWORD iOwnerThreadId;				// 当前持有锁的线程ID（用于保持非递归 mutex 语义）
 		#else
 			pthread_mutex_t objLock;			// Linux pthread_mutex（非递归模式）
 		#endif
@@ -2179,9 +2354,10 @@
 	#define XRT_CO_TERM_NONE         0
 	#define XRT_CO_TERM_RETURNED     1
 	#define XRT_CO_TERM_CANCELLED    2
-	// 协程 backend 分层/风格：主线只保留 production inline-asm 实现
+	// 协程 backend 分层/风格：production backend 允许 inline-asm / Windows Fiber 实现
 	#define XRT_CO_BACKEND_TIER_PRODUCTION   2
 	#define XRT_CO_BACKEND_STYLE_INLINE_ASM  2
+	#define XRT_CO_BACKEND_STYLE_FIBER       3
 	
 	// 默认栈大小
 	#define XRT_CO_STACK_DEFAULT (64 * 1024)        // 64 KB
@@ -2224,10 +2400,10 @@
 		uint32 iTermReason;     // 终态原因 (XRT_CO_TERM_*)
 		uint32 __iReserved;
 		size_t iStackSize;      // 栈大小
-		ptr __pStack;           // 分配的栈内存
-		ptr __pStackMem;        // 栈保留区起始地址（含 guard page）
-		size_t __iStackAllocSize; // 栈保留区总大小
-		size_t __iStackGuardSize; // guard page 大小
+		ptr __pStack;           // 自管栈内存（仅 inline asm backend 使用）
+		ptr __pStackMem;        // 自管栈保留区起始地址（含 guard page）
+		size_t __iStackAllocSize; // 自管栈保留区总大小
+		size_t __iStackGuardSize; // 自管栈 guard page 大小
 		__xrt_co_ctx __tCtx;    // 上下文（汇编/ucontext 后端使用）
 		ptr __hFiber;           // Windows Fiber 句柄
 		ptr __pSched;           // 所属调度器指针（NULL=无调度器）
@@ -4334,7 +4510,7 @@
 	#define MMU_FLAG_EXT				0xBFFFFFFF
 	
 	// GC标记
-	#define xrtMemUnitGC_Mark(p) (((MMU_ValuePtr)((void*)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
+	#define xrtMemUnitGC_Mark(p) (((MMU_ValuePtr)((uint8*)(p) - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
 	
 	// 数据管理单元数据结构
 	typedef struct {
@@ -4410,7 +4586,7 @@
 		if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
 			return;
 		}
-		MMU_ValuePtr v = obj - 4;
+		MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)obj - sizeof(MMU_Value));
 		unsigned char idx = v->ItemFlag & 0xFF;
 		v->ItemFlag = 0;
 		objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
@@ -4611,7 +4787,7 @@
 	typedef bool (*AVLTree_EachProc)(ptr pNode, ptr pArg);
 	
 	// 获取 xavltnode 对象
-	#define xrtAVLTreeGetNodeBase(p) ((xavltnode)((ptr)p - sizeof(xavltnode_struct)))
+	#define xrtAVLTreeGetNodeBase(p) ((xavltnode)((uint8*)(p) - sizeof(xavltnode_struct)))
 	
 	// 获取 xavltnode 对应的数据段
 	#define xrtAVLTreeGetNodeData(p) ((ptr)(&p[1]))
@@ -6257,7 +6433,7 @@
 
 
 // ========================================
-// File: D:\git\xrt/xrt.c
+// File: D:\Git\xrt/xrt.c
 // ========================================
 
 
@@ -6312,9 +6488,7 @@ xrtGlobalData xCore = { FALSE };
 	static SRWLOCK __xrtRuntimeLockObj = SRWLOCK_INIT;
 	#define __xrtRuntimeLock()		AcquireSRWLockExclusive(&__xrtRuntimeLockObj)
 	#define __xrtRuntimeUnlock()	ReleaseSRWLockExclusive(&__xrtRuntimeLockObj)
-	#if defined(__TINYC__)
-		#define XRT_TLS_STORAGE		__declspec(thread)
-	#elif defined(__GNUC__)
+	#if defined(__GNUC__)
 		#define XRT_TLS_STORAGE		__thread
 	#else
 		#define XRT_TLS_STORAGE		__declspec(thread)
@@ -6325,7 +6499,109 @@ xrtGlobalData xCore = { FALSE };
 	#define __xrtRuntimeUnlock()	pthread_mutex_unlock(&__xrtRuntimeLockObj)
 	#define XRT_TLS_STORAGE			__thread
 #endif
-static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__)
+		static DWORD __xrtThreadTlsSlot = TLS_OUT_OF_INDEXES;
+		static bool __xrtThreadStateInitStorage()
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				return TRUE;
+			}
+			__xrtThreadTlsSlot = TlsAlloc();
+			return __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES;
+		}
+		static void __xrtThreadStateUnitStorage()
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				TlsFree(__xrtThreadTlsSlot);
+				__xrtThreadTlsSlot = TLS_OUT_OF_INDEXES;
+			}
+		}
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			if ( __xrtThreadTlsSlot == TLS_OUT_OF_INDEXES ) {
+				return NULL;
+			}
+			return (xrtThreadData*)TlsGetValue(__xrtThreadTlsSlot);
+		}
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
+				(void)TlsSetValue(__xrtThreadTlsSlot, pThreadData);
+			}
+		}
+	#else
+		static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+		static bool __xrtThreadStateInitStorage()
+		{
+			return TRUE;
+		}
+		static void __xrtThreadStateUnitStorage()
+		{
+		}
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			return __xrtThreadState;
+		}
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			__xrtThreadState = pThreadData;
+		}
+	#endif
+#else
+	#if defined(__TINYC__)
+		static pthread_key_t __xrtThreadTlsKey;
+		static bool __xrtThreadTlsKeyReady = FALSE;
+		static bool __xrtThreadStateInitStorage()
+		{
+			if ( __xrtThreadTlsKeyReady ) {
+				return TRUE;
+			}
+			if ( pthread_key_create(&__xrtThreadTlsKey, NULL) != 0 ) {
+				return FALSE;
+			}
+			__xrtThreadTlsKeyReady = TRUE;
+			return TRUE;
+		}
+		static void __xrtThreadStateUnitStorage()
+		{
+			if ( __xrtThreadTlsKeyReady ) {
+				(void)pthread_key_delete(__xrtThreadTlsKey);
+				__xrtThreadTlsKeyReady = FALSE;
+			}
+		}
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			if ( !__xrtThreadTlsKeyReady ) {
+				return NULL;
+			}
+			return (xrtThreadData*)pthread_getspecific(__xrtThreadTlsKey);
+		}
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			if ( __xrtThreadTlsKeyReady ) {
+				(void)pthread_setspecific(__xrtThreadTlsKey, pThreadData);
+			}
+		}
+	#else
+		static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+		static bool __xrtThreadStateInitStorage()
+		{
+			return TRUE;
+		}
+		static void __xrtThreadStateUnitStorage()
+		{
+		}
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			return __xrtThreadState;
+		}
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			__xrtThreadState = pThreadData;
+		}
+	#endif
+#endif
 #ifndef XRT_MEM_DEBUG
 static volatile long __xrtMemForeignAllocLock = 0;
 static xrtMemDebugForeignAlloc* __xrtMemForeignAllocList = NULL;
@@ -6345,7 +6621,7 @@ static void __xrtRuntimeFinalizeLocked();
 // 引入补充依赖库
 
 // ========================================
-// File: D:/git/xrt/lib/suplib.h
+// File: D:/Git/xrt/lib/suplib.h
 // ========================================
 
 
@@ -6398,7 +6674,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
-// File: D:/git/xrt/lib/memglobal.h
+// File: D:/Git/xrt/lib/memglobal.h
 // ========================================
 
 
@@ -7826,7 +8102,7 @@ static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/base.h
+// File: D:/Git/xrt/lib/base.h
 // ========================================
 
 
@@ -8287,7 +8563,7 @@ static inline void __xrtMemTelemetryRecordFree();
 static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
 // ========================================
-// File: D:/git/xrt/lib/string.h
+// File: D:/Git/xrt/lib/string.h
 // ========================================
 
 
@@ -8448,8 +8724,8 @@ XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, boo
 		if ( sSub ) {
 			sSub = &sText[sSub - sText1];
 		}
-		free(sText1);
-		free(sText2);
+		xrtFree(sText1);
+		xrtFree(sText2);
 	} else {
 		sSub = memmem(sText, iSize, sSubText, iSubSize);
 	}
@@ -8471,8 +8747,8 @@ XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool
 		if ( sSub ) {
 			sSub = &sText[sSub - sText1];
 		}
-		free(sText1);
-		free(sText2);
+		xrtFree(sText1);
+		xrtFree(sText2);
 	} else {
 		sSub = memmem(sText, iSize, sSubText, iSubSize);
 	}
@@ -9783,7 +10059,7 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/os.h
+// File: D:/Git/xrt/lib/os.h
 // ========================================
 
 
@@ -9899,7 +10175,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/hash.h
+// File: D:/Git/xrt/lib/hash.h
 // ========================================
 
 
@@ -11065,7 +11341,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/charset.h
+// File: D:/Git/xrt/lib/charset.h
 // ========================================
 
 
@@ -11937,7 +12213,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/math.h
+// File: D:/Git/xrt/lib/math.h
 // ========================================
 
 
@@ -12098,7 +12374,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/path.h
+// File: D:/Git/xrt/lib/path.h
 // ========================================
 
 
@@ -12271,7 +12547,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 #ifndef XRT_NO_TIME
 
 // ========================================
-// File: D:/git/xrt/lib/time.h
+// File: D:/Git/xrt/lib/time.h
 // ========================================
 
 
@@ -13518,7 +13794,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 #ifndef XRT_NO_FILE
 
 // ========================================
-// File: D:/git/xrt/lib/file.h
+// File: D:/Git/xrt/lib/file.h
 // ========================================
 
 
@@ -15215,7 +15491,7 @@ XXAPI int xrtDirDelete(str sPath)
 #ifndef XRT_NO_THREAD
 
 // ========================================
-// File: D:/git/xrt/lib/thread.h
+// File: D:/Git/xrt/lib/thread.h
 // ========================================
 
 
@@ -15521,6 +15797,7 @@ XXAPI xmutex xrtMutexCreate()
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeSRWLock(&pMutex->objLock);
+		pMutex->iOwnerThreadId = 0;
 	#else
 		pthread_mutexattr_t attr;
 		pthread_mutexattr_init(&attr);
@@ -15551,6 +15828,7 @@ XXAPI void xrtMutexInit(xmutex pMutex)
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeSRWLock(&pMutex->objLock);
+		pMutex->iOwnerThreadId = 0;
 	#else
 		pthread_mutexattr_t attr;
 		pthread_mutexattr_init(&attr);
@@ -15566,7 +15844,7 @@ XXAPI void xrtMutexUnit(xmutex pMutex)
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		// SRWLOCK 不需要显式销毁
-		(void)pMutex;
+		pMutex->iOwnerThreadId = 0;
 	#else
 		pthread_mutex_destroy(&pMutex->objLock);
 	#endif
@@ -15578,6 +15856,7 @@ XXAPI void xrtMutexLock(xmutex pMutex)
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		AcquireSRWLockExclusive(&pMutex->objLock);
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
 	#else
 		pthread_mutex_lock(&pMutex->objLock);
 	#endif
@@ -15588,7 +15867,14 @@ XXAPI bool xrtMutexTryLock(xmutex pMutex)
 	if ( !pMutex ) return FALSE;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		return TryAcquireSRWLockExclusive(&pMutex->objLock) != 0;
+		if ( pMutex->iOwnerThreadId == GetCurrentThreadId() ) {
+			return FALSE;
+		}
+		if ( TryAcquireSRWLockExclusive(&pMutex->objLock) == 0 ) {
+			return FALSE;
+		}
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
+		return TRUE;
 	#else
 		return pthread_mutex_trylock(&pMutex->objLock) == 0;
 	#endif
@@ -15599,6 +15885,7 @@ XXAPI void xrtMutexUnlock(xmutex pMutex)
 	if ( !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		pMutex->iOwnerThreadId = 0;
 		ReleaseSRWLockExclusive(&pMutex->objLock);
 	#else
 		pthread_mutex_unlock(&pMutex->objLock);
@@ -15834,8 +16121,10 @@ XXAPI void xrtCondWait(xcond pCond, xmutex pMutex)
 	if ( !pCond || !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		pMutex->iOwnerThreadId = 0;
 		SleepConditionVariableSRW(&pCond->objCond, 
 			&pMutex->objLock, INFINITE, 0);
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
 	#else
 		pthread_cond_wait(&pCond->objCond, 
 			(pthread_mutex_t*)&pMutex->objLock);
@@ -15849,10 +16138,13 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 	}
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		pMutex->iOwnerThreadId = 0;
 		if ( SleepConditionVariableSRW(&pCond->objCond, 
 				&pMutex->objLock, iTimeout, 0) ) {
+			pMutex->iOwnerThreadId = GetCurrentThreadId();
 			return XRT_WAIT_OK;
 		}
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
 		if ( GetLastError() == ERROR_TIMEOUT ) {
 			return XRT_WAIT_TIMEOUT;
 		}
@@ -16048,7 +16340,7 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 #ifndef XRT_NO_QUEUE
 
 // ========================================
-// File: D:/git/xrt/lib/queue.h
+// File: D:/Git/xrt/lib/queue.h
 // ========================================
 
 #ifndef __XRT_QUEUE_MAX_CAPACITY
@@ -17099,7 +17391,7 @@ XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 #ifndef XRT_NO_COROUTINE
 
 // ========================================
-// File: D:/git/xrt/lib/coroutine.h
+// File: D:/Git/xrt/lib/coroutine.h
 // ========================================
 
 
@@ -17116,7 +17408,29 @@ XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 #endif
 #define __XRT_CO_BACKEND_TIER_PRODUCTION	2
 #define __XRT_CO_BACKEND_STYLE_INLINE_ASM	2
-#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
+#define __XRT_CO_BACKEND_STYLE_FIBER		3
+#if defined(_MSC_VER) && !defined(__clang__) && (defined(_WIN32) || defined(_WIN64))
+	#define __XRT_CO_FIBER_WIN
+	#if defined(_WIN64)
+		#define __XRT_CO_BACKEND_NAME	"fiber-win64-msvc"
+	#else
+		#define __XRT_CO_BACKEND_NAME	"fiber-win32-msvc"
+	#endif
+	#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+	#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_FIBER
+#elif defined(__TINYC__)
+	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
+		#define __XRT_CO_ASM_X64_WIN
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64-tcc"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#elif !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		#define __XRT_CO_ASM_X64
+		#define __XRT_CO_BACKEND_NAME	"asm-x64-sysv-tcc"
+		#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+		#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_INLINE_ASM
+	#endif
+#elif defined(__GNUC__) || defined(__clang__)
 	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
 		#define __XRT_CO_ASM_X64_WIN
 		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64"
@@ -17149,6 +17463,11 @@ XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 #endif
 #if XRT_CO_REQUIRE_PRODUCTION_BACKEND && (__XRT_CO_BACKEND_TIER != __XRT_CO_BACKEND_TIER_PRODUCTION)
 	#error "XRT coroutine production backend is required, but current target is not using a production backend."
+#endif
+#ifdef __XRT_CO_FIBER_WIN
+	#define __XRT_CO_BACKEND_NEEDS_STACK_ALLOC	0
+#else
+	#define __XRT_CO_BACKEND_NEEDS_STACK_ALLOC	1
 #endif
 /* ================================ 线程级协程运行时 ================================ */
 static xrtCoroRuntimeState* __xrt_co_get_runtime_from_thread(xrtThreadData* pThreadData)
@@ -17227,9 +17546,13 @@ static void __xrtCoroRuntimeUnitThread(xrtThreadData* pThreadData)
 	if ( pRuntime == NULL ) {
 		return;
 	}
-	if ( pRuntime->pBackendMain ) {
+	#ifdef __XRT_CO_FIBER_WIN
+		if ( (pRuntime->iFlags & XRT_CO_RUNTIME_FIBER_CONVERTED) != 0 ) {
+			(void)ConvertFiberToThread();
+		}
+	#elif defined(__XRT_CO_ASM_X64_WIN) || defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
 		xrtFree(pRuntime->pBackendMain);
-	}
+	#endif
 	memset(pRuntime, 0, sizeof(xrtCoroRuntimeState));
 }
 /* ================================ 协程生命周期辅助 ================================ */
@@ -17440,6 +17763,20 @@ static size_t __xrt_co_align_up(size_t iValue, size_t iAlign)
 	}
 	return (iValue + iAlign - 1) & ~(iAlign - 1);
 }
+static size_t __xrt_co_normalize_stack_size(size_t iStackSize)
+{
+	size_t iPageSize = __xrt_co_stack_page_size();
+	if ( iStackSize == 0 ) {
+		iStackSize = XRT_CO_STACK_DEFAULT;
+	}
+	if ( iStackSize < XRT_CO_STACK_MIN ) {
+		iStackSize = XRT_CO_STACK_MIN;
+	}
+	if ( iStackSize > XRT_CO_STACK_MAX ) {
+		iStackSize = XRT_CO_STACK_MAX;
+	}
+	return __xrt_co_align_up(iStackSize, iPageSize);
+}
 static bool __xrt_co_stack_alloc(xcoro pCo)
 {
 	size_t iPageSize = 0;
@@ -17452,13 +17789,7 @@ static bool __xrt_co_stack_alloc(xcoro pCo)
 	}
 	iPageSize = __xrt_co_stack_page_size();
 	iGuardSize = iPageSize;
-	iStackSize = __xrt_co_align_up(pCo->iStackSize, iPageSize);
-	if ( iStackSize < XRT_CO_STACK_MIN ) {
-		iStackSize = __xrt_co_align_up(XRT_CO_STACK_MIN, iPageSize);
-	}
-	if ( iStackSize > XRT_CO_STACK_MAX ) {
-		iStackSize = __xrt_co_align_up(XRT_CO_STACK_MAX, iPageSize);
-	}
+	iStackSize = __xrt_co_normalize_stack_size(pCo->iStackSize);
 	if ( iStackSize > (SIZE_MAX - iGuardSize) ) {
 		xrtSetError("coroutine stack size overflow.", FALSE);
 		return FALSE;
@@ -17582,6 +17913,55 @@ static void __xrt_co_sleep_ms(int iMs)
 	#endif
 }
 /* ================================ 后端实现: x86_64 内联汇编 ================================ */
+#define __XRT_CO_JMP_RDX	"jmp *0x00(%%rdx)\n\t"
+#define __XRT_CO_JMP_RSI	"jmp *0x00(%%rsi)\n\t"
+#if defined(__TINYC__) && defined(__XRT_CO_ASM_X64_WIN)
+	/*
+		TCC x64 Windows inline asm 只能解析部分 XMM 指令/寄存器名。
+		这里让 xmm6/xmm7 继续走可读语法，其余高位寄存器使用 .byte 编码。
+	*/
+	#define __XRT_CO_WIN64_SAVE_XMM6	"movups %%xmm6,  0x50(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM7	"movups %%xmm7,  0x60(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM8	".byte 0x44,0x0f,0x11,0x41,0x70\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM9	".byte 0x44,0x0f,0x11,0x89,0x80,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM10	".byte 0x44,0x0f,0x11,0x91,0x90,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM11	".byte 0x44,0x0f,0x11,0x99,0xA0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM12	".byte 0x44,0x0f,0x11,0xA1,0xB0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM13	".byte 0x44,0x0f,0x11,0xA9,0xC0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM14	".byte 0x44,0x0f,0x11,0xB1,0xD0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM15	".byte 0x44,0x0f,0x11,0xB9,0xE0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM15	".byte 0x44,0x0f,0x10,0xBA,0xE0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM14	".byte 0x44,0x0f,0x10,0xB2,0xD0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM13	".byte 0x44,0x0f,0x10,0xAA,0xC0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM12	".byte 0x44,0x0f,0x10,0xA2,0xB0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM11	".byte 0x44,0x0f,0x10,0x9A,0xA0,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM10	".byte 0x44,0x0f,0x10,0x92,0x90,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM9	".byte 0x44,0x0f,0x10,0x8A,0x80,0x00,0x00,0x00\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM8	".byte 0x44,0x0f,0x10,0x42,0x70\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM7	"movups 0x60(%%rdx), %%xmm7\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM6	"movups 0x50(%%rdx), %%xmm6\n\t"
+#else
+	#define __XRT_CO_WIN64_SAVE_XMM6	"movdqu %%xmm6,  0x50(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM7	"movdqu %%xmm7,  0x60(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM8	"movdqu %%xmm8,  0x70(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM9	"movdqu %%xmm9,  0x80(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM10	"movdqu %%xmm10, 0x90(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM11	"movdqu %%xmm11, 0xA0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM12	"movdqu %%xmm12, 0xB0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM13	"movdqu %%xmm13, 0xC0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM14	"movdqu %%xmm14, 0xD0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_SAVE_XMM15	"movdqu %%xmm15, 0xE0(%%rcx)\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM15	"movdqu 0xE0(%%rdx), %%xmm15\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM14	"movdqu 0xD0(%%rdx), %%xmm14\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM13	"movdqu 0xC0(%%rdx), %%xmm13\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM12	"movdqu 0xB0(%%rdx), %%xmm12\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM11	"movdqu 0xA0(%%rdx), %%xmm11\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM10	"movdqu 0x90(%%rdx), %%xmm10\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM9	"movdqu 0x80(%%rdx), %%xmm9\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM8	"movdqu 0x70(%%rdx), %%xmm8\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM7	"movdqu 0x60(%%rdx), %%xmm7\n\t"
+	#define __XRT_CO_WIN64_LOAD_XMM6	"movdqu 0x50(%%rdx), %%xmm6\n\t"
+#endif
 #ifdef __XRT_CO_ASM_X64_WIN
 /*
 	Windows x64 ABI callee-saved 寄存器:
@@ -17620,26 +18000,26 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq %%r13, 0x38(%%rcx)\n\t"
 		"movq %%r14, 0x40(%%rcx)\n\t"
 		"movq %%r15, 0x48(%%rcx)\n\t"
-		"movdqu %%xmm6,  0x50(%%rcx)\n\t"
-		"movdqu %%xmm7,  0x60(%%rcx)\n\t"
-		"movdqu %%xmm8,  0x70(%%rcx)\n\t"
-		"movdqu %%xmm9,  0x80(%%rcx)\n\t"
-		"movdqu %%xmm10, 0x90(%%rcx)\n\t"
-		"movdqu %%xmm11, 0xA0(%%rcx)\n\t"
-		"movdqu %%xmm12, 0xB0(%%rcx)\n\t"
-		"movdqu %%xmm13, 0xC0(%%rcx)\n\t"
-		"movdqu %%xmm14, 0xD0(%%rcx)\n\t"
-		"movdqu %%xmm15, 0xE0(%%rcx)\n\t"
-		"movdqu 0xE0(%%rdx), %%xmm15\n\t"
-		"movdqu 0xD0(%%rdx), %%xmm14\n\t"
-		"movdqu 0xC0(%%rdx), %%xmm13\n\t"
-		"movdqu 0xB0(%%rdx), %%xmm12\n\t"
-		"movdqu 0xA0(%%rdx), %%xmm11\n\t"
-		"movdqu 0x90(%%rdx), %%xmm10\n\t"
-		"movdqu 0x80(%%rdx), %%xmm9\n\t"
-		"movdqu 0x70(%%rdx), %%xmm8\n\t"
-		"movdqu 0x60(%%rdx), %%xmm7\n\t"
-		"movdqu 0x50(%%rdx), %%xmm6\n\t"
+		__XRT_CO_WIN64_SAVE_XMM6
+		__XRT_CO_WIN64_SAVE_XMM7
+		__XRT_CO_WIN64_SAVE_XMM8
+		__XRT_CO_WIN64_SAVE_XMM9
+		__XRT_CO_WIN64_SAVE_XMM10
+		__XRT_CO_WIN64_SAVE_XMM11
+		__XRT_CO_WIN64_SAVE_XMM12
+		__XRT_CO_WIN64_SAVE_XMM13
+		__XRT_CO_WIN64_SAVE_XMM14
+		__XRT_CO_WIN64_SAVE_XMM15
+		__XRT_CO_WIN64_LOAD_XMM15
+		__XRT_CO_WIN64_LOAD_XMM14
+		__XRT_CO_WIN64_LOAD_XMM13
+		__XRT_CO_WIN64_LOAD_XMM12
+		__XRT_CO_WIN64_LOAD_XMM11
+		__XRT_CO_WIN64_LOAD_XMM10
+		__XRT_CO_WIN64_LOAD_XMM9
+		__XRT_CO_WIN64_LOAD_XMM8
+		__XRT_CO_WIN64_LOAD_XMM7
+		__XRT_CO_WIN64_LOAD_XMM6
 		"movq 0x48(%%rdx), %%r15\n\t"
 		"movq 0x40(%%rdx), %%r14\n\t"
 		"movq 0x38(%%rdx), %%r13\n\t"
@@ -17649,7 +18029,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq 0x18(%%rdx), %%rbx\n\t"
 		"movq 0x10(%%rdx), %%rbp\n\t"
 		"movq 0x08(%%rdx), %%rsp\n\t"
-		"jmpq *0x00(%%rdx)\n\t"
+		__XRT_CO_JMP_RDX
 		"1:\n\t"
 		:
 		: "c"(pFrom), "d"(pTo)
@@ -17688,7 +18068,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		"movq 0x18(%%rsi), %%rbx\n\t"
 		"movq 0x10(%%rsi), %%rbp\n\t"
 		"movq 0x08(%%rsi), %%rsp\n\t"
-		"jmpq *0x00(%%rsi)\n\t"
+		__XRT_CO_JMP_RSI
 		"1:\n\t"
 		: : "D"(pFrom), "S"(pTo)
 		: "memory", "rax", "rcx", "rdx",
@@ -18087,6 +18467,65 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	#endif
 }
 #endif
+/* ================================ 后端实现: Windows Fiber ================================ */
+#ifdef __XRT_CO_FIBER_WIN
+static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
+{
+	if ( pRuntime == NULL ) {
+		return FALSE;
+	}
+	if ( pRuntime->pBackendMain != NULL ) {
+		return TRUE;
+	}
+	if ( IsThreadAFiber() ) {
+		pRuntime->pBackendMain = GetCurrentFiber();
+		pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_HOSTED;
+		return TRUE;
+	}
+	pRuntime->pBackendMain = ConvertThreadToFiber(NULL);
+	if ( pRuntime->pBackendMain == NULL ) {
+		xrtSetError("failed to convert current thread to fiber.", FALSE);
+		return FALSE;
+	}
+	pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_CONVERTED;
+	return TRUE;
+}
+static VOID CALLBACK __xrt_co_fiber_entry(LPVOID pParameter)
+{
+	xcoro pCo = (xcoro)pParameter;
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+	if ( pCo == NULL || pRuntime == NULL || pRuntime->pBackendMain == NULL ) {
+		return;
+	}
+	pCo->pfnEntry(pCo->pParam);
+	__xrt_co_finish(pCo, __xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED, 0);
+	SwitchToFiber(pRuntime->pBackendMain);
+}
+static bool __xrt_co_init_ctx(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return FALSE;
+	}
+	pCo->__hFiber = CreateFiber(pCo->iStackSize, __xrt_co_fiber_entry, pCo);
+	if ( pCo->__hFiber == NULL ) {
+		xrtSetError("failed to create coroutine fiber.", FALSE);
+		return FALSE;
+	}
+	return TRUE;
+}
+static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
+{
+	if ( pRuntime && pRuntime->pBackendMain && pCo && pCo->__hFiber ) {
+		SwitchToFiber(pCo->__hFiber);
+	}
+}
+static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
+{
+	if ( pRuntime && pRuntime->pBackendMain ) {
+		SwitchToFiber(pRuntime->pBackendMain);
+	}
+}
+#endif
 /* ================================ 汇编后端: 入口 + 初始化 + swap 包装 ================================ */
 #if defined(__XRT_CO_ASM_X64_WIN) || defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
 static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
@@ -18153,6 +18592,12 @@ static void __xrt_co_destroy_raw(xcoro pCo)
 	if ( pCo == NULL ) {
 		return;
 	}
+	#ifdef __XRT_CO_FIBER_WIN
+		if ( pCo->__hFiber != NULL ) {
+			DeleteFiber(pCo->__hFiber);
+			pCo->__hFiber = NULL;
+		}
+	#endif
 	__xrt_co_stack_free(pCo);
 	__xrt_co_free_cleanup_nodes(pCo);
 	xrtFree(pCo);
@@ -18183,9 +18628,7 @@ XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args*
 		return NULL;
 	}
 	// 栈大小处理
-	if ( iStackSize == 0 ) iStackSize = XRT_CO_STACK_DEFAULT;
-	if ( iStackSize < XRT_CO_STACK_MIN ) iStackSize = XRT_CO_STACK_MIN;
-	if ( iStackSize > XRT_CO_STACK_MAX ) iStackSize = XRT_CO_STACK_MAX;
+	iStackSize = __xrt_co_normalize_stack_size(iStackSize);
 	// 分配协程结构体
 	pCo = (xcoro)xrtMalloc(sizeof(xcoro_struct));
 	if ( !pCo ) {
@@ -18202,11 +18645,17 @@ XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args*
 	pCo->iExitCode = 0;
 	pCo->iTermReason = XRT_CO_TERM_NONE;
 	pCo->iStackSize = iStackSize;
-	if ( !__xrt_co_stack_alloc(pCo) ) {
+	if ( !__xrt_co_prepare_backend_main(pRuntime) ) {
 		xrtFree(pCo);
 		return NULL;
 	}
-	if ( !__xrt_co_prepare_backend_main(pRuntime) || !__xrt_co_init_ctx(pCo) ) {
+	#if __XRT_CO_BACKEND_NEEDS_STACK_ALLOC
+		if ( !__xrt_co_stack_alloc(pCo) ) {
+			xrtFree(pCo);
+			return NULL;
+		}
+	#endif
+	if ( !__xrt_co_init_ctx(pCo) ) {
 		__xrt_co_destroy_raw(pCo);
 		return NULL;
 	}
@@ -18418,11 +18867,11 @@ XXAPI str xrtCoGetBackendName()
 }
 XXAPI int xrtCoGetBackendTier()
 {
-	return XRT_CO_BACKEND_TIER_PRODUCTION;
+	return __XRT_CO_BACKEND_TIER;
 }
 XXAPI int xrtCoGetBackendStyle()
 {
-	return XRT_CO_BACKEND_STYLE_INLINE_ASM;
+	return __XRT_CO_BACKEND_STYLE;
 }
 /* ================================ 协程调度器 ================================ */
 #define __XRT_CO_SCHED_INIT_CAP  16
@@ -19497,7 +19946,7 @@ XXAPI void xrtCoSleep(uint32 iMs)
 #ifndef XRT_NO_XURL
 
 // ========================================
-// File: D:/git/xrt/lib/xurl.h
+// File: D:/Git/xrt/lib/xurl.h
 // ========================================
 
 #ifndef XRT_XURL_H
@@ -20321,7 +20770,7 @@ XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 #ifndef XRT_NO_HTTP_UTIL
 
 // ========================================
-// File: D:/git/xrt/lib/xhttp_util.h
+// File: D:/Git/xrt/lib/xhttp_util.h
 // ========================================
 
 #ifndef XRT_XHTTP_UTIL_H
@@ -22694,7 +23143,7 @@ XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset,
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_base.h
+// File: D:/Git/xrt/lib/xnet_base.h
 // ========================================
 
 #ifndef XRT_XNET_BASE_H
@@ -22879,7 +23328,9 @@ typedef struct {
 #endif
 static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		return __xrtAtomicCompareExchange32(pValue, iExchange, iComparand);
+	#elif defined(_WIN32) || defined(_WIN64)
 		return (long)InterlockedCompareExchange((volatile LONG*)pValue, (LONG)iExchange, (LONG)iComparand);
 	#else
 		return __sync_val_compare_and_swap(pValue, iComparand, iExchange);
@@ -22887,7 +23338,9 @@ static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange,
 }
 static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		return __xrtAtomicExchange32(pValue, iValue);
+	#elif defined(_WIN32) || defined(_WIN64)
 		return (long)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
 	#else
 		return __sync_lock_test_and_set(pValue, iValue);
@@ -22895,7 +23348,9 @@ static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
 }
 static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 {
-	#if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		return __xrtAtomicAddFetch32(pValue, iDelta);
+	#elif defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 		long iPrev;
 		long iNext;
 		do {
@@ -23185,7 +23640,7 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_mem.h
+// File: D:/Git/xrt/lib/xnet_mem.h
 // ========================================
 
 
@@ -23750,7 +24205,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port.h
+// File: D:/Git/xrt/lib/xnet_port.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_H
@@ -23924,7 +24379,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port_iocp.h
+// File: D:/Git/xrt/lib/xnet_port_iocp.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_IOCP_H
@@ -24814,7 +25269,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port_uring.h
+// File: D:/Git/xrt/lib/xnet_port_uring.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_URING_H
@@ -24950,6 +25405,33 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		bool bSingleMmap;
 		bool bReady;
 	} __xnet_uring_native_ring;
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		static uint32 __xnetPortUringAtomicLoadAcquireU32(const volatile uint32* pValue)
+		{
+			return __xrtAtomicLoadU32(pValue);
+		}
+		static uint32 __xnetPortUringAtomicLoadRelaxedU32(const volatile uint32* pValue)
+		{
+			return *(const volatile uint32*)pValue;
+		}
+		static void __xnetPortUringAtomicStoreReleaseU32(volatile uint32* pValue, uint32 iValue)
+		{
+			__xrtAtomicStoreU32(pValue, iValue);
+		}
+	#else
+		static uint32 __xnetPortUringAtomicLoadAcquireU32(const volatile uint32* pValue)
+		{
+			return __atomic_load_n(pValue, __ATOMIC_ACQUIRE);
+		}
+		static uint32 __xnetPortUringAtomicLoadRelaxedU32(const volatile uint32* pValue)
+		{
+			return __atomic_load_n(pValue, __ATOMIC_RELAXED);
+		}
+		static void __xnetPortUringAtomicStoreReleaseU32(volatile uint32* pValue, uint32 iValue)
+		{
+			__atomic_store_n(pValue, iValue, __ATOMIC_RELEASE);
+		}
+	#endif
 	typedef struct __xnet_uring_io {
 		struct __xnet_uring_io* pNext;
 		uint16 iOpType;
@@ -25216,20 +25698,20 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		uint32 iTail;
 		uint32 iEntries;
 		if ( !pRing || !pRing->bReady || !pTail || !pSlot ) return NULL;
-		iHead = __atomic_load_n(pRing->pSqHead, __ATOMIC_ACQUIRE);
-		iTail = __atomic_load_n(pRing->pSqTail, __ATOMIC_RELAXED);
-		iEntries = __atomic_load_n(pRing->pSqEntries, __ATOMIC_RELAXED);
+		iHead = __xnetPortUringAtomicLoadAcquireU32(pRing->pSqHead);
+		iTail = __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqTail);
+		iEntries = __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqEntries);
 		if ( (iTail - iHead) >= iEntries ) return NULL;
 		*pTail = iTail;
-		*pSlot = iTail & __atomic_load_n(pRing->pSqMask, __ATOMIC_RELAXED);
+		*pSlot = iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask);
 		memset(&pRing->pSqes[*pSlot], 0, sizeof(__xnet_io_uring_sqe));
 		return &pRing->pSqes[*pSlot];
 	}
 	static void __xnetPortUringNativeCommitSqe(__xnet_uring_native_ring* pRing, uint32 iTail, uint32 iSlot)
 	{
 		if ( !pRing || !pRing->bReady ) return;
-		pRing->pSqArray[iTail & __atomic_load_n(pRing->pSqMask, __ATOMIC_RELAXED)] = iSlot;
-		__atomic_store_n(pRing->pSqTail, iTail + 1u, __ATOMIC_RELEASE);
+		pRing->pSqArray[iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask)] = iSlot;
+		__xnetPortUringAtomicStoreReleaseU32(pRing->pSqTail, iTail + 1u);
 	}
 	static xnet_result __xnetPortUringNativeEnter(__xnet_uring_native_ring* pRing, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
 	{
@@ -25440,10 +25922,10 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		uint32 iHead;
 		uint32 iTail;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 || !pCtx->tNativeRing.bReady ) return 0;
-		iHead = __atomic_load_n(pCtx->tNativeRing.pCqHead, __ATOMIC_ACQUIRE);
-		iTail = __atomic_load_n(pCtx->tNativeRing.pCqTail, __ATOMIC_ACQUIRE);
+		iHead = __xnetPortUringAtomicLoadAcquireU32(pCtx->tNativeRing.pCqHead);
+		iTail = __xnetPortUringAtomicLoadAcquireU32(pCtx->tNativeRing.pCqTail);
 		while ( iHead != iTail && iCount < iMaxEvents ) {
-			__xnet_io_uring_cqe* pCqe = &pCtx->tNativeRing.pCqes[iHead & __atomic_load_n(pCtx->tNativeRing.pCqMask, __ATOMIC_RELAXED)];
+			__xnet_io_uring_cqe* pCqe = &pCtx->tNativeRing.pCqes[iHead & __xnetPortUringAtomicLoadRelaxedU32(pCtx->tNativeRing.pCqMask)];
 			__xnet_uring_io* pIo = (__xnet_uring_io*)(uintptr_t)pCqe->iUserData;
 			if ( pIo ) {
 				__xnetPortUringUntrackIo(pCtx, pIo);
@@ -25454,7 +25936,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			}
 			++iHead;
 		}
-		__atomic_store_n(pCtx->tNativeRing.pCqHead, iHead, __ATOMIC_RELEASE);
+		__xnetPortUringAtomicStoreReleaseU32(pCtx->tNativeRing.pCqHead, iHead);
 		return iCount;
 	}
 	static xnet_result __xnetPortUringWake(xnetport* pPort);
@@ -25824,7 +26306,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #ifndef XRT_NO_XCODEC
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec.h
+// File: D:/Git/xrt/lib/xcodec.h
 // ========================================
 
 #ifndef XRT_XCODEC_H
@@ -26115,7 +26597,7 @@ XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec_http1.h
+// File: D:/Git/xrt/lib/xcodec_http1.h
 // ========================================
 
 #ifndef XRT_XCODEC_HTTP1_H
@@ -26545,7 +27027,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec_ws.h
+// File: D:/Git/xrt/lib/xcodec_ws.h
 // ========================================
 
 #ifndef XRT_XCODEC_WS_H
@@ -26655,7 +27137,7 @@ XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_engine.h
+// File: D:/Git/xrt/lib/xnet_engine.h
 // ========================================
 
 #ifndef XRT_XNET_ENGINE_H
@@ -27331,7 +27813,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 #ifndef XRT_NO_CRYPTO
 
 // ========================================
-// File: D:/git/xrt/lib/crypto.h
+// File: D:/Git/xrt/lib/crypto.h
 // ========================================
 
 
@@ -31895,7 +32377,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 #ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/git/xrt/lib/nettls.h
+// File: D:/Git/xrt/lib/nettls.h
 // ========================================
 
 /*
@@ -32071,7 +32553,11 @@ static uint64 __xrt_tls_resume_cache_gen = 0;
 #endif
 static void __xrt_tls_resume_lock_acquire(void)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		while ( __xrtAtomicExchange32(&__xrt_tls_resume_lock, 1) != 0 ) {
+			xrtThreadYield();
+		}
+	#elif defined(_WIN32) || defined(_WIN64)
 		while ( InterlockedCompareExchange((volatile LONG*)&__xrt_tls_resume_lock, 1, 0) != 0 ) {
 			xrtThreadYield();
 		}
@@ -32083,7 +32569,9 @@ static void __xrt_tls_resume_lock_acquire(void)
 }
 static void __xrt_tls_resume_lock_release(void)
 {
-	#if defined(_WIN32) || defined(_WIN64)
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		__xrtAtomicExchange32(&__xrt_tls_resume_lock, 0);
+	#elif defined(_WIN32) || defined(_WIN64)
 		InterlockedExchange((volatile LONG*)&__xrt_tls_resume_lock, 0);
 	#else
 		__sync_lock_release(&__xrt_tls_resume_lock);
@@ -37785,7 +38273,7 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #ifndef XRT_NO_NETWORK
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_proxy.h
+// File: D:/Git/xrt/lib/xnet_proxy.h
 // ========================================
 
 #ifndef XRT_XNET_PROXY_H
@@ -38102,7 +38590,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_stream.h
+// File: D:/Git/xrt/lib/xnet_stream.h
 // ========================================
 
 #ifndef XRT_XNET_STREAM_H
@@ -40537,7 +41025,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_dgram.h
+// File: D:/Git/xrt/lib/xnet_dgram.h
 // ========================================
 
 #ifndef XRT_XNET_DGRAM_H
@@ -41169,7 +41657,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_sync.h
+// File: D:/Git/xrt/lib/xnet_sync.h
 // ========================================
 
 #ifndef XRT_XNET_SYNC_H
@@ -45590,7 +46078,7 @@ XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, x
 #ifndef XRT_NO_XHTTP
 
 // ========================================
-// File: D:/git/xrt/lib/xhttp.h
+// File: D:/Git/xrt/lib/xhttp.h
 // ========================================
 
 #ifndef XRT_XHTTP_H
@@ -46541,7 +47029,7 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 #ifndef XRT_NO_XHTTPD
 
 // ========================================
-// File: D:/git/xrt/lib/xhttpd.h
+// File: D:/Git/xrt/lib/xhttpd.h
 // ========================================
 
 #ifndef XRT_XHTTPD_H
@@ -47296,7 +47784,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 #ifndef XRT_NO_XWS
 
 // ========================================
-// File: D:/git/xrt/lib/xws.h
+// File: D:/Git/xrt/lib/xws.h
 // ========================================
 
 #ifndef XRT_XWS_H
@@ -48710,7 +49198,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/network.h
+// File: D:/Git/xrt/lib/network.h
 // ========================================
 
 
@@ -48914,7 +49402,7 @@ str xrtGetLocalName()
 #ifndef XRT_NO_XID
 
 // ========================================
-// File: D:/git/xrt/lib/xid.h
+// File: D:/Git/xrt/lib/xid.h
 // ========================================
 
 
@@ -48979,7 +49467,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 #ifndef XRT_NO_BUFFER
 
 // ========================================
-// File: D:/git/xrt/lib/buffer.h
+// File: D:/Git/xrt/lib/buffer.h
 // ========================================
 
 
@@ -49091,7 +49579,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 #ifndef XRT_NO_ARRAY
 
 // ========================================
-// File: D:/git/xrt/lib/array_point.h
+// File: D:/Git/xrt/lib/array_point.h
 // ========================================
 
 
@@ -49366,6 +49854,9 @@ XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal)
 XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 {
 	if ( pObject ) {
+		if ( procCompar == NULL ) {
+			return FALSE;
+		}
 		if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
 			return FALSE;
 		}
@@ -49378,7 +49869,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/array.h
+// File: D:/Git/xrt/lib/array.h
 // ========================================
 
 
@@ -49667,7 +50158,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 #ifndef XRT_NO_BSMN
 
 // ========================================
-// File: D:/git/xrt/lib/bsmm.h
+// File: D:/Git/xrt/lib/bsmm.h
 // ========================================
 
 
@@ -49810,7 +50301,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 #ifndef XRT_NO_MEMUNIT
 
 // ========================================
-// File: D:/git/xrt/lib/memunit.h
+// File: D:/Git/xrt/lib/memunit.h
 // ========================================
 
 
@@ -49895,7 +50386,7 @@ XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
 		return FALSE;
 	}
-	MMU_ValuePtr v = obj - 4;
+	MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)obj - sizeof(MMU_Value));
 	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
 		xrtOwnerEndMutable(&objUnit->Owner);
 		return FALSE;
@@ -49976,7 +50467,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 #ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
-// File: D:/git/xrt/lib/mempool_fs.h
+// File: D:/Git/xrt/lib/mempool_fs.h
 // ========================================
 
 
@@ -50258,7 +50749,7 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 			}
 		#endif
 	}
-	MMU_ValuePtr v = p - sizeof(MMU_Value);
+	MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)p - sizeof(MMU_Value));
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
 		uint8 idx = v->ItemFlag & 0xFF;
@@ -50321,7 +50812,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 #ifndef XRT_NO_STACK
 
 // ========================================
-// File: D:/git/xrt/lib/stack.h
+// File: D:/Git/xrt/lib/stack.h
 // ========================================
 
 
@@ -50452,7 +50943,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/stack_dyn.h
+// File: D:/Git/xrt/lib/stack_dyn.h
 // ========================================
 
 
@@ -50644,7 +51135,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 #ifndef XRT_NO_AVLTREE
 
 // ========================================
-// File: D:/git/xrt/lib/avltree_base.h
+// File: D:/Git/xrt/lib/avltree_base.h
 // ========================================
 
 
@@ -51057,7 +51548,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/avltree.h
+// File: D:/Git/xrt/lib/avltree.h
 // ========================================
 
 
@@ -51341,7 +51832,7 @@ XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 #ifndef XRT_NO_MEMPOOL
 
 // ========================================
-// File: D:/git/xrt/lib/mempool.h
+// File: D:/Git/xrt/lib/mempool.h
 // ========================================
 
 
@@ -51900,7 +52391,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 #ifndef XRT_NO_DICT
 
 // ========================================
-// File: D:/git/xrt/lib/dict.h
+// File: D:/Git/xrt/lib/dict.h
 // ========================================
 
 
@@ -52186,7 +52677,7 @@ int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, ptr pArg)
 		}
 		// 调用回调函数
 		if ( procEach ) {
-			if ( procEach(xrtAVLTreeGetNodeData(root), ((ptr)root) + sizeof(xavltnode_struct) + sizeof(Dict_Key), pArg) ) {
+			if ( procEach(xrtAVLTreeGetNodeData(root), (ptr)((uint8*)root + sizeof(xavltnode_struct) + sizeof(Dict_Key)), pArg) ) {
 				return -1;
 			}
 		}
@@ -52211,7 +52702,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_LIST
 
 // ========================================
-// File: D:/git/xrt/lib/list.h
+// File: D:/Git/xrt/lib/list.h
 // ========================================
 
 
@@ -52480,7 +52971,7 @@ int List_WalkRecuProc(xavltnode root, List_EachProc procEach, ptr pArg)
 		}
 		// 调用回调函数
 		if ( procEach ) {
-			if ( procEach(((int64*)&root[1])[0], ((ptr)root) + sizeof(xavltnode_struct) + sizeof(int64), pArg) ) {
+			if ( procEach(((int64*)&root[1])[0], (ptr)((uint8*)root + sizeof(xavltnode_struct) + sizeof(int64)), pArg) ) {
 				return -1;
 			}
 		}
@@ -52505,7 +52996,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_REGEX
 
 // ========================================
-// File: D:/git/xrt/lib/regex.h
+// File: D:/Git/xrt/lib/regex.h
 // ========================================
 
 /* 
@@ -58063,7 +58554,7 @@ static int bbre_builtin_cc_perl(
 #ifndef XRT_NO_VALUE
 
 // ========================================
-// File: D:/git/xrt/lib/value.h
+// File: D:/Git/xrt/lib/value.h
 // ========================================
 
 
@@ -58740,6 +59231,75 @@ XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count)
 	}
 	return xrtPtrArrayMalloc(pArr->vArray, count);
 }
+static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
+{
+	uintptr_t iLeftAddr;
+	uintptr_t iRightAddr;
+	if ( pLeft == pRight ) {
+		return 0;
+	}
+	if ( pLeft == NULL || pLeft->Type == XVO_DT_NULL ) {
+		return (pRight == NULL || pRight->Type == XVO_DT_NULL) ? 0 : -1;
+	}
+	if ( pRight == NULL || pRight->Type == XVO_DT_NULL ) {
+		return 1;
+	}
+	if ( pLeft->Type != pRight->Type ) {
+		return (pLeft->Type < pRight->Type) ? -1 : 1;
+	}
+	switch ( pLeft->Type ) {
+		case XVO_DT_BOOL:
+			return (pLeft->vBool > pRight->vBool) - (pLeft->vBool < pRight->vBool);
+		case XVO_DT_INT:
+			return (pLeft->vInt > pRight->vInt) ? 1 : ((pLeft->vInt < pRight->vInt) ? -1 : 0);
+		case XVO_DT_FLOAT:
+			return (pLeft->vFloat > pRight->vFloat) ? 1 : ((pLeft->vFloat < pRight->vFloat) ? -1 : 0);
+		case XVO_DT_TEXT:
+		{
+			uint32 iMinSize = (pLeft->Size < pRight->Size) ? pLeft->Size : pRight->Size;
+			int iCmp = xrtStrComp(pLeft->vText, pRight->vText, iMinSize, FALSE);
+			if ( iCmp != 0 ) {
+				return (iCmp < 0) ? -1 : 1;
+			}
+			return (pLeft->Size > pRight->Size) ? 1 : ((pLeft->Size < pRight->Size) ? -1 : 0);
+		}
+		case XVO_DT_TIME:
+			return (pLeft->vTime > pRight->vTime) ? 1 : ((pLeft->vTime < pRight->vTime) ? -1 : 0);
+		case XVO_DT_POINT:
+			iLeftAddr = (uintptr_t)pLeft->vPoint;
+			iRightAddr = (uintptr_t)pRight->vPoint;
+			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+		case XVO_DT_FUNC:
+			iLeftAddr = (uintptr_t)pLeft->vFunc;
+			iRightAddr = (uintptr_t)pRight->vFunc;
+			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+		case XVO_DT_ARRAY:
+			return (pLeft->vArray->Count > pRight->vArray->Count) ? 1 : ((pLeft->vArray->Count < pRight->vArray->Count) ? -1 : 0);
+		case XVO_DT_LIST:
+			return (pLeft->vList->AVLT.Count > pRight->vList->AVLT.Count) ? 1 : ((pLeft->vList->AVLT.Count < pRight->vList->AVLT.Count) ? -1 : 0);
+		case XVO_DT_COLL:
+			return (pLeft->vColl->Count > pRight->vColl->Count) ? 1 : ((pLeft->vColl->Count < pRight->vColl->Count) ? -1 : 0);
+		case XVO_DT_TABLE:
+			return (pLeft->vTable->AVLT.Count > pRight->vTable->AVLT.Count) ? 1 : ((pLeft->vTable->AVLT.Count < pRight->vTable->AVLT.Count) ? -1 : 0);
+		case XVO_DT_CLASS:
+		case XVO_DT_CUSTOM:
+			if ( pLeft->Size != pRight->Size ) {
+				return (pLeft->Size > pRight->Size) ? 1 : -1;
+			}
+			break;
+		default:
+			break;
+	}
+	iLeftAddr = (uintptr_t)pLeft;
+	iRightAddr = (uintptr_t)pRight;
+	return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+}
+static int __xvoArraySortDefaultCompareProc(const void* pLeft, const void* pRight)
+{
+	xvalue pLeftValue = pLeft ? *(const xvalue*)pLeft : NULL;
+	xvalue pRightValue = pRight ? *(const xvalue*)pRight : NULL;
+	return __xvoArraySortDefaultCompareValue(pLeftValue, pRightValue);
+}
 XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
 {
 	if ( pArr == NULL ) {
@@ -58747,6 +59307,9 @@ XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
 	}
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
+	}
+	if ( proc == NULL ) {
+		proc = (ptr)__xvoArraySortDefaultCompareProc;
 	}
 	return xrtPtrArraySort(pArr->vArray, proc);
 }
@@ -59664,7 +60227,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 #ifndef XRT_NO_JNUM
 
 // ========================================
-// File: D:/git/xrt/lib/jnum.h
+// File: D:/Git/xrt/lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -61164,7 +61727,7 @@ jnum_to_func(double, xrtStrToNum)
 #ifndef XRT_NO_JSON
 
 // ========================================
-// File: D:/git/xrt/lib/json.h
+// File: D:/Git/xrt/lib/json.h
 // ========================================
 
 
@@ -62801,7 +63364,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/xson.h
+// File: D:/Git/xrt/lib/xson.h
 // ========================================
 
 typedef enum
@@ -64091,7 +64654,7 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 #ifndef XRT_NO_TEMPLATE
 
 // ========================================
-// File: D:/git/xrt/lib/template.h
+// File: D:/Git/xrt/lib/template.h
 // ========================================
 
 
@@ -68313,6 +68876,7 @@ static void __xrtRuntimeFinalizeLocked()
 	#endif
 	xCore.bInit = FALSE;
 	__xrtRuntimeThreadRefCount = 0;
+	__xrtThreadStateUnitStorage();
 	#if defined(_WIN32) || defined(_WIN64)
 		#if __XRT_RUNTIME_NEED_WSA
 			WSACleanup();
@@ -68336,15 +68900,15 @@ static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
 }
 XXAPI xrtThreadData* xrtThreadGetCurrent()
 {
-	return __xrtThreadState;
+	return __xrtThreadStateGet();
 }
 XXAPI bool xrtThreadIsAttached()
 {
-	return __xrtThreadState != NULL;
+	return __xrtThreadStateGet() != NULL;
 }
 XXAPI xrtThreadData* xrtThreadAttachCurrent()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	if ( pThreadData ) {
 		pThreadData->iAttachDepth++;
 		return pThreadData;
@@ -68354,13 +68918,17 @@ XXAPI xrtThreadData* xrtThreadAttachCurrent()
 		__xrtRuntimeUnlock();
 		return NULL;
 	}
+	if ( !__xrtThreadStateInitStorage() ) {
+		__xrtRuntimeUnlock();
+		return NULL;
+	}
 	pThreadData = __xrtCreateThreadState(NULL);
 	if ( pThreadData == NULL ) {
 		__xrtRuntimeUnlock();
 		return NULL;
 	}
 	__xrtRuntimeThreadRefCount++;
-	__xrtThreadState = pThreadData;
+	__xrtThreadStateSet(pThreadData);
 	__xrtRuntimeUnlock();
 	return pThreadData;
 }
@@ -68379,7 +68947,7 @@ static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
 }
 XXAPI void xrtThreadDetachCurrent()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 	if ( pThreadData == NULL ) {
 		return;
@@ -68395,7 +68963,7 @@ XXAPI void xrtThreadDetachCurrent()
 		__xrtCoroRuntimeUnitThread(pThreadData);
 	#endif
 	__xrtUnitThreadMemState(pThreadData);
-	__xrtThreadState = NULL;
+	__xrtThreadStateSet(NULL);
 	procFree(pThreadData);
 	__xrtRuntimeLock();
 	if ( __xrtRuntimeThreadRefCount > 0 ) {
@@ -68408,7 +68976,7 @@ XXAPI void xrtThreadDetachCurrent()
 }
 XXAPI str xrtGetError()
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	if ( pThreadData ) {
 		return pThreadData->LastError;
 	}
@@ -68821,7 +69389,7 @@ XXAPI bool xrtMemDebugDumpJson(str sPath)
 #endif
 XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	xrtThreadCleanup* pCleanup = NULL;
 	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
 	if ( pThreadData == NULL || proc == NULL ) {
@@ -68839,7 +69407,7 @@ XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 }
 XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
-	xrtThreadData* pThreadData = __xrtThreadState;
+	xrtThreadData* pThreadData = __xrtThreadStateGet();
 	xrtThreadCleanup* pCleanup = NULL;
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
 	if ( pThreadData == NULL || pThreadData->pCleanupTop == NULL ) {

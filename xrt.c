@@ -130,26 +130,69 @@ xrtGlobalData xCore = { FALSE };
 		}
 	#endif
 #else
-	static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+	#if defined(__TINYC__)
+		static pthread_key_t __xrtThreadTlsKey;
+		static bool __xrtThreadTlsKeyReady = FALSE;
 
-	static bool __xrtThreadStateInitStorage()
-	{
-		return TRUE;
-	}
+		static bool __xrtThreadStateInitStorage()
+		{
+			if ( __xrtThreadTlsKeyReady ) {
+				return TRUE;
+			}
 
-	static void __xrtThreadStateUnitStorage()
-	{
-	}
+			if ( pthread_key_create(&__xrtThreadTlsKey, NULL) != 0 ) {
+				return FALSE;
+			}
 
-	static xrtThreadData* __xrtThreadStateGet()
-	{
-		return __xrtThreadState;
-	}
+			__xrtThreadTlsKeyReady = TRUE;
+			return TRUE;
+		}
 
-	static void __xrtThreadStateSet(xrtThreadData* pThreadData)
-	{
-		__xrtThreadState = pThreadData;
-	}
+		static void __xrtThreadStateUnitStorage()
+		{
+			if ( __xrtThreadTlsKeyReady ) {
+				(void)pthread_key_delete(__xrtThreadTlsKey);
+				__xrtThreadTlsKeyReady = FALSE;
+			}
+		}
+
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			if ( !__xrtThreadTlsKeyReady ) {
+				return NULL;
+			}
+
+			return (xrtThreadData*)pthread_getspecific(__xrtThreadTlsKey);
+		}
+
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			if ( __xrtThreadTlsKeyReady ) {
+				(void)pthread_setspecific(__xrtThreadTlsKey, pThreadData);
+			}
+		}
+	#else
+		static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
+
+		static bool __xrtThreadStateInitStorage()
+		{
+			return TRUE;
+		}
+
+		static void __xrtThreadStateUnitStorage()
+		{
+		}
+
+		static xrtThreadData* __xrtThreadStateGet()
+		{
+			return __xrtThreadState;
+		}
+
+		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
+		{
+			__xrtThreadState = pThreadData;
+		}
+	#endif
 #endif
 
 #ifndef XRT_MEM_DEBUG

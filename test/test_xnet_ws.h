@@ -4,6 +4,8 @@
 	#include <unistd.h>
 #endif
 
+#include "test_atomic_compat.h"
+
 typedef struct {
 	volatile long iOpenCount;
 	volatile long iTextCount;
@@ -42,20 +44,12 @@ static void __Test_XWsSleepMs(uint32 iDelayMs)
 
 static long __Test_XWsAtomicInc(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedIncrement((volatile LONG*)pValue);
-	#else
-		return __sync_add_and_fetch(pValue, 1);
-	#endif
+	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
 static long __Test_XWsAtomicLoad(volatile long* pValue)
 {
-	#if defined(_WIN32) || defined(_WIN64)
-		return InterlockedCompareExchange((volatile LONG*)pValue, 0, 0);
-	#else
-		return __sync_add_and_fetch(pValue, 0);
-	#endif
+	return __xrtTestAtomicLoadLong(pValue);
 }
 
 static bool __Test_XWsWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)
