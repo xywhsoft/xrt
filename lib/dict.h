@@ -302,7 +302,7 @@ int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, ptr pArg)
 		}
 		// 调用回调函数
 		if ( procEach ) {
-			if ( procEach(xrtAVLTreeGetNodeData(root), ((ptr)root) + sizeof(xavltnode_struct) + sizeof(Dict_Key), pArg) ) {
+			if ( procEach(xrtAVLTreeGetNodeData(root), (ptr)((uint8*)root + sizeof(xavltnode_struct) + sizeof(Dict_Key)), pArg) ) {
 				return -1;
 			}
 		}

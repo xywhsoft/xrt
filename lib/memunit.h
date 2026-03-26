@@ -84,7 +84,7 @@ XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
 		return FALSE;
 	}
-	MMU_ValuePtr v = obj - 4;
+	MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)obj - sizeof(MMU_Value));
 	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
 		xrtOwnerEndMutable(&objUnit->Owner);
 		return FALSE;

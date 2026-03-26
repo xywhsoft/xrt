@@ -284,7 +284,7 @@ int List_WalkRecuProc(xavltnode root, List_EachProc procEach, ptr pArg)
 		}
 		// 调用回调函数
 		if ( procEach ) {
-			if ( procEach(((int64*)&root[1])[0], ((ptr)root) + sizeof(xavltnode_struct) + sizeof(int64), pArg) ) {
+			if ( procEach(((int64*)&root[1])[0], (ptr)((uint8*)root + sizeof(xavltnode_struct) + sizeof(int64)), pArg) ) {
 				return -1;
 			}
 		}

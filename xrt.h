@@ -1,4 +1,4 @@
-
+#pragma once
 
 
 /*
@@ -34,7 +34,6 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <wctype.h>
@@ -44,6 +43,81 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>
+
+#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
+	#include <io.h>
+	#include <direct.h>
+	#include <process.h>
+	#include <BaseTsd.h>
+	#ifndef XRT_MSC_RUNTIME_COMPAT_DEFINED
+		#define XRT_MSC_RUNTIME_COMPAT_DEFINED
+	#endif
+	#ifndef ssize_t
+		typedef SSIZE_T ssize_t;
+	#endif
+	#ifndef mode_t
+		typedef int mode_t;
+	#endif
+	#ifndef pid_t
+		typedef int pid_t;
+	#endif
+	#ifndef strcasecmp
+		#define strcasecmp _stricmp
+	#endif
+	#ifndef strncasecmp
+		#define strncasecmp _strnicmp
+	#endif
+	#ifndef strdup
+		#define strdup _strdup
+	#endif
+	#ifndef getpid
+		#define getpid _getpid
+	#endif
+	#ifndef access
+		#define access _access
+	#endif
+	#ifndef mkdir
+		#define mkdir(sPath, iMode) _mkdir(sPath)
+	#endif
+	#ifndef rmdir
+		#define rmdir _rmdir
+	#endif
+	#ifndef unlink
+		#define unlink _unlink
+	#endif
+	#ifndef fileno
+		#define fileno _fileno
+	#endif
+	#ifndef popen
+		#define popen _popen
+	#endif
+	#ifndef pclose
+		#define pclose _pclose
+	#endif
+	#ifndef __func__
+		#define __func__ __FUNCTION__
+	#endif
+
+	#ifndef XRT_MSC_TIME_COMPAT_DEFINED
+		#define XRT_MSC_TIME_COMPAT_DEFINED
+		static inline struct tm* localtime_r(const time_t* pRawTime, struct tm* pResult)
+		{
+			return localtime_s(pResult, pRawTime) == 0 ? pResult : NULL;
+		}
+
+		static inline struct tm* gmtime_r(const time_t* pRawTime, struct tm* pResult)
+		{
+			return gmtime_s(pResult, pRawTime) == 0 ? pResult : NULL;
+		}
+
+		static inline time_t timegm(struct tm* pTM)
+		{
+			return _mkgmtime(pTM);
+		}
+	#endif
+#else
+	#include <unistd.h>
+#endif
 
 
 
@@ -1914,6 +1988,7 @@
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
 			SRWLOCK objLock;					// Windows SRWLOCK（最高性能，无递归锁支持）
+			DWORD iOwnerThreadId;				// 当前持有锁的线程ID（用于保持非递归 mutex 语义）
 		#else
 			pthread_mutex_t objLock;			// Linux pthread_mutex（非递归模式）
 		#endif
@@ -2262,9 +2337,10 @@
 	#define XRT_CO_TERM_RETURNED     1
 	#define XRT_CO_TERM_CANCELLED    2
 
-	// 协程 backend 分层/风格：主线只保留 production inline-asm 实现
+	// 协程 backend 分层/风格：production backend 允许 inline-asm / Windows Fiber 实现
 	#define XRT_CO_BACKEND_TIER_PRODUCTION   2
 	#define XRT_CO_BACKEND_STYLE_INLINE_ASM  2
+	#define XRT_CO_BACKEND_STYLE_FIBER       3
 	
 	// 默认栈大小
 	#define XRT_CO_STACK_DEFAULT (64 * 1024)        // 64 KB
@@ -4581,7 +4657,7 @@
 	#define MMU_FLAG_EXT				0xBFFFFFFF
 	
 	// GC标记
-	#define xrtMemUnitGC_Mark(p) (((MMU_ValuePtr)((void*)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
+	#define xrtMemUnitGC_Mark(p) (((MMU_ValuePtr)((uint8*)(p) - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
 	
 	// 数据管理单元数据结构
 	typedef struct {
@@ -4657,7 +4733,7 @@
 		if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
 			return;
 		}
-		MMU_ValuePtr v = obj - 4;
+		MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)obj - sizeof(MMU_Value));
 		unsigned char idx = v->ItemFlag & 0xFF;
 		v->ItemFlag = 0;
 		objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
@@ -4858,7 +4934,7 @@
 	typedef bool (*AVLTree_EachProc)(ptr pNode, ptr pArg);
 	
 	// 获取 xavltnode 对象
-	#define xrtAVLTreeGetNodeBase(p) ((xavltnode)((ptr)p - sizeof(xavltnode_struct)))
+	#define xrtAVLTreeGetNodeBase(p) ((xavltnode)((uint8*)(p) - sizeof(xavltnode_struct)))
 	
 	// 获取 xavltnode 对应的数据段
 	#define xrtAVLTreeGetNodeData(p) ((ptr)(&p[1]))

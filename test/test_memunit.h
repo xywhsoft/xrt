@@ -79,7 +79,7 @@ void Test_MemUnit(xrtGlobalData* xCore)
 	printf("\tidx\tptr\t\t\tflag\tiVal\tsVal\t\t\texpected val\n");
 	int t1val[10] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90 };
 	for ( int i = 0; i < 10; i++ ) {
-		MMU_ValuePtr mvp = (void*)(ptr[i]) - 4;
+		MMU_ValuePtr mvp = (MMU_ValuePtr)((uint8*)ptr[i] - sizeof(MMU_Value));
 		if ( ptr[i]->iVal == t1val[i] ) {
 			printf("\t%d\t%p\t%x\t%d\t%s\t%d\t\tsucc! √\n", i, ptr[i], mvp->ItemFlag, ptr[i]->iVal, ptr[i]->sVal, t1val[i]);
 		} else {
@@ -136,7 +136,7 @@ void Test_MemUnit(xrtGlobalData* xCore)
 	printf("\tidx\tptr\t\t\tflag\tiVal\tsVal\t\t\texpected val\n");
 	int t2val[20] = { 0, 10, 20, 100, 40, 101, 60, 102, 80, 90, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109 };
 	for ( int i = 0; i < 20; i++ ) {
-		MMU_ValuePtr mvp = (void*)(ptr[i]) - 4;
+		MMU_ValuePtr mvp = (MMU_ValuePtr)((uint8*)ptr[i] - sizeof(MMU_Value));
 		if ( ptr[i]->iVal == t2val[i] ) {
 			printf("\t%d\t%p\t%x\t%d\t%s\t%d\t\tsucc! √\n", i, ptr[i], mvp->ItemFlag, ptr[i]->iVal, ptr[i]->sVal, t2val[i]);
 		} else {
@@ -182,7 +182,7 @@ void Test_MemUnit(xrtGlobalData* xCore)
 	printf("\nMemory Unit values : \n");
 	printf("\tidx\tptr\t\t\tflag\tiVal\tsVal\t\t\texpected val\n");
 	for ( int i = 0; i < 20; i++ ) {
-		MMU_ValuePtr mvp = (void*)(ptr[i]) - 4;
+		MMU_ValuePtr mvp = (MMU_ValuePtr)((uint8*)ptr[i] - sizeof(MMU_Value));
 		if ( ptr[i]->iVal == t2val[i] ) {
 			printf("\t%d\t%p\t%x\t%d\t%s\t%d\t\tsucc! √\n", i, ptr[i], mvp->ItemFlag, ptr[i]->iVal, ptr[i]->sVal, t2val[i]);
 		} else {

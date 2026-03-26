@@ -17,8 +17,18 @@
 
 #define __XRT_CO_BACKEND_TIER_PRODUCTION	2
 #define __XRT_CO_BACKEND_STYLE_INLINE_ASM	2
+#define __XRT_CO_BACKEND_STYLE_FIBER		3
 
-#if defined(__TINYC__)
+#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
+	#define __XRT_CO_FIBER_WIN
+	#if defined(_WIN64)
+		#define __XRT_CO_BACKEND_NAME	"fiber-win64-msvc"
+	#else
+		#define __XRT_CO_BACKEND_NAME	"fiber-win32-msvc"
+	#endif
+	#define __XRT_CO_BACKEND_TIER	__XRT_CO_BACKEND_TIER_PRODUCTION
+	#define __XRT_CO_BACKEND_STYLE	__XRT_CO_BACKEND_STYLE_FIBER
+#elif defined(__TINYC__)
 	#if (defined(_WIN64)) && (defined(__x86_64__) || defined(_M_X64))
 		#define __XRT_CO_ASM_X64_WIN
 		#define __XRT_CO_BACKEND_NAME	"asm-x64-win64-tcc"
@@ -169,9 +179,13 @@ static void __xrtCoroRuntimeUnitThread(xrtThreadData* pThreadData)
 		return;
 	}
 
-	if ( pRuntime->pBackendMain ) {
+	#ifdef __XRT_CO_FIBER_WIN
+		if ( (pRuntime->iFlags & XRT_CO_RUNTIME_FIBER_CONVERTED) != 0 ) {
+			(void)ConvertFiberToThread();
+		}
+	#elif defined(__XRT_CO_ASM_X64_WIN) || defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
 		xrtFree(pRuntime->pBackendMain);
-	}
+	#endif
 
 	memset(pRuntime, 0, sizeof(xrtCoroRuntimeState));
 }
@@ -1193,6 +1207,83 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 
 
 
+/* ================================ 后端实现: Windows Fiber ================================ */
+
+#ifdef __XRT_CO_FIBER_WIN
+
+static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
+{
+	if ( pRuntime == NULL ) {
+		return FALSE;
+	}
+
+	if ( pRuntime->pBackendMain != NULL ) {
+		return TRUE;
+	}
+
+	if ( IsThreadAFiber() ) {
+		pRuntime->pBackendMain = GetCurrentFiber();
+		pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_HOSTED;
+		return TRUE;
+	}
+
+	pRuntime->pBackendMain = ConvertThreadToFiber(NULL);
+	if ( pRuntime->pBackendMain == NULL ) {
+		xrtSetError("failed to convert current thread to fiber.", FALSE);
+		return FALSE;
+	}
+
+	pRuntime->iFlags |= XRT_CO_RUNTIME_FIBER_CONVERTED;
+	return TRUE;
+}
+
+static VOID CALLBACK __xrt_co_fiber_entry(LPVOID pParameter)
+{
+	xcoro pCo = (xcoro)pParameter;
+	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
+
+	if ( pCo == NULL || pRuntime == NULL || pRuntime->pBackendMain == NULL ) {
+		return;
+	}
+
+	pCo->pfnEntry(pCo->pParam);
+	__xrt_co_finish(pCo, __xrt_co_is_cancel_requested_flag(pCo) ? XRT_CO_TERM_CANCELLED : XRT_CO_TERM_RETURNED, 0);
+	SwitchToFiber(pRuntime->pBackendMain);
+}
+
+static bool __xrt_co_init_ctx(xcoro pCo)
+{
+	if ( pCo == NULL ) {
+		return FALSE;
+	}
+
+	pCo->__hFiber = CreateFiber(pCo->iStackSize, __xrt_co_fiber_entry, pCo);
+	if ( pCo->__hFiber == NULL ) {
+		xrtSetError("failed to create coroutine fiber.", FALSE);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
+{
+	if ( pRuntime && pRuntime->pBackendMain && pCo && pCo->__hFiber ) {
+		SwitchToFiber(pCo->__hFiber);
+	}
+}
+
+static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
+{
+	if ( pRuntime && pRuntime->pBackendMain ) {
+		SwitchToFiber(pRuntime->pBackendMain);
+	}
+}
+
+#endif
+
+
+
 /* ================================ 汇编后端: 入口 + 初始化 + swap 包装 ================================ */
 
 #if defined(__XRT_CO_ASM_X64_WIN) || defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
@@ -1280,6 +1371,13 @@ static void __xrt_co_destroy_raw(xcoro pCo)
 	if ( pCo == NULL ) {
 		return;
 	}
+
+	#ifdef __XRT_CO_FIBER_WIN
+		if ( pCo->__hFiber != NULL ) {
+			DeleteFiber(pCo->__hFiber);
+			pCo->__hFiber = NULL;
+		}
+	#endif
 
 	__xrt_co_stack_free(pCo);
 
@@ -1624,12 +1722,12 @@ XXAPI str xrtCoGetBackendName()
 
 XXAPI int xrtCoGetBackendTier()
 {
-	return XRT_CO_BACKEND_TIER_PRODUCTION;
+	return __XRT_CO_BACKEND_TIER;
 }
 
 XXAPI int xrtCoGetBackendStyle()
 {
-	return XRT_CO_BACKEND_STYLE_INLINE_ASM;
+	return __XRT_CO_BACKEND_STYLE;
 }
 
 /* ================================ 协程调度器 ================================ */

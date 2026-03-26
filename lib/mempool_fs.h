@@ -285,7 +285,7 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 			}
 		#endif
 	}
-	MMU_ValuePtr v = p - sizeof(MMU_Value);
+	MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)p - sizeof(MMU_Value));
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
 		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
 		uint8 idx = v->ItemFlag & 0xFF;

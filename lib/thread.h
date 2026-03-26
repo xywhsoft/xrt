@@ -359,6 +359,7 @@ XXAPI xmutex xrtMutexCreate()
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeSRWLock(&pMutex->objLock);
+		pMutex->iOwnerThreadId = 0;
 	#else
 		pthread_mutexattr_t attr;
 		pthread_mutexattr_init(&attr);
@@ -395,6 +396,7 @@ XXAPI void xrtMutexInit(xmutex pMutex)
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeSRWLock(&pMutex->objLock);
+		pMutex->iOwnerThreadId = 0;
 	#else
 		pthread_mutexattr_t attr;
 		pthread_mutexattr_init(&attr);
@@ -413,7 +415,7 @@ XXAPI void xrtMutexUnit(xmutex pMutex)
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		// SRWLOCK 不需要显式销毁
-		(void)pMutex;
+		pMutex->iOwnerThreadId = 0;
 	#else
 		pthread_mutex_destroy(&pMutex->objLock);
 	#endif
@@ -428,6 +430,7 @@ XXAPI void xrtMutexLock(xmutex pMutex)
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		AcquireSRWLockExclusive(&pMutex->objLock);
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
 	#else
 		pthread_mutex_lock(&pMutex->objLock);
 	#endif
@@ -441,7 +444,14 @@ XXAPI bool xrtMutexTryLock(xmutex pMutex)
 	if ( !pMutex ) return FALSE;
 	
 	#if defined(_WIN32) || defined(_WIN64)
-		return TryAcquireSRWLockExclusive(&pMutex->objLock) != 0;
+		if ( pMutex->iOwnerThreadId == GetCurrentThreadId() ) {
+			return FALSE;
+		}
+		if ( TryAcquireSRWLockExclusive(&pMutex->objLock) == 0 ) {
+			return FALSE;
+		}
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
+		return TRUE;
 	#else
 		return pthread_mutex_trylock(&pMutex->objLock) == 0;
 	#endif
@@ -455,6 +465,7 @@ XXAPI void xrtMutexUnlock(xmutex pMutex)
 	if ( !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		pMutex->iOwnerThreadId = 0;
 		ReleaseSRWLockExclusive(&pMutex->objLock);
 	#else
 		pthread_mutex_unlock(&pMutex->objLock);
@@ -712,8 +723,10 @@ XXAPI void xrtCondWait(xcond pCond, xmutex pMutex)
 	if ( !pCond || !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		pMutex->iOwnerThreadId = 0;
 		SleepConditionVariableSRW(&pCond->objCond, 
 			&pMutex->objLock, INFINITE, 0);
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
 	#else
 		pthread_cond_wait(&pCond->objCond, 
 			(pthread_mutex_t*)&pMutex->objLock);
@@ -730,10 +743,13 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 	}
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		pMutex->iOwnerThreadId = 0;
 		if ( SleepConditionVariableSRW(&pCond->objCond, 
 				&pMutex->objLock, iTimeout, 0) ) {
+			pMutex->iOwnerThreadId = GetCurrentThreadId();
 			return XRT_WAIT_OK;
 		}
+		pMutex->iOwnerThreadId = GetCurrentThreadId();
 		if ( GetLastError() == ERROR_TIMEOUT ) {
 			return XRT_WAIT_TIMEOUT;
 		}
