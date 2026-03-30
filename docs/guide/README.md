@@ -125,6 +125,7 @@
 7. [用 XRT 写最小 HTTP 服务入门](minimal-http-service-intro.md)
 8. [用 XRT 调用流式 LLM API 入门](streaming-llm-api-intro.md)
 9. [XRT 子进程与工具执行入门](subprocess-intro.md)
+10. [XRT 异步文件与目录操作入门](file-async-intro.md)
 
 这些教学页已经足够支撑“从运行时、数据、并发一直到网络与 AI 场景”的第一轮学习。
 

@@ -150,6 +150,7 @@
 4. [xnet-v2 与 TLS 主线](guide/xnet-v2-tls-intro.md)
 5. [流式 LLM API 教学](guide/streaming-llm-api-intro.md)
 6. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
+7. [XRT 异步文件与目录操作入门](guide/file-async-intro.md)
 
 如果你想直接看完整组合案例，建议优先阅读：
 

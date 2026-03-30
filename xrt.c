@@ -237,6 +237,7 @@ static void __xrtRuntimeFinalizeLocked();
 
 #ifndef XRT_NO_FILE
 #include "lib/file.h"
+#include "lib/file_async.h"
 #endif
 
 #ifndef XRT_NO_THREAD

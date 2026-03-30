@@ -2132,6 +2132,43 @@
 	
 	// 删除文件夹 ( 返回操作的文件数量 )
 	XXAPI int xrtDirDelete(str sPath);
+
+	#if !defined(XRT_NO_NETWORK)
+		#define XAFILE_F_READ			0x0001u
+		#define XAFILE_F_WRITE			0x0002u
+		#define XAFILE_F_CREATE		0x0004u
+		#define XAFILE_F_TRUNCATE		0x0008u
+
+		#define XAFILE_SHARE_READ		0x0001u
+		#define XAFILE_SHARE_WRITE		0x0002u
+		#define XAFILE_SHARE_DELETE	0x0004u
+
+		typedef struct xasyncfile_struct xasyncfile;
+
+		typedef struct {
+			uint32 iFlags;
+			uint32 iShareFlags;
+			str sPath;
+		} xasyncfileconfig;
+
+		typedef struct {
+			ptr pData;
+			size_t iSize;
+			uint64 iOffset;
+			bool bEOF;
+		} xasyncfilebuf;
+
+		typedef struct {
+			uint64 iValue;
+			uint64 iOffset;
+		} xasyncfileio;
+
+		XXAPI void xrtAsyncFileConfigInit(xasyncfileconfig* pConfig);
+		XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig);
+		XXAPI void xrtAsyncFileClose(xasyncfile* pFile);
+		XXAPI void xrtAsyncFileBufDestroy(xasyncfilebuf* pBuf);
+		XXAPI void xrtAsyncFileIoDestroy(xasyncfileio* pInfo);
+	#endif
 	
 	
 	
@@ -4310,6 +4347,24 @@
 	XXAPI xfuture* xTaskRunEngine(xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
 	XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
 	XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+	XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize);
+	XXAPI xfuture* xrtAsyncFileWriteAt(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize);
+	XXAPI xfuture* xrtAsyncFileFlush(xasyncfile* pFile);
+	XXAPI xfuture* xrtAsyncFileGetSize(xasyncfile* pFile);
+	XXAPI xfuture* xrtAsyncFileSetSize(xasyncfile* pFile, uint64 iSize);
+	XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iCharset);
+	XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset);
+	XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCharset);
+	XXAPI xfuture* xrtFileGetAllAsync(str sPath);
+	XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize);
+	XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtFileDeleteAsync(str sPath);
+	XXAPI xfuture* xrtDirCreateAsync(str sPath);
+	XXAPI xfuture* xrtDirCreateAllAsync(str sPath);
+	XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtDirDeleteAsync(str sPath);
 	XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess);
 	#if !defined(XRT_NO_COROUTINE)
 	XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);

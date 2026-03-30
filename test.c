@@ -100,6 +100,9 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 #include "test/test_time.h"
 #include "test/test_file.h"
 #include "test/test_file_core.h"
+#ifndef XRT_NO_NETWORK
+	#include "test/test_file_async.h"
+#endif
 #include "test/test_thread_core.h"
 #ifndef XRT_NO_QUEUE
 	#include "test/test_queue_core.h"
@@ -277,6 +280,9 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_Path, Test_Path)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Time, Test_Time)
 XRT_TEST_WRAP_CORE(__xrtTestRun_File, Test_File)
 XRT_TEST_WRAP_CORE(__xrtTestRun_FileCore, Test_FileCore)
+#ifndef XRT_NO_NETWORK
+	XRT_TEST_WRAP_CORE(__xrtTestRun_FileAsync, Test_FileAsync)
+#endif
 XRT_TEST_WRAP_INT(__xrtTestRun_ThreadCore, Test_ThreadCore)
 #ifndef XRT_NO_QUEUE
 	XRT_TEST_WRAP_INT(__xrtTestRun_QueueCore, Test_QueueCore)
@@ -445,6 +451,9 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "time", "Time", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Time },
 	{ "file", "File", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_File },
 	{ "file_core", "File Core", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_FileCore },
+	#ifndef XRT_NO_NETWORK
+		{ "file_async", "File Async", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_FileAsync },
+	#endif
 	{ "thread_core", "Thread Core", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_ThreadCore },
 	#ifndef XRT_NO_QUEUE
 		{ "queue_core", "Queue Core", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_QueueCore },
@@ -548,6 +557,9 @@ static const char* __g_arrPresetRuntimeSmoke[] = {
 	"os",
 	"time",
 	"file",
+	#ifndef XRT_NO_NETWORK
+		"file_async",
+	#endif
 	"thread_core",
 	#ifndef XRT_NO_QUEUE
 		"queue_core",
