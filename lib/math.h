@@ -80,16 +80,16 @@ XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh)
 // 生成范围随机数 - 线程安全
 XXAPI int xrtRandRangeEx(xrand* rng, int min, int max)
 {
-	uint32 iRange = (max - min) + 1;
-	if ( iRange > 0 ) {
+	if ( min <= max ) {
+		uint32 iRange = (uint32)(((int64)max - (int64)min) + 1);
 		uint32 threshold = -iRange % iRange;
 		for (;;) {
 			uint32 r = xrtRand32Ex(rng);
 			if (r >= threshold)
 				return (r % iRange) + min;
 		}
-	} else if ( iRange < 0 ) {
-		iRange = (min - max) + 1;
+	} else {
+		uint32 iRange = (uint32)(((int64)min - (int64)max) + 1);
 		uint32 threshold = -iRange % iRange;
 		for (;;) {
 			uint32 r = xrtRand32Ex(rng);

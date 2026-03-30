@@ -305,7 +305,7 @@ static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 	if ( !sDst || iDstCap == 0 ) return;
 	sDst[0] = '\0';
 	if ( !sSrc || !sSrc[0] ) return;
-	iLen = strlen(sSrc);
+	iLen = strlen(__xrt_cstr(sSrc));
 	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';

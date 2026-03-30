@@ -99,7 +99,7 @@ XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, u
 	}
 	// 字符串模式自动添加 \0
 	if ( bStrMode ) {
-		for ( int i = 0; i < bStrMode; i++ ) {
+		for ( uint32 i = 0; i < bStrMode; i++ ) {
 			pBuf->Buffer[pBuf->Length + i] = 0;
 		}
 	}

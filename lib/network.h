@@ -205,7 +205,7 @@ str xrtGetLocalName()
 {
 	char sLocalName[260];
 	if ( gethostname(sLocalName, 260) == 0 ) {
-		return xrtCopyStr(sLocalName, 0);
+		return xrtCopyStr((str)sLocalName, 0);
 	}
 	return xCore.sNull;
 }

@@ -249,7 +249,7 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtUrlParseAuthorityN(sText, strlen(sText), pOut);
+	return xrtUrlParseAuthorityN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
 XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
@@ -288,7 +288,7 @@ XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 XXAPI bool xrtUrlParseTarget(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtUrlParseTargetN(sText, strlen(sText), pOut);
+	return xrtUrlParseTargetN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
 XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
@@ -362,7 +362,7 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 XXAPI bool xrtUrlParseView(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtUrlParseViewN(sText, strlen(sText), pOut);
+	return xrtUrlParseViewN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
 XXAPI bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutCap)

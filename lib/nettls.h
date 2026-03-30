@@ -461,7 +461,7 @@ static int __xrt_der_next(struct __xrt_der_tlv *pParent, struct __xrt_der_tlv *p
 }
 
 // 在 DER 结构中递归查找 OID
-static int __xrt_der_find_oid(struct __xrt_der_tlv *pTlv, const uint8 *pOid,
+static int UNUSED_ATTR __xrt_der_find_oid(struct __xrt_der_tlv *pTlv, const uint8 *pOid,
 	size_t iOidLen, struct __xrt_der_tlv *pFound)
 {
 	struct __xrt_der_tlv tParent, tChild;
@@ -1707,7 +1707,7 @@ static bool __xrt_tls_decode_pem_cert_block(const char *pStart, const char *pEnd
 	while ( iB64Len % 4 != 0 ) pB64[iB64Len++] = '=';
 	pB64[iB64Len] = '\0';
 
-	pDer = (uint8*)xrtBase64Decode(pB64, iB64Len, NULL);
+	pDer = (uint8*)xrtBase64Decode((str)pB64, iB64Len, NULL);
 	if ( !pDer || pDer == (uint8*)xCore.sNull ) {
 		xrtFree(pB64);
 		return false;
@@ -1933,7 +1933,7 @@ static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, si
 	sBase64 = xrtBase64Encode((ptr)pDer, iDerLen, NULL);
 	if ( !sBase64 || sBase64 == xCore.sNull ) return false;
 
-	iBase64Len = strlen(sBase64);
+	iBase64Len = strlen(__xrt_cstr(sBase64));
 	if ( !__xrt_tls_buf_append(pBuf, sBegin, sizeof(sBegin) - 1) ) {
 		xrtFree(sBase64);
 		return false;
@@ -1942,7 +1942,7 @@ static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, si
 	for ( iOffset = 0; iOffset < iBase64Len; iOffset += 64 ) {
 		size_t iChunk = iBase64Len - iOffset;
 		if ( iChunk > 64 ) iChunk = 64;
-		if ( !__xrt_tls_buf_append(pBuf, sBase64 + iOffset, iChunk)
+		if ( !__xrt_tls_buf_append(pBuf, __xrt_cstr(sBase64 + iOffset), iChunk)
 			|| !__xrt_tls_buf_append(pBuf, "\n", 1) ) {
 			xrtFree(sBase64);
 			return false;
@@ -1980,10 +1980,12 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 	if ( !bCrypt32Loaded ) {
 		HMODULE hLib = LoadLibraryA("crypt32.dll");
 		if ( hLib ) {
-			procCertOpenStore = (procCertOpenStore_t)GetProcAddress(hLib, "CertOpenStore");
-			procCertEnumCertificatesInStore =
-				(procCertEnumCertificatesInStore_t)GetProcAddress(hLib, "CertEnumCertificatesInStore");
-			procCertCloseStore = (procCertCloseStore_t)GetProcAddress(hLib, "CertCloseStore");
+			FARPROC pCertOpenStore = GetProcAddress(hLib, "CertOpenStore");
+			FARPROC pCertEnumCertificatesInStore = GetProcAddress(hLib, "CertEnumCertificatesInStore");
+			FARPROC pCertCloseStore = GetProcAddress(hLib, "CertCloseStore");
+			memcpy(&procCertOpenStore, &pCertOpenStore, sizeof(procCertOpenStore));
+			memcpy(&procCertEnumCertificatesInStore, &pCertEnumCertificatesInStore, sizeof(procCertEnumCertificatesInStore));
+			memcpy(&procCertCloseStore, &pCertCloseStore, sizeof(procCertCloseStore));
 		}
 		bCrypt32Loaded = true;
 	}
@@ -2038,14 +2040,7 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 
 static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 {
-	static const char *aDefaultPaths[] = {
-		"/etc/ssl/certs/ca-certificates.crt",
-		"/etc/pki/tls/certs/ca-bundle.crt",
-		"/etc/ssl/cert.pem",
-		"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
-	};
 	const char *sEnvPath = NULL;
-	size_t i;
 
 	if ( !pCtx ) return false;
 	if ( pCtx->pCaData ) {
@@ -2070,6 +2065,13 @@ static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 			return true;
 		}
 	#else
+		static const char *aDefaultPaths[] = {
+			"/etc/ssl/certs/ca-certificates.crt",
+			"/etc/pki/tls/certs/ca-bundle.crt",
+			"/etc/ssl/cert.pem",
+			"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+		};
+		size_t i;
 		for ( i = 0; i < sizeof(aDefaultPaths) / sizeof(aDefaultPaths[0]); i++ ) {
 			if ( xrtFileExists((str)aDefaultPaths[i]) &&
 				__xrt_tls_load_file_copy(aDefaultPaths[i], &pCtx->pCaData, &pCtx->iCaDataLen) ) {
@@ -3883,6 +3885,7 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 	memcpy(aSigInput + 64, aMsg + __XRT_TLS_MSGHDR_SIZE, iParamsLen);
 
 	iHashAlg = (uint16)(pCtx->iServerSigAlg >> 8);
+	(void)iHashAlg;
 	if ( pCtx->iServerSigAlg == 0x0807 ) {
 		if ( !__xrt_tls_sign_server_hash(pCtx, aSigInput, 64 + iParamsLen, aSig, &iSigLen) ) {
 			#ifdef DEBUG_TRACE
@@ -4381,7 +4384,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 
 									iSigAlg = __xrt_tls_load_be16(pMsg + __XRT_TLS_MSGHDR_SIZE);
 									iSigLen = __xrt_tls_load_be16(pMsg + __XRT_TLS_MSGHDR_SIZE + 2);
-									if ( 4 + iSigLen > iMsgBodyLen ) return XRT_NET_ERROR;
+									if ( 4u + iSigLen > iMsgBodyLen ) return XRT_NET_ERROR;
 									pSig = pMsg + __XRT_TLS_MSGHDR_SIZE + 4;
 
 									if ( !__xrt_tls13_build_cert_verify_input(aContentHash, &iContentHashLen,
@@ -5187,7 +5190,6 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	uint8 aP384Peer[97];
 	bool bHaveX25519 = false, bHaveX448 = false, bHaveP256 = false, bHaveP384 = false;
 	struct xrt_tls_resume tCachedResume;
-	bool bHaveCachedResume = false;
 	bool bAllowTls13 = false;
 
 	if ( !pCtx ) return false;

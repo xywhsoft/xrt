@@ -137,7 +137,7 @@ static void __xrt_co_set_current(xcoro pCo)
 	}
 }
 
-static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, str sError)
+static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, const char* sError)
 {
 	xrtThreadData* pThreadData = __xrt_co_require_thread_data(TRUE);
 
@@ -155,7 +155,7 @@ static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, str sError)
 	return TRUE;
 }
 
-static bool __xrt_co_check_owner(xcoro pCo, str sError)
+static bool __xrt_co_check_owner(xcoro pCo, const char* sError)
 {
 	if ( pCo == NULL ) {
 		xrtSetError("invalid coroutine handle.", FALSE);
@@ -621,7 +621,7 @@ static int64 __xrt_co_time_ms()
 	#endif
 }
 
-static void __xrt_co_sleep_ms(int iMs)
+static void UNUSED_ATTR __xrt_co_sleep_ms(int iMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		Sleep(iMs);
@@ -1739,7 +1739,7 @@ XXAPI ptr xrtCoGetResult(xcoro pCo)
 
 XXAPI str xrtCoGetBackendName()
 {
-	return __XRT_CO_BACKEND_NAME;
+	return (str)__XRT_CO_BACKEND_NAME;
 }
 
 XXAPI int xrtCoGetBackendTier()
@@ -2311,8 +2311,8 @@ static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTime
 		if ( iDelta < 0 ) {
 			iDelta = 0;
 		}
-		if ( iDelta > 0xFFFFFFFEull ) {
-			iDelta = 0xFFFFFFFEull;
+		if ( iDelta > 0xFFFFFFFELL ) {
+			iDelta = 0xFFFFFFFELL;
 		}
 		return (uint32)iDelta;
 	}
@@ -2520,7 +2520,7 @@ XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute)
 
 
 
-static bool __xrt_co_check_sched_owner(xcosched* pSched, str sError)
+static bool __xrt_co_check_sched_owner(xcosched* pSched, const char* sError)
 {
 	if ( pSched == NULL ) {
 		xrtSetError("invalid coroutine scheduler.", FALSE);

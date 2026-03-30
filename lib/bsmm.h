@@ -70,7 +70,7 @@ XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 	}
 	objBSMM->Count = 0;
 	// 循环释放 PageMMU 中的内存页
-	for ( int i = 0; i < objBSMM->PageMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objBSMM->PageMMU.Count; i++ ) {
 		xrtFree(objBSMM->PageMMU.Memory[i]);
 		objBSMM->PageMMU.Memory[i] = NULL;
 	}

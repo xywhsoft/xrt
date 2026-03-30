@@ -75,7 +75,7 @@ static bool _xson_match_prefix(xson_parse_t* pParse, const char* sName, char chN
 		return FALSE;
 	}
 
-	iLen = strlen(sName);
+	iLen = strlen(__xrt_cstr(sName));
 	iRemain = pParse->tJSON.size - pParse->tJSON.offset;
 	if ( iRemain <= iLen ) {
 		return FALSE;
@@ -861,7 +861,7 @@ static xvalue _xson_parse_text(str sText, size_t iSize, uint32 iFlags)
 	}
 
 	tParse.tJSON.str = (char*)sText;
-	tParse.tJSON.size = iSize ? iSize : strlen(sText);
+	tParse.tJSON.size = iSize ? iSize : strlen(__xrt_cstr(sText));
 	tParse.tJSON.offset = 0;
 	tParse.tJSON.skip_blank = _skip_blank_rapid;
 	tParse.tJSON.parse_string = _json_sax_parse_string;
@@ -936,7 +936,7 @@ static bool _xson_print_append_cstr(xson_print_t* pPrint, const char* sText)
 	if ( sText == NULL ) {
 		return FALSE;
 	}
-	return _xson_print_append_raw(pPrint, sText, strlen(sText));
+	return _xson_print_append_raw(pPrint, sText, strlen(__xrt_cstr(sText)));
 }
 
 static bool _xson_print_append_char(xson_print_t* pPrint, char ch)
@@ -1350,13 +1350,13 @@ static xson_write_result_t _xson_write_value(xson_print_t* pPrint, xvalue varVal
 		return _xson_print_append_double(pPrint, varVal->vFloat) ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
 	case XVO_DT_TEXT:
 		sText = varVal->vText ? varVal->vText : xCore.sNull;
-		return _xson_print_append_json_string(pPrint, sText, varVal->Size) ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
+		return _xson_print_append_json_string(pPrint, __xrt_cstr(sText), varVal->Size) ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
 	case XVO_DT_TIME:
 		if ( _xson_print_append_raw(pPrint, "time(", 5) == FALSE ) {
 			return XSON_WRITE_RESULT_FAIL;
 		}
 		sText = xvoGetText(varVal);
-		if ( _xson_print_append_cstr(pPrint, sText) == FALSE ) {
+		if ( _xson_print_append_cstr(pPrint, __xrt_cstr(sText)) == FALSE ) {
 			return XSON_WRITE_RESULT_FAIL;
 		}
 		return _xson_print_append_char(pPrint, ')') ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
@@ -1380,7 +1380,7 @@ static xson_write_result_t _xson_write_value(xson_print_t* pPrint, xvalue varVal
 			xrtFree(sBase64);
 			return XSON_WRITE_RESULT_FAIL;
 		}
-		if ( _xson_print_append_cstr(pPrint, sBase64) == FALSE ) {
+		if ( _xson_print_append_cstr(pPrint, __xrt_cstr(sBase64)) == FALSE ) {
 			xrtFree(sBase64);
 			return XSON_WRITE_RESULT_FAIL;
 		}
@@ -1450,7 +1450,7 @@ XXAPI str xrtStringifyXSON(xvalue varVal, int bFormat, uint32 iFlags, size_t* pR
 	if ( pRetSize ) {
 		*pRetSize = tPrint.iUsed;
 	}
-	return tPrint.sText;
+	return (str)tPrint.sText;
 }
 
 XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iFlags)

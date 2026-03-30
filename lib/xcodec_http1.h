@@ -75,8 +75,8 @@ static bool __xcodecHttpContainsTokenNoCase(const char* sText, const char* sToke
 	size_t iLenText;
 	size_t iLenToken;
 	if ( !sText || !sToken ) return false;
-	iLenText = strlen(sText);
-	iLenToken = strlen(sToken);
+	iLenText = strlen(__xrt_cstr(sText));
+	iLenToken = strlen(__xrt_cstr(sToken));
 	if ( iLenToken == 0 || iLenToken > iLenText ) return false;
 	for ( size_t i = 0; i + iLenToken <= iLenText; ++i ) {
 		size_t j;
@@ -383,7 +383,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		*sColon = '\0';
 		sName = sCursor;
 		sValue = sColon + 1;
-		iNameLen = strlen(sName);
+		iNameLen = strlen(__xrt_cstr(sName));
 		iValueLen = strlen(sValue);
 		__xcodecHttpTrimView(&sName, &iNameLen);
 		__xcodecHttpTrimView(&sValue, &iValueLen);

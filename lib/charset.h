@@ -37,8 +37,8 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 			iSize += iExtraBytes + 1;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		for ( size_t i = 0; i < iSize; i++ ) {
+			size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 			if ( iExtraBytes < 3 ) {
 				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
 				iPos++;
@@ -58,17 +58,22 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+	for ( size_t i = 0; i < iSize; i++ ) {
+		size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
 		} else if ( iExtraBytes == 1 ) {
 			// 双字节字符
-			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
+			size_t iNext = i + 1;
+			 sRet[iPos++] = (unsigned short)((((uint32)sText[i]) & 0b00011111u) << 6) | (((uint32)sText[iNext]) & 0b00111111u);
+			 i = iNext;
 		} else if ( iExtraBytes == 2 ) {
 			// 三字节字符
-			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 sRet[iPos++] = (unsigned short)(((((uint32)sText[i]) & 0b00001111u) << 12) | ((((uint32)sText[iNext1]) & 0b00111111u) << 6) | (((uint32)sText[iNext2]) & 0b00111111u));
+			 i = iNext2;
 		} else if ( iExtraBytes == 3 ) {
 			// 四字节字符
 			if ( sText[i] & 0b00000100 ) {
@@ -76,7 +81,10 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 				sRet[iPos++] = 0xFFFD;
 				i += iExtraBytes;
 			} else {
-				uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+				size_t iNext1 = i + 1;
+				 size_t iNext2 = i + 2;
+				 size_t iNext3 = i + 3;
+				 uint32 c = ((((uint32)sText[i]) & 0b00000011u) << 18) | ((((uint32)sText[iNext1]) & 0b00111111u) << 12) | ((((uint32)sText[iNext2]) & 0b00111111u) << 6) | (((uint32)sText[iNext3]) & 0b00111111u);
 				if ( c < 0x10000 ) {
 					// 原则上不会进入这个分支，除非遇到错误的编码
 					sRet[iPos++] = c;
@@ -85,6 +93,7 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 					sRet[iPos++] = 0b1101100000000000 | ((c & 0b11111111110000000000) >> 10);
 					sRet[iPos++] = 0b1101110000000000 | (c & 0b00000000001111111111);
 				}
+				 i = iNext3;
 			}
 		} else if ( iExtraBytes == 4 ) {
 			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
@@ -116,7 +125,7 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 			iSize += BytesExtraTableUTF8[sText[iSize]] + 1;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			iPos++;
 			i += BytesExtraTableUTF8[sText[i]];
 		}
@@ -127,26 +136,46 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+	for ( size_t i = 0; i < iSize; i++ ) {
+		size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
 		} else if ( iExtraBytes == 1 ) {
 			// 双字节字符
-			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0x3F);
+			size_t iNext = i + 1;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00011111u) << 6) | (((uint32)sText[iNext]) & 0x3Fu);
+			 i = iNext;
 		} else if ( iExtraBytes == 2 ) {
 			// 三字节字符
-			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00001111u) << 12) | ((((uint32)sText[iNext1]) & 0x3Fu) << 6) | (((uint32)sText[iNext2]) & 0x3Fu);
+			 i = iNext2;
 		} else if ( iExtraBytes == 3 ) {
 			// 四字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 size_t iNext3 = i + 3;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00000111u) << 18) | ((((uint32)sText[iNext1]) & 0x3Fu) << 12) | ((((uint32)sText[iNext2]) & 0x3Fu) << 6) | (((uint32)sText[iNext3]) & 0x3Fu);
+			 i = iNext3;
 		} else if ( iExtraBytes == 4 ) {
 			// 五字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 size_t iNext3 = i + 3;
+			 size_t iNext4 = i + 4;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00000011u) << 24) | ((((uint32)sText[iNext1]) & 0x3Fu) << 18) | ((((uint32)sText[iNext2]) & 0x3Fu) << 12) | ((((uint32)sText[iNext3]) & 0x3Fu) << 6) | (((uint32)sText[iNext4]) & 0x3Fu);
+			 i = iNext4;
 		} else if ( iExtraBytes == 5 ) {
 			// 六字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0x3F) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 size_t iNext3 = i + 3;
+			 size_t iNext4 = i + 4;
+			 size_t iNext5 = i + 5;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00000001u) << 30) | ((((uint32)sText[iNext1]) & 0x3Fu) << 24) | ((((uint32)sText[iNext2]) & 0x3Fu) << 18) | ((((uint32)sText[iNext3]) & 0x3Fu) << 12) | ((((uint32)sText[iNext4]) & 0x3Fu) << 6) | (((uint32)sText[iNext5]) & 0x3Fu);
+			 i = iNext5;
 		}
 	}
 	// 返回字符数和转换后数据
@@ -186,15 +215,17 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 			}
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint16 iChar = sText[i];
 			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				if ( (sText[++i] & 0b1111110000000000) == 0b1101110000000000 ) {
+				size_t iNext = i + 1;
+				 if ( (sText[iNext] & 0b1111110000000000) == 0b1101110000000000 ) {
 					iPos += 4;
 				} else {
 					// 错误的代理对，使用替换字符 EFBFBD 代替
 					iPos += 3;
 				}
+				 i = iNext;
 			} else if ( iChar <= 0x7F ) {
 				iPos++;
 			} else if ( iChar <= 0x7FF ) {
@@ -210,10 +241,11 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint16 iChar = sText[i];
 		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-			uint16 iNext = sText[++i];
+			size_t iNextIndex = i + 1;
+			 uint16 iNext = sText[iNextIndex];
 			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
 				uint32 cp = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
 				sRet[iPos++] = 0xF0 | ((cp >> 18) & 0x7);
@@ -226,6 +258,7 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 				sRet[iPos++] = 0xBF;
 				sRet[iPos++] = 0xBD;
 			}
+			 i = iNextIndex;
 		} else if ( iChar <= 0x7F ) {
 			sRet[iPos++] = iChar;
 		} else if ( iChar <= 0x7FF ) {
@@ -261,7 +294,7 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize)
 			iPos++;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint16 iChar = sText[i];
 			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
 				i++;
@@ -275,10 +308,11 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint16 iChar = sText[i];
 		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-			uint16 iNext = sText[++i];
+			size_t iNextIndex = i + 1;
+			 uint16 iNext = sText[iNextIndex];
 			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
 				sRet[iPos++] = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
 			} else {
@@ -321,7 +355,7 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize)
 			}
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint32 iChar = sText[i];
 			if ( iChar <= 0x7F ) {
 				iPos++;
@@ -344,7 +378,7 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint32 iChar = sText[i];
 		if ( iChar <= 0x7F ) {
 			// ASCII 兼容字符
@@ -407,7 +441,7 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
 			iSize++;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint32 iChar = sText[i];
 			if ( iChar <= 0xFFFF ) {
 				iPos++;
@@ -424,7 +458,7 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint32 iChar = sText[i];
 		if ( iChar <= 0xFFFF ) {
 			sRet[iPos++] = iChar;
@@ -457,7 +491,7 @@ XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise)
 	} else {
 		sRet = xrtCopyStrU16(sText, iSize);
 	}
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		sRet[i] = ((sRet[i] & 0xFF) << 8) | ((sRet[i] >> 8) & 0xFF);
 	}
 	return sRet;
@@ -477,7 +511,7 @@ XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise)
 	} else {
 		sRet = xrtCopyStrU32(sText, iSize);
 	}
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		sRet[i] = ((sRet[i] >> 24) & 0xFF) | ((sRet[i] >> 8) & 0xFF00) | ((sRet[i] << 8) & 0xFF0000) | ((sRet[i] << 24) & 0xFF000000);
 	}
 	return sRet;
@@ -608,7 +642,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 				if ( iRetSize ) { *iRetSize = 0; }
 				return xCore.sNull;
 			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, sRet, iRet, NULL, NULL);
+			iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, (LPSTR)sRet, iRet, NULL, NULL);
 			sRet[iRet] = 0;
 			return sRet;
 		} else if ( iInCP == XRT_CP_UTF16_BE ) {
@@ -626,13 +660,13 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 				if ( iRetSize ) { *iRetSize = 0; }
 				return xCore.sNull;
 			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, sRet, iRet, NULL, NULL);
+			iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, (LPSTR)sRet, iRet, NULL, NULL);
 			xrtFree(sTemp);
 			sRet[iRet] = 0;
 			return sRet;
 		} else if ( iOutCP == XRT_CP_UTF16 ) {
 			// 多字节 转 UTF16
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
 			if ( iRet == 0 ) {
@@ -649,7 +683,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 			return sRet;
 		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
 			// 多字节 转 UTF16 BE
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
 			if ( iRet == 0 ) {
@@ -667,7 +701,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 			return sRet;
 		} else {
 			// 多字节 转 多字节
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 			// 先转换为 utf16
 			size_t iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
@@ -695,7 +729,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 				xrtFree(sRetW);
 				return xCore.sNull;
 			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, sRet, iRet, NULL, NULL);
+			iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, (LPSTR)sRet, iRet, NULL, NULL);
 			xrtFree(sRetW);
 			sRet[iRet] = 0;
 			return sRet;
@@ -716,18 +750,18 @@ XXAPI bool xrtIsUTF8(str sText, size_t iSize)
 {
 	// NULL 返回 FALSE，空字符串返回 TRUE
 	if ( sText == NULL ) { return FALSE; }
-	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 	if ( iSize == 0 ) { return TRUE; }
 	// 检测是否符合标准
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		// 遇到 \0、FE、FF 直接返回 FALSE
 		if ( (sText[i] == 0) || (sText[i] == 0xFE) || (sText[i] == 0xFF) ) {
 			return FALSE;
 		}
 		// 检查多字节字符是否已 0b10 开头
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 		if ( iExtraBytes ) {
-			for ( int j = 0; (j < iExtraBytes) && (i < iSize); j++ ) {
+			for ( size_t j = 0; (j < iExtraBytes) && ((i + 1) < iSize); j++ ) {
 				if ( (sText[++i] & 0b11000000) != 0b10000000 ) {
 					return FALSE;
 				}
@@ -779,15 +813,15 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		}
 	}
 	// 开始推测字符串编码
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		// 检测 utf-8 不可能出现的字符
 		if ( (sPtr[i] == 0xFE) || (sPtr[i] == 0xFF) ) {
 			bNoUTF8 = TRUE;
 		}
 		// 检测 utf-8 多字符编码是否正确
 		if ( bNoUTF8 == FALSE ) {
-			char iExtraBytes = BytesExtraTableUTF8[sPtr[i]];
-			for ( int j = 1; (j <= iExtraBytes) && ((i + j) < iSize); j++ ) {
+			size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sPtr[i]];
+			for ( size_t j = 1; (j <= iExtraBytes) && ((i + j) < iSize); j++ ) {
 				if ( (sPtr[i + j] & 0b11000000) != 0b10000000 ) {
 					bNoUTF8 = TRUE;
 					break;
@@ -796,7 +830,7 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		}
 		// 检测 utf-16 代理区是否合规
 		if ( (i & 1) == 0 ) {
-			if ( (i + 2) < iSize ) {
+			if ( (i + 2u) < iSize ) {
 				if ( bNoUTF16BE == FALSE ) {
 					if ( (sPtr[i] & 0b11111100) == 0b11011000 ) {
 						if ( (sPtr[i + 2] & 0b11111100) != 0b11011100 ) {
@@ -815,7 +849,7 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		}
 		// 检测是否符合 utf-32 范围 ( 0x10FFFF 以内‌ )
 		if ( (i & 3) == 0 ) {
-			if ( (i + 3) < iSize ) {
+			if ( (i + 3u) < iSize ) {
 				if ( bNoUTF32BE == FALSE ) {
 					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
 					if ( c > 0x10FFFF ) {

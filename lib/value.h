@@ -49,7 +49,7 @@ static void __xvoDestroyValue(xvalue pVal)
 	if ( pVal->Type == XVO_DT_TEXT ) {
 		xrtFree(pVal->vText);
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
-		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			xvoUnref(pItem);
 		}
@@ -374,52 +374,52 @@ XXAPI str xvoGetText(xvalue pVal)
 		return pVal->vText;
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		str sRet = xrtTempMemory(24);
-		xrtI64ToStr(pVal->vInt, sRet);
+		xrtI64ToStr(pVal->vInt, __xrt_str(sRet));
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FLOAT ) {
 		str sRet = xrtTempMemory(32);
-		xrtNumToStr(pVal->vFloat, sRet);
+		xrtNumToStr(pVal->vFloat, __xrt_str(sRet));
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		return (pVal->vBool ? "true" : "false");
+		return (str)(pVal->vBool ? "true" : "false");
 	} else if ( pVal->Type == XVO_DT_TIME ) {
 		str sRet = xrtTempMemory(32);
 		int64 iYear;
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(pVal->vTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
-		sprintf(sRet, "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
+		sprintf(__xrt_str(sRet), "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_POINT ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[point:%p]", pVal->vPoint);
+		sprintf(__xrt_str(sRet), "[point:%p]", pVal->vPoint);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FUNC ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[function:%p]", pVal->vFunc);
+		sprintf(__xrt_str(sRet), "[function:%p]", pVal->vFunc);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[array:%p]", pVal->vArray);
+		sprintf(__xrt_str(sRet), "[array:%p]", pVal->vArray);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_LIST ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[list:%p]", pVal->vList);
+		sprintf(__xrt_str(sRet), "[list:%p]", pVal->vList);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_COLL ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[coll:%p]", pVal->vColl);
+		sprintf(__xrt_str(sRet), "[coll:%p]", pVal->vColl);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[table:%p]", pVal->vTable);
+		sprintf(__xrt_str(sRet), "[table:%p]", pVal->vTable);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_CLASS ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[class:%p]", pVal->vStruct);
+		sprintf(__xrt_str(sRet), "[class:%p]", pVal->vStruct);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[custom:%p]", pVal->vCustom);
+		sprintf(__xrt_str(sRet), "[custom:%p]", pVal->vCustom);
 		return sRet;
 	} else {
 		return xCore.sNull;
@@ -625,7 +625,7 @@ XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
 	if ( pArr2->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
-	for ( int i = 1; i <= pArr2->vArray->Count; i++ ) {
+	for ( uint32 i = 1; i <= pArr2->vArray->Count; i++ ) {
 		xvalue pVal = xrtPtrArrayGet_Inline(pArr2->vArray, i);
 		if ( !xvoPrepareStoreWithOwner_Inline(&pArr1->vArray->Owner, pVal) ) {
 			return FALSE;
@@ -684,7 +684,7 @@ XXAPI bool xvoArrayClear(xvalue pArr)
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
-	for ( int i = 1; i <= pArr->vArray->Count; i++ ) {
+	for ( uint32 i = 1; i <= pArr->vArray->Count; i++ ) {
 		xvalue pVal = xrtPtrArrayGet_Inline(pArr->vArray, i);
 		xvoUnref(pVal);
 	}
@@ -980,7 +980,7 @@ int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey)
 			return 0;
 		} else if ( pNode->Value->Type == XVO_DT_TEXT ) {
 			if ( pNode->Value->Size == pObjKey->Value->Size ) {
-				return strcmp(pNode->Value->vText, pObjKey->Value->vText);
+				return strcmp(__xrt_cstr(pNode->Value->vText), __xrt_cstr(pObjKey->Value->vText));
 			} else {
 				if ( pNode->Value->Size > pObjKey->Value->Size ) {
 					return -1;
@@ -1360,7 +1360,7 @@ XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl)
 		return FALSE;
 	}
 	if ( (key != NULL) && (kl == 0) ) {
-		kl = strlen(key);
+		kl = strlen(__xrt_cstr(key));
 	}
 	return xrtDictExists(pTbl->vTable, key, kl);
 }
@@ -1373,7 +1373,7 @@ XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 		return FALSE;
 	}
 	if ( (key != NULL) && (kl == 0) ) {
-		kl = strlen(key);
+		kl = strlen(__xrt_cstr(key));
 	}
 	xvalue pOldVal = xrtDictRemovePtr(pTbl->vTable, key, kl);
 	if ( pOldVal ) {
@@ -1516,7 +1516,7 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
 		xvalue arrRet = xvoCreateArray();
-		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			if ( (pItem->Type >= XVO_DT_ARRAY) ) {
 				// 复杂数据类型 - 直接引用
@@ -1594,7 +1594,7 @@ XXAPI xvalue xvoDeepCopy(xvalue pVal)
 		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
 		xvalue arrRet = xvoCreateArray();
-		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			xvalue pItemCopy = xvoDeepCopy(pItem);
 			xrtPtrArrayAppend(arrRet->vArray, pItemCopy);

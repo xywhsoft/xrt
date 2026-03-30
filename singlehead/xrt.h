@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-27 03:47:47
+    Generated: 2026-03-30 18:58:37
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/Git/xrt/xrt.h
+// File: D:/git/xrt/xrt.h
 // ========================================
 
 #pragma once
@@ -94,6 +94,13 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>
+#ifndef UNUSED_ATTR
+	#if defined(__GNUC__) || defined(__clang__)
+		#define UNUSED_ATTR __attribute__((unused))
+	#else
+		#define UNUSED_ATTR
+	#endif
+#endif
 #if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
 	#include <io.h>
 	#include <direct.h>
@@ -6433,7 +6440,7 @@
 
 
 // ========================================
-// File: D:\Git\xrt/xrt.c
+// File: D:\git\xrt/xrt.c
 // ========================================
 
 
@@ -6621,7 +6628,7 @@ static void __xrtRuntimeFinalizeLocked();
 // 引入补充依赖库
 
 // ========================================
-// File: D:/Git/xrt/lib/suplib.h
+// File: D:/git/xrt/lib/suplib.h
 // ========================================
 
 
@@ -6674,7 +6681,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
-// File: D:/Git/xrt/lib/memglobal.h
+// File: D:/git/xrt/lib/memglobal.h
 // ========================================
 
 
@@ -8102,7 +8109,7 @@ static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/base.h
+// File: D:/git/xrt/lib/base.h
 // ========================================
 
 
@@ -8563,7 +8570,7 @@ static inline void __xrtMemTelemetryRecordFree();
 static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
 // ========================================
-// File: D:/Git/xrt/lib/string.h
+// File: D:/git/xrt/lib/string.h
 // ========================================
 
 
@@ -10059,7 +10066,7 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/os.h
+// File: D:/git/xrt/lib/os.h
 // ========================================
 
 
@@ -10175,7 +10182,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/hash.h
+// File: D:/git/xrt/lib/hash.h
 // ========================================
 
 
@@ -11341,7 +11348,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/charset.h
+// File: D:/git/xrt/lib/charset.h
 // ========================================
 
 
@@ -11378,8 +11385,8 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 			iSize += iExtraBytes + 1;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
-			char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		for ( size_t i = 0; i < iSize; i++ ) {
+			size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 			if ( iExtraBytes < 3 ) {
 				// 小于等于 3 字节的 utf8 字符会被编码为 2 字节的 utf16 字符
 				iPos++;
@@ -11399,17 +11406,22 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+	for ( size_t i = 0; i < iSize; i++ ) {
+		size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
 		} else if ( iExtraBytes == 1 ) {
 			// 双字节字符
-			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0b00111111);
+			size_t iNext = i + 1;
+			 sRet[iPos++] = (unsigned short)((((uint32)sText[i]) & 0b00011111u) << 6) | (((uint32)sText[iNext]) & 0b00111111u);
+			 i = iNext;
 		} else if ( iExtraBytes == 2 ) {
 			// 三字节字符
-			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 sRet[iPos++] = (unsigned short)(((((uint32)sText[i]) & 0b00001111u) << 12) | ((((uint32)sText[iNext1]) & 0b00111111u) << 6) | (((uint32)sText[iNext2]) & 0b00111111u));
+			 i = iNext2;
 		} else if ( iExtraBytes == 3 ) {
 			// 四字节字符
 			if ( sText[i] & 0b00000100 ) {
@@ -11417,7 +11429,10 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 				sRet[iPos++] = 0xFFFD;
 				i += iExtraBytes;
 			} else {
-				uint32 c = ((sText[i] & 0b00000011) << 18) | ((sText[++i] & 0b00111111) << 12) | ((sText[++i] & 0b00111111) << 6) | (sText[++i] & 0b00111111);
+				size_t iNext1 = i + 1;
+				 size_t iNext2 = i + 2;
+				 size_t iNext3 = i + 3;
+				 uint32 c = ((((uint32)sText[i]) & 0b00000011u) << 18) | ((((uint32)sText[iNext1]) & 0b00111111u) << 12) | ((((uint32)sText[iNext2]) & 0b00111111u) << 6) | (((uint32)sText[iNext3]) & 0b00111111u);
 				if ( c < 0x10000 ) {
 					// 原则上不会进入这个分支，除非遇到错误的编码
 					sRet[iPos++] = c;
@@ -11426,6 +11441,7 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 					sRet[iPos++] = 0b1101100000000000 | ((c & 0b11111111110000000000) >> 10);
 					sRet[iPos++] = 0b1101110000000000 | (c & 0b00000000001111111111);
 				}
+				 i = iNext3;
 			}
 		} else if ( iExtraBytes == 4 ) {
 			// 五字节字符（ 超出 utf16 支持的范围，使用替换字符 FFFD 代替 ）
@@ -11454,7 +11470,7 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 			iSize += BytesExtraTableUTF8[sText[iSize]] + 1;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			iPos++;
 			i += BytesExtraTableUTF8[sText[i]];
 		}
@@ -11465,26 +11481,46 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+	for ( size_t i = 0; i < iSize; i++ ) {
+		size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
 		} else if ( iExtraBytes == 1 ) {
 			// 双字节字符
-			sRet[iPos++] = ((sText[i] & 0b00011111) << 6) | (sText[++i] & 0x3F);
+			size_t iNext = i + 1;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00011111u) << 6) | (((uint32)sText[iNext]) & 0x3Fu);
+			 i = iNext;
 		} else if ( iExtraBytes == 2 ) {
 			// 三字节字符
-			sRet[iPos++] = ((sText[i] & 0b00001111) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00001111u) << 12) | ((((uint32)sText[iNext1]) & 0x3Fu) << 6) | (((uint32)sText[iNext2]) & 0x3Fu);
+			 i = iNext2;
 		} else if ( iExtraBytes == 3 ) {
 			// 四字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000111) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 size_t iNext3 = i + 3;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00000111u) << 18) | ((((uint32)sText[iNext1]) & 0x3Fu) << 12) | ((((uint32)sText[iNext2]) & 0x3Fu) << 6) | (((uint32)sText[iNext3]) & 0x3Fu);
+			 i = iNext3;
 		} else if ( iExtraBytes == 4 ) {
 			// 五字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000011) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 size_t iNext3 = i + 3;
+			 size_t iNext4 = i + 4;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00000011u) << 24) | ((((uint32)sText[iNext1]) & 0x3Fu) << 18) | ((((uint32)sText[iNext2]) & 0x3Fu) << 12) | ((((uint32)sText[iNext3]) & 0x3Fu) << 6) | (((uint32)sText[iNext4]) & 0x3Fu);
+			 i = iNext4;
 		} else if ( iExtraBytes == 5 ) {
 			// 六字节字符
-			sRet[iPos++] = ((sText[i] & 0b00000001) << 30) | ((sText[++i] & 0x3F) << 24) | ((sText[++i] & 0x3F) << 18) | ((sText[++i] & 0x3F) << 12) | ((sText[++i] & 0x3F) << 6) | (sText[++i] & 0x3F);
+			size_t iNext1 = i + 1;
+			 size_t iNext2 = i + 2;
+			 size_t iNext3 = i + 3;
+			 size_t iNext4 = i + 4;
+			 size_t iNext5 = i + 5;
+			 sRet[iPos++] = ((((uint32)sText[i]) & 0b00000001u) << 30) | ((((uint32)sText[iNext1]) & 0x3Fu) << 24) | ((((uint32)sText[iNext2]) & 0x3Fu) << 18) | ((((uint32)sText[iNext3]) & 0x3Fu) << 12) | ((((uint32)sText[iNext4]) & 0x3Fu) << 6) | (((uint32)sText[iNext5]) & 0x3Fu);
+			 i = iNext5;
 		}
 	}
 	// 返回字符数和转换后数据
@@ -11521,15 +11557,17 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 			}
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint16 iChar = sText[i];
 			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				if ( (sText[++i] & 0b1111110000000000) == 0b1101110000000000 ) {
+				size_t iNext = i + 1;
+				 if ( (sText[iNext] & 0b1111110000000000) == 0b1101110000000000 ) {
 					iPos += 4;
 				} else {
 					// 错误的代理对，使用替换字符 EFBFBD 代替
 					iPos += 3;
 				}
+				 i = iNext;
 			} else if ( iChar <= 0x7F ) {
 				iPos++;
 			} else if ( iChar <= 0x7FF ) {
@@ -11545,10 +11583,11 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint16 iChar = sText[i];
 		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-			uint16 iNext = sText[++i];
+			size_t iNextIndex = i + 1;
+			 uint16 iNext = sText[iNextIndex];
 			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
 				uint32 cp = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
 				sRet[iPos++] = 0xF0 | ((cp >> 18) & 0x7);
@@ -11561,6 +11600,7 @@ XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 				sRet[iPos++] = 0xBF;
 				sRet[iPos++] = 0xBD;
 			}
+			 i = iNextIndex;
 		} else if ( iChar <= 0x7F ) {
 			sRet[iPos++] = iChar;
 		} else if ( iChar <= 0x7FF ) {
@@ -11593,7 +11633,7 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize)
 			iPos++;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint16 iChar = sText[i];
 			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
 				i++;
@@ -11607,10 +11647,11 @@ XXAPI u32str xrtUTF16to32(u16str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u32str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint16 iChar = sText[i];
 		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-			uint16 iNext = sText[++i];
+			size_t iNextIndex = i + 1;
+			 uint16 iNext = sText[iNextIndex];
 			if ( (iNext & 0b1111110000000000) == 0b1101110000000000 ) {
 				sRet[iPos++] = (((iChar & 0x3FF) << 10) | (iNext & 0x3FF)) + 0x10000;
 			} else {
@@ -11650,7 +11691,7 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize)
 			}
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint32 iChar = sText[i];
 			if ( iChar <= 0x7F ) {
 				iPos++;
@@ -11673,7 +11714,7 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint32 iChar = sText[i];
 		if ( iChar <= 0x7F ) {
 			// ASCII 兼容字符
@@ -11733,7 +11774,7 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
 			iSize++;
 		}
 	} else {
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			uint32 iChar = sText[i];
 			if ( iChar <= 0xFFFF ) {
 				iPos++;
@@ -11750,7 +11791,7 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
 	// 开始转换编码
 	iPos = 0;
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		uint32 iChar = sText[i];
 		if ( iChar <= 0xFFFF ) {
 			sRet[iPos++] = iChar;
@@ -11780,7 +11821,7 @@ XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise)
 	} else {
 		sRet = xrtCopyStrU16(sText, iSize);
 	}
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		sRet[i] = ((sRet[i] & 0xFF) << 8) | ((sRet[i] >> 8) & 0xFF);
 	}
 	return sRet;
@@ -11797,7 +11838,7 @@ XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise)
 	} else {
 		sRet = xrtCopyStrU32(sText, iSize);
 	}
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		sRet[i] = ((sRet[i] >> 24) & 0xFF) | ((sRet[i] >> 8) & 0xFF00) | ((sRet[i] << 8) & 0xFF0000) | ((sRet[i] << 24) & 0xFF000000);
 	}
 	return sRet;
@@ -11925,7 +11966,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 				if ( iRetSize ) { *iRetSize = 0; }
 				return xCore.sNull;
 			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, sRet, iRet, NULL, NULL);
+			iRet = WideCharToMultiByte(iOutCP, 0, sText, iSize, (LPSTR)sRet, iRet, NULL, NULL);
 			sRet[iRet] = 0;
 			return sRet;
 		} else if ( iInCP == XRT_CP_UTF16_BE ) {
@@ -11943,13 +11984,13 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 				if ( iRetSize ) { *iRetSize = 0; }
 				return xCore.sNull;
 			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, sRet, iRet, NULL, NULL);
+			iRet = WideCharToMultiByte(iOutCP, 0, sTemp, iSize, (LPSTR)sRet, iRet, NULL, NULL);
 			xrtFree(sTemp);
 			sRet[iRet] = 0;
 			return sRet;
 		} else if ( iOutCP == XRT_CP_UTF16 ) {
 			// 多字节 转 UTF16
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
 			if ( iRet == 0 ) {
@@ -11966,7 +12007,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 			return sRet;
 		} else if ( iOutCP == XRT_CP_UTF16_BE ) {
 			// 多字节 转 UTF16 BE
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 			size_t iRet = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
 			if ( iRet == 0 ) {
@@ -11984,7 +12025,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 			return sRet;
 		} else {
 			// 多字节 转 多字节
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 			if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
 			// 先转换为 utf16
 			size_t iRetW = MultiByteToWideChar(iInCP, 0, sText, iSize, NULL, 0);
@@ -12012,7 +12053,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 				xrtFree(sRetW);
 				return xCore.sNull;
 			}
-			iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, sRet, iRet, NULL, NULL);
+			iRet = WideCharToMultiByte(iOutCP, 0, sRetW, iRetW, (LPSTR)sRet, iRet, NULL, NULL);
 			xrtFree(sRetW);
 			sRet[iRet] = 0;
 			return sRet;
@@ -12030,18 +12071,18 @@ XXAPI bool xrtIsUTF8(str sText, size_t iSize)
 {
 	// NULL 返回 FALSE，空字符串返回 TRUE
 	if ( sText == NULL ) { return FALSE; }
-	if ( iSize == 0 ) { iSize = strlen(sText); }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sText); }
 	if ( iSize == 0 ) { return TRUE; }
 	// 检测是否符合标准
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		// 遇到 \0、FE、FF 直接返回 FALSE
 		if ( (sText[i] == 0) || (sText[i] == 0xFE) || (sText[i] == 0xFF) ) {
 			return FALSE;
 		}
 		// 检查多字节字符是否已 0b10 开头
-		char iExtraBytes = BytesExtraTableUTF8[sText[i]];
+		size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sText[i]];
 		if ( iExtraBytes ) {
-			for ( int j = 0; (j < iExtraBytes) && (i < iSize); j++ ) {
+			for ( size_t j = 0; (j < iExtraBytes) && ((i + 1) < iSize); j++ ) {
 				if ( (sText[++i] & 0b11000000) != 0b10000000 ) {
 					return FALSE;
 				}
@@ -12090,15 +12131,15 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		}
 	}
 	// 开始推测字符串编码
-	for ( int i = 0; i < iSize; i++ ) {
+	for ( size_t i = 0; i < iSize; i++ ) {
 		// 检测 utf-8 不可能出现的字符
 		if ( (sPtr[i] == 0xFE) || (sPtr[i] == 0xFF) ) {
 			bNoUTF8 = TRUE;
 		}
 		// 检测 utf-8 多字符编码是否正确
 		if ( bNoUTF8 == FALSE ) {
-			char iExtraBytes = BytesExtraTableUTF8[sPtr[i]];
-			for ( int j = 1; (j <= iExtraBytes) && ((i + j) < iSize); j++ ) {
+			size_t iExtraBytes = (size_t)(unsigned char)BytesExtraTableUTF8[sPtr[i]];
+			for ( size_t j = 1; (j <= iExtraBytes) && ((i + j) < iSize); j++ ) {
 				if ( (sPtr[i + j] & 0b11000000) != 0b10000000 ) {
 					bNoUTF8 = TRUE;
 					break;
@@ -12107,7 +12148,7 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		}
 		// 检测 utf-16 代理区是否合规
 		if ( (i & 1) == 0 ) {
-			if ( (i + 2) < iSize ) {
+			if ( (i + 2u) < iSize ) {
 				if ( bNoUTF16BE == FALSE ) {
 					if ( (sPtr[i] & 0b11111100) == 0b11011000 ) {
 						if ( (sPtr[i + 2] & 0b11111100) != 0b11011100 ) {
@@ -12126,7 +12167,7 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		}
 		// 检测是否符合 utf-32 范围 ( 0x10FFFF 以内‌ )
 		if ( (i & 3) == 0 ) {
-			if ( (i + 3) < iSize ) {
+			if ( (i + 3u) < iSize ) {
 				if ( bNoUTF32BE == FALSE ) {
 					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
 					if ( c > 0x10FFFF ) {
@@ -12213,7 +12254,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/math.h
+// File: D:/git/xrt/lib/math.h
 // ========================================
 
 
@@ -12281,16 +12322,16 @@ XXAPI uint64 xrtRand64Ex(xrand* rngLow, xrand* rngHigh)
 // 生成范围随机数 - 线程安全
 XXAPI int xrtRandRangeEx(xrand* rng, int min, int max)
 {
-	uint32 iRange = (max - min) + 1;
-	if ( iRange > 0 ) {
+	if ( min <= max ) {
+		uint32 iRange = (uint32)(((int64)max - (int64)min) + 1);
 		uint32 threshold = -iRange % iRange;
 		for (;;) {
 			uint32 r = xrtRand32Ex(rng);
 			if (r >= threshold)
 				return (r % iRange) + min;
 		}
-	} else if ( iRange < 0 ) {
-		iRange = (min - max) + 1;
+	} else {
+		uint32 iRange = (uint32)(((int64)min - (int64)max) + 1);
 		uint32 threshold = -iRange % iRange;
 		for (;;) {
 			uint32 r = xrtRand32Ex(rng);
@@ -12374,7 +12415,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/path.h
+// File: D:/git/xrt/lib/path.h
 // ========================================
 
 
@@ -12384,9 +12425,9 @@ XXAPI str xrtPathGetNameExt(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
-			if ( i >= (iSize - 1) ) {
+			if ( i == (iSize - 1u) ) {
 				return xCore.sNull;
 			} else {
 				return xrtCopyStr(&sPath[i + 1], iSize - i - 1);
@@ -12401,12 +12442,12 @@ XXAPI str xrtPathGetName(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	uint iPointPos = 0;
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	size_t iPointPos = 0;
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( sPath[i] == L'.' ) {
 			iPointPos = iSize - i;
 		} else if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
-			if ( i >= (iSize - 1) ) {
+			if ( i == (iSize - 1u) ) {
 				return xCore.sNull;
 			} else {
 				return xrtCopyStr(&sPath[i + 1], iSize - i - iPointPos - 1);
@@ -12421,7 +12462,7 @@ XXAPI str xrtPathGetExt(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( sPath[i] == L'.' ) {
 			return xrtCopyStr(&sPath[i + 1], iSize - i - 1);
 		} else if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
@@ -12436,9 +12477,9 @@ XXAPI str xrtPathGetDir(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
-			if ( i >= (iSize - 1) ) {
+			if ( i == (iSize - 1u) ) {
 				return xrtCopyStr(sPath, iSize - 1);
 			} else {
 				return xrtCopyStr(sPath, i);
@@ -12547,7 +12588,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 #ifndef XRT_NO_TIME
 
 // ========================================
-// File: D:/Git/xrt/lib/time.h
+// File: D:/git/xrt/lib/time.h
 // ========================================
 
 
@@ -12707,13 +12748,11 @@ XXAPI int xrtDay(xtime iTime)
 			break;
 		}
 	}
-	int iMonth = 1;
 	for ( int i = 1; i <= 12; i++ ) {
 		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
 		if ( iYearMod >= iSec ) {
 			iYearMod -= iSec;
 		} else {
-			iMonth = i;
 			break;
 		}
 	}
@@ -13794,7 +13833,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 #ifndef XRT_NO_FILE
 
 // ========================================
-// File: D:/Git/xrt/lib/file.h
+// File: D:/git/xrt/lib/file.h
 // ========================================
 
 
@@ -14379,7 +14418,7 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 		// 其他平台方案
 		if ( objFile && (objFile->idx != -1) ) {
 			if ( sText == NULL ) { return 0; }
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen(__xrt_cstr(sText)); }
 			if ( iSize == 0 ) { return 0; }
 			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 				// 需要转换为目标文件的编码再写入
@@ -15397,10 +15436,10 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( sSrc == NULL ) { return 0; }
-		size_t iSrcSize = strlen(sSrc);
+		size_t iSrcSize = strlen(__xrt_cstr(sSrc));
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
-		size_t iDstSize = strlen(sDst);
+		size_t iDstSize = strlen(__xrt_cstr(sDst));
 		if ( iDstSize == 0 ) { return 0; }
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
@@ -15417,10 +15456,10 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 	#else
 		// 其他平台方案
 		if ( sSrc == NULL ) { return 0; }
-		size_t iSrcSize = strlen(sSrc);
+		size_t iSrcSize = strlen(__xrt_cstr(sSrc));
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
-		size_t iDstSize = strlen(sDst);
+		size_t iDstSize = strlen(__xrt_cstr(sDst));
 		if ( iDstSize == 0 ) { return 0; }
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
@@ -15491,7 +15530,7 @@ XXAPI int xrtDirDelete(str sPath)
 #ifndef XRT_NO_THREAD
 
 // ========================================
-// File: D:/Git/xrt/lib/thread.h
+// File: D:/git/xrt/lib/thread.h
 // ========================================
 
 
@@ -16340,7 +16379,7 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 #ifndef XRT_NO_QUEUE
 
 // ========================================
-// File: D:/Git/xrt/lib/queue.h
+// File: D:/git/xrt/lib/queue.h
 // ========================================
 
 #ifndef __XRT_QUEUE_MAX_CAPACITY
@@ -17391,7 +17430,7 @@ XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 #ifndef XRT_NO_COROUTINE
 
 // ========================================
-// File: D:/Git/xrt/lib/coroutine.h
+// File: D:/git/xrt/lib/coroutine.h
 // ========================================
 
 
@@ -17509,7 +17548,7 @@ static void __xrt_co_set_current(xcoro pCo)
 		pRuntime->pCurrent = pCo;
 	}
 }
-static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, str sError)
+static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, const char* sError)
 {
 	xrtThreadData* pThreadData = __xrt_co_require_thread_data(TRUE);
 	if ( pThreadData == NULL ) {
@@ -17523,7 +17562,7 @@ static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, str sError)
 	}
 	return TRUE;
 }
-static bool __xrt_co_check_owner(xcoro pCo, str sError)
+static bool __xrt_co_check_owner(xcoro pCo, const char* sError)
 {
 	if ( pCo == NULL ) {
 		xrtSetError("invalid coroutine handle.", FALSE);
@@ -17901,7 +17940,7 @@ static int64 __xrt_co_time_ms()
 		return (int64)ts.tv_sec * 1000 + (int64)ts.tv_nsec / 1000000;
 	#endif
 }
-static void __xrt_co_sleep_ms(int iMs)
+static void UNUSED_ATTR __xrt_co_sleep_ms(int iMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		Sleep(iMs);
@@ -18863,7 +18902,7 @@ XXAPI ptr xrtCoGetResult(xcoro pCo)
 }
 XXAPI str xrtCoGetBackendName()
 {
-	return __XRT_CO_BACKEND_NAME;
+	return (str)__XRT_CO_BACKEND_NAME;
 }
 XXAPI int xrtCoGetBackendTier()
 {
@@ -19328,8 +19367,8 @@ static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTime
 		if ( iDelta < 0 ) {
 			iDelta = 0;
 		}
-		if ( iDelta > 0xFFFFFFFEull ) {
-			iDelta = 0xFFFFFFFEull;
+		if ( iDelta > 0xFFFFFFFELL ) {
+			iDelta = 0xFFFFFFFELL;
 		}
 		return (uint32)iDelta;
 	}
@@ -19497,7 +19536,7 @@ XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute)
 	xrtFree(pCleanup);
 	return TRUE;
 }
-static bool __xrt_co_check_sched_owner(xcosched* pSched, str sError)
+static bool __xrt_co_check_sched_owner(xcosched* pSched, const char* sError)
 {
 	if ( pSched == NULL ) {
 		xrtSetError("invalid coroutine scheduler.", FALSE);
@@ -19946,7 +19985,7 @@ XXAPI void xrtCoSleep(uint32 iMs)
 #ifndef XRT_NO_XURL
 
 // ========================================
-// File: D:/Git/xrt/lib/xurl.h
+// File: D:/git/xrt/lib/xurl.h
 // ========================================
 
 #ifndef XRT_XURL_H
@@ -20174,7 +20213,7 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtUrlParseAuthorityN(sText, strlen(sText), pOut);
+	return xrtUrlParseAuthorityN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 {
@@ -20211,7 +20250,7 @@ XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 XXAPI bool xrtUrlParseTarget(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtUrlParseTargetN(sText, strlen(sText), pOut);
+	return xrtUrlParseTargetN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 {
@@ -20283,7 +20322,7 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 XXAPI bool xrtUrlParseView(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtUrlParseViewN(sText, strlen(sText), pOut);
+	return xrtUrlParseViewN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 XXAPI bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
@@ -20770,7 +20809,7 @@ XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 #ifndef XRT_NO_HTTP_UTIL
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttp_util.h
+// File: D:/git/xrt/lib/xhttp_util.h
 // ========================================
 
 #ifndef XRT_XHTTP_UTIL_H
@@ -20939,7 +20978,7 @@ XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttput
 XXAPI bool xrtHttpTokenValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpTokenValidateN(sText, strlen(sText), pLimits);
+	return xrtHttpTokenValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
@@ -20959,7 +20998,7 @@ XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttput
 XXAPI bool xrtHttpParamValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpParamValidateN(sText, strlen(sText), pLimits);
+	return xrtHttpParamValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
@@ -20979,7 +21018,7 @@ XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputilli
 XXAPI bool xrtQueryValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
-	return xrtQueryValidateN(sText, strlen(sText), pLimits);
+	return xrtQueryValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
@@ -20999,7 +21038,7 @@ XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputill
 XXAPI bool xrtCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
-	return xrtCookieValidateN(sText, strlen(sText), pLimits);
+	return xrtCookieValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 XXAPI bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
@@ -21008,7 +21047,7 @@ XXAPI bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrth
 XXAPI bool xrtFormUrlEncodedValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
-	return xrtFormUrlEncodedValidateN(sText, strlen(sText), pLimits);
+	return xrtFormUrlEncodedValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xrthttputillimits* pLimits)
 {
@@ -21049,7 +21088,7 @@ XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttput
 XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
-	return xrtSetCookieValidateN(sText, strlen(sText), pLimits);
+	return xrtSetCookieValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits)
 {
@@ -21090,7 +21129,7 @@ XXAPI bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const 
 	if ( sBody == NULL || sBoundary == NULL ) return false;
 	return xrtMultipartValidateN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pLimits);
 }
-static bool __xrtHttpUtilIsAttrChar(char ch)
+static bool UNUSED_ATTR __xrtHttpUtilIsAttrChar(char ch)
 {
 	if ( ch >= '0' && ch <= '9' ) return true;
 	if ( ch >= 'A' && ch <= 'Z' ) return true;
@@ -21105,7 +21144,10 @@ static bool __xrtHttpUtilIsAttrChar(char ch)
 }
 static char __xrtHttpUtilHexDigit(uint8 iValue)
 {
-	return (char)((iValue < 10u) ? ('0' + iValue) : ('A' + (iValue - 10u)));
+	if ( iValue < 10u ) {
+		return (char)('0' + (char)iValue);
+	}
+	return (char)('A' + (char)(iValue - 10u));
 }
 static bool __xrtHttpUtilAppendQuotedString(char* sOut, size_t iOutCap, size_t* pOffset, const char* sText, size_t iLen)
 {
@@ -21134,7 +21176,7 @@ XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen)
 XXAPI bool xrtHttpIsToken(const char* sText)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpIsTokenN(sText, strlen(sText));
+	return xrtHttpIsTokenN(sText, strlen(__xrt_cstr(sText)));
 }
 XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -21164,7 +21206,7 @@ XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sO
 XXAPI bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpQuotedStringDecodeToN(sText, strlen(sText), sOut, iOutCap, pOutLen);
+	return xrtHttpQuotedStringDecodeToN(sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -21179,7 +21221,7 @@ XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOu
 XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpQuotedStringBuildToN(sText, strlen(sText), sOut, iOutCap, pOutLen);
+	return xrtHttpQuotedStringBuildToN(sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bSpaceAsPlus)
 {
@@ -21252,7 +21294,7 @@ XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* p
 XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpDecodeExtValueTo(sText, strlen(sText), NULL, NULL, sOut, iOutCap, pOutLen);
+	return xrtHttpDecodeExtValueTo(sText, strlen(__xrt_cstr(sText)), NULL, NULL, sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -21288,7 +21330,7 @@ XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, c
 XXAPI bool xrtHttpBuildExtValue(const char* sCharset, const char* sLanguage, const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpBuildExtValueTo(sCharset, sLanguage, sText, strlen(sText), sOut, iOutCap, pOutLen);
+	return xrtHttpBuildExtValueTo(sCharset, sLanguage, sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair* pOut)
 {
@@ -21338,7 +21380,7 @@ XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const ch
 XXAPI bool xrtHttpHeaderBuildLine(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
-	return xrtHttpHeaderBuildLineTo(sName, strlen(sName), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
+	return xrtHttpHeaderBuildLineTo(sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -21367,7 +21409,7 @@ XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen
 XXAPI bool xrtHttpHeaderBuildCanonicalLineTo(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
-	return xrtHttpHeaderBuildCanonicalLineToN(sName, strlen(sName), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
+	return xrtHttpHeaderBuildCanonicalLineToN(sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -21443,7 +21485,7 @@ XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 XXAPI bool xrtHttpTokenNext(const char* sText, size_t* pOffset, xrtstrview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpTokenNextN(sText, strlen(sText), pOffset, pOut);
+	return xrtHttpTokenNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 {
@@ -21456,7 +21498,7 @@ XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 XXAPI size_t xrtHttpTokenCount(const char* sText)
 {
 	if ( sText == NULL ) return 0u;
-	return xrtHttpTokenCountN(sText, strlen(sText));
+	return xrtHttpTokenCountN(sText, strlen(__xrt_cstr(sText)));
 }
 XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken, size_t iTokenLen, xrtstrview* pOut)
 {
@@ -21475,7 +21517,7 @@ XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken,
 XXAPI bool xrtHttpTokenFind(const char* sText, const char* sToken, xrtstrview* pOut)
 {
 	if ( sText == NULL || sToken == NULL ) return false;
-	return xrtHttpTokenFindN(sText, strlen(sText), sToken, strlen(sToken), pOut);
+	return xrtHttpTokenFindN(sText, strlen(__xrt_cstr(sText)), sToken, strlen(__xrt_cstr(sToken)), pOut);
 }
 XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut, size_t iCap, size_t* pCount)
 {
@@ -21495,7 +21537,7 @@ XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut
 XXAPI bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpTokenParseToN(sText, strlen(sText), pOut, iCap, pCount);
+	return xrtHttpTokenParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken, size_t iTokenLen)
 {
@@ -21512,12 +21554,12 @@ XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, con
 XXAPI bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken)
 {
 	if ( sToken == NULL ) return false;
-	return xrtHttpTokenAppendTo(sOut, iOutCap, pOffset, sToken, strlen(sToken));
+	return xrtHttpTokenAppendTo(sOut, iOutCap, pOffset, sToken, strlen(__xrt_cstr(sToken)));
 }
 XXAPI bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, const char* sToken)
 {
 	if ( sValue == NULL || sToken == NULL || sToken[0] == '\0' ) return false;
-	return xrtHttpTokenFindN(sValue, iValueLen, sToken, strlen(sToken), NULL);
+	return xrtHttpTokenFindN(sValue, iValueLen, sToken, strlen(__xrt_cstr(sToken)), NULL);
 }
 XXAPI bool xrtHttpHeaderContainsToken(const char* sValue, const char* sToken)
 {
@@ -21529,7 +21571,7 @@ XXAPI bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, cons
 	size_t iNameLen;
 	size_t i;
 	if ( pHeaders == NULL || sName == NULL ) return false;
-	iNameLen = strlen(sName);
+	iNameLen = strlen(__xrt_cstr(sName));
 	for ( i = 0u; i < iCount; ++i ) {
 		if ( __xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) {
 			if ( pOut ) *pOut = pHeaders[i].tValue;
@@ -21555,7 +21597,7 @@ XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, c
 XXAPI size_t xrtHttpHeaderCount(const xrtheaderpair* pHeaders, size_t iCount, const char* sName)
 {
 	if ( sName == NULL ) return 0u;
-	return xrtHttpHeaderCountN(pHeaders, iCount, sName, strlen(sName));
+	return xrtHttpHeaderCountN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)));
 }
 XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pOut)
 {
@@ -21576,7 +21618,7 @@ XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, c
 XXAPI bool xrtHttpHeaderFindNth(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNth, xrtstrview* pOut)
 {
 	if ( sName == NULL ) return false;
-	return xrtHttpHeaderFindNthN(pHeaders, iCount, sName, strlen(sName), iNth, pOut);
+	return xrtHttpHeaderFindNthN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), iNth, pOut);
 }
 XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, xrtstrview* pOut, size_t iOutCap)
 {
@@ -21593,7 +21635,7 @@ XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCoun
 XXAPI size_t xrtHttpHeaderFindAllTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut, size_t iOutCap)
 {
 	if ( sName == NULL ) return 0u;
-	return xrtHttpHeaderFindAllToN(pHeaders, iCount, sName, strlen(sName), pOut, iOutCap);
+	return xrtHttpHeaderFindAllToN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), pOut, iOutCap);
 }
 XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -21616,7 +21658,7 @@ XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, 
 XXAPI bool xrtHttpHeaderCanonicalizeNameTo(const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL ) return false;
-	return xrtHttpHeaderCanonicalizeNameToN(sName, strlen(sName), sOut, iOutCap, pOutLen);
+	return xrtHttpHeaderCanonicalizeNameToN(sName, strlen(__xrt_cstr(sName)), sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -21656,7 +21698,7 @@ XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t 
 XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL ) return false;
-	return xrtHttpHeaderCollectAndJoinToN(pHeaders, iCount, sName, strlen(sName), sOut, iOutCap, pOutLen);
+	return xrtHttpHeaderCollectAndJoinToN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), sOut, iOutCap, pOutLen);
 }
 XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut)
 {
@@ -21697,7 +21739,7 @@ XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* s
 	xrtheaderpair tHeader;
 	size_t iNameLen;
 	if ( sBlock == NULL || sName == NULL ) return false;
-	iNameLen = strlen(sName);
+	iNameLen = strlen(__xrt_cstr(sName));
 	while ( xrtHttpHeaderNextLineN(sBlock, iLen, &iOffset, &tHeader) ) {
 		if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, sName, iNameLen) ) {
 			if ( pOut ) *pOut = tHeader;
@@ -21753,7 +21795,7 @@ XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t
 XXAPI bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
-	return xrtHttpHeaderAppendPairN(pHeaders, iCap, pCount, sName, strlen(sName), sValue, strlen(sValue));
+	return xrtHttpHeaderAppendPairN(pHeaders, iCap, pCount, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
@@ -21771,7 +21813,7 @@ XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* p
 XXAPI bool xrtHttpHeaderSetPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
-	return xrtHttpHeaderSetPairN(pHeaders, iCap, pCount, sName, strlen(sName), sValue, strlen(sValue));
+	return xrtHttpHeaderSetPairN(pHeaders, iCap, pCount, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const char* sName, size_t iNameLen)
 {
@@ -21794,7 +21836,7 @@ XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const
 XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const char* sName)
 {
 	if ( sName == NULL ) return 0u;
-	return xrtHttpHeaderRemoveN(pHeaders, pCount, sName, strlen(sName));
+	return xrtHttpHeaderRemoveN(pHeaders, pCount, sName, strlen(__xrt_cstr(sName)));
 }
 XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut)
 {
@@ -21829,7 +21871,7 @@ XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtco
 XXAPI bool xrtCookieNext(const char* sText, size_t* pOffset, xrtcookiepair* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtCookieNextN(sText, strlen(sText), pOffset, pOut);
+	return xrtCookieNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrtcookiepair* pOut)
 {
@@ -21847,7 +21889,7 @@ XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, siz
 XXAPI bool xrtCookieFind(const char* sText, const char* sName, xrtcookiepair* pOut)
 {
 	if ( sText == NULL || sName == NULL ) return false;
-	return xrtCookieFindN(sText, strlen(sText), sName, strlen(sName), pOut);
+	return xrtCookieFindN(sText, strlen(__xrt_cstr(sText)), sName, strlen(__xrt_cstr(sName)), pOut);
 }
 XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
 {
@@ -21867,7 +21909,7 @@ XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut
 XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
-	return xrtCookieParseToN(sText, strlen(sText), pOut, iCap, pCount);
+	return xrtCookieParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut)
 {
@@ -21973,7 +22015,7 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 XXAPI bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtSetCookieParseN(sText, strlen(sText), pOut);
+	return xrtSetCookieParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookieview* pOut)
 {
@@ -22032,7 +22074,7 @@ XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 XXAPI bool xrtHttpParamNext(const char* sText, size_t* pOffset, xrthttpparam* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpParamNextN(sText, strlen(sText), pOffset, pOut);
+	return xrtHttpParamNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 {
@@ -22045,7 +22087,7 @@ XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 XXAPI size_t xrtHttpParamCount(const char* sText)
 {
 	if ( sText == NULL ) return 0u;
-	return xrtHttpParamCountN(sText, strlen(sText));
+	return xrtHttpParamCountN(sText, strlen(__xrt_cstr(sText)));
 }
 XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrthttpparam* pOut)
 {
@@ -22064,7 +22106,7 @@ XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, 
 XXAPI bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* pOut)
 {
 	if ( sText == NULL || sName == NULL ) return false;
-	return xrtHttpParamFindN(sText, strlen(sText), sName, strlen(sName), pOut);
+	return xrtHttpParamFindN(sText, strlen(__xrt_cstr(sText)), sName, strlen(__xrt_cstr(sName)), pOut);
 }
 XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bQuoteValue)
 {
@@ -22087,7 +22129,7 @@ XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset,
 XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue, bool bHasValue, bool bQuoteValue)
 {
 	if ( sName == NULL ) return false;
-	return xrtHttpParamAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(sName), sValue, sValue ? strlen(sValue) : 0u, bHasValue, bQuoteValue);
+	return xrtHttpParamAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, sValue ? strlen(sValue) : 0u, bHasValue, bQuoteValue);
 }
 XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut)
 {
@@ -22141,7 +22183,7 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 XXAPI bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpMediaTypeParseN(sText, strlen(sText), pOut);
+	return xrtHttpMediaTypeParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 XXAPI bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -22180,7 +22222,7 @@ XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char*
 XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* sName, xrthttpparam* pOut)
 {
 	if ( sName == NULL ) return false;
-	return xrtHttpMediaTypeFindParamN(pType, sName, strlen(sName), pOut);
+	return xrtHttpMediaTypeFindParamN(pType, sName, strlen(__xrt_cstr(sName)), pOut);
 }
 XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut)
 {
@@ -22237,7 +22279,7 @@ XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtco
 XXAPI bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositionview* pOut)
 {
 	if ( sText == NULL ) return false;
-	return xrtHttpContentDispositionParseN(sText, strlen(sText), pOut);
+	return xrtHttpContentDispositionParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -22313,7 +22355,7 @@ XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, co
 XXAPI bool xrtCookieAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
-	return xrtCookieAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(sName), sValue, strlen(sValue));
+	return xrtCookieAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -22383,7 +22425,7 @@ XXAPI bool xrtFormUrlEncodedParseToN(const char* sText, size_t iLen, xrtquerypai
 XXAPI bool xrtFormUrlEncodedParseTo(const char* sText, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
-	return xrtFormUrlEncodedParseToN(sText, strlen(sText), pOut, iCap, pCount);
+	return xrtFormUrlEncodedParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 XXAPI bool xrtFormUrlEncodedDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -22396,7 +22438,7 @@ XXAPI bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pO
 XXAPI bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
 	if ( sName == NULL ) return false;
-	return xrtFormUrlEncodedAppendFieldTo(sOut, iOutCap, pOffset, sName, strlen(sName), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL);
+	return xrtFormUrlEncodedAppendFieldTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL);
 }
 XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -22510,7 +22552,7 @@ static bool __xrtHttpUtilFindParamN(xrtstrview tValue, const char* sName, xrtstr
 	xrthttpparam tParam;
 	if ( pOut ) *pOut = xrtStrView(NULL, 0u);
 	if ( sName == NULL ) return false;
-	if ( !xrtHttpParamFindN(tValue.sPtr, tValue.iLen, sName, strlen(sName), &tParam) ) return false;
+	if ( !xrtHttpParamFindN(tValue.sPtr, tValue.iLen, sName, strlen(__xrt_cstr(sName)), &tParam) ) return false;
 	if ( (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) == 0u ) return false;
 	if ( pOut ) *pOut = tParam.tValue;
 	return true;
@@ -23027,7 +23069,7 @@ XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOf
 XXAPI bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sValue)
 {
 	if ( sBoundary == NULL || sName == NULL || sValue == NULL ) return false;
-	return xrtMultipartAppendFieldPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), sName, strlen(sName), sValue, strlen(sValue));
+	return xrtMultipartAppendFieldPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
 {
@@ -23093,7 +23135,7 @@ XXAPI bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOf
 		sBoundary,
 		strlen(sBoundary),
 		sName,
-		strlen(sName),
+		strlen(__xrt_cstr(sName)),
 		sFileName,
 		strlen(sFileName),
 		sFileNameExt,
@@ -23143,7 +23185,7 @@ XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset,
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_base.h
+// File: D:/git/xrt/lib/xnet_base.h
 // ========================================
 
 #ifndef XRT_XNET_BASE_H
@@ -23395,7 +23437,7 @@ static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 	if ( !sDst || iDstCap == 0 ) return;
 	sDst[0] = '\0';
 	if ( !sSrc || !sSrc[0] ) return;
-	iLen = strlen(sSrc);
+	iLen = strlen(__xrt_cstr(sSrc));
 	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
@@ -23640,7 +23682,7 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_mem.h
+// File: D:/git/xrt/lib/xnet_mem.h
 // ========================================
 
 
@@ -24205,7 +24247,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port.h
+// File: D:/git/xrt/lib/xnet_port.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_H
@@ -24379,7 +24421,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port_iocp.h
+// File: D:/git/xrt/lib/xnet_port_iocp.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_IOCP_H
@@ -25269,7 +25311,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port_uring.h
+// File: D:/git/xrt/lib/xnet_port_uring.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_URING_H
@@ -25468,7 +25510,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		pthread_mutex_t tIoLock;
 		pthread_mutex_t tRingLock;
 	} __xnet_uring_ctx;
-	static bool __xnetPortUringHasNativeRing(const xnetport* pPort)
+	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
 	{
 		const __xnet_uring_ctx* pCtx = pPort ? (const __xnet_uring_ctx*)pPort->pCtx : NULL;
 		return pCtx && pCtx->tNativeRing.bReady;
@@ -26287,17 +26329,17 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		__xnetPortUringArmTimer,
 		__xnetPortUringCancelTimer
 	};
-	static const xnetportops* xrtNetPortUringOps(void)
+	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
 	{
 		return &__g_xnetPortUringOps;
 	}
 #else
-	static bool __xnetPortUringHasNativeRing(const xnetport* pPort)
+	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
 	{
 		(void)pPort;
 		return false;
 	}
-	static const xnetportops* xrtNetPortUringOps(void)
+	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
 	{
 		return NULL;
 	}
@@ -26306,7 +26348,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #ifndef XRT_NO_XCODEC
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec.h
+// File: D:/git/xrt/lib/xcodec.h
 // ========================================
 
 #ifndef XRT_XCODEC_H
@@ -26597,7 +26639,7 @@ XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec_http1.h
+// File: D:/git/xrt/lib/xcodec_http1.h
 // ========================================
 
 #ifndef XRT_XCODEC_HTTP1_H
@@ -26661,8 +26703,8 @@ static bool __xcodecHttpContainsTokenNoCase(const char* sText, const char* sToke
 	size_t iLenText;
 	size_t iLenToken;
 	if ( !sText || !sToken ) return false;
-	iLenText = strlen(sText);
-	iLenToken = strlen(sToken);
+	iLenText = strlen(__xrt_cstr(sText));
+	iLenToken = strlen(__xrt_cstr(sToken));
 	if ( iLenToken == 0 || iLenToken > iLenText ) return false;
 	for ( size_t i = 0; i + iLenToken <= iLenText; ++i ) {
 		size_t j;
@@ -26949,7 +26991,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		*sColon = '\0';
 		sName = sCursor;
 		sValue = sColon + 1;
-		iNameLen = strlen(sName);
+		iNameLen = strlen(__xrt_cstr(sName));
 		iValueLen = strlen(sValue);
 		__xcodecHttpTrimView(&sName, &iNameLen);
 		__xcodecHttpTrimView(&sValue, &iValueLen);
@@ -27027,7 +27069,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec_ws.h
+// File: D:/git/xrt/lib/xcodec_ws.h
 // ========================================
 
 #ifndef XRT_XCODEC_WS_H
@@ -27137,7 +27179,7 @@ XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_engine.h
+// File: D:/git/xrt/lib/xnet_engine.h
 // ========================================
 
 #ifndef XRT_XNET_ENGINE_H
@@ -27813,7 +27855,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 #ifndef XRT_NO_CRYPTO
 
 // ========================================
-// File: D:/Git/xrt/lib/crypto.h
+// File: D:/git/xrt/lib/crypto.h
 // ========================================
 
 
@@ -29107,7 +29149,7 @@ static int __xrt_gcm_crypt_and_tag(__xrt_gcm_ctx *pCtx, int iMode,
 	uint8 *pTag, size_t iTagLen)
 {
 	size_t i;
-	uint8 arrWork[16], arrEctr[16];
+	uint8 arrEctr[16];
 	uint32 iCtr;
 	
 	// 初始化 Y = IV || 0^31 || 1 (when IV is 12 bytes)
@@ -29281,7 +29323,8 @@ XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen)
 		if ( !procRtlGenRandom ) {
 			HMODULE hLib = LoadLibraryA("advapi32.dll");
 			if ( hLib ) {
-				procRtlGenRandom = (RtlGenRandom_t)GetProcAddress(hLib, "SystemFunction036");
+				FARPROC pProc = GetProcAddress(hLib, "SystemFunction036");
+				memcpy(&procRtlGenRandom, &pProc, sizeof(procRtlGenRandom));
 			}
 		}
 		if ( procRtlGenRandom ) {
@@ -30218,7 +30261,7 @@ static struct __xrt_bigint* __xrt_bi_comp_left_shift(struct __xrt_bi_ctx *pCtx, 
 	return pR;
 }
 // 右移 n 个 component 位置 (除以 RADIX^n)
-static struct __xrt_bigint* __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
+static struct __xrt_bigint* UNUSED_ATTR __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
 {
 	int iNewSize = pBi->iSize - iShift;
 	if ( iNewSize <= 0 ) {
@@ -30376,7 +30419,7 @@ static void __xrt_bi_free_mod(struct __xrt_bi_ctx *pCtx, int iModOffset)
 static struct __xrt_bigint* __xrt_bi_mod_power(struct __xrt_bi_ctx *pCtx,
 	struct __xrt_bigint *pBase, struct __xrt_bigint *pExp)
 {
-	int i, j;
+	int i;
 	int iNumBits;
 	struct __xrt_bigint *pResult;
 	// 确定指数的位数
@@ -32377,7 +32420,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 #ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/Git/xrt/lib/nettls.h
+// File: D:/git/xrt/lib/nettls.h
 // ========================================
 
 /*
@@ -32781,7 +32824,7 @@ static int __xrt_der_next(struct __xrt_der_tlv *pParent, struct __xrt_der_tlv *p
 	return 1;
 }
 // 在 DER 结构中递归查找 OID
-static int __xrt_der_find_oid(struct __xrt_der_tlv *pTlv, const uint8 *pOid,
+static int UNUSED_ATTR __xrt_der_find_oid(struct __xrt_der_tlv *pTlv, const uint8 *pOid,
 	size_t iOidLen, struct __xrt_der_tlv *pFound)
 {
 	struct __xrt_der_tlv tParent, tChild;
@@ -33895,7 +33938,7 @@ static bool __xrt_tls_decode_pem_cert_block(const char *pStart, const char *pEnd
 	}
 	while ( iB64Len % 4 != 0 ) pB64[iB64Len++] = '=';
 	pB64[iB64Len] = '\0';
-	pDer = (uint8*)xrtBase64Decode(pB64, iB64Len, NULL);
+	pDer = (uint8*)xrtBase64Decode((str)pB64, iB64Len, NULL);
 	if ( !pDer || pDer == (uint8*)xCore.sNull ) {
 		xrtFree(pB64);
 		return false;
@@ -34089,7 +34132,7 @@ static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, si
 	if ( !pBuf || !pDer || iDerLen == 0 ) return false;
 	sBase64 = xrtBase64Encode((ptr)pDer, iDerLen, NULL);
 	if ( !sBase64 || sBase64 == xCore.sNull ) return false;
-	iBase64Len = strlen(sBase64);
+	iBase64Len = strlen(__xrt_cstr(sBase64));
 	if ( !__xrt_tls_buf_append(pBuf, sBegin, sizeof(sBegin) - 1) ) {
 		xrtFree(sBase64);
 		return false;
@@ -34097,7 +34140,7 @@ static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, si
 	for ( iOffset = 0; iOffset < iBase64Len; iOffset += 64 ) {
 		size_t iChunk = iBase64Len - iOffset;
 		if ( iChunk > 64 ) iChunk = 64;
-		if ( !__xrt_tls_buf_append(pBuf, sBase64 + iOffset, iChunk)
+		if ( !__xrt_tls_buf_append(pBuf, __xrt_cstr(sBase64 + iOffset), iChunk)
 			|| !__xrt_tls_buf_append(pBuf, "\n", 1) ) {
 			xrtFree(sBase64);
 			return false;
@@ -34129,10 +34172,12 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 	if ( !bCrypt32Loaded ) {
 		HMODULE hLib = LoadLibraryA("crypt32.dll");
 		if ( hLib ) {
-			procCertOpenStore = (procCertOpenStore_t)GetProcAddress(hLib, "CertOpenStore");
-			procCertEnumCertificatesInStore =
-				(procCertEnumCertificatesInStore_t)GetProcAddress(hLib, "CertEnumCertificatesInStore");
-			procCertCloseStore = (procCertCloseStore_t)GetProcAddress(hLib, "CertCloseStore");
+			FARPROC pCertOpenStore = GetProcAddress(hLib, "CertOpenStore");
+			FARPROC pCertEnumCertificatesInStore = GetProcAddress(hLib, "CertEnumCertificatesInStore");
+			FARPROC pCertCloseStore = GetProcAddress(hLib, "CertCloseStore");
+			memcpy(&procCertOpenStore, &pCertOpenStore, sizeof(procCertOpenStore));
+			memcpy(&procCertEnumCertificatesInStore, &pCertEnumCertificatesInStore, sizeof(procCertEnumCertificatesInStore));
+			memcpy(&procCertCloseStore, &pCertCloseStore, sizeof(procCertCloseStore));
 		}
 		bCrypt32Loaded = true;
 	}
@@ -34178,14 +34223,7 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 #endif
 static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 {
-	static const char *aDefaultPaths[] = {
-		"/etc/ssl/certs/ca-certificates.crt",
-		"/etc/pki/tls/certs/ca-bundle.crt",
-		"/etc/ssl/cert.pem",
-		"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
-	};
 	const char *sEnvPath = NULL;
-	size_t i;
 	if ( !pCtx ) return false;
 	if ( pCtx->pCaData ) {
 		xrtFree(pCtx->pCaData);
@@ -34206,6 +34244,13 @@ static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 			return true;
 		}
 	#else
+		static const char *aDefaultPaths[] = {
+			"/etc/ssl/certs/ca-certificates.crt",
+			"/etc/pki/tls/certs/ca-bundle.crt",
+			"/etc/ssl/cert.pem",
+			"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+		};
+		size_t i;
 		for ( i = 0; i < sizeof(aDefaultPaths) / sizeof(aDefaultPaths[0]); i++ ) {
 			if ( xrtFileExists((str)aDefaultPaths[i]) &&
 				__xrt_tls_load_file_copy(aDefaultPaths[i], &pCtx->pCaData, &pCtx->iCaDataLen) ) {
@@ -35928,6 +35973,7 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 	memcpy(aSigInput + 32, pCtx->aServerRandom, 32);
 	memcpy(aSigInput + 64, aMsg + __XRT_TLS_MSGHDR_SIZE, iParamsLen);
 	iHashAlg = (uint16)(pCtx->iServerSigAlg >> 8);
+	(void)iHashAlg;
 	if ( pCtx->iServerSigAlg == 0x0807 ) {
 		if ( !__xrt_tls_sign_server_hash(pCtx, aSigInput, 64 + iParamsLen, aSig, &iSigLen) ) {
 			#ifdef DEBUG_TRACE
@@ -36406,7 +36452,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 									}
 									iSigAlg = __xrt_tls_load_be16(pMsg + __XRT_TLS_MSGHDR_SIZE);
 									iSigLen = __xrt_tls_load_be16(pMsg + __XRT_TLS_MSGHDR_SIZE + 2);
-									if ( 4 + iSigLen > iMsgBodyLen ) return XRT_NET_ERROR;
+									if ( 4u + iSigLen > iMsgBodyLen ) return XRT_NET_ERROR;
 									pSig = pMsg + __XRT_TLS_MSGHDR_SIZE + 4;
 									if ( !__xrt_tls13_build_cert_verify_input(aContentHash, &iContentHashLen,
 										pCtx->aSigHash, pCtx->iSigHashLen, iSigAlg, true) ) {
@@ -37171,7 +37217,6 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	uint8 aP384Peer[97];
 	bool bHaveX25519 = false, bHaveX448 = false, bHaveP256 = false, bHaveP384 = false;
 	struct xrt_tls_resume tCachedResume;
-	bool bHaveCachedResume = false;
 	bool bAllowTls13 = false;
 	if ( !pCtx ) return false;
 	pCtx->bPeerSigECDSAP256 = false;
@@ -38273,7 +38318,7 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #ifndef XRT_NO_NETWORK
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_proxy.h
+// File: D:/git/xrt/lib/xnet_proxy.h
 // ========================================
 
 #ifndef XRT_XNET_PROXY_H
@@ -38590,7 +38635,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_stream.h
+// File: D:/git/xrt/lib/xnet_stream.h
 // ========================================
 
 #ifndef XRT_XNET_STREAM_H
@@ -38729,7 +38774,7 @@ XXAPI void xrtNetStreamDestroy(xnetstream* pStream);
 XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags);
 static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
 static bool __xnetStreamArmRecvWatch(xnetstream* pStream);
-static bool __xnetStreamArmSendWatch(xnetstream* pStream);
+static bool UNUSED_ATTR __xnetStreamArmSendWatch(xnetstream* pStream);
 static void __xnetStreamFinalizeSocketClose(xnetstream* pStream);
 static void __xnetStreamFinishClose(xnetstream* pStream, xnet_result iReason);
 static void __xnetStreamBeginGracefulCloseWait(xnetstream* pStream);
@@ -39043,23 +39088,23 @@ static bool __xnetStreamCancelSyncWait(xnetstream* pStream, uint32 iWaitKind, pt
 	pSlot->pCtx = NULL;
 	return true;
 }
-static bool __xnetStreamRegisterSyncDrainWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+static bool UNUSED_ATTR __xnetStreamRegisterSyncDrainWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
 {
 	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_DRAIN, pfnWait, pCtx);
 }
-static bool __xnetStreamRegisterSyncReadableWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+static bool UNUSED_ATTR __xnetStreamRegisterSyncReadableWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
 {
 	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_READABLE, pfnWait, pCtx);
 }
-static bool __xnetStreamRegisterSyncWritableWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+static bool UNUSED_ATTR __xnetStreamRegisterSyncWritableWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
 {
 	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_WRITABLE, pfnWait, pCtx);
 }
-static bool __xnetStreamRegisterSyncCloseWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
+static bool UNUSED_ATTR __xnetStreamRegisterSyncCloseWait(xnetstream* pStream, __xnet_stream_sync_wait_fn pfnWait, ptr pCtx)
 {
 	return __xnetStreamRegisterSyncWait(pStream, __XNET_STREAM_WAIT_CLOSE, pfnWait, pCtx);
 }
-static uint32 __xnetSocketBytesAvailable(xsocket hSocket)
+static uint32 UNUSED_ATTR __xnetSocketBytesAvailable(xsocket hSocket)
 {
 	if ( !__xnetSocketIsValid(hSocket) ) return 0;
 	#if defined(_WIN32) || defined(_WIN64)
@@ -39566,7 +39611,7 @@ static bool __xnetStreamAppendRecvCopy(xnetstream* pStream, const void* pData, s
 	}
 	return bOk;
 }
-static bool __xnetStreamAppendRecvRef(xnetstream* pStream, const xnetbufref* pRef)
+static bool UNUSED_ATTR __xnetStreamAppendRecvRef(xnetstream* pStream, const xnetbufref* pRef)
 {
 	bool bOk;
 	if ( !pStream || !pRef ) return false;
@@ -39910,7 +39955,7 @@ static bool __xnetStreamArmRecvWatch(xnetstream* pStream)
 	}
 	return true;
 }
-static bool __xnetStreamArmSendWatch(xnetstream* pStream)
+static bool UNUSED_ATTR __xnetStreamArmSendWatch(xnetstream* pStream)
 {
 	if ( !pStream || pStream->bSendArmed || pStream->tSendQ.iQueuedBytes == 0 || !__xnetSocketIsValid(pStream->hSocket) ) return false;
 	if ( !__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_SEND, pStream->hSocket) ) return false;
@@ -40313,11 +40358,11 @@ static xnet_result __xnetStreamPostSendRef(xnetstream* pStream, const xnetbufref
 {
 	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncRef(pStream, __XNET_STREAM_ASYNC_SEND_REF, pRef));
 }
-static xnet_result __xnetStreamPostRecvCopy(xnetstream* pStream, const void* pData, size_t iLen)
+static xnet_result UNUSED_ATTR __xnetStreamPostRecvCopy(xnetstream* pStream, const void* pData, size_t iLen)
 {
 	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncCopy(pStream, __XNET_STREAM_ASYNC_RECV_COPY, pData, iLen));
 }
-static xnet_result __xnetStreamPostRecvRef(xnetstream* pStream, const xnetbufref* pRef)
+static xnet_result UNUSED_ATTR __xnetStreamPostRecvRef(xnetstream* pStream, const xnetbufref* pRef)
 {
 	return __xnetStreamPostAsync(pStream, __xnetStreamAllocAsyncRef(pStream, __XNET_STREAM_ASYNC_RECV_REF, pRef));
 }
@@ -40647,7 +40692,7 @@ static xnetstream* __xnetListenerTryAcceptOneEx(xnetlistener* pListener, ptr pUs
 	}
 	return pStream;
 }
-static xnetstream* __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUserData)
+static xnetstream* UNUSED_ATTR __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUserData)
 {
 	return __xnetListenerTryAcceptOneEx(pListener, pUserData, NULL);
 }
@@ -41025,7 +41070,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_dgram.h
+// File: D:/git/xrt/lib/xnet_dgram.h
 // ========================================
 
 #ifndef XRT_XNET_DGRAM_H
@@ -41368,7 +41413,7 @@ static void __xnetDgramFinalizeSocketClose(xdgramsock* pSock)
 		__xnetDgramSocketCloseHandle(&pSock->hSocket);
 	}
 }
-static bool __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, const void* pData, size_t iLen)
+static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, const void* pData, size_t iLen)
 {
 	xnetchain* pChain;
 	xnetdgrampkt* pPacket = NULL;
@@ -41657,7 +41702,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_sync.h
+// File: D:/git/xrt/lib/xnet_sync.h
 // ========================================
 
 #ifndef XRT_XNET_SYNC_H
@@ -42361,7 +42406,7 @@ static void __xnetFutureUnit(xnetfuture* pFuture)
 	#endif
 	__xnetFuturePrimitiveUnit(pFuture);
 }
-static void __xnetFutureReset(xnetfuture* pFuture)
+static void UNUSED_ATTR __xnetFutureReset(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
 	__xnetFutureLock(pFuture);
@@ -45490,7 +45535,7 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 	}
 	return iStatus;
 }
-static xnet_result __xnetSyncWaitDgramSyncCore(xdgramsock* pSock, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
+static xnet_result UNUSED_ATTR __xnetSyncWaitDgramSyncCore(xdgramsock* pSock, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitDgramSyncCoreEx(pSock, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
@@ -45533,7 +45578,7 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 	}
 	return iStatus;
 }
-static xnet_result __xnetSyncWaitStreamSyncCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
+static xnet_result UNUSED_ATTR __xnetSyncWaitStreamSyncCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitStreamSyncCoreEx(pStream, iWaitKind, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
@@ -45760,7 +45805,7 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	}
 	return iStatus;
 }
-static xnet_result __xnetSyncWaitStreamCoCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+static xnet_result UNUSED_ATTR __xnetSyncWaitStreamCoCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitStreamCoCoreEx(pStream, iWaitKind, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
@@ -45812,7 +45857,7 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	}
 	return iStatus;
 }
-static xnet_result __xnetSyncWaitListenerCoCore(xnetlistener* pListener, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+static xnet_result UNUSED_ATTR __xnetSyncWaitListenerCoCore(xnetlistener* pListener, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitListenerCoCoreEx(pListener, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
@@ -45864,7 +45909,7 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	}
 	return iStatus;
 }
-static xnet_result __xnetSyncWaitDgramCoCore(xdgramsock* pSock, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
+static xnet_result UNUSED_ATTR __xnetSyncWaitDgramCoCore(xdgramsock* pSock, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitDgramCoCoreEx(pSock, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
@@ -46078,7 +46123,7 @@ XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, x
 #ifndef XRT_NO_XHTTP
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttp.h
+// File: D:/git/xrt/lib/xhttp.h
 // ========================================
 
 #ifndef XRT_XHTTP_H
@@ -46214,7 +46259,7 @@ static void __xhttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 		sDst[0] = '\0';
 		return;
 	}
-	iLen = strlen(sSrc);
+	iLen = strlen(__xrt_cstr(sSrc));
 	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
@@ -46246,7 +46291,7 @@ static bool __xhttpAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const v
 }
 static bool __xhttpAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
-	return __xhttpAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+	return __xhttpAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
 }
 static bool __xhttpRequestHasHeader(const xhttprequest* pReq, const char* sName)
 {
@@ -47029,7 +47074,7 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 #ifndef XRT_NO_XHTTPD
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttpd.h
+// File: D:/git/xrt/lib/xhttpd.h
 // ========================================
 
 #ifndef XRT_XHTTPD_H
@@ -47136,7 +47181,7 @@ static bool __xhttpdStrEqNoCase(const char* sA, const char* sB)
 	}
 	return sA[i] == '\0' && sB[i] == '\0';
 }
-static long __xhttpdAtomicAdd(volatile long* pValue, long iDelta)
+static long UNUSED_ATTR __xhttpdAtomicAdd(volatile long* pValue, long iDelta)
 {
 	return __xnetAtomicAddFetch32(pValue, iDelta);
 }
@@ -47176,7 +47221,7 @@ static void __xhttpdCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 		sDst[0] = '\0';
 		return;
 	}
-	iLen = strlen(sSrc);
+	iLen = strlen(__xrt_cstr(sSrc));
 	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
@@ -47208,7 +47253,7 @@ static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const 
 }
 static bool __xhttpdAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
-	return __xhttpdAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+	return __xhttpdAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
 }
 static const char* __xhttpdStatusText(uint32 iStatusCode)
 {
@@ -47784,7 +47829,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 #ifndef XRT_NO_XWS
 
 // ========================================
-// File: D:/Git/xrt/lib/xws.h
+// File: D:/git/xrt/lib/xws.h
 // ========================================
 
 #ifndef XRT_XWS_H
@@ -47944,7 +47989,7 @@ static void __xwsCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 		sDst[0] = '\0';
 		return;
 	}
-	iLen = strlen(sSrc);
+	iLen = strlen(__xrt_cstr(sSrc));
 	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
@@ -48008,7 +48053,7 @@ static bool __xwsAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const voi
 }
 static bool __xwsAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
-	return __xwsAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+	return __xwsAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
 }
 static const char* __xwsHttpStatusText(uint32 iStatusCode)
 {
@@ -48274,7 +48319,7 @@ static xnet_result __xwsStreamSendFrame(xnetstream* pStream, bool bMask, uint8 i
 	XNET_FREE(pFrame);
 	return iRet;
 }
-static xnet_result __xwsStreamSendFrameEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+static xnet_result UNUSED_ATTR __xwsStreamSendFrameEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
 {
 	char* pFrame = NULL;
 	size_t iFrameLen = 0u;
@@ -48285,7 +48330,7 @@ static xnet_result __xwsStreamSendFrameEx(xnetstream* pStream, bool bFin, bool b
 	XNET_FREE(pFrame);
 	return iRet;
 }
-static bool __xwsStreamQueueFrameDirectEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+static bool UNUSED_ATTR __xwsStreamQueueFrameDirectEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
 {
 	char* pFrame = NULL;
 	size_t iFrameLen = 0u;
@@ -49198,7 +49243,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/network.h
+// File: D:/git/xrt/lib/network.h
 // ========================================
 
 
@@ -49394,7 +49439,7 @@ str xrtGetLocalName()
 {
 	char sLocalName[260];
 	if ( gethostname(sLocalName, 260) == 0 ) {
-		return xrtCopyStr(sLocalName, 0);
+		return xrtCopyStr((str)sLocalName, 0);
 	}
 	return xCore.sNull;
 }
@@ -49402,7 +49447,7 @@ str xrtGetLocalName()
 #ifndef XRT_NO_XID
 
 // ========================================
-// File: D:/Git/xrt/lib/xid.h
+// File: D:/git/xrt/lib/xid.h
 // ========================================
 
 
@@ -49467,7 +49512,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 #ifndef XRT_NO_BUFFER
 
 // ========================================
-// File: D:/Git/xrt/lib/buffer.h
+// File: D:/git/xrt/lib/buffer.h
 // ========================================
 
 
@@ -49564,7 +49609,7 @@ XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, u
 	}
 	// 字符串模式自动添加 \0
 	if ( bStrMode ) {
-		for ( int i = 0; i < bStrMode; i++ ) {
+		for ( uint32 i = 0; i < bStrMode; i++ ) {
 			pBuf->Buffer[pBuf->Length + i] = 0;
 		}
 	}
@@ -49579,7 +49624,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 #ifndef XRT_NO_ARRAY
 
 // ========================================
-// File: D:/Git/xrt/lib/array_point.h
+// File: D:/git/xrt/lib/array_point.h
 // ========================================
 
 
@@ -49732,7 +49777,7 @@ XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal)
 	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
 		return 0;
 	}
-	for ( int i = 0; i < pObject->Count; i++ ) {
+	for ( uint32 i = 0; i < pObject->Count; i++ ) {
 		if ( pObject->Memory[i] == NULL ) {
 			pObject->Memory[i] = pVal;
 			iRet = i + 1;
@@ -49869,7 +49914,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/array.h
+// File: D:/git/xrt/lib/array.h
 // ========================================
 
 
@@ -50158,7 +50203,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 #ifndef XRT_NO_BSMN
 
 // ========================================
-// File: D:/Git/xrt/lib/bsmm.h
+// File: D:/git/xrt/lib/bsmm.h
 // ========================================
 
 
@@ -50226,7 +50271,7 @@ XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 	}
 	objBSMM->Count = 0;
 	// 循环释放 PageMMU 中的内存页
-	for ( int i = 0; i < objBSMM->PageMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objBSMM->PageMMU.Count; i++ ) {
 		xrtFree(objBSMM->PageMMU.Memory[i]);
 		objBSMM->PageMMU.Memory[i] = NULL;
 	}
@@ -50301,7 +50346,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 #ifndef XRT_NO_MEMUNIT
 
 // ========================================
-// File: D:/Git/xrt/lib/memunit.h
+// File: D:/git/xrt/lib/memunit.h
 // ========================================
 
 
@@ -50467,7 +50512,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 #ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool_fs.h
+// File: D:/git/xrt/lib/mempool_fs.h
 // ========================================
 
 
@@ -50512,7 +50557,7 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
@@ -50563,7 +50608,7 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
@@ -50812,7 +50857,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 #ifndef XRT_NO_STACK
 
 // ========================================
-// File: D:/Git/xrt/lib/stack.h
+// File: D:/git/xrt/lib/stack.h
 // ========================================
 
 
@@ -50943,7 +50988,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/stack_dyn.h
+// File: D:/git/xrt/lib/stack_dyn.h
 // ========================================
 
 
@@ -50977,7 +51022,7 @@ XXAPI void xrtDynStackUnit(xdynstack objSTK)
 {
 	objSTK->Count = 0;
 	// 循环释放所有内存块
-	for ( int i = 0; i < objSTK->MMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objSTK->MMU.Count; i++ ) {
 		xrtFree(objSTK->MMU.Memory[i]);
 	}
 	xrtPtrArrayUnit(&objSTK->MMU);
@@ -51135,7 +51180,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 #ifndef XRT_NO_AVLTREE
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree_base.h
+// File: D:/git/xrt/lib/avltree_base.h
 // ========================================
 
 
@@ -51548,7 +51593,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree.h
+// File: D:/git/xrt/lib/avltree.h
 // ========================================
 
 
@@ -51832,7 +51877,7 @@ XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 #ifndef XRT_NO_MEMPOOL
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool.h
+// File: D:/git/xrt/lib/mempool.h
 // ========================================
 
 
@@ -51968,7 +52013,7 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
@@ -51988,7 +52033,7 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
 	objMP->iBucketCount = 0;
 	objMP->iFallbackCutoff = 0;
-	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
 			xrtFree(pInfo->Ptr);
@@ -52035,7 +52080,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
@@ -52055,7 +52100,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
 	objMP->iBucketCount = 0;
 	objMP->iFallbackCutoff = 0;
-	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
 			xrtFree(pInfo->Ptr);
@@ -52347,7 +52392,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 		MP256_GC_Bucket(&objMP->FSB_Memory[i], bFreeMark);
 	}
 	if ( bFreeMark ) {
-		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+		for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;
@@ -52364,7 +52409,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 			}
 		}
 	} else {
-		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+		for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;
@@ -52391,7 +52436,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 #ifndef XRT_NO_DICT
 
 // ========================================
-// File: D:/Git/xrt/lib/dict.h
+// File: D:/git/xrt/lib/dict.h
 // ========================================
 
 
@@ -52702,7 +52747,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_LIST
 
 // ========================================
-// File: D:/Git/xrt/lib/list.h
+// File: D:/git/xrt/lib/list.h
 // ========================================
 
 
@@ -52996,7 +53041,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_REGEX
 
 // ========================================
-// File: D:/Git/xrt/lib/regex.h
+// File: D:/git/xrt/lib/regex.h
 // ========================================
 
 /* 
@@ -58554,7 +58599,7 @@ static int bbre_builtin_cc_perl(
 #ifndef XRT_NO_VALUE
 
 // ========================================
-// File: D:/Git/xrt/lib/value.h
+// File: D:/git/xrt/lib/value.h
 // ========================================
 
 
@@ -58603,7 +58648,7 @@ static void __xvoDestroyValue(xvalue pVal)
 	if ( pVal->Type == XVO_DT_TEXT ) {
 		xrtFree(pVal->vText);
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
-		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			xvoUnref(pItem);
 		}
@@ -58922,52 +58967,52 @@ XXAPI str xvoGetText(xvalue pVal)
 		return pVal->vText;
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		str sRet = xrtTempMemory(24);
-		xrtI64ToStr(pVal->vInt, sRet);
+		xrtI64ToStr(pVal->vInt, __xrt_str(sRet));
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FLOAT ) {
 		str sRet = xrtTempMemory(32);
-		xrtNumToStr(pVal->vFloat, sRet);
+		xrtNumToStr(pVal->vFloat, __xrt_str(sRet));
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
-		return (pVal->vBool ? "true" : "false");
+		return (str)(pVal->vBool ? "true" : "false");
 	} else if ( pVal->Type == XVO_DT_TIME ) {
 		str sRet = xrtTempMemory(32);
 		int64 iYear;
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(pVal->vTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
-		sprintf(sRet, "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
+		sprintf(__xrt_str(sRet), "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_POINT ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[point:%p]", pVal->vPoint);
+		sprintf(__xrt_str(sRet), "[point:%p]", pVal->vPoint);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_FUNC ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[function:%p]", pVal->vFunc);
+		sprintf(__xrt_str(sRet), "[function:%p]", pVal->vFunc);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[array:%p]", pVal->vArray);
+		sprintf(__xrt_str(sRet), "[array:%p]", pVal->vArray);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_LIST ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[list:%p]", pVal->vList);
+		sprintf(__xrt_str(sRet), "[list:%p]", pVal->vList);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_COLL ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[coll:%p]", pVal->vColl);
+		sprintf(__xrt_str(sRet), "[coll:%p]", pVal->vColl);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[table:%p]", pVal->vTable);
+		sprintf(__xrt_str(sRet), "[table:%p]", pVal->vTable);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_CLASS ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[class:%p]", pVal->vStruct);
+		sprintf(__xrt_str(sRet), "[class:%p]", pVal->vStruct);
 		return sRet;
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
 		str sRet = xrtTempMemory(48);
-		sprintf(sRet, "[custom:%p]", pVal->vCustom);
+		sprintf(__xrt_str(sRet), "[custom:%p]", pVal->vCustom);
 		return sRet;
 	} else {
 		return xCore.sNull;
@@ -59158,7 +59203,7 @@ XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
 	if ( pArr2->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
-	for ( int i = 1; i <= pArr2->vArray->Count; i++ ) {
+	for ( uint32 i = 1; i <= pArr2->vArray->Count; i++ ) {
 		xvalue pVal = xrtPtrArrayGet_Inline(pArr2->vArray, i);
 		if ( !xvoPrepareStoreWithOwner_Inline(&pArr1->vArray->Owner, pVal) ) {
 			return FALSE;
@@ -59214,7 +59259,7 @@ XXAPI bool xvoArrayClear(xvalue pArr)
 	if ( pArr->Type != XVO_DT_ARRAY ) {
 		return FALSE;
 	}
-	for ( int i = 1; i <= pArr->vArray->Count; i++ ) {
+	for ( uint32 i = 1; i <= pArr->vArray->Count; i++ ) {
 		xvalue pVal = xrtPtrArrayGet_Inline(pArr->vArray, i);
 		xvoUnref(pVal);
 	}
@@ -59487,7 +59532,7 @@ int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey)
 			return 0;
 		} else if ( pNode->Value->Type == XVO_DT_TEXT ) {
 			if ( pNode->Value->Size == pObjKey->Value->Size ) {
-				return strcmp(pNode->Value->vText, pObjKey->Value->vText);
+				return strcmp(__xrt_cstr(pNode->Value->vText), __xrt_cstr(pObjKey->Value->vText));
 			} else {
 				if ( pNode->Value->Size > pObjKey->Value->Size ) {
 					return -1;
@@ -59834,7 +59879,7 @@ XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl)
 		return FALSE;
 	}
 	if ( (key != NULL) && (kl == 0) ) {
-		kl = strlen(key);
+		kl = strlen(__xrt_cstr(key));
 	}
 	return xrtDictExists(pTbl->vTable, key, kl);
 }
@@ -59847,7 +59892,7 @@ XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 		return FALSE;
 	}
 	if ( (key != NULL) && (kl == 0) ) {
-		kl = strlen(key);
+		kl = strlen(__xrt_cstr(key));
 	}
 	xvalue pOldVal = xrtDictRemovePtr(pTbl->vTable, key, kl);
 	if ( pOldVal ) {
@@ -59981,7 +60026,7 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
 		xvalue arrRet = xvoCreateArray();
-		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			if ( (pItem->Type >= XVO_DT_ARRAY) ) {
 				// 复杂数据类型 - 直接引用
@@ -60056,7 +60101,7 @@ XXAPI xvalue xvoDeepCopy(xvalue pVal)
 		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
 		xvalue arrRet = xvoCreateArray();
-		for ( int i = 1; i <= pVal->vArray->Count; i++ ) {
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			xvalue pItemCopy = xvoDeepCopy(pItem);
 			xrtPtrArrayAppend(arrRet->vArray, pItemCopy);
@@ -60227,7 +60272,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 #ifndef XRT_NO_JNUM
 
 // ========================================
-// File: D:/Git/xrt/lib/jnum.h
+// File: D:/git/xrt/lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -61727,7 +61772,7 @@ jnum_to_func(double, xrtStrToNum)
 #ifndef XRT_NO_JSON
 
 // ========================================
-// File: D:/Git/xrt/lib/json.h
+// File: D:/git/xrt/lib/json.h
 // ========================================
 
 
@@ -61799,12 +61844,18 @@ jnum_to_func(double, xrtStrToNum)
 #endif
 /**************** gcc builtin ****************/
 #if defined(__GNUC__) || defined(__clang__)
-#define UNUSED_ATTR                     __attribute__((unused))
+#ifndef UNUSED_ATTR
+#ifndef UNUSED_ATTR
+#define UNUSED_ATTR
+#endif                     __attribute__((unused))
+#endif
 #define FALLTHROUGH_ATTR                __attribute__((fallthrough))
 #define likely(cond)                    __builtin_expect(!!(cond), 1)
 #define unlikely(cond)                  __builtin_expect(!!(cond), 0)
 #else
+#ifndef UNUSED_ATTR
 #define UNUSED_ATTR
+#endif
 #define FALLTHROUGH_ATTR
 #define likely(cond)                    (cond)
 #define unlikely(cond)                  (cond)
@@ -63017,8 +63068,8 @@ XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb)
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-	parse_val.str = text;
-	parse_val.size = str_len ? str_len : strlen(text);
+	parse_val.str = __xrt_str(text);
+	parse_val.size = str_len ? str_len : strlen(__xrt_cstr(text));
 	parse_val.skip_blank = _skip_blank_rapid;
     
     parse_val.parse_string = _json_sax_parse_string;
@@ -63182,7 +63233,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
         }
 	}
     if ( ((jkey->info.type == JSON_ARRAY) || (jkey->info.type == JSON_OBJECT)) && (parser->value.vcmd == JSON_SAX_FINISH) ) {
-		if ( ctx->stack > 0) {
+		if ( ctx->stack != NULL ) {
 			xrtStackPopPtr(ctx->stack);
 			ctx->cur = xrtStackTopPtr(ctx->stack);
 		}
@@ -63194,8 +63245,8 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-    parse_val.str = text;
-    parse_val.size = str_len ? str_len : strlen(text);
+    parse_val.str = __xrt_str(text);
+    parse_val.size = str_len ? str_len : strlen(__xrt_cstr(text));
     parse_val.skip_blank = _skip_blank_rapid;
     parse_val.parse_string = _json_sax_parse_string;
     parse_val.cb = cb;
@@ -63229,7 +63280,7 @@ XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 	ctx.root = NULL;
 	ctx.cur = NULL;
 	if ( iSize == 0 ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
 	if ( iRet < 0 ) {
@@ -63265,7 +63316,7 @@ void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_s
 void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
 {
 	xrtJsonPrintArray(handle, sKey, JSON_SAX_START);
-	for ( int i = 0; i < varVal->vArray->Count; i++ ) {
+	for ( uint32 i = 0; i < varVal->vArray->Count; i++ ) {
 		xvalue objItem = xvoArrayGetValue(varVal, i);
 		if ( objItem->Type == XVO_DT_NULL ) {
 			xrtJsonPrintNull(handle, NULL);
@@ -63277,7 +63328,7 @@ void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_s
 			xrtJsonPrintDouble(handle, NULL, objItem->vFloat);
 		} else if ( objItem->Type == XVO_DT_TEXT ) {
 			json_string_t jstr = {0};
-			jstr.str = objItem->vText;
+			jstr.str = __xrt_str(objItem->vText);
 			xrtJsonUpdateStringInfo(&jstr);
 			xrtJsonPrintString(handle, NULL, &jstr);
 		} else if ( objItem->Type == XVO_DT_ARRAY ) {
@@ -63304,7 +63355,7 @@ int xvo_private_Stringify_Table_Proc(Dict_Key* pKey, xvalue* ppVal, json_sax_pri
 		xrtJsonPrintDouble(handle, &jkey, objItem->vFloat);
 	} else if ( objItem->Type == XVO_DT_TEXT ) {
 		json_string_t jstr = {0};
-		jstr.str = objItem->vText;
+		jstr.str = __xrt_str(objItem->vText);
 		xrtJsonUpdateStringInfo(&jstr);
 		xrtJsonPrintString(handle, &jkey, &jstr);
 	} else if ( objItem->Type == XVO_DT_ARRAY ) {
@@ -63340,7 +63391,7 @@ XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 		xrtJsonPrintDouble(handle, NULL, varVal->vFloat);
     } else if ( varVal->Type == XVO_DT_TEXT ) {
 		json_string_t jstr = {0};
-		jstr.str = varVal->vText;
+		jstr.str = __xrt_str(varVal->vText);
 		xrtJsonUpdateStringInfo(&jstr);
 		xrtJsonPrintString(handle, NULL, &jstr);
     } else if ( varVal->Type == XVO_DT_ARRAY ) {
@@ -63349,7 +63400,7 @@ XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 		xvo_private_Stringify_Table(handle, varVal, NULL);
     }
     // 返回结果
-	return xrtJsonPrintFinish(handle, pRetSize, NULL);
+	return (str)xrtJsonPrintFinish(handle, pRetSize, NULL);
 }
 XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 {
@@ -63364,7 +63415,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/xson.h
+// File: D:/git/xrt/lib/xson.h
 // ========================================
 
 typedef enum
@@ -63433,7 +63484,7 @@ static bool _xson_match_prefix(xson_parse_t* pParse, const char* sName, char chN
 	if ( pParse == NULL || sName == NULL ) {
 		return FALSE;
 	}
-	iLen = strlen(sName);
+	iLen = strlen(__xrt_cstr(sName));
 	iRemain = pParse->tJSON.size - pParse->tJSON.offset;
 	if ( iRemain <= iLen ) {
 		return FALSE;
@@ -64116,7 +64167,7 @@ static xvalue _xson_parse_text(str sText, size_t iSize, uint32 iFlags)
 		return xvoCreateNull();
 	}
 	tParse.tJSON.str = (char*)sText;
-	tParse.tJSON.size = iSize ? iSize : strlen(sText);
+	tParse.tJSON.size = iSize ? iSize : strlen(__xrt_cstr(sText));
 	tParse.tJSON.offset = 0;
 	tParse.tJSON.skip_blank = _skip_blank_rapid;
 	tParse.tJSON.parse_string = _json_sax_parse_string;
@@ -64180,7 +64231,7 @@ static bool _xson_print_append_cstr(xson_print_t* pPrint, const char* sText)
 	if ( sText == NULL ) {
 		return FALSE;
 	}
-	return _xson_print_append_raw(pPrint, sText, strlen(sText));
+	return _xson_print_append_raw(pPrint, sText, strlen(__xrt_cstr(sText)));
 }
 static bool _xson_print_append_char(xson_print_t* pPrint, char ch)
 {
@@ -64548,13 +64599,13 @@ static xson_write_result_t _xson_write_value(xson_print_t* pPrint, xvalue varVal
 		return _xson_print_append_double(pPrint, varVal->vFloat) ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
 	case XVO_DT_TEXT:
 		sText = varVal->vText ? varVal->vText : xCore.sNull;
-		return _xson_print_append_json_string(pPrint, sText, varVal->Size) ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
+		return _xson_print_append_json_string(pPrint, __xrt_cstr(sText), varVal->Size) ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
 	case XVO_DT_TIME:
 		if ( _xson_print_append_raw(pPrint, "time(", 5) == FALSE ) {
 			return XSON_WRITE_RESULT_FAIL;
 		}
 		sText = xvoGetText(varVal);
-		if ( _xson_print_append_cstr(pPrint, sText) == FALSE ) {
+		if ( _xson_print_append_cstr(pPrint, __xrt_cstr(sText)) == FALSE ) {
 			return XSON_WRITE_RESULT_FAIL;
 		}
 		return _xson_print_append_char(pPrint, ')') ? XSON_WRITE_RESULT_OK : XSON_WRITE_RESULT_FAIL;
@@ -64578,7 +64629,7 @@ static xson_write_result_t _xson_write_value(xson_print_t* pPrint, xvalue varVal
 			xrtFree(sBase64);
 			return XSON_WRITE_RESULT_FAIL;
 		}
-		if ( _xson_print_append_cstr(pPrint, sBase64) == FALSE ) {
+		if ( _xson_print_append_cstr(pPrint, __xrt_cstr(sBase64)) == FALSE ) {
 			xrtFree(sBase64);
 			return XSON_WRITE_RESULT_FAIL;
 		}
@@ -64636,7 +64687,7 @@ XXAPI str xrtStringifyXSON(xvalue varVal, int bFormat, uint32 iFlags, size_t* pR
 	if ( pRetSize ) {
 		*pRetSize = tPrint.iUsed;
 	}
-	return tPrint.sText;
+	return (str)tPrint.sText;
 }
 XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iFlags)
 {
@@ -64654,7 +64705,7 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 #ifndef XRT_NO_TEMPLATE
 
 // ========================================
-// File: D:/Git/xrt/lib/template.h
+// File: D:/git/xrt/lib/template.h
 // ========================================
 
 
@@ -64932,7 +64983,7 @@ static int xte_private_match_close(const XTE_PrivateBracket* pBracket, const cha
 }
 static char* xte_private_copy_view(const char* sText, uint32 iSize)
 {
-	return xrtCopyStr((str)sText, iSize);
+	return __xrt_str(xrtCopyStr((str)sText, iSize));
 }
 static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 {
@@ -65153,7 +65204,7 @@ static int xte_private_value_is_numeric(xvalue pVal)
 		case XVO_DT_TIME:
 			return 1;
 		case XVO_DT_TEXT:
-			return xte_private_is_number_view(xvoGetText(pVal), xvoGetSize(pVal));
+			return xte_private_is_number_view(__xrt_cstr(xvoGetText(pVal)), xvoGetSize(pVal));
 		default:
 			return 0;
 	}
@@ -65494,7 +65545,7 @@ static int xte_private_eval_bool_expr(XTE_RenderCtx* pCtx, const char* sText, ui
 		return 0;
 	}
 	if ( iSize == 0u ) {
-		iSize = (uint32)strlen(sText);
+		iSize = (uint32)strlen(__xrt_cstr(sText));
 	}
 	tParser.pRender = pCtx;
 	tParser.sText = sText;
@@ -65615,7 +65666,7 @@ static int xte_private_statement_name_eq(xtetemplate hTemplate, const XTE_Node* 
 		xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iStmtNameOff),
 		pNode->Data.Statement.iStmtNameSize,
 		sName,
-		(uint32)strlen(sName)
+		(uint32)strlen(__xrt_cstr(sName))
 	);
 }
 static void xte_private_fill_arg_list(xtetemplate hTemplate, uint32 iArgStart, uint32 iArgCount, XTE_ArgList* pArgs)
@@ -65703,7 +65754,7 @@ static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNod
 	pNode->Data.Statement.pData = pData;
 	return 1;
 }
-static int xte_private_rebuild_statement_data(xtetemplate hTemplate, int iDefaultCode, const char* sDefaultDesc)
+static int UNUSED_ATTR xte_private_rebuild_statement_data(xtetemplate hTemplate, int iDefaultCode, const char* sDefaultDesc)
 {
 	uint32 i = 0;
 	if ( hTemplate == NULL ) {
@@ -65727,7 +65778,7 @@ static const XTE_PrivateSubTemplateItem* xte_private_find_subtemplate(xtetemplat
 		return NULL;
 	}
 	if ( iNameSize == 0u ) {
-		iNameSize = (uint32)strlen(sName);
+		iNameSize = (uint32)strlen(__xrt_cstr(sName));
 	}
 	for ( i = 0; i < hTemplate->arrSubTemplate.Count; i++ ) {
 		XTE_PrivateSubTemplateItem* pItem = xte_private_template_get_subtemplate(hTemplate, i);
@@ -66744,23 +66795,23 @@ static char* xte_private_value_to_text(xvalue pVal)
 	char sBuf[128] = { 0 };
 	int iLen = 0;
 	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
-		return xrtCopyStr("", 0);
+		return __xrt_str(xrtCopyStr((str)"", 0));
 	}
 	switch ( pVal->Type ) {
 		case XVO_DT_TEXT:
-			return xrtCopyStr((str)xvoGetText(pVal), xvoGetSize(pVal));
+			return __xrt_str(xrtCopyStr((str)xvoGetText(pVal), xvoGetSize(pVal)));
 		case XVO_DT_BOOL:
-			return xrtCopyStr(xvoGetBool(pVal) ? "true" : "false", 0);
+			return __xrt_str(xrtCopyStr((str)(xvoGetBool(pVal) ? "true" : "false"), 0));
 		case XVO_DT_INT:
 			iLen = xrtI64ToStr(xvoGetInt(pVal), sBuf);
-			return xrtCopyStr(sBuf, iLen);
+			return __xrt_str(xrtCopyStr((str)sBuf, iLen));
 		case XVO_DT_FLOAT:
 			iLen = xrtNumToStr(xvoGetFloat(pVal), sBuf);
-			return xrtCopyStr(sBuf, iLen);
+			return __xrt_str(xrtCopyStr((str)sBuf, iLen));
 		case XVO_DT_TIME:
-			return xrtTimeToStr(xvoGetTime(pVal), 0);
+			return (char*)xrtTimeToStr(xvoGetTime(pVal), 0);
 		default:
-			return xrtCopyStr("", 0);
+			return (char*)xrtCopyStr((str)"", 0);
 	}
 }
 static xvalue xte_private_eval_expr_value(XTE_RenderCtx* pCtx, uint32 iExprIndex)
@@ -66841,13 +66892,13 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 		} else if ( pNode->Data.Output.iOutputType == XTE_OUTPUT_NUM ) {
 			const char* sFormat = (pNode->Data.Output.iFormatSize != 0u) ? xte_private_pool_ptr(pCtx->hTemplate, pNode->Data.Output.iFormatOff) : NULL;
 			if ( sFormat && (pVal->Type == XVO_DT_INT) ) {
-				sOut = xrtIntFormat(xvoGetInt(pVal), (str)sFormat);
+				sOut = (char*)xrtIntFormat(xvoGetInt(pVal), (str)sFormat);
 			} else if ( sFormat && ((pVal->Type == XVO_DT_FLOAT) || (pVal->Type == XVO_DT_INT) || (pVal->Type == XVO_DT_TEXT)) ) {
 				double fValue = (pVal->Type == XVO_DT_TEXT) ? xrtStrToNum(xvoGetText(pVal)) : xvoGetFloat(pVal);
 				if ( pVal->Type == XVO_DT_INT ) {
 					fValue = (double)xvoGetInt(pVal);
 				}
-				sOut = xrtNumFormat(fValue, (str)sFormat);
+				sOut = (char*)xrtNumFormat(fValue, (str)sFormat);
 			} else {
 				sOut = xte_private_value_to_text(pVal);
 			}
@@ -66859,7 +66910,7 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 			} else if ( pVal->Type == XVO_DT_INT ) {
 				tValue = (xtime)xvoGetInt(pVal);
 			}
-			sOut = xrtTimeFormat(tValue, sFormat);
+			sOut = (char*)xrtTimeFormat(tValue, sFormat);
 		}
 	}
 	if ( sOut ) {
@@ -67776,7 +67827,7 @@ XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize,
 		return NULL;
 	}
 	if ( iSize == 0u ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 	if ( hEngine == NULL ) {
 		hEngine = xteCreateEngine();
@@ -67945,7 +67996,7 @@ XXAPI xvalue xteResolvePath(const char* sPath, size_t iPathSize, xvalue pCurrent
 		return &XVO_VALUE_NULL;
 	}
 	if ( iSize == 0u ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 	if ( iSize == 0u ) {
 		return &XVO_VALUE_NULL;
@@ -68065,7 +68116,7 @@ XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* s
 		return NULL;
 	}
 	if ( iNameSize == 0u ) {
-		iNameSize = strlen(sName);
+		iNameSize = strlen(__xrt_cstr(sName));
 	}
 	for ( i = 0; i < pArgs->iCount; i++ ) {
 		const XTE_ArgItem* pArg = &pArgs->pItems[i];
@@ -68533,7 +68584,7 @@ XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize)
 		return 0;
 	}
 	if ( iSize == 0u ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 	return xte_private_writer_write(pCtx->pRender->pWriter, sText, iSize);
 }
@@ -69320,7 +69371,7 @@ XXAPI void xrtMemTelemetryReset()
 XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut)
 {
 	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
-	int i;
+	uint32 i;
 	if ( pOut == NULL ) {
 		return;
 	}

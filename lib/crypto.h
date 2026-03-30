@@ -1379,7 +1379,7 @@ static int __xrt_gcm_crypt_and_tag(__xrt_gcm_ctx *pCtx, int iMode,
 	uint8 *pTag, size_t iTagLen)
 {
 	size_t i;
-	uint8 arrWork[16], arrEctr[16];
+	uint8 arrEctr[16];
 	uint32 iCtr;
 	
 	// 初始化 Y = IV || 0^31 || 1 (when IV is 12 bytes)
@@ -1561,7 +1561,8 @@ XXAPI void xrtRandomBytes(uint8 *pBuf, size_t iLen)
 		if ( !procRtlGenRandom ) {
 			HMODULE hLib = LoadLibraryA("advapi32.dll");
 			if ( hLib ) {
-				procRtlGenRandom = (RtlGenRandom_t)GetProcAddress(hLib, "SystemFunction036");
+				FARPROC pProc = GetProcAddress(hLib, "SystemFunction036");
+				memcpy(&procRtlGenRandom, &pProc, sizeof(procRtlGenRandom));
 			}
 		}
 		if ( procRtlGenRandom ) {
@@ -2637,7 +2638,7 @@ static struct __xrt_bigint* __xrt_bi_comp_left_shift(struct __xrt_bi_ctx *pCtx, 
 }
 
 // 右移 n 个 component 位置 (除以 RADIX^n)
-static struct __xrt_bigint* __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
+static struct __xrt_bigint* UNUSED_ATTR __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
 {
 	int iNewSize = pBi->iSize - iShift;
 	if ( iNewSize <= 0 ) {
@@ -2823,7 +2824,7 @@ static void __xrt_bi_free_mod(struct __xrt_bi_ctx *pCtx, int iModOffset)
 static struct __xrt_bigint* __xrt_bi_mod_power(struct __xrt_bi_ctx *pCtx,
 	struct __xrt_bigint *pBase, struct __xrt_bigint *pExp)
 {
-	int i, j;
+	int i;
 	int iNumBits;
 	struct __xrt_bigint *pResult;
 

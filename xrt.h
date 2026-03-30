@@ -43,6 +43,13 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <limits.h>
+#ifndef UNUSED_ATTR
+	#if defined(__GNUC__) || defined(__clang__)
+		#define UNUSED_ATTR __attribute__((unused))
+	#else
+		#define UNUSED_ATTR
+	#endif
+#endif
 
 #if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
 	#include <io.h>

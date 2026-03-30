@@ -90,12 +90,18 @@
 /**************** gcc builtin ****************/
 
 #if defined(__GNUC__) || defined(__clang__)
-#define UNUSED_ATTR                     __attribute__((unused))
+#ifndef UNUSED_ATTR
+#ifndef UNUSED_ATTR
+#define UNUSED_ATTR
+#endif                     __attribute__((unused))
+#endif
 #define FALLTHROUGH_ATTR                __attribute__((fallthrough))
 #define likely(cond)                    __builtin_expect(!!(cond), 1)
 #define unlikely(cond)                  __builtin_expect(!!(cond), 0)
 #else
+#ifndef UNUSED_ATTR
 #define UNUSED_ATTR
+#endif
 #define FALLTHROUGH_ATTR
 #define likely(cond)                    (cond)
 #define unlikely(cond)                  (cond)
@@ -1472,8 +1478,8 @@ XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb)
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-	parse_val.str = text;
-	parse_val.size = str_len ? str_len : strlen(text);
+	parse_val.str = __xrt_str(text);
+	parse_val.size = str_len ? str_len : strlen(__xrt_cstr(text));
 	parse_val.skip_blank = _skip_blank_rapid;
     
     parse_val.parse_string = _json_sax_parse_string;
@@ -1654,7 +1660,7 @@ static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
         }
 	}
     if ( ((jkey->info.type == JSON_ARRAY) || (jkey->info.type == JSON_OBJECT)) && (parser->value.vcmd == JSON_SAX_FINISH) ) {
-		if ( ctx->stack > 0) {
+		if ( ctx->stack != NULL ) {
 			xrtStackPopPtr(ctx->stack);
 			ctx->cur = xrtStackTopPtr(ctx->stack);
 		}
@@ -1667,8 +1673,8 @@ static int _xrt_json_parse_with_context(str text, size_t str_len, json_sax_cb_t 
 {
     int ret = -1;
     json_parse_t parse_val = {0};
-    parse_val.str = text;
-    parse_val.size = str_len ? str_len : strlen(text);
+    parse_val.str = __xrt_str(text);
+    parse_val.size = str_len ? str_len : strlen(__xrt_cstr(text));
     parse_val.skip_blank = _skip_blank_rapid;
     parse_val.parse_string = _json_sax_parse_string;
     parse_val.cb = cb;
@@ -1706,7 +1712,7 @@ XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 	ctx.root = NULL;
 	ctx.cur = NULL;
 	if ( iSize == 0 ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
 	if ( iRet < 0 ) {
@@ -1746,7 +1752,7 @@ void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_s
 void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
 {
 	xrtJsonPrintArray(handle, sKey, JSON_SAX_START);
-	for ( int i = 0; i < varVal->vArray->Count; i++ ) {
+	for ( uint32 i = 0; i < varVal->vArray->Count; i++ ) {
 		xvalue objItem = xvoArrayGetValue(varVal, i);
 		if ( objItem->Type == XVO_DT_NULL ) {
 			xrtJsonPrintNull(handle, NULL);
@@ -1758,7 +1764,7 @@ void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_s
 			xrtJsonPrintDouble(handle, NULL, objItem->vFloat);
 		} else if ( objItem->Type == XVO_DT_TEXT ) {
 			json_string_t jstr = {0};
-			jstr.str = objItem->vText;
+			jstr.str = __xrt_str(objItem->vText);
 			xrtJsonUpdateStringInfo(&jstr);
 			xrtJsonPrintString(handle, NULL, &jstr);
 		} else if ( objItem->Type == XVO_DT_ARRAY ) {
@@ -1785,7 +1791,7 @@ int xvo_private_Stringify_Table_Proc(Dict_Key* pKey, xvalue* ppVal, json_sax_pri
 		xrtJsonPrintDouble(handle, &jkey, objItem->vFloat);
 	} else if ( objItem->Type == XVO_DT_TEXT ) {
 		json_string_t jstr = {0};
-		jstr.str = objItem->vText;
+		jstr.str = __xrt_str(objItem->vText);
 		xrtJsonUpdateStringInfo(&jstr);
 		xrtJsonPrintString(handle, &jkey, &jstr);
 	} else if ( objItem->Type == XVO_DT_ARRAY ) {
@@ -1821,7 +1827,7 @@ XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 		xrtJsonPrintDouble(handle, NULL, varVal->vFloat);
     } else if ( varVal->Type == XVO_DT_TEXT ) {
 		json_string_t jstr = {0};
-		jstr.str = varVal->vText;
+		jstr.str = __xrt_str(varVal->vText);
 		xrtJsonUpdateStringInfo(&jstr);
 		xrtJsonPrintString(handle, NULL, &jstr);
     } else if ( varVal->Type == XVO_DT_ARRAY ) {
@@ -1830,7 +1836,7 @@ XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 		xvo_private_Stringify_Table(handle, varVal, NULL);
     }
     // 返回结果
-	return xrtJsonPrintFinish(handle, pRetSize, NULL);
+	return (str)xrtJsonPrintFinish(handle, pRetSize, NULL);
 }
 XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 {

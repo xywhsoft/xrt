@@ -151,7 +151,7 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
@@ -171,7 +171,7 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
 	objMP->iBucketCount = 0;
 	objMP->iFallbackCutoff = 0;
-	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
 			xrtFree(pInfo->Ptr);
@@ -219,7 +219,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMP->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
@@ -239,7 +239,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
 	objMP->iBucketCount = 0;
 	objMP->iFallbackCutoff = 0;
-	for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
 			xrtFree(pInfo->Ptr);
@@ -549,7 +549,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 	}
 
 	if ( bFreeMark ) {
-		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+		for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;
@@ -566,7 +566,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 			}
 		}
 	} else {
-		for ( int i = 0; i < objMP->BigMM.Count; i++ ) {
+		for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
 				continue;

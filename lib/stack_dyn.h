@@ -34,7 +34,7 @@ XXAPI void xrtDynStackUnit(xdynstack objSTK)
 {
 	objSTK->Count = 0;
 	// 循环释放所有内存块
-	for ( int i = 0; i < objSTK->MMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objSTK->MMU.Count; i++ ) {
 		xrtFree(objSTK->MMU.Memory[i]);
 	}
 	xrtPtrArrayUnit(&objSTK->MMU);

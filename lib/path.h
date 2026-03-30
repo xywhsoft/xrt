@@ -7,9 +7,9 @@ XXAPI str xrtPathGetNameExt(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
-			if ( i >= (iSize - 1) ) {
+			if ( i == (iSize - 1u) ) {
 				return xCore.sNull;
 			} else {
 				return xrtCopyStr(&sPath[i + 1], iSize - i - 1);
@@ -27,12 +27,12 @@ XXAPI str xrtPathGetName(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	uint iPointPos = 0;
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	size_t iPointPos = 0;
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( sPath[i] == L'.' ) {
 			iPointPos = iSize - i;
 		} else if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
-			if ( i >= (iSize - 1) ) {
+			if ( i == (iSize - 1u) ) {
 				return xCore.sNull;
 			} else {
 				return xrtCopyStr(&sPath[i + 1], iSize - i - iPointPos - 1);
@@ -50,7 +50,7 @@ XXAPI str xrtPathGetExt(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( sPath[i] == L'.' ) {
 			return xrtCopyStr(&sPath[i + 1], iSize - i - 1);
 		} else if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
@@ -68,9 +68,9 @@ XXAPI str xrtPathGetDir(str sPath, size_t iSize)
 	if ( sPath == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen((const char*)sPath); }
 	if ( iSize == 0 ) { return xCore.sNull; }
-	for ( int i = iSize - 1; i >= 0; i-- ) {
+	for ( size_t i = iSize; i-- > 0; ) {
 		if ( (sPath[i] == L'/') || (sPath[i] == L'\\') ) {
-			if ( i >= (iSize - 1) ) {
+			if ( i == (iSize - 1u) ) {
 				return xrtCopyStr(sPath, iSize - 1);
 			} else {
 				return xrtCopyStr(sPath, i);

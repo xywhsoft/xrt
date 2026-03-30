@@ -119,7 +119,7 @@ static bool __xhttpdStrEqNoCase(const char* sA, const char* sB)
 	return sA[i] == '\0' && sB[i] == '\0';
 }
 
-static long __xhttpdAtomicAdd(volatile long* pValue, long iDelta)
+static long UNUSED_ATTR __xhttpdAtomicAdd(volatile long* pValue, long iDelta)
 {
 	return __xnetAtomicAddFetch32(pValue, iDelta);
 }
@@ -165,7 +165,7 @@ static void __xhttpdCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 		sDst[0] = '\0';
 		return;
 	}
-	iLen = strlen(sSrc);
+	iLen = strlen(__xrt_cstr(sSrc));
 	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
@@ -199,7 +199,7 @@ static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const 
 
 static bool __xhttpdAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
-	return __xhttpdAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+	return __xhttpdAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
 }
 
 static const char* __xhttpdStatusText(uint32 iStatusCode)

@@ -610,7 +610,7 @@ XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 		// 其他平台方案
 		if ( objFile && (objFile->idx != -1) ) {
 			if ( sText == NULL ) { return 0; }
-			if ( iSize == 0 ) { iSize = strlen(sText); }
+			if ( iSize == 0 ) { iSize = strlen(__xrt_cstr(sText)); }
 			if ( iSize == 0 ) { return 0; }
 			if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 				// 需要转换为目标文件的编码再写入
@@ -1703,10 +1703,10 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( sSrc == NULL ) { return 0; }
-		size_t iSrcSize = strlen(sSrc);
+		size_t iSrcSize = strlen(__xrt_cstr(sSrc));
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
-		size_t iDstSize = strlen(sDst);
+		size_t iDstSize = strlen(__xrt_cstr(sDst));
 		if ( iDstSize == 0 ) { return 0; }
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
@@ -1723,10 +1723,10 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 	#else
 		// 其他平台方案
 		if ( sSrc == NULL ) { return 0; }
-		size_t iSrcSize = strlen(sSrc);
+		size_t iSrcSize = strlen(__xrt_cstr(sSrc));
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
-		size_t iDstSize = strlen(sDst);
+		size_t iDstSize = strlen(__xrt_cstr(sDst));
 		if ( iDstSize == 0 ) { return 0; }
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;

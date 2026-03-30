@@ -382,7 +382,7 @@ static void __xnetDgramFinalizeSocketClose(xdgramsock* pSock)
 	}
 }
 
-static bool __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, const void* pData, size_t iLen)
+static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, const void* pData, size_t iLen)
 {
 	xnetchain* pChain;
 	xnetdgrampkt* pPacket = NULL;

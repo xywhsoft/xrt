@@ -45,7 +45,7 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);
@@ -97,7 +97,7 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
-	for ( int i = 0; i < objMM->arrMMU.Count; i++ ) {
+	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
 			xrtMemUnitDestroy(pNode->objMMU);

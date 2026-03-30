@@ -190,13 +190,11 @@ XXAPI int xrtDay(xtime iTime)
 			break;
 		}
 	}
-	int iMonth = 1;
 	for ( int i = 1; i <= 12; i++ ) {
 		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
 		if ( iYearMod >= iSec ) {
 			iYearMod -= iSec;
 		} else {
-			iMonth = i;
 			break;
 		}
 	}

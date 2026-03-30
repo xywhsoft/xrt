@@ -218,7 +218,7 @@
 		pthread_mutex_t tRingLock;
 	} __xnet_uring_ctx;
 
-	static bool __xnetPortUringHasNativeRing(const xnetport* pPort)
+	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
 	{
 		const __xnet_uring_ctx* pCtx = pPort ? (const __xnet_uring_ctx*)pPort->pCtx : NULL;
 		return pCtx && pCtx->tNativeRing.bReady;
@@ -1112,20 +1112,20 @@
 		__xnetPortUringCancelTimer
 	};
 
-	static const xnetportops* xrtNetPortUringOps(void)
+	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
 	{
 		return &__g_xnetPortUringOps;
 	}
 
 #else
 
-	static bool __xnetPortUringHasNativeRing(const xnetport* pPort)
+	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
 	{
 		(void)pPort;
 		return false;
 	}
 
-	static const xnetportops* xrtNetPortUringOps(void)
+	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
 	{
 		return NULL;
 	}

@@ -1080,7 +1080,7 @@ XXAPI void xrtMemTelemetryReset()
 XXAPI void xrtMemTelemetryGetSnapshot(xrtMemTelemetrySnapshot* pOut)
 {
 	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
-	int i;
+	uint32 i;
 
 	if ( pOut == NULL ) {
 		return;

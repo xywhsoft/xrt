@@ -185,7 +185,7 @@ static void __xwsCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 		sDst[0] = '\0';
 		return;
 	}
-	iLen = strlen(sSrc);
+	iLen = strlen(__xrt_cstr(sSrc));
 	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
@@ -257,7 +257,7 @@ static bool __xwsAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const voi
 
 static bool __xwsAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
-	return __xwsAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(sText) : 0);
+	return __xwsAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
 }
 
 static const char* __xwsHttpStatusText(uint32 iStatusCode)
@@ -538,7 +538,7 @@ static xnet_result __xwsStreamSendFrame(xnetstream* pStream, bool bMask, uint8 i
 	return iRet;
 }
 
-static xnet_result __xwsStreamSendFrameEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+static xnet_result UNUSED_ATTR __xwsStreamSendFrameEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
 {
 	char* pFrame = NULL;
 	size_t iFrameLen = 0u;
@@ -550,7 +550,7 @@ static xnet_result __xwsStreamSendFrameEx(xnetstream* pStream, bool bFin, bool b
 	return iRet;
 }
 
-static bool __xwsStreamQueueFrameDirectEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
+static bool UNUSED_ATTR __xwsStreamQueueFrameDirectEx(xnetstream* pStream, bool bFin, bool bMask, uint8 iOpcode, const void* pPayload, size_t iPayloadLen)
 {
 	char* pFrame = NULL;
 	size_t iFrameLen = 0u;

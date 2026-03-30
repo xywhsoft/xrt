@@ -319,7 +319,7 @@ static int xte_private_match_close(const XTE_PrivateBracket* pBracket, const cha
 
 static char* xte_private_copy_view(const char* sText, uint32 iSize)
 {
-	return xrtCopyStr((str)sText, iSize);
+	return __xrt_str(xrtCopyStr((str)sText, iSize));
 }
 
 static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
@@ -577,7 +577,7 @@ static int xte_private_value_is_numeric(xvalue pVal)
 		case XVO_DT_TIME:
 			return 1;
 		case XVO_DT_TEXT:
-			return xte_private_is_number_view(xvoGetText(pVal), xvoGetSize(pVal));
+			return xte_private_is_number_view(__xrt_cstr(xvoGetText(pVal)), xvoGetSize(pVal));
 		default:
 			return 0;
 	}
@@ -967,7 +967,7 @@ static int xte_private_eval_bool_expr(XTE_RenderCtx* pCtx, const char* sText, ui
 		return 0;
 	}
 	if ( iSize == 0u ) {
-		iSize = (uint32)strlen(sText);
+		iSize = (uint32)strlen(__xrt_cstr(sText));
 	}
 
 	tParser.pRender = pCtx;
@@ -1115,7 +1115,7 @@ static int xte_private_statement_name_eq(xtetemplate hTemplate, const XTE_Node* 
 		xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iStmtNameOff),
 		pNode->Data.Statement.iStmtNameSize,
 		sName,
-		(uint32)strlen(sName)
+		(uint32)strlen(__xrt_cstr(sName))
 	);
 }
 
@@ -1221,7 +1221,7 @@ static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNod
 	return 1;
 }
 
-static int xte_private_rebuild_statement_data(xtetemplate hTemplate, int iDefaultCode, const char* sDefaultDesc)
+static int UNUSED_ATTR xte_private_rebuild_statement_data(xtetemplate hTemplate, int iDefaultCode, const char* sDefaultDesc)
 {
 	uint32 i = 0;
 
@@ -1251,7 +1251,7 @@ static const XTE_PrivateSubTemplateItem* xte_private_find_subtemplate(xtetemplat
 		return NULL;
 	}
 	if ( iNameSize == 0u ) {
-		iNameSize = (uint32)strlen(sName);
+		iNameSize = (uint32)strlen(__xrt_cstr(sName));
 	}
 
 	for ( i = 0; i < hTemplate->arrSubTemplate.Count; i++ ) {
@@ -2453,24 +2453,24 @@ static char* xte_private_value_to_text(xvalue pVal)
 	int iLen = 0;
 
 	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
-		return xrtCopyStr("", 0);
+		return __xrt_str(xrtCopyStr((str)"", 0));
 	}
 
 	switch ( pVal->Type ) {
 		case XVO_DT_TEXT:
-			return xrtCopyStr((str)xvoGetText(pVal), xvoGetSize(pVal));
+			return __xrt_str(xrtCopyStr((str)xvoGetText(pVal), xvoGetSize(pVal)));
 		case XVO_DT_BOOL:
-			return xrtCopyStr(xvoGetBool(pVal) ? "true" : "false", 0);
+			return __xrt_str(xrtCopyStr((str)(xvoGetBool(pVal) ? "true" : "false"), 0));
 		case XVO_DT_INT:
 			iLen = xrtI64ToStr(xvoGetInt(pVal), sBuf);
-			return xrtCopyStr(sBuf, iLen);
+			return __xrt_str(xrtCopyStr((str)sBuf, iLen));
 		case XVO_DT_FLOAT:
 			iLen = xrtNumToStr(xvoGetFloat(pVal), sBuf);
-			return xrtCopyStr(sBuf, iLen);
+			return __xrt_str(xrtCopyStr((str)sBuf, iLen));
 		case XVO_DT_TIME:
-			return xrtTimeToStr(xvoGetTime(pVal), 0);
+			return (char*)xrtTimeToStr(xvoGetTime(pVal), 0);
 		default:
-			return xrtCopyStr("", 0);
+			return (char*)xrtCopyStr((str)"", 0);
 	}
 }
 
@@ -2564,13 +2564,13 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 			const char* sFormat = (pNode->Data.Output.iFormatSize != 0u) ? xte_private_pool_ptr(pCtx->hTemplate, pNode->Data.Output.iFormatOff) : NULL;
 
 			if ( sFormat && (pVal->Type == XVO_DT_INT) ) {
-				sOut = xrtIntFormat(xvoGetInt(pVal), (str)sFormat);
+				sOut = (char*)xrtIntFormat(xvoGetInt(pVal), (str)sFormat);
 			} else if ( sFormat && ((pVal->Type == XVO_DT_FLOAT) || (pVal->Type == XVO_DT_INT) || (pVal->Type == XVO_DT_TEXT)) ) {
 				double fValue = (pVal->Type == XVO_DT_TEXT) ? xrtStrToNum(xvoGetText(pVal)) : xvoGetFloat(pVal);
 				if ( pVal->Type == XVO_DT_INT ) {
 					fValue = (double)xvoGetInt(pVal);
 				}
-				sOut = xrtNumFormat(fValue, (str)sFormat);
+				sOut = (char*)xrtNumFormat(fValue, (str)sFormat);
 			} else {
 				sOut = xte_private_value_to_text(pVal);
 			}
@@ -2583,7 +2583,7 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 			} else if ( pVal->Type == XVO_DT_INT ) {
 				tValue = (xtime)xvoGetInt(pVal);
 			}
-			sOut = xrtTimeFormat(tValue, sFormat);
+			sOut = (char*)xrtTimeFormat(tValue, sFormat);
 		}
 	}
 
@@ -3633,7 +3633,7 @@ XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize,
 	}
 
 	if ( iSize == 0u ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 
 	if ( hEngine == NULL ) {
@@ -3833,7 +3833,7 @@ XXAPI xvalue xteResolvePath(const char* sPath, size_t iPathSize, xvalue pCurrent
 		return &XVO_VALUE_NULL;
 	}
 	if ( iSize == 0u ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 	if ( iSize == 0u ) {
 		return &XVO_VALUE_NULL;
@@ -3976,7 +3976,7 @@ XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* s
 		return NULL;
 	}
 	if ( iNameSize == 0u ) {
-		iNameSize = strlen(sName);
+		iNameSize = strlen(__xrt_cstr(sName));
 	}
 
 	for ( i = 0; i < pArgs->iCount; i++ ) {
@@ -4523,7 +4523,7 @@ XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize)
 		return 0;
 	}
 	if ( iSize == 0u ) {
-		iSize = strlen(sText);
+		iSize = strlen(__xrt_cstr(sText));
 	}
 	return xte_private_writer_write(pCtx->pRender->pWriter, sText, iSize);
 }

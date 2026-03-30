@@ -160,7 +160,7 @@ XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal)
 	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
 		return 0;
 	}
-	for ( int i = 0; i < pObject->Count; i++ ) {
+	for ( uint32 i = 0; i < pObject->Count; i++ ) {
 		if ( pObject->Memory[i] == NULL ) {
 			pObject->Memory[i] = pVal;
 			iRet = i + 1;
