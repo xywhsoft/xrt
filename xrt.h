@@ -1587,6 +1587,71 @@
 	
 	// 运行程序并等待程序运行结束
 	XXAPI int xrtChain(str sPath, size_t iSize);
+
+	#define XPROC_STATE_FAILED		-1
+	#define XPROC_STATE_INIT		0
+	#define XPROC_STATE_RUNNING		1
+	#define XPROC_STATE_EXITED		2
+	#define XPROC_STATE_CLOSED		3
+
+	#define XPROC_F_USE_SHELL		0x0001u
+	#define XPROC_F_PIPE_STDIN		0x0002u
+	#define XPROC_F_PIPE_STDOUT		0x0004u
+	#define XPROC_F_PIPE_STDERR		0x0008u
+	#define XPROC_F_MERGE_STDERR	0x0010u
+	#define XPROC_F_HIDE_WINDOW		0x0020u
+	#define XPROC_F_NO_CAPTURE		0x0040u
+	#define XPROC_F_KILL_TREE		0x0080u
+
+	typedef struct xprocess_struct xprocess;
+
+	typedef struct {
+		void (*OnStart)(xprocess* pProcess, ptr pUserData);
+		void (*OnStdout)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
+		void (*OnStderr)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
+		void (*OnExit)(xprocess* pProcess, int iExitCode, ptr pUserData);
+	} xprocessevents;
+
+	typedef struct {
+		uint32 iFlags;
+		str sProgram;
+		str* arrArgs;
+		uint32 iArgCount;
+		str sCommandLine;
+		str sWorkDir;
+		uint32 iReadChunkSize;
+		size_t iMaxCaptureBytes;
+		const xprocessevents* pEvents;
+		ptr pUserData;
+	} xprocessconfig;
+
+	typedef struct {
+		int iExitCode;
+		ptr pStdout;
+		size_t iStdoutSize;
+		ptr pStderr;
+		size_t iStderrSize;
+		bool bStdoutTruncated;
+		bool bStderrTruncated;
+	} xprocessresult;
+
+	XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig);
+	XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig);
+	XXAPI void xrtProcessDestroy(xprocess* pProcess);
+	XXAPI int xrtProcessState(xprocess* pProcess);
+	XXAPI bool xrtProcessIsRunning(xprocess* pProcess);
+	XXAPI int xrtProcessExitCode(xprocess* pProcess);
+	XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize);
+	XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize);
+	XXAPI bool xrtProcessCloseStdin(xprocess* pProcess);
+	XXAPI bool xrtProcessWait(xprocess* pProcess);
+	XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs);
+	XXAPI bool xrtProcessTerminate(xprocess* pProcess);
+	XXAPI bool xrtProcessKillTree(xprocess* pProcess);
+	XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize);
+	XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize);
+	XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs);
+	XXAPI void xrtProcessResultUnit(xprocessresult* pResult);
 	
 	
 	
@@ -4245,6 +4310,7 @@
 	XXAPI xfuture* xTaskRunEngine(xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
 	XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
 	XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+	XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess);
 	#if !defined(XRT_NO_COROUTINE)
 	XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
 	#endif

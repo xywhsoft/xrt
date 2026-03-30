@@ -154,6 +154,7 @@ If you want the first full learning path after that, continue with:
 3. [Coroutine, Future, and Task Intro](guide/coroutine-future-task-intro.en.md)
 4. [xnet-v2 and TLS Mainline Intro](guide/xnet-v2-tls-intro.en.md)
 5. [Streaming LLM API Intro](guide/streaming-llm-api-intro.en.md)
+6. [Subprocess and Tool Execution](guide/subprocess-intro.en.md)
 
 If you prefer complete combined examples, continue with:
 

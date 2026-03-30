@@ -2638,21 +2638,6 @@ static struct __xrt_bigint* __xrt_bi_comp_left_shift(struct __xrt_bi_ctx *pCtx, 
 }
 
 // 右移 n 个 component 位置 (除以 RADIX^n)
-static struct __xrt_bigint* UNUSED_ATTR __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
-{
-	int iNewSize = pBi->iSize - iShift;
-	if ( iNewSize <= 0 ) {
-		__xrt_bi_free(pCtx, pBi);
-		return __xrt_bi_int_to_bi(pCtx, 0);
-	}
-	{
-		struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iNewSize);
-		memcpy(pR->pComps, &pBi->pComps[iShift], iNewSize * __XRT_BI_COMP_BYTE_SIZE);
-		__xrt_bi_free(pCtx, pBi);
-		return __xrt_bi_trim(pR);
-	}
-}
-
 // 除法: pA / pM, is_mod=1 返回余数, is_mod=0 返回商
 static struct __xrt_bigint* __xrt_bi_divide(struct __xrt_bi_ctx *pCtx,
 	struct __xrt_bigint *pU, struct __xrt_bigint *pV, int bIsMod)

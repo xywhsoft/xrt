@@ -68,6 +68,23 @@ static char** __g_arrXrtTestExtraArgs;
 static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 
 
+#if defined(__GNUC__) || defined(__clang__)
+/*
+ * The monolithic test TU intentionally mixes `str`/`u16str` APIs with plain
+ * C string literals and debug-style printf output. Keep warning gating focused
+ * on the library/runtime code while letting the legacy harness stay readable.
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpointer-sign"
+#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Waddress"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
+
 
 #include "test/test_jnum.h"
 #include "test/test_suplib.h"
@@ -164,6 +181,10 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 	#endif
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
 
 
 typedef int (*xrt_test_proc)(xrtGlobalData* pCore);
@@ -211,6 +232,12 @@ void OnError(str sError)
 		return 0;	\
 	}
 
+#define XRT_TEST_WRAP_CORE_INT(procWrapper, procTest)	\
+	static int procWrapper(xrtGlobalData* pCore)	\
+	{	\
+		return procTest(pCore);	\
+	}
+
 #define XRT_TEST_WRAP_VOID(procWrapper, procTest)	\
 	static int procWrapper(xrtGlobalData* pCore)	\
 	{	\
@@ -239,7 +266,7 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_JNum, Test_JNum)
 XRT_TEST_WRAP_CORE(__xrtTestRun_SupLib, Test_SupLib)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Base, Test_Base)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Charset, Test_Charset)
-XRT_TEST_WRAP_CORE(__xrtTestRun_OS, Test_OS)
+XRT_TEST_WRAP_CORE_INT(__xrtTestRun_OS, Test_OS)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Math, Test_Math)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Approx, Test_Approx)
 XRT_TEST_WRAP_CORE(__xrtTestRun_String, Test_String)
@@ -867,6 +894,10 @@ int main(int argc, char** argv)
 	#if defined(_WIN32) || defined(_WIN64)
 		SetConsoleOutputCP(65001);
 	#endif
+
+	if ( argc > 1 && argv != NULL && strcmp(argv[1], "__subprocess_helper") == 0 ) {
+		return __xrtTestSubprocessHelperMain(argc - 2, &argv[2]);
+	}
 
 	iCliRet = __xrtTestResolveCli(argc, argv, &iRunMode, &sRunId);
 	if ( iCliRet != 0 ) {

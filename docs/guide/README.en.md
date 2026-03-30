@@ -124,6 +124,7 @@ The current English guide entry points follow the reviewed Chinese mainline:
 6. [xnet-v2 Stream Wait-Source Intro](xnet-stream-wait-source-intro.en.md)
 7. [Minimal HTTP Service Intro](minimal-http-service-intro.en.md)
 8. [Streaming LLM API Intro](streaming-llm-api-intro.en.md)
+9. [Subprocess and Tool Execution](subprocess-intro.en.md)
 
 These pages are enough to support a first-pass learning path from runtime and data handling to concurrency, networking, and AI-facing usage.
 

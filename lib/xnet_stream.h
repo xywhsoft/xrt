@@ -2250,6 +2250,7 @@ static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xso
 	}
 }
 
+#if defined(XRT_INTERNAL_TEST_ENV)
 static xnetstream* __xnetListenerTryAcceptOneEx(xnetlistener* pListener, ptr pUserData, int* pSysErr)
 {
 	__xnet_listener_accept_raw tRaw;
@@ -2269,12 +2270,11 @@ static xnetstream* __xnetListenerTryAcceptOneEx(xnetlistener* pListener, ptr pUs
 	return pStream;
 }
 
-static xnetstream* UNUSED_ATTR __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUserData)
+static xnetstream* __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUserData)
 {
 	return __xnetListenerTryAcceptOneEx(pListener, pUserData, NULL);
 }
-
-
+#endif
 
 /* ============================== Stream helpers ============================== */
 

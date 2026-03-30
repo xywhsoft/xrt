@@ -25,7 +25,7 @@ void Test_String(xrtGlobalData* xCore)
 	printf("xrtHexDecode : %s\n", xrtHexDecode(sRet, 0));
 	
 	str sRet2 = xrtBase64Encode("HIJKLMN abcdefg 1234567890", 0, NULL);
-	printf("xrtBase64Encode : %s\n", sRet2, NULL);
+	printf("xrtBase64Encode : %s\n", sRet2);
 	printf("xrtBase64Decode : %s\n", xrtBase64Decode(sRet2, 0, NULL));
 	
 	printf("xrtRandStr : %s\n", xrtRandStr(NULL, 0, 32));

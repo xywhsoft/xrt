@@ -1112,10 +1112,12 @@
 		__xnetPortUringCancelTimer
 	};
 
-	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
+	#if defined(XRT_INTERNAL_TEST_ENV)
+	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return &__g_xnetPortUringOps;
 	}
+	#endif
 
 #else
 
@@ -1125,10 +1127,12 @@
 		return false;
 	}
 
-	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
+	#if defined(XRT_INTERNAL_TEST_ENV)
+	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return NULL;
 	}
+	#endif
 
 #endif
 

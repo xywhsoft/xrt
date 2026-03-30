@@ -529,10 +529,10 @@ static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, siz
 	*pOutLen = 0;
 	bChunked = __xhttpContainsTokenNoCase(__xhttpRequestHeaderValue(pReq, "Transfer-Encoding"), "chunked");
 
-	snprintf(aLine, sizeof(aLine), "%s %s HTTP/1.1\r\n",
-		pReq->sMethod,
-		pReq->tURL.sPath[0] ? pReq->tURL.sPath : "/");
-	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, pReq->sMethod) ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, " ") ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, pReq->tURL.sPath[0] ? pReq->tURL.sPath : "/") ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, " HTTP/1.1\r\n") ) goto fail;
 
 	if ( !__xhttpRequestHasHeader(pReq, "Host") ) {
 		char sHostHeader[384];

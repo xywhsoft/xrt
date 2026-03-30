@@ -218,7 +218,7 @@ typedef struct {
 
 /* ============================== Internal address helpers ============================== */
 
-#define __XNET_ADDR_STR_CAP 64
+#define __XNET_ADDR_STR_CAP 80
 
 #if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 	#define __XNET_THREAD_LOCAL __declspec(thread)

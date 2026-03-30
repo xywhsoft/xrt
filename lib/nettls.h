@@ -3912,13 +3912,6 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 		}
 	}
 
-	if ( pCtx->iServerSigAlg != 0x0807 && !__xrt_tls_sign_server_hash ) {
-		#ifdef DEBUG_TRACE
-			printf("    [TLS12] SKE sign: impossible state\n");
-		#endif
-		return false;
-	}
-
 	__xrt_tls_store_be16(aMsg + iPos, pCtx->iServerSigAlg);
 	iPos += 2;
 	__xrt_tls_store_be16(aMsg + iPos, (uint16)iSigLen);

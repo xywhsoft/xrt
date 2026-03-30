@@ -243,6 +243,8 @@ static void __xrtRuntimeFinalizeLocked();
 #include "lib/thread.h"
 #endif
 
+#include "lib/subprocess.h"
+
 #ifndef XRT_NO_QUEUE
 #include "lib/queue.h"
 #endif

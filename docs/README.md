@@ -149,6 +149,7 @@
 3. [协程、future、task 入门](guide/coroutine-future-task-intro.md)
 4. [xnet-v2 与 TLS 主线](guide/xnet-v2-tls-intro.md)
 5. [流式 LLM API 教学](guide/streaming-llm-api-intro.md)
+6. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
 
 如果你想直接看完整组合案例，建议优先阅读：
 

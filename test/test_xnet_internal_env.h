@@ -8,6 +8,10 @@
  * - 避免单头文件接口滞后于源码主线
  */
 
+#ifndef XRT_INTERNAL_TEST_ENV
+	#define XRT_INTERNAL_TEST_ENV
+#endif
+
 #include "../xrt.c"
 
 #endif
