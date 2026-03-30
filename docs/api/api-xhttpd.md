@@ -8,29 +8,32 @@
 
 ## 1. 定位
 
-`xhttpd` 是当前主线 HTTP 服务端。
+`xhttpd` 是 XRT 当前内建的 HTTP/1.1 服务端层。
 
 它负责：
 
-- 监听端口
-- 接受连接
+- 监听与 accept
 - 解析 HTTP/1.1 请求
 - 物化 request / response 对象
-- 支持明文 HTTP 和 TLS 服务路径
-- 与 `xnetengine`、协程、future 主线配合
+- 支持明文 HTTP 与内建 TLS 服务路径
+- 维护单连接上的串行 keep-alive 复用
+- 与 runtime、future、task、coroutine 主线配合
 
-它的设计目标是：
+`xhttpd` 的目标是“传输层 + handler 层”，而不是一个大而全的 Web 框架。
 
-- 轻量但可直接用于服务开发
-- 保留基础设施层的可控性
-- 不把路由、静态文件、模板系统强行耦合进核心服务端
+当前边界：
 
+- request / response body 仍然是 whole-message 模型
+- 静态文件、路由表、通用 upgrade 分发仍然 deferred
+- 交互式终端、PTY 之类能力不属于这一层
+
+---
 
 ## 2. 核心类型
 
 ### `xhttpdconfig`
 
-核心字段包括：
+重要字段：
 
 - `tBindAddr`
 - `iFlags`
@@ -38,69 +41,49 @@
 - `iRecvLimit`
 - `pTlsConfig`
 
-用途：
-
-- 设置监听地址与端口
-- 调整 backlog
-- 控制接收上限
-- 开启 TLS 服务
-
-
 ### `xhttpdrequest`
 
-当前请求对象包含：
+请求物化对象，包含：
 
-- `iFlags`
-- `iHeaderCount`
-- `iContentLength`
-- `sMethod`
-- `sTarget`
-- `sPath`
-- `sQuery`
-- `sVersion`
-- `arrHeaders`
-- `pBody / iBodyLen`
-
+- 请求行字段：`sMethod`、`sTarget`、`sPath`、`sQuery`、`sVersion`
+- header 数组：`arrHeaders`
+- body 指针与长度：`pBody / iBodyLen`
+- `XHTTPD_REQ_F_KEEPALIVE` 等标记
 
 ### `xhttpdresponse`
 
-当前响应对象包含：
+响应物化对象，包含：
 
-- `iStatusCode`
-- `iFlags`
-- `iHeaderCount`
-- `sReason`
-- `arrHeaders`
-- `pBody / iBodyLen`
-
+- 状态行字段：`iStatusCode`、`sReason`
+- header 数组：`arrHeaders`
+- body 指针与长度：`pBody / iBodyLen`
+- `XHTTPD_RESP_F_CLOSE` 等关闭策略标记
 
 ### `xhttpdevents`
 
-当前服务端事件模型：
+`xhttpd` 现在同时支持同步 handler 和异步 handler：
 
 ```c
 typedef struct {
 	void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
 	bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
+	xfuture* (*OnRequestAsync)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq);
 	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
 	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
 } xhttpdevents;
 ```
 
-其中最关键的是：
+请求分发优先级：
 
-- `OnRequest`
+1. 如果设置了 `OnRequestAsync`，并且它返回非空 future，这个请求就进入异步路径。
+2. 如果 `OnRequestAsync` 返回 `NULL`，且连接上还没有手动发送响应，则回退到 `OnRequest`。
+3. 两条路径都没有处理时，`xhttpd` 自动返回 `404 Not Found`。
 
-它的职责是：
+---
 
-- 读取请求
-- 填充响应
-- 返回是否已成功产出响应
+## 3. 正式 API
 
-
-## 3. 当前正式 API
-
-### 配置与请求/响应对象
+### 请求 / 响应辅助函数
 
 ```c
 XXAPI void xrtHttpdConfigInit(xhttpdconfig* pCfg);
@@ -108,6 +91,8 @@ XXAPI void xrtHttpdRequestInit(xhttpdrequest* pReq);
 XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq);
 XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp);
 XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp);
+XXAPI xhttpdresponse* xrtHttpdResponseCreate(void);
+XXAPI void xrtHttpdResponseDestroy(xhttpdresponse* pResp);
 XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
 XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
 XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
@@ -115,6 +100,15 @@ XXAPI const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* s
 XXAPI const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName);
 ```
 
+### 异步连接辅助函数
+
+```c
+XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn);
+XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* pResp);
+XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags);
+```
+
+这组 API 用来支持“先挂起请求，稍后再回包”的模式。
 
 ### 服务端生命周期
 
@@ -126,101 +120,129 @@ XXAPI void xrtHttpdStop(xhttpdserver* pServer);
 XXAPI void xrtHttpdDestroy(xhttpdserver* pServer);
 ```
 
-推荐流程：
+---
 
-1. `ConfigInit`
-2. 填 bind 地址、TLS 配置、接收上限
-3. 准备 `xhttpdevents`
-4. `xrtHttpdCreate`
-5. `xrtHttpdStart`
-6. 停止时：
-	- `xrtHttpdStop`
-	- `xrtHttpdDestroy`
+## 4. 异步 handler 合同
 
+### `OnRequest`
 
-## 4. 常见用法
+`OnRequest` 仍然是最简单的同步路径：
 
-### 4.1 最小 HTTP 服务
+- 填充 `pResp`
+- 返回 `true` 表示已处理
+- 返回 `false` 表示交给内建 `404`
+
+### `OnRequestAsync`
+
+`OnRequestAsync` 是新的“请求可挂起、完成后再回包”路径。
+
+推荐合同：
+
+- 返回一个 `xfuture*`，表示该请求进入异步处理
+- 返回 `NULL`，表示让 `xhttpd` 回退到 `OnRequest`
+- future 成功完成且 value 非空时，这个 value 必须是 `xhttpdresponse*`
+- future 成功完成且 value 为 `NULL` 时，表示 handler 已经通过 `xrtHttpdConnRespond()` 手动回包
+- future 失败时，`xhttpd` 会映射成 `500`、`408` 或 `503` 这类错误响应
+
+所有权规则：
+
+- 返回给 `xhttpd` 的 future 所有权转移给 `xhttpd`
+- future 成功产出的 `xhttpdresponse*` 所有权也转移给 `xhttpd`
+- 异步场景建议用 `xrtHttpdResponseCreate()` / `xrtHttpdResponseDestroy()`
+
+request 生命周期：
+
+- `xhttpdrequest*` 会一直保持有效，直到这个异步请求真正完成，或连接被拆掉
+- 如果你要跨越更长的异步边界，最稳的做法仍然是把自己需要的字段复制出来
+
+connection 生命周期：
+
+- 只要异步请求还在 pending，`xhttpd` 就会保住 `xhttpdconn`
+- `xrtHttpdConnRespond()` 可以从别的线程、task 或 future 完成回调里调用
+- keep-alive 仍然保持串行：当前异步请求没真正结束前，同一连接上的下一个请求不会继续推进
+
+---
+
+## 5. 推荐写法
+
+### 同步 handler
 
 ```c
 static bool procOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp)
 {
+	(void)pOwner;
+	(void)pServer;
+	(void)pConn;
+	(void)pReq;
 	xrtHttpdResponseSetStatus(pResp, 200u, "OK");
 	xrtHttpdResponseSetBodyCopy(pResp, "hello", 5u, "text/plain; charset=utf-8");
 	return true;
 }
 ```
 
-
-### 4.2 设置 JSON 响应
-
-```c
-xrtHttpdResponseSetStatus(pResp, 200u, "OK");
-xrtHttpdResponseSetHeader(pResp, "Cache-Control", "no-store");
-xrtHttpdResponseSetBodyCopy(pResp, sJson, strlen(sJson), "application/json");
-```
-
-
-### 4.3 读取请求头
+### future 直接返回响应对象
 
 ```c
-const char* sAuth = xrtHttpdRequestHeader(pReq, "Authorization");
+static xfuture* procOnRequestAsync(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq)
+{
+	(void)pOwner;
+	(void)pServer;
+	(void)pConn;
+	(void)pReq;
+	return xTaskRunThread(procBuildResponse, NULL, 0);
+}
 ```
 
+其中 `procBuildResponse()` 返回 `XRT_NET_OK`，并把 `pOut->pValue` 设为 `xhttpdresponse*`。
 
-## 5. 与其他模块的关系
+### 手动延迟回包
 
-### 与 `xnet_stream`
+```c
+static xfuture* procOnRequestAsync(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq)
+{
+	(void)pOwner;
+	(void)pServer;
+	(void)pReq;
+	return xTaskRunThread(procRespondLater, pConn, 0);
+}
+```
 
-- 每个 HTTP 连接建立在 stream 上
-- keep-alive、close、TLS、收发链都来自 stream 主线
+在 `procRespondLater()` 里：
 
-### 与 `xtlssession`
+- 创建 `xhttpdresponse*`
+- 调用 `xrtHttpdConnRespond(pConn, pResp)`
+- 销毁本地响应对象
+- 最后把 future resolve 成 `NULL`
 
-- `pTlsConfig != NULL` 时进入 TLS 服务路径
+### coroutine 产出 future
 
-### 与 `xhttp_util`
+`OnRequestAsync` 也可以返回 `xTaskRunCo()` 产出的 future。
 
-- header / token / target / multipart 等底层能力可直接复用
+常见做法是：
 
-### 与模板 / JSON / Value
+- 创建 scheduler
+- 创建 coroutine future
+- 跑一次 scheduler
+- 把这个 future 返回给 `xhttpd`
 
-- `xhttpd` 本身不强耦合这些模块
-- 但它是这些上层能力最自然的承载服务端
+如果你的服务主线本来就是 coroutine + future 组合，这条路径会很自然。
 
-这意味着：
+---
 
-- 如果返回 JSON，推荐先组织 `xvalue`，再序列化输出
-- 如果返回 HTML，推荐先组织 `xvalue`，再交给 template 渲染
+## 6. 说明与边界
 
-## 6. 当前最推荐的使用方式
+- `xhttpd` 因为支持异步 handler，并不会自动变成一个路由框架。
+- `xrtHttpdConnRespond()` 仍然是“发送一个完整响应消息”，不是 streaming body API。
+- 如果你要做 websocket upgrade，请继续走专门的 `xws` 主线。
+- 如果你要做大文件流式发送、range、middleware chain，这些仍然更适合放在上层。
 
-当前更推荐把 `xhttpd` 当成：
+---
 
-- 最小 HTTP 服务的正式入口
-- JSON API 的正式入口
-- 后续模板渲染、AI 结果展示、后台管理页面等能力的上层承载者
-
-而不是继续从底层 socket / HTTP 解析手工搭服务。
-
-## 7. 当前边界
-
-当前 `xhttpd` 文档覆盖的是：
-
-- 当前 HTTP/1.1 服务端主线
-- request / response 物化
-- 监听与生命周期
-
-当前仍明确 deferred 的能力包括：
-
-- 通用路由表
-- 静态文件服务
-- 泛型 upgrade 分发
-- 更完整的流式 request / response body
-
-## 8. 建议继续阅读
+## 7. 建议继续阅读
 
 - [XNet V2](api-xnet-v2.md)
-- [Value](api-value.md)
-- [JSON](api-json.md)
-- [Template](api-template.md)
+- [Network TLS](api-network-tls.md)
+- [XHTTP](api-xhttp.md)
+- [Coroutine](api-coroutine.md)
+- [Future / Task / Promise](api-future-task-promise.md)
+- [XHTTPD 异步处理入门](../guide/httpd-async-intro.md)

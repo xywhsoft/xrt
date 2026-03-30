@@ -126,6 +126,7 @@ The current English guide entry points follow the reviewed Chinese mainline:
 8. [Streaming LLM API Intro](streaming-llm-api-intro.en.md)
 9. [Subprocess and Tool Execution](subprocess-intro.en.md)
 10. [Async File and Directory Operations](file-async-intro.en.md)
+11. [Async HTTPD Handling](httpd-async-intro.en.md)
 
 These pages are enough to support a first-pass learning path from runtime and data handling to concurrency, networking, and AI-facing usage.
 

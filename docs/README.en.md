@@ -156,6 +156,7 @@ If you want the first full learning path after that, continue with:
 5. [Streaming LLM API Intro](guide/streaming-llm-api-intro.en.md)
 6. [Subprocess and Tool Execution](guide/subprocess-intro.en.md)
 7. [Async File and Directory Operations](guide/file-async-intro.en.md)
+8. [Async HTTPD Handling](guide/httpd-async-intro.en.md)
 
 If you prefer complete combined examples, continue with:
 

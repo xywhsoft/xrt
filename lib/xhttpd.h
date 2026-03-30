@@ -77,6 +77,7 @@ typedef struct {
 typedef struct {
 	void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
 	bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
+	xfuture* (*OnRequestAsync)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq);
 	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
 	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
 } xhttpdevents;
@@ -85,9 +86,15 @@ typedef struct {
 struct xrt_httpd_conn {
 	struct xrt_httpd_conn* pNext;
 	volatile long iCleanupPosted;
+	volatile long iConnLock;
+	volatile long iRefCount;
 	xhttpdserver* pServer;
 	xnetstream* pStream;
+	xhttpdrequest* pRequest;
 	bool bResponseInFlight;
+	bool bResponseCommitted;
+	bool bResponseDrained;
+	bool bAsyncPending;
 	bool bKeepAlive;
 };
 
@@ -101,6 +108,18 @@ struct xrt_httpd_server {
 	volatile long bRunning;
 	xhttpdconn* pConnHead;
 };
+
+typedef struct {
+	xhttpdconn* pConn;
+	xfuture* pFuture;
+} __xhttpd_async_ctx;
+
+typedef struct {
+	xhttpdconn* pConn;
+	char* pBytes;
+	size_t iLen;
+	bool bClose;
+} __xhttpd_send_task;
 
 static char __xhttpdToLower(char ch)
 {
@@ -132,6 +151,11 @@ static long __xhttpdAtomicCompareExchange(volatile long* pValue, long iExchange,
 static long __xhttpdAtomicLoad(volatile long* pValue)
 {
 	return __xnetAtomicLoad32(pValue);
+}
+
+static long __xhttpdAtomicLoadConst(const volatile long* pValue)
+{
+	return __xnetAtomicLoad32((volatile long*)pValue);
 }
 
 static void __xhttpdSleep0(void)
@@ -200,6 +224,40 @@ static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const 
 static bool __xhttpdAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
 	return __xhttpdAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
+}
+
+static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain);
+static void __xhttpdEmitServerError(xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
+
+static xhttpdrequest* __xhttpdRequestCreate(void)
+{
+	xhttpdrequest* pReq = (xhttpdrequest*)XNET_ALLOC(sizeof(xhttpdrequest));
+	if ( !pReq ) return NULL;
+	xrtHttpdRequestInit(pReq);
+	return pReq;
+}
+
+static void __xhttpdRequestDestroy(xhttpdrequest* pReq)
+{
+	if ( !pReq ) return;
+	xrtHttpdRequestUnit(pReq);
+	XNET_FREE(pReq);
+}
+
+static xhttpdconn* __xhttpdConnAddRef(xhttpdconn* pConn)
+{
+	if ( !pConn ) return NULL;
+	(void)__xhttpdAtomicAdd(&pConn->iRefCount, 1);
+	return pConn;
+}
+
+static void __xhttpdConnRelease(xhttpdconn* pConn)
+{
+	if ( !pConn ) return;
+	if ( __xhttpdAtomicAdd(&pConn->iRefCount, -1) != 0 ) return;
+	__xhttpdRequestDestroy(pConn->pRequest);
+	pConn->pRequest = NULL;
+	XNET_FREE(pConn);
 }
 
 static const char* __xhttpdStatusText(uint32 iStatusCode)
@@ -298,6 +356,21 @@ XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp)
 	memset(pResp, 0, sizeof(xhttpdresponse));
 }
 
+XXAPI xhttpdresponse* xrtHttpdResponseCreate(void)
+{
+	xhttpdresponse* pResp = (xhttpdresponse*)XNET_ALLOC(sizeof(xhttpdresponse));
+	if ( !pResp ) return NULL;
+	xrtHttpdResponseInit(pResp);
+	return pResp;
+}
+
+XXAPI void xrtHttpdResponseDestroy(xhttpdresponse* pResp)
+{
+	if ( !pResp ) return;
+	xrtHttpdResponseUnit(pResp);
+	XNET_FREE(pResp);
+}
+
 XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason)
 {
 	if ( !pResp ) return;
@@ -342,6 +415,64 @@ XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData,
 	if ( sContentType && sContentType[0] ) {
 		return xrtHttpdResponseSetHeader(pResp, "Content-Type", sContentType);
 	}
+	return true;
+}
+
+static bool __xhttpdResponseCopy(xhttpdresponse* pDst, const xhttpdresponse* pSrc)
+{
+	if ( !pDst || !pSrc ) return false;
+	memset(pDst, 0, sizeof(xhttpdresponse));
+	*pDst = *pSrc;
+	pDst->pBody = NULL;
+	if ( pSrc->pBody && pSrc->iBodyLen > 0u ) {
+		pDst->pBody = (char*)XNET_ALLOC(pSrc->iBodyLen + 1u);
+		if ( !pDst->pBody ) {
+			memset(pDst, 0, sizeof(xhttpdresponse));
+			return false;
+		}
+		memcpy(pDst->pBody, pSrc->pBody, pSrc->iBodyLen);
+		pDst->pBody[pSrc->iBodyLen] = '\0';
+	}
+	return true;
+}
+
+static bool __xhttpdRequestWantsKeepAlive(const xhttpdrequest* pReq)
+{
+	return pReq && (pReq->iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0u;
+}
+
+static bool __xhttpdPrepareResponse(const xhttpdrequest* pReq, const xhttpdresponse* pSrc, xhttpdresponse* pDst, bool* pKeepAlive)
+{
+	const char* sConn;
+	bool bCloseToken;
+	bool bKeepAliveHeader;
+	bool bKeepAlive;
+
+	if ( pKeepAlive ) *pKeepAlive = false;
+	if ( !pReq || !pSrc || !pDst ) return false;
+	if ( !__xhttpdResponseCopy(pDst, pSrc) ) return false;
+
+	sConn = xrtHttpdResponseHeader(pDst, "Connection");
+	bCloseToken = __xhttpdContainsTokenNoCase(sConn, "close");
+	bKeepAliveHeader = __xhttpdContainsTokenNoCase(sConn, "keep-alive");
+	if ( bKeepAliveHeader && !bCloseToken ) {
+		pDst->iFlags &= ~XHTTPD_RESP_F_CLOSE;
+	}
+
+	bKeepAlive = __xhttpdRequestWantsKeepAlive(pReq) &&
+		((pDst->iFlags & XHTTPD_RESP_F_CLOSE) == 0u) &&
+		!bCloseToken;
+	if ( __xhttpdRequestWantsKeepAlive(pReq) && !bCloseToken && !sConn ) {
+		pDst->iFlags &= ~XHTTPD_RESP_F_CLOSE;
+		bKeepAlive = true;
+		if ( !xrtHttpdResponseSetHeader(pDst, "Connection", "keep-alive") ) {
+			xrtHttpdResponseUnit(pDst);
+			return false;
+		}
+	}
+
+	if ( !bKeepAlive ) pDst->iFlags |= XHTTPD_RESP_F_CLOSE;
+	if ( pKeepAlive ) *pKeepAlive = bKeepAlive;
 	return true;
 }
 
@@ -432,6 +563,169 @@ fail:
 	return false;
 }
 
+static xhttpdrequest* __xhttpdConnDetachRequestLocked(xhttpdconn* pConn)
+{
+	xhttpdrequest* pReq;
+	if ( !pConn ) return NULL;
+	pReq = pConn->pRequest;
+	pConn->pRequest = NULL;
+	pConn->bResponseInFlight = false;
+	pConn->bResponseCommitted = false;
+	pConn->bResponseDrained = false;
+	pConn->bAsyncPending = false;
+	pConn->bKeepAlive = false;
+	return pReq;
+}
+
+static void __xhttpdConnTryFinalizeRequest(xhttpdconn* pConn)
+{
+	xhttpdrequest* pReq = NULL;
+	xnetstream* pStream = NULL;
+	bool bKickRecv = false;
+
+	if ( !pConn ) return;
+
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->pRequest && !pConn->bAsyncPending ) {
+		if ( pConn->pStream == NULL ) {
+			pReq = __xhttpdConnDetachRequestLocked(pConn);
+		}
+		else if ( pConn->bKeepAlive && pConn->bResponseCommitted && pConn->bResponseDrained && !pConn->pStream->bClosing ) {
+			pReq = __xhttpdConnDetachRequestLocked(pConn);
+			pStream = pConn->pStream;
+			bKickRecv = xrtNetChainBytes(&pStream->tRxChain) > 0u;
+		}
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+
+	__xhttpdRequestDestroy(pReq);
+	if ( bKickRecv ) __xhttpdStreamOnRecv(pConn, pStream, &pStream->tRxChain);
+}
+
+XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn)
+{
+	return pConn &&
+		pConn->pStream != NULL &&
+		__xhttpdAtomicLoadConst(&pConn->iCleanupPosted) == 0 &&
+		!pConn->pStream->bClosing;
+}
+
+static void __xhttpdSendTaskProc(xnetworker* pWorker, ptr pArg)
+{
+	__xhttpd_send_task* pTask = (__xhttpd_send_task*)pArg;
+	xhttpdconn* pConn;
+	xhttpdserver* pServer = NULL;
+	xnetstream* pStream = NULL;
+	xnet_result iRet = XRT_NET_CLOSED;
+	(void)pWorker;
+	if ( !pTask ) return;
+	pConn = pTask->pConn;
+	if ( pConn ) {
+		__xhttpdLock(&pConn->iConnLock);
+		pServer = pConn->pServer;
+		pStream = pConn->pStream;
+		if ( pStream && !pStream->bClosing && __xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0 ) {
+			iRet = xrtNetStreamSend(pStream, pTask->pBytes, pTask->iLen);
+			if ( iRet != XRT_NET_OK ) {
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			}
+			else if ( pTask->bClose ) {
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+			}
+		}
+		__xhttpdUnlock(&pConn->iConnLock);
+		if ( iRet != XRT_NET_OK ) __xhttpdEmitServerError(pServer, pConn, -1);
+		__xhttpdConnTryFinalizeRequest(pConn);
+		__xhttpdConnRelease(pConn);
+	}
+	XNET_FREE(pTask->pBytes);
+	XNET_FREE(pTask);
+}
+
+XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* pResp)
+{
+	xhttpdresponse tSend;
+	xnetstream* pStream;
+	xhttpdrequest* pReq;
+	char* pBytes = NULL;
+	size_t iLen = 0u;
+	__xhttpd_send_task* pTask = NULL;
+	bool bKeepAlive = false;
+	xnet_result iRet;
+
+	if ( !pConn || !pResp ) return XRT_NET_ERROR;
+	memset(&tSend, 0, sizeof(tSend));
+
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	pReq = pConn->pRequest;
+	if ( !pStream || pStream->bClosing || !pReq || pConn->bResponseCommitted || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return XRT_NET_CLOSED;
+	}
+	if ( !__xhttpdPrepareResponse(pReq, pResp, &tSend, &bKeepAlive) ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return XRT_NET_ERROR;
+	}
+	if ( !__xhttpdBuildResponseBytes(&tSend, &pBytes, &iLen) ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		xrtHttpdResponseUnit(&tSend);
+		return XRT_NET_ERROR;
+	}
+	pConn->bResponseCommitted = true;
+	pConn->bResponseDrained = false;
+	pConn->bKeepAlive = bKeepAlive;
+	if ( __xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		iRet = xrtNetStreamSend(pStream, pBytes, iLen);
+		if ( iRet != XRT_NET_OK ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		}
+		else if ( !bKeepAlive ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+		}
+	}
+	else {
+		pTask = (__xhttpd_send_task*)XNET_ALLOC(sizeof(__xhttpd_send_task));
+		if ( !pTask ) {
+			iRet = XRT_NET_ERROR;
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		}
+		else {
+			memset(pTask, 0, sizeof(*pTask));
+			pTask->pConn = __xhttpdConnAddRef(pConn);
+			pTask->pBytes = pBytes;
+			pTask->iLen = iLen;
+			pTask->bClose = !bKeepAlive;
+			iRet = xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xhttpdSendTaskProc, pTask);
+			if ( iRet == XRT_NET_OK ) {
+				pBytes = NULL;
+			}
+			else {
+				__xhttpdConnRelease(pTask->pConn);
+				XNET_FREE(pTask);
+				pTask = NULL;
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			}
+		}
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	XNET_FREE(pBytes);
+	if ( iRet != XRT_NET_OK ) {
+		xrtHttpdResponseUnit(&tSend);
+		return iRet;
+	}
+	xrtHttpdResponseUnit(&tSend);
+	__xhttpdConnTryFinalizeRequest(pConn);
+	return XRT_NET_OK;
+}
+
+XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags)
+{
+	if ( !pConn || !pConn->pStream ) return XRT_NET_ERROR;
+	xrtNetStreamClose(pConn->pStream, iCloseFlags);
+	return XRT_NET_OK;
+}
+
 static void __xhttpdServerAddConn(xhttpdserver* pServer, xhttpdconn* pConn)
 {
 	if ( !pServer || !pConn ) return;
@@ -472,17 +766,24 @@ static xhttpdconn* __xhttpdServerDetachAllConns(xhttpdserver* pServer)
 static void __xhttpdConnCleanupTask(xnetworker* pWorker, ptr pArg)
 {
 	xhttpdconn* pConn = (xhttpdconn*)pArg;
+	xnetstream* pStream = NULL;
+	xhttpdrequest* pReq = NULL;
 	(void)pWorker;
 	if ( !pConn ) return;
+	__xhttpdLock(&pConn->iConnLock);
 	if ( pConn->pServer ) {
 		__xhttpdServerRemoveConn(pConn->pServer, pConn);
 		pConn->pServer = NULL;
 	}
-	if ( pConn->pStream ) {
-		xrtNetStreamDestroy(pConn->pStream);
-		pConn->pStream = NULL;
+	pStream = pConn->pStream;
+	pConn->pStream = NULL;
+	if ( !pConn->bAsyncPending ) {
+		pReq = __xhttpdConnDetachRequestLocked(pConn);
 	}
-	XNET_FREE(pConn);
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( pStream ) xrtNetStreamDestroy(pStream);
+	__xhttpdRequestDestroy(pReq);
+	__xhttpdConnRelease(pConn);
 }
 
 static void __xhttpdConnPostCleanup(xhttpdconn* pConn)
@@ -526,42 +827,122 @@ static bool __xhttpdIsBenignStreamError(xhttpdconn* pConn, xnetstream* pStream, 
 static bool __xhttpdSendResponseAndClose(xhttpdconn* pConn, const xhttpdresponse* pResp)
 {
 	char* pBytes = NULL;
-	size_t iLen = 0;
-	xnetstream* pStream;
+	size_t iLen = 0u;
+	xnet_result iRet;
 	if ( !pConn || !pConn->pStream || !pResp ) return false;
-	pStream = pConn->pStream;
 	if ( !__xhttpdBuildResponseBytes(pResp, &pBytes, &iLen) ) return false;
-	if ( pStream->pTls ) {
-		if ( !__xnetStreamAppendTlsPlainCopy(pStream, pBytes, iLen) ) {
-			XNET_FREE(pBytes);
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-			return false;
-		}
-	} else {
-		if ( !__xnetStreamAppendSendCopy(pStream, pBytes, iLen) ) {
-			XNET_FREE(pBytes);
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-			return false;
-		}
-	}
+	iRet = xrtNetStreamSend(pConn->pStream, pBytes, iLen);
 	XNET_FREE(pBytes);
-	__xnetStreamKickWrite(pStream);
-	if ( (pResp->iFlags & XHTTPD_RESP_F_CLOSE) != 0 ) {
-		xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+	if ( iRet != XRT_NET_OK ) {
+		xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+		return false;
 	}
+	xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_GRACEFUL);
 	return true;
 }
 
 static void __xhttpdSendSimpleStatus(xhttpdconn* pConn, uint32 iStatusCode, const char* sBody)
 {
 	xhttpdresponse tResp;
+	bool bHasRequest = false;
 	xrtHttpdResponseInit(&tResp);
 	xrtHttpdResponseSetStatus(&tResp, iStatusCode, NULL);
 	if ( sBody && sBody[0] ) {
 		(void)xrtHttpdResponseSetBodyCopy(&tResp, sBody, strlen(sBody), "text/plain");
 	}
-	(void)__xhttpdSendResponseAndClose(pConn, &tResp);
+	if ( pConn ) {
+		__xhttpdLock(&pConn->iConnLock);
+		bHasRequest = pConn->pRequest != NULL;
+		__xhttpdUnlock(&pConn->iConnLock);
+	}
+	if ( bHasRequest ) (void)xrtHttpdConnRespond(pConn, &tResp);
+	else (void)__xhttpdSendResponseAndClose(pConn, &tResp);
 	xrtHttpdResponseUnit(&tResp);
+}
+
+static uint32 __xhttpdFutureErrorStatus(const xfuture_result* pResult)
+{
+	if ( !pResult ) return 500u;
+	if ( pResult->iStatus == XRT_NET_TIMEOUT || (pResult->iFlags & XFUTURE_RESULT_F_TIMEOUT) != 0u ) return 408u;
+	if ( pResult->iStatus == XRT_NET_CANCELLED || pResult->iStatus == XRT_NET_CLOSED ||
+		(pResult->iFlags & (XFUTURE_RESULT_F_CANCELLED | XFUTURE_RESULT_F_CLOSED)) != 0u ) {
+		return 503u;
+	}
+	return 500u;
+}
+
+static const char* __xhttpdStatusBody(uint32 iStatusCode)
+{
+	switch ( iStatusCode ) {
+		case 404: return "Not Found";
+		case 408: return "Request Timeout";
+		case 503: return "Service Unavailable";
+		default: return "Internal Server Error";
+	}
+}
+
+static void __xhttpdAsyncRequestFinally(const xfuture_result* pResult, ptr pArg)
+{
+	__xhttpd_async_ctx* pCtx = (__xhttpd_async_ctx*)pArg;
+	xhttpdconn* pConn;
+	xhttpdresponse* pResp = NULL;
+	bool bCanRespond;
+	bool bHasCommitted;
+
+	if ( !pCtx ) return;
+	pConn = pCtx->pConn;
+	if ( pResult && pResult->iStatus == XRT_NET_OK ) {
+		pResp = (xhttpdresponse*)pResult->pValue;
+	}
+
+	__xhttpdLock(&pConn->iConnLock);
+	pConn->bAsyncPending = false;
+	bHasCommitted = pConn->bResponseCommitted;
+	bCanRespond = (pConn->pStream != NULL) && !pConn->pStream->bClosing &&
+		(__xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0);
+	__xhttpdUnlock(&pConn->iConnLock);
+
+	if ( bCanRespond && !bHasCommitted ) {
+		if ( pResp ) {
+			(void)xrtHttpdConnRespond(pConn, pResp);
+		}
+		else if ( pResult && pResult->iStatus == XRT_NET_OK ) {
+			__xhttpdSendSimpleStatus(pConn, 404u, __xhttpdStatusBody(404u));
+		}
+		else {
+			uint32 iStatusCode = __xhttpdFutureErrorStatus(pResult);
+			__xhttpdSendSimpleStatus(pConn, iStatusCode, __xhttpdStatusBody(iStatusCode));
+		}
+	}
+
+	if ( pResp ) xrtHttpdResponseDestroy(pResp);
+	__xhttpdConnTryFinalizeRequest(pConn);
+	xFutureRelease(pCtx->pFuture);
+	__xhttpdConnRelease(pConn);
+	XNET_FREE(pCtx);
+}
+
+static bool __xhttpdAttachAsyncRequest(xhttpdconn* pConn, xfuture* pFuture)
+{
+	__xhttpd_async_ctx* pCtx;
+	xfuture* pHook;
+
+	if ( !pConn || !pFuture ) return false;
+	pCtx = (__xhttpd_async_ctx*)XNET_ALLOC(sizeof(__xhttpd_async_ctx));
+	if ( !pCtx ) return false;
+	memset(pCtx, 0, sizeof(*pCtx));
+	pCtx->pConn = __xhttpdConnAddRef(pConn);
+	pCtx->pFuture = xFutureAddRef(pFuture);
+	pHook = xFutureFinallyEngine(pFuture, NULL, 0, __xhttpdAsyncRequestFinally, pCtx);
+	xFutureRelease(pFuture);
+	if ( !pHook ) {
+		xFutureRelease(pCtx->pFuture);
+		__xhttpdConnRelease(pCtx->pConn);
+		XNET_FREE(pCtx);
+		return false;
+	}
+	xFutureRelease(pHook);
+	return true;
 }
 
 static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetstream* pStream)
@@ -575,6 +956,7 @@ static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetst
 		pConn = (xhttpdconn*)XNET_ALLOC(sizeof(xhttpdconn));
 		if ( !pConn ) return false;
 		memset(pConn, 0, sizeof(xhttpdconn));
+		pConn->iRefCount = 1;
 		xrtNetStreamSetUserData(pStream, pConn);
 	}
 	pConn->pServer = pServer;
@@ -600,12 +982,19 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 	xcodecframe tFrame;
 	xcodechttp1msg tMsg;
 	xcodecstatus iParse;
-	xhttpdrequest tReq;
+	xhttpdrequest* pReq = NULL;
 	xhttpdresponse tResp;
+	xfuture* pAsync = NULL;
 	bool bHandled = false;
+	bool bResponseCommitted = false;
 	if ( !pConn || !pServer || !pStream || !pChain ) return;
 	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return;
-	if ( pConn->bResponseInFlight ) return;
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->bResponseInFlight ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return;
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
 	if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
 	if ( iParse == XCODEC_STATUS_ERROR ) {
@@ -613,30 +1002,70 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		__xhttpdSendSimpleStatus(pConn, 400u, "Bad Request");
 		return;
 	}
-	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, &tReq) ) {
+	pReq = __xhttpdRequestCreate();
+	if ( !pReq ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, pReq) ) {
+		__xhttpdRequestDestroy(pReq);
+		__xhttpdEmitServerError(pServer, pConn, -1);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	xrtCodecFrameConsume(pChain, &tFrame);
+
+	__xhttpdLock(&pConn->iConnLock);
+	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 || pConn->pRequest != NULL || pConn->bResponseInFlight ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		__xhttpdRequestDestroy(pReq);
+		return;
+	}
+	pConn->pRequest = pReq;
+	pConn->bResponseInFlight = true;
+	pConn->bResponseCommitted = false;
+	pConn->bResponseDrained = false;
+	pConn->bAsyncPending = false;
+	pConn->bKeepAlive = false;
+	__xhttpdUnlock(&pConn->iConnLock);
+
+	if ( pServer->tEvents.OnRequestAsync ) {
+		__xhttpdLock(&pConn->iConnLock);
+		pConn->bAsyncPending = true;
+		__xhttpdUnlock(&pConn->iConnLock);
+		pAsync = pServer->tEvents.OnRequestAsync(pServer->pUserData, pServer, pConn, pReq);
+		if ( pAsync ) {
+			if ( !__xhttpdAttachAsyncRequest(pConn, pAsync) ) {
+				__xhttpdLock(&pConn->iConnLock);
+				pConn->bAsyncPending = false;
+				__xhttpdUnlock(&pConn->iConnLock);
+				__xhttpdEmitServerError(pServer, pConn, -1);
+				__xhttpdSendSimpleStatus(pConn, 500u, __xhttpdStatusBody(500u));
+			}
+			return;
+		}
+		__xhttpdLock(&pConn->iConnLock);
+		pConn->bAsyncPending = false;
+		bResponseCommitted = pConn->bResponseCommitted;
+		__xhttpdUnlock(&pConn->iConnLock);
+		if ( bResponseCommitted ) {
+			__xhttpdConnTryFinalizeRequest(pConn);
+			return;
+		}
+	}
+
 	xrtHttpdResponseInit(&tResp);
 	if ( pServer->tEvents.OnRequest ) {
-		bHandled = pServer->tEvents.OnRequest(pServer->pUserData, pServer, pConn, &tReq, &tResp);
+		bHandled = pServer->tEvents.OnRequest(pServer->pUserData, pServer, pConn, pReq, &tResp);
 	}
 	if ( !bHandled ) {
 		xrtHttpdResponseSetStatus(&tResp, 404u, NULL);
 		(void)xrtHttpdResponseSetBodyCopy(&tResp, "Not Found", 9, "text/plain");
 	}
-	if ( (tReq.iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0 && !__xhttpdResponseHasHeader(&tResp, "Connection") ) {
-		tResp.iFlags &= ~XHTTPD_RESP_F_CLOSE;
-		(void)xrtHttpdResponseSetHeader(&tResp, "Connection", "keep-alive");
-	}
-	xrtCodecFrameConsume(pChain, &tFrame);
-	pConn->bKeepAlive = ((tReq.iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0) && ((tResp.iFlags & XHTTPD_RESP_F_CLOSE) == 0u);
-	pConn->bResponseInFlight = true;
-	if ( !__xhttpdSendResponseAndClose(pConn, &tResp) ) {
+	if ( xrtHttpdConnRespond(pConn, &tResp) != XRT_NET_OK ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 	}
-	xrtHttpdRequestUnit(&tReq);
 	xrtHttpdResponseUnit(&tResp);
 }
 
@@ -645,12 +1074,14 @@ static void __xhttpdStreamOnDrain(ptr pOwner, xnetstream* pStream)
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;
 	if ( !pConn || !pStream ) return;
 	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return;
-	if ( !pConn->bResponseInFlight ) return;
-	if ( !pConn->bKeepAlive || pStream->bClosing ) return;
-	pConn->bResponseInFlight = false;
-	if ( xrtNetChainBytes(&pStream->tRxChain) > 0u ) {
-		__xhttpdStreamOnRecv(pOwner, pStream, &pStream->tRxChain);
+	__xhttpdLock(&pConn->iConnLock);
+	if ( !pConn->bResponseInFlight || !pConn->bResponseCommitted || !pConn->bKeepAlive || pStream->bClosing ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return;
 	}
+	pConn->bResponseDrained = true;
+	__xhttpdUnlock(&pConn->iConnLock);
+	__xhttpdConnTryFinalizeRequest(pConn);
 }
 
 static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
@@ -793,13 +1224,12 @@ XXAPI void xrtHttpdStop(xhttpdserver* pServer)
 	while ( pConn ) {
 		xhttpdconn* pNext = pConn->pNext;
 		pConn->pNext = NULL;
-		(void)__xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0);
-		if ( pConn->pStream ) {
-			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
-			xrtNetStreamDestroy(pConn->pStream);
-			pConn->pStream = NULL;
+		if ( __xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) == 0 ) {
+			if ( pConn->pStream ) {
+				xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			}
+			__xhttpdConnCleanupTask(NULL, pConn);
 		}
-		XNET_FREE(pConn);
 		pConn = pNext;
 	}
 }

@@ -3905,6 +3905,7 @@
 	typedef struct {
 	void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
 	bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
+	xfuture* (*OnRequestAsync)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq);
 	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
 	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
 	} xhttpdevents;
@@ -4530,9 +4531,14 @@
 	XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq);
 	XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp);
 	XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp);
+	XXAPI xhttpdresponse* xrtHttpdResponseCreate(void);
+	XXAPI void xrtHttpdResponseDestroy(xhttpdresponse* pResp);
 	XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
 	XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
 	XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
+	XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn);
+	XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* pResp);
+	XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags);
 	XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData);
 	XXAPI uint16 xrtHttpdBoundPort(const xhttpdserver* pServer);
 	XXAPI xnet_result xrtHttpdStart(xhttpdserver* pServer);
