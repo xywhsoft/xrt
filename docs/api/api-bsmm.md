@@ -22,6 +22,17 @@
 
 BSMM（Blocks Struct Memory Management）是一个块结构内存管理器，专为频繁分配和释放**固定大小**结构体设计。
 
+### 当前主线并发合同
+
+phase-2 之后，`BSMM` 也已经进入 owner-thread 主线。
+
+当前应按下面规则理解：
+
+- 默认 `xrtBsmmCreate(..., XRT_OBJMODE_LOCAL)` 创建的是 **owner-thread local** 管理器
+- 本线程 `Alloc / Free / Unit` 走快路径
+- 错线程访问会被拒绝并设置当前线程错误
+- 当前公开接口没有独立显式锁 API，教学主线应优先按 local 固定块池理解
+
 ### 核心特点
 
 - **分页管理**：每页存储 256 个元素，按需分配新页
@@ -68,16 +79,18 @@ typedef struct MemPtr_LLNode {
 **定义：**
 ```c
 typedef struct {
+    xrtOwnerInfo Owner;       // 所有权信息
     uint32 ItemLength;        // 成员占用内存长度
-    uint32 Count;             // 管理器中存在多少成员
+    uint32 Count;             // 已经开出的槽位数量
     xparray_struct PageMMU;   // 内存页管理器（指针数组）
     MemPtr_LLNode* LL_Free;   // 已释放的内存块链表
 } xbsmm_struct, *xbsmm;
 ```
 
 **成员说明：**
+- `Owner` - owner/shared 模式下的线程归属信息
 - `ItemLength` - 每个元素的字节大小
-- `Count` - 已分配的元素总数（含已释放的）
+- `Count` - 已经开出的槽位总数；复用 `LL_Free` 时不会递增，`Free()` 时也不会递减
 - `PageMMU` - 内存页指针数组，每页 256 个元素
 - `LL_Free` - 空闲内存块链表，用于复用已释放的内存
 
@@ -91,11 +104,12 @@ typedef struct {
 
 **函数原型：**
 ```c
-XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength);
+XXAPI xbsmm xrtBsmmCreate(uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
 - `iItemLength` - 每个元素的大小（字节）
+- `iMode` - 对象模式，常用 `XRT_OBJMODE_LOCAL`
 
 **返回值：**
 - 成功：管理器对象
@@ -118,7 +132,7 @@ int main() {
     xrtInit();
     
     // 创建学生对象池
-    xbsmm pool = xrtBsmmCreate(sizeof(Student));
+    xbsmm pool = xrtBsmmCreate(sizeof(Student), XRT_OBJMODE_LOCAL);
     if (!pool) {
         printf("创建失败\n");
         xrtUnit();
@@ -161,12 +175,13 @@ XXAPI void xrtBsmmDestroy(xbsmm objBSMM);
 
 **函数原型：**
 ```c
-XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength);
+XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
 - `objBSMM` - 管理器对象指针
 - `iItemLength` - 每个元素的大小（字节）
+- `iMode` - 对象模式，常用 `XRT_OBJMODE_LOCAL`
 
 **示例：**
 ```c
@@ -187,7 +202,7 @@ int main() {
     strcpy(cont.name, "MyContainer");
     
     // 初始化内嵌管理器
-    xrtBsmmInit(&cont.itemPool, sizeof(Item));
+    xrtBsmmInit(&cont.itemPool, sizeof(Item), XRT_OBJMODE_LOCAL);
     
     // 使用管理器
     Item* item = (Item*)xrtBsmmAlloc(&cont.itemPool);
@@ -258,7 +273,7 @@ typedef struct {
 int main() {
     xrtInit();
     
-    xbsmm pool = xrtBsmmCreate(sizeof(Point));
+    xbsmm pool = xrtBsmmCreate(sizeof(Point), XRT_OBJMODE_LOCAL);
     
     // 分配点对象
     Point* p1 = (Point*)xrtBsmmAlloc(pool);
@@ -298,6 +313,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p);
 - 内存不会真正释放，而是加入空闲链表
 - 下次 `xrtBsmmAlloc` 时优先复用
 - 内存实际释放要等到 `xrtBsmmDestroy`
+- `Count` 不会因为 `xrtBsmmFree()` 而递减
 
 **示例：**
 ```c
@@ -309,7 +325,7 @@ typedef struct { int id; } Node;
 int main() {
     xrtInit();
     
-    xbsmm pool = xrtBsmmCreate(sizeof(Node));
+    xbsmm pool = xrtBsmmCreate(sizeof(Node), XRT_OBJMODE_LOCAL);
     
     // 分配 3 个节点
     Node* n1 = (Node*)xrtBsmmAlloc(pool);
@@ -367,7 +383,10 @@ static inline ptr xrtBsmmGetPtr_Inline(xbsmm objBSMM, uint32 iIdx)
 - 成功：元素指针
 - 失败：`NULL`
 
-**警告：** 此函数不推荐常规使用，仅用于特殊需求（如遍历所有分配的元素）。
+**警告：**
+- 此函数不推荐常规业务使用，仅适合调试或极特殊扫描逻辑
+- `iIdx` 表示槽位位置，不是“当前第几个活对象”
+- 被释放后再复用的槽位，仍可能通过同一个 `iIdx` 取到新对象
 
 ---
 
@@ -393,7 +412,7 @@ typedef struct {
 
 EnemyManager* CreateEnemyManager() {
     EnemyManager* mgr = xrtMalloc(sizeof(EnemyManager));
-    mgr->pool = xrtBsmmCreate(sizeof(Enemy));
+    mgr->pool = xrtBsmmCreate(sizeof(Enemy), XRT_OBJMODE_LOCAL);
     mgr->nextId = 1;
     return mgr;
 }
@@ -464,7 +483,7 @@ typedef struct {
 } LinkedList;
 
 void ListInit(LinkedList* list) {
-    xrtBsmmInit(&list->nodePool, sizeof(ListNode));
+    xrtBsmmInit(&list->nodePool, sizeof(ListNode), XRT_OBJMODE_LOCAL);
     list->head = NULL;
 }
 
@@ -541,7 +560,7 @@ void InOrder(TreeNode* node) {
 int main() {
     xrtInit();
     
-    g_nodePool = xrtBsmmCreate(sizeof(TreeNode));
+    g_nodePool = xrtBsmmCreate(sizeof(TreeNode), XRT_OBJMODE_LOCAL);
     
     // 构建二叉树
     //       5
@@ -589,7 +608,7 @@ int main() {
 
 ```c
 // ✅ 适合 BSMM：频繁创建销毁的对象
-xbsmm bulletPool = xrtBsmmCreate(sizeof(Bullet));
+xbsmm bulletPool = xrtBsmmCreate(sizeof(Bullet), XRT_OBJMODE_LOCAL);
 // 每帧可能创建/销毁数百个子弹
 
 // ❌ 不适合 BSMM：需要顺序遍历的集合
@@ -603,14 +622,14 @@ xbsmm bulletPool = xrtBsmmCreate(sizeof(Bullet));
 void GameLoop() {
     static xbsmm pool = NULL;
     if (!pool) {
-        pool = xrtBsmmCreate(sizeof(Particle));
+        pool = xrtBsmmCreate(sizeof(Particle), XRT_OBJMODE_LOCAL);
     }
     // 使用 pool...
 }
 
 // ❌ 错误：每次重建管理器
 void BadGameLoop() {
-    xbsmm pool = xrtBsmmCreate(sizeof(Particle));
+    xbsmm pool = xrtBsmmCreate(sizeof(Particle), XRT_OBJMODE_LOCAL);
     // 使用 pool...
     xrtBsmmDestroy(pool);  // 浪费！
 }
@@ -627,7 +646,7 @@ typedef struct { int value; } Item;
 int main() {
     xrtInit();
     
-    xbsmm pool = xrtBsmmCreate(sizeof(Item));
+    xbsmm pool = xrtBsmmCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
     
     Item* item = (Item*)xrtBsmmAlloc(pool);
     item->value = 42;

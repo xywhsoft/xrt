@@ -70,7 +70,7 @@
 当前教学主线还没有覆盖 XRT 全部公开模块。缺口主要在：
 
 - 基础工具：`charset / path / os / math / hash / xid / network(local info)`
-- 内存与容器：`bsmm / memunit / mempool_fs / mempool / buffer / array / ptrarray / stack / dynstack / llist / avltree / dict / list`
+- 内存与容器：`memunit / mempool_fs / mempool / llist`
 - 文本与数据：`jnum / xson / template / regex / crypto`
 - 并发补充：`queue`
 - 系统能力：`subprocess / file_async` 只有快速上手页，没有完整专题
