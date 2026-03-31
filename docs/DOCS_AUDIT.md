@@ -88,7 +88,7 @@
 | `file_async` | 只有 `guide/file-async-intro.md`，没有独立 API 合同页 |
 | `subprocess` | 只有 `guide/subprocess-intro.md`，没有独立 API 合同页 |
 | `xnet_proxy` | 目前散落在 `api-xnet-v2.md`、`api-xhttp.md`、`api-xws.md` 中，缺少单独整理 |
-| `llist` | 文档仍在，但当前源码树暂无独立 public header，属于待校准历史页 |
+| `llist` | 文档仍在，但当前源码树暂无独立 public header，也未找到 `xrtLList*` / `xrtLLB*` 公开声明，属于待校准历史页 |
 
 `xnet_proxy` 不一定必须单开一篇，但至少要在 API 索引中明确它的入口位置。
 

@@ -30,7 +30,7 @@ phase-2 之后，`Dict` 已经进入 owner/shared 双模式主线。
 
 请按下面规则理解：
 
-- 默认 `xrtDictCreate()` 创建的是 **owner-thread local dict**
+- 默认 `xrtDictCreate(..., XRT_OBJMODE_LOCAL)` 创建的是 **owner-thread local dict**
 - 错线程修改 local dict 会被拒绝，而不是继续写坏 AVL/键结构
 - 如果需要跨线程共享，必须显式使用 shared root 路径
 - shared root 下，遍历、稳定读取和复合操作建议通过公开锁接口保护
@@ -117,6 +117,7 @@ typedef struct {
 typedef struct {
     xavltree_struct AVLT;  // 内部 AVL 树
     xmempool MP;           // 可选内存池
+    xrtOwnerInfo Owner;    // 所有权信息
 } xdict_struct, *xdict;
 ```
 
@@ -142,12 +143,12 @@ typedef bool (*Dict_EachProc)(Dict_Key* pKey, ptr pVal, ptr pArg);
 
 **参数：**
 - `pKey` - 键信息（包含 Key、KeyLen、Hash）
-- `pVal` - 值指针
+- `pVal` - 值槽位指针；如果字典存的是指针值，这里通常按 `ptr*` 解引用
 - `pArg` - 用户自定义参数
 
 **返回值：**
-- `TRUE` - 继续遍历
-- `FALSE` - 中断遍历
+- `TRUE` - 中断遍历
+- `FALSE` - 继续遍历
 
 **示例：**
 ```c
@@ -156,13 +157,13 @@ typedef bool (*Dict_EachProc)(Dict_Key* pKey, ptr pVal, ptr pArg);
 
 bool PrintItem(Dict_Key* pKey, ptr pVal, ptr pArg) {
     printf("%.*s = %d\n", pKey->KeyLen, (char*)pKey->Key, *(int*)pVal);
-    return TRUE;  // 继续遍历
+    return FALSE;  // 继续遍历
 }
 
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     bool isNew;
     int* val = (int*)xrtDictSet(dict, (ptr)"age", 3, &isNew);
     *val = 25;
@@ -185,11 +186,12 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI xdict xrtDictCreate(uint32 iItemLength);
+XXAPI xdict xrtDictCreate(uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
-- `iItemLength` - 值的大小（字节）。0 表示存储指针（使用 `SetPtr`/`GetPtr`）
+- `iItemLength` - 值的大小（字节）。如果要存储指针值，当前主线应传 `sizeof(ptr)` 并配合 `SetPtr`/`GetPtr`
+- `iMode` - 所有权模式，常用 `XRT_OBJMODE_LOCAL` 或 `XRT_OBJMODE_SHARED`
 
 **返回值：**
 - 成功：字典对象指针
@@ -206,7 +208,7 @@ int main() {
     xrtInit();
     
     // 存储 int 值
-    xdict intDict = xrtDictCreate(sizeof(int));
+    xdict intDict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     bool isNew;
     int* val = (int*)xrtDictSet(intDict, (ptr)"count", 5, &isNew);
     if (isNew) {
@@ -216,7 +218,7 @@ int main() {
     xrtDictDestroy(intDict);
     
     // 存储指针
-    xdict ptrDict = xrtDictCreate(0);
+    xdict ptrDict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
     str text = xrtCopyStr((str)"Hello World", 0);
     xrtDictSetPtr(ptrDict, (ptr)"greeting", 8, text, NULL);
     printf("greeting = %s\n", (char*)xrtDictGetPtr(ptrDict, (ptr)"greeting", 8));
@@ -255,12 +257,13 @@ XXAPI void xrtDictDestroy(xdict objHT);
 
 **函数原型：**
 ```c
-XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength);
+XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
 - `objHT` - 字典对象指针
 - `iItemLength` - 值的大小
+- `iMode` - 所有权模式，常用 `XRT_OBJMODE_LOCAL` 或 `XRT_OBJMODE_SHARED`
 
 **示例：**
 ```c
@@ -272,7 +275,7 @@ int main() {
     
     // 栈上创建字典
     xdict_struct dictObj;
-    xrtDictInit(&dictObj, sizeof(int));
+    xrtDictInit(&dictObj, sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     int* val = (int*)xrtDictSet(&dictObj, (ptr)"value", 5, &isNew);
@@ -340,7 +343,7 @@ XXAPI ptr xrtDictSet(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet);
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 插入新键
     bool isNew;
@@ -395,7 +398,7 @@ XXAPI bool xrtDictSetPtr(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* p
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(0);  // 存储指针
+    xdict dict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);  // 存储指针
     
     // 插入新值
     str key = (str)"name";
@@ -436,6 +439,7 @@ static inline ptr xrtDictSetWithKey(xdict objHT, Dict_Key* objKey, bool* bNewRet
 **说明：**
 - 用于需要多次使用同一键的场景
 - 避免重复计算哈希值
+- 调用者需要自行正确填写 `objKey->Hash`
 
 ---
 
@@ -466,7 +470,7 @@ XXAPI ptr xrtDictGet(xdict objHT, ptr sKey, uint32 iKeyLen);
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 插入数据
     str key = (str)"score";
@@ -545,7 +549,7 @@ XXAPI bool xrtDictRemove(xdict objHT, ptr sKey, uint32 iKeyLen);
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 插入数据
     bool isNew;
@@ -596,7 +600,7 @@ XXAPI ptr xrtDictRemovePtr(xdict objHT, ptr sKey, uint32 iKeyLen);
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(0);
+    xdict dict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
     
     // 插入带内存的指针
     str value = xrtCopyStr((str)"need to free", 0);
@@ -639,7 +643,7 @@ XXAPI bool xrtDictExists(xdict objHT, ptr sKey, uint32 iKeyLen);
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     int* val = (int*)xrtDictSet(dict, (ptr)"name", 4, &isNew);
@@ -685,7 +689,7 @@ XXAPI uint32 xrtDictCount(xdict objHT);
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     *(int*)xrtDictSet(dict, (ptr)"a", 1, &isNew) = 1;
@@ -717,8 +721,8 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg);
 - `pArg` - 传递给回调的自定义参数
 
 **说明：**
-- 使用中序遍历（按键的哈希值排序）
-- 回调返回 `FALSE` 可中断遍历
+- 使用中序遍历（按比较器顺序：先 `Hash`，再 `KeyLen`，最后按 key 字节比较）
+- 回调返回 `TRUE` 可中断遍历，返回 `FALSE` 继续
 
 **示例：**
 ```c
@@ -730,13 +734,13 @@ bool PrintEntry(Dict_Key* pKey, ptr pVal, ptr pArg) {
     int* count = (int*)pArg;
     (*count)++;
     printf("%d: %.*s = %d\n", *count, pKey->KeyLen, (char*)pKey->Key, *(int*)pVal);
-    return TRUE;  // 继续遍历
+    return FALSE;  // 继续遍历
 }
 
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 插入数据
     bool isNew;
@@ -770,7 +774,7 @@ int main() {
 xdict config = NULL;
 
 void InitConfig() {
-    config = xrtDictCreate(0);  // 存储指针
+    config = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);  // 存储指针
 }
 
 void SetConfig(str key, str value) {
@@ -787,8 +791,8 @@ str GetConfig(str key) {
 }
 
 bool FreeConfigItem(Dict_Key* pKey, ptr pVal, ptr pArg) {
-    xrtFree(pVal);
-    return TRUE;
+    xrtFree(*(ptr*)pVal);
+    return FALSE;
 }
 
 void CleanupConfig() {
@@ -832,7 +836,7 @@ typedef struct {
 xdict userCache = NULL;
 
 void InitCache() {
-    userCache = xrtDictCreate(sizeof(User));
+    userCache = xrtDictCreate(sizeof(User), XRT_OBJMODE_LOCAL);
 }
 
 User* GetOrCreateUser(int id) {
@@ -897,7 +901,7 @@ int main() {
     xrtInit();
     
     // 使用结构体作为键
-    xdict pointMap = xrtDictCreate(sizeof(int));
+    xdict pointMap = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     Point p1 = {10, 20};
     Point p2 = {30, 40};
@@ -961,7 +965,7 @@ int main() {
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // ✅ 正确：使用 strlen 计算字符串键长度
     str key1 = (str)"hello";
@@ -993,14 +997,14 @@ int main() {
 #include <string.h>
 
 bool FreeValue(Dict_Key* pKey, ptr pVal, ptr pArg) {
-    xrtFree(pVal);  // 释放存储的指针
-    return TRUE;
+    xrtFree(*(ptr*)pVal);  // 释放存储的指针
+    return FALSE;
 }
 
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(0);  // 存储指针
+    xdict dict = xrtDictCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);  // 存储指针
     
     // 插入带内存的值
     str data = xrtCopyStr((str)"allocated data", 0);
@@ -1047,7 +1051,7 @@ char* MakeKey(char type, int id) {
 int main() {
     xrtInit();
     
-    xdict dict = xrtDictCreate(sizeof(int));
+    xdict dict = xrtDictCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 使用序列化键
     char* key = MakeKey('A', 100);

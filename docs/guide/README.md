@@ -58,6 +58,9 @@
 - `ptrarray` 已补出第 2 阶段正式教学第一页
 - `stack` 已补出第 2 阶段正式教学第一页
 - `dynstack` 已补出第 2 阶段正式教学第一页
+- `dict` 已补出第 2 阶段正式教学第一页
+- `list` 已补出第 2 阶段正式教学第一页
+- `avltree` 已补出第 2 阶段正式教学第一页
 - `template` 已补出正式教学第一页
 - 还不等于完整课程体系
 - 尚未覆盖 XRT 全部公开模块
@@ -85,17 +88,20 @@
 11. [PtrArray 入门：什么时候该管理对象指针，而不是搬运整个结构体](ptrarray-intro.md)
 12. [Stack 入门：什么时候该用固定深度工作栈，而不是数组或动态栈](stack-intro.md)
 13. [DynStack 入门：什么时候该用可增长工作栈，而不是固定深度栈](dynstack-intro.md)
-14. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-15. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-16. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
-17. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-18. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
-19. 内存、容器与数据结构专题
-20. `xvalue / json / xson / template / regex / crypto` 专题
-21. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-22. 系统能力专题：子进程、异步文件
-23. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-24. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+14. [Dict 入门：什么时候该用字典存键值，而不是数组、列表或手搓二叉树](dict-intro.md)
+15. [List 入门：什么时候该用整数键列表，而不是数组、字典或连续索引](list-intro.md)
+16. [AVLTree 入门：什么时候该直接用通用有序树，而不是 Dict、List 或数组](avltree-intro.md)
+17. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+18. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+19. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+20. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+21. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+22. 内存、容器与数据结构专题
+23. `xvalue / json / xson / template / regex / crypto` 专题
+24. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+25. 系统能力专题：子进程、异步文件
+26. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
+27. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -120,6 +126,9 @@
 - [PtrArray 入门：什么时候该管理对象指针，而不是搬运整个结构体](ptrarray-intro.md)
 - [Stack 入门：什么时候该用固定深度工作栈，而不是数组或动态栈](stack-intro.md)
 - [DynStack 入门：什么时候该用可增长工作栈，而不是固定深度栈](dynstack-intro.md)
+- [Dict 入门：什么时候该用字典存键值，而不是数组、列表或手搓二叉树](dict-intro.md)
+- [List 入门：什么时候该用整数键列表，而不是数组、字典或连续索引](list-intro.md)
+- [AVLTree 入门：什么时候该直接用通用有序树，而不是 Dict、List 或数组](avltree-intro.md)
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)
 - [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
 - [xvalue 与 JSON 入门](xvalue-json-intro.md)
@@ -161,7 +170,7 @@
 
 目前还没有成体系教学的模块主要包括：
 
-- `llist / avltree / dict / list`
+- `llist`（当前源码树暂无独立 public header，正式教学页暂缓，先保留历史 API 页提示状态）
 - `bsmm / memunit / mempool_fs / mempool`
 - `jnum / xson / regex / crypto`
 - `xurl / xhttp_util / xws / proxy`

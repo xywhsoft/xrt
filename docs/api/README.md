@@ -49,8 +49,8 @@
 | PtrArray | [api-ptrarray.md](api-ptrarray.md) | 指针数组 |
 | Stack | [api-stack.md](api-stack.md) | 静态栈 |
 | DynStack | [api-dynstack.md](api-dynstack.md) | 动态栈 |
-| LList | [api-llist.md](api-llist.md) | 历史文档，当前实现待继续校准 |
-| LList-Base | [api-llist-base.md](api-llist-base.md) | 历史文档，当前实现待继续校准 |
+| LList | [api-llist.md](api-llist.md) | 历史文档；当前源码树暂无独立 public header 或 `xrtLList*` 公开声明 |
+| LList-Base | [api-llist-base.md](api-llist-base.md) | 历史文档；当前源码树暂无独立 public header 或 `xrtLLB*` 公开声明 |
 | AVLTree | [api-avltree.md](api-avltree.md) | AVL 树 |
 | AVLTree-Base | [api-avltree-base.md](api-avltree-base.md) | AVL 底层操作 |
 | Dict | [api-dict.md](api-dict.md) | 字典 |
@@ -92,7 +92,7 @@
 - 已淘汰的旧网络/TLS API 文档已迁入 `dev/` 归档
 - 当前主线优先围绕“运行时 / 并发 / 队列 / 异步 / xnet-v2 / TLS session / HTTP / WebSocket”组织
 - `file_async` 与 `subprocess` 目前先以教学页承载，后续补独立 API 文档
-- `llist` 相关页面当前仅保留为历史参考，后续需继续和现行实现校准
+- `llist / llist-base` 相关页面当前仅保留为历史参考；当前源码树暂无独立 public header，恢复正式入口前不应视为现行合同
 
 
 ## 7. 推荐阅读顺序

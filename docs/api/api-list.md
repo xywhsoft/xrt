@@ -30,7 +30,7 @@ phase-2 之后，`List` 已进入 owner/shared 双模式主线。
 
 请按下面规则理解：
 
-- 默认 `xrtListCreate()` 创建的是 **owner-thread local list**
+- 默认 `xrtListCreate(..., XRT_OBJMODE_LOCAL)` 创建的是 **owner-thread local list**
 - 错线程修改 local list 会被拒绝
 - 跨线程共享必须显式走 shared root
 - shared root 下，如果要做稳定遍历、复合读写或迭代，应使用公开锁接口
@@ -98,7 +98,8 @@ List 结构：
 **定义：**
 ```c
 typedef struct {
-    xavltree_struct AVLT;    // 内部 AVL 树
+    xavltree_struct AVLT;	// 内部 AVL 树
+    xrtOwnerInfo Owner;		// 所有权信息
 } xlist_struct, *xlist;
 ```
 
@@ -106,6 +107,7 @@ typedef struct {
 - 内部使用 AVL 树存储键值对
 - 每个节点包含 `int64` 键和用户数据
 - 自动管理节点内存（使用 FSMemPool）
+- `Owner` 字段负责 owner/shared 模式下的线程归属与显式加锁
 
 ---
 
@@ -126,15 +128,16 @@ typedef bool (*List_EachProc)(int64 pKey, ptr pVal, ptr pArg);
 - `pArg` - 用户自定义参数
 
 **返回值：**
-- `TRUE` - 继续遍历
-- `FALSE` - 中断遍历
+- `TRUE` - 中断遍历
+- `FALSE` - 继续遍历
 
 **示例：**
 ```c
 bool PrintItem(int64 key, ptr pVal, ptr pArg) {
-    int* val = (int*)pVal;
-    printf("Key: %" PRId64 ", Value: %d\n", key, *val);
-    return TRUE;  // 继续遍历
+	int* val = (int*)pVal;
+	(void)pArg;
+	printf("Key: %" PRId64 ", Value: %d\n", key, *val);
+	return FALSE;  // 继续遍历
 }
 ```
 
@@ -148,11 +151,12 @@ bool PrintItem(int64 key, ptr pVal, ptr pArg) {
 
 **函数原型：**
 ```c
-XXAPI xlist xrtListCreate(uint32 iItemLength);
+XXAPI xlist xrtListCreate(uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
 - `iItemLength` - 值的大小（字节）
+- `iMode` - 对象模式，常用 `XRT_OBJMODE_LOCAL` 或 `XRT_OBJMODE_SHARED`
 
 **返回值：**
 - 成功：列表对象指针
@@ -166,21 +170,21 @@ XXAPI xlist xrtListCreate(uint32 iItemLength);
 #include <stdio.h>
 
 int main() {
-    xrtInit();
-    
-    // 创建存储 int 的列表
-    xlist list = xrtListCreate(sizeof(int));
-    
-    // 设置元素
-    bool isNew;
-    int* val = (int*)xrtListSet(list, 0, &isNew);
-    *val = 100;
-    
-    printf("值: %d\n", *(int*)xrtListGet(list, 0));  // 100
-    
-    xrtListDestroy(list);
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	// 创建存储 int 的 local 列表
+	xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
+	
+	// 设置元素
+	bool isNew;
+	int* val = (int*)xrtListSet(list, 0, &isNew);
+	*val = 100;
+	
+	printf("值: %d\n", *(int*)xrtListGet(list, 0));  // 100
+	
+	xrtListDestroy(list);
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -206,12 +210,13 @@ XXAPI void xrtListDestroy(xlist objList);
 
 **函数原型：**
 ```c
-XXAPI void xrtListInit(xlist objList, uint32 iItemLength);
+XXAPI void xrtListInit(xlist objList, uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
 - `objList` - 预分配的列表结构指针
 - `iItemLength` - 值的大小（字节）
+- `iMode` - 对象模式，常用 `XRT_OBJMODE_LOCAL` 或 `XRT_OBJMODE_SHARED`
 
 **示例：**
 ```c
@@ -219,25 +224,25 @@ XXAPI void xrtListInit(xlist objList, uint32 iItemLength);
 #include <stdio.h>
 
 int main() {
-    xrtInit();
-    
-    // 栈上分配
-    xlist_struct listData;
-    xlist list = &listData;
-    xrtListInit(list, sizeof(double));
-    
-    // 使用列表
-    bool isNew;
-    double* val = (double*)xrtListSet(list, 1, &isNew);
-    *val = 3.14159;
-    
-    printf("值: %f\n", *(double*)xrtListGet(list, 1));
-    
-    // 必须调用 Unit 释放内部资源
-    xrtListUnit(list);
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	// 栈上分配
+	xlist_struct listData;
+	xlist list = &listData;
+	xrtListInit(list, sizeof(double), XRT_OBJMODE_LOCAL);
+	
+	// 使用列表
+	bool isNew;
+	double* val = (double*)xrtListSet(list, 1, &isNew);
+	*val = 3.14159;
+	
+	printf("值: %f\n", *(double*)xrtListGet(list, 1));
+	
+	// 必须调用 Unit 释放内部资源
+	xrtListUnit(list);
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -259,8 +264,6 @@ XXAPI void xrtListUnit(xlist objList);
 ```
 
 ---
-
-## 元素操作
 
 ## 元素操作
 
@@ -290,7 +293,7 @@ XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet);
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 插入新键
     bool isNew;
@@ -350,7 +353,7 @@ XXAPI bool xrtListSetPtr(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal);
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(ptr));
+    xlist list = xrtListCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
     
     // 设置指针值
     ptr oldVal;
@@ -397,7 +400,7 @@ XXAPI ptr xrtListGet(xlist objList, int64 iKey);
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 设置元素
     bool isNew;
@@ -460,7 +463,7 @@ XXAPI bool xrtListRemove(xlist objList, int64 iKey);
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     // 添加元素
     bool isNew;
@@ -509,7 +512,7 @@ XXAPI ptr xrtListRemovePtr(xlist objList, int64 iKey);
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(ptr));
+    xlist list = xrtListCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
     
     // 设置指针值
     str text = xrtCopyStr((str)"Hello World", 0);
@@ -551,7 +554,7 @@ XXAPI bool xrtListExists(xlist objList, int64 iKey);
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     *(int*)xrtListSet(list, 5, &isNew) = 50;
@@ -589,7 +592,7 @@ XXAPI uint32 xrtListCount(xlist objList);
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     *(int*)xrtListSet(list, -10, &isNew) = 1;
@@ -626,17 +629,17 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg);
 #include <stdio.h>
 
 bool PrintItem(int64 key, ptr pVal, ptr pArg) {
-    int* sum = (int*)pArg;
-    int val = *(int*)pVal;
-    printf("Key: %" PRId64 ", Value: %d\n", key, val);
-    *sum += val;
-    return TRUE;  // 继续遍历
+	int* sum = (int*)pArg;
+	int val = *(int*)pVal;
+	printf("Key: %" PRId64 ", Value: %d\n", key, val);
+	*sum += val;
+	return FALSE;  // 继续遍历
 }
 
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     *(int*)xrtListSet(list, 10, &isNew) = 100;
@@ -659,7 +662,8 @@ int main() {
 
 **补充说明：**
 - 遍历顺序为键的升序（中序遍历 AVL 树）
-- 回调返回 `FALSE` 可中断遍历
+- 回调返回 `TRUE` 可中断遍历，返回 `FALSE` 继续遍历
+- 如果值模式是 `sizeof(ptr)`，回调参数 `pVal` 表示值槽位地址，通常应先转成 `ptr*` 再解引用
 
 ---
 
@@ -675,7 +679,7 @@ int main() {
 int main() {
     xrtInit();
     
-    xlist sparse = xrtListCreate(sizeof(double));
+    xlist sparse = xrtListCreate(sizeof(double), XRT_OBJMODE_LOCAL);
     
     // 设置分散的索引
     bool isNew;
@@ -726,15 +730,16 @@ void FreePerson(Person* p) {
 }
 
 bool PrintPerson(int64 key, ptr pVal, ptr pArg) {
-    Person* p = (Person*)xrtListGetPtr((xlist)pArg, key);
+    Person* p = *(Person**)pVal;
+    (void)pArg;
     printf("ID %" PRId64 ": %s, %d\n", key, p->name, p->age);
-    return TRUE;
+    return FALSE;
 }
 
 int main() {
     xrtInit();
     
-    xlist people = xrtListCreate(sizeof(ptr));
+    xlist people = xrtListCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
     
     // 使用 ID 作为键
     xrtListSetPtr(people, 1001, CreatePerson((str)"Alice", 25), NULL);
@@ -773,9 +778,9 @@ int main() {
     xrtInit();
     
     // ID → 名称
-    xlist idToName = xrtListCreate(sizeof(ptr));
+    xlist idToName = xrtListCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
     // 名称 → ID（使用 Dict）
-    xdict nameToId = xrtDictCreate(sizeof(int64));
+    xdict nameToId = xrtDictCreate(sizeof(int64), XRT_OBJMODE_LOCAL);
     
     // 添加映射
     int64 id = 1001;
@@ -834,7 +839,7 @@ int main() {
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     *(int*)xrtListSet(list, 10, &isNew) = 100;
@@ -864,18 +869,20 @@ int main() {
 #include <stdio.h>
 
 bool FreeStrings(int64 key, ptr pVal, ptr pArg) {
-    xlist list = (xlist)pArg;
-    ptr strVal = xrtListGetPtr(list, key);
-    if (strVal) {
-        xrtFree(strVal);
+    ptr* ppStr = (ptr*)pVal;
+    (void)key;
+    (void)pArg;
+    if (*ppStr) {
+        xrtFree(*ppStr);
+        *ppStr = NULL;
     }
-    return TRUE;
+    return FALSE;
 }
 
 int main() {
     xrtInit();
     
-    xlist strings = xrtListCreate(sizeof(ptr));
+    xlist strings = xrtListCreate(sizeof(ptr), XRT_OBJMODE_LOCAL);
     
     // 存储动态分配的字符串
     xrtListSetPtr(strings, 1, xrtCopyStr((str)"Hello", 0), NULL);
@@ -904,15 +911,15 @@ bool FindFirst(int64 key, ptr pVal, ptr pArg) {
     
     if (current == target) {
         printf("找到目标 %d 在键 %" PRId64 "\n", target, key);
-        return FALSE;  // 中断遍历
+        return TRUE;  // 中断遍历
     }
-    return TRUE;  // 继续遍历
+    return FALSE;  // 继续遍历
 }
 
 int main() {
     xrtInit();
     
-    xlist list = xrtListCreate(sizeof(int));
+    xlist list = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
     
     bool isNew;
     *(int*)xrtListSet(list, 1, &isNew) = 10;

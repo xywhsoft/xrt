@@ -2,6 +2,8 @@
 
 > 自动内存管理的双向链表（基于 FSMemPool）
 
+> 状态说明（2026-03-31）：当前源码树中未找到独立 `llist` public header，也未找到 `xrtLList*` 公开声明。本页当前仅作为历史参考保留，示例和接口签名不应直接视为现行主线合同。
+
 [English](api-llist.en.md) | [中文](api-llist.md) | [返回索引](README.md)
 
 ---

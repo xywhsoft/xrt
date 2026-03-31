@@ -2,6 +2,8 @@
 
 > 双向链表底层操作，用户自行管理节点内存
 
+> 状态说明（2026-03-31）：当前源码树中未找到独立 `llist_base` public header，也未找到 `xrtLLB*` 公开声明。本页当前仅作为历史参考保留，示例和接口签名不应直接视为现行主线合同。
+
 [English](api-llist-base.en.md) | [中文](api-llist-base.md) | [返回索引](README.md)
 
 ---

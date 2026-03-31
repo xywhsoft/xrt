@@ -610,6 +610,7 @@ void procUnitEditor(DemoEditor* pEditor)
 
 - [DynStack API](../api/api-dynstack.md)
 - [Stack 入门：什么时候该用固定深度工作栈，而不是数组或动态栈](stack-intro.md)
+- [Dict 入门：什么时候该用字典存键值，而不是数组、列表或手搓二叉树](dict-intro.md)
 - [PtrArray 入门：什么时候该管理对象指针，而不是搬运整个结构体](ptrarray-intro.md)
 - [List API](../api/api-list.md)
 - [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)

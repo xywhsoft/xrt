@@ -159,6 +159,10 @@
 - [ptrarray-intro.md](ptrarray-intro.md)：作为第 2 阶段 `ptrarray` 正式第一页
 - [stack-intro.md](stack-intro.md)：作为第 2 阶段 `stack` 正式第一页
 - [dynstack-intro.md](dynstack-intro.md)：作为第 2 阶段 `dynstack` 正式第一页
+- [dict-intro.md](dict-intro.md)：作为第 2 阶段 `dict` 正式第一页
+- [list-intro.md](list-intro.md)：作为第 2 阶段 `list` 正式第一页
+- [avltree-intro.md](avltree-intro.md)：作为第 2 阶段 `avltree` 正式第一页
+- `llist`：当前源码树暂无独立 public header，先保留历史 API 页并阻止其误入正式教学主线
 - [multitask-overview.md](multitask-overview.md)：作为第 4 阶段正式前导页
 - [thread-intro.md](thread-intro.md)：作为第 4 阶段线程专题正式第一页
 - [queue-intro.md](queue-intro.md)：作为第 4 阶段队列专题正式第一页

@@ -30,7 +30,7 @@ phase-2 之后，`AVLTree` 已进入 owner/shared 双模式主线。
 
 请按下面规则理解：
 
-- 默认 `xrtAVLTreeCreate()` 创建的是 **owner-thread local tree**
+- 默认 `xrtAVLTreeCreate(..., XRT_OBJMODE_LOCAL)` 创建的是 **owner-thread local tree**
 - 错线程修改 local tree 会被拒绝
 - shared root 下，公开 root 访问应通过锁接口保护
 
@@ -43,16 +43,16 @@ XXAPI void xrtAVLTreeUnlock(xavltree objAVLT);
 
 这组锁主要用于：
 
-- shared root 的稳定遍历
-- iterator / walk
+- shared root 下稳定查看公开字段
 - 多步复合更新
+- 手工定义一段复合访问边界
 
 ### shared root 下的推荐边界
 
 当前主线里，`AVLTree` 的 shared root 已能承担正式并发根对象语义，但仍然建议：
 
 - owner-thread local 使用：直接走快路径
-- shared root 下的 walk / iterator / 复合操作：显式加锁
+- shared root 下直接访问 `RootNode / Count / Parent` 或自定义复合操作：显式加锁
 - 不要把 base-level 内部操作误解成 public shared contract
 
 ### 核心特点
@@ -88,13 +88,15 @@ AVL 树结构。
 **定义：**
 ```c
 typedef struct xavltree_struct {
-    xavltnode RootNode;           // 根节点
-    uint32 Count;                  // 节点数量
+    xavltnode RootNode;             // 根节点
+    uint32 Count;                   // 节点数量
+    xavltree_iterator Iterator;     // 当前激活的迭代器对象
+    xrtOwnerInfo Owner;             // 所有权信息
     struct xavltree_struct* Parent; // 父树（用于继承查找）
-    AVLTree_CompProc CompProc;    // 比较函数
-    AVLTree_FreeProc FreeProc;    // 节点释放回调（可选）
-    xfsmempool_struct objMM;      // 内置内存池
-    xavltnode NodeCache;          // 节点缓存
+    AVLTree_CompProc CompProc;      // 比较函数
+    AVLTree_FreeProc FreeProc;      // 节点释放回调（可选）
+    xfsmempool_struct objMM;        // 内置内存池
+    xavltnode NodeCache;            // 节点缓存
 } xavltree_struct, *xavltree;
 ```
 
@@ -104,6 +106,8 @@ typedef struct xavltree_struct {
 |------|------|
 | `RootNode` | 树的根节点 |
 | `Count` | 当前节点数量 |
+| `Iterator` | 当前激活的公开迭代器对象 |
+| `Owner` | owner/shared 模式下的线程归属与显式锁信息 |
 | `Parent` | 父树指针，Search 未找到时会查找父树 |
 | `CompProc` | 比较函数，用于节点排序 |
 | `FreeProc` | 释放回调，删除节点时调用（可为 NULL） |
@@ -171,25 +175,25 @@ int CompareUser(ptr pNode, ptr pKey) {
 }
 
 int main() {
-    xrtInit();
-    
-    xavltree tree = xrtAVLTreeCreate(sizeof(User), CompareUser);
-    tree->FreeProc = FreeUser;  // 设置释放回调
-    
-    // 插入数据
-    int id = 1;
-    bool isNew;
-    User* user = (User*)xrtAVLTreeInsert(tree, &id, &isNew);
-    if (isNew) {
-        user->id = id;
-        user->name = xrtCopyStr((str)"Alice", 0);
-    }
-    
-    // 销毁时会自动调用 FreeUser 释放 name
-    xrtAVLTreeDestroy(tree);
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	xavltree tree = xrtAVLTreeCreate(sizeof(User), CompareUser, XRT_OBJMODE_LOCAL);
+	tree->FreeProc = FreeUser;  // 设置释放回调
+	
+	// 插入数据
+	int id = 1;
+	bool isNew;
+	User* user = (User*)xrtAVLTreeInsert(tree, &id, &isNew);
+	if (isNew) {
+		user->id = id;
+		user->name = xrtCopyStr((str)"Alice", 0);
+	}
+	
+	// 销毁时会自动调用 FreeUser 释放 name
+	xrtAVLTreeDestroy(tree);
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -203,12 +207,13 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI xavltree xrtAVLTreeCreate(uint32 iItemLength, AVLTree_CompProc procComp);
+XXAPI xavltree xrtAVLTreeCreate(uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
 ```
 
 **参数：**
 - `iItemLength` - 节点数据大小（字节）
 - `procComp` - 比较函数
+- `iMode` - 对象模式，常用 `XRT_OBJMODE_LOCAL` 或 `XRT_OBJMODE_SHARED`
 
 **返回值：**
 - 成功：树对象指针
@@ -226,25 +231,25 @@ int CompareInt(ptr pNode, ptr pKey) {
 }
 
 int main() {
-    xrtInit();
-    
-    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
-    
-    // 插入数据
-    int keys[] = {5, 3, 7, 1, 9, 4, 6};
-    for (int i = 0; i < 7; i++) {
-        bool isNew;
-        int* data = (int*)xrtAVLTreeInsert(tree, &keys[i], &isNew);
-        if (isNew) {
-            *data = keys[i];
-        }
-    }
-    
-    printf("节点数: %u\n", tree->Count);  // 7
-    
-    xrtAVLTreeDestroy(tree);
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
+	
+	// 插入数据
+	int keys[] = {5, 3, 7, 1, 9, 4, 6};
+	for (int i = 0; i < 7; i++) {
+		bool isNew;
+		int* data = (int*)xrtAVLTreeInsert(tree, &keys[i], &isNew);
+		if (isNew) {
+			*data = keys[i];
+		}
+	}
+	
+	printf("节点数: %u\n", tree->Count);  // 7
+	
+	xrtAVLTreeDestroy(tree);
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -274,13 +279,14 @@ XXAPI void xrtAVLTreeDestroy(xavltree objAVLT);
 
 **函数原型：**
 ```c
-XXAPI void xrtAVLTreeInit(xavltree objAVLT, uint32 iItemLength, AVLTree_CompProc procComp);
+XXAPI void xrtAVLTreeInit(xavltree objAVLT, uint32 iItemLength, AVLTree_CompProc procComp, uint32 iMode);
 ```
 
 **参数：**
 - `objAVLT` - 树对象指针
 - `iItemLength` - 节点数据大小
 - `procComp` - 比较函数
+- `iMode` - 对象模式，常用 `XRT_OBJMODE_LOCAL` 或 `XRT_OBJMODE_SHARED`
 
 **示例：**
 ```c
@@ -292,25 +298,25 @@ int CompareInt(ptr pNode, ptr pKey) {
 }
 
 int main() {
-    xrtInit();
-    
-    // 栈上分配
-    xavltree_struct treeData;
-    xrtAVLTreeInit(&treeData, sizeof(int), CompareInt);
-    
-    // 使用
-    int key = 42;
-    bool isNew;
-    int* data = (int*)xrtAVLTreeInsert(&treeData, &key, &isNew);
-    *data = key;
-    
-    printf("节点数: %u\n", treeData.Count);
-    
-    // 释放内部资源（不释放结构体本身）
-    xrtAVLTreeUnit(&treeData);
-    
-    xrtUnit();
-    return 0;
+	xrtInit();
+	
+	// 栈上分配
+	xavltree_struct treeData;
+	xrtAVLTreeInit(&treeData, sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
+	
+	// 使用
+	int key = 42;
+	bool isNew;
+	int* data = (int*)xrtAVLTreeInsert(&treeData, &key, &isNew);
+	*data = key;
+	
+	printf("节点数: %u\n", treeData.Count);
+	
+	// 释放内部资源（不释放结构体本身）
+	xrtAVLTreeUnit(&treeData);
+	
+	xrtUnit();
+	return 0;
 }
 ```
 
@@ -377,7 +383,7 @@ int CompareItem(ptr pNode, ptr pKey) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(Item), CompareItem);
+    xavltree tree = xrtAVLTreeCreate(sizeof(Item), CompareItem, XRT_OBJMODE_LOCAL);
     
     // 插入新节点
     int id1 = 100;
@@ -434,7 +440,7 @@ int CompareInt(ptr pNode, ptr pKey) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
     
     // 插入数据
     for (int i = 1; i <= 10; i++) {
@@ -498,7 +504,7 @@ int CompareInt(ptr pNode, ptr pKey) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
     
     // 插入数据
     for (int i = 1; i <= 5; i++) {
@@ -533,27 +539,24 @@ int main() {
 
 ### xrtAVLTreeWalk / xrtAVLTreeWalkEx
 
-遍历树中所有节点（宏定义，使用 AVLTree Base 的实现）。
-
-**宏定义：**
-```c
-#define xrtAVLTreeWalk    xrtAVLTB_Walk
-#define xrtAVLTreeWalkEx  xrtAVLTB_WalkEx
-```
+遍历树中所有节点。
 
 **函数原型：**
 ```c
-// 基本遍历
-bool xrtAVLTreeWalk(xavltbase objBase, int WalkOrder, AVLTree_EachProc procEach, ptr pArg);
+// 中序遍历整棵树
+XXAPI bool xrtAVLTreeWalk(xavltree objAVLT, AVLTree_EachProc procEach, ptr pArg);
 
-// 扩展遍历（支持显式终止）
-bool xrtAVLTreeWalkEx(xavltbase objBase, int WalkOrder, AVLTree_EachProc procEach, ptr pArg, ptr pExit);
+// 分别在前序 / 中序 / 后序阶段触发回调
+XXAPI bool xrtAVLTreeWalkEx(xavltree objAVLT, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg);
 ```
 
-**WalkOrder 参数：**
-- `AVLTREE_WALK_PREORDER` (1) - 前序遍历
-- `AVLTREE_WALK_INORDER` (2) - 中序遍历（有序）
-- `AVLTREE_WALK_POSTORDER` (3) - 后序遍历
+**返回值语义：**
+- 若某个回调返回 `TRUE`，遍历会被提前终止，整个函数返回 `TRUE`
+- 若完整遍历结束，通常返回 `FALSE`
+
+**回调返回值语义：**
+- `TRUE` - 中断遍历
+- `FALSE` - 继续遍历
 
 **示例：**
 ```c
@@ -565,20 +568,21 @@ int CompareInt(ptr pNode, ptr pKey) {
 }
 
 bool PrintNode(ptr pNode, ptr pArg) {
+    (void)pArg;
     printf("%d ", *(int*)pNode);
-    return TRUE;  // 继续遍历
+    return FALSE;  // 继续遍历
 }
 
 bool SumNodes(ptr pNode, ptr pArg) {
     int* sum = (int*)pArg;
     *sum += *(int*)pNode;
-    return TRUE;
+    return FALSE;
 }
 
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
     
     // 插入数据
     int keys[] = {5, 3, 7, 1, 9, 4, 6};
@@ -588,14 +592,14 @@ int main() {
         *data = keys[i];
     }
     
-    // 中序遍历（有序输出）
+    // xrtAVLTreeWalk() 当前走的是中序遍历
     printf("中序遍历: ");
-    xrtAVLTreeWalk((xavltbase)tree, AVLTREE_WALK_INORDER, PrintNode, NULL);
+    xrtAVLTreeWalk(tree, PrintNode, NULL);
     printf("\n");  // 1 3 4 5 6 7 9
     
-    // 计算总和
+    // 在中序阶段累加
     int sum = 0;
-    xrtAVLTreeWalk((xavltbase)tree, AVLTREE_WALK_INORDER, SumNodes, &sum);
+    xrtAVLTreeWalkEx(tree, NULL, SumNodes, NULL, &sum);
     printf("总和: %d\n", sum);  // 35
     
     xrtAVLTreeDestroy(tree);
@@ -603,6 +607,11 @@ int main() {
     return 0;
 }
 ```
+
+**补充说明：**
+- `xrtAVLTreeWalk()` 使用中序遍历，因此输出顺序取决于 `CompProc`
+- `xrtAVLTreeWalkEx()` 允许你分别挂前序 / 中序 / 后序回调
+- 迭代器主线为 `xrtAVLTreeIterBegin()`、`xrtAVLTreeIterNext()`、`xrtAVLTreeIterEnd()`，以及宏 `AVLTREE_FOREACH` / `AVLTREE_FOREACH_TYPE`
 
 ---
 
@@ -621,7 +630,7 @@ int CompareInt(ptr pNode, ptr pKey) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
     
     // 插入数据
     for (int i = 1; i <= 100; i++) {
@@ -671,7 +680,7 @@ void FreeStringNode(ptr tree, ptr pNode) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(StringKeyNode), CompareStringKey);
+    xavltree tree = xrtAVLTreeCreate(sizeof(StringKeyNode), CompareStringKey, XRT_OBJMODE_LOCAL);
     
     // 插入
     char* keys[] = {"apple", "banana", "cherry", "date"};
@@ -715,7 +724,7 @@ int main() {
     xrtInit();
     
     // 创建父树（全局配置）
-    xavltree parentTree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+    xavltree parentTree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
     int globalKeys[] = {100, 200, 300};
     for (int i = 0; i < 3; i++) {
         bool isNew;
@@ -724,7 +733,7 @@ int main() {
     }
     
     // 创建子树（局部配置）
-    xavltree childTree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+    xavltree childTree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
     childTree->Parent = parentTree;  // 设置父树
     
     int localKeys[] = {1, 2, 3};
@@ -813,7 +822,7 @@ int CompareInt64Safe(ptr pNode, ptr pKey) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt);
+    xavltree tree = xrtAVLTreeCreate(sizeof(int), CompareInt, XRT_OBJMODE_LOCAL);
     
     int key = 42;
     bool isNew;
@@ -857,7 +866,7 @@ int CompareRecord(ptr pNode, ptr pKey) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(Record), CompareRecord);
+    xavltree tree = xrtAVLTreeCreate(sizeof(Record), CompareRecord, XRT_OBJMODE_LOCAL);
     
     // 插入记录
     Record records[] = {
@@ -922,7 +931,7 @@ int CompareComplex(ptr pNode, ptr pKey) {
 int main() {
     xrtInit();
     
-    xavltree tree = xrtAVLTreeCreate(sizeof(ComplexNode), CompareComplex);
+    xavltree tree = xrtAVLTreeCreate(sizeof(ComplexNode), CompareComplex, XRT_OBJMODE_LOCAL);
     tree->FreeProc = FreeComplexNode;  // 设置释放回调
     
     // 插入节点
