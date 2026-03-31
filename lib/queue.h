@@ -2,31 +2,42 @@
 	#define __XRT_QUEUE_MAX_CAPACITY (1u << 30)
 #endif
 
+// 内部函数：加载队列 atomic 32
 static inline uint32 __xrtQueueAtomicLoad32(const volatile uint32* pValue)
 {
 	return __xrtAtomicLoadU32(pValue);
 }
 
+
+// 内部函数：保存队列 atomic 32
 static inline void __xrtQueueAtomicStore32(volatile uint32* pValue, uint32 iValue)
 {
 	__xrtAtomicStoreU32(pValue, iValue);
 }
 
+
+// 内部函数：加载队列 atomic 64
 static inline uint64 __xrtQueueAtomicLoad64(const volatile uint64* pValue)
 {
 	return (uint64)__xrtAtomicLoad64((const volatile int64*)pValue);
 }
 
+
+// 内部函数：保存队列 atomic 64
 static inline void __xrtQueueAtomicStore64(volatile uint64* pValue, uint64 iValue)
 {
 	__xrtAtomicStore64((volatile int64*)pValue, (int64)iValue);
 }
 
+
+// 内部函数：__xrtQueueAtomicCAS64
 static inline bool __xrtQueueAtomicCAS64(volatile uint64* pValue, uint64 iExpected, uint64 iDesired)
 {
 	return (uint64)__xrtAtomicCompareExchange64((volatile int64*)pValue, (int64)iDesired, (int64)iExpected) == iExpected;
 }
 
+
+// 内部函数：__xrtQueueRoundUpPow2
 static inline uint32 __xrtQueueRoundUpPow2(uint32 iCapacity)
 {
 	if ( iCapacity == 0 || iCapacity > __XRT_QUEUE_MAX_CAPACITY ) {
@@ -45,6 +56,8 @@ static inline uint32 __xrtQueueRoundUpPow2(uint32 iCapacity)
 	return iCapacity;
 }
 
+
+// 内部函数：解析队列容量
 static inline bool __xrtQueueResolveCapacity(const xqueue_config* pCfg, uint32* pCapacity)
 {
 	uint32 iCapacity;
@@ -63,6 +76,8 @@ static inline bool __xrtQueueResolveCapacity(const xqueue_config* pCfg, uint32* 
 	return TRUE;
 }
 
+
+// 内部函数：__xrtQueueSPSCCount
 static inline uint32 __xrtQueueSPSCCount(const xspscq pQueue)
 {
 	uint32 iHead;
@@ -77,6 +92,8 @@ static inline uint32 __xrtQueueSPSCCount(const xspscq pQueue)
 	return (uint32)(iTail - iHead);
 }
 
+
+// 内部函数：__xrtQueueMPSCCount
 static inline uint32 __xrtQueueMPSCCount(const xmpscq pQueue)
 {
 	uint64 iHead;
@@ -97,6 +114,8 @@ static inline uint32 __xrtQueueMPSCCount(const xmpscq pQueue)
 	return (uint32)(iTail - iHead);
 }
 
+
+// 内部函数：__xrtQueueMPMCCount
 static inline uint32 __xrtQueueMPMCCount(const xmpmcq pQueue)
 {
 	uint64 iHead;
@@ -118,6 +137,7 @@ static inline uint32 __xrtQueueMPMCCount(const xmpmcq pQueue)
 }
 
 #ifndef XRT_NO_QUEUE_WAIT
+// 内部函数：等待队列 now 毫秒
 static inline uint64 __xrtQueueWaitNowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -131,21 +151,29 @@ static inline uint64 __xrtQueueWaitNowMs(void)
 	#endif
 }
 
+
+// 内部函数：__xrtQueueWaitLoadLong
 static inline long __xrtQueueWaitLoadLong(const volatile long* pValue)
 {
 	return __xrtAtomicCompareExchange32((volatile long*)pValue, 0, 0);
 }
 
+
+// 内部函数：__xrtQueueWaitAddLong
 static inline void __xrtQueueWaitAddLong(volatile long* pValue, long iDelta)
 {
 	(void)__xrtAtomicAddFetch32(pValue, iDelta);
 }
 
+
+// 内部函数：__xrtMPSCQWaitIsClosedAndDrained
 static inline bool __xrtMPSCQWaitIsClosedAndDrained(const xmpscqwait pQueue)
 {
 	return pQueue != NULL && xrtQueueIsClosed(&pQueue->tQueue.tBase) && xrtQueueIsDrained(&pQueue->tQueue.tBase);
 }
 
+
+// 内部函数：__xrtMPSCQWaitWakeAll
 static inline void __xrtMPSCQWaitWakeAll(xmpscqwait pQueue)
 {
 	long iWaiters;
@@ -164,6 +192,8 @@ static inline void __xrtMPSCQWaitWakeAll(xmpscqwait pQueue)
 	(void)xrtSemPostMultiple(pQueue->hItems, iWakeCount);
 }
 
+
+// 内部函数：__xrtMPSCQWaitPopWithToken
 static xqueue_result __xrtMPSCQWaitPopWithToken(xmpscqwait pQueue, ptr* ppItem)
 {
 	xqueue_result iRet;
@@ -187,6 +217,8 @@ static xqueue_result __xrtMPSCQWaitPopWithToken(xmpscqwait pQueue, ptr* ppItem)
 	return __xrtMPSCQWaitIsClosedAndDrained(pQueue) ? XQUEUE_CLOSED : XQUEUE_EMPTY;
 }
 
+
+// 内部函数：__xrtMPSCQWaitPopCore
 static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool bInfinite, uint32 iTimeoutMs)
 {
 	uint64 iDeadlineMs = 0;
@@ -257,6 +289,7 @@ static xqueue_result __xrtMPSCQWaitPopCore(xmpscqwait pQueue, ptr* ppItem, bool 
 }
 #endif
 
+// xrtSPSCQInit 相关处理
 XXAPI bool xrtSPSCQInit(xspscq pQueue, const xqueue_config* pCfg)
 {
 	uint32 iCapacity;
@@ -285,6 +318,8 @@ XXAPI bool xrtSPSCQInit(xspscq pQueue, const xqueue_config* pCfg)
 	return TRUE;
 }
 
+
+// xrtSPSCQUnit 相关处理
 XXAPI void xrtSPSCQUnit(xspscq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -296,6 +331,8 @@ XXAPI void xrtSPSCQUnit(xspscq pQueue)
 	memset(pQueue, 0, sizeof(xspscq_struct));
 }
 
+
+// xrtSPSCQCreate 相关处理
 XXAPI xspscq xrtSPSCQCreate(const xqueue_config* pCfg)
 {
 	xspscq pQueue = (xspscq)xrtCalloc(1, sizeof(xspscq_struct));
@@ -309,6 +346,8 @@ XXAPI xspscq xrtSPSCQCreate(const xqueue_config* pCfg)
 	return pQueue;
 }
 
+
+// xrtSPSCQDestroy 相关处理
 XXAPI void xrtSPSCQDestroy(xspscq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -318,6 +357,8 @@ XXAPI void xrtSPSCQDestroy(xspscq pQueue)
 	xrtFree(pQueue);
 }
 
+
+// xrtSPSCQTryPush 相关处理
 XXAPI xqueue_result xrtSPSCQTryPush(xspscq pQueue, ptr pItem)
 {
 	uint32 iHead;
@@ -341,6 +382,8 @@ XXAPI xqueue_result xrtSPSCQTryPush(xspscq pQueue, ptr pItem)
 	return XQUEUE_OK;
 }
 
+
+// xrtSPSCQTryPop 相关处理
 XXAPI xqueue_result xrtSPSCQTryPop(xspscq pQueue, ptr* ppItem)
 {
 	uint32 iHead;
@@ -368,11 +411,15 @@ XXAPI xqueue_result xrtSPSCQTryPop(xspscq pQueue, ptr* ppItem)
 	return XQUEUE_OK;
 }
 
+
+// xrtSPSCQApproxCount 相关处理
 XXAPI uint32 xrtSPSCQApproxCount(xspscq pQueue)
 {
 	return __xrtQueueSPSCCount(pQueue);
 }
 
+
+// xrtSPSCQClose 相关处理
 XXAPI void xrtSPSCQClose(xspscq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -381,6 +428,8 @@ XXAPI void xrtSPSCQClose(xspscq pQueue)
 	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 1u);
 }
 
+
+// xrtSPSCQDrain 相关处理
 XXAPI uint32 xrtSPSCQDrain(xspscq pQueue, xqueue_drain_fn procDrain, ptr pUserData)
 {
 	uint32 iCount = 0;
@@ -403,6 +452,8 @@ XXAPI uint32 xrtSPSCQDrain(xspscq pQueue, xqueue_drain_fn procDrain, ptr pUserDa
 	return iCount;
 }
 
+
+// xrtSPSCQReset 相关处理
 XXAPI bool xrtSPSCQReset(xspscq pQueue)
 {
 	if ( pQueue == NULL || pQueue->arrItems == NULL ) {
@@ -419,6 +470,8 @@ XXAPI bool xrtSPSCQReset(xspscq pQueue)
 	return TRUE;
 }
 
+
+// xrtMPSCQInit 相关处理
 XXAPI bool xrtMPSCQInit(xmpscq pQueue, const xqueue_config* pCfg)
 {
 	uint32 iCapacity;
@@ -452,6 +505,8 @@ XXAPI bool xrtMPSCQInit(xmpscq pQueue, const xqueue_config* pCfg)
 	return TRUE;
 }
 
+
+// xrtMPSCQUnit 相关处理
 XXAPI void xrtMPSCQUnit(xmpscq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -463,6 +518,8 @@ XXAPI void xrtMPSCQUnit(xmpscq pQueue)
 	memset(pQueue, 0, sizeof(xmpscq_struct));
 }
 
+
+// xrtMPSCQCreate 相关处理
 XXAPI xmpscq xrtMPSCQCreate(const xqueue_config* pCfg)
 {
 	xmpscq pQueue = (xmpscq)xrtCalloc(1, sizeof(xmpscq_struct));
@@ -476,6 +533,8 @@ XXAPI xmpscq xrtMPSCQCreate(const xqueue_config* pCfg)
 	return pQueue;
 }
 
+
+// xrtMPSCQDestroy 相关处理
 XXAPI void xrtMPSCQDestroy(xmpscq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -485,6 +544,8 @@ XXAPI void xrtMPSCQDestroy(xmpscq pQueue)
 	xrtFree(pQueue);
 }
 
+
+// xrtMPSCQTryPush 相关处理
 XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem)
 {
 	uint64 iTail;
@@ -522,6 +583,8 @@ XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem)
 	}
 }
 
+
+// xrtMPSCQTryPop 相关处理
 XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem)
 {
 	uint64 iHead;
@@ -561,6 +624,8 @@ XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem)
 	return XQUEUE_EMPTY;
 }
 
+
+// xrtMPSCQPushBatch 相关处理
 XXAPI uint32 xrtMPSCQPushBatch(xmpscq pQueue, ptr* arrItems, uint32 iCount)
 {
 	uint64 iTail;
@@ -620,6 +685,8 @@ XXAPI uint32 xrtMPSCQPushBatch(xmpscq pQueue, ptr* arrItems, uint32 iCount)
 	}
 }
 
+
+// xrtMPSCQPopBatch 相关处理
 XXAPI uint32 xrtMPSCQPopBatch(xmpscq pQueue, ptr* arrItems, uint32 iCap)
 {
 	uint64 iHead;
@@ -664,11 +731,15 @@ XXAPI uint32 xrtMPSCQPopBatch(xmpscq pQueue, ptr* arrItems, uint32 iCap)
 	return iPopped;
 }
 
+
+// xrtMPSCQApproxCount 相关处理
 XXAPI uint32 xrtMPSCQApproxCount(xmpscq pQueue)
 {
 	return __xrtQueueMPSCCount(pQueue);
 }
 
+
+// xrtMPSCQClose 相关处理
 XXAPI void xrtMPSCQClose(xmpscq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -677,6 +748,8 @@ XXAPI void xrtMPSCQClose(xmpscq pQueue)
 	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 1u);
 }
 
+
+// xrtMPSCQDrain 相关处理
 XXAPI uint32 xrtMPSCQDrain(xmpscq pQueue, xqueue_drain_fn procDrain, ptr pUserData)
 {
 	uint32 iCount = 0;
@@ -699,6 +772,8 @@ XXAPI uint32 xrtMPSCQDrain(xmpscq pQueue, xqueue_drain_fn procDrain, ptr pUserDa
 	return iCount;
 }
 
+
+// xrtMPSCQReset 相关处理
 XXAPI bool xrtMPSCQReset(xmpscq pQueue)
 {
 	uint32 i;
@@ -720,6 +795,8 @@ XXAPI bool xrtMPSCQReset(xmpscq pQueue)
 	return TRUE;
 }
 
+
+// xrtMPMCQInit 相关处理
 XXAPI bool xrtMPMCQInit(xmpmcq pQueue, const xqueue_config* pCfg)
 {
 	uint32 iCapacity;
@@ -753,6 +830,8 @@ XXAPI bool xrtMPMCQInit(xmpmcq pQueue, const xqueue_config* pCfg)
 	return TRUE;
 }
 
+
+// xrtMPMCQUnit 相关处理
 XXAPI void xrtMPMCQUnit(xmpmcq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -764,6 +843,8 @@ XXAPI void xrtMPMCQUnit(xmpmcq pQueue)
 	memset(pQueue, 0, sizeof(xmpmcq_struct));
 }
 
+
+// xrtMPMCQCreate 相关处理
 XXAPI xmpmcq xrtMPMCQCreate(const xqueue_config* pCfg)
 {
 	xmpmcq pQueue = (xmpmcq)xrtCalloc(1, sizeof(xmpmcq_struct));
@@ -777,6 +858,8 @@ XXAPI xmpmcq xrtMPMCQCreate(const xqueue_config* pCfg)
 	return pQueue;
 }
 
+
+// xrtMPMCQDestroy 相关处理
 XXAPI void xrtMPMCQDestroy(xmpmcq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -786,6 +869,8 @@ XXAPI void xrtMPMCQDestroy(xmpmcq pQueue)
 	xrtFree(pQueue);
 }
 
+
+// xrtMPMCQTryPush 相关处理
 XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem)
 {
 	uint64 iTail;
@@ -823,6 +908,8 @@ XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem)
 	}
 }
 
+
+// xrtMPMCQTryPop 相关处理
 XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem)
 {
 	uint64 iHead;
@@ -868,6 +955,8 @@ XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem)
 	}
 }
 
+
+// xrtMPMCQPushBatch 相关处理
 XXAPI uint32 xrtMPMCQPushBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCount)
 {
 	uint64 iTail;
@@ -927,6 +1016,8 @@ XXAPI uint32 xrtMPMCQPushBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCount)
 	}
 }
 
+
+// xrtMPMCQPopBatch 相关处理
 XXAPI uint32 xrtMPMCQPopBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCap)
 {
 	uint64 iHead;
@@ -983,11 +1074,15 @@ XXAPI uint32 xrtMPMCQPopBatch(xmpmcq pQueue, ptr* arrItems, uint32 iCap)
 	}
 }
 
+
+// xrtMPMCQApproxCount 相关处理
 XXAPI uint32 xrtMPMCQApproxCount(xmpmcq pQueue)
 {
 	return __xrtQueueMPMCCount(pQueue);
 }
 
+
+// xrtMPMCQClose 相关处理
 XXAPI void xrtMPMCQClose(xmpmcq pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -996,6 +1091,8 @@ XXAPI void xrtMPMCQClose(xmpmcq pQueue)
 	__xrtQueueAtomicStore32(&pQueue->tBase.bClosed, 1u);
 }
 
+
+// xrtMPMCQDrain 相关处理
 XXAPI uint32 xrtMPMCQDrain(xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserData)
 {
 	uint32 iCount = 0;
@@ -1018,6 +1115,8 @@ XXAPI uint32 xrtMPMCQDrain(xmpmcq pQueue, xqueue_drain_fn procDrain, ptr pUserDa
 	return iCount;
 }
 
+
+// xrtMPMCQReset 相关处理
 XXAPI bool xrtMPMCQReset(xmpmcq pQueue)
 {
 	uint32 i;
@@ -1039,6 +1138,8 @@ XXAPI bool xrtMPMCQReset(xmpmcq pQueue)
 	return TRUE;
 }
 
+
+// xrtQueueIsClosed 相关处理
 XXAPI bool xrtQueueIsClosed(const xqueuebase* pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -1047,6 +1148,8 @@ XXAPI bool xrtQueueIsClosed(const xqueuebase* pQueue)
 	return __xrtQueueAtomicLoad32(&pQueue->bClosed) != 0;
 }
 
+
+// xrtQueueIsDrained 相关处理
 XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue)
 {
 	if ( pQueue == NULL || !xrtQueueIsClosed(pQueue) ) {
@@ -1068,6 +1171,7 @@ XXAPI bool xrtQueueIsDrained(const xqueuebase* pQueue)
 }
 
 #ifndef XRT_NO_QUEUE_WAIT
+// xrtMPSCQWaitInit 相关处理
 XXAPI bool xrtMPSCQWaitInit(xmpscqwait pQueue, const xqueue_config* pCfg)
 {
 	if ( pQueue == NULL ) {
@@ -1101,6 +1205,8 @@ XXAPI bool xrtMPSCQWaitInit(xmpscqwait pQueue, const xqueue_config* pCfg)
 	return TRUE;
 }
 
+
+// xrtMPSCQWaitUnit 相关处理
 XXAPI void xrtMPSCQWaitUnit(xmpscqwait pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -1119,6 +1225,8 @@ XXAPI void xrtMPSCQWaitUnit(xmpscqwait pQueue)
 	memset(pQueue, 0, sizeof(xmpscqwait_struct));
 }
 
+
+// xrtMPSCQWaitCreate 相关处理
 XXAPI xmpscqwait xrtMPSCQWaitCreate(const xqueue_config* pCfg)
 {
 	xmpscqwait pQueue = (xmpscqwait)xrtCalloc(1, sizeof(xmpscqwait_struct));
@@ -1132,6 +1240,8 @@ XXAPI xmpscqwait xrtMPSCQWaitCreate(const xqueue_config* pCfg)
 	return pQueue;
 }
 
+
+// xrtMPSCQWaitDestroy 相关处理
 XXAPI void xrtMPSCQWaitDestroy(xmpscqwait pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -1141,6 +1251,8 @@ XXAPI void xrtMPSCQWaitDestroy(xmpscqwait pQueue)
 	xrtFree(pQueue);
 }
 
+
+// xrtMPSCQWaitTryPush 相关处理
 XXAPI xqueue_result xrtMPSCQWaitTryPush(xmpscqwait pQueue, ptr pItem)
 {
 	xqueue_result iRet;
@@ -1160,6 +1272,8 @@ XXAPI xqueue_result xrtMPSCQWaitTryPush(xmpscqwait pQueue, ptr pItem)
 	return XQUEUE_OK;
 }
 
+
+// xrtMPSCQWaitTryPop 相关处理
 XXAPI xqueue_result xrtMPSCQWaitTryPop(xmpscqwait pQueue, ptr* ppItem)
 {
 	if ( pQueue == NULL || pQueue->hItems == NULL || ppItem == NULL ) {
@@ -1174,16 +1288,22 @@ XXAPI xqueue_result xrtMPSCQWaitTryPop(xmpscqwait pQueue, ptr* ppItem)
 	return __xrtMPSCQWaitPopWithToken(pQueue, ppItem);
 }
 
+
+// xrtMPSCQWaitPop 相关处理
 XXAPI xqueue_result xrtMPSCQWaitPop(xmpscqwait pQueue, ptr* ppItem)
 {
 	return __xrtMPSCQWaitPopCore(pQueue, ppItem, TRUE, 0u);
 }
 
+
+// xrtMPSCQWaitPopTimeout 相关处理
 XXAPI xqueue_result xrtMPSCQWaitPopTimeout(xmpscqwait pQueue, ptr* ppItem, uint32 iTimeoutMs)
 {
 	return __xrtMPSCQWaitPopCore(pQueue, ppItem, FALSE, iTimeoutMs);
 }
 
+
+// xrtMPSCQWaitApproxCount 相关处理
 XXAPI uint32 xrtMPSCQWaitApproxCount(xmpscqwait pQueue)
 {
 	if ( pQueue == NULL ) {
@@ -1192,6 +1312,8 @@ XXAPI uint32 xrtMPSCQWaitApproxCount(xmpscqwait pQueue)
 	return xrtMPSCQApproxCount(&pQueue->tQueue);
 }
 
+
+// xrtMPSCQWaitClose 相关处理
 XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 {
 	if ( pQueue == NULL || pQueue->hItems == NULL ) {

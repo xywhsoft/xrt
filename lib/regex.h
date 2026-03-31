@@ -769,6 +769,7 @@ static void bbre_buf_clear(void *buf)
 /* Destroy a dynamic array. */
 #define bbre_buf_destroy(r, b) (bbre_buf_destroy_t((r), (void **)(b)))
 
+// bbre_alloc_make 相关处理
 static xregexalloc bbre_alloc_make(const xregexalloc *input)
 {
   xregexalloc out;

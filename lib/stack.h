@@ -23,6 +23,9 @@ XXAPI ptr xrtStackPush(xstack objSTK)
 	}
 	return NULL;
 }
+
+
+// 压入栈数据
 XXAPI uint32 xrtStackPushData(xstack objSTK, ptr pData)
 {
 	if ( objSTK->Count < objSTK->MaxCount ) {
@@ -32,6 +35,9 @@ XXAPI uint32 xrtStackPushData(xstack objSTK, ptr pData)
 	}
 	return 0;
 }
+
+
+// 压入栈指针
 XXAPI uint32 xrtStackPushPtr(xstack objSTK, ptr pVal)
 {
 	if ( objSTK->Count < objSTK->MaxCount ) {
@@ -56,6 +62,9 @@ XXAPI ptr xrtStackPop(xstack objSTK)
 	objSTK->Count--;
 	return &objSTK->Memory[objSTK->Count * objSTK->ItemLength];
 }
+
+
+// 弹出栈指针
 XXAPI ptr xrtStackPopPtr(xstack objSTK)
 {
 	if ( objSTK->Count == 0 ) {
@@ -78,6 +87,9 @@ XXAPI ptr xrtStackTop(xstack objSTK)
 	}
 	return &objSTK->Memory[(objSTK->Count - 1) * objSTK->ItemLength];
 }
+
+
+// 获取顶部栈指针
 XXAPI ptr xrtStackTopPtr(xstack objSTK)
 {
 	if ( objSTK->Count == 0 ) {
@@ -102,10 +114,16 @@ XXAPI ptr xrtStackGetPos(xstack objSTK, uint32 iPos)
 	}
 	return NULL;
 }
+
+
+// xrtStackGetPos_Unsafe 相关处理
 XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint32 iPos)
 {
 	return &objSTK->Memory[(iPos - 1) * objSTK->ItemLength];
 }
+
+
+// 获取栈 pos 指针
 XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint32 iPos)
 {
 	if ( iPos > 0 ) {
@@ -121,6 +139,9 @@ XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint32 iPos)
 	}
 	return NULL;
 }
+
+
+// xrtStackGetPosPtr_Unsafe 相关处理
 XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 {
 	if ( objSTK->ItemLength == sizeof(ptr) ) {

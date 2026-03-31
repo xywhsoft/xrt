@@ -8,6 +8,7 @@
     This file is intended to be expanded only from xrt.c / single-head generation.
 */
 
+// 构造字符串视图
 XXAPI xrtstrview xrtStrView(const char* sPtr, size_t iLen)
 {
 	xrtstrview tView;
@@ -16,11 +17,15 @@ XXAPI xrtstrview xrtStrView(const char* sPtr, size_t iLen)
 	return tView;
 }
 
+
+// 判断字符串视图是否为空
 XXAPI bool xrtStrViewIsEmpty(xrtstrview tView)
 {
 	return tView.sPtr == NULL || tView.iLen == 0u;
 }
 
+
+// 复制字符串视图
 XXAPI bool xrtStrViewCopyTo(xrtstrview tView, char* sOut, size_t iOutCap)
 {
 	if ( sOut == NULL || iOutCap == 0u ) return false;
@@ -34,6 +39,8 @@ XXAPI bool xrtStrViewCopyTo(xrtstrview tView, char* sOut, size_t iOutCap)
 	return true;
 }
 
+
+// 内部函数：判断两个 ASCII 字符是否忽略大小写相等
 static bool __xrtUrlAsciiEqNoCase(char chA, char chB)
 {
 	if ( chA >= 'A' && chA <= 'Z' ) chA = (char)(chA + 32);
@@ -41,6 +48,8 @@ static bool __xrtUrlAsciiEqNoCase(char chA, char chB)
 	return chA == chB;
 }
 
+
+// 内部函数：判断 URL 视图与文本是否忽略大小写相等
 static bool __xrtUrlViewEqNoCase(xrtstrview tView, const char* sText)
 {
 	size_t i = 0u;
@@ -53,12 +62,16 @@ static bool __xrtUrlViewEqNoCase(xrtstrview tView, const char* sText)
 	return i == tView.iLen;
 }
 
+
+// 内部函数：判断字符是否为控制字符或空白
 static bool __xrtUrlIsCtlOrSpace(char ch)
 {
 	unsigned char chU = (unsigned char)ch;
 	return chU <= 0x20u || chU == 0x7Fu;
 }
 
+
+// 内部函数：校验文本中是否包含控制字符或空白
 static bool __xrtUrlValidateNoCtlOrSpace(const char* sText, size_t iLen)
 {
 	size_t i;
@@ -69,6 +82,8 @@ static bool __xrtUrlValidateNoCtlOrSpace(const char* sText, size_t iLen)
 	return true;
 }
 
+
+// 内部函数：判断是否为 URL 协议字符
 static bool __xrtUrlIsSchemeChar(char ch, bool bFirst)
 {
 	if ( (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') ) return true;
@@ -77,6 +92,8 @@ static bool __xrtUrlIsSchemeChar(char ch, bool bFirst)
 	return ch == '+' || ch == '-' || ch == '.';
 }
 
+
+// 内部函数：解析 URL 端口
 static bool __xrtUrlParsePort(const char* sText, size_t iLen, uint16* pPort)
 {
 	uint32 iValue = 0u;
@@ -93,6 +110,8 @@ static bool __xrtUrlParsePort(const char* sText, size_t iLen, uint16* pPort)
 	return true;
 }
 
+
+// 获取 URL 默认端口
 XXAPI uint16 xrtUrlDefaultPort(xrtstrview tScheme)
 {
 	if ( __xrtUrlViewEqNoCase(tScheme, "http") ) return 80u;
@@ -102,11 +121,15 @@ XXAPI uint16 xrtUrlDefaultPort(xrtstrview tScheme)
 	return 0u;
 }
 
+
+// 判断是否为 URL 安全协议
 XXAPI bool xrtUrlIsSecureScheme(xrtstrview tScheme)
 {
 	return __xrtUrlViewEqNoCase(tScheme, "https") || __xrtUrlViewEqNoCase(tScheme, "wss");
 }
 
+
+// 内部函数：__xrtUrlHostNeedsBrackets
 static bool __xrtUrlHostNeedsBrackets(xrtstrview tHost)
 {
 	size_t i;
@@ -116,6 +139,8 @@ static bool __xrtUrlHostNeedsBrackets(xrtstrview tHost)
 	return false;
 }
 
+
+// 内部函数：__xrtUrlAppendBytes
 static bool __xrtUrlAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset, const char* sText, size_t iLen)
 {
 	size_t iCur;
@@ -129,6 +154,8 @@ static bool __xrtUrlAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset, con
 	return true;
 }
 
+
+// 内部函数：追加 URL 端口
 static bool __xrtUrlAppendPort(char* sOut, size_t iOutCap, size_t* pOffset, uint16 iPort)
 {
 	char sBuf[8];
@@ -137,6 +164,8 @@ static bool __xrtUrlAppendPort(char* sOut, size_t iOutCap, size_t* pOffset, uint
 	return __xrtUrlAppendBytes(sOut, iOutCap, pOffset, sBuf, (size_t)iLen);
 }
 
+
+// 判断是否为 URL 默认端口
 XXAPI bool xrtUrlIsDefaultPort(const xrturlview* pURL)
 {
 	uint16 iDefaultPort;
@@ -145,46 +174,62 @@ XXAPI bool xrtUrlIsDefaultPort(const xrturlview* pURL)
 	return iDefaultPort != 0u && iDefaultPort == pURL->iPort;
 }
 
+
+// 判断是否为 URL 视图协议
 XXAPI bool xrtUrlViewIsScheme(const xrturlview* pURL, const char* sScheme)
 {
 	return pURL != NULL && sScheme != NULL && !xrtStrViewIsEmpty(pURL->tScheme) && __xrtUrlViewEqNoCase(pURL->tScheme, sScheme);
 }
 
+
+// 匹配 URL 视图协议 2
 XXAPI bool xrtUrlViewMatchesScheme2(const xrturlview* pURL, const char* sSchemeA, const char* sSchemeB)
 {
 	return xrtUrlViewIsScheme(pURL, sSchemeA) || xrtUrlViewIsScheme(pURL, sSchemeB);
 }
 
+
+// 复制 URL 视图协议
 XXAPI bool xrtUrlViewCopySchemeTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tScheme, sOut, iOutCap);
 }
 
+
+// 复制 URL 视图 Authority
 XXAPI bool xrtUrlViewCopyAuthorityTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tAuthority, sOut, iOutCap);
 }
 
+
+// 复制 URL 视图路径
 XXAPI bool xrtUrlViewCopyPathTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tPath, sOut, iOutCap);
 }
 
+
+// 复制 URL 视图查询
 XXAPI bool xrtUrlViewCopyQueryTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tQuery, sOut, iOutCap);
 }
 
+
+// 复制 URL 视图片段
 XXAPI bool xrtUrlViewCopyFragmentTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
 	return xrtStrViewCopyTo(pURL->tFragment, sOut, iOutCap);
 }
 
+
+// 解析 URL Authority
 XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iAt = (size_t)-1;
@@ -246,12 +291,16 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 	return true;
 }
 
+
+// 解析 URL Authority
 XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtUrlParseAuthorityN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
+
+// 解析 URL Target
 XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iQuery = (size_t)-1;
@@ -285,12 +334,16 @@ XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 	return true;
 }
 
+
+// 解析 URL Target
 XXAPI bool xrtUrlParseTarget(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtUrlParseTargetN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
+
+// 解析 URL 视图
 XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iSchemeEnd = (size_t)-1;
@@ -359,18 +412,24 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 	return true;
 }
 
+
+// 解析 URL 视图
 XXAPI bool xrtUrlParseView(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtUrlParseViewN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
+
+// 复制 URL 视图主机
 XXAPI bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL || xrtStrViewIsEmpty(pURL->tHost) ) return false;
 	return xrtStrViewCopyTo(pURL->tHost, sOut, iOutCap);
 }
 
+
+// 复制 URL 视图 Target
 XXAPI bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL || sOut == NULL || iOutCap == 0u ) return false;
@@ -390,6 +449,8 @@ XXAPI bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iOu
 	return xrtStrViewCopyTo(pURL->tTarget, sOut, iOutCap);
 }
 
+
+// 构建 URL 主机头部
 XXAPI bool xrtUrlMakeHostHeader(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	bool bDefaultPort;
@@ -412,6 +473,8 @@ XXAPI bool xrtUrlMakeHostHeader(const xrturlview* pURL, char* sOut, size_t iOutC
 		strlen(sOut) < iOutCap;
 }
 
+
+// 构建 URL 主机头部固定长度
 XXAPI bool xrtUrlMakeHostHeaderFixed(const char* sScheme, const char* sHost, uint16 iPort, char* sOut, size_t iOutCap)
 {
 	xrturlview tURL;
@@ -426,6 +489,8 @@ XXAPI bool xrtUrlMakeHostHeaderFixed(const char* sScheme, const char* sHost, uin
 	return xrtUrlMakeHostHeader(&tURL, sOut, iOutCap);
 }
 
+
+// 内部函数：获取 URL 最后一次 segment
 static bool __xrtUrlGetLastSegment(const char* sPath, size_t iLen, size_t* pStart, size_t* pLen)
 {
 	size_t i;
@@ -444,6 +509,8 @@ static bool __xrtUrlGetLastSegment(const char* sPath, size_t iLen, size_t* pStar
 	}
 }
 
+
+// 内部函数：__xrtUrlAppendSegment
 static bool __xrtUrlAppendSegment(char* sOut, size_t iOutCap, size_t* pOffset, const char* sSeg, size_t iSegLen)
 {
 	if ( sOut == NULL || pOffset == NULL || (sSeg == NULL && iSegLen != 0u) ) return false;
@@ -453,11 +520,15 @@ static bool __xrtUrlAppendSegment(char* sOut, size_t iOutCap, size_t* pOffset, c
 	return __xrtUrlAppendBytes(sOut, iOutCap, pOffset, sSeg, iSegLen);
 }
 
+
+// 内部函数：__xrtUrlAppendDotDotSegment
 static bool __xrtUrlAppendDotDotSegment(char* sOut, size_t iOutCap, size_t* pOffset)
 {
 	return __xrtUrlAppendSegment(sOut, iOutCap, pOffset, "..", 2u);
 }
 
+
+// 内部函数：弹出 URL 最后一次 segment
 static bool __xrtUrlPopLastSegment(char* sOut, size_t iOutCap, size_t* pOffset, bool bAbsolute)
 {
 	size_t iStart = 0u;
@@ -479,6 +550,8 @@ static bool __xrtUrlPopLastSegment(char* sOut, size_t iOutCap, size_t* pOffset, 
 	return true;
 }
 
+
+// 规范化 URL 路径
 XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	bool bAbsolute;
@@ -532,6 +605,8 @@ XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, siz
 	return true;
 }
 
+
+// 构建 URL Target
 XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -559,6 +634,8 @@ XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap,
 	return true;
 }
 
+
+// 构建 URL Authority
 XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -587,6 +664,8 @@ XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutC
 	return true;
 }
 
+
+// 构建 URL
 XXAPI bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -610,6 +689,8 @@ XXAPI bool xrtUrlBuild(const xrturlview* pURL, char* sOut, size_t iOutCap, size_
 	return true;
 }
 
+
+// 解析 URL
 XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRefLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	xrturlview tRef;
@@ -705,12 +786,16 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 	return xrtUrlBuild(&tOut, sOut, iOutCap, pOutLen);
 }
 
+
+// 解析 URL
 XXAPI bool xrtUrlResolve(const xrturlview* pBase, const char* sRef, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sRef == NULL ) return false;
 	return xrtUrlResolveTo(pBase, sRef, strlen(sRef), sOut, iOutCap, pOutLen);
 }
 
+
+// 获取下一个查询
 XXAPI bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtquerypair* pOut)
 {
 	size_t iCur;
@@ -745,12 +830,16 @@ XXAPI bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtqu
 	return true;
 }
 
+
+// 获取下一个查询
 XXAPI bool xrtQueryNext(const char* sQuery, size_t* pOffset, xrtquerypair* pOut)
 {
 	if ( sQuery == NULL ) return false;
 	return xrtQueryNextN(sQuery, strlen(sQuery), pOffset, pOut);
 }
 
+
+// 统计查询
 XXAPI size_t xrtQueryCountN(const char* sQuery, size_t iLen)
 {
 	size_t iOffset = 0u;
@@ -761,12 +850,16 @@ XXAPI size_t xrtQueryCountN(const char* sQuery, size_t iLen)
 	return iCount;
 }
 
+
+// 统计查询
 XXAPI size_t xrtQueryCount(const char* sQuery)
 {
 	if ( sQuery == NULL ) return 0u;
 	return xrtQueryCountN(sQuery, strlen(sQuery));
 }
 
+
+// 查找查询
 XXAPI bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, xrtquerypair* pOut)
 {
 	size_t iOffset = 0u;
@@ -781,12 +874,16 @@ XXAPI bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, size
 	return false;
 }
 
+
+// 查找查询
 XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut)
 {
 	if ( sQuery == NULL || sKey == NULL ) return false;
 	return xrtQueryFindN(sQuery, strlen(sQuery), sKey, strlen(sKey), pOut);
 }
 
+
+// 解析查询
 XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
@@ -803,12 +900,16 @@ XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut,
 	return true;
 }
 
+
+// 解析查询
 XXAPI bool xrtQueryParseTo(const char* sQuery, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sQuery == NULL ) return false;
 	return xrtQueryParseToN(sQuery, strlen(sQuery), pOut, iCap, pCount);
 }
 
+
+// 内部函数：获取 URL hex 值
 static int __xrtUrlHexValue(char ch)
 {
 	if ( ch >= '0' && ch <= '9' ) return (int)(ch - '0');
@@ -817,6 +918,8 @@ static int __xrtUrlHexValue(char ch)
 	return -1;
 }
 
+
+// xrtPercentDecodeTo 相关处理
 XXAPI bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bPlusAsSpace)
 {
 	size_t iOut = 0u;
@@ -845,6 +948,8 @@ XXAPI bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t
 	return true;
 }
 
+
+// 解析 URL 固定长度
 XXAPI bool xrtUrlParseFixedTo(const char* sURL, const char* sSchemeA, const char* sSchemeB, bool* pSchemeB, char* sHost, size_t iHostCap, uint16* pPort, char* sTarget, size_t iTargetCap)
 {
 	xrturlview tURL;
@@ -863,6 +968,8 @@ XXAPI bool xrtUrlParseFixedTo(const char* sURL, const char* sSchemeA, const char
 	return true;
 }
 
+
+// 解析 URL
 XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 {
 	if ( pOut == NULL || sURL == NULL ) return false;

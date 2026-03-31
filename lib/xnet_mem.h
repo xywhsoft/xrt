@@ -108,6 +108,8 @@ struct __xnet_blk {
 	uint8 aData[1];
 };
 
+
+// 内部函数：__xnetChainSplice
 static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
 {
 	if ( !pDst || !pSrc || !pSrc->pHead ) return;
@@ -141,6 +143,8 @@ XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg)
 	pCfg->iLargeCacheLimit = 64;
 }
 
+
+// 内部函数：规范化内存配置
 static void __xnetMemNormalizeConfig(xnetmemconfig* pCfg)
 {
 	if ( !pCfg ) return;
@@ -155,6 +159,8 @@ static void __xnetMemNormalizeConfig(xnetmemconfig* pCfg)
 	}
 }
 
+
+// 初始化网络内存 ctx
 XXAPI void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg)
 {
 	if ( !pCtx ) return;
@@ -182,6 +188,8 @@ static __xnet_blk* __xnetBlkAllocRaw(size_t iCapacity)
 	return pBlk;
 }
 
+
+// 内部函数：内存分类容量相关处理
 static uint32 __xnetMemClassCapacity(const xnetmemctx* pCtx, uint16 iClassId)
 {
 	if ( !pCtx ) return 0;
@@ -193,6 +201,8 @@ static uint32 __xnetMemClassCapacity(const xnetmemctx* pCtx, uint16 iClassId)
 	}
 }
 
+
+// 内部函数：统计内存分类 cache
 static uint32* __xnetMemClassCacheCount(xnetmemctx* pCtx, uint16 iClassId)
 {
 	if ( !pCtx ) return NULL;
@@ -204,6 +214,8 @@ static uint32* __xnetMemClassCacheCount(xnetmemctx* pCtx, uint16 iClassId)
 	}
 }
 
+
+// 内部函数：__xnetMemClassCacheLimit
 static uint32 __xnetMemClassCacheLimit(const xnetmemctx* pCtx, uint16 iClassId)
 {
 	if ( !pCtx ) return 0;
@@ -215,6 +227,8 @@ static uint32 __xnetMemClassCacheLimit(const xnetmemctx* pCtx, uint16 iClassId)
 	}
 }
 
+
+// 内部函数：释放内存分类列表
 static __xnet_blk** __xnetMemClassFreeList(xnetmemctx* pCtx, uint16 iClassId)
 {
 	if ( !pCtx ) return NULL;
@@ -226,6 +240,8 @@ static __xnet_blk** __xnetMemClassFreeList(xnetmemctx* pCtx, uint16 iClassId)
 	}
 }
 
+
+// 内部函数：__xnetMemCountAlloc
 static void __xnetMemCountAlloc(xnetmemctx* pCtx, uint16 iClassId)
 {
 	if ( !pCtx ) return;
@@ -238,6 +254,8 @@ static void __xnetMemCountAlloc(xnetmemctx* pCtx, uint16 iClassId)
 	}
 }
 
+
+// 内部函数：__xnetMemCountReuse
 static void __xnetMemCountReuse(xnetmemctx* pCtx, uint16 iClassId)
 {
 	if ( !pCtx ) return;
@@ -248,6 +266,8 @@ static void __xnetMemCountReuse(xnetmemctx* pCtx, uint16 iClassId)
 	}
 }
 
+
+// 内部函数：__xnetMemPickClass
 static uint16 __xnetMemPickClass(const xnetmemctx* pCtx, size_t iCapacity)
 {
 	if ( !pCtx ) return XNET_MEM_CLASS_DYNAMIC;
@@ -257,6 +277,8 @@ static uint16 __xnetMemPickClass(const xnetmemctx* pCtx, size_t iCapacity)
 	return XNET_MEM_CLASS_DYNAMIC;
 }
 
+
+// 内部函数：__xnetMemPopCached
 static __xnet_blk* __xnetMemPopCached(xnetmemctx* pCtx, uint16 iClassId)
 {
 	__xnet_blk** ppHead = __xnetMemClassFreeList(pCtx, iClassId);
@@ -271,6 +293,8 @@ static __xnet_blk* __xnetMemPopCached(xnetmemctx* pCtx, uint16 iClassId)
 	return pBlk;
 }
 
+
+// 内部函数：__xnetBlkAllocEx
 static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 {
 	uint16 iClassId = __xnetMemPickClass(pCtx, iCapacity);
@@ -299,6 +323,8 @@ static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 	return pBlk;
 }
 
+
+// 内部函数：__xnetBlkAllocRef
 static __xnet_blk* __xnetBlkAllocRef(xnetmemctx* pCtx, const xnetbufref* pRef)
 {
 	if ( !pRef || !pRef->pData || pRef->iLen == 0 ) return NULL;
@@ -321,6 +347,8 @@ static __xnet_blk* __xnetBlkAllocRef(xnetmemctx* pCtx, const xnetbufref* pRef)
 	return pBlk;
 }
 
+
+// 内部函数：__xnetBlkDataPtr
 static const uint8* __xnetBlkDataPtr(const __xnet_blk* pBlk)
 {
 	if ( !pBlk ) return NULL;
@@ -330,6 +358,8 @@ static const uint8* __xnetBlkDataPtr(const __xnet_blk* pBlk)
 	return pBlk->aData;
 }
 
+
+// 内部函数：__xnetBlkReleaseOne
 static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 {
 	if ( !pBlk ) return;
@@ -367,6 +397,8 @@ static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 	XNET_FREE(pBlk);
 }
 
+
+// 内部函数：__xnetBlkFree
 static void __xnetBlkFree(__xnet_blk* pBlk)
 {
 	if ( !pBlk ) return;
@@ -377,18 +409,24 @@ static void __xnetBlkFree(__xnet_blk* pBlk)
 	__xnetBlkReleaseOne(pBlk);
 }
 
+
+// 内部函数：__xnetBlkReadable
 static uint32 __xnetBlkReadable(const __xnet_blk* pBlk)
 {
 	if ( !pBlk || pBlk->iEnd < pBlk->iBegin ) return 0;
 	return pBlk->iEnd - pBlk->iBegin;
 }
 
+
+// 内部函数：__xnetBlkWritable
 static uint32 __xnetBlkWritable(const __xnet_blk* pBlk)
 {
 	if ( !pBlk || (pBlk->iFlags & XNET_BLK_F_REF) || pBlk->iEnd > pBlk->iCapacity ) return 0;
 	return pBlk->iCapacity - pBlk->iEnd;
 }
 
+
+// 内部函数：__xnetChainLinkBlock
 static void __xnetChainLinkBlock(xnetchain* pChain, __xnet_blk* pBlk)
 {
 	if ( !pChain || !pBlk ) return;
@@ -402,6 +440,8 @@ static void __xnetChainLinkBlock(xnetchain* pChain, __xnet_blk* pBlk)
 	pChain->iBytes += __xnetBlkReadable(pBlk);
 }
 
+
+// 内部函数：裁剪内存列表
 static void __xnetMemTrimList(__xnet_blk** ppHead, uint32* pCached, uint32 iTarget)
 {
 	if ( !ppHead || !pCached ) return;
@@ -426,6 +466,8 @@ XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx)
 	__xnetMemTrimList(&pCtx->pLargeFree, &pCtx->tStats.iLargeCached, 0);
 }
 
+
+// 释放网络内存 ctx
 XXAPI void xrtNetMemCtxUnit(xnetmemctx* pCtx)
 {
 	if ( !pCtx ) return;
@@ -433,6 +475,8 @@ XXAPI void xrtNetMemCtxUnit(xnetmemctx* pCtx)
 	memset(pCtx, 0, sizeof(xnetmemctx));
 }
 
+
+// xrtNetMemCtxGetStats 相关处理
 XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats)
 {
 	if ( !pStats ) return;
@@ -452,11 +496,15 @@ XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx)
 	pChain->pMemCtx = pMemCtx;
 }
 
+
+// xrtNetChainInit 相关处理
 XXAPI void xrtNetChainInit(xnetchain* pChain)
 {
 	xrtNetChainInitEx(pChain, NULL);
 }
 
+
+// xrtNetChainClear 相关处理
 XXAPI void xrtNetChainClear(xnetchain* pChain)
 {
 	if ( !pChain ) return;
@@ -511,6 +559,8 @@ XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iL
 	return true;
 }
 
+
+// xrtNetChainAppendRef 相关处理
 XXAPI bool xrtNetChainAppendRef(xnetchain* pChain, const xnetbufref* pRef)
 {
 	if ( !pChain || !pRef || !pRef->pData || pRef->iLen == 0 ) return false;
@@ -531,6 +581,8 @@ XXAPI size_t xrtNetChainBytes(const xnetchain* pChain)
 	return pChain ? pChain->iBytes : 0;
 }
 
+
+// xrtNetChainSpanCount 相关处理
 XXAPI uint32 xrtNetChainSpanCount(const xnetchain* pChain)
 {
 	if ( !pChain ) return 0;
@@ -541,6 +593,8 @@ XXAPI uint32 xrtNetChainSpanCount(const xnetchain* pChain)
 	return iCount;
 }
 
+
+// xrtNetChainGetSpans 相关处理
 XXAPI uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32 iMaxCount)
 {
 	if ( !pChain || !pOut || iMaxCount == 0 ) return 0;
@@ -556,6 +610,8 @@ XXAPI uint32 xrtNetChainGetSpans(const xnetchain* pChain, xnetspan* pOut, uint32
 	return iCount;
 }
 
+
+// xrtNetChainPeek 相关处理
 XXAPI size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
 {
 	if ( !pChain || !pOut || iLen == 0 ) return 0;
@@ -575,6 +631,8 @@ XXAPI size_t xrtNetChainPeek(const xnetchain* pChain, ptr pOut, size_t iLen)
 	return iCopied;
 }
 
+
+// xrtNetChainFindByte 相关处理
 XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStartOff)
 {
 	if ( !pChain || iStartOff >= pChain->iBytes ) return (size_t)-1;

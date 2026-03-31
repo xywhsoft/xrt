@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_XURL_H
 #define XRT_TEST_XURL_H
 
+// XURL核心测试
 static bool Test_XUrlCore(void)
 {
 	bool bPass = true;

@@ -10,6 +10,7 @@
 		#define __XRT_THREAD_WAIT_CLOCK CLOCK_REALTIME
 	#endif
 
+	// 内部函数：构建线程 abs 超时
 	static bool __xrtThreadMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
 	{
 		uint64 iNs;
@@ -21,6 +22,8 @@
 		return true;
 	}
 
+
+	// 内部函数：__xrtThreadInitMonotonicCond
 	static bool __xrtThreadInitMonotonicCond(pthread_cond_t* pCond)
 	{
 		pthread_condattr_t tAttr;
@@ -38,12 +41,15 @@
 	}
 #endif
 
+// 内部函数：__xrtThreadObjAlloc
 static inline ptr __xrtThreadObjAlloc(size_t iSize)
 {
 	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
 	return procMalloc(iSize);
 }
 
+
+// 内部函数：__xrtThreadObjFree
 static inline void __xrtThreadObjFree(ptr pMem)
 {
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
@@ -74,6 +80,7 @@ static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
 	return iExitCode;
 }
 #else
+// xrtThreadWrapper 相关处理
 static void* xrtThreadWrapper(void* pParameter)
 {
 	xthread pThread = (xthread)pParameter;
@@ -534,6 +541,8 @@ XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue)
 	#endif
 }
 
+
+// xrtSemUnit 相关处理
 XXAPI void xrtSemUnit(xsem pSem)
 {
 	if ( !pSem ) return;
@@ -551,6 +560,8 @@ XXAPI void xrtSemUnit(xsem pSem)
 	#endif
 }
 
+
+// xrtSemWait 相关处理
 XXAPI void xrtSemWait(xsem pSem)
 {
 	if ( !pSem ) return;
@@ -567,6 +578,8 @@ XXAPI void xrtSemWait(xsem pSem)
 	#endif
 }
 
+
+// xrtSemTryWait 相关处理
 XXAPI bool xrtSemTryWait(xsem pSem)
 {
 	if ( !pSem ) return FALSE;
@@ -585,6 +598,8 @@ XXAPI bool xrtSemTryWait(xsem pSem)
 	#endif
 }
 
+
+// xrtSemWaitTimeout 相关处理
 XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 {
 	if ( !pSem ) return XRT_WAIT_ERROR;
@@ -617,6 +632,9 @@ XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 		return ret;
 	#endif
 }
+
+
+// xrtSemPost 相关处理
 XXAPI bool xrtSemPost(xsem pSem)
 {
 	if ( !pSem ) return FALSE;
@@ -636,6 +654,8 @@ XXAPI bool xrtSemPost(xsem pSem)
 	#endif
 }
 
+
+// xrtSemPostMultiple 相关处理
 XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 {
 	if ( !pSem || iCount == 0 ) return FALSE;
@@ -659,6 +679,8 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 	#endif
 }
 
+
+// xrtCondCreate 相关处理
 XXAPI xcond xrtCondCreate()
 {
 	xcond pCond = __xrtThreadObjAlloc(sizeof(xcond_struct));

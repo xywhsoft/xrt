@@ -3,6 +3,7 @@
 
 // 内存查找
 #if defined(_WIN32) || defined(_WIN64)
+	// memmem 相关处理
 	XXAPI ptr memmem(ptr pMem, size_t iMemSize, ptr pSub, size_t iSubSize)
 	{
 		if ( (iMemSize == 0) || (iSubSize == 0) ) {
@@ -42,6 +43,9 @@ XXAPI size_t u16len(u16str sText)
 	}
 	return iSize;
 }
+
+
+// u32len 相关处理
 XXAPI size_t u32len(u32str sText)
 {
 	size_t iSize = 0;

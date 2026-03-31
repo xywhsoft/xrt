@@ -61,6 +61,8 @@ static inline int32_t u64_pz_get(uint64_t n)
 #endif
 }
 
+
+// u128_mul 相关处理
 static inline u64x2_t u128_mul(uint64_t x, uint64_t y)
 {
     u64x2_t ret;
@@ -117,6 +119,8 @@ static const uint8_t tz_100_lut[100] = {
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
+
+// fill_t_4_digits 相关处理
 static inline int32_t fill_t_4_digits(char *buffer, uint32_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -135,6 +139,8 @@ static inline int32_t fill_t_4_digits(char *buffer, uint32_t digits, int32_t *pt
     return 4;
 }
 
+
+// fill_t_8_digits 相关处理
 static inline int32_t fill_t_8_digits(char *buffer, uint32_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -158,6 +164,8 @@ static inline int32_t fill_t_8_digits(char *buffer, uint32_t digits, int32_t *pt
     return 8;
 }
 
+
+// fill_t_16_digits 相关处理
 static inline int32_t fill_t_16_digits(char *buffer, uint64_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -181,6 +189,8 @@ static inline int32_t fill_t_16_digits(char *buffer, uint64_t digits, int32_t *p
     return 16;
 }
 
+
+// fill_1_4_digits 相关处理
 static inline int32_t fill_1_4_digits(char *buffer, uint32_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -221,6 +231,8 @@ static inline int32_t fill_1_4_digits(char *buffer, uint32_t digits, int32_t *pt
     return (int32_t)(s - buffer);
 }
 
+
+// fill_1_8_digits 相关处理
 static inline int32_t fill_1_8_digits(char *buffer, uint32_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -244,6 +256,8 @@ static inline int32_t fill_1_8_digits(char *buffer, uint32_t digits, int32_t *pt
     return (int32_t)(s - buffer);
 }
 
+
+// fill_1_16_digits 相关处理
 static inline int32_t fill_1_16_digits(char *buffer, uint64_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -267,6 +281,8 @@ static inline int32_t fill_1_16_digits(char *buffer, uint64_t digits, int32_t *p
     return (int32_t)(s - buffer);
 }
 
+
+// fill_1_20_digits 相关处理
 static inline int32_t fill_1_20_digits(char *buffer, uint64_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -290,6 +306,8 @@ static inline int32_t fill_1_20_digits(char *buffer, uint64_t digits, int32_t *p
     return (int32_t)(s - buffer);
 }
 
+
+// xrtI32ToStr 相关处理
 XXAPI int xrtI32ToStr(int32_t num, char* buffer)
 {
     char *s = buffer;
@@ -336,6 +354,8 @@ XXAPI int xrtI32ToStr(int32_t num, char* buffer)
     return (int)(s - buffer);
 }
 
+
+// xrtI64ToStr 相关处理
 XXAPI int xrtI64ToStr(int64_t num, char* buffer)
 {
     char *s = buffer;
@@ -366,6 +386,8 @@ static const char hex_char_lut[] = {
     'a', 'b', 'c', 'd', 'e', 'f'
 };
 
+
+// fill_t_2_hexs 相关处理
 static inline int fill_t_2_hexs(char *buffer, uint32_t num)
 {
     char *s = buffer;
@@ -374,6 +396,8 @@ static inline int fill_t_2_hexs(char *buffer, uint32_t num)
     return 2;
 }
 
+
+// fill_t_4_hexs 相关处理
 static inline int fill_t_4_hexs(char *buffer, uint32_t num)
 {
     char *s = buffer;
@@ -383,6 +407,8 @@ static inline int fill_t_4_hexs(char *buffer, uint32_t num)
     return 4;
 }
 
+
+// fill_t_8_hexs 相关处理
 static inline int fill_t_8_hexs(char *buffer, uint32_t num)
 {
     char *s = buffer;
@@ -392,6 +418,8 @@ static inline int fill_t_8_hexs(char *buffer, uint32_t num)
     return 8;
 }
 
+
+// fill_1_2_hexs 相关处理
 static inline int fill_1_2_hexs(char *buffer, uint32_t num)
 {
     char *s = buffer;
@@ -404,6 +432,8 @@ static inline int fill_1_2_hexs(char *buffer, uint32_t num)
     return (int)(s - buffer);
 }
 
+
+// fill_1_4_hexs 相关处理
 static inline int fill_1_4_hexs(char *buffer, uint32_t num)
 {
     char *s = buffer;
@@ -419,6 +449,8 @@ static inline int fill_1_4_hexs(char *buffer, uint32_t num)
     return (int)(s - buffer);
 }
 
+
+// fill_1_8_hexs 相关处理
 static inline int fill_1_8_hexs(char *buffer, uint32_t num)
 {
     char *s = buffer;
@@ -434,6 +466,8 @@ static inline int fill_1_8_hexs(char *buffer, uint32_t num)
     return (int)(s - buffer);
 }
 
+
+// xrtU32ToStr 相关处理
 XXAPI int xrtU32ToStr(uint32_t num, char* buffer)
 {
     char *s = buffer;
@@ -446,6 +480,8 @@ XXAPI int xrtU32ToStr(uint32_t num, char* buffer)
     return (int)(s - buffer);
 }
 
+
+// xrtU64ToStr 相关处理
 XXAPI int xrtU64ToStr(uint64_t num, char* buffer)
 {
     char *s = buffer;
@@ -739,6 +775,8 @@ static const int8_t pow10_exp_lut[POW10_LUT_MAX_IDX - POW10_LUT_MIN_IDX + 1] = {
     -47, -47, -47, -48, -48, -48, -48, -48, -49, -49, -49, -49, -49, -50, -50, -50
 };
 
+
+// fill_significand 相关处理
 static inline int32_t fill_significand(char *buffer, uint64_t digits, int32_t *ptz)
 {
     char *s = buffer;
@@ -777,6 +815,8 @@ static inline int32_t fill_significand(char *buffer, uint64_t digits, int32_t *p
     return 16;
 }
 
+
+// ldouble_convert 相关处理
 static inline int32_t ldouble_convert(diy_fp_t *v, char *buffer, int32_t *vnum_digits)
 {
     const uint8_t s_lut[4] = {8, 9, 6, 7};
@@ -919,6 +959,8 @@ static inline int32_t ldouble_convert_n(diy_fp_t *v, char *buffer, int32_t *vnum
     return num_digits;
 }
 
+
+// fill_exponent 相关处理
 static inline int32_t fill_exponent(int32_t K, char *buffer)
 {
     int32_t i = 0, k = 0;
@@ -948,6 +990,8 @@ static inline int32_t fill_exponent(int32_t K, char *buffer)
     return i;
 }
 
+
+// ldouble_format 相关处理
 static inline char* ldouble_format(char *buffer, int32_t num_digits, int32_t vnum_digits, int32_t decimal_point)
 {
     switch (decimal_point) {
@@ -999,6 +1043,8 @@ static inline char* ldouble_format(char *buffer, int32_t num_digits, int32_t vnu
     return buffer;
 }
 
+
+// xrtNumToStr 相关处理
 XXAPI int xrtNumToStr(double num, char* buffer)
 {
     diy_fp_t v;
@@ -1065,6 +1111,8 @@ XXAPI int xrtNumToStr(double num, char* buffer)
     return (int)(s - buffer);
 }
 
+
+// jnum_parse_hex 相关处理
 static int jnum_parse_hex(const char *str, jnum_type_t *type, jnum_value_t *value)
 {
     const char *s = str;
@@ -1366,6 +1414,8 @@ static const int16_t pow2_exp_lut[POW2_LUT_MAX_IDX - POW2_LUT_MIN_IDX + 1] = {
     936  , 940  , 943  , 946  , 950  , 953  , 956  , 960  , 963
 };
 
+
+// ldouble_rconvert 相关处理
 static double ldouble_rconvert(uint64_t f, int32_t e)
 {
     static uint64_t pow10_lut[20] = {
@@ -1437,6 +1487,8 @@ static double ldouble_rconvert(uint64_t f, int32_t e)
     return d;
 }
 
+
+// xrtParseNum 相关处理
 XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value)
 {
 #define IS_DIGIT(c)     ((c) >= '0' && (c) <= '9')

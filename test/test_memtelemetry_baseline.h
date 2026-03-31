@@ -22,6 +22,8 @@ void Test_XNet2_Mem(void);
 
 typedef void (*__test_memtelemetry_baseline_lane_proc)(xrtGlobalData* pCore);
 
+
+// 内部函数：__Test_MemTelemetryBaselinePrintTopClasses
 static void __Test_MemTelemetryBaselinePrintTopClasses(const xrtMemTelemetrySnapshot* pSnap, int iTopN)
 {
 	int iRank;
@@ -55,6 +57,8 @@ static void __Test_MemTelemetryBaselinePrintTopClasses(const xrtMemTelemetrySnap
 	}
 }
 
+
+// 内部函数：__Test_MemTelemetryBaselinePrintSnapshot
 static void __Test_MemTelemetryBaselinePrintSnapshot(const char* sLane, const xrtMemTelemetrySnapshot* pSnap)
 {
 	printf("\n[memtelemetry-baseline] lane=%s\n", sLane ? sLane : "(null)");
@@ -82,6 +86,8 @@ static void __Test_MemTelemetryBaselinePrintSnapshot(const char* sLane, const xr
 	__Test_MemTelemetryBaselinePrintTopClasses(pSnap, 8);
 }
 
+
+// 内部函数：__Test_MemTelemetryBaselineRunLane
 static void __Test_MemTelemetryBaselineRunLane(const char* sLane, __test_memtelemetry_baseline_lane_proc Proc, xrtGlobalData* pCore)
 {
 	xrtMemTelemetrySnapshot tSnap;
@@ -93,16 +99,22 @@ static void __Test_MemTelemetryBaselineRunLane(const char* sLane, __test_memtele
 	__Test_MemTelemetryBaselinePrintSnapshot(sLane, &tSnap);
 }
 
+
+// 内部函数：__Test_MemTelemetryBaselineLane_Runtime
 static void __Test_MemTelemetryBaselineLane_Runtime(xrtGlobalData* pCore)
 {
 	Test_Runtime_Phase2(pCore);
 }
 
+
+// 内部函数：__Test_MemTelemetryBaselineLane_Coroutine
 static void __Test_MemTelemetryBaselineLane_Coroutine(xrtGlobalData* pCore)
 {
 	Test_Coroutine(pCore);
 }
 
+
+// 内部函数：__Test_MemTelemetryBaselineLane_XNet
 static void __Test_MemTelemetryBaselineLane_XNet(xrtGlobalData* pCore)
 {
 	(void)pCore;
@@ -122,6 +134,8 @@ static void __Test_MemTelemetryBaselineLane_XNet(xrtGlobalData* pCore)
 	Test_XNet2_Mem();
 }
 
+
+// MEMTELEMETRY基线测试
 static int Test_MemTelemetryBaseline(xrtGlobalData* pCore)
 {
 	if ( !pCore ) return 1;

@@ -32,6 +32,8 @@ static inline uint32 __xrtMemPoolResolveCutoff(int iCustom)
 	return (uint32)iCustom;
 }
 
+
+// 内部函数：统计内存内存池桶
 static inline uint32 __xrtMemPoolBucketCount(uint32 iCutoff)
 {
 	if ( iCutoff == 0 ) {
@@ -40,6 +42,8 @@ static inline uint32 __xrtMemPoolBucketCount(uint32 iCutoff)
 	return (uint32)((iCutoff + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE);
 }
 
+
+// 内部函数：初始化内存内存池桶
 static inline void __xrtMemPoolInitBucket(FSB_Item* pBucket, uint32 iSizeMin, uint32 iSizeMax)
 {
 	pBucket->MinLength = iSizeMin;
@@ -52,6 +56,8 @@ static inline void __xrtMemPoolInitBucket(FSB_Item* pBucket, uint32 iSizeMin, ui
 	pBucket->right = NULL;
 }
 
+
+// 内部函数：构建内存内存池桶计划
 static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 {
 	uint32 iBucketCount;
@@ -106,6 +112,8 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 	return TRUE;
 }
 
+
+// 内部函数：获取内存内存池桶 by 大小
 static inline FSB_Item* __xrtMemPoolGetBucketBySize(xmempool objMP, uint32 iSize)
 {
 	if ( objMP == NULL || objMP->FSB_Memory == NULL || objMP->FSB_Lut == NULL ) {
@@ -117,6 +125,8 @@ static inline FSB_Item* __xrtMemPoolGetBucketBySize(xmempool objMP, uint32 iSize
 	return &objMP->FSB_Memory[objMP->FSB_Lut[iSize]];
 }
 
+
+// 内部函数：获取内存内存池桶 by mmu
 static inline FSB_Item* __xrtMemPoolGetBucketByMMU(xmempool objMP, xmemunit objMMU)
 {
 	uint32 iSize;
@@ -131,6 +141,8 @@ static inline FSB_Item* __xrtMemPoolGetBucketByMMU(xmempool objMP, xmemunit objM
 	return __xrtMemPoolGetBucketBySize(objMP, iSize);
 }
 
+
+// 初始化内存内存池
 XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom, uint32 iMode)
 {
 	xrtOwnerInitMode(&objMP->Owner, iMode);
@@ -183,17 +195,24 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 创建内存内存池调试
 XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xmempool objMP = xrtMemPoolCreate(iCustom, iMode);
 	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objMP;
 }
+
+
+// 初始化内存内存池调试
 XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xrtMemPoolInit(objMP, iCustom, iMode);
 	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
+
+
+// 销毁内存内存池调试
 XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
 {
 	if ( objMP ) {
@@ -208,6 +227,9 @@ XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
 		xrtFreeDbg(objMP, sFile, iLine);
 	}
 }
+
+
+// 释放内存内存池调试
 XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 {
 	if ( objMP == NULL ) {
@@ -252,6 +274,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 }
 #endif
 
+// 内部函数：释放内存内存池 acquire
 static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 {
 	xmemunit objMMU = NULL;
@@ -446,6 +469,8 @@ static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 	}
 }
 
+
+// 释放内存内存池
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
 	if ( ptr == NULL ) {
@@ -538,6 +563,8 @@ static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 	}
 }
 
+
+// xrtMemPoolGC 相关处理
 XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {

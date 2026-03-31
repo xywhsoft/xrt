@@ -1,3 +1,4 @@
+// XNET2编解码器测试
 void Test_XNet2_Codec(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Codec Scaffolding Test:\n\n");

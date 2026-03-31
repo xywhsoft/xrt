@@ -17,6 +17,8 @@ typedef struct {
 	char aLastRecvText[64];
 } __test_xnet2_dgram_stats;
 
+
+// 内部函数：__Test_XNet2_DgramSleepMs
 static void __Test_XNet2_DgramSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -26,26 +28,36 @@ static void __Test_XNet2_DgramSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_DgramAtomicInc
 static long __Test_XNet2_DgramAtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XNet2_DgramAtomicAdd
 static long __Test_XNet2_DgramAtomicAdd(volatile long* pValue, long iDelta)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, iDelta);
 }
 
+
+// 内部函数：__Test_XNet2_DgramAtomicLoad
 static long __Test_XNet2_DgramAtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_XNet2_DgramAtomicStore
 static void __Test_XNet2_DgramAtomicStore(volatile long* pValue, long iValue)
 {
 	__xrtTestAtomicStoreLong(pValue, iValue);
 }
 
+
+// 内部函数：__Test_XNet2_DgramWaitMin
 static bool __Test_XNet2_DgramWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -56,6 +68,8 @@ static bool __Test_XNet2_DgramWaitMin(volatile long* pValue, long iExpectMin, ui
 	return __Test_XNet2_DgramAtomicLoad(pValue) >= iExpectMin;
 }
 
+
+// 内部函数：__Test_XNet2_DgramOnRecv
 static void __Test_XNet2_DgramOnRecv(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain)
 {
 	__test_xnet2_dgram_stats* pStats = (__test_xnet2_dgram_stats*)pOwner;
@@ -78,6 +92,8 @@ static void __Test_XNet2_DgramOnRecv(ptr pOwner, xdgramsock* pSock, const xnetad
 	}
 }
 
+
+// 内部函数：__Test_XNet2_DgramOnError
 static void __Test_XNet2_DgramOnError(ptr pOwner, xdgramsock* pSock, int iSysErr)
 {
 	__test_xnet2_dgram_stats* pStats = (__test_xnet2_dgram_stats*)pOwner;
@@ -88,6 +104,7 @@ static void __Test_XNet2_DgramOnError(ptr pOwner, xdgramsock* pSock, int iSysErr
 }
 
 
+// XNET2数据报测试
 void Test_XNet2_Dgram(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Datagram Test:\n\n");

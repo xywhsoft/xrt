@@ -9,6 +9,8 @@ typedef struct {
 	int iExitCode;
 } xrt_test_os_stream_ctx;
 
+
+// 内部函数：__xrtTestOSAppendText
 static void __xrtTestOSAppendText(char* sBuf, size_t* piBufSize, size_t iCap, const void* pData, size_t iSize)
 {
 	size_t iCopy;
@@ -29,6 +31,8 @@ static void __xrtTestOSAppendText(char* sBuf, size_t* piBufSize, size_t iCap, co
 	sBuf[*piBufSize] = '\0';
 }
 
+
+// 内部函数：__xrtTestOSNormalizeText
 static void __xrtTestOSNormalizeText(const char* sInput, char* sOutput, size_t iCap)
 {
 	size_t iWrite = 0u;
@@ -51,6 +55,8 @@ static void __xrtTestOSNormalizeText(const char* sInput, char* sOutput, size_t i
 	sOutput[iWrite] = '\0';
 }
 
+
+// 内部函数：__xrtTestOSOnStdout
 static void __xrtTestOSOnStdout(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData)
 {
 	xrt_test_os_stream_ctx* pCtx = (xrt_test_os_stream_ctx*)pUserData;
@@ -64,6 +70,8 @@ static void __xrtTestOSOnStdout(xprocess* pProcess, const void* pData, size_t iS
 	__xrtTestOSAppendText(pCtx->sStdout, &pCtx->iStdoutSize, sizeof(pCtx->sStdout), pData, iSize);
 }
 
+
+// 内部函数：__xrtTestOSOnStderr
 static void __xrtTestOSOnStderr(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData)
 {
 	xrt_test_os_stream_ctx* pCtx = (xrt_test_os_stream_ctx*)pUserData;
@@ -77,6 +85,8 @@ static void __xrtTestOSOnStderr(xprocess* pProcess, const void* pData, size_t iS
 	__xrtTestOSAppendText(pCtx->sStderr, &pCtx->iStderrSize, sizeof(pCtx->sStderr), pData, iSize);
 }
 
+
+// 内部函数：__xrtTestOSOnExit
 static void __xrtTestOSOnExit(xprocess* pProcess, int iExitCode, ptr pUserData)
 {
 	xrt_test_os_stream_ctx* pCtx = (xrt_test_os_stream_ctx*)pUserData;
@@ -90,6 +100,8 @@ static void __xrtTestOSOnExit(xprocess* pProcess, int iExitCode, ptr pUserData)
 	pCtx->iExitCode = iExitCode;
 }
 
+
+// 内部函数：__xrtTestOSSleepMs
 static void __xrtTestOSSleepMs(uint32 iMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -99,6 +111,8 @@ static void __xrtTestOSSleepMs(uint32 iMs)
 	#endif
 }
 
+
+// 内部函数：__xrtTestOSPrepareSelfConfig
 static void __xrtTestOSPrepareSelfConfig(xrtGlobalData* xCore, xprocessconfig* pConfig, str* arrArgs, uint32 iArgCount)
 {
 	xrtProcessConfigInit(pConfig);
@@ -107,6 +121,8 @@ static void __xrtTestOSPrepareSelfConfig(xrtGlobalData* xCore, xprocessconfig* p
 	pConfig->iArgCount = iArgCount;
 }
 
+
+// 内部函数：__xrtTestSubprocessHelperMain
 static int __xrtTestSubprocessHelperMain(int argc, char** argv)
 {
 	if ( argc <= 0 || argv == NULL ) {
@@ -154,6 +170,8 @@ static int __xrtTestSubprocessHelperMain(int argc, char** argv)
 	return 123;
 }
 
+
+// OS测试
 static int Test_OS(xrtGlobalData* xCore)
 {
 	static xprocessevents tEvents = {

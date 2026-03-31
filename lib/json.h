@@ -217,6 +217,7 @@ typedef struct _json_print_t {
 #define GET_BUF_USED_SIZE(bp) ((bp)->cur - (bp)->ptr)
 #define GET_BUF_FREE_SIZE(bp) ((bp)->size - ((bp)->cur - (bp)->ptr))
 
+// 内部函数：_is_escape_char
 static inline char _is_escape_char(uint8_t val)
 {
 #define ESCAPE_UTF16_VAL        1
@@ -248,6 +249,8 @@ static inline char _is_escape_char(uint8_t val)
     return char_escape_lut[val];
 }
 
+
+// 内部函数：重新分配 print 字符串指针
 static int _print_str_ptr_realloc(json_print_t *print_ptr, size_t slen)
 {
     size_t used = GET_BUF_USED_SIZE(print_ptr);
@@ -299,6 +302,8 @@ static int _print_str_ptr_realloc(json_print_t *print_ptr, size_t slen)
     print_ptr->cur += slen;                         \
 } while(0)
 
+
+// 内部函数：_print_addi_format
 static inline int _print_addi_format(json_print_t *print_ptr, size_t depth)
 {
     _PRINT_PTR_REALLOC((depth + 2));
@@ -312,6 +317,7 @@ err:
 }
 #define _PRINT_ADDI_FORMAT(ptr, depth) do { if (unlikely(_print_addi_format(ptr, depth) < 0)) goto err; } while(0)
 
+// 内部函数：输出 JSON 字符串
 static inline int _json_print_string(json_print_t *print_ptr, const char *val, json_strinfo_t *info)
 {
 #define _JSON_PRINT_SEGMENT()   do {  \
@@ -404,6 +410,7 @@ err:
 }
 #define _JSON_PRINT_STRING(ptr, val, info) do { if (unlikely(_json_print_string(ptr, val, info) < 0)) goto err; } while(0)
 
+// 内部函数：_print_val_release
 static int _print_val_release(json_print_t *print_ptr, bool free_all_flag, size_t *length, json_print_ptr_t *ptr)
 {
 #define _clear_free_ptr(ptr)    do { if (ptr) json_free(ptr); ptr = NULL; } while(0)
@@ -429,6 +436,8 @@ static int _print_val_release(json_print_t *print_ptr, bool free_all_flag, size_
     return ret;
 }
 
+
+// 内部函数：_print_val_init
 static int _print_val_init(json_print_t *print_ptr, json_print_choice_t *choice)
 {
     print_ptr->format_flag = choice->format_flag;
@@ -484,6 +493,8 @@ typedef struct {
     bool error_flag;
 } json_sax_print_t;
 
+
+// 输出 JSON 值
 XXAPI int xrtJsonPrintValue(json_sax_print_hd handle, json_type_t type, json_string_t *jkey, const void *value)
 {
     json_sax_print_t *print_handle = (json_sax_print_t *)handle;
@@ -663,6 +674,8 @@ err:
     return -1;
 }
 
+
+// xrtJsonPrintStart 相关处理
 XXAPI json_sax_print_hd xrtJsonPrintStart(json_print_choice_t *choice)
 {
     json_sax_print_t *print_handle = NULL;
@@ -688,6 +701,8 @@ XXAPI json_sax_print_hd xrtJsonPrintStart(json_print_choice_t *choice)
     return print_handle;
 }
 
+
+// xrtJsonPrintFinish 相关处理
 XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_print_ptr_t *ptr)
 {
     char *ret = NULL;
@@ -718,6 +733,7 @@ XXAPI char* xrtJsonPrintFinish(json_sax_print_hd handle, size_t *length, json_pr
 
 
 
+// 内部函数：解析 get 字符串指针
 static inline int _get_str_parse_ptr(json_parse_t *parse_ptr, int read_offset, size_t read_size UNUSED_ATTR, char **sstr)
 {
     size_t offset = parse_ptr->offset + read_offset;
@@ -725,12 +741,15 @@ static inline int _get_str_parse_ptr(json_parse_t *parse_ptr, int read_offset, s
     return (int)(parse_ptr->size - offset);
 }
 
+
+// 内部函数：_get_parse_ptr
 static inline int _get_parse_ptr(json_parse_t *parse_ptr, int read_offset, size_t read_size, char **sstr)
 {
     return _get_str_parse_ptr(parse_ptr, read_offset, read_size, sstr);
 }
 #define _UPDATE_PARSE_OFFSET(add_offset)    parse_ptr->offset += add_offset
 
+// 内部函数：_json_parse_number
 static inline json_type_t _json_parse_number(const char **sstr, json_number_t *vnum)
 {
     const char *s = *sstr;
@@ -747,6 +766,8 @@ static inline json_type_t _json_parse_number(const char **sstr, json_number_t *v
     return type;
 }
 
+
+// 内部函数：_parse_hex4
 static inline uint32_t _parse_hex4(const unsigned char *str)
 {
     int i = 0;
@@ -772,6 +793,8 @@ static inline uint32_t _parse_hex4(const unsigned char *str)
     return val;
 }
 
+
+// utf16_literal_to_utf8 相关处理
 static int utf16_literal_to_utf8(const unsigned char *start_str, const unsigned char *finish_str, unsigned char **pptr)
 { /* copy from cJSON */
     const unsigned char *str = start_str;
@@ -840,6 +863,8 @@ fail:
     return 0;
 }
 
+
+// 内部函数：_json_parse_key
 static int _json_parse_key(json_parse_t *parse_ptr, json_string_t *jkey)
 {
     char *str = NULL;
@@ -910,6 +935,8 @@ err:
     return -1;
 }
 
+
+// 内部函数：解析 JSON single 值
 static int _json_parse_single_value(json_parse_t *parse_ptr, char *str, json_strinfo_t *kinfo,
     json_number_t *pnum, char **ppstr, json_strinfo_t *pinfo)
 {
@@ -1024,6 +1051,7 @@ err:
 }
 
 #if JSON_PARSE_SKIP_COMMENT
+// 内部函数：_skip_comment_rapid
 static bool _skip_comment_rapid(json_parse_t *parse_ptr, int *pcnt)
 {
     char *str = parse_ptr->str + parse_ptr->offset + *pcnt;
@@ -1084,6 +1112,7 @@ end:
 }
 #endif
 
+// 内部函数：_skip_blank_rapid
 static inline void _skip_blank_rapid(json_parse_t *parse_ptr)
 {
     unsigned char *str, *bak;
@@ -1120,6 +1149,8 @@ next:
 #endif
 }
 
+
+// 内部函数：_parse_strcpy
 static int _parse_strcpy(char *ptr, const char *str, int nsize)
 {
     const char *bak = ptr, *last = str, *end = str + nsize;
@@ -1171,6 +1202,8 @@ static int _parse_strcpy(char *ptr, const char *str, int nsize)
     return (int)(ptr - bak);
 }
 
+
+// 内部函数：_parse_strlen
 static int _parse_strlen(json_parse_t *parse_ptr, char end_ch UNUSED_END_CH, int *escaped)
 {
 #define PARSE_READ_SIZE    128
@@ -1241,6 +1274,7 @@ err:
 
 
 
+// 内部函数：解析 JSON sax 字符串
 static inline int _json_sax_parse_string(json_parse_t *parse_ptr, char end_ch, char **ppstr,
     json_strinfo_t *pinfo, bool is_key)
 {
@@ -1300,6 +1334,8 @@ err:
     return -1;
 }
 
+
+// 内部函数：解析 JSON sax 值
 static int _json_sax_parse_value(json_parse_t *parse_ptr)
 {
     char *str = NULL;
@@ -1531,6 +1567,8 @@ typedef struct {
 	xvalue cur;
 } xrtJsonParseContext;
 
+
+// 解析 private JSON 进程
 static json_sax_ret_t xvo_private_ParseJSON_Proc(json_sax_parser_t *parser)
 {
 	xrtJsonParseContext *ctx = (xrtJsonParseContext *)parser->userdata;

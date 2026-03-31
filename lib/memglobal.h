@@ -1,48 +1,65 @@
 
 
 
+// 内部函数：获取内存全局 align 大小
 static inline size_t __xrtMemGlobalAlignSize(size_t iSize)
 {
 	size_t iAlign = sizeof(ptr);
 	return (iSize + (iAlign - 1)) & ~(iAlign - 1);
 }
 
+
+// 内部函数：获取内存全局头部大小
 static inline size_t __xrtMemGlobalHeaderSize()
 {
 	return __xrtMemGlobalAlignSize(sizeof(xrtMemBlockHeader));
 }
 
+
+// 指针相关处理
 static inline ptr (*__xrtMemGlobalProcMalloc())(size_t)
 {
 	return xCore.malloc ? xCore.malloc : malloc;
 }
 
+
+// 指针相关处理
 static inline ptr (*__xrtMemGlobalProcCalloc())(size_t, size_t)
 {
 	return xCore.calloc ? xCore.calloc : calloc;
 }
 
+
+// 指针相关处理
 static inline ptr (*__xrtMemGlobalProcRealloc())(ptr, size_t)
 {
 	return xCore.realloc ? xCore.realloc : realloc;
 }
 
+
+// void 相关处理
 static inline void (*__xrtMemGlobalProcFree())(ptr)
 {
 	return xCore.free ? xCore.free : free;
 }
 
+
+// 内部函数：锁定内存全局
 static inline void __xrtMemGlobalLock(volatile long* pLock)
 {
 	while ( __xrtAtomicCompareExchange32(pLock, 1, 0) != 0 ) {
 	}
 }
 
+
+// 内部函数：解锁内存全局
 static inline void __xrtMemGlobalUnlock(volatile long* pLock)
 {
 	*pLock = 0;
 }
 
+
+// 内部函数：初始化内存全局计划
 static inline void __xrtMemGlobalInitPlan(xrtMemGlobalPool* pPool)
 {
 	uint32 i;
@@ -69,6 +86,8 @@ static inline void __xrtMemGlobalInitPlan(xrtMemGlobalPool* pPool)
 	}
 }
 
+
+// 内部函数：确保内存全局计划
 static inline void __xrtMemGlobalEnsurePlan()
 {
 	if ( xCore.MemGlobal.iClassCount == 0 ) {
@@ -76,6 +95,8 @@ static inline void __xrtMemGlobalEnsurePlan()
 	}
 }
 
+
+// 内部函数：获取内存全局分类 index
 static inline uint32 __xrtMemGlobalClassIndex(const xrtMemGlobalPool* pPool, size_t iSize)
 {
 	if ( pPool == NULL || iSize == 0 || iSize > pPool->iCutoff ) {
@@ -84,6 +105,8 @@ static inline uint32 __xrtMemGlobalClassIndex(const xrtMemGlobalPool* pPool, siz
 	return pPool->arrSizeClassLut[iSize];
 }
 
+
+// 内部函数：获取内存全局分类块大小
 static inline uint32 __xrtMemGlobalClassBlockSize(const xrtMemGlobalPool* pPool, uint32 iClass)
 {
 	if ( pPool == NULL || iClass >= pPool->iClassCount ) {
@@ -92,6 +115,8 @@ static inline uint32 __xrtMemGlobalClassBlockSize(const xrtMemGlobalPool* pPool,
 	return pPool->arrClassDesc[iClass].iBlockSize;
 }
 
+
+// 内部函数：获取内存全局调试 tail 大小
 static inline size_t __xrtMemGlobalDebugTailSize()
 {
 	#ifdef XRT_MEM_DEBUG
@@ -101,17 +126,23 @@ static inline size_t __xrtMemGlobalDebugTailSize()
 	#endif
 }
 
+
+// 内部函数：分配内存全局 payload 大小
 static inline size_t __xrtMemGlobalAllocPayloadSize(size_t iRequestSize)
 {
 	size_t iPayload = iRequestSize ? iRequestSize : 1;
 	return iPayload + __xrtMemGlobalDebugTailSize();
 }
 
+
+// 内部函数：__xrtMemGlobalClassIndexForRequest
 static inline uint32 __xrtMemGlobalClassIndexForRequest(const xrtMemGlobalPool* pPool, size_t iRequestSize)
 {
 	return __xrtMemGlobalClassIndex(pPool, __xrtMemGlobalAllocPayloadSize(iRequestSize));
 }
 
+
+// 内部函数：内存调试 now 毫秒相关处理
 static inline uint64 __xrtMemDebugNowMs()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -123,6 +154,8 @@ static inline uint64 __xrtMemDebugNowMs()
 	#endif
 }
 
+
+// 内部函数：__xrtMemGlobalHeaderFromUser
 static inline xrtMemBlockHeader* __xrtMemGlobalHeaderFromUser(ptr pUser)
 {
 	if ( pUser == NULL ) {
@@ -131,6 +164,8 @@ static inline xrtMemBlockHeader* __xrtMemGlobalHeaderFromUser(ptr pUser)
 	return (xrtMemBlockHeader*)((char*)pUser - __xrtMemGlobalHeaderSize());
 }
 
+
+// 内部函数：获取内存全局 user from 头部
 static inline ptr __xrtMemGlobalUserFromHeader(xrtMemBlockHeader* pHeader)
 {
 	if ( pHeader == NULL ) {
@@ -139,11 +174,15 @@ static inline ptr __xrtMemGlobalUserFromHeader(xrtMemBlockHeader* pHeader)
 	return (ptr)((char*)pHeader + __xrtMemGlobalHeaderSize());
 }
 
+
+// 内部函数：内存全局头部 valid相关处理
 static inline bool __xrtMemGlobalHeaderValid(const xrtMemBlockHeader* pHeader)
 {
 	return pHeader != NULL && pHeader->iMagic == XRT_MEMBLOCK_MAGIC;
 }
 
+
+// 内部函数：写入内存全局头部
 static inline void __xrtMemGlobalWriteHeader(xrtMemBlockHeader* pHeader, uint32 iClassIndex, uint16 iFlags, uint32 iRequestSize)
 {
 	pHeader->iMagic = XRT_MEMBLOCK_MAGIC;
@@ -169,17 +208,22 @@ static inline void __xrtMemGlobalWriteHeader(xrtMemBlockHeader* pHeader, uint32 
 
 #ifdef XRT_MEM_DEBUG
 
+// 内部函数：获取内存全局 tail canary 值
 static inline uint32 __xrtMemGlobalTailCanaryValue(const xrtMemBlockHeader* pHeader)
 {
 	return XRT_MEMDEBUG_CANARY_TAIL ^ (uint32)pHeader->iRequestSize ^ 0xA5A5A5A5u;
 }
 
+
+// 内部函数：__xrtMemGlobalTailCanaryPtr
 static inline uint32* __xrtMemGlobalTailCanaryPtr(xrtMemBlockHeader* pHeader)
 {
 	size_t iPayload = pHeader->iRequestSize ? pHeader->iRequestSize : 1;
 	return (uint32*)((char*)__xrtMemGlobalUserFromHeader(pHeader) + iPayload);
 }
 
+
+// 内部函数：__xrtMemGlobalWriteTailCanary
 static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
 {
 	if ( pHeader == NULL ) {
@@ -188,6 +232,8 @@ static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
 	*__xrtMemGlobalTailCanaryPtr(pHeader) = __xrtMemGlobalTailCanaryValue(pHeader);
 }
 
+
+// 内部函数：__xrtMemGlobalCheckFrontCanary
 static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
 {
 	if ( pHeader == NULL ) {
@@ -196,6 +242,8 @@ static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHead
 	return pHeader->iFrontCanary == (XRT_MEMDEBUG_CANARY_HEAD ^ (uint32)(uintptr_t)pHeader);
 }
 
+
+// 内部函数：__xrtMemGlobalCheckTailCanary
 static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
 {
 	uint32* pTail;
@@ -206,6 +254,8 @@ static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeade
 	return *pTail == __xrtMemGlobalTailCanaryValue(pHeader);
 }
 
+
+// 内部函数：__xrtMemDebugEnabled
 static inline bool __xrtMemDebugEnabled()
 {
 	return xCore.MemDebug.bEnabled != 0;
@@ -213,6 +263,8 @@ static inline bool __xrtMemDebugEnabled()
 
 static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind);
 
+
+// 内部函数：__xrtMemDebugImmediateObjectTypeName
 static inline const char* __xrtMemDebugImmediateObjectTypeName(uint32 iObjectType)
 {
 	switch ( iObjectType ) {
@@ -235,6 +287,8 @@ static inline const char* __xrtMemDebugImmediateObjectTypeName(uint32 iObjectTyp
 	}
 }
 
+
+// 内部函数：获取内存调试 immediate 事件名称
 static inline const char* __xrtMemDebugImmediateEventName(uint32 iType)
 {
 	switch ( iType ) {
@@ -257,6 +311,8 @@ static inline const char* __xrtMemDebugImmediateEventName(uint32 iType)
 	}
 }
 
+
+// 内部函数：__xrtMemDebugShouldEmitImmediate
 static inline bool __xrtMemDebugShouldEmitImmediate(uint32 iType)
 {
 	return iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE
@@ -268,6 +324,8 @@ static inline bool __xrtMemDebugShouldEmitImmediate(uint32 iType)
 		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY;
 }
 
+
+// 内部函数：__xrtMemDebugEmitConsoleLine
 static inline void __xrtMemDebugEmitConsoleLine(const char* sText, size_t iLen)
 {
 	if ( sText == NULL || iLen == 0 ) {
@@ -288,6 +346,8 @@ static inline void __xrtMemDebugEmitConsoleLine(const char* sText, size_t iLen)
 	#endif
 }
 
+
+// 内部函数：__xrtMemDebugEmitImmediateNoLock
 static inline void __xrtMemDebugEmitImmediateNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	char sText[640];
@@ -326,16 +386,22 @@ static inline void __xrtMemDebugEmitImmediateNoLock(uint32 iType, ptr pAddress, 
 	__xrtMemDebugEmitConsoleLine(sText, (size_t)iWritten);
 }
 
+
+// 内部函数：锁定内存调试
 static inline void __xrtMemDebugLock()
 {
 	__xrtMemGlobalLock(&xCore.MemDebug.iLock);
 }
 
+
+// 内部函数：解锁内存调试
 static inline void __xrtMemDebugUnlock()
 {
 	__xrtMemGlobalUnlock(&xCore.MemDebug.iLock);
 }
 
+
+// 内部函数：获取内存调试 allocator 名称
 static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind)
 {
 	switch ( iAllocatorKind ) {
@@ -350,6 +416,8 @@ static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind)
 	}
 }
 
+
+// 内部函数：__xrtMemDebugFindSiteStatNoLock
 static inline xrtMemDebugSiteStat* __xrtMemDebugFindSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
 {
 	xrtMemDebugSiteStat* pNode = xCore.MemDebug.pSiteStats;
@@ -362,6 +430,8 @@ static inline xrtMemDebugSiteStat* __xrtMemDebugFindSiteStatNoLock(const char* s
 	return NULL;
 }
 
+
+// 内部函数：__xrtMemDebugEnsureSiteStatNoLock
 static inline xrtMemDebugSiteStat* __xrtMemDebugEnsureSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
 {
 	xrtMemDebugSiteStat* pNode = __xrtMemDebugFindSiteStatNoLock(sFile, iLine, iAllocatorKind);
@@ -380,6 +450,8 @@ static inline xrtMemDebugSiteStat* __xrtMemDebugEnsureSiteStatNoLock(const char*
 	return pNode;
 }
 
+
+// 内部函数：__xrtMemDebugSiteOnAllocNoLock
 static inline void __xrtMemDebugSiteOnAllocNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
 {
 	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
@@ -398,6 +470,8 @@ static inline void __xrtMemDebugSiteOnAllocNoLock(const char* sFile, uint32 iLin
 	}
 }
 
+
+// 内部函数：__xrtMemDebugSiteOnFreeNoLock
 static inline void __xrtMemDebugSiteOnFreeNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
 {
 	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
@@ -416,6 +490,8 @@ static inline void __xrtMemDebugSiteOnFreeNoLock(const char* sFile, uint32 iLine
 	}
 }
 
+
+// 内部函数：锁定内存调试记录事件 no
 static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[xCore.MemDebug.iEventCursor];
@@ -434,6 +510,8 @@ static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, si
 	}
 }
 
+
+// 内部函数：__xrtMemDebugAttachLiveNoLock
 static inline void __xrtMemDebugAttachLiveNoLock(xrtMemBlockHeader* pHeader)
 {
 	pHeader->pDebugPrev = xCore.MemDebug.pLiveTail;
@@ -454,6 +532,8 @@ static inline void __xrtMemDebugAttachLiveNoLock(xrtMemBlockHeader* pHeader)
 	}
 }
 
+
+// 内部函数：__xrtMemDebugDetachLiveNoLock
 static inline void __xrtMemDebugDetachLiveNoLock(xrtMemBlockHeader* pHeader)
 {
 	if ( pHeader->pDebugPrev ) {
@@ -478,6 +558,8 @@ static inline void __xrtMemDebugDetachLiveNoLock(xrtMemBlockHeader* pHeader)
 	}
 }
 
+
+// 内部函数：__xrtMemDebugFindForeignNoLock
 static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
 {
 	xrtMemDebugForeignAlloc* pPrev = NULL;
@@ -498,6 +580,8 @@ static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignNoLock(ptr pAddre
 	return NULL;
 }
 
+
+// 内部函数：__xrtMemDebugRegisterForeignAlloc
 static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugForeignAlloc* pNode;
@@ -536,6 +620,8 @@ static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize,
 	__xrtMemDebugUnlock();
 }
 
+
+// 内部函数：__xrtMemDebugUnregisterForeignAlloc
 static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugForeignAlloc* pPrev = NULL;
@@ -572,6 +658,8 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	return TRUE;
 }
 
+
+// 内部函数：__xrtMemDebugLookupForeignAlloc
 static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
 {
 	xrtMemDebugForeignAlloc* pNode;
@@ -600,6 +688,8 @@ static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAlloca
 	return TRUE;
 }
 
+
+// 内部函数：__xrtMemDebugFindObjectNoLock
 static inline xrtMemDebugObject* __xrtMemDebugFindObjectNoLock(ptr pAddress)
 {
 	xrtMemDebugObject* pNode = xCore.MemDebug.pObjects;
@@ -612,6 +702,8 @@ static inline xrtMemDebugObject* __xrtMemDebugFindObjectNoLock(ptr pAddress)
 	return NULL;
 }
 
+
+// 内部函数：注册内存调试 object
 static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugObject* pNode;
@@ -651,6 +743,8 @@ static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType,
 	__xrtMemDebugUnlock();
 }
 
+
+// 内部函数：__xrtMemDebugObjectGuardDestroy
 static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugObject* pNode;
@@ -670,6 +764,8 @@ static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectT
 	return TRUE;
 }
 
+
+// 内部函数：注销内存调试 object
 static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugObject* pNode;
@@ -698,6 +794,8 @@ static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectTyp
 	return TRUE;
 }
 
+
+// 内部函数：分配内存调试 track
 static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
 {
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
@@ -719,6 +817,8 @@ static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const cha
 	__xrtMemDebugUnlock();
 }
 
+
+// 内部函数：释放内存调试 track
 static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
 {
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
@@ -737,6 +837,8 @@ static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char
 	__xrtMemDebugUnlock();
 }
 
+
+// 内部函数：__xrtMemDebugTrackReallocInPlace
 static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
 {
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
@@ -753,6 +855,8 @@ static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, 
 	__xrtMemDebugUnlock();
 }
 
+
+// 内部函数：内存调试记录 simple 事件相关处理
 static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	if ( !__xrtMemDebugEnabled() ) {
@@ -775,6 +879,8 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 	__xrtMemDebugUnlock();
 }
 
+
+// 内部函数：重置内存调试状态
 static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 {
 	xrtMemDebugSiteStat* pSite;
@@ -812,6 +918,8 @@ static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 	pState->bEnabled = 1;
 }
 
+
+// 内部函数：判断是否存在内存调试 leaks
 static inline bool __xrtMemDebugHasLeaks()
 {
 	return xCore.MemDebug.pLiveHead != NULL || xCore.MemDebug.pForeignAllocs != NULL || xCore.MemDebug.iLiveObjectCount != 0;
@@ -819,23 +927,30 @@ static inline bool __xrtMemDebugHasLeaks()
 
 #else
 
+// 内部函数：__xrtMemGlobalWriteTailCanary
 static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
 {
 	(void)pHeader;
 }
 
+
+// 内部函数：__xrtMemGlobalCheckFrontCanary
 static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
 {
 	(void)pHeader;
 	return TRUE;
 }
 
+
+// 内部函数：__xrtMemGlobalCheckTailCanary
 static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
 {
 	(void)pHeader;
 	return TRUE;
 }
 
+
+// 内部函数：__xrtMemDebugFindForeignReleaseNoLock
 static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignReleaseNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
 {
 	xrtMemDebugForeignAlloc* pPrev = NULL;
@@ -859,6 +974,8 @@ static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignReleaseNoLock(ptr
 	return NULL;
 }
 
+
+// 内部函数：__xrtMemDebugRegisterForeignAlloc
 static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugForeignAlloc* pNode;
@@ -891,6 +1008,8 @@ static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize,
 	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
 }
 
+
+// 内部函数：__xrtMemDebugUnregisterForeignAlloc
 static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugForeignAlloc* pPrev = NULL;
@@ -921,6 +1040,8 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	return TRUE;
 }
 
+
+// 内部函数：__xrtMemDebugLookupForeignAlloc
 static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
 {
 	xrtMemDebugForeignAlloc* pNode;
@@ -952,6 +1073,8 @@ static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAlloca
 	return TRUE;
 }
 
+
+// 内部函数：注册内存调试 object
 static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
 {
 	(void)pAddress;
@@ -961,6 +1084,8 @@ static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType,
 	(void)iLine;
 }
 
+
+// 内部函数：__xrtMemDebugObjectGuardDestroy
 static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
 {
 	(void)pAddress;
@@ -970,6 +1095,8 @@ static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectT
 	return TRUE;
 }
 
+
+// 内部函数：注销内存调试 object
 static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
 {
 	(void)pAddress;
@@ -979,6 +1106,8 @@ static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectTyp
 	return TRUE;
 }
 
+
+// 内部函数：分配内存调试 track
 static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
 {
 	(void)pHeader;
@@ -986,6 +1115,8 @@ static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const cha
 	(void)iLine;
 }
 
+
+// 内部函数：释放内存调试 track
 static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
 {
 	(void)pHeader;
@@ -993,6 +1124,8 @@ static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char
 	(void)iLine;
 }
 
+
+// 内部函数：__xrtMemDebugTrackReallocInPlace
 static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
 {
 	(void)pHeader;
@@ -1001,6 +1134,8 @@ static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, 
 	(void)iLine;
 }
 
+
+// 内部函数：内存调试记录 simple 事件相关处理
 static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	(void)iType;
@@ -1011,6 +1146,8 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 	(void)iLine;
 }
 
+
+// 内部函数：重置内存调试状态
 static inline void __xrtMemDebugResetState(ptr pState)
 {
 	(void)pState;
@@ -1025,6 +1162,8 @@ static inline void __xrtMemDebugResetState(ptr pState)
 	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
 }
 
+
+// 内部函数：判断是否存在内存调试 leaks
 static inline bool __xrtMemDebugHasLeaks()
 {
 	return FALSE;
@@ -1032,6 +1171,7 @@ static inline bool __xrtMemDebugHasLeaks()
 
 #endif
 
+// 内部函数：获取内存全局线程 cache
 static inline xrtMemThreadCache* __xrtMemGlobalGetThreadCache()
 {
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
@@ -1041,6 +1181,8 @@ static inline xrtMemThreadCache* __xrtMemGlobalGetThreadCache()
 	return (xrtMemThreadCache*)pThreadData->tMem.pLocalAlloc;
 }
 
+
+// 内部函数：初始化内存全局线程 cache
 static inline bool __xrtMemGlobalInitThreadCache(xrtThreadData* pThreadData)
 {
 	ptr (*procCalloc)(size_t, size_t) = __xrtMemGlobalProcCalloc();
@@ -1065,6 +1207,8 @@ static inline bool __xrtMemGlobalInitThreadCache(xrtThreadData* pThreadData)
 	return TRUE;
 }
 
+
+// 内部函数：压入内存全局 central
 static inline void __xrtMemGlobalPushCentral(uint32 iClass, xrtMemFreeNode* pHead, xrtMemFreeNode* pTail, uint32 iCount)
 {
 	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
@@ -1080,6 +1224,8 @@ static inline void __xrtMemGlobalPushCentral(uint32 iClass, xrtMemFreeNode* pHea
 	__xrtMemGlobalUnlock(&pClass->iLock);
 }
 
+
+// 内部函数：弹出内存全局 central
 static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMaxCount, uint32* pOutCount)
 {
 	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
@@ -1113,6 +1259,8 @@ static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMa
 	return pHead;
 }
 
+
+// 内部函数：分配内存全局 span
 static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
 {
 	ptr (*procMalloc)(size_t) = __xrtMemGlobalProcMalloc();
@@ -1177,6 +1325,8 @@ static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
 	return TRUE;
 }
 
+
+// 内部函数：__xrtMemGlobalRefillThreadCache
 static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, uint32 iClass)
 {
 	uint32 iDesired = pCache ? (uint32)(pCache->iCacheLimit / 2) : 0;
@@ -1214,6 +1364,8 @@ static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, ui
 	return pCache->arrFreeCount[iClass] > 0;
 }
 
+
+// 内部函数：__xrtMemGlobalDrainThreadCache
 static inline void __xrtMemGlobalDrainThreadCache(xrtMemThreadCache* pCache, uint32 iClass, uint32 iKeepCount)
 {
 	xrtMemFreeNode* pHead = NULL;
@@ -1243,6 +1395,8 @@ static inline void __xrtMemGlobalDrainThreadCache(xrtMemThreadCache* pCache, uin
 	}
 }
 
+
+// 内部函数：释放内存全局线程 cache
 static inline void __xrtMemGlobalUnitThreadCache(xrtThreadData* pThreadData)
 {
 	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
@@ -1262,6 +1416,8 @@ static inline void __xrtMemGlobalUnitThreadCache(xrtThreadData* pThreadData)
 	pThreadData->tMem.pLocalAlloc = NULL;
 }
 
+
+// 内部函数：释放内存全局计划
 static inline void __xrtMemGlobalUnitPlan(xrtMemGlobalPool* pPool)
 {
 	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
@@ -1281,6 +1437,8 @@ static inline void __xrtMemGlobalUnitPlan(xrtMemGlobalPool* pPool)
 	memset(pPool, 0, sizeof(xrtMemGlobalPool));
 }
 
+
+// 内部函数：分配内存全局 pooled
 static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, bool bZero)
 {
 	xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
@@ -1325,6 +1483,8 @@ static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, 
 	return pNode;
 }
 
+
+// 内部函数：分配内存全局 backing
 static inline ptr __xrtMemGlobalAllocBacking(size_t iRequestSize, bool bZero)
 {
 	ptr pRaw;
@@ -1352,6 +1512,8 @@ static inline ptr __xrtMemGlobalAllocBacking(size_t iRequestSize, bool bZero)
 	return __xrtMemGlobalUserFromHeader(pHeader);
 }
 
+
+// 内部函数：分配内存全局位置
 static inline ptr __xrtMemGlobalAllocSite(size_t iSize, bool bZero, const char* sFile, uint32 iLine)
 {
 	uint32 iClass;
@@ -1371,11 +1533,15 @@ static inline ptr __xrtMemGlobalAllocSite(size_t iSize, bool bZero, const char* 
 	return pMem;
 }
 
+
+// 内部函数：分配内存全局
 static inline ptr __xrtMemGlobalAlloc(size_t iSize, bool bZero)
 {
 	return __xrtMemGlobalAllocSite(iSize, bZero, NULL, 0);
 }
 
+
+// 内部函数：释放内存全局 free
 static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 {
 	xrtMemBlockHeader* pHeader;
@@ -1417,6 +1583,8 @@ static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 	__xrtMemGlobalProcFree()(pHeader);
 }
 
+
+// 内部函数：释放内存全局位置
 static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iLine)
 {
 	xrtMemBlockHeader* pHeader;
@@ -1501,11 +1669,15 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 	__xrtMemGlobalFreeRelease(pMem);
 }
 
+
+// 内部函数：释放内存全局
 static inline void __xrtMemGlobalFree(ptr pMem)
 {
 	__xrtMemGlobalFreeSite(pMem, NULL, 0);
 }
 
+
+// 内部函数：重新分配内存全局位置
 static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
 	xrtMemBlockHeader* pHeader;
@@ -1583,6 +1755,8 @@ static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* 
 	}
 }
 
+
+// 内部函数：重新分配内存全局
 static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
 {
 	return __xrtMemGlobalReallocSite(pMem, iSize, NULL, 0);

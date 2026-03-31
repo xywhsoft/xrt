@@ -41,6 +41,8 @@ typedef struct {
 	bool bClose;
 } __test_xhttpd_async_manual_task;
 
+
+// 内部函数：__Test_XHttpdSleepMs
 static void __Test_XHttpdSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -50,16 +52,22 @@ static void __Test_XHttpdSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XHttpdAtomicInc
 static long __Test_XHttpdAtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XHttpdAtomicLoad
 static long __Test_XHttpdAtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_XHttpdWaitMin
 static bool __Test_XHttpdWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -70,6 +78,8 @@ static bool __Test_XHttpdWaitMin(volatile long* pValue, long iExpectMin, uint32 
 	return __Test_XHttpdAtomicLoad(pValue) >= iExpectMin;
 }
 
+
+// 内部函数：__Test_XHttpdFileExists
 static bool __Test_XHttpdFileExists(const char* sPath)
 {
 	FILE* pFile = fopen(sPath, "rb");
@@ -78,6 +88,8 @@ static bool __Test_XHttpdFileExists(const char* sPath)
 	return true;
 }
 
+
+// 内部函数：__Test_XHttpdCloseSocket
 static void __Test_XHttpdCloseSocket(xsocket hSocket)
 {
 	if ( hSocket == XNET_SOCKET_INVALID ) return;
@@ -88,6 +100,8 @@ static void __Test_XHttpdCloseSocket(xsocket hSocket)
 	#endif
 }
 
+
+// 内部函数：__Test_XHttpdConnectLoopback
 static xsocket __Test_XHttpdConnectLoopback(uint16 iPort)
 {
 	xsocket hSocket;
@@ -105,6 +119,8 @@ static xsocket __Test_XHttpdConnectLoopback(uint16 iPort)
 	return hSocket;
 }
 
+
+// 内部函数：__Test_XHttpdSendAll
 static bool __Test_XHttpdSendAll(xsocket hSocket, const char* pData, size_t iLen)
 {
 	size_t iSent = 0u;
@@ -116,6 +132,8 @@ static bool __Test_XHttpdSendAll(xsocket hSocket, const char* pData, size_t iLen
 	return true;
 }
 
+
+// 内部函数：__Test_XHttpdParseSizeDec
 static size_t __Test_XHttpdParseSizeDec(const char* sText)
 {
 	size_t iValue = 0u;
@@ -130,6 +148,8 @@ static size_t __Test_XHttpdParseSizeDec(const char* sText)
 	return iValue;
 }
 
+
+// 内部函数：__Test_XHttpdTryParseResponse
 static bool __Test_XHttpdTryParseResponse(const char* pBuf, size_t iLen, size_t* pTotalLen)
 {
 	size_t iHeaderLen = 0u;
@@ -160,6 +180,8 @@ static bool __Test_XHttpdTryParseResponse(const char* pBuf, size_t iLen, size_t*
 	return true;
 }
 
+
+// 内部函数：__Test_XHttpdRecvResponse
 static bool __Test_XHttpdRecvResponse(xsocket hSocket, char* pBuf, size_t iCap, size_t* pOutLen, uint32 iTimeoutMs)
 {
 	size_t iLen = 0u;
@@ -200,6 +222,8 @@ static bool __Test_XHttpdRecvResponse(xsocket hSocket, char* pBuf, size_t iCap, 
 	return false;
 }
 
+
+// 内部函数：__Test_XHttpdRecordRequest
 static void __Test_XHttpdRecordRequest(__test_xhttpd_ctx* pCtx, const xhttpdrequest* pReq)
 {
 	const char* sHost;
@@ -218,6 +242,8 @@ static void __Test_XHttpdRecordRequest(__test_xhttpd_ctx* pCtx, const xhttpdrequ
 	}
 }
 
+
+// 内部函数：__Test_XHttpdOnOpen
 static void __Test_XHttpdOnOpen(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
@@ -227,6 +253,8 @@ static void __Test_XHttpdOnOpen(ptr pOwner, xhttpdserver* pServer, xhttpdconn* p
 	__Test_XHttpdAtomicInc(&pCtx->iOpenCount);
 }
 
+
+// 内部函数：__Test_XHttpdOnRequest
 static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
@@ -254,6 +282,8 @@ static bool __Test_XHttpdOnRequest(ptr pOwner, xhttpdserver* pServer, xhttpdconn
 	return false;
 }
 
+
+// 内部函数：__Test_XHttpdAsyncFutureProc
 static int32 __Test_XHttpdAsyncFutureProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xhttpd_async_future_task* pTask = (__test_xhttpd_async_future_task*)pArg;
@@ -284,6 +314,8 @@ static int32 __Test_XHttpdAsyncFutureProc(ptr pArg, xfuture_result* pOut)
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_XHttpdOnRequestAsyncFuture
 static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
@@ -310,6 +342,8 @@ static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pSer
 	return xTaskRunThread(__Test_XHttpdAsyncFutureProc, pTask, 0);
 }
 
+
+// 内部函数：__Test_XHttpdAsyncManualProc
 static int32 __Test_XHttpdAsyncManualProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xhttpd_async_manual_task* pTask = (__test_xhttpd_async_manual_task*)pArg;
@@ -331,6 +365,8 @@ static int32 __Test_XHttpdAsyncManualProc(ptr pArg, xfuture_result* pOut)
 	return iRet;
 }
 
+
+// 内部函数：__Test_XHttpdOnRequestAsyncManual
 static xfuture* __Test_XHttpdOnRequestAsyncManual(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
@@ -350,6 +386,7 @@ static xfuture* __Test_XHttpdOnRequestAsyncManual(ptr pOwner, xhttpdserver* pSer
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// 内部函数：__Test_XHttpdAsyncCoProc
 static int32 __Test_XHttpdAsyncCoProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pArg;
@@ -365,6 +402,8 @@ static int32 __Test_XHttpdAsyncCoProc(ptr pArg, xfuture_result* pOut)
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_XHttpdOnRequestAsyncCo
 static xfuture* __Test_XHttpdOnRequestAsyncCo(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
@@ -384,6 +423,7 @@ static xfuture* __Test_XHttpdOnRequestAsyncCo(ptr pOwner, xhttpdserver* pServer,
 }
 #endif
 
+// 内部函数：__Test_XHttpdOnClose
 static void __Test_XHttpdOnClose(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
@@ -394,6 +434,8 @@ static void __Test_XHttpdOnClose(ptr pOwner, xhttpdserver* pServer, xhttpdconn* 
 	__Test_XHttpdAtomicInc(&pCtx->iCloseCount);
 }
 
+
+// 内部函数：__Test_XHttpdOnError
 static void __Test_XHttpdOnError(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr)
 {
 	__test_xhttpd_ctx* pCtx = (__test_xhttpd_ctx*)pOwner;
@@ -404,6 +446,8 @@ static void __Test_XHttpdOnError(ptr pOwner, xhttpdserver* pServer, xhttpdconn* 
 	__Test_XHttpdAtomicInc(&pCtx->iErrorCount);
 }
 
+
+// XNETHTTP 服务端测试
 void Test_XNet_Httpd(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet HTTP Server Skeleton Test:\n\n");

@@ -18,6 +18,7 @@ typedef struct {
 } __test_xnet2_tls_stats;
 
 
+// 内部函数：__Test_XNet2_TLSSleepMs
 static void __Test_XNet2_TLSSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -27,21 +28,29 @@ static void __Test_XNet2_TLSSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_TLSAtomicInc
 static long __Test_XNet2_TLSAtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XNet2_TLSAtomicLoad
 static long __Test_XNet2_TLSAtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_XNet2_TLSAtomicStore
 static void __Test_XNet2_TLSAtomicStore(volatile long* pValue, long iValue)
 {
 	__xrtTestAtomicStoreLong(pValue, iValue);
 }
 
+
+// 内部函数：__Test_XNet2_TLSWaitMin
 static bool __Test_XNet2_TLSWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -52,6 +61,8 @@ static bool __Test_XNet2_TLSWaitMin(volatile long* pValue, long iExpectMin, uint
 	return __Test_XNet2_TLSAtomicLoad(pValue) >= iExpectMin;
 }
 
+
+// 内部函数：__Test_XNet2_TLSFileExists
 static bool __Test_XNet2_TLSFileExists(const char* sPath)
 {
 	FILE* pFile = fopen(sPath, "rb");
@@ -60,6 +71,8 @@ static bool __Test_XNet2_TLSFileExists(const char* sPath)
 	return true;
 }
 
+
+// 内部函数：__Test_XNet2_TLSOnOpen
 static void __Test_XNet2_TLSOnOpen(ptr pOwner, xnetstream* pStream)
 {
 	__test_xnet2_tls_stats* pStats = (__test_xnet2_tls_stats*)pOwner;
@@ -68,6 +81,8 @@ static void __Test_XNet2_TLSOnOpen(ptr pOwner, xnetstream* pStream)
 	__Test_XNet2_TLSAtomicInc(&pStats->iOpenCount);
 }
 
+
+// 内部函数：__Test_XNet2_TLSOnRecv
 static void __Test_XNet2_TLSOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
 {
 	__test_xnet2_tls_stats* pStats = (__test_xnet2_tls_stats*)pOwner;
@@ -86,6 +101,8 @@ static void __Test_XNet2_TLSOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* p
 	xrtNetChainConsume(pChain, iBytes);
 }
 
+
+// 内部函数：__Test_XNet2_TLSOnClose
 static void __Test_XNet2_TLSOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
 	__test_xnet2_tls_stats* pStats = (__test_xnet2_tls_stats*)pOwner;
@@ -95,6 +112,8 @@ static void __Test_XNet2_TLSOnClose(ptr pOwner, xnetstream* pStream, xnet_result
 	__Test_XNet2_TLSAtomicInc(&pStats->iCloseCount);
 }
 
+
+// 内部函数：__Test_XNet2_TLSOnError
 static void __Test_XNet2_TLSOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	__test_xnet2_tls_stats* pStats = (__test_xnet2_tls_stats*)pOwner;
@@ -105,6 +124,7 @@ static void __Test_XNet2_TLSOnError(ptr pOwner, xnetstream* pStream, int iSysErr
 }
 
 
+// XNET2TLS测试
 void Test_XNet2_TLS(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 TLS Adapter Test:\n\n");

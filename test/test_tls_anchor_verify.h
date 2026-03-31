@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+// 内部函数：__Test_TLSAnchorDecodeBase64
 static uint8* __Test_TLSAnchorDecodeBase64(const char* sBase64, size_t* pLen)
 {
 	size_t iBase64Len;
@@ -25,6 +26,8 @@ static uint8* __Test_TLSAnchorDecodeBase64(const char* sBase64, size_t* pLen)
 	return pDer;
 }
 
+
+// TLS锚点校验测试
 static int Test_TLSAnchorVerify(void)
 {
 	static const char sLeafB64[] =

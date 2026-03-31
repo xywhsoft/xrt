@@ -7,6 +7,8 @@
 // 基础 yield 测试用
 static int __test_co_step = 0;
 
+
+// 内部函数：__test_co_basic_func
 static void __test_co_basic_func(ptr pParam)
 {
 	int* pCounter = (int*)pParam;
@@ -27,6 +29,8 @@ static void __test_co_basic_func(ptr pParam)
 static int __test_co_order[10];
 static int __test_co_order_idx = 0;
 
+
+// 内部函数：__test_co_a_func
 static void __test_co_a_func(ptr pParam)
 {
 	__test_co_order[__test_co_order_idx++] = 1;
@@ -36,6 +40,8 @@ static void __test_co_a_func(ptr pParam)
 	__test_co_order[__test_co_order_idx++] = 5;
 }
 
+
+// 内部函数：__test_co_b_func
 static void __test_co_b_func(ptr pParam)
 {
 	__test_co_order[__test_co_order_idx++] = 2;
@@ -48,6 +54,8 @@ static void __test_co_b_func(ptr pParam)
 // GetCurrent 测试用
 static xcoro __test_co_got_current = NULL;
 
+
+// 内部函数：__test_co_current_func
 static void __test_co_current_func(ptr pParam)
 {
 	__test_co_got_current = xrtCoGetCurrent();
@@ -57,6 +65,8 @@ static void __test_co_current_func(ptr pParam)
 // 调度器测试用
 static int __test_sched_done[4] = {0};
 
+
+// 内部函数：__test_sched_func
 static void __test_sched_func(ptr pParam)
 {
 	int iIdx = (int)(intptr)pParam;
@@ -69,12 +79,16 @@ static void __test_sched_func(ptr pParam)
 static int __test_sleep_order[10];
 static int __test_sleep_idx = 0;
 
+
+// 内部函数：__test_sleep_fast
 static void __test_sleep_fast(ptr pParam)
 {
 	xrtCoSleep(50);
 	__test_sleep_order[__test_sleep_idx++] = 1;  // fast 先完成
 }
 
+
+// 内部函数：__test_sleep_slow
 static void __test_sleep_slow(ptr pParam)
 {
 	xrtCoSleep(150);
@@ -97,6 +111,8 @@ typedef struct {
 	bool arrJoined[2];
 } __test_co_multi_join_case;
 
+
+// 内部函数：__test_co_lifecycle_push
 static void __test_co_lifecycle_push(__test_co_lifecycle_case* pCase, int iValue)
 {
 	if ( pCase == NULL ) {
@@ -108,6 +124,8 @@ static void __test_co_lifecycle_push(__test_co_lifecycle_case* pCase, int iValue
 	}
 }
 
+
+// 内部函数：__test_co_join_target
 static void __test_co_join_target(ptr pParam)
 {
 	__test_co_lifecycle_case* pCase = (__test_co_lifecycle_case*)pParam;
@@ -116,6 +134,8 @@ static void __test_co_join_target(ptr pParam)
 	__test_co_lifecycle_push(pCase, 2);
 }
 
+
+// 内部函数：__test_co_join_waiter
 static void __test_co_join_waiter(ptr pParam)
 {
 	__test_co_lifecycle_case* pCase = (__test_co_lifecycle_case*)pParam;
@@ -126,6 +146,8 @@ static void __test_co_join_waiter(ptr pParam)
 	}
 }
 
+
+// 内部函数：__test_co_multi_join_target
 static void __test_co_multi_join_target(ptr pParam)
 {
 	__test_co_multi_join_case* pCase = (__test_co_multi_join_case*)pParam;
@@ -137,6 +159,8 @@ static void __test_co_multi_join_target(ptr pParam)
 	if ( pCase->iEventCount < 8 ) pCase->arrEvents[pCase->iEventCount++] = 2;
 }
 
+
+// 内部函数：__test_co_multi_join_waiter_1
 static void __test_co_multi_join_waiter_1(ptr pParam)
 {
 	__test_co_multi_join_case* pCase = (__test_co_multi_join_case*)pParam;
@@ -150,6 +174,8 @@ static void __test_co_multi_join_waiter_1(ptr pParam)
 	}
 }
 
+
+// 内部函数：__test_co_multi_join_waiter_2
 static void __test_co_multi_join_waiter_2(ptr pParam)
 {
 	__test_co_multi_join_case* pCase = (__test_co_multi_join_case*)pParam;
@@ -163,6 +189,8 @@ static void __test_co_multi_join_waiter_2(ptr pParam)
 	}
 }
 
+
+// 内部函数：__test_co_cancel_worker
 static void __test_co_cancel_worker(ptr pParam)
 {
 	__test_co_lifecycle_case* pCase = (__test_co_lifecycle_case*)pParam;
@@ -246,6 +274,8 @@ typedef struct {
 	int iValue;
 } __test_co_result_case;
 
+
+// 内部函数：__test_co_cleanup_record1
 static void __test_co_cleanup_record1(ptr pArg)
 {
 	__test_co_cleanup_case* pCase = (__test_co_cleanup_case*)pArg;
@@ -254,6 +284,8 @@ static void __test_co_cleanup_record1(ptr pArg)
 	}
 }
 
+
+// 内部函数：__test_co_cleanup_record2
 static void __test_co_cleanup_record2(ptr pArg)
 {
 	__test_co_cleanup_case* pCase = (__test_co_cleanup_case*)pArg;
@@ -262,6 +294,8 @@ static void __test_co_cleanup_record2(ptr pArg)
 	}
 }
 
+
+// 内部函数：__test_co_cleanup_record3
 static void __test_co_cleanup_record3(ptr pArg)
 {
 	__test_co_cleanup_case* pCase = (__test_co_cleanup_case*)pArg;
@@ -270,6 +304,8 @@ static void __test_co_cleanup_record3(ptr pArg)
 	}
 }
 
+
+// 内部函数：__test_co_cleanup_cancel_mark
 static void __test_co_cleanup_cancel_mark(ptr pArg)
 {
 	__test_co_cleanup_case* pCase = (__test_co_cleanup_case*)pArg;
@@ -278,6 +314,8 @@ static void __test_co_cleanup_cancel_mark(ptr pArg)
 	}
 }
 
+
+// 内部函数：__test_co_deep_stack_walk
 static uint32 __test_co_deep_stack_walk(__test_co_deep_stack_case* pCase, int iDepth, uint32 iSeed)
 {
 	volatile uint32 arrMarker[16];
@@ -307,6 +345,8 @@ static uint32 __test_co_deep_stack_walk(__test_co_deep_stack_case* pCase, int iD
 	return iChecksum ^ (uint32)(iDepth * 257);
 }
 
+
+// 内部函数：__test_co_deep_stack_func
 static void __test_co_deep_stack_func(ptr pParam)
 {
 	__test_co_deep_stack_case* pCase = (__test_co_deep_stack_case*)pParam;
@@ -318,6 +358,8 @@ static void __test_co_deep_stack_func(ptr pParam)
 	}
 }
 
+
+// 内部函数：__test_co_exit_func
 static void __test_co_exit_func(ptr pParam)
 {
 	__test_co_exit_case* pCase = (__test_co_exit_case*)pParam;
@@ -333,6 +375,8 @@ static void __test_co_exit_func(ptr pParam)
 	}
 }
 
+
+// 内部函数：__test_co_sleep_until_func
 static void __test_co_sleep_until_func(ptr pParam)
 {
 	__test_co_deadline_case* pCase = (__test_co_deadline_case*)pParam;
@@ -348,6 +392,8 @@ static void __test_co_sleep_until_func(ptr pParam)
 	pCase->bDone = TRUE;
 }
 
+
+// 内部函数：__test_co_createex_func
 static void __test_co_createex_func(ptr pParam)
 {
 	__test_co_createex_case* pCase = (__test_co_createex_case*)pParam;
@@ -357,6 +403,8 @@ static void __test_co_createex_func(ptr pParam)
 	}
 }
 
+
+// 内部函数：__test_co_waitdeadline_target
 static void __test_co_waitdeadline_target(ptr pParam)
 {
 	__test_co_waitdeadline_case* pCase = (__test_co_waitdeadline_case*)pParam;
@@ -370,6 +418,8 @@ static void __test_co_waitdeadline_target(ptr pParam)
 	pCase->bCancelledObserved = xrtCoIsCancelRequested();
 }
 
+
+// 内部函数：__test_co_waitdeadline_canceller
 static void __test_co_waitdeadline_canceller(ptr pParam)
 {
 	__test_co_waitdeadline_case* pCase = (__test_co_waitdeadline_case*)pParam;
@@ -382,6 +432,8 @@ static void __test_co_waitdeadline_canceller(ptr pParam)
 	(void)xrtCoCancel(pCase->pTarget);
 }
 
+
+// 内部函数：__test_co_event_waiter
 static void __test_co_event_waiter(ptr pParam)
 {
 	__test_co_event_case* pCase = (__test_co_event_case*)pParam;
@@ -395,6 +447,8 @@ static void __test_co_event_waiter(ptr pParam)
 	pCase->bDone = TRUE;
 }
 
+
+// 内部函数：__test_co_event_immediate_waiter
 static void __test_co_event_immediate_waiter(ptr pParam)
 {
 	__test_co_event_case* pCase = (__test_co_event_case*)pParam;
@@ -407,6 +461,8 @@ static void __test_co_event_immediate_waiter(ptr pParam)
 	pCase->bImmediateDone = TRUE;
 }
 
+
+// 内部函数：__test_co_event_timeout_waiter
 static void __test_co_event_timeout_waiter(ptr pParam)
 {
 	__test_co_event_case* pCase = (__test_co_event_case*)pParam;
@@ -424,6 +480,8 @@ static void __test_co_event_timeout_waiter(ptr pParam)
 	pCase->bTimeoutDone = TRUE;
 }
 
+
+// 内部函数：__test_co_event_deadline_waiter
 static void __test_co_event_deadline_waiter(ptr pParam)
 {
 	__test_co_event_case* pCase = (__test_co_event_case*)pParam;
@@ -441,6 +499,8 @@ static void __test_co_event_deadline_waiter(ptr pParam)
 	pCase->bDeadlineDone = TRUE;
 }
 
+
+// 内部函数：__test_co_event_set_worker
 static uint32 __test_co_event_set_worker(ptr pParam)
 {
 	__test_co_event_case* pCase = (__test_co_event_case*)pParam;
@@ -461,6 +521,8 @@ static uint32 __test_co_event_set_worker(ptr pParam)
 	return 0;
 }
 
+
+// 内部函数：__test_co_multi_event_waiter_1
 static void __test_co_multi_event_waiter_1(ptr pParam)
 {
 	__test_co_multi_event_case* pCase = (__test_co_multi_event_case*)pParam;
@@ -471,6 +533,8 @@ static void __test_co_multi_event_waiter_1(ptr pParam)
 	pCase->arrDone[0] = TRUE;
 }
 
+
+// 内部函数：__test_co_multi_event_waiter_2
 static void __test_co_multi_event_waiter_2(ptr pParam)
 {
 	__test_co_multi_event_case* pCase = (__test_co_multi_event_case*)pParam;
@@ -481,6 +545,8 @@ static void __test_co_multi_event_waiter_2(ptr pParam)
 	pCase->arrDone[1] = TRUE;
 }
 
+
+// 内部函数：__test_co_multi_event_set_worker
 static uint32 __test_co_multi_event_set_worker(ptr pParam)
 {
 	__test_co_multi_event_case* pCase = (__test_co_multi_event_case*)pParam;
@@ -500,6 +566,8 @@ static uint32 __test_co_multi_event_set_worker(ptr pParam)
 	return 0;
 }
 
+
+// 内部函数：__test_co_cleanup_func
 static void __test_co_cleanup_func(ptr pParam)
 {
 	__test_co_cleanup_case* pCase = (__test_co_cleanup_case*)pParam;
@@ -511,6 +579,8 @@ static void __test_co_cleanup_func(ptr pParam)
 	xrtCoExit(77);
 }
 
+
+// 内部函数：__test_co_cleanup_cancel_worker
 static void __test_co_cleanup_cancel_worker(ptr pParam)
 {
 	__test_co_cleanup_case* pCase = (__test_co_cleanup_case*)pParam;
@@ -521,6 +591,8 @@ static void __test_co_cleanup_cancel_worker(ptr pParam)
 	}
 }
 
+
+// 内部函数：__test_co_result_func
 static void __test_co_result_func(ptr pParam)
 {
 	__test_co_result_case* pCase = (__test_co_result_case*)pParam;
@@ -529,6 +601,8 @@ static void __test_co_result_func(ptr pParam)
 	xrtCoExit(88);
 }
 
+
+// 内部函数：__test_co_post_target
 static void __test_co_post_target(ptr pParam)
 {
 	__test_co_post_case* pCase = (__test_co_post_case*)pParam;
@@ -537,6 +611,8 @@ static void __test_co_post_target(ptr pParam)
 	pCase->bWoke = TRUE;
 }
 
+
+// 内部函数：__test_co_post_worker
 static uint32 __test_co_post_worker(ptr pParam)
 {
 	__test_co_post_case* pCase = (__test_co_post_case*)pParam;
@@ -557,6 +633,8 @@ static uint32 __test_co_post_worker(ptr pParam)
 #if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__) && defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
 static double __test_co_xmm6_after[2] = {0, 0};
 
+
+// 内部函数：__test_co_xmm6_func
 static void __test_co_xmm6_func(ptr pParam)
 {
 	static const double arrLoad[2] = {123.25, -456.5};
@@ -590,6 +668,8 @@ typedef struct {
 	char sDestroyError[128];
 } __test_co_guard_case;
 
+
+// 内部函数：__test_co_copy_error
 static void __test_co_copy_error(char* sDest, size_t iDestSize)
 {
 	str sError = xrtGetError();
@@ -606,6 +686,8 @@ static void __test_co_copy_error(char* sDest, size_t iDestSize)
 	snprintf(sDest, iDestSize, "%s", sError);
 }
 
+
+// 内部函数：__test_co_guard_worker
 static uint32 __test_co_guard_worker(ptr pParam)
 {
 	__test_co_guard_case* pCase = (__test_co_guard_case*)pParam;

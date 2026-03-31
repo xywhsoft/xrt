@@ -58,6 +58,8 @@ struct xrt_net_dgram {
 static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount);
 static bool __xnetDgramSocketIsValid(xsocket hSocket);
 
+
+// 内部函数：__xnetDgramPickWorker
 static xnetworker* __xnetDgramPickWorker(xnetengine* pEngine, const xnetdgramconfig* pCfg)
 {
 	uint32 iIndex = 0;
@@ -68,6 +70,8 @@ static xnetworker* __xnetDgramPickWorker(xnetengine* pEngine, const xnetdgramcon
 	return &pEngine->arrWorkers[iIndex];
 }
 
+
+// 内部函数：绑定数据报引擎
 static void __xnetDgramBindEngine(xnetengine* pEngine)
 {
 	if ( !pEngine ) return;
@@ -80,11 +84,15 @@ static void __xnetDgramBindEngine(xnetengine* pEngine)
 	}
 }
 
+
+// 内部函数：数据报所有权相关处理
 static ptr __xnetDgramOwner(xdgramsock* pSock)
 {
 	return pSock ? pSock->pUserData : NULL;
 }
 
+
+// 内部函数：设置数据报错误
 static void __xnetDgramSetError(const char* sError)
 {
 	#if defined(XXRTL_CORE)
@@ -94,6 +102,8 @@ static void __xnetDgramSetError(const char* sError)
 	#endif
 }
 
+
+// 内部函数：__xnetDgramUseNativePortIO
 static bool __xnetDgramUseNativePortIO(xdgramsock* pSock)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -111,6 +121,8 @@ static bool __xnetDgramUseNativePortIO(xdgramsock* pSock)
 	#endif
 }
 
+
+// 内部函数：__xnetDgramUseNativePortOps
 static bool __xnetDgramUseNativePortOps(xdgramsock* pSock)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -126,18 +138,24 @@ static bool __xnetDgramUseNativePortOps(xdgramsock* pSock)
 	#endif
 }
 
+
+// 内部函数：异步增加数据报 hold
 static void __xnetDgramAddAsyncHold(xdgramsock* pSock)
 {
 	if ( !pSock ) return;
 	(void)__xnetAtomicAddFetch32(&pSock->iAsyncHoldCount, 1);
 }
 
+
+// 内部函数：异步释放数据报 hold
 static void __xnetDgramReleaseAsyncHold(xdgramsock* pSock)
 {
 	if ( !pSock ) return;
 	(void)__xnetAtomicAddFetch32(&pSock->iAsyncHoldCount, -1);
 }
 
+
+// 创建网络数据报 packet
 XXAPI xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* pData, size_t iLen)
 {
 	xnetdgrampkt* pPacket;
@@ -156,6 +174,8 @@ XXAPI xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* p
 	return pPacket;
 }
 
+
+// 销毁网络数据报 packet
 XXAPI void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket)
 {
 	if ( !pPacket ) return;
@@ -163,21 +183,29 @@ XXAPI void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket)
 	XNET_FREE(pPacket);
 }
 
+
+// xrtNetDgramPacketFrom 相关处理
 XXAPI const xnetaddr* xrtNetDgramPacketFrom(const xnetdgrampkt* pPacket)
 {
 	return pPacket ? &pPacket->tFrom : NULL;
 }
 
+
+// xrtNetDgramPacketBytes 相关处理
 XXAPI size_t xrtNetDgramPacketBytes(const xnetdgrampkt* pPacket)
 {
 	return pPacket ? xrtNetChainBytes(&pPacket->tChain) : 0;
 }
 
+
+// 查看网络数据报 packet
 XXAPI size_t xrtNetDgramPacketPeek(const xnetdgrampkt* pPacket, ptr pOut, size_t iLen)
 {
 	return pPacket ? xrtNetChainPeek(&pPacket->tChain, pOut, iLen) : 0;
 }
 
+
+// 内部函数：接收数据报 notify 同步
 static void __xnetDgramNotifySyncRecv(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket)
 {
 	__xnet_dgram_wait_slot* pSlot = NULL;
@@ -202,6 +230,8 @@ static void __xnetDgramNotifySyncRecv(xdgramsock* pSock, xnet_result iStatus, xn
 	pfnWait(pSock, iStatus, pPacket, pCtx);
 }
 
+
+// 内部函数：__xnetDgramRegisterSyncRecvWait
 static bool __xnetDgramRegisterSyncRecvWait(xdgramsock* pSock, __xnet_dgram_sync_wait_fn pfnWait, ptr pCtx)
 {
 	if ( !pSock || !pfnWait ) return false;
@@ -218,6 +248,8 @@ static bool __xnetDgramRegisterSyncRecvWait(xdgramsock* pSock, __xnet_dgram_sync
 	return true;
 }
 
+
+// 内部函数：__xnetDgramCancelSyncRecvWait
 static bool __xnetDgramCancelSyncRecvWait(xdgramsock* pSock, ptr pCtx)
 {
 	if ( !pSock ) return false;
@@ -228,6 +260,8 @@ static bool __xnetDgramCancelSyncRecvWait(xdgramsock* pSock, ptr pCtx)
 	return true;
 }
 
+
+// 内部函数：数据报套接字最后一次 err相关处理
 static int __xnetDgramSocketLastErr(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -237,11 +271,15 @@ static int __xnetDgramSocketLastErr(void)
 	#endif
 }
 
+
+// 内部函数：判断是否为数据报套接字 valid
 static bool __xnetDgramSocketIsValid(xsocket hSocket)
 {
 	return hSocket != XNET_SOCKET_INVALID;
 }
 
+
+// 内部函数：创建数据报套接字
 static xsocket __xnetDgramSocketCreate(int iFamily)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -251,6 +289,8 @@ static xsocket __xnetDgramSocketCreate(int iFamily)
 	#endif
 }
 
+
+// 内部函数：处理数据报套接字 close
 static void __xnetDgramSocketCloseHandle(xsocket* phSocket)
 {
 	if ( !phSocket || !__xnetDgramSocketIsValid(*phSocket) ) return;
@@ -262,6 +302,8 @@ static void __xnetDgramSocketCloseHandle(xsocket* phSocket)
 	*phSocket = XNET_SOCKET_INVALID;
 }
 
+
+// 内部函数：设置数据报套接字 non 块
 static bool __xnetDgramSocketSetNonBlock(xsocket hSocket, bool bEnable)
 {
 	if ( !__xnetDgramSocketIsValid(hSocket) ) return false;
@@ -280,6 +322,8 @@ static bool __xnetDgramSocketSetNonBlock(xsocket hSocket, bool bEnable)
 	#endif
 }
 
+
+// 内部函数：__xnetDgramSocketSetReuseAddr
 static bool __xnetDgramSocketSetReuseAddr(xsocket hSocket)
 {
 	int iOpt = 1;
@@ -291,6 +335,8 @@ static bool __xnetDgramSocketSetReuseAddr(xsocket hSocket)
 	#endif
 }
 
+
+// 内部函数：设置数据报套接字 reuse 端口
 static bool __xnetDgramSocketSetReusePort(xsocket hSocket)
 {
 	#if defined(SO_REUSEPORT)
@@ -307,6 +353,8 @@ static bool __xnetDgramSocketSetReusePort(xsocket hSocket)
 	#endif
 }
 
+
+// 内部函数：__xnetDgramSocketUpdateLocalAddr
 static bool __xnetDgramSocketUpdateLocalAddr(xsocket hSocket, xnetaddr* pAddr)
 {
 	struct sockaddr_storage tStorage;
@@ -317,6 +365,8 @@ static bool __xnetDgramSocketUpdateLocalAddr(xsocket hSocket, xnetaddr* pAddr)
 	return __xnetAddrFromSockAddr(pAddr, (const struct sockaddr*)&tStorage);
 }
 
+
+// 内部函数：__xnetDgramApplyBindFlags
 static void __xnetDgramApplyBindFlags(xsocket hSocket, uint32 iFlags)
 {
 	if ( !__xnetDgramSocketIsValid(hSocket) ) return;
@@ -328,6 +378,8 @@ static void __xnetDgramApplyBindFlags(xsocket hSocket, uint32 iFlags)
 	}
 }
 
+
+// 内部函数：分配数据报临时 chain
 static xnetchain* __xnetDgramAllocTempChain(xdgramsock* pSock)
 {
 	xnetchain* pChain;
@@ -340,6 +392,8 @@ static xnetchain* __xnetDgramAllocTempChain(xdgramsock* pSock)
 	return pChain;
 }
 
+
+// 内部函数：释放数据报临时 chain
 static void __xnetDgramFreeTempChain(xnetchain* pChain)
 {
 	if ( !pChain ) return;
@@ -347,6 +401,8 @@ static void __xnetDgramFreeTempChain(xnetchain* pChain)
 	XNET_FREE(pChain);
 }
 
+
+// 内部函数：提交数据报套接字 notice
 static bool __xnetDgramSubmitSocketNotice(xdgramsock* pSock, uint16 iOpType, xsocket hSocket)
 {
 	xnetportsubmit tSubmit;
@@ -359,6 +415,8 @@ static bool __xnetDgramSubmitSocketNotice(xdgramsock* pSock, uint16 iOpType, xso
 	return xrtNetPortSubmit(&pSock->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
 }
 
+
+// 内部函数：__xnetDgramArmRecvWatch
 static bool __xnetDgramArmRecvWatch(xdgramsock* pSock)
 {
 	if ( !pSock || !pSock->bRunning || pSock->bRecvArmed || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
@@ -370,6 +428,8 @@ static bool __xnetDgramArmRecvWatch(xdgramsock* pSock)
 	return true;
 }
 
+
+// 内部函数：关闭数据报 finalize 套接字
 static void __xnetDgramFinalizeSocketClose(xdgramsock* pSock)
 {
 	xsocket hSocket;
@@ -382,6 +442,8 @@ static void __xnetDgramFinalizeSocketClose(xdgramsock* pSock)
 	}
 }
 
+
+// 内部函数：__xnetDgramDispatchPacket
 static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xnetaddr* pFrom, const void* pData, size_t iLen)
 {
 	xnetchain* pChain;
@@ -412,6 +474,8 @@ static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xneta
 	return true;
 }
 
+
+// 内部函数：发送数据报 submit 原生
 static bool __xnetDgramSubmitNativeSend(xdgramsock* pSock, __xnet_dgram_async_op* pOp)
 {
 	xnetportsubmit tSubmit;
@@ -431,6 +495,8 @@ static bool __xnetDgramSubmitNativeSend(xdgramsock* pSock, __xnet_dgram_async_op
 	return xrtNetPortSubmit(&pSock->pWorker->tPort, &tSubmit, 1) == XRT_NET_OK;
 }
 
+
+// 内部函数：数据报异步任务相关处理
 static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_dgram_async_op* pOp = (__xnet_dgram_async_op*)pArg;
@@ -455,6 +521,8 @@ static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
 	XNET_FREE(pOp);
 }
 
+
+// 内部函数：异步复制数据报 alloc
 static __xnet_dgram_async_op* __xnetDgramAllocAsyncCopy(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
 {
 	__xnet_dgram_async_op* pOp;
@@ -472,6 +540,8 @@ static __xnet_dgram_async_op* __xnetDgramAllocAsyncCopy(xdgramsock* pSock, const
 	return pOp;
 }
 
+
+// 内部函数：异步复制数据报 alloc vec
 static __xnet_dgram_async_op* __xnetDgramAllocAsyncVecCopy(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount)
 {
 	__xnet_dgram_async_op* pOp;
@@ -499,6 +569,8 @@ static __xnet_dgram_async_op* __xnetDgramAllocAsyncVecCopy(xdgramsock* pSock, co
 	return pOp;
 }
 
+
+// 内部函数：__xnetDgramPostAsync
 static xnet_result __xnetDgramPostAsync(xdgramsock* pSock, __xnet_dgram_async_op* pOp)
 {
 	if ( !pSock || !pOp || !pSock->pEngine || !pSock->pWorker ) {
@@ -514,6 +586,8 @@ static xnet_result __xnetDgramPostAsync(xdgramsock* pSock, __xnet_dgram_async_op
 	return XRT_NET_OK;
 }
 
+
+// 创建网络数据报
 XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* pCfg, const xnetdgramevents* pEvents, ptr pUserData)
 {
 	xdgramsock* pSock;
@@ -546,6 +620,8 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 	return pSock;
 }
 
+
+// 销毁网络数据报
 XXAPI void xrtNetDgramDestroy(xdgramsock* pSock)
 {
 	if ( !pSock ) return;
@@ -558,6 +634,8 @@ XXAPI void xrtNetDgramDestroy(xdgramsock* pSock)
 	XNET_FREE(pSock);
 }
 
+
+// 启动网络数据报
 XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock)
 {
 	struct sockaddr_storage tStorage;
@@ -588,6 +666,8 @@ XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock)
 	return XRT_NET_OK;
 }
 
+
+// 停止网络数据报
 XXAPI void xrtNetDgramStop(xdgramsock* pSock)
 {
 	if ( !pSock ) return;
@@ -600,6 +680,8 @@ XXAPI void xrtNetDgramStop(xdgramsock* pSock)
 	__xnetDgramFinalizeSocketClose(pSock);
 }
 
+
+// 发送网络数据报
 XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
 {
 	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || (!pData && iLen > 0) ) return XRT_NET_ERROR;
@@ -607,6 +689,8 @@ XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, cons
 	return __xnetDgramPostAsync(pSock, __xnetDgramAllocAsyncCopy(pSock, pTo, pData, iLen));
 }
 
+
+// 发送网络数据报 vec
 XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount)
 {
 	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || !pVec || iCount == 0 ) return XRT_NET_ERROR;
@@ -614,6 +698,8 @@ XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, c
 	return __xnetDgramPostAsync(pSock, __xnetDgramAllocAsyncVecCopy(pSock, pTo, pVec, iCount));
 }
 
+
+// 内部函数：__xnetDgramOnPortEvents
 static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount)
 {
 	(void)pWorker;

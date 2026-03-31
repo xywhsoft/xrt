@@ -1486,6 +1486,7 @@ XXAPI bool xrtFileDelete(str sPath)
 		return iFileCount;
 	}
 #endif
+// xrtDirScan 相关处理
 XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -1595,6 +1596,9 @@ XXAPI bool xrtDirCreateAll(str sPath)
 		int ReWrite;
 		int MoveMode;			// 移动模式
 	} xrtCopyFolder_Info;
+
+
+	// 内部函数：复制 pri 目录进程
 	int __pri__DirCopyProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		(void)iSize;
@@ -1632,6 +1636,9 @@ XXAPI bool xrtDirCreateAll(str sPath)
 		int ReWrite;
 		int MoveMode;			// 移动模式
 	} xrtCopyFolder_Info;
+
+
+	// 内部函数：复制 pri 目录进程
 	int __pri__DirCopyProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		if ( bDir == 0 ) {
@@ -1658,6 +1665,7 @@ XXAPI bool xrtDirCreateAll(str sPath)
 		return FALSE;
 	}
 #endif
+// 复制目录
 XXAPI int xrtDirCopy(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -1745,6 +1753,7 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 
 // 删除文件夹 ( 返回操作的文件数量 )
 #if defined(_WIN32) || defined(_WIN64)
+	// 内部函数：删除 pri 目录进程
 	int __pri__DirDeleteProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		(void)pData;
@@ -1761,6 +1770,7 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 		return FALSE;
 	}
 #else
+	// 内部函数：删除 pri 目录进程
 	int __pri__DirDeleteProc(str sPath, size_t iSize, int bDir, ptr pData, xrtCopyFolder_Info* pInfo)
 	{
 		if ( bDir == 0 ) {
@@ -1773,6 +1783,7 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 		return FALSE;
 	}
 #endif
+// 删除目录
 XXAPI int xrtDirDelete(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)

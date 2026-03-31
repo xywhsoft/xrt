@@ -94,6 +94,7 @@ typedef struct {
 
 #include "test_xnet2_sync_support.h"
 
+// 内部函数：__Test_XNet2_SyncDgramEventTextEquals
 static bool __Test_XNet2_SyncDgramEventTextEquals(const __test_xnet2_sync_dgram_event_case* pCase, const char* sText)
 {
 	size_t iWantLen;
@@ -103,6 +104,8 @@ static bool __Test_XNet2_SyncDgramEventTextEquals(const __test_xnet2_sync_dgram_
 	return pCase->iPayloadLen == (long)iWantLen && memcmp(pCase->aPayload, sText, iWantLen) == 0;
 }
 
+
+// 内部函数：__Test_XNet2_SyncDgramOnRecv
 static void __Test_XNet2_SyncDgramOnRecv(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain)
 {
 	__test_xnet2_sync_dgram_event_case* pCase = (__test_xnet2_sync_dgram_event_case*)pOwner;
@@ -117,6 +120,8 @@ static void __Test_XNet2_SyncDgramOnRecv(ptr pOwner, xdgramsock* pSock, const xn
 	(void)__Test_XNet2_SyncAtomicInc(&pCase->iHitCount);
 }
 
+
+// 内部函数：__Test_XNet2_SyncDgramSendWorker
 static uint32 __Test_XNet2_SyncDgramSendWorker(ptr pArg)
 {
 	__test_xnet2_sync_dgram_send_case* pCase = (__test_xnet2_sync_dgram_send_case*)pArg;
@@ -132,6 +137,8 @@ static uint32 __Test_XNet2_SyncDgramSendWorker(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_XNet2_SyncConnectWorker
 static uint32 __Test_XNet2_SyncConnectWorker(ptr pArg)
 {
 	__test_xnet2_sync_connect_case* pCase = (__test_xnet2_sync_connect_case*)pArg;
@@ -164,12 +171,16 @@ static uint32 __Test_XNet2_SyncConnectWorker(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_XNet2_SyncStartWorkerThread
 static xthread __Test_XNet2_SyncStartWorkerThread(uint32 (*Proc)(ptr), ptr pArg)
 {
 	if ( !Proc ) return NULL;
 	return xrtThreadCreate(Proc, pArg, 0);
 }
 
+
+// 内部函数：__Test_XNet2_SyncJoinThread
 static void __Test_XNet2_SyncJoinThread(xthread* phThread)
 {
 	if ( !phThread || !*phThread ) return;
@@ -178,6 +189,8 @@ static void __Test_XNet2_SyncJoinThread(xthread* phThread)
 	*phThread = NULL;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRunSchedWithWorker
 static void __Test_XNet2_SyncRunSchedWithWorker(xcosched* pSched, xthread* phThread, uint32 (*Proc)(ptr), ptr pArg)
 {
 	if ( !pSched ) return;
@@ -187,6 +200,8 @@ static void __Test_XNet2_SyncRunSchedWithWorker(xcosched* pSched, xthread* phThr
 	xrtCoSchedRun(pSched);
 }
 
+
+// 内部函数：__Test_XNet2_SyncResolveTask
 static void __Test_XNet2_SyncResolveTask(xnetworker* pWorker, ptr pArg)
 {
 	__test_xnet2_sync_task_ctx* pCtx = (__test_xnet2_sync_task_ctx*)pArg;
@@ -431,6 +446,8 @@ __TEST_XNET2_SYNC_DEFINE_CORO_CASE_PROC(__Test_XNet2_SyncStreamCloseWaitCoRetry,
 	pCase->bDone = true;
 )
 
+
+// 内部函数：__Test_XNet2_SyncFutureResolveWorker
 static uint32 __Test_XNet2_SyncFutureResolveWorker(ptr pArg)
 {
 	__test_xnet2_sync_coro_case* pCase = (__test_xnet2_sync_coro_case*)pArg;
@@ -441,6 +458,8 @@ static uint32 __Test_XNet2_SyncFutureResolveWorker(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_XNet2_SyncFutureResolveWorkerMulti
 static uint32 __Test_XNet2_SyncFutureResolveWorkerMulti(ptr pArg)
 {
 	__test_xnet2_sync_multi_coro_case* pCase = (__test_xnet2_sync_multi_coro_case*)pArg;
@@ -451,6 +470,8 @@ static uint32 __Test_XNet2_SyncFutureResolveWorkerMulti(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_XNet2_SyncStreamDrainTask
 static void __Test_XNet2_SyncStreamDrainTask(xnetworker* pWorker, ptr pArg)
 {
 	xnetstream* pStream = (xnetstream*)pArg;
@@ -464,6 +485,8 @@ static void __Test_XNet2_SyncStreamDrainTask(xnetworker* pWorker, ptr pArg)
 	}
 }
 
+
+// 内部函数：__Test_XNet2_SyncStreamCloseTask
 static void __Test_XNet2_SyncStreamCloseTask(xnetworker* pWorker, ptr pArg)
 {
 	xnetstream* pStream = (xnetstream*)pArg;
@@ -473,6 +496,8 @@ static void __Test_XNet2_SyncStreamCloseTask(xnetworker* pWorker, ptr pArg)
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 }
 
+
+// 内部函数：__Test_XNet2_SyncStreamWritableTask
 static void __Test_XNet2_SyncStreamWritableTask(xnetworker* pWorker, ptr pArg)
 {
 	xnetstream* pStream = (xnetstream*)pArg;
@@ -520,6 +545,8 @@ __TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC(__Test_XNet2_SyncWaitSourceDgramRe
 	pCase->bDone = true;
 )
 
+
+// 内部函数：__Test_XNet2_SyncRetryDgramCoCase
 static bool __Test_XNet2_SyncRetryDgramCoCase(xcosched* pSched, __test_xnet2_sync_dgram_coro_case* pCase, void (*Proc)(ptr), xnet_result iExpectStatus, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -544,6 +571,8 @@ static bool __Test_XNet2_SyncRetryDgramCoCase(xcosched* pSched, __test_xnet2_syn
 	return pCase->iWaitStatus == iExpectStatus && pCase->bDone;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRetryWaitCoCase
 static bool __Test_XNet2_SyncRetryWaitCoCase(xcosched* pSched, __test_xnet2_sync_coro_case* pCase, void (*Proc)(ptr), xnet_result iExpectStatus, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -565,6 +594,8 @@ static bool __Test_XNet2_SyncRetryWaitCoCase(xcosched* pSched, __test_xnet2_sync
 	return pCase->iWaitStatus == iExpectStatus && pCase->bDone;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRunWaitCoAndCheckStreamCleared
 static bool __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
 	xcosched* pSched,
 	__test_xnet2_sync_coro_case* pCase,
@@ -579,6 +610,8 @@ static bool __Test_XNet2_SyncRunWaitCoAndCheckStreamCleared(
 	return __Test_XNet2_SyncWaitStreamWaitCleared(pStream, iWaitKind, iTimeoutMs);
 }
 
+
+// 内部函数：__Test_XNet2_SyncPostStreamTaskAndRetryWaitCo
 static bool __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 	xnetengine* pEngine,
 	xnetstream* pStream,
@@ -595,6 +628,8 @@ static bool __Test_XNet2_SyncPostStreamTaskAndRetryWaitCo(
 	return __Test_XNet2_SyncRetryWaitCoCase(pSched, pCase, RetryProc, iExpectStatus, iTimeoutMs);
 }
 
+
+// 内部函数：__Test_XNet2_SyncPostRecvAndRetryWaitCo
 static bool __Test_XNet2_SyncPostRecvAndRetryWaitCo(
 	xcosched* pSched,
 	__test_xnet2_sync_coro_case* pCase,
@@ -616,6 +651,7 @@ static bool __Test_XNet2_SyncPostRecvAndRetryWaitCo(
 #undef __TEST_XNET2_SYNC_DEFINE_DGRAM_CORO_CASE_PROC
 #endif
 
+// 内部函数：__Test_XNet2_SyncPostFutureTask
 static xnet_result __Test_XNet2_SyncPostFutureTask(xnetworker* pWorker, ptr pArg, ptr* ppValue)
 {
 	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
@@ -632,6 +668,8 @@ static xnet_result __Test_XNet2_SyncPostFutureTask(xnetworker* pWorker, ptr pArg
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_XNet2_SyncFillTaskResult
 static int32 __Test_XNet2_SyncFillTaskResult(__test_xnet2_sync_postfuture_case* pCase, long iWorkerId, xfuture_result* pOut)
 {
 	if ( !pCase || !pOut ) {
@@ -646,6 +684,8 @@ static int32 __Test_XNet2_SyncFillTaskResult(__test_xnet2_sync_postfuture_case* 
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_XNet2_TaskRunEngineProc
 static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
 {
 	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
@@ -653,6 +693,8 @@ static int32 __Test_XNet2_TaskRunEngineProc(xnetworker* pWorker, ptr pArg, xfutu
 	return __Test_XNet2_SyncFillTaskResult(pCase, pWorker ? (long)pWorker->iId : -1, pOut);
 }
 
+
+// 内部函数：__Test_XNet2_TaskRunThreadProc
 static int32 __Test_XNet2_TaskRunThreadProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
@@ -661,6 +703,7 @@ static int32 __Test_XNet2_TaskRunThreadProc(ptr pArg, xfuture_result* pOut)
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// 内部函数：__Test_XNet2_TaskRunCoProc
 static int32 __Test_XNet2_TaskRunCoProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_xnet2_sync_postfuture_case* pCase = (__test_xnet2_sync_postfuture_case*)pArg;
@@ -669,6 +712,7 @@ static int32 __Test_XNet2_TaskRunCoProc(ptr pArg, xfuture_result* pOut)
 }
 #endif
 
+// 内部函数：__Test_XNet2_SyncTrackedPrintf
 static int __Test_XNet2_SyncTrackedPrintf(int* piFailCount, const char* sFormat, ...)
 {
 	char aBuf[4096];
@@ -688,6 +732,7 @@ static int __Test_XNet2_SyncTrackedPrintf(int* piFailCount, const char* sFormat,
 }
 
 
+// XNET2SYNC测试
 int Test_XNet2_Sync(void)
 {
 	int iFailCount = 0;

@@ -61,17 +61,24 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 创建 fs 内存内存池调试
 XXAPI xfsmempool xrtFSMemPoolCreateDbg(unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xfsmempool objMM = xrtFSMemPoolCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objMM;
 }
+
+
+// 初始化 fs 内存内存池调试
 XXAPI void xrtFSMemPoolInitDbg(xfsmempool objMM, unsigned int iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xrtFSMemPoolInit(objMM, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
+
+
+// 销毁 fs 内存内存池调试
 XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iLine)
 {
 	if ( objMM ) {
@@ -86,6 +93,9 @@ XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iL
 		xrtFreeDbg(objMM, sFile, iLine);
 	}
 }
+
+
+// 释放 fs 内存内存池调试
 XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine)
 {
 	if ( objMM == NULL ) {
@@ -272,6 +282,9 @@ static inline void MM256_LLNode_IdleCheck(xfsmempool objMM, MMU_LLNode* pNode)
 		objMM->LL_Idle = pNode;
 	}
 }
+
+
+// 释放 fs 内存内存池
 XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 {
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {

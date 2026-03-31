@@ -15,30 +15,36 @@ typedef struct
 
 static volatile uint64 __g_iJSONXSONBenchSink = 0;
 
+
+// 内部函数：__Test_JSONXSONBench_ParseJSON
 static xvalue __Test_JSONXSONBench_ParseJSON(str sText, size_t iSize)
 {
 	return xrtParseJSON(sText, iSize);
 }
 
 
+// 内部函数：__Test_JSONXSONBench_ParseXSON
 static xvalue __Test_JSONXSONBench_ParseXSON(str sText, size_t iSize)
 {
 	return xrtParseXSON(sText, iSize);
 }
 
 
+// 内部函数：__Test_JSONXSONBench_StringifyJSON
 static str __Test_JSONXSONBench_StringifyJSON(xvalue pVal, int bFormat, size_t* pRetSize)
 {
 	return xrtStringifyJSON(pVal, bFormat, pRetSize);
 }
 
 
+// 内部函数：__Test_JSONXSONBench_StringifyXSON
 static str __Test_JSONXSONBench_StringifyXSON(xvalue pVal, int bFormat, size_t* pRetSize)
 {
 	return xrtStringifyXSON(pVal, bFormat, 0, pRetSize);
 }
 
 
+// 内部函数：__Test_JSONXSONBench_AccumulateRoot
 static uint64 __Test_JSONXSONBench_AccumulateRoot(xvalue pVal)
 {
 	uint64 iValue = 0;
@@ -64,6 +70,7 @@ static uint64 __Test_JSONXSONBench_AccumulateRoot(xvalue pVal)
 }
 
 
+// 内部函数：__Test_JSONXSONBench_PrintResult
 static void __Test_JSONXSONBench_PrintResult(const xrt_json_xson_bench_result_t* pResult)
 {
 	double fMs;
@@ -86,6 +93,7 @@ static void __Test_JSONXSONBench_PrintResult(const xrt_json_xson_bench_result_t*
 }
 
 
+// 内部函数：__Test_JSONXSONBench_PrintDelta
 static void __Test_JSONXSONBench_PrintDelta(const xrt_json_xson_bench_result_t* pJSON, const xrt_json_xson_bench_result_t* pXSON)
 {
 	double fDelta;
@@ -108,6 +116,7 @@ static void __Test_JSONXSONBench_PrintDelta(const xrt_json_xson_bench_result_t* 
 }
 
 
+// 内部函数：__Test_JSONXSONBench_RunParse
 static int __Test_JSONXSONBench_RunParse(
 	const char* sName,
 	xrt_json_xson_bench_parse_proc procParse,
@@ -155,6 +164,7 @@ static int __Test_JSONXSONBench_RunParse(
 }
 
 
+// 内部函数：__Test_JSONXSONBench_RunStringify
 static int __Test_JSONXSONBench_RunStringify(
 	const char* sName,
 	xrt_json_xson_bench_stringify_proc procStringify,
@@ -204,6 +214,7 @@ static int __Test_JSONXSONBench_RunStringify(
 }
 
 
+// 内部函数：__Test_JSONXSONBench_CreateJSONPayload
 static xvalue __Test_JSONXSONBench_CreateJSONPayload(uint32 iItemCount)
 {
 	xvalue pRoot = NULL;
@@ -293,6 +304,7 @@ static xvalue __Test_JSONXSONBench_CreateJSONPayload(uint32 iItemCount)
 }
 
 
+// 内部函数：__Test_JSONXSONBench_CreateXSONPayload
 static xvalue __Test_JSONXSONBench_CreateXSONPayload(uint32 iItemCount)
 {
 	xvalue pRoot = NULL;
@@ -386,6 +398,7 @@ static xvalue __Test_JSONXSONBench_CreateXSONPayload(uint32 iItemCount)
 }
 
 
+// JSONXSON基准测试
 static int Test_JSON_XSON_Bench(void)
 {
 	uint32 iRounds = __xrtTestParseUint32ExtraArg(0, 100);

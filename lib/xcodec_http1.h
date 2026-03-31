@@ -59,6 +59,8 @@ static char __xcodecHttpToLower(char ch)
 	return ch;
 }
 
+
+// 内部函数：HTTP 字符串相等忽略大小写相关处理
 static bool __xcodecHttpStrEqNoCase(const char* sA, const char* sB)
 {
 	size_t i = 0;
@@ -70,6 +72,8 @@ static bool __xcodecHttpStrEqNoCase(const char* sA, const char* sB)
 	return sA[i] == '\0' && sB[i] == '\0';
 }
 
+
+// 内部函数：判断是否包含 HTTP Token 忽略大小写
 static bool __xcodecHttpContainsTokenNoCase(const char* sText, const char* sToken)
 {
 	size_t iLenText;
@@ -88,6 +92,8 @@ static bool __xcodecHttpContainsTokenNoCase(const char* sText, const char* sToke
 	return false;
 }
 
+
+// 内部函数：复制 HTTP Token
 static void __xcodecHttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc, size_t iLen)
 {
 	size_t iCopyLen;
@@ -102,6 +108,8 @@ static void __xcodecHttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc, 
 	sDst[iCopyLen] = '\0';
 }
 
+
+// 内部函数：裁剪 HTTP 视图
 static void __xcodecHttpTrimView(const char** ppText, size_t* pLen)
 {
 	const char* sText = ppText ? *ppText : NULL;
@@ -118,6 +126,8 @@ static void __xcodecHttpTrimView(const char** ppText, size_t* pLen)
 	*pLen = iLen;
 }
 
+
+// 内部函数：解析 HTTP 整数 64
 static bool __xcodecHttpParseInt64(const char* sText, int64_t* pValue)
 {
 	int64_t iValue = 0;
@@ -132,6 +142,8 @@ static bool __xcodecHttpParseInt64(const char* sText, int64_t* pValue)
 	return true;
 }
 
+
+// 内部函数：__xcodecHttpParseHexU64
 static bool __xcodecHttpParseHexU64(const char* sText, size_t iLen, uint64* pValue)
 {
 	uint64 iValue = 0;
@@ -164,6 +176,8 @@ static bool __xcodecHttpParseHexU64(const char* sText, size_t iLen, uint64* pVal
 	return true;
 }
 
+
+// 获取编解码器 HTTP/1 头部
 XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName)
 {
 	if ( !pMsg || !sName ) return NULL;
@@ -175,6 +189,8 @@ XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char*
 	return NULL;
 }
 
+
+// 初始化编解码器 HTTP/1 消息
 XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg)
 {
 	if ( !pMsg ) return;
@@ -182,6 +198,8 @@ XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg)
 	pMsg->iContentLength = -1;
 }
 
+
+// 内部函数：读取 HTTP chunk 头部
 static xcodecstatus __xcodecHttpReadChunkHeader(const xnetchain* pInput, size_t iOffset, uint64* pChunkSize, size_t* pDataOffset)
 {
 	static const uint8 aCrlf[] = { '\r', '\n' };
@@ -207,6 +225,8 @@ static xcodecstatus __xcodecHttpReadChunkHeader(const xnetchain* pInput, size_t 
 	return XCODEC_STATUS_FRAME;
 }
 
+
+// 内部函数：__xcodecHttpMeasureChunkedBody
 static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size_t iBodyOffset, size_t* pChunkBodyBytes, size_t* pDecodedBytes)
 {
 	static const uint8 aCrlf[] = { '\r', '\n' };
@@ -245,6 +265,8 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 	}
 }
 
+
+// 编解码器 HTTP/1 正文 bytes相关处理
 XXAPI size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame)
 {
 	if ( !pFrame ) return 0u;
@@ -252,6 +274,8 @@ XXAPI size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame)
 	return pFrame->iPayloadBytes;
 }
 
+
+// 复制编解码器 HTTP/1 正文
 XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
 {
 	uint8* pDst = (uint8*)pOut;

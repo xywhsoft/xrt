@@ -22,6 +22,8 @@ typedef struct {
 	size_t iCap;
 } __xproc_strbuf;
 
+
+// 内部函数：预留字符串缓冲区
 static bool __xprocStrBufReserve(__xproc_strbuf* pBuf, size_t iNeed)
 {
 	size_t iCapNew;
@@ -54,6 +56,8 @@ static bool __xprocStrBufReserve(__xproc_strbuf* pBuf, size_t iNeed)
 	return true;
 }
 
+
+// 内部函数：追加字符串缓冲区原始数据
 static bool __xprocStrBufAppendRaw(__xproc_strbuf* pBuf, const char* sText, size_t iLen)
 {
 	if ( pBuf == NULL ) {
@@ -72,6 +76,8 @@ static bool __xprocStrBufAppendRaw(__xproc_strbuf* pBuf, const char* sText, size
 	return true;
 }
 
+
+// 内部函数：追加字符串缓冲区
 static bool __xprocStrBufAppend(__xproc_strbuf* pBuf, const char* sText)
 {
 	if ( sText == NULL ) {
@@ -80,11 +86,15 @@ static bool __xprocStrBufAppend(__xproc_strbuf* pBuf, const char* sText)
 	return __xprocStrBufAppendRaw(pBuf, sText, strlen(sText));
 }
 
+
+// 内部函数：追加字符串缓冲区字符
 static bool __xprocStrBufAppendChar(__xproc_strbuf* pBuf, char ch)
 {
 	return __xprocStrBufAppendRaw(pBuf, &ch, 1u);
 }
 
+
+// 内部函数：释放字符串缓冲区
 static void __xprocStrBufUnit(__xproc_strbuf* pBuf)
 {
 	if ( pBuf == NULL ) {
@@ -96,6 +106,8 @@ static void __xprocStrBufUnit(__xproc_strbuf* pBuf)
 	memset(pBuf, 0, sizeof(*pBuf));
 }
 
+
+// 内部函数：__xprocCmdNeedsQuote
 static bool __xprocCmdNeedsQuote(str sArg)
 {
 	size_t i;
@@ -120,6 +132,8 @@ static bool __xprocCmdNeedsQuote(str sArg)
 	return false;
 }
 
+
+// 内部函数：追加命令引用字符串
 static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
 {
 	size_t i = 0;
@@ -184,6 +198,8 @@ static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
 	return __xprocStrBufAppendChar(pBuf, '"');
 }
 
+
+// 内部函数：预留缓冲区
 static bool __xprocBufferReserve(__xproc_buffer* pBuf, size_t iNeed)
 {
 	size_t iCapNew;
@@ -216,6 +232,8 @@ static bool __xprocBufferReserve(__xproc_buffer* pBuf, size_t iNeed)
 	return true;
 }
 
+
+// 内部函数：追加缓冲区
 static void __xprocBufferAppend(__xproc_buffer* pBuf, const void* pData, size_t iSize, size_t iLimit)
 {
 	size_t iCopy = iSize;
@@ -251,6 +269,8 @@ static void __xprocBufferAppend(__xproc_buffer* pBuf, const void* pData, size_t 
 	}
 }
 
+
+// 内部函数：释放缓冲区
 static void __xprocBufferUnit(__xproc_buffer* pBuf)
 {
 	if ( pBuf == NULL ) {
@@ -262,6 +282,8 @@ static void __xprocBufferUnit(__xproc_buffer* pBuf)
 	memset(pBuf, 0, sizeof(*pBuf));
 }
 
+
+// 内部函数：__xprocBufferMoveOut
 static void __xprocBufferMoveOut(__xproc_buffer* pBuf, ptr* ppData, size_t* piSize, bool* pbTruncated)
 {
 	if ( ppData ) {
@@ -281,6 +303,8 @@ static void __xprocBufferMoveOut(__xproc_buffer* pBuf, ptr* ppData, size_t* piSi
 	}
 }
 
+
+// 初始化进程配置
 XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
@@ -291,6 +315,8 @@ XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig)
 	pConfig->iReadChunkSize = __XPROC_READ_CHUNK_DEFAULT;
 }
 
+
+// 释放进程结果
 XXAPI void xrtProcessResultUnit(xprocessresult* pResult)
 {
 	if ( pResult == NULL ) {
@@ -308,11 +334,14 @@ XXAPI void xrtProcessResultUnit(xprocessresult* pResult)
 
 #if defined(XRT_NO_THREAD)
 
+// 内部函数：设置线程 required 错误
 static void __xprocSetThreadRequiredError(void)
 {
 	xrtSetError("subprocess requires thread support.", FALSE);
 }
 
+
+// xrtProcessSpawn 相关处理
 XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 {
 	(void)pConfig;
@@ -320,29 +349,39 @@ XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 	return NULL;
 }
 
+
+// 销毁进程
 XXAPI void xrtProcessDestroy(xprocess* pProcess)
 {
 	(void)pProcess;
 }
 
+
+// 获取进程状态
 XXAPI int xrtProcessState(xprocess* pProcess)
 {
 	(void)pProcess;
 	return XPROC_STATE_FAILED;
 }
 
+
+// 判断是否为进程运行中
 XXAPI bool xrtProcessIsRunning(xprocess* pProcess)
 {
 	(void)pProcess;
 	return false;
 }
 
+
+// xrtProcessExitCode 相关处理
 XXAPI int xrtProcessExitCode(xprocess* pProcess)
 {
 	(void)pProcess;
 	return -1;
 }
 
+
+// 写入进程
 XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 {
 	(void)pProcess;
@@ -352,6 +391,8 @@ XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 	return -1;
 }
 
+
+// 写入进程文本
 XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
 {
 	(void)pProcess;
@@ -361,6 +402,8 @@ XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
 	return -1;
 }
 
+
+// xrtProcessCloseStdin 相关处理
 XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -368,6 +411,8 @@ XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
 	return false;
 }
 
+
+// 等待进程
 XXAPI bool xrtProcessWait(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -375,6 +420,8 @@ XXAPI bool xrtProcessWait(xprocess* pProcess)
 	return false;
 }
 
+
+// 等待进程超时
 XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 {
 	(void)pProcess;
@@ -383,6 +430,8 @@ XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 	return XRT_WAIT_ERROR;
 }
 
+
+// xrtProcessTerminate 相关处理
 XXAPI bool xrtProcessTerminate(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -390,6 +439,8 @@ XXAPI bool xrtProcessTerminate(xprocess* pProcess)
 	return false;
 }
 
+
+// xrtProcessKillTree 相关处理
 XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -397,6 +448,8 @@ XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 	return false;
 }
 
+
+// 获取进程标准输出
 XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
 {
 	(void)pProcess;
@@ -406,6 +459,8 @@ XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
 	return NULL;
 }
 
+
+// 获取进程标准错误
 XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
 {
 	(void)pProcess;
@@ -415,6 +470,8 @@ XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
 	return NULL;
 }
 
+
+// xrtExecCapture 相关处理
 XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
 {
 	(void)pConfig;
@@ -425,6 +482,7 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 }
 
 #if !defined(XRT_NO_NETWORK)
+// 等待进程 Future
 XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -481,6 +539,8 @@ struct xprocess_struct {
 
 static void __xprocFreeProcess(xprocess* pProcess);
 
+
+// 内部函数：__xprocAddRef
 static xprocess* __xprocAddRef(xprocess* pProcess)
 {
 	if ( pProcess ) {
@@ -489,6 +549,8 @@ static xprocess* __xprocAddRef(xprocess* pProcess)
 	return pProcess;
 }
 
+
+// 内部函数：释放进程
 static void __xprocReleaseProcess(xprocess* pProcess)
 {
 	if ( pProcess && __xrtAtomicAddFetch32(&pProcess->iRefCount, -1) == 0 ) {
@@ -497,6 +559,7 @@ static void __xprocReleaseProcess(xprocess* pProcess)
 }
 
 #if !defined(XRT_NO_NETWORK)
+// 内部函数：__xprocWaitFutureCleanup
 static void __xprocWaitFutureCleanup(xfuture* pFuture)
 {
 	xprocess* pProcess;
@@ -521,6 +584,8 @@ static void __xprocWaitFutureCleanup(xfuture* pFuture)
 	__xprocReleaseProcess(pProcess);
 }
 
+
+// 内部函数：__xprocDetachWaitFuture
 static void __xprocDetachWaitFuture(xprocess* pProcess)
 {
 	xfuture* pFuture = NULL;
@@ -546,6 +611,7 @@ static void __xprocDetachWaitFuture(xprocess* pProcess)
 }
 #endif
 
+// 内部函数：__xprocNowMs
 static uint64 __xprocNowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -564,6 +630,8 @@ static uint64 __xprocNowMs(void)
 	#endif
 }
 
+
+// 内部函数：__xprocNormalizeFlags
 static uint32 __xprocNormalizeFlags(uint32 iFlags)
 {
 	if ( (iFlags & XPROC_F_MERGE_STDERR) != 0u ) {
@@ -573,6 +641,8 @@ static uint32 __xprocNormalizeFlags(uint32 iFlags)
 	return iFlags;
 }
 
+
+// 内部函数：校验配置
 static bool __xprocValidateConfig(const xprocessconfig* pConfig, uint32 iFlags)
 {
 	if ( pConfig == NULL ) {
@@ -595,6 +665,8 @@ static bool __xprocValidateConfig(const xprocessconfig* pConfig, uint32 iFlags)
 	return true;
 }
 
+
+// 内部函数：分配进程
 static xprocess* __xprocAllocProcess(const xprocessconfig* pConfig, uint32 iFlags)
 {
 	xprocess* pProcess = (xprocess*)xrtCalloc(1, sizeof(xprocess));
@@ -634,6 +706,8 @@ static xprocess* __xprocAllocProcess(const xprocessconfig* pConfig, uint32 iFlag
 	return pProcess;
 }
 
+
+// 内部函数：释放进程
 static void __xprocFreeProcess(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -655,6 +729,8 @@ static void __xprocFreeProcess(xprocess* pProcess)
 	xrtFree(pProcess);
 }
 
+
+// 内部函数：__xprocDestroyThreads
 static void __xprocDestroyThreads(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -674,6 +750,8 @@ static void __xprocDestroyThreads(xprocess* pProcess)
 	}
 }
 
+
+// 内部函数：__xprocCloseStdinHandle
 static void __xprocCloseStdinHandle(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -692,6 +770,8 @@ static void __xprocCloseStdinHandle(xprocess* pProcess)
 	#endif
 }
 
+
+// 内部函数：__xprocCloseStdoutReadHandle
 static void __xprocCloseStdoutReadHandle(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -710,6 +790,8 @@ static void __xprocCloseStdoutReadHandle(xprocess* pProcess)
 	#endif
 }
 
+
+// 内部函数：__xprocCloseStderrReadHandle
 static void __xprocCloseStderrReadHandle(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -728,6 +810,8 @@ static void __xprocCloseStderrReadHandle(xprocess* pProcess)
 	#endif
 }
 
+
+// 内部函数：__xprocClosePlatformHandles
 static void __xprocClosePlatformHandles(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -752,6 +836,8 @@ static void __xprocClosePlatformHandles(xprocess* pProcess)
 	#endif
 }
 
+
+// 内部函数：__xprocMarkStreamDone
 static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
 {
 	if ( pProcess == NULL ) {
@@ -768,6 +854,8 @@ static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
 	xrtMutexUnlock(&pProcess->Lock);
 }
 
+
+// 内部函数：处理输出
 static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pData, size_t iSize)
 {
 	__xproc_buffer* pBuf = NULL;
@@ -801,6 +889,8 @@ static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pDa
 
 static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree);
 
+
+// 内部函数：推进线程
 static uint32 __xprocPumpThread(ptr pArg)
 {
 	__xproc_pump_ctx* pCtx = (__xproc_pump_ctx*)pArg;
@@ -865,6 +955,7 @@ static uint32 __xprocPumpThread(ptr pArg)
 
 #if defined(_WIN32) || defined(_WIN64)
 
+// 内部函数：__xprocBuildWindowsCommandLine
 static char* __xprocBuildWindowsCommandLine(const xprocessconfig* pConfig)
 {
 	__xproc_strbuf tBuf;
@@ -901,6 +992,8 @@ static char* __xprocBuildWindowsCommandLine(const xprocessconfig* pConfig)
 	return tBuf.sData;
 }
 
+
+// 内部函数：__xprocEnsureJobObject
 static bool __xprocEnsureJobObject(xprocess* pProcess)
 {
 	HANDLE hJob;
@@ -933,6 +1026,8 @@ static bool __xprocEnsureJobObject(xprocess* pProcess)
 	return true;
 }
 
+
+// 内部函数：__xprocSpawnPlatform
 static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConfig)
 {
 	SECURITY_ATTRIBUTES tSa;
@@ -1059,6 +1154,7 @@ fail:
 
 #else
 
+// 内部函数：__xprocSpawnPlatform
 static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConfig)
 {
 	int fdStdin[2] = { -1, -1 };
@@ -1147,6 +1243,7 @@ fail:
 
 #endif
 
+// 内部函数：__xprocTerminatePlatform
 static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree)
 {
 	if ( pProcess == NULL ) return false;
@@ -1163,6 +1260,8 @@ static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree)
 	#endif
 }
 
+
+// 内部函数：等待线程
 static uint32 __xprocWaitThread(ptr pArg)
 {
 	xprocess* pProcess = (xprocess*)pArg;
@@ -1214,6 +1313,8 @@ static uint32 __xprocWaitThread(ptr pArg)
 	return 0u;
 }
 
+
+// 内部函数：__xprocCleanupSpawnFailure
 static void __xprocCleanupSpawnFailure(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) return;
@@ -1226,6 +1327,8 @@ static void __xprocCleanupSpawnFailure(xprocess* pProcess)
 	__xprocFreeProcess(pProcess);
 }
 
+
+// xrtProcessSpawn 相关处理
 XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 {
 	xprocess* pProcess;
@@ -1255,6 +1358,8 @@ XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 	return pProcess;
 }
 
+
+// 销毁进程
 XXAPI void xrtProcessDestroy(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) return;
@@ -1275,6 +1380,8 @@ XXAPI int xrtProcessState(xprocess* pProcess) { return pProcess ? pProcess->iSta
 XXAPI bool xrtProcessIsRunning(xprocess* pProcess) { return pProcess ? (pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady) : false; }
 XXAPI int xrtProcessExitCode(xprocess* pProcess) { return pProcess ? pProcess->iExitCode : -1; }
 
+
+// 写入进程
 XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 {
 	if ( pProcess == NULL || pData == NULL || iSize == 0 ) return 0;
@@ -1307,6 +1414,8 @@ XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 	#endif
 }
 
+
+// 写入进程文本
 XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
 {
 	if ( sText == NULL ) return 0;
@@ -1314,6 +1423,8 @@ XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
 	return xrtProcessWrite(pProcess, sText, iSize);
 }
 
+
+// xrtProcessCloseStdin 相关处理
 XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
@@ -1323,6 +1434,8 @@ XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
 
 XXAPI bool xrtProcessWait(xprocess* pProcess) { return xrtProcessWaitTimeout(pProcess, UINT32_MAX) == XRT_WAIT_OK; }
 
+
+// 等待进程超时
 XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 {
 	uint64 iDeadline = 0u;
@@ -1347,6 +1460,8 @@ XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 	return XRT_WAIT_OK;
 }
 
+
+// xrtProcessTerminate 相关处理
 XXAPI bool xrtProcessTerminate(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
@@ -1355,6 +1470,8 @@ XXAPI bool xrtProcessTerminate(xprocess* pProcess)
 	return true;
 }
 
+
+// xrtProcessKillTree 相关处理
 XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
@@ -1363,6 +1480,8 @@ XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 	return true;
 }
 
+
+// 获取进程标准输出
 XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
 {
 	ptr pData = NULL;
@@ -1375,6 +1494,8 @@ XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
 	return pData;
 }
 
+
+// 获取进程标准错误
 XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
 {
 	ptr pData = NULL;
@@ -1387,6 +1508,8 @@ XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
 	return pData;
 }
 
+
+// xrtExecCapture 相关处理
 XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
 {
 	xprocessconfig tConfig;
@@ -1418,6 +1541,7 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 }
 
 #if !defined(XRT_NO_NETWORK)
+// 等待进程 Future
 XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 {
 	xfuture* pFuture = NULL;

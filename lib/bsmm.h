@@ -1,6 +1,7 @@
 
 
 
+// 内部函数：__xrtBsmmPageMMUUnit
 static inline void __xrtBsmmPageMMUUnit(xbsmm objBSMM)
 {
 	if ( objBSMM->PageMMU.Memory ) {
@@ -11,6 +12,8 @@ static inline void __xrtBsmmPageMMUUnit(xbsmm objBSMM)
 	objBSMM->PageMMU.AllocCount = 0;
 }
 
+
+// 内部函数：__xrtBsmmPageMMUAppend
 static inline uint32 __xrtBsmmPageMMUAppend(xbsmm objBSMM, ptr pBlock)
 {
 	if ( objBSMM->PageMMU.Count >= objBSMM->PageMMU.AllocCount ) {

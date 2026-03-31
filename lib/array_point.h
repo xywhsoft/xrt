@@ -1,5 +1,6 @@
 
 
+// 内部函数：__xrtPtrArrayUnit_NoLock
 static inline void __xrtPtrArrayUnit_NoLock(xparray pObject)
 {
 	if ( pObject->Memory ) {
@@ -10,6 +11,8 @@ static inline void __xrtPtrArrayUnit_NoLock(xparray pObject)
 	pObject->AllocCount = 0;
 }
 
+
+// 内部函数：__xrtPtrArrayMalloc_NoLock
 static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 {
 	if ( iCount > pObject->AllocCount ) {
@@ -88,6 +91,8 @@ XXAPI void xrtPtrArrayUnit(xparray pObject)
 	xrtOwnerEndMutable(&pObject->Owner);
 }
 
+
+// 锁定指针数组
 XXAPI bool xrtPtrArrayLock(xparray pObject)
 {
 	if ( pObject == NULL ) {
@@ -96,6 +101,8 @@ XXAPI bool xrtPtrArrayLock(xparray pObject)
 	return xrtOwnerLock(&pObject->Owner, "pointer array belongs to another thread.");
 }
 
+
+// 解锁指针数组
 XXAPI void xrtPtrArrayUnlock(xparray pObject)
 {
 	if ( pObject == NULL ) {
@@ -252,6 +259,9 @@ XXAPI ptr xrtPtrArrayGet(xparray pObject, uint32 iPos)
 	xrtOwnerEndMutable(&pObject->Owner);
 	return pRet;
 }
+
+
+// 获取指针数组 unsafe
 XXAPI ptr xrtPtrArrayGet_Unsafe(xparray pObject, uint32 iPos)
 {
 	return pObject->Memory[iPos - 1];
@@ -274,6 +284,9 @@ XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal)
 	xrtOwnerEndMutable(&pObject->Owner);
 	return bRet;
 }
+
+
+// 设置指针数组 unsafe
 XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal)
 {
 	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {

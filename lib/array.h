@@ -1,6 +1,7 @@
 
 
 
+// 内部函数：__xrtArrayUnit_NoLock
 static inline void __xrtArrayUnit_NoLock(xarray pArr)
 {
 	if ( pArr->Memory ) {
@@ -11,6 +12,8 @@ static inline void __xrtArrayUnit_NoLock(xarray pArr)
 	pArr->AllocCount = 0;
 }
 
+
+// 内部函数：__xrtArrayAlloc_NoLock
 static inline bool __xrtArrayAlloc_NoLock(xarray pArr, uint32 iCount)
 {
 	if ( iCount > pArr->AllocCount ) {
@@ -92,17 +95,24 @@ XXAPI void xrtArrayUnit(xarray pArr)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 创建数组调试
 XXAPI xarray xrtArrayCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xarray pArr = xrtArrayCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return pArr;
 }
+
+
+// 初始化数组调试
 XXAPI void xrtArrayInitDbg(xarray pArr, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xrtArrayInit(pArr, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
+
+
+// 销毁数组调试
 XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
 {
 	if ( pArr ) {
@@ -117,6 +127,9 @@ XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
 		xrtFreeDbg(pArr, sFile, iLine);
 	}
 }
+
+
+// 释放数组调试
 XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine)
 {
 	if ( pArr == NULL ) {
@@ -134,6 +147,7 @@ XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine)
 }
 #endif
 
+// 锁定数组
 XXAPI bool xrtArrayLock(xarray pArr)
 {
 	if ( pArr == NULL ) {
@@ -142,6 +156,8 @@ XXAPI bool xrtArrayLock(xarray pArr)
 	return xrtOwnerLock(&pArr->Owner, "array belongs to another thread.");
 }
 
+
+// 解锁数组
 XXAPI void xrtArrayUnlock(xarray pArr)
 {
 	if ( pArr == NULL ) {
@@ -278,6 +294,9 @@ XXAPI ptr xrtArrayGet(xarray pArr, uint32 iPos)
 	xrtOwnerEndMutable(&pArr->Owner);
 	return pRet;
 }
+
+
+// xrtArrayGet_Unsafe 相关处理
 XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 {
 	return &(pArr->Memory[(iPos - 1) * pArr->ItemLength]);

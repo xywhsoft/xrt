@@ -53,6 +53,9 @@ static inline void __xrtListUnit_NoLock(xlist objList)
 {
 	xrtAVLTreeUnit(&objList->AVLT);
 }
+
+
+// 释放列表
 XXAPI void xrtListUnit(xlist objList)
 {
 	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
@@ -63,17 +66,24 @@ XXAPI void xrtListUnit(xlist objList)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 创建列表调试
 XXAPI xlist xrtListCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xlist objList = xrtListCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objList;
 }
+
+
+// 初始化列表调试
 XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xrtListInit(objList, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
+
+
+// 销毁列表调试
 XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
 {
 	if ( objList ) {
@@ -88,6 +98,9 @@ XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
 		xrtFreeDbg(objList, sFile, iLine);
 	}
 }
+
+
+// 释放列表调试
 XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine)
 {
 	if ( objList == NULL ) {
@@ -105,6 +118,7 @@ XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine)
 }
 #endif
 
+// 锁定列表
 XXAPI bool xrtListLock(xlist objList)
 {
 	if ( objList == NULL ) {
@@ -113,6 +127,8 @@ XXAPI bool xrtListLock(xlist objList)
 	return xrtOwnerLock(&objList->Owner, "list belongs to another thread.");
 }
 
+
+// 解锁列表
 XXAPI void xrtListUnlock(xlist objList)
 {
 	if ( objList == NULL ) {
@@ -297,6 +313,9 @@ int List_WalkRecuProc(xavltnode root, List_EachProc procEach, ptr pArg)
 	}
 	return 0;
 }
+
+
+// 遍历列表
 XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 {
 	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {

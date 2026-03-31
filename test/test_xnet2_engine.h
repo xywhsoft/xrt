@@ -19,6 +19,7 @@ typedef struct {
 } __test_xnet2_engine_block_ctx;
 
 
+// 内部函数：__Test_XNet2_EngineSleepMs
 static void __Test_XNet2_EngineSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -28,16 +29,22 @@ static void __Test_XNet2_EngineSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_AtomicInc
 static long __Test_XNet2_AtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XNet2_AtomicLoad
 static long __Test_XNet2_AtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_XNet2_EngineCmdQFreeCount
 static uint32 __Test_XNet2_EngineCmdQFreeCount(xnetengine* pEngine, uint32 iWorkerId)
 {
 	__xnet_engine_cmdq* pQ;
@@ -54,6 +61,8 @@ static uint32 __Test_XNet2_EngineCmdQFreeCount(xnetengine* pEngine, uint32 iWork
 	return iCount;
 }
 
+
+// 内部函数：__Test_XNet2_EngineTask
 static void __Test_XNet2_EngineTask(xnetworker* pWorker, ptr pArg)
 {
 	__test_xnet2_engine_counter* pCounter = (__test_xnet2_engine_counter*)pArg;
@@ -64,11 +73,15 @@ static void __Test_XNet2_EngineTask(xnetworker* pWorker, ptr pArg)
 	__Test_XNet2_AtomicInc(&pCounter->iCount);
 }
 
+
+// 内部函数：__Test_XNet2_EngineTimerTask
 static void __Test_XNet2_EngineTimerTask(xnetworker* pWorker, ptr pArg)
 {
 	__Test_XNet2_EngineTask(pWorker, pArg);
 }
 
+
+// 内部函数：__Test_XNet2_EngineBlockingTask
 static void __Test_XNet2_EngineBlockingTask(xnetworker* pWorker, ptr pArg)
 {
 	__test_xnet2_engine_block_ctx* pCtx = (__test_xnet2_engine_block_ctx*)pArg;
@@ -84,6 +97,7 @@ static void __Test_XNet2_EngineBlockingTask(xnetworker* pWorker, ptr pArg)
 }
 
 
+// XNET2引擎测试
 void Test_XNet2_Engine(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Engine Skeleton Test:\n\n");

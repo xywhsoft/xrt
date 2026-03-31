@@ -41,6 +41,8 @@ typedef struct {
 
 static void __Test_XHttpServerDelayedSendTask(xnetworker* pWorker, ptr pArg);
 
+
+// 内部函数：__Test_XHttpSleepMs
 static void __Test_XHttpSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -50,21 +52,29 @@ static void __Test_XHttpSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XHttpAtomicInc
 static long __Test_XHttpAtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XHttpAtomicLoad
 static long __Test_XHttpAtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_XHttpAtomicStore
 static void __Test_XHttpAtomicStore(volatile long* pValue, long iValue)
 {
 	__xrtTestAtomicStoreLong(pValue, iValue);
 }
 
+
+// 内部函数：__Test_XHttpWaitMin
 static bool __Test_XHttpWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -75,6 +85,8 @@ static bool __Test_XHttpWaitMin(volatile long* pValue, long iExpectMin, uint32 i
 	return __Test_XHttpAtomicLoad(pValue) >= iExpectMin;
 }
 
+
+// 内部函数：__Test_XHttpFileExists
 static bool __Test_XHttpFileExists(const char* sPath)
 {
 	FILE* pFile = fopen(sPath, "rb");
@@ -83,6 +95,8 @@ static bool __Test_XHttpFileExists(const char* sPath)
 	return true;
 }
 
+
+// 内部函数：__Test_XHttpServerOnAccept
 static bool __Test_XHttpServerOnAccept(ptr pOwner, xnetlistener* pListener, xnetstream* pStream)
 {
 	__test_xhttp_server* pServer = (__test_xhttp_server*)pOwner;
@@ -93,6 +107,8 @@ static bool __Test_XHttpServerOnAccept(ptr pOwner, xnetlistener* pListener, xnet
 	return true;
 }
 
+
+// 内部函数：__Test_XHttpServerOnOpen
 static void __Test_XHttpServerOnOpen(ptr pOwner, xnetstream* pStream)
 {
 	__test_xhttp_server* pServer = (__test_xhttp_server*)pOwner;
@@ -101,6 +117,8 @@ static void __Test_XHttpServerOnOpen(ptr pOwner, xnetstream* pStream)
 	__Test_XHttpAtomicInc(&pServer->iOpenCount);
 }
 
+
+// 内部函数：__Test_XHttpServerOnRecv
 static void __Test_XHttpServerOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
 {
 	__test_xhttp_server* pServer = (__test_xhttp_server*)pOwner;
@@ -149,6 +167,8 @@ static void __Test_XHttpServerOnRecv(ptr pOwner, xnetstream* pStream, xnetchain*
 	}
 }
 
+
+// 内部函数：__Test_XHttpServerOnClose
 static void __Test_XHttpServerOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
 	__test_xhttp_server* pServer = (__test_xhttp_server*)pOwner;
@@ -158,6 +178,8 @@ static void __Test_XHttpServerOnClose(ptr pOwner, xnetstream* pStream, xnet_resu
 	__Test_XHttpAtomicInc(&pServer->iCloseCount);
 }
 
+
+// 内部函数：__Test_XHttpServerOnError
 static void __Test_XHttpServerOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	__test_xhttp_server* pServer = (__test_xhttp_server*)pOwner;
@@ -167,6 +189,8 @@ static void __Test_XHttpServerOnError(ptr pOwner, xnetstream* pStream, int iSysE
 	__Test_XHttpAtomicInc(&pServer->iErrorCount);
 }
 
+
+// 内部函数：__Test_XHttpListenerEvents
 static const xnetlistenerevents* __Test_XHttpListenerEvents(void)
 {
 	static const xnetlistenerevents tEvents = {
@@ -176,6 +200,8 @@ static const xnetlistenerevents* __Test_XHttpListenerEvents(void)
 	return &tEvents;
 }
 
+
+// 内部函数：__Test_XHttpStreamEvents
 static const xnetstreamevents* __Test_XHttpStreamEvents(void)
 {
 	static const xnetstreamevents tEvents = {
@@ -191,8 +217,10 @@ static const xnetstreamevents* __Test_XHttpStreamEvents(void)
 }
 
 #if defined(_WIN32) || defined(_WIN64)
+// 内部函数：__Test_XHttpAcceptThread
 static DWORD WINAPI __Test_XHttpAcceptThread(LPVOID pArg)
 #else
+// 内部函数：__Test_XHttpAcceptThread
 static void* __Test_XHttpAcceptThread(void* pArg)
 #endif
 {
@@ -210,6 +238,8 @@ static void* __Test_XHttpAcceptThread(void* pArg)
 	#endif
 }
 
+
+// 内部函数：__Test_XHttpServerDelayedSendTask
 static void __Test_XHttpServerDelayedSendTask(xnetworker* pWorker, ptr pArg)
 {
 	__test_xhttp_delayed_send_ctx* pCtx = (__test_xhttp_delayed_send_ctx*)pArg;
@@ -223,6 +253,8 @@ static void __Test_XHttpServerDelayedSendTask(xnetworker* pWorker, ptr pArg)
 	if ( pCtx ) XNET_FREE(pCtx);
 }
 
+
+// 内部函数：__Test_XHttpServerStartEx
 static bool __Test_XHttpServerStartEx(
 	__test_xhttp_server* pServer,
 	const char* sResponse,
@@ -265,11 +297,15 @@ static bool __Test_XHttpServerStartEx(
 	return true;
 }
 
+
+// 内部函数：__Test_XHttpServerStart
 static bool __Test_XHttpServerStart(__test_xhttp_server* pServer, const char* sResponse, const xtlsconfig* pTlsCfg)
 {
 	return __Test_XHttpServerStartEx(pServer, sResponse, NULL, 0u, pTlsCfg);
 }
 
+
+// 内部函数：__Test_XHttpServerStop
 static void __Test_XHttpServerStop(__test_xhttp_server* pServer)
 {
 	if ( !pServer ) return;
@@ -306,6 +342,8 @@ static void __Test_XHttpServerStop(__test_xhttp_server* pServer)
 	}
 }
 
+
+// XNETHTTP测试
 void Test_XNet_Http(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet HTTP Client Skeleton Test:\n\n");

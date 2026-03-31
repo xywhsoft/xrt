@@ -10,6 +10,8 @@ typedef struct {
 	uint32 iSeed;
 } __test_tls_boundary_rng;
 
+
+// 内部函数：__Test_TLSBoundaryNext
 static uint32 __Test_TLSBoundaryNext(__test_tls_boundary_rng* pRng)
 {
 	uint32 x = pRng ? pRng->iSeed : 0u;
@@ -21,6 +23,8 @@ static uint32 __Test_TLSBoundaryNext(__test_tls_boundary_rng* pRng)
 	return x;
 }
 
+
+// 内部函数：__Test_TLSBoundaryFileExists
 static bool __Test_TLSBoundaryFileExists(const char* sPath)
 {
 	FILE* pFile;
@@ -31,6 +35,8 @@ static bool __Test_TLSBoundaryFileExists(const char* sPath)
 	return true;
 }
 
+
+// 内部函数：__Test_TLSBoundaryMoveCipher
 static size_t __Test_TLSBoundaryMoveCipher(xtlssession* pSrc, xtlssession* pDst, __test_tls_boundary_rng* pRng, size_t iMaxChunk)
 {
 	char aBuf[257];
@@ -54,6 +60,8 @@ static size_t __Test_TLSBoundaryMoveCipher(xtlssession* pSrc, xtlssession* pDst,
 	return iMoved;
 }
 
+
+// 内部函数：__Test_TLSBoundaryPumpHandshake
 static bool __Test_TLSBoundaryPumpHandshake(xtlssession* pClient, xtlssession* pServer, __test_tls_boundary_rng* pRng)
 {
 	for ( uint32 iStep = 0; iStep < 4096u; ++iStep ) {
@@ -79,6 +87,8 @@ static bool __Test_TLSBoundaryPumpHandshake(xtlssession* pClient, xtlssession* p
 	return false;
 }
 
+
+// 内部函数：__Test_TLSBoundaryTransferPlain
 static bool __Test_TLSBoundaryTransferPlain(xtlssession* pSrc, xtlssession* pDst,
 	const char* pPayload, size_t iLen, __test_tls_boundary_rng* pRng)
 {
@@ -125,6 +135,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__Test_TLSBoundaryCloseNotify
 static bool __Test_TLSBoundaryCloseNotify(xtlssession* pSrc, xtlssession* pDst, __test_tls_boundary_rng* pRng)
 {
 	char aBuf[64];
@@ -147,6 +159,8 @@ static bool __Test_TLSBoundaryCloseNotify(xtlssession* pSrc, xtlssession* pDst, 
 	return false;
 }
 
+
+// TLS边界STRESS测试
 static void Test_TLSBoundaryStress(void)
 {
 	const char* sCertPath = "dev/xnet2_tls_test_cert.pem";

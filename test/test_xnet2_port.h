@@ -5,6 +5,7 @@
 #endif
 
 
+// 内部函数：__Test_XNet2_SleepMs
 static void __Test_XNet2_SleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -15,6 +16,7 @@ static void __Test_XNet2_SleepMs(uint32 iDelayMs)
 }
 
 
+// XNET2PORT测试
 void Test_XNet2_Port(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Port Skeleton Test:\n\n");

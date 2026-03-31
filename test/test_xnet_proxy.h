@@ -42,6 +42,7 @@ typedef struct {
 } __test_xnet_proxy_echo_server;
 
 
+// 内部函数：__Test_XNetProxySocketReadable
 static bool __Test_XNetProxySocketReadable(xsocket hSocket, uint32 iTimeoutMs)
 {
 	fd_set tReadSet;
@@ -56,6 +57,8 @@ static bool __Test_XNetProxySocketReadable(xsocket hSocket, uint32 iTimeoutMs)
 	return iRet > 0 && FD_ISSET(hSocket, &tReadSet);
 }
 
+
+// 内部函数：__Test_XNetProxySendAll
 static bool __Test_XNetProxySendAll(xsocket hSocket, const void* pData, size_t iLen)
 {
 	const char* pBytes = (const char*)pData;
@@ -68,6 +71,8 @@ static bool __Test_XNetProxySendAll(xsocket hSocket, const void* pData, size_t i
 	return true;
 }
 
+
+// 内部函数：__Test_XNetProxyRecvExact
 static bool __Test_XNetProxyRecvExact(xsocket hSocket, void* pBuf, size_t iLen, uint32 iTimeoutMs)
 {
 	char* pOut = (char*)pBuf;
@@ -83,6 +88,8 @@ static bool __Test_XNetProxyRecvExact(xsocket hSocket, void* pBuf, size_t iLen, 
 	return iRead == iLen;
 }
 
+
+// 内部函数：__Test_XNetProxyRecvHttpHeader
 static bool __Test_XNetProxyRecvHttpHeader(xsocket hSocket, char* sBuf, size_t iBufCap, uint32 iTimeoutMs)
 {
 	size_t iLen = 0;
@@ -101,6 +108,8 @@ static bool __Test_XNetProxyRecvHttpHeader(xsocket hSocket, char* sBuf, size_t i
 	return strstr(sBuf, "\r\n\r\n") != NULL;
 }
 
+
+// 内部函数：__Test_XNetProxyCreateLoopbackListener
 static bool __Test_XNetProxyCreateLoopbackListener(xsocket* phListen, uint16* piPort)
 {
 	xnetaddr tAddr;
@@ -137,6 +146,8 @@ static bool __Test_XNetProxyCreateLoopbackListener(xsocket* phListen, uint16* pi
 	return true;
 }
 
+
+// 内部函数：__Test_XNetProxyConnectTarget
 static xsocket __Test_XNetProxyConnectTarget(const char* sHost, uint16 iPort)
 {
 	xnetaddr tAddr;
@@ -156,6 +167,8 @@ static xsocket __Test_XNetProxyConnectTarget(const char* sHost, uint16 iPort)
 	return hSocket;
 }
 
+
+// 内部函数：__Test_XNetProxyInitStreamEvents
 static void __Test_XNetProxyInitStreamEvents(xnetstreamevents* pEvents)
 {
 	memset(pEvents, 0, sizeof(xnetstreamevents));
@@ -165,6 +178,8 @@ static void __Test_XNetProxyInitStreamEvents(xnetstreamevents* pEvents)
 	pEvents->OnError = __Test_XNet2_StreamOnError;
 }
 
+
+// 内部函数：__Test_XNetProxySplitAuthority
 static bool __Test_XNetProxySplitAuthority(const char* sAuthority, char* sHost, size_t iHostCap, uint16* piPort)
 {
 	const char* pColon = strrchr(sAuthority, ':');
@@ -181,6 +196,8 @@ static bool __Test_XNetProxySplitAuthority(const char* sAuthority, char* sHost, 
 	return true;
 }
 
+
+// 内部函数：__Test_XNetProxyHttpAuthOk
 static bool __Test_XNetProxyHttpAuthOk(const char* sHeader, const char* sUser, const char* sPass)
 {
 	char aCred[256];
@@ -207,6 +224,8 @@ static bool __Test_XNetProxyHttpAuthOk(const char* sHeader, const char* sUser, c
 	return bOk;
 }
 
+
+// 内部函数：__Test_XNetProxyTunnel
 static bool __Test_XNetProxyTunnel(__test_xnet_proxy_server* pServer, xsocket hClient, xsocket hUpstream)
 {
 	char aBuf[4096];
@@ -238,6 +257,8 @@ static bool __Test_XNetProxyTunnel(__test_xnet_proxy_server* pServer, xsocket hC
 	return true;
 }
 
+
+// 内部函数：__Test_XNetProxyHandleHttp
 static bool __Test_XNetProxyHandleHttp(__test_xnet_proxy_server* pServer, xsocket hClient)
 {
 	char aHeader[2048];
@@ -273,6 +294,8 @@ static bool __Test_XNetProxyHandleHttp(__test_xnet_proxy_server* pServer, xsocke
 	return __Test_XNetProxyTunnel(pServer, hClient, hUpstream);
 }
 
+
+// 内部函数：__Test_XNetProxyHandleSocks5
 static bool __Test_XNetProxyHandleSocks5(__test_xnet_proxy_server* pServer, xsocket hClient)
 {
 	uint8 aHead[4];
@@ -335,8 +358,10 @@ static bool __Test_XNetProxyHandleSocks5(__test_xnet_proxy_server* pServer, xsoc
 }
 
 #if defined(_WIN32) || defined(_WIN64)
+// 内部函数：__Test_XNetProxyServerThread
 static DWORD WINAPI __Test_XNetProxyServerThread(LPVOID pArg)
 #else
+// 内部函数：__Test_XNetProxyServerThread
 static void* __Test_XNetProxyServerThread(void* pArg)
 #endif
 {
@@ -360,6 +385,8 @@ static void* __Test_XNetProxyServerThread(void* pArg)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetProxyServerStart
 static bool __Test_XNetProxyServerStart(__test_xnet_proxy_server* pServer, int iType, bool bRequireAuth, const char* sUser, const char* sPass)
 {
 	memset(pServer, 0, sizeof(__test_xnet_proxy_server));
@@ -379,6 +406,8 @@ static bool __Test_XNetProxyServerStart(__test_xnet_proxy_server* pServer, int i
 	#endif
 }
 
+
+// 内部函数：__Test_XNetProxyServerStop
 static void __Test_XNetProxyServerStop(__test_xnet_proxy_server* pServer)
 {
 	__Test_XNet2_StreamAtomicStore(&pServer->bRun, 0);
@@ -394,8 +423,10 @@ static void __Test_XNetProxyServerStop(__test_xnet_proxy_server* pServer)
 }
 
 #if defined(_WIN32) || defined(_WIN64)
+// 内部函数：__Test_XNetProxyEchoThread
 static DWORD WINAPI __Test_XNetProxyEchoThread(LPVOID pArg)
 #else
+// 内部函数：__Test_XNetProxyEchoThread
 static void* __Test_XNetProxyEchoThread(void* pArg)
 #endif
 {
@@ -429,6 +460,8 @@ static void* __Test_XNetProxyEchoThread(void* pArg)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetProxyEchoStart
 static bool __Test_XNetProxyEchoStart(__test_xnet_proxy_echo_server* pServer)
 {
 	memset(pServer, 0, sizeof(__test_xnet_proxy_echo_server));
@@ -444,6 +477,8 @@ static bool __Test_XNetProxyEchoStart(__test_xnet_proxy_echo_server* pServer)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetProxyEchoStop
 static void __Test_XNetProxyEchoStop(__test_xnet_proxy_echo_server* pServer)
 {
 	__Test_XNet2_StreamAtomicStore(&pServer->bRun, 0);
@@ -458,6 +493,8 @@ static void __Test_XNetProxyEchoStop(__test_xnet_proxy_echo_server* pServer)
 	if ( __xnetSocketIsValid(pServer->hListen) ) __xnetSocketCloseHandle(&pServer->hListen);
 }
 
+
+// 内部函数：__Test_XNetProxyRelease
 static void __Test_XNetProxyRelease(xnetproxy** ppProxy)
 {
 	if ( ppProxy && *ppProxy ) {
@@ -467,6 +504,7 @@ static void __Test_XNetProxyRelease(xnetproxy** ppProxy)
 }
 
 
+// XNET代理测试
 void Test_XNet_Proxy(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet Proxy Integration Test:\n\n");

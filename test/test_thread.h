@@ -3,6 +3,7 @@
 
 #include "test_thread_core.h"
 
+// 线程测试
 static void Test_Thread(xrtGlobalData* pCore)
 {
 	(void)pCore;

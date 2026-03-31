@@ -1,5 +1,6 @@
 #include "../xrt.h"
 
+// 内部函数：__Test_FutureCore_ThreadTask
 static int32 __Test_FutureCore_ThreadTask(ptr pArg, xfuture_result* pOut)
 {
 	int* pValue = (int*)pArg;
@@ -20,6 +21,8 @@ typedef struct {
 	str sError;
 } __test_future_resolve_ctx;
 
+
+// 内部函数：__Test_FutureCore_ResolveThreadProc
 static int32 __Test_FutureCore_ResolveThreadProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_future_resolve_ctx* pCtx = (__test_future_resolve_ctx*)pArg;
@@ -42,6 +45,8 @@ static int32 __Test_FutureCore_ResolveThreadProc(ptr pArg, xfuture_result* pOut)
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_FutureCore_ThenProc
 static int32 __Test_FutureCore_ThenProc(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut)
 {
 	int* pBase = NULL;
@@ -61,6 +66,8 @@ static int32 __Test_FutureCore_ThenProc(const xfuture_result* pIn, ptr pArg, xfu
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_FutureCore_CatchProc
 static int32 __Test_FutureCore_CatchProc(const xfuture_result* pIn, ptr pArg, xfuture_result* pOut)
 {
 	int* pDst = (int*)pArg;
@@ -78,6 +85,8 @@ static int32 __Test_FutureCore_CatchProc(const xfuture_result* pIn, ptr pArg, xf
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_FutureCore_FinallyProc
 static void __Test_FutureCore_FinallyProc(const xfuture_result* pIn, ptr pArg)
 {
 	int* pHit = (int*)pArg;
@@ -89,6 +98,7 @@ static void __Test_FutureCore_FinallyProc(const xfuture_result* pIn, ptr pArg)
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// 内部函数：__Test_FutureCore_CoTask
 static int32 __Test_FutureCore_CoTask(ptr pArg, xfuture_result* pOut)
 {
 	int* pValue = (int*)pArg;
@@ -102,6 +112,7 @@ static int32 __Test_FutureCore_CoTask(ptr pArg, xfuture_result* pOut)
 }
 #endif
 
+// 内部函数：__Test_FutureCore_Run
 static int __Test_FutureCore_Run(void)
 {
 	xfuture* pFuture = NULL;
@@ -189,6 +200,8 @@ static int __Test_FutureCore_Run(void)
 	return bOk ? 0 : 12;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskRunThread
 static int __Test_FutureCore_TaskRunThread(void)
 {
 	xfuture* pFuture = NULL;
@@ -214,6 +227,8 @@ static int __Test_FutureCore_TaskRunThread(void)
 	return bOk ? 0 : 21;
 }
 
+
+// 内部函数：__Test_FutureCore_Continuation
 static int __Test_FutureCore_Continuation(void)
 {
 	xfuture* pFuture = NULL;
@@ -411,6 +426,8 @@ typedef struct {
 	int iStatus;
 } __test_future_waiter_ctx;
 
+
+// 内部函数：__Test_FutureCore_WaiterProc
 static int32 __Test_FutureCore_WaiterProc(ptr pArg, xfuture_result* pOut)
 {
 	__test_future_waiter_ctx* pCtx = (__test_future_waiter_ctx*)pArg;
@@ -424,6 +441,8 @@ static int32 __Test_FutureCore_WaiterProc(ptr pArg, xfuture_result* pOut)
 	return pCtx->iStatus;
 }
 
+
+// 内部函数：__Test_FutureCore_MultiContinuationAndWaiter
 static int __Test_FutureCore_MultiContinuationAndWaiter(void)
 {
 	xfuture* pSource = NULL;
@@ -558,6 +577,8 @@ static int __Test_FutureCore_MultiContinuationAndWaiter(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_Combinators
 static int __Test_FutureCore_Combinators(void)
 {
 	xfuture* pA = NULL;
@@ -806,6 +827,8 @@ static int __Test_FutureCore_Combinators(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroup
 static int __Test_FutureCore_TaskGroup(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -895,6 +918,8 @@ static int __Test_FutureCore_TaskGroup(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_EngineTask
 static int32 __Test_FutureCore_EngineTask(xnetworker* pWorker, ptr pArg, xfuture_result* pOut)
 {
 	int* pValue = (int*)pArg;
@@ -908,6 +933,8 @@ static int32 __Test_FutureCore_EngineTask(xnetworker* pWorker, ptr pArg, xfuture
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupRun
 static int __Test_FutureCore_TaskGroupRun(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -954,6 +981,8 @@ static int __Test_FutureCore_TaskGroupRun(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupScope
 static int __Test_FutureCore_TaskGroupScope(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -1048,6 +1077,8 @@ static int __Test_FutureCore_TaskGroupScope(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupJoin
 static int __Test_FutureCore_TaskGroupJoin(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -1148,6 +1179,8 @@ static int __Test_FutureCore_TaskGroupJoin(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupParentCancel
 static int __Test_FutureCore_TaskGroupParentCancel(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -1234,6 +1267,8 @@ static int __Test_FutureCore_TaskGroupParentCancel(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupNestedScope
 static int __Test_FutureCore_TaskGroupNestedScope(void)
 {
 	xtaskgroup* pParent = NULL;
@@ -1312,6 +1347,8 @@ static int __Test_FutureCore_TaskGroupNestedScope(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_ContinuationStress
 static int __Test_FutureCore_ContinuationStress(void)
 {
 	int i;
@@ -1370,6 +1407,8 @@ static int __Test_FutureCore_ContinuationStress(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupBatch
 static int __Test_FutureCore_TaskGroupBatch(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -1441,6 +1480,8 @@ static int __Test_FutureCore_TaskGroupBatch(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_CombinatorRaceStress
 static int __Test_FutureCore_CombinatorRaceStress(void)
 {
 	int i;
@@ -1561,6 +1602,8 @@ static int __Test_FutureCore_CombinatorRaceStress(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupParentMultiCancelStress
 static int __Test_FutureCore_TaskGroupParentMultiCancelStress(void)
 {
 	int i;
@@ -1637,6 +1680,8 @@ static int __Test_FutureCore_TaskGroupParentMultiCancelStress(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupDestroyPending
 static int __Test_FutureCore_TaskGroupDestroyPending(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -1676,6 +1721,8 @@ static int __Test_FutureCore_TaskGroupDestroyPending(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_TaskGroupAddAfterClose
 static int __Test_FutureCore_TaskGroupAddAfterClose(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -1714,6 +1761,8 @@ static int __Test_FutureCore_TaskGroupAddAfterClose(void)
 	return 0;
 }
 
+
+// 内部函数：__Test_FutureCore_OwnershipLifetime
 static int __Test_FutureCore_OwnershipLifetime(void)
 {
 	xfuture* pSource = NULL;
@@ -1818,6 +1867,7 @@ static int __Test_FutureCore_OwnershipLifetime(void)
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// 内部函数：__Test_FutureCore_TaskRunCo
 static int __Test_FutureCore_TaskRunCo(void)
 {
 	xfuture* pFuture = NULL;
@@ -1853,6 +1903,7 @@ static int __Test_FutureCore_TaskRunCo(void)
 }
 #endif
 
+// 内部函数：__Test_FutureCore_RunAll
 static int __Test_FutureCore_RunAll(void)
 {
 	int iRet = 0;
@@ -1919,6 +1970,7 @@ static int __Test_FutureCore_RunAll(void)
 }
 
 #if defined(XRT_FUTURE_CORE_EMBEDDED)
+// Future核心测试
 void Test_FutureCore(xrtGlobalData* xCore)
 {
 	int iRet;
@@ -1932,6 +1984,7 @@ void Test_FutureCore(xrtGlobalData* xCore)
 	}
 }
 #else
+// MAIN相关处理
 int main(void)
 {
 	xrtGlobalData* pCore;

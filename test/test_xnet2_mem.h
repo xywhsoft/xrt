@@ -1,3 +1,4 @@
+// 内部函数：__Test_XNet2_ReleaseRef
 static void __Test_XNet2_ReleaseRef(ptr pCtx, const void* pData, size_t iLen)
 {
 	int* pCount = (int*)pCtx;
@@ -8,6 +9,7 @@ static void __Test_XNet2_ReleaseRef(ptr pCtx, const void* pData, size_t iLen)
 
 
 
+// XNET2MEM测试
 void Test_XNet2_Mem(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Memory Chain Test:\n\n");

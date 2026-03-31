@@ -29,6 +29,8 @@ static char __xrtHttpUtilToLower(char ch)
 	return ch;
 }
 
+
+// 内部函数：HTTP util 相等忽略大小写相关处理
 static bool __xrtHttpUtilEqNoCaseN(const char* sA, size_t iLenA, const char* sB, size_t iLenB)
 {
 	size_t i;
@@ -39,6 +41,8 @@ static bool __xrtHttpUtilEqNoCaseN(const char* sA, size_t iLenA, const char* sB,
 	return true;
 }
 
+
+// 内部函数：判断是否为 HTTP util Token 字符
 static bool __xrtHttpUtilIsTokenChar(char ch)
 {
 	if ( ch >= '0' && ch <= '9' ) return true;
@@ -54,12 +58,16 @@ static bool __xrtHttpUtilIsTokenChar(char ch)
 	}
 }
 
+
+// 内部函数：__xrtHttpUtilIsCookieOctet
 static bool __xrtHttpUtilIsCookieOctet(char ch)
 {
 	unsigned char chU = (unsigned char)ch;
 	return chU >= 0x21u && chU <= 0x7Eu && ch != '"' && ch != ',' && ch != ';' && ch != '\\';
 }
 
+
+// 内部函数：__xrtHttpUtilContainsCtl
 static bool __xrtHttpUtilContainsCtl(const char* sText, size_t iLen)
 {
 	size_t i;
@@ -71,6 +79,8 @@ static bool __xrtHttpUtilContainsCtl(const char* sText, size_t iLen)
 	return false;
 }
 
+
+// 内部函数：裁剪 HTTP util 视图
 static void __xrtHttpUtilTrimView(xrtstrview* pView)
 {
 	if ( pView == NULL || pView->sPtr == NULL ) return;
@@ -83,6 +93,8 @@ static void __xrtHttpUtilTrimView(xrtstrview* pView)
 	}
 }
 
+
+// 内部函数：解析 HTTP util 整数 32
 static bool __xrtHttpUtilParseInt32(const char* sText, size_t iLen, int32_t* pOut)
 {
 	bool bNeg = false;
@@ -105,6 +117,8 @@ static bool __xrtHttpUtilParseInt32(const char* sText, size_t iLen, int32_t* pOu
 	return true;
 }
 
+
+// 内部函数：__xrtHttpUtilAppendBytes
 static bool __xrtHttpUtilAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset, const char* sText, size_t iLen)
 {
 	size_t iCur;
@@ -118,6 +132,8 @@ static bool __xrtHttpUtilAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset
 	return true;
 }
 
+
+// 内部函数：校验 HTTP util 边界
 static bool __xrtHttpUtilValidateBoundaryN(const char* sBoundary, size_t iBoundaryLen)
 {
 	size_t i;
@@ -129,6 +145,8 @@ static bool __xrtHttpUtilValidateBoundaryN(const char* sBoundary, size_t iBounda
 	return true;
 }
 
+
+// xrtHttpUtilLimitsInit 相关处理
 XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
 {
 	if ( !pLimits ) return;
@@ -145,6 +163,8 @@ XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
 	pLimits->iMaxMultipartBytes = 256u * 1024u;
 }
 
+
+// 内部函数：__xrtHttpUtilResolveLimits
 static const xrthttputillimits* __xrtHttpUtilResolveLimits(const xrthttputillimits* pIn, xrthttputillimits* pLocal)
 {
 	if ( pIn ) return pIn;
@@ -152,6 +172,8 @@ static const xrthttputillimits* __xrtHttpUtilResolveLimits(const xrthttputillimi
 	return pLocal;
 }
 
+
+// 应用 Multipart 流配置 limits
 XXAPI void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -165,6 +187,8 @@ XXAPI void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig
 	}
 }
 
+
+// 校验 HTTP Token
 XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -180,12 +204,16 @@ XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttput
 	return true;
 }
 
+
+// 校验 HTTP Token
 XXAPI bool xrtHttpTokenValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpTokenValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
+
+// 校验 HTTP 参数
 XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -202,12 +230,16 @@ XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttput
 	return true;
 }
 
+
+// 校验 HTTP 参数
 XXAPI bool xrtHttpParamValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpParamValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
+
+// 校验查询
 XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -224,12 +256,16 @@ XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputilli
 	return true;
 }
 
+
+// 校验查询
 XXAPI bool xrtQueryValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtQueryValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
+
+// 校验 Cookie
 XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -246,23 +282,31 @@ XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputill
 	return true;
 }
 
+
+// 校验 Cookie
 XXAPI bool xrtCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtCookieValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
+
+// 校验表单 URL 编码
 XXAPI bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	return xrtQueryValidateN(sText, iLen, pLimits);
 }
 
+
+// 校验表单 URL 编码
 XXAPI bool xrtFormUrlEncodedValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtFormUrlEncodedValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
+
+// 校验 HTTP 头部块
 XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -282,12 +326,16 @@ XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xr
 	return iOffset == iLen;
 }
 
+
+// 校验 HTTP 头部块
 XXAPI bool xrtHttpHeaderBlockValidate(const char* sBlock, const xrthttputillimits* pLimits)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderBlockValidateN(sBlock, strlen(sBlock), pLimits);
 }
 
+
+// xrtSetCookieValidateN 相关处理
 XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -302,12 +350,16 @@ XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttput
 	return true;
 }
 
+
+// xrtSetCookieValidate 相关处理
 XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
 	if ( sText == NULL ) return false;
 	return xrtSetCookieValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
+
+// 校验 Multipart
 XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -343,12 +395,16 @@ XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBo
 	return true;
 }
 
+
+// 校验 Multipart
 XXAPI bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const xrthttputillimits* pLimits)
 {
 	if ( sBody == NULL || sBoundary == NULL ) return false;
 	return xrtMultipartValidateN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pLimits);
 }
 
+
+// 内部函数：__xrtHttpUtilIsAttrChar
 static bool UNUSED_ATTR __xrtHttpUtilIsAttrChar(char ch)
 {
 	if ( ch >= '0' && ch <= '9' ) return true;
@@ -363,6 +419,8 @@ static bool UNUSED_ATTR __xrtHttpUtilIsAttrChar(char ch)
 	}
 }
 
+
+// 内部函数：__xrtHttpUtilHexDigit
 static char __xrtHttpUtilHexDigit(uint8 iValue)
 {
 	if ( iValue < 10u ) {
@@ -371,6 +429,8 @@ static char __xrtHttpUtilHexDigit(uint8 iValue)
 	return (char)('A' + (char)(iValue - 10u));
 }
 
+
+// 内部函数：追加 HTTP util 引用字符串
 static bool __xrtHttpUtilAppendQuotedString(char* sOut, size_t iOutCap, size_t* pOffset, const char* sText, size_t iLen)
 {
 	size_t i;
@@ -387,6 +447,8 @@ static bool __xrtHttpUtilAppendQuotedString(char* sOut, size_t iOutCap, size_t* 
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\"", 1u);
 }
 
+
+// 判断是否为 HTTP Token
 XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen)
 {
 	size_t i;
@@ -397,12 +459,16 @@ XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen)
 	return true;
 }
 
+
+// 判断是否为 HTTP Token
 XXAPI bool xrtHttpIsToken(const char* sText)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpIsTokenN(sText, strlen(__xrt_cstr(sText)));
 }
 
+
+// 解码 HTTP 引用字符串
 XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iIn;
@@ -429,12 +495,16 @@ XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sO
 	return true;
 }
 
+
+// 解码 HTTP 引用字符串
 XXAPI bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpQuotedStringDecodeToN(sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 
+
+// 构建 HTTP 引用字符串
 XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -446,12 +516,16 @@ XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOu
 	return true;
 }
 
+
+// 构建 HTTP 引用字符串
 XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpQuotedStringBuildToN(sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 
+
+// xrtPercentEncodeTo 相关处理
 XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bSpaceAsPlus)
 {
 	size_t iOut = 0u;
@@ -481,6 +555,8 @@ XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t
 	return true;
 }
 
+
+// 内部函数：解析 HTTP util 扩展值视图
 static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset, xrtstrview* pLanguage, xrtstrview* pEncoded)
 {
 	size_t iFirstTick = (size_t)-1;
@@ -510,6 +586,8 @@ static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset
 	return true;
 }
 
+
+// 解码 HTTP 扩展值
 XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* pCharset, xrtstrview* pLanguage, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	xrtstrview tCharset;
@@ -523,12 +601,16 @@ XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* p
 	return true;
 }
 
+
+// 解码 HTTP 扩展值
 XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpDecodeExtValueTo(sText, strlen(__xrt_cstr(sText)), NULL, NULL, sOut, iOutCap, pOutLen);
 }
 
+
+// 构建 HTTP 扩展值
 XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -561,12 +643,16 @@ XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, c
 	return true;
 }
 
+
+// 构建 HTTP 扩展值
 XXAPI bool xrtHttpBuildExtValue(const char* sCharset, const char* sLanguage, const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpBuildExtValueTo(sCharset, sLanguage, sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 
+
+// HTTP 头部 split 行相关处理
 XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair* pOut)
 {
 	size_t iColon = (size_t)-1;
@@ -589,12 +675,16 @@ XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair
 	return true;
 }
 
+
+// HTTP 头部 split 行相关处理
 XXAPI bool xrtHttpHeaderSplitLine(const char* sLine, xrtheaderpair* pOut)
 {
 	if ( sLine == NULL ) return false;
 	return xrtHttpHeaderSplitLineN(sLine, strlen(sLine), pOut);
 }
 
+
+// 构建 HTTP 头部行
 XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -615,12 +705,16 @@ XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const ch
 	return true;
 }
 
+
+// 构建 HTTP 头部行
 XXAPI bool xrtHttpHeaderBuildLine(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderBuildLineTo(sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 
+
+// 构建 HTTP 头部规范化行
 XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -646,12 +740,16 @@ XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen
 	return true;
 }
 
+
+// 构建 HTTP 头部规范化行
 XXAPI bool xrtHttpHeaderBuildCanonicalLineTo(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderBuildCanonicalLineToN(sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 
+
+// 构建 HTTP 头部块
 XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -676,6 +774,8 @@ XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCoun
 	return true;
 }
 
+
+// 构建 HTTP 头部规范化块
 XXAPI bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -700,6 +800,8 @@ XXAPI bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, siz
 	return true;
 }
 
+
+// 获取下一个 HTTP Token
 XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xrtstrview* pOut)
 {
 	size_t iCur;
@@ -726,12 +828,16 @@ XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 	return true;
 }
 
+
+// 获取下一个 HTTP Token
 XXAPI bool xrtHttpTokenNext(const char* sText, size_t* pOffset, xrtstrview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpTokenNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 
+
+// 统计 HTTP Token
 XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 {
 	size_t iCount = 0u;
@@ -741,12 +847,16 @@ XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 	return iCount;
 }
 
+
+// 统计 HTTP Token
 XXAPI size_t xrtHttpTokenCount(const char* sText)
 {
 	if ( sText == NULL ) return 0u;
 	return xrtHttpTokenCountN(sText, strlen(__xrt_cstr(sText)));
 }
 
+
+// 查找 HTTP Token
 XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken, size_t iTokenLen, xrtstrview* pOut)
 {
 	size_t iOffset = 0u;
@@ -762,12 +872,16 @@ XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken,
 	return false;
 }
 
+
+// 查找 HTTP Token
 XXAPI bool xrtHttpTokenFind(const char* sText, const char* sToken, xrtstrview* pOut)
 {
 	if ( sText == NULL || sToken == NULL ) return false;
 	return xrtHttpTokenFindN(sText, strlen(__xrt_cstr(sText)), sToken, strlen(__xrt_cstr(sToken)), pOut);
 }
 
+
+// 解析 HTTP Token
 XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
@@ -784,12 +898,16 @@ XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut
 	return true;
 }
 
+
+// 解析 HTTP Token
 XXAPI bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpTokenParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 
+
+// 追加 HTTP Token
 XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken, size_t iTokenLen)
 {
 	size_t i;
@@ -803,24 +921,32 @@ XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, con
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sToken, iTokenLen);
 }
 
+
+// 追加 HTTP Token
 XXAPI bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken)
 {
 	if ( sToken == NULL ) return false;
 	return xrtHttpTokenAppendTo(sOut, iOutCap, pOffset, sToken, strlen(__xrt_cstr(sToken)));
 }
 
+
+// 判断是否包含 HTTP 头部 Token
 XXAPI bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, const char* sToken)
 {
 	if ( sValue == NULL || sToken == NULL || sToken[0] == '\0' ) return false;
 	return xrtHttpTokenFindN(sValue, iValueLen, sToken, strlen(__xrt_cstr(sToken)), NULL);
 }
 
+
+// 判断是否包含 HTTP 头部 Token
 XXAPI bool xrtHttpHeaderContainsToken(const char* sValue, const char* sToken)
 {
 	if ( sValue == NULL ) return false;
 	return xrtHttpHeaderContainsTokenN(sValue, strlen(sValue), sToken);
 }
 
+
+// 查找 HTTP 头部
 XXAPI bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut)
 {
 	size_t iNameLen;
@@ -836,11 +962,15 @@ XXAPI bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, cons
 	return false;
 }
 
+
+// 查找 HTTP 头部
 XXAPI bool xrtHttpHeaderFind(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut)
 {
 	return xrtHttpHeaderFindN(pHeaders, iCount, sName, pOut);
 }
 
+
+// 统计 HTTP 头部
 XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen)
 {
 	size_t i;
@@ -852,12 +982,16 @@ XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, c
 	return iHits;
 }
 
+
+// 统计 HTTP 头部
 XXAPI size_t xrtHttpHeaderCount(const xrtheaderpair* pHeaders, size_t iCount, const char* sName)
 {
 	if ( sName == NULL ) return 0u;
 	return xrtHttpHeaderCountN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)));
 }
 
+
+// 查找 HTTP 头部 nth
 XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, size_t iNth, xrtstrview* pOut)
 {
 	size_t i;
@@ -875,12 +1009,16 @@ XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, c
 	return false;
 }
 
+
+// 查找 HTTP 头部 nth
 XXAPI bool xrtHttpHeaderFindNth(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNth, xrtstrview* pOut)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpHeaderFindNthN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), iNth, pOut);
 }
 
+
+// 查找 HTTP 头部全部
 XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, xrtstrview* pOut, size_t iOutCap)
 {
 	size_t i;
@@ -894,12 +1032,16 @@ XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCoun
 	return iHits;
 }
 
+
+// 查找 HTTP 头部全部
 XXAPI size_t xrtHttpHeaderFindAllTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut, size_t iOutCap)
 {
 	if ( sName == NULL ) return 0u;
 	return xrtHttpHeaderFindAllToN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), pOut, iOutCap);
 }
 
+
+// HTTP 头部 canonicalize 名称相关处理
 XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t i;
@@ -919,12 +1061,16 @@ XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, 
 	return true;
 }
 
+
+// HTTP 头部 canonicalize 名称相关处理
 XXAPI bool xrtHttpHeaderCanonicalizeNameTo(const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpHeaderCanonicalizeNameToN(sName, strlen(__xrt_cstr(sName)), sOut, iOutCap, pOutLen);
 }
 
+
+// 加入 HTTP 头部 values
 XXAPI bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t i;
@@ -941,6 +1087,8 @@ XXAPI bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, c
 	return true;
 }
 
+
+// xrtHttpHeaderCollectAndJoinToN 相关处理
 XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNameLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t i;
@@ -962,12 +1110,16 @@ XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t 
 	return true;
 }
 
+
+// xrtHttpHeaderCollectAndJoinTo 相关处理
 XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpHeaderCollectAndJoinToN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), sOut, iOutCap, pOutLen);
 }
 
+
+// 获取下一个 HTTP 头部行
 XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut)
 {
 	size_t iCur;
@@ -997,12 +1149,16 @@ XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffs
 	return true;
 }
 
+
+// 获取下一个 HTTP 头部行
 XXAPI bool xrtHttpHeaderNextLine(const char* sBlock, size_t* pOffset, xrtheaderpair* pOut)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderNextLineN(sBlock, strlen(sBlock), pOffset, pOut);
 }
 
+
+// 查找 HTTP 头部行
 XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* sName, xrtheaderpair* pOut)
 {
 	size_t iOffset = 0u;
@@ -1019,12 +1175,16 @@ XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* s
 	return false;
 }
 
+
+// 查找 HTTP 头部行
 XXAPI bool xrtHttpHeaderFindLine(const char* sBlock, const char* sName, xrtheaderpair* pOut)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderFindLineN(sBlock, strlen(sBlock), sName, pOut);
 }
 
+
+// 解析 HTTP 头部块
 XXAPI bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
@@ -1046,12 +1206,16 @@ XXAPI bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheader
 	return true;
 }
 
+
+// 解析 HTTP 头部块
 XXAPI bool xrtHttpHeaderParseBlockTo(const char* sBlock, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount)
 {
 	if ( sBlock == NULL ) return false;
 	return xrtHttpHeaderParseBlockToN(sBlock, strlen(sBlock), pHeaders, iCap, pCount);
 }
 
+
+// 追加 HTTP 头部键值对
 XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
@@ -1067,12 +1231,16 @@ XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t
 	return true;
 }
 
+
+// 追加 HTTP 头部键值对
 XXAPI bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderAppendPairN(pHeaders, iCap, pCount, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
+
+// 设置 HTTP 头部键值对
 XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
@@ -1087,12 +1255,16 @@ XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* p
 	return xrtHttpHeaderAppendPairN(pHeaders, iCap, pCount, sName, iNameLen, sValue, iValueLen);
 }
 
+
+// 设置 HTTP 头部键值对
 XXAPI bool xrtHttpHeaderSetPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtHttpHeaderSetPairN(pHeaders, iCap, pCount, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
+
+// 删除 HTTP 头部
 XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const char* sName, size_t iNameLen)
 {
 	size_t iRead;
@@ -1112,12 +1284,16 @@ XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const
 	return iRemoved;
 }
 
+
+// 删除 HTTP 头部
 XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const char* sName)
 {
 	if ( sName == NULL ) return 0u;
 	return xrtHttpHeaderRemoveN(pHeaders, pCount, sName, strlen(__xrt_cstr(sName)));
 }
 
+
+// 获取下一个 Cookie
 XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut)
 {
 	size_t iCur;
@@ -1149,12 +1325,16 @@ XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtco
 	return true;
 }
 
+
+// 获取下一个 Cookie
 XXAPI bool xrtCookieNext(const char* sText, size_t* pOffset, xrtcookiepair* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtCookieNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 
+
+// 查找 Cookie
 XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrtcookiepair* pOut)
 {
 	size_t iOffset = 0u;
@@ -1169,12 +1349,16 @@ XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, siz
 	return false;
 }
 
+
+// 查找 Cookie
 XXAPI bool xrtCookieFind(const char* sText, const char* sName, xrtcookiepair* pOut)
 {
 	if ( sText == NULL || sName == NULL ) return false;
 	return xrtCookieFindN(sText, strlen(__xrt_cstr(sText)), sName, strlen(__xrt_cstr(sName)), pOut);
 }
 
+
+// 解析 Cookie
 XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
@@ -1191,12 +1375,16 @@ XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut
 	return true;
 }
 
+
+// 解析 Cookie
 XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
 	return xrtCookieParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 
+
+// xrtSetCookieParseN 相关处理
 XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut)
 {
 	size_t iCur;
@@ -1299,12 +1487,16 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 	return true;
 }
 
+
+// xrtSetCookieParse 相关处理
 XXAPI bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtSetCookieParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
+
+// 解析 set Cookie 行
 XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookieview* pOut)
 {
 	xrtheaderpair tHeader;
@@ -1313,6 +1505,8 @@ XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookievi
 	return xrtSetCookieParseN(tHeader.tValue.sPtr, tHeader.tValue.iLen, pOut);
 }
 
+
+// 解析 set Cookie 行
 XXAPI bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut)
 {
 	if ( sLine == NULL ) return false;
@@ -1321,6 +1515,8 @@ XXAPI bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut)
 
 static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut);
 
+
+// 获取下一个 HTTP 参数
 XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut)
 {
 	size_t iCur;
@@ -1363,12 +1559,16 @@ XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 	return true;
 }
 
+
+// 获取下一个 HTTP 参数
 XXAPI bool xrtHttpParamNext(const char* sText, size_t* pOffset, xrthttpparam* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpParamNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 
+
+// 统计 HTTP 参数
 XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 {
 	size_t iCount = 0u;
@@ -1378,12 +1578,16 @@ XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 	return iCount;
 }
 
+
+// 统计 HTTP 参数
 XXAPI size_t xrtHttpParamCount(const char* sText)
 {
 	if ( sText == NULL ) return 0u;
 	return xrtHttpParamCountN(sText, strlen(__xrt_cstr(sText)));
 }
 
+
+// 查找 HTTP 参数
 XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, size_t iNameLen, xrthttpparam* pOut)
 {
 	size_t iOffset = 0u;
@@ -1399,12 +1603,16 @@ XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, 
 	return false;
 }
 
+
+// 查找 HTTP 参数
 XXAPI bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* pOut)
 {
 	if ( sText == NULL || sName == NULL ) return false;
 	return xrtHttpParamFindN(sText, strlen(__xrt_cstr(sText)), sName, strlen(__xrt_cstr(sName)), pOut);
 }
 
+
+// 追加 HTTP 参数键值对
 XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bQuoteValue)
 {
 	size_t i;
@@ -1424,12 +1632,16 @@ XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset,
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen);
 }
 
+
+// 追加 HTTP 参数键值对
 XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue, bool bHasValue, bool bQuoteValue)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpParamAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, sValue ? strlen(sValue) : 0u, bHasValue, bQuoteValue);
 }
 
+
+// xrtHttpMediaTypeParseN 相关处理
 XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut)
 {
 	size_t iSemi = 0u;
@@ -1480,12 +1692,16 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 	return true;
 }
 
+
+// xrtHttpMediaTypeParse 相关处理
 XXAPI bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpMediaTypeParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
+
+// xrtHttpMediaTypeBuildTo 相关处理
 XXAPI bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1510,11 +1726,15 @@ XXAPI bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, si
 	return true;
 }
 
+
+// xrtHttpMediaTypeBuild 相关处理
 XXAPI bool xrtHttpMediaTypeBuild(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtHttpMediaTypeBuildTo(pType, sOut, iOutCap, pOutLen);
 }
 
+
+// xrtHttpMediaTypeFindParamN 相关处理
 XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char* sName, size_t iNameLen, xrthttpparam* pOut)
 {
 	if ( pOut ) memset(pOut, 0, sizeof(xrthttpparam));
@@ -1523,12 +1743,16 @@ XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char*
 	return xrtHttpParamFindN(pType->tParams.sPtr, pType->tParams.iLen, sName, iNameLen, pOut);
 }
 
+
+// xrtHttpMediaTypeFindParam 相关处理
 XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* sName, xrthttpparam* pOut)
 {
 	if ( sName == NULL ) return false;
 	return xrtHttpMediaTypeFindParamN(pType, sName, strlen(__xrt_cstr(sName)), pOut);
 }
 
+
+// xrtHttpContentDispositionParseN 相关处理
 XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut)
 {
 	size_t iSemi = 0u;
@@ -1582,12 +1806,16 @@ XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtco
 	return true;
 }
 
+
+// xrtHttpContentDispositionParse 相关处理
 XXAPI bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositionview* pOut)
 {
 	if ( sText == NULL ) return false;
 	return xrtHttpContentDispositionParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
+
+// 解码 HTTP content disposition 文件名称
 XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iLen;
@@ -1612,11 +1840,15 @@ XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdisposition
 	return true;
 }
 
+
+// 解码 HTTP content disposition 文件名称
 XXAPI bool xrtHttpContentDispositionDecodeFileName(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtHttpContentDispositionDecodeFileNameTo(pDisp, sOut, iOutCap, pOutLen);
 }
 
+
+// xrtHttpContentDispositionBuildTo 相关处理
 XXAPI bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1640,11 +1872,15 @@ XXAPI bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pDi
 	return true;
 }
 
+
+// xrtHttpContentDispositionBuild 相关处理
 XXAPI bool xrtHttpContentDispositionBuild(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtHttpContentDispositionBuildTo(pDisp, sOut, iOutCap, pOutLen);
 }
 
+
+// 追加 Cookie 键值对
 XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
@@ -1664,12 +1900,16 @@ XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, co
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen);
 }
 
+
+// 追加 Cookie 键值对
 XXAPI bool xrtCookieAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
 	if ( sName == NULL || sValue == NULL ) return false;
 	return xrtCookieAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
+
+// 构建 Cookie
 XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1684,6 +1924,8 @@ XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sO
 	return true;
 }
 
+
+// 追加查询键值对
 XXAPI bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, size_t iKeyLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bPlusAsSpace)
 {
 	size_t iWritten = 0u;
@@ -1701,12 +1943,16 @@ XXAPI bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, con
 	return true;
 }
 
+
+// 追加查询键值对
 XXAPI bool xrtQueryAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, const char* sValue)
 {
 	if ( sKey == NULL ) return false;
 	return xrtQueryAppendPairTo(sOut, iOutCap, pOffset, sKey, strlen(sKey), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL, false);
 }
 
+
+// 构建查询
 XXAPI bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1727,43 +1973,59 @@ XXAPI bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut
 	return true;
 }
 
+
+// 获取下一个表单 URL 编码
 XXAPI bool xrtFormUrlEncodedNextN(const char* sText, size_t iLen, size_t* pOffset, xrtquerypair* pOut)
 {
 	return xrtQueryNextN(sText, iLen, pOffset, pOut);
 }
 
+
+// 获取下一个表单 URL 编码
 XXAPI bool xrtFormUrlEncodedNext(const char* sText, size_t* pOffset, xrtquerypair* pOut)
 {
 	return xrtQueryNext(sText, pOffset, pOut);
 }
 
+
+// 解析表单 URL 编码
 XXAPI bool xrtFormUrlEncodedParseToN(const char* sText, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	return xrtQueryParseToN(sText, iLen, pOut, iCap, pCount);
 }
 
+
+// 解析表单 URL 编码
 XXAPI bool xrtFormUrlEncodedParseTo(const char* sText, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sText == NULL ) return false;
 	return xrtFormUrlEncodedParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 
+
+// 解码表单 URL 编码
 XXAPI bool xrtFormUrlEncodedDecodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtPercentDecodeTo(sText, iLen, sOut, iOutCap, pOutLen, true);
 }
 
+
+// 追加表单 URL 编码 field
 XXAPI bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue)
 {
 	return xrtQueryAppendPairTo(sOut, iOutCap, pOffset, sName, iNameLen, sValue, iValueLen, bHasValue, true);
 }
 
+
+// 追加表单 URL 编码 field
 XXAPI bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
 	if ( sName == NULL ) return false;
 	return xrtFormUrlEncodedAppendFieldTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL);
 }
 
+
+// 构建表单 URL 编码
 XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1783,6 +2045,8 @@ XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, c
 	return true;
 }
 
+
+// xrtSetCookieBuildTo 相关处理
 XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1844,6 +2108,8 @@ XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size
 	return true;
 }
 
+
+// 构建 set Cookie 行
 XXAPI bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1859,11 +2125,15 @@ XXAPI bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut, 
 	return true;
 }
 
+
+// 构建 set Cookie 行
 XXAPI bool xrtSetCookieBuildLine(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtSetCookieBuildLineTo(pCookie, sOut, iOutCap, pOutLen);
 }
 
+
+// 内部函数：解析 HTTP util 参数值
 static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut)
 {
 	if ( pOut == NULL ) return false;
@@ -1876,6 +2146,8 @@ static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut)
 	return !xrtStrViewIsEmpty(*pOut);
 }
 
+
+// 内部函数：查找 HTTP util 参数
 static bool __xrtHttpUtilFindParamN(xrtstrview tValue, const char* sName, xrtstrview* pOut)
 {
 	xrthttpparam tParam;
@@ -1887,6 +2159,8 @@ static bool __xrtHttpUtilFindParamN(xrtstrview tValue, const char* sName, xrtstr
 	return true;
 }
 
+
+// xrtMultipartBoundaryFromContentTypeN 相关处理
 XXAPI bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen, xrtstrview* pOut)
 {
 	xrtmediatypeview tMediaType;
@@ -1908,12 +2182,16 @@ XXAPI bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen,
 	return true;
 }
 
+
+// xrtMultipartBoundaryFromContentType 相关处理
 XXAPI bool xrtMultipartBoundaryFromContentType(const char* sValue, xrtstrview* pOut)
 {
 	if ( sValue == NULL ) return false;
 	return xrtMultipartBoundaryFromContentTypeN(sValue, strlen(sValue), pOut);
 }
 
+
+// xrtMultipartBuildContentTypeTo 相关处理
 XXAPI bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundaryLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -1927,12 +2205,16 @@ XXAPI bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundar
 	return true;
 }
 
+
+// xrtMultipartBuildContentType 相关处理
 XXAPI bool xrtMultipartBuildContentType(const char* sBoundary, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( sBoundary == NULL ) return false;
 	return xrtMultipartBuildContentTypeTo(sBoundary, strlen(sBoundary), sOut, iOutCap, pOutLen);
 }
 
+
+// 内部函数：匹配 HTTP util 边界
 static bool __xrtHttpUtilMatchBoundaryAt(const char* sBody, size_t iLen, size_t iPos, const char* sBoundary, size_t iBoundaryLen, bool* pFinal, size_t* pAfter)
 {
 	if ( pFinal ) *pFinal = false;
@@ -1954,6 +2236,8 @@ static bool __xrtHttpUtilMatchBoundaryAt(const char* sBody, size_t iLen, size_t 
 	return false;
 }
 
+
+// 内部函数：查找 HTTP util 边界行
 static bool __xrtHttpUtilFindBoundaryLine(const char* sBody, size_t iLen, size_t iStart, const char* sBoundary, size_t iBoundaryLen, size_t* pPos, bool* pFinal, size_t* pAfter)
 {
 	size_t i;
@@ -1973,6 +2257,8 @@ static bool __xrtHttpUtilFindBoundaryLine(const char* sBody, size_t iLen, size_t
 	return false;
 }
 
+
+// 内部函数：__xrtHttpUtilMultipartParseContentDisposition
 static bool __xrtHttpUtilMultipartParseContentDisposition(xrtstrview tValue, xrtmultipartpartview* pOut)
 {
 	xrtcontentdispositionview tDisp;
@@ -1998,6 +2284,8 @@ static bool __xrtHttpUtilMultipartParseContentDisposition(xrtstrview tValue, xrt
 	return true;
 }
 
+
+// 获取下一个 Multipart
 XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut)
 {
 	size_t iPos;
@@ -2048,12 +2336,16 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 	return true;
 }
 
+
+// 获取下一个 Multipart
 XXAPI bool xrtMultipartNext(const char* sBody, const char* sBoundary, size_t* pOffset, xrtmultipartpartview* pOut)
 {
 	if ( sBody == NULL || sBoundary == NULL ) return false;
 	return xrtMultipartNextN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pOffset, pOut);
 }
 
+
+// 解析 Multipart
 XXAPI bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount)
 {
 	size_t iOffset = 0u;
@@ -2070,12 +2362,16 @@ XXAPI bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBou
 	return true;
 }
 
+
+// 解析 Multipart
 XXAPI bool xrtMultipartParseTo(const char* sBody, const char* sBoundary, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount)
 {
 	if ( sBody == NULL || sBoundary == NULL ) return false;
 	return xrtMultipartParseToN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pOut, iCap, pCount);
 }
 
+
+// 解码 Multipart 文件名称
 XXAPI bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iLen;
@@ -2100,11 +2396,15 @@ XXAPI bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char*
 	return true;
 }
 
+
+// 解码 Multipart 文件名称
 XXAPI bool xrtMultipartDecodeFileName(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	return xrtMultipartDecodeFileNameTo(pPart, sOut, iOutCap, pOutLen);
 }
 
+
+// 初始化 Multipart 流配置
 XXAPI void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig)
 {
 	if ( !pConfig ) return;
@@ -2114,6 +2414,8 @@ XXAPI void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig)
 	pConfig->iTailReserve = 0u;
 }
 
+
+// 内部函数：__xrtHttpUtilMultipartStreamZeroEvent
 static void __xrtHttpUtilMultipartStreamZeroEvent(xrtmultipartstreamevent* pEvent)
 {
 	if ( !pEvent ) return;
@@ -2121,6 +2423,8 @@ static void __xrtHttpUtilMultipartStreamZeroEvent(xrtmultipartstreamevent* pEven
 	pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_NEED_MORE;
 }
 
+
+// 内部函数：__xrtHttpUtilMultipartStreamCompact
 static void __xrtHttpUtilMultipartStreamCompact(xrtmultipartstream* pStream)
 {
 	if ( !pStream || pStream->iCursor == 0u ) return;
@@ -2134,6 +2438,8 @@ static void __xrtHttpUtilMultipartStreamCompact(xrtmultipartstream* pStream)
 	pStream->iCursor = 0u;
 }
 
+
+// 内部函数：确保 HTTP util Multipart 流 cap
 static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, size_t iNeed)
 {
 	size_t iNewCap;
@@ -2156,6 +2462,8 @@ static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, s
 	return true;
 }
 
+
+// 初始化 Multipart 流
 XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig)
 {
 	xrtmultipartstreamconfig tConfig;
@@ -2187,6 +2495,8 @@ XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoun
 	return true;
 }
 
+
+// 释放 Multipart 流
 XXAPI void xrtMultipartStreamUnit(xrtmultipartstream* pStream)
 {
 	if ( !pStream ) return;
@@ -2197,6 +2507,8 @@ XXAPI void xrtMultipartStreamUnit(xrtmultipartstream* pStream)
 	memset(pStream, 0, sizeof(xrtmultipartstream));
 }
 
+
+// 重置 Multipart 流
 XXAPI void xrtMultipartStreamReset(xrtmultipartstream* pStream)
 {
 	if ( !pStream ) return;
@@ -2211,6 +2523,8 @@ XXAPI void xrtMultipartStreamReset(xrtmultipartstream* pStream)
 	memset(&pStream->tCurrentPart, 0, sizeof(xrtmultipartpartview));
 }
 
+
+// xrtMultipartStreamFeed 相关处理
 XXAPI bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData, size_t iLen)
 {
 	if ( !pStream || pStream->iState == XRT_MULTIPART_STREAM_STATE_ERROR || pStream->iState == XRT_MULTIPART_STREAM_STATE_DONE ) return false;
@@ -2234,17 +2548,23 @@ XXAPI bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData
 	return true;
 }
 
+
+// 完成 Multipart 流
 XXAPI void xrtMultipartStreamFinish(xrtmultipartstream* pStream)
 {
 	if ( !pStream ) return;
 	pStream->bFinishedInput = true;
 }
 
+
+// 获取 Multipart 流错误
 XXAPI uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream)
 {
 	return pStream ? pStream->iError : XRT_MULTIPART_STREAM_ERR_NONE;
 }
 
+
+// 内部函数：解析 HTTP util Multipart 流 headers
 static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream, xrtmultipartpartview* pOut)
 {
 	size_t iHeaderEnd;
@@ -2302,6 +2622,8 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 	return true;
 }
 
+
+// 获取下一个 Multipart 流
 XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStream, xrtmultipartstreamevent* pEvent)
 {
 	if ( pEvent ) __xrtHttpUtilMultipartStreamZeroEvent(pEvent);
@@ -2409,6 +2731,8 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 	}
 }
 
+
+// xrtMultipartAppendFieldPartTo 相关处理
 XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	if ( sOut == NULL || pOffset == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
@@ -2422,12 +2746,16 @@ XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOf
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
+
+// xrtMultipartAppendFieldPart 相关处理
 XXAPI bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sValue)
 {
 	if ( sBoundary == NULL || sName == NULL || sValue == NULL ) return false;
 	return xrtMultipartAppendFieldPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
+
+// 追加 Multipart 原始数据 part
 XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
 {
 	size_t i;
@@ -2453,12 +2781,16 @@ XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffs
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
+
+// 追加 Multipart 原始数据 part
 XXAPI bool xrtMultipartAppendRawPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
 {
 	if ( sBoundary == NULL ) return false;
 	return xrtMultipartAppendRawPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), pHeaders, iHeaderCount, pBody, iBodyLen);
 }
 
+
+// 追加 Multipart 文件 part 扩展
 XXAPI bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sFileNameExt, size_t iFileNameExtLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen)
 {
 	if ( sOut == NULL || pOffset == NULL || sName == NULL || sFileName == NULL || (sContentType == NULL && iContentTypeLen != 0u) || (pBody == NULL && iBodyLen != 0u) ) return false;
@@ -2485,6 +2817,8 @@ XXAPI bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* p
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
+
+// 追加 Multipart 文件 part 扩展
 XXAPI bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sFileNameExt, const char* sContentType, const char* pBody, size_t iBodyLen)
 {
 	if ( sBoundary == NULL || sName == NULL || sFileName == NULL || pBody == NULL ) return false;
@@ -2506,6 +2840,8 @@ XXAPI bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOf
 		iBodyLen);
 }
 
+
+// 追加 Multipart 文件 part
 XXAPI bool xrtMultipartAppendFilePartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen)
 {
 	return xrtMultipartAppendFilePartExtTo(
@@ -2526,11 +2862,15 @@ XXAPI bool xrtMultipartAppendFilePartTo(char* sOut, size_t iOutCap, size_t* pOff
 		iBodyLen);
 }
 
+
+// 追加 Multipart 文件 part
 XXAPI bool xrtMultipartAppendFilePart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sContentType, const char* pBody, size_t iBodyLen)
 {
 	return xrtMultipartAppendFilePartExt(sOut, iOutCap, pOffset, sBoundary, sName, sFileName, NULL, sContentType, pBody, iBodyLen);
 }
 
+
+// xrtMultipartAppendFinishTo 相关处理
 XXAPI bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen)
 {
 	if ( sOut == NULL || pOffset == NULL ) return false;
@@ -2540,6 +2880,8 @@ XXAPI bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffse
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--\r\n", 4u);
 }
 
+
+// xrtMultipartAppendFinish 相关处理
 XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary)
 {
 	if ( sBoundary == NULL ) return false;

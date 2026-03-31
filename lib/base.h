@@ -12,6 +12,8 @@ static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
 static inline void __xrtMemTelemetryRecordFree();
 static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
+
+// 内部函数：分配位置
 static inline ptr __xrtMallocSite(size_t iSize, const char* sFile, uint32 iLine)
 {
 	ptr mem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
@@ -23,6 +25,8 @@ static inline ptr __xrtMallocSite(size_t iSize, const char* sFile, uint32 iLine)
 	return mem;
 }
 
+
+// 内部函数：分配位置
 static inline ptr __xrtCallocSite(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
 {
 	size_t iTotal = __xrtMemTelemetryMulClamp(iNum, iSize);
@@ -35,6 +39,8 @@ static inline ptr __xrtCallocSite(size_t iNum, size_t iSize, const char* sFile, 
 	return mem;
 }
 
+
+// 内部函数：重新分配位置
 static inline ptr __xrtReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
 	ptr mem;
@@ -53,6 +59,8 @@ static inline ptr __xrtReallocSite(ptr pMem, size_t iSize, const char* sFile, ui
 	return mem;
 }
 
+
+// 内部函数：释放位置
 static inline void __xrtFreeSite(ptr pmem, const char* sFile, uint32 iLine)
 {
 	if ( pmem && (pmem != xCore.sNull) ) {
@@ -62,12 +70,14 @@ static inline void __xrtFreeSite(ptr pmem, const char* sFile, uint32 iLine)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 分配调试
 XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine)
 {
 	return __xrtMallocSite(iSize, sFile, iLine);
 }
 #endif
 
+// 分配
 XXAPI ptr xrtMalloc(size_t iSize)
 {
 	return __xrtMallocSite(iSize, NULL, 0);
@@ -77,12 +87,14 @@ XXAPI ptr xrtMalloc(size_t iSize)
 
 // 申请类内存
 #ifdef XRT_MEM_DEBUG
+// 分配调试
 XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
 {
 	return __xrtCallocSite(iNum, iSize, sFile, iLine);
 }
 #endif
 
+// 分配
 XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 {
 	return __xrtCallocSite(iNum, iSize, NULL, 0);
@@ -92,12 +104,14 @@ XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 
 // 重新申请内存
 #ifdef XRT_MEM_DEBUG
+// 重新分配调试
 XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
 	return __xrtReallocSite(pMem, iSize, sFile, iLine);
 }
 #endif
 
+// 重新分配
 XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 {
 	return __xrtReallocSite(pMem, iSize, NULL, 0);
@@ -107,27 +121,35 @@ XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 
 // 释放内存（ 会先判断是否为 null ）
 #ifdef XRT_MEM_DEBUG
+// 释放调试
 XXAPI void xrtFreeDbg(ptr pmem, const char* sFile, uint32 iLine)
 {
 	__xrtFreeSite(pmem, sFile, iLine);
 }
 #endif
 
+// 释放
 XXAPI void xrtFree(ptr pmem)
 {
 	__xrtFreeSite(pmem, NULL, 0);
 }
 
+
+// 内部函数：获取临时内存区块头部大小
 static inline size_t __xrtTempArenaBlockHeaderSize()
 {
 	return __xrtMemGlobalAlignSize(sizeof(xrtTempArenaBlock));
 }
 
+
+// 内部函数：获取临时内存区块用户区指针
 static inline ptr __xrtTempArenaBlockUser(xrtTempArenaBlock* pBlock)
 {
 	return (ptr)((char*)pBlock + __xrtTempArenaBlockHeaderSize());
 }
 
+
+// 内部函数：分配临时内存区块
 static inline xrtTempArenaBlock* __xrtTempArenaAllocBlock(size_t iCapacity)
 {
 	size_t iTotal;
@@ -146,6 +168,8 @@ static inline xrtTempArenaBlock* __xrtTempArenaAllocBlock(size_t iCapacity)
 	return pBlock;
 }
 
+
+// 内部函数：记录临时内存区分配调试信息
 static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t iSize, bool bSpill)
 {
 	#ifdef XRT_MEM_DEBUG
@@ -170,6 +194,8 @@ static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t
 	#endif
 }
 
+
+// 内部函数：重置临时内存区调试 on
 static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
 {
 	#ifdef XRT_MEM_DEBUG
@@ -190,6 +216,8 @@ static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
 	#endif
 }
 
+
+// 内部函数：确保临时内存区当前
 static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_t iNeed)
 {
 	xrtTempArenaBlock* pBlock;
@@ -244,6 +272,8 @@ static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_
 	return TRUE;
 }
 
+
+// 内部函数：重置临时内存区线程
 static inline void __xrtTempArenaResetThread(xrtThreadData* pThreadData)
 {
 	xrtTempArenaBlock* pBlock;
@@ -274,6 +304,8 @@ static inline void __xrtTempArenaResetThread(xrtThreadData* pThreadData)
 	pThreadData->tTemp.iResetCount++;
 }
 
+
+// 内部函数：释放临时内存区全部线程
 static inline void __xrtTempArenaFreeAllThread(xrtThreadData* pThreadData)
 {
 	xrtTempArenaBlock* pBlock;
@@ -390,6 +422,9 @@ XXAPI void xrtSetError(const void* sError, bool bFree)
 	pThreadData->LastError = sErrorText;
 	pThreadData->bFreeLastError = bFree;
 }
+
+
+// 设置错误 u 16
 XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree)
 {
 	str sErrorU8 = xrtUTF16to8(sError, iSize, NULL);
@@ -398,6 +433,9 @@ XXAPI void xrtSetErrorU16(u16str sError, size_t iSize, bool bFree)
 	}
 	xrtSetError(sErrorU8, TRUE);
 }
+
+
+// 设置错误 u 32
 XXAPI void xrtSetErrorU32(u32str sError, size_t iSize, bool bFree)
 {
 	str sErrorU8 = xrtUTF32to8(sError, iSize, NULL);
@@ -426,6 +464,7 @@ XXAPI void xrtClearError()
 }
 
 
+// 内部函数：内存遥测乘法钳制相关处理
 static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize)
 {
 	if ( iNum == 0 || iSize == 0 ) {
@@ -437,6 +476,8 @@ static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize)
 	return iNum * iSize;
 }
 
+
+// 内部函数：获取内存遥测分类 index
 static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize)
 {
 	if ( xCore.MemGlobal.iClassCount == XRT_MEMPOOL_CLASS_COUNT_DEFAULT && iSize <= xCore.MemGlobal.iCutoff ) {
@@ -454,6 +495,8 @@ static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize)
 	return (uint32)(((iSize + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE) - 1);
 }
 
+
+// 内部函数：__xrtMemTelemetryRecordSizedOp
 static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize)
 {
 	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
@@ -492,6 +535,8 @@ static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize)
 	}
 }
 
+
+// 内部函数：释放内存遥测记录
 static inline void __xrtMemTelemetryRecordFree()
 {
 	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
@@ -503,6 +548,8 @@ static inline void __xrtMemTelemetryRecordFree()
 	__xrtAtomicAddFetch64(&pState->iFreeCalls, 1);
 }
 
+
+// 内部函数：内存遥测记录临时相关处理
 static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 {
 	xrtMemTelemetryState* pState = &xCore.MemTelemetry;

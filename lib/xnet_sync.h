@@ -276,6 +276,7 @@ static const __xnet_stream_wait_ops* __xnetSyncGetStreamWaitOps(uint32 iWaitKind
 static xnetengine* __xnetSyncResolveEngine(xnetengine* pEngine);
 
 #if defined(XXRTL_CORE)
+// 内部函数：确保任务组容量
 static bool __xnetTaskGroupEnsureCapacity(xtaskgroup* pGroup, int iNeed)
 {
 	xfuture** arrNew = NULL;
@@ -315,6 +316,8 @@ static bool __xnetTaskGroupEnsureCapacity(xtaskgroup* pGroup, int iNeed)
 	return true;
 }
 
+
+// 内部函数：__xnetTaskGroupReapCompletedUnlocked
 static int __xnetTaskGroupReapCompletedUnlocked(xtaskgroup* pGroup)
 {
 	int iWrite = 0;
@@ -360,6 +363,8 @@ static int __xnetTaskGroupReapCompletedUnlocked(xtaskgroup* pGroup)
 	return iReaped;
 }
 
+
+// 内部函数：__xnetTaskGroupCountPendingUnlocked
 static int __xnetTaskGroupCountPendingUnlocked(xtaskgroup* pGroup)
 {
 	int iCount = 0;
@@ -379,6 +384,8 @@ static int __xnetTaskGroupCountPendingUnlocked(xtaskgroup* pGroup)
 	return iCount;
 }
 
+
+// 内部函数：__xnetTaskGroupAddRef
 static xtaskgroup* __xnetTaskGroupAddRef(xtaskgroup* pGroup)
 {
 	if ( pGroup == NULL ) {
@@ -389,6 +396,8 @@ static xtaskgroup* __xnetTaskGroupAddRef(xtaskgroup* pGroup)
 	return pGroup;
 }
 
+
+// 内部函数：释放任务组
 static void __xnetTaskGroupFree(xtaskgroup* pGroup)
 {
 	if ( pGroup == NULL ) {
@@ -423,6 +432,8 @@ static void __xnetTaskGroupFree(xtaskgroup* pGroup)
 	XNET_FREE(pGroup);
 }
 
+
+// 内部函数：释放任务组
 static void __xnetTaskGroupRelease(xtaskgroup* pGroup)
 {
 	if ( pGroup == NULL ) {
@@ -434,6 +445,8 @@ static void __xnetTaskGroupRelease(xtaskgroup* pGroup)
 	}
 }
 
+
+// 内部函数：__xnetTaskGroupMaybeResolveJoin
 static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup)
 {
 	xpromise* pPromise = NULL;
@@ -462,6 +475,8 @@ static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup)
 	__xnetTaskGroupRelease(pGroup);
 }
 
+
+// 内部函数：获取任务组 scope Future
 static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup)
 {
 	xfuture* pFuture = NULL;
@@ -520,6 +535,8 @@ static void __xnetSyncSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__xnetSyncNowMs
 static uint64 __xnetSyncNowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -531,16 +548,22 @@ static uint64 __xnetSyncNowMs(void)
 	#endif
 }
 
+
+// 内部函数：__xnetSyncAtomicCompareExchange
 static long __xnetSyncAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 {
 	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
 }
 
+
+// 内部函数：__xnetSyncAtomicStore
 static void __xnetSyncAtomicStore(volatile long* pValue, long iValue)
 {
 	(void)__xnetAtomicExchange32(pValue, iValue);
 }
 
+
+// 内部函数：__xnetSyncSpinLock
 static void __xnetSyncSpinLock(volatile long* pLock)
 {
 	while ( __xnetSyncAtomicCompareExchange(pLock, 1, 0) != 0 ) {
@@ -548,11 +571,15 @@ static void __xnetSyncSpinLock(volatile long* pLock)
 	}
 }
 
+
+// 内部函数：__xnetSyncSpinUnlock
 static void __xnetSyncSpinUnlock(volatile long* pLock)
 {
 	__xnetSyncAtomicStore(pLock, 0);
 }
 
+
+// 内部函数：设置同步错误
 static void __xnetSyncSetError(const char* sError)
 {
 	#if defined(XXRTL_CORE)
@@ -563,6 +590,7 @@ static void __xnetSyncSetError(const char* sError)
 }
 
 #if !defined(_WIN32) && !defined(_WIN64)
+// 内部函数：构建同步 abs 超时
 static bool __xnetSyncMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
 {
 	uint64 iNs;
@@ -574,6 +602,8 @@ static bool __xnetSyncMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
 	return true;
 }
 
+
+// 内部函数：__xnetSyncInitCond
 static bool __xnetSyncInitCond(__xnet_sync_cond* pCond)
 {
 	pthread_condattr_t tAttr;
@@ -591,6 +621,7 @@ static bool __xnetSyncInitCond(__xnet_sync_cond* pCond)
 }
 #endif
 
+// 内部函数：__xnetFuturePrimitiveInit
 static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return false;
@@ -608,6 +639,8 @@ static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 	#endif
 }
 
+
+// 内部函数：__xnetFuturePrimitiveUnit
 static void __xnetFuturePrimitiveUnit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
@@ -619,6 +652,8 @@ static void __xnetFuturePrimitiveUnit(xnetfuture* pFuture)
 	#endif
 }
 
+
+// 内部函数：锁定 Future
 static void __xnetFutureLock(xnetfuture* pFuture)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -628,6 +663,8 @@ static void __xnetFutureLock(xnetfuture* pFuture)
 	#endif
 }
 
+
+// 内部函数：解锁 Future
 static void __xnetFutureUnlock(xnetfuture* pFuture)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -637,6 +674,8 @@ static void __xnetFutureUnlock(xnetfuture* pFuture)
 	#endif
 }
 
+
+// 内部函数：唤醒 Future 全部
 static void __xnetFutureWakeAll(xnetfuture* pFuture)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -646,6 +685,8 @@ static void __xnetFutureWakeAll(xnetfuture* pFuture)
 	#endif
 }
 
+
+// 内部函数：__xnetFutureWaitOnce
 static bool __xnetFutureWaitOnce(xnetfuture* pFuture, uint32 iTimeoutMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -664,6 +705,8 @@ static bool __xnetFutureWaitOnce(xnetfuture* pFuture, uint32 iTimeoutMs)
 	#endif
 }
 
+
+// 内部函数：推进 Future 当前 auto
 static int __xnetFuturePumpCurrentAuto(void)
 {
 	#if defined(XXRTL_CORE)
@@ -673,6 +716,8 @@ static int __xnetFuturePumpCurrentAuto(void)
 	#endif
 }
 
+
+// 内部函数：初始化 Future
 static bool __xnetFutureInit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return false;
@@ -691,6 +736,8 @@ static bool __xnetFutureInit(xnetfuture* pFuture)
 
 static void __xnetFutureUnit(xnetfuture* pFuture);
 
+
+// 内部函数：获取 Future dup 错误
 static const char* __xnetFutureDupError(const char* sError)
 {
 	size_t iLen;
@@ -703,6 +750,8 @@ static const char* __xnetFutureDupError(const char* sError)
 	return sCopy;
 }
 
+
+// 内部函数：释放 Future 错误
 static void __xnetFutureFreeError(const char* sError, uint32 iFlags)
 {
 	if ( sError && (iFlags & XFUTURE_RESULT_F_OWN_ERROR) ) {
@@ -710,6 +759,8 @@ static void __xnetFutureFreeError(const char* sError, uint32 iFlags)
 	}
 }
 
+
+// 内部函数：__xnetFutureAddRefInternal
 static void __xnetFutureAddRefInternal(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
@@ -718,6 +769,8 @@ static void __xnetFutureAddRefInternal(xnetfuture* pFuture)
 	__xnetFutureUnlock(pFuture);
 }
 
+
+// 内部函数：__xnetFutureFinalizeFree
 static void __xnetFutureFinalizeFree(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
@@ -728,6 +781,8 @@ static void __xnetFutureFinalizeFree(xnetfuture* pFuture)
 	XNET_FREE(pFuture);
 }
 
+
+// 内部函数：__xnetFutureReleaseRefInternal
 static void __xnetFutureReleaseRefInternal(xnetfuture* pFuture)
 {
 	bool bFree = false;
@@ -751,6 +806,8 @@ static void __xnetFutureReleaseRefInternal(xnetfuture* pFuture)
 	}
 }
 
+
+// 内部函数：异步增加 Future hold
 static void __xnetFutureAddAsyncHold(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
@@ -760,6 +817,8 @@ static void __xnetFutureAddAsyncHold(xnetfuture* pFuture)
 	__xnetFutureUnlock(pFuture);
 }
 
+
+// 内部函数：异步释放 Future hold
 static void __xnetFutureReleaseAsyncHold(xnetfuture* pFuture)
 {
 	bool bReleaseRef = false;
@@ -775,6 +834,8 @@ static void __xnetFutureReleaseAsyncHold(xnetfuture* pFuture)
 	}
 }
 
+
+// 内部函数：释放 Future
 static void __xnetFutureUnit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
@@ -804,6 +865,8 @@ static void __xnetFutureUnit(xnetfuture* pFuture)
 	__xnetFuturePrimitiveUnit(pFuture);
 }
 
+
+// 内部函数：重置 Future
 static void UNUSED_ATTR __xnetFutureReset(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
@@ -828,6 +891,8 @@ static void UNUSED_ATTR __xnetFutureReset(xnetfuture* pFuture)
 	__xnetFutureUnlock(pFuture);
 }
 
+
+// 内部函数：__xnetFutureCompleteEx
 static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr pValue, const char* sError, uint32 iFlags)
 {
 	bool bResolved = false;
@@ -898,12 +963,15 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 	return bResolved;
 }
 
+
+// 内部函数：解析 Future
 static bool __xnetFutureResolve(xnetfuture* pFuture, xnet_result iStatus, ptr pValue)
 {
 	return __xnetFutureCompleteEx(pFuture, iStatus, pValue, NULL, XFUTURE_RESULT_F_NONE);
 }
 
 #if defined(XXRTL_CORE)
+// 内部函数：获取 Promise complete 结果
 static bool __xnetPromiseCompleteResult(xpromise* pPromise, const xfuture_result* pResult)
 {
 	int32 iStatus;
@@ -926,6 +994,8 @@ static bool __xnetPromiseCompleteResult(xpromise* pPromise, const xfuture_result
 	return __xnetFutureCompleteEx(pPromise->pFuture, (xnet_result)iStatus, pValue, sError, iFlags);
 }
 
+
+// 内部函数：释放 Future 结果
 static void __xnetFutureResultFree(xfuture_result* pResult)
 {
 	if ( pResult == NULL ) {
@@ -943,6 +1013,8 @@ static void __xnetFutureResultFree(xfuture_result* pResult)
 	pResult->iFlags &= ~XFUTURE_RESULT_F_OWN_ERROR;
 }
 
+
+// 内部函数：复制 Future 结果
 static bool __xnetFutureResultCopy(xfuture_result* pDst, const xfuture_result* pSrc)
 {
 	if ( pDst == NULL || pSrc == NULL ) {
@@ -964,6 +1036,8 @@ static bool __xnetFutureResultCopy(xfuture_result* pDst, const xfuture_result* p
 	return true;
 }
 
+
+// 内部函数：释放 Future cont 输入
 static void __xnetFutureContFreeInput(xrt_future_cont* pCont)
 {
 	if ( pCont == NULL ) {
@@ -972,6 +1046,8 @@ static void __xnetFutureContFreeInput(xrt_future_cont* pCont)
 	__xnetFutureResultFree(&pCont->tInput);
 }
 
+
+// 内部函数：复制 Future cont 输入
 static bool __xnetFutureContCopyInput(xrt_future_cont* pCont, const xfuture_result* pInput)
 {
 	if ( pCont == NULL || pInput == NULL ) {
@@ -980,6 +1056,8 @@ static bool __xnetFutureContCopyInput(xrt_future_cont* pCont, const xfuture_resu
 	return __xnetFutureResultCopy(&pCont->tInput, pInput);
 }
 
+
+// 内部函数：__xnetFutureContCaptureInputLocked
 static bool __xnetFutureContCaptureInputLocked(xfuture* pFuture, xrt_future_cont* pCont)
 {
 	xfuture_result tInput;
@@ -995,6 +1073,8 @@ static bool __xnetFutureContCaptureInputLocked(xfuture* pFuture, xrt_future_cont
 	return __xnetFutureContCopyInput(pCont, &tInput);
 }
 
+
+// 内部函数：__xnetFutureContShouldRun
 static bool __xnetFutureContShouldRun(xrt_future_cont* pCont)
 {
 	if ( pCont == NULL ) {
@@ -1009,6 +1089,8 @@ static bool __xnetFutureContShouldRun(xrt_future_cont* pCont)
 	return true;
 }
 
+
+// 内部函数：__xnetFutureContCompletePassThrough
 static void __xnetFutureContCompletePassThrough(xrt_future_cont* pCont)
 {
 	xfuture_result tPass;
@@ -1022,6 +1104,8 @@ static void __xnetFutureContCompletePassThrough(xrt_future_cont* pCont)
 	(void)__xnetPromiseCompleteResult(pCont->pPromise, &tPass);
 }
 
+
+// 内部函数：完成 Future cont 节点
 static void __xnetFutureContFinalizeNode(xrt_future_cont* pCont)
 {
 	if ( pCont == NULL ) {
@@ -1042,6 +1126,8 @@ static void __xnetFutureContFinalizeNode(xrt_future_cont* pCont)
 	XNET_FREE(pCont);
 }
 
+
+// 内部函数：__xnetFutureContRun
 static void __xnetFutureContRun(xrt_future_cont* pCont)
 {
 	xfuture_result tOut;
@@ -1080,6 +1166,8 @@ static void __xnetFutureContRun(xrt_future_cont* pCont)
 	__xnetFutureContFinalizeNode(pCont);
 }
 
+
+// 内部函数：分发 Future cont 引擎
 static void __xnetFutureContEngineDispatch(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_future_cont_ctx* pCtx = (__xnet_future_cont_ctx*)pArg;
@@ -1095,6 +1183,7 @@ static void __xnetFutureContEngineDispatch(xnetworker* pWorker, ptr pArg)
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// 内部函数：分发 Future cont 协程
 static void __xnetFutureContCoDispatch(ptr pArg)
 {
 	__xnet_future_cont_ctx* pCtx = (__xnet_future_cont_ctx*)pArg;
@@ -1109,6 +1198,7 @@ static void __xnetFutureContCoDispatch(ptr pArg)
 }
 #endif
 
+// 内部函数：分发 Future 延续回调
 static bool __xnetFutureDispatchContinuation(xrt_future_cont* pCont)
 {
 	__xnet_future_cont_ctx* pCtx = NULL;
@@ -1167,6 +1257,8 @@ static bool __xnetFutureDispatchContinuation(xrt_future_cont* pCont)
 	return false;
 }
 
+
+// 内部函数：分发 Future detached 列表
 static void __xnetFutureDispatchDetachedList(xrt_future_cont* pHead)
 {
 	xrt_future_cont* pCont = pHead;
@@ -1187,6 +1279,8 @@ static void __xnetFutureDispatchDetachedList(xrt_future_cont* pHead)
 	}
 }
 
+
+// 内部函数：确保 Future 当前队列 registered
 static bool __xnetFutureEnsureCurrentQueueRegistered(void)
 {
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
@@ -1204,6 +1298,8 @@ static bool __xnetFutureEnsureCurrentQueueRegistered(void)
 	return true;
 }
 
+
+// 内部函数：入队 Future 当前
 static bool __xnetFutureEnqueueCurrent(xrt_future_cont* pCont)
 {
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
@@ -1228,6 +1324,8 @@ static bool __xnetFutureEnqueueCurrent(xrt_future_cont* pCont)
 	return true;
 }
 
+
+// 推进 Future 当前延续回调
 XXAPI int xFuturePumpCurrentContinuations(int iMaxCount)
 {
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
@@ -1262,6 +1360,8 @@ XXAPI int xFuturePumpCurrentContinuations(int iMaxCount)
 	return iPumped;
 }
 
+
+// 内部函数：__xnetFutureCurrentCleanup
 static void __xnetFutureCurrentCleanup(xrtThreadData* pThreadData, ptr pArg)
 {
 	(void)pThreadData;
@@ -1269,6 +1369,8 @@ static void __xnetFutureCurrentCleanup(xrtThreadData* pThreadData, ptr pArg)
 	(void)xFuturePumpCurrentContinuations(0);
 }
 
+
+// 内部函数：设置 Future 组源
 static void __xnetFutureSetGroupSource(xfuture* pFuture, xfuture* pSource, int iIndex)
 {
 	if ( pFuture == NULL ) {
@@ -1287,6 +1389,8 @@ static void __xnetFutureSetGroupSource(xfuture* pFuture, xfuture* pSource, int i
 	__xnetFutureUnlock(pFuture);
 }
 
+
+// 内部函数：释放 Future 全部值
 static void __xnetFutureAllValueFree(xfuture_all_value* pAll)
 {
 	if ( pAll == NULL ) {
@@ -1300,6 +1404,8 @@ static void __xnetFutureAllValueFree(xfuture_all_value* pAll)
 	XNET_FREE(pAll);
 }
 
+
+// 内部函数：创建 Future 全部值
 static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pGroup)
 {
 	xfuture_all_value* pAll = NULL;
@@ -1332,6 +1438,8 @@ static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pG
 	return pAll;
 }
 
+
+// 内部函数：释放 Future 组
 static void __xnetFutureGroupFree(__xnet_future_group_ctx* pGroup)
 {
 	int i;
@@ -1365,6 +1473,8 @@ static void __xnetFutureGroupFree(__xnet_future_group_ctx* pGroup)
 	XNET_FREE(pGroup);
 }
 
+
+// 内部函数：__xnetFutureGroupOnSourceDone
 static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 {
 	__xnet_future_group_item* pItem = (__xnet_future_group_item*)pArg;
@@ -1454,6 +1564,8 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 	}
 }
 
+
+// 内部函数：创建 Future 组
 static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_future_group_mode iMode)
 {
 	xfuture* pOut = NULL;
@@ -1530,6 +1642,7 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 #endif
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// 内部函数：确保 Future 协程事件
 static xcoevent __xnetFutureEnsureCoEvent(xnetfuture* pFuture)
 {
 	xcoevent pEvent = NULL;
@@ -1563,6 +1676,7 @@ static xcoevent __xnetFutureEnsureCoEvent(xnetfuture* pFuture)
 }
 #endif
 
+// 内部函数：获取同步 hidden 状态
 static __xnet_sync_hidden_state* __xnetSyncHiddenState(void)
 {
 	static __xnet_sync_hidden_state tState;
@@ -1584,6 +1698,8 @@ XXAPI xnetfuture* xrtNetFutureCreate(void)
 	return pFuture;
 }
 
+
+// 创建空等待源
 XXAPI xnetwaitsrc xrtNetWaitSourceNone(void)
 {
 	xnetwaitsrc tSrc;
@@ -1592,6 +1708,8 @@ XXAPI xnetwaitsrc xrtNetWaitSourceNone(void)
 	return tSrc;
 }
 
+
+// 创建 Future 等待源
 XXAPI xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture)
 {
 	xnetwaitsrc tSrc;
@@ -1601,6 +1719,8 @@ XXAPI xnetwaitsrc xrtNetWaitSourceFuture(xnetfuture* pFuture)
 	return tSrc;
 }
 
+
+// 创建流等待源
 XXAPI xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind)
 {
 	xnetwaitsrc tSrc;
@@ -1611,6 +1731,8 @@ XXAPI xnetwaitsrc xrtNetWaitSourceStream(xnetstream* pStream, uint32 iWaitKind)
 	return tSrc;
 }
 
+
+// 创建数据报接收等待源
 XXAPI xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock)
 {
 	xnetwaitsrc tSrc;
@@ -1620,6 +1742,8 @@ XXAPI xnetwaitsrc xrtNetWaitSourceDgramRecv(xdgramsock* pSock)
 	return tSrc;
 }
 
+
+// 创建监听器接受等待源
 XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener)
 {
 	xnetwaitsrc tSrc;
@@ -1629,6 +1753,8 @@ XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener)
 	return tSrc;
 }
 
+
+// 内部函数：__xnetFutureDestroyCore
 static bool __xnetFutureDestroyCore(xnetfuture* pFuture)
 {
 	bool bDestroy = false;
@@ -1653,6 +1779,8 @@ static bool __xnetFutureDestroyCore(xnetfuture* pFuture)
 	return true;
 }
 
+
+// 销毁网络 Future
 XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture)
 {
 	if ( !pFuture ) return;
@@ -1662,6 +1790,7 @@ XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture)
 }
 
 #if defined(XXRTL_CORE)
+// 内部函数：获取 Future map 状态
 static xfuture_state __xnetFutureMapState(xfuture* pFuture)
 {
 	int32 iStatus;
@@ -1679,6 +1808,8 @@ static xfuture_state __xnetFutureMapState(xfuture* pFuture)
 	return XFUTURE_REJECTED;
 }
 
+
+// 创建 Future
 XXAPI xfuture* xFutureCreate(void)
 {
 	xfuture* pFuture = xrtNetFutureCreate();
@@ -1689,32 +1820,44 @@ XXAPI xfuture* xFutureCreate(void)
 	return pFuture;
 }
 
+
+// xFutureAddRef 相关处理
 XXAPI xfuture* xFutureAddRef(xfuture* pFuture)
 {
 	__xnetFutureAddRefInternal(pFuture);
 	return pFuture;
 }
 
+
+// 释放 Future
 XXAPI void xFutureRelease(xfuture* pFuture)
 {
 	__xnetFutureReleaseRefInternal(pFuture);
 }
 
+
+// 获取 Future 状态
 XXAPI xfuture_state xFutureState(xfuture* pFuture)
 {
 	return __xnetFutureMapState(pFuture);
 }
 
+
+// 获取 Future 状态
 XXAPI int32 xFutureStatus(xfuture* pFuture)
 {
 	return (int32)xrtNetFutureStatus(pFuture);
 }
 
+
+// 获取 Future 值
 XXAPI ptr xFutureValue(xfuture* pFuture)
 {
 	return xrtNetFutureValue(pFuture);
 }
 
+
+// 获取 Future 错误
 XXAPI str xFutureError(xfuture* pFuture)
 {
 	str sError = NULL;
@@ -1725,6 +1868,8 @@ XXAPI str xFutureError(xfuture* pFuture)
 	return sError;
 }
 
+
+// 获取 Future 结果
 XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut)
 {
 	if ( !pOut ) return false;
@@ -1742,6 +1887,8 @@ XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut)
 	return pOut->iStatus == XRT_NET_OK;
 }
 
+
+// 设置 Future 调试名称
 XXAPI bool xFutureSetDebugName(xfuture* pFuture, str sDebugName)
 {
 	const char* sOwned = NULL;
@@ -1763,6 +1910,8 @@ XXAPI bool xFutureSetDebugName(xfuture* pFuture, str sDebugName)
 	return true;
 }
 
+
+// 获取 Future 调试名称
 XXAPI str xFutureGetDebugName(xfuture* pFuture)
 {
 	str sName = NULL;
@@ -1777,6 +1926,8 @@ XXAPI str xFutureGetDebugName(xfuture* pFuture)
 	return sName;
 }
 
+
+// xFutureGetCreateTimeMs 相关处理
 XXAPI uint64 xFutureGetCreateTimeMs(xfuture* pFuture)
 {
 	uint64 iTime = 0;
@@ -1791,6 +1942,8 @@ XXAPI uint64 xFutureGetCreateTimeMs(xfuture* pFuture)
 	return iTime;
 }
 
+
+// xFutureGetCompleteTimeMs 相关处理
 XXAPI uint64 xFutureGetCompleteTimeMs(xfuture* pFuture)
 {
 	uint64 iTime = 0;
@@ -1805,6 +1958,8 @@ XXAPI uint64 xFutureGetCompleteTimeMs(xfuture* pFuture)
 	return iTime;
 }
 
+
+// xFutureGetPendingContinuationCount 相关处理
 XXAPI int xFutureGetPendingContinuationCount(xfuture* pFuture)
 {
 	long iCount = 0;
@@ -1817,6 +1972,8 @@ XXAPI int xFutureGetPendingContinuationCount(xfuture* pFuture)
 	return (iCount > 0) ? (int)iCount : 0;
 }
 
+
+// 获取 Future 组源 index
 XXAPI int xFutureGetGroupSourceIndex(xfuture* pFuture)
 {
 	int iIndex = -1;
@@ -1831,6 +1988,8 @@ XXAPI int xFutureGetGroupSourceIndex(xfuture* pFuture)
 	return iIndex;
 }
 
+
+// 获取 Future 组源
 XXAPI xfuture* xFutureGetGroupSource(xfuture* pFuture)
 {
 	xfuture* pSource = NULL;
@@ -1845,6 +2004,8 @@ XXAPI xfuture* xFutureGetGroupSource(xfuture* pFuture)
 	return pSource;
 }
 
+
+// 查看 Future 组源
 XXAPI xfuture* xFuturePeekGroupSource(xfuture* pFuture)
 {
 	xfuture* pSource = NULL;
@@ -1859,6 +2020,8 @@ XXAPI xfuture* xFuturePeekGroupSource(xfuture* pFuture)
 	return pSource;
 }
 
+
+// 查看 Future 全部值
 XXAPI const xfuture_all_value* xFuturePeekAllValue(xfuture* pFuture)
 {
 	const xfuture_all_value* pAll = NULL;
@@ -1875,12 +2038,16 @@ XXAPI const xfuture_all_value* xFuturePeekAllValue(xfuture* pFuture)
 	return pAll;
 }
 
+
+// 统计 Future get 全部值
 XXAPI int xFutureGetAllValueCount(xfuture* pFuture)
 {
 	const xfuture_all_value* pAll = xFuturePeekAllValue(pFuture);
 	return pAll ? pAll->iCount : 0;
 }
 
+
+// 获取 Future 全部值 item
 XXAPI ptr xFutureGetAllValueItem(xfuture* pFuture, int iIndex)
 {
 	const xfuture_all_value* pAll = xFuturePeekAllValue(pFuture);
@@ -1892,6 +2059,8 @@ XXAPI ptr xFutureGetAllValueItem(xfuture* pFuture, int iIndex)
 	return pAll->arrValue[iIndex];
 }
 
+
+// xFutureRequestCancel 相关处理
 XXAPI bool xFutureRequestCancel(xfuture* pFuture)
 {
 	__xnet_future_pending_cancel_fn pfnCancel = NULL;
@@ -1909,6 +2078,8 @@ XXAPI bool xFutureRequestCancel(xfuture* pFuture)
 	return __xnetFutureCompleteEx(pFuture, XRT_NET_CANCELLED, NULL, "future cancel requested.", XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
 }
 
+
+// 创建 Promise
 XXAPI xpromise* xPromiseCreate(xfuture* pFuture)
 {
 	xpromise* pPromise;
@@ -1920,6 +2091,8 @@ XXAPI xpromise* xPromiseCreate(xfuture* pFuture)
 	return pPromise;
 }
 
+
+// 销毁 Promise
 XXAPI void xPromiseDestroy(xpromise* pPromise)
 {
 	if ( !pPromise ) return;
@@ -1930,12 +2103,16 @@ XXAPI void xPromiseDestroy(xpromise* pPromise)
 	XNET_FREE(pPromise);
 }
 
+
+// 获取 Promise Future
 XXAPI xfuture* xPromiseGetFuture(xpromise* pPromise)
 {
 	if ( !pPromise || !pPromise->pFuture ) return NULL;
 	return xFutureAddRef(pPromise->pFuture);
 }
 
+
+// 查看 Promise Future
 XXAPI xfuture* xPromisePeekFuture(xpromise* pPromise)
 {
 	if ( !pPromise ) {
@@ -1944,6 +2121,8 @@ XXAPI xfuture* xPromisePeekFuture(xpromise* pPromise)
 	return pPromise->pFuture;
 }
 
+
+// 解析 Promise
 XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue)
 {
 	if ( !pPromise ) return false;
@@ -1953,6 +2132,8 @@ XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue)
 	return __xnetFutureCompleteEx(pPromise->pFuture, XRT_NET_OK, pValue, NULL, XFUTURE_RESULT_F_NONE);
 }
 
+
+// xPromiseReject 相关处理
 XXAPI bool xPromiseReject(xpromise* pPromise, int32 iStatus, str sError)
 {
 	if ( !pPromise ) return false;
@@ -1965,6 +2146,8 @@ XXAPI bool xPromiseReject(xpromise* pPromise, int32 iStatus, str sError)
 	return __xnetFutureCompleteEx(pPromise->pFuture, (xnet_result)iStatus, NULL, (const char*)sError, sError ? XFUTURE_RESULT_F_OWN_ERROR : XFUTURE_RESULT_F_NONE);
 }
 
+
+// 取消 Promise
 XXAPI bool xPromiseCancel(xpromise* pPromise, str sError)
 {
 	if ( !pPromise ) return false;
@@ -1974,6 +2157,8 @@ XXAPI bool xPromiseCancel(xpromise* pPromise, str sError)
 	return __xnetFutureCompleteEx(pPromise->pFuture, XRT_NET_CANCELLED, NULL, (const char*)sError ? (const char*)sError : "promise cancelled.", XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
 }
 
+
+// 关闭 Promise
 XXAPI bool xPromiseClose(xpromise* pPromise, str sError)
 {
 	if ( !pPromise ) return false;
@@ -1983,6 +2168,8 @@ XXAPI bool xPromiseClose(xpromise* pPromise, str sError)
 	return __xnetFutureCompleteEx(pPromise->pFuture, XRT_NET_CLOSED, NULL, (const char*)sError ? (const char*)sError : "promise closed.", XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CLOSED);
 }
 
+
+// 内部函数：__xnetFutureAttachContinuation
 static xfuture* __xnetFutureAttachContinuation(
 	xfuture* pFuture,
 	__xnet_future_cont_kind iKind,
@@ -2086,83 +2273,113 @@ static xfuture* __xnetFutureAttachContinuation(
 	return pOutFuture;
 }
 
+
+// xFutureThenInline 相关处理
 XXAPI xfuture* xFutureThenInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_INLINE, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
 }
 
+
+// xFutureCatchInline 相关处理
 XXAPI xfuture* xFutureCatchInline(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_INLINE, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
 }
 
+
+// xFutureFinallyInline 相关处理
 XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_INLINE, NULL, pfnCont, pArg, NULL, 0, NULL, 0);
 }
 
+
+// xFutureThenCurrent 相关处理
 XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
 }
 
+
+// xFutureCatchCurrent 相关处理
 XXAPI xfuture* xFutureCatchCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, NULL, 0, NULL, 0);
 }
 
+
+// xFutureFinallyCurrent 相关处理
 XXAPI xfuture* xFutureFinallyCurrent(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_CURRENT, NULL, pfnCont, pArg, NULL, 0, NULL, 0);
 }
 
+
+// xFutureThenEngine 相关处理
 XXAPI xfuture* xFutureThenEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_ENGINE, pfnCont, NULL, pArg, pEngine, iAffinityKey, NULL, 0);
 }
 
+
+// xFutureCatchEngine 相关处理
 XXAPI xfuture* xFutureCatchEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_cont_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_ENGINE, pfnCont, NULL, pArg, pEngine, iAffinityKey, NULL, 0);
 }
 
+
+// xFutureFinallyEngine 相关处理
 XXAPI xfuture* xFutureFinallyEngine(xfuture* pFuture, xnetengine* pEngine, uint32 iAffinityKey, xfuture_finally_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_ENGINE, NULL, pfnCont, pArg, pEngine, iAffinityKey, NULL, 0);
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// xFutureThenCo 相关处理
 XXAPI xfuture* xFutureThenCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_CO, pfnCont, NULL, pArg, NULL, 0, pSched, iStackSize);
 }
 
+
+// xFutureCatchCo 相关处理
 XXAPI xfuture* xFutureCatchCo(xfuture* pFuture, xcosched* pSched, xfuture_cont_fn pfnCont, ptr pArg, size_t iStackSize)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_CATCH, __XNET_FCONT_EXEC_CO, pfnCont, NULL, pArg, NULL, 0, pSched, iStackSize);
 }
 
+
+// xFutureFinallyCo 相关处理
 XXAPI xfuture* xFutureFinallyCo(xfuture* pFuture, xcosched* pSched, xfuture_finally_fn pfnCont, ptr pArg, size_t iStackSize)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_CO, NULL, pfnCont, pArg, NULL, 0, pSched, iStackSize);
 }
 #endif
 
+// 创建任意 Future 完成聚合
 XXAPI xfuture* xFutureWhenAny(xfuture** arrFuture, int iCount)
 {
 	return __xnetFutureCreateGroup(arrFuture, iCount, __XNET_FGROUP_ANY);
 }
 
+
+// 创建全部 Future 完成聚合
 XXAPI xfuture* xFutureWhenAll(xfuture** arrFuture, int iCount)
 {
 	return __xnetFutureCreateGroup(arrFuture, iCount, __XNET_FGROUP_ALL);
 }
 
+
+// 创建 Future 竞速聚合
 XXAPI xfuture* xFutureRace(xfuture** arrFuture, int iCount)
 {
 	return __xnetFutureCreateGroup(arrFuture, iCount, __XNET_FGROUP_RACE);
 }
 
+
+// 内部函数：__xnetTaskGroupWaitSnapshot
 static bool __xnetTaskGroupWaitSnapshot(xtaskgroup* pGroup, uint32 iMode, uint32 iTimeoutMs, int64 iDeadlineMs)
 {
 	xfuture** arrSnapshot = NULL;
@@ -2237,6 +2454,8 @@ static bool __xnetTaskGroupWaitSnapshot(xtaskgroup* pGroup, uint32 iMode, uint32
 	return bOk;
 }
 
+
+// 内部函数：__xnetTaskGroupOnChildFinally
 static void __xnetTaskGroupOnChildFinally(const xfuture_result* pIn, ptr pArg)
 {
 	__xnet_task_group_future_ctx* pCtx = (__xnet_task_group_future_ctx*)pArg;
@@ -2251,6 +2470,8 @@ static void __xnetTaskGroupOnChildFinally(const xfuture_result* pIn, ptr pArg)
 	XNET_FREE(pCtx);
 }
 
+
+// 内部函数：__xnetTaskGroupAttachChildWatcher
 static bool __xnetTaskGroupAttachChildWatcher(xtaskgroup* pGroup, xfuture* pFuture)
 {
 	__xnet_task_group_future_ctx* pCtx = NULL;
@@ -2278,6 +2499,8 @@ static bool __xnetTaskGroupAttachChildWatcher(xtaskgroup* pGroup, xfuture* pFutu
 	return true;
 }
 
+
+// 内部函数：加入任务组 create Future
 static xfuture* __xnetTaskGroupCreateJoinFuture(xtaskgroup* pGroup)
 {
 	xfuture* pWaitFuture = NULL;
@@ -2323,6 +2546,8 @@ static xfuture* __xnetTaskGroupCreateJoinFuture(xtaskgroup* pGroup)
 	}
 }
 
+
+// 内部函数：__xnetTaskGroupCloseInternal
 static void __xnetTaskGroupCloseInternal(xtaskgroup* pGroup)
 {
 	xpromise* pPromise = NULL;
@@ -2341,6 +2566,8 @@ static void __xnetTaskGroupCloseInternal(xtaskgroup* pGroup)
 	__xnetTaskGroupMaybeResolveJoin(pGroup);
 }
 
+
+// 创建任务组
 XXAPI xtaskgroup* xTaskGroupCreate(void)
 {
 	xtaskgroup* pGroup = (xtaskgroup*)XNET_ALLOC(sizeof(xtaskgroup));
@@ -2360,6 +2587,8 @@ XXAPI xtaskgroup* xTaskGroupCreate(void)
 	return pGroup;
 }
 
+
+// xTaskGroupCreateChild 相关处理
 XXAPI xtaskgroup* xTaskGroupCreateChild(xtaskgroup* pParent)
 {
 	xtaskgroup* pChild = NULL;
@@ -2404,6 +2633,8 @@ XXAPI xtaskgroup* xTaskGroupCreateChild(xtaskgroup* pParent)
 	return pChild;
 }
 
+
+// 销毁任务组
 XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup)
 {
 	int i;
@@ -2439,11 +2670,15 @@ XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup)
 	__xnetTaskGroupRelease(pGroup);
 }
 
+
+// 关闭任务组
 XXAPI void xTaskGroupClose(xtaskgroup* pGroup)
 {
 	__xnetTaskGroupCloseInternal(pGroup);
 }
 
+
+// 内部函数：__xnetTaskGroupOnParentFinally
 static void __xnetTaskGroupOnParentFinally(const xfuture_result* pIn, ptr pArg)
 {
 	__xnet_task_group_parent_ctx* pCtx = (__xnet_task_group_parent_ctx*)pArg;
@@ -2461,6 +2696,8 @@ static void __xnetTaskGroupOnParentFinally(const xfuture_result* pIn, ptr pArg)
 	XNET_FREE(pCtx);
 }
 
+
+// xTaskGroupBindParent 相关处理
 XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent)
 {
 	__xnet_task_group_parent_ctx* pCtx = NULL;
@@ -2492,6 +2729,8 @@ XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent)
 	return true;
 }
 
+
+// 增加任务组 Future
 XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture)
 {
 	bool bOk = false;
@@ -2534,6 +2773,8 @@ XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture)
 	return true;
 }
 
+
+// 统计任务组
 XXAPI int xTaskGroupCount(xtaskgroup* pGroup)
 {
 	int iCount = 0;
@@ -2548,6 +2789,8 @@ XXAPI int xTaskGroupCount(xtaskgroup* pGroup)
 	return iCount;
 }
 
+
+// xTaskGroupReapCompleted 相关处理
 XXAPI int xTaskGroupReapCompleted(xtaskgroup* pGroup)
 {
 	int iReaped = 0;
@@ -2562,11 +2805,15 @@ XXAPI int xTaskGroupReapCompleted(xtaskgroup* pGroup)
 	return iReaped;
 }
 
+
+// 加入任务组 Future
 XXAPI xfuture* xTaskGroupJoinFuture(xtaskgroup* pGroup)
 {
 	return __xnetTaskGroupCreateJoinFuture(pGroup);
 }
 
+
+// 等待任务组结束
 XXAPI bool xTaskGroupJoin(xtaskgroup* pGroup)
 {
 	xfuture* pFuture = xTaskGroupJoinFuture(pGroup);
@@ -2585,6 +2832,8 @@ XXAPI bool xTaskGroupJoin(xtaskgroup* pGroup)
 	return bOk;
 }
 
+
+// 限时等待任务组结束
 XXAPI bool xTaskGroupJoinTimeout(xtaskgroup* pGroup, int64 iTimeoutMs)
 {
 	xfuture* pFuture = xTaskGroupJoinFuture(pGroup);
@@ -2603,6 +2852,8 @@ XXAPI bool xTaskGroupJoinTimeout(xtaskgroup* pGroup, int64 iTimeoutMs)
 	return bOk;
 }
 
+
+// 等待任务组结束直到指定时刻
 XXAPI bool xTaskGroupJoinUntil(xtaskgroup* pGroup, int64 iDeadlineMs)
 {
 	xfuture* pFuture = xTaskGroupJoinFuture(pGroup);
@@ -2621,6 +2872,8 @@ XXAPI bool xTaskGroupJoinUntil(xtaskgroup* pGroup, int64 iDeadlineMs)
 	return bOk;
 }
 
+
+// 等待任务组
 XXAPI bool xTaskGroupWait(xtaskgroup* pGroup)
 {
 	bool bOk = __xnetTaskGroupWaitSnapshot(pGroup, 0, 0, 0);
@@ -2630,6 +2883,8 @@ XXAPI bool xTaskGroupWait(xtaskgroup* pGroup)
 	return bOk;
 }
 
+
+// 等待任务组超时
 XXAPI bool xTaskGroupWaitTimeout(xtaskgroup* pGroup, int64 iTimeoutMs)
 {
 	uint32 iWaitMs = 0;
@@ -2652,6 +2907,8 @@ XXAPI bool xTaskGroupWaitTimeout(xtaskgroup* pGroup, int64 iTimeoutMs)
 	}
 }
 
+
+// 等待任务组直到指定时刻
 XXAPI bool xTaskGroupWaitUntil(xtaskgroup* pGroup, int64 iDeadlineMs)
 {
 	bool bOk = __xnetTaskGroupWaitSnapshot(pGroup, 2, 0, iDeadlineMs);
@@ -2661,6 +2918,8 @@ XXAPI bool xTaskGroupWaitUntil(xtaskgroup* pGroup, int64 iDeadlineMs)
 	return bOk;
 }
 
+
+// 取消任务组
 XXAPI void xTaskGroupCancel(xtaskgroup* pGroup)
 {
 	int i;
@@ -2683,6 +2942,8 @@ XXAPI void xTaskGroupCancel(xtaskgroup* pGroup)
 	}
 }
 
+
+// 内部函数：__xnetTaskGroupAdoptFuture
 static xfuture* __xnetTaskGroupAdoptFuture(xtaskgroup* pGroup, xfuture* pFuture)
 {
 	if ( pFuture == NULL ) {
@@ -2698,22 +2959,29 @@ static xfuture* __xnetTaskGroupAdoptFuture(xtaskgroup* pGroup, xfuture* pFuture)
 	return pFuture;
 }
 
+
+// xTaskGroupRunEngine 相关处理
 XXAPI xfuture* xTaskGroupRunEngine(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg)
 {
 	return __xnetTaskGroupAdoptFuture(pGroup, xTaskRunEngine(pEngine, iAffinityKey, pfnTask, pArg));
 }
 
+
+// xTaskGroupRunDelayed 相关处理
 XXAPI xfuture* xTaskGroupRunDelayed(xtaskgroup* pGroup, xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg)
 {
 	return __xnetTaskGroupAdoptFuture(pGroup, xTaskRunDelayed(pEngine, iAffinityKey, iDelayMs, pfnTask, pArg));
 }
 
+
+// xTaskGroupRunThread 相关处理
 XXAPI xfuture* xTaskGroupRunThread(xtaskgroup* pGroup, xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize)
 {
 	return __xnetTaskGroupAdoptFuture(pGroup, xTaskRunThread(pfnTask, pArg, iStackSize));
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// xTaskGroupRunCo 相关处理
 XXAPI xfuture* xTaskGroupRunCo(xtaskgroup* pGroup, xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize)
 {
 	return __xnetTaskGroupAdoptFuture(pGroup, xTaskRunCo(pSched, pfnTask, pArg, iStackSize));
@@ -2721,6 +2989,7 @@ XXAPI xfuture* xTaskGroupRunCo(xtaskgroup* pGroup, xcosched* pSched, xtask_co_fn
 #endif
 #endif
 
+// 等待网络 Future
 XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 {
 	xnet_result iStatus;
@@ -2804,6 +3073,8 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 	return iStatus;
 }
 
+
+// 获取网络 Future 状态
 XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
 {
 	xnet_result iStatus;
@@ -2814,6 +3085,8 @@ XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
 	return iStatus;
 }
 
+
+// 获取网络 Future 值
 XXAPI ptr xrtNetFutureValue(xnetfuture* pFuture)
 {
 	ptr pValue;
@@ -2824,6 +3097,8 @@ XXAPI ptr xrtNetFutureValue(xnetfuture* pFuture)
 	return pValue;
 }
 
+
+// 等待网络 Future 直到指定时刻
 XXAPI xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs)
 {
 	int64_t iNowMs;
@@ -2843,6 +3118,7 @@ XXAPI xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// 内部函数：等待 Future 协程 core
 static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	xcoevent pEvent = NULL;
@@ -2908,11 +3184,15 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 	return (iStatus == XRT_NET_AGAIN) ? XRT_NET_ERROR : iStatus;
 }
 
+
+// 等待网络 Future 协程直到指定时刻
 XXAPI xnet_result xrtNetFutureWaitCoUntil(xnetfuture* pFuture, int64 iDeadlineMs)
 {
 	return __xnetFutureWaitCoCore(pFuture, 2, iDeadlineMs, 0);
 }
 
+
+// 等待网络 Future 协程超时
 XXAPI xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeoutMs)
 {
 	if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
@@ -2922,6 +3202,8 @@ XXAPI xnet_result xrtNetFutureWaitCoTimeout(xnetfuture* pFuture, uint32 iTimeout
 	return __xnetFutureWaitCoCore(pFuture, 1, 0, iTimeoutMs);
 }
 
+
+// 等待网络 Future 协程
 XXAPI xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture)
 {
 	return __xnetFutureWaitCoCore(pFuture, 0, 0, 0);
@@ -2929,11 +3211,14 @@ XXAPI xnet_result xrtNetFutureWaitCo(xnetfuture* pFuture)
 #endif
 
 #if defined(XXRTL_CORE)
+// 等待 Future
 XXAPI bool xFutureWait(xfuture* pFuture)
 {
 	return xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE) == XRT_NET_OK;
 }
 
+
+// 等待 Future 超时
 XXAPI bool xFutureWaitTimeout(xfuture* pFuture, int64 iTimeoutMs)
 {
 	if ( iTimeoutMs < 0 ) return xFutureWait(pFuture);
@@ -2941,17 +3226,22 @@ XXAPI bool xFutureWaitTimeout(xfuture* pFuture, int64 iTimeoutMs)
 	return xrtNetFutureWait(pFuture, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
+
+// 等待 Future 直到指定时刻
 XXAPI bool xFutureWaitUntil(xfuture* pFuture, int64 iDeadlineMs)
 {
 	return xrtNetFutureWaitUntil(pFuture, iDeadlineMs) == XRT_NET_OK;
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// 等待 Future 协程
 XXAPI bool xFutureWaitCo(xfuture* pFuture)
 {
 	return xrtNetFutureWaitCo(pFuture) == XRT_NET_OK;
 }
 
+
+// 等待 Future 协程超时
 XXAPI bool xFutureWaitCoTimeout(xfuture* pFuture, int64 iTimeoutMs)
 {
 	if ( iTimeoutMs < 0 ) return xFutureWaitCo(pFuture);
@@ -2959,38 +3249,50 @@ XXAPI bool xFutureWaitCoTimeout(xfuture* pFuture, int64 iTimeoutMs)
 	return xrtNetFutureWaitCoTimeout(pFuture, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
+
+// 等待 Future 协程直到指定时刻
 XXAPI bool xFutureWaitCoUntil(xfuture* pFuture, int64 iDeadlineMs)
 {
 	return xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs) == XRT_NET_OK;
 }
 #endif
 
+// 等待 Future 值
 XXAPI ptr xFutureWaitValue(xfuture* pFuture)
 {
 	return xFutureWait(pFuture) ? xFutureValue(pFuture) : NULL;
 }
 
+
+// 等待 Future 值超时
 XXAPI ptr xFutureWaitValueTimeout(xfuture* pFuture, int64 iTimeoutMs)
 {
 	return xFutureWaitTimeout(pFuture, iTimeoutMs) ? xFutureValue(pFuture) : NULL;
 }
 
+
+// 等待 Future 值直到指定时刻
 XXAPI ptr xFutureWaitValueUntil(xfuture* pFuture, int64 iDeadlineMs)
 {
 	return xFutureWaitUntil(pFuture, iDeadlineMs) ? xFutureValue(pFuture) : NULL;
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// 等待 Future 协程值
 XXAPI ptr xFutureWaitCoValue(xfuture* pFuture)
 {
 	return xFutureWaitCo(pFuture) ? xFutureValue(pFuture) : NULL;
 }
 
+
+// 等待 Future 协程值超时
 XXAPI ptr xFutureWaitCoValueTimeout(xfuture* pFuture, int64 iTimeoutMs)
 {
 	return xFutureWaitCoTimeout(pFuture, iTimeoutMs) ? xFutureValue(pFuture) : NULL;
 }
 
+
+// 等待 Future 协程值直到指定时刻
 XXAPI ptr xFutureWaitCoValueUntil(xfuture* pFuture, int64 iDeadlineMs)
 {
 	return xFutureWaitCoUntil(pFuture, iDeadlineMs) ? xFutureValue(pFuture) : NULL;
@@ -3032,6 +3334,8 @@ XXAPI xnetengine* xrtNetSyncGetHiddenEngine(void)
 	return pEngine;
 }
 
+
+// xrtNetSyncShutdownHiddenEngine 相关处理
 XXAPI void xrtNetSyncShutdownHiddenEngine(void)
 {
 	__xnet_sync_hidden_state* pState = __xnetSyncHiddenState();
@@ -3048,11 +3352,15 @@ XXAPI void xrtNetSyncShutdownHiddenEngine(void)
 	}
 }
 
+
+// 内部函数：解析同步引擎
 static xnetengine* __xnetSyncResolveEngine(xnetengine* pEngine)
 {
 	return pEngine ? pEngine : xrtNetSyncGetHiddenEngine();
 }
 
+
+// 内部函数：分发 Future 任务
 static void __xnetFutureTaskDispatch(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_future_task_ctx* pCtx = (__xnet_future_task_ctx*)pArg;
@@ -3080,6 +3388,7 @@ static void __xnetFutureTaskDispatch(xnetworker* pWorker, ptr pArg)
 }
 
 #if defined(XXRTL_CORE)
+// 内部函数：更新任务状态
 static void __xnetTaskUpdateState(xtask* pTask, int32 iStatus)
 {
 	if ( pTask == NULL ) {
@@ -3096,6 +3405,8 @@ static void __xnetTaskUpdateState(xtask* pTask, int32 iStatus)
 	}
 }
 
+
+// 内部函数：完成任务
 static void __xnetTaskFinalize(xtask* pTask, xfuture_result* pResult)
 {
 	if ( pTask == NULL ) {
@@ -3121,6 +3432,8 @@ static void __xnetTaskFinalize(xtask* pTask, xfuture_result* pResult)
 	XNET_FREE(pTask);
 }
 
+
+// 内部函数：分发任务
 static void __xnetTaskDispatch(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_task_ctx* pCtx = (__xnet_task_ctx*)pArg;
@@ -3148,6 +3461,8 @@ static void __xnetTaskDispatch(xnetworker* pWorker, ptr pArg)
 	__xnetTaskFinalize(pTask, &tResult);
 }
 
+
+// 内部函数：分发任务线程
 static uint32 __xnetTaskThreadDispatch(ptr pArg)
 {
 	__xnet_task_thread_ctx* pCtx = (__xnet_task_thread_ctx*)pArg;
@@ -3179,6 +3494,8 @@ static uint32 __xnetTaskThreadDispatch(ptr pArg)
 	return (uint32)tResult.iStatus;
 }
 
+
+// 内部函数：分发任务协程
 static void __xnetTaskCoDispatch(ptr pArg)
 {
 	__xnet_task_co_ctx* pCtx = (__xnet_task_co_ctx*)pArg;
@@ -3209,6 +3526,8 @@ static void __xnetTaskCoDispatch(ptr pArg)
 	__xnetTaskFinalize(pTask, &tResult);
 }
 
+
+// 内部函数：创建引擎任务 Future
 static xfuture* __xnetCreateEngineTaskFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg, bool bDelayed)
 {
 	xnetengine* pResolvedEngine = NULL;
@@ -3282,6 +3601,8 @@ static xfuture* __xnetCreateEngineTaskFuture(xnetengine* pEngine, uint32 iAffini
 	return pFuture;
 }
 
+
+// 内部函数：创建线程任务 Future
 static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize)
 {
 	xfuture* pFuture = NULL;
@@ -3346,6 +3667,7 @@ static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, 
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// 内部函数：创建协程任务 Future
 static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize)
 {
 	xfuture* pFuture = NULL;
@@ -3419,6 +3741,7 @@ static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, 
 #endif
 #endif
 
+// 内部函数：取消同步 signal 流 Future
 static void __xnetSyncSignalStreamFutureCancel(__xnet_stream_future_wait_ctx* pCtx)
 {
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
@@ -3430,6 +3753,8 @@ static void __xnetSyncSignalStreamFutureCancel(__xnet_stream_future_wait_ctx* pC
 	#endif
 }
 
+
+// 内部函数：等待同步 cleanup 流 Future
 static void __xnetSyncCleanupStreamFutureWait(xnetfuture* pFuture)
 {
 	__xnet_stream_future_wait_ctx* pCtx = NULL;
@@ -3449,6 +3774,8 @@ static void __xnetSyncCleanupStreamFutureWait(xnetfuture* pFuture)
 	XNET_FREE(pCtx);
 }
 
+
+// 内部函数：等待同步 resolve 流 Future
 static void __xnetSyncResolveStreamFutureWait(__xnet_stream_future_wait_ctx* pCtx, xnet_result iStatus)
 {
 	long iPrevState;
@@ -3464,6 +3791,8 @@ static void __xnetSyncResolveStreamFutureWait(__xnet_stream_future_wait_ctx* pCt
 	__xnetSyncSignalStreamFutureCancel(pCtx);
 }
 
+
+// 内部函数：完成同步 cancel 流 Future wait
 static void __xnetSyncCancelStreamFutureWaitFinish(__xnet_stream_future_wait_ctx* pCtx)
 {
 	long iPrevState;
@@ -3476,6 +3805,8 @@ static void __xnetSyncCancelStreamFutureWaitFinish(__xnet_stream_future_wait_ctx
 	__xnetSyncSignalStreamFutureCancel(pCtx);
 }
 
+
+// 内部函数：__xnetSyncOnStreamDrainFuture
 static void __xnetSyncOnStreamDrainFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -3486,6 +3817,8 @@ static void __xnetSyncOnStreamDrainFuture(xnetstream* pStream, xnet_result iStat
 	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
 }
 
+
+// 内部函数：关闭同步 on 流 Future
 static void __xnetSyncOnStreamCloseFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -3496,6 +3829,8 @@ static void __xnetSyncOnStreamCloseFuture(xnetstream* pStream, xnet_result iStat
 	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
 }
 
+
+// 内部函数：__xnetSyncOnStreamReadableFuture
 static void __xnetSyncOnStreamReadableFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -3506,6 +3841,8 @@ static void __xnetSyncOnStreamReadableFuture(xnetstream* pStream, xnet_result iS
 	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
 }
 
+
+// 内部函数：__xnetSyncOnStreamWritableFuture
 static void __xnetSyncOnStreamWritableFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -3516,6 +3853,8 @@ static void __xnetSyncOnStreamWritableFuture(xnetstream* pStream, xnet_result iS
 	__xnetSyncResolveStreamFutureWait(pWaitCtx, iStatus);
 }
 
+
+// 内部函数：等待同步 cancel 流 Future
 static void __xnetSyncCancelStreamFutureWait(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_stream_future_wait_ctx* pCtx = (__xnet_stream_future_wait_ctx*)pArg;
@@ -3529,6 +3868,8 @@ static void __xnetSyncCancelStreamFutureWait(xnetworker* pWorker, ptr pArg)
 	__xnetSyncCancelStreamFutureWaitFinish(pCtx);
 }
 
+
+// 内部函数：等待同步 register 流 Future
 static void __xnetSyncRegisterStreamFutureWait(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_stream_future_wait_ctx* pCtx = (__xnet_stream_future_wait_ctx*)pArg;
@@ -3570,6 +3911,7 @@ static void __xnetSyncRegisterStreamFutureWait(xnetworker* pWorker, ptr pArg)
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// 内部函数：取消同步 ensure 流 wait 事件
 static xcoevent __xnetSyncEnsureStreamWaitCancelEvent(__xnet_stream_future_wait_ctx* pCtx)
 {
 	xcoevent pEvent = NULL;
@@ -3584,6 +3926,7 @@ static xcoevent __xnetSyncEnsureStreamWaitCancelEvent(__xnet_stream_future_wait_
 }
 #endif
 
+// 内部函数：等待同步 cancel pending 流 Future
 static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 {
 	__xnet_stream_future_wait_ctx* pCtx = NULL;
@@ -3643,6 +3986,8 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 	return true;
 }
 
+
+// 内部函数：__xnetSyncGetStreamWaitOps
 static const __xnet_stream_wait_ops* __xnetSyncGetStreamWaitOps(uint32 iWaitKind)
 {
 	static const __xnet_stream_wait_ops arrOps[__XNET_STREAM_WAIT_COUNT] = {
@@ -3656,6 +4001,8 @@ static const __xnet_stream_wait_ops* __xnetSyncGetStreamWaitOps(uint32 iWaitKind
 	return &arrOps[iWaitKind];
 }
 
+
+// 内部函数：__xnetSyncListenerWaitCanAccept
 static bool __xnetSyncListenerWaitCanAccept(ptr pCtx)
 {
 	__xnet_listener_future_wait_ctx* pWaitCtx = (__xnet_listener_future_wait_ctx*)pCtx;
@@ -3664,6 +4011,8 @@ static bool __xnetSyncListenerWaitCanAccept(ptr pCtx)
 		__xnetAtomicLoad32(&pWaitCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED;
 }
 
+
+// 内部函数：取消同步 signal 监听器 Future
 static void __xnetSyncSignalListenerFutureCancel(__xnet_listener_future_wait_ctx* pCtx)
 {
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
@@ -3675,6 +4024,8 @@ static void __xnetSyncSignalListenerFutureCancel(__xnet_listener_future_wait_ctx
 	#endif
 }
 
+
+// 内部函数：等待同步 cleanup 监听器 Future
 static void __xnetSyncCleanupListenerFutureWait(xnetfuture* pFuture)
 {
 	__xnet_listener_future_wait_ctx* pCtx = NULL;
@@ -3694,6 +4045,8 @@ static void __xnetSyncCleanupListenerFutureWait(xnetfuture* pFuture)
 	XNET_FREE(pCtx);
 }
 
+
+// 内部函数：等待同步 resolve 监听器 Future
 static void __xnetSyncResolveListenerFutureWait(__xnet_listener_future_wait_ctx* pCtx, xnet_result iStatus, xnetstream* pStream)
 {
 	long iPrevState;
@@ -3724,6 +4077,8 @@ static void __xnetSyncResolveListenerFutureWait(__xnet_listener_future_wait_ctx*
 	__xnetSyncSignalListenerFutureCancel(pCtx);
 }
 
+
+// 内部函数：完成同步 cancel 监听器 Future wait
 static void __xnetSyncCancelListenerFutureWaitFinish(__xnet_listener_future_wait_ctx* pCtx)
 {
 	long iPrevState;
@@ -3736,6 +4091,8 @@ static void __xnetSyncCancelListenerFutureWaitFinish(__xnet_listener_future_wait
 	__xnetSyncSignalListenerFutureCancel(pCtx);
 }
 
+
+// 内部函数：接受同步 on 监听器 Future
 static void __xnetSyncOnListenerAcceptFuture(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx)
 {
 	__xnet_listener_future_wait_ctx* pWaitCtx = (__xnet_listener_future_wait_ctx*)pCtx;
@@ -3746,6 +4103,8 @@ static void __xnetSyncOnListenerAcceptFuture(xnetlistener* pListener, xnet_resul
 	__xnetSyncResolveListenerFutureWait(pWaitCtx, iStatus, pStream);
 }
 
+
+// 内部函数：等待同步 cancel 监听器 Future
 static void __xnetSyncCancelListenerFutureWait(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_listener_future_wait_ctx* pCtx = (__xnet_listener_future_wait_ctx*)pArg;
@@ -3759,6 +4118,8 @@ static void __xnetSyncCancelListenerFutureWait(xnetworker* pWorker, ptr pArg)
 	__xnetSyncCancelListenerFutureWaitFinish(pCtx);
 }
 
+
+// 内部函数：等待同步 register 监听器 Future
 static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_listener_future_wait_ctx* pCtx = (__xnet_listener_future_wait_ctx*)pArg;
@@ -3797,6 +4158,7 @@ static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// 内部函数：取消同步 ensure 监听器 wait 事件
 static xcoevent __xnetSyncEnsureListenerWaitCancelEvent(__xnet_listener_future_wait_ctx* pCtx)
 {
 	xcoevent pEvent = NULL;
@@ -3811,6 +4173,7 @@ static xcoevent __xnetSyncEnsureListenerWaitCancelEvent(__xnet_listener_future_w
 }
 #endif
 
+// 内部函数：等待同步 cancel pending 监听器 Future
 static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 {
 	__xnet_listener_future_wait_ctx* pCtx = NULL;
@@ -3869,6 +4232,8 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 	return true;
 }
 
+
+// 内部函数：等待同步 cleanup 数据报 Future
 static void __xnetSyncCleanupDgramFutureWait(xnetfuture* pFuture)
 {
 	__xnet_dgram_future_wait_ctx* pCtx = NULL;
@@ -3888,6 +4253,8 @@ static void __xnetSyncCleanupDgramFutureWait(xnetfuture* pFuture)
 	XNET_FREE(pCtx);
 }
 
+
+// 内部函数：取消同步 signal 数据报 Future
 static void __xnetSyncSignalDgramFutureCancel(__xnet_dgram_future_wait_ctx* pCtx)
 {
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
@@ -3899,6 +4266,8 @@ static void __xnetSyncSignalDgramFutureCancel(__xnet_dgram_future_wait_ctx* pCtx
 	#endif
 }
 
+
+// 内部函数：等待同步 resolve 数据报 Future
 static void __xnetSyncResolveDgramFutureWait(__xnet_dgram_future_wait_ctx* pCtx, xnet_result iStatus, xnetdgrampkt* pPacket)
 {
 	long iPrevState;
@@ -3925,6 +4294,8 @@ static void __xnetSyncResolveDgramFutureWait(__xnet_dgram_future_wait_ctx* pCtx,
 	__xnetSyncSignalDgramFutureCancel(pCtx);
 }
 
+
+// 内部函数：完成同步 cancel 数据报 Future wait
 static void __xnetSyncCancelDgramFutureWaitFinish(__xnet_dgram_future_wait_ctx* pCtx)
 {
 	long iPrevState;
@@ -3937,6 +4308,8 @@ static void __xnetSyncCancelDgramFutureWaitFinish(__xnet_dgram_future_wait_ctx* 
 	__xnetSyncSignalDgramFutureCancel(pCtx);
 }
 
+
+// 内部函数：接收同步 on 数据报 Future
 static void __xnetSyncOnDgramRecvFuture(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket, ptr pCtx)
 {
 	__xnet_dgram_future_wait_ctx* pWaitCtx = (__xnet_dgram_future_wait_ctx*)pCtx;
@@ -3947,6 +4320,8 @@ static void __xnetSyncOnDgramRecvFuture(xdgramsock* pSock, xnet_result iStatus, 
 	__xnetSyncResolveDgramFutureWait(pWaitCtx, iStatus, pPacket);
 }
 
+
+// 内部函数：等待同步 cancel 数据报 Future
 static void __xnetSyncCancelDgramFutureWait(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_dgram_future_wait_ctx* pCtx = (__xnet_dgram_future_wait_ctx*)pArg;
@@ -3961,6 +4336,7 @@ static void __xnetSyncCancelDgramFutureWait(xnetworker* pWorker, ptr pArg)
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// 内部函数：取消同步 ensure 数据报 wait 事件
 static xcoevent __xnetSyncEnsureDgramWaitCancelEvent(__xnet_dgram_future_wait_ctx* pCtx)
 {
 	xcoevent pEvent = NULL;
@@ -3975,6 +4351,7 @@ static xcoevent __xnetSyncEnsureDgramWaitCancelEvent(__xnet_dgram_future_wait_ct
 }
 #endif
 
+// 内部函数：等待同步 cancel pending 数据报 Future
 static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 {
 	__xnet_dgram_future_wait_ctx* pCtx = NULL;
@@ -4034,6 +4411,8 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 	return true;
 }
 
+
+// 内部函数：等待同步 register 数据报 Future
 static void __xnetSyncRegisterDgramFutureWait(xnetworker* pWorker, ptr pArg)
 {
 	__xnet_dgram_future_wait_ctx* pCtx = (__xnet_dgram_future_wait_ctx*)pArg;
@@ -4067,6 +4446,8 @@ static void __xnetSyncRegisterDgramFutureWait(xnetworker* pWorker, ptr pArg)
 	}
 }
 
+
+// 内部函数：创建同步 posted Future
 static xnetfuture* __xnetSyncCreatePostedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg, bool bDelayed)
 {
 	xnetengine* pResolvedEngine = NULL;
@@ -4119,33 +4500,43 @@ static xnetfuture* __xnetSyncCreatePostedFuture(xnetengine* pEngine, uint32 iAff
 	return pFuture;
 }
 
+
+// 网络引擎 post Future相关处理
 XXAPI xnetfuture* xrtNetEnginePostFuture(xnetengine* pEngine, uint32 iAffinityKey, xnet_future_task_fn pfnTask, ptr pArg)
 {
 	return __xnetSyncCreatePostedFuture(pEngine, iAffinityKey, 0, pfnTask, pArg, false);
 }
 
+
+// 网络引擎 post 延迟 Future相关处理
 XXAPI xnetfuture* xrtNetEnginePostDelayedFuture(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_future_task_fn pfnTask, ptr pArg)
 {
 	return __xnetSyncCreatePostedFuture(pEngine, iAffinityKey, iDelayMs, pfnTask, pArg, true);
 }
 
 #if defined(XXRTL_CORE)
+// xTaskRunEngine 相关处理
 XXAPI xfuture* xTaskRunEngine(xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg)
 {
 	return __xnetCreateEngineTaskFuture(pEngine, iAffinityKey, 0, pfnTask, pArg, false);
 }
 
+
+// xTaskRunDelayed 相关处理
 XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg)
 {
 	return __xnetCreateEngineTaskFuture(pEngine, iAffinityKey, iDelayMs, pfnTask, pArg, true);
 }
 
+
+// xTaskRunThread 相关处理
 XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize)
 {
 	return __xnetCreateThreadTaskFuture(pfnTask, pArg, iStackSize);
 }
 
 #if !defined(XRT_NO_COROUTINE)
+// xTaskRunCo 相关处理
 XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize)
 {
 	return __xnetCreateCoTaskFuture(pSched, pfnTask, pArg, iStackSize);
@@ -4153,6 +4544,7 @@ XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_
 #endif
 #endif
 
+// 内部函数：等待同步 create 流 Future
 static xnetfuture* __xnetSyncCreateStreamFutureWait(xnetstream* pStream, uint32 iWaitKind)
 {
 	xnetfuture* pFuture = NULL;
@@ -4208,31 +4600,43 @@ static xnetfuture* __xnetSyncCreateStreamFutureWait(xnetstream* pStream, uint32 
 	return pFuture;
 }
 
+
+// 网络流 drain Future相关处理
 XXAPI xnetfuture* xrtNetStreamDrainFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_DRAIN);
 }
 
+
+// 网络流 writable Future相关处理
 XXAPI xnetfuture* xrtNetStreamWritableFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_WRITABLE);
 }
 
+
+// 关闭网络流 Future
 XXAPI xnetfuture* xrtNetStreamCloseFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_CLOSE);
 }
 
+
+// 网络流 readable Future相关处理
 XXAPI xnetfuture* xrtNetStreamReadableFuture(xnetstream* pStream)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, __XNET_STREAM_WAIT_READABLE);
 }
 
+
+// 网络流 Future 扩展相关处理
 XXAPI xnetfuture* xrtNetStreamFutureEx(xnetstream* pStream, uint32 iWaitKind)
 {
 	return __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
 }
 
+
+// 内部函数：接受同步 create 监听器 Future
 static xnetfuture* __xnetSyncCreateListenerFutureAccept(xnetlistener* pListener)
 {
 	xnetfuture* pFuture = NULL;
@@ -4277,11 +4681,15 @@ static xnetfuture* __xnetSyncCreateListenerFutureAccept(xnetlistener* pListener)
 	return pFuture;
 }
 
+
+// 接受网络监听器 Future
 XXAPI xnetfuture* xrtNetListenerAcceptFuture(xnetlistener* pListener)
 {
 	return __xnetSyncCreateListenerFutureAccept(pListener);
 }
 
+
+// 内部函数：接收同步 create 数据报 Future
 static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 {
 	xnetfuture* pFuture = NULL;
@@ -4334,11 +4742,15 @@ static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 	return pFuture;
 }
 
+
+// 接收网络数据报 Future
 XXAPI xnetfuture* xrtNetDgramRecvFuture(xdgramsock* pSock)
 {
 	return __xnetSyncCreateDgramFutureRecv(pSock);
 }
 
+
+// 内部函数：等待同步监听器同步 core 扩展
 static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
@@ -4385,6 +4797,8 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 	return iStatus;
 }
 
+
+// 内部函数：等待同步数据报同步 core 扩展
 static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
@@ -4431,11 +4845,15 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 	return iStatus;
 }
 
+
+// 内部函数：等待同步数据报同步 core
 static xnet_result UNUSED_ATTR __xnetSyncWaitDgramSyncCore(xdgramsock* pSock, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitDgramSyncCoreEx(pSock, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
+
+// 内部函数：等待同步流同步 core 扩展
 static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
@@ -4482,11 +4900,15 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 	return iStatus;
 }
 
+
+// 内部函数：等待同步流同步 core
 static xnet_result UNUSED_ATTR __xnetSyncWaitStreamSyncCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitStreamSyncCoreEx(pStream, iWaitKind, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
+
+// 内部函数：等待同步源同步 core 扩展
 static xnet_result __xnetSyncWaitSourceSyncCoreEx(const xnetwaitsrc* pSrc, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	if ( ppValue ) *ppValue = NULL;
@@ -4536,90 +4958,123 @@ static xnet_result __xnetSyncWaitSourceSyncCoreEx(const xnetwaitsrc* pSrc, int i
 	return XRT_NET_ERROR;
 }
 
+
+// 内部函数：等待同步源同步 core
 static xnet_result __xnetSyncWaitSourceSyncCore(const xnetwaitsrc* pSrc, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
+
+// 等待网络流扩展
 XXAPI xnet_result xrtNetStreamWaitEx(xnetstream* pStream, uint32 iWaitKind)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceSyncCore(&tSrc, 0, 0, 0);
 }
 
+
+// 等待网络流超时扩展
 XXAPI xnet_result xrtNetStreamWaitTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceSyncCore(&tSrc, 1, 0, iTimeoutMs);
 }
 
+
+// 等待网络流直到指定时刻扩展
 XXAPI xnet_result xrtNetStreamWaitUntilEx(xnetstream* pStream, uint32 iWaitKind, int64_t iDeadlineMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceSyncCore(&tSrc, 2, iDeadlineMs, 0);
 }
 
+
+// 创建 wait等待源
 XXAPI xnet_result xrtNetWaitSourceWait(const xnetwaitsrc* pSrc)
 {
 	return __xnetSyncWaitSourceSyncCore(pSrc, 0, 0, 0);
 }
 
+
+// 创建 wait 超时等待源
 XXAPI xnet_result xrtNetWaitSourceWaitTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitSourceSyncCore(pSrc, 1, 0, iTimeoutMs);
 }
 
+
+// 创建 wait 直到指定时刻等待源
 XXAPI xnet_result xrtNetWaitSourceWaitUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs)
 {
 	return __xnetSyncWaitSourceSyncCore(pSrc, 2, iDeadlineMs, 0);
 }
 
+
+// 创建 wait 值等待源
 XXAPI xnet_result xrtNetWaitSourceWaitValue(const xnetwaitsrc* pSrc, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 0, 0, 0, ppValue);
 }
 
+
+// 创建 wait 值超时等待源
 XXAPI xnet_result xrtNetWaitSourceWaitValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 1, 0, iTimeoutMs, ppValue);
 }
 
+
+// 创建 wait 值直到指定时刻等待源
 XXAPI xnet_result xrtNetWaitSourceWaitValueUntil(const xnetwaitsrc* pSrc, int64_t iDeadlineMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceSyncCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
 }
 
 #if defined(XXRTL_CORE)
+// 等待 x 源空
 XXAPI xwaitsrc xWaitSourceNone(void)
 {
 	return xrtNetWaitSourceNone();
 }
 
+
+// xWaitSourceFromFuture 相关处理
 XXAPI xwaitsrc xWaitSourceFromFuture(xfuture* pFuture)
 {
 	return xrtNetWaitSourceFuture(pFuture);
 }
 
+
+// xWaitSourceFromStream 相关处理
 XXAPI xwaitsrc xWaitSourceFromStream(xnetstream* pStream, uint32 iWaitKind)
 {
 	return xrtNetWaitSourceStream(pStream, iWaitKind);
 }
 
+
+// xWaitSourceFromDgramRecv 相关处理
 XXAPI xwaitsrc xWaitSourceFromDgramRecv(xdgramsock* pSock)
 {
 	return xrtNetWaitSourceDgramRecv(pSock);
 }
 
+
+// xWaitSourceFromListenerAccept 相关处理
 XXAPI xwaitsrc xWaitSourceFromListenerAccept(xnetlistener* pListener)
 {
 	return xrtNetWaitSourceListenerAccept(pListener);
 }
 
+
+// xWaitSourceWait 相关处理
 XXAPI bool xWaitSourceWait(const xwaitsrc* pSrc)
 {
 	return xrtNetWaitSourceWait(pSrc) == XRT_NET_OK;
 }
 
+
+// xWaitSourceWaitTimeout 相关处理
 XXAPI bool xWaitSourceWaitTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
 	if ( iTimeoutMs < 0 ) return xWaitSourceWait(pSrc);
@@ -4627,17 +5082,23 @@ XXAPI bool xWaitSourceWaitTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 	return xrtNetWaitSourceWaitTimeout(pSrc, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
+
+// xWaitSourceWaitUntil 相关处理
 XXAPI bool xWaitSourceWaitUntil(const xwaitsrc* pSrc, int64 iDeadlineMs)
 {
 	return xrtNetWaitSourceWaitUntil(pSrc, iDeadlineMs) == XRT_NET_OK;
 }
 
+
+// xWaitSourceWaitValue 相关处理
 XXAPI ptr xWaitSourceWaitValue(const xwaitsrc* pSrc)
 {
 	ptr pValue = NULL;
 	return xrtNetWaitSourceWaitValue(pSrc, &pValue) == XRT_NET_OK ? pValue : NULL;
 }
 
+
+// 等待 x wait 源值超时
 XXAPI ptr xWaitSourceWaitValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
 	ptr pValue = NULL;
@@ -4646,6 +5107,8 @@ XXAPI ptr xWaitSourceWaitValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 	return xrtNetWaitSourceWaitValueTimeout(pSrc, (uint32)iTimeoutMs, &pValue) == XRT_NET_OK ? pValue : NULL;
 }
 
+
+// 等待 x wait 源值直到指定时刻
 XXAPI ptr xWaitSourceWaitValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs)
 {
 	ptr pValue = NULL;
@@ -4653,36 +5116,47 @@ XXAPI ptr xWaitSourceWaitValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs)
 }
 #endif
 
+// 接受网络监听器
 XXAPI xnet_result xrtNetListenerAccept(xnetlistener* pListener, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 0, 0, 0, (ptr*)ppStream);
 }
 
+
+// 接受网络监听器超时
 XXAPI xnet_result xrtNetListenerAcceptTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppStream);
 }
 
+
+// 接受网络监听器直到指定时刻
 XXAPI xnet_result xrtNetListenerAcceptUntil(xnetlistener* pListener, int64_t iDeadlineMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppStream);
 }
 
+
+// 接收网络数据报
 XXAPI xnet_result xrtNetDgramRecv(xdgramsock* pSock, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 0, 0, 0, (ptr*)ppPacket);
 }
 
+
+// 接收网络数据报超时
 XXAPI xnet_result xrtNetDgramRecvTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceSyncCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppPacket);
 }
 
+
+// 接收网络数据报直到指定时刻
 XXAPI xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
@@ -4690,6 +5164,7 @@ XXAPI xnet_result xrtNetDgramRecvUntil(xdgramsock* pSock, int64_t iDeadlineMs, x
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// 内部函数：等待同步流协程 core 扩展
 static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
@@ -4746,11 +5221,15 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	return iStatus;
 }
 
+
+// 内部函数：等待同步流协程 core
 static xnet_result UNUSED_ATTR __xnetSyncWaitStreamCoCore(xnetstream* pStream, uint32 iWaitKind, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitStreamCoCoreEx(pStream, iWaitKind, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
+
+// 内部函数：等待同步监听器协程 core 扩展
 static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
@@ -4807,11 +5286,15 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	return iStatus;
 }
 
+
+// 内部函数：等待同步监听器协程 core
 static xnet_result UNUSED_ATTR __xnetSyncWaitListenerCoCore(xnetlistener* pListener, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitListenerCoCoreEx(pListener, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
+
+// 内部函数：等待同步数据报协程 core 扩展
 static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	xnetfuture* pFuture = NULL;
@@ -4868,11 +5351,15 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	return iStatus;
 }
 
+
+// 内部函数：等待同步数据报协程 core
 static xnet_result UNUSED_ATTR __xnetSyncWaitDgramCoCore(xdgramsock* pSock, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitDgramCoCoreEx(pSock, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
 }
 
+
+// 内部函数：等待同步源协程 core 扩展
 static xnet_result __xnetSyncWaitSourceCoCoreEx(const xnetwaitsrc* pSrc, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
 	if ( ppValue ) *ppValue = NULL;
@@ -4922,6 +5409,8 @@ static xnet_result __xnetSyncWaitSourceCoCoreEx(const xnetwaitsrc* pSrc, int iWa
 	return XRT_NET_ERROR;
 }
 
+
+// 内部函数：等待同步源协程 core
 static xnet_result __xnetSyncWaitSourceCoCore(const xnetwaitsrc* pSrc, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, iWaitMode, iDeadlineMs, iTimeoutMs, NULL);
@@ -4931,120 +5420,165 @@ XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind);
 XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
 XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs);
 
+
+// 等待网络流 drain 协程
 XXAPI xnet_result xrtNetStreamWaitDrainCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_DRAIN);
 }
 
+
+// 等待网络流 drain 协程超时
 XXAPI xnet_result xrtNetStreamWaitDrainCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_DRAIN, iTimeoutMs);
 }
 
+
+// 等待网络流 drain 协程直到指定时刻
 XXAPI xnet_result xrtNetStreamWaitDrainCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_DRAIN, iDeadlineMs);
 }
 
+
+// 等待网络流 writable 协程
 XXAPI xnet_result xrtNetStreamWaitWritableCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_WRITABLE);
 }
 
+
+// 等待网络流 writable 协程超时
 XXAPI xnet_result xrtNetStreamWaitWritableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_WRITABLE, iTimeoutMs);
 }
 
+
+// 等待网络流 writable 协程直到指定时刻
 XXAPI xnet_result xrtNetStreamWaitWritableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_WRITABLE, iDeadlineMs);
 }
 
+
+// 关闭网络流 wait 协程
 XXAPI xnet_result xrtNetStreamWaitCloseCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_CLOSE);
 }
 
+
+// 关闭网络流 wait 协程超时
 XXAPI xnet_result xrtNetStreamWaitCloseCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_CLOSE, iTimeoutMs);
 }
 
+
+// 关闭网络流 wait 协程直到指定时刻
 XXAPI xnet_result xrtNetStreamWaitCloseCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_CLOSE, iDeadlineMs);
 }
 
+
+// 等待网络流 readable 协程
 XXAPI xnet_result xrtNetStreamWaitReadableCo(xnetstream* pStream)
 {
 	return xrtNetStreamWaitCoEx(pStream, __XNET_STREAM_WAIT_READABLE);
 }
 
+
+// 等待网络流 readable 协程超时
 XXAPI xnet_result xrtNetStreamWaitReadableCoTimeout(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	return xrtNetStreamWaitCoTimeoutEx(pStream, __XNET_STREAM_WAIT_READABLE, iTimeoutMs);
 }
 
+
+// 等待网络流 readable 协程直到指定时刻
 XXAPI xnet_result xrtNetStreamWaitReadableCoUntil(xnetstream* pStream, int64 iDeadlineMs)
 {
 	return xrtNetStreamWaitCoUntilEx(pStream, __XNET_STREAM_WAIT_READABLE, iDeadlineMs);
 }
 
+
+// 等待网络流协程扩展
 XXAPI xnet_result xrtNetStreamWaitCoEx(xnetstream* pStream, uint32 iWaitKind)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceCoCore(&tSrc, 0, 0, 0);
 }
 
+
+// 等待网络流协程超时扩展
 XXAPI xnet_result xrtNetStreamWaitCoTimeoutEx(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceCoCore(&tSrc, 1, 0, iTimeoutMs);
 }
 
+
+// 等待网络流协程直到指定时刻扩展
 XXAPI xnet_result xrtNetStreamWaitCoUntilEx(xnetstream* pStream, uint32 iWaitKind, int64 iDeadlineMs)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceStream(pStream, iWaitKind);
 	return __xnetSyncWaitSourceCoCore(&tSrc, 2, iDeadlineMs, 0);
 }
 
+
+// 创建 wait 协程等待源
 XXAPI xnet_result xrtNetWaitSourceWaitCo(const xnetwaitsrc* pSrc)
 {
 	return __xnetSyncWaitSourceCoCore(pSrc, 0, 0, 0);
 }
 
+
+// 创建 wait 协程超时等待源
 XXAPI xnet_result xrtNetWaitSourceWaitCoTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs)
 {
 	return __xnetSyncWaitSourceCoCore(pSrc, 1, 0, iTimeoutMs);
 }
 
+
+// 创建 wait 协程直到指定时刻等待源
 XXAPI xnet_result xrtNetWaitSourceWaitCoUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs)
 {
 	return __xnetSyncWaitSourceCoCore(pSrc, 2, iDeadlineMs, 0);
 }
 
+
+// 创建 wait 协程值等待源
 XXAPI xnet_result xrtNetWaitSourceWaitCoValue(const xnetwaitsrc* pSrc, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, 0, 0, 0, ppValue);
 }
 
+
+// 创建 wait 协程值超时等待源
 XXAPI xnet_result xrtNetWaitSourceWaitCoValueTimeout(const xnetwaitsrc* pSrc, uint32 iTimeoutMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, 1, 0, iTimeoutMs, ppValue);
 }
 
+
+// 创建 wait 协程值直到指定时刻等待源
 XXAPI xnet_result xrtNetWaitSourceWaitCoValueUntil(const xnetwaitsrc* pSrc, int64 iDeadlineMs, ptr* ppValue)
 {
 	return __xnetSyncWaitSourceCoCoreEx(pSrc, 2, iDeadlineMs, 0, ppValue);
 }
 
 #if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
+// xWaitSourceWaitCo 相关处理
 XXAPI bool xWaitSourceWaitCo(const xwaitsrc* pSrc)
 {
 	return xrtNetWaitSourceWaitCo(pSrc) == XRT_NET_OK;
 }
 
+
+// 等待 x wait 源协程超时
 XXAPI bool xWaitSourceWaitCoTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
 	if ( iTimeoutMs < 0 ) return xWaitSourceWaitCo(pSrc);
@@ -5052,17 +5586,23 @@ XXAPI bool xWaitSourceWaitCoTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 	return xrtNetWaitSourceWaitCoTimeout(pSrc, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
+
+// 等待 x wait 源协程直到指定时刻
 XXAPI bool xWaitSourceWaitCoUntil(const xwaitsrc* pSrc, int64 iDeadlineMs)
 {
 	return xrtNetWaitSourceWaitCoUntil(pSrc, iDeadlineMs) == XRT_NET_OK;
 }
 
+
+// 等待 x wait 源协程值
 XXAPI ptr xWaitSourceWaitCoValue(const xwaitsrc* pSrc)
 {
 	ptr pValue = NULL;
 	return xrtNetWaitSourceWaitCoValue(pSrc, &pValue) == XRT_NET_OK ? pValue : NULL;
 }
 
+
+// 等待 x wait 源协程值超时
 XXAPI ptr xWaitSourceWaitCoValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
 	ptr pValue = NULL;
@@ -5071,6 +5611,8 @@ XXAPI ptr xWaitSourceWaitCoValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 	return xrtNetWaitSourceWaitCoValueTimeout(pSrc, (uint32)iTimeoutMs, &pValue) == XRT_NET_OK ? pValue : NULL;
 }
 
+
+// 等待 x wait 源协程值直到指定时刻
 XXAPI ptr xWaitSourceWaitCoValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs)
 {
 	ptr pValue = NULL;
@@ -5078,36 +5620,47 @@ XXAPI ptr xWaitSourceWaitCoValueUntil(const xwaitsrc* pSrc, int64 iDeadlineMs)
 }
 #endif
 
+// 接受网络监听器协程
 XXAPI xnet_result xrtNetListenerAcceptCo(xnetlistener* pListener, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 0, 0, 0, (ptr*)ppStream);
 }
 
+
+// 接受网络监听器协程超时
 XXAPI xnet_result xrtNetListenerAcceptCoTimeout(xnetlistener* pListener, uint32 iTimeoutMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppStream);
 }
 
+
+// 接受网络监听器协程直到指定时刻
 XXAPI xnet_result xrtNetListenerAcceptCoUntil(xnetlistener* pListener, int64 iDeadlineMs, xnetstream** ppStream)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceListenerAccept(pListener);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 2, iDeadlineMs, 0, (ptr*)ppStream);
 }
 
+
+// 接收网络数据报协程
 XXAPI xnet_result xrtNetDgramRecvCo(xdgramsock* pSock, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 0, 0, 0, (ptr*)ppPacket);
 }
 
+
+// 接收网络数据报协程超时
 XXAPI xnet_result xrtNetDgramRecvCoTimeout(xdgramsock* pSock, uint32 iTimeoutMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);
 	return __xnetSyncWaitSourceCoCoreEx(&tSrc, 1, 0, iTimeoutMs, (ptr*)ppPacket);
 }
 
+
+// 接收网络数据报协程直到指定时刻
 XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, xnetdgrampkt** ppPacket)
 {
 	xnetwaitsrc tSrc = xrtNetWaitSourceDgramRecv(pSock);

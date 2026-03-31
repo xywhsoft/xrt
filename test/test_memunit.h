@@ -9,6 +9,7 @@ typedef struct {
 
 
 
+// MEMUNIT测试
 void Test_MemUnit(xrtGlobalData* xCore)
 {
 	printf("\n\n\n------------------------------------\n\n Memory Unit 库测试 :\n\n");

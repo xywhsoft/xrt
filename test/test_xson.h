@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_XSON_H
 #define XRT_TEST_XSON_H
 
+// 内部函数：__Test_XSONFail
 static int __Test_XSONFail(const char* sMsg)
 {
 	fprintf(stderr, "[xson] FAIL: %s\n", sMsg ? sMsg : "(no message)");
@@ -9,6 +10,7 @@ static int __Test_XSONFail(const char* sMsg)
 
 #define __TEST_XSON_REQUIRE(cond, msg)	do { if ( !(cond) ) { return __Test_XSONFail(msg); } } while (0)
 
+// XSON测试
 static int Test_XSON(void)
 {
 	xvalue pVal;

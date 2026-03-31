@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_TEMPARENA_CORE_H
 #define XRT_TEST_TEMPARENA_CORE_H
 
+// 内部函数：__Test_TempArenaCoreRequire
 static void __Test_TempArenaCoreRequire(bool bCond, const char* sMsg)
 {
 	if ( !bCond ) {
@@ -9,6 +10,8 @@ static void __Test_TempArenaCoreRequire(bool bCond, const char* sMsg)
 	}
 }
 
+
+// 内部函数：__Test_TempArenaCoreFileContains
 static bool __Test_TempArenaCoreFileContains(const char* sPath, const char* sNeedle)
 {
 	FILE* pFile;
@@ -46,6 +49,8 @@ static bool __Test_TempArenaCoreFileContains(const char* sPath, const char* sNee
 	return bRet;
 }
 
+
+// 内部函数：__Test_TempArenaCoreCountBlocks
 static uint32 __Test_TempArenaCoreCountBlocks(xrtTempArenaBlock* pBlock)
 {
 	uint32 iCount = 0;
@@ -56,6 +61,8 @@ static uint32 __Test_TempArenaCoreCountBlocks(xrtTempArenaBlock* pBlock)
 	return iCount;
 }
 
+
+// TEMPARENA核心测试
 static void Test_TempArenaCore(void)
 {
 	xrtThreadData* pThreadData;

@@ -221,6 +221,7 @@ static char** __g_arrXrtTestExtraArgs = NULL;
 
 
 
+// ONERROR相关处理
 void OnError(str sError)
 {
 	printf("X Runtime Error : %s\n", sError);
@@ -332,6 +333,8 @@ XRT_TEST_WRAP_VOID(__xrtTestRun_MemTelemetry, Test_MemTelemetry)
 #endif
 XRT_TEST_WRAP_VOID(__xrtTestRun_TempArenaCore, Test_TempArenaCore)
 
+
+// 内部函数：__xrtTestRun_FutureCore
 static int __xrtTestRun_FutureCore(xrtGlobalData* pCore)
 {
 	int iRet;
@@ -348,6 +351,7 @@ static int __xrtTestRun_FutureCore(xrtGlobalData* pCore)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 内部函数：__xrtTestRun_MemDebugCore
 static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 {
 	(void)pCore;
@@ -362,6 +366,7 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 
 #ifndef XRT_NO_XURL
 	#ifndef XRT_NO_HTTP_UTIL
+		// 内部函数：__xrtTestRun_XUrlCore
 		static int __xrtTestRun_XUrlCore(xrtGlobalData* pCore)
 		{
 			(void)pCore;
@@ -390,6 +395,9 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNetProxy, Test_XNet_Proxy)
 	#ifndef XRT_NO_NETTLS
 		XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2TLS, Test_XNet2_TLS)
+
+
+		// 内部函数：__xrtTestRun_TLSBoundaryStress
 		static int __xrtTestRun_TLSBoundaryStress(xrtGlobalData* pCore)
 		{
 			(void)pCore;
@@ -401,6 +409,7 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	#endif
 #endif
 
+// 内部函数：__xrtTestParseUint32ExtraArg
 static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue)
 {
 	char* sEnd = NULL;
@@ -419,6 +428,7 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue)
 }
 
 #ifndef XRT_NO_NETWORK
+// 内部函数：__xrtTestRun_XNetNativeCore
 static int __xrtTestRun_XNetNativeCore(xrtGlobalData* pCore)
 {
 	(void)pCore;
@@ -666,6 +676,7 @@ static const xrt_test_preset __g_arrXrtPresets[] = {
 
 
 
+// 内部函数：__xrtTestFindEntry
 static const xrt_test_entry* __xrtTestFindEntry(const char* sId)
 {
 	size_t i;
@@ -683,6 +694,8 @@ static const xrt_test_entry* __xrtTestFindEntry(const char* sId)
 	return NULL;
 }
 
+
+// 内部函数：__xrtTestFindPreset
 static const xrt_test_preset* __xrtTestFindPreset(const char* sId)
 {
 	size_t i;
@@ -700,6 +713,8 @@ static const xrt_test_preset* __xrtTestFindPreset(const char* sId)
 	return NULL;
 }
 
+
+// 内部函数：__xrtTestPrintCatalog
 static void __xrtTestPrintCatalog(void)
 {
 	size_t i;
@@ -721,6 +736,8 @@ static void __xrtTestPrintCatalog(void)
 	printf("  %-20s %s\n", "all", "Run all registered tests");
 }
 
+
+// 内部函数：__xrtTestInvoke
 static int __xrtTestInvoke(const xrt_test_entry* pEntry)
 {
 	xrtGlobalData* pCore = NULL;
@@ -749,6 +766,8 @@ static int __xrtTestInvoke(const xrt_test_entry* pEntry)
 	return iRet;
 }
 
+
+// 内部函数：__xrtTestRunEntry
 static int __xrtTestRunEntry(const xrt_test_entry* pEntry, xrt_test_summary* pSummary)
 {
 	int iRet;
@@ -782,6 +801,8 @@ static int __xrtTestRunEntry(const xrt_test_entry* pEntry, xrt_test_summary* pSu
 	return iRet;
 }
 
+
+// 内部函数：__xrtTestRunSingle
 static int __xrtTestRunSingle(const char* sId, xrt_test_summary* pSummary)
 {
 	const xrt_test_entry* pEntry = __xrtTestFindEntry(sId);
@@ -798,6 +819,8 @@ static int __xrtTestRunSingle(const char* sId, xrt_test_summary* pSummary)
 	return __xrtTestRunEntry(pEntry, pSummary);
 }
 
+
+// 内部函数：__xrtTestRunPreset
 static int __xrtTestRunPreset(const char* sId, xrt_test_summary* pSummary)
 {
 	const xrt_test_preset* pPreset = __xrtTestFindPreset(sId);
@@ -824,6 +847,8 @@ static int __xrtTestRunPreset(const char* sId, xrt_test_summary* pSummary)
 	return iRet;
 }
 
+
+// 内部函数：__xrtTestRunAll
 static int __xrtTestRunAll(xrt_test_summary* pSummary)
 {
 	size_t i;
@@ -840,6 +865,8 @@ static int __xrtTestRunAll(xrt_test_summary* pSummary)
 	return iRet;
 }
 
+
+// 内部函数：__xrtTestPrintSummary
 static void __xrtTestPrintSummary(const xrt_test_summary* pSummary)
 {
 	if ( pSummary == NULL ) {
@@ -852,6 +879,8 @@ static void __xrtTestPrintSummary(const xrt_test_summary* pSummary)
 		(unsigned long long)pSummary->iSkipCount);
 }
 
+
+// 内部函数：__xrtTestResolveCli
 static int __xrtTestResolveCli(int argc, char** argv, int* piRunMode, const char** psRunId)
 {
 	if ( piRunMode == NULL || psRunId == NULL ) {
@@ -891,6 +920,7 @@ static int __xrtTestResolveCli(int argc, char** argv, int* piRunMode, const char
 
 
 
+// MAIN相关处理
 int main(int argc, char** argv)
 {
 	int iRunMode = XRT_TEST_RUN_MODE;

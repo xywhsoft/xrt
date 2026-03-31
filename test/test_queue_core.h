@@ -65,6 +65,7 @@ typedef struct {
 #define __TEST_QUEUE_CORE_MPMC_ITEMS_PER_PRODUCER 1024u
 #define __TEST_QUEUE_CORE_MPMC_TOTAL_ITEMS (__TEST_QUEUE_CORE_MPMC_PRODUCER_COUNT * __TEST_QUEUE_CORE_MPMC_ITEMS_PER_PRODUCER)
 
+// 内部函数：__Test_QueueCore_DrainProc
 static void __Test_QueueCore_DrainProc(ptr pItem, ptr pUserData)
 {
 	__test_queue_core_drain_ctx* pCtx = (__test_queue_core_drain_ctx*)pUserData;
@@ -77,21 +78,29 @@ static void __Test_QueueCore_DrainProc(ptr pItem, ptr pUserData)
 	pCtx->iCount++;
 }
 
+
+// 内部函数：__Test_QueueCore_AtomicInc
 static long __Test_QueueCore_AtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_QueueCore_AtomicLoad
 static long __Test_QueueCore_AtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_QueueCore_AtomicCAS
 static long __Test_QueueCore_AtomicCAS(volatile long* pValue, long iExchange, long iComparand)
 {
 	return __xrtTestAtomicCompareExchangeLong(pValue, iExchange, iComparand);
 }
 
+
+// 内部函数：__Test_QueueCore_SPSCProducer
 static uint32 __Test_QueueCore_SPSCProducer(ptr pArg)
 {
 	__test_queue_core_spsc_ctx* pCtx = (__test_queue_core_spsc_ctx*)pArg;
@@ -120,6 +129,8 @@ static uint32 __Test_QueueCore_SPSCProducer(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_QueueCore_MPSCProducer
 static uint32 __Test_QueueCore_MPSCProducer(ptr pArg)
 {
 	__test_queue_core_mpsc_ctx* pCtx = (__test_queue_core_mpsc_ctx*)pArg;
@@ -147,6 +158,8 @@ static uint32 __Test_QueueCore_MPSCProducer(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_QueueCore_MPMCProducer
 static uint32 __Test_QueueCore_MPMCProducer(ptr pArg)
 {
 	__test_queue_core_mpmc_prod_ctx* pCtx = (__test_queue_core_mpmc_prod_ctx*)pArg;
@@ -174,6 +187,8 @@ static uint32 __Test_QueueCore_MPMCProducer(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_QueueCore_MPMCConsumer
 static uint32 __Test_QueueCore_MPMCConsumer(ptr pArg)
 {
 	__test_queue_core_mpmc_cons_ctx* pCtx = (__test_queue_core_mpmc_cons_ctx*)pArg;
@@ -215,6 +230,7 @@ static uint32 __Test_QueueCore_MPMCConsumer(ptr pArg)
 }
 
 #ifndef XRT_NO_QUEUE_WAIT
+// 内部函数：__Test_QueueCore_MPSCWaitConsumer
 static uint32 __Test_QueueCore_MPSCWaitConsumer(ptr pArg)
 {
 	__test_queue_core_mpscwait_cons_ctx* pCtx = (__test_queue_core_mpscwait_cons_ctx*)pArg;
@@ -238,12 +254,15 @@ static uint32 __Test_QueueCore_MPSCWaitConsumer(ptr pArg)
 }
 #endif
 
+// 内部函数：__Test_QueueCore_Check
 static int __Test_QueueCore_Check(const char* sName, int bOk)
 {
 	printf("  %s : %s\n", sName, bOk ? "PASS" : "FAIL");
 	return bOk ? 0 : 1;
 }
 
+
+// 内部函数：__Test_QueueCore_U32AtomicLoadStoreGuard
 static int __Test_QueueCore_U32AtomicLoadStoreGuard(void)
 {
 	__test_queue_core_u32_atomic_probe tProbe;
@@ -256,6 +275,8 @@ static int __Test_QueueCore_U32AtomicLoadStoreGuard(void)
 		tProbe.iGuard == 0x5c6d7e8fu;
 }
 
+
+// 队列核心测试
 static int Test_QueueCore(void)
 {
 	int iFail = 0;

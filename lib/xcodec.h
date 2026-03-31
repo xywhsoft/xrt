@@ -77,12 +77,16 @@ XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps
 	pParser->pCtx = pCtx;
 }
 
+
+// xrtCodecParserParse 相关处理
 XXAPI xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetchain* pInput, xcodecframe* pFrame)
 {
 	if ( !pParser || !pParser->pOps || !pParser->pOps->Parse ) return XCODEC_STATUS_ERROR;
 	return pParser->pOps->Parse(pParser->pCtx, pInput, pFrame);
 }
 
+
+// xrtCodecParserReset 相关处理
 XXAPI void xrtCodecParserReset(const xcodecparser* pParser)
 {
 	if ( !pParser || !pParser->pOps || !pParser->pOps->Reset ) return;
@@ -122,6 +126,8 @@ static size_t __xcodecChainPeekAt(const xnetchain* pChain, size_t iOffset, ptr p
 	return iCopied;
 }
 
+
+// 内部函数：__xcodecChainMatchAt
 static bool __xcodecChainMatchAt(const xnetchain* pChain, size_t iOffset, const uint8* pNeedle, size_t iNeedleLen)
 {
 	size_t iSeen = 0;
@@ -153,6 +159,8 @@ static bool __xcodecChainMatchAt(const xnetchain* pChain, size_t iOffset, const 
 	return iNeedleOff == iNeedleLen;
 }
 
+
+// 内部函数：__xcodecChainFindPattern
 static size_t __xcodecChainFindPattern(const xnetchain* pChain, const uint8* pNeedle, size_t iNeedleLen, size_t iStartOff)
 {
 	size_t iPos;
@@ -167,12 +175,16 @@ static size_t __xcodecChainFindPattern(const xnetchain* pChain, const uint8* pNe
 	return (size_t)-1;
 }
 
+
+// xrtCodecFrameInit 相关处理
 XXAPI void xrtCodecFrameInit(xcodecframe* pFrame)
 {
 	if ( !pFrame ) return;
 	memset(pFrame, 0, sizeof(xcodecframe));
 }
 
+
+// xrtCodecFramePeek 相关处理
 XXAPI size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
 {
 	size_t iCopyLen;
@@ -182,6 +194,8 @@ XXAPI size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFram
 	return __xcodecChainPeekAt(pInput, pFrame->iPayloadOffset, pOut, iCopyLen);
 }
 
+
+// xrtCodecFrameConsume 相关处理
 XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
 {
 	if ( !pInput || !pFrame || pFrame->iFrameBytes == 0 ) return;
@@ -201,6 +215,7 @@ typedef struct {
 } xcodeclinecodec;
 #endif
 
+// 初始化编解码器行配置
 XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
 {
 	if ( !pCodec ) return;
@@ -211,6 +226,8 @@ XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
 	pCodec->bStripDelimiter = true;
 }
 
+
+// 设置编解码器行 delimiter
 XXAPI bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimiter, uint32 iDelimiterLen)
 {
 	if ( !pCodec || !pDelimiter || iDelimiterLen == 0 || iDelimiterLen > sizeof(pCodec->aDelimiter) ) return false;
@@ -220,6 +237,8 @@ XXAPI bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimi
 	return true;
 }
 
+
+// 解析编解码器行
 XXAPI xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
 {
 	xcodeclinecodec* pCodec = (xcodeclinecodec*)pCtx;
@@ -246,11 +265,15 @@ XXAPI xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecfr
 	return XCODEC_STATUS_FRAME;
 }
 
+
+// 重置编解码器行
 XXAPI void xrtCodecLineReset(ptr pCtx)
 {
 	(void)pCtx;
 }
 
+
+// xrtCodecLineOps 相关处理
 XXAPI const xcodecparserops* xrtCodecLineOps(void)
 {
 	static const xcodecparserops tOps = {
@@ -273,6 +296,7 @@ typedef struct {
 } xcodeclengthcodec;
 #endif
 
+// 初始化编解码器 length 配置
 XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
 {
 	if ( !pCodec ) return;
@@ -283,6 +307,8 @@ XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
 	pCodec->iMaxPayloadBytes = 1024u * 1024u;
 }
 
+
+// 内部函数：__xcodecReadUint
 static uint64 __xcodecReadUint(const uint8* pBytes, uint32 iByteCount, bool bBigEndian)
 {
 	uint64 iValue = 0;
@@ -299,6 +325,8 @@ static uint64 __xcodecReadUint(const uint8* pBytes, uint32 iByteCount, bool bBig
 	return iValue;
 }
 
+
+// xrtCodecLengthParse 相关处理
 XXAPI xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodecframe* pFrame)
 {
 	xcodeclengthcodec* pCodec = (xcodeclengthcodec*)pCtx;
@@ -331,11 +359,15 @@ XXAPI xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodec
 	return XCODEC_STATUS_FRAME;
 }
 
+
+// xrtCodecLengthReset 相关处理
 XXAPI void xrtCodecLengthReset(ptr pCtx)
 {
 	(void)pCtx;
 }
 
+
+// xrtCodecLengthOps 相关处理
 XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 {
 	static const xcodecparserops tOps = {

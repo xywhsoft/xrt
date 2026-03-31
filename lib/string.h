@@ -16,6 +16,9 @@ XXAPI str xrtCopyStr(str sText, size_t iSize)
 	sRet[iSize] = 0;
 	return sRet;
 }
+
+
+// 复制字符串 u 16
 XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 {
 	if ( sText == NULL ) { return (u16str)xCore.sNull; }
@@ -27,6 +30,9 @@ XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 	sRet[iSize] = 0;
 	return sRet;
 }
+
+
+// 复制字符串 u 32
 XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 {
 	if ( sText == NULL ) { return (u32str)xCore.sNull; }
@@ -38,6 +44,9 @@ XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 	sRet[iSize] = 0;
 	return sRet;
 }
+
+
+// 复制内存
 XXAPI ptr xrtCopyMem(ptr pMem, size_t iSize)
 {
 	if ( pMem == NULL ) { return xCore.sNull; }
@@ -178,6 +187,9 @@ XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, boo
 	}
 	return sSub;
 }
+
+
+// xrtInStr 相关处理
 XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
 	if ( sText == NULL ) { return 0; }
@@ -371,6 +383,9 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 		return xrtCopyStr(&sText[iCount], iSize - iCount);
 	}
 }
+
+
+// xrtRTrim 相关处理
 XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
@@ -434,6 +449,9 @@ XXAPI str xrtRTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 		return xrtCopyStr(sText, iSize - iCount);
 	}
 }
+
+
+// 裁剪
 XXAPI str xrtTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
@@ -907,6 +925,9 @@ return_error:
 
 // 生成随机字符串（ 需使用 xrtFree 释放 ）
 static const str RandStringDefaultTemplate = (str)"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+
+
+// xrtRandStr 相关处理
 XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 {
 	if ( sTemplate == NULL ) { sTemplate = RandStringDefaultTemplate; iSize = 64; }
@@ -930,6 +951,7 @@ XXAPI str xrtRandStr(str sTemplate, size_t iSize, size_t iLen)
 
 // HEX 编码（ 需使用 xrtFree 释放 ）
 #define dec2hex(c) (c > 9 ? c + 55 : c + '0')
+// xrtHexEncode 相关处理
 XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 {
 	if ( pMem == NULL ) { return xCore.sNull; }
@@ -953,6 +975,7 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 
 // HEX 解码（ 需使用 xrtFree 释放 ）
 #define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
+// xrtHexDecode 相关处理
 XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
@@ -974,6 +997,9 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 
 // Base64 编码（ 需使用 xrtFree 释放 ）
 static const str Base64EncodeTable = (str)"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+
+// xrtBase64Encode 相关处理
 XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 {
 	if ( pMem == NULL ) { return xCore.sNull; }
@@ -1010,6 +1036,9 @@ XXAPI str xrtBase64Encode(ptr pMem, size_t iSize, str sTable)
 // Base64 解码（ 需使用 xrtFree 释放 ）
 static const str sErrorBase64_mul4 = (str)"Base64 input length must be multiple of 4 !";
 static const str sErrorBase64_char = (str)"Base64 input contains invalid characters !";
+
+
+// xrtBase64Decode 相关处理
 XXAPI ptr xrtBase64Decode(str sText, size_t iSize, str sTable)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
@@ -1184,6 +1213,8 @@ typedef struct {
 	int precision;      // 小数位数 (-1 表示未指定)
 } XrtNumFmtOpts;
 
+
+// xrt_parse_format 相关处理
 static inline void xrt_parse_format(str format, XrtNumFmtOpts* opts)
 {
 	opts->showSign = FALSE;

@@ -278,6 +278,9 @@ XXAPI bool xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, ptr 
 	}
 	return FALSE;
 }
+
+
+// xrtAVLTB_WalkExRecuProc 相关处理
 XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg)
 {
 	if ( root ) {

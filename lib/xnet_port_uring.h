@@ -147,31 +147,41 @@
 	} __xnet_uring_native_ring;
 
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		// 内部函数：__xnetPortUringAtomicLoadAcquireU32
 		static uint32 __xnetPortUringAtomicLoadAcquireU32(const volatile uint32* pValue)
 		{
 			return __xrtAtomicLoadU32(pValue);
 		}
 
+
+		// 内部函数：__xnetPortUringAtomicLoadRelaxedU32
 		static uint32 __xnetPortUringAtomicLoadRelaxedU32(const volatile uint32* pValue)
 		{
 			return *(const volatile uint32*)pValue;
 		}
 
+
+		// 内部函数：__xnetPortUringAtomicStoreReleaseU32
 		static void __xnetPortUringAtomicStoreReleaseU32(volatile uint32* pValue, uint32 iValue)
 		{
 			__xrtAtomicStoreU32(pValue, iValue);
 		}
 	#else
+		// 内部函数：__xnetPortUringAtomicLoadAcquireU32
 		static uint32 __xnetPortUringAtomicLoadAcquireU32(const volatile uint32* pValue)
 		{
 			return __atomic_load_n(pValue, __ATOMIC_ACQUIRE);
 		}
 
+
+		// 内部函数：__xnetPortUringAtomicLoadRelaxedU32
 		static uint32 __xnetPortUringAtomicLoadRelaxedU32(const volatile uint32* pValue)
 		{
 			return __atomic_load_n(pValue, __ATOMIC_RELAXED);
 		}
 
+
+		// 内部函数：__xnetPortUringAtomicStoreReleaseU32
 		static void __xnetPortUringAtomicStoreReleaseU32(volatile uint32* pValue, uint32 iValue)
 		{
 			__atomic_store_n(pValue, iValue, __ATOMIC_RELEASE);
@@ -218,6 +228,8 @@
 		pthread_mutex_t tRingLock;
 	} __xnet_uring_ctx;
 
+
+	// 内部函数：判断是否存在端口 io_uring 原生 ring
 	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
 	{
 		const __xnet_uring_ctx* pCtx = pPort ? (const __xnet_uring_ctx*)pPort->pCtx : NULL;
@@ -226,6 +238,8 @@
 
 	static uint16 __xnetPortUringEventType(uint16 iOpType);
 
+
+	// 内部函数：__xnetPortUringSysSetup
 	static int __xnetPortUringSysSetup(uint32 iEntries, __xnet_io_uring_params* pParams)
 	{
 		#if defined(SYS_io_uring_setup)
@@ -240,6 +254,8 @@
 		#endif
 	}
 
+
+	// 内部函数：__xnetPortUringSysEnter
 	static int __xnetPortUringSysEnter(int hRingFd, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
 	{
 		#if defined(SYS_io_uring_enter)
@@ -256,6 +272,8 @@
 		#endif
 	}
 
+
+	// 内部函数：注册端口 io_uring sys
 	static int __xnetPortUringSysRegister(int hRingFd, uint32 iOpcode, const void* pArg, uint32 iNrArgs)
 	{
 		#if defined(SYS_io_uring_register)
@@ -272,6 +290,8 @@
 		#endif
 	}
 
+
+	// 内部函数：释放端口 io_uring 原生 ring
 	static void __xnetPortUringNativeRingUnit(__xnet_uring_native_ring* pRing)
 	{
 		if ( !pRing ) return;
@@ -291,6 +311,8 @@
 		pRing->hRingFd = -1;
 	}
 
+
+	// 内部函数：初始化端口 io_uring 原生 ring
 	static bool __xnetPortUringNativeRingInit(__xnet_uring_native_ring* pRing, uint32 iEntries)
 	{
 		size_t iSqRingLen;
@@ -367,6 +389,8 @@
 		return true;
 	}
 
+
+	// 内部函数：分配端口 io_uring 事件 chain
 	static xnetchain* __xnetPortUringAllocEventChain(const void* pData, size_t iLen)
 	{
 		xnetchain* pChain = NULL;
@@ -382,6 +406,8 @@
 		return pChain;
 	}
 
+
+	// 内部函数：释放端口 io_uring 事件 chain
 	static void __xnetPortUringFreeEventChain(xnetchain* pChain)
 	{
 		if ( !pChain ) return;
@@ -389,6 +415,8 @@
 		XNET_FREE(pChain);
 	}
 
+
+	// 内部函数：__xnetPortUringTrackIo
 	static void __xnetPortUringTrackIo(__xnet_uring_ctx* pCtx, __xnet_uring_io* pIo)
 	{
 		if ( !pCtx || !pIo ) return;
@@ -398,6 +426,8 @@
 		pthread_mutex_unlock(&pCtx->tIoLock);
 	}
 
+
+	// 内部函数：__xnetPortUringUntrackIo
 	static void __xnetPortUringUntrackIo(__xnet_uring_ctx* pCtx, __xnet_uring_io* pIo)
 	{
 		__xnet_uring_io** ppCur;
@@ -414,6 +444,8 @@
 		pthread_mutex_unlock(&pCtx->tIoLock);
 	}
 
+
+	// 内部函数：__xnetPortUringFreeActiveIo
 	static void __xnetPortUringFreeActiveIo(__xnet_uring_ctx* pCtx)
 	{
 		__xnet_uring_io* pList = NULL;
@@ -429,6 +461,8 @@
 		}
 	}
 
+
+	// 内部函数：__xnetPortUringNativeCanUse
 	static bool __xnetPortUringNativeCanUse(const __xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) return false;
@@ -461,6 +495,8 @@
 		}
 	}
 
+
+	// 内部函数：获取端口 io_uring 原生 sqe
 	static __xnet_io_uring_sqe* __xnetPortUringNativeGetSqe(__xnet_uring_native_ring* pRing, uint32* pTail, uint32* pSlot)
 	{
 		uint32 iHead;
@@ -477,6 +513,8 @@
 		return &pRing->pSqes[*pSlot];
 	}
 
+
+	// 内部函数：__xnetPortUringNativeCommitSqe
 	static void __xnetPortUringNativeCommitSqe(__xnet_uring_native_ring* pRing, uint32 iTail, uint32 iSlot)
 	{
 		if ( !pRing || !pRing->bReady ) return;
@@ -484,6 +522,8 @@
 		__xnetPortUringAtomicStoreReleaseU32(pRing->pSqTail, iTail + 1u);
 	}
 
+
+	// 内部函数：端口 io_uring 原生 enter相关处理
 	static xnet_result __xnetPortUringNativeEnter(__xnet_uring_native_ring* pRing, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
 	{
 		int iRet;
@@ -494,6 +534,8 @@
 		return (iRet >= 0) ? XRT_NET_OK : XRT_NET_ERROR;
 	}
 
+
+	// 内部函数：分配端口 io_uring io
 	static __xnet_uring_io* __xnetPortUringAllocIO(const xnetportsubmit* pOp)
 	{
 		__xnet_uring_io* pIo;
@@ -511,6 +553,8 @@
 		return pIo;
 	}
 
+
+	// 内部函数：__xnetPortUringBuildBufsFromSubmit
 	static bool __xnetPortUringBuildBufsFromSubmit(__xnet_uring_io* pIo, const xnetportsubmit* pOp)
 	{
 		if ( !pIo || !pOp ) return false;
@@ -537,6 +581,8 @@
 		return false;
 	}
 
+
+	// 内部函数：提交端口 io_uring 原生
 	static xnet_result __xnetPortUringSubmitNative(__xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_uring_io* pIo = NULL;
@@ -658,6 +704,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：构建端口 io_uring io 事件
 	static bool __xnetPortUringBuildIoEvent(__xnet_uring_io* pIo, int iRes, xnetportevent* pEvent)
 	{
 		int iErr = (iRes < 0) ? -iRes : 0;
@@ -712,6 +760,8 @@
 		return true;
 	}
 
+
+	// 内部函数：端口 io_uring drain 原生相关处理
 	static uint32 __xnetPortUringDrainNative(__xnet_uring_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
 	{
 		uint32 iCount = 0;
@@ -738,6 +788,8 @@
 
 	static xnet_result __xnetPortUringWake(xnetport* pPort);
 
+
+	// 内部函数：端口 io_uring 事件 type相关处理
 	static uint16 __xnetPortUringEventType(uint16 iOpType)
 	{
 		switch ( iOpType ) {
@@ -754,6 +806,8 @@
 		}
 	}
 
+
+	// 内部函数：提交端口 io_uring bytes
 	static uint32 __xnetPortUringSubmitBytes(const xnetportsubmit* pOp)
 	{
 		uint64 iBytes = 0;
@@ -769,6 +823,8 @@
 		return (uint32)iBytes;
 	}
 
+
+	// 内部函数：端口 io_uring now 毫秒相关处理
 	static uint64 __xnetPortUringNowMs(void)
 	{
 		struct timespec tNow;
@@ -776,6 +832,8 @@
 		return (uint64)tNow.tv_sec * 1000u + (uint64)(tNow.tv_nsec / 1000000u);
 	}
 
+
+	// 内部函数：__xnetPortUringValidOp
 	static bool __xnetPortUringValidOp(uint16 iType)
 	{
 		switch ( iType ) {
@@ -794,6 +852,8 @@
 		}
 	}
 
+
+	// 内部函数：释放端口 io_uring timers
 	static void __xnetPortUringFreeTimers(__xnet_uring_ctx* pCtx)
 	{
 		while ( pCtx && pCtx->pTimers ) {
@@ -803,6 +863,8 @@
 		}
 	}
 
+
+	// 内部函数：释放端口 io_uring posts
 	static void __xnetPortUringFreePosts(__xnet_uring_ctx* pCtx)
 	{
 		if ( !pCtx ) return;
@@ -814,6 +876,8 @@
 		pCtx->pPostedTail = NULL;
 	}
 
+
+	// 内部函数：端口 io_uring 队列事件相关处理
 	static bool __xnetPortUringQueueEvent(__xnet_uring_ctx* pCtx, const xnetportevent* pEvent)
 	{
 		__xnet_uring_post* pPost;
@@ -833,6 +897,8 @@
 		return true;
 	}
 
+
+	// 内部函数：__xnetPortUringDrainPosted
 	static uint32 __xnetPortUringDrainPosted(__xnet_uring_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
 	{
 		uint32 iCount = 0;
@@ -871,6 +937,8 @@
 		return iCount;
 	}
 
+
+	// 内部函数：提取端口 io_uring timers
 	static uint32 __xnetPortUringHarvestTimers(__xnet_uring_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
 	{
 		uint32 iCount = 0;
@@ -893,6 +961,8 @@
 		return iCount;
 	}
 
+
+	// 内部函数：初始化端口 io_uring
 	static xnet_result __xnetPortUringInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
 	{
 		__xnet_uring_ctx* pCtx;
@@ -938,6 +1008,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：释放端口 io_uring
 	static void __xnetPortUringUnit(xnetport* pPort)
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
@@ -956,6 +1028,8 @@
 		if ( pPort ) pPort->pCtx = NULL;
 	}
 
+
+	// 内部函数：提交端口 io_uring
 	static xnet_result __xnetPortUringSubmit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
 	{
 		uint32 i;
@@ -997,6 +1071,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：提取端口 io_uring
 	static uint32 __xnetPortUringHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
 	{
 		uint32 iCount = 0;
@@ -1057,6 +1133,8 @@
 		return iCount;
 	}
 
+
+	// 内部函数：唤醒端口 io_uring
 	static xnet_result __xnetPortUringWake(xnetport* pPort)
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
@@ -1069,6 +1147,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：设置端口 io_uring 定时器
 	static xnet_result __xnetPortUringArmTimer(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs)
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
@@ -1084,6 +1164,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：取消端口 io_uring 定时器
 	static xnet_result __xnetPortUringCancelTimer(xnetport* pPort, uint64 iTimerId)
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
@@ -1113,6 +1195,7 @@
 	};
 
 	#if defined(XRT_INTERNAL_TEST_ENV)
+	// 网络端口 io_uring ops相关处理
 	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return &__g_xnetPortUringOps;
@@ -1121,6 +1204,7 @@
 
 #else
 
+	// 内部函数：判断是否存在端口 io_uring 原生 ring
 	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
 	{
 		(void)pPort;
@@ -1128,6 +1212,7 @@
 	}
 
 	#if defined(XRT_INTERNAL_TEST_ENV)
+	// 网络端口 io_uring ops相关处理
 	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return NULL;

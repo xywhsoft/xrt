@@ -36,6 +36,8 @@ typedef struct {
 	size_t iCapacity;
 } __xrt_tls_buf;
 
+
+// 内部函数：初始化 TLS 缓冲区
 static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
 {
 	if ( !pBuf ) return false;
@@ -47,6 +49,8 @@ static bool __xrt_tls_buf_init(__xrt_tls_buf* pBuf, size_t iCapacity)
 	return true;
 }
 
+
+// 内部函数：释放 TLS 缓冲区
 static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
 {
 	if ( !pBuf ) return;
@@ -59,6 +63,8 @@ static void __xrt_tls_buf_free(__xrt_tls_buf* pBuf)
 	pBuf->iCapacity = 0;
 }
 
+
+// 内部函数：确保 TLS 缓冲区
 static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
 {
 	size_t iHead;
@@ -90,6 +96,8 @@ static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
 	return true;
 }
 
+
+// 内部函数：追加 TLS 缓冲区
 static bool __xrt_tls_buf_append(__xrt_tls_buf* pBuf, const char* pData, size_t iLen)
 {
 	if ( !pBuf || !pData || iLen == 0 ) return false;
@@ -99,6 +107,8 @@ static bool __xrt_tls_buf_append(__xrt_tls_buf* pBuf, const char* pData, size_t 
 	return true;
 }
 
+
+// 内部函数：消费 TLS 缓冲区
 static void __xrt_tls_buf_consume(__xrt_tls_buf* pBuf, size_t iLen)
 {
 	if ( !pBuf || iLen == 0 ) return;
@@ -111,6 +121,8 @@ static void __xrt_tls_buf_consume(__xrt_tls_buf* pBuf, size_t iLen)
 	pBuf->iSize -= iLen;
 }
 
+
+// 内部函数：__xrt_tls_sock_last_err
 static int __xrt_tls_sock_last_err(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -120,6 +132,8 @@ static int __xrt_tls_sock_last_err(void)
 	#endif
 }
 
+
+// 内部函数：__xrt_tls_sock_would_block
 static bool __xrt_tls_sock_would_block(int iErr)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -129,6 +143,8 @@ static bool __xrt_tls_sock_would_block(int iErr)
 	#endif
 }
 
+
+// 内部函数：__xrt_tls_sock_send
 static xnet_result __xrt_tls_sock_send(xsocket hSocket, const char* pData, size_t iLen, size_t* pSent)
 {
 	int iRet;
@@ -143,6 +159,8 @@ static xnet_result __xrt_tls_sock_send(xsocket hSocket, const char* pData, size_
 	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
 }
 
+
+// 内部函数：__xrt_tls_sock_recv
 static xnet_result __xrt_tls_sock_recv(xsocket hSocket, char* pBuf, size_t iLen, size_t* pReceived)
 {
 	int iRet;
@@ -191,6 +209,7 @@ static uint64 __xrt_tls_resume_cache_gen = 0;
 	#define __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256  0xCCA9
 #endif
 
+// 内部函数：__xrt_tls_resume_lock_acquire
 static void __xrt_tls_resume_lock_acquire(void)
 {
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
@@ -208,6 +227,8 @@ static void __xrt_tls_resume_lock_acquire(void)
 	#endif
 }
 
+
+// 内部函数：__xrt_tls_resume_lock_release
 static void __xrt_tls_resume_lock_release(void)
 {
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
@@ -219,6 +240,8 @@ static void __xrt_tls_resume_lock_release(void)
 	#endif
 }
 
+
+// 内部函数：__xrt_tls_resume_copy
 static bool __xrt_tls_resume_copy(struct xrt_tls_resume* pDst, const struct xrt_tls_resume* pSrc)
 {
 	if ( !pDst || !pSrc ) return false;
@@ -228,6 +251,8 @@ static bool __xrt_tls_resume_copy(struct xrt_tls_resume* pDst, const struct xrt_
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_resume_cache_lookup
 static bool __xrt_tls_resume_cache_lookup(const uint8* pSessionId, uint8 iSessionIdLen, struct xrt_tls_resume* pOut)
 {
 	__xrt_tls_resume_cache_entry* pEntry;
@@ -247,6 +272,8 @@ static bool __xrt_tls_resume_cache_lookup(const uint8* pSessionId, uint8 iSessio
 	return bFound;
 }
 
+
+// 内部函数：__xrt_tls_resume_cache_store
 static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 {
 	__xrt_tls_resume_cache_entry* pEntry;
@@ -298,6 +325,8 @@ static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 	__xrt_tls_resume_lock_release();
 }
 
+
+// 内部函数：__xrt_tls12_client_offers_suite
 static bool __xrt_tls12_client_offers_suite(uint16 iSuite,
 	bool bOfferTLS12EcdheEcdsaAES128,
 	bool bOfferTLS12EcdheEcdsaAES256,
@@ -372,17 +401,23 @@ static inline uint16 __xrt_tls_load_be16(const uint8 *p)
 	return (uint16)((uint16)p[0] << 8 | p[1]);
 }
 
+
+// 内部函数：加载 TLS be 24
 static inline uint32 __xrt_tls_load_be24(const uint8 *p)
 {
 	return ((uint32)p[0] << 16) | ((uint32)p[1] << 8) | p[2];
 }
 
+
+// 内部函数：保存 TLS be 16
 static inline void __xrt_tls_store_be16(uint8 *p, uint16 v)
 {
 	p[0] = (uint8)(v >> 8);
 	p[1] = (uint8)(v);
 }
 
+
+// 内部函数：保存 TLS be 24
 static inline void __xrt_tls_store_be24(uint8 *p, uint32 v)
 {
 	p[0] = (uint8)(v >> 16);
@@ -390,6 +425,8 @@ static inline void __xrt_tls_store_be24(uint8 *p, uint32 v)
 	p[2] = (uint8)(v);
 }
 
+
+// 内部函数：保存 TLS be 64
 static inline void __xrt_tls_store_be64(uint8 *p, uint64 v)
 {
 	p[0] = (uint8)(v >> 56);
@@ -650,12 +687,16 @@ enum __xrt_x509_parse_mode {
 	__XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG
 };
 
+
+// 内部函数：转为小写 TLS ASCII
 static int __xrt_tls_ascii_tolower(int c)
 {
 	if ( c >= 'A' && c <= 'Z' ) return c + ('a' - 'A');
 	return c;
 }
 
+
+// 内部函数：__xrt_tls_ascii_case_equal
 static bool __xrt_tls_ascii_case_equal(const char *sA, const char *sB)
 {
 	size_t i;
@@ -671,6 +712,8 @@ static bool __xrt_tls_ascii_case_equal(const char *sA, const char *sB)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_hostname_matches
 static bool __xrt_tls_hostname_matches(const char *sPattern, const char *sHost)
 {
 	const char *pFirstDot;
@@ -693,6 +736,8 @@ static bool __xrt_tls_hostname_matches(const char *sPattern, const char *sHost)
 	return __xrt_tls_ascii_case_equal(pHostDot, sPattern + 1);
 }
 
+
+// 内部函数：__xrt_tls_timegm
 static time_t __xrt_tls_timegm(struct tm *pTM)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -702,6 +747,8 @@ static time_t __xrt_tls_timegm(struct tm *pTM)
 	#endif
 }
 
+
+// 内部函数：__xrt_x509_parse_time_value
 static bool __xrt_x509_parse_time_value(const struct __xrt_der_tlv *pTime, time_t *pOut)
 {
 	struct tm tTM;
@@ -749,6 +796,8 @@ static bool __xrt_x509_parse_time_value(const struct __xrt_der_tlv *pTime, time_
 	return *pOut != (time_t)-1;
 }
 
+
+// 内部函数：复制 x 509 字符串值
 static bool __xrt_x509_copy_string_value(char *sOut, size_t iOutSz, const struct __xrt_der_tlv *pValue)
 {
 	size_t iCopy;
@@ -766,6 +815,8 @@ static bool __xrt_x509_copy_string_value(char *sOut, size_t iOutSz, const struct
 	return iCopy > 0;
 }
 
+
+// 内部函数：__xrt_x509_parse_common_name
 static bool __xrt_x509_parse_common_name(const struct __xrt_der_tlv *pName, char *sOut, size_t iOutSz)
 {
 	struct __xrt_der_tlv tRDNs, tSet, tAttr, tOID, tValue;
@@ -793,6 +844,8 @@ static bool __xrt_x509_parse_common_name(const struct __xrt_der_tlv *pName, char
 	return false;
 }
 
+
+// 内部函数：__xrt_x509_parse_hash_oid
 static bool __xrt_x509_parse_hash_oid(const struct __xrt_der_tlv *pOID, size_t *pHashLen)
 {
 	if ( !pOID || pOID->iType != 0x06 || !pHashLen ) return false;
@@ -814,6 +867,8 @@ static bool __xrt_x509_parse_hash_oid(const struct __xrt_der_tlv *pOID, size_t *
 	return false;
 }
 
+
+// 内部函数：__xrt_x509_parse_pss_params
 static bool __xrt_x509_parse_pss_params(const struct __xrt_der_tlv *pParams,
 	enum __xrt_x509_sig_alg *pSigAlg, size_t *pHashLen)
 {
@@ -865,6 +920,8 @@ static bool __xrt_x509_parse_pss_params(const struct __xrt_der_tlv *pParams,
 	return true;
 }
 
+
+// 内部函数：__xrt_x509_parse_signature_algorithm
 static bool __xrt_x509_parse_signature_algorithm(const struct __xrt_der_tlv *pAlgSeq,
 	enum __xrt_x509_sig_alg *pSigAlg, size_t *pHashLen)
 {
@@ -926,6 +983,8 @@ static bool __xrt_x509_parse_signature_algorithm(const struct __xrt_der_tlv *pAl
 	return false;
 }
 
+
+// 内部函数：__xrt_x509_parse_signature_algorithm_ex
 static bool __xrt_x509_parse_signature_algorithm_ex(const struct __xrt_der_tlv *pAlgSeq,
 	enum __xrt_x509_sig_alg *pSigAlg, size_t *pHashLen, enum __xrt_x509_parse_mode iMode)
 {
@@ -941,6 +1000,8 @@ static bool __xrt_x509_parse_signature_algorithm_ex(const struct __xrt_der_tlv *
 	return __xrt_der_next(&tSeq, &tOID) > 0 && tOID.iType == 0x06;
 }
 
+
+// 内部函数：__xrt_x509_add_dns_name
 static void __xrt_x509_add_dns_name(struct __xrt_x509_cert *pCert, const uint8 *pName, size_t iNameLen)
 {
 	size_t iCopy;
@@ -953,6 +1014,8 @@ static void __xrt_x509_add_dns_name(struct __xrt_x509_cert *pCert, const uint8 *
 	pCert->iDnsNameCount++;
 }
 
+
+// 内部函数：__xrt_x509_parse_subject_alt_name
 static bool __xrt_x509_parse_subject_alt_name(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
 {
 	struct __xrt_der_tlv tSeq, tName;
@@ -968,6 +1031,8 @@ static bool __xrt_x509_parse_subject_alt_name(struct __xrt_x509_cert *pCert, con
 	return true;
 }
 
+
+// 内部函数：__xrt_x509_parse_key_usage
 static bool __xrt_x509_parse_key_usage(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
 {
 	struct __xrt_der_tlv tBitStr;
@@ -989,6 +1054,8 @@ static bool __xrt_x509_parse_key_usage(struct __xrt_x509_cert *pCert, const stru
 	return true;
 }
 
+
+// 内部函数：__xrt_x509_parse_basic_constraints
 static bool __xrt_x509_parse_basic_constraints(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
 {
 	struct __xrt_der_tlv tSeq, tField;
@@ -1006,6 +1073,8 @@ static bool __xrt_x509_parse_basic_constraints(struct __xrt_x509_cert *pCert, co
 	return true;
 }
 
+
+// 内部函数：__xrt_x509_parse_extended_key_usage
 static bool __xrt_x509_parse_extended_key_usage(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
 {
 	struct __xrt_der_tlv tSeq, tOID;
@@ -1024,6 +1093,8 @@ static bool __xrt_x509_parse_extended_key_usage(struct __xrt_x509_cert *pCert, c
 	return true;
 }
 
+
+// 内部函数：__xrt_x509_parse_spki
 static bool __xrt_x509_parse_spki(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pSPKI)
 {
 	struct __xrt_der_tlv tSPKI, tAlgId, tBitStr, tOID;
@@ -1098,6 +1169,8 @@ static bool __xrt_x509_parse_spki(struct __xrt_x509_cert *pCert, const struct __
 	return false;
 }
 
+
+// 内部函数：__xrt_x509_parse_extensions
 static bool __xrt_x509_parse_extensions(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pExtsField)
 {
 	struct __xrt_der_tlv tExtField, tExtWrapper, tExtSeq, tExt;
@@ -1143,6 +1216,8 @@ static bool __xrt_x509_parse_extensions(struct __xrt_x509_cert *pCert, const str
 	return true;
 }
 
+
+// 内部函数：解析 x 509 扩展
 static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert,
 	enum __xrt_x509_parse_mode iMode)
 {
@@ -1206,27 +1281,37 @@ static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x
 	return true;
 }
 
+
+// 内部函数：__xrt_x509_parse
 static bool __xrt_x509_parse(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert)
 {
 	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_STRICT);
 }
 
+
+// 内部函数：__xrt_x509_parse_for_chain
 static bool __xrt_x509_parse_for_chain(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert)
 {
 	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG);
 }
 
+
+// 内部函数：__xrt_x509_is_time_valid
 static bool __xrt_x509_is_time_valid(const struct __xrt_x509_cert *pCert, time_t iNow)
 {
 	if ( !pCert || !pCert->bHasValidity ) return false;
 	return iNow >= pCert->iNotBefore && iNow <= pCert->iNotAfter;
 }
 
+
+// 内部函数：x 509 名称相等相关处理
 static bool __xrt_x509_name_eq(const uint8 *pA, size_t iALen, const uint8 *pB, size_t iBLen)
 {
 	return pA && pB && iALen == iBLen && memcmp(pA, pB, iALen) == 0;
 }
 
+
+// 内部函数：__xrt_x509_public_key_eq
 static bool __xrt_x509_public_key_eq(const struct __xrt_x509_cert *pA, const struct __xrt_x509_cert *pB)
 {
 	if ( !pA || !pB ) return false;
@@ -1248,6 +1333,8 @@ static bool __xrt_x509_public_key_eq(const struct __xrt_x509_cert *pA, const str
 		memcmp(pA->pExp, pB->pExp, pA->iExpSz) == 0;
 }
 
+
+// 内部函数：__xrt_x509_anchor_matches
 static bool __xrt_x509_anchor_matches(const struct __xrt_x509_cert *pCert, const struct __xrt_x509_cert *pAnchor)
 {
 	if ( !pCert || !pAnchor ) return false;
@@ -1258,6 +1345,8 @@ static bool __xrt_x509_anchor_matches(const struct __xrt_x509_cert *pCert, const
 	return __xrt_x509_public_key_eq(pCert, pAnchor);
 }
 
+
+// 内部函数：__xrt_x509_verify_signature
 static bool __xrt_x509_verify_signature(const struct __xrt_x509_cert *pChild, const struct __xrt_x509_cert *pIssuer)
 {
 	uint8 aHash[64];
@@ -1294,6 +1383,8 @@ static bool __xrt_x509_verify_signature(const struct __xrt_x509_cert *pChild, co
 	}
 }
 
+
+// 内部函数：__xrt_x509_is_ca_usable
 static bool __xrt_x509_is_ca_usable(const struct __xrt_x509_cert *pCert)
 {
 	if ( !pCert ) return false;
@@ -1302,6 +1393,8 @@ static bool __xrt_x509_is_ca_usable(const struct __xrt_x509_cert *pCert)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_current_cert_trusted_by_anchor
 static bool __xrt_tls_current_cert_trusted_by_anchor(const struct __xrt_x509_cert *pCurrent,
 	const struct __xrt_x509_cert *pAnchor, time_t iNow)
 {
@@ -1474,6 +1567,8 @@ struct xrt_tls_context {
 	uint8 iContentType;
 };
 
+
+// 内部函数：__xrt_tls_resume_from_ctx
 static bool __xrt_tls_resume_from_ctx(xtlsctx* pCtx, struct xrt_tls_resume* pOut)
 {
 	if ( !pCtx || !pOut ) return false;
@@ -1495,6 +1590,8 @@ static const uint8 __xrt_tls_zeros_sha256[32] = {
 	0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55
 };
 
+
+// 内部函数：__xrt_tls_hash_bytes
 static bool __xrt_tls_hash_bytes(uint8 *pOut, size_t iHashLen, const uint8 *pData, size_t iLen)
 {
 	if ( iHashLen == 32 ) {
@@ -1512,6 +1609,8 @@ static bool __xrt_tls_hash_bytes(uint8 *pOut, size_t iHashLen, const uint8 *pDat
 	return false;
 }
 
+
+// 内部函数：__xrt_tls_sigalg_hash_len
 static size_t __xrt_tls_sigalg_hash_len(uint16 iSigAlg)
 {
 	switch ( iSigAlg ) {
@@ -1543,16 +1642,22 @@ static size_t __xrt_tls_sigalg_hash_len(uint16 iSigAlg)
 	}
 }
 
+
+// 内部函数：__xrt_tls13_get_hash_len
 static size_t __xrt_tls13_get_hash_len(uint16 iCipherSuite)
 {
 	return (iCipherSuite == __XRT_TLS_AES_256_GCM_SHA384) ? 48 : 32;
 }
 
+
+// 内部函数：__xrt_tls13_get_key_len
 static size_t __xrt_tls13_get_key_len(uint16 iCipherSuite)
 {
 	return (iCipherSuite == __XRT_TLS_AES_128_GCM_SHA256) ? 16 : 32;
 }
 
+
+// 内部函数：__xrt_tls13_is_supported_cipher
 static bool __xrt_tls13_is_supported_cipher(uint16 iCipherSuite)
 {
 	return iCipherSuite == __XRT_TLS_AES_128_GCM_SHA256
@@ -1560,6 +1665,8 @@ static bool __xrt_tls13_is_supported_cipher(uint16 iCipherSuite)
 		|| iCipherSuite == __XRT_TLS_CHACHA20_POLY1305_SHA256;
 }
 
+
+// 内部函数：__xrt_tls12_set_cipher_params
 static bool __xrt_tls12_set_cipher_params(xtlsctx *pCtx, uint16 iCipherSuite)
 {
 	if ( !pCtx ) return false;
@@ -1608,11 +1715,15 @@ static bool __xrt_tls12_set_cipher_params(xtlsctx *pCtx, uint16 iCipherSuite)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls12_get_iv_len
 static size_t __xrt_tls12_get_iv_len(const xtlsctx *pCtx)
 {
 	return pCtx->bTls12UseChaCha ? 12 : 4;
 }
 
+
+// 内部函数：__xrt_tls_consttime_equal
 static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t iLen)
 {
 	uint8 iDiff = 0;
@@ -1621,6 +1732,8 @@ static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t i
 	return iDiff == 0;
 }
 
+
+// 内部函数：__xrt_tls_validate_leaf_server_cert
 static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xrt_x509_cert *pLeaf)
 {
 	size_t i;
@@ -1651,6 +1764,8 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_copy_pubkey_from_cert
 static bool __xrt_tls_copy_pubkey_from_cert(xtlsctx *pCtx, const struct __xrt_x509_cert *pCert)
 {
 	if ( !pCtx || !pCert ) return false;
@@ -1687,6 +1802,8 @@ static bool __xrt_tls_copy_pubkey_from_cert(xtlsctx *pCtx, const struct __xrt_x5
 	return true;
 }
 
+
+// 内部函数：解码 TLS pem 证书块
 static bool __xrt_tls_decode_pem_cert_block(const char *pStart, const char *pEnd, uint8 **ppDer, size_t *pDerLen)
 {
 	size_t iSrcLen;
@@ -1721,6 +1838,8 @@ static bool __xrt_tls_decode_pem_cert_block(const char *pStart, const char *pEnd
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_ca_bundle_next
 static bool __xrt_tls_ca_bundle_next(xtlsctx *pCtx, size_t *pOffset, uint8 **ppDer, size_t *pDerLen, bool *pOwned)
 {
 	const char *pData;
@@ -1754,6 +1873,8 @@ static bool __xrt_tls_ca_bundle_next(xtlsctx *pCtx, size_t *pOffset, uint8 **ppD
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_verify_presented_chain
 static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, size_t *apCertLen, size_t iCertCount)
 {
 	struct __xrt_x509_cert aCerts[__XRT_TLS_MAX_CERT_CHAIN];
@@ -1838,6 +1959,8 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 	return false;
 }
 
+
+// 内部函数：__xrt_tls_capture_peer_cert_chain
 static bool __xrt_tls_capture_peer_cert_chain(xtlsctx *pCtx, uint8 **apCertData, size_t *apCertLen, size_t iCertCount)
 {
 	struct __xrt_x509_cert tLeaf;
@@ -1851,6 +1974,8 @@ static bool __xrt_tls_capture_peer_cert_chain(xtlsctx *pCtx, uint8 **apCertData,
 	return __xrt_tls_verify_presented_chain(pCtx, apCertData, apCertLen, iCertCount);
 }
 
+
+// 内部函数：复制 TLS load 文件
 static bool __xrt_tls_load_file_copy(const char *sFile, uint8 **ppData, size_t *pLen)
 {
 	size_t iFileSize = 0;
@@ -1873,6 +1998,8 @@ static bool __xrt_tls_load_file_copy(const char *sFile, uint8 **ppData, size_t *
 	return true;
 }
 
+
+// 内部函数：加载 TLS der 文件
 static bool __xrt_tls_load_der_file(const char *sFile, uint8 **ppDer, size_t *pDerLen)
 {
 	size_t iFileSize = 0;
@@ -1920,6 +2047,8 @@ static bool __xrt_tls_load_der_file(const char *sFile, uint8 **ppDer, size_t *pD
 	}
 }
 
+
+// 内部函数：追加 TLS pem 证书
 static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, size_t iDerLen)
 {
 	static const char sBegin[] = "-----BEGIN CERTIFICATE-----\n";
@@ -1954,6 +2083,7 @@ static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, si
 }
 
 #if defined(_WIN32) || defined(_WIN64)
+// 内部函数：__xrt_tls_load_windows_root_store
 static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 {
 	typedef HCERTSTORE (WINAPI *procCertOpenStore_t)(LPCSTR, DWORD, ULONG_PTR, DWORD, const void*);
@@ -2038,6 +2168,7 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 
 #endif
 
+// 内部函数：__xrt_tls_load_ca_bundle
 static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 {
 	const char *sEnvPath = NULL;
@@ -2082,12 +2213,16 @@ static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 	return false;
 }
 
+
+// 内部函数：更新 TLS 13 hash
 static void __xrt_tls13_hash_update(xtlsctx *pCtx, const uint8 *pData, size_t iLen)
 {
 	xrtSHA256Update(&pCtx->tSHA256, (ptr)pData, iLen);
 	xrtSHA512Update(&pCtx->tSHA384, (const ptr)pData, iLen);
 }
 
+
+// 内部函数：__xrt_tls13_get_transcript_hash
 static void __xrt_tls13_get_transcript_hash(xtlsctx *pCtx, uint8 *pOut, size_t *pHashLen)
 {
 	size_t iHashLen = __xrt_tls13_get_hash_len(pCtx->iCipherSuite);
@@ -2101,6 +2236,8 @@ static void __xrt_tls13_get_transcript_hash(xtlsctx *pCtx, uint8 *pOut, size_t *
 	if ( pHashLen ) *pHashLen = iHashLen;
 }
 
+
+// 内部函数：__xrt_tls13_hkdf_extract
 static bool __xrt_tls13_hkdf_extract(uint8 *pOut, const uint8 *pSalt, size_t iSaltLen,
 	const uint8 *pIKM, size_t iIKMLen, size_t iHashLen)
 {
@@ -2115,6 +2252,8 @@ static bool __xrt_tls13_hkdf_extract(uint8 *pOut, const uint8 *pSalt, size_t iSa
 	return false;
 }
 
+
+// 内部函数：__xrt_tls13_hkdf_expand
 static bool __xrt_tls13_hkdf_expand(uint8 *pOut, size_t iOutLen, const uint8 *pPRK,
 	size_t iPRKLen, const uint8 *pInfo, size_t iInfoLen, size_t iHashLen)
 {
@@ -2129,6 +2268,8 @@ static bool __xrt_tls13_hkdf_expand(uint8 *pOut, size_t iOutLen, const uint8 *pP
 	return false;
 }
 
+
+// 内部函数：TLS 13 HMAC相关处理
 static bool __xrt_tls13_hmac(uint8 *pOut, const uint8 *pKey, size_t iKeyLen,
 	const uint8 *pMsg, size_t iMsgLen, size_t iHashLen)
 {
@@ -2143,6 +2284,8 @@ static bool __xrt_tls13_hmac(uint8 *pOut, const uint8 *pKey, size_t iKeyLen,
 	return false;
 }
 
+
+// 内部函数：__xrt_tls_xor_seq_nonce
 static void __xrt_tls_xor_seq_nonce(uint8 *pNonce, const uint8 *pIV, uint64 iSeq)
 {
 	uint8 aSeq[12] = {0};
@@ -2205,6 +2348,8 @@ static void __xrt_tls12_prf_sha256(uint8 *pOut, size_t iOutLen,
 	}
 }
 
+
+// 内部函数：__xrt_tls12_prf_sha384
 static void __xrt_tls12_prf_sha384(uint8 *pOut, size_t iOutLen,
 	const uint8 *pSecret, size_t iSecretLen,
 	const char *pLabel, size_t iLabelLen,
@@ -3023,6 +3168,8 @@ static void __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer)
 	__xrt_tls_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, aMsg, 4 + iHashLen, bAsServer);
 }
 
+
+// 内部函数：__xrt_tls_verify_finished
 static bool __xrt_tls_verify_finished(xtlsctx *pCtx, const uint8 *pVerifyData,
 	size_t iVerifyLen, const uint8 *pTranscriptHash, size_t iHashLen, bool bFromServer)
 {
@@ -3037,6 +3184,8 @@ static bool __xrt_tls_verify_finished(xtlsctx *pCtx, const uint8 *pVerifyData,
 	return __xrt_tls_consttime_equal(aExpected, pVerifyData, iHashLen);
 }
 
+
+// 内部函数：构建 TLS 13 证书 verify 输入
 static bool __xrt_tls13_build_cert_verify_input(uint8 *pOut, size_t *pOutLen,
 	const uint8 *pTranscriptHash, size_t iTranscriptHashLen, uint16 iSigAlg, bool bAsServer)
 {
@@ -3188,6 +3337,8 @@ static void __xrt_tls12_get_hash(xtlsctx *pCtx, uint8 *pOut)
 	}
 }
 
+
+// 内部函数：__xrt_tls12_collect_certs
 static bool __xrt_tls12_collect_certs(const uint8 *pMsg, size_t iLen,
 	uint8 **apCertData, size_t *apCertLen, size_t *pCertCount)
 {
@@ -3213,6 +3364,8 @@ static bool __xrt_tls12_collect_certs(const uint8 *pMsg, size_t iLen,
 	return iCount > 0;
 }
 
+
+// 内部函数：__xrt_tls13_collect_certs
 static bool __xrt_tls13_collect_certs(const uint8 *pMsg, size_t iLen,
 	uint8 **apCertData, size_t *apCertLen, size_t *pCertCount)
 {
@@ -3726,6 +3879,8 @@ static void __xrt_tls12_send_ccs_finished(xtlsctx *pCtx, bool bAsServer)
 	#endif
 }
 
+
+// 内部函数：__xrt_tls12_verify_finished
 static bool __xrt_tls12_verify_finished(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen, bool bFromServer)
 {
 	const char *sLabel = bFromServer ? "server finished" : "client finished";
@@ -3753,6 +3908,8 @@ static bool __xrt_tls12_verify_finished(xtlsctx *pCtx, const uint8 *pMsg, size_t
 	return (iDiff == 0);
 }
 
+
+// 内部函数：发送 TLS 12 handshake 消息
 static bool __xrt_tls12_send_handshake_message(xtlsctx *pCtx, const uint8 *pMsg, size_t iMsgLen)
 {
 	uint8 aRec[5];
@@ -3770,6 +3927,8 @@ static bool __xrt_tls12_send_handshake_message(xtlsctx *pCtx, const uint8 *pMsg,
 static bool __xrt_tls_sign_server_hash(xtlsctx *pCtx, const uint8 *pHash, size_t iHashLen,
 	uint8 *pSig, size_t *pSigLen);
 
+
+// 内部函数：__xrt_tls12_send_server_hello
 static bool __xrt_tls12_send_server_hello(xtlsctx *pCtx)
 {
 	uint8 aMsg[128];
@@ -3809,6 +3968,8 @@ static bool __xrt_tls12_send_server_hello(xtlsctx *pCtx)
 	return __xrt_tls12_send_handshake_message(pCtx, aMsg, iPos);
 }
 
+
+// 内部函数：发送 TLS 12 certificate
 static bool __xrt_tls12_send_certificate(xtlsctx *pCtx)
 {
 	size_t iBodyLen;
@@ -3835,6 +3996,8 @@ static bool __xrt_tls12_send_certificate(xtlsctx *pCtx)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls12_send_server_key_exchange
 static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 {
 	uint8 aMsg[1024];
@@ -3929,6 +4092,8 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 	return __xrt_tls12_send_handshake_message(pCtx, aMsg, iPos);
 }
 
+
+// 内部函数：__xrt_tls12_send_server_hello_done
 static bool __xrt_tls12_send_server_hello_done(xtlsctx *pCtx)
 {
 	uint8 aMsg[4];
@@ -3939,6 +4104,8 @@ static bool __xrt_tls12_send_server_hello_done(xtlsctx *pCtx)
 	return __xrt_tls12_send_handshake_message(pCtx, aMsg, sizeof(aMsg));
 }
 
+
+// 内部函数：__xrt_tls12_send_server_flight
 static bool __xrt_tls12_send_server_flight(xtlsctx *pCtx)
 {
 	if ( !__xrt_tls12_send_server_hello(pCtx) ) {
@@ -3962,6 +4129,8 @@ static bool __xrt_tls12_send_server_flight(xtlsctx *pCtx)
 	return __xrt_tls12_send_server_hello_done(pCtx);
 }
 
+
+// 内部函数：__xrt_tls12_parse_client_key_exchange
 static bool __xrt_tls12_parse_client_key_exchange(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
 	if ( !pCtx || !pMsg || !pCtx->bIsECDHE || iLen < 1 ) return false;
@@ -4008,6 +4177,8 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx);
 static bool __xrt_tls13_send_server_flight(xtlsctx *pCtx);
 
+
+// 创建 TLS
 XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 {
 	xtlsctx *pCtx = (xtlsctx*)xrtCalloc(1, sizeof(xtlsctx));
@@ -4063,6 +4234,8 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	return pCtx;
 }
 
+
+// 销毁 TLS
 XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 {
 	if ( !pCtx ) return;
@@ -4094,6 +4267,8 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 	xrtFree(pCtx);
 }
 
+
+// 内部函数：__xrt_tls_drive_internal
 static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool bAllowSocketIO)
 {
 	if ( !pCtx ) return XRT_NET_ERROR;
@@ -4992,16 +5167,22 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 	}
 }
 
+
+// xrtTlsHandshake 相关处理
 XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 {
 	return __xrt_tls_drive_internal(pCtx, hSocket, true);
 }
 
+
+// xrtTlsDrive 相关处理
 XXAPI xnet_result xrtTlsDrive(xtlsctx *pCtx)
 {
 	return __xrt_tls_drive_internal(pCtx, XSOCKET_INVALID, false);
 }
 
+
+// 读取 TLS
 XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
 {
 	if ( !pCtx || !pBuf || iLen == 0 ) return XRT_NET_ERROR;
@@ -5058,6 +5239,8 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 	return XRT_NET_AGAIN;
 }
 
+
+// 写入 TLS
 XXAPI xnet_result xrtTlsWrite(xtlsctx *pCtx, const char *pData, size_t iLen, size_t *pWritten)
 {
 	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
@@ -5074,6 +5257,8 @@ XXAPI xnet_result xrtTlsWrite(xtlsctx *pCtx, const char *pData, size_t iLen, siz
 	return XRT_NET_OK;
 }
 
+
+// 关闭 TLS
 XXAPI xnet_result xrtTlsClose(xtlsctx *pCtx)
 {
 	if ( !pCtx ) return XRT_NET_ERROR;
@@ -5090,28 +5275,38 @@ XXAPI xnet_result xrtTlsClose(xtlsctx *pCtx)
 	return XRT_NET_OK;
 }
 
+
+// xrtTlsIsReady 相关处理
 XXAPI bool xrtTlsIsReady(xtlsctx *pCtx)
 {
 	if ( !pCtx ) return false;
 	return pCtx->bHandshakeDone;
 }
 
+
+// xrtTlsFeed 相关处理
 XXAPI xnet_result xrtTlsFeed(xtlsctx *pCtx, const char *pData, size_t iLen)
 {
 	if ( !pCtx || !pData || iLen == 0 ) return XRT_NET_ERROR;
 	return __xrt_tls_buf_append(&pCtx->tRecvBuf, pData, iLen) ? XRT_NET_OK : XRT_NET_ERROR;
 }
 
+
+// xrtTlsPendingSend 相关处理
 XXAPI size_t xrtTlsPendingSend(xtlsctx *pCtx)
 {
 	return pCtx ? pCtx->tSendBuf.iSize : 0;
 }
 
+
+// xrtTlsPendingRecv 相关处理
 XXAPI size_t xrtTlsPendingRecv(xtlsctx *pCtx)
 {
 	return pCtx ? pCtx->tRecvBuf.iSize : 0;
 }
 
+
+// xrtTlsPeekSend 相关处理
 XXAPI xnet_result xrtTlsPeekSend(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
 {
 	size_t iCopy;
@@ -5124,6 +5319,8 @@ XXAPI xnet_result xrtTlsPeekSend(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t 
 	return XRT_NET_OK;
 }
 
+
+// xrtTlsConsumeSend 相关处理
 XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
 {
 	if ( !pCtx || iLen == 0 || pCtx->tSendBuf.iSize == 0 ) return;
@@ -5134,6 +5331,8 @@ XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
 	__xrt_tls_buf_consume(&pCtx->tSendBuf, iLen);
 }
 
+
+// xrtTlsExportResume 相关处理
 XXAPI xtlsresume* xrtTlsExportResume(xtlsctx *pCtx)
 {
 	xtlsresume* pResume;
@@ -5147,6 +5346,8 @@ XXAPI xtlsresume* xrtTlsExportResume(xtlsctx *pCtx)
 	return pResume;
 }
 
+
+// xrtTlsResumeDestroy 相关处理
 XXAPI void xrtTlsResumeDestroy(xtlsresume* pResume)
 {
 	if ( !pResume ) return;
@@ -5154,6 +5355,8 @@ XXAPI void xrtTlsResumeDestroy(xtlsresume* pResume)
 	xrtFree(pResume);
 }
 
+
+// xrtTlsWasResumed 相关处理
 XXAPI bool xrtTlsWasResumed(xtlsctx *pCtx)
 {
 	return pCtx ? pCtx->bSessionResumed : false;
@@ -5593,6 +5796,8 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_sign_server_hash
 static bool __xrt_tls_sign_server_hash(xtlsctx *pCtx, const uint8 *pHash, size_t iHashLen,
 	uint8 *pSig, size_t *pSigLen)
 {
@@ -5629,6 +5834,8 @@ static bool __xrt_tls_sign_server_hash(xtlsctx *pCtx, const uint8 *pHash, size_t
 	return false;
 }
 
+
+// 内部函数：__xrt_tls13_send_server_hello
 static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 {
 	uint8 aBuf[256];
@@ -5702,6 +5909,8 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls13_send_encrypted_extensions
 static bool __xrt_tls13_send_encrypted_extensions(xtlsctx *pCtx)
 {
 	uint8 aMsg[6];
@@ -5714,6 +5923,8 @@ static bool __xrt_tls13_send_encrypted_extensions(xtlsctx *pCtx)
 	return true;
 }
 
+
+// 内部函数：发送 TLS 13 certificate
 static bool __xrt_tls13_send_certificate(xtlsctx *pCtx)
 {
 	size_t iBodyLen;
@@ -5740,6 +5951,8 @@ static bool __xrt_tls13_send_certificate(xtlsctx *pCtx)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls13_send_certificate_verify
 static bool __xrt_tls13_send_certificate_verify(xtlsctx *pCtx)
 {
 	uint8 aTranscriptHash[64];
@@ -5774,6 +5987,8 @@ static bool __xrt_tls13_send_certificate_verify(xtlsctx *pCtx)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls13_send_server_flight
 static bool __xrt_tls13_send_server_flight(xtlsctx *pCtx)
 {
 	if ( !__xrt_tls13_send_encrypted_extensions(pCtx) ) return false;
@@ -5784,6 +5999,8 @@ static bool __xrt_tls13_send_server_flight(xtlsctx *pCtx)
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_parse_rsa_private_key
 static bool __xrt_tls_parse_rsa_private_key(xtlsctx *pCtx, uint8 *pDer, size_t iLen)
 {
 	struct __xrt_der_tlv tSeq, tField;
@@ -5813,6 +6030,8 @@ static bool __xrt_tls_parse_rsa_private_key(xtlsctx *pCtx, uint8 *pDer, size_t i
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_parse_ec_private_key
 static bool __xrt_tls_parse_ec_private_key(xtlsctx *pCtx, uint8 *pDer, size_t iLen)
 {
 	struct __xrt_der_tlv tSeq, tField;
@@ -5828,6 +6047,8 @@ static bool __xrt_tls_parse_ec_private_key(xtlsctx *pCtx, uint8 *pDer, size_t iL
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_parse_ed25519_private_key
 static bool __xrt_tls_parse_ed25519_private_key(xtlsctx *pCtx, uint8 *pDer, size_t iLen)
 {
 	struct __xrt_der_tlv tKey, tSeed;
@@ -5851,6 +6072,8 @@ static bool __xrt_tls_parse_ed25519_private_key(xtlsctx *pCtx, uint8 *pDer, size
 	return true;
 }
 
+
+// 内部函数：__xrt_tls_parse_private_key_info
 static bool __xrt_tls_parse_private_key_info(xtlsctx *pCtx, uint8 *pDer, size_t iLen)
 {
 	struct __xrt_der_tlv tSeq, tVersion, tAlg, tPriv, tOID;
@@ -5882,6 +6105,8 @@ static bool __xrt_tls_parse_private_key_info(xtlsctx *pCtx, uint8 *pDer, size_t 
 	return false;
 }
 
+
+// 内部函数：__xrt_tls_prepare_server_identity
 static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx)
 {
 	struct __xrt_x509_cert tCert;
@@ -5940,12 +6165,16 @@ XXAPI const char* xrtTlsGetSNI(xtlsctx *pCtx)
 	return pCtx->sClientSNI;
 }
 
+
+// 设置 TLS allow TLS 12 ed 25519
 XXAPI void xrtTlsSetAllowTLS12Ed25519(xtlsctx *pCtx, bool bAllow)
 {
 	if ( !pCtx ) return;
 	pCtx->bAllowTLS12Ed25519 = bAllow;
 }
 
+
+// 设置 TLS 证书
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile)
 {
 	uint8 *pCertDer = NULL;
@@ -6008,11 +6237,15 @@ struct xrt_tls_session {
 	bool bIsServer;
 };
 
+
+// 内部函数：__xrtNetTlsSessionCtx
 static xtlsctx* __xrtNetTlsSessionCtx(const xtlssession* pSession)
 {
 	return pSession ? pSession->pCtx : NULL;
 }
 
+
+// 创建网络 TLS session
 XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer)
 {
 	xtlssession* pSession;
@@ -6032,6 +6265,8 @@ XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer
 	return pSession;
 }
 
+
+// 销毁网络 TLS session
 XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession)
 {
 	if ( !pSession ) {
@@ -6045,18 +6280,24 @@ XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession)
 	xrtFree(pSession);
 }
 
+
+// xrtNetTlsSessionIsReady 相关处理
 XXAPI bool xrtNetTlsSessionIsReady(const xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsIsReady(pCtx) : false;
 }
 
+
+// xrtNetTlsSessionDriveHandshake 相关处理
 XXAPI xnet_result xrtNetTlsSessionDriveHandshake(xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsDrive(pCtx) : XRT_NET_ERROR;
 }
 
+
+// xrtNetTlsSessionFeedCipher 相关处理
 XXAPI xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* pData, size_t iLen)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
@@ -6066,18 +6307,24 @@ XXAPI xnet_result xrtNetTlsSessionFeedCipher(xtlssession* pSession, const void* 
 	return xrtTlsFeed(pCtx, (const char*)pData, iLen);
 }
 
+
+// xrtNetTlsSessionPendingCipher 相关处理
 XXAPI size_t xrtNetTlsSessionPendingCipher(const xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsPendingSend(pCtx) : 0;
 }
 
+
+// xrtNetTlsSessionPendingRecv 相关处理
 XXAPI size_t xrtNetTlsSessionPendingRecv(const xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsPendingRecv(pCtx) : 0;
 }
 
+
+// xrtNetTlsSessionPeekCipher 相关处理
 XXAPI xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
@@ -6087,6 +6334,8 @@ XXAPI xnet_result xrtNetTlsSessionPeekCipher(xtlssession* pSession, void* pBuf, 
 	return xrtTlsPeekSend(pCtx, (char*)pBuf, iLen, pRead);
 }
 
+
+// xrtNetTlsSessionConsumeCipher 相关处理
 XXAPI void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
@@ -6096,6 +6345,8 @@ XXAPI void xrtNetTlsSessionConsumeCipher(xtlssession* pSession, size_t iLen)
 	xrtTlsConsumeSend(pCtx, iLen);
 }
 
+
+// xrtNetTlsSessionWritePlain 相关处理
 XXAPI xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* pData, size_t iLen, size_t* pWritten)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
@@ -6105,6 +6356,8 @@ XXAPI xnet_result xrtNetTlsSessionWritePlain(xtlssession* pSession, const void* 
 	return xrtTlsWrite(pCtx, (const char*)pData, iLen, pWritten);
 }
 
+
+// xrtNetTlsSessionReadPlain 相关处理
 XXAPI xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, size_t iLen, size_t* pRead)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
@@ -6114,41 +6367,55 @@ XXAPI xnet_result xrtNetTlsSessionReadPlain(xtlssession* pSession, void* pBuf, s
 	return xrtTlsRead(pCtx, (char*)pBuf, iLen, pRead);
 }
 
+
+// 关闭网络 TLS session 队列
 XXAPI xnet_result xrtNetTlsSessionQueueClose(xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsClose(pCtx) : XRT_NET_ERROR;
 }
 
+
+// xrtNetTlsSessionExportResume 相关处理
 XXAPI xtlsresume* xrtNetTlsSessionExportResume(const xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsExportResume(pCtx) : NULL;
 }
 
+
+// 销毁网络 TLS resume
 XXAPI void xrtNetTlsResumeDestroy(xtlsresume* pResume)
 {
 	xrtTlsResumeDestroy(pResume);
 }
 
+
+// xrtNetTlsSessionWasResumed 相关处理
 XXAPI bool xrtNetTlsSessionWasResumed(const xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsWasResumed(pCtx) : false;
 }
 
+
+// xrtNetTlsSessionGetSNI 相关处理
 XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsGetSNI(pCtx) : NULL;
 }
 
+
+// 设置网络 TLS session 证书
 XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
 	return pCtx ? xrtTlsSetCert(pCtx, sCertFile, sKeyFile) : XRT_NET_ERROR;
 }
 
+
+// 设置网络 TLS session allow TLS 12 ed 25519
 XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);

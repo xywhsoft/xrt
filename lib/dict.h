@@ -57,6 +57,9 @@ void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 		xrtFree(pNode->Key);
 	}
 }
+
+
+// 初始化字典
 XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength, uint32 iMode)
 {
 	xrtOwnerInitMode(&objHT->Owner, iMode);
@@ -74,6 +77,9 @@ static inline void __xrtDictUnit_NoLock(xdict objHT)
 {
 	xrtAVLTreeUnit(&objHT->AVLT);
 }
+
+
+// 释放字典
 XXAPI void xrtDictUnit(xdict objHT)
 {
 	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
@@ -84,17 +90,24 @@ XXAPI void xrtDictUnit(xdict objHT)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 创建字典调试
 XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xdict objHT = xrtDictCreate(iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objHT;
 }
+
+
+// 初始化字典调试
 XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xrtDictInit(objHT, iItemLength, iMode);
 	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
+
+
+// 销毁字典调试
 XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
 {
 	if ( objHT ) {
@@ -109,6 +122,9 @@ XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
 		xrtFreeDbg(objHT, sFile, iLine);
 	}
 }
+
+
+// 释放字典调试
 XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine)
 {
 	if ( objHT == NULL ) {
@@ -126,6 +142,7 @@ XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine)
 }
 #endif
 
+// 锁定字典
 XXAPI bool xrtDictLock(xdict objHT)
 {
 	if ( objHT == NULL ) {
@@ -134,6 +151,8 @@ XXAPI bool xrtDictLock(xdict objHT)
 	return xrtOwnerLock(&objHT->Owner, "dict belongs to another thread.");
 }
 
+
+// 解锁字典
 XXAPI void xrtDictUnlock(xdict objHT)
 {
 	if ( objHT == NULL ) {
@@ -315,6 +334,9 @@ int AVLHT32_WalkRecuProc(xavltnode root, Dict_EachProc procEach, ptr pArg)
 	}
 	return 0;
 }
+
+
+// 遍历字典
 XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 {
 	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {

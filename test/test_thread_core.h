@@ -28,6 +28,8 @@ typedef struct {
 	volatile int bRandOk;
 } __test_thread_core_runtime_ctx;
 
+
+// 内部函数：__Test_ThreadCore_Worker
 static uint32 __Test_ThreadCore_Worker(ptr pArg)
 {
 	uint32 iValue = (uint32)(uintptr_t)pArg;
@@ -35,6 +37,8 @@ static uint32 __Test_ThreadCore_Worker(ptr pArg)
 	return iValue;
 }
 
+
+// 内部函数：__Test_ThreadCore_CondWorker
 static uint32 __Test_ThreadCore_CondWorker(ptr pArg)
 {
 	__test_thread_core_cond_ctx* pCtx = (__test_thread_core_cond_ctx*)pArg;
@@ -51,6 +55,8 @@ static uint32 __Test_ThreadCore_CondWorker(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_ThreadCore_StopWorker
 static uint32 __Test_ThreadCore_StopWorker(ptr pArg)
 {
 	__test_thread_core_stop_ctx* pCtx = (__test_thread_core_stop_ctx*)pArg;
@@ -70,12 +76,16 @@ static uint32 __Test_ThreadCore_StopWorker(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_ThreadCore_Cleanup
 static void __Test_ThreadCore_Cleanup(xrtThreadData* pThreadData, ptr pArg)
 {
 	(void)pThreadData;
 	(*(volatile int*)pArg)++;
 }
 
+
+// 内部函数：__Test_ThreadCore_RuntimeWorker
 static uint32 __Test_ThreadCore_RuntimeWorker(ptr pArg)
 {
 	__test_thread_core_runtime_ctx* pCtx = (__test_thread_core_runtime_ctx*)pArg;
@@ -113,12 +123,16 @@ static uint32 __Test_ThreadCore_RuntimeWorker(ptr pArg)
 	return 77;
 }
 
+
+// 内部函数：__Test_ThreadCore_Check
 static int __Test_ThreadCore_Check(const char* sName, int bOk)
 {
 	printf("  %s : %s\n", sName, bOk ? "PASS" : "FAIL");
 	return bOk ? 0 : 1;
 }
 
+
+// 线程核心测试
 static int Test_ThreadCore(void)
 {
 	int iFail = 0;

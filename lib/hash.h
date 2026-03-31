@@ -596,6 +596,9 @@ XXAPI uint32 xrtHash32_WithSeed(ptr key, size_t len, uint32 seed)
 {
 	return NMHASH32X(key, len, seed);
 }
+
+
+// xrtHash32 相关处理
 XXAPI uint32 xrtHash32(ptr key, size_t len)
 {
 	return xrtHash32_WithSeed(key, len, HASH32_SEED);
@@ -845,10 +848,14 @@ Hash64 - rapidhash [Ver3.0, Update : 2025/08/14 from https://github.com/Nicoshev
  RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint64_t v; memcpy(&v, p, sizeof(uint64_t)); return _byteswap_uint64(v);}
  RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT { uint32_t v; memcpy(&v, p, sizeof(uint32_t)); return _byteswap_ulong(v);}
  #else
+ // rapid_read64 相关处理
  RAPIDHASH_INLINE uint64_t rapid_read64(const uint8_t *p) RAPIDHASH_NOEXCEPT {
    uint64_t v; memcpy(&v, p, 8);
    return (((v >> 56) & 0xff)| ((v >> 40) & 0xff00)| ((v >> 24) & 0xff0000)| ((v >>  8) & 0xff000000)| ((v <<  8) & 0xff00000000)| ((v << 24) & 0xff0000000000)| ((v << 40) & 0xff000000000000)| ((v << 56) & 0xff00000000000000));
  }
+
+
+ // rapid_read32 相关处理
  RAPIDHASH_INLINE uint64_t rapid_read32(const uint8_t *p) RAPIDHASH_NOEXCEPT {
    uint32_t v; memcpy(&v, p, 4);
    return (((v >> 24) & 0xff)| ((v >>  8) & 0xff00)| ((v <<  8) & 0xff0000)| ((v << 24) & 0xff000000));
@@ -1207,24 +1214,37 @@ XXAPI uint64 xrtHash64_WithSeed(ptr key, size_t len, uint64 seed)
 {
 	return rapidhash_internal(key, len, seed, rapid_secret);
 }
+
+
+// xrtHash64 相关处理
 XXAPI uint64 xrtHash64(ptr key, size_t len)
 {
 	return xrtHash64_WithSeed(key, len, 0);
 }
 
+
+// xrtHash64_Micro_WithSeed 相关处理
 XXAPI uint64 xrtHash64_Micro_WithSeed(ptr key, size_t len, uint64 seed)
 {
 	return rapidhashMicro_internal(key, len, seed, rapid_secret);
 }
+
+
+// xrtHash64_Micro 相关处理
 XXAPI uint64 xrtHash64_Micro(ptr key, size_t len)
 {
 	return xrtHash64_Micro_WithSeed(key, len, 0);
 }
 
+
+// xrtHash64_Nano_WithSeed 相关处理
 XXAPI uint64 xrtHash64_Nano_WithSeed(ptr key, size_t len, uint64 seed)
 {
 	return rapidhashNano_internal(key, len, seed, rapid_secret);
 }
+
+
+// xrtHash64_Nano 相关处理
 XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 {
 	return xrtHash64_Nano_WithSeed(key, len, 0);

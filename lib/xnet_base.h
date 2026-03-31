@@ -230,6 +230,7 @@ typedef struct {
 	#define __XNET_THREAD_LOCAL
 #endif
 
+// 内部函数：__xnetAtomicCompareExchange32
 static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange, long iComparand)
 {
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
@@ -241,6 +242,8 @@ static long __xnetAtomicCompareExchange32(volatile long* pValue, long iExchange,
 	#endif
 }
 
+
+// 内部函数：__xnetAtomicExchange32
 static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
 {
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
@@ -252,6 +255,8 @@ static long __xnetAtomicExchange32(volatile long* pValue, long iValue)
 	#endif
 }
 
+
+// 内部函数：__xnetAtomicAddFetch32
 static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 {
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
@@ -271,11 +276,15 @@ static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 	#endif
 }
 
+
+// 内部函数：__xnetAtomicLoad32
 static long __xnetAtomicLoad32(const volatile long* pValue)
 {
 	return __xnetAtomicCompareExchange32((volatile long*)pValue, 0, 0);
 }
 
+
+// 内部函数：__xnetAddrFromSockAddr
 static bool __xnetAddrFromSockAddr(xnetaddr* pAddr, const struct sockaddr* pSA)
 {
 	if ( !pAddr || !pSA ) return false;
@@ -299,6 +308,8 @@ static bool __xnetAddrFromSockAddr(xnetaddr* pAddr, const struct sockaddr* pSA)
 	return false;
 }
 
+
+// 内部函数：复制固定长度字符串
 static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 {
 	size_t iLen;
@@ -311,6 +322,8 @@ static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 	sDst[iLen] = '\0';
 }
 
+
+// 内部函数：判断是否为代理配置 valid
 static bool __xnetProxyConfigIsValid(const xnetproxyconfig* pCfg)
 {
 	if ( !pCfg ) return false;
@@ -319,6 +332,8 @@ static bool __xnetProxyConfigIsValid(const xnetproxyconfig* pCfg)
 	return true;
 }
 
+
+// 内部函数：__xnetAddrToSockAddr
 static bool __xnetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_storage* pStorage, socklen_t* pLen)
 {
 	if ( !pAddr || !pStorage || !pLen ) return false;
@@ -343,6 +358,8 @@ static bool __xnetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_storage*
 	return false;
 }
 
+
+// 内部函数：__xnetAddrTempBuf
 static char* __xnetAddrTempBuf(void)
 {
 	static __XNET_THREAD_LOCAL char aRing[4][__XNET_ADDR_STR_CAP];
@@ -365,6 +382,8 @@ XXAPI void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort)
 	pAddr->iPort = iPort;
 }
 
+
+// xrtNetAddrParse 相关处理
 XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -410,6 +429,8 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 	return XRT_NET_ERROR;
 }
 
+
+// 解析网络
 XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 {
 	if ( !sHost || !sHost[0] || !pAddr ) return XRT_NET_ERROR;
@@ -448,6 +469,8 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 	return XRT_NET_ERROR;
 }
 
+
+// xrtNetAddrToStr 相关处理
 XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 {
 	char* pBuf = __xnetAddrTempBuf();
@@ -503,6 +526,8 @@ XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
 	pCfg->iMaxConnsPerWorker = 0;
 }
 
+
+// 初始化网络 listen 配置
 XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 {
 	if ( !pCfg ) return;
@@ -516,6 +541,8 @@ XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 	pCfg->pTlsConfig = NULL;
 }
 
+
+// 初始化网络代理配置
 XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg)
 {
 	if ( !pCfg ) return;
@@ -523,6 +550,8 @@ XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg)
 	pCfg->iType = XNET_PROXY_NONE;
 }
 
+
+// 创建网络代理
 XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg)
 {
 	xnetproxy* pProxy;
@@ -539,6 +568,8 @@ XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg)
 	return pProxy;
 }
 
+
+// 增加网络代理 ref
 XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy)
 {
 	if ( !pProxy ) return NULL;
@@ -546,6 +577,8 @@ XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy)
 	return pProxy;
 }
 
+
+// 释放网络代理
 XXAPI void xrtNetProxyRelease(xnetproxy* pProxy)
 {
 	if ( !pProxy ) return;
@@ -554,6 +587,8 @@ XXAPI void xrtNetProxyRelease(xnetproxy* pProxy)
 	}
 }
 
+
+// 初始化网络 connect 配置
 XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 {
 	if ( !pCfg ) return;
@@ -569,6 +604,8 @@ XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 	pCfg->pProxy = NULL;
 }
 
+
+// 初始化网络数据报配置
 XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 {
 	if ( !pCfg ) return;

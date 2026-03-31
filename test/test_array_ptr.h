@@ -1,6 +1,7 @@
 
 
 
+// 数组SORTPROC相关处理
 int ArraySortProc(void** p1, void** p2)
 {
 	return (intptr_t)*p1 - (intptr_t)*p2;
@@ -8,6 +9,7 @@ int ArraySortProc(void** p1, void** p2)
 
 
 
+// 数组指针测试
 void Test_Array_Ptr(xrtGlobalData* xCore)
 {
 	printf("\n\n\n------------------------------------\n\n Array [Ptr] 库测试 :\n\n");

@@ -59,6 +59,8 @@ typedef struct {
 	int iterations;
 } SimpleReaderParam;
 
+
+// SIMPLEREADER线程相关处理
 static uint32 SimpleReaderThread(ptr param)
 {
 	SimpleReaderParam* p = (SimpleReaderParam*)param;

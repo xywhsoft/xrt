@@ -14,6 +14,7 @@
 
 #if defined(XRT_NO_NETWORK)
 
+// XNET2监听器接受核心测试
 static int Test_XNet2_ListenerAcceptCore(void)
 {
 	printf("Listener accept focused test: skipped (network disabled)\n");
@@ -42,6 +43,8 @@ typedef struct
 	bool bTimeoutDone;
 } __test_xnet2_listener_accept_coro_case;
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_SleepMs
 static void __Test_XNet2_ListenerAcceptCore_SleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -51,6 +54,8 @@ static void __Test_XNet2_ListenerAcceptCore_SleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_NowMs
 static int64_t __Test_XNet2_ListenerAcceptCore_NowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -62,6 +67,8 @@ static int64_t __Test_XNet2_ListenerAcceptCore_NowMs(void)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_WaitOpen
 static bool __Test_XNet2_ListenerAcceptCore_WaitOpen(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_ListenerAcceptCore_NowMs() + (int64_t)iTimeoutMs;
@@ -78,6 +85,8 @@ static bool __Test_XNet2_ListenerAcceptCore_WaitOpen(xnetstream* pStream, uint32
 	return (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0;
 }
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_WaitRegistered
 static bool __Test_XNet2_ListenerAcceptCore_WaitRegistered(xnetlistener* pListener, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_ListenerAcceptCore_NowMs() + (int64_t)iTimeoutMs;
@@ -94,12 +103,16 @@ static bool __Test_XNet2_ListenerAcceptCore_WaitRegistered(xnetlistener* pListen
 	return pListener->tAcceptWait.pfnWait != NULL;
 }
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_ErrorEmpty
 static bool __Test_XNet2_ListenerAcceptCore_ErrorEmpty(void)
 {
 	const char* sErr = xrtGetError();
 	return sErr == NULL || sErr[0] == 0;
 }
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_ConnectWorker
 static uint32 __Test_XNet2_ListenerAcceptCore_ConnectWorker(ptr pArg)
 {
 	__test_xnet2_listener_accept_connect_case* pCase = (__test_xnet2_listener_accept_connect_case*)pArg;
@@ -134,6 +147,8 @@ static uint32 __Test_XNet2_ListenerAcceptCore_ConnectWorker(ptr pArg)
 	return 0;
 }
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_TimeoutOnlyCo
 static void __Test_XNet2_ListenerAcceptCore_TimeoutOnlyCo(ptr pArg)
 {
 	__test_xnet2_listener_accept_coro_case* pCase = (__test_xnet2_listener_accept_coro_case*)pArg;
@@ -146,6 +161,8 @@ static void __Test_XNet2_ListenerAcceptCore_TimeoutOnlyCo(ptr pArg)
 	pCase->bTimeoutDone = true;
 }
 
+
+// 内部函数：__Test_XNet2_ListenerAcceptCore_RetryOnlyCo
 static void __Test_XNet2_ListenerAcceptCore_RetryOnlyCo(ptr pArg)
 {
 	__test_xnet2_listener_accept_coro_case* pCase = (__test_xnet2_listener_accept_coro_case*)pArg;
@@ -156,6 +173,8 @@ static void __Test_XNet2_ListenerAcceptCore_RetryOnlyCo(ptr pArg)
 	pCase->bDone = true;
 }
 
+
+// XNET2监听器接受核心测试
 static int Test_XNet2_ListenerAcceptCore(void)
 {
 	bool bFutureOk = false;

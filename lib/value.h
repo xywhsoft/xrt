@@ -25,6 +25,9 @@ XXAPI void xvoAddRef(xvalue pVal)
 {
 	xvoAddRef_Inline(pVal);
 }
+
+
+// 释放列表 clear 进程
 bool xvoListClear_FreeProc(int64 pKey, xvalue* ppVal, xlist pList)
 {
 	(void)pKey;
@@ -32,11 +35,17 @@ bool xvoListClear_FreeProc(int64 pKey, xvalue* ppVal, xlist pList)
 	xvoUnref(*ppVal);
 	return FALSE;
 }
+
+
+// 释放 coll 节点进程
 static void xvoCollNode_FreeProc(xavltree pColl, Coll_Key* pKey)
 {
 	(void)pColl;
 	xvoUnref(pKey->Value);
 }
+
+
+// xvoTableClear_FreeProc 相关处理
 bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue* ppVal, xdict pTbl)
 {
 	(void)pKey;
@@ -44,6 +53,9 @@ bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue* ppVal, xdict pTbl)
 	xvoUnref(*ppVal);
 	return FALSE;
 }
+
+
+// 内部函数：销毁值
 static void __xvoDestroyValue(xvalue pVal)
 {
 	if ( pVal->Type == XVO_DT_TEXT ) {
@@ -71,6 +83,9 @@ static void __xvoDestroyValue(xvalue pVal)
 		printf("free value : %x\n", pVal);
 	#endif
 }
+
+
+// xvoUnref 相关处理
 XXAPI void xvoUnref(xvalue pVal)
 {
 	uint32 iOldHeader;
@@ -113,6 +128,9 @@ XXAPI xvalue xvoCreateNull()
 {
 	return &XVO_VALUE_NULL;
 }
+
+
+// 创建布尔值
 XXAPI xvalue xvoCreateBool(bool bVal)
 {
 	if ( bVal ) {
@@ -121,6 +139,9 @@ XXAPI xvalue xvoCreateBool(bool bVal)
 		return &XVO_VALUE_FALSE;
 	}
 }
+
+
+// 创建整数
 XXAPI xvalue xvoCreateInt(int64 iVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -131,6 +152,9 @@ XXAPI xvalue xvoCreateInt(int64 iVal)
 	}
 	return pVal;
 }
+
+
+// 创建浮点数
 XXAPI xvalue xvoCreateFloat(double fVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -141,6 +165,9 @@ XXAPI xvalue xvoCreateFloat(double fVal)
 	}
 	return pVal;
 }
+
+
+// 创建文本
 XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 {
 	if ( sVal == NULL ) {
@@ -170,6 +197,9 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 	}
 	return pVal;
 }
+
+
+// xvoCreateTime 相关处理
 XXAPI xvalue xvoCreateTime(xtime tVal)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -180,6 +210,9 @@ XXAPI xvalue xvoCreateTime(xtime tVal)
 	}
 	return pVal;
 }
+
+
+// xvoCreateTimeSerial 相关处理
 XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -190,6 +223,9 @@ XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, i
 	}
 	return pVal;
 }
+
+
+// xvoCreatePoint 相关处理
 XXAPI xvalue xvoCreatePoint(ptr point)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -200,6 +236,9 @@ XXAPI xvalue xvoCreatePoint(ptr point)
 	}
 	return pVal;
 }
+
+
+// xvoCreateFunc 相关处理
 XXAPI xvalue xvoCreateFunc(xfunction pFunc)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -210,10 +249,16 @@ XXAPI xvalue xvoCreateFunc(xfunction pFunc)
 	}
 	return pVal;
 }
+
+
+// 创建数组
 XXAPI xvalue xvoCreateArray()
 {
 	return xvoCreateArrayEx(XRT_OBJMODE_LOCAL);
 }
+
+
+// 创建数组扩展
 XXAPI xvalue xvoCreateArrayEx(uint32 iMode)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -229,10 +274,16 @@ XXAPI xvalue xvoCreateArrayEx(uint32 iMode)
 	}
 	return pVal;
 }
+
+
+// 创建列表
 XXAPI xvalue xvoCreateList()
 {
 	return xvoCreateListEx(XRT_OBJMODE_LOCAL);
 }
+
+
+// 创建列表扩展
 XXAPI xvalue xvoCreateListEx(uint32 iMode)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -248,10 +299,16 @@ XXAPI xvalue xvoCreateListEx(uint32 iMode)
 	}
 	return pVal;
 }
+
+
+// xvoCreateColl 相关处理
 XXAPI xvalue xvoCreateColl()
 {
 	return xvoCreateCollEx(XRT_OBJMODE_LOCAL);
 }
+
+
+// xvoCreateCollEx 相关处理
 XXAPI xvalue xvoCreateCollEx(uint32 iMode)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -269,10 +326,16 @@ XXAPI xvalue xvoCreateCollEx(uint32 iMode)
 	}
 	return pVal;
 }
+
+
+// xvoCreateTable 相关处理
 XXAPI xvalue xvoCreateTable()
 {
 	return xvoCreateTableEx(XRT_OBJMODE_LOCAL);
 }
+
+
+// xvoCreateTableEx 相关处理
 XXAPI xvalue xvoCreateTableEx(uint32 iMode)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -288,6 +351,9 @@ XXAPI xvalue xvoCreateTableEx(uint32 iMode)
 	}
 	return pVal;
 }
+
+
+// 创建分类
 XXAPI xvalue xvoCreateClass(uint32 iSize)
 {
 	if ( iSize == 0 ) {
@@ -306,6 +372,9 @@ XXAPI xvalue xvoCreateClass(uint32 iSize)
 	}
 	return pVal;
 }
+
+
+// xvoCreateCustom 相关处理
 XXAPI xvalue xvoCreateCustom(ptr pObj)
 {
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
@@ -334,6 +403,9 @@ XXAPI bool xvoGetBool(xvalue pVal)
 		return TRUE;
 	}
 }
+
+
+// 获取整数
 XXAPI int64 xvoGetInt(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -350,6 +422,9 @@ XXAPI int64 xvoGetInt(xvalue pVal)
 		return 0;
 	}
 }
+
+
+// 获取浮点数
 XXAPI double xvoGetFloat(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -366,6 +441,9 @@ XXAPI double xvoGetFloat(xvalue pVal)
 		return 0.0;
 	}
 }
+
+
+// 获取文本
 XXAPI str xvoGetText(xvalue pVal)
 {
 	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
@@ -425,6 +503,9 @@ XXAPI str xvoGetText(xvalue pVal)
 		return xCore.sNull;
 	}
 }
+
+
+// xvoGetTime 相关处理
 XXAPI xtime xvoGetTime(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -437,6 +518,9 @@ XXAPI xtime xvoGetTime(xvalue pVal)
 		return 0;
 	}
 }
+
+
+// xvoGetPoint 相关处理
 XXAPI ptr xvoGetPoint(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -447,6 +531,9 @@ XXAPI ptr xvoGetPoint(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+// xvoGetFunc 相关处理
 XXAPI xfunction xvoGetFunc(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -457,6 +544,9 @@ XXAPI xfunction xvoGetFunc(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+// 获取数组
 XXAPI xparray xvoGetArray(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -467,6 +557,9 @@ XXAPI xparray xvoGetArray(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+// 获取列表
 XXAPI xlist xvoGetList(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -477,6 +570,9 @@ XXAPI xlist xvoGetList(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+// xvoGetColl 相关处理
 XXAPI xavltree xvoGetColl(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -487,6 +583,9 @@ XXAPI xavltree xvoGetColl(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+// xvoGetTable 相关处理
 XXAPI xdict xvoGetTable(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -497,6 +596,9 @@ XXAPI xdict xvoGetTable(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+// 获取分类
 XXAPI ptr xvoGetClass(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -507,6 +609,9 @@ XXAPI ptr xvoGetClass(xvalue pVal)
 		return NULL;
 	}
 }
+
+
+// xvoGetCustom 相关处理
 XXAPI ptr xvoGetCustom(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -649,6 +754,9 @@ XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
 	}
 	return xrtPtrArraySwap(pArr->vArray, index1 + 1, index2 + 1);
 }
+
+
+// 删除数组
 XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
 {
 	if ( pArr == NULL ) {
@@ -666,6 +774,9 @@ XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
 	}
 	return xrtPtrArrayRemove(pArr->vArray, index + 1, count);
 }
+
+
+// xvoArrayItemCount 相关处理
 XXAPI uint32 xvoArrayItemCount(xvalue pArr)
 {
 	if ( pArr == NULL ) {
@@ -676,6 +787,9 @@ XXAPI uint32 xvoArrayItemCount(xvalue pArr)
 	}
 	return pArr->vArray->Count;
 }
+
+
+// 清除数组
 XXAPI bool xvoArrayClear(xvalue pArr)
 {
 	if ( pArr == NULL ) {
@@ -691,6 +805,9 @@ XXAPI bool xvoArrayClear(xvalue pArr)
 	xrtPtrArrayClear(pArr->vArray);
 	return TRUE;
 }
+
+
+// 分配数组
 XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count)
 {
 	if ( pArr == NULL ) {
@@ -702,6 +819,8 @@ XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count)
 	return xrtPtrArrayMalloc(pArr->vArray, count);
 }
 
+
+// 内部函数：比较数组 sort 默认值
 static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
 {
 	uintptr_t iLeftAddr;
@@ -771,6 +890,8 @@ static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
 	return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
 }
 
+
+// 内部函数：比较数组 sort 默认进程
 static int __xvoArraySortDefaultCompareProc(const void* pLeft, const void* pRight)
 {
 	xvalue pLeftValue = pLeft ? *(const xvalue*)pLeft : NULL;
@@ -778,6 +899,8 @@ static int __xvoArraySortDefaultCompareProc(const void* pLeft, const void* pRigh
 	return __xvoArraySortDefaultCompareValue(pLeftValue, pRightValue);
 }
 
+
+// xvoArraySort 相关处理
 XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
 {
 	if ( pArr == NULL ) {
@@ -846,6 +969,9 @@ typedef struct {
 	xlist objList;
 	bool bFailed;
 } __xvoListMergeCtx;
+
+
+// xvoListMerge_RefProc 相关处理
 bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
 {
 	bool bNew = FALSE;
@@ -863,6 +989,9 @@ bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
 	}
 	return pCtx->bFailed;
 }
+
+
+// xvoListMerge_RefProc_ReWrite 相关处理
 bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
 {
 	xvalue pOldVal = NULL;
@@ -880,6 +1009,9 @@ bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* 
 	}
 	return pCtx->bFailed;
 }
+
+
+// xvoListMerge 相关处理
 XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
 {
 	__xvoListMergeCtx tCtx;
@@ -915,6 +1047,9 @@ XXAPI bool xvoListExists(xvalue pList, int64 index)
 	}
 	return xrtListExists(pList->vList, index);
 }
+
+
+// 删除列表
 XXAPI bool xvoListRemove(xvalue pList, int64 index)
 {
 	if ( pList == NULL ) {
@@ -931,6 +1066,9 @@ XXAPI bool xvoListRemove(xvalue pList, int64 index)
 		return FALSE;
 	}
 }
+
+
+// xvoListItemCount 相关处理
 XXAPI uint32 xvoListItemCount(xvalue pList)
 {
 	if ( pList == NULL ) {
@@ -941,6 +1079,9 @@ XXAPI uint32 xvoListItemCount(xvalue pList)
 	}
 	return xrtListCount(pList->vList);
 }
+
+
+// 清除列表
 XXAPI bool xvoListClear(xvalue pList)
 {
 	if ( pList == NULL ) {
@@ -953,6 +1094,9 @@ XXAPI bool xvoListClear(xvalue pList)
 	xrtListClear(pList->vList);
 	return TRUE;
 }
+
+
+// xvoListSetParent 相关处理
 XXAPI bool xvoListSetParent(xvalue pList, xvalue pParentList)
 {
 	if ( (pList == NULL) || (pParentList == NULL) ) {
@@ -1028,6 +1172,9 @@ struct CollProcParam {
 	xvalue pColl;
 	xvalue pRetVal;
 };
+
+
+// xvoCollDifference_EachProc 相关处理
 bool xvoCollDifference_EachProc(Coll_Key* pKey, struct CollProcParam* param)
 {
 	Coll_Key* pNode = xrtAVLTreeSearch(param->pColl->vColl, pKey);
@@ -1036,6 +1183,9 @@ bool xvoCollDifference_EachProc(Coll_Key* pKey, struct CollProcParam* param)
 	}
 	return FALSE;
 }
+
+
+// xvoCollDifference 相关处理
 XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl)
 {
 	if ( (pSelf == NULL) || (pColl == NULL) ) {
@@ -1086,6 +1236,9 @@ bool xvoCollIntersection_EachProc(Coll_Key* pKey, struct CollProcParam* param)
 	}
 	return FALSE;
 }
+
+
+// xvoCollIntersection 相关处理
 XXAPI xvalue xvoCollIntersection(xvalue pSelf, xvalue pColl)
 {
 	if ( (pSelf == NULL) || (pColl == NULL) ) {
@@ -1111,6 +1264,9 @@ bool xvoCollUnion_EachProc(Coll_Key* pKey, xavltree pColl)
 	xvoCollSetValueWithKey(pColl, pKey, FALSE);
 	return FALSE;
 }
+
+
+// xvoCollUnion 相关处理
 XXAPI xvalue xvoCollUnion(xvalue pSelf, xvalue pColl)
 {
 	if ( (pSelf == NULL) || (pColl == NULL) ) {
@@ -1165,6 +1321,9 @@ XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal)
 	}
 	return FALSE;
 }
+
+
+// xvoCollRemove 相关处理
 XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
 {
 	if ( (pColl == NULL) || (pVal == NULL) ) {
@@ -1177,6 +1336,9 @@ XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
 	MAKE_COLL_KEY(objKey, pVal);
 	return xrtAVLTreeRemove(pColl->vColl, &objKey);
 }
+
+
+// xvoCollItemCount 相关处理
 XXAPI uint32 xvoCollItemCount(xvalue pColl)
 {
 	uint32 iCount = 0;
@@ -1193,6 +1355,9 @@ XXAPI uint32 xvoCollItemCount(xvalue pColl)
 	xrtAVLTreeUnlock(pColl->vColl);
 	return iCount;
 }
+
+
+// xvoCollClear 相关处理
 XXAPI bool xvoCollClear(xvalue pColl)
 {
 	if ( pColl == NULL ) {
@@ -1204,6 +1369,9 @@ XXAPI bool xvoCollClear(xvalue pColl)
 	xrtAVLTreeClear(pColl->vColl);
 	return TRUE;
 }
+
+
+// xvoCollSetParent 相关处理
 XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl)
 {
 	if ( (pColl == NULL) || (pParentColl == NULL) ) {
@@ -1291,6 +1459,9 @@ typedef struct {
 	xdict objTbl;
 	bool bFailed;
 } __xvoTableMergeCtx;
+
+
+// xvoTableMerge_RefProc 相关处理
 bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
 {
 	bool bNew;
@@ -1308,6 +1479,9 @@ bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pC
 	}
 	return pCtx->bFailed;
 }
+
+
+// xvoTableMerge_RefProc_ReWrite 相关处理
 bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
 {
 	bool bNew = FALSE;
@@ -1326,6 +1500,9 @@ bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, __xvoTableMerg
 	}
 	return pCtx->bFailed;
 }
+
+
+// xvoTableMerge 相关处理
 XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
 {
 	__xvoTableMergeCtx tCtx;
@@ -1364,6 +1541,9 @@ XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl)
 	}
 	return xrtDictExists(pTbl->vTable, key, kl);
 }
+
+
+// xvoTableRemove 相关处理
 XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 {
 	if ( pTbl == NULL ) {
@@ -1383,6 +1563,9 @@ XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
 		return FALSE;
 	}
 }
+
+
+// xvoTableItemCount 相关处理
 XXAPI uint32 xvoTableItemCount(xvalue pTbl)
 {
 	if ( pTbl == NULL ) {
@@ -1393,6 +1576,9 @@ XXAPI uint32 xvoTableItemCount(xvalue pTbl)
 	}
 	return xrtDictCount(pTbl->vTable);
 }
+
+
+// xvoTableClear 相关处理
 XXAPI bool xvoTableClear(xvalue pTbl)
 {
 	if ( pTbl == NULL ) {
@@ -1405,6 +1591,9 @@ XXAPI bool xvoTableClear(xvalue pTbl)
 	xrtDictClear(pTbl->vTable);
 	return TRUE;
 }
+
+
+// xvoTableSetParent 相关处理
 XXAPI bool xvoTableSetParent(xvalue pTbl, xvalue pParentTable)
 {
 	if ( (pTbl == NULL) || (pParentTable == NULL) ) {
@@ -1433,6 +1622,9 @@ XXAPI bool xvoIsNull(xvalue pVal)
 		return FALSE;
 	}
 }
+
+
+// xvoType 相关处理
 XXAPI int xvoType(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -1470,6 +1662,9 @@ bool xvoCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
 	}
 	return FALSE;
 }
+
+
+// xvoCopy_CollProc 相关处理
 bool xvoCopy_CollProc(Coll_Key* pKey, xavltree objColl)
 {
 	if ( (pKey->Value->Type >= XVO_DT_ARRAY) ) {
@@ -1483,6 +1678,9 @@ bool xvoCopy_CollProc(Coll_Key* pKey, xavltree objColl)
 	}
 	return FALSE;
 }
+
+
+// xvoCopy_TableProc 相关处理
 bool xvoCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 {
 	if ( (ppVal[0]->Type >= XVO_DT_ARRAY) ) {
@@ -1502,6 +1700,9 @@ bool xvoCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 	}
 	return FALSE;
 }
+
+
+// 复制
 XXAPI xvalue xvoCopy(xvalue pVal)
 {
 	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
@@ -1564,6 +1765,9 @@ bool xvoDeepCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
 	xrtListSetPtr(objList, iKey, pItemCopy, NULL);
 	return FALSE;
 }
+
+
+// xvoDeepCopy_CollProc 相关处理
 bool xvoDeepCopy_CollProc(Coll_Key* pKey, xavltree objColl)
 {
 	xvalue pItemCopy = xvoDeepCopy(pKey->Value);
@@ -1571,6 +1775,9 @@ bool xvoDeepCopy_CollProc(Coll_Key* pKey, xavltree objColl)
 	xvoCollSetValueWithKey(objColl, &k, TRUE);
 	return FALSE;
 }
+
+
+// xvoDeepCopy_TableProc 相关处理
 bool xvoDeepCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 {
 	xvalue pItemCopy = xvoDeepCopy(ppVal[0]);
@@ -1580,6 +1787,9 @@ bool xvoDeepCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
 	}
 	return FALSE;
 }
+
+
+// xvoDeepCopy 相关处理
 XXAPI xvalue xvoDeepCopy(xvalue pVal)
 {
 	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
@@ -1634,16 +1844,25 @@ bool xvoPrintValue_TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
 	xvoPrintValue(*ppVal, iLevel, 2, 0, pKey->Key);
 	return FALSE;
 }
+
+
+// 输出值列表 item 进程
 bool xvoPrintValue_ListItemProc(int64 iKey, xvalue* ppVal, int iLevel)
 {
 	xvoPrintValue(*ppVal, iLevel, 1, iKey, NULL);
 	return FALSE;
 }
+
+
+// xvoPrintValue_CollItemProc 相关处理
 bool xvoPrintValue_CollItemProc(Coll_Key* pKey, int iLevel)
 {
 	xvoPrintValue(pKey->Value, iLevel, 0, 0, NULL);
 	return FALSE;
 }
+
+
+// 输出值
 XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str sKey)
 {
 	for ( int i = 0; i < iLevel; i++ ) {

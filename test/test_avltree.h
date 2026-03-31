@@ -18,6 +18,9 @@ int avltree_comp_proc(AVLT_Test_Object pNode, ptr pKey)
 
 // print AVLTree
 int iHeigth = 1;
+
+
+// AVLTreePRINT相关处理
 void avltree_print(xavltnode pRoot)
 {
 	for ( int i = 0; i < iHeigth; i++ ) {

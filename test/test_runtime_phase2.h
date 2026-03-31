@@ -94,30 +94,40 @@ typedef struct {
 	volatile int FailCount;
 } __test_phase2_shared_coll_data;
 
+
+// 内部函数：__test_phase2_has_owner_error
 static bool __test_phase2_has_owner_error(void)
 {
 	str sError = xrtGetError();
 	return sError && strstr(sError, "another thread") != NULL;
 }
 
+
+// 内部函数：__test_phase2_has_no_error
 static bool __test_phase2_has_no_error(void)
 {
 	str sError = xrtGetError();
 	return sError == NULL || sError == xCore.sNull || sError[0] == '\0';
 }
 
+
+// 内部函数：__test_phase2_has_shared_pending_error
 static bool __test_phase2_has_shared_pending_error(void)
 {
 	str sError = xrtGetError();
 	return sError && strstr(sError, "shared mode synchronization is not implemented yet.") != NULL;
 }
 
+
+// 内部函数：__test_phase2_has_shared_value_error
 static bool __test_phase2_has_shared_value_error(void)
 {
 	str sError = xrtGetError();
 	return sError && strstr(sError, "real shared") != NULL;
 }
 
+
+// 内部函数：__test_phase2_tree_comp
 static int __test_phase2_tree_comp(const __test_phase2_tree_item* pNode, ptr pKey)
 {
 	int iKey = (int)(intptr_t)pKey;
@@ -130,6 +140,8 @@ static int __test_phase2_tree_comp(const __test_phase2_tree_item* pNode, ptr pKe
 	}
 }
 
+
+// 内部函数：__test_phase2_dict_walk_count
 static bool __test_phase2_dict_walk_count(Dict_Key* pKey, ptr pVal, ptr pArg)
 {
 	int* pCount = (int*)pArg;
@@ -140,6 +152,8 @@ static bool __test_phase2_dict_walk_count(Dict_Key* pKey, ptr pVal, ptr pArg)
 	return FALSE;
 }
 
+
+// 内部函数：__test_phase2_list_walk_count
 static bool __test_phase2_list_walk_count(int64 iKey, ptr pVal, ptr pArg)
 {
 	int* pCount = (int*)pArg;
@@ -149,6 +163,8 @@ static bool __test_phase2_list_walk_count(int64 iKey, ptr pVal, ptr pArg)
 	return FALSE;
 }
 
+
+// 内部函数：__test_phase2_tree_walk_count
 static bool __test_phase2_tree_walk_count(__test_phase2_tree_item* pNode, ptr pArg)
 {
 	int* pCount = (int*)pArg;
@@ -158,6 +174,8 @@ static bool __test_phase2_tree_walk_count(__test_phase2_tree_item* pNode, ptr pA
 	return FALSE;
 }
 
+
+// 内部函数：__test_phase2_owner_worker
 static uint32 __test_phase2_owner_worker(ptr pParam)
 {
 	__test_phase2_owner_data* pData = (__test_phase2_owner_data*)pParam;
@@ -227,6 +245,8 @@ static uint32 __test_phase2_owner_worker(ptr pParam)
 	return 91;
 }
 
+
+// 内部函数：__test_phase2_owner_allocator_container
 static bool __test_phase2_owner_allocator_container(void)
 {
 	__test_phase2_owner_data tData;
@@ -356,6 +376,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_array_worker
 static uint32 __test_phase2_array_worker(ptr pParam)
 {
 	__test_phase2_array_data* pData = (__test_phase2_array_data*)pParam;
@@ -394,6 +416,8 @@ static uint32 __test_phase2_array_worker(ptr pParam)
 	return 92;
 }
 
+
+// 内部函数：__test_phase2_owner_arrays
 static bool __test_phase2_owner_arrays(void)
 {
 	__test_phase2_array_data tData;
@@ -477,6 +501,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_shared_worker
 static uint32 __test_phase2_shared_worker(ptr pParam)
 {
 	__test_phase2_shared_data* pData = (__test_phase2_shared_data*)pParam;
@@ -543,6 +569,8 @@ static uint32 __test_phase2_shared_worker(ptr pParam)
 	return 93;
 }
 
+
+// 内部函数：__test_phase2_shared_entry_points
 static bool __test_phase2_shared_entry_points(void)
 {
 	__test_phase2_shared_data tData;
@@ -763,6 +791,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_shared_xvalue_worker
 static uint32 __test_phase2_shared_xvalue_worker(ptr pParam)
 {
 	__test_phase2_shared_xvalue_data* pData = (__test_phase2_shared_xvalue_data*)pParam;
@@ -780,6 +810,8 @@ static uint32 __test_phase2_shared_xvalue_worker(ptr pParam)
 	return 98;
 }
 
+
+// 内部函数：__test_phase2_shared_xvalue_semantics
 static bool __test_phase2_shared_xvalue_semantics(void)
 {
 	__test_phase2_shared_xvalue_data tData;
@@ -939,6 +971,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_shared_coll_worker
 static uint32 __test_phase2_shared_coll_worker(ptr pParam)
 {
 	__test_phase2_shared_coll_data* pData = (__test_phase2_shared_coll_data*)pParam;
@@ -965,6 +999,8 @@ static uint32 __test_phase2_shared_coll_worker(ptr pParam)
 	return 111;
 }
 
+
+// 内部函数：__test_phase2_shared_coll_root
 static bool __test_phase2_shared_coll_root(void)
 {
 	__test_phase2_shared_coll_data tData;
@@ -1058,6 +1094,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_shared_allocator_step
 static bool __test_phase2_shared_allocator_step(__test_phase2_shared_alloc_data* pData, int iTag)
 {
 	int* pInt = NULL;
@@ -1105,6 +1143,8 @@ static bool __test_phase2_shared_allocator_step(__test_phase2_shared_alloc_data*
 	return __test_phase2_has_no_error();
 }
 
+
+// 内部函数：__test_phase2_shared_allocator_worker
 static uint32 __test_phase2_shared_allocator_worker(ptr pParam)
 {
 	__test_phase2_shared_alloc_data* pData = (__test_phase2_shared_alloc_data*)pParam;
@@ -1118,6 +1158,8 @@ static uint32 __test_phase2_shared_allocator_worker(ptr pParam)
 	return 94;
 }
 
+
+// 内部函数：__test_phase2_shared_allocator_roots
 static bool __test_phase2_shared_allocator_roots(void)
 {
 	__test_phase2_shared_alloc_data tData;
@@ -1202,6 +1244,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_shared_tree_worker
 static uint32 __test_phase2_shared_tree_worker(ptr pParam)
 {
 	__test_phase2_shared_tree_data* pData = (__test_phase2_shared_tree_data*)pParam;
@@ -1249,6 +1293,8 @@ static uint32 __test_phase2_shared_tree_worker(ptr pParam)
 	return 99;
 }
 
+
+// 内部函数：__test_phase2_shared_tree_real
 static bool __test_phase2_shared_tree_real(void)
 {
 	__test_phase2_shared_tree_data tData;
@@ -1347,6 +1393,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_shared_lock_worker
 static uint32 __test_phase2_shared_lock_worker(ptr pParam)
 {
 	__test_phase2_shared_lock_worker_data* pData = (__test_phase2_shared_lock_worker_data*)pParam;
@@ -1357,6 +1405,8 @@ static uint32 __test_phase2_shared_lock_worker(ptr pParam)
 	return 100;
 }
 
+
+// 内部函数：__test_phase2_shared_explicit_lock_api
 static bool __test_phase2_shared_explicit_lock_api(void)
 {
 	__test_phase2_shared_lock_data tData;
@@ -1602,6 +1652,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 内部函数：__test_phase2_shared_container_step
 static bool __test_phase2_shared_container_step(__test_phase2_shared_container_data* pData, int iKeyBase)
 {
 	char sKey[32];
@@ -1637,6 +1689,8 @@ static bool __test_phase2_shared_container_step(__test_phase2_shared_container_d
 	return TRUE;
 }
 
+
+// 内部函数：__test_phase2_shared_container_worker
 static uint32 __test_phase2_shared_container_worker(ptr pParam)
 {
 	__test_phase2_shared_container_worker_arg* pArg = (__test_phase2_shared_container_worker_arg*)pParam;
@@ -1650,6 +1704,8 @@ static uint32 __test_phase2_shared_container_worker(ptr pParam)
 	return 96;
 }
 
+
+// 内部函数：__test_phase2_shared_container_roots
 static bool __test_phase2_shared_container_roots(void)
 {
 	__test_phase2_shared_container_data tData;
@@ -1741,6 +1797,8 @@ cleanup:
 	return bOk;
 }
 
+
+// 运行时PHASE2测试
 void Test_Runtime_Phase2(xrtGlobalData* xCore)
 {
 	bool bOwnerChain;

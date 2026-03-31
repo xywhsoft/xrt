@@ -41,17 +41,24 @@ XXAPI void xrtDynStackUnit(xdynstack objSTK)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 创建 dyn 栈调试
 XXAPI xdynstack xrtDynStackCreateDbg(uint32 iItemLength, const char* sFile, uint32 iLine)
 {
 	xdynstack objSTK = xrtDynStackCreate(iItemLength);
 	__xrtMemDebugRegisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objSTK;
 }
+
+
+// 初始化 dyn 栈调试
 XXAPI void xrtDynStackInitDbg(xdynstack objSTK, uint32 iItemLength, const char* sFile, uint32 iLine)
 {
 	xrtDynStackInit(objSTK, iItemLength);
 	__xrtMemDebugRegisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
+
+
+// 销毁 dyn 栈调试
 XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
 {
 	if ( objSTK ) {
@@ -63,6 +70,9 @@ XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLi
 		xrtFreeDbg(objSTK, sFile, iLine);
 	}
 }
+
+
+// 释放 dyn 栈调试
 XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
 {
 	if ( objSTK == NULL ) {
@@ -102,6 +112,9 @@ XXAPI ptr xrtDynStackPush(xdynstack objSTK)
 	objSTK->Count++;
 	return &pBlock[iPos * objSTK->ItemLength];
 }
+
+
+// 压入 dyn 栈数据
 XXAPI uint32 xrtDynStackPushData(xdynstack objSTK, ptr pData)
 {
 	ptr p = xrtDynStackPush(objSTK);
@@ -111,6 +124,9 @@ XXAPI uint32 xrtDynStackPushData(xdynstack objSTK, ptr pData)
 	memcpy(p, pData, objSTK->ItemLength);
 	return objSTK->Count;
 }
+
+
+// 压入 dyn 栈指针
 XXAPI uint32 xrtDynStackPushPtr(xdynstack objSTK, ptr pVal)
 {
 	ptr* p = (ptr*)xrtDynStackPush(objSTK);
@@ -133,6 +149,9 @@ XXAPI ptr xrtDynStackPop(xdynstack objSTK)
 	}
 	return pRet;
 }
+
+
+// 弹出 dyn 栈指针
 XXAPI ptr xrtDynStackPopPtr(xdynstack objSTK)
 {
 	ptr pRet = xrtDynStackTopPtr(objSTK);
@@ -150,6 +169,9 @@ XXAPI ptr xrtDynStackTop(xdynstack objSTK)
 {
 	return xrtDynStackGetPos_Unsafe(objSTK, objSTK->Count);
 }
+
+
+// 获取顶部 dyn 栈指针
 XXAPI ptr xrtDynStackTopPtr(xdynstack objSTK)
 {
 	ptr* p = (ptr*)xrtDynStackGetPos_Unsafe(objSTK, objSTK->Count);
@@ -168,12 +190,18 @@ XXAPI ptr xrtDynStackGetPos(xdynstack objSTK, uint32 iPos)
 	}
 	return NULL;
 }
+
+
+// xrtDynStackGetPos_Unsafe 相关处理
 XXAPI ptr xrtDynStackGetPos_Unsafe(xdynstack objSTK, uint32 iPos)
 {
 	iPos--;
 	str pBlock = objSTK->MMU.Memory[iPos >> 8];
 	return &pBlock[(iPos & 0xFF) * objSTK->ItemLength];
 }
+
+
+// xrtDynStackGetPosPtr 相关处理
 XXAPI ptr xrtDynStackGetPosPtr(xdynstack objSTK, uint32 iPos)
 {
 	if ( iPos > 0 ) {
@@ -186,6 +214,9 @@ XXAPI ptr xrtDynStackGetPosPtr(xdynstack objSTK, uint32 iPos)
 	}
 	return NULL;
 }
+
+
+// xrtDynStackGetPosPtr_Unsafe 相关处理
 XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 {
 	iPos--;

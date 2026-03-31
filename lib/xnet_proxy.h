@@ -34,12 +34,16 @@ typedef struct {
 	uint32 iRecvLen;
 } __xnet_proxy_state;
 
+
+// 内部函数：__xnetProxyHasAuth
 static bool __xnetProxyHasAuth(const xnetproxy* pProxy)
 {
 	if ( !pProxy ) return false;
 	return pProxy->tConfig.sUser[0] != '\0' || pProxy->tConfig.sPass[0] != '\0';
 }
 
+
+// 内部函数：__xnetProxyConsumeRecv
 static void __xnetProxyConsumeRecv(__xnet_proxy_state* pState, uint32 iLen)
 {
 	if ( !pState || iLen == 0 ) return;
@@ -51,6 +55,8 @@ static void __xnetProxyConsumeRecv(__xnet_proxy_state* pState, uint32 iLen)
 	pState->iRecvLen -= iLen;
 }
 
+
+// 内部函数：__xnetProxyAppendRecv
 static bool __xnetProxyAppendRecv(__xnet_proxy_state* pState, const void* pData, size_t iLen)
 {
 	if ( !pState || (!pData && iLen > 0) ) return false;
@@ -61,6 +67,8 @@ static bool __xnetProxyAppendRecv(__xnet_proxy_state* pState, const void* pData,
 	return true;
 }
 
+
+// 内部函数：格式化代理 Authority
 static bool __xnetProxyFormatAuthority(const char* sHost, uint16 iPort, char* sOut, size_t iOutCap)
 {
 	xnetaddr tAddr;
@@ -75,6 +83,8 @@ static bool __xnetProxyFormatAuthority(const char* sHost, uint16 iPort, char* sO
 	return iWritten > 0 && (size_t)iWritten < iOutCap;
 }
 
+
+// 内部函数：__xnetProxyBuildSocks5Greeting
 static bool __xnetProxyBuildSocks5Greeting(const xnetproxy* pProxy, char* pOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iLen = 0;
@@ -93,6 +103,8 @@ static bool __xnetProxyBuildSocks5Greeting(const xnetproxy* pProxy, char* pOut, 
 	return true;
 }
 
+
+// 内部函数：__xnetProxyBuildSocks5Auth
 static bool __xnetProxyBuildSocks5Auth(const xnetproxy* pProxy, char* pOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iUserLen;
@@ -119,6 +131,8 @@ static bool __xnetProxyBuildSocks5Auth(const xnetproxy* pProxy, char* pOut, size
 	return true;
 }
 
+
+// 内部函数：__xnetProxyBuildSocks5ConnectReq
 static bool __xnetProxyBuildSocks5ConnectReq(const __xnet_proxy_state* pState, char* pOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iPos = 0;
@@ -156,6 +170,8 @@ static bool __xnetProxyBuildSocks5ConnectReq(const __xnet_proxy_state* pState, c
 	return true;
 }
 
+
+// 内部函数：__xnetProxyBuildHttpConnectReq
 static bool __xnetProxyBuildHttpConnectReq(const xnetproxy* pProxy, const __xnet_proxy_state* pState, char* pOut, size_t iOutCap, size_t* pOutLen)
 {
 	char sAuthority[384];
@@ -196,6 +212,8 @@ static bool __xnetProxyBuildHttpConnectReq(const xnetproxy* pProxy, const __xnet
 	return true;
 }
 
+
+// 内部函数：结束代理 find HTTP 头部
 static uint32 __xnetProxyFindHttpHeaderEnd(const char* pData, uint32 iLen)
 {
 	if ( !pData || iLen < 4u ) return 0u;
@@ -208,6 +226,8 @@ static uint32 __xnetProxyFindHttpHeaderEnd(const char* pData, uint32 iLen)
 	return 0u;
 }
 
+
+// 内部函数：创建代理状态
 static __xnet_proxy_state* __xnetProxyStateCreate(const xnetproxy* pProxy, const char* sTargetHost, uint16 iTargetPort)
 {
 	__xnet_proxy_state* pState;
@@ -225,12 +245,16 @@ static __xnet_proxy_state* __xnetProxyStateCreate(const xnetproxy* pProxy, const
 	return pState;
 }
 
+
+// 内部函数：销毁代理状态
 static void __xnetProxyStateDestroy(__xnet_proxy_state* pState)
 {
 	if ( !pState ) return;
 	XNET_FREE(pState);
 }
 
+
+// 内部函数：开始代理状态
 static uint32 __xnetProxyStateBegin(__xnet_proxy_state* pState, const xnetproxy* pProxy, char* pOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( pOutLen ) *pOutLen = 0;
@@ -250,6 +274,8 @@ static uint32 __xnetProxyStateBegin(__xnet_proxy_state* pState, const xnetproxy*
 	return __XNET_PROXY_ACTION_ERROR;
 }
 
+
+// 内部函数：__xnetProxyStateFeed
 static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* pProxy, const void* pData, size_t iLen, char* pOut, size_t iOutCap, size_t* pOutLen)
 {
 	if ( pOutLen ) *pOutLen = 0;

@@ -55,6 +55,9 @@ void xrtAVLTreeUnit_FreeKeysRecuProc(xavltree objAVLT, xavltnode root)
 		}
 	}
 }
+
+
+// 内部函数：__xrtAVLTreeUnit_NoLock
 static inline void __xrtAVLTreeUnit_NoLock(xavltree objAVLT)
 {
 	if ( objAVLT->Iterator ) {
@@ -68,6 +71,9 @@ static inline void __xrtAVLTreeUnit_NoLock(xavltree objAVLT)
 	xrtFSMemPoolUnit(&objAVLT->objMM);
 	objAVLT->NodeCache = NULL;
 }
+
+
+// 释放 AVL 树
 XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
 {
 	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
@@ -78,17 +84,24 @@ XXAPI void xrtAVLTreeUnit(xavltree objAVLT)
 }
 
 #ifdef XRT_MEM_DEBUG
+// 创建 AVL 树调试
 XXAPI xavltree xrtAVLTreeCreateDbg(unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xavltree objAVLT = xrtAVLTreeCreate(iItemLength, procComp, iMode);
 	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objAVLT;
 }
+
+
+// 初始化 AVL 树调试
 XXAPI void xrtAVLTreeInitDbg(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode, const char* sFile, uint32 iLine)
 {
 	xrtAVLTreeInit(objAVLT, iItemLength, procComp, iMode);
 	__xrtMemDebugRegisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
+
+
+// 销毁 AVL 树调试
 XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
 {
 	if ( objAVLT ) {
@@ -103,6 +116,9 @@ XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLin
 		xrtFreeDbg(objAVLT, sFile, iLine);
 	}
 }
+
+
+// 释放 AVL 树调试
 XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
 {
 	if ( objAVLT == NULL ) {
@@ -120,6 +136,7 @@ XXAPI void xrtAVLTreeUnitDbg(xavltree objAVLT, const char* sFile, uint32 iLine)
 }
 #endif
 
+// 锁定 AVL 树
 XXAPI bool xrtAVLTreeLock(xavltree objAVLT)
 {
 	if ( objAVLT == NULL ) {
@@ -128,6 +145,8 @@ XXAPI bool xrtAVLTreeLock(xavltree objAVLT)
 	return xrtOwnerLock(&objAVLT->Owner, "avltree belongs to another thread.");
 }
 
+
+// 解锁 AVL 树
 XXAPI void xrtAVLTreeUnlock(xavltree objAVLT)
 {
 	if ( objAVLT == NULL ) {
@@ -214,6 +233,8 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 	return pRet;
 }
 
+
+// 遍历 AVL 树
 XXAPI bool xrtAVLTreeWalk(xavltree objAVLT, AVLTree_EachProc procEach, ptr pArg)
 {
 	bool bRet = FALSE;
@@ -228,6 +249,8 @@ XXAPI bool xrtAVLTreeWalk(xavltree objAVLT, AVLTree_EachProc procEach, ptr pArg)
 	return bRet;
 }
 
+
+// 遍历 AVL 树扩展
 XXAPI bool xrtAVLTreeWalkEx(xavltree objAVLT, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg)
 {
 	bool bRet = FALSE;
@@ -242,6 +265,8 @@ XXAPI bool xrtAVLTreeWalkEx(xavltree objAVLT, AVLTree_EachProc procPre, AVLTree_
 	return bRet;
 }
 
+
+// 开始 AVL 树 iter
 XXAPI void xrtAVLTreeIterBegin(xavltree objAVLT)
 {
 	if ( objAVLT == NULL ) {
@@ -262,6 +287,8 @@ XXAPI void xrtAVLTreeIterBegin(xavltree objAVLT)
 	}
 }
 
+
+// 获取下一个 AVL 树 iter
 XXAPI ptr xrtAVLTreeIterNext(xavltree objAVLT)
 {
 	ptr pRet;
@@ -277,6 +304,8 @@ XXAPI ptr xrtAVLTreeIterNext(xavltree objAVLT)
 	return pRet;
 }
 
+
+// 结束 AVL 树 iter
 XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 {
 	bool bOwnsLock = FALSE;

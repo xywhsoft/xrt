@@ -33,6 +33,8 @@ typedef struct {
 	size_t iLastBinaryLen;
 } __test_xws_client_ctx;
 
+
+// 内部函数：__Test_XWsSleepMs
 static void __Test_XWsSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -42,16 +44,22 @@ static void __Test_XWsSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XWsAtomicInc
 static long __Test_XWsAtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XWsAtomicLoad
 static long __Test_XWsAtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_XWsWaitMin
 static bool __Test_XWsWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -62,6 +70,8 @@ static bool __Test_XWsWaitMin(volatile long* pValue, long iExpectMin, uint32 iTi
 	return __Test_XWsAtomicLoad(pValue) >= iExpectMin;
 }
 
+
+// 内部函数：__Test_XWsFileExists
 static bool __Test_XWsFileExists(const char* sPath)
 {
 	FILE* pFile = fopen(sPath, "rb");
@@ -70,6 +80,8 @@ static bool __Test_XWsFileExists(const char* sPath)
 	return true;
 }
 
+
+// 内部函数：__Test_XWsServerOnOpen
 static void __Test_XWsServerOnOpen(ptr pOwner, xwsserver* pServer, xwsconn* pConn)
 {
 	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
@@ -79,6 +91,8 @@ static void __Test_XWsServerOnOpen(ptr pOwner, xwsserver* pServer, xwsconn* pCon
 	__Test_XWsAtomicInc(&pCtx->iOpenCount);
 }
 
+
+// 内部函数：__Test_XWsServerOnText
 static void __Test_XWsServerOnText(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const char* pData, size_t iLen)
 {
 	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
@@ -92,6 +106,8 @@ static void __Test_XWsServerOnText(ptr pOwner, xwsserver* pServer, xwsconn* pCon
 	(void)xrtWsConnSendText(pConn, pData, iLen);
 }
 
+
+// 内部函数：__Test_XWsServerOnBinary
 static void __Test_XWsServerOnBinary(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen)
 {
 	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
@@ -105,6 +121,8 @@ static void __Test_XWsServerOnBinary(ptr pOwner, xwsserver* pServer, xwsconn* pC
 	(void)xrtWsConnSendBinary(pConn, pData, iLen);
 }
 
+
+// 内部函数：__Test_XWsServerOnClose
 static void __Test_XWsServerOnClose(ptr pOwner, xwsserver* pServer, xwsconn* pConn, xnet_result iReason)
 {
 	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
@@ -115,6 +133,8 @@ static void __Test_XWsServerOnClose(ptr pOwner, xwsserver* pServer, xwsconn* pCo
 	__Test_XWsAtomicInc(&pCtx->iCloseCount);
 }
 
+
+// 内部函数：__Test_XWsServerOnError
 static void __Test_XWsServerOnError(ptr pOwner, xwsserver* pServer, xwsconn* pConn, int iSysErr)
 {
 	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
@@ -125,6 +145,8 @@ static void __Test_XWsServerOnError(ptr pOwner, xwsserver* pServer, xwsconn* pCo
 	__Test_XWsAtomicInc(&pCtx->iErrorCount);
 }
 
+
+// 内部函数：__Test_XWsServerOnPing
 static void __Test_XWsServerOnPing(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen)
 {
 	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
@@ -136,6 +158,8 @@ static void __Test_XWsServerOnPing(ptr pOwner, xwsserver* pServer, xwsconn* pCon
 	__Test_XWsAtomicInc(&pCtx->iPingCount);
 }
 
+
+// 内部函数：__Test_XWsServerOnPong
 static void __Test_XWsServerOnPong(ptr pOwner, xwsserver* pServer, xwsconn* pConn, const void* pData, size_t iLen)
 {
 	__test_xws_server_ctx* pCtx = (__test_xws_server_ctx*)pOwner;
@@ -147,6 +171,8 @@ static void __Test_XWsServerOnPong(ptr pOwner, xwsserver* pServer, xwsconn* pCon
 	__Test_XWsAtomicInc(&pCtx->iPongCount);
 }
 
+
+// 内部函数：__Test_XWsClientOnOpen
 static void __Test_XWsClientOnOpen(ptr pOwner, xwsclient* pClient)
 {
 	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
@@ -155,6 +181,8 @@ static void __Test_XWsClientOnOpen(ptr pOwner, xwsclient* pClient)
 	__Test_XWsAtomicInc(&pCtx->iOpenCount);
 }
 
+
+// 内部函数：__Test_XWsClientOnText
 static void __Test_XWsClientOnText(ptr pOwner, xwsclient* pClient, const char* pData, size_t iLen)
 {
 	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
@@ -167,6 +195,8 @@ static void __Test_XWsClientOnText(ptr pOwner, xwsclient* pClient, const char* p
 	pCtx->aLastText[iCopy] = '\0';
 }
 
+
+// 内部函数：__Test_XWsClientOnBinary
 static void __Test_XWsClientOnBinary(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen)
 {
 	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
@@ -179,6 +209,8 @@ static void __Test_XWsClientOnBinary(ptr pOwner, xwsclient* pClient, const void*
 	pCtx->iLastBinaryLen = iCopy;
 }
 
+
+// 内部函数：__Test_XWsClientOnClose
 static void __Test_XWsClientOnClose(ptr pOwner, xwsclient* pClient, xnet_result iReason)
 {
 	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
@@ -188,6 +220,8 @@ static void __Test_XWsClientOnClose(ptr pOwner, xwsclient* pClient, xnet_result 
 	__Test_XWsAtomicInc(&pCtx->iCloseCount);
 }
 
+
+// 内部函数：__Test_XWsClientOnError
 static void __Test_XWsClientOnError(ptr pOwner, xwsclient* pClient, int iSysErr)
 {
 	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
@@ -197,6 +231,8 @@ static void __Test_XWsClientOnError(ptr pOwner, xwsclient* pClient, int iSysErr)
 	__Test_XWsAtomicInc(&pCtx->iErrorCount);
 }
 
+
+// 内部函数：__Test_XWsClientOnPing
 static void __Test_XWsClientOnPing(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen)
 {
 	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
@@ -207,6 +243,8 @@ static void __Test_XWsClientOnPing(ptr pOwner, xwsclient* pClient, const void* p
 	__Test_XWsAtomicInc(&pCtx->iPingCount);
 }
 
+
+// 内部函数：__Test_XWsClientOnPong
 static void __Test_XWsClientOnPong(ptr pOwner, xwsclient* pClient, const void* pData, size_t iLen)
 {
 	__test_xws_client_ctx* pCtx = (__test_xws_client_ctx*)pOwner;
@@ -217,6 +255,8 @@ static void __Test_XWsClientOnPong(ptr pOwner, xwsclient* pClient, const void* p
 	__Test_XWsAtomicInc(&pCtx->iPongCount);
 }
 
+
+// XNETWebSocket测试
 void Test_XNet_Ws(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet WebSocket Skeleton Test:\n\n");

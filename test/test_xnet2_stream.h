@@ -31,6 +31,7 @@ typedef struct {
 } __test_xnet2_stream_stats;
 
 
+// 内部函数：__Test_XNet2_StreamSleepMs
 static void __Test_XNet2_StreamSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -40,26 +41,36 @@ static void __Test_XNet2_StreamSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_StreamAtomicInc
 static long __Test_XNet2_StreamAtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XNet2_StreamAtomicAdd
 static long __Test_XNet2_StreamAtomicAdd(volatile long* pValue, long iDelta)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, iDelta);
 }
 
+
+// 内部函数：__Test_XNet2_StreamAtomicLoad
 static long __Test_XNet2_StreamAtomicLoad(volatile long* pValue)
 {
 	return __xrtTestAtomicLoadLong(pValue);
 }
 
+
+// 内部函数：__Test_XNet2_StreamAtomicStore
 static void __Test_XNet2_StreamAtomicStore(volatile long* pValue, long iValue)
 {
 	__xrtTestAtomicStoreLong(pValue, iValue);
 }
 
+
+// 内部函数：__Test_XNet2_StreamWaitValue
 static bool __Test_XNet2_StreamWaitValue(volatile long* pValue, long iExpect, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -70,6 +81,8 @@ static bool __Test_XNet2_StreamWaitValue(volatile long* pValue, long iExpect, ui
 	return __Test_XNet2_StreamAtomicLoad(pValue) == iExpect;
 }
 
+
+// 内部函数：__Test_XNet2_StreamWaitMin
 static bool __Test_XNet2_StreamWaitMin(volatile long* pValue, long iExpectMin, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -80,6 +93,8 @@ static bool __Test_XNet2_StreamWaitMin(volatile long* pValue, long iExpectMin, u
 	return __Test_XNet2_StreamAtomicLoad(pValue) >= iExpectMin;
 }
 
+
+// 内部函数：__Test_XNet2_StreamWaitPendingSend
 static bool __Test_XNet2_StreamWaitPendingSend(xnetstream* pStream, size_t iExpect, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -90,6 +105,8 @@ static bool __Test_XNet2_StreamWaitPendingSend(xnetstream* pStream, size_t iExpe
 	return pStream && xrtNetStreamPendingSend(pStream) == iExpect;
 }
 
+
+// 内部函数：__Test_XNet2_StreamWaitRxBytes
 static bool __Test_XNet2_StreamWaitRxBytes(xnetstream* pStream, size_t iExpect, uint32 iTimeoutMs)
 {
 	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
@@ -101,6 +118,7 @@ static bool __Test_XNet2_StreamWaitRxBytes(xnetstream* pStream, size_t iExpect, 
 }
 
 
+// 内部函数：__Test_XNet2_ListenerOnAccept
 static bool __Test_XNet2_ListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetstream* pStream)
 {
 	__test_xnet2_listener_stats* pStats = (__test_xnet2_listener_stats*)pOwner;
@@ -111,6 +129,8 @@ static bool __Test_XNet2_ListenerOnAccept(ptr pOwner, xnetlistener* pListener, x
 	return pStats->bAccept;
 }
 
+
+// 内部函数：__Test_XNet2_StreamOnHighWater
 static void __Test_XNet2_StreamOnHighWater(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes)
 {
 	__test_xnet2_stream_stats* pStats = (__test_xnet2_stream_stats*)pOwner;
@@ -120,6 +140,8 @@ static void __Test_XNet2_StreamOnHighWater(ptr pOwner, xnetstream* pStream, uint
 	__Test_XNet2_StreamAtomicStore(&pStats->iLastQueuedBytes, (long)iQueuedBytes);
 }
 
+
+// 内部函数：__Test_XNet2_StreamOnOpen
 static void __Test_XNet2_StreamOnOpen(ptr pOwner, xnetstream* pStream)
 {
 	__test_xnet2_stream_stats* pStats = (__test_xnet2_stream_stats*)pOwner;
@@ -128,6 +150,8 @@ static void __Test_XNet2_StreamOnOpen(ptr pOwner, xnetstream* pStream)
 	__Test_XNet2_StreamAtomicInc(&pStats->iOpenCount);
 }
 
+
+// 内部函数：__Test_XNet2_StreamOnLowWater
 static void __Test_XNet2_StreamOnLowWater(ptr pOwner, xnetstream* pStream, uint32 iQueuedBytes)
 {
 	__test_xnet2_stream_stats* pStats = (__test_xnet2_stream_stats*)pOwner;
@@ -137,6 +161,8 @@ static void __Test_XNet2_StreamOnLowWater(ptr pOwner, xnetstream* pStream, uint3
 	__Test_XNet2_StreamAtomicStore(&pStats->iLastQueuedBytes, (long)iQueuedBytes);
 }
 
+
+// 内部函数：__Test_XNet2_StreamOnDrain
 static void __Test_XNet2_StreamOnDrain(ptr pOwner, xnetstream* pStream)
 {
 	__test_xnet2_stream_stats* pStats = (__test_xnet2_stream_stats*)pOwner;
@@ -145,6 +171,8 @@ static void __Test_XNet2_StreamOnDrain(ptr pOwner, xnetstream* pStream)
 	__Test_XNet2_StreamAtomicInc(&pStats->iDrainCount);
 }
 
+
+// 内部函数：__Test_XNet2_StreamOnClose
 static void __Test_XNet2_StreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
 	__test_xnet2_stream_stats* pStats = (__test_xnet2_stream_stats*)pOwner;
@@ -154,6 +182,8 @@ static void __Test_XNet2_StreamOnClose(ptr pOwner, xnetstream* pStream, xnet_res
 	__Test_XNet2_StreamAtomicStore(&pStats->iLastCloseReason, (long)iReason);
 }
 
+
+// 内部函数：__Test_XNet2_StreamOnRecv
 static void __Test_XNet2_StreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
 {
 	__test_xnet2_stream_stats* pStats = (__test_xnet2_stream_stats*)pOwner;
@@ -180,6 +210,8 @@ static void __Test_XNet2_StreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain
 	xrtNetChainConsume(pChain, iBytes);
 }
 
+
+// 内部函数：__Test_XNet2_StreamOnError
 static void __Test_XNet2_StreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	__test_xnet2_stream_stats* pStats = (__test_xnet2_stream_stats*)pOwner;
@@ -189,6 +221,8 @@ static void __Test_XNet2_StreamOnError(ptr pOwner, xnetstream* pStream, int iSys
 	__Test_XNet2_StreamAtomicInc(&pStats->iErrorCount);
 }
 
+
+// 内部函数：__Test_XNet2_StreamRelease
 static void __Test_XNet2_StreamRelease(ptr pCtx, const void* pData, size_t iLen)
 {
 	volatile long* pReleaseCount = (volatile long*)pCtx;
@@ -199,6 +233,7 @@ static void __Test_XNet2_StreamRelease(ptr pCtx, const void* pData, size_t iLen)
 }
 
 
+// XNET2STREAM测试
 void Test_XNet2_Stream(void)
 {
 	printf("\n\n\n------------------------------------\n\n XNet2 Stream Skeleton Test:\n\n");

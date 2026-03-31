@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_MEMTELEMETRY_H
 #define XRT_TEST_MEMTELEMETRY_H
 
+// 内部函数：__Test_MemTelemetryRequire
 static void __Test_MemTelemetryRequire(bool bCond, const char* sMsg)
 {
 	if ( !bCond ) {
@@ -9,6 +10,8 @@ static void __Test_MemTelemetryRequire(bool bCond, const char* sMsg)
 	}
 }
 
+
+// MEMTELEMETRY测试
 static void Test_MemTelemetry(void)
 {
 	xrtMemTelemetrySnapshot tSnap;

@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_MEMDEBUG_CORE_H
 #define XRT_TEST_MEMDEBUG_CORE_H
 
+// 内部函数：__Test_MemDebugCoreRequire
 static void __Test_MemDebugCoreRequire(bool bCond, const char* sMsg)
 {
 	if ( !bCond ) {
@@ -9,6 +10,8 @@ static void __Test_MemDebugCoreRequire(bool bCond, const char* sMsg)
 	}
 }
 
+
+// 内部函数：__Test_MemDebugCoreFileContains
 static bool __Test_MemDebugCoreFileContains(const char* sPath, const char* sNeedle)
 {
 	FILE* pFile;
@@ -46,6 +49,8 @@ static bool __Test_MemDebugCoreFileContains(const char* sPath, const char* sNeed
 	return bRet;
 }
 
+
+// MEMDEBUG核心测试
 static void Test_MemDebugCore(void)
 {
 	const char* sTextPath = "dev/memdebug_report.txt";

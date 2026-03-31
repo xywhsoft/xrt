@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_MEMPOOL_CORE_H
 #define XRT_TEST_MEMPOOL_CORE_H
 
+// 内部函数：__Test_MemPoolCoreRequire
 static void __Test_MemPoolCoreRequire(bool bCond, const char* sMsg)
 {
 	if ( !bCond ) {
@@ -9,6 +10,8 @@ static void __Test_MemPoolCoreRequire(bool bCond, const char* sMsg)
 	}
 }
 
+
+// MEMPOOL核心测试
 static void Test_MemPoolCore(void)
 {
 	xmempool objDefault;

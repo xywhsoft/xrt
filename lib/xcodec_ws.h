@@ -49,6 +49,8 @@ XXAPI void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo)
 	memset(pInfo, 0, sizeof(xcodecwsframeinfo));
 }
 
+
+// 解析编解码器 WebSocket frame
 XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pFrame, xcodecwsframeinfo* pInfo)
 {
 	uint8 aHead[14];
@@ -118,6 +120,8 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 	return XCODEC_STATUS_FRAME;
 }
 
+
+// xrtCodecWsUnmask 相关处理
 XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset)
 {
 	uint8* pBytes = (uint8*)pData;

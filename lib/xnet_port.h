@@ -146,6 +146,8 @@ static void xrtNetPortConfigInit(xnetportconfig* pCfg)
 	pCfg->iBufferGroupCount = 1024;
 }
 
+
+// 初始化网络端口
 static xnet_result xrtNetPortInit(xnetport* pPort, const xnetportops* pOps, const xnetportconfig* pCfg, ptr pOwner)
 {
 	if ( !pPort || !pOps || !pOps->Init ) return XRT_NET_ERROR;
@@ -160,6 +162,8 @@ static xnet_result xrtNetPortInit(xnetport* pPort, const xnetportops* pOps, cons
 	return pOps->Init(pPort, &pPort->tConfig, pOwner);
 }
 
+
+// 释放网络端口
 static void xrtNetPortUnit(xnetport* pPort)
 {
 	if ( !pPort ) return;
@@ -169,6 +173,8 @@ static void xrtNetPortUnit(xnetport* pPort)
 	memset(pPort, 0, sizeof(xnetport));
 }
 
+
+// 提交网络端口
 static xnet_result xrtNetPortSubmit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
 {
 	if ( !pPort || !pPort->pOps || !pPort->pOps->Submit || !pOps || iCount == 0 ) {
@@ -177,6 +183,8 @@ static xnet_result xrtNetPortSubmit(xnetport* pPort, const xnetportsubmit* pOps,
 	return pPort->pOps->Submit(pPort, pOps, iCount);
 }
 
+
+// 提取网络端口
 static uint32 xrtNetPortHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
 {
 	if ( !pPort || !pPort->pOps || !pPort->pOps->Harvest || !pEvents || iMaxEvents == 0 ) {
@@ -185,18 +193,24 @@ static uint32 xrtNetPortHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 
 	return pPort->pOps->Harvest(pPort, pEvents, iMaxEvents, iTimeoutMs);
 }
 
+
+// 唤醒网络端口
 static xnet_result xrtNetPortWake(xnetport* pPort)
 {
 	if ( !pPort || !pPort->pOps || !pPort->pOps->Wake ) return XRT_NET_ERROR;
 	return pPort->pOps->Wake(pPort);
 }
 
+
+// 设置网络端口定时器
 static xnet_result xrtNetPortArmTimer(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs)
 {
 	if ( !pPort || !pPort->pOps || !pPort->pOps->ArmTimer ) return XRT_NET_ERROR;
 	return pPort->pOps->ArmTimer(pPort, iTimerId, iDelayMs);
 }
 
+
+// 取消网络端口定时器
 static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 {
 	if ( !pPort || !pPort->pOps || !pPort->pOps->CancelTimer ) return XRT_NET_ERROR;

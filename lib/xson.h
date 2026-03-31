@@ -37,16 +37,22 @@ typedef struct
 	uint32 iFlags;
 } xson_print_t;
 
+
+// 内部函数：_xson_is_ident_start
 static bool _xson_is_ident_start(char ch)
 {
 	return (((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) || (ch == '_'));
 }
 
+
+// 内部函数：_xson_is_ident_char
 static bool _xson_is_ident_char(char ch)
 {
 	return _xson_is_ident_start(ch) || ((ch >= '0') && (ch <= '9'));
 }
 
+
+// 内部函数：查看
 static char _xson_peek(xson_parse_t* pParse)
 {
 	if ( pParse == NULL ) {
@@ -58,6 +64,8 @@ static char _xson_peek(xson_parse_t* pParse)
 	return pParse->tJSON.str[pParse->tJSON.offset];
 }
 
+
+// 内部函数：_xson_skip_blank
 static void _xson_skip_blank(xson_parse_t* pParse)
 {
 	if ( pParse == NULL ) {
@@ -66,6 +74,8 @@ static void _xson_skip_blank(xson_parse_t* pParse)
 	pParse->tJSON.skip_blank(&pParse->tJSON);
 }
 
+
+// 内部函数：_xson_match_prefix
 static bool _xson_match_prefix(xson_parse_t* pParse, const char* sName, char chNext)
 {
 	size_t iLen;
@@ -88,6 +98,8 @@ static bool _xson_match_prefix(xson_parse_t* pParse, const char* sName, char chN
 	return pParse->tJSON.str[pParse->tJSON.offset + iLen] == chNext;
 }
 
+
+// 内部函数：_xson_trim_slice
 static void _xson_trim_slice(const char** ppText, size_t* pSize)
 {
 	const char* sText;
@@ -111,6 +123,8 @@ static void _xson_trim_slice(const char** ppText, size_t* pSize)
 	*pSize = iSize;
 }
 
+
+// 内部函数：释放 JSON 字符串
 static void _xson_free_json_string(json_string_t* pStr)
 {
 	if ( pStr == NULL ) {
@@ -122,6 +136,8 @@ static void _xson_free_json_string(json_string_t* pStr)
 	memset(pStr, 0, sizeof(*pStr));
 }
 
+
+// 内部函数：跳过字符串
 static int _xson_skip_string(xson_parse_t* pParse, char chEnd)
 {
 	char* sText = NULL;
@@ -144,6 +160,8 @@ static int _xson_skip_string(xson_parse_t* pParse, char chEnd)
 	return 0;
 }
 
+
+// 内部函数：跳过组
 static int _xson_skip_group(xson_parse_t* pParse)
 {
 	char ch;
@@ -293,6 +311,8 @@ static bool _xson_probe_dict(xson_parse_t* pParse)
 	return FALSE;
 }
 
+
+// 内部函数：_xson_parse_list_index
 static int _xson_parse_list_index(xson_parse_t* pParse, int64* pIndex)
 {
 	size_t iSaved;
@@ -352,6 +372,8 @@ static int _xson_parse_list_index(xson_parse_t* pParse, int64* pIndex)
 	return 0;
 }
 
+
+// 内部函数：_xson_parse_time_text
 static bool _xson_parse_time_text(const char* sText, size_t iSize, xtime* pTime)
 {
 	size_t iPos = 0;
@@ -411,6 +433,8 @@ static bool _xson_parse_time_text(const char* sText, size_t iSize, xtime* pTime)
 	return TRUE;
 }
 
+
+// 内部函数：_xson_base64_decoded_size
 static size_t _xson_base64_decoded_size(const char* sText, size_t iSize)
 {
 	size_t iRet;
@@ -431,6 +455,8 @@ static size_t _xson_base64_decoded_size(const char* sText, size_t iSize)
 
 static xson_parse_result_t _xson_parse_value(xson_parse_t* pParse, xvalue* ppVal);
 
+
+// 内部函数：_xson_parse_array_like
 static xson_parse_result_t _xson_parse_array_like(xson_parse_t* pParse, int iKind, xvalue* ppVal)
 {
 	xvalue pResult;
@@ -521,6 +547,8 @@ static xson_parse_result_t _xson_parse_array_like(xson_parse_t* pParse, int iKin
 	return XSON_PARSE_RESULT_OK;
 }
 
+
+// 内部函数：_xson_parse_object_like
 static xson_parse_result_t _xson_parse_object_like(xson_parse_t* pParse, int iKind, xvalue* ppVal)
 {
 	xvalue pResult;

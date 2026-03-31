@@ -95,6 +95,8 @@ static xrtCoroRuntimeState* __xrt_co_get_runtime_from_thread(xrtThreadData* pThr
 	return &pThreadData->tCoro;
 }
 
+
+// 内部函数：协程 require 线程数据相关处理
 static xrtThreadData* __xrt_co_require_thread_data(bool bSetError)
 {
 	xrtThreadData* pThreadData = xrtThreadGetCurrent();
@@ -106,17 +108,23 @@ static xrtThreadData* __xrt_co_require_thread_data(bool bSetError)
 	return pThreadData;
 }
 
+
+// 内部函数：获取协程运行时
 static xrtCoroRuntimeState* __xrt_co_get_runtime()
 {
 	return __xrt_co_get_runtime_from_thread(xrtThreadGetCurrent());
 }
 
+
+// 内部函数：__xrt_co_require_runtime
 static xrtCoroRuntimeState* __xrt_co_require_runtime(bool bSetError)
 {
 	xrtThreadData* pThreadData = __xrt_co_require_thread_data(bSetError);
 	return __xrt_co_get_runtime_from_thread(pThreadData);
 }
 
+
+// 内部函数：获取协程当前
 static xcoro __xrt_co_get_current()
 {
 	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
@@ -128,6 +136,8 @@ static xcoro __xrt_co_get_current()
 	return (xcoro)pRuntime->pCurrent;
 }
 
+
+// 内部函数：设置协程当前
 static void __xrt_co_set_current(xcoro pCo)
 {
 	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
@@ -137,6 +147,8 @@ static void __xrt_co_set_current(xcoro pCo)
 	}
 }
 
+
+// 内部函数：检查协程所有权 tid
 static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, const char* sError)
 {
 	xrtThreadData* pThreadData = __xrt_co_require_thread_data(TRUE);
@@ -155,6 +167,8 @@ static bool __xrt_co_check_owner_tid(uint64 iOwnerThreadId, const char* sError)
 	return TRUE;
 }
 
+
+// 内部函数：检查协程所有权
 static bool __xrt_co_check_owner(xcoro pCo, const char* sError)
 {
 	if ( pCo == NULL ) {
@@ -165,6 +179,8 @@ static bool __xrt_co_check_owner(xcoro pCo, const char* sError)
 	return __xrt_co_check_owner_tid(pCo->__iOwnerThreadId, sError);
 }
 
+
+// 内部函数：初始化 coro 运行时线程
 static void __xrtCoroRuntimeInitThread(xrtThreadData* pThreadData)
 {
 	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime_from_thread(pThreadData);
@@ -177,6 +193,8 @@ static void __xrtCoroRuntimeInitThread(xrtThreadData* pThreadData)
 	pRuntime->iOwnerThreadId = pThreadData->iThreadId;
 }
 
+
+// 内部函数：释放 coro 运行时线程
 static void __xrtCoroRuntimeUnitThread(xrtThreadData* pThreadData)
 {
 	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime_from_thread(pThreadData);
@@ -225,11 +243,14 @@ static void __xrtCoroRuntimeUnitThread(xrtThreadData* pThreadData)
 #define __XRT_CO_WAIT_RESULT_SIGNAL		1u
 #define __XRT_CO_WAIT_RESULT_TIMEOUT	2u
 
+// 内部函数：__xrt_co_is_terminal
 static bool __xrt_co_is_terminal(xcoro pCo)
 {
 	return pCo && pCo->iState == XRT_CO_DEAD;
 }
 
+
+// 内部函数：__xrt_co_is_cancel_requested_flag
 static bool __xrt_co_is_cancel_requested_flag(xcoro pCo)
 {
 	return pCo && ((pCo->__iFlags & __XRT_CO_FLAG_CANCEL_REQUESTED) != 0);
@@ -240,6 +261,8 @@ static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo);
 static bool __xrt_co_sched_release_dead(xcoro pCo);
 static bool __xrt_co_sched_run_until(xcosched* pSched, xcoro pTarget);
 
+
+// 内部函数：等待协程 clear 状态
 static void __xrt_co_clear_wait_state(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -250,6 +273,8 @@ static void __xrt_co_clear_wait_state(xcoro pCo)
 	pCo->__iWaitKind = __XRT_CO_WAIT_NONE;
 }
 
+
+// 内部函数：__xrt_co_wait_link_clear
 static void __xrt_co_wait_link_clear(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -260,6 +285,8 @@ static void __xrt_co_wait_link_clear(xcoro pCo)
 	pCo->__pWaitNext = NULL;
 }
 
+
+// 内部函数：__xrt_co_wait_queue_push_tail
 static void __xrt_co_wait_queue_push_tail(xcoro* ppHead, xcoro* ppTail, xcoro pCo)
 {
 	if ( ppHead == NULL || ppTail == NULL || pCo == NULL ) {
@@ -277,6 +304,8 @@ static void __xrt_co_wait_queue_push_tail(xcoro* ppHead, xcoro* ppTail, xcoro pC
 	*ppTail = pCo;
 }
 
+
+// 内部函数：删除协程 wait 队列
 static void __xrt_co_wait_queue_remove(xcoro* ppHead, xcoro* ppTail, xcoro pCo)
 {
 	if ( ppHead == NULL || ppTail == NULL || pCo == NULL ) {
@@ -300,6 +329,8 @@ static void __xrt_co_wait_queue_remove(xcoro* ppHead, xcoro* ppTail, xcoro pCo)
 	__xrt_co_wait_link_clear(pCo);
 }
 
+
+// 内部函数：__xrt_co_wait_queue_pop_head
 static xcoro __xrt_co_wait_queue_pop_head(xcoro* ppHead, xcoro* ppTail)
 {
 	xcoro pHead = NULL;
@@ -315,6 +346,8 @@ static xcoro __xrt_co_wait_queue_pop_head(xcoro* ppHead, xcoro* ppTail)
 	return pHead;
 }
 
+
+// 内部函数：__xrt_co_join_pin_acquire
 static void __xrt_co_join_pin_acquire(xcoro pTarget)
 {
 	if ( pTarget == NULL ) {
@@ -325,6 +358,8 @@ static void __xrt_co_join_pin_acquire(xcoro pTarget)
 	pTarget->__iFlags |= __XRT_CO_FLAG_JOIN_PINNED;
 }
 
+
+// 内部函数：__xrt_co_join_pin_release
 static void __xrt_co_join_pin_release(xcoro pTarget)
 {
 	if ( pTarget == NULL ) {
@@ -340,6 +375,8 @@ static void __xrt_co_join_pin_release(xcoro pTarget)
 	}
 }
 
+
+// 内部函数：__xrt_co_detach_join_waiter
 static void __xrt_co_detach_join_waiter(xcoro pWaiter, bool bReleasePin)
 {
 	xcoro pTarget = NULL;
@@ -363,6 +400,8 @@ static void __xrt_co_detach_join_waiter(xcoro pWaiter, bool bReleasePin)
 	}
 }
 
+
+// 内部函数：__xrt_co_detach_event_waiter_locked
 static void __xrt_co_detach_event_waiter_locked(xcoevent pEvent, xcoro pCo)
 {
 	if ( pEvent == NULL || pCo == NULL ) {
@@ -376,6 +415,8 @@ static void __xrt_co_detach_event_waiter_locked(xcoevent pEvent, xcoro pCo)
 	}
 }
 
+
+// 内部函数：__xrt_co_pop_event_waiter_locked
 static xcoro __xrt_co_pop_event_waiter_locked(xcoevent pEvent)
 {
 	xcoro pCo = NULL;
@@ -391,6 +432,8 @@ static xcoro __xrt_co_pop_event_waiter_locked(xcoevent pEvent)
 	return pCo;
 }
 
+
+// 内部函数：__xrt_co_event_try_consume_locked
 static bool __xrt_co_event_try_consume_locked(xcoevent pEvent)
 {
 	if ( pEvent == NULL || !pEvent->bSignaled ) {
@@ -404,6 +447,8 @@ static bool __xrt_co_event_try_consume_locked(xcoevent pEvent)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_free_cleanup_nodes
 static void __xrt_co_free_cleanup_nodes(xcoro pCo)
 {
 	while ( pCo && pCo->__pCleanupTop ) {
@@ -413,6 +458,8 @@ static void __xrt_co_free_cleanup_nodes(xcoro pCo)
 	}
 }
 
+
+// 内部函数：__xrt_co_run_cleanup
 static void __xrt_co_run_cleanup(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -432,6 +479,8 @@ static void __xrt_co_run_cleanup(xcoro pCo)
 	pCo->__iFlags &= ~__XRT_CO_FLAG_IN_CLEANUP;
 }
 
+
+// 内部函数：获取协程栈页大小
 static size_t __xrt_co_stack_page_size()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -444,6 +493,8 @@ static size_t __xrt_co_stack_page_size()
 	#endif
 }
 
+
+// 内部函数：__xrt_co_align_up
 static size_t __xrt_co_align_up(size_t iValue, size_t iAlign)
 {
 	if ( iAlign == 0 ) {
@@ -452,6 +503,8 @@ static size_t __xrt_co_align_up(size_t iValue, size_t iAlign)
 	return (iValue + iAlign - 1) & ~(iAlign - 1);
 }
 
+
+// 内部函数：规范化协程栈大小
 static size_t __xrt_co_normalize_stack_size(size_t iStackSize)
 {
 	size_t iPageSize = __xrt_co_stack_page_size();
@@ -469,6 +522,8 @@ static size_t __xrt_co_normalize_stack_size(size_t iStackSize)
 	return __xrt_co_align_up(iStackSize, iPageSize);
 }
 
+
+// 内部函数：分配协程栈
 static bool __xrt_co_stack_alloc(xcoro pCo)
 {
 	size_t iPageSize = 0;
@@ -528,6 +583,8 @@ static bool __xrt_co_stack_alloc(xcoro pCo)
 	return TRUE;
 }
 
+
+// 内部函数：释放协程栈
 static void __xrt_co_stack_free(xcoro pCo)
 {
 	if ( pCo == NULL || pCo->__pStackMem == NULL ) {
@@ -546,6 +603,8 @@ static void __xrt_co_stack_free(xcoro pCo)
 	pCo->__iStackGuardSize = 0;
 }
 
+
+// 内部函数：__xrt_co_wake_join_waiters
 static void __xrt_co_wake_join_waiters(xcoro pTarget)
 {
 	xcoro pWaiter = NULL;
@@ -571,6 +630,8 @@ static void __xrt_co_wake_join_waiters(xcoro pTarget)
 	}
 }
 
+
+// 内部函数：完成协程
 static void __xrt_co_finish(xcoro pCo, uint32 iTermReason, int64 iExitCode)
 {
 	if ( pCo == NULL ) {
@@ -592,6 +653,8 @@ static void __xrt_co_finish(xcoro pCo, uint32 iTermReason, int64 iExitCode)
 	__xrt_co_wake_join_waiters(pCo);
 }
 
+
+// 内部函数：__xrt_co_finalize_ready_cancel
 static bool __xrt_co_finalize_ready_cancel(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -621,6 +684,8 @@ static int64 __xrt_co_time_ms()
 	#endif
 }
 
+
+// 内部函数：休眠协程毫秒
 static void UNUSED_ATTR __xrt_co_sleep_ms(int iMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -1228,6 +1293,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 
 #ifdef __XRT_CO_FIBER_WIN
 
+// 内部函数：__xrt_co_prepare_backend_main
 static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
 {
 	if ( pRuntime == NULL ) {
@@ -1254,6 +1320,8 @@ static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_fiber_entry
 static VOID CALLBACK __xrt_co_fiber_entry(LPVOID pParameter)
 {
 	xcoro pCo = (xcoro)pParameter;
@@ -1268,6 +1336,8 @@ static VOID CALLBACK __xrt_co_fiber_entry(LPVOID pParameter)
 	SwitchToFiber(pRuntime->pBackendMain);
 }
 
+
+// 内部函数：__xrt_co_init_ctx
 static bool __xrt_co_init_ctx(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -1283,6 +1353,8 @@ static bool __xrt_co_init_ctx(xcoro pCo)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_swap_to_co
 static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
 {
 	if ( pRuntime && pRuntime->pBackendMain && pCo && pCo->__hFiber ) {
@@ -1290,6 +1362,8 @@ static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
 	}
 }
 
+
+// 内部函数：__xrt_co_swap_to_main
 static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
 {
 	if ( pRuntime && pRuntime->pBackendMain ) {
@@ -1305,6 +1379,7 @@ static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
 
 #if defined(__XRT_CO_ASM_X64_WIN) || defined(__XRT_CO_ASM_X64) || defined(__XRT_CO_ASM_ARM64) || defined(__XRT_CO_ASM_RV64) || defined(__XRT_CO_ASM_LA64)
 
+// 内部函数：__xrt_co_prepare_backend_main
 static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
 {
 	__xrt_co_ctx* pMainCtx = NULL;
@@ -1340,6 +1415,8 @@ static void __xrt_co_asm_entry()
 	__xrt_co_swap(&pCo->__tCtx, (__xrt_co_ctx*)pRuntime->pBackendMain);
 }
 
+
+// 内部函数：__xrt_co_init_ctx
 static bool __xrt_co_init_ctx(xcoro pCo)
 {
 	uint8* pStackTop = (uint8*)pCo->__pStack + pCo->iStackSize;
@@ -1363,11 +1440,15 @@ static bool __xrt_co_init_ctx(xcoro pCo)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_swap_to_co
 static void __xrt_co_swap_to_co(xrtCoroRuntimeState* pRuntime, xcoro pCo)
 {
 	__xrt_co_swap((__xrt_co_ctx*)pRuntime->pBackendMain, &pCo->__tCtx);
 }
 
+
+// 内部函数：__xrt_co_swap_to_main
 static void __xrt_co_swap_to_main(xrtCoroRuntimeState* pRuntime)
 {
 	xcoro pCurrent = __xrt_co_get_current();
@@ -1477,6 +1558,8 @@ XXAPI xcoro xrtCoCreateEx(xco_entry pfnEntry, ptr pParam, const xco_create_args*
 	return pCo;
 }
 
+
+// 创建协程
 XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize)
 {
 	xco_create_args tArgs;
@@ -1487,6 +1570,7 @@ XXAPI xcoro xrtCoCreate(xco_entry pfnEntry, ptr pParam, size_t iStackSize)
 }
 
 
+// 销毁协程
 XXAPI void xrtCoDestroy(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -1511,6 +1595,7 @@ XXAPI void xrtCoDestroy(xcoro pCo)
 }
 
 
+// 取消协程
 XXAPI bool xrtCoCancel(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -1567,6 +1652,7 @@ XXAPI bool xrtCoCancel(xcoro pCo)
 }
 
 
+// 关闭协程
 XXAPI bool xrtCoClose(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -1596,6 +1682,7 @@ XXAPI bool xrtCoClose(xcoro pCo)
 }
 
 
+// xrtCoResume 相关处理
 XXAPI bool xrtCoResume(xcoro pCo)
 {
 	xrtCoroRuntimeState* pRuntime = NULL;
@@ -1650,6 +1737,7 @@ XXAPI bool xrtCoResume(xcoro pCo)
 }
 
 
+// xrtCoYield 相关处理
 XXAPI void xrtCoYield()
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -1669,23 +1757,30 @@ XXAPI void xrtCoYield()
 }
 
 
+// 获取协程状态
 XXAPI int xrtCoGetState(xcoro pCo)
 {
 	if ( !pCo ) return XRT_CO_DEAD;
 	return pCo->iState;
 }
 
+
+// 获取协程当前
 XXAPI xcoro xrtCoGetCurrent()
 {
 	return __xrt_co_get_current();
 }
 
+
+// xrtCoIsCancelRequested 相关处理
 XXAPI bool xrtCoIsCancelRequested()
 {
 	xcoro pCo = __xrt_co_get_current();
 	return pCo ? __xrt_co_is_cancel_requested_flag(pCo) : FALSE;
 }
 
+
+// xrtCoWasCancelled 相关处理
 XXAPI bool xrtCoWasCancelled(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -1699,6 +1794,8 @@ XXAPI bool xrtCoWasCancelled(xcoro pCo)
 	return (pCo->__iFlags & __XRT_CO_FLAG_CANCELLED) != 0;
 }
 
+
+// xrtCoGetExitCode 相关处理
 XXAPI int64 xrtCoGetExitCode(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -1712,6 +1809,8 @@ XXAPI int64 xrtCoGetExitCode(xcoro pCo)
 	return pCo->iExitCode;
 }
 
+
+// 设置协程结果
 XXAPI void xrtCoSetResult(ptr pResult)
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -1724,6 +1823,8 @@ XXAPI void xrtCoSetResult(ptr pResult)
 	pCo->pResult = pResult;
 }
 
+
+// 获取协程结果
 XXAPI ptr xrtCoGetResult(xcoro pCo)
 {
 	if ( pCo == NULL ) {
@@ -1737,16 +1838,22 @@ XXAPI ptr xrtCoGetResult(xcoro pCo)
 	return pCo->pResult;
 }
 
+
+// 获取协程 backend 名称
 XXAPI str xrtCoGetBackendName()
 {
 	return (str)__XRT_CO_BACKEND_NAME;
 }
 
+
+// xrtCoGetBackendTier 相关处理
 XXAPI int xrtCoGetBackendTier()
 {
 	return __XRT_CO_BACKEND_TIER;
 }
 
+
+// xrtCoGetBackendStyle 相关处理
 XXAPI int xrtCoGetBackendStyle()
 {
 	return __XRT_CO_BACKEND_STYLE;
@@ -1782,6 +1889,8 @@ struct xrt_co_scheduler {
 	__xrt_co_post_item* pPostFree;
 };
 
+
+// 内部函数：__xrt_co_sched_find_index
 static int __xrt_co_sched_find_index(xcosched* pSched, xcoro pCo)
 {
 	if ( pSched == NULL || pCo == NULL ) {
@@ -1797,6 +1906,8 @@ static int __xrt_co_sched_find_index(xcosched* pSched, xcoro pCo)
 	return -1;
 }
 
+
+// 内部函数：__xrt_co_sched_ready_unlink
 static bool __xrt_co_sched_ready_unlink(xcosched* pSched, xcoro pCo)
 {
 	if ( pSched == NULL || pCo == NULL || (pCo->__iFlags & __XRT_CO_FLAG_READY_QUEUED) == 0 ) {
@@ -1823,6 +1934,8 @@ static bool __xrt_co_sched_ready_unlink(xcosched* pSched, xcoro pCo)
 	return TRUE;
 }
 
+
+// 内部函数：确保协程 sched 定时器容量
 static bool __xrt_co_sched_timer_ensure_capacity(xcosched* pSched)
 {
 	xcoro* arrNew = NULL;
@@ -1847,6 +1960,8 @@ static bool __xrt_co_sched_timer_ensure_capacity(xcosched* pSched)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_sched_timer_swap
 static void __xrt_co_sched_timer_swap(xcosched* pSched, int iA, int iB)
 {
 	xcoro pTmp = NULL;
@@ -1867,6 +1982,8 @@ static void __xrt_co_sched_timer_swap(xcosched* pSched, int iA, int iB)
 	}
 }
 
+
+// 内部函数：__xrt_co_sched_timer_sift_up
 static void __xrt_co_sched_timer_sift_up(xcosched* pSched, int iIndex)
 {
 	while ( pSched && iIndex > 0 ) {
@@ -1883,6 +2000,8 @@ static void __xrt_co_sched_timer_sift_up(xcosched* pSched, int iIndex)
 	}
 }
 
+
+// 内部函数：__xrt_co_sched_timer_sift_down
 static void __xrt_co_sched_timer_sift_down(xcosched* pSched, int iIndex)
 {
 	while ( pSched ) {
@@ -1913,6 +2032,8 @@ static void __xrt_co_sched_timer_sift_down(xcosched* pSched, int iIndex)
 	}
 }
 
+
+// 内部函数：__xrt_co_sched_detach_timer
 static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo)
 {
 	int iIndex = 0;
@@ -1949,6 +2070,8 @@ static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_sched_attach_timer
 static bool __xrt_co_sched_attach_timer(xcosched* pSched, xcoro pCo)
 {
 	int iIndex = 0;
@@ -1983,6 +2106,8 @@ static bool __xrt_co_sched_attach_timer(xcosched* pSched, xcoro pCo)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_sched_mark_ready
 static bool __xrt_co_sched_mark_ready(xcosched* pSched, xcoro pCo)
 {
 	if ( pSched == NULL || pCo == NULL || pCo->iState == XRT_CO_DEAD || pCo->__pSched != pSched ) {
@@ -2017,6 +2142,8 @@ static bool __xrt_co_sched_mark_ready(xcosched* pSched, xcoro pCo)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_sched_collect_expired_timers
 static void __xrt_co_sched_collect_expired_timers(xcosched* pSched, int64 iNow)
 {
 	while ( pSched && pSched->iTimerCount > 0 ) {
@@ -2046,6 +2173,8 @@ static void __xrt_co_sched_collect_expired_timers(xcosched* pSched, int64 iNow)
 	}
 }
 
+
+// 内部函数：__xrt_co_sched_reap_dead
 static bool __xrt_co_sched_reap_dead(xcosched* pSched, int iIndex)
 {
 	xcoro pCo = NULL;
@@ -2079,6 +2208,8 @@ static bool __xrt_co_sched_reap_dead(xcosched* pSched, int iIndex)
 	return TRUE;
 }
 
+
+// 内部函数：__xrt_co_sched_release_dead
 static bool __xrt_co_sched_release_dead(xcoro pCo)
 {
 	xcosched* pSched = NULL;
@@ -2107,6 +2238,8 @@ static bool __xrt_co_sched_release_dead(xcoro pCo)
 	return FALSE;
 }
 
+
+// 内部函数：__xrt_co_sched_on_return
 static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 {
 	int iIndex = 0;
@@ -2159,6 +2292,8 @@ static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 	__xrt_co_sched_mark_ready(pSched, pCo);
 }
 
+
+// 内部函数：__xrt_co_sched_next_wake_time
 static int64 __xrt_co_sched_next_wake_time(xcosched* pSched, int64 iNow)
 {
 	if ( pSched == NULL ) {
@@ -2176,6 +2311,8 @@ static int64 __xrt_co_sched_next_wake_time(xcosched* pSched, int64 iNow)
 	return 0;
 }
 
+
+// 内部函数：__xrt_co_sched_has_pending_posts
 static bool __xrt_co_sched_has_pending_posts(xcosched* pSched)
 {
 	bool bPending = FALSE;
@@ -2190,6 +2327,8 @@ static bool __xrt_co_sched_has_pending_posts(xcosched* pSched)
 	return bPending;
 }
 
+
+// 内部函数：__xrt_co_sched_post_item_alloc
 static __xrt_co_post_item* __xrt_co_sched_post_item_alloc(xcosched* pSched)
 {
 	__xrt_co_post_item* pItem = NULL;
@@ -2217,6 +2356,8 @@ static __xrt_co_post_item* __xrt_co_sched_post_item_alloc(xcosched* pSched)
 	return pItem;
 }
 
+
+// 内部函数：__xrt_co_sched_post_item_free
 static void __xrt_co_sched_post_item_free(xcosched* pSched, __xrt_co_post_item* pItem)
 {
 	if ( pSched == NULL || pItem == NULL || pSched->pPostMutex == NULL ) {
@@ -2233,6 +2374,8 @@ static void __xrt_co_sched_post_item_free(xcosched* pSched, __xrt_co_post_item* 
 	xrtMutexUnlock(pSched->pPostMutex);
 }
 
+
+// 内部函数：__xrt_co_sched_drain_posts
 static void __xrt_co_sched_drain_posts(xcosched* pSched)
 {
 	__xrt_co_post_item* pHead = NULL;
@@ -2264,6 +2407,8 @@ static void __xrt_co_sched_drain_posts(xcosched* pSched)
 	}
 }
 
+
+// 内部函数：__xrt_co_sched_wait_for_post
 static bool __xrt_co_sched_wait_for_post(xcosched* pSched, uint32 iTimeout)
 {
 	bool bReady = FALSE;
@@ -2286,6 +2431,8 @@ static bool __xrt_co_sched_wait_for_post(xcosched* pSched, uint32 iTimeout)
 	return bReady;
 }
 
+
+// 内部函数：__xrt_co_sched_compute_wait_timeout
 static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTimeout)
 {
 	int64 iNow = 0;
@@ -2324,6 +2471,8 @@ static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTime
 	return bInfinite ? __XRT_CO_SCHED_WAIT_FOREVER : iTimeout;
 }
 
+
+// 内部函数：__xrt_co_sched_run_until
 static bool __xrt_co_sched_run_until(xcosched* pSched, xcoro pTarget)
 {
 	if ( pSched == NULL || pTarget == NULL ) {
@@ -2343,6 +2492,8 @@ static bool __xrt_co_sched_run_until(xcosched* pSched, xcoro pTarget)
 	return __xrt_co_is_terminal(pTarget);
 }
 
+
+// 加入协程
 XXAPI bool xrtCoJoin(xcoro pCo)
 {
 	xcoro pCurrent = NULL;
@@ -2420,6 +2571,8 @@ XXAPI bool xrtCoJoin(xcoro pCo)
 	return TRUE;
 }
 
+
+// xrtCoExit 相关处理
 XXAPI void xrtCoExit(int64 iExitCode)
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -2438,6 +2591,8 @@ XXAPI void xrtCoExit(int64 iExitCode)
 	__xrt_co_swap_to_main(pRuntime);
 }
 
+
+// 设置协程 user 数据
 XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData)
 {
 	if ( pCo == NULL ) {
@@ -2451,6 +2606,8 @@ XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData)
 	pCo->pUserData = pData;
 }
 
+
+// 获取协程 user 数据
 XXAPI ptr xrtCoGetUserData(xcoro pCo)
 {
 	if ( !pCo ) return NULL;
@@ -2460,6 +2617,8 @@ XXAPI ptr xrtCoGetUserData(xcoro pCo)
 	return pCo->pUserData;
 }
 
+
+// xrtCoPushCleanup 相关处理
 XXAPI bool xrtCoPushCleanup(xco_cleanup_proc proc, ptr pArg)
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -2487,6 +2646,8 @@ XXAPI bool xrtCoPushCleanup(xco_cleanup_proc proc, ptr pArg)
 	return TRUE;
 }
 
+
+// xrtCoPopCleanup 相关处理
 XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute)
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -2520,6 +2681,7 @@ XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute)
 
 
 
+// 内部函数：检查协程 sched 所有权
 static bool __xrt_co_check_sched_owner(xcosched* pSched, const char* sError)
 {
 	if ( pSched == NULL ) {
@@ -2531,6 +2693,7 @@ static bool __xrt_co_check_sched_owner(xcosched* pSched, const char* sError)
 }
 
 
+// xrtCoSchedCreate 相关处理
 XXAPI xcosched* xrtCoSchedCreate()
 {
 	xrtThreadData* pThreadData = __xrt_co_require_thread_data(TRUE);
@@ -2598,6 +2761,7 @@ XXAPI xcosched* xrtCoSchedCreate()
 }
 
 
+// xrtCoSchedCurrent 相关处理
 XXAPI xcosched* xrtCoSchedCurrent()
 {
 	xcoro pCurrent = __xrt_co_get_current();
@@ -2611,6 +2775,7 @@ XXAPI xcosched* xrtCoSchedCurrent()
 }
 
 
+// xrtCoSchedDestroy 相关处理
 XXAPI void xrtCoSchedDestroy(xcosched* pSched)
 {
 	xrtCoroRuntimeState* pRuntime = NULL;
@@ -2664,6 +2829,7 @@ XXAPI void xrtCoSchedDestroy(xcosched* pSched)
 }
 
 
+// xrtCoSchedSpawn 相关处理
 XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, size_t iStackSize)
 {
 	xcoro pCo = NULL;
@@ -2699,6 +2865,7 @@ XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, si
 }
 
 
+// xrtCoSchedPost 相关处理
 XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo)
 {
 	__xrt_co_post_item* pItem = NULL;
@@ -2739,6 +2906,7 @@ XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo)
 }
 
 
+// xrtCoSchedPollOnce 相关处理
 XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout)
 {
 	int64 iNow = 0;
@@ -2810,12 +2978,14 @@ XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout)
 }
 
 
+// xrtCoSchedStep 相关处理
 XXAPI bool xrtCoSchedStep(xcosched* pSched)
 {
 	return xrtCoSchedPollOnce(pSched, 0);
 }
 
 
+// xrtCoSchedRun 相关处理
 XXAPI void xrtCoSchedRun(xcosched* pSched)
 {
 	if ( pSched == NULL ) {
@@ -2836,12 +3006,15 @@ XXAPI void xrtCoSchedRun(xcosched* pSched)
 }
 
 
+// xrtCoSchedGetAlive 相关处理
 XXAPI int xrtCoSchedGetAlive(xcosched* pSched)
 {
 	if ( !pSched ) return 0;
 	return pSched->iAlive;
 }
 
+
+// 休眠协程直到指定时刻
 XXAPI void xrtCoSleepUntil(int64 iDeadlineMs)
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -2861,6 +3034,8 @@ XXAPI void xrtCoSleepUntil(int64 iDeadlineMs)
 	xrtCoYield();
 }
 
+
+// xrtCoWaitDeadline 相关处理
 XXAPI bool xrtCoWaitDeadline(int64 iDeadlineMs)
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -2888,6 +3063,8 @@ XXAPI bool xrtCoWaitDeadline(int64 iDeadlineMs)
 	return !__xrt_co_is_cancel_requested_flag(pCo);
 }
 
+
+// 创建协程事件
 XXAPI xcoevent xrtCoEventCreate(bool bManualReset, bool bInitialState)
 {
 	xcoevent pEvent = (xcoevent)xrtCalloc(1, sizeof(xcoevent_struct));
@@ -2909,6 +3086,8 @@ XXAPI xcoevent xrtCoEventCreate(bool bManualReset, bool bInitialState)
 	return pEvent;
 }
 
+
+// 销毁协程事件
 XXAPI void xrtCoEventDestroy(xcoevent pEvent)
 {
 	if ( pEvent == NULL ) {
@@ -2929,6 +3108,8 @@ XXAPI void xrtCoEventDestroy(xcoevent pEvent)
 	xrtFree(pEvent);
 }
 
+
+// 设置协程事件
 XXAPI void xrtCoEventSet(xcoevent pEvent)
 {
 	if ( pEvent == NULL ) {
@@ -2972,6 +3153,8 @@ XXAPI void xrtCoEventSet(xcoevent pEvent)
 	}
 }
 
+
+// 重置协程事件
 XXAPI void xrtCoEventReset(xcoevent pEvent)
 {
 	if ( pEvent == NULL ) {
@@ -2989,6 +3172,8 @@ XXAPI void xrtCoEventReset(xcoevent pEvent)
 	xrtMutexUnlock(pEvent->pLock);
 }
 
+
+// 内部函数：等待协程事件 core
 static bool __xrt_co_wait_event_core(xcoevent pEvent, bool bInfinite, int64 iDeadlineMs)
 {
 	xcoro pCo = __xrt_co_get_current();
@@ -3054,16 +3239,22 @@ static bool __xrt_co_wait_event_core(xcoevent pEvent, bool bInfinite, int64 iDea
 	return pCo->__iWaitResult == __XRT_CO_WAIT_RESULT_SIGNAL;
 }
 
+
+// 等待协程事件
 XXAPI bool xrtCoWaitEvent(xcoevent pEvent)
 {
 	return __xrt_co_wait_event_core(pEvent, TRUE, 0);
 }
 
+
+// 等待协程事件直到指定时刻
 XXAPI bool xrtCoWaitEventUntil(xcoevent pEvent, int64 iDeadlineMs)
 {
 	return __xrt_co_wait_event_core(pEvent, FALSE, iDeadlineMs);
 }
 
+
+// 等待协程事件超时
 XXAPI bool xrtCoWaitEventTimeout(xcoevent pEvent, uint32 iTimeoutMs)
 {
 	if ( iTimeoutMs == XRT_CO_WAIT_INFINITE ) {
@@ -3074,6 +3265,7 @@ XXAPI bool xrtCoWaitEventTimeout(xcoevent pEvent, uint32 iTimeoutMs)
 }
 
 
+// 休眠协程
 XXAPI void xrtCoSleep(uint32 iMs)
 {
 	xrtCoSleepUntil(__xrt_co_time_ms() + (int64)iMs);

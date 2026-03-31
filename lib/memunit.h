@@ -76,6 +76,9 @@ XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx)
 	xrtOwnerEndMutable(&objUnit->Owner);
 	return TRUE;
 }
+
+
+// xrtMemUnitFree 相关处理
 XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
 {
 	if ( objUnit == NULL ) {

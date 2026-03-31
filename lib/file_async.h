@@ -69,11 +69,15 @@ typedef struct {
 	bool bReWrite;
 } __xafile_path_task;
 
+
+// 内部函数：设置错误
 static void __xafileSetError(const char* sError)
 {
 	xrtSetError((str)(sError ? sError : __xafileErrHandle), FALSE);
 }
 
+
+// 内部函数：标记失败任务
 static int32 __xafileTaskFail(xfuture_result* pOut, const char* sError)
 {
 	if ( pOut == NULL ) {
@@ -94,6 +98,8 @@ static int32 __xafileTaskFail(xfuture_result* pOut, const char* sError)
 	return pOut->iStatus;
 }
 
+
+// 内部函数：标记失败任务最后一次错误
 static int32 __xafileTaskFailLastError(xfuture_result* pOut, const char* sFallback)
 {
 	str sError = xrtGetError();
@@ -104,6 +110,8 @@ static int32 __xafileTaskFailLastError(xfuture_result* pOut, const char* sFallba
 	return __xafileTaskFail(pOut, (const char*)sError);
 }
 
+
+// 内部函数：判断是否存在最后一次错误
 static bool __xafileHasLastError(void)
 {
 	str sError = xrtGetError();
@@ -113,6 +121,8 @@ static bool __xafileHasLastError(void)
 		sError[0] != '\0';
 }
 
+
+// 内部函数：解析任务
 static int32 __xafileTaskResolve(xfuture_result* pOut, ptr pValue)
 {
 	if ( pOut == NULL ) {
@@ -125,6 +135,8 @@ static int32 __xafileTaskResolve(xfuture_result* pOut, ptr pValue)
 	return pOut->iStatus;
 }
 
+
+// 内部函数：创建缓冲区
 static xasyncfilebuf* __xafileBufCreate(void)
 {
 	xasyncfilebuf* pBuf = (xasyncfilebuf*)xrtMalloc(sizeof(xasyncfilebuf));
@@ -137,6 +149,8 @@ static xasyncfilebuf* __xafileBufCreate(void)
 	return pBuf;
 }
 
+
+// 内部函数：__xafileIoCreate
 static xasyncfileio* __xafileIoCreate(uint64 iValue, uint64 iOffset)
 {
 	xasyncfileio* pInfo = (xasyncfileio*)xrtMalloc(sizeof(xasyncfileio));
@@ -150,6 +164,8 @@ static xasyncfileio* __xafileIoCreate(uint64 iValue, uint64 iOffset)
 	return pInfo;
 }
 
+
+// 内部函数：__xafileBufDestroyInner
 static void __xafileBufDestroyInner(xasyncfilebuf* pBuf)
 {
 	if ( pBuf == NULL ) {
@@ -161,6 +177,8 @@ static void __xafileBufDestroyInner(xasyncfilebuf* pBuf)
 	xrtFree(pBuf);
 }
 
+
+// 内部函数：释放路径任务
 static void __xafilePathTaskUnit(__xafile_path_task* pTask)
 {
 	if ( pTask == NULL ) {
@@ -178,6 +196,8 @@ static void __xafilePathTaskUnit(__xafile_path_task* pTask)
 	xrtFree(pTask);
 }
 
+
+// 内部函数：__xafileAddRef
 static bool __xafileAddRef(xasyncfile* pFile, bool bRejectClosing)
 {
 	bool bOk = false;
@@ -197,6 +217,8 @@ static bool __xafileAddRef(xasyncfile* pFile, bool bRejectClosing)
 	return bOk;
 }
 
+
+// 内部函数：释放
 static void __xafileRelease(xasyncfile* pFile)
 {
 	xmutex pLock;
@@ -251,6 +273,8 @@ static void __xafileRelease(xasyncfile* pFile)
 	xrtFree(pFile);
 }
 
+
+// 内部函数：__xafileSeekLocked
 static bool __xafileSeekLocked(xasyncfile* pFile, uint64 iOffset)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -273,6 +297,8 @@ static bool __xafileSeekLocked(xasyncfile* pFile, uint64 iOffset)
 	#endif
 }
 
+
+// 内部函数：__xafileReadLocked
 static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_t* piRead)
 {
 	size_t iTotal = 0u;
@@ -322,6 +348,8 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 	return true;
 }
 
+
+// 内部函数：__xafileWriteLocked
 static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSize, size_t* piWrite)
 {
 	size_t iTotal = 0u;
@@ -368,6 +396,8 @@ static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSi
 	return true;
 }
 
+
+// 内部函数：__xafileFlushLocked
 static bool __xafileFlushLocked(xasyncfile* pFile)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -383,6 +413,8 @@ static bool __xafileFlushLocked(xasyncfile* pFile)
 	#endif
 }
 
+
+// 内部函数：__xafileGetSizeLocked
 static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 {
 	if ( piSize ) {
@@ -418,6 +450,8 @@ static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 	#endif
 }
 
+
+// 内部函数：__xafileSetSizeLocked
 static bool __xafileSetSizeLocked(xasyncfile* pFile, uint64 iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -443,6 +477,8 @@ static bool __xafileSetSizeLocked(xasyncfile* pFile, uint64 iSize)
 	#endif
 }
 
+
+// 异步初始化文件配置
 XXAPI void xrtAsyncFileConfigInit(xasyncfileconfig* pConfig)
 {
 	if ( pConfig == NULL ) {
@@ -454,11 +490,15 @@ XXAPI void xrtAsyncFileConfigInit(xasyncfileconfig* pConfig)
 	pConfig->iShareFlags = XAFILE_SHARE_READ;
 }
 
+
+// 异步销毁文件缓冲区
 XXAPI void xrtAsyncFileBufDestroy(xasyncfilebuf* pBuf)
 {
 	__xafileBufDestroyInner(pBuf);
 }
 
+
+// 异步销毁文件 io
 XXAPI void xrtAsyncFileIoDestroy(xasyncfileio* pInfo)
 {
 	if ( pInfo != NULL ) {
@@ -470,6 +510,8 @@ XXAPI void xrtAsyncFileIoDestroy(xasyncfileio* pInfo)
 
 static const char* __xafileErrThreadRequired = "async file requires thread support.";
 
+
+// 异步打开文件
 XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 {
 	(void)pConfig;
@@ -477,11 +519,15 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 	return NULL;
 }
 
+
+// 异步关闭文件
 XXAPI void xrtAsyncFileClose(xasyncfile* pFile)
 {
 	(void)pFile;
 }
 
+
+// 异步读取文件
 XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize)
 {
 	(void)pFile;
@@ -491,6 +537,8 @@ XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSiz
 	return NULL;
 }
 
+
+// 异步写入文件
 XXAPI xfuture* xrtAsyncFileWriteAt(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize)
 {
 	(void)pFile;
@@ -501,6 +549,8 @@ XXAPI xfuture* xrtAsyncFileWriteAt(xasyncfile* pFile, uint64 iOffset, const void
 	return NULL;
 }
 
+
+// 异步刷新文件
 XXAPI xfuture* xrtAsyncFileFlush(xasyncfile* pFile)
 {
 	(void)pFile;
@@ -508,6 +558,8 @@ XXAPI xfuture* xrtAsyncFileFlush(xasyncfile* pFile)
 	return NULL;
 }
 
+
+// 异步获取文件大小
 XXAPI xfuture* xrtAsyncFileGetSize(xasyncfile* pFile)
 {
 	(void)pFile;
@@ -515,6 +567,8 @@ XXAPI xfuture* xrtAsyncFileGetSize(xasyncfile* pFile)
 	return NULL;
 }
 
+
+// 异步设置文件大小
 XXAPI xfuture* xrtAsyncFileSetSize(xasyncfile* pFile, uint64 iSize)
 {
 	(void)pFile;
@@ -523,6 +577,8 @@ XXAPI xfuture* xrtAsyncFileSetSize(xasyncfile* pFile, uint64 iSize)
 	return NULL;
 }
 
+
+// 异步追加文件
 XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iCharset)
 {
 	(void)sPath;
@@ -533,6 +589,8 @@ XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iChars
 	return NULL;
 }
 
+
+// 异步读取文件全部
 XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset)
 {
 	(void)sPath;
@@ -541,6 +599,8 @@ XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset)
 	return NULL;
 }
 
+
+// 异步写入文件全部
 XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCharset)
 {
 	(void)sPath;
@@ -551,6 +611,8 @@ XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCha
 	return NULL;
 }
 
+
+// 异步获取文件全部
 XXAPI xfuture* xrtFileGetAllAsync(str sPath)
 {
 	(void)sPath;
@@ -558,6 +620,8 @@ XXAPI xfuture* xrtFileGetAllAsync(str sPath)
 	return NULL;
 }
 
+
+// 文件 put 全部异步相关处理
 XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize)
 {
 	(void)sPath;
@@ -567,6 +631,8 @@ XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize)
 	return NULL;
 }
 
+
+// 异步复制文件
 XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite)
 {
 	(void)sSrc;
@@ -576,6 +642,8 @@ XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite)
 	return NULL;
 }
 
+
+// xrtFileMoveAsync 相关处理
 XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite)
 {
 	(void)sSrc;
@@ -585,6 +653,8 @@ XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite)
 	return NULL;
 }
 
+
+// 异步删除文件
 XXAPI xfuture* xrtFileDeleteAsync(str sPath)
 {
 	(void)sPath;
@@ -592,6 +662,8 @@ XXAPI xfuture* xrtFileDeleteAsync(str sPath)
 	return NULL;
 }
 
+
+// 异步创建目录
 XXAPI xfuture* xrtDirCreateAsync(str sPath)
 {
 	(void)sPath;
@@ -599,6 +671,8 @@ XXAPI xfuture* xrtDirCreateAsync(str sPath)
 	return NULL;
 }
 
+
+// 异步创建目录全部
 XXAPI xfuture* xrtDirCreateAllAsync(str sPath)
 {
 	(void)sPath;
@@ -606,6 +680,8 @@ XXAPI xfuture* xrtDirCreateAllAsync(str sPath)
 	return NULL;
 }
 
+
+// 异步复制目录
 XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite)
 {
 	(void)sSrc;
@@ -615,6 +691,8 @@ XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite)
 	return NULL;
 }
 
+
+// xrtDirMoveAsync 相关处理
 XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite)
 {
 	(void)sSrc;
@@ -624,6 +702,8 @@ XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite)
 	return NULL;
 }
 
+
+// 异步删除目录
 XXAPI xfuture* xrtDirDeleteAsync(str sPath)
 {
 	(void)sPath;
@@ -633,6 +713,7 @@ XXAPI xfuture* xrtDirDeleteAsync(str sPath)
 
 #else
 
+// 异步打开文件
 XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 {
 	xasyncfile* pFile = NULL;
@@ -771,6 +852,8 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 	return pFile;
 }
 
+
+// 异步关闭文件
 XXAPI void xrtAsyncFileClose(xasyncfile* pFile)
 {
 	if ( pFile == NULL || pFile->pLock == NULL ) {
@@ -783,6 +866,8 @@ XXAPI void xrtAsyncFileClose(xasyncfile* pFile)
 	__xafileRelease(pFile);
 }
 
+
+// 内部函数：读取任务
 static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 {
 	__xafile_read_task* pTask = (__xafile_read_task*)pArg;
@@ -858,6 +943,8 @@ Exit:
 	return iRet;
 }
 
+
+// 内部函数：写入任务
 static int32 __xafileWriteTask(ptr pArg, xfuture_result* pOut)
 {
 	__xafile_write_task* pTask = (__xafile_write_task*)pArg;
@@ -910,6 +997,8 @@ Exit:
 	return iRet;
 }
 
+
+// 内部函数：刷新任务
 static int32 __xafileFlushTask(ptr pArg, xfuture_result* pOut)
 {
 	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
@@ -940,6 +1029,8 @@ Exit:
 	return iRet;
 }
 
+
+// 内部函数：获取大小任务
 static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
 {
 	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
@@ -979,6 +1070,8 @@ Exit:
 	return iRet;
 }
 
+
+// 内部函数：设置大小任务
 static int32 __xafileSetSizeTask(ptr pArg, xfuture_result* pOut)
 {
 	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
@@ -1022,6 +1115,8 @@ Exit:
 	return iRet;
 }
 
+
+// 内部函数：路径任务进程相关处理
 static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 {
 	__xafile_path_task* pTask = (__xafile_path_task*)pArg;
@@ -1212,6 +1307,8 @@ Exit:
 	return iRet;
 }
 
+
+// 内部函数：__xafileStartReadTask
 static xfuture* __xafileStartReadTask(xasyncfile* pFile, uint64 iOffset, size_t iSize)
 {
 	__xafile_read_task* pTask;
@@ -1244,6 +1341,8 @@ static xfuture* __xafileStartReadTask(xasyncfile* pFile, uint64 iOffset, size_t 
 	return pFuture;
 }
 
+
+// 内部函数：__xafileStartWriteTask
 static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize)
 {
 	__xafile_write_task* pTask;
@@ -1290,6 +1389,8 @@ static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const 
 	return pFuture;
 }
 
+
+// 内部函数：启动大小任务
 static xfuture* __xafileStartSizeTask(xasyncfile* pFile, xtask_thread_fn pfnTask, uint64 iSize)
 {
 	__xafile_size_task* pTask;
@@ -1321,6 +1422,8 @@ static xfuture* __xafileStartSizeTask(xasyncfile* pFile, xtask_thread_fn pfnTask
 	return pFuture;
 }
 
+
+// 内部函数：创建路径任务
 static __xafile_path_task* __xafilePathTaskCreate(__xafile_path_task_kind iKind, str sPath, str sPath2)
 {
 	__xafile_path_task* pTask = (__xafile_path_task*)xrtMalloc(sizeof(__xafile_path_task));
@@ -1345,6 +1448,8 @@ static __xafile_path_task* __xafilePathTaskCreate(__xafile_path_task_kind iKind,
 	return pTask;
 }
 
+
+// 内部函数：启动路径任务
 static xfuture* __xafileStartPathTask(__xafile_path_task* pTask)
 {
 	xfuture* pFuture;
@@ -1361,31 +1466,43 @@ static xfuture* __xafileStartPathTask(__xafile_path_task* pTask)
 	return pFuture;
 }
 
+
+// 异步读取文件
 XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize)
 {
 	return __xafileStartReadTask(pFile, iOffset, iSize);
 }
 
+
+// 异步写入文件
 XXAPI xfuture* xrtAsyncFileWriteAt(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize)
 {
 	return __xafileStartWriteTask(pFile, iOffset, pData, iSize);
 }
 
+
+// 异步刷新文件
 XXAPI xfuture* xrtAsyncFileFlush(xasyncfile* pFile)
 {
 	return __xafileStartSizeTask(pFile, __xafileFlushTask, 0u);
 }
 
+
+// 异步获取文件大小
 XXAPI xfuture* xrtAsyncFileGetSize(xasyncfile* pFile)
 {
 	return __xafileStartSizeTask(pFile, __xafileGetSizeTask, 0u);
 }
 
+
+// 异步设置文件大小
 XXAPI xfuture* xrtAsyncFileSetSize(xasyncfile* pFile, uint64 iSize)
 {
 	return __xafileStartSizeTask(pFile, __xafileSetSizeTask, iSize);
 }
 
+
+// 异步追加文件
 XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iCharset)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_APPEND, sPath, NULL);
@@ -1410,6 +1527,8 @@ XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iChars
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步读取文件全部
 XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_READ_ALL, sPath, NULL);
@@ -1422,6 +1541,8 @@ XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步写入文件全部
 XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCharset)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_WRITE_ALL, sPath, NULL);
@@ -1446,6 +1567,8 @@ XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCha
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步获取文件全部
 XXAPI xfuture* xrtFileGetAllAsync(str sPath)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_GET_ALL, sPath, NULL);
@@ -1457,6 +1580,8 @@ XXAPI xfuture* xrtFileGetAllAsync(str sPath)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 文件 put 全部异步相关处理
 XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_PUT_ALL, sPath, NULL);
@@ -1477,6 +1602,8 @@ XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步复制文件
 XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_COPY, sSrc, sDst);
@@ -1489,6 +1616,8 @@ XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// xrtFileMoveAsync 相关处理
 XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_MOVE, sSrc, sDst);
@@ -1501,6 +1630,8 @@ XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步删除文件
 XXAPI xfuture* xrtFileDeleteAsync(str sPath)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DELETE, sPath, NULL);
@@ -1512,6 +1643,8 @@ XXAPI xfuture* xrtFileDeleteAsync(str sPath)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步创建目录
 XXAPI xfuture* xrtDirCreateAsync(str sPath)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_CREATE, sPath, NULL);
@@ -1523,6 +1656,8 @@ XXAPI xfuture* xrtDirCreateAsync(str sPath)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步创建目录全部
 XXAPI xfuture* xrtDirCreateAllAsync(str sPath)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_CREATE_ALL, sPath, NULL);
@@ -1534,6 +1669,8 @@ XXAPI xfuture* xrtDirCreateAllAsync(str sPath)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步复制目录
 XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_COPY, sSrc, sDst);
@@ -1546,6 +1683,8 @@ XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// xrtDirMoveAsync 相关处理
 XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_MOVE, sSrc, sDst);
@@ -1558,6 +1697,8 @@ XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite)
 	return __xafileStartPathTask(pTask);
 }
 
+
+// 异步删除目录
 XXAPI xfuture* xrtDirDeleteAsync(str sPath)
 {
 	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_DELETE, sPath, NULL);

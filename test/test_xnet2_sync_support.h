@@ -17,6 +17,7 @@ enum {
 };
 
 
+// 内部函数：__Test_XNet2_SyncSleepMs
 static void __Test_XNet2_SyncSleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -26,16 +27,22 @@ static void __Test_XNet2_SyncSleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_SyncAtomicInc
 static long __Test_XNet2_SyncAtomicInc(volatile long* pValue)
 {
 	return __xrtTestAtomicAddFetchLong(pValue, 1);
 }
 
+
+// 内部函数：__Test_XNet2_SyncAtomicStore
 static void __Test_XNet2_SyncAtomicStore(volatile long* pValue, long iValue)
 {
 	__xrtTestAtomicStoreLong(pValue, iValue);
 }
 
+
+// 内部函数：__Test_XNet2_SyncNowMs
 static int64_t __Test_XNet2_SyncNowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -47,17 +54,23 @@ static int64_t __Test_XNet2_SyncNowMs(void)
 	#endif
 }
 
+
+// 内部函数：__Test_XNet2_SyncDeadlineFromTimer
 static int64_t __Test_XNet2_SyncDeadlineFromTimer(uint32 iDelayMs)
 {
 	return (int64_t)(xrtTimer() * 1000.0) + (int64_t)iDelayMs;
 }
 
+
+// 内部函数：__Test_XNet2_SyncWaitSourceUntilDelay
 static xnet_result __Test_XNet2_SyncWaitSourceUntilDelay(xnetwaitsrc* pSrc, uint32 iDelayMs)
 {
 	if ( !pSrc ) return XRT_NET_ERROR;
 	return xrtNetWaitSourceWaitUntil(pSrc, __Test_XNet2_SyncDeadlineFromTimer(iDelayMs));
 }
 
+
+// 内部函数：__Test_XNet2_SyncWaitSourceCoUntilDelay
 static xnet_result __Test_XNet2_SyncWaitSourceCoUntilDelay(xnetwaitsrc* pSrc, uint32 iDelayMs)
 {
 	if ( !pSrc ) return XRT_NET_ERROR;
@@ -66,6 +79,8 @@ static xnet_result __Test_XNet2_SyncWaitSourceCoUntilDelay(xnetwaitsrc* pSrc, ui
 
 static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamSync(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs);
 
+
+// 内部函数：__Test_XNet2_SyncPostStreamTaskDelayed
 static bool __Test_XNet2_SyncPostStreamTaskDelayed(xnetengine* pEngine, xnetstream* pStream, uint32 iDelayMs, void (*Proc)(xnetworker*, ptr))
 {
 	if ( !pEngine || !pStream || !Proc ) return false;
@@ -77,6 +92,8 @@ static bool __Test_XNet2_SyncPostStreamTaskDelayed(xnetengine* pEngine, xnetstre
 		pStream) == XRT_NET_OK;
 }
 
+
+// 内部函数：__Test_XNet2_SyncPostStreamTaskAndRetryWaitSource
 static xnet_result __Test_XNet2_SyncPostStreamTaskAndRetryWaitSource(
 	xnetengine* pEngine,
 	xnetstream* pStream,
@@ -91,6 +108,8 @@ static xnet_result __Test_XNet2_SyncPostStreamTaskAndRetryWaitSource(
 	return __Test_XNet2_SyncRetryWaitSourceStreamSync(pStream, iWaitKind, iTimeoutMs);
 }
 
+
+// 内部函数：__Test_XNet2_SyncDgramPacketTextEquals
 static bool __Test_XNet2_SyncDgramPacketTextEquals(const xnetdgrampkt* pPacket, const char* sText)
 {
 	char aBuf[128];
@@ -104,6 +123,8 @@ static bool __Test_XNet2_SyncDgramPacketTextEquals(const xnetdgrampkt* pPacket, 
 	return iCopyLen == iWantLen && memcmp(aBuf, sText, iWantLen) == 0;
 }
 
+
+// 内部函数：__Test_XNet2_SyncWaitStreamOpen
 static bool __Test_XNet2_SyncWaitStreamOpen(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -120,12 +141,16 @@ static bool __Test_XNet2_SyncWaitStreamOpen(xnetstream* pStream, uint32 iTimeout
 	return (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0;
 }
 
+
+// 内部函数：__Test_XNet2_SyncMarkStreamOpen
 static void __Test_XNet2_SyncMarkStreamOpen(xnetstream* pStream)
 {
 	if ( !pStream ) return;
 	pStream->iState |= __XNET_STREAM_STATE_OPEN_EMITTED;
 }
 
+
+// 内部函数：__Test_XNet2_SyncWaitStreamWaitCleared
 static bool __Test_XNet2_SyncWaitStreamWaitCleared(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -142,6 +167,8 @@ static bool __Test_XNet2_SyncWaitStreamWaitCleared(xnetstream* pStream, uint32 i
 	return pStream->arrSyncWait[iWaitKind].pfnWait == NULL;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRetryWaitSourceStreamSync
 static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamSync(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -162,6 +189,8 @@ static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamSync(xnetstream* pStrea
 	return iStatus;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRetryStreamTimeoutSync
 static xnet_result __Test_XNet2_SyncRetryStreamTimeoutSync(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -180,6 +209,8 @@ static xnet_result __Test_XNet2_SyncRetryStreamTimeoutSync(xnetstream* pStream, 
 	return iStatus;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRetryWaitSourceStreamValueTimeoutSync
 static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamValueTimeoutSync(xnetstream* pStream, uint32 iWaitKind, ptr* ppValue, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -202,6 +233,8 @@ static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamValueTimeoutSync(xnetst
 	return iStatus;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRetryWaitSourceStreamTimeoutSync
 static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamTimeoutSync(xnetstream* pStream, uint32 iWaitKind, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -222,6 +255,8 @@ static xnet_result __Test_XNet2_SyncRetryWaitSourceStreamTimeoutSync(xnetstream*
 	return iStatus;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRetryDgramRecvSync
 static xnet_result __Test_XNet2_SyncRetryDgramRecvSync(xdgramsock* pSock, xnetdgrampkt** ppPacket, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -242,6 +277,8 @@ static xnet_result __Test_XNet2_SyncRetryDgramRecvSync(xdgramsock* pSock, xnetdg
 	return iStatus;
 }
 
+
+// 内部函数：__Test_XNet2_SyncRetryWaitSourceDgramSync
 static xnet_result __Test_XNet2_SyncRetryWaitSourceDgramSync(xdgramsock* pSock, xnetdgrampkt** ppPacket, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -264,6 +301,8 @@ static xnet_result __Test_XNet2_SyncRetryWaitSourceDgramSync(xdgramsock* pSock, 
 	return iStatus;
 }
 
+
+// 内部函数：__Test_XNet2_SyncWaitDgramRecvWaitCleared
 static bool __Test_XNet2_SyncWaitDgramRecvWaitCleared(xdgramsock* pSock, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;
@@ -280,6 +319,8 @@ static bool __Test_XNet2_SyncWaitDgramRecvWaitCleared(xdgramsock* pSock, uint32 
 	return pSock->tRecvWait.pfnWait == NULL;
 }
 
+
+// 内部函数：__Test_XNet2_SyncWaitListenerAcceptRegistered
 static bool __Test_XNet2_SyncWaitListenerAcceptRegistered(xnetlistener* pListener, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNet2_SyncNowMs() + (int64_t)iTimeoutMs;

@@ -178,6 +178,7 @@ typedef struct
 #endif
 
 
+// xte_private_clear_error 相关处理
 static void xte_private_clear_error(XTE_Error* pError)
 {
 	if ( pError ) {
@@ -185,6 +186,8 @@ static void xte_private_clear_error(XTE_Error* pError)
 	}
 }
 
+
+// xte_private_copy_error 相关处理
 static void xte_private_copy_error(XTE_Error* pDst, const XTE_Error* pSrc)
 {
 	if ( pDst && pSrc ) {
@@ -192,6 +195,8 @@ static void xte_private_copy_error(XTE_Error* pDst, const XTE_Error* pSrc)
 	}
 }
 
+
+// xte_private_fill_error_pos 相关处理
 static void xte_private_fill_error_pos(const char* sText, uint32 iSize, uint32 iPos, XTE_Error* pError, int iCode, const char* sDesc)
 {
 	uint32 i = 0;
@@ -224,12 +229,16 @@ static void xte_private_fill_error_pos(const char* sText, uint32 iSize, uint32 i
 	pError->iRefPos = iPos;
 }
 
+
+// xte_private_set_parser_error 相关处理
 static void xte_private_set_parser_error(XTE_PrivateParser* pParser, uint32 iLocalPos, int iCode, const char* sDesc)
 {
 	uint32 iAbsPos = pParser->iBasePos + iLocalPos;
 	xte_private_fill_error_pos(pParser->sRootText, pParser->iRootSize, iAbsPos, pParser->pError, iCode, sDesc);
 }
 
+
+// xte_private_str_eq 相关处理
 static int xte_private_str_eq(const char* sTextA, uint32 iSizeA, const char* sTextB, uint32 iSizeB)
 {
 	if ( iSizeA != iSizeB ) {
@@ -241,6 +250,8 @@ static int xte_private_str_eq(const char* sTextA, uint32 iSizeA, const char* sTe
 	return memcmp(sTextA, sTextB, iSizeA) == 0;
 }
 
+
+// xte_private_trim_view 相关处理
 static void xte_private_trim_view(XTE_PrivateView* pView)
 {
 	while ( pView->iSize && ((pView->sText[0] == ' ') || (pView->sText[0] == '\t') || (pView->sText[0] == '\r') || (pView->sText[0] == '\n')) ) {
@@ -253,16 +264,22 @@ static void xte_private_trim_view(XTE_PrivateView* pView)
 	}
 }
 
+
+// xte_private_is_ident_start 相关处理
 static int xte_private_is_ident_start(char ch)
 {
 	return ((ch >= 'a') && (ch <= 'z')) || ((ch >= 'A') && (ch <= 'Z')) || (ch == '_');
 }
 
+
+// xte_private_is_ident_char 相关处理
 static int xte_private_is_ident_char(char ch)
 {
 	return xte_private_is_ident_start(ch) || ((ch >= '0') && (ch <= '9'));
 }
 
+
+// xte_private_setup_bracket 相关处理
 static int xte_private_setup_bracket(const XTE_ParseOptions* pOptions, XTE_PrivateBracket* pBracket)
 {
 	const char* sBracket = NULL;
@@ -293,14 +310,20 @@ static int xte_private_setup_bracket(const XTE_ParseOptions* pOptions, XTE_Priva
 	return 1;
 }
 
+
+// xte_private_init 相关处理
 static void xte_private_init(void)
 {
 }
 
+
+// xte_private_unit 相关处理
 static void xte_private_unit(void)
 {
 }
 
+
+// xte_private_match_open 相关处理
 static int xte_private_match_open(const XTE_PrivateBracket* pBracket, const char* sText, uint32 iSize, uint32 iPos)
 {
 	if ( (iPos + pBracket->iOpenSize) > iSize ) {
@@ -309,6 +332,8 @@ static int xte_private_match_open(const XTE_PrivateBracket* pBracket, const char
 	return memcmp(&sText[iPos], pBracket->sOpen, pBracket->iOpenSize) == 0;
 }
 
+
+// xte_private_match_close 相关处理
 static int xte_private_match_close(const XTE_PrivateBracket* pBracket, const char* sText, uint32 iSize, uint32 iPos)
 {
 	if ( (iPos + pBracket->iCloseSize) > iSize ) {
@@ -317,11 +342,15 @@ static int xte_private_match_close(const XTE_PrivateBracket* pBracket, const cha
 	return memcmp(&sText[iPos], pBracket->sClose, pBracket->iCloseSize) == 0;
 }
 
+
+// xte_private_copy_view 相关处理
 static char* xte_private_copy_view(const char* sText, uint32 iSize)
 {
 	return __xrt_str(xrtCopyStr((str)sText, iSize));
 }
 
+
+// xte_private_copy_view_unescaped 相关处理
 static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 {
 	xbuffer_struct tBuf = { 0 };
@@ -359,6 +388,8 @@ static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 	return sRet;
 }
 
+
+// xte_private_is_integer_view 相关处理
 static int xte_private_is_integer_view(const char* sText, uint32 iSize)
 {
 	uint32 i = 0;
@@ -380,6 +411,8 @@ static int xte_private_is_integer_view(const char* sText, uint32 iSize)
 	return 1;
 }
 
+
+// xte_private_is_number_view 相关处理
 static int xte_private_is_number_view(const char* sText, uint32 iSize)
 {
 	uint32 i = 0;
@@ -411,6 +444,8 @@ static int xte_private_is_number_view(const char* sText, uint32 iSize)
 	return bDigit;
 }
 
+
+// xte_private_is_expr_sep_char 相关处理
 static int xte_private_is_expr_sep_char(char ch)
 {
 	return (ch == 0)
@@ -429,6 +464,8 @@ static int xte_private_is_expr_sep_char(char ch)
 		|| (ch == '|');
 }
 
+
+// xte_private_expr_has_keyword 相关处理
 static int xte_private_expr_has_keyword(const char* sText, uint32 iSize, const char* sKeyword)
 {
 	uint32 i = 0;
@@ -457,6 +494,8 @@ static int xte_private_expr_has_keyword(const char* sText, uint32 iSize, const c
 	return 0;
 }
 
+
+// xte_private_expr_is_complex 相关处理
 static int xte_private_expr_is_complex(const char* sText, uint32 iSize)
 {
 	uint32 i = 0;
@@ -521,6 +560,8 @@ typedef struct
 	int bError;
 } XTE_PrivateExprParser;
 
+
+// xte_private_expr_skip_space 相关处理
 static void xte_private_expr_skip_space(XTE_PrivateExprParser* pParser)
 {
 	while ( (pParser->iPos < pParser->iSize)
@@ -532,6 +573,8 @@ static void xte_private_expr_skip_space(XTE_PrivateExprParser* pParser)
 	}
 }
 
+
+// xte_private_expr_match_char 相关处理
 static int xte_private_expr_match_char(XTE_PrivateExprParser* pParser, char ch)
 {
 	xte_private_expr_skip_space(pParser);
@@ -542,6 +585,8 @@ static int xte_private_expr_match_char(XTE_PrivateExprParser* pParser, char ch)
 	return 0;
 }
 
+
+// xte_private_expr_match_keyword 相关处理
 static int xte_private_expr_match_keyword(XTE_PrivateExprParser* pParser, const char* sKeyword)
 {
 	uint32 iKeywordSize = (uint32)strlen(sKeyword);
@@ -564,6 +609,8 @@ static int xte_private_expr_match_keyword(XTE_PrivateExprParser* pParser, const 
 	return 1;
 }
 
+
+// xte_private_value_is_numeric 相关处理
 static int xte_private_value_is_numeric(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -583,6 +630,8 @@ static int xte_private_value_is_numeric(xvalue pVal)
 	}
 }
 
+
+// xte_private_value_to_number 相关处理
 static double xte_private_value_to_number(xvalue pVal)
 {
 	if ( pVal == NULL ) {
@@ -605,6 +654,8 @@ static double xte_private_value_to_number(xvalue pVal)
 	}
 }
 
+
+// xte_private_compare_values 相关处理
 static int xte_private_compare_values(xvalue pLeft, xvalue pRight, XTE_PrivateCompareOp iOp)
 {
 	if ( xte_private_value_is_numeric(pLeft) && xte_private_value_is_numeric(pRight) ) {
@@ -670,6 +721,8 @@ static int xte_private_compare_values(xvalue pLeft, xvalue pRight, XTE_PrivateCo
 	}
 }
 
+
+// xte_private_expr_parse_value 相关处理
 static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 {
 	uint32 iStart = 0;
@@ -793,6 +846,8 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 		pParser->pRender->pGlobal));
 }
 
+
+// xte_private_expr_parse_compare_op 相关处理
 static int xte_private_expr_parse_compare_op(XTE_PrivateExprParser* pParser, XTE_PrivateCompareOp* pOp)
 {
 	xte_private_expr_skip_space(pParser);
@@ -849,6 +904,8 @@ static int xte_private_expr_parse_compare_op(XTE_PrivateExprParser* pParser, XTE
 
 static int xte_private_expr_parse_or(XTE_PrivateExprParser* pParser, int* pOut);
 
+
+// xte_private_expr_parse_primary_bool 相关处理
 static int xte_private_expr_parse_primary_bool(XTE_PrivateExprParser* pParser, int* pOut)
 {
 	xvalue pLeft = NULL;
@@ -893,6 +950,8 @@ static int xte_private_expr_parse_primary_bool(XTE_PrivateExprParser* pParser, i
 	return 1;
 }
 
+
+// xte_private_expr_parse_unary 相关处理
 static int xte_private_expr_parse_unary(XTE_PrivateExprParser* pParser, int* pOut)
 {
 	if ( xte_private_expr_match_keyword(pParser, "not") || xte_private_expr_match_char(pParser, '!') ) {
@@ -906,6 +965,8 @@ static int xte_private_expr_parse_unary(XTE_PrivateExprParser* pParser, int* pOu
 	return xte_private_expr_parse_primary_bool(pParser, pOut);
 }
 
+
+// xte_private_expr_parse_and 相关处理
 static int xte_private_expr_parse_and(XTE_PrivateExprParser* pParser, int* pOut)
 {
 	int bValue = 0;
@@ -932,6 +993,8 @@ static int xte_private_expr_parse_and(XTE_PrivateExprParser* pParser, int* pOut)
 	return 1;
 }
 
+
+// xte_private_expr_parse_or 相关处理
 static int xte_private_expr_parse_or(XTE_PrivateExprParser* pParser, int* pOut)
 {
 	int bValue = 0;
@@ -958,6 +1021,8 @@ static int xte_private_expr_parse_or(XTE_PrivateExprParser* pParser, int* pOut)
 	return 1;
 }
 
+
+// xte_private_eval_bool_expr 相关处理
 static int xte_private_eval_bool_expr(XTE_RenderCtx* pCtx, const char* sText, uint32 iSize, int* pOut)
 {
 	XTE_PrivateExprParser tParser = { 0 };
@@ -989,6 +1054,8 @@ static int xte_private_eval_bool_expr(XTE_RenderCtx* pCtx, const char* sText, ui
 	return 1;
 }
 
+
+// xte_private_split_colon 相关处理
 static uint32 xte_private_split_colon(const char* sText, uint32 iSize, XTE_PrivateView* arrView, uint32 iMaxCount)
 {
 	uint32 i = 0;
@@ -1026,6 +1093,8 @@ static uint32 xte_private_split_colon(const char* sText, uint32 iSize, XTE_Priva
 	return iCount;
 }
 
+
+// xte_private_find_unescaped_eq 相关处理
 static int xte_private_find_unescaped_eq(const char* sText, uint32 iSize)
 {
 	uint32 i = 0;
@@ -1045,6 +1114,8 @@ static int xte_private_find_unescaped_eq(const char* sText, uint32 iSize)
 	return -1;
 }
 
+
+// xte_private_writer_write 相关处理
 static int xte_private_writer_write(XTE_Writer* pWriter, const char* sText, size_t iSize)
 {
 	if ( iSize == 0u ) {
@@ -1060,11 +1131,15 @@ static int xte_private_writer_write(XTE_Writer* pWriter, const char* sText, size
 	return 1;
 }
 
+
+// xte_private_buffer_writer_proc 相关处理
 static int xte_private_buffer_writer_proc(void* pUserData, const char* sText, size_t iSize)
 {
 	return xrtBufferAppend((xbuffer)pUserData, (ptr)sText, iSize, XBUF_BINARY) ? 1 : 0;
 }
 
+
+// xte_private_find_statement 相关处理
 static const XTE_StatementDef* xte_private_find_statement(xteengine hEngine, const char* sName, uint32 iNameSize)
 {
 	uint32 i = 0;
@@ -1085,6 +1160,8 @@ static const XTE_StatementDef* xte_private_find_statement(xteengine hEngine, con
 	return NULL;
 }
 
+
+// xte_private_find_function 相关处理
 static const XTE_FunctionDef* xte_private_find_function(xteengine hEngine, const char* sName, uint32 iNameSize)
 {
 	uint32 i = 0;
@@ -1105,6 +1182,8 @@ static const XTE_FunctionDef* xte_private_find_function(xteengine hEngine, const
 	return NULL;
 }
 
+
+// xte_private_statement_name_eq 相关处理
 static int xte_private_statement_name_eq(xtetemplate hTemplate, const XTE_Node* pNode, const char* sName)
 {
 	if ( (hTemplate == NULL) || (pNode == NULL) || (pNode->iType != XTE_NODE_STATEMENT) || (sName == NULL) ) {
@@ -1119,6 +1198,8 @@ static int xte_private_statement_name_eq(xtetemplate hTemplate, const XTE_Node* 
 	);
 }
 
+
+// xte_private_fill_arg_list 相关处理
 static void xte_private_fill_arg_list(xtetemplate hTemplate, uint32 iArgStart, uint32 iArgCount, XTE_ArgList* pArgs)
 {
 	memset(pArgs, 0, sizeof(*pArgs));
@@ -1132,6 +1213,8 @@ static void xte_private_fill_arg_list(xtetemplate hTemplate, uint32 iArgStart, u
 	pArgs->pItems = (iArgCount != 0u) ? xte_private_template_get_arg(hTemplate, iArgStart) : NULL;
 }
 
+
+// xte_private_make_arg_list 相关处理
 static void xte_private_make_arg_list(xtetemplate hTemplate, const XTE_Node* pNode, XTE_ArgList* pArgs)
 {
 	if ( (hTemplate == NULL) || (pNode == NULL) || (pNode->iType != XTE_NODE_STATEMENT) ) {
@@ -1142,6 +1225,8 @@ static void xte_private_make_arg_list(xtetemplate hTemplate, const XTE_Node* pNo
 	xte_private_fill_arg_list(hTemplate, pNode->Data.Statement.iArgStart, pNode->Data.Statement.iArgCount, pArgs);
 }
 
+
+// xte_private_fill_node_error 相关处理
 static void xte_private_fill_node_error(const XTE_Node* pNode, XTE_Error* pError, int iCode, const char* sDesc)
 {
 	if ( pError == NULL ) {
@@ -1162,6 +1247,8 @@ static void xte_private_fill_node_error(const XTE_Node* pNode, XTE_Error* pError
 	}
 }
 
+
+// xte_private_bind_statement_node 相关处理
 static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNode, const XTE_StatementDef* pDef, int iDefaultCode, const char* sDefaultDesc)
 {
 	const char* sName = NULL;
@@ -1221,6 +1308,8 @@ static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNod
 	return 1;
 }
 
+
+// xte_private_rebuild_statement_data 相关处理
 static int UNUSED_ATTR xte_private_rebuild_statement_data(xtetemplate hTemplate, int iDefaultCode, const char* sDefaultDesc)
 {
 	uint32 i = 0;
@@ -1243,6 +1332,8 @@ static int UNUSED_ATTR xte_private_rebuild_statement_data(xtetemplate hTemplate,
 	return 1;
 }
 
+
+// xte_private_find_subtemplate 相关处理
 static const XTE_PrivateSubTemplateItem* xte_private_find_subtemplate(xtetemplate hTemplate, const char* sName, uint32 iNameSize)
 {
 	uint32 i = 0;
@@ -1271,6 +1362,8 @@ static const XTE_PrivateSubTemplateItem* xte_private_find_subtemplate(xtetemplat
 	return NULL;
 }
 
+
+// xte_private_rebuild_subtemplates 相关处理
 static int xte_private_rebuild_subtemplates(xtetemplate hTemplate, int iErrorCode, const char* sDefaultDesc)
 {
 	uint32 i = 0;
@@ -1332,11 +1425,15 @@ static int xte_private_rebuild_subtemplates(xtetemplate hTemplate, int iErrorCod
 	return 1;
 }
 
+
+// xte_private_ast_list_init 相关处理
 static void xte_private_ast_list_init(XTE_PrivateAstList* pList)
 {
 	xrtArrayInit(&pList->arrNode, sizeof(XTE_PrivateAstNode), XRT_OBJMODE_LOCAL);
 }
 
+
+// xte_private_ast_node_unit 相关处理
 static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 {
 	uint32 i = 0;
@@ -1381,6 +1478,8 @@ static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 	}
 }
 
+
+// xte_private_ast_list_unit 相关处理
 static void xte_private_ast_list_unit(XTE_PrivateAstList* pList)
 {
 	uint32 i = 0;
@@ -1393,6 +1492,8 @@ static void xte_private_ast_list_unit(XTE_PrivateAstList* pList)
 	xrtArrayUnit(&pList->arrNode);
 }
 
+
+// xte_private_ast_add_node 相关处理
 static uint32 xte_private_ast_add_node(XTE_PrivateAstList* pList, const XTE_PrivateAstNode* pNode)
 {
 	uint32 iIndex = xrtArrayAppend(&pList->arrNode, 1);
@@ -1405,6 +1506,8 @@ static uint32 xte_private_ast_add_node(XTE_PrivateAstList* pList, const XTE_Priv
 	return iIndex - 1u;
 }
 
+
+// 获取 private 模板节点
 static XTE_Node* xte_private_template_get_node(xtetemplate hTemplate, uint32 iIndex)
 {
 	if ( (hTemplate == NULL) || (iIndex >= hTemplate->arrNode.Count) ) {
@@ -1413,6 +1516,8 @@ static XTE_Node* xte_private_template_get_node(xtetemplate hTemplate, uint32 iIn
 	return xrtArrayGet_Inline(&hTemplate->arrNode, iIndex + 1u);
 }
 
+
+// xte_private_template_get_expr 相关处理
 static XTE_ExprNode* xte_private_template_get_expr(xtetemplate hTemplate, uint32 iIndex)
 {
 	if ( (hTemplate == NULL) || (iIndex >= hTemplate->arrExpr.Count) ) {
@@ -1421,6 +1526,8 @@ static XTE_ExprNode* xte_private_template_get_expr(xtetemplate hTemplate, uint32
 	return xrtArrayGet_Inline(&hTemplate->arrExpr, iIndex + 1u);
 }
 
+
+// xte_private_template_get_arg 相关处理
 static XTE_ArgItem* xte_private_template_get_arg(xtetemplate hTemplate, uint32 iIndex)
 {
 	if ( (hTemplate == NULL) || (iIndex >= hTemplate->arrArg.Count) ) {
@@ -1429,6 +1536,8 @@ static XTE_ArgItem* xte_private_template_get_arg(xtetemplate hTemplate, uint32 i
 	return xrtArrayGet_Inline(&hTemplate->arrArg, iIndex + 1u);
 }
 
+
+// xte_private_template_get_subtemplate 相关处理
 static XTE_PrivateSubTemplateItem* xte_private_template_get_subtemplate(xtetemplate hTemplate, uint32 iIndex)
 {
 	if ( (hTemplate == NULL) || (iIndex >= hTemplate->arrSubTemplate.Count) ) {
@@ -1437,6 +1546,8 @@ static XTE_PrivateSubTemplateItem* xte_private_template_get_subtemplate(xtetempl
 	return xrtArrayGet_Inline(&hTemplate->arrSubTemplate, iIndex + 1u);
 }
 
+
+// xte_private_pool_add_copy 相关处理
 static uint32 xte_private_pool_add_copy(xtetemplate hTemplate, const char* sText, uint32 iSize)
 {
 	char chZero = 0;
@@ -1458,6 +1569,8 @@ static uint32 xte_private_pool_add_copy(xtetemplate hTemplate, const char* sText
 	return iOff;
 }
 
+
+// xte_private_pool_add_unescaped 相关处理
 static uint32 xte_private_pool_add_unescaped(xtetemplate hTemplate, const char* sText, uint32 iSize)
 {
 	char* sTemp = xte_private_copy_view_unescaped(sText, iSize);
@@ -1472,6 +1585,8 @@ static uint32 xte_private_pool_add_unescaped(xtetemplate hTemplate, const char* 
 	return iOff;
 }
 
+
+// xte_private_pool_ptr 相关处理
 static const char* xte_private_pool_ptr(xtetemplate hTemplate, uint32 iOff)
 {
 	if ( (hTemplate == NULL) || (iOff >= hTemplate->tStringPool.Length) ) {
@@ -1480,6 +1595,8 @@ static const char* xte_private_pool_ptr(xtetemplate hTemplate, uint32 iOff)
 	return &hTemplate->tStringPool.Buffer[iOff];
 }
 
+
+// xte_private_add_expr 相关处理
 static uint32 xte_private_add_expr(xtetemplate hTemplate, const XTE_ExprNode* pExpr)
 {
 	uint32 iIndex = xrtArrayAppend(&hTemplate->arrExpr, 1);
@@ -1492,6 +1609,8 @@ static uint32 xte_private_add_expr(xtetemplate hTemplate, const XTE_ExprNode* pE
 	return iIndex - 1u;
 }
 
+
+// xte_private_add_arg 相关处理
 static uint32 xte_private_add_arg(xtetemplate hTemplate, const XTE_ArgItem* pArg)
 {
 	uint32 iIndex = xrtArrayAppend(&hTemplate->arrArg, 1);
@@ -1504,6 +1623,8 @@ static uint32 xte_private_add_arg(xtetemplate hTemplate, const XTE_ArgItem* pArg
 	return iIndex - 1u;
 }
 
+
+// xte_private_lookup_first_value 相关处理
 static xvalue xte_private_lookup_first_value(const char* sName, uint32 iNameSize, xvalue pCurrent, xvalue pRoot, xvalue pLocal, xvalue pGlobal)
 {
 	xvalue pRet = &XVO_VALUE_NULL;
@@ -1536,6 +1657,8 @@ static xvalue xte_private_lookup_first_value(const char* sName, uint32 iNameSize
 	return &XVO_VALUE_NULL;
 }
 
+
+// xte_private_find_tag_end 相关处理
 static int xte_private_find_tag_end(XTE_PrivateParser* pParser, uint32 iContentPos, uint32* pClosePos)
 {
 	uint32 i = iContentPos;
@@ -1555,6 +1678,8 @@ static int xte_private_find_tag_end(XTE_PrivateParser* pParser, uint32 iContentP
 	return 0;
 }
 
+
+// xte_private_find_next_tag 相关处理
 static uint32 xte_private_find_next_tag(XTE_PrivateParser* pParser, uint32 iPos)
 {
 	while ( iPos < pParser->iSize ) {
@@ -1566,6 +1691,8 @@ static uint32 xte_private_find_next_tag(XTE_PrivateParser* pParser, uint32 iPos)
 	return XTE_PRIVATE_INVALID_INDEX;
 }
 
+
+// xte_private_compile_expr 相关处理
 static int xte_private_compile_expr(xtetemplate hTemplate, const char* sText, uint32 iSize, uint32* pExprIndex)
 {
 	XTE_PrivateView tView = { sText, iSize };
@@ -1610,6 +1737,8 @@ static int xte_private_compile_expr(xtetemplate hTemplate, const char* sText, ui
 	return (*pExprIndex != XTE_PRIVATE_INVALID_INDEX);
 }
 
+
+// xte_private_parse_text 相关处理
 static int xte_private_parse_text(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList)
 {
 	xbuffer_struct tBuf = { 0 };
@@ -1675,6 +1804,8 @@ static int xte_private_parse_text(XTE_PrivateParser* pParser, XTE_PrivateAstList
 	return 1;
 }
 
+
+// 解析 private 输出节点
 static int xte_private_parse_output_node(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos, char chKind)
 {
 	XTE_PrivateAstNode tNode = { 0 };
@@ -1741,6 +1872,8 @@ static int xte_private_parse_output_node(XTE_PrivateParser* pParser, XTE_Private
 	return 1;
 }
 
+
+// xte_private_parse_inline_bool_node 相关处理
 static int xte_private_parse_inline_bool_node(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos)
 {
 	XTE_PrivateAstNode tNode = { 0 };
@@ -1796,6 +1929,8 @@ static int xte_private_parse_inline_bool_node(XTE_PrivateParser* pParser, XTE_Pr
 	return 1;
 }
 
+
+// xte_private_scan_matching_end 相关处理
 static int xte_private_scan_matching_end(XTE_PrivateParser* pParser, uint32 iSearchPos, uint32* pBodyEndPos, uint32* pAfterEndPos)
 {
 	uint32 iPos = iSearchPos;
@@ -1861,6 +1996,8 @@ static int xte_private_scan_matching_end(XTE_PrivateParser* pParser, uint32 iSea
 	}
 }
 
+
+// xte_private_parse_arg_list 相关处理
 static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sArgText, uint32 iArgSize, uint32 iMinArgs, uint32 iMaxArgs, int bAllowNamedArgs, xarray pArrArg)
 {
 	XTE_PrivateView arrView[32] = { 0 };
@@ -1926,6 +2063,8 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 	return 1;
 }
 
+
+// xte_private_parse_statement_args 相关处理
 static int xte_private_parse_statement_args(XTE_PrivateParser* pParser, const XTE_StatementDef* pDef, const char* sArgText, uint32 iArgSize, xarray pArrArg)
 {
 	if ( pDef == NULL ) {
@@ -1943,6 +2082,8 @@ static int xte_private_parse_statement_args(XTE_PrivateParser* pParser, const XT
 		pArrArg);
 }
 
+
+// xte_private_parse_function_output_node 相关处理
 static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos)
 {
 	uint32 iStart = pParser->iPos;
@@ -2019,6 +2160,8 @@ static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XT
 
 static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, int bAllowEnd, int* pEndedByEnd);
 
+
+// xte_private_parse_statement 相关处理
 static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos)
 {
 	uint32 iStart = pParser->iPos;
@@ -2137,6 +2280,8 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 	return 1;
 }
 
+
+// xte_private_parse_nodes 相关处理
 static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, int bAllowEnd, int* pEndedByEnd)
 {
 	if ( pEndedByEnd ) {
@@ -2237,6 +2382,8 @@ static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstLis
 	return 1;
 }
 
+
+// xte_private_template_create 相关处理
 static xtetemplate xte_private_template_create(xteengine hEngine, int bOwnEngine)
 {
 	xtetemplate hTemplate = xrtCalloc(1, sizeof(*hTemplate));
@@ -2257,6 +2404,8 @@ static xtetemplate xte_private_template_create(xteengine hEngine, int bOwnEngine
 
 static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstList* pList, XTE_NodeSpan* pSpan);
 
+
+// xte_private_compile_ast_args 相关处理
 static int xte_private_compile_ast_args(xtetemplate hTemplate, xarray pArrArg, uint32* pArgStart, uint32* pArgCount)
 {
 	uint32 i = 0;
@@ -2299,6 +2448,8 @@ static int xte_private_compile_ast_args(xtetemplate hTemplate, xarray pArrArg, u
 	return 1;
 }
 
+
+// xte_private_compile_ast_list 相关处理
 static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstList* pList, XTE_NodeSpan* pSpan)
 {
 	uint32 i = 0;
@@ -2423,6 +2574,8 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 	return 1;
 }
 
+
+// xte_private_value_truthy 相关处理
 static int xte_private_value_truthy(xvalue pVal)
 {
 	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
@@ -2447,6 +2600,8 @@ static int xte_private_value_truthy(xvalue pVal)
 	}
 }
 
+
+// xte_private_value_to_text 相关处理
 static char* xte_private_value_to_text(xvalue pVal)
 {
 	char sBuf[128] = { 0 };
@@ -2474,6 +2629,8 @@ static char* xte_private_value_to_text(xvalue pVal)
 	}
 }
 
+
+// xte_private_eval_expr_value 相关处理
 static xvalue xte_private_eval_expr_value(XTE_RenderCtx* pCtx, uint32 iExprIndex)
 {
 	XTE_ExprNode* pExpr = xte_private_template_get_expr(pCtx->hTemplate, iExprIndex);
@@ -2504,6 +2661,8 @@ static xvalue xte_private_eval_expr_value(XTE_RenderCtx* pCtx, uint32 iExprIndex
 	}
 }
 
+
+// xte_private_call_output_function 相关处理
 static xvalue xte_private_call_output_function(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 {
 	const char* sName = NULL;
@@ -2543,6 +2702,8 @@ static xvalue xte_private_call_output_function(XTE_RenderCtx* pCtx, XTE_Node* pN
 	return pRet ? pRet : xvoCreateNull();
 }
 
+
+// xte_private_render_output_node 相关处理
 static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 {
 	xvalue pVal = NULL;
@@ -2600,6 +2761,8 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 
 static XTE_Flow xte_private_render_span(XTE_RenderCtx* pCtx, XTE_NodeSpan tSpan);
 
+
+// xte_private_render_template 相关处理
 static XTE_Flow xte_private_render_template(XTE_RenderCtx* pCtx, xtetemplate hTemplate, xvalue pCurrent)
 {
 	XTE_RenderCtx tChildCtx = { 0 };
@@ -2619,6 +2782,8 @@ static XTE_Flow xte_private_render_template(XTE_RenderCtx* pCtx, xtetemplate hTe
 	return xte_private_render_span(&tChildCtx, hTemplate->tRoot);
 }
 
+
+// xte_private_render_body_with_scope_ex 相关处理
 static XTE_Flow xte_private_render_body_with_scope_ex(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xvalue pCurrent)
 {
 	xvalue pOldLocal = NULL;
@@ -2641,6 +2806,8 @@ static XTE_Flow xte_private_render_body_with_scope_ex(XTE_StmtRenderCtx* pCtx, x
 
 static XTE_Flow xte_private_stmt_render_error(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc);
 
+
+// xte_private_stmt_parse_define 相关处理
 static int xte_private_stmt_parse_define(XTE_StmtParseCtx* pCtx, void** ppData)
 {
 	const XTE_ArgItem* pArg = NULL;
@@ -2685,12 +2852,16 @@ static int xte_private_stmt_parse_define(XTE_StmtParseCtx* pCtx, void** ppData)
 	return 1;
 }
 
+
+// xte_private_stmt_render_define 相关处理
 static XTE_Flow xte_private_stmt_render_define(XTE_StmtRenderCtx* pCtx)
 {
 	(void)pCtx;
 	return XTE_FLOW_OK;
 }
 
+
+// xte_private_stmt_render_script 相关处理
 static XTE_Flow xte_private_stmt_render_script(XTE_StmtRenderCtx* pCtx)
 {
 	if ( pCtx == NULL ) {
@@ -2705,6 +2876,8 @@ static XTE_Flow xte_private_stmt_render_script(XTE_StmtRenderCtx* pCtx)
 	return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template script write failed");
 }
 
+
+// xte_private_stmt_render_if 相关处理
 static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 {
 	int bActive = 0;
@@ -2769,16 +2942,22 @@ static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_OK;
 }
 
+
+// xte_private_stmt_render_else 相关处理
 static XTE_Flow xte_private_stmt_render_else(XTE_StmtRenderCtx* pCtx)
 {
 	return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template else must be inside if");
 }
 
+
+// xte_private_stmt_render_elseif 相关处理
 static XTE_Flow xte_private_stmt_render_elseif(XTE_StmtRenderCtx* pCtx)
 {
 	return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template elseif must be inside if");
 }
 
+
+// xte_private_stmt_render_break 相关处理
 static XTE_Flow xte_private_stmt_render_break(XTE_StmtRenderCtx* pCtx)
 {
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
@@ -2790,6 +2969,8 @@ static XTE_Flow xte_private_stmt_render_break(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_BREAK;
 }
 
+
+// xte_private_stmt_render_continue 相关处理
 static XTE_Flow xte_private_stmt_render_continue(XTE_StmtRenderCtx* pCtx)
 {
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
@@ -2801,6 +2982,8 @@ static XTE_Flow xte_private_stmt_render_continue(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_CONTINUE;
 }
 
+
+// xte_private_stmt_render_for 相关处理
 static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 {
 	int64 iStart = 0;
@@ -2880,6 +3063,8 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_OK;
 }
 
+
+// xte_private_stmt_render_foreach 相关处理
 static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 {
 	xvalue pIter = NULL;
@@ -3043,6 +3228,8 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_OK;
 }
 
+
+// xte_private_stmt_render_include 相关处理
 static XTE_Flow xte_private_stmt_render_include(XTE_StmtRenderCtx* pCtx)
 {
 	char* sName = NULL;
@@ -3082,6 +3269,8 @@ static XTE_Flow xte_private_stmt_render_include(XTE_StmtRenderCtx* pCtx)
 	return iFlow;
 }
 
+
+// xte_private_render_node 相关处理
 static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 {
 	if ( pNode == NULL ) {
@@ -3166,6 +3355,8 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 	return XTE_FLOW_OK;
 }
 
+
+// xte_private_render_span 相关处理
 static XTE_Flow xte_private_render_span(XTE_RenderCtx* pCtx, XTE_NodeSpan tSpan)
 {
 	uint32 i = 0;
@@ -3183,12 +3374,15 @@ static XTE_Flow xte_private_render_span(XTE_RenderCtx* pCtx, XTE_NodeSpan tSpan)
 }
 
 #ifdef XTE_DEBUGMODE
+// xte_private_console_writer_proc 相关处理
 static int xte_private_console_writer_proc(void* pUserData, const char* sText, size_t iSize)
 {
 	FILE* fp = (FILE*)pUserData;
 	return (fwrite(sText, 1, iSize, fp) == iSize) ? 1 : 0;
 }
 
+
+// xte_private_dump_indent 相关处理
 static int xte_private_dump_indent(XTE_Writer* pWriter, uint32 iDepth)
 {
 	uint32 i = 0;
@@ -3200,6 +3394,8 @@ static int xte_private_dump_indent(XTE_Writer* pWriter, uint32 iDepth)
 	return 1;
 }
 
+
+// xte_private_expr_type_name 相关处理
 static const char* xte_private_expr_type_name(uint32 iType)
 {
 	switch ( iType ) {
@@ -3218,6 +3414,8 @@ static const char* xte_private_expr_type_name(uint32 iType)
 	}
 }
 
+
+// xte_private_expr_type_name_by_index 相关处理
 static const char* xte_private_expr_type_name_by_index(xtetemplate hTemplate, uint32 iExprIndex)
 {
 	XTE_ExprNode* pExpr = xte_private_template_get_expr(hTemplate, iExprIndex);
@@ -3225,6 +3423,8 @@ static const char* xte_private_expr_type_name_by_index(xtetemplate hTemplate, ui
 	return pExpr ? xte_private_expr_type_name(pExpr->iType) : "INVALID";
 }
 
+
+// xte_private_dump_expr_value 相关处理
 static int xte_private_dump_expr_value(XTE_Writer* pWriter, xtetemplate hTemplate, uint32 iExprIndex)
 {
 	XTE_ExprNode* pExpr = xte_private_template_get_expr(hTemplate, iExprIndex);
@@ -3249,6 +3449,8 @@ static int xte_private_dump_expr_value(XTE_Writer* pWriter, xtetemplate hTemplat
 	}
 }
 
+
+// xte_private_dump_expr_typed 相关处理
 static int xte_private_dump_expr_typed(XTE_Writer* pWriter, xtetemplate hTemplate, uint32 iExprIndex)
 {
 	XTE_ExprNode* pExpr = xte_private_template_get_expr(hTemplate, iExprIndex);
@@ -3268,6 +3470,8 @@ static int xte_private_dump_expr_typed(XTE_Writer* pWriter, xtetemplate hTemplat
 	return xte_private_dump_expr_value(pWriter, hTemplate, iExprIndex);
 }
 
+
+// xte_private_dump_arg_list 相关处理
 static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter, uint32 iArgStart, uint32 iArgCount, uint32 iDepth)
 {
 	uint32 i = 0;
@@ -3322,6 +3526,8 @@ static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter,
 	return 1;
 }
 
+
+// xte_private_dump_span 相关处理
 static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE_NodeSpan tSpan, uint32 iDepth)
 {
 	uint32 i = 0;
@@ -3432,6 +3638,7 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 #endif
 
 
+// 创建引擎
 XXAPI xteengine xteCreateEngine(void)
 {
 	xteengine hEngine = xrtCalloc(1, sizeof(*hEngine));
@@ -3451,6 +3658,8 @@ XXAPI xteengine xteCreateEngine(void)
 	return hEngine;
 }
 
+
+// 销毁引擎
 XXAPI void xteDestroyEngine(xteengine hEngine)
 {
 	if ( hEngine == NULL ) {
@@ -3462,6 +3671,8 @@ XXAPI void xteDestroyEngine(xteengine hEngine)
 	xrtFree(hEngine);
 }
 
+
+// xteRegisterBuiltinStatements 相关处理
 XXAPI int xteRegisterBuiltinStatements(xteengine hEngine)
 {
 	static const XTE_StatementDef tIf = {
@@ -3575,6 +3786,8 @@ XXAPI int xteRegisterBuiltinStatements(xteengine hEngine)
 	return 1;
 }
 
+
+// xteRegisterStatement 相关处理
 XXAPI int xteRegisterStatement(xteengine hEngine, const XTE_StatementDef* pDef)
 {
 	XTE_PrivateStatementReg tReg = { 0 };
@@ -3596,6 +3809,8 @@ XXAPI int xteRegisterStatement(xteengine hEngine, const XTE_StatementDef* pDef)
 	return 1;
 }
 
+
+// xteRegisterFunction 相关处理
 XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef)
 {
 	XTE_PrivateFunctionReg tReg = { 0 };
@@ -3617,6 +3832,8 @@ XXAPI int xteRegisterFunction(xteengine hEngine, const XTE_FunctionDef* pDef)
 	return 1;
 }
 
+
+// 解析扩展
 XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize, const XTE_ParseOptions* pOptions, XTE_Error* pError)
 {
 	int bOwnEngine = 0;
@@ -3700,6 +3917,8 @@ XXAPI xtetemplate xteParseEx(xteengine hEngine, const char* sText, size_t iSize,
 	return hTemplate;
 }
 
+
+// 解析
 XXAPI xtetemplate xteParse(const char* sText, size_t iSize, const char* sBracket)
 {
 	XTE_ParseOptions tOptions = { 0 };
@@ -3708,6 +3927,8 @@ XXAPI xtetemplate xteParse(const char* sText, size_t iSize, const char* sBracket
 	return xteParseEx(NULL, sText, iSize, &tOptions, NULL);
 }
 
+
+// 销毁模板
 XXAPI void xteDestroyTemplate(xtetemplate hTemplate)
 {
 	uint32 i = 0;
@@ -3740,11 +3961,15 @@ XXAPI void xteDestroyTemplate(xtetemplate hTemplate)
 	xrtFree(hTemplate);
 }
 
+
+// xteParseFree 相关处理
 XXAPI void xteParseFree(xtetemplate hTemplate)
 {
 	xteDestroyTemplate(hTemplate);
 }
 
+
+// xteRenderEx 相关处理
 XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, XTE_Error* pError)
 {
 	XTE_RenderCtx tCtx = { 0 };
@@ -3780,6 +4005,8 @@ XXAPI int xteRenderEx(xtetemplate hTemplate, const XTE_RenderOptions* pOptions, 
 	return 0;
 }
 
+
+// 构建
 XXAPI char* xteMake(xtetemplate hTemplate, xvalue pCurrent, xvalue pGlobal, xdict pIncludeMap, size_t* pRetSize)
 {
 	XTE_RenderOptions tOptions = { 0 };
@@ -3821,6 +4048,8 @@ XXAPI char* xteMake(xtetemplate hTemplate, xvalue pCurrent, xvalue pGlobal, xdic
 	return tBuf.Buffer;
 }
 
+
+// 解析路径
 XXAPI xvalue xteResolvePath(const char* sPath, size_t iPathSize, xvalue pCurrent, xvalue pRoot, xvalue pLocal, xvalue pGlobal)
 {
 	const char* sText = sPath;
@@ -3905,26 +4134,36 @@ XXAPI xvalue xteResolvePath(const char* sPath, size_t iPathSize, xvalue pCurrent
 	return pVal ? pVal : &XVO_VALUE_NULL;
 }
 
+
+// 统计模板 get 节点
 XXAPI uint32 xteTemplateGetNodeCount(xtetemplate hTemplate)
 {
 	return hTemplate ? hTemplate->arrNode.Count : 0u;
 }
 
+
+// xteTemplateGetExprCount 相关处理
 XXAPI uint32 xteTemplateGetExprCount(xtetemplate hTemplate)
 {
 	return hTemplate ? hTemplate->arrExpr.Count : 0u;
 }
 
+
+// xteTemplateGetArgCount 相关处理
 XXAPI uint32 xteTemplateGetArgCount(xtetemplate hTemplate)
 {
 	return hTemplate ? hTemplate->arrArg.Count : 0u;
 }
 
+
+// 获取模板字符串内存池大小
 XXAPI uint32 xteTemplateGetStringPoolSize(xtetemplate hTemplate)
 {
 	return hTemplate ? hTemplate->tStringPool.Length : 0u;
 }
 
+
+// xteTemplateGetRootSpan 相关处理
 XXAPI XTE_NodeSpan xteTemplateGetRootSpan(xtetemplate hTemplate)
 {
 	XTE_NodeSpan tSpan = { 0 };
@@ -3935,31 +4174,43 @@ XXAPI XTE_NodeSpan xteTemplateGetRootSpan(xtetemplate hTemplate)
 	return tSpan;
 }
 
+
+// 获取模板节点
 XXAPI const XTE_Node* xteTemplateGetNode(xtetemplate hTemplate, uint32 iIndex)
 {
 	return xte_private_template_get_node(hTemplate, iIndex);
 }
 
+
+// xteTemplateGetExpr 相关处理
 XXAPI const XTE_ExprNode* xteTemplateGetExpr(xtetemplate hTemplate, uint32 iIndex)
 {
 	return xte_private_template_get_expr(hTemplate, iIndex);
 }
 
+
+// xteTemplateGetArg 相关处理
 XXAPI const XTE_ArgItem* xteTemplateGetArg(xtetemplate hTemplate, uint32 iIndex)
 {
 	return xte_private_template_get_arg(hTemplate, iIndex);
 }
 
+
+// 获取模板字符串
 XXAPI const char* xteTemplateGetString(xtetemplate hTemplate, uint32 iOff)
 {
 	return xte_private_pool_ptr(hTemplate, iOff);
 }
 
+
+// xteArgCount 相关处理
 XXAPI uint32 xteArgCount(const XTE_ArgList* pArgs)
 {
 	return pArgs ? pArgs->iCount : 0u;
 }
 
+
+// xteArgAt 相关处理
 XXAPI const XTE_ArgItem* xteArgAt(const XTE_ArgList* pArgs, uint32 iIndex)
 {
 	if ( (pArgs == NULL) || (iIndex >= pArgs->iCount) ) {
@@ -3968,6 +4219,8 @@ XXAPI const XTE_ArgItem* xteArgAt(const XTE_ArgList* pArgs, uint32 iIndex)
 	return &pArgs->pItems[iIndex];
 }
 
+
+// xteFindNamedArg 相关处理
 XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* sName, size_t iNameSize)
 {
 	uint32 i = 0;
@@ -3995,6 +4248,8 @@ XXAPI const XTE_ArgItem* xteFindNamedArg(const XTE_ArgList* pArgs, const char* s
 	return NULL;
 }
 
+
+// xteArgNameText 相关处理
 XXAPI const char* xteArgNameText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg)
 {
 	if ( (pArgs == NULL) || (pArg == NULL) || (pArg->iNameSize == 0u) ) {
@@ -4003,6 +4258,8 @@ XXAPI const char* xteArgNameText(const XTE_ArgList* pArgs, const XTE_ArgItem* pA
 	return xteTemplateGetString(pArgs->hTemplate, pArg->iNameOff);
 }
 
+
+// xteArgRawText 相关处理
 XXAPI const char* xteArgRawText(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg)
 {
 	if ( (pArgs == NULL) || (pArg == NULL) || (pArg->iRawSize == 0u) ) {
@@ -4011,6 +4268,8 @@ XXAPI const char* xteArgRawText(const XTE_ArgList* pArgs, const XTE_ArgItem* pAr
 	return xteTemplateGetString(pArgs->hTemplate, pArg->iRawOff);
 }
 
+
+// xteArgExprType 相关处理
 XXAPI uint32 xteArgExprType(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg)
 {
 	const XTE_ExprNode* pExpr = NULL;
@@ -4022,6 +4281,8 @@ XXAPI uint32 xteArgExprType(const XTE_ArgList* pArgs, const XTE_ArgItem* pArg)
 	return pExpr ? pExpr->iType : 0u;
 }
 
+
+// xteEvalArgValue 相关处理
 XXAPI xvalue xteEvalArgValue(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 {
 	if ( (pCtx == NULL) || (pArg == NULL) ) {
@@ -4030,6 +4291,8 @@ XXAPI xvalue xteEvalArgValue(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 	return xte_private_eval_expr_value(pCtx, pArg->iExprIndex);
 }
 
+
+// xteEvalArgBool 相关处理
 XXAPI int xteEvalArgBool(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut)
 {
 	xvalue pVal = xteEvalArgValue(pCtx, pArg);
@@ -4041,6 +4304,8 @@ XXAPI int xteEvalArgBool(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut
 	return 1;
 }
 
+
+// xteEvalArgInt 相关处理
 XXAPI int xteEvalArgInt(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut)
 {
 	xvalue pVal = xteEvalArgValue(pCtx, pArg);
@@ -4058,6 +4323,8 @@ XXAPI int xteEvalArgInt(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOu
 	return 1;
 }
 
+
+// xteEvalArgFloat 相关处理
 XXAPI int xteEvalArgFloat(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut)
 {
 	xvalue pVal = xteEvalArgValue(pCtx, pArg);
@@ -4075,6 +4342,8 @@ XXAPI int xteEvalArgFloat(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* 
 	return 1;
 }
 
+
+// xteEvalArgText 相关处理
 XXAPI char* xteEvalArgText(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 {
 	xvalue pVal = xteEvalArgValue(pCtx, pArg);
@@ -4084,6 +4353,8 @@ XXAPI char* xteEvalArgText(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 	return sRet;
 }
 
+
+// xte_private_eval_arg_strict_type 相关处理
 static int xte_private_eval_arg_strict_type(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, uint32 iType, xvalue* ppVal)
 {
 	xvalue pVal = xteEvalArgValue(pCtx, pArg);
@@ -4103,6 +4374,8 @@ static int xte_private_eval_arg_strict_type(XTE_RenderCtx* pCtx, const XTE_ArgIt
 	return 1;
 }
 
+
+// xteEvalArgBoolStrict 相关处理
 XXAPI int xteEvalArgBoolStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int* pOut)
 {
 	xvalue pVal = NULL;
@@ -4117,6 +4390,8 @@ XXAPI int xteEvalArgBoolStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int
 	return 1;
 }
 
+
+// xteEvalArgIntStrict 相关处理
 XXAPI int xteEvalArgIntStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int64* pOut)
 {
 	xvalue pVal = NULL;
@@ -4131,6 +4406,8 @@ XXAPI int xteEvalArgIntStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, int6
 	return 1;
 }
 
+
+// xteEvalArgFloatStrict 相关处理
 XXAPI int xteEvalArgFloatStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, double* pOut)
 {
 	xvalue pVal = NULL;
@@ -4145,6 +4422,8 @@ XXAPI int xteEvalArgFloatStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg, do
 	return 1;
 }
 
+
+// xteEvalArgTextStrict 相关处理
 XXAPI char* xteEvalArgTextStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 {
 	xvalue pVal = NULL;
@@ -4158,6 +4437,8 @@ XXAPI char* xteEvalArgTextStrict(XTE_RenderCtx* pCtx, const XTE_ArgItem* pArg)
 	return sRet;
 }
 
+
+// xteStmtParseRequireArg 相关处理
 XXAPI const XTE_ArgItem* xteStmtParseRequireArg(XTE_StmtParseCtx* pCtx, uint32 iIndex, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteArgAt(pCtx ? pCtx->pArgs : NULL, iIndex);
@@ -4169,6 +4450,8 @@ XXAPI const XTE_ArgItem* xteStmtParseRequireArg(XTE_StmtParseCtx* pCtx, uint32 i
 	return NULL;
 }
 
+
+// xteStmtParseRequireNamedArg 相关处理
 XXAPI const XTE_ArgItem* xteStmtParseRequireNamedArg(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFindNamedArg(pCtx ? pCtx->pArgs : NULL, sName, iNameSize);
@@ -4180,6 +4463,8 @@ XXAPI const XTE_ArgItem* xteStmtParseRequireNamedArg(XTE_StmtParseCtx* pCtx, con
 	return NULL;
 }
 
+
+// xte_private_parse_expr_desc 相关处理
 static const char* xte_private_parse_expr_desc(uint32 iExprType, int bNamed)
 {
 	switch ( iExprType ) {
@@ -4198,6 +4483,8 @@ static const char* xte_private_parse_expr_desc(uint32 iExprType, int bNamed)
 	}
 }
 
+
+// xteStmtParseRequireExprType 相关处理
 XXAPI const XTE_ArgItem* xteStmtParseRequireExprType(XTE_StmtParseCtx* pCtx, uint32 iIndex, uint32 iExprType, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtParseRequireArg(pCtx, iIndex, NULL);
@@ -4212,6 +4499,8 @@ XXAPI const XTE_ArgItem* xteStmtParseRequireExprType(XTE_StmtParseCtx* pCtx, uin
 	return NULL;
 }
 
+
+// xteStmtParseRequireNamedExprType 相关处理
 XXAPI const XTE_ArgItem* xteStmtParseRequireNamedExprType(XTE_StmtParseCtx* pCtx, const char* sName, size_t iNameSize, uint32 iExprType, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtParseRequireNamedArg(pCtx, sName, iNameSize, NULL);
@@ -4226,6 +4515,8 @@ XXAPI const XTE_ArgItem* xteStmtParseRequireNamedExprType(XTE_StmtParseCtx* pCtx
 	return NULL;
 }
 
+
+// xteStmtRequireArg 相关处理
 XXAPI const XTE_ArgItem* xteStmtRequireArg(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteArgAt((pCtx != NULL) ? pCtx->pArgs : NULL, iIndex);
@@ -4237,6 +4528,8 @@ XXAPI const XTE_ArgItem* xteStmtRequireArg(XTE_StmtRenderCtx* pCtx, uint32 iInde
 	return NULL;
 }
 
+
+// xteStmtRequireNamedArg 相关处理
 XXAPI const XTE_ArgItem* xteStmtRequireNamedArg(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFindNamedArg((pCtx != NULL) ? pCtx->pArgs : NULL, sName, iNameSize);
@@ -4248,6 +4541,8 @@ XXAPI const XTE_ArgItem* xteStmtRequireNamedArg(XTE_StmtRenderCtx* pCtx, const c
 	return NULL;
 }
 
+
+// xteStmtRequireBoolStrict 相关处理
 XXAPI int xteStmtRequireBoolStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
@@ -4261,6 +4556,8 @@ XXAPI int xteStmtRequireBoolStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int* 
 	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool") == XTE_FLOW_ERROR) ? 0 : 1;
 }
 
+
+// xteStmtRequireNamedBoolStrict 相关处理
 XXAPI int xteStmtRequireNamedBoolStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4274,6 +4571,8 @@ XXAPI int xteStmtRequireNamedBoolStrict(XTE_StmtRenderCtx* pCtx, const char* sNa
 	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool") == XTE_FLOW_ERROR) ? 0 : 1;
 }
 
+
+// xteStmtRequireIntStrict 相关处理
 XXAPI int xteStmtRequireIntStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
@@ -4287,6 +4586,8 @@ XXAPI int xteStmtRequireIntStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, int64*
 	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int") == XTE_FLOW_ERROR) ? 0 : 1;
 }
 
+
+// xteStmtRequireNamedIntStrict 相关处理
 XXAPI int xteStmtRequireNamedIntStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4300,6 +4601,8 @@ XXAPI int xteStmtRequireNamedIntStrict(XTE_StmtRenderCtx* pCtx, const char* sNam
 	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int") == XTE_FLOW_ERROR) ? 0 : 1;
 }
 
+
+// xteStmtRequireFloatStrict 相关处理
 XXAPI int xteStmtRequireFloatStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
@@ -4313,6 +4616,8 @@ XXAPI int xteStmtRequireFloatStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, doub
 	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float") == XTE_FLOW_ERROR) ? 0 : 1;
 }
 
+
+// xteStmtRequireNamedFloatStrict 相关处理
 XXAPI int xteStmtRequireNamedFloatStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4326,6 +4631,8 @@ XXAPI int xteStmtRequireNamedFloatStrict(XTE_StmtRenderCtx* pCtx, const char* sN
 	return (xteStmtSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float") == XTE_FLOW_ERROR) ? 0 : 1;
 }
 
+
+// xteStmtRequireTextStrict 相关处理
 XXAPI char* xteStmtRequireTextStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, iIndex, sDesc);
@@ -4342,6 +4649,8 @@ XXAPI char* xteStmtRequireTextStrict(XTE_StmtRenderCtx* pCtx, uint32 iIndex, con
 	return NULL;
 }
 
+
+// xteStmtRequireNamedTextStrict 相关处理
 XXAPI char* xteStmtRequireNamedTextStrict(XTE_StmtRenderCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4358,6 +4667,8 @@ XXAPI char* xteStmtRequireNamedTextStrict(XTE_StmtRenderCtx* pCtx, const char* s
 	return NULL;
 }
 
+
+// xteFuncRequireArg 相关处理
 XXAPI const XTE_ArgItem* xteFuncRequireArg(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteArgAt((pCtx != NULL) ? pCtx->pArgs : NULL, iIndex);
@@ -4369,6 +4680,8 @@ XXAPI const XTE_ArgItem* xteFuncRequireArg(XTE_FuncCtx* pCtx, uint32 iIndex, con
 	return NULL;
 }
 
+
+// xteFuncRequireNamedArg 相关处理
 XXAPI const XTE_ArgItem* xteFuncRequireNamedArg(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFindNamedArg((pCtx != NULL) ? pCtx->pArgs : NULL, sName, iNameSize);
@@ -4380,6 +4693,8 @@ XXAPI const XTE_ArgItem* xteFuncRequireNamedArg(XTE_FuncCtx* pCtx, const char* s
 	return NULL;
 }
 
+
+// xteFuncRequireBoolStrict 相关处理
 XXAPI int xteFuncRequireBoolStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
@@ -4393,6 +4708,8 @@ XXAPI int xteFuncRequireBoolStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int* pOut, 
 	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool");
 }
 
+
+// xteFuncRequireNamedBoolStrict 相关处理
 XXAPI int xteFuncRequireNamedBoolStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4406,6 +4723,8 @@ XXAPI int xteFuncRequireNamedBoolStrict(XTE_FuncCtx* pCtx, const char* sName, si
 	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template bool argument must stay bool");
 }
 
+
+// xteFuncRequireIntStrict 相关处理
 XXAPI int xteFuncRequireIntStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int64* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
@@ -4419,6 +4738,8 @@ XXAPI int xteFuncRequireIntStrict(XTE_FuncCtx* pCtx, uint32 iIndex, int64* pOut,
 	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int");
 }
 
+
+// xteFuncRequireNamedIntStrict 相关处理
 XXAPI int xteFuncRequireNamedIntStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, int64* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4432,6 +4753,8 @@ XXAPI int xteFuncRequireNamedIntStrict(XTE_FuncCtx* pCtx, const char* sName, siz
 	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template int argument must stay int");
 }
 
+
+// xteFuncRequireFloatStrict 相关处理
 XXAPI int xteFuncRequireFloatStrict(XTE_FuncCtx* pCtx, uint32 iIndex, double* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
@@ -4445,6 +4768,8 @@ XXAPI int xteFuncRequireFloatStrict(XTE_FuncCtx* pCtx, uint32 iIndex, double* pO
 	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float");
 }
 
+
+// xteFuncRequireNamedFloatStrict 相关处理
 XXAPI int xteFuncRequireNamedFloatStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, double* pOut, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4458,6 +4783,8 @@ XXAPI int xteFuncRequireNamedFloatStrict(XTE_FuncCtx* pCtx, const char* sName, s
 	return xteFuncSetError(pCtx, XTE_ERROR_RENDER, sDesc ? sDesc : "template float argument must stay float");
 }
 
+
+// xteFuncRequireTextStrict 相关处理
 XXAPI char* xteFuncRequireTextStrict(XTE_FuncCtx* pCtx, uint32 iIndex, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireArg(pCtx, iIndex, sDesc);
@@ -4474,6 +4801,8 @@ XXAPI char* xteFuncRequireTextStrict(XTE_FuncCtx* pCtx, uint32 iIndex, const cha
 	return NULL;
 }
 
+
+// xteFuncRequireNamedTextStrict 相关处理
 XXAPI char* xteFuncRequireNamedTextStrict(XTE_FuncCtx* pCtx, const char* sName, size_t iNameSize, const char* sDesc)
 {
 	const XTE_ArgItem* pArg = xteFuncRequireNamedArg(pCtx, sName, iNameSize, sDesc);
@@ -4490,6 +4819,8 @@ XXAPI char* xteFuncRequireNamedTextStrict(XTE_FuncCtx* pCtx, const char* sName, 
 	return NULL;
 }
 
+
+// xteStmtParseSetError 相关处理
 XXAPI int xteStmtParseSetError(XTE_StmtParseCtx* pCtx, int iCode, const char* sDesc)
 {
 	if ( (pCtx != NULL) && (pCtx->pError != NULL) && (pCtx->pError->iCode == 0) ) {
@@ -4499,6 +4830,8 @@ XXAPI int xteStmtParseSetError(XTE_StmtParseCtx* pCtx, int iCode, const char* sD
 	return 0;
 }
 
+
+// xteStmtSetError 相关处理
 XXAPI XTE_Flow xteStmtSetError(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc)
 {
 	if ( (pCtx != NULL) && (pCtx->pRender != NULL) && (pCtx->pRender->pError != NULL) && (pCtx->pRender->pError->iCode == 0) ) {
@@ -4508,6 +4841,8 @@ XXAPI XTE_Flow xteStmtSetError(XTE_StmtRenderCtx* pCtx, int iCode, const char* s
 	return XTE_FLOW_ERROR;
 }
 
+
+// xteFuncSetError 相关处理
 XXAPI int xteFuncSetError(XTE_FuncCtx* pCtx, int iCode, const char* sDesc)
 {
 	if ( (pCtx != NULL) && (pCtx->pRender != NULL) && (pCtx->pRender->pError != NULL) && (pCtx->pRender->pError->iCode == 0) ) {
@@ -4517,6 +4852,8 @@ XXAPI int xteFuncSetError(XTE_FuncCtx* pCtx, int iCode, const char* sDesc)
 	return 0;
 }
 
+
+// xteStmtWrite 相关处理
 XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize)
 {
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
@@ -4528,6 +4865,8 @@ XXAPI int xteStmtWrite(XTE_StmtRenderCtx* pCtx, const char* sText, size_t iSize)
 	return xte_private_writer_write(pCtx->pRender->pWriter, sText, iSize);
 }
 
+
+// xteStmtRenderBody 相关处理
 XXAPI int xteStmtRenderBody(XTE_StmtRenderCtx* pCtx)
 {
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) || (pCtx->pBody == NULL) ) {
@@ -4536,6 +4875,8 @@ XXAPI int xteStmtRenderBody(XTE_StmtRenderCtx* pCtx)
 	return xte_private_render_span(pCtx->pRender, *pCtx->pBody) != XTE_FLOW_ERROR;
 }
 
+
+// xteStmtRenderBodyWithScope 相关处理
 XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xvalue pCurrent)
 {
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) || (pCtx->pBody == NULL) ) {
@@ -4545,12 +4886,15 @@ XXAPI int xteStmtRenderBodyWithScope(XTE_StmtRenderCtx* pCtx, xvalue pLocal, xva
 	return xte_private_render_body_with_scope_ex(pCtx, pLocal, pCurrent) != XTE_FLOW_ERROR;
 }
 
+
+// xte_private_stmt_render_error 相关处理
 static XTE_Flow xte_private_stmt_render_error(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc)
 {
 	return xteStmtSetError(pCtx, iCode, sDesc);
 }
 
 #ifdef XTE_ENABLE_FILE
+// xteTemplateSaveFile 相关处理
 XXAPI int xteTemplateSaveFile(xtetemplate hTemplate, const char* sFilePath, uint32 iFlags, XTE_Error* pError)
 {
 	xbuffer_struct tBuf = { 0 };
@@ -4617,6 +4961,8 @@ XXAPI int xteTemplateSaveFile(xtetemplate hTemplate, const char* sFilePath, uint
 	return 1;
 }
 
+
+// 加载模板文件
 XXAPI xtetemplate xteTemplateLoadFile(xteengine hEngine, const char* sFilePath, uint32 iFlags, XTE_Error* pError)
 {
 	ptr pMem = NULL;
@@ -4737,6 +5083,7 @@ XXAPI xtetemplate xteTemplateLoadFile(xteengine hEngine, const char* sFilePath, 
 #endif
 
 #ifdef XTE_DEBUGMODE
+// 导出模板
 XXAPI int xteTemplateDump(xtetemplate hTemplate, XTE_Writer* pWriter, uint32 iFlags)
 {
 	(void)iFlags;
@@ -4748,6 +5095,8 @@ XXAPI int xteTemplateDump(xtetemplate hTemplate, XTE_Writer* pWriter, uint32 iFl
 	return xte_private_dump_span(hTemplate, pWriter, hTemplate->tRoot, 0u);
 }
 
+
+// xteTemplateDumpConsole 相关处理
 XXAPI int xteTemplateDumpConsole(xtetemplate hTemplate, uint32 iFlags)
 {
 	XTE_Writer tWriter = { 0 };

@@ -14,6 +14,7 @@
 
 #if defined(XRT_NO_NETWORK)
 
+// XNET原生核心WITHROUNDS测试
 static int Test_XNetNativeCoreWithRounds(uint32 iPlainRounds, uint32 iTlsRounds)
 {
 	(void)iPlainRounds;
@@ -22,6 +23,8 @@ static int Test_XNetNativeCoreWithRounds(uint32 iPlainRounds, uint32 iTlsRounds)
 	return 0;
 }
 
+
+// XNET原生核心测试
 static int Test_XNetNativeCore(void)
 {
 	return Test_XNetNativeCoreWithRounds(0u, 0u);
@@ -38,6 +41,8 @@ typedef struct
 	bool bEchoBack;
 } __test_xnet_native_core_stream_ctx;
 
+
+// 内部函数：__Test_XNetNativeCore_FileExists
 static bool __Test_XNetNativeCore_FileExists(const char* sPath)
 {
 	FILE* pFile = fopen(sPath, "rb");
@@ -46,6 +51,8 @@ static bool __Test_XNetNativeCore_FileExists(const char* sPath)
 	return true;
 }
 
+
+// 内部函数：__Test_XNetNativeCore_SleepMs
 static void __Test_XNetNativeCore_SleepMs(uint32 iDelayMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -57,6 +64,8 @@ static void __Test_XNetNativeCore_SleepMs(uint32 iDelayMs)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetNativeCore_NowMs
 static int64_t __Test_XNetNativeCore_NowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -70,6 +79,8 @@ static int64_t __Test_XNetNativeCore_NowMs(void)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetNativeCore_OnRecv
 static void __Test_XNetNativeCore_OnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
 {
 	__test_xnet_native_core_stream_ctx* pCtx = (__test_xnet_native_core_stream_ctx*)pOwner;
@@ -94,6 +105,8 @@ static void __Test_XNetNativeCore_OnRecv(ptr pOwner, xnetstream* pStream, xnetch
 	pCtx->iRecvCount++;
 }
 
+
+// 内部函数：__Test_XNetNativeCore_OnError
 static void __Test_XNetNativeCore_OnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	__test_xnet_native_core_stream_ctx* pCtx = (__test_xnet_native_core_stream_ctx*)pOwner;
@@ -115,6 +128,8 @@ static const xnetstreamevents __g_Test_XNetNativeCore_StreamEvents = {
 	NULL
 };
 
+
+// 内部函数：__Test_XNetNativeCore_WaitOpen
 static bool __Test_XNetNativeCore_WaitOpen(xnetstream* pStream, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNetNativeCore_NowMs() + (int64_t)iTimeoutMs;
@@ -129,6 +144,8 @@ static bool __Test_XNetNativeCore_WaitOpen(xnetstream* pStream, uint32 iTimeoutM
 	return (pStream->iState & __XNET_STREAM_STATE_OPEN_EMITTED) != 0;
 }
 
+
+// 内部函数：__Test_XNetNativeCore_WaitRecv
 static bool __Test_XNetNativeCore_WaitRecv(__test_xnet_native_core_stream_ctx* pCtx, const char* sExpect, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs = __Test_XNetNativeCore_NowMs() + (int64_t)iTimeoutMs;
@@ -145,6 +162,8 @@ static bool __Test_XNetNativeCore_WaitRecv(__test_xnet_native_core_stream_ctx* p
 	return pCtx->iRecvCount > 0 && strcmp(pCtx->aRecv, sExpect) == 0;
 }
 
+
+// 内部函数：__Test_XNetNativeCore_DestroyStreamWait
 static bool __Test_XNetNativeCore_DestroyStreamWait(xnetstream** ppStream, uint32 iTimeoutMs)
 {
 	int64_t iDeadlineMs;
@@ -174,6 +193,8 @@ static bool __Test_XNetNativeCore_DestroyStreamWait(xnetstream** ppStream, uint3
 	}
 }
 
+
+// 内部函数：__Test_XNetNativeCore_HasNativeBackend
 static bool __Test_XNetNativeCore_HasNativeBackend(xnetengine* pEngine)
 {
 	#if defined(__linux__)
@@ -188,6 +209,8 @@ static bool __Test_XNetNativeCore_HasNativeBackend(xnetengine* pEngine)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetNativeCore_DefaultPlainRounds
 static uint32 __Test_XNetNativeCore_DefaultPlainRounds(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -199,6 +222,8 @@ static uint32 __Test_XNetNativeCore_DefaultPlainRounds(void)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetNativeCore_DefaultTlsRounds
 static uint32 __Test_XNetNativeCore_DefaultTlsRounds(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -210,6 +235,8 @@ static uint32 __Test_XNetNativeCore_DefaultTlsRounds(void)
 	#endif
 }
 
+
+// 内部函数：__Test_XNetNativeCore_RunRounds
 static bool __Test_XNetNativeCore_RunRounds(uint32 iRounds, bool bTls)
 {
 	xnetengineconfig tCfg;
@@ -395,6 +422,8 @@ static bool __Test_XNetNativeCore_RunRounds(uint32 iRounds, bool bTls)
 	return bOk;
 }
 
+
+// XNET原生核心WITHROUNDS测试
 static int Test_XNetNativeCoreWithRounds(uint32 iPlainRounds, uint32 iTlsRounds)
 {
 	bool bPlainOk;
@@ -423,6 +452,8 @@ static int Test_XNetNativeCoreWithRounds(uint32 iPlainRounds, uint32 iTlsRounds)
 	#endif
 }
 
+
+// XNET原生核心测试
 static int Test_XNetNativeCore(void)
 {
 	return Test_XNetNativeCoreWithRounds(

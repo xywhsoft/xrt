@@ -5,12 +5,16 @@
 
 static int __g_test_coroutine_min_done = 0;
 
+
+// 内部函数：__Test_CoroutineMin_Main
 static void __Test_CoroutineMin_Main(ptr pArg)
 {
 	(void)pArg;
 	__g_test_coroutine_min_done = 1;
 }
 
+
+// 协程最小集测试
 static int Test_CoroutineMin(void)
 {
 	xcosched* pSched = NULL;

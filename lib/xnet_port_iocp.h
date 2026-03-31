@@ -72,6 +72,8 @@
 		CRITICAL_SECTION tExtLock;
 	} __xnet_iocp_ctx;
 
+
+	// 内部函数：端口 IOCP 事件 type相关处理
 	static uint16 __xnetPortIOCPEventType(uint16 iOpType)
 	{
 		switch ( iOpType ) {
@@ -88,6 +90,8 @@
 		}
 	}
 
+
+	// 内部函数：提交端口 IOCP bytes
 	static uint32 __xnetPortIOCPSubmitBytes(const xnetportsubmit* pOp)
 	{
 		uint64 iBytes = 0;
@@ -103,11 +107,15 @@
 		return (uint32)iBytes;
 	}
 
+
+	// 内部函数：端口 IOCP now 毫秒相关处理
 	static uint64 __xnetPortIOCPNowMs(void)
 	{
 		return (uint64)GetTickCount64();
 	}
 
+
+	// 内部函数：__xnetPortIOCPValidOp
 	static bool __xnetPortIOCPValidOp(uint16 iType)
 	{
 		switch ( iType ) {
@@ -126,11 +134,15 @@
 		}
 	}
 
+
+	// 内部函数：判断是否存在端口 IOCP 原生套接字
 	static bool __xnetPortIOCPHasNativeSocket(const xnetportsubmit* pOp)
 	{
 		return pOp && pOp->hSocket != (intptr_t)XNET_SOCKET_INVALID && pOp->hSocket != 0;
 	}
 
+
+	// 内部函数：分配端口 IOCP post
 	static __xnet_iocp_post* __xnetPortIOCPAllocPost(uint16 iType, uint16 iFlags, xnet_result iStatus, uint32 iBytes, uint64 iOpId)
 	{
 		__xnet_iocp_post* pPost = (__xnet_iocp_post*)XNET_ALLOC(sizeof(__xnet_iocp_post));
@@ -145,6 +157,8 @@
 		return pPost;
 	}
 
+
+	// 内部函数：分配端口 IOCP 事件 chain
 	static xnetchain* __xnetPortIOCPAllocEventChain(const void* pData, size_t iLen)
 	{
 		xnetchain* pChain = NULL;
@@ -167,6 +181,8 @@
 		return pChain;
 	}
 
+
+	// 内部函数：释放端口 IOCP 事件 chain
 	static void __xnetPortIOCPFreeEventChain(xnetchain* pChain)
 	{
 		if ( !pChain ) return;
@@ -174,6 +190,8 @@
 		XNET_FREE(pChain);
 	}
 
+
+	// 内部函数：绑定端口 IOCP 套接字
 	static bool __xnetPortIOCPBindSocket(__xnet_iocp_ctx* pCtx, SOCKET hSocket)
 	{
 		HANDLE hAssoc;
@@ -208,6 +226,8 @@
 		return bBound;
 	}
 
+
+	// 内部函数：端口 IOCP unbind 套接字相关处理
 	static void __xnetPortIOCPUnbindSocket(__xnet_iocp_ctx* pCtx, SOCKET hSocket)
 	{
 		__xnet_iocp_bound_socket** ppCur;
@@ -226,6 +246,8 @@
 		LeaveCriticalSection(&pCtx->tExtLock);
 	}
 
+
+	// 内部函数：获取端口 IOCP 套接字 family
 	static int __xnetPortIOCPGetSocketFamily(SOCKET hSocket)
 	{
 		struct sockaddr_storage tStorage;
@@ -238,6 +260,8 @@
 		return AF_INET;
 	}
 
+
+	// 内部函数：接受端口 IOCP get 扩展
 	static LPFN_ACCEPTEX __xnetPortIOCPGetAcceptEx(__xnet_iocp_ctx* pCtx, SOCKET hListenSocket)
 	{
 		DWORD iBytes = 0;
@@ -266,6 +290,8 @@
 		return pCtx->pfnAcceptEx;
 	}
 
+
+	// 内部函数：连接端口 IOCP get 扩展
 	static LPFN_CONNECTEX __xnetPortIOCPGetConnectEx(__xnet_iocp_ctx* pCtx, SOCKET hSocket)
 	{
 		DWORD iBytes = 0;
@@ -293,6 +319,8 @@
 		return pCtx->pfnConnectEx;
 	}
 
+
+	// 内部函数：连接端口 IOCP bind 套接字 local
 	static bool __xnetPortIOCPBindConnectSocketLocal(SOCKET hSocket, int iFamily)
 	{
 		if ( hSocket == INVALID_SOCKET ) return false;
@@ -312,6 +340,8 @@
 		return false;
 	}
 
+
+	// 内部函数：__xnetPortIOCPBuildBufsFromSubmit
 	static bool __xnetPortIOCPBuildBufsFromSubmit(__xnet_iocp_io* pIo, const xnetportsubmit* pOp)
 	{
 		if ( !pIo || !pOp ) return false;
@@ -345,6 +375,8 @@
 		return false;
 	}
 
+
+	// 内部函数：分配端口 IOCP io
 	static __xnet_iocp_io* __xnetPortIOCPAllocIO(const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_io* pIo = NULL;
@@ -370,6 +402,8 @@
 		return pIo;
 	}
 
+
+	// 内部函数：提交端口 IOCP synthetic
 	static xnet_result __xnetPortIOCPSubmitSynthetic(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_post* pPost = NULL;
@@ -396,6 +430,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：接受端口 IOCP submit
 	static xnet_result __xnetPortIOCPSubmitAccept(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_io* pIo = NULL;
@@ -441,6 +477,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：接收端口 IOCP submit
 	static xnet_result __xnetPortIOCPSubmitRecv(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_io* pIo = NULL;
@@ -475,6 +513,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：连接端口 IOCP submit
 	static xnet_result __xnetPortIOCPSubmitConnect(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_io* pIo = NULL;
@@ -517,6 +557,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：__xnetPortIOCPSubmitRecvFrom
 	static xnet_result __xnetPortIOCPSubmitRecvFrom(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_io* pIo = NULL;
@@ -559,6 +601,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：发送端口 IOCP submit
 	static xnet_result __xnetPortIOCPSubmitSend(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_io* pIo = NULL;
@@ -601,6 +645,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：发送端口 IOCP submit
 	static xnet_result __xnetPortIOCPSubmitSendTo(__xnet_iocp_ctx* pCtx, const xnetportsubmit* pOp)
 	{
 		__xnet_iocp_io* pIo = NULL;
@@ -647,6 +693,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：释放端口 IOCP timers
 	static void __xnetPortIOCPFreeTimers(__xnet_iocp_ctx* pCtx)
 	{
 		while ( pCtx && pCtx->pTimers ) {
@@ -656,6 +704,8 @@
 		}
 	}
 
+
+	// 内部函数：__xnetPortIOCPFreeBoundSockets
 	static void __xnetPortIOCPFreeBoundSockets(__xnet_iocp_ctx* pCtx)
 	{
 		while ( pCtx && pCtx->pBoundSockets ) {
@@ -665,6 +715,8 @@
 		}
 	}
 
+
+	// 内部函数：提取端口 IOCP timers
 	static uint32 __xnetPortIOCPHarvestTimers(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents)
 	{
 		uint32 iCount = 0;
@@ -687,6 +739,8 @@
 		return iCount;
 	}
 
+
+	// 内部函数：构建端口 IOCP io 事件
 	static bool __xnetPortIOCPBuildIoEvent(__xnet_iocp_io* pIo, BOOL bOk, DWORD iBytes, xnetportevent* pEvent)
 	{
 		if ( !pIo || !pEvent ) return false;
@@ -752,6 +806,8 @@
 		return true;
 	}
 
+
+	// 内部函数：提取端口 IOCP posted
 	static uint32 __xnetPortIOCPHarvestPosted(__xnet_iocp_ctx* pCtx, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iWaitMs)
 	{
 		uint32 iCount = 0;
@@ -793,6 +849,8 @@
 		return iCount;
 	}
 
+
+	// 内部函数：__xnetPortIOCPDrainPosted
 	static void __xnetPortIOCPDrainPosted(__xnet_iocp_ctx* pCtx)
 	{
 		xnetportevent arrEvents[32];
@@ -808,6 +866,8 @@
 		}
 	}
 
+
+	// 内部函数：初始化端口 IOCP
 	static xnet_result __xnetPortIOCPInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
 	{
 		(void)pOwner;
@@ -829,6 +889,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：释放端口 IOCP
 	static void __xnetPortIOCPUnit(xnetport* pPort)
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
@@ -845,6 +907,8 @@
 		if ( pPort ) pPort->pCtx = NULL;
 	}
 
+
+	// 内部函数：__xnetPortIOCPSumbit
 	static xnet_result __xnetPortIOCPSumbit(xnetport* pPort, const xnetportsubmit* pOps, uint32 iCount)
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
@@ -932,6 +996,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：提取端口 IOCP
 	static uint32 __xnetPortIOCPHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 iMaxEvents, uint32 iTimeoutMs)
 	{
 		uint32 iCount = 0;
@@ -946,6 +1012,8 @@
 		return iCount;
 	}
 
+
+	// 内部函数：唤醒端口 IOCP
 	static xnet_result __xnetPortIOCPWake(xnetport* pPort)
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
@@ -961,6 +1029,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：设置端口 IOCP 定时器
 	static xnet_result __xnetPortIOCPArmTimer(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs)
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
@@ -977,6 +1047,8 @@
 		return XRT_NET_OK;
 	}
 
+
+	// 内部函数：取消端口 IOCP 定时器
 	static xnet_result __xnetPortIOCPCancelTimer(xnetport* pPort, uint64 iTimerId)
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
@@ -1006,6 +1078,8 @@
 		__xnetPortIOCPCancelTimer
 	};
 
+
+	// 网络端口 IOCP ops相关处理
 	static const xnetportops* xrtNetPortIOCPOps(void)
 	{
 		return &__g_xnetPortIOCPOps;
@@ -1013,6 +1087,7 @@
 
 #else
 
+	// 网络端口 IOCP ops相关处理
 	static const xnetportops* xrtNetPortIOCPOps(void)
 	{
 		return NULL;

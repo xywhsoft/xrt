@@ -142,6 +142,9 @@ str xrtGetLocalMAC()
 
 // windows 获取网卡信息 - 代码备份 : https://www.cnblogs.com/qing123/p/13223027.html
 /*
+
+
+// test 相关处理
 void test()
 {
 	// 分类 IP_ADAPTER_INFO 结构内存

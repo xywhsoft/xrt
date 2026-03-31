@@ -107,6 +107,8 @@ static uint32 __xnetEngineDetectWorkers(void)
 	#endif
 }
 
+
+// 内部函数：引擎默认端口 ops相关处理
 static const xnetportops* __xnetEngineDefaultPortOps(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -118,6 +120,8 @@ static const xnetportops* __xnetEngineDefaultPortOps(void)
 	#endif
 }
 
+
+// 内部函数：休眠引擎毫秒
 static void __xnetEngineSleepMs(uint32 iMs)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -127,6 +131,8 @@ static void __xnetEngineSleepMs(uint32 iMs)
 	#endif
 }
 
+
+// 内部函数：判断是否为引擎当前工作线程
 static bool __xnetEngineIsCurrentWorker(xnetworker* pWorker)
 {
 	if ( !pWorker || !pWorker->bRunning || !pWorker->hThread ) return false;
@@ -139,6 +145,8 @@ static bool __xnetEngineIsCurrentWorker(xnetworker* pWorker)
 	#endif
 }
 
+
+// 内部函数：初始化引擎内存配置
 static void __xnetEngineInitMemConfig(xnetmemconfig* pMemCfg, const xnetengineconfig* pCfg)
 {
 	if ( !pMemCfg || !pCfg ) return;
@@ -153,6 +161,8 @@ static void __xnetEngineInitMemConfig(xnetmemconfig* pMemCfg, const xnetengineco
 	if ( pMemCfg->iLargeCacheLimit == 0 ) pMemCfg->iLargeCacheLimit = 1;
 }
 
+
+// 内部函数：初始化引擎端口配置
 static void __xnetEngineInitPortConfig(xnetportconfig* pPortCfg, const xnetengineconfig* pCfg)
 {
 	if ( !pPortCfg || !pCfg ) return;
@@ -174,6 +184,8 @@ static void __xnetCmdQFreeNode(ptr pItem, ptr pUserData)
 	}
 }
 
+
+// 内部函数：__xnetCmdQResolveFreeLimit
 static uint32 __xnetCmdQResolveFreeLimit(uint32 iCapacity)
 {
 	uint32 iLimit = (iCapacity != 0) ? iCapacity : __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY;
@@ -183,6 +195,8 @@ static uint32 __xnetCmdQResolveFreeLimit(uint32 iCapacity)
 	return (iLimit == 0) ? 1u : iLimit;
 }
 
+
+// 内部函数：分配命令 q 节点
 static __xnet_engine_cmd* __xnetCmdQAllocNode(__xnet_engine_cmdq* pQ)
 {
 	__xnet_engine_cmd* pCmd = NULL;
@@ -210,6 +224,8 @@ static __xnet_engine_cmd* __xnetCmdQAllocNode(__xnet_engine_cmdq* pQ)
 	return pCmd;
 }
 
+
+// 内部函数：__xnetCmdQRecycleNode
 static void __xnetCmdQRecycleNode(__xnet_engine_cmdq* pQ, __xnet_engine_cmd* pCmd)
 {
 	int bCached = FALSE;
@@ -235,6 +251,8 @@ static void __xnetCmdQRecycleNode(__xnet_engine_cmdq* pQ, __xnet_engine_cmd* pCm
 	}
 }
 
+
+// 内部函数：__xnetCmdQFreeCached
 static void __xnetCmdQFreeCached(__xnet_engine_cmdq* pQ)
 {
 	__xnet_engine_cmd* pList;
@@ -256,6 +274,8 @@ static void __xnetCmdQFreeCached(__xnet_engine_cmdq* pQ)
 	}
 }
 
+
+// 内部函数：__xnetCmdQInit
 static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ, uint32 iCapacity)
 {
 	xqueue_config tCfg;
@@ -270,6 +290,8 @@ static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ, uint32 iCapacity)
 	return true;
 }
 
+
+// 内部函数：__xnetCmdQUnit
 static void __xnetCmdQUnit(__xnet_engine_cmdq* pQ)
 {
 	if ( !pQ ) return;
@@ -283,11 +305,15 @@ static void __xnetCmdQUnit(__xnet_engine_cmdq* pQ)
 
 static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg);
 
+
+// 内部函数：__xnetCmdQPush
 static xqueue_result __xnetCmdQPush(__xnet_engine_cmdq* pQ, xnet_task_fn pfnTask, ptr pArg)
 {
 	return __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TASK, 0, pfnTask, pArg);
 }
 
+
+// 内部函数：压入命令 q 扩展
 static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
 {
 	__xnet_engine_cmd* pCmd;
@@ -323,6 +349,8 @@ static bool __xnetTimerWheelInit(__xnet_engine_timerwheel* pWheel, uint32 iTickM
 	return true;
 }
 
+
+// 内部函数：__xnetTimerWheelUnit
 static void __xnetTimerWheelUnit(__xnet_engine_timerwheel* pWheel)
 {
 	if ( !pWheel ) return;
@@ -340,6 +368,8 @@ static void __xnetTimerWheelUnit(__xnet_engine_timerwheel* pWheel)
 	memset(pWheel, 0, sizeof(__xnet_engine_timerwheel));
 }
 
+
+// 内部函数：__xnetTimerWheelSchedule
 static bool __xnetTimerWheelSchedule(__xnet_engine_timerwheel* pWheel, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
 {
 	uint64 iDeltaTicks;
@@ -364,6 +394,8 @@ static bool __xnetTimerWheelSchedule(__xnet_engine_timerwheel* pWheel, uint32 iD
 	return true;
 }
 
+
+// 内部函数：__xnetTimerWheelTick
 static void __xnetTimerWheelTick(xnetworker* pWorker)
 {
 	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
@@ -398,6 +430,8 @@ static void __xnetTimerWheelTick(xnetworker* pWorker)
 	}
 }
 
+
+// 内部函数：处理引擎端口 events
 static void __xnetEngineHandlePortEvents(xnetworker* pWorker, xnetportevent* pEvents, uint32 iCount)
 {
 	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
@@ -448,6 +482,8 @@ static void __xnetEngineDrainCommands(xnetworker* pWorker)
 	}
 }
 
+
+// 内部函数：停止引擎工作线程 resources
 static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 {
 	if ( !pWorker ) return;
@@ -470,6 +506,7 @@ static uint32 __xnetEngineWorkerMain(ptr pArg)
 #elif defined(_WIN32) || defined(_WIN64)
 static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
 #else
+// 内部函数：__xnetEngineWorkerMain
 static void* __xnetEngineWorkerMain(void* pArg)
 #endif
 {
@@ -508,6 +545,8 @@ static void* __xnetEngineWorkerMain(void* pArg)
 	#endif
 }
 
+
+// 内部函数：启动引擎工作线程线程
 static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
 {
 	if ( !pWorker ) return false;
@@ -537,6 +576,8 @@ static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
 	#endif
 }
 
+
+// 内部函数：加入引擎工作线程线程
 static void __xnetEngineJoinWorkerThread(xnetworker* pWorker)
 {
 	if ( !pWorker || !pWorker->hThread ) return;
@@ -554,6 +595,8 @@ static void __xnetEngineJoinWorkerThread(xnetworker* pWorker)
 	memset(&pWorker->iThreadId, 0, sizeof(pWorker->iThreadId));
 }
 
+
+// 内部函数：启动引擎工作线程
 static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengineconfig* pEngineCfg, const xnetportops* pOps, const xnetportconfig* pPortCfg, const xnetmemconfig* pMemCfg)
 {
 	__xnet_engine_timerwheel* pWheel;
@@ -603,6 +646,8 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 	return XRT_NET_OK;
 }
 
+
+// 内部函数：停止引擎工作线程
 static void __xnetEngineStopWorker(xnetworker* pWorker)
 {
 	if ( !pWorker || !pWorker->bRunning ) return;
@@ -654,6 +699,8 @@ XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
 	return pEngine;
 }
 
+
+// 销毁网络引擎
 XXAPI void xrtNetEngineDestroy(xnetengine* pEngine)
 {
 	if ( !pEngine ) return;
@@ -669,6 +716,8 @@ XXAPI void xrtNetEngineDestroy(xnetengine* pEngine)
 	XNET_FREE(pEngine);
 }
 
+
+// 启动网络引擎
 XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine)
 {
 	const xnetportops* pOps;
@@ -697,6 +746,8 @@ XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine)
 	return XRT_NET_OK;
 }
 
+
+// 停止网络引擎
 XXAPI void xrtNetEngineStop(xnetengine* pEngine)
 {
 	if ( !pEngine || !pEngine->bRunning ) return;
@@ -706,11 +757,15 @@ XXAPI void xrtNetEngineStop(xnetengine* pEngine)
 	pEngine->bRunning = false;
 }
 
+
+// 统计网络引擎 get 工作线程
 XXAPI uint32 xrtNetEngineGetWorkerCount(xnetengine* pEngine)
 {
 	return pEngine ? pEngine->iWorkerCount : 0;
 }
 
+
+// xrtNetEnginePost 相关处理
 XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xnet_task_fn pfnTask, ptr pArg)
 {
 	xnetworker* pWorker;
@@ -744,6 +799,8 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 	return XRT_NET_OK;
 }
 
+
+// 网络引擎 post 延迟相关处理
 XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xnet_task_fn pfnTask, ptr pArg)
 {
 	xnetworker* pWorker;

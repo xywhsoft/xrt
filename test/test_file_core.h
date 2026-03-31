@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_FILE_CORE_H
 #define XRT_TEST_FILE_CORE_H
 
+// 内部函数：__Test_FileCoreRequire
 static void __Test_FileCoreRequire(bool bCond, const char* sMsg)
 {
 	if ( !bCond ) {
@@ -9,6 +10,8 @@ static void __Test_FileCoreRequire(bool bCond, const char* sMsg)
 	}
 }
 
+
+// 文件核心测试
 static void Test_FileCore(xrtGlobalData* xCore)
 {
 	str sDir;

@@ -3,6 +3,7 @@
 
 #if !defined(XRT_NO_NETWORK)
 
+// 内部函数：__Test_FileAsyncRequire
 static void __Test_FileAsyncRequire(bool bCond, const char* sMsg)
 {
 	if ( !bCond ) {
@@ -11,6 +12,8 @@ static void __Test_FileAsyncRequire(bool bCond, const char* sMsg)
 	}
 }
 
+
+// 内部函数：__Test_FileAsyncWaitIo
 static xasyncfileio* __Test_FileAsyncWaitIo(xfuture* pFuture, const char* sMsg)
 {
 	xasyncfileio* pInfo;
@@ -23,6 +26,8 @@ static xasyncfileio* __Test_FileAsyncWaitIo(xfuture* pFuture, const char* sMsg)
 	return pInfo;
 }
 
+
+// 内部函数：__Test_FileAsyncWaitBuf
 static xasyncfilebuf* __Test_FileAsyncWaitBuf(xfuture* pFuture, const char* sMsg)
 {
 	xasyncfilebuf* pBuf;
@@ -35,6 +40,8 @@ static xasyncfilebuf* __Test_FileAsyncWaitBuf(xfuture* pFuture, const char* sMsg
 	return pBuf;
 }
 
+
+// 内部函数：__Test_FileAsyncWaitOk
 static void __Test_FileAsyncWaitOk(xfuture* pFuture, const char* sMsg)
 {
 	__Test_FileAsyncRequire(pFuture != NULL, "future should not be null");
@@ -43,6 +50,8 @@ static void __Test_FileAsyncWaitOk(xfuture* pFuture, const char* sMsg)
 	xFutureRelease(pFuture);
 }
 
+
+// 内部函数：__Test_FileAsyncWaitFail
 static void __Test_FileAsyncWaitFail(xfuture* pFuture, const char* sMsg)
 {
 	const char* sError;
@@ -57,6 +66,8 @@ static void __Test_FileAsyncWaitFail(xfuture* pFuture, const char* sMsg)
 	xFutureRelease(pFuture);
 }
 
+
+// 文件异步测试
 static void Test_FileAsync(xrtGlobalData* xCore)
 {
 	str sRoot;

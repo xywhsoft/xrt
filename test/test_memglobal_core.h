@@ -1,6 +1,7 @@
 #ifndef XRT_TEST_MEMGLOBAL_CORE_H
 #define XRT_TEST_MEMGLOBAL_CORE_H
 
+// 内部函数：__Test_MemGlobalCoreRequire
 static void __Test_MemGlobalCoreRequire(bool bCond, const char* sMsg)
 {
 	if ( !bCond ) {
@@ -15,6 +16,8 @@ typedef struct
 	xsem pGo;
 } __Test_MemGlobalCoreThreadCtx;
 
+
+// 内部函数：__Test_MemGlobalCoreRequireAllocatorError
 static void __Test_MemGlobalCoreRequireAllocatorError(void)
 {
 	str sError = xrtGetError();
@@ -23,6 +26,8 @@ static void __Test_MemGlobalCoreRequireAllocatorError(void)
 	__Test_MemGlobalCoreRequire(strcmp(sError, "memory belongs to an explicit pool allocator.") == 0, "allocator error message mismatch");
 }
 
+
+// 内部函数：__Test_MemGlobalCoreHoldRuntimeWorker
 static uint32 __Test_MemGlobalCoreHoldRuntimeWorker(ptr pParam)
 {
 	__Test_MemGlobalCoreThreadCtx* pCtx = (__Test_MemGlobalCoreThreadCtx*)pParam;
@@ -59,6 +64,8 @@ static uint32 __Test_MemGlobalCoreHoldRuntimeWorker(ptr pParam)
 	return 0;
 }
 
+
+// MEMGLOBAL核心测试
 static void Test_MemGlobalCore(void)
 {
 	xrtThreadData* pThreadData;

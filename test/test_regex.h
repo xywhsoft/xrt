@@ -17,12 +17,16 @@ typedef struct
 	size_t iSize;
 } __test_regex_alloc_hdr;
 
+
+// 内部函数：__Test_Regex_Check
 static int __Test_Regex_Check(const char* sName, int bOk)
 {
 	printf("  %s : %s\n", sName, bOk ? "PASS" : "FAIL");
 	return bOk ? 0 : 1;
 }
 
+
+// 内部函数：__Test_Regex_SpanEquals
 static bool __Test_Regex_SpanEquals(const char* sText, size_t iTextSize, xregexspan tSpan, const char* sExpect)
 {
 	size_t iExpectSize = strlen(sExpect);
@@ -39,6 +43,8 @@ static bool __Test_Regex_SpanEquals(const char* sText, size_t iTextSize, xregexs
 	return memcmp(sText + tSpan.iBegin, sExpect, iExpectSize) == 0;
 }
 
+
+// 内部函数：__Test_Regex_HasIndex
 static bool __Test_Regex_HasIndex(const uint32* pIndexes, uint32 iCount, uint32 iExpectIndex)
 {
 	uint32 i;
@@ -56,6 +62,8 @@ static bool __Test_Regex_HasIndex(const uint32* pIndexes, uint32 iCount, uint32 
 	return false;
 }
 
+
+// 内部函数：__Test_Regex_AllocProc
 static ptr __Test_Regex_AllocProc(ptr pUserData, ptr pMem, size_t iPrevSize, size_t iNextSize)
 {
 	__test_regex_alloc_ctx* pCtx = (__test_regex_alloc_ctx*)pUserData;
@@ -105,6 +113,8 @@ static ptr __Test_Regex_AllocProc(ptr pUserData, ptr pMem, size_t iPrevSize, siz
 	return pNewHdr + 1;
 }
 
+
+// 内部函数：__Test_Regex_Basic
 static int __Test_Regex_Basic(void)
 {
 	int iFail = 0;
@@ -129,6 +139,8 @@ static int __Test_Regex_Basic(void)
 	return iFail ? 1 : 0;
 }
 
+
+// 内部函数：__Test_Regex_FindAndCaptures
 static int __Test_Regex_FindAndCaptures(void)
 {
 	int iFail = 0;
@@ -170,6 +182,8 @@ static int __Test_Regex_FindAndCaptures(void)
 	return iFail ? 1 : 0;
 }
 
+
+// 内部函数：__Test_Regex_BuilderAllocAndClone
 static int __Test_Regex_BuilderAllocAndClone(void)
 {
 	int iFail = 0;
@@ -232,6 +246,8 @@ static int __Test_Regex_BuilderAllocAndClone(void)
 	return iFail ? 1 : 0;
 }
 
+
+// 内部函数：__Test_Regex_SetApi
 static int __Test_Regex_SetApi(void)
 {
 	int iFail = 0;
@@ -271,6 +287,8 @@ static int __Test_Regex_SetApi(void)
 	return iFail ? 1 : 0;
 }
 
+
+// 内部函数：__Test_Regex_SetBuilderApi
 static int __Test_Regex_SetBuilderApi(void)
 {
 	int iFail = 0;
@@ -312,6 +330,8 @@ static int __Test_Regex_SetBuilderApi(void)
 	return iFail ? 1 : 0;
 }
 
+
+// 内部函数：__Test_Regex_InternalRegression
 static int __Test_Regex_InternalRegression(void)
 {
 	int iFail = 0;
@@ -346,6 +366,8 @@ static int __Test_Regex_InternalRegression(void)
 	return iFail ? 1 : 0;
 }
 
+
+// 正则测试
 static int Test_Regex(void)
 {
 	int iFail = 0;

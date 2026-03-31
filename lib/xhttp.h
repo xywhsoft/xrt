@@ -110,12 +110,16 @@ typedef struct __xhttp_conn {
 static volatile long __g_xhttpPoolLock = 0;
 static __xhttp_conn* __g_xhttpIdleConnHead = NULL;
 
+
+// 内部函数：__xhttpToLower
 static char __xhttpToLower(char ch)
 {
 	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
 	return ch;
 }
 
+
+// 内部函数：字符串相等忽略大小写相关处理
 static bool __xhttpStrEqNoCase(const char* sA, const char* sB)
 {
 	size_t i = 0;
@@ -127,21 +131,29 @@ static bool __xhttpStrEqNoCase(const char* sA, const char* sB)
 	return sA[i] == '\0' && sB[i] == '\0';
 }
 
+
+// 内部函数：__xhttpAtomicAdd
 static long __xhttpAtomicAdd(volatile long* pValue, long iDelta)
 {
 	return __xnetAtomicAddFetch32(pValue, iDelta);
 }
 
+
+// 内部函数：__xhttpAtomicCompareExchange
 static long __xhttpAtomicCompareExchange(volatile long* pValue, long iExchange, long iComparand)
 {
 	return __xnetAtomicCompareExchange32(pValue, iExchange, iComparand);
 }
 
+
+// 内部函数：__xhttpAtomicLoad
 static long __xhttpAtomicLoad(volatile long* pValue)
 {
 	return __xnetAtomicLoad32(pValue);
 }
 
+
+// 内部函数：复制 Token
 static void __xhttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 {
 	size_t iLen;
@@ -156,6 +168,8 @@ static void __xhttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 	sDst[iLen] = '\0';
 }
 
+
+// 内部函数：__xhttpAppendBytes
 static bool __xhttpAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)
 {
 	size_t iNeedCap;
@@ -182,11 +196,15 @@ static bool __xhttpAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const v
 	return true;
 }
 
+
+// 内部函数：追加文本
 static bool __xhttpAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
 	return __xhttpAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
 }
 
+
+// 内部函数：__xhttpRequestHasHeader
 static bool __xhttpRequestHasHeader(const xhttprequest* pReq, const char* sName)
 {
 	if ( !pReq || !sName ) return false;
@@ -196,6 +214,8 @@ static bool __xhttpRequestHasHeader(const xhttprequest* pReq, const char* sName)
 	return false;
 }
 
+
+// 内部函数：获取 request 头部值
 static const char* __xhttpRequestHeaderValue(const xhttprequest* pReq, const char* sName)
 {
 	if ( !pReq || !sName ) return NULL;
@@ -205,6 +225,8 @@ static const char* __xhttpRequestHeaderValue(const xhttprequest* pReq, const cha
 	return NULL;
 }
 
+
+// 内部函数：判断是否存在状态 no 正文
 static bool __xhttpStatusHasNoBody(uint32 iStatusCode)
 {
 	return (iStatusCode >= 100u && iStatusCode < 200u) || iStatusCode == 204u || iStatusCode == 304u;
@@ -218,6 +240,8 @@ static void __xhttpConnPostCleanup(__xhttp_conn* pConn);
 static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx);
 static uint32 __xhttpResolveConnectTimeoutMs(const xhttprequest* pReq);
 
+
+// 内部函数：__xhttpPoolLockAcquire
 static void __xhttpPoolLockAcquire(void)
 {
 	while ( __xnetAtomicCompareExchange32(&__g_xhttpPoolLock, 1, 0) != 0 ) {
@@ -225,16 +249,22 @@ static void __xhttpPoolLockAcquire(void)
 	}
 }
 
+
+// 内部函数：__xhttpPoolLockRelease
 static void __xhttpPoolLockRelease(void)
 {
 	(void)__xnetAtomicExchange32(&__g_xhttpPoolLock, 0);
 }
 
+
+// 内部函数：判断是否包含 Token 忽略大小写
 static bool __xhttpContainsTokenNoCase(const char* sValue, const char* sToken)
 {
 	return xrtHttpHeaderContainsToken(sValue, sToken);
 }
 
+
+// 内部函数：构建主机头部
 static bool __xhttpMakeHostHeader(const xhttprequest* pReq, char* sOut, size_t iOutCap)
 {
 	xrturlview tURL;
@@ -246,6 +276,8 @@ static bool __xhttpMakeHostHeader(const xhttprequest* pReq, char* sOut, size_t i
 	return xrtUrlMakeHostHeaderFixed(pReq->tURL.bHttps ? "https" : "http", pReq->tURL.sHost, pReq->tURL.iPort, sOut, iOutCap);
 }
 
+
+// 内部函数：__xhttpRequestWantsClose
 static bool __xhttpRequestWantsClose(const xhttprequest* pReq)
 {
 	if ( !pReq ) return false;
@@ -257,6 +289,8 @@ static bool __xhttpRequestWantsClose(const xhttprequest* pReq)
 	return false;
 }
 
+
+// 内部函数：__xhttpResponseWantsClose
 static bool __xhttpResponseWantsClose(const xcodechttp1msg* pMsg)
 {
 	const char* sConn;
@@ -265,6 +299,8 @@ static bool __xhttpResponseWantsClose(const xcodechttp1msg* pMsg)
 	return sConn ? __xhttpContainsTokenNoCase(sConn, "close") : false;
 }
 
+
+// 内部函数：__xhttpConnMatchesReq
 static bool __xhttpConnMatchesReq(const __xhttp_conn* pConn, xnetengine* pEngine, const xhttprequest* pReq)
 {
 	if ( !pConn || !pReq || !pEngine ) return false;
@@ -278,6 +314,8 @@ static bool __xhttpConnMatchesReq(const __xhttp_conn* pConn, xnetengine* pEngine
 	return true;
 }
 
+
+// 内部函数：__xhttpPoolTake
 static __xhttp_conn* __xhttpPoolTake(xnetengine* pEngine, const xhttprequest* pReq)
 {
 	__xhttp_conn** ppConn;
@@ -299,6 +337,8 @@ static __xhttp_conn* __xhttpPoolTake(xnetengine* pEngine, const xhttprequest* pR
 	return pConn;
 }
 
+
+// 内部函数：__xhttpPoolPut
 static bool __xhttpPoolPut(__xhttp_conn* pConn)
 {
 	if ( !pConn || !pConn->pStream || !pConn->bOpen || pConn->pTx != NULL ) return false;
@@ -310,6 +350,8 @@ static bool __xhttpPoolPut(__xhttp_conn* pConn)
 	return true;
 }
 
+
+// 内部函数：删除内存池
 static void __xhttpPoolRemove(__xhttp_conn* pConn)
 {
 	__xhttp_conn** ppCur;
@@ -328,6 +370,8 @@ static void __xhttpPoolRemove(__xhttp_conn* pConn)
 	__xhttpPoolLockRelease();
 }
 
+
+// xrtHttpCloseIdleConnections 相关处理
 XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine)
 {
 	__xhttp_conn* pList = NULL;
@@ -359,6 +403,8 @@ XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine)
 	}
 }
 
+
+// xrtHttpRequestInit 相关处理
 XXAPI void xrtHttpRequestInit(xhttprequest* pReq)
 {
 	if ( !pReq ) return;
@@ -369,6 +415,8 @@ XXAPI void xrtHttpRequestInit(xhttprequest* pReq)
 	pReq->bVerifyPeer = true;
 }
 
+
+// 内部函数：__xhttpRequestUnitInternal
 static void __xhttpRequestUnitInternal(xhttprequest* pReq)
 {
 	if ( !pReq ) return;
@@ -383,6 +431,8 @@ static void __xhttpRequestUnitInternal(xhttprequest* pReq)
 	}
 }
 
+
+// xrtHttpRequestUnit 相关处理
 XXAPI void xrtHttpRequestUnit(xhttprequest* pReq)
 {
 	if ( !pReq ) return;
@@ -390,6 +440,8 @@ XXAPI void xrtHttpRequestUnit(xhttprequest* pReq)
 	memset(pReq, 0, sizeof(xhttprequest));
 }
 
+
+// xrtHttpRequestSetMethod 相关处理
 XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod)
 {
 	size_t iLen;
@@ -401,6 +453,8 @@ XXAPI bool xrtHttpRequestSetMethod(xhttprequest* pReq, const char* sMethod)
 	return true;
 }
 
+
+// 设置 HTTP request URL
 XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL)
 {
 	size_t iLen;
@@ -413,6 +467,8 @@ XXAPI bool xrtHttpRequestSetURL(xhttprequest* pReq, const char* sURL)
 	return true;
 }
 
+
+// 设置 HTTP request 头部
 XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const char* sValue)
 {
 	xhttpheader* pHeader;
@@ -430,6 +486,8 @@ XXAPI bool xrtHttpRequestSetHeader(xhttprequest* pReq, const char* sName, const 
 	return true;
 }
 
+
+// xrtHttpRequestSetBodyCopy 相关处理
 XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size_t iLen, const char* sContentType)
 {
 	char* pBodyCopy = NULL;
@@ -452,24 +510,32 @@ XXAPI bool xrtHttpRequestSetBodyCopy(xhttprequest* pReq, const void* pData, size
 	return true;
 }
 
+
+// 设置 HTTP request 超时
 XXAPI void xrtHttpRequestSetTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
 {
 	if ( !pReq ) return;
 	pReq->iTimeoutMs = iTimeoutMs;
 }
 
+
+// xrtHttpRequestSetIdleTimeout 相关处理
 XXAPI void xrtHttpRequestSetIdleTimeout(xhttprequest* pReq, uint32 iTimeoutMs)
 {
 	if ( !pReq ) return;
 	pReq->iIdleTimeoutMs = iTimeoutMs;
 }
 
+
+// xrtHttpRequestSetVerifyPeer 相关处理
 XXAPI void xrtHttpRequestSetVerifyPeer(xhttprequest* pReq, bool bVerifyPeer)
 {
 	if ( !pReq ) return;
 	pReq->bVerifyPeer = bVerifyPeer;
 }
 
+
+// xrtHttpResponseDestroy 相关处理
 XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp)
 {
 	if ( !pResp ) return;
@@ -480,6 +546,8 @@ XXAPI void xrtHttpResponseDestroy(xhttpresponse* pResp)
 	XNET_FREE(pResp);
 }
 
+
+// 获取 HTTP response 头部
 XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* sName)
 {
 	if ( !pResp || !sName ) return NULL;
@@ -491,6 +559,8 @@ XXAPI const char* xrtHttpResponseHeader(const xhttpresponse* pResp, const char* 
 	return NULL;
 }
 
+
+// 内部函数：__xhttpRequestClone
 static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc)
 {
 	if ( !pDst || !pSrc ) return false;
@@ -516,6 +586,8 @@ static bool __xhttpRequestClone(xhttprequest* pDst, const xhttprequest* pSrc)
 	return true;
 }
 
+
+// 内部函数：__xhttpBuildRequestBytes
 static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, size_t* pOutLen)
 {
 	char* pBuf = NULL;
@@ -573,6 +645,8 @@ fail:
 	return false;
 }
 
+
+// 内部函数：__xhttpBuildResponse
 static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain)
 {
 	xhttpresponse* pResp;
@@ -607,12 +681,16 @@ static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcod
 	return pResp;
 }
 
+
+// 内部函数：__xhttpTxAddRef
 static void __xhttpTxAddRef(__xhttp_tx* pTx)
 {
 	if ( !pTx ) return;
 	(void)__xhttpAtomicAdd(&pTx->iRefCount, 1);
 }
 
+
+// 内部函数：__xhttpTxDiscardTransient
 static void __xhttpTxDiscardTransient(__xhttp_tx* pTx)
 {
 	if ( !pTx ) return;
@@ -624,6 +702,8 @@ static void __xhttpTxDiscardTransient(__xhttp_tx* pTx)
 	__xhttpRequestUnitInternal(&pTx->tReq);
 }
 
+
+// 内部函数：__xhttpTxComplete
 static bool __xhttpTxComplete(__xhttp_tx* pTx, xnet_result iStatus, xhttpresponse* pResp)
 {
 	if ( !pTx ) {
@@ -642,6 +722,8 @@ static bool __xhttpTxComplete(__xhttp_tx* pTx, xnet_result iStatus, xhttprespons
 	return true;
 }
 
+
+// 内部函数：__xhttpTxRelease
 static void __xhttpTxRelease(__xhttp_tx* pTx)
 {
 	if ( !pTx ) return;
@@ -653,6 +735,8 @@ static void __xhttpTxRelease(__xhttp_tx* pTx)
 	}
 }
 
+
+// 内部函数：__xhttpTxCleanupTask
 static void __xhttpTxCleanupTask(xnetworker* pWorker, ptr pArg)
 {
 	__xhttp_tx* pTx = (__xhttp_tx*)pArg;
@@ -664,6 +748,8 @@ static void __xhttpTxCleanupTask(xnetworker* pWorker, ptr pArg)
 	__xhttpTxRelease(pTx);
 }
 
+
+// 内部函数：__xhttpTxPostCleanup
 static void __xhttpTxPostCleanup(__xhttp_tx* pTx)
 {
 	uint32 iAffinity = 0u;
@@ -676,6 +762,8 @@ static void __xhttpTxPostCleanup(__xhttp_tx* pTx)
 	}
 }
 
+
+// 内部函数：__xhttpConnCleanupTask
 static void __xhttpConnCleanupTask(xnetworker* pWorker, ptr pArg)
 {
 	__xhttp_conn* pConn = (__xhttp_conn*)pArg;
@@ -693,6 +781,8 @@ static void __xhttpConnCleanupTask(xnetworker* pWorker, ptr pArg)
 	XNET_FREE(pConn);
 }
 
+
+// 内部函数：__xhttpConnPostCleanup
 static void __xhttpConnPostCleanup(__xhttp_conn* pConn)
 {
 	if ( !pConn ) return;
@@ -706,6 +796,8 @@ static void __xhttpConnPostCleanup(__xhttp_conn* pConn)
 	__xhttpConnCleanupTask(NULL, pConn);
 }
 
+
+// 内部函数：__xhttpResponseReusable
 static bool __xhttpResponseReusable(const __xhttp_tx* pTx, const xcodechttp1msg* pMsg)
 {
 	if ( !pTx || !pMsg || !pTx->pConn ) return false;
@@ -716,6 +808,8 @@ static bool __xhttpResponseReusable(const __xhttp_tx* pTx, const xcodechttp1msg*
 	return pTx->pConn->pStream != NULL && pTx->pConn->bOpen;
 }
 
+
+// 内部函数：__xhttpTxAbortStream
 static void __xhttpTxAbortStream(__xhttp_tx* pTx)
 {
 	if ( !pTx ) return;
@@ -723,6 +817,8 @@ static void __xhttpTxAbortStream(__xhttp_tx* pTx)
 	else if ( pTx->pStream ) xrtNetStreamClose(pTx->pStream, XNET_CLOSE_F_ABORT);
 }
 
+
+// 内部函数：__xhttpIdleTimeoutTask
 static void __xhttpIdleTimeoutTask(xnetworker* pWorker, ptr pArg)
 {
 	__xhttp_idle_timer_ctx* pCtx = (__xhttp_idle_timer_ctx*)pArg;
@@ -740,6 +836,8 @@ static void __xhttpIdleTimeoutTask(xnetworker* pWorker, ptr pArg)
 	XNET_FREE(pCtx);
 }
 
+
+// 内部函数：__xhttpTxRefreshIdleTimeout
 static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx)
 {
 	__xhttp_idle_timer_ctx* pCtx;
@@ -768,6 +866,8 @@ static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx)
 	}
 }
 
+
+// 内部函数：连接 resolve 超时毫秒
 static uint32 __xhttpResolveConnectTimeoutMs(const xhttprequest* pReq)
 {
 	if ( !pReq ) return 0u;
@@ -775,6 +875,8 @@ static uint32 __xhttpResolveConnectTimeoutMs(const xhttprequest* pReq)
 	return pReq->iIdleTimeoutMs;
 }
 
+
+// 内部函数：__xhttpConnSendActiveTx
 static bool __xhttpConnSendActiveTx(__xhttp_conn* pConn)
 {
 	__xhttp_tx* pTx;
@@ -790,6 +892,8 @@ static bool __xhttpConnSendActiveTx(__xhttp_conn* pConn)
 	return true;
 }
 
+
+// 内部函数：__xhttpTxTimeoutTask
 static void __xhttpTxTimeoutTask(xnetworker* pWorker, ptr pArg)
 {
 	__xhttp_tx* pTx = (__xhttp_tx*)pArg;
@@ -802,6 +906,8 @@ static void __xhttpTxTimeoutTask(xnetworker* pWorker, ptr pArg)
 	__xhttpTxRelease(pTx);
 }
 
+
+// 内部函数：__xhttpClientOnOpen
 static void __xhttpClientOnOpen(ptr pOwner, xnetstream* pStream)
 {
 	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
@@ -810,6 +916,8 @@ static void __xhttpClientOnOpen(ptr pOwner, xnetstream* pStream)
 	(void)__xhttpConnSendActiveTx(pConn);
 }
 
+
+// 内部函数：__xhttpClientOnRecv
 static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
 {
 	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
@@ -856,6 +964,8 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 }
 
+
+// 内部函数：__xhttpClientOnClose
 static void __xhttpClientOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
 	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
@@ -878,6 +988,8 @@ static void __xhttpClientOnClose(ptr pOwner, xnetstream* pStream, xnet_result iR
 	__xhttpConnPostCleanup(pConn);
 }
 
+
+// 内部函数：__xhttpClientOnError
 static void __xhttpClientOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	__xhttp_conn* pConn = (__xhttp_conn*)pOwner;
@@ -887,6 +999,8 @@ static void __xhttpClientOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 	if ( pTx ) pTx->iLastSysErr = iSysErr;
 }
 
+
+// 内部函数：__xhttpClientEvents
 static const xnetstreamevents* __xhttpClientEvents(void)
 {
 	static const xnetstreamevents tEvents = {
@@ -901,6 +1015,8 @@ static const xnetstreamevents* __xhttpClientEvents(void)
 	return &tEvents;
 }
 
+
+// xrtHttpExecuteAsync 相关处理
 XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* pReq)
 {
 	__xhttp_tx* pTx;
@@ -1015,6 +1131,8 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 	return pFuture;
 }
 
+
+// xrtHttpExecuteSync 相关处理
 XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest* pReq, xnet_result* pStatus)
 {
 	xnetfuture* pFuture;

@@ -1,3 +1,4 @@
+// 内部函数：__Test_Template_PrintResult
 static void __Test_Template_PrintResult(const char* sLabel, int bPass)
 {
 	printf("  %s : %s\n", sLabel, bPass ? "PASS" : "FAIL");
@@ -16,6 +17,8 @@ typedef struct
 	size_t iRetSize;
 } __Test_Template_ConcurrentCtx;
 
+
+// 内部函数：__Test_Template_CopyArgText
 static char* __Test_Template_CopyArgText(const char* sText, uint32 iSize)
 {
 	if ( sText == NULL ) {
@@ -27,11 +30,15 @@ static char* __Test_Template_CopyArgText(const char* sText, uint32 iSize)
 	return xrtCopyStr((str)sText, iSize);
 }
 
+
+// 内部函数：__Test_Template_BufferWriter
 static int __Test_Template_BufferWriter(void* pUserData, const char* sText, size_t iSize)
 {
 	return xrtBufferAppend((xbuffer)pUserData, (ptr)sText, (uint32)iSize, XBUF_BINARY) ? 1 : 0;
 }
 
+
+// 内部函数：__Test_Template_RenderWithError
 static char* __Test_Template_RenderWithError(xtetemplate hTemplate, xvalue pCurrent, xvalue pGlobal, xdict pIncludeMap, size_t* pRetSize, XTE_Error* pError)
 {
 	XTE_RenderOptions tOptions = { 0 };
@@ -67,6 +74,8 @@ static char* __Test_Template_RenderWithError(xtetemplate hTemplate, xvalue pCurr
 	return tBuf.Buffer;
 }
 
+
+// 内部函数：__Test_Template_ConcurrentRenderProc
 static uint32 __Test_Template_ConcurrentRenderProc(ptr pArg)
 {
 	__Test_Template_ConcurrentCtx* pCtx = (__Test_Template_ConcurrentCtx*)pArg;
@@ -94,6 +103,7 @@ static uint32 __Test_Template_ConcurrentRenderProc(ptr pArg)
 }
 
 #ifdef XTE_DEBUGMODE
+// 内部函数：__Test_Template_DumpToText
 static char* __Test_Template_DumpToText(xtetemplate hTemplate)
 {
 	XTE_Writer tWriter = { 0 };
@@ -116,6 +126,7 @@ static char* __Test_Template_DumpToText(xtetemplate hTemplate)
 }
 #endif
 
+// 内部函数：__Test_Template_PrefixParse
 static int __Test_Template_PrefixParse(XTE_StmtParseCtx* pCtx, void** ppData)
 {
 	const XTE_ArgItem* pArg = xteStmtParseRequireExprType(pCtx, 0, XTE_EXPR_TEXT, "test prefix requires text literal");
@@ -142,6 +153,8 @@ static int __Test_Template_PrefixParse(XTE_StmtParseCtx* pCtx, void** ppData)
 	return 1;
 }
 
+
+// 内部函数：__Test_Template_PathArgParse
 static int __Test_Template_PathArgParse(XTE_StmtParseCtx* pCtx, void** ppData)
 {
 	const XTE_ArgItem* pArg = xteStmtParseRequireNamedExprType(pCtx, "value", 0, XTE_EXPR_PATH, "test patharg requires named path");
@@ -168,12 +181,16 @@ static int __Test_Template_PathArgParse(XTE_StmtParseCtx* pCtx, void** ppData)
 	return 1;
 }
 
+
+// 内部函数：__Test_Template_ParseFailParse
 static int __Test_Template_ParseFailParse(XTE_StmtParseCtx* pCtx, void** ppData)
 {
 	(void)ppData;
 	return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "test parse callback failed");
 }
 
+
+// 内部函数：__Test_Template_PrefixFree
 static void __Test_Template_PrefixFree(void* pData)
 {
 	__Test_Template_PrefixData* pPrefix = (__Test_Template_PrefixData*)pData;
@@ -186,6 +203,8 @@ static void __Test_Template_PrefixFree(void* pData)
 	xrtFree(pPrefix);
 }
 
+
+// 内部函数：__Test_Template_UpperRender
 static XTE_Flow __Test_Template_UpperRender(XTE_StmtRenderCtx* pCtx)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, 0, "test upper arg is required");
@@ -207,6 +226,8 @@ static XTE_Flow __Test_Template_UpperRender(XTE_StmtRenderCtx* pCtx)
 	return iRet;
 }
 
+
+// 内部函数：__Test_Template_WrapRender
 static XTE_Flow __Test_Template_WrapRender(XTE_StmtRenderCtx* pCtx)
 {
 	const XTE_ArgItem* pTagArg = xteFindNamedArg(pCtx->pArgs, "tag", 0);
@@ -248,6 +269,8 @@ static XTE_Flow __Test_Template_WrapRender(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_OK;
 }
 
+
+// 内部函数：__Test_Template_WithRender
 static XTE_Flow __Test_Template_WithRender(XTE_StmtRenderCtx* pCtx)
 {
 	const XTE_ArgItem* pArg = xteStmtRequireArg(pCtx, 0, "test with scope is required");
@@ -263,6 +286,8 @@ static XTE_Flow __Test_Template_WithRender(XTE_StmtRenderCtx* pCtx)
 	return bOk ? XTE_FLOW_OK : XTE_FLOW_ERROR;
 }
 
+
+// 内部函数：__Test_Template_RepeatRender
 static XTE_Flow __Test_Template_RepeatRender(XTE_StmtRenderCtx* pCtx)
 {
 	const XTE_ArgItem* pCountArg = xteStmtRequireArg(pCtx, 0, "test repeat count is required");
@@ -301,6 +326,8 @@ static XTE_Flow __Test_Template_RepeatRender(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_OK;
 }
 
+
+// 内部函数：__Test_Template_PrefixRender
 static XTE_Flow __Test_Template_PrefixRender(XTE_StmtRenderCtx* pCtx)
 {
 	__Test_Template_PrefixData* pData = (__Test_Template_PrefixData*)pCtx->pData;
@@ -314,6 +341,8 @@ static XTE_Flow __Test_Template_PrefixRender(XTE_StmtRenderCtx* pCtx)
 	return xteStmtRenderBody(pCtx) ? XTE_FLOW_OK : XTE_FLOW_ERROR;
 }
 
+
+// 内部函数：__Test_Template_PathArgRender
 static XTE_Flow __Test_Template_PathArgRender(XTE_StmtRenderCtx* pCtx)
 {
 	__Test_Template_PrefixData* pData = (__Test_Template_PrefixData*)pCtx->pData;
@@ -324,6 +353,8 @@ static XTE_Flow __Test_Template_PathArgRender(XTE_StmtRenderCtx* pCtx)
 	return xteStmtWrite(pCtx, pData->sPrefix, 0) ? XTE_FLOW_OK : XTE_FLOW_ERROR;
 }
 
+
+// 内部函数：__Test_Template_LiteralRender
 static XTE_Flow __Test_Template_LiteralRender(XTE_StmtRenderCtx* pCtx)
 {
 	if ( pCtx->sRawBody == NULL ) {
@@ -332,6 +363,8 @@ static XTE_Flow __Test_Template_LiteralRender(XTE_StmtRenderCtx* pCtx)
 	return xteStmtWrite(pCtx, pCtx->sRawBody, pCtx->iRawBodySize) ? XTE_FLOW_OK : XTE_FLOW_ERROR;
 }
 
+
+// 内部函数：__Test_Template_StrictStmtRender
 static XTE_Flow __Test_Template_StrictStmtRender(XTE_StmtRenderCtx* pCtx)
 {
 	char* sText = xteStmtRequireNamedTextStrict(pCtx, "text", 0, "test strict stmt text must stay text");
@@ -373,6 +406,8 @@ static XTE_Flow __Test_Template_StrictStmtRender(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_OK;
 }
 
+
+// 内部函数：__Test_Template_StrictStmtPosRender
 static XTE_Flow __Test_Template_StrictStmtPosRender(XTE_StmtRenderCtx* pCtx)
 {
 	char* sText = xteStmtRequireTextStrict(pCtx, 0, "test strict stmt pos text must stay text");
@@ -414,11 +449,15 @@ static XTE_Flow __Test_Template_StrictStmtPosRender(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_OK;
 }
 
+
+// 内部函数：__Test_Template_FailRender
 static XTE_Flow __Test_Template_FailRender(XTE_StmtRenderCtx* pCtx)
 {
 	return xteStmtSetError(pCtx, XTE_ERROR_RENDER, "test statement render failed");
 }
 
+
+// 内部函数：__Test_Template_ConcatCall
 static int __Test_Template_ConcatCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 {
 	xbuffer_struct tBuf = { 0 };
@@ -441,6 +480,8 @@ static int __Test_Template_ConcatCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 	return (ppRet[0] != NULL);
 }
 
+
+// 内部函数：__Test_Template_SurroundCall
 static int __Test_Template_SurroundCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 {
 	const XTE_ArgItem* pValueArg = xteFuncRequireNamedArg(pCtx, "value", 0, "test surround value is required");
@@ -482,6 +523,8 @@ static int __Test_Template_SurroundCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 	return (ppRet[0] != NULL);
 }
 
+
+// 内部函数：__Test_Template_RequireCall
 static int __Test_Template_RequireCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 {
 	const XTE_ArgItem* pValueArg = xteFuncRequireNamedArg(pCtx, "value", 0, "test function value is required");
@@ -501,6 +544,8 @@ static int __Test_Template_RequireCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 	return 1;
 }
 
+
+// 内部函数：__Test_Template_StrictTypesCall
 static int __Test_Template_StrictTypesCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 {
 	char* sText = xteFuncRequireNamedTextStrict(pCtx, "text", 0, "test strict text must stay text");
@@ -539,6 +584,8 @@ static int __Test_Template_StrictTypesCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 	return (ppRet[0] != NULL);
 }
 
+
+// 内部函数：__Test_Template_StrictPosCall
 static int __Test_Template_StrictPosCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 {
 	char* sText = xteFuncRequireTextStrict(pCtx, 0, "test strict pos text must stay text");
@@ -577,6 +624,8 @@ static int __Test_Template_StrictPosCall(XTE_FuncCtx* pCtx, xvalue* ppRet)
 	return (ppRet[0] != NULL);
 }
 
+
+// 内部函数：__Test_Template_Register
 static void __Test_Template_Register(xteengine hEngine)
 {
 	static const XTE_StatementDef tUpper = {
