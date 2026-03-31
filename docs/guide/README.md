@@ -63,12 +63,14 @@
 1. [教学重建路线图](ROADMAP.md)
 2. [从零开始写第一个 XRT 程序](first-xrt-program.md)
 3. 基础运行时与工具模块专题
-4. 内存、容器与数据结构专题
-5. `xvalue / json / xson / template / regex / crypto` 专题
-6. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-7. 系统能力专题：子进程、异步文件
-8. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-9. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+4. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+5. 内存、容器与数据结构专题
+6. `xvalue / json / xson / template / regex / crypto` 专题
+7. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+8. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+9. 系统能力专题：子进程、异步文件
+10. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
+11. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -83,10 +85,12 @@
 
 - [从零开始写第一个 XRT 程序](first-xrt-program.md)
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)
+- [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
 - [xvalue 与 JSON 入门](xvalue-json-intro.md)
 
 ### 2. 并发与异步短讲
 
+- [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
 - [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
 - [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
 
@@ -119,7 +123,7 @@
 - `queue`
 - `jnum / xson / template / regex / crypto`
 - `xurl / xhttp_util / xws / proxy`
-- 多任务专题中的“为什么需要多任务”和“线程、协程、future 的选择方法”
+- 多任务专题中的 `wait-source / task group` 完整正式教学
 
 这也是后续优先补齐的部分。
 

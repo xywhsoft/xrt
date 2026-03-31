@@ -130,11 +130,13 @@
 如果你想先看当前已有的快速教学页，可以继续阅读：
 
 1. [从零开始写第一个 XRT 程序](guide/first-xrt-program.md)
-2. [XRT 运行时与线程附加入门](guide/runtime-thread-attach.md)
-3. [xvalue 与 JSON 入门](guide/xvalue-json-intro.md)
-4. [协程、Future 与 Task 入门](guide/coroutine-future-task-intro.md)
-5. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
-6. [XRT 异步文件与目录操作入门](guide/file-async-intro.md)
+2. [多任务总论：线程、队列、协程与 Future 怎么选](guide/multitask-overview.md)
+3. [线程入门：什么时候该开线程，什么时候不该](guide/thread-intro.md)
+4. [XRT 运行时与线程附加入门](guide/runtime-thread-attach.md)
+5. [xvalue 与 JSON 入门](guide/xvalue-json-intro.md)
+6. [协程、Future 与 Task 入门](guide/coroutine-future-task-intro.md)
+7. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
+8. [XRT 异步文件与目录操作入门](guide/file-async-intro.md)
 
 如果你想直接看当前已有的组合案例，可以优先阅读：
 
