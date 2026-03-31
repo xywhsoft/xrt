@@ -931,10 +931,11 @@ DemoJob tJob;
 推荐顺序：
 
 1. [Queue API](../api/api-queue.md)
-2. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
-3. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-4. [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
-5. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
+2. [用 Queue + Future 写一个多生产者 Worker](../case/queue-worker-future.md)
+3. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
+4. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+5. [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
+6. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
 
 ---
 

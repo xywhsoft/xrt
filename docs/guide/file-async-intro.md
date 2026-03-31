@@ -172,3 +172,4 @@ xFutureRelease(pRead);
 - [Thread](../api/api-thread.md)
 - [Future / Task / Promise](../api/api-future-task-promise.md)
 - [XRT 子进程与工具执行入门](subprocess-intro.md)
+- [用 Subprocess + File Async 写一个工具链流水线](../case/subprocess-file-async-pipeline.md)

@@ -186,4 +186,5 @@ if ( pFuture ) {
 - [Base](../api/api-base.md)
 - [Thread](../api/api-thread.md)
 - [Future / Task / Promise](../api/api-future-task-promise.md)
+- [用 Subprocess + File Async 写一个工具链流水线](../case/subprocess-file-async-pipeline.md)
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)

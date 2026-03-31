@@ -104,6 +104,7 @@
 
 - [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
 - [xnet-v2 与 TLS session 入门](xnet-v2-tls-intro.md)
+- [用 XHTTP 走完 URL、代理与 TLS 客户端调用链](../case/xhttp-client-proxy-tls.md)
 - [用 XRT 写最小 HTTP 服务入门](minimal-http-service-intro.md)
 - [用 XRT 调用流式 LLM API 入门](streaming-llm-api-intro.md)
 - [XRT HTTPD 异步处理入门](httpd-async-intro.md)
@@ -112,6 +113,7 @@
 
 - [XRT 子进程与工具执行入门](subprocess-intro.md)
 - [XRT 异步文件与目录操作入门](file-async-intro.md)
+- [用 Subprocess + File Async 写一个工具链流水线](../case/subprocess-file-async-pipeline.md)
 
 这些页面当前适合：
 

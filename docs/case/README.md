@@ -42,6 +42,9 @@
 
 - 现有页面更像“专题说明”而不是“完整教学案例”
 - 适合快速理解模块如何组合
+- `thread + queue + future` 这条并发主线已经补出正式案例页
+- `subprocess + file_async + future` 这条工具链主线已经补出正式案例页
+- `xurl + xhttp + proxy + TLS` 这条客户端主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -78,11 +81,14 @@
 
 1. [用 xvalue + json 构造配置系统](json-config-system.md)
 2. [用 Template 渲染一个 HTML 页面](template-render-html.md)
-3. [线程、协程与 Future 协同模型](thread-coroutine-future.md)
-4. [xnet-v2 Stream Wait-Source 实战](xnet-stream-wait-source.md)
-5. [用 XRT 写一个最小 HTTP 服务](minimal-http-service.md)
-6. [用 XRT 调用一个流式 LLM API](streaming-llm-api.md)
-7. [一个完整的 HTTP + JSON + Template 服务链路](http-json-template-chain.md)
+3. [用 Queue + Future 写一个多生产者 Worker](queue-worker-future.md)
+4. [用 Subprocess + File Async 写一个工具链流水线](subprocess-file-async-pipeline.md)
+5. [用 XHTTP 走完 URL、代理与 TLS 客户端调用链](xhttp-client-proxy-tls.md)
+6. [线程、协程与 Future 协同模型](thread-coroutine-future.md)
+7. [xnet-v2 Stream Wait-Source 实战](xnet-stream-wait-source.md)
+8. [用 XRT 写一个最小 HTTP 服务](minimal-http-service.md)
+9. [用 XRT 调用一个流式 LLM API](streaming-llm-api.md)
+10. [一个完整的 HTTP + JSON + Template 服务链路](http-json-template-chain.md)
 
 这些页面当前适合：
 
@@ -95,9 +101,6 @@
 
 当前仍缺少正式案例的方向包括：
 
-- `queue` 驱动的生产者/消费者案例
-- `subprocess + file_async` 工具链案例
-- `xhttp` 客户端与代理/TLS 案例
 - `xws` 双向会话案例
 - `crypto / regex / charset` 在实际项目中的组合案例
 - 内存池、容器与数据结构在真实业务中的用法案例

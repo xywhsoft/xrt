@@ -146,8 +146,11 @@
 如果你想直接看当前已有的组合案例，可以优先阅读：
 
 1. [最小 HTTP 服务](case/minimal-http-service.md)
-2. [线程、协程与 Future 协同模型](case/thread-coroutine-future.md)
-3. [流式 LLM API](case/streaming-llm-api.md)
-4. [HTTP + JSON + Template 完整链路](case/http-json-template-chain.md)
-5. [xnet-v2 Stream Wait-Source 实战](case/xnet-stream-wait-source.md)
+2. [用 Queue + Future 写一个多生产者 Worker](case/queue-worker-future.md)
+3. [用 Subprocess + File Async 写一个工具链流水线](case/subprocess-file-async-pipeline.md)
+4. [用 XHTTP 走完 URL、代理与 TLS 客户端调用链](case/xhttp-client-proxy-tls.md)
+5. [线程、协程与 Future 协同模型](case/thread-coroutine-future.md)
+6. [流式 LLM API](case/streaming-llm-api.md)
+7. [HTTP + JSON + Template 完整链路](case/http-json-template-chain.md)
+8. [xnet-v2 Stream Wait-Source 实战](case/xnet-stream-wait-source.md)
 

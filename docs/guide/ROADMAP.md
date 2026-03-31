@@ -115,9 +115,10 @@
 1. 配置系统：`file + path + value + json`
 2. 模板渲染：`value + template + file`
 3. 多任务 worker：`thread + queue + future`
-4. 工具链流水线：`subprocess + file_async`
-5. HTTP 服务：`xhttpd + json + template`
-6. 流式 LLM API：`xhttp/xws + future + coroutine`
+4. 工具链流水线：`subprocess + file_async + future`
+5. HTTP 客户端调用链：`xurl + xhttp + TLS + proxy`
+6. HTTP 服务：`xhttpd + json + template`
+7. 流式 LLM API：`xhttp/xws + future + coroutine`
 
 
 ## 3. 多任务专题的正式拆法
