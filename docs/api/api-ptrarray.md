@@ -44,7 +44,7 @@ phase-2 之后，`PtrArray` 已进入 owner/shared 双模式主线。
 
 请按下面规则理解：
 
-- 默认 `xrtPtrArrayCreate()` 创建的是 **owner-thread local array**
+- 默认 `xrtPtrArrayCreate(XRT_OBJMODE_LOCAL)` 创建的是 **owner-thread local array**
 - 错线程修改 local array 会被拒绝
 - shared root 下，公开 root 访问应通过锁接口保护
 
@@ -97,7 +97,7 @@ typedef struct {
 
 **函数原型：**
 ```c
-XXAPI xparray xrtPtrArrayCreate();
+XXAPI xparray xrtPtrArrayCreate(uint32 iMode);
 ```
 
 **返回值：**
@@ -114,7 +114,7 @@ XXAPI xparray xrtPtrArrayCreate();
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     printf("步长: %u\n", arr->AllocStep);  // 256
     
     xrtPtrArrayAppend(arr, (ptr)"item1");
@@ -150,7 +150,7 @@ XXAPI void xrtPtrArrayDestroy(xparray pObject);
 
 **函数原型：**
 ```c
-XXAPI void xrtPtrArrayInit(xparray pObject);
+XXAPI void xrtPtrArrayInit(xparray pObject, uint32 iMode);
 ```
 
 **示例：**
@@ -163,7 +163,7 @@ int main() {
     
     // 栈上分配
     xparray_struct arr;
-    xrtPtrArrayInit(&arr);
+    xrtPtrArrayInit(&arr, XRT_OBJMODE_LOCAL);
     
     xrtPtrArrayAppend(&arr, (ptr)"data1");
     xrtPtrArrayAppend(&arr, (ptr)"data2");
@@ -217,7 +217,7 @@ XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     // 预分配 1000 个元素的容量
     xrtPtrArrayMalloc(arr, 1000);
@@ -263,7 +263,7 @@ XXAPI uint32 xrtPtrArrayInsert(xparray pObject, uint32 iPos, ptr pVal);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     xrtPtrArrayAppend(arr, (ptr)"B");
     xrtPtrArrayAppend(arr, (ptr)"D");
@@ -313,7 +313,7 @@ XXAPI uint32 xrtPtrArrayAppend(xparray pObject, ptr pVal);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     uint32 idx1 = xrtPtrArrayAppend(arr, (ptr)"first");
     uint32 idx2 = xrtPtrArrayAppend(arr, (ptr)"second");
@@ -354,7 +354,7 @@ XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     xrtPtrArrayAppend(arr, (ptr)"A");  // 索引 1
     xrtPtrArrayAppend(arr, (ptr)"B");  // 索引 2
@@ -412,7 +412,7 @@ XXAPI bool xrtPtrArraySwap(xparray pObject, uint32 iPosA, uint32 iPosB);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     xrtPtrArrayAppend(arr, (ptr)"A");
     xrtPtrArrayAppend(arr, (ptr)"B");
     xrtPtrArrayAppend(arr, (ptr)"C");
@@ -460,7 +460,7 @@ XXAPI bool xrtPtrArrayRemove(xparray pObject, uint32 iPos, uint32 iCount);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     for (int i = 0; i < 5; i++) {
         xrtPtrArrayAppend(arr, (ptr)(size_t)(i + 1));
     }
@@ -517,7 +517,7 @@ int CompareStr(const void* a, const void* b) {
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     xrtPtrArrayAppend(arr, (ptr)"cherry");
     xrtPtrArrayAppend(arr, (ptr)"apple");
     xrtPtrArrayAppend(arr, (ptr)"banana");
@@ -566,7 +566,7 @@ XXAPI ptr xrtPtrArrayGet(xparray pObject, uint32 iPos);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     xrtPtrArrayAppend(arr, (ptr)"first");
     xrtPtrArrayAppend(arr, (ptr)"second");
     
@@ -609,7 +609,7 @@ static inline ptr xrtPtrArrayGet_Inline(xparray pObject, uint32 iPos);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     for (int i = 0; i < 1000; i++) {
         xrtPtrArrayAppend(arr, (ptr)(size_t)i);
     }
@@ -655,7 +655,7 @@ XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal);
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     xrtPtrArrayAppend(arr, (ptr)"old1");
     xrtPtrArrayAppend(arr, (ptr)"old2");
     
@@ -699,7 +699,7 @@ static inline void xrtPtrArraySet_Inline(xparray pObject, uint32 iPos, ptr pVal)
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     xrtPtrArrayAppend(arr, (ptr)"a");
     xrtPtrArrayAppend(arr, (ptr)"b");
     
@@ -754,7 +754,7 @@ void FreeUser(User* u) {
 int main() {
     xrtInit();
     
-    xparray users = xrtPtrArrayCreate();
+    xparray users = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     // 添加用户
     xrtPtrArrayAppend(users, CreateUser(1, (str)"Alice"));
@@ -789,7 +789,7 @@ int main() {
 int main() {
     xrtInit();
     
-    xparray lines = xrtPtrArrayCreate();
+    xparray lines = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     // 添加字符串（复制）
     xrtPtrArrayAppend(lines, xrtCopyStr((str)"Line 1", 0));
@@ -828,7 +828,7 @@ typedef struct {
 int main() {
     xrtInit();
     
-    xparray pool = xrtPtrArrayCreate();
+    xparray pool = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     // 创建连接
     for (int i = 0; i < 5; i++) {
@@ -877,7 +877,7 @@ int main() {
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     // 预分配 10000 个元素的容量
     xrtPtrArrayMalloc(arr, 10000);
@@ -907,7 +907,7 @@ int main() {
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     
     // 添加动态分配的字符串
     xrtPtrArrayAppend(arr, xrtCopyStr((str)"str1", 0));
@@ -938,7 +938,7 @@ int main() {
 int main() {
     xrtInit();
     
-    xparray arr = xrtPtrArrayCreate();
+    xparray arr = xrtPtrArrayCreate(XRT_OBJMODE_LOCAL);
     for (int i = 0; i < 1000000; i++) {
         xrtPtrArrayAppend(arr, (ptr)(size_t)i);
     }

@@ -148,6 +148,17 @@
 当前已有页面不会直接废弃，而是按下面方式衔接：
 
 - [first-xrt-program.md](first-xrt-program.md)：保留为第 0 阶段入口
+- [time-path-file-intro.md](time-path-file-intro.md)：作为第 1 阶段 `time / path / file` 正式第一页
+- [charset-intro.md](charset-intro.md)：作为第 1 阶段 `charset` 正式第一页
+- [os-intro.md](os-intro.md)：作为第 1 阶段 `os` 正式第一页
+- [local-network-intro.md](local-network-intro.md)：作为第 1 阶段 `network(local info)` 正式第一页
+- [xid-intro.md](xid-intro.md)：作为第 1 阶段 `xid` 正式第一页
+- [math-hash-intro.md](math-hash-intro.md)：作为第 1 阶段 `math / hash` 正式第一页
+- [buffer-intro.md](buffer-intro.md)：作为第 2 阶段 `buffer` 正式第一页
+- [array-intro.md](array-intro.md)：作为第 2 阶段 `array` 正式第一页
+- [ptrarray-intro.md](ptrarray-intro.md)：作为第 2 阶段 `ptrarray` 正式第一页
+- [stack-intro.md](stack-intro.md)：作为第 2 阶段 `stack` 正式第一页
+- [dynstack-intro.md](dynstack-intro.md)：作为第 2 阶段 `dynstack` 正式第一页
 - [multitask-overview.md](multitask-overview.md)：作为第 4 阶段正式前导页
 - [thread-intro.md](thread-intro.md)：作为第 4 阶段线程专题正式第一页
 - [queue-intro.md](queue-intro.md)：作为第 4 阶段队列专题正式第一页

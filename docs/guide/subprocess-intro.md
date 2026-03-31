@@ -2,6 +2,10 @@
 
 > 目标：快速上手 `xrtExecCapture()`、`xrtProcessSpawn()`、stdin/stdout/stderr 管道、以及 `xrtProcessWaitFuture()` 这一组能力。
 
+建议先读：
+
+- [OS 入门：什么时候只要启动一个程序，什么时候已经该上 subprocess](os-intro.md)
+
 [English](subprocess-intro.en.md) | [返回教学文档](README.md)
 
 ---

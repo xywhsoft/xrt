@@ -409,6 +409,7 @@ cleanup:
 
 ## 8. 建议继续阅读
 
+- [时间、路径与文件系统入门](../guide/time-path-file-intro.md)
 - [Value API](../api/api-value.md)
 - [JSON API](../api/api-json.md)
 - [用 Template 渲染一个 HTML 页面](template-render-html.md)

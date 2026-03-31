@@ -393,6 +393,10 @@ XXAPI ptr xrtDynStackPop(xdynstack objSTK);
 **返回值：**
 - 栈顶元素指针
 
+**调用前提：**
+- 调用前必须确保 `objSTK->Count > 0`
+- 当前实现的 `xrtDynStackPop()` / `xrtDynStackTop()` 走的是栈顶快速路径，不会替你做空栈检查
+
 **示例：**
 ```c
 #include "xrt.h"
@@ -451,6 +455,9 @@ XXAPI ptr xrtDynStackPopPtr(xdynstack objSTK);
 **返回值：**
 - 栈顶存储的指针值（不是元素指针）
 
+**调用前提：**
+- 调用前必须确保 `objSTK->Count > 0`
+
 ---
 
 ## 栈访问
@@ -469,6 +476,9 @@ XXAPI ptr xrtDynStackTop(xdynstack objSTK);
 
 **返回值：**
 - 栈顶元素指针
+
+**调用前提：**
+- 调用前必须确保 `objSTK->Count > 0`
 
 **示例：**
 ```c
@@ -502,6 +512,9 @@ int main() {
 ### xrtDynStackTopPtr
 
 获取栈顶指针值（指针模式，不弹出）。
+
+**调用前提：**
+- 调用前必须确保 `objSTK->Count > 0`
 
 **函数原型：**
 ```c
@@ -791,7 +804,7 @@ int main() {
     xrtInit();
     
     // 场景1：深度可预知 → 静态栈
-    xstack staticStack = xrtStackCreate(sizeof(Item), 100);
+    xstack staticStack = xrtStackCreate(100, sizeof(Item));
     printf("静态栈：最大深度 100\n");
     xrtStackDestroy(staticStack);
     

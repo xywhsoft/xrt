@@ -47,6 +47,17 @@
 
 - 现有页面大多是“主题短讲”或“快速上手页”
 - 适合先扫概念、确认主线方向
+- `time / path / file` 已补出基础模块正式教学第一页
+- `charset` 已补出基础模块正式教学第一页
+- `os` 已补出基础模块正式教学第一页
+- `network(local info)` 已补出基础模块正式教学第一页
+- `xid` 已补出基础模块正式教学第一页
+- `math / hash` 已补出基础模块正式教学第一页
+- `buffer` 已补出第 2 阶段正式教学第一页
+- `array` 已补出第 2 阶段正式教学第一页
+- `ptrarray` 已补出第 2 阶段正式教学第一页
+- `stack` 已补出第 2 阶段正式教学第一页
+- `dynstack` 已补出第 2 阶段正式教学第一页
 - `template` 已补出正式教学第一页
 - 还不等于完整课程体系
 - 尚未覆盖 XRT 全部公开模块
@@ -63,18 +74,28 @@
 
 1. [教学重建路线图](ROADMAP.md)
 2. [从零开始写第一个 XRT 程序](first-xrt-program.md)
-3. 基础运行时与工具模块专题
-4. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-5. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-6. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
-7. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-8. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
-9. 内存、容器与数据结构专题
-10. `xvalue / json / xson / template / regex / crypto` 专题
-11. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-12. 系统能力专题：子进程、异步文件
-13. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-14. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+3. [时间、路径与文件系统入门：先把程序落到真实世界](time-path-file-intro.md)
+4. [Charset 入门：程序里的字符串、文件编码和平台宽字符不是一回事](charset-intro.md)
+5. [OS 入门：什么时候只要启动一个程序，什么时候已经该上 subprocess](os-intro.md)
+6. [本机网络信息入门：什么时候该拿主机名、IP、MAC，什么时候不该](local-network-intro.md)
+7. [XID 入门：什么时候该直接生成唯一 ID，什么时候还不够](xid-intro.md)
+8. [Math 与 Hash 入门：随机数、约等于和稳定指纹不是一回事](math-hash-intro.md)
+9. [Buffer 入门：什么时候你需要一块会长大的字节区，而不是数组和字符串](buffer-intro.md)
+10. [Array 入门：什么时候该用连续结构体数组，而不是 buffer 和指针数组](array-intro.md)
+11. [PtrArray 入门：什么时候该管理对象指针，而不是搬运整个结构体](ptrarray-intro.md)
+12. [Stack 入门：什么时候该用固定深度工作栈，而不是数组或动态栈](stack-intro.md)
+13. [DynStack 入门：什么时候该用可增长工作栈，而不是固定深度栈](dynstack-intro.md)
+14. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+15. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+16. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+17. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+18. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+19. 内存、容器与数据结构专题
+20. `xvalue / json / xson / template / regex / crypto` 专题
+21. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+22. 系统能力专题：子进程、异步文件
+23. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
+24. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -88,6 +109,17 @@
 ### 1. 入门种子页
 
 - [从零开始写第一个 XRT 程序](first-xrt-program.md)
+- [时间、路径与文件系统入门：先把程序落到真实世界](time-path-file-intro.md)
+- [Charset 入门：程序里的字符串、文件编码和平台宽字符不是一回事](charset-intro.md)
+- [OS 入门：什么时候只要启动一个程序，什么时候已经该上 subprocess](os-intro.md)
+- [本机网络信息入门：什么时候该拿主机名、IP、MAC，什么时候不该](local-network-intro.md)
+- [XID 入门：什么时候该直接生成唯一 ID，什么时候还不够](xid-intro.md)
+- [Math 与 Hash 入门：随机数、约等于和稳定指纹不是一回事](math-hash-intro.md)
+- [Buffer 入门：什么时候你需要一块会长大的字节区，而不是数组和字符串](buffer-intro.md)
+- [Array 入门：什么时候该用连续结构体数组，而不是 buffer 和指针数组](array-intro.md)
+- [PtrArray 入门：什么时候该管理对象指针，而不是搬运整个结构体](ptrarray-intro.md)
+- [Stack 入门：什么时候该用固定深度工作栈，而不是数组或动态栈](stack-intro.md)
+- [DynStack 入门：什么时候该用可增长工作栈，而不是固定深度栈](dynstack-intro.md)
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)
 - [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
 - [xvalue 与 JSON 入门](xvalue-json-intro.md)
@@ -129,8 +161,7 @@
 
 目前还没有成体系教学的模块主要包括：
 
-- `charset / path / os / math / hash / xid / network(local info)`
-- `buffer / array / ptrarray / stack / dynstack / llist / avltree / dict / list`
+- `llist / avltree / dict / list`
 - `bsmm / memunit / mempool_fs / mempool`
 - `jnum / xson / regex / crypto`
 - `xurl / xhttp_util / xws / proxy`
