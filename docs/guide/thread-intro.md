@@ -587,7 +587,7 @@ int main(void)
 
 这时下一步通常是：
 
-- [Queue 队列模块](../api/api-queue.md)
+- [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
 - [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
 
 
@@ -597,9 +597,10 @@ int main(void)
 
 1. [XRT 运行时与线程附加入门](runtime-thread-attach.md)
 2. [Thread API](../api/api-thread.md)
-3. [Queue 队列模块](../api/api-queue.md)
-4. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
-5. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
+3. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+4. [Queue 队列模块](../api/api-queue.md)
+5. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
+6. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
 
 ---
 

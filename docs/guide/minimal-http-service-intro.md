@@ -101,11 +101,11 @@ int main()
 例如：
 
 ```c
-xvalue vRes = xvoTable();
+xvalue vRes = xvoCreateTable();
 
-xvoTableSetBool( vRes, "ok", TRUE );
-xvoTableSetText( vRes, "service", "xrt-demo" );
-xvoTableSetText( vRes, "status", "running" );
+xvoTableSetBool( vRes, "ok", 0, TRUE );
+xvoTableSetText( vRes, "service", 0, "xrt-demo", 0, FALSE );
+xvoTableSetText( vRes, "status", 0, "running", 0, FALSE );
 ```
 
 这样后面加字段、加嵌套对象、加列表都很自然。

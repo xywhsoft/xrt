@@ -73,11 +73,11 @@
 如果一个路由返回 JSON，那么最自然的方式是：
 
 ```c
-xvalue vRes = xvoTable();
+xvalue vRes = xvoCreateTable();
 
-xvoTableSetBool( vRes, "ok", TRUE );
-xvoTableSetText( vRes, "service", "xrt-demo" );
-xvoTableSetText( vRes, "message", "hello" );
+xvoTableSetBool( vRes, "ok", 0, TRUE );
+xvoTableSetText( vRes, "service", 0, "xrt-demo", 0, FALSE );
+xvoTableSetText( vRes, "message", 0, "hello", 0, FALSE );
 ```
 
 然后统一序列化成 JSON 输出。
@@ -93,11 +93,11 @@ xvoTableSetText( vRes, "message", "hello" );
 如果另一个路由要返回 HTML 页面，那么完全可以继续复用同一个 `xvalue` 思路：
 
 ```c
-xvalue vPage = xvoTable();
+xvalue vPage = xvoCreateTable();
 
-xvoTableSetText( vPage, "title", "XRT Demo" );
-xvoTableSetText( vPage, "name", "Alice" );
-xvoTableSetText( vPage, "status", "running" );
+xvoTableSetText( vPage, "title", 0, "XRT Demo", 0, FALSE );
+xvoTableSetText( vPage, "name", 0, "Alice", 0, FALSE );
+xvoTableSetText( vPage, "status", 0, "running", 0, FALSE );
 ```
 
 然后把它交给模板引擎渲染。

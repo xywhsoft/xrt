@@ -70,18 +70,20 @@
 例如，一个典型请求模型可以这样理解：
 
 ```c
-xvalue vReq = xvoTable();
-xvalue vMessages = xvoArray();
-xvalue vMsg = xvoTable();
+xvalue vReq = xvoCreateTable();
+xvalue vMessages;
+xvalue vMsg;
 
-xvoTableSetText( vMsg, "role", "user" );
-xvoTableSetText( vMsg, "content", "介绍一下 xrt" );
+xvoTableSetArray( vReq, "messages", 0 );
+vMessages = xvoTableGetValue( vReq, "messages", 0 );
+xvoArrayAppendTable( vMessages );
+vMsg = xvoArrayGetValue( vMessages, 0 );
 
-xvoArrayAppendValue( vMessages, vMsg );
+xvoTableSetText( vMsg, "role", 0, "user", 0, FALSE );
+xvoTableSetText( vMsg, "content", 0, "介绍一下 xrt", 0, FALSE );
 
-xvoTableSetText( vReq, "model", "your-model" );
-xvoTableSetBool( vReq, "stream", TRUE );
-xvoTableSetValue( vReq, "messages", vMessages );
+xvoTableSetText( vReq, "model", 0, "your-model", 0, FALSE );
+xvoTableSetBool( vReq, "stream", 0, TRUE );
 ```
 
 然后再统一序列化成 JSON。

@@ -93,11 +93,11 @@ int main()
 示意写法：
 
 ```c
-xvalue vRes = xvoTable();
+xvalue vRes = xvoCreateTable();
 
-xvoTableSetBool( vRes, "ok", TRUE );
-xvoTableSetText( vRes, "service", "xrt-demo" );
-xvoTableSetText( vRes, "status", "running" );
+xvoTableSetBool( vRes, "ok", 0, TRUE );
+xvoTableSetText( vRes, "service", 0, "xrt-demo", 0, FALSE );
+xvoTableSetText( vRes, "status", 0, "running", 0, FALSE );
 ```
 
 然后再统一序列化为 JSON 输出。

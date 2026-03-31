@@ -63,14 +63,16 @@
 1. [教学重建路线图](ROADMAP.md)
 2. [从零开始写第一个 XRT 程序](first-xrt-program.md)
 3. 基础运行时与工具模块专题
-4. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-5. 内存、容器与数据结构专题
-6. `xvalue / json / xson / template / regex / crypto` 专题
-7. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-8. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-9. 系统能力专题：子进程、异步文件
-10. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-11. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+4. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+5. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+6. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+7. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+8. 内存、容器与数据结构专题
+9. `xvalue / json / xson / template / regex / crypto` 专题
+10. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+11. 系统能力专题：子进程、异步文件
+12. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
+13. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -88,14 +90,17 @@
 - [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
 - [xvalue 与 JSON 入门](xvalue-json-intro.md)
 
-### 2. 并发与异步短讲
+### 2. 并发与异步主线页
 
 - [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+- [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+- [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
 - [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
-- [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
+- [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
 
 ### 3. 网络与应用页
 
+- [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
 - [xnet-v2 与 TLS session 入门](xnet-v2-tls-intro.md)
 - [用 XRT 写最小 HTTP 服务入门](minimal-http-service-intro.md)
 - [用 XRT 调用流式 LLM API 入门](streaming-llm-api-intro.md)
@@ -120,10 +125,9 @@
 - `charset / path / os / math / hash / xid / network(local info)`
 - `buffer / array / ptrarray / stack / dynstack / llist / avltree / dict / list`
 - `bsmm / memunit / mempool_fs / mempool`
-- `queue`
 - `jnum / xson / template / regex / crypto`
 - `xurl / xhttp_util / xws / proxy`
-- 多任务专题中的 `wait-source / task group` 完整正式教学
+- 多任务专题中的 `task group` 完整正式教学
 
 这也是后续优先补齐的部分。
 

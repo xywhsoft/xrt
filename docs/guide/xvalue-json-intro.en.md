@@ -59,34 +59,35 @@ What matters is not only the number of types, but the fact that:
 ### 3.1 Build a Table
 
 ```c
-xvalue vUser = xvoTable();
+xvalue vUser = xvoCreateTable();
 
-xvoTableSetText( vUser, "name", "Alice" );
-xvoTableSetInt( vUser, "age", 28 );
-xvoTableSetBool( vUser, "active", TRUE );
+xvoTableSetText( vUser, "name", 0, "Alice", 0, FALSE );
+xvoTableSetInt( vUser, "age", 0, 28 );
+xvoTableSetBool( vUser, "active", 0, TRUE );
 ```
 
 ### 3.2 Build an Array
 
 ```c
-xvalue vTags = xvoArray();
+xvalue vTags = xvoCreateArray();
 
-xvoArrayAppendText( vTags, "c" );
-xvoArrayAppendText( vTags, "network" );
-xvoArrayAppendText( vTags, "runtime" );
+xvoArrayAppendText( vTags, "c", 0, FALSE );
+xvoArrayAppendText( vTags, "network", 0, FALSE );
+xvoArrayAppendText( vTags, "runtime", 0, FALSE );
 ```
 
 ### 3.3 Compose a Larger Object Tree
 
 ```c
-xvalue vRoot = xvoTable();
-xvalue vTags = xvoArray();
+xvalue vRoot = xvoCreateTable();
+xvalue vTags;
 
-xvoArrayAppendText( vTags, "c" );
-xvoArrayAppendText( vTags, "json" );
+xvoTableSetArray( vRoot, "tags", 0 );
+vTags = xvoTableGetValue( vRoot, "tags", 0 );
+xvoArrayAppendText( vTags, "c", 0, FALSE );
+xvoArrayAppendText( vTags, "json", 0, FALSE );
 
-xvoTableSetText( vRoot, "project", "xrt" );
-xvoTableSetValue( vRoot, "tags", vTags );
+xvoTableSetText( vRoot, "project", 0, "xrt", 0, FALSE );
 ```
 
 ---
@@ -114,14 +115,16 @@ then the boundary format should switch from JSON to XSON.
 
 ```c
 str sJson = "{ \"name\": \"Alice\", \"age\": 28 }";
-xvalue vData = xjsonParse( sJson );
+xvalue vData = xrtParseJSON( sJson, 0 );
 ```
 
 ### 4.2 Serialize xvalue Back to JSON
 
 ```c
-str sOut = xjsonStringify( vData );
-printf( "%s\n", (char*)sOut );
+size_t iOutSize = 0;
+str sOut = xrtStringifyJSON( vData, FALSE, &iOutSize );
+printf( "%.*s\n", (int)iOutSize, sOut );
+xrtFree( sOut );
 ```
 
 ---
@@ -157,7 +160,7 @@ That keeps structure, mutation, and output under one model.
 
 1. create `table / array`
 2. learn `SetText / SetInt / SetBool / SetValue`
-3. learn `xjsonParse / xjsonStringify`
+3. learn `xrtParseJSON / xrtStringifyJSON`
 4. move upward to templates, configuration, and HTTP
 
 ---

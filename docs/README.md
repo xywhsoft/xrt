@@ -81,6 +81,7 @@
 - [Value 动态类型系统](api/api-value.md)
 - [JSON 处理库](api/api-json.md)
 - [Thread 线程管理库](api/api-thread.md)
+- [Queue 队列模块](api/api-queue.md)
 - [Coroutine 协程运行时](api/api-coroutine.md)
 - [Future / Task / Promise](api/api-future-task-promise.md)
 - [XNet v2 网络主线](api/api-xnet-v2.md)
@@ -123,20 +124,23 @@
 2. [Value](api/api-value.md)
 3. [JSON](api/api-json.md)
 4. [Thread](api/api-thread.md)
-5. [Coroutine](api/api-coroutine.md)
-6. [Future / Task / Promise](api/api-future-task-promise.md)
-7. [XNet v2](api/api-xnet-v2.md)
+5. [Queue](api/api-queue.md)
+6. [Coroutine](api/api-coroutine.md)
+7. [Future / Task / Promise](api/api-future-task-promise.md)
+8. [XNet v2](api/api-xnet-v2.md)
 
 如果你想先看当前已有的快速教学页，可以继续阅读：
 
 1. [从零开始写第一个 XRT 程序](guide/first-xrt-program.md)
 2. [多任务总论：线程、队列、协程与 Future 怎么选](guide/multitask-overview.md)
 3. [线程入门：什么时候该开线程，什么时候不该](guide/thread-intro.md)
-4. [XRT 运行时与线程附加入门](guide/runtime-thread-attach.md)
-5. [xvalue 与 JSON 入门](guide/xvalue-json-intro.md)
-6. [协程、Future 与 Task 入门](guide/coroutine-future-task-intro.md)
-7. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
-8. [XRT 异步文件与目录操作入门](guide/file-async-intro.md)
+4. [Queue 入门：什么时候该用消息交接，而不是共享状态](guide/queue-intro.md)
+5. [协程、Future 与 Task 入门](guide/coroutine-future-task-intro.md)
+6. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](guide/wait-source-intro.md)
+7. [XRT 运行时与线程附加入门](guide/runtime-thread-attach.md)
+8. [xvalue 与 JSON 入门](guide/xvalue-json-intro.md)
+9. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
+10. [XRT 异步文件与目录操作入门](guide/file-async-intro.md)
 
 如果你想直接看当前已有的组合案例，可以优先阅读：
 

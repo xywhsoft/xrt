@@ -2,9 +2,21 @@
 
 > 目标：理解为什么当前网络主线不再推荐“回调到处散落”的写法，而是把 stream 的可等待状态统一收进 wait-source / future / coroutine 体系。
 
-[返回教学文档](README.md)
+[返回教学文档](README.md) | [返回文档中心](../README.md)
 
 ---
+
+## 0. 建议先读什么
+
+如果你还没有建立“`wait-source` 到底是什么、它和 `future` 的边界在哪里”的整体心智模型，建议先读：
+
+- [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+- [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
+
+本文只继续往下讲网络侧这一支：
+
+- 为什么 `stream` 的 readable / writable / drain / close 适合统一收进 `wait-source`
+- 为什么网络对象等待不该继续散成一堆互不相认的小协议
 
 ## 1. 什么是 stream wait-source
 

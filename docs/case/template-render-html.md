@@ -46,18 +46,18 @@
 一个最小上下文大致可以这样想：
 
 ```c
-xvalue vPage = xvoTable();
-xvalue vTags = xvoArray();
+xvalue vPage = xvoCreateTable();
+xvalue vTags;
 
-xvoTableSetText( vPage, "title", "XRT Demo" );
-xvoTableSetText( vPage, "name", "Alice" );
-xvoTableSetText( vPage, "status", "running" );
+xvoTableSetText( vPage, "title", 0, "XRT Demo", 0, FALSE );
+xvoTableSetText( vPage, "name", 0, "Alice", 0, FALSE );
+xvoTableSetText( vPage, "status", 0, "running", 0, FALSE );
 
-xvoArrayAppendText( vTags, "runtime" );
-xvoArrayAppendText( vTags, "network" );
-xvoArrayAppendText( vTags, "template" );
-
-xvoTableSetValue( vPage, "tags", vTags );
+xvoTableSetArray( vPage, "tags", 0 );
+vTags = xvoTableGetValue( vPage, "tags", 0 );
+xvoArrayAppendText( vTags, "runtime", 0, FALSE );
+xvoArrayAppendText( vTags, "network", 0, FALSE );
+xvoArrayAppendText( vTags, "template", 0, FALSE );
 ```
 
 这时，页面上下文本质上已经是一棵结构化数据树。

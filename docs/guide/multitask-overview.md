@@ -692,12 +692,14 @@ CPU 密集任务、独立阻塞任务，依然应该优先交给线程或 engine
 建议按这个顺序继续：
 
 1. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-2. [XRT 运行时与线程附加入门](runtime-thread-attach.md)
-3. [Queue 队列模块](../api/api-queue.md)
-4. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
-5. [Coroutine API](../api/api-coroutine.md)
-6. [Future / Task / Promise](../api/api-future-task-promise.md)
-7. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
+2. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+3. [XRT 运行时与线程附加入门](runtime-thread-attach.md)
+4. [Queue 队列模块](../api/api-queue.md)
+5. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
+6. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+7. [Coroutine API](../api/api-coroutine.md)
+8. [Future / Task / Promise](../api/api-future-task-promise.md)
+9. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
 
 ---
 

@@ -1,6 +1,8 @@
-# xvalue 与 JSON 入门
+# xvalue、JSON 与 XSON 入门
 
-> 目标：理解 `xvalue` 为什么是 XRT 的核心动态数据模型，以及它和 JSON 之间应该如何配合使用。
+> 目标：先建立正确心智模型，再用当前主线的真实 API 完成第一个 `xvalue / JSON / XSON` 示例。
+>
+> 更正：当前主线应使用 `xvoCreateTable()`、`xvoCreateArray()`、`xrtParseJSON()`、`xrtStringifyJSON()`、`xrtParseXSON()`、`xrtStringifyXSON()`，而不是旧写法 `xvoTable()`、`xvoArray()`、`xjsonParse()`、`xjsonStringify()`。
 
 [返回教学文档](README.md)
 
@@ -8,204 +10,352 @@
 
 ## 1. 为什么要先学 xvalue
 
-在很多语言里，复杂数据处理都有一套默认的动态对象模型，例如：
+很多语言都有一套“程序内部的动态数据模型”：
 
-- JavaScript 的 object / array
-- Python 的 dict / list
-- Lua 的 table
+- JavaScript 有 `object / array`
+- Python 有 `dict / list`
+- Lua 有 `table`
 
-XRT 里的这层角色，就是 `xvalue`。
+XRT 里承担这层角色的，就是 `xvalue`。
 
-它的意义不只是“再做一个动态类型”，而是把下面这些东西统一起来：
+它不是“JSON 的附属品”，而是程序内部真正的数据骨架。当前主线里，下面这些场景最终都会回到 `xvalue`：
 
 - 配置数据
-- JSON 数据
+- JSON 请求和响应
 - 模板上下文
-- HTTP 请求/响应里的结构化字段
-- future / task / 网络主线周边需要承载的动态结果
+- 多任务结果
+- 网络模块里的结构化数据
 
-因此，学会 `xvalue`，基本就抓住了 XRT 里“像脚本语言一样组织数据”的主线。
+所以更稳的理解方式是：
 
-
-## 2. xvalue 在做什么
-
-`xvalue` 不是一个单一类型，而是一组统一的数据对象入口。
-
-当前主线里，你可以把它理解成：
-
-- 标量值
-	- null
-	- bool
-	- int
-	- float
-	- string
-- 容器值
-	- array
-	- list
-	- coll
-	- table
-
-它的重点不是“类型数量有多少”，而是：
-
-- 同一套 API 组织不同层级数据
-- 同一套模型和 JSON、模板、配置、网络交换数据对接
-- 后续还能进入 shared root / 多线程安全模型
+- `xvalue`：程序内部的统一数据模型
+- `JSON`：对外交换格式
+- `XSON`：当 `xvalue` 里出现 JSON 无法完整表达的类型时，使用的扩展交换格式
 
 
-## 3. 最常见的用法
+## 2. 先记住 4 个高频参数
 
-### 3.1 创建一个 table
+这篇文档里最容易写错的，不是函数名，而是参数。
 
-```c
-xvalue vUser = xvoTable();
+- `kl`
+	- key length，表键长度
+	- 传 `0` 表示自动计算
+- `iSize`
+	- 字符串长度
+	- 传 `0` 表示自动计算
+- `bFormat`
+	- `FALSE` 输出紧凑文本
+	- `TRUE` 输出格式化文本
+- `bColloc`
+	- 用在容器接收一个已经存在的 `xvalue` 子对象时
+	- `TRUE` 表示把这份引用直接托管给容器
+	- `FALSE` 表示容器增加一份引用，调用方之后仍应把自己手里的那份 `xvoUnref()` 掉
 
-xvoTableSetText( vUser, "name", "Alice" );
-xvoTableSetInt( vUser, "age", 28 );
-xvoTableSetBool( vUser, "active", TRUE );
-```
+入门阶段你可以先记一个最常见的规则：
 
-这就很像在脚本语言里构造一个对象。
+- 字符串字面量通常写成 `..., 0, FALSE`
+- 表键长度和字符串长度不想手算时，先统一传 `0`
 
-### 3.2 构造一个数组
+
+## 3. 第一个 `xvalue` DEMO
+
+先不要急着解析 JSON。第一步应该是先学会在程序内部直接构造一棵 `xvalue` 数据树。
 
 ```c
-xvalue vTags = xvoArray();
+static void Demo_BuildUser(void)
+{
+	xvalue pUser;
+	xvalue pTags;
 
-xvoArrayAppendText( vTags, "c" );
-xvoArrayAppendText( vTags, "network" );
-xvoArrayAppendText( vTags, "runtime" );
+	pUser = xvoCreateTable();
+
+	xvoTableSetText(pUser, "name", 0, "Alice", 0, FALSE);
+	xvoTableSetInt(pUser, "age", 0, 28);
+	xvoTableSetBool(pUser, "active", 0, TRUE);
+
+	xvoTableSetArray(pUser, "tags", 0);
+	pTags = xvoTableGetValue(pUser, "tags", 0);
+	xvoArrayAppendText(pTags, "c", 0, FALSE);
+	xvoArrayAppendText(pTags, "runtime", 0, FALSE);
+	xvoArrayAppendText(pTags, "json", 0, FALSE);
+
+	printf("name = %s\n", xvoTableGetText(pUser, "name", 0));
+	printf("age = %lld\n", xvoTableGetInt(pUser, "age", 0));
+	printf("tag count = %u\n", xvoArrayItemCount(pTags));
+
+	xvoUnref(pUser);
+}
 ```
 
-### 3.3 组合成更复杂的对象
+这段代码最值得你先看懂的只有两件事：
+
+- `table` 很像脚本语言里的对象
+- `array` 很像脚本语言里的数组
+
+也就是说，`xvalue` 的核心不是“类型多”，而是“你能用一套 API 持续把结构搭起来”。
+
+
+## 4. 如果你手里已经有一个子对象
+
+上一个 DEMO 用的是 `xvoTableSetArray()`，这对入门最直观。
+
+但真实项目里，你也经常会先单独构造一个子对象，再把它挂到父对象上。这时要用 `xvoTableSetValue()`：
 
 ```c
-xvalue vRoot = xvoTable();
-xvalue vTags = xvoArray();
+xvalue pUser = xvoCreateTable();
+xvalue pTags = xvoCreateArray();
 
-xvoArrayAppendText( vTags, "c" );
-xvoArrayAppendText( vTags, "json" );
+xvoArrayAppendText(pTags, "c", 0, FALSE);
+xvoArrayAppendText(pTags, "network", 0, FALSE);
 
-xvoTableSetText( vRoot, "project", "xrt" );
-xvoTableSetValue( vRoot, "tags", vTags );
+xvoTableSetValue(pUser, "tags", 0, pTags, TRUE);
+
+xvoUnref(pUser);
 ```
 
-这时，`vRoot` 就已经是一棵完整的动态数据树。
+上面最后一个参数写成 `TRUE`，表示这份 `pTags` 引用直接交给 `pUser` 托管。
+
+如果你写成 `FALSE`，则表示父容器额外增加一份引用，这时你自己的临时引用仍然要手动释放：
+
+```c
+xvalue pUser = xvoCreateTable();
+xvalue pTags = xvoCreateArray();
+
+xvoArrayAppendText(pTags, "c", 0, FALSE);
+xvoTableSetValue(pUser, "tags", 0, pTags, FALSE);
+
+xvoUnref(pTags);
+xvoUnref(pUser);
+```
+
+这就是很多初学者第一次接触 `xvalue` 时最容易忽略的地方：  
+**容器 API 不只是“把值塞进去”，还同时涉及引用计数和所有权语义。**
 
 
-## 4. xvalue 和 JSON 的关系
+## 5. `xvalue` 和 JSON 的关系
 
-推荐理解方式是：
+推荐你这样理解：
 
-- `xvalue`：程序内部的数据模型
-- `JSON`：数据交换格式
-- `XSON`：当 `xvalue` 需要完整保留 `time / list / coll / class` 时使用的私有扩展交换格式
+- 程序内部长期持有和修改的数据：优先用 `xvalue`
+- 需要和外部系统交换的文本：优先用 `JSON`
 
-也就是说，程序内部应优先操作 `xvalue`，在需要对外交换、落盘、传输时，再做 JSON 编解码。
+所以标准流程通常不是“直接拼 JSON 字符串”，而是：
 
-如果数据里包含标准 JSON 无法完整表达的类型，例如：
+1. 用 `xrtParseJSON()` 把 JSON 解析成 `xvalue`
+2. 程序内部统一操作 `xvalue`
+3. 最后再用 `xrtStringifyJSON()` 输出 JSON
+
+这样做的好处是：
+
+- 结构清晰
+- 修改字段时不需要手工拼字符串
+- 同一份数据可以继续流向模板、网络、配置、任务结果
+
+
+## 6. 第一个 JSON DEMO
+
+这里开始用真实的当前 API：`xrtParseJSON()` 和 `xrtStringifyJSON()`。
+
+```c
+static void Demo_JSONRoundTrip(void)
+{
+	str sJson;
+	xvalue pRoot;
+	str sOut;
+	size_t iOutSize;
+
+	sJson = "{\"name\":\"Tom\",\"age\":25,\"tags\":[\"c\",\"xrt\"]}";
+	iOutSize = 0;
+
+	pRoot = xrtParseJSON(sJson, 0);
+	if ( xvoIsNull(pRoot) ) {
+		printf("parse json failed\n");
+		xvoUnref(pRoot);
+		return;
+	}
+
+	printf("name = %s\n", xvoTableGetText(pRoot, "name", 0));
+	printf("age = %lld\n", xvoTableGetInt(pRoot, "age", 0));
+
+	xvoTableSetInt(pRoot, "age", 0, 26);
+	xvoTableSetBool(pRoot, "active", 0, TRUE);
+
+	sOut = xrtStringifyJSON(pRoot, TRUE, &iOutSize);
+	if ( sOut != NULL ) {
+		printf("%.*s\n", (int)iOutSize, sOut);
+		xrtFree(sOut);
+	}
+
+	xvoUnref(pRoot);
+}
+```
+
+这里要特别记住两条：
+
+- `xrtParseJSON()` 失败时，应用 `xvoIsNull()` 判断
+- `xrtStringifyJSON()` 返回的是堆字符串，必须用 `xrtFree()` 释放
+
+
+## 7. 为什么还需要 XSON
+
+如果只有标准 JSON 类型，那么上一节已经够用了。
+
+问题在于，`xvalue` 的能力比 JSON 更强。当前主线里，至少下面这些类型是标准 JSON 不能完整表达的：
 
 - `time`
 - `list`
 - `coll(set)`
 - `class`
 
-则应切换到 `XSON`，而不是继续强行使用 JSON。
+这时如果你还坚持只用 JSON，就会出现一个问题：
 
-这比“到处直接拼 JSON 字符串”更稳，也更适合后续演进。
+- 程序内部能表示
+- 但输出到 JSON 时，语义无法完整保留
 
-### 4.1 从 JSON 解析到 xvalue
+这正是 `XSON` 存在的原因。
+
+你可以把 `XSON` 理解成：
+
+- 面向 `xvalue` 的完整序列化格式
+- 对纯 JSON 保持兼容
+- 在 JSON 基础上扩展 `time / list / set / class`
+
+当前主线里：
+
+- `xrtParseJSON()` 只处理 JSON
+- `xrtParseXSON()` 既能处理纯 JSON，也能处理 XSON 扩展语法
+
+也就是说，这段纯 JSON 文本同样可以交给 `xrtParseXSON()`：
 
 ```c
-str sJson = "{ \"name\": \"Alice\", \"age\": 28 }";
-xvalue vData = xjsonParse( sJson );
+xvalue pRoot = xrtParseXSON("{\"name\":\"xrt\",\"nums\":[1,2,3]}", 0);
 ```
 
-### 4.2 把 xvalue 再输出成 JSON
+
+## 8. 第一个 XSON DEMO
+
+下面这个例子演示的重点不是“怎么写文本”，而是“哪些 `xvalue` 类型只有 XSON 才能完整保留”。
 
 ```c
-str sOut = xjsonStringify( vData );
-printf( "%s\n", (char*)sOut );
+static void Demo_XSONRoundTrip(void)
+{
+	xvalue pRoot;
+	xvalue pScores;
+	xvalue pTags;
+	xvalue pParsed;
+	str sOut;
+	size_t iOutSize;
+	uint8 arrBlob[4] = { 0x01, 0x02, 0x03, 0x04 };
+
+	pRoot = xvoCreateTable();
+	iOutSize = 0;
+
+	xvoTableSetText(pRoot, "name", 0, "demo", 0, FALSE);
+	xvoTableSetTimeSerial(pRoot, "created", 0, 2000, 1, 2, 3, 4, 5);
+
+	xvoTableSetList(pRoot, "scores", 0);
+	pScores = xvoTableGetValue(pRoot, "scores", 0);
+	xvoListSetInt(pScores, 1, 95);
+	xvoListSetText(pScores, 10, "A", 0, FALSE);
+
+	xvoTableSetColl(pRoot, "tags", 0);
+	pTags = xvoTableGetValue(pRoot, "tags", 0);
+	xvoCollSetText(pTags, "dev", 0, FALSE);
+	xvoCollSetText(pTags, "runtime", 0, FALSE);
+
+	xvoTableSetClass(pRoot, "blob", 0, 4);
+	memcpy(xvoTableGetClass(pRoot, "blob", 0), arrBlob, 4);
+
+	sOut = xrtStringifyXSON(pRoot, TRUE, 0, &iOutSize);
+	if ( sOut != NULL ) {
+		printf("%.*s\n", (int)iOutSize, sOut);
+
+		pParsed = xrtParseXSON(sOut, 0);
+		if ( !xvoIsNull(pParsed) ) {
+			printf("created type = %d\n", xvoType(xvoTableGetValue(pParsed, "created", 0)));
+			printf("scores type = %d\n", xvoType(xvoTableGetValue(pParsed, "scores", 0)));
+			printf("tags type = %d\n", xvoType(xvoTableGetValue(pParsed, "tags", 0)));
+			printf("blob size = %u\n", xvoGetSize(xvoTableGetValue(pParsed, "blob", 0)));
+			xvoUnref(pParsed);
+		}
+
+		xrtFree(sOut);
+	}
+
+	xvoUnref(pRoot);
+}
 ```
 
-这就是 XRT 里最推荐的“结构化数据主线”。
+这段代码里有四个点最关键：
+
+- `created` 是 `time`
+- `scores` 是 `list`
+- `tags` 是 `coll(set)`
+- `blob` 是 `class`
+
+这些值经过 `xrtStringifyXSON()` 再 `xrtParseXSON()` 后，类型仍然能被保留下来。
 
 
-## 5. 为什么不建议直接把 JSON 当主数据模型
+## 9. XSON 应该在什么场景用
 
-很多程序刚开始会直接：
+最简单的判断标准是：
 
-- 读 JSON
-- 改 JSON 字符串
-- 手工拼 JSON
+- 对外接口、开放协议、公共配置：优先 JSON
+- 程序内部快照、完整落盘、需要无损保留 `xvalue` 类型：使用 XSON
 
-这样做的问题是：
+尤其当你明确需要保留下面这些类型时，就不要继续写 JSON 教程式思路了：
 
-- 数据结构不清晰
-- 修改成本高
-- 组合复杂对象很痛苦
-- 模板、网络、配置之间无法共享同一个中间模型
+- `time`
+- `list`
+- `coll(set)`
+- `class`
 
-XRT 更推荐：
+另外还要知道一条边界：
 
-1. 把 JSON 解析成 `xvalue`
-2. 程序内部统一操作 `xvalue`
-3. 最后再序列化成 JSON
-
-
-## 6. 与模板、配置、网络的协同
-
-### 模板
-
-模板引擎最适合直接吃 `xvalue` 上下文，这样一个数据对象可以直接拿去渲染页面、配置文件或文本输出。
-
-### 配置
-
-配置系统如果建立在 `xvalue + JSON` 上，可以天然获得：
-
-- 默认值注入
-- 动态字段扩展
-- 嵌套结构支持
-
-### 网络
-
-HTTP / WebSocket / LLM API 等场景，本质上都需要处理结构化数据。  
-如果内部主模型统一成 `xvalue`，请求和响应的构造会清晰很多。
+- `point / func / custom` 不是 XSON 的常规可逆类型
+- 默认情况下，遇到不支持类型会失败
+- 需要“忽略不支持字段”时，再看 `XSON_F_IGNORE_UNSUPPORTED_ENCODE` 和 `XSON_F_IGNORE_UNSUPPORTED_DECODE`
 
 
-## 7. 当前主线下的线程安全边界
+## 10. 释放规则不要混
 
-这里有一个很重要的点：
+这一页里最重要的资源管理规则只有两类：
 
-- 普通 `xvalue` 默认不是跨线程任意共享的自由对象
-- 如果要跨线程共享，应该建立在当前主线的 shared root 语义上
+- `xvalue` 对象
+	- 用完后 `xvoUnref()`
+- `xrtStringifyJSON()` / `xrtStringifyXSON()` 返回的文本
+	- 用完后 `xrtFree()`
 
-也就是说：
+可以先记成一句话：
 
-- 单线程内部自由使用没问题
-- 跨线程共享时，要按当前 shared-mode 合同来
+- `xvalue` 走 `xvoUnref()`
+- 文本结果走 `xrtFree()`
 
-这正是当前 XRT 在“像脚本一样好用”和“作为基础设施库仍然可控”之间做的平衡。
-
-
-## 8. 推荐学习顺序
-
-如果你刚接触这条线，建议按这个顺序学：
-
-1. 学会创建 `table / array`
-2. 学会 `SetText / SetInt / SetBool / SetValue`
-3. 学会 `xjsonParse / xjsonStringify`
-4. 再去看模板、配置、HTTP 这些更高层的用法
-
-不要一开始就把 `xvalue` 当成“只是 JSON 附属品”。
+不要把这两套释放方式混用。
 
 
-## 9. 建议继续阅读
+## 11. 与多线程的边界
+
+还要提醒你一个经常被忽略的点：
+
+- 普通 `xvoCreateTable()` / `xvoCreateArray()` 创建的是本线程 local root
+- 如果你要跨线程共享，应显式使用 `xvoCreateTableEx(XRT_OBJMODE_SHARED)`、`xvoCreateArrayEx(XRT_OBJMODE_SHARED)` 等 shared root 入口
+
+所以：
+
+- 单线程里把 `xvalue` 当脚本语言对象来用，完全没问题
+- 一旦跨线程共享，就要切到 shared root 语义
+
+这也是为什么 `xvalue` 这条线和后面的多任务、队列、future 教程会连在一起。
+
+
+## 12. 建议继续阅读
 
 - [Value API](../api/api-value.md)
 - [JSON API](../api/api-json.md)
-- [Template API](../api/api-template.md)
+- [XSON API](../api/api-xson.md)
 - [用 xvalue + json 构造配置系统](../case/json-config-system.md)
 
 ---
 
-**一句话总结：** 在 XRT 里，`xvalue` 是程序内部的统一动态数据模型，JSON 只是它最重要的交换格式之一；越早按这个思路组织数据，后面的模板、配置、网络与 AI 场景就会越自然。
+**一句话总结：** `xvalue` 是程序内部的数据模型，`JSON` 是标准交换格式，`XSON` 是 `xvalue` 的完整序列化格式；先把这三者的职责边界想清楚，后面的模板、配置、网络和多任务文档才会真正串起来。

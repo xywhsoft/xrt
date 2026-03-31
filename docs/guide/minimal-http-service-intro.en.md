@@ -62,11 +62,11 @@ The recommended pattern is:
 For example:
 
 ```c
-xvalue vRes = xvoTable();
+xvalue vRes = xvoCreateTable();
 
-xvoTableSetBool( vRes, "ok", TRUE );
-xvoTableSetText( vRes, "service", "xrt-demo" );
-xvoTableSetText( vRes, "status", "running" );
+xvoTableSetBool( vRes, "ok", 0, TRUE );
+xvoTableSetText( vRes, "service", 0, "xrt-demo", 0, FALSE );
+xvoTableSetText( vRes, "status", 0, "running", 0, FALSE );
 ```
 
 That keeps later additions of fields, nested objects, and arrays straightforward.

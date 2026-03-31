@@ -11,6 +11,9 @@
 如果你还没有建立“线程负责什么、协程负责什么、future 负责什么”的整体心智模型，建议先阅读：
 
 - [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+- [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+- [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+- [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
 
 这一页更适合回答：
 
@@ -200,6 +203,8 @@ xfuture pNext = xFutureThenCurrent( pFuture, procThen, NULL );
 
 - [Coroutine API](../api/api-coroutine.md)
 - [Future / Task / Promise](../api/api-future-task-promise.md)
+- [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+- [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
 - [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)
 
