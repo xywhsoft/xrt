@@ -137,10 +137,11 @@
 4. [Queue 入门：什么时候该用消息交接，而不是共享状态](guide/queue-intro.md)
 5. [协程、Future 与 Task 入门](guide/coroutine-future-task-intro.md)
 6. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](guide/wait-source-intro.md)
-7. [XRT 运行时与线程附加入门](guide/runtime-thread-attach.md)
-8. [xvalue 与 JSON 入门](guide/xvalue-json-intro.md)
-9. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
-10. [XRT 异步文件与目录操作入门](guide/file-async-intro.md)
+7. [Task Group 入门：从统一等待走到结构化收口](guide/task-group-intro.md)
+8. [XRT 运行时与线程附加入门](guide/runtime-thread-attach.md)
+9. [xvalue 与 JSON 入门](guide/xvalue-json-intro.md)
+10. [XRT 子进程与工具执行入门](guide/subprocess-intro.md)
+11. [XRT 异步文件与目录操作入门](guide/file-async-intro.md)
 
 如果你想直接看当前已有的组合案例，可以优先阅读：
 

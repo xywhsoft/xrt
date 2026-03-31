@@ -630,10 +630,11 @@ while ( !bReady ) {
 
 推荐顺序：
 
-1. [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
-2. [Future / Task / Promise](../api/api-future-task-promise.md)
-3. [XNet V2 API](../api/api-xnet-v2.md)
-4. [xnet-v2 Stream Wait-Source 实战](../case/xnet-stream-wait-source.md)
+1. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+2. [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
+3. [Future / Task / Promise](../api/api-future-task-promise.md)
+4. [XNet V2 API](../api/api-xnet-v2.md)
+5. [xnet-v2 Stream Wait-Source 实战](../case/xnet-stream-wait-source.md)
 
 ---
 

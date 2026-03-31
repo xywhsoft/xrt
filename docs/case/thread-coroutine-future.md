@@ -1,6 +1,6 @@
 # 线程、协程与 Future 协同模型
 
-> 这个案例不追求“最短代码”，而是解释 XRT 当前主线里三种并发能力应该如何分工，以及为什么这样组合更稳。
+> 这个案例不再只讲“线程负责什么、协程负责什么”的概念分工，而是把 `thread + future + wait-source + task group + coroutine` 串成一条完整的结构化并发链路。
 
 [返回案例索引](README.md)
 
@@ -8,211 +8,460 @@
 
 ## 1. 场景
 
-一个现实中的程序往往同时需要三类能力：
+假设你要写一个“批量汇总报告”逻辑，它有 4 个约束：
 
-- 线程：把 CPU 密集型任务或独立阻塞任务分散到多个执行单元
-- 协程：在单线程内把大量异步步骤写成顺序代码
-- future / task / promise：统一表达“一个未来会完成的结果”
+1. 有几段独立工作适合放到线程里并行执行
+2. 外层希望保留顺序代码式的编排体验
+3. 整批工作要有统一 timeout
+4. 这批子任务结束后，要有一个明确的结构化收口点
 
-如果三者没有统一关系，程序就会变成：
+如果没有统一主线，程序很容易变成：
 
-- 有些任务靠回调
-- 有些任务靠线程等待
-- 有些任务靠手工 event
-- 有些任务根本不知道该怎么组合
+- 线程句柄自己管
+- 结果靠共享状态和锁拼出来
+- timeout 靠外层临时打补丁
+- 最后到底“哪一批任务算结束了”说不清
 
-XRT 当前主线的设计目标，就是让这三者说同一种异步语言。
+这个案例要解决的，正是这 4 个问题同时出现时该怎么写。
 
 
-## 2. 推荐分工
+## 2. 为什么这次不用别的方案
 
-### 线程负责什么
+这一页故意不是“所有多任务能力都上一遍”，而是只选当前最合适的一组。
 
-适合线程处理的工作：
+### 2.1 为什么不是“直接开几个线程然后逐个 Wait”
 
-- CPU 密集计算
-- 独立阻塞调用
-- 不适合塞进单线程事件循环的任务
+因为那样你虽然能把任务跑起来，但仍然会缺：
 
-在线程层，推荐用：
+- 统一结果对象
+- 统一 timeout 入口
+- 这批子任务的正式 scope
 
-- `xTaskRunThread()`
 
-这样线程执行结果会自动进入 `xfuture`，后续不需要再单独发明回调协议。
+### 2.2 为什么不是 `queue`
 
-### 协程负责什么
+因为这次的问题不是：
 
-适合协程处理的工作：
+- 持续生产 / 持续消费
+- 模块间消息交接
 
-- 单线程内的多步骤异步编排
-- 需要顺序表达的等待链
-- `wait-source / future / timer / event` 组合等待
+而是：
 
-在线程已经附加到 runtime 的前提下，协程里可以自然写：
+- 一批有界子任务
+- 一次 fan-out
+- 一次统一 join
+
+所以这页重点不在 `queue`。
+
+
+### 2.3 为什么不是“直接 `WhenAll` 一个 future 数组”
+
+因为这次你不只是需要一个组合结果，还需要：
+
+- 一个正式 scope
+- `Close`
+- `Cancel`
+- `Destroy`
+- 后续可扩展成 child scope
+
+这正是 `task group` 比“future 数组”更合适的地方。
+
+
+## 3. 这条链里每一层负责什么
+
+| 层 | 这次承担的角色 | 你真正得到的能力 |
+|----|----------------|------------------|
+| `thread task` | 执行独立工作 | 真正的并行执行单元 |
+| `future` | 承接每个子任务结果 | 统一结果模型 |
+| `task group` | 管住这批 child | `Close / Join / Cancel / Destroy` |
+| `join future` | 承接整个 scope 的完成点 | close-aware final barrier |
+| `wait-source` | 把 join 变成统一等待对象 | 协程里统一 timeout 等待 |
+| `coroutine` | 编排整条流程 | 顺序代码式 orchestration |
+
+可以先记一句话：
+
+> 线程负责干活，future 负责结果，task group 负责这批任务的 scope，wait-source 负责统一等待，协程负责把整条流程写清楚。
+
+
+## 4. 代码目标
+
+下面这段完整代码会做 5 件事：
+
+1. 主线程初始化 runtime 和协程调度器
+2. 协程创建一个 `task group`
+3. group 内发起 3 个线程任务
+4. 把 group 的 `join future` 包成 `wait-source`，在协程里统一等待
+5. 成功就汇总结果，超时就统一取消并收口
+
+
+## 5. 完整代码
 
 ```c
-xfuture pFuture = xTaskRunThread( procTask, pArg );
-	xFutureWaitCo( pFuture );
+#include "xrt.h"
+#include <stdio.h>
+#include <string.h>
+
+typedef struct
+{
+	int32 iInput;
+	int32 iOutput;
+} DemoPartJob;
+
+typedef struct
+{
+	DemoPartJob arrJob[3];
+	int32 iTotal;
+	bool bTimeout;
+} DemoReportCtx;
+
+static int32 procPartTask(ptr pArg, xfuture_result* pOut)
+{
+	DemoPartJob* pJob = (DemoPartJob*)pArg;
+
+	if ( (pJob == NULL) || (pOut == NULL) ) {
+		return XRT_NET_ERROR;
+	}
+
+	xrtSleep(100);
+	pJob->iOutput = pJob->iInput * pJob->iInput;
+	pOut->pValue = pJob;
+	return XRT_NET_OK;
+}
+
+static void procReportCo(ptr pArg)
+{
+	DemoReportCtx* pCtx = (DemoReportCtx*)pArg;
+	xtaskgroup* pGroup;
+	xfuture* arrFuture[3];
+	xfuture* pJoin;
+	xwaitsrc tSrc;
+	int32 iSum;
+	int i;
+
+	memset(arrFuture, 0, sizeof(arrFuture));
+	pJoin = NULL;
+	iSum = 0;
+
+	pGroup = xTaskGroupCreate();
+	if ( pGroup == NULL ) {
+		return;
+	}
+
+	for ( i = 0; i < 3; i++ ) {
+		arrFuture[i] = xTaskGroupRunThread(pGroup, procPartTask, &pCtx->arrJob[i], 0);
+		if ( arrFuture[i] == NULL ) {
+			xTaskGroupCancel(pGroup);
+			xTaskGroupDestroy(pGroup);
+			goto cleanup;
+		}
+	}
+
+	pJoin = xTaskGroupJoinFuture(pGroup);
+	if ( pJoin == NULL ) {
+		xTaskGroupCancel(pGroup);
+		xTaskGroupDestroy(pGroup);
+		goto cleanup;
+	}
+
+	xTaskGroupClose(pGroup);
+
+	tSrc = xWaitSourceFromFuture(pJoin);
+	if ( !xWaitSourceWaitCoTimeout(&tSrc, 3000) ) {
+		pCtx->bTimeout = TRUE;
+		xTaskGroupCancel(pGroup);
+		xFutureRelease(pJoin);
+		xTaskGroupDestroy(pGroup);
+		goto cleanup;
+	}
+
+	for ( i = 0; i < 3; i++ ) {
+		DemoPartJob* pJob = (DemoPartJob*)xFutureValue(arrFuture[i]);
+		if ( pJob != NULL ) {
+			iSum += pJob->iOutput;
+		}
+	}
+
+	pCtx->iTotal = iSum;
+
+	xFutureRelease(pJoin);
+	xTaskGroupDestroy(pGroup);
+
+cleanup:
+	for ( i = 0; i < 3; i++ ) {
+		if ( arrFuture[i] != NULL ) {
+			xFutureRelease(arrFuture[i]);
+		}
+	}
+}
+
+int main(void)
+{
+	xcosched* pSched;
+	DemoReportCtx tCtx;
+
+	xrtInit();
+	memset(&tCtx, 0, sizeof(tCtx));
+
+	tCtx.arrJob[0].iInput = 10;
+	tCtx.arrJob[1].iInput = 20;
+	tCtx.arrJob[2].iInput = 30;
+
+	pSched = xrtCoSchedCreate();
+	if ( pSched == NULL ) {
+		xrtUnit();
+		return 1;
+	}
+
+	if ( xrtCoSchedSpawn(pSched, procReportCo, &tCtx, 0) == NULL ) {
+		xrtCoSchedDestroy(pSched);
+		xrtUnit();
+		return 1;
+	}
+
+	xrtCoSchedRun(pSched);
+	xrtCoSchedDestroy(pSched);
+
+	if ( tCtx.bTimeout ) {
+		printf("report timeout\n");
+	} else {
+		printf("total = %d\n", (int)tCtx.iTotal);
+	}
+
+	xrtUnit();
+	return 0;
+}
 ```
 
-### Future 负责什么
 
-future 负责统一这三种结果表达：
+## 6. 这段代码为什么是“结构化”的
 
-- 线程任务结果
-- 协程任务结果
-- engine / delayed task 结果
+这段代码最重要的不是“算出三个平方再求和”，而是它把收口边界写清楚了。
 
-因此 future 不是“附属工具”，而是三者协同的中轴。
+### 6.1 fan-out 点是清晰的
 
+这批子任务都是从同一个 `pGroup` 发出去的：
 
-## 3. 一个典型链路
+- `xTaskGroupRunThread(...)`
 
-下面是当前主线里很推荐的一种思路：
-
-1. 主线程进入 XRT runtime
-2. 启动一个协程做编排
-3. 协程里发起多个 task
-4. task 可能跑在线程、engine worker、或另一个协程
-5. 它们统一返回 future
-6. 协程等待这些 future，最后拼装结果
-
-对应的思路大致是：
-
-```c
-/* 主线程 */
-xrtInit();
-
-/* 协程负责编排 */
-/* 线程或 engine 负责执行 */
-/* future 负责承接结果 */
-
-xrtUnit();
-```
-
-这比“线程直接互相回调 + 协程手工收 event + 网络层自己发状态”要清晰得多。
+所以它们天然属于同一个 scope。
 
 
-## 4. 为什么不建议乱用线程
+### 6.2 stop-growing 点是清晰的
 
-很多程序一开始会倾向于：
+当这批任务都发完后，立刻：
 
-- 每个任务都开线程
-- 每个网络连接都开线程
-- 每个等待都用条件变量
+- `xTaskGroupClose(pGroup)`
 
-这种做法在小程序里能跑，但随着逻辑变复杂，会很快遇到：
+这等价于明确告诉系统：
 
-- 线程数量难控
-- 生命周期变乱
-- 结果传播不统一
-- timeout / cancel 难以组合
-
-因此在 XRT 当前主线里，更推荐：
-
-- 线程只承担确实需要独立执行的工作
-- 编排层尽量交给协程
-- 结果统一交给 future
+> 这批子任务不会再继续长了。
 
 
-## 5. 为什么不建议让协程直接承担一切
+### 6.3 final barrier 也是清晰的
 
-协程很强，但它不适合替代一切并发模型。
+代码不是自己数计数器、自己拼状态，而是：
 
-不适合协程独自承担的场景包括：
+- `pJoin = xTaskGroupJoinFuture(pGroup)`
 
-- 真正的 CPU 密集计算
-- 必须脱离当前调度线程的工作
-- 长时间阻塞且无法 cooperative 的外部调用
-
-这时，最自然的做法是：
-
-- 把实际执行交给 thread task 或 engine task
-- 让协程只负责等待和组合结果
+这让“这整个 scope 什么时候算结束”变成了一个正式对象。
 
 
-## 6. 当前主线推荐写法
+### 6.4 wait 入口仍然统一
 
-### 6.1 线程任务统一走 `xTaskRunThread()`
+协程没有直接硬编码成：
 
-这样做的好处是：
+- 只会等某一个 `future`
 
-- 自动返回 `xfuture`
-- 后续可以给线程、协程、组合 future 统一等待
-- 结果与错误模型保持一致
+而是把 `join future` 再转成：
 
-### 6.2 协程里统一等待 future / wait-source
+- `xwaitsrc`
 
-当前主线已经支持：
+然后统一使用：
 
-- `xFutureWaitCo*`
-- event wait
-- deadline wait
-- 与 `xnet` wait-source 的桥接
+- `xWaitSourceWaitCoTimeout(...)`
 
-因此协程最适合承担“流程 orchestration”。
+这意味着以后如果这条链路的等待对象换成别的 `wait-source`，编排层心智模型不需要变。
 
-### 6.3 多个子任务统一进 task group
 
-如果一批子任务属于同一个逻辑 scope，推荐：
+## 7. 运行过程怎么理解
+
+可以把上面的代码按下面顺序读：
+
+1. `main()` 负责 runtime 和协程调度器
+2. `procReportCo()` 是整条流程的 orchestrator
+3. 3 个 `procPartTask()` 在线程里并行执行
+4. 每个线程任务各自产生一个 `future`
+5. `task group` 再把“整批 child 的结束点”变成一个 `join future`
+6. 协程通过 `wait-source` 等待这个 join
+7. join 完成后，再统一读取 child future 里的结果
+
+也就是说，这条链不是：
+
+- 线程直接回调协程
+
+而是：
+
+- 线程 -> child future -> task group join future -> wait-source -> 协程继续执行
+
+
+## 8. 这段代码为什么比“线程 + 共享状态”更稳
+
+如果你不用这条链，最常见的写法通常会变成：
+
+- 主线程开 3 个线程
+- 每个线程把结果写回一个共享数组
+- 再加锁
+- 再加一个计数器
+- 再手工判断是不是全部完成
+- 再自己拼 timeout 和取消
+
+这类代码短期能跑，但很快会变得难维护，因为：
+
+- 结果合同不统一
+- timeout 不统一
+- 结束点不统一
+- 这批任务到底是谁在“拥有”也不清楚
+
+而现在这条链里：
+
+- 子任务结果统一放进 `future`
+- 这批任务统一归 `task group`
+- timeout 统一走 `wait-source`
+- 编排统一交给协程
+
+结构边界会清楚很多。
+
+
+## 9. 这次为什么没用 `CreateChild`
+
+很多人学了 `task group` 后，容易一上来就想把 child scope 也写进第一个案例。
+
+这页故意没这么做，因为这里的核心问题只是：
+
+- 一批有界子任务怎么统一收口
+
+一个 group 就够了。
+
+如果后面这条“生成报告”的流程又要拆成：
+
+- `download` 子 scope
+- `parse` 子 scope
+- `render` 子 scope
+
+那时再上：
+
+- `xTaskGroupCreateChild()`
+
+会更自然。
+
+
+## 10. 可以怎样继续扩展
+
+这个案例后面最自然的升级方向有 4 个：
+
+### 10.1 把线程任务换成 engine task
+
+把：
 
 - `xTaskGroupRunThread()`
+
+换成：
+
 - `xTaskGroupRunEngine()`
-- `xTaskGroupRunCo()`
-- `xTaskGroupJoin*()`
 
-这样可以得到：
-
-- close-aware dynamic join
-- close / reap / destroy 的统一合同
-- parent cancel -> child cancel 的传播
+就能把执行层迁到 network engine worker。
 
 
-## 7. 一个推荐的心智模型
+### 10.2 把 `join future` 后面接 continuation
 
-可以把它们理解成三层：
+如果汇总步骤不想直接写在协程里，也可以在 join 之后继续挂：
 
-- 线程：执行层
-- 协程：编排层
-- future：结果层
-
-当你不确定该用哪一个时，通常可以先问自己：
-
-1. 这段工作是“真的要独立执行”，还是“只是要等待结果”？
-2. 我现在缺的是“执行能力”，还是“等待和组合能力”？
-3. 这个结果后面是否还要被其他模块继续等待、组合、取消？
-
-如果答案更偏“结果和组合”，那通常就应该优先考虑 future，而不是直接堆线程或手工事件。
+- `Then*`
+- `Catch*`
+- `Finally*`
 
 
-## 8. 常见错误
+### 10.3 把 timeout 失败路径升级成统一错误对象
 
-### 错误一：线程函数直接向外部写一堆共享状态
+现在示例里只是写：
 
-更推荐：
+- `bTimeout = TRUE`
 
-- 让线程返回 future 结果
-- 由等待者统一读取
+真实项目里可以把它升级成：
 
-这样能减少锁和生命周期混乱。
-
-### 错误二：协程直接承担 CPU 密集型工作
-
-协程擅长的是等待与编排，不是替代线程。
-
-### 错误三：每个子任务都各写一套 callback 协议
-
-如果任务最终都能归结成“将来完成”，就应该优先统一进 future。
+- 统一错误码
+- 统一错误消息
+- 统一上层响应对象
 
 
-## 9. 建议继续阅读
+### 10.4 再往下接网络等待
 
-- [Thread API](../api/api-thread.md)
-- [Coroutine API](../api/api-coroutine.md)
+如果后面某一步不再是线程任务，而是：
+
+- stream readable
+- dgram recv
+- listener accept
+
+那仍然可以沿着同一条：
+
+- `wait-source`
+
+主线继续写下去。
+
+
+## 11. 常见错误
+
+### 11.1 错误一：忘了 `Close`，却直接等 `JoinFuture`
+
+从当前合同看，group 如果一直保持 open：
+
+- `JoinFuture` 会认为后面还可能继续长 child
+
+这时你会误以为 join 卡死了。
+
+
+### 11.2 错误二：超时了只返回，不主动收口 group
+
+这会让 pending child 继续跑下去，scope 边界就被打散了。
+
+更稳的做法是：
+
+- `Cancel`
+- `Destroy`
+
+至少要把收口动作写清楚。
+
+
+### 11.3 错误三：把 `task group` 当成普通 future 列表
+
+这样你就会忽略：
+
+- `Close`
+- `JoinFuture`
+- `Cancel`
+- `Destroy`
+
+而这些才是结构化并发最重要的部分。
+
+
+### 11.4 错误四：协程既负责编排，又亲自承担重 CPU 工作
+
+这会把“编排层”和“执行层”重新混回去。
+
+更稳的分工仍然是：
+
+- 协程写流程
+- 线程或 engine 真正干活
+
+
+## 12. 建议继续阅读
+
+- [Task Group 入门：从统一等待走到结构化收口](../guide/task-group-intro.md)
+- [Wait-Source 入门：把 Future 和网络等待说成同一种语言](../guide/wait-source-intro.md)
+- [协程、Future 与 Task 入门](../guide/coroutine-future-task-intro.md)
 - [Future / Task / Promise](../api/api-future-task-promise.md)
-- [从零开始写第一个 XRT 程序](../guide/first-xrt-program.md)
-- [XRT 运行时与线程附加入门](../guide/runtime-thread-attach.md)
+- [Coroutine API](../api/api-coroutine.md)
 
 ---
 
-**一句话总结：** 在线程、协程、future 三者里，线程负责执行，协程负责编排，future 负责统一结果；一旦这三层分工清楚，程序结构会比“线程到处乱飞、回调到处乱散”稳定很多。
+**一句话总结：** 这条案例主线的关键不在“开了几个线程”，而在“线程结果统一进 future，这批 future 统一归 task group，这个 group 再通过 join future 和 wait-source 被协程正式收口”；这就是 XRT 当前结构化并发最值得掌握的写法之一。

@@ -184,6 +184,10 @@ xfuture pNext = xFutureThenCurrent( pFuture, procThen, NULL );
 
 ## 9. task group 的意义
 
+如果你准备正式学习这部分，建议直接继续读：
+
+- [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+
 一旦多个 future 属于同一个逻辑 scope，推荐交给 `task group`：
 
 - `xTaskGroupRun*`
@@ -204,6 +208,7 @@ xfuture pNext = xFutureThenCurrent( pFuture, procThen, NULL );
 - [Coroutine API](../api/api-coroutine.md)
 - [Future / Task / Promise](../api/api-future-task-promise.md)
 - [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+- [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
 - [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
 - [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)

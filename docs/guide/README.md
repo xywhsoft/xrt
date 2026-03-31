@@ -67,12 +67,13 @@
 5. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
 6. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
 7. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-8. 内存、容器与数据结构专题
-9. `xvalue / json / xson / template / regex / crypto` 专题
-10. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-11. 系统能力专题：子进程、异步文件
-12. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-13. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+8. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+9. 内存、容器与数据结构专题
+10. `xvalue / json / xson / template / regex / crypto` 专题
+11. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+12. 系统能力专题：子进程、异步文件
+13. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
+14. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -97,6 +98,7 @@
 - [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
 - [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
 - [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+- [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
 
 ### 3. 网络与应用页
 
@@ -127,7 +129,6 @@
 - `bsmm / memunit / mempool_fs / mempool`
 - `jnum / xson / template / regex / crypto`
 - `xurl / xhttp_util / xws / proxy`
-- 多任务专题中的 `task group` 完整正式教学
 
 这也是后续优先补齐的部分。
 

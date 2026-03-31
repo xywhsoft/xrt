@@ -697,9 +697,10 @@ CPU 密集任务、独立阻塞任务，依然应该优先交给线程或 engine
 4. [Queue 队列模块](../api/api-queue.md)
 5. [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
 6. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-7. [Coroutine API](../api/api-coroutine.md)
-8. [Future / Task / Promise](../api/api-future-task-promise.md)
-9. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
+7. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+8. [Coroutine API](../api/api-coroutine.md)
+9. [Future / Task / Promise](../api/api-future-task-promise.md)
+10. [线程、协程与 Future 协同模型](../case/thread-coroutine-future.md)
 
 ---
 
