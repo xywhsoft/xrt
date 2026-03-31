@@ -43,6 +43,20 @@ static void __Test_FileAsyncWaitOk(xfuture* pFuture, const char* sMsg)
 	xFutureRelease(pFuture);
 }
 
+static void __Test_FileAsyncWaitFail(xfuture* pFuture, const char* sMsg)
+{
+	const char* sError;
+	xnet_result iStatus;
+
+	__Test_FileAsyncRequire(pFuture != NULL, "future should not be null");
+	iStatus = xrtNetFutureWait((xnetfuture*)pFuture, 5000u);
+	__Test_FileAsyncRequire(iStatus != XRT_NET_TIMEOUT && iStatus != XRT_NET_AGAIN, sMsg);
+	__Test_FileAsyncRequire(xFutureStatus(pFuture) != XRT_NET_OK, "future status should fail");
+	sError = xFutureError(pFuture);
+	__Test_FileAsyncRequire(sError != NULL && sError[0] != '\0', "future error should not be empty");
+	xFutureRelease(pFuture);
+}
+
 static void Test_FileAsync(xrtGlobalData* xCore)
 {
 	str sRoot;
@@ -56,6 +70,11 @@ static void Test_FileAsync(xrtGlobalData* xCore)
 	str sDirMoved;
 	str sNestedDir;
 	str sNestedFile;
+	str sMissingFile;
+	str sMissingDir;
+	str sBadParentFile;
+	str sDirFailCopy;
+	str sDirFailMove;
 	xasyncfileconfig tConfig;
 	xasyncfile* pFile = NULL;
 	xfuture* pFuture = NULL;
@@ -82,6 +101,11 @@ static void Test_FileAsync(xrtGlobalData* xCore)
 	sDirMoved = xrtPathJoin(4, xCore->AppPath, "test", "file_async", "dir_moved");
 	sNestedDir = xrtPathJoin(5, xCore->AppPath, "test", "file_async", "dir_src", "nested");
 	sNestedFile = xrtPathJoin(6, xCore->AppPath, "test", "file_async", "dir_src", "nested", "note.txt");
+	sMissingFile = xrtPathJoin(4, xCore->AppPath, "test", "file_async", "missing.txt");
+	sMissingDir = xrtPathJoin(4, xCore->AppPath, "test", "file_async", "dir_missing");
+	sBadParentFile = xrtPathJoin(5, xCore->AppPath, "test", "file_async", "missing_parent", "bad.txt");
+	sDirFailCopy = xrtPathJoin(4, xCore->AppPath, "test", "file_async", "dir_fail_copy");
+	sDirFailMove = xrtPathJoin(4, xCore->AppPath, "test", "file_async", "dir_fail_move");
 
 	__Test_FileAsyncRequire(sRoot != NULL, "root path create failed");
 	__Test_FileAsyncRequire(sObjectPath != NULL, "object path create failed");
@@ -94,6 +118,11 @@ static void Test_FileAsync(xrtGlobalData* xCore)
 	__Test_FileAsyncRequire(sDirMoved != NULL, "dir moved path create failed");
 	__Test_FileAsyncRequire(sNestedDir != NULL, "nested dir path create failed");
 	__Test_FileAsyncRequire(sNestedFile != NULL, "nested file path create failed");
+	__Test_FileAsyncRequire(sMissingFile != NULL, "missing file path create failed");
+	__Test_FileAsyncRequire(sMissingDir != NULL, "missing dir path create failed");
+	__Test_FileAsyncRequire(sBadParentFile != NULL, "bad parent file path create failed");
+	__Test_FileAsyncRequire(sDirFailCopy != NULL, "dir fail copy path create failed");
+	__Test_FileAsyncRequire(sDirFailMove != NULL, "dir fail move path create failed");
 
 	xrtDirDelete(sRoot);
 	__Test_FileAsyncRequire(xrtDirCreateAll(sRoot) == TRUE, "root dir create failed");
@@ -200,8 +229,30 @@ static void Test_FileAsync(xrtGlobalData* xCore)
 	__Test_FileAsyncRequire(xrtDirExists(sDirMoved) == FALSE, "deleted dir should not exist");
 	xrtAsyncFileIoDestroy(pIo);
 
+	__Test_FileAsyncWaitFail(xrtFileReadAllAsync(sMissingFile, XRT_CP_UTF8), "missing text read should fail");
+	__Test_FileAsyncWaitFail(xrtFileGetAllAsync(sMissingFile), "missing binary read should fail");
+	__Test_FileAsyncWaitFail(
+		xrtFileAppendAsync(sBadParentFile, (str)"fail", 4u, XRT_CP_UTF8),
+		"append into missing parent should fail");
+	__Test_FileAsyncWaitFail(
+		xrtFileWriteAllAsync(sBadParentFile, (str)"fail", 4u, XRT_CP_UTF8),
+		"write-all into missing parent should fail");
+	__Test_FileAsyncWaitFail(
+		xrtFilePutAllAsync(sBadParentFile, tBinary, sizeof(tBinary)),
+		"put-all into missing parent should fail");
+	__Test_FileAsyncWaitFail(xrtDirCopyAsync(sMissingDir, sDirFailCopy, TRUE), "missing dir copy should fail");
+	__Test_FileAsyncRequire(xrtDirExists(sDirFailCopy) == FALSE, "failed dir copy should not create destination");
+	__Test_FileAsyncWaitFail(xrtDirMoveAsync(sMissingDir, sDirFailMove, TRUE), "missing dir move should fail");
+	__Test_FileAsyncRequire(xrtDirExists(sDirFailMove) == FALSE, "failed dir move should not create destination");
+	__Test_FileAsyncWaitFail(xrtDirDeleteAsync(sMissingDir), "missing dir delete should fail");
+
 	xrtDirDelete(sRoot);
 
+	xrtFree(sDirFailMove);
+	xrtFree(sDirFailCopy);
+	xrtFree(sBadParentFile);
+	xrtFree(sMissingDir);
+	xrtFree(sMissingFile);
 	xrtFree(sNestedFile);
 	xrtFree(sNestedDir);
 	xrtFree(sDirMoved);

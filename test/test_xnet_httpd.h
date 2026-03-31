@@ -29,6 +29,7 @@ typedef struct {
 	__test_xhttpd_ctx* pCtx;
 	char aBody[128];
 	uint32 iStatusCode;
+	uint32 iDelayMs;
 	char aHeaderValue[32];
 	bool bFail;
 } __test_xhttpd_async_future_task;
@@ -261,7 +262,7 @@ static int32 __Test_XHttpdAsyncFutureProc(ptr pArg, xfuture_result* pOut)
 		if ( pTask ) XNET_FREE(pTask);
 		return XRT_NET_ERROR;
 	}
-	__Test_XHttpdSleepMs(25u);
+	__Test_XHttpdSleepMs(pTask->iDelayMs ? pTask->iDelayMs : 25u);
 	if ( pTask->bFail ) {
 		pOut->sError = (str)"async future failed";
 		XNET_FREE(pTask);
@@ -291,7 +292,9 @@ static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pSer
 	(void)pConn;
 	if ( !pCtx || !pReq ) return NULL;
 	__Test_XHttpdRecordRequest(pCtx, pReq);
-	if ( strcmp(pReq->sPath, "/async/future") != 0 && strcmp(pReq->sPath, "/async/fail") != 0 ) return NULL;
+	if ( strcmp(pReq->sPath, "/async/future") != 0 &&
+		strcmp(pReq->sPath, "/async/fail") != 0 &&
+		strcmp(pReq->sPath, "/async/slow") != 0 ) return NULL;
 	pTask = (__test_xhttpd_async_future_task*)XNET_ALLOC(sizeof(__test_xhttpd_async_future_task));
 	if ( !pTask ) return NULL;
 	memset(pTask, 0, sizeof(*pTask));
@@ -301,6 +304,7 @@ static xfuture* __Test_XHttpdOnRequestAsyncFuture(ptr pOwner, xhttpdserver* pSer
 	} else {
 		snprintf(pTask->aBody, sizeof(pTask->aBody), "future:%s", pReq->pBody ? pReq->pBody : "");
 		pTask->iStatusCode = 202u;
+		pTask->iDelayMs = strcmp(pReq->sPath, "/async/slow") == 0 ? 200u : 25u;
 		__xhttpCopyToken(pTask->aHeaderValue, sizeof(pTask->aHeaderValue), "thread");
 	}
 	return xTaskRunThread(__Test_XHttpdAsyncFutureProc, pTask, 0);
@@ -595,6 +599,110 @@ void Test_XNet_Httpd(void)
 			xrtNetEngineStop(pClientEngine);
 			xrtNetEngineDestroy(pClientEngine);
 		}
+		if ( pServerEngine ) {
+			xrtNetEngineStop(pServerEngine);
+			xrtNetEngineDestroy(pServerEngine);
+		}
+	}
+
+	{
+		__test_xhttpd_ctx tCtx;
+		xhttpdevents tEvents;
+		xhttpdconfig tSrvCfg;
+		xnetengineconfig tEngineCfg;
+		xnetengine* pServerEngine = NULL;
+		xhttpdserver* pServer = NULL;
+		xsocket hRaw = XNET_SOCKET_INVALID;
+		char sReq[512];
+
+		memset(&tCtx, 0, sizeof(tCtx));
+		memset(&tEvents, 0, sizeof(tEvents));
+		tEvents.OnOpen = __Test_XHttpdOnOpen;
+		tEvents.OnRequestAsync = __Test_XHttpdOnRequestAsyncFuture;
+		tEvents.OnClose = __Test_XHttpdOnClose;
+		tEvents.OnError = __Test_XHttpdOnError;
+
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		pServerEngine = xrtNetEngineCreate(&tEngineCfg);
+		printf("  HTTPD async disconnect server engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
+		if ( pServerEngine ) printf("  HTTPD async disconnect server engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		xrtHttpdConfigInit(&tSrvCfg);
+		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+		pServer = pServerEngine ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
+		printf("  HTTPD async disconnect server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
+		printf("  HTTPD async disconnect server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+		snprintf(sReq, sizeof(sReq),
+			"GET /async/slow HTTP/1.1\r\n"
+			"Host: 127.0.0.1:%u\r\n"
+			"Connection: close\r\n\r\n",
+			(unsigned)xrtHttpdBoundPort(pServer));
+		printf("  HTTPD async disconnect raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+		printf("  HTTPD async disconnect request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+		__Test_XHttpdCloseSocket(hRaw);
+		hRaw = XNET_SOCKET_INVALID;
+		printf("  HTTPD async disconnect request count : %s\n", __Test_XHttpdWaitMin(&tCtx.iRequestCount, 1, 1000u) ? "PASS" : "FAIL");
+		printf("  HTTPD async disconnect future complete : %s\n", __Test_XHttpdWaitMin(&tCtx.iAsyncFutureCount, 1, 2000u) ? "PASS" : "FAIL");
+		printf("  HTTPD async disconnect close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
+		printf("  HTTPD async disconnect benign error : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+
+		if ( pServer ) xrtHttpdDestroy(pServer);
+		if ( pServerEngine ) {
+			xrtNetEngineStop(pServerEngine);
+			xrtNetEngineDestroy(pServerEngine);
+		}
+	}
+
+	{
+		__test_xhttpd_ctx tCtx;
+		xhttpdevents tEvents;
+		xhttpdconfig tSrvCfg;
+		xnetengineconfig tEngineCfg;
+		xnetengine* pServerEngine = NULL;
+		xhttpdserver* pServer = NULL;
+		xsocket hRaw = XNET_SOCKET_INVALID;
+		char sReq[512];
+
+		memset(&tCtx, 0, sizeof(tCtx));
+		memset(&tEvents, 0, sizeof(tEvents));
+		tEvents.OnOpen = __Test_XHttpdOnOpen;
+		tEvents.OnRequestAsync = __Test_XHttpdOnRequestAsyncFuture;
+		tEvents.OnClose = __Test_XHttpdOnClose;
+		tEvents.OnError = __Test_XHttpdOnError;
+
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		pServerEngine = xrtNetEngineCreate(&tEngineCfg);
+		printf("  HTTPD async stop-pending server engine create : %s\n", pServerEngine != NULL ? "PASS" : "FAIL");
+		if ( pServerEngine ) printf("  HTTPD async stop-pending server engine start : %s\n", xrtNetEngineStart(pServerEngine) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		xrtHttpdConfigInit(&tSrvCfg);
+		(void)xrtNetAddrParse(&tSrvCfg.tBindAddr, "127.0.0.1", 0);
+		pServer = pServerEngine ? xrtHttpdCreate(pServerEngine, &tSrvCfg, &tEvents, &tCtx) : NULL;
+		printf("  HTTPD async stop-pending server create : %s\n", pServer != NULL ? "PASS" : "FAIL");
+		printf("  HTTPD async stop-pending server start : %s\n", pServer && xrtHttpdStart(pServer) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+		snprintf(sReq, sizeof(sReq),
+			"GET /async/slow HTTP/1.1\r\n"
+			"Host: 127.0.0.1:%u\r\n"
+			"Connection: close\r\n\r\n",
+			(unsigned)xrtHttpdBoundPort(pServer));
+		printf("  HTTPD async stop-pending raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+		printf("  HTTPD async stop-pending request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, strlen(sReq)) ? "PASS" : "FAIL");
+		printf("  HTTPD async stop-pending request count : %s\n", __Test_XHttpdWaitMin(&tCtx.iRequestCount, 1, 1000u) ? "PASS" : "FAIL");
+		if ( pServer ) {
+			xrtHttpdDestroy(pServer);
+			pServer = NULL;
+		}
+		printf("  HTTPD async stop-pending future complete : %s\n", __Test_XHttpdWaitMin(&tCtx.iAsyncFutureCount, 1, 2000u) ? "PASS" : "FAIL");
+		printf("  HTTPD async stop-pending close callback : %s\n", __Test_XHttpdWaitMin(&tCtx.iCloseCount, 1, 2000u) ? "PASS" : "FAIL");
+		printf("  HTTPD async stop-pending benign error : %s\n", __Test_XHttpdAtomicLoad(&tCtx.iErrorCount) == 0 ? "PASS" : "FAIL");
+
+		__Test_XHttpdCloseSocket(hRaw);
 		if ( pServerEngine ) {
 			xrtNetEngineStop(pServerEngine);
 			xrtNetEngineDestroy(pServerEngine);

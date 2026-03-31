@@ -441,6 +441,7 @@ typedef struct {
 } __xproc_pump_ctx;
 
 struct xprocess_struct {
+	volatile long iRefCount;
 	volatile int iState;
 	volatile int bExitReady;
 	volatile int bStdoutDone;
@@ -477,6 +478,73 @@ struct xprocess_struct {
 		xpromise* pWaitPromise;
 	#endif
 };
+
+static void __xprocFreeProcess(xprocess* pProcess);
+
+static xprocess* __xprocAddRef(xprocess* pProcess)
+{
+	if ( pProcess ) {
+		(void)__xrtAtomicAddFetch32(&pProcess->iRefCount, 1);
+	}
+	return pProcess;
+}
+
+static void __xprocReleaseProcess(xprocess* pProcess)
+{
+	if ( pProcess && __xrtAtomicAddFetch32(&pProcess->iRefCount, -1) == 0 ) {
+		__xprocFreeProcess(pProcess);
+	}
+}
+
+#if !defined(XRT_NO_NETWORK)
+static void __xprocWaitFutureCleanup(xfuture* pFuture)
+{
+	xprocess* pProcess;
+
+	if ( pFuture == NULL ) {
+		return;
+	}
+
+	pProcess = (xprocess*)pFuture->pPendingCtx;
+	pFuture->pPendingCtx = NULL;
+	pFuture->pfnPendingCleanup = NULL;
+	if ( pProcess == NULL ) {
+		return;
+	}
+
+	xrtMutexLock(&pProcess->Lock);
+	if ( pProcess->pWaitFuture == pFuture ) {
+		pProcess->pWaitFuture = NULL;
+	}
+	pProcess->pWaitPromise = NULL;
+	xrtMutexUnlock(&pProcess->Lock);
+	__xprocReleaseProcess(pProcess);
+}
+
+static void __xprocDetachWaitFuture(xprocess* pProcess)
+{
+	xfuture* pFuture = NULL;
+	xpromise* pPromise = NULL;
+
+	if ( pProcess == NULL ) {
+		return;
+	}
+
+	xrtMutexLock(&pProcess->Lock);
+	pFuture = pProcess->pWaitFuture;
+	pPromise = pProcess->pWaitPromise;
+	pProcess->pWaitFuture = NULL;
+	pProcess->pWaitPromise = NULL;
+	xrtMutexUnlock(&pProcess->Lock);
+
+	if ( pPromise ) {
+		xPromiseDestroy(pPromise);
+	}
+	if ( pFuture ) {
+		xFutureRelease(pFuture);
+	}
+}
+#endif
 
 static uint64 __xprocNowMs(void)
 {
@@ -536,6 +604,7 @@ static xprocess* __xprocAllocProcess(const xprocessconfig* pConfig, uint32 iFlag
 		return NULL;
 	}
 
+	pProcess->iRefCount = 1;
 	pProcess->iState = XPROC_STATE_INIT;
 	pProcess->iExitCode = -1;
 	pProcess->iFlags = iFlags;
@@ -576,10 +645,7 @@ static void __xprocFreeProcess(xprocess* pProcess)
 			xPromiseDestroy(pProcess->pWaitPromise);
 			pProcess->pWaitPromise = NULL;
 		}
-		if ( pProcess->pWaitFuture ) {
-			xFutureRelease(pProcess->pWaitFuture);
-			pProcess->pWaitFuture = NULL;
-		}
+		pProcess->pWaitFuture = NULL;
 	#endif
 
 	__xprocBufferUnit(&pProcess->StdoutBuf);
@@ -1199,7 +1265,10 @@ XXAPI void xrtProcessDestroy(xprocess* pProcess)
 	pProcess->iState = XPROC_STATE_CLOSED;
 	__xprocDestroyThreads(pProcess);
 	__xprocClosePlatformHandles(pProcess);
-	__xprocFreeProcess(pProcess);
+	#if !defined(XRT_NO_NETWORK)
+		__xprocDetachWaitFuture(pProcess);
+	#endif
+	__xprocReleaseProcess(pProcess);
 }
 
 XXAPI int xrtProcessState(xprocess* pProcess) { return pProcess ? pProcess->iState : XPROC_STATE_FAILED; }
@@ -1361,6 +1430,8 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 		if ( pFuture == NULL ) { xrtMutexUnlock(&pProcess->Lock); xrtSetError("failed to create subprocess wait future.", FALSE); return NULL; }
 		pPromise = xPromiseCreate(pFuture);
 		if ( pPromise == NULL ) { xrtMutexUnlock(&pProcess->Lock); xFutureRelease(pFuture); xrtSetError("failed to create subprocess wait promise.", FALSE); return NULL; }
+		pFuture->pPendingCtx = __xprocAddRef(pProcess);
+		pFuture->pfnPendingCleanup = __xprocWaitFutureCleanup;
 		pProcess->pWaitFuture = pFuture;
 		if ( pProcess->bExitReady ) bResolveNow = true;
 		else { pProcess->pWaitPromise = pPromise; pPromise = NULL; }

@@ -104,6 +104,15 @@ static int32 __xafileTaskFailLastError(xfuture_result* pOut, const char* sFallba
 	return __xafileTaskFail(pOut, (const char*)sError);
 }
 
+static bool __xafileHasLastError(void)
+{
+	str sError = xrtGetError();
+
+	return sError != NULL &&
+		sError != xCore.sNull &&
+		sError[0] != '\0';
+}
+
 static int32 __xafileTaskResolve(xfuture_result* pOut, ptr pValue)
 {
 	if ( pOut == NULL ) {
@@ -1031,12 +1040,16 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 	switch ( pTask->iKind ) {
 		case __XAFILE_PATH_APPEND:
 			iCount = xrtFileAppend(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
+			if ( iCount == 0 && pTask->iSize > 0u ) {
+				iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+				goto Exit;
+			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
 		case __XAFILE_PATH_READ_ALL:
 			pData = xrtFileReadAll(pTask->sPath, pTask->iCharset, &iSize);
-			if ( pData == NULL ) {
+			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
 				iRet = __xafileTaskFailLastError(pOut, (const char*)sErrorFile_Read);
 				goto Exit;
 			}
@@ -1057,12 +1070,16 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 
 		case __XAFILE_PATH_WRITE_ALL:
 			iCount = xrtFileWriteAll(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
+			if ( iCount == 0 && pTask->iSize > 0u ) {
+				iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+				goto Exit;
+			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
 		case __XAFILE_PATH_GET_ALL:
 			pData = xrtFileGetAll(pTask->sPath, &iSize);
-			if ( pData == NULL ) {
+			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
 				iRet = __xafileTaskFailLastError(pOut, (const char*)sErrorFile_Read);
 				goto Exit;
 			}
@@ -1083,6 +1100,10 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 
 		case __XAFILE_PATH_PUT_ALL:
 			iCount = xrtFilePutAll(pTask->sPath, pTask->pData, pTask->iSize);
+			if ( iCount == 0 && pTask->iSize > 0u ) {
+				iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+				goto Exit;
+			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
@@ -1127,8 +1148,12 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			break;
 
 		case __XAFILE_PATH_DIR_COPY:
+			if ( !xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFail(pOut, "async dir copy failed.");
+				goto Exit;
+			}
 			iCount = xrtDirCopy(pTask->sPath, pTask->sPath2, pTask->bReWrite);
-			if ( !xrtDirExists(pTask->sPath2) ) {
+			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir copy failed.");
 				goto Exit;
 			}
@@ -1136,8 +1161,12 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			break;
 
 		case __XAFILE_PATH_DIR_MOVE:
+			if ( !xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFail(pOut, "async dir move failed.");
+				goto Exit;
+			}
 			iCount = xrtDirMove(pTask->sPath, pTask->sPath2, pTask->bReWrite);
-			if ( !xrtDirExists(pTask->sPath2) || xrtDirExists(pTask->sPath) ) {
+			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) || xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir move failed.");
 				goto Exit;
 			}
@@ -1145,8 +1174,12 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			break;
 
 		case __XAFILE_PATH_DIR_DELETE:
+			if ( !xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFail(pOut, "async dir delete failed.");
+				goto Exit;
+			}
 			iCount = xrtDirDelete(pTask->sPath);
-			if ( xrtDirExists(pTask->sPath) ) {
+			if ( __xafileHasLastError() || xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir delete failed.");
 				goto Exit;
 			}

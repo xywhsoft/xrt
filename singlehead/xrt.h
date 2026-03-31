@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-03-30 18:58:37
+    Generated: 2026-03-31 10:42:25
 
     MIT License
 
@@ -1517,6 +1517,64 @@
 	
 	// 运行程序并等待程序运行结束
 	XXAPI int xrtChain(str sPath, size_t iSize);
+	#define XPROC_STATE_FAILED		-1
+	#define XPROC_STATE_INIT		0
+	#define XPROC_STATE_RUNNING		1
+	#define XPROC_STATE_EXITED		2
+	#define XPROC_STATE_CLOSED		3
+	#define XPROC_F_USE_SHELL		0x0001u
+	#define XPROC_F_PIPE_STDIN		0x0002u
+	#define XPROC_F_PIPE_STDOUT		0x0004u
+	#define XPROC_F_PIPE_STDERR		0x0008u
+	#define XPROC_F_MERGE_STDERR	0x0010u
+	#define XPROC_F_HIDE_WINDOW		0x0020u
+	#define XPROC_F_NO_CAPTURE		0x0040u
+	#define XPROC_F_KILL_TREE		0x0080u
+	typedef struct xprocess_struct xprocess;
+	typedef struct {
+		void (*OnStart)(xprocess* pProcess, ptr pUserData);
+		void (*OnStdout)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
+		void (*OnStderr)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
+		void (*OnExit)(xprocess* pProcess, int iExitCode, ptr pUserData);
+	} xprocessevents;
+	typedef struct {
+		uint32 iFlags;
+		str sProgram;
+		str* arrArgs;
+		uint32 iArgCount;
+		str sCommandLine;
+		str sWorkDir;
+		uint32 iReadChunkSize;
+		size_t iMaxCaptureBytes;
+		const xprocessevents* pEvents;
+		ptr pUserData;
+	} xprocessconfig;
+	typedef struct {
+		int iExitCode;
+		ptr pStdout;
+		size_t iStdoutSize;
+		ptr pStderr;
+		size_t iStderrSize;
+		bool bStdoutTruncated;
+		bool bStderrTruncated;
+	} xprocessresult;
+	XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig);
+	XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig);
+	XXAPI void xrtProcessDestroy(xprocess* pProcess);
+	XXAPI int xrtProcessState(xprocess* pProcess);
+	XXAPI bool xrtProcessIsRunning(xprocess* pProcess);
+	XXAPI int xrtProcessExitCode(xprocess* pProcess);
+	XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize);
+	XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize);
+	XXAPI bool xrtProcessCloseStdin(xprocess* pProcess);
+	XXAPI bool xrtProcessWait(xprocess* pProcess);
+	XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs);
+	XXAPI bool xrtProcessTerminate(xprocess* pProcess);
+	XXAPI bool xrtProcessKillTree(xprocess* pProcess);
+	XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize);
+	XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize);
+	XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs);
+	XXAPI void xrtProcessResultUnit(xprocessresult* pResult);
 	
 	
 	
@@ -1997,6 +2055,36 @@
 	
 	// 删除文件夹 ( 返回操作的文件数量 )
 	XXAPI int xrtDirDelete(str sPath);
+	#if !defined(XRT_NO_NETWORK)
+		#define XAFILE_F_READ			0x0001u
+		#define XAFILE_F_WRITE			0x0002u
+		#define XAFILE_F_CREATE		0x0004u
+		#define XAFILE_F_TRUNCATE		0x0008u
+		#define XAFILE_SHARE_READ		0x0001u
+		#define XAFILE_SHARE_WRITE		0x0002u
+		#define XAFILE_SHARE_DELETE	0x0004u
+		typedef struct xasyncfile_struct xasyncfile;
+		typedef struct {
+			uint32 iFlags;
+			uint32 iShareFlags;
+			str sPath;
+		} xasyncfileconfig;
+		typedef struct {
+			ptr pData;
+			size_t iSize;
+			uint64 iOffset;
+			bool bEOF;
+		} xasyncfilebuf;
+		typedef struct {
+			uint64 iValue;
+			uint64 iOffset;
+		} xasyncfileio;
+		XXAPI void xrtAsyncFileConfigInit(xasyncfileconfig* pConfig);
+		XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig);
+		XXAPI void xrtAsyncFileClose(xasyncfile* pFile);
+		XXAPI void xrtAsyncFileBufDestroy(xasyncfilebuf* pBuf);
+		XXAPI void xrtAsyncFileIoDestroy(xasyncfileio* pInfo);
+	#endif
 	
 	
 	
@@ -3579,6 +3667,7 @@
 	typedef struct {
 	void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
 	bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
+	xfuture* (*OnRequestAsync)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq);
 	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
 	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
 	} xhttpdevents;
@@ -4000,6 +4089,25 @@
 	XXAPI xfuture* xTaskRunEngine(xnetengine* pEngine, uint32 iAffinityKey, xtask_engine_fn pfnTask, ptr pArg);
 	XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
 	XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+	XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize);
+	XXAPI xfuture* xrtAsyncFileWriteAt(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize);
+	XXAPI xfuture* xrtAsyncFileFlush(xasyncfile* pFile);
+	XXAPI xfuture* xrtAsyncFileGetSize(xasyncfile* pFile);
+	XXAPI xfuture* xrtAsyncFileSetSize(xasyncfile* pFile, uint64 iSize);
+	XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iCharset);
+	XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset);
+	XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCharset);
+	XXAPI xfuture* xrtFileGetAllAsync(str sPath);
+	XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize);
+	XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtFileDeleteAsync(str sPath);
+	XXAPI xfuture* xrtDirCreateAsync(str sPath);
+	XXAPI xfuture* xrtDirCreateAllAsync(str sPath);
+	XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite);
+	XXAPI xfuture* xrtDirDeleteAsync(str sPath);
+	XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess);
 	#if !defined(XRT_NO_COROUTINE)
 	XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
 	#endif
@@ -4158,9 +4266,14 @@
 	XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq);
 	XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp);
 	XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp);
+	XXAPI xhttpdresponse* xrtHttpdResponseCreate(void);
+	XXAPI void xrtHttpdResponseDestroy(xhttpdresponse* pResp);
 	XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
 	XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
 	XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
+	XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn);
+	XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* pResp);
+	XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags);
 	XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData);
 	XXAPI uint16 xrtHttpdBoundPort(const xhttpdserver* pServer);
 	XXAPI xnet_result xrtHttpdStart(xhttpdserver* pServer);
@@ -15526,6 +15639,1387 @@ XXAPI int xrtDirDelete(str sPath)
 	#endif
 	return 0;
 }
+
+// ========================================
+// File: D:/git/xrt/lib/file_async.h
+// ========================================
+
+#if !defined(XRT_NO_NETWORK)
+#define __XAFILE_CHUNK_MAX		0x40000000u
+static const char* __xafileErrHandle = "async file handle is invalid.";
+static const char* __xafileErrRead = "async file read failed.";
+static const char* __xafileErrWrite = "async file write failed.";
+static const char* __xafileErrFlush = "async file flush failed.";
+static const char* __xafileErrSize = "async file size query failed.";
+static const char* __xafileErrSetSize = "async file resize failed.";
+static const char* __xafileErrClosed = "async file is already closing.";
+static const char* __xafileErrConfig = "async file config is invalid.";
+static const char* __xafileErrMemory = "async file ran out of memory.";
+struct xasyncfile_struct {
+	xmutex pLock;
+	uint32 iFlags;
+	uint32 iShareFlags;
+	volatile long iRefCount;
+	bool bClosing;
+	#if defined(_WIN32) || defined(_WIN64)
+		HANDLE hFile;
+	#else
+		int fd;
+	#endif
+};
+typedef struct {
+	xasyncfile* pFile;
+	uint64 iOffset;
+	size_t iSize;
+} __xafile_read_task;
+typedef struct {
+	xasyncfile* pFile;
+	uint64 iOffset;
+	size_t iSize;
+	ptr pData;
+} __xafile_write_task;
+typedef struct {
+	xasyncfile* pFile;
+	uint64 iSize;
+} __xafile_size_task;
+typedef enum {
+	__XAFILE_PATH_APPEND = 1,
+	__XAFILE_PATH_READ_ALL,
+	__XAFILE_PATH_WRITE_ALL,
+	__XAFILE_PATH_GET_ALL,
+	__XAFILE_PATH_PUT_ALL,
+	__XAFILE_PATH_COPY,
+	__XAFILE_PATH_MOVE,
+	__XAFILE_PATH_DELETE,
+	__XAFILE_PATH_DIR_CREATE,
+	__XAFILE_PATH_DIR_CREATE_ALL,
+	__XAFILE_PATH_DIR_COPY,
+	__XAFILE_PATH_DIR_MOVE,
+	__XAFILE_PATH_DIR_DELETE
+} __xafile_path_task_kind;
+typedef struct {
+	__xafile_path_task_kind iKind;
+	str sPath;
+	str sPath2;
+	ptr pData;
+	size_t iSize;
+	int iCharset;
+	bool bReWrite;
+} __xafile_path_task;
+static void __xafileSetError(const char* sError)
+{
+	xrtSetError((str)(sError ? sError : __xafileErrHandle), FALSE);
+}
+static int32 __xafileTaskFail(xfuture_result* pOut, const char* sError)
+{
+	if ( pOut == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->iStatus = XRT_NET_ERROR;
+	if ( sError && sError[0] ) {
+		pOut->sError = xrtCopyStr((str)sError, 0);
+		if ( pOut->sError && pOut->sError != xCore.sNull ) {
+			pOut->iFlags |= XFUTURE_RESULT_F_OWN_ERROR;
+		}
+		else {
+			pOut->sError = (str)sError;
+		}
+	}
+	return pOut->iStatus;
+}
+static int32 __xafileTaskFailLastError(xfuture_result* pOut, const char* sFallback)
+{
+	str sError = xrtGetError();
+	if ( sError == NULL || sError == xCore.sNull || sError[0] == '\0' ) {
+		sError = (str)(sFallback ? sFallback : __xafileErrHandle);
+	}
+	return __xafileTaskFail(pOut, (const char*)sError);
+}
+static bool __xafileHasLastError(void)
+{
+	str sError = xrtGetError();
+	return sError != NULL &&
+		sError != xCore.sNull &&
+		sError[0] != '\0';
+}
+static int32 __xafileTaskResolve(xfuture_result* pOut, ptr pValue)
+{
+	if ( pOut == NULL ) {
+		return XRT_NET_ERROR;
+	}
+	memset(pOut, 0, sizeof(*pOut));
+	pOut->iStatus = XRT_NET_OK;
+	pOut->pValue = pValue;
+	return pOut->iStatus;
+}
+static xasyncfilebuf* __xafileBufCreate(void)
+{
+	xasyncfilebuf* pBuf = (xasyncfilebuf*)xrtMalloc(sizeof(xasyncfilebuf));
+	if ( pBuf == NULL ) {
+		return NULL;
+	}
+	memset(pBuf, 0, sizeof(*pBuf));
+	return pBuf;
+}
+static xasyncfileio* __xafileIoCreate(uint64 iValue, uint64 iOffset)
+{
+	xasyncfileio* pInfo = (xasyncfileio*)xrtMalloc(sizeof(xasyncfileio));
+	if ( pInfo == NULL ) {
+		return NULL;
+	}
+	pInfo->iValue = iValue;
+	pInfo->iOffset = iOffset;
+	return pInfo;
+}
+static void __xafileBufDestroyInner(xasyncfilebuf* pBuf)
+{
+	if ( pBuf == NULL ) {
+		return;
+	}
+	if ( pBuf->pData != NULL && pBuf->pData != xCore.sNull ) {
+		xrtFree(pBuf->pData);
+	}
+	xrtFree(pBuf);
+}
+static void __xafilePathTaskUnit(__xafile_path_task* pTask)
+{
+	if ( pTask == NULL ) {
+		return;
+	}
+	if ( pTask->sPath && pTask->sPath != xCore.sNull ) {
+		xrtFree(pTask->sPath);
+	}
+	if ( pTask->sPath2 && pTask->sPath2 != xCore.sNull ) {
+		xrtFree(pTask->sPath2);
+	}
+	if ( pTask->pData && pTask->pData != xCore.sNull ) {
+		xrtFree(pTask->pData);
+	}
+	xrtFree(pTask);
+}
+static bool __xafileAddRef(xasyncfile* pFile, bool bRejectClosing)
+{
+	bool bOk = false;
+	if ( pFile == NULL || pFile->pLock == NULL ) {
+		return false;
+	}
+	xrtMutexLock(pFile->pLock);
+	if ( pFile->iRefCount > 0 ) {
+		if ( !bRejectClosing || !pFile->bClosing ) {
+			pFile->iRefCount++;
+			bOk = true;
+		}
+	}
+	xrtMutexUnlock(pFile->pLock);
+	return bOk;
+}
+static void __xafileRelease(xasyncfile* pFile)
+{
+	xmutex pLock;
+	bool bDestroy = false;
+	#if defined(_WIN32) || defined(_WIN64)
+		HANDLE hFile = INVALID_HANDLE_VALUE;
+	#else
+		int fd = -1;
+	#endif
+	if ( pFile == NULL ) {
+		return;
+	}
+	pLock = pFile->pLock;
+	if ( pLock == NULL ) {
+		xrtFree(pFile);
+		return;
+	}
+	xrtMutexLock(pLock);
+	if ( pFile->iRefCount > 0 ) {
+		pFile->iRefCount--;
+	}
+	if ( pFile->iRefCount == 0 ) {
+		bDestroy = true;
+		#if defined(_WIN32) || defined(_WIN64)
+			hFile = pFile->hFile;
+			pFile->hFile = INVALID_HANDLE_VALUE;
+		#else
+			fd = pFile->fd;
+			pFile->fd = -1;
+		#endif
+		pFile->pLock = NULL;
+	}
+	xrtMutexUnlock(pLock);
+	if ( !bDestroy ) {
+		return;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( hFile != INVALID_HANDLE_VALUE ) {
+			CloseHandle(hFile);
+		}
+	#else
+		if ( fd != -1 ) {
+			close(fd);
+		}
+	#endif
+	xrtMutexDestroy(pLock);
+	xrtFree(pFile);
+}
+static bool __xafileSeekLocked(xasyncfile* pFile, uint64 iOffset)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER tOffset;
+		if ( pFile == NULL || pFile->hFile == INVALID_HANDLE_VALUE ) {
+			return false;
+		}
+		tOffset.QuadPart = (LONGLONG)iOffset;
+		return SetFilePointerEx(pFile->hFile, tOffset, NULL, FILE_BEGIN) != 0;
+	#else
+		if ( pFile == NULL || pFile->fd == -1 ) {
+			return false;
+		}
+		if ( iOffset > 0x7fffffffffffffffULL ) {
+			errno = EINVAL;
+			return false;
+		}
+		return lseek(pFile->fd, (off_t)iOffset, SEEK_SET) != (off_t)-1;
+	#endif
+}
+static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_t* piRead)
+{
+	size_t iTotal = 0u;
+	if ( piRead ) {
+		*piRead = 0u;
+	}
+	if ( iSize == 0u ) {
+		return true;
+	}
+	if ( pFile == NULL || pData == NULL ) {
+		return false;
+	}
+	while ( iTotal < iSize ) {
+		size_t iChunkSize = iSize - iTotal;
+		if ( iChunkSize > __XAFILE_CHUNK_MAX ) {
+			iChunkSize = __XAFILE_CHUNK_MAX;
+		}
+		#if defined(_WIN32) || defined(_WIN64)
+			DWORD iChunkRead = 0u;
+			if ( !ReadFile(pFile->hFile, (uint8*)pData + iTotal, (DWORD)iChunkSize, &iChunkRead, NULL) ) {
+				return false;
+			}
+			iTotal += (size_t)iChunkRead;
+			if ( iChunkRead == 0u || iChunkRead < (DWORD)iChunkSize ) {
+				break;
+			}
+		#else
+			ssize_t iChunkRead = read(pFile->fd, (uint8*)pData + iTotal, iChunkSize);
+			if ( iChunkRead < 0 ) {
+				return false;
+			}
+			iTotal += (size_t)iChunkRead;
+			if ( iChunkRead == 0 || (size_t)iChunkRead < iChunkSize ) {
+				break;
+			}
+		#endif
+	}
+	if ( piRead ) {
+		*piRead = iTotal;
+	}
+	return true;
+}
+static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSize, size_t* piWrite)
+{
+	size_t iTotal = 0u;
+	if ( piWrite ) {
+		*piWrite = 0u;
+	}
+	if ( iSize == 0u ) {
+		return true;
+	}
+	if ( pFile == NULL || pData == NULL ) {
+		return false;
+	}
+	while ( iTotal < iSize ) {
+		size_t iChunkSize = iSize - iTotal;
+		if ( iChunkSize > __XAFILE_CHUNK_MAX ) {
+			iChunkSize = __XAFILE_CHUNK_MAX;
+		}
+		#if defined(_WIN32) || defined(_WIN64)
+			DWORD iChunkWrite = 0u;
+			if ( !WriteFile(pFile->hFile, (const uint8*)pData + iTotal, (DWORD)iChunkSize, &iChunkWrite, NULL) ) {
+				return false;
+			}
+			if ( iChunkWrite == 0u ) {
+				return false;
+			}
+			iTotal += (size_t)iChunkWrite;
+		#else
+			ssize_t iChunkWrite = write(pFile->fd, (const uint8*)pData + iTotal, iChunkSize);
+			if ( iChunkWrite <= 0 ) {
+				return false;
+			}
+			iTotal += (size_t)iChunkWrite;
+		#endif
+	}
+	if ( piWrite ) {
+		*piWrite = iTotal;
+	}
+	return true;
+}
+static bool __xafileFlushLocked(xasyncfile* pFile)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pFile == NULL || pFile->hFile == INVALID_HANDLE_VALUE ) {
+			return false;
+		}
+		return FlushFileBuffers(pFile->hFile) != 0;
+	#else
+		if ( pFile == NULL || pFile->fd == -1 ) {
+			return false;
+		}
+		return fsync(pFile->fd) == 0;
+	#endif
+}
+static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
+{
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER tSize;
+		if ( pFile == NULL || pFile->hFile == INVALID_HANDLE_VALUE ) {
+			return false;
+		}
+		if ( !GetFileSizeEx(pFile->hFile, &tSize) ) {
+			return false;
+		}
+		if ( piSize ) {
+			*piSize = (uint64)tSize.QuadPart;
+		}
+		return true;
+	#else
+		struct stat tStat;
+		if ( pFile == NULL || pFile->fd == -1 ) {
+			return false;
+		}
+		if ( fstat(pFile->fd, &tStat) != 0 ) {
+			return false;
+		}
+		if ( piSize ) {
+			*piSize = (uint64)tStat.st_size;
+		}
+		return true;
+	#endif
+}
+static bool __xafileSetSizeLocked(xasyncfile* pFile, uint64 iSize)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		LARGE_INTEGER tSize;
+		if ( pFile == NULL || pFile->hFile == INVALID_HANDLE_VALUE ) {
+			return false;
+		}
+		tSize.QuadPart = (LONGLONG)iSize;
+		if ( !SetFilePointerEx(pFile->hFile, tSize, NULL, FILE_BEGIN) ) {
+			return false;
+		}
+		return SetEndOfFile(pFile->hFile) != 0;
+	#else
+		if ( pFile == NULL || pFile->fd == -1 ) {
+			return false;
+		}
+		if ( iSize > 0x7fffffffffffffffULL ) {
+			errno = EINVAL;
+			return false;
+		}
+		return ftruncate(pFile->fd, (off_t)iSize) == 0;
+	#endif
+}
+XXAPI void xrtAsyncFileConfigInit(xasyncfileconfig* pConfig)
+{
+	if ( pConfig == NULL ) {
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+	pConfig->iFlags = XAFILE_F_READ;
+	pConfig->iShareFlags = XAFILE_SHARE_READ;
+}
+XXAPI void xrtAsyncFileBufDestroy(xasyncfilebuf* pBuf)
+{
+	__xafileBufDestroyInner(pBuf);
+}
+XXAPI void xrtAsyncFileIoDestroy(xasyncfileio* pInfo)
+{
+	if ( pInfo != NULL ) {
+		xrtFree(pInfo);
+	}
+}
+#if defined(XRT_NO_THREAD)
+static const char* __xafileErrThreadRequired = "async file requires thread support.";
+XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
+{
+	(void)pConfig;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI void xrtAsyncFileClose(xasyncfile* pFile)
+{
+	(void)pFile;
+}
+XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize)
+{
+	(void)pFile;
+	(void)iOffset;
+	(void)iSize;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtAsyncFileWriteAt(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize)
+{
+	(void)pFile;
+	(void)iOffset;
+	(void)pData;
+	(void)iSize;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtAsyncFileFlush(xasyncfile* pFile)
+{
+	(void)pFile;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtAsyncFileGetSize(xasyncfile* pFile)
+{
+	(void)pFile;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtAsyncFileSetSize(xasyncfile* pFile, uint64 iSize)
+{
+	(void)pFile;
+	(void)iSize;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iCharset)
+{
+	(void)sPath;
+	(void)sText;
+	(void)iSize;
+	(void)iCharset;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset)
+{
+	(void)sPath;
+	(void)iCharset;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCharset)
+{
+	(void)sPath;
+	(void)sText;
+	(void)iSize;
+	(void)iCharset;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFileGetAllAsync(str sPath)
+{
+	(void)sPath;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize)
+{
+	(void)sPath;
+	(void)pData;
+	(void)iSize;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite)
+{
+	(void)sSrc;
+	(void)sDst;
+	(void)bReWrite;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite)
+{
+	(void)sSrc;
+	(void)sDst;
+	(void)bReWrite;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtFileDeleteAsync(str sPath)
+{
+	(void)sPath;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtDirCreateAsync(str sPath)
+{
+	(void)sPath;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtDirCreateAllAsync(str sPath)
+{
+	(void)sPath;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite)
+{
+	(void)sSrc;
+	(void)sDst;
+	(void)bReWrite;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite)
+{
+	(void)sSrc;
+	(void)sDst;
+	(void)bReWrite;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+XXAPI xfuture* xrtDirDeleteAsync(str sPath)
+{
+	(void)sPath;
+	__xafileSetError(__xafileErrThreadRequired);
+	return NULL;
+}
+#else
+XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
+{
+	xasyncfile* pFile = NULL;
+	uint32 iFlags;
+	uint32 iShareFlags;
+	if ( pConfig == NULL || pConfig->sPath == NULL || pConfig->sPath[0] == '\0' ) {
+		__xafileSetError(__xafileErrConfig);
+		return NULL;
+	}
+	iFlags = pConfig->iFlags;
+	if ( iFlags == 0u ) {
+		iFlags = XAFILE_F_READ;
+	}
+	if ( (iFlags & (XAFILE_F_CREATE | XAFILE_F_TRUNCATE)) && !(iFlags & XAFILE_F_WRITE) ) {
+		__xafileSetError(__xafileErrConfig);
+		return NULL;
+	}
+	iShareFlags = pConfig->iShareFlags;
+	if ( iShareFlags == 0u ) {
+		iShareFlags = XAFILE_SHARE_READ;
+	}
+	pFile = (xasyncfile*)xrtMalloc(sizeof(*pFile));
+	if ( pFile == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	memset(pFile, 0, sizeof(*pFile));
+	pFile->pLock = xrtMutexCreate();
+	if ( pFile->pLock == NULL ) {
+		xrtFree(pFile);
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pFile->iFlags = iFlags;
+	pFile->iShareFlags = iShareFlags;
+	pFile->iRefCount = 1;
+	#if defined(_WIN32) || defined(_WIN64)
+		pFile->hFile = INVALID_HANDLE_VALUE;
+	#else
+		pFile->fd = -1;
+	#endif
+	#if defined(_WIN32) || defined(_WIN64)
+	{
+		DWORD iDesiredAccess = 0u;
+		DWORD iShareMode = 0u;
+		DWORD iCreation = OPEN_EXISTING;
+		u16str sPathW;
+		if ( iFlags & XAFILE_F_READ ) {
+			iDesiredAccess |= GENERIC_READ;
+		}
+		if ( iFlags & XAFILE_F_WRITE ) {
+			iDesiredAccess |= GENERIC_WRITE;
+		}
+		if ( iShareFlags & XAFILE_SHARE_READ ) {
+			iShareMode |= FILE_SHARE_READ;
+		}
+		if ( iShareFlags & XAFILE_SHARE_WRITE ) {
+			iShareMode |= FILE_SHARE_WRITE;
+		}
+		if ( iShareFlags & XAFILE_SHARE_DELETE ) {
+			iShareMode |= FILE_SHARE_DELETE;
+		}
+		if ( (iFlags & XAFILE_F_CREATE) && (iFlags & XAFILE_F_TRUNCATE) ) {
+			iCreation = CREATE_ALWAYS;
+		}
+		else if ( iFlags & XAFILE_F_CREATE ) {
+			iCreation = OPEN_ALWAYS;
+		}
+		else if ( iFlags & XAFILE_F_TRUNCATE ) {
+			iCreation = TRUNCATE_EXISTING;
+		}
+		sPathW = xrtUTF8to16(pConfig->sPath, 0, NULL);
+		if ( sPathW == NULL || sPathW == (u16str)xCore.sNull ) {
+			xrtMutexDestroy(pFile->pLock);
+			xrtFree(pFile);
+			__xafileSetError(__xafileErrMemory);
+			return NULL;
+		}
+		pFile->hFile = CreateFileW(
+			sPathW,
+			iDesiredAccess,
+			iShareMode,
+			NULL,
+			iCreation,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL);
+		xrtFree(sPathW);
+		if ( pFile->hFile == INVALID_HANDLE_VALUE ) {
+			xrtMutexDestroy(pFile->pLock);
+			xrtFree(pFile);
+			xrtSetError(sErrorFile_Open, FALSE);
+			return NULL;
+		}
+	}
+	#else
+	{
+		int iOpenFlags = 0;
+		if ( (iFlags & XAFILE_F_READ) && (iFlags & XAFILE_F_WRITE) ) {
+			iOpenFlags |= O_RDWR;
+		}
+		else if ( iFlags & XAFILE_F_WRITE ) {
+			iOpenFlags |= O_WRONLY;
+		}
+		else {
+			iOpenFlags |= O_RDONLY;
+		}
+		if ( iFlags & XAFILE_F_CREATE ) {
+			iOpenFlags |= O_CREAT;
+		}
+		if ( iFlags & XAFILE_F_TRUNCATE ) {
+			iOpenFlags |= O_TRUNC;
+		}
+		pFile->fd = open(pConfig->sPath, iOpenFlags, 0666);
+		if ( pFile->fd == -1 ) {
+			xrtMutexDestroy(pFile->pLock);
+			xrtFree(pFile);
+			xrtSetError(sErrorFile_Open, FALSE);
+			return NULL;
+		}
+	}
+	#endif
+	return pFile;
+}
+XXAPI void xrtAsyncFileClose(xasyncfile* pFile)
+{
+	if ( pFile == NULL || pFile->pLock == NULL ) {
+		return;
+	}
+	xrtMutexLock(pFile->pLock);
+	pFile->bClosing = true;
+	xrtMutexUnlock(pFile->pLock);
+	__xafileRelease(pFile);
+}
+static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
+{
+	__xafile_read_task* pTask = (__xafile_read_task*)pArg;
+	xasyncfilebuf* pBuf = NULL;
+	ptr pData = NULL;
+	size_t iRead = 0u;
+	int32 iRet = XRT_NET_ERROR;
+	xrtClearError();
+	if ( pTask == NULL || pTask->pFile == NULL ) {
+		return __xafileTaskFail(pOut, __xafileErrHandle);
+	}
+	pBuf = __xafileBufCreate();
+	if ( pBuf == NULL ) {
+		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+		goto Exit;
+	}
+	pBuf->iOffset = pTask->iOffset;
+	if ( pTask->iSize > 0u ) {
+		pData = xrtMalloc(pTask->iSize + 1u);
+		if ( pData == NULL ) {
+			iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+			goto Exit;
+		}
+	}
+	xrtMutexLock(pTask->pFile->pLock);
+	if ( !(pTask->pFile->iFlags & XAFILE_F_READ) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFail(pOut, __xafileErrRead);
+		goto Exit;
+	}
+	if ( !__xafileSeekLocked(pTask->pFile, pTask->iOffset) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFailLastError(pOut, __xafileErrRead);
+		goto Exit;
+	}
+	if ( !__xafileReadLocked(pTask->pFile, pData, pTask->iSize, &iRead) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFailLastError(pOut, __xafileErrRead);
+		goto Exit;
+	}
+	xrtMutexUnlock(pTask->pFile->pLock);
+	if ( pData != NULL ) {
+		((char*)pData)[iRead] = '\0';
+	}
+	if ( iRead == 0u && pData != NULL ) {
+		xrtFree(pData);
+		pData = NULL;
+	}
+	pBuf->pData = pData;
+	pBuf->iSize = iRead;
+	pBuf->bEOF = (pTask->iSize > 0u && iRead < pTask->iSize);
+	pData = NULL;
+	iRet = __xafileTaskResolve(pOut, pBuf);
+	pBuf = NULL;
+Exit:
+	if ( pData != NULL && pData != xCore.sNull ) {
+		xrtFree(pData);
+	}
+	if ( pBuf != NULL ) {
+		__xafileBufDestroyInner(pBuf);
+	}
+	if ( pTask != NULL ) {
+		__xafileRelease(pTask->pFile);
+		xrtFree(pTask);
+	}
+	return iRet;
+}
+static int32 __xafileWriteTask(ptr pArg, xfuture_result* pOut)
+{
+	__xafile_write_task* pTask = (__xafile_write_task*)pArg;
+	xasyncfileio* pInfo = NULL;
+	size_t iWrite = 0u;
+	int32 iRet = XRT_NET_ERROR;
+	xrtClearError();
+	if ( pTask == NULL || pTask->pFile == NULL ) {
+		return __xafileTaskFail(pOut, __xafileErrHandle);
+	}
+	xrtMutexLock(pTask->pFile->pLock);
+	if ( !(pTask->pFile->iFlags & XAFILE_F_WRITE) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFail(pOut, __xafileErrWrite);
+		goto Exit;
+	}
+	if ( !__xafileSeekLocked(pTask->pFile, pTask->iOffset) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+		goto Exit;
+	}
+	if ( !__xafileWriteLocked(pTask->pFile, pTask->pData, pTask->iSize, &iWrite) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+		goto Exit;
+	}
+	xrtMutexUnlock(pTask->pFile->pLock);
+	pInfo = __xafileIoCreate((uint64)iWrite, pTask->iOffset);
+	if ( pInfo == NULL ) {
+		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+		goto Exit;
+	}
+	iRet = __xafileTaskResolve(pOut, pInfo);
+	pInfo = NULL;
+Exit:
+	if ( pInfo != NULL ) {
+		xrtFree(pInfo);
+	}
+	if ( pTask != NULL ) {
+		if ( pTask->pData != NULL && pTask->pData != xCore.sNull ) {
+			xrtFree(pTask->pData);
+		}
+		__xafileRelease(pTask->pFile);
+		xrtFree(pTask);
+	}
+	return iRet;
+}
+static int32 __xafileFlushTask(ptr pArg, xfuture_result* pOut)
+{
+	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
+	int32 iRet = XRT_NET_ERROR;
+	xrtClearError();
+	if ( pTask == NULL || pTask->pFile == NULL ) {
+		return __xafileTaskFail(pOut, __xafileErrHandle);
+	}
+	xrtMutexLock(pTask->pFile->pLock);
+	if ( pTask->pFile->iFlags & XAFILE_F_WRITE ) {
+		if ( !__xafileFlushLocked(pTask->pFile) ) {
+			xrtMutexUnlock(pTask->pFile->pLock);
+			iRet = __xafileTaskFailLastError(pOut, __xafileErrFlush);
+			goto Exit;
+		}
+	}
+	xrtMutexUnlock(pTask->pFile->pLock);
+	iRet = __xafileTaskResolve(pOut, NULL);
+Exit:
+	if ( pTask != NULL ) {
+		__xafileRelease(pTask->pFile);
+		xrtFree(pTask);
+	}
+	return iRet;
+}
+static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
+{
+	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
+	xasyncfileio* pInfo = NULL;
+	uint64 iSize = 0u;
+	int32 iRet = XRT_NET_ERROR;
+	xrtClearError();
+	if ( pTask == NULL || pTask->pFile == NULL ) {
+		return __xafileTaskFail(pOut, __xafileErrHandle);
+	}
+	xrtMutexLock(pTask->pFile->pLock);
+	if ( !__xafileGetSizeLocked(pTask->pFile, &iSize) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFailLastError(pOut, __xafileErrSize);
+		goto Exit;
+	}
+	xrtMutexUnlock(pTask->pFile->pLock);
+	pInfo = __xafileIoCreate(iSize, 0u);
+	if ( pInfo == NULL ) {
+		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+		goto Exit;
+	}
+	iRet = __xafileTaskResolve(pOut, pInfo);
+	pInfo = NULL;
+Exit:
+	if ( pInfo != NULL ) {
+		xrtFree(pInfo);
+	}
+	if ( pTask != NULL ) {
+		__xafileRelease(pTask->pFile);
+		xrtFree(pTask);
+	}
+	return iRet;
+}
+static int32 __xafileSetSizeTask(ptr pArg, xfuture_result* pOut)
+{
+	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
+	xasyncfileio* pInfo = NULL;
+	int32 iRet = XRT_NET_ERROR;
+	xrtClearError();
+	if ( pTask == NULL || pTask->pFile == NULL ) {
+		return __xafileTaskFail(pOut, __xafileErrHandle);
+	}
+	xrtMutexLock(pTask->pFile->pLock);
+	if ( !(pTask->pFile->iFlags & XAFILE_F_WRITE) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFail(pOut, __xafileErrSetSize);
+		goto Exit;
+	}
+	if ( !__xafileSetSizeLocked(pTask->pFile, pTask->iSize) ) {
+		xrtMutexUnlock(pTask->pFile->pLock);
+		iRet = __xafileTaskFailLastError(pOut, __xafileErrSetSize);
+		goto Exit;
+	}
+	xrtMutexUnlock(pTask->pFile->pLock);
+	pInfo = __xafileIoCreate(pTask->iSize, 0u);
+	if ( pInfo == NULL ) {
+		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+		goto Exit;
+	}
+	iRet = __xafileTaskResolve(pOut, pInfo);
+	pInfo = NULL;
+Exit:
+	if ( pInfo != NULL ) {
+		xrtFree(pInfo);
+	}
+	if ( pTask != NULL ) {
+		__xafileRelease(pTask->pFile);
+		xrtFree(pTask);
+	}
+	return iRet;
+}
+static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
+{
+	__xafile_path_task* pTask = (__xafile_path_task*)pArg;
+	xasyncfilebuf* pBuf = NULL;
+	xasyncfileio* pInfo = NULL;
+	ptr pData = NULL;
+	size_t iSize = 0u;
+	int iCount = 0;
+	int32 iRet = XRT_NET_ERROR;
+	xrtClearError();
+	if ( pTask == NULL || pTask->sPath == NULL ) {
+		return __xafileTaskFail(pOut, __xafileErrConfig);
+	}
+	switch ( pTask->iKind ) {
+		case __XAFILE_PATH_APPEND:
+			iCount = xrtFileAppend(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
+			if ( iCount == 0 && pTask->iSize > 0u ) {
+				iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate((uint64)iCount, 0u);
+			break;
+		case __XAFILE_PATH_READ_ALL:
+			pData = xrtFileReadAll(pTask->sPath, pTask->iCharset, &iSize);
+			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
+				iRet = __xafileTaskFailLastError(pOut, (const char*)sErrorFile_Read);
+				goto Exit;
+			}
+			if ( pData == xCore.sNull ) {
+				pData = NULL;
+			}
+			pBuf = __xafileBufCreate();
+			if ( pBuf == NULL ) {
+				iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+				goto Exit;
+			}
+			pBuf->pData = pData;
+			pBuf->iSize = iSize;
+			pData = NULL;
+			iRet = __xafileTaskResolve(pOut, pBuf);
+			pBuf = NULL;
+			goto Exit;
+		case __XAFILE_PATH_WRITE_ALL:
+			iCount = xrtFileWriteAll(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
+			if ( iCount == 0 && pTask->iSize > 0u ) {
+				iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate((uint64)iCount, 0u);
+			break;
+		case __XAFILE_PATH_GET_ALL:
+			pData = xrtFileGetAll(pTask->sPath, &iSize);
+			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
+				iRet = __xafileTaskFailLastError(pOut, (const char*)sErrorFile_Read);
+				goto Exit;
+			}
+			if ( pData == xCore.sNull ) {
+				pData = NULL;
+			}
+			pBuf = __xafileBufCreate();
+			if ( pBuf == NULL ) {
+				iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+				goto Exit;
+			}
+			pBuf->pData = pData;
+			pBuf->iSize = iSize;
+			pData = NULL;
+			iRet = __xafileTaskResolve(pOut, pBuf);
+			pBuf = NULL;
+			goto Exit;
+		case __XAFILE_PATH_PUT_ALL:
+			iCount = xrtFilePutAll(pTask->sPath, pTask->pData, pTask->iSize);
+			if ( iCount == 0 && pTask->iSize > 0u ) {
+				iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate((uint64)iCount, 0u);
+			break;
+		case __XAFILE_PATH_COPY:
+			if ( !xrtFileCopy(pTask->sPath, pTask->sPath2, pTask->bReWrite) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async file copy failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate(1u, 0u);
+			break;
+		case __XAFILE_PATH_MOVE:
+			if ( !xrtFileMove(pTask->sPath, pTask->sPath2, pTask->bReWrite) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async file move failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate(1u, 0u);
+			break;
+		case __XAFILE_PATH_DELETE:
+			if ( !xrtFileDelete(pTask->sPath) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async file delete failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate(1u, 0u);
+			break;
+		case __XAFILE_PATH_DIR_CREATE:
+			if ( !xrtDirCreate(pTask->sPath) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async dir create failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate(1u, 0u);
+			break;
+		case __XAFILE_PATH_DIR_CREATE_ALL:
+			if ( !xrtDirCreateAll(pTask->sPath) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async dir create-all failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate(1u, 0u);
+			break;
+		case __XAFILE_PATH_DIR_COPY:
+			if ( !xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFail(pOut, "async dir copy failed.");
+				goto Exit;
+			}
+			iCount = xrtDirCopy(pTask->sPath, pTask->sPath2, pTask->bReWrite);
+			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async dir copy failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate((uint64)iCount, 0u);
+			break;
+		case __XAFILE_PATH_DIR_MOVE:
+			if ( !xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFail(pOut, "async dir move failed.");
+				goto Exit;
+			}
+			iCount = xrtDirMove(pTask->sPath, pTask->sPath2, pTask->bReWrite);
+			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) || xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async dir move failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate((uint64)iCount, 0u);
+			break;
+		case __XAFILE_PATH_DIR_DELETE:
+			if ( !xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFail(pOut, "async dir delete failed.");
+				goto Exit;
+			}
+			iCount = xrtDirDelete(pTask->sPath);
+			if ( __xafileHasLastError() || xrtDirExists(pTask->sPath) ) {
+				iRet = __xafileTaskFailLastError(pOut, "async dir delete failed.");
+				goto Exit;
+			}
+			pInfo = __xafileIoCreate((uint64)iCount, 0u);
+			break;
+		default:
+			iRet = __xafileTaskFail(pOut, __xafileErrConfig);
+			goto Exit;
+	}
+	if ( pInfo == NULL ) {
+		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
+		goto Exit;
+	}
+	iRet = __xafileTaskResolve(pOut, pInfo);
+	pInfo = NULL;
+Exit:
+	if ( pData != NULL && pData != xCore.sNull ) {
+		xrtFree(pData);
+	}
+	if ( pBuf != NULL ) {
+		__xafileBufDestroyInner(pBuf);
+	}
+	if ( pInfo != NULL ) {
+		xrtFree(pInfo);
+	}
+	__xafilePathTaskUnit(pTask);
+	return iRet;
+}
+static xfuture* __xafileStartReadTask(xasyncfile* pFile, uint64 iOffset, size_t iSize)
+{
+	__xafile_read_task* pTask;
+	xfuture* pFuture;
+	if ( pFile == NULL ) {
+		__xafileSetError(__xafileErrHandle);
+		return NULL;
+	}
+	if ( !__xafileAddRef(pFile, true) ) {
+		__xafileSetError(__xafileErrClosed);
+		return NULL;
+	}
+	pTask = (__xafile_read_task*)xrtMalloc(sizeof(__xafile_read_task));
+	if ( pTask == NULL ) {
+		__xafileRelease(pFile);
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->pFile = pFile;
+	pTask->iOffset = iOffset;
+	pTask->iSize = iSize;
+	pFuture = xTaskRunThread(__xafileReadTask, pTask, 0);
+	if ( pFuture == NULL ) {
+		__xafileRelease(pFile);
+		xrtFree(pTask);
+	}
+	return pFuture;
+}
+static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize)
+{
+	__xafile_write_task* pTask;
+	xfuture* pFuture;
+	if ( pFile == NULL ) {
+		__xafileSetError(__xafileErrHandle);
+		return NULL;
+	}
+	if ( !__xafileAddRef(pFile, true) ) {
+		__xafileSetError(__xafileErrClosed);
+		return NULL;
+	}
+	pTask = (__xafile_write_task*)xrtMalloc(sizeof(__xafile_write_task));
+	if ( pTask == NULL ) {
+		__xafileRelease(pFile);
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	memset(pTask, 0, sizeof(*pTask));
+	pTask->pFile = pFile;
+	pTask->iOffset = iOffset;
+	pTask->iSize = iSize;
+	if ( iSize > 0u ) {
+		pTask->pData = xrtCopyMem((ptr)pData, iSize);
+		if ( pTask->pData == NULL || pTask->pData == xCore.sNull ) {
+			__xafileRelease(pFile);
+			xrtFree(pTask);
+			__xafileSetError(__xafileErrMemory);
+			return NULL;
+		}
+	}
+	pFuture = xTaskRunThread(__xafileWriteTask, pTask, 0);
+	if ( pFuture == NULL ) {
+		if ( pTask->pData != NULL && pTask->pData != xCore.sNull ) {
+			xrtFree(pTask->pData);
+		}
+		__xafileRelease(pFile);
+		xrtFree(pTask);
+	}
+	return pFuture;
+}
+static xfuture* __xafileStartSizeTask(xasyncfile* pFile, xtask_thread_fn pfnTask, uint64 iSize)
+{
+	__xafile_size_task* pTask;
+	xfuture* pFuture;
+	if ( pFile == NULL ) {
+		__xafileSetError(__xafileErrHandle);
+		return NULL;
+	}
+	if ( !__xafileAddRef(pFile, true) ) {
+		__xafileSetError(__xafileErrClosed);
+		return NULL;
+	}
+	pTask = (__xafile_size_task*)xrtMalloc(sizeof(__xafile_size_task));
+	if ( pTask == NULL ) {
+		__xafileRelease(pFile);
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->pFile = pFile;
+	pTask->iSize = iSize;
+	pFuture = xTaskRunThread(pfnTask, pTask, 0);
+	if ( pFuture == NULL ) {
+		__xafileRelease(pFile);
+		xrtFree(pTask);
+	}
+	return pFuture;
+}
+static __xafile_path_task* __xafilePathTaskCreate(__xafile_path_task_kind iKind, str sPath, str sPath2)
+{
+	__xafile_path_task* pTask = (__xafile_path_task*)xrtMalloc(sizeof(__xafile_path_task));
+	if ( pTask == NULL ) {
+		return NULL;
+	}
+	memset(pTask, 0, sizeof(*pTask));
+	pTask->iKind = iKind;
+	pTask->sPath = xrtCopyStr(sPath, 0);
+	if ( sPath != NULL && sPath[0] != '\0' && (pTask->sPath == NULL || pTask->sPath == xCore.sNull) ) {
+		__xafilePathTaskUnit(pTask);
+		return NULL;
+	}
+	if ( sPath2 != NULL ) {
+		pTask->sPath2 = xrtCopyStr(sPath2, 0);
+		if ( sPath2[0] != '\0' && (pTask->sPath2 == NULL || pTask->sPath2 == xCore.sNull) ) {
+			__xafilePathTaskUnit(pTask);
+			return NULL;
+		}
+	}
+	return pTask;
+}
+static xfuture* __xafileStartPathTask(__xafile_path_task* pTask)
+{
+	xfuture* pFuture;
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pFuture = xTaskRunThread(__xafilePathTaskProc, pTask, 0);
+	if ( pFuture == NULL ) {
+		__xafilePathTaskUnit(pTask);
+	}
+	return pFuture;
+}
+XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize)
+{
+	return __xafileStartReadTask(pFile, iOffset, iSize);
+}
+XXAPI xfuture* xrtAsyncFileWriteAt(xasyncfile* pFile, uint64 iOffset, const void* pData, size_t iSize)
+{
+	return __xafileStartWriteTask(pFile, iOffset, pData, iSize);
+}
+XXAPI xfuture* xrtAsyncFileFlush(xasyncfile* pFile)
+{
+	return __xafileStartSizeTask(pFile, __xafileFlushTask, 0u);
+}
+XXAPI xfuture* xrtAsyncFileGetSize(xasyncfile* pFile)
+{
+	return __xafileStartSizeTask(pFile, __xafileGetSizeTask, 0u);
+}
+XXAPI xfuture* xrtAsyncFileSetSize(xasyncfile* pFile, uint64 iSize)
+{
+	return __xafileStartSizeTask(pFile, __xafileSetSizeTask, iSize);
+}
+XXAPI xfuture* xrtFileAppendAsync(str sPath, str sText, size_t iSize, int iCharset)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_APPEND, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	if ( iSize == 0u && sText != NULL ) {
+		iSize = strlen((const char*)sText);
+	}
+	pTask->iCharset = iCharset;
+	pTask->iSize = iSize;
+	if ( iSize > 0u ) {
+		pTask->pData = xrtCopyMem((ptr)sText, iSize);
+		if ( pTask->pData == NULL || pTask->pData == xCore.sNull ) {
+			__xafilePathTaskUnit(pTask);
+			__xafileSetError(__xafileErrMemory);
+			return NULL;
+		}
+	}
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtFileReadAllAsync(str sPath, int iCharset)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_READ_ALL, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->iCharset = iCharset;
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtFileWriteAllAsync(str sPath, str sText, size_t iSize, int iCharset)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_WRITE_ALL, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	if ( iSize == 0u && sText != NULL ) {
+		iSize = strlen((const char*)sText);
+	}
+	pTask->iCharset = iCharset;
+	pTask->iSize = iSize;
+	if ( iSize > 0u ) {
+		pTask->pData = xrtCopyMem((ptr)sText, iSize);
+		if ( pTask->pData == NULL || pTask->pData == xCore.sNull ) {
+			__xafilePathTaskUnit(pTask);
+			__xafileSetError(__xafileErrMemory);
+			return NULL;
+		}
+	}
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtFileGetAllAsync(str sPath)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_GET_ALL, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtFilePutAllAsync(str sPath, const void* pData, size_t iSize)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_PUT_ALL, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->iSize = iSize;
+	if ( iSize > 0u ) {
+		pTask->pData = xrtCopyMem((ptr)pData, iSize);
+		if ( pTask->pData == NULL || pTask->pData == xCore.sNull ) {
+			__xafilePathTaskUnit(pTask);
+			__xafileSetError(__xafileErrMemory);
+			return NULL;
+		}
+	}
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtFileCopyAsync(str sSrc, str sDst, bool bReWrite)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_COPY, sSrc, sDst);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->bReWrite = bReWrite;
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtFileMoveAsync(str sSrc, str sDst, bool bReWrite)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_MOVE, sSrc, sDst);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->bReWrite = bReWrite;
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtFileDeleteAsync(str sPath)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DELETE, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtDirCreateAsync(str sPath)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_CREATE, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtDirCreateAllAsync(str sPath)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_CREATE_ALL, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtDirCopyAsync(str sSrc, str sDst, bool bReWrite)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_COPY, sSrc, sDst);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->bReWrite = bReWrite;
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_MOVE, sSrc, sDst);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	pTask->bReWrite = bReWrite;
+	return __xafileStartPathTask(pTask);
+}
+XXAPI xfuture* xrtDirDeleteAsync(str sPath)
+{
+	__xafile_path_task* pTask = __xafilePathTaskCreate(__XAFILE_PATH_DIR_DELETE, sPath, NULL);
+	if ( pTask == NULL ) {
+		__xafileSetError(__xafileErrMemory);
+		return NULL;
+	}
+	return __xafileStartPathTask(pTask);
+}
+#endif
+#endif
 #endif
 #ifndef XRT_NO_THREAD
 
@@ -23358,7 +24852,7 @@ typedef struct {
 } xnetdgramconfig;
 #endif /* !XRT_BUILD_CORE */
 /* ============================== Internal address helpers ============================== */
-#define __XNET_ADDR_STR_CAP 64
+#define __XNET_ADDR_STR_CAP 80
 #if defined(__TINYC__) && (defined(_WIN32) || defined(_WIN64))
 	#define __XNET_THREAD_LOCAL __declspec(thread)
 #elif defined(_MSC_VER)
@@ -26329,20 +27823,24 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		__xnetPortUringArmTimer,
 		__xnetPortUringCancelTimer
 	};
-	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
+	#if defined(XRT_INTERNAL_TEST_ENV)
+	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return &__g_xnetPortUringOps;
 	}
+	#endif
 #else
 	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
 	{
 		(void)pPort;
 		return false;
 	}
-	static const xnetportops* UNUSED_ATTR xrtNetPortUringOps(void)
+	#if defined(XRT_INTERNAL_TEST_ENV)
+	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return NULL;
 	}
+	#endif
 #endif
 #endif
 #ifndef XRT_NO_XCODEC
@@ -30261,20 +31759,6 @@ static struct __xrt_bigint* __xrt_bi_comp_left_shift(struct __xrt_bi_ctx *pCtx, 
 	return pR;
 }
 // 右移 n 个 component 位置 (除以 RADIX^n)
-static struct __xrt_bigint* UNUSED_ATTR __xrt_bi_comp_right_shift(struct __xrt_bi_ctx *pCtx, struct __xrt_bigint *pBi, int iShift)
-{
-	int iNewSize = pBi->iSize - iShift;
-	if ( iNewSize <= 0 ) {
-		__xrt_bi_free(pCtx, pBi);
-		return __xrt_bi_int_to_bi(pCtx, 0);
-	}
-	{
-		struct __xrt_bigint *pR = __xrt_bi_alloc(pCtx, iNewSize);
-		memcpy(pR->pComps, &pBi->pComps[iShift], iNewSize * __XRT_BI_COMP_BYTE_SIZE);
-		__xrt_bi_free(pCtx, pBi);
-		return __xrt_bi_trim(pR);
-	}
-}
 // 除法: pA / pM, is_mod=1 返回余数, is_mod=0 返回商
 static struct __xrt_bigint* __xrt_bi_divide(struct __xrt_bi_ctx *pCtx,
 	struct __xrt_bigint *pU, struct __xrt_bigint *pV, int bIsMod)
@@ -35999,12 +37483,6 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 			return false;
 		}
 	}
-	if ( pCtx->iServerSigAlg != 0x0807 && !__xrt_tls_sign_server_hash ) {
-		#ifdef DEBUG_TRACE
-			printf("    [TLS12] SKE sign: impossible state\n");
-		#endif
-		return false;
-	}
 	__xrt_tls_store_be16(aMsg + iPos, pCtx->iServerSigAlg);
 	iPos += 2;
 	__xrt_tls_store_be16(aMsg + iPos, (uint16)iSigLen);
@@ -40676,6 +42154,7 @@ static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xso
 		(void)__xnetListenerArmAcceptWatch(pListener);
 	}
 }
+#if defined(XRT_INTERNAL_TEST_ENV)
 static xnetstream* __xnetListenerTryAcceptOneEx(xnetlistener* pListener, ptr pUserData, int* pSysErr)
 {
 	__xnet_listener_accept_raw tRaw;
@@ -40692,10 +42171,11 @@ static xnetstream* __xnetListenerTryAcceptOneEx(xnetlistener* pListener, ptr pUs
 	}
 	return pStream;
 }
-static xnetstream* UNUSED_ATTR __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUserData)
+static xnetstream* __xnetListenerTryAcceptOne(xnetlistener* pListener, ptr pUserData)
 {
 	return __xnetListenerTryAcceptOneEx(pListener, pUserData, NULL);
 }
+#endif
 /* ============================== Stream helpers ============================== */
 XXAPI xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevents* pEvents, ptr pUserData)
 {
@@ -46605,10 +48085,10 @@ static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, siz
 	*ppOut = NULL;
 	*pOutLen = 0;
 	bChunked = __xhttpContainsTokenNoCase(__xhttpRequestHeaderValue(pReq, "Transfer-Encoding"), "chunked");
-	snprintf(aLine, sizeof(aLine), "%s %s HTTP/1.1\r\n",
-		pReq->sMethod,
-		pReq->tURL.sPath[0] ? pReq->tURL.sPath : "/");
-	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, pReq->sMethod) ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, " ") ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, pReq->tURL.sPath[0] ? pReq->tURL.sPath : "/") ) goto fail;
+	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, " HTTP/1.1\r\n") ) goto fail;
 	if ( !__xhttpRequestHasHeader(pReq, "Host") ) {
 		char sHostHeader[384];
 		if ( !__xhttpMakeHostHeader(pReq, sHostHeader, sizeof(sHostHeader)) ) goto fail;
@@ -47144,6 +48624,7 @@ typedef struct {
 typedef struct {
 	void (*OnOpen)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn);
 	bool (*OnRequest)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq, xhttpdresponse* pResp);
+	xfuture* (*OnRequestAsync)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, const xhttpdrequest* pReq);
 	void (*OnClose)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, xnet_result iReason);
 	void (*OnError)(ptr pOwner, xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
 } xhttpdevents;
@@ -47151,9 +48632,15 @@ typedef struct {
 struct xrt_httpd_conn {
 	struct xrt_httpd_conn* pNext;
 	volatile long iCleanupPosted;
+	volatile long iConnLock;
+	volatile long iRefCount;
 	xhttpdserver* pServer;
 	xnetstream* pStream;
+	xhttpdrequest* pRequest;
 	bool bResponseInFlight;
+	bool bResponseCommitted;
+	bool bResponseDrained;
+	bool bAsyncPending;
 	bool bKeepAlive;
 };
 struct xrt_httpd_server {
@@ -47166,6 +48653,16 @@ struct xrt_httpd_server {
 	volatile long bRunning;
 	xhttpdconn* pConnHead;
 };
+typedef struct {
+	xhttpdconn* pConn;
+	xfuture* pFuture;
+} __xhttpd_async_ctx;
+typedef struct {
+	xhttpdconn* pConn;
+	char* pBytes;
+	size_t iLen;
+	bool bClose;
+} __xhttpd_send_task;
 static char __xhttpdToLower(char ch)
 {
 	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
@@ -47192,6 +48689,10 @@ static long __xhttpdAtomicCompareExchange(volatile long* pValue, long iExchange,
 static long __xhttpdAtomicLoad(volatile long* pValue)
 {
 	return __xnetAtomicLoad32(pValue);
+}
+static long __xhttpdAtomicLoadConst(const volatile long* pValue)
+{
+	return __xnetAtomicLoad32((volatile long*)pValue);
 }
 static void __xhttpdSleep0(void)
 {
@@ -47254,6 +48755,35 @@ static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const 
 static bool __xhttpdAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const char* sText)
 {
 	return __xhttpdAppendBytes(ppBuf, pLen, pCap, sText, sText ? strlen(__xrt_cstr(sText)) : 0);
+}
+static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain);
+static void __xhttpdEmitServerError(xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
+static xhttpdrequest* __xhttpdRequestCreate(void)
+{
+	xhttpdrequest* pReq = (xhttpdrequest*)XNET_ALLOC(sizeof(xhttpdrequest));
+	if ( !pReq ) return NULL;
+	xrtHttpdRequestInit(pReq);
+	return pReq;
+}
+static void __xhttpdRequestDestroy(xhttpdrequest* pReq)
+{
+	if ( !pReq ) return;
+	xrtHttpdRequestUnit(pReq);
+	XNET_FREE(pReq);
+}
+static xhttpdconn* __xhttpdConnAddRef(xhttpdconn* pConn)
+{
+	if ( !pConn ) return NULL;
+	(void)__xhttpdAtomicAdd(&pConn->iRefCount, 1);
+	return pConn;
+}
+static void __xhttpdConnRelease(xhttpdconn* pConn)
+{
+	if ( !pConn ) return;
+	if ( __xhttpdAtomicAdd(&pConn->iRefCount, -1) != 0 ) return;
+	__xhttpdRequestDestroy(pConn->pRequest);
+	pConn->pRequest = NULL;
+	XNET_FREE(pConn);
 }
 static const char* __xhttpdStatusText(uint32 iStatusCode)
 {
@@ -47341,6 +48871,19 @@ XXAPI void xrtHttpdResponseUnit(xhttpdresponse* pResp)
 	pResp->iBodyLen = 0;
 	memset(pResp, 0, sizeof(xhttpdresponse));
 }
+XXAPI xhttpdresponse* xrtHttpdResponseCreate(void)
+{
+	xhttpdresponse* pResp = (xhttpdresponse*)XNET_ALLOC(sizeof(xhttpdresponse));
+	if ( !pResp ) return NULL;
+	xrtHttpdResponseInit(pResp);
+	return pResp;
+}
+XXAPI void xrtHttpdResponseDestroy(xhttpdresponse* pResp)
+{
+	if ( !pResp ) return;
+	xrtHttpdResponseUnit(pResp);
+	XNET_FREE(pResp);
+}
 XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason)
 {
 	if ( !pResp ) return;
@@ -47383,6 +48926,57 @@ XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData,
 	if ( sContentType && sContentType[0] ) {
 		return xrtHttpdResponseSetHeader(pResp, "Content-Type", sContentType);
 	}
+	return true;
+}
+static bool __xhttpdResponseCopy(xhttpdresponse* pDst, const xhttpdresponse* pSrc)
+{
+	if ( !pDst || !pSrc ) return false;
+	memset(pDst, 0, sizeof(xhttpdresponse));
+	*pDst = *pSrc;
+	pDst->pBody = NULL;
+	if ( pSrc->pBody && pSrc->iBodyLen > 0u ) {
+		pDst->pBody = (char*)XNET_ALLOC(pSrc->iBodyLen + 1u);
+		if ( !pDst->pBody ) {
+			memset(pDst, 0, sizeof(xhttpdresponse));
+			return false;
+		}
+		memcpy(pDst->pBody, pSrc->pBody, pSrc->iBodyLen);
+		pDst->pBody[pSrc->iBodyLen] = '\0';
+	}
+	return true;
+}
+static bool __xhttpdRequestWantsKeepAlive(const xhttpdrequest* pReq)
+{
+	return pReq && (pReq->iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0u;
+}
+static bool __xhttpdPrepareResponse(const xhttpdrequest* pReq, const xhttpdresponse* pSrc, xhttpdresponse* pDst, bool* pKeepAlive)
+{
+	const char* sConn;
+	bool bCloseToken;
+	bool bKeepAliveHeader;
+	bool bKeepAlive;
+	if ( pKeepAlive ) *pKeepAlive = false;
+	if ( !pReq || !pSrc || !pDst ) return false;
+	if ( !__xhttpdResponseCopy(pDst, pSrc) ) return false;
+	sConn = xrtHttpdResponseHeader(pDst, "Connection");
+	bCloseToken = __xhttpdContainsTokenNoCase(sConn, "close");
+	bKeepAliveHeader = __xhttpdContainsTokenNoCase(sConn, "keep-alive");
+	if ( bKeepAliveHeader && !bCloseToken ) {
+		pDst->iFlags &= ~XHTTPD_RESP_F_CLOSE;
+	}
+	bKeepAlive = __xhttpdRequestWantsKeepAlive(pReq) &&
+		((pDst->iFlags & XHTTPD_RESP_F_CLOSE) == 0u) &&
+		!bCloseToken;
+	if ( __xhttpdRequestWantsKeepAlive(pReq) && !bCloseToken && !sConn ) {
+		pDst->iFlags &= ~XHTTPD_RESP_F_CLOSE;
+		bKeepAlive = true;
+		if ( !xrtHttpdResponseSetHeader(pDst, "Connection", "keep-alive") ) {
+			xrtHttpdResponseUnit(pDst);
+			return false;
+		}
+	}
+	if ( !bKeepAlive ) pDst->iFlags |= XHTTPD_RESP_F_CLOSE;
+	if ( pKeepAlive ) *pKeepAlive = bKeepAlive;
 	return true;
 }
 static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain, xhttpdrequest* pReq)
@@ -47469,6 +49063,158 @@ fail:
 	if ( pBuf ) XNET_FREE(pBuf);
 	return false;
 }
+static xhttpdrequest* __xhttpdConnDetachRequestLocked(xhttpdconn* pConn)
+{
+	xhttpdrequest* pReq;
+	if ( !pConn ) return NULL;
+	pReq = pConn->pRequest;
+	pConn->pRequest = NULL;
+	pConn->bResponseInFlight = false;
+	pConn->bResponseCommitted = false;
+	pConn->bResponseDrained = false;
+	pConn->bAsyncPending = false;
+	pConn->bKeepAlive = false;
+	return pReq;
+}
+static void __xhttpdConnTryFinalizeRequest(xhttpdconn* pConn)
+{
+	xhttpdrequest* pReq = NULL;
+	xnetstream* pStream = NULL;
+	bool bKickRecv = false;
+	if ( !pConn ) return;
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->pRequest && !pConn->bAsyncPending ) {
+		if ( pConn->pStream == NULL ) {
+			pReq = __xhttpdConnDetachRequestLocked(pConn);
+		}
+		else if ( pConn->bKeepAlive && pConn->bResponseCommitted && pConn->bResponseDrained && !pConn->pStream->bClosing ) {
+			pReq = __xhttpdConnDetachRequestLocked(pConn);
+			pStream = pConn->pStream;
+			bKickRecv = xrtNetChainBytes(&pStream->tRxChain) > 0u;
+		}
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	__xhttpdRequestDestroy(pReq);
+	if ( bKickRecv ) __xhttpdStreamOnRecv(pConn, pStream, &pStream->tRxChain);
+}
+XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn)
+{
+	return pConn &&
+		pConn->pStream != NULL &&
+		__xhttpdAtomicLoadConst(&pConn->iCleanupPosted) == 0 &&
+		!pConn->pStream->bClosing;
+}
+static void __xhttpdSendTaskProc(xnetworker* pWorker, ptr pArg)
+{
+	__xhttpd_send_task* pTask = (__xhttpd_send_task*)pArg;
+	xhttpdconn* pConn;
+	xhttpdserver* pServer = NULL;
+	xnetstream* pStream = NULL;
+	xnet_result iRet = XRT_NET_CLOSED;
+	(void)pWorker;
+	if ( !pTask ) return;
+	pConn = pTask->pConn;
+	if ( pConn ) {
+		__xhttpdLock(&pConn->iConnLock);
+		pServer = pConn->pServer;
+		pStream = pConn->pStream;
+		if ( pStream && !pStream->bClosing && __xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0 ) {
+			iRet = xrtNetStreamSend(pStream, pTask->pBytes, pTask->iLen);
+			if ( iRet != XRT_NET_OK ) {
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			}
+			else if ( pTask->bClose ) {
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+			}
+		}
+		__xhttpdUnlock(&pConn->iConnLock);
+		if ( iRet != XRT_NET_OK ) __xhttpdEmitServerError(pServer, pConn, -1);
+		__xhttpdConnTryFinalizeRequest(pConn);
+		__xhttpdConnRelease(pConn);
+	}
+	XNET_FREE(pTask->pBytes);
+	XNET_FREE(pTask);
+}
+XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* pResp)
+{
+	xhttpdresponse tSend;
+	xnetstream* pStream;
+	xhttpdrequest* pReq;
+	char* pBytes = NULL;
+	size_t iLen = 0u;
+	__xhttpd_send_task* pTask = NULL;
+	bool bKeepAlive = false;
+	xnet_result iRet;
+	if ( !pConn || !pResp ) return XRT_NET_ERROR;
+	memset(&tSend, 0, sizeof(tSend));
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	pReq = pConn->pRequest;
+	if ( !pStream || pStream->bClosing || !pReq || pConn->bResponseCommitted || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return XRT_NET_CLOSED;
+	}
+	if ( !__xhttpdPrepareResponse(pReq, pResp, &tSend, &bKeepAlive) ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return XRT_NET_ERROR;
+	}
+	if ( !__xhttpdBuildResponseBytes(&tSend, &pBytes, &iLen) ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		xrtHttpdResponseUnit(&tSend);
+		return XRT_NET_ERROR;
+	}
+	pConn->bResponseCommitted = true;
+	pConn->bResponseDrained = false;
+	pConn->bKeepAlive = bKeepAlive;
+	if ( __xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		iRet = xrtNetStreamSend(pStream, pBytes, iLen);
+		if ( iRet != XRT_NET_OK ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		}
+		else if ( !bKeepAlive ) {
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+		}
+	}
+	else {
+		pTask = (__xhttpd_send_task*)XNET_ALLOC(sizeof(__xhttpd_send_task));
+		if ( !pTask ) {
+			iRet = XRT_NET_ERROR;
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		}
+		else {
+			memset(pTask, 0, sizeof(*pTask));
+			pTask->pConn = __xhttpdConnAddRef(pConn);
+			pTask->pBytes = pBytes;
+			pTask->iLen = iLen;
+			pTask->bClose = !bKeepAlive;
+			iRet = xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xhttpdSendTaskProc, pTask);
+			if ( iRet == XRT_NET_OK ) {
+				pBytes = NULL;
+			}
+			else {
+				__xhttpdConnRelease(pTask->pConn);
+				XNET_FREE(pTask);
+				pTask = NULL;
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			}
+		}
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	XNET_FREE(pBytes);
+	if ( iRet != XRT_NET_OK ) {
+		xrtHttpdResponseUnit(&tSend);
+		return iRet;
+	}
+	xrtHttpdResponseUnit(&tSend);
+	__xhttpdConnTryFinalizeRequest(pConn);
+	return XRT_NET_OK;
+}
+XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags)
+{
+	if ( !pConn || !pConn->pStream ) return XRT_NET_ERROR;
+	xrtNetStreamClose(pConn->pStream, iCloseFlags);
+	return XRT_NET_OK;
+}
 static void __xhttpdServerAddConn(xhttpdserver* pServer, xhttpdconn* pConn)
 {
 	if ( !pServer || !pConn ) return;
@@ -47506,17 +49252,24 @@ static xhttpdconn* __xhttpdServerDetachAllConns(xhttpdserver* pServer)
 static void __xhttpdConnCleanupTask(xnetworker* pWorker, ptr pArg)
 {
 	xhttpdconn* pConn = (xhttpdconn*)pArg;
+	xnetstream* pStream = NULL;
+	xhttpdrequest* pReq = NULL;
 	(void)pWorker;
 	if ( !pConn ) return;
+	__xhttpdLock(&pConn->iConnLock);
 	if ( pConn->pServer ) {
 		__xhttpdServerRemoveConn(pConn->pServer, pConn);
 		pConn->pServer = NULL;
 	}
-	if ( pConn->pStream ) {
-		xrtNetStreamDestroy(pConn->pStream);
-		pConn->pStream = NULL;
+	pStream = pConn->pStream;
+	pConn->pStream = NULL;
+	if ( !pConn->bAsyncPending ) {
+		pReq = __xhttpdConnDetachRequestLocked(pConn);
 	}
-	XNET_FREE(pConn);
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( pStream ) xrtNetStreamDestroy(pStream);
+	__xhttpdRequestDestroy(pReq);
+	__xhttpdConnRelease(pConn);
 }
 static void __xhttpdConnPostCleanup(xhttpdconn* pConn)
 {
@@ -47556,41 +49309,112 @@ static bool __xhttpdIsBenignStreamError(xhttpdconn* pConn, xnetstream* pStream, 
 static bool __xhttpdSendResponseAndClose(xhttpdconn* pConn, const xhttpdresponse* pResp)
 {
 	char* pBytes = NULL;
-	size_t iLen = 0;
-	xnetstream* pStream;
+	size_t iLen = 0u;
+	xnet_result iRet;
 	if ( !pConn || !pConn->pStream || !pResp ) return false;
-	pStream = pConn->pStream;
 	if ( !__xhttpdBuildResponseBytes(pResp, &pBytes, &iLen) ) return false;
-	if ( pStream->pTls ) {
-		if ( !__xnetStreamAppendTlsPlainCopy(pStream, pBytes, iLen) ) {
-			XNET_FREE(pBytes);
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-			return false;
-		}
-	} else {
-		if ( !__xnetStreamAppendSendCopy(pStream, pBytes, iLen) ) {
-			XNET_FREE(pBytes);
-			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
-			return false;
-		}
-	}
+	iRet = xrtNetStreamSend(pConn->pStream, pBytes, iLen);
 	XNET_FREE(pBytes);
-	__xnetStreamKickWrite(pStream);
-	if ( (pResp->iFlags & XHTTPD_RESP_F_CLOSE) != 0 ) {
-		xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+	if ( iRet != XRT_NET_OK ) {
+		xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+		return false;
 	}
+	xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_GRACEFUL);
 	return true;
 }
 static void __xhttpdSendSimpleStatus(xhttpdconn* pConn, uint32 iStatusCode, const char* sBody)
 {
 	xhttpdresponse tResp;
+	bool bHasRequest = false;
 	xrtHttpdResponseInit(&tResp);
 	xrtHttpdResponseSetStatus(&tResp, iStatusCode, NULL);
 	if ( sBody && sBody[0] ) {
 		(void)xrtHttpdResponseSetBodyCopy(&tResp, sBody, strlen(sBody), "text/plain");
 	}
-	(void)__xhttpdSendResponseAndClose(pConn, &tResp);
+	if ( pConn ) {
+		__xhttpdLock(&pConn->iConnLock);
+		bHasRequest = pConn->pRequest != NULL;
+		__xhttpdUnlock(&pConn->iConnLock);
+	}
+	if ( bHasRequest ) (void)xrtHttpdConnRespond(pConn, &tResp);
+	else (void)__xhttpdSendResponseAndClose(pConn, &tResp);
 	xrtHttpdResponseUnit(&tResp);
+}
+static uint32 __xhttpdFutureErrorStatus(const xfuture_result* pResult)
+{
+	if ( !pResult ) return 500u;
+	if ( pResult->iStatus == XRT_NET_TIMEOUT || (pResult->iFlags & XFUTURE_RESULT_F_TIMEOUT) != 0u ) return 408u;
+	if ( pResult->iStatus == XRT_NET_CANCELLED || pResult->iStatus == XRT_NET_CLOSED ||
+		(pResult->iFlags & (XFUTURE_RESULT_F_CANCELLED | XFUTURE_RESULT_F_CLOSED)) != 0u ) {
+		return 503u;
+	}
+	return 500u;
+}
+static const char* __xhttpdStatusBody(uint32 iStatusCode)
+{
+	switch ( iStatusCode ) {
+		case 404: return "Not Found";
+		case 408: return "Request Timeout";
+		case 503: return "Service Unavailable";
+		default: return "Internal Server Error";
+	}
+}
+static void __xhttpdAsyncRequestFinally(const xfuture_result* pResult, ptr pArg)
+{
+	__xhttpd_async_ctx* pCtx = (__xhttpd_async_ctx*)pArg;
+	xhttpdconn* pConn;
+	xhttpdresponse* pResp = NULL;
+	bool bCanRespond;
+	bool bHasCommitted;
+	if ( !pCtx ) return;
+	pConn = pCtx->pConn;
+	if ( pResult && pResult->iStatus == XRT_NET_OK ) {
+		pResp = (xhttpdresponse*)pResult->pValue;
+	}
+	__xhttpdLock(&pConn->iConnLock);
+	pConn->bAsyncPending = false;
+	bHasCommitted = pConn->bResponseCommitted;
+	bCanRespond = (pConn->pStream != NULL) && !pConn->pStream->bClosing &&
+		(__xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0);
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( bCanRespond && !bHasCommitted ) {
+		if ( pResp ) {
+			(void)xrtHttpdConnRespond(pConn, pResp);
+		}
+		else if ( pResult && pResult->iStatus == XRT_NET_OK ) {
+			__xhttpdSendSimpleStatus(pConn, 404u, __xhttpdStatusBody(404u));
+		}
+		else {
+			uint32 iStatusCode = __xhttpdFutureErrorStatus(pResult);
+			__xhttpdSendSimpleStatus(pConn, iStatusCode, __xhttpdStatusBody(iStatusCode));
+		}
+	}
+	if ( pResp ) xrtHttpdResponseDestroy(pResp);
+	__xhttpdConnTryFinalizeRequest(pConn);
+	xFutureRelease(pCtx->pFuture);
+	__xhttpdConnRelease(pConn);
+	XNET_FREE(pCtx);
+}
+static bool __xhttpdAttachAsyncRequest(xhttpdconn* pConn, xfuture* pFuture)
+{
+	__xhttpd_async_ctx* pCtx;
+	xfuture* pHook;
+	if ( !pConn || !pFuture ) return false;
+	pCtx = (__xhttpd_async_ctx*)XNET_ALLOC(sizeof(__xhttpd_async_ctx));
+	if ( !pCtx ) return false;
+	memset(pCtx, 0, sizeof(*pCtx));
+	pCtx->pConn = __xhttpdConnAddRef(pConn);
+	pCtx->pFuture = xFutureAddRef(pFuture);
+	pHook = xFutureFinallyEngine(pFuture, NULL, 0, __xhttpdAsyncRequestFinally, pCtx);
+	xFutureRelease(pFuture);
+	if ( !pHook ) {
+		xFutureRelease(pCtx->pFuture);
+		__xhttpdConnRelease(pCtx->pConn);
+		XNET_FREE(pCtx);
+		return false;
+	}
+	xFutureRelease(pHook);
+	return true;
 }
 static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetstream* pStream)
 {
@@ -47603,6 +49427,7 @@ static bool __xhttpdListenerOnAccept(ptr pOwner, xnetlistener* pListener, xnetst
 		pConn = (xhttpdconn*)XNET_ALLOC(sizeof(xhttpdconn));
 		if ( !pConn ) return false;
 		memset(pConn, 0, sizeof(xhttpdconn));
+		pConn->iRefCount = 1;
 		xrtNetStreamSetUserData(pStream, pConn);
 	}
 	pConn->pServer = pServer;
@@ -47626,12 +49451,19 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 	xcodecframe tFrame;
 	xcodechttp1msg tMsg;
 	xcodecstatus iParse;
-	xhttpdrequest tReq;
+	xhttpdrequest* pReq = NULL;
 	xhttpdresponse tResp;
+	xfuture* pAsync = NULL;
 	bool bHandled = false;
+	bool bResponseCommitted = false;
 	if ( !pConn || !pServer || !pStream || !pChain ) return;
 	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return;
-	if ( pConn->bResponseInFlight ) return;
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->bResponseInFlight ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return;
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
 	if ( iParse == XCODEC_STATUS_NEED_MORE ) return;
 	if ( iParse == XCODEC_STATUS_ERROR ) {
@@ -47639,30 +49471,67 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		__xhttpdSendSimpleStatus(pConn, 400u, "Bad Request");
 		return;
 	}
-	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, &tReq) ) {
+	pReq = __xhttpdRequestCreate();
+	if ( !pReq ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, pReq) ) {
+		__xhttpdRequestDestroy(pReq);
+		__xhttpdEmitServerError(pServer, pConn, -1);
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		return;
+	}
+	xrtCodecFrameConsume(pChain, &tFrame);
+	__xhttpdLock(&pConn->iConnLock);
+	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 || pConn->pRequest != NULL || pConn->bResponseInFlight ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		__xhttpdRequestDestroy(pReq);
+		return;
+	}
+	pConn->pRequest = pReq;
+	pConn->bResponseInFlight = true;
+	pConn->bResponseCommitted = false;
+	pConn->bResponseDrained = false;
+	pConn->bAsyncPending = false;
+	pConn->bKeepAlive = false;
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( pServer->tEvents.OnRequestAsync ) {
+		__xhttpdLock(&pConn->iConnLock);
+		pConn->bAsyncPending = true;
+		__xhttpdUnlock(&pConn->iConnLock);
+		pAsync = pServer->tEvents.OnRequestAsync(pServer->pUserData, pServer, pConn, pReq);
+		if ( pAsync ) {
+			if ( !__xhttpdAttachAsyncRequest(pConn, pAsync) ) {
+				__xhttpdLock(&pConn->iConnLock);
+				pConn->bAsyncPending = false;
+				__xhttpdUnlock(&pConn->iConnLock);
+				__xhttpdEmitServerError(pServer, pConn, -1);
+				__xhttpdSendSimpleStatus(pConn, 500u, __xhttpdStatusBody(500u));
+			}
+			return;
+		}
+		__xhttpdLock(&pConn->iConnLock);
+		pConn->bAsyncPending = false;
+		bResponseCommitted = pConn->bResponseCommitted;
+		__xhttpdUnlock(&pConn->iConnLock);
+		if ( bResponseCommitted ) {
+			__xhttpdConnTryFinalizeRequest(pConn);
+			return;
+		}
+	}
 	xrtHttpdResponseInit(&tResp);
 	if ( pServer->tEvents.OnRequest ) {
-		bHandled = pServer->tEvents.OnRequest(pServer->pUserData, pServer, pConn, &tReq, &tResp);
+		bHandled = pServer->tEvents.OnRequest(pServer->pUserData, pServer, pConn, pReq, &tResp);
 	}
 	if ( !bHandled ) {
 		xrtHttpdResponseSetStatus(&tResp, 404u, NULL);
 		(void)xrtHttpdResponseSetBodyCopy(&tResp, "Not Found", 9, "text/plain");
 	}
-	if ( (tReq.iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0 && !__xhttpdResponseHasHeader(&tResp, "Connection") ) {
-		tResp.iFlags &= ~XHTTPD_RESP_F_CLOSE;
-		(void)xrtHttpdResponseSetHeader(&tResp, "Connection", "keep-alive");
-	}
-	xrtCodecFrameConsume(pChain, &tFrame);
-	pConn->bKeepAlive = ((tReq.iFlags & XHTTPD_REQ_F_KEEPALIVE) != 0) && ((tResp.iFlags & XHTTPD_RESP_F_CLOSE) == 0u);
-	pConn->bResponseInFlight = true;
-	if ( !__xhttpdSendResponseAndClose(pConn, &tResp) ) {
+	if ( xrtHttpdConnRespond(pConn, &tResp) != XRT_NET_OK ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 	}
-	xrtHttpdRequestUnit(&tReq);
 	xrtHttpdResponseUnit(&tResp);
 }
 static void __xhttpdStreamOnDrain(ptr pOwner, xnetstream* pStream)
@@ -47670,12 +49539,14 @@ static void __xhttpdStreamOnDrain(ptr pOwner, xnetstream* pStream)
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;
 	if ( !pConn || !pStream ) return;
 	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) return;
-	if ( !pConn->bResponseInFlight ) return;
-	if ( !pConn->bKeepAlive || pStream->bClosing ) return;
-	pConn->bResponseInFlight = false;
-	if ( xrtNetChainBytes(&pStream->tRxChain) > 0u ) {
-		__xhttpdStreamOnRecv(pOwner, pStream, &pStream->tRxChain);
+	__xhttpdLock(&pConn->iConnLock);
+	if ( !pConn->bResponseInFlight || !pConn->bResponseCommitted || !pConn->bKeepAlive || pStream->bClosing ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return;
 	}
+	pConn->bResponseDrained = true;
+	__xhttpdUnlock(&pConn->iConnLock);
+	__xhttpdConnTryFinalizeRequest(pConn);
 }
 static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
 {
@@ -47808,13 +49679,12 @@ XXAPI void xrtHttpdStop(xhttpdserver* pServer)
 	while ( pConn ) {
 		xhttpdconn* pNext = pConn->pNext;
 		pConn->pNext = NULL;
-		(void)__xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0);
-		if ( pConn->pStream ) {
-			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
-			xrtNetStreamDestroy(pConn->pStream);
-			pConn->pStream = NULL;
+		if ( __xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) == 0 ) {
+			if ( pConn->pStream ) {
+				xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			}
+			__xhttpdConnCleanupTask(NULL, pConn);
 		}
-		XNET_FREE(pConn);
 		pConn = pNext;
 	}
 }
@@ -49443,6 +51313,1300 @@ str xrtGetLocalName()
 	}
 	return xCore.sNull;
 }
+#endif
+
+// ========================================
+// File: D:/git/xrt/lib/subprocess.h
+// ========================================
+
+#if !defined(_WIN32) && !defined(_WIN64)
+	#include <errno.h>
+	#include <signal.h>
+	#include <sys/socket.h>
+#endif
+#define __XPROC_READ_CHUNK_DEFAULT	4096u
+#define __XPROC_STREAM_STDOUT		1
+#define __XPROC_STREAM_STDERR		2
+typedef struct {
+	char* pData;
+	size_t iSize;
+	size_t iCap;
+	bool bTruncated;
+} __xproc_buffer;
+typedef struct {
+	char* sData;
+	size_t iSize;
+	size_t iCap;
+} __xproc_strbuf;
+static bool __xprocStrBufReserve(__xproc_strbuf* pBuf, size_t iNeed)
+{
+	size_t iCapNew;
+	char* sNew;
+	if ( pBuf == NULL ) {
+		return false;
+	}
+	if ( iNeed <= pBuf->iCap ) {
+		return true;
+	}
+	iCapNew = pBuf->iCap ? pBuf->iCap : 64u;
+	while ( iCapNew < iNeed ) {
+		size_t iNext = (iCapNew < 1024u) ? (iCapNew * 2u) : (iCapNew + (iCapNew / 2u));
+		if ( iNext <= iCapNew ) {
+			iCapNew = iNeed;
+			break;
+		}
+		iCapNew = iNext;
+	}
+	sNew = (char*)xrtRealloc(pBuf->sData, iCapNew);
+	if ( sNew == NULL ) {
+		return false;
+	}
+	pBuf->sData = sNew;
+	pBuf->iCap = iCapNew;
+	return true;
+}
+static bool __xprocStrBufAppendRaw(__xproc_strbuf* pBuf, const char* sText, size_t iLen)
+{
+	if ( pBuf == NULL ) {
+		return false;
+	}
+	if ( iLen == 0 ) {
+		return true;
+	}
+	if ( !__xprocStrBufReserve(pBuf, pBuf->iSize + iLen + 1u) ) {
+		return false;
+	}
+	memcpy(pBuf->sData + pBuf->iSize, sText, iLen);
+	pBuf->iSize += iLen;
+	pBuf->sData[pBuf->iSize] = '\0';
+	return true;
+}
+static bool __xprocStrBufAppend(__xproc_strbuf* pBuf, const char* sText)
+{
+	if ( sText == NULL ) {
+		return true;
+	}
+	return __xprocStrBufAppendRaw(pBuf, sText, strlen(sText));
+}
+static bool __xprocStrBufAppendChar(__xproc_strbuf* pBuf, char ch)
+{
+	return __xprocStrBufAppendRaw(pBuf, &ch, 1u);
+}
+static void __xprocStrBufUnit(__xproc_strbuf* pBuf)
+{
+	if ( pBuf == NULL ) {
+		return;
+	}
+	if ( pBuf->sData ) {
+		xrtFree(pBuf->sData);
+	}
+	memset(pBuf, 0, sizeof(*pBuf));
+}
+static bool __xprocCmdNeedsQuote(str sArg)
+{
+	size_t i;
+	if ( sArg == NULL || sArg[0] == '\0' ) {
+		return true;
+	}
+	for ( i = 0; sArg[i] != '\0'; i++ ) {
+		switch ( sArg[i] ) {
+			case ' ':
+			case '\t':
+			case '\n':
+			case '\v':
+			case '"':
+				return true;
+			default:
+				break;
+		}
+	}
+	return false;
+}
+static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
+{
+	size_t i = 0;
+	size_t iBackslash = 0;
+	if ( sArg == NULL ) {
+		sArg = (str)"";
+	}
+	if ( !__xprocCmdNeedsQuote(sArg) ) {
+		return __xprocStrBufAppend(pBuf, (const char*)sArg);
+	}
+	if ( !__xprocStrBufAppendChar(pBuf, '"') ) {
+		return false;
+	}
+	for ( ;; ) {
+		char ch = ((const char*)sArg)[i];
+		if ( ch == '\\' ) {
+			iBackslash++;
+			i++;
+			continue;
+		}
+		if ( ch == '"' ) {
+			while ( iBackslash > 0 ) {
+				if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
+					return false;
+				}
+				iBackslash--;
+			}
+			if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '"') ) {
+				return false;
+			}
+			i++;
+			continue;
+		}
+		while ( iBackslash > 0 ) {
+			if ( !__xprocStrBufAppendChar(pBuf, '\\') ) {
+				return false;
+			}
+			iBackslash--;
+		}
+		if ( ch == '\0' ) {
+			break;
+		}
+		if ( !__xprocStrBufAppendChar(pBuf, ch) ) {
+			return false;
+		}
+		i++;
+	}
+	while ( iBackslash > 0 ) {
+		if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
+			return false;
+		}
+		iBackslash--;
+	}
+	return __xprocStrBufAppendChar(pBuf, '"');
+}
+static bool __xprocBufferReserve(__xproc_buffer* pBuf, size_t iNeed)
+{
+	size_t iCapNew;
+	char* pNew;
+	if ( pBuf == NULL ) {
+		return false;
+	}
+	if ( iNeed <= pBuf->iCap ) {
+		return true;
+	}
+	iCapNew = pBuf->iCap ? pBuf->iCap : 128u;
+	while ( iCapNew < iNeed ) {
+		size_t iNext = (iCapNew < 4096u) ? (iCapNew * 2u) : (iCapNew + (iCapNew / 2u));
+		if ( iNext <= iCapNew ) {
+			iCapNew = iNeed;
+			break;
+		}
+		iCapNew = iNext;
+	}
+	pNew = (char*)xrtRealloc(pBuf->pData, iCapNew);
+	if ( pNew == NULL ) {
+		return false;
+	}
+	pBuf->pData = pNew;
+	pBuf->iCap = iCapNew;
+	return true;
+}
+static void __xprocBufferAppend(__xproc_buffer* pBuf, const void* pData, size_t iSize, size_t iLimit)
+{
+	size_t iCopy = iSize;
+	if ( pBuf == NULL || pData == NULL || iSize == 0 ) {
+		return;
+	}
+	if ( iLimit != 0u ) {
+		if ( pBuf->iSize >= iLimit ) {
+			pBuf->bTruncated = true;
+			return;
+		}
+		if ( iCopy > (iLimit - pBuf->iSize) ) {
+			iCopy = iLimit - pBuf->iSize;
+			pBuf->bTruncated = true;
+		}
+	}
+	if ( iCopy == 0 ) {
+		return;
+	}
+	if ( !__xprocBufferReserve(pBuf, pBuf->iSize + iCopy + 1u) ) {
+		pBuf->bTruncated = true;
+		return;
+	}
+	memcpy(pBuf->pData + pBuf->iSize, pData, iCopy);
+	pBuf->iSize += iCopy;
+	pBuf->pData[pBuf->iSize] = '\0';
+	if ( iCopy != iSize ) {
+		pBuf->bTruncated = true;
+	}
+}
+static void __xprocBufferUnit(__xproc_buffer* pBuf)
+{
+	if ( pBuf == NULL ) {
+		return;
+	}
+	if ( pBuf->pData ) {
+		xrtFree(pBuf->pData);
+	}
+	memset(pBuf, 0, sizeof(*pBuf));
+}
+static void __xprocBufferMoveOut(__xproc_buffer* pBuf, ptr* ppData, size_t* piSize, bool* pbTruncated)
+{
+	if ( ppData ) {
+		*ppData = pBuf ? pBuf->pData : NULL;
+	}
+	if ( piSize ) {
+		*piSize = pBuf ? pBuf->iSize : 0u;
+	}
+	if ( pbTruncated ) {
+		*pbTruncated = pBuf ? pBuf->bTruncated : false;
+	}
+	if ( pBuf ) {
+		pBuf->pData = NULL;
+		pBuf->iSize = 0u;
+		pBuf->iCap = 0u;
+		pBuf->bTruncated = false;
+	}
+}
+XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig)
+{
+	if ( pConfig == NULL ) {
+		return;
+	}
+	memset(pConfig, 0, sizeof(*pConfig));
+	pConfig->iReadChunkSize = __XPROC_READ_CHUNK_DEFAULT;
+}
+XXAPI void xrtProcessResultUnit(xprocessresult* pResult)
+{
+	if ( pResult == NULL ) {
+		return;
+	}
+	if ( pResult->pStdout ) {
+		xrtFree(pResult->pStdout);
+	}
+	if ( pResult->pStderr ) {
+		xrtFree(pResult->pStderr);
+	}
+	memset(pResult, 0, sizeof(*pResult));
+}
+#if defined(XRT_NO_THREAD)
+static void __xprocSetThreadRequiredError(void)
+{
+	xrtSetError("subprocess requires thread support.", FALSE);
+}
+XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
+{
+	(void)pConfig;
+	__xprocSetThreadRequiredError();
+	return NULL;
+}
+XXAPI void xrtProcessDestroy(xprocess* pProcess)
+{
+	(void)pProcess;
+}
+XXAPI int xrtProcessState(xprocess* pProcess)
+{
+	(void)pProcess;
+	return XPROC_STATE_FAILED;
+}
+XXAPI bool xrtProcessIsRunning(xprocess* pProcess)
+{
+	(void)pProcess;
+	return false;
+}
+XXAPI int xrtProcessExitCode(xprocess* pProcess)
+{
+	(void)pProcess;
+	return -1;
+}
+XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
+{
+	(void)pProcess;
+	(void)pData;
+	(void)iSize;
+	__xprocSetThreadRequiredError();
+	return -1;
+}
+XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
+{
+	(void)pProcess;
+	(void)sText;
+	(void)iSize;
+	__xprocSetThreadRequiredError();
+	return -1;
+}
+XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
+{
+	(void)pProcess;
+	__xprocSetThreadRequiredError();
+	return false;
+}
+XXAPI bool xrtProcessWait(xprocess* pProcess)
+{
+	(void)pProcess;
+	__xprocSetThreadRequiredError();
+	return false;
+}
+XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
+{
+	(void)pProcess;
+	(void)iTimeoutMs;
+	__xprocSetThreadRequiredError();
+	return XRT_WAIT_ERROR;
+}
+XXAPI bool xrtProcessTerminate(xprocess* pProcess)
+{
+	(void)pProcess;
+	__xprocSetThreadRequiredError();
+	return false;
+}
+XXAPI bool xrtProcessKillTree(xprocess* pProcess)
+{
+	(void)pProcess;
+	__xprocSetThreadRequiredError();
+	return false;
+}
+XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
+{
+	(void)pProcess;
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	return NULL;
+}
+XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
+{
+	(void)pProcess;
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	return NULL;
+}
+XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
+{
+	(void)pConfig;
+	(void)pResult;
+	(void)iTimeoutMs;
+	__xprocSetThreadRequiredError();
+	return false;
+}
+#if !defined(XRT_NO_NETWORK)
+XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
+{
+	(void)pProcess;
+	__xprocSetThreadRequiredError();
+	return NULL;
+}
+#endif
+#else
+typedef struct {
+	xprocess* pProcess;
+	int iStream;
+} __xproc_pump_ctx;
+struct xprocess_struct {
+	volatile long iRefCount;
+	volatile int iState;
+	volatile int bExitReady;
+	volatile int bStdoutDone;
+	volatile int bStderrDone;
+	int iExitCode;
+	uint32 iFlags;
+	uint32 iReadChunkSize;
+	size_t iMaxCaptureBytes;
+	xprocessevents Events;
+	ptr pUserData;
+	xmutex_struct Lock;
+	xcond_struct Cond;
+	__xproc_buffer StdoutBuf;
+	__xproc_buffer StderrBuf;
+	xthread hWaitThread;
+	xthread hStdoutThread;
+	xthread hStderrThread;
+	__xproc_pump_ctx StdoutPump;
+	__xproc_pump_ctx StderrPump;
+	#if defined(_WIN32) || defined(_WIN64)
+		HANDLE hProcess;
+		HANDLE hStdinWrite;
+		HANDLE hStdoutRead;
+		HANDLE hStderrRead;
+		HANDLE hJob;
+	#else
+		pid_t iPid;
+		int fdStdinWrite;
+		int fdStdoutRead;
+		int fdStderrRead;
+	#endif
+	#if !defined(XRT_NO_NETWORK)
+		xfuture* pWaitFuture;
+		xpromise* pWaitPromise;
+	#endif
+};
+static void __xprocFreeProcess(xprocess* pProcess);
+static xprocess* __xprocAddRef(xprocess* pProcess)
+{
+	if ( pProcess ) {
+		(void)__xrtAtomicAddFetch32(&pProcess->iRefCount, 1);
+	}
+	return pProcess;
+}
+static void __xprocReleaseProcess(xprocess* pProcess)
+{
+	if ( pProcess && __xrtAtomicAddFetch32(&pProcess->iRefCount, -1) == 0 ) {
+		__xprocFreeProcess(pProcess);
+	}
+}
+#if !defined(XRT_NO_NETWORK)
+static void __xprocWaitFutureCleanup(xfuture* pFuture)
+{
+	xprocess* pProcess;
+	if ( pFuture == NULL ) {
+		return;
+	}
+	pProcess = (xprocess*)pFuture->pPendingCtx;
+	pFuture->pPendingCtx = NULL;
+	pFuture->pfnPendingCleanup = NULL;
+	if ( pProcess == NULL ) {
+		return;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	if ( pProcess->pWaitFuture == pFuture ) {
+		pProcess->pWaitFuture = NULL;
+	}
+	pProcess->pWaitPromise = NULL;
+	xrtMutexUnlock(&pProcess->Lock);
+	__xprocReleaseProcess(pProcess);
+}
+static void __xprocDetachWaitFuture(xprocess* pProcess)
+{
+	xfuture* pFuture = NULL;
+	xpromise* pPromise = NULL;
+	if ( pProcess == NULL ) {
+		return;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	pFuture = pProcess->pWaitFuture;
+	pPromise = pProcess->pWaitPromise;
+	pProcess->pWaitFuture = NULL;
+	pProcess->pWaitPromise = NULL;
+	xrtMutexUnlock(&pProcess->Lock);
+	if ( pPromise ) {
+		xPromiseDestroy(pPromise);
+	}
+	if ( pFuture ) {
+		xFutureRelease(pFuture);
+	}
+}
+#endif
+static uint64 __xprocNowMs(void)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetTickCount64();
+	#else
+		struct timespec tNow;
+		#if defined(CLOCK_MONOTONIC)
+			if ( clock_gettime(CLOCK_MONOTONIC, &tNow) == 0 ) {
+				return ((uint64)tNow.tv_sec * 1000ULL) + ((uint64)tNow.tv_nsec / 1000000ULL);
+			}
+		#endif
+		if ( clock_gettime(CLOCK_REALTIME, &tNow) == 0 ) {
+			return ((uint64)tNow.tv_sec * 1000ULL) + ((uint64)tNow.tv_nsec / 1000000ULL);
+		}
+		return 0u;
+	#endif
+}
+static uint32 __xprocNormalizeFlags(uint32 iFlags)
+{
+	if ( (iFlags & XPROC_F_MERGE_STDERR) != 0u ) {
+		iFlags |= XPROC_F_PIPE_STDOUT;
+		iFlags &= ~XPROC_F_PIPE_STDERR;
+	}
+	return iFlags;
+}
+static bool __xprocValidateConfig(const xprocessconfig* pConfig, uint32 iFlags)
+{
+	if ( pConfig == NULL ) {
+		xrtSetError("invalid subprocess config.", FALSE);
+		return false;
+	}
+	if ( (iFlags & XPROC_F_USE_SHELL) != 0u ) {
+		if ( pConfig->sCommandLine == NULL || pConfig->sCommandLine[0] == '\0' ) {
+			xrtSetError("shell mode requires command line.", FALSE);
+			return false;
+		}
+	} else {
+		if ( pConfig->sProgram == NULL || pConfig->sProgram[0] == '\0' ) {
+			xrtSetError("subprocess requires program path.", FALSE);
+			return false;
+		}
+	}
+	return true;
+}
+static xprocess* __xprocAllocProcess(const xprocessconfig* pConfig, uint32 iFlags)
+{
+	xprocess* pProcess = (xprocess*)xrtCalloc(1, sizeof(xprocess));
+	if ( pProcess == NULL ) {
+		xrtSetError("memory allocate failed.", FALSE);
+		return NULL;
+	}
+	pProcess->iRefCount = 1;
+	pProcess->iState = XPROC_STATE_INIT;
+	pProcess->iExitCode = -1;
+	pProcess->iFlags = iFlags;
+	pProcess->iReadChunkSize = pConfig->iReadChunkSize ? pConfig->iReadChunkSize : __XPROC_READ_CHUNK_DEFAULT;
+	pProcess->iMaxCaptureBytes = pConfig->iMaxCaptureBytes;
+	pProcess->pUserData = pConfig->pUserData;
+	if ( pConfig->pEvents ) {
+		pProcess->Events = *pConfig->pEvents;
+	}
+	xrtMutexInit(&pProcess->Lock);
+	xrtCondInit(&pProcess->Cond);
+	#if defined(_WIN32) || defined(_WIN64)
+		pProcess->hProcess = NULL;
+		pProcess->hStdinWrite = NULL;
+		pProcess->hStdoutRead = NULL;
+		pProcess->hStderrRead = NULL;
+		pProcess->hJob = NULL;
+	#else
+		pProcess->iPid = -1;
+		pProcess->fdStdinWrite = -1;
+		pProcess->fdStdoutRead = -1;
+		pProcess->fdStderrRead = -1;
+	#endif
+	return pProcess;
+}
+static void __xprocFreeProcess(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return;
+	}
+	#if !defined(XRT_NO_NETWORK)
+		if ( pProcess->pWaitPromise ) {
+			xPromiseDestroy(pProcess->pWaitPromise);
+			pProcess->pWaitPromise = NULL;
+		}
+		pProcess->pWaitFuture = NULL;
+	#endif
+	__xprocBufferUnit(&pProcess->StdoutBuf);
+	__xprocBufferUnit(&pProcess->StderrBuf);
+	xrtCondUnit(&pProcess->Cond);
+	xrtMutexUnit(&pProcess->Lock);
+	xrtFree(pProcess);
+}
+static void __xprocDestroyThreads(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return;
+	}
+	if ( pProcess->hWaitThread ) {
+		xrtThreadDestroy(pProcess->hWaitThread);
+		pProcess->hWaitThread = NULL;
+	}
+	if ( pProcess->hStdoutThread ) {
+		xrtThreadDestroy(pProcess->hStdoutThread);
+		pProcess->hStdoutThread = NULL;
+	}
+	if ( pProcess->hStderrThread ) {
+		xrtThreadDestroy(pProcess->hStderrThread);
+		pProcess->hStderrThread = NULL;
+	}
+}
+static void __xprocCloseStdinHandle(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hStdinWrite ) {
+			CloseHandle(pProcess->hStdinWrite);
+			pProcess->hStdinWrite = NULL;
+		}
+	#else
+		if ( pProcess->fdStdinWrite >= 0 ) {
+			close(pProcess->fdStdinWrite);
+			pProcess->fdStdinWrite = -1;
+		}
+	#endif
+}
+static void __xprocCloseStdoutReadHandle(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hStdoutRead ) {
+			CloseHandle(pProcess->hStdoutRead);
+			pProcess->hStdoutRead = NULL;
+		}
+	#else
+		if ( pProcess->fdStdoutRead >= 0 ) {
+			close(pProcess->fdStdoutRead);
+			pProcess->fdStdoutRead = -1;
+		}
+	#endif
+}
+static void __xprocCloseStderrReadHandle(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hStderrRead ) {
+			CloseHandle(pProcess->hStderrRead);
+			pProcess->hStderrRead = NULL;
+		}
+	#else
+		if ( pProcess->fdStderrRead >= 0 ) {
+			close(pProcess->fdStderrRead);
+			pProcess->fdStderrRead = -1;
+		}
+	#endif
+}
+static void __xprocClosePlatformHandles(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return;
+	}
+	__xprocCloseStdinHandle(pProcess);
+	__xprocCloseStdoutReadHandle(pProcess);
+	__xprocCloseStderrReadHandle(pProcess);
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hProcess ) {
+			CloseHandle(pProcess->hProcess);
+			pProcess->hProcess = NULL;
+		}
+		if ( pProcess->hJob ) {
+			CloseHandle(pProcess->hJob);
+			pProcess->hJob = NULL;
+		}
+	#else
+		pProcess->iPid = -1;
+	#endif
+}
+static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
+{
+	if ( pProcess == NULL ) {
+		return;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	if ( iStream == __XPROC_STREAM_STDOUT ) {
+		pProcess->bStdoutDone = true;
+	} else {
+		pProcess->bStderrDone = true;
+	}
+	xrtCondBroadcast(&pProcess->Cond);
+	xrtMutexUnlock(&pProcess->Lock);
+}
+static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pData, size_t iSize)
+{
+	__xproc_buffer* pBuf = NULL;
+	void (*OnOutput)(xprocess*, const void*, size_t, ptr) = NULL;
+	if ( pProcess == NULL || pData == NULL || iSize == 0 ) {
+		return;
+	}
+	if ( iStream == __XPROC_STREAM_STDERR && (pProcess->iFlags & XPROC_F_MERGE_STDERR) != 0u ) {
+		pBuf = &pProcess->StdoutBuf;
+		OnOutput = pProcess->Events.OnStdout;
+	} else if ( iStream == __XPROC_STREAM_STDERR ) {
+		pBuf = &pProcess->StderrBuf;
+		OnOutput = pProcess->Events.OnStderr;
+	} else {
+		pBuf = &pProcess->StdoutBuf;
+		OnOutput = pProcess->Events.OnStdout;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	if ( (pProcess->iFlags & XPROC_F_NO_CAPTURE) == 0u ) {
+		__xprocBufferAppend(pBuf, pData, iSize, pProcess->iMaxCaptureBytes);
+	}
+	xrtMutexUnlock(&pProcess->Lock);
+	if ( OnOutput ) {
+		OnOutput(pProcess, pData, iSize, pProcess->pUserData);
+	}
+}
+static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree);
+static uint32 __xprocPumpThread(ptr pArg)
+{
+	__xproc_pump_ctx* pCtx = (__xproc_pump_ctx*)pArg;
+	xprocess* pProcess = pCtx ? pCtx->pProcess : NULL;
+	uint32 iChunk = (pProcess && pProcess->iReadChunkSize) ? pProcess->iReadChunkSize : __XPROC_READ_CHUNK_DEFAULT;
+	char* pBuf = NULL;
+	if ( pProcess == NULL || (pCtx->iStream != __XPROC_STREAM_STDOUT && pCtx->iStream != __XPROC_STREAM_STDERR) ) {
+		return 1u;
+	}
+	pBuf = (char*)xrtMalloc(iChunk);
+	if ( pBuf == NULL ) {
+		xrtSetError("memory allocate failed.", FALSE);
+		__xprocMarkStreamDone(pProcess, pCtx->iStream);
+		return 2u;
+	}
+	for ( ;; ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			HANDLE hRead = (pCtx->iStream == __XPROC_STREAM_STDOUT) ? pProcess->hStdoutRead : pProcess->hStderrRead;
+			DWORD iRead = 0u;
+			if ( hRead == NULL ) {
+				break;
+			}
+			if ( !ReadFile(hRead, pBuf, iChunk, &iRead, NULL) ) {
+				DWORD iErr = GetLastError();
+				if ( iErr == ERROR_BROKEN_PIPE || iErr == ERROR_HANDLE_EOF ) {
+					break;
+				}
+				break;
+			}
+			if ( iRead == 0u ) {
+				break;
+			}
+			__xprocHandleOutput(pProcess, pCtx->iStream, pBuf, (size_t)iRead);
+		#else
+			int iFd = (pCtx->iStream == __XPROC_STREAM_STDOUT) ? pProcess->fdStdoutRead : pProcess->fdStderrRead;
+			ssize_t iRead;
+			if ( iFd < 0 ) {
+				break;
+			}
+			do {
+				iRead = read(iFd, pBuf, iChunk);
+			} while ( iRead < 0 && errno == EINTR );
+			if ( iRead <= 0 ) {
+				break;
+			}
+			__xprocHandleOutput(pProcess, pCtx->iStream, pBuf, (size_t)iRead);
+		#endif
+	}
+	xrtFree(pBuf);
+	if ( pCtx->iStream == __XPROC_STREAM_STDOUT ) {
+		__xprocCloseStdoutReadHandle(pProcess);
+	} else {
+		__xprocCloseStderrReadHandle(pProcess);
+	}
+	__xprocMarkStreamDone(pProcess, pCtx->iStream);
+	return 0u;
+}
+#if defined(_WIN32) || defined(_WIN64)
+static char* __xprocBuildWindowsCommandLine(const xprocessconfig* pConfig)
+{
+	__xproc_strbuf tBuf;
+	bool bOk = false;
+	uint32 i;
+	memset(&tBuf, 0, sizeof(tBuf));
+	if ( (pConfig->iFlags & XPROC_F_USE_SHELL) != 0u ) {
+		bOk = __xprocStrBufAppend(&tBuf, "cmd.exe /C ");
+		if ( bOk ) {
+			bOk = __xprocStrBufAppend(&tBuf, (const char*)pConfig->sCommandLine);
+		}
+	} else {
+		bOk = __xprocCmdAppendQuoted(&tBuf, pConfig->sProgram);
+		for ( i = 0; bOk && i < pConfig->iArgCount; i++ ) {
+			if ( !__xprocStrBufAppendChar(&tBuf, ' ') ) {
+				bOk = false;
+				break;
+			}
+			if ( !__xprocCmdAppendQuoted(&tBuf, pConfig->arrArgs ? pConfig->arrArgs[i] : NULL) ) {
+				bOk = false;
+				break;
+			}
+		}
+	}
+	if ( !bOk ) {
+		__xprocStrBufUnit(&tBuf);
+		xrtSetError("failed to build subprocess command line.", FALSE);
+		return NULL;
+	}
+	return tBuf.sData;
+}
+static bool __xprocEnsureJobObject(xprocess* pProcess)
+{
+	HANDLE hJob;
+	JOBOBJECT_EXTENDED_LIMIT_INFORMATION tInfo;
+	if ( pProcess == NULL || pProcess->hProcess == NULL ) {
+		return false;
+	}
+	if ( pProcess->hJob ) {
+		return true;
+	}
+	hJob = CreateJobObjectW(NULL, NULL);
+	if ( hJob == NULL ) {
+		return false;
+	}
+	memset(&tInfo, 0, sizeof(tInfo));
+	tInfo.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+	if ( !SetInformationJobObject(hJob, JobObjectExtendedLimitInformation, &tInfo, sizeof(tInfo)) ) {
+		CloseHandle(hJob);
+		return false;
+	}
+	if ( !AssignProcessToJobObject(hJob, pProcess->hProcess) ) {
+		CloseHandle(hJob);
+		return false;
+	}
+	pProcess->hJob = hJob;
+	return true;
+}
+static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConfig)
+{
+	SECURITY_ATTRIBUTES tSa;
+	STARTUPINFOW tSi;
+	PROCESS_INFORMATION tPi;
+	HANDLE hChildStdinRead = NULL;
+	HANDLE hChildStdoutWrite = NULL;
+	HANDLE hChildStderrWrite = NULL;
+	char* sCmdUtf8 = NULL;
+	u16str sCmdW = NULL;
+	u16str sWorkDirW = NULL;
+	bool bUseStdHandles = false;
+	BOOL bOk;
+	DWORD iCreateFlags = 0u;
+	memset(&tSa, 0, sizeof(tSa));
+	memset(&tSi, 0, sizeof(tSi));
+	memset(&tPi, 0, sizeof(tPi));
+	tSa.nLength = sizeof(tSa);
+	tSa.bInheritHandle = TRUE;
+	tSi.cb = sizeof(tSi);
+	if ( (pProcess->iFlags & XPROC_F_PIPE_STDIN) != 0u ) {
+		if ( !CreatePipe(&hChildStdinRead, &pProcess->hStdinWrite, &tSa, 0) ) {
+			xrtSetError("failed to create subprocess stdin pipe.", FALSE);
+			goto fail;
+		}
+		(void)SetHandleInformation(pProcess->hStdinWrite, HANDLE_FLAG_INHERIT, 0);
+		bUseStdHandles = true;
+	}
+	if ( (pProcess->iFlags & XPROC_F_PIPE_STDOUT) != 0u ) {
+		if ( !CreatePipe(&pProcess->hStdoutRead, &hChildStdoutWrite, &tSa, 0) ) {
+			xrtSetError("failed to create subprocess stdout pipe.", FALSE);
+			goto fail;
+		}
+		(void)SetHandleInformation(pProcess->hStdoutRead, HANDLE_FLAG_INHERIT, 0);
+		bUseStdHandles = true;
+	}
+	if ( (pProcess->iFlags & XPROC_F_MERGE_STDERR) != 0u ) {
+		hChildStderrWrite = hChildStdoutWrite;
+	} else if ( (pProcess->iFlags & XPROC_F_PIPE_STDERR) != 0u ) {
+		if ( !CreatePipe(&pProcess->hStderrRead, &hChildStderrWrite, &tSa, 0) ) {
+			xrtSetError("failed to create subprocess stderr pipe.", FALSE);
+			goto fail;
+		}
+		(void)SetHandleInformation(pProcess->hStderrRead, HANDLE_FLAG_INHERIT, 0);
+		bUseStdHandles = true;
+	}
+	if ( bUseStdHandles ) {
+		tSi.dwFlags |= STARTF_USESTDHANDLES;
+		tSi.hStdInput = hChildStdinRead ? hChildStdinRead : GetStdHandle(STD_INPUT_HANDLE);
+		tSi.hStdOutput = hChildStdoutWrite ? hChildStdoutWrite : GetStdHandle(STD_OUTPUT_HANDLE);
+		tSi.hStdError = hChildStderrWrite ? hChildStderrWrite : GetStdHandle(STD_ERROR_HANDLE);
+	}
+	if ( (pProcess->iFlags & XPROC_F_HIDE_WINDOW) != 0u ) {
+		tSi.dwFlags |= STARTF_USESHOWWINDOW;
+		tSi.wShowWindow = SW_HIDE;
+		iCreateFlags |= CREATE_NO_WINDOW;
+	}
+	sCmdUtf8 = __xprocBuildWindowsCommandLine(pConfig);
+	if ( sCmdUtf8 == NULL ) {
+		goto fail;
+	}
+	sCmdW = xrtUTF8to16((u8str)sCmdUtf8, 0, NULL);
+	if ( sCmdW == NULL ) {
+		xrtSetError("failed to convert subprocess command line.", FALSE);
+		goto fail;
+	}
+	if ( pConfig->sWorkDir && pConfig->sWorkDir[0] ) {
+		sWorkDirW = xrtUTF8to16((u8str)pConfig->sWorkDir, 0, NULL);
+		if ( sWorkDirW == NULL ) {
+			xrtSetError("failed to convert subprocess working directory.", FALSE);
+			goto fail;
+		}
+	}
+	bOk = CreateProcessW(NULL, sCmdW, NULL, NULL, bUseStdHandles ? TRUE : FALSE, iCreateFlags, NULL, sWorkDirW, &tSi, &tPi);
+	if ( !bOk ) {
+		xrtSetError("failed to start subprocess.", FALSE);
+		goto fail;
+	}
+	pProcess->hProcess = tPi.hProcess;
+	if ( tPi.hThread ) {
+		CloseHandle(tPi.hThread);
+	}
+	if ( hChildStdinRead ) {
+		CloseHandle(hChildStdinRead);
+		hChildStdinRead = NULL;
+	}
+	if ( hChildStdoutWrite ) {
+		CloseHandle(hChildStdoutWrite);
+		hChildStdoutWrite = NULL;
+	}
+	if ( hChildStderrWrite && hChildStderrWrite != hChildStdoutWrite ) {
+		CloseHandle(hChildStderrWrite);
+		hChildStderrWrite = NULL;
+	}
+	if ( (pProcess->iFlags & XPROC_F_KILL_TREE) != 0u ) {
+		(void)__xprocEnsureJobObject(pProcess);
+	}
+	xrtFree(sCmdUtf8);
+	xrtFree(sCmdW);
+	if ( sWorkDirW ) {
+		xrtFree(sWorkDirW);
+	}
+	return true;
+fail:
+	if ( hChildStdinRead ) CloseHandle(hChildStdinRead);
+	if ( hChildStdoutWrite ) CloseHandle(hChildStdoutWrite);
+	if ( hChildStderrWrite && hChildStderrWrite != hChildStdoutWrite ) CloseHandle(hChildStderrWrite);
+	if ( tPi.hThread ) CloseHandle(tPi.hThread);
+	if ( tPi.hProcess ) CloseHandle(tPi.hProcess);
+	if ( sCmdUtf8 ) xrtFree(sCmdUtf8);
+	if ( sCmdW ) xrtFree(sCmdW);
+	if ( sWorkDirW ) xrtFree(sWorkDirW);
+	__xprocClosePlatformHandles(pProcess);
+	return false;
+}
+#else
+static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConfig)
+{
+	int fdStdin[2] = { -1, -1 };
+	int fdStdout[2] = { -1, -1 };
+	int fdStderr[2] = { -1, -1 };
+	char** arrExec = NULL;
+	pid_t iPid;
+	uint32 i;
+	if ( (pProcess->iFlags & XPROC_F_PIPE_STDIN) != 0u ) {
+		int iOne = 1;
+		if ( socketpair(AF_UNIX, SOCK_STREAM, 0, fdStdin) != 0 ) {
+			xrtSetError("failed to create subprocess stdin pipe.", FALSE);
+			goto fail;
+		}
+		#if defined(SO_NOSIGPIPE)
+			(void)setsockopt(fdStdin[1], SOL_SOCKET, SO_NOSIGPIPE, &iOne, sizeof(iOne));
+		#endif
+	}
+	if ( (pProcess->iFlags & XPROC_F_PIPE_STDOUT) != 0u ) {
+		if ( pipe(fdStdout) != 0 ) {
+			xrtSetError("failed to create subprocess stdout pipe.", FALSE);
+			goto fail;
+		}
+	}
+	if ( (pProcess->iFlags & XPROC_F_MERGE_STDERR) == 0u && (pProcess->iFlags & XPROC_F_PIPE_STDERR) != 0u ) {
+		if ( pipe(fdStderr) != 0 ) {
+			xrtSetError("failed to create subprocess stderr pipe.", FALSE);
+			goto fail;
+		}
+	}
+	if ( (pProcess->iFlags & XPROC_F_USE_SHELL) == 0u ) {
+		arrExec = (char**)xrtCalloc((size_t)pConfig->iArgCount + 2u, sizeof(char*));
+		if ( arrExec == NULL ) {
+			xrtSetError("memory allocate failed.", FALSE);
+			goto fail;
+		}
+		arrExec[0] = (char*)pConfig->sProgram;
+		for ( i = 0; i < pConfig->iArgCount; i++ ) {
+			arrExec[i + 1u] = (char*)(pConfig->arrArgs ? pConfig->arrArgs[i] : NULL);
+		}
+		arrExec[pConfig->iArgCount + 1u] = NULL;
+	}
+	iPid = fork();
+	if ( iPid < 0 ) {
+		xrtSetError("failed to fork subprocess.", FALSE);
+		goto fail;
+	}
+	if ( iPid == 0 ) {
+		if ( pConfig->sWorkDir && pConfig->sWorkDir[0] ) (void)chdir(pConfig->sWorkDir);
+		(void)setpgid(0, 0);
+		if ( fdStdin[0] >= 0 ) dup2(fdStdin[0], STDIN_FILENO);
+		if ( fdStdout[1] >= 0 ) dup2(fdStdout[1], STDOUT_FILENO);
+		if ( (pProcess->iFlags & XPROC_F_MERGE_STDERR) != 0u && fdStdout[1] >= 0 ) dup2(fdStdout[1], STDERR_FILENO);
+		else if ( fdStderr[1] >= 0 ) dup2(fdStderr[1], STDERR_FILENO);
+		if ( fdStdin[0] >= 0 ) close(fdStdin[0]);
+		if ( fdStdin[1] >= 0 ) close(fdStdin[1]);
+		if ( fdStdout[0] >= 0 ) close(fdStdout[0]);
+		if ( fdStdout[1] >= 0 ) close(fdStdout[1]);
+		if ( fdStderr[0] >= 0 ) close(fdStderr[0]);
+		if ( fdStderr[1] >= 0 ) close(fdStderr[1]);
+		if ( (pProcess->iFlags & XPROC_F_USE_SHELL) != 0u ) execl("/bin/sh", "sh", "-c", pConfig->sCommandLine, (char*)NULL);
+		else execvp(pConfig->sProgram, arrExec);
+		_exit(127);
+	}
+	pProcess->iPid = iPid;
+	if ( fdStdin[0] >= 0 ) { close(fdStdin[0]); pProcess->fdStdinWrite = fdStdin[1]; fdStdin[0] = -1; fdStdin[1] = -1; }
+	if ( fdStdout[1] >= 0 ) { close(fdStdout[1]); pProcess->fdStdoutRead = fdStdout[0]; fdStdout[0] = -1; fdStdout[1] = -1; }
+	if ( fdStderr[1] >= 0 ) { close(fdStderr[1]); pProcess->fdStderrRead = fdStderr[0]; fdStderr[0] = -1; fdStderr[1] = -1; }
+	if ( arrExec ) xrtFree(arrExec);
+	return true;
+fail:
+	if ( arrExec ) xrtFree(arrExec);
+	if ( fdStdin[0] >= 0 ) close(fdStdin[0]);
+	if ( fdStdin[1] >= 0 ) close(fdStdin[1]);
+	if ( fdStdout[0] >= 0 ) close(fdStdout[0]);
+	if ( fdStdout[1] >= 0 ) close(fdStdout[1]);
+	if ( fdStderr[0] >= 0 ) close(fdStderr[0]);
+	if ( fdStderr[1] >= 0 ) close(fdStderr[1]);
+	return false;
+}
+#endif
+static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree)
+{
+	if ( pProcess == NULL ) return false;
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hProcess == NULL ) return true;
+		if ( bKillTree && __xprocEnsureJobObject(pProcess) && TerminateJobObject(pProcess->hJob, 1u) ) return true;
+		if ( TerminateProcess(pProcess->hProcess, 1u) ) return true;
+		return GetLastError() == ERROR_ACCESS_DENIED && pProcess->bExitReady;
+	#else
+		int iRet;
+		if ( pProcess->iPid <= 0 ) return true;
+		iRet = kill(bKillTree ? -pProcess->iPid : pProcess->iPid, bKillTree ? SIGKILL : SIGTERM);
+		return (iRet == 0) || (errno == ESRCH);
+	#endif
+}
+static uint32 __xprocWaitThread(ptr pArg)
+{
+	xprocess* pProcess = (xprocess*)pArg;
+	int iExitCode = -1;
+	int iState = XPROC_STATE_EXITED;
+	#if !defined(XRT_NO_NETWORK)
+		xpromise* pPromise = NULL;
+	#endif
+	if ( pProcess == NULL ) return 1u;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			DWORD iWaitRet = WaitForSingleObject(pProcess->hProcess, INFINITE);
+			if ( iWaitRet == WAIT_OBJECT_0 ) {
+				DWORD iWinExit = 0u;
+				if ( GetExitCodeProcess(pProcess->hProcess, &iWinExit) ) iExitCode = (int)iWinExit;
+			} else {
+				iState = XPROC_STATE_FAILED;
+			}
+		}
+	#else
+		{
+			int iStatus = 0;
+			pid_t iWaitRet;
+			do { iWaitRet = waitpid(pProcess->iPid, &iStatus, 0); } while ( iWaitRet < 0 && errno == EINTR );
+			if ( iWaitRet < 0 ) iState = XPROC_STATE_FAILED;
+			else if ( WIFEXITED(iStatus) ) iExitCode = WEXITSTATUS(iStatus);
+			else if ( WIFSIGNALED(iStatus) ) iExitCode = 128 + WTERMSIG(iStatus);
+		}
+	#endif
+	__xprocCloseStdinHandle(pProcess);
+	if ( pProcess->hStdoutThread ) xrtThreadWait(pProcess->hStdoutThread);
+	if ( pProcess->hStderrThread ) xrtThreadWait(pProcess->hStderrThread);
+	xrtMutexLock(&pProcess->Lock);
+	pProcess->iExitCode = iExitCode;
+	pProcess->iState = iState;
+	pProcess->bExitReady = true;
+	xrtCondBroadcast(&pProcess->Cond);
+	#if !defined(XRT_NO_NETWORK)
+		pPromise = pProcess->pWaitPromise;
+		pProcess->pWaitPromise = NULL;
+	#endif
+	xrtMutexUnlock(&pProcess->Lock);
+	#if !defined(XRT_NO_NETWORK)
+		if ( pPromise ) { (void)xPromiseResolve(pPromise, pProcess); xPromiseDestroy(pPromise); }
+	#endif
+	if ( pProcess->Events.OnExit ) pProcess->Events.OnExit(pProcess, pProcess->iExitCode, pProcess->pUserData);
+	return 0u;
+}
+static void __xprocCleanupSpawnFailure(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) return;
+	(void)__xprocTerminatePlatform(pProcess, true);
+	if ( pProcess->hWaitThread ) xrtThreadWait(pProcess->hWaitThread);
+	if ( pProcess->hStdoutThread ) xrtThreadWait(pProcess->hStdoutThread);
+	if ( pProcess->hStderrThread ) xrtThreadWait(pProcess->hStderrThread);
+	__xprocDestroyThreads(pProcess);
+	__xprocClosePlatformHandles(pProcess);
+	__xprocFreeProcess(pProcess);
+}
+XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
+{
+	xprocess* pProcess;
+	uint32 iFlags = __xprocNormalizeFlags(pConfig ? pConfig->iFlags : 0u);
+	if ( !__xprocValidateConfig(pConfig, iFlags) ) return NULL;
+	pProcess = __xprocAllocProcess(pConfig, iFlags);
+	if ( pProcess == NULL ) return NULL;
+	if ( !__xprocSpawnPlatform(pProcess, pConfig) ) { __xprocFreeProcess(pProcess); return NULL; }
+	if ( (iFlags & XPROC_F_PIPE_STDOUT) == 0u ) pProcess->bStdoutDone = true;
+	if ( (iFlags & XPROC_F_PIPE_STDERR) == 0u || (iFlags & XPROC_F_MERGE_STDERR) != 0u ) pProcess->bStderrDone = true;
+	pProcess->StdoutPump.pProcess = pProcess;
+	pProcess->StdoutPump.iStream = __XPROC_STREAM_STDOUT;
+	pProcess->StderrPump.pProcess = pProcess;
+	pProcess->StderrPump.iStream = __XPROC_STREAM_STDERR;
+	if ( (iFlags & XPROC_F_PIPE_STDOUT) != 0u ) {
+		pProcess->hStdoutThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StdoutPump, 0);
+		if ( pProcess->hStdoutThread == NULL ) { xrtSetError("failed to create subprocess stdout thread.", FALSE); __xprocCleanupSpawnFailure(pProcess); return NULL; }
+	}
+	if ( (iFlags & XPROC_F_PIPE_STDERR) != 0u && (iFlags & XPROC_F_MERGE_STDERR) == 0u ) {
+		pProcess->hStderrThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StderrPump, 0);
+		if ( pProcess->hStderrThread == NULL ) { xrtSetError("failed to create subprocess stderr thread.", FALSE); __xprocCleanupSpawnFailure(pProcess); return NULL; }
+	}
+	pProcess->iState = XPROC_STATE_RUNNING;
+	pProcess->hWaitThread = xrtThreadCreate(__xprocWaitThread, pProcess, 0);
+	if ( pProcess->hWaitThread == NULL ) { xrtSetError("failed to create subprocess wait thread.", FALSE); __xprocCleanupSpawnFailure(pProcess); return NULL; }
+	if ( pProcess->Events.OnStart ) pProcess->Events.OnStart(pProcess, pProcess->pUserData);
+	return pProcess;
+}
+XXAPI void xrtProcessDestroy(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) return;
+	if ( pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady ) { xrtSetError("subprocess is still running.", FALSE); return; }
+	if ( pProcess->hWaitThread ) xrtThreadWait(pProcess->hWaitThread);
+	if ( pProcess->hStdoutThread ) xrtThreadWait(pProcess->hStdoutThread);
+	if ( pProcess->hStderrThread ) xrtThreadWait(pProcess->hStderrThread);
+	pProcess->iState = XPROC_STATE_CLOSED;
+	__xprocDestroyThreads(pProcess);
+	__xprocClosePlatformHandles(pProcess);
+	#if !defined(XRT_NO_NETWORK)
+		__xprocDetachWaitFuture(pProcess);
+	#endif
+	__xprocReleaseProcess(pProcess);
+}
+XXAPI int xrtProcessState(xprocess* pProcess) { return pProcess ? pProcess->iState : XPROC_STATE_FAILED; }
+XXAPI bool xrtProcessIsRunning(xprocess* pProcess) { return pProcess ? (pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady) : false; }
+XXAPI int xrtProcessExitCode(xprocess* pProcess) { return pProcess ? pProcess->iExitCode : -1; }
+XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
+{
+	if ( pProcess == NULL || pData == NULL || iSize == 0 ) return 0;
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			DWORD iWritten = 0u;
+			if ( pProcess->hStdinWrite == NULL ) { xrtSetError("subprocess stdin pipe is not available.", FALSE); return -1; }
+			if ( !WriteFile(pProcess->hStdinWrite, pData, (DWORD)iSize, &iWritten, NULL) ) { xrtSetError("failed to write subprocess stdin.", FALSE); return -1; }
+			return (int64)iWritten;
+		}
+	#else
+		{
+			const char* pCursor = (const char*)pData;
+			size_t iLeft = iSize;
+			if ( pProcess->fdStdinWrite < 0 ) { xrtSetError("subprocess stdin pipe is not available.", FALSE); return -1; }
+			while ( iLeft > 0 ) {
+				ssize_t iWritten;
+				#if defined(MSG_NOSIGNAL)
+					iWritten = send(pProcess->fdStdinWrite, pCursor, iLeft, MSG_NOSIGNAL);
+				#else
+					iWritten = send(pProcess->fdStdinWrite, pCursor, iLeft, 0);
+				#endif
+				if ( iWritten < 0 && errno == EINTR ) continue;
+				if ( iWritten <= 0 ) { xrtSetError("failed to write subprocess stdin.", FALSE); return -1; }
+				pCursor += iWritten;
+				iLeft -= (size_t)iWritten;
+			}
+			return (int64)iSize;
+		}
+	#endif
+}
+XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
+{
+	if ( sText == NULL ) return 0;
+	if ( iSize == 0 ) iSize = strlen((const char*)sText);
+	return xrtProcessWrite(pProcess, sText, iSize);
+}
+XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
+	__xprocCloseStdinHandle(pProcess);
+	return true;
+}
+XXAPI bool xrtProcessWait(xprocess* pProcess) { return xrtProcessWaitTimeout(pProcess, UINT32_MAX) == XRT_WAIT_OK; }
+XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
+{
+	uint64 iDeadline = 0u;
+	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return XRT_WAIT_ERROR; }
+	xrtMutexLock(&pProcess->Lock);
+	if ( iTimeoutMs != UINT32_MAX ) iDeadline = __xprocNowMs() + iTimeoutMs;
+	while ( !pProcess->bExitReady ) {
+		if ( iTimeoutMs == UINT32_MAX ) xrtCondWait(&pProcess->Cond, &pProcess->Lock);
+		else {
+			uint64 iNow = __xprocNowMs();
+			if ( iNow >= iDeadline ) { xrtMutexUnlock(&pProcess->Lock); return XRT_WAIT_TIMEOUT; }
+			{
+				uint64 iRemain = iDeadline - iNow;
+				int iRet = xrtCondWaitTimeout(&pProcess->Cond, &pProcess->Lock, (iRemain > UINT32_MAX) ? UINT32_MAX : (uint32)iRemain);
+				if ( iRet == XRT_WAIT_TIMEOUT && !pProcess->bExitReady ) { xrtMutexUnlock(&pProcess->Lock); return XRT_WAIT_TIMEOUT; }
+				if ( iRet == XRT_WAIT_ERROR ) { xrtMutexUnlock(&pProcess->Lock); return XRT_WAIT_ERROR; }
+			}
+		}
+	}
+	xrtMutexUnlock(&pProcess->Lock);
+	if ( pProcess->hWaitThread ) xrtThreadWait(pProcess->hWaitThread);
+	return XRT_WAIT_OK;
+}
+XXAPI bool xrtProcessTerminate(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
+	if ( pProcess->bExitReady ) return true;
+	if ( !__xprocTerminatePlatform(pProcess, false) ) { xrtSetError("failed to terminate subprocess.", FALSE); return false; }
+	return true;
+}
+XXAPI bool xrtProcessKillTree(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
+	if ( pProcess->bExitReady ) return true;
+	if ( !__xprocTerminatePlatform(pProcess, true) ) { xrtSetError("failed to kill subprocess tree.", FALSE); return false; }
+	return true;
+}
+XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
+{
+	ptr pData = NULL;
+	if ( piSize ) *piSize = 0u;
+	if ( pProcess == NULL ) return NULL;
+	xrtMutexLock(&pProcess->Lock);
+	pData = pProcess->StdoutBuf.pData;
+	if ( piSize ) *piSize = pProcess->StdoutBuf.iSize;
+	xrtMutexUnlock(&pProcess->Lock);
+	return pData;
+}
+XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
+{
+	ptr pData = NULL;
+	if ( piSize ) *piSize = 0u;
+	if ( pProcess == NULL ) return NULL;
+	xrtMutexLock(&pProcess->Lock);
+	pData = pProcess->StderrBuf.pData;
+	if ( piSize ) *piSize = pProcess->StderrBuf.iSize;
+	xrtMutexUnlock(&pProcess->Lock);
+	return pData;
+}
+XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
+{
+	xprocessconfig tConfig;
+	xprocess* pProcess;
+	int iWaitRet;
+	if ( pConfig == NULL || pResult == NULL ) { xrtSetError("invalid subprocess capture arguments.", FALSE); return false; }
+	tConfig = *pConfig;
+	tConfig.iFlags = __xprocNormalizeFlags(tConfig.iFlags);
+	tConfig.iFlags &= ~XPROC_F_NO_CAPTURE;
+	tConfig.iFlags |= XPROC_F_PIPE_STDOUT;
+	if ( (tConfig.iFlags & XPROC_F_MERGE_STDERR) == 0u ) tConfig.iFlags |= XPROC_F_PIPE_STDERR;
+	pProcess = xrtProcessSpawn(&tConfig);
+	if ( pProcess == NULL ) return false;
+	iWaitRet = xrtProcessWaitTimeout(pProcess, iTimeoutMs == 0u ? UINT32_MAX : iTimeoutMs);
+	if ( iWaitRet != XRT_WAIT_OK ) {
+		(void)xrtProcessKillTree(pProcess);
+		(void)xrtProcessTerminate(pProcess);
+		(void)xrtProcessWait(pProcess);
+		xrtProcessDestroy(pProcess);
+		if ( iWaitRet == XRT_WAIT_TIMEOUT ) xrtSetError("subprocess capture wait timeout.", FALSE);
+		return false;
+	}
+	memset(pResult, 0, sizeof(*pResult));
+	pResult->iExitCode = xrtProcessExitCode(pProcess);
+	__xprocBufferMoveOut(&pProcess->StdoutBuf, &pResult->pStdout, &pResult->iStdoutSize, &pResult->bStdoutTruncated);
+	__xprocBufferMoveOut(&pProcess->StderrBuf, &pResult->pStderr, &pResult->iStderrSize, &pResult->bStderrTruncated);
+	xrtProcessDestroy(pProcess);
+	return true;
+}
+#if !defined(XRT_NO_NETWORK)
+XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
+{
+	xfuture* pFuture = NULL;
+	xpromise* pPromise = NULL;
+	bool bResolveNow = false;
+	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return NULL; }
+	xrtMutexLock(&pProcess->Lock);
+	if ( pProcess->pWaitFuture == NULL ) {
+		pFuture = xFutureCreate();
+		if ( pFuture == NULL ) { xrtMutexUnlock(&pProcess->Lock); xrtSetError("failed to create subprocess wait future.", FALSE); return NULL; }
+		pPromise = xPromiseCreate(pFuture);
+		if ( pPromise == NULL ) { xrtMutexUnlock(&pProcess->Lock); xFutureRelease(pFuture); xrtSetError("failed to create subprocess wait promise.", FALSE); return NULL; }
+		pFuture->pPendingCtx = __xprocAddRef(pProcess);
+		pFuture->pfnPendingCleanup = __xprocWaitFutureCleanup;
+		pProcess->pWaitFuture = pFuture;
+		if ( pProcess->bExitReady ) bResolveNow = true;
+		else { pProcess->pWaitPromise = pPromise; pPromise = NULL; }
+	}
+	pFuture = xFutureAddRef(pProcess->pWaitFuture);
+	xrtMutexUnlock(&pProcess->Lock);
+	if ( bResolveNow && pPromise ) { (void)xPromiseResolve(pPromise, pProcess); xPromiseDestroy(pPromise); }
+	return pFuture;
+}
+#endif
 #endif
 #ifndef XRT_NO_XID
 

@@ -298,6 +298,38 @@ static int Test_OS(xrtGlobalData* xCore)
 		xFutureRelease(pFuture);
 		xrtProcessDestroy(pProcess);
 	}
+
+	{
+		xprocess* pFutureProcess = NULL;
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"sleep_exit", (str)"120", (str)"11" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 4u);
+		pProcess = xrtProcessSpawn(&tConfig);
+		if ( pProcess == NULL ) {
+			return 6034;
+		}
+		pFuture = xrtProcessWaitFuture(pProcess);
+		if ( pFuture == NULL ) {
+			xrtProcessDestroy(pProcess);
+			return 6035;
+		}
+		if ( xFutureWaitValueTimeout(pFuture, 3000) != pProcess ) {
+			xFutureRelease(pFuture);
+			xrtProcessDestroy(pProcess);
+			return 6036;
+		}
+		xrtProcessDestroy(pProcess);
+		pFutureProcess = (xprocess*)xFutureValue(pFuture);
+		if ( pFutureProcess != pProcess ) {
+			xFutureRelease(pFuture);
+			return 6037;
+		}
+		if ( xrtProcessExitCode(pFutureProcess) != 11 ) {
+			xFutureRelease(pFuture);
+			return 6038;
+		}
+		xFutureRelease(pFuture);
+	}
 	#endif
 
 	return 0;
