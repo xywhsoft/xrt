@@ -104,6 +104,7 @@
 
 - [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
 - [xnet-v2 与 TLS session 入门](xnet-v2-tls-intro.md)
+- [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](../case/xws-session-queue-coroutine.md)
 - [用 XHTTP 走完 URL、代理与 TLS 客户端调用链](../case/xhttp-client-proxy-tls.md)
 - [用 XRT 写最小 HTTP 服务入门](minimal-http-service-intro.md)
 - [用 XRT 调用流式 LLM API 入门](streaming-llm-api-intro.md)

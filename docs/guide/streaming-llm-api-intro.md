@@ -49,15 +49,20 @@ XRT 的目标是：
 
 ## 3. 推荐主线
 
-当前更推荐按下面这条链理解：
+当前更推荐先把 AI 调用拆成两条正式路径：
 
 - `xvalue`：构造请求和中间数据
 - `json`：做交换格式
-- `xhttp`：发起 HTTP 请求
+- `xhttp`：承担当前 whole-body HTTP/HTTPS 主线
+- `xws`：承担 realtime 双向会话主线
 - `xtlssession`：提供统一 TLS public surface
 - `future / coroutine`：组织异步流程
 
-这样后面不管接哪个模型服务，都能尽量复用同一套基础设施。
+这里要特别记住一个边界：
+
+- `xhttp` 当前正式 public 主线仍以 whole-body response 为主
+- 如果提供方是 WebSocket realtime，直接走 `xws`
+- 如果提供方只有 HTTP SSE / chunked 长流，当前还不应写成“`xhttp` 已经完全 formal 的推荐主线”
 
 
 ## 4. 为什么请求对象建议先做成 xvalue
@@ -112,7 +117,11 @@ future / coroutine 的作用就是：
 - 解析和组装逻辑必须清晰
 - timeout / cancel 不能是事后补丁
 
-而当前主线正适合处理这类“长链异步网络交互”。
+但在当前正式 public surface 下，要把这件事再拆细一层理解：
+
+- 普通 `POST JSON -> JSON response`，直接走 `xhttp`
+- realtime 双向流，直接走 `xws + queue + coroutine`
+- HTTP SSE / chunked 长流，暂时不要写成 `xhttp` 已经 fully formal 的文档主线
 
 
 ## 7. 为什么不要过早把某个厂商 SDK 当主线
@@ -181,6 +190,7 @@ XRT 更适合提供跨厂商、跨场景可复用的基础能力。
 - [Future / Task / Promise](../api/api-future-task-promise.md)
 - [xvalue 与 JSON 入门](xvalue-json-intro.md)
 - [协程、Future 与 Task 入门](coroutine-future-task-intro.md)
+- [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](../case/xws-session-queue-coroutine.md)
 - [用 XRT 调用一个流式 LLM API](../case/streaming-llm-api.md)
 
 ---

@@ -149,8 +149,9 @@
 2. [用 Queue + Future 写一个多生产者 Worker](case/queue-worker-future.md)
 3. [用 Subprocess + File Async 写一个工具链流水线](case/subprocess-file-async-pipeline.md)
 4. [用 XHTTP 走完 URL、代理与 TLS 客户端调用链](case/xhttp-client-proxy-tls.md)
-5. [线程、协程与 Future 协同模型](case/thread-coroutine-future.md)
-6. [流式 LLM API](case/streaming-llm-api.md)
-7. [HTTP + JSON + Template 完整链路](case/http-json-template-chain.md)
-8. [xnet-v2 Stream Wait-Source 实战](case/xnet-stream-wait-source.md)
+5. [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](case/xws-session-queue-coroutine.md)
+6. [线程、协程与 Future 协同模型](case/thread-coroutine-future.md)
+7. [流式 LLM API](case/streaming-llm-api.md)
+8. [HTTP + JSON + Template 完整链路](case/http-json-template-chain.md)
+9. [xnet-v2 Stream Wait-Source 实战](case/xnet-stream-wait-source.md)
 

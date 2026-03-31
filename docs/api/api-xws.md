@@ -293,6 +293,7 @@ xrtWsConnSendText(pConn, sText, strlen(sText));
 
 ## 9. 建议继续阅读
 
+- [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](../case/xws-session-queue-coroutine.md)
 - [XNet V2](api-xnet-v2.md)
 - [Network TLS](api-network-tls.md)
 - [XHTTP](api-xhttp.md)

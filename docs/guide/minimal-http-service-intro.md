@@ -57,8 +57,9 @@
 1. 初始化 XRT runtime
 2. 创建并启动 HTTP 服务
 3. 注册一个最简单的处理函数
-4. 在处理函数里构造结构化响应
-5. 结束时清理运行时
+4. 先分清哪些路径走同步 handler，哪些路径需要异步 handler
+5. 在处理函数里构造结构化响应
+6. 结束时清理运行时
 
 可以先把它理解成下面这种骨架：
 
@@ -81,6 +82,13 @@ int main()
 - 入口明确
 - 层次正确
 - 以后容易扩展
+
+当前正式案例页会把这条骨架具体展开成 4 条路径：
+
+- `/health`：同步快路径
+- `/inspect`：把 request 元信息组织成 JSON
+- `/slow/future`：`OnRequestAsync` 返回 future，由 `xhttpd` 统一回包
+- `/slow/manual`：worker 线程手工 `xrtHttpdConnRespond()`
 
 
 ## 4. 为什么响应要优先构造成 xvalue
