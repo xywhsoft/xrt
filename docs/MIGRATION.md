@@ -347,7 +347,7 @@ shared root 解决的是“能否跨线程共享”，不等于：
 
 ## 相关文档
 
-- [项目简介](../../README.md)
+- [项目简介](../README.md)
 - [架构设计](ARCHITECTURE.md)
 - [API 索引](api/README.md)
 - [Thread](api/api-thread.md)
@@ -360,3 +360,4 @@ shared root 解决的是“能否跨线程共享”，不等于：
 ---
 
 **XRT 迁移指南版本：当前主线重建版**
+

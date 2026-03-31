@@ -20,7 +20,7 @@
 - [HKDF Key Derivation](#hkdf-key-derivation)
 - [X25519 Key Exchange](#x25519-key-exchange)
 - [RSA Signature Verification](#rsa-signature-verification)
-- [secp256r1 ECDH/ECDSA](#secp256r1-ecdh-ecdsa)
+- [secp256r1 ECDH/ECDSA](#secp256r1-ecdhecdsa)
 - [Usage Examples](#usage-examples)
 - [Notes](#notes)
 

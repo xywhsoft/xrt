@@ -2,7 +2,7 @@
 
 > The current official documentation entry for XRT. API references are organized under `docs/api/`, leaving a clear structure for beginner guides, case studies, and topic-specific documents.
 
-[中文](README.md) | [Project Overview](../../README.en.md)
+[中文](README.md) | [Project Overview](../README.en.md)
 
 ---
 
@@ -66,7 +66,7 @@ then place them in the proper subdirectory.
 
 ### Project Positioning
 
-- Root [README.en.md](../../README.en.md)
+- Root [README.en.md](../README.en.md)
 
 ### API Reference
 
@@ -130,7 +130,7 @@ They have been moved out of `docs/` and are kept under `dev/` as archived histor
 
 If this is your first time entering the current XRT mainline, read in this order:
 
-1. [Project Overview](../../README.en.md)
+1. [Project Overview](../README.en.md)
 2. [Architecture](ARCHITECTURE.en.md)
 3. [API Index](api/README.en.md)
 4. [Examples](EXAMPLES.en.md)
@@ -165,3 +165,4 @@ If you prefer complete combined examples, continue with:
 3. [Streaming LLM API](case/streaming-llm-api.en.md)
 4. [HTTP + JSON + Template Full Chain](case/http-json-template-chain.en.md)
 5. [xnet-v2 Stream Wait-Source Walkthrough](case/xnet-stream-wait-source.en.md)
+

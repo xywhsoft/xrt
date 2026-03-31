@@ -96,9 +96,9 @@ all reuse the same foundation instead of layering redundant logic on top.
 
 There are already formal benchmark assets under:
 
-- [XNET_COMPARE_20260314.md](../../dev/bench/XNET_COMPARE_20260314.md)
-- [XRT_FOUNDATION_BENCHMARK_METHOD.md](../../dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
-- [TLS_BENCH_20260315.md](../../dev/bench/TLS_BENCH_20260315.md)
+- [XNET_COMPARE_20260314.md](../dev/bench/XNET_COMPARE_20260314.md)
+- [XRT_FOUNDATION_BENCHMARK_METHOD.md](../dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
+- [TLS_BENCH_20260315.md](../dev/bench/TLS_BENCH_20260315.md)
 
 These baseline sets already cover:
 
@@ -262,15 +262,16 @@ For the current async mainline, these should also become long-term baseline item
 
 ## Related Documents
 
-- [Project Overview](../../README.en.md)
+- [Project Overview](../README.en.md)
 - [Architecture](ARCHITECTURE.en.md)
 - [Best Practices](BEST_PRACTICES.en.md)
 - [XNet V2](api/api-xnet-v2.en.md)
 - [Future / Task / Promise](api/api-future-task-promise.en.md)
-- [Benchmark Methodology](../../dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
-- [XNet Comparison Baseline](../../dev/bench/XNET_COMPARE_20260314.md)
-- [TLS Baseline](../../dev/bench/TLS_BENCH_20260315.md)
+- [Benchmark Methodology](../dev/bench/XRT_FOUNDATION_BENCHMARK_METHOD.md)
+- [XNet Comparison Baseline](../dev/bench/XNET_COMPARE_20260314.md)
+- [TLS Baseline](../dev/bench/TLS_BENCH_20260315.md)
 
 ---
 
 **XRT Performance Notes Version: current mainline rebuild edition**
+

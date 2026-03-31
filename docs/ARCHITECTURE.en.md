@@ -48,17 +48,17 @@ Responsible for:
 
 Core files:
 
-- [xrt.h](../../xrt.h)
-- [xrt.c](../../xrt.c)
-- [base.h](../../lib/base.h)
-- [string.h](../../lib/string.h)
-- [os.h](../../lib/os.h)
-- [charset.h](../../lib/charset.h)
-- [math.h](../../lib/math.h)
-- [path.h](../../lib/path.h)
-- [time.h](../../lib/time.h)
-- [file.h](../../lib/file.h)
-- [hash.h](../../lib/hash.h)
+- [xrt.h](../xrt.h)
+- [xrt.c](../xrt.c)
+- [base.h](../lib/base.h)
+- [string.h](../lib/string.h)
+- [os.h](../lib/os.h)
+- [charset.h](../lib/charset.h)
+- [math.h](../lib/math.h)
+- [path.h](../lib/path.h)
+- [time.h](../lib/time.h)
+- [file.h](../lib/file.h)
+- [hash.h](../lib/hash.h)
 
 ### 2.2 Concurrency Runtime
 
@@ -72,8 +72,8 @@ Responsible for:
 
 Core files:
 
-- [thread.h](../../lib/thread.h)
-- [coroutine.h](../../lib/coroutine.h)
+- [thread.h](../lib/thread.h)
+- [coroutine.h](../lib/coroutine.h)
 
 ### 2.3 Unified Async Model
 
@@ -92,8 +92,8 @@ This layer has already become a formal mainline.
 
 Core files:
 
-- [xrt.h](../../xrt.h)
-- [xnet_sync.h](../../lib/xnet_sync.h)
+- [xrt.h](../xrt.h)
+- [xnet_sync.h](../lib/xnet_sync.h)
 
 ### 2.4 Memory and Containers
 
@@ -112,19 +112,19 @@ This layer now includes:
 
 Core files:
 
-- [bsmm.h](../../lib/bsmm.h)
-- [memunit.h](../../lib/memunit.h)
-- [mempool_fs.h](../../lib/mempool_fs.h)
-- [mempool.h](../../lib/mempool.h)
-- [array_point.h](../../lib/array_point.h)
-- [array.h](../../lib/array.h)
-- [stack.h](../../lib/stack.h)
-- [stack_dyn.h](../../lib/stack_dyn.h)
-- [llist.h](../../lib/llist.h)
-- [avltree_base.h](../../lib/avltree_base.h)
-- [avltree.h](../../lib/avltree.h)
-- [dict.h](../../lib/dict.h)
-- [list.h](../../lib/list.h)
+- [bsmm.h](../lib/bsmm.h)
+- [memunit.h](../lib/memunit.h)
+- [mempool_fs.h](../lib/mempool_fs.h)
+- [mempool.h](../lib/mempool.h)
+- [array_point.h](../lib/array_point.h)
+- [array.h](../lib/array.h)
+- [stack.h](../lib/stack.h)
+- [stack_dyn.h](../lib/stack_dyn.h)
+- `llist`: there is currently no standalone `lib/llist.h` in the source tree, so this part of the documentation still needs alignment with the live implementation
+- [avltree_base.h](../lib/avltree_base.h)
+- [avltree.h](../lib/avltree.h)
+- [dict.h](../lib/dict.h)
+- [list.h](../lib/list.h)
 
 ### 2.5 Structured Data and Text
 
@@ -138,11 +138,11 @@ Responsible for:
 
 Core files:
 
-- [value.h](../../lib/value.h)
-- [json.h](../../lib/json.h)
-- [jnum.h](../../lib/jnum.h)
-- [template.h](../../lib/template.h)
-- [regex.h](../../lib/regex.h)
+- [value.h](../lib/value.h)
+- [json.h](../lib/json.h)
+- [jnum.h](../lib/jnum.h)
+- [template.h](../lib/template.h)
+- [regex.h](../lib/regex.h)
 
 ### 2.6 Current Network Mainline
 
@@ -168,24 +168,24 @@ Responsible for:
 
 Core files:
 
-- [xurl.h](../../lib/xurl.h)
-- [xhttp_util.h](../../lib/xhttp_util.h)
-- [xnet_base.h](../../lib/xnet_base.h)
-- [xnet_mem.h](../../lib/xnet_mem.h)
-- [xnet_port.h](../../lib/xnet_port.h)
-- [xnet_port_iocp.h](../../lib/xnet_port_iocp.h)
-- [xnet_port_uring.h](../../lib/xnet_port_uring.h)
-- [xcodec.h](../../lib/xcodec.h)
-- [xcodec_http1.h](../../lib/xcodec_http1.h)
-- [xcodec_ws.h](../../lib/xcodec_ws.h)
-- [xnet_engine.h](../../lib/xnet_engine.h)
-- [nettls.h](../../lib/nettls.h)
-- [xnet_stream.h](../../lib/xnet_stream.h)
-- [xnet_dgram.h](../../lib/xnet_dgram.h)
-- [xnet_sync.h](../../lib/xnet_sync.h)
-- [xhttp.h](../../lib/xhttp.h)
-- [xhttpd.h](../../lib/xhttpd.h)
-- [xws.h](../../lib/xws.h)
+- [xurl.h](../lib/xurl.h)
+- [xhttp_util.h](../lib/xhttp_util.h)
+- [xnet_base.h](../lib/xnet_base.h)
+- [xnet_mem.h](../lib/xnet_mem.h)
+- [xnet_port.h](../lib/xnet_port.h)
+- [xnet_port_iocp.h](../lib/xnet_port_iocp.h)
+- [xnet_port_uring.h](../lib/xnet_port_uring.h)
+- [xcodec.h](../lib/xcodec.h)
+- [xcodec_http1.h](../lib/xcodec_http1.h)
+- [xcodec_ws.h](../lib/xcodec_ws.h)
+- [xnet_engine.h](../lib/xnet_engine.h)
+- [nettls.h](../lib/nettls.h)
+- [xnet_stream.h](../lib/xnet_stream.h)
+- [xnet_dgram.h](../lib/xnet_dgram.h)
+- [xnet_sync.h](../lib/xnet_sync.h)
+- [xhttp.h](../lib/xhttp.h)
+- [xhttpd.h](../lib/xhttpd.h)
+- [xws.h](../lib/xws.h)
 
 
 ## 3. Runtime Model
@@ -392,3 +392,4 @@ During this rebuild phase, documents under `docs/` should be interpreted with th
 [⬆️ Back to Top](#xrt-architecture)
 
 </div>
+

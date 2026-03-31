@@ -1,6 +1,6 @@
 # XRT API 索引
 
-> 当前正式 API 参考入口。这里仅收录和当前源码主线一致的 API 文档。
+> 当前正式 API 参考入口。这里优先收录和当前源码主线一致的 API 文档；少量历史页和待补齐页已在索引中显式标注状态。
 
 [返回文档中心](../README.md)
 
@@ -19,6 +19,8 @@
 | Path | [api-path.md](api-path.md) | 路径处理 |
 | Time | [api-time.md](api-time.md) | 时间与日期 |
 | File | [api-file.md](api-file.md) | 文件与目录操作 |
+| Async File | [../guide/file-async-intro.md](../guide/file-async-intro.md) | 当前先参考教学页，独立 API 文档待补齐 |
+| Subprocess | [../guide/subprocess-intro.md](../guide/subprocess-intro.md) | 当前先参考教学页，独立 API 文档待补齐 |
 | Network (local info) | [api-network.md](api-network.md) | 本机网络信息 |
 | Hash | [api-hash.md](api-hash.md) | 哈希函数 |
 | XID | [api-xid.md](api-xid.md) | 分布式唯一 ID |
@@ -47,8 +49,8 @@
 | PtrArray | [api-ptrarray.md](api-ptrarray.md) | 指针数组 |
 | Stack | [api-stack.md](api-stack.md) | 静态栈 |
 | DynStack | [api-dynstack.md](api-dynstack.md) | 动态栈 |
-| LList | [api-llist.md](api-llist.md) | 双向链表 |
-| LList-Base | [api-llist-base.md](api-llist-base.md) | 链表底层操作 |
+| LList | [api-llist.md](api-llist.md) | 历史文档，当前实现待继续校准 |
+| LList-Base | [api-llist-base.md](api-llist-base.md) | 历史文档，当前实现待继续校准 |
 | AVLTree | [api-avltree.md](api-avltree.md) | AVL 树 |
 | AVLTree-Base | [api-avltree-base.md](api-avltree-base.md) | AVL 底层操作 |
 | Dict | [api-dict.md](api-dict.md) | 字典 |
@@ -89,6 +91,8 @@
 - 英文版本将在中文审阅通过后统一同步
 - 已淘汰的旧网络/TLS API 文档已迁入 `dev/` 归档
 - 当前主线优先围绕“运行时 / 并发 / 队列 / 异步 / xnet-v2 / TLS session / HTTP / WebSocket”组织
+- `file_async` 与 `subprocess` 目前先以教学页承载，后续补独立 API 文档
+- `llist` 相关页面当前仅保留为历史参考，后续需继续和现行实现校准
 
 
 ## 7. 推荐阅读顺序

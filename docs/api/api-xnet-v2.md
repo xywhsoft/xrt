@@ -23,8 +23,8 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 ### 2.1 URL 与 HTTP 辅助
 
-- [xurl.h](../../../lib/xurl.h)
-- [xhttp_util.h](../../../lib/xhttp_util.h)
+- [xurl.h](../../lib/xurl.h)
+- [xhttp_util.h](../../lib/xhttp_util.h)
 
 负责：
 
@@ -35,11 +35,11 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 ### 2.2 网络底座
 
-- [xnet_base.h](../../../lib/xnet_base.h)
-- [xnet_mem.h](../../../lib/xnet_mem.h)
-- [xnet_port.h](../../../lib/xnet_port.h)
-- [xnet_port_iocp.h](../../../lib/xnet_port_iocp.h)
-- [xnet_port_uring.h](../../../lib/xnet_port_uring.h)
+- [xnet_base.h](../../lib/xnet_base.h)
+- [xnet_mem.h](../../lib/xnet_mem.h)
+- [xnet_port.h](../../lib/xnet_port.h)
+- [xnet_port_iocp.h](../../lib/xnet_port_iocp.h)
+- [xnet_port_uring.h](../../lib/xnet_port_uring.h)
 
 负责：
 
@@ -51,9 +51,9 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 ### 2.3 编解码
 
-- [xcodec.h](../../../lib/xcodec.h)
-- [xcodec_http1.h](../../../lib/xcodec_http1.h)
-- [xcodec_ws.h](../../../lib/xcodec_ws.h)
+- [xcodec.h](../../lib/xcodec.h)
+- [xcodec_http1.h](../../lib/xcodec_http1.h)
+- [xcodec_ws.h](../../lib/xcodec_ws.h)
 
 负责：
 
@@ -62,7 +62,7 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 ### 2.4 Engine
 
-- [xnet_engine.h](../../../lib/xnet_engine.h)
+- [xnet_engine.h](../../lib/xnet_engine.h)
 
 负责：
 
@@ -73,8 +73,8 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 ### 2.5 Stream 与 Dgram
 
-- [xnet_stream.h](../../../lib/xnet_stream.h)
-- [xnet_dgram.h](../../../lib/xnet_dgram.h)
+- [xnet_stream.h](../../lib/xnet_stream.h)
+- [xnet_dgram.h](../../lib/xnet_dgram.h)
 
 负责：
 
@@ -84,7 +84,7 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 ### 2.6 Sync / Future / Wait-Source
 
-- [xnet_sync.h](../../../lib/xnet_sync.h)
+- [xnet_sync.h](../../lib/xnet_sync.h)
 
 负责：
 
@@ -96,10 +96,10 @@ XNet V2 是 XRT 当前正式网络主线，目标是提供：
 
 ### 2.7 TLS 与应用层
 
-- [nettls.h](../../../lib/nettls.h)
-- [xhttp.h](../../../lib/xhttp.h)
-- [xhttpd.h](../../../lib/xhttpd.h)
-- [xws.h](../../../lib/xws.h)
+- [nettls.h](../../lib/nettls.h)
+- [xhttp.h](../../lib/xhttp.h)
+- [xhttpd.h](../../lib/xhttpd.h)
+- [xws.h](../../lib/xws.h)
 
 负责：
 
@@ -373,3 +373,4 @@ XNet V2 不再只是回调式网络层。
 - `api-xws.md`
 
 这些模块文档应建立在本文档的主线定位之上，而不是再回到旧网络表面。
+

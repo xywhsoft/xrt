@@ -48,7 +48,7 @@ Goals:
 
 Suggested entry points:
 
-- [Project Overview](../../../README.en.md)
+- [Project Overview](../../README.en.md)
 - [Documentation Hub](../README.en.md)
 - [Architecture](../ARCHITECTURE.en.md)
 
@@ -148,3 +148,4 @@ If you are still trying to understand which mainline to learn first, start here.
 ---
 
 This directory now serves as the formal English guide entry for the current XRT mainline.
+

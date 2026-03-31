@@ -10,7 +10,7 @@
 
 XRT 当前 TLS 主线采用：
 
-- 内部核心实现：TLS 引擎核心仍在 [nettls.h](../../../lib/nettls.h)
+- 内部核心实现：TLS 引擎核心仍在 [nettls.h](../../lib/nettls.h)
 - 对外正式表面：`xtlssession` 与 `xrtNetTlsSession*`
 
 这意味着：
@@ -252,3 +252,4 @@ XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAll
 - [XHTTP](api-xhttp.md)
 - [XHTTPD](api-xhttpd.md)
 - [XWS](api-xws.md)
+
