@@ -155,6 +155,7 @@
 - [task-group-intro.md](task-group-intro.md)：作为第 4 阶段结构化并发与 scope 收口专题正式第一页
 - [runtime-thread-attach.md](runtime-thread-attach.md)：并入第 4 阶段线程专题前导页
 - [xvalue-json-intro.md](xvalue-json-intro.md)：并入第 3 阶段
+- [template-intro.md](template-intro.md)：作为第 3 阶段 `template` 专题正式第一页
 - [coroutine-future-task-intro.md](coroutine-future-task-intro.md)：并入第 4 阶段
 - [subprocess-intro.md](subprocess-intro.md)：并入第 5 阶段
 - [file-async-intro.md](file-async-intro.md)：并入第 5 阶段

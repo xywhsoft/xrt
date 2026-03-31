@@ -47,6 +47,7 @@
 
 - 现有页面大多是“主题短讲”或“快速上手页”
 - 适合先扫概念、确认主线方向
+- `template` 已补出正式教学第一页
 - 还不等于完整课程体系
 - 尚未覆盖 XRT 全部公开模块
 
@@ -90,6 +91,7 @@
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)
 - [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
 - [xvalue 与 JSON 入门](xvalue-json-intro.md)
+- [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
 
 ### 2. 并发与异步主线页
 
@@ -130,7 +132,7 @@
 - `charset / path / os / math / hash / xid / network(local info)`
 - `buffer / array / ptrarray / stack / dynstack / llist / avltree / dict / list`
 - `bsmm / memunit / mempool_fs / mempool`
-- `jnum / xson / template / regex / crypto`
+- `jnum / xson / regex / crypto`
 - `xurl / xhttp_util / xws / proxy`
 
 这也是后续优先补齐的部分。
