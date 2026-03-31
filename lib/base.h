@@ -195,7 +195,7 @@ static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t
 }
 
 
-// 内部函数：重置临时内存区调试 on
+// 内部函数：记录临时内存区重置调试信息
 static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
 {
 	#ifdef XRT_MEM_DEBUG

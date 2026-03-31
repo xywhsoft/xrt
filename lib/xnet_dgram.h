@@ -272,7 +272,7 @@ static int __xnetDgramSocketLastErr(void)
 }
 
 
-// 内部函数：判断是否为数据报套接字 valid
+// 内部函数：判断数据报套接字是否有效
 static bool __xnetDgramSocketIsValid(xsocket hSocket)
 {
 	return hSocket != XNET_SOCKET_INVALID;

@@ -2,42 +2,42 @@
 	#define __XRT_QUEUE_MAX_CAPACITY (1u << 30)
 #endif
 
-// 内部函数：加载队列 atomic 32
+// 内部函数：加载队列原子 32 位值
 static inline uint32 __xrtQueueAtomicLoad32(const volatile uint32* pValue)
 {
 	return __xrtAtomicLoadU32(pValue);
 }
 
 
-// 内部函数：保存队列 atomic 32
+// 内部函数：保存队列原子 32 位值
 static inline void __xrtQueueAtomicStore32(volatile uint32* pValue, uint32 iValue)
 {
 	__xrtAtomicStoreU32(pValue, iValue);
 }
 
 
-// 内部函数：加载队列 atomic 64
+// 内部函数：加载队列原子 64 位值
 static inline uint64 __xrtQueueAtomicLoad64(const volatile uint64* pValue)
 {
 	return (uint64)__xrtAtomicLoad64((const volatile int64*)pValue);
 }
 
 
-// 内部函数：保存队列 atomic 64
+// 内部函数：保存队列原子 64 位值
 static inline void __xrtQueueAtomicStore64(volatile uint64* pValue, uint64 iValue)
 {
 	__xrtAtomicStore64((volatile int64*)pValue, (int64)iValue);
 }
 
 
-// 内部函数：__xrtQueueAtomicCAS64
+// 内部函数：比较并交换队列原子 64 位值
 static inline bool __xrtQueueAtomicCAS64(volatile uint64* pValue, uint64 iExpected, uint64 iDesired)
 {
 	return (uint64)__xrtAtomicCompareExchange64((volatile int64*)pValue, (int64)iDesired, (int64)iExpected) == iExpected;
 }
 
 
-// 内部函数：__xrtQueueRoundUpPow2
+// 内部函数：将队列容量向上对齐到 2 次幂
 static inline uint32 __xrtQueueRoundUpPow2(uint32 iCapacity)
 {
 	if ( iCapacity == 0 || iCapacity > __XRT_QUEUE_MAX_CAPACITY ) {
@@ -77,7 +77,7 @@ static inline bool __xrtQueueResolveCapacity(const xqueue_config* pCfg, uint32* 
 }
 
 
-// 内部函数：__xrtQueueSPSCCount
+// 内部函数：获取 SPSC 队列元素数量
 static inline uint32 __xrtQueueSPSCCount(const xspscq pQueue)
 {
 	uint32 iHead;
@@ -93,7 +93,7 @@ static inline uint32 __xrtQueueSPSCCount(const xspscq pQueue)
 }
 
 
-// 内部函数：__xrtQueueMPSCCount
+// 内部函数：获取 MPSC 队列元素数量
 static inline uint32 __xrtQueueMPSCCount(const xmpscq pQueue)
 {
 	uint64 iHead;
@@ -115,7 +115,7 @@ static inline uint32 __xrtQueueMPSCCount(const xmpscq pQueue)
 }
 
 
-// 内部函数：__xrtQueueMPMCCount
+// 内部函数：获取 MPMC 队列元素数量
 static inline uint32 __xrtQueueMPMCCount(const xmpmcq pQueue)
 {
 	uint64 iHead;
@@ -137,7 +137,7 @@ static inline uint32 __xrtQueueMPMCCount(const xmpmcq pQueue)
 }
 
 #ifndef XRT_NO_QUEUE_WAIT
-// 内部函数：等待队列 now 毫秒
+// 内部函数：获取等待队列当前毫秒时间
 static inline uint64 __xrtQueueWaitNowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -152,28 +152,28 @@ static inline uint64 __xrtQueueWaitNowMs(void)
 }
 
 
-// 内部函数：__xrtQueueWaitLoadLong
+// 内部函数：加载等待队列长整型状态
 static inline long __xrtQueueWaitLoadLong(const volatile long* pValue)
 {
 	return __xrtAtomicCompareExchange32((volatile long*)pValue, 0, 0);
 }
 
 
-// 内部函数：__xrtQueueWaitAddLong
+// 内部函数：累加等待队列长整型状态
 static inline void __xrtQueueWaitAddLong(volatile long* pValue, long iDelta)
 {
 	(void)__xrtAtomicAddFetch32(pValue, iDelta);
 }
 
 
-// 内部函数：__xrtMPSCQWaitIsClosedAndDrained
+// 内部函数：判断等待队列是否已关闭且排空
 static inline bool __xrtMPSCQWaitIsClosedAndDrained(const xmpscqwait pQueue)
 {
 	return pQueue != NULL && xrtQueueIsClosed(&pQueue->tQueue.tBase) && xrtQueueIsDrained(&pQueue->tQueue.tBase);
 }
 
 
-// 内部函数：__xrtMPSCQWaitWakeAll
+// 内部函数：唤醒全部等待中的消费者
 static inline void __xrtMPSCQWaitWakeAll(xmpscqwait pQueue)
 {
 	long iWaiters;

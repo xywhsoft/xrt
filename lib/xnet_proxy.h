@@ -68,7 +68,7 @@ static bool __xnetProxyAppendRecv(__xnet_proxy_state* pState, const void* pData,
 }
 
 
-// 内部函数：格式化代理 Authority
+// 内部函数：格式化代理授权段
 static bool __xnetProxyFormatAuthority(const char* sHost, uint16 iPort, char* sOut, size_t iOutCap)
 {
 	xnetaddr tAddr;

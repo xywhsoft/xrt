@@ -182,7 +182,7 @@ XXAPI bool xrtUrlViewIsScheme(const xrturlview* pURL, const char* sScheme)
 }
 
 
-// 匹配 URL 视图协议 2
+// 判断 URL 视图是否匹配两个协议之一
 XXAPI bool xrtUrlViewMatchesScheme2(const xrturlview* pURL, const char* sSchemeA, const char* sSchemeB)
 {
 	return xrtUrlViewIsScheme(pURL, sSchemeA) || xrtUrlViewIsScheme(pURL, sSchemeB);
@@ -197,7 +197,7 @@ XXAPI bool xrtUrlViewCopySchemeTo(const xrturlview* pURL, char* sOut, size_t iOu
 }
 
 
-// 复制 URL 视图 Authority
+// 复制 URL 视图授权段
 XXAPI bool xrtUrlViewCopyAuthorityTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL ) return false;
@@ -229,7 +229,7 @@ XXAPI bool xrtUrlViewCopyFragmentTo(const xrturlview* pURL, char* sOut, size_t i
 }
 
 
-// 解析 URL Authority
+// 解析 URL 授权段
 XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iAt = (size_t)-1;
@@ -292,7 +292,7 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 }
 
 
-// 解析 URL Authority
+// 解析 URL 授权段
 XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
@@ -300,7 +300,7 @@ XXAPI bool xrtUrlParseAuthority(const char* sText, xrturlview* pOut)
 }
 
 
-// 解析 URL Target
+// 解析 URL Target 部分
 XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 {
 	size_t iQuery = (size_t)-1;
@@ -335,7 +335,7 @@ XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 }
 
 
-// 解析 URL Target
+// 解析 URL Target 部分
 XXAPI bool xrtUrlParseTarget(const char* sText, xrturlview* pOut)
 {
 	if ( sText == NULL ) return false;
@@ -429,7 +429,7 @@ XXAPI bool xrtUrlViewCopyHostTo(const xrturlview* pURL, char* sOut, size_t iOutC
 }
 
 
-// 复制 URL 视图 Target
+// 复制 URL 视图 Target 部分
 XXAPI bool xrtUrlViewCopyTargetTo(const xrturlview* pURL, char* sOut, size_t iOutCap)
 {
 	if ( pURL == NULL || sOut == NULL || iOutCap == 0u ) return false;
@@ -606,7 +606,7 @@ XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, siz
 }
 
 
-// 构建 URL Target
+// 构建 URL Target 部分
 XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -635,7 +635,7 @@ XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap,
 }
 
 
-// 构建 URL Authority
+// 构建 URL 授权段
 XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;

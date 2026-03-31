@@ -70,12 +70,13 @@ xrtGlobalData xCore = { FALSE };
 	#define XRT_TLS_STORAGE			__thread
 #endif
 
+// 线程状态存储适配层
 #if defined(_WIN32) || defined(_WIN64)
 	#if defined(__TINYC__)
 		static DWORD __xrtThreadTlsSlot = TLS_OUT_OF_INDEXES;
 
 
-		// 内部函数：初始化线程状态存储
+		// 为当前线程准备 TLS 存储槽
 		static bool __xrtThreadStateInitStorage()
 		{
 			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
@@ -87,7 +88,7 @@ xrtGlobalData xCore = { FALSE };
 		}
 
 
-		// 内部函数：释放线程状态存储
+		// 释放线程状态使用的 TLS 存储槽
 		static void __xrtThreadStateUnitStorage()
 		{
 			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
@@ -97,7 +98,7 @@ xrtGlobalData xCore = { FALSE };
 		}
 
 
-		// 内部函数：获取线程状态
+		// 读取当前线程绑定的运行时状态
 		static xrtThreadData* __xrtThreadStateGet()
 		{
 			if ( __xrtThreadTlsSlot == TLS_OUT_OF_INDEXES ) {
@@ -108,7 +109,7 @@ xrtGlobalData xCore = { FALSE };
 		}
 
 
-		// 内部函数：设置线程状态
+		// 绑定当前线程的运行时状态
 		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
 		{
 			if ( __xrtThreadTlsSlot != TLS_OUT_OF_INDEXES ) {
@@ -119,27 +120,27 @@ xrtGlobalData xCore = { FALSE };
 		static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
 
 
-		// 内部函数：初始化线程状态存储
+		// TLS 变量模式下无需额外初始化
 		static bool __xrtThreadStateInitStorage()
 		{
 			return TRUE;
 		}
 
 
-		// 内部函数：释放线程状态存储
+		// TLS 变量模式下无需额外释放
 		static void __xrtThreadStateUnitStorage()
 		{
 		}
 
 
-		// 内部函数：获取线程状态
+		// 读取当前线程绑定的运行时状态
 		static xrtThreadData* __xrtThreadStateGet()
 		{
 			return __xrtThreadState;
 		}
 
 
-		// 内部函数：设置线程状态
+		// 绑定当前线程的运行时状态
 		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
 		{
 			__xrtThreadState = pThreadData;
@@ -151,7 +152,7 @@ xrtGlobalData xCore = { FALSE };
 		static bool __xrtThreadTlsKeyReady = FALSE;
 
 
-		// 内部函数：初始化线程状态存储
+		// 为当前线程准备 pthread TLS 键
 		static bool __xrtThreadStateInitStorage()
 		{
 			if ( __xrtThreadTlsKeyReady ) {
@@ -167,7 +168,7 @@ xrtGlobalData xCore = { FALSE };
 		}
 
 
-		// 内部函数：释放线程状态存储
+		// 释放线程状态使用的 pthread TLS 键
 		static void __xrtThreadStateUnitStorage()
 		{
 			if ( __xrtThreadTlsKeyReady ) {
@@ -177,7 +178,7 @@ xrtGlobalData xCore = { FALSE };
 		}
 
 
-		// 内部函数：获取线程状态
+		// 读取当前线程绑定的运行时状态
 		static xrtThreadData* __xrtThreadStateGet()
 		{
 			if ( !__xrtThreadTlsKeyReady ) {
@@ -188,7 +189,7 @@ xrtGlobalData xCore = { FALSE };
 		}
 
 
-		// 内部函数：设置线程状态
+		// 绑定当前线程的运行时状态
 		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
 		{
 			if ( __xrtThreadTlsKeyReady ) {
@@ -199,27 +200,27 @@ xrtGlobalData xCore = { FALSE };
 		static XRT_TLS_STORAGE xrtThreadData* __xrtThreadState = NULL;
 
 
-		// 内部函数：初始化线程状态存储
+		// TLS 变量模式下无需额外初始化
 		static bool __xrtThreadStateInitStorage()
 		{
 			return TRUE;
 		}
 
 
-		// 内部函数：释放线程状态存储
+		// TLS 变量模式下无需额外释放
 		static void __xrtThreadStateUnitStorage()
 		{
 		}
 
 
-		// 内部函数：获取线程状态
+		// 读取当前线程绑定的运行时状态
 		static xrtThreadData* __xrtThreadStateGet()
 		{
 			return __xrtThreadState;
 		}
 
 
-		// 内部函数：设置线程状态
+		// 绑定当前线程的运行时状态
 		static void __xrtThreadStateSet(xrtThreadData* pThreadData)
 		{
 			__xrtThreadState = pThreadData;
@@ -411,7 +412,9 @@ static void __xrtRuntimeFinalizeLocked();
 
 
 
-// 内部函数：获取当前线程 ID
+// 线程状态与运行时辅助函数
+
+// 获取当前执行线程的稳定标识
 static uint64 __xrtGetCurrentThreadId()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -423,7 +426,7 @@ static uint64 __xrtGetCurrentThreadId()
 
 
 
-// 内部函数：获取线程随机种子 Tick
+// 收集线程随机种子使用的时钟值
 static uint64 __xrtGetSeedTick()
 {
 	uint64 iTick = 0;
@@ -442,7 +445,7 @@ static uint64 __xrtGetSeedTick()
 
 
 
-// 内部函数：初始化线程随机种子
+// 为线程初始化随机数状态
 static void __xrtSeedThreadRand(xrtThreadData* pThreadData)
 {
 	uint64 iTick = __xrtGetSeedTick();
@@ -461,7 +464,7 @@ static void __xrtSeedThreadRand(xrtThreadData* pThreadData)
 
 
 
-// 内部函数：初始化线程内存状态
+// 初始化线程本地内存上下文
 static void __xrtInitThreadMemState(xrtThreadData* pThreadData)
 {
 	if ( pThreadData == NULL ) {
@@ -479,7 +482,7 @@ static void __xrtInitThreadMemState(xrtThreadData* pThreadData)
 
 
 
-// 内部函数：重置内存遥测状态
+// 保留启用状态并清空内存遥测计数
 static void __xrtResetMemTelemetryState(xrtMemTelemetryState* pState)
 {
 	long bEnabled = 0;
@@ -495,7 +498,7 @@ static void __xrtResetMemTelemetryState(xrtMemTelemetryState* pState)
 
 
 
-// 内部函数：释放线程内存状态
+// 回收线程本地内存上下文
 static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
 {
 	if ( pThreadData == NULL ) {
@@ -513,7 +516,7 @@ static void __xrtUnitThreadMemState(xrtThreadData* pThreadData)
 
 
 
-// 内部函数：创建线程状态
+// 创建并填充线程运行时状态
 static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 {
 	xrtThreadData* pThreadData = NULL;
@@ -545,7 +548,7 @@ static xrtThreadData* __xrtCreateThreadState(struct xthread_struct* pThread)
 
 
 
-// 内部函数：释放线程错误
+// 释放线程缓存的错误文本
 static void __xrtFreeThreadError(xrtThreadData* pThreadData)
 {
 	if ( pThreadData == NULL ) {
@@ -562,7 +565,7 @@ static void __xrtFreeThreadError(xrtThreadData* pThreadData)
 
 
 
-// 内部函数：释放线程临时内存
+// 释放线程临时内存池
 static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
 {
 	if ( pThreadData == NULL ) {
@@ -573,7 +576,7 @@ static void __xrtFreeThreadTempMemory(xrtThreadData* pThreadData)
 
 
 
-// 内部函数：__xrtRuntimeFinalizeLocked
+// 在持锁状态下收尾整个运行时
 static void __xrtRuntimeFinalizeLocked()
 {
 	if ( !xCore.bInit ) {
@@ -615,7 +618,7 @@ static void __xrtRuntimeFinalizeLocked()
 
 
 
-// 内部函数：__xrtRunThreadCleanup
+// 按栈顺序执行线程清理回调
 static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
 {
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
@@ -691,7 +694,7 @@ XXAPI xrtThreadData* xrtThreadAttachCurrent()
 
 
 
-// 内部函数：__xrtThreadAttachManaged
+// 为托管线程附加运行时状态并修正线程标识
 static xrtThreadData* __xrtThreadAttachManaged(struct xthread_struct* pThread)
 {
 	xrtThreadData* pThreadData = xrtThreadAttachCurrent();
@@ -765,7 +768,9 @@ XXAPI str xrtGetError()
 }
 
 #ifdef XRT_MEM_DEBUG
-// 内部函数：获取内存调试事件名称
+// 内存调试报告导出辅助函数
+
+// 获取内存调试事件名称
 static const char* __xrtMemDebugEventName(uint32 iType)
 {
 	switch ( iType ) {
@@ -791,7 +796,7 @@ static const char* __xrtMemDebugEventName(uint32 iType)
 }
 
 
-// 内部函数：获取内存调试 object type 名称
+// 获取内存调试对象类型名称
 static const char* __xrtMemDebugObjectTypeName(uint32 iObjectType)
 {
 	switch ( iObjectType ) {
@@ -807,7 +812,7 @@ static const char* __xrtMemDebugObjectTypeName(uint32 iObjectType)
 }
 
 
-// 内部函数：获取内存调试 object origin 名称
+// 获取内存调试对象来源名称
 static const char* __xrtMemDebugObjectOriginName(uint32 iOrigin)
 {
 	switch ( iOrigin ) {
@@ -818,7 +823,7 @@ static const char* __xrtMemDebugObjectOriginName(uint32 iOrigin)
 }
 
 
-// 内部函数：__xrtMemDebugEventUsesObjectType
+// 判断事件是否使用对象类型字段
 static bool __xrtMemDebugEventUsesObjectType(uint32 iType)
 {
 	return iType == XRT_MEMDEBUG_EVENT_OBJECT_CREATE
@@ -828,7 +833,7 @@ static bool __xrtMemDebugEventUsesObjectType(uint32 iType)
 }
 
 
-// 内部函数：写入内存调试 JSON 字符串
+// 按 JSON 转义规则写入字符串
 static void __xrtMemDebugJsonWriteString(FILE* pFile, const char* sText)
 {
 	const unsigned char* p = (const unsigned char*)(sText ? sText : "");
@@ -855,7 +860,7 @@ static void __xrtMemDebugJsonWriteString(FILE* pFile, const char* sText)
 }
 
 
-// 内部函数：导出内存调试文本文件
+// 将当前内存调试状态导出为文本报告
 static bool __xrtMemDebugDumpTextFile(FILE* pFile)
 {
 	xrtMemBlockHeader* pHeader;
@@ -969,7 +974,7 @@ static bool __xrtMemDebugDumpTextFile(FILE* pFile)
 }
 
 
-// 内部函数：导出内存调试 JSON 文件
+// 将当前内存调试状态导出为 JSON 报告
 static bool __xrtMemDebugDumpJsonFile(FILE* pFile)
 {
 	xrtMemBlockHeader* pHeader;
@@ -1241,7 +1246,7 @@ XXAPI bool xrtMemDebugDumpJson(str sPath)
 
 
 
-// xrtThreadPushCleanup 相关处理
+// 压入线程退出清理回调
 XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
 	xrtThreadData* pThreadData = __xrtThreadStateGet();
@@ -1267,7 +1272,7 @@ XXAPI bool xrtThreadPushCleanup(xrtThreadCleanupProc proc, ptr pArg)
 
 
 
-// xrtThreadPopCleanup 相关处理
+// 弹出线程退出清理回调
 XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
 {
 	xrtThreadData* pThreadData = __xrtThreadStateGet();
@@ -1291,7 +1296,7 @@ XXAPI bool xrtThreadPopCleanup(xrtThreadCleanupProc proc, ptr pArg)
 
 
 
-// 内部函数：__xrtThreadExitManaged
+// 结束托管线程并处理自动销毁
 static void __xrtThreadExitManaged(struct xthread_struct* pThread, uint32 iExitCode)
 {
 	if ( pThread ) {

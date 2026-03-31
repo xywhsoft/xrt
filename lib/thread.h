@@ -10,7 +10,7 @@
 		#define __XRT_THREAD_WAIT_CLOCK CLOCK_REALTIME
 	#endif
 
-	// 内部函数：构建线程 abs 超时
+	// 内部函数：构建线程绝对超时时间
 	static bool __xrtThreadMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
 	{
 		uint64 iNs;
@@ -23,7 +23,7 @@
 	}
 
 
-	// 内部函数：__xrtThreadInitMonotonicCond
+	// 内部函数：初始化单调时钟条件变量
 	static bool __xrtThreadInitMonotonicCond(pthread_cond_t* pCond)
 	{
 		pthread_condattr_t tAttr;
@@ -41,7 +41,7 @@
 	}
 #endif
 
-// 内部函数：__xrtThreadObjAlloc
+// 内部函数：分配线程对象内存
 static inline ptr __xrtThreadObjAlloc(size_t iSize)
 {
 	ptr (*procMalloc)(size_t) = xCore.malloc ? xCore.malloc : malloc;
@@ -49,7 +49,7 @@ static inline ptr __xrtThreadObjAlloc(size_t iSize)
 }
 
 
-// 内部函数：__xrtThreadObjFree
+// 内部函数：释放线程对象内存
 static inline void __xrtThreadObjFree(ptr pMem)
 {
 	void (*procFree)(ptr) = xCore.free ? xCore.free : free;
@@ -80,7 +80,7 @@ static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
 	return iExitCode;
 }
 #else
-// xrtThreadWrapper 相关处理
+// 线程包装函数（统一完成 attach / detach / exit code 保存）
 static void* xrtThreadWrapper(void* pParameter)
 {
 	xthread pThread = (xthread)pParameter;

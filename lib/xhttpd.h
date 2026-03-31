@@ -1224,7 +1224,7 @@ static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result i
 }
 
 
-// 内部函数：获取流 on 错误
+// 内部函数：处理流错误回调
 static void __xhttpdStreamOnError(ptr pOwner, xnetstream* pStream, int iSysErr)
 {
 	xhttpdconn* pConn = (xhttpdconn*)pOwner;

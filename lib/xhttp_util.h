@@ -30,7 +30,7 @@ static char __xrtHttpUtilToLower(char ch)
 }
 
 
-// 内部函数：HTTP util 相等忽略大小写相关处理
+// 内部函数：判断两段文本是否忽略大小写相等
 static bool __xrtHttpUtilEqNoCaseN(const char* sA, size_t iLenA, const char* sB, size_t iLenB)
 {
 	size_t i;
@@ -42,7 +42,7 @@ static bool __xrtHttpUtilEqNoCaseN(const char* sA, size_t iLenA, const char* sB,
 }
 
 
-// 内部函数：判断是否为 HTTP util Token 字符
+// 内部函数：判断是否为 HTTP Token 字符
 static bool __xrtHttpUtilIsTokenChar(char ch)
 {
 	if ( ch >= '0' && ch <= '9' ) return true;
@@ -59,7 +59,7 @@ static bool __xrtHttpUtilIsTokenChar(char ch)
 }
 
 
-// 内部函数：__xrtHttpUtilIsCookieOctet
+// 内部函数：判断是否为 Cookie Octet 字符
 static bool __xrtHttpUtilIsCookieOctet(char ch)
 {
 	unsigned char chU = (unsigned char)ch;
@@ -67,7 +67,7 @@ static bool __xrtHttpUtilIsCookieOctet(char ch)
 }
 
 
-// 内部函数：__xrtHttpUtilContainsCtl
+// 内部函数：判断文本中是否包含控制字符
 static bool __xrtHttpUtilContainsCtl(const char* sText, size_t iLen)
 {
 	size_t i;
@@ -80,7 +80,7 @@ static bool __xrtHttpUtilContainsCtl(const char* sText, size_t iLen)
 }
 
 
-// 内部函数：裁剪 HTTP util 视图
+// 内部函数：裁剪 HTTP 视图两端空白
 static void __xrtHttpUtilTrimView(xrtstrview* pView)
 {
 	if ( pView == NULL || pView->sPtr == NULL ) return;
@@ -94,7 +94,7 @@ static void __xrtHttpUtilTrimView(xrtstrview* pView)
 }
 
 
-// 内部函数：解析 HTTP util 整数 32
+// 内部函数：解析 32 位整数
 static bool __xrtHttpUtilParseInt32(const char* sText, size_t iLen, int32_t* pOut)
 {
 	bool bNeg = false;
@@ -118,7 +118,7 @@ static bool __xrtHttpUtilParseInt32(const char* sText, size_t iLen, int32_t* pOu
 }
 
 
-// 内部函数：__xrtHttpUtilAppendBytes
+// 内部函数：向输出缓冲区追加字节
 static bool __xrtHttpUtilAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset, const char* sText, size_t iLen)
 {
 	size_t iCur;
@@ -133,7 +133,7 @@ static bool __xrtHttpUtilAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset
 }
 
 
-// 内部函数：校验 HTTP util 边界
+// 内部函数：校验 Multipart 边界
 static bool __xrtHttpUtilValidateBoundaryN(const char* sBoundary, size_t iBoundaryLen)
 {
 	size_t i;
@@ -146,7 +146,7 @@ static bool __xrtHttpUtilValidateBoundaryN(const char* sBoundary, size_t iBounda
 }
 
 
-// xrtHttpUtilLimitsInit 相关处理
+// 初始化 HTTP 工具限制配置
 XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
 {
 	if ( !pLimits ) return;
@@ -164,7 +164,7 @@ XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
 }
 
 
-// 内部函数：__xrtHttpUtilResolveLimits
+// 内部函数：解析 HTTP 工具限制配置
 static const xrthttputillimits* __xrtHttpUtilResolveLimits(const xrthttputillimits* pIn, xrthttputillimits* pLocal)
 {
 	if ( pIn ) return pIn;
@@ -173,7 +173,7 @@ static const xrthttputillimits* __xrtHttpUtilResolveLimits(const xrthttputillimi
 }
 
 
-// 应用 Multipart 流配置 limits
+// 应用 Multipart 流限制配置
 XXAPI void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;

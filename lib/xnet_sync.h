@@ -3806,7 +3806,7 @@ static void __xnetSyncCancelStreamFutureWaitFinish(__xnet_stream_future_wait_ctx
 }
 
 
-// 内部函数：__xnetSyncOnStreamDrainFuture
+// 内部函数：流排空等待回调
 static void __xnetSyncOnStreamDrainFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -3818,7 +3818,7 @@ static void __xnetSyncOnStreamDrainFuture(xnetstream* pStream, xnet_result iStat
 }
 
 
-// 内部函数：关闭同步 on 流 Future
+// 内部函数：流关闭等待回调
 static void __xnetSyncOnStreamCloseFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -3830,7 +3830,7 @@ static void __xnetSyncOnStreamCloseFuture(xnetstream* pStream, xnet_result iStat
 }
 
 
-// 内部函数：__xnetSyncOnStreamReadableFuture
+// 内部函数：流可读等待回调
 static void __xnetSyncOnStreamReadableFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -3842,7 +3842,7 @@ static void __xnetSyncOnStreamReadableFuture(xnetstream* pStream, xnet_result iS
 }
 
 
-// 内部函数：__xnetSyncOnStreamWritableFuture
+// 内部函数：流可写等待回调
 static void __xnetSyncOnStreamWritableFuture(xnetstream* pStream, xnet_result iStatus, ptr pCtx)
 {
 	__xnet_stream_future_wait_ctx* pWaitCtx = (__xnet_stream_future_wait_ctx*)pCtx;
@@ -4092,7 +4092,7 @@ static void __xnetSyncCancelListenerFutureWaitFinish(__xnet_listener_future_wait
 }
 
 
-// 内部函数：接受同步 on 监听器 Future
+// 内部函数：监听器接受等待回调
 static void __xnetSyncOnListenerAcceptFuture(xnetlistener* pListener, xnet_result iStatus, xnetstream* pStream, ptr pCtx)
 {
 	__xnet_listener_future_wait_ctx* pWaitCtx = (__xnet_listener_future_wait_ctx*)pCtx;
@@ -4309,7 +4309,7 @@ static void __xnetSyncCancelDgramFutureWaitFinish(__xnet_dgram_future_wait_ctx* 
 }
 
 
-// 内部函数：接收同步 on 数据报 Future
+// 内部函数：数据报接收等待回调
 static void __xnetSyncOnDgramRecvFuture(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket, ptr pCtx)
 {
 	__xnet_dgram_future_wait_ctx* pWaitCtx = (__xnet_dgram_future_wait_ctx*)pCtx;

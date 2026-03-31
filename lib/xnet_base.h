@@ -323,7 +323,7 @@ static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 }
 
 
-// 内部函数：判断是否为代理配置 valid
+// 内部函数：判断代理配置是否有效
 static bool __xnetProxyConfigIsValid(const xnetproxyconfig* pCfg)
 {
 	if ( !pCfg ) return false;

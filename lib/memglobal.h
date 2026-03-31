@@ -175,7 +175,7 @@ static inline ptr __xrtMemGlobalUserFromHeader(xrtMemBlockHeader* pHeader)
 }
 
 
-// 内部函数：内存全局头部 valid相关处理
+// 内部函数：判断全局内存头部是否有效
 static inline bool __xrtMemGlobalHeaderValid(const xrtMemBlockHeader* pHeader)
 {
 	return pHeader != NULL && pHeader->iMagic == XRT_MEMBLOCK_MAGIC;
