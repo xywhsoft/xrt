@@ -123,17 +123,32 @@ static xvalue procBuildPageModel(void)
 	xvoTableSetArray(vPage, "cards", 0);
 	vCards = xvoTableGetValue(vPage, "cards", 0);
 	if ( vCards != NULL ) {
-		vCard = xvoArrayAppendTable(vCards);
-		xvoTableSetText(vCard, "title", 0, "workers", 0, FALSE);
-		xvoTableSetText(vCard, "value_text", 0, "1", 0, FALSE);
+		vCard = xvoCreateTable();
+		if ( vCard != NULL ) {
+			xvoTableSetText(vCard, "title", 0, "workers", 0, FALSE);
+			xvoTableSetText(vCard, "value_text", 0, "1", 0, FALSE);
+			if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+				xvoUnref(vCard);
+			}
+		}
 
-		vCard = xvoArrayAppendTable(vCards);
-		xvoTableSetText(vCard, "title", 0, "mode", 0, FALSE);
-		xvoTableSetText(vCard, "value_text", 0, "offline-render", 0, FALSE);
+		vCard = xvoCreateTable();
+		if ( vCard != NULL ) {
+			xvoTableSetText(vCard, "title", 0, "mode", 0, FALSE);
+			xvoTableSetText(vCard, "value_text", 0, "offline-render", 0, FALSE);
+			if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+				xvoUnref(vCard);
+			}
+		}
 
-		vCard = xvoArrayAppendTable(vCards);
-		xvoTableSetText(vCard, "title", 0, "output", 0, FALSE);
-		xvoTableSetText(vCard, "value_text", 0, "build/dashboard.html", 0, FALSE);
+		vCard = xvoCreateTable();
+		if ( vCard != NULL ) {
+			xvoTableSetText(vCard, "title", 0, "output", 0, FALSE);
+			xvoTableSetText(vCard, "value_text", 0, "build/dashboard.html", 0, FALSE);
+			if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+				xvoUnref(vCard);
+			}
+		}
 	}
 
 	return vPage;

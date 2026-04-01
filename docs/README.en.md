@@ -169,3 +169,4 @@ If you prefer full combined examples, continue with:
 10. [Full HTTP + JSON + Template Service Chain](case/http-json-template-chain.en.md)
 11. [Signed Rule Bundle Import with Charset, Regex, and Crypto](case/signed-rule-bundle.en.md)
 12. [Session Registry with `mempool + avltree + list`](case/session-registry-pool-index.en.md)
+13. [A Local Console Service that Combines Config, Logging, Tasks, Networking, and Templates](case/local-console-service.en.md)

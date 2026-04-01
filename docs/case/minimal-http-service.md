@@ -127,17 +127,32 @@ static xvalue procCreateHealthPayload(const xhttpdrequest* pReq, const char* sMo
 	xvoTableSetArray(vRes, "modules", 0);
 	vModules = xvoTableGetValue(vRes, "modules", 0);
 	if ( vModules != NULL ) {
-		vItem = xvoArrayAppendTable(vModules);
-		xvoTableSetText(vItem, "name", 0, "xhttpd", 0, FALSE);
-		xvoTableSetText(vItem, "role", 0, "http-server", 0, FALSE);
+		vItem = xvoCreateTable();
+		if ( vItem != NULL ) {
+			xvoTableSetText(vItem, "name", 0, "xhttpd", 0, FALSE);
+			xvoTableSetText(vItem, "role", 0, "http-server", 0, FALSE);
+			if ( !xvoArrayAppendValue(vModules, vItem, TRUE) ) {
+				xvoUnref(vItem);
+			}
+		}
 
-		vItem = xvoArrayAppendTable(vModules);
-		xvoTableSetText(vItem, "name", 0, "xvalue", 0, FALSE);
-		xvoTableSetText(vItem, "role", 0, "payload-model", 0, FALSE);
+		vItem = xvoCreateTable();
+		if ( vItem != NULL ) {
+			xvoTableSetText(vItem, "name", 0, "xvalue", 0, FALSE);
+			xvoTableSetText(vItem, "role", 0, "payload-model", 0, FALSE);
+			if ( !xvoArrayAppendValue(vModules, vItem, TRUE) ) {
+				xvoUnref(vItem);
+			}
+		}
 
-		vItem = xvoArrayAppendTable(vModules);
-		xvoTableSetText(vItem, "name", 0, "future", 0, FALSE);
-		xvoTableSetText(vItem, "role", 0, "slow-path", 0, FALSE);
+		vItem = xvoCreateTable();
+		if ( vItem != NULL ) {
+			xvoTableSetText(vItem, "name", 0, "future", 0, FALSE);
+			xvoTableSetText(vItem, "role", 0, "slow-path", 0, FALSE);
+			if ( !xvoArrayAppendValue(vModules, vItem, TRUE) ) {
+				xvoUnref(vItem);
+			}
+		}
 	}
 
 	return vRes;

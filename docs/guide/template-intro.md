@@ -238,13 +238,27 @@ int main(void)
 		goto cleanup;
 	}
 
-	vCard = xvoArrayAppendTable(vCards);
+	vCard = xvoCreateTable();
+	if ( vCard == NULL ) {
+		goto cleanup;
+	}
 	xvoTableSetText(vCard, "title", 0, "workers", 0, FALSE);
 	xvoTableSetText(vCard, "value_text", 0, "1", 0, FALSE);
+	if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+		xvoUnref(vCard);
+		goto cleanup;
+	}
 
-	vCard = xvoArrayAppendTable(vCards);
+	vCard = xvoCreateTable();
+	if ( vCard == NULL ) {
+		goto cleanup;
+	}
 	xvoTableSetText(vCard, "title", 0, "mode", 0, FALSE);
 	xvoTableSetText(vCard, "value_text", 0, "guide-demo", 0, FALSE);
+	if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+		xvoUnref(vCard);
+		goto cleanup;
+	}
 
 	sHtml = xteMake(hTemplate, vPage, NULL, NULL, &iHtmlSize);
 	if ( sHtml == NULL ) {

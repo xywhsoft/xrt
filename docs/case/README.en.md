@@ -92,6 +92,7 @@ The following case pages already exist in English:
 11. [Full HTTP + JSON + Template Service Chain](http-json-template-chain.en.md)
 12. [Signed Rule Bundle Import with Charset, Regex, and Crypto](signed-rule-bundle.en.md)
 13. [Session Registry with `mempool + avltree + list`](session-registry-pool-index.en.md)
+14. [A Local Console Service that Combines Config, Logging, Tasks, Networking, and Templates](local-console-service.en.md)
 
 ### 2. Current English Coverage Notes
 
@@ -99,7 +100,6 @@ At this point, the main reviewed formal case ladder has English coverage for its
 
 So the remaining gaps are now mostly:
 
-- the future small full-project case
 - more business-style variants such as cache, batch, and multi-tenant index cases
 
 These pages are currently useful when you want:
@@ -113,7 +113,6 @@ These pages are currently useful when you want:
 
 The most obvious remaining case gaps are:
 
-- a small full project that combines config, logging, tasks, networking, and templates
 - more business-style variants around cache, batch, and multi-tenant indexing
 
 

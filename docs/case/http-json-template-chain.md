@@ -162,17 +162,32 @@ static xvalue procBuildDashboardModel(const xhttpdrequest* pReq)
 	xvoTableSetArray(vPage, "cards", 0);
 	vCards = xvoTableGetValue(vPage, "cards", 0);
 	if ( vCards != NULL ) {
-		vCard = xvoArrayAppendTable(vCards);
-		xvoTableSetText(vCard, "title", 0, "workers", 0, FALSE);
-		xvoTableSetText(vCard, "value_text", 0, "1", 0, FALSE);
+		vCard = xvoCreateTable();
+		if ( vCard != NULL ) {
+			xvoTableSetText(vCard, "title", 0, "workers", 0, FALSE);
+			xvoTableSetText(vCard, "value_text", 0, "1", 0, FALSE);
+			if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+				xvoUnref(vCard);
+			}
+		}
 
-		vCard = xvoArrayAppendTable(vCards);
-		xvoTableSetText(vCard, "title", 0, "routes", 0, FALSE);
-		xvoTableSetText(vCard, "value_text", 0, "2", 0, FALSE);
+		vCard = xvoCreateTable();
+		if ( vCard != NULL ) {
+			xvoTableSetText(vCard, "title", 0, "routes", 0, FALSE);
+			xvoTableSetText(vCard, "value_text", 0, "2", 0, FALSE);
+			if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+				xvoUnref(vCard);
+			}
+		}
 
-		vCard = xvoArrayAppendTable(vCards);
-		xvoTableSetText(vCard, "title", 0, "template", 0, FALSE);
-		xvoTableSetText(vCard, "value_text", 0, "precompiled", 0, FALSE);
+		vCard = xvoCreateTable();
+		if ( vCard != NULL ) {
+			xvoTableSetText(vCard, "title", 0, "template", 0, FALSE);
+			xvoTableSetText(vCard, "value_text", 0, "precompiled", 0, FALSE);
+			if ( !xvoArrayAppendValue(vCards, vCard, TRUE) ) {
+				xvoUnref(vCard);
+			}
+		}
 	}
 
 	return vPage;

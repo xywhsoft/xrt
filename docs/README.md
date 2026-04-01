@@ -193,4 +193,5 @@
 9. [HTTP + JSON + Template 完整链路](case/http-json-template-chain.md)
 10. [xnet-v2 Stream Wait-Source 实战](case/xnet-stream-wait-source.md)
 11. [用 MemPool + AVLTree + List 组织一个会话索引与回收池](case/session-registry-pool-index.md)
+12. [把配置、日志、任务、网络和模板串成一个本地控制台服务](case/local-console-service.md)
 
