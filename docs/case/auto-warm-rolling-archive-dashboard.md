@@ -990,9 +990,9 @@ cleanup:
 
 如果你准备继续把层级状态做深，最顺的下一步是：
 
-1. 多层存储
-	把 hot / cold / archive 继续拆成真正的多层介质与恢复路径
-2. 冷热多级老化
-	把“热 -> 冷 -> archive”继续扩成更多正式层级
+1. [多层存储](multi-tier-storage-dashboard.md)
+	把 hot / warm / cold / archive 继续拆成真正的多层介质与恢复路径
+2. [冷热多级老化](hot-cold-multi-level-aging-dashboard.md)
+	把“热 -> warm -> cool -> cold -> archive”继续扩成更多正式层级
 3. [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
 	对比“同一条 cold state 的统一分流”和“带 rolling window 的联动收口”到底差在哪

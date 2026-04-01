@@ -229,5 +229,7 @@
 - 英文案例已同步 `case/archive-dashboard.en.md`
 - 英文案例已同步 `case/hot-cold-tier-dashboard.en.md`
 - 中文案例已补出 `case/auto-warm-rolling-archive-dashboard.md`，用于承接“自动回温 + 滚动归档联动”的业务变体主线
+- 中文案例已补出 `case/multi-tier-storage-dashboard.md`，用于承接“热层 / 温层 / 冷文件 / archive”的多层存储业务变体主线
+- 中文案例已补出 `case/hot-cold-multi-level-aging-dashboard.md`，用于承接“热 / 温 / 凉 / 冷文件 / archive”的多级老化业务变体主线
 - `case/README.md`、`case/README.en.md`、`README.md`、`README.en.md` 已对齐这条案例入口与 English sync 状态
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿

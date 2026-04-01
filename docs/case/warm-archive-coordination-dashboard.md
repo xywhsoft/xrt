@@ -725,12 +725,12 @@ cleanup:
 
 如果继续往业务层推进，最自然的下一步有 3 个：
 
-1. 多层存储
-	把热层、冷层和长期层拆成更完整的多层结构
+1. [多层存储](multi-tier-storage-dashboard.md)
+	把热层、温层、冷文件和长期层拆成更完整的多层结构
 2. [自动回温 + 滚动归档联动](auto-warm-rolling-archive-dashboard.md)
 	把 sweep、回温和长期层继续做成更完整的层级策略
-3. 冷热多级老化
-	把“热 -> 温 -> 冷 -> archive”拆成更细的 4 层模型
+3. [冷热多级老化](hot-cold-multi-level-aging-dashboard.md)
+	把“热 -> 温 -> 凉 -> 冷文件 -> archive”拆成更细的正式模型
 
 如果你还没完全建立这里的层级拆分心智，建议一起复读：
 

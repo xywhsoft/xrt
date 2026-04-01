@@ -112,7 +112,9 @@ At this point, the main reviewed formal case ladder has English coverage for its
 So the remaining gaps are now mostly:
 
 - the Chinese-first page [Upgrade the Local Console Service into an Auto-Warm + Rolling-Archive Integration Dashboard](auto-warm-rolling-archive-dashboard.md)
-- more business-style variants such as multi-tier storage cases
+- the Chinese-first page [Upgrade the Local Console Service into a Multi-Tier Storage Dashboard](multi-tier-storage-dashboard.md)
+- the Chinese-first page [Upgrade the Local Console Service into a Hot-Cold Multi-Level Aging Dashboard](hot-cold-multi-level-aging-dashboard.md)
+- more business-style variants such as finer recovery-priority and cross-media orchestration cases
 
 These pages are currently useful when you want:
 
@@ -124,7 +126,7 @@ These pages are currently useful when you want:
 
 The most obvious remaining case gaps are:
 
-- more business-style variants around multi-tier storage and long-lived service state
+- more business-style variants around longer-lived service state, recovery priority, and cross-media orchestration
 
 
 ## Relationship to API and Guide Docs

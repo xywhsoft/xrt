@@ -66,6 +66,8 @@
 - `dict + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条自动回温策略面板主线已经补出正式案例页
 - `dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条冷层回温归档协同面板主线已经补出正式案例页
 - `dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条自动回温 + 滚动归档联动面板主线已经补出正式案例页
+- `dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条多层存储面板主线已经补出正式案例页
+- `dict + dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条冷热多级老化面板主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -98,6 +100,8 @@
 18. 自动回温策略面板：`dict + list + list + queue + thread + time + path + file + hash + xhttpd + template`
 19. 冷层回温归档协同面板：`dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
 20. 自动回温 + 滚动归档联动面板：`dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
+21. 多层存储面板：`dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
+22. 冷热多级老化面板：`dict + dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
 
 这条梯度的目标不是只展示“能跑”，而是展示：
 
@@ -137,6 +141,8 @@
 24. [把本地控制台服务升级成一个自动回温策略面板](auto-warm-policy-dashboard.md)
 25. [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
 26. [把本地控制台服务升级成一个自动回温 + 滚动归档联动面板](auto-warm-rolling-archive-dashboard.md)
+27. [把本地控制台服务升级成一个多层存储面板](multi-tier-storage-dashboard.md)
+28. [把本地控制台服务升级成一个冷热多级老化面板](hot-cold-multi-level-aging-dashboard.md)
 
 这些页面当前适合：
 
@@ -149,7 +155,7 @@
 
 当前仍缺少正式案例的方向包括：
 
-- 继续往下补“多层存储”“冷热多级老化”这类更细的业务变体案例
+- 继续往下补更细的容量策略、冷热恢复优先级和跨介质编排这类业务变体案例
 
 
 ## 与 API 和教学文档的关系

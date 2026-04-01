@@ -182,3 +182,5 @@ If you prefer full combined examples, continue with:
 23. [Upgrade the Local Console Service into an Auto-Warm Policy Dashboard](case/auto-warm-policy-dashboard.en.md)
 24. [Upgrade the Local Console Service into a Warm-Archive Coordination Dashboard](case/warm-archive-coordination-dashboard.en.md)
 25. [Upgrade the Local Console Service into an Auto-Warm + Rolling-Archive Integration Dashboard](case/auto-warm-rolling-archive-dashboard.md) (Chinese for now)
+26. [Upgrade the Local Console Service into a Multi-Tier Storage Dashboard](case/multi-tier-storage-dashboard.md) (Chinese for now)
+27. [Upgrade the Local Console Service into a Hot-Cold Multi-Level Aging Dashboard](case/hot-cold-multi-level-aging-dashboard.md) (Chinese for now)
