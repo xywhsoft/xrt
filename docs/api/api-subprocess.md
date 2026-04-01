@@ -178,7 +178,49 @@ typedef struct {
 如果你传入的 offset 早于 `iBaseOffset`，说明较早的数据已经不在当前保留窗口里了。
 
 
-### 3.4 `xprocessconfig`
+### 3.4 `xprocessevent`
+
+```c
+typedef struct {
+	uint64 iSeq;
+	int iKind;
+	int iStream;
+	uint64 iOffset;
+	uint64 iSize;
+	uint64 tTimeMs;
+	xprocessexitinfo ExitInfo;
+} xprocessevent;
+```
+
+它表示统一事件时间线里的单条记录：
+
+- `iSeq`
+	- 全局递增序号
+- `iKind`
+	- `START / OUTPUT / EXIT`
+- `iStream`
+	- `STDOUT / STDERR / TERMINAL`
+- `iOffset / iSize`
+	- 对应输出块在流内的偏移和长度
+- `ExitInfo`
+	- 只有 `EXIT` 事件有意义
+
+
+### 3.5 `xprocesseventreadinfo`
+
+```c
+typedef struct {
+	uint64 iBaseSeq;
+	uint64 iNextSeq;
+	uint64 iEventEndSeq;
+	bool bDone;
+} xprocesseventreadinfo;
+```
+
+它用于描述一次 `ReadEventsSince` 调用后的事件窗口状态。
+
+
+### 3.6 `xprocessconfig`
 
 ```c
 typedef struct {
@@ -191,11 +233,15 @@ typedef struct {
 	str* arrEnv;
 	uint32 iEnvCount;
 	bool bInheritEnv;
+	bool bUseTerminal;
 	bool bMergeStderr;
 	bool bCreateProcessGroup;
 	bool bHideWindow;
+	uint32 iTerminalCols;
+	uint32 iTerminalRows;
 	uint32 iReadChunkSize;
 	size_t iMaxCaptureBytes;
+	uint32 iMaxEventCount;
 	xprocessstdio Stdin;
 	xprocessstdio Stdout;
 	xprocessstdio Stderr;
@@ -215,12 +261,19 @@ typedef struct {
 	- 追加参数
 - `sCommand`
 	- shell 模式下的命令文本
+- `bUseTerminal`
+	- 请求 PTY / ConPTY 终端模式
+	- 打开后 stdout 会变成 terminal 原始字节流
 - `bMergeStderr`
 	- 把 stderr 并入 stdout
+- `iTerminalCols / iTerminalRows`
+	- terminal 初始尺寸
 - `bCreateProcessGroup`
 	- 让 `Interrupt / KillTree` 更稳定作用于整组子进程
 - `iMaxCaptureBytes`
 	- 0 表示不限制
+- `iMaxEventCount`
+	- 统一事件时间线保留条数
 
 推荐起点一定是：
 
@@ -233,10 +286,12 @@ xrtProcessConfigInit(&tConfig);
 - `iTargetKind = XPROC_TARGET_EXEC`
 - `bInheritEnv = true`
 - `bCreateProcessGroup = true`
+- `iTerminalCols = 120`
+- `iTerminalRows = 30`
 - `Stdin/Stdout/Stderr = INHERIT`
 
 
-### 3.5 `xprocessresult`
+### 3.7 `xprocessresult`
 
 ```c
 typedef struct {
@@ -277,6 +332,7 @@ typedef struct {
 - 回调运行在内部线程
 - `OnExit` 拿到的是结构化退出信息，不再只是一个 `exit code`
 - 如果同时需要流式消费和轮询读取，可以结合 `PIPE + 回调 + ReadSince`
+- 如果需要统一时间线，优先用 `xrtProcessReadEventsSince()`
 
 
 ## 5. 公开 API
@@ -308,15 +364,19 @@ XXAPI int xrtProcessState(xprocess* pProcess);
 XXAPI bool xrtProcessIsRunning(xprocess* pProcess);
 XXAPI int xrtProcessExitCode(xprocess* pProcess);
 XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo);
+XXAPI bool xrtProcessTerminalSupported(void);
 
 XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize);
 XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize);
 XXAPI bool xrtProcessCloseStdin(xprocess* pProcess);
 
+XXAPI bool xrtProcessResizeTerminal(xprocess* pProcess, uint32 iCols, uint32 iRows);
+
 XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize);
 XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize);
 XXAPI ptr xrtProcessReadStdoutSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
 XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
+XXAPI xprocessevent* xrtProcessReadEventsSince(xprocess* pProcess, uint64 iSeq, uint32 iMaxCount, uint32* piCount, xprocesseventreadinfo* pInfo);
 ```
 
 要点：
@@ -325,6 +385,8 @@ XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t i
 - 很多程序要等到 EOF 才退出，所以写完 stdin 后通常还要 `xrtProcessCloseStdin()`
 - `GetStdout/GetStderr` 返回完整快照副本
 - `ReadStdoutSince/ReadStderrSince` 适合 agent 轮询式 streaming
+- `ReadEventsSince` 适合还原统一输出时间线和生命周期事件
+- terminal 模式下 stdout 保存的是原始 terminal 字节流，可能包含 VT 控制序列
 - 这些读取 API 返回的内存都需要 `xrtFree()`
 
 
@@ -404,13 +466,25 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess);
 - 明确给出 `arrEnv`
 - 避免依赖外层 shell 环境状态
 
+### 6.5 terminal / shell 会话
+
+- 先用 `xrtProcessTerminalSupported()` 判平台能力
+- 设置 `bUseTerminal = true`
+- 需要交互时把 `Stdin` 保持为可写，并用 `xrtProcessWriteText()` 发送命令
+- terminal 输出是原始终端字节流，不是“纯文本 stdout”
+
+### 6.6 统一事件时间线
+
+- 用 `xrtProcessReadEventsSince()`
+- 保存 `iNextSeq` 作为下一轮游标
+- `OUTPUT` 事件的 `iStream` 可区分 `STDOUT / STDERR / TERMINAL`
+
 
 ## 7. 当前边界
 
-- 这套主线当前提供的是 pipe-based subprocess
-- shell 路径已经能覆盖绝大多数 agent tool 场景
-- PTY / ConPTY 不在这套基础 API 的当前主线范围内
-- 回调是分 stdout / stderr 两条通道，不提供统一事件时间线 API
+- terminal 模式返回的是原始终端字节流，调用方如果要“纯文本”展示，应自行去掉 VT 控制序列
+- 回调接口仍然是 `stdout / stderr` 两条通道；如果要统一时间线，使用 `xrtProcessReadEventsSince()`
+- Windows terminal 依赖 ConPTY；不支持时 `xrtProcessTerminalSupported()` 会返回 `false`
 
 
 ## 8. 相关文档

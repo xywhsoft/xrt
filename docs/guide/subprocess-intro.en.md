@@ -167,6 +167,34 @@ Key fields:
 	- stream has finished
 
 
+### 5.2 Unified event timeline
+
+If you need a single ordered timeline for process lifecycle and output, poll the event stream directly:
+
+```c
+xprocesseventreadinfo tEventInfo;
+xprocessevent* arrEvents = NULL;
+uint32 iEventCount = 0u;
+uint64 iSeq = 0u;
+
+memset(&tEventInfo, 0, sizeof(tEventInfo));
+arrEvents = xrtProcessReadEventsSince(pProcess, iSeq, 0u, &iEventCount, &tEventInfo);
+if ( arrEvents != NULL ) {
+	for ( uint32 i = 0u; i < iEventCount; i++ ) {
+		printf("seq=%llu kind=%d stream=%d size=%llu\n",
+			(unsigned long long)arrEvents[i].iSeq,
+			arrEvents[i].iKind,
+			arrEvents[i].iStream,
+			(unsigned long long)arrEvents[i].iSize);
+	}
+	xrtFree(arrEvents);
+}
+iSeq = tEventInfo.iNextSeq;
+```
+
+In terminal mode, the output stream kind becomes `XPROC_STREAM_TERMINAL`.
+
+
 ## 6. Environment and Working Directory
 
 ### 6.1 Environment overlay
@@ -207,7 +235,38 @@ If the directory is invalid, launch fails with structured exit info:
 It does not silently fall back to the old current directory.
 
 
-## 7. Reading Structured Exit Info
+## 7. Terminal Mode
+
+Use terminal mode when you need an interactive shell, a REPL, or a tool that explicitly requires a TTY:
+
+```c
+xrtProcessConfigInit(&tConfig);
+tConfig.iTargetKind = XPROC_TARGET_SHELL;
+tConfig.bUseTerminal = true;
+```
+
+Check support first:
+
+```c
+if ( xrtProcessTerminalSupported() ) {
+	/* spawn */
+}
+```
+
+You can also resize the terminal after startup:
+
+```c
+xrtProcessResizeTerminal(pProcess, 100u, 32u);
+```
+
+Important detail:
+
+- terminal mode returns raw terminal bytes
+- the stream may contain ANSI / VT control sequences and title updates
+- strip escape sequences yourself if your UI needs plain text
+
+
+## 8. Reading Structured Exit Info
 
 Prefer this over checking only `xrtProcessExitCode()`:
 
@@ -234,7 +293,7 @@ This is especially important for distinguishing:
 - signal-based exit on POSIX
 
 
-## 8. Stop Semantics
+## 9. Stop Semantics
 
 The subprocess layer exposes four levels of stop requests:
 
@@ -253,7 +312,7 @@ Recommended escalation:
 `xrtExecCapture()` follows a similar internal timeout shutdown sequence.
 
 
-## 9. Futures
+## 10. Futures
 
 When the future layer is enabled:
 
@@ -268,16 +327,17 @@ if ( pFuture != NULL ) {
 ```
 
 
-## 10. Common Mistakes
+## 11. Common Mistakes
 
 - `xrtProcessDestroy()` is not a stop call
 - `OnExit` now receives `xprocessexitinfo*`
 - `GetStdout/GetStderr` return new heap buffers and must be freed with `xrtFree()`
 - `PIPE` mode is required for stdin writes and retained stream reads
+- terminal mode returns raw terminal bytes instead of pre-cleaned plain text
 - prefer direct exec over shell unless shell syntax is actually needed
 
 
-## 11. Related Pages
+## 12. Related Pages
 
 - [Subprocess API](../api/api-subprocess.md)
 - [Thread](../api/api-thread.en.md)

@@ -57,6 +57,69 @@ static void __xrtTestOSNormalizeText(const char* sInput, char* sOutput, size_t i
 }
 
 
+// 内部函数：__xrtTestOSNormalizeTerminalText
+static void __xrtTestOSNormalizeTerminalText(const char* sInput, char* sOutput, size_t iCap)
+{
+	size_t iWrite = 0u;
+	size_t iRead = 0u;
+
+	if ( sOutput == NULL || iCap == 0u ) {
+		return;
+	}
+	if ( sInput == NULL ) {
+		sOutput[0] = '\0';
+		return;
+	}
+
+	while ( sInput[iRead] != '\0' && iWrite + 1u < iCap ) {
+		unsigned char c = (unsigned char)sInput[iRead];
+
+		if ( c == '\r' ) {
+			iRead++;
+			continue;
+		}
+		if ( c == 0x1B ) {
+			iRead++;
+			if ( sInput[iRead] == '[' ) {
+				iRead++;
+				while ( sInput[iRead] != '\0' ) {
+					unsigned char cFinal = (unsigned char)sInput[iRead];
+
+					iRead++;
+					if ( cFinal >= 0x40u && cFinal <= 0x7Eu ) {
+						break;
+					}
+				}
+				continue;
+			}
+			if ( sInput[iRead] == ']' ) {
+				iRead++;
+				while ( sInput[iRead] != '\0' ) {
+					if ( sInput[iRead] == '\a' ) {
+						iRead++;
+						break;
+					}
+					if ( sInput[iRead] == 0x1B && sInput[iRead + 1u] == '\\' ) {
+						iRead += 2u;
+						break;
+					}
+					iRead++;
+				}
+				continue;
+			}
+			if ( sInput[iRead] != '\0' ) {
+				iRead++;
+			}
+			continue;
+		}
+
+		sOutput[iWrite++] = sInput[iRead++];
+	}
+
+	sOutput[iWrite] = '\0';
+}
+
+
 // 内部函数：__xrtTestOSOnStdout
 static void __xrtTestOSOnStdout(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData)
 {
@@ -198,6 +261,25 @@ static int __xrtTestSubprocessHelperMain(int argc, char** argv)
 		fflush(stdout);
 		return 0;
 	}
+	if ( strcmp(argv[0], "tty_state") == 0 ) {
+		int iStdinTty;
+		int iStdoutTty;
+		int iStderrTty;
+
+		#if defined(_WIN32) || defined(_WIN64)
+			iStdinTty = _isatty(_fileno(stdin)) ? 1 : 0;
+			iStdoutTty = _isatty(_fileno(stdout)) ? 1 : 0;
+			iStderrTty = _isatty(_fileno(stderr)) ? 1 : 0;
+		#else
+			iStdinTty = isatty(fileno(stdin)) ? 1 : 0;
+			iStdoutTty = isatty(fileno(stdout)) ? 1 : 0;
+			iStderrTty = isatty(fileno(stderr)) ? 1 : 0;
+		#endif
+
+		fprintf(stdout, "%d %d %d\n", iStdinTty, iStdoutTty, iStderrTty);
+		fflush(stdout);
+		return 0;
+	}
 
 	return 123;
 }
@@ -218,8 +300,11 @@ static int Test_OS(xrtGlobalData* xCore)
 	xprocess* pProcess = NULL;
 	xprocessexitinfo tExitInfo;
 	xprocessreadinfo tReadInfo;
+	xprocesseventreadinfo tEventInfo;
 	size_t iSize = 0u;
 	ptr pData = NULL;
+	xprocessevent* arrEvents = NULL;
+	uint32 iEventCount = 0u;
 	char sNormalized[256];
 	#if !defined(XRT_NO_NETWORK)
 		xfuture* pFuture = NULL;
@@ -469,6 +554,121 @@ static int Test_OS(xrtGlobalData* xCore)
 			return 6052;
 		}
 		xrtProcessResultUnit(&tResult);
+	}
+
+	{
+		int iStdoutEventCount = 0;
+		int iStderrEventCount = 0;
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"stream" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
+		tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
+		tConfig.Stderr.iMode = XPROC_STDIO_PIPE;
+		pProcess = xrtProcessSpawn(&tConfig);
+		if ( pProcess == NULL ) {
+			return 6053;
+		}
+		if ( !xrtProcessWait(pProcess) ) {
+			xrtProcessDestroy(pProcess);
+			return 6054;
+		}
+
+		memset(&tEventInfo, 0, sizeof(tEventInfo));
+		arrEvents = xrtProcessReadEventsSince(pProcess, 0u, 0u, &iEventCount, &tEventInfo);
+		if ( arrEvents == NULL || iEventCount < 5u ) {
+			xrtFree(arrEvents);
+			xrtProcessDestroy(pProcess);
+			return 6055;
+		}
+		if ( arrEvents[0].iKind != XPROC_EVENT_START || arrEvents[iEventCount - 1u].iKind != XPROC_EVENT_EXIT ) {
+			xrtFree(arrEvents);
+			xrtProcessDestroy(pProcess);
+			return 6056;
+		}
+		for ( uint32 i = 1u; i < iEventCount; i++ ) {
+			if ( arrEvents[i].iSeq <= arrEvents[i - 1u].iSeq ) {
+				xrtFree(arrEvents);
+				xrtProcessDestroy(pProcess);
+				return 6057;
+			}
+		}
+		for ( uint32 i = 0u; i < iEventCount; i++ ) {
+			if ( arrEvents[i].iKind == XPROC_EVENT_OUTPUT && arrEvents[i].iStream == XPROC_STREAM_STDOUT ) {
+				iStdoutEventCount++;
+			}
+			if ( arrEvents[i].iKind == XPROC_EVENT_OUTPUT && arrEvents[i].iStream == XPROC_STREAM_STDERR ) {
+				iStderrEventCount++;
+			}
+		}
+		if ( iStdoutEventCount < 2 || iStderrEventCount < 1 || !tEventInfo.bDone ) {
+			xrtFree(arrEvents);
+			xrtProcessDestroy(pProcess);
+			return 6058;
+		}
+		xrtFree(arrEvents);
+		arrEvents = NULL;
+		iEventCount = 0u;
+		xrtProcessDestroy(pProcess);
+	}
+
+	if ( xrtProcessTerminalSupported() ) {
+		{
+			str arrArgs[] = { (str)"__subprocess_helper", (str)"tty_state" };
+
+			__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
+			tConfig.bUseTerminal = true;
+			if ( !xrtExecCapture(&tConfig, &tResult, 3000u) ) {
+				return 6059;
+			}
+			__xrtTestOSNormalizeTerminalText((char*)tResult.pStdout, sNormalized, sizeof(sNormalized));
+			if ( tResult.iExitCode != 0 || strstr(sNormalized, "1 1 1\n") == NULL ) {
+				xrtProcessResultUnit(&tResult);
+				return 6060;
+			}
+			xrtProcessResultUnit(&tResult);
+		}
+
+		{
+			#if defined(_WIN32) || defined(_WIN64)
+				static const char sShellInput[] = "echo term-shell\r\nexit\r\n";
+			#else
+				static const char sShellInput[] = "echo term-shell\nexit\n";
+			#endif
+
+			xrtProcessConfigInit(&tConfig);
+			tConfig.iTargetKind = XPROC_TARGET_SHELL;
+			tConfig.bUseTerminal = true;
+			pProcess = xrtProcessSpawn(&tConfig);
+			if ( pProcess == NULL ) {
+				return 6061;
+			}
+			if ( !xrtProcessResizeTerminal(pProcess, 100u, 32u) ) {
+				xrtProcessKillTree(pProcess);
+				xrtProcessWait(pProcess);
+				xrtProcessDestroy(pProcess);
+				return 6062;
+			}
+			if ( xrtProcessWriteText(pProcess, (str)sShellInput, 0u) <= 0 ) {
+				xrtProcessKillTree(pProcess);
+				xrtProcessWait(pProcess);
+				xrtProcessDestroy(pProcess);
+				return 6063;
+			}
+			if ( !xrtProcessWait(pProcess) ) {
+				xrtProcessDestroy(pProcess);
+				return 6064;
+			}
+			pData = xrtProcessGetStdout(pProcess, &iSize);
+			__xrtTestOSNormalizeTerminalText((const char*)pData, sNormalized, sizeof(sNormalized));
+			if ( pData == NULL || strstr(sNormalized, "term-shell") == NULL ) {
+				xrtFree(pData);
+				xrtProcessDestroy(pProcess);
+				return 6065;
+			}
+			xrtFree(pData);
+			pData = NULL;
+			xrtProcessDestroy(pProcess);
+		}
 	}
 
 	#if !defined(XRT_NO_NETWORK)

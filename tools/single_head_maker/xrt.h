@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-01 19:36:46
+    Generated: 2026-04-01 20:39:19
 
     MIT License
 
@@ -1585,6 +1585,10 @@
 	#define XPROC_STDIO_INHERIT		0
 	#define XPROC_STDIO_PIPE		1
 	#define XPROC_STDIO_NULL		2
+	#define XPROC_STREAM_NONE		0
+	#define XPROC_STREAM_STDOUT		1
+	#define XPROC_STREAM_STDERR		2
+	#define XPROC_STREAM_TERMINAL	3
 	#define XPROC_EXIT_NONE			0
 	#define XPROC_EXIT_NORMAL		1
 	#define XPROC_EXIT_SIGNAL		2
@@ -1604,6 +1608,10 @@
 	#define XPROC_STOP_TERMINATE	2
 	#define XPROC_STOP_KILL			3
 	#define XPROC_STOP_KILL_TREE	4
+	#define XPROC_EVENT_NONE		0
+	#define XPROC_EVENT_START		1
+	#define XPROC_EVENT_OUTPUT		2
+	#define XPROC_EVENT_EXIT		3
 	typedef struct xprocess_struct xprocess;
 	typedef struct {
 		int iMode;
@@ -1626,6 +1634,21 @@
 		bool bDone;
 	} xprocessreadinfo;
 	typedef struct {
+		uint64 iSeq;
+		int iKind;
+		int iStream;
+		uint64 iOffset;
+		uint64 iSize;
+		uint64 tTimeMs;
+		xprocessexitinfo ExitInfo;
+	} xprocessevent;
+	typedef struct {
+		uint64 iBaseSeq;
+		uint64 iNextSeq;
+		uint64 iEventEndSeq;
+		bool bDone;
+	} xprocesseventreadinfo;
+	typedef struct {
 		void (*OnStart)(xprocess* pProcess, ptr pUserData);
 		void (*OnStdout)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
 		void (*OnStderr)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
@@ -1641,11 +1664,15 @@
 		str* arrEnv;
 		uint32 iEnvCount;
 		bool bInheritEnv;
+		bool bUseTerminal;
 		bool bMergeStderr;
 		bool bCreateProcessGroup;
 		bool bHideWindow;
+		uint32 iTerminalCols;
+		uint32 iTerminalRows;
 		uint32 iReadChunkSize;
 		size_t iMaxCaptureBytes;
+		uint32 iMaxEventCount;
 		xprocessstdio Stdin;
 		xprocessstdio Stdout;
 		xprocessstdio Stderr;
@@ -1678,6 +1705,8 @@
 	XXAPI int xrtProcessExitCode(xprocess* pProcess);
 	// 获取结构化退出信息
 	XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo);
+	// 当前平台是否支持 terminal 模式
+	XXAPI bool xrtProcessTerminalSupported(void);
 	// 写入进程标准输入
 	XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize);
 	// 写入进程标准输入文本
@@ -1696,6 +1725,8 @@
 	XXAPI bool xrtProcessKill(xprocess* pProcess);
 	// 强制结束整个进程树
 	XXAPI bool xrtProcessKillTree(xprocess* pProcess);
+	// 调整 terminal 尺寸
+	XXAPI bool xrtProcessResizeTerminal(xprocess* pProcess, uint32 iCols, uint32 iRows);
 	// 获取进程标准输出快照（返回新分配的内存，调用方负责 xrtFree）
 	XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize);
 	// 获取进程标准错误快照（返回新分配的内存，调用方负责 xrtFree）
@@ -1704,6 +1735,8 @@
 	XXAPI ptr xrtProcessReadStdoutSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
 	// 按偏移读取标准错误增量（返回新分配的内存，调用方负责 xrtFree）
 	XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
+	// 按序号读取事件增量（返回新分配的事件数组，调用方负责 xrtFree）
+	XXAPI xprocessevent* xrtProcessReadEventsSince(xprocess* pProcess, uint64 iSeq, uint32 iMaxCount, uint32* piCount, xprocesseventreadinfo* pInfo);
 	// 执行进程并捕获输出
 	XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs);
 	// 释放进程结果
@@ -54308,13 +54341,20 @@ str xrtGetLocalName()
 
 #if !defined(_WIN32) && !defined(_WIN64)
 	#include <errno.h>
+	#include <fcntl.h>
 	#include <signal.h>
 	#include <sys/socket.h>
+	#include <sys/ioctl.h>
+	#include <termios.h>
 #endif
 #define __XPROC_READ_CHUNK_DEFAULT	4096u
 #define __XPROC_TIMEOUT_GRACE_MS	250u
+#define __XPROC_EVENT_COUNT_DEFAULT	1024u
+#define __XPROC_TERMINAL_COLS_DEFAULT	120u
+#define __XPROC_TERMINAL_ROWS_DEFAULT	30u
 #define __XPROC_STREAM_STDOUT		1
 #define __XPROC_STREAM_STDERR		2
+#define __XPROC_STREAM_TERMINAL		3
 typedef struct {
 	char* sData;
 	size_t iSize;
@@ -54335,6 +54375,14 @@ typedef struct {
 	bool bDone;
 } __xproc_streambuf;
 typedef struct {
+	xprocessevent* arrItems;
+	uint32 iCount;
+	uint32 iCap;
+	uint64 iBaseSeq;
+	uint64 iNextSeq;
+	bool bDone;
+} __xproc_eventbuf;
+typedef struct {
 	int iTargetKind;
 	str sProgram;
 	str* arrArgs;
@@ -54344,11 +54392,15 @@ typedef struct {
 	str* arrEnv;
 	uint32 iEnvCount;
 	bool bInheritEnv;
+	bool bUseTerminal;
 	bool bMergeStderr;
 	bool bCreateProcessGroup;
 	bool bHideWindow;
+	uint32 iTerminalCols;
+	uint32 iTerminalRows;
 	uint32 iReadChunkSize;
 	size_t iMaxCaptureBytes;
+	uint32 iMaxEventCount;
 	int iStdinMode;
 	int iStdoutMode;
 	int iStderrMode;
@@ -54365,6 +54417,13 @@ typedef struct {
 	xprocess* pProcess;
 	int iStream;
 } __xproc_pump_ctx;
+typedef struct {
+	uint32 iCols;
+	uint32 iRows;
+} __xproc_terminal_size;
+#if defined(_WIN32) || defined(_WIN64)
+	static void __xprocCloseTerminalHandlePlatform(HANDLE hTerminal);
+#endif
 #if !defined(_WIN32) && !defined(_WIN64)
 	typedef struct {
 		int iStage;
@@ -54383,6 +54442,14 @@ static void __xprocExitInfoInit(xprocessexitinfo* pInfo)
 }
 // 内部函数：初始化读取信息
 static void __xprocReadInfoInit(xprocessreadinfo* pInfo)
+{
+	if ( pInfo == NULL ) {
+		return;
+	}
+	memset(pInfo, 0, sizeof(*pInfo));
+}
+// 内部函数：初始化事件读取信息
+static void __xprocEventReadInfoInit(xprocesseventreadinfo* pInfo)
 {
 	if ( pInfo == NULL ) {
 		return;
@@ -54734,6 +54801,138 @@ static void __xprocStreamMoveOut(__xproc_streambuf* pBuf, ptr* ppData, size_t* p
 		pBuf->bDone = false;
 	}
 }
+// 内部函数：释放事件缓冲区
+static void __xprocEventBufUnit(__xproc_eventbuf* pBuf)
+{
+	if ( pBuf == NULL ) {
+		return;
+	}
+	if ( pBuf->arrItems ) {
+		xrtFree(pBuf->arrItems);
+	}
+	memset(pBuf, 0, sizeof(*pBuf));
+}
+// 内部函数：预留事件缓冲区
+static bool __xprocEventBufReserve(__xproc_eventbuf* pBuf, uint32 iNeed)
+{
+	uint32 iCapNew;
+	xprocessevent* arrNew;
+	if ( pBuf == NULL ) {
+		return false;
+	}
+	if ( iNeed <= pBuf->iCap ) {
+		return true;
+	}
+	iCapNew = pBuf->iCap ? pBuf->iCap : 16u;
+	while ( iCapNew < iNeed ) {
+		if ( iCapNew > UINT32_MAX / 2u ) {
+			iCapNew = iNeed;
+			break;
+		}
+		iCapNew *= 2u;
+	}
+	arrNew = (xprocessevent*)xrtRealloc(pBuf->arrItems, (size_t)iCapNew * sizeof(xprocessevent));
+	if ( arrNew == NULL ) {
+		return false;
+	}
+	pBuf->arrItems = arrNew;
+	pBuf->iCap = iCapNew;
+	return true;
+}
+// 内部函数：追加事件
+static void __xprocEventBufAppend(__xproc_eventbuf* pBuf, uint32 iLimit, const xprocessevent* pEvent)
+{
+	if ( pBuf == NULL || pEvent == NULL ) {
+		return;
+	}
+	if ( iLimit == 0u ) {
+		iLimit = __XPROC_EVENT_COUNT_DEFAULT;
+	}
+	if ( pBuf->iBaseSeq == 0u && pBuf->iNextSeq == 0u ) {
+		pBuf->iBaseSeq = 1u;
+		pBuf->iNextSeq = 1u;
+	}
+	if ( pBuf->iCount >= iLimit ) {
+		if ( pBuf->iCount > 1u ) {
+			memmove(pBuf->arrItems, pBuf->arrItems + 1, (size_t)(pBuf->iCount - 1u) * sizeof(xprocessevent));
+		}
+		pBuf->iCount--;
+		pBuf->iBaseSeq++;
+	}
+	if ( !__xprocEventBufReserve(pBuf, pBuf->iCount + 1u) ) {
+		if ( pBuf->iCount > 0u ) {
+			if ( pBuf->iCount > 1u ) {
+				memmove(pBuf->arrItems, pBuf->arrItems + 1, (size_t)(pBuf->iCount - 1u) * sizeof(xprocessevent));
+			}
+			pBuf->iCount--;
+			pBuf->iBaseSeq++;
+			if ( !__xprocEventBufReserve(pBuf, pBuf->iCount + 1u) ) {
+				pBuf->iNextSeq++;
+				return;
+			}
+		} else {
+			pBuf->iNextSeq++;
+			return;
+		}
+	}
+	pBuf->arrItems[pBuf->iCount] = *pEvent;
+	pBuf->arrItems[pBuf->iCount].iSeq = pBuf->iNextSeq++;
+	pBuf->iCount++;
+}
+// 内部函数：按序号复制事件
+static xprocessevent* __xprocEventBufReadSince(const __xproc_eventbuf* pBuf, uint64 iSeq, uint32 iMaxCount, uint32* piCount, xprocesseventreadinfo* pInfo)
+{
+	uint64 iStartSeq;
+	uint32 iStartIndex;
+	uint32 iCopyCount;
+	xprocessevent* arrCopy;
+	if ( piCount ) {
+		*piCount = 0u;
+	}
+	__xprocEventReadInfoInit(pInfo);
+	if ( pBuf == NULL ) {
+		return NULL;
+	}
+	if ( pInfo ) {
+		pInfo->iBaseSeq = pBuf->iBaseSeq;
+		pInfo->iEventEndSeq = pBuf->iNextSeq;
+		pInfo->iNextSeq = (iSeq > pBuf->iNextSeq) ? pBuf->iNextSeq : iSeq;
+		pInfo->bDone = pBuf->bDone;
+	}
+	iStartSeq = (iSeq < pBuf->iBaseSeq) ? pBuf->iBaseSeq : iSeq;
+	if ( iStartSeq >= pBuf->iNextSeq || pBuf->iCount == 0u ) {
+		if ( pInfo ) {
+			pInfo->iNextSeq = iStartSeq;
+		}
+		return NULL;
+	}
+	iStartIndex = (uint32)(iStartSeq - pBuf->iBaseSeq);
+	iCopyCount = pBuf->iCount - iStartIndex;
+	if ( iMaxCount != 0u && iCopyCount > iMaxCount ) {
+		iCopyCount = iMaxCount;
+	}
+	if ( iCopyCount == 0u ) {
+		if ( pInfo ) {
+			pInfo->iNextSeq = iStartSeq;
+		}
+		return NULL;
+	}
+	arrCopy = (xprocessevent*)xrtMalloc((size_t)iCopyCount * sizeof(xprocessevent));
+	if ( arrCopy == NULL ) {
+		return NULL;
+	}
+	memcpy(arrCopy, pBuf->arrItems + iStartIndex, (size_t)iCopyCount * sizeof(xprocessevent));
+	if ( piCount ) {
+		*piCount = iCopyCount;
+	}
+	if ( pInfo ) {
+		pInfo->iBaseSeq = pBuf->iBaseSeq;
+		pInfo->iEventEndSeq = pBuf->iNextSeq;
+		pInfo->iNextSeq = iStartSeq + (uint64)iCopyCount;
+		pInfo->bDone = pBuf->bDone;
+	}
+	return arrCopy;
+}
 // 初始化进程配置
 XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig)
 {
@@ -54744,7 +54943,10 @@ XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig)
 	pConfig->iTargetKind = XPROC_TARGET_EXEC;
 	pConfig->bInheritEnv = true;
 	pConfig->bCreateProcessGroup = true;
+	pConfig->iTerminalCols = __XPROC_TERMINAL_COLS_DEFAULT;
+	pConfig->iTerminalRows = __XPROC_TERMINAL_ROWS_DEFAULT;
 	pConfig->iReadChunkSize = __XPROC_READ_CHUNK_DEFAULT;
+	pConfig->iMaxEventCount = __XPROC_EVENT_COUNT_DEFAULT;
 	pConfig->Stdin.iMode = XPROC_STDIO_INHERIT;
 	pConfig->Stdout.iMode = XPROC_STDIO_INHERIT;
 	pConfig->Stderr.iMode = XPROC_STDIO_INHERIT;
@@ -54848,11 +55050,15 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 	pPlan->arrEnv = pConfig->arrEnv;
 	pPlan->iEnvCount = pConfig->iEnvCount;
 	pPlan->bInheritEnv = pConfig->bInheritEnv ? true : false;
+	pPlan->bUseTerminal = pConfig->bUseTerminal ? true : false;
 	pPlan->bMergeStderr = pConfig->bMergeStderr ? true : false;
 	pPlan->bCreateProcessGroup = pConfig->bCreateProcessGroup ? true : false;
 	pPlan->bHideWindow = pConfig->bHideWindow ? true : false;
+	pPlan->iTerminalCols = pConfig->iTerminalCols ? pConfig->iTerminalCols : __XPROC_TERMINAL_COLS_DEFAULT;
+	pPlan->iTerminalRows = pConfig->iTerminalRows ? pConfig->iTerminalRows : __XPROC_TERMINAL_ROWS_DEFAULT;
 	pPlan->iReadChunkSize = pConfig->iReadChunkSize ? pConfig->iReadChunkSize : __XPROC_READ_CHUNK_DEFAULT;
 	pPlan->iMaxCaptureBytes = pConfig->iMaxCaptureBytes;
+	pPlan->iMaxEventCount = pConfig->iMaxEventCount ? pConfig->iMaxEventCount : __XPROC_EVENT_COUNT_DEFAULT;
 	pPlan->iStdinMode = pConfig->Stdin.iMode;
 	pPlan->iStdoutMode = pConfig->Stdout.iMode;
 	pPlan->iStderrMode = pConfig->Stderr.iMode;
@@ -54864,6 +55070,14 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 	}
 	pPlan->bStdoutCapture = pConfig->Stdout.bCapture ? true : false;
 	pPlan->bStderrCapture = pConfig->Stderr.bCapture ? true : false;
+	if ( pPlan->bUseTerminal ) {
+		pPlan->bMergeStderr = true;
+		pPlan->iStdinMode = XPROC_STDIO_PIPE;
+		pPlan->iStdoutMode = XPROC_STDIO_PIPE;
+		pPlan->iStderrMode = XPROC_STDIO_NULL;
+		pPlan->bStdoutCapture = true;
+		pPlan->bStderrCapture = false;
+	}
 	if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
 		pPlan->bStdoutCapture = true;
 	}
@@ -55066,6 +55280,11 @@ static void __xprocSetThreadRequiredError(void)
 {
 	xrtSetError("subprocess requires thread support.", FALSE);
 }
+// 当前平台是否支持 terminal 模式
+XXAPI bool xrtProcessTerminalSupported(void)
+{
+	return false;
+}
 // xrtProcessSpawn 相关处理
 XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 {
@@ -55174,6 +55393,15 @@ XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 	__xprocSetThreadRequiredError();
 	return false;
 }
+// 调整 terminal 尺寸
+XXAPI bool xrtProcessResizeTerminal(xprocess* pProcess, uint32 iCols, uint32 iRows)
+{
+	(void)pProcess;
+	(void)iCols;
+	(void)iRows;
+	__xprocSetThreadRequiredError();
+	return false;
+}
 // 获取进程标准输出
 XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
 {
@@ -55216,6 +55444,18 @@ XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t i
 	__xprocReadInfoInit(pInfo);
 	return NULL;
 }
+// 读取事件增量
+XXAPI xprocessevent* xrtProcessReadEventsSince(xprocess* pProcess, uint64 iSeq, uint32 iMaxCount, uint32* piCount, xprocesseventreadinfo* pInfo)
+{
+	(void)pProcess;
+	(void)iSeq;
+	(void)iMaxCount;
+	if ( piCount ) {
+		*piCount = 0u;
+	}
+	__xprocEventReadInfoInit(pInfo);
+	return NULL;
+}
 // xrtExecCapture 相关处理
 XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
 {
@@ -55243,17 +55483,21 @@ struct xprocess_struct {
 	volatile int bStderrDone;
 	uint32 iReadChunkSize;
 	size_t iMaxCaptureBytes;
+	uint32 iMaxEventCount;
 	int iStdinMode;
 	int iStdoutMode;
 	int iStderrMode;
 	volatile int iRequestedStop;
 	volatile int bStopTimedOut;
 	volatile int bStopCancelled;
+	bool bUseTerminal;
 	bool bStdoutCapture;
 	bool bStderrCapture;
 	bool bMergeStderr;
 	bool bCreateProcessGroup;
 	bool bHideWindow;
+	uint32 iTerminalCols;
+	uint32 iTerminalRows;
 	xprocessevents Events;
 	ptr pUserData;
 	xprocessexitinfo ExitInfo;
@@ -55261,6 +55505,7 @@ struct xprocess_struct {
 	xcond_struct Cond;
 	__xproc_streambuf StdoutBuf;
 	__xproc_streambuf StderrBuf;
+	__xproc_eventbuf EventBuf;
 	xthread hWaitThread;
 	xthread hStdoutThread;
 	xthread hStderrThread;
@@ -55273,6 +55518,7 @@ struct xprocess_struct {
 		HANDLE hStdoutRead;
 		HANDLE hStderrRead;
 		HANDLE hJob;
+		HANDLE hTerminal;
 	#else
 		pid_t iPid;
 		int fdStdinWrite;
@@ -55374,14 +55620,18 @@ static xprocess* __xprocAllocProcess(const __xproc_plan* pPlan)
 	pProcess->iState = XPROC_STATE_INIT;
 	pProcess->iReadChunkSize = pPlan->iReadChunkSize;
 	pProcess->iMaxCaptureBytes = pPlan->iMaxCaptureBytes;
+	pProcess->iMaxEventCount = pPlan->iMaxEventCount;
 	pProcess->iStdinMode = pPlan->iStdinMode;
 	pProcess->iStdoutMode = pPlan->iStdoutMode;
 	pProcess->iStderrMode = pPlan->iStderrMode;
+	pProcess->bUseTerminal = pPlan->bUseTerminal;
 	pProcess->bStdoutCapture = pPlan->bStdoutCapture;
 	pProcess->bStderrCapture = pPlan->bStderrCapture;
 	pProcess->bMergeStderr = pPlan->bMergeStderr;
 	pProcess->bCreateProcessGroup = pPlan->bCreateProcessGroup;
 	pProcess->bHideWindow = pPlan->bHideWindow;
+	pProcess->iTerminalCols = pPlan->iTerminalCols;
+	pProcess->iTerminalRows = pPlan->iTerminalRows;
 	pProcess->pUserData = pPlan->pUserData;
 	if ( pPlan->pEvents ) {
 		pProcess->Events = *pPlan->pEvents;
@@ -55396,6 +55646,7 @@ static xprocess* __xprocAllocProcess(const __xproc_plan* pPlan)
 		pProcess->hStdoutRead = NULL;
 		pProcess->hStderrRead = NULL;
 		pProcess->hJob = NULL;
+		pProcess->hTerminal = NULL;
 	#else
 		pProcess->iPid = -1;
 		pProcess->fdStdinWrite = -1;
@@ -55419,6 +55670,7 @@ static void __xprocFreeProcess(xprocess* pProcess)
 	#endif
 	__xprocStreamUnit(&pProcess->StdoutBuf);
 	__xprocStreamUnit(&pProcess->StderrBuf);
+	__xprocEventBufUnit(&pProcess->EventBuf);
 	xrtCondUnit(&pProcess->Cond);
 	xrtMutexUnit(&pProcess->Lock);
 	xrtFree(pProcess);
@@ -55514,11 +55766,128 @@ static void __xprocClosePlatformHandles(xprocess* pProcess)
 			CloseHandle(pProcess->hJob);
 			pProcess->hJob = NULL;
 		}
+		if ( pProcess->hTerminal ) {
+			__xprocCloseTerminalHandlePlatform(pProcess->hTerminal);
+			pProcess->hTerminal = NULL;
+		}
 		pProcess->iProcessId = 0u;
 	#else
 		pProcess->iPid = -1;
 	#endif
 }
+// 内部函数：初始化事件
+static void __xprocEventInit(xprocessevent* pEvent)
+{
+	if ( pEvent == NULL ) {
+		return;
+	}
+	memset(pEvent, 0, sizeof(*pEvent));
+	__xprocExitInfoInit(&pEvent->ExitInfo);
+}
+// 内部函数：在锁保护下压入事件
+static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, uint64 iOffset, uint64 iSize, const xprocessexitinfo* pExitInfo)
+{
+	xprocessevent tEvent;
+	if ( pProcess == NULL ) {
+		return;
+	}
+	__xprocEventInit(&tEvent);
+	tEvent.iKind = iKind;
+	tEvent.iStream = iStream;
+	tEvent.iOffset = iOffset;
+	tEvent.iSize = iSize;
+	tEvent.tTimeMs = __xprocNowMs();
+	if ( pExitInfo ) {
+		tEvent.ExitInfo = *pExitInfo;
+	}
+	__xprocEventBufAppend(&pProcess->EventBuf, pProcess->iMaxEventCount, &tEvent);
+}
+#if defined(_WIN32) || defined(_WIN64)
+	#if !defined(PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE)
+		#define PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE 0x00020016
+	#endif
+	#if !defined(EXTENDED_STARTUPINFO_PRESENT)
+		#define EXTENDED_STARTUPINFO_PRESENT 0x00080000
+	#endif
+	typedef HRESULT (WINAPI *procCreatePseudoConsole)(COORD size, HANDLE hInput, HANDLE hOutput, DWORD iFlags, HANDLE* phConsole);
+	typedef void (WINAPI *procClosePseudoConsole)(HANDLE hConsole);
+	typedef HRESULT (WINAPI *procResizePseudoConsole)(HANDLE hConsole, COORD size);
+	typedef BOOL (WINAPI *procInitializeProcThreadAttributeList)(void* pAttributeList, DWORD iAttributeCount, DWORD iFlags, SIZE_T* piSize);
+	typedef BOOL (WINAPI *procUpdateProcThreadAttribute)(void* pAttributeList, DWORD iFlags, DWORD_PTR iAttribute, PVOID pValue, SIZE_T iSize, PVOID pPrevValue, SIZE_T* piReturnSize);
+	typedef VOID (WINAPI *procDeleteProcThreadAttributeList)(void* pAttributeList);
+	typedef struct {
+		STARTUPINFOW StartupInfo;
+		void* lpAttributeList;
+	} __xproc_startupinfoexw;
+	typedef struct {
+		bool bLoaded;
+		bool bSupported;
+		procCreatePseudoConsole CreatePseudoConsole;
+		procClosePseudoConsole ClosePseudoConsole;
+		procResizePseudoConsole ResizePseudoConsole;
+		procInitializeProcThreadAttributeList InitializeProcThreadAttributeList;
+		procUpdateProcThreadAttribute UpdateProcThreadAttribute;
+		procDeleteProcThreadAttributeList DeleteProcThreadAttributeList;
+	} __xproc_conpty_api;
+	static __xproc_conpty_api __gxprocConPtyApi;
+	static void __xprocLoadConPtyApi(void)
+	{
+		HMODULE hKernel;
+		if ( __gxprocConPtyApi.bLoaded ) {
+			return;
+		}
+		memset(&__gxprocConPtyApi, 0, sizeof(__gxprocConPtyApi));
+		__gxprocConPtyApi.bLoaded = true;
+		hKernel = GetModuleHandleW(L"kernel32.dll");
+		if ( hKernel == NULL ) {
+			return;
+		}
+		__gxprocConPtyApi.CreatePseudoConsole = (procCreatePseudoConsole)GetProcAddress(hKernel, "CreatePseudoConsole");
+		__gxprocConPtyApi.ClosePseudoConsole = (procClosePseudoConsole)GetProcAddress(hKernel, "ClosePseudoConsole");
+		__gxprocConPtyApi.ResizePseudoConsole = (procResizePseudoConsole)GetProcAddress(hKernel, "ResizePseudoConsole");
+		__gxprocConPtyApi.InitializeProcThreadAttributeList = (procInitializeProcThreadAttributeList)GetProcAddress(hKernel, "InitializeProcThreadAttributeList");
+		__gxprocConPtyApi.UpdateProcThreadAttribute = (procUpdateProcThreadAttribute)GetProcAddress(hKernel, "UpdateProcThreadAttribute");
+		__gxprocConPtyApi.DeleteProcThreadAttributeList = (procDeleteProcThreadAttributeList)GetProcAddress(hKernel, "DeleteProcThreadAttributeList");
+		__gxprocConPtyApi.bSupported = __gxprocConPtyApi.CreatePseudoConsole != NULL
+			&& __gxprocConPtyApi.ClosePseudoConsole != NULL
+			&& __gxprocConPtyApi.ResizePseudoConsole != NULL
+			&& __gxprocConPtyApi.InitializeProcThreadAttributeList != NULL
+			&& __gxprocConPtyApi.UpdateProcThreadAttribute != NULL
+			&& __gxprocConPtyApi.DeleteProcThreadAttributeList != NULL;
+	}
+	// 内部函数：判断 terminal 是否可用
+	static bool __xprocTerminalSupportedPlatform(void)
+	{
+		__xprocLoadConPtyApi();
+		return __gxprocConPtyApi.bSupported;
+	}
+	// 内部函数：关闭 Windows terminal 句柄
+	static void __xprocCloseTerminalHandlePlatform(HANDLE hTerminal)
+	{
+		__xprocLoadConPtyApi();
+		if ( hTerminal != NULL && __gxprocConPtyApi.ClosePseudoConsole != NULL ) {
+			__gxprocConPtyApi.ClosePseudoConsole(hTerminal);
+		}
+	}
+	// 内部函数：调整 Windows terminal 尺寸
+	static bool __xprocResizeTerminalPlatformHandle(HANDLE hTerminal, uint32 iCols, uint32 iRows)
+	{
+		COORD tSize;
+		__xprocLoadConPtyApi();
+		if ( hTerminal == NULL || __gxprocConPtyApi.ResizePseudoConsole == NULL ) {
+			SetLastError(ERROR_NOT_SUPPORTED);
+			return false;
+		}
+		tSize.X = (SHORT)(iCols ? iCols : __XPROC_TERMINAL_COLS_DEFAULT);
+		tSize.Y = (SHORT)(iRows ? iRows : __XPROC_TERMINAL_ROWS_DEFAULT);
+		return SUCCEEDED(__gxprocConPtyApi.ResizePseudoConsole(hTerminal, tSize));
+	}
+#else
+	static bool __xprocTerminalSupportedPlatform(void)
+	{
+		return true;
+	}
+#endif
 // 内部函数：标记输出流结束
 static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
 {
@@ -55526,7 +55895,7 @@ static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
 		return;
 	}
 	xrtMutexLock(&pProcess->Lock);
-	if ( iStream == __XPROC_STREAM_STDOUT ) {
+	if ( iStream == __XPROC_STREAM_STDOUT || iStream == __XPROC_STREAM_TERMINAL ) {
 		pProcess->bStdoutDone = true;
 		pProcess->StdoutBuf.bDone = true;
 	} else {
@@ -55542,27 +55911,43 @@ static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pDa
 	__xproc_streambuf* pBuf = NULL;
 	bool bCapture = false;
 	void (*procOutput)(xprocess*, const void*, size_t, ptr) = NULL;
+	uint64 iEventOffset = 0u;
+	int iEventStream = XPROC_STREAM_NONE;
 	if ( pProcess == NULL || pData == NULL || iSize == 0u ) {
 		return;
 	}
-	if ( iStream == __XPROC_STREAM_STDERR && pProcess->bMergeStderr ) {
+	if ( iStream == __XPROC_STREAM_TERMINAL ) {
+		pBuf = &pProcess->StdoutBuf;
+		bCapture = pProcess->bStdoutCapture;
+		procOutput = pProcess->Events.OnStdout;
+		iEventStream = XPROC_STREAM_TERMINAL;
+	} else if ( iStream == __XPROC_STREAM_STDERR && pProcess->bMergeStderr ) {
 		pBuf = &pProcess->StdoutBuf;
 		bCapture = pProcess->bStdoutCapture;
 		procOutput = pProcess->Events.OnStdout ? pProcess->Events.OnStdout : pProcess->Events.OnStderr;
+		iEventStream = XPROC_STREAM_STDOUT;
 	} else if ( iStream == __XPROC_STREAM_STDERR ) {
 		pBuf = &pProcess->StderrBuf;
 		bCapture = pProcess->bStderrCapture;
 		procOutput = pProcess->Events.OnStderr;
+		iEventStream = XPROC_STREAM_STDERR;
 	} else {
 		pBuf = &pProcess->StdoutBuf;
 		bCapture = pProcess->bStdoutCapture;
 		procOutput = pProcess->Events.OnStdout;
+		iEventStream = XPROC_STREAM_STDOUT;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	if ( pBuf ) {
+		iEventOffset = pBuf->iNextOffset;
 	}
 	if ( bCapture ) {
-		xrtMutexLock(&pProcess->Lock);
 		__xprocStreamAppend(pBuf, pData, iSize, pProcess->iMaxCaptureBytes);
-		xrtMutexUnlock(&pProcess->Lock);
+	} else if ( pBuf ) {
+		__xprocStreamDropAll(pBuf, iSize);
 	}
+	__xprocPushEventLocked(pProcess, XPROC_EVENT_OUTPUT, iEventStream, iEventOffset, (uint64)iSize, NULL);
+	xrtMutexUnlock(&pProcess->Lock);
 	if ( procOutput ) {
 		procOutput(pProcess, pData, iSize, pProcess->pUserData);
 	}
@@ -55574,7 +55959,7 @@ static uint32 __xprocPumpThread(ptr pArg)
 	xprocess* pProcess = pCtx ? pCtx->pProcess : NULL;
 	uint32 iChunk = (pProcess && pProcess->iReadChunkSize) ? pProcess->iReadChunkSize : __XPROC_READ_CHUNK_DEFAULT;
 	char* sBuf = NULL;
-	if ( pProcess == NULL || (pCtx->iStream != __XPROC_STREAM_STDOUT && pCtx->iStream != __XPROC_STREAM_STDERR) ) {
+	if ( pProcess == NULL || (pCtx->iStream != __XPROC_STREAM_STDOUT && pCtx->iStream != __XPROC_STREAM_STDERR && pCtx->iStream != __XPROC_STREAM_TERMINAL) ) {
 		return 1u;
 	}
 	sBuf = (char*)xrtMalloc(iChunk);
@@ -55585,7 +55970,7 @@ static uint32 __xprocPumpThread(ptr pArg)
 	}
 	for ( ;; ) {
 		#if defined(_WIN32) || defined(_WIN64)
-			HANDLE hRead = (pCtx->iStream == __XPROC_STREAM_STDOUT) ? pProcess->hStdoutRead : pProcess->hStderrRead;
+			HANDLE hRead = (pCtx->iStream == __XPROC_STREAM_STDOUT || pCtx->iStream == __XPROC_STREAM_TERMINAL) ? pProcess->hStdoutRead : pProcess->hStderrRead;
 			DWORD iRead = 0u;
 			if ( hRead == NULL ) {
 				break;
@@ -55602,7 +55987,7 @@ static uint32 __xprocPumpThread(ptr pArg)
 			}
 			__xprocHandleOutput(pProcess, pCtx->iStream, sBuf, (size_t)iRead);
 		#else
-			int iFd = (pCtx->iStream == __XPROC_STREAM_STDOUT) ? pProcess->fdStdoutRead : pProcess->fdStderrRead;
+			int iFd = (pCtx->iStream == __XPROC_STREAM_STDOUT || pCtx->iStream == __XPROC_STREAM_TERMINAL) ? pProcess->fdStdoutRead : pProcess->fdStderrRead;
 			ssize_t iRead;
 			if ( iFd < 0 ) {
 				break;
@@ -55793,6 +56178,170 @@ static bool __xprocEnsureJobObject(xprocess* pProcess)
 	pProcess->hJob = hJob;
 	return true;
 }
+// 内部函数：Windows terminal 启动
+static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
+{
+	SECURITY_ATTRIBUTES tSa;
+	__xproc_startupinfoexw tSi;
+	PROCESS_INFORMATION tPi;
+	SIZE_T iAttrListSize = 0u;
+	void* pAttrList = NULL;
+	HANDLE hTerminalInputRead = NULL;
+	HANDLE hTerminalOutputWrite = NULL;
+	char* sCmdUtf8 = NULL;
+	u16str sCmdW = NULL;
+	u16str sWorkDirW = NULL;
+	wchar_t* sEnvBlockW = NULL;
+	DWORD iCreateFlags = EXTENDED_STARTUPINFO_PRESENT;
+	BOOL bOk = FALSE;
+	COORD tSize;
+	int iWorkDirError = 0;
+	if ( !__xprocTerminalSupportedPlatform() ) {
+		xrtSetError("subprocess terminal is not supported on this platform.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, ERROR_NOT_SUPPORTED);
+		goto fail;
+	}
+	memset(&tSa, 0, sizeof(tSa));
+	memset(&tSi, 0, sizeof(tSi));
+	memset(&tPi, 0, sizeof(tPi));
+	tSa.nLength = sizeof(tSa);
+	tSa.bInheritHandle = TRUE;
+	tSi.StartupInfo.cb = sizeof(tSi);
+	tSi.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
+	tSi.StartupInfo.hStdInput = NULL;
+	tSi.StartupInfo.hStdOutput = NULL;
+	tSi.StartupInfo.hStdError = NULL;
+	if ( !CreatePipe(&hTerminalInputRead, &pProcess->hStdinWrite, &tSa, 0u) ) {
+		xrtSetError("failed to create subprocess terminal input pipe.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, (int)GetLastError());
+		goto fail;
+	}
+	if ( !CreatePipe(&pProcess->hStdoutRead, &hTerminalOutputWrite, &tSa, 0u) ) {
+		xrtSetError("failed to create subprocess terminal output pipe.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDOUT, (int)GetLastError());
+		goto fail;
+	}
+	(void)SetHandleInformation(pProcess->hStdinWrite, HANDLE_FLAG_INHERIT, 0u);
+	(void)SetHandleInformation(pProcess->hStdoutRead, HANDLE_FLAG_INHERIT, 0u);
+	tSize.X = (SHORT)(pPlan->iTerminalCols ? pPlan->iTerminalCols : __XPROC_TERMINAL_COLS_DEFAULT);
+	tSize.Y = (SHORT)(pPlan->iTerminalRows ? pPlan->iTerminalRows : __XPROC_TERMINAL_ROWS_DEFAULT);
+	if ( !SUCCEEDED(__gxprocConPtyApi.CreatePseudoConsole(tSize, hTerminalInputRead, hTerminalOutputWrite, 0u, &pProcess->hTerminal)) ) {
+		xrtSetError("failed to create subprocess terminal.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+		goto fail;
+	}
+	(void)__gxprocConPtyApi.InitializeProcThreadAttributeList(NULL, 1u, 0u, &iAttrListSize);
+	pAttrList = xrtMalloc(iAttrListSize);
+	if ( pAttrList == NULL ) {
+		xrtSetError("memory allocate failed.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, ERROR_OUTOFMEMORY);
+		goto fail;
+	}
+	if ( !__gxprocConPtyApi.InitializeProcThreadAttributeList(pAttrList, 1u, 0u, &iAttrListSize) ) {
+		xrtSetError("failed to initialize subprocess terminal attribute list.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+		goto fail;
+	}
+	if ( !__gxprocConPtyApi.UpdateProcThreadAttribute(pAttrList, 0u, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, pProcess->hTerminal, sizeof(pProcess->hTerminal), NULL, NULL) ) {
+		xrtSetError("failed to configure subprocess terminal attribute.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, (int)GetLastError());
+		goto fail;
+	}
+	tSi.lpAttributeList = pAttrList;
+	sCmdUtf8 = __xprocBuildWindowsCommandLine(pCmd);
+	if ( sCmdUtf8 == NULL ) {
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, (int)GetLastError());
+		goto fail;
+	}
+	sCmdW = xrtUTF8to16((u8str)sCmdUtf8, 0u, NULL);
+	if ( sCmdW == NULL ) {
+		xrtSetError("failed to convert subprocess command line.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, 0);
+		goto fail;
+	}
+	if ( pPlan->sWorkDir ) {
+		DWORD iAttr;
+		sWorkDirW = xrtUTF8to16((u8str)pPlan->sWorkDir, 0u, NULL);
+		if ( sWorkDirW == NULL ) {
+			xrtSetError("failed to convert subprocess working directory.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_WORKDIR, 0);
+			goto fail;
+		}
+		iAttr = GetFileAttributesW(sWorkDirW);
+		if ( iAttr == INVALID_FILE_ATTRIBUTES ) {
+			iWorkDirError = (int)GetLastError();
+		} else if ( !(iAttr & FILE_ATTRIBUTE_DIRECTORY) ) {
+			iWorkDirError = ERROR_DIRECTORY;
+		}
+		if ( iWorkDirError != 0 ) {
+			xrtSetError("invalid subprocess working directory.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_WORKDIR, iWorkDirError);
+			goto fail;
+		}
+	}
+	sEnvBlockW = __xprocBuildWindowsEnvBlock(pPlan);
+	if ( sEnvBlockW != NULL ) {
+		iCreateFlags |= CREATE_UNICODE_ENVIRONMENT;
+	}
+	if ( pPlan->bHideWindow ) {
+		iCreateFlags |= CREATE_NO_WINDOW;
+	}
+	if ( pPlan->bCreateProcessGroup ) {
+		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
+	}
+	bOk = CreateProcessW(NULL, sCmdW, NULL, NULL, FALSE, iCreateFlags, sEnvBlockW, sWorkDirW, &tSi.StartupInfo, &tPi);
+	if ( !bOk ) {
+		xrtSetError("failed to start subprocess terminal.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, (int)GetLastError());
+		goto fail;
+	}
+	pProcess->hProcess = tPi.hProcess;
+	pProcess->iProcessId = tPi.dwProcessId;
+	if ( tPi.hThread ) {
+		CloseHandle(tPi.hThread);
+	}
+	if ( hTerminalInputRead ) {
+		CloseHandle(hTerminalInputRead);
+		hTerminalInputRead = NULL;
+	}
+	if ( hTerminalOutputWrite ) {
+		CloseHandle(hTerminalOutputWrite);
+		hTerminalOutputWrite = NULL;
+	}
+	if ( pAttrList ) {
+		__gxprocConPtyApi.DeleteProcThreadAttributeList(pAttrList);
+		xrtFree(pAttrList);
+		pAttrList = NULL;
+	}
+	if ( sCmdUtf8 ) {
+		xrtFree(sCmdUtf8);
+	}
+	if ( sCmdW ) {
+		xrtFree(sCmdW);
+	}
+	if ( sWorkDirW ) {
+		xrtFree(sWorkDirW);
+	}
+	if ( sEnvBlockW ) {
+		xrtFree(sEnvBlockW);
+	}
+	return true;
+fail:
+	if ( pAttrList ) {
+		__gxprocConPtyApi.DeleteProcThreadAttributeList(pAttrList);
+		xrtFree(pAttrList);
+	}
+	if ( hTerminalInputRead ) CloseHandle(hTerminalInputRead);
+	if ( hTerminalOutputWrite ) CloseHandle(hTerminalOutputWrite);
+	if ( tPi.hThread ) CloseHandle(tPi.hThread);
+	if ( tPi.hProcess ) CloseHandle(tPi.hProcess);
+	if ( sCmdUtf8 ) xrtFree(sCmdUtf8);
+	if ( sCmdW ) xrtFree(sCmdW);
+	if ( sWorkDirW ) xrtFree(sWorkDirW);
+	if ( sEnvBlockW ) xrtFree(sEnvBlockW);
+	__xprocClosePlatformHandles(pProcess);
+	return false;
+}
 // 内部函数：平台启动
 static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
@@ -55815,6 +56364,9 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	BOOL bUseStdHandles = FALSE;
 	BOOL bOk;
 	DWORD iCreateFlags = 0u;
+	if ( pPlan->bUseTerminal ) {
+		return __xprocSpawnWindowsTerminal(pProcess, pPlan, pCmd, pSpawnInfo);
+	}
 	memset(&tSa, 0, sizeof(tSa));
 	memset(&tSi, 0, sizeof(tSi));
 	memset(&tPi, 0, sizeof(tPi));
@@ -56026,6 +56578,146 @@ static void __xprocWriteChildError(int iFd, int iStage, int iOsError)
 		iRet = write(iFd, &tErr, sizeof(tErr));
 	} while ( iRet < 0 && errno == EINTR );
 }
+// 内部函数：POSIX terminal 启动
+static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
+{
+	int fdMaster = -1;
+	int fdParentWrite = -1;
+	int fdError[2] = { -1, -1 };
+	pid_t iPid;
+	__xproc_child_error tChildError;
+	ssize_t iReadError;
+	struct winsize tWinSize;
+	char* sSlaveName;
+	if ( pipe(fdError) != 0 ) {
+		xrtSetError("failed to create subprocess error pipe.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+	if ( !__xprocSetCloseOnExec(fdError[1]) ) {
+		xrtSetError("failed to configure subprocess error pipe.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+	fdMaster = posix_openpt(O_RDWR | O_NOCTTY);
+	if ( fdMaster < 0 ) {
+		xrtSetError("failed to create subprocess terminal.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+	if ( grantpt(fdMaster) != 0 || unlockpt(fdMaster) != 0 ) {
+		xrtSetError("failed to initialize subprocess terminal.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+	sSlaveName = ptsname(fdMaster);
+	if ( sSlaveName == NULL ) {
+		xrtSetError("failed to resolve subprocess terminal path.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+	fdParentWrite = dup(fdMaster);
+	if ( fdParentWrite < 0 ) {
+		xrtSetError("failed to duplicate subprocess terminal handle.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, errno);
+		goto fail;
+	}
+	memset(&tWinSize, 0, sizeof(tWinSize));
+	tWinSize.ws_col = (unsigned short)(pPlan->iTerminalCols ? pPlan->iTerminalCols : __XPROC_TERMINAL_COLS_DEFAULT);
+	tWinSize.ws_row = (unsigned short)(pPlan->iTerminalRows ? pPlan->iTerminalRows : __XPROC_TERMINAL_ROWS_DEFAULT);
+	(void)ioctl(fdMaster, TIOCSWINSZ, &tWinSize);
+	iPid = fork();
+	if ( iPid < 0 ) {
+		xrtSetError("failed to fork subprocess.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+	if ( iPid == 0 ) {
+		int fdSlave = -1;
+		close(fdError[0]);
+		if ( setsid() < 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
+			_exit(126);
+		}
+		fdSlave = open(sSlaveName, O_RDWR);
+		if ( fdSlave < 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
+			_exit(126);
+		}
+		#if defined(TIOCSCTTY)
+			if ( ioctl(fdSlave, TIOCSCTTY, 0) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
+				_exit(126);
+			}
+		#endif
+		if ( ioctl(fdSlave, TIOCSWINSZ, &tWinSize) < 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
+			_exit(126);
+		}
+		if ( dup2(fdSlave, STDIN_FILENO) < 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_STDIN, errno);
+			_exit(126);
+		}
+		if ( dup2(fdSlave, STDOUT_FILENO) < 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_STDOUT, errno);
+			_exit(126);
+		}
+		if ( dup2(fdSlave, STDERR_FILENO) < 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_STDERR, errno);
+			_exit(126);
+		}
+		if ( fdSlave > STDERR_FILENO ) {
+			close(fdSlave);
+		}
+		close(fdMaster);
+		close(fdParentWrite);
+		if ( pPlan->sWorkDir && chdir((const char*)pPlan->sWorkDir) != 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_WORKDIR, errno);
+			_exit(126);
+		}
+		if ( !pPlan->bInheritEnv && clearenv() != 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_ENV, errno);
+			_exit(126);
+		}
+		for ( uint32 i = 0u; i < pPlan->iEnvCount; i++ ) {
+			if ( putenv((char*)pPlan->arrEnv[i]) != 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_ENV, errno);
+				_exit(126);
+			}
+		}
+		execvp(pCmd->arrArgv[0], (char* const*)pCmd->arrArgv);
+		__xprocWriteChildError(fdError[1], XPROC_STAGE_EXEC, errno);
+		_exit(127);
+	}
+	close(fdError[1]);
+	fdError[1] = -1;
+	pProcess->iPid = iPid;
+	pProcess->fdStdoutRead = fdMaster;
+	fdMaster = -1;
+	pProcess->fdStdinWrite = fdParentWrite;
+	fdParentWrite = -1;
+	memset(&tChildError, 0, sizeof(tChildError));
+	do {
+		iReadError = read(fdError[0], &tChildError, sizeof(tChildError));
+	} while ( iReadError < 0 && errno == EINTR );
+	close(fdError[0]);
+	fdError[0] = -1;
+	if ( iReadError > 0 ) {
+		(void)waitpid(iPid, NULL, 0);
+		xrtSetError("failed to start subprocess.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, tChildError.iStage, tChildError.iOsError);
+		__xprocClosePlatformHandles(pProcess);
+		return false;
+	}
+	return true;
+fail:
+	if ( fdError[0] >= 0 ) close(fdError[0]);
+	if ( fdError[1] >= 0 ) close(fdError[1]);
+	if ( fdMaster >= 0 ) close(fdMaster);
+	if ( fdParentWrite >= 0 ) close(fdParentWrite);
+	__xprocClosePlatformHandles(pProcess);
+	return false;
+}
 // 内部函数：平台启动
 static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
@@ -56039,6 +56731,9 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	pid_t iPid;
 	__xproc_child_error tChildError;
 	ssize_t iReadError;
+	if ( pPlan->bUseTerminal ) {
+		return __xprocSpawnPosixTerminal(pProcess, pPlan, pCmd, pSpawnInfo);
+	}
 	if ( pipe(fdError) != 0 ) {
 		xrtSetError("failed to create subprocess error pipe.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
@@ -56361,6 +57056,39 @@ static bool __xprocKillTreePlatform(xprocess* pProcess)
 		return kill(pProcess->iPid, SIGKILL) == 0 || errno == ESRCH;
 	#endif
 }
+// 内部函数：调整 terminal 尺寸
+static bool __xprocResizeTerminalPlatform(xprocess* pProcess, uint32 iCols, uint32 iRows)
+{
+	if ( pProcess == NULL || !pProcess->bUseTerminal ) {
+		return false;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		return __xprocResizeTerminalPlatformHandle(pProcess->hTerminal, iCols, iRows);
+	#else
+		{
+			struct winsize tWinSize;
+			int iFd = pProcess->fdStdoutRead >= 0 ? pProcess->fdStdoutRead : pProcess->fdStdinWrite;
+			if ( iFd < 0 ) {
+				errno = ENODEV;
+				return false;
+			}
+			memset(&tWinSize, 0, sizeof(tWinSize));
+			tWinSize.ws_col = (unsigned short)(iCols ? iCols : __XPROC_TERMINAL_COLS_DEFAULT);
+			tWinSize.ws_row = (unsigned short)(iRows ? iRows : __XPROC_TERMINAL_ROWS_DEFAULT);
+			if ( ioctl(iFd, TIOCSWINSZ, &tWinSize) != 0 ) {
+				return false;
+			}
+			if ( pProcess->iPid > 0 ) {
+				if ( pProcess->bCreateProcessGroup ) {
+					(void)kill(-pProcess->iPid, SIGWINCH);
+				} else {
+					(void)kill(pProcess->iPid, SIGWINCH);
+				}
+			}
+			return true;
+		}
+	#endif
+}
 // 内部函数：统一停止请求
 static bool __xprocRequestStop(xprocess* pProcess, int iStopReason, bool bTimedOut, bool bCancelled)
 {
@@ -56446,6 +57174,12 @@ static uint32 __xprocWaitThread(ptr pArg)
 		}
 	#endif
 	__xprocCloseStdinHandle(pProcess);
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hTerminal ) {
+			__xprocCloseTerminalHandlePlatform(pProcess->hTerminal);
+			pProcess->hTerminal = NULL;
+		}
+	#endif
 	if ( pProcess->hStdoutThread ) {
 		xrtThreadWait(pProcess->hStdoutThread);
 	}
@@ -56457,6 +57191,8 @@ static uint32 __xprocWaitThread(ptr pArg)
 	tExitInfo.bTimedOut = pProcess->bStopTimedOut ? true : false;
 	tExitInfo.bCancelled = pProcess->bStopCancelled ? true : false;
 	pProcess->ExitInfo = tExitInfo;
+	pProcess->EventBuf.bDone = true;
+	__xprocPushEventLocked(pProcess, XPROC_EVENT_EXIT, XPROC_STREAM_NONE, 0u, 0u, &tExitInfo);
 	pProcess->iState = iState;
 	pProcess->bExitReady = true;
 	xrtCondBroadcast(&pProcess->Cond);
@@ -56545,7 +57281,7 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 		pProcess->StderrBuf.bDone = true;
 	}
 	pProcess->StdoutPump.pProcess = pProcess;
-	pProcess->StdoutPump.iStream = __XPROC_STREAM_STDOUT;
+	pProcess->StdoutPump.iStream = pProcess->bUseTerminal ? __XPROC_STREAM_TERMINAL : __XPROC_STREAM_STDOUT;
 	pProcess->StderrPump.pProcess = pProcess;
 	pProcess->StderrPump.iStream = __XPROC_STREAM_STDERR;
 	if ( pProcess->iStdoutMode == XPROC_STDIO_PIPE ) {
@@ -56574,6 +57310,9 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 		__xprocCleanupSpawnFailure(pProcess);
 		return NULL;
 	}
+	xrtMutexLock(&pProcess->Lock);
+	__xprocPushEventLocked(pProcess, XPROC_EVENT_START, XPROC_STREAM_NONE, 0u, 0u, NULL);
+	xrtMutexUnlock(&pProcess->Lock);
 	if ( pProcess->Events.OnStart ) {
 		pProcess->Events.OnStart(pProcess, pProcess->pUserData);
 	}
@@ -56652,6 +57391,11 @@ XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo)
 	}
 	xrtMutexUnlock(&pProcess->Lock);
 	return true;
+}
+// 当前平台是否支持 terminal 模式
+XXAPI bool xrtProcessTerminalSupported(void)
+{
+	return __xprocTerminalSupportedPlatform();
 }
 // 写入进程
 XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
@@ -56808,6 +57552,29 @@ XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 	}
 	return true;
 }
+// 调整 terminal 尺寸
+XXAPI bool xrtProcessResizeTerminal(xprocess* pProcess, uint32 iCols, uint32 iRows)
+{
+	bool bOk;
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return false;
+	}
+	if ( !pProcess->bUseTerminal ) {
+		xrtSetError("subprocess terminal is not enabled.", FALSE);
+		return false;
+	}
+	bOk = __xprocResizeTerminalPlatform(pProcess, iCols, iRows);
+	if ( !bOk ) {
+		xrtSetError("failed to resize subprocess terminal.", FALSE);
+		return false;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	pProcess->iTerminalCols = iCols ? iCols : __XPROC_TERMINAL_COLS_DEFAULT;
+	pProcess->iTerminalRows = iRows ? iRows : __XPROC_TERMINAL_ROWS_DEFAULT;
+	xrtMutexUnlock(&pProcess->Lock);
+	return true;
+}
 // 获取标准输出快照
 XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
 {
@@ -56873,6 +57640,23 @@ XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t i
 	pData = __xprocStreamReadSince(&pProcess->StderrBuf, iOffset, iMaxBytes, piSize, pInfo);
 	xrtMutexUnlock(&pProcess->Lock);
 	return pData;
+}
+// 按序号读取事件
+XXAPI xprocessevent* xrtProcessReadEventsSince(xprocess* pProcess, uint64 iSeq, uint32 iMaxCount, uint32* piCount, xprocesseventreadinfo* pInfo)
+{
+	xprocessevent* arrEvents;
+	if ( piCount ) {
+		*piCount = 0u;
+	}
+	__xprocEventReadInfoInit(pInfo);
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return NULL;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	arrEvents = __xprocEventBufReadSince(&pProcess->EventBuf, iSeq, iMaxCount, piCount, pInfo);
+	xrtMutexUnlock(&pProcess->Lock);
+	return arrEvents;
 }
 // 内部函数：timeout 收口策略
 static void __xprocStopForTimeout(xprocess* pProcess)

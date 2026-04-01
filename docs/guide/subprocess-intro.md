@@ -185,6 +185,34 @@ iOffset = tReadInfo.iNextOffset;
 如果你传入的 offset 小于 `iBaseOffset`，说明更早的数据已经不在当前保留窗口里了。
 
 
+### 5.2 统一事件时间线
+
+如果你要还原“进程启动 -> stdout/stderr/terminal 输出 -> 退出”的完整时间线，直接轮询事件流：
+
+```c
+xprocesseventreadinfo tEventInfo;
+xprocessevent* arrEvents = NULL;
+uint32 iEventCount = 0u;
+uint64 iSeq = 0u;
+
+memset(&tEventInfo, 0, sizeof(tEventInfo));
+arrEvents = xrtProcessReadEventsSince(pProcess, iSeq, 0u, &iEventCount, &tEventInfo);
+if ( arrEvents != NULL ) {
+	for ( uint32 i = 0u; i < iEventCount; i++ ) {
+		printf("seq=%llu kind=%d stream=%d size=%llu\n",
+			(unsigned long long)arrEvents[i].iSeq,
+			arrEvents[i].iKind,
+			arrEvents[i].iStream,
+			(unsigned long long)arrEvents[i].iSize);
+	}
+	xrtFree(arrEvents);
+}
+iSeq = tEventInfo.iNextSeq;
+```
+
+如果是 terminal 模式，`iStream` 会是 `XPROC_STREAM_TERMINAL`。
+
+
 ## 6. 环境变量和工作目录
 
 ### 6.1 环境变量覆盖
@@ -225,7 +253,38 @@ tConfig.sWorkDir = (str)"D:/git/xrt";
 不会再静默回退到旧目录。
 
 
-## 7. 退出结果怎么判断
+## 7. terminal 模式
+
+如果你要跑交互式 shell、REPL、明确依赖 TTY 的程序，可以打开 terminal：
+
+```c
+xrtProcessConfigInit(&tConfig);
+tConfig.iTargetKind = XPROC_TARGET_SHELL;
+tConfig.bUseTerminal = true;
+```
+
+建议先判断：
+
+```c
+if ( xrtProcessTerminalSupported() ) {
+	/* spawn */
+}
+```
+
+如果已经启动成功，还可以在运行中调整尺寸：
+
+```c
+xrtProcessResizeTerminal(pProcess, 100u, 32u);
+```
+
+这里要特别记住一条：
+
+- terminal 模式下拿到的是“原始终端字节流”
+- 里面可能包含 ANSI / VT 控制序列、标题更新序列等
+- 如果你要给 UI 展示纯文本，要自己做 terminal escape 过滤
+
+
+## 8. 退出结果怎么判断
 
 不要只看 `xrtProcessExitCode()`，更推荐看：
 
@@ -252,7 +311,7 @@ if ( xrtProcessGetExitInfo(pProcess, &tExitInfo) ) {
 - 命令被信号结束
 
 
-## 8. 停止语义
+## 9. 停止语义
 
 当前有四层停止动作：
 
@@ -275,7 +334,7 @@ if ( xrtProcessGetExitInfo(pProcess, &tExitInfo) ) {
 `xrtExecCapture()` 的超时收口内部也遵循类似思路。
 
 
-## 9. future 链接
+## 10. future 链接
 
 如果编译包含 future 层，可以把“子进程完成”直接接到异步链路：
 
@@ -290,16 +349,17 @@ if ( pFuture != NULL ) {
 ```
 
 
-## 10. 几个容易踩坑的点
+## 11. 几个容易踩坑的点
 
 - `xrtProcessDestroy()` 不是 stop API
 - `OnExit` 现在拿到的是 `xprocessexitinfo*`
 - `GetStdout/GetStderr` 返回新内存，记得 `xrtFree()`
 - `PIPE` 模式才适合流式读取和写 stdin
+- terminal 模式拿到的是原始终端字节流，不是自动清洗后的纯文本
 - 能不用 shell 就别用 shell
 
 
-## 11. 进一步阅读
+## 12. 进一步阅读
 
 - [Subprocess API](../api/api-subprocess.md)
 - [Thread](../api/api-thread.md)

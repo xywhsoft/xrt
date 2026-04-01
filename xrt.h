@@ -1712,6 +1712,11 @@
 	#define XPROC_STDIO_PIPE		1
 	#define XPROC_STDIO_NULL		2
 
+	#define XPROC_STREAM_NONE		0
+	#define XPROC_STREAM_STDOUT		1
+	#define XPROC_STREAM_STDERR		2
+	#define XPROC_STREAM_TERMINAL	3
+
 	#define XPROC_EXIT_NONE			0
 	#define XPROC_EXIT_NORMAL		1
 	#define XPROC_EXIT_SIGNAL		2
@@ -1733,6 +1738,11 @@
 	#define XPROC_STOP_TERMINATE	2
 	#define XPROC_STOP_KILL			3
 	#define XPROC_STOP_KILL_TREE	4
+
+	#define XPROC_EVENT_NONE		0
+	#define XPROC_EVENT_START		1
+	#define XPROC_EVENT_OUTPUT		2
+	#define XPROC_EVENT_EXIT		3
 
 	typedef struct xprocess_struct xprocess;
 
@@ -1760,6 +1770,23 @@
 	} xprocessreadinfo;
 
 	typedef struct {
+		uint64 iSeq;
+		int iKind;
+		int iStream;
+		uint64 iOffset;
+		uint64 iSize;
+		uint64 tTimeMs;
+		xprocessexitinfo ExitInfo;
+	} xprocessevent;
+
+	typedef struct {
+		uint64 iBaseSeq;
+		uint64 iNextSeq;
+		uint64 iEventEndSeq;
+		bool bDone;
+	} xprocesseventreadinfo;
+
+	typedef struct {
 		void (*OnStart)(xprocess* pProcess, ptr pUserData);
 		void (*OnStdout)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
 		void (*OnStderr)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
@@ -1776,11 +1803,15 @@
 		str* arrEnv;
 		uint32 iEnvCount;
 		bool bInheritEnv;
+		bool bUseTerminal;
 		bool bMergeStderr;
 		bool bCreateProcessGroup;
 		bool bHideWindow;
+		uint32 iTerminalCols;
+		uint32 iTerminalRows;
 		uint32 iReadChunkSize;
 		size_t iMaxCaptureBytes;
+		uint32 iMaxEventCount;
 		xprocessstdio Stdin;
 		xprocessstdio Stdout;
 		xprocessstdio Stderr;
@@ -1830,6 +1861,10 @@
 	XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo);
 
 
+	// 当前平台是否支持 terminal 模式
+	XXAPI bool xrtProcessTerminalSupported(void);
+
+
 	// 写入进程标准输入
 	XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize);
 
@@ -1866,6 +1901,10 @@
 	XXAPI bool xrtProcessKillTree(xprocess* pProcess);
 
 
+	// 调整 terminal 尺寸
+	XXAPI bool xrtProcessResizeTerminal(xprocess* pProcess, uint32 iCols, uint32 iRows);
+
+
 	// 获取进程标准输出快照（返回新分配的内存，调用方负责 xrtFree）
 	XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize);
 
@@ -1880,6 +1919,10 @@
 
 	// 按偏移读取标准错误增量（返回新分配的内存，调用方负责 xrtFree）
 	XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
+
+
+	// 按序号读取事件增量（返回新分配的事件数组，调用方负责 xrtFree）
+	XXAPI xprocessevent* xrtProcessReadEventsSince(xprocess* pProcess, uint64 iSeq, uint32 iMaxCount, uint32* piCount, xprocesseventreadinfo* pInfo);
 
 
 	// 执行进程并捕获输出
