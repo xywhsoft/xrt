@@ -200,4 +200,9 @@
 16. [用 Dict + List + AVLTree 组织一个多租户索引注册表](case/tenant-index-registry.md)
 17. [把本地控制台服务升级成一个重试退避面板](case/retry-backoff-dashboard.md)
 18. [把本地控制台服务升级成一个归档面板](case/archive-dashboard.md)
+19. [把本地控制台服务升级成一个冷热分层面板](case/hot-cold-tier-dashboard.md)
+20. [把本地控制台服务升级成一个冷层回温面板](case/warm-back-dashboard.md)
+21. [把本地控制台服务升级成一个冷热滚动归档面板](case/rolling-tier-archive-dashboard.md)
+22. [把本地控制台服务升级成一个自动回温策略面板](case/auto-warm-policy-dashboard.md)
+23. [把本地控制台服务升级成一个冷层回温归档协同面板](case/warm-archive-coordination-dashboard.md)
 

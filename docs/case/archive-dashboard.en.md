@@ -1,121 +1,121 @@
-# 把本地控制台服务升级成一个归档面板
+# XRT Case Study: Upgrade the Local Console Service into an Archive Dashboard
 
-> 这个案例要解决的不是“任务做完以后删掉就行了”，而是更贴近真实服务的问题：当一个本地控制台服务既要维护当前活跃对象，又要把结束对象正式归档，还要把最近归档历史稳定展示给页面、JSON、日志和快照时，怎样把 `dict + list + queue + thread + path + file + xhttpd + template` 串成一条正式主线，而不是让删除、日志、页面和归档文件各写各的。
+> This case is not about "just remove the item after it is done". It targets a more realistic service problem: when one local console service must keep current active objects, turn finished objects into formal archive records, and expose recent archive history consistently to the page, JSON, logs, and snapshots, how do you turn `dict + list + queue + thread + path + file + xhttpd + template` into one formal mainline instead of letting deletion, logs, pages, and archive files each maintain their own version of the state?
 
-[返回案例索引](README.md)
+[中文](archive-dashboard.md) | [Back to Case Studies](README.en.md)
 
 ---
 
-## 1. 场景
+## 1. Scenario
 
-假设你已经有了前面那个本地控制台服务：
+Assume you already have the earlier local console service:
 
-- 它能读配置
-- 能写日志
-- 能用 `queue + thread` 跑后台任务
-- 能同时输出 JSON 和 HTML
+- it loads config
+- it writes logs
+- it runs background work through `queue + thread`
+- it exposes both JSON and HTML
 
-现在服务又往前走一步，开始有“归档”需求：
+Now the service moves one step further and gains a formal archive requirement:
 
-- 某个活跃对象结束后，不应该直接消失
-- 页面要同时看到“当前活跃对象”和“最近归档历史”
-- 归档动作不能阻塞 HTTP handler
-- 归档记录需要带原因、时间和稳定标识
-- 最近一轮归档摘要还要能落成快照文件
+- after one active object finishes, it should not simply disappear
+- the page must show both current active objects and recent archive history
+- archiving must not block the HTTP handler
+- archive records need reason, time, and a stable identifier
+- the latest archive summary should also be written into a snapshot file
 
-如果这时只写成：
+If you keep the logic at:
 
-- 从当前字典里 `Remove`
-- 再顺手 `printf` 一行日志
+- remove it from the current dict
+- print one log line
 
-很快就会出现 4 个问题：
+four problems appear very quickly:
 
-- 活跃态和归档态混在一起，没有正式边界
-- 页面为了显示历史开始扫日志文件或 worker 临时状态
-- 后续要补 JSON / 快照时，又要再拼一套归档字段
-- “删除”和“归档”被写成同一件事，后面谁也不敢改
+- live state and archive state collapse into one unclear boundary
+- the page starts scanning log files or worker-local state just to show history
+- once you add JSON or snapshots, one more archive field set gets invented again
+- "delete" and "archive" become the same thing, so later changes become dangerous
 
-这页真正要补出的不是“怎么删对象”，而是：
+So this page is not really about "how to delete one object". It is about:
 
-> 当系统里开始有正式归档语义时，怎样把当前活跃态、归档态和后台归档通道拆成三条稳定主线。
-
-
-## 2. 为什么这次不是“从活跃表里删掉就完了”
-
-### 2.1 删除只回答“现在不在了”，归档回答“之前发生了什么”
-
-从当前活跃表里移除，只能说明：
-
-- 这个对象现在不再活跃
-
-但归档真正还需要保留：
-
-- 它原来是什么
-- 它为什么结束
-- 它何时结束
-- 它在页面和快照里该怎么继续展示
-
-所以“删除”和“归档”不是一回事。
+> how to split current live state, archive state, and the background archive path into three stable lines once the system starts carrying real archive semantics.
 
 
-### 2.2 `dict` 负责当前态，不负责历史态
+## 2. Why This Is Not "Just Remove It from the Live Table"
 
-这页里：
+### 2.1 Deletion only answers "it is no longer here", archive answers "what happened before"
+
+Removing one object from the live table can only say:
+
+- this object is no longer active
+
+But a real archive still needs to preserve:
+
+- what it used to be
+- why it ended
+- when it ended
+- how it should still be shown on the page and in snapshots
+
+So "delete" and "archive" are not the same thing.
+
+
+### 2.2 `dict` owns current state, not historical state
+
+In this page:
 
 - `dict`
-	- 保存当前活跃对象
+	- stores current active objects
 
-它最适合回答：
+It is best at answering:
 
-- 这个 key 现在是不是活跃
-- 活跃对象现在的最新状态是什么
+- whether this key is active right now
+- what the latest live state is
 
-但它不适合直接承担：
+But it is not naturally suited to:
 
-- 最近第 1 条归档
-- 最近第 2 条归档
-- 最近第 3 条归档
+- the most recent archive entry
+- the second most recent archive entry
+- the third most recent archive entry
 
-所以归档历史应该拆出去。
+That is why archive history should be split out.
 
 
-### 2.3 归档历史更适合成为稳定值记录，而不是活对象引用
+### 2.3 Archive history should become stable value records, not live object references
 
-一旦对象已经结束，页面和快照真正需要的是：
+Once one object has ended, what the page and snapshot really need is:
 
-- 一个稳定快照
+- one stable snapshot
 
-而不是：
+not:
 
-- 指向活跃对象的指针
+- a pointer back into one old live object
 
-这正是：
+That is exactly where:
 
 - `list`
 
-很适合承担的地方。
+fits naturally.
 
 
-## 3. 这条主线里每一层负责什么
+## 3. What Each Layer Owns
 
-| 层 | 这次承担的角色 | 真正解决的问题 |
-|----|----------------|----------------|
-| `dict` | 保存当前活跃对象 | 当前态查询和管理 |
-| `list` | 保存最近归档历史 | 页面时间线和最近归档导出 |
-| `queue + thread` | 后台执行归档动作 | HTTP 不阻塞在归档收口上 |
-| `path + file` | 归档快照和落盘路径 | 让归档结果进入真实文件系统 |
-| `hash` | 给对象 key 一个稳定指纹 | 页面、日志、快照里的轻量标识 |
-| `xvalue + json` | 导出最新归档摘要 | JSON 和快照共享同一份模型 |
-| `xhttpd + template` | 展示活跃态和归档态 | 浏览器和脚本共享一个入口 |
+| Layer | Role in this case | What it actually solves |
+|------|-------------------|-------------------------|
+| `dict` | stores current active objects | current-state lookup and management |
+| `list` | stores recent archive history | page timeline and recent archive export |
+| `queue + thread` | executes archive work in the background | keeps HTTP out of archive convergence |
+| `path + file` | archive snapshot paths and file output | moves archive state into the real filesystem |
+| `hash` | gives each object key one stable fingerprint | short identifiers for pages, logs, and snapshots |
+| `xvalue + json` | exports the latest archive summary | JSON and snapshots share one model |
+| `xhttpd + template` | shows live and archive state | one shared browser and script-facing entry |
 
-一句话记住：
+One-sentence version:
 
-> `dict` 管“现在还活着什么”，`list` 管“最近归档了什么”，worker 管“什么时候把活跃态正式转成归档态”。 
+> `dict` owns "what is still alive now", `list` owns "what was archived recently", and the worker owns "when one live object is formally turned into one archive record".
 
 
-## 4. 文件和输出约定
+## 4. File Layout and Outputs
 
-沿用本地控制台服务的目录约定，这页只把快照语义改成归档面板：
+This case keeps the local-console-service layout and only changes the snapshot meaning into an archive dashboard:
 
 ```text
 config/console.json
@@ -124,35 +124,35 @@ runtime/console.log
 runtime/last-archive.json
 ```
 
-其中：
+Where:
 
 - `config/console.json`
-	- 保存归档队列容量、最近保留条数等配置
+	- keeps archive queue capacity and recent retention limits
 - `web/dashboard.html`
-	- 用于渲染归档面板
+	- renders the archive dashboard
 - `runtime/console.log`
-	- 记录归档提交和归档完成
+	- records archive submission and archive completion
 - `runtime/last-archive.json`
-	- 保存最近导出的归档摘要
+	- stores the latest exported archive summary
 
 
-## 5. 先把活跃态、归档态和后台归档队列立起来
+## 5. Compact Core: Live State, Archive State, Background Archive Queue
 
-下面这段代码故意先聚焦归档核心，不把完整 `xhttpd` handler 和模板渲染全部塞进去。
+The reviewed Chinese page contains the full walkthrough. The English page keeps the formal mainline compact and source-aligned.
 
-它保留最关键的三件事：
+This skeleton preserves the three boundaries that matter most:
 
-1. `dict` 保存当前活跃对象
-2. `list` 保存最近归档历史
-3. `queue + thread` 把归档动作放到后台
+1. `dict` stores current active objects
+2. `list` stores recent archive history
+3. `queue + thread` moves archive work into the background
 
-这个骨架会实际做这些事：
+It deliberately stays practical:
 
-- 初始化 archive center
-- 注册几个活跃对象
-- 投递两个归档请求
-- worker 把活跃对象转成归档记录
-- 主线程分别打印当前活跃对象和最近归档历史
+- initialize the archive center
+- register several active objects
+- submit two archive requests
+- let the worker turn active objects into archive records
+- print the current active objects and recent archive history from the main thread
 
 ```c
 #include "xrt.h"
@@ -520,83 +520,83 @@ cleanup:
 ```
 
 
-## 6. 这段代码里最关键的 5 个点
+## 6. Five Things That Matter Most
 
-### 6.1 `dict` 保存的是当前活跃态，不是归档态
+### 6.1 `dict` stores the current live state, not the archive state
 
-`pActive` 里保存的是：
+`pActive` stores:
 
-- 当前还活跃的对象
+- objects that are still active right now
 
-一旦对象正式进入归档，最稳的动作就是：
+Once one object formally enters the archive, the most stable action is:
 
-- 从 `dict` 里移除
-- 转成稳定归档记录
+- remove it from `dict`
+- convert it into one stable archive record
 
 
-### 6.2 `list` 保存的是稳定归档记录，不是活对象指针
+### 6.2 `list` stores stable archive records, not live object pointers
 
-`pArchive` 用的是：
+`pArchive` uses:
 
 - `xrtListCreate(sizeof(DemoArchiveEntry), XRT_OBJMODE_SHARED)`
 
-也就是：
+That means:
 
-- 归档记录直接按值落进 `list`
+- archive records are copied into the list by value
 
-这样页面、JSON 和快照读到的是稳定归档态，而不是活对象引用。
-
-
-### 6.3 归档动作走后台 worker，不走 HTTP 线程
-
-这页最重要的边界之一就是：
-
-- HTTP 只发归档请求
-- worker 真正把活跃态转成归档态
-
-这样后面不管归档收口里再加文件落盘、快照写出还是通知逻辑，HTTP 线程都不会直接被拖住。
+So the page, JSON, and snapshots consume stable archive state, not pointers back into live objects.
 
 
-### 6.4 归档不等于日志
+### 6.3 Archive work belongs to the background worker, not the HTTP thread
 
-日志当然仍然重要，但这页里真正可供页面和快照消费的是：
+One of the most important boundaries in this page is:
+
+- HTTP only submits archive requests
+- the worker actually turns live state into archive state
+
+So later additions such as file output, snapshots, or notifications do not drag the HTTP thread into the slow path.
+
+
+### 6.4 Archive is not the same as logs
+
+Logs still matter, but the real archive state that the page and snapshots consume here is:
 
 - `DemoArchiveEntry`
 
-也就是说，日志只是观察路径之一，不再承担归档状态本身。
+In other words, logs are only one observation path, not the archive state itself.
 
 
-### 6.5 `hash` 让归档对象有一个稳定标识
+### 6.5 `hash` gives archive objects one stable identifier
 
-`iKeyHash` 在这里承担的是：
+`iKeyHash` is used here as:
 
-- 页面、日志、快照中的轻量标识
+- one lightweight identifier in pages, logs, and snapshots
 
-它不是安全能力，只是一个稳定指纹。
+It is not one security feature. It is only one stable fingerprint.
 
 
-## 7. 接回 HTTP、模板和快照时怎么落
+## 7. How It Reconnects to HTTP, Templates, and Snapshots
 
 ### 7.1 `POST /api/archive`
 
-只做：
+It should only:
 
-1. 解析对象 key
-2. 生成一个归档请求
-3. 推入后台队列
-4. 立即返回已接收
+1. parse the object key
+2. build one archive request
+3. enqueue it into the background queue
+4. return "accepted" immediately
 
-不要在 handler 里直接做删除和归档收口。
+The handler should not perform deletion and archive convergence inline.
 
 
 ### 7.2 `GET /api/archive`
 
-更适合直接导出两块：
+The most natural JSON output is two parts:
 
-1. 当前活跃对象
-2. 最近归档历史
+1. current active objects
+2. recent archive history
 
-它们正好对应：
+These map directly onto:
 
 - `dict`
 - `list`
@@ -604,63 +604,60 @@ cleanup:
 
 ### 7.3 `GET /dashboard`
 
-页面最自然的布局就是：
+The page naturally splits into:
 
-1. 当前活跃对象表
-2. 最近归档时间线
+1. one table of current active objects
+2. one recent archive timeline
 
-这样模板页就不需要再去扫日志文件硬推归档历史。
+That is why the template does not need to scan log files just to reconstruct archive history.
 
 
 ### 7.4 `runtime/last-archive.json`
 
-worker 完成一次归档后，把：
+After the worker completes one archive step, it should export:
 
-- 当前活跃对象摘要
-- 最近归档历史
+- the current active-object summary
+- the recent archive history
 
-统一导成一份 `xvalue`，再落成快照文件，这样页面、JSON 和日志才能沿同一份状态工作。
-
-
-## 8. 这页最容易写错的地方
-
-### 8.1 把归档直接写成删除
-
-这样短期看似简单，长期就会让：
-
-- 页面历史
-- 快照导出
-- 审计记录
-
-都找不到一个正式状态来源。
+into one shared `xvalue`, then write that model into a snapshot file so the page, JSON, and logs all stay aligned.
 
 
-### 8.2 用日志代替归档状态
+## 8. Common Mistakes
 
-日志只适合做观察，不能替代：
+### 8.1 Treating archive as direct deletion
 
-- 页面直接消费的归档记录
-- JSON / 快照直接导出的归档记录
+That may look simpler in the short term, but in the longer term it leaves:
+
+- page history
+- snapshot export
+- audit records
+
+without any formal source of truth.
 
 
-### 8.3 把归档动作放回请求线程
+### 8.2 Using logs as the archive state
 
-这会让归档收口重新变成同步慢路径，一旦后面归档逻辑变重，HTTP 面板马上退化。
+Logs are useful for observation, but they cannot replace:
+
+- archive records consumed directly by the page
+- archive records exported directly by JSON and snapshots
 
 
-## 9. 这页之后最自然的下一步
+### 8.3 Moving archive work back into the request thread
 
-如果继续往业务层推进，最自然的下一步有 3 个：
+That turns archive convergence back into one synchronous slow path. As soon as archive logic grows heavier, the dashboard degrades immediately.
 
-1. 冷热分层面板
-	把当前活跃层和冷数据快照层正式拆开，可以继续读 [把本地控制台服务升级成一个冷热分层面板](hot-cold-tier-dashboard.md)
-2. 归档 + 重试联动
-	把最终失败任务转进归档面板
-3. 归档文件滚动
-	让最近归档历史和长期归档文件分层
 
-如果你还没完全建立这里的状态拆分心智，建议一起复读：
+## 9. What To Read Next
 
-- [把本地控制台服务升级成一个重试退避面板](retry-backoff-dashboard.md)
-- [把本地控制台服务升级成一个缓存刷新面板](cache-refresh-dashboard.md)
-- [Queue 入门：什么时候该用消息交接，而不是共享状态](../guide/queue-intro.md)
+If you keep moving up the business layer, the next natural directions are:
+
+1. the hot-cold tier dashboard
+2. archive plus retry integration
+3. rolling archive files
+
+If the state split is still not fully stable yet, read these together:
+
+- [Upgrade the Local Console Service into a Retry Backoff Dashboard](retry-backoff-dashboard.en.md)
+- [Upgrade the Local Console Service into a Cache Refresh Dashboard](cache-refresh-dashboard.en.md)
+- [Queue Intro: When to Hand Off Messages Instead of Sharing State](../guide/queue-intro.en.md)

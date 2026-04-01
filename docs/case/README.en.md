@@ -97,16 +97,21 @@ The following case pages already exist in English:
 16. [Upgrade the Local Console Service into a Batch Task Dashboard](batch-task-dashboard.en.md)
 17. [Upgrade the Local Console Service into a Cache Refresh Dashboard](cache-refresh-dashboard.en.md)
 18. [A Multi-Tenant Index Registry with Dict, List, and AVLTree](tenant-index-registry.en.md)
+19. [Upgrade the Local Console Service into a Retry Backoff Dashboard](retry-backoff-dashboard.en.md)
+20. [Upgrade the Local Console Service into an Archive Dashboard](archive-dashboard.en.md)
+21. [Upgrade the Local Console Service into a Hot-Cold Tier Dashboard](hot-cold-tier-dashboard.en.md)
+22. [Upgrade the Local Console Service into a Warm-Back Dashboard](warm-back-dashboard.en.md)
 
 ### 2. Current English Coverage Notes
 
-At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, session-registry, subprocess-dashboard, batch-dashboard, cache-dashboard, and tenant-index business pages.
+At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, session-registry, subprocess-dashboard, batch-dashboard, cache-dashboard, tenant-index, retry-backoff, archive, hot-cold-tier, and warm-back business pages.
 
 So the remaining gaps are now mostly:
 
-- English sync for the retry backoff dashboard variant
-- English sync for the archive dashboard variant
-- more business-style variants such as hot-cold tier cases
+- English sync for the rolling-tier archive dashboard variant
+- English sync for the auto-warm policy dashboard variant
+- English sync for the warm-archive coordination dashboard variant
+- more business-style variants such as rolling tier archive, automatic warm-back policy, or multi-tier storage cases
 
 These pages are currently useful when you want:
 
@@ -118,9 +123,10 @@ These pages are currently useful when you want:
 
 The most obvious remaining case gaps are:
 
-- English sync for `case/retry-backoff-dashboard.md`
-- English sync for `case/archive-dashboard.md`
-- more business-style variants around hot-cold tiering
+- English sync for `case/rolling-tier-archive-dashboard.md`
+- English sync for `case/auto-warm-policy-dashboard.md`
+- English sync for `case/warm-archive-coordination-dashboard.md`
+- more business-style variants around multi-tier storage and long-lived service state
 
 
 ## Relationship to API and Guide Docs

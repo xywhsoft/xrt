@@ -216,5 +216,14 @@
 - 英文案例已同步 `case/tenant-index-registry.en.md`
 - 中文案例已补出 `case/retry-backoff-dashboard.md`，用于承接“dict / list / queue / thread / time / hash”的重试退避业务变体主线
 - 中文案例已补出 `case/archive-dashboard.md`，用于承接“dict / list / queue / thread / path / file”的归档业务变体主线
+- 中文案例已补出 `case/hot-cold-tier-dashboard.md`，用于承接“dict / list / queue / thread / time / path / file / hash”的冷热分层业务变体主线
+- 中文案例已补出 `case/warm-back-dashboard.md`，用于承接“dict / list / queue / thread / time / path / file / hash”的冷层回温业务变体主线
+- 中文案例已补出 `case/rolling-tier-archive-dashboard.md`，用于承接“dict / list / list / queue / thread / time / path / file / hash”的冷热滚动归档业务变体主线
+- 中文案例已补出 `case/auto-warm-policy-dashboard.md`，用于承接“dict / list / list / queue / thread / time / path / file / hash”的自动回温策略业务变体主线
+- 中文案例已补出 `case/warm-archive-coordination-dashboard.md`，用于承接“dict / list / list / list / queue / thread / time / path / file / hash”的冷层回温归档协同业务变体主线
+- 英文案例已同步 `case/warm-back-dashboard.en.md`
+- 英文案例已同步 `case/retry-backoff-dashboard.en.md`
+- 英文案例已同步 `case/archive-dashboard.en.md`
+- 英文案例已同步 `case/hot-cold-tier-dashboard.en.md`
 - `case/README.md`、`case/README.en.md`、`README.md`、`README.en.md` 已对齐这条案例入口与 English sync 状态
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿

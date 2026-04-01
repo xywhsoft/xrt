@@ -60,6 +60,11 @@
 - `dict + list + avltree + hash` 这条多租户索引注册表主线已经补出正式案例页
 - `dict + list + queue + thread + time + hash + xhttpd + template` 这条重试退避面板主线已经补出正式案例页
 - `dict + list + queue + thread + path + file + xhttpd + template` 这条归档面板主线已经补出正式案例页
+- `dict + list + queue + thread + time + path + file + hash + xhttpd + template` 这条冷热分层面板主线已经补出正式案例页
+- `dict + list + queue + thread + time + path + file + hash + xhttpd + template` 这条冷层回温面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条冷热滚动归档面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条自动回温策略面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条冷层回温归档协同面板主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -86,6 +91,11 @@
 12. 多租户索引注册表：`dict + list + avltree + hash`
 13. 重试退避面板：`dict + list + queue + thread + time + hash + xhttpd + template`
 14. 归档面板：`dict + list + queue + thread + path + file + xhttpd + template`
+15. 冷热分层面板：`dict + list + queue + thread + time + path + file + hash + xhttpd + template`
+16. 冷层回温面板：`dict + list + queue + thread + time + path + file + hash + xhttpd + template`
+17. 冷热滚动归档面板：`dict + list + list + queue + thread + time + path + file + hash + xhttpd + template`
+18. 自动回温策略面板：`dict + list + list + queue + thread + time + path + file + hash + xhttpd + template`
+19. 冷层回温归档协同面板：`dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
 
 这条梯度的目标不是只展示“能跑”，而是展示：
 
@@ -119,6 +129,11 @@
 18. [用 Dict + List + AVLTree 组织一个多租户索引注册表](tenant-index-registry.md)
 19. [把本地控制台服务升级成一个重试退避面板](retry-backoff-dashboard.md)
 20. [把本地控制台服务升级成一个归档面板](archive-dashboard.md)
+21. [把本地控制台服务升级成一个冷热分层面板](hot-cold-tier-dashboard.md)
+22. [把本地控制台服务升级成一个冷层回温面板](warm-back-dashboard.md)
+23. [把本地控制台服务升级成一个冷热滚动归档面板](rolling-tier-archive-dashboard.md)
+24. [把本地控制台服务升级成一个自动回温策略面板](auto-warm-policy-dashboard.md)
+25. [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
 
 这些页面当前适合：
 
@@ -131,7 +146,7 @@
 
 当前仍缺少正式案例的方向包括：
 
-- 再往下补冷热分层这类业务变体案例
+- 继续往下补“多层存储”“自动回温 + 滚动归档联动”“冷热多级老化”这类更细的业务变体案例
 
 
 ## 与 API 和教学文档的关系
