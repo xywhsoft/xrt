@@ -3,91 +3,84 @@
  * XRT 范例 - 数字转字符串
  *
  * Description / 说明:
- *   EN: Demonstrates xrtI32ToStr, xrtI64ToStr, xrtNumToStr for converting
- *       numbers to string representation.
- *   CN: 演示 xrtI32ToStr、xrtI64ToStr、xrtNumToStr 将数字转换为字符串表示。
+ *   EN: Demonstrates signed decimal, unsigned hexadecimal, and double
+ *       formatting with JNUM.
+ *   CN: 演示 JNUM 里的有符号十进制、无符号十六进制和 double 格式化。
  *
  * Build / 编译:
  *   tcc main.c -o ../../bin/jnum_num_to_str.exe          (Windows, TCC)
  *   gcc main.c -o ../../bin/jnum_num_to_str              (Linux, GCC)
- *
- * Note / 注意:
- *   - Functions write to provided buffer and return length
- *   - Buffer should be large enough (32 bytes recommended)
- *   - Returns number of characters written (excluding null)
  */
 
 #define XRT_IMPLEMENTATION
 #include "../../../singlehead/xrt.h"
 
-// Test int32 to string conversion
-// 测试 int32 到字符串转换
-void TestI32ToStr()
-{
-	printf("=== xrtI32ToStr (int32 to string) ===\n");
-	printf("=== xrtI32ToStr (int32 到字符串) ===\n");
-	
-	int32_t iValues[] = {0, 1, -1, 42, -42, 2147483647, -2147483648};
-	char* psDesc[] = {"Zero", "One", "Negative one", "42", "-42", "INT_MAX", "INT_MIN"};
-	
-	char sBuffer[32];
-	int iNumValues = 7;
-	int i;
-	
-	for ( i = 0; i < iNumValues; i++ ) {
-		int iLen = xrtI32ToStr(iValues[i], sBuffer);
-		printf("  %12d -> \"%s\" (len=%d) [%s]\n", 
-		       iValues[i], sBuffer, iLen, psDesc[i]);
-	}
-	printf("\n");
-}
 
-// Test int64 to string conversion
-// 测试 int64 到字符串转换
-void TestI64ToStr()
+static void TestSignedIntegers(void)
 {
-	printf("=== xrtI64ToStr (int64 to string) ===\n");
-	printf("=== xrtI64ToStr (int64 到字符串) ===\n");
-	
-	int64_t iValues[] = {
+	int32_t arrI32[] = {0, 1, -1, 42, -42, 2147483647, -2147483647 - 1};
+	int64_t arrI64[] = {
 		0,
 		1,
 		-1,
-		9223372036854775807LL,   // LLONG_MAX
-		-9223372036854775807LL,  // Near LLONG_MIN
+		9223372036854775807LL,
+		-9223372036854775807LL,
 		12345678901234LL,
 		-98765432109876LL,
 	};
-	char* psDesc[] = {
-		"Zero",
-		"One",
-		"Negative one",
-		"LLONG_MAX",
-		"Near LLONG_MIN",
-		"Large positive",
-		"Large negative",
-	};
-	
-	char sBuffer[32];
-	int iNumValues = 7;
+	char sBuffer[64];
 	int i;
-	
-	for ( i = 0; i < iNumValues; i++ ) {
-		int iLen = xrtI64ToStr(iValues[i], sBuffer);
-		printf("  %22lld -> \"%s\" (len=%d) [%s]\n", 
-		       iValues[i], sBuffer, iLen, psDesc[i]);
+
+	printf("=== Signed Decimal ===\n");
+	printf("=== 有符号十进制 ===\n");
+
+	for ( i = 0; i < (int)(sizeof(arrI32) / sizeof(arrI32[0])); i++ ) {
+		int iLen = xrtI32ToStr(arrI32[i], sBuffer);
+		printf("  i32 %-12d -> \"%s\" (len=%d)\n", arrI32[i], sBuffer, iLen);
 	}
+
+	for ( i = 0; i < (int)(sizeof(arrI64) / sizeof(arrI64[0])); i++ ) {
+		int iLen = xrtI64ToStr(arrI64[i], sBuffer);
+		printf("  i64 %-20lld -> \"%s\" (len=%d)\n", (long long)arrI64[i], sBuffer, iLen);
+	}
+
 	printf("\n");
 }
 
-// Test double to string conversion
-// 测试 double 到字符串转换
-void TestNumToStr()
+
+static void TestUnsignedHex(void)
 {
-	printf("=== xrtNumToStr (double to string) ===\n");
-	printf("=== xrtNumToStr (double 到字符串) ===\n");
-	
-	double fValues[] = {
+	uint32_t arrU32[] = {0u, 1u, 255u, 4096u, 0xffffffffu};
+	uint64_t arrU64[] = {
+		0ULL,
+		1ULL,
+		255ULL,
+		0xfeedbeefULL,
+		0xffffffffffffffffULL,
+	};
+	char sBuffer[64];
+	int i;
+
+	printf("=== Unsigned Hex With 0x Prefix ===\n");
+	printf("=== 无符号十六进制（带 0x 前缀） ===\n");
+
+	for ( i = 0; i < (int)(sizeof(arrU32) / sizeof(arrU32[0])); i++ ) {
+		int iLen = xrtU32ToStr(arrU32[i], sBuffer);
+		printf("  u32 %-10u -> \"%s\" (len=%d)\n", arrU32[i], sBuffer, iLen);
+	}
+
+	for ( i = 0; i < (int)(sizeof(arrU64) / sizeof(arrU64[0])); i++ ) {
+		int iLen = xrtU64ToStr(arrU64[i], sBuffer);
+		printf("  u64 %-20llu -> \"%s\" (len=%d)\n", (unsigned long long)arrU64[i], sBuffer, iLen);
+	}
+
+	printf("\n");
+}
+
+
+static void TestDoubles(void)
+{
+	double arrValues[] = {
 		0.0,
 		1.0,
 		-1.0,
@@ -95,172 +88,36 @@ void TestNumToStr()
 		-2.71828182845904,
 		1.23456789e10,
 		1.23456789e-10,
-		123456.789,
-		0.00000123456,
+		1e15,
+		1e-15,
 	};
-	char* psDesc[] = {
-		"Zero",
-		"One",
-		"Negative one",
-		"Pi approximation",
-		"e approximation",
-		"Large scientific",
-		"Small scientific",
-		"Medium decimal",
-		"Small decimal",
-	};
-	
 	char sBuffer[64];
-	int iNumValues = 9;
 	int i;
-	
-	for ( i = 0; i < iNumValues; i++ ) {
-		int iLen = xrtNumToStr(fValues[i], sBuffer);
-		printf("  %20.15g -> \"%s\" (len=%d) [%s]\n", 
-		       fValues[i], sBuffer, iLen, psDesc[i]);
+
+	printf("=== Double Formatting ===\n");
+	printf("=== Double 格式化 ===\n");
+
+	for ( i = 0; i < (int)(sizeof(arrValues) / sizeof(arrValues[0])); i++ ) {
+		int iLen = xrtNumToStr(arrValues[i], sBuffer);
+		printf("  %-20.15g -> \"%s\" (len=%d)\n", arrValues[i], sBuffer, iLen);
 	}
+
 	printf("\n");
 }
 
-// Test special values
-// 测试特殊值
-void TestSpecialValues()
-{
-	printf("=== Special Values ===\n");
-	printf("=== 特殊值 ===\n");
-	
-	char sBuffer[64];
-	
-	// Note: Behavior may vary with special floating-point values
-	// 注意: 特殊浮点值的行为可能不同
-	printf("Testing edge cases:\n");
-	printf("测试边界情况:\n");
-	
-	// Very small numbers
-	// 非常小的数字
-	int iLen = xrtNumToStr(1e-15, sBuffer);
-	printf("  1e-15 -> \"%s\" (len=%d)\n", sBuffer, iLen);
-	
-	// Very large numbers
-	// 非常大的数字
-	iLen = xrtNumToStr(1e15, sBuffer);
-	printf("  1e15 -> \"%s\" (len=%d)\n", sBuffer, iLen);
-	
-	// Powers of 10
-	// 10 的幂
-	iLen = xrtNumToStr(1000000.0, sBuffer);
-	printf("  1000000 -> \"%s\" (len=%d)\n", sBuffer, iLen);
-	
-	// Binary round numbers
-	// 二进制圆数
-	iLen = xrtNumToStr(1024.0, sBuffer);
-	printf("  1024 -> \"%s\" (len=%d)\n", sBuffer, iLen);
-	
-	printf("\n");
-}
 
-// Test practical use cases
-// 测试实际用例
-void TestPracticalUseCases()
+int main(void)
 {
-	printf("=== Practical Use Cases ===\n");
-	printf("=== 实际用例 ===\n");
-	
-	char sBuffer[64];
-	
-	// Building CSV row
-	// 构建 CSV 行
-	printf("CSV data:\n");
-	printf("CSV 数据:\n");
-	
-	int iID = 12345;
-	int64_t iTimestamp = 1703520000;
-	double fAmount = 1234.56;
-	
-	xrtI32ToStr(iID, sBuffer);
-	printf("  ID: %s\n", sBuffer);
-	
-	xrtI64ToStr(iTimestamp, sBuffer);
-	printf("  Timestamp: %s\n", sBuffer);
-	
-	xrtNumToStr(fAmount, sBuffer);
-	printf("  Amount: %s\n", sBuffer);
-	printf("\n");
-	
-	// Building file names with counters
-	// 构建带计数器的文件名
-	printf("Generated filenames:\n");
-	printf("生成的文件名:\n");
-	
-	int i;
-	for ( i = 0; i < 5; i++ ) {
-		xrtI32ToStr(i, sBuffer);
-		printf("  output_%s.txt\n", sBuffer);
-	}
-	printf("\n");
-	
-	// Display measurements
-	// 显示测量值
-	printf("Measurements:\n");
-	printf("测量值:\n");
-	
-	double fTemps[] = {36.5, 37.2, 36.8, 38.1};
-	int iNumTemps = 4;
-	for ( i = 0; i < iNumTemps; i++ ) {
-		xrtNumToStr(fTemps[i], sBuffer);
-		printf("  Temperature %d: %s C\n", i+1, sBuffer);
-	}
-	printf("\n");
-}
-
-// Test performance characteristics
-// 测试性能特征
-void TestPerformance()
-{
-	printf("=== Performance Test ===\n");
-	printf("=== 性能测试 ===\n");
-	
-	char sBuffer[64];
-	int64_t iValue = 1234567890123LL;
-	int iIterations = 10000;
-	
-	printf("Converting %lld %d times...\n", iValue, iIterations);
-	printf("将 %lld 转换 %d 次...\n", iValue, iIterations);
-	
-	clock_t start = clock();
-	int i;
-	for ( i = 0; i < iIterations; i++ ) {
-		xrtI64ToStr(iValue, sBuffer);
-	}
-	clock_t end = clock();
-	
-	double fElapsed = (double)(end - start) / CLOCKS_PER_SEC * 1000.0;
-	printf("Time: %.2f ms (%.2f us per conversion)\n", 
-	       fElapsed, fElapsed * 1000.0 / iIterations);
-	printf("时间: %.2f 毫秒 (每次转换 %.2f 微秒)\n", 
-	       fElapsed, fElapsed * 1000.0 / iIterations);
-	printf("\n");
-}
-
-int main()
-{
-	// Initialize XRT library
-	// 初始化 XRT 库
 	xrtInit();
-	
+
 	printf("XRT JNUM - Number to String Demo\n");
 	printf("XRT JNUM - 数字转字符串演示\n");
 	printf("================================\n\n");
-	
-	TestI32ToStr();
-	TestI64ToStr();
-	TestNumToStr();
-	TestSpecialValues();
-	TestPracticalUseCases();
-	TestPerformance();
-	
-	// Cleanup XRT library
-	// 清理 XRT 库
+
+	TestSignedIntegers();
+	TestUnsignedHex();
+	TestDoubles();
+
 	xrtUnit();
 	return 0;
 }

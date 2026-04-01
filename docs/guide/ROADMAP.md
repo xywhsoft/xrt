@@ -171,6 +171,7 @@
 - [xvalue-json-intro.md](xvalue-json-intro.md)：作为第 3 阶段 `value / json` 正式第一页
 - [jnum-intro.md](jnum-intro.md)：作为第 3 阶段 `jnum` 正式第一页
 - [xson-intro.md](xson-intro.md)：作为第 3 阶段 `xson` 正式第一页
+- [regex-intro.md](regex-intro.md)：作为第 3 阶段 `regex` 正式第一页
 - [multitask-overview.md](multitask-overview.md)：作为第 4 阶段正式前导页
 - [thread-intro.md](thread-intro.md)：作为第 4 阶段线程专题正式第一页
 - [queue-intro.md](queue-intro.md)：作为第 4 阶段队列专题正式第一页

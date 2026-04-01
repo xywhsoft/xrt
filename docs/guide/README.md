@@ -69,6 +69,7 @@
 - `jnum` 已补出第 3 阶段正式教学第一页
 - `xson` 已补出第 3 阶段正式教学第一页
 - `template` 已补出正式教学第一页
+- `regex` 已补出正式教学第一页
 - 还不等于完整课程体系
 - 尚未覆盖 XRT 全部公开模块
 
@@ -106,17 +107,18 @@
 22. [JNUM 入门：什么时候该直接解析数字文本，而不是把所有输入都先塞进 `atoi / strtod / sprintf`](jnum-intro.md)
 23. [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
 24. [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
-25. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-26. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-27. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
-28. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-29. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
-29. 内存、容器与数据结构专题
-30. `regex / crypto` 专题
-31. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-32. 系统能力专题：子进程、异步文件
-33. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-34. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+25. [Regex 入门：什么时候该用正则做验证、提取和路由，而不是手搓字符串扫描](regex-intro.md)
+26. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+27. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+28. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+29. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+30. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+31. 内存、容器与数据结构专题
+32. `crypto` 专题
+33. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+34. 系统能力专题：子进程、异步文件
+35. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
+36. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -154,6 +156,7 @@
 - [JNUM 入门：什么时候该直接解析数字文本，而不是把所有输入都先塞进 `atoi / strtod / sprintf`](jnum-intro.md)
 - [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
 - [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
+- [Regex 入门：什么时候该用正则做验证、提取和路由，而不是手搓字符串扫描](regex-intro.md)
 
 ### 2. 并发与异步主线页
 
@@ -192,7 +195,7 @@
 目前还没有成体系教学的模块主要包括：
 
 - `llist`（当前源码树暂无独立 public header，正式教学页暂缓，先保留历史 API 页提示状态）
-- `regex / crypto`
+- `crypto`
 - `xurl / xhttp_util / xws / proxy`
 
 这也是后续优先补齐的部分。

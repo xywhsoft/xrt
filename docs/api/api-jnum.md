@@ -1,568 +1,278 @@
 # JNUM 数值转换库
 
-> JSON数字与字符串高性能转换
+> 当前 `jnum` 的正式合同是“数字文本 token 解析 + 数值格式化”。它不是完整 JSON 字面量解析器，也不是字段级 schema 校验器。
 
 [English](api-jnum.en.md) | [中文](api-jnum.md) | [返回索引](README.md)
 
 ---
 
-## 📑 目录
+## 目录
 
-- [类型定义](#类型定义)
+- [模块定位](#模块定位)
+- [类型](#类型)
 - [数字转字符串](#数字转字符串)
-- [字符串转数字](#字符串转数字)
-- [数字解析](#数字解析)
-- [使用场景](#使用场景)
+- [解析数字 token](#解析数字-token)
+- [便捷转换函数](#便捷转换函数)
+- [选型与边界](#选型与边界)
+- [相关文档](#相关文档)
 
 ---
 
-## 类型定义
+## 模块定位
 
-### jnum_type_t
+`jnum` 主要解决 3 类问题：
 
-数值类型枚举
+1. 把已有 C 数值写成文本
+2. 从一段更长文本里扫描一个数字 token
+3. 在“输入受控、默认值可接受”的前提下，直接把文本转成 C 数值
+
+它不直接负责：
+
+- 解析 `true / false / null`
+- 校验整段字段必须完全合法
+- 业务层面的取值范围和 schema 验证
+
+
+## 类型
+
+### `jnum_type_t`
 
 ```c
 typedef enum {
-    JNUM_NULL,      // 空值
-    JNUM_BOOL,      // 布尔值 (true/false)
-    JNUM_INT,       // 32位有符号整数
-    JNUM_HEX,       // 32位无符号十六进制整数
-    JNUM_LINT,      // 64位有符号整数
-    JNUM_LHEX,      // 64位无符号十六进制整数
-    JNUM_DOUBLE,    // 双精度浮点数
+	JNUM_NULL,
+	JNUM_BOOL,
+	JNUM_INT,
+	JNUM_HEX,
+	JNUM_LINT,
+	JNUM_LHEX,
+	JNUM_DOUBLE,
 } jnum_type_t;
 ```
 
----
+说明：
 
-### jnum_value_t
+- `JNUM_INT` / `JNUM_LINT`
+	- 十进制有符号整数
+- `JNUM_HEX` / `JNUM_LHEX`
+	- 十六进制无符号整数
+- `JNUM_DOUBLE`
+	- 小数、指数形式，或超出有符号 64 位范围的十进制整数
+- `JNUM_BOOL`
+	- 枚举中存在，但当前 `xrtParseNum()` 主线不是 `true / false` 解析入口
 
-数值联合体
+### `jnum_value_t`
 
 ```c
 typedef union {
-    bool vbool;         // 布尔值
-    int32_t vint;       // 32位有符号整数
-    uint32_t vhex;      // 32位无符号整数
-    int64_t vlint;      // 64位有符号整数
-    uint64_t vlhex;     // 64位无符号整数
-    double vdbl;        // 双精度浮点数
+	bool vbool;
+	int32_t vint;
+	uint32_t vhex;
+	int64_t vlint;
+	uint64_t vlhex;
+	double vdbl;
 } jnum_value_t;
 ```
 
----
+读取规则：
+
+- 必须先看 `jnum_type_t`
+- 再决定读取联合体的哪个成员
+
 
 ## 数字转字符串
 
-### xrtI32ToStr / xrtI64ToStr
+### `xrtI32ToStr()` / `xrtI64ToStr()`
 
-整数转字符串
-
-**函数原型：**
 ```c
 XXAPI int xrtI32ToStr(int32_t num, char* buffer);
 XXAPI int xrtI64ToStr(int64_t num, char* buffer);
 ```
 
-**参数：**
-- `num` - 整数值
-- `buffer` - 输出缓冲区（需预分配足够空间）
+合同：
 
-**返回值：**
-- 写入的字符数
+- 输出十进制有符号文本
+- 返回写入长度，不含结尾 `\0`
+- 由调用方提供缓冲区
 
-**示例：**
-```c
-char buf[32];
-int len = xrtI32ToStr(12345, buf);
-printf("%s (length: %d)\n", buf, len);  // "12345" (length: 5)
+### `xrtU32ToStr()` / `xrtU64ToStr()`
 
-len = xrtI64ToStr(-999, buf);
-printf("%s\n", buf);  // "-999"
-```
-
----
-
-### xrtU32ToStr / xrtU64ToStr
-
-无符号整数转十六进制字符串
-
-**函数原型：**
 ```c
 XXAPI int xrtU32ToStr(uint32_t num, char* buffer);
 XXAPI int xrtU64ToStr(uint64_t num, char* buffer);
 ```
 
-**参数：**
-- `num` - 无符号整数值
-- `buffer` - 输出缓冲区（需预分配足够空间）
+合同：
 
-**返回值：**
-- 写入的字符数
+- 输出带 `0x` 前缀的十六进制文本
+- 使用小写十六进制字母
+- 不是十进制无符号格式化函数
 
-**说明：**
-- 输出格式为十六进制，带 `0x` 前缀
-- 小写字母表示（a-f）
+示例：
 
-**示例：**
 ```c
-char buf[32];
-int len = xrtU32ToStr(255, buf);
-printf("%s\n", buf);  // "0xff"
+char sBuf[32];
 
-len = xrtU64ToStr(0xDEADBEEF, buf);
-printf("%s\n", buf);  // "0xdeadbeef"
+xrtU32ToStr(255, sBuf);       /* sBuf == "0xff" */
+xrtU64ToStr(0x1234ULL, sBuf); /* sBuf == "0x1234" */
 ```
 
----
+### `xrtNumToStr()`
 
-### xrtNumToStr
-
-浮点数转字符串
-
-**函数原型：**
 ```c
 XXAPI int xrtNumToStr(double num, char* buffer);
 ```
 
-**参数：**
-- `num` - 浮点数值
-- `buffer` - 输出缓冲区
+合同：
 
-**返回值：**
-- 写入的字符数
+- 输出可读、可 round-trip 的浮点文本
+- 整数值形式的 `double` 也会保留 `.0`
+- 特殊值会输出 `nan` / `inf` / `-inf`
 
-**示例：**
-```c
-char buf[64];
-int len = xrtNumToStr(3.14159, buf);
-printf("%s\n", buf);  // "3.14159"
-```
-
----
-
-## 字符串转数字
-
-### xrtStrToI32 / xrtStrToI64
-
-字符串转整数
-
-**函数原型：**
-```c
-XXAPI int32_t xrtStrToI32(const char* pStr);
-XXAPI int64_t xrtStrToI64(const char* pStr);
-```
-
-**参数：**
-- `pStr` - 数字字符串
-
-**返回值：**
-- 整数值
-
-**示例：**
-```c
-int32_t n1 = xrtStrToI32("12345");    // 12345
-int64_t n2 = xrtStrToI64("-999");     // -999
-```
-
----
-
-### xrtStrToU32 / xrtStrToU64
-
-字符串转无符号整数
-
-**函数原型：**
-```c
-XXAPI uint32_t xrtStrToU32(const char* pStr);
-XXAPI uint64_t xrtStrToU64(const char* pStr);
-```
-
----
-
-### xrtStrToNum
-
-字符串转浮点数
-
-**函数原型：**
-```c
-XXAPI double xrtStrToNum(const char* pStr);
-```
-
-**参数：**
-- `pStr` - 数字字符串
-
-**返回值：**
-- 浮点数值
-
-**支持格式：**
-- 普通格式：`3.14`, `-2.5`
-- 科学计数法：`1.23e10`, `4.56E-5`
-- 整数：`100` → `100.0`
-
-**示例：**
-```c
-double n1 = xrtStrToNum("3.14159");      // 3.14159
-double n2 = xrtStrToNum("-2.5");         // -2.5
-double n3 = xrtStrToNum("1.23e10");      // 12300000000.0
-```
-
----
-
-## 数字解析
-
-### xrtParseNum
-
-解析数字字符串（带类型识别）
-
-**函数原型：**
-```c
-XXAPI int xrtParseNum(const char *str, jnum_type_t *type, jnum_value_t *value);
-```
-
-**参数：**
-- `str` - 数字字符串
-- `type` - 输出：数字类型
-- `value` - 输出：数字值
-
-**返回值：**
-- 解析的字符数
-- 解析失败时返回 0，`type` 设为 `JNUM_NULL`
-
-**支持格式：**
-- 十进制整数：`123`, `-456`
-- 十六进制：`0xFF`, `0x1234ABCD`
-- 浮点数：`3.14`, `-2.5e10`
-- 正负号：`+123`, `-456`
-
-**自动类型判断：**
-- 值在 `INT32` 范围内 → `JNUM_INT`
-- 值在 `INT64` 范围内 → `JNUM_LINT`
-- 十六进制32位 → `JNUM_HEX`
-- 十六进制64位 → `JNUM_LHEX`
-- 含小数点或指数 → `JNUM_DOUBLE`
-
-**示例：**
-```c
-jnum_type_t type;
-jnum_value_t value;
-
-int len = xrtParseNum("12345", &type, &value);
-if (type == JNUM_INT) {
-    printf("Int: %d\n", value.vint);
-}
-
-len = xrtParseNum("0xFF", &type, &value);
-if (type == JNUM_HEX) {
-    printf("Hex: 0x%X\n", value.vhex);
-}
-
-len = xrtParseNum("3.14", &type, &value);
-if (type == JNUM_DOUBLE) {
-    printf("Double: %f\n", value.vdbl);
-}
-
-// 大整数自动识别为 JNUM_LINT
-len = xrtParseNum("9999999999", &type, &value);
-if (type == JNUM_LINT) {
-    printf("Long Int: %lld\n", value.vlint);
-}
-```
-
----
-
-### xrtParseNumSkipSpace
-
-跳过前导空白字符后解析数字
-
-**函数原型：**
-```c
-static inline int xrtParseNumSkipSpace(const char *str, jnum_type_t *type, jnum_value_t *value);
-```
-
-**参数：**
-- `str` - 数字字符串（可包含前导空白）
-- `type` - 输出：数字类型
-- `value` - 输出：数字值
-
-**返回值：**
-- 解析的总字符数（包含跳过的空白字符）
-
-**跳过的空白字符：**
-- 空格 `' '`
-- 制表符 `\t`
-- 换行符 `\n`, `\r`
-- 换页符 `\f`
-- 退格符 `\b`
-- 垂直制表符 `\v`
-
-**示例：**
-```c
-jnum_type_t type;
-jnum_value_t value;
-
-int len = xrtParseNumSkipSpace("   123", &type, &value);
-printf("Parsed %d chars, value: %d\n", len, value.vint);  // Parsed 6 chars, value: 123
-```
-
----
-
-## 使用场景
-
-### 1. 数字格式化
+示例：
 
 ```c
-void FormatNumber(int64_t num) {
-    char buf[32];
-    int len = xrtI64ToStr(num, buf);
-    printf("Number: %s\n", buf);
-}
+char sBuf[64];
+
+xrtNumToStr(0.0, sBuf);   /* "0.0" */
+xrtNumToStr(3.5, sBuf);   /* "3.5" */
+xrtNumToStr(1e15, sBuf);  /* 可能是 "1000000000000000.0" */
 ```
 
----
 
-### 2. 数字解析
+## 解析数字 token
+
+### `xrtParseNum()`
 
 ```c
-void ParseNumber(const char* str) {
-    jnum_type_t type;
-    jnum_value_t value;
-    
-    xrtParseNum(str, &type, &value);
-    
-    switch (type) {
-        case JNUM_INT:
-            printf("Integer: %d\n", value.vint);
-            break;
-        case JNUM_DOUBLE:
-            printf("Double: %f\n", value.vdbl);
-            break;
-        default:
-            break;
-    }
-}
+XXAPI int xrtParseNum(const char* str, jnum_type_t* type, jnum_value_t* value);
 ```
 
----
+合同：
 
-### 3. 数据转换
+- 从 `str` 当前位置开始解析一个数字 token
+- 返回消费长度
+- 失败时返回 `0`，并把 `type` 设为 `JNUM_NULL`
+
+当前主线支持：
+
+- 十进制整数：`42`、`-17`
+- 十六进制整数：`0xFF`、`0x1234abcd`
+- 浮点：`3.14`、`.5`
+- 指数：`1e5`、`-2.5E-3`
+- 前导符号：`+123`、`-456`
+
+自动类型规则：
+
+- 落在 `int32` 范围内：`JNUM_INT`
+- 落在 `int64` 范围内：`JNUM_LINT`
+- 十六进制 32 位：`JNUM_HEX`
+- 十六进制 64 位：`JNUM_LHEX`
+- 小数、指数或超出有符号 64 位的十进制：`JNUM_DOUBLE`
+
+重要边界：
+
+- 这是前缀解析器，不是整段字段校验器
+- 如果你要确认整段都合法，必须比较消费长度
+
+示例：
 
 ```c
-// 整数转字符串
-void IntToString(int32_t value, char* output) {
-    xrtI32ToStr(value, output);
-}
+const char* sToken = "123abc";
+jnum_type_t eType = JNUM_NULL;
+jnum_value_t sValue = {0};
+int iLen = xrtParseNum(sToken, &eType, &sValue);
 
-// 字符串转整数
-int32_t StringToInt(const char* input) {
-    return xrtStrToI32(input);
-}
+/* iLen == 3, eType == JNUM_INT, sValue.vint == 123 */
+/* 如果要校验整段，必须再比较 iLen == strlen(sToken) */
 ```
 
----
-
-## 性能特点
-
-### 高性能转换
-
-JNUM 使用优化算法：
-- **比 sprintf/sscanf 快数倍**
-- **比 atoi/atof 更准确**
-- **支持完整的 JSON 数字格式**
-
-### 基准测试参考
+### `xrtParseNumSkipSpace()`
 
 ```c
-// sprintf: ~500ns per call
-// xrtI64ToStr: ~100ns per call (5x faster)
-
-// sscanf: ~800ns per call
-// xrtStrToI64: ~150ns per call (5x faster)
+static inline int xrtParseNumSkipSpace(const void* str, jnum_type_t* type, jnum_value_t* value);
 ```
 
----
+合同：
 
-## 精度说明
+- 先跳过前导空白，再解析数字 token
+- 返回长度包含被跳过的空白字符
 
-### 整数精度
+这使它很适合：
 
-- 支持 64位有符号整数
-- 范围：-9,223,372,036,854,775,808 ~ 9,223,372,036,854,775,807
+- 流式扫描
+- 在解析后直接 `p += iLen`
 
-### 浮点数精度
-
-- 使用 IEEE 754 双精度（64位）
-- 有效数字：约15-17位
-- 范围：±2.23e-308 ~ ±1.80e+308
-
----
-
-## 边界情况处理
-
-### 整数溢出
+示例：
 
 ```c
-// 超出 INT64 范围的值会转为 JNUM_DOUBLE 类型
-jnum_type_t type;
-jnum_value_t value;
-xrtParseNum("99999999999999999999", &type, &value);
-// type == JNUM_DOUBLE
+jnum_type_t eType = JNUM_NULL;
+jnum_value_t sValue = {0};
+int iLen = xrtParseNumSkipSpace("   42", &eType, &sValue);
+
+/* iLen == 5, 不是 2 */
 ```
 
-### 浮点数特殊值
+
+## 便捷转换函数
+
+### `xrtStrToI32()` / `xrtStrToI64()` / `xrtStrToU32()` / `xrtStrToU64()` / `xrtStrToNum()`
 
 ```c
-char buf[32];
-
-// 特殊值转字符串
-xrtNumToStr(INFINITY, buf);   // "inf"
-xrtNumToStr(-INFINITY, buf);  // "-inf"
-xrtNumToStr(NAN, buf);        // "nan"
+XXAPI int32_t  xrtStrToI32(const void* pStr);
+XXAPI int64_t  xrtStrToI64(const void* pStr);
+XXAPI uint32_t xrtStrToU32(const void* pStr);
+XXAPI uint64_t xrtStrToU64(const void* pStr);
+XXAPI double   xrtStrToNum(const void* pStr);
 ```
 
----
+合同：
 
-## 最佳实践
+- 内部基于 `xrtParseNumSkipSpace()`
+- 接受前导空白
+- 对解析出的类型做一次直接 C 数值转换
+- 无法区分“无效输入”和“结果刚好是 0”
 
-### 1. 验证输入
+典型行为：
 
 ```c
-bool IsValidNumber(const char* text) {
-    jnum_type_t type;
-    jnum_value_t value;
-    int len = xrtParseNum(text, &type, &value);
-    return (len > 0 && type != JNUM_NULL);
-}
-
-double SafeToDouble(const char* text) {
-    jnum_type_t type;
-    jnum_value_t value;
-    if (xrtParseNum(text, &type, &value) > 0) {
-        switch (type) {
-        case JNUM_INT:    return (double)value.vint;
-        case JNUM_LINT:   return (double)value.vlint;
-        case JNUM_HEX:    return (double)value.vhex;
-        case JNUM_LHEX:   return (double)value.vlhex;
-        case JNUM_DOUBLE: return value.vdbl;
-        default:          return 0.0;
-        }
-    }
-    return 0.0;
-}
+xrtStrToI32("123")     /* 123 */
+xrtStrToI32("123abc")  /* 123 */
+xrtStrToI32("abc")     /* 0 */
+xrtStrToU64("0xFF")    /* 255 */
 ```
 
----
+使用建议：
 
-### 2. 缓冲区管理
+- 受控输入、默认值为 `0` 也能接受：可以直接用 wrapper
+- 需要严格校验或类型判断：回到 `xrtParseNum()` / `xrtParseNumSkipSpace()`
 
-```c
-// JNUM 使用用户提供的缓冲区，无需额外内存管理
-char buffer[32];  // 32字节足够存储任何数字
 
-// ✅ 直接使用栈上缓冲区
-xrtI64ToStr(123456789, buffer);
-printf("%s\n", buffer);
+## 选型与边界
 
-// ✅ 批量转换时复用缓冲区
-for (int i = 0; i < 1000000; i++) {
-    xrtI32ToStr(i, buffer);
-    ProcessString(buffer);
-}
-```
+### 选型表
 
----
+| 需求 | 推荐 API |
+|------|----------|
+| 十进制有符号格式化 | `xrtI32ToStr()` / `xrtI64ToStr()` |
+| 十六进制无符号格式化 | `xrtU32ToStr()` / `xrtU64ToStr()` |
+| 浮点格式化 | `xrtNumToStr()` |
+| 在更长文本里扫描 token | `xrtParseNum()` |
+| 输入前可能有空白 | `xrtParseNumSkipSpace()` |
+| 受控输入快速转值 | `xrtStrTo*()` |
 
-### 3. 缓冲区大小建议
+### 当前边界
 
-```c
-// 推荐的缓冲区大小
-#define INT32_BUF_SIZE   12   // "-2147483648" + '\0'
-#define INT64_BUF_SIZE   21   // "-9223372036854775808" + '\0'
-#define HEX32_BUF_SIZE   11   // "0xffffffff" + '\0'
-#define HEX64_BUF_SIZE   19   // "0xffffffffffffffff" + '\0'
-#define DOUBLE_BUF_SIZE  32   // 足够存储任何双精度浮点数
-```
+- `xrtU32ToStr()` / `xrtU64ToStr()` 不是十进制无符号格式化函数
+- `xrtParseNum()` 是前缀解析器，校验整段必须比较消费长度
+- 当前 `xrtParseNum()` 不负责解析 `true / false / null`
+- 十进制超出有符号 64 位后会转成 `JNUM_DOUBLE`
+- 如果你需要识别“非法输入”和“结果为 0”，不要只用 `xrtStrTo*()`
 
----
-
-## 常见错误
-
-### 1. 缓冲区过小
-
-```c
-// ❌ 错误：缓冲区可能溢出
-char buf[8];
-xrtI64ToStr(123456789012345, buf);  // 需要16字节
-
-// ✅ 正确：使用足够大的缓冲区
-char buf[32];
-xrtI64ToStr(123456789012345, buf);
-```
-
----
-
-### 2. 未检查解析结果
-
-```c
-// ❌ 错误：未检查返回值
-jnum_type_t type;
-jnum_value_t value;
-xrtParseNum("abc", &type, &value);
-int n = value.vint;  // type 可能是 JNUM_NULL
-
-// ✅ 正确：检查类型后再使用
-jnum_type_t type;
-jnum_value_t value;
-if (xrtParseNum("123", &type, &value) > 0 && type == JNUM_INT) {
-    int n = value.vint;
-}
-```
-
----
-
-### 3. 类型混淆
-
-```c
-// ❌ 错误：使用错误的联合体成员
-jnum_type_t type;
-jnum_value_t value;
-xrtParseNum("3.14", &type, &value);
-int n = value.vint;  // 错误！type 是 JNUM_DOUBLE
-
-// ✅ 正确：根据类型选择成员
-switch (type) {
-case JNUM_INT:    printf("%d", value.vint);   break;
-case JNUM_LINT:   printf("%lld", value.vlint); break;
-case JNUM_DOUBLE: printf("%f", value.vdbl);   break;
-// ...
-}
-```
-
----
-
-## 与标准库对比
-
-| 函数 | 标准库 | JNUM | 优势 |
-|------|--------|------|------|
-| 整数→字符串 | `sprintf` | `xrtI32ToStr` / `xrtI64ToStr` | 5x faster |
-| 字符串→整数 | `atoi/strtol` | `xrtStrToI32` / `xrtStrToI64` | 更安全，自动类型识别 |
-| 浮点→字符串 | `sprintf` | `xrtNumToStr` | 智能精度，无尾零 |
-| 字符串→浮点 | `atof/strtod` | `xrtStrToNum` | 更快 |
-| 通用解析 | 无 | `xrtParseNum` | 自动类型识别 |
-
----
 
 ## 相关文档
 
-- [JSON 处理](api-json.md) - JSON解析和生成
-- [Value 动态类型](api-value.md) - 动态类型转换
-- [String 字符串处理](api-string.md) - 字符串操作
+- [JNUM 教学页](../guide/jnum-intro.md)
+- [JSON 处理](api-json.md)
+- [XSON 处理](api-xson.md)
+- [Value 动态类型](api-value.md)
 - [主索引](README.md)
-
----
-
-<div align="center">
-
-[⬆️ 返回顶部](#jnum-数值转换库)
-
-</div>

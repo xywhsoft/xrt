@@ -24,7 +24,28 @@
 - 公开 API 服从 XRT 命名和类型体系
 
 
-## 2. 核心类型
+## 2. 使用边界
+
+当前主线里，`regex` 更适合：
+
+- 轻量字段校验
+- 局部文本提取
+- 多规则分类
+
+不适合直接接管：
+
+- 完整 JSON / HTML / 模板语法解析
+- 带状态机的协议解析
+
+另外要先记住 4 条高频边界：
+
+1. `xrtRegexCreate()` 失败时直接返回 `NULL`；如果你需要错误位置和错误消息，应该走 `Builder + xrtRegexCreateFromBuilder()`。
+2. `xrtRegexCreateFromBuilder()` 失败时，`ppRegex` 仍可能拿到非 `NULL` 对象，此时可以继续调用 `xrtRegexGetErrorMsg()` / `xrtRegexGetErrorPos()`，然后仍要 `xrtRegexDestroy()`。
+3. 匹配相关 API 应按 `1 = 命中`、`0 = 未命中`、`< 0 = 错误` 理解。
+4. `xrtRegexCaptureCount()` 的数量包含 `capture[0]` 这个“整段命中”；命名捕获从 `1` 开始对应，`xrtRegexCaptureName(..., 0, ...)` 返回空名字。
+
+
+## 3. 核心类型
 
 ### `xregex`
 
@@ -99,7 +120,7 @@ typedef struct {
 ```
 
 
-## 3. 标志与错误码
+## 4. 标志与错误码
 
 ### 3.1 标志位
 
@@ -126,8 +147,17 @@ XRT_REGEX_ERR_PARSE
 XRT_REGEX_ERR_LIMIT
 ```
 
+常见理解：
 
-## 4. 公开 API
+- `XRT_REGEX_ERR_MEM`
+	- 内存不足
+- `XRT_REGEX_ERR_PARSE`
+	- pattern 解析失败
+- `XRT_REGEX_ERR_LIMIT`
+	- 编译或执行超出内部限制
+
+
+## 5. 公开 API
 
 ### 4.1 单模式
 
@@ -152,6 +182,15 @@ XXAPI const char* xrtRegexCaptureName(const xregex* pRegex, uint32 iCaptureIndex
 XXAPI int xrtRegexClone(xregex** ppOut, const xregex* pRegex, const xregexalloc* pAlloc);
 ```
 
+补充说明：
+
+- `xrtRegexIsMatch()` 只回答“是否命中”
+- `xrtRegexFind()` 返回整段命中范围
+- `xrtRegexCaptures()` 返回各捕获组范围
+- `xrtRegexWhichCaptures()` 额外告诉你哪些捕获组真的命中了
+- `xrtRegexCaptureCount()` 返回值包含 `capture[0]`
+- 当前命名组语法支持 `(?P<name>...)` 和 `(?<name>...)`
+
 
 ### 4.2 Builder
 
@@ -160,6 +199,18 @@ XXAPI int xrtRegexBuilderCreate(xregexbuilder** ppBuilder, const char* sPattern,
 XXAPI void xrtRegexBuilderDestroy(xregexbuilder* pBuilder);
 XXAPI void xrtRegexBuilderSetFlags(xregexbuilder* pBuilder, xregexflags iFlags);
 ```
+
+Builder 更适合：
+
+- pattern 不是 NUL 结尾字符串
+- 需要 flags
+- 需要读取编译错误细节
+- 需要自定义 allocator
+
+注意：
+
+- `iPatternSize` 是显式长度
+- 当前这里不走 `0 = 自动计算` 的惯例
 
 
 ### 4.3 多模式
@@ -182,8 +233,14 @@ XXAPI int xrtRegexSetMatchesAt(xregexset* pSet, const char* sText, size_t iTextS
 XXAPI int xrtRegexSetClone(xregexset** ppOut, const xregexset* pSet, const xregexalloc* pAlloc);
 ```
 
+补充说明：
 
-## 5. 示例
+- `xrtRegexSetIsMatch()` / `xrtRegexSetMatches()` 只回答“哪些规则命中”
+- `xregexset` 不直接返回 span，也不直接返回捕获组
+- 如果要先分类再提取，通常是先 `RegexSet`，再回到具体 `xregex`
+
+
+## 6. 示例
 
 ### 5.1 快速匹配
 
@@ -215,7 +272,7 @@ if ( pRegex ) {
 
 ```c
 xregexspan arrCaps[8];
-xregex* pRegex = xrtRegexCreate("([A-Za-z]+)=([0-9]+)");
+xregex* pRegex = xrtRegexCreate("(?P<key>[A-Za-z]+)=(?P<value>[0-9]+)");
 
 if ( pRegex ) {
 	int iRet = xrtRegexCaptures(pRegex, "count=42", strlen("count=42"), arrCaps, 8u);
@@ -228,8 +285,25 @@ if ( pRegex ) {
 }
 ```
 
+### 5.4 用 Builder 读取编译错误
 
-### 5.4 多模式批量扫描
+```c
+xregexbuilder* pBuilder = NULL;
+xregex* pRegex = NULL;
+int iErr = xrtRegexBuilderCreate(&pBuilder, "(", 1u, NULL);
+
+if ( (iErr == 0) && (pBuilder != NULL) ) {
+	iErr = xrtRegexCreateFromBuilder(&pRegex, pBuilder, NULL);
+	if ( (iErr < 0) && (pRegex != NULL) ) {
+		printf("error=%s at %zu\n", xrtRegexGetErrorMsg(pRegex), xrtRegexGetErrorPos(pRegex));
+		xrtRegexDestroy(pRegex);
+	}
+	xrtRegexBuilderDestroy(pBuilder);
+}
+```
+
+
+### 5.5 多模式批量扫描
 
 ```c
 const char* arrPatterns[] = {
@@ -249,7 +323,7 @@ if ( pSet ) {
 ```
 
 
-## 6. 说明
+## 7. 说明
 
 - 当前引擎实现来自 `bbre`，但不建议再面向业务代码直接暴露 `bbre_*`。
 - 对外统一使用 `xregex`、`xregexset`、`xregexspan` 和 `xrtRegex*`。

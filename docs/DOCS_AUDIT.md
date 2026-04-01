@@ -70,7 +70,7 @@
 当前教学主线还没有覆盖 XRT 全部公开模块。缺口主要在：
 
 - 第 2 阶段内存主线：`llist`
-- 第 3 阶段文本与数据：`regex / crypto`
+- 第 3 阶段文本与数据：`crypto`
 - 第 6 阶段网络补充：`xurl / xhttp_util / xws / proxy`
 - 系统能力的 API 合同层：`subprocess / file_async` 仍缺独立 API 页
 
@@ -192,4 +192,5 @@
 - 第 2 阶段已补出 `bsmm / memunit / mempool_fs / mempool` 正式教学页
 - 第 3 阶段已补出 `jnum` 正式教学页
 - 第 3 阶段已补出 `xson` 正式教学页
+- 第 3 阶段已补出 `regex` 正式教学页
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿
