@@ -311,6 +311,12 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 				xrtSetError("Memory Pool : add memory unit failed.", FALSE);
 				return NULL;
 			}
+			if ( (objMP->arrMMU.Count - 1u) > (MMU_FLAG_MASK >> 8) ) {
+				xrtMemUnitDestroy(objMMU);
+				xrtBsmmFree(&objMP->arrMMU, pNode);
+				xrtSetError("Memory Pool : MMU index overflow.", FALSE);
+				return NULL;
+			}
 			pNode->objMMU = objMMU;
 			pNode->Prev = NULL;
 			pNode->Next = NULL;
@@ -470,10 +476,35 @@ static inline void MP256_LLNode_IdleCheck(FSB_Item* objFSB, MMU_LLNode* pNode)
 }
 
 
+// 内部函数：根据标记获取并校验 MMU 节点
+static inline MMU_LLNode* __xrtMemPoolGetNodeByFlag(xmempool objMP, uint32 iFlag, MMU_ValuePtr v)
+{
+	uint32 iMMU;
+	uint8 idx;
+	MMU_LLNode* pNode;
+	if ( objMP == NULL || v == NULL ) {
+		return NULL;
+	}
+	iMMU = (iFlag & MMU_FLAG_MASK) >> 8;
+	idx = (uint8)(iFlag & 0xFF);
+	if ( iMMU >= objMP->arrMMU.Count ) {
+		return NULL;
+	}
+	pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, iMMU);
+	if ( pNode == NULL || pNode->objMMU == NULL ) {
+		return NULL;
+	}
+	if ( v != (MMU_ValuePtr)&pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx] ) {
+		return NULL;
+	}
+	return pNode;
+}
+
+
 // 释放内存内存池
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
-	if ( ptr == NULL ) {
+	if ( objMP == NULL || ptr == NULL ) {
 		return;
 	}
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
@@ -492,8 +523,13 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 		MMU_ValuePtr v = (MMU_ValuePtr)((char*)ptr - sizeof(MMU_Value));
 		if ( (v->ItemFlag & MMU_FLAG_MASK) == MMU_FLAG_MASK ) {
 			MP_MemHead* pHead = (MP_MemHead*)((char*)ptr - sizeof(MP_MemHead));
+			if ( pHead->Index >= objMP->BigMM.Count ) {
+				xrtSetError("Memory Pool : invalid pointer.", FALSE);
+				xrtOwnerEndMutable(&objMP->Owner);
+				return;
+			}
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, pHead->Index);
-			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
+			if ( pInfo == NULL || pInfo->Ptr == NULL || pInfo->Ptr != pHead ) {
 				xrtSetError("Memory Pool : BigMM item cannot be null.", FALSE);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
@@ -504,12 +540,11 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 			pInfo->Next = objMP->LL_BigFree;
 			objMP->LL_BigFree = pInfo;
 		} else if ( v->ItemFlag & MMU_FLAG_USE ) {
-			int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
 			uint8 idx = v->ItemFlag & 0xFF;
-			MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, iMMU);
+			MMU_LLNode* pNode = __xrtMemPoolGetNodeByFlag(objMP, v->ItemFlag, v);
 			FSB_Item* objFSB;
-			if ( pNode->objMMU == NULL ) {
-				xrtSetError("Memory Pool : MMU cannot be null.", FALSE);
+			if ( pNode == NULL ) {
+				xrtSetError("Memory Pool : invalid pointer.", FALSE);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}

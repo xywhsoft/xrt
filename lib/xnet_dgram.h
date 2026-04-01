@@ -598,7 +598,7 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 	if ( !pSock ) return NULL;
 	memset(pSock, 0, sizeof(xdgramsock));
 	pWorker = __xnetDgramPickWorker(pEngine, pCfg);
-	pSock->iId = pEngine->iNextStreamId++;
+	pSock->iId = __xnetEngineAllocStreamId(pEngine);
 	pSock->pEngine = pEngine;
 	pSock->pWorker = pWorker;
 	pSock->pEvents = pEvents;

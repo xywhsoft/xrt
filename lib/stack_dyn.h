@@ -96,13 +96,17 @@ XXAPI ptr xrtDynStackPush(xdynstack objSTK)
 		pBlock = objSTK->MMU.Memory[iBlock];
 	} else {
 		// 需要创建新的内存块
-		pBlock = xrtMalloc(objSTK->ItemLength * 256);
+		if ( objSTK->ItemLength > (uint32)(SIZE_MAX / 256u) ) {
+			return NULL;
+		}
+		pBlock = xrtMalloc((size_t)objSTK->ItemLength * 256u);
 		if ( pBlock == NULL ) {
 			return NULL;
 		}
 		uint32 idx = xrtPtrArrayAppend(&objSTK->MMU, pBlock);
 		// !!! 错误处理 !!! 无法将内存添加到内存阵列
 		if ( idx == 0 ) {
+			xrtFree(pBlock);
 			xrtSetError("Dynamic Stack : add memory unit failed.", FALSE);
 			return NULL;
 		}
@@ -140,6 +144,9 @@ XXAPI uint32 xrtDynStackPushPtr(xdynstack objSTK, ptr pVal)
 // 出栈
 XXAPI ptr xrtDynStackPop(xdynstack objSTK)
 {
+	if ( objSTK == NULL || objSTK->Count == 0 ) {
+		return NULL;
+	}
 	ptr pRet = xrtDynStackTop(objSTK);
 	objSTK->Count--;
 	// 延迟释放内存块（最大内存长度超过已使用内存长度 256 + 32 个结构体，释放掉内存块）
@@ -154,6 +161,9 @@ XXAPI ptr xrtDynStackPop(xdynstack objSTK)
 // 弹出 dyn 栈指针
 XXAPI ptr xrtDynStackPopPtr(xdynstack objSTK)
 {
+	if ( objSTK == NULL || objSTK->Count == 0 ) {
+		return NULL;
+	}
 	ptr pRet = xrtDynStackTopPtr(objSTK);
 	objSTK->Count--;
 	// 延迟释放内存块（最大内存长度超过已使用内存长度 256 + 32 个结构体，释放掉内存块）
@@ -167,6 +177,9 @@ XXAPI ptr xrtDynStackPopPtr(xdynstack objSTK)
 // 获取栈顶对象
 XXAPI ptr xrtDynStackTop(xdynstack objSTK)
 {
+	if ( objSTK == NULL || objSTK->Count == 0 ) {
+		return NULL;
+	}
 	return xrtDynStackGetPos_Unsafe(objSTK, objSTK->Count);
 }
 
@@ -174,6 +187,9 @@ XXAPI ptr xrtDynStackTop(xdynstack objSTK)
 // 获取顶部 dyn 栈指针
 XXAPI ptr xrtDynStackTopPtr(xdynstack objSTK)
 {
+	if ( objSTK == NULL || objSTK->Count == 0 ) {
+		return NULL;
+	}
 	ptr* p = (ptr*)xrtDynStackGetPos_Unsafe(objSTK, objSTK->Count);
 	return p[0];
 }
@@ -195,6 +211,7 @@ XXAPI ptr xrtDynStackGetPos(xdynstack objSTK, uint32 iPos)
 // xrtDynStackGetPos_Unsafe 相关处理
 XXAPI ptr xrtDynStackGetPos_Unsafe(xdynstack objSTK, uint32 iPos)
 {
+	if ( objSTK == NULL || iPos == 0 ) { return NULL; }
 	iPos--;
 	str pBlock = objSTK->MMU.Memory[iPos >> 8];
 	return &pBlock[(iPos & 0xFF) * objSTK->ItemLength];
@@ -219,6 +236,7 @@ XXAPI ptr xrtDynStackGetPosPtr(xdynstack objSTK, uint32 iPos)
 // xrtDynStackGetPosPtr_Unsafe 相关处理
 XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 {
+	if ( objSTK == NULL || iPos == 0 ) { return NULL; }
 	iPos--;
 	str pBlock = objSTK->MMU.Memory[iPos >> 8];
 	ptr* p = (ptr*)&pBlock[(iPos & 0xFF) * objSTK->ItemLength];

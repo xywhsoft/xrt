@@ -4,7 +4,12 @@
 // 创建结构体静态栈
 XXAPI xstack xrtStackCreate(uint32 iMaxCount, uint32 iItemLength)
 {
-	xstack objSTK = xrtMalloc(sizeof(xstack_struct) + (iMaxCount * iItemLength));
+	size_t iTotalSize;
+	if ( (iItemLength != 0) && ((size_t)iMaxCount > ((SIZE_MAX - sizeof(xstack_struct)) / (size_t)iItemLength)) ) {
+		return NULL;
+	}
+	iTotalSize = sizeof(xstack_struct) + ((size_t)iMaxCount * (size_t)iItemLength);
+	xstack objSTK = xrtMalloc(iTotalSize);
 	if ( objSTK ) {
 		objSTK->Memory = (void*)&objSTK[1];
 		objSTK->ItemLength = iItemLength;
@@ -119,6 +124,7 @@ XXAPI ptr xrtStackGetPos(xstack objSTK, uint32 iPos)
 // xrtStackGetPos_Unsafe 相关处理
 XXAPI ptr xrtStackGetPos_Unsafe(xstack objSTK, uint32 iPos)
 {
+	if ( objSTK == NULL || iPos == 0 ) { return NULL; }
 	return &objSTK->Memory[(iPos - 1) * objSTK->ItemLength];
 }
 
@@ -144,6 +150,7 @@ XXAPI ptr xrtStackGetPosPtr(xstack objSTK, uint32 iPos)
 // xrtStackGetPosPtr_Unsafe 相关处理
 XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 {
+	if ( objSTK == NULL || iPos == 0 ) { return NULL; }
 	if ( objSTK->ItemLength == sizeof(ptr) ) {
 		return objSTK->PtrMem[iPos - 1];
 	} else {

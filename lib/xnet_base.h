@@ -226,6 +226,8 @@ typedef struct {
 	#define __XNET_THREAD_LOCAL __declspec(thread)
 #elif defined(__GNUC__) || defined(__clang__)
 	#define __XNET_THREAD_LOCAL __thread
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+	#define __XNET_THREAD_LOCAL _Thread_local
 #else
 	#define __XNET_THREAD_LOCAL
 #endif
@@ -274,6 +276,26 @@ static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 	#else
 		return __sync_add_and_fetch(pValue, iDelta);
 	#endif
+}
+
+
+// 内部函数：__xnetAtomicAddFetch64
+static int64 __xnetAtomicAddFetch64(volatile int64* pValue, int64 iDelta)
+{
+	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
+		return __xrtAtomicAddFetch64(pValue, iDelta);
+	#elif defined(_WIN32) || defined(_WIN64)
+		return (int64)(InterlockedExchangeAdd64((volatile LONG64*)pValue, (LONG64)iDelta) + (LONG64)iDelta);
+	#else
+		return __sync_add_and_fetch(pValue, iDelta);
+	#endif
+}
+
+
+// 内部函数：__xnetAtomicLoad64
+static int64 __xnetAtomicLoad64(const volatile int64* pValue)
+{
+	return __xrtAtomicLoad64(pValue);
 }
 
 

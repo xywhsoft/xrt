@@ -16,9 +16,12 @@ static inline void __xrtArrayUnit_NoLock(xarray pArr)
 // 内部函数：__xrtArrayAlloc_NoLock
 static inline bool __xrtArrayAlloc_NoLock(xarray pArr, uint32 iCount)
 {
+	if ( (pArr->ItemLength != 0) && ((size_t)iCount > (SIZE_MAX / (size_t)pArr->ItemLength)) ) {
+		return FALSE;
+	}
 	if ( iCount > pArr->AllocCount ) {
 		// 增量
-		ptr pNew = xrtRealloc(pArr->Memory, iCount * pArr->ItemLength);
+		ptr pNew = xrtRealloc(pArr->Memory, (size_t)iCount * (size_t)pArr->ItemLength);
 		if ( pNew ) {
 			pArr->AllocCount = iCount;
 			pArr->Memory = pNew;
@@ -26,7 +29,7 @@ static inline bool __xrtArrayAlloc_NoLock(xarray pArr, uint32 iCount)
 		}
 	} else if ( iCount < pArr->AllocCount ) {
 		// 裁剪
-		ptr pNew = xrtRealloc(pArr->Memory, iCount * pArr->ItemLength);
+		ptr pNew = xrtRealloc(pArr->Memory, (size_t)iCount * (size_t)pArr->ItemLength);
 		if ( pNew ) {
 			pArr->AllocCount = iCount;
 			pArr->Memory = pNew;
@@ -182,14 +185,22 @@ XXAPI bool xrtArrayAlloc(xarray pArr, uint32 iCount)
 XXAPI uint32 xrtArrayInsert(xarray pArr, uint32 iPos, uint32 iCount)
 {
 	uint32 iRet = 0;
+	uint64 iNeedCount;
+	uint64 iAllocCount;
 	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
 		return 0;
 	}
 	// 不能添加 0 个成员
 	if ( iCount == 0 ) { iCount = 1; }
+	iNeedCount = (uint64)pArr->Count + (uint64)iCount;
+	iAllocCount = iNeedCount + (uint64)pArr->AllocStep;
+	if ( iNeedCount > UINT32_MAX || iAllocCount > UINT32_MAX ) {
+		xrtOwnerEndMutable(&pArr->Owner);
+		return 0;
+	}
 	// 分配内存
-	if ( (pArr->Count + iCount) > pArr->AllocCount ) {
-		if ( __xrtArrayAlloc_NoLock(pArr, pArr->Count + iCount + pArr->AllocStep) == FALSE ) {
+	if ( iNeedCount > pArr->AllocCount ) {
+		if ( __xrtArrayAlloc_NoLock(pArr, (uint32)iAllocCount) == FALSE ) {
 			xrtOwnerEndMutable(&pArr->Owner);
 			return 0;
 		}
@@ -299,6 +310,7 @@ XXAPI ptr xrtArrayGet(xarray pArr, uint32 iPos)
 // xrtArrayGet_Unsafe 相关处理
 XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 {
+	if ( pArr == NULL || iPos == 0 ) { return NULL; }
 	return &(pArr->Memory[(iPos - 1) * pArr->ItemLength]);
 }
 

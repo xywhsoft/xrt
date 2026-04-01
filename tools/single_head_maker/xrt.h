@@ -50459,7 +50459,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
 		return 0;
 	}
-	if ( objUnit->Count > 0 ) {
+	if ( objUnit->Count == 0 ) {
 		xrtOwnerEndMutable(&objUnit->Owner);
 		return 0;
 	}

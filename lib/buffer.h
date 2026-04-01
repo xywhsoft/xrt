@@ -74,6 +74,8 @@ XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 // 中间添加数据（可以复制或者开辟新的数据区，不会自动将新开辟的数据区填充 \0）
 XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, uint32 bStrMode)
 {
+	uint64 iNeedSize;
+	uint64 iAllocSize;
 	// 长度为 0 时自动计算数据长度
 	if ( iSize == 0 ) {
 		if ( bStrMode == XBUF_ANSI ) {
@@ -87,8 +89,16 @@ XXAPI bool xrtBufferInsert(xbuffer pBuf, uint32 iPos, ptr pData, uint32 iSize, u
 		}
 	}
 	// 分配内存
-	if ( (iPos + iSize + bStrMode) > pBuf->AllocLength ) {
-		if ( xrtBufferMalloc(pBuf, iPos + iSize + bStrMode + pBuf->AllocStep) == 0 ) {
+	iNeedSize = (uint64)iPos + (uint64)iSize + (uint64)bStrMode;
+	if ( iNeedSize > UINT32_MAX ) {
+		return FALSE;
+	}
+	if ( iNeedSize > pBuf->AllocLength ) {
+		iAllocSize = iNeedSize + pBuf->AllocStep;
+		if ( iAllocSize < iNeedSize || iAllocSize > UINT32_MAX ) {
+			return FALSE;
+		}
+		if ( xrtBufferMalloc(pBuf, (uint32)iAllocSize) == 0 ) {
 			return FALSE;
 		}
 	}

@@ -191,6 +191,7 @@ static bool __xnetListenerCancelSyncAcceptWait(xnetlistener* pListener, ptr pCtx
 static xnetworker* __xnetStreamPickWorker(xnetengine* pEngine, xnetlistener* pListener)
 {
 	uint32 iIndex;
+	uint64 iNextId;
 	if ( !pEngine || pEngine->iWorkerCount == 0 ) return NULL;
 	if ( pListener ) {
 		iIndex = pListener->iNextWorker % pEngine->iWorkerCount;
@@ -198,7 +199,8 @@ static xnetworker* __xnetStreamPickWorker(xnetengine* pEngine, xnetlistener* pLi
 		return &pEngine->arrWorkers[iIndex];
 	}
 
-	iIndex = (uint32)((pEngine->iNextStreamId > 0 ? pEngine->iNextStreamId - 1u : 0u) % pEngine->iWorkerCount);
+	iNextId = (uint64)__xnetAtomicLoad64((const volatile int64*)&pEngine->iNextStreamId);
+	iIndex = (uint32)((iNextId > 0 ? iNextId - 1u : 0u) % pEngine->iWorkerCount);
 	return &pEngine->arrWorkers[iIndex];
 }
 
@@ -367,10 +369,7 @@ static uint64 __xnetListenerNextAcceptOpId(xnetlistener* pListener)
 {
 	uint64 iOpId = 0;
 	if ( !pListener || !pListener->pEngine ) return 0;
-	iOpId = pListener->pEngine->iNextStreamId++;
-	if ( iOpId == 0 ) {
-		iOpId = pListener->pEngine->iNextStreamId++;
-	}
+	iOpId = __xnetEngineAllocStreamId(pListener->pEngine);
 	return iOpId;
 }
 
@@ -2263,7 +2262,7 @@ static xnetstream* __xnetListenerCreateAcceptedStream(xnetlistener* pListener, p
 	pStream->hSocket = XNET_SOCKET_INVALID;
 	pWorker = __xnetStreamPickWorker(pListener->pEngine, pListener);
 
-	pStream->iId = pListener->pEngine->iNextStreamId++;
+	pStream->iId = __xnetEngineAllocStreamId(pListener->pEngine);
 	pStream->pEngine = pListener->pEngine;
 	pStream->pWorker = pWorker;
 	pStream->pListener = pListener;
@@ -2544,7 +2543,7 @@ XXAPI xnetstream* xrtNetStreamCreate(xnetengine* pEngine, const xnetstreamevents
 	pStream->hSocket = XNET_SOCKET_INVALID;
 	pWorker = __xnetStreamPickWorker(pEngine, NULL);
 
-	pStream->iId = pEngine->iNextStreamId++;
+	pStream->iId = __xnetEngineAllocStreamId(pEngine);
 	pStream->pEngine = pEngine;
 	pStream->pWorker = pWorker;
 	pStream->pEvents = pEvents;

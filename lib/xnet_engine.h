@@ -146,6 +146,19 @@ static bool __xnetEngineIsCurrentWorker(xnetworker* pWorker)
 }
 
 
+// 内部函数：分配下一个 stream/dgram id
+static uint64 __xnetEngineAllocStreamId(xnetengine* pEngine)
+{
+	uint64 iId;
+	if ( !pEngine ) return 0;
+	iId = (uint64)__xnetAtomicAddFetch64((volatile int64*)&pEngine->iNextStreamId, 1) - 1u;
+	if ( iId == 0 ) {
+		iId = (uint64)__xnetAtomicAddFetch64((volatile int64*)&pEngine->iNextStreamId, 1) - 1u;
+	}
+	return iId;
+}
+
+
 // 内部函数：初始化引擎内存配置
 static void __xnetEngineInitMemConfig(xnetmemconfig* pMemCfg, const xnetengineconfig* pCfg)
 {

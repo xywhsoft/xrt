@@ -38,6 +38,7 @@
 XXAPI size_t u16len(u16str sText)
 {
 	size_t iSize = 0;
+	if ( sText == NULL ) { return 0; }
 	while ( sText[iSize] != 0 ) {
 		iSize++;
 	}
@@ -49,6 +50,7 @@ XXAPI size_t u16len(u16str sText)
 XXAPI size_t u32len(u32str sText)
 {
 	size_t iSize = 0;
+	if ( sText == NULL ) { return 0; }
 	while ( sText[iSize] != 0 ) {
 		iSize++;
 	}

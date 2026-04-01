@@ -264,6 +264,7 @@ XXAPI ptr xrtPtrArrayGet(xparray pObject, uint32 iPos)
 // 获取成员指针（不安全接口）
 XXAPI ptr xrtPtrArrayGet_Unsafe(xparray pObject, uint32 iPos)
 {
+	if ( pObject == NULL || iPos == 0 ) { return NULL; }
 	return pObject->Memory[iPos - 1];
 }
 
@@ -290,6 +291,10 @@ XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal)
 XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal)
 {
 	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
+		return;
+	}
+	if ( iPos == 0 ) {
+		xrtOwnerEndMutable(&pObject->Owner);
 		return;
 	}
 	pObject->Memory[iPos - 1] = pVal;

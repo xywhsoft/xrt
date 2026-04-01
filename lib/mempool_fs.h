@@ -169,6 +169,13 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 			// 将创建好的内存管理单元添加到单元阵列管理器，添加失败就报错处理
 			MMU_LLNode* pNode = xrtBsmmAlloc(&objMM->arrMMU);
 			if ( pNode ) {
+				if ( (objMM->arrMMU.Count - 1u) > (MMU_FLAG_MASK >> 8) ) {
+					xrtMemUnitDestroy(objMMU);
+					xrtBsmmFree(&objMM->arrMMU, pNode);
+					xrtSetError("Fixed-Size Memory Pool : MMU index overflow.", FALSE);
+					xrtOwnerEndMutable(&objMM->Owner);
+					return NULL;
+				}
 				pNode->objMMU = objMMU;
 				pNode->Prev = NULL;
 				pNode->Next = NULL;
@@ -284,9 +291,37 @@ static inline void MM256_LLNode_IdleCheck(xfsmempool objMM, MMU_LLNode* pNode)
 }
 
 
+// 内部函数：根据标记获取并校验 MMU 节点
+static inline MMU_LLNode* __xrtFSMemPoolGetNodeByFlag(xfsmempool objMM, uint32 iFlag, MMU_ValuePtr v)
+{
+	uint32 iMMU;
+	uint8 idx;
+	MMU_LLNode* pNode;
+	if ( objMM == NULL || v == NULL ) {
+		return NULL;
+	}
+	iMMU = (iFlag & MMU_FLAG_MASK) >> 8;
+	idx = (uint8)(iFlag & 0xFF);
+	if ( iMMU >= objMM->arrMMU.Count ) {
+		return NULL;
+	}
+	pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, iMMU);
+	if ( pNode == NULL || pNode->objMMU == NULL ) {
+		return NULL;
+	}
+	if ( v != (MMU_ValuePtr)&pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx] ) {
+		return NULL;
+	}
+	return pNode;
+}
+
+
 // 释放 fs 内存内存池
 XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 {
+	if ( objMM == NULL || p == NULL ) {
+		return;
+	}
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return;
 	}
@@ -300,12 +335,11 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 	}
 	MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)p - sizeof(MMU_Value));
 	if ( v->ItemFlag & MMU_FLAG_USE ) {
-		int iMMU = (v->ItemFlag & MMU_FLAG_MASK) >> 8;
 		uint8 idx = v->ItemFlag & 0xFF;
 		// 获取对应的内存管理器单元链表结构
-		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, iMMU);
-		if ( pNode->objMMU == NULL ) {
-			xrtSetError("Fixed-Size Memory Pool : MMU cannot be null.", FALSE);
+		MMU_LLNode* pNode = __xrtFSMemPoolGetNodeByFlag(objMM, v->ItemFlag, v);
+		if ( pNode == NULL ) {
+			xrtSetError("Fixed-Size Memory Pool : invalid pointer.", FALSE);
 			xrtOwnerEndMutable(&objMM->Owner);
 			return;
 		}

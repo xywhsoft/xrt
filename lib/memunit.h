@@ -4,8 +4,18 @@
 // 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
 XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength, uint32 iMode)
 {
+	size_t iTotalSize;
+	if ( iItemLength > (uint32)(SIZE_MAX - sizeof(MMU_Value)) ) {
+		xrtSetError("memory unit create failed.", FALSE);
+		return NULL;
+	}
 	iItemLength += sizeof(MMU_Value);
-	xmemunit objUnit = xrtMalloc(sizeof(xmemunit_struct) + (256 * iItemLength));
+	if ( iItemLength > (uint32)((SIZE_MAX - sizeof(xmemunit_struct)) / 256u) ) {
+		xrtSetError("memory unit create failed.", FALSE);
+		return NULL;
+	}
+	iTotalSize = sizeof(xmemunit_struct) + ((size_t)iItemLength * 256u);
+	xmemunit objUnit = xrtMalloc(iTotalSize);
 	if ( objUnit == NULL ) {
 		xrtSetError("memory unit create failed.", FALSE);
 		return NULL;
@@ -116,7 +126,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
 		return 0;
 	}
-	if ( objUnit->Count > 0 ) {
+	if ( objUnit->Count == 0 ) {
 		xrtOwnerEndMutable(&objUnit->Owner);
 		return 0;
 	}

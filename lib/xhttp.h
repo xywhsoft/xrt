@@ -173,17 +173,27 @@ static void __xhttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 static bool __xhttpAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)
 {
 	size_t iNeedCap;
+	size_t iTargetCap;
 	char* pNewBuf;
 	if ( !ppBuf || !pLen || !pCap || (!pData && iDataLen != 0) ) return false;
 	if ( iDataLen == 0 ) return true;
-	if ( *pLen + iDataLen + 1u <= *pCap ) {
+	iTargetCap = *pLen + iDataLen + 1u;
+	if ( iTargetCap < *pLen || iTargetCap < iDataLen ) return false;
+	if ( iTargetCap <= *pCap ) {
 		memcpy(*ppBuf + *pLen, pData, iDataLen);
 		*pLen += iDataLen;
 		(*ppBuf)[*pLen] = '\0';
 		return true;
 	}
 	iNeedCap = (*pCap == 0) ? 256u : *pCap;
-	while ( iNeedCap < (*pLen + iDataLen + 1u) ) iNeedCap *= 2u;
+	while ( iNeedCap < iTargetCap ) {
+		if ( iNeedCap > (SIZE_MAX >> 1) ) {
+			iNeedCap = iTargetCap;
+			break;
+		}
+		iNeedCap *= 2u;
+	}
+	if ( iNeedCap < iTargetCap ) return false;
 	pNewBuf = (char*)XNET_ALLOC(iNeedCap);
 	if ( !pNewBuf ) return false;
 	if ( *ppBuf && *pLen > 0 ) memcpy(pNewBuf, *ppBuf, *pLen);
