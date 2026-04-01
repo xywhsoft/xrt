@@ -359,10 +359,18 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 			*sReason++ = '\0';
 			while ( *sReason == ' ' ) sReason++;
 		}
+		{
+			char* pStatusEnd = NULL;
+			long iStatusCode = strtol(sStatus, &pStatusEnd, 10);
+			if ( pStatusEnd == sStatus || *pStatusEnd != '\0' || iStatusCode < 100 || iStatusCode > 999 ) {
+				XNET_FREE(sHeadBuf);
+				return XCODEC_STATUS_ERROR;
+			}
+			pMsg->iStatusCode = (uint32)iStatusCode;
+		}
 		pMsg->iFlags |= XCODEC_HTTP1_F_RESPONSE;
 		pFrame->iFlags |= XCODEC_FRAME_F_RESPONSE;
 		__xcodecHttpCopyToken(pMsg->sVersion, sizeof(pMsg->sVersion), sVersion, strlen(sVersion));
-		pMsg->iStatusCode = (uint32)atoi(sStatus);
 		if ( sReason ) __xcodecHttpCopyToken(pMsg->sReason, sizeof(pMsg->sReason), sReason, strlen(sReason));
 	} else {
 		char* sMethod = sHeadBuf;

@@ -12,6 +12,11 @@
       - dynamic blocks for oversized payloads
       - ref blocks for zero-copy send and external buffer ownership
       - xnetchain helpers for append, peek, span extraction, and consume
+
+    Threading contract:
+      - xnetmemctx is thread-affine by design
+      - the mainline engine keeps one ctx per worker thread
+      - do not share one live ctx across active threads without external synchronization
 */
 
 
@@ -76,6 +81,9 @@ struct xrt_net_mem_ctx {
 	__xnet_blk* pMediumFree;
 	__xnet_blk* pLargeFree;
 	xnetmemstats tStats;
+	#ifdef XRT_MEM_DEBUG
+		uint64 iDebugOwnerThreadId;
+	#endif
 };
 
 
@@ -125,6 +133,24 @@ static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
 	pSrc->pTail = NULL;
 	pSrc->iBytes = 0;
 	pSrc->iBlockCount = 0;
+}
+
+
+// 内部函数：__xnetMemDebugTouchCtx
+static void __xnetMemDebugTouchCtx(xnetmemctx* pCtx)
+{
+	#ifdef XRT_MEM_DEBUG
+		uint64 iThreadId;
+		if ( !pCtx ) return;
+		iThreadId = xrtThreadGetCurrentId();
+		if ( pCtx->iDebugOwnerThreadId == 0 ) {
+			pCtx->iDebugOwnerThreadId = iThreadId;
+		} else if ( pCtx->iDebugOwnerThreadId != iThreadId ) {
+			xrtSetError("xnetmemctx is thread-affine and cannot be shared across threads.", FALSE);
+		}
+	#else
+		(void)pCtx;
+	#endif
 }
 
 
@@ -284,6 +310,7 @@ static __xnet_blk* __xnetMemPopCached(xnetmemctx* pCtx, uint16 iClassId)
 	__xnet_blk** ppHead = __xnetMemClassFreeList(pCtx, iClassId);
 	uint32* pCached = __xnetMemClassCacheCount(pCtx, iClassId);
 	if ( !ppHead || !pCached || !*ppHead ) return NULL;
+	__xnetMemDebugTouchCtx(pCtx);
 	
 	__xnet_blk* pBlk = *ppHead;
 	*ppHead = pBlk->pNext;
@@ -299,6 +326,7 @@ static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 {
 	uint16 iClassId = __xnetMemPickClass(pCtx, iCapacity);
 	__xnet_blk* pBlk = NULL;
+	__xnetMemDebugTouchCtx(pCtx);
 	
 	if ( iClassId != XNET_MEM_CLASS_DYNAMIC ) {
 		pBlk = __xnetMemPopCached(pCtx, iClassId);
@@ -328,6 +356,7 @@ static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 static __xnet_blk* __xnetBlkAllocRef(xnetmemctx* pCtx, const xnetbufref* pRef)
 {
 	if ( !pRef || !pRef->pData || pRef->iLen == 0 ) return NULL;
+	__xnetMemDebugTouchCtx(pCtx);
 
 	__xnet_blk* pBlk = (__xnet_blk*)XNET_ALLOC(sizeof(__xnet_blk));
 	if ( !pBlk ) return NULL;
@@ -366,6 +395,7 @@ static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 	
 	xnetmemctx* pCtx = pBlk->pMemCtx;
 	uint16 iClassId = pBlk->iClassId;
+	__xnetMemDebugTouchCtx(pCtx);
 	if ( pBlk->iFlags & XNET_BLK_F_REF ) {
 		if ( pBlk->pfnRelease ) {
 			pBlk->pfnRelease(pBlk->pReleaseCtx, pBlk->pRefData, pBlk->iRefLen);
@@ -458,6 +488,7 @@ static void __xnetMemTrimList(__xnet_blk** ppHead, uint32* pCached, uint32 iTarg
 
 /* ============================== Allocator public helpers ============================== */
 
+// 裁剪网络内存 ctx（仅适合在 ctx 已经静止时调用）
 XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx)
 {
 	if ( !pCtx ) return;
@@ -489,6 +520,7 @@ XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats)
 
 /* ============================== Chain lifecycle ============================== */
 
+// 使用指定网络内存 ctx 初始化链（ctx 需与后续访问线程保持一致）
 XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx)
 {
 	if ( !pChain ) return;

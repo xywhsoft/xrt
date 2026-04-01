@@ -15,9 +15,13 @@ static inline void __xrtPtrArrayUnit_NoLock(xparray pObject)
 // 内部函数：__xrtPtrArrayMalloc_NoLock
 static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 {
+	size_t iBytes = (size_t)iCount * sizeof(ptr);
+	if ( iCount != 0 && (size_t)iCount > (SIZE_MAX / sizeof(ptr)) ) {
+		return FALSE;
+	}
 	if ( iCount > pObject->AllocCount ) {
 		// 增量
-		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(ptr));
+		ptr* pNew = xrtRealloc(pObject->Memory, iBytes);
 		if ( pNew ) {
 			pObject->AllocCount = iCount;
 			pObject->Memory = pNew;
@@ -25,7 +29,7 @@ static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 		}
 	} else if ( iCount < pObject->AllocCount ) {
 		// 裁剪
-		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(ptr));
+		ptr* pNew = xrtRealloc(pObject->Memory, iBytes);
 		if ( pNew ) {
 			pObject->AllocCount = iCount;
 			pObject->Memory = pNew;

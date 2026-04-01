@@ -467,6 +467,7 @@ static int __xrt_der_parse(uint8 *pDer, size_t iDerSz, struct __xrt_der_tlv *pTl
 	if ( iLen > 0x7F ) {  // long-form length
 		uint8 iLenBytes = iLen & 0x7F;
 		uint8 k;
+		if ( iLenBytes == 0 || iLenBytes > sizeof(uint32) ) return -1;
 		if ( iDerSz < (size_t)(2 + iLenBytes) ) return -1;
 		iLen = 0;
 		for ( k = 0; k < iLenBytes; k++ ) {

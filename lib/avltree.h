@@ -31,6 +31,10 @@ XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_Co
 	objAVLT->Parent = NULL;
 	objAVLT->CompProc = procComp;
 	objAVLT->FreeProc = NULL;
+	if ( iItemLength > (unsigned int)(UINT_MAX - sizeof(xavltnode_struct)) ) {
+		xrtSetError("AVLTree item length too large.", FALSE);
+		iItemLength = (unsigned int)(UINT_MAX - sizeof(xavltnode_struct));
+	}
 	xrtFSMemPoolInit(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength, iMode);
 	objAVLT->NodeCache = NULL;
 	if ( iMode == XRT_OBJMODE_SHARED ) {
@@ -214,6 +218,7 @@ XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey)
 XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 {
 	ptr pRet = NULL;
+	xavltree pParent = NULL;
 	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
 		return NULL;
 	}
@@ -221,15 +226,20 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 	if ( pNode ) {
 		pRet = &pNode[1];
 	} else {
-		// 如果有父树，尝试在父树中查找
-		if ( objAVLT->Parent ) {
-			pNode = xrtAVLTB_Search((xavltbase)objAVLT->Parent, objAVLT->Parent->CompProc, pKey);
-			if ( pNode ) {
-				pRet = &pNode[1];
-			}
-		}
+		pParent = objAVLT->Parent;
 	}
 	xrtOwnerEndMutable(&objAVLT->Owner);
+	if ( pRet || pParent == NULL ) {
+		return pRet;
+	}
+	if ( !xrtOwnerBeginMutable(&pParent->Owner, "avltree belongs to another thread.") ) {
+		return NULL;
+	}
+	pNode = xrtAVLTB_Search((xavltbase)pParent, pParent->CompProc, pKey);
+	if ( pNode ) {
+		pRet = &pNode[1];
+	}
+	xrtOwnerEndMutable(&pParent->Owner);
 	return pRet;
 }
 

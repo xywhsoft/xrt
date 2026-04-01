@@ -50,7 +50,7 @@ XXAPI void xrtDictDestroy(xdict objHT)
 	}
 }
 
-// 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
+// 释放哈希键相关资源
 void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 {
 	if ( objTree->MP ) {

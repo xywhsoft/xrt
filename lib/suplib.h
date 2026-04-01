@@ -6,27 +6,31 @@
 	// memmem 相关处理
 	XXAPI ptr memmem(ptr pMem, size_t iMemSize, ptr pSub, size_t iSubSize)
 	{
+		size_t arrShift[256];
 		if ( (iMemSize == 0) || (iSubSize == 0) ) {
 			return NULL;
 		}
 		if ( iMemSize  < iSubSize ) {
 			return NULL;
 		}
-		char* pMemC = pMem;
-		char* pSubC = pSub;
-		size_t iRange = iMemSize - iSubSize;
-		for ( size_t i = 0; i <= iRange; i++ ) {
-			char* pPos = &pMemC[i];
-			int bOK = TRUE;
-			for ( size_t j = 0; j < iSubSize; j++ ) {
-				if ( pPos[j] != pSubC[j] ) {
-					bOK = FALSE;
-					break;
-				}
+		unsigned char* pMemC = (unsigned char*)pMem;
+		unsigned char* pSubC = (unsigned char*)pSub;
+		if ( iSubSize == 1 ) {
+			return memchr(pMem, pSubC[0], iMemSize);
+		}
+		for ( size_t i = 0; i < 256; i++ ) {
+			arrShift[i] = iSubSize;
+		}
+		for ( size_t i = 0; i + 1 < iSubSize; i++ ) {
+			arrShift[pSubC[i]] = iSubSize - i - 1;
+		}
+		for ( size_t i = 0; i <= (iMemSize - iSubSize); ) {
+			unsigned char iLast = pMemC[i + iSubSize - 1];
+			if ( iLast == pSubC[iSubSize - 1] &&
+				memcmp(&pMemC[i], pSubC, iSubSize - 1) == 0 ) {
+				return &pMemC[i];
 			}
-			if ( bOK ) {
-				return pPos;
-			}
+			i += arrShift[iLast];
 		}
 		return NULL;
 	}

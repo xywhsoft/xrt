@@ -228,12 +228,8 @@ XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, pt
 	// 平衡二叉树
 	xrtAVLTreeRebalance(ancestor, ancestorCount);
 	// 返回结果
-	if ( pDelete ) {
-		objAVLT->Count--;
-		return pDelete;
-	} else {
-		return NULL;
-	}
+	objAVLT->Count--;
+	return pDelete;
 }
 
 // 从 AVLTree 中查找节点

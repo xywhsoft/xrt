@@ -318,6 +318,9 @@ XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 {
 	if ( pArr ) {
+		if ( procCompar == NULL ) {
+			return FALSE;
+		}
 		if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
 			return FALSE;
 		}

@@ -351,7 +351,7 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 			MM256_LLNode_IdleCheck(objMM, pNode);
 		}
 		// 如果这个内存管理单元已经清空，将他释放或变为备用单元
-		MM256_LLNode_ClearCheck(objMM, pNode, 0);
+			MM256_LLNode_ClearCheck(objMM, pNode, FALSE);
 	}
 	xrtOwnerEndMutable(&objMM->Owner);
 }
@@ -377,14 +377,14 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 	pNode = objMM->LL_Idle;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
-		MM256_LLNode_ClearCheck(objMM, pNode, 0);
+		MM256_LLNode_ClearCheck(objMM, pNode, FALSE);
 		pNode = pNext;
 	}
 	pNode = objMM->LL_Full;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
 		if ( pNode->objMMU->Count == 0 ) {
-			MM256_LLNode_ClearCheck(objMM, pNode, -1);
+			MM256_LLNode_ClearCheck(objMM, pNode, TRUE);
 		} else {
 			MM256_LLNode_IdleCheck(objMM, pNode);
 		}

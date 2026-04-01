@@ -152,7 +152,7 @@ struct xrt_net_stream {
 	volatile long iAsyncHoldCount;
 	volatile long iOpenTimerState;
 	bool bReadPaused;
-	bool bRecvArmed;
+	volatile long bRecvArmed;
 	bool bSendArmed;
 	bool bClosing;
 	bool bWriteShutdown;
@@ -173,6 +173,18 @@ static void __xnetStreamDetachTls(xnetstream* pStream);
 static void __xnetStreamNotifyDestroyWaiters(xnetstream* pStream);
 static void __xnetStreamAbandonUnownedAccepted(xnetstream* pStream);
 static void __xnetSocketCloseHandle(xsocket* phSocket);
+
+static bool __xnetStreamRecvArmed(const xnetstream* pStream)
+{
+	return pStream && __xnetAtomicLoad32(&pStream->bRecvArmed) != 0;
+}
+
+static void __xnetStreamClearRecvArmed(xnetstream* pStream)
+{
+	if ( pStream ) {
+		(void)__xnetAtomicExchange32(&pStream->bRecvArmed, 0);
+	}
+}
 static void __xnetStreamKickWrite(xnetstream* pStream);
 static bool __xnetStreamDrainTlsPlain(xnetstream* pStream);
 static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, size_t iLen);
@@ -1338,7 +1350,7 @@ static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, 
 				__xnetStreamEmitOpen(pStream);
 				if ( pCarry ) {
 					__xnetStreamHandleRecvEvent(pStream, pCarry);
-				} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 					(void)__xnetStreamArmRecvWatch(pStream);
 				}
 			}
@@ -1639,8 +1651,10 @@ static bool __xnetStreamSubmitSocketNotice(xnetstream* pStream, uint16 iOpType, 
 // 内部函数：__xnetStreamArmRecvWatch
 static bool __xnetStreamArmRecvWatch(xnetstream* pStream)
 {
-	if ( !pStream || pStream->bClosing || pStream->bRecvArmed || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	if ( !pStream || pStream->bClosing || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	if ( __xnetAtomicCompareExchange32(&pStream->bRecvArmed, 1, 0) != 0 ) return false;
 	if ( !__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_RECV, pStream->hSocket) ) {
+		(void)__xnetAtomicExchange32(&pStream->bRecvArmed, 0);
 		#if defined(XNET_DEBUG_IOCP_NATIVE)
 			fprintf(stderr, "[STREAM] arm recv fail stream=%llu socket=%p native=%d\n",
 				(unsigned long long)pStream->iId,
@@ -1649,7 +1663,6 @@ static bool __xnetStreamArmRecvWatch(xnetstream* pStream)
 		#endif
 		return false;
 	}
-	pStream->bRecvArmed = true;
 	if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
 		(void)xrtNetPortWake(&pStream->pWorker->tPort);
 	}
@@ -1676,7 +1689,7 @@ static void __xnetStreamFinalizeSocketClose(xnetstream* pStream)
 	xsocket hSocket;
 	if ( !pStream ) return;
 	hSocket = pStream->hSocket;
-	pStream->bRecvArmed = false;
+	__xnetStreamClearRecvArmed(pStream);
 	pStream->bSendArmed = false;
 	pStream->bWriteShutdown = false;
 	if ( __xnetSocketIsValid(hSocket) ) {
@@ -1732,7 +1745,7 @@ static void __xnetStreamBeginGracefulCloseWait(xnetstream* pStream)
 		}
 		pStream->bWriteShutdown = true;
 	}
-	if ( !pStream->bRecvArmed ) {
+	if ( !__xnetStreamRecvArmed(pStream) ) {
 		(void)__xnetStreamArmRecvWatch(pStream);
 	}
 }
@@ -1838,7 +1851,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 			}
 		}
 		__xnetStreamFreeTempChain(pChain);
-		if ( pStream->pProxyState && !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+		if ( pStream->pProxyState && !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 			(void)__xnetStreamArmRecvWatch(pStream);
 		}
 		return;
@@ -1867,7 +1880,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		} else {
 			(void)__xnetStreamDrainTlsPlain(pStream);
 			if ( !pStream->bClosing && !pStream->bReadPaused &&
-				__xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 				(void)__xnetStreamArmRecvWatch(pStream);
 			}
 		}
@@ -1880,7 +1893,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		return;
 	}
 	__xnetStreamDispatchRecv(pStream);
-	if ( !pStream->bClosing && __xnetStreamUseNativePortIO(pStream) && !pStream->bRecvArmed ) {
+	if ( !pStream->bClosing && __xnetStreamUseNativePortIO(pStream) && !__xnetStreamRecvArmed(pStream) ) {
 		(void)__xnetStreamArmRecvWatch(pStream);
 	}
 }
@@ -1903,7 +1916,7 @@ static void __xnetStreamHandleSendEvent(xnetstream* pStream, const xnetportevent
 		}
 		if ( !pStream->bClosing && pStream->tSendQ.iQueuedBytes > 0 ) {
 			__xnetStreamKickWrite(pStream);
-		} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+		} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 			(void)__xnetStreamArmRecvWatch(pStream);
 		}
 		return;
@@ -1984,7 +1997,7 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			__xnetStreamDispatchRecv(pStream);
 			if ( pStream && !pStream->bReadPaused && !pStream->bClosing &&
 				xrtNetChainBytes(&pStream->tRxChain) == 0 &&
-				__xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 				if ( pStream->pProxyState ) {
 					(void)__xnetStreamArmRecvWatch(pStream);
 				} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
@@ -2794,7 +2807,7 @@ XXAPI void xrtNetStreamResumeRead(xnetstream* pStream)
 			return;
 		}
 	}
-	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 		if ( pStream->pProxyState ) {
 			(void)__xnetStreamArmRecvWatch(pStream);
 		} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
@@ -2895,7 +2908,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 		} else if ( pEvent->iType == XNET_PORT_EVENT_RECV ) {
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			if ( pStream ) {
-				pStream->bRecvArmed = false;
+				__xnetStreamClearRecvArmed(pStream);
 			}
 			#if defined(XNET_DEBUG_IOCP_NATIVE)
 				if ( pStream && __xnetStreamUseNativePortIO(pStream) ) {

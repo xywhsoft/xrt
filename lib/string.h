@@ -3,6 +3,27 @@
 #define __xrt_cstr(sText) ((const char*)(sText))
 #define __xrt_str(sText) ((char*)(sText))
 
+// 内部函数：HEX 字符转数值
+static bool __xrtHexDecodeNibble(uint8 c, uint8* pNibble)
+{
+	if ( pNibble == NULL ) {
+		return FALSE;
+	}
+	if ( c >= '0' && c <= '9' ) {
+		*pNibble = (uint8)(c - '0');
+		return TRUE;
+	}
+	if ( c >= 'A' && c <= 'F' ) {
+		*pNibble = (uint8)(c - 'A' + 10u);
+		return TRUE;
+	}
+	if ( c >= 'a' && c <= 'f' ) {
+		*pNibble = (uint8)(c - 'a' + 10u);
+		return TRUE;
+	}
+	return FALSE;
+}
+
 
 // 内部函数：安全获取 UTF-8 字符长度
 static size_t __xrtUtf8CharLenSafe(str sText, size_t iSize, size_t iPos)
@@ -50,6 +71,7 @@ XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 	if ( sText == NULL ) { return (u16str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u16len(sText); }
 	if ( iSize == 0 ) { return (u16str)xCore.sNull; }
+	if ( iSize > ((SIZE_MAX / sizeof(unsigned short)) - 1u) ) { return (u16str)xCore.sNull; }
 	u16str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) { return (u16str)xCore.sNull; }
 	memcpy(sRet, sText, iSize * sizeof(unsigned short));
@@ -64,6 +86,7 @@ XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 	if ( sText == NULL ) { return (u32str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u32len(sText); }
 	if ( iSize == 0 ) { return (u32str)xCore.sNull; }
+	if ( iSize > ((SIZE_MAX / sizeof(unsigned int)) - 1u) ) { return (u32str)xCore.sNull; }
 	u32str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) { return (u32str)xCore.sNull; }
 	memcpy(sRet, sText, iSize * sizeof(unsigned int));
@@ -450,7 +473,7 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 		i += iCharLen;
 	}
 	sText[iWrite] = 0;
-	if ( iRetSize ) { *iRetSize = iCount; }
+	if ( iRetSize ) { *iRetSize = iWrite; }
 	return sText;
 }
 
@@ -494,7 +517,7 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	size_t iFindCount = 0;
 	str sTextPtr;
 	str sSubPos;
-	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (size_t)(sTextPtr - sText), sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		iFindCount++;
 	}
 	// 为新字符串分配内存
@@ -503,7 +526,7 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (str)xCore.sNull; }
 	// 复制原始字符串, 替换需要改变的部分
 	str sRetPtr = sRet;
-	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (size_t)(sTextPtr - sText), sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		size_t iSkipSize = sSubPos - sTextPtr;
 		// 复制前面的部分，直到出现要查找的字符串
 		strncpy(__xrt_str(sRetPtr), __xrt_cstr(sTextPtr), iSkipSize);
@@ -702,8 +725,6 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 
 
 
-// HEX 解码（ 需使用 xrtFree 释放 ）
-#define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
 // xrtHexDecode 相关处理
 XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 {
@@ -717,7 +738,13 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 	for ( size_t i = 0; i < iSize; i += 2 ) {
 		uint8 c0 = (uint8)sText[i];
 		uint8 c1 = (uint8)sText[i + 1];
-		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
+		uint8 iHigh;
+		uint8 iLow;
+		if ( !__xrtHexDecodeNibble(c0, &iHigh) || !__xrtHexDecodeNibble(c1, &iLow) ) {
+			xrtFree(sRet);
+			return xCore.sNull;
+		}
+		sRet[iPos++] = (char)((iHigh << 4) | iLow);
 	}
 	sRet[iPos] = 0;
 	return sRet;
@@ -1137,13 +1164,13 @@ XXAPI str xrtNumFormat(double value, str format)
 		memcpy(ret, "NaN", 4);
 		return ret;
 	}
-	if ( value > 1e308 ) {
+	if ( isinf(value) && value > 0.0 ) {
 		str ret = xrtMalloc(4);
 		if ( ret == NULL ) { return xCore.sNull; }
 		memcpy(ret, "Inf", 4);
 		return ret;
 	}
-	if ( value < -1e308 ) {
+	if ( isinf(value) && value < 0.0 ) {
 		str ret = xrtMalloc(5);
 		if ( ret == NULL ) { return xCore.sNull; }
 		memcpy(ret, "-Inf", 5);

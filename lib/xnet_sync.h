@@ -562,12 +562,26 @@ static void __xnetSyncAtomicStore(volatile long* pValue, long iValue)
 	(void)__xnetAtomicExchange32(pValue, iValue);
 }
 
+// 内部函数：__xnetSyncSpinPause
+static void __xnetSyncSpinPause(uint32 iAttempt)
+{
+	if ( iAttempt < 64u ) {
+		return;
+	}
+	if ( iAttempt < 128u ) {
+		__xnetSyncSleepMs(0);
+		return;
+	}
+	__xnetSyncSleepMs(1);
+}
+
 
 // 内部函数：__xnetSyncSpinLock
 static void __xnetSyncSpinLock(volatile long* pLock)
 {
+	uint32 iAttempt = 0;
 	while ( __xnetSyncAtomicCompareExchange(pLock, 1, 0) != 0 ) {
-		__xnetSyncSleepMs(1);
+		__xnetSyncSpinPause(iAttempt++);
 	}
 }
 

@@ -892,6 +892,10 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 // 内部函数：重置内存调试状态
 static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 {
+	xrtMemBlockHeader* pQuarantineHead;
+	xrtMemDebugSiteStat* pSiteHead;
+	xrtMemDebugForeignAlloc* pForeignHead;
+	xrtMemDebugObject* pObjectHead;
 	xrtMemDebugSiteStat* pSite;
 	xrtMemDebugForeignAlloc* pForeign;
 	xrtMemDebugObject* pObject;
@@ -899,32 +903,41 @@ static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 	if ( pState == NULL ) {
 		return;
 	}
-	pQuarantine = pState->pQuarantineHead;
+
+	__xrtMemGlobalLock(&pState->iLock);
+	pQuarantineHead = pState->pQuarantineHead;
+	pSiteHead = pState->pSiteStats;
+	pForeignHead = pState->pForeignAllocs;
+	pObjectHead = pState->pObjects;
+	memset(pState, 0, sizeof(xrtMemDebugState));
+	pState->iLock = 1;
+	pState->bEnabled = 1;
+	__xrtMemGlobalUnlock(&pState->iLock);
+
+	pQuarantine = pQuarantineHead;
 	while ( pQuarantine ) {
 		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
 		__xrtMemGlobalProcFree()(pQuarantine);
 		pQuarantine = pNext;
 	}
-	pSite = pState->pSiteStats;
+	pSite = pSiteHead;
 	while ( pSite ) {
 		xrtMemDebugSiteStat* pNext = pSite->pNext;
 		__xrtMemGlobalProcFree()(pSite);
 		pSite = pNext;
 	}
-	pForeign = pState->pForeignAllocs;
+	pForeign = pForeignHead;
 	while ( pForeign ) {
 		xrtMemDebugForeignAlloc* pNext = pForeign->pNext;
 		__xrtMemGlobalProcFree()(pForeign);
 		pForeign = pNext;
 	}
-	pObject = pState->pObjects;
+	pObject = pObjectHead;
 	while ( pObject ) {
 		xrtMemDebugObject* pNext = pObject->pNext;
 		__xrtMemGlobalProcFree()(pObject);
 		pObject = pNext;
 	}
-	memset(pState, 0, sizeof(xrtMemDebugState));
-	pState->bEnabled = 1;
 }
 
 
@@ -1159,16 +1172,17 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 // 内部函数：重置内存调试状态
 static inline void __xrtMemDebugResetState(ptr pState)
 {
+	xrtMemDebugForeignAlloc* pHead;
 	(void)pState;
 	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
-	while ( __xrtMemForeignAllocList ) {
-		xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocList;
-		__xrtMemForeignAllocList = pNode->pNext;
-		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
-		__xrtMemGlobalProcFree()(pNode);
-		__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
-	}
+	pHead = __xrtMemForeignAllocList;
+	__xrtMemForeignAllocList = NULL;
 	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+	while ( pHead ) {
+		xrtMemDebugForeignAlloc* pNext = pHead->pNext;
+		__xrtMemGlobalProcFree()(pHead);
+		pHead = pNext;
+	}
 }
 
 

@@ -1401,7 +1401,7 @@ static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
 }
 
 // 协程入口包装（不接收参数，从线程状态读取当前协程）
-static void __xrt_co_asm_entry()
+static void __xrt_co_asm_entry(void)
 {
 	xcoro pCo = __xrt_co_get_current();
 	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();

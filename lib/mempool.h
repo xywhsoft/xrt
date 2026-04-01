@@ -26,8 +26,28 @@ XXAPI void xrtMemPoolDestroy(xmempool objMP)
 // 初始化内存池（对自维护结构体指针使用）
 static inline uint32 __xrtMemPoolResolveCutoff(int iCustom)
 {
+	size_t iMaxCutoffByLut;
+	size_t iMaxBucketCount;
+	size_t iMaxCutoffByBucket;
+	size_t iMaxCutoff;
 	if ( iCustom <= 0 ) {
 		return XRT_MEMPOOL_CUTOFF_DEFAULT;
+	}
+	iMaxCutoffByLut = SIZE_MAX / sizeof(uint32);
+	if ( iMaxCutoffByLut > 0 ) {
+		iMaxCutoffByLut--;
+	}
+	iMaxBucketCount = SIZE_MAX / sizeof(FSB_Item);
+	if ( iMaxBucketCount > 0 ) {
+		iMaxBucketCount--;
+	}
+	iMaxCutoffByBucket = iMaxBucketCount * (size_t)XRT_MEMPOOL_STEP_SIZE;
+	iMaxCutoff = iMaxCutoffByLut < iMaxCutoffByBucket ? iMaxCutoffByLut : iMaxCutoffByBucket;
+	if ( iMaxCutoff == 0 ) {
+		return XRT_MEMPOOL_CUTOFF_DEFAULT;
+	}
+	if ( (size_t)iCustom > iMaxCutoff ) {
+		return (uint32)iMaxCutoff;
 	}
 	return (uint32)iCustom;
 }
@@ -76,11 +96,19 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 	}
 
 	iBucketCount = __xrtMemPoolBucketCount(iCutoff);
+	if ( iBucketCount == 0 || (size_t)iBucketCount > (SIZE_MAX / sizeof(FSB_Item)) ) {
+		return FALSE;
+	}
 	objMP->FSB_Memory = xrtCalloc(iBucketCount, sizeof(FSB_Item));
 	if ( objMP->FSB_Memory == NULL ) {
 		return FALSE;
 	}
 
+	if ( (size_t)iCutoff >= (SIZE_MAX / sizeof(uint32)) ) {
+		xrtFree(objMP->FSB_Memory);
+		objMP->FSB_Memory = NULL;
+		return FALSE;
+	}
 	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * (iCutoff + 1));
 	if ( objMP->FSB_Lut == NULL ) {
 		xrtFree(objMP->FSB_Memory);
@@ -153,6 +181,15 @@ XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom, uint32 iMode)
 	xrtBsmmInit(&objMP->BigMM, sizeof(MP_BigInfoLL), iMode);
 	objMP->LL_BigFree = NULL;
 	if ( !__xrtMemPoolBuildBucketPlan(objMP, __xrtMemPoolResolveCutoff(iCustom)) ) {
+		xrtBsmmUnit(&objMP->arrMMU);
+		xrtBsmmUnit(&objMP->BigMM);
+		objMP->LL_BigFree = NULL;
+		objMP->FSB_Memory = NULL;
+		objMP->FSB_RootNode = NULL;
+		objMP->FSB_Lut = NULL;
+		objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+		objMP->iBucketCount = 0;
+		objMP->iFallbackCutoff = 0;
 		xrtSetError("Memory Pool : build bucket plan failed.", FALSE);
 	}
 }

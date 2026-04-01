@@ -40,7 +40,11 @@ XXAPI void xrtBufferUnit(xbuffer pBuf)
 // 分配内存
 XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 {
-	if ( iCount > pBuf->AllocLength ) {
+	if ( iCount == 0 ) {
+		// 清空
+		xrtBufferUnit(pBuf);
+		return TRUE;
+	} else if ( iCount > pBuf->AllocLength ) {
 		// 增量
 		ptr pNew = xrtRealloc(pBuf->Buffer, iCount);
 		if ( pNew ) {
@@ -60,10 +64,6 @@ XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 			}
 			return TRUE;
 		}
-	} else if ( iCount == 0 ) {
-		// 清空
-		xrtBufferUnit(pBuf);
-		return TRUE;
 	} else {
 		// 不变
 		return TRUE;

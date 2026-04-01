@@ -153,17 +153,23 @@ static inline ptr __xrtTempArenaBlockUser(xrtTempArenaBlock* pBlock)
 static inline xrtTempArenaBlock* __xrtTempArenaAllocBlock(size_t iCapacity)
 {
 	size_t iTotal;
+	size_t iHeaderSize;
 	xrtTempArenaBlock* pBlock;
 
 	if ( iCapacity == 0 ) {
 		iCapacity = 1;
 	}
-	iTotal = __xrtTempArenaBlockHeaderSize() + iCapacity;
+	iHeaderSize = __xrtTempArenaBlockHeaderSize();
+	if ( iCapacity > UINT_MAX || iHeaderSize > (SIZE_MAX - iCapacity) ) {
+		xrtSetError("temporary memory block size overflow.", FALSE);
+		return NULL;
+	}
+	iTotal = iHeaderSize + iCapacity;
 	pBlock = (xrtTempArenaBlock*)__xrtMemGlobalProcMalloc()(iTotal);
 	if ( pBlock == NULL ) {
 		return NULL;
 	}
-	memset(pBlock, 0, __xrtTempArenaBlockHeaderSize());
+	memset(pBlock, 0, iHeaderSize);
 	pBlock->iCapacity = (uint32)iCapacity;
 	return pBlock;
 }
@@ -470,8 +476,8 @@ static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize)
 	if ( iNum == 0 || iSize == 0 ) {
 		return 0;
 	}
-	if ( iNum > ((size_t)-1) / iSize ) {
-		return (size_t)-1;
+	if ( iNum > (SIZE_MAX / iSize) ) {
+		return SIZE_MAX;
 	}
 	return iNum * iSize;
 }
@@ -562,12 +568,3 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 	__xrtAtomicAddFetch64(&pState->iTempCalls, 1);
 	__xrtAtomicAddFetch64(&pState->iTempBytes, (int64)iSize);
 }
-#define __XRT_MEMTELEMETRY_OP_MALLOC 1
-#define __XRT_MEMTELEMETRY_OP_CALLOC 2
-#define __XRT_MEMTELEMETRY_OP_REALLOC 3
-
-static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize);
-static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize);
-static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
-static inline void __xrtMemTelemetryRecordFree();
-static inline void __xrtMemTelemetryRecordTemp(size_t iSize);

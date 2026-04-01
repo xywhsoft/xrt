@@ -67,6 +67,10 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 	iPos = 0;
 	for ( size_t i = 0; i < iSize; i++ ) {
 		size_t iExtraBytes = (size_t)__xrtBytesExtraUTF8((unsigned char)sText[i]);
+		if ( (i + iExtraBytes) >= iSize ) {
+			sRet[iPos++] = 0xFFFD;
+			break;
+		}
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
@@ -145,6 +149,10 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 	iPos = 0;
 	for ( size_t i = 0; i < iSize; i++ ) {
 		size_t iExtraBytes = (size_t)__xrtBytesExtraUTF8((unsigned char)sText[i]);
+		if ( (i + iExtraBytes) >= iSize ) {
+			sRet[iPos++] = 0xFFFD;
+			break;
+		}
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
@@ -197,54 +205,33 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	size_t iPos = 0;
-	// 计算数据长度和转换长度
 	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			uint16 iChar = sText[iSize];
-			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				if ( (sText[iSize + 1] & 0b1111110000000000) == 0b1101110000000000 ) {
-					iPos += 4;
-				} else {
-					// 错误的代理对，使用替换字符 EFBFBD 代替
-					iPos += 3;
-				}
-				iSize += 2;
-			} else if ( iChar <= 0x7F ) {
-				iPos++;
-				iSize++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-				iSize++;
-			} else {
-				iPos += 3;
-				iSize++;
-			}
-		}
-	} else {
-		for ( size_t i = 0; i < iSize; i++ ) {
-			uint16 iChar = sText[i];
-			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				size_t iNext = i + 1;
-				if ( (iNext < iSize) && ((sText[iNext] & 0b1111110000000000) == 0b1101110000000000) ) {
-					iPos += 4;
-				} else {
-					// 错误的代理对，使用替换字符 EFBFBD 代替
-					iPos += 3;
-				}
-				if ( iNext < iSize ) {
-					i = iNext;
-				}
-			} else if ( iChar <= 0x7F ) {
-				iPos++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-			} else {
-				iPos += 3;
-			}
-		}
+		iSize = u16len(sText);
 	}
 	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	size_t iPos = 0;
+	// 计算数据长度和转换长度
+	for ( size_t i = 0; i < iSize; i++ ) {
+		uint16 iChar = sText[i];
+		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+			size_t iNext = i + 1;
+			if ( (iNext < iSize) && ((sText[iNext] & 0b1111110000000000) == 0b1101110000000000) ) {
+				iPos += 4;
+			} else {
+				// 错误的代理对，使用替换字符 EFBFBD 代替
+				iPos += 3;
+			}
+			if ( iNext < iSize ) {
+				i = iNext;
+			}
+		} else if ( iChar <= 0x7F ) {
+			iPos++;
+		} else if ( iChar <= 0x7FF ) {
+			iPos += 2;
+		} else {
+			iPos += 3;
+		}
+	}
 	// 申请所需内存
 	u8str sRet = xrtMalloc(iPos + 1);
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
@@ -865,13 +852,19 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		if ( (i & 3) == 0 ) {
 			if ( (i + 3u) < iSize ) {
 				if ( bNoUTF32BE == FALSE ) {
-					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
+					uint32 c = ((uint32)(uint8)sPtr[i] << 24) |
+						((uint32)(uint8)sPtr[i + 1] << 16) |
+						((uint32)(uint8)sPtr[i + 2] << 8) |
+						(uint32)(uint8)sPtr[i + 3];
 					if ( c > 0x10FFFF ) {
 						bNoUTF32BE = TRUE;
 					}
 				}
 				if ( bNoUTF32LE == FALSE ) {
-					uint32 c = (sPtr[i + 3] << 24) | (sPtr[i + 2] << 16) | (sPtr[i + 1] << 8) | sPtr[i];
+					uint32 c = ((uint32)(uint8)sPtr[i + 3] << 24) |
+						((uint32)(uint8)sPtr[i + 2] << 16) |
+						((uint32)(uint8)sPtr[i + 1] << 8) |
+						(uint32)(uint8)sPtr[i];
 					if ( c > 0x10FFFF ) {
 						bNoUTF32LE = TRUE;
 					}

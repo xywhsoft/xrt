@@ -1293,7 +1293,11 @@
 		#elif defined(_WIN32) || defined(_WIN64)
 			return InterlockedExchange((volatile LONG*)pValue, iValue);
 		#else
-			return __sync_lock_test_and_set(pValue, iValue);
+			long iPrev;
+			do {
+				iPrev = __xrtAtomicCompareExchange32(pValue, 0, 0);
+			} while ( __xrtAtomicCompareExchange32(pValue, iValue, iPrev) != iPrev );
+			return iPrev;
 		#endif
 	}
 
@@ -1329,7 +1333,10 @@
 		#elif defined(_WIN32) || defined(_WIN64)
 			(void)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
 		#else
-			(void)__sync_lock_test_and_set(pValue, iValue);
+			uint32 iPrev;
+			do {
+				iPrev = __xrtAtomicLoadU32(pValue);
+			} while ( __xrtAtomicCompareExchangeU32(pValue, iValue, iPrev) != iPrev );
 		#endif
 	}
 
@@ -1411,7 +1418,10 @@
 		#elif defined(_WIN32) || defined(_WIN64)
 			(void)InterlockedExchange64((volatile LONG64*)pValue, (LONG64)iValue);
 		#else
-			(void)__sync_lock_test_and_set(pValue, iValue);
+			int64 iPrev;
+			do {
+				iPrev = __xrtAtomicLoad64(pValue);
+			} while ( __xrtAtomicCompareExchange64(pValue, iValue, iPrev) != iPrev );
 		#endif
 	}
 
@@ -2422,10 +2432,18 @@
 	// 读写锁数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
-			SRWLOCK objLock;					// Windows SRWLOCK（最高性能）
+			CRITICAL_SECTION objStateLock;		// Windows：内部状态锁
+			CONDITION_VARIABLE objReadCond;		// Windows：读者等待队列
+			CONDITION_VARIABLE objWriteCond;	// Windows：写者等待队列
 		#else
-			pthread_rwlock_t objLock;			// Linux pthread_rwlock
+			pthread_mutex_t objStateLock;		// POSIX：内部状态锁
+			pthread_cond_t objReadCond;			// POSIX：读者等待队列
+			pthread_cond_t objWriteCond;		// POSIX：写者等待队列
 		#endif
+		uint32 iReaderCount;					// 当前持有的读锁数量
+		uint32 iWaitingReaderCount;			// 当前等待的读者数量
+		uint32 iWaitingWriterCount;			// 当前等待的写者数量（含升级者）
+		bool bWriterLocked;					// 是否已有写者持锁
 	} xrwlock_struct, *xrwlock;
 	
 	/* ---------- 线程管理 ---------- */
@@ -2570,10 +2588,10 @@
 	// 释放写锁
 	XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock);
 	
-	// 写锁降级为读锁（保持锁状态）
+	// 写锁降级为读锁（原子保留锁状态）
 	XXAPI void xrtRWLockDowngrade(xrwlock pRWLock);
 	
-	// 读锁升级为写锁（可能失败，需要释放后重新获取）
+	// 读锁升级为写锁（原子转换，返回 FALSE 表示锁状态无效）
 	XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock);
 
 
@@ -3832,6 +3850,9 @@
 	__xnet_blk* pMediumFree;
 	__xnet_blk* pLargeFree;
 	xnetmemstats tStats;
+	#ifdef XRT_MEM_DEBUG
+		uint64 iDebugOwnerThreadId;
+	#endif
 	};
 
 	struct xrt_net_chain {
@@ -4518,11 +4539,11 @@
 	XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg);
 
 
-	// 初始化网络内存 ctx
+	// 初始化网络内存 ctx（ctx 设计为线程归属对象，不应在活跃阶段跨线程共享）
 	XXAPI void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg);
 
 
-	// 裁剪网络内存 ctx
+	// 裁剪网络内存 ctx（仅适合在 ctx 已经静止时调用）
 	XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx);
 
 
@@ -4534,7 +4555,7 @@
 	XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats);
 
 
-	// 初始化网络 chain 扩展
+	// 初始化网络 chain 扩展（ctx 需与后续访问线程保持一致）
 	XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx);
 
 

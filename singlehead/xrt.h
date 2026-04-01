@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-01 11:28:14
+    Generated: 2026-04-01 14:31:30
 
     MIT License
 
@@ -1212,7 +1212,11 @@
 		#elif defined(_WIN32) || defined(_WIN64)
 			return InterlockedExchange((volatile LONG*)pValue, iValue);
 		#else
-			return __sync_lock_test_and_set(pValue, iValue);
+			long iPrev;
+			do {
+				iPrev = __xrtAtomicCompareExchange32(pValue, 0, 0);
+			} while ( __xrtAtomicCompareExchange32(pValue, iValue, iPrev) != iPrev );
+			return iPrev;
 		#endif
 	}
 	/* Keep dedicated 32-bit atomics for uint32 fields. LP64 builds make long-based helpers 64-bit wide. */
@@ -1243,7 +1247,10 @@
 		#elif defined(_WIN32) || defined(_WIN64)
 			(void)InterlockedExchange((volatile LONG*)pValue, (LONG)iValue);
 		#else
-			(void)__sync_lock_test_and_set(pValue, iValue);
+			uint32 iPrev;
+			do {
+				iPrev = __xrtAtomicLoadU32(pValue);
+			} while ( __xrtAtomicCompareExchangeU32(pValue, iValue, iPrev) != iPrev );
 		#endif
 	}
 	// 对 32 位整数做原子加法并返回新值
@@ -1315,7 +1322,10 @@
 		#elif defined(_WIN32) || defined(_WIN64)
 			(void)InterlockedExchange64((volatile LONG64*)pValue, (LONG64)iValue);
 		#else
-			(void)__sync_lock_test_and_set(pValue, iValue);
+			int64 iPrev;
+			do {
+				iPrev = __xrtAtomicLoad64(pValue);
+			} while ( __xrtAtomicCompareExchange64(pValue, iValue, iPrev) != iPrev );
 		#endif
 	}
 	// 所有权锁使用的原子比较交换
@@ -2231,10 +2241,18 @@
 	// 读写锁数据结构
 	typedef struct {
 		#if defined(_WIN32) || defined(_WIN64)
-			SRWLOCK objLock;					// Windows SRWLOCK（最高性能）
+			CRITICAL_SECTION objStateLock;		// Windows：内部状态锁
+			CONDITION_VARIABLE objReadCond;		// Windows：读者等待队列
+			CONDITION_VARIABLE objWriteCond;	// Windows：写者等待队列
 		#else
-			pthread_rwlock_t objLock;			// Linux pthread_rwlock
+			pthread_mutex_t objStateLock;		// POSIX：内部状态锁
+			pthread_cond_t objReadCond;			// POSIX：读者等待队列
+			pthread_cond_t objWriteCond;		// POSIX：写者等待队列
 		#endif
+		uint32 iReaderCount;					// 当前持有的读锁数量
+		uint32 iWaitingReaderCount;			// 当前等待的读者数量
+		uint32 iWaitingWriterCount;			// 当前等待的写者数量（含升级者）
+		bool bWriterLocked;					// 是否已有写者持锁
 	} xrwlock_struct, *xrwlock;
 	
 	/* ---------- 线程管理 ---------- */
@@ -2379,10 +2397,10 @@
 	// 释放写锁
 	XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock);
 	
-	// 写锁降级为读锁（保持锁状态）
+	// 写锁降级为读锁（原子保留锁状态）
 	XXAPI void xrtRWLockDowngrade(xrwlock pRWLock);
 	
-	// 读锁升级为写锁（可能失败，需要释放后重新获取）
+	// 读锁升级为写锁（原子转换，返回 FALSE 表示锁状态无效）
 	XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock);
 	/* ------------------------------------ Queue 队列库 ------------------------------------ */
 	#ifndef XRT_NO_QUEUE
@@ -3347,6 +3365,9 @@
 	__xnet_blk* pMediumFree;
 	__xnet_blk* pLargeFree;
 	xnetmemstats tStats;
+	#ifdef XRT_MEM_DEBUG
+		uint64 iDebugOwnerThreadId;
+	#endif
 	};
 	struct xrt_net_chain {
 	__xnet_blk* pHead;
@@ -3933,15 +3954,15 @@
 	XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg);
 	// XNet 内存上下文与数据链操作
 	XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg);
-	// 初始化网络内存 ctx
+	// 初始化网络内存 ctx（ctx 设计为线程归属对象，不应在活跃阶段跨线程共享）
 	XXAPI void xrtNetMemCtxInit(xnetmemctx* pCtx, const xnetmemconfig* pCfg);
-	// 裁剪网络内存 ctx
+	// 裁剪网络内存 ctx（仅适合在 ctx 已经静止时调用）
 	XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx);
 	// 释放网络内存 ctx
 	XXAPI void xrtNetMemCtxUnit(xnetmemctx* pCtx);
 	// 获取网络内存上下文统计信息
 	XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats);
-	// 初始化网络 chain 扩展
+	// 初始化网络 chain 扩展（ctx 需与后续访问线程保持一致）
 	XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx);
 	// 使用默认内存上下文初始化网络数据链
 	XXAPI void xrtNetChainInit(xnetchain* pChain);
@@ -7702,27 +7723,31 @@ static void __xrtRuntimeFinalizeLocked();
 	// memmem 相关处理
 	XXAPI ptr memmem(ptr pMem, size_t iMemSize, ptr pSub, size_t iSubSize)
 	{
+		size_t arrShift[256];
 		if ( (iMemSize == 0) || (iSubSize == 0) ) {
 			return NULL;
 		}
 		if ( iMemSize  < iSubSize ) {
 			return NULL;
 		}
-		char* pMemC = pMem;
-		char* pSubC = pSub;
-		size_t iRange = iMemSize - iSubSize;
-		for ( size_t i = 0; i <= iRange; i++ ) {
-			char* pPos = &pMemC[i];
-			int bOK = TRUE;
-			for ( size_t j = 0; j < iSubSize; j++ ) {
-				if ( pPos[j] != pSubC[j] ) {
-					bOK = FALSE;
-					break;
-				}
+		unsigned char* pMemC = (unsigned char*)pMem;
+		unsigned char* pSubC = (unsigned char*)pSub;
+		if ( iSubSize == 1 ) {
+			return memchr(pMem, pSubC[0], iMemSize);
+		}
+		for ( size_t i = 0; i < 256; i++ ) {
+			arrShift[i] = iSubSize;
+		}
+		for ( size_t i = 0; i + 1 < iSubSize; i++ ) {
+			arrShift[pSubC[i]] = iSubSize - i - 1;
+		}
+		for ( size_t i = 0; i <= (iMemSize - iSubSize); ) {
+			unsigned char iLast = pMemC[i + iSubSize - 1];
+			if ( iLast == pSubC[iSubSize - 1] &&
+				memcmp(&pMemC[i], pSubC, iSubSize - 1) == 0 ) {
+				return &pMemC[i];
 			}
-			if ( bOK ) {
-				return pPos;
-			}
+			i += arrShift[iLast];
 		}
 		return NULL;
 	}
@@ -8530,6 +8555,10 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 // 内部函数：重置内存调试状态
 static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 {
+	xrtMemBlockHeader* pQuarantineHead;
+	xrtMemDebugSiteStat* pSiteHead;
+	xrtMemDebugForeignAlloc* pForeignHead;
+	xrtMemDebugObject* pObjectHead;
 	xrtMemDebugSiteStat* pSite;
 	xrtMemDebugForeignAlloc* pForeign;
 	xrtMemDebugObject* pObject;
@@ -8537,32 +8566,39 @@ static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 	if ( pState == NULL ) {
 		return;
 	}
-	pQuarantine = pState->pQuarantineHead;
+	__xrtMemGlobalLock(&pState->iLock);
+	pQuarantineHead = pState->pQuarantineHead;
+	pSiteHead = pState->pSiteStats;
+	pForeignHead = pState->pForeignAllocs;
+	pObjectHead = pState->pObjects;
+	memset(pState, 0, sizeof(xrtMemDebugState));
+	pState->iLock = 1;
+	pState->bEnabled = 1;
+	__xrtMemGlobalUnlock(&pState->iLock);
+	pQuarantine = pQuarantineHead;
 	while ( pQuarantine ) {
 		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
 		__xrtMemGlobalProcFree()(pQuarantine);
 		pQuarantine = pNext;
 	}
-	pSite = pState->pSiteStats;
+	pSite = pSiteHead;
 	while ( pSite ) {
 		xrtMemDebugSiteStat* pNext = pSite->pNext;
 		__xrtMemGlobalProcFree()(pSite);
 		pSite = pNext;
 	}
-	pForeign = pState->pForeignAllocs;
+	pForeign = pForeignHead;
 	while ( pForeign ) {
 		xrtMemDebugForeignAlloc* pNext = pForeign->pNext;
 		__xrtMemGlobalProcFree()(pForeign);
 		pForeign = pNext;
 	}
-	pObject = pState->pObjects;
+	pObject = pObjectHead;
 	while ( pObject ) {
 		xrtMemDebugObject* pNext = pObject->pNext;
 		__xrtMemGlobalProcFree()(pObject);
 		pObject = pNext;
 	}
-	memset(pState, 0, sizeof(xrtMemDebugState));
-	pState->bEnabled = 1;
 }
 // 内部函数：判断是否存在内存调试 leaks
 static inline bool __xrtMemDebugHasLeaks()
@@ -8751,16 +8787,17 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 // 内部函数：重置内存调试状态
 static inline void __xrtMemDebugResetState(ptr pState)
 {
+	xrtMemDebugForeignAlloc* pHead;
 	(void)pState;
 	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
-	while ( __xrtMemForeignAllocList ) {
-		xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocList;
-		__xrtMemForeignAllocList = pNode->pNext;
-		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
-		__xrtMemGlobalProcFree()(pNode);
-		__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
-	}
+	pHead = __xrtMemForeignAllocList;
+	__xrtMemForeignAllocList = NULL;
 	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+	while ( pHead ) {
+		xrtMemDebugForeignAlloc* pNext = pHead->pNext;
+		__xrtMemGlobalProcFree()(pHead);
+		pHead = pNext;
+	}
 }
 // 内部函数：判断是否存在内存调试 leaks
 static inline bool __xrtMemDebugHasLeaks()
@@ -9403,16 +9440,22 @@ static inline ptr __xrtTempArenaBlockUser(xrtTempArenaBlock* pBlock)
 static inline xrtTempArenaBlock* __xrtTempArenaAllocBlock(size_t iCapacity)
 {
 	size_t iTotal;
+	size_t iHeaderSize;
 	xrtTempArenaBlock* pBlock;
 	if ( iCapacity == 0 ) {
 		iCapacity = 1;
 	}
-	iTotal = __xrtTempArenaBlockHeaderSize() + iCapacity;
+	iHeaderSize = __xrtTempArenaBlockHeaderSize();
+	if ( iCapacity > UINT_MAX || iHeaderSize > (SIZE_MAX - iCapacity) ) {
+		xrtSetError("temporary memory block size overflow.", FALSE);
+		return NULL;
+	}
+	iTotal = iHeaderSize + iCapacity;
 	pBlock = (xrtTempArenaBlock*)__xrtMemGlobalProcMalloc()(iTotal);
 	if ( pBlock == NULL ) {
 		return NULL;
 	}
-	memset(pBlock, 0, __xrtTempArenaBlockHeaderSize());
+	memset(pBlock, 0, iHeaderSize);
 	pBlock->iCapacity = (uint32)iCapacity;
 	return pBlock;
 }
@@ -9677,8 +9720,8 @@ static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize)
 	if ( iNum == 0 || iSize == 0 ) {
 		return 0;
 	}
-	if ( iNum > ((size_t)-1) / iSize ) {
-		return (size_t)-1;
+	if ( iNum > (SIZE_MAX / iSize) ) {
+		return SIZE_MAX;
 	}
 	return iNum * iSize;
 }
@@ -9754,14 +9797,6 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 	__xrtAtomicAddFetch64(&pState->iTempCalls, 1);
 	__xrtAtomicAddFetch64(&pState->iTempBytes, (int64)iSize);
 }
-#define __XRT_MEMTELEMETRY_OP_MALLOC 1
-#define __XRT_MEMTELEMETRY_OP_CALLOC 2
-#define __XRT_MEMTELEMETRY_OP_REALLOC 3
-static inline size_t __xrtMemTelemetryMulClamp(size_t iNum, size_t iSize);
-static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize);
-static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize);
-static inline void __xrtMemTelemetryRecordFree();
-static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
 // ========================================
 // File: D:/git/xrt/lib/string.h
@@ -9770,6 +9805,26 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 
 #define __xrt_cstr(sText) ((const char*)(sText))
 #define __xrt_str(sText) ((char*)(sText))
+// 内部函数：HEX 字符转数值
+static bool __xrtHexDecodeNibble(uint8 c, uint8* pNibble)
+{
+	if ( pNibble == NULL ) {
+		return FALSE;
+	}
+	if ( c >= '0' && c <= '9' ) {
+		*pNibble = (uint8)(c - '0');
+		return TRUE;
+	}
+	if ( c >= 'A' && c <= 'F' ) {
+		*pNibble = (uint8)(c - 'A' + 10u);
+		return TRUE;
+	}
+	if ( c >= 'a' && c <= 'f' ) {
+		*pNibble = (uint8)(c - 'a' + 10u);
+		return TRUE;
+	}
+	return FALSE;
+}
 // 内部函数：安全获取 UTF-8 字符长度
 static size_t __xrtUtf8CharLenSafe(str sText, size_t iSize, size_t iPos)
 {
@@ -9810,6 +9865,7 @@ XXAPI u16str xrtCopyStrU16(u16str sText, size_t iSize)
 	if ( sText == NULL ) { return (u16str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u16len(sText); }
 	if ( iSize == 0 ) { return (u16str)xCore.sNull; }
+	if ( iSize > ((SIZE_MAX / sizeof(unsigned short)) - 1u) ) { return (u16str)xCore.sNull; }
 	u16str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned short));
 	if ( sRet == NULL ) { return (u16str)xCore.sNull; }
 	memcpy(sRet, sText, iSize * sizeof(unsigned short));
@@ -9822,6 +9878,7 @@ XXAPI u32str xrtCopyStrU32(u32str sText, size_t iSize)
 	if ( sText == NULL ) { return (u32str)xCore.sNull; }
 	if ( iSize == 0 ) { iSize = u32len(sText); }
 	if ( iSize == 0 ) { return (u32str)xCore.sNull; }
+	if ( iSize > ((SIZE_MAX / sizeof(unsigned int)) - 1u) ) { return (u32str)xCore.sNull; }
 	u32str sRet = xrtMalloc((iSize + 1) * sizeof(unsigned int));
 	if ( sRet == NULL ) { return (u32str)xCore.sNull; }
 	memcpy(sRet, sText, iSize * sizeof(unsigned int));
@@ -10179,7 +10236,7 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 		i += iCharLen;
 	}
 	sText[iWrite] = 0;
-	if ( iRetSize ) { *iRetSize = iCount; }
+	if ( iRetSize ) { *iRetSize = iWrite; }
 	return sText;
 }
 // 字符串格式化（ 需使用 xrtFree 释放 ）
@@ -10217,7 +10274,7 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	size_t iFindCount = 0;
 	str sTextPtr;
 	str sSubPos;
-	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (size_t)(sTextPtr - sText), sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		iFindCount++;
 	}
 	// 为新字符串分配内存
@@ -10226,7 +10283,7 @@ XXAPI str xrtReplace(str sText, size_t iSize, str sSubText, size_t iSubSize, str
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (str)xCore.sNull; }
 	// 复制原始字符串, 替换需要改变的部分
 	str sRetPtr = sRet;
-	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (sTextPtr - sText) + 1, sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
+	for ( sTextPtr = sText; (sSubPos = memmem(sTextPtr, iSize - (size_t)(sTextPtr - sText), sSubText, iSubSize)); sTextPtr = sSubPos + iSubSize ) {
 		size_t iSkipSize = sSubPos - sTextPtr;
 		// 复制前面的部分，直到出现要查找的字符串
 		strncpy(__xrt_str(sRetPtr), __xrt_cstr(sTextPtr), iSkipSize);
@@ -10411,8 +10468,6 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 	sRet[iPos] = 0;
 	return sRet;
 }
-// HEX 解码（ 需使用 xrtFree 释放 ）
-#define hex2dec(c) (c <= '9' ? c - '0' : c <= 'F' ? c - 55 : c - 87)
 // xrtHexDecode 相关处理
 XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 {
@@ -10426,7 +10481,13 @@ XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 	for ( size_t i = 0; i < iSize; i += 2 ) {
 		uint8 c0 = (uint8)sText[i];
 		uint8 c1 = (uint8)sText[i + 1];
-		sRet[iPos++] = (hex2dec(c0) << 4) + hex2dec(c1);
+		uint8 iHigh;
+		uint8 iLow;
+		if ( !__xrtHexDecodeNibble(c0, &iHigh) || !__xrtHexDecodeNibble(c1, &iLow) ) {
+			xrtFree(sRet);
+			return xCore.sNull;
+		}
+		sRet[iPos++] = (char)((iHigh << 4) | iLow);
 	}
 	sRet[iPos] = 0;
 	return sRet;
@@ -10822,13 +10883,13 @@ XXAPI str xrtNumFormat(double value, str format)
 		memcpy(ret, "NaN", 4);
 		return ret;
 	}
-	if ( value > 1e308 ) {
+	if ( isinf(value) && value > 0.0 ) {
 		str ret = xrtMalloc(4);
 		if ( ret == NULL ) { return xCore.sNull; }
 		memcpy(ret, "Inf", 4);
 		return ret;
 	}
-	if ( value < -1e308 ) {
+	if ( isinf(value) && value < 0.0 ) {
 		str ret = xrtMalloc(5);
 		if ( ret == NULL ) { return xCore.sNull; }
 		memcpy(ret, "-Inf", 5);
@@ -12365,6 +12426,10 @@ XXAPI u16str xrtUTF8to16(u8str sText, size_t iSize, size_t* iRetSize)
 	iPos = 0;
 	for ( size_t i = 0; i < iSize; i++ ) {
 		size_t iExtraBytes = (size_t)__xrtBytesExtraUTF8((unsigned char)sText[i]);
+		if ( (i + iExtraBytes) >= iSize ) {
+			sRet[iPos++] = 0xFFFD;
+			break;
+		}
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
@@ -12440,6 +12505,10 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 	iPos = 0;
 	for ( size_t i = 0; i < iSize; i++ ) {
 		size_t iExtraBytes = (size_t)__xrtBytesExtraUTF8((unsigned char)sText[i]);
+		if ( (i + iExtraBytes) >= iSize ) {
+			sRet[iPos++] = 0xFFFD;
+			break;
+		}
 		if ( iExtraBytes == 0 ) {
 			// ASCII 兼容字符
 			sRet[iPos++] = sText[i];
@@ -12489,54 +12558,33 @@ XXAPI u32str xrtUTF8to32(u8str sText, size_t iSize, size_t* iRetSize)
 XXAPI u8str xrtUTF16to8(u16str sText, size_t iSize, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	size_t iPos = 0;
-	// 计算数据长度和转换长度
 	if ( iSize == 0 ) {
-		while ( sText[iSize] != 0 ) {
-			uint16 iChar = sText[iSize];
-			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				if ( (sText[iSize + 1] & 0b1111110000000000) == 0b1101110000000000 ) {
-					iPos += 4;
-				} else {
-					// 错误的代理对，使用替换字符 EFBFBD 代替
-					iPos += 3;
-				}
-				iSize += 2;
-			} else if ( iChar <= 0x7F ) {
-				iPos++;
-				iSize++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-				iSize++;
-			} else {
-				iPos += 3;
-				iSize++;
-			}
-		}
-	} else {
-		for ( size_t i = 0; i < iSize; i++ ) {
-			uint16 iChar = sText[i];
-			if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
-				size_t iNext = i + 1;
-				if ( (iNext < iSize) && ((sText[iNext] & 0b1111110000000000) == 0b1101110000000000) ) {
-					iPos += 4;
-				} else {
-					// 错误的代理对，使用替换字符 EFBFBD 代替
-					iPos += 3;
-				}
-				if ( iNext < iSize ) {
-					i = iNext;
-				}
-			} else if ( iChar <= 0x7F ) {
-				iPos++;
-			} else if ( iChar <= 0x7FF ) {
-				iPos += 2;
-			} else {
-				iPos += 3;
-			}
-		}
+		iSize = u16len(sText);
 	}
 	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	size_t iPos = 0;
+	// 计算数据长度和转换长度
+	for ( size_t i = 0; i < iSize; i++ ) {
+		uint16 iChar = sText[i];
+		if ( (iChar & 0b1111110000000000) == 0b1101100000000000 ) {
+			size_t iNext = i + 1;
+			if ( (iNext < iSize) && ((sText[iNext] & 0b1111110000000000) == 0b1101110000000000) ) {
+				iPos += 4;
+			} else {
+				// 错误的代理对，使用替换字符 EFBFBD 代替
+				iPos += 3;
+			}
+			if ( iNext < iSize ) {
+				i = iNext;
+			}
+		} else if ( iChar <= 0x7F ) {
+			iPos++;
+		} else if ( iChar <= 0x7FF ) {
+			iPos += 2;
+		} else {
+			iPos += 3;
+		}
+	}
 	// 申请所需内存
 	u8str sRet = xrtMalloc(iPos + 1);
 	if ( sRet == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
@@ -13133,13 +13181,19 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 		if ( (i & 3) == 0 ) {
 			if ( (i + 3u) < iSize ) {
 				if ( bNoUTF32BE == FALSE ) {
-					uint32 c = (sPtr[i] << 24) | (sPtr[i + 1] << 16) | (sPtr[i + 2] << 8) | sPtr[i + 3];
+					uint32 c = ((uint32)(uint8)sPtr[i] << 24) |
+						((uint32)(uint8)sPtr[i + 1] << 16) |
+						((uint32)(uint8)sPtr[i + 2] << 8) |
+						(uint32)(uint8)sPtr[i + 3];
 					if ( c > 0x10FFFF ) {
 						bNoUTF32BE = TRUE;
 					}
 				}
 				if ( bNoUTF32LE == FALSE ) {
-					uint32 c = (sPtr[i + 3] << 24) | (sPtr[i + 2] << 16) | (sPtr[i + 1] << 8) | sPtr[i];
+					uint32 c = ((uint32)(uint8)sPtr[i + 3] << 24) |
+						((uint32)(uint8)sPtr[i + 2] << 16) |
+						((uint32)(uint8)sPtr[i + 1] << 8) |
+						(uint32)(uint8)sPtr[i];
 					if ( c > 0x10FFFF ) {
 						bNoUTF32LE = TRUE;
 					}
@@ -18311,7 +18365,23 @@ XXAPI xmutex xrtMutexCreate()
 XXAPI void xrtMutexDestroy(xmutex pMutex)
 {
 	if ( pMutex ) {
-		xrtMutexUnit(pMutex);
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( pMutex->iOwnerThreadId != 0 ) {
+				xrtSetError("mutex is still locked.", FALSE);
+				return;
+			}
+			xrtMutexUnit(pMutex);
+		#else
+			if ( pthread_mutex_trylock(&pMutex->objLock) != 0 ) {
+				xrtSetError("mutex is still locked.", FALSE);
+				return;
+			}
+			pthread_mutex_unlock(&pMutex->objLock);
+			if ( pthread_mutex_destroy(&pMutex->objLock) != 0 ) {
+				xrtSetError("mutex destroy failed.", FALSE);
+				return;
+			}
+		#endif
 		__xrtThreadObjFree(pMutex);
 	}
 }
@@ -18337,10 +18407,22 @@ XXAPI void xrtMutexUnit(xmutex pMutex)
 	if ( !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		if ( pMutex->iOwnerThreadId != 0 ) {
+			xrtSetError("mutex is still locked.", FALSE);
+			return;
+		}
 		// SRWLOCK 不需要显式销毁
 		pMutex->iOwnerThreadId = 0;
 	#else
-		pthread_mutex_destroy(&pMutex->objLock);
+		int iRet = pthread_mutex_trylock(&pMutex->objLock);
+		if ( iRet != 0 ) {
+			xrtSetError("mutex is still locked.", FALSE);
+			return;
+		}
+		pthread_mutex_unlock(&pMutex->objLock);
+		if ( pthread_mutex_destroy(&pMutex->objLock) != 0 ) {
+			xrtSetError("mutex destroy failed.", FALSE);
+		}
 	#endif
 }
 // 锁定互斥体
@@ -18685,6 +18767,60 @@ XXAPI void xrtCondBroadcast(xcond pCond)
 	#endif
 }
 /* ================================ 读写锁实现 ================================ */
+// 内部函数：__xrtRWLockStateLock
+static inline void __xrtRWLockStateLock(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		EnterCriticalSection(&pRWLock->objStateLock);
+	#else
+		pthread_mutex_lock(&pRWLock->objStateLock);
+	#endif
+}
+// 内部函数：__xrtRWLockStateUnlock
+static inline void __xrtRWLockStateUnlock(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		LeaveCriticalSection(&pRWLock->objStateLock);
+	#else
+		pthread_mutex_unlock(&pRWLock->objStateLock);
+	#endif
+}
+// 内部函数：__xrtRWLockWaitReader
+static inline void __xrtRWLockWaitReader(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		SleepConditionVariableCS(&pRWLock->objReadCond, &pRWLock->objStateLock, INFINITE);
+	#else
+		pthread_cond_wait(&pRWLock->objReadCond, &pRWLock->objStateLock);
+	#endif
+}
+// 内部函数：__xrtRWLockWaitWriter
+static inline void __xrtRWLockWaitWriter(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		SleepConditionVariableCS(&pRWLock->objWriteCond, &pRWLock->objStateLock, INFINITE);
+	#else
+		pthread_cond_wait(&pRWLock->objWriteCond, &pRWLock->objStateLock);
+	#endif
+}
+// 内部函数：__xrtRWLockSignalWriter
+static inline void __xrtRWLockSignalWriter(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		WakeConditionVariable(&pRWLock->objWriteCond);
+	#else
+		pthread_cond_signal(&pRWLock->objWriteCond);
+	#endif
+}
+// 内部函数：__xrtRWLockBroadcastReaders
+static inline void __xrtRWLockBroadcastReaders(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		WakeAllConditionVariable(&pRWLock->objReadCond);
+	#else
+		pthread_cond_broadcast(&pRWLock->objReadCond);
+	#endif
+}
 // 创建读写锁
 XXAPI xrwlock xrtRWLockCreate()
 {
@@ -18706,16 +18842,16 @@ XXAPI void xrtRWLockInit(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
+	memset(pRWLock, 0, sizeof(*pRWLock));
+	
 	#if defined(_WIN32) || defined(_WIN64)
-		InitializeSRWLock(&pRWLock->objLock);
+		InitializeCriticalSection(&pRWLock->objStateLock);
+		InitializeConditionVariable(&pRWLock->objReadCond);
+		InitializeConditionVariable(&pRWLock->objWriteCond);
 	#else
-		pthread_rwlockattr_t attr;
-		pthread_rwlockattr_init(&attr);
-		#if defined(__GLIBC__) && defined(PTHREAD_RWLOCK_PREFER_WRITER_NP)
-			pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP);
-		#endif
-		pthread_rwlock_init(&pRWLock->objLock, &attr);
-		pthread_rwlockattr_destroy(&attr);
+		pthread_mutex_init(&pRWLock->objStateLock, NULL);
+		pthread_cond_init(&pRWLock->objReadCond, NULL);
+		pthread_cond_init(&pRWLock->objWriteCond, NULL);
 	#endif
 }
 // 释放读写锁（对自维护结构体指针使用）
@@ -18724,9 +18860,13 @@ XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 	if ( !pRWLock ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		DeleteCriticalSection(&pRWLock->objStateLock);
+		memset(pRWLock, 0, sizeof(*pRWLock));
 	#else
-		pthread_rwlock_destroy(&pRWLock->objLock);
-		memset(&pRWLock->objLock, 0, sizeof(pRWLock->objLock));
+		pthread_cond_destroy(&pRWLock->objWriteCond);
+		pthread_cond_destroy(&pRWLock->objReadCond);
+		pthread_mutex_destroy(&pRWLock->objStateLock);
+		memset(pRWLock, 0, sizeof(*pRWLock));
 	#endif
 }
 // 获取读锁（阻塞）
@@ -18734,11 +18874,14 @@ XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		AcquireSRWLockShared(&pRWLock->objLock);
-	#else
-		pthread_rwlock_rdlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	pRWLock->iWaitingReaderCount++;
+	while ( pRWLock->bWriterLocked || (pRWLock->iWaitingWriterCount > 0) ) {
+		__xrtRWLockWaitReader(pRWLock);
+	}
+	pRWLock->iWaitingReaderCount--;
+	pRWLock->iReaderCount++;
+	__xrtRWLockStateUnlock(pRWLock);
 }
 // 尝试获取读锁（非阻塞）
 XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
@@ -18746,11 +18889,12 @@ XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 	if ( !pRWLock ) return FALSE;
 	
 	bool bResult;
-	#if defined(_WIN32) || defined(_WIN64)
-		bResult = TryAcquireSRWLockShared(&pRWLock->objLock);
-	#else
-		bResult = pthread_rwlock_tryrdlock(&pRWLock->objLock) == 0;
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	bResult = !pRWLock->bWriterLocked && (pRWLock->iWaitingWriterCount == 0);
+	if ( bResult ) {
+		pRWLock->iReaderCount++;
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 	
 	return bResult != FALSE;
 }
@@ -18759,22 +18903,32 @@ XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockShared(&pRWLock->objLock);
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->iReaderCount > 0 ) {
+		pRWLock->iReaderCount--;
+		if ( pRWLock->iReaderCount == 0 ) {
+			if ( pRWLock->iWaitingWriterCount > 0 ) {
+				__xrtRWLockSignalWriter(pRWLock);
+			} else if ( pRWLock->iWaitingReaderCount > 0 ) {
+				__xrtRWLockBroadcastReaders(pRWLock);
+			}
+		}
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 }
 // 获取写锁（阻塞）
 XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		AcquireSRWLockExclusive(&pRWLock->objLock);
-	#else
-		pthread_rwlock_wrlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	pRWLock->iWaitingWriterCount++;
+	while ( pRWLock->bWriterLocked || (pRWLock->iReaderCount > 0) ) {
+		__xrtRWLockWaitWriter(pRWLock);
+	}
+	pRWLock->iWaitingWriterCount--;
+	pRWLock->bWriterLocked = TRUE;
+	__xrtRWLockStateUnlock(pRWLock);
 }
 // 尝试获取写锁（非阻塞）
 XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
@@ -18782,11 +18936,12 @@ XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 	if ( !pRWLock ) return FALSE;
 	
 	bool bResult;
-	#if defined(_WIN32) || defined(_WIN64)
-		bResult = TryAcquireSRWLockExclusive(&pRWLock->objLock);
-	#else
-		bResult = pthread_rwlock_trywrlock(&pRWLock->objLock) == 0;
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	bResult = !pRWLock->bWriterLocked && (pRWLock->iReaderCount == 0);
+	if ( bResult ) {
+		pRWLock->bWriterLocked = TRUE;
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 	
 	return bResult != FALSE;
 }
@@ -18795,49 +18950,51 @@ XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockExclusive(&pRWLock->objLock);
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->bWriterLocked ) {
+		pRWLock->bWriterLocked = FALSE;
+		if ( pRWLock->iWaitingWriterCount > 0 ) {
+			__xrtRWLockSignalWriter(pRWLock);
+		} else if ( pRWLock->iWaitingReaderCount > 0 ) {
+			__xrtRWLockBroadcastReaders(pRWLock);
+		}
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 }
-// 写锁降级为读锁（保持锁状态）
+// 写锁降级为读锁（原子保留锁状态）
 XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockExclusive(&pRWLock->objLock);
-		AcquireSRWLockShared(&pRWLock->objLock);
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-		pthread_rwlock_rdlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->bWriterLocked ) {
+		pRWLock->bWriterLocked = FALSE;
+		pRWLock->iReaderCount++;
+		if ( (pRWLock->iWaitingWriterCount == 0) && (pRWLock->iWaitingReaderCount > 0) ) {
+			__xrtRWLockBroadcastReaders(pRWLock);
+		}
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 }
-// 读锁升级为写锁（可能失败，需要释放后重新获取）
+// 读锁升级为写锁（原子转换，返回 FALSE 表示锁状态无效）
 XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockShared(&pRWLock->objLock);
-		
-		if ( TryAcquireSRWLockExclusive(&pRWLock->objLock) ) {
-			return TRUE;
-		} else {
-			AcquireSRWLockShared(&pRWLock->objLock);
-			return FALSE;
-		}
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-		
-		if ( pthread_rwlock_trywrlock(&pRWLock->objLock) == 0 ) {
-			return TRUE;
-		} else {
-			pthread_rwlock_rdlock(&pRWLock->objLock);
-			return FALSE;
-		}
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->iReaderCount == 0 ) {
+		__xrtRWLockStateUnlock(pRWLock);
+		return FALSE;
+	}
+	pRWLock->iWaitingWriterCount++;
+	pRWLock->iReaderCount--;
+	while ( pRWLock->bWriterLocked || (pRWLock->iReaderCount > 0) ) {
+		__xrtRWLockWaitWriter(pRWLock);
+	}
+	pRWLock->iWaitingWriterCount--;
+	pRWLock->bWriterLocked = TRUE;
+	__xrtRWLockStateUnlock(pRWLock);
+	return TRUE;
 }
 #endif
 #ifndef XRT_NO_QUEUE
@@ -21150,7 +21307,7 @@ static bool __xrt_co_prepare_backend_main(xrtCoroRuntimeState* pRuntime)
 	return TRUE;
 }
 // 协程入口包装（不接收参数，从线程状态读取当前协程）
-static void __xrt_co_asm_entry()
+static void __xrt_co_asm_entry(void)
 {
 	xcoro pCo = __xrt_co_get_current();
 	xrtCoroRuntimeState* pRuntime = __xrt_co_get_runtime();
@@ -26597,6 +26754,10 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
       - dynamic blocks for oversized payloads
       - ref blocks for zero-copy send and external buffer ownership
       - xnetchain helpers for append, peek, span extraction, and consume
+    Threading contract:
+      - xnetmemctx is thread-affine by design
+      - the mainline engine keeps one ctx per worker thread
+      - do not share one live ctx across active threads without external synchronization
 */
 #ifndef XNET_ALLOC
 	#define XNET_ALLOC malloc
@@ -26644,6 +26805,9 @@ struct xrt_net_mem_ctx {
 	__xnet_blk* pMediumFree;
 	__xnet_blk* pLargeFree;
 	xnetmemstats tStats;
+	#ifdef XRT_MEM_DEBUG
+		uint64 iDebugOwnerThreadId;
+	#endif
 };
 /* ============================== Block model ============================== */
 struct xrt_net_chain {
@@ -26686,6 +26850,22 @@ static void __xnetChainSplice(xnetchain* pDst, xnetchain* pSrc)
 	pSrc->pTail = NULL;
 	pSrc->iBytes = 0;
 	pSrc->iBlockCount = 0;
+}
+// 内部函数：__xnetMemDebugTouchCtx
+static void __xnetMemDebugTouchCtx(xnetmemctx* pCtx)
+{
+	#ifdef XRT_MEM_DEBUG
+		uint64 iThreadId;
+		if ( !pCtx ) return;
+		iThreadId = xrtThreadGetCurrentId();
+		if ( pCtx->iDebugOwnerThreadId == 0 ) {
+			pCtx->iDebugOwnerThreadId = iThreadId;
+		} else if ( pCtx->iDebugOwnerThreadId != iThreadId ) {
+			xrtSetError("xnetmemctx is thread-affine and cannot be shared across threads.", FALSE);
+		}
+	#else
+		(void)pCtx;
+	#endif
 }
 /* ============================== Config helpers ============================== */
 XXAPI void xrtNetMemConfigInit(xnetmemconfig* pCfg)
@@ -26817,6 +26997,7 @@ static __xnet_blk* __xnetMemPopCached(xnetmemctx* pCtx, uint16 iClassId)
 	__xnet_blk** ppHead = __xnetMemClassFreeList(pCtx, iClassId);
 	uint32* pCached = __xnetMemClassCacheCount(pCtx, iClassId);
 	if ( !ppHead || !pCached || !*ppHead ) return NULL;
+	__xnetMemDebugTouchCtx(pCtx);
 	
 	__xnet_blk* pBlk = *ppHead;
 	*ppHead = pBlk->pNext;
@@ -26830,6 +27011,7 @@ static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 {
 	uint16 iClassId = __xnetMemPickClass(pCtx, iCapacity);
 	__xnet_blk* pBlk = NULL;
+	__xnetMemDebugTouchCtx(pCtx);
 	
 	if ( iClassId != XNET_MEM_CLASS_DYNAMIC ) {
 		pBlk = __xnetMemPopCached(pCtx, iClassId);
@@ -26857,6 +27039,7 @@ static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 static __xnet_blk* __xnetBlkAllocRef(xnetmemctx* pCtx, const xnetbufref* pRef)
 {
 	if ( !pRef || !pRef->pData || pRef->iLen == 0 ) return NULL;
+	__xnetMemDebugTouchCtx(pCtx);
 	__xnet_blk* pBlk = (__xnet_blk*)XNET_ALLOC(sizeof(__xnet_blk));
 	if ( !pBlk ) return NULL;
 	memset(pBlk, 0, sizeof(__xnet_blk));
@@ -26890,6 +27073,7 @@ static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 	
 	xnetmemctx* pCtx = pBlk->pMemCtx;
 	uint16 iClassId = pBlk->iClassId;
+	__xnetMemDebugTouchCtx(pCtx);
 	if ( pBlk->iFlags & XNET_BLK_F_REF ) {
 		if ( pBlk->pfnRelease ) {
 			pBlk->pfnRelease(pBlk->pReleaseCtx, pBlk->pRefData, pBlk->iRefLen);
@@ -26968,6 +27152,7 @@ static void __xnetMemTrimList(__xnet_blk** ppHead, uint32* pCached, uint32 iTarg
 	}
 }
 /* ============================== Allocator public helpers ============================== */
+// 裁剪网络内存 ctx（仅适合在 ctx 已经静止时调用）
 XXAPI void xrtNetMemCtxTrim(xnetmemctx* pCtx)
 {
 	if ( !pCtx ) return;
@@ -26991,6 +27176,7 @@ XXAPI void xrtNetMemCtxGetStats(const xnetmemctx* pCtx, xnetmemstats* pStats)
 	*pStats = pCtx->tStats;
 }
 /* ============================== Chain lifecycle ============================== */
+// 使用指定网络内存 ctx 初始化链（ctx 需与后续访问线程保持一致）
 XXAPI void xrtNetChainInitEx(xnetchain* pChain, xnetmemctx* pMemCtx)
 {
 	if ( !pChain ) return;
@@ -30024,10 +30210,18 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 			*sReason++ = '\0';
 			while ( *sReason == ' ' ) sReason++;
 		}
+		{
+			char* pStatusEnd = NULL;
+			long iStatusCode = strtol(sStatus, &pStatusEnd, 10);
+			if ( pStatusEnd == sStatus || *pStatusEnd != '\0' || iStatusCode < 100 || iStatusCode > 999 ) {
+				XNET_FREE(sHeadBuf);
+				return XCODEC_STATUS_ERROR;
+			}
+			pMsg->iStatusCode = (uint32)iStatusCode;
+		}
 		pMsg->iFlags |= XCODEC_HTTP1_F_RESPONSE;
 		pFrame->iFlags |= XCODEC_FRAME_F_RESPONSE;
 		__xcodecHttpCopyToken(pMsg->sVersion, sizeof(pMsg->sVersion), sVersion, strlen(sVersion));
-		pMsg->iStatusCode = (uint32)atoi(sStatus);
 		if ( sReason ) __xcodecHttpCopyToken(pMsg->sReason, sizeof(pMsg->sReason), sReason, strlen(sReason));
 	} else {
 		char* sMethod = sHeadBuf;
@@ -36100,6 +36294,7 @@ static int __xrt_der_parse(uint8 *pDer, size_t iDerSz, struct __xrt_der_tlv *pTl
 	if ( iLen > 0x7F ) {  // long-form length
 		uint8 iLenBytes = iLen & 0x7F;
 		uint8 k;
+		if ( iLenBytes == 0 || iLenBytes > sizeof(uint32) ) return -1;
 		if ( iDerSz < (size_t)(2 + iLenBytes) ) return -1;
 		iLen = 0;
 		for ( k = 0; k < iLenBytes; k++ ) {
@@ -42197,7 +42392,7 @@ struct xrt_net_stream {
 	volatile long iAsyncHoldCount;
 	volatile long iOpenTimerState;
 	bool bReadPaused;
-	bool bRecvArmed;
+	volatile long bRecvArmed;
 	bool bSendArmed;
 	bool bClosing;
 	bool bWriteShutdown;
@@ -42217,6 +42412,16 @@ static void __xnetStreamDetachTls(xnetstream* pStream);
 static void __xnetStreamNotifyDestroyWaiters(xnetstream* pStream);
 static void __xnetStreamAbandonUnownedAccepted(xnetstream* pStream);
 static void __xnetSocketCloseHandle(xsocket* phSocket);
+static bool __xnetStreamRecvArmed(const xnetstream* pStream)
+{
+	return pStream && __xnetAtomicLoad32(&pStream->bRecvArmed) != 0;
+}
+static void __xnetStreamClearRecvArmed(xnetstream* pStream)
+{
+	if ( pStream ) {
+		(void)__xnetAtomicExchange32(&pStream->bRecvArmed, 0);
+	}
+}
 static void __xnetStreamKickWrite(xnetstream* pStream);
 static bool __xnetStreamDrainTlsPlain(xnetstream* pStream);
 static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, size_t iLen);
@@ -43192,7 +43397,7 @@ static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, 
 				__xnetStreamEmitOpen(pStream);
 				if ( pCarry ) {
 					__xnetStreamHandleRecvEvent(pStream, pCarry);
-				} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 					(void)__xnetStreamArmRecvWatch(pStream);
 				}
 			}
@@ -43464,8 +43669,10 @@ static bool __xnetStreamSubmitSocketNotice(xnetstream* pStream, uint16 iOpType, 
 // 内部函数：__xnetStreamArmRecvWatch
 static bool __xnetStreamArmRecvWatch(xnetstream* pStream)
 {
-	if ( !pStream || pStream->bClosing || pStream->bRecvArmed || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	if ( !pStream || pStream->bClosing || !__xnetSocketIsValid(pStream->hSocket) ) return false;
+	if ( __xnetAtomicCompareExchange32(&pStream->bRecvArmed, 1, 0) != 0 ) return false;
 	if ( !__xnetStreamSubmitSocketNotice(pStream, XNET_PORT_OP_RECV, pStream->hSocket) ) {
+		(void)__xnetAtomicExchange32(&pStream->bRecvArmed, 0);
 		#if defined(XNET_DEBUG_IOCP_NATIVE)
 			fprintf(stderr, "[STREAM] arm recv fail stream=%llu socket=%p native=%d\n",
 				(unsigned long long)pStream->iId,
@@ -43474,7 +43681,6 @@ static bool __xnetStreamArmRecvWatch(xnetstream* pStream)
 		#endif
 		return false;
 	}
-	pStream->bRecvArmed = true;
 	if ( pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
 		(void)xrtNetPortWake(&pStream->pWorker->tPort);
 	}
@@ -43497,7 +43703,7 @@ static void __xnetStreamFinalizeSocketClose(xnetstream* pStream)
 	xsocket hSocket;
 	if ( !pStream ) return;
 	hSocket = pStream->hSocket;
-	pStream->bRecvArmed = false;
+	__xnetStreamClearRecvArmed(pStream);
 	pStream->bSendArmed = false;
 	pStream->bWriteShutdown = false;
 	if ( __xnetSocketIsValid(hSocket) ) {
@@ -43547,7 +43753,7 @@ static void __xnetStreamBeginGracefulCloseWait(xnetstream* pStream)
 		}
 		pStream->bWriteShutdown = true;
 	}
-	if ( !pStream->bRecvArmed ) {
+	if ( !__xnetStreamRecvArmed(pStream) ) {
 		(void)__xnetStreamArmRecvWatch(pStream);
 	}
 }
@@ -43644,7 +43850,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 			}
 		}
 		__xnetStreamFreeTempChain(pChain);
-		if ( pStream->pProxyState && !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+		if ( pStream->pProxyState && !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 			(void)__xnetStreamArmRecvWatch(pStream);
 		}
 		return;
@@ -43673,7 +43879,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		} else {
 			(void)__xnetStreamDrainTlsPlain(pStream);
 			if ( !pStream->bClosing && !pStream->bReadPaused &&
-				__xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 				(void)__xnetStreamArmRecvWatch(pStream);
 			}
 		}
@@ -43686,7 +43892,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		return;
 	}
 	__xnetStreamDispatchRecv(pStream);
-	if ( !pStream->bClosing && __xnetStreamUseNativePortIO(pStream) && !pStream->bRecvArmed ) {
+	if ( !pStream->bClosing && __xnetStreamUseNativePortIO(pStream) && !__xnetStreamRecvArmed(pStream) ) {
 		(void)__xnetStreamArmRecvWatch(pStream);
 	}
 }
@@ -43707,7 +43913,7 @@ static void __xnetStreamHandleSendEvent(xnetstream* pStream, const xnetportevent
 		}
 		if ( !pStream->bClosing && pStream->tSendQ.iQueuedBytes > 0 ) {
 			__xnetStreamKickWrite(pStream);
-		} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+		} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 			(void)__xnetStreamArmRecvWatch(pStream);
 		}
 		return;
@@ -43785,7 +43991,7 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			__xnetStreamDispatchRecv(pStream);
 			if ( pStream && !pStream->bReadPaused && !pStream->bClosing &&
 				xrtNetChainBytes(&pStream->tRxChain) == 0 &&
-				__xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+				__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 				if ( pStream->pProxyState ) {
 					(void)__xnetStreamArmRecvWatch(pStream);
 				} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
@@ -44503,7 +44709,7 @@ XXAPI void xrtNetStreamResumeRead(xnetstream* pStream)
 			return;
 		}
 	}
-	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !pStream->bRecvArmed ) {
+	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 		if ( pStream->pProxyState ) {
 			(void)__xnetStreamArmRecvWatch(pStream);
 		} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
@@ -44592,7 +44798,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 		} else if ( pEvent->iType == XNET_PORT_EVENT_RECV ) {
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			if ( pStream ) {
-				pStream->bRecvArmed = false;
+				__xnetStreamClearRecvArmed(pStream);
 			}
 			#if defined(XNET_DEBUG_IOCP_NATIVE)
 				if ( pStream && __xnetStreamUseNativePortIO(pStream) ) {
@@ -45795,11 +46001,24 @@ static void __xnetSyncAtomicStore(volatile long* pValue, long iValue)
 {
 	(void)__xnetAtomicExchange32(pValue, iValue);
 }
+// 内部函数：__xnetSyncSpinPause
+static void __xnetSyncSpinPause(uint32 iAttempt)
+{
+	if ( iAttempt < 64u ) {
+		return;
+	}
+	if ( iAttempt < 128u ) {
+		__xnetSyncSleepMs(0);
+		return;
+	}
+	__xnetSyncSleepMs(1);
+}
 // 内部函数：__xnetSyncSpinLock
 static void __xnetSyncSpinLock(volatile long* pLock)
 {
+	uint32 iAttempt = 0;
 	while ( __xnetSyncAtomicCompareExchange(pLock, 1, 0) != 0 ) {
-		__xnetSyncSleepMs(1);
+		__xnetSyncSpinPause(iAttempt++);
 	}
 }
 // 内部函数：__xnetSyncSpinUnlock
@@ -51343,7 +51562,7 @@ static const char* __xhttpdStatusText(uint32 iStatusCode)
 		case 500: return "Internal Server Error";
 		case 501: return "Not Implemented";
 		case 503: return "Service Unavailable";
-		default: return "OK";
+		default: return "Unknown Status";
 	}
 }
 // 内部函数：__xhttpdResponseHasHeader
@@ -55493,7 +55712,11 @@ XXAPI void xrtBufferUnit(xbuffer pBuf)
 // 分配内存
 XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 {
-	if ( iCount > pBuf->AllocLength ) {
+	if ( iCount == 0 ) {
+		// 清空
+		xrtBufferUnit(pBuf);
+		return TRUE;
+	} else if ( iCount > pBuf->AllocLength ) {
 		// 增量
 		ptr pNew = xrtRealloc(pBuf->Buffer, iCount);
 		if ( pNew ) {
@@ -55513,10 +55736,6 @@ XXAPI bool xrtBufferMalloc(xbuffer pBuf, uint32 iCount)
 			}
 			return TRUE;
 		}
-	} else if ( iCount == 0 ) {
-		// 清空
-		xrtBufferUnit(pBuf);
-		return TRUE;
 	} else {
 		// 不变
 		return TRUE;
@@ -55593,9 +55812,13 @@ static inline void __xrtPtrArrayUnit_NoLock(xparray pObject)
 // 内部函数：__xrtPtrArrayMalloc_NoLock
 static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 {
+	size_t iBytes = (size_t)iCount * sizeof(ptr);
+	if ( iCount != 0 && (size_t)iCount > (SIZE_MAX / sizeof(ptr)) ) {
+		return FALSE;
+	}
 	if ( iCount > pObject->AllocCount ) {
 		// 增量
-		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(ptr));
+		ptr* pNew = xrtRealloc(pObject->Memory, iBytes);
 		if ( pNew ) {
 			pObject->AllocCount = iCount;
 			pObject->Memory = pNew;
@@ -55603,7 +55826,7 @@ static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 		}
 	} else if ( iCount < pObject->AllocCount ) {
 		// 裁剪
-		ptr* pNew = xrtRealloc(pObject->Memory, iCount * sizeof(ptr));
+		ptr* pNew = xrtRealloc(pObject->Memory, iBytes);
 		if ( pNew ) {
 			pObject->AllocCount = iCount;
 			pObject->Memory = pNew;
@@ -56173,6 +56396,9 @@ XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 {
 	if ( pArr ) {
+		if ( procCompar == NULL ) {
+			return FALSE;
+		}
 		if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
 			return FALSE;
 		}
@@ -56875,7 +57101,7 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p)
 			MM256_LLNode_IdleCheck(objMM, pNode);
 		}
 		// 如果这个内存管理单元已经清空，将他释放或变为备用单元
-		MM256_LLNode_ClearCheck(objMM, pNode, 0);
+			MM256_LLNode_ClearCheck(objMM, pNode, FALSE);
 	}
 	xrtOwnerEndMutable(&objMM->Owner);
 }
@@ -56900,14 +57126,14 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 	pNode = objMM->LL_Idle;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
-		MM256_LLNode_ClearCheck(objMM, pNode, 0);
+		MM256_LLNode_ClearCheck(objMM, pNode, FALSE);
 		pNode = pNext;
 	}
 	pNode = objMM->LL_Full;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
 		if ( pNode->objMMU->Count == 0 ) {
-			MM256_LLNode_ClearCheck(objMM, pNode, -1);
+			MM256_LLNode_ClearCheck(objMM, pNode, TRUE);
 		} else {
 			MM256_LLNode_IdleCheck(objMM, pNode);
 		}
@@ -57515,12 +57741,8 @@ XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, pt
 	// 平衡二叉树
 	xrtAVLTreeRebalance(ancestor, ancestorCount);
 	// 返回结果
-	if ( pDelete ) {
-		objAVLT->Count--;
-		return pDelete;
-	} else {
-		return NULL;
-	}
+	objAVLT->Count--;
+	return pDelete;
 }
 // 从 AVLTree 中查找节点
 XXAPI xavltnode xrtAVLTB_Search(xavltbase objAVLT, AVLTree_CompProc procComp, ptr pKey)
@@ -57731,6 +57953,10 @@ XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_Co
 	objAVLT->Parent = NULL;
 	objAVLT->CompProc = procComp;
 	objAVLT->FreeProc = NULL;
+	if ( iItemLength > (unsigned int)(UINT_MAX - sizeof(xavltnode_struct)) ) {
+		xrtSetError("AVLTree item length too large.", FALSE);
+		iItemLength = (unsigned int)(UINT_MAX - sizeof(xavltnode_struct));
+	}
 	xrtFSMemPoolInit(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength, iMode);
 	objAVLT->NodeCache = NULL;
 	if ( iMode == XRT_OBJMODE_SHARED ) {
@@ -57896,6 +58122,7 @@ XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey)
 XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 {
 	ptr pRet = NULL;
+	xavltree pParent = NULL;
 	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
 		return NULL;
 	}
@@ -57903,15 +58130,20 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 	if ( pNode ) {
 		pRet = &pNode[1];
 	} else {
-		// 如果有父树，尝试在父树中查找
-		if ( objAVLT->Parent ) {
-			pNode = xrtAVLTB_Search((xavltbase)objAVLT->Parent, objAVLT->Parent->CompProc, pKey);
-			if ( pNode ) {
-				pRet = &pNode[1];
-			}
-		}
+		pParent = objAVLT->Parent;
 	}
 	xrtOwnerEndMutable(&objAVLT->Owner);
+	if ( pRet || pParent == NULL ) {
+		return pRet;
+	}
+	if ( !xrtOwnerBeginMutable(&pParent->Owner, "avltree belongs to another thread.") ) {
+		return NULL;
+	}
+	pNode = xrtAVLTB_Search((xavltbase)pParent, pParent->CompProc, pKey);
+	if ( pNode ) {
+		pRet = &pNode[1];
+	}
+	xrtOwnerEndMutable(&pParent->Owner);
 	return pRet;
 }
 // 遍历 AVL 树
@@ -58023,8 +58255,28 @@ XXAPI void xrtMemPoolDestroy(xmempool objMP)
 // 初始化内存池（对自维护结构体指针使用）
 static inline uint32 __xrtMemPoolResolveCutoff(int iCustom)
 {
+	size_t iMaxCutoffByLut;
+	size_t iMaxBucketCount;
+	size_t iMaxCutoffByBucket;
+	size_t iMaxCutoff;
 	if ( iCustom <= 0 ) {
 		return XRT_MEMPOOL_CUTOFF_DEFAULT;
+	}
+	iMaxCutoffByLut = SIZE_MAX / sizeof(uint32);
+	if ( iMaxCutoffByLut > 0 ) {
+		iMaxCutoffByLut--;
+	}
+	iMaxBucketCount = SIZE_MAX / sizeof(FSB_Item);
+	if ( iMaxBucketCount > 0 ) {
+		iMaxBucketCount--;
+	}
+	iMaxCutoffByBucket = iMaxBucketCount * (size_t)XRT_MEMPOOL_STEP_SIZE;
+	iMaxCutoff = iMaxCutoffByLut < iMaxCutoffByBucket ? iMaxCutoffByLut : iMaxCutoffByBucket;
+	if ( iMaxCutoff == 0 ) {
+		return XRT_MEMPOOL_CUTOFF_DEFAULT;
+	}
+	if ( (size_t)iCustom > iMaxCutoff ) {
+		return (uint32)iMaxCutoff;
 	}
 	return (uint32)iCustom;
 }
@@ -58064,8 +58316,16 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 		return TRUE;
 	}
 	iBucketCount = __xrtMemPoolBucketCount(iCutoff);
+	if ( iBucketCount == 0 || (size_t)iBucketCount > (SIZE_MAX / sizeof(FSB_Item)) ) {
+		return FALSE;
+	}
 	objMP->FSB_Memory = xrtCalloc(iBucketCount, sizeof(FSB_Item));
 	if ( objMP->FSB_Memory == NULL ) {
+		return FALSE;
+	}
+	if ( (size_t)iCutoff >= (SIZE_MAX / sizeof(uint32)) ) {
+		xrtFree(objMP->FSB_Memory);
+		objMP->FSB_Memory = NULL;
 		return FALSE;
 	}
 	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * (iCutoff + 1));
@@ -58129,6 +58389,15 @@ XXAPI void xrtMemPoolInit(xmempool objMP, int iCustom, uint32 iMode)
 	xrtBsmmInit(&objMP->BigMM, sizeof(MP_BigInfoLL), iMode);
 	objMP->LL_BigFree = NULL;
 	if ( !__xrtMemPoolBuildBucketPlan(objMP, __xrtMemPoolResolveCutoff(iCustom)) ) {
+		xrtBsmmUnit(&objMP->arrMMU);
+		xrtBsmmUnit(&objMP->BigMM);
+		objMP->LL_BigFree = NULL;
+		objMP->FSB_Memory = NULL;
+		objMP->FSB_RootNode = NULL;
+		objMP->FSB_Lut = NULL;
+		objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
+		objMP->iBucketCount = 0;
+		objMP->iFallbackCutoff = 0;
 		xrtSetError("Memory Pool : build bucket plan failed.", FALSE);
 	}
 }
@@ -58648,7 +58917,7 @@ XXAPI void xrtDictDestroy(xdict objHT)
 		xrtFree(objHT);
 	}
 }
-// 初始化哈希表（对自维护结构体指针使用，和 AVLHT32_Create 功能类似）
+// 释放哈希键相关资源
 void AVLHT32_FreeProc(xdict objTree, Dict_Key* pNode)
 {
 	if ( objTree->MP ) {

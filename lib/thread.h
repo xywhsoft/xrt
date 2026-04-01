@@ -389,7 +389,23 @@ XXAPI xmutex xrtMutexCreate()
 XXAPI void xrtMutexDestroy(xmutex pMutex)
 {
 	if ( pMutex ) {
-		xrtMutexUnit(pMutex);
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( pMutex->iOwnerThreadId != 0 ) {
+				xrtSetError("mutex is still locked.", FALSE);
+				return;
+			}
+			xrtMutexUnit(pMutex);
+		#else
+			if ( pthread_mutex_trylock(&pMutex->objLock) != 0 ) {
+				xrtSetError("mutex is still locked.", FALSE);
+				return;
+			}
+			pthread_mutex_unlock(&pMutex->objLock);
+			if ( pthread_mutex_destroy(&pMutex->objLock) != 0 ) {
+				xrtSetError("mutex destroy failed.", FALSE);
+				return;
+			}
+		#endif
 		__xrtThreadObjFree(pMutex);
 	}
 }
@@ -421,10 +437,22 @@ XXAPI void xrtMutexUnit(xmutex pMutex)
 	if ( !pMutex ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		if ( pMutex->iOwnerThreadId != 0 ) {
+			xrtSetError("mutex is still locked.", FALSE);
+			return;
+		}
 		// SRWLOCK 不需要显式销毁
 		pMutex->iOwnerThreadId = 0;
 	#else
-		pthread_mutex_destroy(&pMutex->objLock);
+		int iRet = pthread_mutex_trylock(&pMutex->objLock);
+		if ( iRet != 0 ) {
+			xrtSetError("mutex is still locked.", FALSE);
+			return;
+		}
+		pthread_mutex_unlock(&pMutex->objLock);
+		if ( pthread_mutex_destroy(&pMutex->objLock) != 0 ) {
+			xrtSetError("mutex destroy failed.", FALSE);
+		}
 	#endif
 }
 
@@ -819,6 +847,71 @@ XXAPI void xrtCondBroadcast(xcond pCond)
 
 /* ================================ 读写锁实现 ================================ */
 
+// 内部函数：__xrtRWLockStateLock
+static inline void __xrtRWLockStateLock(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		EnterCriticalSection(&pRWLock->objStateLock);
+	#else
+		pthread_mutex_lock(&pRWLock->objStateLock);
+	#endif
+}
+
+
+// 内部函数：__xrtRWLockStateUnlock
+static inline void __xrtRWLockStateUnlock(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		LeaveCriticalSection(&pRWLock->objStateLock);
+	#else
+		pthread_mutex_unlock(&pRWLock->objStateLock);
+	#endif
+}
+
+
+// 内部函数：__xrtRWLockWaitReader
+static inline void __xrtRWLockWaitReader(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		SleepConditionVariableCS(&pRWLock->objReadCond, &pRWLock->objStateLock, INFINITE);
+	#else
+		pthread_cond_wait(&pRWLock->objReadCond, &pRWLock->objStateLock);
+	#endif
+}
+
+
+// 内部函数：__xrtRWLockWaitWriter
+static inline void __xrtRWLockWaitWriter(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		SleepConditionVariableCS(&pRWLock->objWriteCond, &pRWLock->objStateLock, INFINITE);
+	#else
+		pthread_cond_wait(&pRWLock->objWriteCond, &pRWLock->objStateLock);
+	#endif
+}
+
+
+// 内部函数：__xrtRWLockSignalWriter
+static inline void __xrtRWLockSignalWriter(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		WakeConditionVariable(&pRWLock->objWriteCond);
+	#else
+		pthread_cond_signal(&pRWLock->objWriteCond);
+	#endif
+}
+
+
+// 内部函数：__xrtRWLockBroadcastReaders
+static inline void __xrtRWLockBroadcastReaders(xrwlock pRWLock)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		WakeAllConditionVariable(&pRWLock->objReadCond);
+	#else
+		pthread_cond_broadcast(&pRWLock->objReadCond);
+	#endif
+}
+
 // 创建读写锁
 XXAPI xrwlock xrtRWLockCreate()
 {
@@ -844,16 +937,16 @@ XXAPI void xrtRWLockInit(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
+	memset(pRWLock, 0, sizeof(*pRWLock));
+	
 	#if defined(_WIN32) || defined(_WIN64)
-		InitializeSRWLock(&pRWLock->objLock);
+		InitializeCriticalSection(&pRWLock->objStateLock);
+		InitializeConditionVariable(&pRWLock->objReadCond);
+		InitializeConditionVariable(&pRWLock->objWriteCond);
 	#else
-		pthread_rwlockattr_t attr;
-		pthread_rwlockattr_init(&attr);
-		#if defined(__GLIBC__) && defined(PTHREAD_RWLOCK_PREFER_WRITER_NP)
-			pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP);
-		#endif
-		pthread_rwlock_init(&pRWLock->objLock, &attr);
-		pthread_rwlockattr_destroy(&attr);
+		pthread_mutex_init(&pRWLock->objStateLock, NULL);
+		pthread_cond_init(&pRWLock->objReadCond, NULL);
+		pthread_cond_init(&pRWLock->objWriteCond, NULL);
 	#endif
 }
 
@@ -864,9 +957,13 @@ XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 	if ( !pRWLock ) return;
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		DeleteCriticalSection(&pRWLock->objStateLock);
+		memset(pRWLock, 0, sizeof(*pRWLock));
 	#else
-		pthread_rwlock_destroy(&pRWLock->objLock);
-		memset(&pRWLock->objLock, 0, sizeof(pRWLock->objLock));
+		pthread_cond_destroy(&pRWLock->objWriteCond);
+		pthread_cond_destroy(&pRWLock->objReadCond);
+		pthread_mutex_destroy(&pRWLock->objStateLock);
+		memset(pRWLock, 0, sizeof(*pRWLock));
 	#endif
 }
 
@@ -876,11 +973,14 @@ XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		AcquireSRWLockShared(&pRWLock->objLock);
-	#else
-		pthread_rwlock_rdlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	pRWLock->iWaitingReaderCount++;
+	while ( pRWLock->bWriterLocked || (pRWLock->iWaitingWriterCount > 0) ) {
+		__xrtRWLockWaitReader(pRWLock);
+	}
+	pRWLock->iWaitingReaderCount--;
+	pRWLock->iReaderCount++;
+	__xrtRWLockStateUnlock(pRWLock);
 }
 
 
@@ -890,11 +990,12 @@ XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 	if ( !pRWLock ) return FALSE;
 	
 	bool bResult;
-	#if defined(_WIN32) || defined(_WIN64)
-		bResult = TryAcquireSRWLockShared(&pRWLock->objLock);
-	#else
-		bResult = pthread_rwlock_tryrdlock(&pRWLock->objLock) == 0;
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	bResult = !pRWLock->bWriterLocked && (pRWLock->iWaitingWriterCount == 0);
+	if ( bResult ) {
+		pRWLock->iReaderCount++;
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 	
 	return bResult != FALSE;
 }
@@ -905,11 +1006,18 @@ XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockShared(&pRWLock->objLock);
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->iReaderCount > 0 ) {
+		pRWLock->iReaderCount--;
+		if ( pRWLock->iReaderCount == 0 ) {
+			if ( pRWLock->iWaitingWriterCount > 0 ) {
+				__xrtRWLockSignalWriter(pRWLock);
+			} else if ( pRWLock->iWaitingReaderCount > 0 ) {
+				__xrtRWLockBroadcastReaders(pRWLock);
+			}
+		}
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 }
 
 
@@ -918,11 +1026,14 @@ XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		AcquireSRWLockExclusive(&pRWLock->objLock);
-	#else
-		pthread_rwlock_wrlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	pRWLock->iWaitingWriterCount++;
+	while ( pRWLock->bWriterLocked || (pRWLock->iReaderCount > 0) ) {
+		__xrtRWLockWaitWriter(pRWLock);
+	}
+	pRWLock->iWaitingWriterCount--;
+	pRWLock->bWriterLocked = TRUE;
+	__xrtRWLockStateUnlock(pRWLock);
 }
 
 
@@ -932,11 +1043,12 @@ XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 	if ( !pRWLock ) return FALSE;
 	
 	bool bResult;
-	#if defined(_WIN32) || defined(_WIN64)
-		bResult = TryAcquireSRWLockExclusive(&pRWLock->objLock);
-	#else
-		bResult = pthread_rwlock_trywrlock(&pRWLock->objLock) == 0;
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	bResult = !pRWLock->bWriterLocked && (pRWLock->iReaderCount == 0);
+	if ( bResult ) {
+		pRWLock->bWriterLocked = TRUE;
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 	
 	return bResult != FALSE;
 }
@@ -947,53 +1059,55 @@ XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockExclusive(&pRWLock->objLock);
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->bWriterLocked ) {
+		pRWLock->bWriterLocked = FALSE;
+		if ( pRWLock->iWaitingWriterCount > 0 ) {
+			__xrtRWLockSignalWriter(pRWLock);
+		} else if ( pRWLock->iWaitingReaderCount > 0 ) {
+			__xrtRWLockBroadcastReaders(pRWLock);
+		}
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 }
 
 
-// 写锁降级为读锁（保持锁状态）
+// 写锁降级为读锁（原子保留锁状态）
 XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockExclusive(&pRWLock->objLock);
-		AcquireSRWLockShared(&pRWLock->objLock);
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-		pthread_rwlock_rdlock(&pRWLock->objLock);
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->bWriterLocked ) {
+		pRWLock->bWriterLocked = FALSE;
+		pRWLock->iReaderCount++;
+		if ( (pRWLock->iWaitingWriterCount == 0) && (pRWLock->iWaitingReaderCount > 0) ) {
+			__xrtRWLockBroadcastReaders(pRWLock);
+		}
+	}
+	__xrtRWLockStateUnlock(pRWLock);
 }
 
 
-// 读锁升级为写锁（可能失败，需要释放后重新获取）
+// 读锁升级为写锁（原子转换，返回 FALSE 表示锁状态无效）
 XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 {
 	if ( !pRWLock ) return FALSE;
 	
-	#if defined(_WIN32) || defined(_WIN64)
-		ReleaseSRWLockShared(&pRWLock->objLock);
-		
-		if ( TryAcquireSRWLockExclusive(&pRWLock->objLock) ) {
-			return TRUE;
-		} else {
-			AcquireSRWLockShared(&pRWLock->objLock);
-			return FALSE;
-		}
-	#else
-		pthread_rwlock_unlock(&pRWLock->objLock);
-		
-		if ( pthread_rwlock_trywrlock(&pRWLock->objLock) == 0 ) {
-			return TRUE;
-		} else {
-			pthread_rwlock_rdlock(&pRWLock->objLock);
-			return FALSE;
-		}
-	#endif
+	__xrtRWLockStateLock(pRWLock);
+	if ( pRWLock->iReaderCount == 0 ) {
+		__xrtRWLockStateUnlock(pRWLock);
+		return FALSE;
+	}
+	pRWLock->iWaitingWriterCount++;
+	pRWLock->iReaderCount--;
+	while ( pRWLock->bWriterLocked || (pRWLock->iReaderCount > 0) ) {
+		__xrtRWLockWaitWriter(pRWLock);
+	}
+	pRWLock->iWaitingWriterCount--;
+	pRWLock->bWriterLocked = TRUE;
+	__xrtRWLockStateUnlock(pRWLock);
+	return TRUE;
 }
 
 
