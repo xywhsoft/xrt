@@ -69,7 +69,9 @@ XXAPI void xrtListUnit(xlist objList)
 // 创建列表调试
 XXAPI xlist xrtListCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	xlist objList = xrtListCreate(iItemLength, iMode);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objList;
 }
@@ -78,7 +80,9 @@ XXAPI xlist xrtListCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile
 // 初始化列表调试
 XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	xrtListInit(objList, iItemLength, iMode);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugRegisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 
@@ -87,13 +91,16 @@ XXAPI void xrtListInitDbg(xlist objList, uint32 iItemLength, uint32 iMode, const
 XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
 {
 	if ( objList ) {
+		xrtMemDebugSiteScope tScope;
 		if ( !__xrtMemDebugObjectGuardDestroy(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine) ) {
 			return;
 		}
 		if ( !xrtOwnerCheckMutable(&objList->Owner, "list belongs to another thread.") ) {
 			return;
 		}
+		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 		xrtListUnit(objList);
+		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
 		xrtFreeDbg(objList, sFile, iLine);
 	}
@@ -103,6 +110,7 @@ XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
 // 释放列表调试
 XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope;
 	if ( objList == NULL ) {
 		return;
 	}
@@ -112,9 +120,51 @@ XXAPI void xrtListUnitDbg(xlist objList, const char* sFile, uint32 iLine)
 	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
 		return;
 	}
+	tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	__xrtListUnit_NoLock(objList);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	xrtOwnerEndMutable(&objList->Owner);
 	__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
+}
+
+
+// 璁剧疆鍊艰皟璇?
+XXAPI ptr xrtListSetDbg(xlist objList, int64 iKey, bool* bNewRet, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	ptr pRet = xrtListSet(objList, iKey, bNewRet);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return pRet;
+}
+
+
+// 璁剧疆鎸囬拡鍊艰皟璇?
+XXAPI bool xrtListSetPtrDbg(xlist objList, int64 iKey, ptr pVal, ptr* ppOldVal, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	bool bRet = xrtListSetPtr(objList, iKey, pVal, ppOldVal);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return bRet;
+}
+
+
+// 鍒犻櫎鍊艰皟璇?
+XXAPI bool xrtListRemoveDbg(xlist objList, int64 iKey, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	bool bRet = xrtListRemove(objList, iKey);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return bRet;
+}
+
+
+// 鍒犻櫎鎸囬拡鍊艰皟璇?
+XXAPI ptr xrtListRemovePtrDbg(xlist objList, int64 iKey, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	ptr pRet = xrtListRemovePtr(objList, iKey);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return pRet;
 }
 #endif
 

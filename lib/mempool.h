@@ -235,7 +235,9 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 // 创建内存内存池调试
 XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	xmempool objMP = xrtMemPoolCreate(iCustom, iMode);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objMP;
 }
@@ -244,7 +246,9 @@ XXAPI xmempool xrtMemPoolCreateDbg(int iCustom, uint32 iMode, const char* sFile,
 // 初始化内存内存池调试
 XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, uint32 iMode, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	xrtMemPoolInit(objMP, iCustom, iMode);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugRegisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 
@@ -253,13 +257,16 @@ XXAPI void xrtMemPoolInitDbg(xmempool objMP, int iCustom, uint32 iMode, const ch
 XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
 {
 	if ( objMP ) {
+		xrtMemDebugSiteScope tScope;
 		if ( !__xrtMemDebugObjectGuardDestroy(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine) ) {
 			return;
 		}
 		if ( !xrtOwnerCheckMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 			return;
 		}
+		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 		xrtMemPoolUnit(objMP);
+		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
 		xrtFreeDbg(objMP, sFile, iLine);
 	}
@@ -269,6 +276,7 @@ XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
 // 释放内存内存池调试
 XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope;
 	if ( objMP == NULL ) {
 		return;
 	}
@@ -278,6 +286,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
+	tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
@@ -306,6 +315,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	}
 	xrtBsmmUnit(&objMP->BigMM);
 	objMP->LL_BigFree = NULL;
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	xrtOwnerEndMutable(&objMP->Owner);
 	__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
 }

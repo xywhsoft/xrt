@@ -95,7 +95,9 @@ XXAPI void xrtDictUnit(xdict objHT)
 // 创建字典调试
 XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	xdict objHT = xrtDictCreate(iItemLength, iMode);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_CREATE, sFile, iLine);
 	return objHT;
 }
@@ -104,7 +106,9 @@ XXAPI xdict xrtDictCreateDbg(uint32 iItemLength, uint32 iMode, const char* sFile
 // 初始化字典调试
 XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	xrtDictInit(objHT, iItemLength, iMode);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugRegisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, XRT_MEMDEBUG_OBJECT_ORIGIN_INIT, sFile, iLine);
 }
 
@@ -113,13 +117,16 @@ XXAPI void xrtDictInitDbg(xdict objHT, uint32 iItemLength, uint32 iMode, const c
 XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
 {
 	if ( objHT ) {
+		xrtMemDebugSiteScope tScope;
 		if ( !__xrtMemDebugObjectGuardDestroy(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine) ) {
 			return;
 		}
 		if ( !xrtOwnerCheckMutable(&objHT->Owner, "dict belongs to another thread.") ) {
 			return;
 		}
+		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 		xrtDictUnit(objHT);
+		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
 		xrtFreeDbg(objHT, sFile, iLine);
 	}
@@ -129,6 +136,7 @@ XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
 // 释放字典调试
 XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine)
 {
+	xrtMemDebugSiteScope tScope;
 	if ( objHT == NULL ) {
 		return;
 	}
@@ -138,9 +146,51 @@ XXAPI void xrtDictUnitDbg(xdict objHT, const char* sFile, uint32 iLine)
 	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
 		return;
 	}
+	tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	__xrtDictUnit_NoLock(objHT);
+	__xrtMemDebugLeaveSiteScope(&tScope);
 	xrtOwnerEndMutable(&objHT->Owner);
 	__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
+}
+
+
+// 璁剧疆鍊艰皟璇?
+XXAPI ptr xrtDictSetDbg(xdict objHT, ptr sKey, uint32 iKeyLen, bool* bNewRet, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	ptr pRet = xrtDictSet(objHT, sKey, iKeyLen, bNewRet);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return pRet;
+}
+
+
+// 璁剧疆鎸囬拡鍊艰皟璇?
+XXAPI bool xrtDictSetPtrDbg(xdict objHT, ptr sKey, uint32 iKeyLen, ptr pVal, ptr* ppOldVal, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	bool bRet = xrtDictSetPtr(objHT, sKey, iKeyLen, pVal, ppOldVal);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return bRet;
+}
+
+
+// 鍒犻櫎鍊艰皟璇?
+XXAPI bool xrtDictRemoveDbg(xdict objHT, ptr sKey, uint32 iKeyLen, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	bool bRet = xrtDictRemove(objHT, sKey, iKeyLen);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return bRet;
+}
+
+
+// 鍒犻櫎鎸囬拡鍊艰皟璇?
+XXAPI ptr xrtDictRemovePtrDbg(xdict objHT, ptr sKey, uint32 iKeyLen, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	ptr pRet = xrtDictRemovePtr(objHT, sKey, iKeyLen);
+	__xrtMemDebugLeaveSiteScope(&tScope);
+	return pRet;
 }
 #endif
 

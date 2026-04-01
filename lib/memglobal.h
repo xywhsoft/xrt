@@ -426,12 +426,128 @@ static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind)
 }
 
 
+// 鍐呴儴鍑芥暟锛氬垽鏂枃浠跺悕鏄惁鐩哥瓑
+static inline bool __xrtMemDebugFileEquals(const char* sLeft, const char* sRight)
+{
+	if ( sLeft == sRight ) {
+		return TRUE;
+	}
+	if ( sLeft == NULL || sRight == NULL ) {
+		return FALSE;
+	}
+	return strcmp(sLeft, sRight) == 0;
+}
+
+
+// 鍐呴儴鍑芥暟锛氬鍒舵枃浠跺悕
+static inline const char* __xrtMemDebugDupFile(const char* sFile)
+{
+	size_t iLen;
+	char* sCopy;
+
+	if ( sFile == NULL ) {
+		return NULL;
+	}
+
+	iLen = strlen(sFile);
+	sCopy = __xrtMemGlobalProcMalloc()(iLen + 1);
+	if ( sCopy == NULL ) {
+		return NULL;
+	}
+
+	memcpy(sCopy, sFile, iLen + 1);
+	return sCopy;
+}
+
+
+// 鍐呴儴鍑芥暟锛氭竻鐞嗘枃浠跺悕鎸囬拡
+static inline void __xrtMemDebugClearFile(const char** psSlot)
+{
+	if ( psSlot == NULL || *psSlot == NULL ) {
+		return;
+	}
+
+	__xrtMemGlobalProcFree()((ptr)*psSlot);
+	*psSlot = NULL;
+}
+
+
+// 鍐呴儴鍑芥暟锛氭浛鎹㈡枃浠跺悕鎸囬拡
+static inline void __xrtMemDebugReplaceFile(const char** psSlot, const char* sFile)
+{
+	if ( psSlot == NULL ) {
+		return;
+	}
+
+	__xrtMemDebugClearFile(psSlot);
+	if ( sFile != NULL ) {
+		*psSlot = __xrtMemDebugDupFile(sFile);
+	}
+}
+
+
+// 鍐呴儴鍑芥暟锛氳В鏋愬唴瀛樿皟璇曡皟鐢ㄤ綅缃?
+static inline void __xrtMemDebugResolveSite(const char** psFile, uint32* piLine)
+{
+	xrtThreadData* pThreadData;
+
+	if ( psFile == NULL || piLine == NULL ) {
+		return;
+	}
+	if ( *psFile != NULL || *piLine != 0 ) {
+		return;
+	}
+
+	pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL || pThreadData->sMemDebugFile == NULL || pThreadData->iMemDebugLine == 0 ) {
+		return;
+	}
+
+	*psFile = pThreadData->sMemDebugFile;
+	*piLine = pThreadData->iMemDebugLine;
+}
+
+
+// 鍐呴儴鍑芥暟锛氳繘鍏ヨ皟璇曡皟鐢ㄤ綅缃綔鐢ㄥ煙
+static inline xrtMemDebugSiteScope __xrtMemDebugEnterSiteScope(const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = {0};
+
+	if ( sFile == NULL || iLine == 0 ) {
+		return tScope;
+	}
+
+	tScope.pThreadData = xrtThreadGetCurrent();
+	if ( tScope.pThreadData == NULL ) {
+		return tScope;
+	}
+
+	tScope.sPrevFile = tScope.pThreadData->sMemDebugFile;
+	tScope.iPrevLine = tScope.pThreadData->iMemDebugLine;
+	tScope.pThreadData->sMemDebugFile = sFile;
+	tScope.pThreadData->iMemDebugLine = iLine;
+	return tScope;
+}
+
+
+// 鍐呴儴鍑芥暟锛氱寮€璋冭瘯璋冪敤浣嶇疆浣滅敤鍩?
+static inline void __xrtMemDebugLeaveSiteScope(xrtMemDebugSiteScope* pScope)
+{
+	if ( pScope == NULL || pScope->pThreadData == NULL ) {
+		return;
+	}
+
+	pScope->pThreadData->sMemDebugFile = pScope->sPrevFile;
+	pScope->pThreadData->iMemDebugLine = pScope->iPrevLine;
+}
+
+
 // 内部函数：__xrtMemDebugFindSiteStatNoLock
 static inline xrtMemDebugSiteStat* __xrtMemDebugFindSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
 {
 	xrtMemDebugSiteStat* pNode = xCore.MemDebug.pSiteStats;
 	while ( pNode ) {
-		if ( pNode->sFile == sFile && pNode->iLine == iLine && pNode->iAllocatorKind == iAllocatorKind ) {
+		if ( __xrtMemDebugFileEquals(pNode->sFile, sFile) && pNode->iLine == iLine && pNode->iAllocatorKind == iAllocatorKind ) {
 			return pNode;
 		}
 		pNode = pNode->pNext;
@@ -451,7 +567,7 @@ static inline xrtMemDebugSiteStat* __xrtMemDebugEnsureSiteStatNoLock(const char*
 	if ( pNode == NULL ) {
 		return NULL;
 	}
-	pNode->sFile = sFile;
+	__xrtMemDebugReplaceFile(&pNode->sFile, sFile);
 	pNode->iLine = iLine;
 	pNode->iAllocatorKind = iAllocatorKind;
 	pNode->pNext = xCore.MemDebug.pSiteStats;
@@ -504,6 +620,8 @@ static inline void __xrtMemDebugSiteOnFreeNoLock(const char* sFile, uint32 iLine
 static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[xCore.MemDebug.iEventCursor];
+	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugClearFile(&pEvent->sFile);
 	memset(pEvent, 0, sizeof(xrtMemDebugEvent));
 	pEvent->iType = iType;
 	pEvent->iLine = iLine;
@@ -512,7 +630,7 @@ static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, si
 	pEvent->iTimeMs = __xrtMemDebugNowMs();
 	pEvent->iSize = (uint64)iSize;
 	pEvent->pAddress = pAddress;
-	pEvent->sFile = sFile;
+	__xrtMemDebugReplaceFile(&pEvent->sFile, sFile);
 	xCore.MemDebug.iEventCursor = (xCore.MemDebug.iEventCursor + 1) % XRT_MEMDEBUG_EVENT_CAPACITY;
 	if ( xCore.MemDebug.iEventCount < XRT_MEMDEBUG_EVENT_CAPACITY ) {
 		xCore.MemDebug.iEventCount++;
@@ -597,6 +715,7 @@ static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize,
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	if ( __xrtMemDebugFindForeignNoLock(pAddress, NULL) != NULL ) {
 		__xrtMemDebugUnlock();
@@ -610,7 +729,7 @@ static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize,
 	pNode->pAddress = pAddress;
 	pNode->iSize = (uint32)iSize;
 	pNode->iAllocatorKind = iAllocatorKind;
-	pNode->sAllocFile = sFile;
+	__xrtMemDebugReplaceFile(&pNode->sAllocFile, sFile);
 	pNode->iAllocLine = iLine;
 	pNode->iAllocThreadId = xrtThreadGetCurrentId();
 	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
@@ -638,6 +757,7 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return FALSE;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
 	if ( pNode == NULL ) {
@@ -662,6 +782,7 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	}
 	__xrtMemDebugSiteOnFreeNoLock(pNode->sAllocFile, pNode->iAllocLine, pNode->iAllocatorKind, pNode->iSize);
 	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, pAddress, pNode->iSize, pNode->iAllocatorKind, sFile, iLine);
+	__xrtMemDebugClearFile(&pNode->sAllocFile);
 	__xrtMemGlobalProcFree()(pNode);
 	__xrtMemDebugUnlock();
 	return TRUE;
@@ -719,6 +840,7 @@ static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType,
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
 	if ( pNode == NULL ) {
@@ -740,11 +862,11 @@ static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType,
 	pNode->iObjectType = iObjectType;
 	pNode->iOrigin = iOrigin;
 	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_LIVE;
-	pNode->sAllocFile = sFile;
+	__xrtMemDebugReplaceFile(&pNode->sAllocFile, sFile);
 	pNode->iAllocLine = iLine;
 	pNode->iAllocThreadId = xrtThreadGetCurrentId();
 	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
-	pNode->sFreeFile = NULL;
+	__xrtMemDebugClearFile(&pNode->sFreeFile);
 	pNode->iFreeLine = 0;
 	pNode->iFreeThreadId = 0;
 	pNode->iFreeTimeMs = 0;
@@ -760,6 +882,7 @@ static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectT
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return TRUE;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
 	if ( pNode && pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
@@ -781,6 +904,7 @@ static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectTyp
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return TRUE;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
 	if ( pNode == NULL || pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
@@ -791,7 +915,7 @@ static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectTyp
 		return FALSE;
 	}
 	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_DESTROYED;
-	pNode->sFreeFile = sFile;
+	__xrtMemDebugReplaceFile(&pNode->sFreeFile, sFile);
 	pNode->iFreeLine = iLine;
 	pNode->iFreeThreadId = xrtThreadGetCurrentId();
 	pNode->iFreeTimeMs = __xrtMemDebugNowMs();
@@ -810,10 +934,11 @@ static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const cha
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
-	pHeader->sAllocFile = sFile;
+	__xrtMemDebugReplaceFile(&pHeader->sAllocFile, sFile);
 	pHeader->iAllocLine = iLine;
-	pHeader->sFreeFile = NULL;
+	__xrtMemDebugClearFile(&pHeader->sFreeFile);
 	pHeader->iFreeLine = 0;
 	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
 	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
@@ -833,12 +958,13 @@ static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	if ( pHeader->iDebugState == XRT_MEMDEBUG_STATE_LIVE ) {
 		__xrtMemDebugDetachLiveNoLock(pHeader);
 		__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
 	}
-	pHeader->sFreeFile = sFile;
+	__xrtMemDebugReplaceFile(&pHeader->sFreeFile, sFile);
 	pHeader->iFreeLine = iLine;
 	pHeader->iFreeTimeMs = __xrtMemDebugNowMs();
 	pHeader->iDebugState = XRT_MEMDEBUG_STATE_FREED;
@@ -853,12 +979,16 @@ static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, 
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, iOldSize);
-	pHeader->sAllocFile = sFile;
+	__xrtMemDebugReplaceFile(&pHeader->sAllocFile, sFile);
 	pHeader->iAllocLine = iLine;
 	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
 	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
+	__xrtMemDebugClearFile(&pHeader->sFreeFile);
+	pHeader->iFreeLine = 0;
+	pHeader->iFreeTimeMs = 0;
 	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
 	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_REALLOC, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
 	__xrtMemDebugUnlock();
@@ -871,6 +1001,7 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 	if ( !__xrtMemDebugEnabled() ) {
 		return;
 	}
+	__xrtMemDebugResolveSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	__xrtMemDebugRecordEventNoLock(iType, pAddress, iSize, iAllocatorKind, sFile, iLine);
 	if ( iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE ) {
@@ -892,49 +1023,69 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 // 内部函数：重置内存调试状态
 static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 {
+	xrtMemBlockHeader* pLiveHead;
 	xrtMemBlockHeader* pQuarantineHead;
 	xrtMemDebugSiteStat* pSiteHead;
 	xrtMemDebugForeignAlloc* pForeignHead;
 	xrtMemDebugObject* pObjectHead;
+	xrtMemBlockHeader* pLive;
 	xrtMemDebugSiteStat* pSite;
 	xrtMemDebugForeignAlloc* pForeign;
 	xrtMemDebugObject* pObject;
 	xrtMemBlockHeader* pQuarantine;
+	uint32 i;
 	if ( pState == NULL ) {
 		return;
 	}
 
 	__xrtMemGlobalLock(&pState->iLock);
+	pLiveHead = pState->pLiveHead;
 	pQuarantineHead = pState->pQuarantineHead;
 	pSiteHead = pState->pSiteStats;
 	pForeignHead = pState->pForeignAllocs;
 	pObjectHead = pState->pObjects;
+	for ( i = 0; i < XRT_MEMDEBUG_EVENT_CAPACITY; i++ ) {
+		__xrtMemDebugClearFile(&pState->arrEvents[i].sFile);
+	}
 	memset(pState, 0, sizeof(xrtMemDebugState));
 	pState->iLock = 1;
 	pState->bEnabled = 1;
 	__xrtMemGlobalUnlock(&pState->iLock);
 
+	pLive = pLiveHead;
+	while ( pLive ) {
+		xrtMemBlockHeader* pNext = pLive->pDebugNext;
+		__xrtMemDebugClearFile(&pLive->sAllocFile);
+		__xrtMemDebugClearFile(&pLive->sFreeFile);
+		pLive = pNext;
+	}
 	pQuarantine = pQuarantineHead;
 	while ( pQuarantine ) {
 		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
+		__xrtMemDebugClearFile(&pQuarantine->sAllocFile);
+		__xrtMemDebugClearFile(&pQuarantine->sFreeFile);
 		__xrtMemGlobalProcFree()(pQuarantine);
 		pQuarantine = pNext;
 	}
 	pSite = pSiteHead;
 	while ( pSite ) {
 		xrtMemDebugSiteStat* pNext = pSite->pNext;
+		__xrtMemDebugClearFile(&pSite->sFile);
 		__xrtMemGlobalProcFree()(pSite);
 		pSite = pNext;
 	}
 	pForeign = pForeignHead;
 	while ( pForeign ) {
 		xrtMemDebugForeignAlloc* pNext = pForeign->pNext;
+		__xrtMemDebugClearFile(&pForeign->sAllocFile);
 		__xrtMemGlobalProcFree()(pForeign);
 		pForeign = pNext;
 	}
 	pObject = pObjectHead;
 	while ( pObject ) {
 		xrtMemDebugObject* pNext = pObject->pNext;
+		__xrtMemDebugClearFile(&pObject->sAllocFile);
+		__xrtMemDebugClearFile(&pObject->sFreeFile);
 		__xrtMemGlobalProcFree()(pObject);
 		pObject = pNext;
 	}
@@ -1583,6 +1734,10 @@ static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 		uint32 iClass = pHeader->iClassIndex;
 		xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
 		xrtMemFreeNode* pNode = (xrtMemFreeNode*)pMem;
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugClearFile(&pHeader->sAllocFile);
+			__xrtMemDebugClearFile(&pHeader->sFreeFile);
+		#endif
 
 		if ( pCache && iClass < pCache->iClassCount ) {
 			if ( pCache->arrFreeCount[iClass] >= pCache->iCacheLimit ) {
@@ -1599,10 +1754,18 @@ static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 	}
 
 	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugClearFile(&pHeader->sAllocFile);
+			__xrtMemDebugClearFile(&pHeader->sFreeFile);
+		#endif
 		__xrtMemGlobalProcFree()(pHeader);
 		return;
 	}
 
+	#ifdef XRT_MEM_DEBUG
+		__xrtMemDebugClearFile(&pHeader->sAllocFile);
+		__xrtMemDebugClearFile(&pHeader->sFreeFile);
+	#endif
 	__xrtMemGlobalProcFree()(pHeader);
 }
 
@@ -1615,6 +1778,9 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 	if ( pMem == NULL ) {
 		return;
 	}
+	#ifdef XRT_MEM_DEBUG
+		__xrtMemDebugResolveSite(&sFile, &iLine);
+	#endif
 
 	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
 	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
@@ -1682,6 +1848,8 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 				} else {
 					xCore.MemDebug.iQuarantineBytes = 0;
 				}
+				__xrtMemDebugClearFile(&pOld->sAllocFile);
+				__xrtMemDebugClearFile(&pOld->sFreeFile);
 				__xrtMemGlobalProcFree()(pOld);
 			}
 			__xrtMemDebugUnlock();

@@ -16,6 +16,9 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 // 内部函数：分配位置
 static inline ptr __xrtMallocSite(size_t iSize, const char* sFile, uint32 iLine)
 {
+	#ifdef XRT_MEM_DEBUG
+		__xrtMemDebugResolveSite(&sFile, &iLine);
+	#endif
 	ptr mem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
@@ -30,6 +33,9 @@ static inline ptr __xrtMallocSite(size_t iSize, const char* sFile, uint32 iLine)
 static inline ptr __xrtCallocSite(size_t iNum, size_t iSize, const char* sFile, uint32 iLine)
 {
 	size_t iTotal = __xrtMemTelemetryMulClamp(iNum, iSize);
+	#ifdef XRT_MEM_DEBUG
+		__xrtMemDebugResolveSite(&sFile, &iLine);
+	#endif
 	ptr mem = __xrtMemGlobalAllocSite(iTotal, TRUE, sFile, iLine);
 	if ( mem == NULL ) {
 		xrtSetError("class memory allocate failed.", FALSE);
@@ -47,6 +53,9 @@ static inline ptr __xrtReallocSite(ptr pMem, size_t iSize, const char* sFile, ui
 	if ( pMem == xCore.sNull ) {
 		pMem = NULL;
 	}
+	#ifdef XRT_MEM_DEBUG
+		__xrtMemDebugResolveSite(&sFile, &iLine);
+	#endif
 	mem = __xrtMemGlobalReallocSite(pMem, iSize, sFile, iLine);
 	if ( mem == NULL ) {
 		str sError = xrtGetError();
@@ -64,6 +73,9 @@ static inline ptr __xrtReallocSite(ptr pMem, size_t iSize, const char* sFile, ui
 static inline void __xrtFreeSite(ptr pmem, const char* sFile, uint32 iLine)
 {
 	if ( pmem && (pmem != xCore.sNull) ) {
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugResolveSite(&sFile, &iLine);
+		#endif
 		__xrtMemTelemetryRecordFree();
 		__xrtMemGlobalFreeSite(pmem, sFile, iLine);
 	}
