@@ -205,7 +205,8 @@ XXAPI xvalue xrtParseXSONEx(str sText, size_t iSize, uint32 iFlags);
 - `xrtParseXSON()` 等价于 `xrtParseXSONEx(..., 0)`
 - 纯 `JSON` 文本可以直接传给 `xrtParseXSON()`
 - 解析失败时返回 `xvalue null`，而不是 C `NULL`
-- 判断失败应结合 `xvoIsNull()` 使用
+- 根值如果本来就是文本字面量 `null`，当前公开解析 API 也同样返回 `xvalue null`
+- 因此：对象 / 数组 / `list` / `set` 这类根值场景，可直接结合 `xvoIsNull()` 判断；如果你必须区分“解析失败”和“根值就是 `null`”，当前公开 API 没有单独错误对象
 
 ### 从文件解析
 
@@ -328,14 +329,20 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 str sText = "{\"name\":\"Alice\",\"scores\":list[1:95,3:88],\"tags\":set{\"admin\",\"dev\"},\"created\":time(2000-01-02 12:00:00),\"blob\":class(AQIDBA==)}";
 xvalue pRoot = xrtParseXSON(sText, 0);
 
-if ( pRoot && (xvoIsNull(pRoot) == FALSE) ) {
+if ( xvoIsNull(pRoot) == FALSE ) {
 	xvalue pScores = xvoTableGetValue(pRoot, "scores", 0);
 	xvalue pTags = xvoTableGetValue(pRoot, "tags", 0);
 	xvalue pCreated = xvoTableGetValue(pRoot, "created", 0);
 
-	printf("scores[1]=%lld\n", xvoListGetInt(pScores, 1));
-	printf("tags type=%d\n", xvoType(pTags));
-	printf("created=%s\n", xvoGetText(pCreated));
+	if ( xvoIsNull(pScores) == FALSE ) {
+		printf("scores[1]=%lld\n", xvoListGetInt(pScores, 1));
+	}
+	if ( xvoIsNull(pTags) == FALSE ) {
+		printf("tags type=%d\n", xvoType(pTags));
+	}
+	if ( xvoIsNull(pCreated) == FALSE ) {
+		printf("created=%s\n", xvoGetText(pCreated));
+	}
 
 	xvoUnref(pRoot);
 }

@@ -519,6 +519,8 @@ cleanup:
 ## 9. 建议继续阅读
 
 - [BSMM API](../api/api-bsmm.md)
+- [MemUnit 入门：什么时候该直接控制单个 256 槽内存单元，而不是上 `bsmm`、`fsmempool` 或 `mempool`](memunit-intro.md)
+- [FSMemPool 入门：什么时候该用正式固定大小对象池，而不是 `bsmm`、`memunit` 或通用 `mempool`](mempool-fs-intro.md)
 - [FSMemPool API](../api/api-mempool-fs.md)
 - [MemUnit API](../api/api-memunit.md)
 - [MemPool API](../api/api-mempool.md)

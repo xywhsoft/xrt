@@ -94,9 +94,10 @@ static void test_file_operations(void)
 	}
 
 	pRead = xrtParseXSON_File((char*)sFile);
-	if ( pRead == NULL ) {
+	if ( xvoIsNull(pRead) ) {
 		printf("Parse file failed!\n");
 		printf("解析文件失败！\n");
+		xvoUnref(pRead);
 		xrtFileDelete((char*)sFile);
 		xvoUnref(pRoot);
 		return;
@@ -108,16 +109,16 @@ static void test_file_operations(void)
 	pName = xvoTableGetValue(pRead, "name", 4);
 	pQueue = xvoTableGetValue(pRead, "queue", 5);
 
-	if ( pName ) {
+	if ( !xvoIsNull(pName) ) {
 		printf("  name: %s\n", pName->vText);
 	}
 
-	if ( pQueue ) {
+	if ( !xvoIsNull(pQueue) ) {
 		xvalue pItem1 = xvoListGetValue(pQueue, 1);
 		xvalue pItem2 = xvoListGetValue(pQueue, 2);
 
-		printf("  queue[1]: %s\n", pItem1 ? (char*)pItem1->vText : "(null)");
-		printf("  queue[2]: %s\n", pItem2 ? (char*)pItem2->vText : "(null)");
+		printf("  queue[1]: %s\n", !xvoIsNull(pItem1) ? (char*)pItem1->vText : "(null)");
+		printf("  queue[2]: %s\n", !xvoIsNull(pItem2) ? (char*)pItem2->vText : "(null)");
 	}
 
 	sXson = xrtStringifyXSON(pRead, 1, 0, &iSize);

@@ -67,10 +67,11 @@
 - 目标：让读者能把原始字符串升级成“配置、模板、协议、校验、加密”这类真实数据链路
 - 计划文档：
 1. `xvalue` 的类型系统与所有权
-2. `json` 与 `xson`
-3. `template` 的表达式、控制流与组合
-4. `regex` 在验证、提取和路由中的用法
-5. `crypto` 在签名、摘要和编码场景中的边界
+2. `jnum` 与数字文本边界
+3. `json` 与 `xson`
+4. `template` 的表达式、控制流与组合
+5. `regex` 在验证、提取和路由中的用法
+6. `crypto` 在签名、摘要和编码场景中的边界
 
 ### 第 4 阶段：多任务与异步主线
 
@@ -163,14 +164,19 @@
 - [list-intro.md](list-intro.md)：作为第 2 阶段 `list` 正式第一页
 - [avltree-intro.md](avltree-intro.md)：作为第 2 阶段 `avltree` 正式第一页
 - [bsmm-intro.md](bsmm-intro.md)：作为第 2 阶段 `bsmm` 正式第一页
+- [memunit-intro.md](memunit-intro.md)：作为第 2 阶段 `memunit` 正式第一页
+- [mempool-fs-intro.md](mempool-fs-intro.md)：作为第 2 阶段 `mempool_fs` 正式第一页
+- [mempool-intro.md](mempool-intro.md)：作为第 2 阶段 `mempool` 正式第一页
 - `llist`：当前源码树暂无独立 public header，先保留历史 API 页并阻止其误入正式教学主线
+- [xvalue-json-intro.md](xvalue-json-intro.md)：作为第 3 阶段 `value / json` 正式第一页
+- [jnum-intro.md](jnum-intro.md)：作为第 3 阶段 `jnum` 正式第一页
+- [xson-intro.md](xson-intro.md)：作为第 3 阶段 `xson` 正式第一页
 - [multitask-overview.md](multitask-overview.md)：作为第 4 阶段正式前导页
 - [thread-intro.md](thread-intro.md)：作为第 4 阶段线程专题正式第一页
 - [queue-intro.md](queue-intro.md)：作为第 4 阶段队列专题正式第一页
 - [wait-source-intro.md](wait-source-intro.md)：作为第 4 阶段 wait-source 专题正式第一页
 - [task-group-intro.md](task-group-intro.md)：作为第 4 阶段结构化并发与 scope 收口专题正式第一页
 - [runtime-thread-attach.md](runtime-thread-attach.md)：并入第 4 阶段线程专题前导页
-- [xvalue-json-intro.md](xvalue-json-intro.md)：并入第 3 阶段
 - [template-intro.md](template-intro.md)：作为第 3 阶段 `template` 专题正式第一页
 - [coroutine-future-task-intro.md](coroutine-future-task-intro.md)：并入第 4 阶段
 - [subprocess-intro.md](subprocess-intro.md)：并入第 5 阶段

@@ -23,6 +23,17 @@
 
 MemUnit（Memory Unit）是 XRT 库的底层内存管理单元，每个单元管理 **256 个固定大小** 的元素。它是 FSMemPool 和 MemPool 的基础组件。
 
+### 当前主线并发合同
+
+phase-2 之后，`MemUnit` 也已经进入 owner-thread 主线。
+
+当前应按下面规则理解：
+
+- 默认创建出来的是 **owner-thread local** 对象
+- 本线程分配 / 释放 / GC 走快路径
+- 错线程访问会被拒绝并设置当前线程错误
+- 教学主线建议优先从 `XRT_OBJMODE_LOCAL` 起步，再按真实需求决定是否升级到 shared
+
 ### 核心特点
 
 - **固定容量**：每个单元最多存储 256 个元素
@@ -36,7 +47,7 @@ MemUnit（Memory Unit）是 XRT 库的底层内存管理单元，每个单元管
 ```
 MemUnit 结构：
 ┌─────────────────────────────────────────────────────────────┐
-│ FreeList[256] │ ItemLength │ Count │ FreeCount │ FreeOffset │
+│ Owner │ FreeList[256] │ ItemLength │ Count │ FreeCount │ FreeOffset │
 ├─────────────────────────────────────────────────────────────┤
 │                        Memory[]                              │
 │  ┌──────────┬──────────┬──────────┬─────┬──────────┐        │
@@ -105,6 +116,7 @@ typedef struct {
 **定义：**
 ```c
 typedef struct {
+    xrtOwnerInfo Owner;     // 所有权信息
     uint8 FreeList[256];    // 已释放成员索引环形队列
     uint32 ItemLength;      // 成员占用内存长度（含 4 字节头）
     uint16 Count;           // 当前使用的成员数量
@@ -119,6 +131,7 @@ typedef struct {
 
 | 成员 | 说明 |
 |------|------|
+| `Owner` | 当前单元的 owner-thread / shared 模式信息 |
 | `FreeList` | 环形队列，存储已释放元素的索引 |
 | `ItemLength` | 每个元素的总长度（用户请求长度 + 4） |
 | `Count` | 当前已分配且未释放的元素数量 |
@@ -137,11 +150,12 @@ typedef struct {
 
 **函数原型：**
 ```c
-XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength);
+XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
 - `iItemLength` - 每个元素的数据大小（不含头部 4 字节）
+- `iMode` - 当前单元模式；教学主线建议优先使用 `XRT_OBJMODE_LOCAL`
 
 **返回值：**
 - 成功：内存单元指针
@@ -161,7 +175,7 @@ int main() {
     xrtInit();
     
     // 创建可存储 256 个 Record 的内存单元
-    xmemunit unit = xrtMemUnitCreate(sizeof(Record));
+    xmemunit unit = xrtMemUnitCreate(sizeof(Record), XRT_OBJMODE_LOCAL);
     if (unit) {
         printf("内存单元创建成功\n");
         printf("元素长度: %u (含 4 字节头)\n", unit->ItemLength);
@@ -213,7 +227,7 @@ XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit);
 
 **返回值：**
 - 成功：元素指针（跳过头部，直接指向用户数据）
-- 失败：`NULL`（单元为空或已满）
+- 失败：`NULL`（`objUnit == NULL`、错线程或单元已满）
 
 **示例：**
 ```c
@@ -227,7 +241,7 @@ typedef struct {
 int main() {
     xrtInit();
     
-    xmemunit unit = xrtMemUnitCreate(sizeof(Item));
+    xmemunit unit = xrtMemUnitCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
     
     // 分配 5 个元素
     for (int i = 0; i < 5; i++) {
@@ -263,9 +277,9 @@ static inline ptr xrtMemUnitAlloc_Inline(xmemunit objUnit);
 ```
 
 **说明：**
-- 不检查 `objUnit` 是否为 `NULL`
-- 不检查是否超过 256 限制
-- 调用方必须确保条件满足
+- 当前内联实现仍会检查 `objUnit == NULL`
+- 当前内联实现仍会做 owner-thread 校验和容量检查
+- 它的行为语义与 `xrtMemUnitAlloc()` 一致，主要差别是它以内联形式暴露在头文件里
 
 ---
 
@@ -296,7 +310,7 @@ typedef struct { int value; } Item;
 int main() {
     xrtInit();
     
-    xmemunit unit = xrtMemUnitCreate(sizeof(Item));
+    xmemunit unit = xrtMemUnitCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
     
     // 分配
     Item* item1 = (Item*)xrtMemUnitAlloc(unit);
@@ -341,6 +355,7 @@ XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx);
 **说明：**
 - 当已知元素索引时，比 `xrtMemUnitFree` 更快
 - 索引可从 `ItemFlag & 0xFF` 获取
+- 更适合底层池实现代码，而不是一般业务代码
 
 ---
 
@@ -363,7 +378,7 @@ XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx);
 **定义（宏）：**
 ```c
 #define xrtMemUnitGC_Mark(p) \
-    (((MMU_ValuePtr)((void*)p - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
+    (((MMU_ValuePtr)((uint8*)(p) - sizeof(MMU_Value)))->ItemFlag |= MMU_FLAG_GC)
 ```
 
 **参数：**
@@ -403,7 +418,7 @@ typedef struct { int value; } Item;
 int main() {
     xrtInit();
     
-    xmemunit unit = xrtMemUnitCreate(sizeof(Item));
+    xmemunit unit = xrtMemUnitCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
     
     // 分配 5 个元素
     Item* items[5];
@@ -464,7 +479,7 @@ ptr SimplePoolAlloc(SimplePool* pool, size_t itemSize) {
     }
     // 需要新页
     if (pool->pageCount < 4) {
-        pool->pages[pool->pageCount] = xrtMemUnitCreate(itemSize);
+        pool->pages[pool->pageCount] = xrtMemUnitCreate(itemSize, XRT_OBJMODE_LOCAL);
         return xrtMemUnitAlloc(pool->pages[pool->pageCount++]);
     }
     return NULL;  // 池已满
@@ -496,7 +511,7 @@ int main() {
     xrtInit();
     
     // 256 个缓存槽
-    xmemunit cache = xrtMemUnitCreate(sizeof(CacheEntry));
+    xmemunit cache = xrtMemUnitCreate(sizeof(CacheEntry), XRT_OBJMODE_LOCAL);
     
     // 模拟缓存操作
     CacheEntry* entries[10];
@@ -534,10 +549,10 @@ int main() {
     xrtInit();
     
     // ❌ 直接使用 MemUnit（除非有特殊需求）
-    // xmemunit unit = xrtMemUnitCreate(sizeof(MyStruct));
+    // xmemunit unit = xrtMemUnitCreate(sizeof(MyStruct), XRT_OBJMODE_LOCAL);
     
     // ✅ 推荐：使用 FSMemPool（无 256 限制）
-    // xfsmempool pool = xrtFSMemPoolCreate(sizeof(MyStruct));
+    // xfsmempool pool = xrtFSMemPoolCreate(sizeof(MyStruct), XRT_OBJMODE_LOCAL);
     
     // ✅ 推荐：使用 MemPool（多尺寸支持）
     // xmempool pool = xrtMemPoolCreate();
@@ -565,7 +580,7 @@ typedef struct { int value; } Item;
 int main() {
     xrtInit();
     
-    xmemunit unit = xrtMemUnitCreate(sizeof(Item));
+    xmemunit unit = xrtMemUnitCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
     
     // 分配前检查容量
     for (int i = 0; i < 300; i++) {
@@ -607,7 +622,7 @@ void MarkReachable(xmemunit unit, Object* roots[], int rootCount) {
 int main() {
     xrtInit();
     
-    xmemunit heap = xrtMemUnitCreate(sizeof(Object));
+    xmemunit heap = xrtMemUnitCreate(sizeof(Object), XRT_OBJMODE_LOCAL);
     
     // 分配对象
     Object* objs[10];

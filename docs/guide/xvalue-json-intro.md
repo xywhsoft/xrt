@@ -3,6 +3,10 @@
 > 目标：先建立正确心智模型，再用当前主线的真实 API 完成第一个 `xvalue / JSON / XSON` 示例。
 >
 > 更正：当前主线应使用 `xvoCreateTable()`、`xvoCreateArray()`、`xrtParseJSON()`、`xrtStringifyJSON()`、`xrtParseXSON()`、`xrtStringifyXSON()`，而不是旧写法 `xvoTable()`、`xvoArray()`、`xjsonParse()`、`xjsonStringify()`。
+>
+> 如果你已经明确想学的是“数字文本怎么安全转成整数、十六进制或浮点，而不是直接丢给 `atoi / strtod`”，请继续看 [JNUM 入门](jnum-intro.md)。
+>
+> 如果你已经明确想学的是“什么时候该从 JSON 升级到无损 `xvalue` 序列化”，请继续看 [XSON 入门](xson-intro.md)。
 
 [返回教学文档](README.md)
 
@@ -190,10 +194,15 @@ static void Demo_JSONRoundTrip(void)
 }
 ```
 
-这里要特别记住两条：
+这里要特别记住三条：
 
-- `xrtParseJSON()` 失败时，应用 `xvoIsNull()` 判断
+- `xrtParseJSON()` 当前失败时返回的是 `xvalue null`，不是 C `NULL`
+- 如果根值本来就是文本字面量 `null`，当前公开解析 API 也同样会得到 `xvalue null`
 - `xrtStringifyJSON()` 返回的是堆字符串，必须用 `xrtFree()` 释放
+
+如果你这时开始关心“JSON 里的数字文本到底是怎么被识别成整数、十六进制或浮点的”，继续看：
+
+- [JNUM 入门](jnum-intro.md)
 
 
 ## 7. 为什么还需要 XSON
@@ -354,6 +363,7 @@ static void Demo_XSONRoundTrip(void)
 - [Value API](../api/api-value.md)
 - [JSON API](../api/api-json.md)
 - [XSON API](../api/api-xson.md)
+- [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
 - [用 xvalue + json 构造配置系统](../case/json-config-system.md)
 
 ---

@@ -60,7 +60,7 @@ phase-2 之后，`FSMemPool` 也已经进入 owner-thread 主线。
 ```
 FSMemPool 结构：
 ┌─────────────────────────────────────────────────────────────────┐
-│ ItemLength │ arrMMU (BSMM) │ LL_Idle │ LL_Full │ LL_Null │ LL_Free │
+│ Owner │ ItemLength │ arrMMU (BSMM) │ LL_Idle │ LL_Full │ LL_Null │ LL_Free │
 └─────────────────────────────────────────────────────────────────┘
                     │
                     ▼
@@ -134,6 +134,7 @@ typedef struct MMU_LLNode {
 **定义：**
 ```c
 typedef struct {
+    xrtOwnerInfo Owner;         // 所有权信息
     uint32 ItemLength;          // 成员占用内存长度
     xbsmm_struct arrMMU;        // MMU_LLNode 数组管理器
     MMU_LLNode* LL_Idle;        // 有空闲槽位的单元链表
@@ -147,6 +148,7 @@ typedef struct {
 
 | 成员 | 说明 |
 |------|------|
+| `Owner` | 当前对象池的 owner-thread / shared 模式信息 |
 | `ItemLength` | 每个元素的数据大小 |
 | `arrMMU` | 使用 BSMM 管理 MMU_LLNode 数组 |
 | `LL_Idle` | 有空闲槽位的 MemUnit 链表头 |
@@ -164,11 +166,12 @@ typedef struct {
 
 **函数原型：**
 ```c
-XXAPI xfsmempool xrtFSMemPoolCreate(uint32 iItemLength);
+XXAPI xfsmempool xrtFSMemPoolCreate(uint32 iItemLength, uint32 iMode);
 ```
 
 **参数：**
 - `iItemLength` - 每个元素的数据大小（不含头部 4 字节）
+- `iMode` - 当前对象池模式；教学主线建议优先使用 `XRT_OBJMODE_LOCAL`
 
 **返回值：**
 - 成功：内存池指针
@@ -188,7 +191,7 @@ int main() {
     xrtInit();
     
     // 创建 User 对象池
-    xfsmempool pool = xrtFSMemPoolCreate(sizeof(User));
+    xfsmempool pool = xrtFSMemPoolCreate(sizeof(User), XRT_OBJMODE_LOCAL);
     if (pool) {
         printf("内存池创建成功\n");
         printf("元素大小: %u 字节\n", pool->ItemLength);
@@ -227,8 +230,13 @@ XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM);
 
 **函数原型：**
 ```c
-XXAPI void xrtFSMemPoolInit(xfsmempool objMM, uint32 iItemLength);
+XXAPI void xrtFSMemPoolInit(xfsmempool objMM, uint32 iItemLength, uint32 iMode);
 ```
+
+**参数：**
+- `objMM` - 已经存在的对象池结构
+- `iItemLength` - 每个元素的数据大小（不含头部 4 字节）
+- `iMode` - 当前对象池模式；教学主线建议优先使用 `XRT_OBJMODE_LOCAL`
 
 **示例：**
 ```c
@@ -247,7 +255,7 @@ int main() {
     
     Manager mgr;
     mgr.config = 100;
-    xrtFSMemPoolInit(&mgr.itemPool, sizeof(Item));
+    xrtFSMemPoolInit(&mgr.itemPool, sizeof(Item), XRT_OBJMODE_LOCAL);
     
     // 使用内嵌的内存池
     Item* item = (Item*)xrtFSMemPoolAlloc(&mgr.itemPool);
@@ -306,7 +314,7 @@ typedef struct {
 int main() {
     xrtInit();
     
-    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Record));
+    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Record), XRT_OBJMODE_LOCAL);
     
     // 分配多个对象（无 256 限制）
     Record* records[1000];
@@ -346,6 +354,10 @@ XXAPI void xrtFSMemPoolFree(xfsmempool objMM, ptr p);
 - `objMM` - 内存池对象
 - `p` - 元素指针
 
+**说明：**
+- `p` 必须来自同一个 `FSMemPool`
+- 释放后对象头里的 `ItemFlag` 会被清空，旧指针应立即失效
+
 **示例：**
 ```c
 #include "xrt.h"
@@ -356,7 +368,7 @@ typedef struct { int value; } Item;
 int main() {
     xrtInit();
     
-    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Item));
+    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
     
     Item* item1 = (Item*)xrtFSMemPoolAlloc(pool);
     Item* item2 = (Item*)xrtFSMemPoolAlloc(pool);
@@ -431,7 +443,7 @@ typedef struct {
 int main() {
     xrtInit();
     
-    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Object));
+    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Object), XRT_OBJMODE_LOCAL);
     
     // 分配 10 个对象
     Object* objs[10];
@@ -500,7 +512,7 @@ void DestroyMessage(Message* msg) {
 int main() {
     xrtInit();
     
-    g_msgPool = xrtFSMemPoolCreate(sizeof(Message));
+    g_msgPool = xrtFSMemPoolCreate(sizeof(Message), XRT_OBJMODE_LOCAL);
     
     // 模拟高频消息处理
     for (int i = 0; i < 10000; i++) {
@@ -533,7 +545,7 @@ typedef struct ListNode {
 int main() {
     xrtInit();
     
-    xfsmempool nodePool = xrtFSMemPoolCreate(sizeof(ListNode));
+    xfsmempool nodePool = xrtFSMemPoolCreate(sizeof(ListNode), XRT_OBJMODE_LOCAL);
     ListNode* head = NULL;
     
     // 构建链表
@@ -607,7 +619,7 @@ void SweepPhase() {
 int main() {
     xrtInit();
     
-    g_heap = xrtFSMemPoolCreate(sizeof(GCObject));
+    g_heap = xrtFSMemPoolCreate(sizeof(GCObject), XRT_OBJMODE_LOCAL);
     
     // 分配对象
     g_roots[g_rootCount++] = AllocObject(1);
@@ -677,8 +689,8 @@ typedef struct { int value; } Item;
 int main() {
     xrtInit();
     
-    xfsmempool pool1 = xrtFSMemPoolCreate(sizeof(Item));
-    xfsmempool pool2 = xrtFSMemPoolCreate(sizeof(Item));
+    xfsmempool pool1 = xrtFSMemPoolCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
+    xfsmempool pool2 = xrtFSMemPoolCreate(sizeof(Item), XRT_OBJMODE_LOCAL);
     
     Item* item1 = (Item*)xrtFSMemPoolAlloc(pool1);
     Item* item2 = (Item*)xrtFSMemPoolAlloc(pool2);
@@ -711,7 +723,7 @@ typedef struct { int data[16]; } Block;
 int main() {
     xrtInit();
     
-    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Block));
+    xfsmempool pool = xrtFSMemPoolCreate(sizeof(Block), XRT_OBJMODE_LOCAL);
     
     // 预分配避免频繁扩展
     Block* blocks[1000];

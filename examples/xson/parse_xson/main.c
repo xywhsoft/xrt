@@ -39,7 +39,7 @@ static void test_parse_mixed_object(void)
 	printf("输入: %s\n", sXson);
 
 	xvalue pRoot = xrtParseXSON((char*)sXson, strlen(sXson));
-	if ( pRoot ) {
+	if ( !xvoIsNull(pRoot) ) {
 		xvalue pName = xvoTableGetValue(pRoot, "name", 4);
 		xvalue pScores = xvoTableGetValue(pRoot, "scores", 6);
 		xvalue pTags = xvoTableGetValue(pRoot, "tags", 4);
@@ -49,19 +49,19 @@ static void test_parse_mixed_object(void)
 		printf("Parsed successfully!\n");
 		printf("解析成功！\n");
 
-		if ( pName ) {
+		if ( !xvoIsNull(pName) ) {
 			printf("  name: %s\n", pName->vText);
 		}
 
-		if ( pScores ) {
+		if ( !xvoIsNull(pScores) ) {
 			xvalue pScore1 = xvoListGetValue(pScores, 1);
 			xvalue pScore3 = xvoListGetValue(pScores, 3);
 
-			printf("  scores[1]: %lld\n", pScore1 ? (long long)pScore1->vInt : -1LL);
-			printf("  scores[3]: %lld\n", pScore3 ? (long long)pScore3->vInt : -1LL);
+			printf("  scores[1]: %lld\n", !xvoIsNull(pScore1) ? (long long)pScore1->vInt : -1LL);
+			printf("  scores[3]: %lld\n", !xvoIsNull(pScore3) ? (long long)pScore3->vInt : -1LL);
 		}
 
-		if ( pTags ) {
+		if ( !xvoIsNull(pTags) ) {
 			size_t iSize = 0;
 			str sTags = xrtStringifyXSON(pTags, 0, 0, &iSize);
 
@@ -72,12 +72,12 @@ static void test_parse_mixed_object(void)
 			}
 		}
 
-		if ( pCreated ) {
+		if ( !xvoIsNull(pCreated) ) {
 			printf("  created: ");
 			print_time_value(pCreated->vTime);
 		}
 
-		if ( pBlob ) {
+		if ( !xvoIsNull(pBlob) ) {
 			uint8* pData = (uint8*)pBlob->vStruct;
 
 			printf("  blob size: %u\n", pBlob->Size);
@@ -109,15 +109,15 @@ static void test_parse_implicit_containers(void)
 	printf("隐式列表输入: %s\n", sListXson);
 
 	xvalue pList = xrtParseXSON((char*)sListXson, strlen(sListXson));
-	if ( pList ) {
+	if ( !xvoIsNull(pList) ) {
 		xvalue pName = xvoListGetValue(pList, 1);
 		xvalue pTime = xvoListGetValue(pList, 5);
 
 		printf("  root type: %s\n", (pList->Type == XVO_DT_LIST) ? "list" : "unexpected");
-		if ( pName ) {
+		if ( !xvoIsNull(pName) ) {
 			printf("  list[1]: %s\n", pName->vText);
 		}
-		if ( pTime ) {
+		if ( !xvoIsNull(pTime) ) {
 			printf("  list[5]: ");
 			print_time_value(pTime->vTime);
 		}
@@ -129,7 +129,7 @@ static void test_parse_implicit_containers(void)
 	printf("隐式集合输入: %s\n", sSetXson);
 
 	xvalue pSet = xrtParseXSON((char*)sSetXson, strlen(sSetXson));
-	if ( pSet ) {
+	if ( !xvoIsNull(pSet) ) {
 		size_t iSize = 0;
 		str sOut = xrtStringifyXSON(pSet, 0, 0, &iSize);
 
@@ -154,18 +154,18 @@ static void test_parse_json_compatibility(void)
 	printf("输入: %s\n", sJson);
 
 	xvalue pRoot = xrtParseXSON((char*)sJson, strlen(sJson));
-	if ( pRoot ) {
+	if ( !xvoIsNull(pRoot) ) {
 		xvalue pProject = xvoTableGetValue(pRoot, "project", 7);
 		xvalue pItems = xvoTableGetValue(pRoot, "items", 5);
 
 		printf("Parsed successfully!\n");
 		printf("解析成功！\n");
 
-		if ( pProject ) {
+		if ( !xvoIsNull(pProject) ) {
 			printf("  project: %s\n", pProject->vText);
 		}
 
-		if ( pItems ) {
+		if ( !xvoIsNull(pItems) ) {
 			printf("  items count: %u\n", xvoArrayItemCount(pItems));
 		}
 

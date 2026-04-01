@@ -62,6 +62,12 @@
 - `list` 已补出第 2 阶段正式教学第一页
 - `avltree` 已补出第 2 阶段正式教学第一页
 - `bsmm` 已补出第 2 阶段正式教学第一页
+- `memunit` 已补出第 2 阶段正式教学第一页
+- `mempool_fs` 已补出第 2 阶段正式教学第一页
+- `mempool` 已补出第 2 阶段正式教学第一页
+- `xvalue / json` 已补出第 3 阶段正式教学第一页
+- `jnum` 已补出第 3 阶段正式教学第一页
+- `xson` 已补出第 3 阶段正式教学第一页
 - `template` 已补出正式教学第一页
 - 还不等于完整课程体系
 - 尚未覆盖 XRT 全部公开模块
@@ -93,17 +99,24 @@
 15. [List 入门：什么时候该用整数键列表，而不是数组、字典或连续索引](list-intro.md)
 16. [AVLTree 入门：什么时候该直接用通用有序树，而不是 Dict、List 或数组](avltree-intro.md)
 17. [BSMM 入门：什么时候该用固定大小块池，而不是 `malloc/free`、数组或更重的对象池](bsmm-intro.md)
-18. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-19. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-20. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
-21. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-22. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
-23. 内存、容器与数据结构专题
-24. `xvalue / json / xson / template / regex / crypto` 专题
-25. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-26. 系统能力专题：子进程、异步文件
-27. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-28. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+18. [MemUnit 入门：什么时候该直接控制单个 256 槽内存单元，而不是上 `bsmm`、`fsmempool` 或 `mempool`](memunit-intro.md)
+19. [FSMemPool 入门：什么时候该用正式固定大小对象池，而不是 `bsmm`、`memunit` 或通用 `mempool`](mempool-fs-intro.md)
+20. [MemPool 入门：什么时候该用通用变长池，而不是 `fsmempool`、`memunit` 或直接 `malloc/free`](mempool-intro.md)
+21. [xvalue、JSON 与 XSON 入门](xvalue-json-intro.md)
+22. [JNUM 入门：什么时候该直接解析数字文本，而不是把所有输入都先塞进 `atoi / strtod / sprintf`](jnum-intro.md)
+23. [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
+24. [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
+25. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+26. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+27. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+28. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+29. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+29. 内存、容器与数据结构专题
+30. `regex / crypto` 专题
+31. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+32. 系统能力专题：子进程、异步文件
+33. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
+34. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -132,9 +145,14 @@
 - [List 入门：什么时候该用整数键列表，而不是数组、字典或连续索引](list-intro.md)
 - [AVLTree 入门：什么时候该直接用通用有序树，而不是 Dict、List 或数组](avltree-intro.md)
 - [BSMM 入门：什么时候该用固定大小块池，而不是 `malloc/free`、数组或更重的对象池](bsmm-intro.md)
+- [MemUnit 入门：什么时候该直接控制单个 256 槽内存单元，而不是上 `bsmm`、`fsmempool` 或 `mempool`](memunit-intro.md)
+- [FSMemPool 入门：什么时候该用正式固定大小对象池，而不是 `bsmm`、`memunit` 或通用 `mempool`](mempool-fs-intro.md)
+- [MemPool 入门：什么时候该用通用变长池，而不是 `fsmempool`、`memunit` 或直接 `malloc/free`](mempool-intro.md)
 - [XRT 运行时与线程附加入门](runtime-thread-attach.md)
 - [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-- [xvalue 与 JSON 入门](xvalue-json-intro.md)
+- [xvalue、JSON 与 XSON 入门](xvalue-json-intro.md)
+- [JNUM 入门：什么时候该直接解析数字文本，而不是把所有输入都先塞进 `atoi / strtod / sprintf`](jnum-intro.md)
+- [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
 - [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
 
 ### 2. 并发与异步主线页
@@ -174,8 +192,7 @@
 目前还没有成体系教学的模块主要包括：
 
 - `llist`（当前源码树暂无独立 public header，正式教学页暂缓，先保留历史 API 页提示状态）
-- `memunit / mempool_fs / mempool`
-- `jnum / xson / regex / crypto`
+- `regex / crypto`
 - `xurl / xhttp_util / xws / proxy`
 
 这也是后续优先补齐的部分。

@@ -1,6 +1,6 @@
 # XRT 文档审计
 
-> 审计日期：2026-03-31  
+> 审计日期：2026-04-01  
 > 审计范围：根目录 README、`docs/`、`docs/api/`、`docs/guide/`、`docs/case/` 以及 `docs` 下的零散说明文档。
 
 [返回文档中心](README.md)
@@ -69,12 +69,10 @@
 
 当前教学主线还没有覆盖 XRT 全部公开模块。缺口主要在：
 
-- 基础工具：`charset / path / os / math / hash / xid / network(local info)`
-- 内存与容器：`memunit / mempool_fs / mempool / llist`
-- 文本与数据：`jnum / xson / template / regex / crypto`
-- 并发补充：`queue`
-- 系统能力：`subprocess / file_async` 只有快速上手页，没有完整专题
-- 网络补充：`xurl / xhttp_util / xws / proxy`
+- 第 2 阶段内存主线：`llist`
+- 第 3 阶段文本与数据：`regex / crypto`
+- 第 6 阶段网络补充：`xurl / xhttp_util / xws / proxy`
+- 系统能力的 API 合同层：`subprocess / file_async` 仍缺独立 API 页
 
 这意味着当前 `guide/` 还没有实现“覆盖全部模块”的目标。
 
@@ -191,4 +189,7 @@
 - 修复主入口与高价值导航的相对路径问题
 - 重写 `docs/README.md`、`docs/guide/README.md`、`docs/case/README.md` 的状态说明
 - 新增 [教学重建路线图](guide/ROADMAP.md)
+- 第 2 阶段已补出 `bsmm / memunit / mempool_fs / mempool` 正式教学页
+- 第 3 阶段已补出 `jnum` 正式教学页
+- 第 3 阶段已补出 `xson` 正式教学页
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿
