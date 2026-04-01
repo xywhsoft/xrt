@@ -1705,43 +1705,98 @@
 	#define XPROC_STATE_EXITED		2
 	#define XPROC_STATE_CLOSED		3
 
-	#define XPROC_F_USE_SHELL		0x0001u
-	#define XPROC_F_PIPE_STDIN		0x0002u
-	#define XPROC_F_PIPE_STDOUT		0x0004u
-	#define XPROC_F_PIPE_STDERR		0x0008u
-	#define XPROC_F_MERGE_STDERR	0x0010u
-	#define XPROC_F_HIDE_WINDOW		0x0020u
-	#define XPROC_F_NO_CAPTURE		0x0040u
-	#define XPROC_F_KILL_TREE		0x0080u
+	#define XPROC_TARGET_EXEC		1
+	#define XPROC_TARGET_SHELL		2
+
+	#define XPROC_STDIO_INHERIT		0
+	#define XPROC_STDIO_PIPE		1
+	#define XPROC_STDIO_NULL		2
+
+	#define XPROC_EXIT_NONE			0
+	#define XPROC_EXIT_NORMAL		1
+	#define XPROC_EXIT_SIGNAL		2
+	#define XPROC_EXIT_SPAWN_FAILED	3
+	#define XPROC_EXIT_WAIT_FAILED	4
+
+	#define XPROC_STAGE_NONE		0
+	#define XPROC_STAGE_SPAWN		1
+	#define XPROC_STAGE_WORKDIR		2
+	#define XPROC_STAGE_ENV			3
+	#define XPROC_STAGE_STDIN		4
+	#define XPROC_STAGE_STDOUT		5
+	#define XPROC_STAGE_STDERR		6
+	#define XPROC_STAGE_EXEC		7
+	#define XPROC_STAGE_WAIT		8
+
+	#define XPROC_STOP_NONE			0
+	#define XPROC_STOP_INTERRUPT	1
+	#define XPROC_STOP_TERMINATE	2
+	#define XPROC_STOP_KILL			3
+	#define XPROC_STOP_KILL_TREE	4
 
 	typedef struct xprocess_struct xprocess;
+
+	typedef struct {
+		int iMode;
+		bool bCapture;
+	} xprocessstdio;
+
+	typedef struct {
+		int iKind;
+		int iExitCode;
+		int iSignal;
+		int iStage;
+		int iOsError;
+		int iStopReason;
+		bool bTimedOut;
+		bool bCancelled;
+	} xprocessexitinfo;
+
+	typedef struct {
+		uint64 iBaseOffset;
+		uint64 iNextOffset;
+		uint64 iStreamEndOffset;
+		bool bDone;
+	} xprocessreadinfo;
 
 	typedef struct {
 		void (*OnStart)(xprocess* pProcess, ptr pUserData);
 		void (*OnStdout)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
 		void (*OnStderr)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
-		void (*OnExit)(xprocess* pProcess, int iExitCode, ptr pUserData);
+		void (*OnExit)(xprocess* pProcess, const xprocessexitinfo* pExitInfo, ptr pUserData);
 	} xprocessevents;
 
 	typedef struct {
-		uint32 iFlags;
+		int iTargetKind;
 		str sProgram;
 		str* arrArgs;
 		uint32 iArgCount;
-		str sCommandLine;
+		str sCommand;
 		str sWorkDir;
+		str* arrEnv;
+		uint32 iEnvCount;
+		bool bInheritEnv;
+		bool bMergeStderr;
+		bool bCreateProcessGroup;
+		bool bHideWindow;
 		uint32 iReadChunkSize;
 		size_t iMaxCaptureBytes;
+		xprocessstdio Stdin;
+		xprocessstdio Stdout;
+		xprocessstdio Stderr;
 		const xprocessevents* pEvents;
 		ptr pUserData;
 	} xprocessconfig;
 
 	typedef struct {
+		xprocessexitinfo ExitInfo;
 		int iExitCode;
 		ptr pStdout;
 		size_t iStdoutSize;
+		uint64 iStdoutBaseOffset;
 		ptr pStderr;
 		size_t iStderrSize;
+		uint64 iStderrBaseOffset;
 		bool bStdoutTruncated;
 		bool bStderrTruncated;
 	} xprocessresult;
@@ -1771,6 +1826,10 @@
 	XXAPI int xrtProcessExitCode(xprocess* pProcess);
 
 
+	// 获取结构化退出信息
+	XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo);
+
+
 	// 写入进程标准输入
 	XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize);
 
@@ -1791,20 +1850,36 @@
 	XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs);
 
 
-	// 终止进程
+	// 向进程发送中断信号
+	XXAPI bool xrtProcessInterrupt(xprocess* pProcess);
+
+
+	// 尽量温和地要求进程退出
 	XXAPI bool xrtProcessTerminate(xprocess* pProcess);
 
 
-	// 终止进程树
+	// 强制结束当前进程
+	XXAPI bool xrtProcessKill(xprocess* pProcess);
+
+
+	// 强制结束整个进程树
 	XXAPI bool xrtProcessKillTree(xprocess* pProcess);
 
 
-	// 获取进程标准输出
+	// 获取进程标准输出快照（返回新分配的内存，调用方负责 xrtFree）
 	XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize);
 
 
-	// 获取进程标准错误
+	// 获取进程标准错误快照（返回新分配的内存，调用方负责 xrtFree）
 	XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize);
+
+
+	// 按偏移读取标准输出增量（返回新分配的内存，调用方负责 xrtFree）
+	XXAPI ptr xrtProcessReadStdoutSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
+
+
+	// 按偏移读取标准错误增量（返回新分配的内存，调用方负责 xrtFree）
+	XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
 
 
 	// 执行进程并捕获输出

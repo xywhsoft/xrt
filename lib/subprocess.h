@@ -1,3 +1,6 @@
+
+
+
 #if !defined(_WIN32) && !defined(_WIN64)
 	#include <errno.h>
 	#include <signal.h>
@@ -5,22 +8,107 @@
 #endif
 
 #define __XPROC_READ_CHUNK_DEFAULT	4096u
+#define __XPROC_TIMEOUT_GRACE_MS	250u
 
 #define __XPROC_STREAM_STDOUT		1
 #define __XPROC_STREAM_STDERR		2
-
-typedef struct {
-	char* pData;
-	size_t iSize;
-	size_t iCap;
-	bool bTruncated;
-} __xproc_buffer;
 
 typedef struct {
 	char* sData;
 	size_t iSize;
 	size_t iCap;
 } __xproc_strbuf;
+
+typedef struct {
+	wchar_t* sData;
+	size_t iSize;
+	size_t iCap;
+} __xproc_wbuf;
+
+typedef struct {
+	char* pData;
+	size_t iSize;
+	size_t iCap;
+	uint64 iBaseOffset;
+	uint64 iNextOffset;
+	bool bTruncated;
+	bool bDone;
+} __xproc_streambuf;
+
+typedef struct {
+	int iTargetKind;
+	str sProgram;
+	str* arrArgs;
+	uint32 iArgCount;
+	str sCommand;
+	str sWorkDir;
+	str* arrEnv;
+	uint32 iEnvCount;
+	bool bInheritEnv;
+	bool bMergeStderr;
+	bool bCreateProcessGroup;
+	bool bHideWindow;
+	uint32 iReadChunkSize;
+	size_t iMaxCaptureBytes;
+	int iStdinMode;
+	int iStdoutMode;
+	int iStderrMode;
+	bool bStdoutCapture;
+	bool bStderrCapture;
+	const xprocessevents* pEvents;
+	ptr pUserData;
+} __xproc_plan;
+
+typedef struct {
+	const char** arrArgv;
+	uint32 iArgCount;
+} __xproc_resolved_cmd;
+
+typedef struct {
+	xprocess* pProcess;
+	int iStream;
+} __xproc_pump_ctx;
+
+#if !defined(_WIN32) && !defined(_WIN64)
+	typedef struct {
+		int iStage;
+		int iOsError;
+	} __xproc_child_error;
+#endif
+
+
+// 内部函数：初始化退出信息
+static void __xprocExitInfoInit(xprocessexitinfo* pInfo)
+{
+	if ( pInfo == NULL ) {
+		return;
+	}
+	memset(pInfo, 0, sizeof(*pInfo));
+	pInfo->iKind = XPROC_EXIT_NONE;
+	pInfo->iExitCode = -1;
+}
+
+
+// 内部函数：初始化读取信息
+static void __xprocReadInfoInit(xprocessreadinfo* pInfo)
+{
+	if ( pInfo == NULL ) {
+		return;
+	}
+	memset(pInfo, 0, sizeof(*pInfo));
+}
+
+
+// 内部函数：设置进程结果
+static void __xprocResultInit(xprocessresult* pResult)
+{
+	if ( pResult == NULL ) {
+		return;
+	}
+	memset(pResult, 0, sizeof(*pResult));
+	__xprocExitInfoInit(&pResult->ExitInfo);
+	pResult->iExitCode = -1;
+}
 
 
 // 内部函数：预留字符串缓冲区
@@ -63,7 +151,7 @@ static bool __xprocStrBufAppendRaw(__xproc_strbuf* pBuf, const char* sText, size
 	if ( pBuf == NULL ) {
 		return false;
 	}
-	if ( iLen == 0 ) {
+	if ( iLen == 0u ) {
 		return true;
 	}
 	if ( !__xprocStrBufReserve(pBuf, pBuf->iSize + iLen + 1u) ) {
@@ -77,7 +165,7 @@ static bool __xprocStrBufAppendRaw(__xproc_strbuf* pBuf, const char* sText, size
 }
 
 
-// 内部函数：追加字符串缓冲区
+// 内部函数：追加字符串缓冲区文本
 static bool __xprocStrBufAppend(__xproc_strbuf* pBuf, const char* sText)
 {
 	if ( sText == NULL ) {
@@ -107,100 +195,74 @@ static void __xprocStrBufUnit(__xproc_strbuf* pBuf)
 }
 
 
-// 内部函数：__xprocCmdNeedsQuote
-static bool __xprocCmdNeedsQuote(str sArg)
+// 内部函数：预留宽字符缓冲区
+static bool __xprocWBufReserve(__xproc_wbuf* pBuf, size_t iNeed)
 {
-	size_t i;
+	size_t iCapNew;
+	wchar_t* sNew;
 
-	if ( sArg == NULL || sArg[0] == '\0' ) {
+	if ( pBuf == NULL ) {
+		return false;
+	}
+	if ( iNeed <= pBuf->iCap ) {
 		return true;
 	}
 
-	for ( i = 0; sArg[i] != '\0'; i++ ) {
-		switch ( sArg[i] ) {
-			case ' ':
-			case '\t':
-			case '\n':
-			case '\v':
-			case '"':
-				return true;
-			default:
-				break;
+	iCapNew = pBuf->iCap ? pBuf->iCap : 64u;
+	while ( iCapNew < iNeed ) {
+		size_t iNext = (iCapNew < 1024u) ? (iCapNew * 2u) : (iCapNew + (iCapNew / 2u));
+		if ( iNext <= iCapNew ) {
+			iCapNew = iNeed;
+			break;
 		}
+		iCapNew = iNext;
 	}
 
-	return false;
-}
-
-
-// 内部函数：追加命令引用字符串
-static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
-{
-	size_t i = 0;
-	size_t iBackslash = 0;
-
-	if ( sArg == NULL ) {
-		sArg = (str)"";
-	}
-
-	if ( !__xprocCmdNeedsQuote(sArg) ) {
-		return __xprocStrBufAppend(pBuf, (const char*)sArg);
-	}
-
-	if ( !__xprocStrBufAppendChar(pBuf, '"') ) {
+	sNew = (wchar_t*)xrtRealloc(pBuf->sData, iCapNew * sizeof(wchar_t));
+	if ( sNew == NULL ) {
 		return false;
 	}
 
-	for ( ;; ) {
-		char ch = ((const char*)sArg)[i];
-		if ( ch == '\\' ) {
-			iBackslash++;
-			i++;
-			continue;
-		}
-		if ( ch == '"' ) {
-			while ( iBackslash > 0 ) {
-				if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
-					return false;
-				}
-				iBackslash--;
-			}
-			if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '"') ) {
-				return false;
-			}
-			i++;
-			continue;
-		}
-
-		while ( iBackslash > 0 ) {
-			if ( !__xprocStrBufAppendChar(pBuf, '\\') ) {
-				return false;
-			}
-			iBackslash--;
-		}
-
-		if ( ch == '\0' ) {
-			break;
-		}
-		if ( !__xprocStrBufAppendChar(pBuf, ch) ) {
-			return false;
-		}
-		i++;
-	}
-
-	while ( iBackslash > 0 ) {
-		if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
-			return false;
-		}
-		iBackslash--;
-	}
-
-	return __xprocStrBufAppendChar(pBuf, '"');
+	pBuf->sData = sNew;
+	pBuf->iCap = iCapNew;
+	return true;
 }
 
 
-// 内部函数：预留缓冲区
-static bool __xprocBufferReserve(__xproc_buffer* pBuf, size_t iNeed)
+// 内部函数：追加宽字符缓冲区原始数据
+static bool __xprocWBufAppendRaw(__xproc_wbuf* pBuf, const wchar_t* sText, size_t iLen)
+{
+	if ( pBuf == NULL ) {
+		return false;
+	}
+	if ( iLen == 0u ) {
+		return true;
+	}
+	if ( !__xprocWBufReserve(pBuf, pBuf->iSize + iLen) ) {
+		return false;
+	}
+
+	memcpy(pBuf->sData + pBuf->iSize, sText, iLen * sizeof(wchar_t));
+	pBuf->iSize += iLen;
+	return true;
+}
+
+
+// 内部函数：释放宽字符缓冲区
+static void __xprocWBufUnit(__xproc_wbuf* pBuf)
+{
+	if ( pBuf == NULL ) {
+		return;
+	}
+	if ( pBuf->sData ) {
+		xrtFree(pBuf->sData);
+	}
+	memset(pBuf, 0, sizeof(*pBuf));
+}
+
+
+// 内部函数：预留输出缓冲区
+static bool __xprocStreamReserve(__xproc_streambuf* pBuf, size_t iNeed)
 {
 	size_t iCapNew;
 	char* pNew;
@@ -233,45 +295,89 @@ static bool __xprocBufferReserve(__xproc_buffer* pBuf, size_t iNeed)
 }
 
 
-// 内部函数：追加缓冲区
-static void __xprocBufferAppend(__xproc_buffer* pBuf, const void* pData, size_t iSize, size_t iLimit)
+// 内部函数：丢弃输出缓冲区前缀
+static void __xprocStreamDropPrefix(__xproc_streambuf* pBuf, size_t iDrop)
 {
-	size_t iCopy = iSize;
-
-	if ( pBuf == NULL || pData == NULL || iSize == 0 ) {
+	if ( pBuf == NULL || iDrop == 0u ) {
 		return;
 	}
-
-	if ( iLimit != 0u ) {
-		if ( pBuf->iSize >= iLimit ) {
-			pBuf->bTruncated = true;
-			return;
+	if ( iDrop >= pBuf->iSize ) {
+		pBuf->iBaseOffset += (uint64)pBuf->iSize;
+		pBuf->iSize = 0u;
+		if ( pBuf->pData ) {
+			pBuf->pData[0] = '\0';
 		}
-		if ( iCopy > (iLimit - pBuf->iSize) ) {
-			iCopy = iLimit - pBuf->iSize;
-			pBuf->bTruncated = true;
-		}
-	}
-
-	if ( iCopy == 0 ) {
-		return;
-	}
-	if ( !__xprocBufferReserve(pBuf, pBuf->iSize + iCopy + 1u) ) {
 		pBuf->bTruncated = true;
 		return;
 	}
 
-	memcpy(pBuf->pData + pBuf->iSize, pData, iCopy);
-	pBuf->iSize += iCopy;
+	memmove(pBuf->pData, pBuf->pData + iDrop, pBuf->iSize - iDrop);
+	pBuf->iSize -= iDrop;
+	pBuf->iBaseOffset += (uint64)iDrop;
 	pBuf->pData[pBuf->iSize] = '\0';
-	if ( iCopy != iSize ) {
-		pBuf->bTruncated = true;
+	pBuf->bTruncated = true;
+}
+
+
+// 内部函数：在保留失败时丢弃所有捕获
+static void __xprocStreamDropAll(__xproc_streambuf* pBuf, size_t iIncoming)
+{
+	if ( pBuf == NULL ) {
+		return;
+	}
+	pBuf->iNextOffset += (uint64)iIncoming;
+	pBuf->iBaseOffset = pBuf->iNextOffset;
+	pBuf->iSize = 0u;
+	pBuf->bTruncated = true;
+	if ( pBuf->pData ) {
+		pBuf->pData[0] = '\0';
 	}
 }
 
 
-// 内部函数：释放缓冲区
-static void __xprocBufferUnit(__xproc_buffer* pBuf)
+// 内部函数：追加输出缓冲区
+static void __xprocStreamAppend(__xproc_streambuf* pBuf, const void* pData, size_t iSize, size_t iLimit)
+{
+	const char* sData = (const char*)pData;
+
+	if ( pBuf == NULL || pData == NULL || iSize == 0u ) {
+		return;
+	}
+
+	if ( iLimit != 0u ) {
+		if ( iSize >= iLimit ) {
+			size_t iKeepOffset = iSize - iLimit;
+			if ( !__xprocStreamReserve(pBuf, iLimit + 1u) ) {
+				__xprocStreamDropAll(pBuf, iSize);
+				return;
+			}
+			memcpy(pBuf->pData, sData + iKeepOffset, iLimit);
+			pBuf->iBaseOffset = pBuf->iNextOffset + (uint64)iKeepOffset;
+			pBuf->iNextOffset += (uint64)iSize;
+			pBuf->iSize = iLimit;
+			pBuf->pData[pBuf->iSize] = '\0';
+			pBuf->bTruncated = true;
+			return;
+		}
+		if ( pBuf->iSize + iSize > iLimit ) {
+			__xprocStreamDropPrefix(pBuf, (pBuf->iSize + iSize) - iLimit);
+		}
+	}
+
+	if ( !__xprocStreamReserve(pBuf, pBuf->iSize + iSize + 1u) ) {
+		__xprocStreamDropAll(pBuf, iSize);
+		return;
+	}
+
+	memcpy(pBuf->pData + pBuf->iSize, sData, iSize);
+	pBuf->iSize += iSize;
+	pBuf->iNextOffset += (uint64)iSize;
+	pBuf->pData[pBuf->iSize] = '\0';
+}
+
+
+// 内部函数：释放输出缓冲区
+static void __xprocStreamUnit(__xproc_streambuf* pBuf)
 {
 	if ( pBuf == NULL ) {
 		return;
@@ -283,14 +389,107 @@ static void __xprocBufferUnit(__xproc_buffer* pBuf)
 }
 
 
-// 内部函数：__xprocBufferMoveOut
-static void __xprocBufferMoveOut(__xproc_buffer* pBuf, ptr* ppData, size_t* piSize, bool* pbTruncated)
+// 内部函数：输出快照复制
+static ptr __xprocStreamSnapshot(const __xproc_streambuf* pBuf, size_t* piSize)
+{
+	char* sCopy;
+
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	if ( pBuf == NULL || pBuf->iSize == 0u ) {
+		return NULL;
+	}
+
+	sCopy = (char*)xrtMalloc(pBuf->iSize + 1u);
+	if ( sCopy == NULL ) {
+		return NULL;
+	}
+	memcpy(sCopy, pBuf->pData, pBuf->iSize);
+	sCopy[pBuf->iSize] = '\0';
+	if ( piSize ) {
+		*piSize = pBuf->iSize;
+	}
+	return sCopy;
+}
+
+
+// 内部函数：按偏移复制输出
+static ptr __xprocStreamReadSince(const __xproc_streambuf* pBuf, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo)
+{
+	uint64 iStartOffset;
+	uint64 iAvailable;
+	size_t iCopySize;
+	char* sCopy;
+
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	__xprocReadInfoInit(pInfo);
+	if ( pBuf == NULL ) {
+		return NULL;
+	}
+
+	if ( pInfo ) {
+		pInfo->iBaseOffset = pBuf->iBaseOffset;
+		pInfo->iStreamEndOffset = pBuf->iNextOffset;
+		pInfo->iNextOffset = (iOffset > pBuf->iNextOffset) ? pBuf->iNextOffset : iOffset;
+		pInfo->bDone = pBuf->bDone;
+	}
+
+	iStartOffset = (iOffset < pBuf->iBaseOffset) ? pBuf->iBaseOffset : iOffset;
+	if ( iStartOffset >= pBuf->iNextOffset ) {
+		if ( pInfo ) {
+			pInfo->iNextOffset = iStartOffset;
+		}
+		return NULL;
+	}
+
+	iAvailable = pBuf->iNextOffset - iStartOffset;
+	if ( iMaxBytes != 0u && iAvailable > (uint64)iMaxBytes ) {
+		iCopySize = iMaxBytes;
+	} else {
+		iCopySize = (size_t)iAvailable;
+	}
+
+	if ( iCopySize == 0u ) {
+		if ( pInfo ) {
+			pInfo->iNextOffset = iStartOffset;
+		}
+		return NULL;
+	}
+
+	sCopy = (char*)xrtMalloc(iCopySize + 1u);
+	if ( sCopy == NULL ) {
+		return NULL;
+	}
+	memcpy(sCopy, pBuf->pData + (size_t)(iStartOffset - pBuf->iBaseOffset), iCopySize);
+	sCopy[iCopySize] = '\0';
+
+	if ( piSize ) {
+		*piSize = iCopySize;
+	}
+	if ( pInfo ) {
+		pInfo->iBaseOffset = pBuf->iBaseOffset;
+		pInfo->iStreamEndOffset = pBuf->iNextOffset;
+		pInfo->iNextOffset = iStartOffset + (uint64)iCopySize;
+		pInfo->bDone = pBuf->bDone;
+	}
+	return sCopy;
+}
+
+
+// 内部函数：移动输出缓冲区
+static void __xprocStreamMoveOut(__xproc_streambuf* pBuf, ptr* ppData, size_t* piSize, uint64* piBaseOffset, bool* pbTruncated)
 {
 	if ( ppData ) {
 		*ppData = pBuf ? pBuf->pData : NULL;
 	}
 	if ( piSize ) {
 		*piSize = pBuf ? pBuf->iSize : 0u;
+	}
+	if ( piBaseOffset ) {
+		*piBaseOffset = pBuf ? pBuf->iBaseOffset : 0u;
 	}
 	if ( pbTruncated ) {
 		*pbTruncated = pBuf ? pBuf->bTruncated : false;
@@ -299,7 +498,10 @@ static void __xprocBufferMoveOut(__xproc_buffer* pBuf, ptr* ppData, size_t* piSi
 		pBuf->pData = NULL;
 		pBuf->iSize = 0u;
 		pBuf->iCap = 0u;
+		pBuf->iBaseOffset = 0u;
+		pBuf->iNextOffset = 0u;
 		pBuf->bTruncated = false;
+		pBuf->bDone = false;
 	}
 }
 
@@ -310,9 +512,14 @@ XXAPI void xrtProcessConfigInit(xprocessconfig* pConfig)
 	if ( pConfig == NULL ) {
 		return;
 	}
-
 	memset(pConfig, 0, sizeof(*pConfig));
+	pConfig->iTargetKind = XPROC_TARGET_EXEC;
+	pConfig->bInheritEnv = true;
+	pConfig->bCreateProcessGroup = true;
 	pConfig->iReadChunkSize = __XPROC_READ_CHUNK_DEFAULT;
+	pConfig->Stdin.iMode = XPROC_STDIO_INHERIT;
+	pConfig->Stdout.iMode = XPROC_STDIO_INHERIT;
+	pConfig->Stderr.iMode = XPROC_STDIO_INHERIT;
 }
 
 
@@ -322,15 +529,351 @@ XXAPI void xrtProcessResultUnit(xprocessresult* pResult)
 	if ( pResult == NULL ) {
 		return;
 	}
-
 	if ( pResult->pStdout ) {
 		xrtFree(pResult->pStdout);
 	}
 	if ( pResult->pStderr ) {
 		xrtFree(pResult->pStderr);
 	}
-	memset(pResult, 0, sizeof(*pResult));
+	__xprocResultInit(pResult);
 }
+
+
+// 内部函数：判断 stdio 模式是否合法
+static bool __xprocIsValidStdioMode(int iMode)
+{
+	return iMode == XPROC_STDIO_INHERIT || iMode == XPROC_STDIO_PIPE || iMode == XPROC_STDIO_NULL;
+}
+
+
+// 内部函数：校验环境变量名
+static bool __xprocValidateEnvEntry(str sEntry)
+{
+	const char* sEquals;
+	size_t i;
+
+	if ( sEntry == NULL || sEntry[0] == '\0' ) {
+		return false;
+	}
+
+	sEquals = strchr((const char*)sEntry, '=');
+	if ( sEquals == NULL || sEquals == (const char*)sEntry ) {
+		return false;
+	}
+
+	if ( !isalpha((unsigned char)sEntry[0]) && sEntry[0] != '_' ) {
+		return false;
+	}
+	for ( i = 1u; ((const char*)sEntry + i) < sEquals; i++ ) {
+		unsigned char ch = (unsigned char)sEntry[i];
+		if ( !isalnum(ch) && ch != '_' ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+// 内部函数：写入结构化启动失败信息
+static void __xprocSetSpawnFailureInfo(xprocessexitinfo* pInfo, int iStage, int iOsError)
+{
+	if ( pInfo == NULL ) {
+		return;
+	}
+	__xprocExitInfoInit(pInfo);
+	pInfo->iKind = XPROC_EXIT_SPAWN_FAILED;
+	pInfo->iStage = iStage;
+	pInfo->iOsError = iOsError;
+}
+
+
+// 内部函数：从配置生成执行计划
+static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* pPlan)
+{
+	uint32 i;
+	int iTargetKind;
+
+	if ( pPlan ) {
+		memset(pPlan, 0, sizeof(*pPlan));
+	}
+	if ( pConfig == NULL || pPlan == NULL ) {
+		xrtSetError("invalid subprocess config.", FALSE);
+		return false;
+	}
+
+	iTargetKind = pConfig->iTargetKind ? pConfig->iTargetKind : XPROC_TARGET_EXEC;
+	if ( iTargetKind != XPROC_TARGET_EXEC && iTargetKind != XPROC_TARGET_SHELL ) {
+		xrtSetError("invalid subprocess target kind.", FALSE);
+		return false;
+	}
+	if ( iTargetKind == XPROC_TARGET_EXEC ) {
+		if ( pConfig->sProgram == NULL || pConfig->sProgram[0] == '\0' ) {
+			xrtSetError("subprocess requires program path.", FALSE);
+			return false;
+		}
+	}
+	if ( pConfig->iArgCount > 0u && pConfig->arrArgs == NULL ) {
+		xrtSetError("subprocess args are missing.", FALSE);
+		return false;
+	}
+	if ( pConfig->iEnvCount > 0u && pConfig->arrEnv == NULL ) {
+		xrtSetError("subprocess env list is missing.", FALSE);
+		return false;
+	}
+	for ( i = 0u; i < pConfig->iEnvCount; i++ ) {
+		if ( !__xprocValidateEnvEntry(pConfig->arrEnv[i]) ) {
+			xrtSetError("invalid subprocess env entry.", FALSE);
+			return false;
+		}
+	}
+
+	pPlan->iTargetKind = iTargetKind;
+	pPlan->sProgram = pConfig->sProgram;
+	pPlan->arrArgs = pConfig->arrArgs;
+	pPlan->iArgCount = pConfig->iArgCount;
+	pPlan->sCommand = (pConfig->sCommand && pConfig->sCommand[0]) ? pConfig->sCommand : NULL;
+	pPlan->sWorkDir = (pConfig->sWorkDir && pConfig->sWorkDir[0]) ? pConfig->sWorkDir : NULL;
+	pPlan->arrEnv = pConfig->arrEnv;
+	pPlan->iEnvCount = pConfig->iEnvCount;
+	pPlan->bInheritEnv = pConfig->bInheritEnv ? true : false;
+	pPlan->bMergeStderr = pConfig->bMergeStderr ? true : false;
+	pPlan->bCreateProcessGroup = pConfig->bCreateProcessGroup ? true : false;
+	pPlan->bHideWindow = pConfig->bHideWindow ? true : false;
+	pPlan->iReadChunkSize = pConfig->iReadChunkSize ? pConfig->iReadChunkSize : __XPROC_READ_CHUNK_DEFAULT;
+	pPlan->iMaxCaptureBytes = pConfig->iMaxCaptureBytes;
+	pPlan->iStdinMode = pConfig->Stdin.iMode;
+	pPlan->iStdoutMode = pConfig->Stdout.iMode;
+	pPlan->iStderrMode = pConfig->Stderr.iMode;
+	pPlan->pEvents = pConfig->pEvents;
+	pPlan->pUserData = pConfig->pUserData;
+
+	if ( !__xprocIsValidStdioMode(pPlan->iStdinMode) || !__xprocIsValidStdioMode(pPlan->iStdoutMode) || !__xprocIsValidStdioMode(pPlan->iStderrMode) ) {
+		xrtSetError("invalid subprocess stdio mode.", FALSE);
+		return false;
+	}
+
+	pPlan->bStdoutCapture = pConfig->Stdout.bCapture ? true : false;
+	pPlan->bStderrCapture = pConfig->Stderr.bCapture ? true : false;
+
+	if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
+		pPlan->bStdoutCapture = true;
+	}
+	if ( pPlan->iStderrMode == XPROC_STDIO_PIPE && !pPlan->bMergeStderr ) {
+		pPlan->bStderrCapture = true;
+	}
+	if ( pPlan->pEvents && pPlan->pEvents->OnStdout ) {
+		pPlan->bStdoutCapture = true;
+	}
+	if ( pPlan->pEvents && pPlan->pEvents->OnStderr && !pPlan->bMergeStderr ) {
+		pPlan->bStderrCapture = true;
+	}
+	if ( pPlan->bMergeStderr && pPlan->pEvents && pPlan->pEvents->OnStderr ) {
+		pPlan->bStdoutCapture = true;
+	}
+	if ( pPlan->bMergeStderr && pConfig->Stderr.bCapture ) {
+		pPlan->bStdoutCapture = true;
+	}
+
+	if ( pPlan->bStdoutCapture ) {
+		if ( pPlan->iStdoutMode == XPROC_STDIO_NULL ) {
+			xrtSetError("subprocess stdout cannot capture from null.", FALSE);
+			return false;
+		}
+		pPlan->iStdoutMode = XPROC_STDIO_PIPE;
+	}
+	if ( pPlan->bStderrCapture ) {
+		if ( pPlan->iStderrMode == XPROC_STDIO_NULL ) {
+			xrtSetError("subprocess stderr cannot capture from null.", FALSE);
+			return false;
+		}
+		pPlan->iStderrMode = XPROC_STDIO_PIPE;
+	}
+
+	return true;
+}
+
+
+// 内部函数：判断参数是否需要引用
+static bool __xprocCmdNeedsQuote(str sArg)
+{
+	size_t i;
+
+	if ( sArg == NULL || sArg[0] == '\0' ) {
+		return true;
+	}
+	for ( i = 0u; sArg[i] != '\0'; i++ ) {
+		switch ( sArg[i] ) {
+			case ' ':
+			case '\t':
+			case '\n':
+			case '\v':
+			case '"':
+				return true;
+			default:
+				break;
+		}
+	}
+	return false;
+}
+
+
+// 内部函数：追加 Windows 引用参数
+static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
+{
+	size_t i = 0u;
+	size_t iBackslash = 0u;
+
+	if ( sArg == NULL ) {
+		sArg = (str)"";
+	}
+	if ( !__xprocCmdNeedsQuote(sArg) ) {
+		return __xprocStrBufAppend(pBuf, (const char*)sArg);
+	}
+	if ( !__xprocStrBufAppendChar(pBuf, '"') ) {
+		return false;
+	}
+	for ( ;; ) {
+		char ch = ((const char*)sArg)[i];
+		if ( ch == '\\' ) {
+			iBackslash++;
+			i++;
+			continue;
+		}
+		if ( ch == '"' ) {
+			while ( iBackslash > 0u ) {
+				if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
+					return false;
+				}
+				iBackslash--;
+			}
+			if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '"') ) {
+				return false;
+			}
+			i++;
+			continue;
+		}
+		while ( iBackslash > 0u ) {
+			if ( !__xprocStrBufAppendChar(pBuf, '\\') ) {
+				return false;
+			}
+			iBackslash--;
+		}
+		if ( ch == '\0' ) {
+			break;
+		}
+		if ( !__xprocStrBufAppendChar(pBuf, ch) ) {
+			return false;
+		}
+		i++;
+	}
+	while ( iBackslash > 0u ) {
+		if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
+			return false;
+		}
+		iBackslash--;
+	}
+	return __xprocStrBufAppendChar(pBuf, '"');
+}
+
+
+// 内部函数：判断是否为 powershell 风格
+static bool __xprocIsPowerShellProgram(str sProgram)
+{
+	const char* sName;
+
+	if ( sProgram == NULL || sProgram[0] == '\0' ) {
+		return false;
+	}
+	sName = strrchr((const char*)sProgram, '\\');
+	if ( sName == NULL ) {
+		sName = strrchr((const char*)sProgram, '/');
+	}
+	sName = sName ? (sName + 1) : (const char*)sProgram;
+	return strcasecmp(sName, "powershell") == 0
+		|| strcasecmp(sName, "powershell.exe") == 0
+		|| strcasecmp(sName, "pwsh") == 0
+		|| strcasecmp(sName, "pwsh.exe") == 0;
+}
+
+
+// 内部函数：释放解析后的命令
+static void __xprocResolvedCmdUnit(__xproc_resolved_cmd* pResolved)
+{
+	if ( pResolved == NULL ) {
+		return;
+	}
+	if ( pResolved->arrArgv ) {
+		xrtFree((ptr)pResolved->arrArgv);
+	}
+	memset(pResolved, 0, sizeof(*pResolved));
+}
+
+
+// 内部函数：解析执行命令
+static bool __xprocResolveCommand(const __xproc_plan* pPlan, __xproc_resolved_cmd* pResolved)
+{
+	const char** arrArgv;
+	uint32 iWrite = 0u;
+	uint32 iExtra = 0u;
+	const char* sProgram;
+
+	if ( pPlan == NULL || pResolved == NULL ) {
+		return false;
+	}
+	memset(pResolved, 0, sizeof(*pResolved));
+
+	if ( pPlan->iTargetKind == XPROC_TARGET_EXEC ) {
+		sProgram = (const char*)pPlan->sProgram;
+	} else {
+		#if defined(_WIN32) || defined(_WIN64)
+			sProgram = (pPlan->sProgram && pPlan->sProgram[0]) ? (const char*)pPlan->sProgram : "cmd.exe";
+		#else
+			sProgram = (pPlan->sProgram && pPlan->sProgram[0]) ? (const char*)pPlan->sProgram : "/bin/sh";
+		#endif
+	}
+
+	if ( pPlan->iTargetKind == XPROC_TARGET_SHELL && pPlan->sCommand ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			iExtra = __xprocIsPowerShellProgram((str)sProgram) ? 3u : 3u;
+		#else
+			iExtra = 1u;
+		#endif
+	}
+
+	arrArgv = (const char**)xrtCalloc((size_t)(1u + pPlan->iArgCount + iExtra + (pPlan->sCommand ? 1u : 0u) + 1u), sizeof(char*));
+	if ( arrArgv == NULL ) {
+		xrtSetError("memory allocate failed.", FALSE);
+		return false;
+	}
+
+	arrArgv[iWrite++] = sProgram;
+	for ( uint32 i = 0u; i < pPlan->iArgCount; i++ ) {
+		arrArgv[iWrite++] = (const char*)pPlan->arrArgs[i];
+	}
+
+	if ( pPlan->iTargetKind == XPROC_TARGET_SHELL && pPlan->sCommand ) {
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( __xprocIsPowerShellProgram((str)sProgram) ) {
+				arrArgv[iWrite++] = "-NoLogo";
+				arrArgv[iWrite++] = "-NoProfile";
+				arrArgv[iWrite++] = "-Command";
+			} else {
+				arrArgv[iWrite++] = "/D";
+				arrArgv[iWrite++] = "/S";
+				arrArgv[iWrite++] = "/C";
+			}
+		#else
+			arrArgv[iWrite++] = "-c";
+		#endif
+			arrArgv[iWrite++] = (const char*)pPlan->sCommand;
+	}
+
+	arrArgv[iWrite] = NULL;
+	pResolved->arrArgv = arrArgv;
+	pResolved->iArgCount = iWrite;
+	return true;
+}
+
 
 #if defined(XRT_NO_THREAD)
 
@@ -373,11 +916,23 @@ XXAPI bool xrtProcessIsRunning(xprocess* pProcess)
 }
 
 
-// xrtProcessExitCode 相关处理
+// 获取进程退出码
 XXAPI int xrtProcessExitCode(xprocess* pProcess)
 {
 	(void)pProcess;
 	return -1;
+}
+
+
+// 获取结构化退出信息
+XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo)
+{
+	(void)pProcess;
+	if ( pInfo ) {
+		__xprocExitInfoInit(pInfo);
+	}
+	__xprocSetThreadRequiredError();
+	return false;
 }
 
 
@@ -403,7 +958,7 @@ XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
 }
 
 
-// xrtProcessCloseStdin 相关处理
+// 关闭进程标准输入
 XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -431,7 +986,16 @@ XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 }
 
 
-// xrtProcessTerminate 相关处理
+// 中断进程
+XXAPI bool xrtProcessInterrupt(xprocess* pProcess)
+{
+	(void)pProcess;
+	__xprocSetThreadRequiredError();
+	return false;
+}
+
+
+// 温和终止进程
 XXAPI bool xrtProcessTerminate(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -440,7 +1004,16 @@ XXAPI bool xrtProcessTerminate(xprocess* pProcess)
 }
 
 
-// xrtProcessKillTree 相关处理
+// 强制终止进程
+XXAPI bool xrtProcessKill(xprocess* pProcess)
+{
+	(void)pProcess;
+	__xprocSetThreadRequiredError();
+	return false;
+}
+
+
+// 终止进程树
 XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 {
 	(void)pProcess;
@@ -471,6 +1044,34 @@ XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
 }
 
 
+// 读取标准输出增量
+XXAPI ptr xrtProcessReadStdoutSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo)
+{
+	(void)pProcess;
+	(void)iOffset;
+	(void)iMaxBytes;
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	__xprocReadInfoInit(pInfo);
+	return NULL;
+}
+
+
+// 读取标准错误增量
+XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo)
+{
+	(void)pProcess;
+	(void)iOffset;
+	(void)iMaxBytes;
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	__xprocReadInfoInit(pInfo);
+	return NULL;
+}
+
+
 // xrtExecCapture 相关处理
 XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
 {
@@ -493,27 +1094,32 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 
 #else
 
-typedef struct {
-	xprocess* pProcess;
-	int iStream;
-} __xproc_pump_ctx;
-
 struct xprocess_struct {
 	volatile long iRefCount;
 	volatile int iState;
 	volatile int bExitReady;
 	volatile int bStdoutDone;
 	volatile int bStderrDone;
-	int iExitCode;
-	uint32 iFlags;
 	uint32 iReadChunkSize;
 	size_t iMaxCaptureBytes;
+	int iStdinMode;
+	int iStdoutMode;
+	int iStderrMode;
+	volatile int iRequestedStop;
+	volatile int bStopTimedOut;
+	volatile int bStopCancelled;
+	bool bStdoutCapture;
+	bool bStderrCapture;
+	bool bMergeStderr;
+	bool bCreateProcessGroup;
+	bool bHideWindow;
 	xprocessevents Events;
 	ptr pUserData;
+	xprocessexitinfo ExitInfo;
 	xmutex_struct Lock;
 	xcond_struct Cond;
-	__xproc_buffer StdoutBuf;
-	__xproc_buffer StderrBuf;
+	__xproc_streambuf StdoutBuf;
+	__xproc_streambuf StderrBuf;
 	xthread hWaitThread;
 	xthread hStdoutThread;
 	xthread hStderrThread;
@@ -521,6 +1127,7 @@ struct xprocess_struct {
 	__xproc_pump_ctx StderrPump;
 	#if defined(_WIN32) || defined(_WIN64)
 		HANDLE hProcess;
+		DWORD iProcessId;
 		HANDLE hStdinWrite;
 		HANDLE hStdoutRead;
 		HANDLE hStderrRead;
@@ -540,7 +1147,7 @@ struct xprocess_struct {
 static void __xprocFreeProcess(xprocess* pProcess);
 
 
-// 内部函数：__xprocAddRef
+// 内部函数：增加引用
 static xprocess* __xprocAddRef(xprocess* pProcess)
 {
 	if ( pProcess ) {
@@ -550,7 +1157,7 @@ static xprocess* __xprocAddRef(xprocess* pProcess)
 }
 
 
-// 内部函数：释放进程
+// 内部函数：释放引用
 static void __xprocReleaseProcess(xprocess* pProcess)
 {
 	if ( pProcess && __xrtAtomicAddFetch32(&pProcess->iRefCount, -1) == 0 ) {
@@ -559,7 +1166,7 @@ static void __xprocReleaseProcess(xprocess* pProcess)
 }
 
 #if !defined(XRT_NO_NETWORK)
-// 内部函数：__xprocWaitFutureCleanup
+// 内部函数：wait future 清理
 static void __xprocWaitFutureCleanup(xfuture* pFuture)
 {
 	xprocess* pProcess;
@@ -585,7 +1192,7 @@ static void __xprocWaitFutureCleanup(xfuture* pFuture)
 }
 
 
-// 内部函数：__xprocDetachWaitFuture
+// 内部函数：分离 wait future
 static void __xprocDetachWaitFuture(xprocess* pProcess)
 {
 	xfuture* pFuture = NULL;
@@ -611,7 +1218,8 @@ static void __xprocDetachWaitFuture(xprocess* pProcess)
 }
 #endif
 
-// 内部函数：__xprocNowMs
+
+// 内部函数：当前时间毫秒
 static uint64 __xprocNowMs(void)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -631,43 +1239,8 @@ static uint64 __xprocNowMs(void)
 }
 
 
-// 内部函数：__xprocNormalizeFlags
-static uint32 __xprocNormalizeFlags(uint32 iFlags)
-{
-	if ( (iFlags & XPROC_F_MERGE_STDERR) != 0u ) {
-		iFlags |= XPROC_F_PIPE_STDOUT;
-		iFlags &= ~XPROC_F_PIPE_STDERR;
-	}
-	return iFlags;
-}
-
-
-// 内部函数：校验配置
-static bool __xprocValidateConfig(const xprocessconfig* pConfig, uint32 iFlags)
-{
-	if ( pConfig == NULL ) {
-		xrtSetError("invalid subprocess config.", FALSE);
-		return false;
-	}
-
-	if ( (iFlags & XPROC_F_USE_SHELL) != 0u ) {
-		if ( pConfig->sCommandLine == NULL || pConfig->sCommandLine[0] == '\0' ) {
-			xrtSetError("shell mode requires command line.", FALSE);
-			return false;
-		}
-	} else {
-		if ( pConfig->sProgram == NULL || pConfig->sProgram[0] == '\0' ) {
-			xrtSetError("subprocess requires program path.", FALSE);
-			return false;
-		}
-	}
-
-	return true;
-}
-
-
-// 内部函数：分配进程
-static xprocess* __xprocAllocProcess(const xprocessconfig* pConfig, uint32 iFlags)
+// 内部函数：分配进程对象
+static xprocess* __xprocAllocProcess(const __xproc_plan* pPlan)
 {
 	xprocess* pProcess = (xprocess*)xrtCalloc(1, sizeof(xprocess));
 
@@ -678,20 +1251,27 @@ static xprocess* __xprocAllocProcess(const xprocessconfig* pConfig, uint32 iFlag
 
 	pProcess->iRefCount = 1;
 	pProcess->iState = XPROC_STATE_INIT;
-	pProcess->iExitCode = -1;
-	pProcess->iFlags = iFlags;
-	pProcess->iReadChunkSize = pConfig->iReadChunkSize ? pConfig->iReadChunkSize : __XPROC_READ_CHUNK_DEFAULT;
-	pProcess->iMaxCaptureBytes = pConfig->iMaxCaptureBytes;
-	pProcess->pUserData = pConfig->pUserData;
-	if ( pConfig->pEvents ) {
-		pProcess->Events = *pConfig->pEvents;
+	pProcess->iReadChunkSize = pPlan->iReadChunkSize;
+	pProcess->iMaxCaptureBytes = pPlan->iMaxCaptureBytes;
+	pProcess->iStdinMode = pPlan->iStdinMode;
+	pProcess->iStdoutMode = pPlan->iStdoutMode;
+	pProcess->iStderrMode = pPlan->iStderrMode;
+	pProcess->bStdoutCapture = pPlan->bStdoutCapture;
+	pProcess->bStderrCapture = pPlan->bStderrCapture;
+	pProcess->bMergeStderr = pPlan->bMergeStderr;
+	pProcess->bCreateProcessGroup = pPlan->bCreateProcessGroup;
+	pProcess->bHideWindow = pPlan->bHideWindow;
+	pProcess->pUserData = pPlan->pUserData;
+	if ( pPlan->pEvents ) {
+		pProcess->Events = *pPlan->pEvents;
 	}
-
+	__xprocExitInfoInit(&pProcess->ExitInfo);
 	xrtMutexInit(&pProcess->Lock);
 	xrtCondInit(&pProcess->Cond);
 
 	#if defined(_WIN32) || defined(_WIN64)
 		pProcess->hProcess = NULL;
+		pProcess->iProcessId = 0u;
 		pProcess->hStdinWrite = NULL;
 		pProcess->hStdoutRead = NULL;
 		pProcess->hStderrRead = NULL;
@@ -707,7 +1287,7 @@ static xprocess* __xprocAllocProcess(const xprocessconfig* pConfig, uint32 iFlag
 }
 
 
-// 内部函数：释放进程
+// 内部函数：释放进程对象
 static void __xprocFreeProcess(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -722,15 +1302,15 @@ static void __xprocFreeProcess(xprocess* pProcess)
 		pProcess->pWaitFuture = NULL;
 	#endif
 
-	__xprocBufferUnit(&pProcess->StdoutBuf);
-	__xprocBufferUnit(&pProcess->StderrBuf);
+	__xprocStreamUnit(&pProcess->StdoutBuf);
+	__xprocStreamUnit(&pProcess->StderrBuf);
 	xrtCondUnit(&pProcess->Cond);
 	xrtMutexUnit(&pProcess->Lock);
 	xrtFree(pProcess);
 }
 
 
-// 内部函数：__xprocDestroyThreads
+// 内部函数：销毁线程句柄
 static void __xprocDestroyThreads(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -751,7 +1331,7 @@ static void __xprocDestroyThreads(xprocess* pProcess)
 }
 
 
-// 内部函数：__xprocCloseStdinHandle
+// 内部函数：关闭 stdin 句柄
 static void __xprocCloseStdinHandle(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -771,7 +1351,7 @@ static void __xprocCloseStdinHandle(xprocess* pProcess)
 }
 
 
-// 内部函数：__xprocCloseStdoutReadHandle
+// 内部函数：关闭 stdout 读句柄
 static void __xprocCloseStdoutReadHandle(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -791,7 +1371,7 @@ static void __xprocCloseStdoutReadHandle(xprocess* pProcess)
 }
 
 
-// 内部函数：__xprocCloseStderrReadHandle
+// 内部函数：关闭 stderr 读句柄
 static void __xprocCloseStderrReadHandle(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -811,7 +1391,7 @@ static void __xprocCloseStderrReadHandle(xprocess* pProcess)
 }
 
 
-// 内部函数：__xprocClosePlatformHandles
+// 内部函数：关闭平台句柄
 static void __xprocClosePlatformHandles(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
@@ -831,13 +1411,14 @@ static void __xprocClosePlatformHandles(xprocess* pProcess)
 			CloseHandle(pProcess->hJob);
 			pProcess->hJob = NULL;
 		}
+		pProcess->iProcessId = 0u;
 	#else
 		pProcess->iPid = -1;
 	#endif
 }
 
 
-// 内部函数：__xprocMarkStreamDone
+// 内部函数：标记输出流结束
 static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
 {
 	if ( pProcess == NULL ) {
@@ -847,8 +1428,10 @@ static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
 	xrtMutexLock(&pProcess->Lock);
 	if ( iStream == __XPROC_STREAM_STDOUT ) {
 		pProcess->bStdoutDone = true;
+		pProcess->StdoutBuf.bDone = true;
 	} else {
 		pProcess->bStderrDone = true;
+		pProcess->StderrBuf.bDone = true;
 	}
 	xrtCondBroadcast(&pProcess->Cond);
 	xrtMutexUnlock(&pProcess->Lock);
@@ -858,52 +1441,54 @@ static void __xprocMarkStreamDone(xprocess* pProcess, int iStream)
 // 内部函数：处理输出
 static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pData, size_t iSize)
 {
-	__xproc_buffer* pBuf = NULL;
-	void (*OnOutput)(xprocess*, const void*, size_t, ptr) = NULL;
+	__xproc_streambuf* pBuf = NULL;
+	bool bCapture = false;
+	void (*procOutput)(xprocess*, const void*, size_t, ptr) = NULL;
 
-	if ( pProcess == NULL || pData == NULL || iSize == 0 ) {
+	if ( pProcess == NULL || pData == NULL || iSize == 0u ) {
 		return;
 	}
 
-	if ( iStream == __XPROC_STREAM_STDERR && (pProcess->iFlags & XPROC_F_MERGE_STDERR) != 0u ) {
+	if ( iStream == __XPROC_STREAM_STDERR && pProcess->bMergeStderr ) {
 		pBuf = &pProcess->StdoutBuf;
-		OnOutput = pProcess->Events.OnStdout;
+		bCapture = pProcess->bStdoutCapture;
+		procOutput = pProcess->Events.OnStdout ? pProcess->Events.OnStdout : pProcess->Events.OnStderr;
 	} else if ( iStream == __XPROC_STREAM_STDERR ) {
 		pBuf = &pProcess->StderrBuf;
-		OnOutput = pProcess->Events.OnStderr;
+		bCapture = pProcess->bStderrCapture;
+		procOutput = pProcess->Events.OnStderr;
 	} else {
 		pBuf = &pProcess->StdoutBuf;
-		OnOutput = pProcess->Events.OnStdout;
+		bCapture = pProcess->bStdoutCapture;
+		procOutput = pProcess->Events.OnStdout;
 	}
 
-	xrtMutexLock(&pProcess->Lock);
-	if ( (pProcess->iFlags & XPROC_F_NO_CAPTURE) == 0u ) {
-		__xprocBufferAppend(pBuf, pData, iSize, pProcess->iMaxCaptureBytes);
+	if ( bCapture ) {
+		xrtMutexLock(&pProcess->Lock);
+		__xprocStreamAppend(pBuf, pData, iSize, pProcess->iMaxCaptureBytes);
+		xrtMutexUnlock(&pProcess->Lock);
 	}
-	xrtMutexUnlock(&pProcess->Lock);
 
-	if ( OnOutput ) {
-		OnOutput(pProcess, pData, iSize, pProcess->pUserData);
+	if ( procOutput ) {
+		procOutput(pProcess, pData, iSize, pProcess->pUserData);
 	}
 }
 
-static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree);
 
-
-// 内部函数：推进线程
+// 内部函数：读取线程
 static uint32 __xprocPumpThread(ptr pArg)
 {
 	__xproc_pump_ctx* pCtx = (__xproc_pump_ctx*)pArg;
 	xprocess* pProcess = pCtx ? pCtx->pProcess : NULL;
 	uint32 iChunk = (pProcess && pProcess->iReadChunkSize) ? pProcess->iReadChunkSize : __XPROC_READ_CHUNK_DEFAULT;
-	char* pBuf = NULL;
+	char* sBuf = NULL;
 
 	if ( pProcess == NULL || (pCtx->iStream != __XPROC_STREAM_STDOUT && pCtx->iStream != __XPROC_STREAM_STDERR) ) {
 		return 1u;
 	}
 
-	pBuf = (char*)xrtMalloc(iChunk);
-	if ( pBuf == NULL ) {
+	sBuf = (char*)xrtMalloc(iChunk);
+	if ( sBuf == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
 		__xprocMarkStreamDone(pProcess, pCtx->iStream);
 		return 2u;
@@ -913,10 +1498,11 @@ static uint32 __xprocPumpThread(ptr pArg)
 		#if defined(_WIN32) || defined(_WIN64)
 			HANDLE hRead = (pCtx->iStream == __XPROC_STREAM_STDOUT) ? pProcess->hStdoutRead : pProcess->hStderrRead;
 			DWORD iRead = 0u;
+
 			if ( hRead == NULL ) {
 				break;
 			}
-			if ( !ReadFile(hRead, pBuf, iChunk, &iRead, NULL) ) {
+			if ( !ReadFile(hRead, sBuf, iChunk, &iRead, NULL) ) {
 				DWORD iErr = GetLastError();
 				if ( iErr == ERROR_BROKEN_PIPE || iErr == ERROR_HANDLE_EOF ) {
 					break;
@@ -926,24 +1512,25 @@ static uint32 __xprocPumpThread(ptr pArg)
 			if ( iRead == 0u ) {
 				break;
 			}
-			__xprocHandleOutput(pProcess, pCtx->iStream, pBuf, (size_t)iRead);
+			__xprocHandleOutput(pProcess, pCtx->iStream, sBuf, (size_t)iRead);
 		#else
 			int iFd = (pCtx->iStream == __XPROC_STREAM_STDOUT) ? pProcess->fdStdoutRead : pProcess->fdStderrRead;
 			ssize_t iRead;
+
 			if ( iFd < 0 ) {
 				break;
 			}
 			do {
-				iRead = read(iFd, pBuf, iChunk);
+				iRead = read(iFd, sBuf, iChunk);
 			} while ( iRead < 0 && errno == EINTR );
 			if ( iRead <= 0 ) {
 				break;
 			}
-			__xprocHandleOutput(pProcess, pCtx->iStream, pBuf, (size_t)iRead);
+			__xprocHandleOutput(pProcess, pCtx->iStream, sBuf, (size_t)iRead);
 		#endif
 	}
 
-	xrtFree(pBuf);
+	xrtFree(sBuf);
 	if ( pCtx->iStream == __XPROC_STREAM_STDOUT ) {
 		__xprocCloseStdoutReadHandle(pProcess);
 	} else {
@@ -953,33 +1540,158 @@ static uint32 __xprocPumpThread(ptr pArg)
 	return 0u;
 }
 
+
 #if defined(_WIN32) || defined(_WIN64)
 
-// 内部函数：__xprocBuildWindowsCommandLine
-static char* __xprocBuildWindowsCommandLine(const xprocessconfig* pConfig)
+// 内部函数：打开 NUL 句柄
+static HANDLE __xprocOpenWindowsNullHandle(DWORD iAccess)
 {
-	__xproc_strbuf tBuf;
-	bool bOk = false;
+	SECURITY_ATTRIBUTES tSa;
+
+	memset(&tSa, 0, sizeof(tSa));
+	tSa.nLength = sizeof(tSa);
+	tSa.bInheritHandle = TRUE;
+	return CreateFileW(L"NUL", iAccess, FILE_SHARE_READ | FILE_SHARE_WRITE, &tSa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+}
+
+
+// 内部函数：判断宽字符环境项是否被覆盖
+static bool __xprocWindowsEnvEntryOverridden(const wchar_t* sEntry, str* arrEnv, uint32 iEnvCount)
+{
 	uint32 i;
+
+	if ( sEntry == NULL ) {
+		return false;
+	}
+	for ( i = 0u; i < iEnvCount; i++ ) {
+		const char* sOverride = (const char*)arrEnv[i];
+		const char* sEquals = strchr(sOverride, '=');
+		size_t iNameLen;
+		size_t j;
+
+		if ( sEquals == NULL ) {
+			continue;
+		}
+		iNameLen = (size_t)(sEquals - sOverride);
+		if ( sEntry[0] == L'=' ) {
+			continue;
+		}
+		for ( j = 0u; j < iNameLen; j++ ) {
+			if ( sEntry[j] == L'\0' || sEntry[j] == L'=' ) {
+				break;
+			}
+			if ( towlower(sEntry[j]) != towlower((wchar_t)(unsigned char)sOverride[j]) ) {
+				break;
+			}
+		}
+		if ( j == iNameLen && sEntry[j] == L'=' ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
+// 内部函数：构建 Windows 环境块
+static wchar_t* __xprocBuildWindowsEnvBlock(const __xproc_plan* pPlan)
+{
+	__xproc_wbuf tBuf;
+	wchar_t chZero = L'\0';
+	bool bHasEntry = false;
+	LPWCH sBaseEnv = NULL;
 
 	memset(&tBuf, 0, sizeof(tBuf));
 
-	if ( (pConfig->iFlags & XPROC_F_USE_SHELL) != 0u ) {
-		bOk = __xprocStrBufAppend(&tBuf, "cmd.exe /C ");
-		if ( bOk ) {
-			bOk = __xprocStrBufAppend(&tBuf, (const char*)pConfig->sCommandLine);
+	if ( pPlan == NULL ) {
+		return NULL;
+	}
+	if ( pPlan->bInheritEnv && pPlan->iEnvCount == 0u ) {
+		return NULL;
+	}
+
+	if ( pPlan->bInheritEnv ) {
+		const wchar_t* sItem;
+
+		sBaseEnv = GetEnvironmentStringsW();
+		if ( sBaseEnv == NULL ) {
+			xrtSetError("failed to read subprocess environment.", FALSE);
+			return NULL;
 		}
-	} else {
-		bOk = __xprocCmdAppendQuoted(&tBuf, pConfig->sProgram);
-		for ( i = 0; bOk && i < pConfig->iArgCount; i++ ) {
+		for ( sItem = sBaseEnv; *sItem != L'\0'; sItem += wcslen(sItem) + 1u ) {
+			size_t iLen = wcslen(sItem);
+			if ( __xprocWindowsEnvEntryOverridden(sItem, pPlan->arrEnv, pPlan->iEnvCount) ) {
+				continue;
+			}
+			if ( !__xprocWBufAppendRaw(&tBuf, sItem, iLen + 1u) ) {
+				xrtSetError("memory allocate failed.", FALSE);
+				__xprocWBufUnit(&tBuf);
+				FreeEnvironmentStringsW(sBaseEnv);
+				return NULL;
+			}
+			bHasEntry = true;
+		}
+		FreeEnvironmentStringsW(sBaseEnv);
+	}
+
+	for ( uint32 i = 0u; i < pPlan->iEnvCount; i++ ) {
+		u16str sEntryW = xrtUTF8to16((u8str)pPlan->arrEnv[i], 0u, NULL);
+		size_t iLen;
+
+		if ( sEntryW == NULL ) {
+			xrtSetError("failed to convert subprocess env entry.", FALSE);
+			__xprocWBufUnit(&tBuf);
+			return NULL;
+		}
+		iLen = u16len(sEntryW);
+		if ( !__xprocWBufAppendRaw(&tBuf, sEntryW, iLen + 1u) ) {
+			xrtFree(sEntryW);
+			xrtSetError("memory allocate failed.", FALSE);
+			__xprocWBufUnit(&tBuf);
+			return NULL;
+		}
+		xrtFree(sEntryW);
+		bHasEntry = true;
+	}
+
+	if ( !__xprocWBufAppendRaw(&tBuf, &chZero, 1u) ) {
+		xrtSetError("memory allocate failed.", FALSE);
+		__xprocWBufUnit(&tBuf);
+		return NULL;
+	}
+	if ( !bHasEntry ) {
+		if ( !__xprocWBufAppendRaw(&tBuf, &chZero, 1u) ) {
+			xrtSetError("memory allocate failed.", FALSE);
+			__xprocWBufUnit(&tBuf);
+			return NULL;
+		}
+	}
+
+	return tBuf.sData;
+}
+
+
+// 内部函数：构建 Windows 命令行
+static char* __xprocBuildWindowsCommandLine(const __xproc_resolved_cmd* pCmd)
+{
+	__xproc_strbuf tBuf;
+	bool bOk = true;
+
+	if ( pCmd == NULL || pCmd->arrArgv == NULL || pCmd->iArgCount == 0u ) {
+		xrtSetError("invalid subprocess command line.", FALSE);
+		return NULL;
+	}
+
+	memset(&tBuf, 0, sizeof(tBuf));
+	for ( uint32 i = 0u; i < pCmd->iArgCount; i++ ) {
+		if ( i > 0u ) {
 			if ( !__xprocStrBufAppendChar(&tBuf, ' ') ) {
 				bOk = false;
 				break;
 			}
-			if ( !__xprocCmdAppendQuoted(&tBuf, pConfig->arrArgs ? pConfig->arrArgs[i] : NULL) ) {
-				bOk = false;
-				break;
-			}
+		}
+		if ( !__xprocCmdAppendQuoted(&tBuf, (str)pCmd->arrArgv[i]) ) {
+			bOk = false;
+			break;
 		}
 	}
 
@@ -993,7 +1705,7 @@ static char* __xprocBuildWindowsCommandLine(const xprocessconfig* pConfig)
 }
 
 
-// 内部函数：__xprocEnsureJobObject
+// 内部函数：确保 job object
 static bool __xprocEnsureJobObject(xprocess* pProcess)
 {
 	HANDLE hJob;
@@ -1027,8 +1739,8 @@ static bool __xprocEnsureJobObject(xprocess* pProcess)
 }
 
 
-// 内部函数：__xprocSpawnPlatform
-static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConfig)
+// 内部函数：平台启动
+static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
 	SECURITY_ATTRIBUTES tSa;
 	STARTUPINFOW tSi;
@@ -1036,10 +1748,17 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConf
 	HANDLE hChildStdinRead = NULL;
 	HANDLE hChildStdoutWrite = NULL;
 	HANDLE hChildStderrWrite = NULL;
+	HANDLE hNullStdin = NULL;
+	HANDLE hNullStdout = NULL;
+	HANDLE hNullStderr = NULL;
+	HANDLE hStdInput = NULL;
+	HANDLE hStdOutput = NULL;
+	HANDLE hStdError = NULL;
 	char* sCmdUtf8 = NULL;
 	u16str sCmdW = NULL;
 	u16str sWorkDirW = NULL;
-	bool bUseStdHandles = false;
+	wchar_t* sEnvBlockW = NULL;
+	BOOL bUseStdHandles = FALSE;
 	BOOL bOk;
 	DWORD iCreateFlags = 0u;
 
@@ -1050,69 +1769,137 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConf
 	tSa.bInheritHandle = TRUE;
 	tSi.cb = sizeof(tSi);
 
-	if ( (pProcess->iFlags & XPROC_F_PIPE_STDIN) != 0u ) {
-		if ( !CreatePipe(&hChildStdinRead, &pProcess->hStdinWrite, &tSa, 0) ) {
+	if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
+		if ( !CreatePipe(&hChildStdinRead, &pProcess->hStdinWrite, &tSa, 0u) ) {
 			xrtSetError("failed to create subprocess stdin pipe.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, (int)GetLastError());
 			goto fail;
 		}
-		(void)SetHandleInformation(pProcess->hStdinWrite, HANDLE_FLAG_INHERIT, 0);
-		bUseStdHandles = true;
+		(void)SetHandleInformation(pProcess->hStdinWrite, HANDLE_FLAG_INHERIT, 0u);
+		hStdInput = hChildStdinRead;
+		bUseStdHandles = TRUE;
+	} else if ( pPlan->iStdinMode == XPROC_STDIO_NULL ) {
+		hNullStdin = __xprocOpenWindowsNullHandle(GENERIC_READ);
+		if ( hNullStdin == INVALID_HANDLE_VALUE || hNullStdin == NULL ) {
+			xrtSetError("failed to open subprocess stdin null handle.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, (int)GetLastError());
+			goto fail;
+		}
+		hStdInput = hNullStdin;
+		bUseStdHandles = TRUE;
+	} else {
+		hStdInput = GetStdHandle(STD_INPUT_HANDLE);
 	}
-	if ( (pProcess->iFlags & XPROC_F_PIPE_STDOUT) != 0u ) {
-		if ( !CreatePipe(&pProcess->hStdoutRead, &hChildStdoutWrite, &tSa, 0) ) {
+
+	if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
+		if ( !CreatePipe(&pProcess->hStdoutRead, &hChildStdoutWrite, &tSa, 0u) ) {
 			xrtSetError("failed to create subprocess stdout pipe.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDOUT, (int)GetLastError());
 			goto fail;
 		}
-		(void)SetHandleInformation(pProcess->hStdoutRead, HANDLE_FLAG_INHERIT, 0);
-		bUseStdHandles = true;
+		(void)SetHandleInformation(pProcess->hStdoutRead, HANDLE_FLAG_INHERIT, 0u);
+		hStdOutput = hChildStdoutWrite;
+		bUseStdHandles = TRUE;
+	} else if ( pPlan->iStdoutMode == XPROC_STDIO_NULL ) {
+		hNullStdout = __xprocOpenWindowsNullHandle(GENERIC_WRITE);
+		if ( hNullStdout == INVALID_HANDLE_VALUE || hNullStdout == NULL ) {
+			xrtSetError("failed to open subprocess stdout null handle.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDOUT, (int)GetLastError());
+			goto fail;
+		}
+		hStdOutput = hNullStdout;
+		bUseStdHandles = TRUE;
+	} else {
+		hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
 	}
-	if ( (pProcess->iFlags & XPROC_F_MERGE_STDERR) != 0u ) {
-		hChildStderrWrite = hChildStdoutWrite;
-	} else if ( (pProcess->iFlags & XPROC_F_PIPE_STDERR) != 0u ) {
-		if ( !CreatePipe(&pProcess->hStderrRead, &hChildStderrWrite, &tSa, 0) ) {
+
+	if ( pPlan->bMergeStderr ) {
+		hStdError = hStdOutput;
+		bUseStdHandles = TRUE;
+	} else if ( pPlan->iStderrMode == XPROC_STDIO_PIPE ) {
+		if ( !CreatePipe(&pProcess->hStderrRead, &hChildStderrWrite, &tSa, 0u) ) {
 			xrtSetError("failed to create subprocess stderr pipe.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDERR, (int)GetLastError());
 			goto fail;
 		}
-		(void)SetHandleInformation(pProcess->hStderrRead, HANDLE_FLAG_INHERIT, 0);
-		bUseStdHandles = true;
+		(void)SetHandleInformation(pProcess->hStderrRead, HANDLE_FLAG_INHERIT, 0u);
+		hStdError = hChildStderrWrite;
+		bUseStdHandles = TRUE;
+	} else if ( pPlan->iStderrMode == XPROC_STDIO_NULL ) {
+		hNullStderr = __xprocOpenWindowsNullHandle(GENERIC_WRITE);
+		if ( hNullStderr == INVALID_HANDLE_VALUE || hNullStderr == NULL ) {
+			xrtSetError("failed to open subprocess stderr null handle.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDERR, (int)GetLastError());
+			goto fail;
+		}
+		hStdError = hNullStderr;
+		bUseStdHandles = TRUE;
+	} else {
+		hStdError = GetStdHandle(STD_ERROR_HANDLE);
 	}
 
 	if ( bUseStdHandles ) {
 		tSi.dwFlags |= STARTF_USESTDHANDLES;
-		tSi.hStdInput = hChildStdinRead ? hChildStdinRead : GetStdHandle(STD_INPUT_HANDLE);
-		tSi.hStdOutput = hChildStdoutWrite ? hChildStdoutWrite : GetStdHandle(STD_OUTPUT_HANDLE);
-		tSi.hStdError = hChildStderrWrite ? hChildStderrWrite : GetStdHandle(STD_ERROR_HANDLE);
+		tSi.hStdInput = hStdInput;
+		tSi.hStdOutput = hStdOutput;
+		tSi.hStdError = hStdError;
 	}
-	if ( (pProcess->iFlags & XPROC_F_HIDE_WINDOW) != 0u ) {
+	if ( pPlan->bHideWindow ) {
 		tSi.dwFlags |= STARTF_USESHOWWINDOW;
 		tSi.wShowWindow = SW_HIDE;
 		iCreateFlags |= CREATE_NO_WINDOW;
 	}
+	if ( pPlan->bCreateProcessGroup ) {
+		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
+	}
 
-	sCmdUtf8 = __xprocBuildWindowsCommandLine(pConfig);
+	sCmdUtf8 = __xprocBuildWindowsCommandLine(pCmd);
 	if ( sCmdUtf8 == NULL ) {
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, (int)GetLastError());
 		goto fail;
 	}
-	sCmdW = xrtUTF8to16((u8str)sCmdUtf8, 0, NULL);
+	sCmdW = xrtUTF8to16((u8str)sCmdUtf8, 0u, NULL);
 	if ( sCmdW == NULL ) {
 		xrtSetError("failed to convert subprocess command line.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, 0);
 		goto fail;
 	}
-	if ( pConfig->sWorkDir && pConfig->sWorkDir[0] ) {
-		sWorkDirW = xrtUTF8to16((u8str)pConfig->sWorkDir, 0, NULL);
+	if ( pPlan->sWorkDir ) {
+		DWORD iAttr;
+		int iWorkDirError = 0;
+
+		sWorkDirW = xrtUTF8to16((u8str)pPlan->sWorkDir, 0u, NULL);
 		if ( sWorkDirW == NULL ) {
 			xrtSetError("failed to convert subprocess working directory.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_WORKDIR, 0);
+			goto fail;
+		}
+		iAttr = GetFileAttributesW(sWorkDirW);
+		if ( iAttr == INVALID_FILE_ATTRIBUTES ) {
+			iWorkDirError = (int)GetLastError();
+		} else if ( !(iAttr & FILE_ATTRIBUTE_DIRECTORY) ) {
+			iWorkDirError = ERROR_DIRECTORY;
+		}
+		if ( iWorkDirError != 0 ) {
+			xrtSetError("invalid subprocess working directory.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_WORKDIR, iWorkDirError);
 			goto fail;
 		}
 	}
+	sEnvBlockW = __xprocBuildWindowsEnvBlock(pPlan);
+	if ( sEnvBlockW != NULL ) {
+		iCreateFlags |= CREATE_UNICODE_ENVIRONMENT;
+	}
 
-	bOk = CreateProcessW(NULL, sCmdW, NULL, NULL, bUseStdHandles ? TRUE : FALSE, iCreateFlags, NULL, sWorkDirW, &tSi, &tPi);
+	bOk = CreateProcessW(NULL, sCmdW, NULL, NULL, bUseStdHandles, iCreateFlags, sEnvBlockW, sWorkDirW, &tSi, &tPi);
 	if ( !bOk ) {
 		xrtSetError("failed to start subprocess.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, (int)GetLastError());
 		goto fail;
 	}
 
 	pProcess->hProcess = tPi.hProcess;
+	pProcess->iProcessId = tPi.dwProcessId;
 	if ( tPi.hThread ) {
 		CloseHandle(tPi.hThread);
 	}
@@ -1128,14 +1915,29 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConf
 		CloseHandle(hChildStderrWrite);
 		hChildStderrWrite = NULL;
 	}
-	if ( (pProcess->iFlags & XPROC_F_KILL_TREE) != 0u ) {
-		(void)__xprocEnsureJobObject(pProcess);
+	if ( hNullStdin ) {
+		CloseHandle(hNullStdin);
+		hNullStdin = NULL;
 	}
-
-	xrtFree(sCmdUtf8);
-	xrtFree(sCmdW);
+	if ( hNullStdout ) {
+		CloseHandle(hNullStdout);
+		hNullStdout = NULL;
+	}
+	if ( hNullStderr ) {
+		CloseHandle(hNullStderr);
+		hNullStderr = NULL;
+	}
+	if ( sCmdUtf8 ) {
+		xrtFree(sCmdUtf8);
+	}
+	if ( sCmdW ) {
+		xrtFree(sCmdW);
+	}
 	if ( sWorkDirW ) {
 		xrtFree(sWorkDirW);
+	}
+	if ( sEnvBlockW ) {
+		xrtFree(sEnvBlockW);
 	}
 	return true;
 
@@ -1143,121 +1945,445 @@ fail:
 	if ( hChildStdinRead ) CloseHandle(hChildStdinRead);
 	if ( hChildStdoutWrite ) CloseHandle(hChildStdoutWrite);
 	if ( hChildStderrWrite && hChildStderrWrite != hChildStdoutWrite ) CloseHandle(hChildStderrWrite);
+	if ( hNullStdin ) CloseHandle(hNullStdin);
+	if ( hNullStdout ) CloseHandle(hNullStdout);
+	if ( hNullStderr ) CloseHandle(hNullStderr);
 	if ( tPi.hThread ) CloseHandle(tPi.hThread);
 	if ( tPi.hProcess ) CloseHandle(tPi.hProcess);
 	if ( sCmdUtf8 ) xrtFree(sCmdUtf8);
 	if ( sCmdW ) xrtFree(sCmdW);
 	if ( sWorkDirW ) xrtFree(sWorkDirW);
+	if ( sEnvBlockW ) xrtFree(sEnvBlockW);
 	__xprocClosePlatformHandles(pProcess);
 	return false;
 }
 
 #else
 
-// 内部函数：__xprocSpawnPlatform
-static bool __xprocSpawnPlatform(xprocess* pProcess, const xprocessconfig* pConfig)
+// 内部函数：设置 CLOEXEC
+static bool __xprocSetCloseOnExec(int iFd)
+{
+	int iFlags;
+
+	if ( iFd < 0 ) {
+		return false;
+	}
+	iFlags = fcntl(iFd, F_GETFD);
+	if ( iFlags < 0 ) {
+		return false;
+	}
+	return fcntl(iFd, F_SETFD, iFlags | FD_CLOEXEC) == 0;
+}
+
+
+// 内部函数：写入子进程错误
+static void __xprocWriteChildError(int iFd, int iStage, int iOsError)
+{
+	__xproc_child_error tErr;
+	ssize_t iRet;
+
+	tErr.iStage = iStage;
+	tErr.iOsError = iOsError;
+	do {
+		iRet = write(iFd, &tErr, sizeof(tErr));
+	} while ( iRet < 0 && errno == EINTR );
+}
+
+
+// 内部函数：平台启动
+static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
 	int fdStdin[2] = { -1, -1 };
 	int fdStdout[2] = { -1, -1 };
 	int fdStderr[2] = { -1, -1 };
-	char** arrExec = NULL;
+	int fdError[2] = { -1, -1 };
+	int fdNullStdin = -1;
+	int fdNullStdout = -1;
+	int fdNullStderr = -1;
 	pid_t iPid;
-	uint32 i;
+	__xproc_child_error tChildError;
+	ssize_t iReadError;
 
-	if ( (pProcess->iFlags & XPROC_F_PIPE_STDIN) != 0u ) {
+	if ( pipe(fdError) != 0 ) {
+		xrtSetError("failed to create subprocess error pipe.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+	if ( !__xprocSetCloseOnExec(fdError[1]) ) {
+		xrtSetError("failed to configure subprocess error pipe.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
+		goto fail;
+	}
+
+	if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
 		int iOne = 1;
 		if ( socketpair(AF_UNIX, SOCK_STREAM, 0, fdStdin) != 0 ) {
 			xrtSetError("failed to create subprocess stdin pipe.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, errno);
 			goto fail;
 		}
 		#if defined(SO_NOSIGPIPE)
 			(void)setsockopt(fdStdin[1], SOL_SOCKET, SO_NOSIGPIPE, &iOne, sizeof(iOne));
 		#endif
-	}
-	if ( (pProcess->iFlags & XPROC_F_PIPE_STDOUT) != 0u ) {
-		if ( pipe(fdStdout) != 0 ) {
-			xrtSetError("failed to create subprocess stdout pipe.", FALSE);
-			goto fail;
-		}
-	}
-	if ( (pProcess->iFlags & XPROC_F_MERGE_STDERR) == 0u && (pProcess->iFlags & XPROC_F_PIPE_STDERR) != 0u ) {
-		if ( pipe(fdStderr) != 0 ) {
-			xrtSetError("failed to create subprocess stderr pipe.", FALSE);
+	} else if ( pPlan->iStdinMode == XPROC_STDIO_NULL ) {
+		fdNullStdin = open("/dev/null", O_RDONLY);
+		if ( fdNullStdin < 0 ) {
+			xrtSetError("failed to open subprocess stdin null handle.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, errno);
 			goto fail;
 		}
 	}
 
-	if ( (pProcess->iFlags & XPROC_F_USE_SHELL) == 0u ) {
-		arrExec = (char**)xrtCalloc((size_t)pConfig->iArgCount + 2u, sizeof(char*));
-		if ( arrExec == NULL ) {
-			xrtSetError("memory allocate failed.", FALSE);
+	if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
+		if ( pipe(fdStdout) != 0 ) {
+			xrtSetError("failed to create subprocess stdout pipe.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDOUT, errno);
 			goto fail;
 		}
-		arrExec[0] = (char*)pConfig->sProgram;
-		for ( i = 0; i < pConfig->iArgCount; i++ ) {
-			arrExec[i + 1u] = (char*)(pConfig->arrArgs ? pConfig->arrArgs[i] : NULL);
+	} else if ( pPlan->iStdoutMode == XPROC_STDIO_NULL ) {
+		fdNullStdout = open("/dev/null", O_WRONLY);
+		if ( fdNullStdout < 0 ) {
+			xrtSetError("failed to open subprocess stdout null handle.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDOUT, errno);
+			goto fail;
 		}
-		arrExec[pConfig->iArgCount + 1u] = NULL;
+	}
+
+	if ( !pPlan->bMergeStderr && pPlan->iStderrMode == XPROC_STDIO_PIPE ) {
+		if ( pipe(fdStderr) != 0 ) {
+			xrtSetError("failed to create subprocess stderr pipe.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDERR, errno);
+			goto fail;
+		}
+	} else if ( !pPlan->bMergeStderr && pPlan->iStderrMode == XPROC_STDIO_NULL ) {
+		fdNullStderr = open("/dev/null", O_WRONLY);
+		if ( fdNullStderr < 0 ) {
+			xrtSetError("failed to open subprocess stderr null handle.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDERR, errno);
+			goto fail;
+		}
 	}
 
 	iPid = fork();
 	if ( iPid < 0 ) {
 		xrtSetError("failed to fork subprocess.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
 		goto fail;
 	}
+
 	if ( iPid == 0 ) {
-		if ( pConfig->sWorkDir && pConfig->sWorkDir[0] ) (void)chdir(pConfig->sWorkDir);
-		(void)setpgid(0, 0);
-		if ( fdStdin[0] >= 0 ) dup2(fdStdin[0], STDIN_FILENO);
-		if ( fdStdout[1] >= 0 ) dup2(fdStdout[1], STDOUT_FILENO);
-		if ( (pProcess->iFlags & XPROC_F_MERGE_STDERR) != 0u && fdStdout[1] >= 0 ) dup2(fdStdout[1], STDERR_FILENO);
-		else if ( fdStderr[1] >= 0 ) dup2(fdStderr[1], STDERR_FILENO);
+		close(fdError[0]);
+
+		if ( pPlan->bCreateProcessGroup && setpgid(0, 0) != 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
+			_exit(126);
+		}
+
+		if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
+			if ( dup2(fdStdin[0], STDIN_FILENO) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDIN, errno);
+				_exit(126);
+			}
+		} else if ( pPlan->iStdinMode == XPROC_STDIO_NULL ) {
+			if ( dup2(fdNullStdin, STDIN_FILENO) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDIN, errno);
+				_exit(126);
+			}
+		}
+
+		if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
+			if ( dup2(fdStdout[1], STDOUT_FILENO) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDOUT, errno);
+				_exit(126);
+			}
+		} else if ( pPlan->iStdoutMode == XPROC_STDIO_NULL ) {
+			if ( dup2(fdNullStdout, STDOUT_FILENO) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDOUT, errno);
+				_exit(126);
+			}
+		}
+
+		if ( pPlan->bMergeStderr ) {
+			if ( dup2(STDOUT_FILENO, STDERR_FILENO) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDERR, errno);
+				_exit(126);
+			}
+		} else if ( pPlan->iStderrMode == XPROC_STDIO_PIPE ) {
+			if ( dup2(fdStderr[1], STDERR_FILENO) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDERR, errno);
+				_exit(126);
+			}
+		} else if ( pPlan->iStderrMode == XPROC_STDIO_NULL ) {
+			if ( dup2(fdNullStderr, STDERR_FILENO) < 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDERR, errno);
+				_exit(126);
+			}
+		}
+
 		if ( fdStdin[0] >= 0 ) close(fdStdin[0]);
 		if ( fdStdin[1] >= 0 ) close(fdStdin[1]);
 		if ( fdStdout[0] >= 0 ) close(fdStdout[0]);
 		if ( fdStdout[1] >= 0 ) close(fdStdout[1]);
 		if ( fdStderr[0] >= 0 ) close(fdStderr[0]);
 		if ( fdStderr[1] >= 0 ) close(fdStderr[1]);
-		if ( (pProcess->iFlags & XPROC_F_USE_SHELL) != 0u ) execl("/bin/sh", "sh", "-c", pConfig->sCommandLine, (char*)NULL);
-		else execvp(pConfig->sProgram, arrExec);
+		if ( fdNullStdin >= 0 ) close(fdNullStdin);
+		if ( fdNullStdout >= 0 ) close(fdNullStdout);
+		if ( fdNullStderr >= 0 ) close(fdNullStderr);
+
+		if ( pPlan->sWorkDir && chdir((const char*)pPlan->sWorkDir) != 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_WORKDIR, errno);
+			_exit(126);
+		}
+		if ( !pPlan->bInheritEnv && clearenv() != 0 ) {
+			__xprocWriteChildError(fdError[1], XPROC_STAGE_ENV, errno);
+			_exit(126);
+		}
+		for ( uint32 i = 0u; i < pPlan->iEnvCount; i++ ) {
+			if ( putenv((char*)pPlan->arrEnv[i]) != 0 ) {
+				__xprocWriteChildError(fdError[1], XPROC_STAGE_ENV, errno);
+				_exit(126);
+			}
+		}
+
+		execvp(pCmd->arrArgv[0], (char* const*)pCmd->arrArgv);
+		__xprocWriteChildError(fdError[1], XPROC_STAGE_EXEC, errno);
 		_exit(127);
 	}
 
+	close(fdError[1]);
+	fdError[1] = -1;
+
+	if ( fdStdin[0] >= 0 ) {
+		close(fdStdin[0]);
+		fdStdin[0] = -1;
+		pProcess->fdStdinWrite = fdStdin[1];
+		fdStdin[1] = -1;
+	}
+	if ( fdStdout[1] >= 0 ) {
+		close(fdStdout[1]);
+		fdStdout[1] = -1;
+		pProcess->fdStdoutRead = fdStdout[0];
+		fdStdout[0] = -1;
+	}
+	if ( fdStderr[1] >= 0 ) {
+		close(fdStderr[1]);
+		fdStderr[1] = -1;
+		pProcess->fdStderrRead = fdStderr[0];
+		fdStderr[0] = -1;
+	}
+	if ( fdNullStdin >= 0 ) {
+		close(fdNullStdin);
+		fdNullStdin = -1;
+	}
+	if ( fdNullStdout >= 0 ) {
+		close(fdNullStdout);
+		fdNullStdout = -1;
+	}
+	if ( fdNullStderr >= 0 ) {
+		close(fdNullStderr);
+		fdNullStderr = -1;
+	}
+
+	memset(&tChildError, 0, sizeof(tChildError));
+	do {
+		iReadError = read(fdError[0], &tChildError, sizeof(tChildError));
+	} while ( iReadError < 0 && errno == EINTR );
+	close(fdError[0]);
+	fdError[0] = -1;
+
+	if ( iReadError > 0 ) {
+		(void)waitpid(iPid, NULL, 0);
+		xrtSetError("failed to start subprocess.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, tChildError.iStage, tChildError.iOsError);
+		__xprocClosePlatformHandles(pProcess);
+		return false;
+	}
+
 	pProcess->iPid = iPid;
-	if ( fdStdin[0] >= 0 ) { close(fdStdin[0]); pProcess->fdStdinWrite = fdStdin[1]; fdStdin[0] = -1; fdStdin[1] = -1; }
-	if ( fdStdout[1] >= 0 ) { close(fdStdout[1]); pProcess->fdStdoutRead = fdStdout[0]; fdStdout[0] = -1; fdStdout[1] = -1; }
-	if ( fdStderr[1] >= 0 ) { close(fdStderr[1]); pProcess->fdStderrRead = fdStderr[0]; fdStderr[0] = -1; fdStderr[1] = -1; }
-	if ( arrExec ) xrtFree(arrExec);
 	return true;
 
 fail:
-	if ( arrExec ) xrtFree(arrExec);
+	if ( fdError[0] >= 0 ) close(fdError[0]);
+	if ( fdError[1] >= 0 ) close(fdError[1]);
 	if ( fdStdin[0] >= 0 ) close(fdStdin[0]);
 	if ( fdStdin[1] >= 0 ) close(fdStdin[1]);
 	if ( fdStdout[0] >= 0 ) close(fdStdout[0]);
 	if ( fdStdout[1] >= 0 ) close(fdStdout[1]);
 	if ( fdStderr[0] >= 0 ) close(fdStderr[0]);
 	if ( fdStderr[1] >= 0 ) close(fdStderr[1]);
+	if ( fdNullStdin >= 0 ) close(fdNullStdin);
+	if ( fdNullStdout >= 0 ) close(fdNullStdout);
+	if ( fdNullStderr >= 0 ) close(fdNullStderr);
+	__xprocClosePlatformHandles(pProcess);
 	return false;
 }
 
 #endif
 
-// 内部函数：__xprocTerminatePlatform
-static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree)
+
+// 内部函数：记录停止请求
+static void __xprocRecordStopRequest(xprocess* pProcess, int iStopReason, bool bTimedOut, bool bCancelled)
 {
-	if ( pProcess == NULL ) return false;
+	if ( pProcess == NULL ) {
+		return;
+	}
+	xrtMutexLock(&pProcess->Lock);
+	if ( iStopReason != XPROC_STOP_NONE ) {
+		pProcess->iRequestedStop = iStopReason;
+	}
+	if ( bTimedOut ) {
+		pProcess->bStopTimedOut = true;
+	}
+	if ( bCancelled ) {
+		pProcess->bStopCancelled = true;
+	}
+	xrtMutexUnlock(&pProcess->Lock);
+}
+
+
+// 内部函数：平台中断
+static bool __xprocInterruptPlatform(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return false;
+	}
 	#if defined(_WIN32) || defined(_WIN64)
-		if ( pProcess->hProcess == NULL ) return true;
-		if ( bKillTree && __xprocEnsureJobObject(pProcess) && TerminateJobObject(pProcess->hJob, 1u) ) return true;
-		if ( TerminateProcess(pProcess->hProcess, 1u) ) return true;
+		if ( pProcess->hProcess == NULL || pProcess->iProcessId == 0u ) {
+			return true;
+		}
+		if ( !pProcess->bCreateProcessGroup ) {
+			SetLastError(ERROR_INVALID_PARAMETER);
+			return false;
+		}
+		(void)SetConsoleCtrlHandler(NULL, TRUE);
+		if ( GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pProcess->iProcessId) ) {
+			(void)SetConsoleCtrlHandler(NULL, FALSE);
+			return true;
+		}
+		(void)SetConsoleCtrlHandler(NULL, FALSE);
+		return false;
+	#else
+		if ( pProcess->iPid <= 0 ) {
+			return true;
+		}
+		if ( pProcess->bCreateProcessGroup ) {
+			return kill(-pProcess->iPid, SIGINT) == 0 || errno == ESRCH;
+		}
+		return kill(pProcess->iPid, SIGINT) == 0 || errno == ESRCH;
+	#endif
+}
+
+
+// 内部函数：平台温和终止
+static bool __xprocTerminatePlatform(xprocess* pProcess)
+{
+	bool bRequested = false;
+
+	if ( pProcess == NULL ) {
+		return false;
+	}
+	__xprocCloseStdinHandle(pProcess);
+	bRequested = true;
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hProcess == NULL ) {
+			return true;
+		}
+		if ( pProcess->bCreateProcessGroup && pProcess->iProcessId != 0u ) {
+			(void)SetConsoleCtrlHandler(NULL, TRUE);
+			if ( GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pProcess->iProcessId) ) {
+				(void)SetConsoleCtrlHandler(NULL, FALSE);
+				return true;
+			}
+			(void)SetConsoleCtrlHandler(NULL, FALSE);
+		}
+		return bRequested;
+	#else
+		if ( pProcess->iPid <= 0 ) {
+			return true;
+		}
+		if ( kill(pProcess->iPid, SIGTERM) == 0 || errno == ESRCH ) {
+			return true;
+		}
+		return bRequested;
+	#endif
+}
+
+
+// 内部函数：平台强制终止
+static bool __xprocKillPlatform(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return false;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hProcess == NULL ) {
+			return true;
+		}
+		if ( TerminateProcess(pProcess->hProcess, 1u) ) {
+			return true;
+		}
 		return GetLastError() == ERROR_ACCESS_DENIED && pProcess->bExitReady;
 	#else
-		int iRet;
-		if ( pProcess->iPid <= 0 ) return true;
-		iRet = kill(bKillTree ? -pProcess->iPid : pProcess->iPid, bKillTree ? SIGKILL : SIGTERM);
-		return (iRet == 0) || (errno == ESRCH);
+		if ( pProcess->iPid <= 0 ) {
+			return true;
+		}
+		return kill(pProcess->iPid, SIGKILL) == 0 || errno == ESRCH;
 	#endif
+}
+
+
+// 内部函数：平台强制终止树
+static bool __xprocKillTreePlatform(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return false;
+	}
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hProcess == NULL ) {
+			return true;
+		}
+		if ( __xprocEnsureJobObject(pProcess) && TerminateJobObject(pProcess->hJob, 1u) ) {
+			return true;
+		}
+		return __xprocKillPlatform(pProcess);
+	#else
+		if ( pProcess->iPid <= 0 ) {
+			return true;
+		}
+		if ( pProcess->bCreateProcessGroup ) {
+			return kill(-pProcess->iPid, SIGKILL) == 0 || errno == ESRCH;
+		}
+		return kill(pProcess->iPid, SIGKILL) == 0 || errno == ESRCH;
+	#endif
+}
+
+
+// 内部函数：统一停止请求
+static bool __xprocRequestStop(xprocess* pProcess, int iStopReason, bool bTimedOut, bool bCancelled)
+{
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return false;
+	}
+	if ( pProcess->bExitReady ) {
+		return true;
+	}
+
+	__xprocRecordStopRequest(pProcess, iStopReason, bTimedOut, bCancelled);
+
+	switch ( iStopReason ) {
+		case XPROC_STOP_INTERRUPT:
+			return __xprocInterruptPlatform(pProcess);
+		case XPROC_STOP_TERMINATE:
+			return __xprocTerminatePlatform(pProcess);
+		case XPROC_STOP_KILL:
+			return __xprocKillPlatform(pProcess);
+		case XPROC_STOP_KILL_TREE:
+			return __xprocKillTreePlatform(pProcess);
+		default:
+			return false;
+	}
 }
 
 
@@ -1265,20 +2391,36 @@ static bool __xprocTerminatePlatform(xprocess* pProcess, bool bKillTree)
 static uint32 __xprocWaitThread(ptr pArg)
 {
 	xprocess* pProcess = (xprocess*)pArg;
-	int iExitCode = -1;
+	xprocessexitinfo tExitInfo;
 	int iState = XPROC_STATE_EXITED;
 	#if !defined(XRT_NO_NETWORK)
 		xpromise* pPromise = NULL;
 	#endif
 
-	if ( pProcess == NULL ) return 1u;
+	if ( pProcess == NULL ) {
+		return 1u;
+	}
+
+	__xprocExitInfoInit(&tExitInfo);
+
 	#if defined(_WIN32) || defined(_WIN64)
 		{
 			DWORD iWaitRet = WaitForSingleObject(pProcess->hProcess, INFINITE);
 			if ( iWaitRet == WAIT_OBJECT_0 ) {
 				DWORD iWinExit = 0u;
-				if ( GetExitCodeProcess(pProcess->hProcess, &iWinExit) ) iExitCode = (int)iWinExit;
+				if ( GetExitCodeProcess(pProcess->hProcess, &iWinExit) ) {
+					tExitInfo.iKind = XPROC_EXIT_NORMAL;
+					tExitInfo.iExitCode = (int)iWinExit;
+				} else {
+					tExitInfo.iKind = XPROC_EXIT_WAIT_FAILED;
+					tExitInfo.iStage = XPROC_STAGE_WAIT;
+					tExitInfo.iOsError = (int)GetLastError();
+					iState = XPROC_STATE_FAILED;
+				}
 			} else {
+				tExitInfo.iKind = XPROC_EXIT_WAIT_FAILED;
+				tExitInfo.iStage = XPROC_STAGE_WAIT;
+				tExitInfo.iOsError = (int)GetLastError();
 				iState = XPROC_STATE_FAILED;
 			}
 		}
@@ -1286,18 +2428,42 @@ static uint32 __xprocWaitThread(ptr pArg)
 		{
 			int iStatus = 0;
 			pid_t iWaitRet;
-			do { iWaitRet = waitpid(pProcess->iPid, &iStatus, 0); } while ( iWaitRet < 0 && errno == EINTR );
-			if ( iWaitRet < 0 ) iState = XPROC_STATE_FAILED;
-			else if ( WIFEXITED(iStatus) ) iExitCode = WEXITSTATUS(iStatus);
-			else if ( WIFSIGNALED(iStatus) ) iExitCode = 128 + WTERMSIG(iStatus);
+			do {
+				iWaitRet = waitpid(pProcess->iPid, &iStatus, 0);
+			} while ( iWaitRet < 0 && errno == EINTR );
+			if ( iWaitRet < 0 ) {
+				tExitInfo.iKind = XPROC_EXIT_WAIT_FAILED;
+				tExitInfo.iStage = XPROC_STAGE_WAIT;
+				tExitInfo.iOsError = errno;
+				iState = XPROC_STATE_FAILED;
+			} else if ( WIFEXITED(iStatus) ) {
+				tExitInfo.iKind = XPROC_EXIT_NORMAL;
+				tExitInfo.iExitCode = WEXITSTATUS(iStatus);
+			} else if ( WIFSIGNALED(iStatus) ) {
+				tExitInfo.iKind = XPROC_EXIT_SIGNAL;
+				tExitInfo.iSignal = WTERMSIG(iStatus);
+				tExitInfo.iExitCode = 128 + tExitInfo.iSignal;
+			} else {
+				tExitInfo.iKind = XPROC_EXIT_WAIT_FAILED;
+				tExitInfo.iStage = XPROC_STAGE_WAIT;
+				iState = XPROC_STATE_FAILED;
+			}
 		}
 	#endif
 
 	__xprocCloseStdinHandle(pProcess);
-	if ( pProcess->hStdoutThread ) xrtThreadWait(pProcess->hStdoutThread);
-	if ( pProcess->hStderrThread ) xrtThreadWait(pProcess->hStderrThread);
+	if ( pProcess->hStdoutThread ) {
+		xrtThreadWait(pProcess->hStdoutThread);
+	}
+	if ( pProcess->hStderrThread ) {
+		xrtThreadWait(pProcess->hStderrThread);
+	}
+
 	xrtMutexLock(&pProcess->Lock);
-	pProcess->iExitCode = iExitCode;
+	tExitInfo.iStopReason = pProcess->iRequestedStop;
+	tExitInfo.bTimedOut = pProcess->bStopTimedOut ? true : false;
+	tExitInfo.bCancelled = pProcess->bStopCancelled ? true : false;
+	pProcess->ExitInfo = tExitInfo;
 	pProcess->iState = iState;
 	pProcess->bExitReady = true;
 	xrtCondBroadcast(&pProcess->Cond);
@@ -1306,67 +2472,163 @@ static uint32 __xprocWaitThread(ptr pArg)
 		pProcess->pWaitPromise = NULL;
 	#endif
 	xrtMutexUnlock(&pProcess->Lock);
+
 	#if !defined(XRT_NO_NETWORK)
-		if ( pPromise ) { (void)xPromiseResolve(pPromise, pProcess); xPromiseDestroy(pPromise); }
+		if ( pPromise ) {
+			(void)xPromiseResolve(pPromise, pProcess);
+			xPromiseDestroy(pPromise);
+		}
 	#endif
-	if ( pProcess->Events.OnExit ) pProcess->Events.OnExit(pProcess, pProcess->iExitCode, pProcess->pUserData);
+	if ( pProcess->Events.OnExit ) {
+		pProcess->Events.OnExit(pProcess, &pProcess->ExitInfo, pProcess->pUserData);
+	}
 	return 0u;
 }
 
 
-// 内部函数：__xprocCleanupSpawnFailure
+// 内部函数：启动失败清理
 static void __xprocCleanupSpawnFailure(xprocess* pProcess)
 {
-	if ( pProcess == NULL ) return;
-	(void)__xprocTerminatePlatform(pProcess, true);
-	if ( pProcess->hWaitThread ) xrtThreadWait(pProcess->hWaitThread);
-	if ( pProcess->hStdoutThread ) xrtThreadWait(pProcess->hStdoutThread);
-	if ( pProcess->hStderrThread ) xrtThreadWait(pProcess->hStderrThread);
+	if ( pProcess == NULL ) {
+		return;
+	}
+
+	(void)__xprocKillTreePlatform(pProcess);
+	(void)__xprocKillPlatform(pProcess);
+
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( pProcess->hProcess ) {
+			(void)WaitForSingleObject(pProcess->hProcess, 1000u);
+		}
+	#else
+		if ( pProcess->iPid > 0 ) {
+			(void)waitpid(pProcess->iPid, NULL, 0);
+		}
+	#endif
+
+	if ( pProcess->hStdoutThread ) {
+		xrtThreadWait(pProcess->hStdoutThread);
+	}
+	if ( pProcess->hStderrThread ) {
+		xrtThreadWait(pProcess->hStderrThread);
+	}
+	if ( pProcess->hWaitThread ) {
+		xrtThreadWait(pProcess->hWaitThread);
+	}
 	__xprocDestroyThreads(pProcess);
 	__xprocClosePlatformHandles(pProcess);
-	__xprocFreeProcess(pProcess);
+	#if !defined(XRT_NO_NETWORK)
+		__xprocDetachWaitFuture(pProcess);
+	#endif
+	__xprocReleaseProcess(pProcess);
+}
+
+
+// 内部函数：内部启动
+static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexitinfo* pSpawnInfo)
+{
+	__xproc_plan tPlan;
+	__xproc_resolved_cmd tCmd;
+	xprocess* pProcess = NULL;
+
+	__xprocExitInfoInit(pSpawnInfo);
+	if ( !__xprocPlanFromConfig(pConfig, &tPlan) ) {
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, 0);
+		return NULL;
+	}
+	if ( !__xprocResolveCommand(&tPlan, &tCmd) ) {
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, 0);
+		return NULL;
+	}
+
+	pProcess = __xprocAllocProcess(&tPlan);
+	if ( pProcess == NULL ) {
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, 0);
+		__xprocResolvedCmdUnit(&tCmd);
+		return NULL;
+	}
+	if ( !__xprocSpawnPlatform(pProcess, &tPlan, &tCmd, pSpawnInfo) ) {
+		__xprocResolvedCmdUnit(&tCmd);
+		__xprocReleaseProcess(pProcess);
+		return NULL;
+	}
+	__xprocResolvedCmdUnit(&tCmd);
+
+	if ( pProcess->iStdoutMode != XPROC_STDIO_PIPE ) {
+		pProcess->bStdoutDone = true;
+		pProcess->StdoutBuf.bDone = true;
+	}
+	if ( pProcess->iStderrMode != XPROC_STDIO_PIPE || pProcess->bMergeStderr ) {
+		pProcess->bStderrDone = true;
+		pProcess->StderrBuf.bDone = true;
+	}
+
+	pProcess->StdoutPump.pProcess = pProcess;
+	pProcess->StdoutPump.iStream = __XPROC_STREAM_STDOUT;
+	pProcess->StderrPump.pProcess = pProcess;
+	pProcess->StderrPump.iStream = __XPROC_STREAM_STDERR;
+
+	if ( pProcess->iStdoutMode == XPROC_STDIO_PIPE ) {
+		pProcess->hStdoutThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StdoutPump, 0u);
+		if ( pProcess->hStdoutThread == NULL ) {
+			xrtSetError("failed to create subprocess stdout thread.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDOUT, 0);
+			__xprocCleanupSpawnFailure(pProcess);
+			return NULL;
+		}
+	}
+	if ( pProcess->iStderrMode == XPROC_STDIO_PIPE && !pProcess->bMergeStderr ) {
+		pProcess->hStderrThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StderrPump, 0u);
+		if ( pProcess->hStderrThread == NULL ) {
+			xrtSetError("failed to create subprocess stderr thread.", FALSE);
+			__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDERR, 0);
+			__xprocCleanupSpawnFailure(pProcess);
+			return NULL;
+		}
+	}
+
+	pProcess->iState = XPROC_STATE_RUNNING;
+	pProcess->hWaitThread = xrtThreadCreate(__xprocWaitThread, pProcess, 0u);
+	if ( pProcess->hWaitThread == NULL ) {
+		xrtSetError("failed to create subprocess wait thread.", FALSE);
+		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_WAIT, 0);
+		__xprocCleanupSpawnFailure(pProcess);
+		return NULL;
+	}
+
+	if ( pProcess->Events.OnStart ) {
+		pProcess->Events.OnStart(pProcess, pProcess->pUserData);
+	}
+	return pProcess;
 }
 
 
 // xrtProcessSpawn 相关处理
 XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 {
-	xprocess* pProcess;
-	uint32 iFlags = __xprocNormalizeFlags(pConfig ? pConfig->iFlags : 0u);
-	if ( !__xprocValidateConfig(pConfig, iFlags) ) return NULL;
-	pProcess = __xprocAllocProcess(pConfig, iFlags);
-	if ( pProcess == NULL ) return NULL;
-	if ( !__xprocSpawnPlatform(pProcess, pConfig) ) { __xprocFreeProcess(pProcess); return NULL; }
-	if ( (iFlags & XPROC_F_PIPE_STDOUT) == 0u ) pProcess->bStdoutDone = true;
-	if ( (iFlags & XPROC_F_PIPE_STDERR) == 0u || (iFlags & XPROC_F_MERGE_STDERR) != 0u ) pProcess->bStderrDone = true;
-	pProcess->StdoutPump.pProcess = pProcess;
-	pProcess->StdoutPump.iStream = __XPROC_STREAM_STDOUT;
-	pProcess->StderrPump.pProcess = pProcess;
-	pProcess->StderrPump.iStream = __XPROC_STREAM_STDERR;
-	if ( (iFlags & XPROC_F_PIPE_STDOUT) != 0u ) {
-		pProcess->hStdoutThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StdoutPump, 0);
-		if ( pProcess->hStdoutThread == NULL ) { xrtSetError("failed to create subprocess stdout thread.", FALSE); __xprocCleanupSpawnFailure(pProcess); return NULL; }
-	}
-	if ( (iFlags & XPROC_F_PIPE_STDERR) != 0u && (iFlags & XPROC_F_MERGE_STDERR) == 0u ) {
-		pProcess->hStderrThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StderrPump, 0);
-		if ( pProcess->hStderrThread == NULL ) { xrtSetError("failed to create subprocess stderr thread.", FALSE); __xprocCleanupSpawnFailure(pProcess); return NULL; }
-	}
-	pProcess->iState = XPROC_STATE_RUNNING;
-	pProcess->hWaitThread = xrtThreadCreate(__xprocWaitThread, pProcess, 0);
-	if ( pProcess->hWaitThread == NULL ) { xrtSetError("failed to create subprocess wait thread.", FALSE); __xprocCleanupSpawnFailure(pProcess); return NULL; }
-	if ( pProcess->Events.OnStart ) pProcess->Events.OnStart(pProcess, pProcess->pUserData);
-	return pProcess;
+	return __xprocSpawnInternal(pConfig, NULL);
 }
 
 
 // 销毁进程
 XXAPI void xrtProcessDestroy(xprocess* pProcess)
 {
-	if ( pProcess == NULL ) return;
-	if ( pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady ) { xrtSetError("subprocess is still running.", FALSE); return; }
-	if ( pProcess->hWaitThread ) xrtThreadWait(pProcess->hWaitThread);
-	if ( pProcess->hStdoutThread ) xrtThreadWait(pProcess->hStdoutThread);
-	if ( pProcess->hStderrThread ) xrtThreadWait(pProcess->hStderrThread);
+	if ( pProcess == NULL ) {
+		return;
+	}
+	if ( pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady ) {
+		xrtSetError("subprocess is still running.", FALSE);
+		return;
+	}
+	if ( pProcess->hWaitThread ) {
+		xrtThreadWait(pProcess->hWaitThread);
+	}
+	if ( pProcess->hStdoutThread ) {
+		xrtThreadWait(pProcess->hStdoutThread);
+	}
+	if ( pProcess->hStderrThread ) {
+		xrtThreadWait(pProcess->hStderrThread);
+	}
 	pProcess->iState = XPROC_STATE_CLOSED;
 	__xprocDestroyThreads(pProcess);
 	__xprocClosePlatformHandles(pProcess);
@@ -1376,37 +2638,107 @@ XXAPI void xrtProcessDestroy(xprocess* pProcess)
 	__xprocReleaseProcess(pProcess);
 }
 
-XXAPI int xrtProcessState(xprocess* pProcess) { return pProcess ? pProcess->iState : XPROC_STATE_FAILED; }
-XXAPI bool xrtProcessIsRunning(xprocess* pProcess) { return pProcess ? (pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady) : false; }
-XXAPI int xrtProcessExitCode(xprocess* pProcess) { return pProcess ? pProcess->iExitCode : -1; }
+
+// 获取进程状态
+XXAPI int xrtProcessState(xprocess* pProcess)
+{
+	return pProcess ? pProcess->iState : XPROC_STATE_FAILED;
+}
+
+
+// 判断是否仍在运行
+XXAPI bool xrtProcessIsRunning(xprocess* pProcess)
+{
+	return pProcess ? (pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady) : false;
+}
+
+
+// 获取退出码
+XXAPI int xrtProcessExitCode(xprocess* pProcess)
+{
+	if ( pProcess == NULL ) {
+		return -1;
+	}
+	return pProcess->ExitInfo.iExitCode;
+}
+
+
+// 获取结构化退出信息
+XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo)
+{
+	if ( pInfo ) {
+		__xprocExitInfoInit(pInfo);
+	}
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return false;
+	}
+	if ( pInfo == NULL ) {
+		xrtSetError("invalid subprocess exit info output.", FALSE);
+		return false;
+	}
+
+	xrtMutexLock(&pProcess->Lock);
+	*pInfo = pProcess->ExitInfo;
+	if ( pProcess->bExitReady ) {
+		pInfo->iStopReason = pProcess->iRequestedStop;
+		pInfo->bTimedOut = pProcess->bStopTimedOut ? true : false;
+		pInfo->bCancelled = pProcess->bStopCancelled ? true : false;
+	}
+	xrtMutexUnlock(&pProcess->Lock);
+	return true;
+}
 
 
 // 写入进程
 XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 {
-	if ( pProcess == NULL || pData == NULL || iSize == 0 ) return 0;
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return -1;
+	}
+	if ( pData == NULL || iSize == 0u ) {
+		return 0;
+	}
+
 	#if defined(_WIN32) || defined(_WIN64)
 		{
 			DWORD iWritten = 0u;
-			if ( pProcess->hStdinWrite == NULL ) { xrtSetError("subprocess stdin pipe is not available.", FALSE); return -1; }
-			if ( !WriteFile(pProcess->hStdinWrite, pData, (DWORD)iSize, &iWritten, NULL) ) { xrtSetError("failed to write subprocess stdin.", FALSE); return -1; }
+
+			if ( pProcess->hStdinWrite == NULL ) {
+				xrtSetError("subprocess stdin pipe is not available.", FALSE);
+				return -1;
+			}
+			if ( !WriteFile(pProcess->hStdinWrite, pData, (DWORD)iSize, &iWritten, NULL) ) {
+				xrtSetError("failed to write subprocess stdin.", FALSE);
+				return -1;
+			}
 			return (int64)iWritten;
 		}
 	#else
 		{
-			const char* pCursor = (const char*)pData;
+			const char* sCursor = (const char*)pData;
 			size_t iLeft = iSize;
-			if ( pProcess->fdStdinWrite < 0 ) { xrtSetError("subprocess stdin pipe is not available.", FALSE); return -1; }
-			while ( iLeft > 0 ) {
+
+			if ( pProcess->fdStdinWrite < 0 ) {
+				xrtSetError("subprocess stdin pipe is not available.", FALSE);
+				return -1;
+			}
+			while ( iLeft > 0u ) {
 				ssize_t iWritten;
 				#if defined(MSG_NOSIGNAL)
-					iWritten = send(pProcess->fdStdinWrite, pCursor, iLeft, MSG_NOSIGNAL);
+					iWritten = send(pProcess->fdStdinWrite, sCursor, iLeft, MSG_NOSIGNAL);
 				#else
-					iWritten = send(pProcess->fdStdinWrite, pCursor, iLeft, 0);
+					iWritten = send(pProcess->fdStdinWrite, sCursor, iLeft, 0);
 				#endif
-				if ( iWritten < 0 && errno == EINTR ) continue;
-				if ( iWritten <= 0 ) { xrtSetError("failed to write subprocess stdin.", FALSE); return -1; }
-				pCursor += iWritten;
+				if ( iWritten < 0 && errno == EINTR ) {
+					continue;
+				}
+				if ( iWritten <= 0 ) {
+					xrtSetError("failed to write subprocess stdin.", FALSE);
+					return -1;
+				}
+				sCursor += iWritten;
 				iLeft -= (size_t)iWritten;
 			}
 			return (int64)iSize;
@@ -1418,94 +2750,221 @@ XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 // 写入进程文本
 XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize)
 {
-	if ( sText == NULL ) return 0;
-	if ( iSize == 0 ) iSize = strlen((const char*)sText);
+	if ( sText == NULL ) {
+		return 0;
+	}
+	if ( iSize == 0u ) {
+		iSize = strlen((const char*)sText);
+	}
 	return xrtProcessWrite(pProcess, sText, iSize);
 }
 
 
-// xrtProcessCloseStdin 相关处理
+// 关闭 stdin
 XXAPI bool xrtProcessCloseStdin(xprocess* pProcess)
 {
-	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return false;
+	}
 	__xprocCloseStdinHandle(pProcess);
 	return true;
 }
 
-XXAPI bool xrtProcessWait(xprocess* pProcess) { return xrtProcessWaitTimeout(pProcess, UINT32_MAX) == XRT_WAIT_OK; }
+
+// 等待进程
+XXAPI bool xrtProcessWait(xprocess* pProcess)
+{
+	return xrtProcessWaitTimeout(pProcess, UINT32_MAX) == XRT_WAIT_OK;
+}
 
 
 // 等待进程超时
 XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 {
 	uint64 iDeadline = 0u;
-	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return XRT_WAIT_ERROR; }
+
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return XRT_WAIT_ERROR;
+	}
+
 	xrtMutexLock(&pProcess->Lock);
-	if ( iTimeoutMs != UINT32_MAX ) iDeadline = __xprocNowMs() + iTimeoutMs;
+	if ( iTimeoutMs != UINT32_MAX ) {
+		iDeadline = __xprocNowMs() + iTimeoutMs;
+	}
 	while ( !pProcess->bExitReady ) {
-		if ( iTimeoutMs == UINT32_MAX ) xrtCondWait(&pProcess->Cond, &pProcess->Lock);
-		else {
+		if ( iTimeoutMs == UINT32_MAX ) {
+			xrtCondWait(&pProcess->Cond, &pProcess->Lock);
+		} else {
 			uint64 iNow = __xprocNowMs();
-			if ( iNow >= iDeadline ) { xrtMutexUnlock(&pProcess->Lock); return XRT_WAIT_TIMEOUT; }
-			{
-				uint64 iRemain = iDeadline - iNow;
-				int iRet = xrtCondWaitTimeout(&pProcess->Cond, &pProcess->Lock, (iRemain > UINT32_MAX) ? UINT32_MAX : (uint32)iRemain);
-				if ( iRet == XRT_WAIT_TIMEOUT && !pProcess->bExitReady ) { xrtMutexUnlock(&pProcess->Lock); return XRT_WAIT_TIMEOUT; }
-				if ( iRet == XRT_WAIT_ERROR ) { xrtMutexUnlock(&pProcess->Lock); return XRT_WAIT_ERROR; }
+			uint64 iRemain;
+			int iRet;
+
+			if ( iNow >= iDeadline ) {
+				xrtMutexUnlock(&pProcess->Lock);
+				return XRT_WAIT_TIMEOUT;
+			}
+			iRemain = iDeadline - iNow;
+			iRet = xrtCondWaitTimeout(&pProcess->Cond, &pProcess->Lock, (iRemain > UINT32_MAX) ? UINT32_MAX : (uint32)iRemain);
+			if ( iRet == XRT_WAIT_TIMEOUT && !pProcess->bExitReady ) {
+				xrtMutexUnlock(&pProcess->Lock);
+				return XRT_WAIT_TIMEOUT;
+			}
+			if ( iRet == XRT_WAIT_ERROR ) {
+				xrtMutexUnlock(&pProcess->Lock);
+				return XRT_WAIT_ERROR;
 			}
 		}
 	}
 	xrtMutexUnlock(&pProcess->Lock);
-	if ( pProcess->hWaitThread ) xrtThreadWait(pProcess->hWaitThread);
+	if ( pProcess->hWaitThread ) {
+		xrtThreadWait(pProcess->hWaitThread);
+	}
 	return XRT_WAIT_OK;
 }
 
 
-// xrtProcessTerminate 相关处理
+// 中断进程
+XXAPI bool xrtProcessInterrupt(xprocess* pProcess)
+{
+	if ( !__xprocRequestStop(pProcess, XPROC_STOP_INTERRUPT, false, true) ) {
+		xrtSetError("failed to interrupt subprocess.", FALSE);
+		return false;
+	}
+	return true;
+}
+
+
+// 温和终止进程
 XXAPI bool xrtProcessTerminate(xprocess* pProcess)
 {
-	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
-	if ( pProcess->bExitReady ) return true;
-	if ( !__xprocTerminatePlatform(pProcess, false) ) { xrtSetError("failed to terminate subprocess.", FALSE); return false; }
+	if ( !__xprocRequestStop(pProcess, XPROC_STOP_TERMINATE, false, true) ) {
+		xrtSetError("failed to terminate subprocess.", FALSE);
+		return false;
+	}
 	return true;
 }
 
 
-// xrtProcessKillTree 相关处理
+// 强制终止进程
+XXAPI bool xrtProcessKill(xprocess* pProcess)
+{
+	if ( !__xprocRequestStop(pProcess, XPROC_STOP_KILL, false, true) ) {
+		xrtSetError("failed to kill subprocess.", FALSE);
+		return false;
+	}
+	return true;
+}
+
+
+// 强制终止进程树
 XXAPI bool xrtProcessKillTree(xprocess* pProcess)
 {
-	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return false; }
-	if ( pProcess->bExitReady ) return true;
-	if ( !__xprocTerminatePlatform(pProcess, true) ) { xrtSetError("failed to kill subprocess tree.", FALSE); return false; }
+	if ( !__xprocRequestStop(pProcess, XPROC_STOP_KILL_TREE, false, true) ) {
+		xrtSetError("failed to kill subprocess tree.", FALSE);
+		return false;
+	}
 	return true;
 }
 
 
-// 获取进程标准输出
+// 获取标准输出快照
 XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize)
 {
-	ptr pData = NULL;
-	if ( piSize ) *piSize = 0u;
-	if ( pProcess == NULL ) return NULL;
+	ptr pData;
+
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return NULL;
+	}
+
 	xrtMutexLock(&pProcess->Lock);
-	pData = pProcess->StdoutBuf.pData;
-	if ( piSize ) *piSize = pProcess->StdoutBuf.iSize;
+	pData = __xprocStreamSnapshot(&pProcess->StdoutBuf, piSize);
 	xrtMutexUnlock(&pProcess->Lock);
 	return pData;
 }
 
 
-// 获取进程标准错误
+// 获取标准错误快照
 XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize)
 {
-	ptr pData = NULL;
-	if ( piSize ) *piSize = 0u;
-	if ( pProcess == NULL ) return NULL;
+	ptr pData;
+
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return NULL;
+	}
+
 	xrtMutexLock(&pProcess->Lock);
-	pData = pProcess->StderrBuf.pData;
-	if ( piSize ) *piSize = pProcess->StderrBuf.iSize;
+	pData = __xprocStreamSnapshot(&pProcess->StderrBuf, piSize);
 	xrtMutexUnlock(&pProcess->Lock);
 	return pData;
+}
+
+
+// 按偏移读取 stdout
+XXAPI ptr xrtProcessReadStdoutSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo)
+{
+	ptr pData;
+
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	__xprocReadInfoInit(pInfo);
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return NULL;
+	}
+
+	xrtMutexLock(&pProcess->Lock);
+	pData = __xprocStreamReadSince(&pProcess->StdoutBuf, iOffset, iMaxBytes, piSize, pInfo);
+	xrtMutexUnlock(&pProcess->Lock);
+	return pData;
+}
+
+
+// 按偏移读取 stderr
+XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo)
+{
+	ptr pData;
+
+	if ( piSize ) {
+		*piSize = 0u;
+	}
+	__xprocReadInfoInit(pInfo);
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return NULL;
+	}
+
+	xrtMutexLock(&pProcess->Lock);
+	pData = __xprocStreamReadSince(&pProcess->StderrBuf, iOffset, iMaxBytes, piSize, pInfo);
+	xrtMutexUnlock(&pProcess->Lock);
+	return pData;
+}
+
+
+// 内部函数：timeout 收口策略
+static void __xprocStopForTimeout(xprocess* pProcess)
+{
+	(void)__xprocRequestStop(pProcess, XPROC_STOP_INTERRUPT, true, false);
+	if ( xrtProcessWaitTimeout(pProcess, __XPROC_TIMEOUT_GRACE_MS) == XRT_WAIT_OK ) {
+		return;
+	}
+	(void)__xprocRequestStop(pProcess, XPROC_STOP_TERMINATE, true, false);
+	if ( xrtProcessWaitTimeout(pProcess, __XPROC_TIMEOUT_GRACE_MS) == XRT_WAIT_OK ) {
+		return;
+	}
+	(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL_TREE, true, false);
+	(void)__xprocRequestStop(pProcess, XPROC_STOP_KILL, true, false);
+	(void)xrtProcessWait(pProcess);
 }
 
 
@@ -1514,31 +2973,51 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 {
 	xprocessconfig tConfig;
 	xprocess* pProcess;
+	xprocessexitinfo tSpawnInfo;
 	int iWaitRet;
-	if ( pConfig == NULL || pResult == NULL ) { xrtSetError("invalid subprocess capture arguments.", FALSE); return false; }
-	tConfig = *pConfig;
-	tConfig.iFlags = __xprocNormalizeFlags(tConfig.iFlags);
-	tConfig.iFlags &= ~XPROC_F_NO_CAPTURE;
-	tConfig.iFlags |= XPROC_F_PIPE_STDOUT;
-	if ( (tConfig.iFlags & XPROC_F_MERGE_STDERR) == 0u ) tConfig.iFlags |= XPROC_F_PIPE_STDERR;
-	pProcess = xrtProcessSpawn(&tConfig);
-	if ( pProcess == NULL ) return false;
-	iWaitRet = xrtProcessWaitTimeout(pProcess, iTimeoutMs == 0u ? UINT32_MAX : iTimeoutMs);
-	if ( iWaitRet != XRT_WAIT_OK ) {
-		(void)xrtProcessKillTree(pProcess);
-		(void)xrtProcessTerminate(pProcess);
-		(void)xrtProcessWait(pProcess);
-		xrtProcessDestroy(pProcess);
-		if ( iWaitRet == XRT_WAIT_TIMEOUT ) xrtSetError("subprocess capture wait timeout.", FALSE);
+
+	if ( pConfig == NULL || pResult == NULL ) {
+		xrtSetError("invalid subprocess capture arguments.", FALSE);
 		return false;
 	}
-	memset(pResult, 0, sizeof(*pResult));
-	pResult->iExitCode = xrtProcessExitCode(pProcess);
-	__xprocBufferMoveOut(&pProcess->StdoutBuf, &pResult->pStdout, &pResult->iStdoutSize, &pResult->bStdoutTruncated);
-	__xprocBufferMoveOut(&pProcess->StderrBuf, &pResult->pStderr, &pResult->iStderrSize, &pResult->bStderrTruncated);
+
+	__xprocResultInit(pResult);
+	tConfig = *pConfig;
+	tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
+	tConfig.Stdout.bCapture = true;
+	if ( tConfig.bMergeStderr ) {
+		tConfig.Stderr.bCapture = false;
+	} else {
+		tConfig.Stderr.iMode = XPROC_STDIO_PIPE;
+		tConfig.Stderr.bCapture = true;
+	}
+
+	pProcess = __xprocSpawnInternal(&tConfig, &tSpawnInfo);
+	if ( pProcess == NULL ) {
+		pResult->ExitInfo = tSpawnInfo;
+		pResult->iExitCode = tSpawnInfo.iExitCode;
+		return false;
+	}
+
+	iWaitRet = xrtProcessWaitTimeout(pProcess, iTimeoutMs == 0u ? UINT32_MAX : iTimeoutMs);
+	if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
+		__xprocStopForTimeout(pProcess);
+	} else if ( iWaitRet == XRT_WAIT_ERROR ) {
+		(void)xrtProcessWait(pProcess);
+	}
+
+	(void)xrtProcessGetExitInfo(pProcess, &pResult->ExitInfo);
+	pResult->iExitCode = pResult->ExitInfo.iExitCode;
+
+	xrtMutexLock(&pProcess->Lock);
+	__xprocStreamMoveOut(&pProcess->StdoutBuf, &pResult->pStdout, &pResult->iStdoutSize, &pResult->iStdoutBaseOffset, &pResult->bStdoutTruncated);
+	__xprocStreamMoveOut(&pProcess->StderrBuf, &pResult->pStderr, &pResult->iStderrSize, &pResult->iStderrBaseOffset, &pResult->bStderrTruncated);
+	xrtMutexUnlock(&pProcess->Lock);
+
 	xrtProcessDestroy(pProcess);
 	return true;
 }
+
 
 #if !defined(XRT_NO_NETWORK)
 // 等待进程 Future
@@ -1547,23 +3026,46 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 	xfuture* pFuture = NULL;
 	xpromise* pPromise = NULL;
 	bool bResolveNow = false;
-	if ( pProcess == NULL ) { xrtSetError("invalid subprocess handle.", FALSE); return NULL; }
+
+	if ( pProcess == NULL ) {
+		xrtSetError("invalid subprocess handle.", FALSE);
+		return NULL;
+	}
+
 	xrtMutexLock(&pProcess->Lock);
 	if ( pProcess->pWaitFuture == NULL ) {
 		pFuture = xFutureCreate();
-		if ( pFuture == NULL ) { xrtMutexUnlock(&pProcess->Lock); xrtSetError("failed to create subprocess wait future.", FALSE); return NULL; }
+		if ( pFuture == NULL ) {
+			xrtMutexUnlock(&pProcess->Lock);
+			xrtSetError("failed to create subprocess wait future.", FALSE);
+			return NULL;
+		}
 		pPromise = xPromiseCreate(pFuture);
-		if ( pPromise == NULL ) { xrtMutexUnlock(&pProcess->Lock); xFutureRelease(pFuture); xrtSetError("failed to create subprocess wait promise.", FALSE); return NULL; }
+		if ( pPromise == NULL ) {
+			xrtMutexUnlock(&pProcess->Lock);
+			xFutureRelease(pFuture);
+			xrtSetError("failed to create subprocess wait promise.", FALSE);
+			return NULL;
+		}
 		pFuture->pPendingCtx = __xprocAddRef(pProcess);
 		pFuture->pfnPendingCleanup = __xprocWaitFutureCleanup;
 		pProcess->pWaitFuture = pFuture;
-		if ( pProcess->bExitReady ) bResolveNow = true;
-		else { pProcess->pWaitPromise = pPromise; pPromise = NULL; }
+		if ( pProcess->bExitReady ) {
+			bResolveNow = true;
+		} else {
+			pProcess->pWaitPromise = pPromise;
+			pPromise = NULL;
+		}
 	}
 	pFuture = xFutureAddRef(pProcess->pWaitFuture);
 	xrtMutexUnlock(&pProcess->Lock);
-	if ( bResolveNow && pPromise ) { (void)xPromiseResolve(pPromise, pProcess); xPromiseDestroy(pPromise); }
+
+	if ( bResolveNow && pPromise ) {
+		(void)xPromiseResolve(pPromise, pProcess);
+		xPromiseDestroy(pPromise);
+	}
 	return pFuture;
 }
 #endif
+
 #endif

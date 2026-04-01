@@ -7,6 +7,7 @@ typedef struct {
 	int iStderrCalls;
 	int iExitCalls;
 	int iExitCode;
+	int iExitKind;
 } xrt_test_os_stream_ctx;
 
 
@@ -87,7 +88,7 @@ static void __xrtTestOSOnStderr(xprocess* pProcess, const void* pData, size_t iS
 
 
 // 内部函数：__xrtTestOSOnExit
-static void __xrtTestOSOnExit(xprocess* pProcess, int iExitCode, ptr pUserData)
+static void __xrtTestOSOnExit(xprocess* pProcess, const xprocessexitinfo* pExitInfo, ptr pUserData)
 {
 	xrt_test_os_stream_ctx* pCtx = (xrt_test_os_stream_ctx*)pUserData;
 	(void)pProcess;
@@ -97,7 +98,8 @@ static void __xrtTestOSOnExit(xprocess* pProcess, int iExitCode, ptr pUserData)
 	}
 
 	pCtx->iExitCalls++;
-	pCtx->iExitCode = iExitCode;
+	pCtx->iExitCode = pExitInfo ? pExitInfo->iExitCode : -1;
+	pCtx->iExitKind = pExitInfo ? pExitInfo->iKind : XPROC_EXIT_NONE;
 }
 
 
@@ -166,6 +168,36 @@ static int __xrtTestSubprocessHelperMain(int argc, char** argv)
 		__xrtTestOSSleepMs(iMs);
 		return iCode;
 	}
+	if ( strcmp(argv[0], "print_env") == 0 ) {
+		const char* sValue;
+
+		if ( argc <= 1 || argv[1] == NULL ) {
+			return 124;
+		}
+		sValue = getenv(argv[1]);
+		if ( sValue != NULL ) {
+			fputs(sValue, stdout);
+			fflush(stdout);
+		}
+		return 0;
+	}
+	if ( strcmp(argv[0], "print_cwd") == 0 ) {
+		char sBuf[1024];
+
+		#if defined(_WIN32) || defined(_WIN64)
+			if ( _getcwd(sBuf, (int)sizeof(sBuf)) == NULL ) {
+				return 125;
+			}
+		#else
+			if ( getcwd(sBuf, sizeof(sBuf)) == NULL ) {
+				return 125;
+			}
+		#endif
+
+		fputs(sBuf, stdout);
+		fflush(stdout);
+		return 0;
+	}
 
 	return 123;
 }
@@ -184,7 +216,10 @@ static int Test_OS(xrtGlobalData* xCore)
 	xprocessconfig tConfig;
 	xprocessresult tResult;
 	xprocess* pProcess = NULL;
+	xprocessexitinfo tExitInfo;
+	xprocessreadinfo tReadInfo;
 	size_t iSize = 0u;
+	ptr pData = NULL;
 	char sNormalized[256];
 	#if !defined(XRT_NO_NETWORK)
 		xfuture* pFuture = NULL;
@@ -221,7 +256,8 @@ static int Test_OS(xrtGlobalData* xCore)
 		ptr pStdout;
 
 		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
-		tConfig.iFlags = XPROC_F_PIPE_STDIN | XPROC_F_PIPE_STDOUT;
+		tConfig.Stdin.iMode = XPROC_STDIO_PIPE;
+		tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
 		pProcess = xrtProcessSpawn(&tConfig);
 		if ( pProcess == NULL ) {
 			return 6010;
@@ -238,6 +274,11 @@ static int Test_OS(xrtGlobalData* xCore)
 			xrtProcessDestroy(pProcess);
 			return 6013;
 		}
+		memset(&tExitInfo, 0, sizeof(tExitInfo));
+		if ( !xrtProcessGetExitInfo(pProcess, &tExitInfo) || tExitInfo.iKind != XPROC_EXIT_NORMAL || tExitInfo.iExitCode != 0 ) {
+			xrtProcessDestroy(pProcess);
+			return 6016;
+		}
 		if ( xrtProcessExitCode(pProcess) != 0 ) {
 			xrtProcessDestroy(pProcess);
 			return 6014;
@@ -245,9 +286,11 @@ static int Test_OS(xrtGlobalData* xCore)
 		pStdout = xrtProcessGetStdout(pProcess, &iSize);
 		__xrtTestOSNormalizeText((char*)pStdout, sNormalized, sizeof(sNormalized));
 		if ( pStdout == NULL || strcmp(sNormalized, sInput) != 0 ) {
+			xrtFree(pStdout);
 			xrtProcessDestroy(pProcess);
 			return 6015;
 		}
+		xrtFree(pStdout);
 		xrtProcessDestroy(pProcess);
 	}
 
@@ -257,7 +300,8 @@ static int Test_OS(xrtGlobalData* xCore)
 
 		memset(&tCtx, 0, sizeof(tCtx));
 		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
-		tConfig.iFlags = XPROC_F_PIPE_STDOUT | XPROC_F_PIPE_STDERR;
+		tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
+		tConfig.Stderr.iMode = XPROC_STDIO_PIPE;
 		tConfig.pEvents = &tEvents;
 		tConfig.pUserData = &tCtx;
 		pProcess = xrtProcessSpawn(&tConfig);
@@ -276,17 +320,155 @@ static int Test_OS(xrtGlobalData* xCore)
 			xrtProcessDestroy(pProcess);
 			return 6023;
 		}
+		if ( tCtx.iExitKind != XPROC_EXIT_NORMAL ) {
+			xrtProcessDestroy(pProcess);
+			return 6024;
+		}
 		__xrtTestOSNormalizeText(tCtx.sStdout, sNormalized, sizeof(sNormalized));
 		if ( strcmp(sNormalized, "stream-out-a\nstream-out-c\n") != 0 ) {
 			xrtProcessDestroy(pProcess);
-			return 6024;
+			return 6025;
 		}
 		__xrtTestOSNormalizeText(tCtx.sStderr, sNormalized, sizeof(sNormalized));
 		if ( strcmp(sNormalized, "stream-err-b\n") != 0 ) {
 			xrtProcessDestroy(pProcess);
-			return 6025;
+			return 6026;
 		}
 		xrtProcessDestroy(pProcess);
+	}
+
+	{
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"stream" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
+		tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
+		tConfig.Stderr.iMode = XPROC_STDIO_PIPE;
+		pProcess = xrtProcessSpawn(&tConfig);
+		if ( pProcess == NULL ) {
+			return 6027;
+		}
+		if ( !xrtProcessWait(pProcess) ) {
+			xrtProcessDestroy(pProcess);
+			return 6028;
+		}
+
+		memset(&tReadInfo, 0, sizeof(tReadInfo));
+		pData = xrtProcessReadStdoutSince(pProcess, 0u, 8u, &iSize, &tReadInfo);
+		if ( pData == NULL || iSize != 8u ) {
+			xrtFree(pData);
+			xrtProcessDestroy(pProcess);
+			return 6029;
+		}
+		if ( tReadInfo.iBaseOffset != 0u || tReadInfo.iNextOffset != 8u || !tReadInfo.bDone ) {
+			xrtFree(pData);
+			xrtProcessDestroy(pProcess);
+			return 6030;
+		}
+		__xrtTestOSNormalizeText((const char*)pData, sNormalized, sizeof(sNormalized));
+		if ( strcmp(sNormalized, "stream-o") != 0 ) {
+			xrtFree(pData);
+			xrtProcessDestroy(pProcess);
+			return 6031;
+		}
+		xrtFree(pData);
+
+		pData = xrtProcessReadStdoutSince(pProcess, tReadInfo.iNextOffset, 0u, &iSize, &tReadInfo);
+		if ( pData == NULL || iSize == 0u ) {
+			xrtFree(pData);
+			xrtProcessDestroy(pProcess);
+			return 6032;
+		}
+		__xrtTestOSNormalizeText((const char*)pData, sNormalized, sizeof(sNormalized));
+		if ( strcmp(sNormalized, "ut-a\nstream-out-c\n") != 0 ) {
+			xrtFree(pData);
+			xrtProcessDestroy(pProcess);
+			return 6033;
+		}
+		xrtFree(pData);
+		xrtProcessDestroy(pProcess);
+	}
+
+	{
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"print_env", (str)"XRT_SUBPROC_SAMPLE" };
+		str arrEnv[] = { (str)"XRT_SUBPROC_SAMPLE=env-value" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 3u);
+		tConfig.arrEnv = arrEnv;
+		tConfig.iEnvCount = 1u;
+		if ( !xrtExecCapture(&tConfig, &tResult, 3000u) ) {
+			return 6034;
+		}
+		__xrtTestOSNormalizeText((char*)tResult.pStdout, sNormalized, sizeof(sNormalized));
+		if ( tResult.iExitCode != 0 || strcmp(sNormalized, "env-value") != 0 ) {
+			xrtProcessResultUnit(&tResult);
+			return 6035;
+		}
+		xrtProcessResultUnit(&tResult);
+	}
+
+	{
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"emit" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
+		#if defined(_WIN32) || defined(_WIN64)
+			tConfig.sWorkDir = (str)"Z:/__xrt_subprocess_missing__/cwd";
+		#else
+			tConfig.sWorkDir = (str)"/__xrt_subprocess_missing__/cwd";
+		#endif
+		if ( xrtExecCapture(&tConfig, &tResult, 3000u) ) {
+			xrtProcessResultUnit(&tResult);
+			return 6036;
+		}
+		if ( tResult.ExitInfo.iKind != XPROC_EXIT_SPAWN_FAILED || tResult.ExitInfo.iStage != XPROC_STAGE_WORKDIR ) {
+			xrtProcessResultUnit(&tResult);
+			return 6037;
+		}
+		xrtProcessResultUnit(&tResult);
+	}
+
+	{
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"print_cwd" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 2u);
+		tConfig.sWorkDir = xCore->AppPath;
+		if ( !xrtExecCapture(&tConfig, &tResult, 3000u) ) {
+			return 6049;
+		}
+		__xrtTestOSNormalizeText((char*)tResult.pStdout, sNormalized, sizeof(sNormalized));
+		if ( tResult.iExitCode != 0 || strcmp(sNormalized, xCore->AppPath) != 0 ) {
+			xrtProcessResultUnit(&tResult);
+			return 6050;
+		}
+		xrtProcessResultUnit(&tResult);
+	}
+
+	{
+		xrtProcessConfigInit(&tConfig);
+		tConfig.iTargetKind = XPROC_TARGET_SHELL;
+		tConfig.sCommand = (str)"echo shell-out";
+		if ( !xrtExecCapture(&tConfig, &tResult, 3000u) ) {
+			return 6038;
+		}
+		__xrtTestOSNormalizeText((char*)tResult.pStdout, sNormalized, sizeof(sNormalized));
+		if ( tResult.iExitCode != 0 || strcmp(sNormalized, "shell-out\n") != 0 ) {
+			xrtProcessResultUnit(&tResult);
+			return 6039;
+		}
+		xrtProcessResultUnit(&tResult);
+	}
+
+	{
+		str arrArgs[] = { (str)"__subprocess_helper", (str)"sleep_exit", (str)"1000", (str)"5" };
+
+		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 4u);
+		if ( !xrtExecCapture(&tConfig, &tResult, 30u) ) {
+			return 6051;
+		}
+		if ( !tResult.ExitInfo.bTimedOut || tResult.ExitInfo.iStopReason == XPROC_STOP_NONE || tResult.ExitInfo.bCancelled ) {
+			xrtProcessResultUnit(&tResult);
+			return 6052;
+		}
+		xrtProcessResultUnit(&tResult);
 	}
 
 	#if !defined(XRT_NO_NETWORK)
@@ -296,22 +478,22 @@ static int Test_OS(xrtGlobalData* xCore)
 		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 4u);
 		pProcess = xrtProcessSpawn(&tConfig);
 		if ( pProcess == NULL ) {
-			return 6030;
+			return 6040;
 		}
 		pFuture = xrtProcessWaitFuture(pProcess);
 		if ( pFuture == NULL ) {
 			xrtProcessDestroy(pProcess);
-			return 6031;
+			return 6041;
 		}
 		if ( xFutureWaitValueTimeout(pFuture, 3000) != pProcess ) {
 			xFutureRelease(pFuture);
 			xrtProcessDestroy(pProcess);
-			return 6032;
+			return 6042;
 		}
 		if ( xrtProcessExitCode(pProcess) != 9 ) {
 			xFutureRelease(pFuture);
 			xrtProcessDestroy(pProcess);
-			return 6033;
+			return 6043;
 		}
 		xFutureRelease(pFuture);
 		xrtProcessDestroy(pProcess);
@@ -324,27 +506,27 @@ static int Test_OS(xrtGlobalData* xCore)
 		__xrtTestOSPrepareSelfConfig(xCore, &tConfig, arrArgs, 4u);
 		pProcess = xrtProcessSpawn(&tConfig);
 		if ( pProcess == NULL ) {
-			return 6034;
+			return 6044;
 		}
 		pFuture = xrtProcessWaitFuture(pProcess);
 		if ( pFuture == NULL ) {
 			xrtProcessDestroy(pProcess);
-			return 6035;
+			return 6045;
 		}
 		if ( xFutureWaitValueTimeout(pFuture, 3000) != pProcess ) {
 			xFutureRelease(pFuture);
 			xrtProcessDestroy(pProcess);
-			return 6036;
+			return 6046;
 		}
 		xrtProcessDestroy(pProcess);
 		pFutureProcess = (xprocess*)xFutureValue(pFuture);
 		if ( pFutureProcess != pProcess ) {
 			xFutureRelease(pFuture);
-			return 6037;
+			return 6047;
 		}
 		if ( xrtProcessExitCode(pFutureProcess) != 11 ) {
 			xFutureRelease(pFuture);
-			return 6038;
+			return 6048;
 		}
 		xFutureRelease(pFuture);
 	}

@@ -1,154 +1,204 @@
 # Subprocess 子进程模块
 
-> 当前 XRT 的 `subprocess` 能力面向“启动外部程序、流式消费输出、写入 stdin、同步或异步等待退出”这条工具链主线。
+> 当前 `subprocess` 主线面向“可靠启动外部程序、结构化读写 stdio、拿到可判定的退出结果、支持 agent/tool 链路”这几个核心目标。
 
 [返回索引](README.md)
 
 ---
 
-## 1. 定位
+## 1. 模块定位
 
-这组 API 主要解决：
+这组 API 适合：
 
-- 启动外部程序
-- 直接传 `argv` 或切到 shell 模式
-- 读取 stdout / stderr
-- 向 stdin 写入输入
-- 等待退出并拿退出码
-- 把“进程完成”接到 `future` 链路
+- 编译、测试、打包、脚本执行
+- `git`、`grep`、`python`、`node` 之类的工具编排
+- 需要把 stdout / stderr 流式接入日志或 UI
+- 需要给 agent host 做本地命令执行底座
 
-它更适合：
-
-- CLI 工具编排
-- 构建脚本
-- agent 工作流
-- 需要流式消费子工具输出的后台任务
-
-如果你只是：
-
-- 让系统打开一个文件
-- 启动默认程序
-- 单纯同步执行一个命令
-
-优先先看：
-
-- [OS](api-os.md)
+它解决的是“子进程运行时”问题，不是“打开系统默认程序”问题。  
+如果你只是想让系统启动一个文件或 URL，优先看 [OS](api-os.md)。
 
 
-## 2. 可用性与边界
+## 2. 核心模型
 
-当前源码主线里，先记住下面 8 条：
-
-1. `subprocess` 依赖线程能力；裁掉线程支持时，这组 API 会失败并写入线程相关错误。
-2. `xrtProcessWaitFuture()` 依赖 `future` 层；如果相应能力未编译进来，这个入口不会形成完整主线。
-3. `xrtExecCapture()` 是“一次性执行 + 自动等待 + 自动搬出 stdout/stderr 缓冲”的便捷入口。
-4. `xrtProcessSpawn()` 才是流式、交互式、显式生命周期控制的正式入口。
-5. `xrtProcessDestroy()` 不是 kill；它负责释放已经结束或由调用方不再持有的进程对象。
-6. `xrtExecCapture(..., iTimeoutMs = 0)` 当前会按“无限等待”处理，不是“立刻超时”。
-7. `xrtProcessGetStdout()` / `xrtProcessGetStderr()` 返回的是进程对象内部缓存指针，不是新复制出来的堆对象。
-8. `OnStart / OnStdout / OnStderr / OnExit` 回调运行在内部工作线程上，不会自动切回调用线程。
-
-
-## 3. 状态与 Flags
-
-### 3.1 进程状态
+当前 `subprocess` 有两种目标类型：
 
 ```c
-#define XPROC_STATE_FAILED   -1
-#define XPROC_STATE_INIT      0
-#define XPROC_STATE_RUNNING   1
-#define XPROC_STATE_EXITED    2
-#define XPROC_STATE_CLOSED    3
+#define XPROC_TARGET_EXEC		1
+#define XPROC_TARGET_SHELL		2
 ```
 
-推荐理解：
-
-- `INIT`
-	- 对象已创建，尚未稳定进入运行态
-- `RUNNING`
-	- 子进程还没退出
-- `EXITED`
-	- 已退出，可以读取 exit code / captured output
-- `CLOSED`
-	- 对象已经进入关闭收口
-- `FAILED`
-	- 启动或内部状态失败
+- `XPROC_TARGET_EXEC`
+	- 直接按 `program + argv` 启动
+	- 默认优先使用这条路径
+- `XPROC_TARGET_SHELL`
+	- 走 shell 解释器
+	- 默认 shell 为 Windows `cmd.exe`，POSIX `/bin/sh`
+	- `sProgram` 也可以显式指定 shell 程序，例如 `pwsh`
 
 
-### 3.2 启动 Flags
+### 2.1 标准流配置
 
 ```c
-#define XPROC_F_USE_SHELL     0x0001u
-#define XPROC_F_PIPE_STDIN    0x0002u
-#define XPROC_F_PIPE_STDOUT   0x0004u
-#define XPROC_F_PIPE_STDERR   0x0008u
-#define XPROC_F_MERGE_STDERR  0x0010u
-#define XPROC_F_HIDE_WINDOW   0x0020u
-#define XPROC_F_NO_CAPTURE    0x0040u
-#define XPROC_F_KILL_TREE     0x0080u
+#define XPROC_STDIO_INHERIT		0
+#define XPROC_STDIO_PIPE		1
+#define XPROC_STDIO_NULL		2
 ```
 
-使用建议：
+- `INHERIT`
+	- 继承当前进程对应的标准流
+- `PIPE`
+	- 为该流建立管道
+	- 可以配合回调、快照、增量读取、stdin 写入
+- `NULL`
+	- 丢弃该流
 
-- `XPROC_F_USE_SHELL`
-	- 从 direct argv 切到 shell 命令行模式；默认能不用就别用
-- `XPROC_F_PIPE_STDIN`
-	- 需要交互输入时再开
-- `XPROC_F_PIPE_STDOUT` / `XPROC_F_PIPE_STDERR`
-	- 需要读输出时打开
-- `XPROC_F_MERGE_STDERR`
-	- 把 stderr 合并进 stdout
-- `XPROC_F_HIDE_WINDOW`
-	- Windows 下隐藏子窗口
-- `XPROC_F_NO_CAPTURE`
-	- 只走流式回调，不保留内部捕获缓冲
-- `XPROC_F_KILL_TREE`
-	- 结束时尽量连子进程树一起收掉
+`PIPE` 模式下会保留安全读取所需的捕获缓冲。  
+`xrtProcessGetStdout()` / `xrtProcessGetStderr()` 返回的是新分配的快照，调用方负责 `xrtFree()`。
 
 
-## 4. 核心类型
+### 2.2 环境与工作目录
 
-### `xprocess`
+`xprocessconfig` 支持：
 
-运行中的子进程句柄。  
-这是不透明对象，调用方通过 API 访问它。
+- `sWorkDir`
+	- 严格工作目录
+	- 无法进入目录时会直接判定为 `SPAWN_FAILED`
+- `arrEnv + iEnvCount`
+	- 环境变量覆盖数组，元素格式为 `KEY=VALUE`
+- `bInheritEnv`
+	- `true` 表示继承当前环境后再叠加覆盖
+	- `false` 表示只使用 `arrEnv`
+
+这让上层不再需要靠 shell 拼 `cd && export/set && command` 来模拟环境。
 
 
-### `xprocessevents`
+## 3. 关键类型
+
+### 3.1 `xprocessstdio`
 
 ```c
 typedef struct {
-	void (*OnStart)(xprocess* pProcess, ptr pUserData);
-	void (*OnStdout)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
-	void (*OnStderr)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
-	void (*OnExit)(xprocess* pProcess, int iExitCode, ptr pUserData);
-} xprocessevents;
+	int iMode;
+	bool bCapture;
+} xprocessstdio;
 ```
 
-适合：
-
-- 流式打印
-- 增量解析 stdout/stderr
-- 在退出时触发后续逻辑
-
-注意：
-
-- 回调线程不是调用线程
-- 回调里不要默认假设自己已经附着到你自己的调度模型
+- `iMode`
+	- `INHERIT / PIPE / NULL`
+- `bCapture`
+	- 显式要求保留捕获缓冲
+	- `PIPE` 本身已经适合安全读取；这里主要用于更明确的调用意图
 
 
-### `xprocessconfig`
+### 3.2 `xprocessexitinfo`
 
 ```c
 typedef struct {
-	uint32 iFlags;
+	int iKind;
+	int iExitCode;
+	int iSignal;
+	int iStage;
+	int iOsError;
+	int iStopReason;
+	bool bTimedOut;
+	bool bCancelled;
+} xprocessexitinfo;
+```
+
+退出类型：
+
+```c
+#define XPROC_EXIT_NONE			0
+#define XPROC_EXIT_NORMAL		1
+#define XPROC_EXIT_SIGNAL		2
+#define XPROC_EXIT_SPAWN_FAILED	3
+#define XPROC_EXIT_WAIT_FAILED	4
+```
+
+阶段信息：
+
+```c
+#define XPROC_STAGE_NONE		0
+#define XPROC_STAGE_SPAWN		1
+#define XPROC_STAGE_WORKDIR		2
+#define XPROC_STAGE_ENV			3
+#define XPROC_STAGE_STDIN		4
+#define XPROC_STAGE_STDOUT		5
+#define XPROC_STAGE_STDERR		6
+#define XPROC_STAGE_EXEC		7
+#define XPROC_STAGE_WAIT		8
+```
+
+停止原因：
+
+```c
+#define XPROC_STOP_NONE			0
+#define XPROC_STOP_INTERRUPT	1
+#define XPROC_STOP_TERMINATE	2
+#define XPROC_STOP_KILL			3
+#define XPROC_STOP_KILL_TREE	4
+```
+
+常见判断方式：
+
+- `iKind == XPROC_EXIT_SPAWN_FAILED`
+	- 子进程根本没有成功进入运行态
+	- 这时重点看 `iStage / iOsError`
+- `bTimedOut == true`
+	- `xrtExecCapture()` 的等待超时并触发了内部收口
+- `iKind == XPROC_EXIT_SIGNAL`
+	- POSIX 下被信号结束
+- `bCancelled == true`
+	- 调用方主动发起过停止请求
+
+
+### 3.3 `xprocessreadinfo`
+
+```c
+typedef struct {
+	uint64 iBaseOffset;
+	uint64 iNextOffset;
+	uint64 iStreamEndOffset;
+	bool bDone;
+} xprocessreadinfo;
+```
+
+它用于描述一次 `ReadSince` 调用后的偏移状态：
+
+- `iBaseOffset`
+	- 当前缓冲还保留的数据起始偏移
+- `iNextOffset`
+	- 下一次继续读取时应使用的偏移
+- `iStreamEndOffset`
+	- 调用当下流尾偏移
+- `bDone`
+	- 对应流是否已经结束
+
+如果你传入的 offset 早于 `iBaseOffset`，说明较早的数据已经不在当前保留窗口里了。
+
+
+### 3.4 `xprocessconfig`
+
+```c
+typedef struct {
+	int iTargetKind;
 	str sProgram;
 	str* arrArgs;
 	uint32 iArgCount;
-	str sCommandLine;
+	str sCommand;
 	str sWorkDir;
+	str* arrEnv;
+	uint32 iEnvCount;
+	bool bInheritEnv;
+	bool bMergeStderr;
+	bool bCreateProcessGroup;
+	bool bHideWindow;
 	uint32 iReadChunkSize;
 	size_t iMaxCaptureBytes;
+	xprocessstdio Stdin;
+	xprocessstdio Stdout;
+	xprocessstdio Stderr;
 	const xprocessevents* pEvents;
 	ptr pUserData;
 } xprocessconfig;
@@ -156,42 +206,77 @@ typedef struct {
 
 字段重点：
 
+- `iTargetKind`
+	- `EXEC` 或 `SHELL`
 - `sProgram`
-	- direct argv 模式下的程序名
-- `arrArgs` / `iArgCount`
-	- direct argv 参数数组
-- `sCommandLine`
-	- shell 模式下的完整命令行
-- `sWorkDir`
-	- 工作目录
-- `iReadChunkSize`
-	- 内部管道分块读取大小
+	- `EXEC` 时是目标程序
+	- `SHELL` 时是可选 shell 程序
+- `arrArgs / iArgCount`
+	- 追加参数
+- `sCommand`
+	- shell 模式下的命令文本
+- `bMergeStderr`
+	- 把 stderr 并入 stdout
+- `bCreateProcessGroup`
+	- 让 `Interrupt / KillTree` 更稳定作用于整组子进程
 - `iMaxCaptureBytes`
-	- 最大捕获字节数；`0` 表示不限制
-- `pEvents`
-	- 回调集合
-- `pUserData`
-	- 透传给回调
+	- 0 表示不限制
+
+推荐起点一定是：
+
+```c
+xrtProcessConfigInit(&tConfig);
+```
+
+默认值包括：
+
+- `iTargetKind = XPROC_TARGET_EXEC`
+- `bInheritEnv = true`
+- `bCreateProcessGroup = true`
+- `Stdin/Stdout/Stderr = INHERIT`
 
 
-### `xprocessresult`
+### 3.5 `xprocessresult`
 
 ```c
 typedef struct {
+	xprocessexitinfo ExitInfo;
 	int iExitCode;
 	ptr pStdout;
 	size_t iStdoutSize;
+	uint64 iStdoutBaseOffset;
 	ptr pStderr;
 	size_t iStderrSize;
+	uint64 iStderrBaseOffset;
 	bool bStdoutTruncated;
 	bool bStderrTruncated;
 } xprocessresult;
 ```
 
 这是 `xrtExecCapture()` 的结果对象。  
-内部 `stdout / stderr` 缓冲会被搬到这里，使用完后统一：
+使用完后统一调用：
 
-- `xrtProcessResultUnit()`
+```c
+xrtProcessResultUnit(&tResult);
+```
+
+
+## 4. 事件回调
+
+```c
+typedef struct {
+	void (*OnStart)(xprocess* pProcess, ptr pUserData);
+	void (*OnStdout)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
+	void (*OnStderr)(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData);
+	void (*OnExit)(xprocess* pProcess, const xprocessexitinfo* pExitInfo, ptr pUserData);
+} xprocessevents;
+```
+
+注意：
+
+- 回调运行在内部线程
+- `OnExit` 拿到的是结构化退出信息，不再只是一个 `exit code`
+- 如果同时需要流式消费和轮询读取，可以结合 `PIPE + 回调 + ReadSince`
 
 
 ## 5. 公开 API
@@ -205,13 +290,15 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 XXAPI void xrtProcessResultUnit(xprocessresult* pResult);
 ```
 
-补充说明：
+语义说明：
 
-- `xrtProcessConfigInit()` 应作为配置对象起点。
-- `xrtProcessSpawn()` 返回 `NULL` 表示启动失败。
-- `xrtExecCapture()` 内部会强制打开 stdout capture，并在未设置 `MERGE_STDERR` 时自动打开 stderr capture。
-- `xrtExecCapture()` 成功时会把内部缓冲移动到 `xprocessresult`，调用方需要 `xrtProcessResultUnit()` 收口。
-- `xrtExecCapture()` 的 `iTimeoutMs == 0` 当前按无限等待处理。
+- `xrtProcessSpawn()`
+	- 启动成功返回 `xprocess*`
+	- 启动失败返回 `NULL`
+- `xrtExecCapture()`
+	- 成功启动并完成收口时返回 `true`
+	- 启动失败或参数无效时返回 `false`
+	- 即使发生超时，只要最终形成了有效结果，也会通过 `pResult->ExitInfo` 返回
 
 
 ### 5.2 运行态访问
@@ -220,6 +307,7 @@ XXAPI void xrtProcessResultUnit(xprocessresult* pResult);
 XXAPI int xrtProcessState(xprocess* pProcess);
 XXAPI bool xrtProcessIsRunning(xprocess* pProcess);
 XXAPI int xrtProcessExitCode(xprocess* pProcess);
+XXAPI bool xrtProcessGetExitInfo(xprocess* pProcess, xprocessexitinfo* pInfo);
 
 XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize);
 XXAPI int64 xrtProcessWriteText(xprocess* pProcess, str sText, size_t iSize);
@@ -227,106 +315,107 @@ XXAPI bool xrtProcessCloseStdin(xprocess* pProcess);
 
 XXAPI ptr xrtProcessGetStdout(xprocess* pProcess, size_t* piSize);
 XXAPI ptr xrtProcessGetStderr(xprocess* pProcess, size_t* piSize);
+XXAPI ptr xrtProcessReadStdoutSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
+XXAPI ptr xrtProcessReadStderrSince(xprocess* pProcess, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo);
 ```
 
-补充说明：
+要点：
 
-- `xrtProcessWriteText()` 里 `iSize == 0` 时，按当前字符串长度处理是更自然的调用方式。
-- 很多命令行程序会在收到 EOF 前一直等输入，因此写完 stdin 后通常要记得 `xrtProcessCloseStdin()`。
-- `xrtProcessGetStdout()` / `xrtProcessGetStderr()` 返回的是内部缓存地址；生命周期受 `xprocess` 对象约束，不要自行释放。
-- 如果启用了 `XPROC_F_NO_CAPTURE`，就不要指望这些 getter 还能给你完整输出。
+- `xrtProcessWriteText(..., iSize = 0)` 会自动取字符串长度
+- 很多程序要等到 EOF 才退出，所以写完 stdin 后通常还要 `xrtProcessCloseStdin()`
+- `GetStdout/GetStderr` 返回完整快照副本
+- `ReadStdoutSince/ReadStderrSince` 适合 agent 轮询式 streaming
+- 这些读取 API 返回的内存都需要 `xrtFree()`
 
 
-### 5.3 等待与终止
+### 5.3 等待与停止
 
 ```c
 XXAPI bool xrtProcessWait(xprocess* pProcess);
 XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs);
+
+XXAPI bool xrtProcessInterrupt(xprocess* pProcess);
 XXAPI bool xrtProcessTerminate(xprocess* pProcess);
+XXAPI bool xrtProcessKill(xprocess* pProcess);
 XXAPI bool xrtProcessKillTree(xprocess* pProcess);
+
 XXAPI void xrtProcessDestroy(xprocess* pProcess);
 ```
 
-补充说明：
+建议理解：
 
-- `xrtProcessWait()` 等价于无限等待直到退出。
-- `xrtProcessWaitTimeout()` 返回等待状态码，当前主线按 `XRT_WAIT_OK / XRT_WAIT_TIMEOUT / XRT_WAIT_ERROR` 理解。
-- `xrtProcessTerminate()` 是结束当前进程。
-- `xrtProcessKillTree()` 更适合带子 worker 的工具链。
-- `xrtProcessDestroy()` 不负责替你强杀进程；推荐顺序通常是：
-	1. `Wait/WaitTimeout`
-	2. 必要时 `KillTree/Terminate`
-	3. 最后 `Destroy`
+- `Interrupt`
+	- 尽量先通知对方中断
+	- Unix 走 `SIGINT`
+	- Windows 走 `CTRL_BREAK_EVENT`
+- `Terminate`
+	- 尽量温和退出
+- `Kill`
+	- 直接强杀当前进程
+- `KillTree`
+	- 尽量强杀整棵进程树
+- `Destroy`
+	- 只负责释放对象
+	- 不是 stop API
+
+推荐收口顺序：
+
+1. `WaitTimeout`
+2. 必要时 `Interrupt`
+3. 再不行 `Terminate`
+4. 仍未退出时 `KillTree` 或 `Kill`
+5. 最后 `Destroy`
 
 
-### 5.4 Future 入口
+### 5.4 Future
+
+如果编译包含 future 层：
 
 ```c
 XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess);
 ```
 
-补充说明：
-
-- 这个 future 在完成时，value 当前会 resolve 成 `pProcess` 本身。
-- 它适合接到 `xFutureWait*()`、`xFutureWhenAll()`、continuation 或 task group 链路。
-- 如果进程已经退出，再取 wait future，也会得到可解析的完成态 future。
+它会在进程退出时 resolve 为对应的 `xprocess*`。
 
 
 ## 6. 推荐用法
 
-### 6.1 短命令、整包抓取
+### 6.1 一次性工具执行
 
-优先：
+- 用 `XPROC_TARGET_EXEC`
+- 用 `xrtExecCapture()`
+- 让 `stdout/stderr` 自动 capture
 
-- `xrtExecCapture()`
+### 6.2 shell 命令执行
 
-适合：
+- 用 `XPROC_TARGET_SHELL`
+- 把命令放进 `sCommand`
+- 不要再自己手写 `cmd /c` 或 `/bin/sh -c`
 
-- `git status`
-- `ffprobe`
-- 轻量工具调用
+### 6.3 agent 轮询输出
 
+- `Stdout/Stderr.iMode = XPROC_STDIO_PIPE`
+- 用 `xrtProcessReadStdoutSince()` / `xrtProcessReadStderrSince()`
+- 保存 `iNextOffset` 作为下一轮 offset
 
-### 6.2 长命令、流式输出、交互 stdin
+### 6.4 带环境隔离的命令
 
-优先：
-
-- `xrtProcessSpawn()`
-
-适合：
-
-- 编译器
-- LLM CLI
-- 长时间运行的子 worker
-
-
-### 6.3 需要和异步主线组合
-
-优先：
-
-- `xrtProcessWaitFuture()`
-
-适合：
-
-- `subprocess + future`
-- `subprocess + task group`
-- `subprocess + file_async`
+- `bInheritEnv = false`
+- 明确给出 `arrEnv`
+- 避免依赖外层 shell 环境状态
 
 
-## 7. 常见错误
+## 7. 当前边界
 
-1. 把 `xrtProcessDestroy()` 当成 kill。
-2. 写完 stdin 忘记 `xrtProcessCloseStdin()`。
-3. 明明只需要 direct argv，却先切到 shell 模式。
-4. 在回调里直接操作线程不安全共享状态。
-5. 用 `XPROC_F_NO_CAPTURE` 以后还去读 `GetStdout()/GetStderr()`。
-6. 超时后只 `Destroy()`，却没先做 `Terminate()` / `KillTree()` 收口。
+- 这套主线当前提供的是 pipe-based subprocess
+- shell 路径已经能覆盖绝大多数 agent tool 场景
+- PTY / ConPTY 不在这套基础 API 的当前主线范围内
+- 回调是分 stdout / stderr 两条通道，不提供统一事件时间线 API
 
 
-## 8. 相关阅读
+## 8. 相关文档
 
-- [XRT 子进程与工具执行入门](../guide/subprocess-intro.md)
-- [OS](api-os.md)
+- [Subprocess 入门](../guide/subprocess-intro.md)
 - [Thread](api-thread.md)
 - [Future / Task / Promise](api-future-task-promise.md)
-- [用 Subprocess + File Async 写一个工具链流水线](../case/subprocess-file-async-pipeline.md)
+- [OS](api-os.md)

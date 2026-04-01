@@ -1,45 +1,29 @@
-# XRT 子进程与工具执行入门
+# XRT 子进程与命令执行入门
 
-> 目标：快速上手 `xrtExecCapture()`、`xrtProcessSpawn()`、stdin/stdout/stderr 管道、以及 `xrtProcessWaitFuture()` 这一组能力。
-
-建议先读：
-
-- [OS 入门：什么时候只要启动一个程序，什么时候已经该上 subprocess](os-intro.md)
+> 目标：快速把 `subprocess` 用在“本地命令执行、工具编排、agent shell 底座”这些场景里。
 
 [English](subprocess-intro.en.md) | [返回教学文档](README.md)
 
 ---
 
-## 1. 这组 API 解决什么问题
+## 1. 先记住 4 个结论
 
-当前 XRT 主线现在提供了一层轻量子进程能力，适合这些场景：
+1. 普通工具执行优先走 `XPROC_TARGET_EXEC`
+2. 需要 shell 解释时再切 `XPROC_TARGET_SHELL`
+3. 一次性执行优先 `xrtExecCapture()`
+4. 交互式或流式场景优先 `xrtProcessSpawn()`
 
-- 直接运行另一个程序
-- 抓取程序的 stdout / stderr
-- 在程序运行过程中流式消费输出
-- 向子进程 stdin 写入输入
-- 同步等待或通过 future 异步等待
 
-这套接口很适合：
+## 2. 最常用的两条路径
 
-- CLI 工具编排
-- 构建脚本
-- 自动化执行链
-- AI Agent 工具调用链
+### 2.1 一次性执行并拿结果
 
----
+适合：
 
-## 2. 两个主要入口
-
-### 2.1 `xrtExecCapture()`
-
-当你要的是：
-
-- 一次性执行
-- 完整收集 stdout / stderr
-- 最后拿 exit code
-
-优先用它。
+- `git status`
+- `gcc`
+- `pytest`
+- 短脚本
 
 ```c
 #include "xrt.h"
@@ -57,10 +41,11 @@ int main(void)
 	tConfig.arrArgs = arrArgs;
 	tConfig.iArgCount = 2;
 
-	if ( xrtExecCapture(&tConfig, &tResult, 5000) ) {
-		printf("exit = %d\n", tResult.iExitCode);
-		printf("stdout = %s\n", (char*)tResult.pStdout);
-		printf("stderr = %s\n", (char*)tResult.pStderr);
+	if ( xrtExecCapture(&tConfig, &tResult, 5000u) ) {
+		printf("exit=%d\n", tResult.ExitInfo.iExitCode);
+		printf("kind=%d\n", tResult.ExitInfo.iKind);
+		printf("stdout=%s\n", tResult.pStdout ? (char*)tResult.pStdout : "");
+		printf("stderr=%s\n", tResult.pStderr ? (char*)tResult.pStderr : "");
 		xrtProcessResultUnit(&tResult);
 	}
 
@@ -69,27 +54,24 @@ int main(void)
 }
 ```
 
-### 2.2 `xrtProcessSpawn()`
+这条路径会自动把 stdout / stderr 变成 capture 模式，并在结束后收口成 `xprocessresult`。
 
-当你要的是：
 
-- 流式回调
-- 手动写 stdin
-- 显式控制进程生命周期
-- future 异步等待
+### 2.2 手动控制生命周期
 
-优先用它。
+适合：
 
----
-
-## 3. 最小流式模式
+- 需要边跑边读输出
+- 需要写 stdin
+- 需要中断、终止、强杀
+- 需要接 `future`
 
 ```c
 static void procStdout(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData)
 {
 	(void)pProcess;
 	(void)pUserData;
-	fwrite(pData, 1, iSize, stdout);
+	fwrite(pData, 1u, iSize, stdout);
 }
 
 int main(void)
@@ -97,7 +79,7 @@ int main(void)
 	xprocessconfig tConfig;
 	xprocessevents tEvents;
 	xprocess* pProcess;
-	str arrArgs[] = { (str)"-c", (str)"print('hello from child')" };
+	str arrArgs[] = { (str)"--version" };
 
 	xrtInit();
 
@@ -105,15 +87,15 @@ int main(void)
 	tEvents.OnStdout = procStdout;
 
 	xrtProcessConfigInit(&tConfig);
-	tConfig.iFlags = XPROC_F_PIPE_STDOUT;
-	tConfig.sProgram = (str)"python";
+	tConfig.sProgram = (str)"git";
 	tConfig.arrArgs = arrArgs;
-	tConfig.iArgCount = 2;
+	tConfig.iArgCount = 1u;
+	tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
 	tConfig.pEvents = &tEvents;
 
 	pProcess = xrtProcessSpawn(&tConfig);
-	if ( pProcess ) {
-		xrtProcessWait(pProcess);
+	if ( pProcess != NULL ) {
+		(void)xrtProcessWait(pProcess);
 		xrtProcessDestroy(pProcess);
 	}
 
@@ -122,73 +104,204 @@ int main(void)
 }
 ```
 
----
 
-## 4. 给子进程写入 stdin
+## 3. 什么时候用 shell
 
-如果子进程需要输入：
+如果命令本身依赖：
 
-1. 打开 `XPROC_F_PIPE_STDIN`
-2. 调用 `xrtProcessWrite()` 或 `xrtProcessWriteText()`
-3. 写完后调用 `xrtProcessCloseStdin()`
+- shell 内建命令
+- 管道、重定向、`&&`
+- shell 展开规则
 
-第三步很重要，因为很多命令行程序只有收到 EOF 才会继续往下跑。
+才切到：
 
 ```c
-xrtProcessWriteText(pProcess, (str)"line-1\nline-2\n", 0);
+xrtProcessConfigInit(&tConfig);
+tConfig.iTargetKind = XPROC_TARGET_SHELL;
+tConfig.sCommand = (str)"echo shell-out";
+```
+
+你不需要自己拼：
+
+- Windows `cmd /c ...`
+- POSIX `/bin/sh -c ...`
+
+`subprocess` 会按平台自动补上默认 shell。  
+如果你明确要 `pwsh` 或别的 shell，可以把它放在 `sProgram`。
+
+
+## 4. 如何写 stdin
+
+要给子进程喂输入时：
+
+```c
+xrtProcessConfigInit(&tConfig);
+tConfig.sProgram = (str)"python";
+tConfig.Stdin.iMode = XPROC_STDIO_PIPE;
+tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
+```
+
+然后：
+
+```c
+xrtProcessWriteText(pProcess, (str)"line-1\nline-2\n", 0u);
 xrtProcessCloseStdin(pProcess);
 ```
 
----
+很多程序只有在看到 EOF 后才会继续退出，所以 `CloseStdin()` 往往是必要步骤。
 
-## 5. 用 future 等待子进程
 
-如果当前编译包含 future 层，那么还可以这样接：
+## 5. 如何安全轮询输出
+
+如果上层是 agent host，往往会定期轮询增量输出，而不是一次性拿完整快照。  
+这时优先用：
+
+```c
+xprocessreadinfo tReadInfo;
+size_t iSize = 0u;
+uint64 iOffset = 0u;
+ptr pChunk;
+
+memset(&tReadInfo, 0, sizeof(tReadInfo));
+pChunk = xrtProcessReadStdoutSince(pProcess, iOffset, 0u, &iSize, &tReadInfo);
+if ( pChunk != NULL ) {
+	fwrite(pChunk, 1u, iSize, stdout);
+	xrtFree(pChunk);
+}
+iOffset = tReadInfo.iNextOffset;
+```
+
+这里几个字段要记住：
+
+- `iBaseOffset`
+	- 当前缓冲最早还能读到的偏移
+- `iNextOffset`
+	- 下一次读取应继续的位置
+- `iStreamEndOffset`
+	- 当前流尾位置
+- `bDone`
+	- 该流是否已经结束
+
+如果你传入的 offset 小于 `iBaseOffset`，说明更早的数据已经不在当前保留窗口里了。
+
+
+## 6. 环境变量和工作目录
+
+### 6.1 环境变量覆盖
+
+```c
+str arrEnv[] = {
+	(str)"LANG=C",
+	(str)"XRT_TOOL_MODE=agent"
+};
+
+xrtProcessConfigInit(&tConfig);
+tConfig.sProgram = (str)"python";
+tConfig.arrEnv = arrEnv;
+tConfig.iEnvCount = 2u;
+tConfig.bInheritEnv = true;
+```
+
+如果你想完全隔离：
+
+```c
+tConfig.bInheritEnv = false;
+```
+
+
+### 6.2 严格工作目录
+
+```c
+xrtProcessConfigInit(&tConfig);
+tConfig.sProgram = (str)"git";
+tConfig.sWorkDir = (str)"D:/git/xrt";
+```
+
+如果目录无效，启动会直接失败，并在 `ExitInfo` 里体现为：
+
+- `iKind = XPROC_EXIT_SPAWN_FAILED`
+- `iStage = XPROC_STAGE_WORKDIR`
+
+不会再静默回退到旧目录。
+
+
+## 7. 退出结果怎么判断
+
+不要只看 `xrtProcessExitCode()`，更推荐看：
+
+```c
+xprocessexitinfo tExitInfo;
+
+if ( xrtProcessGetExitInfo(pProcess, &tExitInfo) ) {
+	printf("kind=%d\n", tExitInfo.iKind);
+	printf("exit=%d\n", tExitInfo.iExitCode);
+	printf("signal=%d\n", tExitInfo.iSignal);
+	printf("stage=%d\n", tExitInfo.iStage);
+	printf("os_error=%d\n", tExitInfo.iOsError);
+	printf("stop=%d\n", tExitInfo.iStopReason);
+	printf("timed_out=%d\n", tExitInfo.bTimedOut);
+	printf("cancelled=%d\n", tExitInfo.bCancelled);
+}
+```
+
+尤其在 agent/tool 场景下，下面几类要能区分：
+
+- 命令没启动起来
+- 命令启动了但失败退出
+- 命令超时后被你收掉了
+- 命令被信号结束
+
+
+## 8. 停止语义
+
+当前有四层停止动作：
+
+- `xrtProcessInterrupt()`
+	- 尽量发中断
+- `xrtProcessTerminate()`
+	- 尽量温和退出
+- `xrtProcessKill()`
+	- 强杀当前进程
+- `xrtProcessKillTree()`
+	- 强杀整棵进程树
+
+推荐梯度：
+
+1. `xrtProcessWaitTimeout()`
+2. 超时后 `xrtProcessInterrupt()`
+3. 再超时 `xrtProcessTerminate()`
+4. 最后 `xrtProcessKillTree()`
+
+`xrtExecCapture()` 的超时收口内部也遵循类似思路。
+
+
+## 9. future 链接
+
+如果编译包含 future 层，可以把“子进程完成”直接接到异步链路：
 
 ```c
 xfuture* pFuture = xrtProcessWaitFuture(pProcess);
-if ( pFuture ) {
+if ( pFuture != NULL ) {
 	if ( xFutureWaitValueTimeout(pFuture, 3000) == pProcess ) {
-		printf("exit = %d\n", xrtProcessExitCode(pProcess));
+		printf("done\n");
 	}
 	xFutureRelease(pFuture);
 }
 ```
 
-这对需要把“子进程完成”接到其他 async/future 链路里的场景会很方便。
 
----
+## 10. 几个容易踩坑的点
 
-## 6. 几个关键语义
+- `xrtProcessDestroy()` 不是 stop API
+- `OnExit` 现在拿到的是 `xprocessexitinfo*`
+- `GetStdout/GetStderr` 返回新内存，记得 `xrtFree()`
+- `PIPE` 模式才适合流式读取和写 stdin
+- 能不用 shell 就别用 shell
 
-- `xrtProcessDestroy()` 不是 kill。它只负责销毁已经退出的进程对象。
-- `OnStdout`、`OnStderr`、`OnExit` 运行在内部工作线程上，不会自动切回调用线程。
-- `XPROC_F_MERGE_STDERR` 会把 stderr 合并进 stdout。
-- `XPROC_F_NO_CAPTURE` 用于只流式消费、不做内存缓存的场景。
-- `iMaxCaptureBytes == 0` 表示不限制缓存大小。
-- `XPROC_F_USE_SHELL` 会从 direct argv 模式切到 shell 模式。
 
-大多数工具调用链，建议默认走 direct argv 模式。
+## 11. 进一步阅读
 
----
-
-## 7. 工具链场景下的推荐默认值
-
-如果你的目标是一般工具编排，可以先从这组默认习惯开始：
-
-- 默认优先 direct argv
-- 开启 `XPROC_F_PIPE_STDOUT | XPROC_F_PIPE_STDERR`
-- 只有确实要输入时再开 `XPROC_F_PIPE_STDIN`
-- 可能拉起子 worker 的工具，建议带上 `XPROC_F_KILL_TREE`
-- 短命令优先 `xrtExecCapture()`
-- 长命令、交互式命令、流式命令优先 `xrtProcessSpawn()`
-
----
-
-## 8. 延伸阅读
-
-- [Base](../api/api-base.md)
+- [Subprocess API](../api/api-subprocess.md)
 - [Thread](../api/api-thread.md)
 - [Future / Task / Promise](../api/api-future-task-promise.md)
 - [用 Subprocess + File Async 写一个工具链流水线](../case/subprocess-file-async-pipeline.md)
-- [XRT 运行时与线程附加入门](runtime-thread-attach.md)

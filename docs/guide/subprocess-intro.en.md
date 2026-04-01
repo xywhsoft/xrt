@@ -1,34 +1,22 @@
-# XRT Guide: Subprocess and Tool Execution
+# XRT Guide: Subprocess and Command Execution
 
-> A practical introduction to `xrtExecCapture()`, `xrtProcessSpawn()`, stdin/stdout/stderr piping, and async wait via `xrtProcessWaitFuture()`.
+> A practical guide for using `subprocess` as the foundation for local command execution, tool orchestration, and agent-host shell workflows.
 
 [中文](subprocess-intro.md) | [Back to Guides](README.en.md)
 
 ---
 
-## What This Page Explains
+## 1. Four Rules First
 
-The current XRT mainline now includes a small subprocess layer for common tool-style workflows:
+1. Prefer `XPROC_TARGET_EXEC` for normal tools
+2. Switch to `XPROC_TARGET_SHELL` only when shell semantics are required
+3. Prefer `xrtExecCapture()` for one-shot commands
+4. Prefer `xrtProcessSpawn()` for streaming or interactive control
 
-- run another program directly
-- capture its stdout / stderr
-- stream output while it runs
-- write to the child process stdin
-- wait synchronously or through a future
 
-This is especially useful for CLI orchestration, build tools, and AI-agent tool chains.
+## 2. Two Main Paths
 
----
-
-## The Two Main Entry Points
-
-### 1. `xrtExecCapture()`
-
-Use this when you want:
-
-- one-shot execution
-- full stdout / stderr capture
-- an exit code at the end
+### 2.1 One-shot execution with captured output
 
 ```c
 #include "xrt.h"
@@ -46,10 +34,11 @@ int main(void)
 	tConfig.arrArgs = arrArgs;
 	tConfig.iArgCount = 2;
 
-	if ( xrtExecCapture(&tConfig, &tResult, 5000) ) {
-		printf("exit = %d\n", tResult.iExitCode);
-		printf("stdout = %s\n", (char*)tResult.pStdout);
-		printf("stderr = %s\n", (char*)tResult.pStderr);
+	if ( xrtExecCapture(&tConfig, &tResult, 5000u) ) {
+		printf("exit=%d\n", tResult.ExitInfo.iExitCode);
+		printf("kind=%d\n", tResult.ExitInfo.iKind);
+		printf("stdout=%s\n", tResult.pStdout ? (char*)tResult.pStdout : "");
+		printf("stderr=%s\n", tResult.pStderr ? (char*)tResult.pStderr : "");
 		xrtProcessResultUnit(&tResult);
 	}
 
@@ -58,25 +47,17 @@ int main(void)
 }
 ```
 
-### 2. `xrtProcessSpawn()`
+Use this for short commands where you want a complete result object at the end.
 
-Use this when you want:
 
-- streaming callbacks
-- manual stdin writes
-- explicit lifetime control
-- async waiting
-
----
-
-## Minimal Streaming Pattern
+### 2.2 Spawn and control the process yourself
 
 ```c
 static void procStdout(xprocess* pProcess, const void* pData, size_t iSize, ptr pUserData)
 {
 	(void)pProcess;
 	(void)pUserData;
-	fwrite(pData, 1, iSize, stdout);
+	fwrite(pData, 1u, iSize, stdout);
 }
 
 int main(void)
@@ -84,7 +65,7 @@ int main(void)
 	xprocessconfig tConfig;
 	xprocessevents tEvents;
 	xprocess* pProcess;
-	str arrArgs[] = { (str)"-c", (str)"print('hello from child')" };
+	str arrArgs[] = { (str)"--version" };
 
 	xrtInit();
 
@@ -92,15 +73,15 @@ int main(void)
 	tEvents.OnStdout = procStdout;
 
 	xrtProcessConfigInit(&tConfig);
-	tConfig.iFlags = XPROC_F_PIPE_STDOUT;
-	tConfig.sProgram = (str)"python";
+	tConfig.sProgram = (str)"git";
 	tConfig.arrArgs = arrArgs;
-	tConfig.iArgCount = 2;
+	tConfig.iArgCount = 1u;
+	tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
 	tConfig.pEvents = &tEvents;
 
 	pProcess = xrtProcessSpawn(&tConfig);
-	if ( pProcess ) {
-		xrtProcessWait(pProcess);
+	if ( pProcess != NULL ) {
+		(void)xrtProcessWait(pProcess);
 		xrtProcessDestroy(pProcess);
 	}
 
@@ -109,71 +90,196 @@ int main(void)
 }
 ```
 
----
+Use this when you need streaming callbacks, manual stdin, or explicit stop control.
 
-## Writing to Child Stdin
 
-If the child expects input, enable `XPROC_F_PIPE_STDIN` and then:
+## 3. When to Use Shell Mode
 
-- call `xrtProcessWrite()` or `xrtProcessWriteText()`
-- call `xrtProcessCloseStdin()` when you are done
+Switch to shell mode only when the command depends on:
 
-That final close matters because many tools continue only after they receive EOF.
+- shell builtins
+- redirection or pipes
+- `&&` or other shell syntax
+- shell-specific expansion rules
 
 ```c
-xrtProcessWriteText(pProcess, (str)"line-1\nline-2\n", 0);
+xrtProcessConfigInit(&tConfig);
+tConfig.iTargetKind = XPROC_TARGET_SHELL;
+tConfig.sCommand = (str)"echo shell-out";
+```
+
+You do not need to manually prepend:
+
+- `cmd /c` on Windows
+- `/bin/sh -c` on POSIX
+
+The subprocess layer selects the default shell automatically.  
+If you want a specific shell such as `pwsh`, assign it to `sProgram`.
+
+
+## 4. Writing to Child Stdin
+
+```c
+xrtProcessConfigInit(&tConfig);
+tConfig.sProgram = (str)"python";
+tConfig.Stdin.iMode = XPROC_STDIO_PIPE;
+tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
+```
+
+Then:
+
+```c
+xrtProcessWriteText(pProcess, (str)"line-1\nline-2\n", 0u);
 xrtProcessCloseStdin(pProcess);
 ```
 
----
+Closing stdin matters because many tools do not continue until they observe EOF.
 
-## Waiting with a Future
 
-When the network/future layer is enabled, the process can also be observed through a future:
+## 5. Safe Incremental Output Polling
+
+For agent hosts, polling output incrementally is often more useful than taking full snapshots.
+
+```c
+xprocessreadinfo tReadInfo;
+size_t iSize = 0u;
+uint64 iOffset = 0u;
+ptr pChunk;
+
+memset(&tReadInfo, 0, sizeof(tReadInfo));
+pChunk = xrtProcessReadStdoutSince(pProcess, iOffset, 0u, &iSize, &tReadInfo);
+if ( pChunk != NULL ) {
+	fwrite(pChunk, 1u, iSize, stdout);
+	xrtFree(pChunk);
+}
+iOffset = tReadInfo.iNextOffset;
+```
+
+Key fields:
+
+- `iBaseOffset`
+	- earliest retained offset
+- `iNextOffset`
+	- next offset to read from
+- `iStreamEndOffset`
+	- current stream tail
+- `bDone`
+	- stream has finished
+
+
+## 6. Environment and Working Directory
+
+### 6.1 Environment overlay
+
+```c
+str arrEnv[] = {
+	(str)"LANG=C",
+	(str)"XRT_TOOL_MODE=agent"
+};
+
+xrtProcessConfigInit(&tConfig);
+tConfig.sProgram = (str)"python";
+tConfig.arrEnv = arrEnv;
+tConfig.iEnvCount = 2u;
+tConfig.bInheritEnv = true;
+```
+
+For an isolated environment:
+
+```c
+tConfig.bInheritEnv = false;
+```
+
+
+### 6.2 Strict working directory
+
+```c
+xrtProcessConfigInit(&tConfig);
+tConfig.sProgram = (str)"git";
+tConfig.sWorkDir = (str)"/opt/project";
+```
+
+If the directory is invalid, launch fails with structured exit info:
+
+- `iKind = XPROC_EXIT_SPAWN_FAILED`
+- `iStage = XPROC_STAGE_WORKDIR`
+
+It does not silently fall back to the old current directory.
+
+
+## 7. Reading Structured Exit Info
+
+Prefer this over checking only `xrtProcessExitCode()`:
+
+```c
+xprocessexitinfo tExitInfo;
+
+if ( xrtProcessGetExitInfo(pProcess, &tExitInfo) ) {
+	printf("kind=%d\n", tExitInfo.iKind);
+	printf("exit=%d\n", tExitInfo.iExitCode);
+	printf("signal=%d\n", tExitInfo.iSignal);
+	printf("stage=%d\n", tExitInfo.iStage);
+	printf("os_error=%d\n", tExitInfo.iOsError);
+	printf("stop=%d\n", tExitInfo.iStopReason);
+	printf("timed_out=%d\n", tExitInfo.bTimedOut);
+	printf("cancelled=%d\n", tExitInfo.bCancelled);
+}
+```
+
+This is especially important for distinguishing:
+
+- launch failure
+- normal non-zero exit
+- timeout-driven shutdown
+- signal-based exit on POSIX
+
+
+## 8. Stop Semantics
+
+The subprocess layer exposes four levels of stop requests:
+
+- `xrtProcessInterrupt()`
+- `xrtProcessTerminate()`
+- `xrtProcessKill()`
+- `xrtProcessKillTree()`
+
+Recommended escalation:
+
+1. `xrtProcessWaitTimeout()`
+2. `xrtProcessInterrupt()`
+3. `xrtProcessTerminate()`
+4. `xrtProcessKillTree()`
+
+`xrtExecCapture()` follows a similar internal timeout shutdown sequence.
+
+
+## 9. Futures
+
+When the future layer is enabled:
 
 ```c
 xfuture* pFuture = xrtProcessWaitFuture(pProcess);
-if ( pFuture ) {
+if ( pFuture != NULL ) {
 	if ( xFutureWaitValueTimeout(pFuture, 3000) == pProcess ) {
-		printf("exit = %d\n", xrtProcessExitCode(pProcess));
+		printf("done\n");
 	}
 	xFutureRelease(pFuture);
 }
 ```
 
-This is useful when you want to compose subprocess completion with other XRT async flows.
 
----
+## 10. Common Mistakes
 
-## Important Behavior Notes
+- `xrtProcessDestroy()` is not a stop call
+- `OnExit` now receives `xprocessexitinfo*`
+- `GetStdout/GetStderr` return new heap buffers and must be freed with `xrtFree()`
+- `PIPE` mode is required for stdin writes and retained stream reads
+- prefer direct exec over shell unless shell syntax is actually needed
 
-- `xrtProcessDestroy()` is not a kill call. Destroy only after the process has already exited.
-- `OnStdout`, `OnStderr`, and `OnExit` run on internal worker threads, not automatically on the caller thread.
-- `XPROC_F_MERGE_STDERR` routes stderr into stdout.
-- `XPROC_F_NO_CAPTURE` disables in-memory capture when you only want streaming callbacks.
-- `iMaxCaptureBytes == 0` means no capture limit.
-- `XPROC_F_USE_SHELL` switches from direct argv mode to shell mode.
 
-For most tool execution paths, direct argv mode should be the default.
+## 11. Related Pages
 
----
-
-## Recommended Defaults for Tool Chains
-
-For general tool orchestration, a good starting point is:
-
-- prefer direct argv mode
-- enable `XPROC_F_PIPE_STDOUT | XPROC_F_PIPE_STDERR`
-- enable `XPROC_F_PIPE_STDIN` only when needed
-- set `XPROC_F_KILL_TREE` when the tool may fan out child workers
-- use `xrtExecCapture()` for short, one-shot commands
-- use `xrtProcessSpawn()` for long-running or interactive commands
-
----
-
-## Related Reading
-
-- [Base Runtime](../api/api-base.en.md)
+- [Subprocess API](../api/api-subprocess.md)
 - [Thread](../api/api-thread.en.md)
 - [Future / Task / Promise](../api/api-future-task-promise.en.md)
 - [Runtime and Thread Attach](runtime-thread-attach.en.md)
