@@ -87,7 +87,7 @@ XXAPI void xrtBsmmInit(xbsmm objBSMM, uint32 iItemLength, uint32 iMode)
 	if ( iMode == XRT_OBJMODE_SHARED ) {
 		xrtOwnerActivateShared(&objBSMM->Owner);
 	}
-	objBSMM->ItemLength = iItemLength;
+	objBSMM->ItemLength = iItemLength < sizeof(MemPtr_LLNode) ? (uint32)sizeof(MemPtr_LLNode) : iItemLength;
 	objBSMM->Count = 0;
 	xrtPtrArrayInit(&objBSMM->PageMMU, iMode);
 	objBSMM->LL_Free = NULL;
@@ -106,13 +106,6 @@ XXAPI void xrtBsmmUnit(xbsmm objBSMM)
 		objBSMM->PageMMU.Memory[i] = NULL;
 	}
 	__xrtBsmmPageMMUUnit(objBSMM);
-	// 循环释放空闲内存块链表
-	MemPtr_LLNode* pNode = objBSMM->LL_Free;
-	while ( pNode ) {
-		MemPtr_LLNode* pNext = pNode->Next;
-		xrtFree(pNode);
-		pNode = pNext;
-	}
 	objBSMM->LL_Free = NULL;
 	xrtOwnerEndMutable(&objBSMM->Owner);
 }
@@ -129,11 +122,9 @@ XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM)
 	}
 	if ( objBSMM->LL_Free ) {
 		// 有空闲内存块先用空闲的
-		ptr Ptr = objBSMM->LL_Free->Ptr;
-		MemPtr_LLNode* pNext = objBSMM->LL_Free->Next;
-		xrtFree(objBSMM->LL_Free);
-		objBSMM->LL_Free = pNext;
-		pResult = Ptr;
+		MemPtr_LLNode* pNode = objBSMM->LL_Free;
+		objBSMM->LL_Free = pNode->Next;
+		pResult = pNode;
 	} else {
 		// 需要申请新的内存块
 		if ( (uint64)objBSMM->Count >= ((uint64)objBSMM->PageMMU.Count << 8) ) {
@@ -179,12 +170,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 		xrtOwnerEndMutable(&objBSMM->Owner);
 		return;
 	}
-	MemPtr_LLNode* pNode = xrtMalloc(sizeof(MemPtr_LLNode));
-	if ( pNode == NULL ) {
-		xrtSetError("BSMM free failed: out of memory.", FALSE);
-		xrtOwnerEndMutable(&objBSMM->Owner);
-		return;
-	}
+	MemPtr_LLNode* pNode = (MemPtr_LLNode*)p;
 	pNode->Ptr = p;
 	pNode->Next = objBSMM->LL_Free;
 	objBSMM->LL_Free = pNode;

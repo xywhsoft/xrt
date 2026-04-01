@@ -51,6 +51,10 @@ XXAPI ptr xrtStart(str sPath, size_t iSize)
 		}
 		ptr hRet = (ptr)ShellExecuteW(0, NULL, sPathW, NULL, NULL, SW_SHOW);
 		xrtFree(sPathW);
+		if ( (intptr_t)hRet <= 32 ) {
+			xrtSetError("start failed.", FALSE);
+			return NULL;
+		}
 		return hRet;
 	#else
 		(void)iSize;

@@ -47,7 +47,16 @@ static inline void (*__xrtMemGlobalProcFree())(ptr)
 // 内部函数：锁定内存全局
 static inline void __xrtMemGlobalLock(volatile long* pLock)
 {
+	uint32 iSpin = 0;
 	while ( __xrtAtomicCompareExchange32(pLock, 1, 0) != 0 ) {
+		iSpin++;
+		if ( (iSpin & 0x3FFu) == 0u ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				SwitchToThread();
+			#else
+				sched_yield();
+			#endif
+		}
 	}
 }
 
@@ -55,7 +64,7 @@ static inline void __xrtMemGlobalLock(volatile long* pLock)
 // 内部函数：解锁内存全局
 static inline void __xrtMemGlobalUnlock(volatile long* pLock)
 {
-	*pLock = 0;
+	__xrtAtomicExchange32(pLock, 0);
 }
 
 

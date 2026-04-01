@@ -158,11 +158,11 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 		memcpy(&sRet[iPos], sPath, iSize);
 		iPos += iSize;
 		if ( i < (iCount - 1) ) {
-			if ( (sRet[iPos-1] != L'\\') && (sRet[iSize-1] != L'/') ) {
+			if ( (sRet[iPos - 1] != '\\') && (sRet[iPos - 1] != '/') ) {
 				#if defined(_WIN32) || defined(_WIN64)
-					sRet[iPos] = L'\\';
+					sRet[iPos] = '\\';
 				#else
-					sRet[iPos] = L'/';
+					sRet[iPos] = '/';
 				#endif
 				iPos++;
 			}

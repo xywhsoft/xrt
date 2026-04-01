@@ -3000,10 +3000,15 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 	__xnetFutureLock(pFuture);
 	if ( !pFuture->bDone ) {
 		if ( iTimeoutMs == 0 ) {
+			bool bDone;
 			__xnetFutureUnlock(pFuture);
 			(void)__xnetFuturePumpCurrentAuto();
+			__xnetFutureLock(pFuture);
+			bDone = pFuture->bDone;
+			iStatus = bDone ? pFuture->iStatus : XRT_NET_TIMEOUT;
+			__xnetFutureUnlock(pFuture);
 			__xnetFutureReleaseRefInternal(pFuture);
-			return pFuture->bDone ? xrtNetFutureStatus(pFuture) : XRT_NET_TIMEOUT;
+			return iStatus;
 		}
 		if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
 			while ( !pFuture->bDone ) {
@@ -3798,6 +3803,7 @@ static void __xnetSyncCancelStreamFutureWaitFinish(__xnet_stream_future_wait_ctx
 	long iPrevState;
 
 	if ( pCtx == NULL ) return;
+	(void)__xnetStreamCancelSyncWait(pCtx->pStream, pCtx->iWaitKind, pCtx);
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
 	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
 	__xnetStreamReleaseAsyncHold(pCtx->pStream);
@@ -3933,6 +3939,7 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 	xnet_result iPostResult;
 	bool bUseCoroWait = false;
 	uint64 iDeadlineMs = 0;
+	__xnet_stream_wait_slot* pSlot = NULL;
 
 	if ( pFuture == NULL ) return false;
 	pCtx = (__xnet_stream_future_wait_ctx*)pFuture->pPendingCtx;
@@ -3979,6 +3986,15 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
 			__xnetSyncSetError("stream waiter cancellation timed out.");
+			return false;
+		}
+		__xnetSyncSleepMs(1);
+	}
+
+	pSlot = __xnetStreamGetSyncWaitSlot(pCtx->pStream, pCtx->iWaitKind);
+	while ( pSlot != NULL && pSlot->pCtx == pCtx ) {
+		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
+			__xnetSyncSetError("stream waiter slot did not clear after cancellation.");
 			return false;
 		}
 		__xnetSyncSleepMs(1);

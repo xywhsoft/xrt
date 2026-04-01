@@ -95,6 +95,7 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 		iHeaderBytes += 4u;
 	}
 
+	if ( iPayloadLen > (uint64)(SIZE_MAX - iHeaderBytes) ) return XCODEC_STATUS_ERROR;
 	if ( xrtNetChainBytes(pInput) < iHeaderBytes + (size_t)iPayloadLen ) return XCODEC_STATUS_NEED_MORE;
 
 	pInfo->iOpcode = (uint8)(iB0 & 0x0Fu);

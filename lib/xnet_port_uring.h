@@ -523,6 +523,16 @@
 	}
 
 
+	// 内部函数：回滚已提交但未 enter 的 sqe
+	static void __xnetPortUringNativeRollbackSqe(__xnet_uring_native_ring* pRing, uint32 iTail, uint32 iSlot)
+	{
+		if ( !pRing || !pRing->bReady ) return;
+		pRing->pSqArray[iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask)] = 0u;
+		memset(&pRing->pSqes[iSlot], 0, sizeof(__xnet_io_uring_sqe));
+		__xnetPortUringAtomicStoreReleaseU32(pRing->pSqTail, iTail);
+	}
+
+
 	// 内部函数：端口 io_uring 原生 enter相关处理
 	static xnet_result __xnetPortUringNativeEnter(__xnet_uring_native_ring* pRing, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
 	{
@@ -697,7 +707,10 @@
 		__xnetPortUringTrackIo(pCtx, pIo);
 		__xnetPortUringNativeCommitSqe(&pCtx->tNativeRing, iTail, iSlot);
 		if ( __xnetPortUringNativeEnter(&pCtx->tNativeRing, 1u, 0u, 0u) != XRT_NET_OK ) {
+			__xnetPortUringNativeRollbackSqe(&pCtx->tNativeRing, iTail, iSlot);
+			__xnetPortUringUntrackIo(pCtx, pIo);
 			pthread_mutex_unlock(&pCtx->tRingLock);
+			XNET_FREE(pIo);
 			return XRT_NET_ERROR;
 		}
 		pthread_mutex_unlock(&pCtx->tRingLock);

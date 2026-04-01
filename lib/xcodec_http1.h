@@ -135,6 +135,7 @@ static bool __xcodecHttpParseInt64(const char* sText, int64_t* pValue)
 	if ( !sText || !sText[0] || !pValue ) return false;
 	while ( sText[i] ) {
 		if ( sText[i] < '0' || sText[i] > '9' ) return false;
+		if ( iValue > ((INT64_MAX - (int64_t)(sText[i] - '0')) / 10) ) return false;
 		iValue = (iValue * 10) + (int64_t)(sText[i] - '0');
 		i++;
 	}

@@ -274,7 +274,7 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 XXAPI void xrtThreadStop(xthread pThread)
 {
 	if ( pThread ) {
-		pThread->StopFlag = 1;
+		__xrtAtomicStoreU32((volatile uint32*)&pThread->StopFlag, 1u);
 	}
 }
 
@@ -284,7 +284,7 @@ XXAPI void xrtThreadStop(xthread pThread)
 XXAPI bool xrtThreadShouldStop(xthread pThread)
 {
 	if ( pThread ) {
-		return pThread->StopFlag != 0;
+		return __xrtAtomicLoadU32((const volatile uint32*)&pThread->StopFlag) != 0;
 	}
 	return FALSE;
 }
@@ -849,7 +849,9 @@ XXAPI void xrtRWLockInit(xrwlock pRWLock)
 	#else
 		pthread_rwlockattr_t attr;
 		pthread_rwlockattr_init(&attr);
-		pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP);
+		#if defined(__GLIBC__) && defined(PTHREAD_RWLOCK_PREFER_WRITER_NP)
+			pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP);
+		#endif
 		pthread_rwlock_init(&pRWLock->objLock, &attr);
 		pthread_rwlockattr_destroy(&attr);
 	#endif

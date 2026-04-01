@@ -351,7 +351,15 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 						pState->aRecv[iHeaderEnd - 1u] = chSaved;
 						return __XNET_PROXY_ACTION_ERROR;
 					}
-					iStatusCode = atoi(pStatus + 1);
+					{
+						char* pEnd = NULL;
+						long iStatusCodeLong = strtol(pStatus + 1, &pEnd, 10);
+						if ( pEnd == pStatus + 1 || iStatusCodeLong < 100 || iStatusCodeLong > 999 ) {
+							pState->aRecv[iHeaderEnd - 1u] = chSaved;
+							return __XNET_PROXY_ACTION_ERROR;
+						}
+						iStatusCode = (int)iStatusCodeLong;
+					}
 					pState->aRecv[iHeaderEnd - 1u] = chSaved;
 					if ( iStatusCode != 200 ) return __XNET_PROXY_ACTION_ERROR;
 					__xnetProxyConsumeRecv(pState, iHeaderEnd);

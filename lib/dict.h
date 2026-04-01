@@ -6,6 +6,8 @@
 	#define Dict_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash64(k, l)
 #elif defined(__i386__) || defined(_M_IX86)
 	#define Dict_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = xrtHash32(k, l)
+#else
+	#define Dict_EvalHash(obj, k, l) obj.Key = k; obj.KeyLen = l; obj.Hash = (sizeof(void*) >= 8 ? xrtHash64(k, l) : (uint64)xrtHash32(k, l))
 #endif
 
 // 哈希表比较函数（内部函数）

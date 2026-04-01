@@ -1,6 +1,22 @@
 
 
 
+static volatile long __xrtNetworkHostLock = 0;
+
+
+static inline void __xrtNetworkHostLockEnter()
+{
+	while ( __xrtAtomicCompareExchange32(&__xrtNetworkHostLock, 1, 0) != 0 ) {
+	}
+}
+
+
+static inline void __xrtNetworkHostLockLeave()
+{
+	__xrtAtomicExchange32(&__xrtNetworkHostLock, 0);
+}
+
+
 // 获取本机 IP ( 需使用 xrtFree 释放 )
 str xrtGetLocalIP()
 {
@@ -9,10 +25,12 @@ str xrtGetLocalIP()
 	if ( gethostname(sLocalName, 260) == 0 ) {
 		#ifdef __TINYC__
 			// TCC 不支持 getaddrinfo，使用 gethostbyname
+			__xrtNetworkHostLockEnter();
 			struct hostent* host = gethostbyname(sLocalName);
 			if ( host ) {
 				sRet = xrtFormat("%d.%d.%d.%d", (uint8)(host->h_addr_list[0][0]), (uint8)(host->h_addr_list[0][1]), (uint8)(host->h_addr_list[0][2]), (uint8)(host->h_addr_list[0][3]));
 			}
+			__xrtNetworkHostLockLeave();
 		#else
 			struct addrinfo hints, *res, *p;
 			memset(&hints, 0, sizeof(hints));
@@ -43,10 +61,14 @@ uint32 xrtGetLocalRawIP()
 	if ( gethostname(sLocalName, 260) == 0 ) {
 		#ifdef __TINYC__
 			// TCC 不支持 getaddrinfo，使用 gethostbyname
+			__xrtNetworkHostLockEnter();
 			struct hostent* host = gethostbyname(sLocalName);
 			if ( host ) {
-				return ((uint8)(host->h_addr_list[0][0]) << 24) | ((uint8)(host->h_addr_list[0][1]) << 16) | ((uint8)(host->h_addr_list[0][2]) << 8) | (uint8)(host->h_addr_list[0][3]);
+				uint32 iRet = ((uint32)(uint8)(host->h_addr_list[0][0]) << 24) | ((uint32)(uint8)(host->h_addr_list[0][1]) << 16) | ((uint32)(uint8)(host->h_addr_list[0][2]) << 8) | (uint32)(uint8)(host->h_addr_list[0][3]);
+				__xrtNetworkHostLockLeave();
+				return iRet;
 			}
+			__xrtNetworkHostLockLeave();
 		#else
 			struct addrinfo hints, *res, *p;
 			memset(&hints, 0, sizeof(hints));
@@ -57,7 +79,7 @@ uint32 xrtGetLocalRawIP()
 					if ( p->ai_family == AF_INET ) {
 						struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
 						uint8* addr = (uint8*)&ipv4->sin_addr;
-						uint32 result = (addr[0] << 24) | (addr[1] << 16) | (addr[2] << 8) | addr[3];
+						uint32 result = ((uint32)addr[0] << 24) | ((uint32)addr[1] << 16) | ((uint32)addr[2] << 8) | (uint32)addr[3];
 						freeaddrinfo(res);
 						return result;
 					}

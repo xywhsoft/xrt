@@ -282,13 +282,7 @@ static long __xnetAtomicAddFetch32(volatile long* pValue, long iDelta)
 // 内部函数：__xnetAtomicAddFetch64
 static int64 __xnetAtomicAddFetch64(volatile int64* pValue, int64 iDelta)
 {
-	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
-		return __xrtAtomicAddFetch64(pValue, iDelta);
-	#elif defined(_WIN32) || defined(_WIN64)
-		return (int64)(InterlockedExchangeAdd64((volatile LONG64*)pValue, (LONG64)iDelta) + (LONG64)iDelta);
-	#else
-		return __sync_add_and_fetch(pValue, iDelta);
-	#endif
+	return __xrtAtomicAddFetch64(pValue, iDelta);
 }
 
 

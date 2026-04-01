@@ -251,7 +251,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			}
 		}
 		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
-		if ( (iCharset > 0) && ((objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM) ) {
+		if ( (objFile->Charset > 0) && ((objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 			if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
 				objFile->BOM = 3;
 				objFile->Charset = XRT_CP_UTF8;
@@ -1178,8 +1178,14 @@ XXAPI int64 xrtFileGetAccessTime(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
-		struct _stat fileStat;
-		int iRet = _stat((const char*)sPath, &fileStat);
+		struct _stat64 fileStat;
+		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
+		int iRet;
+		if ( sPathW == NULL ) {
+			return 0;
+		}
+		iRet = _wstat64((const wchar_t*)sPathW, &fileStat);
+		xrtFree(sPathW);
 		if ( iRet == 0 ) {
 			return fileStat.st_atime + XRT_TIME_19700101;
 		} else {
@@ -1204,8 +1210,14 @@ XXAPI int64 xrtFileGetChangeTime(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
-		struct _stat fileStat;
-		int iRet = _stat((const char*)sPath, &fileStat);
+		struct _stat64 fileStat;
+		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
+		int iRet;
+		if ( sPathW == NULL ) {
+			return 0;
+		}
+		iRet = _wstat64((const wchar_t*)sPathW, &fileStat);
+		xrtFree(sPathW);
 		if ( iRet == 0 ) {
 			return fileStat.st_mtime + XRT_TIME_19700101;
 		} else {
@@ -1270,8 +1282,8 @@ XXAPI bool xrtFileCopy(str sSrc, str sDst, bool bReWrite)
 			return FALSE;
 		}
 		// 读取原始文件内容
-		size_t iRetSize = read(fsrc, sText, fileStat.st_size);
-		if ( iRetSize == 0 ) {
+		ssize_t iRetSize = read(fsrc, sText, fileStat.st_size);
+		if ( iRetSize < 0 || iRetSize != fileStat.st_size ) {
 			xrtSetError(sErrorFile_Read, FALSE);
 			close(fsrc);
 			close(fdst);
@@ -1280,7 +1292,7 @@ XXAPI bool xrtFileCopy(str sSrc, str sDst, bool bReWrite)
 		}
 		// 写入目标文件
 		iRetSize = write(fdst, sText, fileStat.st_size);
-		if ( iRetSize == 0 ) {
+		if ( iRetSize < 0 || iRetSize != fileStat.st_size ) {
 			xrtSetError(sErrorFile_Write, FALSE);
 			close(fsrc);
 			close(fdst);
@@ -1447,7 +1459,22 @@ XXAPI bool xrtFileDelete(str sPath)
 		struct dirent* entry;
 		while ( (entry = readdir(dir)) != NULL ) {
 			int bExit = FALSE;
-			if ( entry->d_type == DT_DIR ) {
+			unsigned char iType = entry->d_type;
+			if ( iType == DT_UNKNOWN ) {
+				str sEntry = xrtPathJoin(2, sPath, entry->d_name);
+				if ( sEntry ) {
+					struct stat entryStat;
+					if ( stat(sEntry, &entryStat) == 0 ) {
+						if ( S_ISDIR(entryStat.st_mode) ) {
+							iType = DT_DIR;
+						} else if ( S_ISREG(entryStat.st_mode) ) {
+							iType = DT_REG;
+						}
+					}
+					xrtFree(sEntry);
+				}
+			}
+			if ( iType == DT_DIR ) {
 				// 过滤 . 和 .. 目录
 				if ( (entry->d_name[0] == '.') && ((entry->d_name[1] == 0) || ((entry->d_name[1] == '.') && (entry->d_name[2] == 0))) ) {
 				} else {
@@ -1467,7 +1494,7 @@ XXAPI bool xrtFileDelete(str sPath)
 					}
 					xrtFree(sDir);
 				}
-			} else if ( entry->d_type == DT_REG ) {
+			} else if ( iType == DT_REG ) {
 				// 处理文件
 				str sFile = xrtPathJoin(2, sPath, entry->d_name);
 				size_t iFileSize = strlen(sFile);

@@ -697,10 +697,16 @@
 	// 内部函数：释放端口 IOCP timers
 	static void __xnetPortIOCPFreeTimers(__xnet_iocp_ctx* pCtx)
 	{
-		while ( pCtx && pCtx->pTimers ) {
-			__xnet_iocp_timer* pNext = pCtx->pTimers->pNext;
-			XNET_FREE(pCtx->pTimers);
-			pCtx->pTimers = pNext;
+		__xnet_iocp_timer* pList = NULL;
+		if ( !pCtx ) return;
+		EnterCriticalSection(&pCtx->tExtLock);
+		pList = pCtx->pTimers;
+		pCtx->pTimers = NULL;
+		LeaveCriticalSection(&pCtx->tExtLock);
+		while ( pList ) {
+			__xnet_iocp_timer* pNext = pList->pNext;
+			XNET_FREE(pList);
+			pList = pNext;
 		}
 	}
 
@@ -722,6 +728,8 @@
 		uint32 iCount = 0;
 		uint64 iNowMs = __xnetPortIOCPNowMs();
 		__xnet_iocp_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
+		if ( !ppCur ) return 0;
+		EnterCriticalSection(&pCtx->tExtLock);
 		while ( ppCur && *ppCur && iCount < iMaxEvents ) {
 			__xnet_iocp_timer* pNode = *ppCur;
 			if ( pNode->iDueMs > iNowMs ) {
@@ -736,6 +744,7 @@
 			*ppCur = pNode->pNext;
 			XNET_FREE(pNode);
 		}
+		LeaveCriticalSection(&pCtx->tExtLock);
 		return iCount;
 	}
 
@@ -1042,8 +1051,10 @@
 		memset(pNode, 0, sizeof(__xnet_iocp_timer));
 		pNode->iTimerId = iTimerId;
 		pNode->iDueMs = __xnetPortIOCPNowMs() + (uint64)iDelayMs;
+		EnterCriticalSection(&pCtx->tExtLock);
 		pNode->pNext = pCtx->pTimers;
 		pCtx->pTimers = pNode;
+		LeaveCriticalSection(&pCtx->tExtLock);
 		return XRT_NET_OK;
 	}
 
@@ -1055,15 +1066,18 @@
 		__xnet_iocp_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
 
 		if ( !ppCur ) return XRT_NET_ERROR;
+		EnterCriticalSection(&pCtx->tExtLock);
 		while ( *ppCur ) {
 			__xnet_iocp_timer* pNode = *ppCur;
 			if ( pNode->iTimerId == iTimerId ) {
 				*ppCur = pNode->pNext;
+				LeaveCriticalSection(&pCtx->tExtLock);
 				XNET_FREE(pNode);
 				return XRT_NET_OK;
 			}
 			ppCur = &pNode->pNext;
 		}
+		LeaveCriticalSection(&pCtx->tExtLock);
 		return XRT_NET_ERROR;
 	}
 

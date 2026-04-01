@@ -2271,9 +2271,19 @@ static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 		if ( (pCo->__iWakeTime > 0) && (pCo->__iWakeTime > iNow) ) {
 			pCo->iState = XRT_CO_SUSPENDED;
 			__xrt_co_sched_attach_timer(pSched, pCo);
+			return;
 		}
 		else if ( pCo->__iWakeTime > 0 ) {
+			xcoevent pEvent = (xcoevent)pCo->__pWaitObject;
+			if ( pEvent && pEvent->pLock ) {
+				xrtMutexLock(pEvent->pLock);
+				pCo->__iWaitResult = __XRT_CO_WAIT_RESULT_TIMEOUT;
+				__xrt_co_detach_event_waiter_locked(pEvent, pCo);
+				xrtMutexUnlock(pEvent->pLock);
+			}
 			pCo->__iWakeTime = 0;
+			__xrt_co_sched_mark_ready(pSched, pCo);
+			return;
 		}
 		pCo->iState = XRT_CO_SUSPENDED;
 		return;
@@ -3090,6 +3100,7 @@ XXAPI xcoevent xrtCoEventCreate(bool bManualReset, bool bInitialState)
 // 销毁协程事件
 XXAPI void xrtCoEventDestroy(xcoevent pEvent)
 {
+	xmutex pLock = NULL;
 	if ( pEvent == NULL ) {
 		return;
 	}
@@ -3101,8 +3112,10 @@ XXAPI void xrtCoEventDestroy(xcoevent pEvent)
 			xrtSetError("cannot destroy coroutine event while a waiter is attached.", FALSE);
 			return;
 		}
-		xrtMutexUnlock(pEvent->pLock);
-		xrtMutexDestroy(pEvent->pLock);
+		pLock = pEvent->pLock;
+		pEvent->pLock = NULL;
+		xrtMutexUnlock(pLock);
+		xrtMutexDestroy(pLock);
 	}
 
 	xrtFree(pEvent);
