@@ -206,5 +206,7 @@
 - 英文案例已同步 `case/session-registry-pool-index.en.md`
 - 中文案例已补出 `case/local-console-service.md`，用于承接“配置 / 日志 / 任务 / 网络 / 模板”的完整小项目主线
 - 英文案例已同步 `case/local-console-service.en.md`
+- 中文案例已补出 `case/subprocess-probe-dashboard.md`，用于承接“本地服务 / worker / subprocess / future / dashboard”的业务变体主线
+- 英文案例已同步 `case/subprocess-probe-dashboard.en.md`
 - `case/README.md`、`case/README.en.md`、`README.md`、`README.en.md` 已对齐这条案例入口与 English sync 状态
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿

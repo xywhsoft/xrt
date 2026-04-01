@@ -93,14 +93,20 @@ The following case pages already exist in English:
 12. [Signed Rule Bundle Import with Charset, Regex, and Crypto](signed-rule-bundle.en.md)
 13. [Session Registry with `mempool + avltree + list`](session-registry-pool-index.en.md)
 14. [A Local Console Service that Combines Config, Logging, Tasks, Networking, and Templates](local-console-service.en.md)
+15. [Upgrade the Local Console Service into a Subprocess Probe Dashboard](subprocess-probe-dashboard.en.md)
 
 ### 2. Current English Coverage Notes
 
 At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, and session-registry business pages.
 
+The latest reviewed Chinese-first business variant is:
+
+- [Upgrade the Local Console Service into a Batch Task Dashboard](batch-task-dashboard.md)
+
 So the remaining gaps are now mostly:
 
-- more business-style variants such as cache, batch, and multi-tenant index cases
+- English sync for the batch task dashboard variant
+- more business-style variants such as cache and multi-tenant index cases
 
 These pages are currently useful when you want:
 
@@ -108,12 +114,12 @@ These pages are currently useful when you want:
 - an end-to-end chain that matches the rebuilt Chinese mainline
 - a practical route from basic modules to full features
 
-
 ## Current Gaps
 
 The most obvious remaining case gaps are:
 
-- more business-style variants around cache, batch, and multi-tenant indexing
+- English sync for `case/batch-task-dashboard.md`
+- more business-style variants around cache and multi-tenant indexing
 
 
 ## Relationship to API and Guide Docs

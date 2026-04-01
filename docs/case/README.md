@@ -54,6 +54,8 @@
 - `charset + regex + crypto + file` 这条签名规则包导入主线已经补出正式案例页
 - `mempool + avltree + list` 这条会话索引与回收池主线已经补出正式案例页
 - `config + logging + thread + queue + xhttpd + template` 这条完整小项目主线已经补出正式案例页
+- `config + logging + thread + queue + subprocess + future + xhttpd + template` 这条子进程探测面板主线已经补出正式案例页
+- `config + logging + queue + task group + future + xhttpd + template` 这条批处理任务面板主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -75,6 +77,7 @@
 7. WebSocket 会话服务：`xws + coroutine + queue`
 8. 流式 LLM API：`xhttp/xws + future + coroutine + json`
 9. 完整小项目：把配置、日志、任务、网络和模板串成一个可运行程序
+10. 批处理任务面板：`queue + task group + future + xhttpd + template`
 
 这条梯度的目标不是只展示“能跑”，而是展示：
 
@@ -102,6 +105,8 @@
 12. [用 Charset + Regex + Crypto 导入一个签名规则包](signed-rule-bundle.md)
 13. [用 MemPool + AVLTree + List 组织一个会话索引与回收池](session-registry-pool-index.md)
 14. [把配置、日志、任务、网络和模板串成一个本地控制台服务](local-console-service.md)
+15. [把本地控制台服务升级成一个子进程探测面板](subprocess-probe-dashboard.md)
+16. [把本地控制台服务升级成一个批处理任务面板](batch-task-dashboard.md)
 
 这些页面当前适合：
 
@@ -114,7 +119,7 @@
 
 当前仍缺少正式案例的方向包括：
 
-- 再往下补缓存、批处理和多租户索引这类业务变体案例
+- 再往下补缓存和多租户索引这类业务变体案例
 
 
 ## 与 API 和教学文档的关系

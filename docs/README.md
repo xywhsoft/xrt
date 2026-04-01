@@ -194,4 +194,6 @@
 10. [xnet-v2 Stream Wait-Source 实战](case/xnet-stream-wait-source.md)
 11. [用 MemPool + AVLTree + List 组织一个会话索引与回收池](case/session-registry-pool-index.md)
 12. [把配置、日志、任务、网络和模板串成一个本地控制台服务](case/local-console-service.md)
+13. [把本地控制台服务升级成一个子进程探测面板](case/subprocess-probe-dashboard.md)
+14. [把本地控制台服务升级成一个批处理任务面板](case/batch-task-dashboard.md)
 

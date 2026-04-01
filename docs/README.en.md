@@ -170,3 +170,5 @@ If you prefer full combined examples, continue with:
 11. [Signed Rule Bundle Import with Charset, Regex, and Crypto](case/signed-rule-bundle.en.md)
 12. [Session Registry with `mempool + avltree + list`](case/session-registry-pool-index.en.md)
 13. [A Local Console Service that Combines Config, Logging, Tasks, Networking, and Templates](case/local-console-service.en.md)
+14. [Upgrade the Local Console Service into a Subprocess Probe Dashboard](case/subprocess-probe-dashboard.en.md)
+15. [Upgrade the Local Console Service into a Batch Task Dashboard](case/batch-task-dashboard.md) (Chinese for now)
