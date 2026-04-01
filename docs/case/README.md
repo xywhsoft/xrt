@@ -56,6 +56,10 @@
 - `config + logging + thread + queue + xhttpd + template` 这条完整小项目主线已经补出正式案例页
 - `config + logging + thread + queue + subprocess + future + xhttpd + template` 这条子进程探测面板主线已经补出正式案例页
 - `config + logging + queue + task group + future + xhttpd + template` 这条批处理任务面板主线已经补出正式案例页
+- `dict + list + hash + queue + thread + xhttpd + template` 这条缓存刷新面板主线已经补出正式案例页
+- `dict + list + avltree + hash` 这条多租户索引注册表主线已经补出正式案例页
+- `dict + list + queue + thread + time + hash + xhttpd + template` 这条重试退避面板主线已经补出正式案例页
+- `dict + list + queue + thread + path + file + xhttpd + template` 这条归档面板主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -78,6 +82,10 @@
 8. 流式 LLM API：`xhttp/xws + future + coroutine + json`
 9. 完整小项目：把配置、日志、任务、网络和模板串成一个可运行程序
 10. 批处理任务面板：`queue + task group + future + xhttpd + template`
+11. 缓存刷新面板：`dict + list + hash + queue + thread + xhttpd + template`
+12. 多租户索引注册表：`dict + list + avltree + hash`
+13. 重试退避面板：`dict + list + queue + thread + time + hash + xhttpd + template`
+14. 归档面板：`dict + list + queue + thread + path + file + xhttpd + template`
 
 这条梯度的目标不是只展示“能跑”，而是展示：
 
@@ -107,6 +115,10 @@
 14. [把配置、日志、任务、网络和模板串成一个本地控制台服务](local-console-service.md)
 15. [把本地控制台服务升级成一个子进程探测面板](subprocess-probe-dashboard.md)
 16. [把本地控制台服务升级成一个批处理任务面板](batch-task-dashboard.md)
+17. [把本地控制台服务升级成一个缓存刷新面板](cache-refresh-dashboard.md)
+18. [用 Dict + List + AVLTree 组织一个多租户索引注册表](tenant-index-registry.md)
+19. [把本地控制台服务升级成一个重试退避面板](retry-backoff-dashboard.md)
+20. [把本地控制台服务升级成一个归档面板](archive-dashboard.md)
 
 这些页面当前适合：
 
@@ -119,7 +131,7 @@
 
 当前仍缺少正式案例的方向包括：
 
-- 再往下补缓存和多租户索引这类业务变体案例
+- 再往下补冷热分层这类业务变体案例
 
 
 ## 与 API 和教学文档的关系

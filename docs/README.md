@@ -196,4 +196,8 @@
 12. [把配置、日志、任务、网络和模板串成一个本地控制台服务](case/local-console-service.md)
 13. [把本地控制台服务升级成一个子进程探测面板](case/subprocess-probe-dashboard.md)
 14. [把本地控制台服务升级成一个批处理任务面板](case/batch-task-dashboard.md)
+15. [把本地控制台服务升级成一个缓存刷新面板](case/cache-refresh-dashboard.md)
+16. [用 Dict + List + AVLTree 组织一个多租户索引注册表](case/tenant-index-registry.md)
+17. [把本地控制台服务升级成一个重试退避面板](case/retry-backoff-dashboard.md)
+18. [把本地控制台服务升级成一个归档面板](case/archive-dashboard.md)
 

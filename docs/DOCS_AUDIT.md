@@ -208,5 +208,13 @@
 - 英文案例已同步 `case/local-console-service.en.md`
 - 中文案例已补出 `case/subprocess-probe-dashboard.md`，用于承接“本地服务 / worker / subprocess / future / dashboard”的业务变体主线
 - 英文案例已同步 `case/subprocess-probe-dashboard.en.md`
+- 中文案例已补出 `case/batch-task-dashboard.md`，用于承接“queue / task group / future / dashboard / snapshot”的批处理业务变体主线
+- 英文案例已同步 `case/batch-task-dashboard.en.md`
+- 中文案例已补出 `case/cache-refresh-dashboard.md`，用于承接“dict / list / hash / queue / thread / dashboard”的缓存业务变体主线
+- 英文案例已同步 `case/cache-refresh-dashboard.en.md`
+- 中文案例已补出 `case/tenant-index-registry.md`，用于承接“dict / list / avltree / hash”的多租户索引业务变体主线
+- 英文案例已同步 `case/tenant-index-registry.en.md`
+- 中文案例已补出 `case/retry-backoff-dashboard.md`，用于承接“dict / list / queue / thread / time / hash”的重试退避业务变体主线
+- 中文案例已补出 `case/archive-dashboard.md`，用于承接“dict / list / queue / thread / path / file”的归档业务变体主线
 - `case/README.md`、`case/README.en.md`、`README.md`、`README.en.md` 已对齐这条案例入口与 English sync 状态
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿

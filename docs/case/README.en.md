@@ -94,19 +94,19 @@ The following case pages already exist in English:
 13. [Session Registry with `mempool + avltree + list`](session-registry-pool-index.en.md)
 14. [A Local Console Service that Combines Config, Logging, Tasks, Networking, and Templates](local-console-service.en.md)
 15. [Upgrade the Local Console Service into a Subprocess Probe Dashboard](subprocess-probe-dashboard.en.md)
+16. [Upgrade the Local Console Service into a Batch Task Dashboard](batch-task-dashboard.en.md)
+17. [Upgrade the Local Console Service into a Cache Refresh Dashboard](cache-refresh-dashboard.en.md)
+18. [A Multi-Tenant Index Registry with Dict, List, and AVLTree](tenant-index-registry.en.md)
 
 ### 2. Current English Coverage Notes
 
-At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, and session-registry business pages.
-
-The latest reviewed Chinese-first business variant is:
-
-- [Upgrade the Local Console Service into a Batch Task Dashboard](batch-task-dashboard.md)
+At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, session-registry, subprocess-dashboard, batch-dashboard, cache-dashboard, and tenant-index business pages.
 
 So the remaining gaps are now mostly:
 
-- English sync for the batch task dashboard variant
-- more business-style variants such as cache and multi-tenant index cases
+- English sync for the retry backoff dashboard variant
+- English sync for the archive dashboard variant
+- more business-style variants such as hot-cold tier cases
 
 These pages are currently useful when you want:
 
@@ -118,8 +118,9 @@ These pages are currently useful when you want:
 
 The most obvious remaining case gaps are:
 
-- English sync for `case/batch-task-dashboard.md`
-- more business-style variants around cache and multi-tenant indexing
+- English sync for `case/retry-backoff-dashboard.md`
+- English sync for `case/archive-dashboard.md`
+- more business-style variants around hot-cold tiering
 
 
 ## Relationship to API and Guide Docs
