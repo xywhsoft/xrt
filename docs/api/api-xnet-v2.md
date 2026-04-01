@@ -154,6 +154,10 @@ XXAPI void xrtNetProxyRelease(xnetproxy* pProxy);
 	- `HTTP CONNECT`
 - `xnetconnectconfig.pProxy == NULL` 表示直连
 
+更完整的代理合同与生命周期说明见：
+
+- [api-xnet-proxy.md](api-xnet-proxy.md)
+
 ### 3.4 Listener
 
 ```c

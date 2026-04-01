@@ -1,6 +1,6 @@
 # XRT Case Studies
 
-> Entry pages for complete chains, combined capability usage, and real engineering slices. Unlike `docs/guide/`, the `case/` directory focuses on end-to-end problem decomposition instead of the teaching sequence.
+> Entry pages for complete chains, combined capability usage, and real engineering slices. `docs/guide/` focuses on teaching order; `docs/case/` focuses on how multiple modules solve one complete problem together.
 
 [Back to Docs Hub](../README.en.md)
 
@@ -9,8 +9,10 @@
 ## Contents
 
 - [Purpose of the Case Studies](#purpose-of-the-case-studies)
-- [Recommended Case Directions](#recommended-case-directions)
-- [Currently Available Case Pages](#currently-available-case-pages)
+- [Current Status](#current-status)
+- [Target Case Ladder](#target-case-ladder)
+- [How to Use the Existing Pages](#how-to-use-the-existing-pages)
+- [Current Gaps](#current-gaps)
 - [Relationship to API and Guide Docs](#relationship-to-api-and-guide-docs)
 
 ---
@@ -19,112 +21,108 @@
 
 The `case/` directory is intended for:
 
-- showing how a complete problem is solved with XRT
+- showing how one complete problem is solved with XRT
 - showing how multiple subsystems cooperate
-- showing end-to-end usage from the runtime up through networking, concurrency, templates, JSON, and AI-facing scenarios
+- showing the full chain from the runtime up through networking, concurrency, templating, JSON, and AI-facing usage
 
-So these documents are better written as:
+Formal case pages should cover at least:
 
 - scenario background
-- design reasoning
-- module selection
-- key code slices
-- common mistakes
-- why this combination is recommended
+- goals and constraints
+- module selection and why other options are not chosen
+- key code structure
+- run steps
+- common failure points
+- directions for extension
 
----
 
-## Recommended Case Directions
+## Current Status
 
-The most valuable case directions for the current mainline are:
+The `case/` tree already contains a useful set of pages, but it is still under rebuild:
 
-### 1. JSON / Value Combination Cases
+- older pages were closer to topic notes than full teaching cases
+- reviewed formal case pages now exist for several core chains
+- the case ladder is better than before, but not yet complete from simple to complex
+- the current reviewed formal case ladder now has English coverage
+- newly rebuilt pages may still land in Chinese first before later English sync
 
-Examples:
+If you want the staged teaching order behind these cases, read together with:
 
-- configuration loading
-- dynamic object assembly
-- request/response data modeling
+- [Guide Rebuild Roadmap](../guide/ROADMAP.en.md)
 
-### 2. Template Rendering Cases
 
-Examples:
+## Target Case Ladder
 
-- rendering HTML with `xvalue + template`
-- report output
-- code generation
+The formal case ladder now targets this order:
 
-### 3. Thread / Coroutine / Future Coordination Cases
+1. config system: `file + path + value + json`
+2. template rendering page: `value + template + file`
+3. multitask worker: `thread + queue + future`
+4. subprocess and async-file pipeline: `subprocess + file_async + future`
+5. HTTP client call chain: `xurl + http util + xhttp + TLS + proxy`
+6. HTTP service: `xhttpd + json + template + value`
+7. WebSocket session service: `xws + coroutine + queue`
+8. streaming LLM API: `xhttp/xws + future + coroutine + json`
+9. a small full project that combines config, logging, tasks, networking, and templates
 
-Examples:
+The point of this ladder is not only to show that something runs. It is to show:
 
-- threads for parallelism
-- coroutines for single-thread orchestration
-- future / task / promise for unified async results
+- why the modules are split this way
+- which layer should use threads and which layer should use coroutines
+- which layer should converge into future / wait-source
+- how basic modules grow into complete features
 
-### 4. `xnet-v2` Cases
 
-Examples:
+## How to Use the Existing Pages
 
-- stream readable / writable / drain / close
-- dgram recv
-- listener accept
-- unified wait-source waiting
+### 1. English-Synced Case Pages
 
-### 5. Network Application Layer Cases
+The following case pages already exist in English:
 
-Examples:
-
-- HTTP client calls to third-party APIs
-- HTTP server services
-- bidirectional WebSocket communication
-- TLS session as a unified transport security layer
-
-### 6. Internet + AI Cases
-
-Examples:
-
-- calling LLM APIs
-- streaming response handling
-- multi-step async orchestration with future / coroutine
-- constructing requests and presenting results with JSON / template
-
----
-
-## Currently Available Case Pages
-
-The current reviewed mainline already includes these formal case pages:
-
-1. [Configuration System with xvalue + json](json-config-system.en.md)
+1. [Configuration System with `xvalue + json`](json-config-system.en.md)
 2. [Rendering HTML with Template](template-render-html.en.md)
 3. [Thread, Coroutine, and Future Coordination](thread-coroutine-future.en.md)
-4. [xnet-v2 Stream Wait-Source Walkthrough](xnet-stream-wait-source.en.md)
-5. [Minimal HTTP Service with XRT](minimal-http-service.en.md)
-6. [Streaming LLM API with XRT](streaming-llm-api.en.md)
-7. [Full HTTP + JSON + Template Service Chain](http-json-template-chain.en.md)
+4. [Queue + Future Multi-Producer Worker](queue-worker-future.en.md)
+5. [Subprocess + Async File Tooling Pipeline](subprocess-file-async-pipeline.en.md)
+6. [XHTTP Client Chain with URL, Proxy, and TLS](xhttp-client-proxy-tls.en.md)
+7. [XWS Session Skeleton with Queue and Coroutine](xws-session-queue-coroutine.en.md)
+8. [xnet-v2 Stream Wait-Source Walkthrough](xnet-stream-wait-source.en.md)
+9. [Minimal HTTP Service with XRT](minimal-http-service.en.md)
+10. [Streaming LLM API with XRT](streaming-llm-api.en.md)
+11. [Full HTTP + JSON + Template Service Chain](http-json-template-chain.en.md)
+12. [Signed Rule Bundle Import with Charset, Regex, and Crypto](signed-rule-bundle.en.md)
+13. [Session Registry with `mempool + avltree + list`](session-registry-pool-index.en.md)
 
-These already cover:
+### 2. Current English Coverage Notes
 
-- `xvalue + json`
-- `template`
-- thread / coroutine / future
-- `xnet-v2` wait-source
-- HTTP service
-- streaming LLM API
-- the complete `HTTP + JSON + template` chain
+At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, and session-registry business pages.
 
----
+So the remaining gaps are now mostly:
+
+- the future small full-project case
+- more business-style variants such as cache, batch, and multi-tenant index cases
+
+These pages are currently useful when you want:
+
+- the latest reviewed combined examples
+- an end-to-end chain that matches the rebuilt Chinese mainline
+- a practical route from basic modules to full features
+
+
+## Current Gaps
+
+The most obvious remaining case gaps are:
+
+- a small full project that combines config, logging, tasks, networking, and templates
+- more business-style variants around cache, batch, and multi-tenant indexing
+
 
 ## Relationship to API and Guide Docs
 
-You can think about them this way:
+You can think about the three layers this way:
 
-- `api/`: module contracts and capability boundaries
-- `guide/`: from-zero learning path
-- `case/`: full multi-module problem decomposition
+- `api/`: module contracts and boundaries
+- `guide/`: from-zero learning route
+- `case/`: how multiple modules cooperate to solve one complete problem
 
-If you already know each module API but still do not know how to compose them into a full solution, this is the right place to read next.
-
----
-
-This directory now serves as the formal English case-study entry for the current XRT mainline.
+If you already roughly know each module API but still do not know how to compose them into a full solution, this is the right place to read next.

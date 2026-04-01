@@ -171,6 +171,7 @@
 - [xvalue-json-intro.md](xvalue-json-intro.md)：作为第 3 阶段 `value / json` 正式第一页
 - [jnum-intro.md](jnum-intro.md)：作为第 3 阶段 `jnum` 正式第一页
 - [xson-intro.md](xson-intro.md)：作为第 3 阶段 `xson` 正式第一页
+- [crypto-intro.md](crypto-intro.md)：作为第 3 阶段 `crypto` 正式第一页
 - [regex-intro.md](regex-intro.md)：作为第 3 阶段 `regex` 正式第一页
 - [multitask-overview.md](multitask-overview.md)：作为第 4 阶段正式前导页
 - [thread-intro.md](thread-intro.md)：作为第 4 阶段线程专题正式第一页
@@ -179,6 +180,10 @@
 - [task-group-intro.md](task-group-intro.md)：作为第 4 阶段结构化并发与 scope 收口专题正式第一页
 - [runtime-thread-attach.md](runtime-thread-attach.md)：并入第 4 阶段线程专题前导页
 - [template-intro.md](template-intro.md)：作为第 3 阶段 `template` 专题正式第一页
+- [xurl-intro.md](xurl-intro.md)：作为第 6 阶段 `xurl` 正式第一页
+- [http-util-intro.md](http-util-intro.md)：作为第 6 阶段 `xhttp_util` 正式第一页
+- [proxy-intro.md](proxy-intro.md)：作为第 6 阶段 `proxy` 正式第一页
+- [xws-intro.md](xws-intro.md)：作为第 6 阶段 `xws` 正式第一页
 - [coroutine-future-task-intro.md](coroutine-future-task-intro.md)：并入第 4 阶段
 - [subprocess-intro.md](subprocess-intro.md)：并入第 5 阶段
 - [file-async-intro.md](file-async-intro.md)：并入第 5 阶段

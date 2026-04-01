@@ -1,24 +1,35 @@
 # XRT Documentation Hub
 
-> The current official documentation entry for XRT. API references are organized under `docs/api/`, leaving a clear structure for beginner guides, case studies, and topic-specific documents.
+> The current official documentation entry for XRT. `docs/api/` is the source-aligned contract layer; `docs/guide/` and `docs/case/` are being rebuilt into progressive teaching material and end-to-end walkthroughs. Chinese remains the canonical mainline, and English entry pages are synchronized after the reviewed Chinese pages settle.
 
 [中文](README.md) | [Project Overview](../README.en.md)
 
 ---
 
+## Current Status
+
+- `docs/api/`: the best place to check contracts, types, and module boundaries.
+- `docs/guide/`: being rebuilt into step-by-step teaching pages from the smallest demo to fuller compositions.
+- `docs/case/`: being rebuilt into full problem walkthroughs instead of topic notes.
+- [Documentation Audit](DOCS_AUDIT.md): tracks stale pages, link issues, and module coverage gaps.
+- [Guide Rebuild Roadmap](guide/ROADMAP.en.md): defines the staged teaching route and case ladder.
+
+
 ## Documentation Structure
 
-The current `docs/` tree is organized into 3 layers:
+The current `docs/` tree is organized into 4 layers:
 
 ### 1. Documentation Hub
 
 - Current page [README.en.md](README.en.md)
+- [Documentation Audit](DOCS_AUDIT.md)
 
 Responsibilities:
 
-- Explain the documentation structure
-- Provide a unified entry point
-- Point to the current official mainline
+- explain the documentation structure
+- mark the current rebuild state
+- provide a unified entry point
+- track rebuild progress
 
 ### 2. API Reference
 
@@ -26,143 +37,135 @@ Responsibilities:
 
 Responsibilities:
 
-- Types
-- Core runtime
-- Threads and coroutines
-- future / task / promise / wait-source
-- Memory and containers
-- Data and text handling
-- Current network mainline APIs
+- types and public structs
+- core runtime
+- threads, coroutines, queues, and async primitives
+- memory, containers, text, and structured data
+- the current network mainline APIs
 
-### 3. Supporting Documents
+### 3. Guides
+
+- [Guide Entry](guide/README.en.md)
+- [Guide Rebuild Roadmap](guide/ROADMAP.en.md)
 
 Responsibilities:
 
-- Architecture
-- feature trimming macros
-- migration
-- FAQ
-- best practices
-- examples
-- performance notes
-- beginner guides
-- case studies
+- from-zero teaching
+- concept explanation
+- model comparison
+- progressive learning from the smallest demo to combined examples
 
-To keep API docs, guides, and case studies from being mixed together, the structure is explicitly defined as:
+### 4. Case Studies
 
-- `docs/api/`: API contracts, module capabilities, current mainline behavior
-- `docs/guide/`: beginner guides, progressive tutorials, concept explanations
-- `docs/case/`: complete cases, combined usage, real-world walkthroughs
+- [Case Entry](case/README.en.md)
 
-When adding new documents later, decide first whether they are:
+Responsibilities:
 
-- contract / reference documents
-- or guide / case documents
-
-then place them in the proper subdirectory.
+- end-to-end problem decomposition
+- cross-module cooperation
+- combined examples that move from "it runs" toward "it can be shipped"
 
 
-## Current Mainline Entry Points
+## Recommended Entry Points
 
 ### Project Positioning
 
 - Root [README.en.md](../README.en.md)
+- [Architecture](ARCHITECTURE.en.md)
+- [Feature Trimming Macros](FEATURE_TRIMMING_MACROS.en.md)
 
-### API Reference
+### API Mainline
 
 - [API Index](api/README.en.md)
-
-The most important API mainline documents to read first are:
-
 - [Base Runtime](api/api-base.en.md)
 - [Value Dynamic Type System](api/api-value.en.md)
-- [JSON Processing Library](api/api-json.en.md)
-- [XSON Processing Library](api/api-xson.en.md)
+- [JNUM Number Parsing and Conversion](api/api-jnum.en.md)
+- [JSON Processing](api/api-json.en.md)
+- [XSON Processing](api/api-xson.en.md)
 - [Thread Runtime](api/api-thread.en.md)
+- [Queue](api/api-queue.en.md)
 - [Coroutine Runtime](api/api-coroutine.en.md)
 - [Future / Task / Promise](api/api-future-task-promise.en.md)
-- [XNet v2](api/api-xnet-v2.en.md)
+- [Subprocess](api/api-subprocess.md) (Chinese for now)
+- [Async File](api/api-file-async.md) (Chinese for now)
+- [XURL](api/api-xurl.en.md)
+- [HTTP Util](api/api-http-util.en.md)
+- [XNet V2](api/api-xnet-v2.en.md)
+- [XNet Proxy](api/api-xnet-proxy.md) (Chinese for now)
 - [Network TLS](api/api-network-tls.en.md)
 - [XHTTP](api/api-xhttp.en.md)
 - [XHTTPD](api/api-xhttpd.en.md)
 - [XWS](api/api-xws.en.md)
 
-### Architecture and Baseline Documents
+### Guides and Cases
 
-- [Architecture](ARCHITECTURE.en.md)
-- [Feature Trimming Macros](FEATURE_TRIMMING_MACROS.en.md)
-
-### Supporting Documents
-
-- [Migration Guide](MIGRATION.en.md)
-- [Best Practices](BEST_PRACTICES.en.md)
-- [FAQ](FAQ.en.md)
+- [Guide Entry](guide/README.en.md)
+- [Guide Rebuild Roadmap](guide/ROADMAP.en.md)
+- [Case Entry](case/README.en.md)
 - [Examples](EXAMPLES.en.md)
-- [Performance](PERFORMANCE.en.md)
-- [Guides](guide/README.en.md)
-- [Case Studies](case/README.en.md)
 
 
-## Current Documentation Rebuild Rules
+## Current Rebuild Rules
 
-The rebuild currently follows these rules:
+- Chinese is kept complete and source-aligned first.
+- English is synchronized after the reviewed Chinese pages settle.
+- API docs must stay consistent with code.
+- Guide pages must explain why, when, and how to build something step by step.
+- Case pages must show how multiple modules solve one complete problem together.
+- Historical pages and internal drafts must not remain disguised as current official entry points.
 
-- Chinese is fully rebuilt first
-- English is synchronized after the Chinese version is reviewed
-- API documents are grouped under `docs/api/`
-- obsolete old network/TLS documents are moved to `dev/` as archives
-- existing documents that are still valid must still be aligned against current code
-- missing documents for already-existing mainline features must be added before this phase is considered complete
-
-
-## Historical Documentation Note
-
-The following are no longer part of the current official documentation entry:
-
-- the legacy network module family
-- old `nettls`
-
-They have been moved out of `docs/` and are kept under `dev/` as archived historical material.
-
----
 
 ## Suggested Reading Order
 
-If this is your first time entering the current XRT mainline, read in this order:
+If this is your first time approaching XRT, read in this order:
 
 1. [Project Overview](../README.en.md)
 2. [Architecture](ARCHITECTURE.en.md)
 3. [API Index](api/README.en.md)
-4. [Examples](EXAMPLES.en.md)
-5. [Migration Guide](MIGRATION.en.md)
+4. [Documentation Audit](DOCS_AUDIT.md)
+5. [Guide Rebuild Roadmap](guide/ROADMAP.en.md)
 
 If you want to start writing code directly, read these first:
 
-1. [Base](api/api-base.en.md)
-2. [Value](api/api-value.en.md)
-3. [JSON](api/api-json.en.md)
-4. [XSON](api/api-xson.en.md)
-5. [Thread](api/api-thread.en.md)
-6. [Coroutine](api/api-coroutine.en.md)
+1. [Base Runtime](api/api-base.en.md)
+2. [Value Dynamic Type System](api/api-value.en.md)
+3. [JSON Processing](api/api-json.en.md)
+4. [Thread Runtime](api/api-thread.en.md)
+5. [Queue](api/api-queue.en.md)
+6. [Coroutine Runtime](api/api-coroutine.en.md)
 7. [Future / Task / Promise](api/api-future-task-promise.en.md)
-8. [XNet v2](api/api-xnet-v2.en.md)
+8. [Subprocess](api/api-subprocess.md) (Chinese for now)
+9. [Async File](api/api-file-async.md) (Chinese for now)
+10. [XURL](api/api-xurl.en.md)
+11. [HTTP Util](api/api-http-util.en.md)
+12. [XNet V2](api/api-xnet-v2.en.md)
 
-If you want the first full learning path after that, continue with:
+If you want the current progressive teaching route, continue with:
 
-1. [Runtime and Thread Attach](guide/runtime-thread-attach.en.md)
-2. [xvalue and JSON Intro](guide/xvalue-json-intro.en.md)
-3. [Coroutine, Future, and Task Intro](guide/coroutine-future-task-intro.en.md)
-4. [xnet-v2 and TLS Mainline Intro](guide/xnet-v2-tls-intro.en.md)
-5. [Streaming LLM API Intro](guide/streaming-llm-api-intro.en.md)
-6. [Subprocess and Tool Execution](guide/subprocess-intro.en.md)
-7. [Async File and Directory Operations](guide/file-async-intro.en.md)
-8. [Async HTTPD Handling](guide/httpd-async-intro.en.md)
+1. [Guide Entry](guide/README.en.md)
+2. [Guide Rebuild Roadmap](guide/ROADMAP.en.md)
+3. [First XRT Program](guide/first-xrt-program.en.md)
+4. [Multitasking Overview](guide/multitask-overview.en.md)
+5. [Thread Intro](guide/thread-intro.en.md)
+6. [Queue Intro](guide/queue-intro.en.md)
+7. [Wait-Source Intro](guide/wait-source-intro.en.md)
+8. [Task Group Intro](guide/task-group-intro.en.md)
+9. [XURL Intro](guide/xurl-intro.en.md)
+10. [HTTP Util Intro](guide/http-util-intro.en.md)
+11. [Proxy Intro](guide/proxy-intro.en.md)
+12. [XWS Intro](guide/xws-intro.en.md)
 
-If you prefer complete combined examples, continue with:
+If you prefer full combined examples, continue with:
 
-1. [Minimal HTTP Service](case/minimal-http-service.en.md)
-2. [Thread, Coroutine, and Future Coordination](case/thread-coroutine-future.en.md)
-3. [Streaming LLM API](case/streaming-llm-api.en.md)
-4. [HTTP + JSON + Template Full Chain](case/http-json-template-chain.en.md)
-5. [xnet-v2 Stream Wait-Source Walkthrough](case/xnet-stream-wait-source.en.md)
-
+1. [Case Entry](case/README.en.md)
+2. [Configuration System with `xvalue + json`](case/json-config-system.en.md)
+3. [Template Rendering to HTML](case/template-render-html.en.md)
+4. [Queue + Future Multi-Producer Worker](case/queue-worker-future.en.md)
+5. [Subprocess + Async File Tooling Pipeline](case/subprocess-file-async-pipeline.en.md)
+6. [XHTTP Client Chain with URL, Proxy, and TLS](case/xhttp-client-proxy-tls.en.md)
+7. [XWS Session Skeleton with Queue and Coroutine](case/xws-session-queue-coroutine.en.md)
+8. [Thread, Coroutine, and Future Coordination](case/thread-coroutine-future.en.md)
+9. [Streaming LLM API with XRT](case/streaming-llm-api.en.md)
+10. [Full HTTP + JSON + Template Service Chain](case/http-json-template-chain.en.md)
+11. [Signed Rule Bundle Import with Charset, Regex, and Crypto](case/signed-rule-bundle.en.md)
+12. [Session Registry with `mempool + avltree + list`](case/session-registry-pool-index.en.md)

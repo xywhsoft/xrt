@@ -19,8 +19,8 @@
 | Path | [api-path.md](api-path.md) | 路径处理 |
 | Time | [api-time.md](api-time.md) | 时间与日期 |
 | File | [api-file.md](api-file.md) | 文件与目录操作 |
-| Async File | [../guide/file-async-intro.md](../guide/file-async-intro.md) | 当前先参考教学页，独立 API 文档待补齐 |
-| Subprocess | [../guide/subprocess-intro.md](../guide/subprocess-intro.md) | 当前先参考教学页，独立 API 文档待补齐 |
+| Async File | [api-file-async.md](api-file-async.md) | 异步文件句柄、整文件 helper 与目录任务 |
+| Subprocess | [api-subprocess.md](api-subprocess.md) | 子进程启动、管道、等待与 capture |
 | Network (local info) | [api-network.md](api-network.md) | 本机网络信息 |
 | Hash | [api-hash.md](api-hash.md) | 哈希函数 |
 | XID | [api-xid.md](api-xid.md) | 分布式唯一 ID |
@@ -77,6 +77,7 @@
 | 模块 | 文档 | 状态 |
 |------|------|------|
 | XNet V2 | [api-xnet-v2.md](api-xnet-v2.md) | 已建立总览文档，包含共享代理对象 |
+| XNet Proxy | [api-xnet-proxy.md](api-xnet-proxy.md) | 共享代理对象、引用计数与代理配置 |
 | Network TLS | [api-network-tls.md](api-network-tls.md) | 当前 TLS session 主线 |
 | XURL | [api-xurl.md](api-xurl.md) | URL / authority / target 解析与构建 |
 | HTTP Util | [api-http-util.md](api-http-util.md) | header/query/cookie/media type/multipart 工具 |
@@ -91,7 +92,6 @@
 - 英文版本将在中文审阅通过后统一同步
 - 已淘汰的旧网络/TLS API 文档已迁入 `dev/` 归档
 - 当前主线优先围绕“运行时 / 并发 / 队列 / 异步 / xnet-v2 / TLS session / HTTP / WebSocket”组织
-- `file_async` 与 `subprocess` 目前先以教学页承载，后续补独立 API 文档
 - `llist / llist-base` 相关页面当前仅保留为历史参考；当前源码树暂无独立 public header，恢复正式入口前不应视为现行合同
 
 

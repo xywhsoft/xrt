@@ -70,6 +70,11 @@
 - `xson` 已补出第 3 阶段正式教学第一页
 - `template` 已补出正式教学第一页
 - `regex` 已补出正式教学第一页
+- `crypto` 已补出正式教学第一页
+- `xurl` 已补出第 6 阶段正式教学第一页
+- `http util` 已补出第 6 阶段正式教学第一页
+- `proxy` 已补出第 6 阶段正式教学第一页
+- `xws` 已补出第 6 阶段正式教学第一页
 - 还不等于完整课程体系
 - 尚未覆盖 XRT 全部公开模块
 
@@ -108,17 +113,20 @@
 23. [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
 24. [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
 25. [Regex 入门：什么时候该用正则做验证、提取和路由，而不是手搓字符串扫描](regex-intro.md)
-26. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
-27. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
-28. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
-29. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
-30. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
-31. 内存、容器与数据结构专题
-32. `crypto` 专题
-33. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
-34. 系统能力专题：子进程、异步文件
-35. 网络主线专题：`xurl / http util / xnet-v2 / TLS / xhttp / xhttpd / xws / proxy`
-36. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
+26. [Crypto 入门：摘要、密钥派生、AEAD 和签名验证不是同一件事](crypto-intro.md)
+27. [多任务总论：线程、队列、协程与 Future 怎么选](multitask-overview.md)
+28. [线程入门：什么时候该开线程，什么时候不该](thread-intro.md)
+29. [Queue 入门：什么时候该用消息交接，而不是共享状态](queue-intro.md)
+30. [Wait-Source 入门：把 Future 和网络等待说成同一种语言](wait-source-intro.md)
+31. [Task Group 入门：从统一等待走到结构化收口](task-group-intro.md)
+32. [XURL 入门：什么时候先把 URL 拆对，比直接发请求更重要](xurl-intro.md)
+33. [HTTP Util 入门：Header、Query、Cookie 和 multipart 不是一堆字符串](http-util-intro.md)
+34. [Proxy 入门：什么时候代理只是一个共享对象，什么时候它已经进入连接时序](proxy-intro.md)
+35. [XWS 入门：什么时候该让 WebSocket 回调负责协议边界，什么时候该把业务交给 Queue 和 Coroutine](xws-intro.md)
+36. 多任务专题：线程、队列、协程、future/task/promise、wait-source、task group
+37. 系统能力专题：子进程、异步文件
+38. 网络主线专题：`xnet-v2 / TLS / xhttp / xhttpd / xws`
+39. 完整案例梯度：从配置系统、HTTP 服务到流式 LLM API
 
 如果你要先看“课程蓝图”，直接打开：
 
@@ -157,6 +165,7 @@
 - [XSON 入门：什么时候该从 JSON 升级到完整 `xvalue` 序列化](xson-intro.md)
 - [Template 入门：什么时候该用模板，而不是拼字符串](template-intro.md)
 - [Regex 入门：什么时候该用正则做验证、提取和路由，而不是手搓字符串扫描](regex-intro.md)
+- [Crypto 入门：摘要、密钥派生、AEAD 和签名验证不是同一件事](crypto-intro.md)
 
 ### 2. 并发与异步主线页
 
@@ -171,6 +180,10 @@
 
 - [xnet-v2 Stream Wait-Source 入门](xnet-stream-wait-source-intro.md)
 - [xnet-v2 与 TLS session 入门](xnet-v2-tls-intro.md)
+- [XURL 入门：什么时候先把 URL 拆对，比直接发请求更重要](xurl-intro.md)
+- [HTTP Util 入门：Header、Query、Cookie 和 multipart 不是一堆字符串](http-util-intro.md)
+- [Proxy 入门：什么时候代理只是一个共享对象，什么时候它已经进入连接时序](proxy-intro.md)
+- [XWS 入门：什么时候该让 WebSocket 回调负责协议边界，什么时候该把业务交给 Queue 和 Coroutine](xws-intro.md)
 - [用 XWS + Queue + Coroutine 写一个双向会话服务骨架](../case/xws-session-queue-coroutine.md)
 - [用 XHTTP 走完 URL、代理与 TLS 客户端调用链](../case/xhttp-client-proxy-tls.md)
 - [用 XRT 写最小 HTTP 服务入门](minimal-http-service-intro.md)
@@ -195,8 +208,6 @@
 目前还没有成体系教学的模块主要包括：
 
 - `llist`（当前源码树暂无独立 public header，正式教学页暂缓，先保留历史 API 页提示状态）
-- `crypto`
-- `xurl / xhttp_util / xws / proxy`
 
 这也是后续优先补齐的部分。
 

@@ -51,6 +51,8 @@
 - `xurl + xhttp + proxy + TLS` 这条客户端主线已经补出正式案例页
 - `xws + queue + coroutine` 这条双向会话主线已经补出正式案例页
 - `xvalue + json + xhttp/xws + future/coroutine` 这条 AI 客户端主线已经补出正式案例页
+- `charset + regex + crypto + file` 这条签名规则包导入主线已经补出正式案例页
+- `mempool + avltree + list` 这条会话索引与回收池主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -96,6 +98,8 @@
 9. [用 XRT 写一个最小 HTTP 服务](minimal-http-service.md)
 10. [用 XRT 调用一个流式 LLM API](streaming-llm-api.md)
 11. [一个完整的 HTTP + JSON + Template 服务链路](http-json-template-chain.md)
+12. [用 Charset + Regex + Crypto 导入一个签名规则包](signed-rule-bundle.md)
+13. [用 MemPool + AVLTree + List 组织一个会话索引与回收池](session-registry-pool-index.md)
 
 这些页面当前适合：
 
@@ -108,8 +112,8 @@
 
 当前仍缺少正式案例的方向包括：
 
-- `crypto / regex / charset` 在实际项目中的组合案例
-- 内存池、容器与数据结构在真实业务中的用法案例
+- 把配置、日志、任务、网络和模板串成一个完整小项目
+- 再往下补缓存、批处理和多租户索引这类业务变体案例
 
 
 ## 与 API 和教学文档的关系

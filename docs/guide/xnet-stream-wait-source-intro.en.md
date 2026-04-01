@@ -6,6 +6,12 @@
 
 ---
 
+## 0. Read This First
+
+If you want the generic waiting model before the stream-specific view, read:
+
+- [Wait-Source Intro](wait-source-intro.en.md)
+
 ## 1. What a Stream Wait-Source Is
 
 In the current `xnet-v2` mainline, a stream is not just a byte transport. It also exposes waitable states such as:

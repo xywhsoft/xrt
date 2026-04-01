@@ -1,6 +1,6 @@
 # XRT Guides
 
-> Beginner-oriented, progressive, concept-to-code entry pages. Unlike `docs/api/`, the `guide/` directory focuses on the learning path instead of formal API contracts.
+> Beginner-oriented, progressive, concept-to-code entry pages. `docs/api/` defines contracts and boundaries; `docs/guide/` defines learning order, model comparison, and the mental steps needed to write working code.
 
 [Back to Docs Hub](../README.en.md)
 
@@ -9,8 +9,10 @@
 ## Contents
 
 - [Purpose of the Guide Pages](#purpose-of-the-guide-pages)
-- [Recommended Learning Path](#recommended-learning-path)
-- [Currently Available Guide Pages](#currently-available-guide-pages)
+- [Current Status](#current-status)
+- [Formal Learning Route](#formal-learning-route)
+- [How to Use the Existing Pages](#how-to-use-the-existing-pages)
+- [Current Gap](#current-gap)
 - [Relationship to the API Docs](#relationship-to-the-api-docs)
 
 ---
@@ -19,133 +21,124 @@
 
 The `guide/` directory is intended for:
 
-- readers encountering XRT for the first time
-- developers who want to build a working program quickly
-- readers who want to understand why the mainline is designed this way
+- readers meeting XRT for the first time
+- developers who want the shortest path to a working program
+- readers who want to understand why the mainline is designed this way and when to switch models
 
-So the focus here is:
+So these pages should not stop at:
 
-- concept explanation
-- learning order
-- progressive examples from small snippets to the full mainline
-- common mistakes and recommended patterns
+- listing APIs
+- showing one code fragment
+- saying "read the source for more"
 
-instead of enumerating API items one by one.
+They should answer, in order:
 
----
+1. what problem a module solves
+2. where a single main thread becomes insufficient
+3. how it differs from neighboring options
+4. how to write the smallest runnable demo
+5. when to upgrade to a fuller version
+6. what the common mistakes and boundaries are
 
-## Recommended Learning Path
 
-If you are starting from scratch with XRT, read and practice in this order:
+## Current Status
 
-### 1. Understand What XRT Is
+The `guide/` tree is still under rebuild:
 
-Goals:
+- many reviewed first-formal-guide pages already exist in Chinese
+- English currently mirrors the entry pages and part of the reviewed route
+- the rebuild is now organized by an explicit roadmap instead of loose topic notes
+- the multitasking route has been rebuilt in Chinese as a coherent line
+- the network route is also being rebuilt page by page instead of staying API-only
+- coverage is much better than before, but it is still not the final course system
 
-- understand XRT positioning
-- understand what “a C infrastructure library for the Internet + AI era” means
-- understand the relationship between the source-tree mainline, single-header distribution, and the docs structure
+Use these two pages together:
 
-Suggested entry points:
+- [Guide Rebuild Roadmap](ROADMAP.en.md)
+- the current topic pages listed below
 
-- [Project Overview](../../README.en.md)
-- [Documentation Hub](../README.en.md)
-- [Architecture](../ARCHITECTURE.en.md)
 
-### 2. Runtime and Basic Capabilities
+## Formal Learning Route
 
-Goals:
+The formal route now follows these stages:
 
-- learn `xrtInit()` / `xrtUnit()`
-- understand `xrtGetError()`
-- learn string, time, and file primitives
+1. [Guide Rebuild Roadmap](ROADMAP.en.md)
+2. [First XRT Program](first-xrt-program.en.md)
+3. Stage 1: core runtime and tool modules
+4. Stage 2: memory, containers, and data structures
+5. Stage 3: structured data and text processing
+6. Stage 4: multitasking and async mainline
+7. Stage 5: system capabilities and tooling
+8. Stage 6: network mainline
+9. Stage 7: end-to-end cases
 
-Suggested entry points:
+If you want the full stage breakdown, open:
 
-- [Base](../api/api-base.en.md)
-- [String](../api/api-string.en.md)
-- [Time](../api/api-time.en.md)
-- [File](../api/api-file.en.md)
+- [ROADMAP.en.md](ROADMAP.en.md)
 
-### 3. Dynamic Data and JSON
 
-Goals:
+## How to Use the Existing Pages
 
-- learn `xvalue`
-- learn array / list / coll / table
-- learn JSON <-> `xvalue`
+### 1. English-Synced Entry Pages
 
-Suggested entry points:
+These pages are already available in English and can support a first-pass learning route:
 
-- [Value](../api/api-value.en.md)
-- [JSON](../api/api-json.en.md)
+- [First XRT Program](first-xrt-program.en.md)
+- [Multitasking Overview](multitask-overview.en.md)
+- [Thread Intro](thread-intro.en.md)
+- [Queue Intro](queue-intro.en.md)
+- [Wait-Source Intro](wait-source-intro.en.md)
+- [Task Group Intro](task-group-intro.en.md)
+- [Runtime and Thread Attach](runtime-thread-attach.en.md)
+- [xvalue and JSON Intro](xvalue-json-intro.en.md)
+- [Coroutine, Future, and Task Intro](coroutine-future-task-intro.en.md)
+- [xnet-v2 and TLS Session Intro](xnet-v2-tls-intro.en.md)
+- [xnet-v2 Stream Wait-Source Intro](xnet-stream-wait-source-intro.en.md)
+- [XURL Intro](xurl-intro.en.md)
+- [HTTP Util Intro](http-util-intro.en.md)
+- [Proxy Intro](proxy-intro.en.md)
+- [XWS Intro](xws-intro.en.md)
+- [Minimal HTTP Service Intro](minimal-http-service-intro.en.md)
+- [Streaming LLM API Intro](streaming-llm-api-intro.en.md)
+- [Subprocess and Tool Execution](subprocess-intro.en.md)
+- [Async File and Directory Operations](file-async-intro.en.md)
+- [Async HTTPD Handling](httpd-async-intro.en.md)
 
-### 4. Concurrency and Async
+### 2. Chinese-First Formal Guide Pages Already Rebuilt
 
-Goals:
+These are reviewed route pages that already exist, but their English mirrors are still pending:
 
-- understand the thread attach model
-- understand coroutines and the scheduler
-- understand future / task / promise / wait-source
+- Stage 1 foundation: [Time, Path, and File Intro](time-path-file-intro.md), [Charset Intro](charset-intro.md), [OS Intro](os-intro.md), [Local Network Info Intro](local-network-intro.md), [XID Intro](xid-intro.md), [Math and Hash Intro](math-hash-intro.md)
+- Stage 2 containers and memory: [Buffer Intro](buffer-intro.md), [Array Intro](array-intro.md), [PtrArray Intro](ptrarray-intro.md), [Stack Intro](stack-intro.md), [DynStack Intro](dynstack-intro.md), [Dict Intro](dict-intro.md), [List Intro](list-intro.md), [AVLTree Intro](avltree-intro.md), [BSMM Intro](bsmm-intro.md), [MemUnit Intro](memunit-intro.md), [FSMemPool Intro](mempool-fs-intro.md), [MemPool Intro](mempool-intro.md)
+- Stage 3 structured data and text: [JNUM Intro](jnum-intro.md), [XSON Intro](xson-intro.md), [Template Intro](template-intro.md), [Regex Intro](regex-intro.md), [Crypto Intro](crypto-intro.md)
+- Stage 4 multitasking: the currently reviewed formal pages are already mirrored in English
+- Stage 6 network: the currently reviewed formal pages are already mirrored in English
 
-Suggested entry points:
+These pages are useful when you want:
 
-- [Thread](../api/api-thread.en.md)
-- [Coroutine](../api/api-coroutine.en.md)
-- [Future / Task / Promise](../api/api-future-task-promise.en.md)
+- the current shortest path to a rebuilt topic
+- the most up-to-date explanation before English sync catches up
+- the formal route beyond the older English quick-start pages
 
-### 5. Network Mainline
 
-Goals:
+## Current Gap
 
-- understand `xnet-v2`
-- understand TLS sessions
-- understand HTTP / HTTPD / WebSocket
+The most visible remaining gap is:
 
-Suggested entry points:
+- `llist`: the current source tree has no independent public header for it, so a formal guide page is still deferred and the old API pages remain historical notes only
 
-- [XNet V2](../api/api-xnet-v2.en.md)
-- [Network TLS](../api/api-network-tls.en.md)
-- [XHTTP](../api/api-xhttp.en.md)
-- [XHTTPD](../api/api-xhttpd.en.md)
-- [XWS](../api/api-xws.en.md)
-
----
-
-## Currently Available Guide Pages
-
-The current English guide entry points follow the reviewed Chinese mainline:
-
-1. [First XRT Program](first-xrt-program.en.md)
-2. [Runtime and Thread Attach](runtime-thread-attach.en.md)
-3. [xvalue and JSON Intro](xvalue-json-intro.en.md)
-4. [Coroutine, Future, and Task Intro](coroutine-future-task-intro.en.md)
-5. [xnet-v2 and TLS Session Intro](xnet-v2-tls-intro.en.md)
-6. [xnet-v2 Stream Wait-Source Intro](xnet-stream-wait-source-intro.en.md)
-7. [Minimal HTTP Service Intro](minimal-http-service-intro.en.md)
-8. [Streaming LLM API Intro](streaming-llm-api-intro.en.md)
-9. [Subprocess and Tool Execution](subprocess-intro.en.md)
-10. [Async File and Directory Operations](file-async-intro.en.md)
-11. [Async HTTPD Handling](httpd-async-intro.en.md)
-
-These pages are enough to support a first-pass learning path from runtime and data handling to concurrency, networking, and AI-facing usage.
-
----
 
 ## Relationship to the API Docs
 
-You can think about `guide/` and `api/` this way:
+Think about `guide/` and `api/` this way:
 
-- `api/`: what the API is, what the contract is, what the boundary is
-- `guide/`: what to learn first, how to combine it, and why the mainline is written this way
+- `api/`: what the API is, what the contract is, what the hard boundary is
+- `guide/`: what to learn first, why to write it this way, and how to combine modules into a runnable program
 
-If you already know which function or module you need, go to:
+If you already know which function you need, go to:
 
 - [API Index](../api/README.en.md)
 
-If you are still trying to understand which mainline to learn first, start here.
+If you are still deciding which mainline to learn first, start here and then open:
 
----
-
-This directory now serves as the formal English guide entry for the current XRT mainline.
-
+- [ROADMAP.en.md](ROADMAP.en.md)

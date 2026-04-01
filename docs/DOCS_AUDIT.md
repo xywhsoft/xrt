@@ -67,28 +67,23 @@
 
 ### 2.3 教学覆盖缺口
 
-当前教学主线还没有覆盖 XRT 全部公开模块。缺口主要在：
+当前教学主线还没有覆盖 XRT 全部公开模块，但第 3 阶段文本与数据和第 6 阶段网络补充已经继续往前推进。剩余缺口主要在：
 
 - 第 2 阶段内存主线：`llist`
-- 第 3 阶段文本与数据：`crypto`
-- 第 6 阶段网络补充：`xurl / xhttp_util / xws / proxy`
-- 系统能力的 API 合同层：`subprocess / file_async` 仍缺独立 API 页
 
 这意味着当前 `guide/` 还没有实现“覆盖全部模块”的目标。
 
 
 ### 2.4 API 文档覆盖缺口
 
-当前公开 API 里，至少有下面几块仍缺少独立或足够完整的正式 API 文档：
+当前公开 API 里，仍需继续补强或整理的部分主要有：
 
 | 模块 | 当前状态 |
 |------|----------|
-| `file_async` | 只有 `guide/file-async-intro.md`，没有独立 API 合同页 |
-| `subprocess` | 只有 `guide/subprocess-intro.md`，没有独立 API 合同页 |
-| `xnet_proxy` | 目前散落在 `api-xnet-v2.md`、`api-xhttp.md`、`api-xws.md` 中，缺少单独整理 |
+| `file_async` | 已补独立 API 文档，后续仍可继续细化返回值语义与错误边界 |
+| `subprocess` | 已补独立 API 文档，后续仍可继续细化平台差异与 shell/direct argv 对照 |
+| `xnet_proxy` | 已补独立 API 文档，后续可继续细化代理握手失败与上层模块引用边界说明 |
 | `llist` | 文档仍在，但当前源码树暂无独立 public header，也未找到 `xrtLList*` / `xrtLLB*` 公开声明，属于待校准历史页 |
-
-`xnet_proxy` 不一定必须单开一篇，但至少要在 API 索引中明确它的入口位置。
 
 
 ### 2.5 结构边界问题
@@ -143,8 +138,6 @@
 
 ### 3.3 应补齐的新文档
 
-- `file_async` API 文档
-- `subprocess` API 文档
 - 面向全部公开模块的教学路线图
 - 面向全部公开模块的案例梯度图
 
@@ -161,7 +154,7 @@
 2. 稳定 `docs/README.md`、`docs/guide/README.md`、`docs/case/README.md`
 3. 建立正式教学路线图
 4. 优先重写多任务专题
-5. 补齐 `subprocess`、`file_async`、`queue`、`xurl / xhttp_util / xws / proxy`
+5. 继续补齐 `queue`、`xws` 等仍偏薄弱的专题，并继续加深网络主线正文
 6. 再逐步把容器、内存、文本模块补成完整课程
 
 
@@ -193,4 +186,23 @@
 - 第 3 阶段已补出 `jnum` 正式教学页
 - 第 3 阶段已补出 `xson` 正式教学页
 - 第 3 阶段已补出 `regex` 正式教学页
+- 第 3 阶段已补出 `crypto` 正式教学页
+- `subprocess / file_async` 已补独立 API 文档
+- 第 6 阶段已补出 `xurl / xhttp_util / proxy` 正式教学页
+- 第 6 阶段已补出 `xws` 正式教学页
+- `xnet_proxy` 已补独立 API 文档
+- 英文入口层已同步 `docs/README.en.md`、`docs/guide/README.en.md`、`docs/guide/ROADMAP.en.md`、`docs/case/README.en.md`、`docs/api/README.en.md`
+- 英文正文已同步 `guide/multitask-overview.en.md`、`guide/thread-intro.en.md`
+- 英文正文已同步 `guide/queue-intro.en.md`、`guide/wait-source-intro.en.md`
+- 英文正文已同步 `guide/task-group-intro.en.md`
+- 英文正文已同步 `guide/xurl-intro.en.md`、`guide/http-util-intro.en.md`
+- 英文正文已同步 `guide/proxy-intro.en.md`、`guide/xws-intro.en.md`
+- 英文案例已同步 `case/subprocess-file-async-pipeline.en.md`
+- 英文案例已同步 `case/xhttp-client-proxy-tls.en.md`、`case/xws-session-queue-coroutine.en.md`
+- 英文案例已同步 `case/queue-worker-future.en.md`
+- 中文案例已补出 `case/signed-rule-bundle.md`，用于承接 `charset / regex / crypto` 的业务组合主线
+- 英文案例已同步 `case/signed-rule-bundle.en.md`
+- 中文案例已补出 `case/session-registry-pool-index.md`，用于承接 `mempool / avltree / list` 的业务组合主线
+- 英文案例已同步 `case/session-registry-pool-index.en.md`
+- `case/README.md`、`case/README.en.md`、`README.md`、`README.en.md` 已对齐这条案例入口与 English sync 状态
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿
