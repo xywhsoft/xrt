@@ -101,17 +101,18 @@ The following case pages already exist in English:
 20. [Upgrade the Local Console Service into an Archive Dashboard](archive-dashboard.en.md)
 21. [Upgrade the Local Console Service into a Hot-Cold Tier Dashboard](hot-cold-tier-dashboard.en.md)
 22. [Upgrade the Local Console Service into a Warm-Back Dashboard](warm-back-dashboard.en.md)
+23. [Upgrade the Local Console Service into a Rolling Tier Archive Dashboard](rolling-tier-archive-dashboard.en.md)
+24. [Upgrade the Local Console Service into an Auto-Warm Policy Dashboard](auto-warm-policy-dashboard.en.md)
+25. [Upgrade the Local Console Service into a Warm-Archive Coordination Dashboard](warm-archive-coordination-dashboard.en.md)
 
 ### 2. Current English Coverage Notes
 
-At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, session-registry, subprocess-dashboard, batch-dashboard, cache-dashboard, tenant-index, retry-backoff, archive, hot-cold-tier, and warm-back business pages.
+At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, session-registry, subprocess-dashboard, batch-dashboard, cache-dashboard, tenant-index, retry-backoff, archive, hot-cold-tier, warm-back, rolling-tier archive, and warm-archive coordination business pages.
 
 So the remaining gaps are now mostly:
 
-- English sync for the rolling-tier archive dashboard variant
-- English sync for the auto-warm policy dashboard variant
-- English sync for the warm-archive coordination dashboard variant
-- more business-style variants such as rolling tier archive, automatic warm-back policy, or multi-tier storage cases
+- the Chinese-first page [Upgrade the Local Console Service into an Auto-Warm + Rolling-Archive Integration Dashboard](auto-warm-rolling-archive-dashboard.md)
+- more business-style variants such as multi-tier storage cases
 
 These pages are currently useful when you want:
 
@@ -123,9 +124,6 @@ These pages are currently useful when you want:
 
 The most obvious remaining case gaps are:
 
-- English sync for `case/rolling-tier-archive-dashboard.md`
-- English sync for `case/auto-warm-policy-dashboard.md`
-- English sync for `case/warm-archive-coordination-dashboard.md`
 - more business-style variants around multi-tier storage and long-lived service state
 
 

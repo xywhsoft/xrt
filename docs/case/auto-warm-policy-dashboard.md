@@ -1055,7 +1055,7 @@ cleanup:
 	把热层、冷层和长期层拆成更完整的 3 层
 2. 冷层回温 + 归档协同
 	把“命中不足继续留 cold”“长期无命中继续 archive”补成完整策略页，可以继续读 [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
-3. 自动回温 + 滚动归档联动
+3. [自动回温 + 滚动归档联动](auto-warm-rolling-archive-dashboard.md)
 	把策略命中和 cold overflow 放进同一条长期运行主线
 
 如果你还没完全建立这里的层级拆分心智，建议一起复读：

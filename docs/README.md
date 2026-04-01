@@ -205,4 +205,5 @@
 21. [把本地控制台服务升级成一个冷热滚动归档面板](case/rolling-tier-archive-dashboard.md)
 22. [把本地控制台服务升级成一个自动回温策略面板](case/auto-warm-policy-dashboard.md)
 23. [把本地控制台服务升级成一个冷层回温归档协同面板](case/warm-archive-coordination-dashboard.md)
+24. [把本地控制台服务升级成一个自动回温 + 滚动归档联动面板](case/auto-warm-rolling-archive-dashboard.md)
 

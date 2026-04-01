@@ -222,8 +222,12 @@
 - 中文案例已补出 `case/auto-warm-policy-dashboard.md`，用于承接“dict / list / list / queue / thread / time / path / file / hash”的自动回温策略业务变体主线
 - 中文案例已补出 `case/warm-archive-coordination-dashboard.md`，用于承接“dict / list / list / list / queue / thread / time / path / file / hash”的冷层回温归档协同业务变体主线
 - 英文案例已同步 `case/warm-back-dashboard.en.md`
+- 英文案例已同步 `case/rolling-tier-archive-dashboard.en.md`
+- 英文案例已同步 `case/auto-warm-policy-dashboard.en.md`
+- 英文案例已同步 `case/warm-archive-coordination-dashboard.en.md`
 - 英文案例已同步 `case/retry-backoff-dashboard.en.md`
 - 英文案例已同步 `case/archive-dashboard.en.md`
 - 英文案例已同步 `case/hot-cold-tier-dashboard.en.md`
+- 中文案例已补出 `case/auto-warm-rolling-archive-dashboard.md`，用于承接“自动回温 + 滚动归档联动”的业务变体主线
 - `case/README.md`、`case/README.en.md`、`README.md`、`README.en.md` 已对齐这条案例入口与 English sync 状态
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿

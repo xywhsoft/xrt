@@ -1,79 +1,79 @@
-# 把本地控制台服务升级成一个冷层回温归档协同面板
+# Upgrade the Local Console Service into a Warm-Archive Coordination Dashboard
 
-> 这页要解决的不是“自动回温”和“滚动归档”各自怎么写，而是更贴近真实服务的问题：当一个本地控制台服务已经有了 hot tier、cold tier、自动回温和 archive 语义之后，又开始需要把“命中不足继续留 cold”“命中达标自动回温”“长期无命中继续 archive”放进同一条后台主线，还要把当前冷热状态、最近回温历史和最近 archive 历史稳定交给页面、JSON、日志和快照时，怎样把 `dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 串成一条正式主线，而不是让 access signal、策略判定和层级迁移各写各的。
+> This page is not about teaching automatic warm-back and rolling archive as two separate features. It targets the more realistic service problem: once one local console service already has a hot tier, a cold tier, automatic warm-back rules, and archive semantics, how do you put "stay cold when hits are still insufficient", "warm back automatically when the threshold is reached", and "archive when long-lived cold entries still do not recover" into one background mainline, while still exporting the current hot/cold state, recent warm-back history, and recent archive history to the page, JSON, logs, and snapshot files through one formal `dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` chain?
 
-[返回案例索引](README.md)
+[Back to Case Index](README.en.md)
 
 ---
 
-## 1. 场景
+## 1. Scenario
 
-前面的页面已经分别讲了：
+The previous pages already covered these pieces one by one:
 
-- 热层和冷层怎么拆
-- 冷对象怎样回温回热层
-- 长期无命中的冷对象怎样继续 archive
+- how to split hot and cold tiers
+- how one cold object returns to the hot tier
+- how one long-idle cold object continues into archive
 
-但真实服务里，冷层对象接下来只会走 3 种方向之一：
+But in one real service, one cold entry only has three next destinations:
 
-- 继续留在 cold
-- 重新回到 hot
-- 正式迁进 archive
+- stay in the cold tier
+- return to the hot tier
+- move into archive
 
-所以“自动回温”和“滚动归档”并不是两套彼此独立的能力，而是：
+So automatic warm-back and rolling archive are not two isolated capabilities. They are:
 
-> 同一条 cold state 的后续分流策略。
+> two branches of the same cold-state convergence path.
 
-这页要补出的，就是这条协同主线。
-
-
-## 2. 为什么这次不能再各写各的
-
-如果访问命中和 archive sweep 继续分散在不同逻辑里，很快就会出现几个典型问题：
-
-- 冷层对象到底处于“等待回温”还是“等待归档”没有正式边界
-- 同一对象的命中次数、窗口起点和归档资格分散在多处临时变量里
-- 页面为了展示“为什么这个对象没回温却 archive 了”开始扫日志和 worker 临时状态
-- 后面再补多层存储时，整个状态模型会立刻失真
-
-所以这页最重要的边界只有一句话：
-
-> access signal 和 archive sweep 都必须进入同一个 worker，由它统一决定 cold entry 下一步该去哪。
+This page adds that shared coordination path.
 
 
-## 3. 这一页里每层负责什么
+## 2. Why This Cannot Stay Split Across Different Logic Paths
 
-| 层 | 角色 | 解决的问题 |
-|----|------|------------|
-| `dict` | 当前热层对象 | 当前热点查询与回温后的实时命中 |
-| `list` | 当前冷层窗口与命中状态 | 冷对象、累计命中数、窗口起点、最近命中来源 |
-| `list` | 最近回温历史 | 页面时间线和回温事件导出 |
-| `list` | 最近 archive 历史 | 页面时间线和归档事件导出 |
-| `queue + thread` | 后台执行 access signal 与 archive sweep | 请求线程不阻塞在协同策略收口上 |
-| `time` | 冷却时间、命中窗口、回温时间、归档时间 | 协同策略的正式时间边界 |
-| `path + file` | 快照路径与落盘 | 让协同状态进入文件系统 |
-| `xvalue + json` | 导出冷热、回温、archive 摘要 | 页面、脚本、快照共享同一份模型 |
+If access hits and archive sweeps stay in different parts of the service, the model degrades quickly:
+
+- the service no longer has one formal boundary for "waiting for warm-back" versus "ready for archive"
+- hit counts, warm windows, and archive eligibility leak into temporary state in multiple places
+- the page starts scanning logs or worker-local state just to explain why one object did not warm back but still got archived
+- once you add deeper multi-tier storage later, the state model falls apart immediately
+
+So the most important boundary in this page is one sentence:
+
+> access signals and archive sweeps must converge inside the same worker, and that worker decides where the cold entry goes next.
 
 
-## 4. 一个最小但完整的协同骨架
+## 3. What Each Layer Owns Here
 
-这段代码故意只保留 6 件事：
+| Layer | Role | What it actually solves |
+|------|------|--------------------------|
+| `dict` | current hot-tier objects | real-time hot lookups and post-warm-back hits |
+| `list` | current cold window and hit state | cold objects, accumulated hits, window start, and recent hit source |
+| `list` | recent warm-back history | page timelines and warm-back event export |
+| `list` | recent archive history | page timelines and archive event export |
+| `queue + thread` | background access-signal and archive-sweep execution | keeps request threads away from coordination convergence |
+| `time` | cool-down time, warm window, warm-back time, archive time | formal time boundaries for the coordination policy |
+| `path + file` | snapshot path and persistence | moves coordination state into the filesystem |
+| `xvalue + json` | hot/cold/warm/archive summaries | lets the page, scripts, and snapshots share the same model |
 
-1. `dict` 保存当前热层对象
-2. `list` 保存当前冷层窗口与命中状态
-3. `list` 保存最近回温历史
-4. `list` 保存最近 archive 历史
-5. `queue + thread` 同时处理 access signal 和 archive sweep
-6. `path + file + json` 把当前协同状态落成 `runtime/warm-archive-coordination.json`
 
-这个骨架会实际做这些事：
+## 4. One Minimal but Complete Coordination Skeleton
 
-- 初始化 coordination center
-- 注册 3 个热层对象
-- 先把 `beta` 和 `gamma` 手工转入冷层
-- 对 `beta` 连续提交 2 次 access signal，让它自动回温
-- 稍后再提交一次 archive sweep，让长期无命中的 `gamma` 进入 archive
-- 主线程打印热层、冷层、回温历史、archive 历史和最终快照
+This code intentionally keeps only six things:
+
+1. `dict` stores the current hot-tier objects
+2. `list` stores the current cold window and hit state
+3. `list` stores recent warm-back history
+4. `list` stores recent archive history
+5. `queue + thread` handles access signals and archive sweeps together
+6. `path + file + json` writes the current coordinated state into `runtime/warm-archive-coordination.json`
+
+This skeleton actually does the following:
+
+- initializes one coordination center
+- registers three hot-tier objects
+- manually moves `beta` and `gamma` into the cold tier first
+- submits two access signals for `beta` so it warms back automatically
+- submits one archive sweep later so long-idle `gamma` moves into archive
+- prints the hot tier, cold tier, warm-back history, archive history, and final snapshot in the main thread
 
 ```c
 #include "xrt.h"
@@ -664,76 +664,75 @@ cleanup:
 ```
 
 
-## 6. 这段代码里最关键的 5 个点
+## 6. Five Critical Boundaries in This Code
 
-### 6.1 cold entry 现在有 3 条正式去向
+### 6.1 One cold entry now has three formal destinations
 
-同一条 cold state 现在可能：
+The same cold state can now:
 
-- 继续留在 cold
-- 被自动回温
-- 被 archive sweep 继续迁进 archive
+- stay in the cold tier
+- warm back automatically
+- move into archive after one sweep
 
-这就是为什么它必须成为正式策略分流点。
-
-
-### 6.2 access signal 和 archive sweep 必须进入同一个 worker
-
-这页最重要的边界就是：
-
-- 请求线程只投递 `ACCESS` 和 `SWEEP`
-- worker 统一判断 cold entry 下一步该去哪
-
-这样回温和归档不会互相打架。
+That is why the cold entry itself becomes the real coordination pivot.
 
 
-### 6.3 archive sweep 不能只看年龄
+### 6.2 Access signals and archive sweeps must converge in the same worker
 
-这页里的 archive 条件明确要求：
+The most important boundary in this page is:
 
-- 已经超过 archive 老化阈值
-- 最近没有仍在窗口内的 warm hit
-- 当前累计命中还没达到回温阈值
+- request threads only submit `ACCESS` and `SWEEP`
+- the worker decides where each cold entry goes next
 
-也就是说，archive 不是简单比年龄，warm-back 也不是简单比 hits。
-
-
-### 6.4 “近期命中不足”时，正确行为是继续留 cold
-
-这页故意保留一个教学重点：
-
-- `beta` 连续 2 次命中，自动回温
-- `gamma` 长期无命中，被 archive
-
-而那些“刚命中过 1 次但还没达标”的对象，应该继续留在 cold。
+That is what keeps warm-back and archive decisions from racing against each other.
 
 
-### 6.5 `path + file` 让协同策略成为正式系统状态
+### 6.3 Archive sweeps are not based on age alone
 
-`procWriteSnapshotLocked()` 会把：
+The archive condition here explicitly requires all of the following:
 
-- 当前热层
-- 当前冷层策略状态
-- 最近回温历史
-- 最近 archive 历史
+- the cold entry is already older than the archive-aging threshold
+- there is no recent warm hit still inside the active warm window
+- the current hit count still does not satisfy the warm-back threshold
 
-统一导成 `runtime/warm-archive-coordination.json`。  
-这意味着协同策略不再只是 worker 的内部逻辑，而是一份可以被脚本和面板消费的正式状态。
+So archive is not just "older than N milliseconds", and warm-back is not just "more than N hits". The worker must read both parts together.
 
 
-## 7. 这页之后最自然的下一步
+### 6.4 If recent hits still do not reach the threshold, the right answer is to stay cold
 
-如果继续往业务层推进，最自然的下一步有 3 个：
+This page intentionally keeps one teaching boundary visible:
 
-1. 多层存储
-	把热层、冷层和长期层拆成更完整的多层结构
-2. [自动回温 + 滚动归档联动](auto-warm-rolling-archive-dashboard.md)
-	把 sweep、回温和长期层继续做成更完整的层级策略
-3. 冷热多级老化
-	把“热 -> 温 -> 冷 -> archive”拆成更细的 4 层模型
+- `beta` receives two close hits and warms back
+- `gamma` stays idle long enough and gets archived
 
-如果你还没完全建立这里的层级拆分心智，建议一起复读：
+Any cold entry that only has one recent hit and still does not qualify should remain in the cold tier.
 
-- [把本地控制台服务升级成一个自动回温策略面板](auto-warm-policy-dashboard.md)
-- [把本地控制台服务升级成一个冷热滚动归档面板](rolling-tier-archive-dashboard.md)
-- [把本地控制台服务升级成一个冷层回温面板](warm-back-dashboard.md)
+
+### 6.5 `path + file` turns coordination into formal system state
+
+`procWriteSnapshotLocked()` exports:
+
+- the current hot tier
+- the current cold-tier policy state
+- recent warm-back history
+- recent archive history
+
+into `runtime/warm-archive-coordination.json`.
+
+That means the coordination rule stops being one private worker-side behavior and becomes one formal state surface that scripts, panels, and exports can consume directly.
+
+
+## 7. What To Read Next
+
+If you keep moving up the business layer, the next natural directions are:
+
+1. multi-tier storage with more explicit long-lived layers
+2. automatic warm-back plus rolling archive integration
+3. multi-stage aging such as `hot -> warm -> cold -> archive`
+
+If the tier split is still not fully stable yet, read these together:
+
+- [Upgrade the Local Console Service into a Warm-Back Dashboard](warm-back-dashboard.en.md)
+- [Upgrade the Local Console Service into a Rolling Tier Archive Dashboard](rolling-tier-archive-dashboard.en.md)
+- [Upgrade the Local Console Service into an Auto-Warm Policy Dashboard](auto-warm-policy-dashboard.en.md)
+- [Queue Intro: When to Hand Off Messages Instead of Sharing State](../guide/queue-intro.en.md)

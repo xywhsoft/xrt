@@ -1009,7 +1009,7 @@ If the cold window grows large, the cold lookup structure should be upgraded ins
 If you keep moving up the business layer, the next natural directions are:
 
 1. rolling cold-tier archive
-2. [automatic warm-back policy](auto-warm-policy-dashboard.md) (Chinese for now)
+2. [automatic warm-back policy](auto-warm-policy-dashboard.en.md)
 3. multi-tier storage with hot, cold, and long-term layers
 
 If the tier split is still not fully stable yet, read these together:
