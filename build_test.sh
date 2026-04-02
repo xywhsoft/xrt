@@ -2,6 +2,8 @@
 
 set -e
 
+WARN_FLAGS="-Wall -Wextra"
+
 mkdir -p release/x64
 
 case "$(uname -s)" in
@@ -18,10 +20,10 @@ case "$(uname -s)" in
 		;;
 esac
 
-gcc -m64 test.c -I . $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o "$OUT"
+gcc -m64 test.c -I . $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections $WARN_FLAGS -o "$OUT"
 "$OUT" preset:runtime_smoke
 "$OUT" xurl_core
 "$OUT" preset:xnet2_stage
 
-gcc -m64 singlehead/test_singlehead.c -I singlehead $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections -o "$OUT_SINGLEHEAD"
+gcc -m64 singlehead/test_singlehead.c -I singlehead $LIBS -O2 -s -ffunction-sections -fdata-sections -Wl,--gc-sections $WARN_FLAGS -o "$OUT_SINGLEHEAD"
 "$OUT_SINGLEHEAD"

@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-02 15:54:00
+    Generated: 2026-04-02 17:14:20
 
     MIT License
 
@@ -10320,7 +10320,7 @@ static size_t __xrtUtf8CharLenSafe(str sText, size_t iSize, size_t iPos)
 	return iCharLen;
 }
 // 内部函数：检查字节序列是否在集合中
-static bool __xrtStrHasToken(str sText, size_t iSize, const char* sToken, size_t iTokenSize)
+static bool __xrtStrHasToken(str sText, size_t iSize, const unsigned char* sToken, size_t iTokenSize)
 {
 	if ( !sText || !sToken || (iTokenSize == 0) || (iSize < iTokenSize) ) { return FALSE; }
 	for ( size_t i = 0; (i + iTokenSize) <= iSize; i++ ) {
@@ -55927,6 +55927,7 @@ struct xprocess_struct {
 };
 static void __xprocFreeProcess(xprocess* pProcess);
 // 内部函数：增加引用
+#if !defined(XRT_NO_NETWORK)
 static xprocess* __xprocAddRef(xprocess* pProcess)
 {
 	if ( pProcess ) {
@@ -55934,6 +55935,7 @@ static xprocess* __xprocAddRef(xprocess* pProcess)
 	}
 	return pProcess;
 }
+#endif
 // 内部函数：释放引用
 static void __xprocReleaseProcess(xprocess* pProcess)
 {
@@ -56225,6 +56227,17 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 		procDeleteProcThreadAttributeList DeleteProcThreadAttributeList;
 	} __xproc_conpty_api;
 	static __xproc_conpty_api __gxprocConPtyApi;
+	static void __xprocAssignProcAddress(void* pTarget, size_t iTargetSize, FARPROC procAddress)
+	{
+		if ( pTarget == NULL || iTargetSize == 0 ) {
+			return;
+		}
+		memset(pTarget, 0, iTargetSize);
+		if ( iTargetSize > sizeof(procAddress) ) {
+			iTargetSize = sizeof(procAddress);
+		}
+		memcpy(pTarget, &procAddress, iTargetSize);
+	}
 	static void __xprocLoadConPtyApi(void)
 	{
 		HMODULE hKernel;
@@ -56237,12 +56250,12 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 		if ( hKernel == NULL ) {
 			return;
 		}
-		__gxprocConPtyApi.CreatePseudoConsole = (procCreatePseudoConsole)GetProcAddress(hKernel, "CreatePseudoConsole");
-		__gxprocConPtyApi.ClosePseudoConsole = (procClosePseudoConsole)GetProcAddress(hKernel, "ClosePseudoConsole");
-		__gxprocConPtyApi.ResizePseudoConsole = (procResizePseudoConsole)GetProcAddress(hKernel, "ResizePseudoConsole");
-		__gxprocConPtyApi.InitializeProcThreadAttributeList = (procInitializeProcThreadAttributeList)GetProcAddress(hKernel, "InitializeProcThreadAttributeList");
-		__gxprocConPtyApi.UpdateProcThreadAttribute = (procUpdateProcThreadAttribute)GetProcAddress(hKernel, "UpdateProcThreadAttribute");
-		__gxprocConPtyApi.DeleteProcThreadAttributeList = (procDeleteProcThreadAttributeList)GetProcAddress(hKernel, "DeleteProcThreadAttributeList");
+		__xprocAssignProcAddress(&__gxprocConPtyApi.CreatePseudoConsole, sizeof(__gxprocConPtyApi.CreatePseudoConsole), GetProcAddress(hKernel, "CreatePseudoConsole"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.ClosePseudoConsole, sizeof(__gxprocConPtyApi.ClosePseudoConsole), GetProcAddress(hKernel, "ClosePseudoConsole"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.ResizePseudoConsole, sizeof(__gxprocConPtyApi.ResizePseudoConsole), GetProcAddress(hKernel, "ResizePseudoConsole"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.InitializeProcThreadAttributeList, sizeof(__gxprocConPtyApi.InitializeProcThreadAttributeList), GetProcAddress(hKernel, "InitializeProcThreadAttributeList"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.UpdateProcThreadAttribute, sizeof(__gxprocConPtyApi.UpdateProcThreadAttribute), GetProcAddress(hKernel, "UpdateProcThreadAttribute"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.DeleteProcThreadAttributeList, sizeof(__gxprocConPtyApi.DeleteProcThreadAttributeList), GetProcAddress(hKernel, "DeleteProcThreadAttributeList"));
 		__gxprocConPtyApi.bSupported = __gxprocConPtyApi.CreatePseudoConsole != NULL
 			&& __gxprocConPtyApi.ClosePseudoConsole != NULL
 			&& __gxprocConPtyApi.ResizePseudoConsole != NULL
@@ -58367,10 +58380,12 @@ static inline void __xrtPtrArrayUnit_NoLock(xparray pObject)
 // 内部函数：__xrtPtrArrayMalloc_NoLock
 static inline bool __xrtPtrArrayMalloc_NoLock(xparray pObject, uint32 iCount)
 {
-	size_t iBytes = (size_t)iCount * sizeof(ptr);
-	if ( iCount != 0 && (size_t)iCount > (SIZE_MAX / sizeof(ptr)) ) {
+	size_t iBytes;
+	uint64 iCount64 = iCount;
+	if ( iCount != 0 && iCount64 > (SIZE_MAX / sizeof(ptr)) ) {
 		return FALSE;
 	}
+	iBytes = (size_t)iCount * sizeof(ptr);
 	if ( iCount > pObject->AllocCount ) {
 		// 增量
 		ptr* pNew = xrtRealloc(pObject->Memory, iBytes);
@@ -58997,10 +59012,16 @@ static inline uint32 __xrtBsmmPageMMUAppend(xbsmm objBSMM, ptr pBlock)
 {
 	if ( objBSMM->PageMMU.Count >= objBSMM->PageMMU.AllocCount ) {
 		uint32 iNewCount = objBSMM->PageMMU.Count + objBSMM->PageMMU.AllocStep;
-		if ( iNewCount < objBSMM->PageMMU.Count || (size_t)iNewCount > (SIZE_MAX / sizeof(ptr)) ) {
+		size_t iNewBytes;
+		uint64 iNewCount64 = iNewCount;
+		if ( iNewCount < objBSMM->PageMMU.Count ) {
 			return 0;
 		}
-		ptr* pNew = xrtRealloc(objBSMM->PageMMU.Memory, (size_t)iNewCount * sizeof(ptr));
+		if ( iNewCount64 > (SIZE_MAX / sizeof(ptr)) ) {
+			return 0;
+		}
+		iNewBytes = (size_t)iNewCount * sizeof(ptr);
+		ptr* pNew = xrtRealloc(objBSMM->PageMMU.Memory, iNewBytes);
 		if ( pNew == NULL ) {
 			return 0;
 		}
@@ -60908,6 +60929,9 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 	uint32 iBucketCount;
 	uint32 iBucket;
 	uint32 iSize;
+	size_t iLutCount;
+	uint64 iBucketCount64;
+	uint64 iCutoff64;
 	objMP->FSB_Memory = NULL;
 	objMP->FSB_RootNode = NULL;
 	objMP->FSB_Lut = NULL;
@@ -60918,25 +60942,31 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 		return TRUE;
 	}
 	iBucketCount = __xrtMemPoolBucketCount(iCutoff);
-	if ( iBucketCount == 0 || (size_t)iBucketCount > (SIZE_MAX / sizeof(FSB_Item)) ) {
+	iBucketCount64 = iBucketCount;
+	iCutoff64 = iCutoff;
+	if ( iBucketCount == 0 ) {
+		return FALSE;
+	}
+	if ( iBucketCount64 > (SIZE_MAX / sizeof(FSB_Item)) ) {
 		return FALSE;
 	}
 	objMP->FSB_Memory = xrtCalloc(iBucketCount, sizeof(FSB_Item));
 	if ( objMP->FSB_Memory == NULL ) {
 		return FALSE;
 	}
-	if ( (size_t)iCutoff >= (SIZE_MAX / sizeof(uint32)) ) {
+	if ( iCutoff64 >= (SIZE_MAX / sizeof(uint32)) ) {
 		xrtFree(objMP->FSB_Memory);
 		objMP->FSB_Memory = NULL;
 		return FALSE;
 	}
-	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * (iCutoff + 1));
+	iLutCount = (size_t)iCutoff + 1u;
+	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * iLutCount);
 	if ( objMP->FSB_Lut == NULL ) {
 		xrtFree(objMP->FSB_Memory);
 		objMP->FSB_Memory = NULL;
 		return FALSE;
 	}
-	memset(objMP->FSB_Lut, 0, sizeof(uint32) * (iCutoff + 1));
+	memset(objMP->FSB_Lut, 0, sizeof(uint32) * iLutCount);
 	objMP->iBucketCount = iBucketCount;
 	objMP->FSB_RootNode = &objMP->FSB_Memory[0];
 	for ( iBucket = 0; iBucket < iBucketCount; iBucket++ ) {

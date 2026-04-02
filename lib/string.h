@@ -39,7 +39,7 @@ static size_t __xrtUtf8CharLenSafe(str sText, size_t iSize, size_t iPos)
 
 
 // 内部函数：检查字节序列是否在集合中
-static bool __xrtStrHasToken(str sText, size_t iSize, const char* sToken, size_t iTokenSize)
+static bool __xrtStrHasToken(str sText, size_t iSize, const unsigned char* sToken, size_t iTokenSize)
 {
 	if ( !sText || !sToken || (iTokenSize == 0) || (iSize < iTokenSize) ) { return FALSE; }
 	for ( size_t i = 0; (i + iTokenSize) <= iSize; i++ ) {

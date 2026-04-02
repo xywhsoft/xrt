@@ -18,10 +18,16 @@ static inline uint32 __xrtBsmmPageMMUAppend(xbsmm objBSMM, ptr pBlock)
 {
 	if ( objBSMM->PageMMU.Count >= objBSMM->PageMMU.AllocCount ) {
 		uint32 iNewCount = objBSMM->PageMMU.Count + objBSMM->PageMMU.AllocStep;
-		if ( iNewCount < objBSMM->PageMMU.Count || (size_t)iNewCount > (SIZE_MAX / sizeof(ptr)) ) {
+		size_t iNewBytes;
+		uint64 iNewCount64 = iNewCount;
+		if ( iNewCount < objBSMM->PageMMU.Count ) {
 			return 0;
 		}
-		ptr* pNew = xrtRealloc(objBSMM->PageMMU.Memory, (size_t)iNewCount * sizeof(ptr));
+		if ( iNewCount64 > (SIZE_MAX / sizeof(ptr)) ) {
+			return 0;
+		}
+		iNewBytes = (size_t)iNewCount * sizeof(ptr);
+		ptr* pNew = xrtRealloc(objBSMM->PageMMU.Memory, iNewBytes);
 		if ( pNew == NULL ) {
 			return 0;
 		}

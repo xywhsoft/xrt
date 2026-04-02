@@ -83,6 +83,9 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 	uint32 iBucketCount;
 	uint32 iBucket;
 	uint32 iSize;
+	size_t iLutCount;
+	uint64 iBucketCount64;
+	uint64 iCutoff64;
 
 	objMP->FSB_Memory = NULL;
 	objMP->FSB_RootNode = NULL;
@@ -96,7 +99,12 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 	}
 
 	iBucketCount = __xrtMemPoolBucketCount(iCutoff);
-	if ( iBucketCount == 0 || (size_t)iBucketCount > (SIZE_MAX / sizeof(FSB_Item)) ) {
+	iBucketCount64 = iBucketCount;
+	iCutoff64 = iCutoff;
+	if ( iBucketCount == 0 ) {
+		return FALSE;
+	}
+	if ( iBucketCount64 > (SIZE_MAX / sizeof(FSB_Item)) ) {
 		return FALSE;
 	}
 	objMP->FSB_Memory = xrtCalloc(iBucketCount, sizeof(FSB_Item));
@@ -104,19 +112,20 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 		return FALSE;
 	}
 
-	if ( (size_t)iCutoff >= (SIZE_MAX / sizeof(uint32)) ) {
+	if ( iCutoff64 >= (SIZE_MAX / sizeof(uint32)) ) {
 		xrtFree(objMP->FSB_Memory);
 		objMP->FSB_Memory = NULL;
 		return FALSE;
 	}
-	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * (iCutoff + 1));
+	iLutCount = (size_t)iCutoff + 1u;
+	objMP->FSB_Lut = xrtMalloc(sizeof(uint32) * iLutCount);
 	if ( objMP->FSB_Lut == NULL ) {
 		xrtFree(objMP->FSB_Memory);
 		objMP->FSB_Memory = NULL;
 		return FALSE;
 	}
 
-	memset(objMP->FSB_Lut, 0, sizeof(uint32) * (iCutoff + 1));
+	memset(objMP->FSB_Lut, 0, sizeof(uint32) * iLutCount);
 	objMP->iBucketCount = iBucketCount;
 	objMP->FSB_RootNode = &objMP->FSB_Memory[0];
 

@@ -1396,6 +1396,7 @@ static void __xprocFreeProcess(xprocess* pProcess);
 
 
 // 内部函数：增加引用
+#if !defined(XRT_NO_NETWORK)
 static xprocess* __xprocAddRef(xprocess* pProcess)
 {
 	if ( pProcess ) {
@@ -1403,6 +1404,7 @@ static xprocess* __xprocAddRef(xprocess* pProcess)
 	}
 	return pProcess;
 }
+#endif
 
 
 // 内部函数：释放引用
@@ -1742,6 +1744,18 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 
 	static __xproc_conpty_api __gxprocConPtyApi;
 
+	static void __xprocAssignProcAddress(void* pTarget, size_t iTargetSize, FARPROC procAddress)
+	{
+		if ( pTarget == NULL || iTargetSize == 0 ) {
+			return;
+		}
+		memset(pTarget, 0, iTargetSize);
+		if ( iTargetSize > sizeof(procAddress) ) {
+			iTargetSize = sizeof(procAddress);
+		}
+		memcpy(pTarget, &procAddress, iTargetSize);
+	}
+
 	static void __xprocLoadConPtyApi(void)
 	{
 		HMODULE hKernel;
@@ -1758,12 +1772,12 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 			return;
 		}
 
-		__gxprocConPtyApi.CreatePseudoConsole = (procCreatePseudoConsole)GetProcAddress(hKernel, "CreatePseudoConsole");
-		__gxprocConPtyApi.ClosePseudoConsole = (procClosePseudoConsole)GetProcAddress(hKernel, "ClosePseudoConsole");
-		__gxprocConPtyApi.ResizePseudoConsole = (procResizePseudoConsole)GetProcAddress(hKernel, "ResizePseudoConsole");
-		__gxprocConPtyApi.InitializeProcThreadAttributeList = (procInitializeProcThreadAttributeList)GetProcAddress(hKernel, "InitializeProcThreadAttributeList");
-		__gxprocConPtyApi.UpdateProcThreadAttribute = (procUpdateProcThreadAttribute)GetProcAddress(hKernel, "UpdateProcThreadAttribute");
-		__gxprocConPtyApi.DeleteProcThreadAttributeList = (procDeleteProcThreadAttributeList)GetProcAddress(hKernel, "DeleteProcThreadAttributeList");
+		__xprocAssignProcAddress(&__gxprocConPtyApi.CreatePseudoConsole, sizeof(__gxprocConPtyApi.CreatePseudoConsole), GetProcAddress(hKernel, "CreatePseudoConsole"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.ClosePseudoConsole, sizeof(__gxprocConPtyApi.ClosePseudoConsole), GetProcAddress(hKernel, "ClosePseudoConsole"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.ResizePseudoConsole, sizeof(__gxprocConPtyApi.ResizePseudoConsole), GetProcAddress(hKernel, "ResizePseudoConsole"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.InitializeProcThreadAttributeList, sizeof(__gxprocConPtyApi.InitializeProcThreadAttributeList), GetProcAddress(hKernel, "InitializeProcThreadAttributeList"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.UpdateProcThreadAttribute, sizeof(__gxprocConPtyApi.UpdateProcThreadAttribute), GetProcAddress(hKernel, "UpdateProcThreadAttribute"));
+		__xprocAssignProcAddress(&__gxprocConPtyApi.DeleteProcThreadAttributeList, sizeof(__gxprocConPtyApi.DeleteProcThreadAttributeList), GetProcAddress(hKernel, "DeleteProcThreadAttributeList"));
 		__gxprocConPtyApi.bSupported = __gxprocConPtyApi.CreatePseudoConsole != NULL
 			&& __gxprocConPtyApi.ClosePseudoConsole != NULL
 			&& __gxprocConPtyApi.ResizePseudoConsole != NULL
