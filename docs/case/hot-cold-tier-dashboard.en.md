@@ -8,7 +8,7 @@
 
 ## 1. Scenario
 
-Assume you already have the earlier local console service, and you also already rebuilt the archive dashboard:
+Assume you already have the earlier local console service, and now need to manage both "what is hot right now" and "what is still valid but already cooled down":
 
 - current active objects live in memory
 - recent history can be shown on the page
@@ -35,11 +35,11 @@ So this page is not really about "how to write one object to a file". It is abou
 > how to split the hot tier, the cold tier, the cooling path, and the cold snapshot into four stable lines once the system truly needs hot-cold separation.
 
 
-## 2. Why the Archive Dashboard Is Not Enough
+## 2. Why the Hot Tier and the Cold Tier Must Be Separate
 
 ### 2.1 Archive means finished, cold tier means still valid
 
-In the archive dashboard, an object entering the archive usually means:
+If you treat the cold tier as an archive by default, an object entering it will usually be read as:
 
 - it is finished
 - it only keeps historical meaning
@@ -826,15 +826,14 @@ If those actions still happen inside request threads, the dashboard degrades ver
 
 ## 9. What To Read Next
 
-If you keep moving up the business layer, the next natural directions are:
+If you want to keep extending this line, three capabilities usually come next:
 
-1. warm-back promotion from the cold tier
-2. rolling cold-tier archiving
-3. multi-tier storage with hot, cold, and long-term layers
+1. warm-back policy
+2. long-term archive rules
+3. multi-source recovery across files, bundles, and external tools
 
-If the tier split is still not fully stable yet, read these together:
+If you want the closest neighboring references, read these together:
 
-- [Upgrade the Local Console Service into a Warm-Back Dashboard](warm-back-dashboard.en.md)
-- [Upgrade the Local Console Service into a Cache Refresh Dashboard](cache-refresh-dashboard.en.md)
-- [Upgrade the Local Console Service into an Archive Dashboard](archive-dashboard.en.md)
+- [A Local Console Service that Combines Config, Logging, Tasks, Networking, and Templates](local-console-service.en.md)
+- [Upgrade the Local Console Service into a Cross-Media Orchestration Dashboard](cross-media-orchestration-dashboard.en.md)
 - [Queue Intro: When to Hand Off Messages Instead of Sharing State](../guide/queue-intro.en.md)

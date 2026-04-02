@@ -8,13 +8,7 @@
 
 ## 1. Scenario
 
-The earlier pages already established these lines:
-
-- multi-tier storage can split warm, cold-file, and archive state
-- multi-level aging can decide which window one object belongs to
-- recovery priority can choose warm, cool, cold file, or defer
-
-But a real service quickly grows one more requirement:
+Assume the local console service skeleton is already in place, and recovery sources are now starting to multiply:
 
 - some keys still have a warm or cool shadow
 - some keys only have one local cold snapshot
@@ -397,8 +391,8 @@ int main(void)
 
 ## 6. What to Read Next
 
-After this page, the next natural comparisons are:
+The closest neighboring references for this page are:
 
-- [Upgrade the Local Console Service into a Recovery Priority Dashboard](recovery-priority-dashboard.en.md)
 - [Subprocess + Async File Tooling Pipeline](subprocess-file-async-pipeline.en.md)
-- [Upgrade the Local Console Service into a Heavy Recovery-Chain Dashboard](heavy-recovery-chain-dashboard.en.md)
+- [Upgrade the Local Console Service into a Subprocess Probe Dashboard](subprocess-probe-dashboard.en.md)
+- [Upgrade the Local Console Service into a Hot-Cold Tier Dashboard](hot-cold-tier-dashboard.en.md)

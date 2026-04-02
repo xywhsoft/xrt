@@ -8,13 +8,7 @@
 
 ## 1. 场景
 
-前面的页面已经分别讲了：
-
-- 多层存储怎样拆 warm / cold file / archive
-- 多级老化怎样决定对象经过哪些窗口
-- 恢复优先级怎样决定 warm / cool / cold file / defer
-
-但真实服务再往前走一步，很快就会出现一个新的问题：
+假设你已经把本地控制台服务的基础链路搭起来，现在恢复来源开始变多：
 
 - 有些 key 还留着 warm 或 cool 影子
 - 有些 key 只剩本地 cold file
@@ -513,11 +507,11 @@ int main(void)
 
 ## 9. 下一步阅读
 
-如果你准备继续把恢复链路做得更重，最顺的下一步是：
+如果你想对照相邻案例，建议一起阅读：
 
-1. [把本地控制台服务升级成一个恢复优先级面板](recovery-priority-dashboard.md)
-	对比“恢复优先级策略”和“真正跨介质编排”到底差在哪
-2. [用 Subprocess + File Async 写一个工具链流水线](subprocess-file-async-pipeline.md)
-	回看“单条工具链主线”和“业务恢复编排”怎么接起来
-3. [把本地控制台服务升级成一个重链路恢复面板](heavy-recovery-chain-dashboard.md)
-	把跨介质编排继续扩到更长、更慢、更正式的多阶段恢复链路
+1. [用 Subprocess + File Async 写一个工具链流水线](subprocess-file-async-pipeline.md)
+	对照“单条工具链主线”和“业务恢复编排”怎么接起来。
+2. [把本地控制台服务升级成一个子进程探测面板](subprocess-probe-dashboard.md)
+	对照“把外部 CLI 接进后台 worker”这一层是怎么落地的。
+3. [把本地控制台服务升级成一个冷热分层面板](hot-cold-tier-dashboard.md)
+	对照“冷热状态拆分”和“多来源恢复编排”分别解决的是什么问题。
