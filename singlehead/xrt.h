@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-02 15:14:25
+    Generated: 2026-04-02 15:54:00
 
     MIT License
 
@@ -307,6 +307,7 @@
 #if defined(XRT_MINIMAL)
 	#define XRT_NO_TIME
 	#define XRT_NO_FILE
+	#define XRT_NO_FILE_ASYNC
 	#define XRT_NO_THREAD
 	#define XRT_NO_QUEUE
 	#define XRT_NO_COROUTINE
@@ -327,11 +328,16 @@
 	#define XRT_NO_VALUE
 	#define XRT_NO_JNUM
 	#define XRT_NO_JSON
+	#define XRT_NO_XSON
 	#define XRT_NO_TEMPLATE
 	#define XRT_NO_REGEX		// 禁用正则表达式模块
+	#define XRT_NO_SUBPROCESS
 #endif
 // 网络根模块裁剪时，同步裁剪全部网络子库
 #if defined(XRT_NO_NETWORK)
+	#ifndef XRT_NO_FILE_ASYNC
+		#define XRT_NO_FILE_ASYNC
+	#endif
 	#ifndef XRT_NO_XURL
 		#define XRT_NO_XURL
 	#endif
@@ -354,6 +360,16 @@
 #if defined(XRT_NO_QUEUE)
 	#ifndef XRT_NO_QUEUE_WAIT
 		#define XRT_NO_QUEUE_WAIT
+	#endif
+#endif
+#if defined(XRT_NO_FILE)
+	#ifndef XRT_NO_FILE_ASYNC
+		#define XRT_NO_FILE_ASYNC
+	#endif
+#endif
+#if defined(XRT_NO_JSON)
+	#ifndef XRT_NO_XSON
+		#define XRT_NO_XSON
 	#endif
 #endif
 // 裁剪依赖警告辅助
@@ -1584,6 +1600,7 @@
 	
 	// 运行程序并等待程序运行结束
 	XXAPI int xrtChain(str sPath, size_t iSize);
+#ifndef XRT_NO_SUBPROCESS
 	#define XPROC_STATE_FAILED		-1
 	#define XPROC_STATE_INIT		0
 	#define XPROC_STATE_RUNNING		1
@@ -1750,6 +1767,7 @@
 	XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs);
 	// 释放进程结果
 	XXAPI void xrtProcessResultUnit(xprocessresult* pResult);
+#endif
 	
 	
 	
@@ -4729,6 +4747,7 @@
 	XXAPI xfuture* xTaskRunDelayed(xnetengine* pEngine, uint32 iAffinityKey, uint32 iDelayMs, xtask_engine_fn pfnTask, ptr pArg);
 	// 在独立线程中运行任务
 	XXAPI xfuture* xTaskRunThread(xtask_thread_fn pfnTask, ptr pArg, size_t iStackSize);
+	#if !defined(XRT_NO_FILE_ASYNC)
 	// 异步读取文件
 	XXAPI xfuture* xrtAsyncFileReadAt(xasyncfile* pFile, uint64 iOffset, size_t iSize);
 	// 异步写入文件
@@ -4765,8 +4784,11 @@
 	XXAPI xfuture* xrtDirMoveAsync(str sSrc, str sDst, bool bReWrite);
 	// 异步删除目录
 	XXAPI xfuture* xrtDirDeleteAsync(str sPath);
+	#endif
+	#ifndef XRT_NO_SUBPROCESS
 	// 等待进程 Future
 	XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess);
+	#endif
 	#if !defined(XRT_NO_COROUTINE)
 	// 在协程调度器中运行任务
 	XXAPI xfuture* xTaskRunCo(xcosched* pSched, xtask_co_fn pfnTask, ptr pArg, size_t iStackSize);
@@ -7016,6 +7038,7 @@
 	
 	
 	
+	#if !defined(XRT_NO_XSON)
 	/* ------------------------------------ XSON 函数库 ------------------------------------ */
 	/*
 		依赖项：
@@ -7042,6 +7065,7 @@
 	XXAPI str xrtStringifyXSON(xvalue varVal, int bFormat, uint32 iFlags, size_t* pRetSize);
 	// 将 xvalue 格式化为 XSON 并写入文件
 	XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iFlags);
+	#endif
 	
 	
 	
@@ -17037,6 +17061,7 @@ XXAPI int xrtDirDelete(str sPath)
 	#endif
 	return 0;
 }
+#if !defined(XRT_NO_FILE_ASYNC)
 
 // ========================================
 // File: D:/git/xrt/lib/file_async.h
@@ -18487,6 +18512,7 @@ XXAPI xfuture* xrtDirDeleteAsync(str sPath)
 	}
 	return __xafileStartPathTask(pTask);
 }
+#endif
 #endif
 #endif
 #endif
@@ -54701,6 +54727,7 @@ str xrtGetLocalName()
 	return xCore.sNull;
 }
 #endif
+#ifndef XRT_NO_SUBPROCESS
 
 // ========================================
 // File: D:/git/xrt/lib/subprocess.h
@@ -58127,6 +58154,7 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 	}
 	return pFuture;
 }
+#endif
 #endif
 #endif
 #ifndef XRT_NO_XID
@@ -72665,6 +72693,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 		return FALSE;
 	}
 }
+#if !defined(XRT_NO_XSON)
 
 // ========================================
 // File: D:/git/xrt/lib/xson.h
@@ -73967,6 +73996,7 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 	xrtFree(sText);
 	return iRet;
 }
+#endif
 #endif
 #ifndef XRT_NO_TEMPLATE
 

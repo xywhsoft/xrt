@@ -276,7 +276,9 @@ static void __xrtRuntimeFinalizeLocked();
 
 #ifndef XRT_NO_FILE
 #include "lib/file.h"
+#if !defined(XRT_NO_FILE_ASYNC)
 #include "lib/file_async.h"
+#endif
 #endif
 
 #ifndef XRT_NO_THREAD
@@ -345,7 +347,9 @@ static void __xrtRuntimeFinalizeLocked();
 #include "lib/network.h"
 #endif
 
+#ifndef XRT_NO_SUBPROCESS
 #include "lib/subprocess.h"
+#endif
 
 #ifndef XRT_NO_XID
 #include "lib/xid.h"
@@ -409,7 +413,9 @@ static void __xrtRuntimeFinalizeLocked();
 
 #ifndef XRT_NO_JSON
 #include "lib/json.h"
+#if !defined(XRT_NO_XSON)
 #include "lib/xson.h"
+#endif
 #endif
 
 #ifndef XRT_NO_TEMPLATE

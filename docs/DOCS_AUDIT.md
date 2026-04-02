@@ -201,6 +201,7 @@
 - 第 3 阶段已补出 `regex` 正式教学页
 - 第 3 阶段已补出 `crypto` 正式教学页
 - `subprocess / file_async` 已补独立 API 文档
+- 裁剪宏说明已重写为 [FEATURE_TRIMMING_MACROS.md](FEATURE_TRIMMING_MACROS.md) / [FEATURE_TRIMMING_MACROS.en.md](FEATURE_TRIMMING_MACROS.en.md)，并补齐 `XRT_NO_QUEUE_WAIT / XRT_NO_SUBPROCESS / XRT_NO_FILE_ASYNC / XRT_NO_XSON`
 - 第 6 阶段已补出 `xurl / xhttp_util / proxy` 正式教学页
 - 第 6 阶段已补出 `xws` 正式教学页
 - `xnet_proxy` 已补独立 API 文档

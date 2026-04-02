@@ -17,8 +17,11 @@
 #define XRT_NO_LIST
 #define XRT_NO_VALUE
 #define XRT_NO_JSON
+#define XRT_NO_XSON
 #define XRT_NO_TEMPLATE
 #define XRT_NO_REGEX
+#define XRT_NO_FILE_ASYNC
+#define XRT_NO_SUBPROCESS
 
 #define XRT_IMPLEMENTATION
 #include "../../singlehead/xrt.h"

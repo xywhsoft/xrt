@@ -72,7 +72,7 @@
 
 - 根目录 [README.md](../README.md)
 - [架构设计](ARCHITECTURE.md)
-- [裁剪宏定义说明](裁剪宏定义说明.md)
+- [功能裁剪宏](FEATURE_TRIMMING_MACROS.md)
 
 ### API 主线
 
