@@ -93,6 +93,12 @@
 - `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照续传编排面板主线已经补出正式案例页
 - `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照持久化面板主线已经补出正式案例页
 - `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照调度配额面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照多队列调度面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照分布式调度配额面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照分布式配额仲裁面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照跨集群调度面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照租约协调面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条 lease journal 与 ownership migration 面板主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -152,6 +158,12 @@
 45. 快照续传编排面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
 46. 快照持久化面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
 47. 快照调度配额面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+48. 快照多队列调度面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+49. 快照分布式调度配额面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+50. 快照分布式配额仲裁面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+51. 快照跨集群调度面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+52. 快照租约协调面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+53. lease journal 与 ownership migration 面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
 
 这条梯度的目标不是只展示“能跑”，而是展示：
 
@@ -218,6 +230,13 @@
 51. [把本地控制台服务升级成一个快照续传编排面板](snapshot-continuation-dashboard.md)
 52. [把本地控制台服务升级成一个快照持久化面板](snapshot-persistence-dashboard.md)
 53. [把本地控制台服务升级成一个快照调度配额面板](snapshot-scheduler-quota-dashboard.md)
+54. [把本地控制台服务升级成一个快照多队列调度面板](snapshot-multi-queue-scheduler-dashboard.md)
+55. [把本地控制台服务升级成一个快照分布式调度配额面板](snapshot-distributed-scheduler-quota-dashboard.md)
+56. [把本地控制台服务升级成一个快照分布式配额仲裁面板](snapshot-distributed-quota-arbitration-dashboard.md)
+57. [把本地控制台服务升级成一个快照跨集群调度面板](snapshot-cross-cluster-scheduler-dashboard.md)
+58. [把本地控制台服务升级成一个快照租约协调面板](snapshot-lease-coordination-dashboard.md)
+59. [把本地控制台服务升级成一个 lease journal 与 ownership migration 面板](lease-journal-ownership-migration-dashboard.md)
+60. [把本地控制台服务升级成一个 lease journal compaction 与 ownership migration replay 面板](lease-journal-compaction-migration-replay-dashboard.md)
 
 这些页面当前适合：
 
@@ -230,7 +249,7 @@
 
 当前仍缺少正式案例的方向包括：
 
-- 继续往下补 snapshot multi-queue scheduler / distributed quota 这类更重的业务变体案例
+- 继续往下补 lease control-plane orchestration 这类更重的业务变体案例
 
 
 ## 与 API 和教学文档的关系

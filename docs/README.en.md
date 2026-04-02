@@ -209,4 +209,11 @@ If you prefer full combined examples, continue with:
 50. [Upgrade the Local Console Service into a Snapshot Continuation Dashboard](case/snapshot-continuation-dashboard.md) (Chinese for now)
 51. [Upgrade the Local Console Service into a Snapshot Persistence Dashboard](case/snapshot-persistence-dashboard.md) (Chinese for now)
 52. [Upgrade the Local Console Service into a Snapshot Scheduler and Quota Dashboard](case/snapshot-scheduler-quota-dashboard.md) (Chinese for now)
+53. [Upgrade the Local Console Service into a Snapshot Multi-Queue Scheduler Dashboard](case/snapshot-multi-queue-scheduler-dashboard.md) (Chinese for now)
+54. [Upgrade the Local Console Service into a Snapshot Distributed Scheduler and Quota Dashboard](case/snapshot-distributed-scheduler-quota-dashboard.md) (Chinese for now)
+55. [Upgrade the Local Console Service into a Snapshot Distributed Quota Arbitration Dashboard](case/snapshot-distributed-quota-arbitration-dashboard.md) (Chinese for now)
+56. [Upgrade the Local Console Service into a Snapshot Cross-Cluster Scheduler Dashboard](case/snapshot-cross-cluster-scheduler-dashboard.md) (Chinese for now)
+57. [Upgrade the Local Console Service into a Snapshot Lease Coordination Dashboard](case/snapshot-lease-coordination-dashboard.md) (Chinese for now)
+58. [Upgrade the Local Console Service into a Lease Journal and Ownership Migration Dashboard](case/lease-journal-ownership-migration-dashboard.md) (Chinese for now)
+59. [Upgrade the Local Console Service into a Lease Journal Compaction and Ownership Migration Replay Dashboard](case/lease-journal-compaction-migration-replay-dashboard.md) (Chinese for now)
 

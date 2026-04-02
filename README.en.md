@@ -12,7 +12,7 @@ English | [简体中文](README.md)
 
 </div>
 
-**Documentation:** [Docs Home](docs/README.en.md) | [API Index](docs/api/README.en.md) | [Guides](docs/guide/README.en.md) | [Cases](docs/case/README.en.md)
+**Documentation:** [Docs Home](docs/README.en.md) | [API Index](docs/api/README.en.md) | [Guides](docs/guide/README.en.md) | [Cases](docs/case/README.en.md) | [Examples Index](examples/README.en.md)
 
 
 ## Positioning

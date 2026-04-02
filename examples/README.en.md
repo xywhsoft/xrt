@@ -1,5 +1,7 @@
 # XRT Examples Index
 
+English | [简体中文](README.md) | [Project Home](../README.en.md) | [Docs Home](../docs/README.en.md)
+
 This directory currently contains `166` standalone, buildable examples across `39` module directories. This document is generated from the actual `examples/*/*/main.c` implementations and is intended for end users to browse and locate examples quickly.
 
 `examples/bin` is the output directory for batch builds and is not counted as part of the examples. `example_common.h`, `example_wait.h`, and `example_tls_fixture.h` are shared helper headers used by some examples and are not standalone examples either.

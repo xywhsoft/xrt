@@ -1,5 +1,7 @@
 # XRT 范例索引
 
+[English](README.en.md) | 简体中文 | [项目首页](../README.md) | [文档入口](../docs/README.md)
+
 本目录当前包含 `166` 个可独立构建的范例程序，分布在 `39` 个模块目录下。本文档按当前 `examples/*/*/main.c` 的实际实现整理，面向使用者阅读和检索。
 
 `examples/bin` 是批量构建后的输出目录，不计入范例数量。`example_common.h`、`example_wait.h`、`example_tls_fixture.h` 是部分范例共用的辅助头文件，也不是独立范例。

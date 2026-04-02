@@ -233,4 +233,11 @@
 49. [把本地控制台服务升级成一个快照续传编排面板](case/snapshot-continuation-dashboard.md)
 50. [把本地控制台服务升级成一个快照持久化面板](case/snapshot-persistence-dashboard.md)
 51. [把本地控制台服务升级成一个快照调度配额面板](case/snapshot-scheduler-quota-dashboard.md)
+52. [把本地控制台服务升级成一个快照多队列调度面板](case/snapshot-multi-queue-scheduler-dashboard.md)
+53. [把本地控制台服务升级成一个快照分布式调度配额面板](case/snapshot-distributed-scheduler-quota-dashboard.md)
+54. [把本地控制台服务升级成一个快照分布式配额仲裁面板](case/snapshot-distributed-quota-arbitration-dashboard.md)
+55. [把本地控制台服务升级成一个快照跨集群调度面板](case/snapshot-cross-cluster-scheduler-dashboard.md)
+56. [把本地控制台服务升级成一个快照租约协调面板](case/snapshot-lease-coordination-dashboard.md)
+57. [把本地控制台服务升级成一个 lease journal 与 ownership migration 面板](case/lease-journal-ownership-migration-dashboard.md)
+58. [把本地控制台服务升级成一个 lease journal compaction 与 ownership migration replay 面板](case/lease-journal-compaction-migration-replay-dashboard.md)
 

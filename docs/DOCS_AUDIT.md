@@ -256,6 +256,13 @@
 - 中文案例已补出 `case/snapshot-continuation-dashboard.md`，用于承接“continuation cursor / rollover cursor / published continuation / continuation checkpoint”的业务变体主线
 - 中文案例已补出 `case/snapshot-persistence-dashboard.md`，用于承接“manifest cursor / archive cursor / checkpoint version / persistence state”的业务变体主线
 - 中文案例已补出 `case/snapshot-scheduler-quota-dashboard.md`，用于承接“active slot / waiting queue / retry budget / next wake / scheduler state”的业务变体主线
+- 中文案例已补出 `case/snapshot-multi-queue-scheduler-dashboard.md`，用于承接“active high / active normal / high queue / normal queue / dual wake / dual retry budget”的业务变体主线
+- 中文案例已补出 `case/snapshot-distributed-scheduler-quota-dashboard.md`，用于承接“shared quota in use / local queue / remote queue / shared retry budget / peer retry budget / quota epoch”的业务变体主线
+- 中文案例已补出 `case/snapshot-distributed-quota-arbitration-dashboard.md`，用于承接“granted_quota / grant_vote_count / reject_vote_count / lease_epoch / arbitration_epoch”的业务变体主线
+- 中文案例已补出 `case/snapshot-cross-cluster-scheduler-dashboard.md`，用于承接“home_cluster_queue / failover_cluster_queue / granted_cluster_quota / cluster_epoch / shared_cluster_retry_budget”的业务变体主线
+- 中文案例已补出 `case/snapshot-lease-coordination-dashboard.md`，用于承接“lease_owner_cluster / witness_cluster / granted_lease_window / renew_vote_count / lease_coord_epoch”的业务变体主线
+- 中文案例已补出 `case/lease-journal-ownership-migration-dashboard.md`，用于承接“lease_journal_seq / migration_ticket / migration_ack_count / ownership_epoch / current_owner / target_owner”的业务变体主线
+- 中文案例已补出 `case/lease-journal-compaction-migration-replay-dashboard.md`，用于承接“journal_segment_seq / compacted_to_seq / replay_from_seq / replay_to_seq / replay_cursor / replay_ticket”的业务变体主线
 - 英文案例已同步 `case/auto-warm-rolling-archive-dashboard.en.md`
 - 英文案例已同步 `case/multi-tier-storage-dashboard.en.md`
 - 英文案例已同步 `case/hot-cold-multi-level-aging-dashboard.en.md`

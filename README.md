@@ -12,7 +12,7 @@
 
 </div>
 
-**文档入口：** [中文文档](docs/README.md) | [API 索引](docs/api/README.md) | [教学文档](docs/guide/README.md) | [案例文档](docs/case/README.md)
+**文档入口：** [中文文档](docs/README.md) | [API 索引](docs/api/README.md) | [教学文档](docs/guide/README.md) | [案例文档](docs/case/README.md) | [范例索引](examples/README.md)
 
 
 ## 项目定位

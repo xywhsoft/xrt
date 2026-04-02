@@ -136,10 +136,17 @@ So the remaining gaps are now mostly:
 - the newly added [Upgrade the Local Console Service into a Snapshot Continuation Dashboard](snapshot-continuation-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Snapshot Persistence Dashboard](snapshot-persistence-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Snapshot Scheduler and Quota Dashboard](snapshot-scheduler-quota-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Multi-Queue Scheduler Dashboard](snapshot-multi-queue-scheduler-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Distributed Scheduler and Quota Dashboard](snapshot-distributed-scheduler-quota-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Distributed Quota Arbitration Dashboard](snapshot-distributed-quota-arbitration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Cross-Cluster Scheduler Dashboard](snapshot-cross-cluster-scheduler-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Lease Coordination Dashboard](snapshot-lease-coordination-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Lease Journal and Ownership Migration Dashboard](lease-journal-ownership-migration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Lease Journal Compaction and Ownership Migration Replay Dashboard](lease-journal-compaction-migration-replay-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Distributed Orchestration Dashboard](distributed-orchestration-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Cross-Machine Recovery Dashboard](cross-machine-recovery-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Recovery Quota Dashboard](recovery-quota-dashboard.md) is still Chinese-first
-- more business-style variants around snapshot multi-queue scheduler and distributed quota cases
+- more business-style variants around lease control-plane orchestration
 
 These pages are currently useful when you want:
 
@@ -170,10 +177,17 @@ The most obvious remaining case gaps are:
 - English sync for the snapshot continuation page
 - English sync for the snapshot persistence page
 - English sync for the snapshot scheduler and quota page
+- English sync for the snapshot multi-queue scheduler page
+- English sync for the snapshot distributed scheduler and quota page
+- English sync for the snapshot distributed quota arbitration page
+- English sync for the snapshot cross-cluster scheduler page
+- English sync for the snapshot lease coordination page
+- English sync for the lease journal and ownership migration page
+- English sync for the lease journal compaction and ownership migration replay page
 - English sync for the distributed orchestration page
 - English sync for the cross-machine recovery page
 - English sync for the recovery quota page
-- more business-style variants around snapshot multi-queue scheduler and distributed quota
+- more business-style variants around lease control-plane orchestration
 
 
 ## Relationship to API and Guide Docs
