@@ -1,194 +1,119 @@
-/**
- * @file main.c
- * @brief Template Control Flow Example - Conditionals and loops
- *        模板控制流示例 - 条件和循环
- * 
- * This example demonstrates:
- * - Conditional rendering with if/else
- * - Loop iteration
- * - Template control structures
- * 
- * 本示例演示：
- * - 使用if/else进行条件渲染
- * - 循环迭代
- * - 模板控制结构
- * 
- * Build: tcc main.c -o ../../bin/template_template_control.exe
+/*
+ * XRT Example - Template Control
+ * XRT 范例 - 模板控制语句
+ *
+ * Description / 说明:
+ *   EN: Demonstrates if/else, for, foreach, break and continue rendering.
+ *   CN: 演示 if/else、for、foreach、break、continue 的渲染效果。
  */
 
 #define XRT_IMPLEMENTATION
 #include "../../../singlehead/xrt.h"
 
-void test_conditional(void)
+
+void procTestConditional(void)
 {
-	printf("=== Test: Conditional Rendering ===\n");
-	printf("=== 测试：条件渲染 ===\n");
-	
-	const char* template = 
-		"{% if show_message %}Message: {{message}}{% endif %}"
-		"{% if is_admin %}Welcome Admin!{% else %}Welcome User!{% endif %}";
-	printf("Template: %s\n", template);
-	printf("模板: %s\n", template);
-	
-	XTE_LiteObject objTemplate = xteParse((char*)template, strlen(template), "{{}}");
-	if (!objTemplate)
-	{
-		printf("Failed to parse template\n");
-		return;
-	}
-	
-	xvalue tblVal = xvoTableCreate();
-	xvoTableSetBool(tblVal, "show_message", 12, true);
-	xvoTableSetString(tblVal, "message", 7, "Hello from XRT!");
-	xvoTableSetBool(tblVal, "is_admin", 8, true);
-	
-	size_t nSize = 0;
-	char* result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult (admin=true):\n");
-		printf("结果 (admin=true):\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoTableSetBool(tblVal, "is_admin", 8, false);
-	result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult (admin=false):\n");
-		printf("结果 (admin=false):\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoUnref(tblVal);
-	xteParseFree(objTemplate);
+	xvalue pData = xvoCreateTable();
+	xtetemplate hTemplate = xteParse(
+		"{#if:show_message}Message={$message}{#else}Message=hidden{#end}|"
+		"{#if:is_admin}Admin{#else}User{#end}",
+		0,
+		NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	xvoTableSetBool(pData, "show_message", 0, TRUE);
+	xvoTableSetText(pData, "message", 0, "Hello from XRT", 0, FALSE);
+	xvoTableSetBool(pData, "is_admin", 0, TRUE);
+
+	sResult = xteMake(hTemplate, pData, NULL, NULL, &iRetSize);
+	printf("conditional #1: %s\n", sResult);
+
+	xrtFree(sResult);
+	xvoTableSetBool(pData, "is_admin", 0, FALSE);
+	sResult = xteMake(hTemplate, pData, NULL, NULL, &iRetSize);
+	printf("conditional #2: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
+	xvoUnref(pData);
 }
 
-void test_loop(void)
+
+void procTestForLoop(void)
 {
-	printf("\n=== Test: Loop Iteration ===\n");
-	printf("=== 测试：循环迭代 ===\n");
-	
-	const char* template = 
-		"Items:\n"
-		"{% for item in items %}"
-		"  - {{item}}\n"
-		"{% endfor %}";
-	printf("Template: %s\n", template);
-	printf("模板: %s\n", template);
-	
-	XTE_LiteObject objTemplate = xteParse((char*)template, strlen(template), "{{}}");
-	if (!objTemplate)
-	{
-		printf("Failed to parse template\n");
-		return;
-	}
-	
-	xvalue tblVal = xvoTableCreate();
-	xvalue arrItems = xvoArrayCreate();
-	
-	xvoArrayAppendString(arrItems, "First Item");
-	xvoArrayAppendString(arrItems, "Second Item");
-	xvoArrayAppendString(arrItems, "Third Item");
-	
-	xvoTableSetArray(tblVal, "items", 5, arrItems);
-	
-	size_t nSize = 0;
-	char* result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult:\n");
-		printf("结果:\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoUnref(tblVal);
-	xteParseFree(objTemplate);
+	xtetemplate hTemplate = xteParse("{#for:1:5:2}{%__index__},{#end}", 0, NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	sResult = xteMake(hTemplate, NULL, NULL, NULL, &iRetSize);
+	printf("for loop: %s\n", sResult);
+	printf("for 循环: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
 }
 
-void test_nested_control(void)
+
+void procTestForeach(void)
 {
-	printf("\n=== Test: Nested Control ===\n");
-	printf("=== 测试：嵌套控制 ===\n");
-	
-	const char* template = 
-		"{% if has_items %}"
-		"Items:\n"
-		"{% for item in items %}"
-		"  {{item.name}}: {{item.value}}\n"
-		"{% endfor %}"
-		"{% else %}"
-		"No items available.\n"
-		"{% endif %}";
-	printf("Template: %s\n", template);
-	printf("模板: %s\n", template);
-	
-	XTE_LiteObject objTemplate = xteParse((char*)template, strlen(template), "{{}}");
-	if (!objTemplate)
-	{
-		printf("Failed to parse template\n");
-		return;
-	}
-	
-	xvalue tblVal = xvoTableCreate();
-	xvoTableSetBool(tblVal, "has_items", 9, true);
-	
-	xvalue arrItems = xvoArrayCreate();
-	
-	xvalue item1 = xvoTableCreate();
-	xvoTableSetString(item1, "name", 4, "Item A");
-	xvoTableSetInt(item1, "value", 5, 100);
-	xvoArrayAppendTable(arrItems, item1);
-	
-	xvalue item2 = xvoTableCreate();
-	xvoTableSetString(item2, "name", 4, "Item B");
-	xvoTableSetInt(item2, "value", 5, 200);
-	xvoArrayAppendTable(arrItems, item2);
-	
-	xvoTableSetArray(tblVal, "items", 5, arrItems);
-	
-	size_t nSize = 0;
-	char* result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult (with items):\n");
-		printf("结果 (有项目):\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoTableSetBool(tblVal, "has_items", 9, false);
-	result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult (no items):\n");
-		printf("结果 (无项目):\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoUnref(tblVal);
-	xteParseFree(objTemplate);
+	xvalue pData = xvoCreateTable();
+	xvalue pUsers = xvoCreateArray();
+	xvalue pUserA = xvoCreateTable();
+	xvalue pUserB = xvoCreateTable();
+	xvalue pUserC = xvoCreateTable();
+	xtetemplate hTemplate = xteParse(
+		"{#foreach:users}"
+		"{#if:skip}{#continue}{#end}"
+		"{$name}:{?active:1:0}|"
+		"{#if:stop}{#break}{#end}"
+		"{#end}",
+		0,
+		NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	xvoTableSetText(pUserA, "name", 0, "Alice", 0, FALSE);
+	xvoTableSetBool(pUserA, "active", 0, TRUE);
+	xvoTableSetBool(pUserA, "skip", 0, FALSE);
+	xvoTableSetBool(pUserA, "stop", 0, FALSE);
+	xvoArrayAppendValue(pUsers, pUserA, TRUE);
+
+	xvoTableSetText(pUserB, "name", 0, "Bob", 0, FALSE);
+	xvoTableSetBool(pUserB, "active", 0, FALSE);
+	xvoTableSetBool(pUserB, "skip", 0, FALSE);
+	xvoTableSetBool(pUserB, "stop", 0, TRUE);
+	xvoArrayAppendValue(pUsers, pUserB, TRUE);
+
+	xvoTableSetText(pUserC, "name", 0, "Cat", 0, FALSE);
+	xvoTableSetBool(pUserC, "active", 0, TRUE);
+	xvoTableSetBool(pUserC, "skip", 0, TRUE);
+	xvoTableSetBool(pUserC, "stop", 0, FALSE);
+	xvoArrayAppendValue(pUsers, pUserC, TRUE);
+
+	xvoTableSetValue(pData, "users", 0, pUsers, TRUE);
+	sResult = xteMake(hTemplate, pData, NULL, NULL, &iRetSize);
+	printf("foreach: %s\n", sResult);
+	printf("foreach: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
+	xvoUnref(pData);
 }
+
 
 int main(void)
 {
 	xrtInit();
-	
-	printf("========================================\n");
-	printf("  Template Control Example / 模板控制示例\n");
-	printf("========================================\n");
-	
-	test_conditional();
-	test_loop();
-	test_nested_control();
-	
-	printf("\n=== All tests completed! ===\n");
-	printf("=== 所有测试完成！===\n");
-	
+
+	printf("XRT Template - Template Control Demo\n");
+	printf("XRT 模板 - 模板控制演示\n");
+	printf("====================================\n\n");
+
+	procTestConditional();
+	procTestForLoop();
+	procTestForeach();
+
 	xrtUnit();
 	return 0;
 }

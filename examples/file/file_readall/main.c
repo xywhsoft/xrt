@@ -183,9 +183,11 @@ void TestErrorHandling()
 	str sContent = xrtFileReadAll(sPath, 0, &iSize);
 	
 	if ( sContent == NULL ) {
+		str sError = xrtGetError();
+
 		printf("Correctly returned NULL for non-existent file.\n");
 		printf("对不存在的文件正确返回 NULL。\n");
-		printf("LastError: %s\n", xCore.LastError);
+		printf("LastError: %s\n", (sError && sError[0]) ? sError : "(empty)");
 	} else {
 		printf("Unexpected: got content from non-existent file.\n");
 		xrtFree(sContent);

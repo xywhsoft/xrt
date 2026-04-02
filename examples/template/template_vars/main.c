@@ -1,159 +1,99 @@
-/**
- * @file main.c
- * @brief Template Variables Example - Nested paths and arrays
- *        模板变量示例 - 嵌套路径和数组
- * 
- * This example demonstrates:
- * - Nested object access with dot notation
- * - Array index access
- * - Complex data structures in templates
- * 
- * 本示例演示：
- * - 使用点号访问嵌套对象
- * - 数组索引访问
- * - 模板中的复杂数据结构
- * 
- * Build: tcc main.c -o ../../bin/template_template_vars.exe
+/*
+ * XRT Example - Template Variables
+ * XRT 范例 - 模板变量
+ *
+ * Description / 说明:
+ *   EN: Demonstrates nested paths, array indexing and mixed value rendering.
+ *   CN: 演示嵌套路径、数组索引和混合值渲染。
  */
 
 #define XRT_IMPLEMENTATION
 #include "../../../singlehead/xrt.h"
 
-void test_nested_vars(void)
+
+void procTestNestedVars(void)
 {
-	printf("=== Test: Nested Variables ===\n");
-	printf("=== 测试：嵌套变量 ===\n");
-	
-	const char* template = "User: {{user.name}}, Email: {{user.contact.email}}";
-	printf("Template: %s\n", template);
-	printf("模板: %s\n", template);
-	
-	XTE_LiteObject objTemplate = xteParse((char*)template, strlen(template), "{{}}");
-	if (!objTemplate)
-	{
-		printf("Failed to parse template\n");
-		return;
-	}
-	
-	xvalue tblVal = xvoTableCreate();
-	
-	xvalue userTable = xvoTableCreate();
-	xvoTableSetString(userTable, "name", 4, "John Doe");
-	
-	xvalue contactTable = xvoTableCreate();
-	xvoTableSetString(contactTable, "email", 5, "john@example.com");
-	xvoTableSetString(contactTable, "phone", 5, "123-456-7890");
-	
-	xvoTableSetTable(userTable, "contact", 7, contactTable);
-	xvoTableSetTable(tblVal, "user", 4, userTable);
-	
-	size_t nSize = 0;
-	char* result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult:\n");
-		printf("结果:\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoUnref(tblVal);
-	xteParseFree(objTemplate);
+	xvalue pRoot = xvoCreateTable();
+	xvalue pUser = xvoCreateTable();
+	xvalue pContact = xvoCreateTable();
+	xtetemplate hTemplate = xteParse("User={$user.name}, Email={$user.contact.email}", 0, NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	xvoTableSetText(pUser, "name", 0, "John Doe", 0, FALSE);
+	xvoTableSetText(pContact, "email", 0, "john@example.com", 0, FALSE);
+	xvoTableSetText(pContact, "phone", 0, "123-456-7890", 0, FALSE);
+	xvoTableSetValue(pUser, "contact", 0, pContact, TRUE);
+	xvoTableSetValue(pRoot, "user", 0, pUser, TRUE);
+
+	sResult = xteMake(hTemplate, pRoot, NULL, NULL, &iRetSize);
+	printf("nested vars: %s\n", sResult);
+	printf("嵌套变量: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
+	xvoUnref(pRoot);
 }
 
-void test_array_access(void)
+
+void procTestArrayAccess(void)
 {
-	printf("\n=== Test: Array Access ===\n");
-	printf("=== 测试：数组访问 ===\n");
-	
-	const char* template = "First: {{items[0]}}, Second: {{items[1]}}, Third: {{items[2]}}";
-	printf("Template: %s\n", template);
-	printf("模板: %s\n", template);
-	
-	XTE_LiteObject objTemplate = xteParse((char*)template, strlen(template), "{{}}");
-	if (!objTemplate)
-	{
-		printf("Failed to parse template\n");
-		return;
-	}
-	
-	xvalue tblVal = xvoTableCreate();
-	xvalue arrItems = xvoArrayCreate();
-	
-	xvoArrayAppendString(arrItems, "Apple");
-	xvoArrayAppendString(arrItems, "Banana");
-	xvoArrayAppendString(arrItems, "Cherry");
-	
-	xvoTableSetArray(tblVal, "items", 5, arrItems);
-	
-	size_t nSize = 0;
-	char* result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult:\n");
-		printf("结果:\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoUnref(tblVal);
-	xteParseFree(objTemplate);
+	xvalue pRoot = xvoCreateTable();
+	xvalue pItems = xvoCreateArray();
+	xtetemplate hTemplate = xteParse("First={$items[0]}, Second={$items[1]}, Third={$items[2]}", 0, NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	xvoArrayAppendText(pItems, "Apple", 0, FALSE);
+	xvoArrayAppendText(pItems, "Banana", 0, FALSE);
+	xvoArrayAppendText(pItems, "Cherry", 0, FALSE);
+	xvoTableSetValue(pRoot, "items", 0, pItems, TRUE);
+
+	sResult = xteMake(hTemplate, pRoot, NULL, NULL, &iRetSize);
+	printf("array access: %s\n", sResult);
+	printf("数组访问: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
+	xvoUnref(pRoot);
 }
 
-void test_mixed_data(void)
+
+void procTestMixedData(void)
 {
-	printf("\n=== Test: Mixed Data Types ===\n");
-	printf("=== 测试：混合数据类型 ===\n");
-	
-	const char* template = "Product: {{product.name}}, Price: ${{product.price}}, In Stock: {{product.available}}";
-	printf("Template: %s\n", template);
-	printf("模板: %s\n", template);
-	
-	XTE_LiteObject objTemplate = xteParse((char*)template, strlen(template), "{{}}");
-	if (!objTemplate)
-	{
-		printf("Failed to parse template\n");
-		return;
-	}
-	
-	xvalue tblVal = xvoTableCreate();
-	xvalue productTable = xvoTableCreate();
-	
-	xvoTableSetString(productTable, "name", 4, "XRT Library");
-	xvoTableSetFloat(productTable, "price", 5, 99.99);
-	xvoTableSetBool(productTable, "available", 9, true);
-	
-	xvoTableSetTable(tblVal, "product", 7, productTable);
-	
-	size_t nSize = 0;
-	char* result = xteMake(objTemplate, tblVal, xvoNull(), NULL, &nSize);
-	
-	if (result)
-	{
-		printf("\nResult:\n");
-		printf("结果:\n");
-		printf("%.*s\n", (int)nSize, result);
-	}
-	
-	xvoUnref(tblVal);
-	xteParseFree(objTemplate);
+	xvalue pRoot = xvoCreateTable();
+	xvalue pProduct = xvoCreateTable();
+	xtetemplate hTemplate = xteParse("Product={$product.name}, Price={%product.price:.2}, Stock={?product.available:yes:no}", 0, NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	xvoTableSetText(pProduct, "name", 0, "XRT Library", 0, FALSE);
+	xvoTableSetFloat(pProduct, "price", 0, 99.99);
+	xvoTableSetBool(pProduct, "available", 0, TRUE);
+	xvoTableSetValue(pRoot, "product", 0, pProduct, TRUE);
+
+	sResult = xteMake(hTemplate, pRoot, NULL, NULL, &iRetSize);
+	printf("mixed data: %s\n", sResult);
+	printf("混合数据: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
+	xvoUnref(pRoot);
 }
+
 
 int main(void)
 {
 	xrtInit();
-	
-	printf("========================================\n");
-	printf("  Template Variables Example / 模板变量示例\n");
-	printf("========================================\n");
-	
-	test_nested_vars();
-	test_array_access();
-	test_mixed_data();
-	
-	printf("\n=== All tests completed! ===\n");
-	printf("=== 所有测试完成！===\n");
-	
+
+	printf("XRT Template - Template Variables Demo\n");
+	printf("XRT 模板 - 模板变量演示\n");
+	printf("======================================\n\n");
+
+	procTestNestedVars();
+	procTestArrayAccess();
+	procTestMixedData();
+
 	xrtUnit();
 	return 0;
 }

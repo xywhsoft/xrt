@@ -140,27 +140,30 @@ void TestSeededGeneration()
 	uint32	uiSeed = 98765;
 	int		iCount = 5;
 	int		i;
+	xrand	sRandA;
+	xrand	sRandB;
 	
 	printf("=== Seeded Generation (seed=%u) ===\n", uiSeed);
 	printf("=== 带种子生成 (种子=%u) ===\n", uiSeed);
 	
-	// Method 1: Initialize global rand with seed
-	// 方法1：用种子初始化全局随机数
-	xrtRandSeed(&xCore.rand32, uiSeed, 0);
-	printf("Global rand with seed:\n");
+	// The runtime global generator is auto-seeded internally.
+	// 运行时全局随机数由库内部自动播种。
+	printf("Global generator (auto-seeded):\n");
 	for ( i = 1; i <= iCount; i++ )
 	{
 		printf("  [%d] %u\n", i, xrtRand32());
 	}
 	
-	// Method 2: Independent state with seed
-	// 方法2：带种子的独立状态
-	xrand sRand;
-	xrtRandSeed(&sRand, uiSeed, 0);
-	printf("\nIndependent state with same seed:\n");
+	// Use two local generators with the same seed to verify reproducibility.
+	// 使用两个相同种子的本地状态验证可复现性。
+	xrtRandSeed(&sRandA, uiSeed, 0);
+	xrtRandSeed(&sRandB, uiSeed, 0);
+	printf("\nIndependent states with same seed:\n");
 	for ( i = 1; i <= iCount; i++ )
 	{
-		printf("  [%d] %u\n", i, xrtRand32Ex(&sRand));
+		uint32 ui32A = xrtRand32Ex(&sRandA);
+		uint32 ui32B = xrtRand32Ex(&sRandB);
+		printf("  [%d] %u / %u%s\n", i, ui32A, ui32B, (ui32A == ui32B) ? " (same)" : " (diff)");
 	}
 	printf("\n");
 }

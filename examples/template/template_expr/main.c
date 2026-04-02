@@ -1,182 +1,99 @@
-/**
- * @file main.c
- * @brief Template Expressions Example - xteExprParse/xteExprEval
- *        模板表达式示例 - xteExprParse/xteExprEval
- * 
- * This example demonstrates:
- * - Expression parsing and evaluation
- * - Arithmetic and comparison operators
- * - Logical operators
- * 
- * 本示例演示：
- * - 表达式解析和求值
- * - 算术和比较运算符
- * - 逻辑运算符
- * 
- * Build: tcc main.c -o ../../bin/template_template_expr.exe
+/*
+ * XRT Example - Template Expressions
+ * XRT 范例 - 模板表达式
+ *
+ * Description / 说明:
+ *   EN: Demonstrates current expression support through if/elseif and inline bool output.
+ *   CN: 通过 if/elseif 和内联布尔输出演示当前模板表达式能力。
  */
 
 #define XRT_IMPLEMENTATION
 #include "../../../singlehead/xrt.h"
 
-void test_arithmetic_expr(void)
+
+xvalue procMakeExprData(void)
 {
-	printf("=== Test: Arithmetic Expressions ===\n");
-	printf("=== 测试：算术表达式 ===\n");
-	
-	xvalue tblVal = xvoTableCreate();
-	xvoTableSetInt(tblVal, "a", 1, 10);
-	xvoTableSetInt(tblVal, "b", 1, 20);
-	
-	const char* expr1 = "a + b";
-	printf("Expression: %s\n", expr1);
-	
-	XTE_ExprResult result = xteExprParse(expr1, strlen(expr1));
-	if (result->Success)
-	{
-		xvalue val = xteExprEval(result->Root, tblVal, tblVal, xvoNull());
-		printf("Result: %lld\n", (long long)val.vInt);
-		xvoUnref(val);
-	}
-	else
-	{
-		printf("Parse error: %s at position %zu\n", result->ErrorDesc, result->ErrorPos);
-	}
-	xteExprFree(result);
-	
-	const char* expr2 = "a * 2 + b";
-	printf("\nExpression: %s\n", expr2);
-	
-	result = xteExprParse(expr2, strlen(expr2));
-	if (result->Success)
-	{
-		xvalue val = xteExprEval(result->Root, tblVal, tblVal, xvoNull());
-		printf("Result: %lld\n", (long long)val.vInt);
-		xvoUnref(val);
-	}
-	xteExprFree(result);
-	
-	xvoUnref(tblVal);
+	xvalue pRoot = xvoCreateTable();
+	xvalue pUser = xvoCreateTable();
+
+	xvoTableSetInt(pRoot, "count", 0, 1234567);
+	xvoTableSetBool(pRoot, "active", 0, TRUE);
+	xvoTableSetInt(pRoot, "score", 0, 88);
+	xvoTableSetText(pUser, "name", 0, "Alice", 0, FALSE);
+	xvoTableSetValue(pRoot, "user", 0, pUser, TRUE);
+	return pRoot;
 }
 
-void test_comparison_expr(void)
+
+void procTestIfExpression(void)
 {
-	printf("\n=== Test: Comparison Expressions ===\n");
-	printf("=== 测试：比较表达式 ===\n");
-	
-	xvalue tblVal = xvoTableCreate();
-	xvoTableSetInt(tblVal, "age", 3, 25);
-	xvoTableSetInt(tblVal, "score", 5, 85);
-	
-	const char* expr1 = "age >= 18";
-	printf("Expression: %s (age=25)\n", expr1);
-	
-	XTE_ExprResult result = xteExprParse(expr1, strlen(expr1));
-	if (result->Success)
-	{
-		xvalue val = xteExprEval(result->Root, tblVal, tblVal, xvoNull());
-		printf("Result: %s\n", val.vBool ? "true" : "false");
-		xvoUnref(val);
-	}
-	xteExprFree(result);
-	
-	const char* expr2 = "score > 90";
-	printf("\nExpression: %s (score=85)\n", expr2);
-	
-	result = xteExprParse(expr2, strlen(expr2));
-	if (result->Success)
-	{
-		xvalue val = xteExprEval(result->Root, tblVal, tblVal, xvoNull());
-		printf("Result: %s\n", val.vBool ? "true" : "false");
-		xvoUnref(val);
-	}
-	xteExprFree(result);
-	
-	xvoUnref(tblVal);
+	xvalue pData = procMakeExprData();
+	xtetemplate hTemplate = xteParse(
+		"{#if:(count >= 1000000) and active}big{#else}small{#end}|"
+		"{#if:(score >= 90) or active}pass{#else}fail{#end}|"
+		"{#if:not false}yes{#else}no{#end}",
+		0,
+		NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	sResult = xteMake(hTemplate, pData, NULL, NULL, &iRetSize);
+	printf("if expr: %s\n", sResult);
+	printf("if 表达式: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
+	xvoUnref(pData);
 }
 
-void test_logical_expr(void)
+
+void procTestInlineBool(void)
 {
-	printf("\n=== Test: Logical Expressions ===\n");
-	printf("=== 测试：逻辑表达式 ===\n");
-	
-	xvalue tblVal = xvoTableCreate();
-	xvoTableSetBool(tblVal, "is_admin", 8, true);
-	xvoTableSetBool(tblVal, "is_active", 9, true);
-	xvoTableSetInt(tblVal, "level", 5, 5);
-	
-	const char* expr1 = "is_admin and is_active";
-	printf("Expression: %s\n", expr1);
-	
-	XTE_ExprResult result = xteExprParse(expr1, strlen(expr1));
-	if (result->Success)
-	{
-		xvalue val = xteExprEval(result->Root, tblVal, tblVal, xvoNull());
-		printf("Result: %s\n", val.vBool ? "true" : "false");
-		xvoUnref(val);
-	}
-	xteExprFree(result);
-	
-	const char* expr2 = "is_admin or level > 10";
-	printf("\nExpression: %s (level=5)\n", expr2);
-	
-	result = xteExprParse(expr2, strlen(expr2));
-	if (result->Success)
-	{
-		xvalue val = xteExprEval(result->Root, tblVal, tblVal, xvoNull());
-		printf("Result: %s\n", val.vBool ? "true" : "false");
-		xvoUnref(val);
-	}
-	xteExprFree(result);
-	
-	const char* expr3 = "not is_admin";
-	printf("\nExpression: %s\n", expr3);
-	
-	result = xteExprParse(expr3, strlen(expr3));
-	if (result->Success)
-	{
-		xvalue val = xteExprEval(result->Root, tblVal, tblVal, xvoNull());
-		printf("Result: %s\n", val.vBool ? "true" : "false");
-		xvoUnref(val);
-	}
-	xteExprFree(result);
-	
-	xvoUnref(tblVal);
+	xvalue pData = procMakeExprData();
+	xtetemplate hTemplate = xteParse(
+		"{?user.name = 'Alice':match:miss}|"
+		"{?(count < 10) or (user.name = 'Alice'):hit:skip}",
+		0,
+		NULL);
+	str sResult = NULL;
+	size_t iRetSize = 0;
+
+	sResult = xteMake(hTemplate, pData, NULL, NULL, &iRetSize);
+	printf("inline bool: %s\n", sResult);
+	printf("内联布尔: %s\n\n", sResult);
+
+	xrtFree(sResult);
+	xteDestroyTemplate(hTemplate);
+	xvoUnref(pData);
 }
 
-void test_convenience_function(void)
+
+void procTestResolvePath(void)
 {
-	printf("\n=== Test: Convenience Function ===\n");
-	printf("=== 测试：便捷函数 ===\n");
-	
-	xvalue tblVal = xvoTableCreate();
-	xvoTableSetInt(tblVal, "value", 5, 100);
-	
-	const char* expr = "value > 50";
-	printf("Expression: %s\n", expr);
-	
-	int result = xteExprEvalBool(expr, strlen(expr), tblVal, tblVal, xvoNull());
-	printf("Boolean result: %s\n", result ? "true" : "false");
-	
-	xvoUnref(tblVal);
+	xvalue pData = procMakeExprData();
+	xvalue pName = xteResolvePath("user.name", 0, pData, pData, NULL, NULL);
+	xvalue pMissing = xteResolvePath("user.missing", 0, pData, pData, NULL, NULL);
+
+	printf("resolve user.name   = %s\n", xvoGetText(pName));
+	printf("resolve user.missing type = %u\n", (unsigned)pMissing->Type);
+	printf("路径解析 user.name = %s\n\n", xvoGetText(pName));
+
+	xvoUnref(pData);
 }
+
 
 int main(void)
 {
 	xrtInit();
-	
-	printf("========================================\n");
-	printf("  Template Expressions Example / 模板表达式示例\n");
-	printf("========================================\n");
-	
-	test_arithmetic_expr();
-	test_comparison_expr();
-	test_logical_expr();
-	test_convenience_function();
-	
-	printf("\n=== All tests completed! ===\n");
-	printf("=== 所有测试完成！===\n");
-	
+
+	printf("XRT Template - Template Expression Demo\n");
+	printf("XRT 模板 - 模板表达式演示\n");
+	printf("=======================================\n\n");
+
+	procTestIfExpression();
+	procTestInlineBool();
+	procTestResolvePath();
+
 	xrtUnit();
 	return 0;
 }
