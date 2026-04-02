@@ -229,4 +229,8 @@
 45. [把本地控制台服务升级成一个共识式接管恢复面板](case/consensus-takeover-recovery-dashboard.md)
 46. [把本地控制台服务升级成一个共识恢复编排面板](case/consensus-recovery-orchestration-dashboard.md)
 47. [把本地控制台服务升级成一个共识快照编排面板](case/consensus-snapshot-orchestration-dashboard.md)
+48. [把本地控制台服务升级成一个快照接管面板](case/snapshot-takeover-dashboard.md)
+49. [把本地控制台服务升级成一个快照续传编排面板](case/snapshot-continuation-dashboard.md)
+50. [把本地控制台服务升级成一个快照持久化面板](case/snapshot-persistence-dashboard.md)
+51. [把本地控制台服务升级成一个快照调度配额面板](case/snapshot-scheduler-quota-dashboard.md)
 

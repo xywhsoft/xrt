@@ -132,10 +132,14 @@ So the remaining gaps are now mostly:
 - the newly added [Upgrade the Local Console Service into a Consensus-Style Takeover Recovery Dashboard](consensus-takeover-recovery-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Consensus Recovery Orchestration Dashboard](consensus-recovery-orchestration-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Consensus Snapshot Orchestration Dashboard](consensus-snapshot-orchestration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Takeover Dashboard](snapshot-takeover-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Continuation Dashboard](snapshot-continuation-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Persistence Dashboard](snapshot-persistence-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Scheduler and Quota Dashboard](snapshot-scheduler-quota-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Distributed Orchestration Dashboard](distributed-orchestration-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Cross-Machine Recovery Dashboard](cross-machine-recovery-dashboard.md) is still Chinese-first
 - the newly added [Upgrade the Local Console Service into a Recovery Quota Dashboard](recovery-quota-dashboard.md) is still Chinese-first
-- more business-style variants around snapshot takeover cases
+- more business-style variants around snapshot multi-queue scheduler and distributed quota cases
 
 These pages are currently useful when you want:
 
@@ -162,10 +166,14 @@ The most obvious remaining case gaps are:
 - English sync for the consensus-style takeover recovery page
 - English sync for the consensus recovery orchestration page
 - English sync for the consensus snapshot orchestration page
+- English sync for the snapshot takeover page
+- English sync for the snapshot continuation page
+- English sync for the snapshot persistence page
+- English sync for the snapshot scheduler and quota page
 - English sync for the distributed orchestration page
 - English sync for the cross-machine recovery page
 - English sync for the recovery quota page
-- more business-style variants around snapshot takeover
+- more business-style variants around snapshot multi-queue scheduler and distributed quota
 
 
 ## Relationship to API and Guide Docs

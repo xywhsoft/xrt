@@ -89,6 +89,10 @@
 - `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条共识式接管恢复面板主线已经补出正式案例页
 - `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条共识恢复编排面板主线已经补出正式案例页
 - `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条共识快照编排面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照接管面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照续传编排面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照持久化面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条快照调度配额面板主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -144,6 +148,10 @@
 41. 共识式接管恢复面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
 42. 共识恢复编排面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
 43. 共识快照编排面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+44. 快照接管面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+45. 快照续传编排面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+46. 快照持久化面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+47. 快照调度配额面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
 
 这条梯度的目标不是只展示“能跑”，而是展示：
 
@@ -206,6 +214,10 @@
 47. [把本地控制台服务升级成一个共识式接管恢复面板](consensus-takeover-recovery-dashboard.md)
 48. [把本地控制台服务升级成一个共识恢复编排面板](consensus-recovery-orchestration-dashboard.md)
 49. [把本地控制台服务升级成一个共识快照编排面板](consensus-snapshot-orchestration-dashboard.md)
+50. [把本地控制台服务升级成一个快照接管面板](snapshot-takeover-dashboard.md)
+51. [把本地控制台服务升级成一个快照续传编排面板](snapshot-continuation-dashboard.md)
+52. [把本地控制台服务升级成一个快照持久化面板](snapshot-persistence-dashboard.md)
+53. [把本地控制台服务升级成一个快照调度配额面板](snapshot-scheduler-quota-dashboard.md)
 
 这些页面当前适合：
 
@@ -218,7 +230,7 @@
 
 当前仍缺少正式案例的方向包括：
 
-- 继续往下补快照接管这类更重的业务变体案例
+- 继续往下补 snapshot multi-queue scheduler / distributed quota 这类更重的业务变体案例
 
 
 ## 与 API 和教学文档的关系

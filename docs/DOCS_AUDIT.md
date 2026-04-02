@@ -252,6 +252,10 @@
 - 中文案例已补出 `case/consensus-takeover-recovery-dashboard.md`，用于承接“committed owner / replay inspect / multi-peer recovery gather / committed publish”的业务变体主线
 - 中文案例已补出 `case/consensus-recovery-orchestration-dashboard.md`，用于承接“replay / snapshot / publish / orchestration checkpoint”的业务变体主线
 - 中文案例已补出 `case/consensus-snapshot-orchestration-dashboard.md`，用于承接“snapshot segment / truncated_to / publish / snapshot checkpoint”的业务变体主线
+- 中文案例已补出 `case/snapshot-takeover-dashboard.md`，用于承接“remote snapshot install / local rollover / published summary / takeover checkpoint”的业务变体主线
+- 中文案例已补出 `case/snapshot-continuation-dashboard.md`，用于承接“continuation cursor / rollover cursor / published continuation / continuation checkpoint”的业务变体主线
+- 中文案例已补出 `case/snapshot-persistence-dashboard.md`，用于承接“manifest cursor / archive cursor / checkpoint version / persistence state”的业务变体主线
+- 中文案例已补出 `case/snapshot-scheduler-quota-dashboard.md`，用于承接“active slot / waiting queue / retry budget / next wake / scheduler state”的业务变体主线
 - 英文案例已同步 `case/auto-warm-rolling-archive-dashboard.en.md`
 - 英文案例已同步 `case/multi-tier-storage-dashboard.en.md`
 - 英文案例已同步 `case/hot-cold-multi-level-aging-dashboard.en.md`

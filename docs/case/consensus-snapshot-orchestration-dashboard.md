@@ -1101,5 +1101,5 @@ int main(void)
 	先对比“snapshot index 已统一编排”与“snapshot segment + truncate 已统一编排”到底差在哪
 2. [把本地控制台服务升级成一个快照压缩面板](snapshot-compaction-dashboard.md)
 	回看 `snapshot_index / truncated_to / compaction_cursor` 为什么在 snapshot orchestration 之后仍然是更底层的文件状态边界
-3. 继续往下补“快照接管面板”这条更重的业务变体
+3. [把本地控制台服务升级成一个快照接管面板](snapshot-takeover-dashboard.md)
 	把远端 snapshot install、segment rollover、publish 和统一收口主线正式补出来

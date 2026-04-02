@@ -205,4 +205,8 @@ If you prefer full combined examples, continue with:
 46. [Upgrade the Local Console Service into a Consensus-Style Takeover Recovery Dashboard](case/consensus-takeover-recovery-dashboard.md) (Chinese for now)
 47. [Upgrade the Local Console Service into a Consensus Recovery Orchestration Dashboard](case/consensus-recovery-orchestration-dashboard.md) (Chinese for now)
 48. [Upgrade the Local Console Service into a Consensus Snapshot Orchestration Dashboard](case/consensus-snapshot-orchestration-dashboard.md) (Chinese for now)
+49. [Upgrade the Local Console Service into a Snapshot Takeover Dashboard](case/snapshot-takeover-dashboard.md) (Chinese for now)
+50. [Upgrade the Local Console Service into a Snapshot Continuation Dashboard](case/snapshot-continuation-dashboard.md) (Chinese for now)
+51. [Upgrade the Local Console Service into a Snapshot Persistence Dashboard](case/snapshot-persistence-dashboard.md) (Chinese for now)
+52. [Upgrade the Local Console Service into a Snapshot Scheduler and Quota Dashboard](case/snapshot-scheduler-quota-dashboard.md) (Chinese for now)
 
