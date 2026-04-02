@@ -1123,7 +1123,9 @@ cleanup:
 
 1. [冷热多级老化](hot-cold-multi-level-aging-dashboard.md)
 	把“热 -> warm -> cool -> cold -> archive”继续拆成更多正式层级和老化窗口
-2. [把本地控制台服务升级成一个自动回温 + 滚动归档联动面板](auto-warm-rolling-archive-dashboard.md)
+2. [把本地控制台服务升级成一个恢复优先级面板](recovery-priority-dashboard.md)
+	对比“多层介质恢复来源”跟“正式恢复优先级策略”到底差在哪
+3. [把本地控制台服务升级成一个自动回温 + 滚动归档联动面板](auto-warm-rolling-archive-dashboard.md)
 	对比“多层介质与恢复路径”跟“单条 cold state 的联动收口”到底差在哪
-3. [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
+4. [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
 	对比“统一 cold 分流”和“真正跨介质多层存储”的边界区别

@@ -104,17 +104,38 @@ The following case pages already exist in English:
 23. [Upgrade the Local Console Service into a Rolling Tier Archive Dashboard](rolling-tier-archive-dashboard.en.md)
 24. [Upgrade the Local Console Service into an Auto-Warm Policy Dashboard](auto-warm-policy-dashboard.en.md)
 25. [Upgrade the Local Console Service into a Warm-Archive Coordination Dashboard](warm-archive-coordination-dashboard.en.md)
+26. [Upgrade the Local Console Service into an Auto-Warm + Rolling-Archive Integration Dashboard](auto-warm-rolling-archive-dashboard.en.md)
+27. [Upgrade the Local Console Service into a Multi-Tier Storage Dashboard](multi-tier-storage-dashboard.en.md)
+28. [Upgrade the Local Console Service into a Hot-Cold Multi-Level Aging Dashboard](hot-cold-multi-level-aging-dashboard.en.md)
+29. [Upgrade the Local Console Service into a Recovery Priority Dashboard](recovery-priority-dashboard.en.md)
+30. [Upgrade the Local Console Service into a Cross-Media Orchestration Dashboard](cross-media-orchestration-dashboard.en.md)
+31. [Upgrade the Local Console Service into a Heavy Recovery-Chain Dashboard](heavy-recovery-chain-dashboard.en.md)
 
 ### 2. Current English Coverage Notes
 
-At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, session-registry, subprocess-dashboard, batch-dashboard, cache-dashboard, tenant-index, retry-backoff, archive, hot-cold-tier, warm-back, rolling-tier archive, and warm-archive coordination business pages.
+At this point, the main reviewed formal case ladder has English coverage for its core concurrency, tooling, HTTP-client, WebSocket-session, signed-rule-import, session-registry, subprocess-dashboard, batch-dashboard, cache-dashboard, tenant-index, retry-backoff, archive, hot-cold-tier, warm-back, rolling-tier archive, warm-archive coordination, auto-warm rolling archive, multi-tier storage, hot-cold multi-level aging, recovery-priority, cross-media orchestration, and heavy recovery-chain business pages.
 
 So the remaining gaps are now mostly:
 
-- the Chinese-first page [Upgrade the Local Console Service into an Auto-Warm + Rolling-Archive Integration Dashboard](auto-warm-rolling-archive-dashboard.md)
-- the Chinese-first page [Upgrade the Local Console Service into a Multi-Tier Storage Dashboard](multi-tier-storage-dashboard.md)
-- the Chinese-first page [Upgrade the Local Console Service into a Hot-Cold Multi-Level Aging Dashboard](hot-cold-multi-level-aging-dashboard.md)
-- more business-style variants such as finer recovery-priority and cross-media orchestration cases
+- the newly added [Upgrade the Local Console Service into a Persistent Coordination Dashboard](persistent-coordination-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Consensus Arbitration Dashboard](consensus-arbitration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Consensus Log Replication Dashboard](consensus-log-replication-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a State-Machine Commit Dashboard](state-machine-commit-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Log Replay Dashboard](log-replay-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Snapshot Compaction Dashboard](snapshot-compaction-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Lease Failover Dashboard](lease-failover-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Leader Handoff Recovery Dashboard](leader-handoff-recovery-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Compaction Takeover Dashboard](compaction-takeover-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into an Ownership Arbitration Dashboard](ownership-arbitration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Distributed Takeover Orchestration Dashboard](distributed-takeover-orchestration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Consensus-Style Ownership Dashboard](consensus-style-ownership-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Consensus-Style Takeover Recovery Dashboard](consensus-takeover-recovery-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Consensus Recovery Orchestration Dashboard](consensus-recovery-orchestration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Consensus Snapshot Orchestration Dashboard](consensus-snapshot-orchestration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Distributed Orchestration Dashboard](distributed-orchestration-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Cross-Machine Recovery Dashboard](cross-machine-recovery-dashboard.md) is still Chinese-first
+- the newly added [Upgrade the Local Console Service into a Recovery Quota Dashboard](recovery-quota-dashboard.md) is still Chinese-first
+- more business-style variants around snapshot takeover cases
 
 These pages are currently useful when you want:
 
@@ -126,7 +147,25 @@ These pages are currently useful when you want:
 
 The most obvious remaining case gaps are:
 
-- more business-style variants around longer-lived service state, recovery priority, and cross-media orchestration
+- English sync for the persistent coordination page
+- English sync for the consensus arbitration page
+- English sync for the consensus log replication page
+- English sync for the state-machine commit page
+- English sync for the log replay page
+- English sync for the snapshot compaction page
+- English sync for the lease failover page
+- English sync for the leader handoff recovery page
+- English sync for the compaction takeover page
+- English sync for the ownership arbitration page
+- English sync for the distributed takeover orchestration page
+- English sync for the consensus-style ownership page
+- English sync for the consensus-style takeover recovery page
+- English sync for the consensus recovery orchestration page
+- English sync for the consensus snapshot orchestration page
+- English sync for the distributed orchestration page
+- English sync for the cross-machine recovery page
+- English sync for the recovery quota page
+- more business-style variants around snapshot takeover
 
 
 ## Relationship to API and Guide Docs
@@ -138,3 +177,4 @@ You can think about the three layers this way:
 - `case/`: how multiple modules cooperate to solve one complete problem
 
 If you already roughly know each module API but still do not know how to compose them into a full solution, this is the right place to read next.
+

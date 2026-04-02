@@ -1345,9 +1345,11 @@ cleanup:
 
 如果你准备继续把这条主线和其他策略做对照，最顺的下一步是：
 
-1. [把本地控制台服务升级成一个多层存储面板](multi-tier-storage-dashboard.md)
+1. [把本地控制台服务升级成一个恢复优先级面板](recovery-priority-dashboard.md)
+	对比“多级老化窗口”和“正式恢复优先级策略”到底差在哪
+2. [把本地控制台服务升级成一个多层存储面板](multi-tier-storage-dashboard.md)
 	对比“跨介质恢复路径”和“多级老化窗口”到底差在哪
-2. [把本地控制台服务升级成一个自动回温 + 滚动归档联动面板](auto-warm-rolling-archive-dashboard.md)
+3. [把本地控制台服务升级成一个自动回温 + 滚动归档联动面板](auto-warm-rolling-archive-dashboard.md)
 	对比“单条 cold state 的策略联动”和“多级老化窗口”的边界区别
-3. [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
+4. [把本地控制台服务升级成一个冷层回温归档协同面板](warm-archive-coordination-dashboard.md)
 	对比“统一 cold 分流”与“更多中间层”的设计取舍

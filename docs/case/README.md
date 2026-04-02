@@ -68,6 +68,27 @@
 - `dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条自动回温 + 滚动归档联动面板主线已经补出正式案例页
 - `dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条多层存储面板主线已经补出正式案例页
 - `dict + dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条冷热多级老化面板主线已经补出正式案例页
+- `dict + dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template` 这条恢复优先级面板主线已经补出正式案例页
+- `dict + dict + list + list + queue + thread + future + subprocess + file_async + path + file + hash + xhttpd + template` 这条跨介质编排面板主线已经补出正式案例页
+- `dict + dict + list + list + list + queue + thread + task group + future + subprocess + file_async + path + file + hash + xhttpd + template` 这条重链路恢复面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + task group + future + subprocess + file_async + time + path + file + hash + xhttpd + template` 这条恢复配额面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file_async + time + path + file + hash + xhttpd + template` 这条跨机器恢复面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file_async + time + path + file + hash + xhttpd + template` 这条分布式编排面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template` 这条持久化协调面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template` 这条一致性仲裁面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template` 这条共识日志复制面板主线已经补出正式案例页
+- `dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template` 这条状态机提交面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + file + file_async + path + value + json + time + hash + xhttpd + template` 这条日志回放面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + file + file_async + path + value + json + time + xhttpd + template` 这条快照压缩面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条租约故障切换面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条领导切换恢复面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条 compaction 接管面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条 ownership 仲裁面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条分布式接管编排面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条共识式 ownership 面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条共识式接管恢复面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条共识恢复编排面板主线已经补出正式案例页
+- `dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template` 这条共识快照编排面板主线已经补出正式案例页
 - 还没有形成从简单到复杂的案例阶梯
 - 还不能覆盖 XRT 全部公开模块
 
@@ -102,6 +123,27 @@
 20. 自动回温 + 滚动归档联动面板：`dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
 21. 多层存储面板：`dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
 22. 冷热多级老化面板：`dict + dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
+23. 恢复优先级面板：`dict + dict + dict + list + list + list + queue + thread + time + path + file + hash + xhttpd + template`
+24. 跨介质编排面板：`dict + dict + list + list + queue + thread + future + subprocess + file_async + path + file + hash + xhttpd + template`
+25. 重链路恢复面板：`dict + dict + list + list + list + queue + thread + task group + future + subprocess + file_async + path + file + hash + xhttpd + template`
+26. 恢复配额面板：`dict + list + list + list + queue + thread + task group + future + subprocess + file_async + time + path + file + hash + xhttpd + template`
+27. 跨机器恢复面板：`dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file_async + time + path + file + hash + xhttpd + template`
+28. 分布式编排面板：`dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file_async + time + path + file + hash + xhttpd + template`
+29. 持久化协调面板：`dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template`
+30. 一致性仲裁面板：`dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template`
+31. 共识日志复制面板：`dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template`
+32. 状态机提交面板：`dict + list + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + value + json + time + path + hash + xhttpd + template`
+33. 日志回放面板：`dict + list + list + queue + thread + task group + future + file + file_async + path + value + json + time + hash + xhttpd + template`
+34. 快照压缩面板：`dict + list + list + queue + thread + task group + future + file + file_async + path + value + json + time + xhttpd + template`
+35. 租约故障切换面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+36. 领导切换恢复面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+37. compaction 接管面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+38. ownership 仲裁面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+39. 分布式接管编排面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+40. 共识式 ownership 面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+41. 共识式接管恢复面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+42. 共识恢复编排面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
+43. 共识快照编排面板：`dict + list + list + queue + thread + task group + future + xurl + xhttp + file + file_async + path + value + json + time + xhttpd + template`
 
 这条梯度的目标不是只展示“能跑”，而是展示：
 
@@ -143,6 +185,27 @@
 26. [把本地控制台服务升级成一个自动回温 + 滚动归档联动面板](auto-warm-rolling-archive-dashboard.md)
 27. [把本地控制台服务升级成一个多层存储面板](multi-tier-storage-dashboard.md)
 28. [把本地控制台服务升级成一个冷热多级老化面板](hot-cold-multi-level-aging-dashboard.md)
+29. [把本地控制台服务升级成一个恢复优先级面板](recovery-priority-dashboard.md)
+30. [把本地控制台服务升级成一个跨介质编排面板](cross-media-orchestration-dashboard.md)
+31. [把本地控制台服务升级成一个重链路恢复面板](heavy-recovery-chain-dashboard.md)
+32. [把本地控制台服务升级成一个恢复配额面板](recovery-quota-dashboard.md)
+33. [把本地控制台服务升级成一个跨机器恢复面板](cross-machine-recovery-dashboard.md)
+34. [把本地控制台服务升级成一个分布式编排面板](distributed-orchestration-dashboard.md)
+35. [把本地控制台服务升级成一个持久化协调面板](persistent-coordination-dashboard.md)
+36. [把本地控制台服务升级成一个一致性仲裁面板](consensus-arbitration-dashboard.md)
+37. [把本地控制台服务升级成一个共识日志复制面板](consensus-log-replication-dashboard.md)
+38. [把本地控制台服务升级成一个状态机提交面板](state-machine-commit-dashboard.md)
+39. [把本地控制台服务升级成一个日志回放面板](log-replay-dashboard.md)
+40. [把本地控制台服务升级成一个快照压缩面板](snapshot-compaction-dashboard.md)
+41. [把本地控制台服务升级成一个租约故障切换面板](lease-failover-dashboard.md)
+42. [把本地控制台服务升级成一个领导切换恢复面板](leader-handoff-recovery-dashboard.md)
+43. [把本地控制台服务升级成一个 compaction 接管面板](compaction-takeover-dashboard.md)
+44. [把本地控制台服务升级成一个 ownership 仲裁面板](ownership-arbitration-dashboard.md)
+45. [把本地控制台服务升级成一个分布式接管编排面板](distributed-takeover-orchestration-dashboard.md)
+46. [把本地控制台服务升级成一个共识式 ownership 面板](consensus-style-ownership-dashboard.md)
+47. [把本地控制台服务升级成一个共识式接管恢复面板](consensus-takeover-recovery-dashboard.md)
+48. [把本地控制台服务升级成一个共识恢复编排面板](consensus-recovery-orchestration-dashboard.md)
+49. [把本地控制台服务升级成一个共识快照编排面板](consensus-snapshot-orchestration-dashboard.md)
 
 这些页面当前适合：
 
@@ -155,7 +218,7 @@
 
 当前仍缺少正式案例的方向包括：
 
-- 继续往下补更细的容量策略、冷热恢复优先级和跨介质编排这类业务变体案例
+- 继续往下补快照接管这类更重的业务变体案例
 
 
 ## 与 API 和教学文档的关系

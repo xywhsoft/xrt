@@ -231,5 +231,33 @@
 - 中文案例已补出 `case/auto-warm-rolling-archive-dashboard.md`，用于承接“自动回温 + 滚动归档联动”的业务变体主线
 - 中文案例已补出 `case/multi-tier-storage-dashboard.md`，用于承接“热层 / 温层 / 冷文件 / archive”的多层存储业务变体主线
 - 中文案例已补出 `case/hot-cold-multi-level-aging-dashboard.md`，用于承接“热 / 温 / 凉 / 冷文件 / archive”的多级老化业务变体主线
+- 中文案例已补出 `case/recovery-priority-dashboard.md`，用于承接“恢复优先级 / defer / 冷文件预算”的业务变体主线
+- 中文案例已补出 `case/cross-media-orchestration-dashboard.md`，用于承接“包文件 / 外部工具链 / 统一发布”的跨介质编排业务变体主线
+- 中文案例已补出 `case/heavy-recovery-chain-dashboard.md`，用于承接“多阶段 child / task group join / 重链路恢复”的业务变体主线
+- 中文案例已补出 `case/recovery-quota-dashboard.md`，用于承接“active slot / waiting queue / join 后提升”的业务变体主线
+- 中文案例已补出 `case/cross-machine-recovery-dashboard.md`，用于承接“peer 选择 / remote fetch / publish 回本地”的业务变体主线
+- 中文案例已补出 `case/distributed-orchestration-dashboard.md`，用于承接“multi-peer fan-out / quorum / publish”的业务变体主线
+- 中文案例已补出 `case/persistent-coordination-dashboard.md`，用于承接“checkpoint / 启动装载 / 持久化协调状态”的业务变体主线
+- 中文案例已补出 `case/consensus-arbitration-dashboard.md`，用于承接“term / majority / commit index / 正式仲裁状态”的业务变体主线
+- 中文案例已补出 `case/consensus-log-replication-dashboard.md`，用于承接“log_index / matched_votes / committed entry / replication checkpoint”的业务变体主线
+- 中文案例已补出 `case/state-machine-commit-dashboard.md`，用于承接“commit_index / last_applied / apply_done / 业务状态文件”的业务变体主线
+- 中文案例已补出 `case/log-replay-dashboard.md`，用于承接“replay_from / replay_to / replay_cursor / 补齐 apply gap”的业务变体主线
+- 中文案例已补出 `case/snapshot-compaction-dashboard.md`，用于承接“snapshot_index / truncated_to / compaction_cursor / 日志截断”的业务变体主线
+- 中文案例已补出 `case/lease-failover-dashboard.md`，用于承接“lease / peer probe / takeover / ownership 切换”的业务变体主线
+- 中文案例已补出 `case/leader-handoff-recovery-dashboard.md`，用于承接“remote handoff / local replay / compaction resume / publish”的业务变体主线
+- 中文案例已补出 `case/compaction-takeover-dashboard.md`，用于承接“compaction_cursor continuation / remote summary / segment truncate / publish”的业务变体主线
+- 中文案例已补出 `case/ownership-arbitration-dashboard.md`，用于承接“local claim / remote claim / winner decide / publish”的业务变体主线
+- 中文案例已补出 `case/distributed-takeover-orchestration-dashboard.md`，用于承接“multi-peer gather / ack 汇总 / rollback / orchestration publish”的业务变体主线
+- 中文案例已补出 `case/consensus-style-ownership-dashboard.md`，用于承接“vote log / remote grant / committed owner / publish”的业务变体主线
+- 中文案例已补出 `case/consensus-takeover-recovery-dashboard.md`，用于承接“committed owner / replay inspect / multi-peer recovery gather / committed publish”的业务变体主线
+- 中文案例已补出 `case/consensus-recovery-orchestration-dashboard.md`，用于承接“replay / snapshot / publish / orchestration checkpoint”的业务变体主线
+- 中文案例已补出 `case/consensus-snapshot-orchestration-dashboard.md`，用于承接“snapshot segment / truncated_to / publish / snapshot checkpoint”的业务变体主线
+- 英文案例已同步 `case/auto-warm-rolling-archive-dashboard.en.md`
+- 英文案例已同步 `case/multi-tier-storage-dashboard.en.md`
+- 英文案例已同步 `case/hot-cold-multi-level-aging-dashboard.en.md`
+- 英文案例已同步 `case/recovery-priority-dashboard.en.md`
+- 英文案例已同步 `case/cross-media-orchestration-dashboard.en.md`
+- 英文案例已同步 `case/heavy-recovery-chain-dashboard.en.md`
 - `case/README.md`、`case/README.en.md`、`README.md`、`README.en.md` 已对齐这条案例入口与 English sync 状态
 - 明确哪些文档属于正式入口，哪些只是过渡页或内部稿
+
