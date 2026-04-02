@@ -395,6 +395,13 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 {
 	void* pRet = NULL;
+	const char* sDbgFile = NULL;
+	uint32 iDbgLine = 0;
+	#ifdef XRT_MEM_DEBUG
+		sDbgFile = __FILE__;
+		iDbgLine = __LINE__;
+		__xrtMemDebugPreferSite(&sDbgFile, &iDbgLine);
+	#endif
 
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return NULL;
@@ -413,7 +420,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				return NULL;
 			}
 			pRet = xrtMemUnitAlloc_Inline(objMMU);
-			__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
+			__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, sDbgFile, iDbgLine);
 			xrtOwnerEndMutable(&objMP->Owner);
 			return pRet;
 		}
@@ -431,7 +438,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				pInfo->Size = iSize;
 				pInfo->Ptr = pHead;
 				pRet = &pHead[1];
-				__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
+				__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, sDbgFile, iDbgLine);
 				xrtOwnerEndMutable(&objMP->Owner);
 				return pRet;
 			} else {
@@ -444,7 +451,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 					pInfo->Size = iSize;
 					pInfo->Ptr = pHead;
 					pRet = &pHead[1];
-					__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0);
+					__xrtMemDebugRegisterForeignAlloc(pRet, iSize, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, sDbgFile, iDbgLine);
 					xrtOwnerEndMutable(&objMP->Owner);
 					return pRet;
 				}

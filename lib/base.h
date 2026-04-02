@@ -17,7 +17,7 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize);
 static inline ptr __xrtMallocSite(size_t iSize, const char* sFile, uint32 iLine)
 {
 	#ifdef XRT_MEM_DEBUG
-		__xrtMemDebugResolveSite(&sFile, &iLine);
+		__xrtMemDebugPreferSite(&sFile, &iLine);
 	#endif
 	ptr mem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
 	if ( mem == NULL ) {
@@ -34,7 +34,7 @@ static inline ptr __xrtCallocSite(size_t iNum, size_t iSize, const char* sFile, 
 {
 	size_t iTotal = __xrtMemTelemetryMulClamp(iNum, iSize);
 	#ifdef XRT_MEM_DEBUG
-		__xrtMemDebugResolveSite(&sFile, &iLine);
+		__xrtMemDebugPreferSite(&sFile, &iLine);
 	#endif
 	ptr mem = __xrtMemGlobalAllocSite(iTotal, TRUE, sFile, iLine);
 	if ( mem == NULL ) {
@@ -54,7 +54,7 @@ static inline ptr __xrtReallocSite(ptr pMem, size_t iSize, const char* sFile, ui
 		pMem = NULL;
 	}
 	#ifdef XRT_MEM_DEBUG
-		__xrtMemDebugResolveSite(&sFile, &iLine);
+		__xrtMemDebugPreferSite(&sFile, &iLine);
 	#endif
 	mem = __xrtMemGlobalReallocSite(pMem, iSize, sFile, iLine);
 	if ( mem == NULL ) {
@@ -74,7 +74,7 @@ static inline void __xrtFreeSite(ptr pmem, const char* sFile, uint32 iLine)
 {
 	if ( pmem && (pmem != xCore.sNull) ) {
 		#ifdef XRT_MEM_DEBUG
-			__xrtMemDebugResolveSite(&sFile, &iLine);
+			__xrtMemDebugPreferSite(&sFile, &iLine);
 		#endif
 		__xrtMemTelemetryRecordFree();
 		__xrtMemGlobalFreeSite(pmem, sFile, iLine);
@@ -92,7 +92,11 @@ XXAPI ptr xrtMallocDbg(size_t iSize, const char* sFile, uint32 iLine)
 // 分配
 XXAPI ptr xrtMalloc(size_t iSize)
 {
-	return __xrtMallocSite(iSize, NULL, 0);
+	#ifdef XRT_MEM_DEBUG
+		return __xrtMallocSite(iSize, __FILE__, __LINE__);
+	#else
+		return __xrtMallocSite(iSize, NULL, 0);
+	#endif
 }
 
 
@@ -109,7 +113,11 @@ XXAPI ptr xrtCallocDbg(size_t iNum, size_t iSize, const char* sFile, uint32 iLin
 // 分配
 XXAPI ptr xrtCalloc(size_t iNum, size_t iSize)
 {
-	return __xrtCallocSite(iNum, iSize, NULL, 0);
+	#ifdef XRT_MEM_DEBUG
+		return __xrtCallocSite(iNum, iSize, __FILE__, __LINE__);
+	#else
+		return __xrtCallocSite(iNum, iSize, NULL, 0);
+	#endif
 }
 
 
@@ -126,7 +134,11 @@ XXAPI ptr xrtReallocDbg(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 // 重新分配
 XXAPI ptr xrtRealloc(ptr pMem, size_t iSize)
 {
-	return __xrtReallocSite(pMem, iSize, NULL, 0);
+	#ifdef XRT_MEM_DEBUG
+		return __xrtReallocSite(pMem, iSize, __FILE__, __LINE__);
+	#else
+		return __xrtReallocSite(pMem, iSize, NULL, 0);
+	#endif
 }
 
 
@@ -143,7 +155,11 @@ XXAPI void xrtFreeDbg(ptr pmem, const char* sFile, uint32 iLine)
 // 释放
 XXAPI void xrtFree(ptr pmem)
 {
-	__xrtFreeSite(pmem, NULL, 0);
+	#ifdef XRT_MEM_DEBUG
+		__xrtFreeSite(pmem, __FILE__, __LINE__);
+	#else
+		__xrtFreeSite(pmem, NULL, 0);
+	#endif
 }
 
 
@@ -191,9 +207,12 @@ static inline xrtTempArenaBlock* __xrtTempArenaAllocBlock(size_t iCapacity)
 static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t iSize, bool bSpill)
 {
 	#ifdef XRT_MEM_DEBUG
+		const char* sFile = __FILE__;
+		uint32 iLine = __LINE__;
 		if ( pThreadData == NULL || !__xrtMemDebugEnabled() ) {
 			return;
 		}
+		__xrtMemDebugPreferSite(&sFile, &iLine);
 		__xrtMemDebugLock();
 		pThreadData->tTemp.iCurrentBytes += iSize;
 		if ( pThreadData->tTemp.iCurrentBytes > pThreadData->tTemp.iPeakBytes ) {
@@ -203,7 +222,7 @@ static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t
 		if ( xCore.MemDebug.iTempCurrentBytes > xCore.MemDebug.iTempPeakBytes ) {
 			xCore.MemDebug.iTempPeakBytes = xCore.MemDebug.iTempCurrentBytes;
 		}
-		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_ALLOC, NULL, iSize, bSpill ? XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL : XRT_MEMDEBUG_ALLOCATOR_GLOBAL, NULL, 0);
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_ALLOC, NULL, iSize, bSpill ? XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL : XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
 		__xrtMemDebugUnlock();
 	#else
 		(void)pThreadData;
@@ -217,9 +236,12 @@ static inline void __xrtTempArenaDebugOnAlloc(xrtThreadData* pThreadData, size_t
 static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
 {
 	#ifdef XRT_MEM_DEBUG
+		const char* sFile = __FILE__;
+		uint32 iLine = __LINE__;
 		if ( pThreadData == NULL || !__xrtMemDebugEnabled() ) {
 			return;
 		}
+		__xrtMemDebugPreferSite(&sFile, &iLine);
 		__xrtMemDebugLock();
 		if ( xCore.MemDebug.iTempCurrentBytes >= pThreadData->tTemp.iCurrentBytes ) {
 			xCore.MemDebug.iTempCurrentBytes -= pThreadData->tTemp.iCurrentBytes;
@@ -227,7 +249,7 @@ static inline void __xrtTempArenaDebugOnReset(xrtThreadData* pThreadData)
 			xCore.MemDebug.iTempCurrentBytes = 0;
 		}
 		xCore.MemDebug.iTempResetCount++;
-		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_RESET, NULL, pThreadData->tTemp.iCurrentBytes, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, NULL, 0);
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_TEMP_RESET, NULL, pThreadData->tTemp.iCurrentBytes, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
 		__xrtMemDebugUnlock();
 	#else
 		(void)pThreadData;

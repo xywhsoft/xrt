@@ -508,6 +508,24 @@ static inline void __xrtMemDebugResolveSite(const char** psFile, uint32* piLine)
 }
 
 
+static inline void __xrtMemDebugPreferSite(const char** psFile, uint32* piLine)
+{
+	xrtThreadData* pThreadData;
+
+	if ( psFile == NULL || piLine == NULL ) {
+		return;
+	}
+
+	pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL || pThreadData->sMemDebugFile == NULL || pThreadData->iMemDebugLine == 0 ) {
+		return;
+	}
+
+	*psFile = pThreadData->sMemDebugFile;
+	*piLine = pThreadData->iMemDebugLine;
+}
+
+
 // 鍐呴儴鍑芥暟锛氳繘鍏ヨ皟璇曡皟鐢ㄤ綅缃綔鐢ㄥ煙
 static inline xrtMemDebugSiteScope __xrtMemDebugEnterSiteScope(const char* sFile, uint32 iLine)
 {
@@ -620,7 +638,7 @@ static inline void __xrtMemDebugSiteOnFreeNoLock(const char* sFile, uint32 iLine
 static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[xCore.MemDebug.iEventCursor];
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugClearFile(&pEvent->sFile);
 	memset(pEvent, 0, sizeof(xrtMemDebugEvent));
 	pEvent->iType = iType;
@@ -715,7 +733,7 @@ static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize,
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	if ( __xrtMemDebugFindForeignNoLock(pAddress, NULL) != NULL ) {
 		__xrtMemDebugUnlock();
@@ -757,7 +775,7 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return FALSE;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
 	if ( pNode == NULL ) {
@@ -840,7 +858,7 @@ static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType,
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
 	if ( pNode == NULL ) {
@@ -882,7 +900,7 @@ static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectT
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return TRUE;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
 	if ( pNode && pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
@@ -904,7 +922,7 @@ static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectTyp
 	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
 		return TRUE;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
 	if ( pNode == NULL || pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
@@ -934,7 +952,7 @@ static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const cha
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	__xrtMemDebugReplaceFile(&pHeader->sAllocFile, sFile);
 	pHeader->iAllocLine = iLine;
@@ -958,7 +976,7 @@ static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	if ( pHeader->iDebugState == XRT_MEMDEBUG_STATE_LIVE ) {
 		__xrtMemDebugDetachLiveNoLock(pHeader);
@@ -979,7 +997,7 @@ static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, 
 	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
 		return;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, iOldSize);
 	__xrtMemDebugReplaceFile(&pHeader->sAllocFile, sFile);
@@ -1001,7 +1019,7 @@ static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, si
 	if ( !__xrtMemDebugEnabled() ) {
 		return;
 	}
-	__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	__xrtMemDebugLock();
 	__xrtMemDebugRecordEventNoLock(iType, pAddress, iSize, iAllocatorKind, sFile, iLine);
 	if ( iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE ) {
@@ -1779,7 +1797,7 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 		return;
 	}
 	#ifdef XRT_MEM_DEBUG
-		__xrtMemDebugResolveSite(&sFile, &iLine);
+	__xrtMemDebugPreferSite(&sFile, &iLine);
 	#endif
 
 	pHeader = __xrtMemGlobalHeaderFromUser(pMem);

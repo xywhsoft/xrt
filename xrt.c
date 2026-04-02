@@ -1,5 +1,8 @@
 
 #define XRT_BUILD_CORE
+#if defined(XRT_MEM_DEBUG)
+	#include "lib/memdebug_site_macros_undef.h"
+#endif
 #include "xrt.h"
 
 
@@ -257,6 +260,9 @@ static void __xrtRuntimeFinalizeLocked();
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 #include "lib/memglobal.h"      // 全局内存池核心
 #include "lib/base.h"           // 核心基础，始终包含
+#if defined(XRT_MEM_DEBUG)
+	#include "lib/memdebug_site_macros_base.h"
+#endif
 #include "lib/string.h"         // 字符串处理，始终包含
 #include "lib/os.h"             // 操作系统接口，始终包含
 #include "lib/hash.h"           // 哈希算法，始终包含
@@ -1470,4 +1476,9 @@ XXAPI void xrtUnit()
 	
 	
 	
+#endif
+
+#if defined(XRT_MEM_DEBUG)
+	#undef XRT_BUILD_CORE
+	#include "lib/memdebug_site_macros_public.h"
 #endif

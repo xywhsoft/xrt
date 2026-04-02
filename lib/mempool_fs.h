@@ -138,6 +138,13 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {
 	ptr pResult = NULL;
+	const char* sDbgFile = NULL;
+	uint32 iDbgLine = 0;
+	#ifdef XRT_MEM_DEBUG
+		sDbgFile = __FILE__;
+		iDbgLine = __LINE__;
+		__xrtMemDebugPreferSite(&sDbgFile, &iDbgLine);
+	#endif
 	if ( !xrtOwnerBeginMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 		return NULL;
 	}
@@ -222,7 +229,7 @@ XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 	}
 	// 从选定内存管理器单元中申请内存块
 	pResult = xrtMemUnitAlloc_Inline(objMMU);
-	__xrtMemDebugRegisterForeignAlloc(pResult, objMM->ItemLength, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, NULL, 0);
+	__xrtMemDebugRegisterForeignAlloc(pResult, objMM->ItemLength, XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL, sDbgFile, iDbgLine);
 	xrtOwnerEndMutable(&objMM->Owner);
 	return pResult;
 }
