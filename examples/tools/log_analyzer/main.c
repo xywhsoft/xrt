@@ -333,10 +333,12 @@ int AnalyzeLogFile(str sFilename, LogFormat eFormat)
 			// Print sample entries
 			// 打印样本条目
 			if ( iParsedEntries <= 5 ) {
+				const char* sLevel = pEntry->sLevel ? (const char*)pEntry->sLevel : "UNKNOWN";
+				const char* sMessage = pEntry->sMessage ? (const char*)pEntry->sMessage : "";
 				printf("Entry %d: [%s] %s\n", 
 				       iParsedEntries,
-				       pEntry->sLevel ? pEntry->sLevel : "UNKNOWN",
-				       pEntry->sMessage ? pEntry->sMessage : "");
+				       sLevel,
+				       sMessage);
 			}
 			
 			// Cleanup entry

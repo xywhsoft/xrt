@@ -31,8 +31,9 @@ void procCriticalError(str sError)
 void procPrintErrorState(str sLabel)
 {
 	str sError = xrtGetError();
+	const char* sText = (sError && sError[0]) ? (const char*)sError : "(empty)";
 
-	printf("%s: %s\n", sLabel, (sError && sError[0]) ? sError : "(empty)");
+	printf("%s: %s\n", sLabel, sText);
 }
 
 

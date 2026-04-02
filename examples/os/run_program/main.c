@@ -209,19 +209,23 @@ void TestPracticalUseCases()
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		str sOutput = (str)xrtRun("cmd /c echo %OS%", 0);
-		printf("  OS: %s", sOutput ? sOutput : "(unknown)");
+		const char* sText = sOutput ? (const char*)sOutput : "(unknown)";
+		printf("  OS: %s", sText);
 		if ( sOutput ) xrtFree(sOutput);
 		
 		sOutput = (str)xrtRun("cmd /c echo %PROCESSOR_ARCHITECTURE%", 0);
-		printf("  Arch: %s", sOutput ? sOutput : "(unknown)");
+		sText = sOutput ? (const char*)sOutput : "(unknown)";
+		printf("  Arch: %s", sText);
 		if ( sOutput ) xrtFree(sOutput);
 	#else
 		str sOutput = (str)xrtRun("uname -s", 0);
-		printf("  OS: %s", sOutput ? sOutput : "(unknown)");
+		const char* sText = sOutput ? (const char*)sOutput : "(unknown)";
+		printf("  OS: %s", sText);
 		if ( sOutput ) xrtFree(sOutput);
 		
 		sOutput = (str)xrtRun("uname -m", 0);
-		printf("  Arch: %s", sOutput ? sOutput : "(unknown)");
+		sText = sOutput ? (const char*)sOutput : "(unknown)";
+		printf("  Arch: %s", sText);
 		if ( sOutput ) xrtFree(sOutput);
 	#endif
 	

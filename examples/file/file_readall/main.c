@@ -184,10 +184,11 @@ void TestErrorHandling()
 	
 	if ( sContent == NULL ) {
 		str sError = xrtGetError();
+		const char* sText = (sError && sError[0]) ? (const char*)sError : "(empty)";
 
 		printf("Correctly returned NULL for non-existent file.\n");
 		printf("对不存在的文件正确返回 NULL。\n");
-		printf("LastError: %s\n", (sError && sError[0]) ? sError : "(empty)");
+		printf("LastError: %s\n", sText);
 	} else {
 		printf("Unexpected: got content from non-existent file.\n");
 		xrtFree(sContent);

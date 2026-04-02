@@ -21,7 +21,7 @@
 
 static void DemoHex(void)
 {
-	const uint8 arrBytes[] = { 0x41, 0x42, 0x43, 0x00, 0x7F, 0x80, 0xFF };
+	uint8 arrBytes[] = { 0x41, 0x42, 0x43, 0x00, 0x7F, 0x80, 0xFF };
 	str sHex = xrtHexEncode(arrBytes, sizeof(arrBytes));
 	str sDecoded = xrtHexDecode(sHex, strlen(sHex));
 

@@ -65,6 +65,7 @@ void procTestRefCount(void)
 void procTestErrorHook(void)
 {
 	str sError = NULL;
+	const char* sText = NULL;
 
 	printf("=== Error Hook ===\n");
 	printf("=== 错误回调 ===\n");
@@ -74,8 +75,9 @@ void procTestErrorHook(void)
 	xrtSetError("test error message", FALSE);
 
 	sError = xrtGetError();
-	printf("xrtGetError() = %s\n", (sError && sError[0]) ? sError : "(empty)");
-	printf("xrtGetError() = %s\n\n", (sError && sError[0]) ? sError : "(empty)");
+	sText = (sError && sError[0]) ? (const char*)sError : "(empty)";
+	printf("xrtGetError() = %s\n", sText);
+	printf("xrtGetError() = %s\n\n", sText);
 
 	xrtClearError();
 	xCore.OnError = NULL;
