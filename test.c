@@ -100,6 +100,7 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 #include "test/test_time.h"
 #include "test/test_file.h"
 #include "test/test_file_core.h"
+#include "test/test_file_dirscan_contract.h"
 #ifndef XRT_NO_NETWORK
 	#include "test/test_file_async.h"
 #endif
@@ -281,6 +282,7 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_Path, Test_Path)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Time, Test_Time)
 XRT_TEST_WRAP_CORE(__xrtTestRun_File, Test_File)
 XRT_TEST_WRAP_CORE(__xrtTestRun_FileCore, Test_FileCore)
+XRT_TEST_WRAP_CORE(__xrtTestRun_DirScanContract, Test_FileDirScanContract)
 #ifndef XRT_NO_NETWORK
 	XRT_TEST_WRAP_CORE(__xrtTestRun_FileAsync, Test_FileAsync)
 #endif
@@ -461,6 +463,7 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	{ "time", "Time", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Time },
 	{ "file", "File", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_File },
 	{ "file_core", "File Core", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_FileCore },
+	{ "dirscan_contract", "DirScan Contract", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_DirScanContract },
 	#ifndef XRT_NO_NETWORK
 		{ "file_async", "File Async", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_FileAsync },
 	#endif
@@ -567,6 +570,7 @@ static const char* __g_arrPresetRuntimeSmoke[] = {
 	"os",
 	"time",
 	"file",
+	"dirscan_contract",
 	#ifndef XRT_NO_NETWORK
 		"file_async",
 	#endif

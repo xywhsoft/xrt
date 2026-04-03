@@ -2238,7 +2238,8 @@
 	XXAPI bool xrtFileDelete(str sPath);
 	
 	// 扫描文件夹 ( 返回文件数量 )
-	XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);
+	typedef int (*xrtDirScanProc)(str sPath, size_t iSize, int bDir, ptr pData, ptr Param);
+	XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param);
 	
 	// 创建文件夹
 	XXAPI bool xrtDirCreate(str sPath);

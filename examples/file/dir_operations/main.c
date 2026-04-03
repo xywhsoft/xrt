@@ -22,9 +22,12 @@
 
 // Callback for directory scanning
 // 目录扫描回调
-int PrintFileCallback(str sPath, int bIsDir, ptr pParam)
+int PrintFileCallback(str sPath, size_t iSize, int bDir, ptr pData, ptr pParam)
 {
-	printf("  %s %s\n", bIsDir ? "[DIR]" : "[FILE]", sPath);
+	(void)iSize;
+	(void)pData;
+	(void)pParam;
+	printf("  %s %s\n", bDir ? "[DIR]" : "[FILE]", sPath);
 	return 0;  // Continue scanning
 }
 
@@ -67,11 +70,11 @@ void TestDirScan()
 	
 	printf("Non-recursive scan of examples/bin/scan_test:\n");
 	printf("非递归扫描 examples/bin/scan_test:\n");
-	xrtDirScan("examples/bin/scan_test", FALSE, (ptr)PrintFileCallback, NULL);
+	xrtDirScan("examples/bin/scan_test", FALSE, PrintFileCallback, NULL);
 	
 	printf("\nRecursive scan:\n");
 	printf("递归扫描:\n");
-	xrtDirScan("examples/bin/scan_test", TRUE, (ptr)PrintFileCallback, NULL);
+	xrtDirScan("examples/bin/scan_test", TRUE, PrintFileCallback, NULL);
 	printf("\n");
 }
 
@@ -97,7 +100,7 @@ void TestDirCopy()
 	if ( bResult ) {
 		printf("\nContents of copy:\n");
 		printf("副本内容:\n");
-		xrtDirScan(sDst, TRUE, (ptr)PrintFileCallback, NULL);
+		xrtDirScan(sDst, TRUE, PrintFileCallback, NULL);
 	}
 	printf("\n");
 }
@@ -159,7 +162,7 @@ void TestPracticalUseCases()
 	
 	printf("\nProject structure:\n");
 	printf("项目结构:\n");
-	xrtDirScan("examples/bin/project", TRUE, (ptr)PrintFileCallback, NULL);
+	xrtDirScan("examples/bin/project", TRUE, PrintFileCallback, NULL);
 	printf("\n");
 	
 	// Clean up
