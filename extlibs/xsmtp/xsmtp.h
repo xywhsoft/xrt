@@ -218,6 +218,27 @@ static void xrtSmtpResultFree(xsmtpresult* pRet)
 	}
 }
 
+static void xsmtp_stream_close_destroy(xnetstream** ppStream, uint32 iTimeoutMs)
+{
+	xnetstream* pStream;
+
+	if ( ppStream == NULL || *ppStream == NULL ) {
+		return;
+	}
+
+	pStream = *ppStream;
+	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+	(void)xrtNetStreamWaitTimeoutEx(pStream, XNET_STREAM_WAIT_CLOSE, iTimeoutMs > 0 ? iTimeoutMs : 1000u);
+	if ( xrtGetError() ) {
+		xrtClearError();
+	}
+	xrtNetStreamDestroy(pStream);
+	if ( xrtGetError() ) {
+		xrtClearError();
+	}
+	*ppStream = NULL;
+}
+
 static const char* xsmtp_str_or_empty(const char* sText)
 {
 	return sText ? sText : "";
@@ -738,7 +759,7 @@ static str xsmtp_encode_header_word(const char* sText)
 	if ( sBase64 == NULL ) {
 		return NULL;
 	}
-	iNeed = strlen((const char*)sBase64) + 12;
+	iNeed = strlen((const char*)sBase64) + 13;
 	sOut = (str)xrtMalloc(iNeed);
 	if ( sOut ) {
 		snprintf((char*)sOut, iNeed, "=?UTF-8?B?%s?=", (const char*)sBase64);
@@ -898,17 +919,44 @@ static str xsmtp_rfc2822_date(void)
 {
 	time_t tNow;
 	struct tm tmNow;
+	struct tm tmUtc;
 	char sBuf[80];
+	long iOffsetSec;
+	char cSign = '+';
+	int iOffsetHour;
+	int iOffsetMin;
+	static const char* const arrWeekday[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+	static const char* const arrMonth[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
 	time(&tNow);
 #if defined(_WIN32) || defined(_WIN64)
 	localtime_s(&tmNow, &tNow);
+	gmtime_s(&tmUtc, &tNow);
 #else
 	localtime_r(&tNow, &tmNow);
+	gmtime_r(&tNow, &tmUtc);
 #endif
-	if ( strftime(sBuf, sizeof(sBuf), "%a, %d %b %Y %H:%M:%S %z", &tmNow) == 0 ) {
+	iOffsetSec = (long)difftime(mktime(&tmNow), mktime(&tmUtc));
+	if ( iOffsetSec < 0 ) {
+		cSign = '-';
+		iOffsetSec = -iOffsetSec;
+	}
+	iOffsetHour = (int)(iOffsetSec / 3600);
+	iOffsetMin = (int)((iOffsetSec % 3600) / 60);
+	if ( tmNow.tm_wday < 0 || tmNow.tm_wday > 6 || tmNow.tm_mon < 0 || tmNow.tm_mon > 11 ) {
 		return xrtCopyStr((str)"", 0);
 	}
+	snprintf(sBuf, sizeof(sBuf), "%s, %02d %s %04d %02d:%02d:%02d %c%02d%02d",
+		arrWeekday[tmNow.tm_wday],
+		tmNow.tm_mday,
+		arrMonth[tmNow.tm_mon],
+		tmNow.tm_year + 1900,
+		tmNow.tm_hour,
+		tmNow.tm_min,
+		tmNow.tm_sec,
+		cSign,
+		iOffsetHour,
+		iOffsetMin);
 	return xrtCopyStr((str)sBuf, 0);
 }
 
@@ -942,14 +990,124 @@ static str xsmtp_build_body_payload(const char* sBody)
 	return sOut;
 }
 
-static bool xsmtp_append_body_headers(xsmtpbuf* pBuf, const char* sContentType, const char* sPayload)
+static bool xsmtp_is_7bit_safe_text(const char* sText)
+{
+	const unsigned char* p = (const unsigned char*)xsmtp_str_or_empty(sText);
+	for ( ; *p; ++p ) {
+		if ( *p == '\r' || *p == '\n' || *p == '\t' ) {
+			continue;
+		}
+		if ( *p < 32 || *p > 126 ) {
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static str xsmtp_build_quoted_printable(const char* sText)
+{
+	static const char sHex[] = "0123456789ABCDEF";
+	xsmtpbuf tBuf;
+	const unsigned char* p = (const unsigned char*)xsmtp_str_or_empty(sText);
+	size_t iLineLen = 0;
+
+	memset(&tBuf, 0, sizeof(tBuf));
+	while ( *p ) {
+		unsigned char c = *p++;
+		char aEnc[3];
+		size_t iNeed = 1;
+		const char* sAppend = NULL;
+
+		if ( c == '\r' ) {
+			if ( *p == '\n' ) {
+				++p;
+			}
+			if ( !xsmtp_buf_append(&tBuf, "\r\n") ) {
+				xsmtp_buf_unit(&tBuf);
+				return NULL;
+			}
+			iLineLen = 0;
+			continue;
+		}
+		if ( c == '\n' ) {
+			if ( !xsmtp_buf_append(&tBuf, "\r\n") ) {
+				xsmtp_buf_unit(&tBuf);
+				return NULL;
+			}
+			iLineLen = 0;
+			continue;
+		}
+		if ( (c >= 33 && c <= 60) || (c >= 62 && c <= 126) ) {
+			aEnc[0] = (char)c;
+			aEnc[1] = '\0';
+			sAppend = aEnc;
+			iNeed = 1;
+		} else {
+			aEnc[0] = '=';
+			aEnc[1] = sHex[(c >> 4) & 0x0F];
+			aEnc[2] = sHex[c & 0x0F];
+			sAppend = aEnc;
+			iNeed = 3;
+		}
+		if ( iLineLen + iNeed > 72 ) {
+			if ( !xsmtp_buf_append(&tBuf, "=\r\n") ) {
+				xsmtp_buf_unit(&tBuf);
+				return NULL;
+			}
+			iLineLen = 0;
+		}
+		if ( !xsmtp_buf_append_n(&tBuf, sAppend, iNeed) ) {
+			xsmtp_buf_unit(&tBuf);
+			return NULL;
+		}
+		iLineLen += iNeed;
+	}
+
+	if ( tBuf.sData == NULL ) {
+		return xrtCopyStr((str)"", 0);
+	}
+	return (str)tBuf.sData;
+}
+
+static str xsmtp_build_body_payload_ex(const char* sBody, const char* sContentType, const char** psEncoding)
+{
+	str sNorm;
+	str sOut;
+
+	if ( psEncoding ) {
+		*psEncoding = "base64";
+	}
+	sNorm = xsmtp_normalize_crlf(sBody);
+	if ( sNorm == NULL ) {
+		return NULL;
+	}
+	if ( xsmtp_is_7bit_safe_text((const char*)sNorm) ) {
+		if ( psEncoding ) {
+			*psEncoding = "7bit";
+		}
+		return sNorm;
+	}
+	if ( sContentType && strcmp(sContentType, "text/plain") == 0 ) {
+		if ( psEncoding ) {
+			*psEncoding = "quoted-printable";
+		}
+		sOut = xsmtp_build_quoted_printable((const char*)sNorm);
+		xrtFree(sNorm);
+		return sOut;
+	}
+	sOut = xsmtp_base64_wrap((const void*)sNorm, strlen((const char*)sNorm));
+	xrtFree(sNorm);
+	return sOut;
+}
+
+static bool xsmtp_append_body_headers(xsmtpbuf* pBuf, const char* sContentType, const char* sTransferEncoding, const char* sPayload)
 {
 	return xsmtp_buf_appendf(pBuf,
 		"Content-Type: %s; charset=UTF-8\r\n"
-		"Content-Transfer-Encoding: base64\r\n"
+		"Content-Transfer-Encoding: %s\r\n"
 		"\r\n"
-		"%s",
-		sContentType, xsmtp_str_or_empty(sPayload));
+		"%s\r\n",
+		sContentType, xsmtp_str_or_empty(sTransferEncoding), xsmtp_str_or_empty(sPayload));
 }
 
 static str xsmtp_build_message_data(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg)
@@ -965,6 +1123,8 @@ static str xsmtp_build_message_data(const xsmtpconfig* pCfg, const xsmtpmessage*
 	str sTextPayload = NULL;
 	str sHtmlPayload = NULL;
 	bool bOK = FALSE;
+	const char* sTextEncoding = "base64";
+	const char* sHtmlEncoding = "base64";
 
 	memset(&tBuf, 0, sizeof(tBuf));
 
@@ -1007,23 +1167,23 @@ static str xsmtp_build_message_data(const xsmtpconfig* pCfg, const xsmtpmessage*
 	if ( pMsg->sTextBody && pMsg->sTextBody[0] && pMsg->sHtmlBody && pMsg->sHtmlBody[0] ) {
 		char sBoundary[49];
 		xsmtp_random_hex(sBoundary, sizeof(sBoundary), 24);
-		sTextPayload = xsmtp_build_body_payload(pMsg->sTextBody);
-		sHtmlPayload = xsmtp_build_body_payload(pMsg->sHtmlBody);
+		sTextPayload = xsmtp_build_body_payload_ex(pMsg->sTextBody, "text/plain", &sTextEncoding);
+		sHtmlPayload = xsmtp_build_body_payload_ex(pMsg->sHtmlBody, "text/html", &sHtmlEncoding);
 		if ( sTextPayload == NULL || sHtmlPayload == NULL ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "Content-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n", sBoundary) ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "--%s\r\n", sBoundary) ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", (const char*)sTextPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", sTextEncoding, (const char*)sTextPayload) ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "--%s\r\n", sBoundary) ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/html", (const char*)sHtmlPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/html", sHtmlEncoding, (const char*)sHtmlPayload) ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "--%s--\r\n", sBoundary) ) goto cleanup;
 	} else if ( pMsg->sHtmlBody && pMsg->sHtmlBody[0] ) {
-		sHtmlPayload = xsmtp_build_body_payload(pMsg->sHtmlBody);
+		sHtmlPayload = xsmtp_build_body_payload_ex(pMsg->sHtmlBody, "text/html", &sHtmlEncoding);
 		if ( sHtmlPayload == NULL ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/html", (const char*)sHtmlPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/html", sHtmlEncoding, (const char*)sHtmlPayload) ) goto cleanup;
 	} else {
-		sTextPayload = xsmtp_build_body_payload(xsmtp_str_or_empty(pMsg->sTextBody));
+		sTextPayload = xsmtp_build_body_payload_ex(xsmtp_str_or_empty(pMsg->sTextBody), "text/plain", &sTextEncoding);
 		if ( sTextPayload == NULL ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", (const char*)sTextPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", sTextEncoding, (const char*)sTextPayload) ) goto cleanup;
 	}
 
 	bOK = TRUE;
@@ -1445,9 +1605,7 @@ static bool xsmtp_stream_connect(xsmtpsession* pSess, const xsmtpconfig* pCfg, i
 				return TRUE;
 			}
 			if ( pSess->pStream ) {
-				xrtNetStreamClose(pSess->pStream, XNET_CLOSE_F_ABORT);
-				xrtNetStreamDestroy(pSess->pStream);
-				pSess->pStream = NULL;
+				xsmtp_stream_close_destroy(&pSess->pStream, pSess->iTimeoutMs);
 			}
 			if ( pSess->pEngine ) {
 				xrtNetEngineDestroy(pSess->pEngine);
@@ -1474,9 +1632,7 @@ static void xsmtp_session_close(xsmtpsession* pSess)
 		pSess->pTls = NULL;
 	}
 	if ( pSess->pStream ) {
-		xrtNetStreamClose(pSess->pStream, XNET_CLOSE_F_ABORT);
-		xrtNetStreamDestroy(pSess->pStream);
-		pSess->pStream = NULL;
+		xsmtp_stream_close_destroy(&pSess->pStream, pSess->iTimeoutMs);
 	}
 	if ( pSess->pEngine ) {
 		if ( pSess->bOwnEngine ) {
@@ -3152,7 +3308,7 @@ static xfuture* xrtSmtpSendMailFuture(const xsmtpconfig* pCfg, const xsmtpmessag
 	if ( pCfg == NULL || pMsg == NULL ) {
 		return NULL;
 	}
-	return xsmtp_send_mail_future_native(pCfg, pMsg, pOpts);
+	return xsmtp_send_mail_future_thread(pCfg, pMsg, pOpts);
 }
 
 static bool xrtSmtpSendMailCo(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, xsmtpresult* pOut)
