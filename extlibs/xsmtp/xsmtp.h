@@ -15,6 +15,12 @@
 #include <arpa/inet.h>
 #endif
 
+#if defined(XSMTP_DEBUG)
+#define XSMTP_TRACE(...) do { fprintf(stderr, "[xsmtp] "); fprintf(stderr, __VA_ARGS__); fprintf(stderr, "\n"); fflush(stderr); } while (0)
+#else
+#define XSMTP_TRACE(...) ((void)0)
+#endif
+
 #define XSMTP_SECURE_AUTO      0
 #define XSMTP_SECURE_NONE      1
 #define XSMTP_SECURE_SSL       2
@@ -28,6 +34,8 @@
 #define XSMTP_CAP_AUTH_PLAIN   0x0001u
 #define XSMTP_CAP_AUTH_LOGIN   0x0002u
 #define XSMTP_CAP_STARTTLS     0x0004u
+
+typedef struct xsmtpsession_struct xsmtpsession;
 
 typedef struct {
 	const char* sEmail;
@@ -78,20 +86,92 @@ typedef struct {
 } xsmtpresult;
 
 typedef struct {
+	uint32 iTimeoutMs;
+	xnetengine* pEngine;
+	const char* sDebugName;
+} xsmtpasyncopts;
+
+typedef struct {
 	char* sData;
 	size_t iLen;
 	size_t iCap;
 } xsmtpbuf;
 
 typedef struct {
-	xsocket hSocket;
+	xsmtpconfig tCfg;
+	xsmtpmessage tMsg;
+	xsmtpresult* pRet;
+	xsmtpaddr* arrTo;
+	xsmtpaddr* arrCc;
+	xsmtpaddr* arrBcc;
+	char** arrHeaderNames;
+	char** arrHeaderValues;
+} xsmtptaskctx;
+
+typedef enum {
+	XSMTP_AST_NONE = 0,
+	XSMTP_AST_WAIT_BANNER,
+	XSMTP_AST_WAIT_EHLO,
+	XSMTP_AST_WAIT_STARTTLS,
+	XSMTP_AST_WAIT_STARTTLS_TLS,
+	XSMTP_AST_WAIT_EHLO_TLS,
+	XSMTP_AST_WAIT_AUTH,
+	XSMTP_AST_WAIT_AUTH_LOGIN_USER,
+	XSMTP_AST_WAIT_AUTH_LOGIN_PASS,
+	XSMTP_AST_WAIT_MAIL_FROM,
+	XSMTP_AST_WAIT_RCPT,
+	XSMTP_AST_WAIT_DATA,
+	XSMTP_AST_WAIT_BODY,
+	XSMTP_AST_WAIT_QUIT
+} xsmtpasyncstate;
+
+typedef struct {
+	xnetengine* pEngine;
+	xnetstream* pStream;
+	xpromise* pPromise;
+	xsmtptaskctx* pCtx;
+	xsmtpresult* pRet;
+	xsmtpsession* pSess;
+	xsmtpbuf tReply;
+	xsmtpbuf tScratch;
+	int iReplyCode;
+	uint32 iReplyCaps;
+	bool bReplyHasFirst;
+	bool bDone;
+	bool bUsingNative;
+	uint32 iWaitToken;
+	xsmtpasyncstate iState;
+	uint32 iCapabilities;
+	int iAuthMode;
+	size_t iRcptIndex;
+	int iRcptListKind;
+	xtlsconfig tTlsCfg;
+} xsmtpasyncop;
+
+typedef struct xsmtpsession_struct {
+	xnetengine* pEngine;
+	xnetstream* pStream;
 	xtlssession* pTls;
+	xmutex pLock;
+	xcond pCond;
+	bool bOwnEngine;
+	bool bOpen;
+	bool bClosed;
+	bool bStreamTls;
 	bool bTlsReady;
-	bool bOwnSocket;
+	bool bRecvOverflow;
+	int iCloseReason;
+	int iLastSysErr;
 	uint32 iTimeoutMs;
+	xsmtpbuf tWireRecv;
 	char aRecv[32768];
 	size_t iRecvLen;
 } xsmtpsession;
+
+static bool xsmtp_buf_reserve(xsmtpbuf* pBuf, size_t iNeed);
+static bool xsmtp_buf_append_n(xsmtpbuf* pBuf, const char* sText, size_t iLen);
+static bool xsmtp_buf_append(xsmtpbuf* pBuf, const char* sText);
+static void xsmtp_buf_unit(xsmtpbuf* pBuf);
 
 static void xrtSmtpConfigInit(xsmtpconfig* pCfg)
 {
@@ -123,9 +203,165 @@ static void xrtSmtpResultInit(xsmtpresult* pRet)
 	memset(pRet, 0, sizeof(*pRet));
 }
 
+static void xrtSmtpAsyncOptsInit(xsmtpasyncopts* pOpts)
+{
+	if ( pOpts == NULL ) {
+		return;
+	}
+	memset(pOpts, 0, sizeof(*pOpts));
+}
+
+static void xrtSmtpResultFree(xsmtpresult* pRet)
+{
+	if ( pRet != NULL ) {
+		xrtFree(pRet);
+	}
+}
+
 static const char* xsmtp_str_or_empty(const char* sText)
 {
 	return sText ? sText : "";
+}
+
+static char* xsmtp_dup_text(const char* sText)
+{
+	size_t iLen;
+	char* sCopy;
+
+	if ( sText == NULL ) {
+		return NULL;
+	}
+	iLen = strlen(sText);
+	sCopy = (char*)xrtMalloc(iLen + 1);
+	if ( sCopy == NULL ) {
+		return NULL;
+	}
+	memcpy(sCopy, sText, iLen + 1);
+	return sCopy;
+}
+
+static bool xsmtp_copy_addr(xsmtpaddr* pDst, const xsmtpaddr* pSrc)
+{
+	memset(pDst, 0, sizeof(*pDst));
+	if ( pSrc == NULL ) {
+		return TRUE;
+	}
+	if ( pSrc->sEmail != NULL ) {
+		pDst->sEmail = xsmtp_dup_text(pSrc->sEmail);
+		if ( pDst->sEmail == NULL ) {
+			return FALSE;
+		}
+	}
+	if ( pSrc->sName != NULL ) {
+		pDst->sName = xsmtp_dup_text(pSrc->sName);
+		if ( pDst->sName == NULL ) {
+			xrtFree((ptr)pDst->sEmail);
+			pDst->sEmail = NULL;
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static void xsmtp_free_addr(xsmtpaddr* pAddr)
+{
+	if ( pAddr == NULL ) {
+		return;
+	}
+	if ( pAddr->sEmail != NULL ) {
+		xrtFree((ptr)pAddr->sEmail);
+	}
+	if ( pAddr->sName != NULL ) {
+		xrtFree((ptr)pAddr->sName);
+	}
+	memset(pAddr, 0, sizeof(*pAddr));
+}
+
+static xsmtpaddr* xsmtp_dup_addr_list(const xsmtpaddr* arrSrc, size_t iCount)
+{
+	xsmtpaddr* arrDst;
+	size_t i;
+
+	if ( arrSrc == NULL || iCount == 0 ) {
+		return NULL;
+	}
+	arrDst = (xsmtpaddr*)xrtMalloc(sizeof(xsmtpaddr) * iCount);
+	if ( arrDst == NULL ) {
+		return NULL;
+	}
+	memset(arrDst, 0, sizeof(xsmtpaddr) * iCount);
+	for ( i = 0; i < iCount; ++i ) {
+		if ( !xsmtp_copy_addr(&arrDst[i], &arrSrc[i]) ) {
+			while ( i > 0 ) {
+				--i;
+				xsmtp_free_addr(&arrDst[i]);
+			}
+			xrtFree(arrDst);
+			return NULL;
+		}
+	}
+	return arrDst;
+}
+
+static void xsmtp_free_addr_list(xsmtpaddr* arrList, size_t iCount)
+{
+	size_t i;
+
+	if ( arrList == NULL ) {
+		return;
+	}
+	for ( i = 0; i < iCount; ++i ) {
+		xsmtp_free_addr(&arrList[i]);
+	}
+	xrtFree(arrList);
+}
+
+static bool xsmtp_copy_text_list(char*** ppDst, const char* const* arrSrc, size_t iCount)
+{
+	char** arrDst;
+	size_t i;
+
+	*ppDst = NULL;
+	if ( arrSrc == NULL || iCount == 0 ) {
+		return TRUE;
+	}
+	arrDst = (char**)xrtMalloc(sizeof(char*) * iCount);
+	if ( arrDst == NULL ) {
+		return FALSE;
+	}
+	memset(arrDst, 0, sizeof(char*) * iCount);
+	for ( i = 0; i < iCount; ++i ) {
+		if ( arrSrc[i] != NULL ) {
+			arrDst[i] = xsmtp_dup_text(arrSrc[i]);
+			if ( arrDst[i] == NULL ) {
+				while ( i > 0 ) {
+					--i;
+					if ( arrDst[i] != NULL ) {
+						xrtFree(arrDst[i]);
+					}
+				}
+				xrtFree(arrDst);
+				return FALSE;
+			}
+		}
+	}
+	*ppDst = arrDst;
+	return TRUE;
+}
+
+static void xsmtp_free_text_list(char** arrText, size_t iCount)
+{
+	size_t i;
+
+	if ( arrText == NULL ) {
+		return;
+	}
+	for ( i = 0; i < iCount; ++i ) {
+		if ( arrText[i] != NULL ) {
+			xrtFree(arrText[i]);
+		}
+	}
+	xrtFree(arrText);
 }
 
 static void xsmtp_result_error(xsmtpresult* pRet, const char* sError)
@@ -135,6 +371,193 @@ static void xsmtp_result_error(xsmtpresult* pRet, const char* sError)
 	}
 	pRet->bSuccess = FALSE;
 	snprintf(pRet->sError, sizeof(pRet->sError), "%s", xsmtp_str_or_empty(sError));
+}
+
+static void xsmtp_task_ctx_free(xsmtptaskctx* pCtx)
+{
+	if ( pCtx == NULL ) {
+		return;
+	}
+	xsmtp_free_addr(&pCtx->tCfg.tFrom);
+	xsmtp_free_addr(&pCtx->tCfg.tReplyTo);
+	if ( pCtx->tCfg.sHost != NULL ) {
+		xrtFree((ptr)pCtx->tCfg.sHost);
+	}
+	if ( pCtx->tCfg.sUser != NULL ) {
+		xrtFree((ptr)pCtx->tCfg.sUser);
+	}
+	if ( pCtx->tCfg.sPass != NULL ) {
+		xrtFree((ptr)pCtx->tCfg.sPass);
+	}
+	if ( pCtx->tCfg.sHeloName != NULL ) {
+		xrtFree((ptr)pCtx->tCfg.sHeloName);
+	}
+	xsmtp_free_addr(&pCtx->tMsg.tFrom);
+	xsmtp_free_addr(&pCtx->tMsg.tReplyTo);
+	xsmtp_free_addr_list(pCtx->arrTo, pCtx->tMsg.iToCount);
+	xsmtp_free_addr_list(pCtx->arrCc, pCtx->tMsg.iCcCount);
+	xsmtp_free_addr_list(pCtx->arrBcc, pCtx->tMsg.iBccCount);
+	xsmtp_free_text_list(pCtx->arrHeaderNames, pCtx->tMsg.iHeaderCount);
+	xsmtp_free_text_list(pCtx->arrHeaderValues, pCtx->tMsg.iHeaderCount);
+	if ( pCtx->tMsg.sSubject != NULL ) {
+		xrtFree((ptr)pCtx->tMsg.sSubject);
+	}
+	if ( pCtx->tMsg.sTextBody != NULL ) {
+		xrtFree((ptr)pCtx->tMsg.sTextBody);
+	}
+	if ( pCtx->tMsg.sHtmlBody != NULL ) {
+		xrtFree((ptr)pCtx->tMsg.sHtmlBody);
+	}
+	xrtFree(pCtx);
+}
+
+static xsmtptaskctx* xsmtp_task_ctx_create(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, const xsmtpasyncopts* pOpts)
+{
+	xsmtptaskctx* pCtx;
+
+	if ( pCfg == NULL || pMsg == NULL ) {
+		return NULL;
+	}
+
+	pCtx = (xsmtptaskctx*)xrtMalloc(sizeof(*pCtx));
+	if ( pCtx == NULL ) {
+		return NULL;
+	}
+	memset(pCtx, 0, sizeof(*pCtx));
+
+	pCtx->tCfg = *pCfg;
+	pCtx->tMsg = *pMsg;
+	pCtx->tCfg.sHost = xsmtp_dup_text(pCfg->sHost);
+	pCtx->tCfg.sUser = xsmtp_dup_text(pCfg->sUser);
+	pCtx->tCfg.sPass = xsmtp_dup_text(pCfg->sPass);
+	pCtx->tCfg.sHeloName = xsmtp_dup_text(pCfg->sHeloName);
+	if ( !xsmtp_copy_addr(&pCtx->tCfg.tFrom, &pCfg->tFrom) ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( !xsmtp_copy_addr(&pCtx->tCfg.tReplyTo, &pCfg->tReplyTo) ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( pCfg->sHost != NULL && pCtx->tCfg.sHost == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( pCfg->sUser != NULL && pCtx->tCfg.sUser == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( pCfg->sPass != NULL && pCtx->tCfg.sPass == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( pCfg->sHeloName != NULL && pCtx->tCfg.sHeloName == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+
+	if ( pOpts != NULL && pOpts->iTimeoutMs > 0 ) {
+		pCtx->tCfg.iTimeoutMs = pOpts->iTimeoutMs;
+	}
+
+	if ( !xsmtp_copy_addr(&pCtx->tMsg.tFrom, &pMsg->tFrom) ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( !xsmtp_copy_addr(&pCtx->tMsg.tReplyTo, &pMsg->tReplyTo) ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	pCtx->arrTo = xsmtp_dup_addr_list(pMsg->arrTo, pMsg->iToCount);
+	pCtx->arrCc = xsmtp_dup_addr_list(pMsg->arrCc, pMsg->iCcCount);
+	pCtx->arrBcc = xsmtp_dup_addr_list(pMsg->arrBcc, pMsg->iBccCount);
+	if ( (pMsg->iToCount > 0 && pCtx->arrTo == NULL)
+		|| (pMsg->iCcCount > 0 && pCtx->arrCc == NULL)
+		|| (pMsg->iBccCount > 0 && pCtx->arrBcc == NULL) ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	pCtx->tMsg.arrTo = pCtx->arrTo;
+	pCtx->tMsg.arrCc = pCtx->arrCc;
+	pCtx->tMsg.arrBcc = pCtx->arrBcc;
+
+	pCtx->tMsg.sSubject = xsmtp_dup_text(pMsg->sSubject);
+	pCtx->tMsg.sTextBody = xsmtp_dup_text(pMsg->sTextBody);
+	pCtx->tMsg.sHtmlBody = xsmtp_dup_text(pMsg->sHtmlBody);
+	if ( (pMsg->sSubject != NULL && pCtx->tMsg.sSubject == NULL)
+		|| (pMsg->sTextBody != NULL && pCtx->tMsg.sTextBody == NULL)
+		|| (pMsg->sHtmlBody != NULL && pCtx->tMsg.sHtmlBody == NULL) ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+
+	if ( !xsmtp_copy_text_list(&pCtx->arrHeaderNames, pMsg->arrHeaderNames, pMsg->iHeaderCount)
+		|| !xsmtp_copy_text_list(&pCtx->arrHeaderValues, pMsg->arrHeaderValues, pMsg->iHeaderCount) ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	pCtx->tMsg.arrHeaderNames = (const char* const*)pCtx->arrHeaderNames;
+	pCtx->tMsg.arrHeaderValues = (const char* const*)pCtx->arrHeaderValues;
+
+	return pCtx;
+}
+
+static bool xsmtp_try_read_line_from_buffer(xsmtpsession* pSess, char* sOut, size_t iOutCap)
+{
+	size_t i;
+
+	if ( pSess == NULL || sOut == NULL || iOutCap == 0 ) {
+		return FALSE;
+	}
+	for ( i = 0; i + 1 < pSess->iRecvLen; ++i ) {
+		if ( pSess->aRecv[i] == '\r' && pSess->aRecv[i + 1] == '\n' ) {
+			size_t iCopy = i;
+			if ( iCopy >= iOutCap ) {
+				iCopy = iOutCap - 1;
+			}
+			memcpy(sOut, pSess->aRecv, iCopy);
+			sOut[iCopy] = '\0';
+			memmove(pSess->aRecv, pSess->aRecv + i + 2, pSess->iRecvLen - (i + 2));
+			pSess->iRecvLen -= (i + 2);
+			pSess->aRecv[pSess->iRecvLen] = '\0';
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+static char* xsmtp_build_data_body_bytes(const char* sData)
+{
+	xsmtpbuf tBuf;
+	const char* p;
+
+	memset(&tBuf, 0, sizeof(tBuf));
+	if ( !xsmtp_buf_reserve(&tBuf, strlen(xsmtp_str_or_empty(sData)) + 16) ) {
+		return NULL;
+	}
+	for ( p = xsmtp_str_or_empty(sData); *p; ) {
+		const char* sLineEnd = strstr(p, "\r\n");
+		size_t iLineLen = sLineEnd ? (size_t)(sLineEnd - p) : strlen(p);
+		if ( iLineLen > 0 && p[0] == '.' ) {
+			if ( !xsmtp_buf_append(&tBuf, ".") ) {
+				xsmtp_buf_unit(&tBuf);
+				return NULL;
+			}
+		}
+		if ( !xsmtp_buf_append_n(&tBuf, p, iLineLen) || !xsmtp_buf_append(&tBuf, "\r\n") ) {
+			xsmtp_buf_unit(&tBuf);
+			return NULL;
+		}
+		if ( !sLineEnd ) {
+			break;
+		}
+		p = sLineEnd + 2;
+	}
+	if ( !xsmtp_buf_append(&tBuf, ".\r\n") ) {
+		xsmtp_buf_unit(&tBuf);
+		return NULL;
+	}
+	return tBuf.sData;
 }
 
 static bool xsmtp_starts_with_i(const char* sText, const char* sPrefix)
@@ -306,7 +729,7 @@ static str xsmtp_encode_header_word(const char* sText)
 	size_t iNeed;
 
 	if ( sText == NULL ) {
-		return xrtCopyStr("", 0);
+		return xrtCopyStr((str)"", 0);
 	}
 	if ( !xsmtp_has_non_ascii(sText) ) {
 		return xrtCopyStr((str)sText, 0);
@@ -315,10 +738,10 @@ static str xsmtp_encode_header_word(const char* sText)
 	if ( sBase64 == NULL ) {
 		return NULL;
 	}
-	iNeed = strlen(sBase64) + 12;
+	iNeed = strlen((const char*)sBase64) + 12;
 	sOut = (str)xrtMalloc(iNeed);
 	if ( sOut ) {
-		snprintf(sOut, iNeed, "=?UTF-8?B?%s?=", sBase64);
+		snprintf((char*)sOut, iNeed, "=?UTF-8?B?%s?=", (const char*)sBase64);
 	}
 	xrtFree(sBase64);
 	return sOut;
@@ -331,7 +754,7 @@ static str xsmtp_format_mailbox(const xsmtpaddr* pAddr)
 	const char* sEmail;
 
 	if ( pAddr == NULL || pAddr->sEmail == NULL || pAddr->sEmail[0] == '\0' ) {
-		return xrtCopyStr("", 0);
+		return xrtCopyStr((str)"", 0);
 	}
 
 	sEmail = pAddr->sEmail;
@@ -369,13 +792,13 @@ static str xsmtp_join_mailboxes(const xsmtpaddr* arrList, size_t iCount)
 		if ( i > 0 ) {
 			xsmtp_buf_append(&tBuf, ", ");
 		}
-		xsmtp_buf_append(&tBuf, sItem);
+		xsmtp_buf_append(&tBuf, (const char*)sItem);
 		xrtFree(sItem);
 	}
 	if ( tBuf.sData == NULL ) {
-		return xrtCopyStr("", 0);
+		return xrtCopyStr((str)"", 0);
 	}
-	return tBuf.sData;
+	return (str)tBuf.sData;
 }
 
 static str xsmtp_base64_wrap(const void* pData, size_t iLen)
@@ -390,11 +813,11 @@ static str xsmtp_base64_wrap(const void* pData, size_t iLen)
 		return NULL;
 	}
 	for ( i = 0; sBase64[i] != '\0'; i += 76 ) {
-		size_t iChunk = strlen(sBase64 + i);
+		size_t iChunk = strlen((const char*)sBase64 + i);
 		if ( iChunk > 76 ) {
 			iChunk = 76;
 		}
-		if ( !xsmtp_buf_append_n(&tBuf, sBase64 + i, iChunk) || !xsmtp_buf_append(&tBuf, "\r\n") ) {
+		if ( !xsmtp_buf_append_n(&tBuf, (const char*)sBase64 + i, iChunk) || !xsmtp_buf_append(&tBuf, "\r\n") ) {
 			xrtFree(sBase64);
 			xsmtp_buf_unit(&tBuf);
 			return NULL;
@@ -402,9 +825,9 @@ static str xsmtp_base64_wrap(const void* pData, size_t iLen)
 	}
 	xrtFree(sBase64);
 	if ( tBuf.sData == NULL ) {
-		return xrtCopyStr("", 0);
+		return xrtCopyStr((str)"", 0);
 	}
-	return tBuf.sData;
+	return (str)tBuf.sData;
 }
 
 static str xsmtp_normalize_crlf(const char* sText)
@@ -414,7 +837,7 @@ static str xsmtp_normalize_crlf(const char* sText)
 
 	memset(&tBuf, 0, sizeof(tBuf));
 	if ( sText == NULL ) {
-		return xrtCopyStr("", 0);
+		return xrtCopyStr((str)"", 0);
 	}
 
 	for ( p = sText; *p; p++ ) {
@@ -433,9 +856,9 @@ static str xsmtp_normalize_crlf(const char* sText)
 	}
 
 	if ( tBuf.sData == NULL ) {
-		return xrtCopyStr("", 0);
+		return xrtCopyStr((str)"", 0);
 	}
-	return tBuf.sData;
+	return (str)tBuf.sData;
 }
 
 static bool xsmtp_count_recipients(const xsmtpmessage* pMsg, size_t* pCount)
@@ -484,9 +907,9 @@ static str xsmtp_rfc2822_date(void)
 	localtime_r(&tNow, &tmNow);
 #endif
 	if ( strftime(sBuf, sizeof(sBuf), "%a, %d %b %Y %H:%M:%S %z", &tmNow) == 0 ) {
-		return xrtCopyStr("", 0);
+		return xrtCopyStr((str)"", 0);
 	}
-	return xrtCopyStr(sBuf, 0);
+	return xrtCopyStr((str)sBuf, 0);
 }
 
 static str xsmtp_build_message_id(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg)
@@ -514,7 +937,7 @@ static str xsmtp_build_body_payload(const char* sBody)
 	if ( sNorm == NULL ) {
 		return NULL;
 	}
-	sOut = xsmtp_base64_wrap(sNorm, strlen(sNorm));
+	sOut = xsmtp_base64_wrap((const void*)sNorm, strlen((const char*)sNorm));
 	xrtFree(sNorm);
 	return sOut;
 }
@@ -589,18 +1012,18 @@ static str xsmtp_build_message_data(const xsmtpconfig* pCfg, const xsmtpmessage*
 		if ( sTextPayload == NULL || sHtmlPayload == NULL ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "Content-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n", sBoundary) ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "--%s\r\n", sBoundary) ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", sTextPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", (const char*)sTextPayload) ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "--%s\r\n", sBoundary) ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/html", sHtmlPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/html", (const char*)sHtmlPayload) ) goto cleanup;
 		if ( !xsmtp_buf_appendf(&tBuf, "--%s--\r\n", sBoundary) ) goto cleanup;
 	} else if ( pMsg->sHtmlBody && pMsg->sHtmlBody[0] ) {
 		sHtmlPayload = xsmtp_build_body_payload(pMsg->sHtmlBody);
 		if ( sHtmlPayload == NULL ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/html", sHtmlPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/html", (const char*)sHtmlPayload) ) goto cleanup;
 	} else {
 		sTextPayload = xsmtp_build_body_payload(xsmtp_str_or_empty(pMsg->sTextBody));
 		if ( sTextPayload == NULL ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", sTextPayload) ) goto cleanup;
+		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", (const char*)sTextPayload) ) goto cleanup;
 	}
 
 	bOK = TRUE;
@@ -619,7 +1042,7 @@ cleanup:
 		xsmtp_buf_unit(&tBuf);
 		return NULL;
 	}
-	return tBuf.sData;
+	return (str)tBuf.sData;
 }
 
 static int xsmtp_secure_mode_auto(const xsmtpconfig* pCfg)
@@ -659,106 +1082,386 @@ static int xsmtp_auth_mode_auto(const xsmtpconfig* pCfg, uint32 iCaps)
 	return XSMTP_AUTH_LOGIN;
 }
 
-static bool xsmtp_socket_set_timeout(xsocket hSocket, uint32 iTimeoutMs)
+static uint64 xsmtp_now_ms(void)
 {
-#if defined(_WIN32) || defined(_WIN64)
-	DWORD dwTimeout = (DWORD)iTimeoutMs;
-	if ( setsockopt(hSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&dwTimeout, sizeof(dwTimeout)) != 0 ) {
+	double fNow = xrtTimer();
+	if ( fNow <= 0.0 ) {
+		return 0;
+	}
+	return (uint64)(fNow * 1000.0);
+}
+
+static void xsmtp_session_reset_state(xsmtpsession* pSess)
+{
+	if ( pSess == NULL ) {
+		return;
+	}
+	pSess->bOpen = FALSE;
+	pSess->bClosed = FALSE;
+	pSess->bStreamTls = FALSE;
+	pSess->bTlsReady = FALSE;
+	pSess->bRecvOverflow = FALSE;
+	pSess->iCloseReason = 0;
+	pSess->iLastSysErr = 0;
+	pSess->iRecvLen = 0;
+	if ( pSess->tWireRecv.sData ) {
+		pSess->tWireRecv.iLen = 0;
+		pSess->tWireRecv.sData[0] = '\0';
+	}
+}
+
+static void xsmtp_stream_signal(xsmtpsession* pSess)
+{
+	if ( pSess == NULL || pSess->pCond == NULL ) {
+		return;
+	}
+	xrtCondBroadcast(pSess->pCond);
+}
+
+static void xsmtp_stream_on_open(ptr pOwner, xnetstream* pStream)
+{
+	xsmtpsession* pSess = (xsmtpsession*)pOwner;
+	(void)pStream;
+	if ( pSess == NULL || pSess->pLock == NULL ) {
+		return;
+	}
+	xrtMutexLock(pSess->pLock);
+	pSess->bOpen = TRUE;
+	if ( pSess->bStreamTls ) {
+		pSess->bTlsReady = TRUE;
+	}
+	xsmtp_stream_signal(pSess);
+	xrtMutexUnlock(pSess->pLock);
+}
+
+static void xsmtp_stream_on_recv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	xsmtpsession* pSess = (xsmtpsession*)pOwner;
+	char aBuf[4096];
+	size_t iLeft;
+	(void)pStream;
+
+	if ( pSess == NULL || pSess->pLock == NULL || pChain == NULL ) {
+		return;
+	}
+
+	xrtMutexLock(pSess->pLock);
+	iLeft = xrtNetChainBytes(pChain);
+	while ( iLeft > 0 ) {
+		size_t iChunk = iLeft > sizeof(aBuf) ? sizeof(aBuf) : iLeft;
+		size_t iRead = xrtNetChainPeek(pChain, aBuf, iChunk);
+		if ( iRead == 0 ) {
+			break;
+		}
+		if ( !xsmtp_buf_append_n(&pSess->tWireRecv, aBuf, iRead) ) {
+			pSess->bRecvOverflow = TRUE;
+			xsmtp_stream_signal(pSess);
+			xrtMutexUnlock(pSess->pLock);
+			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			return;
+		}
+		xrtNetChainConsume(pChain, iRead);
+		iLeft -= iRead;
+	}
+	xsmtp_stream_signal(pSess);
+	xrtMutexUnlock(pSess->pLock);
+}
+
+static void xsmtp_stream_on_close(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	xsmtpsession* pSess = (xsmtpsession*)pOwner;
+	(void)pStream;
+	if ( pSess == NULL || pSess->pLock == NULL ) {
+		return;
+	}
+	xrtMutexLock(pSess->pLock);
+	pSess->bClosed = TRUE;
+	pSess->iCloseReason = (int)iReason;
+	xsmtp_stream_signal(pSess);
+	xrtMutexUnlock(pSess->pLock);
+}
+
+static void xsmtp_stream_on_error(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	xsmtpsession* pSess = (xsmtpsession*)pOwner;
+	(void)pStream;
+	if ( pSess == NULL || pSess->pLock == NULL ) {
+		return;
+	}
+	xrtMutexLock(pSess->pLock);
+	pSess->iLastSysErr = iSysErr;
+	XSMTP_TRACE("stream error sys=%d", iSysErr);
+	xsmtp_stream_signal(pSess);
+	xrtMutexUnlock(pSess->pLock);
+}
+
+static const xnetstreamevents* xsmtp_stream_events(void)
+{
+	static const xnetstreamevents tEvents = {
+		xsmtp_stream_on_open,
+		xsmtp_stream_on_recv,
+		NULL,
+		xsmtp_stream_on_close,
+		xsmtp_stream_on_error,
+		NULL,
+		NULL
+	};
+	return &tEvents;
+}
+
+static void xsmtp_result_errorf(xsmtpresult* pRet, const char* sFormat, ...)
+{
+	va_list ap;
+	char sBuf[256];
+
+	if ( pRet == NULL || sFormat == NULL ) {
+		return;
+	}
+	va_start(ap, sFormat);
+	vsnprintf(sBuf, sizeof(sBuf), sFormat, ap);
+	va_end(ap);
+	xsmtp_result_error(pRet, sBuf);
+}
+
+static bool xsmtp_stream_wait_connect_state(xsmtpsession* pSess, uint64 iDeadlineMs)
+{
+	uint32 iRemain = 0;
+	int iWaitRet;
+
+	if ( pSess == NULL || pSess->pLock == NULL || pSess->pCond == NULL ) {
 		return FALSE;
 	}
-	if ( setsockopt(hSocket, SOL_SOCKET, SO_SNDTIMEO, (const char*)&dwTimeout, sizeof(dwTimeout)) != 0 ) {
+
+	for (;;) {
+		if ( pSess->bOpen || pSess->bClosed || pSess->iLastSysErr != 0 || pSess->bRecvOverflow ) {
+			return TRUE;
+		}
+		if ( iDeadlineMs == 0 ) {
+			xrtCondWait(pSess->pCond, pSess->pLock);
+			continue;
+		}
+		if ( xsmtp_now_ms() >= iDeadlineMs ) {
+			return FALSE;
+		}
+		iRemain = (uint32)(iDeadlineMs - xsmtp_now_ms());
+		if ( iRemain == 0 ) {
+			return FALSE;
+		}
+		iWaitRet = xrtCondWaitTimeout(pSess->pCond, pSess->pLock, iRemain);
+		if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
+			return FALSE;
+		}
+		if ( iWaitRet == XRT_WAIT_ERROR ) {
+			return FALSE;
+		}
+	}
+}
+
+static bool xsmtp_stream_wait_recv_state(xsmtpsession* pSess, uint64 iDeadlineMs)
+{
+	uint32 iRemain = 0;
+	int iWaitRet;
+
+	if ( pSess == NULL || pSess->pLock == NULL || pSess->pCond == NULL ) {
 		return FALSE;
 	}
-#else
-	struct timeval tv;
-	tv.tv_sec = (int)(iTimeoutMs / 1000);
-	tv.tv_usec = (int)((iTimeoutMs % 1000) * 1000);
-	if ( setsockopt(hSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0 ) {
+
+	for (;;) {
+		if ( pSess->tWireRecv.iLen > 0 || pSess->bClosed || pSess->iLastSysErr != 0 || pSess->bRecvOverflow ) {
+			return TRUE;
+		}
+		if ( iDeadlineMs == 0 ) {
+			xrtCondWait(pSess->pCond, pSess->pLock);
+			continue;
+		}
+		if ( xsmtp_now_ms() >= iDeadlineMs ) {
+			return FALSE;
+		}
+		iRemain = (uint32)(iDeadlineMs - xsmtp_now_ms());
+		if ( iRemain == 0 ) {
+			return FALSE;
+		}
+		iWaitRet = xrtCondWaitTimeout(pSess->pCond, pSess->pLock, iRemain);
+		if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
+			return FALSE;
+		}
+		if ( iWaitRet == XRT_WAIT_ERROR ) {
+			return FALSE;
+		}
+	}
+}
+
+static bool xsmtp_stream_connect_once(xsmtpsession* pSess, const xsmtpconfig* pCfg, int iSecureMode, const char* sConnectHost, xsmtpresult* pRet)
+{
+	xnetengineconfig tEngineCfg;
+	xnetconnectconfig tConnCfg;
+	xtlsconfig tTlsCfg;
+	uint64 iDeadlineMs;
+	str sErr;
+	const char* sErrText;
+
+	if ( pSess == NULL || pCfg == NULL || sConnectHost == NULL || sConnectHost[0] == '\0' ) {
+		xsmtp_result_error(pRet, "SMTP host is empty");
 		return FALSE;
 	}
-	if ( setsockopt(hSocket, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) != 0 ) {
+
+	pSess->iTimeoutMs = pCfg->iTimeoutMs ? pCfg->iTimeoutMs : 15000;
+	xsmtp_session_reset_state(pSess);
+	xrtNetEngineConfigInit(&tEngineCfg);
+	tEngineCfg.iWorkerCount = 1;
+	pSess->pEngine = xrtNetEngineCreate(&tEngineCfg);
+	if ( pSess->pEngine == NULL ) {
+		sErr = xrtGetError();
+		sErrText = (sErr && sErr[0]) ? (const char*)sErr : "";
+		xsmtp_result_errorf(pRet, "SMTP engine create failed%s%s", (sErrText[0] != '\0') ? ": " : "", sErrText);
 		return FALSE;
 	}
-#endif
+	pSess->bOwnEngine = TRUE;
+	if ( xrtNetEngineStart(pSess->pEngine) != XRT_NET_OK ) {
+		sErr = xrtGetError();
+		sErrText = (sErr && sErr[0]) ? (const char*)sErr : "";
+		xsmtp_result_errorf(pRet, "SMTP engine start failed%s%s", (sErrText[0] != '\0') ? ": " : "", sErrText);
+		return FALSE;
+	}
+
+	pSess->pStream = xrtNetStreamCreate(pSess->pEngine, xsmtp_stream_events(), pSess);
+	if ( pSess->pStream == NULL ) {
+		sErr = xrtGetError();
+		sErrText = (sErr && sErr[0]) ? (const char*)sErr : "";
+		xsmtp_result_errorf(pRet, "SMTP stream create failed%s%s", (sErrText[0] != '\0') ? ": " : "", sErrText);
+		return FALSE;
+	}
+
+	xrtNetConnectConfigInit(&tConnCfg);
+	tConnCfg.sHost = sConnectHost;
+	tConnCfg.iPort = pCfg->iPort;
+	tConnCfg.iConnectTimeoutMs = pSess->iTimeoutMs;
+	tConnCfg.iRecvLimit = sizeof(pSess->aRecv) * 4u;
+	if ( iSecureMode == XSMTP_SECURE_SSL ) {
+		memset(&tTlsCfg, 0, sizeof(tTlsCfg));
+		tTlsCfg.sHostName = pCfg->sHost;
+		tTlsCfg.bVerifyPeer = pCfg->bVerifyPeer;
+		tConnCfg.pTlsConfig = &tTlsCfg;
+		pSess->bStreamTls = TRUE;
+	}
+	XSMTP_TRACE("connect submit host=%s port=%u secure=%d", sConnectHost, (unsigned)pCfg->iPort, iSecureMode);
+	if ( xrtNetStreamConnect(pSess->pStream, &tConnCfg) != XRT_NET_OK ) {
+		sErr = xrtGetError();
+		sErrText = (sErr && sErr[0]) ? (const char*)sErr : "";
+		xsmtp_result_errorf(pRet, "SMTP stream connect submit failed%s%s", (sErrText[0] != '\0') ? ": " : "", sErrText);
+		return FALSE;
+	}
+
+	iDeadlineMs = xsmtp_now_ms() + pSess->iTimeoutMs;
+	xrtMutexLock(pSess->pLock);
+	if ( !xsmtp_stream_wait_connect_state(pSess, iDeadlineMs) ) {
+		xrtMutexUnlock(pSess->pLock);
+		xsmtp_result_errorf(pRet, "SMTP connect timeout (%u ms)", pSess->iTimeoutMs);
+		return FALSE;
+	}
+	if ( pSess->iLastSysErr != 0 ) {
+		int iSysErr = pSess->iLastSysErr;
+		xrtMutexUnlock(pSess->pLock);
+		xsmtp_result_errorf(pRet, "SMTP stream connect failed (sys=%d)", iSysErr);
+		return FALSE;
+	}
+	if ( pSess->bClosed && !pSess->bOpen ) {
+		int iCloseReason = pSess->iCloseReason;
+		xrtMutexUnlock(pSess->pLock);
+		xsmtp_result_errorf(pRet, "SMTP stream closed during connect (reason=%d)", iCloseReason);
+		return FALSE;
+	}
+	xrtMutexUnlock(pSess->pLock);
+	XSMTP_TRACE("connect ready host=%s secure=%d streamTls=%d", sConnectHost, iSecureMode, pSess->bStreamTls ? 1 : 0);
 	return TRUE;
 }
 
-static bool xsmtp_addr_to_sockaddr(const xnetaddr* pAddr, struct sockaddr_storage* pStorage, int* pLen)
+static bool xsmtp_sockaddr_to_host(const struct sockaddr* pAddr, char* sHost, size_t iHostCap)
 {
-	if ( pAddr == NULL || pStorage == NULL || pLen == NULL ) {
+	if ( pAddr == NULL || sHost == NULL || iHostCap == 0 ) {
 		return FALSE;
 	}
-	memset(pStorage, 0, sizeof(*pStorage));
-	if ( pAddr->iFamily == AF_INET ) {
-		struct sockaddr_in* pIPv4 = (struct sockaddr_in*)pStorage;
-		pIPv4->sin_family = AF_INET;
-		pIPv4->sin_port = htons(pAddr->iPort);
-		memcpy(&pIPv4->sin_addr, pAddr->aAddr, 4);
-		*pLen = (int)sizeof(struct sockaddr_in);
-		return TRUE;
+	sHost[0] = '\0';
+	if ( pAddr->sa_family == AF_INET ) {
+		const struct sockaddr_in* pIPv4 = (const struct sockaddr_in*)pAddr;
+		return inet_ntop(AF_INET, &pIPv4->sin_addr, sHost, (socklen_t)iHostCap) != NULL;
 	}
-	if ( pAddr->iFamily == AF_INET6 ) {
-		struct sockaddr_in6* pIPv6 = (struct sockaddr_in6*)pStorage;
-		pIPv6->sin6_family = AF_INET6;
-		pIPv6->sin6_port = htons(pAddr->iPort);
-		pIPv6->sin6_scope_id = pAddr->iScopeId;
-		memcpy(&pIPv6->sin6_addr, pAddr->aAddr, 16);
-		*pLen = (int)sizeof(struct sockaddr_in6);
-		return TRUE;
+	if ( pAddr->sa_family == AF_INET6 ) {
+		const struct sockaddr_in6* pIPv6 = (const struct sockaddr_in6*)pAddr;
+		return inet_ntop(AF_INET6, &pIPv6->sin6_addr, sHost, (socklen_t)iHostCap) != NULL;
 	}
 	return FALSE;
 }
 
-static bool xsmtp_socket_connect(xsmtpsession* pSess, const xsmtpconfig* pCfg, xsmtpresult* pRet)
+static bool xsmtp_stream_connect(xsmtpsession* pSess, const xsmtpconfig* pCfg, int iSecureMode, xsmtpresult* pRet)
 {
 	xnetaddr tAddr;
-	struct sockaddr_storage tSockAddr;
-	int iSockAddrLen = 0;
+	struct addrinfo tHints;
+	struct addrinfo* pRes = NULL;
+	int iPass;
 
 	if ( pSess == NULL || pCfg == NULL || pCfg->sHost == NULL || pCfg->sHost[0] == '\0' ) {
 		xsmtp_result_error(pRet, "SMTP host is empty");
 		return FALSE;
 	}
+	(void)xrtInit();
 
-#if defined(_WIN32) || defined(_WIN64)
-	{
-		static bool bWSAReady = FALSE;
-		if ( !bWSAReady ) {
-			WSADATA tWSA;
-			if ( WSAStartup(MAKEWORD(2, 2), &tWSA) != 0 ) {
-				xsmtp_result_error(pRet, "WSAStartup failed");
-				return FALSE;
-			}
-			bWSAReady = TRUE;
-		}
+	pSess->pLock = xrtMutexCreate();
+	pSess->pCond = xrtCondCreate();
+	if ( pSess->pLock == NULL || pSess->pCond == NULL ) {
+		xsmtp_result_error(pRet, "SMTP session sync init failed");
+		return FALSE;
 	}
-#endif
 
 	memset(&tAddr, 0, sizeof(tAddr));
-	if ( xrtNetResolve(pCfg->sHost, &tAddr) != XRT_NET_OK ) {
+	tAddr.iPort = pCfg->iPort;
+	if ( xrtNetAddrParse(&tAddr, pCfg->sHost, pCfg->iPort) == XRT_NET_OK ) {
+		return xsmtp_stream_connect_once(pSess, pCfg, iSecureMode, pCfg->sHost, pRet);
+	}
+
+	memset(&tHints, 0, sizeof(tHints));
+	tHints.ai_family = AF_UNSPEC;
+	tHints.ai_socktype = SOCK_STREAM;
+	if ( getaddrinfo(pCfg->sHost, NULL, &tHints, &pRes) != 0 || pRes == NULL ) {
 		xsmtp_result_error(pRet, "SMTP host resolve failed");
 		return FALSE;
 	}
-	tAddr.iPort = pCfg->iPort;
-	if ( !xsmtp_addr_to_sockaddr(&tAddr, &tSockAddr, &iSockAddrLen) ) {
-		xsmtp_result_error(pRet, "SMTP address family unsupported");
-		return FALSE;
+
+	for ( iPass = 0; iPass < 2; ++iPass ) {
+		struct addrinfo* pIt;
+		int iFamilyWant = (iPass == 0) ? AF_INET : AF_INET6;
+
+		for ( pIt = pRes; pIt != NULL; pIt = pIt->ai_next ) {
+			char sHost[INET6_ADDRSTRLEN + 1];
+
+			if ( pIt->ai_addr == NULL || pIt->ai_family != iFamilyWant ) {
+				continue;
+			}
+			if ( !xsmtp_sockaddr_to_host(pIt->ai_addr, sHost, sizeof(sHost)) ) {
+				continue;
+			}
+			if ( xsmtp_stream_connect_once(pSess, pCfg, iSecureMode, sHost, pRet) ) {
+				freeaddrinfo(pRes);
+				return TRUE;
+			}
+			if ( pSess->pStream ) {
+				xrtNetStreamClose(pSess->pStream, XNET_CLOSE_F_ABORT);
+				xrtNetStreamDestroy(pSess->pStream);
+				pSess->pStream = NULL;
+			}
+			if ( pSess->pEngine ) {
+				xrtNetEngineDestroy(pSess->pEngine);
+				pSess->pEngine = NULL;
+			}
+			xsmtp_session_reset_state(pSess);
+		}
 	}
 
-	pSess->hSocket = socket(tAddr.iFamily, SOCK_STREAM, IPPROTO_TCP);
-	if ( pSess->hSocket == XSOCKET_INVALID ) {
-		xsmtp_result_error(pRet, "SMTP socket create failed");
-		return FALSE;
+	freeaddrinfo(pRes);
+	if ( pRet == NULL || pRet->sError[0] == '\0' ) {
+		xsmtp_result_error(pRet, "SMTP stream connect failed");
 	}
-	pSess->bOwnSocket = TRUE;
-	pSess->iTimeoutMs = pCfg->iTimeoutMs ? pCfg->iTimeoutMs : 15000;
-	xsmtp_socket_set_timeout(pSess->hSocket, pSess->iTimeoutMs);
-
-	if ( connect(pSess->hSocket, (struct sockaddr*)&tSockAddr, iSockAddrLen) != 0 ) {
-		xsmtp_result_error(pRet, "SMTP socket connect failed");
-		return FALSE;
-	}
-	return TRUE;
+	return FALSE;
 }
 
 static void xsmtp_session_close(xsmtpsession* pSess)
@@ -770,42 +1473,127 @@ static void xsmtp_session_close(xsmtpsession* pSess)
 		xrtNetTlsSessionDestroy(pSess->pTls);
 		pSess->pTls = NULL;
 	}
-	if ( pSess->bOwnSocket && pSess->hSocket != XSOCKET_INVALID ) {
-#if defined(_WIN32) || defined(_WIN64)
-		closesocket(pSess->hSocket);
-#else
-		close(pSess->hSocket);
-#endif
+	if ( pSess->pStream ) {
+		xrtNetStreamClose(pSess->pStream, XNET_CLOSE_F_ABORT);
+		xrtNetStreamDestroy(pSess->pStream);
+		pSess->pStream = NULL;
 	}
-	pSess->hSocket = XSOCKET_INVALID;
-	pSess->bOwnSocket = FALSE;
+	if ( pSess->pEngine ) {
+		if ( pSess->bOwnEngine ) {
+			xrtNetEngineDestroy(pSess->pEngine);
+		}
+		pSess->pEngine = NULL;
+	}
+	xsmtp_buf_unit(&pSess->tWireRecv);
+	if ( pSess->pCond ) {
+		xrtCondDestroy(pSess->pCond);
+		pSess->pCond = NULL;
+	}
+	if ( pSess->pLock ) {
+		xrtMutexDestroy(pSess->pLock);
+		pSess->pLock = NULL;
+	}
+	pSess->bOpen = FALSE;
+	pSess->bClosed = FALSE;
+	pSess->bStreamTls = FALSE;
 	pSess->bTlsReady = FALSE;
+	pSess->bRecvOverflow = FALSE;
+	pSess->iCloseReason = 0;
+	pSess->iLastSysErr = 0;
 	pSess->iRecvLen = 0;
+	pSess->bOwnEngine = FALSE;
 }
 
-static bool xsmtp_socket_send_all(xsocket hSocket, const void* pData, size_t iLen)
+static bool xsmtp_stream_send_all(xsmtpsession* pSess, const void* pData, size_t iLen, xsmtpresult* pRet)
 {
-	const char* p = (const char*)pData;
-	while ( iLen > 0 ) {
-		int iSent = send(hSocket, p, (int)iLen, 0);
-		if ( iSent <= 0 ) {
-			return FALSE;
+	xnet_result iWaitRet;
+	str sErr;
+	const char* sErrText;
+
+	if ( pSess == NULL || pSess->pStream == NULL ) {
+		xsmtp_result_error(pRet, "SMTP stream missing");
+		return FALSE;
+	}
+	if ( iLen == 0 ) {
+		return TRUE;
+	}
+	if ( xrtNetStreamSend(pSess->pStream, pData, iLen) != XRT_NET_OK ) {
+		sErr = xrtGetError();
+		sErrText = (sErr && sErr[0]) ? (const char*)sErr : "";
+		xsmtp_result_errorf(pRet, "SMTP stream send failed%s%s", (sErrText[0] != '\0') ? ": " : "", sErrText);
+		return FALSE;
+	}
+	iWaitRet = xrtNetStreamWaitTimeoutEx(pSess->pStream, XNET_STREAM_WAIT_DRAIN, pSess->iTimeoutMs);
+	if ( iWaitRet != XRT_NET_OK ) {
+		if ( pSess->iLastSysErr != 0 ) {
+			xsmtp_result_errorf(pRet, "SMTP stream drain failed (sys=%d)", pSess->iLastSysErr);
+		} else {
+			sErr = xrtGetError();
+			sErrText = (sErr && sErr[0]) ? (const char*)sErr : "";
+			xsmtp_result_errorf(pRet, "SMTP stream drain failed%s%s", (sErrText[0] != '\0') ? ": " : "", sErrText);
 		}
-		p += iSent;
-		iLen -= (size_t)iSent;
+		return FALSE;
 	}
 	return TRUE;
 }
 
-static bool xsmtp_socket_recv_some(xsocket hSocket, void* pBuf, size_t iCap, size_t* pRead)
+static bool xsmtp_stream_recv_some(xsmtpsession* pSess, void* pBuf, size_t iCap, size_t* pRead, xsmtpresult* pRet)
 {
-	int iRet;
-	if ( pRead ) *pRead = 0;
-	iRet = recv(hSocket, (char*)pBuf, (int)iCap, 0);
-	if ( iRet <= 0 ) {
+	uint64 iDeadlineMs;
+	size_t iCopy = 0;
+
+	if ( pRead ) {
+		*pRead = 0;
+	}
+	if ( pSess == NULL || pBuf == NULL || iCap == 0 ) {
+		xsmtp_result_error(pRet, "SMTP recv buffer invalid");
 		return FALSE;
 	}
-	if ( pRead ) *pRead = (size_t)iRet;
+
+	iDeadlineMs = xsmtp_now_ms() + pSess->iTimeoutMs;
+	xrtMutexLock(pSess->pLock);
+	for (;;) {
+		if ( pSess->tWireRecv.iLen > 0 ) {
+			break;
+		}
+		if ( pSess->bRecvOverflow ) {
+			xrtMutexUnlock(pSess->pLock);
+			xsmtp_result_error(pRet, "SMTP recv buffer overflow");
+			return FALSE;
+		}
+		if ( pSess->iLastSysErr != 0 ) {
+			int iSysErr = pSess->iLastSysErr;
+			xrtMutexUnlock(pSess->pLock);
+			xsmtp_result_errorf(pRet, "SMTP recv failed (sys=%d)", iSysErr);
+			return FALSE;
+		}
+		if ( pSess->bClosed ) {
+			int iCloseReason = pSess->iCloseReason;
+			xrtMutexUnlock(pSess->pLock);
+			xsmtp_result_errorf(pRet, "SMTP stream closed (reason=%d)", iCloseReason);
+			return FALSE;
+		}
+		if ( !xsmtp_stream_wait_recv_state(pSess, iDeadlineMs) ) {
+			xrtMutexUnlock(pSess->pLock);
+			xsmtp_result_errorf(pRet, "SMTP recv timeout (%u ms)", pSess->iTimeoutMs);
+			return FALSE;
+		}
+	}
+
+	iCopy = pSess->tWireRecv.iLen > iCap ? iCap : pSess->tWireRecv.iLen;
+	memcpy(pBuf, pSess->tWireRecv.sData, iCopy);
+	if ( iCopy < pSess->tWireRecv.iLen ) {
+		memmove(pSess->tWireRecv.sData, pSess->tWireRecv.sData + iCopy, pSess->tWireRecv.iLen - iCopy);
+	}
+	pSess->tWireRecv.iLen -= iCopy;
+	if ( pSess->tWireRecv.sData ) {
+		pSess->tWireRecv.sData[pSess->tWireRecv.iLen] = '\0';
+	}
+	xrtMutexUnlock(pSess->pLock);
+
+	if ( pRead ) {
+		*pRead = iCopy;
+	}
 	return TRUE;
 }
 
@@ -823,8 +1611,7 @@ static bool xsmtp_tls_flush(xsmtpsession* pSess, xsmtpresult* pRet)
 			xsmtp_result_error(pRet, "SMTP TLS cipher peek failed");
 			return FALSE;
 		}
-		if ( !xsmtp_socket_send_all(pSess->hSocket, aBuf, iRead) ) {
-			xsmtp_result_error(pRet, "SMTP TLS cipher send failed");
+		if ( !xsmtp_stream_send_all(pSess, aBuf, iRead, pRet) ) {
 			return FALSE;
 		}
 		xrtNetTlsSessionConsumeCipher(pSess->pTls, iRead);
@@ -864,8 +1651,7 @@ static bool xsmtp_tls_handshake(xsmtpsession* pSess, const xsmtpconfig* pCfg, xs
 		if ( xrtNetTlsSessionIsReady(pSess->pTls) ) {
 			break;
 		}
-		if ( !xsmtp_socket_recv_some(pSess->hSocket, aBuf, sizeof(aBuf), &iRead) ) {
-			xsmtp_result_error(pRet, "SMTP TLS handshake recv failed");
+		if ( !xsmtp_stream_recv_some(pSess, aBuf, sizeof(aBuf), &iRead, pRet) ) {
 			return FALSE;
 		}
 		if ( xrtNetTlsSessionFeedCipher(pSess->pTls, aBuf, iRead) != XRT_NET_OK ) {
@@ -890,11 +1676,7 @@ static bool xsmtp_send_bytes(xsmtpsession* pSess, const void* pData, size_t iLen
 		return FALSE;
 	}
 	if ( pSess->pTls == NULL ) {
-		if ( !xsmtp_socket_send_all(pSess->hSocket, pData, iLen) ) {
-			xsmtp_result_error(pRet, "SMTP socket send failed");
-			return FALSE;
-		}
-		return TRUE;
+		return xsmtp_stream_send_all(pSess, pData, iLen, pRet);
 	}
 
 	while ( iLen > 0 ) {
@@ -942,16 +1724,14 @@ static bool xsmtp_pump_recv(xsmtpsession* pSess, xsmtpresult* pRet)
 	}
 
 	if ( pSess->pTls == NULL ) {
-		if ( !xsmtp_socket_recv_some(pSess->hSocket, aBuf, sizeof(aBuf), &iRead) ) {
-			xsmtp_result_error(pRet, "SMTP recv failed");
+		if ( !xsmtp_stream_recv_some(pSess, aBuf, sizeof(aBuf), &iRead, pRet) ) {
 			return FALSE;
 		}
 		return xsmtp_append_recv(pSess, aBuf, iRead, pRet);
 	}
 
 	while ( xrtNetTlsSessionPendingRecv(pSess->pTls) == 0 ) {
-		if ( !xsmtp_socket_recv_some(pSess->hSocket, aBuf, sizeof(aBuf), &iRead) ) {
-			xsmtp_result_error(pRet, "SMTP TLS recv failed");
+		if ( !xsmtp_stream_recv_some(pSess, aBuf, sizeof(aBuf), &iRead, pRet) ) {
 			return FALSE;
 		}
 		if ( xrtNetTlsSessionFeedCipher(pSess->pTls, aBuf, iRead) != XRT_NET_OK ) {
@@ -965,7 +1745,15 @@ static bool xsmtp_pump_recv(xsmtpsession* pSess, xsmtpresult* pRet)
 
 	while ( xrtNetTlsSessionPendingRecv(pSess->pTls) > 0 ) {
 		size_t iPlain = 0;
-		if ( xrtNetTlsSessionReadPlain(pSess->pTls, aBuf, sizeof(aBuf), &iPlain) != XRT_NET_OK ) {
+		xnet_result iRes = xrtNetTlsSessionReadPlain(pSess->pTls, aBuf, sizeof(aBuf), &iPlain);
+		if ( iRes == XRT_NET_AGAIN ) {
+			break;
+		}
+		if ( iRes == XRT_NET_CLOSED ) {
+			xsmtp_result_error(pRet, "SMTP TLS stream closed");
+			return FALSE;
+		}
+		if ( iRes != XRT_NET_OK ) {
 			xsmtp_result_error(pRet, "SMTP TLS read plain failed");
 			return FALSE;
 		}
@@ -1112,7 +1900,7 @@ static bool xsmtp_send_ehlo(xsmtpsession* pSess, const xsmtpconfig* pCfg, xsmtpr
 		xsmtp_result_error(pRet, "SMTP EHLO alloc failed");
 		return FALSE;
 	}
-	bOK = xsmtp_send_line(pSess, pRet, sLine) && xsmtp_expect_reply(pSess, pRet, 250, pCaps);
+	bOK = xsmtp_send_line(pSess, pRet, (const char*)sLine) && xsmtp_expect_reply(pSess, pRet, 250, pCaps);
 	xrtFree(sLine);
 	return bOK;
 }
@@ -1139,7 +1927,7 @@ static bool xsmtp_send_auth_plain(xsmtpsession* pSess, const xsmtpconfig* pCfg, 
 		xsmtp_result_error(pRet, "SMTP AUTH PLAIN alloc failed");
 		goto cleanup;
 	}
-	bOK = xsmtp_send_line(pSess, pRet, sLine) && xsmtp_expect_reply(pSess, pRet, 235, NULL);
+	bOK = xsmtp_send_line(pSess, pRet, (const char*)sLine) && xsmtp_expect_reply(pSess, pRet, 235, NULL);
 
 cleanup:
 	xsmtp_buf_unit(&tBuf);
@@ -1164,10 +1952,10 @@ static bool xsmtp_send_auth_login(xsmtpsession* pSess, const xsmtpconfig* pCfg, 
 	if ( !xsmtp_send_line(pSess, pRet, "AUTH LOGIN") || !xsmtp_expect_reply(pSess, pRet, 334, NULL) ) {
 		goto cleanup;
 	}
-	if ( !xsmtp_send_line(pSess, pRet, sUser64) || !xsmtp_expect_reply(pSess, pRet, 334, NULL) ) {
+	if ( !xsmtp_send_line(pSess, pRet, (const char*)sUser64) || !xsmtp_expect_reply(pSess, pRet, 334, NULL) ) {
 		goto cleanup;
 	}
-	if ( !xsmtp_send_line(pSess, pRet, sPass64) || !xsmtp_expect_reply(pSess, pRet, 235, NULL) ) {
+	if ( !xsmtp_send_line(pSess, pRet, (const char*)sPass64) || !xsmtp_expect_reply(pSess, pRet, 235, NULL) ) {
 		goto cleanup;
 	}
 
@@ -1224,7 +2012,7 @@ static bool xsmtp_send_mail_from(xsmtpsession* pSess, const xsmtpconfig* pCfg, c
 		xsmtp_result_error(pRet, "SMTP MAIL FROM alloc failed");
 		return FALSE;
 	}
-	bOK = xsmtp_send_line(pSess, pRet, sLine) && xsmtp_expect_reply(pSess, pRet, 250, NULL);
+	bOK = xsmtp_send_line(pSess, pRet, (const char*)sLine) && xsmtp_expect_reply(pSess, pRet, 250, NULL);
 	xrtFree(sLine);
 	return bOK;
 }
@@ -1242,7 +2030,7 @@ static bool xsmtp_send_rcpt_list(xsmtpsession* pSess, const xsmtpaddr* arrList, 
 			xsmtp_result_error(pRet, "SMTP RCPT TO alloc failed");
 			return FALSE;
 		}
-		if ( !xsmtp_send_line(pSess, pRet, sLine) || !xsmtp_expect_reply(pSess, pRet, 250, NULL) ) {
+		if ( !xsmtp_send_line(pSess, pRet, (const char*)sLine) || !xsmtp_expect_reply(pSess, pRet, 250, NULL) ) {
 			xrtFree(sLine);
 			return FALSE;
 		}
@@ -1302,7 +2090,6 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 		xrtSmtpResultInit(pRet);
 	}
 	memset(&tSess, 0, sizeof(tSess));
-	tSess.hSocket = XSOCKET_INVALID;
 
 	if ( pCfg == NULL || pMsg == NULL ) {
 		xsmtp_result_error(pRet, "SMTP config or message missing");
@@ -1314,25 +2101,33 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 	}
 
 	iSecureMode = xsmtp_secure_mode_auto(pCfg);
-	if ( !xsmtp_socket_connect(&tSess, pCfg, pRet) ) {
+	XSMTP_TRACE("connect host=%s port=%u secure=%d", pCfg->sHost ? pCfg->sHost : "", (unsigned)pCfg->iPort, iSecureMode);
+	if ( !xsmtp_stream_connect(&tSess, pCfg, iSecureMode, pRet) ) {
 		goto cleanup;
 	}
+	XSMTP_TRACE("connect ok");
 
 	if ( iSecureMode == XSMTP_SECURE_SSL ) {
-		if ( !xsmtp_tls_handshake(&tSess, pCfg, pRet) ) {
-			goto cleanup;
+		XSMTP_TRACE("implicit tls ready via xrt stream");
+		if ( pRet ) {
+			pRet->bUsedTLS = TRUE;
 		}
 	}
 
+	XSMTP_TRACE("wait banner");
 	if ( !xsmtp_expect_reply(&tSess, pRet, 220, NULL) ) {
 		goto cleanup;
 	}
+	XSMTP_TRACE("banner ok");
 
+	XSMTP_TRACE("ehlo begin");
 	if ( !xsmtp_send_ehlo(&tSess, pCfg, pRet, &iCaps) ) {
 		goto cleanup;
 	}
+	XSMTP_TRACE("ehlo ok caps=0x%08x", (unsigned)iCaps);
 
 	if ( iSecureMode == XSMTP_SECURE_STARTTLS ) {
+		XSMTP_TRACE("starttls begin");
 		if ( !(iCaps & XSMTP_CAP_STARTTLS) ) {
 			xsmtp_result_error(pRet, "SMTP server does not support STARTTLS");
 			goto cleanup;
@@ -1343,6 +2138,7 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 		if ( !xsmtp_tls_handshake(&tSess, pCfg, pRet) ) {
 			goto cleanup;
 		}
+		XSMTP_TRACE("starttls handshake ok");
 		if ( pRet ) {
 			pRet->bUsedStartTLS = TRUE;
 		}
@@ -1350,14 +2146,18 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 		if ( !xsmtp_send_ehlo(&tSess, pCfg, pRet, &iCaps) ) {
 			goto cleanup;
 		}
+		XSMTP_TRACE("post-starttls ehlo ok caps=0x%08x", (unsigned)iCaps);
 	}
 
+	XSMTP_TRACE("auth begin");
 	if ( !xsmtp_send_auth(&tSess, pCfg, iCaps, pRet) ) {
 		goto cleanup;
 	}
+	XSMTP_TRACE("auth ok");
 	if ( !xsmtp_send_mail_from(&tSess, pCfg, pMsg, pRet) ) {
 		goto cleanup;
 	}
+	XSMTP_TRACE("mail from ok");
 	if ( !xsmtp_send_rcpt_list(&tSess, pMsg->arrTo, pMsg->iToCount, pRet) ) {
 		goto cleanup;
 	}
@@ -1370,18 +2170,21 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 	if ( !xsmtp_send_line(&tSess, pRet, "DATA") || !xsmtp_expect_reply(&tSess, pRet, 354, NULL) ) {
 		goto cleanup;
 	}
+	XSMTP_TRACE("data begin");
 
 	sData = xsmtp_build_message_data(pCfg, pMsg);
 	if ( sData == NULL ) {
 		xsmtp_result_error(pRet, "SMTP build message failed");
 		goto cleanup;
 	}
-	if ( !xsmtp_send_data_body(&tSess, sData, pRet) ) {
+	if ( !xsmtp_send_data_body(&tSess, (const char*)sData, pRet) ) {
 		goto cleanup;
 	}
+	XSMTP_TRACE("data ok");
 
 	xsmtp_send_line(&tSess, pRet, "QUIT");
 	xsmtp_expect_reply(&tSess, pRet, 221, NULL);
+	XSMTP_TRACE("quit done");
 
 	bOK = TRUE;
 	if ( pRet ) {
@@ -1394,6 +2197,1036 @@ cleanup:
 	}
 	xsmtp_session_close(&tSess);
 	return bOK;
+}
+
+static void xsmtp_async_fail(xsmtpasyncop* pOp, const char* sError);
+static void xsmtp_async_arm_timeout(xsmtpasyncop* pOp, const char* sReason);
+static void xsmtp_async_advance(xsmtpasyncop* pOp);
+static bool xsmtp_async_run_post_ehlo(xsmtpasyncop* pOp, bool bAllowStartTLS);
+
+static bool xsmtp_async_send_stream_raw(xsmtpasyncop* pOp, const void* pData, size_t iLen)
+{
+	if ( pOp == NULL || pOp->pStream == NULL ) {
+		return FALSE;
+	}
+	return xrtNetStreamSend(pOp->pStream, pData, iLen) == XRT_NET_OK;
+}
+
+static bool xsmtp_async_tls_flush_manual(xsmtpasyncop* pOp)
+{
+	char aBuf[4096];
+	size_t iRead = 0;
+
+	if ( pOp == NULL || pOp->pSess == NULL || pOp->pSess->pTls == NULL || pOp->pSess->bStreamTls ) {
+		return TRUE;
+	}
+
+	while ( xrtNetTlsSessionPendingCipher(pOp->pSess->pTls) > 0 ) {
+		if ( xrtNetTlsSessionPeekCipher(pOp->pSess->pTls, aBuf, sizeof(aBuf), &iRead) != XRT_NET_OK || iRead == 0 ) {
+			xsmtp_async_fail(pOp, "SMTP TLS cipher peek failed");
+			return FALSE;
+		}
+		if ( !xsmtp_async_send_stream_raw(pOp, aBuf, iRead) ) {
+			xsmtp_async_fail(pOp, "SMTP TLS cipher send failed");
+			return FALSE;
+		}
+		xrtNetTlsSessionConsumeCipher(pOp->pSess->pTls, iRead);
+	}
+	return TRUE;
+}
+
+static bool xsmtp_async_tls_drain_plain(xsmtpasyncop* pOp)
+{
+	char aBuf[4096];
+
+	if ( pOp == NULL || pOp->pSess == NULL || pOp->pSess->pTls == NULL || pOp->pSess->bStreamTls ) {
+		return TRUE;
+	}
+
+	while ( xrtNetTlsSessionPendingRecv(pOp->pSess->pTls) > 0 ) {
+		size_t iPlain = 0;
+		xnet_result iRes = xrtNetTlsSessionReadPlain(pOp->pSess->pTls, aBuf, sizeof(aBuf), &iPlain);
+		if ( iRes == XRT_NET_AGAIN ) {
+			break;
+		}
+		if ( iRes == XRT_NET_CLOSED ) {
+			xsmtp_async_fail(pOp, "SMTP TLS stream closed");
+			return FALSE;
+		}
+		if ( iRes != XRT_NET_OK ) {
+			xsmtp_async_fail(pOp, "SMTP TLS read plain failed");
+			return FALSE;
+		}
+		if ( iPlain == 0 ) {
+			break;
+		}
+		if ( !xsmtp_append_recv(pOp->pSess, aBuf, iPlain, pOp->pRet) ) {
+			xsmtp_async_fail(pOp, pOp->pRet ? pOp->pRet->sError : "SMTP recv append failed");
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static bool xsmtp_async_tls_drive_handshake(xsmtpasyncop* pOp)
+{
+	xnet_result iResult;
+	int iStep;
+
+	if ( pOp == NULL || pOp->pSess == NULL || pOp->pSess->pTls == NULL || pOp->pSess->bStreamTls ) {
+		return FALSE;
+	}
+
+	for ( iStep = 0; iStep < 32 && !xrtNetTlsSessionIsReady(pOp->pSess->pTls); ++iStep ) {
+		uint32 iPendingBefore = (uint32)xrtNetTlsSessionPendingRecv(pOp->pSess->pTls);
+		uint32 iCipherBefore = (uint32)xrtNetTlsSessionPendingCipher(pOp->pSess->pTls);
+
+		iResult = xrtNetTlsSessionDriveHandshake(pOp->pSess->pTls);
+		if ( iResult != XRT_NET_OK && iResult != XRT_NET_AGAIN ) {
+			xsmtp_async_fail(pOp, "SMTP TLS handshake failed");
+			return FALSE;
+		}
+		if ( !xsmtp_async_tls_flush_manual(pOp) ) {
+			return FALSE;
+		}
+		if ( xrtNetTlsSessionIsReady(pOp->pSess->pTls) ) {
+			break;
+		}
+		if ( xrtNetTlsSessionPendingRecv(pOp->pSess->pTls) == 0 ) {
+			return TRUE;
+		}
+		if ( xrtNetTlsSessionPendingRecv(pOp->pSess->pTls) == iPendingBefore
+			&& xrtNetTlsSessionPendingCipher(pOp->pSess->pTls) == iCipherBefore
+			&& iResult == XRT_NET_AGAIN ) {
+			return TRUE;
+		}
+	}
+
+	if ( !xrtNetTlsSessionIsReady(pOp->pSess->pTls) ) {
+		return TRUE;
+	}
+
+	pOp->pSess->bTlsReady = TRUE;
+	if ( pOp->pRet != NULL ) {
+		pOp->pRet->bUsedTLS = TRUE;
+		pOp->pRet->bUsedStartTLS = TRUE;
+	}
+	return TRUE;
+}
+
+static bool xsmtp_async_starttls_begin(xsmtpasyncop* pOp)
+{
+	xtlsconfig tTlsCfg;
+
+	if ( pOp == NULL || pOp->pSess == NULL ) {
+		return FALSE;
+	}
+	if ( pOp->pSess->pTls != NULL ) {
+		return TRUE;
+	}
+
+	memset(&tTlsCfg, 0, sizeof(tTlsCfg));
+	tTlsCfg.sHostName = pOp->pCtx->tCfg.sHost;
+	tTlsCfg.bVerifyPeer = pOp->pCtx->tCfg.bVerifyPeer;
+	pOp->pSess->pTls = xrtNetTlsSessionCreate(&tTlsCfg, FALSE);
+	if ( pOp->pSess->pTls == NULL ) {
+		xsmtp_async_fail(pOp, "SMTP TLS session create failed");
+		return FALSE;
+	}
+	pOp->pSess->bStreamTls = FALSE;
+	pOp->pSess->bTlsReady = FALSE;
+	if ( !xsmtp_async_tls_drive_handshake(pOp) ) {
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static bool xsmtp_async_send_plain(xsmtpasyncop* pOp, const void* pData, size_t iLen)
+{
+	const char* p = (const char*)pData;
+
+	if ( pOp == NULL || pOp->pSess == NULL ) {
+		return FALSE;
+	}
+	if ( iLen == 0 ) {
+		return TRUE;
+	}
+	if ( pOp->pSess->pTls == NULL || pOp->pSess->bStreamTls ) {
+		return xsmtp_async_send_stream_raw(pOp, pData, iLen);
+	}
+	if ( !pOp->pSess->bTlsReady ) {
+		xsmtp_async_fail(pOp, "SMTP TLS not ready");
+		return FALSE;
+	}
+
+	while ( iLen > 0 ) {
+		size_t iWritten = 0;
+		xnet_result iResult = xrtNetTlsSessionWritePlain(pOp->pSess->pTls, p, iLen, &iWritten);
+		if ( iResult != XRT_NET_OK && iResult != XRT_NET_AGAIN ) {
+			xsmtp_async_fail(pOp, "SMTP TLS write failed");
+			return FALSE;
+		}
+		if ( !xsmtp_async_tls_flush_manual(pOp) ) {
+			return FALSE;
+		}
+		if ( iWritten == 0 ) {
+			xsmtp_async_fail(pOp, "SMTP TLS write stalled");
+			return FALSE;
+		}
+		p += iWritten;
+		iLen -= iWritten;
+	}
+	return TRUE;
+}
+
+static void xsmtp_async_cleanup(xsmtpasyncop* pOp)
+{
+	if ( pOp == NULL ) {
+		return;
+	}
+	if ( pOp->pStream != NULL && pOp->pSess == NULL ) {
+		xrtNetStreamDestroy(pOp->pStream);
+		pOp->pStream = NULL;
+	}
+	if ( pOp->pPromise != NULL ) {
+		xPromiseDestroy(pOp->pPromise);
+		pOp->pPromise = NULL;
+	}
+	if ( pOp->pSess != NULL ) {
+		xsmtp_session_close(pOp->pSess);
+		xrtFree(pOp->pSess);
+		pOp->pSess = NULL;
+		pOp->pStream = NULL;
+		pOp->pEngine = NULL;
+	}
+	xsmtp_buf_unit(&pOp->tReply);
+	xsmtp_buf_unit(&pOp->tScratch);
+	if ( pOp->pCtx != NULL ) {
+		xsmtp_task_ctx_free(pOp->pCtx);
+		pOp->pCtx = NULL;
+	}
+	xrtFree(pOp);
+}
+
+static void xsmtp_async_resolve(xsmtpasyncop* pOp)
+{
+	xsmtpresult* pRet;
+	xpromise* pPromise;
+
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	pOp->bDone = TRUE;
+	pRet = pOp->pRet;
+	pPromise = pOp->pPromise;
+	pOp->pRet = NULL;
+	pOp->pPromise = NULL;
+	if ( pPromise != NULL ) {
+		(void)xPromiseResolve(pPromise, pRet);
+	}
+	xsmtp_async_cleanup(pOp);
+}
+
+static void xsmtp_async_fail(xsmtpasyncop* pOp, const char* sError)
+{
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	xsmtp_result_error(pOp->pRet, sError);
+	xsmtp_async_resolve(pOp);
+}
+
+static bool xsmtp_async_send_line(xsmtpasyncop* pOp, const char* sLine)
+{
+	xsmtpbuf tBuf;
+	xnet_result iRet;
+
+	memset(&tBuf, 0, sizeof(tBuf));
+	if ( !xsmtp_buf_append(&tBuf, xsmtp_str_or_empty(sLine)) || !xsmtp_buf_append(&tBuf, "\r\n") ) {
+		xsmtp_buf_unit(&tBuf);
+		xsmtp_async_fail(pOp, "SMTP async line alloc failed");
+		return FALSE;
+	}
+	iRet = xsmtp_async_send_plain(pOp, tBuf.sData, tBuf.iLen) ? XRT_NET_OK : XRT_NET_ERROR;
+	xsmtp_buf_unit(&tBuf);
+	if ( iRet != XRT_NET_OK ) {
+		xsmtp_async_fail(pOp, "SMTP async send failed");
+		return FALSE;
+	}
+	return TRUE;
+}
+
+static void xsmtp_async_reply_reset(xsmtpasyncop* pOp)
+{
+	if ( pOp == NULL ) {
+		return;
+	}
+	pOp->iReplyCode = 0;
+	pOp->iReplyCaps = 0;
+	pOp->bReplyHasFirst = FALSE;
+	pOp->tReply.iLen = 0;
+	if ( pOp->tReply.sData != NULL ) {
+		pOp->tReply.sData[0] = '\0';
+	}
+}
+
+static void xsmtp_async_set_state(xsmtpasyncop* pOp, xsmtpasyncstate iState, const char* sReason)
+{
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	pOp->iState = iState;
+	xsmtp_async_reply_reset(pOp);
+	xsmtp_async_arm_timeout(pOp, sReason);
+}
+
+static const xsmtpaddr* xsmtp_async_current_rcpt(xsmtpasyncop* pOp)
+{
+	if ( pOp == NULL || pOp->pCtx == NULL ) {
+		return NULL;
+	}
+	if ( pOp->iRcptListKind == 0 ) {
+		if ( pOp->iRcptIndex < pOp->pCtx->tMsg.iToCount ) {
+			return &pOp->pCtx->tMsg.arrTo[pOp->iRcptIndex];
+		}
+	}
+	else if ( pOp->iRcptListKind == 1 ) {
+		if ( pOp->iRcptIndex < pOp->pCtx->tMsg.iCcCount ) {
+			return &pOp->pCtx->tMsg.arrCc[pOp->iRcptIndex];
+		}
+	}
+	else if ( pOp->iRcptListKind == 2 ) {
+		if ( pOp->iRcptIndex < pOp->pCtx->tMsg.iBccCount ) {
+			return &pOp->pCtx->tMsg.arrBcc[pOp->iRcptIndex];
+		}
+	}
+	return NULL;
+}
+
+static void xsmtp_async_next_rcpt_cursor(xsmtpasyncop* pOp)
+{
+	if ( pOp == NULL ) {
+		return;
+	}
+	pOp->iRcptIndex++;
+	for (;;) {
+		size_t iCount = 0;
+		if ( pOp->iRcptListKind == 0 ) iCount = pOp->pCtx->tMsg.iToCount;
+		else if ( pOp->iRcptListKind == 1 ) iCount = pOp->pCtx->tMsg.iCcCount;
+		else if ( pOp->iRcptListKind == 2 ) iCount = pOp->pCtx->tMsg.iBccCount;
+		if ( pOp->iRcptIndex < iCount ) {
+			return;
+		}
+		pOp->iRcptListKind++;
+		pOp->iRcptIndex = 0;
+		if ( pOp->iRcptListKind > 2 ) {
+			return;
+		}
+	}
+}
+
+static bool xsmtp_async_send_auth_plain_line(xsmtpasyncop* pOp)
+{
+	xsmtpbuf tBuf;
+	str sBase64 = NULL;
+	str sLine = NULL;
+	bool bOK = FALSE;
+
+	memset(&tBuf, 0, sizeof(tBuf));
+	xsmtp_buf_append_n(&tBuf, "", 1);
+	xsmtp_buf_append(&tBuf, xsmtp_str_or_empty(pOp->pCtx->tCfg.sUser));
+	xsmtp_buf_append_n(&tBuf, "", 1);
+	xsmtp_buf_append(&tBuf, xsmtp_str_or_empty(pOp->pCtx->tCfg.sPass));
+	sBase64 = xrtBase64Encode(tBuf.sData, tBuf.iLen, NULL);
+	if ( sBase64 == NULL ) {
+		xsmtp_buf_unit(&tBuf);
+		xsmtp_async_fail(pOp, "SMTP AUTH PLAIN base64 failed");
+		return FALSE;
+	}
+	sLine = xrtFormat("AUTH PLAIN %s", sBase64);
+	if ( sLine == NULL ) {
+		xsmtp_buf_unit(&tBuf);
+		xrtFree(sBase64);
+		xsmtp_async_fail(pOp, "SMTP AUTH PLAIN alloc failed");
+		return FALSE;
+	}
+	bOK = xsmtp_async_send_line(pOp, (const char*)sLine);
+	xsmtp_buf_unit(&tBuf);
+	xrtFree(sBase64);
+	xrtFree(sLine);
+	return bOK;
+}
+
+static void xsmtp_async_send_next_rcpt(xsmtpasyncop* pOp)
+{
+	const xsmtpaddr* pAddr;
+	str sLine;
+
+	pAddr = xsmtp_async_current_rcpt(pOp);
+	if ( pAddr == NULL ) {
+		if ( xsmtp_async_send_line(pOp, "DATA") ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_DATA, "SMTP DATA timeout");
+		}
+		return;
+	}
+	if ( pAddr->sEmail == NULL || pAddr->sEmail[0] == '\0' ) {
+		xsmtp_async_next_rcpt_cursor(pOp);
+		xsmtp_async_send_next_rcpt(pOp);
+		return;
+	}
+	sLine = xrtFormat("RCPT TO:<%s>", pAddr->sEmail);
+	if ( sLine == NULL ) {
+		xsmtp_async_fail(pOp, "SMTP RCPT TO alloc failed");
+		return;
+	}
+	if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
+		xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_RCPT, "SMTP RCPT timeout");
+	}
+	xrtFree(sLine);
+}
+
+static bool xsmtp_async_run_post_ehlo(xsmtpasyncop* pOp, bool bAllowStartTLS)
+{
+	str sLine;
+	int iSecureMode;
+
+	if ( pOp == NULL || pOp->pCtx == NULL || pOp->pRet == NULL ) {
+		return FALSE;
+	}
+
+	pOp->iCapabilities = pOp->iReplyCaps;
+	pOp->pRet->iCapabilities = pOp->iCapabilities;
+	iSecureMode = xsmtp_secure_mode_auto(&pOp->pCtx->tCfg);
+	if ( bAllowStartTLS && iSecureMode == XSMTP_SECURE_STARTTLS ) {
+		if ( !(pOp->iCapabilities & XSMTP_CAP_STARTTLS) ) {
+			xsmtp_async_fail(pOp, "SMTP server does not support STARTTLS");
+			return FALSE;
+		}
+		if ( xsmtp_async_send_line(pOp, "STARTTLS") ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_STARTTLS, "SMTP STARTTLS timeout");
+			return TRUE;
+		}
+		return FALSE;
+	}
+
+	pOp->iAuthMode = xsmtp_auth_mode_auto(&pOp->pCtx->tCfg, pOp->iCapabilities);
+	pOp->pRet->iAuthMode = pOp->iAuthMode;
+	if ( pOp->iAuthMode == XSMTP_AUTH_NONE ) {
+		sLine = xrtFormat("MAIL FROM:<%s>",
+			pOp->pCtx->tMsg.tFrom.sEmail && pOp->pCtx->tMsg.tFrom.sEmail[0]
+				? pOp->pCtx->tMsg.tFrom.sEmail
+				: pOp->pCtx->tCfg.tFrom.sEmail);
+		if ( sLine == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP MAIL FROM alloc failed");
+			return FALSE;
+		}
+		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_MAIL_FROM, "SMTP MAIL FROM timeout");
+		}
+		xrtFree(sLine);
+		return TRUE;
+	}
+	if ( pOp->iAuthMode == XSMTP_AUTH_PLAIN ) {
+		if ( xsmtp_async_send_auth_plain_line(pOp) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_AUTH, "SMTP AUTH timeout");
+		}
+		return TRUE;
+	}
+	if ( pOp->iAuthMode == XSMTP_AUTH_LOGIN ) {
+		if ( xsmtp_async_send_line(pOp, "AUTH LOGIN") ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_AUTH_LOGIN_USER, "SMTP AUTH LOGIN timeout");
+		}
+		return TRUE;
+	}
+
+	xsmtp_async_fail(pOp, "SMTP auth mode unsupported");
+	return FALSE;
+}
+
+static void xsmtp_async_advance(xsmtpasyncop* pOp)
+{
+	const char* sHelo;
+	str sLine;
+	str sData;
+	char* sBody;
+
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+
+	switch ( pOp->iState ) {
+	case XSMTP_AST_WAIT_BANNER:
+		sHelo = (pOp->pCtx->tCfg.sHeloName && pOp->pCtx->tCfg.sHeloName[0]) ? pOp->pCtx->tCfg.sHeloName : "localhost";
+		sLine = xrtFormat("EHLO %s", sHelo);
+		if ( sLine == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP EHLO alloc failed");
+			return;
+		}
+		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_EHLO, "SMTP EHLO timeout");
+		}
+		xrtFree(sLine);
+		return;
+	case XSMTP_AST_WAIT_EHLO:
+		(void)xsmtp_async_run_post_ehlo(pOp, TRUE);
+		return;
+	case XSMTP_AST_WAIT_STARTTLS:
+		if ( !xsmtp_async_starttls_begin(pOp) ) {
+			return;
+		}
+		xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_STARTTLS_TLS, "SMTP TLS handshake timeout");
+		if ( pOp->pSess->bTlsReady ) {
+			xsmtp_async_advance(pOp);
+		}
+		return;
+	case XSMTP_AST_WAIT_STARTTLS_TLS:
+		sHelo = (pOp->pCtx->tCfg.sHeloName && pOp->pCtx->tCfg.sHeloName[0]) ? pOp->pCtx->tCfg.sHeloName : "localhost";
+		sLine = xrtFormat("EHLO %s", sHelo);
+		if ( sLine == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP EHLO alloc failed");
+			return;
+		}
+		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_EHLO_TLS, "SMTP EHLO timeout");
+		}
+		xrtFree(sLine);
+		return;
+	case XSMTP_AST_WAIT_EHLO_TLS:
+		(void)xsmtp_async_run_post_ehlo(pOp, FALSE);
+		return;
+	case XSMTP_AST_WAIT_AUTH:
+		sLine = xrtFormat("MAIL FROM:<%s>",
+			pOp->pCtx->tMsg.tFrom.sEmail && pOp->pCtx->tMsg.tFrom.sEmail[0]
+				? pOp->pCtx->tMsg.tFrom.sEmail
+				: pOp->pCtx->tCfg.tFrom.sEmail);
+		if ( sLine == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP MAIL FROM alloc failed");
+			return;
+		}
+		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_MAIL_FROM, "SMTP MAIL FROM timeout");
+		}
+		xrtFree(sLine);
+		return;
+	case XSMTP_AST_WAIT_AUTH_LOGIN_USER:
+		sLine = xrtBase64Encode((ptr)xsmtp_str_or_empty(pOp->pCtx->tCfg.sUser), strlen(xsmtp_str_or_empty(pOp->pCtx->tCfg.sUser)), NULL);
+		if ( sLine == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP AUTH LOGIN base64 user failed");
+			return;
+		}
+		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_AUTH_LOGIN_PASS, "SMTP AUTH LOGIN user timeout");
+		}
+		xrtFree(sLine);
+		return;
+	case XSMTP_AST_WAIT_AUTH_LOGIN_PASS:
+		sLine = xrtBase64Encode((ptr)xsmtp_str_or_empty(pOp->pCtx->tCfg.sPass), strlen(xsmtp_str_or_empty(pOp->pCtx->tCfg.sPass)), NULL);
+		if ( sLine == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP AUTH LOGIN base64 pass failed");
+			return;
+		}
+		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_AUTH, "SMTP AUTH LOGIN pass timeout");
+		}
+		xrtFree(sLine);
+		return;
+	case XSMTP_AST_WAIT_MAIL_FROM:
+		pOp->iRcptListKind = 0;
+		pOp->iRcptIndex = 0;
+		xsmtp_async_send_next_rcpt(pOp);
+		return;
+	case XSMTP_AST_WAIT_RCPT:
+		xsmtp_async_next_rcpt_cursor(pOp);
+		xsmtp_async_send_next_rcpt(pOp);
+		return;
+	case XSMTP_AST_WAIT_DATA:
+		sData = xsmtp_build_message_data(&pOp->pCtx->tCfg, &pOp->pCtx->tMsg);
+		if ( sData == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP build message failed");
+			return;
+		}
+		sBody = xsmtp_build_data_body_bytes((const char*)sData);
+		xrtFree(sData);
+		if ( sBody == NULL ) {
+			xsmtp_async_fail(pOp, "SMTP DATA body alloc failed");
+			return;
+		}
+		if ( !xsmtp_async_send_plain(pOp, sBody, strlen(sBody)) ) {
+			xrtFree(sBody);
+			xsmtp_async_fail(pOp, "SMTP DATA send failed");
+			return;
+		}
+		xrtFree(sBody);
+		xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_BODY, "SMTP DATA body timeout");
+		return;
+	case XSMTP_AST_WAIT_BODY:
+		if ( xsmtp_async_send_line(pOp, "QUIT") ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_QUIT, "SMTP QUIT timeout");
+		}
+		return;
+	case XSMTP_AST_WAIT_QUIT:
+		pOp->pRet->bSuccess = TRUE;
+		xsmtp_async_resolve(pOp);
+		return;
+	default:
+		xsmtp_async_fail(pOp, "SMTP async invalid state");
+		return;
+	}
+}
+
+static void xsmtp_async_on_reply_complete(xsmtpasyncop* pOp)
+{
+	int iExpect = 0;
+
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	if ( pOp->pRet != NULL && pOp->tReply.sData != NULL ) {
+		snprintf(pOp->pRet->sLastReply, sizeof(pOp->pRet->sLastReply), "%s", pOp->tReply.sData);
+	}
+	switch ( pOp->iState ) {
+	case XSMTP_AST_WAIT_BANNER: iExpect = 220; break;
+	case XSMTP_AST_WAIT_EHLO: iExpect = 250; break;
+	case XSMTP_AST_WAIT_STARTTLS: iExpect = 220; break;
+	case XSMTP_AST_WAIT_EHLO_TLS: iExpect = 250; break;
+	case XSMTP_AST_WAIT_AUTH: iExpect = 235; break;
+	case XSMTP_AST_WAIT_AUTH_LOGIN_USER: iExpect = 334; break;
+	case XSMTP_AST_WAIT_AUTH_LOGIN_PASS: iExpect = 334; break;
+	case XSMTP_AST_WAIT_MAIL_FROM: iExpect = 250; break;
+	case XSMTP_AST_WAIT_RCPT: iExpect = 250; break;
+	case XSMTP_AST_WAIT_DATA: iExpect = 354; break;
+	case XSMTP_AST_WAIT_BODY: iExpect = 250; break;
+	case XSMTP_AST_WAIT_QUIT: iExpect = 221; break;
+	default: iExpect = 0; break;
+	}
+	if ( iExpect > 0 && pOp->iReplyCode != iExpect ) {
+		xsmtp_async_fail(pOp, pOp->pRet ? pOp->pRet->sLastReply : "SMTP unexpected reply");
+		return;
+	}
+	if ( pOp->pRet != NULL ) {
+		pOp->pRet->iServerCode = pOp->iReplyCode;
+	}
+	xsmtp_async_advance(pOp);
+}
+
+static void xsmtp_async_arm_timeout(xsmtpasyncop* pOp, const char* sReason)
+{
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	pOp->iWaitToken++;
+	pOp->tScratch.iLen = 0;
+	if ( pOp->tScratch.sData != NULL ) {
+		pOp->tScratch.sData[0] = '\0';
+	}
+	(void)xsmtp_buf_append(&pOp->tScratch, sReason ? sReason : "SMTP async timeout");
+}
+
+static void xsmtp_async_process_recv(xsmtpasyncop* pOp)
+{
+	char sLine[1024];
+	xsmtpsession* pSess;
+
+	if ( pOp == NULL || pOp->bDone || pOp->pCtx == NULL ) {
+		return;
+	}
+	pSess = pOp->pSess;
+	while ( xsmtp_try_read_line_from_buffer(pSess, sLine, sizeof(sLine)) ) {
+		if ( !pOp->bReplyHasFirst ) {
+			if ( strlen(sLine) < 3 || !isdigit((unsigned char)sLine[0]) || !isdigit((unsigned char)sLine[1]) || !isdigit((unsigned char)sLine[2]) ) {
+				xsmtp_async_fail(pOp, "SMTP invalid reply line");
+				return;
+			}
+			pOp->iReplyCode = (sLine[0] - '0') * 100 + (sLine[1] - '0') * 10 + (sLine[2] - '0');
+			pOp->bReplyHasFirst = TRUE;
+		}
+		if ( !xsmtp_buf_append(&pOp->tReply, sLine) || !xsmtp_buf_append(&pOp->tReply, "\n") ) {
+			xsmtp_async_fail(pOp, "SMTP reply buffer alloc failed");
+			return;
+		}
+		if ( strlen(sLine) > 4 && pOp->iReplyCode == 250 ) {
+			const char* sCap = sLine + 4;
+			if ( xsmtp_starts_with_i(sCap, "STARTTLS") ) {
+				pOp->iReplyCaps |= XSMTP_CAP_STARTTLS;
+			}
+			if ( xsmtp_starts_with_i(sCap, "AUTH ") ) {
+				if ( xsmtp_find_i(sCap, "PLAIN") ) pOp->iReplyCaps |= XSMTP_CAP_AUTH_PLAIN;
+				if ( xsmtp_find_i(sCap, "LOGIN") ) pOp->iReplyCaps |= XSMTP_CAP_AUTH_LOGIN;
+			}
+		}
+		if ( strlen(sLine) < 4 || sLine[3] != '-' ) {
+			xsmtp_async_on_reply_complete(pOp);
+			if ( pOp->bDone ) {
+				return;
+			}
+			xsmtp_async_reply_reset(pOp);
+		}
+	}
+}
+
+static void xsmtp_async_stream_on_open(ptr pOwner, xnetstream* pStream)
+{
+	xsmtpasyncop* pOp = (xsmtpasyncop*)pOwner;
+	(void)pStream;
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	if ( pOp->pRet != NULL && xsmtp_secure_mode_auto(&pOp->pCtx->tCfg) == XSMTP_SECURE_SSL ) {
+		pOp->pRet->bUsedTLS = TRUE;
+	}
+	xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_BANNER, "SMTP banner timeout");
+}
+
+static void xsmtp_async_stream_on_recv(ptr pOwner, xnetstream* pStream, xnetchain* pChain)
+{
+	xsmtpasyncop* pOp = (xsmtpasyncop*)pOwner;
+	char aBuf[4096];
+	size_t iLeft;
+	(void)pStream;
+
+	if ( pOp == NULL || pOp->bDone || pChain == NULL ) {
+		return;
+	}
+	iLeft = xrtNetChainBytes(pChain);
+	while ( iLeft > 0 ) {
+		size_t iChunk = iLeft > sizeof(aBuf) ? sizeof(aBuf) : iLeft;
+		size_t iRead = xrtNetChainPeek(pChain, aBuf, iChunk);
+		if ( iRead == 0 ) {
+			break;
+		}
+		if ( pOp->pSess != NULL && pOp->pSess->pTls != NULL && !pOp->pSess->bStreamTls ) {
+			if ( xrtNetTlsSessionFeedCipher(pOp->pSess->pTls, aBuf, iRead) != XRT_NET_OK ) {
+				xsmtp_async_fail(pOp, "SMTP TLS feed failed");
+				return;
+			}
+			if ( !pOp->pSess->bTlsReady ) {
+				if ( !xsmtp_async_tls_drive_handshake(pOp) ) {
+					return;
+				}
+				if ( pOp->bDone ) {
+					return;
+				}
+				if ( pOp->pSess->bTlsReady && pOp->iState == XSMTP_AST_WAIT_STARTTLS_TLS ) {
+					xsmtp_async_advance(pOp);
+				}
+			}
+			if ( pOp->pSess->bTlsReady && !xsmtp_async_tls_drain_plain(pOp) ) {
+				return;
+			}
+		} else if ( !xsmtp_append_recv(pOp->pSess, aBuf, iRead, pOp->pRet) ) {
+			xsmtp_async_fail(pOp, pOp->pRet->sError);
+			return;
+		}
+		xrtNetChainConsume(pChain, iRead);
+		iLeft -= iRead;
+	}
+	xsmtp_async_process_recv(pOp);
+}
+
+static void xsmtp_async_stream_on_close(ptr pOwner, xnetstream* pStream, xnet_result iReason)
+{
+	xsmtpasyncop* pOp = (xsmtpasyncop*)pOwner;
+	(void)pStream;
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	XSMTP_TRACE("async stream: close reason=%d", (int)iReason);
+	if ( pOp->pRet != NULL && !pOp->pRet->bSuccess ) {
+		xsmtp_result_errorf(pOp->pRet, "SMTP stream closed (%d)", (int)iReason);
+	}
+	xsmtp_async_resolve(pOp);
+}
+
+static void xsmtp_async_stream_on_error(ptr pOwner, xnetstream* pStream, int iSysErr)
+{
+	xsmtpasyncop* pOp = (xsmtpasyncop*)pOwner;
+	(void)pStream;
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	XSMTP_TRACE("async stream: error sys=%d", iSysErr);
+	xsmtp_result_errorf(pOp->pRet, "SMTP stream error (%d)", iSysErr);
+	xsmtp_async_resolve(pOp);
+}
+
+static const xnetstreamevents* xsmtp_async_stream_events(void)
+{
+	static const xnetstreamevents tEvents = {
+		xsmtp_async_stream_on_open,
+		xsmtp_async_stream_on_recv,
+		NULL,
+		xsmtp_async_stream_on_close,
+		xsmtp_async_stream_on_error,
+		NULL,
+		NULL
+	};
+	return &tEvents;
+}
+
+static xfuture* xsmtp_send_mail_future_thread(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, const xsmtpasyncopts* pOpts);
+
+static xfuture* xsmtp_send_mail_future_native(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, const xsmtpasyncopts* pOpts)
+{
+	xsmtpasyncop* pOp;
+	xsmtptaskctx* pCtx;
+	xfuture* pFuture;
+	xpromise* pPromise;
+	xnetengine* pEngine;
+	bool bOwnEngine = FALSE;
+	xnetconnectconfig tConnCfg;
+	xnetengineconfig tEngineCfg;
+
+	(void)xrtInit();
+
+	pEngine = (pOpts != NULL) ? pOpts->pEngine : NULL;
+	if ( pEngine == NULL ) {
+		xrtNetEngineConfigInit(&tEngineCfg);
+		tEngineCfg.iWorkerCount = 1;
+		pEngine = xrtNetEngineCreate(&tEngineCfg);
+		if ( pEngine == NULL ) {
+			XSMTP_TRACE("async native: engine create failed, fallback thread");
+			return xsmtp_send_mail_future_thread(pCfg, pMsg, pOpts);
+		}
+		if ( xrtNetEngineStart(pEngine) != XRT_NET_OK ) {
+			XSMTP_TRACE("async native: engine start failed, fallback thread");
+			xrtNetEngineDestroy(pEngine);
+			return xsmtp_send_mail_future_thread(pCfg, pMsg, pOpts);
+		}
+		bOwnEngine = TRUE;
+	}
+
+	pCtx = xsmtp_task_ctx_create(pCfg, pMsg, pOpts);
+	if ( pCtx == NULL ) {
+		XSMTP_TRACE("async native: task ctx create failed");
+		if ( bOwnEngine ) {
+			xrtNetEngineDestroy(pEngine);
+		}
+		return NULL;
+	}
+
+	pFuture = xFutureCreate();
+	if ( pFuture == NULL ) {
+		XSMTP_TRACE("async native: future create failed");
+		xsmtp_task_ctx_free(pCtx);
+		if ( bOwnEngine ) {
+			xrtNetEngineDestroy(pEngine);
+		}
+		return NULL;
+	}
+	pPromise = xPromiseCreate(pFuture);
+	if ( pPromise == NULL ) {
+		XSMTP_TRACE("async native: promise create failed");
+		xsmtp_task_ctx_free(pCtx);
+		if ( bOwnEngine ) {
+			xrtNetEngineDestroy(pEngine);
+		}
+		xFutureRelease(pFuture);
+		return NULL;
+	}
+
+	pOp = (xsmtpasyncop*)xrtMalloc(sizeof(*pOp));
+	if ( pOp == NULL ) {
+		XSMTP_TRACE("async native: op alloc failed");
+		xsmtp_task_ctx_free(pCtx);
+		if ( bOwnEngine ) {
+			xrtNetEngineDestroy(pEngine);
+		}
+		xPromiseDestroy(pPromise);
+		xFutureRelease(pFuture);
+		return NULL;
+	}
+	memset(pOp, 0, sizeof(*pOp));
+	pOp->pEngine = pEngine;
+	pOp->pPromise = pPromise;
+	pOp->pCtx = pCtx;
+	pOp->pSess = (xsmtpsession*)xrtCalloc(1, sizeof(xsmtpsession));
+	if ( pOp->pSess == NULL ) {
+		xsmtp_async_cleanup(pOp);
+		xFutureRelease(pFuture);
+		return NULL;
+	}
+	pOp->pSess->pEngine = pEngine;
+	pOp->pSess->bOwnEngine = bOwnEngine;
+	pOp->pSess->iTimeoutMs = pCtx->tCfg.iTimeoutMs;
+	pOp->pRet = (xsmtpresult*)xrtMalloc(sizeof(xsmtpresult));
+	if ( pOp->pRet == NULL ) {
+		XSMTP_TRACE("async native: result alloc failed");
+		xsmtp_async_cleanup(pOp);
+		xFutureRelease(pFuture);
+		return NULL;
+	}
+	xrtSmtpResultInit(pOp->pRet);
+	xrtNetConnectConfigInit(&tConnCfg);
+	tConnCfg.sHost = pCtx->tCfg.sHost;
+	tConnCfg.iPort = pCtx->tCfg.iPort;
+	tConnCfg.iConnectTimeoutMs = pCtx->tCfg.iTimeoutMs;
+	if ( xsmtp_secure_mode_auto(&pCtx->tCfg) == XSMTP_SECURE_SSL ) {
+		memset(&pOp->tTlsCfg, 0, sizeof(pOp->tTlsCfg));
+		pOp->tTlsCfg.sHostName = pCtx->tCfg.sHost;
+		pOp->tTlsCfg.bVerifyPeer = pCtx->tCfg.bVerifyPeer;
+		tConnCfg.pTlsConfig = &pOp->tTlsCfg;
+	}
+	pOp->pStream = xrtNetStreamCreate(pEngine, xsmtp_async_stream_events(), pOp);
+	if ( pOp->pStream == NULL ) {
+		XSMTP_TRACE("async native: stream create failed, fallback thread");
+		pOp->bDone = TRUE;
+		xsmtp_async_cleanup(pOp);
+		xFutureRelease(pFuture);
+		return xsmtp_send_mail_future_thread(pCfg, pMsg, pOpts);
+	}
+	pOp->pSess->pStream = pOp->pStream;
+	if ( xrtNetStreamConnect(pOp->pStream, &tConnCfg) != XRT_NET_OK ) {
+		str sErr = xrtGetError();
+		XSMTP_TRACE("async native: connect submit failed: %s, fallback thread", sErr ? (const char*)sErr : "");
+		pOp->bDone = TRUE;
+		xsmtp_async_cleanup(pOp);
+		xFutureRelease(pFuture);
+		return xsmtp_send_mail_future_thread(pCfg, pMsg, pOpts);
+	}
+	if ( pOpts != NULL && pOpts->sDebugName != NULL && pOpts->sDebugName[0] != '\0' ) {
+		(void)xFutureSetDebugName(pFuture, (str)pOpts->sDebugName);
+	}
+	XSMTP_TRACE("async native: connect submitted");
+	return pFuture;
+}
+
+static int32 xsmtp_send_mail_task(ptr pArg, xfuture_result* pOut)
+{
+	xsmtptaskctx* pCtx = (xsmtptaskctx*)pArg;
+	xsmtpresult* pRet;
+
+	if ( pOut == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return XRT_NET_ERROR;
+	}
+	memset(pOut, 0, sizeof(*pOut));
+	if ( pCtx == NULL ) {
+		pOut->iStatus = XRT_NET_ERROR;
+		pOut->sError = (str)"SMTP async task context missing";
+		return pOut->iStatus;
+	}
+
+	pRet = (xsmtpresult*)xrtMalloc(sizeof(*pRet));
+	if ( pRet == NULL ) {
+		pOut->iStatus = XRT_NET_ERROR;
+		pOut->sError = (str)"SMTP async result alloc failed";
+		xsmtp_task_ctx_free(pCtx);
+		return pOut->iStatus;
+	}
+	xrtSmtpResultInit(pRet);
+	(void)xrtSmtpSendMail(&pCtx->tCfg, &pCtx->tMsg, pRet);
+
+	pOut->iStatus = XRT_NET_OK;
+	pOut->pValue = pRet;
+	pOut->iFlags = XFUTURE_RESULT_F_OWN_VALUE;
+	xsmtp_task_ctx_free(pCtx);
+	return pOut->iStatus;
+}
+
+static xfuture* xsmtp_send_mail_future_thread(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, const xsmtpasyncopts* pOpts)
+{
+	xsmtptaskctx* pCtx;
+	xfuture* pFuture;
+
+	(void)xrtInit();
+	pCtx = xsmtp_task_ctx_create(pCfg, pMsg, pOpts);
+	if ( pCtx == NULL ) {
+		XSMTP_TRACE("async thread fallback: task ctx create failed");
+		return NULL;
+	}
+
+	pFuture = xTaskRunThread(xsmtp_send_mail_task, pCtx, 0);
+	if ( pFuture == NULL ) {
+		XSMTP_TRACE("async thread fallback: xTaskRunThread failed");
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( pOpts != NULL && pOpts->sDebugName != NULL && pOpts->sDebugName[0] != '\0' ) {
+		(void)xFutureSetDebugName(pFuture, (str)pOpts->sDebugName);
+	}
+	return pFuture;
+}
+
+static xfuture* xrtSmtpSendMailFuture(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, const xsmtpasyncopts* pOpts)
+{
+	if ( pCfg == NULL || pMsg == NULL ) {
+		return NULL;
+	}
+	return xsmtp_send_mail_future_native(pCfg, pMsg, pOpts);
+}
+
+static bool xrtSmtpSendMailCo(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, xsmtpresult* pOut)
+{
+	xfuture* pFuture;
+	xsmtpresult* pRet;
+
+	if ( pOut == NULL ) {
+		return FALSE;
+	}
+	xrtSmtpResultInit(pOut);
+
+	pFuture = xrtSmtpSendMailFuture(pCfg, pMsg, NULL);
+	if ( pFuture == NULL ) {
+		xsmtp_result_error(pOut, "SMTP async future create failed");
+		return FALSE;
+	}
+
+	pRet = (xsmtpresult*)xFutureWaitCoValue(pFuture);
+	if ( pRet == NULL ) {
+		xfuture_result tResult;
+		memset(&tResult, 0, sizeof(tResult));
+		if ( xFutureGetResult(pFuture, &tResult) && tResult.pValue != NULL ) {
+			pRet = (xsmtpresult*)tResult.pValue;
+		}
+	}
+	if ( pRet == NULL ) {
+		str sError = xFutureError(pFuture);
+		xsmtp_result_error(pOut, sError ? (const char*)sError : "SMTP async wait failed");
+		xFutureRelease(pFuture);
+		return FALSE;
+	}
+
+	*pOut = *pRet;
+	xrtSmtpResultFree(pRet);
+	xFutureRelease(pFuture);
+	return pOut->bSuccess;
+}
+
+static bool xrtSmtpSendMailAsyncWait(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, const xsmtpasyncopts* pOpts, xsmtpresult* pOut)
+{
+	xfuture* pFuture;
+	xsmtpresult* pRet;
+
+	if ( pOut == NULL ) {
+		return FALSE;
+	}
+	xrtSmtpResultInit(pOut);
+
+	pFuture = xrtSmtpSendMailFuture(pCfg, pMsg, pOpts);
+	if ( pFuture == NULL ) {
+		XSMTP_TRACE("async wait: future create returned null");
+		xsmtp_result_error(pOut, "SMTP async future create failed");
+		return FALSE;
+	}
+	pRet = (xsmtpresult*)xFutureWaitValue(pFuture);
+	if ( pRet == NULL ) {
+		xfuture_result tResult;
+		memset(&tResult, 0, sizeof(tResult));
+		if ( xFutureGetResult(pFuture, &tResult) && tResult.pValue != NULL ) {
+			pRet = (xsmtpresult*)tResult.pValue;
+		}
+	}
+	if ( pRet == NULL ) {
+		str sError = xFutureError(pFuture);
+		xsmtp_result_error(pOut, sError ? (const char*)sError : "SMTP async wait failed");
+		xFutureRelease(pFuture);
+		return FALSE;
+	}
+
+	*pOut = *pRet;
+	xrtSmtpResultFree(pRet);
+	xFutureRelease(pFuture);
+	return pOut->bSuccess;
 }
 
 #endif

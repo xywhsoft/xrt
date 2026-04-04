@@ -37896,11 +37896,46 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 	size_t i;
 	time_t iNow = time(NULL);
 	bool bHostMatched = false;
-	if ( !pCtx || !pLeaf || !__xrt_x509_is_time_valid(pLeaf, iNow) ) return false;
-	if ( pLeaf->bHasBasicConstraints && pLeaf->bIsCA ) return false;
-	if ( pLeaf->bHasKeyUsage && (pLeaf->iKeyUsage & (1u << 0)) == 0 ) return false;
-	if ( pLeaf->bHasExtendedKeyUsage && !pLeaf->bHasServerAuth ) return false;
+	if ( !pCtx || !pLeaf ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] validate leaf: invalid input\n");
+		#endif
+		return false;
+	}
+	if ( !__xrt_x509_is_time_valid(pLeaf, iNow) ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] validate leaf: time invalid\n");
+		#endif
+		return false;
+	}
+	if ( pLeaf->bHasBasicConstraints && pLeaf->bIsCA ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] validate leaf: certificate is CA\n");
+		#endif
+		return false;
+	}
+	if ( pLeaf->bHasKeyUsage && (pLeaf->iKeyUsage & (1u << 0)) == 0 ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] validate leaf: keyUsage missing digitalSignature (0x%08x)\n", (unsigned)pLeaf->iKeyUsage);
+		#endif
+		return false;
+	}
+	if ( pLeaf->bHasExtendedKeyUsage && !pLeaf->bHasServerAuth ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] validate leaf: eku missing serverAuth\n");
+		#endif
+		return false;
+	}
 	if ( pCtx->sHostname[0] ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] validate leaf: host=%s sanCount=%d cn=%s\n",
+				pCtx->sHostname,
+				(int)pLeaf->iDnsNameCount,
+				pLeaf->bHasCommonName ? pLeaf->sCommonName : "(none)");
+			for ( i = 0; i < pLeaf->iDnsNameCount; i++ ) {
+				printf("    [TLS] validate leaf: san[%d]=%s\n", (int)i, pLeaf->aDnsNames[i]);
+			}
+		#endif
 		if ( pLeaf->iDnsNameCount > 0 ) {
 			for ( i = 0; i < pLeaf->iDnsNameCount; i++ ) {
 				if ( __xrt_tls_hostname_matches(pLeaf->aDnsNames[i], pCtx->sHostname) ) {
@@ -37911,9 +37946,17 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 		} else if ( pLeaf->bHasCommonName ) {
 			bHostMatched = __xrt_tls_hostname_matches(pLeaf->sCommonName, pCtx->sHostname);
 		} else {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS] validate leaf: no SAN/CN for host %s\n", pCtx->sHostname);
+			#endif
 			return false;
 		}
-		if ( !bHostMatched ) return false;
+		if ( !bHostMatched ) {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS] validate leaf: host mismatch for %s\n", pCtx->sHostname);
+			#endif
+			return false;
+		}
 	}
 	return true;
 }
@@ -38019,13 +38062,31 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 	size_t iCurrent;
 	time_t iNow = time(NULL);
 	if ( !pCtx || !apCertData || !apCertLen || iCertCount == 0 || iCertCount > __XRT_TLS_MAX_CERT_CHAIN ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: invalid input certCount=%d\n", (int)iCertCount);
+		#endif
 		return false;
 	}
 	for ( i = 0; i < iCertCount; i++ ) {
-		if ( !__xrt_x509_parse_for_chain(apCertData[i], apCertLen[i], &aCerts[i]) ) return false;
+		if ( !__xrt_x509_parse_for_chain(apCertData[i], apCertLen[i], &aCerts[i]) ) {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS] verify chain: parse cert[%d] failed len=%d\n", (int)i, (int)apCertLen[i]);
+			#endif
+			return false;
+		}
 	}
-	if ( !__xrt_tls_validate_leaf_server_cert(pCtx, &aCerts[0]) ) return false;
-	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &aCerts[0]) ) return false;
+	if ( !__xrt_tls_validate_leaf_server_cert(pCtx, &aCerts[0]) ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: leaf validation failed\n");
+		#endif
+		return false;
+	}
+	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &aCerts[0]) ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: copy pubkey failed\n");
+		#endif
+		return false;
+	}
 	iCurrent = 0;
 	for ( i = 0; i < iCertCount; i++ ) {
 		size_t j;
@@ -38037,9 +38098,24 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 		for ( j = iCurrent + 1; j < iCertCount; j++ ) {
 			if ( __xrt_x509_name_eq(aCerts[iCurrent].pIssuerRaw, aCerts[iCurrent].iIssuerRawLen,
 				aCerts[j].pSubjectRaw, aCerts[j].iSubjectRawLen) ) {
-				if ( !__xrt_x509_is_ca_usable(&aCerts[j]) ) return false;
-				if ( !__xrt_x509_is_time_valid(&aCerts[j], iNow) ) return false;
-				if ( !__xrt_x509_verify_signature(&aCerts[iCurrent], &aCerts[j]) ) return false;
+				if ( !__xrt_x509_is_ca_usable(&aCerts[j]) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: issuer cert[%d] not usable as CA\n", (int)j);
+					#endif
+					return false;
+				}
+				if ( !__xrt_x509_is_time_valid(&aCerts[j], iNow) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: issuer cert[%d] time invalid\n", (int)j);
+					#endif
+					return false;
+				}
+				if ( !__xrt_x509_verify_signature(&aCerts[iCurrent], &aCerts[j]) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: issuer cert[%d] signature verify failed for cert[%d]\n", (int)j, (int)iCurrent);
+					#endif
+					return false;
+				}
 				iCurrent = j;
 				bFoundIssuer = true;
 				break;
@@ -38057,12 +38133,18 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 				if ( !__xrt_tls_ca_bundle_next(pCtx, &iOffset, &pAnchorDer, &iAnchorLen, &bOwned) ) break;
 				if ( __xrt_x509_parse_for_chain(pAnchorDer, iAnchorLen, &tAnchor) &&
 					__xrt_tls_current_cert_trusted_by_anchor(&aCerts[iCurrent], &tAnchor, iNow) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: trusted by anchor from CA bundle\n");
+					#endif
 					bOK = true;
 				}
 				if ( bOwned ) xrtFree(pAnchorDer);
 				if ( bOK ) return true;
 			}
 		}
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: no issuer or trust anchor found\n");
+		#endif
 		return false;
 	}
 	if ( pCtx->iCaDataLen == 0 ) return false;
@@ -38077,12 +38159,18 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 			if ( !__xrt_tls_ca_bundle_next(pCtx, &iOffset, &pAnchorDer, &iAnchorLen, &bOwned) ) break;
 			if ( __xrt_x509_parse_for_chain(pAnchorDer, iAnchorLen, &tAnchor) &&
 				__xrt_tls_current_cert_trusted_by_anchor(&aCerts[iCurrent], &tAnchor, iNow) ) {
+				#ifdef DEBUG_TRACE
+					printf("    [TLS] verify chain: self-signed root trusted by CA bundle\n");
+				#endif
 				bTrusted = true;
 			}
 			if ( bOwned ) xrtFree(pAnchorDer);
 			if ( bTrusted ) return true;
 		}
 	}
+	#ifdef DEBUG_TRACE
+		printf("    [TLS] verify chain: final trust lookup failed\n");
+	#endif
 	return false;
 }
 // 内部函数：__xrt_tls_capture_peer_cert_chain
@@ -38094,7 +38182,12 @@ static bool __xrt_tls_capture_peer_cert_chain(xtlsctx *pCtx, uint8 **apCertData,
 		if ( !__xrt_x509_parse(apCertData[0], apCertLen[0], &tLeaf) ) return false;
 		return __xrt_tls_copy_pubkey_from_cert(pCtx, &tLeaf);
 	}
-	if ( pCtx->iCaDataLen == 0 ) return false;
+	if ( pCtx->iCaDataLen == 0 ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] capture peer chain: CA bundle empty\n");
+		#endif
+		return false;
+	}
 	return __xrt_tls_verify_presented_chain(pCtx, apCertData, apCertLen, iCertCount);
 }
 // 内部函数：复制 TLS load 文件
