@@ -596,10 +596,6 @@ static void __xrtRuntimeFinalizeLocked()
 	}
 
 	#ifdef XRT_MEM_DEBUG
-		if ( __xrtMemDebugHasLeaks() ) {
-			xrtMemDebugDumpText("xrt_mem_report_auto.txt");
-			xrtMemDebugDumpJson("xrt_mem_report_auto.json");
-		}
 	#endif
 
 	#ifndef XRT_NO_TEMPLATE
@@ -610,6 +606,12 @@ static void __xrtRuntimeFinalizeLocked()
 	xCore.AppFile = xCore.sNull;
 	xrtFree(xCore.AppPath);
 	xCore.AppPath = xCore.sNull;
+	#ifdef XRT_MEM_DEBUG
+		if ( __xrtMemDebugHasLeaks() ) {
+			xrtMemDebugDumpText("xrt_mem_report_auto.txt");
+			xrtMemDebugDumpJson("xrt_mem_report_auto.json");
+		}
+	#endif
 	__xrtMemGlobalUnitPlan(&xCore.MemGlobal);
 	#ifdef XRT_MEM_DEBUG
 		__xrtMemDebugResetState(&xCore.MemDebug);

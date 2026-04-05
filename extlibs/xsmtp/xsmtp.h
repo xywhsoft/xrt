@@ -3308,7 +3308,7 @@ static xfuture* xrtSmtpSendMailFuture(const xsmtpconfig* pCfg, const xsmtpmessag
 	if ( pCfg == NULL || pMsg == NULL ) {
 		return NULL;
 	}
-	return xsmtp_send_mail_future_thread(pCfg, pMsg, pOpts);
+	return xsmtp_send_mail_future_native(pCfg, pMsg, pOpts);
 }
 
 static bool xrtSmtpSendMailCo(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, xsmtpresult* pOut)

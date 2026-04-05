@@ -1881,8 +1881,9 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 	size_t iSize = 0;
 	str sRet = xrtStringifyJSON(varVal, bFormat, &iSize);
 	if ( sRet ) {
-		xrtFilePutAll(sFile, sRet, iSize);
-		return TRUE;
+		int iResult = xrtFilePutAll(sFile, sRet, iSize);
+		xrtFree(sRet);
+		return iResult;
 	} else {
 		return FALSE;
 	}
