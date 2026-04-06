@@ -1,5 +1,7 @@
 
-#define XRT_BUILD_CORE
+#ifndef XRT_BUILD_CORE
+	#define XRT_BUILD_CORE
+#endif
 #if defined(XRT_MEM_DEBUG)
 	#include "lib/memdebug_site_macros_undef.h"
 #endif
