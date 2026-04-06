@@ -607,10 +607,8 @@ static void __xrtRuntimeFinalizeLocked()
 	xrtFree(xCore.AppPath);
 	xCore.AppPath = xCore.sNull;
 	#ifdef XRT_MEM_DEBUG
-		if ( __xrtMemDebugHasLeaks() ) {
-			xrtMemDebugDumpText("xrt_mem_report_auto.txt");
-			xrtMemDebugDumpJson("xrt_mem_report_auto.json");
-		}
+		xrtMemDebugDumpText("xrt_mem_report_auto.txt");
+		xrtMemDebugDumpJson("xrt_mem_report_auto.json");
 	#endif
 	__xrtMemGlobalUnitPlan(&xCore.MemGlobal);
 	#ifdef XRT_MEM_DEBUG
@@ -875,6 +873,30 @@ static void __xrtMemDebugJsonWriteString(FILE* pFile, const char* sText)
 
 
 // 将当前内存调试状态导出为文本报告
+static bool __xrtMemDebugHasIssues()
+{
+	return __xrtMemDebugHasLeaks()
+		|| xCore.MemDebug.iInvalidFreeCount != 0
+		|| xCore.MemDebug.iDoubleFreeCount != 0
+		|| xCore.MemDebug.iWrongAllocatorFreeCount != 0
+		|| xCore.MemDebug.iObjectDoubleDestroyCount != 0
+		|| xCore.MemDebug.iOverflowCount != 0
+		|| xCore.MemDebug.iUnderflowCount != 0;
+}
+
+
+static const char* __xrtMemDebugReportStatusName(bool bHasIssues)
+{
+	return bHasIssues ? "issues_detected" : "clean";
+}
+
+
+static const char* __xrtMemDebugReportSummary(bool bHasIssues)
+{
+	return bHasIssues ? "memory issues detected" : "no memory issues detected";
+}
+
+
 static bool __xrtMemDebugDumpTextFile(FILE* pFile)
 {
 	xrtMemBlockHeader* pHeader;
@@ -882,13 +904,17 @@ static bool __xrtMemDebugDumpTextFile(FILE* pFile)
 	xrtMemDebugObject* pObject;
 	xrtMemDebugSiteStat* pSite;
 	uint32 iCount;
+	bool bHasIssues;
 
 	if ( pFile == NULL ) {
 		return FALSE;
 	}
 
 	__xrtMemDebugLock();
+	bHasIssues = __xrtMemDebugHasIssues();
 	fprintf(pFile, "# XRT Memory Debug Report\n\n");
+	fprintf(pFile, "- status: %s\n", __xrtMemDebugReportStatusName(bHasIssues));
+	fprintf(pFile, "- summary: %s\n", __xrtMemDebugReportSummary(bHasIssues));
 	fprintf(pFile, "- live_alloc_count: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
 	fprintf(pFile, "- live_alloc_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
 	fprintf(pFile, "- foreign_live_count: %llu\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);
@@ -997,13 +1023,22 @@ static bool __xrtMemDebugDumpJsonFile(FILE* pFile)
 	xrtMemDebugSiteStat* pSite;
 	uint32 iCount;
 	bool bFirst;
+	bool bHasIssues;
 
 	if ( pFile == NULL ) {
 		return FALSE;
 	}
 
 	__xrtMemDebugLock();
+	bHasIssues = __xrtMemDebugHasIssues();
 	fputs("{\n", pFile);
+	fputs("  \"status\": ", pFile);
+	__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugReportStatusName(bHasIssues));
+	fputs(",\n", pFile);
+	fprintf(pFile, "  \"has_issues\": %s,\n", bHasIssues ? "true" : "false");
+	fputs("  \"summary\": ", pFile);
+	__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugReportSummary(bHasIssues));
+	fputs(",\n", pFile);
 	fprintf(pFile, "  \"live_alloc_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
 	fprintf(pFile, "  \"live_alloc_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
 	fprintf(pFile, "  \"foreign_live_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);

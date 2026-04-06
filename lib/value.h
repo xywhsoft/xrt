@@ -68,12 +68,12 @@ static void __xvoDestroyValue(xvalue pVal)
 		xrtPtrArrayDestroy(pVal->vArray);
 	} else if ( pVal->Type == XVO_DT_LIST ) {
 		xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
-		xrtListDestroy(pVal->vList);
+		(xrtListDestroy)(pVal->vList);
 	} else if ( pVal->Type == XVO_DT_COLL ) {
-		xrtAVLTreeDestroy(pVal->vColl);
+		(xrtAVLTreeDestroy)(pVal->vColl);
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
 		xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
-		xrtDictDestroy(pVal->vTable);
+		(xrtDictDestroy)(pVal->vTable);
 	} else if ( pVal->Type == XVO_DT_CLASS ) {
 		xrtFree(pVal->vStruct);
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
@@ -170,6 +170,8 @@ XXAPI xvalue xvoCreateFloat(double fVal)
 // 创建文本
 XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 {
+	ptr pOwnedEmpty = NULL;
+
 	if ( sVal == NULL ) {
 		sVal = xCore.sNull;
 		iSize = 0;
@@ -177,6 +179,9 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 	} else if ( iSize == 0 ) {
 		iSize = strlen(sVal);
 		if ( iSize == 0 ) {
+			if ( bColloc && (sVal != xCore.sNull) ) {
+				pOwnedEmpty = sVal;
+			}
 			sVal = xCore.sNull;
 			bColloc = TRUE;
 		}
@@ -193,6 +198,9 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 				xrtFree(pVal);
 				return NULL;
 			}
+		}
+		if ( pOwnedEmpty != NULL ) {
+			xrtFree(pOwnedEmpty);
 		}
 	}
 	return pVal;

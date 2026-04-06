@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-05 21:35:06
+    Generated: 2026-04-06 21:24:07
 
     MIT License
 
@@ -8613,6 +8613,38 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 	}
 	__xrtMemDebugSiteOnFreeNoLock(pNode->sAllocFile, pNode->iAllocLine, pNode->iAllocatorKind, pNode->iSize);
 	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, pAddress, pNode->iSize, pNode->iAllocatorKind, sFile, iLine);
+	__xrtMemDebugClearFile(&pNode->sAllocFile);
+	__xrtMemGlobalProcFree()(pNode);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+// 内部函数：静默注销 foreign alloc（用于对象整体销毁时的兜底清扫）
+static inline bool __xrtMemDebugTryUnregisterForeignAllocSilent(ptr pAddress)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		xCore.MemDebug.pForeignAllocs = pNode->pNext;
+	}
+	if ( xCore.MemDebug.iForeignLiveCount > 0 ) {
+		xCore.MemDebug.iForeignLiveCount--;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes >= pNode->iSize ) {
+		xCore.MemDebug.iForeignLiveBytes -= pNode->iSize;
+	} else {
+		xCore.MemDebug.iForeignLiveBytes = 0;
+	}
 	__xrtMemDebugClearFile(&pNode->sAllocFile);
 	__xrtMemGlobalProcFree()(pNode);
 	__xrtMemDebugUnlock();
@@ -58635,7 +58667,7 @@ XXAPI void xrtArrayDestroy(xarray pArr)
 		if ( !xrtOwnerCheckMutable(&pArr->Owner, "array belongs to another thread.") ) {
 			return;
 		}
-		xrtArrayUnit(pArr);
+			(xrtArrayUnit)(pArr);
 		xrtFree(pArr);
 	}
 }
@@ -58691,7 +58723,7 @@ XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtArrayUnit(pArr);
+		(xrtArrayUnit)(pArr);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
 		xrtFreeDbg(pArr, sFile, iLine);
@@ -59267,7 +59299,7 @@ XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM)
 		if ( !xrtOwnerCheckMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 			return;
 		}
-		xrtFSMemPoolUnit(objMM);
+			(xrtFSMemPoolUnit)(objMM);
 		xrtFree(objMM);
 	}
 }
@@ -59295,6 +59327,14 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
+#ifdef XRT_MEM_DEBUG
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
+#endif
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -59336,7 +59376,7 @@ XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iL
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtFSMemPoolUnit(objMM);
+		(xrtFSMemPoolUnit)(objMM);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine);
 		xrtFreeDbg(objMM, sFile, iLine);
@@ -59359,6 +59399,12 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -59374,6 +59420,31 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 }
 #endif
 // 从内存管理器中申请一块内存
+#ifdef XRT_MEM_DEBUG
+#define __XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(_objMMU, _bFreeMark) \
+	do { \
+		xmemunit __objMMU = (_objMMU); \
+		if ( __objMMU && __objMMU->Count > 0 ) { \
+			for ( int __idx = 0; __idx < 256; __idx++ ) { \
+				MMU_ValuePtr __v = (MMU_ValuePtr)&(__objMMU->Memory[(size_t)__objMMU->ItemLength * __idx]); \
+				bool __willFree = FALSE; \
+				if ( (__v->ItemFlag & MMU_FLAG_USE) == 0 ) { \
+					continue; \
+				} \
+				if ( (_bFreeMark) ) { \
+					__willFree = ((__v->ItemFlag & MMU_FLAG_GC) != 0); \
+				} else { \
+					__willFree = ((__v->ItemFlag & MMU_FLAG_GC) == 0); \
+				} \
+				if ( __willFree ) { \
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&__v[1]); \
+				} \
+			} \
+		} \
+	} while ( 0 )
+#else
+#define __XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(_objMMU, _bFreeMark) ((void)0)
+#endif
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {
 	ptr pResult = NULL;
@@ -59615,11 +59686,13 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objMM->LL_Idle;
 	while ( pNode ) {
+		__XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(pNode->objMMU, bFreeMark);
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
 	pNode = objMM->LL_Full;
 	while ( pNode ) {
+		__XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(pNode->objMMU, bFreeMark);
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
@@ -59808,7 +59881,7 @@ XXAPI xdynstack xrtDynStackCreate(uint32 iItemLength)
 XXAPI void xrtDynStackDestroy(xdynstack objSTK)
 {
 	if ( objSTK ) {
-		xrtDynStackUnit(objSTK);
+			(xrtDynStackUnit)(objSTK);
 		xrtFree(objSTK);
 	}
 }
@@ -59857,7 +59930,7 @@ XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLi
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtDynStackUnit(objSTK);
+		(xrtDynStackUnit)(objSTK);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
 		xrtFreeDbg(objSTK, sFile, iLine);
@@ -59874,7 +59947,7 @@ XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
 		return;
 	}
 	tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-	xrtDynStackUnit(objSTK);
+	(xrtDynStackUnit)(objSTK);
 	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
 }
@@ -60452,7 +60525,7 @@ XXAPI void xrtAVLTreeDestroy(xavltree objAVLT)
 		if ( !xrtOwnerCheckMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
 			return;
 		}
-		xrtAVLTreeUnit(objAVLT);
+			(xrtAVLTreeUnit)(objAVLT);
 		xrtFree(objAVLT);
 	}
 }
@@ -60502,7 +60575,7 @@ static inline void __xrtAVLTreeUnit_NoLock(xavltree objAVLT)
 		xrtAVLTreeUnit_FreeKeysRecuProc(objAVLT, objAVLT->RootNode);
 	}
 	xrtAVLTB_Unit(objAVLT);
-	xrtFSMemPoolUnit(&objAVLT->objMM);
+	(xrtFSMemPoolUnit)(&objAVLT->objMM);
 	objAVLT->NodeCache = NULL;
 }
 // 释放 AVL 树
@@ -60544,7 +60617,7 @@ XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLin
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtAVLTreeUnit(objAVLT);
+		(xrtAVLTreeUnit)(objAVLT);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine);
 		xrtFreeDbg(objAVLT, sFile, iLine);
@@ -60769,7 +60842,7 @@ XXAPI void xrtMemPoolDestroy(xmempool objMP)
 		if ( !xrtOwnerCheckMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 			return;
 		}
-		xrtMemPoolUnit(objMP);
+			(xrtMemPoolUnit)(objMP);
 		xrtFree(objMP);
 	}
 }
@@ -60940,6 +61013,14 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
+#ifdef XRT_MEM_DEBUG
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
+#endif
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -60960,6 +61041,9 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
+#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugTryUnregisterForeignAllocSilent(&((MP_MemHead*)pInfo->Ptr)[1]);
+#endif
 			xrtFree(pInfo->Ptr);
 		}
 	}
@@ -60997,7 +61081,7 @@ XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtMemPoolUnit(objMP);
+		(xrtMemPoolUnit)(objMP);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
 		xrtFreeDbg(objMP, sFile, iLine);
@@ -61020,6 +61104,12 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -61460,7 +61550,7 @@ XXAPI void xrtDictDestroy(xdict objHT)
 		if ( !xrtOwnerCheckMutable(&objHT->Owner, "dict belongs to another thread.") ) {
 			return;
 		}
-		xrtDictUnit(objHT);
+		(xrtDictUnit)(objHT);
 		xrtFree(objHT);
 	}
 }
@@ -61488,7 +61578,7 @@ XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength, uint32 iMode)
 // 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
 static inline void __xrtDictUnit_NoLock(xdict objHT)
 {
-	xrtAVLTreeUnit(&objHT->AVLT);
+	(xrtAVLTreeUnit)(&objHT->AVLT);
 }
 // 释放字典
 XXAPI void xrtDictUnit(xdict objHT)
@@ -61529,7 +61619,7 @@ XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtDictUnit(objHT);
+		__xrtDictUnit_NoLock(objHT);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
 		xrtFreeDbg(objHT, sFile, iLine);
@@ -61812,7 +61902,7 @@ XXAPI void xrtListDestroy(xlist objList)
 		if ( !xrtOwnerCheckMutable(&objList->Owner, "list belongs to another thread.") ) {
 			return;
 		}
-		xrtListUnit(objList);
+			(xrtListUnit)(objList);
 		xrtFree(objList);
 	}
 }
@@ -61829,7 +61919,7 @@ XXAPI void xrtListInit(xlist objList, uint32 iItemLength, uint32 iMode)
 // 释放列表（对自维护结构体指针使用）
 static inline void __xrtListUnit_NoLock(xlist objList)
 {
-	xrtAVLTreeUnit(&objList->AVLT);
+	(xrtAVLTreeUnit)(&objList->AVLT);
 }
 // 释放列表
 XXAPI void xrtListUnit(xlist objList)
@@ -61870,7 +61960,7 @@ XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtListUnit(objList);
+		(xrtListUnit)(objList);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
 		xrtFreeDbg(objList, sFile, iLine);
@@ -67744,12 +67834,12 @@ static void __xvoDestroyValue(xvalue pVal)
 		xrtPtrArrayDestroy(pVal->vArray);
 	} else if ( pVal->Type == XVO_DT_LIST ) {
 		xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
-		xrtListDestroy(pVal->vList);
+		(xrtListDestroy)(pVal->vList);
 	} else if ( pVal->Type == XVO_DT_COLL ) {
-		xrtAVLTreeDestroy(pVal->vColl);
+		(xrtAVLTreeDestroy)(pVal->vColl);
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
 		xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
-		xrtDictDestroy(pVal->vTable);
+		(xrtDictDestroy)(pVal->vTable);
 	} else if ( pVal->Type == XVO_DT_CLASS ) {
 		xrtFree(pVal->vStruct);
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
@@ -67833,6 +67923,7 @@ XXAPI xvalue xvoCreateFloat(double fVal)
 // 创建文本
 XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 {
+	ptr pOwnedEmpty = NULL;
 	if ( sVal == NULL ) {
 		sVal = xCore.sNull;
 		iSize = 0;
@@ -67840,6 +67931,9 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 	} else if ( iSize == 0 ) {
 		iSize = strlen(sVal);
 		if ( iSize == 0 ) {
+			if ( bColloc && (sVal != xCore.sNull) ) {
+				pOwnedEmpty = sVal;
+			}
 			sVal = xCore.sNull;
 			bColloc = TRUE;
 		}
@@ -67856,6 +67950,9 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 				xrtFree(pVal);
 				return NULL;
 			}
+		}
+		if ( pOwnedEmpty != NULL ) {
+			xrtFree(pOwnedEmpty);
 		}
 	}
 	return pVal;
@@ -72492,6 +72589,10 @@ XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 	}
 	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
 	if ( iRet < 0 ) {
+		if ( ctx.root != NULL ) {
+			xvoUnref(ctx.root);
+			ctx.root = NULL;
+		}
 		xrtStackDestroy(ctx.stack);
 		return xvoCreateNull();
 	}
@@ -72513,6 +72614,10 @@ XXAPI xvalue xrtParseJSON_File(str sFile)
 	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
 	xrtFree(sText);  // 释放文件内容
 	if ( iRet < 0 ) {
+		if ( ctx.root != NULL ) {
+			xvoUnref(ctx.root);
+			ctx.root = NULL;
+		}
 		xrtStackDestroy(ctx.stack);
 		return xvoCreateNull();
 	}
@@ -74247,6 +74352,10 @@ static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 		xrtBufferUnit(&tBuf);
 		return NULL;
 	}
+	if ( tBuf.Length == 1u ) {
+		xrtBufferUnit(&tBuf);
+		return __xrt_str(xCore.sNull);
+	}
 	sRet = xrtMalloc(tBuf.Length);
 	if ( sRet ) {
 		memcpy(sRet, tBuf.Buffer, tBuf.Length);
@@ -75071,7 +75180,7 @@ static int xte_private_rebuild_subtemplates(xtetemplate hTemplate, int iErrorCod
 	if ( hTemplate == NULL ) {
 		return 0;
 	}
-	xrtArrayUnit(&hTemplate->arrSubTemplate);
+	(xrtArrayUnit)(&hTemplate->arrSubTemplate);
 	xrtArrayInit(&hTemplate->arrSubTemplate, sizeof(XTE_PrivateSubTemplateItem), XRT_OBJMODE_LOCAL);
 	for ( i = 0; i < hTemplate->arrNode.Count; i++ ) {
 		XTE_Node* pNode = xte_private_template_get_node(hTemplate, i);
@@ -75136,7 +75245,7 @@ static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 					xrtFree(pArg->sName);
 					xrtFree(pArg->sRaw);
 				}
-				xrtArrayUnit(&pNode->Data.Output.arrArg);
+				(xrtArrayUnit)(&pNode->Data.Output.arrArg);
 			}
 			break;
 		case XTE_NODE_INLINE_BOOL:
@@ -75152,12 +75261,12 @@ static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 				xrtFree(pArg->sName);
 				xrtFree(pArg->sRaw);
 			}
-			xrtArrayUnit(&pNode->Data.Statement.arrArg);
+			(xrtArrayUnit)(&pNode->Data.Statement.arrArg);
 			for ( i = 0; i < pNode->Data.Statement.tBody.arrNode.Count; i++ ) {
 				XTE_PrivateAstNode* pChild = xrtArrayGet_Inline(&pNode->Data.Statement.tBody.arrNode, i + 1u);
 				xte_private_ast_node_unit(pChild);
 			}
-			xrtArrayUnit(&pNode->Data.Statement.tBody.arrNode);
+			(xrtArrayUnit)(&pNode->Data.Statement.tBody.arrNode);
 			break;
 	}
 }
@@ -75169,7 +75278,7 @@ static void xte_private_ast_list_unit(XTE_PrivateAstList* pList)
 		XTE_PrivateAstNode* pNode = xrtArrayGet_Inline(&pList->arrNode, i + 1u);
 		xte_private_ast_node_unit(pNode);
 	}
-	xrtArrayUnit(&pList->arrNode);
+	(xrtArrayUnit)(&pList->arrNode);
 }
 // xte_private_ast_add_node 相关处理
 static uint32 xte_private_ast_add_node(XTE_PrivateAstList* pList, const XTE_PrivateAstNode* pNode)
@@ -75619,21 +75728,21 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 		if ( ((tArg.iNameSize != 0u) && (tArg.sName == NULL)) || (tArg.sRaw == NULL) ) {
 			xrtFree(tArg.sName);
 			xrtFree(tArg.sRaw);
-			xrtArrayUnit(pArrArg);
+			(xrtArrayUnit)(pArrArg);
 			xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_MALLOC, "template arg alloc failed");
 			return 0;
 		}
 		if ( xrtArrayAppend(pArrArg, 1) == 0u ) {
 			xrtFree(tArg.sName);
 			xrtFree(tArg.sRaw);
-			xrtArrayUnit(pArrArg);
+			(xrtArrayUnit)(pArrArg);
 			xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_MALLOC, "template arg alloc failed");
 			return 0;
 		}
 		memcpy(xrtArrayGet_Inline(pArrArg, pArrArg->Count), &tArg, sizeof(tArg));
 	}
 	if ( (iCount < iMinArgs) || ((iMaxArgs != 0u) && (iCount > iMaxArgs)) ) {
-		xrtArrayUnit(pArrArg);
+		(xrtArrayUnit)(pArrArg);
 		xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_PARSE, "template arg count mismatch");
 		return 0;
 	}
@@ -76983,8 +77092,8 @@ XXAPI xteengine xteCreateEngine(void)
 	xrtArrayInit(&hEngine->arrStatement, sizeof(XTE_PrivateStatementReg), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hEngine->arrFunction, sizeof(XTE_PrivateFunctionReg), XRT_OBJMODE_LOCAL);
 	if ( !xteRegisterBuiltinStatements(hEngine) ) {
-		xrtArrayUnit(&hEngine->arrStatement);
-		xrtArrayUnit(&hEngine->arrFunction);
+		(xrtArrayUnit)(&hEngine->arrStatement);
+		(xrtArrayUnit)(&hEngine->arrFunction);
 		xrtFree(hEngine);
 		return NULL;
 	}
@@ -76996,8 +77105,8 @@ XXAPI void xteDestroyEngine(xteengine hEngine)
 	if ( hEngine == NULL ) {
 		return;
 	}
-	xrtArrayUnit(&hEngine->arrStatement);
-	xrtArrayUnit(&hEngine->arrFunction);
+	(xrtArrayUnit)(&hEngine->arrStatement);
+	(xrtArrayUnit)(&hEngine->arrFunction);
 	xrtFree(hEngine);
 }
 // xteRegisterBuiltinStatements 相关处理
@@ -77245,10 +77354,10 @@ XXAPI void xteDestroyTemplate(xtetemplate hTemplate)
 			}
 		}
 	}
-	xrtArrayUnit(&hTemplate->arrArg);
-	xrtArrayUnit(&hTemplate->arrExpr);
-	xrtArrayUnit(&hTemplate->arrNode);
-	xrtArrayUnit(&hTemplate->arrSubTemplate);
+	(xrtArrayUnit)(&hTemplate->arrArg);
+	(xrtArrayUnit)(&hTemplate->arrExpr);
+	(xrtArrayUnit)(&hTemplate->arrNode);
+	(xrtArrayUnit)(&hTemplate->arrSubTemplate);
 	xrtBufferUnit(&hTemplate->tStringPool);
 	if ( hTemplate->bOwnEngine && hTemplate->hEngine ) {
 		xteDestroyEngine(hTemplate->hEngine);
@@ -78329,10 +78438,8 @@ static void __xrtRuntimeFinalizeLocked()
 	xrtFree(xCore.AppPath);
 	xCore.AppPath = xCore.sNull;
 	#ifdef XRT_MEM_DEBUG
-		if ( __xrtMemDebugHasLeaks() ) {
-			xrtMemDebugDumpText("xrt_mem_report_auto.txt");
-			xrtMemDebugDumpJson("xrt_mem_report_auto.json");
-		}
+		xrtMemDebugDumpText("xrt_mem_report_auto.txt");
+		xrtMemDebugDumpJson("xrt_mem_report_auto.json");
 	#endif
 	__xrtMemGlobalUnitPlan(&xCore.MemGlobal);
 	#ifdef XRT_MEM_DEBUG
@@ -78540,6 +78647,24 @@ static void __xrtMemDebugJsonWriteString(FILE* pFile, const char* sText)
 	fputc('"', pFile);
 }
 // 将当前内存调试状态导出为文本报告
+static bool __xrtMemDebugHasIssues()
+{
+	return __xrtMemDebugHasLeaks()
+		|| xCore.MemDebug.iInvalidFreeCount != 0
+		|| xCore.MemDebug.iDoubleFreeCount != 0
+		|| xCore.MemDebug.iWrongAllocatorFreeCount != 0
+		|| xCore.MemDebug.iObjectDoubleDestroyCount != 0
+		|| xCore.MemDebug.iOverflowCount != 0
+		|| xCore.MemDebug.iUnderflowCount != 0;
+}
+static const char* __xrtMemDebugReportStatusName(bool bHasIssues)
+{
+	return bHasIssues ? "issues_detected" : "clean";
+}
+static const char* __xrtMemDebugReportSummary(bool bHasIssues)
+{
+	return bHasIssues ? "memory issues detected" : "no memory issues detected";
+}
 static bool __xrtMemDebugDumpTextFile(FILE* pFile)
 {
 	xrtMemBlockHeader* pHeader;
@@ -78547,11 +78672,15 @@ static bool __xrtMemDebugDumpTextFile(FILE* pFile)
 	xrtMemDebugObject* pObject;
 	xrtMemDebugSiteStat* pSite;
 	uint32 iCount;
+	bool bHasIssues;
 	if ( pFile == NULL ) {
 		return FALSE;
 	}
 	__xrtMemDebugLock();
+	bHasIssues = __xrtMemDebugHasIssues();
 	fprintf(pFile, "# XRT Memory Debug Report\n\n");
+	fprintf(pFile, "- status: %s\n", __xrtMemDebugReportStatusName(bHasIssues));
+	fprintf(pFile, "- summary: %s\n", __xrtMemDebugReportSummary(bHasIssues));
 	fprintf(pFile, "- live_alloc_count: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
 	fprintf(pFile, "- live_alloc_bytes: %llu\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
 	fprintf(pFile, "- foreign_live_count: %llu\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);
@@ -78653,11 +78782,20 @@ static bool __xrtMemDebugDumpJsonFile(FILE* pFile)
 	xrtMemDebugSiteStat* pSite;
 	uint32 iCount;
 	bool bFirst;
+	bool bHasIssues;
 	if ( pFile == NULL ) {
 		return FALSE;
 	}
 	__xrtMemDebugLock();
+	bHasIssues = __xrtMemDebugHasIssues();
 	fputs("{\n", pFile);
+	fputs("  \"status\": ", pFile);
+	__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugReportStatusName(bHasIssues));
+	fputs(",\n", pFile);
+	fprintf(pFile, "  \"has_issues\": %s,\n", bHasIssues ? "true" : "false");
+	fputs("  \"summary\": ", pFile);
+	__xrtMemDebugJsonWriteString(pFile, __xrtMemDebugReportSummary(bHasIssues));
+	fputs(",\n", pFile);
 	fprintf(pFile, "  \"live_alloc_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocCount);
 	fprintf(pFile, "  \"live_alloc_bytes\": %llu,\n", (unsigned long long)xCore.MemDebug.iLiveAllocBytes);
 	fprintf(pFile, "  \"foreign_live_count\": %llu,\n", (unsigned long long)xCore.MemDebug.iForeignLiveCount);

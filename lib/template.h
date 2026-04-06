@@ -379,6 +379,11 @@ static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 		return NULL;
 	}
 
+	if ( tBuf.Length == 1u ) {
+		xrtBufferUnit(&tBuf);
+		return __xrt_str(xCore.sNull);
+	}
+
 	sRet = xrtMalloc(tBuf.Length);
 	if ( sRet ) {
 		memcpy(sRet, tBuf.Buffer, tBuf.Length);
@@ -1372,7 +1377,7 @@ static int xte_private_rebuild_subtemplates(xtetemplate hTemplate, int iErrorCod
 		return 0;
 	}
 
-	xrtArrayUnit(&hTemplate->arrSubTemplate);
+	(xrtArrayUnit)(&hTemplate->arrSubTemplate);
 	xrtArrayInit(&hTemplate->arrSubTemplate, sizeof(XTE_PrivateSubTemplateItem), XRT_OBJMODE_LOCAL);
 
 	for ( i = 0; i < hTemplate->arrNode.Count; i++ ) {
@@ -1452,7 +1457,7 @@ static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 					xrtFree(pArg->sName);
 					xrtFree(pArg->sRaw);
 				}
-				xrtArrayUnit(&pNode->Data.Output.arrArg);
+				(xrtArrayUnit)(&pNode->Data.Output.arrArg);
 			}
 			break;
 		case XTE_NODE_INLINE_BOOL:
@@ -1468,12 +1473,12 @@ static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 				xrtFree(pArg->sName);
 				xrtFree(pArg->sRaw);
 			}
-			xrtArrayUnit(&pNode->Data.Statement.arrArg);
+			(xrtArrayUnit)(&pNode->Data.Statement.arrArg);
 			for ( i = 0; i < pNode->Data.Statement.tBody.arrNode.Count; i++ ) {
 				XTE_PrivateAstNode* pChild = xrtArrayGet_Inline(&pNode->Data.Statement.tBody.arrNode, i + 1u);
 				xte_private_ast_node_unit(pChild);
 			}
-			xrtArrayUnit(&pNode->Data.Statement.tBody.arrNode);
+			(xrtArrayUnit)(&pNode->Data.Statement.tBody.arrNode);
 			break;
 	}
 }
@@ -1489,7 +1494,7 @@ static void xte_private_ast_list_unit(XTE_PrivateAstList* pList)
 		xte_private_ast_node_unit(pNode);
 	}
 
-	xrtArrayUnit(&pList->arrNode);
+	(xrtArrayUnit)(&pList->arrNode);
 }
 
 
@@ -2039,7 +2044,7 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 		if ( ((tArg.iNameSize != 0u) && (tArg.sName == NULL)) || (tArg.sRaw == NULL) ) {
 			xrtFree(tArg.sName);
 			xrtFree(tArg.sRaw);
-			xrtArrayUnit(pArrArg);
+			(xrtArrayUnit)(pArrArg);
 			xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_MALLOC, "template arg alloc failed");
 			return 0;
 		}
@@ -2047,7 +2052,7 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 		if ( xrtArrayAppend(pArrArg, 1) == 0u ) {
 			xrtFree(tArg.sName);
 			xrtFree(tArg.sRaw);
-			xrtArrayUnit(pArrArg);
+			(xrtArrayUnit)(pArrArg);
 			xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_MALLOC, "template arg alloc failed");
 			return 0;
 		}
@@ -2055,7 +2060,7 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 	}
 
 	if ( (iCount < iMinArgs) || ((iMaxArgs != 0u) && (iCount > iMaxArgs)) ) {
-		xrtArrayUnit(pArrArg);
+		(xrtArrayUnit)(pArrArg);
 		xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_PARSE, "template arg count mismatch");
 		return 0;
 	}
@@ -3650,8 +3655,8 @@ XXAPI xteengine xteCreateEngine(void)
 	xrtArrayInit(&hEngine->arrStatement, sizeof(XTE_PrivateStatementReg), XRT_OBJMODE_LOCAL);
 	xrtArrayInit(&hEngine->arrFunction, sizeof(XTE_PrivateFunctionReg), XRT_OBJMODE_LOCAL);
 	if ( !xteRegisterBuiltinStatements(hEngine) ) {
-		xrtArrayUnit(&hEngine->arrStatement);
-		xrtArrayUnit(&hEngine->arrFunction);
+		(xrtArrayUnit)(&hEngine->arrStatement);
+		(xrtArrayUnit)(&hEngine->arrFunction);
 		xrtFree(hEngine);
 		return NULL;
 	}
@@ -3666,8 +3671,8 @@ XXAPI void xteDestroyEngine(xteengine hEngine)
 		return;
 	}
 
-	xrtArrayUnit(&hEngine->arrStatement);
-	xrtArrayUnit(&hEngine->arrFunction);
+	(xrtArrayUnit)(&hEngine->arrStatement);
+	(xrtArrayUnit)(&hEngine->arrFunction);
 	xrtFree(hEngine);
 }
 
@@ -3948,10 +3953,10 @@ XXAPI void xteDestroyTemplate(xtetemplate hTemplate)
 		}
 	}
 
-	xrtArrayUnit(&hTemplate->arrArg);
-	xrtArrayUnit(&hTemplate->arrExpr);
-	xrtArrayUnit(&hTemplate->arrNode);
-	xrtArrayUnit(&hTemplate->arrSubTemplate);
+	(xrtArrayUnit)(&hTemplate->arrArg);
+	(xrtArrayUnit)(&hTemplate->arrExpr);
+	(xrtArrayUnit)(&hTemplate->arrNode);
+	(xrtArrayUnit)(&hTemplate->arrSubTemplate);
 	xrtBufferUnit(&hTemplate->tStringPool);
 
 	if ( hTemplate->bOwnEngine && hTemplate->hEngine ) {

@@ -18,7 +18,7 @@ XXAPI void xrtFSMemPoolDestroy(xfsmempool objMM)
 		if ( !xrtOwnerCheckMutable(&objMM->Owner, "fixed-size memory pool belongs to another thread.") ) {
 			return;
 		}
-		xrtFSMemPoolUnit(objMM);
+			(xrtFSMemPoolUnit)(objMM);
 		xrtFree(objMM);
 	}
 }
@@ -48,6 +48,14 @@ XXAPI void xrtFSMemPoolUnit(xfsmempool objMM)
 	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
+#ifdef XRT_MEM_DEBUG
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
+#endif
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -94,7 +102,7 @@ XXAPI void xrtFSMemPoolDestroyDbg(xfsmempool objMM, const char* sFile, uint32 iL
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtFSMemPoolUnit(objMM);
+		(xrtFSMemPoolUnit)(objMM);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objMM, XRT_MEMDEBUG_OBJECT_FSMEMPOOL, sFile, iLine);
 		xrtFreeDbg(objMM, sFile, iLine);
@@ -119,6 +127,12 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 	for ( uint32 i = 0; i < objMM->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMM->arrMMU, i);
 		if ( pNode->objMMU ) {
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -135,6 +149,32 @@ XXAPI void xrtFSMemPoolUnitDbg(xfsmempool objMM, const char* sFile, uint32 iLine
 #endif
 
 // 从内存管理器中申请一块内存
+#ifdef XRT_MEM_DEBUG
+#define __XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(_objMMU, _bFreeMark) \
+	do { \
+		xmemunit __objMMU = (_objMMU); \
+		if ( __objMMU && __objMMU->Count > 0 ) { \
+			for ( int __idx = 0; __idx < 256; __idx++ ) { \
+				MMU_ValuePtr __v = (MMU_ValuePtr)&(__objMMU->Memory[(size_t)__objMMU->ItemLength * __idx]); \
+				bool __willFree = FALSE; \
+				if ( (__v->ItemFlag & MMU_FLAG_USE) == 0 ) { \
+					continue; \
+				} \
+				if ( (_bFreeMark) ) { \
+					__willFree = ((__v->ItemFlag & MMU_FLAG_GC) != 0); \
+				} else { \
+					__willFree = ((__v->ItemFlag & MMU_FLAG_GC) == 0); \
+				} \
+				if ( __willFree ) { \
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&__v[1]); \
+				} \
+			} \
+		} \
+	} while ( 0 )
+#else
+#define __XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(_objMMU, _bFreeMark) ((void)0)
+#endif
+
 XXAPI ptr xrtFSMemPoolAlloc(xfsmempool objMM)
 {
 	ptr pResult = NULL;
@@ -382,11 +422,13 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 	// 遍历所有 空闲的 和 满载的 内存管理单元，进行标记回收
 	MMU_LLNode* pNode = objMM->LL_Idle;
 	while ( pNode ) {
+		__XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(pNode->objMMU, bFreeMark);
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
 	pNode = objMM->LL_Full;
 	while ( pNode ) {
+		__XRT_FSMEMPOOL_GC_UNREGISTER_WILL_FREE(pNode->objMMU, bFreeMark);
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}

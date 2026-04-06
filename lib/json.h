@@ -1754,6 +1754,10 @@ XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 	}
 	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
 	if ( iRet < 0 ) {
+		if ( ctx.root != NULL ) {
+			xvoUnref(ctx.root);
+			ctx.root = NULL;
+		}
 		xrtStackDestroy(ctx.stack);
 		return xvoCreateNull();
 	}
@@ -1775,6 +1779,10 @@ XXAPI xvalue xrtParseJSON_File(str sFile)
 	int iRet = _xrt_json_parse_with_context(sText, iSize, xvo_private_ParseJSON_Proc, &ctx);
 	xrtFree(sText);  // 释放文件内容
 	if ( iRet < 0 ) {
+		if ( ctx.root != NULL ) {
+			xvoUnref(ctx.root);
+			ctx.root = NULL;
+		}
 		xrtStackDestroy(ctx.stack);
 		return xvoCreateNull();
 	}

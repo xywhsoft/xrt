@@ -18,7 +18,7 @@ XXAPI void xrtMemPoolDestroy(xmempool objMP)
 		if ( !xrtOwnerCheckMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 			return;
 		}
-		xrtMemPoolUnit(objMP);
+			(xrtMemPoolUnit)(objMP);
 		xrtFree(objMP);
 	}
 }
@@ -212,6 +212,14 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
+#ifdef XRT_MEM_DEBUG
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
+#endif
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}
@@ -232,6 +240,9 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
+#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugTryUnregisterForeignAllocSilent(&((MP_MemHead*)pInfo->Ptr)[1]);
+#endif
 			xrtFree(pInfo->Ptr);
 		}
 	}
@@ -274,7 +285,7 @@ XXAPI void xrtMemPoolDestroyDbg(xmempool objMP, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtMemPoolUnit(objMP);
+		(xrtMemPoolUnit)(objMP);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
 		xrtFreeDbg(objMP, sFile, iLine);
@@ -299,6 +310,12 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
+			for ( int idx = 0; idx < 256; idx++ ) {
+				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
+				if ( v->ItemFlag & MMU_FLAG_USE ) {
+					__xrtMemDebugTryUnregisterForeignAllocSilent((ptr)&v[1]);
+				}
+			}
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
 		}

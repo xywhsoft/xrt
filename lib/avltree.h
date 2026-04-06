@@ -18,7 +18,7 @@ XXAPI void xrtAVLTreeDestroy(xavltree objAVLT)
 		if ( !xrtOwnerCheckMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
 			return;
 		}
-		xrtAVLTreeUnit(objAVLT);
+			(xrtAVLTreeUnit)(objAVLT);
 		xrtFree(objAVLT);
 	}
 }
@@ -72,7 +72,7 @@ static inline void __xrtAVLTreeUnit_NoLock(xavltree objAVLT)
 		xrtAVLTreeUnit_FreeKeysRecuProc(objAVLT, objAVLT->RootNode);
 	}
 	xrtAVLTB_Unit(objAVLT);
-	xrtFSMemPoolUnit(&objAVLT->objMM);
+	(xrtFSMemPoolUnit)(&objAVLT->objMM);
 	objAVLT->NodeCache = NULL;
 }
 
@@ -121,7 +121,7 @@ XXAPI void xrtAVLTreeDestroyDbg(xavltree objAVLT, const char* sFile, uint32 iLin
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtAVLTreeUnit(objAVLT);
+		(xrtAVLTreeUnit)(objAVLT);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objAVLT, XRT_MEMDEBUG_OBJECT_AVLTREE, sFile, iLine);
 		xrtFreeDbg(objAVLT, sFile, iLine);

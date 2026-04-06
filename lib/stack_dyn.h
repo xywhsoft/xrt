@@ -15,7 +15,7 @@ XXAPI xdynstack xrtDynStackCreate(uint32 iItemLength)
 XXAPI void xrtDynStackDestroy(xdynstack objSTK)
 {
 	if ( objSTK ) {
-		xrtDynStackUnit(objSTK);
+			(xrtDynStackUnit)(objSTK);
 		xrtFree(objSTK);
 	}
 }
@@ -71,7 +71,7 @@ XXAPI void xrtDynStackDestroyDbg(xdynstack objSTK, const char* sFile, uint32 iLi
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtDynStackUnit(objSTK);
+		(xrtDynStackUnit)(objSTK);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
 		xrtFreeDbg(objSTK, sFile, iLine);
@@ -90,7 +90,7 @@ XXAPI void xrtDynStackUnitDbg(xdynstack objSTK, const char* sFile, uint32 iLine)
 		return;
 	}
 	tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-	xrtDynStackUnit(objSTK);
+	(xrtDynStackUnit)(objSTK);
 	__xrtMemDebugLeaveSiteScope(&tScope);
 	__xrtMemDebugUnregisterObject(objSTK, XRT_MEMDEBUG_OBJECT_DYNSTACK, sFile, iLine);
 }

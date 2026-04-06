@@ -807,6 +807,40 @@ static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAll
 }
 
 
+// 内部函数：静默注销 foreign alloc（用于对象整体销毁时的兜底清扫）
+static inline bool __xrtMemDebugTryUnregisterForeignAllocSilent(ptr pAddress)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		xCore.MemDebug.pForeignAllocs = pNode->pNext;
+	}
+	if ( xCore.MemDebug.iForeignLiveCount > 0 ) {
+		xCore.MemDebug.iForeignLiveCount--;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes >= pNode->iSize ) {
+		xCore.MemDebug.iForeignLiveBytes -= pNode->iSize;
+	} else {
+		xCore.MemDebug.iForeignLiveBytes = 0;
+	}
+	__xrtMemDebugClearFile(&pNode->sAllocFile);
+	__xrtMemGlobalProcFree()(pNode);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+
 // 内部函数：__xrtMemDebugLookupForeignAlloc
 static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
 {

@@ -68,7 +68,7 @@ XXAPI void xrtArrayDestroy(xarray pArr)
 		if ( !xrtOwnerCheckMutable(&pArr->Owner, "array belongs to another thread.") ) {
 			return;
 		}
-		xrtArrayUnit(pArr);
+			(xrtArrayUnit)(pArr);
 		xrtFree(pArr);
 	}
 }
@@ -131,7 +131,7 @@ XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtArrayUnit(pArr);
+		(xrtArrayUnit)(pArr);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
 		xrtFreeDbg(pArr, sFile, iLine);

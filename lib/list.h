@@ -32,7 +32,7 @@ XXAPI void xrtListDestroy(xlist objList)
 		if ( !xrtOwnerCheckMutable(&objList->Owner, "list belongs to another thread.") ) {
 			return;
 		}
-		xrtListUnit(objList);
+			(xrtListUnit)(objList);
 		xrtFree(objList);
 	}
 }
@@ -51,7 +51,7 @@ XXAPI void xrtListInit(xlist objList, uint32 iItemLength, uint32 iMode)
 // 释放列表（对自维护结构体指针使用）
 static inline void __xrtListUnit_NoLock(xlist objList)
 {
-	xrtAVLTreeUnit(&objList->AVLT);
+	(xrtAVLTreeUnit)(&objList->AVLT);
 }
 
 
@@ -99,7 +99,7 @@ XXAPI void xrtListDestroyDbg(xlist objList, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtListUnit(objList);
+		(xrtListUnit)(objList);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objList, XRT_MEMDEBUG_OBJECT_LIST, sFile, iLine);
 		xrtFreeDbg(objList, sFile, iLine);

@@ -45,7 +45,7 @@ XXAPI void xrtDictDestroy(xdict objHT)
 		if ( !xrtOwnerCheckMutable(&objHT->Owner, "dict belongs to another thread.") ) {
 			return;
 		}
-		xrtDictUnit(objHT);
+		(xrtDictUnit)(objHT);
 		xrtFree(objHT);
 	}
 }
@@ -77,7 +77,7 @@ XXAPI void xrtDictInit(xdict objHT, uint32 iItemLength, uint32 iMode)
 // 释放哈希表（对自维护结构体指针使用，和 AVLHT32_Destroy 功能类似）
 static inline void __xrtDictUnit_NoLock(xdict objHT)
 {
-	xrtAVLTreeUnit(&objHT->AVLT);
+	(xrtAVLTreeUnit)(&objHT->AVLT);
 }
 
 
@@ -125,7 +125,7 @@ XXAPI void xrtDictDestroyDbg(xdict objHT, const char* sFile, uint32 iLine)
 			return;
 		}
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
-		xrtDictUnit(objHT);
+		__xrtDictUnit_NoLock(objHT);
 		__xrtMemDebugLeaveSiteScope(&tScope);
 		__xrtMemDebugUnregisterObject(objHT, XRT_MEMDEBUG_OBJECT_DICT, sFile, iLine);
 		xrtFreeDbg(objHT, sFile, iLine);
