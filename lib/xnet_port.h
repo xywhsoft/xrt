@@ -16,6 +16,9 @@
 typedef struct xrt_net_port xnetport;
 typedef struct xrt_net_port_ops xnetportops;
 
+static const xnetportops* xrtNetPortIOCPOps(void);
+static const xnetportops* xrtNetPortUringOps(void);
+
 
 
 /* ============================== Backend and op identifiers ============================== */

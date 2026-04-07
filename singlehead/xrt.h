@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-06 21:24:07
+    Generated: 2026-04-07 04:54:26
 
     MIT License
 
@@ -589,6 +589,7 @@
 	typedef uintptr_t uintptr;
 	
 	typedef int64 xtime;
+	#define XRT_XTIME_DEFINED
 	
 	/*
 	#ifndef bool
@@ -3148,6 +3149,12 @@
 		const char* sCertFile;
 		const char* sKeyFile;
 		const char* sCaFile;
+		const void* pCertData;
+		size_t iCertDataLen;
+		const void* pKeyData;
+		size_t iKeyDataLen;
+		const void* pCaData;
+		size_t iCaDataLen;
 		const char* sHostName;
 		bool bVerifyPeer;
 		void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);
@@ -3155,6 +3162,7 @@
 		bool bAllowTLS12Ed25519;
 		uint16 iMaxVersion;
 		const xtlsresume* pResume;
+		volatile long iDataLock;
 	} xtlsconfig;
 	/* ------------------------------------ Regex 正则表达式模块 ------------------------------------ */
 	
@@ -4609,6 +4617,8 @@
 	XXAPI const char* xrtNetTlsSessionGetSNI(const xtlssession* pSession);
 	// 设置网络 TLS session 证书
 	XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile);
+	// 设置网络 TLS session 内存证书
+	XXAPI xnet_result xrtNetTlsSessionSetCertData(xtlssession* pSession, const void* pCertData, size_t iCertLen, const void* pKeyData, size_t iKeyLen);
 	// 设置 TLS 1.2 是否允许使用 Ed25519
 	XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow);
 	// TCP 流与监听器操作
@@ -27798,6 +27808,8 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 /* ============================== Opaque handles ============================== */
 typedef struct xrt_net_port xnetport;
 typedef struct xrt_net_port_ops xnetportops;
+static const xnetportops* xrtNetPortIOCPOps(void);
+static const xnetportops* xrtNetPortUringOps(void);
 /* ============================== Backend and op identifiers ============================== */
 #define XNET_PORT_BACKEND_AUTO    0u
 #define XNET_PORT_BACKEND_IOCP    1u
@@ -29977,13 +29989,11 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		__xnetPortUringArmTimer,
 		__xnetPortUringCancelTimer
 	};
-	#if defined(XRT_INTERNAL_TEST_ENV)
 	// 网络端口 io_uring ops相关处理
 	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return &__g_xnetPortUringOps;
 	}
-	#endif
 #else
 	// 内部函数：判断是否存在端口 io_uring 原生 ring
 	static bool UNUSED_ATTR __xnetPortUringHasNativeRing(const xnetport* pPort)
@@ -29991,13 +30001,11 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		(void)pPort;
 		return false;
 	}
-	#if defined(XRT_INTERNAL_TEST_ENV)
 	// 网络端口 io_uring ops相关处理
 	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return NULL;
 	}
-	#endif
 #endif
 #endif
 #ifndef XRT_NO_XCODEC
@@ -36345,6 +36353,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 typedef struct xrt_tls_context xtlsctx;
 XXAPI void xrtTlsDestroy(xtlsctx *pCtx);
 XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char *sKeyFile);
+XXAPI xnet_result xrtTlsSetCertData(xtlsctx *pCtx, const void *pCertData, size_t iCertLen, const void *pKeyData, size_t iKeyLen);
 typedef struct {
 	char* pBase;
 	char* pData;
@@ -40066,7 +40075,100 @@ static inline bool __xrt_tls_have_record(xtlsctx *pCtx)
 static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen);
 static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx);
 static bool __xrt_tls13_send_server_flight(xtlsctx *pCtx);
+static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx);
 // 创建 TLS
+static void __xrt_tls_config_lock(const xtlsconfig* pCfg)
+{
+	if ( pCfg == NULL ) {
+		return;
+	}
+	while ( __xrtAtomicCompareExchange32((volatile long*)&pCfg->iDataLock, 1, 0) != 0 ) {
+		xrtSleep(1);
+	}
+}
+static void __xrt_tls_config_unlock(const xtlsconfig* pCfg)
+{
+	if ( pCfg == NULL ) {
+		return;
+	}
+	(void)__xrtAtomicExchange32((volatile long*)&pCfg->iDataLock, 0);
+}
+static bool __xrt_tls_copy_bytes(const void* pData, size_t iLen, uint8** ppCopy)
+{
+	uint8* pCopy;
+	if ( ppCopy == NULL ) {
+		return false;
+	}
+	*ppCopy = NULL;
+	if ( pData == NULL || iLen == 0 ) {
+		return true;
+	}
+	pCopy = (uint8*)xrtMalloc(iLen);
+	if ( pCopy == NULL ) {
+		return false;
+	}
+	memcpy(pCopy, pData, iLen);
+	*ppCopy = pCopy;
+	return true;
+}
+static void __xrt_tls_clear_cert_owned(xtlsctx* pCtx)
+{
+	if ( pCtx == NULL ) {
+		return;
+	}
+	if ( pCtx->pCertDer ) {
+		xrtFree(pCtx->pCertDer);
+		pCtx->pCertDer = NULL;
+		pCtx->iCertDerLen = 0;
+	}
+	if ( pCtx->pKeyDer ) {
+		xrtFree(pCtx->pKeyDer);
+		pCtx->pKeyDer = NULL;
+		pCtx->iKeyDerLen = 0;
+	}
+}
+static xnet_result __xrt_tls_set_cert_owned(xtlsctx* pCtx, uint8* pCertDer, size_t iCertDerLen, uint8* pKeyDer, size_t iKeyDerLen)
+{
+	if ( pCtx == NULL ) {
+		if ( pCertDer ) xrtFree(pCertDer);
+		if ( pKeyDer ) xrtFree(pKeyDer);
+		return XRT_NET_ERROR;
+	}
+	__xrt_tls_clear_cert_owned(pCtx);
+	pCtx->pCertDer = pCertDer;
+	pCtx->iCertDerLen = iCertDerLen;
+	pCtx->pKeyDer = pKeyDer;
+	pCtx->iKeyDerLen = iKeyDerLen;
+	if ( !__xrt_tls_prepare_server_identity(pCtx) ) {
+		__xrt_tls_clear_cert_owned(pCtx);
+		return XRT_NET_ERROR;
+	}
+	return XRT_NET_OK;
+}
+static bool __xrt_tls_set_ca_copy(xtlsctx* pCtx, const void* pCaData, size_t iCaDataLen)
+{
+	uint8* pCopy;
+	if ( pCtx == NULL ) {
+		return false;
+	}
+	if ( pCtx->pCaData ) {
+		xrtFree(pCtx->pCaData);
+		pCtx->pCaData = NULL;
+		pCtx->iCaDataLen = 0;
+	}
+	if ( pCaData == NULL || iCaDataLen == 0 ) {
+		return true;
+	}
+	pCopy = (uint8*)xrtMalloc(iCaDataLen + 1);
+	if ( pCopy == NULL ) {
+		return false;
+	}
+	memcpy(pCopy, pCaData, iCaDataLen);
+	pCopy[iCaDataLen] = 0;
+	pCtx->pCaData = pCopy;
+	pCtx->iCaDataLen = iCaDataLen;
+	return true;
+}
 XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 {
 	xtlsctx *pCtx = (xtlsctx*)xrtCalloc(1, sizeof(xtlsctx));
@@ -40106,15 +40208,28 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 				pCtx->iMaxVersion = pCtx->tResume.iVersion;
 			}
 		}
-		if ( (pConfig->sCertFile && pConfig->sCertFile[0]) || (pConfig->sKeyFile && pConfig->sKeyFile[0]) ) {
+		__xrt_tls_config_lock(pConfig);
+		if ( (pConfig->pCertData && pConfig->iCertDataLen > 0) || (pConfig->pKeyData && pConfig->iKeyDataLen > 0) ) {
+			if ( xrtTlsSetCertData(pCtx, pConfig->pCertData, pConfig->iCertDataLen, pConfig->pKeyData, pConfig->iKeyDataLen) != XRT_NET_OK ) {
+				__xrt_tls_config_unlock(pConfig);
+				xrtTlsDestroy(pCtx);
+				return NULL;
+			}
+		} else if ( (pConfig->sCertFile && pConfig->sCertFile[0]) || (pConfig->sKeyFile && pConfig->sKeyFile[0]) ) {
 			if ( xrtTlsSetCert(pCtx, pConfig->sCertFile, pConfig->sKeyFile) != XRT_NET_OK ) {
+				__xrt_tls_config_unlock(pConfig);
 				xrtTlsDestroy(pCtx);
 				return NULL;
 			}
 		}
 		if ( pConfig->bVerifyPeer ) {
-			(void)__xrt_tls_load_ca_bundle(pCtx, pConfig->sCaFile);
+			if ( pConfig->pCaData && pConfig->iCaDataLen > 0 ) {
+				(void)__xrt_tls_set_ca_copy(pCtx, pConfig->pCaData, pConfig->iCaDataLen);
+			} else {
+				(void)__xrt_tls_load_ca_bundle(pCtx, pConfig->sCaFile);
+			}
 		}
+		__xrt_tls_config_unlock(pConfig);
 	} else {
 		pCtx->bSkipVerify = true;
 	}
@@ -41940,16 +42055,6 @@ XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char
 	uint8 *pKeyDer = NULL;
 	size_t iKeyDerLen = 0;
 	if ( !pCtx ) return XRT_NET_ERROR;
-	if ( pCtx->pCertDer ) {
-		xrtFree(pCtx->pCertDer);
-		pCtx->pCertDer = NULL;
-		pCtx->iCertDerLen = 0;
-	}
-	if ( pCtx->pKeyDer ) {
-		xrtFree(pCtx->pKeyDer);
-		pCtx->pKeyDer = NULL;
-		pCtx->iKeyDerLen = 0;
-	}
 	if ( sCertFile && sCertFile[0] ) {
 		if ( !__xrt_tls_load_der_file(sCertFile, &pCertDer, &iCertDerLen) ) {
 			return XRT_NET_ERROR;
@@ -41961,24 +42066,25 @@ XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char
 			return XRT_NET_ERROR;
 		}
 	}
-	pCtx->pCertDer = pCertDer;
-	pCtx->iCertDerLen = iCertDerLen;
-	pCtx->pKeyDer = pKeyDer;
-	pCtx->iKeyDerLen = iKeyDerLen;
-	if ( !__xrt_tls_prepare_server_identity(pCtx) ) {
-		if ( pCtx->pCertDer ) {
-			xrtFree(pCtx->pCertDer);
-			pCtx->pCertDer = NULL;
-			pCtx->iCertDerLen = 0;
-		}
-		if ( pCtx->pKeyDer ) {
-			xrtFree(pCtx->pKeyDer);
-			pCtx->pKeyDer = NULL;
-			pCtx->iKeyDerLen = 0;
+	return __xrt_tls_set_cert_owned(pCtx, pCertDer, iCertDerLen, pKeyDer, iKeyDerLen);
+}
+XXAPI xnet_result xrtTlsSetCertData(xtlsctx *pCtx, const void *pCertData, size_t iCertLen, const void *pKeyData, size_t iKeyLen)
+{
+	uint8 *pCertCopy = NULL;
+	uint8 *pKeyCopy = NULL;
+	if ( !pCtx ) {
+		return XRT_NET_ERROR;
+	}
+	if ( !__xrt_tls_copy_bytes(pCertData, iCertLen, &pCertCopy) ) {
+		return XRT_NET_ERROR;
+	}
+	if ( !__xrt_tls_copy_bytes(pKeyData, iKeyLen, &pKeyCopy) ) {
+		if ( pCertCopy ) {
+			xrtFree(pCertCopy);
 		}
 		return XRT_NET_ERROR;
 	}
-	return XRT_NET_OK;
+	return __xrt_tls_set_cert_owned(pCtx, pCertCopy, iCertLen, pKeyCopy, iKeyLen);
 }
 struct xrt_tls_session {
 	xtlsctx* pCtx;
@@ -42125,6 +42231,11 @@ XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCe
 	return pCtx ? xrtTlsSetCert(pCtx, sCertFile, sKeyFile) : XRT_NET_ERROR;
 }
 // 设置网络 TLS session allow TLS 12 ed 25519
+XXAPI xnet_result xrtNetTlsSessionSetCertData(xtlssession* pSession, const void* pCertData, size_t iCertLen, const void* pKeyData, size_t iKeyLen)
+{
+	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);
+	return pCtx ? xrtTlsSetCertData(pCtx, pCertData, iCertLen, pKeyData, iKeyLen) : XRT_NET_ERROR;
+}
 XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow)
 {
 	xtlsctx* pCtx = __xrtNetTlsSessionCtx(pSession);

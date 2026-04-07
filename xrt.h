@@ -584,6 +584,7 @@
 	typedef uintptr_t uintptr;
 	
 	typedef int64 xtime;
+	#define XRT_XTIME_DEFINED
 	
 	/*
 	#ifndef bool
@@ -3431,6 +3432,12 @@
 		const char* sCertFile;
 		const char* sKeyFile;
 		const char* sCaFile;
+		const void* pCertData;
+		size_t iCertDataLen;
+		const void* pKeyData;
+		size_t iKeyDataLen;
+		const void* pCaData;
+		size_t iCaDataLen;
 		const char* sHostName;
 		bool bVerifyPeer;
 		void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);
@@ -3438,6 +3445,7 @@
 		bool bAllowTLS12Ed25519;
 		uint16 iMaxVersion;
 		const xtlsresume* pResume;
+		volatile long iDataLock;
 	} xtlsconfig;
 
 
@@ -5296,6 +5304,9 @@
 
 	// 设置网络 TLS session 证书
 	XXAPI xnet_result xrtNetTlsSessionSetCert(xtlssession* pSession, const char* sCertFile, const char* sKeyFile);
+
+	// 设置网络 TLS session 内存证书
+	XXAPI xnet_result xrtNetTlsSessionSetCertData(xtlssession* pSession, const void* pCertData, size_t iCertLen, const void* pKeyData, size_t iKeyLen);
 
 	// 设置 TLS 1.2 是否允许使用 Ed25519
 	XXAPI void xrtNetTlsSessionSetAllowTLS12Ed25519(xtlssession* pSession, bool bAllow);

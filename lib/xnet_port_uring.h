@@ -1207,13 +1207,11 @@
 		__xnetPortUringCancelTimer
 	};
 
-	#if defined(XRT_INTERNAL_TEST_ENV)
 	// 网络端口 io_uring ops相关处理
 	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return &__g_xnetPortUringOps;
 	}
-	#endif
 
 #else
 
@@ -1224,13 +1222,11 @@
 		return false;
 	}
 
-	#if defined(XRT_INTERNAL_TEST_ENV)
 	// 网络端口 io_uring ops相关处理
 	static const xnetportops* xrtNetPortUringOps(void)
 	{
 		return NULL;
 	}
-	#endif
 
 #endif
 
