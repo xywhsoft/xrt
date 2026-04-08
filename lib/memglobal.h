@@ -426,7 +426,7 @@ static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind)
 }
 
 
-// 鍐呴儴鍑芥暟锛氬垽鏂枃浠跺悕鏄惁鐩哥瓑
+// 内部函数：判断文件名是否相等
 static inline bool __xrtMemDebugFileEquals(const char* sLeft, const char* sRight)
 {
 	if ( sLeft == sRight ) {
@@ -439,7 +439,7 @@ static inline bool __xrtMemDebugFileEquals(const char* sLeft, const char* sRight
 }
 
 
-// 鍐呴儴鍑芥暟锛氬鍒舵枃浠跺悕
+// 内部函数：复制文件名
 static inline const char* __xrtMemDebugDupFile(const char* sFile)
 {
 	size_t iLen;
@@ -460,7 +460,7 @@ static inline const char* __xrtMemDebugDupFile(const char* sFile)
 }
 
 
-// 鍐呴儴鍑芥暟锛氭竻鐞嗘枃浠跺悕鎸囬拡
+// 内部函数：清理文件名指针
 static inline void __xrtMemDebugClearFile(const char** psSlot)
 {
 	if ( psSlot == NULL || *psSlot == NULL ) {
@@ -472,7 +472,7 @@ static inline void __xrtMemDebugClearFile(const char** psSlot)
 }
 
 
-// 鍐呴儴鍑芥暟锛氭浛鎹㈡枃浠跺悕鎸囬拡
+// 内部函数：替换文件名指针
 static inline void __xrtMemDebugReplaceFile(const char** psSlot, const char* sFile)
 {
 	if ( psSlot == NULL ) {
@@ -486,7 +486,7 @@ static inline void __xrtMemDebugReplaceFile(const char** psSlot, const char* sFi
 }
 
 
-// 鍐呴儴鍑芥暟锛氳В鏋愬唴瀛樿皟璇曡皟鐢ㄤ綅缃?
+// 内部函数：解析内存调试调用位置
 static inline void __xrtMemDebugResolveSite(const char** psFile, uint32* piLine)
 {
 	xrtThreadData* pThreadData;
@@ -526,7 +526,7 @@ static inline void __xrtMemDebugPreferSite(const char** psFile, uint32* piLine)
 }
 
 
-// 鍐呴儴鍑芥暟锛氳繘鍏ヨ皟璇曡皟鐢ㄤ綅缃綔鐢ㄥ煙
+// 内部函数：进入调试调用位置作用域
 static inline xrtMemDebugSiteScope __xrtMemDebugEnterSiteScope(const char* sFile, uint32 iLine)
 {
 	xrtMemDebugSiteScope tScope = {0};
@@ -548,7 +548,7 @@ static inline xrtMemDebugSiteScope __xrtMemDebugEnterSiteScope(const char* sFile
 }
 
 
-// 鍐呴儴鍑芥暟锛氱寮€璋冭瘯璋冪敤浣嶇疆浣滅敤鍩?
+// 内部函数：离开调试调用位置作用域
 static inline void __xrtMemDebugLeaveSiteScope(xrtMemDebugSiteScope* pScope)
 {
 	if ( pScope == NULL || pScope->pThreadData == NULL ) {

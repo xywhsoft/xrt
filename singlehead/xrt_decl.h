@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-07 04:54:26
+    Generated: 2026-04-08 19:33:49
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/Git/xrt/xrt.h
+// File: D:/git/xrt/xrt.h
 // ========================================
 
 #pragma once
@@ -3149,12 +3149,15 @@
 		const char* sCertFile;
 		const char* sKeyFile;
 		const char* sCaFile;
+		const char* sCrlFile;
 		const void* pCertData;
 		size_t iCertDataLen;
 		const void* pKeyData;
 		size_t iKeyDataLen;
 		const void* pCaData;
 		size_t iCaDataLen;
+		const void* pCrlData;
+		size_t iCrlDataLen;
 		const char* sHostName;
 		bool bVerifyPeer;
 		void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);

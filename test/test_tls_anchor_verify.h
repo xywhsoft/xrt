@@ -27,6 +27,124 @@ static uint8* __Test_TLSAnchorDecodeBase64(const char* sBase64, size_t* pLen)
 }
 
 
+// 内部函数：__Test_TLSCRLVerify
+static int __Test_TLSCRLVerify(void)
+{
+	static const char sCrlLeafB64[] =
+		"MIIDBTCCAe2gAwIBAgICIAIwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UEAwwRWFJUIENSTCBUZXN0IFJvb3QwHhcNMjYwNDA3MDAwMDAwWhcNMzYwNDA1MD"
+		"AwMDAwWjAbMRkwFwYDVQQDDBByZXZva2VkLnRlc3QueHJ0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA03btCP3359H348Ae7ZWXD6qWX8K8"
+		"qk3hXxVdXreyMeLslGKCHSJYL1uxVgcjdOt39e4vcGk0MaFbumESqloj3uKCCD5LqFxm16IyIhGxibqDvYm/6vOF5N/oIFWzmpozxmxPWUYWCgIQP+0hWx"
+		"r2YZUTVhJKRpqxySkcpEU88Q34BRZjgToGYeyH/78vVqsPBEap/Wqg8RzJoM/oFlBgeUoQZYciXADrErF7KolILMWxY6M6XxMjJciX2oNgDoljb7abL+wT"
+		"Z+1GgI2mJRbkHam8dNdSwrPGuxGTRIht1oGgFfb1Ttbb1xy4fSnBNdQjAbhE9ogp5frcUos7evTbpwIDAQABo1IwUDAMBgNVHRMBAf8EAjAAMA4GA1UdDw"
+		"EB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATAbBgNVHREEFDASghByZXZva2VkLnRlc3QueHJ0MA0GCSqGSIb3DQEBCwUAA4IBAQCbzHe9iZDxdCp9"
+		"qDBlBf35VNkWje1qYhxzGKacK4bQoBQyBrSJj5kxm1GN9X7MhrGF8tVkwTGHtLXcphd3SHUE/AaNcQqx5jALVb33vxvs/rNNHwLwv3wF7PMD3+p335ITZQ"
+		"n/YAO/1q/o3u8mFnle3fa5ef6+sKHYigUsnz2tRO2DjI/gvc2UgtmXflHWf1v2izuSwNkFuB/EYbQJIiQWqwN4hZQwOJ1gM9NXtUNSj2QvXy4M9T35UGRl"
+		"Cg84uSCgCiDvdQCUqsuuepSpytP1/xNvgMGrfCOz1sv1GeHKakL1f37fx1TV5tDs8Sz27PiezdlkXTj6RYFhCc3K0lWy"
+		;
+	static const char sCrlRootB64[] =
+		"MIIC2jCCAcKgAwIBAgICEAEwDQYJKoZIhvcNAQELBQAwHDEaMBgGA1UEAwwRWFJUIENSTCBUZXN0IFJvb3QwHhcNMjYwNDA3MDAwMDAwWhcNMzYwNDA1MD"
+		"AwMDAwWjAcMRowGAYDVQQDDBFYUlQgQ1JMIFRlc3QgUm9vdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMmeu/BRn+zWOuSH2R6U7VfvlRkA"
+		"yd/fr+38rauG5kz2Ahdma0W3okdyizIohPqovXL5bR8CqH8Dyyb6ELcLJ/6m2N0kfk+QFJhQ9aFYDA9BuT8T5coNDEnuE7lhRiRsM40QcMHGkbW3/sAcnh"
+		"iX/RrdEK1VRBSNSRww/m5B0Sa7tM2d5N/jgI5MsU7Xfh5ZHd4TNyReWTElKWE/MjOoiLVEdwAPOU6aFdiYor6CgHPJjLknM1J49aAZ5IT5aLreN9XpRLky"
+		"GAE5wg/MCElZmzTtvXBwxjZmc+FhPsaTq9cxmkEdRJcS6qnhEcF/jZyVKkWu49DVB1RtONsKJWUYqw8CAwEAAaMmMCQwEgYDVR0TAQH/BAgwBgEB/wIBAT"
+		"AOBgNVHQ8BAf8EBAMCAYYwDQYJKoZIhvcNAQELBQADggEBAJhIH7S+cSzcdZlBMpib7lq6DaJI85D/Fwz2eiBdrQIzyK8TGZBc2z9Fi/xiXa30856u03Gz"
+		"do2t0Hk9gJFC8WcnttluY8NNjn6CNfws0qa/5R8Oo7utX5+NbQT0eOpdXXcz1raqXGu91E1Q6va0seoWc4ruUYyc/fOtJBDslArwo1JUTBh1WawyPrwcj9"
+		"XVJn2TEp2uzaA/DxhHTVWxmiykPFgyJRk9NKvsP7MHJP2l87LWMd52Y7AJOyMVN2lrKTmuOdJvyxGJqCNpM6LefohnM7Dc+Vg75GkH72ZpkwBmGMzvoK0G"
+		"wZb6i+fjLih2KncGSxLLR7Z3BjYNYtL0d4I="
+		;
+	static const char sCrlRevokedB64[] =
+		"MIIBezBlAgEBMA0GCSqGSIb3DQEBCwUAMBwxGjAYBgNVBAMMEVhSVCBDUkwgVGVzdCBSb290Fw0yNjA0MDgwMDAwMDBaFw0zNjA0MDUwMDAwMDBaMBUwEw"
+		"ICIAIXDTI2MDQwODAwMDAwMFowDQYJKoZIhvcNAQELBQADggEBAB6w/4A5zNYuhEpqvAJ1XT6h3iVxTamxAF7gG2lY8seMqkzsoBNU04c6CnUou3CmLXDr"
+		"OROXqXLzcXwYjArqApNCV9NyYTj1NXdNB/KT2Ln7eiS8avRyvbQPlbENud5iEvRN+Jo4DFzGcrg8YgA0HOYX82lftJIogvtdsRoz5k14/34gsly7NmnGAT"
+		"CbYb3H8BVa2jGu1nl/bzs+xzBPF8wuZGxVkmn/XS3yX3uRcssuMmwBC5xzHRUUjvB8h858MsrLO9h6JctBuFKkoKpdq7rsJfnUu/v2df+eYORQIQoBZPsS"
+		"BSXrRDJ5+6iWe89bp+EhHn5wo1dza+jCDM1ZMYg="
+		;
+	static const char sCrlEmptyB64[] =
+		"MIIBZDBOAgEBMA0GCSqGSIb3DQEBCwUAMBwxGjAYBgNVBAMMEVhSVCBDUkwgVGVzdCBSb290Fw0yNjA0MDgwMDAwMDBaFw0zNjA0MDUwMDAwMDBaMA0GCS"
+		"qGSIb3DQEBCwUAA4IBAQBfo7Ixs1tiAkEtxxZQDcZPF4zkgo3mV1JQFgMpGGNWup1GSqBMKLLsExgxLmCOn5Fky/+ZADPt2SLjapsuw2jrV59swm9W6iIf"
+		"58T3GGJpcTQD9IHhL0U0eKGhtOXOJT5pNr7inHu4PXXgVJ37B5do0ycFbJjLgVNrF4sOZLioptgRSNIgaHOOKHuFweDWQ+4Ee0N2BkYFd4/TzCmF4Gh5Ck"
+		"pLA2+1DzVecoNcgxxjMMcqH/J6gbe/75H4b7AEl9dOcNsMhxU01PYm48VRQYtVApd+UOuRcFPLdyWLRIfcZhmZkuoLFcTXn1g1X8jqZB100TwKi7MUenzq"
+		"ScDZiSIj"
+		;
+	static const char sCrlExpiredB64[] =
+		"MIIBZDBOAgEBMA0GCSqGSIb3DQEBCwUAMBwxGjAYBgNVBAMMEVhSVCBDUkwgVGVzdCBSb290Fw0yNjAyMDcwMDAwMDBaFw0yNjAzMDkwMDAwMDBaMA0GCS"
+		"qGSIb3DQEBCwUAA4IBAQBiwXGPx7ALCRi7OtQetWSNwZiXSFbarIdhsB5qMfzXui7Sn1uXRKxuCbL1JxtKfMqLkyFPmNeyBgbBu4H75RQ/kzz1MbEzjI54"
+		"WI58uDwc4WbaJaZ7xXpb05phaMLFBs1O5/oUcaAD2wtcS7faJCTS9oI1BzLOqhbmTkymnBJ7/e15pF1OBB8QoIzlKHWIJMW8MjNi9Yg8oJYX2Ruc4pFsdw"
+		"J1dW7QBlLhp+JyLvDNEL9SxwY14AnZ2Zy+HaXnCFGsVOG0btmf1NTSiIWh2tuNG219NHNbWTsHcLLycIWYodAFOA4eSBkMiD/DakxstO9cEzDAA+U18pn3"
+		"Vrm1CMx9"
+		;
+	xtlsctx tCtx;
+	uint8* pLeaf = NULL;
+	uint8* pRoot = NULL;
+	uint8* pCrlRevoked = NULL;
+	uint8* pCrlEmpty = NULL;
+	uint8* pCrlExpired = NULL;
+	size_t iLeafLen = 0u;
+	size_t iRootLen = 0u;
+	size_t iCrlRevokedLen = 0u;
+	size_t iCrlEmptyLen = 0u;
+	size_t iCrlExpiredLen = 0u;
+	uint8* arrChain[1];
+	size_t arrChainLen[1];
+	bool bNoCrl = false;
+	bool bEmpty = false;
+	bool bRevoked = true;
+	bool bExpired = true;
+	int iRet = 1;
+
+	memset(&tCtx, 0, sizeof(tCtx));
+	strncpy(tCtx.sHostname, "revoked.test.xrt", sizeof(tCtx.sHostname) - 1u);
+
+	pLeaf = __Test_TLSAnchorDecodeBase64(sCrlLeafB64, &iLeafLen);
+	pRoot = __Test_TLSAnchorDecodeBase64(sCrlRootB64, &iRootLen);
+	pCrlRevoked = __Test_TLSAnchorDecodeBase64(sCrlRevokedB64, &iCrlRevokedLen);
+	pCrlEmpty = __Test_TLSAnchorDecodeBase64(sCrlEmptyB64, &iCrlEmptyLen);
+	pCrlExpired = __Test_TLSAnchorDecodeBase64(sCrlExpiredB64, &iCrlExpiredLen);
+	if ( !pLeaf || !pRoot || !pCrlRevoked || !pCrlEmpty || !pCrlExpired ) {
+		printf("  TLS CRL fixture decode : FAIL\n");
+		goto cleanup;
+	}
+
+	tCtx.pCaData = pRoot;
+	tCtx.iCaDataLen = iRootLen;
+	arrChain[0] = pLeaf;
+	arrChainLen[0] = iLeafLen;
+
+	tCtx.pCrlData = NULL;
+	tCtx.iCrlDataLen = 0u;
+	bNoCrl = __xrt_tls_verify_presented_chain(&tCtx, arrChain, arrChainLen, 1u);
+
+	tCtx.pCrlData = pCrlEmpty;
+	tCtx.iCrlDataLen = iCrlEmptyLen;
+	bEmpty = __xrt_tls_verify_presented_chain(&tCtx, arrChain, arrChainLen, 1u);
+
+	tCtx.pCrlData = pCrlRevoked;
+	tCtx.iCrlDataLen = iCrlRevokedLen;
+	bRevoked = __xrt_tls_verify_presented_chain(&tCtx, arrChain, arrChainLen, 1u);
+
+	tCtx.pCrlData = pCrlExpired;
+	tCtx.iCrlDataLen = iCrlExpiredLen;
+	bExpired = __xrt_tls_verify_presented_chain(&tCtx, arrChain, arrChainLen, 1u);
+
+	printf("  TLS CRL no data keeps chain valid : %s\n", bNoCrl ? "PASS" : "FAIL");
+	printf("  TLS CRL empty list keeps chain valid : %s\n", bEmpty ? "PASS" : "FAIL");
+	printf("  TLS CRL revoked serial rejects chain : %s\n", !bRevoked ? "PASS" : "FAIL");
+	printf("  TLS CRL expired issuer list rejects chain : %s\n", !bExpired ? "PASS" : "FAIL");
+
+	if ( bNoCrl && bEmpty && !bRevoked && !bExpired ) {
+		iRet = 0;
+	}
+
+cleanup:
+	if ( pLeaf ) xrtFree(pLeaf);
+	if ( pRoot ) xrtFree(pRoot);
+	if ( pCrlRevoked ) xrtFree(pCrlRevoked);
+	if ( pCrlEmpty ) xrtFree(pCrlEmpty);
+	if ( pCrlExpired ) xrtFree(pCrlExpired);
+	return iRet;
+}
+
+
 // TLS锚点校验测试
 static int Test_TLSAnchorVerify(void)
 {
@@ -52,6 +170,7 @@ static int Test_TLSAnchorVerify(void)
 	bool bChainRoot = false;
 	bool bWithRoot = false;
 	bool bWithoutRoot = false;
+	bool bCrl = false;
 	int iRet = 1;
 
 	printf("\n\n------------------------------------\n");
@@ -95,7 +214,9 @@ static int Test_TLSAnchorVerify(void)
 	printf("  TLS anchor self-signed root presented : %s\n", bWithRoot ? "PASS" : "FAIL");
 	printf("  TLS anchor root store termination : %s\n", bWithoutRoot ? "PASS" : "FAIL");
 
-	if ( !bStrictRoot && bChainRoot && bWithRoot && bWithoutRoot ) {
+	bCrl = (__Test_TLSCRLVerify() == 0);
+
+	if ( !bStrictRoot && bChainRoot && bWithRoot && bWithoutRoot && bCrl ) {
 		iRet = 0;
 	}
 

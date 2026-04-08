@@ -3432,12 +3432,15 @@
 		const char* sCertFile;
 		const char* sKeyFile;
 		const char* sCaFile;
+		const char* sCrlFile;
 		const void* pCertData;
 		size_t iCertDataLen;
 		const void* pKeyData;
 		size_t iKeyDataLen;
 		const void* pCaData;
 		size_t iCaDataLen;
+		const void* pCrlData;
+		size_t iCrlDataLen;
 		const char* sHostName;
 		bool bVerifyPeer;
 		void (*OnSNI)(xtlssession *pSession, const char *sHostName, ptr pUserData);
