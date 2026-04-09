@@ -1813,7 +1813,7 @@ struct __xrt_tls_enc {
 	uint8 aClientFinishedKey[64];
 };
 
-// TLS 上下文 (不透明结构)
+// TLS 上下文 （ 不透明结构 ）
 struct xrt_tls_context {
 	volatile long iApiLock;
 	enum __xrt_tls_state iState;
@@ -1914,7 +1914,7 @@ struct xrt_tls_context {
 	uint8 iPeerAlertLevel;
 	uint8 iPeerAlertDesc;
 	
-	// 服务器证书公钥 (RSA 或 EC)
+	// 服务器证书公钥 （ RSA 或 EC ）
 	bool bIsECPubKey;             // true=EC, false=RSA
 	bool bIsEd25519Key;
 	bool bIsRSAPSSKey;
@@ -1927,7 +1927,7 @@ struct xrt_tls_context {
 	// IO 缓冲区
 	__xrt_tls_buf tSendBuf;
 	__xrt_tls_buf tRecvBuf;
-	__xrt_tls_buf tHandshakeBuf;        // TLS 1.3 握手消息重组缓冲区 (用于跨记录的大消息)
+	__xrt_tls_buf tHandshakeBuf;        // TLS 1.3 握手消息重组缓冲区 （ 用于跨记录的大消息 ）
 	__xrt_tls_buf tPlainBuf;            // 已解密但尚未被应用层消费的明文
 	size_t iRecvOffset;
 	size_t iRecvMsgLen;
@@ -3050,11 +3050,11 @@ static void __xrt_tls_derive_traffic_keys(struct __xrt_tls_enc *pEnc,
 	__xrt_tls_expand_label(bIsServer ? pEnc->aServerWriteKey : pEnc->aClientWriteKey,
 		iKeyLen, pSecret, iHashLen, "key", 3, NULL, 0, iHashLen);
 	
-	// 派生 write IV (始终 12 字节)
+	// 派生 write IV （ 始终 12 字节 ）
 	__xrt_tls_expand_label(bIsServer ? pEnc->aServerWriteIV : pEnc->aClientWriteIV,
 		12, pSecret, iHashLen, "iv", 2, NULL, 0, iHashLen);
 	
-	// 派生 finished key (长度等于握手哈希长度)
+	// 派生 finished key （ 长度等于握手哈希长度 ）
 	__xrt_tls_expand_label(bIsServer ? pEnc->aServerFinishedKey : pEnc->aClientFinishedKey,
 		iHashLen, pSecret, iHashLen, "finished", 8, NULL, 0, iHashLen);
 }
@@ -3063,7 +3063,7 @@ static void __xrt_tls_derive_traffic_keys(struct __xrt_tls_enc *pEnc,
 
 /* ============================== TLS 记录层 ============================== */
 
-// 加密并发送一条 TLS 记录 (栈缓冲区优化, 消除 heap 分配)
+// 加密并发送一条 TLS 记录 （ 栈缓冲区优化, 消除 heap 分配 ）
 static bool __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	const uint8 *pData, size_t iLen, bool bUseServerKeys)
 {
@@ -3087,7 +3087,7 @@ static bool __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	if ( *pSeq == UINT64_MAX ) { return false; }
 	__xrt_tls_xor_seq_nonce(aNonce, pIV, *pSeq);
 	
-	// 内层 plaintext: data + content_type (栈缓冲区, 消除 malloc)
+	// 内层 plaintext: data + content_type （ 栈缓冲区, 消除 malloc ）
 	size_t iInnerLen = iLen + 1;
 	uint8 aInnerStack[__XRT_TLS_MAX_RECORD + 1];
 	uint8 *pInner = (iInnerLen <= sizeof(aInnerStack)) ? aInnerStack : (uint8*)xrtMalloc(iInnerLen);
@@ -3106,7 +3106,7 @@ static bool __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	__xrt_tls_store_be16(aHdr + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aHdr + 3, (uint16)iCipherLen);
 	
-	// AEAD 加密 (栈缓冲区, 消除 malloc)
+	// AEAD 加密 （ 栈缓冲区, 消除 malloc ）
 	uint8 aCipherStack[__XRT_TLS_MAX_RECORD + 17];
 	uint8 *pCipher = (iCipherLen <= sizeof(aCipherStack)) ? aCipherStack : (uint8*)xrtMalloc(iCipherLen);
 	if ( !pCipher ) {
@@ -3122,7 +3122,7 @@ static bool __xrt_tls_encrypt_record(xtlsctx *pCtx, uint8 iType,
 		xrtAES128GCMEncrypt(pCipher, pKey, aNonce, 12, aHdr, 5, pInner, iInnerLen);
 	}
 	
-	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
+	// 写入发送缓冲区: 预留容量 + 直接写入 （ 消除多次 Append ）
 	size_t iTotalLen = 5 + iCipherLen;
 	if ( !__xrt_tls_buf_ensure(&pCtx->tSendBuf, iTotalLen) ) {
 		if ( pCipher != aCipherStack ) { xrtFree(pCipher); }
@@ -3238,7 +3238,7 @@ static bool __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	__xrt_tls_store_be16(aHdr + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aHdr + 3, (uint16)iPayloadLen);
 	
-	// 加密 (栈缓冲区, 消除 malloc)
+	// 加密 （ 栈缓冲区, 消除 malloc ）
 	uint8 aCipherStack[__XRT_TLS_MAX_RECORD + 16];
 	uint8 *pCipher = (iLen + 16 <= sizeof(aCipherStack)) ? aCipherStack : (uint8*)xrtMalloc(iLen + 16);
 	if ( !pCipher ) { return false; }
@@ -3264,7 +3264,7 @@ static bool __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 		xrtAES128GCMEncrypt(pCipher, pKey, aNonce, 12, aAAD, 13, pData, iLen);
 	}
 	
-	// 写入发送缓冲区: 预留容量 + 直接写入 (消除多次 Append)
+	// 写入发送缓冲区: 预留容量 + 直接写入 （ 消除多次 Append ）
 	size_t iTotalLen = 5 + iExplicitNonceLen + iLen + 16;
 	if ( !__xrt_tls_buf_ensure(&pCtx->tSendBuf, iTotalLen) ) {
 		if ( pCipher != aCipherStack ) { xrtFree(pCipher); }
@@ -3371,7 +3371,7 @@ static bool __xrt_tls12_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 
 /* ============================== 握手消息构造 ============================== */
 
-// 前向声明: TLS 1.2 握手哈希更新 (定义在 TLS 1.2 握手函数区)
+// 前向声明: TLS 1.2 握手哈希更新 （ 定义在 TLS 1.2 握手函数区 ）
 static void __xrt_tls12_update_hash(xtlsctx *pCtx, const uint8 *pData, size_t iLen);
 
 // 构造 ClientHello 消息
@@ -3409,7 +3409,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	size_t iLenPos = iPos;
 	iPos += 3;  // 预留长度
 	
-	// client version = 0x0303 (TLS 1.2 兼容)
+	// client version = 0x0303 （ TLS 1.2 兼容 ）
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
 	iPos += 2;
 	
@@ -3422,7 +3422,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	memcpy(aBuf + iPos, pCtx->aSessionId, pCtx->iSessionIdLen);
 	iPos += pCtx->iSessionIdLen;
 	
-	// cipher suites (TLS 1.3 + TLS 1.2 现代 AEAD 套件, 9 套件)
+	// cipher suites （ TLS 1.3 + TLS 1.2 现代 AEAD 套件, 9 套件 ）
 	iSuitesPos = iPos;
 	iPos += 2;
 	iSuitesStart = iPos;
@@ -3492,7 +3492,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 24);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 0x0804);  // RSA-PSS-RSAE-SHA256 (TLS 1.3 必须)
+	__xrt_tls_store_be16(aBuf + iPos, 0x0804);  // RSA-PSS-RSAE-SHA256 （ TLS 1.3 必须 ）
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0805);  // RSA-PSS-RSAE-SHA384
 	iPos += 2;
@@ -3510,11 +3510,11 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iPos += 2;
 	__xrt_tls_store_be16(aBuf + iPos, 0x0503);  // ECDSA-SECP384R1-SHA384
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 0x0401);  // RSA-PKCS1-SHA256 (TLS 1.2 兼容)
+	__xrt_tls_store_be16(aBuf + iPos, 0x0401);  // RSA-PKCS1-SHA256 （ TLS 1.2 兼容 ）
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 0x0501);  // RSA-PKCS1-SHA384 (TLS 1.2 兼容)
+	__xrt_tls_store_be16(aBuf + iPos, 0x0501);  // RSA-PKCS1-SHA384 （ TLS 1.2 兼容 ）
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, 0x0601);  // RSA-PKCS1-SHA512 (TLS 1.2 兼容)
+	__xrt_tls_store_be16(aBuf + iPos, 0x0601);  // RSA-PKCS1-SHA512 （ TLS 1.2 兼容 ）
 	iPos += 2;
 	
 	if ( bAllowTls13 ) {
@@ -3618,7 +3618,7 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	#endif
 }
 
-// 解析 ServerHello 消息 (支持 TLS 1.3 和 TLS 1.2)
+// 解析 ServerHello 消息 （ 支持 TLS 1.3 和 TLS 1.2 ）
 static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
 	static const uint8 aTls13DowngradeSentinel[8] = {
@@ -3877,7 +3877,7 @@ static bool __xrt_tls13_build_cert_verify_input(uint8 *pOut, size_t *pOutLen,
 
 /* ============================== TLS 密钥调度 ============================== */
 
-// 执行 TLS 1.3 密钥调度 (在收到 ServerHello 后)
+// 执行 TLS 1.3 密钥调度 （ 在收到 ServerHello 后 ）
 static void __xrt_tls_derive_handshake_keys(xtlsctx *pCtx)
 {
 	size_t iHashLen = __xrt_tls13_get_hash_len(pCtx->iCipherSuite);
@@ -3902,7 +3902,7 @@ static void __xrt_tls_derive_handshake_keys(xtlsctx *pCtx)
 	__xrt_tls13_hkdf_extract(aHandshakeSecret, aDerived, iHashLen,
 		pCtx->aX25519Secret, pCtx->iTls13SecretLen, iHashLen);
 	
-	// 获取当前握手哈希 (包含 ClientHello + ServerHello)
+	// 获取当前握手哈希 （ 包含 ClientHello + ServerHello ）
 	__xrt_tls13_get_transcript_hash(pCtx, aTranscriptHash, NULL);
 	
 	// client_handshake_traffic_secret
@@ -3953,14 +3953,14 @@ static void __xrt_tls_derive_application_keys(xtlsctx *pCtx)
 
 /* ============================== TLS 1.2 握手函数 ============================== */
 
-// 更新 TLS 1.2 握手哈希 (同时更新 SHA-256 和 SHA-384)
+// 更新 TLS 1.2 握手哈希 （ 同时更新 SHA-256 和 SHA-384 ）
 static void __xrt_tls12_update_hash(xtlsctx *pCtx, const uint8 *pData, size_t iLen)
 {
 	xrtSHA256Update(&pCtx->tSHA256_12, (ptr)pData, iLen);
 	xrtSHA512Update(&pCtx->tSHA384_12, (const ptr)pData, iLen);
 }
 
-// 获取 TLS 1.2 握手哈希快照 (根据套件选择 SHA-256 或 SHA-384)
+// 获取 TLS 1.2 握手哈希快照 （ 根据套件选择 SHA-256 或 SHA-384 ）
 static void __xrt_tls12_get_hash(xtlsctx *pCtx, uint8 *pOut)
 {
 	if ( pCtx->bUseSHA384 ) {
@@ -4039,7 +4039,7 @@ static bool __xrt_tls13_collect_certs(const uint8 *pMsg, size_t iLen,
 }
 
 // Step 5: 解析 TLS 1.2 Certificate 消息
-// TLS 1.2 格式: cert_list_len(3) + [cert_len(3) + cert]*  (无 request_context, 无 extensions)
+// TLS 1.2 格式: cert_list_len(3) + [cert_len(3) + cert]*  （ 无 request_context, 无 extensions ）
 static bool __xrt_tls12_parse_certificate(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
 	uint8 *apCertData[__XRT_TLS_MAX_CERT_CHAIN];
@@ -4055,7 +4055,7 @@ static bool __xrt_tls12_parse_certificate(xtlsctx *pCtx, const uint8 *pMsg, size
 	return true;
 }
 
-// Step 6: 解析 ServerKeyExchange (ECDHE 套件)
+// Step 6: 解析 ServerKeyExchange （ ECDHE 套件 ）
 static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
 	size_t iOff = 0;
@@ -4131,7 +4131,7 @@ static bool __xrt_tls12_parse_server_key_exchange(xtlsctx *pCtx, const uint8 *pM
 	if ( iOff + iExpectedLen > iLen ) { return false; }
 	iOff += iExpectedLen;
 	
-	// 保存 server_params 的位置和长度 (用于签名验证)
+	// 保存 server_params 的位置和长度 （ 用于签名验证 ）
 	size_t iParamsLen = iOff;  // curve_type(1) + named_curve(2) + point_len(1) + point
 	
 	// 解析签名: sig_hash_alg(2) + sig_len(2) + signature
@@ -4354,7 +4354,7 @@ static void __xrt_tls12_send_client_key_exchange(xtlsctx *pCtx)
 	// 更新握手哈希
 	__xrt_tls12_update_hash(pCtx, aBuf, iPos);
 	
-	// 包装为 TLS record (明文)
+	// 包装为 TLS record （ 明文 ）
 	uint8 aRec[5];
 	aRec[0] = __XRT_TLS_HANDSHAKE;
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
@@ -4462,7 +4462,7 @@ static bool __xrt_tls12_send_ccs_finished(xtlsctx *pCtx, bool bAsServer)
 {
 	const char *sLabel = bAsServer ? "server finished" : "client finished";
 
-	// 1. 发送 ChangeCipherSpec 记录 (明文, 1字节 0x01)
+	// 1. 发送 ChangeCipherSpec 记录 （ 明文, 1字节 0x01 ）
 	uint8 aCCS[6];
 	aCCS[0] = __XRT_TLS_CHANGE_CIPHER;
 	__xrt_tls_store_be16(aCCS + 1, __XRT_TLS_VERSION_1_2);
@@ -4486,7 +4486,7 @@ static bool __xrt_tls12_send_ccs_finished(xtlsctx *pCtx, bool bAsServer)
 	__xrt_tls_store_be24(aMsg + 1, 12);
 	memcpy(aMsg + 4, aVerifyData, 12);
 	
-	// 更新握手哈希 (包含客户端 Finished)
+	// 更新握手哈希 （ 包含客户端 Finished ）
 	__xrt_tls12_update_hash(pCtx, aMsg, 16);
 	
 	#if defined(DEBUG_TRACE) && defined(XRT_TLS_TRACE_SECRETS)
@@ -4985,7 +4985,7 @@ XXAPI xtlsctx* xrtTlsCreate(const xtlsconfig *pConfig, bool bIsServer)
 	xrtSHA256Init(&pCtx->tSHA256);
 	xrtSHA384Init(&pCtx->tSHA384);
 	
-	// 初始化 TLS 1.2 哈希上下文 (两个都初始化, 待协商后再选择)
+	// 初始化 TLS 1.2 哈希上下文 （ 两个都初始化, 待协商后再选择 ）
 	xrtSHA256Init(&pCtx->tSHA256_12);
 	xrtSHA384Init(&pCtx->tSHA384_12);
 	
@@ -5148,11 +5148,11 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 				return XRT_NET_ERROR;
 			}
 			
-			// 更新握手哈希 (ServerHello 消息)
+			// 更新握手哈希 （ ServerHello 消息 ）
 			__xrt_tls13_hash_update(pCtx, pRecData, iRecLen);
 			__xrt_tls12_update_hash(pCtx, pRecData, iRecLen);
 			
-			// 解析 ServerHello (跳过握手头)
+			// 解析 ServerHello （ 跳过握手头 ）
 			if ( pRecData[0] == __XRT_TLS_SERVER_HELLO ) {
 				if ( !__xrt_tls_parse_server_hello(pCtx, pRecData + __XRT_TLS_MSGHDR_SIZE,
 					iRecLen - __XRT_TLS_MSGHDR_SIZE) ) {
@@ -5244,7 +5244,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 				}
 				
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
-					// ChangeCipherSpec: 忽略 (TLS 1.3 兼容)
+					// ChangeCipherSpec: 忽略 （ TLS 1.3 兼容 ）
 					if ( iRecLen != 1 || pCtx->tRecvBuf.pData[__XRT_TLS_RECHDR_SIZE] != 0x01 ) {
 						return XRT_NET_ERROR;
 					}
@@ -5279,7 +5279,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					
 					if ( iContentType == __XRT_TLS_HANDSHAKE ) {
-						// 将解密后的握手明文追加到重组缓冲区 (支持跨记录的大消息)
+						// 将解密后的握手明文追加到重组缓冲区 （ 支持跨记录的大消息 ）
 						__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 						
 						#ifdef DEBUG_TRACE
@@ -6308,7 +6308,7 @@ XXAPI bool xrtTlsWasResumed(xtlsctx *pCtx)
 static bool __xrt_tls_send_finished(xtlsctx *pCtx, bool bAsServer);
 static void __xrt_tls_derive_application_keys(xtlsctx *pCtx);
 
-// Step 12: 服务端 ClientHello 解析 (提取 SNI)
+// Step 12: 服务端 ClientHello 解析 （ 提取 SNI ）
 static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
 	size_t iPos = 0;

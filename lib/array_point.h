@@ -129,7 +129,7 @@ XXAPI bool xrtPtrArrayMalloc(xparray pObject, uint32 iCount)
 	return bRet;
 }
 
-// 中间插入成员(0为头部插入，pObject->Count为末尾插入)
+// 中间插入成员（ 0为头部插入，pObject->Count为末尾插入 ）
 XXAPI uint32 xrtPtrArrayInsert(xparray pObject, uint32 iPos, ptr pVal)
 {
 	uint32 iRet = 0;

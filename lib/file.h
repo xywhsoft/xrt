@@ -41,7 +41,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		if ( iCharset == XRT_CP_AUTO ) {
 			// 自动识别文件编码
 			if ( stuSize.QuadPart == 0 ) {
-				// 空文件默认使用 utf8 编码 ( 无 BOM )
+				// 空文件默认使用 utf8 编码 （ 无 BOM ）
 				objFile->Charset = XRT_CP_UTF8;
 			} else {
 				// 最多读取 64KB 数据做编码推测（数据越多推测准确性越高，数据越少推测速度越快）
@@ -67,7 +67,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			} else if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 				int bErrorBOM = FALSE;
 				if ( stuSize.QuadPart == 0 ) {
-					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
+					// 0 字节文件自动添加 BOM （ 如果是只读模式直接报错 ）
 					if ( bReadOnly ) {
 						bErrorBOM = TRUE;
 					} else {
@@ -89,7 +89,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 						}
 					}
 				} else {
-					// 固定编码的文件检测并跳过 BOM ( BOM 与检测结果不符直接报错 )
+					// 固定编码的文件检测并跳过 BOM （ BOM 与检测结果不符直接报错 ）
 					uint8 sBOM[4] = { 0xA5, 0xA5, 0xA5, 0xA5 };
 					ReadFile(hFile, (ptr)sBOM, 4, &iRetSize, NULL);
 					if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
@@ -122,7 +122,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				}
 			}
 		}
-		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
+		// 计算 BOM 长度 （ 处理到这个步骤可以确保 BOM 信息是正确的 ）
 		if ( (objFile->Charset > 0) && ((objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 			if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
 				objFile->BOM = 3;
@@ -141,7 +141,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				objFile->Charset = XRT_CP_UTF32_BE;
 			}
 		}
-		// 游标跳过 BOM (BINARY 模式已经在前面重置过文件指针)
+		// 游标跳过 BOM （ BINARY 模式已经在前面重置过文件指针 ）
 		if (objFile->Charset != XRT_CP_BINARY) {
 			SetFilePointer(hFile, objFile->BOM, NULL, FILE_BEGIN);
 		}
@@ -169,7 +169,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		if ( iCharset == XRT_CP_AUTO ) {
 			// 自动识别文件编码
 			if ( fileStat.st_size == 0 ) {
-				// 空文件默认使用 utf8 编码 ( 无 BOM )
+				// 空文件默认使用 utf8 编码 （ 无 BOM ）
 				objFile->Charset = XRT_CP_UTF8;
 			} else {
 				// 最多读取 64KB 数据做编码推测（数据越多推测准确性越高，数据越少推测速度越快）
@@ -195,7 +195,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			} else if ( (iCharset > 0) && ((iCharset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 				int bErrorBOM = FALSE;
 				if ( fileStat.st_size == 0 ) {
-					// 0 字节文件自动添加 BOM ( 如果是只读模式直接报错 )
+					// 0 字节文件自动添加 BOM （ 如果是只读模式直接报错 ）
 					if ( bReadOnly ) {
 						bErrorBOM = TRUE;
 					} else {
@@ -217,7 +217,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 						}
 					}
 				} else {
-					// 固定编码的文件检测并跳过 BOM ( BOM 与检测结果不符直接报错 )
+					// 固定编码的文件检测并跳过 BOM （ BOM 与检测结果不符直接报错 ）
 					uint8 sBOM[4] = { 0xA5, 0xA5, 0xA5, 0xA5 };
 					read(fd, (ptr)sBOM, 4);
 					if ( (iCharset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
@@ -250,7 +250,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				}
 			}
 		}
-		// 计算 BOM 长度 ( 处理到这个步骤可以确保 BOM 信息是正确的 )
+		// 计算 BOM 长度 （ 处理到这个步骤可以确保 BOM 信息是正确的 ）
 		if ( (objFile->Charset > 0) && ((objFile->Charset & XRT_CP_BOM) == XRT_CP_BOM) ) {
 			if ( (objFile->Charset & XRT_MASK_BOM) == XRT_CP_UTF8 ) {
 				objFile->BOM = 3;
@@ -269,7 +269,7 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 				objFile->Charset = XRT_CP_UTF32_BE;
 			}
 		}
-		// 游标跳过 BOM (BINARY 模式已经在前面重置过文件指针)
+		// 游标跳过 BOM （ BINARY 模式已经在前面重置过文件指针 ）
 		if (objFile->Charset != XRT_CP_BINARY) {
 			lseek(fd, objFile->BOM, SEEK_SET);
 		}
@@ -395,7 +395,7 @@ XXAPI size_t xrtTell(xfile objFile)
 
 
 
-// 获取文件末尾位置 ( 获取一打开文件的动态大小 )
+// 获取文件末尾位置 （ 获取一打开文件的动态大小 ）
 XXAPI size_t xrtGetEOF(xfile objFile)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -482,7 +482,7 @@ XXAPI bool xrtSetEOF(xfile objFile)
 
 
 
-// 从已打开的文件读取数据 ( iSize 为要读取的字节数，需要使用 xrtFree 释放内存 )
+// 从已打开的文件读取数据 （ iSize 为要读取的字节数，需要使用 xrtFree 释放内存 ）
 XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -502,7 +502,7 @@ XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize)
 				sBuff[iRet + 1] = 0;
 				sBuff[iRet + 2] = 0;
 				sBuff[iRet + 3] = 0;
-				// 转换编码 (将读取到的数据转换为 utf-8 编码)
+				// 转换编码 （ 将读取到的数据转换为 utf-8 编码 ）
 				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 					int iCharSize = xrtGetCharSize(objFile->Charset);
 					size_t iTextSize = 0;
@@ -542,7 +542,7 @@ XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize)
 				sBuff[iRet + 1] = 0;
 				sBuff[iRet + 2] = 0;
 				sBuff[iRet + 3] = 0;
-				// 转换编码 (将读取到的数据转换为 utf-8 编码)
+				// 转换编码 （ 将读取到的数据转换为 utf-8 编码 ）
 				if ( (objFile->Charset >= 0) && (objFile->Charset != XRT_CP_UTF8) ) {
 					int iCharSize = xrtGetCharSize(objFile->Charset);
 					size_t iTextSize = 0;
@@ -570,7 +570,7 @@ XXAPI str xrtRead(xfile objFile, size_t iSize, size_t* iRetSize)
 
 
 
-// 向已打开的文件写入数据 ( iSize 为要写入的字节数 )
+// 向已打开的文件写入数据 （ iSize 为要写入的字节数 ）
 XXAPI size_t xrtWrite(xfile objFile, str sText, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -684,7 +684,7 @@ XXAPI size_t xrtGetBuffer(xfile objFile, ptr sBuff, size_t iSize)
 
 
 
-// 从已打开的文件读取二进制数据 ( 需要使用 xrtFree 释放内存 )
+// 从已打开的文件读取二进制数据 （ 需要使用 xrtFree 释放内存 ）
 XXAPI ptr xrtGet(xfile objFile, size_t iSize, size_t* iRetSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -818,7 +818,7 @@ XXAPI int xrtFileWriteAll(str sPath, str sText, size_t iSize, int iCharset)
 
 
 
-// 读取文件的全部内容 ( 需要使用 xrtFree 释放内存 )
+// 读取文件的全部内容 （ 需要使用 xrtFree 释放内存 ）
 XXAPI str xrtFileReadAll(str sPath, int iCharset, size_t* iRetSize)
 {
 	xfile objFile = xrtOpen(sPath, TRUE, iCharset);
@@ -842,7 +842,7 @@ XXAPI str xrtFileReadAll(str sPath, int iCharset, size_t* iRetSize)
 
 
 
-// 写入并覆盖文件内容 ( 二进制 )
+// 写入并覆盖文件内容 （ 二进制 ）
 XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -891,7 +891,7 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 
 
 
-// 读取文件的全部内容 ( 二进制，需要使用 xrtFree 释放内存 )
+// 读取文件的全部内容 （ 二进制，需要使用 xrtFree 释放内存 ）
 XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -1381,7 +1381,7 @@ XXAPI bool xrtFileDelete(str sPath)
 
 
 
-// 扫描文件夹 ( 返回文件数量 )
+// 扫描文件夹 （ 返回文件数量 ）
 #if defined(_WIN32) || defined(_WIN64)
 	// windows 方案
 	int __pri__DirScan_Proc(str sPath, size_t iSize, int bRecu, xrtDirScanProc pProc, ptr Param)
@@ -1614,7 +1614,7 @@ XXAPI bool xrtDirCreateAll(str sPath)
 
 
 
-// 复制文件夹 ( 返回操作的文件数量 )
+// 复制文件夹 （ 返回操作的文件数量 ）
 #if defined(_WIN32) || defined(_WIN64)
 	typedef struct {
 		str DstPath;
@@ -1736,7 +1736,7 @@ XXAPI int xrtDirCopy(str sSrc, str sDst, bool bReWrite)
 
 
 
-// 移动文件夹 ( 返回操作的文件数量 )
+// 移动文件夹 （ 返回操作的文件数量 ）
 XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -1782,7 +1782,7 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 
 
 
-// 删除文件夹 ( 返回操作的文件数量 )
+// 删除文件夹 （ 返回操作的文件数量 ）
 #if defined(_WIN32) || defined(_WIN64)
 	// 内部函数：删除 pri 目录进程
 	int __pri__DirDeleteProc(str sPath, size_t iSize, int bDir, ptr pData, ptr Param)

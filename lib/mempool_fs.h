@@ -325,6 +325,7 @@ static inline void MM256_LLNode_ClearCheck(xfsmempool objMM, MMU_LLNode* pNode, 
 		}
 	}
 }
+// 检查空闲链表节点是否需要回收
 static inline void MM256_LLNode_IdleCheck(xfsmempool objMM, MMU_LLNode* pNode)
 {
 	if ( pNode->objMMU->Count < 256 ) {

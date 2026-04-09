@@ -1510,6 +1510,7 @@ err:
  * @return: 失败返回-1；成功返回0
  * @description: LJSON直接从字符串解析数据
  */
+// SAX 模式解析 JSON 字符串
 XXAPI int xrtJsonParseSAX(str text, size_t str_len, json_sax_cb_t cb)
 {
 	int ret = -1;
@@ -1764,6 +1765,7 @@ XXAPI xvalue xrtParseJSON(str sText, size_t iSize)
 	xrtStackDestroy(ctx.stack);
 	return ctx.root;
 }
+// 从文件解析 JSON 为 xvalue 对象
 XXAPI xvalue xrtParseJSON_File(str sFile)
 {
 	xrtJsonParseContext ctx = {0};
@@ -1795,6 +1797,7 @@ XXAPI xvalue xrtParseJSON_File(str sFile)
 
 // 将 xte Value 序列化为字符串
 void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey);
+// 序列化数组为 JSON 字符串
 void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
 {
 	xrtJsonPrintArray(handle, sKey, JSON_SAX_START);
@@ -1821,6 +1824,7 @@ void xvo_private_Stringify_Array(json_sax_print_hd handle, xvalue varVal, json_s
 	}
 	xrtJsonPrintArray(handle, NULL, JSON_SAX_FINISH);
 }
+// 字典遍历回调：序列化单个键值对
 int xvo_private_Stringify_Table_Proc(Dict_Key* pKey, xvalue* ppVal, json_sax_print_hd handle)
 {
 	xvalue objItem = *ppVal;
@@ -1847,12 +1851,14 @@ int xvo_private_Stringify_Table_Proc(Dict_Key* pKey, xvalue* ppVal, json_sax_pri
 	}
 	return FALSE;
 }
+// 序列化字典为 JSON 字符串
 void xvo_private_Stringify_Table(json_sax_print_hd handle, xvalue varVal, json_string_t* sKey)
 {
 	xrtJsonPrintObject(handle, sKey, JSON_SAX_START);
 	xrtDictWalk(varVal->vTable, (void*)xvo_private_Stringify_Table_Proc, (void*)handle);
 	xrtJsonPrintObject(handle, NULL, JSON_SAX_FINISH);
 }
+// 将 xvalue 序列化为 JSON 字符串
 XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 {
 	// 初始化 SAX 字符串输出
@@ -1884,6 +1890,7 @@ XXAPI str xrtStringifyJSON(xvalue varVal, int bFormat, size_t* pRetSize)
 	// 返回结果
 	return (str)xrtJsonPrintFinish(handle, pRetSize, NULL);
 }
+// 将 xvalue 序列化为 JSON 并写入文件
 XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 {
 	size_t iSize = 0;

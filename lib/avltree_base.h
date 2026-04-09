@@ -197,7 +197,7 @@ XXAPI xavltnode xrtAVLTB_Remove(xavltbase objAVLT, AVLTree_CompProc procComp, pt
 	xavltnode pDelete = pNode;
 	if ( pNode->left == NULL ) {
 		// 删除节点的的左子树上没有节点。
-		// 要么在它的右子树上有子节点（根据平衡规则，只能有一个），它取代了要删除的节点，要么它没有子节点(被删除)
+		// 要么在它的右子树上有子节点（根据平衡规则，只能有一个），它取代了要删除的节点，要么它没有子节点（ 被删除 ）
 		*ppNode = pNode->right;
 		// 我们知道pNode->right已经平衡，所以我们不必再次检查
 		ancestorCount--;
@@ -280,7 +280,7 @@ XXAPI bool xrtAVLTB_WalkRecuProc(xavltnode root, AVLTree_EachProc procEach, ptr 
 XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVLTree_EachProc procIn, AVLTree_EachProc procPost, ptr pArg)
 {
 	if ( root ) {
-		// 调用回调函数(前置)
+		// 调用回调函数（ 前置 ）
 		if ( procPre ) {
 			if ( procPre(xrtAVLTreeGetNodeData(root), pArg) ) {
 				return TRUE;
@@ -304,7 +304,7 @@ XXAPI bool xrtAVLTB_WalkExRecuProc(xavltnode root, AVLTree_EachProc procPre, AVL
 				return TRUE;
 			}
 		}
-		// 调用回调函数(后置)
+		// 调用回调函数（ 后置 ）
 		if ( procPost ) {
 			if ( procPost(xrtAVLTreeGetNodeData(root), pArg) ) {
 				return TRUE;

@@ -1397,6 +1397,7 @@ static void __xprocFreeProcess(xprocess* pProcess);
 
 // 内部函数：增加引用
 #if !defined(XRT_NO_NETWORK)
+// 增加进程对象引用计数
 static xprocess* __xprocAddRef(xprocess* pProcess)
 {
 	if ( pProcess ) {
@@ -1821,6 +1822,7 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 		return SUCCEEDED(__gxprocConPtyApi.ResizePseudoConsole(hTerminal, tSize));
 	}
 #else
+// 检查当前平台是否支持终端（ 非Windows 平台 ）
 	static bool __xprocTerminalSupportedPlatform(void)
 	{
 		return true;

@@ -1,7 +1,7 @@
 
 
 
-// XID 转 字符串 ( 需要使用 xrtFree 释放内存 )
+// XID 转 字符串 （ 需要使用 xrtFree 释放内存 ）
 XXAPI str xrtEncodeXID(xid pXID)
 {
 	return xrtBase64Encode(pXID, 24, RandStringDefaultTemplate);
@@ -9,7 +9,7 @@ XXAPI str xrtEncodeXID(xid pXID)
 
 
 
-// 字符串 转 XID ( 需要使用 xrtFree 释放内存 )
+// 字符串 转 XID （ 需要使用 xrtFree 释放内存 ）
 XXAPI xid xrtDecodeXID(str sXID)
 {
 	return xrtBase64Decode(sXID, 32, RandStringDefaultTemplate);
@@ -17,7 +17,7 @@ XXAPI xid xrtDecodeXID(str sXID)
 
 
 
-// 获取 XID ( 需要使用 xrtFree 释放内存 )
+// 获取 XID （ 需要使用 xrtFree 释放内存 ）
 XXAPI xid xrtMakeXID()
 {
 	xid pXID = xrtMalloc(24);
@@ -49,7 +49,7 @@ XXAPI xid xrtMakeXID()
 
 
 
-// 获取 XID 字符串 ( 需要使用 xrtFree 释放内存 )
+// 获取 XID 字符串 （ 需要使用 xrtFree 释放内存 ）
 XXAPI str xrtMakeXIDS()
 {
 	xid pXID = xrtMakeXID();

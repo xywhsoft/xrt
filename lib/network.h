@@ -17,7 +17,7 @@ static inline void __xrtNetworkHostLockLeave()
 }
 
 
-// 获取本机 IP ( 需使用 xrtFree 释放 )
+// 获取本机 IP （ 需使用 xrtFree 释放 ）
 str xrtGetLocalIP()
 {
 	str sRet = xCore.sNull;
@@ -54,7 +54,7 @@ str xrtGetLocalIP()
 
 
 
-// 获取本机 IP ( 返回 uint32 )
+// 获取本机 IP （ 返回 uint32 ）
 uint32 xrtGetLocalRawIP()
 {
 	char sLocalName[260];
@@ -93,7 +93,7 @@ uint32 xrtGetLocalRawIP()
 
 
 
-// 获取本机 MAC 地址 ( 需使用 xrtFree 释放 )
+// 获取本机 MAC 地址 （ 需使用 xrtFree 释放 ）
 str xrtGetLocalMAC()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -225,7 +225,7 @@ void test()
 
 
 
-// 获取本机名称 ( 需使用 xrtFree 释放 )
+// 获取本机名称 （ 需使用 xrtFree 释放 ）
 str xrtGetLocalName()
 {
 	char sLocalName[260];

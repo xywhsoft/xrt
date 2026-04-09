@@ -424,7 +424,7 @@ XXAPI u8str xrtUTF32to8(u32str sText, size_t iSize, size_t* iRetSize)
 
 
 
-// utf-32 转 utf-16 ( 需使用 xrtFree 释放 )
+// utf-32 转 utf-16 （ 需使用 xrtFree 释放 ）
 XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return (u16str)xCore.sNull; }
@@ -480,7 +480,7 @@ XXAPI u16str xrtUTF32to16(u32str sText, size_t iSize, size_t* iRetSize)
 
 
 
-// utf-16 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+// utf-16 大端序和小端序转换 （ 需使用 xrtFree 释放 ）
 XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { return (u16str)xCore.sNull; }
@@ -500,7 +500,7 @@ XXAPI u16str xrtUTF16LEtoBE(u16str sText, size_t iSize, bool bSrcRevise)
 
 
 
-// utf-32 大端序和小端序转换 ( 需使用 xrtFree 释放 )
+// utf-32 大端序和小端序转换 （ 需使用 xrtFree 释放 ）
 XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise)
 {
 	if ( sText == NULL ) { return (u32str)xCore.sNull; }
@@ -520,11 +520,11 @@ XXAPI u32str xrtUTF32LEtoBE(u32str sText, size_t iSize, bool bSrcRevise)
 
 
 
-// 任意编码转换 ( 需使用 xrtFree 释放 )
+// 任意编码转换 （ 需使用 xrtFree 释放 ）
 XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t* iRetSize)
 {
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
-	// 非 windows 平台 ( 仅支持 utf-8、utf-16、utf-32 三种编码互相转换 [ 含 LE、BE 字节序 ]，oem 编码固定为 utf-8 )
+	// 非 windows 平台 （ 仅支持 utf-8、utf-16、utf-32 三种编码互相转换 [ 含 LE、BE 字节序 ]，oem 编码固定为 utf-8 ）
 	#if defined(_WIN32) || defined(_WIN64)
 	#else
 		if ( iInCP == XRT_CP_OEM ) { iInCP = XRT_CP_UTF8; }
@@ -540,7 +540,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 			return xrtCopyStr(sText, iSize);
 		}
 	}
-	// 需要转换编码 - 排列组合 20 种情况 ( 内置支持的编码转换组合 )
+	// 需要转换编码 - 排列组合 20 种情况 （ 内置支持的编码转换组合 ）
 	if ( iInCP == XRT_CP_UTF8 ) {
 		if ( iOutCP == XRT_CP_UTF16 ) {
 			return xrtUTF8to16(sText, iSize, NULL);
@@ -736,7 +736,7 @@ XXAPI ptr xrtConvCharset(ptr sText, size_t iSize, int iInCP, int iOutCP, size_t*
 			return sRet;
 		}
 	#else
-		// 其他平台方案 - 暂无 ( 可使用 libiconv 等库，但是太大了 )
+		// 其他平台方案 - 暂无 （ 可使用 libiconv 等库，但是太大了 ）
 	#endif
 	// 无法处理的编码转换组合
 	xrtSetError("Unsupported charset !", FALSE);
@@ -774,7 +774,7 @@ XXAPI bool xrtIsUTF8(str sText, size_t iSize)
 
 
 
-// 猜测编码 ( 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary )
+// 猜测编码 （ 先判断 BOM，再判断是否为合法的 utf8 编码，再根据 \0 的长度推测是否为 utf32 或 utf16、OEM，猜测不出来时返回 binary ）
 XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 {
 	if ( sText == NULL ) { return XRT_CP_BINARY; }
@@ -848,7 +848,7 @@ XXAPI int xrtDetectCharset(ptr sText, size_t iSize, bool bBOM)
 				}
 			}
 		}
-		// 检测是否符合 utf-32 范围 ( 0x10FFFF 以内‌ )
+		// 检测是否符合 utf-32 范围 （ 0x10FFFF 以内‌ ）
 		if ( (i & 3) == 0 ) {
 			if ( (i + 3u) < iSize ) {
 				if ( bNoUTF32BE == FALSE ) {

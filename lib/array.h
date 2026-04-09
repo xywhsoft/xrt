@@ -73,7 +73,7 @@ XXAPI void xrtArrayDestroy(xarray pArr)
 	}
 }
 
-// 初始化数组的数据结构 ( 用于内嵌数组的对象使用 )
+// 初始化数组的数据结构 （ 用于内嵌数组的对象使用 ）
 XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength, uint32 iMode)
 {
 	pArr->Memory = NULL;
@@ -87,7 +87,7 @@ XXAPI void xrtArrayInit(xarray pArr, uint32 iItemLength, uint32 iMode)
 	}
 }
 
-// 释放数组的数据结构 ( 但不会释放数组结构体本身的内存，用于内嵌数组的对象使用 )
+// 释放数组的数据结构 （ 但不会释放数组结构体本身的内存，用于内嵌数组的对象使用 ）
 XXAPI void xrtArrayUnit(xarray pArr)
 {
 	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {

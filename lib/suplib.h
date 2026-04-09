@@ -38,7 +38,7 @@
 
 
 
-// 获取字符串长度 ( 补充 utf16 和 utf32 支持 )
+// 获取字符串长度 （ 补充 utf16 和 utf32 支持 ）
 XXAPI size_t u16len(u16str sText)
 {
 	size_t iSize = 0;

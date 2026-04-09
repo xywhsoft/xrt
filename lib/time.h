@@ -1,7 +1,7 @@
 
 
 
-// 获取高精度时钟 Tick ( 返回秒数，便于计算时间间隔 )
+// 获取高精度时钟 Tick （ 返回秒数，便于计算时间间隔 ）
 XXAPI double xrtTimer()
 {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -366,7 +366,7 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 
 
 
-// 获取当前日期 + 时间 (线程安全)
+// 获取当前日期 + 时间 （ 线程安全 ）
 XXAPI xtime xrtNow()
 {
 	time_t rawtime = time(NULL);
@@ -381,7 +381,7 @@ XXAPI xtime xrtNow()
 
 
 
-// 获取当前日期 (线程安全)
+// 获取当前日期 （ 线程安全 ）
 XXAPI xtime xrtDate()
 {
 	time_t rawtime = time(NULL);
@@ -396,7 +396,7 @@ XXAPI xtime xrtDate()
 
 
 
-// 获取当前时间 (线程安全)
+// 获取当前时间 （ 线程安全 ）
 XXAPI xtime xrtTime()
 {
 	time_t rawtime = time(NULL);
@@ -411,7 +411,7 @@ XXAPI xtime xrtTime()
 
 
 
-// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）(线程安全)
+// 获取字符串格式的当前日期 + 时间（ 需使用 xrtFree 释放内存 ）（ 线程安全 ）
 XXAPI str xrtNowStr()
 {
 	time_t rawtime = time(NULL);
@@ -426,7 +426,7 @@ XXAPI str xrtNowStr()
 
 
 
-// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）(线程安全)
+// 获取字符串格式的当前日期（ 需使用 xrtFree 释放内存 ）（ 线程安全 ）
 XXAPI str xrtDateStr()
 {
 	time_t rawtime = time(NULL);
@@ -441,7 +441,7 @@ XXAPI str xrtDateStr()
 
 
 
-// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）(线程安全)
+// 获取字符串格式的当前时间（ 需使用 xrtFree 释放内存 ）（ 线程安全 ）
 XXAPI str xrtTimeStr()
 {
 	time_t rawtime = time(NULL);
@@ -972,15 +972,15 @@ enum _XRT_FMT_TYPE {
 	_XRT_FMT_LITERAL = 0,   // 固定文本
 	_XRT_FMT_YEAR4,         // yyyy
 	_XRT_FMT_YEAR2,         // yy
-	_XRT_FMT_MONTH2,        // mm (月份，补0)
-	_XRT_FMT_MONTH1,        // m  (月份，不补0)
+	_XRT_FMT_MONTH2,        // mm （ 月份，补0 ）
+	_XRT_FMT_MONTH1,        // m  （ 月份，不补0 ）
 	_XRT_FMT_MONTH_SHORT,   // mmm (Jan)
 	_XRT_FMT_MONTH_FULL,    // mmmm (January)
 	_XRT_FMT_DAY2,          // dd
 	_XRT_FMT_DAY1,          // d
-	_XRT_FMT_HOUR24_2,      // hh (24小时制)
+	_XRT_FMT_HOUR24_2,      // hh （ 24小时制 ）
 	_XRT_FMT_HOUR24_1,      // h
-	_XRT_FMT_HOUR12_2,      // HH (12小时制)
+	_XRT_FMT_HOUR12_2,      // HH （ 12小时制 ）
 	_XRT_FMT_HOUR12_1,      // H
 	_XRT_FMT_MINUTE2,       // nn 或 h后的mm
 	_XRT_FMT_MINUTE1,       // n
@@ -992,10 +992,10 @@ enum _XRT_FMT_TYPE {
 	_XRT_FMT_WEEKDAY_SHORT, // ww
 	_XRT_FMT_WEEKDAY_FULL,  // www
 	_XRT_FMT_QUARTER,       // q
-	_XRT_FMT_SKIP_ANY,      // * (跳过任意非数字)
-	_XRT_FMT_SKIP_ONE_PLUS, // . (跳过至少1个非数字)
-	_XRT_FMT_SKIP_CHAR,     // ? (跳过1个字符)
-	_XRT_FMT_SKIP_SPACE     // 空格 (跳过空白)
+	_XRT_FMT_SKIP_ANY,      // * （ 跳过任意非数字 ）
+	_XRT_FMT_SKIP_ONE_PLUS, // . （ 跳过至少1个非数字 ）
+	_XRT_FMT_SKIP_CHAR,     // ? （ 跳过1个字符 ）
+	_XRT_FMT_SKIP_SPACE     // 空格 （ 跳过空白 ）
 };
 
 // 格式单元结构

@@ -51,7 +51,7 @@ static bool __xrtStrHasToken(str sText, size_t iSize, const unsigned char* sToke
 }
 
 
-// 创建字符串副本（ 需使用 xrtFree 释放 ）(线程安全)
+// 创建字符串副本（ 需使用 xrtFree 释放 ）（ 线程安全 ）
 XXAPI str xrtCopyStr(str sText, size_t iSize)
 {
 	if ( sText == NULL ) { return xCore.sNull; }
@@ -216,7 +216,7 @@ XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise)
 
 
 
-// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）(线程安全)
+// 搜索字符串（ 没找到字符串的情况下会返回 NULL ）（ 线程安全 ）
 XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
 	if ( sText == NULL ) { return NULL; }
@@ -975,7 +975,7 @@ typedef struct {
 	bool uppercase;     // 大写十六进制
 	int base;           // 进制 (10, 16, 8, 2)
 	int width;          // 前导零宽度
-	int precision;      // 小数位数 (-1 表示未指定)
+	int precision;      // 小数位数 （ -1 表示未指定 ）
 } XrtNumFmtOpts;
 
 
@@ -1306,7 +1306,7 @@ XXAPI double xrtStrSim(str s1, size_t len1, str s2, size_t len2)
 				// 字符相同，无需操作
 				dp[j] = prev;
 			} else {
-				// 字符不同，取 min(删除, 插入, 替换) + 1
+				// 字符不同，取 min（ 删除, 插入, 替换 ） + 1
 				int del = dp[j];      // dp[i-1][j] + 1
 				int ins = dp[j - 1];  // dp[i][j-1] + 1
 				int rep = prev;       // dp[i-1][j-1] + 1
