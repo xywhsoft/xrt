@@ -409,10 +409,14 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 	#endif
 	if ( !pAddr || !sIP || !sIP[0] ) { return XRT_NET_ERROR; }
 
+	// 清零地址结构并设置端口
 	memset(pAddr, 0, sizeof(xnetaddr));
 	pAddr->iPort = iPort;
 
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows 平台：先尝试作为 IPv4 地址解析
+		// R13: 利用 WSAStringToAddressA 将点分十进制字符串转换为 sockaddr_in，
+		//      再从 sin_addr 中拷贝 4 字节网络序地址到 xnetaddr.aAddr
 		memset(&tStorage, 0, sizeof(tStorage));
 		iStorageLen = (int)sizeof(tStorage);
 		snprintf(sAddrBuf, sizeof(sAddrBuf), "%s", sIP);
@@ -421,6 +425,8 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 			memcpy(pAddr->aAddr, &((struct sockaddr_in*)&tStorage)->sin_addr, 4u);
 			return XRT_NET_OK;
 		}
+		// IPv4 解析失败，尝试作为 IPv6 地址解析
+		// R13: IPv6 额外保存 sin6_scope_id 用于链路本地地址的接口标识
 		memset(&tStorage, 0, sizeof(tStorage));
 		iStorageLen = (int)sizeof(tStorage);
 		snprintf(sAddrBuf, sizeof(sAddrBuf), "%s", sIP);
@@ -431,16 +437,20 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 			return XRT_NET_OK;
 		}
 	#else
+		// 非 Windows 平台：先尝试作为 IPv4 地址解析
+		// R13: inet_pton 将文本地址转为网络序二进制并直接写入 aAddr
 		if ( inet_pton(AF_INET, sIP, pAddr->aAddr) == 1 ) {
 			pAddr->iFamily = AF_INET;
 			return XRT_NET_OK;
 		}
+		// IPv4 解析失败，尝试作为 IPv6 地址解析
 		if ( inet_pton(AF_INET6, sIP, pAddr->aAddr) == 1 ) {
 			pAddr->iFamily = AF_INET6;
 			return XRT_NET_OK;
 		}
 	#endif
 
+	// 两种格式均无法解析，重置地址并返回错误
 	memset(pAddr, 0, sizeof(xnetaddr));
 	return XRT_NET_ERROR;
 }
@@ -451,6 +461,7 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 {
 	if ( !sHost || !sHost[0] || !pAddr ) { return XRT_NET_ERROR; }
 
+	// 先尝试将 sHost 直接解析为 IP 地址字符串
 	{
 		xnetaddr tParsed;
 		if ( xrtNetAddrParse(&tParsed, sHost, pAddr->iPort) == XRT_NET_OK ) {
@@ -460,6 +471,7 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 		}
 	}
 
+	// 直接解析失败，通过 DNS 解析主机名
 	struct addrinfo tHints;
 	struct addrinfo* pRes = NULL;
 	struct addrinfo* pIt = NULL;
@@ -472,6 +484,7 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 		return XRT_NET_ERROR;
 	}
 
+	// 遍历 DNS 返回结果，选取第一个可用地址
 	for ( pIt = pRes; pIt; pIt = pIt->ai_next ) {
 		if ( !pIt->ai_addr ) { continue; }
 		if ( __xnetAddrFromSockAddr(pAddr, pIt->ai_addr) ) {
@@ -481,6 +494,7 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 		}
 	}
 
+	// 所有结果均无法转换，释放资源并返回错误
 	freeaddrinfo(pRes);
 	return XRT_NET_ERROR;
 }
@@ -492,18 +506,24 @@ XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 	char* pBuf = __xnetAddrTempBuf();
 	if ( !pAddr ) { return pBuf; }
 
+	// IPv4 地址：直接转换为点分十进制字符串
+	// R13: inet_ntop 将 4 字节网络序地址转为可读文本
 	if ( pAddr->iFamily == AF_INET ) {
 		if ( !inet_ntop(AF_INET, pAddr->aAddr, pBuf, __XNET_ADDR_STR_CAP) ) {
 			pBuf[0] = '\0';
 		}
 		return pBuf;
 	}
+	// IPv6 地址：转换后处理 scope id 后缀
+	// R13: inet_ntop 将 16 字节网络序地址转为冒号分隔文本，
+	//      scope id 用 % 后缀标识链路本地地址所属的接口编号
 	if ( pAddr->iFamily == AF_INET6 ) {
 		char aAddr[INET6_ADDRSTRLEN];
 		if ( !inet_ntop(AF_INET6, pAddr->aAddr, aAddr, sizeof(aAddr)) ) {
 			pBuf[0] = '\0';
 			return pBuf;
 		}
+		// 拼接 scope id（如 %42），用于链路本地地址标识接口
 		if ( pAddr->iScopeId != 0 ) {
 			snprintf(pBuf, __XNET_ADDR_STR_CAP, "%s%%%u", aAddr, pAddr->iScopeId);
 		} else {

@@ -257,14 +257,17 @@ static bool __xwsAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const voi
 	char* pNewBuf;
 	if ( !ppBuf || !pLen || !pCap || (!pData && iDataLen != 0) ) { return false; }
 	if ( iDataLen == 0 ) { return true; }
+	// 计算追加后的目标容量
 	iTargetCap = *pLen + iDataLen + 1u;
 	if ( iTargetCap < *pLen || iTargetCap < iDataLen ) { return false; }
+	// 容量足够时直接追加
 	if ( iTargetCap <= *pCap ) {
 		memcpy(*ppBuf + *pLen, pData, iDataLen);
 		*pLen += iDataLen;
 		(*ppBuf)[*pLen] = '\0';
 		return true;
 	}
+	// 容量不足时倍增扩容
 	iNeedCap = (*pCap == 0) ? 256u : *pCap;
 	while ( iNeedCap < iTargetCap ) {
 		if ( iNeedCap > (SIZE_MAX >> 1) ) {
@@ -274,12 +277,14 @@ static bool __xwsAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const voi
 		iNeedCap *= 2u;
 	}
 	if ( iNeedCap < iTargetCap ) { return false; }
+	// 分配新缓冲区并拷贝旧数据
 	pNewBuf = (char*)XNET_ALLOC(iNeedCap);
 	if ( !pNewBuf ) { return false; }
 	if ( *ppBuf && *pLen > 0 ) { memcpy(pNewBuf, *ppBuf, *pLen); }
 	XNET_FREE(*ppBuf);
 	*ppBuf = pNewBuf;
 	*pCap = iNeedCap;
+	// 追加新数据
 	memcpy(*ppBuf + *pLen, pData, iDataLen);
 	*pLen += iDataLen;
 	(*ppBuf)[*pLen] = '\0';
@@ -375,9 +380,12 @@ static bool __xwsBuildClientHandshake(xwsclient* pClient, char** ppOut, size_t* 
 	size_t iLen = 0;
 	size_t iCap = 0;
 	if ( !pClient || !ppOut || !pOutLen ) { return false; }
+	// 构建 Host 头部值
 	if ( !xrtUrlMakeHostHeaderFixed(pClient->tURL.bSecure ? "wss" : "ws", pClient->tURL.sHost, pClient->tURL.iPort, sHost, sizeof(sHost)) ) { return false; }
+	// 生成握手密钥和期望的 Accept 值
 	if ( !__xwsGenerateKey(pClient->sKey, sizeof(pClient->sKey)) ) { return false; }
 	if ( !__xwsComputeAccept(pClient->sKey, pClient->sExpectedAccept, sizeof(pClient->sExpectedAccept)) ) { return false; }
+	// 构建基本请求行和必需头部
 	if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "GET ") ||
 		!__xwsAppendText(&pBuf, &iLen, &iCap, pClient->tURL.sPath) ||
 		!__xwsAppendText(&pBuf, &iLen, &iCap, " HTTP/1.1\r\nHost: ") ||
@@ -388,6 +396,7 @@ static bool __xwsBuildClientHandshake(xwsclient* pClient, char** ppOut, size_t* 
 		XNET_FREE(pBuf);
 		return false;
 	}
+	// 可选：追加 Sec-WebSocket-Protocol 头部
 	if ( pClient->tConfig.sProtocol[0] ) {
 		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Sec-WebSocket-Protocol: ") ||
 			!__xwsAppendText(&pBuf, &iLen, &iCap, pClient->tConfig.sProtocol) ||
@@ -396,6 +405,7 @@ static bool __xwsBuildClientHandshake(xwsclient* pClient, char** ppOut, size_t* 
 			return false;
 		}
 	}
+	// 可选：追加 Origin 头部
 	if ( pClient->tConfig.sOrigin[0] ) {
 		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Origin: ") ||
 			!__xwsAppendText(&pBuf, &iLen, &iCap, pClient->tConfig.sOrigin) ||
@@ -404,6 +414,7 @@ static bool __xwsBuildClientHandshake(xwsclient* pClient, char** ppOut, size_t* 
 			return false;
 		}
 	}
+	// 追加空行结束头部
 	if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "\r\n") ) {
 		XNET_FREE(pBuf);
 		return false;
@@ -424,11 +435,13 @@ static bool __xwsBuildHttpResponseBytes(uint32 iStatusCode, const char* sBody, c
 	size_t iCap = 0;
 	size_t iBodyLen = sBody ? strlen(sBody) : 0u;
 	if ( !ppOut || !pOutLen ) { return false; }
+	// 构建状态行
 	(void)snprintf(sLine, sizeof(sLine), "HTTP/1.1 %u %s\r\n", (unsigned)iStatusCode, __xwsHttpStatusText(iStatusCode));
 	if ( !__xwsAppendText(&pBuf, &iLen, &iCap, sLine) ) {
 		XNET_FREE(pBuf);
 		return false;
 	}
+	// 101 状态码表示协议切换，发送 WebSocket 升级响应
 	if ( iStatusCode == 101u ) {
 		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ") ||
 			!__xwsAppendText(&pBuf, &iLen, &iCap, sAccept ? sAccept : "") ||
@@ -436,6 +449,7 @@ static bool __xwsBuildHttpResponseBytes(uint32 iStatusCode, const char* sBody, c
 			XNET_FREE(pBuf);
 			return false;
 		}
+		// 可选：追加子协议头部
 		if ( sProtocol && sProtocol[0] ) {
 			if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Sec-WebSocket-Protocol: ") ||
 				!__xwsAppendText(&pBuf, &iLen, &iCap, sProtocol) ||
@@ -449,6 +463,7 @@ static bool __xwsBuildHttpResponseBytes(uint32 iStatusCode, const char* sBody, c
 			return false;
 		}
 	} else {
+		// 非 101 状态码：返回普通 HTTP 错误响应
 		(void)snprintf(sLength, sizeof(sLength), "%llu", (unsigned long long)iBodyLen);
 		if ( !__xwsAppendText(&pBuf, &iLen, &iCap, "Connection: close\r\nContent-Type: text/plain\r\nContent-Length: ") ||
 			!__xwsAppendText(&pBuf, &iLen, &iCap, sLength) ||
@@ -508,10 +523,13 @@ static bool __xwsBuildFrameBytesEx(uint8 iOpcode, bool bFin, bool bMask, const v
 	uint8 aMask[4] = {0};
 	const uint8* pBytes = (const uint8*)pPayload;
 	if ( !ppOut || !pOutLen ) { return false; }
+	// R13: 计算帧所需总大小并分配缓冲区
 	iNeed = __xwsFrameSize(iPayloadLen, bMask);
 	pBuf = (char*)XNET_ALLOC(iNeed);
 	if ( !pBuf ) { return false; }
+	// 第一个字节：FIN 位 + 操作码
 	((uint8*)pBuf)[iPos++] = (uint8)((bFin ? 0x80u : 0x00u) | (iOpcode & 0x0Fu));
+	// 第二个字节：MASK 位 + 负载长度（7位、16位或64位编码）
 	if ( iPayloadLen < 126u ) {
 		((uint8*)pBuf)[iPos++] = (uint8)((bMask ? 0x80u : 0x00u) | (uint8)iPayloadLen);
 	} else if ( iPayloadLen <= 0xFFFFu ) {
@@ -524,11 +542,13 @@ static bool __xwsBuildFrameBytesEx(uint8 iOpcode, bool bFin, bool bMask, const v
 			((uint8*)pBuf)[iPos++] = (uint8)((((uint64)iPayloadLen) >> (uint32)(i * 8)) & 0xFFu);
 		}
 	}
+	// 若需要掩码则生成随机掩码并写入头部
 	if ( bMask ) {
 		xrtRandomBytes(aMask, sizeof(aMask));
 		memcpy(pBuf + iPos, aMask, sizeof(aMask));
 		iPos += sizeof(aMask);
 	}
+	// 写入负载数据并按需应用掩码
 	if ( iPayloadLen > 0 && pBytes ) {
 		memcpy(pBuf + iPos, pBytes, iPayloadLen);
 		if ( bMask ) {
@@ -669,12 +689,15 @@ static xnet_result __xwsPostClose(xnetstream* pStream, bool bMask, uint16 iCode,
 	size_t iFrameLen = 0u;
 	size_t iReasonLen = sReason ? strlen(sReason) : 0u;
 	if ( !pStream || !pStream->pEngine || !pStream->pWorker ) { return XRT_NET_ERROR; }
+	// 构建 Close 帧负载（关闭码 + 原因）
 	if ( !__xwsBuildClosePayload(iCode, sReason, iReasonLen, &pPayload, &iPayloadLen) ) { return XRT_NET_ERROR; }
+	// 将负载封装为 WebSocket Close 帧
 	if ( !__xwsBuildFrameBytes(XCODEC_WS_OPCODE_CLOSE, bMask, pPayload, iPayloadLen, &pFrame, &iFrameLen) ) {
 		XNET_FREE(pPayload);
 		return XRT_NET_ERROR;
 	}
 	XNET_FREE(pPayload);
+	// 创建异步关闭任务并投递到工作线程
 	pTask = (__xws_close_task*)XNET_ALLOC(sizeof(__xws_close_task));
 	if ( !pTask ) {
 		XNET_FREE(pFrame);
@@ -761,10 +784,12 @@ static int __xwsClientConsumeDataFrame(xwsclient* pClient, uint8 iOpcode, bool b
 	size_t iLimit = pClient && pClient->tConfig.iRecvLimit > 0u ? (size_t)pClient->tConfig.iRecvLimit : 0u;
 	int iAppend;
 	if ( !pClient ) { return __XWS_APPEND_INTERNAL; }
+	// 续接帧：追加到已有的分片消息
 	if ( iOpcode == XCODEC_WS_OPCODE_CONT ) {
 		if ( pClient->iMsgOpcode == 0u ) { return __XWS_APPEND_PROTOCOL; }
 		iAppend = __xwsMessageAppend(&pClient->pMsgBuf, &pClient->iMsgLen, &pClient->iMsgCap, &pClient->iMsgOpcode, 0u, pPayload, iPayloadLen, iLimit);
 		if ( iAppend != __XWS_APPEND_OK ) { return iAppend; }
+		// 最后一帧时触发回调并重置消息缓冲区
 		if ( bFin ) {
 			if ( pClient->iMsgOpcode == XCODEC_WS_OPCODE_TEXT ) { __xwsClientEmitText(pClient, pClient->pMsgBuf ? pClient->pMsgBuf : "", pClient->iMsgLen); }
 			else if ( pClient->iMsgOpcode == XCODEC_WS_OPCODE_BINARY ) { __xwsClientEmitBinary(pClient, pClient->pMsgBuf, pClient->iMsgLen); }
@@ -773,13 +798,16 @@ static int __xwsClientConsumeDataFrame(xwsclient* pClient, uint8 iOpcode, bool b
 		}
 		return __XWS_APPEND_OK;
 	}
+	// 新消息的第一帧必须是 text 或 binary
 	if ( iOpcode != XCODEC_WS_OPCODE_TEXT && iOpcode != XCODEC_WS_OPCODE_BINARY ) { return __XWS_APPEND_PROTOCOL; }
 	if ( pClient->iMsgOpcode != 0u ) { return __XWS_APPEND_PROTOCOL; }
+	// 单帧完整消息直接触发回调
 	if ( bFin ) {
 		if ( iOpcode == XCODEC_WS_OPCODE_TEXT ) { __xwsClientEmitText(pClient, pPayload, iPayloadLen); }
 		else { __xwsClientEmitBinary(pClient, pPayload, iPayloadLen); }
 		return __XWS_APPEND_OK;
 	}
+	// 分片消息的首帧：缓冲数据等待后续帧
 	return __xwsMessageAppend(&pClient->pMsgBuf, &pClient->iMsgLen, &pClient->iMsgCap, &pClient->iMsgOpcode, iOpcode, pPayload, iPayloadLen, iLimit);
 }
 
@@ -790,10 +818,12 @@ static int __xwsServerConsumeDataFrame(xwsconn* pConn, uint8 iOpcode, bool bFin,
 	size_t iLimit = (pConn && pConn->pServer && pConn->pServer->tConfig.iRecvLimit > 0u) ? (size_t)pConn->pServer->tConfig.iRecvLimit : 0u;
 	int iAppend;
 	if ( !pConn ) { return __XWS_APPEND_INTERNAL; }
+	// 续接帧：追加到已有的分片消息
 	if ( iOpcode == XCODEC_WS_OPCODE_CONT ) {
 		if ( pConn->iMsgOpcode == 0u ) { return __XWS_APPEND_PROTOCOL; }
 		iAppend = __xwsMessageAppend(&pConn->pMsgBuf, &pConn->iMsgLen, &pConn->iMsgCap, &pConn->iMsgOpcode, 0u, pPayload, iPayloadLen, iLimit);
 		if ( iAppend != __XWS_APPEND_OK ) { return iAppend; }
+		// 最后一帧时触发回调并重置消息缓冲区
 		if ( bFin ) {
 			if ( pConn->iMsgOpcode == XCODEC_WS_OPCODE_TEXT ) { __xwsServerEmitText(pConn, pConn->pMsgBuf ? pConn->pMsgBuf : "", pConn->iMsgLen); }
 			else if ( pConn->iMsgOpcode == XCODEC_WS_OPCODE_BINARY ) { __xwsServerEmitBinary(pConn, pConn->pMsgBuf, pConn->iMsgLen); }
@@ -802,13 +832,16 @@ static int __xwsServerConsumeDataFrame(xwsconn* pConn, uint8 iOpcode, bool bFin,
 		}
 		return __XWS_APPEND_OK;
 	}
+	// 新消息的第一帧必须是 text 或 binary
 	if ( iOpcode != XCODEC_WS_OPCODE_TEXT && iOpcode != XCODEC_WS_OPCODE_BINARY ) { return __XWS_APPEND_PROTOCOL; }
 	if ( pConn->iMsgOpcode != 0u ) { return __XWS_APPEND_PROTOCOL; }
+	// 单帧完整消息直接触发回调
 	if ( bFin ) {
 		if ( iOpcode == XCODEC_WS_OPCODE_TEXT ) { __xwsServerEmitText(pConn, pPayload, iPayloadLen); }
 		else { __xwsServerEmitBinary(pConn, pPayload, iPayloadLen); }
 		return __XWS_APPEND_OK;
 	}
+	// 分片消息的首帧：缓冲数据等待后续帧
 	return __xwsMessageAppend(&pConn->pMsgBuf, &pConn->iMsgLen, &pConn->iMsgCap, &pConn->iMsgOpcode, iOpcode, pPayload, iPayloadLen, iLimit);
 }
 
@@ -888,16 +921,20 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 		bool bFin;
 		int iDataRet;
 		uint16 iCloseCode = XWS_CLOSE_NORMAL;
+		// 数据不足，等待更多数据
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+		// R13: 帧解析错误，关闭连接
 		if ( iParse == XCODEC_STATUS_ERROR ) {
 			__xwsClientEmitError(pClient, -2);
 			if ( pClient->pStream ) { xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT); }
 			return;
 		}
+		// 控制帧负载不能超过 125 字节
 		if ( (tInfo.iFlags & XCODEC_WS_F_CONTROL) != 0u && tInfo.iPayloadLen > 125u ) {
 			(void)__xwsPostClose(pClient->pStream, true, XWS_CLOSE_PROTOCOL, "control too large", true);
 			return;
 		}
+		// 提取并解掩码负载数据
 		if ( !__xwsPeekPayloadCopy(pChain, &tFrame, &tInfo, &pPayload, &iPayloadLen) ) {
 			__xwsClientEmitError(pClient, -3);
 			xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT);
@@ -905,10 +942,12 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 		}
 		xrtCodecFrameConsume(pChain, &tFrame);
 		bFin = (tInfo.iFlags & XCODEC_WS_F_FIN) != 0u;
+		// 根据操作码分发处理
 		switch ( tInfo.iOpcode ) {
 			case XCODEC_WS_OPCODE_TEXT:
 			case XCODEC_WS_OPCODE_BINARY:
 			case XCODEC_WS_OPCODE_CONT:
+				// 数据帧交给消息重组逻辑处理
 				iDataRet = __xwsClientConsumeDataFrame(pClient, tInfo.iOpcode, bFin, pPayload, iPayloadLen);
 				if ( iDataRet == __XWS_APPEND_OK ) { break; }
 				if ( iDataRet == __XWS_APPEND_TOO_BIG ) {
@@ -923,6 +962,7 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 				return;
 				break;
 			case XCODEC_WS_OPCODE_PING:
+				// 自动回复 Pong
 				if ( pClient->pStream ) { (void)__xwsStreamQueueFrameDirect(pClient->pStream, true, XCODEC_WS_OPCODE_PONG, pPayload, iPayloadLen); }
 				if ( pClient->tEvents.OnPing ) { pClient->tEvents.OnPing(pClient->pUserData, pClient, pPayload, iPayloadLen); }
 				break;
@@ -930,6 +970,7 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 				if ( pClient->tEvents.OnPong ) { pClient->tEvents.OnPong(pClient->pUserData, pClient, pPayload, iPayloadLen); }
 				break;
 			case XCODEC_WS_OPCODE_CLOSE:
+				// 提取关闭码并通知关闭
 				if ( iPayloadLen >= 2u ) {
 					iCloseCode = (uint16)(((uint8)pPayload[0] << 8u) | (uint8)pPayload[1]);
 				}
@@ -942,6 +983,7 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 						iPayloadLen);
 				#endif
 				__xwsClientEmitCloseOnce(pClient, XRT_NET_CLOSED);
+				// 首次收到关闭帧则回复关闭帧，否则优雅关闭流
 				if ( __xwsAtomicCompareExchange(&pClient->iClosePosted, 1, 0) == 0 ) {
 					if ( pClient->pStream ) { (void)__xwsPostClose(pClient->pStream, true, iCloseCode, NULL, true); }
 				} else if ( pClient->pStream ) {
@@ -1199,20 +1241,25 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 		bool bFin;
 		int iDataRet;
 		uint16 iCloseCode = XWS_CLOSE_NORMAL;
+		// 数据不足，等待更多数据
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+		// R13: 帧解析错误，关闭连接
 		if ( iParse == XCODEC_STATUS_ERROR ) {
 			__xwsServerEmitError(pServer, pConn, -21);
 			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
 			return;
 		}
+		// 服务端要求客户端帧必须掩码
 		if ( (tInfo.iFlags & XCODEC_WS_F_MASKED) == 0u ) {
 			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "mask required", true);
 			return;
 		}
+		// 控制帧负载不能超过 125 字节
 		if ( (tInfo.iFlags & XCODEC_WS_F_CONTROL) != 0u && tInfo.iPayloadLen > 125u ) {
 			(void)__xwsPostClose(pConn->pStream, false, XWS_CLOSE_PROTOCOL, "control too large", true);
 			return;
 		}
+		// 提取并解掩码负载数据
 		if ( !__xwsPeekPayloadCopy(pChain, &tFrame, &tInfo, &pPayload, &iPayloadLen) ) {
 			__xwsServerEmitError(pServer, pConn, -22);
 			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
@@ -1220,10 +1267,12 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 		}
 		xrtCodecFrameConsume(pChain, &tFrame);
 		bFin = (tInfo.iFlags & XCODEC_WS_F_FIN) != 0u;
+		// 根据操作码分发处理
 		switch ( tInfo.iOpcode ) {
 			case XCODEC_WS_OPCODE_TEXT:
 			case XCODEC_WS_OPCODE_BINARY:
 			case XCODEC_WS_OPCODE_CONT:
+				// 数据帧交给消息重组逻辑处理
 				iDataRet = __xwsServerConsumeDataFrame(pConn, tInfo.iOpcode, bFin, pPayload, iPayloadLen);
 				if ( iDataRet == __XWS_APPEND_OK ) { break; }
 				if ( iDataRet == __XWS_APPEND_TOO_BIG ) {
@@ -1238,6 +1287,7 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 				return;
 				break;
 			case XCODEC_WS_OPCODE_PING:
+				// 自动回复 Pong（服务端帧不掩码）
 				(void)__xwsStreamQueueFrameDirect(pConn->pStream, false, XCODEC_WS_OPCODE_PONG, pPayload, iPayloadLen);
 				if ( pServer->tEvents.OnPing ) { pServer->tEvents.OnPing(pServer->pUserData, pServer, pConn, pPayload, iPayloadLen); }
 				break;
@@ -1245,6 +1295,7 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 				if ( pServer->tEvents.OnPong ) { pServer->tEvents.OnPong(pServer->pUserData, pServer, pConn, pPayload, iPayloadLen); }
 				break;
 			case XCODEC_WS_OPCODE_CLOSE:
+				// 提取关闭码并通知关闭
 				if ( iPayloadLen >= 2u ) {
 					iCloseCode = (uint16)(((uint8)pPayload[0] << 8u) | (uint8)pPayload[1]);
 				}
@@ -1257,6 +1308,7 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 						iPayloadLen);
 				#endif
 				__xwsServerEmitCloseOnce(pServer, pConn, XRT_NET_CLOSED);
+				// 首次收到关闭帧则回复关闭帧，否则优雅关闭流
 				if ( __xwsAtomicCompareExchange(&pConn->iClosePosted, 1, 0) == 0 ) {
 					if ( pConn->pStream ) { (void)__xwsPostClose(pConn->pStream, false, iCloseCode, NULL, true); }
 				} else if ( pConn->pStream ) {
@@ -1309,6 +1361,7 @@ static void __xwsServerStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 	xwsconn* pConn = (xwsconn*)pOwner;
 	xwsserver* pServer = pConn ? pConn->pServer : NULL;
 	if ( !pConn || !pServer || !pStream || !pChain ) { return; }
+	// 尚未完成握手时，先处理 HTTP 升级请求
 	if ( __xwsAtomicLoad(&pConn->iOpen) == 0 ) {
 		xcodecframe tFrame;
 		xcodechttp1msg tMsg;
@@ -1317,16 +1370,19 @@ static void __xwsServerStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 		char sAccept[64];
 		const char* sClientProtocol;
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+		// 校验 HTTP 升级请求的合法性
 		if ( iParse == XCODEC_STATUS_ERROR || !__xwsServerValidateRequest(&tMsg, &sKey) ) {
 			__xwsServerEmitError(pServer, pConn, -31);
 			(void)__xwsSendHttpReply(pStream, 400u, "Bad Request", NULL, NULL, true);
 			return;
 		}
+		// 计算服务端 Accept 值
 		if ( !__xwsComputeAccept(sKey, sAccept, sizeof(sAccept)) ) {
 			__xwsServerEmitError(pServer, pConn, -32);
 			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 			return;
 		}
+		// 检查客户端请求的子协议是否匹配
 		sClientProtocol = xrtCodecHttp1GetHeader(&tMsg, "Sec-WebSocket-Protocol");
 		if ( pServer->tConfig.sProtocol[0] ) {
 			if ( !sClientProtocol || !__xwsContainsTokenNoCase(sClientProtocol, pServer->tConfig.sProtocol) ) {
@@ -1335,16 +1391,19 @@ static void __xwsServerStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* 
 			}
 			__xwsCopyToken(pConn->sProtocol, sizeof(pConn->sProtocol), pServer->tConfig.sProtocol);
 		}
+		// 发送 101 切换协议响应
 		if ( !__xwsSendHttpReply(pStream, 101u, NULL, sAccept, pConn->sProtocol, false) ) {
 			__xwsServerEmitError(pServer, pConn, -33);
 			return;
 		}
+		// 消费 HTTP 头部数据并标记连接已打开
 		xrtCodecFrameConsume(pChain, &tFrame);
 		(void)__xwsAtomicCompareExchange(&pConn->iOpen, 1, 0);
 		if ( pServer->tEvents.OnOpen ) {
 			pServer->tEvents.OnOpen(pServer->pUserData, pServer, pConn);
 		}
 	}
+	// 处理 WebSocket 数据帧
 	__xwsServerConsumeFrames(pConn, pChain);
 }
 
@@ -1476,21 +1535,26 @@ XXAPI xnet_result xrtWsClientStart(xwsclient* pClient)
 {
 	xnetconnectconfig tConnCfg;
 	if ( !pClient || !pClient->pEngine || pClient->pStream ) { return XRT_NET_ERROR; }
+	// 解析 WebSocket URL
 	if ( !xrtUrlParseFixedTo(pClient->tConfig.sURL, "ws", "wss", &pClient->tURL.bSecure, pClient->tURL.sHost, sizeof(pClient->tURL.sHost), &pClient->tURL.iPort, pClient->tURL.sPath, sizeof(pClient->tURL.sPath)) ) { return XRT_NET_ERROR; }
+	// 创建网络流
 	pClient->pStream = xrtNetStreamCreate(pClient->pEngine, __xwsClientStreamEvents(), pClient);
 	if ( !pClient->pStream ) { return XRT_NET_ERROR; }
+	// 配置连接参数
 	xrtNetConnectConfigInit(&tConnCfg);
 	tConnCfg.sHost = pClient->tURL.sHost;
 	tConnCfg.iPort = pClient->tURL.iPort;
 	tConnCfg.iConnectTimeoutMs = pClient->tConfig.iConnectTimeoutMs;
 	tConnCfg.iRecvLimit = pClient->tConfig.iRecvLimit;
 	tConnCfg.pProxy = pClient->tConfig.pProxy;
+	// 安全连接（wss）时配置 TLS
 	if ( pClient->tURL.bSecure ) {
 		memset(&pClient->tTlsCfg, 0, sizeof(pClient->tTlsCfg));
 		pClient->tTlsCfg.sHostName = pClient->tURL.sHost;
 		pClient->tTlsCfg.bVerifyPeer = pClient->tConfig.bVerifyPeer;
 		tConnCfg.pTlsConfig = &pClient->tTlsCfg;
 	}
+	// 发起异步连接
 	if ( xrtNetStreamConnect(pClient->pStream, &tConnCfg) != XRT_NET_OK ) {
 		xrtNetStreamDestroy(pClient->pStream);
 		pClient->pStream = NULL;
@@ -1596,20 +1660,24 @@ XXAPI xnet_result xrtWsServerStart(xwsserver* pServer)
 	xnetlistenconfig tListenCfg;
 	if ( !pServer || !pServer->pEngine ) { return XRT_NET_ERROR; }
 	if ( __xwsAtomicLoad(&pServer->bRunning) != 0 ) { return XRT_NET_OK; }
+	// 配置监听参数
 	xrtNetListenConfigInit(&tListenCfg);
 	tListenCfg.tBindAddr = pServer->tConfig.tBindAddr;
 	tListenCfg.iFlags = pServer->tConfig.iFlags;
 	tListenCfg.iBacklog = pServer->tConfig.iBacklog;
 	tListenCfg.iRecvLimit = pServer->tConfig.iRecvLimit;
 	tListenCfg.pTlsConfig = pServer->tConfig.pTlsConfig;
+	// 创建监听器
 	pServer->pListener = xrtNetListenerCreate(pServer->pEngine, &tListenCfg, __xwsListenerEvents(), __xwsServerStreamEvents(), pServer);
 	if ( !pServer->pListener ) { return XRT_NET_ERROR; }
+	// 启动监听
 	if ( xrtNetListenerStart(pServer->pListener) != XRT_NET_OK ) {
 		xrtNetListenerDestroy(pServer->pListener);
 		pServer->pListener = NULL;
 		return XRT_NET_ERROR;
 	}
 	(void)__xwsAtomicCompareExchange(&pServer->bRunning, 1, 0);
+	// 投递异步接收任务到工作线程
 	if ( xrtNetEnginePost(pServer->pEngine, pServer->pListener->pWorker->iId, __xwsArmAcceptTask, pServer) != XRT_NET_OK ) {
 		(void)__xwsAtomicCompareExchange(&pServer->bRunning, 0, 1);
 		xrtNetListenerStop(pServer->pListener);
@@ -1626,24 +1694,29 @@ XXAPI void xrtWsServerStop(xwsserver* pServer)
 {
 	xwsconn* pConn;
 	if ( !pServer ) { return; }
+	// 标记为已停止
 	if ( __xwsAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
 		/* already stopped */
 	}
+	// 停止并销毁监听器
 	if ( pServer->pListener ) {
 		xrtNetListenerStop(pServer->pListener);
 		xrtNetListenerDestroy(pServer->pListener);
 		pServer->pListener = NULL;
 	}
+	// 分离所有连接并逐一清理
 	pConn = __xwsServerDetachAllConns(pServer);
 	while ( pConn ) {
 		xwsconn* pNext = pConn->pNext;
 		pConn->pNext = NULL;
+		// 跳过已投递清理任务的连接
 		if ( __xwsAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
 			pConn->pServer = NULL;
 			pConn = pNext;
 			continue;
 		}
 		(void)__xwsAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0);
+		// 关闭并销毁流
 		if ( pConn->pStream ) {
 			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
 			xrtNetStreamDestroy(pConn->pStream);

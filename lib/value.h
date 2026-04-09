@@ -58,26 +58,38 @@ bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue* ppVal, xdict pTbl)
 // 内部函数：销毁值
 static void __xvoDestroyValue(xvalue pVal)
 {
+	// 根据数据类型释放对应的资源
 	if ( pVal->Type == XVO_DT_TEXT ) {
+		// 释放文本字符串
 		xrtFree(pVal->vText);
 	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		// 释放数组中所有元素的引用
 		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
 			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
 			xvoUnref(pItem);
 		}
+		// 销毁数组容器
 		xrtPtrArrayDestroy(pVal->vArray);
 	} else if ( pVal->Type == XVO_DT_LIST ) {
+		// 释放列表中所有元素的引用
 		xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
+		// 销毁列表容器
 		(xrtListDestroy)(pVal->vList);
 	} else if ( pVal->Type == XVO_DT_COLL ) {
+		// 销毁集合容器（节点释放由 FreeProc 回调处理）
 		(xrtAVLTreeDestroy)(pVal->vColl);
 	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		// 释放字典中所有值的引用
 		xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
+		// 销毁字典容器
 		(xrtDictDestroy)(pVal->vTable);
 	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		// 释放类数据块
 		xrtFree(pVal->vStruct);
 	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		// 自定义类型无需额外释放
 	}
+	// 释放值结构体自身
 	xrtFree(pVal);
 	#ifdef DEBUG_TRACE
 		printf("free value : %x\n", pVal);
@@ -92,29 +104,40 @@ XXAPI void xvoUnref(xvalue pVal)
 	uint32 iNewHeader;
 	uint32 iRefCount;
 	if ( pVal ) {
+		// 非共享对象走快速路径
 		if ( !xvoIsShared_Inline(pVal) ) {
 			if ( pVal->IsStatic == 0 ) {
+				// 减少引用计数
 				pVal->RefCount--;
+				// 引用计数归零则销毁值
 				if ( pVal->RefCount == 0 ) {
 					__xvoDestroyValue(pVal);
 				}
 			}
 			return;
 		}
+		// 共享对象使用 CAS 原子操作减少引用计数
 		while ( TRUE ) {
+			// 读取当前头部信息
 			iOldHeader = pVal->Header;
+			// 静态值不需要释放
 			if ( iOldHeader & XVO_HEADER_STATIC_MASK ) {
 				return;
 			}
+			// 提取当前引用计数
 			iRefCount = (iOldHeader & XVO_HEADER_REFCOUNT_MASK) >> XVO_HEADER_REFCOUNT_SHIFT;
+			// 引用计数为零则无需操作
 			if ( iRefCount == 0 ) {
 				return;
 			}
+			// 计算减少引用计数后的新头部值
 			iNewHeader = (iOldHeader & ~XVO_HEADER_REFCOUNT_MASK) | ((iRefCount - 1) << XVO_HEADER_REFCOUNT_SHIFT);
+			// 尝试原子交换，成功则退出循环
 			if ( __xvoAtomicCompareExchange32(&pVal->Header, iNewHeader, iOldHeader) == iOldHeader ) {
 				break;
 			}
 		}
+		// 引用计数从 1 减为 0，销毁值
 		if ( iRefCount == 1 ) {
 			__xvoDestroyValue(pVal);
 		}
@@ -172,33 +195,44 @@ XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
 {
 	ptr pOwnedEmpty = NULL;
 
+	// 处理空指针输入，使用共享空字符串
 	if ( sVal == NULL ) {
 		sVal = xCore.sNull;
 		iSize = 0;
 		bColloc = TRUE;
 	} else if ( iSize == 0 ) {
+		// 计算字符串长度
 		iSize = strlen(sVal);
+		// 空字符串使用共享空字符串
 		if ( iSize == 0 ) {
 			if ( bColloc && (sVal != xCore.sNull) ) {
+				// 记录需要释放的原有空字符串
 				pOwnedEmpty = sVal;
 			}
 			sVal = xCore.sNull;
 			bColloc = TRUE;
 		}
 	}
+	// 分配值结构体
 	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
 	if ( pVal ) {
+		// 初始化头部信息
 		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TEXT, XRT_OBJMODE_LOCAL);
 		pVal->Size = iSize;
+		// 设置文本数据指针
 		if ( bColloc ) {
+			// 直接使用传入的指针（所有权转移）
 			pVal->vText = sVal;
 		} else {
+			// 复制字符串内容
 			pVal->vText = xrtCopyStr(sVal, iSize);
 			if ( pVal->vText == xCore.sNull ) {
+				// 复制失败，释放已分配的值结构体
 				xrtFree(pVal);
 				return NULL;
 			}
 		}
+		// 释放之前记录的原有空字符串
 		if ( pOwnedEmpty != NULL ) {
 			xrtFree(pOwnedEmpty);
 		}
@@ -454,20 +488,26 @@ XXAPI double xvoGetFloat(xvalue pVal)
 // 获取文本
 XXAPI str xvoGetText(xvalue pVal)
 {
+	// 处理空值和 null 类型
 	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
 		return xCore.sNull;
+	// 文本类型直接返回
 	} else if ( pVal->Type == XVO_DT_TEXT ) {
 		return pVal->vText;
+	// 整数类型转换为字符串
 	} else if ( pVal->Type == XVO_DT_INT ) {
 		str sRet = xrtTempMemory(24);
 		xrtI64ToStr(pVal->vInt, __xrt_str(sRet));
 		return sRet;
+	// 浮点数类型转换为字符串
 	} else if ( pVal->Type == XVO_DT_FLOAT ) {
 		str sRet = xrtTempMemory(32);
 		xrtNumToStr(pVal->vFloat, __xrt_str(sRet));
 		return sRet;
+	// 布尔类型返回 true/false 字面量
 	} else if ( pVal->Type == XVO_DT_BOOL ) {
 		return (str)(pVal->vBool ? "true" : "false");
+	// 时间类型格式化为日期时间字符串
 	} else if ( pVal->Type == XVO_DT_TIME ) {
 		str sRet = xrtTempMemory(32);
 		int64 iYear;
@@ -475,6 +515,7 @@ XXAPI str xvoGetText(xvalue pVal)
 		xrtDecodeSerial(pVal->vTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		sprintf(__xrt_str(sRet), "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
 		return sRet;
+	// 以下复合类型返回地址格式描述字符串
 	} else if ( pVal->Type == XVO_DT_POINT ) {
 		str sRet = xrtTempMemory(48);
 		sprintf(__xrt_str(sRet), "[point:%p]", pVal->vPoint);
@@ -507,6 +548,7 @@ XXAPI str xvoGetText(xvalue pVal)
 		str sRet = xrtTempMemory(48);
 		sprintf(__xrt_str(sRet), "[custom:%p]", pVal->vCustom);
 		return sRet;
+	// 未知类型返回空字符串
 	} else {
 		return xCore.sNull;
 	}
@@ -834,10 +876,12 @@ static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
 	uintptr_t iLeftAddr;
 	uintptr_t iRightAddr;
 
+	// 相同指针视为相等
 	if ( pLeft == pRight ) {
 		return 0;
 	}
 
+	// null 值排在最前面
 	if ( pLeft == NULL || pLeft->Type == XVO_DT_NULL ) {
 		return (pRight == NULL || pRight->Type == XVO_DT_NULL) ? 0 : -1;
 	}
@@ -845,10 +889,12 @@ static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
 		return 1;
 	}
 
+	// 不同类型按类型编号排序
 	if ( pLeft->Type != pRight->Type ) {
 		return (pLeft->Type < pRight->Type) ? -1 : 1;
 	}
 
+	// 相同类型按具体值比较
 	switch ( pLeft->Type ) {
 		case XVO_DT_BOOL:
 			return (pLeft->vBool > pRight->vBool) - (pLeft->vBool < pRight->vBool);
@@ -858,6 +904,7 @@ static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
 			return (pLeft->vFloat > pRight->vFloat) ? 1 : ((pLeft->vFloat < pRight->vFloat) ? -1 : 0);
 		case XVO_DT_TEXT:
 		{
+			// 文本类型先比较公共前缀，再比较长度
 			uint32 iMinSize = (pLeft->Size < pRight->Size) ? pLeft->Size : pRight->Size;
 			int iCmp = xrtStrComp(pLeft->vText, pRight->vText, iMinSize, FALSE);
 			if ( iCmp != 0 ) {
@@ -868,23 +915,30 @@ static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
 		case XVO_DT_TIME:
 			return (pLeft->vTime > pRight->vTime) ? 1 : ((pLeft->vTime < pRight->vTime) ? -1 : 0);
 		case XVO_DT_POINT:
+			// 指针类型按地址值比较
 			iLeftAddr = (uintptr_t)pLeft->vPoint;
 			iRightAddr = (uintptr_t)pRight->vPoint;
 			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
 		case XVO_DT_FUNC:
+			// 函数类型按地址值比较
 			iLeftAddr = (uintptr_t)pLeft->vFunc;
 			iRightAddr = (uintptr_t)pRight->vFunc;
 			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
 		case XVO_DT_ARRAY:
+			// 数组类型按元素数量比较
 			return (pLeft->vArray->Count > pRight->vArray->Count) ? 1 : ((pLeft->vArray->Count < pRight->vArray->Count) ? -1 : 0);
 		case XVO_DT_LIST:
+			// 列表类型按元素数量比较
 			return (pLeft->vList->AVLT.Count > pRight->vList->AVLT.Count) ? 1 : ((pLeft->vList->AVLT.Count < pRight->vList->AVLT.Count) ? -1 : 0);
 		case XVO_DT_COLL:
+			// 集合类型按元素数量比较
 			return (pLeft->vColl->Count > pRight->vColl->Count) ? 1 : ((pLeft->vColl->Count < pRight->vColl->Count) ? -1 : 0);
 		case XVO_DT_TABLE:
+			// 字典类型按元素数量比较
 			return (pLeft->vTable->AVLT.Count > pRight->vTable->AVLT.Count) ? 1 : ((pLeft->vTable->AVLT.Count < pRight->vTable->AVLT.Count) ? -1 : 0);
 		case XVO_DT_CLASS:
 		case XVO_DT_CUSTOM:
+			// 类和自定义类型按数据大小比较
 			if ( pLeft->Size != pRight->Size ) {
 				return (pLeft->Size > pRight->Size) ? 1 : -1;
 			}
@@ -893,6 +947,7 @@ static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
 			break;
 	}
 
+	// 无法通过值比较时，按对象地址排序
 	iLeftAddr = (uintptr_t)pLeft;
 	iRightAddr = (uintptr_t)pRight;
 	return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
@@ -1431,29 +1486,35 @@ XXAPI xvalue xvoTableGetValue(xvalue pTbl, const void* key, uint32 kl)
 XXAPI bool xvoTableSetValue(xvalue pTbl, const void* key, uint32 kl, xvalue pVal, bool bColloc)
 {
 	str sKey = (str)key;
+	// 参数有效性检查
 	if ( (pTbl == NULL) || (pVal == NULL) ) {
 		return FALSE;
 	}
 	if ( pTbl->Type != XVO_DT_TABLE ) {
 		return FALSE;
 	}
+	// 处理键值参数
 	if ( sKey == NULL ) {
 		sKey = xCore.sNull;
 		kl = 0;
 	} else if ( kl == 0 ) {
 		kl = strlen((const char*)sKey);
 	}
+	// 准备写入（线程安全检查）
 	if ( !xvoPrepareStoreWithOwner_Inline(&pTbl->vTable->Owner, pVal) ) {
 		return FALSE;
 	}
+	// 写入字典并获取旧值
 	xvalue pOldVal = NULL;
 	int iRet = xrtDictSetPtr(pTbl->vTable, sKey, kl, pVal, (ptr*)&pOldVal);
 	if ( iRet == FALSE ) {
 		return FALSE;
 	}
+	// 释放旧值的引用
 	if ( pOldVal ) {
 		xvoUnref(pOldVal);
 	}
+	// 增加新值的引用计数
 	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
 		xvoAddRef_Inline(pVal);
 	}

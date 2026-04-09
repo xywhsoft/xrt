@@ -266,9 +266,11 @@ static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_
 	if ( pThreadData == NULL ) {
 		return FALSE;
 	}
+	// 1. 检查当前区块剩余空间是否足够
 	if ( pThreadData->tTemp.pCurrent && ((size_t)pThreadData->tTemp.pCurrent->iUsed + iNeed) <= pThreadData->tTemp.pCurrent->iCapacity ) {
 		return TRUE;
 	}
+	// 2. 在当前区块的后续链表中寻找可用区块
 	if ( pThreadData->tTemp.pCurrent && pThreadData->tTemp.pCurrent->pNext ) {
 		xrtTempArenaBlock* pNext = pThreadData->tTemp.pCurrent->pNext;
 		while ( pNext ) {
@@ -279,6 +281,7 @@ static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_
 			pNext = pNext->pNext;
 		}
 	}
+	// 3. 若没有当前区块但有区块链表，从头开始查找
 	if ( pThreadData->tTemp.pCurrent == NULL && pThreadData->tTemp.pBlocks ) {
 		xrtTempArenaBlock* pNext = pThreadData->tTemp.pBlocks;
 		while ( pNext ) {
@@ -289,6 +292,7 @@ static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_
 			pNext = pNext->pNext;
 		}
 	}
+	// 4. 所有现有区块均不足，分配新区块
 	iCapacity = pThreadData->tTemp.iBlockSize ? pThreadData->tTemp.iBlockSize : XRT_TEMP_ARENA_BLOCK_SIZE;
 	if ( iNeed > iCapacity ) {
 		iCapacity = iNeed;
@@ -297,6 +301,7 @@ static inline bool __xrtTempArenaEnsureCurrent(xrtThreadData* pThreadData, size_
 	if ( pBlock == NULL ) {
 		return FALSE;
 	}
+	// 5. 将新区块挂入链表
 	if ( pThreadData->tTemp.pBlocks == NULL ) {
 		pThreadData->tTemp.pBlocks = pBlock;
 	} else if ( pThreadData->tTemp.pCurrent ) {
@@ -322,13 +327,16 @@ static inline void __xrtTempArenaResetThread(xrtThreadData* pThreadData)
 	if ( pThreadData == NULL ) {
 		return;
 	}
+	// 1. 记录调试信息
 	__xrtTempArenaDebugOnReset(pThreadData);
+	// 2. 重置所有常规区块的已用字节数（ 不释放内存 ）
 	for ( pBlock = pThreadData->tTemp.pBlocks; pBlock; pBlock = pBlock->pNext ) {
 		#ifdef XRT_MEM_DEBUG
 			memset(__xrtTempArenaBlockUser(pBlock), 0xE7, pBlock->iCapacity);
 		#endif
 		pBlock->iUsed = 0;
 	}
+	// 3. 释放所有溢出区块（ 超大临时分配 ）
 	pSpill = pThreadData->tTemp.pSpill;
 	while ( pSpill ) {
 		xrtTempArenaBlock* pNext = pSpill->pNext;
@@ -338,6 +346,7 @@ static inline void __xrtTempArenaResetThread(xrtThreadData* pThreadData)
 		__xrtMemGlobalProcFree()(pSpill);
 		pSpill = pNext;
 	}
+	// 4. 恢复初始状态
 	pThreadData->tTemp.pCurrent = pThreadData->tTemp.pBlocks;
 	pThreadData->tTemp.pSpill = NULL;
 	pThreadData->tTemp.iCurrentBytes = 0;
@@ -355,18 +364,21 @@ static inline void __xrtTempArenaFreeAllThread(xrtThreadData* pThreadData)
 		return;
 	}
 	__xrtTempArenaDebugOnReset(pThreadData);
+	// 释放所有常规区块
 	pBlock = pThreadData->tTemp.pBlocks;
 	while ( pBlock ) {
 		xrtTempArenaBlock* pNext = pBlock->pNext;
 		__xrtMemGlobalProcFree()(pBlock);
 		pBlock = pNext;
 	}
+	// 释放所有溢出区块
 	pSpill = pThreadData->tTemp.pSpill;
 	while ( pSpill ) {
 		xrtTempArenaBlock* pNext = pSpill->pNext;
 		__xrtMemGlobalProcFree()(pSpill);
 		pSpill = pNext;
 	}
+	// 重置状态为初始值
 	memset(&pThreadData->tTemp, 0, sizeof(xrtTempArenaState));
 	pThreadData->tTemp.iBlockSize = XRT_TEMP_ARENA_BLOCK_SIZE;
 	pThreadData->tTemp.iSpillCutoff = XRT_TEMP_ARENA_SPILL_CUTOFF;
@@ -536,7 +548,7 @@ static inline uint32 __xrtMemTelemetryClassIndex(size_t iSize)
 }
 
 
-// 内部函数：__xrtMemTelemetryRecordSizedOp
+// 内部函数：内存遥测记录分配操作
 static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize)
 {
 	xrtMemTelemetryState* pState = &xCore.MemTelemetry;
@@ -546,6 +558,7 @@ static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize)
 		return;
 	}
 
+	// 按操作类型累计调用次数和字节数
 	switch ( iOp ) {
 		case __XRT_MEMTELEMETRY_OP_MALLOC:
 			__xrtAtomicAddFetch64(&pState->iMallocCalls, 1);
@@ -563,6 +576,7 @@ static inline void __xrtMemTelemetryRecordSizedOp(uint32 iOp, size_t iSize)
 			return;
 	}
 
+	// 区分池化候选和回退通道统计
 	if ( iSize <= XRT_MEMPOOL_CUTOFF_DEFAULT ) {
 		iIdx = __xrtMemTelemetryClassIndex(iSize);
 		__xrtAtomicAddFetch64(&pState->iPooledCandidateCalls, 1);

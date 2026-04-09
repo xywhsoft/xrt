@@ -150,7 +150,7 @@ static void __xprocResultInit(xprocessresult* pResult)
 }
 
 
-// 内部函数：预留字符串缓冲区
+// 内部函数：预留字符串缓冲区（按指数增长策略扩容）
 static bool __xprocStrBufReserve(__xproc_strbuf* pBuf, size_t iNeed)
 {
 	size_t iCapNew;
@@ -163,6 +163,7 @@ static bool __xprocStrBufReserve(__xproc_strbuf* pBuf, size_t iNeed)
 		return true;
 	}
 
+	// 计算新的容量（小缓冲区翻倍，大缓冲区增长 50%）
 	iCapNew = pBuf->iCap ? pBuf->iCap : 64u;
 	while ( iCapNew < iNeed ) {
 		size_t iNext = (iCapNew < 1024u) ? (iCapNew * 2u) : (iCapNew + (iCapNew / 2u));
@@ -173,6 +174,7 @@ static bool __xprocStrBufReserve(__xproc_strbuf* pBuf, size_t iNeed)
 		iCapNew = iNext;
 	}
 
+	// 重新分配内存
 	sNew = (char*)xrtRealloc(pBuf->sData, iCapNew);
 	if ( sNew == NULL ) {
 		return false;
@@ -234,7 +236,7 @@ static void __xprocStrBufUnit(__xproc_strbuf* pBuf)
 }
 
 
-// 内部函数：预留宽字符缓冲区
+// 内部函数：预留宽字符缓冲区（按指数增长策略扩容）
 static bool __xprocWBufReserve(__xproc_wbuf* pBuf, size_t iNeed)
 {
 	size_t iCapNew;
@@ -247,6 +249,7 @@ static bool __xprocWBufReserve(__xproc_wbuf* pBuf, size_t iNeed)
 		return true;
 	}
 
+	// 计算新的容量
 	iCapNew = pBuf->iCap ? pBuf->iCap : 64u;
 	while ( iCapNew < iNeed ) {
 		size_t iNext = (iCapNew < 1024u) ? (iCapNew * 2u) : (iCapNew + (iCapNew / 2u));
@@ -300,7 +303,7 @@ static void __xprocWBufUnit(__xproc_wbuf* pBuf)
 }
 
 
-// 内部函数：预留输出缓冲区
+// 内部函数：预留输出缓冲区（按指数增长策略扩容）
 static bool __xprocStreamReserve(__xproc_streambuf* pBuf, size_t iNeed)
 {
 	size_t iCapNew;
@@ -313,6 +316,7 @@ static bool __xprocStreamReserve(__xproc_streambuf* pBuf, size_t iNeed)
 		return true;
 	}
 
+	// 计算新的容量（输出缓冲区起步较大）
 	iCapNew = pBuf->iCap ? pBuf->iCap : 128u;
 	while ( iCapNew < iNeed ) {
 		size_t iNext = (iCapNew < 4096u) ? (iCapNew * 2u) : (iCapNew + (iCapNew / 2u));
@@ -374,7 +378,7 @@ static void __xprocStreamDropAll(__xproc_streambuf* pBuf, size_t iIncoming)
 }
 
 
-// 内部函数：追加输出缓冲区
+// 内部函数：追加输出缓冲区（支持容量限制，超出时丢弃旧数据保留最新）
 static void __xprocStreamAppend(__xproc_streambuf* pBuf, const void* pData, size_t iSize, size_t iLimit)
 {
 	const char* sData = (const char*)pData;
@@ -383,7 +387,9 @@ static void __xprocStreamAppend(__xproc_streambuf* pBuf, const void* pData, size
 		return;
 	}
 
+	// 有容量限制时的处理
 	if ( iLimit != 0u ) {
+		// 单次数据量已超过限制：只保留最后 iLimit 字节
 		if ( iSize >= iLimit ) {
 			size_t iKeepOffset = iSize - iLimit;
 			if ( !__xprocStreamReserve(pBuf, iLimit + 1u) ) {
@@ -398,11 +404,13 @@ static void __xprocStreamAppend(__xproc_streambuf* pBuf, const void* pData, size
 			pBuf->bTruncated = true;
 			return;
 		}
+		// 缓冲区 + 新数据超过限制：先丢弃旧的超出部分
 		if ( pBuf->iSize + iSize > iLimit ) {
 			__xprocStreamDropPrefix(pBuf, (pBuf->iSize + iSize) - iLimit);
 		}
 	}
 
+	// 追加新数据
 	if ( !__xprocStreamReserve(pBuf, pBuf->iSize + iSize + 1u) ) {
 		__xprocStreamDropAll(pBuf, iSize);
 		return;
@@ -453,7 +461,7 @@ static ptr __xprocStreamSnapshot(const __xproc_streambuf* pBuf, size_t* piSize)
 }
 
 
-// 内部函数：按偏移复制输出
+// 内部函数：按偏移复制输出（支持从指定偏移处读取最多 iMaxBytes 字节）
 static ptr __xprocStreamReadSince(const __xproc_streambuf* pBuf, uint64 iOffset, size_t iMaxBytes, size_t* piSize, xprocessreadinfo* pInfo)
 {
 	uint64 iStartOffset;
@@ -469,6 +477,7 @@ static ptr __xprocStreamReadSince(const __xproc_streambuf* pBuf, uint64 iOffset,
 		return NULL;
 	}
 
+	// 填充基础读取信息
 	if ( pInfo ) {
 		pInfo->iBaseOffset = pBuf->iBaseOffset;
 		pInfo->iStreamEndOffset = pBuf->iNextOffset;
@@ -476,6 +485,7 @@ static ptr __xprocStreamReadSince(const __xproc_streambuf* pBuf, uint64 iOffset,
 		pInfo->bDone = pBuf->bDone;
 	}
 
+	// 计算实际可读的起始偏移
 	iStartOffset = (iOffset < pBuf->iBaseOffset) ? pBuf->iBaseOffset : iOffset;
 	if ( iStartOffset >= pBuf->iNextOffset ) {
 		if ( pInfo ) {
@@ -484,6 +494,7 @@ static ptr __xprocStreamReadSince(const __xproc_streambuf* pBuf, uint64 iOffset,
 		return NULL;
 	}
 
+	// 计算可复制的字节数
 	iAvailable = pBuf->iNextOffset - iStartOffset;
 	if ( iMaxBytes != 0u && iAvailable > (uint64)iMaxBytes ) {
 		iCopySize = iMaxBytes;
@@ -498,6 +509,7 @@ static ptr __xprocStreamReadSince(const __xproc_streambuf* pBuf, uint64 iOffset,
 		return NULL;
 	}
 
+	// 分配并复制数据
 	sCopy = (char*)xrtMalloc(iCopySize + 1u);
 	if ( sCopy == NULL ) {
 		return NULL;
@@ -505,6 +517,7 @@ static ptr __xprocStreamReadSince(const __xproc_streambuf* pBuf, uint64 iOffset,
 	memcpy(sCopy, pBuf->pData + (size_t)(iStartOffset - pBuf->iBaseOffset), iCopySize);
 	sCopy[iCopySize] = '\0';
 
+	// 更新读取信息
 	if ( piSize ) {
 		*piSize = iCopySize;
 	}
@@ -558,7 +571,7 @@ static void __xprocEventBufUnit(__xproc_eventbuf* pBuf)
 }
 
 
-// 内部函数：预留事件缓冲区
+// 内部函数：预留事件缓冲区（翻倍扩容策略）
 static bool __xprocEventBufReserve(__xproc_eventbuf* pBuf, uint32 iNeed)
 {
 	uint32 iCapNew;
@@ -571,6 +584,7 @@ static bool __xprocEventBufReserve(__xproc_eventbuf* pBuf, uint32 iNeed)
 		return true;
 	}
 
+	// 计算新的容量（纯翻倍）
 	iCapNew = pBuf->iCap ? pBuf->iCap : 16u;
 	while ( iCapNew < iNeed ) {
 		if ( iCapNew > UINT32_MAX / 2u ) {
@@ -591,22 +605,25 @@ static bool __xprocEventBufReserve(__xproc_eventbuf* pBuf, uint32 iNeed)
 }
 
 
-// 内部函数：追加事件
+// 内部函数：追加事件（环形缓冲区，超出限制时丢弃最旧的事件）
 static void __xprocEventBufAppend(__xproc_eventbuf* pBuf, uint32 iLimit, const xprocessevent* pEvent)
 {
 	if ( pBuf == NULL || pEvent == NULL ) {
 		return;
 	}
 
+	// 使用默认限制
 	if ( iLimit == 0u ) {
 		iLimit = __XPROC_EVENT_COUNT_DEFAULT;
 	}
 
+	// 初始化序号
 	if ( pBuf->iBaseSeq == 0u && pBuf->iNextSeq == 0u ) {
 		pBuf->iBaseSeq = 1u;
 		pBuf->iNextSeq = 1u;
 	}
 
+	// 已满时丢弃最旧的事件
 	if ( pBuf->iCount >= iLimit ) {
 		if ( pBuf->iCount > 1u ) {
 			memmove(pBuf->arrItems, pBuf->arrItems + 1, (size_t)(pBuf->iCount - 1u) * sizeof(xprocessevent));
@@ -615,7 +632,9 @@ static void __xprocEventBufAppend(__xproc_eventbuf* pBuf, uint32 iLimit, const x
 		pBuf->iBaseSeq++;
 	}
 
+	// 确保容量足够
 	if ( !__xprocEventBufReserve(pBuf, pBuf->iCount + 1u) ) {
+		// 容量不足时再丢弃一个最旧的事件后重试
 		if ( pBuf->iCount > 0u ) {
 			if ( pBuf->iCount > 1u ) {
 				memmove(pBuf->arrItems, pBuf->arrItems + 1, (size_t)(pBuf->iCount - 1u) * sizeof(xprocessevent));
@@ -632,13 +651,14 @@ static void __xprocEventBufAppend(__xproc_eventbuf* pBuf, uint32 iLimit, const x
 		}
 	}
 
+	// 追加事件并分配序号
 	pBuf->arrItems[pBuf->iCount] = *pEvent;
 	pBuf->arrItems[pBuf->iCount].iSeq = pBuf->iNextSeq++;
 	pBuf->iCount++;
 }
 
 
-// 内部函数：按序号复制事件
+// 内部函数：按序号复制事件（从指定序号开始读取最多 iMaxCount 个事件）
 static xprocessevent* __xprocEventBufReadSince(const __xproc_eventbuf* pBuf, uint64 iSeq, uint32 iMaxCount, uint32* piCount, xprocesseventreadinfo* pInfo)
 {
 	uint64 iStartSeq;
@@ -654,6 +674,7 @@ static xprocessevent* __xprocEventBufReadSince(const __xproc_eventbuf* pBuf, uin
 		return NULL;
 	}
 
+	// 填充基础读取信息
 	if ( pInfo ) {
 		pInfo->iBaseSeq = pBuf->iBaseSeq;
 		pInfo->iEventEndSeq = pBuf->iNextSeq;
@@ -661,6 +682,7 @@ static xprocessevent* __xprocEventBufReadSince(const __xproc_eventbuf* pBuf, uin
 		pInfo->bDone = pBuf->bDone;
 	}
 
+	// 计算实际可读的起始序号
 	iStartSeq = (iSeq < pBuf->iBaseSeq) ? pBuf->iBaseSeq : iSeq;
 	if ( iStartSeq >= pBuf->iNextSeq || pBuf->iCount == 0u ) {
 		if ( pInfo ) {
@@ -669,6 +691,7 @@ static xprocessevent* __xprocEventBufReadSince(const __xproc_eventbuf* pBuf, uin
 		return NULL;
 	}
 
+	// 计算起始索引和复制数量
 	iStartIndex = (uint32)(iStartSeq - pBuf->iBaseSeq);
 	iCopyCount = pBuf->iCount - iStartIndex;
 	if ( iMaxCount != 0u && iCopyCount > iMaxCount ) {
@@ -681,6 +704,7 @@ static xprocessevent* __xprocEventBufReadSince(const __xproc_eventbuf* pBuf, uin
 		return NULL;
 	}
 
+	// 分配并复制事件数组
 	arrCopy = (xprocessevent*)xrtMalloc((size_t)iCopyCount * sizeof(xprocessevent));
 	if ( arrCopy == NULL ) {
 		return NULL;
@@ -690,6 +714,7 @@ static xprocessevent* __xprocEventBufReadSince(const __xproc_eventbuf* pBuf, uin
 	if ( piCount ) {
 		*piCount = iCopyCount;
 	}
+	// 更新读取信息
 	if ( pInfo ) {
 		pInfo->iBaseSeq = pBuf->iBaseSeq;
 		pInfo->iEventEndSeq = pBuf->iNextSeq;
@@ -790,6 +815,7 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 	uint32 i;
 	int iTargetKind;
 
+	// 初始化输出并校验参数
 	if ( pPlan ) {
 		memset(pPlan, 0, sizeof(*pPlan));
 	}
@@ -798,6 +824,7 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 		return false;
 	}
 
+	// 校验目标类型（直接执行 或 shell 执行）
 	iTargetKind = pConfig->iTargetKind ? pConfig->iTargetKind : XPROC_TARGET_EXEC;
 	if ( iTargetKind != XPROC_TARGET_EXEC && iTargetKind != XPROC_TARGET_SHELL ) {
 		xrtSetError("invalid subprocess target kind.", FALSE);
@@ -809,6 +836,8 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 			return false;
 		}
 	}
+
+	// 校验参数列表和环境变量列表
 	if ( pConfig->iArgCount > 0u && pConfig->arrArgs == NULL ) {
 		xrtSetError("subprocess args are missing.", FALSE);
 		return false;
@@ -824,6 +853,7 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 		}
 	}
 
+	// 将配置参数复制到执行计划
 	pPlan->iTargetKind = iTargetKind;
 	pPlan->sProgram = pConfig->sProgram;
 	pPlan->arrArgs = pConfig->arrArgs;
@@ -848,14 +878,17 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 	pPlan->pEvents = pConfig->pEvents;
 	pPlan->pUserData = pConfig->pUserData;
 
+	// 校验 stdio 模式合法性
 	if ( !__xprocIsValidStdioMode(pPlan->iStdinMode) || !__xprocIsValidStdioMode(pPlan->iStdoutMode) || !__xprocIsValidStdioMode(pPlan->iStderrMode) ) {
 		xrtSetError("invalid subprocess stdio mode.", FALSE);
 		return false;
 	}
 
+	// 读取捕获标志
 	pPlan->bStdoutCapture = pConfig->Stdout.bCapture ? true : false;
 	pPlan->bStderrCapture = pConfig->Stderr.bCapture ? true : false;
 
+	// terminal 模式强制使用管道并合并 stderr
 	if ( pPlan->bUseTerminal ) {
 		pPlan->bMergeStderr = true;
 		pPlan->iStdinMode = XPROC_STDIO_PIPE;
@@ -865,6 +898,7 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 		pPlan->bStderrCapture = false;
 	}
 
+	// 根据管道模式、事件回调和合并 stderr 标志推导捕获需求
 	if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
 		pPlan->bStdoutCapture = true;
 	}
@@ -884,6 +918,7 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 		pPlan->bStdoutCapture = true;
 	}
 
+	// 需要捕获时强制设置为管道模式
 	if ( pPlan->bStdoutCapture ) {
 		if ( pPlan->iStdoutMode == XPROC_STDIO_NULL ) {
 			xrtSetError("subprocess stdout cannot capture from null.", FALSE);
@@ -927,7 +962,7 @@ static bool __xprocCmdNeedsQuote(str sArg)
 }
 
 
-// 内部函数：追加 Windows 引用参数
+// 内部函数：追加 Windows 引用参数（处理反斜杠和引号转义）
 static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
 {
 	size_t i = 0u;
@@ -936,20 +971,24 @@ static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
 	if ( sArg == NULL ) {
 		sArg = (str)"";
 	}
+	// 不需要引用时直接追加
 	if ( !__xprocCmdNeedsQuote(sArg) ) {
 		return __xprocStrBufAppend(pBuf, (const char*)sArg);
 	}
 	if ( !__xprocStrBufAppendChar(pBuf, '"') ) {
 		return false;
 	}
+	// 逐字符处理转义规则
 	for ( ;; ) {
 		char ch = ((const char*)sArg)[i];
 		if ( ch == '\\' ) {
+			// 累计反斜杠，遇到引号或结尾时统一处理
 			iBackslash++;
 			i++;
 			continue;
 		}
 		if ( ch == '"' ) {
+			// 引号前的反斜杠需要加倍
 			while ( iBackslash > 0u ) {
 				if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
 					return false;
@@ -962,6 +1001,7 @@ static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
 			i++;
 			continue;
 		}
+		// 非特殊字符前输出累计的反斜杠
 		while ( iBackslash > 0u ) {
 			if ( !__xprocStrBufAppendChar(pBuf, '\\') ) {
 				return false;
@@ -976,6 +1016,7 @@ static bool __xprocCmdAppendQuoted(__xproc_strbuf* pBuf, str sArg)
 		}
 		i++;
 	}
+	// 结尾的反斜杠需要加倍（后面跟着关闭引号）
 	while ( iBackslash > 0u ) {
 		if ( !__xprocStrBufAppendChar(pBuf, '\\') || !__xprocStrBufAppendChar(pBuf, '\\') ) {
 			return false;
@@ -1032,6 +1073,7 @@ static bool __xprocResolveCommand(const __xproc_plan* pPlan, __xproc_resolved_cm
 	}
 	memset(pResolved, 0, sizeof(*pResolved));
 
+	// 确定可执行程序路径
 	if ( pPlan->iTargetKind == XPROC_TARGET_EXEC ) {
 		sProgram = (const char*)pPlan->sProgram;
 	} else {
@@ -1042,6 +1084,7 @@ static bool __xprocResolveCommand(const __xproc_plan* pPlan, __xproc_resolved_cm
 		#endif
 	}
 
+	// 计算 shell 模式下额外的参数数量（如 /C、-c 等）
 	if ( pPlan->iTargetKind == XPROC_TARGET_SHELL && pPlan->sCommand ) {
 		#if defined(_WIN32) || defined(_WIN64)
 			iExtra = __xprocIsPowerShellProgram((str)sProgram) ? 3u : 3u;
@@ -1050,17 +1093,22 @@ static bool __xprocResolveCommand(const __xproc_plan* pPlan, __xproc_resolved_cm
 		#endif
 	}
 
+	// 分配 argv 数组
 	arrArgv = (const char**)xrtCalloc((size_t)(1u + pPlan->iArgCount + iExtra + (pPlan->sCommand ? 1u : 0u) + 1u), sizeof(char*));
 	if ( arrArgv == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
 		return false;
 	}
 
+	// 填充程序名
 	arrArgv[iWrite++] = sProgram;
+
+	// 填充用户参数
 	for ( uint32 i = 0u; i < pPlan->iArgCount; i++ ) {
 		arrArgv[iWrite++] = (const char*)pPlan->arrArgs[i];
 	}
 
+	// shell 模式下追加 shell 标志和命令
 	if ( pPlan->iTargetKind == XPROC_TARGET_SHELL && pPlan->sCommand ) {
 		#if defined(_WIN32) || defined(_WIN64)
 			if ( __xprocIsPowerShellProgram((str)sProgram) ) {
@@ -1075,7 +1123,7 @@ static bool __xprocResolveCommand(const __xproc_plan* pPlan, __xproc_resolved_cm
 		#else
 			arrArgv[iWrite++] = "-c";
 		#endif
-			arrArgv[iWrite++] = (const char*)pPlan->sCommand;
+		arrArgv[iWrite++] = (const char*)pPlan->sCommand;
 	}
 
 	arrArgv[iWrite] = NULL;
@@ -1490,7 +1538,7 @@ static uint64 __xprocNowMs(void)
 }
 
 
-// 内部函数：分配进程对象
+// 内部函数：分配进程对象（初始化所有字段）
 static xprocess* __xprocAllocProcess(const __xproc_plan* pPlan)
 {
 	xprocess* pProcess = (xprocess*)xrtCalloc(1, sizeof(xprocess));
@@ -1500,8 +1548,10 @@ static xprocess* __xprocAllocProcess(const __xproc_plan* pPlan)
 		return NULL;
 	}
 
+	// 设置引用计数和初始状态
 	pProcess->iRefCount = 1;
 	pProcess->iState = XPROC_STATE_INIT;
+	// 从计划复制配置参数
 	pProcess->iReadChunkSize = pPlan->iReadChunkSize;
 	pProcess->iMaxCaptureBytes = pPlan->iMaxCaptureBytes;
 	pProcess->iMaxEventCount = pPlan->iMaxEventCount;
@@ -1521,9 +1571,11 @@ static xprocess* __xprocAllocProcess(const __xproc_plan* pPlan)
 		pProcess->Events = *pPlan->pEvents;
 	}
 	__xprocExitInfoInit(&pProcess->ExitInfo);
+	// 初始化互斥锁和条件变量
 	xrtMutexInit(&pProcess->Lock);
 	xrtCondInit(&pProcess->Cond);
 
+	// 初始化平台相关句柄
 	#if defined(_WIN32) || defined(_WIN64)
 		pProcess->hProcess = NULL;
 		pProcess->iProcessId = 0u;
@@ -1648,26 +1700,30 @@ static void __xprocCloseStderrReadHandle(xprocess* pProcess)
 }
 
 
-// 内部函数：关闭平台句柄
+// 内部函数：关闭平台句柄（释放 stdin/stdout/stderr/进程/Job/终端句柄）
 static void __xprocClosePlatformHandles(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
 		return;
 	}
 
+	// 关闭标准 IO 管道句柄
 	__xprocCloseStdinHandle(pProcess);
 	__xprocCloseStdoutReadHandle(pProcess);
 	__xprocCloseStderrReadHandle(pProcess);
 
 	#if defined(_WIN32) || defined(_WIN64)
+		// 关闭进程句柄
 		if ( pProcess->hProcess ) {
 			CloseHandle(pProcess->hProcess);
 			pProcess->hProcess = NULL;
 		}
+		// 关闭 Job 对象
 		if ( pProcess->hJob ) {
 			CloseHandle(pProcess->hJob);
 			pProcess->hJob = NULL;
 		}
+		// 关闭伪终端句柄
 		if ( pProcess->hTerminal ) {
 			__xprocCloseTerminalHandlePlatform(pProcess->hTerminal);
 			pProcess->hTerminal = NULL;
@@ -1761,6 +1817,7 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 	{
 		HMODULE hKernel;
 
+		// 只加载一次
 		if ( __gxprocConPtyApi.bLoaded ) {
 			return;
 		}
@@ -1768,6 +1825,7 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 		memset(&__gxprocConPtyApi, 0, sizeof(__gxprocConPtyApi));
 		__gxprocConPtyApi.bLoaded = true;
 
+		// 从 kernel32.dll 获取 ConPty 相关函数地址
 		hKernel = GetModuleHandleW(L"kernel32.dll");
 		if ( hKernel == NULL ) {
 			return;
@@ -1779,6 +1837,7 @@ static void __xprocPushEventLocked(xprocess* pProcess, int iKind, int iStream, u
 		__xprocAssignProcAddress(&__gxprocConPtyApi.InitializeProcThreadAttributeList, sizeof(__gxprocConPtyApi.InitializeProcThreadAttributeList), GetProcAddress(hKernel, "InitializeProcThreadAttributeList"));
 		__xprocAssignProcAddress(&__gxprocConPtyApi.UpdateProcThreadAttribute, sizeof(__gxprocConPtyApi.UpdateProcThreadAttribute), GetProcAddress(hKernel, "UpdateProcThreadAttribute"));
 		__xprocAssignProcAddress(&__gxprocConPtyApi.DeleteProcThreadAttributeList, sizeof(__gxprocConPtyApi.DeleteProcThreadAttributeList), GetProcAddress(hKernel, "DeleteProcThreadAttributeList"));
+		// 所有函数都可用才认为平台支持 ConPty
 		__gxprocConPtyApi.bSupported = __gxprocConPtyApi.CreatePseudoConsole != NULL
 			&& __gxprocConPtyApi.ClosePseudoConsole != NULL
 			&& __gxprocConPtyApi.ResizePseudoConsole != NULL
@@ -1863,12 +1922,14 @@ static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pDa
 		return;
 	}
 
+	// 根据流类型确定目标缓冲区和回调
 	if ( iStream == __XPROC_STREAM_TERMINAL ) {
 		pBuf = &pProcess->StdoutBuf;
 		bCapture = pProcess->bStdoutCapture;
 		procOutput = pProcess->Events.OnStdout;
 		iEventStream = XPROC_STREAM_TERMINAL;
 	} else if ( iStream == __XPROC_STREAM_STDERR && pProcess->bMergeStderr ) {
+		// stderr 合并到 stdout 缓冲区
 		pBuf = &pProcess->StdoutBuf;
 		bCapture = pProcess->bStdoutCapture;
 		procOutput = pProcess->Events.OnStdout ? pProcess->Events.OnStdout : pProcess->Events.OnStderr;
@@ -1885,6 +1946,7 @@ static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pDa
 		iEventStream = XPROC_STREAM_STDOUT;
 	}
 
+	// 在锁保护下追加数据到缓冲区并记录事件
 	xrtMutexLock(&pProcess->Lock);
 	if ( pBuf ) {
 		iEventOffset = pBuf->iNextOffset;
@@ -1897,13 +1959,14 @@ static void __xprocHandleOutput(xprocess* pProcess, int iStream, const void* pDa
 	__xprocPushEventLocked(pProcess, XPROC_EVENT_OUTPUT, iEventStream, iEventOffset, (uint64)iSize, NULL);
 	xrtMutexUnlock(&pProcess->Lock);
 
+	// 在锁外调用用户回调，避免死锁
 	if ( procOutput ) {
 		procOutput(pProcess, pData, iSize, pProcess->pUserData);
 	}
 }
 
 
-// 内部函数：读取线程
+// 内部函数：读取线程（泵线程，持续从管道读取子进程输出）
 static uint32 __xprocPumpThread(ptr pArg)
 {
 	__xproc_pump_ctx* pCtx = (__xproc_pump_ctx*)pArg;
@@ -1915,6 +1978,7 @@ static uint32 __xprocPumpThread(ptr pArg)
 		return 1u;
 	}
 
+	// 分配读取缓冲区
 	sBuf = (char*)xrtMalloc(iChunk);
 	if ( sBuf == NULL ) {
 		xrtSetError("memory allocate failed.", FALSE);
@@ -1922,6 +1986,7 @@ static uint32 __xprocPumpThread(ptr pArg)
 		return 2u;
 	}
 
+	// 循环读取直到管道关闭
 	for ( ;; ) {
 		#if defined(_WIN32) || defined(_WIN64)
 			HANDLE hRead = (pCtx->iStream == __XPROC_STREAM_STDOUT || pCtx->iStream == __XPROC_STREAM_TERMINAL) ? pProcess->hStdoutRead : pProcess->hStderrRead;
@@ -1958,6 +2023,7 @@ static uint32 __xprocPumpThread(ptr pArg)
 		#endif
 	}
 
+	// 清理缓冲区，关闭读端句柄，标记流结束
 	xrtFree(sBuf);
 	if ( pCtx->iStream == __XPROC_STREAM_STDOUT ) {
 		__xprocCloseStdoutReadHandle(pProcess);
@@ -1983,7 +2049,7 @@ static HANDLE __xprocOpenWindowsNullHandle(DWORD iAccess)
 }
 
 
-// 内部函数：判断宽字符环境项是否被覆盖
+// 内部函数：判断宽字符环境项是否被自定义环境覆盖（忽略大小写比较名称）
 static bool __xprocWindowsEnvEntryOverridden(const wchar_t* sEntry, str* arrEnv, uint32 iEnvCount)
 {
 	uint32 i;
@@ -1991,6 +2057,7 @@ static bool __xprocWindowsEnvEntryOverridden(const wchar_t* sEntry, str* arrEnv,
 	if ( sEntry == NULL ) {
 		return false;
 	}
+	// 逐个比较自定义环境变量的名称部分
 	for ( i = 0u; i < iEnvCount; i++ ) {
 		const char* sOverride = (const char*)arrEnv[i];
 		const char* sEquals = strchr(sOverride, '=');
@@ -2004,6 +2071,7 @@ static bool __xprocWindowsEnvEntryOverridden(const wchar_t* sEntry, str* arrEnv,
 		if ( sEntry[0] == L'=' ) {
 			continue;
 		}
+		// 逐字符忽略大小写比较
 		for ( j = 0u; j < iNameLen; j++ ) {
 			if ( sEntry[j] == L'\0' || sEntry[j] == L'=' ) {
 				break;
@@ -2012,6 +2080,7 @@ static bool __xprocWindowsEnvEntryOverridden(const wchar_t* sEntry, str* arrEnv,
 				break;
 			}
 		}
+		// 名称完全匹配且环境项恰好到 = 号处
 		if ( j == iNameLen && sEntry[j] == L'=' ) {
 			return true;
 		}
@@ -2020,7 +2089,7 @@ static bool __xprocWindowsEnvEntryOverridden(const wchar_t* sEntry, str* arrEnv,
 }
 
 
-// 内部函数：构建 Windows 环境块
+// 内部函数：构建 Windows 环境块（合并继承环境与自定义环境变量）
 static wchar_t* __xprocBuildWindowsEnvBlock(const __xproc_plan* pPlan)
 {
 	__xproc_wbuf tBuf;
@@ -2033,10 +2102,12 @@ static wchar_t* __xprocBuildWindowsEnvBlock(const __xproc_plan* pPlan)
 	if ( pPlan == NULL ) {
 		return NULL;
 	}
+	// 不继承且无自定义环境变量时使用默认环境
 	if ( pPlan->bInheritEnv && pPlan->iEnvCount == 0u ) {
 		return NULL;
 	}
 
+	// 继承当前进程的环境变量（跳过被自定义覆盖的条目）
 	if ( pPlan->bInheritEnv ) {
 		const wchar_t* sItem;
 
@@ -2061,6 +2132,7 @@ static wchar_t* __xprocBuildWindowsEnvBlock(const __xproc_plan* pPlan)
 		FreeEnvironmentStringsW(sBaseEnv);
 	}
 
+	// 追加自定义环境变量（已转换为宽字符）
 	for ( uint32 i = 0u; i < pPlan->iEnvCount; i++ ) {
 		u16str sEntryW = xrtUTF8to16((u8str)pPlan->arrEnv[i], 0u, NULL);
 		size_t iLen;
@@ -2081,6 +2153,7 @@ static wchar_t* __xprocBuildWindowsEnvBlock(const __xproc_plan* pPlan)
 		bHasEntry = true;
 	}
 
+	// 追加双零终止符
 	if ( !__xprocWBufAppendRaw(&tBuf, &chZero, 1u) ) {
 		xrtSetError("memory allocate failed.", FALSE);
 		__xprocWBufUnit(&tBuf);
@@ -2098,7 +2171,7 @@ static wchar_t* __xprocBuildWindowsEnvBlock(const __xproc_plan* pPlan)
 }
 
 
-// 内部函数：构建 Windows 命令行
+// 内部函数：构建 Windows 命令行（将参数数组拼接为带引用的命令行字符串）
 static char* __xprocBuildWindowsCommandLine(const __xproc_resolved_cmd* pCmd)
 {
 	__xproc_strbuf tBuf;
@@ -2110,6 +2183,7 @@ static char* __xprocBuildWindowsCommandLine(const __xproc_resolved_cmd* pCmd)
 	}
 
 	memset(&tBuf, 0, sizeof(tBuf));
+	// 逐个参数追加，参数间以空格分隔
 	for ( uint32 i = 0u; i < pCmd->iArgCount; i++ ) {
 		if ( i > 0u ) {
 			if ( !__xprocStrBufAppendChar(&tBuf, ' ') ) {
@@ -2133,7 +2207,7 @@ static char* __xprocBuildWindowsCommandLine(const __xproc_resolved_cmd* pCmd)
 }
 
 
-// 内部函数：确保 job object
+// 内部函数：确保 Job Object 已创建并关联进程（用于进程树终止）
 static bool __xprocEnsureJobObject(xprocess* pProcess)
 {
 	HANDLE hJob;
@@ -2146,6 +2220,7 @@ static bool __xprocEnsureJobObject(xprocess* pProcess)
 		return true;
 	}
 
+	// 创建 Job Object 并设置关闭时终止标志
 	hJob = CreateJobObjectW(NULL, NULL);
 	if ( hJob == NULL ) {
 		return false;
@@ -2157,6 +2232,7 @@ static bool __xprocEnsureJobObject(xprocess* pProcess)
 		CloseHandle(hJob);
 		return false;
 	}
+	// 将子进程加入 Job Object
 	if ( !AssignProcessToJobObject(hJob, pProcess->hProcess) ) {
 		CloseHandle(hJob);
 		return false;
@@ -2167,7 +2243,7 @@ static bool __xprocEnsureJobObject(xprocess* pProcess)
 }
 
 
-// 内部函数：Windows terminal 启动
+// 内部函数：Windows terminal（伪终端 ConPty）启动
 static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
 	SECURITY_ATTRIBUTES tSa;
@@ -2186,12 +2262,14 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 	COORD tSize;
 	int iWorkDirError = 0;
 
+	// 检查平台是否支持伪终端
 	if ( !__xprocTerminalSupportedPlatform() ) {
 		xrtSetError("subprocess terminal is not supported on this platform.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, ERROR_NOT_SUPPORTED);
 		goto fail;
 	}
 
+	// 初始化安全属性和启动信息
 	memset(&tSa, 0, sizeof(tSa));
 	memset(&tSi, 0, sizeof(tSi));
 	memset(&tPi, 0, sizeof(tPi));
@@ -2203,19 +2281,23 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 	tSi.StartupInfo.hStdOutput = NULL;
 	tSi.StartupInfo.hStdError = NULL;
 
+	// 创建终端输入管道（父进程写 -> 子进程读）
 	if ( !CreatePipe(&hTerminalInputRead, &pProcess->hStdinWrite, &tSa, 0u) ) {
 		xrtSetError("failed to create subprocess terminal input pipe.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDIN, (int)GetLastError());
 		goto fail;
 	}
+	// 创建终端输出管道（子进程写 -> 父进程读）
 	if ( !CreatePipe(&pProcess->hStdoutRead, &hTerminalOutputWrite, &tSa, 0u) ) {
 		xrtSetError("failed to create subprocess terminal output pipe.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_STDOUT, (int)GetLastError());
 		goto fail;
 	}
+	// 父进程端句柄设为不可继承
 	(void)SetHandleInformation(pProcess->hStdinWrite, HANDLE_FLAG_INHERIT, 0u);
 	(void)SetHandleInformation(pProcess->hStdoutRead, HANDLE_FLAG_INHERIT, 0u);
 
+	// 创建伪终端（ConPty），绑定输入输出管道
 	tSize.X = (SHORT)(pPlan->iTerminalCols ? pPlan->iTerminalCols : __XPROC_TERMINAL_COLS_DEFAULT);
 	tSize.Y = (SHORT)(pPlan->iTerminalRows ? pPlan->iTerminalRows : __XPROC_TERMINAL_ROWS_DEFAULT);
 	if ( !SUCCEEDED(__gxprocConPtyApi.CreatePseudoConsole(tSize, hTerminalInputRead, hTerminalOutputWrite, 0u, &pProcess->hTerminal)) ) {
@@ -2224,6 +2306,7 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 		goto fail;
 	}
 
+	// 初始化并配置线程属性列表，将伪终端句柄关联到子进程
 	(void)__gxprocConPtyApi.InitializeProcThreadAttributeList(NULL, 1u, 0u, &iAttrListSize);
 	pAttrList = xrtMalloc(iAttrListSize);
 	if ( pAttrList == NULL ) {
@@ -2243,6 +2326,7 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 	}
 	tSi.lpAttributeList = pAttrList;
 
+	// 构建命令行并转换为宽字符
 	sCmdUtf8 = __xprocBuildWindowsCommandLine(pCmd);
 	if ( sCmdUtf8 == NULL ) {
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, (int)GetLastError());
@@ -2254,6 +2338,7 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, 0);
 		goto fail;
 	}
+	// 转换并校验工作目录
 	if ( pPlan->sWorkDir ) {
 		DWORD iAttr;
 
@@ -2275,10 +2360,12 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 			goto fail;
 		}
 	}
+	// 构建环境块
 	sEnvBlockW = __xprocBuildWindowsEnvBlock(pPlan);
 	if ( sEnvBlockW != NULL ) {
 		iCreateFlags |= CREATE_UNICODE_ENVIRONMENT;
 	}
+	// 设置进程创建标志
 	if ( pPlan->bHideWindow ) {
 		iCreateFlags |= CREATE_NO_WINDOW;
 	}
@@ -2286,6 +2373,7 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
 	}
 
+	// 创建子进程
 	bOk = CreateProcessW(NULL, sCmdW, NULL, NULL, FALSE, iCreateFlags, sEnvBlockW, sWorkDirW, &tSi.StartupInfo, &tPi);
 	if ( !bOk ) {
 		xrtSetError("failed to start subprocess terminal.", FALSE);
@@ -2293,6 +2381,7 @@ static bool __xprocSpawnWindowsTerminal(xprocess* pProcess, const __xproc_plan* 
 		goto fail;
 	}
 
+	// 成功：保存进程信息并清理临时资源
 	pProcess->hProcess = tPi.hProcess;
 	pProcess->iProcessId = tPi.dwProcessId;
 	if ( tPi.hThread ) {
@@ -2343,7 +2432,7 @@ fail:
 }
 
 
-// 内部函数：平台启动
+// 内部函数：平台启动（Windows 管道模式）
 static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
 	SECURITY_ATTRIBUTES tSa;
@@ -2366,10 +2455,12 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	BOOL bOk;
 	DWORD iCreateFlags = 0u;
 
+	// terminal 模式由专用函数处理
 	if ( pPlan->bUseTerminal ) {
 		return __xprocSpawnWindowsTerminal(pProcess, pPlan, pCmd, pSpawnInfo);
 	}
 
+	// 初始化安全属性和启动信息
 	memset(&tSa, 0, sizeof(tSa));
 	memset(&tSi, 0, sizeof(tSi));
 	memset(&tPi, 0, sizeof(tPi));
@@ -2377,6 +2468,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	tSa.bInheritHandle = TRUE;
 	tSi.cb = sizeof(tSi);
 
+	// 配置 stdin：管道模式创建管道，null 模式打开 NUL，否则继承
 	if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
 		if ( !CreatePipe(&hChildStdinRead, &pProcess->hStdinWrite, &tSa, 0u) ) {
 			xrtSetError("failed to create subprocess stdin pipe.", FALSE);
@@ -2399,6 +2491,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		hStdInput = GetStdHandle(STD_INPUT_HANDLE);
 	}
 
+	// 配置 stdout：管道模式创建管道，null 模式打开 NUL，否则继承
 	if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
 		if ( !CreatePipe(&pProcess->hStdoutRead, &hChildStdoutWrite, &tSa, 0u) ) {
 			xrtSetError("failed to create subprocess stdout pipe.", FALSE);
@@ -2421,6 +2514,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
 	}
 
+	// 配置 stderr：合并模式复用 stdout，管道模式创建独立管道，null 模式打开 NUL，否则继承
 	if ( pPlan->bMergeStderr ) {
 		hStdError = hStdOutput;
 		bUseStdHandles = TRUE;
@@ -2446,12 +2540,14 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		hStdError = GetStdHandle(STD_ERROR_HANDLE);
 	}
 
+	// 设置标准句柄到 STARTUPINFO
 	if ( bUseStdHandles ) {
 		tSi.dwFlags |= STARTF_USESTDHANDLES;
 		tSi.hStdInput = hStdInput;
 		tSi.hStdOutput = hStdOutput;
 		tSi.hStdError = hStdError;
 	}
+	// 设置隐藏窗口和进程组标志
 	if ( pPlan->bHideWindow ) {
 		tSi.dwFlags |= STARTF_USESHOWWINDOW;
 		tSi.wShowWindow = SW_HIDE;
@@ -2461,6 +2557,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;
 	}
 
+	// 构建命令行并转换为宽字符
 	sCmdUtf8 = __xprocBuildWindowsCommandLine(pCmd);
 	if ( sCmdUtf8 == NULL ) {
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, (int)GetLastError());
@@ -2472,6 +2569,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, 0);
 		goto fail;
 	}
+	// 转换并校验工作目录
 	if ( pPlan->sWorkDir ) {
 		DWORD iAttr;
 		int iWorkDirError = 0;
@@ -2494,11 +2592,13 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 			goto fail;
 		}
 	}
+	// 构建环境块
 	sEnvBlockW = __xprocBuildWindowsEnvBlock(pPlan);
 	if ( sEnvBlockW != NULL ) {
 		iCreateFlags |= CREATE_UNICODE_ENVIRONMENT;
 	}
 
+	// 创建子进程
 	bOk = CreateProcessW(NULL, sCmdW, NULL, NULL, bUseStdHandles, iCreateFlags, sEnvBlockW, sWorkDirW, &tSi, &tPi);
 	if ( !bOk ) {
 		xrtSetError("failed to start subprocess.", FALSE);
@@ -2506,6 +2606,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		goto fail;
 	}
 
+	// 成功：保存进程信息，关闭子进程端句柄
 	pProcess->hProcess = tPi.hProcess;
 	pProcess->iProcessId = tPi.dwProcessId;
 	if ( tPi.hThread ) {
@@ -2598,7 +2699,7 @@ static void __xprocWriteChildError(int iFd, int iStage, int iOsError)
 }
 
 
-// 内部函数：POSIX terminal 启动
+// 内部函数：POSIX terminal（伪终端 PTY）启动
 static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
 	int fdMaster = -1;
@@ -2610,6 +2711,7 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 	struct winsize tWinSize;
 	char* sSlaveName;
 
+	// 创建错误管道，用于子进程报告启动失败
 	if ( pipe(fdError) != 0 ) {
 		xrtSetError("failed to create subprocess error pipe.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
@@ -2621,18 +2723,21 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 		goto fail;
 	}
 
+	// 打开伪终端主设备
 	fdMaster = posix_openpt(O_RDWR | O_NOCTTY);
 	if ( fdMaster < 0 ) {
 		xrtSetError("failed to create subprocess terminal.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
 		goto fail;
 	}
+	// 授权并解锁从设备
 	if ( grantpt(fdMaster) != 0 || unlockpt(fdMaster) != 0 ) {
 		xrtSetError("failed to initialize subprocess terminal.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
 		goto fail;
 	}
 
+	// 获取从设备路径
 	sSlaveName = ptsname(fdMaster);
 	if ( sSlaveName == NULL ) {
 		xrtSetError("failed to resolve subprocess terminal path.", FALSE);
@@ -2640,6 +2745,7 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 		goto fail;
 	}
 
+	// 复制主设备 fd 用于父进程写入 stdin
 	fdParentWrite = dup(fdMaster);
 	if ( fdParentWrite < 0 ) {
 		xrtSetError("failed to duplicate subprocess terminal handle.", FALSE);
@@ -2647,11 +2753,13 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 		goto fail;
 	}
 
+	// 设置伪终端窗口尺寸
 	memset(&tWinSize, 0, sizeof(tWinSize));
 	tWinSize.ws_col = (unsigned short)(pPlan->iTerminalCols ? pPlan->iTerminalCols : __XPROC_TERMINAL_COLS_DEFAULT);
 	tWinSize.ws_row = (unsigned short)(pPlan->iTerminalRows ? pPlan->iTerminalRows : __XPROC_TERMINAL_ROWS_DEFAULT);
 	(void)ioctl(fdMaster, TIOCSWINSZ, &tWinSize);
 
+	// fork 子进程
 	iPid = fork();
 	if ( iPid < 0 ) {
 		xrtSetError("failed to fork subprocess.", FALSE);
@@ -2659,16 +2767,19 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 		goto fail;
 	}
 
+	// ---- 子进程 ----
 	if ( iPid == 0 ) {
 		int fdSlave = -1;
 
 		close(fdError[0]);
 
+		// 创建新会话
 		if ( setsid() < 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
 			_exit(126);
 		}
 
+		// 打开从设备并设为控制终端
 		fdSlave = open(sSlaveName, O_RDWR);
 		if ( fdSlave < 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
@@ -2680,11 +2791,13 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 				_exit(126);
 			}
 		#endif
+		// 设置从设备窗口尺寸
 		if ( ioctl(fdSlave, TIOCSWINSZ, &tWinSize) < 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
 			_exit(126);
 		}
 
+		// 将 stdin/stdout/stderr 重定向到从设备
 		if ( dup2(fdSlave, STDIN_FILENO) < 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_STDIN, errno);
 			_exit(126);
@@ -2698,16 +2811,19 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 			_exit(126);
 		}
 
+		// 关闭不再需要的 fd
 		if ( fdSlave > STDERR_FILENO ) {
 			close(fdSlave);
 		}
 		close(fdMaster);
 		close(fdParentWrite);
 
+		// 设置工作目录
 		if ( pPlan->sWorkDir && chdir((const char*)pPlan->sWorkDir) != 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_WORKDIR, errno);
 			_exit(126);
 		}
+		// 配置环境变量
 		if ( !pPlan->bInheritEnv && clearenv() != 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_ENV, errno);
 			_exit(126);
@@ -2719,20 +2835,24 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 			}
 		}
 
+		// 执行目标程序
 		execvp(pCmd->arrArgv[0], (char* const*)pCmd->arrArgv);
 		__xprocWriteChildError(fdError[1], XPROC_STAGE_EXEC, errno);
 		_exit(127);
 	}
 
+	// ---- 父进程 ----
 	close(fdError[1]);
 	fdError[1] = -1;
 
+	// 保存主设备 fd 到进程对象
 	pProcess->iPid = iPid;
 	pProcess->fdStdoutRead = fdMaster;
 	fdMaster = -1;
 	pProcess->fdStdinWrite = fdParentWrite;
 	fdParentWrite = -1;
 
+	// 通过错误管道检测子进程启动是否成功
 	memset(&tChildError, 0, sizeof(tChildError));
 	do {
 		iReadError = read(fdError[0], &tChildError, sizeof(tChildError));
@@ -2740,6 +2860,7 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 	close(fdError[0]);
 	fdError[0] = -1;
 
+	// 读到数据说明子进程启动失败
 	if ( iReadError > 0 ) {
 		(void)waitpid(iPid, NULL, 0);
 		xrtSetError("failed to start subprocess.", FALSE);
@@ -2760,7 +2881,7 @@ fail:
 }
 
 
-// 内部函数：平台启动
+// 内部函数：平台启动（POSIX 管道模式）
 static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, const __xproc_resolved_cmd* pCmd, xprocessexitinfo* pSpawnInfo)
 {
 	int fdStdin[2] = { -1, -1 };
@@ -2774,10 +2895,12 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	__xproc_child_error tChildError;
 	ssize_t iReadError;
 
+	// terminal 模式由专用函数处理
 	if ( pPlan->bUseTerminal ) {
 		return __xprocSpawnPosixTerminal(pProcess, pPlan, pCmd, pSpawnInfo);
 	}
 
+	// 创建错误管道，用于子进程报告启动失败
 	if ( pipe(fdError) != 0 ) {
 		xrtSetError("failed to create subprocess error pipe.", FALSE);
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, errno);
@@ -2789,6 +2912,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		goto fail;
 	}
 
+	// 配置 stdin：管道模式使用 socketpair（支持双向），null 模式打开 /dev/null
 	if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
 		int iOne = 1;
 		if ( socketpair(AF_UNIX, SOCK_STREAM, 0, fdStdin) != 0 ) {
@@ -2808,6 +2932,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		}
 	}
 
+	// 配置 stdout：管道模式创建 pipe，null 模式打开 /dev/null
 	if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
 		if ( pipe(fdStdout) != 0 ) {
 			xrtSetError("failed to create subprocess stdout pipe.", FALSE);
@@ -2823,6 +2948,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		}
 	}
 
+	// 配置 stderr：非合并模式下独立创建管道或打开 /dev/null
 	if ( !pPlan->bMergeStderr && pPlan->iStderrMode == XPROC_STDIO_PIPE ) {
 		if ( pipe(fdStderr) != 0 ) {
 			xrtSetError("failed to create subprocess stderr pipe.", FALSE);
@@ -2838,6 +2964,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		}
 	}
 
+	// fork 子进程
 	iPid = fork();
 	if ( iPid < 0 ) {
 		xrtSetError("failed to fork subprocess.", FALSE);
@@ -2845,14 +2972,17 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		goto fail;
 	}
 
+	// ---- 子进程 ----
 	if ( iPid == 0 ) {
 		close(fdError[0]);
 
+		// 设置进程组
 		if ( pPlan->bCreateProcessGroup && setpgid(0, 0) != 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_SPAWN, errno);
 			_exit(126);
 		}
 
+		// 重定向 stdin
 		if ( pPlan->iStdinMode == XPROC_STDIO_PIPE ) {
 			if ( dup2(fdStdin[0], STDIN_FILENO) < 0 ) {
 				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDIN, errno);
@@ -2865,6 +2995,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 			}
 		}
 
+		// 重定向 stdout
 		if ( pPlan->iStdoutMode == XPROC_STDIO_PIPE ) {
 			if ( dup2(fdStdout[1], STDOUT_FILENO) < 0 ) {
 				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDOUT, errno);
@@ -2877,6 +3008,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 			}
 		}
 
+		// 重定向 stderr
 		if ( pPlan->bMergeStderr ) {
 			if ( dup2(STDOUT_FILENO, STDERR_FILENO) < 0 ) {
 				__xprocWriteChildError(fdError[1], XPROC_STAGE_STDERR, errno);
@@ -2894,6 +3026,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 			}
 		}
 
+		// 关闭所有不再需要的 fd
 		if ( fdStdin[0] >= 0 ) { close(fdStdin[0]); }
 		if ( fdStdin[1] >= 0 ) { close(fdStdin[1]); }
 		if ( fdStdout[0] >= 0 ) { close(fdStdout[0]); }
@@ -2904,10 +3037,12 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		if ( fdNullStdout >= 0 ) { close(fdNullStdout); }
 		if ( fdNullStderr >= 0 ) { close(fdNullStderr); }
 
+		// 设置工作目录
 		if ( pPlan->sWorkDir && chdir((const char*)pPlan->sWorkDir) != 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_WORKDIR, errno);
 			_exit(126);
 		}
+		// 配置环境变量
 		if ( !pPlan->bInheritEnv && clearenv() != 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_ENV, errno);
 			_exit(126);
@@ -2919,14 +3054,17 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 			}
 		}
 
+		// 执行目标程序
 		execvp(pCmd->arrArgv[0], (char* const*)pCmd->arrArgv);
 		__xprocWriteChildError(fdError[1], XPROC_STAGE_EXEC, errno);
 		_exit(127);
 	}
 
+	// ---- 父进程 ----
 	close(fdError[1]);
 	fdError[1] = -1;
 
+	// 关闭子进程端 fd，保存父进程端 fd 到进程对象
 	if ( fdStdin[0] >= 0 ) {
 		close(fdStdin[0]);
 		fdStdin[0] = -1;
@@ -2958,6 +3096,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		fdNullStderr = -1;
 	}
 
+	// 通过错误管道检测子进程启动是否成功
 	memset(&tChildError, 0, sizeof(tChildError));
 	do {
 		iReadError = read(fdError[0], &tChildError, sizeof(tChildError));
@@ -2965,6 +3104,7 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	close(fdError[0]);
 	fdError[0] = -1;
 
+	// 读到数据说明子进程启动失败
 	if ( iReadError > 0 ) {
 		(void)waitpid(iPid, NULL, 0);
 		xrtSetError("failed to start subprocess.", FALSE);
@@ -3015,13 +3155,14 @@ static void __xprocRecordStopRequest(xprocess* pProcess, int iStopReason, bool b
 }
 
 
-// 内部函数：平台中断
+// 内部函数：平台中断（向子进程发送中断信号）
 static bool __xprocInterruptPlatform(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
 		return false;
 	}
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows：通过进程组发送 Ctrl+Break 信号
 		if ( pProcess->hProcess == NULL || pProcess->iProcessId == 0u ) {
 			return true;
 		}
@@ -3037,6 +3178,7 @@ static bool __xprocInterruptPlatform(xprocess* pProcess)
 		(void)SetConsoleCtrlHandler(NULL, FALSE);
 		return false;
 	#else
+		// POSIX：发送 SIGINT 信号
 		if ( pProcess->iPid <= 0 ) {
 			return true;
 		}
@@ -3048,7 +3190,7 @@ static bool __xprocInterruptPlatform(xprocess* pProcess)
 }
 
 
-// 内部函数：平台温和终止
+// 内部函数：平台温和终止（关闭 stdin 后尝试让进程自行退出）
 static bool __xprocTerminatePlatform(xprocess* pProcess)
 {
 	bool bRequested = false;
@@ -3056,10 +3198,12 @@ static bool __xprocTerminatePlatform(xprocess* pProcess)
 	if ( pProcess == NULL ) {
 		return false;
 	}
+	// 关闭 stdin 触发进程结束
 	__xprocCloseStdinHandle(pProcess);
 	bRequested = true;
 
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows：通过进程组发送 Ctrl+Break 信号
 		if ( pProcess->hProcess == NULL ) {
 			return true;
 		}
@@ -3073,6 +3217,7 @@ static bool __xprocTerminatePlatform(xprocess* pProcess)
 		}
 		return bRequested;
 	#else
+		// POSIX：发送 SIGTERM 信号
 		if ( pProcess->iPid <= 0 ) {
 			return true;
 		}
@@ -3133,7 +3278,7 @@ static bool __xprocKillTreePlatform(xprocess* pProcess)
 }
 
 
-// 内部函数：调整 terminal 尺寸
+// 内部函数：调整 terminal 尺寸（Windows 使用 ConPty API，POSIX 使用 ioctl）
 static bool __xprocResizeTerminalPlatform(xprocess* pProcess, uint32 iCols, uint32 iRows)
 {
 	if ( pProcess == NULL || !pProcess->bUseTerminal ) {
@@ -3145,6 +3290,7 @@ static bool __xprocResizeTerminalPlatform(xprocess* pProcess, uint32 iCols, uint
 	#else
 		{
 			struct winsize tWinSize;
+			// 选择可用的 fd 来设置窗口尺寸
 			int iFd = pProcess->fdStdoutRead >= 0 ? pProcess->fdStdoutRead : pProcess->fdStdinWrite;
 
 			if ( iFd < 0 ) {
@@ -3152,12 +3298,14 @@ static bool __xprocResizeTerminalPlatform(xprocess* pProcess, uint32 iCols, uint
 				return false;
 			}
 
+			// 通过 ioctl 设置伪终端窗口大小
 			memset(&tWinSize, 0, sizeof(tWinSize));
 			tWinSize.ws_col = (unsigned short)(iCols ? iCols : __XPROC_TERMINAL_COLS_DEFAULT);
 			tWinSize.ws_row = (unsigned short)(iRows ? iRows : __XPROC_TERMINAL_ROWS_DEFAULT);
 			if ( ioctl(iFd, TIOCSWINSZ, &tWinSize) != 0 ) {
 				return false;
 			}
+			// 通知子进程窗口大小已变化
 			if ( pProcess->iPid > 0 ) {
 				if ( pProcess->bCreateProcessGroup ) {
 					(void)kill(-pProcess->iPid, SIGWINCH);
@@ -3199,7 +3347,7 @@ static bool __xprocRequestStop(xprocess* pProcess, int iStopReason, bool bTimedO
 }
 
 
-// 内部函数：等待线程
+// 内部函数：等待线程（监控子进程退出并完成收尾）
 static uint32 __xprocWaitThread(ptr pArg)
 {
 	xprocess* pProcess = (xprocess*)pArg;
@@ -3215,6 +3363,7 @@ static uint32 __xprocWaitThread(ptr pArg)
 
 	__xprocExitInfoInit(&tExitInfo);
 
+	// 等待子进程退出并获取退出信息
 	#if defined(_WIN32) || defined(_WIN64)
 		{
 			DWORD iWaitRet = WaitForSingleObject(pProcess->hProcess, INFINITE);
@@ -3249,9 +3398,11 @@ static uint32 __xprocWaitThread(ptr pArg)
 				tExitInfo.iOsError = errno;
 				iState = XPROC_STATE_FAILED;
 			} else if ( WIFEXITED(iStatus) ) {
+				// 正常退出
 				tExitInfo.iKind = XPROC_EXIT_NORMAL;
 				tExitInfo.iExitCode = WEXITSTATUS(iStatus);
 			} else if ( WIFSIGNALED(iStatus) ) {
+				// 被信号终止
 				tExitInfo.iKind = XPROC_EXIT_SIGNAL;
 				tExitInfo.iSignal = WTERMSIG(iStatus);
 				tExitInfo.iExitCode = 128 + tExitInfo.iSignal;
@@ -3263,6 +3414,7 @@ static uint32 __xprocWaitThread(ptr pArg)
 		}
 	#endif
 
+	// 关闭 stdin 并等待所有输出泵线程结束
 	__xprocCloseStdinHandle(pProcess);
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( pProcess->hTerminal ) {
@@ -3277,6 +3429,7 @@ static uint32 __xprocWaitThread(ptr pArg)
 		xrtThreadWait(pProcess->hStderrThread);
 	}
 
+	// 在锁保护下更新进程状态、记录退出事件
 	xrtMutexLock(&pProcess->Lock);
 	tExitInfo.iStopReason = pProcess->iRequestedStop;
 	tExitInfo.bTimedOut = pProcess->bStopTimedOut ? true : false;
@@ -3293,12 +3446,14 @@ static uint32 __xprocWaitThread(ptr pArg)
 	#endif
 	xrtMutexUnlock(&pProcess->Lock);
 
+	// 解析 Future（如果已创建）
 	#if !defined(XRT_NO_NETWORK)
 		if ( pPromise ) {
 			(void)xPromiseResolve(pPromise, pProcess);
 			xPromiseDestroy(pPromise);
 		}
 	#endif
+	// 调用用户退出回调
 	if ( pProcess->Events.OnExit ) {
 		pProcess->Events.OnExit(pProcess, &pProcess->ExitInfo, pProcess->pUserData);
 	}
@@ -3306,16 +3461,18 @@ static uint32 __xprocWaitThread(ptr pArg)
 }
 
 
-// 内部函数：启动失败清理
+// 内部函数：启动失败清理（终止子进程并回收所有资源）
 static void __xprocCleanupSpawnFailure(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
 		return;
 	}
 
+	// 先尝试终止进程树和进程本身
 	(void)__xprocKillTreePlatform(pProcess);
 	(void)__xprocKillPlatform(pProcess);
 
+	// 等待子进程真正退出
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( pProcess->hProcess ) {
 			(void)WaitForSingleObject(pProcess->hProcess, 1000u);
@@ -3326,6 +3483,7 @@ static void __xprocCleanupSpawnFailure(xprocess* pProcess)
 		}
 	#endif
 
+	// 等待所有工作线程结束
 	if ( pProcess->hStdoutThread ) {
 		xrtThreadWait(pProcess->hStdoutThread);
 	}
@@ -3335,6 +3493,7 @@ static void __xprocCleanupSpawnFailure(xprocess* pProcess)
 	if ( pProcess->hWaitThread ) {
 		xrtThreadWait(pProcess->hWaitThread);
 	}
+	// 销毁线程句柄、关闭平台句柄、释放 Future、释放进程对象
 	__xprocDestroyThreads(pProcess);
 	__xprocClosePlatformHandles(pProcess);
 	#if !defined(XRT_NO_NETWORK)
@@ -3344,29 +3503,33 @@ static void __xprocCleanupSpawnFailure(xprocess* pProcess)
 }
 
 
-// 内部函数：内部启动
+// 内部函数：内部启动（核心入口，组装计划、创建进程、启动线程）
 static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexitinfo* pSpawnInfo)
 {
 	__xproc_plan tPlan;
 	__xproc_resolved_cmd tCmd;
 	xprocess* pProcess = NULL;
 
+	// 从配置生成执行计划
 	__xprocExitInfoInit(pSpawnInfo);
 	if ( !__xprocPlanFromConfig(pConfig, &tPlan) ) {
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, 0);
 		return NULL;
 	}
+	// 解析命令行参数
 	if ( !__xprocResolveCommand(&tPlan, &tCmd) ) {
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_EXEC, 0);
 		return NULL;
 	}
 
+	// 分配进程对象
 	pProcess = __xprocAllocProcess(&tPlan);
 	if ( pProcess == NULL ) {
 		__xprocSetSpawnFailureInfo(pSpawnInfo, XPROC_STAGE_SPAWN, 0);
 		__xprocResolvedCmdUnit(&tCmd);
 		return NULL;
 	}
+	// 调用平台相关函数启动子进程
 	if ( !__xprocSpawnPlatform(pProcess, &tPlan, &tCmd, pSpawnInfo) ) {
 		__xprocResolvedCmdUnit(&tCmd);
 		__xprocReleaseProcess(pProcess);
@@ -3374,6 +3537,7 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 	}
 	__xprocResolvedCmdUnit(&tCmd);
 
+	// 标记不需要管道的流为已完成
 	if ( pProcess->iStdoutMode != XPROC_STDIO_PIPE ) {
 		pProcess->bStdoutDone = true;
 		pProcess->StdoutBuf.bDone = true;
@@ -3383,11 +3547,13 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 		pProcess->StderrBuf.bDone = true;
 	}
 
+	// 初始化泵线程上下文
 	pProcess->StdoutPump.pProcess = pProcess;
 	pProcess->StdoutPump.iStream = pProcess->bUseTerminal ? __XPROC_STREAM_TERMINAL : __XPROC_STREAM_STDOUT;
 	pProcess->StderrPump.pProcess = pProcess;
 	pProcess->StderrPump.iStream = __XPROC_STREAM_STDERR;
 
+	// 启动 stdout 泵线程
 	if ( pProcess->iStdoutMode == XPROC_STDIO_PIPE ) {
 		pProcess->hStdoutThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StdoutPump, 0u);
 		if ( pProcess->hStdoutThread == NULL ) {
@@ -3397,6 +3563,7 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 			return NULL;
 		}
 	}
+	// 启动 stderr 泵线程
 	if ( pProcess->iStderrMode == XPROC_STDIO_PIPE && !pProcess->bMergeStderr ) {
 		pProcess->hStderrThread = xrtThreadCreate(__xprocPumpThread, &pProcess->StderrPump, 0u);
 		if ( pProcess->hStderrThread == NULL ) {
@@ -3407,6 +3574,7 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 		}
 	}
 
+	// 启动等待线程并标记为运行状态
 	pProcess->iState = XPROC_STATE_RUNNING;
 	pProcess->hWaitThread = xrtThreadCreate(__xprocWaitThread, pProcess, 0u);
 	if ( pProcess->hWaitThread == NULL ) {
@@ -3416,6 +3584,7 @@ static xprocess* __xprocSpawnInternal(const xprocessconfig* pConfig, xprocessexi
 		return NULL;
 	}
 
+	// 记录启动事件并调用用户回调
 	xrtMutexLock(&pProcess->Lock);
 	__xprocPushEventLocked(pProcess, XPROC_EVENT_START, XPROC_STREAM_NONE, 0u, 0u, NULL);
 	xrtMutexUnlock(&pProcess->Lock);
@@ -3433,16 +3602,18 @@ XXAPI xprocess* xrtProcessSpawn(const xprocessconfig* pConfig)
 }
 
 
-// 销毁进程
+// 销毁进程（等待所有线程结束，释放所有资源）
 XXAPI void xrtProcessDestroy(xprocess* pProcess)
 {
 	if ( pProcess == NULL ) {
 		return;
 	}
+	// 运行中的进程不允许销毁
 	if ( pProcess->iState == XPROC_STATE_RUNNING && !pProcess->bExitReady ) {
 		xrtSetError("subprocess is still running.", FALSE);
 		return;
 	}
+	// 等待所有工作线程结束
 	if ( pProcess->hWaitThread ) {
 		xrtThreadWait(pProcess->hWaitThread);
 	}
@@ -3452,6 +3623,7 @@ XXAPI void xrtProcessDestroy(xprocess* pProcess)
 	if ( pProcess->hStderrThread ) {
 		xrtThreadWait(pProcess->hStderrThread);
 	}
+	// 标记为已关闭并释放资源
 	pProcess->iState = XPROC_STATE_CLOSED;
 	__xprocDestroyThreads(pProcess);
 	__xprocClosePlatformHandles(pProcess);
@@ -3520,7 +3692,7 @@ XXAPI bool xrtProcessTerminalSupported(void)
 }
 
 
-// 写入进程
+// 写入进程（向子进程 stdin 管道写入数据）
 XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 {
 	if ( pProcess == NULL ) {
@@ -3547,6 +3719,7 @@ XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 		}
 	#else
 		{
+			// 使用 send 而非 write 避免 SIGPIPE 信号
 			const char* sCursor = (const char*)pData;
 			size_t iLeft = iSize;
 
@@ -3609,7 +3782,7 @@ XXAPI bool xrtProcessWait(xprocess* pProcess)
 }
 
 
-// 等待进程超时
+// 等待进程超时（使用条件变量实现可中断的等待）
 XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 {
 	uint64 iDeadline = 0u;
@@ -3620,17 +3793,21 @@ XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 	}
 
 	xrtMutexLock(&pProcess->Lock);
+	// 计算超时截止时间
 	if ( iTimeoutMs != UINT32_MAX ) {
 		iDeadline = __xprocNowMs() + iTimeoutMs;
 	}
+	// 循环等待直到进程退出或超时
 	while ( !pProcess->bExitReady ) {
 		if ( iTimeoutMs == UINT32_MAX ) {
+			// 无限等待
 			xrtCondWait(&pProcess->Cond, &pProcess->Lock);
 		} else {
 			uint64 iNow = __xprocNowMs();
 			uint64 iRemain;
 			int iRet;
 
+			// 检查是否已超时
 			if ( iNow >= iDeadline ) {
 				xrtMutexUnlock(&pProcess->Lock);
 				return XRT_WAIT_TIMEOUT;
@@ -3648,6 +3825,7 @@ XXAPI int xrtProcessWaitTimeout(xprocess* pProcess, uint32 iTimeoutMs)
 		}
 	}
 	xrtMutexUnlock(&pProcess->Lock);
+	// 等待后台线程结束以确保资源回收完成
 	if ( pProcess->hWaitThread ) {
 		xrtThreadWait(pProcess->hWaitThread);
 	}
@@ -3847,7 +4025,7 @@ static void __xprocStopForTimeout(xprocess* pProcess)
 }
 
 
-// xrtExecCapture 相关处理
+// xrtExecCapture 相关处理（启动子进程，捕获 stdout/stderr 输出，等待完成后返回结果）
 XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult, uint32 iTimeoutMs)
 {
 	xprocessconfig tConfig;
@@ -3860,6 +4038,7 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 		return false;
 	}
 
+	// 初始化结果并强制开启管道捕获
 	__xprocResultInit(pResult);
 	tConfig = *pConfig;
 	tConfig.Stdout.iMode = XPROC_STDIO_PIPE;
@@ -3871,6 +4050,7 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 		tConfig.Stderr.bCapture = true;
 	}
 
+	// 启动子进程
 	pProcess = __xprocSpawnInternal(&tConfig, &tSpawnInfo);
 	if ( pProcess == NULL ) {
 		pResult->ExitInfo = tSpawnInfo;
@@ -3878,13 +4058,16 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 		return false;
 	}
 
+	// 等待子进程完成（支持超时）
 	iWaitRet = xrtProcessWaitTimeout(pProcess, iTimeoutMs == 0u ? UINT32_MAX : iTimeoutMs);
 	if ( iWaitRet == XRT_WAIT_TIMEOUT ) {
+		// 超时则按策略逐步终止
 		__xprocStopForTimeout(pProcess);
 	} else if ( iWaitRet == XRT_WAIT_ERROR ) {
 		(void)xrtProcessWait(pProcess);
 	}
 
+	// 提取退出信息和输出数据
 	(void)xrtProcessGetExitInfo(pProcess, &pResult->ExitInfo);
 	pResult->iExitCode = pResult->ExitInfo.iExitCode;
 
@@ -3893,13 +4076,14 @@ XXAPI bool xrtExecCapture(const xprocessconfig* pConfig, xprocessresult* pResult
 	__xprocStreamMoveOut(&pProcess->StderrBuf, &pResult->pStderr, &pResult->iStderrSize, &pResult->iStderrBaseOffset, &pResult->bStderrTruncated);
 	xrtMutexUnlock(&pProcess->Lock);
 
+	// 销毁进程对象
 	xrtProcessDestroy(pProcess);
 	return true;
 }
 
 
 #if !defined(XRT_NO_NETWORK)
-// 等待进程 Future
+// 等待进程 Future（创建或复用 Future，用于异步等待进程退出）
 XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 {
 	xfuture* pFuture = NULL;
@@ -3912,6 +4096,7 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 	}
 
 	xrtMutexLock(&pProcess->Lock);
+	// 首次调用时创建 Future 和 Promise
 	if ( pProcess->pWaitFuture == NULL ) {
 		pFuture = xFutureCreate();
 		if ( pFuture == NULL ) {
@@ -3926,19 +4111,24 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 			xrtSetError("failed to create subprocess wait promise.", FALSE);
 			return NULL;
 		}
+		// 绑定清理回调和进程引用
 		pFuture->pPendingCtx = __xprocAddRef(pProcess);
 		pFuture->pfnPendingCleanup = __xprocWaitFutureCleanup;
 		pProcess->pWaitFuture = pFuture;
+		// 如果进程已退出则立即 resolve
 		if ( pProcess->bExitReady ) {
 			bResolveNow = true;
 		} else {
+			// 否则将 Promise 交给等待线程在退出时 resolve
 			pProcess->pWaitPromise = pPromise;
 			pPromise = NULL;
 		}
 	}
+	// 增加引用计数后返回
 	pFuture = xFutureAddRef(pProcess->pWaitFuture);
 	xrtMutexUnlock(&pProcess->Lock);
 
+	// 进程已退出但 Promise 还没被消费时立即 resolve
 	if ( bResolveNow && pPromise ) {
 		(void)xPromiseResolve(pPromise, pProcess);
 		xPromiseDestroy(pPromise);

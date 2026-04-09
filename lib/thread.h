@@ -105,9 +105,11 @@ static void* xrtThreadWrapper(void* pParameter)
 // 创建线程
 XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 {
+	// 分配线程对象内存
 	xthread pThread = __xrtThreadObjAlloc(sizeof(xthread_struct));
 	if ( !pThread ) { return NULL; }
 
+	// 初始化线程结构体字段
 	pThread->Proc = pProc;
 	pThread->Param = pParam;
 	pThread->StopFlag = 0;
@@ -118,6 +120,7 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 	pThread->TID = 0;
 
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows：直接调用 CreateThread 创建线程
 		DWORD iThreadID;
 		pThread->Handle = CreateThread(NULL, iStackSize, xrtThreadWrapper, pThread, 0, &iThreadID);
 		pThread->TID = iThreadID;
@@ -128,6 +131,7 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 	#else
 		pthread_t tid;
 		pthread_attr_t attr;
+		// 初始化线程结束同步原语（互斥体 + 条件变量）
 		if ( pthread_mutex_init(&pThread->FinishLock, NULL) != 0 ) {
 			__xrtThreadObjFree(pThread);
 			return NULL;
@@ -137,10 +141,12 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 			__xrtThreadObjFree(pThread);
 			return NULL;
 		}
+		// 设置线程属性（栈大小等）
 		pthread_attr_init(&attr);
 		if ( iStackSize > 0 ) {
 			pthread_attr_setstacksize(&attr, iStackSize);
 		}
+		// 创建 POSIX 线程
 		if ( pthread_create(&tid, &attr, xrtThreadWrapper, pThread) != 0 ) {
 			pthread_attr_destroy(&attr);
 			pthread_cond_destroy(&pThread->FinishCond);
@@ -159,26 +165,31 @@ XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 XXAPI void xrtThreadDestroy(xthread pThread)
 {
 	if ( pThread ) {
+		// 线程仍在运行且未 join，不允许销毁
 		if ( !pThread->bFinished && !pThread->bJoined ) {
 			xrtSetError("thread is still running.", FALSE);
 			return;
 		}
 
 		#if defined(_WIN32) || defined(_WIN64)
+			// 关闭 Windows 线程句柄
 			if ( pThread->Handle ) {
 				CloseHandle(pThread->Handle);
 				pThread->Handle = NULL;
 			}
 		#else
+			// 若线程已结束但未 join，先回收线程资源
 			if ( pThread->Handle && !pThread->bJoined ) {
 				void* pExit = NULL;
 				pthread_join((pthread_t)pThread->Handle, &pExit);
 				pThread->bJoined = TRUE;
 			}
+			// 销毁线程结束同步原语（条件变量 + 互斥体）
 			pthread_cond_destroy(&pThread->FinishCond);
 			pthread_mutex_destroy(&pThread->FinishLock);
 			pThread->Handle = NULL;
 		#endif
+		// 释放线程对象内存
 		__xrtThreadObjFree(pThread);
 	}
 }
@@ -212,6 +223,7 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 	if ( pThread->bJoined ) { return XRT_WAIT_OK; }
 
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows：使用 WaitForSingleObject 等待线程结束
 		DWORD ret = WaitForSingleObject(pThread->Handle, iTimeout);
 		if ( ret == WAIT_OBJECT_0 ) {
 			DWORD iExitCode = 0;
@@ -226,14 +238,17 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 		return XRT_WAIT_ERROR;
 	#else
 		int iRet;
+		// 加锁互斥体，准备等待线程结束条件变量
 		if ( pthread_mutex_lock(&pThread->FinishLock) != 0 ) {
 			return XRT_WAIT_ERROR;
 		}
+		// 超时为 0 且线程未结束，立即返回超时
 		if ( iTimeout == 0 && !pThread->bFinished ) {
 			pthread_mutex_unlock(&pThread->FinishLock);
 			return XRT_WAIT_TIMEOUT;
 		}
 		if ( iTimeout == UINT32_MAX ) {
+			// 无限等待：循环等待条件变量通知线程结束
 			while ( !pThread->bFinished ) {
 				if ( pthread_cond_wait(&pThread->FinishCond, &pThread->FinishLock) != 0 ) {
 					pthread_mutex_unlock(&pThread->FinishLock);
@@ -241,6 +256,7 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 				}
 			}
 		} else if ( !pThread->bFinished ) {
+			// 有限超时：构建绝对超时时间，使用定时等待
 			struct timespec ts;
 			if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) {
 				pthread_mutex_unlock(&pThread->FinishLock);
@@ -258,7 +274,9 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 				}
 			}
 		}
+		// 解锁互斥体
 		pthread_mutex_unlock(&pThread->FinishLock);
+		// 线程已结束，join 回收线程资源
 		if ( !pThread->bJoined ) {
 			void* pExit = NULL;
 			if ( pthread_join((pthread_t)pThread->Handle, &pExit) != 0 ) {
@@ -514,16 +532,19 @@ XXAPI void xrtMutexUnlock(xmutex pMutex)
 // 创建信号量
 XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue)
 {
+	// 分配信号量对象内存
 	xsem pSem = __xrtThreadObjAlloc(sizeof(xsem_struct));
 	if ( !pSem ) { return NULL; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows：使用系统信号量对象
 		pSem->objSem = CreateSemaphoreW(NULL, iInitValue, iMaxValue, NULL);
 		if ( !pSem->objSem ) {
 			__xrtThreadObjFree(pSem);
 			return NULL;
 		}
 	#else
+		// POSIX：初始化互斥体和条件变量来模拟信号量
 		if ( pthread_mutex_init(&pSem->objLock, NULL) != 0 ) {
 			__xrtThreadObjFree(pSem);
 			return NULL;
@@ -633,6 +654,7 @@ XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 	if ( !pSem ) { return XRT_WAIT_ERROR; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows：使用 WaitForSingleObject 等待信号量
 		DWORD ret = WaitForSingleObject(pSem->objSem, iTimeout);
 		if ( ret == WAIT_OBJECT_0 ) { return XRT_WAIT_OK; }
 		if ( ret == WAIT_TIMEOUT ) { return XRT_WAIT_TIMEOUT; }
@@ -640,8 +662,11 @@ XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 	#else
 		struct timespec ts;
 		int ret = XRT_WAIT_ERROR;
+		// 构建绝对超时时间
 		if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) { return XRT_WAIT_ERROR; }
+		// 加锁互斥体，准备等待信号量
 		pthread_mutex_lock(&pSem->objLock);
+		// 信号量值为 0 时，使用条件变量定时等待
 		while ( pSem->iValue == 0 ) {
 			int iWaitRet = pthread_cond_timedwait(&pSem->objCond, &pSem->objLock, &ts);
 			if ( iWaitRet == ETIMEDOUT ) {
@@ -653,9 +678,11 @@ XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 				goto exit_wait;
 			}
 		}
+		// 等待成功，减少信号量计数
 		pSem->iValue--;
 		ret = XRT_WAIT_OK;
 	exit_wait:
+		// 解锁互斥体
 		pthread_mutex_unlock(&pSem->objLock);
 		return ret;
 	#endif
@@ -689,16 +716,19 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 	if ( !pSem || iCount == 0 ) { return FALSE; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		// Windows：直接调用 ReleaseSemaphore 释放多个计数
 		return ReleaseSemaphore(pSem->objSem, iCount, NULL) != 0;
 	#else
 		bool bOk = FALSE;
 		uint32 iPosted = 0;
+		// 加锁互斥体，批量增加信号量计数
 		pthread_mutex_lock(&pSem->objLock);
 		while ( iPosted < iCount && pSem->iValue < pSem->iMaxValue ) {
 			pSem->iValue++;
 			iPosted++;
 		}
 		if ( iPosted > 0 ) {
+			// 广播唤醒所有等待线程
 			pthread_cond_broadcast(&pSem->objCond);
 			bOk = (iPosted == iCount);
 		}
@@ -793,18 +823,22 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 	}
 	
 	#if defined(_WIN32) || defined(_WIN64)
+		// 清除互斥体拥有者标记，等待期间互斥体被释放
 		pMutex->iOwnerThreadId = 0;
 		if ( SleepConditionVariableSRW(&pCond->objCond, 
 				&pMutex->objLock, iTimeout, 0) ) {
+			// 等待成功，恢复互斥体拥有者标记
 			pMutex->iOwnerThreadId = GetCurrentThreadId();
 			return XRT_WAIT_OK;
 		}
+		// 等待失败（超时或其他错误），恢复互斥体拥有者标记
 		pMutex->iOwnerThreadId = GetCurrentThreadId();
 		if ( GetLastError() == ERROR_TIMEOUT ) {
 			return XRT_WAIT_TIMEOUT;
 		}
 		return XRT_WAIT_ERROR;
 	#else
+		// POSIX：构建绝对超时时间，使用条件变量定时等待
 		struct timespec ts;
 		if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) {
 			return XRT_WAIT_ERROR;

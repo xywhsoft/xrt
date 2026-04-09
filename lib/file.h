@@ -286,24 +286,30 @@ XXAPI void xrtClose(xfile objFile)
 		// windows 方案
 		if ( objFile ) {
 			if ( objFile->obj != INVALID_HANDLE_VALUE ) {
+				// 非只读模式刷新缓冲区，确保数据写入磁盘
 				if ( !objFile->ReadOnly ) {
 					FlushFileBuffers(objFile->obj);
 				}
+				// 关闭文件句柄
 				CloseHandle(objFile->obj);
 				objFile->obj = NULL;
 			}
+			// 释放文件对象内存
 			xrtFree(objFile);
 		}
 	#else
 		// 其他平台方案
 		if ( objFile ) {
 			if ( objFile->idx != -1 ) {
+				// 非只读模式刷新缓冲区，确保数据写入磁盘
 				if ( !objFile->ReadOnly ) {
 					fsync(objFile->idx);
 				}
+				// 关闭文件描述符
 				close(objFile->idx);
 				objFile->idx = 0;
 			}
+			// 释放文件对象内存
 			xrtFree(objFile);
 		}
 	#endif
@@ -317,9 +323,11 @@ XXAPI size_t xrtSeek(xfile objFile, int64 iOffset, int iMoveMethod)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			// 将偏移量转换为 LARGE_INTEGER 结构
 			LARGE_INTEGER iOffsetStu;
 			LARGE_INTEGER iPosStu;
 			iOffsetStu.QuadPart = iOffset;
+			// 根据定位方式移动文件指针
 			if ( iMoveMethod == XRT_SEEK_SET ) {
 				if ( SetFilePointerEx(objFile->obj, iOffsetStu, &iPosStu, FILE_BEGIN) ) {
 					return iPosStu.QuadPart;
@@ -349,6 +357,7 @@ XXAPI size_t xrtSeek(xfile objFile, int64 iOffset, int iMoveMethod)
 	#else
 		// 其他平台方案
 		if ( objFile && (objFile->idx != -1) ) {
+			// 根据定位方式移动文件指针
 			if ( iMoveMethod == XRT_SEEK_SET ) {
 				return lseek(objFile->idx, iOffset, SEEK_SET);
 			} else if ( iMoveMethod == XRT_SEEK_CUR ) {
@@ -457,6 +466,7 @@ XXAPI bool xrtSetEOF(xfile objFile)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			// 将文件末尾截断到当前游标位置
 			SetEndOfFile(objFile->obj);
 			return TRUE;
 		} else {
@@ -466,6 +476,7 @@ XXAPI bool xrtSetEOF(xfile objFile)
 	#else
 		// 其他平台方案
 		if ( objFile && (objFile->idx != -1) ) {
+			// 获取当前游标位置并将文件截断到该位置
 			size_t iPos = xrtTell(objFile);
 			int iRet = ftruncate(objFile->idx, iPos);
 			if ( iRet == 0 ) {
@@ -748,8 +759,10 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( objFile && (objFile->obj != INVALID_HANDLE_VALUE) ) {
+			// 参数检查
 			if ( pBuff == NULL ) { return 0; }
 			if ( iSize == 0 ) { return 0; }
+			// 写入二进制数据
 			DWORD iRetSize;
 			if ( WriteFile(objFile->obj, pBuff, iSize, &iRetSize, NULL) ) {
 				return iRetSize;
@@ -764,8 +777,10 @@ XXAPI int xrtPut(xfile objFile, ptr pBuff, size_t iSize)
 	#else
 		// 其他平台方案
 		if ( objFile && (objFile->idx != -1) ) {
+			// 参数检查
 			if ( pBuff == NULL ) { return 0; }
 			if ( iSize == 0 ) { return 0; }
+			// 写入二进制数据
 			size_t iRetSize = write(objFile->idx, pBuff, iSize);
 			if ( iRetSize > 0 ) {
 				return iRetSize;
@@ -848,6 +863,7 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( iSize == 0 ) { return 0; }
+		// 打开文件（ 读写模式，不存在则创建 ）
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
@@ -855,9 +871,11 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 			xrtSetError(sErrorFile_Open, FALSE);
 			return 0;
 		}
+		// 移动文件指针到开头并写入数据
 		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		DWORD iRetSize;
 		if ( WriteFile(hFile, pBuff, iSize, &iRetSize, NULL) ) {
+			// 截断文件到当前写入位置，防止旧数据残留
 			SetEndOfFile(hFile);
 			CloseHandle(hFile);
 			return iRetSize;
@@ -869,14 +887,17 @@ XXAPI int xrtFilePutAll(str sPath, ptr pBuff, size_t iSize)
 	#else
 		// 其他平台方案
 		if ( iSize == 0 ) { return 0; }
+		// 打开文件（ 读写模式，不存在则创建 ）
 		int fd = open(sPath, O_RDWR | O_CREAT, 0644);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
 			return 0;
 		}
+		// 移动文件指针到开头并写入数据
 		lseek(fd, 0, SEEK_SET);
 		size_t iRetSize = write(fd, pBuff, iSize);
 		if ( iRetSize > 0 ) {
+			// 截断文件到当前写入位置，防止旧数据残留
 			size_t iPos = lseek(fd, 0, SEEK_CUR);
 			ftruncate(fd, iPos);
 			close(fd);
@@ -896,6 +917,7 @@ XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 以只读方式打开文件
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		HANDLE hFile = CreateFileW(sPathW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
@@ -904,6 +926,7 @@ XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
+		// 获取文件大小
 		SetFilePointer(hFile, 0, NULL, FILE_BEGIN);
 		LARGE_INTEGER stuSize;
 		GetFileSizeEx(hFile, &stuSize);
@@ -912,6 +935,7 @@ XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
+		// 分配缓冲区并读取全部数据
 		str pBuff = xrtMalloc(stuSize.QuadPart + 1);
 		if ( pBuff == NULL ) {
 			CloseHandle(hFile);
@@ -927,18 +951,21 @@ XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
+		// 添加结尾空字节并关闭文件
 		pBuff[iRet] = 0;
 		CloseHandle(hFile);
 		if ( iRetSize ) { *iRetSize = iRet; }
 		return pBuff;
 	#else
 		// 其他平台方案
+		// 以只读方式打开文件
 		int fd = open(sPath, O_RDONLY);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
 			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
+		// 获取文件大小
 		lseek(fd, 0, SEEK_SET);
 		struct stat fileStat;
 		fstat(fd, &fileStat);
@@ -947,6 +974,7 @@ XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
+		// 分配缓冲区并读取全部数据
 		str pBuff = xrtMalloc(fileStat.st_size + 1);
 		if ( pBuff == NULL ) {
 			close(fd);
@@ -961,6 +989,7 @@ XXAPI ptr xrtFileGetAll(str sPath, size_t* iRetSize)
 			if ( iRetSize ) { *iRetSize = 0; }
 			return xCore.sNull;
 		}
+		// 添加结尾空字节并关闭文件
 		pBuff[iRet] = 0;
 		close(fd);
 		if ( iRetSize ) { *iRetSize = iRet; }
@@ -996,11 +1025,13 @@ XXAPI bool xrtFileExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 获取文件属性
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		WIN32_FILE_ATTRIBUTE_DATA wfad = { 0 };
 		DWORD iRet = GetFileAttributesExW(sPathW, GetFileExInfoStandard, &wfad);
 		xrtFree(sPathW);
 		if ( iRet == 0 ) { return FALSE; }
+		// 判断是否为普通文件（ 排除目录等 ）
 		if ( wfad.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE ) {
 			return TRUE;
 		} else {
@@ -1008,9 +1039,11 @@ XXAPI bool xrtFileExists(str sPath)
 		}
 	#else
 		// 其他平台方案
+		// 获取文件状态信息
 		struct stat fileStat;
 		int iRet = stat(sPath, &fileStat);
 		if ( iRet == 0 ) {
+			// 判断是否为普通文件（ 排除目录等 ）
 			if ( fileStat.st_mode & S_IFDIR ) {
 				return FALSE;
 			} else if ( fileStat.st_mode & S_IFREG ) {
@@ -1024,18 +1057,18 @@ XXAPI bool xrtFileExists(str sPath)
 	#endif
 }
 
-
-
 // 判断目录是否存在
 XXAPI bool xrtDirExists(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 获取路径属性
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		WIN32_FILE_ATTRIBUTE_DATA wfad = { 0 };
 		DWORD iRet = GetFileAttributesExW(sPathW, GetFileExInfoStandard, &wfad);
 		xrtFree(sPathW);
 		if ( iRet == 0 ) { return FALSE; }
+		// 判断是否为目录
 		if ( wfad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) {
 			return TRUE;
 		} else {
@@ -1043,9 +1076,11 @@ XXAPI bool xrtDirExists(str sPath)
 		}
 	#else
 		// 其他平台方案
+		// 获取路径状态信息
 		struct stat fileStat;
 		int iRet = stat(sPath, &fileStat);
 		if ( iRet == 0 ) {
+			// 判断是否为目录
 			if ( fileStat.st_mode & S_IFDIR ) {
 				return TRUE;
 			} else if ( fileStat.st_mode & S_IFREG ) {
@@ -1058,8 +1093,6 @@ XXAPI bool xrtDirExists(str sPath)
 		}
 	#endif
 }
-
-
 
 // 获取文件长度
 XXAPI size_t xrtFileGetSize(str sPath)
@@ -1096,6 +1129,7 @@ XXAPI bool xrtFileSetSize(str sPath, size_t iSize)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 以写模式打开文件（ 不存在则创建 ）
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		HANDLE hFile = CreateFileW(sPathW, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		xrtFree(sPathW);
@@ -1103,6 +1137,7 @@ XXAPI bool xrtFileSetSize(str sPath, size_t iSize)
 			xrtSetError(sErrorFile_Open, FALSE);
 			return FALSE;
 		}
+		// 移动文件指针到目标大小位置并截断
 		LARGE_INTEGER iPos_stu;
 		iPos_stu.QuadPart = iSize;
 		SetFilePointerEx(hFile, iPos_stu, NULL, FILE_BEGIN);
@@ -1111,11 +1146,13 @@ XXAPI bool xrtFileSetSize(str sPath, size_t iSize)
 		return TRUE;
 	#else
 		// 其他平台方案
+		// 以读写模式打开文件（ 不存在则创建 ）
 		int fd = open(sPath, O_RDWR | O_CREAT, 0644);
 		if ( fd == -1 ) {
 			xrtSetError(sErrorFile_Open, FALSE);
 			return FALSE;
 		}
+		// 截断文件到目标大小
 		ftruncate(fd, iSize);
 		close(fd);
 		return TRUE;
@@ -1178,6 +1215,7 @@ XXAPI int64 xrtFileGetAccessTime(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 获取文件状态信息
 		struct _stat64 fileStat;
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		int iRet;
@@ -1186,6 +1224,7 @@ XXAPI int64 xrtFileGetAccessTime(str sPath)
 		}
 		iRet = _wstat64((const wchar_t*)sPathW, &fileStat);
 		xrtFree(sPathW);
+		// 转换时间戳为 xrt 时间格式（ 相对于 1899-12-30 基准 ）
 		if ( iRet == 0 ) {
 			return fileStat.st_atime + XRT_TIME_19700101;
 		} else {
@@ -1193,8 +1232,10 @@ XXAPI int64 xrtFileGetAccessTime(str sPath)
 		}
 	#else
 		// 其他平台方案
+		// 获取文件状态信息
 		struct stat fileStat;
 		int iRet = stat(sPath, &fileStat);
+		// 转换时间戳为 xrt 时间格式（ 相对于 1899-12-30 基准 ）
 		if ( iRet == 0 ) {
 			return fileStat.st_atime + XRT_TIME_19700101;
 		} else {
@@ -1210,6 +1251,7 @@ XXAPI int64 xrtFileGetChangeTime(str sPath)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 获取文件状态信息 
 		struct _stat64 fileStat;
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		int iRet;
@@ -1218,6 +1260,7 @@ XXAPI int64 xrtFileGetChangeTime(str sPath)
 		}
 		iRet = _wstat64((const wchar_t*)sPathW, &fileStat);
 		xrtFree(sPathW);
+		// 转换时间戳为 xrt 时间格式（ 相对于 1899-12-30 基准 ）
 		if ( iRet == 0 ) {
 			return fileStat.st_mtime + XRT_TIME_19700101;
 		} else {
@@ -1225,8 +1268,10 @@ XXAPI int64 xrtFileGetChangeTime(str sPath)
 		}
 	#else
 		// 其他平台方案
+		// 获取文件状态信息 
 		struct stat fileStat;
 		int iRet = stat(sPath, &fileStat);
+		// 转换时间戳为 xrt 时间格式（ 相对于 1899-12-30 基准 ）
 		if ( iRet == 0 ) {
 			return fileStat.st_mtime + XRT_TIME_19700101;
 		} else {
@@ -1563,9 +1608,11 @@ XXAPI bool xrtDirCreateAll(str sPath)
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
 		if ( sPath == NULL ) { return FALSE; }
+		// 将路径转换为宽字符
 		size_t iSize = 0;
 		u16str sPathW = xrtUTF8to16(sPath, 0, &iSize);
 		if ( iSize == 0 ) { return FALSE; }
+		// 逐级创建目录：遇到路径分隔符时截断并创建已扫描的部分路径
 		u16str sCurPath = xrtMalloc((iSize + 1) * sizeof(wchar_t));
 		if ( sCurPath == NULL ) {
 			xrtFree(sPathW);
@@ -1581,6 +1628,7 @@ XXAPI bool xrtDirCreateAll(str sPath)
 				sCurPath[iCurPos++] = sPathW[i];
 			}
 		}
+		// 创建最后一段目录
 		sCurPath[iSize] = 0;
 		CreateDirectoryW(sCurPath, NULL);
 		xrtFree(sCurPath);
@@ -1591,6 +1639,7 @@ XXAPI bool xrtDirCreateAll(str sPath)
 		if ( sPath == NULL ) { return FALSE; }
 		size_t iSize = strlen(sPath);
 		if ( iSize == 0 ) { return FALSE; }
+		// 逐级创建目录：遇到路径分隔符时截断并创建已扫描的部分路径
 		str sCurPath = xrtMalloc(iSize + 1);
 		if ( sCurPath == NULL ) {
 			return FALSE;
@@ -1605,6 +1654,7 @@ XXAPI bool xrtDirCreateAll(str sPath)
 				sCurPath[iCurPos++] = sPath[i];
 			}
 		}
+		// 创建最后一段目录
 		sCurPath[iSize] = 0;
 		mkdir(sCurPath, 0755);
 		xrtFree(sCurPath);
@@ -1701,34 +1751,40 @@ XXAPI int xrtDirCopy(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 参数检查
 		if ( sSrc == NULL ) { return 0; }
 		size_t iSrcSize = strlen((const char*)sSrc);
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
 		size_t iDstSize = strlen((const char*)sDst);
 		if ( iDstSize == 0 ) { return 0; }
+		// 构建复制信息结构体，传入源路径偏移量用于计算相对路径
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
 		stuInfo.DstSize = iDstSize;
 		stuInfo.SrcSize = iSrcSize + 1;
 		stuInfo.ReWrite = bReWrite;
 		stuInfo.MoveMode = FALSE;
+		// 确保目标目录存在，然后递归扫描并复制
 		xrtDirCreateAll(sDst);
 		return xrtDirScan(sSrc, TRUE, __pri__DirCopyProc, &stuInfo);
 	#else
 		// 其他平台方案
+		// 参数检查
 		if ( sSrc == NULL ) { return 0; }
 		size_t iSrcSize = strlen((const char*)sSrc);
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
 		size_t iDstSize = strlen((const char*)sDst);
 		if ( iDstSize == 0 ) { return 0; }
+		// 构建复制信息结构体，传入源路径偏移量用于计算相对路径
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
 		stuInfo.DstSize = iDstSize;
 		stuInfo.SrcSize = iSrcSize + 1;
 		stuInfo.ReWrite = bReWrite;
 		stuInfo.MoveMode = FALSE;
+		// 确保目标目录存在，然后递归扫描并复制
 		xrtDirCreateAll(sDst);
 		return xrtDirScan(sSrc, TRUE, __pri__DirCopyProc, &stuInfo);
 	#endif
@@ -1741,40 +1797,48 @@ XXAPI int xrtDirMove(str sSrc, str sDst, bool bReWrite)
 {
 	#if defined(_WIN32) || defined(_WIN64)
 		// windows 方案
+		// 参数检查
 		if ( sSrc == NULL ) { return 0; }
 		size_t iSrcSize = strlen(__xrt_cstr(sSrc));
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
 		size_t iDstSize = strlen(__xrt_cstr(sDst));
 		if ( iDstSize == 0 ) { return 0; }
+		// 构建移动信息结构体，MoveMode 为 TRUE 表示移动文件后删除源文件和源目录
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
 		stuInfo.DstSize = iDstSize;
 		stuInfo.SrcSize = iSrcSize + 1;
 		stuInfo.ReWrite = bReWrite;
 		stuInfo.MoveMode = TRUE;
+		// 确保目标目录存在，递归扫描并移动文件
 		xrtDirCreateAll(sDst);
 		int iRet = xrtDirScan(sSrc, TRUE, __pri__DirCopyProc, &stuInfo);
+		// 删除源目录根目录
 		u16str sSrcW = xrtUTF8to16(sSrc, 0, NULL);
 		RemoveDirectoryW(sSrcW);
 		xrtFree(sSrcW);
 		return iRet;
 	#else
 		// 其他平台方案
+		// 参数检查
 		if ( sSrc == NULL ) { return 0; }
 		size_t iSrcSize = strlen(__xrt_cstr(sSrc));
 		if ( iSrcSize == 0 ) { return 0; }
 		if ( sDst == NULL ) { return 0; }
 		size_t iDstSize = strlen(__xrt_cstr(sDst));
 		if ( iDstSize == 0 ) { return 0; }
+		// 构建移动信息结构体，MoveMode 为 TRUE 表示移动文件后删除源文件和源目录
 		xrtCopyFolder_Info stuInfo;
 		stuInfo.DstPath = sDst;
 		stuInfo.DstSize = iDstSize;
 		stuInfo.SrcSize = iSrcSize + 1;
 		stuInfo.ReWrite = bReWrite;
 		stuInfo.MoveMode = TRUE;
+		// 确保目标目录存在，递归扫描并移动文件
 		xrtDirCreateAll(sDst);
 		int iRet = xrtDirScan(sSrc, TRUE, __pri__DirCopyProc, &stuInfo);
+		// 删除源目录根目录
 		rmdir(sSrc);
 		return iRet;
 	#endif

@@ -124,15 +124,19 @@ XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
 {
 	if ( pArr ) {
 		xrtMemDebugSiteScope tScope;
+		// 校验内存调试对象守卫
 		if ( !__xrtMemDebugObjectGuardDestroy(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine) ) {
 			return;
 		}
+		// 检查线程所有权
 		if ( !xrtOwnerCheckMutable(&pArr->Owner, "array belongs to another thread.") ) {
 			return;
 		}
+		// 进入调试站点作用域，执行单元释放
 		tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 		(xrtArrayUnit)(pArr);
 		__xrtMemDebugLeaveSiteScope(&tScope);
+		// 注销调试对象并释放内存
 		__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
 		xrtFreeDbg(pArr, sFile, iLine);
 	}
@@ -143,18 +147,23 @@ XXAPI void xrtArrayDestroyDbg(xarray pArr, const char* sFile, uint32 iLine)
 XXAPI void xrtArrayUnitDbg(xarray pArr, const char* sFile, uint32 iLine)
 {
 	xrtMemDebugSiteScope tScope;
+	// 空指针检查
 	if ( pArr == NULL ) {
 		return;
 	}
+	// 校验内存调试对象守卫
 	if ( !__xrtMemDebugObjectGuardDestroy(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine) ) {
 		return;
 	}
+	// 获取线程可变访问权限
 	if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
 		return;
 	}
+	// 进入调试站点作用域，执行无锁单元释放
 	tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
 	__xrtArrayUnit_NoLock(pArr);
 	__xrtMemDebugLeaveSiteScope(&tScope);
+	// 释放线程锁并注销调试对象
 	xrtOwnerEndMutable(&pArr->Owner);
 	__xrtMemDebugUnregisterObject(pArr, XRT_MEMDEBUG_OBJECT_ARRAY, sFile, iLine);
 }
@@ -328,13 +337,17 @@ XXAPI ptr xrtArrayGet_Unsafe(xarray pArr, uint32 iPos)
 XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 {
 	if ( pArr ) {
+		// 检查比较函数有效性
 		if ( procCompar == NULL ) {
 			return FALSE;
 		}
+		// 获取线程可变访问权限
 		if ( !xrtOwnerBeginMutable(&pArr->Owner, "array belongs to another thread.") ) {
 			return FALSE;
 		}
+		// 执行快速排序
 		qsort(pArr->Memory, pArr->Count, pArr->ItemLength, procCompar);
+		// 释放线程锁
 		xrtOwnerEndMutable(&pArr->Owner);
 		return TRUE;
 	} else {

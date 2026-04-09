@@ -219,23 +219,28 @@ XXAPI str xrtUCase(str sText, size_t iSize, bool bSrcRevise)
 // 搜索字符串（ 没找到字符串的情况下会返回 NULL ）（ 线程安全 ）
 XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
+	// 参数检查
 	if ( sText == NULL ) { return NULL; }
 	if ( sSubText == NULL ) { return NULL; }
+	// 自动计算字符串长度
 	if ( iSize == 0 ) { iSize = strlen(__xrt_cstr(sText)); }
 	if ( iSize == 0 ) { return NULL; }
 	if ( iSubSize == 0 ) { iSubSize = strlen(__xrt_cstr(sSubText)); }
 	if ( iSubSize == 0 ) { return NULL; }
 	str sSub;
 	if ( bCase ) {
+		// 忽略大小写：将源字符串和子串都转为小写副本，在副本上搜索
 		str sText1 = xrtLCase(sText, 0, FALSE);
 		str sText2 = xrtLCase(sSubText, 0, FALSE);
 		sSub = memmem(sText1, iSize, sText2, iSubSize);
 		if ( sSub ) {
+			// 将匹配位置映射回原始字符串的对应偏移
 			sSub = &sText[sSub - sText1];
 		}
 		xrtFree(sText1);
 		xrtFree(sText2);
 	} else {
+		// 精确匹配：直接在原字符串上搜索
 		sSub = memmem(sText, iSize, sSubText, iSubSize);
 	}
 	return sSub;
@@ -245,25 +250,31 @@ XXAPI str xrtFindStr(str sText, size_t iSize, str sSubText, size_t iSubSize, boo
 // xrtInStr 相关处理
 XXAPI uint xrtInStr(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bCase)
 {
+	// 参数检查
 	if ( sText == NULL ) { return 0; }
 	if ( sSubText == NULL ) { return 0; }
+	// 自动计算字符串长度
 	if ( iSize == 0 ) { iSize = strlen(__xrt_cstr(sText)); }
 	if ( iSize == 0 ) { return 0; }
 	if ( iSubSize == 0 ) { iSubSize = strlen(__xrt_cstr(sSubText)); }
 	if ( iSubSize == 0 ) { return 0; }
 	str sSub;
 	if ( bCase ) {
+		// 忽略大小写：将源字符串和子串都转为小写副本，在副本上搜索
 		str sText1 = xrtLCase(sText, 0, FALSE);
 		str sText2 = xrtLCase(sSubText, 0, FALSE);
 		sSub = memmem(sText1, iSize, sText2, iSubSize);
 		if ( sSub ) {
+			// 将匹配位置映射回原始字符串的对应偏移
 			sSub = &sText[sSub - sText1];
 		}
 		xrtFree(sText1);
 		xrtFree(sText2);
 	} else {
+		// 精确匹配：直接在原字符串上搜索
 		sSub = memmem(sText, iSize, sSubText, iSubSize);
 	}
+	// 返回 1 起始的位置索引，未找到返回 0
 	if ( sSub ) {
 		return (sSub - sText) + 1;
 	} else {
@@ -296,12 +307,16 @@ XXAPI str xrtCheckStr(str sText, size_t iSize, str sSubText, size_t iSubSize)
 // 裁剪字符串（ bSrcRevise 为 FALSE 时，需使用 xrtFree 释放内存 ）
 XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool bSrcRevise, size_t* iRetSize)
 {
+	// 参数检查
 	if ( sText == NULL ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	// 自动计算字符串长度
 	if ( iSize == 0 ) { iSize = strlen(__xrt_cstr(sText)); }
 	if ( iSize == 0 ) { if ( iRetSize ) { *iRetSize = 0; } return xCore.sNull; }
+	// 默认裁剪空白字符（空格、制表、回车、换行）
 	if ( sSubText == NULL ) { sSubText = (str)" \t\r\n"; iSubSize = 4; }
 	if ( iSubSize == 0 ) { iSubSize = strlen(__xrt_cstr(sSubText)); }
 	if ( iSubSize == 0 ) { sSubText = (str)" \t\r\n"; iSubSize = 4; }
+	// 从左侧逐个 UTF-8 字符扫描，统计需要裁剪的字节数
 	size_t iCount = 0;
 	for ( size_t i = 0; i < iSize; ) {
 		size_t iCharLen = __xrtUtf8CharLenSafe(sText, iSize, i);
@@ -312,8 +327,10 @@ XXAPI str xrtLTrim(str sText, size_t iSize, str sSubText, size_t iSubSize, bool 
 		i += iCharLen;
 	}
 	if ( iRetSize ) { *iRetSize = iSize - iCount; }
+	// 根据模式返回结果：原地修改或创建副本
 	if ( bSrcRevise ) {
 		if ( iCount > 0 ) {
+			// 将剩余内容前移并添加结束符
 			memmove(sText, &sText[iCount], iSize - iCount);
 			sText[iSize - iCount] = 0;
 		}
@@ -728,22 +745,28 @@ XXAPI str xrtHexEncode(ptr pMem, size_t iSize)
 // xrtHexDecode 相关处理
 XXAPI ptr xrtHexDecode(str sText, size_t iSize)
 {
+	// 参数检查
 	if ( sText == NULL ) { return xCore.sNull; }
 	if ( iSize == 0 ) { iSize = strlen(__xrt_cstr(sText)); }
 	if ( iSize == 0 ) { return xCore.sNull; }
+	// HEX 编码长度必须为偶数（每两个字符对应一个字节）
 	if ( (iSize & 1u) != 0 ) { return xCore.sNull; }
+	// 分配解码后的缓冲区（长度为编码长度的一半）
 	str sRet = xrtMalloc((iSize / 2) + 1);
 	if ( sRet == NULL ) { return xCore.sNull; }
 	int iPos = 0;
+	// 逐对解析：每两个 HEX 字符解码为一个字节
 	for ( size_t i = 0; i < iSize; i += 2 ) {
 		uint8 c0 = (uint8)sText[i];
 		uint8 c1 = (uint8)sText[i + 1];
 		uint8 iHigh;
 		uint8 iLow;
+		// 将两个 HEX 字符分别转换为 4 位数值
 		if ( !__xrtHexDecodeNibble(c0, &iHigh) || !__xrtHexDecodeNibble(c1, &iLow) ) {
 			xrtFree(sRet);
 			return xCore.sNull;
 		}
+		// 算法：高 4 位左移 4 位，与低 4 位按位或，组合成一个字节
 		sRet[iPos++] = (char)((iHigh << 4) | iLow);
 	}
 	sRet[iPos] = 0;

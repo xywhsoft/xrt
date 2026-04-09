@@ -170,9 +170,11 @@ XXAPI uint32 xrtPtrArrayAppend(xparray pObject, ptr pVal)
 XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal)
 {
 	uint32 iRet = 0;
+	// 获取写锁
 	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
 		return 0;
 	}
+	// 遍历已有成员，查找 NULL 槽位进行复用
 	for ( uint32 i = 0; i < pObject->Count; i++ ) {
 		if ( pObject->Memory[i] == NULL ) {
 			pObject->Memory[i] = pVal;
@@ -181,12 +183,14 @@ XXAPI uint32 xrtPtrArrayAddAlt(xparray pObject, ptr pVal)
 			return iRet;
 		}
 	}
+	// 未找到空隙，检查是否需要扩容
 	if ( pObject->Count >= pObject->AllocCount ) {
 		if ( __xrtPtrArrayMalloc_NoLock(pObject, pObject->Count + pObject->AllocStep) == 0 ) {
 			xrtOwnerEndMutable(&pObject->Owner);
 			return 0;
 		}
 	}
+	// 在末尾追加新成员
 	pObject->Memory[pObject->Count] = pVal;
 	pObject->Count++;
 	iRet = pObject->Count;
@@ -278,9 +282,11 @@ XXAPI ptr xrtPtrArrayGet_Unsafe(xparray pObject, uint32 iPos)
 XXAPI bool xrtPtrArraySet(xparray pObject, uint32 iPos, ptr pVal)
 {
 	bool bRet = FALSE;
+	// 获取写锁
 	if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
 		return FALSE;
 	}
+	// 将外部索引（1起始）转为内部索引（0起始），并检查范围有效性
 	if ( iPos ) {
 		iPos--;
 		if ( iPos < pObject->Count ) {
@@ -311,12 +317,15 @@ XXAPI void xrtPtrArraySet_Unsafe(xparray pObject, uint32 iPos, ptr pVal)
 XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 {
 	if ( pObject ) {
+		// 比较函数不能为空
 		if ( procCompar == NULL ) {
 			return FALSE;
 		}
+		// 获取写锁
 		if ( !xrtOwnerBeginMutable(&pObject->Owner, "pointer array belongs to another thread.") ) {
 			return FALSE;
 		}
+		// 执行快速排序
 		qsort(pObject->Memory, pObject->Count, sizeof(ptr), procCompar);
 		xrtOwnerEndMutable(&pObject->Owner);
 		return TRUE;

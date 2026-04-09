@@ -16,24 +16,31 @@ static inline void __xrtBsmmPageMMUUnit(xbsmm objBSMM)
 // 内部函数：__xrtBsmmPageMMUAppend
 static inline uint32 __xrtBsmmPageMMUAppend(xbsmm objBSMM, ptr pBlock)
 {
+	// 检查是否需要扩容
 	if ( objBSMM->PageMMU.Count >= objBSMM->PageMMU.AllocCount ) {
+		// 计算新的容量
 		uint32 iNewCount = objBSMM->PageMMU.Count + objBSMM->PageMMU.AllocStep;
 		size_t iNewBytes;
 		uint64 iNewCount64 = iNewCount;
+		// 检查整数溢出
 		if ( iNewCount < objBSMM->PageMMU.Count ) {
 			return 0;
 		}
+		// 检查内存大小溢出
 		if ( iNewCount64 > (SIZE_MAX / sizeof(ptr)) ) {
 			return 0;
 		}
+		// 计算所需字节数并重新分配内存
 		iNewBytes = (size_t)iNewCount * sizeof(ptr);
 		ptr* pNew = xrtRealloc(objBSMM->PageMMU.Memory, iNewBytes);
 		if ( pNew == NULL ) {
 			return 0;
 		}
+		// 更新页表指针和已分配容量
 		objBSMM->PageMMU.Memory = pNew;
 		objBSMM->PageMMU.AllocCount = iNewCount;
 	}
+	// 将内存页追加到页表末尾并更新计数
 	objBSMM->PageMMU.Memory[objBSMM->PageMMU.Count] = pBlock;
 	objBSMM->PageMMU.Count++;
 	return objBSMM->PageMMU.Count;
@@ -44,20 +51,27 @@ static inline uint32 __xrtBsmmPageMMUAppend(xbsmm objBSMM, ptr pBlock)
 static inline bool __xrtBsmmOwnsPtr(xbsmm objBSMM, ptr p)
 {
 	size_t iBlockSize;
+	// 检查参数有效性
 	if ( objBSMM == NULL || p == NULL || objBSMM->ItemLength == 0 ) {
 		return FALSE;
 	}
+	// 检查数据块大小是否会导致溢出
 	if ( objBSMM->ItemLength > (uint32)(SIZE_MAX / 256u) ) {
 		return FALSE;
 	}
+	// 计算单个内存页的总字节数
 	iBlockSize = (size_t)objBSMM->ItemLength * 256u;
+	// 遍历所有内存页，检查指针是否落在某个内存页范围内
 	for ( uint32 i = 0; i < objBSMM->PageMMU.Count; i++ ) {
 		uint8* pBlock = (uint8*)objBSMM->PageMMU.Memory[i];
 		uint8* pValue = (uint8*)p;
+		// 跳过未使用的内存页槽位
 		if ( pBlock == NULL ) {
 			continue;
 		}
+		// 检查指针是否在当前内存页范围内
 		if ( pValue >= pBlock && (size_t)(pValue - pBlock) < iBlockSize ) {
+			// 验证指针对齐到数据块大小的整数倍位置
 			return (((size_t)(pValue - pBlock)) % objBSMM->ItemLength) == 0;
 		}
 	}
@@ -165,21 +179,26 @@ XXAPI ptr xrtBsmmAlloc(xbsmm objBSMM)
 // 释放结构体内存
 XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 {
+	// 检查参数有效性
 	if ( objBSMM == NULL || p == NULL ) {
 		return;
 	}
+	// 获取写权限
 	if ( !xrtOwnerBeginMutable(&objBSMM->Owner, "bsmm belongs to another thread.") ) {
 		return;
 	}
+	// 验证指针是否属于 BSMM 管理的内存页
 	if ( __xrtBsmmOwnsPtr(objBSMM, p) == FALSE ) {
 		xrtSetError("BSMM free failed: invalid pointer.", FALSE);
 		xrtOwnerEndMutable(&objBSMM->Owner);
 		return;
 	}
+	// 将内存块加入空闲链表头部
 	MemPtr_LLNode* pNode = (MemPtr_LLNode*)p;
 	pNode->Ptr = p;
 	pNode->Next = objBSMM->LL_Free;
 	objBSMM->LL_Free = pNode;
+	// 释放写权限
 	xrtOwnerEndMutable(&objBSMM->Owner);
 }
 

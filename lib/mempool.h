@@ -30,22 +30,32 @@ static inline uint32 __xrtMemPoolResolveCutoff(int iCustom)
 	size_t iMaxBucketCount;
 	size_t iMaxCutoffByBucket;
 	size_t iMaxCutoff;
+	
+	// 使用默认值
 	if ( iCustom <= 0 ) {
 		return XRT_MEMPOOL_CUTOFF_DEFAULT;
 	}
+	
+	// 计算查找表允许的最大 cutoff（受 SIZE_MAX / sizeof(uint32) 限制）
 	iMaxCutoffByLut = SIZE_MAX / sizeof(uint32);
 	if ( iMaxCutoffByLut > 0 ) {
 		iMaxCutoffByLut--;
 	}
+	
+	// 计算桶数组允许的最大 cutoff（受 SIZE_MAX / sizeof(FSB_Item) 限制）
 	iMaxBucketCount = SIZE_MAX / sizeof(FSB_Item);
 	if ( iMaxBucketCount > 0 ) {
 		iMaxBucketCount--;
 	}
 	iMaxCutoffByBucket = iMaxBucketCount * (size_t)XRT_MEMPOOL_STEP_SIZE;
+	
+	// 取两者的较小值作为最终上限
 	iMaxCutoff = iMaxCutoffByLut < iMaxCutoffByBucket ? iMaxCutoffByLut : iMaxCutoffByBucket;
 	if ( iMaxCutoff == 0 ) {
 		return XRT_MEMPOOL_CUTOFF_DEFAULT;
 	}
+	
+	// 限制自定义值不超过上限
 	if ( (size_t)iCustom > iMaxCutoff ) {
 		return (uint32)iMaxCutoff;
 	}
@@ -77,7 +87,7 @@ static inline void __xrtMemPoolInitBucket(FSB_Item* pBucket, uint32 iSizeMin, ui
 }
 
 
-// 内部函数：构建内存内存池桶计划
+// 内部函数：构建内存内存池桶计划（R13: 根据截止大小构建桶分类和查找表）
 static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 {
 	uint32 iBucketCount;
@@ -86,18 +96,20 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 	size_t iLutCount;
 	uint64 iBucketCount64;
 	uint64 iCutoff64;
-
+	
+	// 初始化内存池桶相关字段
 	objMP->FSB_Memory = NULL;
 	objMP->FSB_RootNode = NULL;
 	objMP->FSB_Lut = NULL;
 	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
 	objMP->iBucketCount = 0;
 	objMP->iFallbackCutoff = iCutoff;
-
+	
 	if ( iCutoff == 0 ) {
 		return TRUE;
 	}
-
+	
+	// 计算桶数量并进行溢出检查
 	iBucketCount = __xrtMemPoolBucketCount(iCutoff);
 	iBucketCount64 = iBucketCount;
 	iCutoff64 = iCutoff;
@@ -107,11 +119,14 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 	if ( iBucketCount64 > (SIZE_MAX / sizeof(FSB_Item)) ) {
 		return FALSE;
 	}
+	
+	// 分配桶数组
 	objMP->FSB_Memory = xrtCalloc(iBucketCount, sizeof(FSB_Item));
 	if ( objMP->FSB_Memory == NULL ) {
 		return FALSE;
 	}
-
+	
+	// 分配查找表（大小为 cutoff + 1）
 	if ( iCutoff64 >= (SIZE_MAX / sizeof(uint32)) ) {
 		xrtFree(objMP->FSB_Memory);
 		objMP->FSB_Memory = NULL;
@@ -124,11 +139,13 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 		objMP->FSB_Memory = NULL;
 		return FALSE;
 	}
-
+	
+	// 初始化查找表并设置桶指针
 	memset(objMP->FSB_Lut, 0, sizeof(uint32) * iLutCount);
 	objMP->iBucketCount = iBucketCount;
 	objMP->FSB_RootNode = &objMP->FSB_Memory[0];
-
+	
+	// 初始化每个桶的大小范围
 	for ( iBucket = 0; iBucket < iBucketCount; iBucket++ ) {
 		uint32 iMin = (iBucket * XRT_MEMPOOL_STEP_SIZE) + 1;
 		uint32 iMax = iMin + XRT_MEMPOOL_STEP_SIZE - 1;
@@ -137,7 +154,8 @@ static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 		}
 		__xrtMemPoolInitBucket(&objMP->FSB_Memory[iBucket], iMin, iMax);
 	}
-
+	
+	// 构建大小到桶索引的查找表
 	for ( iSize = 1; iSize <= iCutoff; iSize++ ) {
 		uint32 iClass = (uint32)((iSize - 1) / XRT_MEMPOOL_STEP_SIZE);
 		if ( iClass >= iBucketCount ) {
@@ -167,7 +185,7 @@ static inline FSB_Item* __xrtMemPoolGetBucketBySize(xmempool objMP, uint32 iSize
 static inline FSB_Item* __xrtMemPoolGetBucketByMMU(xmempool objMP, xmemunit objMMU)
 {
 	uint32 iSize;
-
+	
 	if ( objMP == NULL || objMMU == NULL ) {
 		return NULL;
 	}
@@ -209,10 +227,13 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
+	
+	// 遍历所有 MMU 节点，销毁内存单元
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
 #ifdef XRT_MEM_DEBUG
+			// 调试模式下清理 MMU 中仍在使用的内存块的 foreign alloc 跟踪
 			for ( int idx = 0; idx < 256; idx++ ) {
 				MMU_ValuePtr v = (MMU_ValuePtr)&(pNode->objMMU->Memory[(size_t)pNode->objMMU->ItemLength * idx]);
 				if ( v->ItemFlag & MMU_FLAG_USE ) {
@@ -225,6 +246,8 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 		}
 	}
 	xrtBsmmUnit(&objMP->arrMMU);
+	
+	// 释放查找表和桶数组
 	if ( objMP->FSB_Lut ) {
 		xrtFree(objMP->FSB_Lut);
 		objMP->FSB_Lut = NULL;
@@ -237,6 +260,8 @@ XXAPI void xrtMemPoolUnit(xmempool objMP)
 	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
 	objMP->iBucketCount = 0;
 	objMP->iFallbackCutoff = 0;
+	
+	// 遍历所有大块分配记录，释放大块内存
 	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
@@ -300,13 +325,19 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	if ( objMP == NULL ) {
 		return;
 	}
+	
+	// 检查对象是否已被销毁（防止双重销毁）
 	if ( !__xrtMemDebugObjectGuardDestroy(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine) ) {
 		return;
 	}
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
+	
+	// 进入调试位置作用域
 	tScope = __xrtMemDebugEnterSiteScope(sFile, iLine);
+	
+	// 遍历所有 MMU 节点，清理仍在使用的内存块的 foreign alloc 跟踪并销毁内存单元
 	for ( uint32 i = 0; i < objMP->arrMMU.Count; i++ ) {
 		MMU_LLNode* pNode = xrtBsmmGetPtr_Inline(&objMP->arrMMU, i);
 		if ( pNode->objMMU ) {
@@ -321,6 +352,8 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 		}
 	}
 	xrtBsmmUnit(&objMP->arrMMU);
+	
+	// 释放查找表和桶数组
 	if ( objMP->FSB_Lut ) {
 		xrtFree(objMP->FSB_Lut);
 		objMP->FSB_Lut = NULL;
@@ -333,6 +366,8 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	objMP->iBucketStep = XRT_MEMPOOL_STEP_SIZE;
 	objMP->iBucketCount = 0;
 	objMP->iFallbackCutoff = 0;
+	
+	// 遍历所有大块分配记录，释放大块内存
 	for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 		MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 		if ( pInfo->Ptr ) {
@@ -341,23 +376,28 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	}
 	xrtBsmmUnit(&objMP->BigMM);
 	objMP->LL_BigFree = NULL;
+	
+	// 离开调试位置作用域并注销对象跟踪
 	__xrtMemDebugLeaveSiteScope(&tScope);
 	xrtOwnerEndMutable(&objMP->Owner);
 	__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
 }
 #endif
 
-// 内部函数：释放内存内存池 acquire
+// 内部函数：获取内存池可用内存单元（R13: 从桶的各链表中获取或创建 MMU）
 static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 {
 	xmemunit objMMU = NULL;
-
+	
 	if ( objFSB->LL_Idle == NULL ) {
+		// Idle 链表为空，尝试从其他链表获取节点
 		if ( objFSB->LL_Null ) {
+			// 将 Null 链表提升为 Idle 链表
 			objMMU = objFSB->LL_Null->objMMU;
 			objFSB->LL_Idle = objFSB->LL_Null;
 			objFSB->LL_Null = NULL;
 		} else if ( objFSB->LL_Free ) {
+			// 从 Free 链表取一个节点，创建新的 MMU 并挂载
 			MMU_LLNode* pNode = objFSB->LL_Free;
 			objMMU = xrtMemUnitCreate(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
 			if ( objMMU == NULL ) {
@@ -373,6 +413,7 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 			pNode->Next = NULL;
 			objFSB->LL_Idle = pNode;
 		} else {
+			// 所有链表均为空，创建全新的 MMU 和节点
 			MMU_LLNode* pNode;
 			objMMU = xrtMemUnitCreate(objFSB->MaxLength, xrtOwnerGetMode(&objMP->Owner));
 			if ( objMMU == NULL ) {
@@ -384,6 +425,7 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 				xrtSetError("Memory Pool : add memory unit failed.", FALSE);
 				return NULL;
 			}
+			// 检查 MMU 索引是否溢出
 			if ( (objMP->arrMMU.Count - 1u) > (MMU_FLAG_MASK >> 8) ) {
 				xrtMemUnitDestroy(objMMU);
 				xrtBsmmFree(&objMP->arrMMU, pNode);
@@ -398,7 +440,9 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 			objFSB->LL_Idle = pNode;
 		}
 	} else {
+		// Idle 链表有可用节点
 		objMMU = objFSB->LL_Idle->objMMU;
+		// 如果 MMU 已满（256个槽位用完），移入 Full 链表
 		if ( objMMU->Count >= 255 ) {
 			MMU_LLNode* pNode = objFSB->LL_Idle;
 			if ( pNode->Next ) {
@@ -417,7 +461,7 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 	return objMMU;
 }
 
-// 从内存池中申请一块内存
+// 从内存池中申请一块内存（R13: 小块走桶分配，大块走直接分配）
 XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 {
 	void* pRet = NULL;
@@ -437,6 +481,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 		return NULL;
 	}
 
+	// 尝试从桶分配（大小在截止阈值内）
 	{
 		FSB_Item* objFSB = __xrtMemPoolGetBucketBySize(objMP, iSize);
 		if ( objFSB ) {
@@ -452,9 +497,11 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 		}
 	}
 
+	// 大块分配：超出桶范围，直接通过全局分配器分配
 	{
 		MP_MemHead* pHead = xrtMalloc(sizeof(MP_MemHead) + iSize);
 		if ( pHead ) {
+			// 优先复用空闲的大块信息节点
 			if ( objMP->LL_BigFree ) {
 				MP_BigInfoLL* pInfo = objMP->LL_BigFree;
 				objMP->LL_BigFree = pInfo->Next;
@@ -468,6 +515,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 				xrtOwnerEndMutable(&objMP->Owner);
 				return pRet;
 			} else {
+				// 没有可复用的节点，分配新的大块信息节点
 				MP_BigInfoLL* pInfo = xrtBsmmAlloc(&objMP->BigMM);
 				if ( pInfo ) {
 					pInfo->Index = objMP->BigMM.Count - 1;
@@ -490,13 +538,17 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 	return NULL;
 }
 
-// 将内存池申请的内存释放掉
+// 将内存池申请的内存释放掉（R13: 检查并清理空 MMU 节点的链表状态）
 static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, int bLL_Full)
 {
+	// 仅当 MMU 中已无使用中的槽位时才执行清理
 	if ( pNode->objMMU->Count == 0 ) {
 		if ( objFSB->LL_Null ) {
+			// Null 链表已有节点，销毁 MMU 并将节点移入 Free 链表
 			xrtMemUnitDestroy(pNode->objMMU);
 			pNode->objMMU = NULL;
+			
+			// 从当前链表中移除节点
 			if ( pNode->Prev ) {
 				pNode->Prev->Next = pNode->Next;
 			} else {
@@ -516,6 +568,7 @@ static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, 
 			}
 			objFSB->LL_Free = pNode;
 		} else {
+			// Null 链表为空，将节点移入 Null 链表保留 MMU 以备复用
 			if ( pNode->Prev ) {
 				pNode->Prev->Next = pNode->Next;
 			} else {
@@ -581,7 +634,7 @@ static inline MMU_LLNode* __xrtMemPoolGetNodeByFlag(xmempool objMP, uint32 iFlag
 }
 
 
-// 释放内存内存池
+// 释放内存内存池（R13: 区分大块释放和桶内释放，并维护链表状态）
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
 	if ( objMP == NULL || ptr == NULL ) {
@@ -590,6 +643,8 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
+	
+	// 注销外部分配跟踪，失败则可能是无效指针
 	if ( !__xrtMemDebugUnregisterForeignAlloc(ptr, XRT_MEMDEBUG_ALLOCATOR_MEMPOOL, NULL, 0) ) {
 		#ifdef XRT_MEM_DEBUG
 			if ( xrtMemDebugIsEnabled() ) {
@@ -600,8 +655,10 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 	}
 
 	{
+		// 获取内存块前方的 MMU_Value 标记以判断类型
 		MMU_ValuePtr v = (MMU_ValuePtr)((char*)ptr - sizeof(MMU_Value));
 		if ( (v->ItemFlag & MMU_FLAG_MASK) == MMU_FLAG_MASK ) {
+			// 大块内存释放
 			MP_MemHead* pHead = (MP_MemHead*)((char*)ptr - sizeof(MP_MemHead));
 			if ( pHead->Index >= objMP->BigMM.Count ) {
 				xrtSetError("Memory Pool : invalid pointer.", FALSE);
@@ -614,12 +671,14 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
+			// 释放大块内存并将信息节点回收到大块空闲链表
 			pHead->Flag = 0;
 			xrtFree(pInfo->Ptr);
 			pInfo->Ptr = NULL;
 			pInfo->Next = objMP->LL_BigFree;
 			objMP->LL_BigFree = pInfo;
 		} else if ( v->ItemFlag & MMU_FLAG_USE ) {
+			// 桶内内存释放
 			uint8 idx = v->ItemFlag & 0xFF;
 			MMU_LLNode* pNode = __xrtMemPoolGetNodeByFlag(objMP, v->ItemFlag, v);
 			FSB_Item* objFSB;
@@ -628,6 +687,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 				xrtOwnerEndMutable(&objMP->Owner);
 				return;
 			}
+			// 查找对应的桶并释放槽位
 			objFSB = __xrtMemPoolGetBucketByMMU(objMP, pNode->objMMU);
 			if ( objFSB == NULL ) {
 				xrtSetError("Memory Pool : find bucket error.", FALSE);
@@ -636,9 +696,11 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 			}
 			xrtMemUnitFreeIdx_Inline(pNode->objMMU, idx);
 			v->ItemFlag = 0;
+			// 如果 MMU 之前是满的，移回 Idle 链表
 			if ( pNode->objMMU->Count >= 255 ) {
 				MP256_LLNode_IdleCheck(objFSB, pNode);
 			}
+			// 检查并清理空的 MMU 节点
 			MP256_LLNode_ClearCheck(objFSB, pNode, 0);
 		}
 	}
@@ -646,10 +708,13 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 	xrtOwnerEndMutable(&objMP->Owner);
 }
 
-// 进行一轮 GC，将 标记 或 未标记 的内存全部回收
+// 进行一轮 GC，将 标记 或 未标记 的内存全部回收（R13: 按桶执行 GC，先回收后整理链表）
 static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 {
-	MMU_LLNode* pNode = objFSB->LL_Idle;
+	MMU_LLNode* pNode;
+	
+	// 第一阶段：对 Idle 和 Full 链表中的所有 MMU 执行 GC 回收
+	pNode = objFSB->LL_Idle;
 	while ( pNode ) {
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
@@ -659,13 +724,16 @@ static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 		xrtMemUnitGC(pNode->objMMU, bFreeMark);
 		pNode = pNode->Next;
 	}
-
+	
+	// 第二阶段：清理 Idle 链表中已清空的节点
 	pNode = objFSB->LL_Idle;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
 		MP256_LLNode_ClearCheck(objFSB, pNode, 0);
 		pNode = pNext;
 	}
+	
+	// 第三阶段：整理 Full 链表，满的移入 Idle，空的执行清理
 	pNode = objFSB->LL_Full;
 	while ( pNode ) {
 		MMU_LLNode* pNext = pNode->Next;
@@ -679,18 +747,20 @@ static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 }
 
 
-// xrtMemPoolGC 相关处理
+// xrtMemPoolGC 相关处理（R13: 全局 GC，支持按标记回收和未标记回收两种模式）
 XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
 		return;
 	}
 
+	// 对所有桶执行 GC
 	for ( uint32 i = 0; i < objMP->iBucketCount; i++ ) {
 		MP256_GC_Bucket(&objMP->FSB_Memory[i], bFreeMark);
 	}
 
 	if ( bFreeMark ) {
+		// 释放标记模式：只回收带有 GC 标记的大块内存
 		for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
@@ -708,6 +778,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 			}
 		}
 	} else {
+		// 释放未标记模式：回收没有 GC 标记的大块内存，并清除已有标记
 		for ( uint32 i = 0; i < objMP->BigMM.Count; i++ ) {
 			MP_BigInfoLL* pInfo = xrtBsmmGetPtr_Inline(&objMP->BigMM, i);
 			if ( pInfo == NULL || pInfo->Ptr == NULL ) {
@@ -717,8 +788,10 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 				MP_MemHead* pHead = pInfo->Ptr;
 				if ( pHead->Flag & MMU_FLAG_USE ) {
 					if ( pHead->Flag & MMU_FLAG_GC ) {
+						// 有标记：清除标记（保留存活）
 						pHead->Flag &= ~MMU_FLAG_GC;
 					} else {
+						// 无标记：释放内存
 						pHead->Flag = 0;
 						xrtFree(pInfo->Ptr);
 						pInfo->Ptr = NULL;

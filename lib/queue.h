@@ -364,20 +364,27 @@ XXAPI xqueue_result xrtSPSCQTryPush(xspscq pQueue, ptr pItem)
 	uint32 iHead;
 	uint32 iTail;
 
+	// 参数检查
 	if ( pQueue == NULL || pQueue->arrItems == NULL ) {
 		return XQUEUE_ERROR;
 	}
+	// 检查队列是否已关闭
 	if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
 		return XQUEUE_CLOSED;
 	}
 
+	// 读取尾指针和头指针, 计算当前已用空间
+	// iTail 为生产者写入位置, iHead 为消费者读取位置, 差值为队列中的元素数
 	iTail = __xrtQueueAtomicLoad32(&pQueue->iTail);
 	iHead = __xrtQueueAtomicLoad32(&pQueue->iHead);
+	// 利用无符号整数回绕特性: iTail - iHead 即为已用槽位数, 超过容量则满
 	if ( (uint32)(iTail - iHead) >= pQueue->iCapacity ) {
 		return XQUEUE_FULL;
 	}
 
+	// 将数据写入 iTail 对应的环形缓冲区槽位 (iTail & iMask 取模)
 	pQueue->arrItems[iTail & pQueue->iMask] = pItem;
+	// 递增尾指针, 通知消费者有新数据可读
 	__xrtQueueAtomicStore32(&pQueue->iTail, iTail + 1u);
 	return XQUEUE_OK;
 }
@@ -390,22 +397,29 @@ XXAPI xqueue_result xrtSPSCQTryPop(xspscq pQueue, ptr* ppItem)
 	uint32 iTail;
 	ptr pItem;
 
+	// 参数检查
 	if ( pQueue == NULL || pQueue->arrItems == NULL || ppItem == NULL ) {
 		return XQUEUE_ERROR;
 	}
 
+	// 读取头指针和尾指针, 判断队列是否为空
+	// iHead 为消费者读取位置, iTail 为生产者写入位置, 相等则队列为空
 	iHead = __xrtQueueAtomicLoad32(&pQueue->iHead);
 	iTail = __xrtQueueAtomicLoad32(&pQueue->iTail);
 	if ( iHead == iTail ) {
 		*ppItem = NULL;
+		// 队列为空时, 若已关闭则返回 CLOSED, 否则返回 EMPTY
 		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
 			return XQUEUE_CLOSED;
 		}
 		return XQUEUE_EMPTY;
 	}
 
+	// 从 iHead 对应的环形缓冲区槽位读取数据
 	pItem = pQueue->arrItems[iHead & pQueue->iMask];
+	// 清空槽位, 避免悬垂指针
 	pQueue->arrItems[iHead & pQueue->iMask] = NULL;
+	// 递增头指针, 通知生产者该槽位已释放可写入
 	__xrtQueueAtomicStore32(&pQueue->iHead, iHead + 1u);
 	*ppItem = pItem;
 	return XQUEUE_OK;
@@ -553,32 +567,49 @@ XXAPI xqueue_result xrtMPSCQTryPush(xmpscq pQueue, ptr pItem)
 	uint64 iSeq;
 	int64 iDiff;
 
+	// 参数检查
 	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
 		return XQUEUE_ERROR;
 	}
 
+	// CAS 循环: 多个生产者竞争推入, 直到成功或队列满
 	for ( ;; ) {
+		// 检查队列是否已关闭
 		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
 			return XQUEUE_CLOSED;
 		}
 
+		// 读取当前尾位置
 		iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+		// 定位到环形缓冲区中对应的槽位
 		pSlot = &pQueue->arrSlots[(uint32)(iTail & pQueue->iMask)];
+		// 读取槽位的序列号
+		// 序列号机制: 槽位空闲时 iSeq == iTail (等于该位置的全局索引),
+		// 槽位已被推入但未弹出时 iSeq == iTail + 1,
+		// 槽位已弹出后 iSeq == iTail + iCapacity (下一轮可重用)
 		iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+		// 通过序列号与尾位置的差值判断槽位状态
 		iDiff = (int64)iSeq - (int64)iTail;
 
+		// iDiff == 0: 序列号等于尾位置, 说明该槽位空闲可写入
 		if ( iDiff == 0 ) {
+			// CAS 原子递增尾指针, 竞争成功者获得该槽位的独占权
 			if ( __xrtQueueAtomicCAS64(&pQueue->iTail, iTail, iTail + 1u) ) {
+				// 写入数据到槽位 (此时其他生产者不会访问此槽位)
 				pSlot->pItem = pItem;
+				// 更新序列号为 iTail + 1, 标记该槽位数据已就绪, 消费者可以读取
 				__xrtQueueAtomicStore64(&pSlot->iSeq, iTail + 1u);
 				return XQUEUE_OK;
 			}
+			// CAS 失败: 其他生产者抢先占用了该尾位置, 让出 CPU 后重试
 			xrtThreadYield();
 			continue;
 		}
+		// iDiff < 0: 序列号落后于尾位置, 说明该槽位尚未被消费者释放, 队列已满
 		if ( iDiff < 0 ) {
 			return XQUEUE_FULL;
 		}
+		// iDiff > 0: 其他生产者已推进了尾指针, 当前 iTail 已过期, 让出 CPU 后重试
 		xrtThreadYield();
 	}
 }
@@ -593,26 +624,42 @@ XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem)
 	int64 iDiff;
 	uint64 iTail;
 
+	// 参数检查
 	if ( pQueue == NULL || pQueue->arrSlots == NULL || ppItem == NULL ) {
 		return XQUEUE_ERROR;
 	}
 
+	// 读取当前头位置
 	iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+	// 定位到环形缓冲区中对应的槽位
 	pSlot = &pQueue->arrSlots[(uint32)(iHead & pQueue->iMask)];
+	// 读取槽位的序列号, 并与 iHead + 1 比较
+	// 注意: 这里比较的是 iHead + 1 而非 iHead, 因为数据就绪时序列号为 iTail + 1
+	// 即 iSeq == iHead + 1 表示该槽位已有生产者写入数据, 可安全读取
 	iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
 	iDiff = (int64)iSeq - (int64)(iHead + 1u);
 
+	// iDiff == 0: 序列号等于 iHead + 1, 数据已就绪, 可以弹出
+	// MPSC 单消费者模型: 头指针无需 CAS, 因为只有一个消费者
 	if ( iDiff == 0 ) {
+		// 读取槽位中的数据
 		*ppItem = pSlot->pItem;
 		pSlot->pItem = NULL;
+		// 递增头指针, 标记该槽位已消费
 		__xrtQueueAtomicStore64(&pQueue->iHead, iHead + 1u);
+		// 更新序列号为 iHead + iCapacity, 表示该槽位已释放
+		// 下一轮当尾指针绕回时 (iTail == iHead + iCapacity), 生产者可再次使用此槽位
 		__xrtQueueAtomicStore64(&pSlot->iSeq, iHead + pQueue->iCapacity);
 		return XQUEUE_OK;
 	}
 
+	// 队列无数据可读
 	*ppItem = NULL;
+	// iDiff < 0: 序列号落后于 iHead + 1, 说明生产者尚未写入数据到该槽位
 	if ( iDiff < 0 ) {
+		// 队列为空时检查是否已关闭
 		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+			// 再次确认: 若尾指针等于头指针, 说明所有数据已被消费完毕
 			iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
 			if ( iTail == iHead ) {
 				return XQUEUE_CLOSED;
@@ -621,6 +668,7 @@ XXAPI xqueue_result xrtMPSCQTryPop(xmpscq pQueue, ptr* ppItem)
 		return XQUEUE_EMPTY;
 	}
 
+	// iDiff > 0: 序列号超前, 说明消费者读取位置已过期 (通常不会发生在单消费者模型中)
 	return XQUEUE_EMPTY;
 }
 
@@ -878,32 +926,49 @@ XXAPI xqueue_result xrtMPMCQTryPush(xmpmcq pQueue, ptr pItem)
 	uint64 iSeq;
 	int64 iDiff;
 
+	// 参数检查
 	if ( pQueue == NULL || pQueue->arrSlots == NULL ) {
 		return XQUEUE_ERROR;
 	}
 
+	// CAS 循环: 多个生产者竞争推入, 直到成功或队列满
 	for ( ;; ) {
+		// 检查队列是否已关闭
 		if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
 			return XQUEUE_CLOSED;
 		}
 
+		// 读取当前尾位置
 		iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
+		// 定位到环形缓冲区中对应的槽位
 		pSlot = &pQueue->arrSlots[(uint32)(iTail & pQueue->iMask)];
+		// 读取槽位的序列号
+		// 序列号机制: 槽位空闲时 iSeq == iTail (等于该位置的全局索引),
+		// 槽位已被推入但未弹出时 iSeq == iTail + 1,
+		// 槽位已弹出后 iSeq == iTail + iCapacity (下一轮可重用)
 		iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+		// 通过序列号与尾位置的差值判断槽位状态
 		iDiff = (int64)iSeq - (int64)iTail;
 
+		// iDiff == 0: 序列号等于尾位置, 说明该槽位空闲可写入
 		if ( iDiff == 0 ) {
+			// CAS 原子递增尾指针, 竞争成功者获得该槽位的独占权
 			if ( __xrtQueueAtomicCAS64(&pQueue->iTail, iTail, iTail + 1u) ) {
+				// 写入数据到槽位 (此时其他生产者不会访问此槽位)
 				pSlot->pItem = pItem;
+				// 更新序列号为 iTail + 1, 标记该槽位数据已就绪, 消费者可以读取
 				__xrtQueueAtomicStore64(&pSlot->iSeq, iTail + 1u);
 				return XQUEUE_OK;
 			}
+			// CAS 失败: 其他生产者抢先占用了该尾位置, 让出 CPU 后重试
 			xrtThreadYield();
 			continue;
 		}
+		// iDiff < 0: 序列号落后于尾位置, 说明该槽位尚未被消费者释放, 队列已满
 		if ( iDiff < 0 ) {
 			return XQUEUE_FULL;
 		}
+		// iDiff > 0: 其他生产者已推进了尾指针, 当前 iTail 已过期, 让出 CPU 后重试
 		xrtThreadYield();
 	}
 }
@@ -919,31 +984,49 @@ XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem)
 	uint64 iTail;
 	ptr pItem;
 
+	// 参数检查
 	if ( pQueue == NULL || pQueue->arrSlots == NULL || ppItem == NULL ) {
 		return XQUEUE_ERROR;
 	}
 
+	// CAS 循环: 多个消费者竞争弹出, 直到成功或队列空
 	for ( ;; ) {
+		// 读取当前头位置
 		iHead = __xrtQueueAtomicLoad64(&pQueue->iHead);
+		// 定位到环形缓冲区中对应的槽位
 		pSlot = &pQueue->arrSlots[(uint32)(iHead & pQueue->iMask)];
+		// 读取槽位的序列号, 并与 iHead + 1 比较
+		// iSeq == iHead + 1 表示该槽位已有生产者写入数据, 可安全读取
 		iSeq = __xrtQueueAtomicLoad64(&pSlot->iSeq);
+		// 通过序列号与头位置 + 1 的差值判断槽位状态
 		iDiff = (int64)iSeq - (int64)(iHead + 1u);
 
+		// iDiff == 0: 序列号等于 iHead + 1, 数据已就绪, 可以弹出
 		if ( iDiff == 0 ) {
+			// CAS 原子递增头指针, 竞争成功者获得该槽位的弹出权
 			if ( __xrtQueueAtomicCAS64(&pQueue->iHead, iHead, iHead + 1u) ) {
+				// 读取槽位中的数据
 				pItem = pSlot->pItem;
+				// 清空槽位, 避免悬垂指针
 				pSlot->pItem = NULL;
+				// 更新序列号为 iHead + iCapacity, 表示该槽位已释放
+				// 下一轮当尾指针绕回时 (iTail == iHead + iCapacity), 生产者可再次使用此槽位
 				__xrtQueueAtomicStore64(&pSlot->iSeq, iHead + pQueue->iCapacity);
 				*ppItem = pItem;
 				return XQUEUE_OK;
 			}
+			// CAS 失败: 其他消费者抢先弹出了该槽位, 让出 CPU 后重试
 			xrtThreadYield();
 			continue;
 		}
 
+		// 队列无数据可读
 		*ppItem = NULL;
+		// iDiff < 0: 序列号落后于 iHead + 1, 说明生产者尚未写入数据到该槽位
 		if ( iDiff < 0 ) {
+			// 队列为空时检查是否已关闭
 			if ( __xrtQueueAtomicLoad32(&pQueue->tBase.bClosed) != 0 ) {
+				// 再次确认: 若尾指针等于头指针, 说明所有数据已被消费完毕
 				iTail = __xrtQueueAtomicLoad64(&pQueue->iTail);
 				if ( iTail == iHead ) {
 					return XQUEUE_CLOSED;
@@ -951,6 +1034,7 @@ XXAPI xqueue_result xrtMPMCQTryPop(xmpmcq pQueue, ptr* ppItem)
 			}
 			return XQUEUE_EMPTY;
 		}
+		// iDiff > 0: 其他消费者已推进了头指针, 当前 iHead 已过期, 让出 CPU 后重试
 		xrtThreadYield();
 	}
 }

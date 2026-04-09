@@ -104,6 +104,7 @@ XXAPI bool xrtPathIsAbs(str sPath, size_t iSize)
 // 获取随机不存在的路径（ 需使用 xrtFree 释放内存 ）
 XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize, size_t iLen)
 {
+	// 1. 计算并处理前后缀长度
 	if ( sHead ) {
 		if ( iHeadSize == 0 ) { iHeadSize = strlen((const char*)sHead); }
 		if ( iHeadSize == 0 ) { sHead = NULL; }
@@ -116,12 +117,14 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 	} else {
 		iFootSize = 0;
 	}
+	// 2. 分配结果缓冲区
 	int iSize = iHeadSize + iFootSize + iLen;
 	if ( iSize == 0 ) { return xCore.sNull; }
 	str sRet = xrtMalloc(iSize + 1);
 	if ( sRet == NULL ) {
 		return xCore.sNull;
 	}
+	// 3. 拼接：前缀 + 随机字符 + 后缀
 	if ( sHead ) {
 		memcpy(sRet, sHead, iHeadSize);
 	}
@@ -142,10 +145,12 @@ XXAPI str xrtPathRandom(str sHead, size_t iHeadSize, str sFoot, size_t iFootSize
 XXAPI str xrtPathJoin(uint iCount, ...)
 {
 	if ( iCount == 0 ) { return xCore.sNull; }
+	// 1. 预分配 4096 字节缓冲区
 	str sRet = xrtMalloc(4096);
 	if ( sRet == NULL ) {
 		return xCore.sNull;
 	}
+	// 2. 逐个拼接路径段，自动补充路径分隔符
 	va_list args;
 	va_start(args, iCount);
 	size_t iPos = 0;
@@ -169,6 +174,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 		}
 	}
 	va_end(args);
+	// 3. 缩减为实际大小的字符串
 	if ( iPos > 4000 ) {
 		sRet[iPos] = 0;
 		return sRet;

@@ -26,17 +26,22 @@ XXAPI void xrtAVLTreeDestroy(xavltree objAVLT)
 // 初始化 AVLTree（对自维护结构体指针使用，和 AVLTree_Create 功能类似）
 XXAPI void xrtAVLTreeInit(xavltree objAVLT, unsigned int iItemLength, AVLTree_CompProc procComp, uint32 iMode)
 {
+	// 初始化所有权管理
 	xrtOwnerInitMode(&objAVLT->Owner, iMode);
+	// 初始化 AVL 树基础结构
 	xrtAVLTB_Init(objAVLT);
 	objAVLT->Parent = NULL;
 	objAVLT->CompProc = procComp;
 	objAVLT->FreeProc = NULL;
+	// 检查节点数据长度是否溢出
 	if ( iItemLength > (unsigned int)(UINT_MAX - sizeof(xavltnode_struct)) ) {
 		xrtSetError("AVLTree item length too large.", FALSE);
 		iItemLength = (unsigned int)(UINT_MAX - sizeof(xavltnode_struct));
 	}
+	// 初始化节点内存池
 	xrtFSMemPoolInit(&objAVLT->objMM, sizeof(xavltnode_struct) + iItemLength, iMode);
 	objAVLT->NodeCache = NULL;
+	// 共享模式下激活共享所有权
 	if ( iMode == XRT_OBJMODE_SHARED ) {
 		xrtOwnerActivateShared(&objAVLT->Owner);
 	}
@@ -209,17 +214,22 @@ XXAPI ptr xrtAVLTreeInsert(xavltree objAVLT, ptr pKey, bool* bNew)
 XXAPI bool xrtAVLTreeRemove(xavltree objAVLT, ptr pKey)
 {
 	bool bRet = FALSE;
+	// 获取可变锁
 	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
 		return FALSE;
 	}
+	// 从 AVL 树中删除节点
 	xavltnode pDelNode = xrtAVLTB_Remove((xavltbase)objAVLT, objAVLT->CompProc, pKey);
 	if ( pDelNode ) {
+		// 调用自定义释放回调
 		if ( objAVLT->FreeProc ) {
 			objAVLT->FreeProc(objAVLT, &pDelNode[1]);
 		}
+		// 释放节点内存
 		xrtFSMemPoolFree(&objAVLT->objMM, pDelNode);
 		bRet = TRUE;
 	}
+	// 释放可变锁
 	xrtOwnerEndMutable(&objAVLT->Owner);
 	return bRet;
 }
@@ -229,26 +239,35 @@ XXAPI ptr xrtAVLTreeSearch(xavltree objAVLT, ptr pKey)
 {
 	ptr pRet = NULL;
 	xavltree pParent = NULL;
+	// 获取当前树的可变锁
 	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
 		return NULL;
 	}
+	// 在当前树中搜索节点
 	xavltnode pNode = xrtAVLTB_Search((xavltbase)objAVLT, objAVLT->CompProc, pKey);
 	if ( pNode ) {
+		// 找到节点，获取数据指针
 		pRet = &pNode[1];
 	} else {
+		// 未找到，记录父树以便继续搜索
 		pParent = objAVLT->Parent;
 	}
+	// 释放当前树的可变锁
 	xrtOwnerEndMutable(&objAVLT->Owner);
+	// 已找到或无父树，直接返回
 	if ( pRet || pParent == NULL ) {
 		return pRet;
 	}
+	// 获取父树的可变锁
 	if ( !xrtOwnerBeginMutable(&pParent->Owner, "avltree belongs to another thread.") ) {
 		return NULL;
 	}
+	// 在父树中搜索节点
 	pNode = xrtAVLTB_Search((xavltbase)pParent, pParent->CompProc, pKey);
 	if ( pNode ) {
 		pRet = &pNode[1];
 	}
+	// 释放父树的可变锁
 	xrtOwnerEndMutable(&pParent->Owner);
 	return pRet;
 }
@@ -292,17 +311,22 @@ XXAPI void xrtAVLTreeIterBegin(xavltree objAVLT)
 	if ( objAVLT == NULL ) {
 		return;
 	}
+	// 获取可变锁
 	if ( !xrtOwnerBeginMutable(&objAVLT->Owner, "avltree belongs to another thread.") ) {
 		return;
 	}
+	// 如果已存在持有锁的迭代器，先结束旧迭代并释放锁
 	if ( objAVLT->Iterator && (objAVLT->Iterator->Flags & XRT_AVLITER_FLAG_HOLD_ROOT_LOCK) ) {
 		xrtAVLTB_IterEnd((xavltbase)objAVLT);
 		xrtOwnerEndMutable(&objAVLT->Owner);
 	}
+	// 开始新迭代
 	xrtAVLTB_IterBegin((xavltbase)objAVLT);
+	// 标记迭代器持有锁，迭代结束时由 IterNext/IterEnd 释放
 	if ( objAVLT->Iterator ) {
 		objAVLT->Iterator->Flags |= XRT_AVLITER_FLAG_HOLD_ROOT_LOCK;
 	} else {
+		// 迭代器创建失败，释放锁
 		xrtOwnerEndMutable(&objAVLT->Owner);
 	}
 }

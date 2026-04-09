@@ -191,22 +191,29 @@ XXAPI void xrtListUnlock(xlist objList)
 XXAPI ptr xrtListSet(xlist objList, int64 iKey, bool* bNewRet)
 {
 	ptr pRet = NULL;
+	// 进入可变操作（线程安全）
 	if ( !xrtOwnerBeginMutable(&objList->Owner, "list belongs to another thread.") ) {
 		return NULL;
 	}
+	// 向 AVL 树插入节点，返回节点指针及是否为新插入
 	bool bNew;
 	int64* pNode = xrtAVLTreeInsert(&objList->AVLT, &iKey, &bNew);
+	// 插入失败则直接返回
 	if ( pNode == NULL ) {
 		xrtOwnerEndMutable(&objList->Owner);
 		return NULL;
 	}
+	// 传回是否为新节点
 	if ( bNewRet ) {
 		*bNewRet = bNew;
 	}
+	// 新节点需要初始化键值
 	if ( bNew ) {
 		*pNode = iKey;
 	}
+	// 返回值数据区域（节点第2个元素起）的指针
 	pRet = &pNode[1];
+	// 退出可变操作
 	xrtOwnerEndMutable(&objList->Owner);
 	return pRet;
 }

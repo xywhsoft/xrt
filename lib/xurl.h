@@ -237,17 +237,21 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 	size_t iColon = (size_t)-1;
 	size_t i;
 	if ( pOut == NULL || sText == NULL || iLen == 0u ) { return false; }
+	// 清零输出并校验无控制字符
 	memset(pOut, 0, sizeof(xrturlview));
 	if ( !__xrtUrlValidateNoCtlOrSpace(sText, iLen) ) { return false; }
+	// 查找最后一个 '@' 以分离 userinfo 和 host 部分
 	for ( i = 0u; i < iLen; ++i ) {
 		if ( sText[i] == '@' ) { iAt = i; }
 	}
+	// 若存在 userinfo 则提取并记录起始位置
 	if ( iAt != (size_t)-1 ) {
 		if ( iAt == 0u || iAt + 1u >= iLen ) { return false; }
 		pOut->tUserInfo = xrtStrView(sText, iAt);
 		pOut->iFlags |= XRT_URL_F_HAS_USERINFO;
 		iHostStart = iAt + 1u;
 	}
+	// IPv6 地址以 '[' 开头，需特殊处理括号内的地址
 	if ( sText[iHostStart] == '[' ) {
 		size_t iClose = (size_t)-1;
 		for ( i = iHostStart + 1u; i < iLen; ++i ) {
@@ -256,15 +260,18 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 				break;
 			}
 		}
+		// 括号必须闭合且内部不能为空
 		if ( iClose == (size_t)-1 || iClose == iHostStart + 1u ) { return false; }
 		pOut->tHost = xrtStrView(sText + iHostStart + 1u, iClose - iHostStart - 1u);
 		pOut->iFlags |= XRT_URL_F_HAS_HOST;
+		// 括号后可选端口
 		if ( iClose + 1u < iLen ) {
 			if ( sText[iClose + 1u] != ':' ) { return false; }
 			if ( !__xrtUrlParsePort(sText + iClose + 2u, iLen - iClose - 2u, &pOut->iPort) ) { return false; }
 			pOut->iFlags |= XRT_URL_F_HAS_PORT;
 		}
 	} else {
+		// 非 IPv6 主机：查找冒号分隔主机和端口
 		size_t iFirstColon = (size_t)-1;
 		size_t iLastColon = (size_t)-1;
 		for ( i = iHostStart; i < iLen; ++i ) {
@@ -273,8 +280,10 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 				iLastColon = i;
 			}
 		}
+		// 多个冒号说明不是合法的 host:port 格式
 		if ( iFirstColon != (size_t)-1 && iFirstColon != iLastColon ) { return false; }
 		if ( iLastColon != (size_t)-1 ) { iColon = iLastColon; }
+		// 有冒号则分别提取主机和端口
 		if ( iColon != (size_t)-1 ) {
 			if ( iColon == iHostStart || iColon + 1u >= iLen ) { return false; }
 			pOut->tHost = xrtStrView(sText + iHostStart, iColon - iHostStart);
@@ -286,6 +295,7 @@ XXAPI bool xrtUrlParseAuthorityN(const char* sText, size_t iLen, xrturlview* pOu
 		if ( xrtStrViewIsEmpty(pOut->tHost) ) { return false; }
 		pOut->iFlags |= XRT_URL_F_HAS_HOST;
 	}
+	// 记录完整授权段视图
 	pOut->tAuthority = xrtStrView(sText, iLen);
 	pOut->iFlags |= XRT_URL_F_HAS_AUTHORITY;
 	return true;
@@ -310,6 +320,7 @@ XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 	memset(pOut, 0, sizeof(xrturlview));
 	if ( iLen == 0u ) { return false; }
 	if ( !__xrtUrlValidateNoCtlOrSpace(sText, iLen) ) { return false; }
+	// 查找 '?' 和 '#' 的边界位置
 	for ( i = 0u; i < iLen; ++i ) {
 		if ( sText[i] == '#' ) {
 			iFrag = i;
@@ -317,9 +328,11 @@ XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 		}
 		if ( sText[i] == '?' && iQuery == (size_t)-1 ) { iQuery = i; }
 	}
+	// 设置标志位
 	pOut->iFlags = XRT_URL_F_TARGET_ONLY;
 	if ( iQuery != (size_t)-1 ) { pOut->iFlags |= XRT_URL_F_HAS_QUERY; }
 	if ( iFrag != (size_t)-1 ) { pOut->iFlags |= XRT_URL_F_HAS_FRAGMENT; }
+	// 根据边界提取路径和查询
 	if ( iQuery != (size_t)-1 ) {
 		pOut->tPath = xrtStrView(sText, iQuery);
 		pOut->tQuery = xrtStrView(sText + iQuery + 1u, ((iFrag != (size_t)-1) ? iFrag : iLen) - iQuery - 1u);
@@ -327,9 +340,11 @@ XXAPI bool xrtUrlParseTargetN(const char* sText, size_t iLen, xrturlview* pOut)
 		pOut->tPath = xrtStrView(sText, ((iFrag != (size_t)-1) ? iFrag : iLen));
 	}
 	if ( pOut->tPath.iLen > 0u ) { pOut->iFlags |= XRT_URL_F_HAS_PATH; }
+	// 提取片段
 	if ( iFrag != (size_t)-1 && iFrag + 1u <= iLen ) {
 		pOut->tFragment = xrtStrView(sText + iFrag + 1u, iLen - iFrag - 1u);
 	}
+	// 构建 target 视图（路径+查询，不含片段）
 	pOut->tTarget = xrtStrView(sText, ((iFrag != (size_t)-1) ? iFrag : iLen));
 	return true;
 }
@@ -357,6 +372,7 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 	if ( pOut == NULL || sText == NULL ) { return false; }
 	memset(pOut, 0, sizeof(xrturlview));
 	if ( iLen == 0u ) { return false; }
+	// R13: 扫描协议段，遇到 ':' 判断是否为 scheme:end，否则按相对 URL 处理
 	for ( i = 0u; i < iLen; ++i ) {
 		char ch = sText[i];
 		if ( ch == ':' ) {
@@ -369,26 +385,34 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 			break;
 		}
 	}
+	// 无合法 scheme 或缺少 "://" 则按 target-only（相对URL）解析
 	if ( iSchemeEnd == (size_t)-1 || iSchemeEnd + 2u >= iLen || sText[iSchemeEnd + 1u] != '/' || sText[iSchemeEnd + 2u] != '/' ) {
 		return xrtUrlParseTargetN(sText, iLen, pOut);
 	}
 	if ( !__xrtUrlValidateNoCtlOrSpace(sText, iLen) ) { return false; }
+	// 提取协议并标记为绝对 URL
 	pOut->tScheme = xrtStrView(sText, iSchemeEnd);
 	pOut->iFlags |= XRT_URL_F_ABSOLUTE;
 	if ( xrtUrlIsSecureScheme(pOut->tScheme) ) { pOut->iFlags |= XRT_URL_F_SECURE; }
+	// 跳过 "://" 定位授权段起始位置
 	iPos = iSchemeEnd + 3u;
 	iPathStart = iPos;
+	// 授权段在第一个 '/'、'?' 或 '#' 之前结束
 	while ( iPathStart < iLen && sText[iPathStart] != '/' && sText[iPathStart] != '?' && sText[iPathStart] != '#' ) { iPathStart++; }
 	if ( iPathStart == iPos ) { return false; }
+	// 解析授权段（含 userinfo、host、port）
 	if ( !xrtUrlParseAuthorityN(sText + iPos, iPathStart - iPos, &tAuthority) ) { return false; }
+	// 将授权段结果复制到输出结构
 	pOut->tAuthority = tAuthority.tAuthority;
 	pOut->tUserInfo = tAuthority.tUserInfo;
 	pOut->tHost = tAuthority.tHost;
 	pOut->iPort = tAuthority.iPort;
 	pOut->iFlags |= tAuthority.iFlags & (XRT_URL_F_HAS_AUTHORITY | XRT_URL_F_HAS_USERINFO | XRT_URL_F_HAS_HOST | XRT_URL_F_HAS_PORT);
+	// 未显式指定端口时使用协议默认端口
 	if ( (pOut->iFlags & XRT_URL_F_HAS_PORT) == 0u ) {
 		pOut->iPort = xrtUrlDefaultPort(pOut->tScheme);
 	}
+	// 从路径起始位置起查找 query 和 fragment 的边界
 	for ( i = iPathStart; i < iLen; ++i ) {
 		if ( sText[i] == '#' ) {
 			iFrag = i;
@@ -396,6 +420,7 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 		}
 		if ( sText[i] == '?' && iQuery == (size_t)-1 ) { iQuery = i; }
 	}
+	// 提取路径、查询和片段
 	iPathEnd = (iQuery != (size_t)-1) ? iQuery : ((iFrag != (size_t)-1) ? iFrag : iLen);
 	pOut->tPath = xrtStrView(sText + iPathStart, iPathEnd - iPathStart);
 	if ( pOut->tPath.iLen > 0u ) { pOut->iFlags |= XRT_URL_F_HAS_PATH; }
@@ -408,6 +433,7 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 		pOut->tFragment = xrtStrView(sText + iFrag + 1u, iLen - iFrag - 1u);
 		pOut->iFlags |= XRT_URL_F_HAS_FRAGMENT;
 	}
+	// 构建 target 视图（路径+查询，不含片段）
 	pOut->tTarget = xrtStrView(sText + iPathStart, ((iFrag != (size_t)-1) ? iFrag : iLen) - iPathStart);
 	return true;
 }
@@ -562,31 +588,39 @@ XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, siz
 	if ( sPath == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	if ( !__xrtUrlValidateNoCtlOrSpace(sPath, iLen) ) { return false; }
 	sOut[0] = '\0';
+	// R13: 判断路径是绝对路径（以 '/' 开头）还是相对路径
 	bAbsolute = iLen > 0u && sPath[0] == '/';
 	bTrailingSlash = iLen > 0u && sPath[iLen - 1u] == '/';
+	// 绝对路径以 '/' 开头，跳过多余的连续斜杠
 	if ( bAbsolute ) {
 		sOut[0] = '/';
 		sOut[1] = '\0';
 		iOff = 1u;
 		while ( i < iLen && sPath[i] == '/' ) { i++; }
 	}
+	// 逐段处理路径
 	while ( i < iLen ) {
 		size_t iSegStart = i;
 		size_t iSegLen;
 		while ( i < iLen && sPath[i] != '/' ) { i++; }
 		iSegLen = i - iSegStart;
+		// 空段或单点段 "." 直接跳过
 		if ( iSegLen == 0u || (iSegLen == 1u && sPath[iSegStart] == '.') ) {
 		} else if ( iSegLen == 2u && sPath[iSegStart] == '.' && sPath[iSegStart + 1u] == '.' ) {
+			// 双点段 ".." 回退到上一级目录
 			if ( !__xrtUrlPopLastSegment(sOut, iOutCap, &iOff, bAbsolute) ) {
 				if ( !bAbsolute ) {
 					if ( !__xrtUrlAppendDotDotSegment(sOut, iOutCap, &iOff) ) { return false; }
 				}
 			}
 		} else {
+			// 普通段直接追加
 			if ( !__xrtUrlAppendSegment(sOut, iOutCap, &iOff, sPath + iSegStart, iSegLen) ) { return false; }
 		}
+		// 跳过连续斜杠
 		while ( i < iLen && sPath[i] == '/' ) { i++; }
 	}
+	// 处理尾部斜杠
 	if ( bTrailingSlash ) {
 		if ( iOff == 0u ) {
 			if ( bAbsolute ) {
@@ -598,6 +632,7 @@ XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, siz
 			if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "/", 1u) ) { return false; }
 		}
 	}
+	// 绝对路径至少输出 "/"
 	if ( bAbsolute && iOff == 0u ) {
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "/", 1u) ) { return false; }
 	}
@@ -613,6 +648,7 @@ XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap,
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( sOut == NULL || iOutCap == 0u || pURL == NULL ) { return false; }
 	sOut[0] = '\0';
+	// 追加路径部分，无路径时使用 "/"
 	if ( !xrtStrViewIsEmpty(pURL->tPath) ) {
 		if ( pURL->tPath.sPtr[0] != '/' ) { return false; }
 		if ( !__xrtUrlValidateNoCtlOrSpace(pURL->tPath.sPtr, pURL->tPath.iLen) ) { return false; }
@@ -620,11 +656,13 @@ XXAPI bool xrtUrlBuildTarget(const xrturlview* pURL, char* sOut, size_t iOutCap,
 	} else {
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "/", 1u) ) { return false; }
 	}
+	// 追加查询字符串（以 '?' 开头）
 	if ( !xrtStrViewIsEmpty(pURL->tQuery) ) {
 		if ( !__xrtUrlValidateNoCtlOrSpace(pURL->tQuery.sPtr, pURL->tQuery.iLen) ) { return false; }
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "?", 1u) ) { return false; }
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, pURL->tQuery.sPtr, pURL->tQuery.iLen) ) { return false; }
 	}
+	// 追加片段（以 '#' 开头）
 	if ( !xrtStrViewIsEmpty(pURL->tFragment) ) {
 		if ( !__xrtUrlValidateNoCtlOrSpace(pURL->tFragment.sPtr, pURL->tFragment.iLen) ) { return false; }
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "#", 1u) ) { return false; }
@@ -643,11 +681,13 @@ XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutC
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( sOut == NULL || iOutCap == 0u || pURL == NULL || xrtStrViewIsEmpty(pURL->tHost) ) { return false; }
 	sOut[0] = '\0';
+	// 若有 userinfo 则先追加，后接 '@'
 	if ( !xrtStrViewIsEmpty(pURL->tUserInfo) ) {
 		if ( !__xrtUrlValidateNoCtlOrSpace(pURL->tUserInfo.sPtr, pURL->tUserInfo.iLen) ) { return false; }
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, pURL->tUserInfo.sPtr, pURL->tUserInfo.iLen) ) { return false; }
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "@", 1u) ) { return false; }
 	}
+	// IPv6 地址需用方括号包裹
 	if ( __xrtUrlHostNeedsBrackets(pURL->tHost) ) {
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, "[", 1u) ) { return false; }
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, pURL->tHost.sPtr, pURL->tHost.iLen) ) { return false; }
@@ -655,6 +695,7 @@ XXAPI bool xrtUrlBuildAuthority(const xrturlview* pURL, char* sOut, size_t iOutC
 	} else {
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, pURL->tHost.sPtr, pURL->tHost.iLen) ) { return false; }
 	}
+	// 非默认端口时追加端口号
 	bNeedPort = (pURL->iFlags & XRT_URL_F_HAS_PORT) != 0u || (pURL->iPort != 0u && !xrtUrlIsDefaultPort(pURL));
 	if ( bNeedPort && pURL->iPort != 0u ) {
 		if ( !__xrtUrlAppendBytes(sOut, iOutCap, &iOff, ":", 1u) ) { return false; }
@@ -701,14 +742,19 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 	size_t iMergeLen = 0u;
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( pBase == NULL || sOut == NULL || iOutCap == 0u || sRef == NULL ) { return false; }
+	// 基准 URL 必须是绝对 URL
 	if ( (pBase->iFlags & XRT_URL_F_ABSOLUTE) == 0u || xrtStrViewIsEmpty(pBase->tScheme) || xrtStrViewIsEmpty(pBase->tHost) ) { return false; }
+	// 空引用直接返回基准 URL
 	if ( iRefLen == 0u ) { return xrtUrlBuild(pBase, sOut, iOutCap, pOutLen); }
+	// R13: 协议相对 URL（以 "//" 开头），替换基准 URL 的授权段
 	if ( iRefLen >= 2u && sRef[0] == '/' && sRef[1] == '/' ) {
 		size_t iAuthEnd = 2u;
 		xrturlview tAuthority;
 		memset(&tOut, 0, sizeof(tOut));
+		// 定位授权段结束位置
 		while ( iAuthEnd < iRefLen && sRef[iAuthEnd] != '/' && sRef[iAuthEnd] != '?' && sRef[iAuthEnd] != '#' ) { iAuthEnd++; }
 		if ( !xrtUrlParseAuthorityN(sRef + 2u, iAuthEnd - 2u, &tAuthority) ) { return false; }
+		// 继承基准 URL 的协议，替换授权段
 		tOut = *pBase;
 		tOut.tAuthority = tAuthority.tAuthority;
 		tOut.tUserInfo = tAuthority.tUserInfo;
@@ -717,6 +763,7 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 		tOut.iFlags &= ~(XRT_URL_F_HAS_USERINFO | XRT_URL_F_HAS_PORT | XRT_URL_F_HAS_PATH | XRT_URL_F_HAS_QUERY | XRT_URL_F_HAS_FRAGMENT);
 		tOut.iFlags |= XRT_URL_F_ABSOLUTE | XRT_URL_F_HAS_AUTHORITY | XRT_URL_F_HAS_HOST | (pBase->iFlags & XRT_URL_F_SECURE);
 		tOut.iFlags |= tAuthority.iFlags & (XRT_URL_F_HAS_USERINFO | XRT_URL_F_HAS_PORT);
+		// 授权段后可能还有 target 部分
 		if ( iAuthEnd < iRefLen ) {
 			if ( !xrtUrlParseTargetN(sRef + iAuthEnd, iRefLen - iAuthEnd, &tRef) ) { return false; }
 			tOut.tPath = tRef.tPath;
@@ -727,16 +774,22 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 		}
 		return xrtUrlBuild(&tOut, sOut, iOutCap, pOutLen);
 	}
+	// 解析引用 URL
 	if ( !xrtUrlParseViewN(sRef, iRefLen, &tRef) ) { return false; }
+	// 绝对引用直接返回
 	if ( (tRef.iFlags & XRT_URL_F_ABSOLUTE) != 0u ) { return xrtUrlBuild(&tRef, sOut, iOutCap, pOutLen); }
+	// 相对引用：以基准 URL 为基础，清除路径/查询/片段
 	tOut = *pBase;
 	tOut.iFlags &= ~(XRT_URL_F_HAS_PATH | XRT_URL_F_HAS_QUERY | XRT_URL_F_HAS_FRAGMENT);
 	tOut.tQuery = xrtStrView(NULL, 0u);
 	tOut.tFragment = xrtStrView(NULL, 0u);
+	// 处理相对路径引用
 	if ( (tRef.iFlags & XRT_URL_F_HAS_PATH) != 0u && !xrtStrViewIsEmpty(tRef.tPath) ) {
 		if ( tRef.tPath.sPtr[0] == '/' ) {
+			// 绝对路径直接规范化
 			if ( !xrtUrlNormalizePathTo(tRef.tPath.sPtr, tRef.tPath.iLen, sNormalizedPath, sizeof(sNormalizedPath), &iNormLen) ) { return false; }
 		} else {
+			// 相对路径：合并基准路径的目录部分与引用路径
 			size_t iBaseDirLen = 0u;
 			if ( !xrtStrViewIsEmpty(pBase->tPath) ) {
 				size_t i;
@@ -750,16 +803,19 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 			} else {
 				iBaseDirLen = 1u;
 			}
+			// 拼接基准目录 + 引用路径
 			if ( iBaseDirLen == 1u && (xrtStrViewIsEmpty(pBase->tPath) || pBase->tPath.sPtr[0] != '/') ) {
 				if ( !__xrtUrlAppendBytes(sMergedPath, sizeof(sMergedPath), &iMergeLen, "/", 1u) ) { return false; }
 			} else {
 				if ( !__xrtUrlAppendBytes(sMergedPath, sizeof(sMergedPath), &iMergeLen, pBase->tPath.sPtr, iBaseDirLen) ) { return false; }
 			}
 			if ( !__xrtUrlAppendBytes(sMergedPath, sizeof(sMergedPath), &iMergeLen, tRef.tPath.sPtr, tRef.tPath.iLen) ) { return false; }
+			// 规范化合并后的路径
 			if ( !xrtUrlNormalizePathTo(sMergedPath, iMergeLen, sNormalizedPath, sizeof(sNormalizedPath), &iNormLen) ) { return false; }
 		}
 		tOut.tPath = xrtStrView(sNormalizedPath, iNormLen);
 		tOut.iFlags |= XRT_URL_F_HAS_PATH;
+		// 引用中的查询和片段覆盖基准
 		if ( (tRef.iFlags & XRT_URL_F_HAS_QUERY) != 0u ) {
 			tOut.tQuery = tRef.tQuery;
 			tOut.iFlags |= XRT_URL_F_HAS_QUERY;
@@ -770,8 +826,10 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 		}
 		return xrtUrlBuild(&tOut, sOut, iOutCap, pOutLen);
 	}
+	// 引用无路径：保留基准路径，查询和片段由引用或基准决定
 	tOut.tPath = pBase->tPath;
 	if ( !xrtStrViewIsEmpty(pBase->tPath) ) { tOut.iFlags |= XRT_URL_F_HAS_PATH; }
+	// 引用有查询则使用引用的，否则保留基准的
 	if ( (tRef.iFlags & XRT_URL_F_HAS_QUERY) != 0u ) {
 		tOut.tQuery = tRef.tQuery;
 		tOut.iFlags |= XRT_URL_F_HAS_QUERY;
@@ -779,6 +837,7 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 		tOut.tQuery = pBase->tQuery;
 		tOut.iFlags |= XRT_URL_F_HAS_QUERY;
 	}
+	// 引用有片段则使用引用的
 	if ( (tRef.iFlags & XRT_URL_F_HAS_FRAGMENT) != 0u ) {
 		tOut.tFragment = tRef.tFragment;
 		tOut.iFlags |= XRT_URL_F_HAS_FRAGMENT;
@@ -804,17 +863,21 @@ XXAPI bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtqu
 	size_t i;
 	if ( sQuery == NULL || pOffset == NULL || pOut == NULL ) { return false; }
 	iCur = *pOffset;
+	// 跳过开头的 '?' 字符
 	if ( iCur == 0u && iLen > 0u && sQuery[0] == '?' ) { iCur = 1u; }
+	// 跳过多余的 '&' 分隔符
 	while ( iCur < iLen && sQuery[iCur] == '&' ) { iCur++; }
 	if ( iCur >= iLen ) {
 		*pOffset = iCur;
 		return false;
 	}
+	// 查找当前键值对的边界（到下一个 '&' 或字符串末尾）
 	iAmp = iCur;
 	while ( iAmp < iLen && sQuery[iAmp] != '&' ) {
 		if ( sQuery[iAmp] == '=' && iEq == (size_t)-1 ) { iEq = iAmp; }
 		iAmp++;
 	}
+	// 解析 key 和 value
 	memset(pOut, 0, sizeof(xrtquerypair));
 	if ( iEq != (size_t)-1 ) {
 		pOut->tKey = xrtStrView(sQuery + iCur, iEq - iCur);
@@ -823,9 +886,11 @@ XXAPI bool xrtQueryNextN(const char* sQuery, size_t iLen, size_t* pOffset, xrtqu
 	} else {
 		pOut->tKey = xrtStrView(sQuery + iCur, iAmp - iCur);
 	}
+	// 校验 key 中不含控制字符或空白
 	for ( i = 0u; i < pOut->tKey.iLen; ++i ) {
 		if ( __xrtUrlIsCtlOrSpace(pOut->tKey.sPtr[i]) ) { return false; }
 	}
+	// 更新偏移到下一个键值对
 	*pOffset = (iAmp < iLen) ? (iAmp + 1u) : iAmp;
 	return true;
 }
@@ -927,6 +992,7 @@ XXAPI bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t
 	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	for ( i = 0u; i < iLen; ++i ) {
 		char ch = sText[i];
+		// 百分号编码：%XX 转为对应字节
 		if ( ch == '%' ) {
 			int iHi;
 			int iLo;
@@ -939,6 +1005,7 @@ XXAPI bool xrtPercentDecodeTo(const char* sText, size_t iLen, char* sOut, size_t
 			i += 2u;
 			continue;
 		}
+		// 可选将 '+' 转为空格
 		if ( ch == '+' && bPlusAsSpace ) { ch = ' '; }
 		if ( iOut + 1u >= iOutCap ) { return false; }
 		sOut[iOut++] = ch;

@@ -324,24 +324,29 @@ static __xnet_blk* __xnetMemPopCached(xnetmemctx* pCtx, uint16 iClassId)
 // 内部函数：__xnetBlkAllocEx
 static __xnet_blk* __xnetBlkAllocEx(xnetmemctx* pCtx, size_t iCapacity)
 {
+	// 根据请求容量选择合适的块分类（small/medium/large/dynamic）
 	uint16 iClassId = __xnetMemPickClass(pCtx, iCapacity);
 	__xnet_blk* pBlk = NULL;
 	__xnetMemDebugTouchCtx(pCtx);
 	
 	if ( iClassId != XNET_MEM_CLASS_DYNAMIC ) {
+		// 固定大小分类：优先从缓存空闲链表中弹出可复用块
 		pBlk = __xnetMemPopCached(pCtx, iClassId);
 		if ( !pBlk ) {
+			// 缓存为空，按分类容量分配新的原始块
 			uint32 iCap = __xnetMemClassCapacity(pCtx, iClassId);
 			pBlk = __xnetBlkAllocRaw(iCap);
 			if ( !pBlk ) { return NULL; }
 			__xnetMemCountAlloc(pCtx, iClassId);
 		}
 	} else {
+		// 动态分类：直接按实际请求容量分配（不缓存）
 		pBlk = __xnetBlkAllocRaw(iCapacity);
 		if ( !pBlk ) { return NULL; }
 		__xnetMemCountAlloc(pCtx, XNET_MEM_CLASS_DYNAMIC);
 	}
 	
+	// 初始化块的公共字段
 	pBlk->pNext = NULL;
 	pBlk->pMemCtx = pCtx;
 	pBlk->iClassId = iClassId;
@@ -393,9 +398,12 @@ static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 {
 	if ( !pBlk ) { return; }
 	
+	// 获取块所属的内存上下文和分类
 	xnetmemctx* pCtx = pBlk->pMemCtx;
 	uint16 iClassId = pBlk->iClassId;
 	__xnetMemDebugTouchCtx(pCtx);
+
+	// 引用块：调用外部释放回调后直接释放块结构
 	if ( pBlk->iFlags & XNET_BLK_F_REF ) {
 		if ( pBlk->pfnRelease ) {
 			pBlk->pfnRelease(pBlk->pReleaseCtx, pBlk->pRefData, pBlk->iRefLen);
@@ -406,6 +414,8 @@ static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 		XNET_FREE(pBlk);
 		return;
 	}
+
+	// 固定大小分类：若缓存未满则重置后回收至空闲链表
 	if ( pCtx && iClassId != XNET_MEM_CLASS_DYNAMIC ) {
 		uint32 iLimit = __xnetMemClassCacheLimit(pCtx, iClassId);
 		uint32* pCached = __xnetMemClassCacheCount(pCtx, iClassId);
@@ -421,6 +431,7 @@ static void __xnetBlkReleaseOne(__xnet_blk* pBlk)
 		}
 	}
 	
+	// 动态分类或缓存已满：统计后直接释放内存
 	if ( pCtx && iClassId == XNET_MEM_CLASS_DYNAMIC ) {
 		pCtx->tStats.iDynamicFreeCount++;
 	}
@@ -563,6 +574,7 @@ XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iL
 	size_t iLeft = iLen;
 	
 	while ( iLeft > 0 ) {
+		// 尝试填充尾块剩余的可写空间
 		__xnet_blk* pTail = pChain->pTail;
 		if ( pTail && __xnetBlkWritable(pTail) > 0 ) {
 			uint32 iWritable = __xnetBlkWritable(pTail);
@@ -575,9 +587,11 @@ XXAPI bool xrtNetChainAppendCopy(xnetchain* pChain, const void* pData, size_t iL
 			continue;
 		}
 		
+		// 尾块已满或不存在，按剩余数据量分配新块
 		__xnet_blk* pBlk = __xnetBlkAllocEx(pMemCtx, iLeft);
 		if ( !pBlk ) { return false; }
 		
+		// 将数据写入新块并挂载到链尾部
 		uint32 iChunk = (uint32)(iLeft < pBlk->iCapacity ? iLeft : pBlk->iCapacity);
 		memcpy(pBlk->aData, pSrc, iChunk);
 		pBlk->iBegin = 0;
@@ -675,11 +689,13 @@ XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStar
 		uint32 iReadable = __xnetBlkReadable(pBlk);
 		if ( iReadable == 0 ) { continue; }
 		
+		// 跳过起始偏移之前的块
 		if ( iOffset + iReadable <= iStartOff ) {
 			iOffset += iReadable;
 			continue;
 		}
 		
+		// 计算当前块内的搜索起始位置，使用 memchr 快速查找目标字节
 		size_t iBegin = iStartOff > iOffset ? (iStartOff - iOffset) : 0;
 		const uint8* pFound = (const uint8*)memchr(__xnetBlkDataPtr(pBlk) + pBlk->iBegin + iBegin, ch, iReadable - iBegin);
 		if ( pFound ) {
@@ -699,6 +715,7 @@ XXAPI size_t xrtNetChainFindByte(const xnetchain* pChain, uint8 ch, size_t iStar
 XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 {
 	if ( !pChain || iLen == 0 ) { return; }
+	// 请求消费量 >= 总字节数时，直接清空整条链
 	if ( iLen >= pChain->iBytes ) {
 		xrtNetChainClear(pChain);
 		return;
@@ -709,6 +726,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 		__xnet_blk* pBlk = pChain->pHead;
 		uint32 iReadable = __xnetBlkReadable(pBlk);
 		
+		// 跳过不可读的空块
 		if ( iReadable == 0 ) {
 			pChain->pHead = pBlk->pNext;
 			if ( pChain->pTail == pBlk ) { pChain->pTail = NULL; }
@@ -717,6 +735,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 			continue;
 		}
 		
+		// 剩余消费量不足当前块可读量，仅移动起始偏移
 		if ( iLeft < iReadable ) {
 			pBlk->iBegin += (uint32)iLeft;
 			pChain->iBytes -= (uint32)iLeft;
@@ -724,6 +743,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 			break;
 		}
 		
+		// 整块消费完毕，从链中移除并释放
 		iLeft -= iReadable;
 		pChain->iBytes -= iReadable;
 		pChain->pHead = pBlk->pNext;

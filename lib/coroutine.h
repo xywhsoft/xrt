@@ -535,26 +535,32 @@ static bool __xrt_co_stack_alloc(xcoro pCo)
 	if ( pCo == NULL ) {
 		return FALSE;
 	}
-
+	
+	// 计算保护页大小并规范化协程栈大小
 	iPageSize = __xrt_co_stack_page_size();
 	iGuardSize = iPageSize;
 	iStackSize = __xrt_co_normalize_stack_size(pCo->iStackSize);
+	
+	// 检查栈大小是否溢出
 	if ( iStackSize > (SIZE_MAX - iGuardSize) ) {
 		xrtSetError("coroutine stack size overflow.", FALSE);
 		return FALSE;
 	}
 	iAllocSize = iStackSize + iGuardSize;
-
+	
+	// 分配栈内存并设置栈底保护页
 	#if defined(_WIN32) || defined(_WIN64)
 		{
 			DWORD iOldProtect = 0;
-
+			
+			// 提交可读写内存区域
 			pBase = VirtualAlloc(NULL, iAllocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 			if ( pBase == NULL ) {
 				xrtSetError("failed to reserve coroutine stack.", FALSE);
 				return FALSE;
 			}
-
+			
+			// 将栈底页面设为不可访问，防止栈溢出
 			if ( !VirtualProtect(pBase, iGuardSize, PAGE_NOACCESS, &iOldProtect) ) {
 				VirtualFree(pBase, 0, MEM_RELEASE);
 				xrtSetError("failed to protect coroutine guard page.", FALSE);
@@ -562,19 +568,22 @@ static bool __xrt_co_stack_alloc(xcoro pCo)
 			}
 		}
 	#else
+		// 映射可读写匿名内存区域
 		pBase = mmap(NULL, iAllocSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		if ( pBase == MAP_FAILED ) {
 			xrtSetError("failed to reserve coroutine stack.", FALSE);
 			return FALSE;
 		}
-
+		
+		// 将栈底页面设为不可访问，防止栈溢出
 		if ( mprotect(pBase, iGuardSize, PROT_NONE) != 0 ) {
 			munmap(pBase, iAllocSize);
 			xrtSetError("failed to protect coroutine guard page.", FALSE);
 			return FALSE;
 		}
 	#endif
-
+	
+	// 记录栈内存布局信息
 	pCo->__pStackMem = pBase;
 	pCo->__iStackAllocSize = iAllocSize;
 	pCo->__iStackGuardSize = iGuardSize;
@@ -777,21 +786,25 @@ static void UNUSED_ATTR __xrt_co_sleep_ms(int iMs)
 	0xE0 = xmm15
 */
 
+// R13: 协程上下文切换 - Windows x64 ABI 版本
+// 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
+// rcx = pFrom, rdx = pTo，所有 callee-saved 寄存器按固定偏移存取
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	__asm__ volatile (
-		"leaq 1f(%%rip), %%rax\n\t"
-		"movq %%rax, 0x00(%%rcx)\n\t"
-		"movq %%rsp, 0x08(%%rcx)\n\t"
-		"movq %%rbp, 0x10(%%rcx)\n\t"
-		"movq %%rbx, 0x18(%%rcx)\n\t"
-		"movq %%rdi, 0x20(%%rcx)\n\t"
-		"movq %%rsi, 0x28(%%rcx)\n\t"
-		"movq %%r12, 0x30(%%rcx)\n\t"
-		"movq %%r13, 0x38(%%rcx)\n\t"
-		"movq %%r14, 0x40(%%rcx)\n\t"
-		"movq %%r15, 0x48(%%rcx)\n\t"
-		__XRT_CO_WIN64_SAVE_XMM6
+		// --- 保存当前上下文到 pFrom ---
+		"leaq 1f(%%rip), %%rax\n\t"       // 计算恢复点地址（标号1）
+		"movq %%rax, 0x00(%%rcx)\n\t"     // 保存 rip
+		"movq %%rsp, 0x08(%%rcx)\n\t"     // 保存 rsp
+		"movq %%rbp, 0x10(%%rcx)\n\t"     // 保存 rbp
+		"movq %%rbx, 0x18(%%rcx)\n\t"     // 保存 rbx
+		"movq %%rdi, 0x20(%%rcx)\n\t"     // 保存 rdi
+		"movq %%rsi, 0x28(%%rcx)\n\t"     // 保存 rsi
+		"movq %%r12, 0x30(%%rcx)\n\t"     // 保存 r12
+		"movq %%r13, 0x38(%%rcx)\n\t"     // 保存 r13
+		"movq %%r14, 0x40(%%rcx)\n\t"     // 保存 r14
+		"movq %%r15, 0x48(%%rcx)\n\t"     // 保存 r15
+		__XRT_CO_WIN64_SAVE_XMM6          // 保存 xmm6 ~ xmm15
 		__XRT_CO_WIN64_SAVE_XMM7
 		__XRT_CO_WIN64_SAVE_XMM8
 		__XRT_CO_WIN64_SAVE_XMM9
@@ -801,7 +814,8 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		__XRT_CO_WIN64_SAVE_XMM13
 		__XRT_CO_WIN64_SAVE_XMM14
 		__XRT_CO_WIN64_SAVE_XMM15
-		__XRT_CO_WIN64_LOAD_XMM15
+		// --- 从 pTo 恢复目标上下文 ---
+		__XRT_CO_WIN64_LOAD_XMM15         // 恢复 xmm15 ~ xmm6
 		__XRT_CO_WIN64_LOAD_XMM14
 		__XRT_CO_WIN64_LOAD_XMM13
 		__XRT_CO_WIN64_LOAD_XMM12
@@ -811,17 +825,17 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 		__XRT_CO_WIN64_LOAD_XMM8
 		__XRT_CO_WIN64_LOAD_XMM7
 		__XRT_CO_WIN64_LOAD_XMM6
-		"movq 0x48(%%rdx), %%r15\n\t"
-		"movq 0x40(%%rdx), %%r14\n\t"
-		"movq 0x38(%%rdx), %%r13\n\t"
-		"movq 0x30(%%rdx), %%r12\n\t"
-		"movq 0x28(%%rdx), %%rsi\n\t"
-		"movq 0x20(%%rdx), %%rdi\n\t"
-		"movq 0x18(%%rdx), %%rbx\n\t"
-		"movq 0x10(%%rdx), %%rbp\n\t"
-		"movq 0x08(%%rdx), %%rsp\n\t"
-		__XRT_CO_JMP_RDX
-		"1:\n\t"
+		"movq 0x48(%%rdx), %%r15\n\t"     // 恢复 r15
+		"movq 0x40(%%rdx), %%r14\n\t"     // 恢复 r14
+		"movq 0x38(%%rdx), %%r13\n\t"     // 恢复 r13
+		"movq 0x30(%%rdx), %%r12\n\t"     // 恢复 r12
+		"movq 0x28(%%rdx), %%rsi\n\t"     // 恢复 rsi
+		"movq 0x20(%%rdx), %%rdi\n\t"     // 恢复 rdi
+		"movq 0x18(%%rdx), %%rbx\n\t"     // 恢复 rbx
+		"movq 0x10(%%rdx), %%rbp\n\t"     // 恢复 rbp
+		"movq 0x08(%%rdx), %%rsp\n\t"     // 恢复 rsp
+		__XRT_CO_JMP_RDX                   // 跳转到 pTo 中保存的恢复点
+		"1:\n\t"                           // 恢复点：被 swap 回来时从此处继续
 		:
 		: "c"(pFrom), "d"(pTo)
 		: "memory", "rax", "r8", "r9", "r10", "r11"
@@ -844,27 +858,32 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[7] = r15
 */
 
+// R13: 协程上下文切换 - x86_64 System V ABI 版本
+// 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
+// rdi = pFrom, rsi = pTo，所有 callee-saved 寄存器按固定偏移存取
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	__asm__ volatile (
-		"leaq 1f(%%rip), %%rax\n\t"
-		"movq %%rax, 0x00(%%rdi)\n\t"
-		"movq %%rsp, 0x08(%%rdi)\n\t"
-		"movq %%rbp, 0x10(%%rdi)\n\t"
-		"movq %%rbx, 0x18(%%rdi)\n\t"
-		"movq %%r12, 0x20(%%rdi)\n\t"
-		"movq %%r13, 0x28(%%rdi)\n\t"
-		"movq %%r14, 0x30(%%rdi)\n\t"
-		"movq %%r15, 0x38(%%rdi)\n\t"
-		"movq 0x38(%%rsi), %%r15\n\t"
-		"movq 0x30(%%rsi), %%r14\n\t"
-		"movq 0x28(%%rsi), %%r13\n\t"
-		"movq 0x20(%%rsi), %%r12\n\t"
-		"movq 0x18(%%rsi), %%rbx\n\t"
-		"movq 0x10(%%rsi), %%rbp\n\t"
-		"movq 0x08(%%rsi), %%rsp\n\t"
-		__XRT_CO_JMP_RSI
-		"1:\n\t"
+		// --- 保存当前上下文到 pFrom ---
+		"leaq 1f(%%rip), %%rax\n\t"       // 计算恢复点地址（标号1）
+		"movq %%rax, 0x00(%%rdi)\n\t"     // 保存 rip
+		"movq %%rsp, 0x08(%%rdi)\n\t"     // 保存 rsp
+		"movq %%rbp, 0x10(%%rdi)\n\t"     // 保存 rbp
+		"movq %%rbx, 0x18(%%rdi)\n\t"     // 保存 rbx
+		"movq %%r12, 0x20(%%rdi)\n\t"     // 保存 r12
+		"movq %%r13, 0x28(%%rdi)\n\t"     // 保存 r13
+		"movq %%r14, 0x30(%%rdi)\n\t"     // 保存 r14
+		"movq %%r15, 0x38(%%rdi)\n\t"     // 保存 r15
+		// --- 从 pTo 恢复目标上下文 ---
+		"movq 0x38(%%rsi), %%r15\n\t"     // 恢复 r15
+		"movq 0x30(%%rsi), %%r14\n\t"     // 恢复 r14
+		"movq 0x28(%%rsi), %%r13\n\t"     // 恢复 r13
+		"movq 0x20(%%rsi), %%r12\n\t"     // 恢复 r12
+		"movq 0x18(%%rsi), %%rbx\n\t"     // 恢复 rbx
+		"movq 0x10(%%rsi), %%rbp\n\t"     // 恢复 rbp
+		"movq 0x08(%%rsi), %%rsp\n\t"     // 恢复 rsp
+		__XRT_CO_JMP_RSI                   // 跳转到 pTo 中保存的恢复点
+		"1:\n\t"                           // 恢复点：被 swap 回来时从此处继续
 		: : "D"(pFrom), "S"(pTo)
 		: "memory", "rax", "rcx", "rdx",
 		  "r8", "r9", "r10", "r11"
@@ -895,36 +914,40 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[26..29] = q14, q15
 */
 
+// R13: 协程上下文切换 - ARM64 AAPCS64 版本
+// 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	__asm__ volatile (
-		"adr x2, 1f\n\t"
-		"mov x3, sp\n\t"
-		"stp x2,  x3,  [%0, #0x00]\n\t"
-		"stp x19, x20, [%0, #0x10]\n\t"
-		"stp x21, x22, [%0, #0x20]\n\t"
-		"stp x23, x24, [%0, #0x30]\n\t"
-		"stp x25, x26, [%0, #0x40]\n\t"
-		"stp x27, x28, [%0, #0x50]\n\t"
-		"stp x29, x30, [%0, #0x60]\n\t"
-		"stp q8,  q9,  [%0, #0x70]\n\t"
-		"stp q10, q11, [%0, #0x90]\n\t"
-		"stp q12, q13, [%0, #0xB0]\n\t"
-		"stp q14, q15, [%0, #0xD0]\n\t"
-		"ldp q14, q15, [%1, #0xD0]\n\t"
-		"ldp q12, q13, [%1, #0xB0]\n\t"
-		"ldp q10, q11, [%1, #0x90]\n\t"
-		"ldp q8,  q9,  [%1, #0x70]\n\t"
-		"ldp x29, x30, [%1, #0x60]\n\t"
-		"ldp x27, x28, [%1, #0x50]\n\t"
-		"ldp x25, x26, [%1, #0x40]\n\t"
-		"ldp x23, x24, [%1, #0x30]\n\t"
-		"ldp x21, x22, [%1, #0x20]\n\t"
-		"ldp x19, x20, [%1, #0x10]\n\t"
-		"ldp x2,  x3,  [%1, #0x00]\n\t"
-		"mov sp, x3\n\t"
-		"br x2\n\t"
-		"1:\n\t"
+		// --- 保存当前上下文到 pFrom ---
+		"adr x2, 1f\n\t"                  // 计算恢复点地址
+		"mov x3, sp\n\t"                   // 获取当前 sp
+		"stp x2,  x3,  [%0, #0x00]\n\t"   // 保存 恢复点 + sp
+		"stp x19, x20, [%0, #0x10]\n\t"   // 保存 x19, x20
+		"stp x21, x22, [%0, #0x20]\n\t"   // 保存 x21, x22
+		"stp x23, x24, [%0, #0x30]\n\t"   // 保存 x23, x24
+		"stp x25, x26, [%0, #0x40]\n\t"   // 保存 x25, x26
+		"stp x27, x28, [%0, #0x50]\n\t"   // 保存 x27, x28
+		"stp x29, x30, [%0, #0x60]\n\t"   // 保存 fp(x29) + lr(x30)
+		"stp q8,  q9,  [%0, #0x70]\n\t"   // 保存 q8, q9
+		"stp q10, q11, [%0, #0x90]\n\t"   // 保存 q10, q11
+		"stp q12, q13, [%0, #0xB0]\n\t"   // 保存 q12, q13
+		"stp q14, q15, [%0, #0xD0]\n\t"   // 保存 q14, q15
+		// --- 从 pTo 恢复目标上下文 ---
+		"ldp q14, q15, [%1, #0xD0]\n\t"   // 恢复 q14, q15
+		"ldp q12, q13, [%1, #0xB0]\n\t"   // 恢复 q12, q13
+		"ldp q10, q11, [%1, #0x90]\n\t"   // 恢复 q10, q11
+		"ldp q8,  q9,  [%1, #0x70]\n\t"   // 恢复 q8, q9
+		"ldp x29, x30, [%1, #0x60]\n\t"   // 恢复 fp(x29) + lr(x30)
+		"ldp x27, x28, [%1, #0x50]\n\t"   // 恢复 x27, x28
+		"ldp x25, x26, [%1, #0x40]\n\t"   // 恢复 x25, x26
+		"ldp x23, x24, [%1, #0x30]\n\t"   // 恢复 x23, x24
+		"ldp x21, x22, [%1, #0x20]\n\t"   // 恢复 x21, x22
+		"ldp x19, x20, [%1, #0x10]\n\t"   // 恢复 x19, x20
+		"ldp x2,  x3,  [%1, #0x00]\n\t"   // 读取 恢复点 + sp
+		"mov sp, x3\n\t"                   // 恢复 sp
+		"br x2\n\t"                        // 跳转到恢复点
+		"1:\n\t"                           // 恢复点：被 swap 回来时从此处继续
 		: : "r"(pFrom), "r"(pTo)
 		: "memory", "x2", "x3"
 	);
@@ -956,163 +979,174 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[14..25] = fs0 ~ fs11（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
 
+// R13: 协程上下文切换 - RISC-V 64 版本
+// 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	#ifdef __XRT_CO_RV64_FP64
+		// 双精度浮点 ABI 版本：额外保存/恢复 fs0 ~ fs11
 		__asm__ volatile (
+			// --- 保存当前上下文到 pFrom ---
 			"la t0, 1f\n\t"
-			"sd t0,   0x00(%0)\n\t"
-			"sd sp,   0x08(%0)\n\t"
-			"sd s0,   0x10(%0)\n\t"
-			"sd s1,   0x18(%0)\n\t"
-			"sd s2,   0x20(%0)\n\t"
-			"sd s3,   0x28(%0)\n\t"
-			"sd s4,   0x30(%0)\n\t"
-			"sd s5,   0x38(%0)\n\t"
-			"sd s6,   0x40(%0)\n\t"
-			"sd s7,   0x48(%0)\n\t"
-			"sd s8,   0x50(%0)\n\t"
-			"sd s9,   0x58(%0)\n\t"
-			"sd s10,  0x60(%0)\n\t"
-			"sd s11,  0x68(%0)\n\t"
-			"fsd fs0,  0x70(%0)\n\t"
-			"fsd fs1,  0x78(%0)\n\t"
-			"fsd fs2,  0x80(%0)\n\t"
-			"fsd fs3,  0x88(%0)\n\t"
-			"fsd fs4,  0x90(%0)\n\t"
-			"fsd fs5,  0x98(%0)\n\t"
-			"fsd fs6,  0xA0(%0)\n\t"
-			"fsd fs7,  0xA8(%0)\n\t"
-			"fsd fs8,  0xB0(%0)\n\t"
-			"fsd fs9,  0xB8(%0)\n\t"
-			"fsd fs10, 0xC0(%0)\n\t"
-			"fsd fs11, 0xC8(%0)\n\t"
-			"fld fs11, 0xC8(%1)\n\t"
-			"fld fs10, 0xC0(%1)\n\t"
-			"fld fs9,  0xB8(%1)\n\t"
-			"fld fs8,  0xB0(%1)\n\t"
-			"fld fs7,  0xA8(%1)\n\t"
-			"fld fs6,  0xA0(%1)\n\t"
-			"fld fs5,  0x98(%1)\n\t"
-			"fld fs4,  0x90(%1)\n\t"
-			"fld fs3,  0x88(%1)\n\t"
-			"fld fs2,  0x80(%1)\n\t"
-			"fld fs1,  0x78(%1)\n\t"
-			"fld fs0,  0x70(%1)\n\t"
-			"ld s11,   0x68(%1)\n\t"
-			"ld s10,   0x60(%1)\n\t"
-			"ld s9,    0x58(%1)\n\t"
-			"ld s8,    0x50(%1)\n\t"
-			"ld s7,    0x48(%1)\n\t"
-			"ld s6,    0x40(%1)\n\t"
-			"ld s5,    0x38(%1)\n\t"
-			"ld s4,    0x30(%1)\n\t"
-			"ld s3,    0x28(%1)\n\t"
-			"ld s2,    0x20(%1)\n\t"
-			"ld s1,    0x18(%1)\n\t"
-			"ld s0,    0x10(%1)\n\t"
-			"ld sp,    0x08(%1)\n\t"
-			"ld t0,    0x00(%1)\n\t"
-			"jr t0\n\t"
-			"1:\n\t"
+			"sd t0,   0x00(%0)\n\t"           // 保存恢复点地址
+			"sd sp,   0x08(%0)\n\t"           // 保存 sp
+			"sd s0,   0x10(%0)\n\t"           // 保存 s0(fp)
+			"sd s1,   0x18(%0)\n\t"           // 保存 s1
+			"sd s2,   0x20(%0)\n\t"           // 保存 s2
+			"sd s3,   0x28(%0)\n\t"           // 保存 s3
+			"sd s4,   0x30(%0)\n\t"           // 保存 s4
+			"sd s5,   0x38(%0)\n\t"           // 保存 s5
+			"sd s6,   0x40(%0)\n\t"           // 保存 s6
+			"sd s7,   0x48(%0)\n\t"           // 保存 s7
+			"sd s8,   0x50(%0)\n\t"           // 保存 s8
+			"sd s9,   0x58(%0)\n\t"           // 保存 s9
+			"sd s10,  0x60(%0)\n\t"           // 保存 s10
+			"sd s11,  0x68(%0)\n\t"           // 保存 s11
+			"fsd fs0,  0x70(%0)\n\t"          // 保存 fs0
+			"fsd fs1,  0x78(%0)\n\t"          // 保存 fs1
+			"fsd fs2,  0x80(%0)\n\t"          // 保存 fs2
+			"fsd fs3,  0x88(%0)\n\t"          // 保存 fs3
+			"fsd fs4,  0x90(%0)\n\t"          // 保存 fs4
+			"fsd fs5,  0x98(%0)\n\t"          // 保存 fs5
+			"fsd fs6,  0xA0(%0)\n\t"          // 保存 fs6
+			"fsd fs7,  0xA8(%0)\n\t"          // 保存 fs7
+			"fsd fs8,  0xB0(%0)\n\t"          // 保存 fs8
+			"fsd fs9,  0xB8(%0)\n\t"          // 保存 fs9
+			"fsd fs10, 0xC0(%0)\n\t"          // 保存 fs10
+			"fsd fs11, 0xC8(%0)\n\t"          // 保存 fs11
+			// --- 从 pTo 恢复目标上下文 ---
+			"fld fs11, 0xC8(%1)\n\t"          // 恢复 fs11
+			"fld fs10, 0xC0(%1)\n\t"          // 恢复 fs10
+			"fld fs9,  0xB8(%1)\n\t"          // 恢复 fs9
+			"fld fs8,  0xB0(%1)\n\t"          // 恢复 fs8
+			"fld fs7,  0xA8(%1)\n\t"          // 恢复 fs7
+			"fld fs6,  0xA0(%1)\n\t"          // 恢复 fs6
+			"fld fs5,  0x98(%1)\n\t"          // 恢复 fs5
+			"fld fs4,  0x90(%1)\n\t"          // 恢复 fs4
+			"fld fs3,  0x88(%1)\n\t"          // 恢复 fs3
+			"fld fs2,  0x80(%1)\n\t"          // 恢复 fs2
+			"fld fs1,  0x78(%1)\n\t"          // 恢复 fs1
+			"fld fs0,  0x70(%1)\n\t"          // 恢复 fs0
+			"ld s11,   0x68(%1)\n\t"          // 恢复 s11
+			"ld s10,   0x60(%1)\n\t"          // 恢复 s10
+			"ld s9,    0x58(%1)\n\t"          // 恢复 s9
+			"ld s8,    0x50(%1)\n\t"          // 恢复 s8
+			"ld s7,    0x48(%1)\n\t"          // 恢复 s7
+			"ld s6,    0x40(%1)\n\t"          // 恢复 s6
+			"ld s5,    0x38(%1)\n\t"          // 恢复 s5
+			"ld s4,    0x30(%1)\n\t"          // 恢复 s4
+			"ld s3,    0x28(%1)\n\t"          // 恢复 s3
+			"ld s2,    0x20(%1)\n\t"          // 恢复 s2
+			"ld s1,    0x18(%1)\n\t"          // 恢复 s1
+			"ld s0,    0x10(%1)\n\t"          // 恢复 s0(fp)
+			"ld sp,    0x08(%1)\n\t"          // 恢复 sp
+			"ld t0,    0x00(%1)\n\t"          // 读取恢复点地址
+			"jr t0\n\t"                       // 跳转到恢复点
+			"1:\n\t"                          // 恢复点：被 swap 回来时从此处继续
 			: : "r"(pFrom), "r"(pTo)
 			: "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
 			  "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"
 		);
 	#elif defined(__XRT_CO_RV64_FP32)
+		// 单精度浮点 ABI 版本：使用 fsw/flw 保存/恢复浮点寄存器
 		__asm__ volatile (
+			// --- 保存当前上下文到 pFrom ---
 			"la t0, 1f\n\t"
-			"sd t0,   0x00(%0)\n\t"
-			"sd sp,   0x08(%0)\n\t"
-			"sd s0,   0x10(%0)\n\t"
-			"sd s1,   0x18(%0)\n\t"
-			"sd s2,   0x20(%0)\n\t"
-			"sd s3,   0x28(%0)\n\t"
-			"sd s4,   0x30(%0)\n\t"
-			"sd s5,   0x38(%0)\n\t"
-			"sd s6,   0x40(%0)\n\t"
-			"sd s7,   0x48(%0)\n\t"
-			"sd s8,   0x50(%0)\n\t"
-			"sd s9,   0x58(%0)\n\t"
-			"sd s10,  0x60(%0)\n\t"
-			"sd s11,  0x68(%0)\n\t"
-			"fsw fs0,  0x70(%0)\n\t"
-			"fsw fs1,  0x78(%0)\n\t"
-			"fsw fs2,  0x80(%0)\n\t"
-			"fsw fs3,  0x88(%0)\n\t"
-			"fsw fs4,  0x90(%0)\n\t"
-			"fsw fs5,  0x98(%0)\n\t"
-			"fsw fs6,  0xA0(%0)\n\t"
-			"fsw fs7,  0xA8(%0)\n\t"
-			"fsw fs8,  0xB0(%0)\n\t"
-			"fsw fs9,  0xB8(%0)\n\t"
-			"fsw fs10, 0xC0(%0)\n\t"
-			"fsw fs11, 0xC8(%0)\n\t"
-			"flw fs11, 0xC8(%1)\n\t"
-			"flw fs10, 0xC0(%1)\n\t"
-			"flw fs9,  0xB8(%1)\n\t"
-			"flw fs8,  0xB0(%1)\n\t"
-			"flw fs7,  0xA8(%1)\n\t"
-			"flw fs6,  0xA0(%1)\n\t"
-			"flw fs5,  0x98(%1)\n\t"
-			"flw fs4,  0x90(%1)\n\t"
-			"flw fs3,  0x88(%1)\n\t"
-			"flw fs2,  0x80(%1)\n\t"
-			"flw fs1,  0x78(%1)\n\t"
-			"flw fs0,  0x70(%1)\n\t"
-			"ld s11,   0x68(%1)\n\t"
-			"ld s10,   0x60(%1)\n\t"
-			"ld s9,    0x58(%1)\n\t"
-			"ld s8,    0x50(%1)\n\t"
-			"ld s7,    0x48(%1)\n\t"
-			"ld s6,    0x40(%1)\n\t"
-			"ld s5,    0x38(%1)\n\t"
-			"ld s4,    0x30(%1)\n\t"
-			"ld s3,    0x28(%1)\n\t"
-			"ld s2,    0x20(%1)\n\t"
-			"ld s1,    0x18(%1)\n\t"
-			"ld s0,    0x10(%1)\n\t"
-			"ld sp,    0x08(%1)\n\t"
-			"ld t0,    0x00(%1)\n\t"
-			"jr t0\n\t"
-			"1:\n\t"
+			"sd t0,   0x00(%0)\n\t"           // 保存恢复点地址
+			"sd sp,   0x08(%0)\n\t"           // 保存 sp
+			"sd s0,   0x10(%0)\n\t"           // 保存 s0(fp)
+			"sd s1,   0x18(%0)\n\t"           // 保存 s1
+			"sd s2,   0x20(%0)\n\t"           // 保存 s2
+			"sd s3,   0x28(%0)\n\t"           // 保存 s3
+			"sd s4,   0x30(%0)\n\t"           // 保存 s4
+			"sd s5,   0x38(%0)\n\t"           // 保存 s5
+			"sd s6,   0x40(%0)\n\t"           // 保存 s6
+			"sd s7,   0x48(%0)\n\t"           // 保存 s7
+			"sd s8,   0x50(%0)\n\t"           // 保存 s8
+			"sd s9,   0x58(%0)\n\t"           // 保存 s9
+			"sd s10,  0x60(%0)\n\t"           // 保存 s10
+			"sd s11,  0x68(%0)\n\t"           // 保存 s11
+			"fsw fs0,  0x70(%0)\n\t"          // 保存 fs0
+			"fsw fs1,  0x78(%0)\n\t"          // 保存 fs1
+			"fsw fs2,  0x80(%0)\n\t"          // 保存 fs2
+			"fsw fs3,  0x88(%0)\n\t"          // 保存 fs3
+			"fsw fs4,  0x90(%0)\n\t"          // 保存 fs4
+			"fsw fs5,  0x98(%0)\n\t"          // 保存 fs5
+			"fsw fs6,  0xA0(%0)\n\t"          // 保存 fs6
+			"fsw fs7,  0xA8(%0)\n\t"          // 保存 fs7
+			"fsw fs8,  0xB0(%0)\n\t"          // 保存 fs8
+			"fsw fs9,  0xB8(%0)\n\t"          // 保存 fs9
+			"fsw fs10, 0xC0(%0)\n\t"          // 保存 fs10
+			"fsw fs11, 0xC8(%0)\n\t"          // 保存 fs11
+			// --- 从 pTo 恢复目标上下文 ---
+			"flw fs11, 0xC8(%1)\n\t"          // 恢复 fs11
+			"flw fs10, 0xC0(%1)\n\t"          // 恢复 fs10
+			"flw fs9,  0xB8(%1)\n\t"          // 恢复 fs9
+			"flw fs8,  0xB0(%1)\n\t"          // 恢复 fs8
+			"flw fs7,  0xA8(%1)\n\t"          // 恢复 fs7
+			"flw fs6,  0xA0(%1)\n\t"          // 恢复 fs6
+			"flw fs5,  0x98(%1)\n\t"          // 恢复 fs5
+			"flw fs4,  0x90(%1)\n\t"          // 恢复 fs4
+			"flw fs3,  0x88(%1)\n\t"          // 恢复 fs3
+			"flw fs2,  0x80(%1)\n\t"          // 恢复 fs2
+			"flw fs1,  0x78(%1)\n\t"          // 恢复 fs1
+			"flw fs0,  0x70(%1)\n\t"          // 恢复 fs0
+			"ld s11,   0x68(%1)\n\t"          // 恢复 s11
+			"ld s10,   0x60(%1)\n\t"          // 恢复 s10
+			"ld s9,    0x58(%1)\n\t"          // 恢复 s9
+			"ld s8,    0x50(%1)\n\t"          // 恢复 s8
+			"ld s7,    0x48(%1)\n\t"          // 恢复 s7
+			"ld s6,    0x40(%1)\n\t"          // 恢复 s6
+			"ld s5,    0x38(%1)\n\t"          // 恢复 s5
+			"ld s4,    0x30(%1)\n\t"          // 恢复 s4
+			"ld s3,    0x28(%1)\n\t"          // 恢复 s3
+			"ld s2,    0x20(%1)\n\t"          // 恢复 s2
+			"ld s1,    0x18(%1)\n\t"          // 恢复 s1
+			"ld s0,    0x10(%1)\n\t"          // 恢复 s0(fp)
+			"ld sp,    0x08(%1)\n\t"          // 恢复 sp
+			"ld t0,    0x00(%1)\n\t"          // 读取恢复点地址
+			"jr t0\n\t"                       // 跳转到恢复点
+			"1:\n\t"                          // 恢复点：被 swap 回来时从此处继续
 			: : "r"(pFrom), "r"(pTo)
 			: "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
 			  "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"
 		);
 	#else
+	// 软浮点 ABI 版本：仅保存/恢复整数 callee-saved 寄存器
 	__asm__ volatile (
+		// --- 保存当前上下文到 pFrom ---
 		"la t0, 1f\n\t"
-		"sd t0,  0x00(%0)\n\t"
-		"sd sp,  0x08(%0)\n\t"
-		"sd s0,  0x10(%0)\n\t"
-		"sd s1,  0x18(%0)\n\t"
-		"sd s2,  0x20(%0)\n\t"
-		"sd s3,  0x28(%0)\n\t"
-		"sd s4,  0x30(%0)\n\t"
-		"sd s5,  0x38(%0)\n\t"
-		"sd s6,  0x40(%0)\n\t"
-		"sd s7,  0x48(%0)\n\t"
-		"sd s8,  0x50(%0)\n\t"
-		"sd s9,  0x58(%0)\n\t"
-		"sd s10, 0x60(%0)\n\t"
-		"sd s11, 0x68(%0)\n\t"
-		"ld s11, 0x68(%1)\n\t"
-		"ld s10, 0x60(%1)\n\t"
-		"ld s9,  0x58(%1)\n\t"
-		"ld s8,  0x50(%1)\n\t"
-		"ld s7,  0x48(%1)\n\t"
-		"ld s6,  0x40(%1)\n\t"
-		"ld s5,  0x38(%1)\n\t"
-		"ld s4,  0x30(%1)\n\t"
-		"ld s3,  0x28(%1)\n\t"
-		"ld s2,  0x20(%1)\n\t"
-		"ld s1,  0x18(%1)\n\t"
-		"ld s0,  0x10(%1)\n\t"
-		"ld sp,  0x08(%1)\n\t"
-		"ld t0,  0x00(%1)\n\t"
-		"jr t0\n\t"
-		"1:\n\t"
+		"sd t0,  0x00(%0)\n\t"               // 保存恢复点地址
+		"sd sp,  0x08(%0)\n\t"               // 保存 sp
+		"sd s0,  0x10(%0)\n\t"               // 保存 s0(fp)
+		"sd s1,  0x18(%0)\n\t"               // 保存 s1
+		"sd s2,  0x20(%0)\n\t"               // 保存 s2
+		"sd s3,  0x28(%0)\n\t"               // 保存 s3
+		"sd s4,  0x30(%0)\n\t"               // 保存 s4
+		"sd s5,  0x38(%0)\n\t"               // 保存 s5
+		"sd s6,  0x40(%0)\n\t"               // 保存 s6
+		"sd s7,  0x48(%0)\n\t"               // 保存 s7
+		"sd s8,  0x50(%0)\n\t"               // 保存 s8
+		"sd s9,  0x58(%0)\n\t"               // 保存 s9
+		"sd s10, 0x60(%0)\n\t"               // 保存 s10
+		"sd s11, 0x68(%0)\n\t"               // 保存 s11
+		// --- 从 pTo 恢复目标上下文 ---
+		"ld s11, 0x68(%1)\n\t"               // 恢复 s11
+		"ld s10, 0x60(%1)\n\t"               // 恢复 s10
+		"ld s9,  0x58(%1)\n\t"               // 恢复 s9
+		"ld s8,  0x50(%1)\n\t"               // 恢复 s8
+		"ld s7,  0x48(%1)\n\t"               // 恢复 s7
+		"ld s6,  0x40(%1)\n\t"               // 恢复 s6
+		"ld s5,  0x38(%1)\n\t"               // 恢复 s5
+		"ld s4,  0x30(%1)\n\t"               // 恢复 s4
+		"ld s3,  0x28(%1)\n\t"               // 恢复 s3
+		"ld s2,  0x20(%1)\n\t"               // 恢复 s2
+		"ld s1,  0x18(%1)\n\t"               // 恢复 s1
+		"ld s0,  0x10(%1)\n\t"               // 恢复 s0(fp)
+		"ld sp,  0x08(%1)\n\t"               // 恢复 sp
+		"ld t0,  0x00(%1)\n\t"               // 读取恢复点地址
+		"jr t0\n\t"                          // 跳转到恢复点
+		"1:\n\t"                             // 恢复点：被 swap 回来时从此处继续
 		: : "r"(pFrom), "r"(pTo)
 		: "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
 		  "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"
@@ -1152,133 +1186,144 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[12..19] = fs0 ~ fs7（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
 
+// R13: 协程上下文切换 - LoongArch64 版本
+// 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	#ifdef __XRT_CO_LA64_FP64
+		// 双精度浮点 ABI 版本：额外保存/恢复 fs0 ~ fs7
 		__asm__ volatile (
+			// --- 保存当前上下文到 pFrom ---
 			"la.local $t0, 1f\n\t"
-			"st.d   $t0,   %0, 0x00\n\t"
-			"st.d   $sp,   %0, 0x08\n\t"
-			"st.d   $fp,   %0, 0x10\n\t"
-			"st.d   $s0,   %0, 0x18\n\t"
-			"st.d   $s1,   %0, 0x20\n\t"
-			"st.d   $s2,   %0, 0x28\n\t"
-			"st.d   $s3,   %0, 0x30\n\t"
-			"st.d   $s4,   %0, 0x38\n\t"
-			"st.d   $s5,   %0, 0x40\n\t"
-			"st.d   $s6,   %0, 0x48\n\t"
-			"st.d   $s7,   %0, 0x50\n\t"
-			"st.d   $s8,   %0, 0x58\n\t"
-			"fst.d  $fs0,  %0, 0x60\n\t"
-			"fst.d  $fs1,  %0, 0x68\n\t"
-			"fst.d  $fs2,  %0, 0x70\n\t"
-			"fst.d  $fs3,  %0, 0x78\n\t"
-			"fst.d  $fs4,  %0, 0x80\n\t"
-			"fst.d  $fs5,  %0, 0x88\n\t"
-			"fst.d  $fs6,  %0, 0x90\n\t"
-			"fst.d  $fs7,  %0, 0x98\n\t"
-			"fld.d  $fs7,  %1, 0x98\n\t"
-			"fld.d  $fs6,  %1, 0x90\n\t"
-			"fld.d  $fs5,  %1, 0x88\n\t"
-			"fld.d  $fs4,  %1, 0x80\n\t"
-			"fld.d  $fs3,  %1, 0x78\n\t"
-			"fld.d  $fs2,  %1, 0x70\n\t"
-			"fld.d  $fs1,  %1, 0x68\n\t"
-			"fld.d  $fs0,  %1, 0x60\n\t"
-			"ld.d   $s8,   %1, 0x58\n\t"
-			"ld.d   $s7,   %1, 0x50\n\t"
-			"ld.d   $s6,   %1, 0x48\n\t"
-			"ld.d   $s5,   %1, 0x40\n\t"
-			"ld.d   $s4,   %1, 0x38\n\t"
-			"ld.d   $s3,   %1, 0x30\n\t"
-			"ld.d   $s2,   %1, 0x28\n\t"
-			"ld.d   $s1,   %1, 0x20\n\t"
-			"ld.d   $fp,   %1, 0x10\n\t"
-			"ld.d   $s0,   %1, 0x18\n\t"
-			"ld.d   $sp,   %1, 0x08\n\t"
-			"ld.d   $t0,   %1, 0x00\n\t"
-			"jr $t0\n\t"
-			"1:\n\t"
+			"st.d   $t0,   %0, 0x00\n\t"     // 保存恢复点地址
+			"st.d   $sp,   %0, 0x08\n\t"     // 保存 sp
+			"st.d   $fp,   %0, 0x10\n\t"     // 保存 fp
+			"st.d   $s0,   %0, 0x18\n\t"     // 保存 s0
+			"st.d   $s1,   %0, 0x20\n\t"     // 保存 s1
+			"st.d   $s2,   %0, 0x28\n\t"     // 保存 s2
+			"st.d   $s3,   %0, 0x30\n\t"     // 保存 s3
+			"st.d   $s4,   %0, 0x38\n\t"     // 保存 s4
+			"st.d   $s5,   %0, 0x40\n\t"     // 保存 s5
+			"st.d   $s6,   %0, 0x48\n\t"     // 保存 s6
+			"st.d   $s7,   %0, 0x50\n\t"     // 保存 s7
+			"st.d   $s8,   %0, 0x58\n\t"     // 保存 s8
+			"fst.d  $fs0,  %0, 0x60\n\t"     // 保存 fs0
+			"fst.d  $fs1,  %0, 0x68\n\t"     // 保存 fs1
+			"fst.d  $fs2,  %0, 0x70\n\t"     // 保存 fs2
+			"fst.d  $fs3,  %0, 0x78\n\t"     // 保存 fs3
+			"fst.d  $fs4,  %0, 0x80\n\t"     // 保存 fs4
+			"fst.d  $fs5,  %0, 0x88\n\t"     // 保存 fs5
+			"fst.d  $fs6,  %0, 0x90\n\t"     // 保存 fs6
+			"fst.d  $fs7,  %0, 0x98\n\t"     // 保存 fs7
+			// --- 从 pTo 恢复目标上下文 ---
+			"fld.d  $fs7,  %1, 0x98\n\t"     // 恢复 fs7
+			"fld.d  $fs6,  %1, 0x90\n\t"     // 恢复 fs6
+			"fld.d  $fs5,  %1, 0x88\n\t"     // 恢复 fs5
+			"fld.d  $fs4,  %1, 0x80\n\t"     // 恢复 fs4
+			"fld.d  $fs3,  %1, 0x78\n\t"     // 恢复 fs3
+			"fld.d  $fs2,  %1, 0x70\n\t"     // 恢复 fs2
+			"fld.d  $fs1,  %1, 0x68\n\t"     // 恢复 fs1
+			"fld.d  $fs0,  %1, 0x60\n\t"     // 恢复 fs0
+			"ld.d   $s8,   %1, 0x58\n\t"     // 恢复 s8
+			"ld.d   $s7,   %1, 0x50\n\t"     // 恢复 s7
+			"ld.d   $s6,   %1, 0x48\n\t"     // 恢复 s6
+			"ld.d   $s5,   %1, 0x40\n\t"     // 恢复 s5
+			"ld.d   $s4,   %1, 0x38\n\t"     // 恢复 s4
+			"ld.d   $s3,   %1, 0x30\n\t"     // 恢复 s3
+			"ld.d   $s2,   %1, 0x28\n\t"     // 恢复 s2
+			"ld.d   $s1,   %1, 0x20\n\t"     // 恢复 s1
+			"ld.d   $fp,   %1, 0x10\n\t"     // 恢复 fp
+			"ld.d   $s0,   %1, 0x18\n\t"     // 恢复 s0
+			"ld.d   $sp,   %1, 0x08\n\t"     // 恢复 sp
+			"ld.d   $t0,   %1, 0x00\n\t"     // 读取恢复点地址
+			"jr $t0\n\t"                      // 跳转到恢复点
+			"1:\n\t"                          // 恢复点：被 swap 回来时从此处继续
 			: : "r"(pFrom), "r"(pTo)
 			: "memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
 		);
 	#elif defined(__XRT_CO_LA64_FP32)
+		// 单精度浮点 ABI 版本：使用 fst.s/fld.s 保存/恢复浮点寄存器
 		__asm__ volatile (
+			// --- 保存当前上下文到 pFrom ---
 			"la.local $t0, 1f\n\t"
-			"st.d   $t0,   %0, 0x00\n\t"
-			"st.d   $sp,   %0, 0x08\n\t"
-			"st.d   $fp,   %0, 0x10\n\t"
-			"st.d   $s0,   %0, 0x18\n\t"
-			"st.d   $s1,   %0, 0x20\n\t"
-			"st.d   $s2,   %0, 0x28\n\t"
-			"st.d   $s3,   %0, 0x30\n\t"
-			"st.d   $s4,   %0, 0x38\n\t"
-			"st.d   $s5,   %0, 0x40\n\t"
-			"st.d   $s6,   %0, 0x48\n\t"
-			"st.d   $s7,   %0, 0x50\n\t"
-			"st.d   $s8,   %0, 0x58\n\t"
-			"fst.s  $fs0,  %0, 0x60\n\t"
-			"fst.s  $fs1,  %0, 0x68\n\t"
-			"fst.s  $fs2,  %0, 0x70\n\t"
-			"fst.s  $fs3,  %0, 0x78\n\t"
-			"fst.s  $fs4,  %0, 0x80\n\t"
-			"fst.s  $fs5,  %0, 0x88\n\t"
-			"fst.s  $fs6,  %0, 0x90\n\t"
-			"fst.s  $fs7,  %0, 0x98\n\t"
-			"fld.s  $fs7,  %1, 0x98\n\t"
-			"fld.s  $fs6,  %1, 0x90\n\t"
-			"fld.s  $fs5,  %1, 0x88\n\t"
-			"fld.s  $fs4,  %1, 0x80\n\t"
-			"fld.s  $fs3,  %1, 0x78\n\t"
-			"fld.s  $fs2,  %1, 0x70\n\t"
-			"fld.s  $fs1,  %1, 0x68\n\t"
-			"fld.s  $fs0,  %1, 0x60\n\t"
-			"ld.d   $s8,   %1, 0x58\n\t"
-			"ld.d   $s7,   %1, 0x50\n\t"
-			"ld.d   $s6,   %1, 0x48\n\t"
-			"ld.d   $s5,   %1, 0x40\n\t"
-			"ld.d   $s4,   %1, 0x38\n\t"
-			"ld.d   $s3,   %1, 0x30\n\t"
-			"ld.d   $s2,   %1, 0x28\n\t"
-			"ld.d   $s1,   %1, 0x20\n\t"
-			"ld.d   $fp,   %1, 0x10\n\t"
-			"ld.d   $s0,   %1, 0x18\n\t"
-			"ld.d   $sp,   %1, 0x08\n\t"
-			"ld.d   $t0,   %1, 0x00\n\t"
-			"jr $t0\n\t"
-			"1:\n\t"
+			"st.d   $t0,   %0, 0x00\n\t"     // 保存恢复点地址
+			"st.d   $sp,   %0, 0x08\n\t"     // 保存 sp
+			"st.d   $fp,   %0, 0x10\n\t"     // 保存 fp
+			"st.d   $s0,   %0, 0x18\n\t"     // 保存 s0
+			"st.d   $s1,   %0, 0x20\n\t"     // 保存 s1
+			"st.d   $s2,   %0, 0x28\n\t"     // 保存 s2
+			"st.d   $s3,   %0, 0x30\n\t"     // 保存 s3
+			"st.d   $s4,   %0, 0x38\n\t"     // 保存 s4
+			"st.d   $s5,   %0, 0x40\n\t"     // 保存 s5
+			"st.d   $s6,   %0, 0x48\n\t"     // 保存 s6
+			"st.d   $s7,   %0, 0x50\n\t"     // 保存 s7
+			"st.d   $s8,   %0, 0x58\n\t"     // 保存 s8
+			"fst.s  $fs0,  %0, 0x60\n\t"     // 保存 fs0
+			"fst.s  $fs1,  %0, 0x68\n\t"     // 保存 fs1
+			"fst.s  $fs2,  %0, 0x70\n\t"     // 保存 fs2
+			"fst.s  $fs3,  %0, 0x78\n\t"     // 保存 fs3
+			"fst.s  $fs4,  %0, 0x80\n\t"     // 保存 fs4
+			"fst.s  $fs5,  %0, 0x88\n\t"     // 保存 fs5
+			"fst.s  $fs6,  %0, 0x90\n\t"     // 保存 fs6
+			"fst.s  $fs7,  %0, 0x98\n\t"     // 保存 fs7
+			// --- 从 pTo 恢复目标上下文 ---
+			"fld.s  $fs7,  %1, 0x98\n\t"     // 恢复 fs7
+			"fld.s  $fs6,  %1, 0x90\n\t"     // 恢复 fs6
+			"fld.s  $fs5,  %1, 0x88\n\t"     // 恢复 fs5
+			"fld.s  $fs4,  %1, 0x80\n\t"     // 恢复 fs4
+			"fld.s  $fs3,  %1, 0x78\n\t"     // 恢复 fs3
+			"fld.s  $fs2,  %1, 0x70\n\t"     // 恢复 fs2
+			"fld.s  $fs1,  %1, 0x68\n\t"     // 恢复 fs1
+			"fld.s  $fs0,  %1, 0x60\n\t"     // 恢复 fs0
+			"ld.d   $s8,   %1, 0x58\n\t"     // 恢复 s8
+			"ld.d   $s7,   %1, 0x50\n\t"     // 恢复 s7
+			"ld.d   $s6,   %1, 0x48\n\t"     // 恢复 s6
+			"ld.d   $s5,   %1, 0x40\n\t"     // 恢复 s5
+			"ld.d   $s4,   %1, 0x38\n\t"     // 恢复 s4
+			"ld.d   $s3,   %1, 0x30\n\t"     // 恢复 s3
+			"ld.d   $s2,   %1, 0x28\n\t"     // 恢复 s2
+			"ld.d   $s1,   %1, 0x20\n\t"     // 恢复 s1
+			"ld.d   $fp,   %1, 0x10\n\t"     // 恢复 fp
+			"ld.d   $s0,   %1, 0x18\n\t"     // 恢复 s0
+			"ld.d   $sp,   %1, 0x08\n\t"     // 恢复 sp
+			"ld.d   $t0,   %1, 0x00\n\t"     // 读取恢复点地址
+			"jr $t0\n\t"                      // 跳转到恢复点
+			"1:\n\t"                          // 恢复点：被 swap 回来时从此处继续
 			: : "r"(pFrom), "r"(pTo)
 			: "memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
 		);
 	#else
+	// 软浮点 ABI 版本：仅保存/恢复整数 callee-saved 寄存器
 	__asm__ volatile (
+		// --- 保存当前上下文到 pFrom ---
 		"la.local $t0, 1f\n\t"
-		"st.d $t0,  %0, 0x00\n\t"
-		"st.d $sp,  %0, 0x08\n\t"
-		"st.d $fp,  %0, 0x10\n\t"
-		"st.d $s0,  %0, 0x18\n\t"
-		"st.d $s1,  %0, 0x20\n\t"
-		"st.d $s2,  %0, 0x28\n\t"
-		"st.d $s3,  %0, 0x30\n\t"
-		"st.d $s4,  %0, 0x38\n\t"
-		"st.d $s5,  %0, 0x40\n\t"
-		"st.d $s6,  %0, 0x48\n\t"
-		"st.d $s7,  %0, 0x50\n\t"
-		"st.d $s8,  %0, 0x58\n\t"
-		"ld.d $s8,  %1, 0x58\n\t"
-		"ld.d $s7,  %1, 0x50\n\t"
-		"ld.d $s6,  %1, 0x48\n\t"
-		"ld.d $s5,  %1, 0x40\n\t"
-		"ld.d $s4,  %1, 0x38\n\t"
-		"ld.d $s3,  %1, 0x30\n\t"
-		"ld.d $s2,  %1, 0x28\n\t"
-		"ld.d $s1,  %1, 0x20\n\t"
-		"ld.d $s0,  %1, 0x18\n\t"
-		"ld.d $fp,  %1, 0x10\n\t"
-		"ld.d $sp,  %1, 0x08\n\t"
-		"ld.d $t0,  %1, 0x00\n\t"
-		"jr $t0\n\t"
-		"1:\n\t"
+		"st.d $t0,  %0, 0x00\n\t"               // 保存恢复点地址
+		"st.d $sp,  %0, 0x08\n\t"               // 保存 sp
+		"st.d $fp,  %0, 0x10\n\t"               // 保存 fp
+		"st.d $s0,  %0, 0x18\n\t"               // 保存 s0
+		"st.d $s1,  %0, 0x20\n\t"               // 保存 s1
+		"st.d $s2,  %0, 0x28\n\t"               // 保存 s2
+		"st.d $s3,  %0, 0x30\n\t"               // 保存 s3
+		"st.d $s4,  %0, 0x38\n\t"               // 保存 s4
+		"st.d $s5,  %0, 0x40\n\t"               // 保存 s5
+		"st.d $s6,  %0, 0x48\n\t"               // 保存 s6
+		"st.d $s7,  %0, 0x50\n\t"               // 保存 s7
+		"st.d $s8,  %0, 0x58\n\t"               // 保存 s8
+		// --- 从 pTo 恢复目标上下文 ---
+		"ld.d $s8,  %1, 0x58\n\t"               // 恢复 s8
+		"ld.d $s7,  %1, 0x50\n\t"               // 恢复 s7
+		"ld.d $s6,  %1, 0x48\n\t"               // 恢复 s6
+		"ld.d $s5,  %1, 0x40\n\t"               // 恢复 s5
+		"ld.d $s4,  %1, 0x38\n\t"               // 恢复 s4
+		"ld.d $s3,  %1, 0x30\n\t"               // 恢复 s3
+		"ld.d $s2,  %1, 0x28\n\t"               // 恢复 s2
+		"ld.d $s1,  %1, 0x20\n\t"               // 恢复 s1
+		"ld.d $s0,  %1, 0x18\n\t"               // 恢复 s0
+		"ld.d $fp,  %1, 0x10\n\t"               // 恢复 fp
+		"ld.d $sp,  %1, 0x08\n\t"               // 恢复 sp
+		"ld.d $t0,  %1, 0x00\n\t"               // 读取恢复点地址
+		"jr $t0\n\t"                            // 跳转到恢复点
+		"1:\n\t"                                // 恢复点：被 swap 回来时从此处继续
 		: : "r"(pFrom), "r"(pTo)
 		: "memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
 	);
@@ -1603,29 +1648,36 @@ XXAPI bool xrtCoCancel(xcoro pCo)
 		return FALSE;
 	}
 
+	// 检查协程所有权
 	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
 		return FALSE;
 	}
 
+	// 已经终止的协程直接返回成功
 	if ( __xrt_co_is_terminal(pCo) ) {
 		return TRUE;
 	}
 
+	// 设置取消请求标志
 	pCo->__iFlags |= __XRT_CO_FLAG_CANCEL_REQUESTED;
 
+	// 如果是当前协程自己取消自己，只需设置标志
 	if ( pCo == __xrt_co_get_current() ) {
 		return TRUE;
 	}
 
+	// 对未启动的 READY 协程直接完成取消
 	if ( pCo->iState == XRT_CO_READY && (pCo->__iFlags & __XRT_CO_FLAG_STARTED) == 0 ) {
 		__xrt_co_finalize_ready_cancel(pCo);
 		return TRUE;
 	}
 
+	// 解除 join 等待关系
 	if ( pCo->__pJoinTarget != NULL ) {
 		__xrt_co_detach_join_waiter(pCo, TRUE);
 	}
 
+	// 解除事件等待关系
 	if ( pCo->__iWaitKind == __XRT_CO_WAIT_EVENT && pCo->__pWaitObject != NULL ) {
 		xcoevent pEvent = (xcoevent)pCo->__pWaitObject;
 
@@ -1639,10 +1691,12 @@ XXAPI bool xrtCoCancel(xcoro pCo)
 		}
 	}
 
+	// 清除定时器唤醒时间
 	if ( pCo->__iWakeTime > 0 ) {
 		pCo->__iWakeTime = 0;
 	}
 
+	// 从调度器中移除定时器并标记为就绪
 	if ( pCo->__pSched != NULL ) {
 		__xrt_co_sched_detach_timer((xcosched*)pCo->__pSched, pCo);
 		__xrt_co_sched_mark_ready((xcosched*)pCo->__pSched, pCo);
@@ -1660,10 +1714,12 @@ XXAPI bool xrtCoClose(xcoro pCo)
 		return FALSE;
 	}
 
+	// 检查协程所有权
 	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
 		return FALSE;
 	}
 
+	// 若协程被调度器管理，走调度器的关闭路径
 	if ( pCo->__pSched != NULL ) {
 		if ( pCo->iState == XRT_CO_DEAD ) {
 			return __xrt_co_sched_release_dead(pCo);
@@ -1672,6 +1728,7 @@ XXAPI bool xrtCoClose(xcoro pCo)
 		return xrtCoCancel(pCo);
 	}
 
+	// 无调度器时要求协程处于 READY 或 DEAD 状态
 	if ( (pCo->iState != XRT_CO_READY) && (pCo->iState != XRT_CO_DEAD) ) {
 		xrtSetError("close requires READY or DEAD coroutine when no scheduler owns it.", FALSE);
 		return FALSE;
@@ -2001,7 +2058,7 @@ static void __xrt_co_sched_timer_sift_up(xcosched* pSched, int iIndex)
 }
 
 
-// 内部函数：__xrt_co_sched_timer_sift_down
+// 内部函数：定时器堆向下调整（小根堆）
 static void __xrt_co_sched_timer_sift_down(xcosched* pSched, int iIndex)
 {
 	while ( pSched ) {
@@ -2009,6 +2066,7 @@ static void __xrt_co_sched_timer_sift_down(xcosched* pSched, int iIndex)
 		int iRight = iLeft + 1;
 		int iSmallest = iIndex;
 
+		// 找左子节点中的最小唤醒时间
 		if ( iLeft < pSched->iTimerCount &&
 			pSched->arrTimers[iLeft] &&
 			pSched->arrTimers[iSmallest] &&
@@ -2016,6 +2074,7 @@ static void __xrt_co_sched_timer_sift_down(xcosched* pSched, int iIndex)
 			iSmallest = iLeft;
 		}
 
+		// 找右子节点中的最小唤醒时间
 		if ( iRight < pSched->iTimerCount &&
 			pSched->arrTimers[iRight] &&
 			pSched->arrTimers[iSmallest] &&
@@ -2023,17 +2082,19 @@ static void __xrt_co_sched_timer_sift_down(xcosched* pSched, int iIndex)
 			iSmallest = iRight;
 		}
 
+		// 如果当前节点已经是最小，堆性质满足
 		if ( iSmallest == iIndex ) {
 			break;
 		}
 
+		// 交换并继续向下调整
 		__xrt_co_sched_timer_swap(pSched, iIndex, iSmallest);
 		iIndex = iSmallest;
 	}
 }
 
 
-// 内部函数：__xrt_co_sched_detach_timer
+// 内部函数：从定时器堆中移除指定协程
 static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo)
 {
 	int iIndex = 0;
@@ -2043,25 +2104,31 @@ static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo)
 		return FALSE;
 	}
 
+	// 计算堆中的位置索引
 	iIndex = (int)pCo->__iTimerIndex - 1;
 	iLast = pSched->iTimerCount - 1;
 
+	// 索引越界检查
 	if ( iIndex < 0 || iIndex >= pSched->iTimerCount ) {
 		pCo->__iTimerIndex = 0;
 		pCo->__iFlags &= ~__XRT_CO_FLAG_TIMER_QUEUED;
 		return FALSE;
 	}
 
+	// 将目标元素交换到堆尾
 	if ( iIndex != iLast ) {
 		__xrt_co_sched_timer_swap(pSched, iIndex, iLast);
 	}
 
+	// 移除堆尾元素
 	pSched->arrTimers[iLast] = NULL;
 	pSched->iTimerCount--;
 
+	// 清除协程的定时器状态
 	pCo->__iTimerIndex = 0;
 	pCo->__iFlags &= ~__XRT_CO_FLAG_TIMER_QUEUED;
 
+	// 重新调整堆以恢复堆性质
 	if ( iIndex < pSched->iTimerCount ) {
 		__xrt_co_sched_timer_sift_down(pSched, iIndex);
 		__xrt_co_sched_timer_sift_up(pSched, iIndex);
@@ -2071,7 +2138,7 @@ static bool __xrt_co_sched_detach_timer(xcosched* pSched, xcoro pCo)
 }
 
 
-// 内部函数：__xrt_co_sched_attach_timer
+// 内部函数：将协程加入定时器堆（或更新已有位置）
 static bool __xrt_co_sched_attach_timer(xcosched* pSched, xcoro pCo)
 {
 	int iIndex = 0;
@@ -2080,8 +2147,10 @@ static bool __xrt_co_sched_attach_timer(xcosched* pSched, xcoro pCo)
 		return FALSE;
 	}
 
+	// 先从就绪队列中移除
 	__xrt_co_sched_ready_unlink(pSched, pCo);
 
+	// 如果已在定时器堆中，更新位置
 	if ( pCo->__iFlags & __XRT_CO_FLAG_TIMER_QUEUED ) {
 		iIndex = (int)pCo->__iTimerIndex - 1;
 		if ( iIndex >= 0 && iIndex < pSched->iTimerCount ) {
@@ -2093,10 +2162,12 @@ static bool __xrt_co_sched_attach_timer(xcosched* pSched, xcoro pCo)
 		pCo->__iTimerIndex = 0;
 	}
 
+	// 确保堆容量足够
 	if ( !__xrt_co_sched_timer_ensure_capacity(pSched) ) {
 		return FALSE;
 	}
 
+	// 将协程追加到堆尾并向上调整
 	iIndex = pSched->iTimerCount++;
 	pSched->arrTimers[iIndex] = pCo;
 	pCo->__iFlags |= __XRT_CO_FLAG_TIMER_QUEUED;
@@ -2107,24 +2178,28 @@ static bool __xrt_co_sched_attach_timer(xcosched* pSched, xcoro pCo)
 }
 
 
-// 内部函数：__xrt_co_sched_mark_ready
+// 内部函数：将协程标记为就绪并加入就绪队列
 static bool __xrt_co_sched_mark_ready(xcosched* pSched, xcoro pCo)
 {
 	if ( pSched == NULL || pCo == NULL || pCo->iState == XRT_CO_DEAD || pCo->__pSched != pSched ) {
 		return FALSE;
 	}
 
+	// join 目标尚未终止时不允许就绪
 	if ( pCo->__pJoinTarget != NULL && !__xrt_co_is_terminal(pCo->__pJoinTarget) ) {
 		return FALSE;
 	}
 
+	// 从定时器堆中移除
 	__xrt_co_sched_detach_timer(pSched, pCo);
 
+	// 如果已在就绪队列中，仅更新状态
 	if ( pCo->__iFlags & __XRT_CO_FLAG_READY_QUEUED ) {
 		pCo->iState = XRT_CO_READY;
 		return TRUE;
 	}
 
+	// 加入就绪队列尾部
 	pCo->__iWakeTime = 0;
 	pCo->iState = XRT_CO_READY;
 	pCo->__pReadyPrev = pSched->pReadyTail;
@@ -2143,24 +2218,28 @@ static bool __xrt_co_sched_mark_ready(xcosched* pSched, xcoro pCo)
 }
 
 
-// 内部函数：__xrt_co_sched_collect_expired_timers
+// 内部函数：收集已过期的定时器协程并标记为就绪
 static void __xrt_co_sched_collect_expired_timers(xcosched* pSched, int64 iNow)
 {
 	while ( pSched && pSched->iTimerCount > 0 ) {
 		xcoro pCo = pSched->arrTimers[0];
-
+		
 		if ( pCo == NULL ) {
 			break;
 		}
-
+		
+		// 堆顶元素的唤醒时间未到，无需继续
 		if ( pCo->__iWakeTime > iNow ) {
 			break;
 		}
-
+		
+		// 从定时器堆中移除
 		__xrt_co_sched_detach_timer(pSched, pCo);
+		
+		// 处理事件等待超时
 		if ( pCo->__iWaitKind == __XRT_CO_WAIT_EVENT && pCo->__pWaitObject != NULL ) {
 			xcoevent pEvent = (xcoevent)pCo->__pWaitObject;
-
+			
 			if ( pEvent && pEvent->pLock ) {
 				xrtMutexLock(pEvent->pLock);
 				pCo->__iWaitResult = __XRT_CO_WAIT_RESULT_TIMEOUT;
@@ -2174,34 +2253,38 @@ static void __xrt_co_sched_collect_expired_timers(xcosched* pSched, int64 iNow)
 }
 
 
-// 内部函数：__xrt_co_sched_reap_dead
+// 内部函数：回收已终止的协程资源
 static bool __xrt_co_sched_reap_dead(xcosched* pSched, int iIndex)
 {
 	xcoro pCo = NULL;
-
+	
 	if ( pSched == NULL || iIndex < 0 || iIndex >= pSched->iCount ) {
 		return FALSE;
 	}
-
+	
 	pCo = pSched->arrCoros[iIndex];
 	if ( pCo == NULL || pCo->iState != XRT_CO_DEAD ) {
 		return FALSE;
 	}
-
+	
+	// 从就绪队列和定时器堆中移除
 	__xrt_co_sched_ready_unlink(pSched, pCo);
 	__xrt_co_sched_detach_timer(pSched, pCo);
-
+	
+	// 标记为待回收并减少存活计数
 	if ( (pCo->__iFlags & __XRT_CO_FLAG_REAP_PENDING) == 0 ) {
 		pCo->__iFlags |= __XRT_CO_FLAG_REAP_PENDING;
 		if ( pSched->iAlive > 0 ) {
 			pSched->iAlive--;
 		}
 	}
-
+	
+	// 如果仍有 join 引用，保留结构体等待 join 释放
 	if ( pCo->__iFlags & __XRT_CO_FLAG_JOIN_PINNED ) {
 		return TRUE;
 	}
-
+	
+	// 无 join 引用，直接销毁
 	pCo->__pSched = NULL;
 	__xrt_co_destroy_raw(pCo);
 	pSched->arrCoros[iIndex] = NULL;
@@ -2209,24 +2292,29 @@ static bool __xrt_co_sched_reap_dead(xcosched* pSched, int iIndex)
 }
 
 
-// 内部函数：__xrt_co_sched_release_dead
+// 内部函数：释放已终止的协程（外部调用入口）
 static bool __xrt_co_sched_release_dead(xcoro pCo)
 {
 	xcosched* pSched = NULL;
-
+	
 	if ( pCo == NULL || pCo->__pSched == NULL || pCo->iState != XRT_CO_DEAD ) {
 		return FALSE;
 	}
 
+	// 在调度器数组中查找并回收
 	pSched = (xcosched*)pCo->__pSched;
 	int iIndex = __xrt_co_sched_find_index(pSched, pCo);
-
+	
 	if ( iIndex >= 0 ) {
 		__xrt_co_sched_ready_unlink(pSched, pCo);
 		__xrt_co_sched_detach_timer(pSched, pCo);
+		
+		// 减少存活计数
 		if ( (pCo->__iFlags & __XRT_CO_FLAG_REAP_PENDING) == 0 && pSched->iAlive > 0 ) {
 			pSched->iAlive--;
 		}
+		
+		// 清除 join 引用后销毁
 		pCo->__iFlags &= ~__XRT_CO_FLAG_JOIN_PINNED;
 		pCo->__iFlags |= __XRT_CO_FLAG_REAP_PENDING;
 		pCo->__pSched = NULL;
@@ -2239,15 +2327,16 @@ static bool __xrt_co_sched_release_dead(xcoro pCo)
 }
 
 
-// 内部函数：__xrt_co_sched_on_return
+// 内部函数：协程从 Resume 返回后的后处理（状态转换和调度）
 static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 {
 	int iIndex = 0;
-
+	
 	if ( pSched == NULL || pCo == NULL ) {
 		return;
 	}
 
+	// 协程已终止，回收资源
 	if ( pCo->iState == XRT_CO_DEAD ) {
 		iIndex = __xrt_co_sched_find_index(pSched, pCo);
 		if ( iIndex >= 0 ) {
@@ -2256,10 +2345,12 @@ static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 		return;
 	}
 
+	// 协程不再属于当前调度器
 	if ( pCo->__pSched != pSched ) {
 		return;
 	}
 
+	// join 等待：目标未终止则挂起当前协程
 	if ( pCo->__pJoinTarget != NULL ) {
 		if ( !__xrt_co_is_terminal(pCo->__pJoinTarget) ) {
 			pCo->iState = XRT_CO_SUSPENDED;
@@ -2267,12 +2358,15 @@ static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 		}
 	}
 
+	// 事件等待且带超时
 	if ( pCo->__iWaitKind == __XRT_CO_WAIT_EVENT && pCo->__pWaitObject != NULL ) {
+		// 超时未到：挂起并挂到定时器堆
 		if ( (pCo->__iWakeTime > 0) && (pCo->__iWakeTime > iNow) ) {
 			pCo->iState = XRT_CO_SUSPENDED;
 			__xrt_co_sched_attach_timer(pSched, pCo);
 			return;
 		}
+		// 超时已到：解除事件等待并标记就绪
 		else if ( pCo->__iWakeTime > 0 ) {
 			xcoevent pEvent = (xcoevent)pCo->__pWaitObject;
 			if ( pEvent && pEvent->pLock ) {
@@ -2285,16 +2379,19 @@ static void __xrt_co_sched_on_return(xcosched* pSched, xcoro pCo, int64 iNow)
 			__xrt_co_sched_mark_ready(pSched, pCo);
 			return;
 		}
+		// 事件等待无超时：保持挂起
 		pCo->iState = XRT_CO_SUSPENDED;
 		return;
 	}
 
+	// 纯定时器等待且未超时：挂起并挂到定时器堆
 	if ( (pCo->__iWakeTime > 0) && (pCo->__iWakeTime > iNow) ) {
 		pCo->iState = XRT_CO_SUSPENDED;
 		__xrt_co_sched_attach_timer(pSched, pCo);
 		return;
 	}
 
+	// 超时已到或无条件等待：清除定时器并标记就绪
 	if ( pCo->__iWakeTime > 0 ) {
 		pCo->__iWakeTime = 0;
 	}
@@ -2338,7 +2435,7 @@ static bool __xrt_co_sched_has_pending_posts(xcosched* pSched)
 }
 
 
-// 内部函数：__xrt_co_sched_post_item_alloc
+// 内部函数：分配 post 链表节点（优先复用空闲链表）
 static __xrt_co_post_item* __xrt_co_sched_post_item_alloc(xcosched* pSched)
 {
 	__xrt_co_post_item* pItem = NULL;
@@ -2347,6 +2444,7 @@ static __xrt_co_post_item* __xrt_co_sched_post_item_alloc(xcosched* pSched)
 		return NULL;
 	}
 
+	// 从空闲链表中获取节点
 	xrtMutexLock(pSched->pPostMutex);
 	pItem = pSched->pPostFree;
 	if ( pItem != NULL ) {
@@ -2354,6 +2452,7 @@ static __xrt_co_post_item* __xrt_co_sched_post_item_alloc(xcosched* pSched)
 	}
 	xrtMutexUnlock(pSched->pPostMutex);
 
+	// 空闲链表为空则分配新节点
 	if ( pItem == NULL ) {
 		pItem = (__xrt_co_post_item*)xrtMalloc(sizeof(__xrt_co_post_item));
 	}
@@ -2385,7 +2484,7 @@ static void __xrt_co_sched_post_item_free(xcosched* pSched, __xrt_co_post_item* 
 }
 
 
-// 内部函数：__xrt_co_sched_drain_posts
+// 内部函数：处理跨线程 post 队列中积累的唤醒请求
 static void __xrt_co_sched_drain_posts(xcosched* pSched)
 {
 	__xrt_co_post_item* pHead = NULL;
@@ -2394,16 +2493,19 @@ static void __xrt_co_sched_drain_posts(xcosched* pSched)
 		return;
 	}
 
+	// 原子地取走整个 post 链表
 	xrtMutexLock(pSched->pPostMutex);
 	pHead = pSched->pPostHead;
 	pSched->pPostHead = NULL;
 	pSched->pPostTail = NULL;
 	xrtMutexUnlock(pSched->pPostMutex);
 
+	// 逐个处理 post 请求
 	while ( pHead ) {
 		__xrt_co_post_item* pNext = pHead->pNext;
 		xcoro pCo = pHead->pCo;
 
+		// 将有效的协程标记为就绪
 		if ( pCo && pCo->__pSched == pSched && pCo->iState != XRT_CO_DEAD ) {
 			if ( pCo->__pJoinTarget == NULL || __xrt_co_is_terminal(pCo->__pJoinTarget) ) {
 				pCo->__iWakeTime = 0;
@@ -2412,6 +2514,7 @@ static void __xrt_co_sched_drain_posts(xcosched* pSched)
 			}
 		}
 
+		// 回收 post 节点
 		__xrt_co_sched_post_item_free(pSched, pHead);
 		pHead = pNext;
 	}
@@ -2442,7 +2545,7 @@ static bool __xrt_co_sched_wait_for_post(xcosched* pSched, uint32 iTimeout)
 }
 
 
-// 内部函数：__xrt_co_sched_compute_wait_timeout
+// 内部函数：计算下一次 poll 应等待的超时时间
 static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTimeout)
 {
 	int64 iNow = 0;
@@ -2453,15 +2556,19 @@ static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTime
 		return 0;
 	}
 
+	// 有就绪协程或待处理 post 时无需等待
 	if ( pSched->pReadyHead != NULL || __xrt_co_sched_has_pending_posts(pSched) ) {
 		return 0;
 	}
 
+	// 计算最近的定时器唤醒时间
 	iNow = __xrt_co_time_ms();
 	iNextWake = __xrt_co_sched_next_wake_time(pSched, iNow);
 
+	// 定时器堆中有未来需要唤醒的协程
 	if ( iNextWake > iNow ) {
 		int64 iDelta = iNextWake - iNow;
+		// 取定时器超时与用户指定超时的较小值
 		if ( !bInfinite && iDelta > iTimeout ) {
 			iDelta = iTimeout;
 		}
@@ -2474,10 +2581,12 @@ static uint32 __xrt_co_sched_compute_wait_timeout(xcosched* pSched, uint32 iTime
 		return (uint32)iDelta;
 	}
 
+	// 定时器堆中有已过期的协程（应该立即处理）
 	if ( iNextWake > 0 ) {
 		return 0;
 	}
 
+	// 无定时器协程，使用用户指定的超时
 	return bInfinite ? __XRT_CO_SCHED_WAIT_FOREVER : iTimeout;
 }
 
@@ -2503,47 +2612,55 @@ static bool __xrt_co_sched_run_until(xcosched* pSched, xcoro pTarget)
 }
 
 
-// 加入协程
+// 加入协程（等待目标协程终止）
 XXAPI bool xrtCoJoin(xcoro pCo)
 {
 	xcoro pCurrent = NULL;
 	xrtCoroRuntimeState* pRuntime = NULL;
-
+	
 	if ( pCo == NULL ) {
 		xrtSetError("invalid coroutine handle.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 检查协程所有权
 	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
 		return FALSE;
 	}
-
+	
+	// 目标已终止，直接返回
 	if ( __xrt_co_is_terminal(pCo) ) {
 		return TRUE;
 	}
-
+	
 	pRuntime = __xrt_co_require_runtime(TRUE);
 	if ( pRuntime == NULL ) {
 		return FALSE;
 	}
-
+	
 	pCurrent = __xrt_co_get_current();
+	
+	// --- 在协程内部 join ---
 	if ( pCurrent != NULL ) {
+		// 禁止自 join
 		if ( pCurrent == pCo ) {
 			xrtSetError("coroutine cannot join itself.", FALSE);
 			return FALSE;
 		}
-
+		
+		// 要求在同一个调度器内
 		if ( pCurrent->__pSched == NULL || pCo->__pSched == NULL || pCurrent->__pSched != pCo->__pSched ) {
 			xrtSetError("coroutine join inside coroutine requires the same scheduler.", FALSE);
 			return FALSE;
 		}
-
+		
+		// 检查是否已在等待其他目标
 		if ( pCurrent->__pJoinTarget != NULL && pCurrent->__pJoinTarget != pCo ) {
 			xrtSetError("current coroutine is already waiting for another join target.", FALSE);
 			return FALSE;
 		}
-
+		
+		// 注册 join 等待并挂起当前协程
 		if ( !__xrt_co_is_terminal(pCo) ) {
 			__xrt_co_join_pin_acquire(pCo);
 			pCurrent->__pJoinTarget = pCo;
@@ -2552,7 +2669,8 @@ XXAPI bool xrtCoJoin(xcoro pCo)
 			pCurrent->iState = XRT_CO_SUSPENDED;
 			__xrt_co_swap_to_main(pRuntime);
 		}
-
+		
+		// 恢复后清理 join 状态
 		if ( pCurrent->__pJoinTarget == pCo && __xrt_co_is_terminal(pCo) ) {
 			pCurrent->__pJoinTarget = NULL;
 			if ( pCurrent->__iWaitKind == __XRT_CO_WAIT_JOIN ) {
@@ -2560,10 +2678,11 @@ XXAPI bool xrtCoJoin(xcoro pCo)
 			}
 			__xrt_co_join_pin_release(pCo);
 		}
-
+		
 		return __xrt_co_is_terminal(pCo);
 	}
-
+	
+	// --- 在调度器管理的协程外 join（走调度器轮询） ---
 	if ( pCo->__pSched != NULL ) {
 		bool bJoined = FALSE;
 		__xrt_co_join_pin_acquire(pCo);
@@ -2571,7 +2690,8 @@ XXAPI bool xrtCoJoin(xcoro pCo)
 		__xrt_co_join_pin_release(pCo);
 		return bJoined;
 	}
-
+	
+	// --- 在非调度器协程外 join（手动 Resume 循环） ---
 	while ( !__xrt_co_is_terminal(pCo) ) {
 		if ( !xrtCoResume(pCo) ) {
 			return __xrt_co_is_terminal(pCo);
@@ -2633,22 +2753,24 @@ XXAPI bool xrtCoPushCleanup(xco_cleanup_proc proc, ptr pArg)
 {
 	xcoro pCo = __xrt_co_get_current();
 	xco_cleanup* pCleanup = NULL;
-
+	
 	if ( pCo == NULL ) {
 		xrtSetError("xrtCoPushCleanup must be called from inside a coroutine.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 参数校验
 	if ( proc == NULL ) {
 		xrtSetError("coroutine cleanup proc is null.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 分配清理节点并压入清理栈
 	pCleanup = (xco_cleanup*)xrtMalloc(sizeof(xco_cleanup));
 	if ( pCleanup == NULL ) {
 		return FALSE;
 	}
-
+	
 	pCleanup->Proc = proc;
 	pCleanup->Arg = pArg;
 	pCleanup->pPrev = pCo->__pCleanupTop;
@@ -2662,24 +2784,29 @@ XXAPI bool xrtCoPopCleanup(xco_cleanup_proc proc, ptr pArg, bool bExecute)
 {
 	xcoro pCo = __xrt_co_get_current();
 	xco_cleanup* pCleanup = NULL;
-
+	
 	if ( pCo == NULL ) {
 		xrtSetError("xrtCoPopCleanup must be called from inside a coroutine.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 检查清理栈是否为空
 	if ( pCo->__pCleanupTop == NULL ) {
 		xrtSetError("coroutine cleanup stack is empty.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 校验栈顶是否匹配
 	pCleanup = pCo->__pCleanupTop;
 	if ( pCleanup->Proc != proc || pCleanup->Arg != pArg ) {
 		xrtSetError("coroutine cleanup pop requires the current top cleanup.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 弹出栈顶节点
 	pCo->__pCleanupTop = pCleanup->pPrev;
+	
+	// 可选执行清理回调
 	if ( bExecute && pCleanup->Proc ) {
 		pCo->__iFlags |= __XRT_CO_FLAG_IN_CLEANUP;
 		pCleanup->Proc(pCleanup->Arg);
@@ -2713,29 +2840,33 @@ XXAPI xcosched* xrtCoSchedCreate()
 	if ( pThreadData == NULL || pRuntime == NULL ) {
 		return NULL;
 	}
-
+	
+	// 分配调度器结构体
 	pSched = (xcosched*)xrtMalloc(sizeof(xcosched));
 	if ( !pSched ) { return NULL; }
-
+	
 	memset(pSched, 0, sizeof(xcosched));
-
+	
+	// 分配协程数组
 	pSched->arrCoros = (xcoro*)xrtMalloc(sizeof(xcoro) * __XRT_CO_SCHED_INIT_CAP);
 	if ( !pSched->arrCoros ) {
 		xrtFree(pSched);
 		return NULL;
 	}
-
+	
 	memset(pSched->arrCoros, 0, sizeof(xcoro) * __XRT_CO_SCHED_INIT_CAP);
-
+	
+	// 分配定时器堆数组
 	pSched->arrTimers = (xcoro*)xrtMalloc(sizeof(xcoro) * __XRT_CO_TIMER_INIT_CAP);
 	if ( !pSched->arrTimers ) {
 		xrtFree(pSched->arrCoros);
 		xrtFree(pSched);
 		return NULL;
 	}
-
+	
 	memset(pSched->arrTimers, 0, sizeof(xcoro) * __XRT_CO_TIMER_INIT_CAP);
-
+	
+	// 创建 post 互斥锁
 	pSched->pPostMutex = xrtMutexCreate();
 	if ( pSched->pPostMutex == NULL ) {
 		xrtFree(pSched->arrTimers);
@@ -2743,7 +2874,8 @@ XXAPI xcosched* xrtCoSchedCreate()
 		xrtFree(pSched);
 		return NULL;
 	}
-
+	
+	// 创建 post 条件变量
 	pSched->pPostCond = xrtCondCreate();
 	if ( pSched->pPostCond == NULL ) {
 		xrtMutexDestroy(pSched->pPostMutex);
@@ -2752,7 +2884,8 @@ XXAPI xcosched* xrtCoSchedCreate()
 		xrtFree(pSched);
 		return NULL;
 	}
-
+	
+	// 初始化调度器字段
 	pSched->pThreadData = pThreadData;
 	pSched->iOwnerThreadId = pThreadData->iThreadId;
 	pSched->iCount = 0;
@@ -2762,7 +2895,8 @@ XXAPI xcosched* xrtCoSchedCreate()
 	pSched->pReadyTail = NULL;
 	pSched->iTimerCount = 0;
 	pSched->iTimerCapacity = __XRT_CO_TIMER_INIT_CAP;
-
+	
+	// 设为线程默认调度器
 	if ( pRuntime->pDefaultSched == NULL ) {
 		pRuntime->pDefaultSched = pSched;
 	}
@@ -2884,24 +3018,28 @@ XXAPI bool xrtCoSchedPost(xcosched* pSched, xcoro pCo)
 		xrtSetError("invalid coroutine scheduler.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 检查协程是否属于目标调度器
 	if ( pCo && pCo->__pSched != pSched ) {
 		xrtSetError("coroutine does not belong to target scheduler.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 已终止的协程无需 post
 	if ( pCo && pCo->iState == XRT_CO_DEAD ) {
 		return TRUE;
 	}
-
+	
+	// 分配 post 节点
 	pItem = __xrt_co_sched_post_item_alloc(pSched);
 	if ( pItem == NULL ) {
 		return FALSE;
 	}
-
+	
 	pItem->pCo = pCo;
 	pItem->pNext = NULL;
-
+	
+	// 加入 post 链表尾部并通知等待线程
 	xrtMutexLock(pSched->pPostMutex);
 	if ( pSched->pPostTail ) {
 		pSched->pPostTail->pNext = pItem;
@@ -2928,40 +3066,47 @@ XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout)
 		xrtSetError("invalid coroutine scheduler.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 检查调度器所有权
 	if ( !__xrt_co_check_sched_owner(pSched, "scheduler belongs to another thread.") ) {
 		return FALSE;
 	}
-
+	
+	// 不允许在协程内调用 poll
 	if ( __xrt_co_get_current() != NULL ) {
 		xrtSetError("cannot poll scheduler from inside a running coroutine.", FALSE);
 		return FALSE;
 	}
-
+	
 	if ( pSched->iAlive <= 0 ) { return FALSE; }
-
+	
+	// 收集当前时刻需要处理的事件
 	iNow = __xrt_co_time_ms();
 	__xrt_co_sched_drain_posts(pSched);
 	__xrt_co_sched_collect_expired_timers(pSched, iNow);
-
+	
+	// 无就绪协程时等待新事件
 	if ( pSched->pReadyHead == NULL ) {
 		iWaitTimeout = __xrt_co_sched_compute_wait_timeout(pSched, iTimeout);
 		if ( iWaitTimeout > 0 ) {
 			(void)__xrt_co_sched_wait_for_post(pSched, iWaitTimeout);
+			// 等待结束后重新收集
 			iNow = __xrt_co_time_ms();
 			__xrt_co_sched_drain_posts(pSched);
 			__xrt_co_sched_collect_expired_timers(pSched, iNow);
 		}
 	}
-
+	
+	// 依次处理就绪队列中的协程（每次 poll 只执行一个）
 	while ( pSched->pReadyHead != NULL ) {
 		pCo = pSched->pReadyHead;
 		__xrt_co_sched_ready_unlink(pSched, pCo);
-
+		
 		if ( pCo == NULL ) {
 			break;
 		}
-
+		
+		// 跳过已终止的协程并回收
 		if ( pCo->iState == XRT_CO_DEAD ) {
 			iIndex = __xrt_co_sched_find_index(pSched, pCo);
 			if ( iIndex >= 0 ) {
@@ -2969,7 +3114,8 @@ XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout)
 			}
 			continue;
 		}
-
+		
+		// 对未启动但有取消请求的协程直接完成取消
 		if ( __xrt_co_is_cancel_requested_flag(pCo) && (pCo->__iFlags & __XRT_CO_FLAG_STARTED) == 0 ) {
 			__xrt_co_finish(pCo, XRT_CO_TERM_CANCELLED, -1);
 			iIndex = __xrt_co_sched_find_index(pSched, pCo);
@@ -2978,7 +3124,8 @@ XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout)
 			}
 			continue;
 		}
-
+		
+		// 恢复协程执行并进行后处理
 		xrtCoResume(pCo);
 		__xrt_co_sched_on_return(pSched, pCo, __xrt_co_time_ms());
 		break;
@@ -3054,16 +3201,19 @@ XXAPI bool xrtCoWaitDeadline(int64 iDeadlineMs)
 		xrtSetError("xrtCoWaitDeadline must be called from inside a coroutine.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 必须在调度器管理的协程中调用
 	if ( pCo->__pSched == NULL ) {
 		xrtSetError("xrtCoWaitDeadline requires a scheduler-managed coroutine.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 已有取消请求，立即返回
 	if ( __xrt_co_is_cancel_requested_flag(pCo) ) {
 		return FALSE;
 	}
-
+	
+	// 截止时间未到则挂起等待
 	if ( iDeadlineMs > __xrt_co_time_ms() ) {
 		pCo->__iWakeTime = iDeadlineMs;
 		pCo->__iWaitKind = __XRT_CO_WAIT_TIMER;
@@ -3122,31 +3272,37 @@ XXAPI void xrtCoEventDestroy(xcoevent pEvent)
 }
 
 
-// 设置协程事件
+// 设置协程事件（唤醒等待的协程）
 XXAPI void xrtCoEventSet(xcoevent pEvent)
 {
 	if ( pEvent == NULL ) {
 		xrtSetError("invalid coroutine event.", FALSE);
 		return;
 	}
-
+	
 	if ( pEvent->pLock == NULL ) {
 		xrtSetError("coroutine event lock is missing.", FALSE);
 		return;
 	}
-
+	
+	// 循环唤醒等待的协程
 	for ( ;; ) {
 		xcoro pWaiter = NULL;
 		xcosched* pSched = NULL;
 		bool bWakeAll = FALSE;
-
+		
 		xrtMutexLock(pEvent->pLock);
 		bWakeAll = pEvent->bManualReset;
+		
+		// 手动重置模式：设置信号状态
 		if ( pEvent->bManualReset ) {
 			pEvent->bSignaled = TRUE;
 		}
-
+		
+		// 取出一个等待者
 		pWaiter = __xrt_co_pop_event_waiter_locked(pEvent);
+		
+		// 自动重置模式：无等待者时才设置信号
 		if ( pWaiter == NULL && !pEvent->bManualReset ) {
 			pEvent->bSignaled = TRUE;
 		}
@@ -3155,11 +3311,13 @@ XXAPI void xrtCoEventSet(xcoevent pEvent)
 			pSched = (xcosched*)pWaiter->__pSched;
 		}
 		xrtMutexUnlock(pEvent->pLock);
-
+		
+		// 通过 post 将等待者标记为就绪
 		if ( pWaiter != NULL && pSched != NULL ) {
 			(void)xrtCoSchedPost(pSched, pWaiter);
 		}
-
+		
+		// 非手动重置模式或无更多等待者时退出
 		if ( !bWakeAll || pWaiter == NULL ) {
 			break;
 		}
@@ -3196,42 +3354,48 @@ static bool __xrt_co_wait_event_core(xcoevent pEvent, bool bInfinite, int64 iDea
 		xrtSetError("invalid coroutine event.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 必须在协程内部调用
 	if ( pCo == NULL ) {
 		xrtSetError("xrtCoWaitEvent must be called from inside a coroutine.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 必须在调度器管理的协程中调用
 	if ( pCo->__pSched == NULL ) {
 		xrtSetError("xrtCoWaitEvent requires a scheduler-managed coroutine.", FALSE);
 		return FALSE;
 	}
-
+	
+	// 已有取消请求，直接返回失败
 	if ( __xrt_co_is_cancel_requested_flag(pCo) ) {
 		return FALSE;
 	}
-
+	
 	if ( pEvent->pLock == NULL ) {
 		xrtSetError("coroutine event lock is missing.", FALSE);
 		return FALSE;
 	}
-
+	
 	pCo->__iWaitResult = __XRT_CO_WAIT_RESULT_NONE;
-
+	
 	xrtMutexLock(pEvent->pLock);
-
+	
+	// 尝试消费已有信号（快速路径）
 	if ( __xrt_co_event_try_consume_locked(pEvent) ) {
 		pCo->__iWaitResult = __XRT_CO_WAIT_RESULT_SIGNAL;
 		xrtMutexUnlock(pEvent->pLock);
 		return TRUE;
 	}
-
+	
+	// 超时时间已过，直接返回
 	iNowMs = __xrt_co_time_ms();
 	if ( !bInfinite && iDeadlineMs <= iNowMs ) {
 		xrtMutexUnlock(pEvent->pLock);
 		return FALSE;
 	}
-
+	
+	// 加入事件等待队列并挂起
 	__xrt_co_wait_queue_push_tail(&pEvent->pWaitHead, &pEvent->pWaitTail, pCo);
 	pCo->__pWaitObject = pEvent;
 	pCo->__iWaitKind = __XRT_CO_WAIT_EVENT;
@@ -3242,9 +3406,11 @@ static bool __xrt_co_wait_event_core(xcoevent pEvent, bool bInfinite, int64 iDea
 		pCo->__iWakeTime = iDeadlineMs;
 	}
 	xrtMutexUnlock(pEvent->pLock);
-
+	
+	// 让出执行权，等待被事件信号或超时唤醒
 	xrtCoYield();
-
+	
+	// 恢复后检查是否有取消请求
 	if ( __xrt_co_is_cancel_requested_flag(pCo) ) {
 		return FALSE;
 	}

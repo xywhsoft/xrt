@@ -281,16 +281,21 @@ XXAPI ptr xrtDictGetPtr(xdict objHT, ptr sKey, uint32 iKeyLen)
 {
 	ptr pRet = NULL;
 	Dict_Key objKey;
+	// 计算键的哈希值
 	Dict_EvalHash(objKey, sKey, iKeyLen);
+	// 进入可变操作（线程安全）
 	if ( !xrtOwnerBeginMutable(&objHT->Owner, "dict belongs to another thread.") ) {
 		return NULL;
 	}
+	// 根据哈希值查找节点，获取指针数据结构
 	struct {
 		ptr val;
 	} *pData = xrtDictGetWithKey(objHT, &objKey);
+	// 提取指针值
 	if ( pData ) {
 		pRet = pData->val;
 	}
+	// 退出可变操作
 	xrtOwnerEndMutable(&objHT->Owner);
 	return pRet;
 }

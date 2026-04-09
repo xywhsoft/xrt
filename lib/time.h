@@ -178,9 +178,13 @@ XXAPI int xrtHour(xtime iTime)
 // 获取时间中的日期
 XXAPI int xrtDay(xtime iTime)
 {
+	// R13: 基于400年周期逐级分解算法
+	// 利用格里高利历400年一轮回的特性，先定位400年周期内的年份，再逐月、逐日缩小范围
 	xtime iTimeAbs = llabs(iTime);
+	// 取400年周期内的余数，用于定位年内的精确位置
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
 	uint64 iYear = 0;
+	// 在400年周期内逐年扣除秒数，定位当前年份
 	for ( int i = 0; i < 400; i++ ) {
 		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
 		if ( iYearMod >= iSec ) {
@@ -190,6 +194,7 @@ XXAPI int xrtDay(xtime iTime)
 			break;
 		}
 	}
+	// 在当前年份内逐月扣除秒数，跳过完整的月份
 	for ( int i = 1; i <= 12; i++ ) {
 		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
 		if ( iYearMod >= iSec ) {
@@ -198,6 +203,7 @@ XXAPI int xrtDay(xtime iTime)
 			break;
 		}
 	}
+	// 在当前月份内逐日扣除，定位具体日期
 	int iDay = 1;
 	for ( int i = 1; i <= 31; i++ ) {
 		if ( iYearMod >= XRT_TIME_DAY ) {
@@ -215,9 +221,12 @@ XXAPI int xrtDay(xtime iTime)
 // 获取时间中的月份
 XXAPI int xrtMonth(xtime iTime)
 {
+	// R13: 基于400年周期逐级分解算法 —— 提取月份
 	xtime iTimeAbs = llabs(iTime);
+	// 取400年周期内的余数
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
 	uint64 iYear = 0;
+	// 在400年周期内逐年扣除，定位当前年份
 	for ( int i = 0; i < 400; i++ ) {
 		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
 		if ( iYearMod >= iSec ) {
@@ -227,6 +236,7 @@ XXAPI int xrtMonth(xtime iTime)
 			break;
 		}
 	}
+	// 在当前年份内逐月扣除，定位当前月份
 	int iMonth = 1;
 	for ( int i = 1; i <= 12; i++ ) {
 		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
@@ -245,10 +255,14 @@ XXAPI int xrtMonth(xtime iTime)
 // 获取时间中的年份
 XXAPI int64 xrtYear(xtime iTime)
 {
+	// R13: 基于400年周期分解算法 —— 提取年份
+	// 先通过除法得到完整的400年周期数，再在余数部分逐年遍历
 	xtime iTimeAbs = llabs(iTime);
+	// 计算400年周期数和周期内的余数
 	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
 	uint64 iYear = iYear400 * 400;
+	// 在余数部分逐年扣除，累加得到精确年份
 	for ( int i = 0; i < 400; i++ ) {
 		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
 		if ( iYearMod >= iSec ) {
@@ -258,6 +272,7 @@ XXAPI int64 xrtYear(xtime iTime)
 			break;
 		}
 	}
+	// 负数时间表示公元前，返回负年份
 	if ( iTime < 0 ) {
 		return -iYear;
 	} else {
@@ -301,7 +316,10 @@ XXAPI int xrtDayOfYear(xtime iTime)
 // 解码时间
 XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, int* pHour, int* pMinute, int* pSecond, int* pWeekday, int* pDayOfYear)
 {
+	// R13: 基于400年周期的一次性全量分解算法
+	// 一次遍历同时提取年、月、日、时、分、秒、星期、年中天数
 	xtime iTimeAbs = llabs(iTime);
+	// 第一步：分解400年周期，定位年份
 	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
 	uint64 iYear = iYear400 * 400;
@@ -314,6 +332,7 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 			break;
 		}
 	}
+	// 输出年份（负时间取反表示公元前）
 	if ( pYear ) {
 		if ( iTime < 0 ) {
 			*pYear = -iYear;
@@ -321,9 +340,11 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 			*pYear = iYear;
 		}
 	}
+	// 输出年中第几天
 	if ( pDayOfYear ) {
 		*pDayOfYear = 1 + (iYearMod / XRT_TIME_DAY);
 	}
+	// 第二步：逐月扣除，定位月份
 	int iMonth = 1;
 	for ( int i = 1; i <= 12; i++ ) {
 		uint64 iSec =  xrtDaysInMonth(iYear, i) * XRT_TIME_DAY;
@@ -337,6 +358,7 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 	if ( pMonth ) {
 		*pMonth = iMonth;
 	}
+	// 第三步：逐日扣除，定位日期
 	if ( pDay ) {
 		int iDay = 1;
 		for ( int i = 1; i <= 31; i++ ) {
@@ -349,6 +371,7 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 		}
 		*pDay = iDay;
 	}
+	// 第四步：从时间戳低位直接提取时分秒
 	if ( pHour ) {
 		*pHour = (iTimeAbs % XRT_TIME_DAY) / XRT_TIME_HOUR;
 	}
@@ -358,6 +381,7 @@ XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, in
 	if ( pSecond ) {
 		*pSecond = iTimeAbs % XRT_TIME_MINUTE;
 	}
+	// 第五步：计算星期（总天数对7取余）
 	if ( pWeekday ) {
 		uint64 iDay = iTimeAbs / XRT_TIME_DAY;
 		*pWeekday = iDay % 7;
@@ -484,18 +508,22 @@ XXAPI str xrtTimeToStr(xtime iTime, int iFormat)
 XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 {
 	if ( interval == XRT_TIME_INTERVAL_YEAR ) {
+		// 年累加：解码后对年份加减，再重新编码
 		int64 iYear;
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		return xrtDateTimeSerial(iYear + iValue, iMonth, iDay, iHour, iMinute, iSecond);
 	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
+		// R13: 月累加算法 —— 将月增加值分解为年进位和月偏移
 		xtime iValueAbs = llabs(iValue);
+		// 计算需要进位的年数和剩余的月数
 		uint64 iAddYear = iValueAbs / 12;
 		uint64 iAddMonth = iValueAbs % 12;
 		int64 iYear;
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		if ( iValue < 0 ) {
+			// R13: 负向月累加 —— 若月数不够减则向年借位
 			if ( iMonth - iAddMonth < 1 ) {
 				iYear = iYear - iAddYear - 1;
 				iMonth = 12 - (iAddMonth - iMonth);
@@ -504,6 +532,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 				iMonth -= iAddMonth;
 			}
 		} else {
+			// R13: 正向月累加 —— 若月数超过12则向年进位
 			if ( iMonth + iAddMonth > 12 ) {
 				iYear = iYear + iAddYear + 1;
 				iMonth = (iMonth + iAddMonth) % 12;
@@ -515,16 +544,22 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 		xtime tRet = xrtDateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond);
 		return tRet;
 	} else if ( interval == XRT_TIME_INTERVAL_DAY ) {
+		// 日累加：直接在时间戳上加减天数对应的秒数
 		return iTime + (iValue * XRT_TIME_DAY);
 	} else if ( interval == XRT_TIME_INTERVAL_HOUR ) {
+		// 小时累加
 		return iTime + (iValue * XRT_TIME_HOUR);
 	} else if ( interval == XRT_TIME_INTERVAL_MINUTE ) {
+		// 分钟累加
 		return iTime + (iValue * XRT_TIME_MINUTE);
 	} else if ( interval == XRT_TIME_INTERVAL_SECOND ) {
+		// 秒累加
 		return iTime + iValue;
 	} else if ( interval == XRT_TIME_INTERVAL_WEEKDAY ) {
+		// 周累加：转换为天数计算
 		return iTime + (iValue * XRT_TIME_DAY * 7);
 	} else if ( interval == XRT_TIME_INTERVAL_QUARTER ) {
+		// 季度累加：转换为3个月递归调用
 		return xrtDateAdd(XRT_TIME_INTERVAL_MONTH, iValue * 3, iTime);
 	} else {
 		return iTime;
@@ -537,24 +572,31 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
 {
 	if ( interval == XRT_TIME_INTERVAL_YEAR ) {
+		// 年差：分别提取年份后直接相减
 		int64 iYear1 = xrtYear(iTime1);
 		int64 iYear2 = xrtYear(iTime2);
 		return iYear2 - iYear1;
 	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
+		// R13: 月差算法 —— 年差×12 + 月差
 		int64 iYear1, iYear2;
 		int iMonth1, iMonth2;
 		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);
 		xrtDecodeSerial(iTime2, &iYear2, &iMonth2, NULL, NULL, NULL, NULL, NULL, NULL);
 		return ((iYear2 - iYear1) * 12) + (iMonth2 - iMonth1);
 	} else if ( interval == XRT_TIME_INTERVAL_DAY ) {
+		// 日差：时间戳差值除以一天的秒数
 		return (iTime2 - iTime1) / XRT_TIME_DAY;
 	} else if ( interval == XRT_TIME_INTERVAL_HOUR ) {
+		// 小时差
 		return (iTime2 - iTime1) / XRT_TIME_HOUR;
 	} else if ( interval == XRT_TIME_INTERVAL_MINUTE ) {
+		// 分钟差
 		return (iTime2 - iTime1) / XRT_TIME_MINUTE;
 	} else if ( interval == XRT_TIME_INTERVAL_SECOND ) {
+		// 秒差：直接相减
 		return iTime2 - iTime1;
 	} else if ( interval == XRT_TIME_INTERVAL_QUARTER ) {
+		// R13: 季度差算法 —— 复用月差计算，结果除以3
 		int64 iYear1, iYear2;
 		int iMonth1, iMonth2;
 		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -1101,18 +1143,23 @@ static inline int _xrtMatchWeekday(const char* s, const char* end, int* consumed
 // 解析格式字符串
 static void _xrtParseFormat(const char* fmt, _XrtFmtResult* result, int forParse)
 {
+	// 初始化结果
 	result->count = 0;
 	if ( !fmt ) { return; }
+	// 解析模式时在开头插入一个智能跳过单元，用于跳过输入字符串前导内容
 	if ( forParse ) {
 		result->cells[result->count].type = _XRT_FMT_SKIP_ANY;
 		result->cells[result->count].textLen = 0;
 		result->count++;
 	}
 	const char* p = fmt;
+	// 标记是否刚解析过小时格式（影响 mm 的含义：小时后为分钟，否则为月份）
 	int afterHour = 0;
+	// 逐字符扫描格式字符串，将每个格式标记转换为格式单元
 	while ( *p && result->count < 63 ) {
 		_XrtFmtCell* cell = &result->cells[result->count];
 		cell->textLen = 0;
+		// 识别年份格式 yyyy / yy
 		if ( p[0] == 'y' ) {
 			int cnt = 0;
 			while ( p[cnt] == 'y' && cnt < 4 ) { cnt++; }
@@ -1121,6 +1168,8 @@ static void _xrtParseFormat(const char* fmt, _XrtFmtResult* result, int forParse
 			afterHour = 0;
 			result->count++;
 		} else if ( p[0] == 'm'  ) {
+			// 识别月份/分钟格式 mmmm / mmm / mm / m
+			// 连续m的个数决定含义：4=全称月份 3=缩写月份 2=根据上下文判断 1=不补零
 			int cnt = 0;
 			while (p[cnt] == 'm' && cnt < 4) { cnt++; }
 			if (cnt >= 4 ) { cell->type = _XRT_FMT_MONTH_FULL; p += 4; afterHour = 0; }
@@ -1129,42 +1178,50 @@ static void _xrtParseFormat(const char* fmt, _XrtFmtResult* result, int forParse
 			else { cell->type = _XRT_FMT_MONTH1; p += 1; afterHour = 0; }
 			result->count++;
 		} else if (p[0] == 'd' ) {
+			// 识别日期格式 dd / d
 			int cnt = 0;
 			while (p[cnt] == 'd' && cnt < 2) { cnt++; }
 			cell->type = (cnt >= 2) ? _XRT_FMT_DAY2 : _XRT_FMT_DAY1;
 			p += cnt; afterHour = 0;
 			result->count++;
 		} else if (p[0] == 'h' ) {
+			// 识别24小时制格式 hh / h
 			int cnt = 0;
 			while (p[cnt] == 'h' && cnt < 2) { cnt++; }
 			cell->type = (cnt >= 2) ? _XRT_FMT_HOUR24_2 : _XRT_FMT_HOUR24_1;
 			p += cnt; afterHour = 1;
 			result->count++;
 		} else if (p[0] == 'H' ) {
+			// 识别12小时制格式 HH / H
 			int cnt = 0;
 			while (p[cnt] == 'H' && cnt < 2) { cnt++; }
 			cell->type = (cnt >= 2) ? _XRT_FMT_HOUR12_2 : _XRT_FMT_HOUR12_1;
 			p += cnt; afterHour = 1;
 			result->count++;
 		} else if (p[0] == 'n' ) {
+			// 识别显式分钟格式 nn / n（不受 afterHour 影响）
 			int cnt = 0;
 			while (p[cnt] == 'n' && cnt < 2) { cnt++; }
 			cell->type = (cnt >= 2) ? _XRT_FMT_MINUTE2 : _XRT_FMT_MINUTE1;
 			p += cnt;
 			result->count++;
 		} else if (p[0] == 's' ) {
+			// 识别秒格式 ss / s
 			int cnt = 0;
 			while (p[cnt] == 's' && cnt < 2) { cnt++; }
 			cell->type = (cnt >= 2) ? _XRT_FMT_SECOND2 : _XRT_FMT_SECOND1;
 			p += cnt;
 			result->count++;
 		} else if (p[0] == 'a' && p[1] == 'p' ) {
+			// 识别小写 am/pm 标记
 			cell->type = _XRT_FMT_AMPM_LOWER; p += 2;
 			result->count++;
 		} else if (p[0] == 'A' && p[1] == 'P' ) {
+			// 识别大写 AM/PM 标记
 			cell->type = _XRT_FMT_AMPM_UPPER; p += 2;
 			result->count++;
 		} else if (p[0] == 'w' ) {
+			// 识别星期格式 www / ww / w
 			int cnt = 0;
 			while (p[cnt] == 'w' && cnt < 3) { cnt++; }
 			if (cnt >= 3 ) { cell->type = _XRT_FMT_WEEKDAY_FULL; p += 3; }
@@ -1172,22 +1229,28 @@ static void _xrtParseFormat(const char* fmt, _XrtFmtResult* result, int forParse
 			else { cell->type = _XRT_FMT_WEEKDAY_NUM; p += 1; }
 			result->count++;
 		} else if (p[0] == 'q' ) {
+			// 识别季度格式
 			cell->type = _XRT_FMT_QUARTER; p += 1;
 			result->count++;
 		} else if (forParse && p[0] == '*' ) {
+			// 解析专用：跳过任意非数字字符（贪婪）
 			cell->type = _XRT_FMT_SKIP_ANY; p += 1;
 			result->count++;
 		} else if (forParse && p[0] == '.' ) {
+			// 解析专用：跳过至少1个非数字字符
 			cell->type = _XRT_FMT_SKIP_ONE_PLUS; p += 1;
 			result->count++;
 		} else if (forParse && p[0] == '?' ) {
+			// 解析专用：跳过1个任意字符
 			cell->type = _XRT_FMT_SKIP_CHAR; p += 1;
 			result->count++;
 		} else if (forParse && (p[0] == ' ' || p[0] == '\t') ) {
+			// 解析专用：跳过连续空白
 			cell->type = _XRT_FMT_SKIP_SPACE;
 			while (*p == ' ' || *p == '\t') { p++; }
 			result->count++;
 		} else {
+			// 其余字符作为固定文本字面量收集，直到遇到下一个格式标记
 			cell->type = _XRT_FMT_LITERAL;
 			int len = 0;
 			while (p[len] && len < 63 ) {
@@ -1210,18 +1273,23 @@ static void _xrtParseFormat(const char* fmt, _XrtFmtResult* result, int forParse
 XXAPI str xrtTimeFormat(xtime iTime, const void* sFormat)
 {
 	if (!sFormat) { return NULL; }
+	// 解析格式字符串为格式单元数组
 	_XrtFmtResult fmt;
 	_xrtParseFormat(sFormat, &fmt, 0);
 	if (fmt.count == 0) { return NULL; }
+	// 一次性解码时间的所有字段
 	int64 iYear; int iMonth, iDay, iHour, iMinute, iSecond, iWeekday;
 	xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, &iWeekday, NULL);
+	// 预计算派生字段：季度、12小时制小时数、上下午标识
 	int iQuarter = ((iMonth - 1) / 3) + 1;
 	int iHour12 = iHour % 12; if (iHour12 == 0) iHour12 = 12;
 	int isPM = (iHour >= 12);
+	// 分配输出缓冲区
 	size_t bufSize = 256;
 	char* buf = (char*)xrtMalloc(bufSize);
 	if (!buf) { return NULL; }
 	size_t pos = 0;
+	// 遍历格式单元，按类型写入对应的格式化文本
 	for (int i = 0; i < fmt.count && pos < bufSize - 32; i++ ) {
 		_XrtFmtCell* cell = &fmt.cells[i];
 		switch (cell->type ) {
@@ -1261,6 +1329,7 @@ XXAPI str xrtTimeFormat(xtime iTime, const void* sFormat)
 			default: break;
 		}
 	}
+	// 写入字符串结束符
 	buf[pos] = '\0';
 	return (str)buf;
 }

@@ -106,15 +106,18 @@ static size_t __xcodecChainPeekAt(const xnetchain* pChain, size_t iOffset, ptr p
 
 	if ( !pChain || !pOut || iLen == 0 || iOffset >= xrtNetChainBytes(pChain) ) { return 0; }
 
+	// 遍历链中的每个数据块，跳过偏移之前的数据
 	for ( pBlk = pChain->pHead; pBlk && iCopied < iLen; pBlk = pBlk->pNext ) {
 		size_t iReadable = __xnetBlkReadable(pBlk);
 		size_t iStart;
 		size_t iChunk;
 		if ( iReadable == 0 ) { continue; }
+		// 跳过整个块都在偏移之前的情况
 		if ( iSeen + iReadable <= iOffset ) {
 			iSeen += iReadable;
 			continue;
 		}
+		// 计算当前块中有效数据的起始位置和可拷贝长度
 		iStart = (iOffset > iSeen) ? (iOffset - iSeen) : 0;
 		iChunk = iReadable - iStart;
 		if ( iChunk > (iLen - iCopied) ) { iChunk = iLen - iCopied; }
@@ -137,15 +140,18 @@ static bool __xcodecChainMatchAt(const xnetchain* pChain, size_t iOffset, const 
 	if ( !pChain || !pNeedle || iNeedleLen == 0 ) { return false; }
 	if ( iOffset + iNeedleLen > xrtNetChainBytes(pChain) ) { return false; }
 
+	// 遍历链中的每个数据块，与目标字节序列逐段比对
 	for ( pBlk = pChain->pHead; pBlk && iNeedleOff < iNeedleLen; pBlk = pBlk->pNext ) {
 		size_t iReadable = __xnetBlkReadable(pBlk);
 		size_t iStart;
 		size_t iChunk;
 		if ( iReadable == 0 ) { continue; }
+		// 跳过整个块都在偏移之前的情况
 		if ( iSeen + iReadable <= iOffset ) {
 			iSeen += iReadable;
 			continue;
 		}
+		// 计算当前块中参与比对的起始位置和长度
 		iStart = (iOffset > iSeen) ? (iOffset - iSeen) : 0;
 		iChunk = iReadable - iStart;
 		if ( iChunk > (iNeedleLen - iNeedleOff) ) { iChunk = iNeedleLen - iNeedleOff; }
