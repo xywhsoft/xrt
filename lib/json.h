@@ -1123,15 +1123,15 @@ next:
 	str = (unsigned char *)(parse_ptr->str + parse_ptr->offset);
 	bak = str;
 	while (1) {
-		if (IS_BLANK(*str)) ++str; else break;
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
 #if JSON_MANUAL_LOOP_UNFOLD
-		if (IS_BLANK(*str)) ++str; else break;
-		if (IS_BLANK(*str)) ++str; else break;
-		if (IS_BLANK(*str)) ++str; else break;
-		if (IS_BLANK(*str)) ++str; else break;
-		if (IS_BLANK(*str)) ++str; else break;
-		if (IS_BLANK(*str)) ++str; else break;
-		if (IS_BLANK(*str)) ++str; else break;
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
+		if ( IS_BLANK(*str) ) { ++str; } else { break; }
 #endif
 	}
 

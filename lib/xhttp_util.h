@@ -25,7 +25,7 @@
 
 static char __xrtHttpUtilToLower(char ch)
 {
-	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
+	if ( ch >= 'A' && ch <= 'Z' ) { return (char)(ch + 32); }
 	return ch;
 }
 
@@ -34,9 +34,9 @@ static char __xrtHttpUtilToLower(char ch)
 static bool __xrtHttpUtilEqNoCaseN(const char* sA, size_t iLenA, const char* sB, size_t iLenB)
 {
 	size_t i;
-	if ( sA == NULL || sB == NULL || iLenA != iLenB ) return false;
+	if ( sA == NULL || sB == NULL || iLenA != iLenB ) { return false; }
 	for ( i = 0u; i < iLenA; ++i ) {
-		if ( __xrtHttpUtilToLower(sA[i]) != __xrtHttpUtilToLower(sB[i]) ) return false;
+		if ( __xrtHttpUtilToLower(sA[i]) != __xrtHttpUtilToLower(sB[i]) ) { return false; }
 	}
 	return true;
 }
@@ -45,9 +45,9 @@ static bool __xrtHttpUtilEqNoCaseN(const char* sA, size_t iLenA, const char* sB,
 // 内部函数：判断是否为 HTTP Token 字符
 static bool __xrtHttpUtilIsTokenChar(char ch)
 {
-	if ( ch >= '0' && ch <= '9' ) return true;
-	if ( ch >= 'A' && ch <= 'Z' ) return true;
-	if ( ch >= 'a' && ch <= 'z' ) return true;
+	if ( ch >= '0' && ch <= '9' ) { return true; }
+	if ( ch >= 'A' && ch <= 'Z' ) { return true; }
+	if ( ch >= 'a' && ch <= 'z' ) { return true; }
 	switch ( ch ) {
 		case '!': case '#': case '$': case '%': case '&': case '\'':
 		case '*': case '+': case '-': case '.': case '^': case '_':
@@ -71,10 +71,10 @@ static bool __xrtHttpUtilIsCookieOctet(char ch)
 static bool __xrtHttpUtilContainsCtl(const char* sText, size_t iLen)
 {
 	size_t i;
-	if ( sText == NULL ) return true;
+	if ( sText == NULL ) { return true; }
 	for ( i = 0u; i < iLen; ++i ) {
 		unsigned char ch = (unsigned char)sText[i];
-		if ( ch < 0x20u || ch == 0x7Fu ) return true;
+		if ( ch < 0x20u || ch == 0x7Fu ) { return true; }
 	}
 	return false;
 }
@@ -83,7 +83,7 @@ static bool __xrtHttpUtilContainsCtl(const char* sText, size_t iLen)
 // 内部函数：裁剪 HTTP 视图两端空白
 static void __xrtHttpUtilTrimView(xrtstrview* pView)
 {
-	if ( pView == NULL || pView->sPtr == NULL ) return;
+	if ( pView == NULL || pView->sPtr == NULL ) { return; }
 	while ( pView->iLen > 0u && (pView->sPtr[0] == ' ' || pView->sPtr[0] == '\t') ) {
 		pView->sPtr++;
 		pView->iLen--;
@@ -100,18 +100,18 @@ static bool __xrtHttpUtilParseInt32(const char* sText, size_t iLen, int32_t* pOu
 	bool bNeg = false;
 	size_t i = 0u;
 	int64_t iValue = 0;
-	if ( sText == NULL || pOut == NULL || iLen == 0u ) return false;
+	if ( sText == NULL || pOut == NULL || iLen == 0u ) { return false; }
 	if ( sText[0] == '-' || sText[0] == '+' ) {
 		bNeg = sText[0] == '-';
 		i = 1u;
-		if ( i >= iLen ) return false;
+		if ( i >= iLen ) { return false; }
 	}
 	for ( ; i < iLen; ++i ) {
 		char ch = sText[i];
-		if ( ch < '0' || ch > '9' ) return false;
+		if ( ch < '0' || ch > '9' ) { return false; }
 		iValue = (iValue * 10) + (int64_t)(ch - '0');
-		if ( !bNeg && iValue > 2147483647LL ) return false;
-		if ( bNeg && iValue > 2147483648LL ) return false;
+		if ( !bNeg && iValue > 2147483647LL ) { return false; }
+		if ( bNeg && iValue > 2147483648LL ) { return false; }
 	}
 	*pOut = bNeg ? (int32_t)(-iValue) : (int32_t)iValue;
 	return true;
@@ -122,10 +122,10 @@ static bool __xrtHttpUtilParseInt32(const char* sText, size_t iLen, int32_t* pOu
 static bool __xrtHttpUtilAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset, const char* sText, size_t iLen)
 {
 	size_t iCur;
-	if ( sOut == NULL || pOffset == NULL || (sText == NULL && iLen != 0u) ) return false;
+	if ( sOut == NULL || pOffset == NULL || (sText == NULL && iLen != 0u) ) { return false; }
 	iCur = *pOffset;
-	if ( iCur + iLen >= iOutCap ) return false;
-	if ( iLen > 0u ) memcpy(sOut + iCur, sText, iLen);
+	if ( iCur + iLen >= iOutCap ) { return false; }
+	if ( iLen > 0u ) { memcpy(sOut + iCur, sText, iLen); }
 	iCur += iLen;
 	sOut[iCur] = '\0';
 	*pOffset = iCur;
@@ -137,10 +137,10 @@ static bool __xrtHttpUtilAppendBytes(char* sOut, size_t iOutCap, size_t* pOffset
 static bool __xrtHttpUtilValidateBoundaryN(const char* sBoundary, size_t iBoundaryLen)
 {
 	size_t i;
-	if ( sBoundary == NULL || iBoundaryLen == 0u || iBoundaryLen > 70u ) return false;
+	if ( sBoundary == NULL || iBoundaryLen == 0u || iBoundaryLen > 70u ) { return false; }
 	for ( i = 0u; i < iBoundaryLen; ++i ) {
 		unsigned char ch = (unsigned char)sBoundary[i];
-		if ( ch < 0x20u || ch == 0x7Fu ) return false;
+		if ( ch < 0x20u || ch == 0x7Fu ) { return false; }
 	}
 	return true;
 }
@@ -149,7 +149,7 @@ static bool __xrtHttpUtilValidateBoundaryN(const char* sBoundary, size_t iBounda
 // 初始化 HTTP 工具限制配置
 XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
 {
-	if ( !pLimits ) return;
+	if ( !pLimits ) { return; }
 	pLimits->iMaxNameBytes = 256u;
 	pLimits->iMaxValueBytes = 4096u;
 	pLimits->iMaxPairs = 128u;
@@ -167,7 +167,7 @@ XXAPI void xrtHttpUtilLimitsInit(xrthttputillimits* pLimits)
 // 内部函数：解析 HTTP 工具限制配置
 static const xrthttputillimits* __xrtHttpUtilResolveLimits(const xrthttputillimits* pIn, xrthttputillimits* pLocal)
 {
-	if ( pIn ) return pIn;
+	if ( pIn ) { return pIn; }
 	xrtHttpUtilLimitsInit(pLocal);
 	return pLocal;
 }
@@ -178,7 +178,7 @@ XXAPI void xrtMultipartStreamConfigApplyLimits(xrtmultipartstreamconfig* pConfig
 {
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
-	if ( !pConfig ) return;
+	if ( !pConfig ) { return; }
 	pConfig->iMaxBufferedBytes = pResolved->iMaxMultipartBytes;
 	pConfig->iMaxHeaderBytes = pResolved->iMaxHeaderBytes;
 	pConfig->iMaxPartHeaders = pResolved->iMaxMultipartHeaders;
@@ -196,10 +196,10 @@ XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttput
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrtstrview tToken;
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	while ( xrtHttpTokenNextN(sText, iLen, &iOffset, &tToken) ) {
-		if ( tToken.iLen == 0u || tToken.iLen > pResolved->iMaxTokenBytes ) return false;
-		if ( ++iCount > pResolved->iMaxPairs ) return false;
+		if ( tToken.iLen == 0u || tToken.iLen > pResolved->iMaxTokenBytes ) { return false; }
+		if ( ++iCount > pResolved->iMaxPairs ) { return false; }
 	}
 	return true;
 }
@@ -208,7 +208,7 @@ XXAPI bool xrtHttpTokenValidateN(const char* sText, size_t iLen, const xrthttput
 // 校验 HTTP Token
 XXAPI bool xrtHttpTokenValidate(const char* sText, const xrthttputillimits* pLimits)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpTokenValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
@@ -221,11 +221,11 @@ XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttput
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrthttpparam tParam;
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	while ( xrtHttpParamNextN(sText, iLen, &iOffset, &tParam) ) {
-		if ( tParam.tName.iLen == 0u || tParam.tName.iLen > pResolved->iMaxNameBytes ) return false;
-		if ( (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) != 0u && tParam.tValue.iLen > pResolved->iMaxValueBytes ) return false;
-		if ( ++iCount > pResolved->iMaxPairs ) return false;
+		if ( tParam.tName.iLen == 0u || tParam.tName.iLen > pResolved->iMaxNameBytes ) { return false; }
+		if ( (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) != 0u && tParam.tValue.iLen > pResolved->iMaxValueBytes ) { return false; }
+		if ( ++iCount > pResolved->iMaxPairs ) { return false; }
 	}
 	return true;
 }
@@ -234,7 +234,7 @@ XXAPI bool xrtHttpParamValidateN(const char* sText, size_t iLen, const xrthttput
 // 校验 HTTP 参数
 XXAPI bool xrtHttpParamValidate(const char* sText, const xrthttputillimits* pLimits)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpParamValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
@@ -247,11 +247,11 @@ XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputilli
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrtquerypair tPair;
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	while ( xrtQueryNextN(sText, iLen, &iOffset, &tPair) ) {
-		if ( tPair.tKey.iLen == 0u || tPair.tKey.iLen > pResolved->iMaxNameBytes ) return false;
-		if ( (tPair.iFlags & XRT_QUERY_F_HAS_VALUE) != 0u && tPair.tValue.iLen > pResolved->iMaxValueBytes ) return false;
-		if ( ++iCount > pResolved->iMaxPairs ) return false;
+		if ( tPair.tKey.iLen == 0u || tPair.tKey.iLen > pResolved->iMaxNameBytes ) { return false; }
+		if ( (tPair.iFlags & XRT_QUERY_F_HAS_VALUE) != 0u && tPair.tValue.iLen > pResolved->iMaxValueBytes ) { return false; }
+		if ( ++iCount > pResolved->iMaxPairs ) { return false; }
 	}
 	return true;
 }
@@ -260,7 +260,7 @@ XXAPI bool xrtQueryValidateN(const char* sText, size_t iLen, const xrthttputilli
 // 校验查询
 XXAPI bool xrtQueryValidate(const char* sText, const xrthttputillimits* pLimits)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtQueryValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
@@ -273,11 +273,11 @@ XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputill
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrtcookiepair tCookie;
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	while ( xrtCookieNextN(sText, iLen, &iOffset, &tCookie) ) {
-		if ( tCookie.tName.iLen == 0u || tCookie.tName.iLen > pResolved->iMaxNameBytes ) return false;
-		if ( tCookie.tValue.iLen > pResolved->iMaxValueBytes ) return false;
-		if ( ++iCount > pResolved->iMaxPairs ) return false;
+		if ( tCookie.tName.iLen == 0u || tCookie.tName.iLen > pResolved->iMaxNameBytes ) { return false; }
+		if ( tCookie.tValue.iLen > pResolved->iMaxValueBytes ) { return false; }
+		if ( ++iCount > pResolved->iMaxPairs ) { return false; }
 	}
 	return true;
 }
@@ -286,7 +286,7 @@ XXAPI bool xrtCookieValidateN(const char* sText, size_t iLen, const xrthttputill
 // 校验 Cookie
 XXAPI bool xrtCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtCookieValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
@@ -301,7 +301,7 @@ XXAPI bool xrtFormUrlEncodedValidateN(const char* sText, size_t iLen, const xrth
 // 校验表单 URL 编码
 XXAPI bool xrtFormUrlEncodedValidate(const char* sText, const xrthttputillimits* pLimits)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtFormUrlEncodedValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
@@ -314,14 +314,14 @@ XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xr
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrtheaderpair tHeader;
-	if ( sBlock == NULL ) return false;
-	if ( iLen > pResolved->iMaxHeaderBytes ) return false;
+	if ( sBlock == NULL ) { return false; }
+	if ( iLen > pResolved->iMaxHeaderBytes ) { return false; }
 	while ( xrtHttpHeaderNextLineN(sBlock, iLen, &iOffset, &tHeader) ) {
 		size_t iLineBytes = tHeader.tName.iLen + 2u + tHeader.tValue.iLen;
-		if ( tHeader.tName.iLen == 0u || tHeader.tName.iLen > pResolved->iMaxNameBytes ) return false;
-		if ( tHeader.tValue.iLen > pResolved->iMaxValueBytes ) return false;
-		if ( iLineBytes > pResolved->iMaxHeaderLineBytes ) return false;
-		if ( ++iCount > pResolved->iMaxHeaderCount ) return false;
+		if ( tHeader.tName.iLen == 0u || tHeader.tName.iLen > pResolved->iMaxNameBytes ) { return false; }
+		if ( tHeader.tValue.iLen > pResolved->iMaxValueBytes ) { return false; }
+		if ( iLineBytes > pResolved->iMaxHeaderLineBytes ) { return false; }
+		if ( ++iCount > pResolved->iMaxHeaderCount ) { return false; }
 	}
 	return iOffset == iLen;
 }
@@ -330,7 +330,7 @@ XXAPI bool xrtHttpHeaderBlockValidateN(const char* sBlock, size_t iLen, const xr
 // 校验 HTTP 头部块
 XXAPI bool xrtHttpHeaderBlockValidate(const char* sBlock, const xrthttputillimits* pLimits)
 {
-	if ( sBlock == NULL ) return false;
+	if ( sBlock == NULL ) { return false; }
 	return xrtHttpHeaderBlockValidateN(sBlock, strlen(sBlock), pLimits);
 }
 
@@ -341,12 +341,12 @@ XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttput
 	xrthttputillimits tLocal;
 	const xrthttputillimits* pResolved = __xrtHttpUtilResolveLimits(pLimits, &tLocal);
 	xrtsetcookieview tCookie;
-	if ( !xrtSetCookieParseN(sText, iLen, &tCookie) ) return false;
-	if ( tCookie.tName.iLen == 0u || tCookie.tName.iLen > pResolved->iMaxNameBytes ) return false;
-	if ( tCookie.tValue.iLen > pResolved->iMaxValueBytes ) return false;
-	if ( (tCookie.iFlags & XRT_SET_COOKIE_F_HAS_DOMAIN) != 0u && tCookie.tDomain.iLen > pResolved->iMaxValueBytes ) return false;
-	if ( (tCookie.iFlags & XRT_SET_COOKIE_F_HAS_PATH) != 0u && tCookie.tPath.iLen > pResolved->iMaxValueBytes ) return false;
-	if ( (tCookie.iFlags & XRT_SET_COOKIE_F_HAS_EXPIRES) != 0u && tCookie.tExpires.iLen > pResolved->iMaxValueBytes ) return false;
+	if ( !xrtSetCookieParseN(sText, iLen, &tCookie) ) { return false; }
+	if ( tCookie.tName.iLen == 0u || tCookie.tName.iLen > pResolved->iMaxNameBytes ) { return false; }
+	if ( tCookie.tValue.iLen > pResolved->iMaxValueBytes ) { return false; }
+	if ( (tCookie.iFlags & XRT_SET_COOKIE_F_HAS_DOMAIN) != 0u && tCookie.tDomain.iLen > pResolved->iMaxValueBytes ) { return false; }
+	if ( (tCookie.iFlags & XRT_SET_COOKIE_F_HAS_PATH) != 0u && tCookie.tPath.iLen > pResolved->iMaxValueBytes ) { return false; }
+	if ( (tCookie.iFlags & XRT_SET_COOKIE_F_HAS_EXPIRES) != 0u && tCookie.tExpires.iLen > pResolved->iMaxValueBytes ) { return false; }
 	return true;
 }
 
@@ -354,7 +354,7 @@ XXAPI bool xrtSetCookieValidateN(const char* sText, size_t iLen, const xrthttput
 // xrtSetCookieValidate 相关处理
 XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLimits)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtSetCookieValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 
@@ -370,27 +370,27 @@ XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBo
 	size_t iHeaderOff;
 	size_t iHeaderCount;
 	xrtheaderpair tHeader;
-	if ( sBody == NULL || sBoundary == NULL ) return false;
-	if ( iBoundaryLen == 0u || iBoundaryLen > pResolved->iMaxBoundaryBytes ) return false;
-	if ( iLen > pResolved->iMaxMultipartBytes ) return false;
-	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
+	if ( sBody == NULL || sBoundary == NULL ) { return false; }
+	if ( iBoundaryLen == 0u || iBoundaryLen > pResolved->iMaxBoundaryBytes ) { return false; }
+	if ( iLen > pResolved->iMaxMultipartBytes ) { return false; }
+	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) { return false; }
 	while ( xrtMultipartNextN(sBody, iLen, sBoundary, iBoundaryLen, &iOffset, &tPart) ) {
-		if ( ++iPartCount > pResolved->iMaxMultipartParts ) return false;
-		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_NAME) != 0u && (tPart.tName.iLen == 0u || tPart.tName.iLen > pResolved->iMaxNameBytes) ) return false;
-		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_FILENAME) != 0u && tPart.tFileName.iLen > pResolved->iMaxValueBytes ) return false;
-		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_FILENAME_EXT) != 0u && tPart.tFileNameExt.iLen > pResolved->iMaxValueBytes ) return false;
-		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_CONTENT_TYPE) != 0u && tPart.tContentType.iLen > pResolved->iMaxValueBytes ) return false;
-		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_TRANSFER_ENCODING) != 0u && tPart.tTransferEncoding.iLen > pResolved->iMaxValueBytes ) return false;
+		if ( ++iPartCount > pResolved->iMaxMultipartParts ) { return false; }
+		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_NAME) != 0u && (tPart.tName.iLen == 0u || tPart.tName.iLen > pResolved->iMaxNameBytes) ) { return false; }
+		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_FILENAME) != 0u && tPart.tFileName.iLen > pResolved->iMaxValueBytes ) { return false; }
+		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_FILENAME_EXT) != 0u && tPart.tFileNameExt.iLen > pResolved->iMaxValueBytes ) { return false; }
+		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_CONTENT_TYPE) != 0u && tPart.tContentType.iLen > pResolved->iMaxValueBytes ) { return false; }
+		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_TRANSFER_ENCODING) != 0u && tPart.tTransferEncoding.iLen > pResolved->iMaxValueBytes ) { return false; }
 		iHeaderOff = 0u;
 		iHeaderCount = 0u;
 		while ( xrtHttpHeaderNextLineN(tPart.tHeaders.sPtr, tPart.tHeaders.iLen, &iHeaderOff, &tHeader) ) {
 			size_t iLineBytes = tHeader.tName.iLen + 2u + tHeader.tValue.iLen;
-			if ( tHeader.tName.iLen == 0u || tHeader.tName.iLen > pResolved->iMaxNameBytes ) return false;
-			if ( tHeader.tValue.iLen > pResolved->iMaxValueBytes ) return false;
-			if ( iLineBytes > pResolved->iMaxHeaderLineBytes ) return false;
-			if ( ++iHeaderCount > pResolved->iMaxMultipartHeaders ) return false;
+			if ( tHeader.tName.iLen == 0u || tHeader.tName.iLen > pResolved->iMaxNameBytes ) { return false; }
+			if ( tHeader.tValue.iLen > pResolved->iMaxValueBytes ) { return false; }
+			if ( iLineBytes > pResolved->iMaxHeaderLineBytes ) { return false; }
+			if ( ++iHeaderCount > pResolved->iMaxMultipartHeaders ) { return false; }
 		}
-		if ( iHeaderOff != tPart.tHeaders.iLen ) return false;
+		if ( iHeaderOff != tPart.tHeaders.iLen ) { return false; }
 	}
 	return true;
 }
@@ -399,7 +399,7 @@ XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBo
 // 校验 Multipart
 XXAPI bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const xrthttputillimits* pLimits)
 {
-	if ( sBody == NULL || sBoundary == NULL ) return false;
+	if ( sBody == NULL || sBoundary == NULL ) { return false; }
 	return xrtMultipartValidateN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pLimits);
 }
 
@@ -407,9 +407,9 @@ XXAPI bool xrtMultipartValidate(const char* sBody, const char* sBoundary, const 
 // 内部函数：__xrtHttpUtilIsAttrChar
 static bool UNUSED_ATTR __xrtHttpUtilIsAttrChar(char ch)
 {
-	if ( ch >= '0' && ch <= '9' ) return true;
-	if ( ch >= 'A' && ch <= 'Z' ) return true;
-	if ( ch >= 'a' && ch <= 'z' ) return true;
+	if ( ch >= '0' && ch <= '9' ) { return true; }
+	if ( ch >= 'A' && ch <= 'Z' ) { return true; }
+	if ( ch >= 'a' && ch <= 'z' ) { return true; }
 	switch ( ch ) {
 		case '!': case '#': case '$': case '&': case '+': case '-':
 		case '.': case '^': case '_': case '`': case '|': case '~':
@@ -434,15 +434,15 @@ static char __xrtHttpUtilHexDigit(uint8 iValue)
 static bool __xrtHttpUtilAppendQuotedString(char* sOut, size_t iOutCap, size_t* pOffset, const char* sText, size_t iLen)
 {
 	size_t i;
-	if ( sOut == NULL || pOffset == NULL || (sText == NULL && iLen != 0u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\"", 1u) ) return false;
+	if ( sOut == NULL || pOffset == NULL || (sText == NULL && iLen != 0u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\"", 1u) ) { return false; }
 	for ( i = 0u; i < iLen; ++i ) {
 		char ch = sText[i];
-		if ( ch == '\r' || ch == '\n' || ch == '\0' ) return false;
+		if ( ch == '\r' || ch == '\n' || ch == '\0' ) { return false; }
 		if ( ch == '"' || ch == '\\' ) {
-			if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\\", 1u) ) return false;
+			if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\\", 1u) ) { return false; }
 		}
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, &ch, 1u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, &ch, 1u) ) { return false; }
 	}
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\"", 1u);
 }
@@ -452,9 +452,9 @@ static bool __xrtHttpUtilAppendQuotedString(char* sOut, size_t iOutCap, size_t* 
 XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen)
 {
 	size_t i;
-	if ( sText == NULL || iLen == 0u ) return false;
+	if ( sText == NULL || iLen == 0u ) { return false; }
 	for ( i = 0u; i < iLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sText[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sText[i]) ) { return false; }
 	}
 	return true;
 }
@@ -463,7 +463,7 @@ XXAPI bool xrtHttpIsTokenN(const char* sText, size_t iLen)
 // 判断是否为 HTTP Token
 XXAPI bool xrtHttpIsToken(const char* sText)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpIsTokenN(sText, strlen(__xrt_cstr(sText)));
 }
 
@@ -473,25 +473,25 @@ XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sO
 {
 	size_t iIn;
 	size_t iOut = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) return false;
-	if ( iLen < 2u || sText[0] != '"' || sText[iLen - 1u] != '"' ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
+	if ( iLen < 2u || sText[0] != '"' || sText[iLen - 1u] != '"' ) { return false; }
 	sOut[0] = '\0';
 	for ( iIn = 1u; iIn + 1u < iLen; ++iIn ) {
 		unsigned char ch = (unsigned char)sText[iIn];
-		if ( ch == '\r' || ch == '\n' || ch == '\0' ) return false;
+		if ( ch == '\r' || ch == '\n' || ch == '\0' ) { return false; }
 		if ( ch == '\\' ) {
-			if ( iIn + 2u > iLen - 1u ) return false;
+			if ( iIn + 2u > iLen - 1u ) { return false; }
 			ch = (unsigned char)sText[++iIn];
-			if ( ch == '\r' || ch == '\n' || ch == '\0' ) return false;
+			if ( ch == '\r' || ch == '\n' || ch == '\0' ) { return false; }
 		} else if ( ch == '"' ) {
 			return false;
 		}
-		if ( iOut + 1u >= iOutCap ) return false;
+		if ( iOut + 1u >= iOutCap ) { return false; }
 		sOut[iOut++] = (char)ch;
 	}
 	sOut[iOut] = '\0';
-	if ( pOutLen ) *pOutLen = iOut;
+	if ( pOutLen ) { *pOutLen = iOut; }
 	return true;
 }
 
@@ -499,7 +499,7 @@ XXAPI bool xrtHttpQuotedStringDecodeToN(const char* sText, size_t iLen, char* sO
 // 解码 HTTP 引用字符串
 XXAPI bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpQuotedStringDecodeToN(sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 
@@ -508,11 +508,11 @@ XXAPI bool xrtHttpQuotedStringDecodeTo(const char* sText, char* sOut, size_t iOu
 XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || (sText == NULL && iLen != 0u) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || (sText == NULL && iLen != 0u) ) { return false; }
 	sOut[0] = '\0';
-	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, &iOff, sText, iLen) ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, &iOff, sText, iLen) ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -520,7 +520,7 @@ XXAPI bool xrtHttpQuotedStringBuildToN(const char* sText, size_t iLen, char* sOu
 // 构建 HTTP 引用字符串
 XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpQuotedStringBuildToN(sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 
@@ -530,28 +530,28 @@ XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t
 {
 	size_t iOut = 0u;
 	size_t i;
-	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) return false;
+	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	for ( i = 0u; i < iLen; ++i ) {
 		unsigned char ch = (unsigned char)sText[i];
 		bool bKeep = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') ||
 			ch == '-' || ch == '_' || ch == '.' || ch == '~';
 		if ( ch == ' ' && bSpaceAsPlus ) {
-			if ( iOut + 1u >= iOutCap ) return false;
+			if ( iOut + 1u >= iOutCap ) { return false; }
 			sOut[iOut++] = '+';
 			continue;
 		}
 		if ( bKeep ) {
-			if ( iOut + 1u >= iOutCap ) return false;
+			if ( iOut + 1u >= iOutCap ) { return false; }
 			sOut[iOut++] = (char)ch;
 			continue;
 		}
-		if ( iOut + 3u >= iOutCap ) return false;
+		if ( iOut + 3u >= iOutCap ) { return false; }
 		sOut[iOut++] = '%';
 		sOut[iOut++] = __xrtHttpUtilHexDigit((uint8)((ch >> 4) & 0x0Fu));
 		sOut[iOut++] = __xrtHttpUtilHexDigit((uint8)(ch & 0x0Fu));
 	}
 	sOut[iOut] = '\0';
-	if ( pOutLen ) *pOutLen = iOut;
+	if ( pOutLen ) { *pOutLen = iOut; }
 	return true;
 }
 
@@ -562,27 +562,27 @@ static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset
 	size_t iFirstTick = (size_t)-1;
 	size_t iSecondTick = (size_t)-1;
 	size_t i;
-	if ( pCharset ) *pCharset = xrtStrView(NULL, 0u);
-	if ( pLanguage ) *pLanguage = xrtStrView(NULL, 0u);
-	if ( pEncoded ) *pEncoded = xrtStrView(NULL, 0u);
-	if ( xrtStrViewIsEmpty(tRaw) ) return false;
+	if ( pCharset ) { *pCharset = xrtStrView(NULL, 0u); }
+	if ( pLanguage ) { *pLanguage = xrtStrView(NULL, 0u); }
+	if ( pEncoded ) { *pEncoded = xrtStrView(NULL, 0u); }
+	if ( xrtStrViewIsEmpty(tRaw) ) { return false; }
 	for ( i = 0u; i < tRaw.iLen; ++i ) {
 		if ( tRaw.sPtr[i] == '\'' ) {
-			if ( iFirstTick == (size_t)-1 ) iFirstTick = i;
+			if ( iFirstTick == (size_t)-1 ) { iFirstTick = i; }
 			else {
 				iSecondTick = i;
 				break;
 			}
 		}
 	}
-	if ( iFirstTick == (size_t)-1 || iSecondTick == (size_t)-1 || iFirstTick == 0u ) return false;
+	if ( iFirstTick == (size_t)-1 || iSecondTick == (size_t)-1 || iFirstTick == 0u ) { return false; }
 	for ( i = 0u; i < iFirstTick; ++i ) {
 		unsigned char ch = (unsigned char)tRaw.sPtr[i];
-		if ( ch <= 0x20u || ch >= 0x7Fu || !__xrtHttpUtilIsTokenChar(tRaw.sPtr[i]) ) return false;
+		if ( ch <= 0x20u || ch >= 0x7Fu || !__xrtHttpUtilIsTokenChar(tRaw.sPtr[i]) ) { return false; }
 	}
-	if ( pCharset ) *pCharset = xrtStrView(tRaw.sPtr, iFirstTick);
-	if ( pLanguage ) *pLanguage = xrtStrView(tRaw.sPtr + iFirstTick + 1u, iSecondTick - iFirstTick - 1u);
-	if ( pEncoded ) *pEncoded = xrtStrView(tRaw.sPtr + iSecondTick + 1u, tRaw.iLen - iSecondTick - 1u);
+	if ( pCharset ) { *pCharset = xrtStrView(tRaw.sPtr, iFirstTick); }
+	if ( pLanguage ) { *pLanguage = xrtStrView(tRaw.sPtr + iFirstTick + 1u, iSecondTick - iFirstTick - 1u); }
+	if ( pEncoded ) { *pEncoded = xrtStrView(tRaw.sPtr + iSecondTick + 1u, tRaw.iLen - iSecondTick - 1u); }
 	return true;
 }
 
@@ -593,11 +593,11 @@ XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* p
 	xrtstrview tCharset;
 	xrtstrview tLanguage;
 	xrtstrview tEncoded;
-	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) return false;
-	if ( !__xrtHttpUtilParseExtValueView(xrtStrView(sText, iLen), &tCharset, &tLanguage, &tEncoded) ) return false;
-	if ( !xrtPercentDecodeTo(tEncoded.sPtr, tEncoded.iLen, sOut, iOutCap, pOutLen, false) ) return false;
-	if ( pCharset ) *pCharset = tCharset;
-	if ( pLanguage ) *pLanguage = tLanguage;
+	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
+	if ( !__xrtHttpUtilParseExtValueView(xrtStrView(sText, iLen), &tCharset, &tLanguage, &tEncoded) ) { return false; }
+	if ( !xrtPercentDecodeTo(tEncoded.sPtr, tEncoded.iLen, sOut, iOutCap, pOutLen, false) ) { return false; }
+	if ( pCharset ) { *pCharset = tCharset; }
+	if ( pLanguage ) { *pLanguage = tLanguage; }
 	return true;
 }
 
@@ -605,7 +605,7 @@ XXAPI bool xrtHttpDecodeExtValueTo(const char* sText, size_t iLen, xrtstrview* p
 // 解码 HTTP 扩展值
 XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpDecodeExtValueTo(sText, strlen(__xrt_cstr(sText)), NULL, NULL, sOut, iOutCap, pOutLen);
 }
 
@@ -618,28 +618,28 @@ XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, c
 	size_t iCharsetLen;
 	size_t iLanguageLen;
 	size_t i;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) return false;
-	if ( sCharset == NULL || sCharset[0] == '\0' ) sCharset = "UTF-8";
-	if ( sLanguage == NULL ) sLanguage = "";
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
+	if ( sCharset == NULL || sCharset[0] == '\0' ) { sCharset = "UTF-8"; }
+	if ( sLanguage == NULL ) { sLanguage = ""; }
 	iCharsetLen = strlen(sCharset);
 	iLanguageLen = strlen(sLanguage);
 	for ( i = 0u; i < iCharsetLen; ++i ) {
 		unsigned char ch = (unsigned char)sCharset[i];
-		if ( ch <= 0x20u || ch >= 0x7Fu || !__xrtHttpUtilIsTokenChar(sCharset[i]) ) return false;
+		if ( ch <= 0x20u || ch >= 0x7Fu || !__xrtHttpUtilIsTokenChar(sCharset[i]) ) { return false; }
 	}
 	for ( i = 0u; i < iLanguageLen; ++i ) {
 		unsigned char ch = (unsigned char)sLanguage[i];
-		if ( ch <= 0x20u || ch >= 0x7Fu || sLanguage[i] == '\'' ) return false;
+		if ( ch <= 0x20u || ch >= 0x7Fu || sLanguage[i] == '\'' ) { return false; }
 	}
 	sOut[0] = '\0';
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sCharset, iCharsetLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "'", 1u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sLanguage, iLanguageLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "'", 1u) ) return false;
-	if ( !xrtPercentEncodeTo(sText, iTextLen, sOut + iOff, iOutCap - iOff, &iEncLen, false) ) return false;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sCharset, iCharsetLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "'", 1u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sLanguage, iLanguageLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "'", 1u) ) { return false; }
+	if ( !xrtPercentEncodeTo(sText, iTextLen, sOut + iOff, iOutCap - iOff, &iEncLen, false) ) { return false; }
 	iOff += iEncLen;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -647,7 +647,7 @@ XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, c
 // 构建 HTTP 扩展值
 XXAPI bool xrtHttpBuildExtValue(const char* sCharset, const char* sLanguage, const char* sText, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpBuildExtValueTo(sCharset, sLanguage, sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 
@@ -657,17 +657,17 @@ XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair
 {
 	size_t iColon = (size_t)-1;
 	size_t i;
-	if ( sLine == NULL || pOut == NULL || iLen == 0u ) return false;
+	if ( sLine == NULL || pOut == NULL || iLen == 0u ) { return false; }
 	for ( i = 0u; i < iLen; ++i ) {
 		if ( sLine[i] == ':' ) {
 			iColon = i;
 			break;
 		}
-		if ( sLine[i] == '\r' || sLine[i] == '\n' ) return false;
+		if ( sLine[i] == '\r' || sLine[i] == '\n' ) { return false; }
 	}
-	if ( iColon == (size_t)-1 || iColon == 0u ) return false;
+	if ( iColon == (size_t)-1 || iColon == 0u ) { return false; }
 	for ( i = 0u; i < iColon; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sLine[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sLine[i]) ) { return false; }
 	}
 	pOut->tName = xrtStrView(sLine, iColon);
 	pOut->tValue = xrtStrView(sLine + iColon + 1u, iLen - iColon - 1u);
@@ -679,7 +679,7 @@ XXAPI bool xrtHttpHeaderSplitLineN(const char* sLine, size_t iLen, xrtheaderpair
 // HTTP 头部 split 行相关处理
 XXAPI bool xrtHttpHeaderSplitLine(const char* sLine, xrtheaderpair* pOut)
 {
-	if ( sLine == NULL ) return false;
+	if ( sLine == NULL ) { return false; }
 	return xrtHttpHeaderSplitLineN(sLine, strlen(sLine), pOut);
 }
 
@@ -689,19 +689,19 @@ XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const ch
 {
 	size_t iOff = 0u;
 	size_t i;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sName == NULL || (sValue == NULL && iValueLen != 0u) || sOut == NULL || iOutCap == 0u ) return false;
-	if ( iNameLen == 0u ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sName == NULL || (sValue == NULL && iValueLen != 0u) || sOut == NULL || iOutCap == 0u ) { return false; }
+	if ( iNameLen == 0u ) { return false; }
 	for ( i = 0u; i < iNameLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) { return false; }
 	}
-	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) return false;
+	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) { return false; }
 	sOut[0] = '\0';
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sName, iNameLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ": ", 2u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sValue, iValueLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sName, iNameLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ": ", 2u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sValue, iValueLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -709,7 +709,7 @@ XXAPI bool xrtHttpHeaderBuildLineTo(const char* sName, size_t iNameLen, const ch
 // 构建 HTTP 头部行
 XXAPI bool xrtHttpHeaderBuildLine(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sName == NULL || sValue == NULL ) return false;
+	if ( sName == NULL || sValue == NULL ) { return false; }
 	return xrtHttpHeaderBuildLineTo(sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 
@@ -720,23 +720,23 @@ XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen
 	size_t iOff = 0u;
 	size_t i;
 	bool bUpper = true;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sName == NULL || (sValue == NULL && iValueLen != 0u) || sOut == NULL || iOutCap == 0u ) return false;
-	if ( iNameLen == 0u ) return false;
-	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sName == NULL || (sValue == NULL && iValueLen != 0u) || sOut == NULL || iOutCap == 0u ) { return false; }
+	if ( iNameLen == 0u ) { return false; }
+	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iNameLen; ++i ) {
 		char ch = sName[i];
-		if ( !__xrtHttpUtilIsTokenChar(ch) ) return false;
-		if ( ch >= 'A' && ch <= 'Z' ) ch = (char)(ch + 32);
-		if ( bUpper && ch >= 'a' && ch <= 'z' ) ch = (char)(ch - 32);
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, &ch, 1u) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(ch) ) { return false; }
+		if ( ch >= 'A' && ch <= 'Z' ) { ch = (char)(ch + 32); }
+		if ( bUpper && ch >= 'a' && ch <= 'z' ) { ch = (char)(ch - 32); }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, &ch, 1u) ) { return false; }
 		bUpper = (ch == '-');
 	}
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ": ", 2u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sValue, iValueLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ": ", 2u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sValue, iValueLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -744,7 +744,7 @@ XXAPI bool xrtHttpHeaderBuildCanonicalLineToN(const char* sName, size_t iNameLen
 // 构建 HTTP 头部规范化行
 XXAPI bool xrtHttpHeaderBuildCanonicalLineTo(const char* sName, const char* sValue, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sName == NULL || sValue == NULL ) return false;
+	if ( sName == NULL || sValue == NULL ) { return false; }
 	return xrtHttpHeaderBuildCanonicalLineToN(sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue), sOut, iOutCap, pOutLen);
 }
 
@@ -755,8 +755,8 @@ XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCoun
 	size_t iOff = 0u;
 	size_t iLineLen = 0u;
 	size_t i;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || (pHeaders == NULL && iCount != 0u) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || (pHeaders == NULL && iCount != 0u) ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iCount; ++i ) {
 		if ( !xrtHttpHeaderBuildLineTo(
@@ -769,8 +769,8 @@ XXAPI bool xrtHttpHeaderBuildBlockTo(const xrtheaderpair* pHeaders, size_t iCoun
 			&iLineLen) ) return false;
 		iOff += iLineLen;
 	}
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -781,8 +781,8 @@ XXAPI bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, siz
 	size_t iOff = 0u;
 	size_t iLineLen = 0u;
 	size_t i;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || (pHeaders == NULL && iCount != 0u) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || (pHeaders == NULL && iCount != 0u) ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iCount; ++i ) {
 		if ( !xrtHttpHeaderBuildCanonicalLineToN(
@@ -795,8 +795,8 @@ XXAPI bool xrtHttpHeaderBuildCanonicalBlockTo(const xrtheaderpair* pHeaders, siz
 			&iLineLen) ) return false;
 		iOff += iLineLen;
 	}
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -807,20 +807,20 @@ XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 	size_t iCur;
 	size_t iEnd;
 	size_t i;
-	if ( pOut ) memset(pOut, 0, sizeof(xrtstrview));
-	if ( sText == NULL || pOffset == NULL || pOut == NULL ) return false;
+	if ( pOut ) { memset(pOut, 0, sizeof(xrtstrview)); }
+	if ( sText == NULL || pOffset == NULL || pOut == NULL ) { return false; }
 	iCur = *pOffset;
-	while ( iCur < iLen && (sText[iCur] == ',' || sText[iCur] == ' ' || sText[iCur] == '\t') ) iCur++;
+	while ( iCur < iLen && (sText[iCur] == ',' || sText[iCur] == ' ' || sText[iCur] == '\t') ) { iCur++; }
 	if ( iCur >= iLen ) {
 		*pOffset = iCur;
 		return false;
 	}
 	iEnd = iCur;
-	while ( iEnd < iLen && sText[iEnd] != ',' ) iEnd++;
-	while ( iEnd > iCur && (sText[iEnd - 1u] == ' ' || sText[iEnd - 1u] == '\t') ) iEnd--;
-	if ( iEnd <= iCur ) return false;
+	while ( iEnd < iLen && sText[iEnd] != ',' ) { iEnd++; }
+	while ( iEnd > iCur && (sText[iEnd - 1u] == ' ' || sText[iEnd - 1u] == '\t') ) { iEnd--; }
+	if ( iEnd <= iCur ) { return false; }
 	for ( i = iCur; i < iEnd; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sText[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sText[i]) ) { return false; }
 	}
 	pOut->sPtr = sText + iCur;
 	pOut->iLen = iEnd - iCur;
@@ -832,7 +832,7 @@ XXAPI bool xrtHttpTokenNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 // 获取下一个 HTTP Token
 XXAPI bool xrtHttpTokenNext(const char* sText, size_t* pOffset, xrtstrview* pOut)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpTokenNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 
@@ -843,7 +843,7 @@ XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 	size_t iCount = 0u;
 	size_t iOffset = 0u;
 	xrtstrview tToken;
-	while ( xrtHttpTokenNextN(sText, iLen, &iOffset, &tToken) ) ++iCount;
+	while ( xrtHttpTokenNextN(sText, iLen, &iOffset, &tToken) ) { ++iCount; }
 	return iCount;
 }
 
@@ -851,7 +851,7 @@ XXAPI size_t xrtHttpTokenCountN(const char* sText, size_t iLen)
 // 统计 HTTP Token
 XXAPI size_t xrtHttpTokenCount(const char* sText)
 {
-	if ( sText == NULL ) return 0u;
+	if ( sText == NULL ) { return 0u; }
 	return xrtHttpTokenCountN(sText, strlen(__xrt_cstr(sText)));
 }
 
@@ -861,11 +861,11 @@ XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken,
 {
 	size_t iOffset = 0u;
 	xrtstrview tToken;
-	if ( pOut ) memset(pOut, 0, sizeof(xrtstrview));
-	if ( sText == NULL || sToken == NULL || iTokenLen == 0u ) return false;
+	if ( pOut ) { memset(pOut, 0, sizeof(xrtstrview)); }
+	if ( sText == NULL || sToken == NULL || iTokenLen == 0u ) { return false; }
 	while ( xrtHttpTokenNextN(sText, iLen, &iOffset, &tToken) ) {
 		if ( tToken.iLen == iTokenLen && __xrtHttpUtilEqNoCaseN(tToken.sPtr, tToken.iLen, sToken, iTokenLen) ) {
-			if ( pOut ) *pOut = tToken;
+			if ( pOut ) { *pOut = tToken; }
 			return true;
 		}
 	}
@@ -876,7 +876,7 @@ XXAPI bool xrtHttpTokenFindN(const char* sText, size_t iLen, const char* sToken,
 // 查找 HTTP Token
 XXAPI bool xrtHttpTokenFind(const char* sText, const char* sToken, xrtstrview* pOut)
 {
-	if ( sText == NULL || sToken == NULL ) return false;
+	if ( sText == NULL || sToken == NULL ) { return false; }
 	return xrtHttpTokenFindN(sText, strlen(__xrt_cstr(sText)), sToken, strlen(__xrt_cstr(sToken)), pOut);
 }
 
@@ -887,14 +887,14 @@ XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrtstrview tToken;
-	if ( pCount ) *pCount = 0u;
-	if ( sText == NULL || (pOut == NULL && iCap != 0u) ) return false;
+	if ( pCount ) { *pCount = 0u; }
+	if ( sText == NULL || (pOut == NULL && iCap != 0u) ) { return false; }
 	while ( xrtHttpTokenNextN(sText, iLen, &iOffset, &tToken) ) {
-		if ( iCount >= iCap ) return false;
-		if ( pOut ) pOut[iCount] = tToken;
+		if ( iCount >= iCap ) { return false; }
+		if ( pOut ) { pOut[iCount] = tToken; }
 		++iCount;
 	}
-	if ( pCount ) *pCount = iCount;
+	if ( pCount ) { *pCount = iCount; }
 	return true;
 }
 
@@ -902,7 +902,7 @@ XXAPI bool xrtHttpTokenParseToN(const char* sText, size_t iLen, xrtstrview* pOut
 // 解析 HTTP Token
 XXAPI bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap, size_t* pCount)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpTokenParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 
@@ -911,12 +911,12 @@ XXAPI bool xrtHttpTokenParseTo(const char* sText, xrtstrview* pOut, size_t iCap,
 XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken, size_t iTokenLen)
 {
 	size_t i;
-	if ( sOut == NULL || pOffset == NULL || sToken == NULL || iTokenLen == 0u ) return false;
+	if ( sOut == NULL || pOffset == NULL || sToken == NULL || iTokenLen == 0u ) { return false; }
 	for ( i = 0u; i < iTokenLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sToken[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sToken[i]) ) { return false; }
 	}
 	if ( *pOffset > 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, ", ", 2u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, ", ", 2u) ) { return false; }
 	}
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sToken, iTokenLen);
 }
@@ -925,7 +925,7 @@ XXAPI bool xrtHttpTokenAppendTo(char* sOut, size_t iOutCap, size_t* pOffset, con
 // 追加 HTTP Token
 XXAPI bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const char* sToken)
 {
-	if ( sToken == NULL ) return false;
+	if ( sToken == NULL ) { return false; }
 	return xrtHttpTokenAppendTo(sOut, iOutCap, pOffset, sToken, strlen(__xrt_cstr(sToken)));
 }
 
@@ -933,7 +933,7 @@ XXAPI bool xrtHttpTokenAppend(char* sOut, size_t iOutCap, size_t* pOffset, const
 // 判断是否包含 HTTP 头部 Token
 XXAPI bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, const char* sToken)
 {
-	if ( sValue == NULL || sToken == NULL || sToken[0] == '\0' ) return false;
+	if ( sValue == NULL || sToken == NULL || sToken[0] == '\0' ) { return false; }
 	return xrtHttpTokenFindN(sValue, iValueLen, sToken, strlen(__xrt_cstr(sToken)), NULL);
 }
 
@@ -941,7 +941,7 @@ XXAPI bool xrtHttpHeaderContainsTokenN(const char* sValue, size_t iValueLen, con
 // 判断是否包含 HTTP 头部 Token
 XXAPI bool xrtHttpHeaderContainsToken(const char* sValue, const char* sToken)
 {
-	if ( sValue == NULL ) return false;
+	if ( sValue == NULL ) { return false; }
 	return xrtHttpHeaderContainsTokenN(sValue, strlen(sValue), sToken);
 }
 
@@ -951,11 +951,11 @@ XXAPI bool xrtHttpHeaderFindN(const xrtheaderpair* pHeaders, size_t iCount, cons
 {
 	size_t iNameLen;
 	size_t i;
-	if ( pHeaders == NULL || sName == NULL ) return false;
+	if ( pHeaders == NULL || sName == NULL ) { return false; }
 	iNameLen = strlen(__xrt_cstr(sName));
 	for ( i = 0u; i < iCount; ++i ) {
 		if ( __xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) {
-			if ( pOut ) *pOut = pHeaders[i].tValue;
+			if ( pOut ) { *pOut = pHeaders[i].tValue; }
 			return true;
 		}
 	}
@@ -975,9 +975,9 @@ XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, c
 {
 	size_t i;
 	size_t iHits = 0u;
-	if ( pHeaders == NULL || sName == NULL || iNameLen == 0u ) return 0u;
+	if ( pHeaders == NULL || sName == NULL || iNameLen == 0u ) { return 0u; }
 	for ( i = 0u; i < iCount; ++i ) {
-		if ( __xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) ++iHits;
+		if ( __xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) { ++iHits; }
 	}
 	return iHits;
 }
@@ -986,7 +986,7 @@ XXAPI size_t xrtHttpHeaderCountN(const xrtheaderpair* pHeaders, size_t iCount, c
 // 统计 HTTP 头部
 XXAPI size_t xrtHttpHeaderCount(const xrtheaderpair* pHeaders, size_t iCount, const char* sName)
 {
-	if ( sName == NULL ) return 0u;
+	if ( sName == NULL ) { return 0u; }
 	return xrtHttpHeaderCountN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)));
 }
 
@@ -996,10 +996,10 @@ XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, c
 {
 	size_t i;
 	size_t iSeen = 0u;
-	if ( pOut ) *pOut = xrtStrView(NULL, 0u);
-	if ( pHeaders == NULL || sName == NULL || pOut == NULL || iNameLen == 0u ) return false;
+	if ( pOut ) { *pOut = xrtStrView(NULL, 0u); }
+	if ( pHeaders == NULL || sName == NULL || pOut == NULL || iNameLen == 0u ) { return false; }
 	for ( i = 0u; i < iCount; ++i ) {
-		if ( !__xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) continue;
+		if ( !__xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) { continue; }
 		if ( iSeen == iNth ) {
 			*pOut = pHeaders[i].tValue;
 			return true;
@@ -1013,7 +1013,7 @@ XXAPI bool xrtHttpHeaderFindNthN(const xrtheaderpair* pHeaders, size_t iCount, c
 // 查找 HTTP 头部 nth
 XXAPI bool xrtHttpHeaderFindNth(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, size_t iNth, xrtstrview* pOut)
 {
-	if ( sName == NULL ) return false;
+	if ( sName == NULL ) { return false; }
 	return xrtHttpHeaderFindNthN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), iNth, pOut);
 }
 
@@ -1023,10 +1023,10 @@ XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCoun
 {
 	size_t i;
 	size_t iHits = 0u;
-	if ( pHeaders == NULL || sName == NULL || iNameLen == 0u ) return 0u;
+	if ( pHeaders == NULL || sName == NULL || iNameLen == 0u ) { return 0u; }
 	for ( i = 0u; i < iCount; ++i ) {
-		if ( !__xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) continue;
-		if ( pOut != NULL && iHits < iOutCap ) pOut[iHits] = pHeaders[i].tValue;
+		if ( !__xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) { continue; }
+		if ( pOut != NULL && iHits < iOutCap ) { pOut[iHits] = pHeaders[i].tValue; }
 		++iHits;
 	}
 	return iHits;
@@ -1036,7 +1036,7 @@ XXAPI size_t xrtHttpHeaderFindAllToN(const xrtheaderpair* pHeaders, size_t iCoun
 // 查找 HTTP 头部全部
 XXAPI size_t xrtHttpHeaderFindAllTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, xrtstrview* pOut, size_t iOutCap)
 {
-	if ( sName == NULL ) return 0u;
+	if ( sName == NULL ) { return 0u; }
 	return xrtHttpHeaderFindAllToN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), pOut, iOutCap);
 }
 
@@ -1046,18 +1046,18 @@ XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, 
 {
 	size_t i;
 	bool bUpper = true;
-	if ( sName == NULL || sOut == NULL || iOutCap == 0u ) return false;
-	if ( iNameLen + 1u > iOutCap ) return false;
+	if ( sName == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
+	if ( iNameLen + 1u > iOutCap ) { return false; }
 	for ( i = 0u; i < iNameLen; ++i ) {
 		char ch = sName[i];
-		if ( !__xrtHttpUtilIsTokenChar(ch) ) return false;
-		if ( ch >= 'A' && ch <= 'Z' ) ch = (char)(ch + 32);
-		if ( bUpper && ch >= 'a' && ch <= 'z' ) ch = (char)(ch - 32);
+		if ( !__xrtHttpUtilIsTokenChar(ch) ) { return false; }
+		if ( ch >= 'A' && ch <= 'Z' ) { ch = (char)(ch + 32); }
+		if ( bUpper && ch >= 'a' && ch <= 'z' ) { ch = (char)(ch - 32); }
 		sOut[i] = ch;
 		bUpper = (ch == '-');
 	}
 	sOut[iNameLen] = '\0';
-	if ( pOutLen ) *pOutLen = iNameLen;
+	if ( pOutLen ) { *pOutLen = iNameLen; }
 	return true;
 }
 
@@ -1065,7 +1065,7 @@ XXAPI bool xrtHttpHeaderCanonicalizeNameToN(const char* sName, size_t iNameLen, 
 // HTTP 头部 canonicalize 名称相关处理
 XXAPI bool xrtHttpHeaderCanonicalizeNameTo(const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sName == NULL ) return false;
+	if ( sName == NULL ) { return false; }
 	return xrtHttpHeaderCanonicalizeNameToN(sName, strlen(__xrt_cstr(sName)), sOut, iOutCap, pOutLen);
 }
 
@@ -1075,15 +1075,15 @@ XXAPI bool xrtHttpHeaderJoinValuesTo(const xrtstrview* pValues, size_t iCount, c
 {
 	size_t i;
 	size_t iOff = 0u;
-	if ( sOut == NULL || iOutCap == 0u || (pValues == NULL && iCount != 0u) ) return false;
+	if ( sOut == NULL || iOutCap == 0u || (pValues == NULL && iCount != 0u) ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iCount; ++i ) {
 		if ( i != 0u ) {
-			if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ", ", 2u) ) return false;
+			if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ", ", 2u) ) { return false; }
 		}
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pValues[i].sPtr, pValues[i].iLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pValues[i].sPtr, pValues[i].iLen) ) { return false; }
 	}
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -1094,19 +1094,19 @@ XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t 
 	size_t i;
 	size_t iOff = 0u;
 	size_t iHits = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( pHeaders == NULL || sName == NULL || sOut == NULL || iOutCap == 0u || iNameLen == 0u ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( pHeaders == NULL || sName == NULL || sOut == NULL || iOutCap == 0u || iNameLen == 0u ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iCount; ++i ) {
-		if ( !__xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) continue;
+		if ( !__xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) { continue; }
 		if ( iHits != 0u ) {
-			if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ", ", 2u) ) return false;
+			if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, ", ", 2u) ) { return false; }
 		}
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pHeaders[i].tValue.sPtr, pHeaders[i].tValue.iLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pHeaders[i].tValue.sPtr, pHeaders[i].tValue.iLen) ) { return false; }
 		++iHits;
 	}
-	if ( iHits == 0u ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( iHits == 0u ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -1114,7 +1114,7 @@ XXAPI bool xrtHttpHeaderCollectAndJoinToN(const xrtheaderpair* pHeaders, size_t 
 // xrtHttpHeaderCollectAndJoinTo 相关处理
 XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t iCount, const char* sName, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sName == NULL ) return false;
+	if ( sName == NULL ) { return false; }
 	return xrtHttpHeaderCollectAndJoinToN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), sOut, iOutCap, pOutLen);
 }
 
@@ -1124,9 +1124,9 @@ XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffs
 {
 	size_t iCur;
 	size_t iEnd;
-	if ( sBlock == NULL || pOffset == NULL || pOut == NULL ) return false;
+	if ( sBlock == NULL || pOffset == NULL || pOut == NULL ) { return false; }
 	iCur = *pOffset;
-	if ( iCur >= iLen ) return false;
+	if ( iCur >= iLen ) { return false; }
 	if ( iCur + 1u < iLen && sBlock[iCur] == '\r' && sBlock[iCur + 1u] == '\n' ) {
 		*pOffset = iCur + 2u;
 		return false;
@@ -1134,17 +1134,17 @@ XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffs
 	iEnd = iCur;
 	while ( iEnd < iLen ) {
 		if ( sBlock[iEnd] == '\n' ) {
-			if ( iEnd == iCur || sBlock[iEnd - 1u] != '\r' ) return false;
+			if ( iEnd == iCur || sBlock[iEnd - 1u] != '\r' ) { return false; }
 			break;
 		}
 		iEnd++;
 	}
 	if ( iEnd < iLen ) {
-		if ( !xrtHttpHeaderSplitLineN(sBlock + iCur, iEnd - iCur - 1u, pOut) ) return false;
+		if ( !xrtHttpHeaderSplitLineN(sBlock + iCur, iEnd - iCur - 1u, pOut) ) { return false; }
 		*pOffset = iEnd + 1u;
 		return true;
 	}
-	if ( !xrtHttpHeaderSplitLineN(sBlock + iCur, iLen - iCur, pOut) ) return false;
+	if ( !xrtHttpHeaderSplitLineN(sBlock + iCur, iLen - iCur, pOut) ) { return false; }
 	*pOffset = iLen;
 	return true;
 }
@@ -1153,7 +1153,7 @@ XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffs
 // 获取下一个 HTTP 头部行
 XXAPI bool xrtHttpHeaderNextLine(const char* sBlock, size_t* pOffset, xrtheaderpair* pOut)
 {
-	if ( sBlock == NULL ) return false;
+	if ( sBlock == NULL ) { return false; }
 	return xrtHttpHeaderNextLineN(sBlock, strlen(sBlock), pOffset, pOut);
 }
 
@@ -1164,11 +1164,11 @@ XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* s
 	size_t iOffset = 0u;
 	xrtheaderpair tHeader;
 	size_t iNameLen;
-	if ( sBlock == NULL || sName == NULL ) return false;
+	if ( sBlock == NULL || sName == NULL ) { return false; }
 	iNameLen = strlen(__xrt_cstr(sName));
 	while ( xrtHttpHeaderNextLineN(sBlock, iLen, &iOffset, &tHeader) ) {
 		if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, sName, iNameLen) ) {
-			if ( pOut ) *pOut = tHeader;
+			if ( pOut ) { *pOut = tHeader; }
 			return true;
 		}
 	}
@@ -1179,7 +1179,7 @@ XXAPI bool xrtHttpHeaderFindLineN(const char* sBlock, size_t iLen, const char* s
 // 查找 HTTP 头部行
 XXAPI bool xrtHttpHeaderFindLine(const char* sBlock, const char* sName, xrtheaderpair* pOut)
 {
-	if ( sBlock == NULL ) return false;
+	if ( sBlock == NULL ) { return false; }
 	return xrtHttpHeaderFindLineN(sBlock, strlen(sBlock), sName, pOut);
 }
 
@@ -1190,19 +1190,19 @@ XXAPI bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheader
 	size_t iOffset = 0u;
 	size_t iCountOut = 0u;
 	xrtheaderpair tHeader;
-	if ( pCount ) *pCount = 0u;
-	if ( sBlock == NULL || (pHeaders == NULL && iCap != 0u) ) return false;
+	if ( pCount ) { *pCount = 0u; }
+	if ( sBlock == NULL || (pHeaders == NULL && iCap != 0u) ) { return false; }
 	while ( xrtHttpHeaderNextLineN(sBlock, iLen, &iOffset, &tHeader) ) {
-		if ( iCountOut >= iCap ) return false;
+		if ( iCountOut >= iCap ) { return false; }
 		pHeaders[iCountOut++] = tHeader;
 	}
 	if ( iOffset < iLen ) {
 		if ( !(iOffset + 1u == iLen && sBlock[iOffset] == '\n') &&
 		     !(iOffset + 2u == iLen && sBlock[iOffset] == '\r' && sBlock[iOffset + 1u] == '\n') ) {
-			if ( iOffset + 1u < iLen || !(sBlock[iOffset] == '\r' || sBlock[iOffset] == '\n') ) return false;
+			if ( iOffset + 1u < iLen || !(sBlock[iOffset] == '\r' || sBlock[iOffset] == '\n') ) { return false; }
 		}
 	}
-	if ( pCount ) *pCount = iCountOut;
+	if ( pCount ) { *pCount = iCountOut; }
 	return true;
 }
 
@@ -1210,7 +1210,7 @@ XXAPI bool xrtHttpHeaderParseBlockToN(const char* sBlock, size_t iLen, xrtheader
 // 解析 HTTP 头部块
 XXAPI bool xrtHttpHeaderParseBlockTo(const char* sBlock, xrtheaderpair* pHeaders, size_t iCap, size_t* pCount)
 {
-	if ( sBlock == NULL ) return false;
+	if ( sBlock == NULL ) { return false; }
 	return xrtHttpHeaderParseBlockToN(sBlock, strlen(sBlock), pHeaders, iCap, pCount);
 }
 
@@ -1219,12 +1219,12 @@ XXAPI bool xrtHttpHeaderParseBlockTo(const char* sBlock, xrtheaderpair* pHeaders
 XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
-	if ( pHeaders == NULL || pCount == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
-	if ( *pCount >= iCap || iNameLen == 0u ) return false;
+	if ( pHeaders == NULL || pCount == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) { return false; }
+	if ( *pCount >= iCap || iNameLen == 0u ) { return false; }
 	for ( i = 0u; i < iNameLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) { return false; }
 	}
-	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) return false;
+	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) { return false; }
 	pHeaders[*pCount].tName = xrtStrView(sName, iNameLen);
 	pHeaders[*pCount].tValue = xrtStrView(sValue, iValueLen);
 	(*pCount)++;
@@ -1235,7 +1235,7 @@ XXAPI bool xrtHttpHeaderAppendPairN(xrtheaderpair* pHeaders, size_t iCap, size_t
 // 追加 HTTP 头部键值对
 XXAPI bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
-	if ( sName == NULL || sValue == NULL ) return false;
+	if ( sName == NULL || sValue == NULL ) { return false; }
 	return xrtHttpHeaderAppendPairN(pHeaders, iCap, pCount, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
@@ -1244,10 +1244,10 @@ XXAPI bool xrtHttpHeaderAppendPair(xrtheaderpair* pHeaders, size_t iCap, size_t*
 XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
-	if ( pHeaders == NULL || pCount == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
+	if ( pHeaders == NULL || pCount == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) { return false; }
 	for ( i = 0u; i < *pCount; ++i ) {
 		if ( pHeaders[i].tName.iLen == iNameLen && __xrtHttpUtilEqNoCaseN(pHeaders[i].tName.sPtr, pHeaders[i].tName.iLen, sName, iNameLen) ) {
-			if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) return false;
+			if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) { return false; }
 			pHeaders[i].tValue = xrtStrView(sValue, iValueLen);
 			return true;
 		}
@@ -1259,7 +1259,7 @@ XXAPI bool xrtHttpHeaderSetPairN(xrtheaderpair* pHeaders, size_t iCap, size_t* p
 // 设置 HTTP 头部键值对
 XXAPI bool xrtHttpHeaderSetPair(xrtheaderpair* pHeaders, size_t iCap, size_t* pCount, const char* sName, const char* sValue)
 {
-	if ( sName == NULL || sValue == NULL ) return false;
+	if ( sName == NULL || sValue == NULL ) { return false; }
 	return xrtHttpHeaderSetPairN(pHeaders, iCap, pCount, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
@@ -1270,14 +1270,14 @@ XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const
 	size_t iRead;
 	size_t iWrite = 0u;
 	size_t iRemoved = 0u;
-	if ( pHeaders == NULL || pCount == NULL || sName == NULL || iNameLen == 0u ) return 0u;
+	if ( pHeaders == NULL || pCount == NULL || sName == NULL || iNameLen == 0u ) { return 0u; }
 	for ( iRead = 0u; iRead < *pCount; ++iRead ) {
 		if ( pHeaders[iRead].tName.iLen == iNameLen &&
 		     __xrtHttpUtilEqNoCaseN(pHeaders[iRead].tName.sPtr, pHeaders[iRead].tName.iLen, sName, iNameLen) ) {
 			iRemoved++;
 			continue;
 		}
-		if ( iWrite != iRead ) pHeaders[iWrite] = pHeaders[iRead];
+		if ( iWrite != iRead ) { pHeaders[iWrite] = pHeaders[iRead]; }
 		iWrite++;
 	}
 	*pCount = iWrite;
@@ -1288,7 +1288,7 @@ XXAPI size_t xrtHttpHeaderRemoveN(xrtheaderpair* pHeaders, size_t* pCount, const
 // 删除 HTTP 头部
 XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const char* sName)
 {
-	if ( sName == NULL ) return 0u;
+	if ( sName == NULL ) { return 0u; }
 	return xrtHttpHeaderRemoveN(pHeaders, pCount, sName, strlen(__xrt_cstr(sName)));
 }
 
@@ -1300,26 +1300,26 @@ XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtco
 	size_t iEnd;
 	size_t iEq = (size_t)-1;
 	size_t i;
-	if ( sText == NULL || pOffset == NULL || pOut == NULL ) return false;
+	if ( sText == NULL || pOffset == NULL || pOut == NULL ) { return false; }
 	iCur = *pOffset;
-	while ( iCur < iLen && (sText[iCur] == ';' || sText[iCur] == ' ' || sText[iCur] == '\t') ) iCur++;
+	while ( iCur < iLen && (sText[iCur] == ';' || sText[iCur] == ' ' || sText[iCur] == '\t') ) { iCur++; }
 	if ( iCur >= iLen ) {
 		*pOffset = iCur;
 		return false;
 	}
 	iEnd = iCur;
 	while ( iEnd < iLen && sText[iEnd] != ';' ) {
-		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) iEq = iEnd;
+		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) { iEq = iEnd; }
 		iEnd++;
 	}
-	if ( iEq == (size_t)-1 || iEq == iCur ) return false;
+	if ( iEq == (size_t)-1 || iEq == iCur ) { return false; }
 	pOut->tName = xrtStrView(sText + iCur, iEq - iCur);
 	pOut->tValue = xrtStrView(sText + iEq + 1u, iEnd - iEq - 1u);
 	__xrtHttpUtilTrimView(&pOut->tName);
 	__xrtHttpUtilTrimView(&pOut->tValue);
-	if ( pOut->tName.iLen == 0u ) return false;
+	if ( pOut->tName.iLen == 0u ) { return false; }
 	for ( i = 0u; i < pOut->tName.iLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(pOut->tName.sPtr[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(pOut->tName.sPtr[i]) ) { return false; }
 	}
 	*pOffset = (iEnd < iLen) ? (iEnd + 1u) : iEnd;
 	return true;
@@ -1329,7 +1329,7 @@ XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtco
 // 获取下一个 Cookie
 XXAPI bool xrtCookieNext(const char* sText, size_t* pOffset, xrtcookiepair* pOut)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtCookieNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 
@@ -1339,10 +1339,10 @@ XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, siz
 {
 	size_t iOffset = 0u;
 	xrtcookiepair tCookie;
-	if ( sText == NULL || sName == NULL || iNameLen == 0u ) return false;
+	if ( sText == NULL || sName == NULL || iNameLen == 0u ) { return false; }
 	while ( xrtCookieNextN(sText, iLen, &iOffset, &tCookie) ) {
 		if ( tCookie.tName.iLen == iNameLen && memcmp(tCookie.tName.sPtr, sName, iNameLen) == 0 ) {
-			if ( pOut ) *pOut = tCookie;
+			if ( pOut ) { *pOut = tCookie; }
 			return true;
 		}
 	}
@@ -1353,7 +1353,7 @@ XXAPI bool xrtCookieFindN(const char* sText, size_t iLen, const char* sName, siz
 // 查找 Cookie
 XXAPI bool xrtCookieFind(const char* sText, const char* sName, xrtcookiepair* pOut)
 {
-	if ( sText == NULL || sName == NULL ) return false;
+	if ( sText == NULL || sName == NULL ) { return false; }
 	return xrtCookieFindN(sText, strlen(__xrt_cstr(sText)), sName, strlen(__xrt_cstr(sName)), pOut);
 }
 
@@ -1364,14 +1364,14 @@ XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrtcookiepair tCookie;
-	if ( pCount ) *pCount = 0u;
-	if ( sText == NULL || (pOut == NULL && iCap != 0u) ) return false;
+	if ( pCount ) { *pCount = 0u; }
+	if ( sText == NULL || (pOut == NULL && iCap != 0u) ) { return false; }
 	while ( xrtCookieNextN(sText, iLen, &iOffset, &tCookie) ) {
-		if ( iCount >= iCap ) return false;
-		if ( pOut ) pOut[iCount] = tCookie;
+		if ( iCount >= iCap ) { return false; }
+		if ( pOut ) { pOut[iCount] = tCookie; }
 		++iCount;
 	}
-	if ( pCount ) *pCount = iCount;
+	if ( pCount ) { *pCount = iCount; }
 	return true;
 }
 
@@ -1379,7 +1379,7 @@ XXAPI bool xrtCookieParseToN(const char* sText, size_t iLen, xrtcookiepair* pOut
 // 解析 Cookie
 XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap, size_t* pCount)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtCookieParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 
@@ -1390,28 +1390,28 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 	size_t iCur;
 	size_t iEnd;
 	size_t iEq = (size_t)-1;
-	if ( sText == NULL || pOut == NULL || iLen == 0u ) return false;
-	if ( __xrtHttpUtilContainsCtl(sText, iLen) ) return false;
+	if ( sText == NULL || pOut == NULL || iLen == 0u ) { return false; }
+	if ( __xrtHttpUtilContainsCtl(sText, iLen) ) { return false; }
 	memset(pOut, 0, sizeof(xrtsetcookieview));
 	iCur = 0u;
-	while ( iCur < iLen && (sText[iCur] == ' ' || sText[iCur] == '\t' || sText[iCur] == ';') ) iCur++;
-	if ( iCur >= iLen ) return false;
+	while ( iCur < iLen && (sText[iCur] == ' ' || sText[iCur] == '\t' || sText[iCur] == ';') ) { iCur++; }
+	if ( iCur >= iLen ) { return false; }
 	iEnd = iCur;
 	while ( iEnd < iLen && sText[iEnd] != ';' ) {
-		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) iEq = iEnd;
+		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) { iEq = iEnd; }
 		iEnd++;
 	}
-	if ( iEq == (size_t)-1 || iEq == iCur ) return false;
+	if ( iEq == (size_t)-1 || iEq == iCur ) { return false; }
 	pOut->tName = xrtStrView(sText + iCur, iEq - iCur);
 	pOut->tValue = xrtStrView(sText + iEq + 1u, iEnd - iEq - 1u);
 	__xrtHttpUtilTrimView(&pOut->tName);
 	__xrtHttpUtilTrimView(&pOut->tValue);
-	if ( pOut->tName.iLen == 0u ) return false;
+	if ( pOut->tName.iLen == 0u ) { return false; }
 	for ( iCur = 0u; iCur < pOut->tName.iLen; ++iCur ) {
-		if ( !__xrtHttpUtilIsTokenChar(pOut->tName.sPtr[iCur]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(pOut->tName.sPtr[iCur]) ) { return false; }
 	}
 	for ( iCur = 0u; iCur < pOut->tValue.iLen; ++iCur ) {
-		if ( !__xrtHttpUtilIsCookieOctet(pOut->tValue.sPtr[iCur]) ) return false;
+		if ( !__xrtHttpUtilIsCookieOctet(pOut->tValue.sPtr[iCur]) ) { return false; }
 	}
 	pOut->iFlags |= XRT_SET_COOKIE_F_HAS_VALUE;
 	iCur = (iEnd < iLen) ? (iEnd + 1u) : iEnd;
@@ -1420,11 +1420,11 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 		xrtstrview tAttrValue;
 		size_t iAttrEnd = iCur;
 		size_t iAttrEq = (size_t)-1;
-		while ( iCur < iLen && (sText[iCur] == ' ' || sText[iCur] == '\t' || sText[iCur] == ';') ) iCur++;
-		if ( iCur >= iLen ) break;
+		while ( iCur < iLen && (sText[iCur] == ' ' || sText[iCur] == '\t' || sText[iCur] == ';') ) { iCur++; }
+		if ( iCur >= iLen ) { break; }
 		iAttrEnd = iCur;
 		while ( iAttrEnd < iLen && sText[iAttrEnd] != ';' ) {
-			if ( sText[iAttrEnd] == '=' && iAttrEq == (size_t)-1 ) iAttrEq = iAttrEnd;
+			if ( sText[iAttrEnd] == '=' && iAttrEq == (size_t)-1 ) { iAttrEq = iAttrEnd; }
 			iAttrEnd++;
 		}
 		if ( iAttrEq == (size_t)-1 ) {
@@ -1455,7 +1455,7 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 				pOut->tExpires = tAttrValue;
 				pOut->iFlags |= XRT_SET_COOKIE_F_HAS_EXPIRES;
 			} else if ( __xrtHttpUtilEqNoCaseN(tAttrName.sPtr, tAttrName.iLen, "Max-Age", 7u) ) {
-				if ( !__xrtHttpUtilParseInt32(tAttrValue.sPtr, tAttrValue.iLen, &iMaxAge) ) return false;
+				if ( !__xrtHttpUtilParseInt32(tAttrValue.sPtr, tAttrValue.iLen, &iMaxAge) ) { return false; }
 				pOut->iMaxAge = iMaxAge;
 				pOut->iFlags |= XRT_SET_COOKIE_F_HAS_MAX_AGE;
 			} else if ( __xrtHttpUtilEqNoCaseN(tAttrName.sPtr, tAttrName.iLen, "SameSite", 8u) ) {
@@ -1491,7 +1491,7 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 // xrtSetCookieParse 相关处理
 XXAPI bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtSetCookieParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
@@ -1500,8 +1500,8 @@ XXAPI bool xrtSetCookieParse(const char* sText, xrtsetcookieview* pOut)
 XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookieview* pOut)
 {
 	xrtheaderpair tHeader;
-	if ( !xrtHttpHeaderSplitLineN(sLine, iLen, &tHeader) ) return false;
-	if ( !__xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Set-Cookie", 10u) ) return false;
+	if ( !xrtHttpHeaderSplitLineN(sLine, iLen, &tHeader) ) { return false; }
+	if ( !__xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Set-Cookie", 10u) ) { return false; }
 	return xrtSetCookieParseN(tHeader.tValue.sPtr, tHeader.tValue.iLen, pOut);
 }
 
@@ -1509,7 +1509,7 @@ XXAPI bool xrtSetCookieParseLineN(const char* sLine, size_t iLen, xrtsetcookievi
 // 解析 set Cookie 行
 XXAPI bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut)
 {
-	if ( sLine == NULL ) return false;
+	if ( sLine == NULL ) { return false; }
 	return xrtSetCookieParseLineN(sLine, strlen(sLine), pOut);
 }
 
@@ -1525,16 +1525,16 @@ XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 	xrtstrview tName;
 	xrtstrview tValue;
 	size_t i;
-	if ( sText == NULL || pOffset == NULL || pOut == NULL ) return false;
+	if ( sText == NULL || pOffset == NULL || pOut == NULL ) { return false; }
 	iCur = *pOffset;
-	while ( iCur < iLen && (sText[iCur] == ';' || sText[iCur] == ' ' || sText[iCur] == '\t') ) iCur++;
+	while ( iCur < iLen && (sText[iCur] == ';' || sText[iCur] == ' ' || sText[iCur] == '\t') ) { iCur++; }
 	if ( iCur >= iLen ) {
 		*pOffset = iLen;
 		return false;
 	}
 	iEnd = iCur;
 	while ( iEnd < iLen && sText[iEnd] != ';' ) {
-		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) iEq = iEnd;
+		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) { iEq = iEnd; }
 		iEnd++;
 	}
 	if ( iEq == (size_t)-1 ) {
@@ -1545,12 +1545,12 @@ XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 		tValue = xrtStrView(sText + iEq + 1u, iEnd - iEq - 1u);
 	}
 	__xrtHttpUtilTrimView(&tName);
-	if ( xrtStrViewIsEmpty(tName) ) return false;
+	if ( xrtStrViewIsEmpty(tName) ) { return false; }
 	for ( i = 0u; i < tName.iLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(tName.sPtr[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(tName.sPtr[i]) ) { return false; }
 	}
 	if ( iEq != (size_t)-1 ) {
-		if ( !__xrtHttpUtilParseParamValue(tValue, &tValue) ) return false;
+		if ( !__xrtHttpUtilParseParamValue(tValue, &tValue) ) { return false; }
 	}
 	pOut->iFlags = (iEq != (size_t)-1) ? XRT_HTTP_PARAM_F_HAS_VALUE : XRT_HTTP_PARAM_F_NONE;
 	pOut->tName = tName;
@@ -1563,7 +1563,7 @@ XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 // 获取下一个 HTTP 参数
 XXAPI bool xrtHttpParamNext(const char* sText, size_t* pOffset, xrthttpparam* pOut)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpParamNextN(sText, strlen(__xrt_cstr(sText)), pOffset, pOut);
 }
 
@@ -1574,7 +1574,7 @@ XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 	size_t iCount = 0u;
 	size_t iOffset = 0u;
 	xrthttpparam tParam;
-	while ( xrtHttpParamNextN(sText, iLen, &iOffset, &tParam) ) ++iCount;
+	while ( xrtHttpParamNextN(sText, iLen, &iOffset, &tParam) ) { ++iCount; }
 	return iCount;
 }
 
@@ -1582,7 +1582,7 @@ XXAPI size_t xrtHttpParamCountN(const char* sText, size_t iLen)
 // 统计 HTTP 参数
 XXAPI size_t xrtHttpParamCount(const char* sText)
 {
-	if ( sText == NULL ) return 0u;
+	if ( sText == NULL ) { return 0u; }
 	return xrtHttpParamCountN(sText, strlen(__xrt_cstr(sText)));
 }
 
@@ -1592,11 +1592,11 @@ XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, 
 {
 	size_t iOffset = 0u;
 	xrthttpparam tParam;
-	if ( pOut ) memset(pOut, 0, sizeof(xrthttpparam));
-	if ( sText == NULL || sName == NULL || iNameLen == 0u ) return false;
+	if ( pOut ) { memset(pOut, 0, sizeof(xrthttpparam)); }
+	if ( sText == NULL || sName == NULL || iNameLen == 0u ) { return false; }
 	while ( xrtHttpParamNextN(sText, iLen, &iOffset, &tParam) ) {
 		if ( __xrtHttpUtilEqNoCaseN(tParam.tName.sPtr, tParam.tName.iLen, sName, iNameLen) ) {
-			if ( pOut ) *pOut = tParam;
+			if ( pOut ) { *pOut = tParam; }
 			return true;
 		}
 	}
@@ -1607,7 +1607,7 @@ XXAPI bool xrtHttpParamFindN(const char* sText, size_t iLen, const char* sName, 
 // 查找 HTTP 参数
 XXAPI bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* pOut)
 {
-	if ( sText == NULL || sName == NULL ) return false;
+	if ( sText == NULL || sName == NULL ) { return false; }
 	return xrtHttpParamFindN(sText, strlen(__xrt_cstr(sText)), sName, strlen(__xrt_cstr(sName)), pOut);
 }
 
@@ -1616,19 +1616,19 @@ XXAPI bool xrtHttpParamFind(const char* sText, const char* sName, xrthttpparam* 
 XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bQuoteValue)
 {
 	size_t i;
-	if ( sOut == NULL || pOffset == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
-	if ( iNameLen == 0u ) return false;
+	if ( sOut == NULL || pOffset == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) { return false; }
+	if ( iNameLen == 0u ) { return false; }
 	for ( i = 0u; i < iNameLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) { return false; }
 	}
 	if ( *pOffset > 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; ", 2u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; ", 2u) ) { return false; }
 	}
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sName, iNameLen) ) return false;
-	if ( !bHasValue ) return true;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "=", 1u) ) return false;
-	if ( bQuoteValue ) return __xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sValue, iValueLen);
-	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) return false;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sName, iNameLen) ) { return false; }
+	if ( !bHasValue ) { return true; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "=", 1u) ) { return false; }
+	if ( bQuoteValue ) { return __xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sValue, iValueLen); }
+	if ( __xrtHttpUtilContainsCtl(sValue, iValueLen) ) { return false; }
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen);
 }
 
@@ -1636,7 +1636,7 @@ XXAPI bool xrtHttpParamAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset,
 // 追加 HTTP 参数键值对
 XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue, bool bHasValue, bool bQuoteValue)
 {
-	if ( sName == NULL ) return false;
+	if ( sName == NULL ) { return false; }
 	return xrtHttpParamAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, sValue ? strlen(sValue) : 0u, bHasValue, bQuoteValue);
 }
 
@@ -1650,13 +1650,13 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 	size_t i;
 	xrtstrview tToken;
 	xrtstrview tParams;
-	if ( pOut == NULL ) return false;
+	if ( pOut == NULL ) { return false; }
 	memset(pOut, 0, sizeof(xrtmediatypeview));
-	if ( sText == NULL || iLen == 0u ) return false;
-	while ( iSemi < iLen && sText[iSemi] != ';' ) iSemi++;
+	if ( sText == NULL || iLen == 0u ) { return false; }
+	while ( iSemi < iLen && sText[iSemi] != ';' ) { iSemi++; }
 	tToken = xrtStrView(sText, iSemi);
 	__xrtHttpUtilTrimView(&tToken);
-	if ( xrtStrViewIsEmpty(tToken) ) return false;
+	if ( xrtStrViewIsEmpty(tToken) ) { return false; }
 	for ( i = 0u; i < tToken.iLen; ++i ) {
 		char ch = tToken.sPtr[i];
 		if ( ch == '/' && iSlash == (size_t)-1 ) {
@@ -1667,20 +1667,20 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 			iPlus = i;
 			continue;
 		}
-		if ( !__xrtHttpUtilIsTokenChar(ch) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(ch) ) { return false; }
 	}
-	if ( iSlash == (size_t)-1 || iSlash == 0u || iSlash + 1u >= tToken.iLen ) return false;
-	if ( iPlus != (size_t)-1 && iPlus <= iSlash + 1u ) return false;
+	if ( iSlash == (size_t)-1 || iSlash == 0u || iSlash + 1u >= tToken.iLen ) { return false; }
+	if ( iPlus != (size_t)-1 && iPlus <= iSlash + 1u ) { return false; }
 	pOut->tType = xrtStrView(tToken.sPtr, iSlash);
 	if ( iPlus == (size_t)-1 ) {
 		pOut->tSubType = xrtStrView(tToken.sPtr + iSlash + 1u, tToken.iLen - iSlash - 1u);
 	} else {
-		if ( iPlus + 1u >= tToken.iLen ) return false;
+		if ( iPlus + 1u >= tToken.iLen ) { return false; }
 		pOut->tSubType = xrtStrView(tToken.sPtr + iSlash + 1u, iPlus - iSlash - 1u);
 		pOut->tSuffix = xrtStrView(tToken.sPtr + iPlus + 1u, tToken.iLen - iPlus - 1u);
 		pOut->iFlags |= XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX;
 	}
-	if ( xrtStrViewIsEmpty(pOut->tSubType) ) return false;
+	if ( xrtStrViewIsEmpty(pOut->tSubType) ) { return false; }
 	if ( iSemi < iLen ) {
 		tParams = xrtStrView(sText + iSemi + 1u, iLen - iSemi - 1u);
 		__xrtHttpUtilTrimView(&tParams);
@@ -1696,7 +1696,7 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 // xrtHttpMediaTypeParse 相关处理
 XXAPI bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpMediaTypeParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
@@ -1705,24 +1705,24 @@ XXAPI bool xrtHttpMediaTypeParse(const char* sText, xrtmediatypeview* pOut)
 XXAPI bool xrtHttpMediaTypeBuildTo(const xrtmediatypeview* pType, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( pType == NULL || sOut == NULL || iOutCap == 0u ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( pType == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	sOut[0] = '\0';
-	if ( xrtStrViewIsEmpty(pType->tType) || xrtStrViewIsEmpty(pType->tSubType) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tType.sPtr, pType->tType.iLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "/", 1u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tSubType.sPtr, pType->tSubType.iLen) ) return false;
+	if ( xrtStrViewIsEmpty(pType->tType) || xrtStrViewIsEmpty(pType->tSubType) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tType.sPtr, pType->tType.iLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "/", 1u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tSubType.sPtr, pType->tSubType.iLen) ) { return false; }
 	if ( (pType->iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX) != 0u ) {
-		if ( xrtStrViewIsEmpty(pType->tSuffix) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "+", 1u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tSuffix.sPtr, pType->tSuffix.iLen) ) return false;
+		if ( xrtStrViewIsEmpty(pType->tSuffix) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "+", 1u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tSuffix.sPtr, pType->tSuffix.iLen) ) { return false; }
 	}
 	if ( (pType->iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS) != 0u ) {
-		if ( __xrtHttpUtilContainsCtl(pType->tParams.sPtr, pType->tParams.iLen) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; ", 2u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tParams.sPtr, pType->tParams.iLen) ) return false;
+		if ( __xrtHttpUtilContainsCtl(pType->tParams.sPtr, pType->tParams.iLen) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; ", 2u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pType->tParams.sPtr, pType->tParams.iLen) ) { return false; }
 	}
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -1737,9 +1737,9 @@ XXAPI bool xrtHttpMediaTypeBuild(const xrtmediatypeview* pType, char* sOut, size
 // xrtHttpMediaTypeFindParamN 相关处理
 XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char* sName, size_t iNameLen, xrthttpparam* pOut)
 {
-	if ( pOut ) memset(pOut, 0, sizeof(xrthttpparam));
-	if ( pType == NULL || sName == NULL || iNameLen == 0u ) return false;
-	if ( (pType->iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS) == 0u || xrtStrViewIsEmpty(pType->tParams) ) return false;
+	if ( pOut ) { memset(pOut, 0, sizeof(xrthttpparam)); }
+	if ( pType == NULL || sName == NULL || iNameLen == 0u ) { return false; }
+	if ( (pType->iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS) == 0u || xrtStrViewIsEmpty(pType->tParams) ) { return false; }
 	return xrtHttpParamFindN(pType->tParams.sPtr, pType->tParams.iLen, sName, iNameLen, pOut);
 }
 
@@ -1747,7 +1747,7 @@ XXAPI bool xrtHttpMediaTypeFindParamN(const xrtmediatypeview* pType, const char*
 // xrtHttpMediaTypeFindParam 相关处理
 XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* sName, xrthttpparam* pOut)
 {
-	if ( sName == NULL ) return false;
+	if ( sName == NULL ) { return false; }
 	return xrtHttpMediaTypeFindParamN(pType, sName, strlen(__xrt_cstr(sName)), pOut);
 }
 
@@ -1765,15 +1765,15 @@ XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtco
 	xrtstrview tLanguage;
 	xrtstrview tEncoded;
 	size_t iParamOff = 0u;
-	if ( pOut == NULL ) return false;
+	if ( pOut == NULL ) { return false; }
 	memset(pOut, 0, sizeof(xrtcontentdispositionview));
-	if ( sText == NULL || iLen == 0u ) return false;
-	while ( iSemi < iLen && sText[iSemi] != ';' ) iSemi++;
+	if ( sText == NULL || iLen == 0u ) { return false; }
+	while ( iSemi < iLen && sText[iSemi] != ';' ) { iSemi++; }
 	tToken = xrtStrView(sText, iSemi);
 	__xrtHttpUtilTrimView(&tToken);
-	if ( xrtStrViewIsEmpty(tToken) ) return false;
+	if ( xrtStrViewIsEmpty(tToken) ) { return false; }
 	for ( i = 0u; i < tToken.iLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(tToken.sPtr[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(tToken.sPtr[i]) ) { return false; }
 	}
 	pOut->tType = tToken;
 	if ( iSemi < iLen ) {
@@ -1794,7 +1794,7 @@ XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtco
 				} else if ( __xrtHttpUtilEqNoCaseN(tParam.tName.sPtr, tParam.tName.iLen, "filename*", 9u) &&
 				            (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) != 0u ) {
 					tExtValue = tParam.tValue;
-					if ( !__xrtHttpUtilParseExtValueView(tExtValue, &tCharset, &tLanguage, &tEncoded) ) return false;
+					if ( !__xrtHttpUtilParseExtValueView(tExtValue, &tCharset, &tLanguage, &tEncoded) ) { return false; }
 					pOut->tFileNameExt = tExtValue;
 					pOut->tFileNameCharset = tCharset;
 					pOut->tFileNameLanguage = tLanguage;
@@ -1810,7 +1810,7 @@ XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtco
 // xrtHttpContentDispositionParse 相关处理
 XXAPI bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositionview* pOut)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtHttpContentDispositionParseN(sText, strlen(__xrt_cstr(sText)), pOut);
 }
 
@@ -1819,8 +1819,8 @@ XXAPI bool xrtHttpContentDispositionParse(const char* sText, xrtcontentdispositi
 XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iLen;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( pDisp == NULL || sOut == NULL || iOutCap == 0u ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( pDisp == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	if ( (pDisp->iFlags & XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME_EXT) != 0u ) {
 		return xrtHttpDecodeExtValueTo(
 			pDisp->tFileNameExt.sPtr,
@@ -1831,12 +1831,12 @@ XXAPI bool xrtHttpContentDispositionDecodeFileNameTo(const xrtcontentdisposition
 			iOutCap,
 			pOutLen);
 	}
-	if ( (pDisp->iFlags & XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME) == 0u ) return false;
+	if ( (pDisp->iFlags & XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME) == 0u ) { return false; }
 	iLen = pDisp->tFileName.iLen;
-	if ( iLen + 1u > iOutCap ) return false;
-	if ( iLen > 0u ) memcpy(sOut, pDisp->tFileName.sPtr, iLen);
+	if ( iLen + 1u > iOutCap ) { return false; }
+	if ( iLen > 0u ) { memcpy(sOut, pDisp->tFileName.sPtr, iLen); }
 	sOut[iLen] = '\0';
-	if ( pOutLen ) *pOutLen = iLen;
+	if ( pOutLen ) { *pOutLen = iLen; }
 	return true;
 }
 
@@ -1852,23 +1852,23 @@ XXAPI bool xrtHttpContentDispositionDecodeFileName(const xrtcontentdispositionvi
 XXAPI bool xrtHttpContentDispositionBuildTo(const xrtcontentdispositionview* pDisp, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( pDisp == NULL || sOut == NULL || iOutCap == 0u ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( pDisp == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	sOut[0] = '\0';
-	if ( xrtStrViewIsEmpty(pDisp->tType) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pDisp->tType.sPtr, pDisp->tType.iLen) ) return false;
+	if ( xrtStrViewIsEmpty(pDisp->tType) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pDisp->tType.sPtr, pDisp->tType.iLen) ) { return false; }
 	if ( (pDisp->iFlags & XRT_HTTP_CONTENT_DISPOSITION_F_HAS_NAME) != 0u ) {
-		if ( !xrtHttpParamAppendPairTo(sOut, iOutCap, &iOff, "name", 4u, pDisp->tName.sPtr, pDisp->tName.iLen, true, true) ) return false;
+		if ( !xrtHttpParamAppendPairTo(sOut, iOutCap, &iOff, "name", 4u, pDisp->tName.sPtr, pDisp->tName.iLen, true, true) ) { return false; }
 	}
 	if ( (pDisp->iFlags & XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME) != 0u ) {
-		if ( !xrtHttpParamAppendPairTo(sOut, iOutCap, &iOff, "filename", 8u, pDisp->tFileName.sPtr, pDisp->tFileName.iLen, true, true) ) return false;
+		if ( !xrtHttpParamAppendPairTo(sOut, iOutCap, &iOff, "filename", 8u, pDisp->tFileName.sPtr, pDisp->tFileName.iLen, true, true) ) { return false; }
 	}
 	if ( (pDisp->iFlags & XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME_EXT) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; filename*=", 12u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; filename*=", 12u) ) { return false; }
 		/* tFileNameExt stores the raw RFC 5987 ext-value; preserve it verbatim when rebuilding. */
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pDisp->tFileNameExt.sPtr, pDisp->tFileNameExt.iLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pDisp->tFileNameExt.sPtr, pDisp->tFileNameExt.iLen) ) { return false; }
 	}
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -1884,19 +1884,19 @@ XXAPI bool xrtHttpContentDispositionBuild(const xrtcontentdispositionview* pDisp
 XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
 	size_t i;
-	if ( sOut == NULL || pOffset == NULL || sName == NULL ) return false;
-	if ( iNameLen == 0u ) return false;
+	if ( sOut == NULL || pOffset == NULL || sName == NULL ) { return false; }
+	if ( iNameLen == 0u ) { return false; }
 	for ( i = 0u; i < iNameLen; ++i ) {
-		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) return false;
+		if ( !__xrtHttpUtilIsTokenChar(sName[i]) ) { return false; }
 	}
 	for ( i = 0u; i < iValueLen; ++i ) {
-		if ( !__xrtHttpUtilIsCookieOctet(sValue[i]) ) return false;
+		if ( !__xrtHttpUtilIsCookieOctet(sValue[i]) ) { return false; }
 	}
 	if ( *pOffset > 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; ", 2u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; ", 2u) ) { return false; }
 	}
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sName, iNameLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "=", 1u) ) return false;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sName, iNameLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "=", 1u) ) { return false; }
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen);
 }
 
@@ -1904,7 +1904,7 @@ XXAPI bool xrtCookieAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, co
 // 追加 Cookie 键值对
 XXAPI bool xrtCookieAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
-	if ( sName == NULL || sValue == NULL ) return false;
+	if ( sName == NULL || sValue == NULL ) { return false; }
 	return xrtCookieAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
@@ -1914,13 +1914,13 @@ XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sO
 {
 	size_t iOff = 0u;
 	size_t i;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || (pPairs == NULL && iCount != 0u) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || (pPairs == NULL && iCount != 0u) ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iCount; ++i ) {
-		if ( !xrtCookieAppendPairTo(sOut, iOutCap, &iOff, pPairs[i].tName.sPtr, pPairs[i].tName.iLen, pPairs[i].tValue.sPtr, pPairs[i].tValue.iLen) ) return false;
+		if ( !xrtCookieAppendPairTo(sOut, iOutCap, &iOff, pPairs[i].tName.sPtr, pPairs[i].tName.iLen, pPairs[i].tValue.sPtr, pPairs[i].tValue.iLen) ) { return false; }
 	}
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -1929,15 +1929,15 @@ XXAPI bool xrtCookieBuildTo(const xrtcookiepair* pPairs, size_t iCount, char* sO
 XXAPI bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, size_t iKeyLen, const char* sValue, size_t iValueLen, bool bHasValue, bool bPlusAsSpace)
 {
 	size_t iWritten = 0u;
-	if ( sOut == NULL || pOffset == NULL || sKey == NULL ) return false;
+	if ( sOut == NULL || pOffset == NULL || sKey == NULL ) { return false; }
 	if ( *pOffset > 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "&", 1u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "&", 1u) ) { return false; }
 	}
-	if ( !xrtPercentEncodeTo(sKey, iKeyLen, sOut + *pOffset, iOutCap - *pOffset, &iWritten, bPlusAsSpace) ) return false;
+	if ( !xrtPercentEncodeTo(sKey, iKeyLen, sOut + *pOffset, iOutCap - *pOffset, &iWritten, bPlusAsSpace) ) { return false; }
 	*pOffset += iWritten;
 	if ( bHasValue ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "=", 1u) ) return false;
-		if ( !xrtPercentEncodeTo(sValue, iValueLen, sOut + *pOffset, iOutCap - *pOffset, &iWritten, bPlusAsSpace) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "=", 1u) ) { return false; }
+		if ( !xrtPercentEncodeTo(sValue, iValueLen, sOut + *pOffset, iOutCap - *pOffset, &iWritten, bPlusAsSpace) ) { return false; }
 		*pOffset += iWritten;
 	}
 	return true;
@@ -1947,7 +1947,7 @@ XXAPI bool xrtQueryAppendPairTo(char* sOut, size_t iOutCap, size_t* pOffset, con
 // 追加查询键值对
 XXAPI bool xrtQueryAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, const char* sKey, const char* sValue)
 {
-	if ( sKey == NULL ) return false;
+	if ( sKey == NULL ) { return false; }
 	return xrtQueryAppendPairTo(sOut, iOutCap, pOffset, sKey, strlen(sKey), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL, false);
 }
 
@@ -1957,8 +1957,8 @@ XXAPI bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut
 {
 	size_t iOff = 0u;
 	size_t i;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || (pPairs == NULL && iCount != 0u) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || (pPairs == NULL && iCount != 0u) ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iCount; ++i ) {
 		if ( !xrtQueryAppendPairTo(sOut, iOutCap, &iOff,
@@ -1969,7 +1969,7 @@ XXAPI bool xrtQueryBuildTo(const xrtquerypair* pPairs, size_t iCount, char* sOut
 			(pPairs[i].iFlags & XRT_QUERY_F_HAS_VALUE) != 0u,
 			false) ) return false;
 	}
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -1998,7 +1998,7 @@ XXAPI bool xrtFormUrlEncodedParseToN(const char* sText, size_t iLen, xrtquerypai
 // 解析表单 URL 编码
 XXAPI bool xrtFormUrlEncodedParseTo(const char* sText, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {
-	if ( sText == NULL ) return false;
+	if ( sText == NULL ) { return false; }
 	return xrtFormUrlEncodedParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 
@@ -2020,7 +2020,7 @@ XXAPI bool xrtFormUrlEncodedAppendFieldTo(char* sOut, size_t iOutCap, size_t* pO
 // 追加表单 URL 编码 field
 XXAPI bool xrtFormUrlEncodedAppendField(char* sOut, size_t iOutCap, size_t* pOffset, const char* sName, const char* sValue)
 {
-	if ( sName == NULL ) return false;
+	if ( sName == NULL ) { return false; }
 	return xrtFormUrlEncodedAppendFieldTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, sValue ? strlen(sValue) : 0u, sValue != NULL);
 }
 
@@ -2030,8 +2030,8 @@ XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, c
 {
 	size_t iOff = 0u;
 	size_t i;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || (pPairs == NULL && iCount != 0u) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || (pPairs == NULL && iCount != 0u) ) { return false; }
 	sOut[0] = '\0';
 	for ( i = 0u; i < iCount; ++i ) {
 		if ( !xrtFormUrlEncodedAppendFieldTo(sOut, iOutCap, &iOff,
@@ -2041,7 +2041,7 @@ XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, c
 			pPairs[i].tValue.iLen,
 			(pPairs[i].iFlags & XRT_QUERY_F_HAS_VALUE) != 0u) ) return false;
 	}
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -2050,61 +2050,61 @@ XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, c
 XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || pCookie == NULL ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || pCookie == NULL ) { return false; }
 	sOut[0] = '\0';
-	if ( xrtStrViewIsEmpty(pCookie->tName) ) return false;
-	if ( !xrtCookieAppendPairTo(sOut, iOutCap, &iOff, pCookie->tName.sPtr, pCookie->tName.iLen, pCookie->tValue.sPtr, pCookie->tValue.iLen) ) return false;
+	if ( xrtStrViewIsEmpty(pCookie->tName) ) { return false; }
+	if ( !xrtCookieAppendPairTo(sOut, iOutCap, &iOff, pCookie->tName.sPtr, pCookie->tName.iLen, pCookie->tValue.sPtr, pCookie->tValue.iLen) ) { return false; }
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_DOMAIN) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Domain=", 9u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tDomain.sPtr, pCookie->tDomain.iLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Domain=", 9u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tDomain.sPtr, pCookie->tDomain.iLen) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_PATH) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Path=", 7u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tPath.sPtr, pCookie->tPath.iLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Path=", 7u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tPath.sPtr, pCookie->tPath.iLen) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_EXPIRES) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Expires=", 10u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tExpires.sPtr, pCookie->tExpires.iLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Expires=", 10u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tExpires.sPtr, pCookie->tExpires.iLen) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_MAX_AGE) != 0u ) {
 		char sNum[32];
 		int iLen = snprintf(sNum, sizeof(sNum), "%d", (int)pCookie->iMaxAge);
-		if ( iLen <= 0 || (size_t)iLen >= sizeof(sNum) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Max-Age=", 11u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sNum, (size_t)iLen) ) return false;
+		if ( iLen <= 0 || (size_t)iLen >= sizeof(sNum) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Max-Age=", 11u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sNum, (size_t)iLen) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_SAME_SITE) != 0u ) {
 		const char* sSameSite = NULL;
-		if ( pCookie->iSameSite == XRT_SAME_SITE_LAX ) sSameSite = "Lax";
-		else if ( pCookie->iSameSite == XRT_SAME_SITE_STRICT ) sSameSite = "Strict";
-		else if ( pCookie->iSameSite == XRT_SAME_SITE_NONE ) sSameSite = "None";
-		else return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameSite=", 12u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sSameSite, strlen(sSameSite)) ) return false;
+		if ( pCookie->iSameSite == XRT_SAME_SITE_LAX ) { sSameSite = "Lax"; }
+		else if ( pCookie->iSameSite == XRT_SAME_SITE_STRICT ) { sSameSite = "Strict"; }
+		else if ( pCookie->iSameSite == XRT_SAME_SITE_NONE ) { sSameSite = "None"; }
+		else { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameSite=", 12u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sSameSite, strlen(sSameSite)) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_SECURE) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Secure", 8u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Secure", 8u) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HTTP_ONLY) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; HttpOnly", 10u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; HttpOnly", 10u) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_PARTITIONED) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Partitioned", 13u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Partitioned", 13u) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_SAME_PARTY) != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameParty", 11u) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameParty", 11u) ) { return false; }
 	}
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_PRIORITY) != 0u ) {
 		const char* sPriority = NULL;
-		if ( pCookie->iPriority == XRT_COOKIE_PRIORITY_LOW ) sPriority = "Low";
-		else if ( pCookie->iPriority == XRT_COOKIE_PRIORITY_MEDIUM ) sPriority = "Medium";
-		else if ( pCookie->iPriority == XRT_COOKIE_PRIORITY_HIGH ) sPriority = "High";
-		else return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Priority=", 11u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sPriority, strlen(sPriority)) ) return false;
+		if ( pCookie->iPriority == XRT_COOKIE_PRIORITY_LOW ) { sPriority = "Low"; }
+		else if ( pCookie->iPriority == XRT_COOKIE_PRIORITY_MEDIUM ) { sPriority = "Medium"; }
+		else if ( pCookie->iPriority == XRT_COOKIE_PRIORITY_HIGH ) { sPriority = "High"; }
+		else { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Priority=", 11u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sPriority, strlen(sPriority)) ) { return false; }
 	}
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -2114,14 +2114,14 @@ XXAPI bool xrtSetCookieBuildLineTo(const xrtsetcookieview* pCookie, char* sOut, 
 {
 	size_t iOff = 0u;
 	size_t iLineLen = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u || pCookie == NULL ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u || pCookie == NULL ) { return false; }
 	sOut[0] = '\0';
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "Set-Cookie: ", 12u) ) return false;
-	if ( !xrtSetCookieBuildTo(pCookie, sOut + iOff, iOutCap - iOff, &iLineLen) ) return false;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "Set-Cookie: ", 12u) ) { return false; }
+	if ( !xrtSetCookieBuildTo(pCookie, sOut + iOff, iOutCap - iOff, &iLineLen) ) { return false; }
 	iOff += iLineLen;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "\r\n", 2u) ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -2136,7 +2136,7 @@ XXAPI bool xrtSetCookieBuildLine(const xrtsetcookieview* pCookie, char* sOut, si
 // 内部函数：解析 HTTP util 参数值
 static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut)
 {
-	if ( pOut == NULL ) return false;
+	if ( pOut == NULL ) { return false; }
 	*pOut = tRaw;
 	__xrtHttpUtilTrimView(pOut);
 	if ( pOut->iLen >= 2u && pOut->sPtr[0] == '"' && pOut->sPtr[pOut->iLen - 1u] == '"' ) {
@@ -2151,11 +2151,11 @@ static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut)
 static bool __xrtHttpUtilFindParamN(xrtstrview tValue, const char* sName, xrtstrview* pOut)
 {
 	xrthttpparam tParam;
-	if ( pOut ) *pOut = xrtStrView(NULL, 0u);
-	if ( sName == NULL ) return false;
-	if ( !xrtHttpParamFindN(tValue.sPtr, tValue.iLen, sName, strlen(__xrt_cstr(sName)), &tParam) ) return false;
-	if ( (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) == 0u ) return false;
-	if ( pOut ) *pOut = tParam.tValue;
+	if ( pOut ) { *pOut = xrtStrView(NULL, 0u); }
+	if ( sName == NULL ) { return false; }
+	if ( !xrtHttpParamFindN(tValue.sPtr, tValue.iLen, sName, strlen(__xrt_cstr(sName)), &tParam) ) { return false; }
+	if ( (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) == 0u ) { return false; }
+	if ( pOut ) { *pOut = tParam.tValue; }
 	return true;
 }
 
@@ -2166,17 +2166,17 @@ XXAPI bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen,
 	xrtmediatypeview tMediaType;
 	xrtstrview tBoundary;
 	size_t i;
-	if ( sValue == NULL || pOut == NULL || iLen == 0u ) return false;
-	if ( !xrtHttpMediaTypeParseN(sValue, iLen, &tMediaType) ) return false;
-	if ( !__xrtHttpUtilEqNoCaseN(tMediaType.tType.sPtr, tMediaType.tType.iLen, "multipart", 9u) ) return false;
+	if ( sValue == NULL || pOut == NULL || iLen == 0u ) { return false; }
+	if ( !xrtHttpMediaTypeParseN(sValue, iLen, &tMediaType) ) { return false; }
+	if ( !__xrtHttpUtilEqNoCaseN(tMediaType.tType.sPtr, tMediaType.tType.iLen, "multipart", 9u) ) { return false; }
 	if ( !__xrtHttpUtilEqNoCaseN(tMediaType.tSubType.sPtr, tMediaType.tSubType.iLen, "form-data", 9u) &&
 	     !__xrtHttpUtilEqNoCaseN(tMediaType.tSubType.sPtr, tMediaType.tSubType.iLen, "mixed", 5u) ) return false;
-	if ( (tMediaType.iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS) == 0u ) return false;
-	if ( !__xrtHttpUtilFindParamN(tMediaType.tParams, "boundary", &tBoundary) ) return false;
-	if ( xrtStrViewIsEmpty(tBoundary) || tBoundary.iLen > 70u ) return false;
+	if ( (tMediaType.iFlags & XRT_HTTP_MEDIA_TYPE_F_HAS_PARAMS) == 0u ) { return false; }
+	if ( !__xrtHttpUtilFindParamN(tMediaType.tParams, "boundary", &tBoundary) ) { return false; }
+	if ( xrtStrViewIsEmpty(tBoundary) || tBoundary.iLen > 70u ) { return false; }
 	for ( i = 0u; i < tBoundary.iLen; ++i ) {
 		unsigned char ch = (unsigned char)tBoundary.sPtr[i];
-		if ( ch < 0x20u || ch == 0x7Fu ) return false;
+		if ( ch < 0x20u || ch == 0x7Fu ) { return false; }
 	}
 	*pOut = tBoundary;
 	return true;
@@ -2186,7 +2186,7 @@ XXAPI bool xrtMultipartBoundaryFromContentTypeN(const char* sValue, size_t iLen,
 // xrtMultipartBoundaryFromContentType 相关处理
 XXAPI bool xrtMultipartBoundaryFromContentType(const char* sValue, xrtstrview* pOut)
 {
-	if ( sValue == NULL ) return false;
+	if ( sValue == NULL ) { return false; }
 	return xrtMultipartBoundaryFromContentTypeN(sValue, strlen(sValue), pOut);
 }
 
@@ -2195,13 +2195,13 @@ XXAPI bool xrtMultipartBoundaryFromContentType(const char* sValue, xrtstrview* p
 XXAPI bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundaryLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( sOut == NULL || iOutCap == 0u ) return false;
-	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u ) { return false; }
+	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) { return false; }
 	sOut[0] = '\0';
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "multipart/form-data; boundary=", 30u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sBoundary, iBoundaryLen) ) return false;
-	if ( pOutLen ) *pOutLen = iOff;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "multipart/form-data; boundary=", 30u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sBoundary, iBoundaryLen) ) { return false; }
+	if ( pOutLen ) { *pOutLen = iOff; }
 	return true;
 }
 
@@ -2209,7 +2209,7 @@ XXAPI bool xrtMultipartBuildContentTypeTo(const char* sBoundary, size_t iBoundar
 // xrtMultipartBuildContentType 相关处理
 XXAPI bool xrtMultipartBuildContentType(const char* sBoundary, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
-	if ( sBoundary == NULL ) return false;
+	if ( sBoundary == NULL ) { return false; }
 	return xrtMultipartBuildContentTypeTo(sBoundary, strlen(sBoundary), sOut, iOutCap, pOutLen);
 }
 
@@ -2217,20 +2217,20 @@ XXAPI bool xrtMultipartBuildContentType(const char* sBoundary, char* sOut, size_
 // 内部函数：匹配 HTTP util 边界
 static bool __xrtHttpUtilMatchBoundaryAt(const char* sBody, size_t iLen, size_t iPos, const char* sBoundary, size_t iBoundaryLen, bool* pFinal, size_t* pAfter)
 {
-	if ( pFinal ) *pFinal = false;
-	if ( pAfter ) *pAfter = 0u;
-	if ( sBody == NULL || sBoundary == NULL ) return false;
-	if ( iPos + 2u + iBoundaryLen > iLen ) return false;
-	if ( sBody[iPos] != '-' || sBody[iPos + 1u] != '-' ) return false;
-	if ( memcmp(sBody + iPos + 2u, sBoundary, iBoundaryLen) != 0 ) return false;
+	if ( pFinal ) { *pFinal = false; }
+	if ( pAfter ) { *pAfter = 0u; }
+	if ( sBody == NULL || sBoundary == NULL ) { return false; }
+	if ( iPos + 2u + iBoundaryLen > iLen ) { return false; }
+	if ( sBody[iPos] != '-' || sBody[iPos + 1u] != '-' ) { return false; }
+	if ( memcmp(sBody + iPos + 2u, sBoundary, iBoundaryLen) != 0 ) { return false; }
 	iPos += 2u + iBoundaryLen;
 	if ( iPos + 1u < iLen && sBody[iPos] == '-' && sBody[iPos + 1u] == '-' ) {
-		if ( pFinal ) *pFinal = true;
-		if ( pAfter ) *pAfter = iPos + 2u;
+		if ( pFinal ) { *pFinal = true; }
+		if ( pAfter ) { *pAfter = iPos + 2u; }
 		return true;
 	}
 	if ( iPos + 1u < iLen && sBody[iPos] == '\r' && sBody[iPos + 1u] == '\n' ) {
-		if ( pAfter ) *pAfter = iPos + 2u;
+		if ( pAfter ) { *pAfter = iPos + 2u; }
 		return true;
 	}
 	return false;
@@ -2241,17 +2241,17 @@ static bool __xrtHttpUtilMatchBoundaryAt(const char* sBody, size_t iLen, size_t 
 static bool __xrtHttpUtilFindBoundaryLine(const char* sBody, size_t iLen, size_t iStart, const char* sBoundary, size_t iBoundaryLen, size_t* pPos, bool* pFinal, size_t* pAfter)
 {
 	size_t i;
-	if ( pPos ) *pPos = 0u;
-	if ( sBody == NULL || sBoundary == NULL ) return false;
+	if ( pPos ) { *pPos = 0u; }
+	if ( sBody == NULL || sBoundary == NULL ) { return false; }
 	for ( i = iStart; i < iLen; ++i ) {
 		bool bFinal = false;
 		size_t iAfter = 0u;
 		bool bLineStart = (i == 0u) || (i >= 2u && sBody[i - 2u] == '\r' && sBody[i - 1u] == '\n');
-		if ( !bLineStart ) continue;
-		if ( !__xrtHttpUtilMatchBoundaryAt(sBody, iLen, i, sBoundary, iBoundaryLen, &bFinal, &iAfter) ) continue;
-		if ( pPos ) *pPos = i;
-		if ( pFinal ) *pFinal = bFinal;
-		if ( pAfter ) *pAfter = iAfter;
+		if ( !bLineStart ) { continue; }
+		if ( !__xrtHttpUtilMatchBoundaryAt(sBody, iLen, i, sBoundary, iBoundaryLen, &bFinal, &iAfter) ) { continue; }
+		if ( pPos ) { *pPos = i; }
+		if ( pFinal ) { *pFinal = bFinal; }
+		if ( pAfter ) { *pAfter = iAfter; }
 		return true;
 	}
 	return false;
@@ -2262,9 +2262,9 @@ static bool __xrtHttpUtilFindBoundaryLine(const char* sBody, size_t iLen, size_t
 static bool __xrtHttpUtilMultipartParseContentDisposition(xrtstrview tValue, xrtmultipartpartview* pOut)
 {
 	xrtcontentdispositionview tDisp;
-	if ( pOut == NULL ) return false;
-	if ( !xrtHttpContentDispositionParseN(tValue.sPtr, tValue.iLen, &tDisp) ) return false;
-	if ( !__xrtHttpUtilEqNoCaseN(tDisp.tType.sPtr, tDisp.tType.iLen, "form-data", 9u) ) return false;
+	if ( pOut == NULL ) { return false; }
+	if ( !xrtHttpContentDispositionParseN(tValue.sPtr, tValue.iLen, &tDisp) ) { return false; }
+	if ( !__xrtHttpUtilEqNoCaseN(tDisp.tType.sPtr, tDisp.tType.iLen, "form-data", 9u) ) { return false; }
 	pOut->tContentDisposition = tValue;
 	pOut->iFlags |= XRT_MULTIPART_F_HAS_CONTENT_DISP;
 	if ( (tDisp.iFlags & XRT_HTTP_CONTENT_DISPOSITION_F_HAS_NAME) != 0u ) {
@@ -2298,7 +2298,7 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 	size_t iUnusedAfter = 0u;
 	xrtheaderpair tHeader;
 	size_t iHeaderOff = 0u;
-	if ( sBody == NULL || sBoundary == NULL || pOffset == NULL || pOut == NULL || iBoundaryLen == 0u ) return false;
+	if ( sBody == NULL || sBoundary == NULL || pOffset == NULL || pOut == NULL || iBoundaryLen == 0u ) { return false; }
 	if ( !__xrtHttpUtilFindBoundaryLine(sBody, iLen, *pOffset, sBoundary, iBoundaryLen, &iPos, &bFinal, &iAfterBoundary) ) {
 		*pOffset = iLen;
 		return false;
@@ -2307,22 +2307,22 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 		*pOffset = iLen;
 		return false;
 	}
-	if ( iAfterBoundary > iLen ) return false;
+	if ( iAfterBoundary > iLen ) { return false; }
 	memset(pOut, 0, sizeof(xrtmultipartpartview));
 	iHeaderEnd = iAfterBoundary;
 	while ( iHeaderEnd + 3u < iLen ) {
-		if ( sBody[iHeaderEnd] == '\r' && sBody[iHeaderEnd + 1u] == '\n' && sBody[iHeaderEnd + 2u] == '\r' && sBody[iHeaderEnd + 3u] == '\n' ) break;
+		if ( sBody[iHeaderEnd] == '\r' && sBody[iHeaderEnd + 1u] == '\n' && sBody[iHeaderEnd + 2u] == '\r' && sBody[iHeaderEnd + 3u] == '\n' ) { break; }
 		iHeaderEnd++;
 	}
-	if ( iHeaderEnd + 3u >= iLen ) return false;
+	if ( iHeaderEnd + 3u >= iLen ) { return false; }
 	pOut->tHeaders = xrtStrView(sBody + iAfterBoundary, iHeaderEnd - iAfterBoundary);
 	iBodyEnd = iHeaderEnd + 4u;
-	if ( !__xrtHttpUtilFindBoundaryLine(sBody, iLen, iBodyEnd, sBoundary, iBoundaryLen, &iNextPos, &bNextFinal, &iUnusedAfter) ) return false;
-	if ( iNextPos < 2u || sBody[iNextPos - 2u] != '\r' || sBody[iNextPos - 1u] != '\n' ) return false;
+	if ( !__xrtHttpUtilFindBoundaryLine(sBody, iLen, iBodyEnd, sBoundary, iBoundaryLen, &iNextPos, &bNextFinal, &iUnusedAfter) ) { return false; }
+	if ( iNextPos < 2u || sBody[iNextPos - 2u] != '\r' || sBody[iNextPos - 1u] != '\n' ) { return false; }
 	pOut->tBody = xrtStrView(sBody + iBodyEnd, iNextPos - iBodyEnd - 2u);
 	while ( xrtHttpHeaderNextLineN(pOut->tHeaders.sPtr, pOut->tHeaders.iLen, &iHeaderOff, &tHeader) ) {
 		if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Disposition", 19u) ) {
-			if ( !__xrtHttpUtilMultipartParseContentDisposition(tHeader.tValue, pOut) ) return false;
+			if ( !__xrtHttpUtilMultipartParseContentDisposition(tHeader.tValue, pOut) ) { return false; }
 		} else if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Type", 12u) ) {
 			pOut->tContentType = tHeader.tValue;
 			pOut->iFlags |= XRT_MULTIPART_F_HAS_CONTENT_TYPE;
@@ -2340,7 +2340,7 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 // 获取下一个 Multipart
 XXAPI bool xrtMultipartNext(const char* sBody, const char* sBoundary, size_t* pOffset, xrtmultipartpartview* pOut)
 {
-	if ( sBody == NULL || sBoundary == NULL ) return false;
+	if ( sBody == NULL || sBoundary == NULL ) { return false; }
 	return xrtMultipartNextN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pOffset, pOut);
 }
 
@@ -2351,14 +2351,14 @@ XXAPI bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBou
 	size_t iOffset = 0u;
 	size_t iCount = 0u;
 	xrtmultipartpartview tPart;
-	if ( pCount ) *pCount = 0u;
-	if ( sBody == NULL || sBoundary == NULL || (pOut == NULL && iCap != 0u) ) return false;
+	if ( pCount ) { *pCount = 0u; }
+	if ( sBody == NULL || sBoundary == NULL || (pOut == NULL && iCap != 0u) ) { return false; }
 	while ( xrtMultipartNextN(sBody, iLen, sBoundary, iBoundaryLen, &iOffset, &tPart) ) {
-		if ( iCount >= iCap ) return false;
-		if ( pOut ) pOut[iCount] = tPart;
+		if ( iCount >= iCap ) { return false; }
+		if ( pOut ) { pOut[iCount] = tPart; }
 		++iCount;
 	}
-	if ( pCount ) *pCount = iCount;
+	if ( pCount ) { *pCount = iCount; }
 	return true;
 }
 
@@ -2366,7 +2366,7 @@ XXAPI bool xrtMultipartParseToN(const char* sBody, size_t iLen, const char* sBou
 // 解析 Multipart
 XXAPI bool xrtMultipartParseTo(const char* sBody, const char* sBoundary, xrtmultipartpartview* pOut, size_t iCap, size_t* pCount)
 {
-	if ( sBody == NULL || sBoundary == NULL ) return false;
+	if ( sBody == NULL || sBoundary == NULL ) { return false; }
 	return xrtMultipartParseToN(sBody, strlen(sBody), sBoundary, strlen(sBoundary), pOut, iCap, pCount);
 }
 
@@ -2375,8 +2375,8 @@ XXAPI bool xrtMultipartParseTo(const char* sBody, const char* sBoundary, xrtmult
 XXAPI bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iLen;
-	if ( pOutLen ) *pOutLen = 0u;
-	if ( pPart == NULL || sOut == NULL || iOutCap == 0u ) return false;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( pPart == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	if ( (pPart->iFlags & XRT_MULTIPART_F_HAS_FILENAME_EXT) != 0u ) {
 		return xrtHttpDecodeExtValueTo(
 			pPart->tFileNameExt.sPtr,
@@ -2387,12 +2387,12 @@ XXAPI bool xrtMultipartDecodeFileNameTo(const xrtmultipartpartview* pPart, char*
 			iOutCap,
 			pOutLen);
 	}
-	if ( (pPart->iFlags & XRT_MULTIPART_F_HAS_FILENAME) == 0u ) return false;
+	if ( (pPart->iFlags & XRT_MULTIPART_F_HAS_FILENAME) == 0u ) { return false; }
 	iLen = pPart->tFileName.iLen;
-	if ( iLen + 1u > iOutCap ) return false;
-	if ( iLen > 0u ) memcpy(sOut, pPart->tFileName.sPtr, iLen);
+	if ( iLen + 1u > iOutCap ) { return false; }
+	if ( iLen > 0u ) { memcpy(sOut, pPart->tFileName.sPtr, iLen); }
 	sOut[iLen] = '\0';
-	if ( pOutLen ) *pOutLen = iLen;
+	if ( pOutLen ) { *pOutLen = iLen; }
 	return true;
 }
 
@@ -2407,7 +2407,7 @@ XXAPI bool xrtMultipartDecodeFileName(const xrtmultipartpartview* pPart, char* s
 // 初始化 Multipart 流配置
 XXAPI void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig)
 {
-	if ( !pConfig ) return;
+	if ( !pConfig ) { return; }
 	pConfig->iMaxBufferedBytes = 256u * 1024u;
 	pConfig->iMaxHeaderBytes = 64u * 1024u;
 	pConfig->iMaxPartHeaders = 64u;
@@ -2418,7 +2418,7 @@ XXAPI void xrtMultipartStreamConfigInit(xrtmultipartstreamconfig* pConfig)
 // 内部函数：__xrtHttpUtilMultipartStreamZeroEvent
 static void __xrtHttpUtilMultipartStreamZeroEvent(xrtmultipartstreamevent* pEvent)
 {
-	if ( !pEvent ) return;
+	if ( !pEvent ) { return; }
 	memset(pEvent, 0, sizeof(xrtmultipartstreamevent));
 	pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_NEED_MORE;
 }
@@ -2427,7 +2427,7 @@ static void __xrtHttpUtilMultipartStreamZeroEvent(xrtmultipartstreamevent* pEven
 // 内部函数：__xrtHttpUtilMultipartStreamCompact
 static void __xrtHttpUtilMultipartStreamCompact(xrtmultipartstream* pStream)
 {
-	if ( !pStream || pStream->iCursor == 0u ) return;
+	if ( !pStream || pStream->iCursor == 0u ) { return; }
 	if ( pStream->iCursor >= pStream->iBufferLen ) {
 		pStream->iCursor = 0u;
 		pStream->iBufferLen = 0u;
@@ -2444,19 +2444,19 @@ static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, s
 {
 	size_t iNewCap;
 	char* pNewBuf;
-	if ( !pStream ) return false;
-	if ( iNeed <= pStream->iBufferCap ) return true;
-	if ( iNeed > pStream->iMaxBufferedBytes ) return false;
+	if ( !pStream ) { return false; }
+	if ( iNeed <= pStream->iBufferCap ) { return true; }
+	if ( iNeed > pStream->iMaxBufferedBytes ) { return false; }
 	iNewCap = pStream->iBufferCap ? pStream->iBufferCap : 1024u;
 	while ( iNewCap < iNeed ) {
 		size_t iGrow = iNewCap < 65536u ? iNewCap : 65536u;
-		if ( iNewCap > ((size_t)-1) - iGrow ) return false;
+		if ( iNewCap > ((size_t)-1) - iGrow ) { return false; }
 		iNewCap += iGrow;
 	}
-	if ( iNewCap > pStream->iMaxBufferedBytes ) iNewCap = pStream->iMaxBufferedBytes;
-	if ( iNewCap < iNeed ) return false;
+	if ( iNewCap > pStream->iMaxBufferedBytes ) { iNewCap = pStream->iMaxBufferedBytes; }
+	if ( iNewCap < iNeed ) { return false; }
 	pNewBuf = (char*)XHTTP_UTIL_REALLOC(pStream->pBuffer, iNewCap);
-	if ( !pNewBuf ) return false;
+	if ( !pNewBuf ) { return false; }
 	pStream->pBuffer = pNewBuf;
 	pStream->iBufferCap = iNewCap;
 	return true;
@@ -2467,20 +2467,20 @@ static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, s
 XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig)
 {
 	xrtmultipartstreamconfig tConfig;
-	if ( !pStream ) return false;
+	if ( !pStream ) { return false; }
 	memset(pStream, 0, sizeof(xrtmultipartstream));
 	xrtMultipartStreamConfigInit(&tConfig);
-	if ( pConfig ) tConfig = *pConfig;
+	if ( pConfig ) { tConfig = *pConfig; }
 	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) {
 		pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_BOUNDARY;
 		pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
 		return false;
 	}
-	if ( tConfig.iMaxBufferedBytes == 0u ) tConfig.iMaxBufferedBytes = 256u * 1024u;
-	if ( tConfig.iMaxHeaderBytes == 0u ) tConfig.iMaxHeaderBytes = 64u * 1024u;
-	if ( tConfig.iMaxPartHeaders == 0u ) tConfig.iMaxPartHeaders = 64u;
-	if ( tConfig.iTailReserve == 0u ) tConfig.iTailReserve = iBoundaryLen + 8u;
-	if ( tConfig.iTailReserve < iBoundaryLen + 8u ) tConfig.iTailReserve = iBoundaryLen + 8u;
+	if ( tConfig.iMaxBufferedBytes == 0u ) { tConfig.iMaxBufferedBytes = 256u * 1024u; }
+	if ( tConfig.iMaxHeaderBytes == 0u ) { tConfig.iMaxHeaderBytes = 64u * 1024u; }
+	if ( tConfig.iMaxPartHeaders == 0u ) { tConfig.iMaxPartHeaders = 64u; }
+	if ( tConfig.iTailReserve == 0u ) { tConfig.iTailReserve = iBoundaryLen + 8u; }
+	if ( tConfig.iTailReserve < iBoundaryLen + 8u ) { tConfig.iTailReserve = iBoundaryLen + 8u; }
 	if ( tConfig.iMaxBufferedBytes < tConfig.iMaxHeaderBytes + tConfig.iTailReserve + 4u ) {
 		tConfig.iMaxBufferedBytes = tConfig.iMaxHeaderBytes + tConfig.iTailReserve + 4u;
 	}
@@ -2499,7 +2499,7 @@ XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoun
 // 释放 Multipart 流
 XXAPI void xrtMultipartStreamUnit(xrtmultipartstream* pStream)
 {
-	if ( !pStream ) return;
+	if ( !pStream ) { return; }
 	if ( pStream->pBuffer ) {
 		XHTTP_UTIL_FREE(pStream->pBuffer);
 		pStream->pBuffer = NULL;
@@ -2511,7 +2511,7 @@ XXAPI void xrtMultipartStreamUnit(xrtmultipartstream* pStream)
 // 重置 Multipart 流
 XXAPI void xrtMultipartStreamReset(xrtmultipartstream* pStream)
 {
-	if ( !pStream ) return;
+	if ( !pStream ) { return; }
 	pStream->iBufferLen = 0u;
 	pStream->iCursor = 0u;
 	pStream->iBoundaryPos = 0u;
@@ -2527,10 +2527,10 @@ XXAPI void xrtMultipartStreamReset(xrtmultipartstream* pStream)
 // xrtMultipartStreamFeed 相关处理
 XXAPI bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData, size_t iLen)
 {
-	if ( !pStream || pStream->iState == XRT_MULTIPART_STREAM_STATE_ERROR || pStream->iState == XRT_MULTIPART_STREAM_STATE_DONE ) return false;
-	if ( pStream->bFinishedInput ) return false;
-	if ( iLen == 0u ) return true;
-	if ( pData == NULL ) return false;
+	if ( !pStream || pStream->iState == XRT_MULTIPART_STREAM_STATE_ERROR || pStream->iState == XRT_MULTIPART_STREAM_STATE_DONE ) { return false; }
+	if ( pStream->bFinishedInput ) { return false; }
+	if ( iLen == 0u ) { return true; }
+	if ( pData == NULL ) { return false; }
 	__xrtHttpUtilMultipartStreamCompact(pStream);
 	if ( pStream->iBufferLen > pStream->iMaxBufferedBytes || iLen > pStream->iMaxBufferedBytes - pStream->iBufferLen ) {
 		pStream->iError = XRT_MULTIPART_STREAM_ERR_BUFFER_LIMIT;
@@ -2552,7 +2552,7 @@ XXAPI bool xrtMultipartStreamFeed(xrtmultipartstream* pStream, const void* pData
 // 完成 Multipart 流
 XXAPI void xrtMultipartStreamFinish(xrtmultipartstream* pStream)
 {
-	if ( !pStream ) return;
+	if ( !pStream ) { return; }
 	pStream->bFinishedInput = true;
 }
 
@@ -2571,7 +2571,7 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 	size_t iHeaderOff = 0u;
 	size_t iHeaderCount = 0u;
 	xrtheaderpair tHeader;
-	if ( !pStream || !pOut ) return false;
+	if ( !pStream || !pOut ) { return false; }
 	iHeaderEnd = pStream->iCursor;
 	while ( iHeaderEnd + 3u < pStream->iBufferLen ) {
 		if ( pStream->pBuffer[iHeaderEnd] == '\r' &&
@@ -2626,8 +2626,8 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 // 获取下一个 Multipart 流
 XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStream, xrtmultipartstreamevent* pEvent)
 {
-	if ( pEvent ) __xrtHttpUtilMultipartStreamZeroEvent(pEvent);
-	if ( pStream == NULL || pEvent == NULL ) return XRT_MULTIPART_STREAM_RESULT_ERROR;
+	if ( pEvent ) { __xrtHttpUtilMultipartStreamZeroEvent(pEvent); }
+	if ( pStream == NULL || pEvent == NULL ) { return XRT_MULTIPART_STREAM_RESULT_ERROR; }
 	if ( pStream->iState == XRT_MULTIPART_STREAM_STATE_ERROR ) {
 		pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_ERROR;
 		return pEvent->iResult;
@@ -2735,14 +2735,14 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 // xrtMultipartAppendFieldPartTo 相关处理
 XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sValue, size_t iValueLen)
 {
-	if ( sOut == NULL || pOffset == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) return false;
-	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\nContent-Disposition: form-data; name=", 39u) ) return false;
-	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sName, iNameLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n\r\n", 4u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen) ) return false;
+	if ( sOut == NULL || pOffset == NULL || sName == NULL || (sValue == NULL && iValueLen != 0u) ) { return false; }
+	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\nContent-Disposition: form-data; name=", 39u) ) { return false; }
+	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sName, iNameLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n\r\n", 4u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sValue, iValueLen) ) { return false; }
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
@@ -2750,7 +2750,7 @@ XXAPI bool xrtMultipartAppendFieldPartTo(char* sOut, size_t iOutCap, size_t* pOf
 // xrtMultipartAppendFieldPart 相关处理
 XXAPI bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sValue)
 {
-	if ( sBoundary == NULL || sName == NULL || sValue == NULL ) return false;
+	if ( sBoundary == NULL || sName == NULL || sValue == NULL ) { return false; }
 	return xrtMultipartAppendFieldPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), sName, strlen(__xrt_cstr(sName)), sValue, strlen(sValue));
 }
 
@@ -2759,11 +2759,11 @@ XXAPI bool xrtMultipartAppendFieldPart(char* sOut, size_t iOutCap, size_t* pOffs
 XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
 {
 	size_t i;
-	if ( sOut == NULL || pOffset == NULL || (pHeaders == NULL && iHeaderCount != 0u) || (pBody == NULL && iBodyLen != 0u) ) return false;
-	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u) ) return false;
+	if ( sOut == NULL || pOffset == NULL || (pHeaders == NULL && iHeaderCount != 0u) || (pBody == NULL && iBodyLen != 0u) ) { return false; }
+	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u) ) { return false; }
 	for ( i = 0u; i < iHeaderCount; ++i ) {
 		size_t iLineLen = 0u;
 		if ( !xrtHttpHeaderBuildLineTo(
@@ -2776,8 +2776,8 @@ XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffs
 			&iLineLen) ) return false;
 		*pOffset += iLineLen;
 	}
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, pBody, iBodyLen) ) return false;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, pBody, iBodyLen) ) { return false; }
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
@@ -2785,7 +2785,7 @@ XXAPI bool xrtMultipartAppendRawPartTo(char* sOut, size_t iOutCap, size_t* pOffs
 // 追加 Multipart 原始数据 part
 XXAPI bool xrtMultipartAppendRawPart(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const xrtheaderpair* pHeaders, size_t iHeaderCount, const char* pBody, size_t iBodyLen)
 {
-	if ( sBoundary == NULL ) return false;
+	if ( sBoundary == NULL ) { return false; }
 	return xrtMultipartAppendRawPartTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary), pHeaders, iHeaderCount, pBody, iBodyLen);
 }
 
@@ -2793,27 +2793,27 @@ XXAPI bool xrtMultipartAppendRawPart(char* sOut, size_t iOutCap, size_t* pOffset
 // 追加 Multipart 文件 part 扩展
 XXAPI bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen, const char* sName, size_t iNameLen, const char* sFileName, size_t iFileNameLen, const char* sFileNameExt, size_t iFileNameExtLen, const char* sContentType, size_t iContentTypeLen, const char* pBody, size_t iBodyLen)
 {
-	if ( sOut == NULL || pOffset == NULL || sName == NULL || sFileName == NULL || (sContentType == NULL && iContentTypeLen != 0u) || (pBody == NULL && iBodyLen != 0u) ) return false;
-	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
-	if ( iContentTypeLen != 0u && __xrtHttpUtilContainsCtl(sContentType, iContentTypeLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\nContent-Disposition: form-data; name=", 39u) ) return false;
-	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sName, iNameLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; filename=", 11u) ) return false;
-	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sFileName, iFileNameLen) ) return false;
+	if ( sOut == NULL || pOffset == NULL || sName == NULL || sFileName == NULL || (sContentType == NULL && iContentTypeLen != 0u) || (pBody == NULL && iBodyLen != 0u) ) { return false; }
+	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) { return false; }
+	if ( iContentTypeLen != 0u && __xrtHttpUtilContainsCtl(sContentType, iContentTypeLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\nContent-Disposition: form-data; name=", 39u) ) { return false; }
+	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sName, iNameLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; filename=", 11u) ) { return false; }
+	if ( !__xrtHttpUtilAppendQuotedString(sOut, iOutCap, pOffset, sFileName, iFileNameLen) ) { return false; }
 	if ( sFileNameExt != NULL && iFileNameExtLen != 0u ) {
 		size_t iExtLen = 0u;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; filename*=", 12u) ) return false;
-		if ( !xrtHttpBuildExtValueTo("UTF-8", "", sFileNameExt, iFileNameExtLen, sOut + *pOffset, iOutCap - *pOffset, &iExtLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "; filename*=", 12u) ) { return false; }
+		if ( !xrtHttpBuildExtValueTo("UTF-8", "", sFileNameExt, iFileNameExtLen, sOut + *pOffset, iOutCap - *pOffset, &iExtLen) ) { return false; }
 		*pOffset += iExtLen;
 	}
 	if ( iContentTypeLen != 0u ) {
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\nContent-Type: ", 16u) ) return false;
-		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sContentType, iContentTypeLen) ) return false;
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\nContent-Type: ", 16u) ) { return false; }
+		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sContentType, iContentTypeLen) ) { return false; }
 	}
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n\r\n", 4u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, pBody, iBodyLen) ) return false;
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n\r\n", 4u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, pBody, iBodyLen) ) { return false; }
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "\r\n", 2u);
 }
 
@@ -2821,7 +2821,7 @@ XXAPI bool xrtMultipartAppendFilePartExtTo(char* sOut, size_t iOutCap, size_t* p
 // 追加 Multipart 文件 part 扩展
 XXAPI bool xrtMultipartAppendFilePartExt(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, const char* sName, const char* sFileName, const char* sFileNameExt, const char* sContentType, const char* pBody, size_t iBodyLen)
 {
-	if ( sBoundary == NULL || sName == NULL || sFileName == NULL || pBody == NULL ) return false;
+	if ( sBoundary == NULL || sName == NULL || sFileName == NULL || pBody == NULL ) { return false; }
 	return xrtMultipartAppendFilePartExtTo(
 		sOut,
 		iOutCap,
@@ -2873,10 +2873,10 @@ XXAPI bool xrtMultipartAppendFilePart(char* sOut, size_t iOutCap, size_t* pOffse
 // xrtMultipartAppendFinishTo 相关处理
 XXAPI bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary, size_t iBoundaryLen)
 {
-	if ( sOut == NULL || pOffset == NULL ) return false;
-	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) return false;
-	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) return false;
+	if ( sOut == NULL || pOffset == NULL ) { return false; }
+	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--", 2u) ) { return false; }
+	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, sBoundary, iBoundaryLen) ) { return false; }
 	return __xrtHttpUtilAppendBytes(sOut, iOutCap, pOffset, "--\r\n", 4u);
 }
 
@@ -2884,7 +2884,7 @@ XXAPI bool xrtMultipartAppendFinishTo(char* sOut, size_t iOutCap, size_t* pOffse
 // xrtMultipartAppendFinish 相关处理
 XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset, const char* sBoundary)
 {
-	if ( sBoundary == NULL ) return false;
+	if ( sBoundary == NULL ) { return false; }
 	return xrtMultipartAppendFinishTo(sOut, iOutCap, pOffset, sBoundary, strlen(sBoundary));
 }
 

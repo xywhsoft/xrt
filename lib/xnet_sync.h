@@ -543,7 +543,7 @@ static uint64 __xnetSyncNowMs(void)
 		return (uint64)GetTickCount64();
 	#else
 		struct timespec tNow;
-		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) return 0;
+		if ( clock_gettime(CLOCK_MONOTONIC, &tNow) != 0 ) { return 0; }
 		return ((uint64)tNow.tv_sec * 1000ULL) + ((uint64)tNow.tv_nsec / 1000000ULL);
 	#endif
 }
@@ -608,8 +608,8 @@ static void __xnetSyncSetError(const char* sError)
 static bool __xnetSyncMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
 {
 	uint64 iNs;
-	if ( !pTs ) return false;
-	if ( clock_gettime(__XNET_SYNC_WAIT_CLOCK, pTs) != 0 ) return false;
+	if ( !pTs ) { return false; }
+	if ( clock_gettime(__XNET_SYNC_WAIT_CLOCK, pTs) != 0 ) { return false; }
 	iNs = (uint64)pTs->tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
 	pTs->tv_sec += (time_t)(iNs / 1000000000ULL);
 	pTs->tv_nsec = (long)(iNs % 1000000000ULL);
@@ -621,8 +621,8 @@ static bool __xnetSyncMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
 static bool __xnetSyncInitCond(__xnet_sync_cond* pCond)
 {
 	pthread_condattr_t tAttr;
-	if ( !pCond ) return false;
-	if ( pthread_condattr_init(&tAttr) != 0 ) return false;
+	if ( !pCond ) { return false; }
+	if ( pthread_condattr_init(&tAttr) != 0 ) { return false; }
 	#if defined(CLOCK_MONOTONIC)
 		(void)pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC);
 	#endif
@@ -638,13 +638,13 @@ static bool __xnetSyncInitCond(__xnet_sync_cond* pCond)
 // 内部函数：__xnetFuturePrimitiveInit
 static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return false;
+	if ( !pFuture ) { return false; }
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeCriticalSection(&pFuture->hLock);
 		InitializeConditionVariable(&pFuture->hCond);
 		return true;
 	#else
-		if ( pthread_mutex_init(&pFuture->hLock, NULL) != 0 ) return false;
+		if ( pthread_mutex_init(&pFuture->hLock, NULL) != 0 ) { return false; }
 		if ( !__xnetSyncInitCond(&pFuture->hCond) ) {
 			pthread_mutex_destroy(&pFuture->hLock);
 			return false;
@@ -657,7 +657,7 @@ static bool __xnetFuturePrimitiveInit(xnetfuture* pFuture)
 // 内部函数：__xnetFuturePrimitiveUnit
 static void __xnetFuturePrimitiveUnit(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	#if defined(_WIN32) || defined(_WIN64)
 		DeleteCriticalSection(&pFuture->hLock);
 	#else
@@ -713,7 +713,7 @@ static bool __xnetFutureWaitOnce(xnetfuture* pFuture, uint32 iTimeoutMs)
 			return pthread_cond_wait(&pFuture->hCond, &pFuture->hLock) == 0;
 		} else {
 			struct timespec tAbs;
-			if ( !__xnetSyncMakeAbsTimeout(&tAbs, iTimeoutMs) ) return false;
+			if ( !__xnetSyncMakeAbsTimeout(&tAbs, iTimeoutMs) ) { return false; }
 			return pthread_cond_timedwait(&pFuture->hCond, &pFuture->hLock, &tAbs) == 0;
 		}
 	#endif
@@ -734,9 +734,9 @@ static int __xnetFuturePumpCurrentAuto(void)
 // 内部函数：初始化 Future
 static bool __xnetFutureInit(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return false;
+	if ( !pFuture ) { return false; }
 	memset(pFuture, 0, sizeof(xnetfuture));
-	if ( !__xnetFuturePrimitiveInit(pFuture) ) return false;
+	if ( !__xnetFuturePrimitiveInit(pFuture) ) { return false; }
 	pFuture->bDone = false;
 	pFuture->iRefCount = 1;
 	pFuture->iStatus = XRT_NET_AGAIN;
@@ -756,10 +756,10 @@ static const char* __xnetFutureDupError(const char* sError)
 {
 	size_t iLen;
 	char* sCopy;
-	if ( !sError || !sError[0] ) return NULL;
+	if ( !sError || !sError[0] ) { return NULL; }
 	iLen = strlen(sError);
 	sCopy = (char*)XNET_ALLOC(iLen + 1u);
-	if ( !sCopy ) return NULL;
+	if ( !sCopy ) { return NULL; }
 	memcpy(sCopy, sError, iLen + 1u);
 	return sCopy;
 }
@@ -777,7 +777,7 @@ static void __xnetFutureFreeError(const char* sError, uint32 iFlags)
 // 内部函数：__xnetFutureAddRefInternal
 static void __xnetFutureAddRefInternal(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	__xnetFutureLock(pFuture);
 	pFuture->iRefCount++;
 	__xnetFutureUnlock(pFuture);
@@ -787,7 +787,7 @@ static void __xnetFutureAddRefInternal(xnetfuture* pFuture)
 // 内部函数：__xnetFutureFinalizeFree
 static void __xnetFutureFinalizeFree(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	if ( pFuture->pfnPendingCleanup ) {
 		pFuture->pfnPendingCleanup(pFuture);
 	}
@@ -800,7 +800,7 @@ static void __xnetFutureFinalizeFree(xnetfuture* pFuture)
 static void __xnetFutureReleaseRefInternal(xnetfuture* pFuture)
 {
 	bool bFree = false;
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	__xnetFutureLock(pFuture);
 	if ( pFuture->iRefCount > 0 ) {
 		pFuture->iRefCount--;
@@ -824,7 +824,7 @@ static void __xnetFutureReleaseRefInternal(xnetfuture* pFuture)
 // 内部函数：异步增加 Future hold
 static void __xnetFutureAddAsyncHold(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	__xnetFutureLock(pFuture);
 	pFuture->iAsyncHoldCount++;
 	pFuture->iRefCount++;
@@ -836,7 +836,7 @@ static void __xnetFutureAddAsyncHold(xnetfuture* pFuture)
 static void __xnetFutureReleaseAsyncHold(xnetfuture* pFuture)
 {
 	bool bReleaseRef = false;
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	__xnetFutureLock(pFuture);
 	if ( pFuture->iAsyncHoldCount > 0 ) {
 		pFuture->iAsyncHoldCount--;
@@ -852,7 +852,7 @@ static void __xnetFutureReleaseAsyncHold(xnetfuture* pFuture)
 // 内部函数：释放 Future
 static void __xnetFutureUnit(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	__xnetFutureFreeError(pFuture->sError, pFuture->iResultFlags);
 	pFuture->sError = NULL;
 	__xnetFutureFreeError(pFuture->sDebugName, XFUTURE_RESULT_F_OWN_ERROR);
@@ -883,7 +883,7 @@ static void __xnetFutureUnit(xnetfuture* pFuture)
 // 内部函数：重置 Future
 static void UNUSED_ATTR __xnetFutureReset(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	__xnetFutureLock(pFuture);
 	pFuture->bDone = false;
 	pFuture->iStatus = XRT_NET_AGAIN;
@@ -918,7 +918,7 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 		xcoevent pCoEvent = NULL;
 	#endif
 	const char* sOwnedError = NULL;
-	if ( !pFuture ) return false;
+	if ( !pFuture ) { return false; }
 	#if defined(XXRTL_CORE)
 		memset(&tDispatchInput, 0, sizeof(tDispatchInput));
 	#endif
@@ -993,7 +993,7 @@ static bool __xnetPromiseCompleteResult(xpromise* pPromise, const xfuture_result
 	const char* sError;
 	uint32 iFlags;
 
-	if ( !pPromise ) return false;
+	if ( !pPromise ) { return false; }
 	if ( __xnetSyncAtomicCompareExchange(&pPromise->bCompleted, 1, 0) != 0 ) {
 		return false;
 	}
@@ -1003,8 +1003,8 @@ static bool __xnetPromiseCompleteResult(xpromise* pPromise, const xfuture_result
 	sError = pResult ? (const char*)pResult->sError : NULL;
 	iFlags = pResult ? pResult->iFlags : XFUTURE_RESULT_F_NONE;
 
-	if ( iStatus == 0 ) iStatus = XRT_NET_OK;
-	if ( iStatus == XRT_NET_AGAIN ) iStatus = XRT_NET_ERROR;
+	if ( iStatus == 0 ) { iStatus = XRT_NET_OK; }
+	if ( iStatus == XRT_NET_AGAIN ) { iStatus = XRT_NET_ERROR; }
 	return __xnetFutureCompleteEx(pPromise->pFuture, (xnet_result)iStatus, pValue, sError, iFlags);
 }
 
@@ -1553,7 +1553,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 	}
 	if ( bDoCancelLosers ) {
 		for ( i = 0; i < pGroup->iCount; i++ ) {
-			if ( i == iWinner ) continue;
+			if ( i == iWinner ) { continue; }
 			if ( pGroup->arrSources && pGroup->arrSources[i] ) {
 				(void)xFutureRequestCancel(pGroup->arrSources[i]);
 			}
@@ -1662,15 +1662,15 @@ static xcoevent __xnetFutureEnsureCoEvent(xnetfuture* pFuture)
 	xcoevent pEvent = NULL;
 	xcoevent pNewEvent = NULL;
 
-	if ( !pFuture ) return NULL;
+	if ( !pFuture ) { return NULL; }
 
 	__xnetFutureLock(pFuture);
 	pEvent = pFuture->pCoEvent;
 	__xnetFutureUnlock(pFuture);
-	if ( pEvent ) return pEvent;
+	if ( pEvent ) { return pEvent; }
 
 	pNewEvent = xrtCoEventCreate(TRUE, FALSE);
-	if ( !pNewEvent ) return NULL;
+	if ( !pNewEvent ) { return NULL; }
 
 	__xnetFutureLock(pFuture);
 	if ( pFuture->pCoEvent == NULL ) {
@@ -1704,7 +1704,7 @@ static __xnet_sync_hidden_state* __xnetSyncHiddenState(void)
 XXAPI xnetfuture* xrtNetFutureCreate(void)
 {
 	xnetfuture* pFuture = (xnetfuture*)XNET_ALLOC(sizeof(xnetfuture));
-	if ( !pFuture ) return NULL;
+	if ( !pFuture ) { return NULL; }
 	if ( !__xnetFutureInit(pFuture) ) {
 		XNET_FREE(pFuture);
 		return NULL;
@@ -1772,7 +1772,7 @@ XXAPI xnetwaitsrc xrtNetWaitSourceListenerAccept(xnetlistener* pListener)
 static bool __xnetFutureDestroyCore(xnetfuture* pFuture)
 {
 	bool bDestroy = false;
-	if ( !pFuture ) return true;
+	if ( !pFuture ) { return true; }
 	__xnetFutureLock(pFuture);
 	if ( pFuture->iAsyncHoldCount != 0 || pFuture->iRefCount != 1 ) {
 		__xnetFutureUnlock(pFuture);
@@ -1797,7 +1797,7 @@ static bool __xnetFutureDestroyCore(xnetfuture* pFuture)
 // 销毁网络 Future
 XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture)
 {
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	if ( !__xnetFutureDestroyCore(pFuture) ) {
 		__xnetSyncSetError("cannot destroy future while an async waiter or task still holds it.");
 	}
@@ -1808,7 +1808,7 @@ XXAPI void xrtNetFutureDestroy(xnetfuture* pFuture)
 static xfuture_state __xnetFutureMapState(xfuture* pFuture)
 {
 	int32 iStatus;
-	if ( !pFuture ) return XFUTURE_REJECTED;
+	if ( !pFuture ) { return XFUTURE_REJECTED; }
 	__xnetFutureLock(pFuture);
 	if ( !pFuture->bDone ) {
 		__xnetFutureUnlock(pFuture);
@@ -1816,9 +1816,9 @@ static xfuture_state __xnetFutureMapState(xfuture* pFuture)
 	}
 	iStatus = pFuture->iStatus;
 	__xnetFutureUnlock(pFuture);
-	if ( iStatus == XRT_NET_OK ) return XFUTURE_RESOLVED;
-	if ( iStatus == XRT_NET_CANCELLED ) return XFUTURE_CANCELLED;
-	if ( iStatus == XRT_NET_CLOSED ) return XFUTURE_CLOSED;
+	if ( iStatus == XRT_NET_OK ) { return XFUTURE_RESOLVED; }
+	if ( iStatus == XRT_NET_CANCELLED ) { return XFUTURE_CANCELLED; }
+	if ( iStatus == XRT_NET_CLOSED ) { return XFUTURE_CLOSED; }
 	return XFUTURE_REJECTED;
 }
 
@@ -1875,7 +1875,7 @@ XXAPI ptr xFutureValue(xfuture* pFuture)
 XXAPI str xFutureError(xfuture* pFuture)
 {
 	str sError = NULL;
-	if ( !pFuture ) return NULL;
+	if ( !pFuture ) { return NULL; }
 	__xnetFutureLock(pFuture);
 	sError = (str)pFuture->sError;
 	__xnetFutureUnlock(pFuture);
@@ -1886,7 +1886,7 @@ XXAPI str xFutureError(xfuture* pFuture)
 // 获取 Future 结果
 XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut)
 {
-	if ( !pOut ) return false;
+	if ( !pOut ) { return false; }
 	memset(pOut, 0, sizeof(*pOut));
 	if ( !pFuture ) {
 		pOut->iStatus = XRT_NET_ERROR;
@@ -2078,7 +2078,7 @@ XXAPI ptr xFutureGetAllValueItem(xfuture* pFuture, int iIndex)
 XXAPI bool xFutureRequestCancel(xfuture* pFuture)
 {
 	__xnet_future_pending_cancel_fn pfnCancel = NULL;
-	if ( !pFuture ) return false;
+	if ( !pFuture ) { return false; }
 	__xnetFutureLock(pFuture);
 	if ( pFuture->bDone ) {
 		__xnetFutureUnlock(pFuture);
@@ -2097,9 +2097,9 @@ XXAPI bool xFutureRequestCancel(xfuture* pFuture)
 XXAPI xpromise* xPromiseCreate(xfuture* pFuture)
 {
 	xpromise* pPromise;
-	if ( !pFuture ) return NULL;
+	if ( !pFuture ) { return NULL; }
 	pPromise = (xpromise*)XNET_ALLOC(sizeof(xpromise));
-	if ( !pPromise ) return NULL;
+	if ( !pPromise ) { return NULL; }
 	memset(pPromise, 0, sizeof(*pPromise));
 	pPromise->pFuture = xFutureAddRef(pFuture);
 	return pPromise;
@@ -2109,7 +2109,7 @@ XXAPI xpromise* xPromiseCreate(xfuture* pFuture)
 // 销毁 Promise
 XXAPI void xPromiseDestroy(xpromise* pPromise)
 {
-	if ( !pPromise ) return;
+	if ( !pPromise ) { return; }
 	if ( pPromise->pFuture ) {
 		xFutureRelease(pPromise->pFuture);
 		pPromise->pFuture = NULL;
@@ -2121,7 +2121,7 @@ XXAPI void xPromiseDestroy(xpromise* pPromise)
 // 获取 Promise Future
 XXAPI xfuture* xPromiseGetFuture(xpromise* pPromise)
 {
-	if ( !pPromise || !pPromise->pFuture ) return NULL;
+	if ( !pPromise || !pPromise->pFuture ) { return NULL; }
 	return xFutureAddRef(pPromise->pFuture);
 }
 
@@ -2139,7 +2139,7 @@ XXAPI xfuture* xPromisePeekFuture(xpromise* pPromise)
 // 解析 Promise
 XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue)
 {
-	if ( !pPromise ) return false;
+	if ( !pPromise ) { return false; }
 	if ( __xnetSyncAtomicCompareExchange(&pPromise->bCompleted, 1, 0) != 0 ) {
 		return false;
 	}
@@ -2150,7 +2150,7 @@ XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue)
 // xPromiseReject 相关处理
 XXAPI bool xPromiseReject(xpromise* pPromise, int32 iStatus, str sError)
 {
-	if ( !pPromise ) return false;
+	if ( !pPromise ) { return false; }
 	if ( __xnetSyncAtomicCompareExchange(&pPromise->bCompleted, 1, 0) != 0 ) {
 		return false;
 	}
@@ -2164,7 +2164,7 @@ XXAPI bool xPromiseReject(xpromise* pPromise, int32 iStatus, str sError)
 // 取消 Promise
 XXAPI bool xPromiseCancel(xpromise* pPromise, str sError)
 {
-	if ( !pPromise ) return false;
+	if ( !pPromise ) { return false; }
 	if ( __xnetSyncAtomicCompareExchange(&pPromise->bCompleted, 1, 0) != 0 ) {
 		return false;
 	}
@@ -2175,7 +2175,7 @@ XXAPI bool xPromiseCancel(xpromise* pPromise, str sError)
 // 关闭 Promise
 XXAPI bool xPromiseClose(xpromise* pPromise, str sError)
 {
-	if ( !pPromise ) return false;
+	if ( !pPromise ) { return false; }
 	if ( __xnetSyncAtomicCompareExchange(&pPromise->bCompleted, 1, 0) != 0 ) {
 		return false;
 	}
@@ -3007,7 +3007,7 @@ XXAPI xfuture* xTaskGroupRunCo(xtaskgroup* pGroup, xcosched* pSched, xtask_co_fn
 XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 {
 	xnet_result iStatus;
-	if ( !pFuture ) return XRT_NET_ERROR;
+	if ( !pFuture ) { return XRT_NET_ERROR; }
 	__xnetFutureAddRefInternal(pFuture);
 
 	(void)__xnetFuturePumpCurrentAuto();
@@ -3097,7 +3097,7 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
 {
 	xnet_result iStatus;
-	if ( !pFuture ) return XRT_NET_ERROR;
+	if ( !pFuture ) { return XRT_NET_ERROR; }
 	__xnetFutureLock(pFuture);
 	iStatus = pFuture->bDone ? pFuture->iStatus : XRT_NET_AGAIN;
 	__xnetFutureUnlock(pFuture);
@@ -3109,7 +3109,7 @@ XXAPI xnet_result xrtNetFutureStatus(xnetfuture* pFuture)
 XXAPI ptr xrtNetFutureValue(xnetfuture* pFuture)
 {
 	ptr pValue;
-	if ( !pFuture ) return NULL;
+	if ( !pFuture ) { return NULL; }
 	__xnetFutureLock(pFuture);
 	pValue = pFuture->bDone ? pFuture->pValue : NULL;
 	__xnetFutureUnlock(pFuture);
@@ -3123,7 +3123,7 @@ XXAPI xnet_result xrtNetFutureWaitUntil(xnetfuture* pFuture, int64_t iDeadlineMs
 	int64_t iNowMs;
 	uint64 iRemainMs;
 
-	if ( !pFuture ) return XRT_NET_ERROR;
+	if ( !pFuture ) { return XRT_NET_ERROR; }
 	iNowMs = (int64_t)__xnetSyncNowMs();
 	if ( iNowMs >= iDeadlineMs ) {
 		return xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN ? XRT_NET_TIMEOUT : xrtNetFutureWait(pFuture, 0);
@@ -3144,7 +3144,7 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 	xnet_result iStatus = XRT_NET_ERROR;
 	bool bWaitOk = false;
 
-	if ( !pFuture ) return XRT_NET_ERROR;
+	if ( !pFuture ) { return XRT_NET_ERROR; }
 	__xnetFutureAddRefInternal(pFuture);
 
 	__xnetFutureLock(pFuture);
@@ -3240,8 +3240,8 @@ XXAPI bool xFutureWait(xfuture* pFuture)
 // 等待 Future 超时
 XXAPI bool xFutureWaitTimeout(xfuture* pFuture, int64 iTimeoutMs)
 {
-	if ( iTimeoutMs < 0 ) return xFutureWait(pFuture);
-	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) iTimeoutMs = (int64)XNET_WAIT_INFINITE;
+	if ( iTimeoutMs < 0 ) { return xFutureWait(pFuture); }
+	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) { iTimeoutMs = (int64)XNET_WAIT_INFINITE; }
 	return xrtNetFutureWait(pFuture, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
@@ -3263,8 +3263,8 @@ XXAPI bool xFutureWaitCo(xfuture* pFuture)
 // 等待 Future 协程超时
 XXAPI bool xFutureWaitCoTimeout(xfuture* pFuture, int64 iTimeoutMs)
 {
-	if ( iTimeoutMs < 0 ) return xFutureWaitCo(pFuture);
-	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) iTimeoutMs = (int64)XNET_WAIT_INFINITE;
+	if ( iTimeoutMs < 0 ) { return xFutureWaitCo(pFuture); }
+	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) { iTimeoutMs = (int64)XNET_WAIT_INFINITE; }
 	return xrtNetFutureWaitCoTimeout(pFuture, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
@@ -3778,12 +3778,12 @@ static void __xnetSyncCleanupStreamFutureWait(xnetfuture* pFuture)
 {
 	__xnet_stream_future_wait_ctx* pCtx = NULL;
 
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	pCtx = (__xnet_stream_future_wait_ctx*)pFuture->pPendingCtx;
 	pFuture->pPendingCtx = NULL;
 	pFuture->pfnPendingCancel = NULL;
 	pFuture->pfnPendingCleanup = NULL;
-	if ( !pCtx ) return;
+	if ( !pCtx ) { return; }
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( pCtx->pCancelDoneEvent ) {
 			xrtCoEventDestroy(pCtx->pCancelDoneEvent);
@@ -3799,9 +3799,9 @@ static void __xnetSyncResolveStreamFutureWait(__xnet_stream_future_wait_ctx* pCt
 {
 	long iPrevState;
 
-	if ( pCtx == NULL ) return;
+	if ( pCtx == NULL ) { return; }
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
-	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 	if ( iPrevState != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
 		(void)__xnetFutureResolve(pCtx->pFuture, iStatus, pCtx->pStream);
 	}
@@ -3816,10 +3816,10 @@ static void __xnetSyncCancelStreamFutureWaitFinish(__xnet_stream_future_wait_ctx
 {
 	long iPrevState;
 
-	if ( pCtx == NULL ) return;
+	if ( pCtx == NULL ) { return; }
 	(void)__xnetStreamCancelSyncWait(pCtx->pStream, pCtx->iWaitKind, pCtx);
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
-	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 	__xnetStreamReleaseAsyncHold(pCtx->pStream);
 	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalStreamFutureCancel(pCtx);
@@ -3912,12 +3912,12 @@ static void __xnetSyncRegisterStreamFutureWait(xnetworker* pWorker, ptr pArg)
 
 	for ( ;; ) {
 		iState = __xnetAtomicLoad32(&pCtx->iState);
-		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 		if ( iState == __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
 			__xnetSyncCancelStreamFutureWaitFinish(pCtx);
 			return;
 		}
-		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) break;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) { break; }
 		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_REGISTERED, __XNET_SYNC_STREAM_WAIT_POSTED) == __XNET_SYNC_STREAM_WAIT_POSTED ) {
 			break;
 		}
@@ -3936,11 +3936,11 @@ static xcoevent __xnetSyncEnsureStreamWaitCancelEvent(__xnet_stream_future_wait_
 {
 	xcoevent pEvent = NULL;
 
-	if ( !pCtx ) return NULL;
-	if ( pCtx->pCancelDoneEvent ) return pCtx->pCancelDoneEvent;
+	if ( !pCtx ) { return NULL; }
+	if ( pCtx->pCancelDoneEvent ) { return pCtx->pCancelDoneEvent; }
 
 	pEvent = xrtCoEventCreate(TRUE, FALSE);
-	if ( !pEvent ) return NULL;
+	if ( !pEvent ) { return NULL; }
 	pCtx->pCancelDoneEvent = pEvent;
 	return pEvent;
 }
@@ -3955,10 +3955,10 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 	uint64 iDeadlineMs = 0;
 	__xnet_stream_wait_slot* pSlot = NULL;
 
-	if ( pFuture == NULL ) return false;
+	if ( pFuture == NULL ) { return false; }
 	pCtx = (__xnet_stream_future_wait_ctx*)pFuture->pPendingCtx;
-	if ( pCtx == NULL ) return true;
-	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	if ( pCtx == NULL ) { return true; }
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( xrtCoGetCurrent() != NULL ) {
@@ -3978,7 +3978,7 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 		}
 	}
 
-	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
 	iPostResult = xrtNetEnginePost(pCtx->pStream->pEngine, pCtx->pStream->pWorker->iId, __xnetSyncCancelStreamFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
@@ -4027,7 +4027,7 @@ static const __xnet_stream_wait_ops* __xnetSyncGetStreamWaitOps(uint32 iWaitKind
 		{ __xnetSyncOnStreamCloseFuture,    "unable to register stream close waiter." }
 	};
 
-	if ( iWaitKind >= __XNET_STREAM_WAIT_COUNT ) return NULL;
+	if ( iWaitKind >= __XNET_STREAM_WAIT_COUNT ) { return NULL; }
 	return &arrOps[iWaitKind];
 }
 
@@ -4036,7 +4036,7 @@ static const __xnet_stream_wait_ops* __xnetSyncGetStreamWaitOps(uint32 iWaitKind
 static bool __xnetSyncListenerWaitCanAccept(ptr pCtx)
 {
 	__xnet_listener_future_wait_ctx* pWaitCtx = (__xnet_listener_future_wait_ctx*)pCtx;
-	if ( pWaitCtx == NULL ) return false;
+	if ( pWaitCtx == NULL ) { return false; }
 	return __xnetAtomicLoad32(&pWaitCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
 		__xnetAtomicLoad32(&pWaitCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED;
 }
@@ -4060,12 +4060,12 @@ static void __xnetSyncCleanupListenerFutureWait(xnetfuture* pFuture)
 {
 	__xnet_listener_future_wait_ctx* pCtx = NULL;
 
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	pCtx = (__xnet_listener_future_wait_ctx*)pFuture->pPendingCtx;
 	pFuture->pPendingCtx = NULL;
 	pFuture->pfnPendingCancel = NULL;
 	pFuture->pfnPendingCleanup = NULL;
-	if ( !pCtx ) return;
+	if ( !pCtx ) { return; }
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( pCtx->pCancelDoneEvent ) {
 			xrtCoEventDestroy(pCtx->pCancelDoneEvent);
@@ -4113,9 +4113,9 @@ static void __xnetSyncCancelListenerFutureWaitFinish(__xnet_listener_future_wait
 {
 	long iPrevState;
 
-	if ( pCtx == NULL ) return;
+	if ( pCtx == NULL ) { return; }
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
-	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 	__xnetListenerReleaseAsyncHold(pCtx->pListener);
 	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalListenerFutureCancel(pCtx);
@@ -4164,12 +4164,12 @@ static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
 
 	for ( ;; ) {
 		iState = __xnetAtomicLoad32(&pCtx->iState);
-		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 		if ( iState == __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
 			__xnetSyncCancelListenerFutureWaitFinish(pCtx);
 			return;
 		}
-		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) break;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) { break; }
 		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_REGISTERED, __XNET_SYNC_STREAM_WAIT_POSTED) == __XNET_SYNC_STREAM_WAIT_POSTED ) {
 			break;
 		}
@@ -4193,11 +4193,11 @@ static xcoevent __xnetSyncEnsureListenerWaitCancelEvent(__xnet_listener_future_w
 {
 	xcoevent pEvent = NULL;
 
-	if ( !pCtx ) return NULL;
-	if ( pCtx->pCancelDoneEvent ) return pCtx->pCancelDoneEvent;
+	if ( !pCtx ) { return NULL; }
+	if ( pCtx->pCancelDoneEvent ) { return pCtx->pCancelDoneEvent; }
 
 	pEvent = xrtCoEventCreate(TRUE, FALSE);
-	if ( !pEvent ) return NULL;
+	if ( !pEvent ) { return NULL; }
 	pCtx->pCancelDoneEvent = pEvent;
 	return pEvent;
 }
@@ -4211,10 +4211,10 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 	bool bUseCoroWait = false;
 	uint64 iDeadlineMs = 0;
 
-	if ( pFuture == NULL ) return false;
+	if ( pFuture == NULL ) { return false; }
 	pCtx = (__xnet_listener_future_wait_ctx*)pFuture->pPendingCtx;
-	if ( pCtx == NULL ) return true;
-	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	if ( pCtx == NULL ) { return true; }
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( xrtCoGetCurrent() != NULL ) {
@@ -4234,7 +4234,7 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 		}
 	}
 
-	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 	iPostResult = xrtNetEnginePost(pCtx->pListener->pEngine, pCtx->pListener->pWorker->iId, __xnetSyncCancelListenerFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetSyncSetError("unable to post listener waiter cancellation.");
@@ -4268,12 +4268,12 @@ static void __xnetSyncCleanupDgramFutureWait(xnetfuture* pFuture)
 {
 	__xnet_dgram_future_wait_ctx* pCtx = NULL;
 
-	if ( !pFuture ) return;
+	if ( !pFuture ) { return; }
 	pCtx = (__xnet_dgram_future_wait_ctx*)pFuture->pPendingCtx;
 	pFuture->pPendingCtx = NULL;
 	pFuture->pfnPendingCancel = NULL;
 	pFuture->pfnPendingCleanup = NULL;
-	if ( !pCtx ) return;
+	if ( !pCtx ) { return; }
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( pCtx->pCancelDoneEvent ) {
 			xrtCoEventDestroy(pCtx->pCancelDoneEvent);
@@ -4303,13 +4303,13 @@ static void __xnetSyncResolveDgramFutureWait(__xnet_dgram_future_wait_ctx* pCtx,
 	long iPrevState;
 
 	if ( pCtx == NULL ) {
-		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		if ( pPacket ) { xrtNetDgramPacketDestroy(pPacket); }
 		return;
 	}
 
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
 	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) {
-		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		if ( pPacket ) { xrtNetDgramPacketDestroy(pPacket); }
 		return;
 	}
 
@@ -4330,9 +4330,9 @@ static void __xnetSyncCancelDgramFutureWaitFinish(__xnet_dgram_future_wait_ctx* 
 {
 	long iPrevState;
 
-	if ( pCtx == NULL ) return;
+	if ( pCtx == NULL ) { return; }
 	iPrevState = __xnetAtomicExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_FINISHED);
-	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+	if ( iPrevState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 	__xnetDgramReleaseAsyncHold(pCtx->pSock);
 	__xnetFutureReleaseAsyncHold(pCtx->pFuture);
 	__xnetSyncSignalDgramFutureCancel(pCtx);
@@ -4371,11 +4371,11 @@ static xcoevent __xnetSyncEnsureDgramWaitCancelEvent(__xnet_dgram_future_wait_ct
 {
 	xcoevent pEvent = NULL;
 
-	if ( !pCtx ) return NULL;
-	if ( pCtx->pCancelDoneEvent ) return pCtx->pCancelDoneEvent;
+	if ( !pCtx ) { return NULL; }
+	if ( pCtx->pCancelDoneEvent ) { return pCtx->pCancelDoneEvent; }
 
 	pEvent = xrtCoEventCreate(TRUE, FALSE);
-	if ( !pEvent ) return NULL;
+	if ( !pEvent ) { return NULL; }
 	pCtx->pCancelDoneEvent = pEvent;
 	return pEvent;
 }
@@ -4389,10 +4389,10 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 	bool bUseCoroWait = false;
 	uint64 iDeadlineMs = 0;
 
-	if ( pFuture == NULL ) return false;
+	if ( pFuture == NULL ) { return false; }
 	pCtx = (__xnet_dgram_future_wait_ctx*)pFuture->pPendingCtx;
-	if ( pCtx == NULL ) return true;
-	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	if ( pCtx == NULL ) { return true; }
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( xrtCoGetCurrent() != NULL ) {
@@ -4412,7 +4412,7 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 		}
 	}
 
-	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) return true;
+	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
 	iPostResult = xrtNetEnginePost(pCtx->pSock->pEngine, pCtx->pSock->pWorker->iId, __xnetSyncCancelDgramFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
@@ -4458,12 +4458,12 @@ static void __xnetSyncRegisterDgramFutureWait(xnetworker* pWorker, ptr pArg)
 
 	for ( ;; ) {
 		iState = __xnetAtomicLoad32(&pCtx->iState);
-		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) return;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
 		if ( iState == __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED ) {
 			__xnetSyncCancelDgramFutureWaitFinish(pCtx);
 			return;
 		}
-		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) break;
+		if ( iState == __XNET_SYNC_STREAM_WAIT_REGISTERED ) { break; }
 		if ( __xnetAtomicCompareExchange32(&pCtx->iState, __XNET_SYNC_STREAM_WAIT_REGISTERED, __XNET_SYNC_STREAM_WAIT_POSTED) == __XNET_SYNC_STREAM_WAIT_POSTED ) {
 			break;
 		}
@@ -4787,7 +4787,7 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 	xnet_result iStatus = XRT_NET_ERROR;
 	bool bNeedCancel = false;
 
-	if ( ppValue ) *ppValue = NULL;
+	if ( ppValue ) { *ppValue = NULL; }
 	pFuture = __xnetSyncCreateListenerFutureAccept(pListener);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
@@ -4835,7 +4835,7 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 	xnet_result iStatus = XRT_NET_ERROR;
 	bool bNeedCancel = false;
 
-	if ( ppValue ) *ppValue = NULL;
+	if ( ppValue ) { *ppValue = NULL; }
 	pFuture = __xnetSyncCreateDgramFutureRecv(pSock);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
@@ -4890,7 +4890,7 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 	xnet_result iStatus = XRT_NET_ERROR;
 	bool bNeedCancel = false;
 
-	if ( ppValue ) *ppValue = NULL;
+	if ( ppValue ) { *ppValue = NULL; }
 	pFuture = __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
@@ -4941,8 +4941,8 @@ static xnet_result UNUSED_ATTR __xnetSyncWaitStreamSyncCore(xnetstream* pStream,
 // 内部函数：等待同步源同步 core 扩展
 static xnet_result __xnetSyncWaitSourceSyncCoreEx(const xnetwaitsrc* pSrc, int iWaitMode, int64_t iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
-	if ( ppValue ) *ppValue = NULL;
-	if ( !pSrc ) return XRT_NET_ERROR;
+	if ( ppValue ) { *ppValue = NULL; }
+	if ( !pSrc ) { return XRT_NET_ERROR; }
 	if ( pSrc->iKind == XNET_WAITSRC_FUTURE ) {
 		xnet_result iStatus = XRT_NET_ERROR;
 		if ( iWaitMode == 0 ) {
@@ -5107,8 +5107,8 @@ XXAPI bool xWaitSourceWait(const xwaitsrc* pSrc)
 // xWaitSourceWaitTimeout 相关处理
 XXAPI bool xWaitSourceWaitTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
-	if ( iTimeoutMs < 0 ) return xWaitSourceWait(pSrc);
-	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) iTimeoutMs = (int64)XNET_WAIT_INFINITE;
+	if ( iTimeoutMs < 0 ) { return xWaitSourceWait(pSrc); }
+	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) { iTimeoutMs = (int64)XNET_WAIT_INFINITE; }
 	return xrtNetWaitSourceWaitTimeout(pSrc, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
@@ -5132,8 +5132,8 @@ XXAPI ptr xWaitSourceWaitValue(const xwaitsrc* pSrc)
 XXAPI ptr xWaitSourceWaitValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
 	ptr pValue = NULL;
-	if ( iTimeoutMs < 0 ) return xWaitSourceWaitValue(pSrc);
-	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) iTimeoutMs = (int64)XNET_WAIT_INFINITE;
+	if ( iTimeoutMs < 0 ) { return xWaitSourceWaitValue(pSrc); }
+	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) { iTimeoutMs = (int64)XNET_WAIT_INFINITE; }
 	return xrtNetWaitSourceWaitValueTimeout(pSrc, (uint32)iTimeoutMs, &pValue) == XRT_NET_OK ? pValue : NULL;
 }
 
@@ -5202,7 +5202,7 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	str sErr = NULL;
 	bool bNeedCancel = false;
 
-	if ( ppValue ) *ppValue = NULL;
+	if ( ppValue ) { *ppValue = NULL; }
 	if ( xrtCoGetCurrent() == NULL ) {
 		__xnetSyncSetError("stream coroutine wait requires an active coroutine context.");
 		return XRT_NET_ERROR;
@@ -5267,7 +5267,7 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	str sErr = NULL;
 	bool bNeedCancel = false;
 
-	if ( ppValue ) *ppValue = NULL;
+	if ( ppValue ) { *ppValue = NULL; }
 	if ( xrtCoGetCurrent() == NULL ) {
 		__xnetSyncSetError("listener coroutine wait requires an active coroutine context.");
 		return XRT_NET_ERROR;
@@ -5332,7 +5332,7 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	str sErr = NULL;
 	bool bNeedCancel = false;
 
-	if ( ppValue ) *ppValue = NULL;
+	if ( ppValue ) { *ppValue = NULL; }
 	if ( xrtCoGetCurrent() == NULL ) {
 		__xnetSyncSetError("datagram coroutine wait requires an active coroutine context.");
 		return XRT_NET_ERROR;
@@ -5392,8 +5392,8 @@ static xnet_result UNUSED_ATTR __xnetSyncWaitDgramCoCore(xdgramsock* pSock, int 
 // 内部函数：等待同步源协程 core 扩展
 static xnet_result __xnetSyncWaitSourceCoCoreEx(const xnetwaitsrc* pSrc, int iWaitMode, int64 iDeadlineMs, uint32 iTimeoutMs, ptr* ppValue)
 {
-	if ( ppValue ) *ppValue = NULL;
-	if ( !pSrc ) return XRT_NET_ERROR;
+	if ( ppValue ) { *ppValue = NULL; }
+	if ( !pSrc ) { return XRT_NET_ERROR; }
 	if ( pSrc->iKind == XNET_WAITSRC_FUTURE ) {
 		xnet_result iStatus = XRT_NET_ERROR;
 		if ( iWaitMode == 0 ) {
@@ -5611,8 +5611,8 @@ XXAPI bool xWaitSourceWaitCo(const xwaitsrc* pSrc)
 // 等待 x wait 源协程超时
 XXAPI bool xWaitSourceWaitCoTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
-	if ( iTimeoutMs < 0 ) return xWaitSourceWaitCo(pSrc);
-	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) iTimeoutMs = (int64)XNET_WAIT_INFINITE;
+	if ( iTimeoutMs < 0 ) { return xWaitSourceWaitCo(pSrc); }
+	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) { iTimeoutMs = (int64)XNET_WAIT_INFINITE; }
 	return xrtNetWaitSourceWaitCoTimeout(pSrc, (uint32)iTimeoutMs) == XRT_NET_OK;
 }
 
@@ -5636,8 +5636,8 @@ XXAPI ptr xWaitSourceWaitCoValue(const xwaitsrc* pSrc)
 XXAPI ptr xWaitSourceWaitCoValueTimeout(const xwaitsrc* pSrc, int64 iTimeoutMs)
 {
 	ptr pValue = NULL;
-	if ( iTimeoutMs < 0 ) return xWaitSourceWaitCoValue(pSrc);
-	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) iTimeoutMs = (int64)XNET_WAIT_INFINITE;
+	if ( iTimeoutMs < 0 ) { return xWaitSourceWaitCoValue(pSrc); }
+	if ( iTimeoutMs > (int64)XNET_WAIT_INFINITE ) { iTimeoutMs = (int64)XNET_WAIT_INFINITE; }
 	return xrtNetWaitSourceWaitCoValueTimeout(pSrc, (uint32)iTimeoutMs, &pValue) == XRT_NET_OK ? pValue : NULL;
 }
 

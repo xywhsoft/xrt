@@ -135,7 +135,7 @@ static void __xnetEngineSleepMs(uint32 iMs)
 // 内部函数：判断是否为引擎当前工作线程
 static bool __xnetEngineIsCurrentWorker(xnetworker* pWorker)
 {
-	if ( !pWorker || !pWorker->bRunning || !pWorker->hThread ) return false;
+	if ( !pWorker || !pWorker->bRunning || !pWorker->hThread ) { return false; }
 	#if __XNET_ENGINE_USE_XRT_THREAD
 		return xrtThreadGetCurrentId() == pWorker->iThreadId;
 	#elif defined(_WIN32) || defined(_WIN64)
@@ -150,7 +150,7 @@ static bool __xnetEngineIsCurrentWorker(xnetworker* pWorker)
 static uint64 __xnetEngineAllocStreamId(xnetengine* pEngine)
 {
 	uint64 iId;
-	if ( !pEngine ) return 0;
+	if ( !pEngine ) { return 0; }
 	iId = (uint64)__xnetAtomicAddFetch64((volatile int64*)&pEngine->iNextStreamId, 1) - 1u;
 	if ( iId == 0 ) {
 		iId = (uint64)__xnetAtomicAddFetch64((volatile int64*)&pEngine->iNextStreamId, 1) - 1u;
@@ -162,7 +162,7 @@ static uint64 __xnetEngineAllocStreamId(xnetengine* pEngine)
 // 内部函数：初始化引擎内存配置
 static void __xnetEngineInitMemConfig(xnetmemconfig* pMemCfg, const xnetengineconfig* pCfg)
 {
-	if ( !pMemCfg || !pCfg ) return;
+	if ( !pMemCfg || !pCfg ) { return; }
 	xrtNetMemConfigInit(pMemCfg);
 	pMemCfg->iSmallBlockSize = pCfg->iSmallBlockSize;
 	pMemCfg->iMediumBlockSize = pCfg->iMediumBlockSize;
@@ -170,15 +170,15 @@ static void __xnetEngineInitMemConfig(xnetmemconfig* pMemCfg, const xnetengineco
 	pMemCfg->iSmallCacheLimit = pCfg->iBlockCachePerWorker;
 	pMemCfg->iMediumCacheLimit = pCfg->iBlockCachePerWorker / 2u;
 	pMemCfg->iLargeCacheLimit = pCfg->iBlockCachePerWorker / 4u;
-	if ( pMemCfg->iMediumCacheLimit == 0 ) pMemCfg->iMediumCacheLimit = 1;
-	if ( pMemCfg->iLargeCacheLimit == 0 ) pMemCfg->iLargeCacheLimit = 1;
+	if ( pMemCfg->iMediumCacheLimit == 0 ) { pMemCfg->iMediumCacheLimit = 1; }
+	if ( pMemCfg->iLargeCacheLimit == 0 ) { pMemCfg->iLargeCacheLimit = 1; }
 }
 
 
 // 内部函数：初始化引擎端口配置
 static void __xnetEngineInitPortConfig(xnetportconfig* pPortCfg, const xnetengineconfig* pCfg)
 {
-	if ( !pPortCfg || !pCfg ) return;
+	if ( !pPortCfg || !pCfg ) { return; }
 	xrtNetPortConfigInit(pPortCfg);
 	pPortCfg->iSqEntries = pCfg->iSqEntries;
 	pPortCfg->iCqEntries = pCfg->iCqEntries;
@@ -292,7 +292,7 @@ static void __xnetCmdQFreeCached(__xnet_engine_cmdq* pQ)
 static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ, uint32 iCapacity)
 {
 	xqueue_config tCfg;
-	if ( !pQ ) return false;
+	if ( !pQ ) { return false; }
 	memset(pQ, 0, sizeof(__xnet_engine_cmdq));
 	memset(&tCfg, 0, sizeof(tCfg));
 	tCfg.iCapacity = (iCapacity != 0) ? iCapacity : __XNET_ENGINE_CMDQ_DEFAULT_CAPACITY;
@@ -307,7 +307,7 @@ static bool __xnetCmdQInit(__xnet_engine_cmdq* pQ, uint32 iCapacity)
 // 内部函数：__xnetCmdQUnit
 static void __xnetCmdQUnit(__xnet_engine_cmdq* pQ)
 {
-	if ( !pQ ) return;
+	if ( !pQ ) { return; }
 	if ( pQ->tQueue.arrSlots ) {
 		xrtMPSCQClose(&pQ->tQueue);
 		(void)xrtMPSCQDrain(&pQ->tQueue, __xnetCmdQFreeNode, NULL);
@@ -331,9 +331,9 @@ static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint
 {
 	__xnet_engine_cmd* pCmd;
 	xqueue_result iRet;
-	if ( !pQ || !pfnTask ) return XQUEUE_ERROR;
+	if ( !pQ || !pfnTask ) { return XQUEUE_ERROR; }
 	pCmd = __xnetCmdQAllocNode(pQ);
-	if ( !pCmd ) return XQUEUE_ERROR;
+	if ( !pCmd ) { return XQUEUE_ERROR; }
 	pCmd->iType = iType;
 	pCmd->iDelayMs = iDelayMs;
 	pCmd->pfnTask = pfnTask;
@@ -352,12 +352,12 @@ static xqueue_result __xnetCmdQPushEx(__xnet_engine_cmdq* pQ, uint32 iType, uint
 
 static bool __xnetTimerWheelInit(__xnet_engine_timerwheel* pWheel, uint32 iTickMs, uint32 iSlotCount)
 {
-	if ( !pWheel ) return false;
+	if ( !pWheel ) { return false; }
 	memset(pWheel, 0, sizeof(__xnet_engine_timerwheel));
 	pWheel->iTickMs = (iTickMs == 0) ? 10u : iTickMs;
 	pWheel->iSlotCount = (iSlotCount == 0) ? 256u : iSlotCount;
 	pWheel->arrSlots = (__xnet_engine_timer**)XNET_ALLOC(sizeof(__xnet_engine_timer*) * pWheel->iSlotCount);
-	if ( !pWheel->arrSlots ) return false;
+	if ( !pWheel->arrSlots ) { return false; }
 	memset(pWheel->arrSlots, 0, sizeof(__xnet_engine_timer*) * pWheel->iSlotCount);
 	return true;
 }
@@ -366,7 +366,7 @@ static bool __xnetTimerWheelInit(__xnet_engine_timerwheel* pWheel, uint32 iTickM
 // 内部函数：__xnetTimerWheelUnit
 static void __xnetTimerWheelUnit(__xnet_engine_timerwheel* pWheel)
 {
-	if ( !pWheel ) return;
+	if ( !pWheel ) { return; }
 	if ( pWheel->arrSlots ) {
 		for ( uint32 i = 0; i < pWheel->iSlotCount; ++i ) {
 			__xnet_engine_timer* pNode = pWheel->arrSlots[i];
@@ -389,15 +389,15 @@ static bool __xnetTimerWheelSchedule(__xnet_engine_timerwheel* pWheel, uint32 iD
 	uint64 iDueTick;
 	uint32 iSlot;
 	__xnet_engine_timer* pTimer;
-	if ( !pWheel || !pWheel->arrSlots || !pfnTask ) return false;
+	if ( !pWheel || !pWheel->arrSlots || !pfnTask ) { return false; }
 
 	iDeltaTicks = (iDelayMs == 0) ? 1u : ((uint64)iDelayMs + pWheel->iTickMs - 1u) / pWheel->iTickMs;
-	if ( iDeltaTicks == 0 ) iDeltaTicks = 1;
+	if ( iDeltaTicks == 0 ) { iDeltaTicks = 1; }
 	iDueTick = pWheel->iCurrentTick + iDeltaTicks;
 	iSlot = (uint32)(iDueTick % pWheel->iSlotCount);
 
 	pTimer = (__xnet_engine_timer*)XNET_ALLOC(sizeof(__xnet_engine_timer));
-	if ( !pTimer ) return false;
+	if ( !pTimer ) { return false; }
 	memset(pTimer, 0, sizeof(__xnet_engine_timer));
 	pTimer->iDueTick = iDueTick;
 	pTimer->pfnTask = pfnTask;
@@ -414,7 +414,7 @@ static void __xnetTimerWheelTick(xnetworker* pWorker)
 	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
 	__xnet_engine_timer* pList;
 	__xnet_engine_timer* pDeferred = NULL;
-	if ( !pWheel || !pWheel->arrSlots ) return;
+	if ( !pWheel || !pWheel->arrSlots ) { return; }
 
 	pWheel->iCurrentTick++;
 	pList = pWheel->arrSlots[pWheel->iCurrentTick % pWheel->iSlotCount];
@@ -448,7 +448,7 @@ static void __xnetTimerWheelTick(xnetworker* pWorker)
 static void __xnetEngineHandlePortEvents(xnetworker* pWorker, xnetportevent* pEvents, uint32 iCount)
 {
 	__xnet_engine_timerwheel* pWheel = pWorker ? (__xnet_engine_timerwheel*)pWorker->pTimerWheel : NULL;
-	if ( !pWorker || !pEvents || iCount == 0 ) return;
+	if ( !pWorker || !pEvents || iCount == 0 ) { return; }
 	for ( uint32 i = 0; i < iCount; ++i ) {
 		if ( pEvents[i].iType == XNET_PORT_EVENT_TIMER && pEvents[i].iOpId == __XNET_ENGINE_TIMER_PULSE_ID ) {
 			__xnetTimerWheelTick(pWorker);
@@ -476,7 +476,7 @@ static void __xnetEngineDrainCommands(xnetworker* pWorker)
 	__xnet_engine_cmd* pNode;
 	ptr pItem = NULL;
 	xqueue_result iRet;
-	if ( !pQ ) return;
+	if ( !pQ ) { return; }
 	for ( ;; ) {
 		iRet = xrtMPSCQTryPop(&pQ->tQueue, &pItem);
 		if ( iRet != XQUEUE_OK ) {
@@ -499,7 +499,7 @@ static void __xnetEngineDrainCommands(xnetworker* pWorker)
 // 内部函数：停止引擎工作线程 resources
 static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 {
-	if ( !pWorker ) return;
+	if ( !pWorker ) { return; }
 	xrtNetPortUnit(&pWorker->tPort);
 	if ( pWorker->pTimerWheel ) {
 		__xnetTimerWheelUnit((__xnet_engine_timerwheel*)pWorker->pTimerWheel);
@@ -562,23 +562,23 @@ static void* __xnetEngineWorkerMain(void* pArg)
 // 内部函数：启动引擎工作线程线程
 static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
 {
-	if ( !pWorker ) return false;
+	if ( !pWorker ) { return false; }
 	#if __XNET_ENGINE_USE_XRT_THREAD
 		xthread pThread = xrtThreadCreate((ptr)__xnetEngineWorkerMain, pWorker, 0);
-		if ( !pThread ) return false;
+		if ( !pThread ) { return false; }
 		pWorker->hThread = (ptr)pThread;
 		pWorker->iThreadId = pThread->TID;
 		return true;
 	#elif defined(_WIN32) || defined(_WIN64)
 		DWORD iThreadId = 0;
 		HANDLE hThread = CreateThread(NULL, 0, __xnetEngineWorkerMain, pWorker, 0, &iThreadId);
-		if ( !hThread ) return false;
+		if ( !hThread ) { return false; }
 		pWorker->hThread = (ptr)hThread;
 		pWorker->iThreadId = (uint64)iThreadId;
 		return true;
 	#else
 		pthread_t* hThread = (pthread_t*)XNET_ALLOC(sizeof(pthread_t));
-		if ( !hThread ) return false;
+		if ( !hThread ) { return false; }
 		if ( pthread_create(hThread, NULL, __xnetEngineWorkerMain, pWorker) != 0 ) {
 			XNET_FREE(hThread);
 			return false;
@@ -593,7 +593,7 @@ static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
 // 内部函数：加入引擎工作线程线程
 static void __xnetEngineJoinWorkerThread(xnetworker* pWorker)
 {
-	if ( !pWorker || !pWorker->hThread ) return;
+	if ( !pWorker || !pWorker->hThread ) { return; }
 	#if __XNET_ENGINE_USE_XRT_THREAD
 		xrtThreadWait((xthread)pWorker->hThread);
 		xrtThreadDestroy((xthread)pWorker->hThread);
@@ -613,10 +613,10 @@ static void __xnetEngineJoinWorkerThread(xnetworker* pWorker)
 static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengineconfig* pEngineCfg, const xnetportops* pOps, const xnetportconfig* pPortCfg, const xnetmemconfig* pMemCfg)
 {
 	__xnet_engine_timerwheel* pWheel;
-	if ( !pWorker || !pEngineCfg || !pOps || !pPortCfg || !pMemCfg ) return XRT_NET_ERROR;
+	if ( !pWorker || !pEngineCfg || !pOps || !pPortCfg || !pMemCfg ) { return XRT_NET_ERROR; }
 
 	pWorker->pCmdQ = XNET_ALLOC(sizeof(__xnet_engine_cmdq));
-	if ( !pWorker->pCmdQ ) return XRT_NET_ERROR;
+	if ( !pWorker->pCmdQ ) { return XRT_NET_ERROR; }
 	if ( !__xnetCmdQInit((__xnet_engine_cmdq*)pWorker->pCmdQ, pEngineCfg->iCmdQueueSize) ) {
 		XNET_FREE(pWorker->pCmdQ);
 		pWorker->pCmdQ = NULL;
@@ -663,7 +663,7 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 // 内部函数：停止引擎工作线程
 static void __xnetEngineStopWorker(xnetworker* pWorker)
 {
-	if ( !pWorker || !pWorker->bRunning ) return;
+	if ( !pWorker || !pWorker->bRunning ) { return; }
 	pWorker->bStopRequested = true;
 	(void)xrtNetPortWake(&pWorker->tPort);
 	__xnetEngineJoinWorkerThread(pWorker);
@@ -688,10 +688,10 @@ XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
 	}
 
 	iWorkerCount = (tCfg.iWorkerCount != 0) ? tCfg.iWorkerCount : __xnetEngineDetectWorkers();
-	if ( iWorkerCount == 0 ) iWorkerCount = 1;
+	if ( iWorkerCount == 0 ) { iWorkerCount = 1; }
 
 	pEngine = (xnetengine*)XNET_ALLOC(sizeof(xnetengine));
-	if ( !pEngine ) return NULL;
+	if ( !pEngine ) { return NULL; }
 	memset(pEngine, 0, sizeof(xnetengine));
 	pEngine->arrWorkers = (xnetworker*)XNET_ALLOC(sizeof(xnetworker) * iWorkerCount);
 	if ( !pEngine->arrWorkers ) {
@@ -716,7 +716,7 @@ XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
 // 销毁网络引擎
 XXAPI void xrtNetEngineDestroy(xnetengine* pEngine)
 {
-	if ( !pEngine ) return;
+	if ( !pEngine ) { return; }
 	if ( pEngine->bRunning ) {
 		for ( uint32 i = 0; i < pEngine->iWorkerCount; ++i ) {
 			__xnetEngineStopWorker(&pEngine->arrWorkers[i]);
@@ -737,11 +737,11 @@ XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine)
 	xnetportconfig tPortCfg;
 	xnetmemconfig tMemCfg;
 
-	if ( !pEngine ) return XRT_NET_ERROR;
-	if ( pEngine->bRunning ) return XRT_NET_OK;
+	if ( !pEngine ) { return XRT_NET_ERROR; }
+	if ( pEngine->bRunning ) { return XRT_NET_OK; }
 
 	pOps = __xnetEngineDefaultPortOps();
-	if ( !pOps ) return XRT_NET_ERROR;
+	if ( !pOps ) { return XRT_NET_ERROR; }
 
 	__xnetEngineInitPortConfig(&tPortCfg, &pEngine->tConfig);
 	__xnetEngineInitMemConfig(&tMemCfg, &pEngine->tConfig);
@@ -763,7 +763,7 @@ XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine)
 // 停止网络引擎
 XXAPI void xrtNetEngineStop(xnetengine* pEngine)
 {
-	if ( !pEngine || !pEngine->bRunning ) return;
+	if ( !pEngine || !pEngine->bRunning ) { return; }
 	for ( uint32 i = 0; i < pEngine->iWorkerCount; ++i ) {
 		__xnetEngineStopWorker(&pEngine->arrWorkers[i]);
 	}

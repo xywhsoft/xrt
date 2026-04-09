@@ -303,7 +303,7 @@ static long __xnetAtomicLoad32(const volatile long* pValue)
 // 内部函数：__xnetAddrFromSockAddr
 static bool __xnetAddrFromSockAddr(xnetaddr* pAddr, const struct sockaddr* pSA)
 {
-	if ( !pAddr || !pSA ) return false;
+	if ( !pAddr || !pSA ) { return false; }
 
 	memset(pAddr, 0, sizeof(xnetaddr));
 	if ( pSA->sa_family == AF_INET ) {
@@ -329,11 +329,11 @@ static bool __xnetAddrFromSockAddr(xnetaddr* pAddr, const struct sockaddr* pSA)
 static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 {
 	size_t iLen;
-	if ( !sDst || iDstCap == 0 ) return;
+	if ( !sDst || iDstCap == 0 ) { return; }
 	sDst[0] = '\0';
-	if ( !sSrc || !sSrc[0] ) return;
+	if ( !sSrc || !sSrc[0] ) { return; }
 	iLen = strlen(__xrt_cstr(sSrc));
-	if ( iLen >= iDstCap ) iLen = iDstCap - 1u;
+	if ( iLen >= iDstCap ) { iLen = iDstCap - 1u; }
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
 }
@@ -342,9 +342,9 @@ static void __xnetCopyFixedString(char* sDst, size_t iDstCap, const char* sSrc)
 // 内部函数：判断代理配置是否有效
 static bool __xnetProxyConfigIsValid(const xnetproxyconfig* pCfg)
 {
-	if ( !pCfg ) return false;
-	if ( pCfg->iType != XNET_PROXY_SOCKS5 && pCfg->iType != XNET_PROXY_HTTP_CONNECT ) return false;
-	if ( !pCfg->sHost[0] || pCfg->iPort == 0 ) return false;
+	if ( !pCfg ) { return false; }
+	if ( pCfg->iType != XNET_PROXY_SOCKS5 && pCfg->iType != XNET_PROXY_HTTP_CONNECT ) { return false; }
+	if ( !pCfg->sHost[0] || pCfg->iPort == 0 ) { return false; }
 	return true;
 }
 
@@ -352,7 +352,7 @@ static bool __xnetProxyConfigIsValid(const xnetproxyconfig* pCfg)
 // 内部函数：__xnetAddrToSockAddr
 static bool __xnetAddrToSockAddr(const xnetaddr* pAddr, struct sockaddr_storage* pStorage, socklen_t* pLen)
 {
-	if ( !pAddr || !pStorage || !pLen ) return false;
+	if ( !pAddr || !pStorage || !pLen ) { return false; }
 	memset(pStorage, 0, sizeof(struct sockaddr_storage));
 	if ( pAddr->iFamily == AF_INET ) {
 		struct sockaddr_in* pSA4 = (struct sockaddr_in*)pStorage;
@@ -392,7 +392,7 @@ static char* __xnetAddrTempBuf(void)
 
 XXAPI void xrtNetAddrInitAny(xnetaddr* pAddr, int iFamily, uint16 iPort)
 {
-	if ( !pAddr ) return;
+	if ( !pAddr ) { return; }
 	memset(pAddr, 0, sizeof(xnetaddr));
 	pAddr->iFamily = (uint16)((iFamily == AF_INET6) ? AF_INET6 : AF_INET);
 	pAddr->iPort = iPort;
@@ -407,7 +407,7 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 		int iStorageLen;
 		char sAddrBuf[64];
 	#endif
-	if ( !pAddr || !sIP || !sIP[0] ) return XRT_NET_ERROR;
+	if ( !pAddr || !sIP || !sIP[0] ) { return XRT_NET_ERROR; }
 
 	memset(pAddr, 0, sizeof(xnetaddr));
 	pAddr->iPort = iPort;
@@ -449,7 +449,7 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 // 解析网络
 XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 {
-	if ( !sHost || !sHost[0] || !pAddr ) return XRT_NET_ERROR;
+	if ( !sHost || !sHost[0] || !pAddr ) { return XRT_NET_ERROR; }
 
 	{
 		xnetaddr tParsed;
@@ -473,7 +473,7 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 	}
 
 	for ( pIt = pRes; pIt; pIt = pIt->ai_next ) {
-		if ( !pIt->ai_addr ) continue;
+		if ( !pIt->ai_addr ) { continue; }
 		if ( __xnetAddrFromSockAddr(pAddr, pIt->ai_addr) ) {
 			pAddr->iPort = iPort;
 			freeaddrinfo(pRes);
@@ -490,7 +490,7 @@ XXAPI xnet_result xrtNetResolve(const char* sHost, xnetaddr* pAddr)
 XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 {
 	char* pBuf = __xnetAddrTempBuf();
-	if ( !pAddr ) return pBuf;
+	if ( !pAddr ) { return pBuf; }
 
 	if ( pAddr->iFamily == AF_INET ) {
 		if ( !inet_ntop(AF_INET, pAddr->aAddr, pBuf, __XNET_ADDR_STR_CAP) ) {
@@ -523,7 +523,7 @@ XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 
 XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
 {
-	if ( !pCfg ) return;
+	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetengineconfig));
 	pCfg->iWorkerCount = 0;
 	pCfg->iFlags = XNET_ENGINE_F_AUTO_WORKERS;
@@ -546,7 +546,7 @@ XXAPI void xrtNetEngineConfigInit(xnetengineconfig* pCfg)
 // 初始化网络 listen 配置
 XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 {
-	if ( !pCfg ) return;
+	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetlistenconfig));
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
 	pCfg->iFlags = XNET_LISTEN_F_REUSE_ADDR | XNET_LISTEN_F_NO_DELAY;
@@ -561,7 +561,7 @@ XXAPI void xrtNetListenConfigInit(xnetlistenconfig* pCfg)
 // 初始化网络代理配置
 XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg)
 {
-	if ( !pCfg ) return;
+	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetproxyconfig));
 	pCfg->iType = XNET_PROXY_NONE;
 }
@@ -571,9 +571,9 @@ XXAPI void xrtNetProxyConfigInit(xnetproxyconfig* pCfg)
 XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg)
 {
 	xnetproxy* pProxy;
-	if ( !__xnetProxyConfigIsValid(pCfg) ) return NULL;
+	if ( !__xnetProxyConfigIsValid(pCfg) ) { return NULL; }
 	pProxy = (xnetproxy*)xrtMalloc(sizeof(xnetproxy));
-	if ( !pProxy ) return NULL;
+	if ( !pProxy ) { return NULL; }
 	memset(pProxy, 0, sizeof(xnetproxy));
 	pProxy->iRefCount = 1;
 	pProxy->tConfig.iType = pCfg->iType;
@@ -588,7 +588,7 @@ XXAPI xnetproxy* xrtNetProxyCreate(const xnetproxyconfig* pCfg)
 // 增加网络代理 ref
 XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy)
 {
-	if ( !pProxy ) return NULL;
+	if ( !pProxy ) { return NULL; }
 	(void)__xnetAtomicAddFetch32(&pProxy->iRefCount, 1);
 	return pProxy;
 }
@@ -597,7 +597,7 @@ XXAPI xnetproxy* xrtNetProxyAddRef(xnetproxy* pProxy)
 // 释放网络代理
 XXAPI void xrtNetProxyRelease(xnetproxy* pProxy)
 {
-	if ( !pProxy ) return;
+	if ( !pProxy ) { return; }
 	if ( __xnetAtomicAddFetch32(&pProxy->iRefCount, -1) == 0 ) {
 		xrtFree(pProxy);
 	}
@@ -607,7 +607,7 @@ XXAPI void xrtNetProxyRelease(xnetproxy* pProxy)
 // 初始化网络 connect 配置
 XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 {
-	if ( !pCfg ) return;
+	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetconnectconfig));
 	pCfg->sHost = NULL;
 	pCfg->iPort = 0;
@@ -624,7 +624,7 @@ XXAPI void xrtNetConnectConfigInit(xnetconnectconfig* pCfg)
 // 初始化网络数据报配置
 XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 {
-	if ( !pCfg ) return;
+	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetdgramconfig));
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
 	pCfg->iFlags = XNET_DGRAM_F_REUSE_ADDR;

@@ -72,7 +72,7 @@ typedef struct {
 
 XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps, ptr pCtx)
 {
-	if ( !pParser ) return;
+	if ( !pParser ) { return; }
 	pParser->pOps = pOps;
 	pParser->pCtx = pCtx;
 }
@@ -81,7 +81,7 @@ XXAPI void xrtCodecParserInit(xcodecparser* pParser, const xcodecparserops* pOps
 // xrtCodecParserParse 相关处理
 XXAPI xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetchain* pInput, xcodecframe* pFrame)
 {
-	if ( !pParser || !pParser->pOps || !pParser->pOps->Parse ) return XCODEC_STATUS_ERROR;
+	if ( !pParser || !pParser->pOps || !pParser->pOps->Parse ) { return XCODEC_STATUS_ERROR; }
 	return pParser->pOps->Parse(pParser->pCtx, pInput, pFrame);
 }
 
@@ -89,7 +89,7 @@ XXAPI xcodecstatus xrtCodecParserParse(const xcodecparser* pParser, const xnetch
 // xrtCodecParserReset 相关处理
 XXAPI void xrtCodecParserReset(const xcodecparser* pParser)
 {
-	if ( !pParser || !pParser->pOps || !pParser->pOps->Reset ) return;
+	if ( !pParser || !pParser->pOps || !pParser->pOps->Reset ) { return; }
 	pParser->pOps->Reset(pParser->pCtx);
 }
 
@@ -104,20 +104,20 @@ static size_t __xcodecChainPeekAt(const xnetchain* pChain, size_t iOffset, ptr p
 	uint8* pDst = (uint8*)pOut;
 	const __xnet_blk* pBlk;
 
-	if ( !pChain || !pOut || iLen == 0 || iOffset >= xrtNetChainBytes(pChain) ) return 0;
+	if ( !pChain || !pOut || iLen == 0 || iOffset >= xrtNetChainBytes(pChain) ) { return 0; }
 
 	for ( pBlk = pChain->pHead; pBlk && iCopied < iLen; pBlk = pBlk->pNext ) {
 		size_t iReadable = __xnetBlkReadable(pBlk);
 		size_t iStart;
 		size_t iChunk;
-		if ( iReadable == 0 ) continue;
+		if ( iReadable == 0 ) { continue; }
 		if ( iSeen + iReadable <= iOffset ) {
 			iSeen += iReadable;
 			continue;
 		}
 		iStart = (iOffset > iSeen) ? (iOffset - iSeen) : 0;
 		iChunk = iReadable - iStart;
-		if ( iChunk > (iLen - iCopied) ) iChunk = iLen - iCopied;
+		if ( iChunk > (iLen - iCopied) ) { iChunk = iLen - iCopied; }
 		memcpy(pDst + iCopied, __xnetBlkDataPtr(pBlk) + pBlk->iBegin + iStart, iChunk);
 		iCopied += iChunk;
 		iSeen += iReadable;
@@ -134,21 +134,21 @@ static bool __xcodecChainMatchAt(const xnetchain* pChain, size_t iOffset, const 
 	const __xnet_blk* pBlk;
 	size_t iNeedleOff = 0;
 
-	if ( !pChain || !pNeedle || iNeedleLen == 0 ) return false;
-	if ( iOffset + iNeedleLen > xrtNetChainBytes(pChain) ) return false;
+	if ( !pChain || !pNeedle || iNeedleLen == 0 ) { return false; }
+	if ( iOffset + iNeedleLen > xrtNetChainBytes(pChain) ) { return false; }
 
 	for ( pBlk = pChain->pHead; pBlk && iNeedleOff < iNeedleLen; pBlk = pBlk->pNext ) {
 		size_t iReadable = __xnetBlkReadable(pBlk);
 		size_t iStart;
 		size_t iChunk;
-		if ( iReadable == 0 ) continue;
+		if ( iReadable == 0 ) { continue; }
 		if ( iSeen + iReadable <= iOffset ) {
 			iSeen += iReadable;
 			continue;
 		}
 		iStart = (iOffset > iSeen) ? (iOffset - iSeen) : 0;
 		iChunk = iReadable - iStart;
-		if ( iChunk > (iNeedleLen - iNeedleOff) ) iChunk = iNeedleLen - iNeedleOff;
+		if ( iChunk > (iNeedleLen - iNeedleOff) ) { iChunk = iNeedleLen - iNeedleOff; }
 		if ( memcmp(__xnetBlkDataPtr(pBlk) + pBlk->iBegin + iStart, pNeedle + iNeedleOff, iChunk) != 0 ) {
 			return false;
 		}
@@ -164,12 +164,12 @@ static bool __xcodecChainMatchAt(const xnetchain* pChain, size_t iOffset, const 
 static size_t __xcodecChainFindPattern(const xnetchain* pChain, const uint8* pNeedle, size_t iNeedleLen, size_t iStartOff)
 {
 	size_t iPos;
-	if ( !pChain || !pNeedle || iNeedleLen == 0 ) return (size_t)-1;
-	if ( iNeedleLen == 1 ) return xrtNetChainFindByte(pChain, pNeedle[0], iStartOff);
+	if ( !pChain || !pNeedle || iNeedleLen == 0 ) { return (size_t)-1; }
+	if ( iNeedleLen == 1 ) { return xrtNetChainFindByte(pChain, pNeedle[0], iStartOff); }
 
 	iPos = xrtNetChainFindByte(pChain, pNeedle[0], iStartOff);
 	while ( iPos != (size_t)-1 ) {
-		if ( __xcodecChainMatchAt(pChain, iPos, pNeedle, iNeedleLen) ) return iPos;
+		if ( __xcodecChainMatchAt(pChain, iPos, pNeedle, iNeedleLen) ) { return iPos; }
 		iPos = xrtNetChainFindByte(pChain, pNeedle[0], iPos + 1u);
 	}
 	return (size_t)-1;
@@ -179,7 +179,7 @@ static size_t __xcodecChainFindPattern(const xnetchain* pChain, const uint8* pNe
 // xrtCodecFrameInit 相关处理
 XXAPI void xrtCodecFrameInit(xcodecframe* pFrame)
 {
-	if ( !pFrame ) return;
+	if ( !pFrame ) { return; }
 	memset(pFrame, 0, sizeof(xcodecframe));
 }
 
@@ -188,9 +188,9 @@ XXAPI void xrtCodecFrameInit(xcodecframe* pFrame)
 XXAPI size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFrame, ptr pOut, size_t iLen)
 {
 	size_t iCopyLen;
-	if ( !pInput || !pFrame || !pOut || iLen == 0 ) return 0;
+	if ( !pInput || !pFrame || !pOut || iLen == 0 ) { return 0; }
 	iCopyLen = pFrame->iPayloadBytes;
-	if ( iCopyLen > iLen ) iCopyLen = iLen;
+	if ( iCopyLen > iLen ) { iCopyLen = iLen; }
 	return __xcodecChainPeekAt(pInput, pFrame->iPayloadOffset, pOut, iCopyLen);
 }
 
@@ -198,7 +198,7 @@ XXAPI size_t xrtCodecFramePeek(const xnetchain* pInput, const xcodecframe* pFram
 // xrtCodecFrameConsume 相关处理
 XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
 {
-	if ( !pInput || !pFrame || pFrame->iFrameBytes == 0 ) return;
+	if ( !pInput || !pFrame || pFrame->iFrameBytes == 0 ) { return; }
 	xrtNetChainConsume(pInput, pFrame->iFrameBytes);
 }
 
@@ -218,7 +218,7 @@ typedef struct {
 // 初始化编解码器行配置
 XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
 {
-	if ( !pCodec ) return;
+	if ( !pCodec ) { return; }
 	memset(pCodec, 0, sizeof(xcodeclinecodec));
 	pCodec->aDelimiter[0] = '\n';
 	pCodec->iDelimiterLen = 1;
@@ -230,7 +230,7 @@ XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
 // 设置编解码器行 delimiter
 XXAPI bool xrtCodecLineSetDelimiter(xcodeclinecodec* pCodec, const void* pDelimiter, uint32 iDelimiterLen)
 {
-	if ( !pCodec || !pDelimiter || iDelimiterLen == 0 || iDelimiterLen > sizeof(pCodec->aDelimiter) ) return false;
+	if ( !pCodec || !pDelimiter || iDelimiterLen == 0 || iDelimiterLen > sizeof(pCodec->aDelimiter) ) { return false; }
 	memset(pCodec->aDelimiter, 0, sizeof(pCodec->aDelimiter));
 	memcpy(pCodec->aDelimiter, pDelimiter, iDelimiterLen);
 	pCodec->iDelimiterLen = iDelimiterLen;
@@ -245,16 +245,16 @@ XXAPI xcodecstatus xrtCodecLineParse(ptr pCtx, const xnetchain* pInput, xcodecfr
 	size_t iPos;
 	size_t iBytes;
 
-	if ( !pCodec || !pInput || !pFrame || pCodec->iDelimiterLen == 0 ) return XCODEC_STATUS_ERROR;
+	if ( !pCodec || !pInput || !pFrame || pCodec->iDelimiterLen == 0 ) { return XCODEC_STATUS_ERROR; }
 	xrtCodecFrameInit(pFrame);
 	iBytes = xrtNetChainBytes(pInput);
-	if ( iBytes == 0 ) return XCODEC_STATUS_NEED_MORE;
+	if ( iBytes == 0 ) { return XCODEC_STATUS_NEED_MORE; }
 	if ( pCodec->iMaxLineBytes > 0 && iBytes > pCodec->iMaxLineBytes && __xcodecChainFindPattern(pInput, pCodec->aDelimiter, pCodec->iDelimiterLen, 0) == (size_t)-1 ) {
 		return XCODEC_STATUS_ERROR;
 	}
 
 	iPos = __xcodecChainFindPattern(pInput, pCodec->aDelimiter, pCodec->iDelimiterLen, 0);
-	if ( iPos == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+	if ( iPos == (size_t)-1 ) { return XCODEC_STATUS_NEED_MORE; }
 
 	pFrame->iKind = XCODEC_KIND_LINE;
 	pFrame->iHeaderBytes = 0;
@@ -299,7 +299,7 @@ typedef struct {
 // 初始化编解码器 length 配置
 XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
 {
-	if ( !pCodec ) return;
+	if ( !pCodec ) { return; }
 	memset(pCodec, 0, sizeof(xcodeclengthcodec));
 	pCodec->iFieldBytes = 4;
 	pCodec->bBigEndian = true;
@@ -312,7 +312,7 @@ XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
 static uint64 __xcodecReadUint(const uint8* pBytes, uint32 iByteCount, bool bBigEndian)
 {
 	uint64 iValue = 0;
-	if ( !pBytes || iByteCount == 0 || iByteCount > 8 ) return 0;
+	if ( !pBytes || iByteCount == 0 || iByteCount > 8 ) { return 0; }
 	if ( bBigEndian ) {
 		for ( uint32 i = 0; i < iByteCount; ++i ) {
 			iValue = (iValue << 8u) | (uint64)pBytes[i];
@@ -335,20 +335,20 @@ XXAPI xcodecstatus xrtCodecLengthParse(ptr pCtx, const xnetchain* pInput, xcodec
 	int64_t iPayloadLen;
 	size_t iFrameBytes;
 
-	if ( !pCodec || !pInput || !pFrame ) return XCODEC_STATUS_ERROR;
-	if ( pCodec->iFieldBytes == 0 || pCodec->iFieldBytes > sizeof(aHeader) ) return XCODEC_STATUS_ERROR;
+	if ( !pCodec || !pInput || !pFrame ) { return XCODEC_STATUS_ERROR; }
+	if ( pCodec->iFieldBytes == 0 || pCodec->iFieldBytes > sizeof(aHeader) ) { return XCODEC_STATUS_ERROR; }
 
 	xrtCodecFrameInit(pFrame);
-	if ( xrtNetChainBytes(pInput) < pCodec->iFieldBytes ) return XCODEC_STATUS_NEED_MORE;
-	if ( __xcodecChainPeekAt(pInput, 0, aHeader, pCodec->iFieldBytes) != pCodec->iFieldBytes ) return XCODEC_STATUS_ERROR;
+	if ( xrtNetChainBytes(pInput) < pCodec->iFieldBytes ) { return XCODEC_STATUS_NEED_MORE; }
+	if ( __xcodecChainPeekAt(pInput, 0, aHeader, pCodec->iFieldBytes) != pCodec->iFieldBytes ) { return XCODEC_STATUS_ERROR; }
 
 	iDeclaredLen = __xcodecReadUint(aHeader, pCodec->iFieldBytes, pCodec->bBigEndian);
 	iPayloadLen = (int64_t)iDeclaredLen + (int64_t)pCodec->iLengthAdjust;
-	if ( iPayloadLen < 0 ) return XCODEC_STATUS_ERROR;
-	if ( pCodec->iMaxPayloadBytes > 0 && (uint64)iPayloadLen > (uint64)pCodec->iMaxPayloadBytes ) return XCODEC_STATUS_ERROR;
+	if ( iPayloadLen < 0 ) { return XCODEC_STATUS_ERROR; }
+	if ( pCodec->iMaxPayloadBytes > 0 && (uint64)iPayloadLen > (uint64)pCodec->iMaxPayloadBytes ) { return XCODEC_STATUS_ERROR; }
 
 	iFrameBytes = (size_t)pCodec->iFieldBytes + (size_t)iPayloadLen;
-	if ( xrtNetChainBytes(pInput) < iFrameBytes ) return XCODEC_STATUS_NEED_MORE;
+	if ( xrtNetChainBytes(pInput) < iFrameBytes ) { return XCODEC_STATUS_NEED_MORE; }
 
 	pFrame->iKind = XCODEC_KIND_LENGTH;
 	pFrame->iHeaderBytes = pCodec->iFieldBytes;

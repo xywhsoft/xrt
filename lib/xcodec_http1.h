@@ -55,7 +55,7 @@ typedef struct {
 
 static char __xcodecHttpToLower(char ch)
 {
-	if ( ch >= 'A' && ch <= 'Z' ) return (char)(ch + 32);
+	if ( ch >= 'A' && ch <= 'Z' ) { return (char)(ch + 32); }
 	return ch;
 }
 
@@ -64,9 +64,9 @@ static char __xcodecHttpToLower(char ch)
 static bool __xcodecHttpStrEqNoCase(const char* sA, const char* sB)
 {
 	size_t i = 0;
-	if ( !sA || !sB ) return false;
+	if ( !sA || !sB ) { return false; }
 	while ( sA[i] && sB[i] ) {
-		if ( __xcodecHttpToLower(sA[i]) != __xcodecHttpToLower(sB[i]) ) return false;
+		if ( __xcodecHttpToLower(sA[i]) != __xcodecHttpToLower(sB[i]) ) { return false; }
 		i++;
 	}
 	return sA[i] == '\0' && sB[i] == '\0';
@@ -78,16 +78,16 @@ static bool __xcodecHttpContainsTokenNoCase(const char* sText, const char* sToke
 {
 	size_t iLenText;
 	size_t iLenToken;
-	if ( !sText || !sToken ) return false;
+	if ( !sText || !sToken ) { return false; }
 	iLenText = strlen(__xrt_cstr(sText));
 	iLenToken = strlen(__xrt_cstr(sToken));
-	if ( iLenToken == 0 || iLenToken > iLenText ) return false;
+	if ( iLenToken == 0 || iLenToken > iLenText ) { return false; }
 	for ( size_t i = 0; i + iLenToken <= iLenText; ++i ) {
 		size_t j;
 		for ( j = 0; j < iLenToken; ++j ) {
-			if ( __xcodecHttpToLower(sText[i + j]) != __xcodecHttpToLower(sToken[j]) ) break;
+			if ( __xcodecHttpToLower(sText[i + j]) != __xcodecHttpToLower(sToken[j]) ) { break; }
 		}
-		if ( j == iLenToken ) return true;
+		if ( j == iLenToken ) { return true; }
 	}
 	return false;
 }
@@ -97,13 +97,13 @@ static bool __xcodecHttpContainsTokenNoCase(const char* sText, const char* sToke
 static void __xcodecHttpCopyToken(char* sDst, size_t iDstCap, const char* sSrc, size_t iLen)
 {
 	size_t iCopyLen;
-	if ( !sDst || iDstCap == 0 ) return;
+	if ( !sDst || iDstCap == 0 ) { return; }
 	if ( !sSrc ) {
 		sDst[0] = '\0';
 		return;
 	}
 	iCopyLen = iLen;
-	if ( iCopyLen >= iDstCap ) iCopyLen = iDstCap - 1u;
+	if ( iCopyLen >= iDstCap ) { iCopyLen = iDstCap - 1u; }
 	memcpy(sDst, sSrc, iCopyLen);
 	sDst[iCopyLen] = '\0';
 }
@@ -114,7 +114,7 @@ static void __xcodecHttpTrimView(const char** ppText, size_t* pLen)
 {
 	const char* sText = ppText ? *ppText : NULL;
 	size_t iLen = pLen ? *pLen : 0;
-	if ( !ppText || !pLen || !sText ) return;
+	if ( !ppText || !pLen || !sText ) { return; }
 	while ( iLen > 0 && (*sText == ' ' || *sText == '\t') ) {
 		sText++;
 		iLen--;
@@ -132,10 +132,10 @@ static bool __xcodecHttpParseInt64(const char* sText, int64_t* pValue)
 {
 	int64_t iValue = 0;
 	size_t i = 0;
-	if ( !sText || !sText[0] || !pValue ) return false;
+	if ( !sText || !sText[0] || !pValue ) { return false; }
 	while ( sText[i] ) {
-		if ( sText[i] < '0' || sText[i] > '9' ) return false;
-		if ( iValue > ((INT64_MAX - (int64_t)(sText[i] - '0')) / 10) ) return false;
+		if ( sText[i] < '0' || sText[i] > '9' ) { return false; }
+		if ( iValue > ((INT64_MAX - (int64_t)(sText[i] - '0')) / 10) ) { return false; }
 		iValue = (iValue * 10) + (int64_t)(sText[i] - '0');
 		i++;
 	}
@@ -150,29 +150,29 @@ static bool __xcodecHttpParseHexU64(const char* sText, size_t iLen, uint64* pVal
 	uint64 iValue = 0;
 	bool bHasDigit = false;
 	size_t i = 0;
-	if ( !sText || !pValue ) return false;
-	while ( i < iLen && (sText[i] == ' ' || sText[i] == '\t') ) i++;
-	while ( iLen > i && (sText[iLen - 1u] == ' ' || sText[iLen - 1u] == '\t') ) iLen--;
-	if ( i >= iLen ) return false;
+	if ( !sText || !pValue ) { return false; }
+	while ( i < iLen && (sText[i] == ' ' || sText[i] == '\t') ) { i++; }
+	while ( iLen > i && (sText[iLen - 1u] == ' ' || sText[iLen - 1u] == '\t') ) { iLen--; }
+	if ( i >= iLen ) { return false; }
 	for ( ; i < iLen; ++i ) {
 		uint32 iDigit;
 		char ch = sText[i];
-		if ( ch == ';' ) break;
-		if ( ch >= '0' && ch <= '9' ) iDigit = (uint32)(ch - '0');
-		else if ( ch >= 'a' && ch <= 'f' ) iDigit = 10u + (uint32)(ch - 'a');
-		else if ( ch >= 'A' && ch <= 'F' ) iDigit = 10u + (uint32)(ch - 'A');
+		if ( ch == ';' ) { break; }
+		if ( ch >= '0' && ch <= '9' ) { iDigit = (uint32)(ch - '0'); }
+		else if ( ch >= 'a' && ch <= 'f' ) { iDigit = 10u + (uint32)(ch - 'a'); }
+		else if ( ch >= 'A' && ch <= 'F' ) { iDigit = 10u + (uint32)(ch - 'A'); }
 		else if ( ch == ' ' || ch == '\t' ) {
-			while ( i < iLen && (sText[i] == ' ' || sText[i] == '\t') ) i++;
-			if ( i < iLen && sText[i] != ';' ) return false;
+			while ( i < iLen && (sText[i] == ' ' || sText[i] == '\t') ) { i++; }
+			if ( i < iLen && sText[i] != ';' ) { return false; }
 			break;
 		} else {
 			return false;
 		}
-		if ( iValue > (UINT64_MAX - iDigit) / 16u ) return false;
+		if ( iValue > (UINT64_MAX - iDigit) / 16u ) { return false; }
 		iValue = (iValue * 16u) + iDigit;
 		bHasDigit = true;
 	}
-	if ( !bHasDigit ) return false;
+	if ( !bHasDigit ) { return false; }
 	*pValue = iValue;
 	return true;
 }
@@ -181,7 +181,7 @@ static bool __xcodecHttpParseHexU64(const char* sText, size_t iLen, uint64* pVal
 // 获取编解码器 HTTP/1 头部
 XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char* sName)
 {
-	if ( !pMsg || !sName ) return NULL;
+	if ( !pMsg || !sName ) { return NULL; }
 	for ( uint32 i = 0; i < pMsg->iHeaderCount; ++i ) {
 		if ( __xcodecHttpStrEqNoCase(pMsg->arrHeaders[i].sName, sName) ) {
 			return pMsg->arrHeaders[i].sValue;
@@ -194,7 +194,7 @@ XXAPI const char* xrtCodecHttp1GetHeader(const xcodechttp1msg* pMsg, const char*
 // 初始化编解码器 HTTP/1 消息
 XXAPI void xrtCodecHttp1MessageInit(xcodechttp1msg* pMsg)
 {
-	if ( !pMsg ) return;
+	if ( !pMsg ) { return; }
 	memset(pMsg, 0, sizeof(xcodechttp1msg));
 	pMsg->iContentLength = -1;
 }
@@ -208,12 +208,12 @@ static xcodecstatus __xcodecHttpReadChunkHeader(const xnetchain* pInput, size_t 
 	size_t iLineLen;
 	char* sLine;
 	bool bOk;
-	if ( !pInput || !pChunkSize ) return XCODEC_STATUS_ERROR;
+	if ( !pInput || !pChunkSize ) { return XCODEC_STATUS_ERROR; }
 	iLineEnd = __xcodecChainFindPattern(pInput, aCrlf, sizeof(aCrlf), iOffset);
-	if ( iLineEnd == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+	if ( iLineEnd == (size_t)-1 ) { return XCODEC_STATUS_NEED_MORE; }
 	iLineLen = iLineEnd - iOffset;
 	sLine = (char*)XNET_ALLOC(iLineLen + 1u);
-	if ( !sLine ) return XCODEC_STATUS_ERROR;
+	if ( !sLine ) { return XCODEC_STATUS_ERROR; }
 	if ( __xcodecChainPeekAt(pInput, iOffset, sLine, iLineLen) != iLineLen ) {
 		XNET_FREE(sLine);
 		return XCODEC_STATUS_ERROR;
@@ -221,8 +221,8 @@ static xcodecstatus __xcodecHttpReadChunkHeader(const xnetchain* pInput, size_t 
 	sLine[iLineLen] = '\0';
 	bOk = __xcodecHttpParseHexU64(sLine, iLineLen, pChunkSize);
 	XNET_FREE(sLine);
-	if ( !bOk ) return XCODEC_STATUS_ERROR;
-	if ( pDataOffset ) *pDataOffset = iLineEnd + sizeof(aCrlf);
+	if ( !bOk ) { return XCODEC_STATUS_ERROR; }
+	if ( pDataOffset ) { *pDataOffset = iLineEnd + sizeof(aCrlf); }
 	return XCODEC_STATUS_FRAME;
 }
 
@@ -234,7 +234,7 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 	static const uint8 aTrailerEnd[] = { '\r', '\n', '\r', '\n' };
 	size_t iPos;
 	size_t iDecoded = 0u;
-	if ( !pInput || !pChunkBodyBytes || !pDecodedBytes ) return XCODEC_STATUS_ERROR;
+	if ( !pInput || !pChunkBodyBytes || !pDecodedBytes ) { return XCODEC_STATUS_ERROR; }
 	iPos = iBodyOffset;
 	for ( ;; ) {
 		uint64 iChunkSize = 0u;
@@ -242,7 +242,7 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 		size_t iChunkBytes;
 		xcodecstatus iChunkHdr = __xcodecHttpReadChunkHeader(pInput, iPos, &iChunkSize, &iDataOffset);
 		size_t iAvailBytes;
-		if ( iChunkHdr != XCODEC_STATUS_FRAME ) return iChunkHdr;
+		if ( iChunkHdr != XCODEC_STATUS_FRAME ) { return iChunkHdr; }
 		if ( iChunkSize == 0u ) {
 			if ( __xcodecChainMatchAt(pInput, iDataOffset, aCrlf, sizeof(aCrlf)) ) {
 				*pChunkBodyBytes = (iDataOffset + sizeof(aCrlf)) - iBodyOffset;
@@ -250,17 +250,17 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 				return XCODEC_STATUS_FRAME;
 			}
 			iPos = __xcodecChainFindPattern(pInput, aTrailerEnd, sizeof(aTrailerEnd), iDataOffset);
-			if ( iPos == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+			if ( iPos == (size_t)-1 ) { return XCODEC_STATUS_NEED_MORE; }
 			*pChunkBodyBytes = (iPos + sizeof(aTrailerEnd)) - iBodyOffset;
 			*pDecodedBytes = iDecoded;
 			return XCODEC_STATUS_FRAME;
 		}
-		if ( iChunkSize > (uint64)(SIZE_MAX - iDecoded) ) return XCODEC_STATUS_ERROR;
-		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - sizeof(aCrlf)) ) return XCODEC_STATUS_ERROR;
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDecoded) ) { return XCODEC_STATUS_ERROR; }
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - sizeof(aCrlf)) ) { return XCODEC_STATUS_ERROR; }
 		iChunkBytes = (size_t)iChunkSize;
 		iAvailBytes = xrtNetChainBytes(pInput);
-		if ( iAvailBytes < iDataOffset + iChunkBytes + sizeof(aCrlf) ) return XCODEC_STATUS_NEED_MORE;
-		if ( !__xcodecChainMatchAt(pInput, iDataOffset + iChunkBytes, aCrlf, sizeof(aCrlf)) ) return XCODEC_STATUS_ERROR;
+		if ( iAvailBytes < iDataOffset + iChunkBytes + sizeof(aCrlf) ) { return XCODEC_STATUS_NEED_MORE; }
+		if ( !__xcodecChainMatchAt(pInput, iDataOffset + iChunkBytes, aCrlf, sizeof(aCrlf)) ) { return XCODEC_STATUS_ERROR; }
 		iDecoded += iChunkBytes;
 		iPos = iDataOffset + iChunkBytes + sizeof(aCrlf);
 	}
@@ -270,8 +270,8 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 // 编解码器 HTTP/1 正文 bytes相关处理
 XXAPI size_t xrtCodecHttp1BodyBytes(const xcodecframe* pFrame)
 {
-	if ( !pFrame ) return 0u;
-	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) != 0u ) return (size_t)pFrame->iMeta0;
+	if ( !pFrame ) { return 0u; }
+	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) != 0u ) { return (size_t)pFrame->iMeta0; }
 	return pFrame->iPayloadBytes;
 }
 
@@ -283,25 +283,25 @@ XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* p
 	size_t iWant;
 	size_t iCopied = 0u;
 	size_t iPos;
-	if ( !pInput || !pFrame || !pOut || iLen == 0u ) return 0u;
+	if ( !pInput || !pFrame || !pOut || iLen == 0u ) { return 0u; }
 	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) == 0u ) {
 		return xrtCodecFramePeek(pInput, pFrame, pOut, iLen);
 	}
 	iWant = xrtCodecHttp1BodyBytes(pFrame);
-	if ( iWant > iLen ) iWant = iLen;
+	if ( iWant > iLen ) { iWant = iLen; }
 	iPos = pFrame->iPayloadOffset;
 	while ( iCopied < iWant ) {
 		uint64 iChunkSize = 0u;
 		size_t iDataOffset = 0u;
 		size_t iChunkBytes;
-		if ( __xcodecHttpReadChunkHeader(pInput, iPos, &iChunkSize, &iDataOffset) != XCODEC_STATUS_FRAME ) break;
-		if ( iChunkSize == 0u ) break;
-		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - 2u) ) break;
+		if ( __xcodecHttpReadChunkHeader(pInput, iPos, &iChunkSize, &iDataOffset) != XCODEC_STATUS_FRAME ) { break; }
+		if ( iChunkSize == 0u ) { break; }
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - 2u) ) { break; }
 		iChunkBytes = (size_t)iChunkSize;
-		if ( iCopied + iChunkBytes > iWant ) iChunkBytes = iWant - iCopied;
-		if ( iChunkBytes > 0u && __xcodecChainPeekAt(pInput, iDataOffset, pDst + iCopied, iChunkBytes) != iChunkBytes ) break;
+		if ( iCopied + iChunkBytes > iWant ) { iChunkBytes = iWant - iCopied; }
+		if ( iChunkBytes > 0u && __xcodecChainPeekAt(pInput, iDataOffset, pDst + iCopied, iChunkBytes) != iChunkBytes ) { break; }
 		iCopied += iChunkBytes;
-		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - 2u) ) break;
+		if ( iChunkSize > (uint64)(SIZE_MAX - iDataOffset - 2u) ) { break; }
 		iPos = iDataOffset + (size_t)iChunkSize + 2u;
 	}
 	return iCopied;
@@ -322,15 +322,15 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 	char* sLineEnd;
 	char* sNextLine;
 
-	if ( !pInput || !pFrame || !pMsg ) return XCODEC_STATUS_ERROR;
+	if ( !pInput || !pFrame || !pMsg ) { return XCODEC_STATUS_ERROR; }
 	xrtCodecFrameInit(pFrame);
 	xrtCodecHttp1MessageInit(pMsg);
 
 	iHeadEndPos = __xcodecChainFindPattern(pInput, aHeadEnd, sizeof(aHeadEnd), 0);
-	if ( iHeadEndPos == (size_t)-1 ) return XCODEC_STATUS_NEED_MORE;
+	if ( iHeadEndPos == (size_t)-1 ) { return XCODEC_STATUS_NEED_MORE; }
 	iHeadBytes = iHeadEndPos + sizeof(aHeadEnd);
 	sHeadBuf = (char*)XNET_ALLOC(iHeadBytes + 1u);
-	if ( !sHeadBuf ) return XCODEC_STATUS_ERROR;
+	if ( !sHeadBuf ) { return XCODEC_STATUS_ERROR; }
 	if ( __xcodecChainPeekAt(pInput, 0, sHeadBuf, iHeadBytes) != iHeadBytes ) {
 		XNET_FREE(sHeadBuf);
 		return XCODEC_STATUS_ERROR;
@@ -353,11 +353,11 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 			return XCODEC_STATUS_ERROR;
 		}
 		*sStatus++ = '\0';
-		while ( *sStatus == ' ' ) sStatus++;
+		while ( *sStatus == ' ' ) { sStatus++; }
 		sReason = strchr(sStatus, ' ');
 		if ( sReason ) {
 			*sReason++ = '\0';
-			while ( *sReason == ' ' ) sReason++;
+			while ( *sReason == ' ' ) { sReason++; }
 		}
 		{
 			char* pStatusEnd = NULL;
@@ -371,7 +371,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		pMsg->iFlags |= XCODEC_HTTP1_F_RESPONSE;
 		pFrame->iFlags |= XCODEC_FRAME_F_RESPONSE;
 		__xcodecHttpCopyToken(pMsg->sVersion, sizeof(pMsg->sVersion), sVersion, strlen(sVersion));
-		if ( sReason ) __xcodecHttpCopyToken(pMsg->sReason, sizeof(pMsg->sReason), sReason, strlen(sReason));
+		if ( sReason ) { __xcodecHttpCopyToken(pMsg->sReason, sizeof(pMsg->sReason), sReason, strlen(sReason)); }
 	} else {
 		char* sMethod = sHeadBuf;
 		char* sTarget = strchr(sMethod, ' ');
@@ -381,14 +381,14 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 			return XCODEC_STATUS_ERROR;
 		}
 		*sTarget++ = '\0';
-		while ( *sTarget == ' ' ) sTarget++;
+		while ( *sTarget == ' ' ) { sTarget++; }
 		sVersion = strchr(sTarget, ' ');
 		if ( !sVersion ) {
 			XNET_FREE(sHeadBuf);
 			return XCODEC_STATUS_ERROR;
 		}
 		*sVersion++ = '\0';
-		while ( *sVersion == ' ' ) sVersion++;
+		while ( *sVersion == ' ' ) { sVersion++; }
 		pMsg->iFlags |= XCODEC_HTTP1_F_REQUEST;
 		pFrame->iFlags |= XCODEC_FRAME_F_REQUEST;
 		__xcodecHttpCopyToken(pMsg->sMethod, sizeof(pMsg->sMethod), sMethod, strlen(sMethod));
@@ -404,9 +404,9 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		size_t iNameLen;
 		size_t iValueLen;
 
-		if ( sCursor[0] == '\r' && sCursor[1] == '\n' ) break;
+		if ( sCursor[0] == '\r' && sCursor[1] == '\n' ) { break; }
 		sNextLine = strstr(sCursor, "\r\n");
-		if ( !sNextLine ) break;
+		if ( !sNextLine ) { break; }
 		*sNextLine = '\0';
 		sColon = strchr(sCursor, ':');
 		if ( !sColon ) {

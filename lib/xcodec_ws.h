@@ -45,7 +45,7 @@ typedef struct {
 
 XXAPI void xrtCodecWsFrameInit(xcodecwsframeinfo* pInfo)
 {
-	if ( !pInfo ) return;
+	if ( !pInfo ) { return; }
 	memset(pInfo, 0, sizeof(xcodecwsframeinfo));
 }
 
@@ -61,12 +61,12 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 	size_t iNeedBytes;
 	bool bMasked;
 
-	if ( !pInput || !pFrame || !pInfo ) return XCODEC_STATUS_ERROR;
+	if ( !pInput || !pFrame || !pInfo ) { return XCODEC_STATUS_ERROR; }
 	xrtCodecFrameInit(pFrame);
 	xrtCodecWsFrameInit(pInfo);
 
-	if ( xrtNetChainBytes(pInput) < 2 ) return XCODEC_STATUS_NEED_MORE;
-	if ( __xcodecChainPeekAt(pInput, 0, aHead, 2) != 2 ) return XCODEC_STATUS_ERROR;
+	if ( xrtNetChainBytes(pInput) < 2 ) { return XCODEC_STATUS_NEED_MORE; }
+	if ( __xcodecChainPeekAt(pInput, 0, aHead, 2) != 2 ) { return XCODEC_STATUS_ERROR; }
 
 	iB0 = aHead[0];
 	iB1 = aHead[1];
@@ -75,13 +75,13 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 
 	if ( iPayloadLen == 126u ) {
 		iHeaderBytes += 2u;
-		if ( xrtNetChainBytes(pInput) < iHeaderBytes ) return XCODEC_STATUS_NEED_MORE;
-		if ( __xcodecChainPeekAt(pInput, 2, aHead + 2, 2) != 2 ) return XCODEC_STATUS_ERROR;
+		if ( xrtNetChainBytes(pInput) < iHeaderBytes ) { return XCODEC_STATUS_NEED_MORE; }
+		if ( __xcodecChainPeekAt(pInput, 2, aHead + 2, 2) != 2 ) { return XCODEC_STATUS_ERROR; }
 		iPayloadLen = ((uint64)aHead[2] << 8u) | (uint64)aHead[3];
 	} else if ( iPayloadLen == 127u ) {
 		iHeaderBytes += 8u;
-		if ( xrtNetChainBytes(pInput) < iHeaderBytes ) return XCODEC_STATUS_NEED_MORE;
-		if ( __xcodecChainPeekAt(pInput, 2, aHead + 2, 8) != 8 ) return XCODEC_STATUS_ERROR;
+		if ( xrtNetChainBytes(pInput) < iHeaderBytes ) { return XCODEC_STATUS_NEED_MORE; }
+		if ( __xcodecChainPeekAt(pInput, 2, aHead + 2, 8) != 8 ) { return XCODEC_STATUS_ERROR; }
 		iPayloadLen = 0;
 		for ( uint32 i = 0; i < 8; ++i ) {
 			iPayloadLen = (iPayloadLen << 8u) | (uint64)aHead[2 + i];
@@ -90,20 +90,20 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 
 	if ( bMasked ) {
 		iNeedBytes = iHeaderBytes + 4u;
-		if ( xrtNetChainBytes(pInput) < iNeedBytes ) return XCODEC_STATUS_NEED_MORE;
-		if ( __xcodecChainPeekAt(pInput, iHeaderBytes, pInfo->aMask, 4) != 4 ) return XCODEC_STATUS_ERROR;
+		if ( xrtNetChainBytes(pInput) < iNeedBytes ) { return XCODEC_STATUS_NEED_MORE; }
+		if ( __xcodecChainPeekAt(pInput, iHeaderBytes, pInfo->aMask, 4) != 4 ) { return XCODEC_STATUS_ERROR; }
 		iHeaderBytes += 4u;
 	}
 
-	if ( iPayloadLen > (uint64)(SIZE_MAX - iHeaderBytes) ) return XCODEC_STATUS_ERROR;
-	if ( xrtNetChainBytes(pInput) < iHeaderBytes + (size_t)iPayloadLen ) return XCODEC_STATUS_NEED_MORE;
+	if ( iPayloadLen > (uint64)(SIZE_MAX - iHeaderBytes) ) { return XCODEC_STATUS_ERROR; }
+	if ( xrtNetChainBytes(pInput) < iHeaderBytes + (size_t)iPayloadLen ) { return XCODEC_STATUS_NEED_MORE; }
 
 	pInfo->iOpcode = (uint8)(iB0 & 0x0Fu);
 	pInfo->iPayloadLen = iPayloadLen;
 	pInfo->iHeaderBytes = iHeaderBytes;
-	if ( iB0 & 0x80u ) pInfo->iFlags |= XCODEC_WS_F_FIN;
-	if ( bMasked ) pInfo->iFlags |= XCODEC_WS_F_MASKED;
-	if ( pInfo->iOpcode >= 0x8u ) pInfo->iFlags |= XCODEC_WS_F_CONTROL;
+	if ( iB0 & 0x80u ) { pInfo->iFlags |= XCODEC_WS_F_FIN; }
+	if ( bMasked ) { pInfo->iFlags |= XCODEC_WS_F_MASKED; }
+	if ( pInfo->iOpcode >= 0x8u ) { pInfo->iFlags |= XCODEC_WS_F_CONTROL; }
 
 	pFrame->iKind = XCODEC_KIND_WS;
 	pFrame->iHeaderBytes = iHeaderBytes;
@@ -113,11 +113,11 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 	pFrame->iMeta0 = pInfo->iOpcode;
 	pFrame->iMeta1 = pInfo->iFlags;
 
-	if ( pInfo->iFlags & XCODEC_WS_F_FIN ) pFrame->iFlags |= XCODEC_FRAME_F_FIN;
-	if ( pInfo->iFlags & XCODEC_WS_F_MASKED ) pFrame->iFlags |= XCODEC_FRAME_F_MASKED;
-	if ( pInfo->iFlags & XCODEC_WS_F_CONTROL ) pFrame->iFlags |= XCODEC_FRAME_F_CONTROL;
-	if ( pInfo->iOpcode == XCODEC_WS_OPCODE_TEXT ) pFrame->iFlags |= XCODEC_FRAME_F_TEXT;
-	if ( pInfo->iOpcode == XCODEC_WS_OPCODE_BINARY ) pFrame->iFlags |= XCODEC_FRAME_F_BINARY;
+	if ( pInfo->iFlags & XCODEC_WS_F_FIN ) { pFrame->iFlags |= XCODEC_FRAME_F_FIN; }
+	if ( pInfo->iFlags & XCODEC_WS_F_MASKED ) { pFrame->iFlags |= XCODEC_FRAME_F_MASKED; }
+	if ( pInfo->iFlags & XCODEC_WS_F_CONTROL ) { pFrame->iFlags |= XCODEC_FRAME_F_CONTROL; }
+	if ( pInfo->iOpcode == XCODEC_WS_OPCODE_TEXT ) { pFrame->iFlags |= XCODEC_FRAME_F_TEXT; }
+	if ( pInfo->iOpcode == XCODEC_WS_OPCODE_BINARY ) { pFrame->iFlags |= XCODEC_FRAME_F_BINARY; }
 	return XCODEC_STATUS_FRAME;
 }
 
@@ -126,7 +126,7 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t iStartOffset)
 {
 	uint8* pBytes = (uint8*)pData;
-	if ( !pBytes || !aMask ) return;
+	if ( !pBytes || !aMask ) { return; }
 	for ( size_t i = 0; i < iLen; ++i ) {
 		pBytes[i] ^= aMask[(iStartOffset + i) & 3u];
 	}

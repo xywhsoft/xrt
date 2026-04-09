@@ -848,17 +848,17 @@ XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime)
 // 字符串转时间（智能解析，支持多种格式）
 XXAPI xtime xrtStrToTime(str sTime, size_t iSize)
 {
-	if ( !sTime ) return 0;
-	if ( iSize == 0 ) iSize = strlen((const char*)sTime);
-	if ( iSize == 0 ) return 0;
+	if ( !sTime ) { return 0; }
+	if ( iSize == 0 ) { iSize = strlen((const char*)sTime); }
+	if ( iSize == 0 ) { return 0; }
 	
 	int year = 0, month = 1, day = 1, hour = 0, minute = 0, second = 0;
 	const char* p = (const char*)sTime;
 	const char* end = (const char*)sTime + iSize;
 	
 	// 跳过前导非数字
-	while ( p < end && (*p < '0' || *p > '9') ) p++;
-	if ( p >= end ) return 0;
+	while ( p < end && (*p < '0' || *p > '9') ) { p++; }
+	if ( p >= end ) { return 0; }
 	
 	// 解析第一个数字序列
 	int64 num1 = 0;
@@ -884,14 +884,14 @@ XXAPI xtime xrtStrToTime(str sTime, size_t iSize)
 	} else if ( len1 == 4 ) {
 		year = num1;
 		// 跳过分隔符
-		while ( p < end && (*p < '0' || *p > '9') ) p++;
+		while ( p < end && (*p < '0' || *p > '9') ) { p++; }
 		if ( p < end ) {
 			int num2 = 0;
 			while ( p < end && *p >= '0' && *p <= '9' ) {
 				num2 = num2 * 10 + (*p - '0'); p++;
 			}
 			month = num2;
-			while ( p < end && (*p < '0' || *p > '9') ) p++;
+			while ( p < end && (*p < '0' || *p > '9') ) { p++; }
 			if ( p < end ) {
 				int num3 = 0;
 				while ( p < end && *p >= '0' && *p <= '9' ) {
@@ -899,21 +899,21 @@ XXAPI xtime xrtStrToTime(str sTime, size_t iSize)
 				}
 				day = num3;
 				// 继续解析时间
-				while ( p < end && (*p < '0' || *p > '9') ) p++;
+				while ( p < end && (*p < '0' || *p > '9') ) { p++; }
 				if ( p < end ) {
 					int num4 = 0;
 					while ( p < end && *p >= '0' && *p <= '9' ) {
 						num4 = num4 * 10 + (*p - '0'); p++;
 					}
 					hour = num4;
-					while ( p < end && (*p < '0' || *p > '9') ) p++;
+					while ( p < end && (*p < '0' || *p > '9') ) { p++; }
 					if ( p < end ) {
 						int num5 = 0;
 						while ( p < end && *p >= '0' && *p <= '9' ) {
 							num5 = num5 * 10 + (*p - '0'); p++;
 						}
 						minute = num5;
-						while ( p < end && (*p < '0' || *p > '9') ) p++;
+						while ( p < end && (*p < '0' || *p > '9') ) { p++; }
 						if ( p < end ) {
 							int num6 = 0;
 							while ( p < end && *p >= '0' && *p <= '9' ) {
@@ -1195,7 +1195,7 @@ static void _xrtParseFormat(const char* fmt, _XrtFmtResult* result, int forParse
 				if (c == 'y' || c == 'm' || c == 'd' || c == 'h' || c == 'H' ||
 				    c == 'n' || c == 's' || c == 'w' || c == 'q' ||
 				    (c == 'a' && p[len+1] == 'p') || (c == 'A' && p[len+1] == 'P')) break;
-				if (forParse && (c == '*' || c == '.' || c == '?' || c == ' ' || c == '\t')) break;
+				if (forParse && (c == '*' || c == '.' || c == '?' || c == ' ' || c == '\t')) { break; }
 				cell->text[len] = c; len++;
 			}
 			if (len > 0 ) {
@@ -1281,8 +1281,11 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 		int val, consumed;
 		switch (cell->type ) {
 			case _XRT_FMT_LITERAL:
-				if ((size_t)(end - s) >= (size_t)cell->textLen && memcmp(s, cell->text, cell->textLen) == 0) s += cell->textLen;
-				else return 0;
+				if ( ((size_t)(end - s) >= (size_t)cell->textLen) && (memcmp(s, cell->text, cell->textLen) == 0) ) {
+					s += cell->textLen;
+				} else {
+					return 0;
+				}
 				break;
 			case _XRT_FMT_YEAR4:
 				consumed = _xrtParseDigits(s, end, 4, 4, &val);
@@ -1323,22 +1326,30 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 			case _XRT_FMT_AMPM_LOWER: case _XRT_FMT_AMPM_UPPER:
 				if (end - s >= 2 ) {
 					char c0 = _xrtCharLower(s[0]), c1 = _xrtCharLower(s[1]);
-					if (c0 == 'a' && c1 == 'm' ) { isPM = 0; s += 2; }
-					else if (c0 == 'p' && c1 == 'm' ) { isPM = 1; s += 2; }
-					else return 0;
+					if ( (c0 == 'a') && (c1 == 'm') ) {
+						isPM = 0; s += 2;
+					}else if ( (c0 == 'p') && (c1 == 'm') ) {
+						isPM = 1; s += 2;
+					} else {
+						return 0;
+					}
 				} else { return 0; }
 				break;
 			case _XRT_FMT_WEEKDAY_NUM:
 				consumed = _xrtParseDigits(s, end, 1, 1, &val);
-				if (consumed > 0 && val >= 0 && val <= 6) s += consumed; else return 0;
+				if ( (consumed > 0) && (val >= 0) && (val <= 6) ) {
+					s += consumed;
+				} else {
+					return 0;
+				}
 				break;
 			case _XRT_FMT_WEEKDAY_SHORT: case _XRT_FMT_WEEKDAY_FULL:
 				val = _xrtMatchWeekday(s, end, &consumed);
-				if (val >= 0) s += consumed; else return 0;
+				if ( val >= 0 ) { s += consumed; } else { return 0; }
 				break;
 			case _XRT_FMT_QUARTER:
 				consumed = _xrtParseDigits(s, end, 1, 1, &val);
-				if (consumed > 0 && val >= 1 && val <= 4) s += consumed; else return 0;
+				if ( (consumed > 0) && (val >= 1) && (val <= 4) ) { s += consumed; } else { return 0; }
 				break;
 			case _XRT_FMT_SKIP_ANY:
 				// 智能跳过：根据下一个单元类型决定如何跳过
@@ -1352,24 +1363,24 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 								found = p; break;
 							}
 						}
-						if (found) s = found;
+						if (found) { s = found; }
 					} else if (next->type == _XRT_FMT_MONTH_SHORT || next->type == _XRT_FMT_MONTH_FULL ) {
 						// 下一个是英文月份，搜索月份位置
 						while (s < end ) {
-							if (_xrtMatchMonth(s, end, &consumed) > 0) break;
+							if (_xrtMatchMonth(s, end, &consumed) > 0) { break; }
 							s++;
 						}
 					} else if (next->type == _XRT_FMT_WEEKDAY_SHORT || next->type == _XRT_FMT_WEEKDAY_FULL ) {
 						// 下一个是英文星期，搜索星期位置
 						while (s < end ) {
-							if (_xrtMatchWeekday(s, end, &consumed) >= 0) break;
+							if (_xrtMatchWeekday(s, end, &consumed) >= 0) { break; }
 							s++;
 						}
 					} else if (next->type == _XRT_FMT_AMPM_LOWER || next->type == _XRT_FMT_AMPM_UPPER ) {
 						// 下一个是AM/PM，搜索位置
 						while (s + 1 < end ) {
 							char c0 = _xrtCharLower(s[0]), c1 = _xrtCharLower(s[1]);
-							if ((c0 == 'a' || c0 == 'p') && c1 == 'm') break;
+							if ((c0 == 'a' || c0 == 'p') && c1 == 'm') { break; }
 							s++;
 						}
 					} else {
@@ -1382,11 +1393,11 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 				break;
 			case _XRT_FMT_SKIP_ONE_PLUS:
 				if (s < end && (*s < '0' || *s > '9') ) { s++; while (s < end && (*s < '0' || *s > '9')) { s++; } }
-				else return 0;
+				else { return 0; }
 				break;
 			case _XRT_FMT_SKIP_CHAR:
 				if (s < end ) { if ((unsigned char)*s >= 0x80) s += (s + 1 < end) ? 2 : 1; else s++; }
-				else return 0;
+				else { return 0; }
 				break;
 			case _XRT_FMT_SKIP_SPACE:
 				while (s < end && (*s == ' ' || *s == '\t')) { s++; }
@@ -1395,8 +1406,8 @@ XXAPI xtime xrtTimeParse(str sTime, str sFormat)
 		}
 	}
 	if (is12Hour && isPM >= 0 ) {
-		if (isPM == 1 && hour != 12) hour += 12;
-		else if (isPM == 0 && hour == 12) hour = 0;
+		if (isPM == 1 && hour != 12) { hour += 12; }
+		else if (isPM == 0 && hour == 12) { hour = 0; }
 	}
 	if (year == 0 ) { xtime now = xrtNow(); year = (int)xrtYear(now); }
 	return xrtDateTimeSerial(year, month, day, hour, minute, second);

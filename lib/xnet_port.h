@@ -137,7 +137,7 @@ struct xrt_net_port {
 
 static void xrtNetPortConfigInit(xnetportconfig* pCfg)
 {
-	if ( !pCfg ) return;
+	if ( !pCfg ) { return; }
 	memset(pCfg, 0, sizeof(xnetportconfig));
 	pCfg->iBackend = XNET_PORT_BACKEND_AUTO;
 	pCfg->iFlags = XNET_PORT_F_BATCH_COMPLETION | XNET_PORT_F_GATHER_SEND | XNET_PORT_F_TIMER_WAKE;
@@ -153,7 +153,7 @@ static void xrtNetPortConfigInit(xnetportconfig* pCfg)
 // 初始化网络端口
 static xnet_result xrtNetPortInit(xnetport* pPort, const xnetportops* pOps, const xnetportconfig* pCfg, ptr pOwner)
 {
-	if ( !pPort || !pOps || !pOps->Init ) return XRT_NET_ERROR;
+	if ( !pPort || !pOps || !pOps->Init ) { return XRT_NET_ERROR; }
 	memset(pPort, 0, sizeof(xnetport));
 	pPort->pOps = pOps;
 	pPort->pOwner = pOwner;
@@ -169,7 +169,7 @@ static xnet_result xrtNetPortInit(xnetport* pPort, const xnetportops* pOps, cons
 // 释放网络端口
 static void xrtNetPortUnit(xnetport* pPort)
 {
-	if ( !pPort ) return;
+	if ( !pPort ) { return; }
 	if ( pPort->pOps && pPort->pOps->Unit ) {
 		pPort->pOps->Unit(pPort);
 	}
@@ -200,7 +200,7 @@ static uint32 xrtNetPortHarvest(xnetport* pPort, xnetportevent* pEvents, uint32 
 // 唤醒网络端口
 static xnet_result xrtNetPortWake(xnetport* pPort)
 {
-	if ( !pPort || !pPort->pOps || !pPort->pOps->Wake ) return XRT_NET_ERROR;
+	if ( !pPort || !pPort->pOps || !pPort->pOps->Wake ) { return XRT_NET_ERROR; }
 	return pPort->pOps->Wake(pPort);
 }
 
@@ -208,7 +208,7 @@ static xnet_result xrtNetPortWake(xnetport* pPort)
 // 设置网络端口定时器
 static xnet_result xrtNetPortArmTimer(xnetport* pPort, uint64 iTimerId, uint32 iDelayMs)
 {
-	if ( !pPort || !pPort->pOps || !pPort->pOps->ArmTimer ) return XRT_NET_ERROR;
+	if ( !pPort || !pPort->pOps || !pPort->pOps->ArmTimer ) { return XRT_NET_ERROR; }
 	return pPort->pOps->ArmTimer(pPort, iTimerId, iDelayMs);
 }
 
@@ -216,7 +216,7 @@ static xnet_result xrtNetPortArmTimer(xnetport* pPort, uint64 iTimerId, uint32 i
 // 取消网络端口定时器
 static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 {
-	if ( !pPort || !pPort->pOps || !pPort->pOps->CancelTimer ) return XRT_NET_ERROR;
+	if ( !pPort || !pPort->pOps || !pPort->pOps->CancelTimer ) { return XRT_NET_ERROR; }
 	return pPort->pOps->CancelTimer(pPort, iTimerId);
 }
 

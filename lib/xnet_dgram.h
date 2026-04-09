@@ -63,7 +63,7 @@ static bool __xnetDgramSocketIsValid(xsocket hSocket);
 static xnetworker* __xnetDgramPickWorker(xnetengine* pEngine, const xnetdgramconfig* pCfg)
 {
 	uint32 iIndex = 0;
-	if ( !pEngine || pEngine->iWorkerCount == 0 ) return NULL;
+	if ( !pEngine || pEngine->iWorkerCount == 0 ) { return NULL; }
 	if ( pCfg && pCfg->tBindAddr.iPort > 0 ) {
 		iIndex = pCfg->tBindAddr.iPort % pEngine->iWorkerCount;
 	}
@@ -74,7 +74,7 @@ static xnetworker* __xnetDgramPickWorker(xnetengine* pEngine, const xnetdgramcon
 // 内部函数：绑定数据报引擎
 static void __xnetDgramBindEngine(xnetengine* pEngine)
 {
-	if ( !pEngine ) return;
+	if ( !pEngine ) { return; }
 	if ( !pEngine->pfnOnPortEvent || pEngine->pfnOnPortEvent == __xnetDgramOnPortEvents ) {
 		pEngine->pfnOnPortEvent = __xnetDgramOnPortEvents;
 		return;
@@ -142,7 +142,7 @@ static bool __xnetDgramUseNativePortOps(xdgramsock* pSock)
 // 内部函数：异步增加数据报 hold
 static void __xnetDgramAddAsyncHold(xdgramsock* pSock)
 {
-	if ( !pSock ) return;
+	if ( !pSock ) { return; }
 	(void)__xnetAtomicAddFetch32(&pSock->iAsyncHoldCount, 1);
 }
 
@@ -150,7 +150,7 @@ static void __xnetDgramAddAsyncHold(xdgramsock* pSock)
 // 内部函数：异步释放数据报 hold
 static void __xnetDgramReleaseAsyncHold(xdgramsock* pSock)
 {
-	if ( !pSock ) return;
+	if ( !pSock ) { return; }
 	(void)__xnetAtomicAddFetch32(&pSock->iAsyncHoldCount, -1);
 }
 
@@ -160,9 +160,9 @@ XXAPI xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* p
 {
 	xnetdgrampkt* pPacket;
 
-	if ( !pFrom || (!pData && iLen > 0) ) return NULL;
+	if ( !pFrom || (!pData && iLen > 0) ) { return NULL; }
 	pPacket = (xnetdgrampkt*)XNET_ALLOC(sizeof(xnetdgrampkt));
-	if ( !pPacket ) return NULL;
+	if ( !pPacket ) { return NULL; }
 	memset(pPacket, 0, sizeof(xnetdgrampkt));
 	pPacket->tFrom = *pFrom;
 	xrtNetChainInit(&pPacket->tChain);
@@ -178,7 +178,7 @@ XXAPI xnetdgrampkt* xrtNetDgramPacketCreate(const xnetaddr* pFrom, const void* p
 // 销毁网络数据报 packet
 XXAPI void xrtNetDgramPacketDestroy(xnetdgrampkt* pPacket)
 {
-	if ( !pPacket ) return;
+	if ( !pPacket ) { return; }
 	xrtNetChainClear(&pPacket->tChain);
 	XNET_FREE(pPacket);
 }
@@ -213,13 +213,13 @@ static void __xnetDgramNotifySyncRecv(xdgramsock* pSock, xnet_result iStatus, xn
 	ptr pCtx = NULL;
 
 	if ( !pSock ) {
-		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		if ( pPacket ) { xrtNetDgramPacketDestroy(pPacket); }
 		return;
 	}
 
 	pSlot = &pSock->tRecvWait;
 	if ( pSlot->pfnWait == NULL ) {
-		if ( pPacket ) xrtNetDgramPacketDestroy(pPacket);
+		if ( pPacket ) { xrtNetDgramPacketDestroy(pPacket); }
 		return;
 	}
 
@@ -234,10 +234,10 @@ static void __xnetDgramNotifySyncRecv(xdgramsock* pSock, xnet_result iStatus, xn
 // 内部函数：__xnetDgramRegisterSyncRecvWait
 static bool __xnetDgramRegisterSyncRecvWait(xdgramsock* pSock, __xnet_dgram_sync_wait_fn pfnWait, ptr pCtx)
 {
-	if ( !pSock || !pfnWait ) return false;
-	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) return false;
-	if ( pSock->tRecvWait.pfnWait != NULL ) return false;
-	if ( pSock->pEvents && pSock->pEvents->OnRecv ) return false;
+	if ( !pSock || !pfnWait ) { return false; }
+	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) { return false; }
+	if ( pSock->tRecvWait.pfnWait != NULL ) { return false; }
+	if ( pSock->pEvents && pSock->pEvents->OnRecv ) { return false; }
 	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) {
 		pfnWait(pSock, XRT_NET_CLOSED, NULL, pCtx);
 		return true;
@@ -252,9 +252,9 @@ static bool __xnetDgramRegisterSyncRecvWait(xdgramsock* pSock, __xnet_dgram_sync
 // 内部函数：__xnetDgramCancelSyncRecvWait
 static bool __xnetDgramCancelSyncRecvWait(xdgramsock* pSock, ptr pCtx)
 {
-	if ( !pSock ) return false;
-	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) return false;
-	if ( pSock->tRecvWait.pfnWait == NULL || pSock->tRecvWait.pCtx != pCtx ) return false;
+	if ( !pSock ) { return false; }
+	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) { return false; }
+	if ( pSock->tRecvWait.pfnWait == NULL || pSock->tRecvWait.pCtx != pCtx ) { return false; }
 	pSock->tRecvWait.pfnWait = NULL;
 	pSock->tRecvWait.pCtx = NULL;
 	return true;
@@ -293,7 +293,7 @@ static xsocket __xnetDgramSocketCreate(int iFamily)
 // 内部函数：处理数据报套接字 close
 static void __xnetDgramSocketCloseHandle(xsocket* phSocket)
 {
-	if ( !phSocket || !__xnetDgramSocketIsValid(*phSocket) ) return;
+	if ( !phSocket || !__xnetDgramSocketIsValid(*phSocket) ) { return; }
 	#if defined(_WIN32) || defined(_WIN64)
 		closesocket(*phSocket);
 	#else
@@ -306,13 +306,13 @@ static void __xnetDgramSocketCloseHandle(xsocket* phSocket)
 // 内部函数：设置数据报套接字 non 块
 static bool __xnetDgramSocketSetNonBlock(xsocket hSocket, bool bEnable)
 {
-	if ( !__xnetDgramSocketIsValid(hSocket) ) return false;
+	if ( !__xnetDgramSocketIsValid(hSocket) ) { return false; }
 	#if defined(_WIN32) || defined(_WIN64)
 		u_long iMode = bEnable ? 1u : 0u;
 		return ioctlsocket(hSocket, FIONBIO, &iMode) == 0;
 	#else
 		int iFlags = fcntl(hSocket, F_GETFL, 0);
-		if ( iFlags < 0 ) return false;
+		if ( iFlags < 0 ) { return false; }
 		if ( bEnable ) {
 			iFlags |= O_NONBLOCK;
 		} else {
@@ -327,7 +327,7 @@ static bool __xnetDgramSocketSetNonBlock(xsocket hSocket, bool bEnable)
 static bool __xnetDgramSocketSetReuseAddr(xsocket hSocket)
 {
 	int iOpt = 1;
-	if ( !__xnetDgramSocketIsValid(hSocket) ) return false;
+	if ( !__xnetDgramSocketIsValid(hSocket) ) { return false; }
 	#if defined(_WIN32) || defined(_WIN64)
 		return setsockopt(hSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&iOpt, sizeof(iOpt)) == 0;
 	#else
@@ -341,7 +341,7 @@ static bool __xnetDgramSocketSetReusePort(xsocket hSocket)
 {
 	#if defined(SO_REUSEPORT)
 		int iOpt = 1;
-		if ( !__xnetDgramSocketIsValid(hSocket) ) return false;
+		if ( !__xnetDgramSocketIsValid(hSocket) ) { return false; }
 		#if defined(_WIN32) || defined(_WIN64)
 			return setsockopt(hSocket, SOL_SOCKET, SO_REUSEPORT, (const char*)&iOpt, sizeof(iOpt)) == 0;
 		#else
@@ -359,9 +359,9 @@ static bool __xnetDgramSocketUpdateLocalAddr(xsocket hSocket, xnetaddr* pAddr)
 {
 	struct sockaddr_storage tStorage;
 	socklen_t iLen = (socklen_t)sizeof(tStorage);
-	if ( !__xnetDgramSocketIsValid(hSocket) || !pAddr ) return false;
+	if ( !__xnetDgramSocketIsValid(hSocket) || !pAddr ) { return false; }
 	memset(&tStorage, 0, sizeof(tStorage));
-	if ( getsockname(hSocket, (struct sockaddr*)&tStorage, &iLen) != 0 ) return false;
+	if ( getsockname(hSocket, (struct sockaddr*)&tStorage, &iLen) != 0 ) { return false; }
 	return __xnetAddrFromSockAddr(pAddr, (const struct sockaddr*)&tStorage);
 }
 
@@ -369,7 +369,7 @@ static bool __xnetDgramSocketUpdateLocalAddr(xsocket hSocket, xnetaddr* pAddr)
 // 内部函数：__xnetDgramApplyBindFlags
 static void __xnetDgramApplyBindFlags(xsocket hSocket, uint32 iFlags)
 {
-	if ( !__xnetDgramSocketIsValid(hSocket) ) return;
+	if ( !__xnetDgramSocketIsValid(hSocket) ) { return; }
 	if ( (iFlags & XNET_DGRAM_F_REUSE_ADDR) != 0 ) {
 		(void)__xnetDgramSocketSetReuseAddr(hSocket);
 	}
@@ -384,9 +384,9 @@ static xnetchain* __xnetDgramAllocTempChain(xdgramsock* pSock)
 {
 	xnetchain* pChain;
 	xnetmemctx* pMemCtx;
-	if ( !pSock || !pSock->pWorker ) return NULL;
+	if ( !pSock || !pSock->pWorker ) { return NULL; }
 	pChain = (xnetchain*)XNET_ALLOC(sizeof(xnetchain));
-	if ( !pChain ) return NULL;
+	if ( !pChain ) { return NULL; }
 	pMemCtx = &pSock->pWorker->tMemCtx;
 	xrtNetChainInitEx(pChain, pMemCtx);
 	return pChain;
@@ -396,7 +396,7 @@ static xnetchain* __xnetDgramAllocTempChain(xdgramsock* pSock)
 // 内部函数：释放数据报临时 chain
 static void __xnetDgramFreeTempChain(xnetchain* pChain)
 {
-	if ( !pChain ) return;
+	if ( !pChain ) { return; }
 	xrtNetChainClear(pChain);
 	XNET_FREE(pChain);
 }
@@ -406,7 +406,7 @@ static void __xnetDgramFreeTempChain(xnetchain* pChain)
 static bool __xnetDgramSubmitSocketNotice(xdgramsock* pSock, uint16 iOpType, xsocket hSocket)
 {
 	xnetportsubmit tSubmit;
-	if ( !pSock || !pSock->pWorker || !__xnetDgramSocketIsValid(hSocket) ) return false;
+	if ( !pSock || !pSock->pWorker || !__xnetDgramSocketIsValid(hSocket) ) { return false; }
 	memset(&tSubmit, 0, sizeof(tSubmit));
 	tSubmit.iOpType = iOpType;
 	tSubmit.iOpId = pSock->iId;
@@ -419,8 +419,8 @@ static bool __xnetDgramSubmitSocketNotice(xdgramsock* pSock, uint16 iOpType, xso
 // 内部函数：__xnetDgramArmRecvWatch
 static bool __xnetDgramArmRecvWatch(xdgramsock* pSock)
 {
-	if ( !pSock || !pSock->bRunning || pSock->bRecvArmed || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
-	if ( !__xnetDgramSubmitSocketNotice(pSock, XNET_PORT_OP_RECVFROM, pSock->hSocket) ) return false;
+	if ( !pSock || !pSock->bRunning || pSock->bRecvArmed || !__xnetDgramSocketIsValid(pSock->hSocket) ) { return false; }
+	if ( !__xnetDgramSubmitSocketNotice(pSock, XNET_PORT_OP_RECVFROM, pSock->hSocket) ) { return false; }
 	pSock->bRecvArmed = true;
 	if ( pSock->pWorker && !__xnetEngineIsCurrentWorker(pSock->pWorker) ) {
 		(void)xrtNetPortWake(&pSock->pWorker->tPort);
@@ -433,7 +433,7 @@ static bool __xnetDgramArmRecvWatch(xdgramsock* pSock)
 static void __xnetDgramFinalizeSocketClose(xdgramsock* pSock)
 {
 	xsocket hSocket;
-	if ( !pSock ) return;
+	if ( !pSock ) { return; }
 	hSocket = pSock->hSocket;
 	pSock->bRecvArmed = false;
 	if ( __xnetDgramSocketIsValid(hSocket) ) {
@@ -448,7 +448,7 @@ static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xneta
 {
 	xnetchain* pChain;
 	xnetdgrampkt* pPacket = NULL;
-	if ( !pSock || !pFrom ) return false;
+	if ( !pSock || !pFrom ) { return false; }
 	if ( pSock->tRecvWait.pfnWait != NULL ) {
 		pPacket = xrtNetDgramPacketCreate(pFrom, pData, iLen);
 		if ( !pPacket ) {
@@ -462,7 +462,7 @@ static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xneta
 		return true;
 	}
 	pChain = __xnetDgramAllocTempChain(pSock);
-	if ( !pChain ) return false;
+	if ( !pChain ) { return false; }
 	if ( iLen > 0 && (!pData || !xrtNetChainAppendCopy(pChain, pData, iLen)) ) {
 		__xnetDgramFreeTempChain(pChain);
 		return false;
@@ -480,7 +480,7 @@ static bool __xnetDgramSubmitNativeSend(xdgramsock* pSock, __xnet_dgram_async_op
 {
 	xnetportsubmit tSubmit;
 	xnetspan tSpan;
-	if ( !pSock || !pOp || !pSock->pWorker || !__xnetDgramSocketIsValid(pSock->hSocket) ) return false;
+	if ( !pSock || !pOp || !pSock->pWorker || !__xnetDgramSocketIsValid(pSock->hSocket) ) { return false; }
 	memset(&tSubmit, 0, sizeof(tSubmit));
 	memset(&tSpan, 0, sizeof(tSpan));
 	tSpan.pData = pOp->aData;
@@ -503,7 +503,7 @@ static void __xnetDgramAsyncTask(xnetworker* pWorker, ptr pArg)
 	xdgramsock* pSock = pOp ? pOp->pSock : NULL;
 	(void)pWorker;
 	if ( !pOp || !pSock ) {
-		if ( pOp ) XNET_FREE(pOp);
+		if ( pOp ) { XNET_FREE(pOp); }
 		return;
 	}
 
@@ -527,16 +527,16 @@ static __xnet_dgram_async_op* __xnetDgramAllocAsyncCopy(xdgramsock* pSock, const
 {
 	__xnet_dgram_async_op* pOp;
 	size_t iSize;
-	if ( !pSock || !pTo || (!pData && iLen > 0) || iLen > UINT32_MAX ) return NULL;
+	if ( !pSock || !pTo || (!pData && iLen > 0) || iLen > UINT32_MAX ) { return NULL; }
 	iSize = sizeof(__xnet_dgram_async_op) + iLen;
 	pOp = (__xnet_dgram_async_op*)XNET_ALLOC(iSize);
-	if ( !pOp ) return NULL;
+	if ( !pOp ) { return NULL; }
 	memset(pOp, 0, iSize);
 	pOp->pSock = pSock;
 	pOp->tTo = *pTo;
 	pOp->iType = __XNET_DGRAM_ASYNC_SEND_COPY;
 	pOp->iLen = (uint32)iLen;
-	if ( iLen > 0 ) memcpy(pOp->aData, pData, iLen);
+	if ( iLen > 0 ) { memcpy(pOp->aData, pData, iLen); }
 	return pOp;
 }
 
@@ -548,15 +548,15 @@ static __xnet_dgram_async_op* __xnetDgramAllocAsyncVecCopy(xdgramsock* pSock, co
 	size_t iTotal = 0;
 	size_t iOffset = 0;
 	size_t iSize;
-	if ( !pSock || !pTo || !pVec || iCount == 0 ) return NULL;
+	if ( !pSock || !pTo || !pVec || iCount == 0 ) { return NULL; }
 	for ( uint32 i = 0; i < iCount; ++i ) {
-		if ( !pVec[i].pData || pVec[i].iLen == 0 ) return NULL;
+		if ( !pVec[i].pData || pVec[i].iLen == 0 ) { return NULL; }
 		iTotal += pVec[i].iLen;
-		if ( iTotal > UINT32_MAX ) return NULL;
+		if ( iTotal > UINT32_MAX ) { return NULL; }
 	}
 	iSize = sizeof(__xnet_dgram_async_op) + iTotal;
 	pOp = (__xnet_dgram_async_op*)XNET_ALLOC(iSize);
-	if ( !pOp ) return NULL;
+	if ( !pOp ) { return NULL; }
 	memset(pOp, 0, iSize);
 	pOp->pSock = pSock;
 	pOp->tTo = *pTo;
@@ -574,7 +574,7 @@ static __xnet_dgram_async_op* __xnetDgramAllocAsyncVecCopy(xdgramsock* pSock, co
 static xnet_result __xnetDgramPostAsync(xdgramsock* pSock, __xnet_dgram_async_op* pOp)
 {
 	if ( !pSock || !pOp || !pSock->pEngine || !pSock->pWorker ) {
-		if ( pOp ) XNET_FREE(pOp);
+		if ( pOp ) { XNET_FREE(pOp); }
 		return XRT_NET_ERROR;
 	}
 	__xnetDgramAddAsyncHold(pSock);
@@ -592,10 +592,10 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 {
 	xdgramsock* pSock;
 	xnetworker* pWorker;
-	if ( !pEngine ) return NULL;
+	if ( !pEngine ) { return NULL; }
 	__xnetDgramBindEngine(pEngine);
 	pSock = (xdgramsock*)XNET_ALLOC(sizeof(xdgramsock));
-	if ( !pSock ) return NULL;
+	if ( !pSock ) { return NULL; }
 	memset(pSock, 0, sizeof(xdgramsock));
 	pWorker = __xnetDgramPickWorker(pEngine, pCfg);
 	pSock->iId = __xnetEngineAllocStreamId(pEngine);
@@ -624,7 +624,7 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 // 销毁网络数据报
 XXAPI void xrtNetDgramDestroy(xdgramsock* pSock)
 {
-	if ( !pSock ) return;
+	if ( !pSock ) { return; }
 	if ( __xnetAtomicLoad32(&pSock->iAsyncHoldCount) != 0 ) {
 		__xnetDgramSetError("cannot destroy datagram socket while an async waiter or task still holds it.");
 		return;
@@ -640,11 +640,11 @@ XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock)
 {
 	struct sockaddr_storage tStorage;
 	socklen_t iAddrLen = 0;
-	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning ) return XRT_NET_ERROR;
-	if ( pSock->bRunning ) return XRT_NET_OK;
-	if ( !__xnetAddrToSockAddr(&pSock->tLocalAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning ) { return XRT_NET_ERROR; }
+	if ( pSock->bRunning ) { return XRT_NET_OK; }
+	if ( !__xnetAddrToSockAddr(&pSock->tLocalAddr, &tStorage, &iAddrLen) ) { return XRT_NET_ERROR; }
 	pSock->hSocket = __xnetDgramSocketCreate(pSock->tLocalAddr.iFamily);
-	if ( !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
+	if ( !__xnetDgramSocketIsValid(pSock->hSocket) ) { return XRT_NET_ERROR; }
 	__xnetDgramApplyBindFlags(pSock->hSocket, pSock->iFlags);
 	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, true);
 	if ( bind(pSock->hSocket, (struct sockaddr*)&tStorage, iAddrLen) != 0 ) {
@@ -670,7 +670,7 @@ XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock)
 // 停止网络数据报
 XXAPI void xrtNetDgramStop(xdgramsock* pSock)
 {
-	if ( !pSock ) return;
+	if ( !pSock ) { return; }
 	if ( __xnetAtomicLoad32(&pSock->iAsyncHoldCount) != 0 ) {
 		__xnetDgramSetError("cannot stop datagram socket while an async waiter or task still holds it.");
 		return;
@@ -684,8 +684,8 @@ XXAPI void xrtNetDgramStop(xdgramsock* pSock)
 // 发送网络数据报
 XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, const void* pData, size_t iLen)
 {
-	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || (!pData && iLen > 0) ) return XRT_NET_ERROR;
-	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
+	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || (!pData && iLen > 0) ) { return XRT_NET_ERROR; }
+	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) { return XRT_NET_ERROR; }
 	return __xnetDgramPostAsync(pSock, __xnetDgramAllocAsyncCopy(pSock, pTo, pData, iLen));
 }
 
@@ -693,8 +693,8 @@ XXAPI xnet_result xrtNetDgramSendTo(xdgramsock* pSock, const xnetaddr* pTo, cons
 // 发送网络数据报 vec
 XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, const xnetspan* pVec, uint32 iCount)
 {
-	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || !pVec || iCount == 0 ) return XRT_NET_ERROR;
-	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) return XRT_NET_ERROR;
+	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning || !pTo || !pVec || iCount == 0 ) { return XRT_NET_ERROR; }
+	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) { return XRT_NET_ERROR; }
 	return __xnetDgramPostAsync(pSock, __xnetDgramAllocAsyncVecCopy(pSock, pTo, pVec, iCount));
 }
 
@@ -703,7 +703,7 @@ XXAPI xnet_result xrtNetDgramSendVecTo(xdgramsock* pSock, const xnetaddr* pTo, c
 static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pEvents, uint32 iCount)
 {
 	(void)pWorker;
-	if ( !pEvents || iCount == 0 ) return;
+	if ( !pEvents || iCount == 0 ) { return; }
 	for ( uint32 i = 0; i < iCount; ++i ) {
 		const xnetportevent* pEvent = &pEvents[i];
 		if ( pEvent->iType == XNET_PORT_EVENT_RECVFROM ) {

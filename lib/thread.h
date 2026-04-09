@@ -14,8 +14,8 @@
 	static bool __xrtThreadMakeAbsTimeout(struct timespec* pTs, uint32 iTimeoutMs)
 	{
 		uint64 iNs;
-		if ( !pTs ) return false;
-		if ( clock_gettime(__XRT_THREAD_WAIT_CLOCK, pTs) != 0 ) return false;
+		if ( !pTs ) { return false; }
+		if ( clock_gettime(__XRT_THREAD_WAIT_CLOCK, pTs) != 0 ) { return false; }
 		iNs = (uint64)pTs->tv_nsec + ((uint64)iTimeoutMs * 1000000ULL);
 		pTs->tv_sec += (time_t)(iNs / 1000000000ULL);
 		pTs->tv_nsec = (long)(iNs % 1000000000ULL);
@@ -27,8 +27,8 @@
 	static bool __xrtThreadInitMonotonicCond(pthread_cond_t* pCond)
 	{
 		pthread_condattr_t tAttr;
-		if ( !pCond ) return false;
-		if ( pthread_condattr_init(&tAttr) != 0 ) return false;
+		if ( !pCond ) { return false; }
+		if ( pthread_condattr_init(&tAttr) != 0 ) { return false; }
 		#if defined(CLOCK_MONOTONIC)
 			(void)pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC);
 		#endif
@@ -106,7 +106,7 @@ static void* xrtThreadWrapper(void* pParameter)
 XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
 {
 	xthread pThread = __xrtThreadObjAlloc(sizeof(xthread_struct));
-	if ( !pThread ) return NULL;
+	if ( !pThread ) { return NULL; }
 
 	pThread->Proc = pProc;
 	pThread->Param = pParam;
@@ -186,8 +186,8 @@ XXAPI void xrtThreadDestroy(xthread pThread)
 // 等待线程结束
 XXAPI void xrtThreadWait(xthread pThread)
 {
-	if ( !pThread || !pThread->Handle ) return;
-	if ( pThread->bJoined ) return;
+	if ( !pThread || !pThread->Handle ) { return; }
+	if ( pThread->bJoined ) { return; }
 
 	#if defined(_WIN32) || defined(_WIN64)
 		WaitForSingleObject(pThread->Handle, INFINITE);
@@ -208,8 +208,8 @@ XXAPI void xrtThreadWait(xthread pThread)
 // 等待线程结束（带超时，毫秒）
 XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 {
-	if ( !pThread || !pThread->Handle ) return XRT_WAIT_ERROR;
-	if ( pThread->bJoined ) return XRT_WAIT_OK;
+	if ( !pThread || !pThread->Handle ) { return XRT_WAIT_ERROR; }
+	if ( pThread->bJoined ) { return XRT_WAIT_OK; }
 
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD ret = WaitForSingleObject(pThread->Handle, iTimeout);
@@ -222,7 +222,7 @@ XXAPI int xrtThreadWaitTimeout(xthread pThread, uint32 iTimeout)
 			pThread->bJoined = TRUE;
 			return XRT_WAIT_OK;
 		}
-		if ( ret == WAIT_TIMEOUT ) return XRT_WAIT_TIMEOUT;
+		if ( ret == WAIT_TIMEOUT ) { return XRT_WAIT_TIMEOUT; }
 		return XRT_WAIT_ERROR;
 	#else
 		int iRet;
@@ -309,8 +309,8 @@ XXAPI bool xrtThreadShouldStop(xthread pThread)
 // 获取线程状态
 XXAPI int xrtThreadGetState(xthread pThread)
 {
-	if ( !pThread || !pThread->Handle ) return XRT_THREAD_STOPPED;
-	if ( pThread->bFinished ) return XRT_THREAD_STOPPED;
+	if ( !pThread || !pThread->Handle ) { return XRT_THREAD_STOPPED; }
+	if ( pThread->bFinished ) { return XRT_THREAD_STOPPED; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD exitCode;
@@ -326,7 +326,7 @@ XXAPI int xrtThreadGetState(xthread pThread)
 // 获取线程退出码
 XXAPI uint32 xrtThreadGetExitCode(xthread pThread)
 {
-	if ( !pThread ) return 0;
+	if ( !pThread ) { return 0; }
 	return pThread->ExitCode;
 }
 
@@ -362,7 +362,7 @@ XXAPI void xrtThreadYield()
 XXAPI xmutex xrtMutexCreate()
 {
 	xmutex pMutex = __xrtThreadObjAlloc(sizeof(xmutex_struct));
-	if ( !pMutex ) return NULL;
+	if ( !pMutex ) { return NULL; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeSRWLock(&pMutex->objLock);
@@ -415,7 +415,7 @@ XXAPI void xrtMutexDestroy(xmutex pMutex)
 // 初始化互斥体
 XXAPI void xrtMutexInit(xmutex pMutex)
 {
-	if ( !pMutex ) return;
+	if ( !pMutex ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeSRWLock(&pMutex->objLock);
@@ -434,7 +434,7 @@ XXAPI void xrtMutexInit(xmutex pMutex)
 // 释放互斥体
 XXAPI void xrtMutexUnit(xmutex pMutex)
 {
-	if ( !pMutex ) return;
+	if ( !pMutex ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( pMutex->iOwnerThreadId != 0 ) {
@@ -461,7 +461,7 @@ XXAPI void xrtMutexUnit(xmutex pMutex)
 // 锁定互斥体
 XXAPI void xrtMutexLock(xmutex pMutex)
 {
-	if ( !pMutex ) return;
+	if ( !pMutex ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		AcquireSRWLockExclusive(&pMutex->objLock);
@@ -476,7 +476,7 @@ XXAPI void xrtMutexLock(xmutex pMutex)
 // 尝试锁定互斥体
 XXAPI bool xrtMutexTryLock(xmutex pMutex)
 {
-	if ( !pMutex ) return FALSE;
+	if ( !pMutex ) { return FALSE; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( pMutex->iOwnerThreadId == GetCurrentThreadId() ) {
@@ -497,7 +497,7 @@ XXAPI bool xrtMutexTryLock(xmutex pMutex)
 // 解锁互斥体
 XXAPI void xrtMutexUnlock(xmutex pMutex)
 {
-	if ( !pMutex ) return;
+	if ( !pMutex ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		pMutex->iOwnerThreadId = 0;
@@ -515,7 +515,7 @@ XXAPI void xrtMutexUnlock(xmutex pMutex)
 XXAPI xsem xrtSemCreate(uint32 iInitValue, uint32 iMaxValue)
 {
 	xsem pSem = __xrtThreadObjAlloc(sizeof(xsem_struct));
-	if ( !pSem ) return NULL;
+	if ( !pSem ) { return NULL; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		pSem->objSem = CreateSemaphoreW(NULL, iInitValue, iMaxValue, NULL);
@@ -554,12 +554,12 @@ XXAPI void xrtSemDestroy(xsem pSem)
 // 初始化信号量
 XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue)
 {
-	if ( !pSem ) return;
+	if ( !pSem ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		pSem->objSem = CreateSemaphoreW(NULL, iInitValue, iMaxValue, NULL);
 	#else
-		if ( pthread_mutex_init(&pSem->objLock, NULL) != 0 ) return;
+		if ( pthread_mutex_init(&pSem->objLock, NULL) != 0 ) { return; }
 		if ( !__xrtThreadInitMonotonicCond(&pSem->objCond) ) {
 			pthread_mutex_destroy(&pSem->objLock);
 			return;
@@ -573,7 +573,7 @@ XXAPI void xrtSemInit(xsem pSem, uint32 iInitValue, uint32 iMaxValue)
 // xrtSemUnit 相关处理
 XXAPI void xrtSemUnit(xsem pSem)
 {
-	if ( !pSem ) return;
+	if ( !pSem ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		CloseHandle(pSem->objSem);
@@ -592,7 +592,7 @@ XXAPI void xrtSemUnit(xsem pSem)
 // xrtSemWait 相关处理
 XXAPI void xrtSemWait(xsem pSem)
 {
-	if ( !pSem ) return;
+	if ( !pSem ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		WaitForSingleObject(pSem->objSem, INFINITE);
@@ -610,7 +610,7 @@ XXAPI void xrtSemWait(xsem pSem)
 // xrtSemTryWait 相关处理
 XXAPI bool xrtSemTryWait(xsem pSem)
 {
-	if ( !pSem ) return FALSE;
+	if ( !pSem ) { return FALSE; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		return WaitForSingleObject(pSem->objSem, 0) == WAIT_OBJECT_0;
@@ -630,17 +630,17 @@ XXAPI bool xrtSemTryWait(xsem pSem)
 // xrtSemWaitTimeout 相关处理
 XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 {
-	if ( !pSem ) return XRT_WAIT_ERROR;
+	if ( !pSem ) { return XRT_WAIT_ERROR; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		DWORD ret = WaitForSingleObject(pSem->objSem, iTimeout);
-		if ( ret == WAIT_OBJECT_0 ) return XRT_WAIT_OK;
-		if ( ret == WAIT_TIMEOUT ) return XRT_WAIT_TIMEOUT;
+		if ( ret == WAIT_OBJECT_0 ) { return XRT_WAIT_OK; }
+		if ( ret == WAIT_TIMEOUT ) { return XRT_WAIT_TIMEOUT; }
 		return XRT_WAIT_ERROR;
 	#else
 		struct timespec ts;
 		int ret = XRT_WAIT_ERROR;
-		if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) return XRT_WAIT_ERROR;
+		if ( !__xrtThreadMakeAbsTimeout(&ts, iTimeout) ) { return XRT_WAIT_ERROR; }
 		pthread_mutex_lock(&pSem->objLock);
 		while ( pSem->iValue == 0 ) {
 			int iWaitRet = pthread_cond_timedwait(&pSem->objCond, &pSem->objLock, &ts);
@@ -665,7 +665,7 @@ XXAPI int xrtSemWaitTimeout(xsem pSem, uint32 iTimeout)
 // xrtSemPost 相关处理
 XXAPI bool xrtSemPost(xsem pSem)
 {
-	if ( !pSem ) return FALSE;
+	if ( !pSem ) { return FALSE; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		return ReleaseSemaphore(pSem->objSem, 1, NULL) != 0;
@@ -686,7 +686,7 @@ XXAPI bool xrtSemPost(xsem pSem)
 // xrtSemPostMultiple 相关处理
 XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 {
-	if ( !pSem || iCount == 0 ) return FALSE;
+	if ( !pSem || iCount == 0 ) { return FALSE; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		return ReleaseSemaphore(pSem->objSem, iCount, NULL) != 0;
@@ -712,7 +712,7 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 XXAPI xcond xrtCondCreate()
 {
 	xcond pCond = __xrtThreadObjAlloc(sizeof(xcond_struct));
-	if ( !pCond ) return NULL;
+	if ( !pCond ) { return NULL; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeConditionVariable(&pCond->objCond);
@@ -740,7 +740,7 @@ XXAPI void xrtCondDestroy(xcond pCond)
 // 初始化条件变量
 XXAPI void xrtCondInit(xcond pCond)
 {
-	if ( !pCond ) return;
+	if ( !pCond ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		InitializeConditionVariable(&pCond->objCond);
@@ -754,7 +754,7 @@ XXAPI void xrtCondInit(xcond pCond)
 // 释放条件变量
 XXAPI void xrtCondUnit(xcond pCond)
 {
-	if ( !pCond ) return;
+	if ( !pCond ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		// Windows CONDITION_VARIABLE 不需要显式销毁
@@ -770,7 +770,7 @@ XXAPI void xrtCondUnit(xcond pCond)
 // 等待条件变量
 XXAPI void xrtCondWait(xcond pCond, xmutex pMutex)
 {
-	if ( !pCond || !pMutex ) return;
+	if ( !pCond || !pMutex ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		pMutex->iOwnerThreadId = 0;
@@ -811,8 +811,8 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 		}
 		int ret = pthread_cond_timedwait(&pCond->objCond, 
 			(pthread_mutex_t*)&pMutex->objLock, &ts);
-		if ( ret == 0 ) return XRT_WAIT_OK;
-		if ( ret == ETIMEDOUT ) return XRT_WAIT_TIMEOUT;
+		if ( ret == 0 ) { return XRT_WAIT_OK; }
+		if ( ret == ETIMEDOUT ) { return XRT_WAIT_TIMEOUT; }
 		return XRT_WAIT_ERROR;
 	#endif
 }
@@ -820,7 +820,7 @@ XXAPI int xrtCondWaitTimeout(xcond pCond, xmutex pMutex, uint32 iTimeout)
 // 唤醒一个等待的线程
 XXAPI void xrtCondSignal(xcond pCond)
 {
-	if ( !pCond ) return;
+	if ( !pCond ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		WakeConditionVariable(&pCond->objCond);
@@ -834,7 +834,7 @@ XXAPI void xrtCondSignal(xcond pCond)
 // 唤醒所有等待的线程
 XXAPI void xrtCondBroadcast(xcond pCond)
 {
-	if ( !pCond ) return;
+	if ( !pCond ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		WakeAllConditionVariable(&pCond->objCond);
@@ -916,7 +916,7 @@ static inline void __xrtRWLockBroadcastReaders(xrwlock pRWLock)
 XXAPI xrwlock xrtRWLockCreate()
 {
 	xrwlock pRWLock = __xrtThreadObjAlloc(sizeof(xrwlock_struct));
-	if ( !pRWLock ) return NULL;
+	if ( !pRWLock ) { return NULL; }
 	xrtRWLockInit(pRWLock);
 	return pRWLock;
 }
@@ -935,7 +935,7 @@ XXAPI void xrtRWLockDestroy(xrwlock pRWLock)
 // 初始化读写锁（对自维护结构体指针使用）
 XXAPI void xrtRWLockInit(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return;
+	if ( !pRWLock ) { return; }
 	
 	memset(pRWLock, 0, sizeof(*pRWLock));
 	
@@ -954,7 +954,7 @@ XXAPI void xrtRWLockInit(xrwlock pRWLock)
 // 释放读写锁（对自维护结构体指针使用）
 XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return;
+	if ( !pRWLock ) { return; }
 	
 	#if defined(_WIN32) || defined(_WIN64)
 		DeleteCriticalSection(&pRWLock->objStateLock);
@@ -971,7 +971,7 @@ XXAPI void xrtRWLockUnit(xrwlock pRWLock)
 // 获取读锁（阻塞）
 XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return;
+	if ( !pRWLock ) { return; }
 	
 	__xrtRWLockStateLock(pRWLock);
 	pRWLock->iWaitingReaderCount++;
@@ -987,7 +987,7 @@ XXAPI void xrtRWLockReadLock(xrwlock pRWLock)
 // 尝试获取读锁（非阻塞）
 XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return FALSE;
+	if ( !pRWLock ) { return FALSE; }
 	
 	bool bResult;
 	__xrtRWLockStateLock(pRWLock);
@@ -1004,7 +1004,7 @@ XXAPI bool xrtRWLockTryReadLock(xrwlock pRWLock)
 // 释放读锁
 XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return;
+	if ( !pRWLock ) { return; }
 	
 	__xrtRWLockStateLock(pRWLock);
 	if ( pRWLock->iReaderCount > 0 ) {
@@ -1024,7 +1024,7 @@ XXAPI void xrtRWLockReadUnlock(xrwlock pRWLock)
 // 获取写锁（阻塞）
 XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return;
+	if ( !pRWLock ) { return; }
 	
 	__xrtRWLockStateLock(pRWLock);
 	pRWLock->iWaitingWriterCount++;
@@ -1040,7 +1040,7 @@ XXAPI void xrtRWLockWriteLock(xrwlock pRWLock)
 // 尝试获取写锁（非阻塞）
 XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return FALSE;
+	if ( !pRWLock ) { return FALSE; }
 	
 	bool bResult;
 	__xrtRWLockStateLock(pRWLock);
@@ -1057,7 +1057,7 @@ XXAPI bool xrtRWLockTryWriteLock(xrwlock pRWLock)
 // 释放写锁
 XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return;
+	if ( !pRWLock ) { return; }
 	
 	__xrtRWLockStateLock(pRWLock);
 	if ( pRWLock->bWriterLocked ) {
@@ -1075,7 +1075,7 @@ XXAPI void xrtRWLockWriteUnlock(xrwlock pRWLock)
 // 写锁降级为读锁（原子保留锁状态）
 XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return;
+	if ( !pRWLock ) { return; }
 	
 	__xrtRWLockStateLock(pRWLock);
 	if ( pRWLock->bWriterLocked ) {
@@ -1092,7 +1092,7 @@ XXAPI void xrtRWLockDowngrade(xrwlock pRWLock)
 // 读锁升级为写锁（原子转换，返回 FALSE 表示锁状态无效）
 XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 {
-	if ( !pRWLock ) return FALSE;
+	if ( !pRWLock ) { return FALSE; }
 	
 	__xrtRWLockStateLock(pRWLock);
 	if ( pRWLock->iReaderCount == 0 ) {

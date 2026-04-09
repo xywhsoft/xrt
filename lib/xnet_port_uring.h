@@ -294,7 +294,7 @@
 	// 内部函数：释放端口 io_uring 原生 ring
 	static void __xnetPortUringNativeRingUnit(__xnet_uring_native_ring* pRing)
 	{
-		if ( !pRing ) return;
+		if ( !pRing ) { return; }
 		if ( pRing->pSqesBase && pRing->iSqesMapLen > 0 ) {
 			munmap(pRing->pSqesBase, pRing->iSqesMapLen);
 		}
@@ -320,7 +320,7 @@
 		size_t iSqesLen;
 		size_t iSharedLen;
 		void* pSharedMap = MAP_FAILED;
-		if ( !pRing ) return false;
+		if ( !pRing ) { return false; }
 		memset(pRing, 0, sizeof(*pRing));
 		pRing->hRingFd = -1;
 		memset(&pRing->tParams, 0, sizeof(pRing->tParams));
@@ -394,9 +394,9 @@
 	static xnetchain* __xnetPortUringAllocEventChain(const void* pData, size_t iLen)
 	{
 		xnetchain* pChain = NULL;
-		if ( (!pData && iLen > 0) || iLen > UINT32_MAX ) return NULL;
+		if ( (!pData && iLen > 0) || iLen > UINT32_MAX ) { return NULL; }
 		pChain = (xnetchain*)XNET_ALLOC(sizeof(xnetchain));
-		if ( !pChain ) return NULL;
+		if ( !pChain ) { return NULL; }
 		xrtNetChainInit(pChain);
 		if ( iLen > 0 && !xrtNetChainAppendCopy(pChain, pData, iLen) ) {
 			xrtNetChainClear(pChain);
@@ -410,7 +410,7 @@
 	// 内部函数：释放端口 io_uring 事件 chain
 	static void __xnetPortUringFreeEventChain(xnetchain* pChain)
 	{
-		if ( !pChain ) return;
+		if ( !pChain ) { return; }
 		xrtNetChainClear(pChain);
 		XNET_FREE(pChain);
 	}
@@ -419,7 +419,7 @@
 	// 内部函数：__xnetPortUringTrackIo
 	static void __xnetPortUringTrackIo(__xnet_uring_ctx* pCtx, __xnet_uring_io* pIo)
 	{
-		if ( !pCtx || !pIo ) return;
+		if ( !pCtx || !pIo ) { return; }
 		pthread_mutex_lock(&pCtx->tIoLock);
 		pIo->pNext = pCtx->pActiveIo;
 		pCtx->pActiveIo = pIo;
@@ -431,7 +431,7 @@
 	static void __xnetPortUringUntrackIo(__xnet_uring_ctx* pCtx, __xnet_uring_io* pIo)
 	{
 		__xnet_uring_io** ppCur;
-		if ( !pCtx || !pIo ) return;
+		if ( !pCtx || !pIo ) { return; }
 		pthread_mutex_lock(&pCtx->tIoLock);
 		ppCur = &pCtx->pActiveIo;
 		while ( *ppCur ) {
@@ -449,7 +449,7 @@
 	static void __xnetPortUringFreeActiveIo(__xnet_uring_ctx* pCtx)
 	{
 		__xnet_uring_io* pList = NULL;
-		if ( !pCtx ) return;
+		if ( !pCtx ) { return; }
 		pthread_mutex_lock(&pCtx->tIoLock);
 		pList = pCtx->pActiveIo;
 		pCtx->pActiveIo = NULL;
@@ -465,8 +465,8 @@
 	// 内部函数：__xnetPortUringNativeCanUse
 	static bool __xnetPortUringNativeCanUse(const __xnet_uring_ctx* pCtx, const xnetportsubmit* pOp)
 	{
-		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) return false;
-		if ( pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID || pOp->hSocket == 0 ) return false;
+		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) { return false; }
+		if ( pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID || pOp->hSocket == 0 ) { return false; }
 		switch ( pOp->iOpType ) {
 			case XNET_PORT_OP_ACCEPT:
 				/*
@@ -502,11 +502,11 @@
 		uint32 iHead;
 		uint32 iTail;
 		uint32 iEntries;
-		if ( !pRing || !pRing->bReady || !pTail || !pSlot ) return NULL;
+		if ( !pRing || !pRing->bReady || !pTail || !pSlot ) { return NULL; }
 		iHead = __xnetPortUringAtomicLoadAcquireU32(pRing->pSqHead);
 		iTail = __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqTail);
 		iEntries = __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqEntries);
-		if ( (iTail - iHead) >= iEntries ) return NULL;
+		if ( (iTail - iHead) >= iEntries ) { return NULL; }
 		*pTail = iTail;
 		*pSlot = iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask);
 		memset(&pRing->pSqes[*pSlot], 0, sizeof(__xnet_io_uring_sqe));
@@ -517,7 +517,7 @@
 	// 内部函数：__xnetPortUringNativeCommitSqe
 	static void __xnetPortUringNativeCommitSqe(__xnet_uring_native_ring* pRing, uint32 iTail, uint32 iSlot)
 	{
-		if ( !pRing || !pRing->bReady ) return;
+		if ( !pRing || !pRing->bReady ) { return; }
 		pRing->pSqArray[iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask)] = iSlot;
 		__xnetPortUringAtomicStoreReleaseU32(pRing->pSqTail, iTail + 1u);
 	}
@@ -526,7 +526,7 @@
 	// 内部函数：回滚已提交但未 enter 的 sqe
 	static void __xnetPortUringNativeRollbackSqe(__xnet_uring_native_ring* pRing, uint32 iTail, uint32 iSlot)
 	{
-		if ( !pRing || !pRing->bReady ) return;
+		if ( !pRing || !pRing->bReady ) { return; }
 		pRing->pSqArray[iTail & __xnetPortUringAtomicLoadRelaxedU32(pRing->pSqMask)] = 0u;
 		memset(&pRing->pSqes[iSlot], 0, sizeof(__xnet_io_uring_sqe));
 		__xnetPortUringAtomicStoreReleaseU32(pRing->pSqTail, iTail);
@@ -537,7 +537,7 @@
 	static xnet_result __xnetPortUringNativeEnter(__xnet_uring_native_ring* pRing, uint32 iToSubmit, uint32 iMinComplete, uint32 iFlags)
 	{
 		int iRet;
-		if ( !pRing || !pRing->bReady ) return XRT_NET_ERROR;
+		if ( !pRing || !pRing->bReady ) { return XRT_NET_ERROR; }
 		do {
 			iRet = __xnetPortUringSysEnter(pRing->hRingFd, iToSubmit, iMinComplete, iFlags);
 		} while ( iRet < 0 && errno == EINTR );
@@ -549,9 +549,9 @@
 	static __xnet_uring_io* __xnetPortUringAllocIO(const xnetportsubmit* pOp)
 	{
 		__xnet_uring_io* pIo;
-		if ( !pOp ) return NULL;
+		if ( !pOp ) { return NULL; }
 		pIo = (__xnet_uring_io*)XNET_ALLOC(sizeof(__xnet_uring_io));
-		if ( !pIo ) return NULL;
+		if ( !pIo ) { return NULL; }
 		memset(pIo, 0, sizeof(__xnet_uring_io));
 		pIo->iOpType = pOp->iOpType;
 		pIo->iFlags = pOp->iFlags;
@@ -567,9 +567,9 @@
 	// 内部函数：__xnetPortUringBuildBufsFromSubmit
 	static bool __xnetPortUringBuildBufsFromSubmit(__xnet_uring_io* pIo, const xnetportsubmit* pOp)
 	{
-		if ( !pIo || !pOp ) return false;
+		if ( !pIo || !pOp ) { return false; }
 		if ( pOp->pVec && pOp->iVecCount > 0 ) {
-			if ( pOp->iVecCount > __XNET_URING_MAX_IOVEC ) return false;
+			if ( pOp->iVecCount > __XNET_URING_MAX_IOVEC ) { return false; }
 			for ( uint32 i = 0; i < pOp->iVecCount; ++i ) {
 				pIo->arrIov[i].iov_base = (void*)pOp->pVec[i].pData;
 				pIo->arrIov[i].iov_len = (size_t)pOp->pVec[i].iLen;
@@ -580,7 +580,7 @@
 		if ( pOp->pChain ) {
 			xnetspan arrSpan[__XNET_URING_MAX_IOVEC];
 			uint32 iSpanCount = xrtNetChainGetSpans(pOp->pChain, arrSpan, __XNET_URING_MAX_IOVEC);
-			if ( iSpanCount == 0 ) return false;
+			if ( iSpanCount == 0 ) { return false; }
 			for ( uint32 i = 0; i < iSpanCount; ++i ) {
 				pIo->arrIov[i].iov_base = (void*)arrSpan[i].pData;
 				pIo->arrIov[i].iov_len = (size_t)arrSpan[i].iLen;
@@ -599,9 +599,9 @@
 		__xnet_io_uring_sqe* pSqe = NULL;
 		uint32 iTail = 0;
 		uint32 iSlot = 0;
-		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) { return XRT_NET_ERROR; }
 		pIo = __xnetPortUringAllocIO(pOp);
-		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		switch ( pOp->iOpType ) {
 			case XNET_PORT_OP_ACCEPT:
@@ -722,7 +722,7 @@
 	static bool __xnetPortUringBuildIoEvent(__xnet_uring_io* pIo, int iRes, xnetportevent* pEvent)
 	{
 		int iErr = (iRes < 0) ? -iRes : 0;
-		if ( !pIo || !pEvent ) return false;
+		if ( !pIo || !pEvent ) { return false; }
 		memset(pEvent, 0, sizeof(xnetportevent));
 		pEvent->iType = __xnetPortUringEventType(pIo->iOpType);
 		pEvent->iStatus = (iRes >= 0) ? XRT_NET_OK : XRT_NET_ERROR;
@@ -780,7 +780,7 @@
 		uint32 iCount = 0;
 		uint32 iHead;
 		uint32 iTail;
-		if ( !pCtx || !pEvents || iMaxEvents == 0 || !pCtx->tNativeRing.bReady ) return 0;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 || !pCtx->tNativeRing.bReady ) { return 0; }
 		iHead = __xnetPortUringAtomicLoadAcquireU32(pCtx->tNativeRing.pCqHead);
 		iTail = __xnetPortUringAtomicLoadAcquireU32(pCtx->tNativeRing.pCqTail);
 		while ( iHead != iTail && iCount < iMaxEvents ) {
@@ -824,7 +824,7 @@
 	static uint32 __xnetPortUringSubmitBytes(const xnetportsubmit* pOp)
 	{
 		uint64 iBytes = 0;
-		if ( !pOp ) return 0;
+		if ( !pOp ) { return 0; }
 		if ( pOp->pVec && pOp->iVecCount > 0 ) {
 			for ( uint32 i = 0; i < pOp->iVecCount; ++i ) {
 				iBytes += pOp->pVec[i].iLen;
@@ -832,7 +832,7 @@
 		} else if ( pOp->pChain ) {
 			iBytes = xrtNetChainBytes(pOp->pChain);
 		}
-		if ( iBytes > 0xffffffffu ) iBytes = 0xffffffffu;
+		if ( iBytes > 0xffffffffu ) { iBytes = 0xffffffffu; }
 		return (uint32)iBytes;
 	}
 
@@ -880,7 +880,7 @@
 	// 内部函数：释放端口 io_uring posts
 	static void __xnetPortUringFreePosts(__xnet_uring_ctx* pCtx)
 	{
-		if ( !pCtx ) return;
+		if ( !pCtx ) { return; }
 		while ( pCtx->pPostedHead ) {
 			__xnet_uring_post* pNext = pCtx->pPostedHead->pNext;
 			XNET_FREE(pCtx->pPostedHead);
@@ -894,9 +894,9 @@
 	static bool __xnetPortUringQueueEvent(__xnet_uring_ctx* pCtx, const xnetportevent* pEvent)
 	{
 		__xnet_uring_post* pPost;
-		if ( !pCtx || !pEvent ) return false;
+		if ( !pCtx || !pEvent ) { return false; }
 		pPost = (__xnet_uring_post*)XNET_ALLOC(sizeof(__xnet_uring_post));
-		if ( !pPost ) return false;
+		if ( !pPost ) { return false; }
 		memset(pPost, 0, sizeof(__xnet_uring_post));
 		pPost->tEvent = *pEvent;
 		pthread_mutex_lock(&pCtx->tPostedLock);
@@ -917,7 +917,7 @@
 		uint32 iCount = 0;
 		__xnet_uring_post* pHead;
 		__xnet_uring_post* pTail;
-		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 		pthread_mutex_lock(&pCtx->tPostedLock);
 		pHead = pCtx->pPostedHead;
 		pTail = pCtx->pPostedTail;
@@ -980,9 +980,9 @@
 	{
 		__xnet_uring_ctx* pCtx;
 		(void)pOwner;
-		if ( !pPort || !pCfg ) return XRT_NET_ERROR;
+		if ( !pPort || !pCfg ) { return XRT_NET_ERROR; }
 		pCtx = (__xnet_uring_ctx*)XNET_ALLOC(sizeof(__xnet_uring_ctx));
-		if ( !pCtx ) return XRT_NET_ERROR;
+		if ( !pCtx ) { return XRT_NET_ERROR; }
 		memset(pCtx, 0, sizeof(__xnet_uring_ctx));
 		pCtx->hRing = -1;
 		pCtx->hWakeFd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
@@ -1026,7 +1026,7 @@
 	static void __xnetPortUringUnit(xnetport* pPort)
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
-		if ( !pCtx ) return;
+		if ( !pCtx ) { return; }
 		__xnetPortUringFreeTimers(pCtx);
 		__xnetPortUringFreePosts(pCtx);
 		__xnetPortUringFreeActiveIo(pCtx);
@@ -1038,7 +1038,7 @@
 			close(pCtx->hWakeFd);
 		}
 		XNET_FREE(pCtx);
-		if ( pPort ) pPort->pCtx = NULL;
+		if ( pPort ) { pPort->pCtx = NULL; }
 	}
 
 
@@ -1048,7 +1048,7 @@
 		uint32 i;
 		bool bNeedWake = false;
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
-		if ( !pCtx || !pOps || iCount == 0 ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOps || iCount == 0 ) { return XRT_NET_ERROR; }
 		for ( i = 0; i < iCount; ++i ) {
 			xnetportevent tEvent;
 			if ( !__xnetPortUringValidOp(pOps[i].iOpType) ) {
@@ -1090,16 +1090,16 @@
 	{
 		uint32 iCount = 0;
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
-		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 
 		iCount += __xnetPortUringHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
-		if ( iCount >= iMaxEvents ) return iCount;
+		if ( iCount >= iMaxEvents ) { return iCount; }
 
 		iCount += __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
-		if ( iCount >= iMaxEvents ) return iCount;
+		if ( iCount >= iMaxEvents ) { return iCount; }
 
 		iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
-		if ( iCount >= iMaxEvents ) return iCount;
+		if ( iCount >= iMaxEvents ) { return iCount; }
 
 		{
 			struct pollfd arrPoll[2];
@@ -1152,9 +1152,9 @@
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		uint64 iWakeCount = 1;
-		if ( !pCtx || pCtx->hWakeFd < 0 ) return XRT_NET_ERROR;
+		if ( !pCtx || pCtx->hWakeFd < 0 ) { return XRT_NET_ERROR; }
 		if ( write(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) != (ssize_t)sizeof(iWakeCount) ) {
-			if ( errno == EAGAIN ) return XRT_NET_OK;
+			if ( errno == EAGAIN ) { return XRT_NET_OK; }
 			return XRT_NET_ERROR;
 		}
 		return XRT_NET_OK;
@@ -1166,9 +1166,9 @@
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		__xnet_uring_timer* pNode;
-		if ( !pCtx ) return XRT_NET_ERROR;
+		if ( !pCtx ) { return XRT_NET_ERROR; }
 		pNode = (__xnet_uring_timer*)XNET_ALLOC(sizeof(__xnet_uring_timer));
-		if ( !pNode ) return XRT_NET_ERROR;
+		if ( !pNode ) { return XRT_NET_ERROR; }
 		memset(pNode, 0, sizeof(__xnet_uring_timer));
 		pNode->iTimerId = iTimerId;
 		pNode->iDueMs = __xnetPortUringNowMs() + (uint64)iDelayMs;
@@ -1183,7 +1183,7 @@
 	{
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		__xnet_uring_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
-		if ( !ppCur ) return XRT_NET_ERROR;
+		if ( !ppCur ) { return XRT_NET_ERROR; }
 		while ( *ppCur ) {
 			__xnet_uring_timer* pNode = *ppCur;
 			if ( pNode->iTimerId == iTimerId ) {

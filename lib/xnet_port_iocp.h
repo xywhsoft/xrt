@@ -95,7 +95,7 @@
 	static uint32 __xnetPortIOCPSubmitBytes(const xnetportsubmit* pOp)
 	{
 		uint64 iBytes = 0;
-		if ( !pOp ) return 0;
+		if ( !pOp ) { return 0; }
 		if ( pOp->pVec && pOp->iVecCount > 0 ) {
 			for ( uint32 i = 0; i < pOp->iVecCount; ++i ) {
 				iBytes += pOp->pVec[i].iLen;
@@ -103,7 +103,7 @@
 		} else if ( pOp->pChain ) {
 			iBytes = xrtNetChainBytes(pOp->pChain);
 		}
-		if ( iBytes > 0xffffffffu ) iBytes = 0xffffffffu;
+		if ( iBytes > 0xffffffffu ) { iBytes = 0xffffffffu; }
 		return (uint32)iBytes;
 	}
 
@@ -146,7 +146,7 @@
 	static __xnet_iocp_post* __xnetPortIOCPAllocPost(uint16 iType, uint16 iFlags, xnet_result iStatus, uint32 iBytes, uint64 iOpId)
 	{
 		__xnet_iocp_post* pPost = (__xnet_iocp_post*)XNET_ALLOC(sizeof(__xnet_iocp_post));
-		if ( !pPost ) return NULL;
+		if ( !pPost ) { return NULL; }
 		memset(pPost, 0, sizeof(__xnet_iocp_post));
 		pPost->iKind = __XNET_IOCP_KIND_POST;
 		pPost->tEvent.iType = iType;
@@ -185,7 +185,7 @@
 	// 内部函数：释放端口 IOCP 事件 chain
 	static void __xnetPortIOCPFreeEventChain(xnetchain* pChain)
 	{
-		if ( !pChain ) return;
+		if ( !pChain ) { return; }
 		xrtNetChainClear(pChain);
 		XNET_FREE(pChain);
 	}
@@ -197,7 +197,7 @@
 		HANDLE hAssoc;
 		__xnet_iocp_bound_socket* pNode = NULL;
 		bool bBound = false;
-		if ( !pCtx || !pCtx->hIOCP || hSocket == XNET_SOCKET_INVALID ) return false;
+		if ( !pCtx || !pCtx->hIOCP || hSocket == XNET_SOCKET_INVALID ) { return false; }
 		EnterCriticalSection(&pCtx->tExtLock);
 		for ( pNode = pCtx->pBoundSockets; pNode; pNode = pNode->pNext ) {
 			if ( pNode->hSocket == hSocket ) {
@@ -231,7 +231,7 @@
 	static void __xnetPortIOCPUnbindSocket(__xnet_iocp_ctx* pCtx, SOCKET hSocket)
 	{
 		__xnet_iocp_bound_socket** ppCur;
-		if ( !pCtx || hSocket == XNET_SOCKET_INVALID ) return;
+		if ( !pCtx || hSocket == XNET_SOCKET_INVALID ) { return; }
 		EnterCriticalSection(&pCtx->tExtLock);
 		ppCur = &pCtx->pBoundSockets;
 		while ( *ppCur ) {
@@ -267,8 +267,8 @@
 		DWORD iBytes = 0;
 		GUID tGuid = WSAID_ACCEPTEX;
 
-		if ( !pCtx || hListenSocket == XNET_SOCKET_INVALID ) return NULL;
-		if ( pCtx->pfnAcceptEx ) return pCtx->pfnAcceptEx;
+		if ( !pCtx || hListenSocket == XNET_SOCKET_INVALID ) { return NULL; }
+		if ( pCtx->pfnAcceptEx ) { return pCtx->pfnAcceptEx; }
 
 		EnterCriticalSection(&pCtx->tExtLock);
 		if ( pCtx->pfnAcceptEx == NULL ) {
@@ -297,8 +297,8 @@
 		DWORD iBytes = 0;
 		GUID tGuid = WSAID_CONNECTEX;
 
-		if ( !pCtx || hSocket == INVALID_SOCKET ) return NULL;
-		if ( pCtx->pfnConnectEx ) return pCtx->pfnConnectEx;
+		if ( !pCtx || hSocket == INVALID_SOCKET ) { return NULL; }
+		if ( pCtx->pfnConnectEx ) { return pCtx->pfnConnectEx; }
 
 		EnterCriticalSection(&pCtx->tExtLock);
 		if ( pCtx->pfnConnectEx == NULL ) {
@@ -323,7 +323,7 @@
 	// 内部函数：连接端口 IOCP bind 套接字 local
 	static bool __xnetPortIOCPBindConnectSocketLocal(SOCKET hSocket, int iFamily)
 	{
-		if ( hSocket == INVALID_SOCKET ) return false;
+		if ( hSocket == INVALID_SOCKET ) { return false; }
 		if ( iFamily == AF_INET6 ) {
 			struct sockaddr_in6 tAddr6;
 			memset(&tAddr6, 0, sizeof(tAddr6));
@@ -344,7 +344,7 @@
 	// 内部函数：__xnetPortIOCPBuildBufsFromSubmit
 	static bool __xnetPortIOCPBuildBufsFromSubmit(__xnet_iocp_io* pIo, const xnetportsubmit* pOp)
 	{
-		if ( !pIo || !pOp ) return false;
+		if ( !pIo || !pOp ) { return false; }
 
 		if ( pOp->pVec && pOp->iVecCount > 0 ) {
 			if ( pOp->iVecCount > __XNET_IOCP_MAX_IOVEC ) {
@@ -409,13 +409,13 @@
 		__xnet_iocp_post* pPost = NULL;
 		uint16 iEventType;
 
-		if ( !pCtx || !pCtx->hIOCP || !pOp ) return XRT_NET_ERROR;
+		if ( !pCtx || !pCtx->hIOCP || !pOp ) { return XRT_NET_ERROR; }
 		iEventType = __xnetPortIOCPEventType(pOp->iOpType);
-		if ( iEventType == XNET_PORT_EVENT_NONE ) return XRT_NET_ERROR;
+		if ( iEventType == XNET_PORT_EVENT_NONE ) { return XRT_NET_ERROR; }
 
 		pPost = __xnetPortIOCPAllocPost(iEventType, XNET_PORT_EVENT_F_NONE, XRT_NET_OK,
 			__xnetPortIOCPSubmitBytes(pOp), pOp->iOpId);
-		if ( !pPost ) return XRT_NET_ERROR;
+		if ( !pPost ) { return XRT_NET_ERROR; }
 
 		pPost->tEvent.iFlags |= pOp->iFlags;
 		pPost->tEvent.hSocket = pOp->hSocket;
@@ -440,14 +440,14 @@
 		int iFamily;
 		BOOL bOk;
 
-		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
 		pfnAcceptEx = __xnetPortIOCPGetAcceptEx(pCtx, (SOCKET)pOp->hSocket);
-		if ( !pfnAcceptEx ) return XRT_NET_ERROR;
+		if ( !pfnAcceptEx ) { return XRT_NET_ERROR; }
 
 		pIo = __xnetPortIOCPAllocIO(pOp);
-		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		iFamily = __xnetPortIOCPGetSocketFamily((SOCKET)pOp->hSocket);
 		pIo->hAuxSocket = pOp->hSocket;
@@ -486,11 +486,11 @@
 		DWORD iFlags = 0;
 		int iRet;
 
-		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
 		pIo = __xnetPortIOCPAllocIO(pOp);
-		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		pIo->arrBuf[0].buf = pIo->aRecvBuf;
 		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
@@ -524,9 +524,9 @@
 		BOOL bOk;
 		int iFamily;
 
-		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
-		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) { return XRT_NET_ERROR; }
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
 		iFamily = pOp->tAddr.iFamily ? pOp->tAddr.iFamily : __xnetPortIOCPGetSocketFamily((SOCKET)pOp->hSocket);
 		if ( !__xnetPortIOCPBindConnectSocketLocal((SOCKET)pOp->hSocket, iFamily) ) {
@@ -534,10 +534,10 @@
 		}
 
 		pfnConnectEx = __xnetPortIOCPGetConnectEx(pCtx, (SOCKET)pOp->hSocket);
-		if ( !pfnConnectEx ) return XRT_NET_ERROR;
+		if ( !pfnConnectEx ) { return XRT_NET_ERROR; }
 
 		pIo = __xnetPortIOCPAllocIO(pOp);
-		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		bOk = pfnConnectEx((SOCKET)pOp->hSocket,
 			(const struct sockaddr*)&tStorage,
@@ -566,11 +566,11 @@
 		DWORD iFlags = 0;
 		int iRet;
 
-		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
 		pIo = __xnetPortIOCPAllocIO(pOp);
-		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !pIo ) { return XRT_NET_ERROR; }
 
 		pIo->arrBuf[0].buf = pIo->aRecvBuf;
 		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
@@ -609,7 +609,7 @@
 		DWORD iBytes = 0;
 		int iRet;
 
-		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) {
 			#if defined(XNET_DEBUG_IOCP_NATIVE)
 				fprintf(stderr, "[IOCP] bind send socket fail socket=%p err=%lu\n",
@@ -619,7 +619,7 @@
 		}
 
 		pIo = __xnetPortIOCPAllocIO(pOp);
-		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !pIo ) { return XRT_NET_ERROR; }
 		if ( !__xnetPortIOCPBuildBufsFromSubmit(pIo, pOp) ) {
 			#if defined(XNET_DEBUG_IOCP_NATIVE)
 				fprintf(stderr, "[IOCP] build send bufs fail socket=%p vec=%u chain=%p\n",
@@ -655,12 +655,12 @@
 		struct sockaddr_storage tStorage;
 		socklen_t iAddrLen = 0;
 
-		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) return XRT_NET_ERROR;
-		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) return XRT_NET_ERROR;
-		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) return XRT_NET_ERROR;
+		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
+		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) { return XRT_NET_ERROR; }
 
 		pIo = __xnetPortIOCPAllocIO(pOp);
-		if ( !pIo ) return XRT_NET_ERROR;
+		if ( !pIo ) { return XRT_NET_ERROR; }
 		if ( !__xnetPortIOCPBuildBufsFromSubmit(pIo, pOp) ) {
 			XNET_FREE(pIo);
 			return XRT_NET_ERROR;
@@ -698,7 +698,7 @@
 	static void __xnetPortIOCPFreeTimers(__xnet_iocp_ctx* pCtx)
 	{
 		__xnet_iocp_timer* pList = NULL;
-		if ( !pCtx ) return;
+		if ( !pCtx ) { return; }
 		EnterCriticalSection(&pCtx->tExtLock);
 		pList = pCtx->pTimers;
 		pCtx->pTimers = NULL;
@@ -728,7 +728,7 @@
 		uint32 iCount = 0;
 		uint64 iNowMs = __xnetPortIOCPNowMs();
 		__xnet_iocp_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
-		if ( !ppCur ) return 0;
+		if ( !ppCur ) { return 0; }
 		EnterCriticalSection(&pCtx->tExtLock);
 		while ( ppCur && *ppCur && iCount < iMaxEvents ) {
 			__xnet_iocp_timer* pNode = *ppCur;
@@ -752,7 +752,7 @@
 	// 内部函数：构建端口 IOCP io 事件
 	static bool __xnetPortIOCPBuildIoEvent(__xnet_iocp_io* pIo, BOOL bOk, DWORD iBytes, xnetportevent* pEvent)
 	{
-		if ( !pIo || !pEvent ) return false;
+		if ( !pIo || !pEvent ) { return false; }
 
 		memset(pEvent, 0, sizeof(xnetportevent));
 		pEvent->iType = __xnetPortIOCPEventType(pIo->iOpType);
@@ -821,7 +821,7 @@
 	{
 		uint32 iCount = 0;
 
-		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 
 		for ( ;; ) {
 			DWORD iBytes = 0;
@@ -832,8 +832,8 @@
 			__xnet_iocp_header* pHdr;
 
 			(void)iKey;
-			if ( !bOk && pOv == NULL ) break;
-			if ( pOv == NULL ) break;
+			if ( !bOk && pOv == NULL ) { break; }
+			if ( pOv == NULL ) { break; }
 
 			pHdr = (__xnet_iocp_header*)pOv;
 			if ( pHdr->iKind == __XNET_IOCP_KIND_POST ) {
@@ -852,7 +852,7 @@
 				XNET_FREE(pIo);
 			}
 
-			if ( iCount >= iMaxEvents ) break;
+			if ( iCount >= iMaxEvents ) { break; }
 		}
 
 		return iCount;
@@ -880,10 +880,10 @@
 	static xnet_result __xnetPortIOCPInit(xnetport* pPort, const xnetportconfig* pCfg, ptr pOwner)
 	{
 		(void)pOwner;
-		if ( !pPort || !pCfg ) return XRT_NET_ERROR;
+		if ( !pPort || !pCfg ) { return XRT_NET_ERROR; }
 
 		__xnet_iocp_ctx* pCtx = (__xnet_iocp_ctx*)XNET_ALLOC(sizeof(__xnet_iocp_ctx));
-		if ( !pCtx ) return XRT_NET_ERROR;
+		if ( !pCtx ) { return XRT_NET_ERROR; }
 
 		memset(pCtx, 0, sizeof(__xnet_iocp_ctx));
 		InitializeCriticalSection(&pCtx->tExtLock);
@@ -903,7 +903,7 @@
 	static void __xnetPortIOCPUnit(xnetport* pPort)
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
-		if ( !pCtx ) return;
+		if ( !pCtx ) { return; }
 
 		__xnetPortIOCPDrainPosted(pCtx);
 		__xnetPortIOCPFreeTimers(pCtx);
@@ -913,7 +913,7 @@
 		}
 		DeleteCriticalSection(&pCtx->tExtLock);
 		XNET_FREE(pCtx);
-		if ( pPort ) pPort->pCtx = NULL;
+		if ( pPort ) { pPort->pCtx = NULL; }
 	}
 
 
@@ -922,7 +922,7 @@
 	{
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 
-		if ( !pCtx || !pCtx->hIOCP || !pOps || iCount == 0 ) return XRT_NET_ERROR;
+		if ( !pCtx || !pCtx->hIOCP || !pOps || iCount == 0 ) { return XRT_NET_ERROR; }
 
 		for ( uint32 i = 0; i < iCount; ++i ) {
 			const xnetportsubmit* pOp = &pOps[i];
@@ -936,58 +936,58 @@
 					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
 						(pOp->iFlags & XNET_PORT_EVENT_F_ACCEPTED_OPEN) == 0 &&
 						pOp->iOpId != 0 ) {
-						if ( __xnetPortIOCPSubmitAccept(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						if ( __xnetPortIOCPSubmitAccept(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 						break;
 					}
-					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
 				case XNET_PORT_OP_RECV:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->iOpId != 0 &&
 						pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0) ) {
-						if ( __xnetPortIOCPSubmitRecv(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						if ( __xnetPortIOCPSubmitRecv(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 						break;
 					}
-					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
 				case XNET_PORT_OP_RECVFROM:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->iOpId != 0 &&
 						pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0) ) {
-						if ( __xnetPortIOCPSubmitRecvFrom(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						if ( __xnetPortIOCPSubmitRecvFrom(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 						break;
 					}
-					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
 				case XNET_PORT_OP_SEND:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
 						((pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL) ) {
-						if ( __xnetPortIOCPSubmitSend(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						if ( __xnetPortIOCPSubmitSend(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 						break;
 					}
-					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
 				case XNET_PORT_OP_SENDTO:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
 						((pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL) ) {
-						if ( __xnetPortIOCPSubmitSendTo(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						if ( __xnetPortIOCPSubmitSendTo(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 						break;
 					}
-					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
 				case XNET_PORT_OP_CONNECT:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->tAddr.iFamily != 0 ) {
-						if ( __xnetPortIOCPSubmitConnect(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+						if ( __xnetPortIOCPSubmitConnect(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 						break;
 					}
-					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
 				case XNET_PORT_OP_WAKE:
-					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) return XRT_NET_ERROR;
+					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
 				case XNET_PORT_OP_CLOSE:
@@ -1012,10 +1012,10 @@
 		uint32 iCount = 0;
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 
-		if ( !pCtx || !pEvents || iMaxEvents == 0 ) return 0;
+		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 
 		iCount += __xnetPortIOCPHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
-		if ( iCount >= iMaxEvents ) return iCount;
+		if ( iCount >= iMaxEvents ) { return iCount; }
 
 		iCount += __xnetPortIOCPHarvestPosted(pCtx, pEvents + iCount, iMaxEvents - iCount, iCount > 0 ? 0u : iTimeoutMs);
 		return iCount;
@@ -1028,9 +1028,9 @@
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		__xnet_iocp_post* pPost;
 
-		if ( !pCtx || !pCtx->hIOCP ) return XRT_NET_ERROR;
+		if ( !pCtx || !pCtx->hIOCP ) { return XRT_NET_ERROR; }
 		pPost = __xnetPortIOCPAllocPost(XNET_PORT_EVENT_WAKE, XNET_PORT_EVENT_F_NONE, XRT_NET_OK, 0, 0);
-		if ( !pPost ) return XRT_NET_ERROR;
+		if ( !pPost ) { return XRT_NET_ERROR; }
 		if ( !PostQueuedCompletionStatus(pCtx->hIOCP, 0, 0, &pPost->tOverlapped) ) {
 			XNET_FREE(pPost);
 			return XRT_NET_ERROR;
@@ -1045,9 +1045,9 @@
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		__xnet_iocp_timer* pNode;
 
-		if ( !pCtx ) return XRT_NET_ERROR;
+		if ( !pCtx ) { return XRT_NET_ERROR; }
 		pNode = (__xnet_iocp_timer*)XNET_ALLOC(sizeof(__xnet_iocp_timer));
-		if ( !pNode ) return XRT_NET_ERROR;
+		if ( !pNode ) { return XRT_NET_ERROR; }
 		memset(pNode, 0, sizeof(__xnet_iocp_timer));
 		pNode->iTimerId = iTimerId;
 		pNode->iDueMs = __xnetPortIOCPNowMs() + (uint64)iDelayMs;
@@ -1065,7 +1065,7 @@
 		__xnet_iocp_ctx* pCtx = pPort ? (__xnet_iocp_ctx*)pPort->pCtx : NULL;
 		__xnet_iocp_timer** ppCur = pCtx ? &pCtx->pTimers : NULL;
 
-		if ( !ppCur ) return XRT_NET_ERROR;
+		if ( !ppCur ) { return XRT_NET_ERROR; }
 		EnterCriticalSection(&pCtx->tExtLock);
 		while ( *ppCur ) {
 			__xnet_iocp_timer* pNode = *ppCur;

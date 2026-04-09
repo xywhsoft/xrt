@@ -1760,7 +1760,7 @@ XXAPI void xrtCoYield()
 // 获取协程状态
 XXAPI int xrtCoGetState(xcoro pCo)
 {
-	if ( !pCo ) return XRT_CO_DEAD;
+	if ( !pCo ) { return XRT_CO_DEAD; }
 	return pCo->iState;
 }
 
@@ -2620,7 +2620,7 @@ XXAPI void xrtCoSetUserData(xcoro pCo, ptr pData)
 // 获取协程 user 数据
 XXAPI ptr xrtCoGetUserData(xcoro pCo)
 {
-	if ( !pCo ) return NULL;
+	if ( !pCo ) { return NULL; }
 	if ( !__xrt_co_check_owner(pCo, "coroutine belongs to another thread.") ) {
 		return NULL;
 	}
@@ -2715,7 +2715,7 @@ XXAPI xcosched* xrtCoSchedCreate()
 	}
 
 	pSched = (xcosched*)xrtMalloc(sizeof(xcosched));
-	if ( !pSched ) return NULL;
+	if ( !pSched ) { return NULL; }
 
 	memset(pSched, 0, sizeof(xcosched));
 
@@ -2857,13 +2857,13 @@ XXAPI xcoro xrtCoSchedSpawn(xcosched* pSched, xco_entry pfnEntry, ptr pParam, si
 	if ( pSched->iCount >= pSched->iCapacity ) {
 		int iNewCap = pSched->iCapacity * 2;
 		xcoro* pNewArr = (xcoro*)xrtRealloc(pSched->arrCoros, sizeof(xcoro) * iNewCap);
-		if ( !pNewArr ) return NULL;
+		if ( !pNewArr ) { return NULL; }
 		pSched->arrCoros = pNewArr;
 		pSched->iCapacity = iNewCap;
 	}
 
 	pCo = xrtCoCreate(pfnEntry, pParam, iStackSize);
-	if ( !pCo ) return NULL;
+	if ( !pCo ) { return NULL; }
 
 	pCo->__pSched = pSched;
 	pSched->arrCoros[pSched->iCount] = pCo;
@@ -2938,7 +2938,7 @@ XXAPI bool xrtCoSchedPollOnce(xcosched* pSched, uint32 iTimeout)
 		return FALSE;
 	}
 
-	if ( pSched->iAlive <= 0 ) return FALSE;
+	if ( pSched->iAlive <= 0 ) { return FALSE; }
 
 	iNow = __xrt_co_time_ms();
 	__xrt_co_sched_drain_posts(pSched);
@@ -3019,7 +3019,7 @@ XXAPI void xrtCoSchedRun(xcosched* pSched)
 // xrtCoSchedGetAlive 相关处理
 XXAPI int xrtCoSchedGetAlive(xcosched* pSched)
 {
-	if ( !pSched ) return 0;
+	if ( !pSched ) { return 0; }
 	return pSched->iAlive;
 }
 

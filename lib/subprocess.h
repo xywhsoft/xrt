@@ -2328,14 +2328,14 @@ fail:
 		__gxprocConPtyApi.DeleteProcThreadAttributeList(pAttrList);
 		xrtFree(pAttrList);
 	}
-	if ( hTerminalInputRead ) CloseHandle(hTerminalInputRead);
-	if ( hTerminalOutputWrite ) CloseHandle(hTerminalOutputWrite);
-	if ( tPi.hThread ) CloseHandle(tPi.hThread);
-	if ( tPi.hProcess ) CloseHandle(tPi.hProcess);
-	if ( sCmdUtf8 ) xrtFree(sCmdUtf8);
-	if ( sCmdW ) xrtFree(sCmdW);
-	if ( sWorkDirW ) xrtFree(sWorkDirW);
-	if ( sEnvBlockW ) xrtFree(sEnvBlockW);
+	if ( hTerminalInputRead ) { CloseHandle(hTerminalInputRead); }
+	if ( hTerminalOutputWrite ) { CloseHandle(hTerminalOutputWrite); }
+	if ( tPi.hThread ) { CloseHandle(tPi.hThread); }
+	if ( tPi.hProcess ) { CloseHandle(tPi.hProcess); }
+	if ( sCmdUtf8 ) { xrtFree(sCmdUtf8); }
+	if ( sCmdW ) { xrtFree(sCmdW); }
+	if ( sWorkDirW ) { xrtFree(sWorkDirW); }
+	if ( sEnvBlockW ) { xrtFree(sEnvBlockW); }
 	__xprocClosePlatformHandles(pProcess);
 	return false;
 }
@@ -2548,18 +2548,18 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	return true;
 
 fail:
-	if ( hChildStdinRead ) CloseHandle(hChildStdinRead);
-	if ( hChildStdoutWrite ) CloseHandle(hChildStdoutWrite);
-	if ( hChildStderrWrite && hChildStderrWrite != hChildStdoutWrite ) CloseHandle(hChildStderrWrite);
-	if ( hNullStdin ) CloseHandle(hNullStdin);
-	if ( hNullStdout ) CloseHandle(hNullStdout);
-	if ( hNullStderr ) CloseHandle(hNullStderr);
-	if ( tPi.hThread ) CloseHandle(tPi.hThread);
-	if ( tPi.hProcess ) CloseHandle(tPi.hProcess);
-	if ( sCmdUtf8 ) xrtFree(sCmdUtf8);
-	if ( sCmdW ) xrtFree(sCmdW);
-	if ( sWorkDirW ) xrtFree(sWorkDirW);
-	if ( sEnvBlockW ) xrtFree(sEnvBlockW);
+	if ( hChildStdinRead ) { CloseHandle(hChildStdinRead); }
+	if ( hChildStdoutWrite ) { CloseHandle(hChildStdoutWrite); }
+	if ( hChildStderrWrite && hChildStderrWrite != hChildStdoutWrite ) { CloseHandle(hChildStderrWrite); }
+	if ( hNullStdin ) { CloseHandle(hNullStdin); }
+	if ( hNullStdout ) { CloseHandle(hNullStdout); }
+	if ( hNullStderr ) { CloseHandle(hNullStderr); }
+	if ( tPi.hThread ) { CloseHandle(tPi.hThread); }
+	if ( tPi.hProcess ) { CloseHandle(tPi.hProcess); }
+	if ( sCmdUtf8 ) { xrtFree(sCmdUtf8); }
+	if ( sCmdW ) { xrtFree(sCmdW); }
+	if ( sWorkDirW ) { xrtFree(sWorkDirW); }
+	if ( sEnvBlockW ) { xrtFree(sEnvBlockW); }
 	__xprocClosePlatformHandles(pProcess);
 	return false;
 }
@@ -2749,10 +2749,10 @@ static bool __xprocSpawnPosixTerminal(xprocess* pProcess, const __xproc_plan* pP
 	return true;
 
 fail:
-	if ( fdError[0] >= 0 ) close(fdError[0]);
-	if ( fdError[1] >= 0 ) close(fdError[1]);
-	if ( fdMaster >= 0 ) close(fdMaster);
-	if ( fdParentWrite >= 0 ) close(fdParentWrite);
+	if ( fdError[0] >= 0 ) { close(fdError[0]); }
+	if ( fdError[1] >= 0 ) { close(fdError[1]); }
+	if ( fdMaster >= 0 ) { close(fdMaster); }
+	if ( fdParentWrite >= 0 ) { close(fdParentWrite); }
 	__xprocClosePlatformHandles(pProcess);
 	return false;
 }
@@ -2892,15 +2892,15 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 			}
 		}
 
-		if ( fdStdin[0] >= 0 ) close(fdStdin[0]);
-		if ( fdStdin[1] >= 0 ) close(fdStdin[1]);
-		if ( fdStdout[0] >= 0 ) close(fdStdout[0]);
-		if ( fdStdout[1] >= 0 ) close(fdStdout[1]);
-		if ( fdStderr[0] >= 0 ) close(fdStderr[0]);
-		if ( fdStderr[1] >= 0 ) close(fdStderr[1]);
-		if ( fdNullStdin >= 0 ) close(fdNullStdin);
-		if ( fdNullStdout >= 0 ) close(fdNullStdout);
-		if ( fdNullStderr >= 0 ) close(fdNullStderr);
+		if ( fdStdin[0] >= 0 ) { close(fdStdin[0]); }
+		if ( fdStdin[1] >= 0 ) { close(fdStdin[1]); }
+		if ( fdStdout[0] >= 0 ) { close(fdStdout[0]); }
+		if ( fdStdout[1] >= 0 ) { close(fdStdout[1]); }
+		if ( fdStderr[0] >= 0 ) { close(fdStderr[0]); }
+		if ( fdStderr[1] >= 0 ) { close(fdStderr[1]); }
+		if ( fdNullStdin >= 0 ) { close(fdNullStdin); }
+		if ( fdNullStdout >= 0 ) { close(fdNullStdout); }
+		if ( fdNullStderr >= 0 ) { close(fdNullStderr); }
 
 		if ( pPlan->sWorkDir && chdir((const char*)pPlan->sWorkDir) != 0 ) {
 			__xprocWriteChildError(fdError[1], XPROC_STAGE_WORKDIR, errno);
@@ -2975,17 +2975,17 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 	return true;
 
 fail:
-	if ( fdError[0] >= 0 ) close(fdError[0]);
-	if ( fdError[1] >= 0 ) close(fdError[1]);
-	if ( fdStdin[0] >= 0 ) close(fdStdin[0]);
-	if ( fdStdin[1] >= 0 ) close(fdStdin[1]);
-	if ( fdStdout[0] >= 0 ) close(fdStdout[0]);
-	if ( fdStdout[1] >= 0 ) close(fdStdout[1]);
-	if ( fdStderr[0] >= 0 ) close(fdStderr[0]);
-	if ( fdStderr[1] >= 0 ) close(fdStderr[1]);
-	if ( fdNullStdin >= 0 ) close(fdNullStdin);
-	if ( fdNullStdout >= 0 ) close(fdNullStdout);
-	if ( fdNullStderr >= 0 ) close(fdNullStderr);
+	if ( fdError[0] >= 0 ) { close(fdError[0]); }
+	if ( fdError[1] >= 0 ) { close(fdError[1]); }
+	if ( fdStdin[0] >= 0 ) { close(fdStdin[0]); }
+	if ( fdStdin[1] >= 0 ) { close(fdStdin[1]); }
+	if ( fdStdout[0] >= 0 ) { close(fdStdout[0]); }
+	if ( fdStdout[1] >= 0 ) { close(fdStdout[1]); }
+	if ( fdStderr[0] >= 0 ) { close(fdStderr[0]); }
+	if ( fdStderr[1] >= 0 ) { close(fdStderr[1]); }
+	if ( fdNullStdin >= 0 ) { close(fdNullStdin); }
+	if ( fdNullStdout >= 0 ) { close(fdNullStdout); }
+	if ( fdNullStderr >= 0 ) { close(fdNullStderr); }
 	__xprocClosePlatformHandles(pProcess);
 	return false;
 }
