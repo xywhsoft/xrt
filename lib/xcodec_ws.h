@@ -65,7 +65,7 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 	xrtCodecFrameInit(pFrame);
 	xrtCodecWsFrameInit(pInfo);
 
-	// R13: 至少需要 2 字节才能读取基本帧头
+	// 至少需要 2 字节才能读取基本帧头
 	if ( xrtNetChainBytes(pInput) < 2 ) { return XCODEC_STATUS_NEED_MORE; }
 	if ( __xcodecChainPeekAt(pInput, 0, aHead, 2) != 2 ) { return XCODEC_STATUS_ERROR; }
 

@@ -2,10 +2,10 @@
 #define XRT_XNET_DGRAM_H
 
 #if !defined(XRT_BUILD_CORE)
-typedef struct {
-	void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
-	void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
-} xnetdgramevents;
+	typedef struct {
+		void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
+		void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
+	} xnetdgramevents;
 #endif
 
 #define __XNET_DGRAM_ASYNC_SEND_COPY   1u
@@ -20,15 +20,15 @@ typedef struct {
 } __xnet_dgram_async_op;
 
 #if !defined(XRT_BUILD_CORE)
-typedef struct xrt_net_dgram_packet {
-	xnetaddr tFrom;
-	xnetchain tChain;
-} xnetdgrampkt;
+	typedef struct xrt_net_dgram_packet {
+		xnetaddr tFrom;
+		xnetchain tChain;
+	} xnetdgrampkt;
 #else
-struct xrt_net_dgram_packet {
-	xnetaddr tFrom;
-	xnetchain tChain;
-};
+	struct xrt_net_dgram_packet {
+		xnetaddr tFrom;
+		xnetchain tChain;
+	};
 #endif
 
 typedef void (*__xnet_dgram_sync_wait_fn)(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket, ptr pCtx);

@@ -325,7 +325,7 @@
 		pRing->hRingFd = -1;
 		memset(&pRing->tParams, 0, sizeof(pRing->tParams));
 
-		// [R13] 通过 io_uring_setup 系统调用创建 ring 实例
+		// 通过 io_uring_setup 系统调用创建 ring 实例
 		pRing->hRingFd = __xnetPortUringSysSetup(iEntries ? iEntries : 256u, &pRing->tParams);
 		if ( pRing->hRingFd < 0 ) {
 			return false;
@@ -339,7 +339,7 @@
 		pRing->bSingleMmap = (pRing->tParams.iFeatures & __XNET_IORING_FEAT_SINGLE_MMAP) != 0;
 
 		if ( pRing->bSingleMmap ) {
-			// [R13] SINGLE_MMAP：SQ ring 和 CQ ring 共享同一块映射区域
+			// SINGLE_MMAP：SQ ring 和 CQ ring 共享同一块映射区域
 			iSharedLen = (iSqRingLen > iCqRingLen) ? iSqRingLen : iCqRingLen;
 			pSharedMap = mmap(NULL, iSharedLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
 			if ( pSharedMap == MAP_FAILED ) {
@@ -351,7 +351,7 @@
 			pRing->iSqRingMapLen = iSharedLen;
 			pRing->iCqRingMapLen = iSharedLen;
 		} else {
-			// [R13] 分别映射 SQ ring 和 CQ ring 到不同的内存区域
+			// 分别映射 SQ ring 和 CQ ring 到不同的内存区域
 			pRing->pSqRingBase = mmap(NULL, iSqRingLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
 			if ( pRing->pSqRingBase == MAP_FAILED ) {
 				pRing->pSqRingBase = NULL;
@@ -368,7 +368,7 @@
 			pRing->iCqRingMapLen = iCqRingLen;
 		}
 
-		// [R13] 映射 SQE（提交队列条目）区域
+		// 映射 SQE（提交队列条目）区域
 		pRing->pSqesBase = mmap(NULL, iSqesLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQES);
 		if ( pRing->pSqesBase == MAP_FAILED ) {
 			pRing->pSqesBase = NULL;
@@ -377,7 +377,7 @@
 		}
 		pRing->iSqesMapLen = iSqesLen;
 
-		// [R13] 根据 params 中的偏移量，计算各环形队列字段的指针地址
+		// 根据 params 中的偏移量，计算各环形队列字段的指针地址
 		pRing->pSqHead = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iHead);
 		pRing->pSqTail = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iTail);
 		pRing->pSqMask = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iRingMask);
@@ -669,7 +669,7 @@
 				return XRT_NET_ERROR;
 		}
 
-		// [R13] 获取 ring 锁，从 SQ ring 中取出一个空闲 SQE 槽位
+		// 获取 ring 锁，从 SQ ring 中取出一个空闲 SQE 槽位
 		pthread_mutex_lock(&pCtx->tRingLock);
 		pSqe = __xnetPortUringNativeGetSqe(&pCtx->tNativeRing, &iTail, &iSlot);
 		if ( !pSqe ) {
@@ -684,42 +684,42 @@
 		// 根据操作类型设置不同的 io_uring opcode 和参数
 		switch ( pOp->iOpType ) {
 			case XNET_PORT_OP_ACCEPT:
-				// [R13] io_uring ACCEPT 操作，传入地址缓冲区和长度指针
+				// io_uring ACCEPT 操作，传入地址缓冲区和长度指针
 				pSqe->iOpcode = __XNET_IORING_OP_ACCEPT;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
 				pSqe->iOff = (uint64)(uintptr_t)&pIo->iAddrLen;
 				break;
 
 			case XNET_PORT_OP_CONNECT:
-				// [R13] io_uring CONNECT 操作
+				// io_uring CONNECT 操作
 				pSqe->iOpcode = __XNET_IORING_OP_CONNECT;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
 				pSqe->iOff = (uint64)pIo->iAddrLen;
 				break;
 
 			case XNET_PORT_OP_RECV:
-				// [R13] io_uring RECV 操作，使用内嵌接收缓冲区
+				// io_uring RECV 操作，使用内嵌接收缓冲区
 				pSqe->iOpcode = __XNET_IORING_OP_RECV;
 				pSqe->iAddr = (uint64)(uintptr_t)pIo->aRecvBuf;
 				pSqe->iLen = (uint32)sizeof(pIo->aRecvBuf);
 				break;
 
 			case XNET_PORT_OP_SEND:
-				// [R13] io_uring SENDMSG 操作，通过 msghdr 发送多缓冲区
+				// io_uring SENDMSG 操作，通过 msghdr 发送多缓冲区
 				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
 				break;
 
 			case XNET_PORT_OP_RECVFROM:
-				// [R13] io_uring RECVMSG 操作，通过 msghdr 接收并获取源地址
+				// io_uring RECVMSG 操作，通过 msghdr 接收并获取源地址
 				pSqe->iOpcode = __XNET_IORING_OP_RECVMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
 				break;
 
 			case XNET_PORT_OP_SENDTO:
-				// [R13] io_uring SENDMSG 操作，通过 msghdr 发送到指定目标地址
+				// io_uring SENDMSG 操作，通过 msghdr 发送到指定目标地址
 				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
@@ -729,7 +729,7 @@
 		// 跟踪活跃 IO 操作并提交 SQE 到 ring
 		__xnetPortUringTrackIo(pCtx, pIo);
 		__xnetPortUringNativeCommitSqe(&pCtx->tNativeRing, iTail, iSlot);
-		// [R13] 通过 io_uring_enter 系统调用通知内核处理新提交的 SQE
+		// 通过 io_uring_enter 系统调用通知内核处理新提交的 SQE
 		if ( __xnetPortUringNativeEnter(&pCtx->tNativeRing, 1u, 0u, 0u) != XRT_NET_OK ) {
 			// 提交失败时回滚 SQE 并取消跟踪
 			__xnetPortUringNativeRollbackSqe(&pCtx->tNativeRing, iTail, iSlot);
@@ -1044,7 +1044,7 @@
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
-		// [R13] 初始化原生 io_uring ring（通过 io_uring_setup 系统调用）
+		// 初始化原生 io_uring ring（通过 io_uring_setup 系统调用）
 		if ( !__xnetPortUringNativeRingInit(&pCtx->tNativeRing, pCfg->iSqEntries ? pCfg->iSqEntries : 256u) ) {
 			pthread_mutex_destroy(&pCtx->tRingLock);
 			pthread_mutex_destroy(&pCtx->tIoLock);
@@ -1142,7 +1142,7 @@
 		iCount += __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 
-		// 第三阶段：[R13] 从 io_uring CQ ring 中收割已完成的 IO 事件
+		// 第三阶段：从 io_uring CQ ring 中收割已完成的 IO 事件
 		iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 
@@ -1162,7 +1162,7 @@
 				arrPoll[iPollCount].events = POLLIN;
 				++iPollCount;
 			}
-			// [R13] 监听 io_uring ring fd 的可读事件（表示有新 CQE 可消费）
+			// 监听 io_uring ring fd 的可读事件（表示有新 CQE 可消费）
 			iRingIndex = (int)iPollCount;
 			arrPoll[iPollCount].fd = pCtx->tNativeRing.hRingFd;
 			arrPoll[iPollCount].events = POLLIN;
@@ -1186,7 +1186,7 @@
 						}
 					}
 				}
-				// [R13] ring fd 可读，再次从 CQ ring 收割已完成的 IO 事件
+				// ring fd 可读，再次从 CQ ring 收割已完成的 IO 事件
 				if ( iCount < iMaxEvents && iRingIndex >= 0 &&
 					(arrPoll[iRingIndex].revents & (POLLIN | POLLERR | POLLHUP)) ) {
 					iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);

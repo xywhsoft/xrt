@@ -523,7 +523,7 @@ static bool __xwsBuildFrameBytesEx(uint8 iOpcode, bool bFin, bool bMask, const v
 	uint8 aMask[4] = {0};
 	const uint8* pBytes = (const uint8*)pPayload;
 	if ( !ppOut || !pOutLen ) { return false; }
-	// R13: 计算帧所需总大小并分配缓冲区
+	// 计算帧所需总大小并分配缓冲区
 	iNeed = __xwsFrameSize(iPayloadLen, bMask);
 	pBuf = (char*)XNET_ALLOC(iNeed);
 	if ( !pBuf ) { return false; }
@@ -923,7 +923,7 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 		uint16 iCloseCode = XWS_CLOSE_NORMAL;
 		// 数据不足，等待更多数据
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
-		// R13: 帧解析错误，关闭连接
+		// 帧解析错误，关闭连接
 		if ( iParse == XCODEC_STATUS_ERROR ) {
 			__xwsClientEmitError(pClient, -2);
 			if ( pClient->pStream ) { xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT); }
@@ -1243,7 +1243,7 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 		uint16 iCloseCode = XWS_CLOSE_NORMAL;
 		// 数据不足，等待更多数据
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
-		// R13: 帧解析错误，关闭连接
+		// 帧解析错误，关闭连接
 		if ( iParse == XCODEC_STATUS_ERROR ) {
 			__xwsServerEmitError(pServer, pConn, -21);
 			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);

@@ -87,7 +87,7 @@ static inline void __xrtMemPoolInitBucket(FSB_Item* pBucket, uint32 iSizeMin, ui
 }
 
 
-// 内部函数：构建内存内存池桶计划（R13: 根据截止大小构建桶分类和查找表）
+// 内部函数：构建内存内存池桶计划（根据截止大小构建桶分类和查找表）
 static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 {
 	uint32 iBucketCount;
@@ -384,7 +384,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 }
 #endif
 
-// 内部函数：获取内存池可用内存单元（R13: 从桶的各链表中获取或创建 MMU）
+// 内部函数：获取内存池可用内存单元（从桶的各链表中获取或创建 MMU）
 static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 {
 	xmemunit objMMU = NULL;
@@ -461,7 +461,7 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 	return objMMU;
 }
 
-// 从内存池中申请一块内存（R13: 小块走桶分配，大块走直接分配）
+// 从内存池中申请一块内存（小块走桶分配，大块走直接分配）
 XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 {
 	void* pRet = NULL;
@@ -538,7 +538,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 	return NULL;
 }
 
-// 将内存池申请的内存释放掉（R13: 检查并清理空 MMU 节点的链表状态）
+// 将内存池申请的内存释放掉（检查并清理空 MMU 节点的链表状态）
 static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, int bLL_Full)
 {
 	// 仅当 MMU 中已无使用中的槽位时才执行清理
@@ -634,7 +634,7 @@ static inline MMU_LLNode* __xrtMemPoolGetNodeByFlag(xmempool objMP, uint32 iFlag
 }
 
 
-// 释放内存内存池（R13: 区分大块释放和桶内释放，并维护链表状态）
+// 释放内存内存池（区分大块释放和桶内释放，并维护链表状态）
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
 	if ( objMP == NULL || ptr == NULL ) {
@@ -708,7 +708,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 	xrtOwnerEndMutable(&objMP->Owner);
 }
 
-// 进行一轮 GC，将 标记 或 未标记 的内存全部回收（R13: 按桶执行 GC，先回收后整理链表）
+// 进行一轮 GC，将 标记 或 未标记 的内存全部回收（按桶执行 GC，先回收后整理链表）
 static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 {
 	MMU_LLNode* pNode;
@@ -747,7 +747,7 @@ static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 }
 
 
-// xrtMemPoolGC 相关处理（R13: 全局 GC，支持按标记回收和未标记回收两种模式）
+// xrtMemPoolGC 相关处理（全局 GC，支持按标记回收和未标记回收两种模式）
 XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {

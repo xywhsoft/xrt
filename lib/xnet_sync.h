@@ -67,40 +67,40 @@ struct xrt_net_future {
 };
 
 #if defined(XXRTL_CORE)
-struct xrt_promise {
-	xfuture* pFuture;
-	volatile long bCompleted;
-};
+	struct xrt_promise {
+		xfuture* pFuture;
+		volatile long bCompleted;
+	};
 
-struct xrt_task_group {
-	xmutex pLock;
-	xfuture** arrFuture;
-	int iCount;
-	int iCapacity;
-	bool bClosed;
-	int iParentBindCount;
-	xfuture* pScopeFuture;
-	xpromise* pScopePromise;
-	xfuture* pJoinFuture;
-	xpromise* pJoinPromise;
-	volatile long iRefCount;
-};
+	struct xrt_task_group {
+		xmutex pLock;
+		xfuture** arrFuture;
+		int iCount;
+		int iCapacity;
+		bool bClosed;
+		int iParentBindCount;
+		xfuture* pScopeFuture;
+		xpromise* pScopePromise;
+		xfuture* pJoinFuture;
+		xpromise* pJoinPromise;
+		volatile long iRefCount;
+	};
 
-struct xrt_task {
-	xtask_state iState;
-	xfuture* pFuture;
-	xpromise* pPromise;
-	xtask_engine_fn pfnEngineTask;
-	xtask_thread_fn pfnThreadTask;
-	xtask_co_fn pfnCoTask;
-	ptr pArg;
-	xthread pThread;
-	xcoro pCo;
-};
+	struct xrt_task {
+		xtask_state iState;
+		xfuture* pFuture;
+		xpromise* pPromise;
+		xtask_engine_fn pfnEngineTask;
+		xtask_thread_fn pfnThreadTask;
+		xtask_co_fn pfnCoTask;
+		ptr pArg;
+		xthread pThread;
+		xcoro pCo;
+	};
 #endif
 
 #if !defined(XRT_BUILD_CORE)
-typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
+	typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
 #endif
 
 typedef struct {
@@ -110,95 +110,95 @@ typedef struct {
 } __xnet_future_task_ctx;
 
 #if defined(XXRTL_CORE)
-typedef struct {
-	xtask* pTask;
-} __xnet_task_ctx;
+	typedef struct {
+		xtask* pTask;
+	} __xnet_task_ctx;
 
-typedef struct {
-	xtask* pTask;
-} __xnet_task_thread_ctx;
+	typedef struct {
+		xtask* pTask;
+	} __xnet_task_thread_ctx;
 
-typedef struct {
-	xtask* pTask;
-} __xnet_task_co_ctx;
+	typedef struct {
+		xtask* pTask;
+	} __xnet_task_co_ctx;
 
-typedef enum {
-	__XNET_FCONT_THEN = 1,
-	__XNET_FCONT_CATCH = 2,
-	__XNET_FCONT_FINALLY = 3
-} __xnet_future_cont_kind;
+	typedef enum {
+		__XNET_FCONT_THEN = 1,
+		__XNET_FCONT_CATCH = 2,
+		__XNET_FCONT_FINALLY = 3
+	} __xnet_future_cont_kind;
 
-typedef enum {
-	__XNET_FCONT_EXEC_INLINE = 1,
-	__XNET_FCONT_EXEC_CURRENT = 2,
-	__XNET_FCONT_EXEC_ENGINE = 3,
-	__XNET_FCONT_EXEC_CO = 4
-} __xnet_future_cont_exec;
+	typedef enum {
+		__XNET_FCONT_EXEC_INLINE = 1,
+		__XNET_FCONT_EXEC_CURRENT = 2,
+		__XNET_FCONT_EXEC_ENGINE = 3,
+		__XNET_FCONT_EXEC_CO = 4
+	} __xnet_future_cont_exec;
 
-typedef struct xrt_future_cont {
-	struct xrt_future_cont* pNext;
-	__xnet_future_cont_kind iKind;
-	__xnet_future_cont_exec iExec;
-	xfuture* pSource;
-	xpromise* pPromise;
-	xfuture_cont_fn pfnCont;
-	xfuture_finally_fn pfnFinally;
-	ptr pArg;
-	xnetengine* pEngine;
-	uint32 iAffinityKey;
-	xcosched* pSched;
-	size_t iStackSize;
-	xfuture_result tInput;
-} xrt_future_cont;
+	typedef struct xrt_future_cont {
+		struct xrt_future_cont* pNext;
+		__xnet_future_cont_kind iKind;
+		__xnet_future_cont_exec iExec;
+		xfuture* pSource;
+		xpromise* pPromise;
+		xfuture_cont_fn pfnCont;
+		xfuture_finally_fn pfnFinally;
+		ptr pArg;
+		xnetengine* pEngine;
+		uint32 iAffinityKey;
+		xcosched* pSched;
+		size_t iStackSize;
+		xfuture_result tInput;
+	} xrt_future_cont;
 
-typedef struct {
-	xrt_future_cont* pCont;
-} __xnet_future_cont_ctx;
+	typedef struct {
+		xrt_future_cont* pCont;
+	} __xnet_future_cont_ctx;
 
-typedef enum {
-	__XNET_FGROUP_ANY = 1,
-	__XNET_FGROUP_ALL = 2,
-	__XNET_FGROUP_RACE = 3
-} __xnet_future_group_mode;
+	typedef enum {
+		__XNET_FGROUP_ANY = 1,
+		__XNET_FGROUP_ALL = 2,
+		__XNET_FGROUP_RACE = 3
+	} __xnet_future_group_mode;
 
-typedef struct __xnet_future_group_ctx __xnet_future_group_ctx;
-typedef struct {
-	xtaskgroup* pGroup;
-} __xnet_task_group_parent_ctx;
+	typedef struct __xnet_future_group_ctx __xnet_future_group_ctx;
+	typedef struct {
+		xtaskgroup* pGroup;
+	} __xnet_task_group_parent_ctx;
 
-typedef struct {
-	xtaskgroup* pGroup;
-} __xnet_task_group_future_ctx;
+	typedef struct {
+		xtaskgroup* pGroup;
+	} __xnet_task_group_future_ctx;
 
-typedef struct {
-	__xnet_future_group_ctx* pGroup;
-	int iIndex;
-} __xnet_future_group_item;
+	typedef struct {
+		__xnet_future_group_ctx* pGroup;
+		int iIndex;
+	} __xnet_future_group_item;
 
-struct __xnet_future_group_ctx {
-	__xnet_future_group_mode iMode;
-	xmutex pLock;
-	int iCount;
-	int iRemaining;
-	volatile long iRefCount;
-	bool bCompleted;
-	bool bHasFailure;
-	xfuture_result tFirstFailure;
-	xpromise* pPromise;
-	xfuture** arrSources;
-	__xnet_future_group_item* arrItems;
-};
+	struct __xnet_future_group_ctx {
+		__xnet_future_group_mode iMode;
+		xmutex pLock;
+		int iCount;
+		int iRemaining;
+		volatile long iRefCount;
+		bool bCompleted;
+		bool bHasFailure;
+		xfuture_result tFirstFailure;
+		xpromise* pPromise;
+		xfuture** arrSources;
+		__xnet_future_group_item* arrItems;
+	};
 
-static void __xnetFutureAllValueFree(xfuture_all_value* pAll);
-static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pGroup);
-static bool __xnetFutureContCopyInput(xrt_future_cont* pCont, const xfuture_result* pInput);
-static void __xnetFutureDispatchDetachedList(xrt_future_cont* pHead);
-static void __xnetFutureCurrentCleanup(xrtThreadData* pThreadData, ptr pArg);
-static bool __xnetFutureEnqueueCurrent(xrt_future_cont* pCont);
-static xtaskgroup* __xnetTaskGroupAddRef(xtaskgroup* pGroup);
-static void __xnetTaskGroupRelease(xtaskgroup* pGroup);
-static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup);
-static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup);
+	static void __xnetFutureAllValueFree(xfuture_all_value* pAll);
+	static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pGroup);
+	static bool __xnetFutureContCopyInput(xrt_future_cont* pCont, const xfuture_result* pInput);
+	static void __xnetFutureDispatchDetachedList(xrt_future_cont* pHead);
+	static void __xnetFutureCurrentCleanup(xrtThreadData* pThreadData, ptr pArg);
+	static bool __xnetFutureEnqueueCurrent(xrt_future_cont* pCont);
+	static xtaskgroup* __xnetTaskGroupAddRef(xtaskgroup* pGroup);
+	static void __xnetTaskGroupRelease(xtaskgroup* pGroup);
+	static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup);
+	static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup);
 #endif
 
 #if !defined(XRT_BUILD_CORE)

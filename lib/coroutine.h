@@ -786,7 +786,7 @@ static void UNUSED_ATTR __xrt_co_sleep_ms(int iMs)
 	0xE0 = xmm15
 */
 
-// R13: 协程上下文切换 - Windows x64 ABI 版本
+// 协程上下文切换 - Windows x64 ABI 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 // rcx = pFrom, rdx = pTo，所有 callee-saved 寄存器按固定偏移存取
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
@@ -858,7 +858,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[7] = r15
 */
 
-// R13: 协程上下文切换 - x86_64 System V ABI 版本
+// 协程上下文切换 - x86_64 System V ABI 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 // rdi = pFrom, rsi = pTo，所有 callee-saved 寄存器按固定偏移存取
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
@@ -914,7 +914,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[26..29] = q14, q15
 */
 
-// R13: 协程上下文切换 - ARM64 AAPCS64 版本
+// 协程上下文切换 - ARM64 AAPCS64 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
@@ -979,7 +979,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[14..25] = fs0 ~ fs11（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
 
-// R13: 协程上下文切换 - RISC-V 64 版本
+// 协程上下文切换 - RISC-V 64 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
@@ -1186,7 +1186,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[12..19] = fs0 ~ fs7（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
 
-// R13: 协程上下文切换 - LoongArch64 版本
+// 协程上下文切换 - LoongArch64 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {

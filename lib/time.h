@@ -178,7 +178,7 @@ XXAPI int xrtHour(xtime iTime)
 // 获取时间中的日期
 XXAPI int xrtDay(xtime iTime)
 {
-	// R13: 基于400年周期逐级分解算法
+	// 基于400年周期逐级分解算法
 	// 利用格里高利历400年一轮回的特性，先定位400年周期内的年份，再逐月、逐日缩小范围
 	xtime iTimeAbs = llabs(iTime);
 	// 取400年周期内的余数，用于定位年内的精确位置
@@ -221,7 +221,7 @@ XXAPI int xrtDay(xtime iTime)
 // 获取时间中的月份
 XXAPI int xrtMonth(xtime iTime)
 {
-	// R13: 基于400年周期逐级分解算法 —— 提取月份
+	// 基于400年周期逐级分解算法 —— 提取月份
 	xtime iTimeAbs = llabs(iTime);
 	// 取400年周期内的余数
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
@@ -255,7 +255,7 @@ XXAPI int xrtMonth(xtime iTime)
 // 获取时间中的年份
 XXAPI int64 xrtYear(xtime iTime)
 {
-	// R13: 基于400年周期分解算法 —— 提取年份
+	// 基于400年周期分解算法 —— 提取年份
 	// 先通过除法得到完整的400年周期数，再在余数部分逐年遍历
 	xtime iTimeAbs = llabs(iTime);
 	// 计算400年周期数和周期内的余数
@@ -316,7 +316,7 @@ XXAPI int xrtDayOfYear(xtime iTime)
 // 解码时间
 XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, int* pHour, int* pMinute, int* pSecond, int* pWeekday, int* pDayOfYear)
 {
-	// R13: 基于400年周期的一次性全量分解算法
+	// 基于400年周期的一次性全量分解算法
 	// 一次遍历同时提取年、月、日、时、分、秒、星期、年中天数
 	xtime iTimeAbs = llabs(iTime);
 	// 第一步：分解400年周期，定位年份
@@ -514,7 +514,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		return xrtDateTimeSerial(iYear + iValue, iMonth, iDay, iHour, iMinute, iSecond);
 	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
-		// R13: 月累加算法 —— 将月增加值分解为年进位和月偏移
+		// 月累加算法 —— 将月增加值分解为年进位和月偏移
 		xtime iValueAbs = llabs(iValue);
 		// 计算需要进位的年数和剩余的月数
 		uint64 iAddYear = iValueAbs / 12;
@@ -523,7 +523,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		if ( iValue < 0 ) {
-			// R13: 负向月累加 —— 若月数不够减则向年借位
+			// 负向月累加 —— 若月数不够减则向年借位
 			if ( iMonth - iAddMonth < 1 ) {
 				iYear = iYear - iAddYear - 1;
 				iMonth = 12 - (iAddMonth - iMonth);
@@ -532,7 +532,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 				iMonth -= iAddMonth;
 			}
 		} else {
-			// R13: 正向月累加 —— 若月数超过12则向年进位
+			// 正向月累加 —— 若月数超过12则向年进位
 			if ( iMonth + iAddMonth > 12 ) {
 				iYear = iYear + iAddYear + 1;
 				iMonth = (iMonth + iAddMonth) % 12;
@@ -577,7 +577,7 @@ XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
 		int64 iYear2 = xrtYear(iTime2);
 		return iYear2 - iYear1;
 	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
-		// R13: 月差算法 —— 年差×12 + 月差
+		// 月差算法 —— 年差×12 + 月差
 		int64 iYear1, iYear2;
 		int iMonth1, iMonth2;
 		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -596,7 +596,7 @@ XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
 		// 秒差：直接相减
 		return iTime2 - iTime1;
 	} else if ( interval == XRT_TIME_INTERVAL_QUARTER ) {
-		// R13: 季度差算法 —— 复用月差计算，结果除以3
+		// 季度差算法 —— 复用月差计算，结果除以3
 		int64 iYear1, iYear2;
 		int iMonth1, iMonth2;
 		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);

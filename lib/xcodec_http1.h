@@ -241,7 +241,7 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 	size_t iDecoded = 0u;
 	if ( !pInput || !pChunkBodyBytes || !pDecodedBytes ) { return XCODEC_STATUS_ERROR; }
 	iPos = iBodyOffset;
-	// R13: 逐个解析 chunk 直到遇到终止 chunk（大小为 0）
+	// 逐个解析 chunk 直到遇到终止 chunk（大小为 0）
 	for ( ;; ) {
 		uint64 iChunkSize = 0u;
 		size_t iDataOffset = 0u;
@@ -299,7 +299,7 @@ XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* p
 	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) == 0u ) {
 		return xrtCodecFramePeek(pInput, pFrame, pOut, iLen);
 	}
-	// R13: chunked 传输需逐个 chunk 解码拷贝
+	// chunked 传输需逐个 chunk 解码拷贝
 	iWant = xrtCodecHttp1BodyBytes(pFrame);
 	if ( iWant > iLen ) { iWant = iLen; }
 	iPos = pFrame->iPayloadOffset;
@@ -343,7 +343,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 	xrtCodecFrameInit(pFrame);
 	xrtCodecHttp1MessageInit(pMsg);
 
-	// R13: 查找头部结束标记 "\r\n\r\n"
+	// 查找头部结束标记 "\r\n\r\n"
 	iHeadEndPos = __xcodecChainFindPattern(pInput, aHeadEnd, sizeof(aHeadEnd), 0);
 	if ( iHeadEndPos == (size_t)-1 ) { return XCODEC_STATUS_NEED_MORE; }
 	iHeadBytes = iHeadEndPos + sizeof(aHeadEnd);

@@ -60,46 +60,46 @@ static inline void __xrtThreadObjFree(ptr pMem)
 
 // 线程包装函数（统一完成 attach / detach / exit code 保存）
 #if defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
-{
-	xthread pThread = (xthread)lpParameter;
-	uint32 iExitCode = 0;
+	static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
+	{
+		xthread pThread = (xthread)lpParameter;
+		uint32 iExitCode = 0;
 
-	if ( pThread == NULL ) {
-		return 0;
+		if ( pThread == NULL ) {
+			return 0;
+		}
+
+		__xrtThreadAttachManaged(pThread);
+
+		if ( pThread->Proc ) {
+			iExitCode = pThread->Proc(pThread->Param);
+		}
+
+		__xrtThreadExitManaged(pThread, iExitCode);
+
+		return iExitCode;
 	}
-
-	__xrtThreadAttachManaged(pThread);
-
-	if ( pThread->Proc ) {
-		iExitCode = pThread->Proc(pThread->Param);
-	}
-
-	__xrtThreadExitManaged(pThread, iExitCode);
-
-	return iExitCode;
-}
 #else
-// 线程包装函数（统一完成 attach / detach / exit code 保存）
-static void* xrtThreadWrapper(void* pParameter)
-{
-	xthread pThread = (xthread)pParameter;
-	uint32 iExitCode = 0;
+	// 线程包装函数（统一完成 attach / detach / exit code 保存）
+	static void* xrtThreadWrapper(void* pParameter)
+	{
+		xthread pThread = (xthread)pParameter;
+		uint32 iExitCode = 0;
 
-	if ( pThread == NULL ) {
-		return (void*)(uintptr_t)0;
+		if ( pThread == NULL ) {
+			return (void*)(uintptr_t)0;
+		}
+
+		__xrtThreadAttachManaged(pThread);
+
+		if ( pThread->Proc ) {
+			iExitCode = pThread->Proc(pThread->Param);
+		}
+
+		__xrtThreadExitManaged(pThread, iExitCode);
+
+		return (void*)(uintptr_t)iExitCode;
 	}
-
-	__xrtThreadAttachManaged(pThread);
-
-	if ( pThread->Proc ) {
-		iExitCode = pThread->Proc(pThread->Param);
-	}
-
-	__xrtThreadExitManaged(pThread, iExitCode);
-
-	return (void*)(uintptr_t)iExitCode;
-}
 #endif
 
 // 创建线程

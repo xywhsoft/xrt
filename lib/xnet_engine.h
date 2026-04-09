@@ -520,12 +520,12 @@ static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 }
 
 #if __XNET_ENGINE_USE_XRT_THREAD
-static uint32 __xnetEngineWorkerMain(ptr pArg)
+	static uint32 __xnetEngineWorkerMain(ptr pArg)
 #elif defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
+	static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
 #else
-// 内部函数：__xnetEngineWorkerMain
-static void* __xnetEngineWorkerMain(void* pArg)
+	// 内部函数：__xnetEngineWorkerMain
+	static void* __xnetEngineWorkerMain(void* pArg)
 #endif
 {
 	xnetworker* pWorker = (xnetworker*)pArg;

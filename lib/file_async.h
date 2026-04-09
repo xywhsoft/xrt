@@ -229,20 +229,24 @@ static void __xafileRelease(xasyncfile* pFile)
 		int fd = -1;
 	#endif
 
+	// 空指针直接返回
 	if ( pFile == NULL ) {
 		return;
 	}
 
+	// 保存锁指针，用于后续解锁和销毁
 	pLock = pFile->pLock;
 	if ( pLock == NULL ) {
 		xrtFree(pFile);
 		return;
 	}
 
+	// 加锁减少引用计数
 	xrtMutexLock(pLock);
 	if ( pFile->iRefCount > 0 ) {
 		pFile->iRefCount--;
 	}
+	// 引用计数归零时标记需要销毁
 	if ( pFile->iRefCount == 0 ) {
 		bDestroy = true;
 		#if defined(_WIN32) || defined(_WIN64)
@@ -256,10 +260,12 @@ static void __xafileRelease(xasyncfile* pFile)
 	}
 	xrtMutexUnlock(pLock);
 
+	// 引用计数未归零则无需销毁
 	if ( !bDestroy ) {
 		return;
 	}
 
+	// 关闭文件句柄并释放锁和对象
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( hFile != INVALID_HANDLE_VALUE ) {
 			CloseHandle(hFile);
@@ -303,9 +309,11 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 {
 	size_t iTotal = 0u;
 
+	// 初始化输出参数
 	if ( piRead ) {
 		*piRead = 0u;
 	}
+	// 零长度读取直接成功
 	if ( iSize == 0u ) {
 		return true;
 	}
@@ -313,6 +321,7 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 		return false;
 	}
 
+	// 分块循环读取，每次最多读取 __XAFILE_CHUNK_MAX 字节
 	while ( iTotal < iSize ) {
 		size_t iChunkSize = iSize - iTotal;
 		if ( iChunkSize > __XAFILE_CHUNK_MAX ) {
@@ -326,6 +335,7 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 				return false;
 			}
 			iTotal += (size_t)iChunkRead;
+			// 读取到文件末尾或不足一块时结束
 			if ( iChunkRead == 0u || iChunkRead < (DWORD)iChunkSize ) {
 				break;
 			}
@@ -336,12 +346,14 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 				return false;
 			}
 			iTotal += (size_t)iChunkRead;
+			// 读取到文件末尾或不足一块时结束
 			if ( iChunkRead == 0 || (size_t)iChunkRead < iChunkSize ) {
 				break;
 			}
 		#endif
 	}
 
+	// 写回实际读取的字节数
 	if ( piRead ) {
 		*piRead = iTotal;
 	}
@@ -354,9 +366,11 @@ static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSi
 {
 	size_t iTotal = 0u;
 
+	// 初始化输出参数
 	if ( piWrite ) {
 		*piWrite = 0u;
 	}
+	// 零长度写入直接成功
 	if ( iSize == 0u ) {
 		return true;
 	}
@@ -364,6 +378,7 @@ static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSi
 		return false;
 	}
 
+	// 分块循环写入，每次最多写入 __XAFILE_CHUNK_MAX 字节
 	while ( iTotal < iSize ) {
 		size_t iChunkSize = iSize - iTotal;
 		if ( iChunkSize > __XAFILE_CHUNK_MAX ) {
@@ -376,6 +391,7 @@ static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSi
 			if ( !WriteFile(pFile->hFile, (const uint8*)pData + iTotal, (DWORD)iChunkSize, &iChunkWrite, NULL) ) {
 				return false;
 			}
+			// 写入零字节视为失败
 			if ( iChunkWrite == 0u ) {
 				return false;
 			}
@@ -383,6 +399,7 @@ static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSi
 		#else
 			ssize_t iChunkWrite = write(pFile->fd, (const uint8*)pData + iTotal, iChunkSize);
 
+			// 写入失败或零字节写入
 			if ( iChunkWrite <= 0 ) {
 				return false;
 			}
@@ -390,6 +407,7 @@ static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSi
 		#endif
 	}
 
+	// 写回实际写入的字节数
 	if ( piWrite ) {
 		*piWrite = iTotal;
 	}
@@ -417,6 +435,7 @@ static bool __xafileFlushLocked(xasyncfile* pFile)
 // 内部函数：__xafileGetSizeLocked
 static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 {
+	// 初始化输出参数
 	if ( piSize ) {
 		*piSize = 0u;
 	}
@@ -427,6 +446,7 @@ static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 		if ( pFile == NULL || pFile->hFile == INVALID_HANDLE_VALUE ) {
 			return false;
 		}
+		// 通过 GetFileSizeEx 获取文件大小
 		if ( !GetFileSizeEx(pFile->hFile, &tSize) ) {
 			return false;
 		}
@@ -440,6 +460,7 @@ static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 		if ( pFile == NULL || pFile->fd == -1 ) {
 			return false;
 		}
+		// 通过 fstat 获取文件大小
 		if ( fstat(pFile->fd, &tStat) != 0 ) {
 			return false;
 		}
@@ -720,11 +741,13 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 	uint32 iFlags;
 	uint32 iShareFlags;
 
+	// 校验配置参数
 	if ( pConfig == NULL || pConfig->sPath == NULL || pConfig->sPath[0] == '\0' ) {
 		__xafileSetError(__xafileErrConfig);
 		return NULL;
 	}
 
+	// 解析并校验文件访问标志
 	iFlags = pConfig->iFlags;
 	if ( iFlags == 0u ) {
 		iFlags = XAFILE_F_READ;
@@ -734,11 +757,13 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		return NULL;
 	}
 
+	// 解析共享标志
 	iShareFlags = pConfig->iShareFlags;
 	if ( iShareFlags == 0u ) {
 		iShareFlags = XAFILE_SHARE_READ;
 	}
 
+	// 分配异步文件对象
 	pFile = (xasyncfile*)xrtMalloc(sizeof(*pFile));
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrMemory);
@@ -746,6 +771,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 	}
 	memset(pFile, 0, sizeof(*pFile));
 
+	// 创建互斥锁
 	pFile->pLock = xrtMutexCreate();
 	if ( pFile->pLock == NULL ) {
 		xrtFree(pFile);
@@ -753,6 +779,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		return NULL;
 	}
 
+	// 初始化文件对象属性
 	pFile->iFlags = iFlags;
 	pFile->iShareFlags = iShareFlags;
 	pFile->iRefCount = 1;
@@ -762,6 +789,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		pFile->fd = -1;
 	#endif
 
+	// Windows 平台：通过 CreateFileW 打开文件
 	#if defined(_WIN32) || defined(_WIN64)
 	{
 		DWORD iDesiredAccess = 0u;
@@ -769,12 +797,14 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		DWORD iCreation = OPEN_EXISTING;
 		u16str sPathW;
 
+		// 组合访问权限
 		if ( iFlags & XAFILE_F_READ ) {
 			iDesiredAccess |= GENERIC_READ;
 		}
 		if ( iFlags & XAFILE_F_WRITE ) {
 			iDesiredAccess |= GENERIC_WRITE;
 		}
+		// 组合共享模式
 		if ( iShareFlags & XAFILE_SHARE_READ ) {
 			iShareMode |= FILE_SHARE_READ;
 		}
@@ -784,6 +814,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		if ( iShareFlags & XAFILE_SHARE_DELETE ) {
 			iShareMode |= FILE_SHARE_DELETE;
 		}
+		// 确定创建方式
 		if ( (iFlags & XAFILE_F_CREATE) && (iFlags & XAFILE_F_TRUNCATE) ) {
 			iCreation = CREATE_ALWAYS;
 		}
@@ -794,6 +825,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 			iCreation = TRUNCATE_EXISTING;
 		}
 
+		// 将 UTF-8 路径转换为 UTF-16
 		sPathW = xrtUTF8to16(pConfig->sPath, 0, NULL);
 		if ( sPathW == NULL || sPathW == (u16str)xCore.sNull ) {
 			xrtMutexDestroy(pFile->pLock);
@@ -802,6 +834,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 			return NULL;
 		}
 
+		// 调用系统 API 打开文件
 		pFile->hFile = CreateFileW(
 			sPathW,
 			iDesiredAccess,
@@ -812,6 +845,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 			NULL);
 		xrtFree(sPathW);
 
+		// 打开失败时清理资源
 		if ( pFile->hFile == INVALID_HANDLE_VALUE ) {
 			xrtMutexDestroy(pFile->pLock);
 			xrtFree(pFile);
@@ -820,9 +854,11 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		}
 	}
 	#else
+	// Linux 平台：通过 open 打开文件
 	{
 		int iOpenFlags = 0;
 
+		// 组合打开标志
 		if ( (iFlags & XAFILE_F_READ) && (iFlags & XAFILE_F_WRITE) ) {
 			iOpenFlags |= O_RDWR;
 		}
@@ -839,7 +875,9 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 			iOpenFlags |= O_TRUNC;
 		}
 
+		// 调用系统 API 打开文件
 		pFile->fd = open(pConfig->sPath, iOpenFlags, 0666);
+		// 打开失败时清理资源
 		if ( pFile->fd == -1 ) {
 			xrtMutexDestroy(pFile->pLock);
 			xrtFree(pFile);
@@ -876,11 +914,13 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 	size_t iRead = 0u;
 	int32 iRet = XRT_NET_ERROR;
 
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
 
+	// 创建读取缓冲区
 	pBuf = __xafileBufCreate();
 	if ( pBuf == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -888,6 +928,7 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 	}
 	pBuf->iOffset = pTask->iOffset;
 
+	// 分配读取数据内存
 	if ( pTask->iSize > 0u ) {
 		pData = xrtMalloc(pTask->iSize + 1u);
 		if ( pData == NULL ) {
@@ -896,17 +937,21 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 		}
 	}
 
+	// 加锁执行 seek + read 操作
 	xrtMutexLock(pTask->pFile->pLock);
+	// 检查文件是否具备读取权限
 	if ( !(pTask->pFile->iFlags & XAFILE_F_READ) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFail(pOut, __xafileErrRead);
 		goto Exit;
 	}
+	// 定位到指定偏移量
 	if ( !__xafileSeekLocked(pTask->pFile, pTask->iOffset) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrRead);
 		goto Exit;
 	}
+	// 执行读取操作
 	if ( !__xafileReadLocked(pTask->pFile, pData, pTask->iSize, &iRead) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrRead);
@@ -914,14 +959,17 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
 
+	// 末尾补零，便于作为字符串使用
 	if ( pData != NULL ) {
 		((char*)pData)[iRead] = '\0';
 	}
+	// 读取零字节时释放缓冲区
 	if ( iRead == 0u && pData != NULL ) {
 		xrtFree(pData);
 		pData = NULL;
 	}
 
+	// 填充结果缓冲区并标记 EOF
 	pBuf->pData = pData;
 	pBuf->iSize = iRead;
 	pBuf->bEOF = (pTask->iSize > 0u && iRead < pTask->iSize);
@@ -930,12 +978,14 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 	pBuf = NULL;
 
 Exit:
+	// 清理临时资源
 	if ( pData != NULL && pData != xCore.sNull ) {
 		xrtFree(pData);
 	}
 	if ( pBuf != NULL ) {
 		__xafileBufDestroyInner(pBuf);
 	}
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -952,22 +1002,27 @@ static int32 __xafileWriteTask(ptr pArg, xfuture_result* pOut)
 	size_t iWrite = 0u;
 	int32 iRet = XRT_NET_ERROR;
 
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
 
+	// 加锁执行 seek + write 操作
 	xrtMutexLock(pTask->pFile->pLock);
+	// 检查文件是否具备写入权限
 	if ( !(pTask->pFile->iFlags & XAFILE_F_WRITE) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFail(pOut, __xafileErrWrite);
 		goto Exit;
 	}
+	// 定位到指定偏移量
 	if ( !__xafileSeekLocked(pTask->pFile, pTask->iOffset) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
 		goto Exit;
 	}
+	// 执行写入操作
 	if ( !__xafileWriteLocked(pTask->pFile, pTask->pData, pTask->iSize, &iWrite) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
@@ -975,6 +1030,7 @@ static int32 __xafileWriteTask(ptr pArg, xfuture_result* pOut)
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
 
+	// 创建写入结果信息
 	pInfo = __xafileIoCreate((uint64)iWrite, pTask->iOffset);
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -984,9 +1040,11 @@ static int32 __xafileWriteTask(ptr pArg, xfuture_result* pOut)
 	pInfo = NULL;
 
 Exit:
+	// 清理临时资源
 	if ( pInfo != NULL ) {
 		xrtFree(pInfo);
 	}
+	// 释放任务数据、文件引用和任务对象
 	if ( pTask != NULL ) {
 		if ( pTask->pData != NULL && pTask->pData != xCore.sNull ) {
 			xrtFree(pTask->pData);
@@ -1004,11 +1062,13 @@ static int32 __xafileFlushTask(ptr pArg, xfuture_result* pOut)
 	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
 	int32 iRet = XRT_NET_ERROR;
 
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
 
+	// 加锁执行 flush 操作（仅对可写文件）
 	xrtMutexLock(pTask->pFile->pLock);
 	if ( pTask->pFile->iFlags & XAFILE_F_WRITE ) {
 		if ( !__xafileFlushLocked(pTask->pFile) ) {
@@ -1019,9 +1079,11 @@ static int32 __xafileFlushTask(ptr pArg, xfuture_result* pOut)
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
 
+	// 返回成功结果
 	iRet = __xafileTaskResolve(pOut, NULL);
 
 Exit:
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -1038,11 +1100,13 @@ static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
 	uint64 iSize = 0u;
 	int32 iRet = XRT_NET_ERROR;
 
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
 
+	// 加锁获取文件大小
 	xrtMutexLock(pTask->pFile->pLock);
 	if ( !__xafileGetSizeLocked(pTask->pFile, &iSize) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
@@ -1051,6 +1115,7 @@ static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
 
+	// 创建结果信息并返回
 	pInfo = __xafileIoCreate(iSize, 0u);
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -1060,9 +1125,11 @@ static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
 	pInfo = NULL;
 
 Exit:
+	// 清理临时资源
 	if ( pInfo != NULL ) {
 		xrtFree(pInfo);
 	}
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -1078,17 +1145,21 @@ static int32 __xafileSetSizeTask(ptr pArg, xfuture_result* pOut)
 	xasyncfileio* pInfo = NULL;
 	int32 iRet = XRT_NET_ERROR;
 
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
 
+	// 加锁执行设置文件大小操作
 	xrtMutexLock(pTask->pFile->pLock);
+	// 检查文件是否具备写入权限
 	if ( !(pTask->pFile->iFlags & XAFILE_F_WRITE) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFail(pOut, __xafileErrSetSize);
 		goto Exit;
 	}
+	// 执行文件大小调整
 	if ( !__xafileSetSizeLocked(pTask->pFile, pTask->iSize) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrSetSize);
@@ -1096,6 +1167,7 @@ static int32 __xafileSetSizeTask(ptr pArg, xfuture_result* pOut)
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
 
+	// 创建结果信息并返回
 	pInfo = __xafileIoCreate(pTask->iSize, 0u);
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -1105,9 +1177,11 @@ static int32 __xafileSetSizeTask(ptr pArg, xfuture_result* pOut)
 	pInfo = NULL;
 
 Exit:
+	// 清理临时资源
 	if ( pInfo != NULL ) {
 		xrtFree(pInfo);
 	}
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -1127,12 +1201,15 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 	int iCount = 0;
 	int32 iRet = XRT_NET_ERROR;
 
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->sPath == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrConfig);
 	}
 
+	// 根据任务类型分发处理
 	switch ( pTask->iKind ) {
+		// 追加内容到文件
 		case __XAFILE_PATH_APPEND:
 			iCount = xrtFileAppend(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
 			if ( iCount == 0 && pTask->iSize > 0u ) {
@@ -1142,6 +1219,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
+		// 读取文件全部内容（指定编码）
 		case __XAFILE_PATH_READ_ALL:
 			pData = xrtFileReadAll(pTask->sPath, pTask->iCharset, &iSize);
 			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
@@ -1151,6 +1229,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			if ( pData == xCore.sNull ) {
 				pData = NULL;
 			}
+			// 封装为缓冲区结果
 			pBuf = __xafileBufCreate();
 			if ( pBuf == NULL ) {
 				iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -1163,6 +1242,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pBuf = NULL;
 			goto Exit;
 
+		// 写入文件全部内容（指定编码）
 		case __XAFILE_PATH_WRITE_ALL:
 			iCount = xrtFileWriteAll(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
 			if ( iCount == 0 && pTask->iSize > 0u ) {
@@ -1172,6 +1252,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
+		// 获取文件全部内容（二进制）
 		case __XAFILE_PATH_GET_ALL:
 			pData = xrtFileGetAll(pTask->sPath, &iSize);
 			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
@@ -1181,6 +1262,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			if ( pData == xCore.sNull ) {
 				pData = NULL;
 			}
+			// 封装为缓冲区结果
 			pBuf = __xafileBufCreate();
 			if ( pBuf == NULL ) {
 				iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -1193,6 +1275,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pBuf = NULL;
 			goto Exit;
 
+		// 写入文件全部内容（二进制）
 		case __XAFILE_PATH_PUT_ALL:
 			iCount = xrtFilePutAll(pTask->sPath, pTask->pData, pTask->iSize);
 			if ( iCount == 0 && pTask->iSize > 0u ) {
@@ -1202,6 +1285,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
+		// 复制文件
 		case __XAFILE_PATH_COPY:
 			if ( !xrtFileCopy(pTask->sPath, pTask->sPath2, pTask->bReWrite) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async file copy failed.");
@@ -1210,6 +1294,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
 
+		// 移动文件
 		case __XAFILE_PATH_MOVE:
 			if ( !xrtFileMove(pTask->sPath, pTask->sPath2, pTask->bReWrite) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async file move failed.");
@@ -1218,6 +1303,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
 
+		// 删除文件
 		case __XAFILE_PATH_DELETE:
 			if ( !xrtFileDelete(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async file delete failed.");
@@ -1226,6 +1312,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
 
+		// 创建目录
 		case __XAFILE_PATH_DIR_CREATE:
 			if ( !xrtDirCreate(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir create failed.");
@@ -1234,6 +1321,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
 
+		// 递归创建目录
 		case __XAFILE_PATH_DIR_CREATE_ALL:
 			if ( !xrtDirCreateAll(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir create-all failed.");
@@ -1242,12 +1330,15 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
 
+		// 复制目录
 		case __XAFILE_PATH_DIR_COPY:
+			// 校验源目录是否存在
 			if ( !xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFail(pOut, "async dir copy failed.");
 				goto Exit;
 			}
 			iCount = xrtDirCopy(pTask->sPath, pTask->sPath2, pTask->bReWrite);
+			// 校验目标目录是否创建成功
 			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir copy failed.");
 				goto Exit;
@@ -1255,12 +1346,15 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
+		// 移动目录
 		case __XAFILE_PATH_DIR_MOVE:
+			// 校验源目录是否存在
 			if ( !xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFail(pOut, "async dir move failed.");
 				goto Exit;
 			}
 			iCount = xrtDirMove(pTask->sPath, pTask->sPath2, pTask->bReWrite);
+			// 校验移动结果：目标应存在，源应不存在
 			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) || xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir move failed.");
 				goto Exit;
@@ -1268,12 +1362,15 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
 
+		// 删除目录
 		case __XAFILE_PATH_DIR_DELETE:
+			// 校验目录是否存在
 			if ( !xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFail(pOut, "async dir delete failed.");
 				goto Exit;
 			}
 			iCount = xrtDirDelete(pTask->sPath);
+			// 校验删除结果：目录应不存在
 			if ( __xafileHasLastError() || xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir delete failed.");
 				goto Exit;
@@ -1286,6 +1383,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			goto Exit;
 	}
 
+	// 检查 IO 结果对象是否创建成功
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
 		goto Exit;
@@ -1294,6 +1392,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 	pInfo = NULL;
 
 Exit:
+	// 清理所有临时资源
 	if ( pData != NULL && pData != xCore.sNull ) {
 		xrtFree(pData);
 	}
@@ -1314,15 +1413,18 @@ static xfuture* __xafileStartReadTask(xasyncfile* pFile, uint64 iOffset, size_t 
 	__xafile_read_task* pTask;
 	xfuture* pFuture;
 
+	// 校验文件句柄
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrHandle);
 		return NULL;
 	}
+	// 增加文件引用计数（拒绝已关闭的文件）
 	if ( !__xafileAddRef(pFile, true) ) {
 		__xafileSetError(__xafileErrClosed);
 		return NULL;
 	}
 
+	// 创建读取任务
 	pTask = (__xafile_read_task*)xrtMalloc(sizeof(__xafile_read_task));
 	if ( pTask == NULL ) {
 		__xafileRelease(pFile);
@@ -1333,7 +1435,9 @@ static xfuture* __xafileStartReadTask(xasyncfile* pFile, uint64 iOffset, size_t 
 	pTask->iOffset = iOffset;
 	pTask->iSize = iSize;
 
+	// 提交到线程池执行
 	pFuture = xTaskRunThread(__xafileReadTask, pTask, 0);
+	// 提交失败时释放资源
 	if ( pFuture == NULL ) {
 		__xafileRelease(pFile);
 		xrtFree(pTask);
@@ -1348,15 +1452,18 @@ static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const 
 	__xafile_write_task* pTask;
 	xfuture* pFuture;
 
+	// 校验文件句柄
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrHandle);
 		return NULL;
 	}
+	// 增加文件引用计数（拒绝已关闭的文件）
 	if ( !__xafileAddRef(pFile, true) ) {
 		__xafileSetError(__xafileErrClosed);
 		return NULL;
 	}
 
+	// 创建写入任务
 	pTask = (__xafile_write_task*)xrtMalloc(sizeof(__xafile_write_task));
 	if ( pTask == NULL ) {
 		__xafileRelease(pFile);
@@ -1368,6 +1475,7 @@ static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const 
 	pTask->iOffset = iOffset;
 	pTask->iSize = iSize;
 
+	// 复制写入数据（任务在另一线程执行，需要独立副本）
 	if ( iSize > 0u ) {
 		pTask->pData = xrtCopyMem((ptr)pData, iSize);
 		if ( pTask->pData == NULL || pTask->pData == xCore.sNull ) {
@@ -1378,7 +1486,9 @@ static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const 
 		}
 	}
 
+	// 提交到线程池执行
 	pFuture = xTaskRunThread(__xafileWriteTask, pTask, 0);
+	// 提交失败时释放资源
 	if ( pFuture == NULL ) {
 		if ( pTask->pData != NULL && pTask->pData != xCore.sNull ) {
 			xrtFree(pTask->pData);
@@ -1396,15 +1506,18 @@ static xfuture* __xafileStartSizeTask(xasyncfile* pFile, xtask_thread_fn pfnTask
 	__xafile_size_task* pTask;
 	xfuture* pFuture;
 
+	// 校验文件句柄
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrHandle);
 		return NULL;
 	}
+	// 增加文件引用计数（拒绝已关闭的文件）
 	if ( !__xafileAddRef(pFile, true) ) {
 		__xafileSetError(__xafileErrClosed);
 		return NULL;
 	}
 
+	// 创建大小任务
 	pTask = (__xafile_size_task*)xrtMalloc(sizeof(__xafile_size_task));
 	if ( pTask == NULL ) {
 		__xafileRelease(pFile);
@@ -1414,7 +1527,9 @@ static xfuture* __xafileStartSizeTask(xasyncfile* pFile, xtask_thread_fn pfnTask
 	pTask->pFile = pFile;
 	pTask->iSize = iSize;
 
+	// 提交到线程池执行
 	pFuture = xTaskRunThread(pfnTask, pTask, 0);
+	// 提交失败时释放资源
 	if ( pFuture == NULL ) {
 		__xafileRelease(pFile);
 		xrtFree(pTask);

@@ -162,7 +162,7 @@ static int _xson_skip_string(xson_parse_t* pParse, char chEnd)
 
 
 // 内部函数：跳过组
-// [R13] SON 组跳过算法：递归跳过匹配的括号组，正确处理嵌套和字符串内容
+// SON 组跳过算法：递归跳过匹配的括号组，正确处理嵌套和字符串内容
 static int _xson_skip_group(xson_parse_t* pParse)
 {
 	char ch;
@@ -409,7 +409,7 @@ static int _xson_parse_list_index(xson_parse_t* pParse, int64* pIndex)
 
 
 // 内部函数：_xson_parse_time_text
-// [R13] 日期时间文本解析算法：从 "YYYY-MM-DD HH:MM:SS" 格式文本中提取日期时间分量并序列化为 xtime
+// 日期时间文本解析算法：从 "YYYY-MM-DD HH:MM:SS" 格式文本中提取日期时间分量并序列化为 xtime
 static bool _xson_parse_time_text(const char* sText, size_t iSize, xtime* pTime)
 {
 	size_t iPos = 0;
@@ -505,7 +505,7 @@ static xson_parse_result_t _xson_parse_value(xson_parse_t* pParse, xvalue* ppVal
 
 
 // 内部函数：_xson_parse_array_like
-// [R13] SON 类数组解析算法：解析 [...] 语法，自动检测内容格式决定创建 Array 还是 List
+// SON 类数组解析算法：解析 [...] 语法，自动检测内容格式决定创建 Array 还是 List
 static xson_parse_result_t _xson_parse_array_like(xson_parse_t* pParse, int iKind, xvalue* ppVal)
 {
 	xvalue pResult;
@@ -610,7 +610,7 @@ static xson_parse_result_t _xson_parse_array_like(xson_parse_t* pParse, int iKin
 
 
 // 内部函数：_xson_parse_object_like
-// [R13] SON 类对象解析算法：解析 {...} 语法，自动检测内容格式决定创建 Table(字典) 还是 Coll(集合)
+// SON 类对象解析算法：解析 {...} 语法，自动检测内容格式决定创建 Table(字典) 还是 Coll(集合)
 static xson_parse_result_t _xson_parse_object_like(xson_parse_t* pParse, int iKind, xvalue* ppVal)
 {
 	xvalue pResult;
@@ -832,7 +832,7 @@ static xson_parse_result_t _xson_parse_class_value(xson_parse_t* pParse, xvalue*
 	return XSON_PARSE_RESULT_OK;
 }
 
-// [R13] SON 前缀值解析算法：根据标识符前缀分发到对应的类型解析器，支持 array/list/dict/set/time/class 等
+// SON 前缀值解析算法：根据标识符前缀分发到对应的类型解析器，支持 array/list/dict/set/time/class 等
 static xson_parse_result_t _xson_parse_prefixed_value(xson_parse_t* pParse, xvalue* ppVal)
 {
 	size_t iNameLen;
@@ -897,7 +897,7 @@ static xson_parse_result_t _xson_parse_prefixed_value(xson_parse_t* pParse, xval
 	return XSON_PARSE_RESULT_NONE;
 }
 
-// [R13] JSON 标量值解析算法：利用底层 JSON 解析器解析标量值（null/bool/int/hex/float/string），转换为对应 xvalue
+// JSON 标量值解析算法：利用底层 JSON 解析器解析标量值（null/bool/int/hex/float/string），转换为对应 xvalue
 static xson_parse_result_t _xson_parse_json_scalar(xson_parse_t* pParse, xvalue* ppVal)
 {
 	json_strinfo_t tKeyInfo = { 0 };
@@ -1129,7 +1129,7 @@ static bool _xson_print_append_double(xson_print_t* pPrint, double fValue)
 	return _xson_print_append_raw(pPrint, sBuff, (size_t)iSize);
 }
 
-// [R13] JSON 字符串转义输出算法：按 JSON 规范对字符串进行转义处理并输出到缓冲区
+// JSON 字符串转义输出算法：按 JSON 规范对字符串进行转义处理并输出到缓冲区
 static bool _xson_print_append_json_string(xson_print_t* pPrint, const char* sText, size_t iSize)
 {
 	static const char sHex[] = "0123456789abcdef";
@@ -1504,7 +1504,7 @@ static bool _xson_is_unsupported_value(xvalue varVal)
 	return (varVal->Type == XVO_DT_POINT) || (varVal->Type == XVO_DT_FUNC) || (varVal->Type == XVO_DT_CUSTOM);
 }
 
-// [R13] SON 值序列化算法：根据 xvalue 的类型分发到对应的序列化处理器
+// SON 值序列化算法：根据 xvalue 的类型分发到对应的序列化处理器
 static xson_write_result_t _xson_write_value(xson_print_t* pPrint, xvalue varVal, int iDepth, bool bRoot)
 {
 	str sText;

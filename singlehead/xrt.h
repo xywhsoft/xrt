@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-09 14:46:14
+    Generated: 2026-04-09 15:49:09
 
     MIT License
 
@@ -8999,7 +8999,7 @@ static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 		pLive = pNext;
 	}
 	
-	// 释放隔离区链表（R13: 隔离区用于延迟释放，防止 use-after-free）
+	// 释放隔离区链表（隔离区用于延迟释放，防止 use-after-free）
 	pQuarantine = pQuarantineHead;
 	while ( pQuarantine ) {
 		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
@@ -9303,7 +9303,7 @@ static inline void __xrtMemGlobalPushCentral(uint32 iClass, xrtMemFreeNode* pHea
 	pClass->iFreeCount += iCount;
 	__xrtMemGlobalUnlock(&pClass->iLock);
 }
-// 内部函数：弹出内存全局 central（R13: 从中央空闲链表中批量取出节点）
+// 内部函数：弹出内存全局 central（从中央空闲链表中批量取出节点）
 static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMaxCount, uint32* pOutCount)
 {
 	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
@@ -9340,7 +9340,7 @@ static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMa
 	}
 	return pHead;
 }
-// 内部函数：分配内存全局 span（R13: span 是内存池的基本分配单元，一次申请一大块内存切分为多个等大小块）
+// 内部函数：分配内存全局 span（span 是内存池的基本分配单元，一次申请一大块内存切分为多个等大小块）
 static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
 {
 	ptr (*procMalloc)(size_t) = __xrtMemGlobalProcMalloc();
@@ -9408,7 +9408,7 @@ static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
 	__xrtMemGlobalPushCentral(iClass, pHead, pTail, iBlockCount);
 	return TRUE;
 }
-// 内部函数：__xrtMemGlobalRefillThreadCache（R13: 从中央链表补充线程本地缓存）
+// 内部函数：__xrtMemGlobalRefillThreadCache（从中央链表补充线程本地缓存）
 static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, uint32 iClass)
 {
 	uint32 iDesired = pCache ? (uint32)(pCache->iCacheLimit / 2) : 0;
@@ -9446,7 +9446,7 @@ static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, ui
 	}
 	return pCache->arrFreeCount[iClass] > 0;
 }
-// 内部函数：__xrtMemGlobalDrainThreadCache（R13: 将线程本地缓存中多余的空闲块归还中央链表）
+// 内部函数：__xrtMemGlobalDrainThreadCache（将线程本地缓存中多余的空闲块归还中央链表）
 static inline void __xrtMemGlobalDrainThreadCache(xrtMemThreadCache* pCache, uint32 iClass, uint32 iKeepCount)
 {
 	xrtMemFreeNode* pHead = NULL;
@@ -9509,7 +9509,7 @@ static inline void __xrtMemGlobalUnitPlan(xrtMemGlobalPool* pPool)
 	}
 	memset(pPool, 0, sizeof(xrtMemGlobalPool));
 }
-// 内部函数：分配内存全局 pooled（R13: 从线程缓存或中央链表获取池化内存块）
+// 内部函数：分配内存全局 pooled（从线程缓存或中央链表获取池化内存块）
 static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, bool bZero)
 {
 	xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
@@ -9560,7 +9560,7 @@ static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, 
 	__xrtMemGlobalWriteTailCanary(pHeader);
 	return pNode;
 }
-// 内部函数：分配内存全局 backing（R13: 超出池化大小阈值的内存直接通过系统分配器分配）
+// 内部函数：分配内存全局 backing（超出池化大小阈值的内存直接通过系统分配器分配）
 static inline ptr __xrtMemGlobalAllocBacking(size_t iRequestSize, bool bZero)
 {
 	ptr pRaw;
@@ -9612,7 +9612,7 @@ static inline ptr __xrtMemGlobalAlloc(size_t iSize, bool bZero)
 {
 	return __xrtMemGlobalAllocSite(iSize, bZero, NULL, 0);
 }
-// 内部函数：释放内存全局 free（R13: 根据块类型选择归还线程缓存、中央链表或系统释放）
+// 内部函数：释放内存全局 free（根据块类型选择归还线程缓存、中央链表或系统释放）
 static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 {
 	xrtMemBlockHeader* pHeader;
@@ -9671,7 +9671,7 @@ static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 	#endif
 	__xrtMemGlobalProcFree()(pHeader);
 }
-// 内部函数：释放内存全局位置（R13: 包含完整的调试检查、隔离区和错误检测流程）
+// 内部函数：释放内存全局位置（包含完整的调试检查、隔离区和错误检测流程）
 static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iLine)
 {
 	xrtMemBlockHeader* pHeader;
@@ -9708,7 +9708,7 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 	}
 	
 	#ifdef XRT_MEM_DEBUG
-		// R13: 调试检查 - 检测双重释放、缓冲区溢出/下溢
+		// 调试检查 - 检测双重释放、缓冲区溢出/下溢
 		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
 			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
 			xrtSetError("double free detected.", FALSE);
@@ -9727,7 +9727,7 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 		__xrtMemDebugTrackFree(pHeader, sFile, iLine);
 		memset(pMem, 0xDD, __xrtMemGlobalAllocPayloadSize(pHeader->iRequestSize));
 		
-		// R13: backing 块放入隔离区延迟释放，防止 use-after-free
+		// backing 块放入隔离区延迟释放，防止 use-after-free
 		if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
 			__xrtMemDebugLock();
 			pHeader->iDebugState = XRT_MEMDEBUG_STATE_QUARANTINE;
@@ -9776,7 +9776,7 @@ static inline void __xrtMemGlobalFree(ptr pMem)
 {
 	__xrtMemGlobalFreeSite(pMem, NULL, 0);
 }
-// 内部函数：重新分配内存全局位置（R13: 支持原地扩展、搬迁分配和调试检查）
+// 内部函数：重新分配内存全局位置（支持原地扩展、搬迁分配和调试检查）
 static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
 	xrtMemBlockHeader* pHeader;
@@ -9808,7 +9808,7 @@ static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* 
 	}
 	
 	#ifdef XRT_MEM_DEBUG
-		// R13: 调试检查 - 检测 use-after-free 和缓冲区越界
+		// 调试检查 - 检测 use-after-free 和缓冲区越界
 		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
 			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
 			xrtSetError("realloc on freed memory detected.", FALSE);
@@ -14411,7 +14411,7 @@ XXAPI int xrtHour(xtime iTime)
 // 获取时间中的日期
 XXAPI int xrtDay(xtime iTime)
 {
-	// R13: 基于400年周期逐级分解算法
+	// 基于400年周期逐级分解算法
 	// 利用格里高利历400年一轮回的特性，先定位400年周期内的年份，再逐月、逐日缩小范围
 	xtime iTimeAbs = llabs(iTime);
 	// 取400年周期内的余数，用于定位年内的精确位置
@@ -14451,7 +14451,7 @@ XXAPI int xrtDay(xtime iTime)
 // 获取时间中的月份
 XXAPI int xrtMonth(xtime iTime)
 {
-	// R13: 基于400年周期逐级分解算法 —— 提取月份
+	// 基于400年周期逐级分解算法 —— 提取月份
 	xtime iTimeAbs = llabs(iTime);
 	// 取400年周期内的余数
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
@@ -14482,7 +14482,7 @@ XXAPI int xrtMonth(xtime iTime)
 // 获取时间中的年份
 XXAPI int64 xrtYear(xtime iTime)
 {
-	// R13: 基于400年周期分解算法 —— 提取年份
+	// 基于400年周期分解算法 —— 提取年份
 	// 先通过除法得到完整的400年周期数，再在余数部分逐年遍历
 	xtime iTimeAbs = llabs(iTime);
 	// 计算400年周期数和周期内的余数
@@ -14534,7 +14534,7 @@ XXAPI int xrtDayOfYear(xtime iTime)
 // 解码时间
 XXAPI void xrtDecodeSerial(xtime iTime, int64* pYear, int* pMonth, int* pDay, int* pHour, int* pMinute, int* pSecond, int* pWeekday, int* pDayOfYear)
 {
-	// R13: 基于400年周期的一次性全量分解算法
+	// 基于400年周期的一次性全量分解算法
 	// 一次遍历同时提取年、月、日、时、分、秒、星期、年中天数
 	xtime iTimeAbs = llabs(iTime);
 	// 第一步：分解400年周期，定位年份
@@ -14708,7 +14708,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		return xrtDateTimeSerial(iYear + iValue, iMonth, iDay, iHour, iMinute, iSecond);
 	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
-		// R13: 月累加算法 —— 将月增加值分解为年进位和月偏移
+		// 月累加算法 —— 将月增加值分解为年进位和月偏移
 		xtime iValueAbs = llabs(iValue);
 		// 计算需要进位的年数和剩余的月数
 		uint64 iAddYear = iValueAbs / 12;
@@ -14717,7 +14717,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 		int iMonth, iDay, iHour, iMinute, iSecond;
 		xrtDecodeSerial(iTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
 		if ( iValue < 0 ) {
-			// R13: 负向月累加 —— 若月数不够减则向年借位
+			// 负向月累加 —— 若月数不够减则向年借位
 			if ( iMonth - iAddMonth < 1 ) {
 				iYear = iYear - iAddYear - 1;
 				iMonth = 12 - (iAddMonth - iMonth);
@@ -14726,7 +14726,7 @@ XXAPI xtime xrtDateAdd(int interval, int64 iValue, xtime iTime)
 				iMonth -= iAddMonth;
 			}
 		} else {
-			// R13: 正向月累加 —— 若月数超过12则向年进位
+			// 正向月累加 —— 若月数超过12则向年进位
 			if ( iMonth + iAddMonth > 12 ) {
 				iYear = iYear + iAddYear + 1;
 				iMonth = (iMonth + iAddMonth) % 12;
@@ -14768,7 +14768,7 @@ XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
 		int64 iYear2 = xrtYear(iTime2);
 		return iYear2 - iYear1;
 	} else if ( interval == XRT_TIME_INTERVAL_MONTH ) {
-		// R13: 月差算法 —— 年差×12 + 月差
+		// 月差算法 —— 年差×12 + 月差
 		int64 iYear1, iYear2;
 		int iMonth1, iMonth2;
 		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -14787,7 +14787,7 @@ XXAPI int64 xrtDateDiff(int interval, xtime iTime1, xtime iTime2)
 		// 秒差：直接相减
 		return iTime2 - iTime1;
 	} else if ( interval == XRT_TIME_INTERVAL_QUARTER ) {
-		// R13: 季度差算法 —— 复用月差计算，结果除以3
+		// 季度差算法 —— 复用月差计算，结果除以3
 		int64 iYear1, iYear2;
 		int iMonth1, iMonth2;
 		xrtDecodeSerial(iTime1, &iYear1, &iMonth1, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -17593,18 +17593,22 @@ static void __xafileRelease(xasyncfile* pFile)
 	#else
 		int fd = -1;
 	#endif
+	// 空指针直接返回
 	if ( pFile == NULL ) {
 		return;
 	}
+	// 保存锁指针，用于后续解锁和销毁
 	pLock = pFile->pLock;
 	if ( pLock == NULL ) {
 		xrtFree(pFile);
 		return;
 	}
+	// 加锁减少引用计数
 	xrtMutexLock(pLock);
 	if ( pFile->iRefCount > 0 ) {
 		pFile->iRefCount--;
 	}
+	// 引用计数归零时标记需要销毁
 	if ( pFile->iRefCount == 0 ) {
 		bDestroy = true;
 		#if defined(_WIN32) || defined(_WIN64)
@@ -17617,9 +17621,11 @@ static void __xafileRelease(xasyncfile* pFile)
 		pFile->pLock = NULL;
 	}
 	xrtMutexUnlock(pLock);
+	// 引用计数未归零则无需销毁
 	if ( !bDestroy ) {
 		return;
 	}
+	// 关闭文件句柄并释放锁和对象
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( hFile != INVALID_HANDLE_VALUE ) {
 			CloseHandle(hFile);
@@ -17657,15 +17663,18 @@ static bool __xafileSeekLocked(xasyncfile* pFile, uint64 iOffset)
 static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_t* piRead)
 {
 	size_t iTotal = 0u;
+	// 初始化输出参数
 	if ( piRead ) {
 		*piRead = 0u;
 	}
+	// 零长度读取直接成功
 	if ( iSize == 0u ) {
 		return true;
 	}
 	if ( pFile == NULL || pData == NULL ) {
 		return false;
 	}
+	// 分块循环读取，每次最多读取 __XAFILE_CHUNK_MAX 字节
 	while ( iTotal < iSize ) {
 		size_t iChunkSize = iSize - iTotal;
 		if ( iChunkSize > __XAFILE_CHUNK_MAX ) {
@@ -17677,6 +17686,7 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 				return false;
 			}
 			iTotal += (size_t)iChunkRead;
+			// 读取到文件末尾或不足一块时结束
 			if ( iChunkRead == 0u || iChunkRead < (DWORD)iChunkSize ) {
 				break;
 			}
@@ -17686,11 +17696,13 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 				return false;
 			}
 			iTotal += (size_t)iChunkRead;
+			// 读取到文件末尾或不足一块时结束
 			if ( iChunkRead == 0 || (size_t)iChunkRead < iChunkSize ) {
 				break;
 			}
 		#endif
 	}
+	// 写回实际读取的字节数
 	if ( piRead ) {
 		*piRead = iTotal;
 	}
@@ -17700,15 +17712,18 @@ static bool __xafileReadLocked(xasyncfile* pFile, ptr pData, size_t iSize, size_
 static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSize, size_t* piWrite)
 {
 	size_t iTotal = 0u;
+	// 初始化输出参数
 	if ( piWrite ) {
 		*piWrite = 0u;
 	}
+	// 零长度写入直接成功
 	if ( iSize == 0u ) {
 		return true;
 	}
 	if ( pFile == NULL || pData == NULL ) {
 		return false;
 	}
+	// 分块循环写入，每次最多写入 __XAFILE_CHUNK_MAX 字节
 	while ( iTotal < iSize ) {
 		size_t iChunkSize = iSize - iTotal;
 		if ( iChunkSize > __XAFILE_CHUNK_MAX ) {
@@ -17719,18 +17734,21 @@ static bool __xafileWriteLocked(xasyncfile* pFile, const void* pData, size_t iSi
 			if ( !WriteFile(pFile->hFile, (const uint8*)pData + iTotal, (DWORD)iChunkSize, &iChunkWrite, NULL) ) {
 				return false;
 			}
+			// 写入零字节视为失败
 			if ( iChunkWrite == 0u ) {
 				return false;
 			}
 			iTotal += (size_t)iChunkWrite;
 		#else
 			ssize_t iChunkWrite = write(pFile->fd, (const uint8*)pData + iTotal, iChunkSize);
+			// 写入失败或零字节写入
 			if ( iChunkWrite <= 0 ) {
 				return false;
 			}
 			iTotal += (size_t)iChunkWrite;
 		#endif
 	}
+	// 写回实际写入的字节数
 	if ( piWrite ) {
 		*piWrite = iTotal;
 	}
@@ -17754,6 +17772,7 @@ static bool __xafileFlushLocked(xasyncfile* pFile)
 // 内部函数：__xafileGetSizeLocked
 static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 {
+	// 初始化输出参数
 	if ( piSize ) {
 		*piSize = 0u;
 	}
@@ -17762,6 +17781,7 @@ static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 		if ( pFile == NULL || pFile->hFile == INVALID_HANDLE_VALUE ) {
 			return false;
 		}
+		// 通过 GetFileSizeEx 获取文件大小
 		if ( !GetFileSizeEx(pFile->hFile, &tSize) ) {
 			return false;
 		}
@@ -17774,6 +17794,7 @@ static bool __xafileGetSizeLocked(xasyncfile* pFile, uint64* piSize)
 		if ( pFile == NULL || pFile->fd == -1 ) {
 			return false;
 		}
+		// 通过 fstat 获取文件大小
 		if ( fstat(pFile->fd, &tStat) != 0 ) {
 			return false;
 		}
@@ -17999,10 +18020,12 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 	xasyncfile* pFile = NULL;
 	uint32 iFlags;
 	uint32 iShareFlags;
+	// 校验配置参数
 	if ( pConfig == NULL || pConfig->sPath == NULL || pConfig->sPath[0] == '\0' ) {
 		__xafileSetError(__xafileErrConfig);
 		return NULL;
 	}
+	// 解析并校验文件访问标志
 	iFlags = pConfig->iFlags;
 	if ( iFlags == 0u ) {
 		iFlags = XAFILE_F_READ;
@@ -18011,22 +18034,26 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		__xafileSetError(__xafileErrConfig);
 		return NULL;
 	}
+	// 解析共享标志
 	iShareFlags = pConfig->iShareFlags;
 	if ( iShareFlags == 0u ) {
 		iShareFlags = XAFILE_SHARE_READ;
 	}
+	// 分配异步文件对象
 	pFile = (xasyncfile*)xrtMalloc(sizeof(*pFile));
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrMemory);
 		return NULL;
 	}
 	memset(pFile, 0, sizeof(*pFile));
+	// 创建互斥锁
 	pFile->pLock = xrtMutexCreate();
 	if ( pFile->pLock == NULL ) {
 		xrtFree(pFile);
 		__xafileSetError(__xafileErrMemory);
 		return NULL;
 	}
+	// 初始化文件对象属性
 	pFile->iFlags = iFlags;
 	pFile->iShareFlags = iShareFlags;
 	pFile->iRefCount = 1;
@@ -18035,18 +18062,21 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 	#else
 		pFile->fd = -1;
 	#endif
+	// Windows 平台：通过 CreateFileW 打开文件
 	#if defined(_WIN32) || defined(_WIN64)
 	{
 		DWORD iDesiredAccess = 0u;
 		DWORD iShareMode = 0u;
 		DWORD iCreation = OPEN_EXISTING;
 		u16str sPathW;
+		// 组合访问权限
 		if ( iFlags & XAFILE_F_READ ) {
 			iDesiredAccess |= GENERIC_READ;
 		}
 		if ( iFlags & XAFILE_F_WRITE ) {
 			iDesiredAccess |= GENERIC_WRITE;
 		}
+		// 组合共享模式
 		if ( iShareFlags & XAFILE_SHARE_READ ) {
 			iShareMode |= FILE_SHARE_READ;
 		}
@@ -18056,6 +18086,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		if ( iShareFlags & XAFILE_SHARE_DELETE ) {
 			iShareMode |= FILE_SHARE_DELETE;
 		}
+		// 确定创建方式
 		if ( (iFlags & XAFILE_F_CREATE) && (iFlags & XAFILE_F_TRUNCATE) ) {
 			iCreation = CREATE_ALWAYS;
 		}
@@ -18065,6 +18096,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		else if ( iFlags & XAFILE_F_TRUNCATE ) {
 			iCreation = TRUNCATE_EXISTING;
 		}
+		// 将 UTF-8 路径转换为 UTF-16
 		sPathW = xrtUTF8to16(pConfig->sPath, 0, NULL);
 		if ( sPathW == NULL || sPathW == (u16str)xCore.sNull ) {
 			xrtMutexDestroy(pFile->pLock);
@@ -18072,6 +18104,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 			__xafileSetError(__xafileErrMemory);
 			return NULL;
 		}
+		// 调用系统 API 打开文件
 		pFile->hFile = CreateFileW(
 			sPathW,
 			iDesiredAccess,
@@ -18081,6 +18114,7 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 			FILE_ATTRIBUTE_NORMAL,
 			NULL);
 		xrtFree(sPathW);
+		// 打开失败时清理资源
 		if ( pFile->hFile == INVALID_HANDLE_VALUE ) {
 			xrtMutexDestroy(pFile->pLock);
 			xrtFree(pFile);
@@ -18089,8 +18123,10 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		}
 	}
 	#else
+	// Linux 平台：通过 open 打开文件
 	{
 		int iOpenFlags = 0;
+		// 组合打开标志
 		if ( (iFlags & XAFILE_F_READ) && (iFlags & XAFILE_F_WRITE) ) {
 			iOpenFlags |= O_RDWR;
 		}
@@ -18106,7 +18142,9 @@ XXAPI xasyncfile* xrtAsyncFileOpen(const xasyncfileconfig* pConfig)
 		if ( iFlags & XAFILE_F_TRUNCATE ) {
 			iOpenFlags |= O_TRUNC;
 		}
+		// 调用系统 API 打开文件
 		pFile->fd = open(pConfig->sPath, iOpenFlags, 0666);
+		// 打开失败时清理资源
 		if ( pFile->fd == -1 ) {
 			xrtMutexDestroy(pFile->pLock);
 			xrtFree(pFile);
@@ -18136,16 +18174,19 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 	ptr pData = NULL;
 	size_t iRead = 0u;
 	int32 iRet = XRT_NET_ERROR;
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
+	// 创建读取缓冲区
 	pBuf = __xafileBufCreate();
 	if ( pBuf == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
 		goto Exit;
 	}
 	pBuf->iOffset = pTask->iOffset;
+	// 分配读取数据内存
 	if ( pTask->iSize > 0u ) {
 		pData = xrtMalloc(pTask->iSize + 1u);
 		if ( pData == NULL ) {
@@ -18153,30 +18194,37 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 			goto Exit;
 		}
 	}
+	// 加锁执行 seek + read 操作
 	xrtMutexLock(pTask->pFile->pLock);
+	// 检查文件是否具备读取权限
 	if ( !(pTask->pFile->iFlags & XAFILE_F_READ) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFail(pOut, __xafileErrRead);
 		goto Exit;
 	}
+	// 定位到指定偏移量
 	if ( !__xafileSeekLocked(pTask->pFile, pTask->iOffset) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrRead);
 		goto Exit;
 	}
+	// 执行读取操作
 	if ( !__xafileReadLocked(pTask->pFile, pData, pTask->iSize, &iRead) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrRead);
 		goto Exit;
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
+	// 末尾补零，便于作为字符串使用
 	if ( pData != NULL ) {
 		((char*)pData)[iRead] = '\0';
 	}
+	// 读取零字节时释放缓冲区
 	if ( iRead == 0u && pData != NULL ) {
 		xrtFree(pData);
 		pData = NULL;
 	}
+	// 填充结果缓冲区并标记 EOF
 	pBuf->pData = pData;
 	pBuf->iSize = iRead;
 	pBuf->bEOF = (pTask->iSize > 0u && iRead < pTask->iSize);
@@ -18184,12 +18232,14 @@ static int32 __xafileReadTask(ptr pArg, xfuture_result* pOut)
 	iRet = __xafileTaskResolve(pOut, pBuf);
 	pBuf = NULL;
 Exit:
+	// 清理临时资源
 	if ( pData != NULL && pData != xCore.sNull ) {
 		xrtFree(pData);
 	}
 	if ( pBuf != NULL ) {
 		__xafileBufDestroyInner(pBuf);
 	}
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -18203,27 +18253,33 @@ static int32 __xafileWriteTask(ptr pArg, xfuture_result* pOut)
 	xasyncfileio* pInfo = NULL;
 	size_t iWrite = 0u;
 	int32 iRet = XRT_NET_ERROR;
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
+	// 加锁执行 seek + write 操作
 	xrtMutexLock(pTask->pFile->pLock);
+	// 检查文件是否具备写入权限
 	if ( !(pTask->pFile->iFlags & XAFILE_F_WRITE) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFail(pOut, __xafileErrWrite);
 		goto Exit;
 	}
+	// 定位到指定偏移量
 	if ( !__xafileSeekLocked(pTask->pFile, pTask->iOffset) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
 		goto Exit;
 	}
+	// 执行写入操作
 	if ( !__xafileWriteLocked(pTask->pFile, pTask->pData, pTask->iSize, &iWrite) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrWrite);
 		goto Exit;
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
+	// 创建写入结果信息
 	pInfo = __xafileIoCreate((uint64)iWrite, pTask->iOffset);
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -18232,9 +18288,11 @@ static int32 __xafileWriteTask(ptr pArg, xfuture_result* pOut)
 	iRet = __xafileTaskResolve(pOut, pInfo);
 	pInfo = NULL;
 Exit:
+	// 清理临时资源
 	if ( pInfo != NULL ) {
 		xrtFree(pInfo);
 	}
+	// 释放任务数据、文件引用和任务对象
 	if ( pTask != NULL ) {
 		if ( pTask->pData != NULL && pTask->pData != xCore.sNull ) {
 			xrtFree(pTask->pData);
@@ -18249,10 +18307,12 @@ static int32 __xafileFlushTask(ptr pArg, xfuture_result* pOut)
 {
 	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
 	int32 iRet = XRT_NET_ERROR;
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
+	// 加锁执行 flush 操作（仅对可写文件）
 	xrtMutexLock(pTask->pFile->pLock);
 	if ( pTask->pFile->iFlags & XAFILE_F_WRITE ) {
 		if ( !__xafileFlushLocked(pTask->pFile) ) {
@@ -18262,8 +18322,10 @@ static int32 __xafileFlushTask(ptr pArg, xfuture_result* pOut)
 		}
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
+	// 返回成功结果
 	iRet = __xafileTaskResolve(pOut, NULL);
 Exit:
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -18277,10 +18339,12 @@ static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
 	xasyncfileio* pInfo = NULL;
 	uint64 iSize = 0u;
 	int32 iRet = XRT_NET_ERROR;
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
+	// 加锁获取文件大小
 	xrtMutexLock(pTask->pFile->pLock);
 	if ( !__xafileGetSizeLocked(pTask->pFile, &iSize) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
@@ -18288,6 +18352,7 @@ static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
 		goto Exit;
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
+	// 创建结果信息并返回
 	pInfo = __xafileIoCreate(iSize, 0u);
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -18296,9 +18361,11 @@ static int32 __xafileGetSizeTask(ptr pArg, xfuture_result* pOut)
 	iRet = __xafileTaskResolve(pOut, pInfo);
 	pInfo = NULL;
 Exit:
+	// 清理临时资源
 	if ( pInfo != NULL ) {
 		xrtFree(pInfo);
 	}
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -18311,22 +18378,27 @@ static int32 __xafileSetSizeTask(ptr pArg, xfuture_result* pOut)
 	__xafile_size_task* pTask = (__xafile_size_task*)pArg;
 	xasyncfileio* pInfo = NULL;
 	int32 iRet = XRT_NET_ERROR;
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->pFile == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrHandle);
 	}
+	// 加锁执行设置文件大小操作
 	xrtMutexLock(pTask->pFile->pLock);
+	// 检查文件是否具备写入权限
 	if ( !(pTask->pFile->iFlags & XAFILE_F_WRITE) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFail(pOut, __xafileErrSetSize);
 		goto Exit;
 	}
+	// 执行文件大小调整
 	if ( !__xafileSetSizeLocked(pTask->pFile, pTask->iSize) ) {
 		xrtMutexUnlock(pTask->pFile->pLock);
 		iRet = __xafileTaskFailLastError(pOut, __xafileErrSetSize);
 		goto Exit;
 	}
 	xrtMutexUnlock(pTask->pFile->pLock);
+	// 创建结果信息并返回
 	pInfo = __xafileIoCreate(pTask->iSize, 0u);
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -18335,9 +18407,11 @@ static int32 __xafileSetSizeTask(ptr pArg, xfuture_result* pOut)
 	iRet = __xafileTaskResolve(pOut, pInfo);
 	pInfo = NULL;
 Exit:
+	// 清理临时资源
 	if ( pInfo != NULL ) {
 		xrtFree(pInfo);
 	}
+	// 释放任务和文件引用
 	if ( pTask != NULL ) {
 		__xafileRelease(pTask->pFile);
 		xrtFree(pTask);
@@ -18354,11 +18428,14 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 	size_t iSize = 0u;
 	int iCount = 0;
 	int32 iRet = XRT_NET_ERROR;
+	// 清除上一次错误并校验任务参数
 	xrtClearError();
 	if ( pTask == NULL || pTask->sPath == NULL ) {
 		return __xafileTaskFail(pOut, __xafileErrConfig);
 	}
+	// 根据任务类型分发处理
 	switch ( pTask->iKind ) {
+		// 追加内容到文件
 		case __XAFILE_PATH_APPEND:
 			iCount = xrtFileAppend(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
 			if ( iCount == 0 && pTask->iSize > 0u ) {
@@ -18367,6 +18444,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
+		// 读取文件全部内容（指定编码）
 		case __XAFILE_PATH_READ_ALL:
 			pData = xrtFileReadAll(pTask->sPath, pTask->iCharset, &iSize);
 			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
@@ -18376,6 +18454,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			if ( pData == xCore.sNull ) {
 				pData = NULL;
 			}
+			// 封装为缓冲区结果
 			pBuf = __xafileBufCreate();
 			if ( pBuf == NULL ) {
 				iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -18387,6 +18466,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			iRet = __xafileTaskResolve(pOut, pBuf);
 			pBuf = NULL;
 			goto Exit;
+		// 写入文件全部内容（指定编码）
 		case __XAFILE_PATH_WRITE_ALL:
 			iCount = xrtFileWriteAll(pTask->sPath, (str)pTask->pData, pTask->iSize, pTask->iCharset);
 			if ( iCount == 0 && pTask->iSize > 0u ) {
@@ -18395,6 +18475,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
+		// 获取文件全部内容（二进制）
 		case __XAFILE_PATH_GET_ALL:
 			pData = xrtFileGetAll(pTask->sPath, &iSize);
 			if ( pData == NULL || (pData == xCore.sNull && __xafileHasLastError()) ) {
@@ -18404,6 +18485,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			if ( pData == xCore.sNull ) {
 				pData = NULL;
 			}
+			// 封装为缓冲区结果
 			pBuf = __xafileBufCreate();
 			if ( pBuf == NULL ) {
 				iRet = __xafileTaskFail(pOut, __xafileErrMemory);
@@ -18415,6 +18497,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			iRet = __xafileTaskResolve(pOut, pBuf);
 			pBuf = NULL;
 			goto Exit;
+		// 写入文件全部内容（二进制）
 		case __XAFILE_PATH_PUT_ALL:
 			iCount = xrtFilePutAll(pTask->sPath, pTask->pData, pTask->iSize);
 			if ( iCount == 0 && pTask->iSize > 0u ) {
@@ -18423,6 +18506,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
+		// 复制文件
 		case __XAFILE_PATH_COPY:
 			if ( !xrtFileCopy(pTask->sPath, pTask->sPath2, pTask->bReWrite) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async file copy failed.");
@@ -18430,6 +18514,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
+		// 移动文件
 		case __XAFILE_PATH_MOVE:
 			if ( !xrtFileMove(pTask->sPath, pTask->sPath2, pTask->bReWrite) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async file move failed.");
@@ -18437,6 +18522,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
+		// 删除文件
 		case __XAFILE_PATH_DELETE:
 			if ( !xrtFileDelete(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async file delete failed.");
@@ -18444,6 +18530,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
+		// 创建目录
 		case __XAFILE_PATH_DIR_CREATE:
 			if ( !xrtDirCreate(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir create failed.");
@@ -18451,6 +18538,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
+		// 递归创建目录
 		case __XAFILE_PATH_DIR_CREATE_ALL:
 			if ( !xrtDirCreateAll(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir create-all failed.");
@@ -18458,36 +18546,45 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			}
 			pInfo = __xafileIoCreate(1u, 0u);
 			break;
+		// 复制目录
 		case __XAFILE_PATH_DIR_COPY:
+			// 校验源目录是否存在
 			if ( !xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFail(pOut, "async dir copy failed.");
 				goto Exit;
 			}
 			iCount = xrtDirCopy(pTask->sPath, pTask->sPath2, pTask->bReWrite);
+			// 校验目标目录是否创建成功
 			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir copy failed.");
 				goto Exit;
 			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
+		// 移动目录
 		case __XAFILE_PATH_DIR_MOVE:
+			// 校验源目录是否存在
 			if ( !xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFail(pOut, "async dir move failed.");
 				goto Exit;
 			}
 			iCount = xrtDirMove(pTask->sPath, pTask->sPath2, pTask->bReWrite);
+			// 校验移动结果：目标应存在，源应不存在
 			if ( __xafileHasLastError() || !xrtDirExists(pTask->sPath2) || xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir move failed.");
 				goto Exit;
 			}
 			pInfo = __xafileIoCreate((uint64)iCount, 0u);
 			break;
+		// 删除目录
 		case __XAFILE_PATH_DIR_DELETE:
+			// 校验目录是否存在
 			if ( !xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFail(pOut, "async dir delete failed.");
 				goto Exit;
 			}
 			iCount = xrtDirDelete(pTask->sPath);
+			// 校验删除结果：目录应不存在
 			if ( __xafileHasLastError() || xrtDirExists(pTask->sPath) ) {
 				iRet = __xafileTaskFailLastError(pOut, "async dir delete failed.");
 				goto Exit;
@@ -18498,6 +18595,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 			iRet = __xafileTaskFail(pOut, __xafileErrConfig);
 			goto Exit;
 	}
+	// 检查 IO 结果对象是否创建成功
 	if ( pInfo == NULL ) {
 		iRet = __xafileTaskFail(pOut, __xafileErrMemory);
 		goto Exit;
@@ -18505,6 +18603,7 @@ static int32 __xafilePathTaskProc(ptr pArg, xfuture_result* pOut)
 	iRet = __xafileTaskResolve(pOut, pInfo);
 	pInfo = NULL;
 Exit:
+	// 清理所有临时资源
 	if ( pData != NULL && pData != xCore.sNull ) {
 		xrtFree(pData);
 	}
@@ -18522,14 +18621,17 @@ static xfuture* __xafileStartReadTask(xasyncfile* pFile, uint64 iOffset, size_t 
 {
 	__xafile_read_task* pTask;
 	xfuture* pFuture;
+	// 校验文件句柄
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrHandle);
 		return NULL;
 	}
+	// 增加文件引用计数（拒绝已关闭的文件）
 	if ( !__xafileAddRef(pFile, true) ) {
 		__xafileSetError(__xafileErrClosed);
 		return NULL;
 	}
+	// 创建读取任务
 	pTask = (__xafile_read_task*)xrtMalloc(sizeof(__xafile_read_task));
 	if ( pTask == NULL ) {
 		__xafileRelease(pFile);
@@ -18539,7 +18641,9 @@ static xfuture* __xafileStartReadTask(xasyncfile* pFile, uint64 iOffset, size_t 
 	pTask->pFile = pFile;
 	pTask->iOffset = iOffset;
 	pTask->iSize = iSize;
+	// 提交到线程池执行
 	pFuture = xTaskRunThread(__xafileReadTask, pTask, 0);
+	// 提交失败时释放资源
 	if ( pFuture == NULL ) {
 		__xafileRelease(pFile);
 		xrtFree(pTask);
@@ -18551,14 +18655,17 @@ static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const 
 {
 	__xafile_write_task* pTask;
 	xfuture* pFuture;
+	// 校验文件句柄
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrHandle);
 		return NULL;
 	}
+	// 增加文件引用计数（拒绝已关闭的文件）
 	if ( !__xafileAddRef(pFile, true) ) {
 		__xafileSetError(__xafileErrClosed);
 		return NULL;
 	}
+	// 创建写入任务
 	pTask = (__xafile_write_task*)xrtMalloc(sizeof(__xafile_write_task));
 	if ( pTask == NULL ) {
 		__xafileRelease(pFile);
@@ -18569,6 +18676,7 @@ static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const 
 	pTask->pFile = pFile;
 	pTask->iOffset = iOffset;
 	pTask->iSize = iSize;
+	// 复制写入数据（任务在另一线程执行，需要独立副本）
 	if ( iSize > 0u ) {
 		pTask->pData = xrtCopyMem((ptr)pData, iSize);
 		if ( pTask->pData == NULL || pTask->pData == xCore.sNull ) {
@@ -18578,7 +18686,9 @@ static xfuture* __xafileStartWriteTask(xasyncfile* pFile, uint64 iOffset, const 
 			return NULL;
 		}
 	}
+	// 提交到线程池执行
 	pFuture = xTaskRunThread(__xafileWriteTask, pTask, 0);
+	// 提交失败时释放资源
 	if ( pFuture == NULL ) {
 		if ( pTask->pData != NULL && pTask->pData != xCore.sNull ) {
 			xrtFree(pTask->pData);
@@ -18593,14 +18703,17 @@ static xfuture* __xafileStartSizeTask(xasyncfile* pFile, xtask_thread_fn pfnTask
 {
 	__xafile_size_task* pTask;
 	xfuture* pFuture;
+	// 校验文件句柄
 	if ( pFile == NULL ) {
 		__xafileSetError(__xafileErrHandle);
 		return NULL;
 	}
+	// 增加文件引用计数（拒绝已关闭的文件）
 	if ( !__xafileAddRef(pFile, true) ) {
 		__xafileSetError(__xafileErrClosed);
 		return NULL;
 	}
+	// 创建大小任务
 	pTask = (__xafile_size_task*)xrtMalloc(sizeof(__xafile_size_task));
 	if ( pTask == NULL ) {
 		__xafileRelease(pFile);
@@ -18609,7 +18722,9 @@ static xfuture* __xafileStartSizeTask(xasyncfile* pFile, xtask_thread_fn pfnTask
 	}
 	pTask->pFile = pFile;
 	pTask->iSize = iSize;
+	// 提交到线程池执行
 	pFuture = xTaskRunThread(pfnTask, pTask, 0);
+	// 提交失败时释放资源
 	if ( pFuture == NULL ) {
 		__xafileRelease(pFile);
 		xrtFree(pTask);
@@ -18910,36 +19025,36 @@ static inline void __xrtThreadObjFree(ptr pMem)
 }
 // 线程包装函数（统一完成 attach / detach / exit code 保存）
 #if defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
-{
-	xthread pThread = (xthread)lpParameter;
-	uint32 iExitCode = 0;
-	if ( pThread == NULL ) {
-		return 0;
+	static DWORD WINAPI xrtThreadWrapper(LPVOID lpParameter)
+	{
+		xthread pThread = (xthread)lpParameter;
+		uint32 iExitCode = 0;
+		if ( pThread == NULL ) {
+			return 0;
+		}
+		__xrtThreadAttachManaged(pThread);
+		if ( pThread->Proc ) {
+			iExitCode = pThread->Proc(pThread->Param);
+		}
+		__xrtThreadExitManaged(pThread, iExitCode);
+		return iExitCode;
 	}
-	__xrtThreadAttachManaged(pThread);
-	if ( pThread->Proc ) {
-		iExitCode = pThread->Proc(pThread->Param);
-	}
-	__xrtThreadExitManaged(pThread, iExitCode);
-	return iExitCode;
-}
 #else
-// 线程包装函数（统一完成 attach / detach / exit code 保存）
-static void* xrtThreadWrapper(void* pParameter)
-{
-	xthread pThread = (xthread)pParameter;
-	uint32 iExitCode = 0;
-	if ( pThread == NULL ) {
-		return (void*)(uintptr_t)0;
+	// 线程包装函数（统一完成 attach / detach / exit code 保存）
+	static void* xrtThreadWrapper(void* pParameter)
+	{
+		xthread pThread = (xthread)pParameter;
+		uint32 iExitCode = 0;
+		if ( pThread == NULL ) {
+			return (void*)(uintptr_t)0;
+		}
+		__xrtThreadAttachManaged(pThread);
+		if ( pThread->Proc ) {
+			iExitCode = pThread->Proc(pThread->Param);
+		}
+		__xrtThreadExitManaged(pThread, iExitCode);
+		return (void*)(uintptr_t)iExitCode;
 	}
-	__xrtThreadAttachManaged(pThread);
-	if ( pThread->Proc ) {
-		iExitCode = pThread->Proc(pThread->Param);
-	}
-	__xrtThreadExitManaged(pThread, iExitCode);
-	return (void*)(uintptr_t)iExitCode;
-}
 #endif
 // 创建线程
 XXAPI xthread xrtThreadCreate(ptr pProc, ptr pParam, size_t iStackSize)
@@ -21696,7 +21811,7 @@ static void UNUSED_ATTR __xrt_co_sleep_ms(int iMs)
 	0xD0 = xmm14
 	0xE0 = xmm15
 */
-// R13: 协程上下文切换 - Windows x64 ABI 版本
+// 协程上下文切换 - Windows x64 ABI 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 // rcx = pFrom, rdx = pTo，所有 callee-saved 寄存器按固定偏移存取
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
@@ -21764,7 +21879,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[6] = r14
 	arrReg[7] = r15
 */
-// R13: 协程上下文切换 - x86_64 System V ABI 版本
+// 协程上下文切换 - x86_64 System V ABI 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 // rdi = pFrom, rsi = pTo，所有 callee-saved 寄存器按固定偏移存取
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
@@ -21813,7 +21928,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	arrReg[22..25] = q12, q13
 	arrReg[26..29] = q14, q15
 */
-// R13: 协程上下文切换 - ARM64 AAPCS64 版本
+// 协程上下文切换 - ARM64 AAPCS64 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
@@ -21870,7 +21985,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	若使用硬浮点 ABI:
 	arrReg[14..25] = fs0 ~ fs11（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
-// R13: 协程上下文切换 - RISC-V 64 版本
+// 协程上下文切换 - RISC-V 64 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
@@ -22069,7 +22184,7 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 	若使用硬浮点 ABI:
 	arrReg[12..19] = fs0 ~ fs7（统一按 8 字节槽位存放，单精度 ABI 仅使用每槽低 4 字节）
 */
-// R13: 协程上下文切换 - LoongArch64 版本
+// 协程上下文切换 - LoongArch64 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
 static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
@@ -24299,7 +24414,7 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 	if ( pOut == NULL || sText == NULL ) { return false; }
 	memset(pOut, 0, sizeof(xrturlview));
 	if ( iLen == 0u ) { return false; }
-	// R13: 扫描协议段，遇到 ':' 判断是否为 scheme:end，否则按相对 URL 处理
+	// 扫描协议段，遇到 ':' 判断是否为 scheme:end，否则按相对 URL 处理
 	for ( i = 0u; i < iLen; ++i ) {
 		char ch = sText[i];
 		if ( ch == ':' ) {
@@ -24495,7 +24610,7 @@ XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, siz
 	if ( sPath == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	if ( !__xrtUrlValidateNoCtlOrSpace(sPath, iLen) ) { return false; }
 	sOut[0] = '\0';
-	// R13: 判断路径是绝对路径（以 '/' 开头）还是相对路径
+	// 判断路径是绝对路径（以 '/' 开头）还是相对路径
 	bAbsolute = iLen > 0u && sPath[0] == '/';
 	bTrailingSlash = iLen > 0u && sPath[iLen - 1u] == '/';
 	// 绝对路径以 '/' 开头，跳过多余的连续斜杠
@@ -24645,7 +24760,7 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 	if ( (pBase->iFlags & XRT_URL_F_ABSOLUTE) == 0u || xrtStrViewIsEmpty(pBase->tScheme) || xrtStrViewIsEmpty(pBase->tHost) ) { return false; }
 	// 空引用直接返回基准 URL
 	if ( iRefLen == 0u ) { return xrtUrlBuild(pBase, sOut, iOutCap, pOutLen); }
-	// R13: 协议相对 URL（以 "//" 开头），替换基准 URL 的授权段
+	// 协议相对 URL（以 "//" 开头），替换基准 URL 的授权段
 	if ( iRefLen >= 2u && sRef[0] == '/' && sRef[1] == '/' ) {
 		size_t iAuthEnd = 2u;
 		xrturlview tAuthority;
@@ -25229,7 +25344,7 @@ XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLim
 	return xrtSetCookieValidateN(sText, strlen(__xrt_cstr(sText)), pLimits);
 }
 // 校验 Multipart 数据 (RFC 2046)
-// R13: 算法说明 - 校验 Multipart body 的完整性和各项限制
+// 算法说明 - 校验 Multipart body 的完整性和各项限制
 //   逐个遍历 Part, 校验边界、头部、各字段的长度限制以及头部行数限制
 XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits)
 {
@@ -25382,7 +25497,7 @@ XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOut
 	return xrtHttpQuotedStringBuildToN(sText, strlen(__xrt_cstr(sText)), sOut, iOutCap, pOutLen);
 }
 // URL 百分号编码 (RFC 3986 §2.1)
-// R13: 算法说明 - 将非保留字符以外的字节编码为 %HH 形式
+// 算法说明 - 将非保留字符以外的字节编码为 %HH 形式
 //   保留字符 (A-Z a-z 0-9 - _ . ~) 直接输出
 //   空格可选编码为 '+' (application/x-www-form-urlencoded) 或 '%20' (URI)
 //   其他字节编码为 %XX (大写十六进制)
@@ -25419,7 +25534,7 @@ XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t
 	return true;
 }
 // 内部函数：解析 RFC 5987 扩展值视图
-// R13: 算法说明 - 解析 RFC 5987 扩展值格式 "charset'language'encoded-value"
+// 算法说明 - 解析 RFC 5987 扩展值格式 "charset'language'encoded-value"
 //   通过两个单引号 ''' 将字符串分为 charset、language、percent-encoded-value 三部分
 //   charset 必须为合法 Token 字符, encoded-value 由百分号编码组成
 static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset, xrtstrview* pLanguage, xrtstrview* pEncoded)
@@ -25475,7 +25590,7 @@ XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, 
 	return xrtHttpDecodeExtValueTo(sText, strlen(__xrt_cstr(sText)), NULL, NULL, sOut, iOutCap, pOutLen);
 }
 // 构建 HTTP 扩展值 (RFC 5987)
-// R13: 算法说明 - 构建 RFC 5987 扩展值格式 "charset'language'percent-encoded-value"
+// 算法说明 - 构建 RFC 5987 扩展值格式 "charset'language'percent-encoded-value"
 //   charset 默认 UTF-8, language 可为空, value 部分使用百分号编码
 XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -25921,7 +26036,7 @@ XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t i
 	return xrtHttpHeaderCollectAndJoinToN(pHeaders, iCount, sName, strlen(__xrt_cstr(sName)), sOut, iOutCap, pOutLen);
 }
 // 获取下一个 HTTP 头部行
-// R13: 算法说明 - 迭代解析 HTTP 头部块, 每行格式为 "Name: Value\r\n"
+// 算法说明 - 迭代解析 HTTP 头部块, 每行格式为 "Name: Value\r\n"
 //   连续的 \r\n 表示头部块结束, 最后一行可无 \r\n 终止
 XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut)
 {
@@ -26078,7 +26193,7 @@ XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const 
 	return xrtHttpHeaderRemoveN(pHeaders, pCount, sName, strlen(__xrt_cstr(sName)));
 }
 // 获取下一个 Cookie (RFC 6265 §4.2.1)
-// R13: 算法说明 - 迭代解析 Cookie 头部, 格式为 "name1=value1; name2=value2; ..."
+// 算法说明 - 迭代解析 Cookie 头部, 格式为 "name1=value1; name2=value2; ..."
 //   Cookie 对以 ';' 分隔, name 和 value 以 '=' 分隔
 //   name 必须为合法 HTTP Token, value 两端空白会被裁剪
 XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut)
@@ -26166,7 +26281,7 @@ XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap,
 	return xrtCookieParseToN(sText, strlen(__xrt_cstr(sText)), pOut, iCap, pCount);
 }
 // 解析 Set-Cookie 头部值 (RFC 6265 §4.1.1)
-// R13: 算法说明 - Set-Cookie 头部格式为 "name=value; 属性1; 属性2=值2 ..."
+// 算法说明 - Set-Cookie 头部格式为 "name=value; 属性1; 属性2=值2 ..."
 //   第一对 name=value 为必须项, 之后为可选属性(布尔型或键值型)
 //   布尔属性: Secure, HttpOnly, Partitioned, SameParty
 //   键值属性: Domain, Path, Expires, Max-Age, SameSite, Priority
@@ -26312,7 +26427,7 @@ XXAPI bool xrtSetCookieParseLine(const char* sLine, xrtsetcookieview* pOut)
 }
 static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut);
 // 获取下一个 HTTP 参数
-// R13: 算法说明 - 迭代解析 HTTP 参数列表 (RFC 2616 attribute=value 对)
+// 算法说明 - 迭代解析 HTTP 参数列表 (RFC 2616 attribute=value 对)
 //   参数以 ';' 分隔, 格式为 "name[=value]; name[=value]; ..."
 //   value 可以是裸值或双引号引用字符串
 XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut)
@@ -26431,7 +26546,7 @@ XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, c
 	return xrtHttpParamAppendPairTo(sOut, iOutCap, pOffset, sName, strlen(__xrt_cstr(sName)), sValue, sValue ? strlen(sValue) : 0u, bHasValue, bQuoteValue);
 }
 // 解析 HTTP 媒体类型 (RFC 6838 / MIME Content-Type)
-// R13: 算法说明 - 解析 MIME 媒体类型字符串, 格式为 "type/subtype[+suffix][;params]"
+// 算法说明 - 解析 MIME 媒体类型字符串, 格式为 "type/subtype[+suffix][;params]"
 //   例如: "text/html;charset=UTF-8", "application/vnd.api+json"
 //   通过 '/' 分离 type 和 subtype, '+' 分离可选 suffix, ';' 分离参数
 XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut)
@@ -26541,7 +26656,7 @@ XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* 
 	return xrtHttpMediaTypeFindParamN(pType, sName, strlen(__xrt_cstr(sName)), pOut);
 }
 // 解析 HTTP Content-Disposition 头部 (RFC 6266)
-// R13: 算法说明 - 解析 Content-Disposition 头部, 格式为 "disposition-type; name=...; filename=...; filename*=..."
+// 算法说明 - 解析 Content-Disposition 头部, 格式为 "disposition-type; name=...; filename=...; filename*=..."
 //   disposition-type 通常为 "form-data" 或 "attachment"
 //   filename* 使用 RFC 5987 扩展值编码, 优先级高于 filename
 XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut)
@@ -26805,7 +26920,7 @@ XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, c
 	return true;
 }
 // 构建 Set-Cookie 值 (RFC 6265 §4.1.1)
-// R13: 算法说明 - 按规范顺序拼接 Set-Cookie 值: name=value; 属性列表
+// 算法说明 - 按规范顺序拼接 Set-Cookie 值: name=value; 属性列表
 //   属性按 Domain/Path/Expires/Max-Age/SameSite/Secure/HttpOnly/Partitioned/SameParty/Priority 顺序输出
 XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -27030,7 +27145,7 @@ static bool __xrtHttpUtilMultipartParseContentDisposition(xrtstrview tValue, xrt
 	return true;
 }
 // 获取下一个 Multipart Part
-// R13: 算法说明 - Multipart 整体解析, 按 RFC 2046 格式定位每个 Part
+// 算法说明 - Multipart 整体解析, 按 RFC 2046 格式定位每个 Part
 //   格式: --boundary\r\n<headers>\r\n\r\n<body>\r\n--boundary(--) ...
 //   先定位边界行, 再查找头部与 body 的分隔符(\r\n\r\n), 最后定位下一个边界
 XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut)
@@ -27200,7 +27315,7 @@ static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, s
 	return true;
 }
 // 初始化 Multipart 流
-// R13: 算法说明 - 初始化流式 Multipart 解析器, 配置缓冲区大小限制和边界字符串
+// 算法说明 - 初始化流式 Multipart 解析器, 配置缓冲区大小限制和边界字符串
 //   自动计算尾部保留空间(边界长度 + 8), 确保缓冲区能容纳至少一个头部块加尾部保留
 XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig)
 {
@@ -27298,7 +27413,7 @@ XXAPI uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream)
 	return pStream ? pStream->iError : XRT_MULTIPART_STREAM_ERR_NONE;
 }
 // 内部函数：从流缓冲区中解析当前 Part 的头部块
-// R13: 算法说明 - 在流式缓冲区中查找 \r\n\r\n 分隔符定位头部区域,
+// 算法说明 - 在流式缓冲区中查找 \r\n\r\n 分隔符定位头部区域,
 //   然后逐行解析头部字段, 提取 Content-Disposition/Content-Type/Content-Transfer-Encoding
 static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream, xrtmultipartpartview* pOut)
 {
@@ -27365,7 +27480,7 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 	return true;
 }
 // 获取下一个 Multipart 流事件
-// R13: 算法说明 - Multipart 流式解析状态机, 按 RFC 2046 multipart 格式逐步解析
+// 算法说明 - Multipart 流式解析状态机, 按 RFC 2046 multipart 格式逐步解析
 //   状态流转: SEEK_BOUNDARY -> HEADERS -> BODY -> PART_END -> (循环或 DONE)
 //   每次调用返回一个事件(PART_BEGIN/DATA/PART_END/END/NEED_MORE/ERROR)
 //   BODY 状态下采用尾部保留策略, 避免在边界分割处遗漏数据
@@ -27975,7 +28090,7 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 	pAddr->iPort = iPort;
 	#if defined(_WIN32) || defined(_WIN64)
 		// Windows 平台：先尝试作为 IPv4 地址解析
-		// R13: 利用 WSAStringToAddressA 将点分十进制字符串转换为 sockaddr_in，
+		// 利用 WSAStringToAddressA 将点分十进制字符串转换为 sockaddr_in，
 		//      再从 sin_addr 中拷贝 4 字节网络序地址到 xnetaddr.aAddr
 		memset(&tStorage, 0, sizeof(tStorage));
 		iStorageLen = (int)sizeof(tStorage);
@@ -27986,7 +28101,7 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 			return XRT_NET_OK;
 		}
 		// IPv4 解析失败，尝试作为 IPv6 地址解析
-		// R13: IPv6 额外保存 sin6_scope_id 用于链路本地地址的接口标识
+		// IPv6 额外保存 sin6_scope_id 用于链路本地地址的接口标识
 		memset(&tStorage, 0, sizeof(tStorage));
 		iStorageLen = (int)sizeof(tStorage);
 		snprintf(sAddrBuf, sizeof(sAddrBuf), "%s", sIP);
@@ -27998,7 +28113,7 @@ XXAPI xnet_result xrtNetAddrParse(xnetaddr* pAddr, const char* sIP, uint16 iPort
 		}
 	#else
 		// 非 Windows 平台：先尝试作为 IPv4 地址解析
-		// R13: inet_pton 将文本地址转为网络序二进制并直接写入 aAddr
+		// inet_pton 将文本地址转为网络序二进制并直接写入 aAddr
 		if ( inet_pton(AF_INET, sIP, pAddr->aAddr) == 1 ) {
 			pAddr->iFamily = AF_INET;
 			return XRT_NET_OK;
@@ -28056,7 +28171,7 @@ XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 	char* pBuf = __xnetAddrTempBuf();
 	if ( !pAddr ) { return pBuf; }
 	// IPv4 地址：直接转换为点分十进制字符串
-	// R13: inet_ntop 将 4 字节网络序地址转为可读文本
+	// inet_ntop 将 4 字节网络序地址转为可读文本
 	if ( pAddr->iFamily == AF_INET ) {
 		if ( !inet_ntop(AF_INET, pAddr->aAddr, pBuf, __XNET_ADDR_STR_CAP) ) {
 			pBuf[0] = '\0';
@@ -28064,7 +28179,7 @@ XXAPI const char* xrtNetAddrToStr(const xnetaddr* pAddr)
 		return pBuf;
 	}
 	// IPv6 地址：转换后处理 scope id 后缀
-	// R13: inet_ntop 将 16 字节网络序地址转为冒号分隔文本，
+	// inet_ntop 将 16 字节网络序地址转为冒号分隔文本，
 	//      scope id 用 % 后缀标识链路本地地址所属的接口编号
 	if ( pAddr->iFamily == AF_INET6 ) {
 		char aAddr[INET6_ADDRSTRLEN];
@@ -28841,7 +28956,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 typedef struct xrt_net_port xnetport;
 typedef struct xrt_net_port_ops xnetportops;
 static const xnetportops* xrtNetPortIOCPOps(void);
-static const xnetportops* xrtNetPortUringOps(void);
+static const xnetportops* xrtNetPortUringOps(void) UNUSED_ATTR;
 /* ============================== Backend and op identifiers ============================== */
 #define XNET_PORT_BACKEND_AUTO    0u
 #define XNET_PORT_BACKEND_IOCP    1u
@@ -29389,7 +29504,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
 		// 将监听套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
-		// [R13] 获取 AcceptEx 扩展函数指针（通过 WSAIoctl 动态加载）
+		// 获取 AcceptEx 扩展函数指针（通过 WSAIoctl 动态加载）
 		pfnAcceptEx = __xnetPortIOCPGetAcceptEx(pCtx, (SOCKET)pOp->hSocket);
 		if ( !pfnAcceptEx ) { return XRT_NET_ERROR; }
 		// 分配 IO 操作结构体
@@ -29403,7 +29518,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			XNET_FREE(pIo);
 			return XRT_NET_ERROR;
 		}
-		// [R13] 发起 AcceptEx 异步接受操作，通过 overlapped 结构关联到 IOCP
+		// 发起 AcceptEx 异步接受操作，通过 overlapped 结构关联到 IOCP
 		bOk = pfnAcceptEx((SOCKET)pOp->hSocket,
 			pIo->hAcceptSocket,
 			pIo->aAcceptBuf,
@@ -29412,7 +29527,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			__XNET_IOCP_ACCEPT_ADDR_SPACE,
 			&iBytes,
 			&pIo->tOverlapped);
-		// [R13] AcceptEx 返回 FALSE 且错误码非 PENDING 时才视为失败
+		// AcceptEx 返回 FALSE 且错误码非 PENDING 时才视为失败
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
@@ -29441,11 +29556,11 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
-		// [R13] 发起 WSARecv 异步接收操作，通过 overlapped 关联到 IOCP
+		// 发起 WSARecv 异步接收操作，通过 overlapped 关联到 IOCP
 		iRet = WSARecv((SOCKET)pOp->hSocket, pIo->arrBuf, 1, &iBytes, &iFlags, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSARecv submit fail socket=%p err=%d op=%llu\n",
@@ -29476,13 +29591,13 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		if ( !__xnetPortIOCPBindConnectSocketLocal((SOCKET)pOp->hSocket, iFamily) ) {
 			return XRT_NET_ERROR;
 		}
-		// [R13] 获取 ConnectEx 扩展函数指针
+		// 获取 ConnectEx 扩展函数指针
 		pfnConnectEx = __xnetPortIOCPGetConnectEx(pCtx, (SOCKET)pOp->hSocket);
 		if ( !pfnConnectEx ) { return XRT_NET_ERROR; }
 		// 分配 IO 操作结构体
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
-		// [R13] 发起 ConnectEx 异步连接操作，通过 overlapped 关联到 IOCP
+		// 发起 ConnectEx 异步连接操作，通过 overlapped 关联到 IOCP
 		bOk = pfnConnectEx((SOCKET)pOp->hSocket,
 			(const struct sockaddr*)&tStorage,
 			(int)iAddrLen,
@@ -29490,7 +29605,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			0,
 			NULL,
 			&pIo->tOverlapped);
-		// [R13] ERROR_IO_PENDING 表示连接已成功排队等待完成
+		// ERROR_IO_PENDING 表示连接已成功排队等待完成
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
@@ -29518,7 +29633,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
-		// [R13] 发起 WSARecvFrom 异步接收操作，通过 overlapped 关联到 IOCP
+		// 发起 WSARecvFrom 异步接收操作，通过 overlapped 关联到 IOCP
 		iRet = WSARecvFrom((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			1,
@@ -29530,7 +29645,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSARecvFrom submit fail socket=%p err=%d op=%llu\n",
@@ -29569,11 +29684,11 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			XNET_FREE(pIo);
 			return XRT_NET_ERROR;
 		}
-		// [R13] 发起 WSASend 异步发送操作，通过 overlapped 关联到 IOCP
+		// 发起 WSASend 异步发送操作，通过 overlapped 关联到 IOCP
 		iRet = WSASend((SOCKET)pOp->hSocket, pIo->arrBuf, pIo->iBufCount, &iBytes, 0, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSASend submit fail socket=%p err=%d op=%llu bufcount=%u\n",
@@ -29609,7 +29724,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		// 拷贝目标地址到 IO 结构体中供完成回调使用
 		memcpy(&pIo->tAddrStorage, &tStorage, sizeof(tStorage));
 		pIo->iAddrLen = (int)iAddrLen;
-		// [R13] 发起 WSASendTo 异步发送操作，通过 overlapped 关联到 IOCP
+		// 发起 WSASendTo 异步发送操作，通过 overlapped 关联到 IOCP
 		iRet = WSASendTo((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			pIo->iBufCount,
@@ -29621,7 +29736,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSASendTo submit fail socket=%p err=%d op=%llu bufcount=%u\n",
@@ -29758,7 +29873,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			LPOVERLAPPED pOv = NULL;
 			// 已有事件时不再等待，直接非阻塞轮询
 			DWORD iWait = (iCount > 0) ? 0u : iWaitMs;
-			// [R13] 通过 GetQueuedCompletionStatus 从 IOCP 完成端口取出一个已完成的 I/O 结果
+			// 通过 GetQueuedCompletionStatus 从 IOCP 完成端口取出一个已完成的 I/O 结果
 			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, iWait);
 			__xnet_iocp_header* pHdr;
 			(void)iKey;
@@ -29777,7 +29892,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 				pEvents[iCount++] = pPost->tEvent;
 				XNET_FREE(pPost);
 			} else if ( pHdr->iKind == __XNET_IOCP_KIND_IO ) {
-				// [R13] 真实 I/O 完成事件，构建对应类型的事件后释放 IO 包
+				// 真实 I/O 完成事件，构建对应类型的事件后释放 IO 包
 				__xnet_iocp_io* pIo = (__xnet_iocp_io*)pOv;
 				if ( __xnetPortIOCPBuildIoEvent(pIo, bOk, iBytes, &pEvents[iCount]) ) {
 					iCount++;
@@ -30295,7 +30410,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		memset(pRing, 0, sizeof(*pRing));
 		pRing->hRingFd = -1;
 		memset(&pRing->tParams, 0, sizeof(pRing->tParams));
-		// [R13] 通过 io_uring_setup 系统调用创建 ring 实例
+		// 通过 io_uring_setup 系统调用创建 ring 实例
 		pRing->hRingFd = __xnetPortUringSysSetup(iEntries ? iEntries : 256u, &pRing->tParams);
 		if ( pRing->hRingFd < 0 ) {
 			return false;
@@ -30307,7 +30422,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		// 检查内核是否支持 SINGLE_MMAP 特性
 		pRing->bSingleMmap = (pRing->tParams.iFeatures & __XNET_IORING_FEAT_SINGLE_MMAP) != 0;
 		if ( pRing->bSingleMmap ) {
-			// [R13] SINGLE_MMAP：SQ ring 和 CQ ring 共享同一块映射区域
+			// SINGLE_MMAP：SQ ring 和 CQ ring 共享同一块映射区域
 			iSharedLen = (iSqRingLen > iCqRingLen) ? iSqRingLen : iCqRingLen;
 			pSharedMap = mmap(NULL, iSharedLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
 			if ( pSharedMap == MAP_FAILED ) {
@@ -30319,7 +30434,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			pRing->iSqRingMapLen = iSharedLen;
 			pRing->iCqRingMapLen = iSharedLen;
 		} else {
-			// [R13] 分别映射 SQ ring 和 CQ ring 到不同的内存区域
+			// 分别映射 SQ ring 和 CQ ring 到不同的内存区域
 			pRing->pSqRingBase = mmap(NULL, iSqRingLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
 			if ( pRing->pSqRingBase == MAP_FAILED ) {
 				pRing->pSqRingBase = NULL;
@@ -30335,7 +30450,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			pRing->iSqRingMapLen = iSqRingLen;
 			pRing->iCqRingMapLen = iCqRingLen;
 		}
-		// [R13] 映射 SQE（提交队列条目）区域
+		// 映射 SQE（提交队列条目）区域
 		pRing->pSqesBase = mmap(NULL, iSqesLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQES);
 		if ( pRing->pSqesBase == MAP_FAILED ) {
 			pRing->pSqesBase = NULL;
@@ -30343,7 +30458,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			return false;
 		}
 		pRing->iSqesMapLen = iSqesLen;
-		// [R13] 根据 params 中的偏移量，计算各环形队列字段的指针地址
+		// 根据 params 中的偏移量，计算各环形队列字段的指针地址
 		pRing->pSqHead = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iHead);
 		pRing->pSqTail = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iTail);
 		pRing->pSqMask = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iRingMask);
@@ -30600,7 +30715,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 				XNET_FREE(pIo);
 				return XRT_NET_ERROR;
 		}
-		// [R13] 获取 ring 锁，从 SQ ring 中取出一个空闲 SQE 槽位
+		// 获取 ring 锁，从 SQ ring 中取出一个空闲 SQE 槽位
 		pthread_mutex_lock(&pCtx->tRingLock);
 		pSqe = __xnetPortUringNativeGetSqe(&pCtx->tNativeRing, &iTail, &iSlot);
 		if ( !pSqe ) {
@@ -30614,37 +30729,37 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		// 根据操作类型设置不同的 io_uring opcode 和参数
 		switch ( pOp->iOpType ) {
 			case XNET_PORT_OP_ACCEPT:
-				// [R13] io_uring ACCEPT 操作，传入地址缓冲区和长度指针
+				// io_uring ACCEPT 操作，传入地址缓冲区和长度指针
 				pSqe->iOpcode = __XNET_IORING_OP_ACCEPT;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
 				pSqe->iOff = (uint64)(uintptr_t)&pIo->iAddrLen;
 				break;
 			case XNET_PORT_OP_CONNECT:
-				// [R13] io_uring CONNECT 操作
+				// io_uring CONNECT 操作
 				pSqe->iOpcode = __XNET_IORING_OP_CONNECT;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
 				pSqe->iOff = (uint64)pIo->iAddrLen;
 				break;
 			case XNET_PORT_OP_RECV:
-				// [R13] io_uring RECV 操作，使用内嵌接收缓冲区
+				// io_uring RECV 操作，使用内嵌接收缓冲区
 				pSqe->iOpcode = __XNET_IORING_OP_RECV;
 				pSqe->iAddr = (uint64)(uintptr_t)pIo->aRecvBuf;
 				pSqe->iLen = (uint32)sizeof(pIo->aRecvBuf);
 				break;
 			case XNET_PORT_OP_SEND:
-				// [R13] io_uring SENDMSG 操作，通过 msghdr 发送多缓冲区
+				// io_uring SENDMSG 操作，通过 msghdr 发送多缓冲区
 				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
 				break;
 			case XNET_PORT_OP_RECVFROM:
-				// [R13] io_uring RECVMSG 操作，通过 msghdr 接收并获取源地址
+				// io_uring RECVMSG 操作，通过 msghdr 接收并获取源地址
 				pSqe->iOpcode = __XNET_IORING_OP_RECVMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
 				break;
 			case XNET_PORT_OP_SENDTO:
-				// [R13] io_uring SENDMSG 操作，通过 msghdr 发送到指定目标地址
+				// io_uring SENDMSG 操作，通过 msghdr 发送到指定目标地址
 				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
@@ -30653,7 +30768,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		// 跟踪活跃 IO 操作并提交 SQE 到 ring
 		__xnetPortUringTrackIo(pCtx, pIo);
 		__xnetPortUringNativeCommitSqe(&pCtx->tNativeRing, iTail, iSlot);
-		// [R13] 通过 io_uring_enter 系统调用通知内核处理新提交的 SQE
+		// 通过 io_uring_enter 系统调用通知内核处理新提交的 SQE
 		if ( __xnetPortUringNativeEnter(&pCtx->tNativeRing, 1u, 0u, 0u) != XRT_NET_OK ) {
 			// 提交失败时回滚 SQE 并取消跟踪
 			__xnetPortUringNativeRollbackSqe(&pCtx->tNativeRing, iTail, iSlot);
@@ -30935,7 +31050,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
-		// [R13] 初始化原生 io_uring ring（通过 io_uring_setup 系统调用）
+		// 初始化原生 io_uring ring（通过 io_uring_setup 系统调用）
 		if ( !__xnetPortUringNativeRingInit(&pCtx->tNativeRing, pCfg->iSqEntries ? pCfg->iSqEntries : 256u) ) {
 			pthread_mutex_destroy(&pCtx->tRingLock);
 			pthread_mutex_destroy(&pCtx->tIoLock);
@@ -31024,7 +31139,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 		// 第二阶段：排空已投递的合成事件队列
 		iCount += __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
-		// 第三阶段：[R13] 从 io_uring CQ ring 中收割已完成的 IO 事件
+		// 第三阶段：从 io_uring CQ ring 中收割已完成的 IO 事件
 		iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 		// 第四阶段：如果还没有事件，使用 poll 阻塞等待唤醒或 ring 事件
@@ -31042,7 +31157,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 				arrPoll[iPollCount].events = POLLIN;
 				++iPollCount;
 			}
-			// [R13] 监听 io_uring ring fd 的可读事件（表示有新 CQE 可消费）
+			// 监听 io_uring ring fd 的可读事件（表示有新 CQE 可消费）
 			iRingIndex = (int)iPollCount;
 			arrPoll[iPollCount].fd = pCtx->tNativeRing.hRingFd;
 			arrPoll[iPollCount].events = POLLIN;
@@ -31065,7 +31180,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 						}
 					}
 				}
-				// [R13] ring fd 可读，再次从 CQ ring 收割已完成的 IO 事件
+				// ring fd 可读，再次从 CQ ring 收割已完成的 IO 事件
 				if ( iCount < iMaxEvents && iRingIndex >= 0 &&
 					(arrPoll[iRingIndex].revents & (POLLIN | POLLERR | POLLHUP)) ) {
 					iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
@@ -31322,12 +31437,12 @@ XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
 }
 /* ============================== Line codec ============================== */
 #if !defined(XRT_BUILD_CORE)
-typedef struct {
-	uint8 aDelimiter[4];
-	uint32 iDelimiterLen;
-	uint32 iMaxLineBytes;
-	bool bStripDelimiter;
-} xcodeclinecodec;
+	typedef struct {
+		uint8 aDelimiter[4];
+		uint32 iDelimiterLen;
+		uint32 iMaxLineBytes;
+		bool bStripDelimiter;
+	} xcodeclinecodec;
 #endif
 // 初始化编解码器行配置
 XXAPI void xrtCodecLineConfigInit(xcodeclinecodec* pCodec)
@@ -31387,12 +31502,12 @@ XXAPI const xcodecparserops* xrtCodecLineOps(void)
 }
 /* ============================== Length-field codec ============================== */
 #if !defined(XRT_BUILD_CORE)
-typedef struct {
-	uint8 iFieldBytes;
-	bool bBigEndian;
-	int32_t iLengthAdjust;
-	uint32 iMaxPayloadBytes;
-} xcodeclengthcodec;
+	typedef struct {
+		uint8 iFieldBytes;
+		bool bBigEndian;
+		int32_t iLengthAdjust;
+		uint32 iMaxPayloadBytes;
+	} xcodeclengthcodec;
 #endif
 // 初始化编解码器 length 配置
 XXAPI void xrtCodecLengthConfigInit(xcodeclengthcodec* pCodec)
@@ -31676,7 +31791,7 @@ static xcodecstatus __xcodecHttpMeasureChunkedBody(const xnetchain* pInput, size
 	size_t iDecoded = 0u;
 	if ( !pInput || !pChunkBodyBytes || !pDecodedBytes ) { return XCODEC_STATUS_ERROR; }
 	iPos = iBodyOffset;
-	// R13: 逐个解析 chunk 直到遇到终止 chunk（大小为 0）
+	// 逐个解析 chunk 直到遇到终止 chunk（大小为 0）
 	for ( ;; ) {
 		uint64 iChunkSize = 0u;
 		size_t iDataOffset = 0u;
@@ -31730,7 +31845,7 @@ XXAPI size_t xrtCodecHttp1CopyBody(const xnetchain* pInput, const xcodecframe* p
 	if ( (pFrame->iFlags & XCODEC_FRAME_F_CHUNKED) == 0u ) {
 		return xrtCodecFramePeek(pInput, pFrame, pOut, iLen);
 	}
-	// R13: chunked 传输需逐个 chunk 解码拷贝
+	// chunked 传输需逐个 chunk 解码拷贝
 	iWant = xrtCodecHttp1BodyBytes(pFrame);
 	if ( iWant > iLen ) { iWant = iLen; }
 	iPos = pFrame->iPayloadOffset;
@@ -31768,7 +31883,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 	if ( !pInput || !pFrame || !pMsg ) { return XCODEC_STATUS_ERROR; }
 	xrtCodecFrameInit(pFrame);
 	xrtCodecHttp1MessageInit(pMsg);
-	// R13: 查找头部结束标记 "\r\n\r\n"
+	// 查找头部结束标记 "\r\n\r\n"
 	iHeadEndPos = __xcodecChainFindPattern(pInput, aHeadEnd, sizeof(aHeadEnd), 0);
 	if ( iHeadEndPos == (size_t)-1 ) { return XCODEC_STATUS_NEED_MORE; }
 	iHeadBytes = iHeadEndPos + sizeof(aHeadEnd);
@@ -32000,7 +32115,7 @@ XXAPI xcodecstatus xrtCodecWsParseFrame(const xnetchain* pInput, xcodecframe* pF
 	if ( !pInput || !pFrame || !pInfo ) { return XCODEC_STATUS_ERROR; }
 	xrtCodecFrameInit(pFrame);
 	xrtCodecWsFrameInit(pInfo);
-	// R13: 至少需要 2 字节才能读取基本帧头
+	// 至少需要 2 字节才能读取基本帧头
 	if ( xrtNetChainBytes(pInput) < 2 ) { return XCODEC_STATUS_NEED_MORE; }
 	if ( __xcodecChainPeekAt(pInput, 0, aHead, 2) != 2 ) { return XCODEC_STATUS_ERROR; }
 	// 解析前两个字节：FIN/opcode 和 MASK/负载长度标志
@@ -32261,9 +32376,9 @@ static __xnet_engine_cmd* __xnetCmdQAllocNode(__xnet_engine_cmdq* pQ)
 	}
 	__xrtOwnerSpinUnlock(&pQ->iFreeLock);
 	if ( pCmd == NULL ) {
+		// 空闲链表为空时新分配一个节点
 		pCmd = (__xnet_engine_cmd*)XNET_ALLOC(sizeof(__xnet_engine_cmd));
-	// 空闲链表为空时新分配一个节点
-	if ( pCmd == NULL ) {
+		if ( pCmd == NULL ) {
 			return NULL;
 		}
 	}
@@ -32509,12 +32624,12 @@ static void __xnetEngineStopWorkerResources(xnetworker* pWorker)
 	}
 }
 #if __XNET_ENGINE_USE_XRT_THREAD
-static uint32 __xnetEngineWorkerMain(ptr pArg)
+	static uint32 __xnetEngineWorkerMain(ptr pArg)
 #elif defined(_WIN32) || defined(_WIN64)
-static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
+	static DWORD WINAPI __xnetEngineWorkerMain(LPVOID pArg)
 #else
-// 内部函数：__xnetEngineWorkerMain
-static void* __xnetEngineWorkerMain(void* pArg)
+	// 内部函数：__xnetEngineWorkerMain
+	static void* __xnetEngineWorkerMain(void* pArg)
 #endif
 {
 	xnetworker* pWorker = (xnetworker*)pArg;
@@ -32754,10 +32869,12 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
 		return XRT_NET_ERROR;
 	}
+	// 根据亲和键取模选择目标工作线程
 	pWorker = &pEngine->arrWorkers[iAffinityKey % pEngine->iWorkerCount];
 	if ( !pWorker->bRunning || !pWorker->pCmdQ ) {
 		return XRT_NET_ERROR;
 	}
+	// 将任务压入命令队列
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
 	iPushRet = __xnetCmdQPush(pQ, pfnTask, pArg);
 	if ( iPushRet == XQUEUE_FULL ) {
@@ -32766,6 +32883,7 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 	if ( iPushRet != XQUEUE_OK ) {
 		return XRT_NET_ERROR;
 	}
+	// 唤醒工作线程端口以加速任务处理
 	if ( xrtNetPortWake(&pWorker->tPort) != XRT_NET_OK ) {
 		/*
 		    The queue already owns the task node at this point.
@@ -32783,10 +32901,12 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 	if ( !pEngine || !pEngine->bRunning || !pfnTask || pEngine->iWorkerCount == 0 ) {
 		return XRT_NET_ERROR;
 	}
+	// 根据亲和键取模选择目标工作线程
 	pWorker = &pEngine->arrWorkers[iAffinityKey % pEngine->iWorkerCount];
 	if ( !pWorker->bRunning || !pWorker->pCmdQ || !pWorker->pTimerWheel ) {
 		return XRT_NET_ERROR;
 	}
+	// 压入定时器添加命令到命令队列
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
 	iPushRet = __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TIMER_ADD, iDelayMs, pfnTask, pArg);
 	if ( iPushRet == XQUEUE_FULL ) {
@@ -44731,7 +44851,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 						return __XNET_PROXY_ACTION_ERROR;
 					}
 					// 解析状态码并恢复缓冲区
-				{
+					{
 						char* pEnd = NULL;
 						long iStatusCodeLong = strtol(pStatus + 1, &pEnd, 10);
 						if ( pEnd == pStatus + 1 || iStatusCodeLong < 100 || iStatusCodeLong > 999 ) {
@@ -47510,10 +47630,10 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #ifndef XRT_XNET_DGRAM_H
 #define XRT_XNET_DGRAM_H
 #if !defined(XRT_BUILD_CORE)
-typedef struct {
-	void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
-	void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
-} xnetdgramevents;
+	typedef struct {
+		void (*OnRecv)(ptr pOwner, xdgramsock* pSock, const xnetaddr* pFrom, xnetchain* pChain);
+		void (*OnError)(ptr pOwner, xdgramsock* pSock, int iSysErr);
+	} xnetdgramevents;
 #endif
 #define __XNET_DGRAM_ASYNC_SEND_COPY   1u
 #define __XNET_DGRAM_ASYNC_SEND_NATIVE 2u
@@ -47525,15 +47645,15 @@ typedef struct {
 	uint8 aData[1];
 } __xnet_dgram_async_op;
 #if !defined(XRT_BUILD_CORE)
-typedef struct xrt_net_dgram_packet {
-	xnetaddr tFrom;
-	xnetchain tChain;
-} xnetdgrampkt;
+	typedef struct xrt_net_dgram_packet {
+		xnetaddr tFrom;
+		xnetchain tChain;
+	} xnetdgrampkt;
 #else
-struct xrt_net_dgram_packet {
-	xnetaddr tFrom;
-	xnetchain tChain;
-};
+	struct xrt_net_dgram_packet {
+		xnetaddr tFrom;
+		xnetchain tChain;
+	};
 #endif
 typedef void (*__xnet_dgram_sync_wait_fn)(xdgramsock* pSock, xnet_result iStatus, xnetdgrampkt* pPacket, ptr pCtx);
 typedef struct {
@@ -48263,37 +48383,37 @@ struct xrt_net_future {
 	#endif
 };
 #if defined(XXRTL_CORE)
-struct xrt_promise {
-	xfuture* pFuture;
-	volatile long bCompleted;
-};
-struct xrt_task_group {
-	xmutex pLock;
-	xfuture** arrFuture;
-	int iCount;
-	int iCapacity;
-	bool bClosed;
-	int iParentBindCount;
-	xfuture* pScopeFuture;
-	xpromise* pScopePromise;
-	xfuture* pJoinFuture;
-	xpromise* pJoinPromise;
-	volatile long iRefCount;
-};
-struct xrt_task {
-	xtask_state iState;
-	xfuture* pFuture;
-	xpromise* pPromise;
-	xtask_engine_fn pfnEngineTask;
-	xtask_thread_fn pfnThreadTask;
-	xtask_co_fn pfnCoTask;
-	ptr pArg;
-	xthread pThread;
-	xcoro pCo;
-};
+	struct xrt_promise {
+		xfuture* pFuture;
+		volatile long bCompleted;
+	};
+	struct xrt_task_group {
+		xmutex pLock;
+		xfuture** arrFuture;
+		int iCount;
+		int iCapacity;
+		bool bClosed;
+		int iParentBindCount;
+		xfuture* pScopeFuture;
+		xpromise* pScopePromise;
+		xfuture* pJoinFuture;
+		xpromise* pJoinPromise;
+		volatile long iRefCount;
+	};
+	struct xrt_task {
+		xtask_state iState;
+		xfuture* pFuture;
+		xpromise* pPromise;
+		xtask_engine_fn pfnEngineTask;
+		xtask_thread_fn pfnThreadTask;
+		xtask_co_fn pfnCoTask;
+		ptr pArg;
+		xthread pThread;
+		xcoro pCo;
+	};
 #endif
 #if !defined(XRT_BUILD_CORE)
-typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
+	typedef xnet_result (*xnet_future_task_fn)(xnetworker* pWorker, ptr pArg, ptr* ppValue);
 #endif
 typedef struct {
 	xnetfuture* pFuture;
@@ -48301,83 +48421,83 @@ typedef struct {
 	ptr pArg;
 } __xnet_future_task_ctx;
 #if defined(XXRTL_CORE)
-typedef struct {
-	xtask* pTask;
-} __xnet_task_ctx;
-typedef struct {
-	xtask* pTask;
-} __xnet_task_thread_ctx;
-typedef struct {
-	xtask* pTask;
-} __xnet_task_co_ctx;
-typedef enum {
-	__XNET_FCONT_THEN = 1,
-	__XNET_FCONT_CATCH = 2,
-	__XNET_FCONT_FINALLY = 3
-} __xnet_future_cont_kind;
-typedef enum {
-	__XNET_FCONT_EXEC_INLINE = 1,
-	__XNET_FCONT_EXEC_CURRENT = 2,
-	__XNET_FCONT_EXEC_ENGINE = 3,
-	__XNET_FCONT_EXEC_CO = 4
-} __xnet_future_cont_exec;
-typedef struct xrt_future_cont {
-	struct xrt_future_cont* pNext;
-	__xnet_future_cont_kind iKind;
-	__xnet_future_cont_exec iExec;
-	xfuture* pSource;
-	xpromise* pPromise;
-	xfuture_cont_fn pfnCont;
-	xfuture_finally_fn pfnFinally;
-	ptr pArg;
-	xnetengine* pEngine;
-	uint32 iAffinityKey;
-	xcosched* pSched;
-	size_t iStackSize;
-	xfuture_result tInput;
-} xrt_future_cont;
-typedef struct {
-	xrt_future_cont* pCont;
-} __xnet_future_cont_ctx;
-typedef enum {
-	__XNET_FGROUP_ANY = 1,
-	__XNET_FGROUP_ALL = 2,
-	__XNET_FGROUP_RACE = 3
-} __xnet_future_group_mode;
-typedef struct __xnet_future_group_ctx __xnet_future_group_ctx;
-typedef struct {
-	xtaskgroup* pGroup;
-} __xnet_task_group_parent_ctx;
-typedef struct {
-	xtaskgroup* pGroup;
-} __xnet_task_group_future_ctx;
-typedef struct {
-	__xnet_future_group_ctx* pGroup;
-	int iIndex;
-} __xnet_future_group_item;
-struct __xnet_future_group_ctx {
-	__xnet_future_group_mode iMode;
-	xmutex pLock;
-	int iCount;
-	int iRemaining;
-	volatile long iRefCount;
-	bool bCompleted;
-	bool bHasFailure;
-	xfuture_result tFirstFailure;
-	xpromise* pPromise;
-	xfuture** arrSources;
-	__xnet_future_group_item* arrItems;
-};
-static void __xnetFutureAllValueFree(xfuture_all_value* pAll);
-static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pGroup);
-static bool __xnetFutureContCopyInput(xrt_future_cont* pCont, const xfuture_result* pInput);
-static void __xnetFutureDispatchDetachedList(xrt_future_cont* pHead);
-static void __xnetFutureCurrentCleanup(xrtThreadData* pThreadData, ptr pArg);
-static bool __xnetFutureEnqueueCurrent(xrt_future_cont* pCont);
-static xtaskgroup* __xnetTaskGroupAddRef(xtaskgroup* pGroup);
-static void __xnetTaskGroupRelease(xtaskgroup* pGroup);
-static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup);
-static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup);
+	typedef struct {
+		xtask* pTask;
+	} __xnet_task_ctx;
+	typedef struct {
+		xtask* pTask;
+	} __xnet_task_thread_ctx;
+	typedef struct {
+		xtask* pTask;
+	} __xnet_task_co_ctx;
+	typedef enum {
+		__XNET_FCONT_THEN = 1,
+		__XNET_FCONT_CATCH = 2,
+		__XNET_FCONT_FINALLY = 3
+	} __xnet_future_cont_kind;
+	typedef enum {
+		__XNET_FCONT_EXEC_INLINE = 1,
+		__XNET_FCONT_EXEC_CURRENT = 2,
+		__XNET_FCONT_EXEC_ENGINE = 3,
+		__XNET_FCONT_EXEC_CO = 4
+	} __xnet_future_cont_exec;
+	typedef struct xrt_future_cont {
+		struct xrt_future_cont* pNext;
+		__xnet_future_cont_kind iKind;
+		__xnet_future_cont_exec iExec;
+		xfuture* pSource;
+		xpromise* pPromise;
+		xfuture_cont_fn pfnCont;
+		xfuture_finally_fn pfnFinally;
+		ptr pArg;
+		xnetengine* pEngine;
+		uint32 iAffinityKey;
+		xcosched* pSched;
+		size_t iStackSize;
+		xfuture_result tInput;
+	} xrt_future_cont;
+	typedef struct {
+		xrt_future_cont* pCont;
+	} __xnet_future_cont_ctx;
+	typedef enum {
+		__XNET_FGROUP_ANY = 1,
+		__XNET_FGROUP_ALL = 2,
+		__XNET_FGROUP_RACE = 3
+	} __xnet_future_group_mode;
+	typedef struct __xnet_future_group_ctx __xnet_future_group_ctx;
+	typedef struct {
+		xtaskgroup* pGroup;
+	} __xnet_task_group_parent_ctx;
+	typedef struct {
+		xtaskgroup* pGroup;
+	} __xnet_task_group_future_ctx;
+	typedef struct {
+		__xnet_future_group_ctx* pGroup;
+		int iIndex;
+	} __xnet_future_group_item;
+	struct __xnet_future_group_ctx {
+		__xnet_future_group_mode iMode;
+		xmutex pLock;
+		int iCount;
+		int iRemaining;
+		volatile long iRefCount;
+		bool bCompleted;
+		bool bHasFailure;
+		xfuture_result tFirstFailure;
+		xpromise* pPromise;
+		xfuture** arrSources;
+		__xnet_future_group_item* arrItems;
+	};
+	static void __xnetFutureAllValueFree(xfuture_all_value* pAll);
+	static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pGroup);
+	static bool __xnetFutureContCopyInput(xrt_future_cont* pCont, const xfuture_result* pInput);
+	static void __xnetFutureDispatchDetachedList(xrt_future_cont* pHead);
+	static void __xnetFutureCurrentCleanup(xrtThreadData* pThreadData, ptr pArg);
+	static bool __xnetFutureEnqueueCurrent(xrt_future_cont* pCont);
+	static xtaskgroup* __xnetTaskGroupAddRef(xtaskgroup* pGroup);
+	static void __xnetTaskGroupRelease(xtaskgroup* pGroup);
+	static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup);
+	static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup);
 #endif
 #if !defined(XRT_BUILD_CORE)
 typedef struct {
@@ -56018,7 +56138,7 @@ static bool __xwsBuildFrameBytesEx(uint8 iOpcode, bool bFin, bool bMask, const v
 	uint8 aMask[4] = {0};
 	const uint8* pBytes = (const uint8*)pPayload;
 	if ( !ppOut || !pOutLen ) { return false; }
-	// R13: 计算帧所需总大小并分配缓冲区
+	// 计算帧所需总大小并分配缓冲区
 	iNeed = __xwsFrameSize(iPayloadLen, bMask);
 	pBuf = (char*)XNET_ALLOC(iNeed);
 	if ( !pBuf ) { return false; }
@@ -56375,7 +56495,7 @@ static void __xwsClientConsumeFrames(xwsclient* pClient, xnetchain* pChain)
 		uint16 iCloseCode = XWS_CLOSE_NORMAL;
 		// 数据不足，等待更多数据
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
-		// R13: 帧解析错误，关闭连接
+		// 帧解析错误，关闭连接
 		if ( iParse == XCODEC_STATUS_ERROR ) {
 			__xwsClientEmitError(pClient, -2);
 			if ( pClient->pStream ) { xrtNetStreamClose(pClient->pStream, XNET_CLOSE_F_ABORT); }
@@ -56664,7 +56784,7 @@ static void __xwsServerConsumeFrames(xwsconn* pConn, xnetchain* pChain)
 		uint16 iCloseCode = XWS_CLOSE_NORMAL;
 		// 数据不足，等待更多数据
 		if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
-		// R13: 帧解析错误，关闭连接
+		// 帧解析错误，关闭连接
 		if ( iParse == XCODEC_STATUS_ERROR ) {
 			__xwsServerEmitError(pServer, pConn, -21);
 			xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
@@ -63862,7 +63982,7 @@ static inline void __xrtMemPoolInitBucket(FSB_Item* pBucket, uint32 iSizeMin, ui
 	pBucket->left = NULL;
 	pBucket->right = NULL;
 }
-// 内部函数：构建内存内存池桶计划（R13: 根据截止大小构建桶分类和查找表）
+// 内部函数：构建内存内存池桶计划（根据截止大小构建桶分类和查找表）
 static inline bool __xrtMemPoolBuildBucketPlan(xmempool objMP, uint32 iCutoff)
 {
 	uint32 iBucketCount;
@@ -64143,7 +64263,7 @@ XXAPI void xrtMemPoolUnitDbg(xmempool objMP, const char* sFile, uint32 iLine)
 	__xrtMemDebugUnregisterObject(objMP, XRT_MEMDEBUG_OBJECT_MEMPOOL, sFile, iLine);
 }
 #endif
-// 内部函数：获取内存池可用内存单元（R13: 从桶的各链表中获取或创建 MMU）
+// 内部函数：获取内存池可用内存单元（从桶的各链表中获取或创建 MMU）
 static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 {
 	xmemunit objMMU = NULL;
@@ -64218,7 +64338,7 @@ static inline xmemunit __xrtMemPoolAcquireUnit(xmempool objMP, FSB_Item* objFSB)
 	}
 	return objMMU;
 }
-// 从内存池中申请一块内存（R13: 小块走桶分配，大块走直接分配）
+// 从内存池中申请一块内存（小块走桶分配，大块走直接分配）
 XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 {
 	void* pRet = NULL;
@@ -64290,7 +64410,7 @@ XXAPI void* xrtMemPoolAlloc(xmempool objMP, uint32 iSize)
 	xrtOwnerEndMutable(&objMP->Owner);
 	return NULL;
 }
-// 将内存池申请的内存释放掉（R13: 检查并清理空 MMU 节点的链表状态）
+// 将内存池申请的内存释放掉（检查并清理空 MMU 节点的链表状态）
 static inline void MP256_LLNode_ClearCheck(FSB_Item* objFSB, MMU_LLNode* pNode, int bLL_Full)
 {
 	// 仅当 MMU 中已无使用中的槽位时才执行清理
@@ -64381,7 +64501,7 @@ static inline MMU_LLNode* __xrtMemPoolGetNodeByFlag(xmempool objMP, uint32 iFlag
 	}
 	return pNode;
 }
-// 释放内存内存池（R13: 区分大块释放和桶内释放，并维护链表状态）
+// 释放内存内存池（区分大块释放和桶内释放，并维护链表状态）
 XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 {
 	if ( objMP == NULL || ptr == NULL ) {
@@ -64452,7 +64572,7 @@ XXAPI void xrtMemPoolFree(xmempool objMP, void* ptr)
 	}
 	xrtOwnerEndMutable(&objMP->Owner);
 }
-// 进行一轮 GC，将 标记 或 未标记 的内存全部回收（R13: 按桶执行 GC，先回收后整理链表）
+// 进行一轮 GC，将 标记 或 未标记 的内存全部回收（按桶执行 GC，先回收后整理链表）
 static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 {
 	MMU_LLNode* pNode;
@@ -64489,7 +64609,7 @@ static inline void MP256_GC_Bucket(FSB_Item* objFSB, bool bFreeMark)
 		pNode = pNext;
 	}
 }
-// xrtMemPoolGC 相关处理（R13: 全局 GC，支持按标记回收和未标记回收两种模式）
+// xrtMemPoolGC 相关处理（全局 GC，支持按标记回收和未标记回收两种模式）
 XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 {
 	if ( !xrtOwnerBeginMutable(&objMP->Owner, "memory pool belongs to another thread.") ) {
@@ -75987,7 +76107,7 @@ static int _xson_skip_string(xson_parse_t* pParse, char chEnd)
 	return 0;
 }
 // 内部函数：跳过组
-// [R13] SON 组跳过算法：递归跳过匹配的括号组，正确处理嵌套和字符串内容
+// SON 组跳过算法：递归跳过匹配的括号组，正确处理嵌套和字符串内容
 static int _xson_skip_group(xson_parse_t* pParse)
 {
 	char ch;
@@ -76199,7 +76319,7 @@ static int _xson_parse_list_index(xson_parse_t* pParse, int64* pIndex)
 	return 0;
 }
 // 内部函数：_xson_parse_time_text
-// [R13] 日期时间文本解析算法：从 "YYYY-MM-DD HH:MM:SS" 格式文本中提取日期时间分量并序列化为 xtime
+// 日期时间文本解析算法：从 "YYYY-MM-DD HH:MM:SS" 格式文本中提取日期时间分量并序列化为 xtime
 static bool _xson_parse_time_text(const char* sText, size_t iSize, xtime* pTime)
 {
 	size_t iPos = 0;
@@ -76279,7 +76399,7 @@ static size_t _xson_base64_decoded_size(const char* sText, size_t iSize)
 }
 static xson_parse_result_t _xson_parse_value(xson_parse_t* pParse, xvalue* ppVal);
 // 内部函数：_xson_parse_array_like
-// [R13] SON 类数组解析算法：解析 [...] 语法，自动检测内容格式决定创建 Array 还是 List
+// SON 类数组解析算法：解析 [...] 语法，自动检测内容格式决定创建 Array 还是 List
 static xson_parse_result_t _xson_parse_array_like(xson_parse_t* pParse, int iKind, xvalue* ppVal)
 {
 	xvalue pResult;
@@ -76372,7 +76492,7 @@ static xson_parse_result_t _xson_parse_array_like(xson_parse_t* pParse, int iKin
 	return XSON_PARSE_RESULT_OK;
 }
 // 内部函数：_xson_parse_object_like
-// [R13] SON 类对象解析算法：解析 {...} 语法，自动检测内容格式决定创建 Table(字典) 还是 Coll(集合)
+// SON 类对象解析算法：解析 {...} 语法，自动检测内容格式决定创建 Table(字典) 还是 Coll(集合)
 static xson_parse_result_t _xson_parse_object_like(xson_parse_t* pParse, int iKind, xvalue* ppVal)
 {
 	xvalue pResult;
@@ -76564,7 +76684,7 @@ static xson_parse_result_t _xson_parse_class_value(xson_parse_t* pParse, xvalue*
 	*ppVal = pVal;
 	return XSON_PARSE_RESULT_OK;
 }
-// [R13] SON 前缀值解析算法：根据标识符前缀分发到对应的类型解析器，支持 array/list/dict/set/time/class 等
+// SON 前缀值解析算法：根据标识符前缀分发到对应的类型解析器，支持 array/list/dict/set/time/class 等
 static xson_parse_result_t _xson_parse_prefixed_value(xson_parse_t* pParse, xvalue* ppVal)
 {
 	size_t iNameLen;
@@ -76623,7 +76743,7 @@ static xson_parse_result_t _xson_parse_prefixed_value(xson_parse_t* pParse, xval
 	// 不是前缀值，交由标量解析器处理
 	return XSON_PARSE_RESULT_NONE;
 }
-// [R13] JSON 标量值解析算法：利用底层 JSON 解析器解析标量值（null/bool/int/hex/float/string），转换为对应 xvalue
+// JSON 标量值解析算法：利用底层 JSON 解析器解析标量值（null/bool/int/hex/float/string），转换为对应 xvalue
 static xson_parse_result_t _xson_parse_json_scalar(xson_parse_t* pParse, xvalue* ppVal)
 {
 	json_strinfo_t tKeyInfo = { 0 };
@@ -76825,7 +76945,7 @@ static bool _xson_print_append_double(xson_print_t* pPrint, double fValue)
 	}
 	return _xson_print_append_raw(pPrint, sBuff, (size_t)iSize);
 }
-// [R13] JSON 字符串转义输出算法：按 JSON 规范对字符串进行转义处理并输出到缓冲区
+// JSON 字符串转义输出算法：按 JSON 规范对字符串进行转义处理并输出到缓冲区
 static bool _xson_print_append_json_string(xson_print_t* pPrint, const char* sText, size_t iSize)
 {
 	static const char sHex[] = "0123456789abcdef";
@@ -77157,7 +77277,7 @@ static bool _xson_is_unsupported_value(xvalue varVal)
 	}
 	return (varVal->Type == XVO_DT_POINT) || (varVal->Type == XVO_DT_FUNC) || (varVal->Type == XVO_DT_CUSTOM);
 }
-// [R13] SON 值序列化算法：根据 xvalue 的类型分发到对应的序列化处理器
+// SON 值序列化算法：根据 xvalue 的类型分发到对应的序列化处理器
 static xson_write_result_t _xson_write_value(xson_print_t* pPrint, xvalue varVal, int iDepth, bool bRoot)
 {
 	str sText;
@@ -77452,17 +77572,17 @@ static uint32 xte_private_pool_add_copy(xtetemplate hTemplate, const char* sText
 static int xte_private_value_truthy(xvalue pVal);
 static char* xte_private_value_to_text(xvalue pVal);
 #ifdef XTE_ENABLE_FILE
-typedef struct
-{
-	char sMagic[8];
-	uint32 iVersion;
-	uint32 iFlags;
-	uint32 iStringPoolSize;
-	uint32 iNodeCount;
-	uint32 iExprCount;
-	uint32 iArgCount;
-	XTE_NodeSpan tRoot;
-} XTE_PrivateFileHeader;
+	typedef struct
+	{
+		char sMagic[8];
+		uint32 iVersion;
+		uint32 iFlags;
+		uint32 iStringPoolSize;
+		uint32 iNodeCount;
+		uint32 iExprCount;
+		uint32 iArgCount;
+		XTE_NodeSpan tRoot;
+	} XTE_PrivateFileHeader;
 #endif
 // xte_private_clear_error 相关处理
 static void xte_private_clear_error(XTE_Error* pError)
@@ -77479,6 +77599,7 @@ static void xte_private_copy_error(XTE_Error* pDst, const XTE_Error* pSrc)
 	}
 }
 // xte_private_fill_error_pos 相关处理
+// 根据文本偏移位置计算行列号，填充错误信息结构体
 static void xte_private_fill_error_pos(const char* sText, uint32 iSize, uint32 iPos, XTE_Error* pError, int iCode, const char* sDesc)
 {
 	uint32 i = 0;
@@ -77487,10 +77608,12 @@ static void xte_private_fill_error_pos(const char* sText, uint32 iSize, uint32 i
 	if ( pError == NULL ) {
 		return;
 	}
+	// 清空并填充错误码和描述
 	memset(pError, 0, sizeof(*pError));
 	pError->iCode = iCode;
 	pError->sDesc = sDesc;
 	pError->iPos = iPos;
+	// 逐字符扫描到目标位置，累计行号和列号
 	while ( (i < iSize) && (i < iPos) ) {
 		if ( sText[i] == '\n' ) {
 			iLine++;
@@ -77500,6 +77623,7 @@ static void xte_private_fill_error_pos(const char* sText, uint32 iSize, uint32 i
 		}
 		i++;
 	}
+	// 填充行列信息
 	pError->iLine = iLine;
 	pError->iColumn = iColumn;
 	pError->iRefLine = iLine;
@@ -77600,6 +77724,7 @@ static char* xte_private_copy_view(const char* sText, uint32 iSize)
 	return __xrt_str(xrtCopyStr((str)sText, iSize));
 }
 // xte_private_copy_view_unescaped 相关处理
+// 复制文本视图并处理转义字符（如 \n \" 等）
 static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 {
 	xbuffer_struct tBuf = { 0 };
@@ -77607,6 +77732,7 @@ static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 	char chZero = 0;
 	char* sRet = NULL;
 	xrtBufferInit(&tBuf, 0);
+	// 逐字符扫描，遇到反斜杠跳过并取下一个字符作为实际内容
 	for ( i = 0; i < iSize; i++ ) {
 		char ch = sText[i];
 		if ( (ch == '\\') && ((i + 1u) < iSize) ) {
@@ -77618,14 +77744,17 @@ static char* xte_private_copy_view_unescaped(const char* sText, uint32 iSize)
 			return NULL;
 		}
 	}
+	// 追加字符串结束符
 	if ( !xrtBufferAppend(&tBuf, &chZero, 1, XBUF_BINARY) ) {
 		xrtBufferUnit(&tBuf);
 		return NULL;
 	}
+	// 空内容返回 null 常量
 	if ( tBuf.Length == 1u ) {
 		xrtBufferUnit(&tBuf);
 		return __xrt_str(xCore.sNull);
 	}
+	// 分配内存并复制结果
 	sRet = xrtMalloc(tBuf.Length);
 	if ( sRet ) {
 		memcpy(sRet, tBuf.Buffer, tBuf.Length);
@@ -77724,13 +77853,16 @@ static int xte_private_expr_has_keyword(const char* sText, uint32 iSize, const c
 	return 0;
 }
 // xte_private_expr_is_complex 相关处理
+// 判断表达式是否为复杂表达式（含运算符或逻辑关键字），用于决定编译时的表达式类型
 static int xte_private_expr_is_complex(const char* sText, uint32 iSize)
 {
 	uint32 i = 0;
 	char chQuote = 0;
 	int bEscape = 0;
+	// 逐字符扫描，跳过引号内的内容
 	for ( i = 0; i < iSize; i++ ) {
 		char ch = sText[i];
+		// 处于引号字符串内部
 		if ( chQuote != 0 ) {
 			if ( bEscape ) {
 				bEscape = 0;
@@ -77745,14 +77877,17 @@ static int xte_private_expr_is_complex(const char* sText, uint32 iSize)
 			}
 			continue;
 		}
+		// 遇到引号开始，标记进入字符串
 		if ( (ch == '\'') || (ch == '"') ) {
 			chQuote = ch;
 			continue;
 		}
+		// 遇到运算符字符则判定为复杂表达式
 		if ( (ch == '(') || (ch == ')') || (ch == '!') || (ch == '=') || (ch == '>') || (ch == '<') || (ch == '~') ) {
 			return 1;
 		}
 	}
+	// 检查是否包含逻辑关键字 and/or/not
 	if ( xte_private_expr_has_keyword(sText, iSize, "and")
 		|| xte_private_expr_has_keyword(sText, iSize, "or")
 		|| xte_private_expr_has_keyword(sText, iSize, "not") ) {
@@ -77859,8 +77994,10 @@ static double xte_private_value_to_number(xvalue pVal)
 	}
 }
 // xte_private_compare_values 相关处理
+// 值比较算法 - 数值型直接转 double 比较，非数值型转字符串比较
 static int xte_private_compare_values(xvalue pLeft, xvalue pRight, XTE_PrivateCompareOp iOp)
 {
+	// 两侧均为数值时，使用浮点数比较
 	if ( xte_private_value_is_numeric(pLeft) && xte_private_value_is_numeric(pRight) ) {
 		double fLeft = xte_private_value_to_number(pLeft);
 		double fRight = xte_private_value_to_number(pRight);
@@ -77885,6 +78022,7 @@ static int xte_private_compare_values(xvalue pLeft, xvalue pRight, XTE_PrivateCo
 				return 0;
 		}
 	}
+	// 非数值型转为字符串后使用 strcmp 比较
 	{
 		char* sLeft = xte_private_value_to_text(pLeft);
 		char* sRight = xte_private_value_to_text(pRight);
@@ -77920,6 +78058,7 @@ static int xte_private_compare_values(xvalue pLeft, xvalue pRight, XTE_PrivateCo
 	}
 }
 // xte_private_expr_parse_value 相关处理
+// 表达式求值核心 - 解析字面量（字符串、布尔、整数、浮点）和变量路径
 static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 {
 	uint32 iStart = 0;
@@ -77929,12 +78068,14 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 		pParser->bError = 1;
 		return xvoCreateNull();
 	}
+	// 处理引号字符串字面量
 	if ( (pParser->sText[pParser->iPos] == '\'') || (pParser->sText[pParser->iPos] == '"') ) {
 		char chQuote = pParser->sText[pParser->iPos++];
 		int bEscape = 0;
 		iStart = pParser->iPos;
 		while ( pParser->iPos < pParser->iSize ) {
 			char ch = pParser->sText[pParser->iPos];
+			// 转义状态处理
 			if ( bEscape ) {
 				bEscape = 0;
 				pParser->iPos++;
@@ -77945,6 +78086,7 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 				pParser->iPos++;
 				continue;
 			}
+			// 遇到闭合引号，提取字符串值
 			if ( ch == chQuote ) {
 				char* sValue = xte_private_copy_view_unescaped(&pParser->sText[iStart], pParser->iPos - iStart);
 				xvalue pValue = NULL;
@@ -77963,9 +78105,11 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 			}
 			pParser->iPos++;
 		}
+		// 引号未闭合
 		pParser->bError = 1;
 		return xvoCreateNull();
 	}
+	// 扫描非引号 token，遇到空白或运算符字符停止
 	iStart = pParser->iPos;
 	while ( pParser->iPos < pParser->iSize ) {
 		char ch = pParser->sText[pParser->iPos];
@@ -77990,6 +78134,7 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 		pParser->bError = 1;
 		return xvoCreateNull();
 	}
+	// 依次尝试匹配布尔字面量 true/false/null
 	if ( xte_private_str_eq(&pParser->sText[iStart], iEnd - iStart, "true", 4) ) {
 		return xvoCreateBool(TRUE);
 	}
@@ -77999,6 +78144,7 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 	if ( xte_private_str_eq(&pParser->sText[iStart], iEnd - iStart, "null", 4) ) {
 		return xvoCreateNull();
 	}
+	// 尝试解析为整数
 	if ( xte_private_is_integer_view(&pParser->sText[iStart], iEnd - iStart) ) {
 		char* sTemp = xte_private_copy_view(&pParser->sText[iStart], iEnd - iStart);
 		int64 iVal = 0;
@@ -78010,6 +78156,7 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 		xrtFree(sTemp);
 		return xvoCreateInt(iVal);
 	}
+	// 尝试解析为浮点数
 	if ( xte_private_is_number_view(&pParser->sText[iStart], iEnd - iStart) ) {
 		char* sTemp = xte_private_copy_view(&pParser->sText[iStart], iEnd - iStart);
 		double fVal = 0.0;
@@ -78021,6 +78168,7 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 		xrtFree(sTemp);
 		return xvoCreateFloat(fVal);
 	}
+	// 以上都不匹配，按变量路径从作用域中解析
 	return xvoCopy(xteResolvePath(
 		&pParser->sText[iStart],
 		iEnd - iStart,
@@ -78030,9 +78178,11 @@ static xvalue xte_private_expr_parse_value(XTE_PrivateExprParser* pParser)
 		pParser->pRender->pGlobal));
 }
 // xte_private_expr_parse_compare_op 相关处理
+// 比较运算符解析 - 优先匹配双字符运算符(>=, <=, !=, ~=, ==)，再匹配单字符
 static int xte_private_expr_parse_compare_op(XTE_PrivateExprParser* pParser, XTE_PrivateCompareOp* pOp)
 {
 	xte_private_expr_skip_space(pParser);
+	// 优先匹配双字符运算符
 	if ( (pParser->iPos + 2u) <= pParser->iSize ) {
 		if ( memcmp(&pParser->sText[pParser->iPos], ">=", 2) == 0 ) {
 			pParser->iPos += 2u;
@@ -78063,6 +78213,7 @@ static int xte_private_expr_parse_compare_op(XTE_PrivateExprParser* pParser, XTE
 	if ( pParser->iPos >= pParser->iSize ) {
 		return 0;
 	}
+	// 匹配单字符运算符
 	switch ( pParser->sText[pParser->iPos] ) {
 		case '=':
 			pParser->iPos++;
@@ -78082,12 +78233,14 @@ static int xte_private_expr_parse_compare_op(XTE_PrivateExprParser* pParser, XTE
 }
 static int xte_private_expr_parse_or(XTE_PrivateExprParser* pParser, int* pOut);
 // xte_private_expr_parse_primary_bool 相关处理
+// 布尔表达式解析 - 处理括号子表达式、比较运算和真值判定
 static int xte_private_expr_parse_primary_bool(XTE_PrivateExprParser* pParser, int* pOut)
 {
 	xvalue pLeft = NULL;
 	xvalue pRight = NULL;
 	XTE_PrivateCompareOp iOp = XTE_PRIVATE_CMP_NONE;
 	xte_private_expr_skip_space(pParser);
+	// 处理括号子表达式，递归解析
 	if ( xte_private_expr_match_char(pParser, '(') ) {
 		if ( !xte_private_expr_parse_or(pParser, pOut) ) {
 			return 0;
@@ -78098,12 +78251,15 @@ static int xte_private_expr_parse_primary_bool(XTE_PrivateExprParser* pParser, i
 		}
 		return 1;
 	}
+	// 解析左侧值
 	pLeft = xte_private_expr_parse_value(pParser);
 	if ( pParser->bError ) {
 		xvoUnref(pLeft);
 		return 0;
 	}
+	// 尝试解析比较运算符
 	if ( xte_private_expr_parse_compare_op(pParser, &iOp) ) {
+		// 有比较运算符，解析右侧值并执行比较
 		pRight = xte_private_expr_parse_value(pParser);
 		if ( pParser->bError ) {
 			xvoUnref(pLeft);
@@ -78115,6 +78271,7 @@ static int xte_private_expr_parse_primary_bool(XTE_PrivateExprParser* pParser, i
 		xvoUnref(pRight);
 		return 1;
 	}
+	// 无比较运算符，直接判断左侧值的真假
 	*pOut = xte_private_value_truthy(pLeft);
 	xvoUnref(pLeft);
 	return 1;
@@ -78200,6 +78357,7 @@ static int xte_private_eval_bool_expr(XTE_RenderCtx* pCtx, const char* sText, ui
 	return 1;
 }
 // xte_private_split_colon 相关处理
+// 冒号分隔符切分算法 - 按冒号分隔文本，支持反斜杠转义
 static uint32 xte_private_split_colon(const char* sText, uint32 iSize, XTE_PrivateView* arrView, uint32 iMaxCount)
 {
 	uint32 i = 0;
@@ -78208,6 +78366,7 @@ static uint32 xte_private_split_colon(const char* sText, uint32 iSize, XTE_Priva
 	int bEscape = 0;
 	for ( i = 0; i <= iSize; i++ ) {
 		int bSplit = 0;
+		// 到达末尾或遇到未转义的冒号时触发切分
 		if ( i == iSize ) {
 			bSplit = 1;
 		} else if ( !bEscape && (sText[i] == ':') ) {
@@ -78223,6 +78382,7 @@ static uint32 xte_private_split_colon(const char* sText, uint32 iSize, XTE_Priva
 			bEscape = 0;
 			continue;
 		}
+		// 跟踪转义状态
 		if ( (!bEscape) && (sText[i] == '\\') ) {
 			bEscape = 1;
 		} else {
@@ -78352,6 +78512,7 @@ static void xte_private_fill_node_error(const XTE_Node* pNode, XTE_Error* pError
 	}
 }
 // xte_private_bind_statement_node 相关处理
+// 将语句节点绑定到语句定义，调用语句的解析回调函数
 static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNode, const XTE_StatementDef* pDef, int iDefaultCode, const char* sDefaultDesc)
 {
 	const char* sName = NULL;
@@ -78363,6 +78524,7 @@ static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNod
 	if ( (hTemplate == NULL) || (pNode == NULL) || (pNode->iType != XTE_NODE_STATEMENT) ) {
 		return 1;
 	}
+	// 查找语句定义
 	if ( pDef == NULL ) {
 		sName = xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iStmtNameOff);
 		pDef = xte_private_find_statement(hTemplate->hEngine, sName, pNode->Data.Statement.iStmtNameSize);
@@ -78371,15 +78533,18 @@ static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNod
 		xte_private_fill_node_error(pNode, &hTemplate->LastError, XTE_ERROR_UNKNOWN_STATEMENT, "template statement is not registered");
 		return 0;
 	}
+	// 释放已有的私有数据
 	if ( pNode->Data.Statement.pData != NULL ) {
 		if ( pDef->procFreeData != NULL ) {
 			pDef->procFreeData(pNode->Data.Statement.pData);
 		}
 		pNode->Data.Statement.pData = NULL;
 	}
+	// 没有解析回调则跳过
 	if ( pDef->procParse == NULL ) {
 		return 1;
 	}
+	// 构造参数列表和解析上下文
 	xte_private_make_arg_list(hTemplate, pNode, &tArgs);
 	pBody = (pNode->Data.Statement.tBody.iCount != 0u) ? &pNode->Data.Statement.tBody : NULL;
 	sRawBody = (pNode->Data.Statement.iRawBodyOff != XTE_PRIVATE_INVALID_INDEX) ? xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iRawBodyOff) : NULL;
@@ -78392,6 +78557,7 @@ static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNod
 	tCtx.iRawBodySize = pNode->Data.Statement.iRawBodySize;
 	tCtx.pError = &hTemplate->LastError;
 	tCtx.pUserData = pDef->pUserData;
+	// 调用语句的解析回调
 	xte_private_clear_error(&hTemplate->LastError);
 	if ( pDef->procParse(&tCtx, &pData) == 0 ) {
 		if ( hTemplate->LastError.iCode == 0 ) {
@@ -78399,6 +78565,7 @@ static int xte_private_bind_statement_node(xtetemplate hTemplate, XTE_Node* pNod
 		}
 		return 0;
 	}
+	// 保存解析结果
 	pNode->Data.Statement.pData = pData;
 	return 1;
 }
@@ -78444,14 +78611,17 @@ static const XTE_PrivateSubTemplateItem* xte_private_find_subtemplate(xtetemplat
 	return NULL;
 }
 // xte_private_rebuild_subtemplates 相关处理
+// 重建子模板索引表，扫描所有 define 语句并注册到子模板数组
 static int xte_private_rebuild_subtemplates(xtetemplate hTemplate, int iErrorCode, const char* sDefaultDesc)
 {
 	uint32 i = 0;
 	if ( hTemplate == NULL ) {
 		return 0;
 	}
+	// 清空并重新初始化子模板数组
 	(xrtArrayUnit)(&hTemplate->arrSubTemplate);
 	xrtArrayInit(&hTemplate->arrSubTemplate, sizeof(XTE_PrivateSubTemplateItem), XRT_OBJMODE_LOCAL);
+	// 遍历所有节点，找出 define 语句
 	for ( i = 0; i < hTemplate->arrNode.Count; i++ ) {
 		XTE_Node* pNode = xte_private_template_get_node(hTemplate, i);
 		XTE_PrivateSubTemplateItem tItem = { 0 };
@@ -78462,20 +78632,24 @@ static int xte_private_rebuild_subtemplates(xtetemplate hTemplate, int iErrorCod
 		if ( (pNode == NULL) || (pNode->iType != XTE_NODE_STATEMENT) ) {
 			continue;
 		}
+		// 只处理 define 语句
 		sStmtName = xte_private_pool_ptr(hTemplate, pNode->Data.Statement.iStmtNameOff);
 		if ( !xte_private_str_eq(sStmtName, pNode->Data.Statement.iStmtNameSize, "define", 6) ) {
 			continue;
 		}
+		// 获取 define 名称（存储在 pData 中）
 		sDefineName = (const char*)pNode->Data.Statement.pData;
 		if ( (sDefineName == NULL) || (sDefineName[0] == 0) ) {
 			xte_private_fill_node_error(pNode, &hTemplate->LastError, iErrorCode, sDefaultDesc);
 			return 0;
 		}
+		// 检查名称是否重复
 		iDefineNameSize = (uint32)strlen(sDefineName);
 		if ( xte_private_find_subtemplate(hTemplate, sDefineName, iDefineNameSize) != NULL ) {
 			xte_private_fill_node_error(pNode, &hTemplate->LastError, iErrorCode, "template define name is duplicated");
 			return 0;
 		}
+		// 构建子模板项并加入数组
 		tItem.iNameOff = xte_private_pool_add_copy(hTemplate, sDefineName, iDefineNameSize);
 		tItem.iNameSize = iDefineNameSize;
 		tItem.tBody = pNode->Data.Statement.tBody;
@@ -78498,6 +78672,7 @@ static void xte_private_ast_list_init(XTE_PrivateAstList* pList)
 	xrtArrayInit(&pList->arrNode, sizeof(XTE_PrivateAstNode), XRT_OBJMODE_LOCAL);
 }
 // xte_private_ast_node_unit 相关处理
+// 递归释放 AST 节点及其所有子资源
 static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 {
 	uint32 i = 0;
@@ -78509,6 +78684,7 @@ static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 			xrtFree(pNode->Data.Output.sExpr);
 			xrtFree(pNode->Data.Output.sFormat);
 			xrtFree(pNode->Data.Output.sFuncName);
+			// 函数调用类型需要释放参数数组
 			if ( pNode->Data.Output.iOutputType == XTE_OUTPUT_FUNC ) {
 				for ( i = 0; i < pNode->Data.Output.arrArg.Count; i++ ) {
 					XTE_PrivateAstArg* pArg = xrtArrayGet_Inline(&pNode->Data.Output.arrArg, i + 1u);
@@ -78526,12 +78702,14 @@ static void xte_private_ast_node_unit(XTE_PrivateAstNode* pNode)
 		case XTE_NODE_STATEMENT:
 			xrtFree(pNode->Data.Statement.sStmtName);
 			xrtFree(pNode->Data.Statement.sRawBody);
+			// 释放语句参数
 			for ( i = 0; i < pNode->Data.Statement.arrArg.Count; i++ ) {
 				XTE_PrivateAstArg* pArg = xrtArrayGet_Inline(&pNode->Data.Statement.arrArg, i + 1u);
 				xrtFree(pArg->sName);
 				xrtFree(pArg->sRaw);
 			}
 			(xrtArrayUnit)(&pNode->Data.Statement.arrArg);
+			// 递归释放子节点
 			for ( i = 0; i < pNode->Data.Statement.tBody.arrNode.Count; i++ ) {
 				XTE_PrivateAstNode* pChild = xrtArrayGet_Inline(&pNode->Data.Statement.tBody.arrNode, i + 1u);
 				xte_private_ast_node_unit(pChild);
@@ -78650,27 +78828,32 @@ static uint32 xte_private_add_arg(xtetemplate hTemplate, const XTE_ArgItem* pArg
 	return iIndex - 1u;
 }
 // xte_private_lookup_first_value 相关处理
+// 变量查找算法 - 按 local -> current -> root -> global 的优先级在作用域链中查找变量
 static xvalue xte_private_lookup_first_value(const char* sName, uint32 iNameSize, xvalue pCurrent, xvalue pRoot, xvalue pLocal, xvalue pGlobal)
 {
 	xvalue pRet = &XVO_VALUE_NULL;
+	// 优先从局部作用域查找
 	if ( pLocal && (pLocal->Type == XVO_DT_TABLE) ) {
 		pRet = xvoTableGetValue(pLocal, sName, iNameSize);
 		if ( pRet->Type != XVO_DT_NULL ) {
 			return pRet;
 		}
 	}
+	// 从当前数据上下文查找
 	if ( pCurrent && (pCurrent->Type == XVO_DT_TABLE) ) {
 		pRet = xvoTableGetValue(pCurrent, sName, iNameSize);
 		if ( pRet->Type != XVO_DT_NULL ) {
 			return pRet;
 		}
 	}
+	// 从根数据上下文查找
 	if ( pRoot && (pRoot->Type == XVO_DT_TABLE) ) {
 		pRet = xvoTableGetValue(pRoot, sName, iNameSize);
 		if ( pRet->Type != XVO_DT_NULL ) {
 			return pRet;
 		}
 	}
+	// 从全局数据上下文查找
 	if ( pGlobal && (pGlobal->Type == XVO_DT_TABLE) ) {
 		pRet = xvoTableGetValue(pGlobal, sName, iNameSize);
 		if ( pRet->Type != XVO_DT_NULL ) {
@@ -78708,13 +78891,16 @@ static uint32 xte_private_find_next_tag(XTE_PrivateParser* pParser, uint32 iPos)
 	return XTE_PRIVATE_INVALID_INDEX;
 }
 // xte_private_compile_expr 相关处理
+// 编译表达式文本为表达式节点，自动推断类型（字符串/布尔/整数/复杂表达式/路径）
 static int xte_private_compile_expr(xtetemplate hTemplate, const char* sText, uint32 iSize, uint32* pExprIndex)
 {
 	XTE_PrivateView tView = { sText, iSize };
 	XTE_ExprNode tExpr = { 0 };
 	char* sTemp = NULL;
 	xte_private_trim_view(&tView);
+	// 根据内容推断表达式类型
 	if ( (tView.iSize >= 2u) && (((tView.sText[0] == '"') && (tView.sText[tView.iSize - 1u] == '"')) || ((tView.sText[0] == '\'') && (tView.sText[tView.iSize - 1u] == '\''))) ) {
+		// 引号字符串字面量
 		tExpr.iType = XTE_EXPR_TEXT;
 		tExpr.iTextOff = xte_private_pool_add_unescaped(hTemplate, &tView.sText[1], tView.iSize - 2u);
 		tExpr.iTextSize = (tExpr.iTextOff == XTE_PRIVATE_INVALID_INDEX) ? 0u : (uint32)strlen(xte_private_pool_ptr(hTemplate, tExpr.iTextOff));
@@ -78725,6 +78911,7 @@ static int xte_private_compile_expr(xtetemplate hTemplate, const char* sText, ui
 		tExpr.iType = XTE_EXPR_BOOL;
 		tExpr.iBoolValue = 0;
 	} else if ( xte_private_is_integer_view(tView.sText, tView.iSize) ) {
+		// 整数字面量
 		tExpr.iType = XTE_EXPR_INT;
 		sTemp = xte_private_copy_view(tView.sText, tView.iSize);
 		if ( sTemp == NULL ) {
@@ -78733,21 +78920,26 @@ static int xte_private_compile_expr(xtetemplate hTemplate, const char* sText, ui
 		tExpr.iIntValue = xrtStrToI64(sTemp);
 		xrtFree(sTemp);
 	} else if ( xte_private_expr_is_complex(tView.sText, tView.iSize) ) {
+		// 复杂布尔表达式（含运算符）
 		tExpr.iType = XTE_EXPR_BOOL_EXPR;
 		tExpr.iTextOff = xte_private_pool_add_copy(hTemplate, tView.sText, tView.iSize);
 		tExpr.iTextSize = tView.iSize;
 	} else {
+		// 简单变量路径
 		tExpr.iType = XTE_EXPR_PATH;
 		tExpr.iTextOff = xte_private_pool_add_copy(hTemplate, tView.sText, tView.iSize);
 		tExpr.iTextSize = tView.iSize;
 	}
+	// 检查字符串池分配是否成功
 	if ( ((tExpr.iType == XTE_EXPR_TEXT) || (tExpr.iType == XTE_EXPR_PATH) || (tExpr.iType == XTE_EXPR_BOOL_EXPR)) && (tExpr.iTextOff == XTE_PRIVATE_INVALID_INDEX) ) {
 		return 0;
 	}
+	// 添加到表达式数组
 	*pExprIndex = xte_private_add_expr(hTemplate, &tExpr);
 	return (*pExprIndex != XTE_PRIVATE_INVALID_INDEX);
 }
 // xte_private_parse_text 相关处理
+// 解析纯文本节点 - 扫描直到遇到模板标签开标记，处理双开标记转义（{{ -> {）
 static int xte_private_parse_text(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList)
 {
 	xbuffer_struct tBuf = { 0 };
@@ -78755,11 +78947,14 @@ static int xte_private_parse_text(XTE_PrivateParser* pParser, XTE_PrivateAstList
 	uint32 iChunkPos = pParser->iPos;
 	XTE_PrivateAstNode tNode = { 0 };
 	xrtBufferInit(&tBuf, 0);
+	// 扫描文本直到遇到模板标签开标记
 	while ( pParser->iPos < pParser->iSize ) {
+		// 不是开标记，继续扫描
 		if ( !xte_private_match_open(&pParser->tBracket, pParser->sText, pParser->iSize, pParser->iPos) ) {
 			pParser->iPos++;
 			continue;
 		}
+		// 双开标记表示转义，输出一个开标记字符
 		if ( xte_private_match_open(&pParser->tBracket, pParser->sText, pParser->iSize, pParser->iPos + pParser->tBracket.iOpenSize) ) {
 			if ( pParser->iPos > iChunkPos ) {
 				if ( !xrtBufferAppend(&tBuf, (ptr)&pParser->sText[iChunkPos], pParser->iPos - iChunkPos, XBUF_BINARY) ) {
@@ -78777,8 +78972,10 @@ static int xte_private_parse_text(XTE_PrivateParser* pParser, XTE_PrivateAstList
 			iChunkPos = pParser->iPos;
 			continue;
 		}
+		// 单开标记，停止扫描
 		break;
 	}
+	// 追加最后一段文本
 	if ( pParser->iPos > iChunkPos ) {
 		if ( !xrtBufferAppend(&tBuf, (ptr)&pParser->sText[iChunkPos], pParser->iPos - iChunkPos, XBUF_BINARY) ) {
 			xrtBufferUnit(&tBuf);
@@ -78786,6 +78983,7 @@ static int xte_private_parse_text(XTE_PrivateParser* pParser, XTE_PrivateAstList
 			return 0;
 		}
 	}
+	// 构建文本节点并添加到 AST 列表
 	tNode.iType = XTE_NODE_TEXT;
 	tNode.iPos = pParser->iBasePos + iStart;
 	tNode.iSize = pParser->iPos - iStart;
@@ -78804,6 +79002,7 @@ static int xte_private_parse_text(XTE_PrivateParser* pParser, XTE_PrivateAstList
 	return 1;
 }
 // 解析 private 输出节点
+// 解析输出标签节点（$/ %/ &/ 类型），提取表达式和可选格式化字符串
 static int xte_private_parse_output_node(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos, char chKind)
 {
 	XTE_PrivateAstNode tNode = { 0 };
@@ -78817,12 +79016,14 @@ static int xte_private_parse_output_node(XTE_PrivateParser* pParser, XTE_Private
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template output tag is empty");
 		return 0;
 	}
+	// 提取表达式部分
 	tExprView = arrView[0];
 	xte_private_trim_view(&tExprView);
 	if ( tExprView.iSize == 0u ) {
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template output expression is empty");
 		return 0;
 	}
+	// 确定输出类型：$ 文本、% 数字、& 时间
 	tNode.iType = XTE_NODE_OUTPUT;
 	tNode.iPos = pParser->iBasePos + iStart;
 	tNode.iSize = (iClosePos + pParser->tBracket.iCloseSize) - iStart;
@@ -78833,12 +79034,14 @@ static int xte_private_parse_output_node(XTE_PrivateParser* pParser, XTE_Private
 	} else {
 		tNode.Data.Output.iOutputType = XTE_OUTPUT_TIME;
 	}
+	// 复制表达式文本
 	tNode.Data.Output.sExpr = xte_private_copy_view(tExprView.sText, tExprView.iSize);
 	tNode.Data.Output.iExprSize = tExprView.iSize;
 	if ( tNode.Data.Output.sExpr == NULL ) {
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template output alloc failed");
 		return 0;
 	}
+	// 解析可选的格式化字符串（第二部分）
 	if ( iPartCount >= 2u ) {
 		tFmtView = arrView[1];
 		xte_private_trim_view(&tFmtView);
@@ -78852,6 +79055,7 @@ static int xte_private_parse_output_node(XTE_PrivateParser* pParser, XTE_Private
 			}
 		}
 	}
+	// 添加到 AST 列表
 	if ( xte_private_ast_add_node(pList, &tNode) == XTE_PRIVATE_INVALID_INDEX ) {
 		xte_private_ast_node_unit(&tNode);
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template node alloc failed");
@@ -78861,6 +79065,7 @@ static int xte_private_parse_output_node(XTE_PrivateParser* pParser, XTE_Private
 	return 1;
 }
 // xte_private_parse_inline_bool_node 相关处理
+// 解析内联布尔标签 {?expr:true_text:false_text}，按冒号分为表达式/真值文本/假值文本
 static int xte_private_parse_inline_bool_node(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos)
 {
 	XTE_PrivateAstNode tNode = { 0 };
@@ -78871,10 +79076,12 @@ static int xte_private_parse_inline_bool_node(XTE_PrivateParser* pParser, XTE_Pr
 	uint32 iStart = pParser->iPos;
 	uint32 iTagStart = iStart + pParser->tBracket.iOpenSize + 1u;
 	uint32 iPartCount = xte_private_split_colon(&pParser->sText[iTagStart], iClosePos - iTagStart, arrView, 3u);
+	// 至少需要表达式和真值文本两部分
 	if ( iPartCount < 2u ) {
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template inline bool requires at least 2 parts");
 		return 0;
 	}
+	// 提取各部分
 	tExprView = arrView[0];
 	tTrueView = arrView[1];
 	xte_private_trim_view(&tExprView);
@@ -78882,9 +79089,11 @@ static int xte_private_parse_inline_bool_node(XTE_PrivateParser* pParser, XTE_Pr
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template inline bool expression is empty");
 		return 0;
 	}
+	// 可选的假值文本（第三部分）
 	if ( iPartCount >= 3u ) {
 		tFalseView = arrView[2];
 	}
+	// 构建内联布尔节点
 	tNode.iType = XTE_NODE_INLINE_BOOL;
 	tNode.iPos = pParser->iBasePos + iStart;
 	tNode.iSize = (iClosePos + pParser->tBracket.iCloseSize) - iStart;
@@ -78894,11 +79103,13 @@ static int xte_private_parse_inline_bool_node(XTE_PrivateParser* pParser, XTE_Pr
 	tNode.Data.InlineBool.iTrueSize = (tNode.Data.InlineBool.sTrueText == NULL) ? 0u : (uint32)strlen(tNode.Data.InlineBool.sTrueText);
 	tNode.Data.InlineBool.sFalseText = xte_private_copy_view_unescaped(tFalseView.sText, tFalseView.iSize);
 	tNode.Data.InlineBool.iFalseSize = (tNode.Data.InlineBool.sFalseText == NULL) ? 0u : (uint32)strlen(tNode.Data.InlineBool.sFalseText);
+	// 检查内存分配结果
 	if ( (tNode.Data.InlineBool.sExpr == NULL) || (tNode.Data.InlineBool.sTrueText == NULL) || ((tFalseView.iSize != 0u) && (tNode.Data.InlineBool.sFalseText == NULL)) ) {
 		xte_private_ast_node_unit(&tNode);
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template inline bool alloc failed");
 		return 0;
 	}
+	// 添加到 AST 列表
 	if ( xte_private_ast_add_node(pList, &tNode) == XTE_PRIVATE_INVALID_INDEX ) {
 		xte_private_ast_node_unit(&tNode);
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template node alloc failed");
@@ -78908,6 +79119,7 @@ static int xte_private_parse_inline_bool_node(XTE_PrivateParser* pParser, XTE_Pr
 	return 1;
 }
 // xte_private_scan_matching_end 相关处理
+// 扫描匹配的 end 标签算法 - 跳过嵌套的块语句，找到对应的闭合标签位置
 static int xte_private_scan_matching_end(XTE_PrivateParser* pParser, uint32 iSearchPos, uint32* pBodyEndPos, uint32* pAfterEndPos)
 {
 	uint32 iPos = iSearchPos;
@@ -78919,22 +79131,27 @@ static int xte_private_scan_matching_end(XTE_PrivateParser* pParser, uint32 iSea
 		uint32 iNameEnd = 0;
 		XTE_PrivateView tNameView = { 0 };
 		const XTE_StatementDef* pDef = NULL;
+		// 查找下一个标签位置
 		iTagPos = xte_private_find_next_tag(pParser, iPos);
 		if ( iTagPos == XTE_PRIVATE_INVALID_INDEX ) {
 			return 0;
 		}
+		// 跳过双开标记转义
 		if ( xte_private_match_open(&pParser->tBracket, pParser->sText, pParser->iSize, iTagPos + pParser->tBracket.iOpenSize) ) {
 			iPos = iTagPos + (pParser->tBracket.iOpenSize * 2u);
 			continue;
 		}
+		// 检查是否为指令标签（以 # 开头）
 		iContentStart = iTagPos + pParser->tBracket.iOpenSize;
 		if ( (iContentStart >= pParser->iSize) || (pParser->sText[iContentStart] != '#') ) {
 			iPos = iContentStart;
 			continue;
 		}
+		// 查找标签闭合位置
 		if ( !xte_private_find_tag_end(pParser, iContentStart + 1u, &iClosePos) ) {
 			return 0;
 		}
+		// 提取指令名称
 		iNameStart = iContentStart + 1u;
 		while ( (iNameStart < iClosePos) && ((pParser->sText[iNameStart] == ' ') || (pParser->sText[iNameStart] == '\t')) ) {
 			iNameStart++;
@@ -78945,11 +79162,13 @@ static int xte_private_scan_matching_end(XTE_PrivateParser* pParser, uint32 iSea
 		}
 		tNameView.sText = &pParser->sText[iNameStart];
 		tNameView.iSize = iNameEnd - iNameStart;
+		// 找到 end 标签，返回匹配位置
 		if ( xte_private_str_eq(tNameView.sText, tNameView.iSize, "end", 3) ) {
 			*pBodyEndPos = iTagPos;
 			*pAfterEndPos = iClosePos + pParser->tBracket.iCloseSize;
 			return 1;
 		}
+		// 遇到嵌套的块语句，递归跳过
 		pDef = xte_private_find_statement(pParser->hEngine, tNameView.sText, tNameView.iSize);
 		if ( pDef && ((pDef->iFlags & XTE_STMT_BLOCK) != 0u) && ((pDef->iFlags & XTE_STMT_INLINE) == 0u) ) {
 			uint32 iNestedBodyEnd = 0;
@@ -78964,6 +79183,7 @@ static int xte_private_scan_matching_end(XTE_PrivateParser* pParser, uint32 iSea
 	}
 }
 // xte_private_parse_arg_list 相关处理
+// 解析标签参数列表 - 按冒号分隔，支持命名参数(name=value)和位置参数
 static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sArgText, uint32 iArgSize, uint32 iMinArgs, uint32 iMaxArgs, int bAllowNamedArgs, xarray pArrArg)
 {
 	XTE_PrivateView arrView[32] = { 0 };
@@ -78974,13 +79194,16 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 		return 0;
 	}
 	xrtArrayInit(pArrArg, sizeof(XTE_PrivateAstArg), XRT_OBJMODE_LOCAL);
+	// 逐个解析参数
 	for ( i = 0; i < iCount; i++ ) {
 		XTE_PrivateView tView = arrView[i];
 		XTE_PrivateAstArg tArg = { 0 };
 		int iEqPos = -1;
 		xte_private_trim_view(&tView);
+		// 查找未转义的等号，判断是否为命名参数
 		iEqPos = bAllowNamedArgs ? xte_private_find_unescaped_eq(tView.sText, tView.iSize) : -1;
 		if ( iEqPos >= 0 ) {
+			// 命名参数：提取名称和原始值
 			XTE_PrivateView tNameView = { tView.sText, (uint32)iEqPos };
 			XTE_PrivateView tRawView = { tView.sText + iEqPos + 1u, tView.iSize - (uint32)iEqPos - 1u };
 			xte_private_trim_view(&tNameView);
@@ -78991,10 +79214,12 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 			tArg.iRawSize = tRawView.iSize;
 			tArg.iFlags = XTE_PRIVATE_ARG_HAS_EXPR | XTE_PRIVATE_ARG_NAMED;
 		} else {
+			// 位置参数：只有原始值
 			tArg.sRaw = xte_private_copy_view(tView.sText, tView.iSize);
 			tArg.iRawSize = tView.iSize;
 			tArg.iFlags = XTE_PRIVATE_ARG_HAS_EXPR;
 		}
+		// 检查内存分配
 		if ( ((tArg.iNameSize != 0u) && (tArg.sName == NULL)) || (tArg.sRaw == NULL) ) {
 			xrtFree(tArg.sName);
 			xrtFree(tArg.sRaw);
@@ -79002,6 +79227,7 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 			xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_MALLOC, "template arg alloc failed");
 			return 0;
 		}
+		// 添加到参数数组
 		if ( xrtArrayAppend(pArrArg, 1) == 0u ) {
 			xrtFree(tArg.sName);
 			xrtFree(tArg.sRaw);
@@ -79011,6 +79237,7 @@ static int xte_private_parse_arg_list(XTE_PrivateParser* pParser, const char* sA
 		}
 		memcpy(xrtArrayGet_Inline(pArrArg, pArrArg->Count), &tArg, sizeof(tArg));
 	}
+	// 校验参数数量范围
 	if ( (iCount < iMinArgs) || ((iMaxArgs != 0u) && (iCount > iMaxArgs)) ) {
 		(xrtArrayUnit)(pArrArg);
 		xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_PARSE, "template arg count mismatch");
@@ -79035,6 +79262,7 @@ static int xte_private_parse_statement_args(XTE_PrivateParser* pParser, const XT
 		pArrArg);
 }
 // xte_private_parse_function_output_node 相关处理
+// 解析函数调用输出标签 @funcName:arg1:arg2
 static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos)
 {
 	uint32 iStart = pParser->iPos;
@@ -79044,6 +79272,7 @@ static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XT
 	XTE_PrivateAstNode tNode = { 0 };
 	XTE_PrivateView tArgView = { 0 };
 	const XTE_FunctionDef* pDef = NULL;
+	// 提取函数名称
 	while ( (iNameStart < iClosePos) && ((pParser->sText[iNameStart] == ' ') || (pParser->sText[iNameStart] == '\t')) ) {
 		iNameStart++;
 	}
@@ -79054,11 +79283,13 @@ static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XT
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template function name is empty");
 		return 0;
 	}
+	// 查找已注册的函数定义
 	pDef = xte_private_find_function(pParser->hEngine, &pParser->sText[iNameStart], iNameEnd - iNameStart);
 	if ( pDef == NULL ) {
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template function is not registered");
 		return 0;
 	}
+	// 构建函数调用输出节点
 	tNode.iType = XTE_NODE_OUTPUT;
 	tNode.iPos = pParser->iBasePos + iStart;
 	tNode.iSize = (iClosePos + pParser->tBracket.iCloseSize) - iStart;
@@ -79071,6 +79302,7 @@ static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XT
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template function alloc failed");
 		return 0;
 	}
+	// 提取参数文本区域
 	if ( iNameEnd < iClosePos ) {
 		if ( pParser->sText[iNameEnd] == ':' ) {
 			tArgView.sText = &pParser->sText[iNameEnd + 1u];
@@ -79081,6 +79313,7 @@ static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XT
 		}
 		xte_private_trim_view(&tArgView);
 	}
+	// 解析参数列表
 	if ( tArgView.iSize ) {
 		if ( !xte_private_parse_arg_list(pParser, tArgView.sText, tArgView.iSize, pDef->iMinArgs, pDef->iMaxArgs, 1, &tNode.Data.Output.arrArg) ) {
 			xte_private_ast_node_unit(&tNode);
@@ -79091,6 +79324,7 @@ static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XT
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template arg count mismatch");
 		return 0;
 	}
+	// 添加到 AST 列表
 	if ( xte_private_ast_add_node(pList, &tNode) == XTE_PRIVATE_INVALID_INDEX ) {
 		xte_private_ast_node_unit(&tNode);
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template node alloc failed");
@@ -79101,6 +79335,7 @@ static int xte_private_parse_function_output_node(XTE_PrivateParser* pParser, XT
 }
 static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, int bAllowEnd, int* pEndedByEnd);
 // xte_private_parse_statement 相关处理
+// 语句解析核心 - 解析语句名称、参数列表，处理块语句的闭合标签匹配和子节点递归解析
 static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, uint32 iClosePos)
 {
 	uint32 iStart = pParser->iPos;
@@ -79112,6 +79347,7 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 	const XTE_StatementDef* pDef = NULL;
 	int bNeedBlock = 0;
 	int bUseBlock = 0;
+	// 提取语句名称（跳过空白，读取标识符）
 	while ( (iNameStart < iClosePos) && ((pParser->sText[iNameStart] == ' ') || (pParser->sText[iNameStart] == '\t')) ) {
 		iNameStart++;
 	}
@@ -79122,11 +79358,13 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template statement name is empty");
 		return 0;
 	}
+	// 查找语句定义
 	pDef = xte_private_find_statement(pParser->hEngine, &pParser->sText[iNameStart], iNameEnd - iNameStart);
 	if ( pDef == NULL ) {
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_UNKNOWN_STATEMENT, "template statement is not registered");
 		return 0;
 	}
+	// 初始化语句 AST 节点
 	tNode.iType = XTE_NODE_STATEMENT;
 	tNode.iPos = pParser->iBasePos + iStart;
 	tNode.iSize = (iClosePos + pParser->tBracket.iCloseSize) - iStart;
@@ -79140,6 +79378,7 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template statement alloc failed");
 		return 0;
 	}
+	// 提取参数区域（跳过冒号分隔符）
 	if ( iNameEnd < iClosePos ) {
 		if ( pParser->sText[iNameEnd] == ':' ) {
 			tArgView.sText = &pParser->sText[iNameEnd + 1u];
@@ -79150,19 +79389,23 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 		}
 		xte_private_trim_view(&tArgView);
 	}
+	// 解析语句参数
 	if ( tArgView.iSize ) {
 		if ( !xte_private_parse_statement_args(pParser, pDef, tArgView.sText, tArgView.iSize, &tNode.Data.Statement.arrArg) ) {
 			xte_private_ast_node_unit(&tNode);
 			return 0;
 		}
 	}
+	// 处理块语句（需要匹配 end 标签的语句）
 	bNeedBlock = ((pDef->iFlags & XTE_STMT_BLOCK) != 0u) && ((pDef->iFlags & XTE_STMT_INLINE) == 0u);
 	if ( (pDef->iFlags & XTE_STMT_BLOCK) != 0u ) {
 		uint32 iBodyEndPos = 0;
 		uint32 iAfterEndPos = 0;
+		// 扫描匹配的 end 标签
 		if ( xte_private_scan_matching_end(pParser, iClosePos + pParser->tBracket.iCloseSize, &iBodyEndPos, &iAfterEndPos) ) {
 			bUseBlock = 1;
 			if ( (pDef->iFlags & XTE_STMT_RAW_BODY) != 0u ) {
+				// 原始体模式：直接保存标签间文本
 				uint32 iRawStart = iClosePos + pParser->tBracket.iCloseSize;
 				uint32 iRawSize = iBodyEndPos - iRawStart;
 				tNode.Data.Statement.sRawBody = xte_private_copy_view(&pParser->sText[iRawStart], iRawSize);
@@ -79173,6 +79416,7 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 					return 0;
 				}
 			} else {
+				// 标准模式：递归解析子节点
 				XTE_PrivateParser tSubParser = *pParser;
 				int bEndedByEnd = 0;
 				tSubParser.sText = &pParser->sText[iClosePos + pParser->tBracket.iCloseSize];
@@ -79184,17 +79428,21 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 					return 0;
 				}
 			}
+			// 更新节点范围和解析位置
 			tNode.iSize = iAfterEndPos - iStart;
 			pParser->iPos = iAfterEndPos;
 		} else if ( bNeedBlock ) {
+			// 必须有块体的语句未找到 end 标签
 			xte_private_ast_node_unit(&tNode);
 			xte_private_set_parser_error(pParser, iStart, XTE_ERROR_PARSE, "template block statement is not closed");
 			return 0;
 		}
 	}
+	// 非块语句直接跳过闭合标签
 	if ( !bUseBlock ) {
 		pParser->iPos = iClosePos + pParser->tBracket.iCloseSize;
 	}
+	// 添加到 AST 列表
 	if ( xte_private_ast_add_node(pList, &tNode) == XTE_PRIVATE_INVALID_INDEX ) {
 		xte_private_ast_node_unit(&tNode);
 		xte_private_set_parser_error(pParser, iStart, XTE_ERROR_MALLOC, "template node alloc failed");
@@ -79203,6 +79451,7 @@ static int xte_private_parse_statement(XTE_PrivateParser* pParser, XTE_PrivateAs
 	return 1;
 }
 // xte_private_parse_nodes 相关处理
+// 模板解析主循环 - 逐字符扫描文本，根据标签类型(!, #, @, $, %, &, ?)分派到对应的解析函数
 static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstList* pList, int bAllowEnd, int* pEndedByEnd)
 {
 	if ( pEndedByEnd ) {
@@ -79212,32 +79461,39 @@ static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstLis
 		uint32 iClosePos = 0;
 		uint32 iContentPos = 0;
 		char chKind = 0;
+		// 未匹配到开标记，按纯文本解析
 		if ( !xte_private_match_open(&pParser->tBracket, pParser->sText, pParser->iSize, pParser->iPos) ) {
 			if ( !xte_private_parse_text(pParser, pList) ) {
 				return 0;
 			}
 			continue;
 		}
+		// 双开标记为转义，按文本处理
 		if ( xte_private_match_open(&pParser->tBracket, pParser->sText, pParser->iSize, pParser->iPos + pParser->tBracket.iOpenSize) ) {
 			if ( !xte_private_parse_text(pParser, pList) ) {
 				return 0;
 			}
 			continue;
 		}
+		// 查找标签闭合位置
 		iContentPos = pParser->iPos + pParser->tBracket.iOpenSize;
 		if ( !xte_private_find_tag_end(pParser, iContentPos, &iClosePos) ) {
 			xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_PARSE, "template tag is not closed");
 			return 0;
 		}
+		// 标签内容不能为空
 		if ( iContentPos >= iClosePos ) {
 			xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_PARSE, "template tag is empty");
 			return 0;
 		}
+		// 根据标签类型字符分派解析
 		chKind = pParser->sText[iContentPos];
+		// 注释标签 {!...}，跳过
 		if ( chKind == '!' ) {
 			pParser->iPos = iClosePos + pParser->tBracket.iCloseSize;
 			continue;
 		}
+		// 指令标签 {#...}，可能是 end 或语句
 		if ( chKind == '#' ) {
 			uint32 iNameStart = iContentPos + 1u;
 			uint32 iNameEnd = iNameStart;
@@ -79247,6 +79503,7 @@ static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstLis
 			while ( (iNameEnd < iClosePos) && xte_private_is_ident_char(pParser->sText[iNameEnd]) ) {
 				iNameEnd++;
 			}
+			// 遇到 end 标签
 			if ( xte_private_str_eq(&pParser->sText[iNameStart], iNameEnd - iNameStart, "end", 3) ) {
 				if ( bAllowEnd ) {
 					pParser->iPos = iClosePos + pParser->tBracket.iCloseSize;
@@ -79258,23 +79515,27 @@ static int xte_private_parse_nodes(XTE_PrivateParser* pParser, XTE_PrivateAstLis
 				xte_private_set_parser_error(pParser, pParser->iPos, XTE_ERROR_PARSE, "template end tag is not allowed here");
 				return 0;
 			}
+			// 其他指令按语句解析
 			if ( !xte_private_parse_statement(pParser, pList, iClosePos) ) {
 				return 0;
 			}
 			continue;
 		}
+		// 函数调用输出标签 {@...}
 		if ( chKind == '@' ) {
 			if ( !xte_private_parse_function_output_node(pParser, pList, iClosePos) ) {
 				return 0;
 			}
 			continue;
 		}
+		// 值输出标签 {$/%/&...}
 		if ( (chKind == '$') || (chKind == '%') || (chKind == '&') ) {
 			if ( !xte_private_parse_output_node(pParser, pList, iClosePos, chKind) ) {
 				return 0;
 			}
 			continue;
 		}
+		// 内联布尔标签 {?...}
 		if ( chKind == '?' ) {
 			if ( !xte_private_parse_inline_bool_node(pParser, pList, iClosePos) ) {
 				return 0;
@@ -79304,6 +79565,7 @@ static xtetemplate xte_private_template_create(xteengine hEngine, int bOwnEngine
 }
 static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstList* pList, XTE_NodeSpan* pSpan);
 // xte_private_compile_ast_args 相关处理
+// 编译 AST 参数数组，将参数名称和原始值写入字符串池，编译参数表达式
 static int xte_private_compile_ast_args(xtetemplate hTemplate, xarray pArrArg, uint32* pArgStart, uint32* pArgCount)
 {
 	uint32 i = 0;
@@ -79312,6 +79574,7 @@ static int xte_private_compile_ast_args(xtetemplate hTemplate, xarray pArrArg, u
 	for ( i = 0; i < pArrArg->Count; i++ ) {
 		XTE_PrivateAstArg* pAstArg = xrtArrayGet_Inline(pArrArg, i + 1u);
 		XTE_ArgItem tArg = { 0 };
+		// 编译命名参数的名称
 		if ( pAstArg->iFlags & XTE_PRIVATE_ARG_NAMED ) {
 			tArg.iNameOff = xte_private_pool_add_copy(hTemplate, pAstArg->sName, pAstArg->iNameSize);
 			tArg.iNameSize = pAstArg->iNameSize;
@@ -79319,11 +79582,13 @@ static int xte_private_compile_ast_args(xtetemplate hTemplate, xarray pArrArg, u
 				return 0;
 			}
 		}
+		// 将原始值文本写入字符串池
 		tArg.iRawOff = xte_private_pool_add_copy(hTemplate, pAstArg->sRaw, pAstArg->iRawSize);
 		tArg.iRawSize = pAstArg->iRawSize;
 		if ( tArg.iRawOff == XTE_PRIVATE_INVALID_INDEX ) {
 			return 0;
 		}
+		// 编译参数表达式
 		tArg.iFlags = 0u;
 		if ( pAstArg->iFlags & XTE_PRIVATE_ARG_NAMED ) {
 			tArg.iFlags |= XTE_PRIVATE_ARG_NAMED;
@@ -79339,6 +79604,7 @@ static int xte_private_compile_ast_args(xtetemplate hTemplate, xarray pArrArg, u
 	return 1;
 }
 // xte_private_compile_ast_list 相关处理
+// AST 编译核心 - 将 AST 节点列表转换为紧凑的运行时节点数组，两遍处理：先编译节点数据，再递归编译子节点和触发回调
 static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstList* pList, XTE_NodeSpan* pSpan)
 {
 	uint32 i = 0;
@@ -79348,9 +79614,11 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 	if ( pList->arrNode.Count == 0u ) {
 		return 1;
 	}
+	// 预分配节点数组空间
 	if ( xrtArrayAppend(&hTemplate->arrNode, pList->arrNode.Count) == 0u ) {
 		return 0;
 	}
+	// 第一遍：编译所有节点的基本数据和类型特定内容
 	for ( i = 0; i < pList->arrNode.Count; i++ ) {
 		XTE_PrivateAstNode* pAstNode = xrtArrayGet_Inline(&pList->arrNode, i + 1u);
 		XTE_Node* pNode = xte_private_template_get_node(hTemplate, iStart + i);
@@ -79361,6 +79629,7 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 		pNode->iSize = pAstNode->iSize;
 		switch ( pAstNode->iType ) {
 			case XTE_NODE_TEXT:
+				// 文本节点：写入字符串池
 				pNode->Data.Text.iTextOff = xte_private_pool_add_copy(hTemplate, pAstNode->Data.Text.sText, pAstNode->Data.Text.iTextSize);
 				pNode->Data.Text.iTextSize = pAstNode->Data.Text.iTextSize;
 				if ( pNode->Data.Text.iTextOff == XTE_PRIVATE_INVALID_INDEX ) {
@@ -79373,6 +79642,7 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 				pNode->Data.Output.iFormatOff = XTE_PRIVATE_INVALID_INDEX;
 				pNode->Data.Output.iNameOff = XTE_PRIVATE_INVALID_INDEX;
 				if ( pAstNode->Data.Output.iOutputType == XTE_OUTPUT_FUNC ) {
+					// 函数调用：编译函数名和参数
 					pNode->Data.Output.iNameOff = xte_private_pool_add_copy(hTemplate, pAstNode->Data.Output.sFuncName, pAstNode->Data.Output.iFuncNameSize);
 					pNode->Data.Output.iNameSize = pAstNode->Data.Output.iFuncNameSize;
 					if ( pNode->Data.Output.iNameOff == XTE_PRIVATE_INVALID_INDEX ) {
@@ -79382,6 +79652,7 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 						return 0;
 					}
 				} else {
+					// 普通输出：编译表达式和格式化字符串
 					if ( !xte_private_compile_expr(hTemplate, pAstNode->Data.Output.sExpr, pAstNode->Data.Output.iExprSize, &pNode->Data.Output.iExprIndex) ) {
 						return 0;
 					}
@@ -79395,6 +79666,7 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 				}
 				break;
 			case XTE_NODE_INLINE_BOOL:
+				// 内联布尔：编译表达式和真假文本
 				if ( !xte_private_compile_expr(hTemplate, pAstNode->Data.InlineBool.sExpr, pAstNode->Data.InlineBool.iExprSize, &pNode->Data.InlineBool.iExprIndex) ) {
 					return 0;
 				}
@@ -79410,6 +79682,7 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 				}
 				break;
 			case XTE_NODE_STATEMENT:
+				// 语句：编译名称、参数和原始体
 				pNode->Data.Statement.iStmtNameOff = xte_private_pool_add_copy(hTemplate, pAstNode->Data.Statement.sStmtName, pAstNode->Data.Statement.iStmtNameSize);
 				pNode->Data.Statement.iStmtNameSize = pAstNode->Data.Statement.iStmtNameSize;
 				if ( pNode->Data.Statement.iStmtNameOff == XTE_PRIVATE_INVALID_INDEX ) {
@@ -79430,15 +79703,18 @@ static int xte_private_compile_ast_list(xtetemplate hTemplate, XTE_PrivateAstLis
 				break;
 		}
 	}
+	// 第二遍：递归编译语句子节点，并触发语句解析回调
 	for ( i = 0; i < pList->arrNode.Count; i++ ) {
 		XTE_PrivateAstNode* pAstNode = xrtArrayGet_Inline(&pList->arrNode, i + 1u);
 		if ( pAstNode->iType == XTE_NODE_STATEMENT ) {
 			XTE_Node* pNode = xte_private_template_get_node(hTemplate, iStart + i);
+			// 递归编译子节点列表
 			if ( pAstNode->Data.Statement.tBody.arrNode.Count ) {
 				if ( !xte_private_compile_ast_list(hTemplate, &pAstNode->Data.Statement.tBody, &pNode->Data.Statement.tBody) ) {
 					return 0;
 				}
 			}
+			// 触发语句的解析回调
 			if ( pAstNode->Data.Statement.pDef && pAstNode->Data.Statement.pDef->procParse ) {
 				if ( !xte_private_bind_statement_node(hTemplate, pNode, pAstNode->Data.Statement.pDef, XTE_ERROR_PARSE, "template statement parse callback failed") ) {
 					return 0;
@@ -79524,6 +79800,7 @@ static xvalue xte_private_eval_expr_value(XTE_RenderCtx* pCtx, uint32 iExprIndex
 	}
 }
 // xte_private_call_output_function 相关处理
+// 调用已注册的输出函数，构造函数上下文并执行回调
 static xvalue xte_private_call_output_function(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 {
 	const char* sName = NULL;
@@ -79534,6 +79811,7 @@ static xvalue xte_private_call_output_function(XTE_RenderCtx* pCtx, XTE_Node* pN
 	if ( (pCtx == NULL) || (pNode == NULL) || (pNode->Data.Output.iOutputType != XTE_OUTPUT_FUNC) ) {
 		return xvoCreateNull();
 	}
+	// 查找函数定义
 	sName = xte_private_pool_ptr(pCtx->hTemplate, pNode->Data.Output.iNameOff);
 	pDef = xte_private_find_function(pCtx->hEngine, sName, pNode->Data.Output.iNameSize);
 	if ( (pDef == NULL) || (pDef->procCall == NULL) ) {
@@ -79543,11 +79821,13 @@ static xvalue xte_private_call_output_function(XTE_RenderCtx* pCtx, XTE_Node* pN
 		}
 		return xvoCreateNull();
 	}
+	// 构造函数调用上下文
 	xte_private_fill_arg_list(pCtx->hTemplate, pNode->Data.Output.iArgStart, pNode->Data.Output.iArgCount, &tArgs);
 	tFuncCtx.pRender = pCtx;
 	tFuncCtx.pDef = pDef;
 	tFuncCtx.pArgs = &tArgs;
 	tFuncCtx.pUserData = pDef->pUserData;
+	// 执行函数回调
 	if ( pDef->procCall(&tFuncCtx, &pRet) == 0 ) {
 		if ( (pCtx->pError != NULL) && (pCtx->pError->iCode == 0) ) {
 			pCtx->pError->iCode = XTE_ERROR_RENDER;
@@ -79558,11 +79838,13 @@ static xvalue xte_private_call_output_function(XTE_RenderCtx* pCtx, XTE_Node* pN
 	return pRet ? pRet : xvoCreateNull();
 }
 // xte_private_render_output_node 相关处理
+// 渲染输出节点 - 根据输出类型（函数/文本/数字/时间）求值并格式化为文本输出
 static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 {
 	xvalue pVal = NULL;
 	char* sOut = NULL;
 	int bOk = 1;
+	// 函数调用类型
 	if ( pNode->Data.Output.iOutputType == XTE_OUTPUT_FUNC ) {
 		pVal = xte_private_call_output_function(pCtx, pNode);
 		if ( (pCtx->pError != NULL) && (pCtx->pError->iCode != 0) ) {
@@ -79571,10 +79853,13 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 		}
 		sOut = xte_private_value_to_text(pVal);
 	} else {
+		// 求值表达式
 		pVal = xte_private_eval_expr_value(pCtx, pNode->Data.Output.iExprIndex);
 		if ( pNode->Data.Output.iOutputType == XTE_OUTPUT_TEXT ) {
+			// 文本输出：直接转字符串
 			sOut = xte_private_value_to_text(pVal);
 		} else if ( pNode->Data.Output.iOutputType == XTE_OUTPUT_NUM ) {
+			// 数字输出：应用格式化
 			const char* sFormat = (pNode->Data.Output.iFormatSize != 0u) ? xte_private_pool_ptr(pCtx->hTemplate, pNode->Data.Output.iFormatOff) : NULL;
 			if ( sFormat && (pVal->Type == XVO_DT_INT) ) {
 				sOut = (char*)xrtIntFormat(xvoGetInt(pVal), (str)sFormat);
@@ -79588,6 +79873,7 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 				sOut = xte_private_value_to_text(pVal);
 			}
 		} else {
+			// 时间输出：应用时间格式化
 			const char* sFormat = (pNode->Data.Output.iFormatSize != 0u) ? xte_private_pool_ptr(pCtx->hTemplate, pNode->Data.Output.iFormatOff) : "yyyy-mm-dd hh:nn:ss";
 			xtime tValue = 0;
 			if ( pVal->Type == XVO_DT_TIME ) {
@@ -79598,6 +79884,7 @@ static int xte_private_render_output_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 			sOut = (char*)xrtTimeFormat(tValue, sFormat);
 		}
 	}
+	// 写入输出
 	if ( sOut ) {
 		bOk = xte_private_writer_write(pCtx->pWriter, sOut, strlen(sOut));
 		xrtFree(sOut);
@@ -79644,6 +79931,7 @@ static XTE_Flow xte_private_render_body_with_scope_ex(XTE_StmtRenderCtx* pCtx, x
 }
 static XTE_Flow xte_private_stmt_render_error(XTE_StmtRenderCtx* pCtx, int iCode, const char* sDesc);
 // xte_private_stmt_parse_define 相关处理
+// define 语句解析回调 - 提取子模板名称并存储到语句私有数据
 static int xte_private_stmt_parse_define(XTE_StmtParseCtx* pCtx, void** ppData)
 {
 	const XTE_ArgItem* pArg = NULL;
@@ -79656,6 +79944,7 @@ static int xte_private_stmt_parse_define(XTE_StmtParseCtx* pCtx, void** ppData)
 	if ( (pCtx == NULL) || (pCtx->hTemplate == NULL) || (ppData == NULL) ) {
 		return 0;
 	}
+	// 查找 name 命名参数或第一个位置参数
 	pArg = xteFindNamedArg(pCtx->pArgs, "name", 4u);
 	if ( pArg == NULL ) {
 		pArg = xteArgAt(pCtx->pArgs, 0u);
@@ -79663,9 +79952,11 @@ static int xte_private_stmt_parse_define(XTE_StmtParseCtx* pCtx, void** ppData)
 	if ( pArg == NULL ) {
 		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define name is required");
 	}
+	// 参数类型必须是文本或路径
 	if ( (xteArgExprType(pCtx->pArgs, pArg) != XTE_EXPR_TEXT) && (xteArgExprType(pCtx->pArgs, pArg) != XTE_EXPR_PATH) ) {
 		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define name must be text or path");
 	}
+	// 从表达式节点获取名称文本
 	pExpr = xte_private_template_get_expr(pCtx->hTemplate, pArg->iExprIndex);
 	if ( (pExpr == NULL) || (pExpr->iTextOff == XTE_PRIVATE_INVALID_INDEX) ) {
 		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define expr is invalid");
@@ -79675,6 +79966,7 @@ static int xte_private_stmt_parse_define(XTE_StmtParseCtx* pCtx, void** ppData)
 	if ( (pExpr->iTextSize != 0u) && (sName == NULL) ) {
 		return xteStmtParseSetError(pCtx, XTE_ERROR_MALLOC, "template define name alloc failed");
 	}
+	// 名称不能为空
 	if ( (sName == NULL) || (sName[0] == 0) ) {
 		xrtFree(sName);
 		return xteStmtParseSetError(pCtx, XTE_ERROR_PARSE, "template define name is empty");
@@ -79703,6 +79995,7 @@ static XTE_Flow xte_private_stmt_render_script(XTE_StmtRenderCtx* pCtx)
 	return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template script write failed");
 }
 // xte_private_stmt_render_if 相关处理
+// if/elseif/else 条件渲染 - 按分支顺序求值条件，仅渲染第一个为真的分支
 static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 {
 	int bActive = 0;
@@ -79711,6 +80004,7 @@ static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
 		return XTE_FLOW_ERROR;
 	}
+	// 求值 if 条件
 	if ( !xteEvalArgBool(pCtx->pRender, xteArgAt(pCtx->pArgs, 0), &bActive) ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template if condition eval failed");
 	}
@@ -79718,11 +80012,13 @@ static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 	if ( pCtx->pBody == NULL ) {
 		return XTE_FLOW_OK;
 	}
+	// 遍历体节点，处理 elseif/else 分支
 	for ( i = 0; i < pCtx->pBody->iCount; i++ ) {
 		XTE_Node* pNode = xte_private_template_get_node(pCtx->pRender->hTemplate, pCtx->pBody->iStart + i);
 		if ( pNode == NULL ) {
 			return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template if branch node is invalid");
 		}
+		// elseif 分支：已选中的分支跳过，未选中时求值条件
 		if ( xte_private_statement_name_eq(pCtx->pRender->hTemplate, pNode, "elseif") ) {
 			XTE_ArgList tArgs = { 0 };
 			if ( bSelected ) {
@@ -79738,6 +80034,7 @@ static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 			}
 			continue;
 		}
+		// else 分支：所有之前的分支都未选中时激活
 		if ( xte_private_statement_name_eq(pCtx->pRender->hTemplate, pNode, "else") ) {
 			bActive = bSelected ? 0 : 1;
 			if ( bActive ) {
@@ -79745,6 +80042,7 @@ static XTE_Flow xte_private_stmt_render_if(XTE_StmtRenderCtx* pCtx)
 			}
 			continue;
 		}
+		// 普通节点：当前分支激活时渲染
 		if ( bActive ) {
 			XTE_NodeSpan tNodeSpan = { pCtx->pBody->iStart + i, 1u };
 			XTE_Flow iFlow = xte_private_render_span(pCtx->pRender, tNodeSpan);
@@ -79788,6 +80086,7 @@ static XTE_Flow xte_private_stmt_render_continue(XTE_StmtRenderCtx* pCtx)
 	return XTE_FLOW_CONTINUE;
 }
 // xte_private_stmt_render_for 相关处理
+// for 循环渲染 - 从起始值到结束值按步进迭代，支持 break/continue 控制
 static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 {
 	int64 iStart = 0;
@@ -79800,6 +80099,7 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
 		return XTE_FLOW_ERROR;
 	}
+	// 解析起始和结束参数
 	if ( xteArgCount(pCtx->pArgs) < 2u ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for requires at least 2 args");
 	}
@@ -79809,6 +80109,7 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 	if ( !xteEvalArgInt(pCtx->pRender, xteArgAt(pCtx->pArgs, 1), &iEnd) ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for end eval failed");
 	}
+	// 解析可选步进参数，默认方向由起止值决定
 	if ( xteArgCount(pCtx->pArgs) >= 3u ) {
 		if ( !xteEvalArgInt(pCtx->pRender, xteArgAt(pCtx->pArgs, 2), &iStep) ) {
 			return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for step eval failed");
@@ -79819,27 +80120,32 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 	if ( iStep == 0 ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for step cannot be zero");
 	}
+	// 创建局部作用域
 	pLocal = xvoCreateTable();
 	if ( pLocal == NULL ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_MALLOC, "template for local alloc failed");
 	}
 	iPrevLoopDepth = pCtx->pRender->iLoopDepth;
 	pCtx->pRender->iLoopDepth = iPrevLoopDepth + 1u;
+	// 迭代循环
 	for ( iIndex = iStart;
 		((iStep > 0) && (iIndex <= iEnd)) || ((iStep < 0) && (iIndex >= iEnd));
 		iIndex += iStep ) {
 		XTE_Flow iFlow = XTE_FLOW_OK;
+		// 防止无限循环
 		iLoopCount++;
 		if ( iLoopCount > XTE_PRIVATE_LOOP_MAX_ITERATIONS ) {
 			pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 			xvoUnref(pLocal);
 			return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for exceeded max iterations");
 		}
+		// 设置循环变量 __index__
 		if ( !xvoTableSetInt(pLocal, "__index__", 0, iIndex) ) {
 			pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 			xvoUnref(pLocal);
 			return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template for local set failed");
 		}
+		// 在局部作用域中渲染循环体
 		iFlow = xte_private_render_body_with_scope_ex(pCtx, pLocal, pCtx->pRender->pCurrent);
 		if ( iFlow == XTE_FLOW_BREAK ) {
 			break;
@@ -79853,11 +80159,13 @@ static XTE_Flow xte_private_stmt_render_for(XTE_StmtRenderCtx* pCtx)
 			return iFlow;
 		}
 	}
+	// 恢复循环深度
 	pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 	xvoUnref(pLocal);
 	return XTE_FLOW_OK;
 }
 // xte_private_stmt_render_foreach 相关处理
+// foreach 遍历渲染 - 支持数组、列表、字典三种数据类型的迭代，设置 __index__/__value__/__key__ 循环变量
 static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 {
 	xvalue pIter = NULL;
@@ -79867,10 +80175,12 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
 		return XTE_FLOW_ERROR;
 	}
+	// 求值迭代对象
 	pIter = xteEvalArgValue(pCtx->pRender, xteArgAt(pCtx->pArgs, 0));
 	if ( pIter == NULL ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach eval failed");
 	}
+	// 创建局部作用域
 	pLocal = xvoCreateTable();
 	if ( pLocal == NULL ) {
 		xvoUnref(pIter);
@@ -79878,12 +80188,14 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 	}
 	iPrevLoopDepth = pCtx->pRender->iLoopDepth;
 	pCtx->pRender->iLoopDepth = iPrevLoopDepth + 1u;
+	// 按数据类型分派迭代逻辑
 	if ( pIter->Type == XVO_DT_ARRAY ) {
 		uint32 i = 0;
 		uint32 iCount = xvoArrayItemCount(pIter);
 		for ( i = 0; i < iCount; i++ ) {
 			XTE_Flow iFlow = XTE_FLOW_OK;
 			xvalue pItem = xvoArrayGetValue(pIter, i);
+			// 最大迭代次数检查
 			iLoopCount++;
 			if ( iLoopCount > XTE_PRIVATE_LOOP_MAX_ITERATIONS ) {
 				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
@@ -79891,6 +80203,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach exceeded max iterations");
 			}
+			// 设置循环变量 __index__ 和 __value__
 			xvoTableClear(pLocal);
 			if ( !xvoTableSetInt(pLocal, "__index__", 0, (int64)i) || !xvoTableSetValue(pLocal, "__value__", 0, pItem, FALSE) ) {
 				pCtx->pRender->iLoopDepth = iPrevLoopDepth;
@@ -79898,6 +80211,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach local set failed");
 			}
+			// 在局部作用域中渲染循环体
 			iFlow = xte_private_render_body_with_scope_ex(pCtx, pLocal, pItem);
 			if ( iFlow == XTE_FLOW_BREAK ) {
 				break;
@@ -79947,6 +80261,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 			}
 		}
 	} else if ( pIter->Type == XVO_DT_TABLE ) {
+		// 字典类型迭代：使用字典迭代器遍历键值对
 		uint32 iIndex = 0;
 		xdict pDict = xvoGetTable(pIter);
 		xrtDictIterBegin(pDict);
@@ -79965,6 +80280,7 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 				xvoUnref(pIter);
 				return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template foreach exceeded max iterations");
 			}
+			// 设置 __index__、__key__ 和 __value__
 			ppItem = (xvalue*)(&pKey[1]);
 			xvoTableClear(pLocal);
 			if ( !xvoTableSetInt(pLocal, "__index__", 0, (int64)iIndex)
@@ -79995,12 +80311,14 @@ static XTE_Flow xte_private_stmt_render_foreach(XTE_StmtRenderCtx* pCtx)
 		}
 		xrtDictIterEnd(pDict);
 	}
+	// 恢复循环深度并释放资源
 	pCtx->pRender->iLoopDepth = iPrevLoopDepth;
 	xvoUnref(pLocal);
 	xvoUnref(pIter);
 	return XTE_FLOW_OK;
 }
 // xte_private_stmt_render_include 相关处理
+// include 渲染 - 优先查找子模板(define)，再从外部模板映射表中查找
 static XTE_Flow xte_private_stmt_render_include(XTE_StmtRenderCtx* pCtx)
 {
 	char* sName = NULL;
@@ -80010,16 +80328,19 @@ static XTE_Flow xte_private_stmt_render_include(XTE_StmtRenderCtx* pCtx)
 	if ( (pCtx == NULL) || (pCtx->pRender == NULL) ) {
 		return XTE_FLOW_ERROR;
 	}
+	// 求值模板名称
 	sName = xteEvalArgText(pCtx->pRender, xteArgAt(pCtx->pArgs, 0));
 	if ( sName == NULL ) {
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_MALLOC, "template include name alloc failed");
 	}
+	// 优先在子模板中查找
 	pSubTemplate = xte_private_find_subtemplate(pCtx->pRender->hTemplate, sName, 0u);
 	if ( pSubTemplate != NULL ) {
 		iFlow = xte_private_render_span(pCtx->pRender, pSubTemplate->tBody);
 		xrtFree(sName);
 		return iFlow;
 	}
+	// 在外部模板映射表中查找
 	if ( pCtx->pRender->pIncludeMap == NULL ) {
 		xrtFree(sName);
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template include target not found");
@@ -80029,11 +80350,13 @@ static XTE_Flow xte_private_stmt_render_include(XTE_StmtRenderCtx* pCtx)
 		xrtFree(sName);
 		return xte_private_stmt_render_error(pCtx, XTE_ERROR_RENDER, "template include target not found");
 	}
+	// 渲染外部模板
 	iFlow = xte_private_render_template(pCtx->pRender, hTemplate, pCtx->pRender->pCurrent);
 	xrtFree(sName);
 	return iFlow;
 }
 // xte_private_render_node 相关处理
+// 节点渲染分发 - 根据节点类型（文本/输出/内联布尔/语句）调用对应的渲染逻辑
 static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 {
 	if ( pNode == NULL ) {
@@ -80041,6 +80364,7 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 		return XTE_FLOW_ERROR;
 	}
 	switch ( pNode->iType ) {
+		// 文本节点：直接输出
 		case XTE_NODE_TEXT: {
 			const char* sText = xte_private_pool_ptr(pCtx->hTemplate, pNode->Data.Text.iTextOff);
 			if ( !xte_private_writer_write(pCtx->pWriter, sText, pNode->Data.Text.iTextSize) ) {
@@ -80049,6 +80373,7 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 			}
 			return XTE_FLOW_OK;
 		}
+		// 输出节点：求值表达式并输出
 		case XTE_NODE_OUTPUT:
 			if ( !xte_private_render_output_node(pCtx, pNode) ) {
 				if ( (pCtx->pError != NULL) && (pCtx->pError->iCode == 0) ) {
@@ -80057,6 +80382,7 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 				return XTE_FLOW_ERROR;
 			}
 			return XTE_FLOW_OK;
+		// 内联布尔节点：条件求值后输出对应文本
 		case XTE_NODE_INLINE_BOOL: {
 			xvalue pVal = xte_private_eval_expr_value(pCtx, pNode->Data.InlineBool.iExprIndex);
 			int bTruth = xte_private_value_truthy(pVal);
@@ -80069,6 +80395,7 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 			}
 			return XTE_FLOW_OK;
 		}
+		// 语句节点：查找语句定义并调用渲染回调
 		case XTE_NODE_STATEMENT: {
 			const char* sName = xte_private_pool_ptr(pCtx->hTemplate, pNode->Data.Statement.iStmtNameOff);
 			const XTE_StatementDef* pDef = xte_private_find_statement(pCtx->hEngine, sName, pNode->Data.Statement.iStmtNameSize);
@@ -80081,6 +80408,7 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 				xte_private_fill_error_pos("", 0, 0, pCtx->pError, XTE_ERROR_UNKNOWN_STATEMENT, "template statement is not registered");
 				return XTE_FLOW_ERROR;
 			}
+			// 构造语句渲染上下文
 			xte_private_make_arg_list(pCtx->hTemplate, pNode, &tArgs);
 			tStmtCtx.pRender = pCtx;
 			tStmtCtx.pDef = pDef;
@@ -80090,6 +80418,7 @@ static XTE_Flow xte_private_render_node(XTE_RenderCtx* pCtx, XTE_Node* pNode)
 			tStmtCtx.iRawBodySize = pNode->Data.Statement.iRawBodySize;
 			tStmtCtx.pData = pNode->Data.Statement.pData;
 			tStmtCtx.pUserData = pDef->pUserData;
+			// 调用语句的渲染回调，或直接渲染体
 			if ( pDef->procRender ) {
 				iFlow = pDef->procRender(&tStmtCtx);
 			} else if ( pBody ) {
@@ -80201,6 +80530,7 @@ static int xte_private_dump_expr_typed(XTE_Writer* pWriter, xtetemplate hTemplat
 	return xte_private_dump_expr_value(pWriter, hTemplate, iExprIndex);
 }
 // xte_private_dump_arg_list 相关处理
+// 调试导出参数列表 - 输出每个参数的名称、原始值和表达式类型
 static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter, uint32 iArgStart, uint32 iArgCount, uint32 iDepth)
 {
 	uint32 i = 0;
@@ -80209,12 +80539,14 @@ static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter,
 		if ( pArg == NULL ) {
 			return 0;
 		}
+		// 输出缩进和 ARG 标记
 		if ( !xte_private_dump_indent(pWriter, iDepth) ) {
 			return 0;
 		}
 		if ( !xte_private_writer_write(pWriter, "ARG", 3) ) {
 			return 0;
 		}
+		// 输出命名参数名称
 		if ( pArg->iNameSize != 0u ) {
 			if ( !xte_private_writer_write(pWriter, " ", 1) ) {
 				return 0;
@@ -80223,6 +80555,7 @@ static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter,
 				return 0;
 			}
 		}
+		// 输出参数原始值
 		if ( !xte_private_writer_write(pWriter, ": ", 2) ) {
 			return 0;
 		}
@@ -80234,6 +80567,7 @@ static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter,
 		if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
 			return 0;
 		}
+		// 输出参数表达式信息
 		if ( pArg->iFlags & XTE_PRIVATE_ARG_HAS_EXPR ) {
 			if ( !xte_private_dump_indent(pWriter, iDepth + 1u) ) {
 				return 0;
@@ -80252,6 +80586,7 @@ static int xte_private_dump_arg_list(xtetemplate hTemplate, XTE_Writer* pWriter,
 	return 1;
 }
 // xte_private_dump_span 相关处理
+// 调试导出节点跨度 - 递归输出节点树结构，包含 TEXT/OUTPUT/INLINE_BOOL/STATEMENT 各类型信息
 static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE_NodeSpan tSpan, uint32 iDepth)
 {
 	uint32 i = 0;
@@ -80260,10 +80595,13 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 		if ( pNode == NULL ) {
 			return 0;
 		}
+		// 输出缩进
 		if ( !xte_private_dump_indent(pWriter, iDepth) ) {
 			return 0;
 		}
+		// 按节点类型输出不同格式的调试信息
 		switch ( pNode->iType ) {
+			// 文本节点
 			case XTE_NODE_TEXT:
 				if ( !xte_private_writer_write(pWriter, "TEXT: ", 6) ) {
 					return 0;
@@ -80275,6 +80613,7 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 					return 0;
 				}
 				break;
+			// 函数调用输出节点
 			case XTE_NODE_OUTPUT:
 				if ( pNode->Data.Output.iOutputType == XTE_OUTPUT_FUNC ) {
 					if ( !xte_private_writer_write(pWriter, "OUTPUT_FUNC: ", 13) ) {
@@ -80286,6 +80625,7 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 					if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
 						return 0;
 					}
+					// 导出函数参数
 					if ( pNode->Data.Output.iArgCount != 0u ) {
 						if ( !xte_private_dump_arg_list(hTemplate, pWriter, pNode->Data.Output.iArgStart, pNode->Data.Output.iArgCount, iDepth + 1u) ) {
 							return 0;
@@ -80293,6 +80633,7 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 					}
 					break;
 				}
+				// 普通输出节点
 				if ( !xte_private_writer_write(pWriter, "OUTPUT(", 7) ) {
 					return 0;
 				}
@@ -80309,6 +80650,7 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 					return 0;
 				}
 				break;
+			// 内联布尔节点
 			case XTE_NODE_INLINE_BOOL:
 				if ( !xte_private_writer_write(pWriter, "INLINE_BOOL(", 12) ) {
 					return 0;
@@ -80326,6 +80668,7 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 					return 0;
 				}
 				break;
+			// 语句节点：递归导出参数和子节点
 			case XTE_NODE_STATEMENT:
 				if ( !xte_private_writer_write(pWriter, "STATEMENT: ", 11) ) {
 					return 0;
@@ -80336,11 +80679,13 @@ static int xte_private_dump_span(xtetemplate hTemplate, XTE_Writer* pWriter, XTE
 				if ( !xte_private_writer_write(pWriter, "\n", 1) ) {
 					return 0;
 				}
+				// 导出语句参数
 				if ( pNode->Data.Statement.iArgCount != 0u ) {
 					if ( !xte_private_dump_arg_list(hTemplate, pWriter, pNode->Data.Statement.iArgStart, pNode->Data.Statement.iArgCount, iDepth + 1u) ) {
 						return 0;
 					}
 				}
+				// 递归导出子节点
 				if ( pNode->Data.Statement.tBody.iCount ) {
 					if ( !xte_private_dump_span(hTemplate, pWriter, pNode->Data.Statement.tBody, iDepth + 1u) ) {
 						return 0;

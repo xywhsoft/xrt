@@ -444,7 +444,7 @@
 		// 将监听套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
-		// [R13] 获取 AcceptEx 扩展函数指针（通过 WSAIoctl 动态加载）
+		// 获取 AcceptEx 扩展函数指针（通过 WSAIoctl 动态加载）
 		pfnAcceptEx = __xnetPortIOCPGetAcceptEx(pCtx, (SOCKET)pOp->hSocket);
 		if ( !pfnAcceptEx ) { return XRT_NET_ERROR; }
 
@@ -461,7 +461,7 @@
 			return XRT_NET_ERROR;
 		}
 
-		// [R13] 发起 AcceptEx 异步接受操作，通过 overlapped 结构关联到 IOCP
+		// 发起 AcceptEx 异步接受操作，通过 overlapped 结构关联到 IOCP
 		bOk = pfnAcceptEx((SOCKET)pOp->hSocket,
 			pIo->hAcceptSocket,
 			pIo->aAcceptBuf,
@@ -470,7 +470,7 @@
 			__XNET_IOCP_ACCEPT_ADDR_SPACE,
 			&iBytes,
 			&pIo->tOverlapped);
-		// [R13] AcceptEx 返回 FALSE 且错误码非 PENDING 时才视为失败
+		// AcceptEx 返回 FALSE 且错误码非 PENDING 时才视为失败
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
@@ -506,11 +506,11 @@
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
 
-		// [R13] 发起 WSARecv 异步接收操作，通过 overlapped 关联到 IOCP
+		// 发起 WSARecv 异步接收操作，通过 overlapped 关联到 IOCP
 		iRet = WSARecv((SOCKET)pOp->hSocket, pIo->arrBuf, 1, &iBytes, &iFlags, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSARecv submit fail socket=%p err=%d op=%llu\n",
@@ -547,7 +547,7 @@
 			return XRT_NET_ERROR;
 		}
 
-		// [R13] 获取 ConnectEx 扩展函数指针
+		// 获取 ConnectEx 扩展函数指针
 		pfnConnectEx = __xnetPortIOCPGetConnectEx(pCtx, (SOCKET)pOp->hSocket);
 		if ( !pfnConnectEx ) { return XRT_NET_ERROR; }
 
@@ -555,7 +555,7 @@
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
-		// [R13] 发起 ConnectEx 异步连接操作，通过 overlapped 关联到 IOCP
+		// 发起 ConnectEx 异步连接操作，通过 overlapped 关联到 IOCP
 		bOk = pfnConnectEx((SOCKET)pOp->hSocket,
 			(const struct sockaddr*)&tStorage,
 			(int)iAddrLen,
@@ -563,7 +563,7 @@
 			0,
 			NULL,
 			&pIo->tOverlapped);
-		// [R13] ERROR_IO_PENDING 表示连接已成功排队等待完成
+		// ERROR_IO_PENDING 表示连接已成功排队等待完成
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
@@ -598,7 +598,7 @@
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
 
-		// [R13] 发起 WSARecvFrom 异步接收操作，通过 overlapped 关联到 IOCP
+		// 发起 WSARecvFrom 异步接收操作，通过 overlapped 关联到 IOCP
 		iRet = WSARecvFrom((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			1,
@@ -610,7 +610,7 @@
 			NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSARecvFrom submit fail socket=%p err=%d op=%llu\n",
@@ -655,11 +655,11 @@
 			return XRT_NET_ERROR;
 		}
 
-		// [R13] 发起 WSASend 异步发送操作，通过 overlapped 关联到 IOCP
+		// 发起 WSASend 异步发送操作，通过 overlapped 关联到 IOCP
 		iRet = WSASend((SOCKET)pOp->hSocket, pIo->arrBuf, pIo->iBufCount, &iBytes, 0, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSASend submit fail socket=%p err=%d op=%llu bufcount=%u\n",
@@ -702,7 +702,7 @@
 		memcpy(&pIo->tAddrStorage, &tStorage, sizeof(tStorage));
 		pIo->iAddrLen = (int)iAddrLen;
 
-		// [R13] 发起 WSASendTo 异步发送操作，通过 overlapped 关联到 IOCP
+		// 发起 WSASendTo 异步发送操作，通过 overlapped 关联到 IOCP
 		iRet = WSASendTo((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			pIo->iBufCount,
@@ -714,7 +714,7 @@
 			NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
-			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
+			// WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSASendTo submit fail socket=%p err=%d op=%llu bufcount=%u\n",
@@ -870,7 +870,7 @@
 			LPOVERLAPPED pOv = NULL;
 			// 已有事件时不再等待，直接非阻塞轮询
 			DWORD iWait = (iCount > 0) ? 0u : iWaitMs;
-			// [R13] 通过 GetQueuedCompletionStatus 从 IOCP 完成端口取出一个已完成的 I/O 结果
+			// 通过 GetQueuedCompletionStatus 从 IOCP 完成端口取出一个已完成的 I/O 结果
 			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, iWait);
 			__xnet_iocp_header* pHdr;
 
@@ -891,7 +891,7 @@
 				pEvents[iCount++] = pPost->tEvent;
 				XNET_FREE(pPost);
 			} else if ( pHdr->iKind == __XNET_IOCP_KIND_IO ) {
-				// [R13] 真实 I/O 完成事件，构建对应类型的事件后释放 IO 包
+				// 真实 I/O 完成事件，构建对应类型的事件后释放 IO 包
 				__xnet_iocp_io* pIo = (__xnet_iocp_io*)pOv;
 				if ( __xnetPortIOCPBuildIoEvent(pIo, bOk, iBytes, &pEvents[iCount]) ) {
 					iCount++;

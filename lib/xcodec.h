@@ -213,12 +213,12 @@ XXAPI void xrtCodecFrameConsume(xnetchain* pInput, const xcodecframe* pFrame)
 /* ============================== Line codec ============================== */
 
 #if !defined(XRT_BUILD_CORE)
-typedef struct {
-	uint8 aDelimiter[4];
-	uint32 iDelimiterLen;
-	uint32 iMaxLineBytes;
-	bool bStripDelimiter;
-} xcodeclinecodec;
+	typedef struct {
+		uint8 aDelimiter[4];
+		uint32 iDelimiterLen;
+		uint32 iMaxLineBytes;
+		bool bStripDelimiter;
+	} xcodeclinecodec;
 #endif
 
 // 初始化编解码器行配置
@@ -294,12 +294,12 @@ XXAPI const xcodecparserops* xrtCodecLineOps(void)
 /* ============================== Length-field codec ============================== */
 
 #if !defined(XRT_BUILD_CORE)
-typedef struct {
-	uint8 iFieldBytes;
-	bool bBigEndian;
-	int32_t iLengthAdjust;
-	uint32 iMaxPayloadBytes;
-} xcodeclengthcodec;
+	typedef struct {
+		uint8 iFieldBytes;
+		bool bBigEndian;
+		int32_t iLengthAdjust;
+		uint32 iMaxPayloadBytes;
+	} xcodeclengthcodec;
 #endif
 
 // 初始化编解码器 length 配置

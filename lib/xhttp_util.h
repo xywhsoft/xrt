@@ -360,7 +360,7 @@ XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLim
 
 
 // 校验 Multipart 数据 (RFC 2046)
-// R13: 算法说明 - 校验 Multipart body 的完整性和各项限制
+// 算法说明 - 校验 Multipart body 的完整性和各项限制
 //   逐个遍历 Part, 校验边界、头部、各字段的长度限制以及头部行数限制
 XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits)
 {
@@ -535,7 +535,7 @@ XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOut
 
 
 // URL 百分号编码 (RFC 3986 §2.1)
-// R13: 算法说明 - 将非保留字符以外的字节编码为 %HH 形式
+// 算法说明 - 将非保留字符以外的字节编码为 %HH 形式
 //   保留字符 (A-Z a-z 0-9 - _ . ~) 直接输出
 //   空格可选编码为 '+' (application/x-www-form-urlencoded) 或 '%20' (URI)
 //   其他字节编码为 %XX (大写十六进制)
@@ -574,7 +574,7 @@ XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t
 
 
 // 内部函数：解析 RFC 5987 扩展值视图
-// R13: 算法说明 - 解析 RFC 5987 扩展值格式 "charset'language'encoded-value"
+// 算法说明 - 解析 RFC 5987 扩展值格式 "charset'language'encoded-value"
 //   通过两个单引号 ''' 将字符串分为 charset、language、percent-encoded-value 三部分
 //   charset 必须为合法 Token 字符, encoded-value 由百分号编码组成
 static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset, xrtstrview* pLanguage, xrtstrview* pEncoded)
@@ -636,7 +636,7 @@ XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, 
 
 
 // 构建 HTTP 扩展值 (RFC 5987)
-// R13: 算法说明 - 构建 RFC 5987 扩展值格式 "charset'language'percent-encoded-value"
+// 算法说明 - 构建 RFC 5987 扩展值格式 "charset'language'percent-encoded-value"
 //   charset 默认 UTF-8, language 可为空, value 部分使用百分号编码
 XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -1152,7 +1152,7 @@ XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t i
 
 
 // 获取下一个 HTTP 头部行
-// R13: 算法说明 - 迭代解析 HTTP 头部块, 每行格式为 "Name: Value\r\n"
+// 算法说明 - 迭代解析 HTTP 头部块, 每行格式为 "Name: Value\r\n"
 //   连续的 \r\n 表示头部块结束, 最后一行可无 \r\n 终止
 XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut)
 {
@@ -1333,7 +1333,7 @@ XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const 
 
 
 // 获取下一个 Cookie (RFC 6265 §4.2.1)
-// R13: 算法说明 - 迭代解析 Cookie 头部, 格式为 "name1=value1; name2=value2; ..."
+// 算法说明 - 迭代解析 Cookie 头部, 格式为 "name1=value1; name2=value2; ..."
 //   Cookie 对以 ';' 分隔, name 和 value 以 '=' 分隔
 //   name 必须为合法 HTTP Token, value 两端空白会被裁剪
 XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut)
@@ -1433,7 +1433,7 @@ XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap,
 
 
 // 解析 Set-Cookie 头部值 (RFC 6265 §4.1.1)
-// R13: 算法说明 - Set-Cookie 头部格式为 "name=value; 属性1; 属性2=值2 ..."
+// 算法说明 - Set-Cookie 头部格式为 "name=value; 属性1; 属性2=值2 ..."
 //   第一对 name=value 为必须项, 之后为可选属性(布尔型或键值型)
 //   布尔属性: Secure, HttpOnly, Partitioned, SameParty
 //   键值属性: Domain, Path, Expires, Max-Age, SameSite, Priority
@@ -1588,7 +1588,7 @@ static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut);
 
 
 // 获取下一个 HTTP 参数
-// R13: 算法说明 - 迭代解析 HTTP 参数列表 (RFC 2616 attribute=value 对)
+// 算法说明 - 迭代解析 HTTP 参数列表 (RFC 2616 attribute=value 对)
 //   参数以 ';' 分隔, 格式为 "name[=value]; name[=value]; ..."
 //   value 可以是裸值或双引号引用字符串
 XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut)
@@ -1723,7 +1723,7 @@ XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, c
 
 
 // 解析 HTTP 媒体类型 (RFC 6838 / MIME Content-Type)
-// R13: 算法说明 - 解析 MIME 媒体类型字符串, 格式为 "type/subtype[+suffix][;params]"
+// 算法说明 - 解析 MIME 媒体类型字符串, 格式为 "type/subtype[+suffix][;params]"
 //   例如: "text/html;charset=UTF-8", "application/vnd.api+json"
 //   通过 '/' 分离 type 和 subtype, '+' 分离可选 suffix, ';' 分离参数
 XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut)
@@ -1845,7 +1845,7 @@ XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* 
 
 
 // 解析 HTTP Content-Disposition 头部 (RFC 6266)
-// R13: 算法说明 - 解析 Content-Disposition 头部, 格式为 "disposition-type; name=...; filename=...; filename*=..."
+// 算法说明 - 解析 Content-Disposition 头部, 格式为 "disposition-type; name=...; filename=...; filename*=..."
 //   disposition-type 通常为 "form-data" 或 "attachment"
 //   filename* 使用 RFC 5987 扩展值编码, 优先级高于 filename
 XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut)
@@ -2149,7 +2149,7 @@ XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, c
 
 
 // 构建 Set-Cookie 值 (RFC 6265 §4.1.1)
-// R13: 算法说明 - 按规范顺序拼接 Set-Cookie 值: name=value; 属性列表
+// 算法说明 - 按规范顺序拼接 Set-Cookie 值: name=value; 属性列表
 //   属性按 Domain/Path/Expires/Max-Age/SameSite/Secure/HttpOnly/Partitioned/SameParty/Priority 顺序输出
 XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
@@ -2398,7 +2398,7 @@ static bool __xrtHttpUtilMultipartParseContentDisposition(xrtstrview tValue, xrt
 
 
 // 获取下一个 Multipart Part
-// R13: 算法说明 - Multipart 整体解析, 按 RFC 2046 格式定位每个 Part
+// 算法说明 - Multipart 整体解析, 按 RFC 2046 格式定位每个 Part
 //   格式: --boundary\r\n<headers>\r\n\r\n<body>\r\n--boundary(--) ...
 //   先定位边界行, 再查找头部与 body 的分隔符(\r\n\r\n), 最后定位下一个边界
 XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut)
@@ -2588,7 +2588,7 @@ static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, s
 
 
 // 初始化 Multipart 流
-// R13: 算法说明 - 初始化流式 Multipart 解析器, 配置缓冲区大小限制和边界字符串
+// 算法说明 - 初始化流式 Multipart 解析器, 配置缓冲区大小限制和边界字符串
 //   自动计算尾部保留空间(边界长度 + 8), 确保缓冲区能容纳至少一个头部块加尾部保留
 XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig)
 {
@@ -2698,7 +2698,7 @@ XXAPI uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream)
 
 
 // 内部函数：从流缓冲区中解析当前 Part 的头部块
-// R13: 算法说明 - 在流式缓冲区中查找 \r\n\r\n 分隔符定位头部区域,
+// 算法说明 - 在流式缓冲区中查找 \r\n\r\n 分隔符定位头部区域,
 //   然后逐行解析头部字段, 提取 Content-Disposition/Content-Type/Content-Transfer-Encoding
 static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream, xrtmultipartpartview* pOut)
 {
@@ -2767,7 +2767,7 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 
 
 // 获取下一个 Multipart 流事件
-// R13: 算法说明 - Multipart 流式解析状态机, 按 RFC 2046 multipart 格式逐步解析
+// 算法说明 - Multipart 流式解析状态机, 按 RFC 2046 multipart 格式逐步解析
 //   状态流转: SEEK_BOUNDARY -> HEADERS -> BODY -> PART_END -> (循环或 DONE)
 //   每次调用返回一个事件(PART_BEGIN/DATA/PART_END/END/NEED_MORE/ERROR)
 //   BODY 状态下采用尾部保留策略, 避免在边界分割处遗漏数据

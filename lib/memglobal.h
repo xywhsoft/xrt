@@ -1188,7 +1188,7 @@ static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
 		pLive = pNext;
 	}
 	
-	// 释放隔离区链表（R13: 隔离区用于延迟释放，防止 use-after-free）
+	// 释放隔离区链表（隔离区用于延迟释放，防止 use-after-free）
 	pQuarantine = pQuarantineHead;
 	while ( pQuarantine ) {
 		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
@@ -1544,7 +1544,7 @@ static inline void __xrtMemGlobalPushCentral(uint32 iClass, xrtMemFreeNode* pHea
 }
 
 
-// 内部函数：弹出内存全局 central（R13: 从中央空闲链表中批量取出节点）
+// 内部函数：弹出内存全局 central（从中央空闲链表中批量取出节点）
 static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMaxCount, uint32* pOutCount)
 {
 	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
@@ -1583,7 +1583,7 @@ static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMa
 }
 
 
-// 内部函数：分配内存全局 span（R13: span 是内存池的基本分配单元，一次申请一大块内存切分为多个等大小块）
+// 内部函数：分配内存全局 span（span 是内存池的基本分配单元，一次申请一大块内存切分为多个等大小块）
 static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
 {
 	ptr (*procMalloc)(size_t) = __xrtMemGlobalProcMalloc();
@@ -1655,7 +1655,7 @@ static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
 }
 
 
-// 内部函数：__xrtMemGlobalRefillThreadCache（R13: 从中央链表补充线程本地缓存）
+// 内部函数：__xrtMemGlobalRefillThreadCache（从中央链表补充线程本地缓存）
 static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, uint32 iClass)
 {
 	uint32 iDesired = pCache ? (uint32)(pCache->iCacheLimit / 2) : 0;
@@ -1697,7 +1697,7 @@ static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, ui
 }
 
 
-// 内部函数：__xrtMemGlobalDrainThreadCache（R13: 将线程本地缓存中多余的空闲块归还中央链表）
+// 内部函数：__xrtMemGlobalDrainThreadCache（将线程本地缓存中多余的空闲块归还中央链表）
 static inline void __xrtMemGlobalDrainThreadCache(xrtMemThreadCache* pCache, uint32 iClass, uint32 iKeepCount)
 {
 	xrtMemFreeNode* pHead = NULL;
@@ -1772,7 +1772,7 @@ static inline void __xrtMemGlobalUnitPlan(xrtMemGlobalPool* pPool)
 }
 
 
-// 内部函数：分配内存全局 pooled（R13: 从线程缓存或中央链表获取池化内存块）
+// 内部函数：分配内存全局 pooled（从线程缓存或中央链表获取池化内存块）
 static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, bool bZero)
 {
 	xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
@@ -1825,7 +1825,7 @@ static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, 
 }
 
 
-// 内部函数：分配内存全局 backing（R13: 超出池化大小阈值的内存直接通过系统分配器分配）
+// 内部函数：分配内存全局 backing（超出池化大小阈值的内存直接通过系统分配器分配）
 static inline ptr __xrtMemGlobalAllocBacking(size_t iRequestSize, bool bZero)
 {
 	ptr pRaw;
@@ -1885,7 +1885,7 @@ static inline ptr __xrtMemGlobalAlloc(size_t iSize, bool bZero)
 }
 
 
-// 内部函数：释放内存全局 free（R13: 根据块类型选择归还线程缓存、中央链表或系统释放）
+// 内部函数：释放内存全局 free（根据块类型选择归还线程缓存、中央链表或系统释放）
 static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 {
 	xrtMemBlockHeader* pHeader;
@@ -1946,7 +1946,7 @@ static inline void __xrtMemGlobalFreeRelease(ptr pMem)
 }
 
 
-// 内部函数：释放内存全局位置（R13: 包含完整的调试检查、隔离区和错误检测流程）
+// 内部函数：释放内存全局位置（包含完整的调试检查、隔离区和错误检测流程）
 static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iLine)
 {
 	xrtMemBlockHeader* pHeader;
@@ -1983,7 +1983,7 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 	}
 	
 	#ifdef XRT_MEM_DEBUG
-		// R13: 调试检查 - 检测双重释放、缓冲区溢出/下溢
+		// 调试检查 - 检测双重释放、缓冲区溢出/下溢
 		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
 			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
 			xrtSetError("double free detected.", FALSE);
@@ -2002,7 +2002,7 @@ static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iL
 		__xrtMemDebugTrackFree(pHeader, sFile, iLine);
 		memset(pMem, 0xDD, __xrtMemGlobalAllocPayloadSize(pHeader->iRequestSize));
 		
-		// R13: backing 块放入隔离区延迟释放，防止 use-after-free
+		// backing 块放入隔离区延迟释放，防止 use-after-free
 		if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
 			__xrtMemDebugLock();
 			pHeader->iDebugState = XRT_MEMDEBUG_STATE_QUARANTINE;
@@ -2056,7 +2056,7 @@ static inline void __xrtMemGlobalFree(ptr pMem)
 }
 
 
-// 内部函数：重新分配内存全局位置（R13: 支持原地扩展、搬迁分配和调试检查）
+// 内部函数：重新分配内存全局位置（支持原地扩展、搬迁分配和调试检查）
 static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
 {
 	xrtMemBlockHeader* pHeader;
@@ -2088,7 +2088,7 @@ static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* 
 	}
 	
 	#ifdef XRT_MEM_DEBUG
-		// R13: 调试检查 - 检测 use-after-free 和缓冲区越界
+		// 调试检查 - 检测 use-after-free 和缓冲区越界
 		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
 			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
 			xrtSetError("realloc on freed memory detected.", FALSE);

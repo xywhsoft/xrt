@@ -372,7 +372,7 @@ XXAPI bool xrtUrlParseViewN(const char* sText, size_t iLen, xrturlview* pOut)
 	if ( pOut == NULL || sText == NULL ) { return false; }
 	memset(pOut, 0, sizeof(xrturlview));
 	if ( iLen == 0u ) { return false; }
-	// R13: 扫描协议段，遇到 ':' 判断是否为 scheme:end，否则按相对 URL 处理
+	// 扫描协议段，遇到 ':' 判断是否为 scheme:end，否则按相对 URL 处理
 	for ( i = 0u; i < iLen; ++i ) {
 		char ch = sText[i];
 		if ( ch == ':' ) {
@@ -588,7 +588,7 @@ XXAPI bool xrtUrlNormalizePathTo(const char* sPath, size_t iLen, char* sOut, siz
 	if ( sPath == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	if ( !__xrtUrlValidateNoCtlOrSpace(sPath, iLen) ) { return false; }
 	sOut[0] = '\0';
-	// R13: 判断路径是绝对路径（以 '/' 开头）还是相对路径
+	// 判断路径是绝对路径（以 '/' 开头）还是相对路径
 	bAbsolute = iLen > 0u && sPath[0] == '/';
 	bTrailingSlash = iLen > 0u && sPath[iLen - 1u] == '/';
 	// 绝对路径以 '/' 开头，跳过多余的连续斜杠
@@ -746,7 +746,7 @@ XXAPI bool xrtUrlResolveTo(const xrturlview* pBase, const char* sRef, size_t iRe
 	if ( (pBase->iFlags & XRT_URL_F_ABSOLUTE) == 0u || xrtStrViewIsEmpty(pBase->tScheme) || xrtStrViewIsEmpty(pBase->tHost) ) { return false; }
 	// 空引用直接返回基准 URL
 	if ( iRefLen == 0u ) { return xrtUrlBuild(pBase, sOut, iOutCap, pOutLen); }
-	// R13: 协议相对 URL（以 "//" 开头），替换基准 URL 的授权段
+	// 协议相对 URL（以 "//" 开头），替换基准 URL 的授权段
 	if ( iRefLen >= 2u && sRef[0] == '/' && sRef[1] == '/' ) {
 		size_t iAuthEnd = 2u;
 		xrturlview tAuthority;
