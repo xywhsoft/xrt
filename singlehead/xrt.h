@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-09 15:49:09
+    Generated: 2026-04-09 18:26:10
 
     MIT License
 
@@ -37722,11 +37722,15 @@ static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
 	char* pNew;
 	if ( !pBuf ) { return false; }
 	if ( !pBuf->pBase ) { return false; }
+	// 计算数据指针前方的空闲头部空间大小
 	iHead = (pBuf->pData && pBuf->pData >= pBuf->pBase) ? (size_t)(pBuf->pData - pBuf->pBase) : 0u;
+	// 防止整数溢出：确保所需空间不会超过 SIZE_MAX
 	if ( iExtra > SIZE_MAX - pBuf->iSize ) { return false; }
 	iNeed = pBuf->iSize + iExtra;
 	if ( iHead > SIZE_MAX - iNeed ) { return false; }
+	// 头部空闲 + 已用 + 额外需求 <= 总容量，空间足够
 	if ( iHead + iNeed <= pBuf->iCapacity ) { return true; }
+	// 容量已满足需求，但数据未紧凑排列，将数据前移消除头部空闲
 	if ( iNeed <= pBuf->iCapacity ) {
 		if ( pBuf->iSize > 0u && iHead > 0u ) {
 			memmove(pBuf->pBase, pBuf->pData, pBuf->iSize);
@@ -37734,14 +37738,17 @@ static bool __xrt_tls_buf_ensure(__xrt_tls_buf* pBuf, size_t iExtra)
 		pBuf->pData = pBuf->pBase;
 		return true;
 	}
+	// 容量不足，按翻倍策略扩容；若容量已超过 SIZE_MAX/2 则直接使用需求值
 	if ( pBuf->iCapacity > SIZE_MAX / 2u ) {
 		iNewCap = iNeed;
 	} else {
 		iNewCap = pBuf->iCapacity ? (pBuf->iCapacity * 2u) : 256u;
 	}
 	if ( iNewCap < iNeed ) { iNewCap = iNeed; }
+	// 重新分配更大的缓冲区
 	pNew = (char*)xrtRealloc(pBuf->pBase, iNewCap);
 	if ( !pNew ) { return false; }
+	// 扩容后数据可能不在起始位置，将其移到新缓冲区开头以消除头部空闲
 	if ( pBuf->iSize > 0u && iHead > 0u ) {
 		memmove(pNew, pNew + iHead, pBuf->iSize);
 	}
@@ -37795,12 +37802,15 @@ static xnet_result __xrt_tls_sock_send(xsocket hSocket, const char* pData, size_
 	int iRet;
 	if ( pSent ) { *pSent = 0; }
 	if ( hSocket == XSOCKET_INVALID || !pData || iLen == 0 ) { return XRT_NET_ERROR; }
+	// 截断发送长度到 INT_MAX，适配 send() 的 int 参数
 	iRet = (int)send(hSocket, pData, (int)((iLen > (size_t)INT_MAX) ? INT_MAX : iLen), 0);
 	if ( iRet > 0 ) {
 		if ( pSent ) { *pSent = (size_t)iRet; }
 		return XRT_NET_OK;
 	}
+	// 对端已关闭连接
 	if ( iRet == 0 ) { return XRT_NET_CLOSED; }
+	// 根据错误码判断是非阻塞暂时不可用还是真正的错误
 	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
 }
 // 内部函数：__xrt_tls_sock_recv
@@ -37809,12 +37819,15 @@ static xnet_result __xrt_tls_sock_recv(xsocket hSocket, char* pBuf, size_t iLen,
 	int iRet;
 	if ( pReceived ) { *pReceived = 0; }
 	if ( hSocket == XSOCKET_INVALID || !pBuf || iLen == 0 ) { return XRT_NET_ERROR; }
+	// 截断接收长度到 INT_MAX，适配 recv() 的 int 参数
 	iRet = (int)recv(hSocket, pBuf, (int)((iLen > (size_t)INT_MAX) ? INT_MAX : iLen), 0);
 	if ( iRet > 0 ) {
 		if ( pReceived ) { *pReceived = (size_t)iRet; }
 		return XRT_NET_OK;
 	}
+	// 对端已关闭连接
 	if ( iRet == 0 ) { return XRT_NET_CLOSED; }
+	// 根据错误码判断是非阻塞暂时不可用还是真正的错误
 	return __xrt_tls_sock_would_block(__xrt_tls_sock_last_err()) ? XRT_NET_AGAIN : XRT_NET_ERROR;
 }
 /* ============================== TLS resume state ============================== */
@@ -37848,6 +37861,7 @@ static uint64 __xrt_tls_resume_cache_gen = 0;
 // 内部函数：__xrt_tls_resume_lock_acquire
 static void __xrt_tls_resume_lock_acquire(void)
 {
+	// 自旋锁：通过原子交换操作尝试获取锁，失败则让出 CPU 重试
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
 		while ( __xrtAtomicExchange32(&__xrt_tls_resume_lock, 1) != 0 ) {
 			xrtThreadYield();
@@ -37865,6 +37879,7 @@ static void __xrt_tls_resume_lock_acquire(void)
 // 内部函数：__xrt_tls_resume_lock_release
 static void __xrt_tls_resume_lock_release(void)
 {
+	// 释放自旋锁：将锁变量原子地置为 0
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
 		__xrtAtomicExchange32(&__xrt_tls_resume_lock, 0);
 	#elif defined(_WIN32) || defined(_WIN64)
@@ -37888,10 +37903,12 @@ static bool __xrt_tls_resume_cache_lookup(const uint8* pSessionId, uint8 iSessio
 	__xrt_tls_resume_cache_entry* pEntry;
 	bool bFound = false;
 	if ( !pSessionId || !pOut || iSessionIdLen == 0 || iSessionIdLen > 32u ) { return false; }
+	// 加锁遍历链表，按会话ID查找匹配的缓存条目
 	__xrt_tls_resume_lock_acquire();
 	for ( pEntry = __xrt_tls_resume_cache; pEntry; pEntry = pEntry->pNext ) {
 		if ( pEntry->tResume.iSessionIdLen != iSessionIdLen ) { continue; }
 		if ( memcmp(pEntry->tResume.aSessionId, pSessionId, iSessionIdLen) != 0 ) { continue; }
+		// 匹配成功，复制恢复数据并更新代数（模拟 LRU 访问标记）
 		memcpy(pOut, &pEntry->tResume, sizeof(*pOut));
 		pEntry->iGeneration = ++__xrt_tls_resume_cache_gen;
 		bFound = true;
@@ -37908,18 +37925,22 @@ static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 	__xrt_tls_resume_cache_entry* pOldest = NULL;
 	__xrt_tls_resume_cache_entry* pPrev = NULL;
 	__xrt_tls_resume_cache_entry* pCurr = NULL;
+	// 验证参数有效性：仅支持 TLS 1.2 且会话ID长度合法
 	if ( !pResume || pResume->iVersion != __XRT_TLS_VERSION_1_2
 		|| pResume->iSessionIdLen == 0 || pResume->iSessionIdLen > 32u ) return;
 	__xrt_tls_resume_lock_acquire();
+	// 遍历链表查找是否已存在相同会话ID的条目
 	for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
 		if ( pCurr->tResume.iSessionIdLen == pResume->iSessionIdLen
 			&& memcmp(pCurr->tResume.aSessionId, pResume->aSessionId, pResume->iSessionIdLen) == 0 ) {
+			// 已存在则更新恢复数据并刷新代数
 			memcpy(&pCurr->tResume, pResume, sizeof(*pResume));
 			pCurr->iGeneration = ++__xrt_tls_resume_cache_gen;
 			__xrt_tls_resume_lock_release();
 			return;
 		}
 	}
+	// 分配新的缓存条目并初始化
 	pEntry = (__xrt_tls_resume_cache_entry*)xrtCalloc(1, sizeof(*pEntry));
 	if ( !pEntry ) {
 		__xrt_tls_resume_lock_release();
@@ -37927,10 +37948,13 @@ static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 	}
 	memcpy(&pEntry->tResume, pResume, sizeof(*pResume));
 	pEntry->iGeneration = ++__xrt_tls_resume_cache_gen;
+	// 头插法：将新条目插入链表头部
 	pEntry->pNext = __xrt_tls_resume_cache;
 	__xrt_tls_resume_cache = pEntry;
 	__xrt_tls_resume_cache_count++;
+	// 缓存数量超过上限（128），淘汰代数最小的条目（即最久未被访问的）
 	if ( __xrt_tls_resume_cache_count > 128u ) {
+		// 遍历链表寻找代数最小的条目及其前驱节点
 		for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
 			if ( !pOldest || pCurr->iGeneration < pOldest->iGeneration ) {
 				pOldest = pCurr;
@@ -37938,6 +37962,7 @@ static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 			}
 			pPrev = pCurr;
 		}
+		// 从链表中移除最旧条目并释放内存
 		if ( pOldest ) {
 			if ( pPrevOldest ) { pPrevOldest->pNext = pOldest->pNext; }
 			else { __xrt_tls_resume_cache = pOldest->pNext; }
@@ -38008,9 +38033,10 @@ static bool __xrt_tls12_client_offers_suite(uint16 iSuite,
 #define __XRT_TLS_MAX_RECORD   32768
 #define __XRT_TLS_MAX_RECORD_PAYLOAD  16640
 /* ============================== 辅助函数 ============================== */
+// 内部函数：加载大端序 16 位整数
 static inline uint16 __xrt_tls_load_be16(const uint8 *p)
 {
-	return (uint16)((uint16)p[0] << 8 | p[1]);
+	return (uint16)((uint16)p[0] << 8 | p[1]); // 高字节在前
 }
 // 内部函数：加载 TLS be 24
 static inline uint32 __xrt_tls_load_be24(const uint8 *p)
@@ -38042,13 +38068,15 @@ static inline void __xrt_tls_store_be64(uint8 *p, uint64 v)
 	p[6] = (uint8)(v >> 8);
 	p[7] = (uint8)(v);
 }
+// 安全清零内存，防止编译器优化掉清零操作（ 用于清除密钥等敏感数据 ）
 static void __xrt_tls_secure_zero(void* pData, size_t iLen)
 {
-	volatile uint8* pZero = (volatile uint8*)pData;
+	volatile uint8* pZero = (volatile uint8*)pData; // volatile 防止编译器优化掉写入操作
 	while ( pZero != NULL && iLen-- > 0 ) {
 		*pZero++ = 0;
 	}
 }
+// 判断客户端是否支持指定的密码套件
 static bool __xrt_tls_client_offers_suite(uint16 iSuite, bool bAllowTls13)
 {
 	switch ( iSuite ) {
@@ -38081,55 +38109,61 @@ struct __xrt_der_tlv {
 	uint32 iHeaderLen;
 	uint32 iTotalLen;
 };
-// 解析一个 DER TLV 节点
+// 解析一个 DER TLV 节点，返回总消耗字节数（ 含头 ），失败返回 -1
 static int __xrt_der_parse(uint8 *pDer, size_t iDerSz, struct __xrt_der_tlv *pTlv)
 {
-	size_t iHeaderLen = 2;
+	size_t iHeaderLen = 2; // 默认头长：1 字节类型 + 1 字节短格式长度
 	uint32 iLen;
 	if ( iDerSz < 2 ) { return -1; }
+	// 解析标签字节
 	pTlv->iType = pDer[0];
 	iLen = pDer[1];
+	// 长格式长度：最高位为 1，低 7 位表示后续长度字节数
 	if ( iLen > 0x7F ) {  // long-form length
-		uint8 iLenBytes = iLen & 0x7F;
+		uint8 iLenBytes = iLen & 0x7F; // 取低 7 位作为长度字段占用字节数
 		uint8 k;
 		if ( iLenBytes == 0 || iLenBytes > sizeof(uint32) ) { return -1; }
 		if ( iDerSz < (size_t)(2 + iLenBytes) ) { return -1; }
 		iLen = 0;
 		for ( k = 0; k < iLenBytes; k++ ) {
-			iLen = (iLen << 8) | pDer[2 + k];
+			iLen = (iLen << 8) | pDer[2 + k]; // 大端序拼接长度值
 		}
 		iHeaderLen += iLenBytes;
 	}
+	// 检查数据是否足够包含头 + 值
 	if ( iDerSz < iHeaderLen + iLen ) { return -1; }
+	// 填充解析结果
 	pTlv->iLen = iLen;
-	pTlv->pValue = pDer + iHeaderLen;
-	pTlv->pRaw = pDer;
+	pTlv->pValue = pDer + iHeaderLen; // 值起始位置
+	pTlv->pRaw = pDer; // 原始数据起始位置
 	pTlv->iHeaderLen = (uint32)iHeaderLen;
 	pTlv->iTotalLen = (uint32)(iHeaderLen + iLen);
 	return (int)(iHeaderLen + iLen);
 }
-// 遍历下一个子 TLV
+// 遍历下一个子 TLV，从父节点的值区域中顺序解析，自动推进父节点指针
 static int __xrt_der_next(struct __xrt_der_tlv *pParent, struct __xrt_der_tlv *pChild)
 {
 	int iConsumed;
-	if ( pParent->iLen == 0 ) { return 0; }
-	iConsumed = __xrt_der_parse(pParent->pValue, pParent->iLen, pChild);
+	if ( pParent->iLen == 0 ) { return 0; } // 无剩余数据
+	iConsumed = __xrt_der_parse(pParent->pValue, pParent->iLen, pChild); // 从当前位置解析子节点
 	if ( iConsumed < 0 ) { return -1; }
+	// 推进父节点指针，跳过已解析的子节点
 	pParent->pValue += iConsumed;
 	pParent->iLen -= (uint32)iConsumed;
 	return 1;
 }
-// 在 DER 结构中递归查找 OID
+// 在 DER 结构中递归查找 OID，找到后返回其下一个兄弟节点（ 通常为 OID 对应的值 ）
 static int UNUSED_ATTR __xrt_der_find_oid(struct __xrt_der_tlv *pTlv, const uint8 *pOid,
 	size_t iOidLen, struct __xrt_der_tlv *pFound)
 {
 	struct __xrt_der_tlv tParent, tChild;
 	tParent = *pTlv;
 	while ( __xrt_der_next(&tParent, &tChild) > 0 ) {
+		// 匹配 OID 标签（ 0x06 ）且内容一致
 		if ( (tChild.iType == 0x06) && (tChild.iLen == iOidLen) &&
 			(memcmp(tChild.pValue, pOid, iOidLen) == 0) ) {
-			return __xrt_der_next(&tParent, pFound);
-		} else if ( tChild.iType & 0x20 ) {
+			return __xrt_der_next(&tParent, pFound); // 返回 OID 后面的节点
+		} else if ( tChild.iType & 0x20 ) { // 构造类型（ bit 5 = 1 ），递归进入子结构
 			struct __xrt_der_tlv tSub = tChild;
 			if ( __xrt_der_find_oid(&tSub, pOid, iOidLen, pFound) ) { return 1; }
 		}
@@ -38325,21 +38359,25 @@ static bool __xrt_tls_ascii_case_equal(const char *sA, const char *sB)
 	}
 	return true;
 }
-// 内部函数：__xrt_tls_hostname_matches
+// 内部函数：__xrt_tls_hostname_matches（ 通配符主机名匹配，支持 *.example.com 形式 ）
 static bool __xrt_tls_hostname_matches(const char *sPattern, const char *sHost)
 {
 	const char *pFirstDot;
 	const char *pHostDot;
 	size_t iSuffixLen;
 	if ( !sPattern || !sHost || !sPattern[0] || !sHost[0] ) { return false; }
-	if ( strchr(sHost, '*') ) { return false; }
+	if ( strchr(sHost, '*') ) { return false; } // 主机名不允许包含通配符
+	// 非通配符模式：直接做大小写不敏感比较
 	if ( sPattern[0] != '*' ) { return __xrt_tls_ascii_case_equal(sPattern, sHost); }
-	if ( sPattern[1] != '.' ) { return false; }
+	if ( sPattern[1] != '.' ) { return false; } // 通配符后必须跟点号
+	// 查找模式中通配符后的第一个点号，用于提取域名后缀
 	pFirstDot = strchr(sPattern + 2, '.');
 	if ( !pFirstDot ) { return false; }
 	pHostDot = strchr(sHost, '.');
 	if ( !pHostDot ) { return false; }
+	// 确保主机名至少有两级域名，防止匹配 *.com 这类过宽泛的模式
 	if ( strchr(pHostDot + 1, '.') == NULL ) { return false; }
+	// 比较模式后缀（ 含点号 ）与主机名的域名后缀
 	iSuffixLen = strlen(sPattern + 1);
 	if ( strlen(pHostDot) != iSuffixLen ) { return false; }
 	return __xrt_tls_ascii_case_equal(pHostDot, sPattern + 1);
@@ -38352,13 +38390,14 @@ static int __xrt_tls_hex_value(int c)
 	if ( c >= 'a' && c <= 'f' ) { return c - 'a' + 10; }
 	return -1;
 }
-// 内部函数：解析 IPv4 文本
+// 内部函数：解析 IPv4 文本，输出 4 字节二进制地址
 static bool __xrt_tls_parse_ipv4_literal(const char* sHost, uint8* pOut)
 {
 	size_t i;
 	const char* p;
 	if ( !sHost || !pOut ) { return false; }
 	p = sHost;
+	// 逐段解析 4 个十进制数，每段 0-255
 	for ( i = 0; i < 4; i++ ) {
 		unsigned int iPart = 0;
 		size_t iDigits = 0;
@@ -38368,25 +38407,26 @@ static bool __xrt_tls_parse_ipv4_literal(const char* sHost, uint8* pOut)
 			p++;
 			iDigits++;
 		}
-		if ( iDigits == 0 ) { return false; }
+		if ( iDigits == 0 ) { return false; } // 每段至少一个数字
 		pOut[i] = (uint8)iPart;
-		if ( i == 3 ) { break; }
+		if ( i == 3 ) { break; } // 最后一段不需要点号
 		if ( *p != '.' ) { return false; }
 		p++;
 	}
-	return *p == '\0';
+	return *p == '\0'; // 确保没有多余字符
 }
-// 内部函数：解析 IPv6 文本
+// 内部函数：解析 IPv6 文本，输出 16 字节二进制地址，支持 :: 缩写和 IPv4 映射
 static bool __xrt_tls_parse_ipv6_literal(const char* sHost, uint8* pOut)
 {
-	uint16 aWords[8];
+	uint16 aWords[8]; // IPv6 地址的 8 个 16 位字
 	const char* pStart = sHost;
 	const char* pEnd;
 	const char* p;
 	int iWordCount = 0;
-	int iDoubleColon = -1;
+	int iDoubleColon = -1; // 记录 :: 出现的位置
 	if ( !sHost || !pOut ) { return false; }
 	memset(aWords, 0, sizeof(aWords));
+	// 处理方括号包围的格式，如 [::1]
 	if ( sHost[0] == '[' ) {
 		pEnd = strrchr(sHost, ']');
 		if ( !pEnd || pEnd[1] != '\0' ) { return false; }
@@ -38396,52 +38436,60 @@ static bool __xrt_tls_parse_ipv6_literal(const char* sHost, uint8* pOut)
 	}
 	if ( pStart >= pEnd ) { return false; }
 	p = pStart;
+	// 处理开头的 ::（ 表示前面若干字为 0 ）
 	if ( *p == ':' ) {
 		if ( p + 1 >= pEnd || p[1] != ':' ) { return false; }
 		iDoubleColon = iWordCount;
 		p += 2;
 		if ( p >= pEnd ) {
-			memset(pOut, 0, 16);
+			memset(pOut, 0, 16); // 纯 "::" 等价于全 0 地址
 			return true;
 		}
 	}
+	// 逐个解析地址段
 	while ( p < pEnd ) {
 		uint8 aIPv4[4];
 		uint16 iValue = 0;
 		size_t iDigits = 0;
 		const char* pNextDot = strchr(p, '.');
+		// 检测内嵌的 IPv4 地址（ 如 ::ffff:192.168.1.1 ）
 		if ( pNextDot && pNextDot < pEnd ) {
 			if ( iWordCount > 6 || !__xrt_tls_parse_ipv4_literal(p, aIPv4) ) { return false; }
+			// 将 IPv4 的 4 字节拆为 2 个 16 位字（ 大端序 ）
 			aWords[iWordCount++] = (uint16)(((uint16)aIPv4[0] << 8) | aIPv4[1]);
 			aWords[iWordCount++] = (uint16)(((uint16)aIPv4[2] << 8) | aIPv4[3]);
 			p = pEnd;
 			break;
 		}
+		// 解析十六进制段（ 最多 4 位 ）
 		while ( p < pEnd ) {
 			int iHex = __xrt_tls_hex_value((uint8)*p);
 			if ( iHex < 0 ) { break; }
-			iValue = (uint16)((iValue << 4) | (uint16)iHex);
+			iValue = (uint16)((iValue << 4) | (uint16)iHex); // 十六进制转数值
 			p++;
 			iDigits++;
-			if ( iDigits > 4 ) { return false; }
+			if ( iDigits > 4 ) { return false; } // 每段最多 4 个十六进制字符
 		}
 		if ( iDigits == 0 || iWordCount >= 8 ) { return false; }
 		aWords[iWordCount++] = iValue;
 		if ( p >= pEnd ) { break; }
 		if ( *p != ':' ) { return false; }
 		p++;
+		// 检测 ::（ 连续冒号 ）
 		if ( p < pEnd && *p == ':' ) {
-			if ( iDoubleColon >= 0 ) { return false; }
+			if ( iDoubleColon >= 0 ) { return false; } // 只允许一个 ::
 			iDoubleColon = iWordCount;
 			p++;
 			if ( p >= pEnd ) { break; }
 		}
 	}
+	// 处理 :: 展开的零填充
 	if ( iDoubleColon >= 0 ) {
-		int iMove = iWordCount - iDoubleColon;
-		int iFill = 8 - iWordCount;
+		int iMove = iWordCount - iDoubleColon; // :: 后面已有的字数
+		int iFill = 8 - iWordCount; // 需要填充的零字数
 		int i;
 		if ( iFill < 0 ) { return false; }
+		// 将 :: 后面的字右移，腾出空间填零
 		for ( i = iMove - 1; i >= 0; i-- ) {
 			aWords[iDoubleColon + iFill + i] = aWords[iDoubleColon + i];
 		}
@@ -38451,9 +38499,10 @@ static bool __xrt_tls_parse_ipv6_literal(const char* sHost, uint8* pOut)
 		iWordCount = 8;
 	}
 	if ( iWordCount != 8 ) { return false; }
+	// 将 8 个 16 位字转为 16 字节大端序二进制地址
 	for ( int i = 0; i < 8; i++ ) {
-		pOut[i * 2] = (uint8)(aWords[i] >> 8);
-		pOut[i * 2 + 1] = (uint8)(aWords[i] & 0xff);
+		pOut[i * 2] = (uint8)(aWords[i] >> 8);     // 高字节
+		pOut[i * 2 + 1] = (uint8)(aWords[i] & 0xff); // 低字节
 	}
 	return true;
 }
@@ -38480,7 +38529,7 @@ static time_t __xrt_tls_timegm(struct tm *pTM)
 		return timegm(pTM);
 	#endif
 }
-// 内部函数：__xrt_x509_parse_time_value
+// 内部函数：解析 X.509 时间值（ UTCTime 0x17 或 GeneralizedTime 0x18 ），返回 time_t
 static bool __xrt_x509_parse_time_value(const struct __xrt_der_tlv *pTime, time_t *pOut)
 {
 	struct tm tTM;
@@ -38489,16 +38538,17 @@ static bool __xrt_x509_parse_time_value(const struct __xrt_der_tlv *pTime, time_
 	const char *p = (const char*)pTime->pValue;
 	if ( !pTime || !pOut ) { return false; }
 	memset(&tTM, 0, sizeof(tTM));
+	// UTCTime 格式：YYMMDDHHMMSSZ（ 2 位年份，>=50 为 19xx，<50 为 20xx ）
 	if ( pTime->iType == 0x17 ) {
 		if ( pTime->iLen < 13 || p[pTime->iLen - 1] != 'Z' ) { return false; }
 		iYear = (p[0] - '0') * 10 + (p[1] - '0');
-		iYear += (iYear >= 50) ? 1900 : 2000;
+		iYear += (iYear >= 50) ? 1900 : 2000; // RFC 5280 规则
 		iMonth = (p[2] - '0') * 10 + (p[3] - '0');
 		iDay = (p[4] - '0') * 10 + (p[5] - '0');
 		iHour = (p[6] - '0') * 10 + (p[7] - '0');
 		iMinute = (p[8] - '0') * 10 + (p[9] - '0');
 		iSecond = (p[10] - '0') * 10 + (p[11] - '0');
-	} else if ( pTime->iType == 0x18 ) {
+	} else if ( pTime->iType == 0x18 ) { // GeneralizedTime 格式：YYYYMMDDHHMMSSZ（ 4 位年份 ）
 		if ( pTime->iLen < 15 || p[pTime->iLen - 1] != 'Z' ) { return false; }
 		iYear = (p[0] - '0') * 1000 + (p[1] - '0') * 100 + (p[2] - '0') * 10 + (p[3] - '0');
 		iMonth = (p[4] - '0') * 10 + (p[5] - '0');
@@ -38509,13 +38559,15 @@ static bool __xrt_x509_parse_time_value(const struct __xrt_der_tlv *pTime, time_
 	} else {
 		return false;
 	}
+	// 校验时间值合法性
 	if ( iMonth < 1 || iMonth > 12 || iDay < 1 || iDay > 31 ||
 		iHour < 0 || iHour > 23 || iMinute < 0 || iMinute > 59 ||
-		iSecond < 0 || iSecond > 60 ) {
+		iSecond < 0 || iSecond > 60 ) { // 60 允许闰秒
 		return false;
 	}
-	tTM.tm_year = iYear - 1900;
-	tTM.tm_mon = iMonth - 1;
+	// 转换为 struct tm 并生成 time_t（ UTC ）
+	tTM.tm_year = iYear - 1900; // tm_year 从 1900 开始计数
+	tTM.tm_mon = iMonth - 1;    // tm_mon 范围 0-11
 	tTM.tm_mday = iDay;
 	tTM.tm_hour = iHour;
 	tTM.tm_min = iMinute;
@@ -38538,22 +38590,26 @@ static bool __xrt_x509_copy_string_value(char *sOut, size_t iOutSz, const struct
 	sOut[iCopy] = '\0';
 	return iCopy > 0;
 }
-// 内部函数：__xrt_x509_parse_common_name
+// 内部函数：从 X.509 Name 结构中提取 commonName 字段值
 static bool __xrt_x509_parse_common_name(const struct __xrt_der_tlv *pName, char *sOut, size_t iOutSz)
 {
 	struct __xrt_der_tlv tRDNs, tSet, tAttr, tOID, tValue;
 	if ( !pName || pName->iType != 0x30 ) { return false; }
 	tRDNs = *pName;
+	// 遍历 RDN（ Relative Distinguished Name ）集合
 	while ( __xrt_der_next(&tRDNs, &tSet) > 0 ) {
-		if ( tSet.iType != 0x31 ) { continue; }
+		if ( tSet.iType != 0x31 ) { continue; } // SET 标签
 		{
 			struct __xrt_der_tlv tSetItems = tSet;
+			// 遍历 SET 中的属性键值对
 			while ( __xrt_der_next(&tSetItems, &tAttr) > 0 ) {
-				if ( tAttr.iType != 0x30 ) { continue; }
+				if ( tAttr.iType != 0x30 ) { continue; } // SEQUENCE 标签
 				{
 					struct __xrt_der_tlv tAttrItems = tAttr;
+					// 解析 OID 和值
 					if ( __xrt_der_next(&tAttrItems, &tOID) <= 0 || tOID.iType != 0x06 ) { continue; }
 					if ( __xrt_der_next(&tAttrItems, &tValue) <= 0 ) { continue; }
+					// 匹配 commonName OID（ 2.5.4.3 ）
 					if ( tOID.iLen == sizeof(__xrt_oid_common_name) &&
 						memcmp(tOID.pValue, __xrt_oid_common_name, sizeof(__xrt_oid_common_name)) == 0 ) {
 						return __xrt_x509_copy_string_value(sOut, iOutSz, &tValue);
@@ -38564,20 +38620,23 @@ static bool __xrt_x509_parse_common_name(const struct __xrt_der_tlv *pName, char
 	}
 	return false;
 }
-// 内部函数：__xrt_x509_parse_hash_oid
+// 内部函数：根据哈希算法 OID 确定哈希输出长度
 static bool __xrt_x509_parse_hash_oid(const struct __xrt_der_tlv *pOID, size_t *pHashLen)
 {
 	if ( !pOID || pOID->iType != 0x06 || !pHashLen ) { return false; }
+	// SHA-256 → 32 字节
 	if ( pOID->iLen == sizeof(__xrt_oid_sha256) &&
 		memcmp(pOID->pValue, __xrt_oid_sha256, sizeof(__xrt_oid_sha256)) == 0 ) {
 		*pHashLen = 32;
 		return true;
 	}
+	// SHA-384 → 48 字节
 	if ( pOID->iLen == sizeof(__xrt_oid_sha384) &&
 		memcmp(pOID->pValue, __xrt_oid_sha384, sizeof(__xrt_oid_sha384)) == 0 ) {
 		*pHashLen = 48;
 		return true;
 	}
+	// SHA-512 → 64 字节
 	if ( pOID->iLen == sizeof(__xrt_oid_sha512) &&
 		memcmp(pOID->pValue, __xrt_oid_sha512, sizeof(__xrt_oid_sha512)) == 0 ) {
 		*pHashLen = 64;
@@ -38585,7 +38644,7 @@ static bool __xrt_x509_parse_hash_oid(const struct __xrt_der_tlv *pOID, size_t *
 	}
 	return false;
 }
-// 内部函数：__xrt_x509_parse_pss_params
+// 内部函数：解析 RSA-PSS 签名参数（ hashAlgorithm、maskGenAlgorithm、saltLength ）
 static bool __xrt_x509_parse_pss_params(const struct __xrt_der_tlv *pParams,
 	enum __xrt_x509_sig_alg *pSigAlg, size_t *pHashLen)
 {
@@ -38595,35 +38654,40 @@ static bool __xrt_x509_parse_pss_params(const struct __xrt_der_tlv *pParams,
 	size_t iSaltLen = 0;
 	if ( !pParams || pParams->iType != 0x30 ) { return false; }
 	tSeq = *pParams;
+	// 遍历 PSS 参数序列中的各个隐式标签字段
 	while ( __xrt_der_next(&tSeq, &tField) > 0 ) {
-		if ( tField.iType == 0xa0 ) {
+		if ( tField.iType == 0xa0 ) { // [0] hashAlgorithm
 			struct __xrt_der_tlv tInner, tOID;
 			if ( __xrt_der_next(&tField, &tInner) <= 0 || tInner.iType != 0x30 ) { return false; }
 			if ( __xrt_der_next(&tInner, &tOID) <= 0 ) { return false; }
 			if ( !__xrt_x509_parse_hash_oid(&tOID, &iHashLen) ) { return false; }
-		} else if ( tField.iType == 0xa1 ) {
+		} else if ( tField.iType == 0xa1 ) { // [1] maskGenAlgorithm（ 期望 MGF1 ）
 			struct __xrt_der_tlv tInner, tOID, tHashAlg, tHashOID;
 			if ( __xrt_der_next(&tField, &tInner) <= 0 || tInner.iType != 0x30 ) { return false; }
 			if ( __xrt_der_next(&tInner, &tOID) <= 0 || tOID.iType != 0x06 ) { return false; }
+			// 验证掩码生成函数为 MGF1
 			if ( tOID.iLen != sizeof(__xrt_oid_mgf1) ||
 				memcmp(tOID.pValue, __xrt_oid_mgf1, sizeof(__xrt_oid_mgf1)) != 0 ) {
 				return false;
 			}
+			// 提取 MGF1 内部的哈希算法 OID
 			if ( __xrt_der_next(&tInner, &tHashAlg) <= 0 || tHashAlg.iType != 0x30 ) { return false; }
 			if ( __xrt_der_next(&tHashAlg, &tHashOID) <= 0 ) { return false; }
 			if ( !__xrt_x509_parse_hash_oid(&tHashOID, &iMGFHashLen) ) { return false; }
-		} else if ( tField.iType == 0xa2 ) {
+		} else if ( tField.iType == 0xa2 ) { // [2] saltLength
 			struct __xrt_der_tlv tInt;
 			size_t i;
 			if ( __xrt_der_next(&tField, &tInt) <= 0 || tInt.iType != 0x02 ) { return false; }
+			// 大端序解析盐长度整数
 			for ( i = 0; i < tInt.iLen; i++ ) {
 				iSaltLen = (iSaltLen << 8) | tInt.pValue[i];
 			}
 		}
 	}
+	// 验证 PSS 参数一致性：MGF1 哈希和盐长度必须与主哈希算法匹配
 	if ( iHashLen == 0 ) { return false; }
-	if ( iMGFHashLen == 0 ) { iMGFHashLen = iHashLen; }
-	if ( iSaltLen == 0 ) { iSaltLen = iHashLen; }
+	if ( iMGFHashLen == 0 ) { iMGFHashLen = iHashLen; } // 默认 MGF1 使用相同哈希
+	if ( iSaltLen == 0 ) { iSaltLen = iHashLen; } // 默认盐长度等于哈希长度
 	if ( iMGFHashLen != iHashLen || iSaltLen != iHashLen ) { return false; }
 	if ( iHashLen == 32 ) { *pSigAlg = __XRT_X509_SIGALG_RSA_PSS_SHA256; }
 	else if ( iHashLen == 48 ) { *pSigAlg = __XRT_X509_SIGALG_RSA_PSS_SHA384; }
@@ -38726,22 +38790,22 @@ static void __xrt_x509_add_ip_addr(struct __xrt_x509_cert *pCert, const uint8 *p
 	pCert->aIpAddrLens[pCert->iIpAddrCount] = (uint8)iAddrLen;
 	pCert->iIpAddrCount++;
 }
-// 内部函数：__xrt_x509_parse_subject_alt_name
+// 内部函数：解析 subjectAltName 扩展，提取 DNS 名称和 IP 地址
 static bool __xrt_x509_parse_subject_alt_name(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
 {
 	struct __xrt_der_tlv tSeq, tName;
 	if ( !pCert || !pOctet || pOctet->iType != 0x04 ) { return false; }
 	if ( __xrt_der_parse(pOctet->pValue, pOctet->iLen, &tSeq) < 0 || tSeq.iType != 0x30 ) { return false; }
 	while ( __xrt_der_next(&tSeq, &tName) > 0 ) {
-		if ( tName.iType == 0x82 ) {
+		if ( tName.iType == 0x82 ) { // context [2] = dNSName（ IA5String ）
 			__xrt_x509_add_dns_name(pCert, tName.pValue, tName.iLen);
-		} else if ( tName.iType == 0x87 ) {
+		} else if ( tName.iType == 0x87 ) { // context [7] = iPAddress（ 二进制 ）
 			__xrt_x509_add_ip_addr(pCert, tName.pValue, tName.iLen);
 		}
 	}
 	return true;
 }
-// 内部函数：__xrt_x509_parse_key_usage
+// 内部函数：解析 keyUsage 扩展，将 BIT STRING 转为位标志
 static bool __xrt_x509_parse_key_usage(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
 {
 	struct __xrt_der_tlv tBitStr;
@@ -38751,26 +38815,28 @@ static bool __xrt_x509_parse_key_usage(struct __xrt_x509_cert *pCert, const stru
 	if ( tBitStr.iLen < 2 ) { return false; }
 	pCert->bHasKeyUsage = true;
 	pCert->iKeyUsage = 0;
+	// 遍历前 9 个关键用途位（ bit 0-8 ），按 X.509 定义
 	for ( iBit = 0; iBit < 9; iBit++ ) {
-		size_t iByte = 1 + (iBit / 8);
-		uint8 iMask = (uint8)(0x80 >> (iBit % 8));
+		size_t iByte = 1 + (iBit / 8); // 跳过 BIT STRING 的未使用位数首字节
+		uint8 iMask = (uint8)(0x80 >> (iBit % 8)); // 从高位到低位逐位检测
 		if ( iByte < tBitStr.iLen && (tBitStr.pValue[iByte] & iMask) ) {
-			pCert->iKeyUsage |= (uint16)(1u << iBit);
+			pCert->iKeyUsage |= (uint16)(1u << iBit); // 将位映射到对应标志
 		}
 	}
 	return true;
 }
-// 内部函数：__xrt_x509_parse_basic_constraints
+// 内部函数：解析 basicConstraints 扩展，判断是否为 CA 证书
 static bool __xrt_x509_parse_basic_constraints(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
 {
 	struct __xrt_der_tlv tSeq, tField;
 	if ( !pCert || !pOctet || pOctet->iType != 0x04 ) { return false; }
 	if ( __xrt_der_parse(pOctet->pValue, pOctet->iLen, &tSeq) < 0 || tSeq.iType != 0x30 ) { return false; }
 	pCert->bHasBasicConstraints = true;
-	pCert->bIsCA = false;
+	pCert->bIsCA = false; // 默认非 CA
+	// 检查第一个字段是否为 BOOLEAN cA（ 如果存在 ）
 	if ( __xrt_der_next(&tSeq, &tField) > 0 ) {
-		if ( tField.iType == 0x01 && tField.iLen == 1 ) {
-			pCert->bIsCA = (tField.pValue[0] != 0);
+		if ( tField.iType == 0x01 && tField.iLen == 1 ) { // BOOLEAN 类型
+			pCert->bIsCA = (tField.pValue[0] != 0); // DER 中 TRUE = 0xFF
 		}
 	}
 	return true;
@@ -38791,12 +38857,13 @@ static bool __xrt_x509_parse_extended_key_usage(struct __xrt_x509_cert *pCert, c
 	}
 	return true;
 }
-// 内部函数：__xrt_x509_parse_spki
+// 内部函数：解析 SubjectPublicKeyInfo，提取 RSA/EC/Ed25519 公钥参数
 static bool __xrt_x509_parse_spki(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pSPKI)
 {
 	struct __xrt_der_tlv tSPKI, tAlgId, tBitStr, tOID;
 	if ( !pCert || !pSPKI || pSPKI->iType != 0x30 ) { return false; }
 	tSPKI = *pSPKI;
+	// SPKI = AlgorithmIdentifier + BIT STRING 公钥数据
 	if ( __xrt_der_next(&tSPKI, &tAlgId) <= 0 || tAlgId.iType != 0x30 ) { return false; }
 	if ( __xrt_der_next(&tSPKI, &tBitStr) <= 0 || tBitStr.iType != 0x03 || tBitStr.iLen < 2 ) { return false; }
 	{
@@ -38804,10 +38871,12 @@ static bool __xrt_x509_parse_spki(struct __xrt_x509_cert *pCert, const struct __
 		if ( __xrt_der_next(&tAlg, &tOID) <= 0 || tOID.iType != 0x06 ) { return false; }
 		bool bIsRSAPSS = tOID.iLen == sizeof(__xrt_oid_rsassa_pss) &&
 			memcmp(tOID.pValue, __xrt_oid_rsassa_pss, sizeof(__xrt_oid_rsassa_pss)) == 0;
+		// RSA 公钥：BIT STRING 内容为 DER 编码的 SEQUENCE { modulus, exponent }
 		if ( (tOID.iLen == sizeof(__xrt_oid_rsa_encryption) &&
 			memcmp(tOID.pValue, __xrt_oid_rsa_encryption, sizeof(__xrt_oid_rsa_encryption)) == 0) ||
 			bIsRSAPSS ) {
 			struct __xrt_der_tlv tKeySeq, tMod, tExp;
+			// 跳过 BIT STRING 首字节（ 未使用位数，通常为 0x00 ）
 			if ( __xrt_der_parse(tBitStr.pValue + 1, tBitStr.iLen - 1, &tKeySeq) < 0 || tKeySeq.iType != 0x30 ) {
 				return false;
 			}
@@ -38817,6 +38886,7 @@ static bool __xrt_x509_parse_spki(struct __xrt_x509_cert *pCert, const struct __
 			pCert->bIsRSAPSSKey = bIsRSAPSS;
 			pCert->pMod = tMod.pValue;
 			pCert->iModSz = tMod.iLen;
+			// 跳过模数前导零字节（ DER 整数编码为正数时，若最高位为 1 则补 0x00 ）
 			if ( pCert->iModSz > 0 && pCert->pMod[0] == 0x00 ) {
 				pCert->pMod++;
 				pCert->iModSz--;
@@ -38825,66 +38895,73 @@ static bool __xrt_x509_parse_spki(struct __xrt_x509_cert *pCert, const struct __
 			pCert->iExpSz = tExp.iLen;
 			return pCert->iModSz > 0 && pCert->iExpSz > 0;
 		}
+		// EC 公钥：BIT STRING 内容为未压缩点 04||X||Y
 		if ( tOID.iLen == sizeof(__xrt_oid_ec_public_key) &&
 			memcmp(tOID.pValue, __xrt_oid_ec_public_key, sizeof(__xrt_oid_ec_public_key)) == 0 ) {
 			struct __xrt_der_tlv tCurveOID;
 			bool bCurveOK = false;
+			// 识别曲线类型：P-256（ 65 字节 ）或 P-384（ 97 字节 ）
 			if ( __xrt_der_next(&tAlg, &tCurveOID) > 0 && tCurveOID.iType == 0x06 ) {
 				if ( tCurveOID.iLen == sizeof(__xrt_oid_prime256v1) &&
 					memcmp(tCurveOID.pValue, __xrt_oid_prime256v1, sizeof(__xrt_oid_prime256v1)) == 0 ) {
-					bCurveOK = (tBitStr.iLen - 1) == 65;
+					bCurveOK = (tBitStr.iLen - 1) == 65; // P-256：1 + 32 + 32 = 65
 				} else if ( tCurveOID.iLen == sizeof(__xrt_oid_secp384r1) &&
 					memcmp(tCurveOID.pValue, __xrt_oid_secp384r1, sizeof(__xrt_oid_secp384r1)) == 0 ) {
-					bCurveOK = (tBitStr.iLen - 1) == 97;
+					bCurveOK = (tBitStr.iLen - 1) == 97; // P-384：1 + 48 + 48 = 97
 				}
 			} else {
+				// 无法解析曲线 OID 时，根据公钥长度猜测
 				bCurveOK = (tBitStr.iLen - 1) == 65 || (tBitStr.iLen - 1) == 97;
 			}
 			if ( !bCurveOK ) { return false; }
 			pCert->bIsECPubKey = true;
 			pCert->bIsEd25519Key = false;
-			pCert->pECPub = tBitStr.pValue + 1;
+			pCert->pECPub = tBitStr.pValue + 1; // 跳过未压缩点前缀 0x04
 			pCert->iECPubSz = tBitStr.iLen - 1;
 			return pCert->iECPubSz > 0;
 		}
+		// Ed25519 公钥：BIT STRING 内容为 0x00 + 32 字节密钥
 		if ( tOID.iLen == sizeof(__xrt_oid_ed25519) &&
 			memcmp(tOID.pValue, __xrt_oid_ed25519, sizeof(__xrt_oid_ed25519)) == 0 ) {
 			if ( tBitStr.iLen != 33 || tBitStr.pValue[0] != 0x00 ) { return false; }
 			pCert->bIsECPubKey = false;
 			pCert->bIsEd25519Key = true;
 			pCert->bIsRSAPSSKey = false;
-			pCert->pEdPub = tBitStr.pValue + 1;
+			pCert->pEdPub = tBitStr.pValue + 1; // 跳过前导 0x00 字节
 			pCert->iEdPubSz = 32;
 			return true;
 		}
 	}
 	return false;
 }
-// 内部函数：__xrt_x509_parse_extensions
+// 内部函数：遍历 X.509 v3 扩展区域，解析各扩展项
 static bool __xrt_x509_parse_extensions(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pExtsField)
 {
 	struct __xrt_der_tlv tExtField, tExtWrapper, tExtSeq, tExt;
-	if ( !pCert || !pExtsField || pExtsField->iType != 0xa3 ) { return false; }
+	if ( !pCert || !pExtsField || pExtsField->iType != 0xa3 ) { return false; } // [3] EXPLICIT
 	tExtField = *pExtsField;
 	if ( __xrt_der_next(&tExtField, &tExtWrapper) <= 0 || tExtWrapper.iType != 0x30 ) {
 		return false;
 	}
+	// 遍历扩展序列中的每个扩展项
 	tExtSeq = tExtWrapper;
 	while ( __xrt_der_next(&tExtSeq, &tExt) > 0 ) {
 		struct __xrt_der_tlv tItems = tExt;
 		struct __xrt_der_tlv tOID, tMaybeCrit, tValue;
 		bool bHaveValue = false;
-		if ( tExt.iType != 0x30 ) { continue; }
+		if ( tExt.iType != 0x30 ) { continue; } // 每个 Ext 为 SEQUENCE
 		if ( __xrt_der_next(&tItems, &tOID) <= 0 || tOID.iType != 0x06 ) { continue; }
+		// 解析可选的 critical 标志（ BOOLEAN ），如果不存在则直接是 OCTET STRING 值
 		if ( __xrt_der_next(&tItems, &tMaybeCrit) <= 0 ) { continue; }
-		if ( tMaybeCrit.iType == 0x01 ) {
+		if ( tMaybeCrit.iType == 0x01 ) { // BOOLEAN → 有 critical 标志
 			if ( __xrt_der_next(&tItems, &tValue) <= 0 ) { continue; }
 			bHaveValue = true;
 		} else {
-			tValue = tMaybeCrit;
+			tValue = tMaybeCrit; // 无 critical 标志，第二项就是值
 			bHaveValue = true;
 		}
-		if ( !bHaveValue || tValue.iType != 0x04 ) { continue; }
+		if ( !bHaveValue || tValue.iType != 0x04 ) { continue; } // 扩展值必须为 OCTET STRING
+		// 根据 OID 分发到对应的扩展解析函数
 		if ( tOID.iLen == sizeof(__xrt_oid_subject_alt_name) &&
 			memcmp(tOID.pValue, __xrt_oid_subject_alt_name, sizeof(__xrt_oid_subject_alt_name)) == 0 ) {
 			__xrt_x509_parse_subject_alt_name(pCert, &tValue);
@@ -38901,7 +38978,7 @@ static bool __xrt_x509_parse_extensions(struct __xrt_x509_cert *pCert, const str
 	}
 	return true;
 }
-// 内部函数：解析 x 509 扩展
+// 内部函数：解析 X.509 证书 DER 数据，填充证书结构体（ 支持严格/宽松模式 ）
 static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert,
 	enum __xrt_x509_parse_mode iMode)
 {
@@ -38911,13 +38988,16 @@ static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x
 	memset(pCert, 0, sizeof(*pCert));
 	pCert->pDer = pCertDer;
 	pCert->iDerLen = iCertLen;
+	// 证书 DER 结构：SEQUENCE { tbsCertificate, signatureAlgorithm, signatureValue }
 	if ( __xrt_der_parse(pCertDer, iCertLen, &tRoot) < 0 || tRoot.iType != 0x30 ) { return false; }
 	if ( __xrt_der_next(&tRoot, &tTbs) <= 0 || tTbs.iType != 0x30 ) { return false; }
 	if ( __xrt_der_next(&tRoot, &tSigAlg) <= 0 || tSigAlg.iType != 0x30 ) { return false; }
+	// 签名值为 BIT STRING，首字节为未使用位数（ 通常为 0 ）
 	if ( __xrt_der_next(&tRoot, &tSigValue) <= 0 || tSigValue.iType != 0x03 || tSigValue.iLen < 2 ) { return false; }
 	if ( !__xrt_x509_parse_signature_algorithm_ex(&tSigAlg, &pCert->iSigAlg, &pCert->iSigHashLen, iMode) ) {
 		return false;
 	}
+	// 记录 TBS 原始数据指针（ 用于签名验证 ）
 	pCert->pTbs = tTbs.pRaw;
 	pCert->iTbsLen = tTbs.iTotalLen;
 	pCert->pSig = tSigValue.pValue + 1;
@@ -38969,7 +39049,7 @@ static bool __xrt_x509_parse_for_chain(uint8 *pCertDer, size_t iCertLen, struct 
 {
 	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG);
 }
-// 内部函数：解析 CRL
+// 内部函数：解析 CRL（ 证书吊销列表 ）DER 数据
 static bool __xrt_x509_parse_crl(uint8 *pCrlDer, size_t iCrlLen, struct __xrt_x509_crl *pCrl)
 {
 	struct __xrt_der_tlv tRoot, tTbs, tSigAlg, tSigValue;
@@ -38978,38 +39058,47 @@ static bool __xrt_x509_parse_crl(uint8 *pCrlDer, size_t iCrlLen, struct __xrt_x5
 	memset(pCrl, 0, sizeof(*pCrl));
 	pCrl->pDer = pCrlDer;
 	pCrl->iDerLen = iCrlLen;
+	// CRL 顶层结构：SEQUENCE { tbsCertList, signatureAlgorithm, signatureValue }
 	if ( __xrt_der_parse(pCrlDer, iCrlLen, &tRoot) < 0 || tRoot.iType != 0x30 ) { return false; }
 	if ( __xrt_der_next(&tRoot, &tTbs) <= 0 || tTbs.iType != 0x30 ) { return false; }
 	if ( __xrt_der_next(&tRoot, &tSigAlg) <= 0 || tSigAlg.iType != 0x30 ) { return false; }
 	if ( __xrt_der_next(&tRoot, &tSigValue) <= 0 || tSigValue.iType != 0x03 || tSigValue.iLen < 2 ) { return false; }
 	if ( !__xrt_x509_parse_signature_algorithm(&tSigAlg, &pCrl->iSigAlg, &pCrl->iSigHashLen) ) { return false; }
+	// 记录 TBS 和签名数据
 	pCrl->pTbs = tTbs.pRaw;
 	pCrl->iTbsLen = tTbs.iTotalLen;
-	pCrl->pSig = tSigValue.pValue + 1;
+	pCrl->pSig = tSigValue.pValue + 1; // 跳过 BIT STRING 未使用位数
 	pCrl->iSigLen = tSigValue.iLen - 1;
+	// 解析 TBS 字段
 	tFields = tTbs;
+	// 可选的版本号（ INTEGER ）
 	if ( __xrt_der_next(&tFields, &tField) <= 0 ) { return false; }
 	if ( tField.iType == 0x02 ) {
 		if ( __xrt_der_next(&tFields, &tField) <= 0 ) { return false; }
 	}
+	// 签名算法（ 与外层重复，跳过 ）
 	if ( tField.iType != 0x30 ) { return false; }
+	// 颁发者名称
 	if ( __xrt_der_next(&tFields, &tField) <= 0 || tField.iType != 0x30 ) { return false; }
 	pCrl->pIssuerRaw = tField.pRaw;
 	pCrl->iIssuerRawLen = tField.iTotalLen;
+	// thisUpdate 时间
 	if ( __xrt_der_next(&tFields, &tField) <= 0 ) { return false; }
 	if ( !__xrt_x509_parse_time_value(&tField, &pCrl->iThisUpdate) ) { return false; }
 	pCrl->bHasThisUpdate = true;
+	// 可选字段：nextUpdate 和 revokedCertificates
 	if ( __xrt_der_next(&tFields, &tMaybe) > 0 ) {
-		if ( tMaybe.iType == 0x17 || tMaybe.iType == 0x18 ) {
+		if ( tMaybe.iType == 0x17 || tMaybe.iType == 0x18 ) { // UTCTime 或 GeneralizedTime
 			if ( !__xrt_x509_parse_time_value(&tMaybe, &pCrl->iNextUpdate) ) { return false; }
 			pCrl->bHasNextUpdate = true;
+			// nextUpdate 后面可能是 revokedCertificates
 			if ( __xrt_der_next(&tFields, &tMaybe) > 0 ) {
-				if ( tMaybe.iType == 0x30 ) {
+				if ( tMaybe.iType == 0x30 ) { // SEQUENCE OF revoked entries
 					pCrl->pRevokedRaw = tMaybe.pRaw;
 					pCrl->iRevokedRawLen = tMaybe.iTotalLen;
 				}
 			}
-		} else if ( tMaybe.iType == 0x30 ) {
+		} else if ( tMaybe.iType == 0x30 ) { // 无 nextUpdate，直接是 revokedCertificates
 			pCrl->pRevokedRaw = tMaybe.pRaw;
 			pCrl->iRevokedRawLen = tMaybe.iTotalLen;
 		}
@@ -39022,10 +39111,11 @@ static bool __xrt_x509_is_time_valid(const struct __xrt_x509_cert *pCert, time_t
 	if ( !pCert || !pCert->bHasValidity ) { return false; }
 	return iNow >= pCert->iNotBefore && iNow <= pCert->iNotAfter;
 }
-// 内部函数：序列号相等
+// 内部函数：序列号相等比较（ 跳过前导零后再比较 ）
 static bool __xrt_x509_serial_eq(const uint8 *pA, size_t iALen, const uint8 *pB, size_t iBLen)
 {
 	if ( !pA || !pB || iALen == 0 || iBLen == 0 ) { return false; }
+	// 跳过 DER INTEGER 编码中的前导零字节
 	while ( iALen > 1 && *pA == 0 ) {
 		pA++;
 		iALen--;
@@ -39044,18 +39134,20 @@ static bool __xrt_x509_crl_is_time_valid(const struct __xrt_x509_crl *pCrl, time
 	if ( pCrl->bHasNextUpdate && iNow > pCrl->iNextUpdate ) { return false; }
 	return true;
 }
-// 内部函数：x 509 名称相等相关处理
+// 内部函数：x 509 名称相等比较（ 原始 DER 字节 ）
 static bool __xrt_x509_name_eq(const uint8 *pA, size_t iALen, const uint8 *pB, size_t iBLen)
 {
 	return pA && pB && iALen == iBLen && memcmp(pA, pB, iALen) == 0;
 }
-// 内部函数：__xrt_x509_public_key_eq
+// 内部函数：比较两个证书的公钥是否相同（ 支持 RSA/EC/Ed25519 ）
 static bool __xrt_x509_public_key_eq(const struct __xrt_x509_cert *pA, const struct __xrt_x509_cert *pB)
 {
 	if ( !pA || !pB ) { return false; }
+	// 密钥类型必须一致
 	if ( pA->bIsECPubKey != pB->bIsECPubKey ) { return false; }
 	if ( pA->bIsEd25519Key != pB->bIsEd25519Key ) { return false; }
 	if ( pA->bIsRSAPSSKey != pB->bIsRSAPSSKey ) { return false; }
+	// 按密钥类型比较公钥数据
 	if ( pA->bIsEd25519Key ) {
 		return pA->pEdPub && pB->pEdPub && pA->iEdPubSz == pB->iEdPubSz &&
 			memcmp(pA->pEdPub, pB->pEdPub, pA->iEdPubSz) == 0;
@@ -39064,33 +39156,37 @@ static bool __xrt_x509_public_key_eq(const struct __xrt_x509_cert *pA, const str
 		return pA->pECPub && pB->pECPub && pA->iECPubSz == pB->iECPubSz &&
 			memcmp(pA->pECPub, pB->pECPub, pA->iECPubSz) == 0;
 	}
+	// RSA：比较模数和指数
 	return pA->pMod && pB->pMod && pA->pExp && pB->pExp &&
 		pA->iModSz == pB->iModSz && pA->iExpSz == pB->iExpSz &&
 		memcmp(pA->pMod, pB->pMod, pA->iModSz) == 0 &&
 		memcmp(pA->pExp, pB->pExp, pA->iExpSz) == 0;
 }
-// 内部函数：__xrt_x509_anchor_matches
+// 内部函数：检查证书是否与信任锚匹配（ 主题名 + 公钥 都相同 ）
 static bool __xrt_x509_anchor_matches(const struct __xrt_x509_cert *pCert, const struct __xrt_x509_cert *pAnchor)
 {
 	if ( !pCert || !pAnchor ) { return false; }
+	// 比较主题名称的 DER 编码
 	if ( !__xrt_x509_name_eq(pCert->pSubjectRaw, pCert->iSubjectRawLen,
 		pAnchor->pSubjectRaw, pAnchor->iSubjectRawLen) ) {
 		return false;
 	}
+	// 比较公钥数据
 	return __xrt_x509_public_key_eq(pCert, pAnchor);
 }
-// 内部函数：验证签名对象
+// 内部函数：验证签名对象，根据签名算法分派到 RSA-PKCS1/RSA-PSS/ECDSA/Ed25519 验证
 static bool __xrt_x509_verify_signed_object(const uint8 *pTbs, size_t iTbsLen,
 	enum __xrt_x509_sig_alg iSigAlg, size_t iSigHashLen,
 	const uint8 *pSig, size_t iSigLen,
 	const struct __xrt_x509_cert *pIssuer)
 {
-	uint8 aHash[64];
+	uint8 aHash[64]; // 最大 SHA-512 输出 64 字节
 	if ( !pTbs || iTbsLen == 0 || !pSig || iSigLen == 0 || !pIssuer ) { return false; }
 	switch ( iSigAlg ) {
 		case __XRT_X509_SIGALG_RSA_PKCS1_SHA256:
 		case __XRT_X509_SIGALG_RSA_PKCS1_SHA384:
 		case __XRT_X509_SIGALG_RSA_PKCS1_SHA512:
+			// RSA PKCS#1 v1.5 签名验证：对 TBS 计算哈希后验证
 			if ( !__xrt_hash_bytes(aHash, iSigHashLen, pTbs, iTbsLen) ) { return false; }
 			if ( pIssuer->bIsECPubKey || !pIssuer->pMod || !pIssuer->pExp ) { return false; }
 			return xrtRSAPKCS1Verify(aHash, iSigHashLen, pSig, iSigLen,
@@ -39098,6 +39194,7 @@ static bool __xrt_x509_verify_signed_object(const uint8 *pTbs, size_t iTbsLen,
 		case __XRT_X509_SIGALG_RSA_PSS_SHA256:
 		case __XRT_X509_SIGALG_RSA_PSS_SHA384:
 		case __XRT_X509_SIGALG_RSA_PSS_SHA512:
+			// RSA-PSS 签名验证：概率签名方案，安全性高于 PKCS#1 v1.5
 			if ( !__xrt_hash_bytes(aHash, iSigHashLen, pTbs, iTbsLen) ) { return false; }
 			if ( pIssuer->bIsECPubKey || !pIssuer->pMod || !pIssuer->pExp ) { return false; }
 			return xrtRSAPSSVerify(aHash, iSigHashLen, pSig, iSigLen,
@@ -39105,11 +39202,13 @@ static bool __xrt_x509_verify_signed_object(const uint8 *pTbs, size_t iTbsLen,
 		case __XRT_X509_SIGALG_ECDSA_SHA256:
 		case __XRT_X509_SIGALG_ECDSA_SHA384:
 		case __XRT_X509_SIGALG_ECDSA_SHA512:
+			// ECDSA 签名验证：对 TBS 计算哈希后验证
 			if ( !__xrt_hash_bytes(aHash, iSigHashLen, pTbs, iTbsLen) ) { return false; }
 			if ( !pIssuer->bIsECPubKey || !pIssuer->pECPub ) { return false; }
 			return xrtECDSAVerify(aHash, iSigHashLen, pSig, iSigLen,
 				pIssuer->pECPub, pIssuer->iECPubSz);
 		case __XRT_X509_SIGALG_ED25519:
+			// Ed25519 签名验证：纯签名（ 无哈希预处理 ），直接对原始消息验证
 			if ( !pIssuer->bIsEd25519Key || !pIssuer->pEdPub || pIssuer->iEdPubSz != 32 ) { return false; }
 			return xrtEd25519Verify(pTbs, iTbsLen, pSig, pIssuer->pEdPub);
 		default:
@@ -39130,28 +39229,30 @@ static bool __xrt_x509_verify_crl_signature(const struct __xrt_x509_crl *pCrl, c
 	return __xrt_x509_verify_signed_object(pCrl->pTbs, pCrl->iTbsLen,
 		pCrl->iSigAlg, pCrl->iSigHashLen, pCrl->pSig, pCrl->iSigLen, pIssuer);
 }
-// 内部函数：CRL 是否吊销指定证书
+// 内部函数：CRL 是否吊销指定证书（ 遍历吊销列表中的序列号 ）
 static bool __xrt_x509_crl_revokes_cert(const struct __xrt_x509_crl *pCrl, const struct __xrt_x509_cert *pCert)
 {
 	struct __xrt_der_tlv tSeq, tEntry, tItems, tSerial;
 	if ( !pCrl || !pCert || !pCrl->pRevokedRaw || pCrl->iRevokedRawLen == 0 ) { return false; }
 	if ( __xrt_der_parse(pCrl->pRevokedRaw, pCrl->iRevokedRawLen, &tSeq) < 0 || tSeq.iType != 0x30 ) { return false; }
+	// 遍历吊销条目序列
 	while ( __xrt_der_next(&tSeq, &tEntry) > 0 ) {
-		if ( tEntry.iType != 0x30 ) { continue; }
+		if ( tEntry.iType != 0x30 ) { continue; } // 每个条目为 SEQUENCE
 		tItems = tEntry;
+		// 提取条目中的序列号并比较
 		if ( __xrt_der_next(&tItems, &tSerial) <= 0 || tSerial.iType != 0x02 ) { continue; }
 		if ( __xrt_x509_serial_eq(pCert->pSerial, pCert->iSerialLen, tSerial.pValue, tSerial.iLen) ) {
-			return true;
+			return true; // 证书序列号在吊销列表中
 		}
 	}
 	return false;
 }
-// 内部函数：__xrt_x509_is_ca_usable
+// 内部函数：判断证书是否可作为 CA 使用（ 检查 basicConstraints 和 keyUsage ）
 static bool __xrt_x509_is_ca_usable(const struct __xrt_x509_cert *pCert)
 {
 	if ( !pCert ) { return false; }
 	if ( pCert->bHasBasicConstraints && !pCert->bIsCA ) { return false; }
-	if ( pCert->bHasKeyUsage && (pCert->iKeyUsage & (1u << 5)) == 0 ) { return false; }
+	if ( pCert->bHasKeyUsage && (pCert->iKeyUsage & (1u << 5)) == 0 ) { return false; } // bit 5 = keyCertSign
 	return true;
 }
 // 内部函数：__xrt_tls_current_cert_trusted_by_anchor
@@ -39334,13 +39435,16 @@ static bool __xrt_tls_parse_alert_record(const uint8* pAlert, size_t iLen, uint8
 	if ( pDesc ) { *pDesc = pAlert[1]; }
 	return true;
 }
+// 内部函数：处理对端发来的 TLS alert 记录
 static xnet_result __xrt_tls_handle_alert(xtlsctx* pCtx, const uint8* pAlert, size_t iLen)
 {
 	uint8 iLevel = 0;
 	uint8 iDesc = 0;
+	// 解析 alert 记录，提取级别和描述符
 	if ( !__xrt_tls_parse_alert_record(pAlert, iLen, &iLevel, &iDesc) ) {
 		return XRT_NET_ERROR;
 	}
+	// 保存对端 alert 信息到上下文
 	if ( pCtx ) {
 		pCtx->iPeerAlertLevel = iLevel;
 		pCtx->iPeerAlertDesc = iDesc;
@@ -39348,6 +39452,7 @@ static xnet_result __xrt_tls_handle_alert(xtlsctx* pCtx, const uint8* pAlert, si
 			pCtx->bCloseNotifyReceived = true;
 		}
 	}
+	// close_notify 表示优雅关闭连接，其他 alert 均视为错误
 	if ( iDesc == __XRT_TLS_ALERT_CLOSE_NOTIFY ) {
 		return XRT_NET_CLOSED;
 	}
@@ -39393,6 +39498,11 @@ static bool __xrt_tls_hash_bytes(uint8 *pOut, size_t iHashLen, const uint8 *pDat
 // 内部函数：__xrt_tls_sigalg_hash_len
 static size_t __xrt_tls_sigalg_hash_len(uint16 iSigAlg)
 {
+	// TLS 签名算法标识符格式：高字节 = 哈希算法，低字节 = 签名算法
+	// 0x0401 = rsa_pkcs1_sha256, 0x0403 = ecdsa_secp256r1_sha256, 0x0804 = rsa_pss_rsae_sha256, 0x0809 = rsa_pss_pss_sha256
+	// 0x0501 = rsa_pkcs1_sha384, 0x0503 = ecdsa_secp384r1_sha384, 0x0805 = rsa_pss_rsae_sha384, 0x080a = rsa_pss_pss_sha384
+	// 0x0601 = rsa_pkcs1_sha512, 0x0603 = ecdsa_secp521r1_sha512, 0x0806 = rsa_pss_rsae_sha512, 0x080b = rsa_pss_pss_sha512
+	// 0x0807 = ed25519（ 纯签名，无哈希预处理 ）
 	switch ( iSigAlg ) {
 		case 0x0807:
 			return 0;
@@ -39400,18 +39510,19 @@ static size_t __xrt_tls_sigalg_hash_len(uint16 iSigAlg)
 		case 0x0403:
 		case 0x0804:
 		case 0x0809:
-			return 32;
+			return 32; // SHA-256
 		case 0x0501:
 		case 0x0503:
 		case 0x0805:
 		case 0x080a:
-			return 48;
+			return 48; // SHA-384
 		case 0x0601:
 		case 0x0603:
 		case 0x0806:
 		case 0x080b:
-			return 64;
+			return 64; // SHA-512
 		default:
+			// 兜底：按高字节推断哈希长度（ 4→SHA-256, 5→SHA-384, 6→SHA-512, 8→Ed25519 ）
 			switch ( (uint8)(iSigAlg >> 8) ) {
 				case 8: return 0;
 				case 4: return 32;
@@ -39445,28 +39556,30 @@ static bool __xrt_tls12_set_cipher_params(xtlsctx *pCtx, uint16 iCipherSuite)
 	pCtx->iCipherSuite = iCipherSuite;
 	pCtx->bIsTls12 = true;
 	pCtx->bTls12UseChaCha = false;
+	// 根据密码套件设置哈希算法和密钥长度
 	switch ( iCipherSuite ) {
 		case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256:
 		case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256:
 		case __XRT_TLS12_RSA_AES128_GCM_SHA256:
-			pCtx->bUseSHA384 = false;
-			pCtx->iKeyLen = 16;
+			pCtx->bUseSHA384 = false; // 使用 SHA-256 伪随机函数
+			pCtx->iKeyLen = 16; // AES-128 密钥长度
 			break;
 		case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384:
 		case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384:
 		case __XRT_TLS12_RSA_AES256_GCM_SHA384:
-			pCtx->bUseSHA384 = true;
-			pCtx->iKeyLen = 32;
+			pCtx->bUseSHA384 = true; // 使用 SHA-384 伪随机函数
+			pCtx->iKeyLen = 32; // AES-256 密钥长度
 			break;
 		case __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256:
 		case __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256:
-			pCtx->bUseSHA384 = false;
+			pCtx->bUseSHA384 = false; // ChaCha20-Poly1305 固定使用 SHA-256
 			pCtx->bTls12UseChaCha = true;
-			pCtx->iKeyLen = 32;
+			pCtx->iKeyLen = 32; // ChaCha20 密钥长度固定 32 字节
 			break;
 		default:
 			return false;
 	}
+	// 根据密码套件判断密钥交换方式是否为 ECDHE
 	switch ( iCipherSuite ) {
 		case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256:
 		case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256:
@@ -39477,7 +39590,7 @@ static bool __xrt_tls12_set_cipher_params(xtlsctx *pCtx, uint16 iCipherSuite)
 			pCtx->bIsECDHE = true;
 			break;
 		default:
-			pCtx->bIsECDHE = false;
+			pCtx->bIsECDHE = false; // RSA 静态密钥交换
 			break;
 	}
 	return true;
@@ -39485,13 +39598,15 @@ static bool __xrt_tls12_set_cipher_params(xtlsctx *pCtx, uint16 iCipherSuite)
 // 内部函数：__xrt_tls12_get_iv_len
 static size_t __xrt_tls12_get_iv_len(const xtlsctx *pCtx)
 {
+	// ChaCha20-Poly1305 使用 12 字节显式 IV；AES-GCM 使用 4 字节隐式 IV（ 显式部分在记录头 ）
 	return pCtx->bTls12UseChaCha ? 12 : 4;
 }
-// 内部函数：__xrt_tls_consttime_equal
+// 内部函数：常数时间内存比较，防止时序侧信道攻击
 static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t iLen)
 {
 	uint8 iDiff = 0;
 	size_t i;
+	// 逐字节异或并累积差异，不提前退出，保证执行时间恒定
 	for ( i = 0; i < iLen; i++ ) { iDiff |= pA[i] ^ pB[i]; }
 	return iDiff == 0;
 }
@@ -39501,13 +39616,19 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 	size_t i;
 	time_t iNow = time(NULL);
 	bool bHostMatched = false;
+	// 基本有效性检查：参数非空且证书在有效期内
 	if ( !pCtx || !pLeaf || !__xrt_x509_is_time_valid(pLeaf, iNow) ) { return false; }
+	// 叶子证书不能是 CA 证书
 	if ( pLeaf->bHasBasicConstraints && pLeaf->bIsCA ) { return false; }
+	// keyUsage bit 0 = digitalSignature，TLS 服务器证书必须具备
 	if ( pLeaf->bHasKeyUsage && (pLeaf->iKeyUsage & (1u << 0)) == 0 ) { return false; }
+	// 扩展密钥用途必须包含 serverAuth（ OID 1.3.6.1.5.5.7.3.1 ）
 	if ( pLeaf->bHasExtendedKeyUsage && !pLeaf->bHasServerAuth ) { return false; }
+	// 主机名匹配验证
 	if ( pCtx->sHostname[0] ) {
 		uint8 aHostIp[16];
 		size_t iHostIpLen = 0;
+		// 优先按 IP 地址匹配：解析主机名为 IP 后与证书 subjectAltName 中的 iPAddress 比较
 		if ( __xrt_tls_parse_ip_literal(pCtx->sHostname, aHostIp, &iHostIpLen) ) {
 			for ( i = 0; i < pLeaf->iIpAddrCount; i++ ) {
 				if ( pLeaf->aIpAddrLens[i] == iHostIpLen
@@ -39516,6 +39637,7 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 					break;
 				}
 			}
+		// 其次按 DNS 名称匹配：与证书 subjectAltName 中的 dNSName 比较
 		} else if ( pLeaf->iDnsNameCount > 0 ) {
 			for ( i = 0; i < pLeaf->iDnsNameCount; i++ ) {
 				if ( __xrt_tls_hostname_matches(pLeaf->aDnsNames[i], pCtx->sHostname) ) {
@@ -39523,6 +39645,7 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 					break;
 				}
 			}
+		// 最后尝试与 Common Name 匹配
 		} else if ( pLeaf->bHasCommonName ) {
 			bHostMatched = __xrt_tls_hostname_matches(pLeaf->sCommonName, pCtx->sHostname);
 		} else {
@@ -39536,8 +39659,10 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 static bool __xrt_tls_copy_pubkey_from_cert(xtlsctx *pCtx, const struct __xrt_x509_cert *pCert)
 {
 	if ( !pCtx || !pCert ) { return false; }
+	// 重置公钥状态
 	pCtx->iPubKeySz = 0;
 	pCtx->iPubKeyModSz = 0;
+	// EC 公钥：直接复制原始未压缩公钥点
 	if ( pCert->bIsECPubKey ) {
 		if ( pCert->iECPubSz == 0 || pCert->iECPubSz > sizeof(pCtx->aPubKey) ) { return false; }
 		pCtx->bIsECPubKey = true;
@@ -39547,6 +39672,7 @@ static bool __xrt_tls_copy_pubkey_from_cert(xtlsctx *pCtx, const struct __xrt_x5
 		pCtx->iPubKeySz = pCert->iECPubSz;
 		return true;
 	}
+	// Ed25519 公钥：固定 32 字节
 	if ( pCert->bIsEd25519Key ) {
 		if ( pCert->iEdPubSz != 32 ) { return false; }
 		pCtx->bIsECPubKey = false;
@@ -39556,6 +39682,7 @@ static bool __xrt_tls_copy_pubkey_from_cert(xtlsctx *pCtx, const struct __xrt_x5
 		pCtx->iPubKeySz = 32;
 		return true;
 	}
+	// RSA 公钥：连续存放 modulus + exponent
 	if ( !pCert->pMod || !pCert->pExp || pCert->iModSz + pCert->iExpSz > sizeof(pCtx->aPubKey) ) { return false; }
 	pCtx->bIsECPubKey = false;
 	pCtx->bIsEd25519Key = false;
@@ -39575,20 +39702,25 @@ static bool __xrt_tls_decode_pem_cert_block(const char *pStart, const char *pEnd
 	uint8 *pDer;
 	if ( !pStart || !pEnd || !ppDer || !pDerLen || pEnd <= pStart ) { return false; }
 	iSrcLen = (size_t)(pEnd - pStart);
+	// 分配临时缓冲区，用于存放去除空白字符后的 Base64 数据
 	pB64 = (char*)xrtMalloc(iSrcLen + 5);
 	if ( !pB64 ) { return false; }
+	// 去除 PEM 体中的换行符和空白字符，得到纯 Base64 字符串
 	for ( size_t i = 0; i < iSrcLen; i++ ) {
 		if ( pStart[i] != '\r' && pStart[i] != '\n' && pStart[i] != ' ' && pStart[i] != '\t' ) {
 			pB64[iB64Len++] = pStart[i];
 		}
 	}
+	// 补齐 Base64 填充字符 '='，使长度为 4 的倍数
 	while ( iB64Len % 4 != 0 ) { pB64[iB64Len++] = '='; }
 	pB64[iB64Len] = '\0';
+	// Base64 解码为 DER 二进制数据
 	pDer = (uint8*)xrtBase64Decode((str)pB64, iB64Len, NULL);
 	if ( !pDer || pDer == (uint8*)xCore.sNull ) {
 		xrtFree(pB64);
 		return false;
 	}
+	// 计算 DER 数据实际长度（ 扣除 Base64 填充字符对应的字节数 ）
 	*pDerLen = (iB64Len / 4) * 3;
 	if ( iB64Len > 0 && pB64[iB64Len - 1] == '=' ) { (*pDerLen)--; }
 	if ( iB64Len > 1 && pB64[iB64Len - 2] == '=' ) { (*pDerLen)--; }
@@ -39606,19 +39738,24 @@ static bool __xrt_tls_ca_bundle_next(xtlsctx *pCtx, size_t *pOffset, uint8 **ppD
 	if ( !pCtx || !pOffset || !ppDer || !pDerLen || !pOwned ) { return false; }
 	if ( !pCtx->pCaData || pCtx->iCaDataLen == 0 || *pOffset >= pCtx->iCaDataLen ) { return false; }
 	pData = (const char*)pCtx->pCaData;
+	// PEM 格式：按 "-----BEGIN CERTIFICATE-----" / "-----END CERTIFICATE-----" 逐个提取
 	if ( pCtx->iCaDataLen >= 11 && memcmp(pData, "-----BEGIN ", 11) == 0 ) {
 		pBegin = strstr(pData + *pOffset, "-----BEGIN CERTIFICATE-----");
 		if ( !pBegin ) { return false; }
+		// 跳过 BEGIN 行，找到 Base64 体起始位置
 		pBody = strchr(pBegin, '\n');
 		if ( !pBody ) { return false; }
 		pBody++;
+		// 查找 END 标记
 		pEnd = strstr(pBody, "-----END CERTIFICATE-----");
 		if ( !pEnd ) { return false; }
 		if ( !__xrt_tls_decode_pem_cert_block(pBody, pEnd, ppDer, pDerLen) ) { return false; }
 		*pOwned = true;
+		// 推进偏移量到 END 标记之后
 		*pOffset = (size_t)((pEnd - pData) + strlen("-----END CERTIFICATE-----"));
 		return true;
 	}
+	// DER 格式：整个 CA 数据作为一个证书，只返回一次
 	if ( *pOffset != 0 ) { return false; }
 	*ppDer = pCtx->pCaData;
 	*pDerLen = pCtx->iCaDataLen;
@@ -39636,19 +39773,24 @@ static bool __xrt_tls_crl_bundle_next(xtlsctx *pCtx, size_t *pOffset, uint8 **pp
 	if ( !pCtx || !pOffset || !ppDer || !pDerLen || !pOwned ) { return false; }
 	if ( !pCtx->pCrlData || pCtx->iCrlDataLen == 0 || *pOffset >= pCtx->iCrlDataLen ) { return false; }
 	pData = (const char*)pCtx->pCrlData;
+	// PEM 格式：按 "-----BEGIN X509 CRL-----" / "-----END X509 CRL-----" 逐个提取
 	if ( pCtx->iCrlDataLen >= 11 && memcmp(pData, "-----BEGIN ", 11) == 0 ) {
 		pBegin = strstr(pData + *pOffset, "-----BEGIN X509 CRL-----");
 		if ( !pBegin ) { return false; }
+		// 跳过 BEGIN 行，找到 Base64 体起始位置
 		pBody = strchr(pBegin, '\n');
 		if ( !pBody ) { return false; }
 		pBody++;
+		// 查找 END 标记
 		pEnd = strstr(pBody, "-----END X509 CRL-----");
 		if ( !pEnd ) { return false; }
 		if ( !__xrt_tls_decode_pem_cert_block(pBody, pEnd, ppDer, pDerLen) ) { return false; }
 		*pOwned = true;
+		// 推进偏移量到 END 标记之后
 		*pOffset = (size_t)((pEnd - pData) + strlen("-----END X509 CRL-----"));
 		return true;
 	}
+	// DER 格式：整个 CRL 数据作为一个 CRL，只返回一次
 	if ( *pOffset != 0 ) { return false; }
 	*ppDer = pCtx->pCrlData;
 	*pDerLen = pCtx->iCrlDataLen;
@@ -39664,18 +39806,23 @@ static bool __xrt_tls_check_cert_not_revoked(xtlsctx *pCtx, const struct __xrt_x
 	bool bMatchedIssuer = false;
 	bool bValidCRL = false;
 	if ( !pCtx || !pCert || !pIssuer ) { return false; }
+	// 如果没有配置 CRL 数据，默认不吊销
 	if ( !pCtx->pCrlData || pCtx->iCrlDataLen == 0 ) { return true; }
+	// 遍历所有 CRL 条目
 	while ( 1 ) {
 		uint8 *pCrlDer = NULL;
 		size_t iCrlLen = 0;
 		bool bOwned = false;
 		struct __xrt_x509_crl tCrl;
 		if ( !__xrt_tls_crl_bundle_next(pCtx, &iOffset, &pCrlDer, &iCrlLen, &bOwned) ) { break; }
+		// 检查 CRL 的颁发者是否匹配证书的颁发者
 		if ( __xrt_x509_parse_crl(pCrlDer, iCrlLen, &tCrl)
 			&& __xrt_x509_name_eq(tCrl.pIssuerRaw, tCrl.iIssuerRawLen, pIssuer->pSubjectRaw, pIssuer->iSubjectRawLen) ) {
 			bMatchedIssuer = true;
+			// CRL 必须在有效期内且签名验证通过
 			if ( __xrt_x509_crl_is_time_valid(&tCrl, iNow) && __xrt_x509_verify_crl_signature(&tCrl, pIssuer) ) {
 				bValidCRL = true;
+				// 在有效的 CRL 中查找证书序列号，若存在则证书已被吊销
 				if ( __xrt_x509_crl_revokes_cert(&tCrl, pCert) ) {
 					if ( bOwned ) { xrtFree(pCrlDer); }
 					return false;
@@ -39684,6 +39831,7 @@ static bool __xrt_tls_check_cert_not_revoked(xtlsctx *pCtx, const struct __xrt_x
 		}
 		if ( bOwned ) { xrtFree(pCrlDer); }
 	}
+	// 如果找到了匹配颁发者的 CRL 但没有一个是有效的，视为吊销检查失败
 	if ( bMatchedIssuer && !bValidCRL ) { return false; }
 	return true;
 }
@@ -39698,25 +39846,32 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 	if ( !pCtx || !apCertData || !apCertLen || iCertCount == 0 || iCertCount > __XRT_TLS_MAX_CERT_CHAIN ) {
 		return false;
 	}
+	// 解析证书链中的每个证书
 	for ( i = 0; i < iCertCount; i++ ) {
 		if ( !__xrt_x509_parse_for_chain(apCertData[i], apCertLen[i], &aCerts[i]) ) { return false; }
 		aUsed[i] = false;
 	}
+	// 验证叶子证书（ 证书链第一个证书 ）：有效性、主机名匹配
 	if ( !__xrt_tls_validate_leaf_server_cert(pCtx, &aCerts[0]) ) { return false; }
+	// 提取叶子证书公钥保存到上下文，用于后续密钥交换验证
 	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &aCerts[0]) ) { return false; }
+	// 自底向上构建证书链：从叶子证书开始，逐个查找颁发者
 	iCurrent = 0;
 	aUsed[0] = true;
 	for ( i = 0; i < iCertCount; i++ ) {
 		size_t j;
 		bool bFoundIssuer = false;
+		// 自签名证书：issuer == subject，链构建结束
 		if ( __xrt_x509_name_eq(aCerts[iCurrent].pIssuerRaw, aCerts[iCurrent].iIssuerRawLen,
 			aCerts[iCurrent].pSubjectRaw, aCerts[iCurrent].iSubjectRawLen) ) {
 			break;
 		}
+		// 在已提供的证书链中查找颁发者
 		for ( j = 0; j < iCertCount; j++ ) {
 			if ( j == iCurrent || aUsed[j] ) { continue; }
 			if ( __xrt_x509_name_eq(aCerts[iCurrent].pIssuerRaw, aCerts[iCurrent].iIssuerRawLen,
 				aCerts[j].pSubjectRaw, aCerts[j].iSubjectRawLen) ) {
+				// 验证颁发者的 CA 属性、有效期、签名和 CRL 吊销状态
 				if ( !__xrt_x509_is_ca_usable(&aCerts[j]) ) { return false; }
 				if ( !__xrt_x509_is_time_valid(&aCerts[j], iNow) ) { return false; }
 				if ( !__xrt_x509_verify_signature(&aCerts[iCurrent], &aCerts[j]) ) { return false; }
@@ -39728,6 +39883,7 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 			}
 		}
 		if ( bFoundIssuer ) { continue; }
+		// 链内未找到颁发者，尝试在 CA 信任锚中查找
 		{
 			size_t iOffset = 0;
 			while ( iOffset < pCtx->iCaDataLen ) {
@@ -39746,8 +39902,10 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 				if ( bOK ) { return true; }
 			}
 		}
+		// CA 信任锚中也未找到颁发者，链验证失败
 		return false;
 	}
+	// 自签名证书的信任锚查找：在 CA 库中验证当前证书是否被信任
 	if ( pCtx->iCaDataLen == 0 ) { return false; }
 	{
 		size_t iOffset = 0;
@@ -39774,10 +39932,12 @@ static bool __xrt_tls_capture_peer_cert_chain(xtlsctx *pCtx, uint8 **apCertData,
 {
 	struct __xrt_x509_cert tLeaf;
 	if ( !pCtx || !apCertData || !apCertLen || iCertCount == 0 ) { return false; }
+	// 跳过验证模式：仅提取叶子证书公钥，不做完整链验证
 	if ( pCtx->bSkipVerify ) {
 		if ( !__xrt_x509_parse(apCertData[0], apCertLen[0], &tLeaf) ) { return false; }
 		return __xrt_tls_copy_pubkey_from_cert(pCtx, &tLeaf);
 	}
+	// 必须有 CA 数据才能进行完整证书链验证
 	if ( pCtx->iCaDataLen == 0 ) { return false; }
 	return __xrt_tls_verify_presented_chain(pCtx, apCertData, apCertLen, iCertCount);
 }
@@ -39788,8 +39948,10 @@ static bool __xrt_tls_load_file_copy(const char *sFile, uint8 **ppData, size_t *
 	uint8 *pFileData;
 	uint8 *pCopy;
 	if ( !sFile || !sFile[0] || !ppData || !pLen ) { return false; }
+	// 读取文件全部内容到临时缓冲区
 	pFileData = (uint8*)xrtFileGetAll((str)sFile, &iFileSize);
 	if ( !pFileData || pFileData == (uint8*)xCore.sNull ) { return false; }
+	// 复制一份独立内存，因为 xrtFileGetAll 返回的缓冲区可能被内部复用
 	pCopy = (uint8*)xrtMalloc(iFileSize);
 	if ( !pCopy ) {
 		xrtFree(pFileData);
@@ -39809,8 +39971,10 @@ static bool __xrt_tls_load_der_file(const char *sFile, uint8 **ppDer, size_t *pD
 	if ( !sFile || !sFile[0] || !ppDer || !pDerLen ) { return false; }
 	*ppDer = NULL;
 	*pDerLen = 0;
+	// 读取文件全部内容
 	pFileData = (uint8*)xrtFileGetAll((str)sFile, &iFileSize);
 	if ( !pFileData || pFileData == (uint8*)xCore.sNull ) { return false; }
+	// 判断文件内容是否为 PEM 格式
 	if ( iFileSize > 27 && memcmp(pFileData, "-----BEGIN ", 11) == 0 ) {
 		const char *pStart = strstr((char*)pFileData, "\n");
 		const char *pEnd;
@@ -39820,15 +39984,18 @@ static bool __xrt_tls_load_der_file(const char *sFile, uint8 **ppDer, size_t *pD
 			return false;
 		}
 		pStart++;
+		// 查找 PEM 结束标记
 		pEnd = strstr(pStart, "-----END ");
 		if ( !pEnd ) {
 			xrtFree(pFileData);
 			return false;
 		}
+		// PEM 转 DER
 		bOK = __xrt_tls_decode_pem_cert_block(pStart, pEnd, ppDer, pDerLen);
 		xrtFree(pFileData);
 		return bOK && *ppDer && *pDerLen > 0;
 	}
+	// DER 格式：直接复制文件内容
 	{
 		uint8 *pCopy = (uint8*)xrtMalloc(iFileSize);
 		if ( !pCopy ) {
@@ -39879,6 +40046,7 @@ static bool __xrt_tls_copy_der_data(const void* pData, size_t iLen, uint8** ppDe
 		return true;
 	}
 	pBytes = (const uint8*)pData;
+	// 跳过数据开头的空白字符
 	iOffset = 0;
 	while ( iOffset < iLen ) {
 		if ( pBytes[iOffset] != ' ' && pBytes[iOffset] != '\t' && pBytes[iOffset] != '\r' && pBytes[iOffset] != '\n' ) {
@@ -39886,7 +40054,9 @@ static bool __xrt_tls_copy_der_data(const void* pData, size_t iLen, uint8** ppDe
 		}
 		iOffset++;
 	}
+	// 检测是否为 PEM 格式（ 以 "-----BEGIN " 开头 ）
 	if ( iOffset + 27 <= iLen && memcmp(pBytes + iOffset, "-----BEGIN ", 11) == 0 ) {
+		// 跳过 BEGIN 行，定位到 Base64 体
 		pBody = NULL;
 		for ( i = iOffset; i < iLen; i++ ) {
 			if ( pBytes[i] == '\n' ) {
@@ -39897,13 +40067,16 @@ static bool __xrt_tls_copy_der_data(const void* pData, size_t iLen, uint8** ppDe
 		if ( pBody == NULL ) {
 			return false;
 		}
+		// 查找 END 标记
 		pEnd = __xrt_tls_find_mem_token(pBody, iLen - (size_t)(pBody - pBytes), "-----END ");
 		if ( pEnd == NULL || pEnd <= pBody ) {
 			return false;
 		}
+		// PEM 解码为 DER
 		return __xrt_tls_decode_pem_cert_block((const char*)pBody, (const char*)pEnd, ppDer, pDerLen)
 			&& *ppDer != NULL && *pDerLen > 0;
 	}
+	// DER 格式：直接复制原始数据
 	pCopy = (uint8*)xrtMalloc(iLen);
 	if ( pCopy == NULL ) {
 		return false;
@@ -39922,13 +40095,16 @@ static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, si
 	size_t iBase64Len;
 	size_t iOffset;
 	if ( !pBuf || !pDer || iDerLen == 0 ) { return false; }
+	// DER 转 Base64
 	sBase64 = xrtBase64Encode((ptr)pDer, iDerLen, NULL);
 	if ( !sBase64 || sBase64 == xCore.sNull ) { return false; }
 	iBase64Len = strlen(__xrt_cstr(sBase64));
+	// 写入 PEM 头部标记
 	if ( !__xrt_tls_buf_append(pBuf, sBegin, sizeof(sBegin) - 1) ) {
 		xrtFree(sBase64);
 		return false;
 	}
+	// 将 Base64 字符串按每行 64 字符分段写入
 	for ( iOffset = 0; iOffset < iBase64Len; iOffset += 64 ) {
 		size_t iChunk = iBase64Len - iOffset;
 		if ( iChunk > 64 ) { iChunk = 64; }
@@ -39939,6 +40115,7 @@ static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, si
 		}
 	}
 	xrtFree(sBase64);
+	// 写入 PEM 尾部标记
 	return __xrt_tls_buf_append(pBuf, sEnd, sizeof(sEnd) - 1);
 }
 #if defined(_WIN32) || defined(_WIN64)
@@ -39962,12 +40139,14 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 	size_t i;
 	bool bAnyLoaded = false;
 	if ( !pCtx ) { return false; }
+	// 延迟加载 crypt32.dll，避免静态依赖
 	if ( !bCrypt32Loaded ) {
 		HMODULE hLib = LoadLibraryA("crypt32.dll");
 		if ( hLib ) {
 			FARPROC pCertOpenStore = GetProcAddress(hLib, "CertOpenStore");
 			FARPROC pCertEnumCertificatesInStore = GetProcAddress(hLib, "CertEnumCertificatesInStore");
 			FARPROC pCertCloseStore = GetProcAddress(hLib, "CertCloseStore");
+			// 通过 memcpy 赋值避免指针类型转换导致的严格别名问题
 			memcpy(&procCertOpenStore, &pCertOpenStore, sizeof(procCertOpenStore));
 			memcpy(&procCertEnumCertificatesInStore, &pCertEnumCertificatesInStore, sizeof(procCertEnumCertificatesInStore));
 			memcpy(&procCertCloseStore, &pCertCloseStore, sizeof(procCertCloseStore));
@@ -39977,9 +40156,11 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 	if ( !procCertOpenStore || !procCertEnumCertificatesInStore || !procCertCloseStore ) {
 		return false;
 	}
+	// 初始化 PEM 输出缓冲区
 	if ( !__xrt_tls_buf_init(&tPemBuf, 4096) ) {
 		return false;
 	}
+	// 遍历 Current User 和 Local Machine 两个 ROOT 证书存储
 	for ( i = 0; i < sizeof(arrStoreFlags) / sizeof(arrStoreFlags[0]); i++ ) {
 		hStore = procCertOpenStore(
 			CERT_STORE_PROV_SYSTEM_A,
@@ -39988,6 +40169,7 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 			CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG | arrStoreFlags[i],
 			"ROOT");
 		if ( !hStore ) { continue; }
+		// 枚举存储中的每个证书，转换为 PEM 格式追加到缓冲区
 		pCert = NULL;
 		while ( (pCert = procCertEnumCertificatesInStore(hStore, pCert)) != NULL ) {
 			if ( !pCert->pbCertEncoded || pCert->cbCertEncoded == 0 ) { continue; }
@@ -40001,10 +40183,12 @@ static bool __xrt_tls_load_windows_root_store(xtlsctx *pCtx)
 		procCertCloseStore(hStore, 0);
 		hStore = NULL;
 	}
+	// 至少加载了一个证书才算成功
 	if ( !bAnyLoaded || !__xrt_tls_buf_append(&tPemBuf, "\0", 1) ) {
 		__xrt_tls_buf_free(&tPemBuf);
 		return false;
 	}
+	// 将 PEM 缓冲区转移给上下文，注意减去末尾的 '\0'
 	pCtx->pCaData = (uint8*)tPemBuf.pBase;
 	pCtx->iCaDataLen = tPemBuf.iSize - 1;
 	tPemBuf.pBase = NULL;
@@ -40024,15 +40208,18 @@ static bool __xrt_tls_load_ca_bundle(xtlsctx *pCtx, const char *sCaFile)
 		pCtx->pCaData = NULL;
 		pCtx->iCaDataLen = 0;
 	}
+	// 如果指定了 CA 文件路径，直接加载
 	if ( sCaFile && sCaFile[0] ) {
 		return __xrt_tls_load_file_copy(sCaFile, &pCtx->pCaData, &pCtx->iCaDataLen);
 	}
+	// 依次尝试 SSL_CERT_FILE、CURL_CA_BUNDLE、REQUESTS_CA_BUNDLE 环境变量
 	sEnvPath = getenv("SSL_CERT_FILE");
 	if ( (!sEnvPath || !sEnvPath[0]) ) { sEnvPath = getenv("CURL_CA_BUNDLE"); }
 	if ( (!sEnvPath || !sEnvPath[0]) ) { sEnvPath = getenv("REQUESTS_CA_BUNDLE"); }
 	if ( sEnvPath && sEnvPath[0] && __xrt_tls_load_file_copy(sEnvPath, &pCtx->pCaData, &pCtx->iCaDataLen) ) {
 		return true;
 	}
+	// 平台特定的 CA 证书加载
 	#if defined(_WIN32) || defined(_WIN64)
 		if ( __xrt_tls_load_windows_root_store(pCtx) ) {
 			return true;
@@ -40132,9 +40319,11 @@ static bool __xrt_tls13_hmac(uint8 *pOut, const uint8 *pKey, size_t iKeyLen,
 // 内部函数：__xrt_tls_xor_seq_nonce
 static void __xrt_tls_xor_seq_nonce(uint8 *pNonce, const uint8 *pIV, uint64 iSeq)
 {
+	// 序列号填充为 12 字节：前 4 字节为 0，后 8 字节为大端序序列号
 	uint8 aSeq[12] = {0};
-	memcpy(pNonce, pIV, 12);
-	__xrt_tls_store_be64(aSeq + 4, iSeq);
+	memcpy(pNonce, pIV, 12);  // 复制 IV 作为 nonce 初始值
+	__xrt_tls_store_be64(aSeq + 4, iSeq);  // 序列号存入后 8 字节
+	// 逐字节异或：nonce = IV XOR padded(seq_num)
 	pNonce[0] ^= aSeq[0];
 	pNonce[1] ^= aSeq[1];
 	pNonce[2] ^= aSeq[2];
@@ -40382,11 +40571,13 @@ static bool __xrt_tls_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 {
 	if ( iRecordLen < __XRT_TLS_RECHDR_SIZE + 16 ) { return false; }
 	
+	// 根据握手状态选择加密密钥集
 	struct __xrt_tls_enc *pEnc = (pCtx->bHandshakeDone) ? &pCtx->tAppKeys : &pCtx->tEnc;
 	
 	uint8 *pKey, *pIV;
 	uint64 *pSeq;
 	
+	// 选择对应方向的密钥、IV 和序列号
 	if ( bUseServerKeys ) {
 		pKey = pEnc->aServerWriteKey;
 		pIV = pEnc->aServerWriteIV;
@@ -40402,6 +40593,7 @@ static bool __xrt_tls_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 	if ( *pSeq == UINT64_MAX ) { return false; }
 	__xrt_tls_xor_seq_nonce(aNonce, pIV, *pSeq);
 	
+	// 读取密文长度并校验有效性
 	uint16 iCipherLen = __xrt_tls_load_be16(pRecord + 3);
 	if ( !__xrt_tls_record_payload_valid(iCipherLen)
 		|| (size_t)iCipherLen != iRecordLen - __XRT_TLS_RECHDR_SIZE
@@ -40414,6 +40606,7 @@ static bool __xrt_tls_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 	uint8 aAAD[5];
 	memcpy(aAAD, pRecord, 5);
 	
+	// 根据密码套件选择 AEAD 解密算法
 	bool bOK;
 	if ( pCtx->iCipherSuite == __XRT_TLS_CHACHA20_POLY1305_SHA256 ) {
 		bOK = xrtChaCha20Poly1305Decrypt(pOut, pKey, aNonce, aAAD, 5, pCipher, iCipherLen);
@@ -40443,17 +40636,21 @@ static bool __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 	const uint8 *pData, size_t iLen)
 {
 	uint8 aNonce[12];
+	// 根据自身角色选择发送密钥、IV 和序列号
 	uint8 *pWriteIV = pCtx->bIsServer ? pCtx->aServerWriteIV12 : pCtx->aClientWriteIV12;
 	uint8 *pKey = pCtx->bIsServer ? pCtx->aServerWriteKey12 : pCtx->aClientWriteKey12;
 	uint64 *pSeq = pCtx->bIsServer ? &pCtx->iServerSeq12 : &pCtx->iClientSeq12;
+	// ChaCha20 无显式 nonce，GCM 使用 8 字节显式 nonce
 	size_t iExplicitNonceLen = pCtx->bTls12UseChaCha ? 0 : 8;
+	// payload = 显式 nonce(可选) + 密文 + AEAD tag(16)
 	size_t iPayloadLen = iExplicitNonceLen + iLen + 16;
 	if ( *pSeq == UINT64_MAX || iPayloadLen > 0xffffu ) { return false; }
+	// 构造 nonce：ChaCha20 用 XOR 模式，GCM 用 implicit+explicit nonce 模式
 	if ( pCtx->bTls12UseChaCha ) {
 		__xrt_tls_xor_seq_nonce(aNonce, pWriteIV, *pSeq);
 	} else {
-		memcpy(aNonce, pWriteIV, 4);
-		__xrt_tls_store_be64(aNonce + 4, *pSeq);
+		memcpy(aNonce, pWriteIV, 4);  // 前 4 字节为 implicit nonce（ 写入 IV ）
+		__xrt_tls_store_be64(aNonce + 4, *pSeq);  // 后 8 字节为 explicit nonce（ 序列号 ）
 	}
 	
 	// 13 字节 AAD = seq_num(8) + type(1) + version(2) + plaintext_length(2)
@@ -40489,6 +40686,7 @@ static bool __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 		printf("\n");
 	#endif
 	
+	// 根据密码套件执行 AEAD 加密
 	if ( pCtx->bTls12UseChaCha ) {
 		xrtChaCha20Poly1305Encrypt(pCipher, pKey, aNonce, aAAD, 13, pData, iLen);
 	} else if ( pCtx->iKeyLen == 32 ) {
@@ -40550,28 +40748,33 @@ static bool __xrt_tls12_encrypt_record(xtlsctx *pCtx, uint8 iType,
 static bool __xrt_tls12_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 	size_t iRecordLen, uint8 *pOut, size_t *pOutLen, uint8 *pType)
 {
+	// ChaCha20 无显式 nonce，GCM 使用 8 字节显式 nonce
 	size_t iExplicitNonceLen = pCtx->bTls12UseChaCha ? 0 : 8;
 	if ( iRecordLen < __XRT_TLS_RECHDR_SIZE + iExplicitNonceLen + 16 ) { return false; }
+	// 读取方向：使用对端的写入密钥来解密（ 服务器用客户端密钥，反之亦然 ）
 	uint8 *pReadIV = pCtx->bIsServer ? pCtx->aClientWriteIV12 : pCtx->aServerWriteIV12;
 	uint8 *pKey = pCtx->bIsServer ? pCtx->aClientWriteKey12 : pCtx->aServerWriteKey12;
 	uint64 *pSeq = pCtx->bIsServer ? &pCtx->iClientSeq12 : &pCtx->iServerSeq12;
 	
+	// 校验密文长度有效性
 	uint16 iPayloadLen = __xrt_tls_load_be16(pRecord + 3);
 	if ( *pSeq == UINT64_MAX || iPayloadLen < iExplicitNonceLen + 16 ) { return false; }
 	if ( !__xrt_tls_record_payload_valid(iPayloadLen)
 		|| (size_t)iPayloadLen != iRecordLen - __XRT_TLS_RECHDR_SIZE ) return false;
 	
+	// 计算 payload 指针和实际密文/明文长度
 	const uint8 *pPayload = pRecord + __XRT_TLS_RECHDR_SIZE;
-	size_t iCipherLen = iPayloadLen - iExplicitNonceLen;
-	size_t iPlainLen = iCipherLen - 16;
+	size_t iCipherLen = iPayloadLen - iExplicitNonceLen;  // 密文 + AEAD tag
+	size_t iPlainLen = iCipherLen - 16;  // 去掉 16 字节 AEAD tag
 	
 	uint8 aNonce[12];
 	const uint8 *pCipher = pPayload + iExplicitNonceLen;
+	// 构造 nonce：ChaCha20 用 XOR 模式，GCM 用 implicit+explicit nonce 模式
 	if ( pCtx->bTls12UseChaCha ) {
 		__xrt_tls_xor_seq_nonce(aNonce, pReadIV, *pSeq);
 	} else {
-		memcpy(aNonce, pReadIV, 4);
-		memcpy(aNonce + 4, pPayload, 8);
+		memcpy(aNonce, pReadIV, 4);  // 前 4 字节 implicit nonce
+		memcpy(aNonce + 4, pPayload, 8);  // 后 8 字节 explicit nonce 从记录中读取
 	}
 	
 	// 13 字节 AAD
@@ -40581,6 +40784,7 @@ static bool __xrt_tls12_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 	memcpy(aAAD + 9, pRecord + 1, 2);  // version
 	__xrt_tls_store_be16(aAAD + 11, (uint16)iPlainLen);
 	
+	// 根据密码套件执行 AEAD 解密
 	bool bOK;
 	if ( pCtx->bTls12UseChaCha ) {
 		bOK = xrtChaCha20Poly1305Decrypt(pOut, pKey, aNonce, aAAD, 13, pCipher, iCipherLen);
@@ -40594,7 +40798,7 @@ static bool __xrt_tls12_decrypt_record(xtlsctx *pCtx, const uint8 *pRecord,
 	
 	*pOutLen = iPlainLen;
 	*pType = pRecord[0];  // TLS 1.2: content type 在记录头明文中
-	(*pSeq)++;
+	(*pSeq)++;  // 递增接收序列号
 	return true;
 }
 /* ============================== 握手消息构造 ============================== */
@@ -40846,10 +41050,12 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 // 解析 ServerHello 消息 （ 支持 TLS 1.3 和 TLS 1.2 ）
 static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
+	// TLS 1.3 降级保护标记（ RFC 8446 Section 4.1.3 ）：服务器在 random 末尾嵌入此值表示支持 TLS 1.3 但协商了更低版本
 	static const uint8 aTls13DowngradeSentinel[8] = {
-		0x44, 0x4f, 0x57, 0x4e, 0x47, 0x52, 0x44, 0x01
+		0x44, 0x4f, 0x57, 0x4e, 0x47, 0x52, 0x44, 0x01  // "DOWNGRD\x01"
 	};
 	bool bAllowTls13 = (pCtx->iMaxVersion == 0 || pCtx->iMaxVersion >= __XRT_TLS_VERSION_1_3);
+	// 校验最小长度: version(2) + random(32) + session_id_len(1)
 	if ( iLen < 2 + 32 + 1 ) { return false; }
 	
 	size_t iPos = 0;
@@ -40906,8 +41112,8 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 			} else if ( iExtType == 0x0033 ) {  // key_share
 				// 解析服务器的密钥共享 (TLS 1.3)
 				if ( iExtDataLen >= 4 ) {
-					uint16 iGroup = __xrt_tls_load_be16(pMsg + iPos);
-					uint16 iKeyLen = __xrt_tls_load_be16(pMsg + iPos + 2);
+					uint16 iGroup = __xrt_tls_load_be16(pMsg + iPos);  // 服务器选择的曲线组
+					uint16 iKeyLen = __xrt_tls_load_be16(pMsg + iPos + 2);  // 公钥长度
 					if ( iGroup == 0x001d && iKeyLen == 32 && iExtDataLen >= 36 ) {
 						// X25519: 32 字节公钥
 						xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pMsg + iPos + 4);
@@ -40917,6 +41123,7 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 							printf("    [TLS] ServerHello key_share: X25519\n");
 						#endif
 					} else if ( iGroup == 0x001e && iKeyLen == 56 && iExtDataLen >= 60 ) {
+						// X448: 56 字节公钥
 						xrtX448SharedSecret(pCtx->aX25519Secret, pCtx->aX448Priv, pMsg + iPos + 4);
 						pCtx->iTls13Group = 0x001e;
 						pCtx->iTls13SecretLen = 56;
@@ -40932,6 +41139,7 @@ static bool __xrt_tls_parse_server_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 							printf("    [TLS] ServerHello key_share: P-256\n");
 						#endif
 					} else if ( iGroup == 0x0018 && iKeyLen == 97 && iExtDataLen >= 101 ) {
+						// P-384 (secp384r1): 97 字节 uncompressed 公钥
 						xrtECDHSecp384r1SharedSecret(pCtx->aX25519Secret, pCtx->aP384Priv, pMsg + iPos + 4);
 						pCtx->iTls13Group = 0x0018;
 						pCtx->iTls13SecretLen = 48;
@@ -41031,11 +41239,14 @@ static bool __xrt_tls_verify_finished(xtlsctx *pCtx, const uint8 *pVerifyData,
 	uint8 aExpected[64];
 	uint8 *pFinishedKey;
 	if ( iVerifyLen != iHashLen ) { return false; }
+	// 根据发送方选择对应的 finished_key
 	pFinishedKey = bFromServer ? pCtx->tEnc.aServerFinishedKey : pCtx->tEnc.aClientFinishedKey;
+	// 计算期望的 verify_data = HMAC(finished_key, transcript_hash)
 	if ( !__xrt_tls13_hmac(aExpected, pFinishedKey, iHashLen,
 		pTranscriptHash, iHashLen, iHashLen) ) {
 		return false;
 	}
+	// 常量时间比较，防止时序侧信道攻击
 	return __xrt_tls_consttime_equal(aExpected, pVerifyData, iHashLen);
 }
 // 内部函数：构建 TLS 13 证书 verify 输入
@@ -41048,40 +41259,44 @@ static bool __xrt_tls13_build_cert_verify_input(uint8 *pOut, size_t *pOutLen,
 	size_t iContextLen = strlen(sContext);
 	uint8 aSigContent[64 + 40 + 1 + 64];
 	size_t iContentLen;
+	// 根据签名算法确定哈希输出长度
 	switch ( iSigAlg ) {
-		case 0x0807:
+		case 0x0807:  // ed25519 不需要预哈希
 			iSigHashLen = 0;
 			break;
 		case 0x0804:
 		case 0x0403:
 		case 0x0809:
-			iSigHashLen = 32;
+			iSigHashLen = 32;  // SHA-256 输出 32 字节
 			break;
 		case 0x0805:
 		case 0x0503:
 		case 0x080a:
-			iSigHashLen = 48;
+			iSigHashLen = 48;  // SHA-384 输出 48 字节
 			break;
 		case 0x0806:
 		case 0x080b:
-			iSigHashLen = 64;
+			iSigHashLen = 64;  // SHA-512 输出 64 字节
 			break;
 		default:
 			return false;
 	}
 	if ( iTranscriptHashLen == 0 || iTranscriptHashLen > 64 ) { return false; }
-	memset(aSigContent, 0x20, 64);
+	// 构造签名输入内容: spaces(64) + context + 0x00 + transcript_hash （ RFC 8446 Section 4.4.3 ）
+	memset(aSigContent, 0x20, 64);  // 64 字节 0x20（空格）分隔符
 	iContentLen = 64;
-	memcpy(aSigContent + iContentLen, sContext, iContextLen);
+	memcpy(aSigContent + iContentLen, sContext, iContextLen);  // 上下文字符串
 	iContentLen += iContextLen;
-	aSigContent[iContentLen++] = 0x00;
-	memcpy(aSigContent + iContentLen, pTranscriptHash, iTranscriptHashLen);
+	aSigContent[iContentLen++] = 0x00;  // 分隔符字节
+	memcpy(aSigContent + iContentLen, pTranscriptHash, iTranscriptHashLen);  // 握手记录哈希
 	iContentLen += iTranscriptHashLen;
+	// Ed25519 不做预哈希，直接输出原始内容
 	if ( iSigAlg == 0x0807 ) {
 		memcpy(pOut, aSigContent, iContentLen);
 		if ( pOutLen ) { *pOutLen = iContentLen; }
 		return true;
 	}
+	// 其他算法对内容进行哈希后输出
 	if ( !__xrt_tls_hash_bytes(pOut, iSigHashLen, aSigContent, iContentLen) ) { return false; }
 	if ( pOutLen ) { *pOutLen = iSigHashLen; }
 	return true;
@@ -41183,10 +41398,12 @@ static bool __xrt_tls12_collect_certs(const uint8 *pMsg, size_t iLen,
 	size_t iCount = 0;
 	uint32 iCertListLen;
 	if ( !pMsg || iLen < 3 || !apCertData || !apCertLen || !pCertCount ) { return false; }
+	// 读取证书链总长度（ 3 字节大端 ）
 	iCertListLen = __xrt_tls_load_be24(pMsg);
 	if ( 3 + iCertListLen > iLen ) { return false; }
+	// 逐个解析证书条目
 	while ( iOff + 3 <= iLen && iCount < __XRT_TLS_MAX_CERT_CHAIN ) {
-		uint32 iCertLen = __xrt_tls_load_be24(pMsg + iOff);
+		uint32 iCertLen = __xrt_tls_load_be24(pMsg + iOff);  // 单个证书长度
 		iOff += 3;
 		if ( iCertLen == 0 || iOff + iCertLen > iLen ) { return false; }
 		apCertData[iCount] = (uint8*)(pMsg + iOff);
@@ -41207,22 +41424,26 @@ static bool __xrt_tls13_collect_certs(const uint8 *pMsg, size_t iLen,
 	uint32 iCertListLen;
 	size_t iCertListEnd;
 	if ( !pMsg || !apCertData || !apCertLen || !pCertCount || iLen < 4 ) { return false; }
+	// 解析 request_context （ TLS 1.3 Certificate 消息特有字段 ）
 	iReqCtxLen = pMsg[iOff++];
 	if ( iOff + iReqCtxLen + 3 > iLen ) { return false; }
 	iOff += iReqCtxLen;
+	// 读取证书链总长度（ 3 字节大端 ）
 	iCertListLen = __xrt_tls_load_be24(pMsg + iOff);
 	iOff += 3;
 	iCertListEnd = iOff + iCertListLen;
 	if ( iCertListEnd > iLen ) { return false; }
+	// 逐个解析证书条目（ 每个条目包含证书数据 + 扩展 ）
 	while ( iOff + 3 <= iCertListEnd && iCount < __XRT_TLS_MAX_CERT_CHAIN ) {
-		uint32 iCertLen = __xrt_tls_load_be24(pMsg + iOff);
+		uint32 iCertLen = __xrt_tls_load_be24(pMsg + iOff);  // 证书数据长度
 		uint16 iExtLen;
 		iOff += 3;
 		if ( iCertLen == 0 || iOff + iCertLen + 2 > iCertListEnd ) { return false; }
-		apCertData[iCount] = (uint8*)(pMsg + iOff);
+		apCertData[iCount] = (uint8*)(pMsg + iOff);  // 保存证书数据指针
 		apCertLen[iCount] = iCertLen;
 		iCount++;
 		iOff += iCertLen;
+		// 跳过证书条目的扩展数据
 		iExtLen = __xrt_tls_load_be16(pMsg + iOff);
 		iOff += 2;
 		if ( iOff + iExtLen > iCertListEnd ) { return false; }
@@ -41728,10 +41949,13 @@ static bool __xrt_tls12_send_handshake_message(xtlsctx *pCtx, const uint8 *pMsg,
 {
 	uint8 aRec[5];
 	if ( !pCtx || !pMsg || iMsgLen == 0 || iMsgLen > 0xffff ) { return false; }
+	// 更新握手哈希
 	__xrt_tls12_update_hash(pCtx, pMsg, iMsgLen);
+	// 构建记录头：类型(1) + 版本(2) + 长度(2)
 	aRec[0] = __XRT_TLS_HANDSHAKE;
 	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
 	__xrt_tls_store_be16(aRec + 3, (uint16)iMsgLen);
+	// 拼接记录头和消息体到发送缓冲区
 	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, sizeof(aRec));
 	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)pMsg, iMsgLen);
 	return true;
@@ -41745,33 +41969,43 @@ static bool __xrt_tls12_send_server_hello(xtlsctx *pCtx)
 	size_t iPos = 0;
 	size_t iLenPos;
 	if ( !pCtx ) { return false; }
+	// 生成服务器随机数
 	xrtRandomBytes(pCtx->aServerRandom, 32);
+	// 构建握手消息头：类型(1) + 长度(3)
 	aMsg[iPos++] = __XRT_TLS_SERVER_HELLO;
 	iLenPos = iPos;
 	iPos += 3;
+	// 协议版本 TLS 1.2
 	__xrt_tls_store_be16(aMsg + iPos, __XRT_TLS_VERSION_1_2);
 	iPos += 2;
+	// 服务器随机数 (32 字节)
 	memcpy(aMsg + iPos, pCtx->aServerRandom, 32);
 	iPos += 32;
+	// 会话 ID
 	aMsg[iPos++] = pCtx->iSessionIdLen;
 	memcpy(aMsg + iPos, pCtx->aSessionId, pCtx->iSessionIdLen);
 	iPos += pCtx->iSessionIdLen;
+	// 已协商的密码套件 + 压缩方法 (0 = 无压缩)
 	__xrt_tls_store_be16(aMsg + iPos, pCtx->iCipherSuite);
 	iPos += 2;
 	aMsg[iPos++] = 0;
+	// 扩展区域
 	if ( pCtx->bPeerSecureReneg ) {
+		// 安全重协商扩展 (renegotiation_info, 0xff01)
 		size_t iExtPos = iPos;
+		iPos += 2;	// 扩展总长度占位
+		__xrt_tls_store_be16(aMsg + iPos, 0xff01);	// 扩展类型
 		iPos += 2;
-		__xrt_tls_store_be16(aMsg + iPos, 0xff01);
+		__xrt_tls_store_be16(aMsg + iPos, 1);		// 扩展数据长度 = 1
 		iPos += 2;
-		__xrt_tls_store_be16(aMsg + iPos, 1);
-		iPos += 2;
-		aMsg[iPos++] = 0;
+		aMsg[iPos++] = 0;							// renegotiated_connection 长度 = 0
 		__xrt_tls_store_be16(aMsg + iExtPos, (uint16)(iPos - iExtPos - 2));
 	} else {
+		// 无扩展，扩展总长度为 0
 		__xrt_tls_store_be16(aMsg + iPos, 0);
 		iPos += 2;
 	}
+	// 回填消息体长度并发送
 	__xrt_tls_store_be24(aMsg + iLenPos, (uint32)(iPos - iLenPos - 3));
 	return __xrt_tls12_send_handshake_message(pCtx, aMsg, iPos);
 }
@@ -41782,14 +42016,16 @@ static bool __xrt_tls12_send_certificate(xtlsctx *pCtx)
 	size_t iMsgLen;
 	uint8 *pMsg;
 	if ( !pCtx || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return false; }
+	// 计算消息体长度：证书列表总长度(3) + 单个证书长度(3) + 证书数据
 	iBodyLen = 3 + 3 + pCtx->iCertDerLen;
 	iMsgLen = __XRT_TLS_MSGHDR_SIZE + iBodyLen;
 	pMsg = (uint8*)xrtMalloc(iMsgLen);
 	if ( !pMsg ) { return false; }
+	// 构建消息：类型(1) + 体长度(3) + 证书列表长度(3) + 证书长度(3) + 证书数据
 	pMsg[0] = __XRT_TLS_CERTIFICATE;
-	__xrt_tls_store_be24(pMsg + 1, (uint32)iBodyLen);
-	__xrt_tls_store_be24(pMsg + 4, (uint32)(3 + pCtx->iCertDerLen));
-	__xrt_tls_store_be24(pMsg + 7, (uint32)pCtx->iCertDerLen);
+	__xrt_tls_store_be24(pMsg + 1, (uint32)iBodyLen);					// 消息体长度
+	__xrt_tls_store_be24(pMsg + 4, (uint32)(3 + pCtx->iCertDerLen));	// 证书列表总长度
+	__xrt_tls_store_be24(pMsg + 7, (uint32)pCtx->iCertDerLen);		// 单个证书长度
 	memcpy(pMsg + 10, pCtx->pCertDer, pCtx->iCertDerLen);
 	if ( !__xrt_tls12_send_handshake_message(pCtx, pMsg, iMsgLen) ) {
 		xrtFree(pMsg);
@@ -41813,26 +42049,29 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 	size_t iSigLen = 0;
 	uint16 iHashAlg;
 	if ( !pCtx || !pCtx->bIsECDHE || pCtx->iServerSigAlg == 0 ) { return false; }
+	// 构建消息头和 ECDHE 参数
 	aMsg[iPos++] = __XRT_TLS_SERVER_KEY_EXCHANGE;
 	iLenPos = iPos;
 	iPos += 3;
-	aMsg[iPos++] = 3;
+	// EC 参数：曲线类型(3 = named_curve) + 命名曲线 ID
+	aMsg[iPos++] = 3;	// named_curve
 	__xrt_tls_store_be16(aMsg + iPos, pCtx->iTls12Curve);
 	iPos += 2;
-	if ( pCtx->iTls12Curve == 0x001d ) {
+	// 根据曲线类型写入服务器临时公钥
+	if ( pCtx->iTls12Curve == 0x001d ) {		// X25519
 		iPubLen = 32;
 		aMsg[iPos++] = 32;
 		memcpy(aMsg + iPos, pCtx->aX25519Pub, 32);
-	} else if ( pCtx->iTls12Curve == 0x001e ) {
+	} else if ( pCtx->iTls12Curve == 0x001e ) {	// X448
 		iPubLen = 56;
 		aMsg[iPos++] = 56;
 		memcpy(aMsg + iPos, pCtx->aX448Pub, 56);
-	} else if ( pCtx->iTls12Curve == 0x0017 ) {
-		iPubLen = 65;
+	} else if ( pCtx->iTls12Curve == 0x0017 ) {	// secp256r1
+		iPubLen = 65;	// 04 + 32字节X + 32字节Y
 		aMsg[iPos++] = 65;
 		memcpy(aMsg + iPos, pCtx->aP256Pub, 65);
-	} else if ( pCtx->iTls12Curve == 0x0018 ) {
-		iPubLen = 97;
+	} else if ( pCtx->iTls12Curve == 0x0018 ) {	// secp384r1
+		iPubLen = 97;	// 04 + 48字节X + 48字节Y
 		aMsg[iPos++] = 97;
 		memcpy(aMsg + iPos, pCtx->aP384Pub, 97);
 	} else {
@@ -41840,12 +42079,15 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 	}
 	iPos += iPubLen;
 	iParamsLen = iPos - __XRT_TLS_MSGHDR_SIZE;
+	// 构建签名输入：client_random(32) + server_random(32) + ECDHE参数
 	memcpy(aSigInput, pCtx->aRandom, 32);
 	memcpy(aSigInput + 32, pCtx->aServerRandom, 32);
 	memcpy(aSigInput + 64, aMsg + __XRT_TLS_MSGHDR_SIZE, iParamsLen);
-	iHashAlg = (uint16)(pCtx->iServerSigAlg >> 8);
+	// 根据签名算法对参数进行签名
+	iHashAlg = (uint16)(pCtx->iServerSigAlg >> 8);	// 高字节为哈希算法标识
 	(void)iHashAlg;
 	if ( pCtx->iServerSigAlg == 0x0807 ) {
+		// Ed25519 签名：直接对原始数据签名，无需预哈希
 		if ( !__xrt_tls_sign_server_hash(pCtx, aSigInput, 64 + iParamsLen, aSig, &iSigLen) ) {
 			#ifdef DEBUG_TRACE
 				printf("    [TLS12] SKE sign FAILED: sigAlg=0x%04x rawLen=%d curve=0x%04x\n",
@@ -41854,6 +42096,7 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 			return false;
 		}
 	} else {
+		// RSA/ECDSA 签名：先哈希再签名
 		iHashLen = __xrt_tls_sigalg_hash_len(pCtx->iServerSigAlg);
 		if ( iHashLen == 0 || !__xrt_tls_hash_bytes(aHash, iHashLen, aSigInput, 64 + iParamsLen) ) {
 			#ifdef DEBUG_TRACE
@@ -41870,6 +42113,7 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 			return false;
 		}
 	}
+	// 追加签名：算法标识(2) + 签名长度(2) + 签名数据
 	__xrt_tls_store_be16(aMsg + iPos, pCtx->iServerSigAlg);
 	iPos += 2;
 	__xrt_tls_store_be16(aMsg + iPos, (uint16)iSigLen);
@@ -41882,6 +42126,7 @@ static bool __xrt_tls12_send_server_key_exchange(xtlsctx *pCtx)
 		printf("\n");
 	#endif
 	__xrt_tls_store_be24(aMsg + iLenPos, (uint32)(iPos - iLenPos - 3));
+	// 回填消息体长度并发送
 	return __xrt_tls12_send_handshake_message(pCtx, aMsg, iPos);
 }
 // 内部函数：__xrt_tls12_send_server_hello_done
@@ -41920,25 +42165,26 @@ static bool __xrt_tls12_send_server_flight(xtlsctx *pCtx)
 static bool __xrt_tls12_parse_client_key_exchange(xtlsctx *pCtx, const uint8 *pMsg, size_t iLen)
 {
 	if ( !pCtx || !pMsg || !pCtx->bIsECDHE || iLen < 1 ) { return false; }
-	if ( pCtx->iTls12Curve == 0x001d ) {
+	// 根据协商的曲线解析客户端临时公钥，计算共享密钥
+	if ( pCtx->iTls12Curve == 0x001d ) {		// X25519：公钥32字节 + 1字节长度前缀
 		if ( iLen != 33 || pMsg[0] != 32 ) { return false; }
 		xrtX25519SharedSecret(pCtx->aSharedSecret, pCtx->aX25519Priv, pMsg + 1);
 		pCtx->iSharedSecretLen = 32;
 		return true;
 	}
-	if ( pCtx->iTls12Curve == 0x001e ) {
+	if ( pCtx->iTls12Curve == 0x001e ) {		// X448：公钥56字节 + 1字节长度前缀
 		if ( iLen != 57 || pMsg[0] != 56 ) { return false; }
 		xrtX448SharedSecret(pCtx->aSharedSecret, pCtx->aX448Priv, pMsg + 1);
 		pCtx->iSharedSecretLen = 56;
 		return true;
 	}
-	if ( pCtx->iTls12Curve == 0x0017 ) {
+	if ( pCtx->iTls12Curve == 0x0017 ) {		// secp256r1：未压缩点 04 + 32字节X + 32字节Y
 		if ( iLen != 66 || pMsg[0] != 65 || pMsg[1] != 0x04 ) { return false; }
 		xrtECDHSecp256r1SharedSecret(pCtx->aSharedSecret, pCtx->aP256Priv, pMsg + 1);
 		pCtx->iSharedSecretLen = 32;
 		return true;
 	}
-	if ( pCtx->iTls12Curve == 0x0018 ) {
+	if ( pCtx->iTls12Curve == 0x0018 ) {		// secp384r1：未压缩点 04 + 48字节X + 48字节Y
 		if ( iLen != 98 || pMsg[0] != 97 || pMsg[1] != 0x04 ) { return false; }
 		xrtECDHSecp384r1SharedSecret(pCtx->aSharedSecret, pCtx->aP384Priv, pMsg + 1);
 		pCtx->iSharedSecretLen = 48;
@@ -41958,7 +42204,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx);
 static bool __xrt_tls13_send_server_flight(xtlsctx *pCtx);
 static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx);
-// 创建 TLS
+// 配置对象自旋锁，用于多线程安全访问配置数据
 static void __xrt_tls_config_lock(const xtlsconfig* pCfg)
 {
 	if ( pCfg == NULL ) {
@@ -41968,6 +42214,7 @@ static void __xrt_tls_config_lock(const xtlsconfig* pCfg)
 		xrtSleep(1);
 	}
 }
+// 释放配置对象自旋锁
 static void __xrt_tls_config_unlock(const xtlsconfig* pCfg)
 {
 	if ( pCfg == NULL ) {
@@ -41975,6 +42222,7 @@ static void __xrt_tls_config_unlock(const xtlsconfig* pCfg)
 	}
 	(void)__xrtAtomicExchange32((volatile long*)&pCfg->iDataLock, 0);
 }
+// 上下文自旋锁，跨平台实现（ TCC/x86_64 用原子交换，Windows 用 Interlocked，其他用 GCC 内建函数 ）
 static void __xrt_tls_ctx_lock(xtlsctx* pCtx)
 {
 	if ( pCtx == NULL ) {
@@ -41994,6 +42242,7 @@ static void __xrt_tls_ctx_lock(xtlsctx* pCtx)
 		}
 	#endif
 }
+// 释放上下文自旋锁
 static void __xrt_tls_ctx_unlock(xtlsctx* pCtx)
 {
 	if ( pCtx == NULL ) {
@@ -42007,6 +42256,7 @@ static void __xrt_tls_ctx_unlock(xtlsctx* pCtx)
 		__sync_lock_release(&pCtx->iApiLock);
 	#endif
 }
+// 安全清除上下文中拥有的证书和私钥数据
 static void __xrt_tls_clear_cert_owned(xtlsctx* pCtx)
 {
 	if ( pCtx == NULL ) {
@@ -42025,24 +42275,30 @@ static void __xrt_tls_clear_cert_owned(xtlsctx* pCtx)
 		pCtx->iKeyDerLen = 0;
 	}
 }
+// 设置上下文的证书和私钥（接管所有权），并解析服务器身份信息
 static xnet_result __xrt_tls_set_cert_owned(xtlsctx* pCtx, uint8* pCertDer, size_t iCertDerLen, uint8* pKeyDer, size_t iKeyDerLen)
 {
 	if ( pCtx == NULL ) {
+		// 上下文无效时释放传入的证书和私钥，避免内存泄漏
 		if ( pCertDer ) { xrtFree(pCertDer); }
 		if ( pKeyDer ) { xrtFree(pKeyDer); }
 		return XRT_NET_ERROR;
 	}
+	// 清除旧的证书和私钥
 	__xrt_tls_clear_cert_owned(pCtx);
+	// 接管新证书和私钥的所有权
 	pCtx->pCertDer = pCertDer;
 	pCtx->iCertDerLen = iCertDerLen;
 	pCtx->pKeyDer = pKeyDer;
 	pCtx->iKeyDerLen = iKeyDerLen;
+	// 解析证书中的公钥等身份信息（ RSA 模数、EC 密钥等 ）
 	if ( !__xrt_tls_prepare_server_identity(pCtx) ) {
 		__xrt_tls_clear_cert_owned(pCtx);
 		return XRT_NET_ERROR;
 	}
 	return XRT_NET_OK;
 }
+// 复制 CA 证书数据到上下文
 static bool __xrt_tls_set_ca_copy(xtlsctx* pCtx, const void* pCaData, size_t iCaDataLen)
 {
 	uint8* pCopy;
@@ -42067,6 +42323,7 @@ static bool __xrt_tls_set_ca_copy(xtlsctx* pCtx, const void* pCaData, size_t iCa
 	pCtx->iCaDataLen = iCaDataLen;
 	return true;
 }
+// 复制 CRL（ 证书吊销列表 ）数据到上下文
 static bool __xrt_tls_set_crl_copy(xtlsctx* pCtx, const void* pCrlData, size_t iCrlDataLen)
 {
 	uint8* pCopy;
@@ -42172,18 +42429,22 @@ XXAPI void xrtTlsDestroy(xtlsctx *pCtx)
 {
 	if ( !pCtx ) { return; }
 	
+	// 释放 IO 缓冲区
 	__xrt_tls_buf_free(&pCtx->tSendBuf);
 	__xrt_tls_buf_free(&pCtx->tRecvBuf);
 	__xrt_tls_buf_free(&pCtx->tHandshakeBuf);
 	__xrt_tls_buf_free(&pCtx->tPlainBuf);
 	
+	// 释放证书和私钥（私钥先安全清零再释放）
 	if ( pCtx->pCertDer ) { xrtFree(pCtx->pCertDer); }
 	if ( pCtx->pKeyDer ) {
 		__xrt_tls_secure_zero(pCtx->pKeyDer, pCtx->iKeyDerLen);
 		xrtFree(pCtx->pKeyDer);
 	}
+	// 释放 CA 和 CRL 数据
 	if ( pCtx->pCaData ) { xrtFree(pCtx->pCaData); }
 	if ( pCtx->pCrlData ) { xrtFree(pCtx->pCrlData); }
+	// 安全清零整个上下文结构后释放，防止密钥残留
 	__xrt_tls_secure_zero(pCtx, sizeof(*pCtx));
 	xrtFree(pCtx);
 }
@@ -42574,13 +42835,16 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 			
 			// 处理所有完整记录
 			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
+				// 读取记录头：类型(1字节) + 版本(2字节) + 长度(2字节)
 				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 				const uint8 *pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
 				if ( !__xrt_tls_record_payload_valid(iRecLen) ) { return XRT_NET_ERROR; }
 				
+				// 数据不足时等待更多数据
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) { break; }
 				
+				// 处理 Alert 警告记录
 				if ( iRecType == __XRT_TLS_ALERT ) {
 					#ifdef DEBUG_TRACE
 						printf("    [TLS12] Alert: level=%d desc=%d\n", pRecData[0], (iRecLen >= 2) ? pRecData[1] : -1);
@@ -42589,6 +42853,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 					return __xrt_tls_handle_alert(pCtx, pRecData, iRecLen);
 				}
 				
+				// 非握手记录直接丢弃
 				if ( iRecType != __XRT_TLS_HANDSHAKE ) {
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
@@ -42597,7 +42862,9 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 				// 明文握手记录: 可能包含多个握手消息
 				size_t iMsgOff = 0;
 				
+				// 逐个解析记录内的握手消息
 				while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= iRecLen ) {
+					// 握手消息头：类型(1字节) + 长度(3字节)
 					uint8 iMsgType = pRecData[iMsgOff];
 					uint32 iMsgBodyLen = __xrt_tls_load_be24(pRecData + iMsgOff + 1);
 					size_t iTotalMsgLen = __XRT_TLS_MSGHDR_SIZE + iMsgBodyLen;
@@ -42615,9 +42882,11 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 							#ifdef DEBUG_TRACE
 								printf("    [TLS12] Got Certificate, len=%d\n", (int)iMsgBodyLen);
 							#endif
+							// 解析服务器证书链
 							if ( !__xrt_tls12_parse_certificate(pCtx, pMsgBody, iMsgBodyLen) ) {
 								return XRT_NET_ERROR;
 							}
+							// ECDHE 套件需要等待 ServerKeyExchange
 							if ( pCtx->bIsECDHE ) {
 								pCtx->iState = XRT_TLS12_CLIENT_WAIT_SKE;
 							} else {
@@ -42630,6 +42899,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 							#ifdef DEBUG_TRACE
 								printf("    [TLS12] Got ServerKeyExchange, len=%d\n", (int)iMsgBodyLen);
 							#endif
+							// 解析服务器密钥交换参数（ ECDHE 公钥或 DH 参数 ）
 							if ( !__xrt_tls12_parse_server_key_exchange(pCtx, pMsgBody, iMsgBodyLen) ) {
 								return XRT_NET_ERROR;
 							}
@@ -42685,6 +42955,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 				}
 			}
 			
+			// 逐个处理接收缓冲区中的记录
 			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
 				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
@@ -42694,6 +42965,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) { break; }
 				
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
+					// 验证 CCS 消息格式：长度必须为 1，值为 0x01
 					if ( iRecLen != 1 || pRecData[0] != 0x01 ) { return XRT_NET_ERROR; }
 					#ifdef DEBUG_TRACE
 						printf("    [TLS12] Got server CCS\n");
@@ -42727,8 +42999,10 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 				}
 			}
 			
+			// 检查是否有完整记录头
 			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) { return XRT_NET_AGAIN; }
 			
+			// 读取记录长度和负载数据指针
 			uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 			const uint8* pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
 			if ( !__xrt_tls_record_payload_valid(iRecLen) ) { return XRT_NET_ERROR; }
@@ -42736,6 +43010,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 			
 			uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 			
+			// Alert 记录直接处理
 			if ( iRecType == __XRT_TLS_ALERT ) {
 				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 				return __xrt_tls_handle_alert(pCtx, pRecData, iRecLen);
@@ -42743,7 +43018,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 			
 			// Finished 必须以加密后的 Handshake 记录出现
 			if ( iRecType == __XRT_TLS_HANDSHAKE ) {
-				// 解密
+				// 使用服务器写密钥解密记录
 				uint8 aPlain[__XRT_TLS_MAX_RECORD];
 				size_t iPlainLen = 0;
 				uint8 iContentType = 0;
@@ -42755,22 +43030,27 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 				}
 				
 				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+				// 解密后的内容类型必须是握手
 				if ( iContentType != __XRT_TLS_HANDSHAKE ) {
 					return XRT_NET_ERROR;
 				}
 				
+				// 验证 Finished 消息：类型必须为 Finished，verify_data 至少 12 字节
 				if ( iPlainLen >= __XRT_TLS_MSGHDR_SIZE && aPlain[0] == __XRT_TLS_FINISHED ) {
 					uint32 iFinLen = __xrt_tls_load_be24(aPlain + 1);
 					if ( iFinLen >= 12 ) {
+						// 验证服务器的 Finished verify_data
 						if ( !__xrt_tls12_verify_finished(pCtx, aPlain + __XRT_TLS_MSGHDR_SIZE, iFinLen, true) ) {
 							return XRT_NET_ERROR;
 						}
+						// 会话恢复时，收到服务器 Finished 后客户端需要发送自己的 CCS + Finished
 						if ( pCtx->bSessionResumed ) {
 							__xrt_tls12_update_hash(pCtx, aPlain, __XRT_TLS_MSGHDR_SIZE + iFinLen);
 							if ( !__xrt_tls12_send_ccs_finished(pCtx, false) ) {
 								return XRT_NET_ERROR;
 							}
 						}
+						// 握手完成，进入连接状态
 						pCtx->bHandshakeDone = true;
 						pCtx->iState = XRT_TLS12_CLIENT_CONNECTED;
 						return XRT_NET_AGAIN;
@@ -42795,6 +43075,7 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 		
 		case XRT_TLS_SERVER_START:
 		{
+			// 尝试从缓冲区或网络读取数据
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				if ( !bAllowSocketIO ) { return XRT_NET_AGAIN; }
 				char aBuf[4096];
@@ -42806,14 +43087,19 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 					return XRT_NET_ERROR;
 				}
 			}
+			// 检查是否收到完整记录头
 			if ( pCtx->tRecvBuf.iSize < __XRT_TLS_RECHDR_SIZE ) { return XRT_NET_AGAIN; }
 			{
+				// 读取记录头信息
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 				const uint8 *pRecData;
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) { return XRT_NET_AGAIN; }
+				// 必须是握手记录
 				if ( (uint8)pCtx->tRecvBuf.pData[0] != __XRT_TLS_HANDSHAKE ) { return XRT_NET_ERROR; }
 				pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
+				// 必须是 ClientHello 消息
 				if ( iRecLen < __XRT_TLS_MSGHDR_SIZE || pRecData[0] != __XRT_TLS_CLIENT_HELLO ) { return XRT_NET_ERROR; }
+				// 解析 ClientHello 消息体（ 跳过握手头 ）
 				if ( !__xrt_tls_parse_client_hello(pCtx, pRecData + __XRT_TLS_MSGHDR_SIZE,
 					iRecLen - __XRT_TLS_MSGHDR_SIZE) ) {
 					#ifdef DEBUG_TRACE
@@ -42821,18 +43107,22 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 					#endif
 					return XRT_NET_ERROR;
 				}
+				// 根据协商的 TLS 版本走不同的处理分支
 				if ( pCtx->bIsTls12 ) {
 					#ifdef DEBUG_TRACE
 						printf("    [TLS12] server negotiated suite=0x%04x curve=0x%04x sig=0x%04x\n",
 							pCtx->iCipherSuite, pCtx->iTls12Curve, pCtx->iServerSigAlg);
 					#endif
+					// 将 ClientHello 消息加入握手哈希
 					__xrt_tls12_update_hash(pCtx, pRecData, iRecLen);
 					if ( pCtx->bSessionResumed ) {
+						// 会话恢复：发送 ServerHello，派生密钥，发送 CCS + Finished
 						if ( !__xrt_tls12_send_server_hello(pCtx) ) { return XRT_NET_ERROR; }
 						__xrt_tls12_derive_keys(pCtx);
 						if ( !__xrt_tls12_send_ccs_finished(pCtx, true) ) { return XRT_NET_ERROR; }
 						pCtx->iState = XRT_TLS12_SERVER_WAIT_CCS;
 					} else {
+						// 完整握手：发送 ServerHello + Certificate + ServerKeyExchange + ServerHelloDone
 						if ( !__xrt_tls12_send_server_flight(pCtx) ) { return XRT_NET_ERROR; }
 						pCtx->iState = XRT_TLS12_SERVER_WAIT_CKE;
 					}
@@ -42841,19 +43131,26 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 						printf("    [TLS13] server negotiated suite=0x%04x group=0x%04x sig=0x%04x\n",
 							pCtx->iCipherSuite, pCtx->iTls13Group, pCtx->iServerSigAlg);
 					#endif
+					// TLS 1.3: 将 ClientHello 加入转录哈希
 					__xrt_tls13_hash_update(pCtx, pRecData, iRecLen);
+					// 发送 ServerHello（ 含 key_share ）
 					if ( !__xrt_tls13_send_server_hello(pCtx) ) { return XRT_NET_ERROR; }
+					// 派生握手密钥
 					__xrt_tls_derive_handshake_keys(pCtx);
+					// 发送加密扩展 + 证书 + 证书验证 + Finished
 					if ( !__xrt_tls13_send_server_flight(pCtx) ) { return XRT_NET_ERROR; }
 					pCtx->iState = XRT_TLS_SERVER_NEGOTIATED;
 				}
+				// 消费已处理的记录
 				__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			}
 			return XRT_NET_AGAIN;
 		}
+		// ==================== TLS 1.2 服务端等待客户端密钥交换 / CCS / Finished ====================
 		case XRT_TLS12_SERVER_WAIT_CKE:
 		case XRT_TLS12_SERVER_WAIT_CCS:
 		case XRT_TLS12_SERVER_WAIT_FINISH: {
+			// 尝试从缓冲区或网络读取数据
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				if ( !bAllowSocketIO ) { return XRT_NET_AGAIN; }
 				char aBuf[4096];
@@ -42865,53 +43162,69 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 					return XRT_NET_ERROR;
 				}
 			}
+			// 逐个处理接收缓冲区中的记录
 			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
 				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 				const uint8* pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
 				if ( !__xrt_tls_record_payload_valid(iRecLen) ) { return XRT_NET_ERROR; }
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) { break; }
+				// Alert 记录直接处理
 				if ( iRecType == __XRT_TLS_ALERT ) {
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return __xrt_tls_handle_alert(pCtx, pRecData, iRecLen);
 				}
+				// 状态: 等待 ClientKeyExchange
 				if ( pCtx->iState == XRT_TLS12_SERVER_WAIT_CKE ) {
 					const uint8 *pRecData;
 					size_t iMsgOff = 0;
+					// ClientKeyExchange 必须是明文握手记录
 					if ( iRecType != __XRT_TLS_HANDSHAKE ) { return XRT_NET_ERROR; }
 					pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
+					// 将记录负载追加到握手重组缓冲区
 					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)pRecData, iRecLen);
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					// 从重组缓冲区解析完整的握手消息
 					while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= pCtx->tHandshakeBuf.iSize ) {
 						const uint8 *pMsg = (const uint8*)pCtx->tHandshakeBuf.pData + iMsgOff;
 						uint8 iMsgType = pMsg[0];
 						uint32 iMsgBodyLen = __xrt_tls_load_be24(pMsg + 1);
 						size_t iTotalMsgLen = __XRT_TLS_MSGHDR_SIZE + iMsgBodyLen;
 						if ( iMsgOff + iTotalMsgLen > pCtx->tHandshakeBuf.iSize ) { break; }
+						// 必须是 ClientKeyExchange 消息
 						if ( iMsgType != __XRT_TLS_CLIENT_KEY_EXCHANGE ) { return XRT_NET_ERROR; }
+						// 解析客户端密钥交换（ 提取预主密钥 ）
 						if ( !__xrt_tls12_parse_client_key_exchange(pCtx,
 							pMsg + __XRT_TLS_MSGHDR_SIZE, iMsgBodyLen) ) {
 							return XRT_NET_ERROR;
 						}
+						// 更新握手哈希并派生工作密钥
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
 						__xrt_tls12_derive_keys(pCtx);
 						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+						// 进入等待 CCS 状态
 						pCtx->iState = XRT_TLS12_SERVER_WAIT_CCS;
 						iMsgOff = 0;
 					}
 					continue;
 				}
+				// 状态: 等待 ChangeCipherSpec
 				if ( pCtx->iState == XRT_TLS12_SERVER_WAIT_CCS ) {
+					// CCS 必须是 ChangeCipherSpec 记录类型
 					if ( iRecType != __XRT_TLS_CHANGE_CIPHER ) { return XRT_NET_ERROR; }
+					// 验证 CCS 格式：长度 1，值为 0x01
 					if ( iRecLen != 1 || pRecData[0] != 0x01 ) { return XRT_NET_ERROR; }
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					// 切换到服务器读密钥，等待加密的 Finished
 					pCtx->iState = XRT_TLS12_SERVER_WAIT_FINISH;
 					continue;
 				}
+				// 状态: 等待加密的 Finished（ 此时记录已是加密的 ）
 				if ( iRecType != __XRT_TLS_HANDSHAKE && iRecType != __XRT_TLS_APP_DATA ) {
 					return XRT_NET_ERROR;
 				}
 				{
+					// 使用客户端写密钥解密记录
 					uint8 aPlain[__XRT_TLS_MAX_RECORD];
 					size_t iPlainLen = 0;
 					uint8 iContentType = 0;
@@ -42921,26 +43234,35 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 						return XRT_NET_ERROR;
 					}
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					// 解密后遇到 Alert 则处理
 					if ( iContentType == __XRT_TLS_ALERT ) { return __xrt_tls_handle_alert(pCtx, aPlain, iPlainLen); }
+					// 内容类型必须是握手
 					if ( iContentType != __XRT_TLS_HANDSHAKE ) { return XRT_NET_ERROR; }
+					// 将解密后的明文追加到握手重组缓冲区
 					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
+					// 解析 Finished 消息
 					while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= pCtx->tHandshakeBuf.iSize ) {
 						const uint8 *pMsg = (const uint8*)pCtx->tHandshakeBuf.pData + iMsgOff;
 						uint8 iMsgType = pMsg[0];
 						uint32 iMsgBodyLen = __xrt_tls_load_be24(pMsg + 1);
 						size_t iTotalMsgLen = __XRT_TLS_MSGHDR_SIZE + iMsgBodyLen;
 						if ( iMsgOff + iTotalMsgLen > pCtx->tHandshakeBuf.iSize ) { break; }
+						// 必须是 Finished 消息
 						if ( iMsgType != __XRT_TLS_FINISHED ) { return XRT_NET_ERROR; }
+						// 验证客户端的 Finished verify_data
 						if ( !__xrt_tls12_verify_finished(pCtx,
 							pMsg + __XRT_TLS_MSGHDR_SIZE, iMsgBodyLen, false) ) {
 							return XRT_NET_ERROR;
 						}
+						// 将客户端 Finished 加入握手哈希
 						__xrt_tls12_update_hash(pCtx, pMsg, iTotalMsgLen);
 						__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+						// 非恢复会话：服务端需要发送 CCS + Finished 响应
 						if ( !pCtx->bSessionResumed ) {
 							if ( !__xrt_tls12_send_ccs_finished(pCtx, true) ) { return XRT_NET_ERROR; }
 						}
 						pCtx->bHandshakeDone = true;
+						// 非恢复会话：保存会话票据用于后续恢复
 						if ( !pCtx->bSessionResumed ) {
 							struct xrt_tls_resume tResume;
 							if ( __xrt_tls_resume_from_ctx(pCtx, &tResume) ) {
@@ -42955,7 +43277,9 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 			return XRT_NET_AGAIN;
 		}
 		
+		// ==================== TLS 1.3 服务端等待客户端 Finished ====================
 		case XRT_TLS_SERVER_NEGOTIATED: {
+			// 尝试从缓冲区或网络读取数据
 			if ( !__xrt_tls_have_record(pCtx) ) {
 				if ( !bAllowSocketIO ) { return XRT_NET_AGAIN; }
 				char aBuf[4096];
@@ -42967,26 +43291,31 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 					return XRT_NET_ERROR;
 				}
 			}
+			// 逐个处理接收缓冲区中的记录
 			while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
 				uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
 				uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 				const uint8* pRecData = (const uint8*)pCtx->tRecvBuf.pData + __XRT_TLS_RECHDR_SIZE;
 				if ( !__xrt_tls_record_payload_valid(iRecLen) ) { return XRT_NET_ERROR; }
 				if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) { break; }
+				// 忽略 CCS 记录（ TLS 1.3 中间件兼容性 ）
 				if ( iRecType == __XRT_TLS_CHANGE_CIPHER ) {
 					if ( iRecLen != 1 || pRecData[0] != 0x01 ) { return XRT_NET_ERROR; }
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					continue;
 				}
+				// Alert 记录直接处理
 				if ( iRecType == __XRT_TLS_ALERT ) {
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return __xrt_tls_handle_alert(pCtx, pRecData, iRecLen);
 				}
+				// 客户端 Finished 必须以加密的 APP_DATA 记录形式出现
 				if ( iRecType != __XRT_TLS_APP_DATA ) {
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 					return XRT_NET_ERROR;
 				}
 				{
+					// 使用客户端握手密钥解密记录
 					uint8 aPlain[__XRT_TLS_MAX_RECORD];
 					size_t iPlainLen = 0;
 					uint8 iContentType = 0;
@@ -42995,13 +43324,17 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 						return XRT_NET_ERROR;
 					}
 					__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
+					// 解密后遇到 Alert 则处理
 					if ( iContentType == __XRT_TLS_ALERT ) { return __xrt_tls_handle_alert(pCtx, aPlain, iPlainLen); }
+					// 跳过非握手内容（ 如 NewSessionTicket 等 ）
 					if ( iContentType != __XRT_TLS_HANDSHAKE ) { continue; }
+					// 将解密后的明文追加到握手重组缓冲区
 					__xrt_tls_buf_append(&pCtx->tHandshakeBuf, (const char*)aPlain, iPlainLen);
 					{
 						uint8 *pHsBuf = (uint8*)pCtx->tHandshakeBuf.pData;
 						size_t iHsBufLen = pCtx->tHandshakeBuf.iSize;
 						size_t iMsgOff = 0;
+						// 解析重组缓冲区中的握手消息
 						while ( iMsgOff + __XRT_TLS_MSGHDR_SIZE <= iHsBufLen ) {
 							uint8 *pMsg = pHsBuf + iMsgOff;
 							uint8 iMsgType = pMsg[0];
@@ -43010,14 +43343,19 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 							uint8 aHash[64];
 							size_t iHashLen = 0;
 							if ( iMsgOff + iTotalMsgLen > iHsBufLen ) { break; }
+							// 必须是 Finished 消息
 							if ( iMsgType != __XRT_TLS_FINISHED ) { return XRT_NET_ERROR; }
+							// 获取当前转录哈希用于验证 Finished
 							__xrt_tls13_get_transcript_hash(pCtx, aHash, &iHashLen);
+							// 验证客户端的 Finished verify_data
 							if ( !__xrt_tls_verify_finished(pCtx, pMsg + __XRT_TLS_MSGHDR_SIZE,
 								iMsgBodyLen, aHash, iHashLen, false) ) {
 								return XRT_NET_ERROR;
 							}
+							// 将客户端 Finished 加入转录哈希
 							__xrt_tls13_hash_update(pCtx, pMsg, iTotalMsgLen);
 							__xrt_tls_buf_consume(&pCtx->tHandshakeBuf, iMsgOff + iTotalMsgLen);
+							// 握手完成，进入连接状态
 							pCtx->bHandshakeDone = true;
 							pCtx->iState = XRT_TLS_SERVER_CONNECTED;
 							return XRT_NET_OK;
@@ -43035,38 +43373,42 @@ static xnet_result __xrt_tls_drive_internal(xtlsctx *pCtx, xsocket hSocket, bool
 			return XRT_NET_ERROR;
 	}
 }
-// xrtTlsHandshake 相关处理
+// 执行 TLS 握手（ 阻塞模式，允许 socket IO ）
 XXAPI xnet_result xrtTlsHandshake(xtlsctx *pCtx, xsocket hSocket)
 {
 	xnet_result iRes;
 	if ( !pCtx ) { return XRT_NET_ERROR; }
 	__xrt_tls_ctx_lock(pCtx);
+	// 允许 socket IO 的阻塞式握手驱动
 	iRes = __xrt_tls_drive_internal(pCtx, hSocket, true);
 	__xrt_tls_ctx_unlock(pCtx);
 	return iRes;
 }
-// xrtTlsDrive 相关处理
+// 驱动 TLS 状态机（ 非阻塞模式，仅处理缓冲区数据 ）
 XXAPI xnet_result xrtTlsDrive(xtlsctx *pCtx)
 {
 	xnet_result iRes;
 	if ( !pCtx ) { return XRT_NET_ERROR; }
 	__xrt_tls_ctx_lock(pCtx);
+	// 禁止 socket IO，仅消费缓冲区中已有的数据
 	iRes = __xrt_tls_drive_internal(pCtx, XSOCKET_INVALID, false);
 	__xrt_tls_ctx_unlock(pCtx);
 	return iRes;
 }
-// 读取 TLS
+// 读取 TLS 解密后的应用数据
 XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRead)
 {
 	xnet_result iRes = XRT_NET_AGAIN;
 	if ( !pCtx || !pBuf || iLen == 0 ) { return XRT_NET_ERROR; }
 	__xrt_tls_ctx_lock(pCtx);
+	// 握手未完成时返回 AGAIN
 	if ( !pCtx->bHandshakeDone ) {
 		iRes = XRT_NET_AGAIN;
 		goto Exit;
 	}
 	if ( pRead ) { *pRead = 0; }
 	
+	// 优先从明文缓冲区读取上次未读完的剩余数据
 	if ( pCtx->tPlainBuf.iSize > 0 ) {
 		size_t iCopy = pCtx->tPlainBuf.iSize < iLen ? pCtx->tPlainBuf.iSize : iLen;
 		memcpy(pBuf, pCtx->tPlainBuf.pData, iCopy);
@@ -43075,11 +43417,13 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 		iRes = XRT_NET_OK;
 		goto Exit;
 	}
+	// 已收到 close_notify，返回连接关闭
 	if ( pCtx->bCloseNotifyReceived ) {
 		iRes = XRT_NET_CLOSED;
 		goto Exit;
 	}
 	
+	// 逐个解密接收缓冲区中的加密记录
 	while ( pCtx->tRecvBuf.iSize >= __XRT_TLS_RECHDR_SIZE ) {
 		uint16 iRecLen = __xrt_tls_load_be16((const uint8*)pCtx->tRecvBuf.pData + 3);
 		uint8 iRecType = (uint8)pCtx->tRecvBuf.pData[0];
@@ -43089,21 +43433,26 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 		uint8 iContentType = 0;
 		bool bOK;
 		
+		// 验证记录长度是否合法
 		if ( !__xrt_tls_record_payload_valid(iRecLen) ) {
 			iRes = XRT_NET_ERROR;
 			goto Exit;
 		}
+		// 数据不完整则等待更多数据
 		if ( pCtx->tRecvBuf.iSize < (size_t)(__XRT_TLS_RECHDR_SIZE + iRecLen) ) { break; }
+		// 明文 Alert 记录直接处理
 		if ( iRecType == __XRT_TLS_ALERT ) {
 			__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 			iRes = __xrt_tls_handle_alert(pCtx, pRecData, iRecLen);
 			goto Exit;
 		}
 		
+		// 根据 TLS 版本选择对应的解密函数
 		if ( pCtx->bIsTls12 ) {
 			bOK = __xrt_tls12_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
 				__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType);
 		} else {
+			// TLS 1.3: 客户端用服务器密钥解密，服务端用客户端密钥解密
 			bool bUseServerKeys = !pCtx->bIsServer;
 			bOK = __xrt_tls_decrypt_record(pCtx, (const uint8*)pCtx->tRecvBuf.pData,
 				__XRT_TLS_RECHDR_SIZE + iRecLen, aPlain, &iPlainLen, &iContentType, bUseServerKeys);
@@ -43115,6 +43464,7 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 		}
 		__xrt_tls_buf_consume(&pCtx->tRecvBuf, __XRT_TLS_RECHDR_SIZE + iRecLen);
 		
+		// 解密成功后将应用数据追加到明文缓冲区
 		if ( iContentType == __XRT_TLS_APP_DATA ) {
 			if ( iPlainLen > 0 ) {
 				if ( !__xrt_tls_buf_append(&pCtx->tPlainBuf, (const char*)aPlain, iPlainLen) ) {
@@ -43125,12 +43475,14 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 			}
 			continue;
 		}
+		// 解密后遇到 Alert 则处理
 		if ( iContentType == __XRT_TLS_ALERT ) {
 			iRes = __xrt_tls_handle_alert(pCtx, aPlain, iPlainLen);
 			goto Exit;
 		}
 	}
 	
+	// 从明文缓冲区复制数据到用户缓冲区
 	if ( pCtx->tPlainBuf.iSize > 0 ) {
 		size_t iCopy = pCtx->tPlainBuf.iSize < iLen ? pCtx->tPlainBuf.iSize : iLen;
 		memcpy(pBuf, pCtx->tPlainBuf.pData, iCopy);
@@ -43139,6 +43491,7 @@ XXAPI xnet_result xrtTlsRead(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t *pRe
 		iRes = XRT_NET_OK;
 		goto Exit;
 	}
+	// 检查是否已收到 close_notify
 	if ( pCtx->bCloseNotifyReceived ) {
 		iRes = XRT_NET_CLOSED;
 		goto Exit;
@@ -43149,7 +43502,7 @@ Exit:
 	__xrt_tls_ctx_unlock(pCtx);
 	return iRes;
 }
-// 写入 TLS
+// 写入 TLS：将应用数据分片加密后写入发送缓冲区
 XXAPI xnet_result xrtTlsWrite(xtlsctx *pCtx, const char *pData, size_t iLen, size_t *pWritten)
 {
 	size_t iOffset = 0;
@@ -43165,19 +43518,23 @@ XXAPI xnet_result xrtTlsWrite(xtlsctx *pCtx, const char *pData, size_t iLen, siz
 		TLS record payload has a hard upper bound. Large HTTP bodies must be
 		split into multiple records, otherwise the 16-bit record length wraps
 		and clients fail while decrypting subsequent application data.
+		TLS 1.2 上限 16384 字节，TLS 1.3 因内容类型后缀需减 1
 	*/
 	iChunkLimit = pCtx->bIsTls12 ? 16384u : 16383u;
+	// 按 TLS 记录最大负载分片加密
 	while ( iOffset < iLen ) {
 		size_t iChunk = iLen - iOffset;
 		if ( iChunk > iChunkLimit ) {
 			iChunk = iChunkLimit;
 		}
+		// 根据 TLS 版本选择加密函数
 		if ( pCtx->bIsTls12 ) {
 			if ( !__xrt_tls12_encrypt_record(pCtx, __XRT_TLS_APP_DATA, (const uint8*)pData + iOffset, iChunk) ) {
 				iRes = XRT_NET_ERROR;
 				goto Exit;
 			}
 		} else {
+			// TLS 1.3: 客户端用客户端密钥加密，服务端用服务端密钥加密
 			bool bUseServerKeys = pCtx->bIsServer;
 			if ( !__xrt_tls_encrypt_record(pCtx, __XRT_TLS_APP_DATA, (const uint8*)pData + iOffset, iChunk, bUseServerKeys) ) {
 				iRes = XRT_NET_ERROR;
@@ -43192,7 +43549,7 @@ Exit:
 	__xrt_tls_ctx_unlock(pCtx);
 	return iRes;
 }
-// 关闭 TLS
+// 关闭 TLS 连接：发送 close_notify 警告
 XXAPI xnet_result xrtTlsClose(xtlsctx *pCtx)
 {
 	xnet_result iRes = XRT_NET_OK;
@@ -43202,6 +43559,7 @@ XXAPI xnet_result xrtTlsClose(xtlsctx *pCtx)
 		iRes = XRT_NET_AGAIN;
 		goto Exit;
 	}
+	// 已发送过 close_notify，根据是否收到对端响应返回状态
 	if ( pCtx->bCloseNotifySent ) {
 		iRes = pCtx->bCloseNotifyReceived ? XRT_NET_OK : XRT_NET_AGAIN;
 		goto Exit;
@@ -43209,6 +43567,7 @@ XXAPI xnet_result xrtTlsClose(xtlsctx *pCtx)
 	
 	// 发送 close_notify alert
 	uint8 aAlert[2] = { __XRT_TLS_ALERT_WARNING, __XRT_TLS_ALERT_CLOSE_NOTIFY };
+	// 根据 TLS 版本加密 Alert 记录
 	if ( pCtx->bIsTls12 ) {
 		if ( !__xrt_tls12_encrypt_record(pCtx, __XRT_TLS_ALERT, aAlert, 2) ) {
 			iRes = XRT_NET_ERROR;
@@ -43276,10 +43635,12 @@ XXAPI xnet_result xrtTlsPeekSend(xtlsctx *pCtx, char *pBuf, size_t iLen, size_t 
 	if ( pRead ) { *pRead = 0; }
 	if ( !pCtx || !pBuf || iLen == 0 ) { return XRT_NET_ERROR; }
 	__xrt_tls_ctx_lock(pCtx);
+	// 检查发送缓冲区是否有待发送数据
 	if ( pCtx->tSendBuf.iSize == 0 ) {
 		iRes = XRT_NET_AGAIN;
 		goto Exit;
 	}
+	// 取缓冲区数据和请求长度的较小值
 	iCopy = pCtx->tSendBuf.iSize < iLen ? pCtx->tSendBuf.iSize : iLen;
 	memcpy(pBuf, pCtx->tSendBuf.pData, iCopy);
 	if ( pRead ) { *pRead = iCopy; }
@@ -43297,11 +43658,13 @@ XXAPI void xrtTlsConsumeSend(xtlsctx *pCtx, size_t iLen)
 		__xrt_tls_ctx_unlock(pCtx);
 		return;
 	}
+	// 请求消费长度 >= 缓冲区大小，清空全部发送缓冲区
 	if ( iLen >= pCtx->tSendBuf.iSize ) {
 		__xrt_tls_buf_consume(&pCtx->tSendBuf, pCtx->tSendBuf.iSize);
 		__xrt_tls_ctx_unlock(pCtx);
 		return;
 	}
+	// 部分消费：仅移除前 iLen 字节
 	__xrt_tls_buf_consume(&pCtx->tSendBuf, iLen);
 	__xrt_tls_ctx_unlock(pCtx);
 }
@@ -43311,11 +43674,13 @@ XXAPI xtlsresume* xrtTlsExportResume(xtlsctx *pCtx)
 	xtlsresume* pResume;
 	if ( !pCtx ) { return NULL; }
 	__xrt_tls_ctx_lock(pCtx);
+	// 分配会话恢复数据结构
 	pResume = (xtlsresume*)xrtCalloc(1, sizeof(xtlsresume));
 	if ( !pResume ) {
 		__xrt_tls_ctx_unlock(pCtx);
 		return NULL;
 	}
+	// 从当前 TLS 上下文导出会话恢复信息
 	if ( !__xrt_tls_resume_from_ctx(pCtx, pResume) ) {
 		__xrt_tls_ctx_unlock(pCtx);
 		xrtFree(pResume);
@@ -43580,17 +43945,21 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 		iPos += iExtDataLen;
 	}
 	// 根据 SNI 动态切换证书后，再选择签名算法和握手参数
+	// 触发 SNI 回调，允许应用层根据域名动态切换证书
 	if ( pCtx->sClientSNI[0] != '\0' && pCtx->OnSNI ) {
 		pCtx->OnSNI(pCtx->pSession, pCtx->sClientSNI, pCtx->pSNIUserData);
 	}
 	// 优先协商 TLS 1.3
 	if ( bAllowTls13 && bTls13Supported ) {
+		// 选择密码套件，优先 AES-256，其次 ChaCha20，最后 AES-128
 		if ( bOfferTLS13AES256 ) { pCtx->iCipherSuite = __XRT_TLS_AES_256_GCM_SHA384; }
 		else if ( bOfferTLS13ChaCha ) { pCtx->iCipherSuite = __XRT_TLS_CHACHA20_POLY1305_SHA256; }
 		else if ( bOfferTLS13AES128 ) { pCtx->iCipherSuite = __XRT_TLS_AES_128_GCM_SHA256; }
 		else { pCtx->iCipherSuite = 0; }
 		if ( pCtx->iCipherSuite != 0 ) {
+			// 根据 key_share 扩展中的密钥交换组，完成 ECDHE 密钥协商
 			if ( bHaveX25519 ) {
+				// X25519 密钥交换
 				pCtx->iTls13Group = 0x001d;
 				pCtx->iPeerKeyShareLen = 32;
 				memcpy(pCtx->aPeerKeyShare, aX25519Peer, 32);
@@ -43598,6 +43967,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				xrtX25519SharedSecret(pCtx->aX25519Secret, pCtx->aX25519Priv, pCtx->aPeerKeyShare);
 				pCtx->iTls13SecretLen = 32;
 			} else if ( bHaveX448 ) {
+				// X448 密钥交换
 				pCtx->iTls13Group = 0x001e;
 				pCtx->iPeerKeyShareLen = 56;
 				memcpy(pCtx->aPeerKeyShare, aX448Peer, 56);
@@ -43605,6 +43975,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				xrtX448SharedSecret(pCtx->aX25519Secret, pCtx->aX448Priv, pCtx->aPeerKeyShare);
 				pCtx->iTls13SecretLen = 56;
 			} else if ( bHaveP256 ) {
+				// P-256 密钥交换
 				pCtx->iTls13Group = 0x0017;
 				pCtx->iPeerKeyShareLen = 65;
 				memcpy(pCtx->aPeerKeyShare, aP256Peer, 65);
@@ -43612,6 +43983,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				xrtECDHSecp256r1SharedSecret(pCtx->aX25519Secret, pCtx->aP256Priv, pCtx->aPeerKeyShare);
 				pCtx->iTls13SecretLen = 32;
 			} else if ( bHaveP384 ) {
+				// P-384 密钥交换
 				pCtx->iTls13Group = 0x0018;
 				pCtx->iPeerKeyShareLen = 97;
 				memcpy(pCtx->aPeerKeyShare, aP384Peer, 97);
@@ -43619,8 +43991,10 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				xrtECDHSecp384r1SharedSecret(pCtx->aX25519Secret, pCtx->aP384Priv, pCtx->aPeerKeyShare);
 				pCtx->iTls13SecretLen = 48;
 			}
+			// 密钥交换成功，选择与客户端兼容的签名算法
 			if ( pCtx->iTls13Group != 0 ) {
 				if ( pCtx->bIsEd25519Key ) {
+					// Ed25519 签名
 					if ( pCtx->bHasEd25519Priv && pCtx->bPeerSigEd25519 ) {
 						pCtx->iServerSigAlg = 0x0807;
 						return true;
@@ -43673,6 +44047,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				}
 			}
 		}
+		// TLS 1.3 协商失败，清理状态准备回退
 		pCtx->iTls13Group = 0;
 		pCtx->iPeerKeyShareLen = 0;
 	}
@@ -43680,6 +44055,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	if ( iLegacyVersion != __XRT_TLS_VERSION_1_2 ) { return false; }
 	// TLS 1.2 中 Ed25519 不是默认互操作路径, 仅在显式允许时作为 ECDHE_ECDSA 认证证书使用。
 	if ( pCtx->bIsEd25519Key && !pCtx->bAllowTLS12Ed25519 ) { return false; }
+	// 尝试 TLS 1.2 会话恢复：匹配 session_id 和密码套件
 	if ( pCtx->iSessionIdLen > 0
 		&& __xrt_tls_resume_cache_lookup(pCtx->aSessionId, pCtx->iSessionIdLen, &tCachedResume)
 		&& __xrt_tls12_client_offers_suite(tCachedResume.iCipherSuite,
@@ -43691,23 +44067,29 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 			bOfferTLS12EcdheRsaChaCha) ) {
 		pCtx->iCipherSuite = tCachedResume.iCipherSuite;
 		if ( !__xrt_tls12_set_cipher_params(pCtx, pCtx->iCipherSuite) ) { return false; }
+		// 恢复上次会话的 master secret
 		memcpy(pCtx->aMasterSecret, tCachedResume.aMasterSecret, sizeof(pCtx->aMasterSecret));
 		pCtx->bIsTls12 = true;
 		pCtx->bSessionResumed = true;
 		return true;
 	}
+	// 根据证书类型选择 ECDHE_ECDSA 或 ECDHE_RSA 密码套件
 	if ( pCtx->bIsECPubKey || pCtx->bIsEd25519Key ) {
+		// EC/Ed25519 证书 → 选择 ECDHE_ECDSA 套件
 		if ( bOfferTLS12EcdheEcdsaAES256 ) { pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384; }
 		else if ( bOfferTLS12EcdheEcdsaChaCha ) { pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256; }
 		else if ( bOfferTLS12EcdheEcdsaAES128 ) { pCtx->iCipherSuite = __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256; }
 		else { return false; }
 	} else {
+		// RSA 证书 → 选择 ECDHE_RSA 套件
 		if ( bOfferTLS12EcdheRsaAES256 ) { pCtx->iCipherSuite = __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384; }
 		else if ( bOfferTLS12EcdheRsaChaCha ) { pCtx->iCipherSuite = __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256; }
 		else if ( bOfferTLS12EcdheRsaAES128 ) { pCtx->iCipherSuite = __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256; }
 		else { return false; }
 	}
+	// 设置密码套件对应的哈希和密钥长度参数
 	if ( !__xrt_tls12_set_cipher_params(pCtx, pCtx->iCipherSuite) ) { return false; }
+	// 选择 ECDHE 密钥交换曲线，按优先级尝试
 	if ( bGroupX25519 ) {
 		pCtx->iTls12Curve = 0x001d;
 		xrtX25519Keypair(pCtx->aX25519Priv, pCtx->aX25519Pub);
@@ -43721,11 +44103,13 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 		pCtx->iTls12Curve = 0x0018;
 		xrtECDHSecp384r1Keypair(pCtx->aP384Priv, pCtx->aP384Pub);
 	} else if ( !bGroupX25519 && !bGroupX448 && !bGroupP256 && !bGroupP384 ) {
+		// 客户端未声明 supported_groups，默认使用 P-256
 		pCtx->iTls12Curve = 0x0017;
 		xrtECDHSecp256r1Keypair(pCtx->aP256Priv, pCtx->aP256Pub);
 	} else {
 		return false;
 	}
+	// 验证私钥存在
 	if ( pCtx->bIsEd25519Key ) {
 		if ( !pCtx->bHasEd25519Priv ) { return false; }
 	} else if ( pCtx->bIsECPubKey ) {
@@ -43733,17 +44117,22 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	} else {
 		if ( !pCtx->bHasRSAPrivKey ) { return false; }
 	}
+	// 根据证书类型和客户端支持的签名算法，选择服务端签名方案
 	if ( pCtx->bIsEd25519Key ) {
+		// Ed25519 签名（ 需要客户端和配置都允许 ）
 		if ( !pCtx->bAllowTLS12Ed25519 || !pCtx->bHasEd25519Priv || !pCtx->bPeerSigEd25519 ) { return false; }
 		pCtx->iServerSigAlg = 0x0807;
 	} else if ( pCtx->bIsECPubKey ) {
+		// ECDSA 签名，优先选择与密钥长度匹配的哈希
 		if ( bPeerSigECDSA256 ) { pCtx->iServerSigAlg = 0x0403; }
 		else if ( pCtx->bUseSHA384 && bPeerSigECDSA384 ) { pCtx->iServerSigAlg = 0x0503; }
 		else if ( bPeerSigECDSA384 ) { pCtx->iServerSigAlg = 0x0503; }
 		else if ( bPeerSigECDSA512 ) { pCtx->iServerSigAlg = 0x0603; }
 		else { return false; }
 	} else {
+		// RSA 签名，区分 RSASSA-PSS 和 PKCS#1 v1.5
 		if ( pCtx->bIsRSAPSSKey ) {
+			// RSA-PSS 证书：优先匹配密码套件哈希长度的 PSS 签名
 			if ( pCtx->bUseSHA384 && pCtx->bPeerSigRSAPSSPSS384 ) { pCtx->iServerSigAlg = 0x080a; }
 			else if ( !pCtx->bUseSHA384 && pCtx->bPeerSigRSAPSSPSS256 ) { pCtx->iServerSigAlg = 0x0809; }
 			else if ( pCtx->bPeerSigRSAPSSPSS256 ) { pCtx->iServerSigAlg = 0x0809; }
@@ -43751,6 +44140,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 			else if ( pCtx->bPeerSigRSAPSSPSS512 ) { pCtx->iServerSigAlg = 0x080b; }
 			else { return false; }
 		} else {
+			// 普通 RSA 证书：优先 PSS，回退到 PKCS#1 v1.5
 			if ( pCtx->bUseSHA384 && pCtx->bPeerSigRSAPSS384 ) { pCtx->iServerSigAlg = 0x0805; }
 			else if ( !pCtx->bUseSHA384 && pCtx->bPeerSigRSAPSS256 ) { pCtx->iServerSigAlg = 0x0804; }
 			else if ( pCtx->bUseSHA384 && bPeerSigRSAPKCS1384 ) { pCtx->iServerSigAlg = 0x0501; }
@@ -43771,30 +44161,37 @@ static bool __xrt_tls_sign_server_hash(xtlsctx *pCtx, const uint8 *pHash, size_t
 	uint8 *pSig, size_t *pSigLen)
 {
 	if ( !pCtx || !pHash || !pSig || !pSigLen ) { return false; }
+	// Ed25519 签名
 	if ( pCtx->bIsEd25519Key ) {
 		if ( !pCtx->bHasEd25519Priv || pCtx->iServerSigAlg != 0x0807 ) { return false; }
 		*pSigLen = 64;
 		return xrtEd25519Sign(pSig, pHash, iHashLen, pCtx->aEd25519Key);
 	}
+	// ECDSA 签名（ P-256 或 P-384 ）
 	if ( pCtx->bIsECPubKey ) {
 		if ( !pCtx->bHasECPrivKey ) { return false; }
 		if ( pCtx->iPubKeySz == 65 || pCtx->iECKeyLen == 32 ) {
+			// P-256 密钥签名
 			if ( pCtx->iServerSigAlg != 0x0403 && pCtx->iServerSigAlg != 0x0503 && pCtx->iServerSigAlg != 0x0603 ) { return false; }
 			return __xrt_ecdsa_sign_p256(pHash, iHashLen, pCtx->aECKey, pSig, pSigLen);
 		}
 		if ( pCtx->iPubKeySz == 97 || pCtx->iECKeyLen == 48 ) {
+			// P-384 密钥签名
 			if ( pCtx->iServerSigAlg != 0x0403 && pCtx->iServerSigAlg != 0x0503 && pCtx->iServerSigAlg != 0x0603 ) { return false; }
 			return __xrt_ecdsa_sign_p384(pHash, iHashLen, pCtx->aECKey, pSig, pSigLen);
 		}
 		return false;
 	}
+	// RSA 签名
 	if ( !pCtx->bHasRSAPrivKey || pCtx->iPubKeyModSz == 0 ) { return false; }
 	*pSigLen = pCtx->iPubKeyModSz;
+	// RSASSA-PSS 签名
 	if ( pCtx->iServerSigAlg == 0x0804 || pCtx->iServerSigAlg == 0x0805 || pCtx->iServerSigAlg == 0x0806 ||
 		pCtx->iServerSigAlg == 0x0809 || pCtx->iServerSigAlg == 0x080a || pCtx->iServerSigAlg == 0x080b ) {
 		return __xrt_rsa_pss_sign(pHash, iHashLen, pCtx->aPubKey, pCtx->iPubKeyModSz,
 			pCtx->aRSAPrivExp, pCtx->iRSAPrivExpSz, pSig, *pSigLen);
 	}
+	// PKCS#1 v1.5 签名
 	if ( pCtx->iServerSigAlg == 0x0401 || pCtx->iServerSigAlg == 0x0501 || pCtx->iServerSigAlg == 0x0601 ) {
 		return __xrt_rsa_pkcs1_sign(pHash, iHashLen, pCtx->aPubKey, pCtx->iPubKeyModSz,
 			pCtx->aRSAPrivExp, pCtx->iRSAPrivExpSz, pSig, *pSigLen);
@@ -43810,42 +44207,54 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 	size_t iLenPos;
 	size_t iKeyLen;
 	if ( !pCtx ) { return false; }
+	// 确定密钥交换的公钥长度
 	if ( pCtx->iTls13Group == 0x001d ) { iKeyLen = 32; }
 	else if ( pCtx->iTls13Group == 0x001e ) { iKeyLen = 56; }
 	else if ( pCtx->iTls13Group == 0x0017 ) { iKeyLen = 65; }
 	else if ( pCtx->iTls13Group == 0x0018 ) { iKeyLen = 97; }
 	else { return false; }
+	// 生成服务端随机数
 	xrtRandomBytes(pCtx->aServerRandom, 32);
+	// 构造 ServerHello 消息体
 	aBuf[iPos++] = __XRT_TLS_SERVER_HELLO;
 	iLenPos = iPos;
-	iPos += 3;
+	iPos += 3; // 预留 3 字节消息长度
+	// legacy_version: TLS 1.2 （ 兼容性要求 ）
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
 	iPos += 2;
+	// server_random（ 32 字节 ）
 	memcpy(aBuf + iPos, pCtx->aServerRandom, 32);
 	iPos += 32;
+	// legacy_session_id_echo
 	aBuf[iPos++] = pCtx->iSessionIdLen;
 	memcpy(aBuf + iPos, pCtx->aSessionId, pCtx->iSessionIdLen);
 	iPos += pCtx->iSessionIdLen;
+	// cipher_suite
 	__xrt_tls_store_be16(aBuf + iPos, pCtx->iCipherSuite);
 	iPos += 2;
+	// legacy_compression_method: null
 	aBuf[iPos++] = 0;
+	// 构造扩展区域
 	{
 		size_t iExtPos = iPos;
-		iPos += 2;
+		iPos += 2; // 预留扩展总长度
+		// supported_versions 扩展：声明 TLS 1.3
 		__xrt_tls_store_be16(aBuf + iPos, 0x002b);
 		iPos += 2;
-		__xrt_tls_store_be16(aBuf + iPos, 2);
+		__xrt_tls_store_be16(aBuf + iPos, 2); // 扩展数据长度
 		iPos += 2;
 		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
 		iPos += 2;
+		// key_share 扩展：包含服务端 ECDHE 公钥
 		__xrt_tls_store_be16(aBuf + iPos, 0x0033);
 		iPos += 2;
-		__xrt_tls_store_be16(aBuf + iPos, (uint16)(4 + iKeyLen));
+		__xrt_tls_store_be16(aBuf + iPos, (uint16)(4 + iKeyLen)); // 扩展数据长度 = group(2) + key_len(2) + pubkey
 		iPos += 2;
 		__xrt_tls_store_be16(aBuf + iPos, pCtx->iTls13Group);
 		iPos += 2;
 		__xrt_tls_store_be16(aBuf + iPos, (uint16)iKeyLen);
 		iPos += 2;
+		// 写入对应曲线的公钥
 		if ( pCtx->iTls13Group == 0x001d ) {
 			memcpy(aBuf + iPos, pCtx->aX25519Pub, 32);
 		} else if ( pCtx->iTls13Group == 0x001e ) {
@@ -43856,13 +44265,17 @@ static bool __xrt_tls13_send_server_hello(xtlsctx *pCtx)
 			memcpy(aBuf + iPos, pCtx->aP384Pub, 97);
 		}
 		iPos += iKeyLen;
+		// 回填扩展总长度
 		__xrt_tls_store_be16(aBuf + iExtPos, (uint16)(iPos - iExtPos - 2));
 	}
+	// 回填消息体长度
 	__xrt_tls_store_be24(aBuf + iLenPos, (uint32)(iPos - iLenPos - 3));
+	// 更新 TLS 1.3 握手哈希
 	__xrt_tls13_hash_update(pCtx, aBuf, iPos);
-	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2);
+	// 构造记录层头部并发送
+	__xrt_tls_store_be16(aRec + 1, __XRT_TLS_VERSION_1_2); // legacy_record_version
 	aRec[0] = __XRT_TLS_HANDSHAKE;
-	__xrt_tls_store_be16(aRec + 3, (uint16)iPos);
+	__xrt_tls_store_be16(aRec + 3, (uint16)iPos); // 记录长度
 	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aRec, 5);
 	__xrt_tls_buf_append(&pCtx->tSendBuf, (const char*)aBuf, iPos);
 	return true;
@@ -43872,10 +44285,12 @@ static bool __xrt_tls13_send_encrypted_extensions(xtlsctx *pCtx)
 {
 	uint8 aMsg[6];
 	if ( !pCtx ) { return false; }
+	// 构造 EncryptedExtensions 消息（ 无额外扩展，长度为 0 ）
 	aMsg[0] = __XRT_TLS_ENCRYPTED_EXTENSIONS;
-	__xrt_tls_store_be24(aMsg + 1, 2);
-	__xrt_tls_store_be16(aMsg + 4, 0);
+	__xrt_tls_store_be24(aMsg + 1, 2); // 消息体长度
+	__xrt_tls_store_be16(aMsg + 4, 0); // 扩展列表长度为 0
 	__xrt_tls13_hash_update(pCtx, aMsg, sizeof(aMsg));
+	// 加密后发送
 	return __xrt_tls_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, aMsg, sizeof(aMsg), true);
 }
 // 内部函数：发送 TLS 13 certificate
@@ -43885,17 +44300,19 @@ static bool __xrt_tls13_send_certificate(xtlsctx *pCtx)
 	size_t iMsgLen;
 	uint8 *pMsg;
 	if ( !pCtx || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return false; }
+	// 计算消息体长度：request_context(1) + cert_list_length(3) + cert_length(3) + cert_data + extensions_length(2)
 	iBodyLen = 1 + 3 + 3 + pCtx->iCertDerLen + 2;
 	iMsgLen = __XRT_TLS_MSGHDR_SIZE + iBodyLen;
 	pMsg = (uint8*)xrtMalloc(iMsgLen);
 	if ( !pMsg ) { return false; }
+	// 构造 Certificate 消息
 	pMsg[0] = __XRT_TLS_CERTIFICATE;
 	__xrt_tls_store_be24(pMsg + 1, (uint32)iBodyLen);
-	pMsg[4] = 0;
-	__xrt_tls_store_be24(pMsg + 5, (uint32)(3 + pCtx->iCertDerLen + 2));
-	__xrt_tls_store_be24(pMsg + 8, (uint32)pCtx->iCertDerLen);
+	pMsg[4] = 0; // request_context（ 服务端发送时为空 ）
+	__xrt_tls_store_be24(pMsg + 5, (uint32)(3 + pCtx->iCertDerLen + 2)); // certificate_list 长度
+	__xrt_tls_store_be24(pMsg + 8, (uint32)pCtx->iCertDerLen); // 单个证书条目长度
 	memcpy(pMsg + 11, pCtx->pCertDer, pCtx->iCertDerLen);
-	__xrt_tls_store_be16(pMsg + 11 + pCtx->iCertDerLen, 0);
+	__xrt_tls_store_be16(pMsg + 11 + pCtx->iCertDerLen, 0); // 证书扩展长度为 0
 	__xrt_tls13_hash_update(pCtx, pMsg, iMsgLen);
 	{
 		bool bOK = __xrt_tls_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, pMsg, iMsgLen, true);
@@ -43915,20 +44332,24 @@ static bool __xrt_tls13_send_certificate_verify(xtlsctx *pCtx)
 	size_t iMsgLen;
 	uint8 *pMsg;
 	if ( !pCtx || pCtx->iServerSigAlg == 0 ) { return false; }
+	// 计算握手消息的 transcript hash
 	__xrt_tls13_get_transcript_hash(pCtx, aTranscriptHash, &iTranscriptHashLen);
+	// 构造 CertificateVerify 签名输入数据
 	if ( !__xrt_tls13_build_cert_verify_input(aContentHash, &iContentHashLen,
 		aTranscriptHash, iTranscriptHashLen, pCtx->iServerSigAlg, true) ) {
 		return false;
 	}
+	// 使用服务端私钥对签名输入进行签名
 	if ( !__xrt_tls_sign_server_hash(pCtx, aContentHash, iContentHashLen, aSig, &iSigLen) ) { return false; }
+	// 构造 CertificateVerify 消息
 	iMsgLen = __XRT_TLS_MSGHDR_SIZE + 2 + 2 + iSigLen;
 	pMsg = (uint8*)xrtMalloc(iMsgLen);
 	if ( !pMsg ) { return false; }
 	pMsg[0] = __XRT_TLS_CERTIFICATE_VERIFY;
-	__xrt_tls_store_be24(pMsg + 1, (uint32)(4 + iSigLen));
-	__xrt_tls_store_be16(pMsg + 4, pCtx->iServerSigAlg);
-	__xrt_tls_store_be16(pMsg + 6, (uint16)iSigLen);
-	memcpy(pMsg + 8, aSig, iSigLen);
+	__xrt_tls_store_be24(pMsg + 1, (uint32)(4 + iSigLen)); // 消息体长度
+	__xrt_tls_store_be16(pMsg + 4, pCtx->iServerSigAlg); // 签名算法标识
+	__xrt_tls_store_be16(pMsg + 6, (uint16)iSigLen); // 签名长度
+	memcpy(pMsg + 8, aSig, iSigLen); // 签名数据
 	__xrt_tls13_hash_update(pCtx, pMsg, iMsgLen);
 	{
 		bool bOK = __xrt_tls_encrypt_record(pCtx, __XRT_TLS_HANDSHAKE, pMsg, iMsgLen, true);
@@ -43939,10 +44360,15 @@ static bool __xrt_tls13_send_certificate_verify(xtlsctx *pCtx)
 // 内部函数：__xrt_tls13_send_server_flight
 static bool __xrt_tls13_send_server_flight(xtlsctx *pCtx)
 {
+	// 发送 EncryptedExtensions 消息
 	if ( !__xrt_tls13_send_encrypted_extensions(pCtx) ) { return false; }
+	// 发送 Certificate 消息
 	if ( !__xrt_tls13_send_certificate(pCtx) ) { return false; }
+	// 发送 CertificateVerify 消息
 	if ( !__xrt_tls13_send_certificate_verify(pCtx) ) { return false; }
+	// 发送 Finished 消息
 	if ( !__xrt_tls_send_finished(pCtx, true) ) { return false; }
+	// 派生应用数据密钥
 	__xrt_tls_derive_application_keys(pCtx);
 	return true;
 }
@@ -43961,6 +44387,7 @@ static bool __xrt_tls_parse_rsa_private_key(xtlsctx *pCtx, uint8 *pDer, size_t i
 	// privateExponent
 	if ( __xrt_der_next(&tSeq, &tField) <= 0 || tField.iType != 0x02 ) { return false; }
 	pCtx->iRSAPrivExpSz = tField.iLen;
+	// DER 整数编码可能包含前导 0x00 填充字节，跳过它
 	if ( pCtx->iRSAPrivExpSz > 0 && tField.pValue[0] == 0x00 ) { pCtx->iRSAPrivExpSz--; }
 	if ( pCtx->iRSAPrivExpSz == 0 || pCtx->iRSAPrivExpSz > sizeof(pCtx->aRSAPrivExp) ) { return false; }
 	if ( tField.pValue[0] == 0x00 ) {
@@ -43977,7 +44404,9 @@ static bool __xrt_tls_parse_ec_private_key(xtlsctx *pCtx, uint8 *pDer, size_t iL
 	struct __xrt_der_tlv tSeq, tField;
 	if ( !pCtx || !pDer ) { return false; }
 	if ( __xrt_der_parse(pDer, iLen, &tSeq) < 0 || tSeq.iType != 0x30 ) { return false; }
+	// version（ INTEGER ）
 	if ( __xrt_der_next(&tSeq, &tField) <= 0 || tField.iType != 0x02 ) { return false; }
+	// privateKey（ OCTET STRING ），仅支持 P-256（ 32 字节 ）和 P-384（ 48 字节 ）
 	if ( __xrt_der_next(&tSeq, &tField) <= 0 || tField.iType != 0x04 ) { return false; }
 	if ( tField.iLen != 32 && tField.iLen != 48 ) { return false; }
 	memcpy(pCtx->aECKey, tField.pValue, tField.iLen);
@@ -43990,17 +44419,21 @@ static bool __xrt_tls_parse_ed25519_private_key(xtlsctx *pCtx, uint8 *pDer, size
 {
 	struct __xrt_der_tlv tKey, tSeed;
 	if ( !pCtx || !pDer ) { return false; }
+	// 直接 32 字节原始种子
 	if ( iLen == 32 ) {
 		memcpy(pCtx->aEd25519Key, pDer, 32);
 		pCtx->bHasEd25519Priv = true;
 		return true;
 	}
+	// DER 编码格式解析
 	if ( __xrt_der_parse(pDer, iLen, &tKey) < 0 ) { return false; }
+	// OCTET STRING 直接包含 32 字节种子
 	if ( tKey.iType == 0x04 && tKey.iLen == 32 ) {
 		memcpy(pCtx->aEd25519Key, tKey.pValue, 32);
 		pCtx->bHasEd25519Priv = true;
 		return true;
 	}
+	// 嵌套 DER 结构：外层 OCTET STRING 包含内层 OCTET STRING（ 种子 ）
 	if ( tKey.iType != 0x04 ) { return false; }
 	if ( __xrt_der_parse(tKey.pValue, tKey.iLen, &tSeed) < 0 || tSeed.iType != 0x04 || tSeed.iLen != 32 ) { return false; }
 	memcpy(pCtx->aEd25519Key, tSeed.pValue, 32);
@@ -44012,23 +44445,31 @@ static bool __xrt_tls_parse_private_key_info(xtlsctx *pCtx, uint8 *pDer, size_t 
 {
 	struct __xrt_der_tlv tSeq, tVersion, tAlg, tPriv, tOID;
 	if ( !pCtx || !pDer ) { return false; }
+	// 解析 PKCS#8 PrivateKeyInfo 顶层 SEQUENCE
 	if ( __xrt_der_parse(pDer, iLen, &tSeq) < 0 || tSeq.iType != 0x30 ) { return false; }
+	// version（ INTEGER ）
 	if ( __xrt_der_next(&tSeq, &tVersion) <= 0 || tVersion.iType != 0x02 ) { return false; }
+	// privateKeyAlgorithm（ SEQUENCE ）
 	if ( __xrt_der_next(&tSeq, &tAlg) <= 0 || tAlg.iType != 0x30 ) { return false; }
+	// privateKey（ OCTET STRING ）
 	if ( __xrt_der_next(&tSeq, &tPriv) <= 0 || tPriv.iType != 0x04 ) { return false; }
+	// 根据算法 OID 分发到对应的密钥解析函数
 	{
 		struct __xrt_der_tlv tAlgItems = tAlg;
 		if ( __xrt_der_next(&tAlgItems, &tOID) <= 0 || tOID.iType != 0x06 ) { return false; }
+		// RSA 或 RSASSA-PSS
 		if ( (tOID.iLen == sizeof(__xrt_oid_rsa_encryption) &&
 			memcmp(tOID.pValue, __xrt_oid_rsa_encryption, sizeof(__xrt_oid_rsa_encryption)) == 0) ||
 			(tOID.iLen == sizeof(__xrt_oid_rsassa_pss) &&
 			memcmp(tOID.pValue, __xrt_oid_rsassa_pss, sizeof(__xrt_oid_rsassa_pss)) == 0) ) {
 			return __xrt_tls_parse_rsa_private_key(pCtx, tPriv.pValue, tPriv.iLen);
 		}
+		// EC 公钥（ P-256 / P-384 ）
 		if ( tOID.iLen == sizeof(__xrt_oid_ec_public_key) &&
 			memcmp(tOID.pValue, __xrt_oid_ec_public_key, sizeof(__xrt_oid_ec_public_key)) == 0 ) {
 			return __xrt_tls_parse_ec_private_key(pCtx, tPriv.pValue, tPriv.iLen);
 		}
+		// Ed25519
 		if ( tOID.iLen == sizeof(__xrt_oid_ed25519) &&
 			memcmp(tOID.pValue, __xrt_oid_ed25519, sizeof(__xrt_oid_ed25519)) == 0 ) {
 			return __xrt_tls_parse_ed25519_private_key(pCtx, tPriv.pValue, tPriv.iLen);
@@ -44041,6 +44482,7 @@ static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx)
 {
 	struct __xrt_x509_cert tCert;
 	if ( !pCtx ) { return false; }
+	// 清除之前的密钥状态
 	pCtx->bHasECPrivKey = false;
 	pCtx->bHasEd25519Priv = false;
 	pCtx->bHasRSAPrivKey = false;
@@ -44051,11 +44493,16 @@ static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx)
 	memset(pCtx->aECKey, 0, sizeof(pCtx->aECKey));
 	memset(pCtx->aEd25519Key, 0, sizeof(pCtx->aEd25519Key));
 	memset(pCtx->aRSAPrivExp, 0, sizeof(pCtx->aRSAPrivExp));
+	// 没有证书时直接返回成功（ 匿名模式 ）
 	if ( !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return true; }
+	// 解析 X.509 证书，提取公钥信息
 	if ( !__xrt_x509_parse(pCtx->pCertDer, pCtx->iCertDerLen, &tCert) ) { return false; }
 	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &tCert) ) { return false; }
+	// 没有私钥时只设置公钥信息
 	if ( !pCtx->pKeyDer || pCtx->iKeyDerLen == 0 ) { return true; }
+	// 尝试 PKCS#8 格式解析私钥
 	if ( __xrt_tls_parse_private_key_info(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
+		// 验证 EC 公私钥长度匹配
 		if ( pCtx->bIsECPubKey && pCtx->bHasECPrivKey ) {
 			if ( (pCtx->iPubKeySz == 65 && pCtx->iECKeyLen != 32)
 				|| (pCtx->iPubKeySz == 97 && pCtx->iECKeyLen != 48) ) {
@@ -44065,9 +44512,11 @@ static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx)
 		if ( pCtx->bIsEd25519Key ) { return pCtx->bHasEd25519Priv; }
 		return pCtx->bIsECPubKey ? pCtx->bHasECPrivKey : pCtx->bHasRSAPrivKey;
 	}
+	// 回退尝试传统 RSA PKCS#1 格式
 	if ( __xrt_tls_parse_rsa_private_key(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
 		return !pCtx->bIsECPubKey && !pCtx->bIsEd25519Key;
 	}
+	// 回退尝试传统 EC 格式
 	if ( __xrt_tls_parse_ec_private_key(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
 		if ( pCtx->bIsECPubKey ) {
 			if ( (pCtx->iPubKeySz == 65 && pCtx->iECKeyLen != 32)
@@ -44077,6 +44526,7 @@ static bool __xrt_tls_prepare_server_identity(xtlsctx *pCtx)
 		}
 		return pCtx->bIsECPubKey;
 	}
+	// 回退尝试 Ed25519 格式
 	if ( __xrt_tls_parse_ed25519_private_key(pCtx, pCtx->pKeyDer, pCtx->iKeyDerLen) ) {
 		return pCtx->bIsEd25519Key;
 	}
@@ -44109,11 +44559,13 @@ XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char
 	size_t iKeyDerLen = 0;
 	xnet_result iRes;
 	if ( !pCtx ) { return XRT_NET_ERROR; }
+	// 加载 DER 格式证书文件
 	if ( sCertFile && sCertFile[0] ) {
 		if ( !__xrt_tls_load_der_file(sCertFile, &pCertDer, &iCertDerLen) ) {
 			return XRT_NET_ERROR;
 		}
 	}
+	// 加载 DER 格式私钥文件
 	if ( sKeyFile && sKeyFile[0] ) {
 		if ( !__xrt_tls_load_der_file(sKeyFile, &pKeyDer, &iKeyDerLen) ) {
 			if ( pCertDer ) { xrtFree(pCertDer); }
@@ -44125,6 +44577,7 @@ XXAPI xnet_result xrtTlsSetCert(xtlsctx *pCtx, const char *sCertFile, const char
 	__xrt_tls_ctx_unlock(pCtx);
 	return iRes;
 }
+// 设置 TLS 证书（ 内存数据形式 ）
 XXAPI xnet_result xrtTlsSetCertData(xtlsctx *pCtx, const void *pCertData, size_t iCertLen, const void *pKeyData, size_t iKeyLen)
 {
 	uint8 *pCertCopy = NULL;
@@ -44135,9 +44588,11 @@ XXAPI xnet_result xrtTlsSetCertData(xtlsctx *pCtx, const void *pCertData, size_t
 	if ( !pCtx ) {
 		return XRT_NET_ERROR;
 	}
+	// 复制证书 DER 数据
 	if ( !__xrt_tls_copy_der_data(pCertData, iCertLen, &pCertCopy, &iCertCopyLen) ) {
 		return XRT_NET_ERROR;
 	}
+	// 复制私钥 DER 数据
 	if ( !__xrt_tls_copy_der_data(pKeyData, iKeyLen, &pKeyCopy, &iKeyCopyLen) ) {
 		if ( pCertCopy ) {
 			xrtFree(pCertCopy);
@@ -44163,15 +44618,18 @@ XXAPI xtlssession* xrtNetTlsSessionCreate(const xtlsconfig* pCfg, bool bIsServer
 {
 	xtlssession* pSession;
 	(void)xrtInit();
+	// 分配会话结构体
 	pSession = (xtlssession*)xrtCalloc(1, sizeof(xtlssession));
 	if ( !pSession ) {
 		return NULL;
 	}
+	// 创建底层 TLS 上下文
 	pSession->pCtx = xrtTlsCreate(pCfg, bIsServer);
 	if ( !pSession->pCtx ) {
 		xrtFree(pSession);
 		return NULL;
 	}
+	// 双向关联上下文和会话
 	pSession->pCtx->pSession = pSession;
 	pSession->bIsServer = bIsServer;
 	return pSession;
@@ -44182,6 +44640,7 @@ XXAPI void xrtNetTlsSessionDestroy(xtlssession* pSession)
 	if ( !pSession ) {
 		return;
 	}
+	// 先断开双向关联，再销毁上下文
 	if ( pSession->pCtx ) {
 		pSession->pCtx->pSession = NULL;
 		xrtTlsDestroy(pSession->pCtx);
