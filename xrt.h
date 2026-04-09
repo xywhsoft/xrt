@@ -6829,7 +6829,7 @@
 		(o)->RootNode = NULL; \
 		(o)->Count = 0; \
 		(o)->Iterator = NULL; \
-	} while(0)
+	} while ( 0 )
 	
 	// 释放 AVLTree
 	#define xrtAVLTB_Unit xrtAVLTB_Init

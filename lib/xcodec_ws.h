@@ -2,14 +2,14 @@
 #define XRT_XCODEC_WS_H
 
 /*
-    XRT mainline WebSocket frame codec.
+	XRT mainline WebSocket frame codec.
 
-    This header provides:
-      - frame header parsing for FIN/opcode/mask/payload length
-      - payload boundary metadata over xnetchain
-      - masking helpers used by the upper WebSocket layer
+	This header provides:
+	  - frame header parsing for FIN/opcode/mask/payload length
+	  - payload boundary metadata over xnetchain
+	  - masking helpers used by the upper WebSocket layer
 
-    Message reassembly remains the responsibility of xws.
+	Message reassembly remains the responsibility of xws.
 */
 
 

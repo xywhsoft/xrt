@@ -273,46 +273,46 @@ static void __xrtRuntimeFinalizeLocked();
 #include "lib/path.h"			// 路径处理库，xCore 初始化使用，始终包含
 
 #ifndef XRT_NO_TIME
-#include "lib/time.h"
+	#include "lib/time.h"
 #endif
 
 #ifndef XRT_NO_FILE
-#include "lib/file.h"
-#if !defined(XRT_NO_FILE_ASYNC)
-#include "lib/file_async.h"
-#endif
+	#include "lib/file.h"
+	#if !defined(XRT_NO_FILE_ASYNC)
+		#include "lib/file_async.h"
+	#endif
 #endif
 
 #ifndef XRT_NO_THREAD
-#include "lib/thread.h"
+	#include "lib/thread.h"
 #endif
 
 #ifndef XRT_NO_QUEUE
-#include "lib/queue.h"
+	#include "lib/queue.h"
 #endif
 
 #ifndef XRT_NO_COROUTINE
-#include "lib/coroutine.h"
+	#include "lib/coroutine.h"
 #endif
 
 #ifndef XRT_NO_NETWORK
-#ifndef XRT_NO_XURL
-#include "lib/xurl.h"
-#endif
-#ifndef XRT_NO_HTTP_UTIL
-#include "lib/xhttp_util.h"
-#endif
-#include "lib/xnet_base.h"
-#include "lib/xnet_mem.h"
-#include "lib/xnet_port.h"
-#include "lib/xnet_port_iocp.h"
-#include "lib/xnet_port_uring.h"
-#ifndef XRT_NO_XCODEC
-#include "lib/xcodec.h"
-#include "lib/xcodec_http1.h"
-#include "lib/xcodec_ws.h"
-#endif
-#include "lib/xnet_engine.h"
+	#ifndef XRT_NO_XURL
+		#include "lib/xurl.h"
+	#endif
+	#ifndef XRT_NO_HTTP_UTIL
+		#include "lib/xhttp_util.h"
+	#endif
+	#include "lib/xnet_base.h"
+	#include "lib/xnet_mem.h"
+	#include "lib/xnet_port.h"
+	#include "lib/xnet_port_iocp.h"
+	#include "lib/xnet_port_uring.h"
+	#ifndef XRT_NO_XCODEC
+		#include "lib/xcodec.h"
+		#include "lib/xcodec_http1.h"
+		#include "lib/xcodec_ws.h"
+	#endif
+	#include "lib/xnet_engine.h"
 #endif
 
 #if defined(__GNUC__)
@@ -321,11 +321,11 @@ static void __xrtRuntimeFinalizeLocked();
 #endif
 
 #ifndef XRT_NO_CRYPTO
-#include "lib/crypto.h"
+	#include "lib/crypto.h"
 #endif
 
 #ifndef XRT_NO_NETTLS
-#include "lib/nettls.h"
+	#include "lib/nettls.h"
 #endif
 
 #if defined(__GNUC__)
@@ -333,95 +333,95 @@ static void __xrtRuntimeFinalizeLocked();
 #endif
 
 #ifndef XRT_NO_NETWORK
-#include "lib/xnet_proxy.h"
-#include "lib/xnet_stream.h"
-#include "lib/xnet_dgram.h"
-#include "lib/xnet_sync.h"
-#ifndef XRT_NO_XHTTP
-#include "lib/xhttp.h"
-#endif
-#ifndef XRT_NO_XHTTPD
-#include "lib/xhttpd.h"
-#endif
-#ifndef XRT_NO_XWS
-#include "lib/xws.h"
-#endif
-#include "lib/network.h"
+	#include "lib/xnet_proxy.h"
+	#include "lib/xnet_stream.h"
+	#include "lib/xnet_dgram.h"
+	#include "lib/xnet_sync.h"
+	#ifndef XRT_NO_XHTTP
+		#include "lib/xhttp.h"
+	#endif
+	#ifndef XRT_NO_XHTTPD
+		#include "lib/xhttpd.h"
+	#endif
+	#ifndef XRT_NO_XWS
+		#include "lib/xws.h"
+	#endif
+	#include "lib/network.h"
 #endif
 
 #ifndef XRT_NO_SUBPROCESS
-#include "lib/subprocess.h"
+	#include "lib/subprocess.h"
 #endif
 
 #ifndef XRT_NO_XID
-#include "lib/xid.h"
+	#include "lib/xid.h"
 #endif
 
 #ifndef XRT_NO_BUFFER
-#include "lib/buffer.h"
+	#include "lib/buffer.h"
 #endif
 
 
 #ifndef XRT_NO_ARRAY
-#include "lib/array_point.h"
-#include "lib/array.h"
+	#include "lib/array_point.h"
+	#include "lib/array.h"
 #endif
 
 #ifndef XRT_NO_BSMN
-#include "lib/bsmm.h"
+	#include "lib/bsmm.h"
 #endif
 
 #ifndef XRT_NO_MEMUNIT
-#include "lib/memunit.h"
+	#include "lib/memunit.h"
 #endif
 
 #ifndef XRT_NO_MEMPOOL_FS
-#include "lib/mempool_fs.h"
+	#include "lib/mempool_fs.h"
 #endif
 
 #ifndef XRT_NO_STACK
-#include "lib/stack.h"
-#include "lib/stack_dyn.h"
+	#include "lib/stack.h"
+	#include "lib/stack_dyn.h"
 #endif
 
 #ifndef XRT_NO_AVLTREE
-#include "lib/avltree_base.h"
-#include "lib/avltree.h"
+	#include "lib/avltree_base.h"
+	#include "lib/avltree.h"
 #endif
 
 #ifndef XRT_NO_MEMPOOL
-#include "lib/mempool.h"
+	#include "lib/mempool.h"
 #endif
 
 #ifndef XRT_NO_DICT
-#include "lib/dict.h"
+	#include "lib/dict.h"
 #endif
 
 #ifndef XRT_NO_LIST
-#include "lib/list.h"
+	#include "lib/list.h"
 #endif
 
 #ifndef XRT_NO_REGEX
-#include "lib/regex.h"
+	#include "lib/regex.h"
 #endif
 
 #ifndef XRT_NO_VALUE
-#include "lib/value.h"
+	#include "lib/value.h"
 #endif
 
 #ifndef XRT_NO_JNUM
-#include "lib/jnum.h"
+	#include "lib/jnum.h"
 #endif
 
 #ifndef XRT_NO_JSON
-#include "lib/json.h"
-#if !defined(XRT_NO_XSON)
-#include "lib/xson.h"
-#endif
+	#include "lib/json.h"
+	#if !defined(XRT_NO_XSON)
+		#include "lib/xson.h"
+	#endif
 #endif
 
 #ifndef XRT_NO_TEMPLATE
-#include "lib/template.h"
+	#include "lib/template.h"
 #endif
 
 
@@ -656,7 +656,7 @@ static void __xrtRunThreadCleanup(xrtThreadData* pThreadData)
 
 
 
-// 获取线程当前
+// 获取当前线程的运行时状态
 XXAPI xrtThreadData* xrtThreadGetCurrent()
 {
 	return __xrtThreadStateGet();
@@ -887,18 +887,21 @@ static bool __xrtMemDebugHasIssues()
 }
 
 
+// 判断内存调试状态是否正常（无泄漏、无越界等）
 static const char* __xrtMemDebugReportStatusName(bool bHasIssues)
 {
 	return bHasIssues ? "issues_detected" : "clean";
 }
 
 
+// 获取内存调试状态摘要文本
 static const char* __xrtMemDebugReportSummary(bool bHasIssues)
 {
 	return bHasIssues ? "memory issues detected" : "no memory issues detected";
 }
 
 
+// 将内存调试状态导出为文本文件
 static bool __xrtMemDebugDumpTextFile(FILE* pFile)
 {
 	xrtMemBlockHeader* pHeader;
@@ -1508,10 +1511,10 @@ XXAPI void xrtUnit()
 		BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		{
 			if ( fdwReason == DLL_PROCESS_ATTACH ) {
-				//当进程加载dll时调用dllMain
+				// 当进程加载 DLL 时调用 DllMain
 				xrtInit();
 			} else if ( fdwReason == DLL_PROCESS_DETACH ) {
-				//当进程卸载dll时调用dllMain
+				// 当进程卸载 DLL 时调用 DllMain
 				xrtUnit();
 			}
 			return (TRUE);

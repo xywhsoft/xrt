@@ -5,18 +5,18 @@
 #define XRT_XNET_MEM_H
 
 /*
-    XRT mainline network memory blocks and chains.
+	XRT mainline network memory blocks and chains.
 
-    This header provides:
-      - cached small/medium/large block classes for transport and protocol I/O
-      - dynamic blocks for oversized payloads
-      - ref blocks for zero-copy send and external buffer ownership
-      - xnetchain helpers for append, peek, span extraction, and consume
+	This header provides:
+	  - cached small/medium/large block classes for transport and protocol I/O
+	  - dynamic blocks for oversized payloads
+	  - ref blocks for zero-copy send and external buffer ownership
+	  - xnetchain helpers for append, peek, span extraction, and consume
 
-    Threading contract:
-      - xnetmemctx is thread-affine by design
-      - the mainline engine keeps one ctx per worker thread
-      - do not share one live ctx across active threads without external synchronization
+	Threading contract:
+	  - xnetmemctx is thread-affine by design
+	  - the mainline engine keeps one ctx per worker thread
+	  - do not share one live ctx across active threads without external synchronization
 */
 
 

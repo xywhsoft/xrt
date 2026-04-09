@@ -1,19 +1,19 @@
 /*
-    NetTLS - builtin TLS engine for xrt
+	NetTLS - builtin TLS engine for xrt
 
-    This file implements the in-tree TLS stack used by the modern xrt network
-    path. It does not depend on the archived v1 network layer and only relies
-    on:
-      - lib/crypto.h for cryptographic primitives
-      - platform sockets when the blocking handshake helper is used
-      - transport-fed TLS byte buffers owned by xtlsctx
+	This file implements the in-tree TLS stack used by the modern xrt network
+	path. It does not depend on the archived v1 network layer and only relies
+	on:
+	  - lib/crypto.h for cryptographic primitives
+	  - platform sockets when the blocking handshake helper is used
+	  - transport-fed TLS byte buffers owned by xtlsctx
 
-    Current scope:
-      - TLS 1.3 as the primary path
-      - TLS 1.2 compatibility where already supported by the engine
-      - socketless transport-owned drive/feed integration via xrtTlsDrive and
-        xrtTlsFeed
-      - builtin client/server operation with no external TLS dependency
+	Current scope:
+	  - TLS 1.3 as the primary path
+	  - TLS 1.2 compatibility where already supported by the engine
+	  - socketless transport-owned drive/feed integration via xrtTlsDrive and
+		xrtTlsFeed
+	  - builtin client/server operation with no external TLS dependency
 */
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -594,7 +594,7 @@ static const uint8 __xrt_oid_ed25519[] = {
 
 // x509 OID: commonName 2.5.4.3
 static const uint8 __xrt_oid_common_name[] = {
-        0x55, 0x04, 0x03
+		0x55, 0x04, 0x03
 };
 
 // x509 OID: subjectAltName 2.5.29.17
@@ -7411,7 +7411,7 @@ XXAPI void xrtP256ArithTest(void)
 	printf("  (p-1)^2 mod p == 1: %s\n", memcmp(r, one, 32) == 0 ? "PASS" : "FAIL");
 	if (memcmp(r, one, 32) != 0) {
 		uint8 aR[32]; __xrt_u256_to_be(aR, r);
-		printf("    got: "); for(int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
+		printf("    got: "); for ( int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
 	}
 	
 	// Test 2: (p-1) * 2 mod p should == p-2
@@ -7518,8 +7518,8 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 	if (memcmp(lhs, rhs, 32) != 0) {
 		uint8 aL[32], aR[32];
 		__xrt_u256_to_be(aL, lhs); __xrt_u256_to_be(aR, rhs);
-		printf("    Gy^2:         "); for(int i=0;i<32;i++) printf("%02x",aL[i]); printf("\n");
-		printf("    Gx^3-3Gx+b:  "); for(int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
+		printf("    Gy^2:         "); for ( int i=0;i<32;i++) printf("%02x",aL[i]); printf("\n");
+		printf("    Gx^3-3Gx+b:  "); for ( int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
 	}
 	
 	// Now check input point
@@ -7534,8 +7534,8 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 	if (memcmp(lhs, rhs, 32) != 0) {
 		uint8 aL[32], aR[32];
 		__xrt_u256_to_be(aL, lhs); __xrt_u256_to_be(aR, rhs);
-		printf("    y^2:         "); for(int i=0;i<32;i++) printf("%02x",aL[i]); printf("\n");
-		printf("    x^3-3x+b:    "); for(int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
+		printf("    y^2:         "); for ( int i=0;i<32;i++) printf("%02x",aL[i]); printf("\n");
+		printf("    x^3-3x+b:    "); for ( int i=0;i<32;i++) printf("%02x",aR[i]); printf("\n");
 	}
 	
 	// Compute k*G and verify against provided point

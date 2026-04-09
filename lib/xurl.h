@@ -2,10 +2,10 @@
 #define XRT_XURL_H
 
 /*
-    XRT URL/query implementation layer.
+	XRT URL/query implementation layer.
 
-    Public declarations live in xrt.h.
-    This file is intended to be expanded only from xrt.c / single-head generation.
+	Public declarations live in xrt.h.
+	This file is intended to be expanded only from xrt.c / single-head generation.
 */
 
 // 构造字符串视图

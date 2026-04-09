@@ -2,16 +2,16 @@
 #define XRT_XWS_H
 
 /*
-    XRT mainline WebSocket layer on top of xnet.
+	XRT mainline WebSocket layer on top of xnet.
 
-    This header provides:
-      - async WebSocket client and server wrappers on top of xnet_stream
-      - HTTP upgrade handshake over plain TCP and builtin TLS
-      - text/binary messaging, ping/pong, close, and fragmented message reassembly
+	This header provides:
+	  - async WebSocket client and server wrappers on top of xnet_stream
+	  - HTTP upgrade handshake over plain TCP and builtin TLS
+	  - text/binary messaging, ping/pong, close, and fragmented message reassembly
 
-    Current limitations:
-      - extensions and permessage-deflate are not implemented
-      - subprotocol negotiation is fixed-string and optional
+	Current limitations:
+	  - extensions and permessage-deflate are not implemented
+	  - subprotocol negotiation is fixed-string and optional
 */
 
 

@@ -2,17 +2,17 @@
 #define XRT_XHTTPD_H
 
 /*
-    XRT mainline HTTP/1.1 server on top of xnet.
+	XRT mainline HTTP/1.1 server on top of xnet.
 
-    This header provides:
-      - listener-driven HTTP server lifecycle on top of xnet_stream
-      - request and response materialization helpers
-      - plain HTTP and builtin TLS service paths
-      - serial keep-alive reuse on a single accepted connection
+	This header provides:
+	  - listener-driven HTTP server lifecycle on top of xnet_stream
+	  - request and response materialization helpers
+	  - plain HTTP and builtin TLS service paths
+	  - serial keep-alive reuse on a single accepted connection
 
-    Current limitations:
-      - chunked request and response bodies are whole-message oriented
-      - static files, routing tables, and generic upgrade dispatch are deferred
+	Current limitations:
+	  - chunked request and response bodies are whole-message oriented
+	  - static files, routing tables, and generic upgrade dispatch are deferred
 */
 
 #if !defined(XRT_BUILD_CORE)

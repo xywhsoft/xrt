@@ -2,13 +2,13 @@
 #define XRT_XCODEC_HTTP1_H
 
 /*
-    XRT mainline HTTP/1.1 codec.
+	XRT mainline HTTP/1.1 codec.
 
-    This header provides:
-      - request/response start-line and header parsing over xnetchain
-      - content-length, chunked, keep-alive, and upgrade metadata extraction
-      - whole-message delimiting for fixed-length and chunked bodies
-      - chunk decode helpers used by xhttp and xhttpd
+	This header provides:
+	  - request/response start-line and header parsing over xnetchain
+	  - content-length, chunked, keep-alive, and upgrade metadata extraction
+	  - whole-message delimiting for fixed-length and chunked bodies
+	  - chunk decode helpers used by xhttp and xhttpd
 */
 
 

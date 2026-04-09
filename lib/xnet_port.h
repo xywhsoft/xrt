@@ -2,12 +2,12 @@
 #define XRT_XNET_PORT_H
 
 /*
-    XRT mainline backend-neutral network port interface.
+	XRT mainline backend-neutral network port interface.
 
-    This is the internal contract between xnet_engine workers and concrete
-    platform backends such as IOCP and the Linux transport backend. It defines
-    the submission, completion, timer, and wake semantics consumed by the
-    transport layers.
+	This is the internal contract between xnet_engine workers and concrete
+	platform backends such as IOCP and the Linux transport backend. It defines
+	the submission, completion, timer, and wake semantics consumed by the
+	transport layers.
 */
 
 

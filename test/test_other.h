@@ -51,8 +51,8 @@ json_sax_ret_t xte_private_ParseJSON_Proc(json_sax_parser_t *parser)
 				varCur = varRoot;
 			}
 		}
-    }
-    if ( ((jkey->type == JSON_ARRAY) || (jkey->type == JSON_OBJECT)) && (parser->value.vcmd == JSON_SAX_FINISH) ) {
+	}
+	if ( ((jkey->type == JSON_ARRAY) || (jkey->type == JSON_OBJECT)) && (parser->value.vcmd == JSON_SAX_FINISH) ) {
 		if ( varStack > 0) {
 			PSSTK_Pop(varStack);
 			varCur = PSSTK_Top(varStack);
@@ -60,29 +60,29 @@ json_sax_ret_t xte_private_ParseJSON_Proc(json_sax_parser_t *parser)
 	}
 	*/
 	if ( jkey->info.type == JSON_NULL ) {
-        printf("null\n");
+		printf("null\n");
 	} else if ( jkey->info.type == JSON_BOOL ) {
-        printf("bool   : %d\n", parser->value.vnum.vbool);
+		printf("bool   : %d\n", parser->value.vnum.vbool);
 	} else if ( jkey->info.type == JSON_INT ) {
-        printf("int    : %d\n", parser->value.vnum.vint);
+		printf("int    : %d\n", parser->value.vnum.vint);
 	} else if ( jkey->info.type == JSON_HEX ) {
-        printf("hex    : %d\n", parser->value.vnum.vhex);
+		printf("hex    : %d\n", parser->value.vnum.vhex);
 	} else if ( jkey->info.type == JSON_LINT ) {
-        printf("lint   : %lld\n", parser->value.vnum.vlint);
+		printf("lint   : %lld\n", parser->value.vnum.vlint);
 	} else if ( jkey->info.type == JSON_LHEX ) {
-        printf("lhex   : %lld\n", parser->value.vnum.vlhex);
+		printf("lhex   : %lld\n", parser->value.vnum.vlhex);
 	} else if ( jkey->info.type == JSON_DOUBLE ) {
-        printf("double : %f\n", parser->value.vnum.vdbl);
+		printf("double : %f\n", parser->value.vnum.vdbl);
 	} else if ( jkey->info.type == JSON_STRING ) {
-        printf("str    : %.*s\n", parser->value.vstr.info.len, parser->value.vstr.str);
+		printf("str    : %.*s\n", parser->value.vstr.info.len, parser->value.vstr.str);
 	} else if ( jkey->info.type == JSON_ARRAY ) {
-        printf("array\n");
+		printf("array\n");
 	} else if ( jkey->info.type == JSON_OBJECT ) {
-        printf("table\n");
+		printf("table\n");
 	} else {
 		printf("Unknown data type\n");
 	}
-    return JSON_SAX_PARSE_CONTINUE;
+	return JSON_SAX_PARSE_CONTINUE;
 }
 
 

@@ -2,16 +2,16 @@
 #define XRT_XNET_ENGINE_H
 
 /*
-    XRT mainline network engine and worker runtime.
+	XRT mainline network engine and worker runtime.
 
-    This header owns:
-      - engine and worker lifecycle
-      - worker threads and cross-thread command posting
-      - timer-wheel driven delayed work
-      - dispatch of port completions into stream, datagram, and listener layers
+	This header owns:
+	  - engine and worker lifecycle
+	  - worker threads and cross-thread command posting
+	  - timer-wheel driven delayed work
+	  - dispatch of port completions into stream, datagram, and listener layers
 
-    The engine is the shared runtime core used by async transport, protocol
-    modules, and sync facades built on top of futures.
+	The engine is the shared runtime core used by async transport, protocol
+	modules, and sync facades built on top of futures.
 */
 
 

@@ -2,17 +2,17 @@
 #define XRT_XNET_STREAM_H
 
 /*
-    XNet mainline stream and listener layer.
+	XNet mainline stream and listener layer.
 
-    This header owns:
-      - listener and stream lifecycle
-      - completion-driven accept / connect / recv / send flow
-      - send queue, backpressure, graceful vs abort close, and sync wait slots
-      - TLS attachment and handshake progression on top of transport-owned I/O
+	This header owns:
+	  - listener and stream lifecycle
+	  - completion-driven accept / connect / recv / send flow
+	  - send queue, backpressure, graceful vs abort close, and sync wait slots
+	  - TLS attachment and handshake progression on top of transport-owned I/O
 
-    Current focus:
-      - Windows native IOCP flow is active in mainline
-      - Linux backend finalization still continues under the xnet finalization spec
+	Current focus:
+	  - Windows native IOCP flow is active in mainline
+	  - Linux backend finalization still continues under the xnet finalization spec
 */
 
 

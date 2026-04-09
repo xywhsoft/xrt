@@ -17,10 +17,10 @@
 #define XRT_MULTIPART_STREAM_STATE_ERROR         6u
 
 /*
-    XRT HTTP utility implementation layer.
+	XRT HTTP utility implementation layer.
 
-    Public declarations live in xrt.h.
-    This file is intended to be expanded only from xrt.c / single-head generation.
+	Public declarations live in xrt.h.
+	This file is intended to be expanded only from xrt.c / single-head generation.
 */
 
 static char __xrtHttpUtilToLower(char ch)

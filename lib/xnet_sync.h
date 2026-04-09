@@ -2,13 +2,13 @@
 #define XRT_XNET_SYNC_H
 
 /*
-    XRT mainline synchronous wait and convenience runtime.
+	XRT mainline synchronous wait and convenience runtime.
 
-    This header provides:
-      - future objects with thread and coroutine wait support
-      - monotonic timed-wait semantics for sync wrappers
-      - wait-source helpers used by stream, listener, and datagram sync paths
-      - a hidden convenience engine used by synchronous network facades
+	This header provides:
+	  - future objects with thread and coroutine wait support
+	  - monotonic timed-wait semantics for sync wrappers
+	  - wait-source helpers used by stream, listener, and datagram sync paths
+	  - a hidden convenience engine used by synchronous network facades
 */
 
 

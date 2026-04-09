@@ -2,13 +2,13 @@
 #define XRT_XCODEC_H
 
 /*
-    XRT mainline codec adapter and framing helpers.
+	XRT mainline codec adapter and framing helpers.
 
-    This header defines:
-      - the backend-neutral parser contract used by xnet-based protocols
-      - common frame metadata over xnetchain
-      - reusable line and length-field framing helpers
-      - shared status codes consumed by HTTP and WebSocket codecs
+	This header defines:
+	  - the backend-neutral parser contract used by xnet-based protocols
+	  - common frame metadata over xnetchain
+	  - reusable line and length-field framing helpers
+	  - shared status codes consumed by HTTP and WebSocket codecs
 */
 
 

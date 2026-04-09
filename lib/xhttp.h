@@ -2,18 +2,18 @@
 #define XRT_XHTTP_H
 
 /*
-    XRT mainline HTTP/1.1 client on top of xnet.
+	XRT mainline HTTP/1.1 client on top of xnet.
 
-    This header provides:
-      - request and response objects
-      - async HTTP/1.1 transactions over plain TCP or builtin TLS
-      - sync facades that reuse the same async transport core
-      - serial keep-alive connection reuse for the same origin
+	This header provides:
+	  - request and response objects
+	  - async HTTP/1.1 transactions over plain TCP or builtin TLS
+	  - sync facades that reuse the same async transport core
+	  - serial keep-alive connection reuse for the same origin
 
-    Current limitations:
-      - whole-body request/response handling is the primary path
-      - chunked transfer is supported, but trailers remain metadata-only
-      - streaming request/response bodies are still deferred
+	Current limitations:
+	  - whole-body request/response handling is the primary path
+	  - chunked transfer is supported, but trailers remain metadata-only
+	  - streaming request/response bodies are still deferred
 */
 
 #if !defined(XRT_BUILD_CORE)

@@ -2,17 +2,17 @@
 #define XRT_XNET_BASE_H
 
 /*
-    XRT mainline network base model.
+	XRT mainline network base model.
 
-    This header defines the shared public types used by the modern xnet stack.
-    It is designed to work both inside xrt.h and as a focused standalone header
-    for transport development and testing.
+	This header defines the shared public types used by the modern xnet stack.
+	It is designed to work both inside xrt.h and as a focused standalone header
+	for transport development and testing.
 
-    Public responsibilities:
-      - IPv4/IPv6 address and endpoint representation
-      - shared result codes, socket handles, and config structures
-      - forward declarations for engine, stream, datagram, listener, and future
-        objects
+	Public responsibilities:
+	  - IPv4/IPv6 address and endpoint representation
+	  - shared result codes, socket handles, and config structures
+	  - forward declarations for engine, stream, datagram, listener, and future
+		objects
 */
 
 
