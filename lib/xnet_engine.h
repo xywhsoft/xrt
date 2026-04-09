@@ -218,6 +218,7 @@ static __xnet_engine_cmd* __xnetCmdQAllocNode(__xnet_engine_cmdq* pQ)
 		return NULL;
 	}
 
+	// 尝试从空闲链表中取出一个已回收的节点（自旋锁保护）
 	__xrtOwnerSpinLock(&pQ->iFreeLock);
 	pCmd = pQ->pFreeList;
 	if ( pCmd != NULL ) {
@@ -227,6 +228,7 @@ static __xnet_engine_cmd* __xnetCmdQAllocNode(__xnet_engine_cmdq* pQ)
 	__xrtOwnerSpinUnlock(&pQ->iFreeLock);
 
 	if ( pCmd == NULL ) {
+		// 空闲链表为空时新分配一个节点
 		pCmd = (__xnet_engine_cmd*)XNET_ALLOC(sizeof(__xnet_engine_cmd));
 		if ( pCmd == NULL ) {
 			return NULL;
@@ -416,10 +418,12 @@ static void __xnetTimerWheelTick(xnetworker* pWorker)
 	__xnet_engine_timer* pDeferred = NULL;
 	if ( !pWheel || !pWheel->arrSlots ) { return; }
 
+	// 推进时间轮滴答，取出当前槽位的定时器链表
 	pWheel->iCurrentTick++;
 	pList = pWheel->arrSlots[pWheel->iCurrentTick % pWheel->iSlotCount];
 	pWheel->arrSlots[pWheel->iCurrentTick % pWheel->iSlotCount] = NULL;
 
+	// 遍历定时器链表：到期则执行任务并释放，未到期则挂入延迟重插链表
 	while ( pList ) {
 		__xnet_engine_timer* pNext = pList->pNext;
 		if ( pList->iDueTick <= pWheel->iCurrentTick ) {
@@ -434,6 +438,7 @@ static void __xnetTimerWheelTick(xnetworker* pWorker)
 		pList = pNext;
 	}
 
+	// 将未到期的定时器重新插入到对应的目标槽位
 	while ( pDeferred ) {
 		__xnet_engine_timer* pNext = pDeferred->pNext;
 		uint32 iSlot = (uint32)(pDeferred->iDueTick % pWheel->iSlotCount);
@@ -535,6 +540,7 @@ static void* __xnetEngineWorkerMain(void* pArg)
 		#endif
 	}
 
+	// 记录工作线程 ID
 	#if __XNET_ENGINE_USE_XRT_THREAD
 	pWorker->iThreadId = xrtThreadGetCurrentId();
 	#elif defined(_WIN32) || defined(_WIN64)
@@ -543,6 +549,7 @@ static void* __xnetEngineWorkerMain(void* pArg)
 		pWorker->iThreadId = (uint64)(uintptr_t)pthread_self();
 	#endif
 
+	// 工作线程主循环：处理命令 -> 收集端口事件 -> 分发事件 -> 再次处理命令
 	while ( !pWorker->bStopRequested ) {
 		__xnetEngineDrainCommands(pWorker);
 		iEventCount = xrtNetPortHarvest(&pWorker->tPort, arrEvents, __XNET_ENGINE_HARVEST_BATCH, pWheel ? pWheel->iTickMs : 50u);
@@ -550,6 +557,7 @@ static void* __xnetEngineWorkerMain(void* pArg)
 		__xnetEngineDrainCommands(pWorker);
 	}
 
+	// 停止后做最后一次命令排空
 	__xnetEngineDrainCommands(pWorker);
 	#if __XNET_ENGINE_USE_XRT_THREAD || defined(_WIN32) || defined(_WIN64)
 	return 0;
@@ -563,6 +571,7 @@ static void* __xnetEngineWorkerMain(void* pArg)
 static bool __xnetEngineStartWorkerThread(xnetworker* pWorker)
 {
 	if ( !pWorker ) { return false; }
+	// 根据编译平台选择线程创建方式，保存句柄和线程 ID
 	#if __XNET_ENGINE_USE_XRT_THREAD
 		xthread pThread = xrtThreadCreate((ptr)__xnetEngineWorkerMain, pWorker, 0);
 		if ( !pThread ) { return false; }
@@ -615,6 +624,7 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 	__xnet_engine_timerwheel* pWheel;
 	if ( !pWorker || !pEngineCfg || !pOps || !pPortCfg || !pMemCfg ) { return XRT_NET_ERROR; }
 
+	// 初始化命令队列
 	pWorker->pCmdQ = XNET_ALLOC(sizeof(__xnet_engine_cmdq));
 	if ( !pWorker->pCmdQ ) { return XRT_NET_ERROR; }
 	if ( !__xnetCmdQInit((__xnet_engine_cmdq*)pWorker->pCmdQ, pEngineCfg->iCmdQueueSize) ) {
@@ -623,6 +633,7 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 		return XRT_NET_ERROR;
 	}
 
+	// 初始化内存上下文和 I/O 端口
 	xrtNetMemCtxInit(&pWorker->tMemCtx, pMemCfg);
 	if ( xrtNetPortInit(&pWorker->tPort, pOps, pPortCfg, pWorker) != XRT_NET_OK ) {
 		__xnetCmdQUnit((__xnet_engine_cmdq*)pWorker->pCmdQ);
@@ -632,6 +643,7 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 		return XRT_NET_ERROR;
 	}
 
+	// 初始化定时器轮并挂载周期定时脉冲
 	pWheel = (__xnet_engine_timerwheel*)XNET_ALLOC(sizeof(__xnet_engine_timerwheel));
 	if ( !pWheel ) {
 		__xnetEngineStopWorkerResources(pWorker);
@@ -648,6 +660,7 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 		return XRT_NET_ERROR;
 	}
 
+	// 设置运行标志并启动工作线程
 	pWorker->bStopRequested = false;
 	pWorker->bRunning = true;
 	if ( !__xnetEngineStartWorkerThread(pWorker) ) {
@@ -687,9 +700,11 @@ XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
 		xrtNetEngineConfigInit(&tCfg);
 	}
 
+	// 检测或使用配置中的工作线程数量
 	iWorkerCount = (tCfg.iWorkerCount != 0) ? tCfg.iWorkerCount : __xnetEngineDetectWorkers();
 	if ( iWorkerCount == 0 ) { iWorkerCount = 1; }
 
+	// 分配引擎和工作线程数组
 	pEngine = (xnetengine*)XNET_ALLOC(sizeof(xnetengine));
 	if ( !pEngine ) { return NULL; }
 	memset(pEngine, 0, sizeof(xnetengine));
@@ -704,6 +719,7 @@ XXAPI xnetengine* xrtNetEngineCreate(const xnetengineconfig* pCfg)
 	pEngine->iWorkerCount = iWorkerCount;
 	pEngine->iNextStreamId = 1;
 
+	// 建立工作线程到引擎的反向引用
 	for ( uint32 i = 0; i < iWorkerCount; ++i ) {
 		pEngine->arrWorkers[i].pEngine = pEngine;
 		pEngine->arrWorkers[i].iId = i;
@@ -740,12 +756,15 @@ XXAPI xnet_result xrtNetEngineStart(xnetengine* pEngine)
 	if ( !pEngine ) { return XRT_NET_ERROR; }
 	if ( pEngine->bRunning ) { return XRT_NET_OK; }
 
+	// 获取平台默认端口操作接口（IOCP/io_uring）
 	pOps = __xnetEngineDefaultPortOps();
 	if ( !pOps ) { return XRT_NET_ERROR; }
 
+	// 初始化端口和内存配置
 	__xnetEngineInitPortConfig(&tPortCfg, &pEngine->tConfig);
 	__xnetEngineInitMemConfig(&tMemCfg, &pEngine->tConfig);
 
+	// 依次启动所有工作线程，失败时回滚已启动的线程
 	for ( uint32 i = 0; i < pEngine->iWorkerCount; ++i ) {
 		if ( __xnetEngineStartWorker(&pEngine->arrWorkers[i], &pEngine->tConfig, pOps, &tPortCfg, &tMemCfg) != XRT_NET_OK ) {
 			for ( uint32 j = 0; j < i; ++j ) {
@@ -788,11 +807,13 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 		return XRT_NET_ERROR;
 	}
 
+	// 根据亲和键取模选择目标工作线程
 	pWorker = &pEngine->arrWorkers[iAffinityKey % pEngine->iWorkerCount];
 	if ( !pWorker->bRunning || !pWorker->pCmdQ ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 将任务压入命令队列
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
 	iPushRet = __xnetCmdQPush(pQ, pfnTask, pArg);
 	if ( iPushRet == XQUEUE_FULL ) {
@@ -802,6 +823,7 @@ XXAPI xnet_result xrtNetEnginePost(xnetengine* pEngine, uint32 iAffinityKey, xne
 		return XRT_NET_ERROR;
 	}
 
+	// 唤醒工作线程端口以加速任务处理
 	if ( xrtNetPortWake(&pWorker->tPort) != XRT_NET_OK ) {
 		/*
 		    The queue already owns the task node at this point.
@@ -823,11 +845,13 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 		return XRT_NET_ERROR;
 	}
 
+	// 根据亲和键取模选择目标工作线程
 	pWorker = &pEngine->arrWorkers[iAffinityKey % pEngine->iWorkerCount];
 	if ( !pWorker->bRunning || !pWorker->pCmdQ || !pWorker->pTimerWheel ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 压入定时器添加命令到命令队列
 	pQ = (__xnet_engine_cmdq*)pWorker->pCmdQ;
 	iPushRet = __xnetCmdQPushEx(pQ, __XNET_ENGINE_CMD_TIMER_ADD, iDelayMs, pfnTask, pArg);
 	if ( iPushRet == XQUEUE_FULL ) {

@@ -175,16 +175,20 @@ static bool __xhttpAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const v
 	size_t iNeedCap;
 	size_t iTargetCap;
 	char* pNewBuf;
+	// 参数校验
 	if ( !ppBuf || !pLen || !pCap || (!pData && iDataLen != 0) ) { return false; }
 	if ( iDataLen == 0 ) { return true; }
+	// 计算目标容量，检查溢出
 	iTargetCap = *pLen + iDataLen + 1u;
 	if ( iTargetCap < *pLen || iTargetCap < iDataLen ) { return false; }
+	// 容量足够，直接追加数据
 	if ( iTargetCap <= *pCap ) {
 		memcpy(*ppBuf + *pLen, pData, iDataLen);
 		*pLen += iDataLen;
 		(*ppBuf)[*pLen] = '\0';
 		return true;
 	}
+	// 容量不足，按倍增策略扩容
 	iNeedCap = (*pCap == 0) ? 256u : *pCap;
 	while ( iNeedCap < iTargetCap ) {
 		if ( iNeedCap > (SIZE_MAX >> 1) ) {
@@ -194,12 +198,14 @@ static bool __xhttpAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const v
 		iNeedCap *= 2u;
 	}
 	if ( iNeedCap < iTargetCap ) { return false; }
+	// 分配新缓冲区并拷贝旧数据
 	pNewBuf = (char*)XNET_ALLOC(iNeedCap);
 	if ( !pNewBuf ) { return false; }
 	if ( *ppBuf && *pLen > 0 ) { memcpy(pNewBuf, *ppBuf, *pLen); }
 	XNET_FREE(*ppBuf);
 	*ppBuf = pNewBuf;
 	*pCap = iNeedCap;
+	// 追加新数据
 	memcpy(*ppBuf + *pLen, pData, iDataLen);
 	*pLen += iDataLen;
 	(*ppBuf)[*pLen] = '\0';
@@ -387,14 +393,17 @@ XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine)
 	__xhttp_conn* pList = NULL;
 	__xhttp_conn** ppTail = &pList;
 	__xhttp_conn** ppCur;
+	// 获取连接池锁，收集匹配的空闲连接
 	__xhttpPoolLockAcquire();
 	ppCur = &__g_xhttpIdleConnHead;
 	while ( *ppCur ) {
 		__xhttp_conn* pConn = *ppCur;
+		// 跳过不属于指定引擎的连接
 		if ( pEngine != NULL && pConn->pEngine != pEngine ) {
 			ppCur = &pConn->pNext;
 			continue;
 		}
+		// 从空闲池中摘除并追加到本地列表
 		*ppCur = pConn->pNext;
 		pConn->pNext = NULL;
 		pConn->bIdle = false;
@@ -402,6 +411,7 @@ XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine)
 		ppTail = &pConn->pNext;
 	}
 	__xhttpPoolLockRelease();
+	// 逐个关闭并清理收集到的连接
 	while ( pList ) {
 		__xhttp_conn* pNext = pList->pNext;
 		pList->pNext = NULL;
@@ -606,35 +616,43 @@ static bool __xhttpBuildRequestBytes(const xhttprequest* pReq, char** ppOut, siz
 	char aLine[512];
 	bool bChunked;
 
+	// 参数校验并初始化输出
 	if ( !pReq || !ppOut || !pOutLen || pReq->tURL.sHost[0] == '\0' || pReq->sMethod[0] == '\0' ) { return false; }
 	*ppOut = NULL;
 	*pOutLen = 0;
 	bChunked = __xhttpContainsTokenNoCase(__xhttpRequestHeaderValue(pReq, "Transfer-Encoding"), "chunked");
 
+	// 构建请求行：METHOD PATH HTTP/1.1
 	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, pReq->sMethod) ) { goto fail; }
 	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, " ") ) { goto fail; }
 	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, pReq->tURL.sPath[0] ? pReq->tURL.sPath : "/") ) { goto fail; }
 	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, " HTTP/1.1\r\n") ) { goto fail; }
 
+	// 补充 Host 头部
 	if ( !__xhttpRequestHasHeader(pReq, "Host") ) {
 		char sHostHeader[384];
 		if ( !__xhttpMakeHostHeader(pReq, sHostHeader, sizeof(sHostHeader)) ) { goto fail; }
 		snprintf(aLine, sizeof(aLine), "Host: %s\r\n", sHostHeader);
 		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 	}
+	// 补充 Connection 头部
 	if ( !__xhttpRequestHasHeader(pReq, "Connection") ) {
 		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, "Connection: keep-alive\r\n") ) { goto fail; }
 	}
+	// 补充 Content-Length 头部
 	if ( !bChunked && pReq->iBodyLen > 0 && !__xhttpRequestHasHeader(pReq, "Content-Length") ) {
 		snprintf(aLine, sizeof(aLine), "Content-Length: %llu\r\n", (unsigned long long)pReq->iBodyLen);
 		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 	}
+	// 追加用户自定义头部
 	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
 		if ( bChunked && __xhttpStrEqNoCase(pReq->arrHeaders[i].sName, "Content-Length") ) { continue; }
 		snprintf(aLine, sizeof(aLine), "%s: %s\r\n", pReq->arrHeaders[i].sName, pReq->arrHeaders[i].sValue);
 		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 	}
+	// 空行分隔头部和正文
 	if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, "\r\n") ) { goto fail; }
+	// 处理请求正文
 	if ( bChunked ) {
 		snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pReq->iBodyLen);
 		if ( !__xhttpAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
@@ -661,22 +679,28 @@ static xhttpresponse* __xhttpBuildResponse(const xcodecframe* pFrame, const xcod
 {
 	xhttpresponse* pResp;
 	size_t iBodyBytes;
+	// 参数校验
 	if ( !pFrame || !pMsg || !pChain ) { return NULL; }
+	// 分配响应结构体
 	pResp = (xhttpresponse*)XNET_ALLOC(sizeof(xhttpresponse));
 	if ( !pResp ) { return NULL; }
 	memset(pResp, 0, sizeof(xhttpresponse));
+	// 复制状态码、内容长度、版本号、原因短语
 	pResp->iStatusCode = pMsg->iStatusCode;
 	pResp->iContentLength = pMsg->iContentLength;
 	__xhttpCopyToken(pResp->sVersion, sizeof(pResp->sVersion), pMsg->sVersion);
 	__xhttpCopyToken(pResp->sReason, sizeof(pResp->sReason), pMsg->sReason);
+	// 映射编解码器标志到响应标志
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED ) { pResp->iFlags |= XHTTP_RESP_F_CHUNKED; }
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_KEEPALIVE ) { pResp->iFlags |= XHTTP_RESP_F_KEEPALIVE; }
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_UPGRADE ) { pResp->iFlags |= XHTTP_RESP_F_UPGRADE; }
+	// 复制响应头部
 	pResp->iHeaderCount = pMsg->iHeaderCount < XHTTP_MAX_HEADERS ? pMsg->iHeaderCount : XHTTP_MAX_HEADERS;
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
 		__xhttpCopyToken(pResp->arrHeaders[i].sName, sizeof(pResp->arrHeaders[i].sName), pMsg->arrHeaders[i].sName);
 		__xhttpCopyToken(pResp->arrHeaders[i].sValue, sizeof(pResp->arrHeaders[i].sValue), pMsg->arrHeaders[i].sValue);
 	}
+	// 提取并复制响应正文
 	iBodyBytes = xrtCodecHttp1BodyBytes(pFrame);
 	if ( (pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u ) { pResp->iContentLength = (int64_t)iBodyBytes; }
 	if ( iBodyBytes > 0u ) {
@@ -855,11 +879,14 @@ static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx)
 	long iGeneration;
 	uint32 iAffinity = 0u;
 
+	// 参数校验和超时配置检查
 	if ( !pTx || !pTx->pEngine ) { return; }
 	iTimeoutMs = pTx->tReq.iIdleTimeoutMs;
 	if ( iTimeoutMs == 0u ) { return; }
 
+	// 递增代数以作废旧定时器
 	iGeneration = __xhttpAtomicAdd(&pTx->iIdleTimerGen, 1);
+	// 创建定时器上下文
 	pCtx = (__xhttp_idle_timer_ctx*)XNET_ALLOC(sizeof(__xhttp_idle_timer_ctx));
 	if ( !pCtx ) { return; }
 	memset(pCtx, 0, sizeof(__xhttp_idle_timer_ctx));
@@ -867,9 +894,11 @@ static void __xhttpTxRefreshIdleTimeout(__xhttp_tx* pTx)
 	pCtx->iGeneration = iGeneration;
 	__xhttpTxAddRef(pTx);
 
+	// 确定工作线程亲和性
 	if ( pTx->pStream && pTx->pStream->pWorker ) { iAffinity = pTx->pStream->pWorker->iId; }
 	else if ( pTx->pConn && pTx->pConn->pStream && pTx->pConn->pStream->pWorker ) { iAffinity = pTx->pConn->pStream->pWorker->iId; }
 
+	// 投递延迟任务，失败时回滚引用
 	if ( xrtNetEnginePostDelayed(pTx->pEngine, iAffinity, iTimeoutMs, __xhttpIdleTimeoutTask, pCtx) != XRT_NET_OK ) {
 		__xhttpTxRelease(pTx);
 		XNET_FREE(pCtx);
@@ -938,30 +967,39 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	bool bNoBodyExpected;
 	bool bReusable;
 	xhttpresponse* pResp;
+	// 参数校验
 	if ( !pTx || !pStream || !pChain ) { return; }
+	// 刷新空闲超时定时器
 	__xhttpTxRefreshIdleTimeout(pTx);
+	// 解析 HTTP 响应
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
 	if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+	// 解析失败，终止事务
 	if ( iParse == XCODEC_STATUS_ERROR ) {
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	// 检查响应正文期望情况
 	bNoBodyExpected = __xhttpStatusHasNoBody(tMsg.iStatusCode) || __xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD");
 	if ( (tMsg.iFlags & XCODEC_HTTP1_F_CHUNKED) == 0u && (tMsg.iContentLength < 0 && !bNoBodyExpected) ) {
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	// 构建响应对象
 	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
 	if ( !pResp ) {
 		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	// 消费已解析的帧数据
 	xrtCodecFrameConsume(pChain, &tFrame);
+	// 判断连接是否可复用
 	bReusable = __xhttpResponseReusable(pTx, &tMsg);
 	if ( bReusable && pConn ) {
+		// 可复用：归还连接到空闲池，完成事务
 		pConn->pTx = NULL;
 		pTx->pConn = NULL;
 		pTx->pStream = NULL;
@@ -970,6 +1008,7 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 		__xhttpTxPostCleanup(pTx);
 		return;
 	}
+	// 不可复用：完成事务并关闭连接
 	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
 	xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 }
@@ -1035,12 +1074,15 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 	xnetconnectconfig tConnCfg;
 	xnetengine* pResolvedEngine;
 
+	// 参数校验与引擎解析
 	if ( !pReq ) { return NULL; }
 	pResolvedEngine = __xnetSyncResolveEngine(pEngine);
 	if ( !pResolvedEngine ) { return NULL; }
+	// 创建 Future 用于异步返回结果
 	pFuture = xrtNetFutureCreate();
 	if ( !pFuture ) { return NULL; }
 
+	// 分配并初始化事务对象
 	pTx = (__xhttp_tx*)XNET_ALLOC(sizeof(__xhttp_tx));
 	if ( !pTx ) {
 		xrtNetFutureDestroy(pFuture);
@@ -1050,11 +1092,13 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 	pTx->iRefCount = 1;
 	pTx->pEngine = pResolvedEngine;
 	pTx->pFuture = pFuture;
+	// 克隆请求数据到事务中
 	if ( !__xhttpRequestClone(&pTx->tReq, pReq) ) {
 		(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
 		__xhttpTxRelease(pTx);
 		return pFuture;
 	}
+	// 延迟解析 URL（若主机地址为空则从 sURL 重新解析）
 	if ( pTx->tReq.tURL.sHost[0] == '\0' ) {
 	if ( pTx->tReq.sURL[0] == '\0' || !xrtUrlParseFixedTo(pTx->tReq.sURL, "http", "https", &pTx->tReq.tURL.bHttps, pTx->tReq.tURL.sHost, sizeof(pTx->tReq.tURL.sHost), &pTx->tReq.tURL.iPort, pTx->tReq.tURL.sPath, sizeof(pTx->tReq.tURL.sPath)) ) {
 			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
@@ -1062,14 +1106,17 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 			return pFuture;
 		}
 	}
+	// 序列化请求为原始字节
 	if ( !__xhttpBuildRequestBytes(&pTx->tReq, &pTx->pSendBuf, &pTx->iSendLen) ) {
 		(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
 		__xhttpTxRelease(pTx);
 		return pFuture;
 	}
 
+	// 尝试从空闲连接池中获取可复用的连接
 	pConn = __xhttpPoolTake(pResolvedEngine, &pTx->tReq);
 	if ( !pConn ) {
+		// 空闲池中无可用连接，创建新连接
 		pConn = (__xhttp_conn*)XNET_ALLOC(sizeof(__xhttp_conn));
 		if ( !pConn ) {
 			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
@@ -1083,6 +1130,7 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 		pConn->bHttps = pTx->tReq.tURL.bHttps;
 		pConn->bVerifyPeer = pTx->tReq.bVerifyPeer;
 		pConn->pProxy = pTx->tReq.pProxy ? xrtNetProxyAddRef(pTx->tReq.pProxy) : NULL;
+		// 创建网络流并绑定客户端事件
 		pConn->pStream = xrtNetStreamCreate(pResolvedEngine, __xhttpClientEvents(), pConn);
 		if ( !pConn->pStream ) {
 			(void)__xnetFutureResolve(pFuture, XRT_NET_ERROR, NULL);
@@ -1096,10 +1144,12 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 		}
 	}
 
+	// 绑定事务到连接
 	pConn->pTx = pTx;
 	pTx->pConn = pConn;
 	pTx->pStream = pConn->pStream;
 
+	// 连接未打开时发起连接请求
 	if ( !pConn->bOpen ) {
 		xrtNetConnectConfigInit(&tConnCfg);
 		tConnCfg.sHost = pTx->tReq.tURL.sHost;
@@ -1107,6 +1157,7 @@ XXAPI xnetfuture* xrtHttpExecuteAsync(xnetengine* pEngine, const xhttprequest* p
 		tConnCfg.iConnectTimeoutMs = __xhttpResolveConnectTimeoutMs(&pTx->tReq);
 		tConnCfg.iRecvLimit = 1024u * 1024u;
 		tConnCfg.pProxy = pConn->pProxy;
+		// 配置 TLS 参数（HTTPS 连接）
 		if ( pTx->tReq.tURL.bHttps ) {
 			memset(&pConn->tTlsCfg, 0, sizeof(pConn->tTlsCfg));
 			pConn->tTlsCfg.sHostName = pTx->tReq.tURL.sHost;

@@ -441,14 +441,18 @@
 		BOOL bOk;
 
 		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		// 将监听套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
+		// [R13] 获取 AcceptEx 扩展函数指针（通过 WSAIoctl 动态加载）
 		pfnAcceptEx = __xnetPortIOCPGetAcceptEx(pCtx, (SOCKET)pOp->hSocket);
 		if ( !pfnAcceptEx ) { return XRT_NET_ERROR; }
 
+		// 分配 IO 操作结构体
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
+		// 获取监听套接字的协议族，创建对应的未连接套接字用于接受连接
 		iFamily = __xnetPortIOCPGetSocketFamily((SOCKET)pOp->hSocket);
 		pIo->hAuxSocket = pOp->hSocket;
 		pIo->hAcceptSocket = WSASocket(iFamily, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
@@ -457,6 +461,7 @@
 			return XRT_NET_ERROR;
 		}
 
+		// [R13] 发起 AcceptEx 异步接受操作，通过 overlapped 结构关联到 IOCP
 		bOk = pfnAcceptEx((SOCKET)pOp->hSocket,
 			pIo->hAcceptSocket,
 			pIo->aAcceptBuf,
@@ -465,6 +470,7 @@
 			__XNET_IOCP_ACCEPT_ADDR_SPACE,
 			&iBytes,
 			&pIo->tOverlapped);
+		// [R13] AcceptEx 返回 FALSE 且错误码非 PENDING 时才视为失败
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
@@ -487,19 +493,24 @@
 		int iRet;
 
 		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		// 将套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
+		// 分配 IO 操作结构体
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
+		// 使用内嵌的接收缓冲区作为 WSARecv 的目标
 		pIo->arrBuf[0].buf = pIo->aRecvBuf;
 		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
 
+		// [R13] 发起 WSARecv 异步接收操作，通过 overlapped 关联到 IOCP
 		iRet = WSARecv((SOCKET)pOp->hSocket, pIo->arrBuf, 1, &iBytes, &iFlags, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
+			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSARecv submit fail socket=%p err=%d op=%llu\n",
@@ -525,20 +536,26 @@
 		int iFamily;
 
 		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		// 将目标地址转换为 sockaddr 结构
 		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) { return XRT_NET_ERROR; }
+		// 将套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
+		// ConnectEx 要求套接字先绑定本地地址
 		iFamily = pOp->tAddr.iFamily ? pOp->tAddr.iFamily : __xnetPortIOCPGetSocketFamily((SOCKET)pOp->hSocket);
 		if ( !__xnetPortIOCPBindConnectSocketLocal((SOCKET)pOp->hSocket, iFamily) ) {
 			return XRT_NET_ERROR;
 		}
 
+		// [R13] 获取 ConnectEx 扩展函数指针
 		pfnConnectEx = __xnetPortIOCPGetConnectEx(pCtx, (SOCKET)pOp->hSocket);
 		if ( !pfnConnectEx ) { return XRT_NET_ERROR; }
 
+		// 分配 IO 操作结构体
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
+		// [R13] 发起 ConnectEx 异步连接操作，通过 overlapped 关联到 IOCP
 		bOk = pfnConnectEx((SOCKET)pOp->hSocket,
 			(const struct sockaddr*)&tStorage,
 			(int)iAddrLen,
@@ -546,6 +563,7 @@
 			0,
 			NULL,
 			&pIo->tOverlapped);
+		// [R13] ERROR_IO_PENDING 表示连接已成功排队等待完成
 		if ( !bOk ) {
 			int iErr = WSAGetLastError();
 			if ( iErr != ERROR_IO_PENDING ) {
@@ -567,16 +585,20 @@
 		int iRet;
 
 		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		// 将套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
 
+		// 分配 IO 操作结构体
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
+		// 使用内嵌的接收缓冲区，同时设置源地址存储空间
 		pIo->arrBuf[0].buf = pIo->aRecvBuf;
 		pIo->arrBuf[0].len = (ULONG)sizeof(pIo->aRecvBuf);
 		pIo->iBufCount = 1;
 		pIo->iRecvFlags = 0;
 
+		// [R13] 发起 WSARecvFrom 异步接收操作，通过 overlapped 关联到 IOCP
 		iRet = WSARecvFrom((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			1,
@@ -588,6 +610,7 @@
 			NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
+			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSARecvFrom submit fail socket=%p err=%d op=%llu\n",
@@ -610,6 +633,7 @@
 		int iRet;
 
 		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		// 将套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) {
 			#if defined(XNET_DEBUG_IOCP_NATIVE)
 				fprintf(stderr, "[IOCP] bind send socket fail socket=%p err=%lu\n",
@@ -618,8 +642,10 @@
 			return XRT_NET_ERROR;
 		}
 
+		// 分配 IO 操作结构体
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
+		// 将用户提供的 vec/chain 构建为 WSABUF 数组
 		if ( !__xnetPortIOCPBuildBufsFromSubmit(pIo, pOp) ) {
 			#if defined(XNET_DEBUG_IOCP_NATIVE)
 				fprintf(stderr, "[IOCP] build send bufs fail socket=%p vec=%u chain=%p\n",
@@ -629,9 +655,11 @@
 			return XRT_NET_ERROR;
 		}
 
+		// [R13] 发起 WSASend 异步发送操作，通过 overlapped 关联到 IOCP
 		iRet = WSASend((SOCKET)pOp->hSocket, pIo->arrBuf, pIo->iBufCount, &iBytes, 0, &pIo->tOverlapped, NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
+			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSASend submit fail socket=%p err=%d op=%llu bufcount=%u\n",
@@ -656,19 +684,25 @@
 		socklen_t iAddrLen = 0;
 
 		if ( !pCtx || !pOp || pOp->hSocket == (intptr_t)XNET_SOCKET_INVALID ) { return XRT_NET_ERROR; }
+		// 将套接字绑定到 IOCP 完成端口
 		if ( !__xnetPortIOCPBindSocket(pCtx, (SOCKET)pOp->hSocket) ) { return XRT_NET_ERROR; }
+		// 将目标地址转换为 sockaddr 结构
 		if ( !__xnetAddrToSockAddr(&pOp->tAddr, &tStorage, &iAddrLen) ) { return XRT_NET_ERROR; }
 
+		// 分配 IO 操作结构体
 		pIo = __xnetPortIOCPAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
+		// 将用户提供的 vec/chain 构建为 WSABUF 数组
 		if ( !__xnetPortIOCPBuildBufsFromSubmit(pIo, pOp) ) {
 			XNET_FREE(pIo);
 			return XRT_NET_ERROR;
 		}
 
+		// 拷贝目标地址到 IO 结构体中供完成回调使用
 		memcpy(&pIo->tAddrStorage, &tStorage, sizeof(tStorage));
 		pIo->iAddrLen = (int)iAddrLen;
 
+		// [R13] 发起 WSASendTo 异步发送操作，通过 overlapped 关联到 IOCP
 		iRet = WSASendTo((SOCKET)pOp->hSocket,
 			pIo->arrBuf,
 			pIo->iBufCount,
@@ -680,6 +714,7 @@
 			NULL);
 		if ( iRet == SOCKET_ERROR ) {
 			int iErr = WSAGetLastError();
+			// [R13] WSA_IO_PENDING 表示操作已成功排队，不是错误
 			if ( iErr != WSA_IO_PENDING ) {
 				#if defined(XNET_DEBUG_IOCP_NATIVE)
 					fprintf(stderr, "[IOCP] WSASendTo submit fail socket=%p err=%d op=%llu bufcount=%u\n",
@@ -754,6 +789,7 @@
 	{
 		if ( !pIo || !pEvent ) { return false; }
 
+		// 清空事件结构并填充基础字段
 		memset(pEvent, 0, sizeof(xnetportevent));
 		pEvent->iType = __xnetPortIOCPEventType(pIo->iOpType);
 		pEvent->iStatus = bOk ? XRT_NET_OK : XRT_NET_ERROR;
@@ -763,6 +799,7 @@
 		pEvent->iBytes = (uint32)iBytes;
 		pEvent->tAddr = pIo->tAddr;
 
+		// ACCEPT 完成：更新接受套接字上下文，失败时关闭已分配的套接字
 		if ( pIo->iOpType == XNET_PORT_OP_ACCEPT ) {
 			if ( bOk ) {
 				SOCKET hListenSocket = (SOCKET)pIo->hAuxSocket;
@@ -778,6 +815,7 @@
 			return true;
 		}
 
+		// CONNECT 完成：更新连接套接字上下文
 		if ( pIo->iOpType == XNET_PORT_OP_CONNECT ) {
 			if ( bOk ) {
 				SOCKET hSocket = (SOCKET)pIo->hSocket;
@@ -786,6 +824,7 @@
 			return true;
 		}
 
+		// RECV 完成：将接收到的数据拷贝到事件 chain，零字节表示对端关闭
 		if ( pIo->iOpType == XNET_PORT_OP_RECV ) {
 			if ( bOk && iBytes > 0 ) {
 				pEvent->pChain = __xnetPortIOCPAllocEventChain(pIo->aRecvBuf, (size_t)iBytes);
@@ -800,6 +839,7 @@
 			return true;
 		}
 
+		// RECVFROM 完成：拷贝数据并从内核地址还原远端地址
 		if ( pIo->iOpType == XNET_PORT_OP_RECVFROM ) {
 			if ( bOk ) {
 				pEvent->pChain = __xnetPortIOCPAllocEventChain(pIo->aRecvBuf, (size_t)iBytes);
@@ -823,20 +863,26 @@
 
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 
+		// 循环从 IOCP 完成端口提取已完成的事件
 		for ( ;; ) {
 			DWORD iBytes = 0;
 			ULONG_PTR iKey = 0;
 			LPOVERLAPPED pOv = NULL;
+			// 已有事件时不再等待，直接非阻塞轮询
 			DWORD iWait = (iCount > 0) ? 0u : iWaitMs;
+			// [R13] 通过 GetQueuedCompletionStatus 从 IOCP 完成端口取出一个已完成的 I/O 结果
 			BOOL bOk = GetQueuedCompletionStatus(pCtx->hIOCP, &iBytes, &iKey, &pOv, iWait);
 			__xnet_iocp_header* pHdr;
 
 			(void)iKey;
+			// 超时且无完成包则退出
 			if ( !bOk && pOv == NULL ) { break; }
 			if ( pOv == NULL ) { break; }
 
+			// 根据 IOCP 包类型分发处理
 			pHdr = (__xnet_iocp_header*)pOv;
 			if ( pHdr->iKind == __XNET_IOCP_KIND_POST ) {
+				// 合成事件（wake/timer 等），直接拷贝事件后释放 post 包
 				__xnet_iocp_post* pPost = (__xnet_iocp_post*)pOv;
 				if ( !bOk && pPost->tEvent.iStatus == XRT_NET_OK ) {
 					pPost->tEvent.iStatus = XRT_NET_ERROR;
@@ -845,6 +891,7 @@
 				pEvents[iCount++] = pPost->tEvent;
 				XNET_FREE(pPost);
 			} else if ( pHdr->iKind == __XNET_IOCP_KIND_IO ) {
+				// [R13] 真实 I/O 完成事件，构建对应类型的事件后释放 IO 包
 				__xnet_iocp_io* pIo = (__xnet_iocp_io*)pOv;
 				if ( __xnetPortIOCPBuildIoEvent(pIo, bOk, iBytes, &pEvents[iCount]) ) {
 					iCount++;
@@ -924,6 +971,7 @@
 
 		if ( !pCtx || !pCtx->hIOCP || !pOps || iCount == 0 ) { return XRT_NET_ERROR; }
 
+		// 遍历所有待提交的操作，按操作类型分发到对应的提交路径
 		for ( uint32 i = 0; i < iCount; ++i ) {
 			const xnetportsubmit* pOp = &pOps[i];
 
@@ -932,6 +980,7 @@
 			}
 
 			switch ( pOp->iOpType ) {
+				// ACCEPT：优先走原生 AcceptEx 路径，否则走合成事件路径
 				case XNET_PORT_OP_ACCEPT:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
 						(pOp->iFlags & XNET_PORT_EVENT_F_ACCEPTED_OPEN) == 0 &&
@@ -942,6 +991,7 @@
 					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
+				// RECV：原生套接字且无用户提供缓冲区时走 WSARecv 路径
 				case XNET_PORT_OP_RECV:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->iOpId != 0 &&
 						pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0) ) {
@@ -951,6 +1001,7 @@
 					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
+				// RECVFROM：原生套接字且无用户提供缓冲区时走 WSARecvFrom 路径
 				case XNET_PORT_OP_RECVFROM:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->iOpId != 0 &&
 						pOp->pChain == NULL && !(pOp->pVec && pOp->iVecCount > 0) ) {
@@ -960,6 +1011,7 @@
 					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
+				// SEND：有用户提供缓冲区（vec/chain）时走 WSASend 路径
 				case XNET_PORT_OP_SEND:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
 						((pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL) ) {
@@ -969,6 +1021,7 @@
 					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
+				// SENDTO：有用户提供缓冲区时走 WSASendTo 路径
 				case XNET_PORT_OP_SENDTO:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) &&
 						((pOp->pVec && pOp->iVecCount > 0) || pOp->pChain != NULL) ) {
@@ -978,6 +1031,7 @@
 					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
+				// CONNECT：有原生套接字和目标地址时走 ConnectEx 路径
 				case XNET_PORT_OP_CONNECT:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) && pOp->tAddr.iFamily != 0 ) {
 						if ( __xnetPortIOCPSubmitConnect(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
@@ -986,10 +1040,12 @@
 					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
+				// WAKE：直接通过合成事件投递到完成端口
 				case XNET_PORT_OP_WAKE:
 					if ( __xnetPortIOCPSubmitSynthetic(pCtx, pOp) != XRT_NET_OK ) { return XRT_NET_ERROR; }
 					break;
 
+				// CLOSE：从 IOCP 解绑套接字
 				case XNET_PORT_OP_CLOSE:
 					if ( __xnetPortIOCPHasNativeSocket(pOp) ) {
 						__xnetPortIOCPUnbindSocket(pCtx, (SOCKET)pOp->hSocket);

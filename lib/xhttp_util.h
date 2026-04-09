@@ -359,7 +359,9 @@ XXAPI bool xrtSetCookieValidate(const char* sText, const xrthttputillimits* pLim
 }
 
 
-// 校验 Multipart
+// 校验 Multipart 数据 (RFC 2046)
+// R13: 算法说明 - 校验 Multipart body 的完整性和各项限制
+//   逐个遍历 Part, 校验边界、头部、各字段的长度限制以及头部行数限制
 XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, const xrthttputillimits* pLimits)
 {
 	xrthttputillimits tLocal;
@@ -370,17 +372,23 @@ XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBo
 	size_t iHeaderOff;
 	size_t iHeaderCount;
 	xrtheaderpair tHeader;
+	// 步骤: 基本参数校验
 	if ( sBody == NULL || sBoundary == NULL ) { return false; }
 	if ( iBoundaryLen == 0u || iBoundaryLen > pResolved->iMaxBoundaryBytes ) { return false; }
 	if ( iLen > pResolved->iMaxMultipartBytes ) { return false; }
+	// 步骤: 校验边界字符串合法性
 	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) { return false; }
+	// 算法步骤: 逐个遍历 Part, 校验每个 Part 的字段长度和头部
 	while ( xrtMultipartNextN(sBody, iLen, sBoundary, iBoundaryLen, &iOffset, &tPart) ) {
+		// 步骤: 校验 Part 数量限制
 		if ( ++iPartCount > pResolved->iMaxMultipartParts ) { return false; }
+		// 步骤: 校验 name、filename 等字段长度
 		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_NAME) != 0u && (tPart.tName.iLen == 0u || tPart.tName.iLen > pResolved->iMaxNameBytes) ) { return false; }
 		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_FILENAME) != 0u && tPart.tFileName.iLen > pResolved->iMaxValueBytes ) { return false; }
 		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_FILENAME_EXT) != 0u && tPart.tFileNameExt.iLen > pResolved->iMaxValueBytes ) { return false; }
 		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_CONTENT_TYPE) != 0u && tPart.tContentType.iLen > pResolved->iMaxValueBytes ) { return false; }
 		if ( (tPart.iFlags & XRT_MULTIPART_F_HAS_TRANSFER_ENCODING) != 0u && tPart.tTransferEncoding.iLen > pResolved->iMaxValueBytes ) { return false; }
+		// 算法步骤: 校验 Part 头部行数和各行长度限制
 		iHeaderOff = 0u;
 		iHeaderCount = 0u;
 		while ( xrtHttpHeaderNextLineN(tPart.tHeaders.sPtr, tPart.tHeaders.iLen, &iHeaderOff, &tHeader) ) {
@@ -390,6 +398,7 @@ XXAPI bool xrtMultipartValidateN(const char* sBody, size_t iLen, const char* sBo
 			if ( iLineBytes > pResolved->iMaxHeaderLineBytes ) { return false; }
 			if ( ++iHeaderCount > pResolved->iMaxMultipartHeaders ) { return false; }
 		}
+		// 步骤: 校验头部数据是否完整消费
 		if ( iHeaderOff != tPart.tHeaders.iLen ) { return false; }
 	}
 	return true;
@@ -525,7 +534,11 @@ XXAPI bool xrtHttpQuotedStringBuildTo(const char* sText, char* sOut, size_t iOut
 }
 
 
-// xrtPercentEncodeTo 相关处理
+// URL 百分号编码 (RFC 3986 §2.1)
+// R13: 算法说明 - 将非保留字符以外的字节编码为 %HH 形式
+//   保留字符 (A-Z a-z 0-9 - _ . ~) 直接输出
+//   空格可选编码为 '+' (application/x-www-form-urlencoded) 或 '%20' (URI)
+//   其他字节编码为 %XX (大写十六进制)
 XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t iOutCap, size_t* pOutLen, bool bSpaceAsPlus)
 {
 	size_t iOut = 0u;
@@ -533,18 +546,22 @@ XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t
 	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
 	for ( i = 0u; i < iLen; ++i ) {
 		unsigned char ch = (unsigned char)sText[i];
+		// 算法步骤: 判断是否为无需编码的保留字符
 		bool bKeep = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') ||
 			ch == '-' || ch == '_' || ch == '.' || ch == '~';
+		// 步骤: 空格编码为 '+' (form-urlencoded 模式)
 		if ( ch == ' ' && bSpaceAsPlus ) {
 			if ( iOut + 1u >= iOutCap ) { return false; }
 			sOut[iOut++] = '+';
 			continue;
 		}
+		// 步骤: 保留字符直接输出
 		if ( bKeep ) {
 			if ( iOut + 1u >= iOutCap ) { return false; }
 			sOut[iOut++] = (char)ch;
 			continue;
 		}
+		// 算法步骤: 编码为 %XX 形式 (高4位 + 低4位)
 		if ( iOut + 3u >= iOutCap ) { return false; }
 		sOut[iOut++] = '%';
 		sOut[iOut++] = __xrtHttpUtilHexDigit((uint8)((ch >> 4) & 0x0Fu));
@@ -556,16 +573,21 @@ XXAPI bool xrtPercentEncodeTo(const char* sText, size_t iLen, char* sOut, size_t
 }
 
 
-// 内部函数：解析 HTTP util 扩展值视图
+// 内部函数：解析 RFC 5987 扩展值视图
+// R13: 算法说明 - 解析 RFC 5987 扩展值格式 "charset'language'encoded-value"
+//   通过两个单引号 ''' 将字符串分为 charset、language、percent-encoded-value 三部分
+//   charset 必须为合法 Token 字符, encoded-value 由百分号编码组成
 static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset, xrtstrview* pLanguage, xrtstrview* pEncoded)
 {
 	size_t iFirstTick = (size_t)-1;
 	size_t iSecondTick = (size_t)-1;
 	size_t i;
+	// 步骤: 初始化输出
 	if ( pCharset ) { *pCharset = xrtStrView(NULL, 0u); }
 	if ( pLanguage ) { *pLanguage = xrtStrView(NULL, 0u); }
 	if ( pEncoded ) { *pEncoded = xrtStrView(NULL, 0u); }
 	if ( xrtStrViewIsEmpty(tRaw) ) { return false; }
+	// 算法步骤: 查找两个单引号分隔符
 	for ( i = 0u; i < tRaw.iLen; ++i ) {
 		if ( tRaw.sPtr[i] == '\'' ) {
 			if ( iFirstTick == (size_t)-1 ) { iFirstTick = i; }
@@ -575,11 +597,14 @@ static bool __xrtHttpUtilParseExtValueView(xrtstrview tRaw, xrtstrview* pCharset
 			}
 		}
 	}
+	// 步骤: 校验必须有两个单引号且 charset 非空
 	if ( iFirstTick == (size_t)-1 || iSecondTick == (size_t)-1 || iFirstTick == 0u ) { return false; }
+	// 步骤: 校验 charset 为合法的可打印 Token 字符
 	for ( i = 0u; i < iFirstTick; ++i ) {
 		unsigned char ch = (unsigned char)tRaw.sPtr[i];
 		if ( ch <= 0x20u || ch >= 0x7Fu || !__xrtHttpUtilIsTokenChar(tRaw.sPtr[i]) ) { return false; }
 	}
+	// 步骤: 提取三个部分: charset、language、encoded-value
 	if ( pCharset ) { *pCharset = xrtStrView(tRaw.sPtr, iFirstTick); }
 	if ( pLanguage ) { *pLanguage = xrtStrView(tRaw.sPtr + iFirstTick + 1u, iSecondTick - iFirstTick - 1u); }
 	if ( pEncoded ) { *pEncoded = xrtStrView(tRaw.sPtr + iSecondTick + 1u, tRaw.iLen - iSecondTick - 1u); }
@@ -610,7 +635,9 @@ XXAPI bool xrtHttpDecodeExtValue(const char* sText, char* sOut, size_t iOutCap, 
 }
 
 
-// 构建 HTTP 扩展值
+// 构建 HTTP 扩展值 (RFC 5987)
+// R13: 算法说明 - 构建 RFC 5987 扩展值格式 "charset'language'percent-encoded-value"
+//   charset 默认 UTF-8, language 可为空, value 部分使用百分号编码
 XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, const char* sText, size_t iTextLen, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
@@ -620,23 +647,28 @@ XXAPI bool xrtHttpBuildExtValueTo(const char* sCharset, const char* sLanguage, c
 	size_t i;
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( sText == NULL || sOut == NULL || iOutCap == 0u ) { return false; }
+	// 步骤: 设置默认值
 	if ( sCharset == NULL || sCharset[0] == '\0' ) { sCharset = "UTF-8"; }
 	if ( sLanguage == NULL ) { sLanguage = ""; }
 	iCharsetLen = strlen(sCharset);
 	iLanguageLen = strlen(sLanguage);
+	// 步骤: 校验 charset 为合法可打印 Token 字符
 	for ( i = 0u; i < iCharsetLen; ++i ) {
 		unsigned char ch = (unsigned char)sCharset[i];
 		if ( ch <= 0x20u || ch >= 0x7Fu || !__xrtHttpUtilIsTokenChar(sCharset[i]) ) { return false; }
 	}
+	// 步骤: 校验 language 为合法可打印字符且不含单引号
 	for ( i = 0u; i < iLanguageLen; ++i ) {
 		unsigned char ch = (unsigned char)sLanguage[i];
 		if ( ch <= 0x20u || ch >= 0x7Fu || sLanguage[i] == '\'' ) { return false; }
 	}
+	// 算法步骤: 拼接 charset'language'
 	sOut[0] = '\0';
 	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sCharset, iCharsetLen) ) { return false; }
 	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "'", 1u) ) { return false; }
 	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sLanguage, iLanguageLen) ) { return false; }
 	if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "'", 1u) ) { return false; }
+	// 算法步骤: 对 value 部分进行百分号编码
 	if ( !xrtPercentEncodeTo(sText, iTextLen, sOut + iOff, iOutCap - iOff, &iEncLen, false) ) { return false; }
 	iOff += iEncLen;
 	if ( pOutLen ) { *pOutLen = iOff; }
@@ -1120,6 +1152,8 @@ XXAPI bool xrtHttpHeaderCollectAndJoinTo(const xrtheaderpair* pHeaders, size_t i
 
 
 // 获取下一个 HTTP 头部行
+// R13: 算法说明 - 迭代解析 HTTP 头部块, 每行格式为 "Name: Value\r\n"
+//   连续的 \r\n 表示头部块结束, 最后一行可无 \r\n 终止
 XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffset, xrtheaderpair* pOut)
 {
 	size_t iCur;
@@ -1127,23 +1161,28 @@ XXAPI bool xrtHttpHeaderNextLineN(const char* sBlock, size_t iLen, size_t* pOffs
 	if ( sBlock == NULL || pOffset == NULL || pOut == NULL ) { return false; }
 	iCur = *pOffset;
 	if ( iCur >= iLen ) { return false; }
+	// 步骤: 检查是否到达头部块结束标记(\r\n 空行)
 	if ( iCur + 1u < iLen && sBlock[iCur] == '\r' && sBlock[iCur + 1u] == '\n' ) {
 		*pOffset = iCur + 2u;
 		return false;
 	}
+	// 算法步骤: 定位当前行的结尾(查找 \r\n)
 	iEnd = iCur;
 	while ( iEnd < iLen ) {
 		if ( sBlock[iEnd] == '\n' ) {
+			// 步骤: 校验 \n 前必须有 \r
 			if ( iEnd == iCur || sBlock[iEnd - 1u] != '\r' ) { return false; }
 			break;
 		}
 		iEnd++;
 	}
+	// 步骤: 找到 \r\n, 解析该行头部并跳过换行符
 	if ( iEnd < iLen ) {
 		if ( !xrtHttpHeaderSplitLineN(sBlock + iCur, iEnd - iCur - 1u, pOut) ) { return false; }
 		*pOffset = iEnd + 1u;
 		return true;
 	}
+	// 步骤: 未找到 \r\n(最后一行), 解析剩余内容
 	if ( !xrtHttpHeaderSplitLineN(sBlock + iCur, iLen - iCur, pOut) ) { return false; }
 	*pOffset = iLen;
 	return true;
@@ -1293,7 +1332,10 @@ XXAPI size_t xrtHttpHeaderRemove(xrtheaderpair* pHeaders, size_t* pCount, const 
 }
 
 
-// 获取下一个 Cookie
+// 获取下一个 Cookie (RFC 6265 §4.2.1)
+// R13: 算法说明 - 迭代解析 Cookie 头部, 格式为 "name1=value1; name2=value2; ..."
+//   Cookie 对以 ';' 分隔, name 和 value 以 '=' 分隔
+//   name 必须为合法 HTTP Token, value 两端空白会被裁剪
 XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtcookiepair* pOut)
 {
 	size_t iCur;
@@ -1301,26 +1343,32 @@ XXAPI bool xrtCookieNextN(const char* sText, size_t iLen, size_t* pOffset, xrtco
 	size_t iEq = (size_t)-1;
 	size_t i;
 	if ( sText == NULL || pOffset == NULL || pOut == NULL ) { return false; }
+	// 步骤: 跳过分隔符 ';' 和空白字符
 	iCur = *pOffset;
 	while ( iCur < iLen && (sText[iCur] == ';' || sText[iCur] == ' ' || sText[iCur] == '\t') ) { iCur++; }
 	if ( iCur >= iLen ) {
 		*pOffset = iCur;
 		return false;
 	}
+	// 算法步骤: 定位当前 Cookie 对的边界, 查找分号和等号
 	iEnd = iCur;
 	while ( iEnd < iLen && sText[iEnd] != ';' ) {
 		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) { iEq = iEnd; }
 		iEnd++;
 	}
+	// 步骤: 校验必须有等号且 name 非空
 	if ( iEq == (size_t)-1 || iEq == iCur ) { return false; }
+	// 步骤: 提取 name 和 value 并裁剪两端空白
 	pOut->tName = xrtStrView(sText + iCur, iEq - iCur);
 	pOut->tValue = xrtStrView(sText + iEq + 1u, iEnd - iEq - 1u);
 	__xrtHttpUtilTrimView(&pOut->tName);
 	__xrtHttpUtilTrimView(&pOut->tValue);
 	if ( pOut->tName.iLen == 0u ) { return false; }
+	// 步骤: 校验 name 为合法 Token 字符
 	for ( i = 0u; i < pOut->tName.iLen; ++i ) {
 		if ( !__xrtHttpUtilIsTokenChar(pOut->tName.sPtr[i]) ) { return false; }
 	}
+	// 步骤: 更新偏移位置
 	*pOffset = (iEnd < iLen) ? (iEnd + 1u) : iEnd;
 	return true;
 }
@@ -1384,50 +1432,67 @@ XXAPI bool xrtCookieParseTo(const char* sText, xrtcookiepair* pOut, size_t iCap,
 }
 
 
-// xrtSetCookieParseN 相关处理
+// 解析 Set-Cookie 头部值 (RFC 6265 §4.1.1)
+// R13: 算法说明 - Set-Cookie 头部格式为 "name=value; 属性1; 属性2=值2 ..."
+//   第一对 name=value 为必须项, 之后为可选属性(布尔型或键值型)
+//   布尔属性: Secure, HttpOnly, Partitioned, SameParty
+//   键值属性: Domain, Path, Expires, Max-Age, SameSite, Priority
 XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* pOut)
 {
 	size_t iCur;
 	size_t iEnd;
 	size_t iEq = (size_t)-1;
 	if ( sText == NULL || pOut == NULL || iLen == 0u ) { return false; }
+	// 算法步骤: 检查是否包含控制字符(禁止出现)
 	if ( __xrtHttpUtilContainsCtl(sText, iLen) ) { return false; }
+	// 算法步骤: 初始化输出结构
 	memset(pOut, 0, sizeof(xrtsetcookieview));
+	// 算法步骤: 跳过前导空白和分号
 	iCur = 0u;
 	while ( iCur < iLen && (sText[iCur] == ' ' || sText[iCur] == '\t' || sText[iCur] == ';') ) { iCur++; }
 	if ( iCur >= iLen ) { return false; }
+	// 算法步骤: 定位第一个 name=value 对的边界(到第一个分号)
 	iEnd = iCur;
 	while ( iEnd < iLen && sText[iEnd] != ';' ) {
 		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) { iEq = iEnd; }
 		iEnd++;
 	}
+	// 算法步骤: 校验 name=value 对必须有等号且 name 非空
 	if ( iEq == (size_t)-1 || iEq == iCur ) { return false; }
+	// 算法步骤: 提取并裁剪 name 和 value
 	pOut->tName = xrtStrView(sText + iCur, iEq - iCur);
 	pOut->tValue = xrtStrView(sText + iEq + 1u, iEnd - iEq - 1u);
 	__xrtHttpUtilTrimView(&pOut->tName);
 	__xrtHttpUtilTrimView(&pOut->tValue);
 	if ( pOut->tName.iLen == 0u ) { return false; }
+	// 算法步骤: 校验 name 必须为合法 HTTP Token 字符
 	for ( iCur = 0u; iCur < pOut->tName.iLen; ++iCur ) {
 		if ( !__xrtHttpUtilIsTokenChar(pOut->tName.sPtr[iCur]) ) { return false; }
 	}
+	// 算法步骤: 校验 value 必须为合法 Cookie Octet 字符
 	for ( iCur = 0u; iCur < pOut->tValue.iLen; ++iCur ) {
 		if ( !__xrtHttpUtilIsCookieOctet(pOut->tValue.sPtr[iCur]) ) { return false; }
 	}
 	pOut->iFlags |= XRT_SET_COOKIE_F_HAS_VALUE;
+	// 算法步骤: 逐个解析后续属性(RFC 6265 §5.2)
 	iCur = (iEnd < iLen) ? (iEnd + 1u) : iEnd;
 	while ( iCur < iLen ) {
 		xrtstrview tAttrName;
 		xrtstrview tAttrValue;
 		size_t iAttrEnd = iCur;
 		size_t iAttrEq = (size_t)-1;
+		// 步骤: 跳过属性间的空白和分号分隔符
 		while ( iCur < iLen && (sText[iCur] == ' ' || sText[iCur] == '\t' || sText[iCur] == ';') ) { iCur++; }
 		if ( iCur >= iLen ) { break; }
+		// 步骤: 定位当前属性的边界
 		iAttrEnd = iCur;
 		while ( iAttrEnd < iLen && sText[iAttrEnd] != ';' ) {
 			if ( sText[iAttrEnd] == '=' && iAttrEq == (size_t)-1 ) { iAttrEq = iAttrEnd; }
 			iAttrEnd++;
 		}
+		// 步骤: 分支处理 - 无等号为布尔属性, 有等号为键值属性
 		if ( iAttrEq == (size_t)-1 ) {
+			// 步骤: 解析布尔属性(Secure, HttpOnly, Partitioned, SameParty)
 			tAttrName = xrtStrView(sText + iCur, iAttrEnd - iCur);
 			__xrtHttpUtilTrimView(&tAttrName);
 			if ( __xrtHttpUtilEqNoCaseN(tAttrName.sPtr, tAttrName.iLen, "Secure", 6u) ) {
@@ -1441,10 +1506,12 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 			}
 		} else {
 			int32_t iMaxAge = 0;
+			// 步骤: 提取并裁剪属性名和属性值
 			tAttrName = xrtStrView(sText + iCur, iAttrEq - iCur);
 			tAttrValue = xrtStrView(sText + iAttrEq + 1u, iAttrEnd - iAttrEq - 1u);
 			__xrtHttpUtilTrimView(&tAttrName);
 			__xrtHttpUtilTrimView(&tAttrValue);
+			// 步骤: 按属性名分发处理
 			if ( __xrtHttpUtilEqNoCaseN(tAttrName.sPtr, tAttrName.iLen, "Domain", 6u) ) {
 				pOut->tDomain = tAttrValue;
 				pOut->iFlags |= XRT_SET_COOKIE_F_HAS_DOMAIN;
@@ -1455,10 +1522,12 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 				pOut->tExpires = tAttrValue;
 				pOut->iFlags |= XRT_SET_COOKIE_F_HAS_EXPIRES;
 			} else if ( __xrtHttpUtilEqNoCaseN(tAttrName.sPtr, tAttrName.iLen, "Max-Age", 7u) ) {
+				// 步骤: 解析 Max-Age 为有符号 32 位整数
 				if ( !__xrtHttpUtilParseInt32(tAttrValue.sPtr, tAttrValue.iLen, &iMaxAge) ) { return false; }
 				pOut->iMaxAge = iMaxAge;
 				pOut->iFlags |= XRT_SET_COOKIE_F_HAS_MAX_AGE;
 			} else if ( __xrtHttpUtilEqNoCaseN(tAttrName.sPtr, tAttrName.iLen, "SameSite", 8u) ) {
+				// 步骤: 解析 SameSite 枚举值 (Lax/Strict/None)
 				if ( __xrtHttpUtilEqNoCaseN(tAttrValue.sPtr, tAttrValue.iLen, "Lax", 3u) ) {
 					pOut->iSameSite = XRT_SAME_SITE_LAX;
 				} else if ( __xrtHttpUtilEqNoCaseN(tAttrValue.sPtr, tAttrValue.iLen, "Strict", 6u) ) {
@@ -1470,6 +1539,7 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 				}
 				pOut->iFlags |= XRT_SET_COOKIE_F_HAS_SAME_SITE;
 			} else if ( __xrtHttpUtilEqNoCaseN(tAttrName.sPtr, tAttrName.iLen, "Priority", 8u) ) {
+				// 步骤: 解析 Priority 枚举值 (Low/Medium/High)
 				if ( __xrtHttpUtilEqNoCaseN(tAttrValue.sPtr, tAttrValue.iLen, "Low", 3u) ) {
 					pOut->iPriority = XRT_COOKIE_PRIORITY_LOW;
 				} else if ( __xrtHttpUtilEqNoCaseN(tAttrValue.sPtr, tAttrValue.iLen, "Medium", 6u) ) {
@@ -1482,6 +1552,7 @@ XXAPI bool xrtSetCookieParseN(const char* sText, size_t iLen, xrtsetcookieview* 
 				pOut->iFlags |= XRT_SET_COOKIE_F_HAS_PRIORITY;
 			}
 		}
+		// 步骤: 移动到下一个属性
 		iCur = (iAttrEnd < iLen) ? (iAttrEnd + 1u) : iAttrEnd;
 	}
 	return true;
@@ -1517,6 +1588,9 @@ static bool __xrtHttpUtilParseParamValue(xrtstrview tRaw, xrtstrview* pOut);
 
 
 // 获取下一个 HTTP 参数
+// R13: 算法说明 - 迭代解析 HTTP 参数列表 (RFC 2616 attribute=value 对)
+//   参数以 ';' 分隔, 格式为 "name[=value]; name[=value]; ..."
+//   value 可以是裸值或双引号引用字符串
 XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xrthttpparam* pOut)
 {
 	size_t iCur;
@@ -1526,17 +1600,20 @@ XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 	xrtstrview tValue;
 	size_t i;
 	if ( sText == NULL || pOffset == NULL || pOut == NULL ) { return false; }
+	// 步骤: 跳过分隔符和空白
 	iCur = *pOffset;
 	while ( iCur < iLen && (sText[iCur] == ';' || sText[iCur] == ' ' || sText[iCur] == '\t') ) { iCur++; }
 	if ( iCur >= iLen ) {
 		*pOffset = iLen;
 		return false;
 	}
+	// 算法步骤: 定位当前参数的边界(到下一个分号), 同时查找等号
 	iEnd = iCur;
 	while ( iEnd < iLen && sText[iEnd] != ';' ) {
 		if ( sText[iEnd] == '=' && iEq == (size_t)-1 ) { iEq = iEnd; }
 		iEnd++;
 	}
+	// 步骤: 根据是否有等号, 分别提取 name 或 name+value
 	if ( iEq == (size_t)-1 ) {
 		tName = xrtStrView(sText + iCur, iEnd - iCur);
 		tValue = xrtStrView(NULL, 0u);
@@ -1544,14 +1621,18 @@ XXAPI bool xrtHttpParamNextN(const char* sText, size_t iLen, size_t* pOffset, xr
 		tName = xrtStrView(sText + iCur, iEq - iCur);
 		tValue = xrtStrView(sText + iEq + 1u, iEnd - iEq - 1u);
 	}
+	// 步骤: 裁剪 name 两端空白
 	__xrtHttpUtilTrimView(&tName);
 	if ( xrtStrViewIsEmpty(tName) ) { return false; }
+	// 步骤: 校验 name 为合法 Token 字符
 	for ( i = 0u; i < tName.iLen; ++i ) {
 		if ( !__xrtHttpUtilIsTokenChar(tName.sPtr[i]) ) { return false; }
 	}
+	// 算法步骤: 如果有 value, 解析 value (处理引号字符串)
 	if ( iEq != (size_t)-1 ) {
 		if ( !__xrtHttpUtilParseParamValue(tValue, &tValue) ) { return false; }
 	}
+	// 步骤: 填充输出结果
 	pOut->iFlags = (iEq != (size_t)-1) ? XRT_HTTP_PARAM_F_HAS_VALUE : XRT_HTTP_PARAM_F_NONE;
 	pOut->tName = tName;
 	pOut->tValue = tValue;
@@ -1641,7 +1722,10 @@ XXAPI bool xrtHttpParamAppendPair(char* sOut, size_t iOutCap, size_t* pOffset, c
 }
 
 
-// xrtHttpMediaTypeParseN 相关处理
+// 解析 HTTP 媒体类型 (RFC 6838 / MIME Content-Type)
+// R13: 算法说明 - 解析 MIME 媒体类型字符串, 格式为 "type/subtype[+suffix][;params]"
+//   例如: "text/html;charset=UTF-8", "application/vnd.api+json"
+//   通过 '/' 分离 type 和 subtype, '+' 分离可选 suffix, ';' 分离参数
 XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypeview* pOut)
 {
 	size_t iSemi = 0u;
@@ -1651,12 +1735,15 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 	xrtstrview tToken;
 	xrtstrview tParams;
 	if ( pOut == NULL ) { return false; }
+	// 步骤: 初始化输出结构
 	memset(pOut, 0, sizeof(xrtmediatypeview));
 	if ( sText == NULL || iLen == 0u ) { return false; }
+	// 算法步骤: 定位第一个分号, 分离媒体类型令牌和参数部分
 	while ( iSemi < iLen && sText[iSemi] != ';' ) { iSemi++; }
 	tToken = xrtStrView(sText, iSemi);
 	__xrtHttpUtilTrimView(&tToken);
 	if ( xrtStrViewIsEmpty(tToken) ) { return false; }
+	// 算法步骤: 扫描令牌, 定位 '/' (type/subtype) 和 '+' (可选 suffix)
 	for ( i = 0u; i < tToken.iLen; ++i ) {
 		char ch = tToken.sPtr[i];
 		if ( ch == '/' && iSlash == (size_t)-1 ) {
@@ -1669,9 +1756,13 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 		}
 		if ( !__xrtHttpUtilIsTokenChar(ch) ) { return false; }
 	}
+	// 步骤: 校验 '/' 必须存在且前后都有内容
 	if ( iSlash == (size_t)-1 || iSlash == 0u || iSlash + 1u >= tToken.iLen ) { return false; }
+	// 步骤: 校验 '+' 如果存在不能紧跟在 '/' 之后
 	if ( iPlus != (size_t)-1 && iPlus <= iSlash + 1u ) { return false; }
+	// 步骤: 提取 type 部分
 	pOut->tType = xrtStrView(tToken.sPtr, iSlash);
+	// 步骤: 提取 subtype 和可选 suffix
 	if ( iPlus == (size_t)-1 ) {
 		pOut->tSubType = xrtStrView(tToken.sPtr + iSlash + 1u, tToken.iLen - iSlash - 1u);
 	} else {
@@ -1681,6 +1772,7 @@ XXAPI bool xrtHttpMediaTypeParseN(const char* sText, size_t iLen, xrtmediatypevi
 		pOut->iFlags |= XRT_HTTP_MEDIA_TYPE_F_HAS_SUFFIX;
 	}
 	if ( xrtStrViewIsEmpty(pOut->tSubType) ) { return false; }
+	// 步骤: 如果有分号, 提取参数部分视图
 	if ( iSemi < iLen ) {
 		tParams = xrtStrView(sText + iSemi + 1u, iLen - iSemi - 1u);
 		__xrtHttpUtilTrimView(&tParams);
@@ -1752,7 +1844,10 @@ XXAPI bool xrtHttpMediaTypeFindParam(const xrtmediatypeview* pType, const char* 
 }
 
 
-// xrtHttpContentDispositionParseN 相关处理
+// 解析 HTTP Content-Disposition 头部 (RFC 6266)
+// R13: 算法说明 - 解析 Content-Disposition 头部, 格式为 "disposition-type; name=...; filename=...; filename*=..."
+//   disposition-type 通常为 "form-data" 或 "attachment"
+//   filename* 使用 RFC 5987 扩展值编码, 优先级高于 filename
 XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtcontentdispositionview* pOut)
 {
 	size_t iSemi = 0u;
@@ -1766,16 +1861,20 @@ XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtco
 	xrtstrview tEncoded;
 	size_t iParamOff = 0u;
 	if ( pOut == NULL ) { return false; }
+	// 步骤: 初始化输出结构
 	memset(pOut, 0, sizeof(xrtcontentdispositionview));
 	if ( sText == NULL || iLen == 0u ) { return false; }
+	// 算法步骤: 定位分号, 分离 disposition-type 和参数部分
 	while ( iSemi < iLen && sText[iSemi] != ';' ) { iSemi++; }
 	tToken = xrtStrView(sText, iSemi);
 	__xrtHttpUtilTrimView(&tToken);
 	if ( xrtStrViewIsEmpty(tToken) ) { return false; }
+	// 步骤: 校验 disposition-type 为合法 Token
 	for ( i = 0u; i < tToken.iLen; ++i ) {
 		if ( !__xrtHttpUtilIsTokenChar(tToken.sPtr[i]) ) { return false; }
 	}
 	pOut->tType = tToken;
+	// 算法步骤: 如果有参数部分, 逐个解析并提取 name/filename/filename*
 	if ( iSemi < iLen ) {
 		tParams = xrtStrView(sText + iSemi + 1u, iLen - iSemi - 1u);
 		__xrtHttpUtilTrimView(&tParams);
@@ -1783,14 +1882,17 @@ XXAPI bool xrtHttpContentDispositionParseN(const char* sText, size_t iLen, xrtco
 			pOut->tParams = tParams;
 			pOut->iFlags |= XRT_HTTP_CONTENT_DISPOSITION_F_HAS_PARAMS;
 			while ( xrtHttpParamNextN(tParams.sPtr, tParams.iLen, &iParamOff, &tParam) ) {
+				// 步骤: 提取 name 参数
 				if ( __xrtHttpUtilEqNoCaseN(tParam.tName.sPtr, tParam.tName.iLen, "name", 4u) &&
 				     (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) != 0u ) {
 					pOut->tName = tParam.tValue;
 					pOut->iFlags |= XRT_HTTP_CONTENT_DISPOSITION_F_HAS_NAME;
+				// 步骤: 提取 filename 参数
 				} else if ( __xrtHttpUtilEqNoCaseN(tParam.tName.sPtr, tParam.tName.iLen, "filename", 8u) &&
 				            (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) != 0u ) {
 					pOut->tFileName = tParam.tValue;
 					pOut->iFlags |= XRT_HTTP_CONTENT_DISPOSITION_F_HAS_FILENAME;
+				// 步骤: 提取 filename* 参数 (RFC 5987 扩展值, 含编码信息)
 				} else if ( __xrtHttpUtilEqNoCaseN(tParam.tName.sPtr, tParam.tName.iLen, "filename*", 9u) &&
 				            (tParam.iFlags & XRT_HTTP_PARAM_F_HAS_VALUE) != 0u ) {
 					tExtValue = tParam.tValue;
@@ -2046,27 +2148,34 @@ XXAPI bool xrtFormUrlEncodedBuildTo(const xrtquerypair* pPairs, size_t iCount, c
 }
 
 
-// xrtSetCookieBuildTo 相关处理
+// 构建 Set-Cookie 值 (RFC 6265 §4.1.1)
+// R13: 算法说明 - 按规范顺序拼接 Set-Cookie 值: name=value; 属性列表
+//   属性按 Domain/Path/Expires/Max-Age/SameSite/Secure/HttpOnly/Partitioned/SameParty/Priority 顺序输出
 XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size_t iOutCap, size_t* pOutLen)
 {
 	size_t iOff = 0u;
 	if ( pOutLen ) { *pOutLen = 0u; }
 	if ( sOut == NULL || iOutCap == 0u || pCookie == NULL ) { return false; }
 	sOut[0] = '\0';
+	// 步骤: 写入必须的 name=value
 	if ( xrtStrViewIsEmpty(pCookie->tName) ) { return false; }
 	if ( !xrtCookieAppendPairTo(sOut, iOutCap, &iOff, pCookie->tName.sPtr, pCookie->tName.iLen, pCookie->tValue.sPtr, pCookie->tValue.iLen) ) { return false; }
+	// 步骤: 写入 Domain 属性
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_DOMAIN) != 0u ) {
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Domain=", 9u) ) { return false; }
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tDomain.sPtr, pCookie->tDomain.iLen) ) { return false; }
 	}
+	// 步骤: 写入 Path 属性
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_PATH) != 0u ) {
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Path=", 7u) ) { return false; }
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tPath.sPtr, pCookie->tPath.iLen) ) { return false; }
 	}
+	// 步骤: 写入 Expires 属性
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_EXPIRES) != 0u ) {
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Expires=", 10u) ) { return false; }
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, pCookie->tExpires.sPtr, pCookie->tExpires.iLen) ) { return false; }
 	}
+	// 步骤: 写入 Max-Age 属性(整数转字符串)
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_MAX_AGE) != 0u ) {
 		char sNum[32];
 		int iLen = snprintf(sNum, sizeof(sNum), "%d", (int)pCookie->iMaxAge);
@@ -2074,6 +2183,7 @@ XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Max-Age=", 11u) ) { return false; }
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sNum, (size_t)iLen) ) { return false; }
 	}
+	// 步骤: 写入 SameSite 属性(Lax/Strict/None)
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_SAME_SITE) != 0u ) {
 		const char* sSameSite = NULL;
 		if ( pCookie->iSameSite == XRT_SAME_SITE_LAX ) { sSameSite = "Lax"; }
@@ -2083,6 +2193,7 @@ XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameSite=", 12u) ) { return false; }
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, sSameSite, strlen(sSameSite)) ) { return false; }
 	}
+	// 步骤: 写入布尔属性 (Secure, HttpOnly, Partitioned, SameParty)
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_SECURE) != 0u ) {
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; Secure", 8u) ) { return false; }
 	}
@@ -2095,6 +2206,7 @@ XXAPI bool xrtSetCookieBuildTo(const xrtsetcookieview* pCookie, char* sOut, size
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_SAME_PARTY) != 0u ) {
 		if ( !__xrtHttpUtilAppendBytes(sOut, iOutCap, &iOff, "; SameParty", 11u) ) { return false; }
 	}
+	// 步骤: 写入 Priority 属性(Low/Medium/High)
 	if ( (pCookie->iFlags & XRT_SET_COOKIE_F_HAS_PRIORITY) != 0u ) {
 		const char* sPriority = NULL;
 		if ( pCookie->iPriority == XRT_COOKIE_PRIORITY_LOW ) { sPriority = "Low"; }
@@ -2285,7 +2397,10 @@ static bool __xrtHttpUtilMultipartParseContentDisposition(xrtstrview tValue, xrt
 }
 
 
-// 获取下一个 Multipart
+// 获取下一个 Multipart Part
+// R13: 算法说明 - Multipart 整体解析, 按 RFC 2046 格式定位每个 Part
+//   格式: --boundary\r\n<headers>\r\n\r\n<body>\r\n--boundary(--) ...
+//   先定位边界行, 再查找头部与 body 的分隔符(\r\n\r\n), 最后定位下一个边界
 XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBoundary, size_t iBoundaryLen, size_t* pOffset, xrtmultipartpartview* pOut)
 {
 	size_t iPos;
@@ -2299,27 +2414,35 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 	xrtheaderpair tHeader;
 	size_t iHeaderOff = 0u;
 	if ( sBody == NULL || sBoundary == NULL || pOffset == NULL || pOut == NULL || iBoundaryLen == 0u ) { return false; }
+	// 算法步骤: 从当前偏移位置查找下一个边界行
 	if ( !__xrtHttpUtilFindBoundaryLine(sBody, iLen, *pOffset, sBoundary, iBoundaryLen, &iPos, &bFinal, &iAfterBoundary) ) {
 		*pOffset = iLen;
 		return false;
 	}
+	// 步骤: 结束边界表示 Multipart 数据结束
 	if ( bFinal ) {
 		*pOffset = iLen;
 		return false;
 	}
 	if ( iAfterBoundary > iLen ) { return false; }
+	// 步骤: 初始化输出结构
 	memset(pOut, 0, sizeof(xrtmultipartpartview));
+	// 算法步骤: 查找头部结束标记 \r\n\r\n (头部与 body 的分隔)
 	iHeaderEnd = iAfterBoundary;
 	while ( iHeaderEnd + 3u < iLen ) {
 		if ( sBody[iHeaderEnd] == '\r' && sBody[iHeaderEnd + 1u] == '\n' && sBody[iHeaderEnd + 2u] == '\r' && sBody[iHeaderEnd + 3u] == '\n' ) { break; }
 		iHeaderEnd++;
 	}
 	if ( iHeaderEnd + 3u >= iLen ) { return false; }
+	// 步骤: 提取头部区域视图
 	pOut->tHeaders = xrtStrView(sBody + iAfterBoundary, iHeaderEnd - iAfterBoundary);
+	// 算法步骤: 查找 body 之后的下一个边界行, 确定 body 长度
 	iBodyEnd = iHeaderEnd + 4u;
 	if ( !__xrtHttpUtilFindBoundaryLine(sBody, iLen, iBodyEnd, sBoundary, iBoundaryLen, &iNextPos, &bNextFinal, &iUnusedAfter) ) { return false; }
+	// 步骤: 边界前应有 \r\n 前缀, 去掉后得到纯 body 数据
 	if ( iNextPos < 2u || sBody[iNextPos - 2u] != '\r' || sBody[iNextPos - 1u] != '\n' ) { return false; }
 	pOut->tBody = xrtStrView(sBody + iBodyEnd, iNextPos - iBodyEnd - 2u);
+	// 算法步骤: 逐行解析头部, 提取 Content-Disposition / Content-Type / Content-Transfer-Encoding
 	while ( xrtHttpHeaderNextLineN(pOut->tHeaders.sPtr, pOut->tHeaders.iLen, &iHeaderOff, &tHeader) ) {
 		if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Disposition", 19u) ) {
 			if ( !__xrtHttpUtilMultipartParseContentDisposition(tHeader.tValue, pOut) ) { return false; }
@@ -2331,6 +2454,7 @@ XXAPI bool xrtMultipartNextN(const char* sBody, size_t iLen, const char* sBounda
 			pOut->iFlags |= XRT_MULTIPART_F_HAS_TRANSFER_ENCODING;
 		}
 	}
+	// 步骤: 更新偏移到下一个边界位置
 	*pOffset = iNextPos;
 	(void)bNextFinal;
 	return true;
@@ -2464,26 +2588,34 @@ static bool __xrtHttpUtilMultipartStreamEnsureCap(xrtmultipartstream* pStream, s
 
 
 // 初始化 Multipart 流
+// R13: 算法说明 - 初始化流式 Multipart 解析器, 配置缓冲区大小限制和边界字符串
+//   自动计算尾部保留空间(边界长度 + 8), 确保缓冲区能容纳至少一个头部块加尾部保留
 XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoundary, size_t iBoundaryLen, const xrtmultipartstreamconfig* pConfig)
 {
 	xrtmultipartstreamconfig tConfig;
 	if ( !pStream ) { return false; }
+	// 步骤: 初始化流结构并加载默认配置
 	memset(pStream, 0, sizeof(xrtmultipartstream));
 	xrtMultipartStreamConfigInit(&tConfig);
 	if ( pConfig ) { tConfig = *pConfig; }
+	// 步骤: 校验边界字符串合法性
 	if ( !__xrtHttpUtilValidateBoundaryN(sBoundary, iBoundaryLen) ) {
 		pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_BOUNDARY;
 		pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
 		return false;
 	}
+	// 步骤: 填充配置项默认值
 	if ( tConfig.iMaxBufferedBytes == 0u ) { tConfig.iMaxBufferedBytes = 256u * 1024u; }
 	if ( tConfig.iMaxHeaderBytes == 0u ) { tConfig.iMaxHeaderBytes = 64u * 1024u; }
 	if ( tConfig.iMaxPartHeaders == 0u ) { tConfig.iMaxPartHeaders = 64u; }
+	// 步骤: 计算尾部保留空间(用于防止在边界分割处丢失数据)
 	if ( tConfig.iTailReserve == 0u ) { tConfig.iTailReserve = iBoundaryLen + 8u; }
 	if ( tConfig.iTailReserve < iBoundaryLen + 8u ) { tConfig.iTailReserve = iBoundaryLen + 8u; }
+	// 步骤: 确保缓冲区最小容量
 	if ( tConfig.iMaxBufferedBytes < tConfig.iMaxHeaderBytes + tConfig.iTailReserve + 4u ) {
 		tConfig.iMaxBufferedBytes = tConfig.iMaxHeaderBytes + tConfig.iTailReserve + 4u;
 	}
+	// 步骤: 保存边界字符串和配置到流结构
 	memcpy(pStream->aBoundary, sBoundary, iBoundaryLen);
 	pStream->aBoundary[iBoundaryLen] = '\0';
 	pStream->iBoundaryLen = iBoundaryLen;
@@ -2491,6 +2623,7 @@ XXAPI bool xrtMultipartStreamInit(xrtmultipartstream* pStream, const char* sBoun
 	pStream->iMaxHeaderBytes = tConfig.iMaxHeaderBytes;
 	pStream->iMaxPartHeaders = tConfig.iMaxPartHeaders;
 	pStream->iTailReserve = tConfig.iTailReserve;
+	// 步骤: 设置初始状态为查找边界
 	pStream->iState = XRT_MULTIPART_STREAM_STATE_SEEK_BOUNDARY;
 	return true;
 }
@@ -2564,7 +2697,9 @@ XXAPI uint32 xrtMultipartStreamError(const xrtmultipartstream* pStream)
 }
 
 
-// 内部函数：解析 HTTP util Multipart 流 headers
+// 内部函数：从流缓冲区中解析当前 Part 的头部块
+// R13: 算法说明 - 在流式缓冲区中查找 \r\n\r\n 分隔符定位头部区域,
+//   然后逐行解析头部字段, 提取 Content-Disposition/Content-Type/Content-Transfer-Encoding
 static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream, xrtmultipartpartview* pOut)
 {
 	size_t iHeaderEnd;
@@ -2572,6 +2707,7 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 	size_t iHeaderCount = 0u;
 	xrtheaderpair tHeader;
 	if ( !pStream || !pOut ) { return false; }
+	// 算法步骤: 从游标位置开始查找 \r\n\r\n (头部结束标记)
 	iHeaderEnd = pStream->iCursor;
 	while ( iHeaderEnd + 3u < pStream->iBufferLen ) {
 		if ( pStream->pBuffer[iHeaderEnd] == '\r' &&
@@ -2581,12 +2717,14 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 			break;
 		}
 		iHeaderEnd++;
+		// 步骤: 检查头部大小是否超出限制
 		if ( iHeaderEnd - pStream->iCursor > pStream->iMaxHeaderBytes ) {
 			pStream->iError = XRT_MULTIPART_STREAM_ERR_HEADER_LIMIT;
 			pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
 			return false;
 		}
 	}
+	// 步骤: 未找到分隔符, 检查是否需要更多数据或报错
 	if ( iHeaderEnd + 3u >= pStream->iBufferLen ) {
 		if ( pStream->bFinishedInput ) {
 			pStream->iError = XRT_MULTIPART_STREAM_ERR_TRUNCATED;
@@ -2595,15 +2733,19 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 		}
 		return false;
 	}
+	// 步骤: 提取头部区域视图
 	memset(pOut, 0, sizeof(xrtmultipartpartview));
 	pOut->tHeaders = xrtStrView(pStream->pBuffer + pStream->iCursor, iHeaderEnd - pStream->iCursor);
+	// 算法步骤: 逐行解析头部字段
 	while ( xrtHttpHeaderNextLineN(pOut->tHeaders.sPtr, pOut->tHeaders.iLen, &iHeaderOff, &tHeader) ) {
 		++iHeaderCount;
+		// 步骤: 检查头部行数是否超出限制
 		if ( iHeaderCount > pStream->iMaxPartHeaders ) {
 			pStream->iError = XRT_MULTIPART_STREAM_ERR_HEADER_LIMIT;
 			pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
 			return false;
 		}
+		// 步骤: 按头部名称分发处理
 		if ( __xrtHttpUtilEqNoCaseN(tHeader.tName.sPtr, tHeader.tName.iLen, "Content-Disposition", 19u) ) {
 			if ( !__xrtHttpUtilMultipartParseContentDisposition(tHeader.tValue, pOut) ) {
 				pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_HEADER;
@@ -2618,16 +2760,23 @@ static bool __xrtHttpUtilMultipartStreamParseHeaders(xrtmultipartstream* pStream
 			pOut->iFlags |= XRT_MULTIPART_F_HAS_TRANSFER_ENCODING;
 		}
 	}
+	// 步骤: 移动游标跳过头部和分隔符, 指向 body 起始位置
 	pStream->iCursor = iHeaderEnd + 4u;
 	return true;
 }
 
 
-// 获取下一个 Multipart 流
+// 获取下一个 Multipart 流事件
+// R13: 算法说明 - Multipart 流式解析状态机, 按 RFC 2046 multipart 格式逐步解析
+//   状态流转: SEEK_BOUNDARY -> HEADERS -> BODY -> PART_END -> (循环或 DONE)
+//   每次调用返回一个事件(PART_BEGIN/DATA/PART_END/END/NEED_MORE/ERROR)
+//   BODY 状态下采用尾部保留策略, 避免在边界分割处遗漏数据
 XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStream, xrtmultipartstreamevent* pEvent)
 {
+	// 步骤: 初始化事件结构
 	if ( pEvent ) { __xrtHttpUtilMultipartStreamZeroEvent(pEvent); }
 	if ( pStream == NULL || pEvent == NULL ) { return XRT_MULTIPART_STREAM_RESULT_ERROR; }
+	// 步骤: 检查是否已处于终态
 	if ( pStream->iState == XRT_MULTIPART_STREAM_STATE_ERROR ) {
 		pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_ERROR;
 		return pEvent->iResult;
@@ -2636,8 +2785,11 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 		pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_END;
 		return pEvent->iResult;
 	}
+	// 步骤: 压缩缓冲区, 移除已消费的数据
 	__xrtHttpUtilMultipartStreamCompact(pStream);
+	// 步骤: 状态机主循环
 	for (;;) {
+		// 状态: 查找下一个边界行
 		if ( pStream->iState == XRT_MULTIPART_STREAM_STATE_SEEK_BOUNDARY ) {
 			size_t iPos = 0u;
 			bool bFinal = false;
@@ -2651,15 +2803,19 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 				}
 				return XRT_MULTIPART_STREAM_RESULT_NEED_MORE;
 			}
+			// 步骤: 找到边界后移动游标到边界之后
 			pStream->iCursor = iAfter;
 			if ( bFinal ) {
+				// 步骤: 结束边界(--boundary--), 流结束
 				pStream->iState = XRT_MULTIPART_STREAM_STATE_DONE;
 				pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_END;
 				return pEvent->iResult;
 			}
+			// 步骤: 普通边界, 切换到头部解析状态
 			pStream->iState = XRT_MULTIPART_STREAM_STATE_HEADERS;
 			continue;
 		}
+		// 状态: 解析 Part 的头部块
 		if ( pStream->iState == XRT_MULTIPART_STREAM_STATE_HEADERS ) {
 			xrtmultipartpartview tPart;
 			if ( !__xrtHttpUtilMultipartStreamParseHeaders(pStream, &tPart) ) {
@@ -2669,17 +2825,21 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 				}
 				return XRT_MULTIPART_STREAM_RESULT_NEED_MORE;
 			}
+			// 步骤: 头部解析完成, 发出 PART_BEGIN 事件
 			pStream->tCurrentPart = tPart;
 			pStream->iState = XRT_MULTIPART_STREAM_STATE_BODY;
 			pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_PART_BEGIN;
 			pEvent->tPart = tPart;
 			return pEvent->iResult;
 		}
+		// 状态: 流式输出 Part 的 Body 数据
 		if ( pStream->iState == XRT_MULTIPART_STREAM_STATE_BODY ) {
 			size_t iPos = 0u;
 			bool bFinal = false;
 			size_t iAfter = 0u;
+			// 步骤: 尝试在缓冲区中查找下一个边界
 			if ( __xrtHttpUtilFindBoundaryLine(pStream->pBuffer, pStream->iBufferLen, pStream->iCursor, pStream->aBoundary, pStream->iBoundaryLen, &iPos, &bFinal, &iAfter) ) {
+				// 步骤: 找到边界, 输出边界之前的全部 body 数据(去掉 \r\n 前缀)
 				size_t iDataLen = (iPos >= pStream->iCursor + 2u) ? (iPos - pStream->iCursor - 2u) : 0u;
 				if ( iDataLen > 0u ) {
 					pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_DATA;
@@ -2688,18 +2848,21 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 					pStream->iCursor += iDataLen;
 					return pEvent->iResult;
 				}
+				// 步骤: body 数据已全部输出, 保存边界信息并转入 PART_END
 				pStream->iBoundaryPos = iPos;
 				pStream->iAfterBoundary = iAfter;
 				pStream->bFinalBoundary = bFinal;
 				pStream->iState = XRT_MULTIPART_STREAM_STATE_PART_END;
 				continue;
 			}
+			// 步骤: 未找到边界且输入已结束, 报错
 			if ( pStream->bFinishedInput ) {
 				pStream->iError = XRT_MULTIPART_STREAM_ERR_TRUNCATED;
 				pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
 				pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_ERROR;
 				return pEvent->iResult;
 			}
+			// 步骤: 尾部保留策略 - 只输出超出保留范围的数据, 保留部分可能包含不完整边界
 			if ( pStream->iBufferLen > pStream->iCursor + pStream->iTailReserve ) {
 				size_t iDataLen = pStream->iBufferLen - pStream->iCursor - pStream->iTailReserve;
 				if ( iDataLen > 0u ) {
@@ -2712,11 +2875,14 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 			}
 			return XRT_MULTIPART_STREAM_RESULT_NEED_MORE;
 		}
+		// 状态: Part 结束, 发出 PART_END 事件
 		if ( pStream->iState == XRT_MULTIPART_STREAM_STATE_PART_END ) {
 			pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_PART_END;
 			pEvent->tPart = pStream->tCurrentPart;
+			// 步骤: 移动游标到边界之后, 为下一个 Part 做准备
 			pStream->iCursor = pStream->iAfterBoundary;
 			memset(&pStream->tCurrentPart, 0, sizeof(xrtmultipartpartview));
+			// 步骤: 根据是否为结束边界决定进入 DONE 还是继续解析头部
 			pStream->iState = pStream->bFinalBoundary ? XRT_MULTIPART_STREAM_STATE_DONE : XRT_MULTIPART_STREAM_STATE_HEADERS;
 			return pEvent->iResult;
 		}
@@ -2724,6 +2890,7 @@ XXAPI xrtmultipartstreamresult xrtMultipartStreamNext(xrtmultipartstream* pStrea
 			pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_END;
 			return pEvent->iResult;
 		}
+		// 步骤: 未知状态, 报错
 		pStream->iError = XRT_MULTIPART_STREAM_ERR_INVALID_HEADER;
 		pStream->iState = XRT_MULTIPART_STREAM_STATE_ERROR;
 		pEvent->iResult = XRT_MULTIPART_STREAM_RESULT_ERROR;

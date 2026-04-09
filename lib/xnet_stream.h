@@ -415,12 +415,15 @@ static bool __xnetStreamResolveSyncWaitNow(xnetstream* pStream, uint32 iWaitKind
 {
 	if ( !pStream || !pStatus ) { return false; }
 
+	// 根据等待类型判断是否可以立即完成
 	switch ( iWaitKind ) {
 		case __XNET_STREAM_WAIT_READABLE:
+			// 流已关闭，返回关闭原因
 			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
 				*pStatus = pStream->iCloseReason;
 				return true;
 			}
+			// 接收链中有数据可读
 			if ( xrtNetChainBytes(&pStream->tRxChain) > 0 ) {
 				*pStatus = XRT_NET_OK;
 				return true;
@@ -428,17 +431,21 @@ static bool __xnetStreamResolveSyncWaitNow(xnetstream* pStream, uint32 iWaitKind
 			return false;
 
 		case __XNET_STREAM_WAIT_WRITABLE:
+			// 流已关闭，返回关闭原因
 			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
 				*pStatus = pStream->iCloseReason;
 				return true;
 			}
+			// 流正在关闭中
 			if ( pStream->bClosing ) {
 				*pStatus = XRT_NET_CLOSED;
 				return true;
 			}
+			// 尚未触发 OnOpen 事件，暂不可写
 			if ( __xnetStreamHasPreOpenGate(pStream) ) {
 				return false;
 			}
+			// 未触及高水位或已回落到低水位以下，可以写入
 			if ( !pStream->tSendQ.bHighWaterHit || pStream->tSendQ.iQueuedBytes <= pStream->tSendQ.iLowWater ) {
 				*pStatus = XRT_NET_OK;
 				return true;
@@ -446,10 +453,12 @@ static bool __xnetStreamResolveSyncWaitNow(xnetstream* pStream, uint32 iWaitKind
 			return false;
 
 		case __XNET_STREAM_WAIT_DRAIN:
+			// 流已关闭
 			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
 				*pStatus = XRT_NET_CLOSED;
 				return true;
 			}
+			// 发送队列已排空，根据是否正在关闭返回不同状态
 			if ( pStream->tSendQ.iQueuedBytes == 0 ) {
 				*pStatus = pStream->bClosing ? XRT_NET_CLOSED : XRT_NET_OK;
 				return true;
@@ -457,6 +466,7 @@ static bool __xnetStreamResolveSyncWaitNow(xnetstream* pStream, uint32 iWaitKind
 			return false;
 
 		case __XNET_STREAM_WAIT_CLOSE:
+			// 流已关闭，返回关闭原因
 			if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) {
 				*pStatus = pStream->iCloseReason;
 				return true;
@@ -966,21 +976,25 @@ static void __xnetStreamApplyDefaults(xnetstream* pStream, const xnetconnectconf
 
 	if ( !pStream || !pStream->pEngine ) { return; }
 
+	// 从引擎配置中读取默认的高水位、低水位和接收限制
 	iHighWater = pStream->pEngine->tConfig.iDefaultHighWater;
 	iLowWater = pStream->pEngine->tConfig.iDefaultLowWater;
 	iRecvLimit = 1048576u;
 
+	// 监听配置优先覆盖默认值
 	if ( pListenCfg ) {
 		if ( pListenCfg->iHighWater > 0 ) { iHighWater = pListenCfg->iHighWater; }
 		if ( pListenCfg->iLowWater <= iHighWater ) { iLowWater = pListenCfg->iLowWater; }
 		if ( pListenCfg->iRecvLimit > 0 ) { iRecvLimit = pListenCfg->iRecvLimit; }
 	}
+	// 连接配置再次覆盖（优先级最高）
 	if ( pConnectCfg ) {
 		if ( pConnectCfg->iHighWater > 0 ) { iHighWater = pConnectCfg->iHighWater; }
 		if ( pConnectCfg->iLowWater <= iHighWater ) { iLowWater = pConnectCfg->iLowWater; }
 		if ( pConnectCfg->iRecvLimit > 0 ) { iRecvLimit = pConnectCfg->iRecvLimit; }
 	}
 
+	// 应用水位线和接收限制到流
 	__xnetStreamApplyWatermark(pStream, iHighWater, iLowWater);
 	pStream->iRecvLimit = iRecvLimit;
 	pStream->iConnectTimeoutMs = pConnectCfg ? pConnectCfg->iConnectTimeoutMs : 0u;
@@ -1103,15 +1117,18 @@ static void __xnetStreamRefreshSendState(xnetstream* pStream, uint32 iPrevQueued
 	size_t iQueuedBytes;
 	if ( !pStream ) { return; }
 
+	// 重新计算发送队列中的字节数
 	iQueuedBytes = xrtNetChainBytes(&pStream->tSendQ.tQueue);
 	pStream->tSendQ.iQueuedBytes = iQueuedBytes > UINT32_MAX ? UINT32_MAX : (uint32)iQueuedBytes;
 
+	// 检测高水位触发：之前未触发但现在超过高水位阈值
 	if ( !bPrevHighWater && pStream->tSendQ.iHighWater > 0 && pStream->tSendQ.iQueuedBytes >= pStream->tSendQ.iHighWater ) {
 		pStream->tSendQ.bHighWaterHit = true;
 		if ( pStream->pEvents && pStream->pEvents->OnHighWater ) {
 			pStream->pEvents->OnHighWater(__xnetStreamOwner(pStream), pStream, pStream->tSendQ.iQueuedBytes);
 		}
 	} else if ( bPrevHighWater && pStream->tSendQ.iQueuedBytes <= pStream->tSendQ.iLowWater ) {
+		// 高水位恢复：之前触发但现在已回落到低水位以下
 		pStream->tSendQ.bHighWaterHit = false;
 		__xnetStreamNotifySyncWritable(pStream, XRT_NET_OK);
 		if ( pStream->pEvents && pStream->pEvents->OnLowWater ) {
@@ -1119,6 +1136,7 @@ static void __xnetStreamRefreshSendState(xnetstream* pStream, uint32 iPrevQueued
 		}
 	}
 
+	// 发送队列从有数据变为空时，触发排空通知
 	if ( iPrevQueuedBytes > 0 && pStream->tSendQ.iQueuedBytes == 0 && pStream->pEvents && pStream->pEvents->OnDrain ) {
 		__xnetStreamNotifySyncDrain(pStream, XRT_NET_OK);
 		pStream->pEvents->OnDrain(__xnetStreamOwner(pStream), pStream);
@@ -1138,8 +1156,10 @@ static size_t __xnetStreamConsumeSendQueue(xnetstream* pStream, size_t iLen)
 
 	if ( !pStream || iLen == 0 ) { return 0; }
 
+	// 检查发送队列是否有数据
 	iQueuedBytes = xrtNetChainBytes(&pStream->tSendQ.tQueue);
 	if ( iQueuedBytes == 0 ) {
+		// 队列已空且流正在关闭，触发关闭事件
 		if ( pStream->bClosing ) {
 			__xnetStreamEmitClose(pStream, XRT_NET_CLOSED);
 		}
@@ -1147,10 +1167,14 @@ static size_t __xnetStreamConsumeSendQueue(xnetstream* pStream, size_t iLen)
 	}
 	if ( iLen > iQueuedBytes ) { iLen = iQueuedBytes; }
 
+	// 保存当前水位状态用于后续刷新判断
 	iPrevQueuedBytes = pStream->tSendQ.iQueuedBytes;
 	bPrevHighWater = pStream->tSendQ.bHighWaterHit;
+	// 从发送队列中消费指定长度的数据
 	xrtNetChainConsume(&pStream->tSendQ.tQueue, iLen);
+	// 刷新发送状态（水位、排空通知等）
 	__xnetStreamRefreshSendState(pStream, iPrevQueuedBytes, bPrevHighWater);
+	// 消费后队列为空且流正在关闭，执行关闭收尾
 	if ( pStream->bClosing && pStream->tSendQ.iQueuedBytes == 0 ) {
 		if ( (pStream->iFlags & XNET_CLOSE_F_WAIT_PEER) != 0 ) {
 			__xnetStreamBeginGracefulCloseWait(pStream);
@@ -1311,15 +1335,18 @@ static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, 
 	xnetchain* pCarry = NULL;
 	if ( !pStream || !pStream->pProxy || !pStream->pProxyState ) { return true; }
 
+	// 根据代理状态阶段，发起握手或喂入接收数据
 	if ( pStream->pProxyState->iStage == __XNET_PROXY_STAGE_INIT ) {
 		iAction = __xnetProxyStateBegin(pStream->pProxyState, pStream->pProxy, aSend, sizeof(aSend), &iSendLen);
 	} else {
 		iAction = __xnetProxyStateFeed(pStream->pProxyState, pStream->pProxy, pData, iLen, aSend, sizeof(aSend), &iSendLen);
 	}
 
+	// 代理协议等待更多数据
 	if ( iAction == __XNET_PROXY_ACTION_WAIT ) {
 		return true;
 	}
+	// 代理协议需要发送握手数据
 	if ( iAction == __XNET_PROXY_ACTION_SEND ) {
 		if ( iSendLen == 0 || !__xnetStreamAppendSendCopy(pStream, aSend, iSendLen) ) {
 			iAction = __XNET_PROXY_ACTION_ERROR;
@@ -1328,7 +1355,9 @@ static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, 
 			return true;
 		}
 	}
+	// 代理握手完成，进入正常数据传输
 	if ( iAction == __XNET_PROXY_ACTION_READY ) {
+		// 保存代理阶段接收到的残余数据
 		if ( pStream->pProxyState->iRecvLen > 0 ) {
 			pCarry = __xnetStreamAllocTempChain(pStream);
 			if ( !pCarry || !xrtNetChainAppendCopy(pCarry, pStream->pProxyState->aRecv, pStream->pProxyState->iRecvLen) ) {
@@ -1337,8 +1366,10 @@ static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, 
 			}
 		}
 		if ( iAction == __XNET_PROXY_ACTION_READY ) {
+			// 清除代理状态，进入正常流模式
 			__xnetStreamClearProxyState(pStream);
 			if ( pStream->pTls ) {
+				// 有 TLS 配置，继续驱动 TLS 握手
 				if ( !__xnetStreamDriveTlsHandshake(pStream) ) {
 					__xnetStreamFreeTempChain(pCarry);
 					return false;
@@ -1347,8 +1378,10 @@ static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, 
 					__xnetStreamHandleRecvEvent(pStream, pCarry);
 				}
 			} else {
+				// 无 TLS，触发 OnOpen 事件
 				__xnetStreamEmitOpen(pStream);
 				if ( pCarry ) {
+					// 处理代理阶段残留的接收数据
 					__xnetStreamHandleRecvEvent(pStream, pCarry);
 				} else if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 					(void)__xnetStreamArmRecvWatch(pStream);
@@ -1357,6 +1390,7 @@ static bool __xnetStreamDriveProxyState(xnetstream* pStream, const void* pData, 
 			return true;
 		}
 	}
+	// 代理握手失败，触发错误并关闭流
 	if ( iAction == __XNET_PROXY_ACTION_ERROR ) {
 		__xnetStreamFreeTempChain(pCarry);
 		if ( pStream->pEvents && pStream->pEvents->OnError ) {
@@ -1459,17 +1493,21 @@ static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 	char aBuf[4096];
 	bool bReadAny = false;
 	if ( !pStream || !pStream->pTls ) { return false; }
+	// 循环读取 TLS 解密后的明文数据
 	for ( ;; ) {
 		size_t iRead = 0;
 		xnet_result iRes = xrtNetTlsSessionReadPlain(pStream->pTls, aBuf, sizeof(aBuf), &iRead);
 		if ( iRes == XRT_NET_OK && iRead > 0 ) {
+			// 将明文数据追加到接收链
 			if ( !__xnetStreamAppendRecvCopy(pStream, aBuf, iRead) ) {
 				return false;
 			}
 			bReadAny = true;
 			continue;
 		}
+		// TLS 需要更多密文数据才能继续解密
 		if ( iRes == XRT_NET_AGAIN ) { break; }
+		// 对端关闭了 TLS 连接
 		if ( iRes == XRT_NET_CLOSED ) {
 			if ( pStream->bClosing && (pStream->iFlags & XNET_CLOSE_F_ABORT) == 0 ) {
 				__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
@@ -1478,6 +1516,7 @@ static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 			}
 			return false;
 		}
+		// TLS 解密遇到错误
 		if ( iRes != XRT_NET_OK ) {
 			if ( pStream->pEvents && pStream->pEvents->OnError ) {
 				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
@@ -1487,6 +1526,7 @@ static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 		}
 		break;
 	}
+	// 读取到了数据且读取未暂停，分发接收事件
 	if ( bReadAny ) {
 		if ( !pStream->bReadPaused ) {
 			__xnetStreamDispatchRecv(pStream);
@@ -1502,6 +1542,7 @@ static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 	xnet_result iRes = XRT_NET_AGAIN;
 	uint32 iSpin = 0;
 	if ( !pStream || !pStream->pTls || !__xnetSocketIsValid(pStream->hSocket) ) { return false; }
+	// 代理尚未完成，不能开始 TLS 握手
 	if ( pStream->pProxyState ) { return true; }
 	#ifdef DEBUG_TRACE
 		printf("    [XNET_TLS] drive stream=%llu server=%d queued=%u ready=%d\n",
@@ -1510,11 +1551,13 @@ static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 			pStream->tSendQ.iQueuedBytes,
 			__xnetStreamTlsReady(pStream) ? 1 : 0);
 	#endif
+	// 发送队列中还有数据未发出，优先完成发送后再继续握手
 	if ( pStream->tSendQ.iQueuedBytes > 0 ) {
 		__xnetStreamKickWrite(pStream);
 		return true;
 	}
 
+	// 最多循环 8 轮推进 TLS 握手状态机
 	for ( iSpin = 0; iSpin < 8; ++iSpin ) {
 		iRes = xrtNetTlsSessionDriveHandshake(pStream->pTls);
 		#ifdef DEBUG_TRACE
@@ -1525,6 +1568,7 @@ static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 				(uint32)xrtNetTlsSessionPendingRecv(pStream->pTls),
 				__xnetSocketBytesAvailable(pStream->hSocket));
 		#endif
+		// 将 TLS 产生的密文数据加入发送队列
 		if ( !__xnetStreamQueueTlsCipher(pStream) ) {
 			if ( pStream->pEvents && pStream->pEvents->OnError ) {
 				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
@@ -1532,22 +1576,29 @@ static bool __xnetStreamDriveTlsHandshake(xnetstream* pStream)
 			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 			return false;
 		}
+		// 密文数据已入队，提交发送后等待完成再继续握手
 		if ( pStream->tSendQ.iQueuedBytes > 0 ) {
 			__xnetStreamKickWrite(pStream);
 			break;
 		}
+		// TLS 握手已完成
 		if ( __xnetStreamTlsReady(pStream) ) { break; }
+		// 握手返回非 AGAIN 的结果（成功或失败），停止循环
 		if ( iRes != XRT_NET_AGAIN ) { break; }
+		// TLS 没有更多待处理的接收数据，等待网络数据到达
 		if ( xrtNetTlsSessionPendingRecv(pStream->pTls) == 0 ) { break; }
 	}
+	// TLS 握手成功，触发 OnOpen 并排空已解密的明文数据
 	if ( __xnetStreamTlsReady(pStream) ) {
 		__xnetStreamEmitOpen(pStream);
 		(void)__xnetStreamDrainTlsPlain(pStream);
 	}
+	// 重新挂起接收监视以继续接收后续数据
 	if ( !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) ) {
 		(void)__xnetStreamArmRecvWatch(pStream);
 	}
 	if ( iRes == XRT_NET_OK || iRes == XRT_NET_AGAIN ) { return true; }
+	// TLS 握手失败
 	if ( pStream->pEvents && pStream->pEvents->OnError ) {
 		pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
 	}
@@ -1812,13 +1863,16 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		__xnetStreamFreeTempChain(pChain);
 		return;
 	}
+	// 代理握手阶段：将接收到的数据喂给代理状态机
 	if ( pStream->pProxyState ) {
 		xnetspan arrSpan[16];
 		uint32 iSpanCount = xrtNetChainGetSpans(pChain, arrSpan, 16);
 		for ( uint32 i = 0; i < iSpanCount; ++i ) {
 			xnetchain* pRemainder = NULL;
 			if ( arrSpan[i].iLen == 0 ) { continue; }
+			// 代理状态在处理过程中可能被清除，需要检查
 			if ( !pStream->pProxyState ) {
+				// 代理已完成，收集剩余数据用于后续处理
 				pRemainder = __xnetStreamAllocTempChain(pStream);
 				if ( !pRemainder || !xrtNetChainAppendCopy(pRemainder, arrSpan[i].pData, arrSpan[i].iLen) ) {
 					__xnetStreamFreeTempChain(pRemainder);
@@ -1829,6 +1883,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 					return;
 				}
+				// 将后续 span 也追加到残余数据中
 				for ( uint32 j = i + 1u; j < iSpanCount; ++j ) {
 					if ( arrSpan[j].iLen == 0 ) { continue; }
 					if ( !xrtNetChainAppendCopy(pRemainder, arrSpan[j].pData, arrSpan[j].iLen) ) {
@@ -1842,20 +1897,24 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 					}
 				}
 				__xnetStreamFreeTempChain(pChain);
+				// 递归处理残余数据（此时已进入正常流模式）
 				__xnetStreamHandleRecvEvent(pStream, pRemainder);
 				return;
 			}
+			// 驱动代理状态机处理当前 span
 			if ( !__xnetStreamDriveProxyState(pStream, arrSpan[i].pData, arrSpan[i].iLen) ) {
 				__xnetStreamFreeTempChain(pChain);
 				return;
 			}
 		}
 		__xnetStreamFreeTempChain(pChain);
+		// 代理尚未完成，继续挂起接收监视
 		if ( pStream->pProxyState && !pStream->bClosing && __xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 			(void)__xnetStreamArmRecvWatch(pStream);
 		}
 		return;
 	}
+	// 接收数据超过接收限制，触发错误并关闭流
 	if ( pStream->iRecvLimit > 0 && xrtNetChainBytes(&pStream->tRxChain) + xrtNetChainBytes(pChain) > pStream->iRecvLimit ) {
 		if ( pStream->pEvents && pStream->pEvents->OnError ) {
 			pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
@@ -1864,6 +1923,7 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	// TLS 模式：将密文数据喂给 TLS 会话
 	if ( pStream->pTls ) {
 		bool bHandshakeReady = __xnetStreamTlsReady(pStream);
 		if ( !__xnetStreamFeedTlsChain(pStream, pChain) ) {
@@ -1876,8 +1936,10 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		}
 		__xnetStreamFreeTempChain(pChain);
 		if ( !bHandshakeReady ) {
+			// TLS 握手尚未完成，继续驱动握手
 			(void)__xnetStreamDriveTlsHandshake(pStream);
 		} else {
+			// TLS 已就绪，排空明文数据并继续接收
 			(void)__xnetStreamDrainTlsPlain(pStream);
 			if ( !pStream->bClosing && !pStream->bReadPaused &&
 				__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
@@ -1886,13 +1948,16 @@ static void __xnetStreamHandleRecvEvent(xnetstream* pStream, xnetchain* pChain)
 		}
 		return;
 	}
+	// 普通模式：将数据拼接到接收链
 	__xnetChainSplice(&pStream->tRxChain, pChain);
 	__xnetStreamFreeTempChain(pChain);
 	__xnetStreamNotifySyncReadable(pStream, XRT_NET_OK);
 	if ( pStream->bReadPaused ) {
 		return;
 	}
+	// 分发接收事件给上层
 	__xnetStreamDispatchRecv(pStream);
+	// 原生 IO 模式下需要重新挂起接收监视
 	if ( !pStream->bClosing && __xnetStreamUseNativePortIO(pStream) && !__xnetStreamRecvArmed(pStream) ) {
 		(void)__xnetStreamArmRecvWatch(pStream);
 	}
@@ -1910,6 +1975,7 @@ static void __xnetStreamHandleSendEvent(xnetstream* pStream, const xnetportevent
 				(unsigned long long)pStream->iId, pEvent->iBytes, pStream->tSendQ.iQueuedBytes, (int)pEvent->iStatus);
 		}
 	#endif
+	// 代理握手阶段：完成发送后继续驱动代理或挂起接收
 	if ( pStream->pProxyState ) {
 		if ( pEvent->iBytes > 0 ) {
 			(void)__xnetStreamCompleteWrite(pStream, pEvent->iBytes);
@@ -1921,6 +1987,7 @@ static void __xnetStreamHandleSendEvent(xnetstream* pStream, const xnetportevent
 		}
 		return;
 	}
+	// TLS 握手尚未完成：完成发送后继续驱动 TLS 握手
 	if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
 		if ( pEvent->iBytes > 0 ) {
 			(void)__xnetStreamCompleteWrite(pStream, pEvent->iBytes);
@@ -1936,10 +2003,12 @@ static void __xnetStreamHandleSendEvent(xnetstream* pStream, const xnetportevent
 		}
 		return;
 	}
+	// 零字节发送事件但套接字仍然有效，重新提交写入
 	if ( pEvent->iBytes == 0 && __xnetSocketIsValid(pStream->hSocket) ) {
 		__xnetStreamKickWrite(pStream);
 		return;
 	}
+	// 正常模式：完成写入并消费发送队列
 	(void)__xnetStreamCompleteWrite(pStream, pEvent->iBytes);
 }
 
@@ -1954,14 +2023,17 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 		if ( pOp ) { XNET_FREE(pOp); }
 		return;
 	}
+	// 流正在关闭且不是分发接收操作，直接丢弃
 	if ( pStream->bClosing && pOp->iType != __XNET_STREAM_ASYNC_DISPATCH_RECV ) {
 		XNET_FREE(pOp);
 		__xnetStreamReleaseAsyncHold(pStream);
 		return;
 	}
 
+	// 根据异步操作类型分发处理
 	switch ( pOp->iType ) {
 		case __XNET_STREAM_ASYNC_SEND_COPY:
+			// TLS 模式下通过 TLS 加密后发送，否则直接加入发送队列
 			if ( pStream->pTls ) {
 				(void)__xnetStreamAppendTlsPlainCopy(pStream, pOp->aData, pOp->iLen);
 			} else if ( __xnetStreamAppendSendCopy(pStream, pOp->aData, pOp->iLen) ) {
@@ -1969,6 +2041,7 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			}
 			break;
 		case __XNET_STREAM_ASYNC_SEND_REF:
+			// TLS 模式下通过 TLS 加密后发送引用数据
 			if ( pStream->pTls ) {
 				(void)__xnetStreamAppendTlsPlainRef(pStream, &pOp->tRef);
 			} else if ( __xnetStreamAppendSendRef(pStream, &pOp->tRef) ) {
@@ -1977,6 +2050,7 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			break;
 		case __XNET_STREAM_ASYNC_RECV_COPY:
 			{
+				// 将复制的接收数据构建为临时 chain 并提交到接收流程
 				xnetchain* pChain = __xnetStreamAllocTempChain(pStream);
 				if ( pChain && xrtNetChainAppendCopy(pChain, pOp->aData, pOp->iLen) && __xnetStreamSubmitRecvChain(pStream, pChain) ) {
 					pChain = NULL;
@@ -1986,6 +2060,7 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			break;
 		case __XNET_STREAM_ASYNC_RECV_REF:
 			{
+				// 将引用的接收数据构建为临时 chain 并提交到接收流程
 				xnetchain* pChain = __xnetStreamAllocTempChain(pStream);
 				if ( pChain && xrtNetChainAppendRef(pChain, &pOp->tRef) && __xnetStreamSubmitRecvChain(pStream, pChain) ) {
 					pChain = NULL;
@@ -1994,7 +2069,9 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			}
 			break;
 		case __XNET_STREAM_ASYNC_DISPATCH_RECV:
+			// 分发已缓存的接收数据给上层
 			__xnetStreamDispatchRecv(pStream);
+			// 分发后如果接收链已空，根据状态继续挂起接收或驱动 TLS
 			if ( pStream && !pStream->bReadPaused && !pStream->bClosing &&
 				xrtNetChainBytes(&pStream->tRxChain) == 0 &&
 				__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
@@ -2008,11 +2085,13 @@ static void __xnetStreamAsyncTask(xnetworker* pWorker, ptr pArg)
 			}
 			break;
 		case __XNET_STREAM_ASYNC_TLS_HANDSHAKE:
+			// 驱动 TLS 握手继续进行
 			(void)__xnetStreamDriveTlsHandshake(pStream);
 			break;
 		default:
 			break;
 	}
+	// 释放异步操作结构并释放异步持有计数
 	XNET_FREE(pOp);
 	__xnetStreamReleaseAsyncHold(pStream);
 }
@@ -2170,6 +2249,7 @@ XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenco
 	xnetlistener* pListener;
 	if ( !pEngine ) { return NULL; }
 
+	// 分配并初始化监听器结构
 	pListener = (xnetlistener*)XNET_ALLOC(sizeof(xnetlistener));
 	if ( !pListener ) { return NULL; }
 	memset(pListener, 0, sizeof(xnetlistener));
@@ -2179,11 +2259,13 @@ XXAPI xnetlistener* xrtNetListenerCreate(xnetengine* pEngine, const xnetlistenco
 	pListener->pEvents = pEvents;
 	pListener->pStreamEvents = pStreamEvents;
 	pListener->pUserData = pUserData;
+	// 复制监听配置或使用默认配置
 	if ( pCfg ) {
 		pListener->tConfig = *pCfg;
 	} else {
 		xrtNetListenConfigInit(&pListener->tConfig);
 	}
+	// 根据 REUSE_PORT 标志决定绑定到多少个 worker
 	pListener->iPortCount = ((pListener->tConfig.iFlags & XNET_LISTEN_F_REUSE_PORT) != 0 && pEngine->iWorkerCount > 0)
 		? pEngine->iWorkerCount
 		: 1u;
@@ -2220,11 +2302,14 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 	socklen_t iAddrLen = 0;
 	if ( !pListener || !pListener->pEngine || !pListener->pEngine->bRunning ) { return XRT_NET_ERROR; }
 	if ( pListener->bRunning ) { return XRT_NET_OK; }
+	// 将绑定地址转换为 sockaddr 结构
 	if ( !__xnetAddrToSockAddr(&pListener->tConfig.tBindAddr, &tStorage, &iAddrLen) ) { return XRT_NET_ERROR; }
+	// 创建 TCP 流套接字
 	pListener->hSocket = __xnetSocketCreateStream(pListener->tConfig.tBindAddr.iFamily);
 	if ( !__xnetSocketIsValid(pListener->hSocket) ) { return XRT_NET_ERROR; }
 	(void)__xnetSocketApplyListenFlags(pListener->hSocket, pListener->tConfig.iFlags);
 	(void)__xnetSocketSetNonBlock(pListener->hSocket, true);
+	// 绑定到指定地址和端口
 	if ( bind(pListener->hSocket, (struct sockaddr*)&tStorage, iAddrLen) != 0 ) {
 		if ( pListener->pEvents && pListener->pEvents->OnError ) {
 			pListener->pEvents->OnError(pListener->pUserData, pListener, __xnetSocketLastErr());
@@ -2232,6 +2317,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 		__xnetSocketCloseHandle(&pListener->hSocket);
 		return XRT_NET_ERROR;
 	}
+	// 开始监听，默认 backlog 为 128
 	if ( listen(pListener->hSocket, (int)(pListener->tConfig.iBacklog > 0 ? pListener->tConfig.iBacklog : 128u)) != 0 ) {
 		if ( pListener->pEvents && pListener->pEvents->OnError ) {
 			pListener->pEvents->OnError(pListener->pUserData, pListener, __xnetSocketLastErr());
@@ -2239,6 +2325,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 		__xnetSocketCloseHandle(&pListener->hSocket);
 		return XRT_NET_ERROR;
 	}
+	// 更新本地地址信息（bind 后系统可能分配了实际端口）
 	(void)__xnetSocketUpdateLocalAddr(pListener->hSocket, &pListener->tConfig.tBindAddr);
 	pListener->pWorker = __xnetListenerPickWorker(pListener->pEngine, &pListener->tConfig);
 	pListener->iAcceptOpId = 0;
@@ -2268,6 +2355,7 @@ static xnetstream* __xnetListenerCreateAcceptedStream(xnetlistener* pListener, p
 
 	if ( !pListener || !pListener->pEngine ) { return NULL; }
 
+	// 分配并初始化流结构
 	pStream = (xnetstream*)XNET_ALLOC(sizeof(xnetstream));
 	if ( !pStream ) { return NULL; }
 	memset(pStream, 0, sizeof(xnetstream));
@@ -2275,6 +2363,7 @@ static xnetstream* __xnetListenerCreateAcceptedStream(xnetlistener* pListener, p
 	pStream->hSocket = XNET_SOCKET_INVALID;
 	pWorker = __xnetStreamPickWorker(pListener->pEngine, pListener);
 
+	// 设置流的基本属性
 	pStream->iId = __xnetEngineAllocStreamId(pListener->pEngine);
 	pStream->pEngine = pListener->pEngine;
 	pStream->pWorker = pWorker;
@@ -2285,11 +2374,13 @@ static xnetstream* __xnetListenerCreateAcceptedStream(xnetlistener* pListener, p
 	pStream->iCloseReason = XRT_NET_AGAIN;
 	__xnetStreamInitQueues(pStream, pWorker);
 	__xnetStreamApplyDefaults(pStream, NULL, &pListener->tConfig);
+	// 尝试附加 TLS 会话（服务端角色）
 	if ( !__xnetStreamAttachTls(pStream, pListener->tConfig.pTlsConfig, true) ) {
 		xrtNetStreamDestroy(pStream);
 		return NULL;
 	}
 
+	// 回调 OnAccept 事件，让上层决定是否接受此连接
 	if ( pListener->pEvents && pListener->pEvents->OnAccept ) {
 		bAccepted = pListener->pEvents->OnAccept(pListener->pUserData, pListener, pStream);
 	}
@@ -2305,6 +2396,7 @@ static xnetstream* __xnetListenerCreateAcceptedStream(xnetlistener* pListener, p
 static bool __xnetListenerAcceptSocket(xnetlistener* pListener, __xnet_listener_accept_raw* pRaw, int* pSysErr)
 {
 	if ( pSysErr ) { *pSysErr = 0; }
+	// 初始化原始接受结果结构
 	if ( pRaw ) {
 		memset(pRaw, 0, sizeof(*pRaw));
 		pRaw->hSocket = XNET_SOCKET_INVALID;
@@ -2315,12 +2407,15 @@ static bool __xnetListenerAcceptSocket(xnetlistener* pListener, __xnet_listener_
 		return false;
 	}
 
+	// 尝试接受一个新连接
 	pRaw->hSocket = accept(pListener->hSocket, (struct sockaddr*)&pRaw->tStorage, &pRaw->iAddrLen);
 	if ( !__xnetSocketIsValid(pRaw->hSocket) ) {
 		int iErr = __xnetSocketLastErr();
+		// 非阻塞模式下无连接可用不算错误
 		if ( pSysErr ) {
 			*pSysErr = __xnetSocketWouldBlock(iErr) ? 0 : iErr;
 		}
+		// 真正的错误回调 OnError
 		if ( !__xnetSocketWouldBlock(iErr) && pListener->pEvents && pListener->pEvents->OnError ) {
 			pListener->pEvents->OnError(pListener->pUserData, pListener, iErr);
 		}
@@ -2336,18 +2431,21 @@ static xnetstream* __xnetListenerWrapAcceptedSocket(xnetlistener* pListener, con
 	xnetstream* pStream;
 	if ( !pListener || !pRaw || !__xnetSocketIsValid(pRaw->hSocket) ) { return NULL; }
 
+	// 创建已接受的流对象
 	pStream = __xnetListenerCreateAcceptedStream(pListener, pUserData);
 	if ( !pStream ) {
 		return NULL;
 	}
 	pStream->hSocket = pRaw->hSocket;
 	(void)__xnetSocketSetNonBlock(pStream->hSocket, false);
+	// 应用套接字选项：无延迟和保活
 	if ( (pListener->tConfig.iFlags & XNET_LISTEN_F_NO_DELAY) != 0 ) {
 		(void)__xnetSocketSetNoDelay(pStream->hSocket);
 	}
 	if ( (pListener->tConfig.iFlags & XNET_LISTEN_F_KEEPALIVE) != 0 ) {
 		(void)__xnetSocketSetKeepAlive(pStream->hSocket);
 	}
+	// 解析对端地址：优先从 accept 返回的地址中获取
 	if ( pRaw->iAddrLen > 0 && ((const struct sockaddr*)&pRaw->tStorage)->sa_family != 0 ) {
 		(void)__xnetAddrFromSockAddr(&pStream->tRemoteAddr, (const struct sockaddr*)&pRaw->tStorage);
 	} else {
@@ -2358,12 +2456,15 @@ static xnetstream* __xnetListenerWrapAcceptedSocket(xnetlistener* pListener, con
 			(void)__xnetAddrFromSockAddr(&pStream->tRemoteAddr, (const struct sockaddr*)&tPeer);
 		}
 	}
+	// 更新本地地址
 	(void)__xnetSocketUpdateLocalAddr(pStream->hSocket, &pStream->tLocalAddr);
+	// TLS 模式：提交异步 TLS 握手任务
 	if ( pStream->pTls ) {
 		if ( __xnetStreamPostTlsHandshake(pStream) != XRT_NET_OK ) {
 			(void)__xnetStreamDriveTlsHandshake(pStream);
 		}
 	} else if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_ACCEPT) ) {
+		// 非原生 IO 模式回退：直接触发 OnOpen 并挂起接收
 		__xnetStreamEmitOpen(pStream);
 		(void)__xnetStreamArmRecvWatch(pStream);
 	}
@@ -2379,21 +2480,26 @@ static bool __xnetListenerRegisterSyncAcceptWait(xnetlistener* pListener, __xnet
 	xnetstream* pStream = NULL;
 
 	if ( !pListener || !pfnWait ) { return false; }
+	// 必须在监听器所属的 worker 线程上调用
 	if ( pListener->pWorker && !__xnetEngineIsCurrentWorker(pListener->pWorker) ) { return false; }
 	if ( pListener->tAcceptWait.pfnWait != NULL ) { return false; }
 
+	// 注册同步接受等待的回调
 	pListener->tAcceptWait.pfnWait = pfnWait;
 	pListener->tAcceptWait.pfnCanAccept = pfnCanAccept;
 	pListener->tAcceptWait.pCtx = pCtx;
 
+	// 监听器未运行或套接字无效，立即通知关闭
 	if ( !pListener->bRunning || !__xnetSocketIsValid(pListener->hSocket) ) {
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 		return true;
 	}
 
+	// 尝试立即接受一个连接
 	memset(&tRaw, 0, sizeof(tRaw));
 	tRaw.hSocket = XNET_SOCKET_INVALID;
 	if ( __xnetListenerAcceptSocket(pListener, &tRaw, &iSysErr) ) {
+		// 检查是否还能分发接受事件
 		if ( !__xnetListenerCanDispatchAccept(pListener) ) {
 			__xnetSocketCloseHandle(&tRaw.hSocket);
 			return true;
@@ -2406,17 +2512,21 @@ static bool __xnetListenerRegisterSyncAcceptWait(xnetlistener* pListener, __xnet
 		__xnetSocketCloseHandle(&tRaw.hSocket);
 	}
 
+	// 监听器已关闭
 	if ( iSysErr == __XNET_LISTENER_ACCEPT_SYS_CLOSED ) {
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 		return true;
 	}
+	// accept 遇到系统错误
 	if ( iSysErr != 0 ) {
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
 		return true;
 	}
+	// 无法分发（上层取消了等待）
 	if ( !__xnetListenerCanDispatchAccept(pListener) ) {
 		return true;
 	}
+	// 挂起异步接受监视以等待下一个连接
 	if ( !__xnetListenerArmAcceptWatch(pListener) ) {
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
 	}
@@ -2446,11 +2556,14 @@ static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
 
 	if ( !pListener ) { return; }
 	pListener->bAcceptArmed = false;
+	// 检查是否可以分发接受事件
 	if ( !__xnetListenerCanDispatchAccept(pListener) ) { return; }
 
+	// 尝试接受一个新连接
 	memset(&tRaw, 0, sizeof(tRaw));
 	tRaw.hSocket = XNET_SOCKET_INVALID;
 	if ( __xnetListenerAcceptSocket(pListener, &tRaw, &iSysErr) ) {
+		// 再次检查分发条件（可能在 accept 过程中状态变化）
 		if ( !__xnetListenerCanDispatchAccept(pListener) ) {
 			__xnetSocketCloseHandle(&tRaw.hSocket);
 			return;
@@ -2460,6 +2573,7 @@ static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
 			__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
 			return;
 		}
+		// 包装失败，关闭已接受的套接字并重新挂起接受监视
 		__xnetSocketCloseHandle(&tRaw.hSocket);
 		if ( __xnetListenerCanDispatchAccept(pListener) && pListener->bRunning && __xnetSocketIsValid(pListener->hSocket) ) {
 			(void)__xnetListenerArmAcceptWatch(pListener);
@@ -2467,16 +2581,19 @@ static void __xnetListenerHandleAcceptEvent(xnetlistener* pListener)
 		return;
 	}
 
+	// 非阻塞模式下无连接可用，重新挂起接受监视
 	if ( iSysErr == 0 ) {
 		if ( __xnetListenerCanDispatchAccept(pListener) && pListener->bRunning && __xnetSocketIsValid(pListener->hSocket) ) {
 			(void)__xnetListenerArmAcceptWatch(pListener);
 		}
 		return;
 	}
+	// 监听器已关闭
 	if ( iSysErr == __XNET_LISTENER_ACCEPT_SYS_CLOSED ) {
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_CLOSED, NULL);
 		return;
 	}
+	// accept 遇到系统错误
 	__xnetListenerNotifySyncAccept(pListener, XRT_NET_ERROR, NULL);
 }
 
@@ -2489,15 +2606,18 @@ static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xso
 
 	if ( !pListener ) { return; }
 	pListener->bAcceptArmed = false;
+	// 无效套接字，回退到普通 accept 路径
 	if ( !__xnetSocketIsValid(hSocket) ) {
 		__xnetListenerHandleAcceptEvent(pListener);
 		return;
 	}
+	// 检查是否可以分发接受事件
 	if ( !__xnetListenerCanDispatchAccept(pListener) ) {
 		__xnetSocketCloseHandle(&hSocket);
 		return;
 	}
 
+	// 使用 IOCP 返回的已接受套接字包装为流对象
 	memset(&tRaw, 0, sizeof(tRaw));
 	tRaw.hSocket = hSocket;
 	pStream = __xnetListenerWrapAcceptedSocket(pListener, &tRaw, NULL);
@@ -2505,6 +2625,7 @@ static void __xnetListenerHandleAcceptedSocketEvent(xnetlistener* pListener, xso
 		__xnetListenerNotifySyncAccept(pListener, XRT_NET_OK, pStream);
 		return;
 	}
+	// 包装失败，关闭套接字并重新挂起接受监视
 	__xnetSocketCloseHandle(&hSocket);
 	if ( __xnetListenerCanDispatchAccept(pListener) &&
 		pListener->bRunning && __xnetSocketIsValid(pListener->hSocket) ) {
@@ -2599,15 +2720,18 @@ XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconf
 	__xnetStreamApplyDefaults(pStream, pCfg, NULL);
 	if ( __xnetSocketIsValid(pStream->hSocket) ) { return XRT_NET_ERROR; }
 
+	// 处理代理连接配置
 	if ( pCfg && pCfg->pProxy ) {
 		if ( !pCfg->sHost || !pCfg->sHost[0] || pCfg->iPort == 0 ) { return XRT_NET_ERROR; }
 		pStream->pProxy = xrtNetProxyAddRef(pCfg->pProxy);
 		if ( !pStream->pProxy ) { return XRT_NET_ERROR; }
+		// 创建代理状态机，用于完成代理握手
 		pStream->pProxyState = __xnetProxyStateCreate(pStream->pProxy, pCfg->sHost, pCfg->iPort);
 		if ( !pStream->pProxyState ) {
 			__xnetStreamDetachProxy(pStream);
 			return XRT_NET_ERROR;
 		}
+		// 实际连接目标是代理服务器
 		sConnectHost = pStream->pProxy->tConfig.sHost;
 		iConnectPort = pStream->pProxy->tConfig.iPort;
 	} else {
@@ -2615,6 +2739,7 @@ XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconf
 		iConnectPort = pCfg ? pCfg->iPort : 0;
 	}
 
+	// 解析目标主机地址
 	if ( sConnectHost && sConnectHost[0] ) {
 		xnetaddr tAddr;
 		memset(&tAddr, 0, sizeof(tAddr));
@@ -2625,16 +2750,19 @@ XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconf
 		}
 		pStream->tRemoteAddr = tAddr;
 	}
+	// 将地址转换为 sockaddr 结构
 	if ( !__xnetAddrToSockAddr(&pStream->tRemoteAddr, &tStorage, &iAddrLen) ) {
 		__xnetStreamDetachProxy(pStream);
 		return XRT_NET_ERROR;
 	}
+	// 创建 TCP 流套接字
 	hSocket = __xnetSocketCreateStream(pStream->tRemoteAddr.iFamily);
 	if ( !__xnetSocketIsValid(hSocket) ) {
 		__xnetStreamDetachProxy(pStream);
 		return XRT_NET_ERROR;
 	}
 	(void)__xnetSocketApplyConnectFlags(hSocket, pCfg ? pCfg->iFlags : XNET_CONNECT_F_NONE);
+	// 主线流连接需要原生 IO 后端（IOCP 或 io_uring）
 	if ( !__xnetStreamUseNativePortOps(pStream) ) {
 		__xnetStreamSetError("mainline stream connect requires a native xnet backend.");
 		__xnetSocketCloseHandle(&hSocket);
@@ -2643,17 +2771,20 @@ XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconf
 	}
 	pStream->hSocket = hSocket;
 	(void)__xnetSocketSetNonBlock(pStream->hSocket, false);
+	// 附加 TLS 会话（客户端角色）
 	if ( !__xnetStreamAttachTls(pStream, pCfg ? pCfg->pTlsConfig : NULL, false) ) {
 		__xnetSocketCloseHandle(&pStream->hSocket);
 		__xnetStreamDetachProxy(pStream);
 		return XRT_NET_ERROR;
 	}
+	// 设置连接超时定时器
 	if ( pStream->iConnectTimeoutMs > 0 && !__xnetStreamArmOpenTimer(pStream, pStream->iConnectTimeoutMs) ) {
 		__xnetStreamDetachTls(pStream);
 		__xnetSocketCloseHandle(&pStream->hSocket);
 		__xnetStreamDetachProxy(pStream);
 		return XRT_NET_ERROR;
 	}
+	// 提交异步连接事件到端口
 	if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_CONNECT) ) {
 		__xnetStreamCancelOpenTimer(pStream);
 		__xnetStreamDetachTls(pStream);
@@ -2669,10 +2800,13 @@ XXAPI xnet_result xrtNetStreamConnect(xnetstream* pStream, const xnetconnectconf
 XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 {
 	if ( !pStream ) { return; }
+	// 已经触发过关闭事件，不再重复处理
 	if ( (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) { return; }
 	if ( pStream->bClosing ) {
+		// 已在关闭中，仅当从优雅关闭升级为中止关闭时才处理
 		if ( (iFlags & XNET_CLOSE_F_ABORT) == 0 || (pStream->iFlags & XNET_CLOSE_F_ABORT) != 0 ) { return; }
 		pStream->iFlags |= XNET_CLOSE_F_ABORT;
+		// 中止模式：立即清空所有队列并关闭
 		xrtNetChainClear(&pStream->tRxChain);
 		xrtNetChainClear(&pStream->tSendQ.tQueue);
 		pStream->tSendQ.iQueuedBytes = 0;
@@ -2680,8 +2814,10 @@ XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 		__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 		return;
 	}
+	// 标记流正在关闭
 	pStream->bClosing = true;
 	pStream->iFlags = iFlags;
+	// 中止模式：立即清空队列并完成关闭
 	if ( (iFlags & XNET_CLOSE_F_ABORT) != 0 ) {
 		xrtNetChainClear(&pStream->tRxChain);
 		xrtNetChainClear(&pStream->tSendQ.tQueue);
@@ -2690,6 +2826,7 @@ XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 		__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 		return;
 	}
+	// 优雅关闭：如果 TLS 已就绪，先发送 TLS 关闭通知
 	if ( pStream->pTls && __xnetStreamTlsReady(pStream) && !pStream->bTlsCloseQueued ) {
 		pStream->bTlsCloseQueued = true;
 		if ( xrtNetTlsSessionQueueClose(pStream->pTls) == XRT_NET_OK ) {
@@ -2699,14 +2836,17 @@ XXAPI void xrtNetStreamClose(xnetstream* pStream, uint32 iFlags)
 			}
 		}
 	}
+	// 发送队列已空，直接进入关闭收尾
 	if ( pStream->tSendQ.iQueuedBytes == 0 ) {
 		if ( (pStream->iFlags & XNET_CLOSE_F_WAIT_PEER) != 0 ) {
+			// 等待对端关闭的优雅关闭模式
 			__xnetStreamBeginGracefulCloseWait(pStream);
 		} else {
 			__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 		}
 		return;
 	}
+	// 发送队列还有数据，先完成发送
 	__xnetStreamKickWrite(pStream);
 }
 
@@ -2862,34 +3002,42 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 	if ( !pEvents || iCount == 0 ) { return; }
 	for ( uint32 i = 0; i < iCount; ++i ) {
 		const xnetportevent* pEvent = &pEvents[i];
+		// IOCP 原生接受事件（未标记为 ACCEPTED_OPEN 的非 connect 事件）
 		if ( pEvent->iType == XNET_PORT_EVENT_ACCEPT &&
 			(pEvent->iFlags & XNET_PORT_EVENT_F_ACCEPTED_OPEN) == 0 &&
 			pEvent->iOpId != 0 ) {
 			xnetlistener* pListener = (xnetlistener*)pEvent->pUserData;
 			if ( pListener && pListener->iAcceptOpId == pEvent->iOpId ) {
 				if ( pEvent->iStatus == XRT_NET_OK && __xnetSocketIsValid((xsocket)pEvent->hSocket) ) {
+					// IOCP 返回了已接受的套接字
 					__xnetListenerHandleAcceptedSocketEvent(pListener, (xsocket)pEvent->hSocket);
 				} else {
+					// 接受失败或无套接字，走普通 accept 路径
 					__xnetListenerHandleAcceptEvent(pListener);
 				}
 			} else if ( pEvent->iStatus == XRT_NET_OK && __xnetSocketIsValid((xsocket)pEvent->hSocket) ) {
+				// 操作 ID 不匹配（过期的监听器），关闭陈旧套接字
 				xsocket hStaleSocket = (xsocket)pEvent->hSocket;
 				__xnetSocketCloseHandle(&hStaleSocket);
 			}
 			__xnetListenerReleaseAsyncHold(pListener);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_CONNECT || pEvent->iType == XNET_PORT_EVENT_ACCEPT ) {
+			// 连接完成或原生接受的 open 事件
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			if ( pStream ) {
 				if ( pEvent->iStatus != XRT_NET_OK ) {
+					// 连接失败
 					if ( pStream->pEvents && pStream->pEvents->OnError ) {
 						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
 					}
 					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 				} else {
+					// 连接成功，更新地址信息
 					if ( __xnetSocketIsValid(pStream->hSocket) ) {
 						(void)__xnetSocketUpdateLocalAddr(pStream->hSocket, &pStream->tLocalAddr);
 						(void)__xnetSocketUpdateRemoteAddr(pStream->hSocket, &pStream->tRemoteAddr);
 					}
+					// 根据配置进入不同流程：代理 -> TLS -> 直接打开
 					if ( pStream->pProxyState ) {
 						(void)__xnetStreamDriveProxyState(pStream, NULL, 0u);
 					} else if ( pStream->pTls ) {
@@ -2902,10 +3050,12 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 			}
 			__xnetStreamReleaseAsyncHold(pStream);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_SEND ) {
+			// 发送完成事件
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			__xnetStreamHandleSendEvent(pStream, pEvent);
 			__xnetStreamReleaseAsyncHold(pStream);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_RECV ) {
+			// 接收完成事件
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			if ( pStream ) {
 				__xnetStreamClearRecvArmed(pStream);
@@ -2917,8 +3067,10 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 				}
 			#endif
 			if ( pEvent->pChain ) {
+				// 有接收数据，交给接收事件处理器
 				__xnetStreamHandleRecvEvent(pStream, pEvent->pChain);
 			} else if ( pStream ) {
+				// 无接收数据，根据事件状态处理
 				#if defined(XNET_DEBUG_CLOSE_DIAG)
 					if ( pEvent->iStatus == XRT_NET_CLOSED || (pEvent->iFlags & XNET_PORT_EVENT_F_EOF) != 0 ) {
 						fprintf(stderr, "[CLOSE_DIAG][STREAM] recv eof stream=%llu tls=%d closing=%d flags=0x%x socket=%p\n",
@@ -2929,29 +3081,36 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 							(void*)(uintptr_t)pStream->hSocket);
 					}
 				#endif
+				// 对端关闭连接或 EOF
 				if ( pEvent->iStatus == XRT_NET_CLOSED || (pEvent->iFlags & XNET_PORT_EVENT_F_EOF) != 0 ) {
 					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 				} else if ( pEvent->iStatus != XRT_NET_OK ) {
+					// 接收错误
 					if ( pStream->pEvents && pStream->pEvents->OnError ) {
 						pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);
 					}
 					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 				} else if ( pStream->pProxyState ) {
+					// 代理模式下零字节接收，重新挂起接收
 					(void)__xnetStreamArmRecvWatch(pStream);
 				} else if ( pStream->pTls && !__xnetStreamTlsReady(pStream) ) {
+					// TLS 握手中，继续驱动
 					(void)__xnetStreamDriveTlsHandshake(pStream);
 				} else if ( !pStream->bReadPaused ) {
+					// 正常模式且未暂停读取，重新挂起接收
 					(void)__xnetStreamArmRecvWatch(pStream);
 				}
 			}
 			__xnetStreamReleaseAsyncHold(pStream);
 		} else if ( pEvent->iType == XNET_PORT_EVENT_TIMER ) {
+			// 定时器事件（跳过引擎心跳定时器）
 			if ( pEvent->iOpId != __XNET_ENGINE_TIMER_PULSE_ID ) {
 				xnetstream* pStream = (xnetstream*)(uintptr_t)pEvent->iOpId;
 				__xnetStreamHandleOpenTimer(pStream);
 				__xnetStreamReleaseAsyncHold(pStream);
 			}
 		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {
+			// 端口级错误事件
 			xnetstream* pStream = (xnetstream*)pEvent->pUserData;
 			if ( pStream && pStream->pEvents && pStream->pEvents->OnError ) {
 				pStream->pEvents->OnError(__xnetStreamOwner(pStream), pStream, -1);

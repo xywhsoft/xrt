@@ -450,36 +450,6 @@ int WriteFooter(FILE* out)
 }
 
 
-int BuildDeclOutputPath(const char* outputFile, char* declOutputFile)
-{
-	const char* sLastSlash;
-	const char* sLastDot;
-	size_t iDirLen;
-	size_t iBaseLen;
-
-	if ( outputFile == NULL || declOutputFile == NULL ) {
-		return 0;
-	}
-
-	sLastSlash = strrchr(outputFile, '/');
-	if ( sLastSlash == NULL ) {
-		sLastSlash = strrchr(outputFile, '\\');
-	}
-	sLastDot = strrchr(outputFile, '.');
-	if ( sLastDot == NULL || (sLastSlash && sLastDot < sLastSlash) ) {
-		sLastDot = outputFile + strlen(outputFile);
-	}
-
-	iDirLen = sLastSlash ? (size_t)(sLastSlash - outputFile + 1) : 0;
-	iBaseLen = (size_t)(sLastDot - (sLastSlash ? (sLastSlash + 1) : outputFile));
-
-	memcpy(declOutputFile, outputFile, iDirLen);
-	memcpy(declOutputFile + iDirLen, sLastSlash ? (sLastSlash + 1) : outputFile, iBaseLen);
-	strcpy(declOutputFile + iDirLen + iBaseLen, "_decl.h");
-	return 1;
-}
-
-
 int MergeFiles(const char* xrtCPath, const char* sourceDir, const char* outputFile)
 {
 	FILE* out = fopen(outputFile, "wb");
@@ -538,41 +508,6 @@ int MergeFiles(const char* xrtCPath, const char* sourceDir, const char* outputFi
 }
 
 
-int MergeHeaderOnlyFile(const char* xrtCPath, const char* sourceDir, const char* outputFile)
-{
-	FILE* out = fopen(outputFile, "wb");
-	if ( !out ) {
-		fprintf(stderr, "Error: Cannot create output file '%s'\n", outputFile);
-		return 0;
-	}
-
-	if ( !WriteHeader(out) ) {
-		fclose(out);
-		return 0;
-	}
-
-	g_ProcessedCount = 0;
-	{
-		int totalLines = 0;
-		char xrtHPath[MAKER_MAX_PATH];
-		ResolvePath(xrtCPath, "xrt.h", xrtHPath, sourceDir);
-
-		printf("Processing declaration-only header...\n");
-		ProcessIncludes(out, xrtHPath, 0, &totalLines, sourceDir, NULL);
-		printf("  Declaration header processed: %d lines\n", totalLines);
-	}
-
-	if ( !WriteFooter(out) ) {
-		fclose(out);
-		return 0;
-	}
-
-	fclose(out);
-	printf("Declaration-only header output: %s\n\n", outputFile);
-	return 1;
-}
-
-
 int main(int argc, char* argv[])
 {
 	xrtInit();
@@ -582,7 +517,6 @@ int main(int argc, char* argv[])
 	char sourceDir[MAKER_MAX_PATH] = "";
 	char xrtCPath[MAKER_MAX_PATH] = "";
 	char outputFile[MAKER_MAX_PATH] = "";
-	char declOutputFile[MAKER_MAX_PATH] = "";
 	
 	int useAutoDetect = 1;
 	
@@ -617,21 +551,12 @@ int main(int argc, char* argv[])
 	printf("  xrt.c: %s\n", xrtCPath);
 	printf("  Source: %s\n", sourceDir);
 	printf("  Output: %s\n\n", outputFile);
-
-	if ( !BuildDeclOutputPath(outputFile, declOutputFile) ) {
-		xrtUnit();
-		return 1;
-	}
 	
 	int result = MergeFiles(xrtCPath, sourceDir, outputFile);
-	if ( result ) {
-		result = MergeHeaderOnlyFile(xrtCPath, sourceDir, declOutputFile);
-	}
 
 	if ( result ) {
-		printf("Single header files generated successfully.\n");
-		printf("  Full: %s\n", outputFile);
-		printf("  Decl: %s\n\n", declOutputFile);
+		printf("Single header file generated successfully.\n");
+		printf("  Output: %s\n\n", outputFile);
 		xrtUnit();
 		return 0;
 	}
@@ -639,14 +564,4 @@ int main(int argc, char* argv[])
 	printf("Failed to generate single header file.\n\n");
 	xrtUnit();
 	return 1;
-	
-	if ( result ) {
-		printf("✅ Single header file generated successfully!\n\n");
-		xrtUnit();
-		return 0;
-	} else {
-		printf("❌ Failed to generate single header file!\n\n");
-		xrtUnit();
-		return 1;
-	}
 }

@@ -69,10 +69,8 @@ echo.
 cd /d "%SCRIPT_DIR%"
 
 if exist "%OUTPUT_DIR%\xrt.h" (
-    copy /y "%OUTPUT_DIR%\xrt.h" "%TOOLS_DIR%\xrt.h" >nul
-
-    for %%A in ("%OUTPUT_DIR%\xrt.h") do set SIZE=%%~zA
-    echo Generated file size: !SIZE! bytes
+	for %%A in ("%OUTPUT_DIR%\xrt.h") do set SIZE=%%~zA
+	echo Generated file size: !SIZE! bytes
     
     echo.
     echo ========================================

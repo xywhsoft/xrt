@@ -222,16 +222,20 @@ static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const 
 	size_t iNeedCap;
 	size_t iTargetCap;
 	char* pNewBuf;
+	// 参数校验
 	if ( !ppBuf || !pLen || !pCap || (!pData && iDataLen != 0) ) { return false; }
 	if ( iDataLen == 0 ) { return true; }
+	// 计算目标容量，检查溢出
 	iTargetCap = *pLen + iDataLen + 1u;
 	if ( iTargetCap < *pLen || iTargetCap < iDataLen ) { return false; }
+	// 容量足够，直接追加数据
 	if ( iTargetCap <= *pCap ) {
 		memcpy(*ppBuf + *pLen, pData, iDataLen);
 		*pLen += iDataLen;
 		(*ppBuf)[*pLen] = '\0';
 		return true;
 	}
+	// 容量不足，按倍增策略扩容
 	iNeedCap = (*pCap == 0) ? 256u : *pCap;
 	while ( iNeedCap < iTargetCap ) {
 		if ( iNeedCap > (SIZE_MAX >> 1) ) {
@@ -241,12 +245,14 @@ static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const 
 		iNeedCap *= 2u;
 	}
 	if ( iNeedCap < iTargetCap ) { return false; }
+	// 分配新缓冲区并拷贝旧数据
 	pNewBuf = (char*)XNET_ALLOC(iNeedCap);
 	if ( !pNewBuf ) { return false; }
 	if ( *ppBuf && *pLen > 0 ) { memcpy(pNewBuf, *ppBuf, *pLen); }
 	XNET_FREE(*ppBuf);
 	*ppBuf = pNewBuf;
 	*pCap = iNeedCap;
+	// 追加新数据
 	memcpy(*ppBuf + *pLen, pData, iDataLen);
 	*pLen += iDataLen;
 	(*ppBuf)[*pLen] = '\0';
@@ -526,20 +532,25 @@ static bool __xhttpdPrepareResponse(const xhttpdrequest* pReq, const xhttpdrespo
 	bool bKeepAliveHeader;
 	bool bKeepAlive;
 
+	// 初始化输出并深拷贝响应
 	if ( pKeepAlive ) { *pKeepAlive = false; }
 	if ( !pReq || !pSrc || !pDst ) { return false; }
 	if ( !__xhttpdResponseCopy(pDst, pSrc) ) { return false; }
 
+	// 分析响应中的 Connection 头部
 	sConn = xrtHttpdResponseHeader(pDst, "Connection");
 	bCloseToken = __xhttpdContainsTokenNoCase(sConn, "close");
 	bKeepAliveHeader = __xhttpdContainsTokenNoCase(sConn, "keep-alive");
+	// 显式 keep-alive 且无 close 标记时清除关闭标志
 	if ( bKeepAliveHeader && !bCloseToken ) {
 		pDst->iFlags &= ~XHTTPD_RESP_F_CLOSE;
 	}
 
+	// 综合判断连接是否可保持存活
 	bKeepAlive = __xhttpdRequestWantsKeepAlive(pReq) &&
 		((pDst->iFlags & XHTTPD_RESP_F_CLOSE) == 0u) &&
 		!bCloseToken;
+	// 请求要求 keep-alive 但响应未显式设置 Connection 头部，自动补充
 	if ( __xhttpdRequestWantsKeepAlive(pReq) && !bCloseToken && !sConn ) {
 		pDst->iFlags &= ~XHTTPD_RESP_F_CLOSE;
 		bKeepAlive = true;
@@ -549,6 +560,7 @@ static bool __xhttpdPrepareResponse(const xhttpdrequest* pReq, const xhttpdrespo
 		}
 	}
 
+	// 不可 keep-alive 时强制设置关闭标志
 	if ( !bKeepAlive ) { pDst->iFlags |= XHTTPD_RESP_F_CLOSE; }
 	if ( pKeepAlive ) { *pKeepAlive = bKeepAlive; }
 	return true;
@@ -560,15 +572,19 @@ static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg
 {
 	size_t iBodyBytes;
 	xrturlview tTarget;
+	// 参数校验并初始化请求结构体
 	if ( !pFrame || !pMsg || !pChain || !pReq ) { return false; }
 	xrtHttpdRequestInit(pReq);
+	// 映射编解码器标志到请求标志
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_KEEPALIVE ) { pReq->iFlags |= XHTTPD_REQ_F_KEEPALIVE; }
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED ) { pReq->iFlags |= XHTTPD_REQ_F_CHUNKED; }
 	if ( pMsg->iFlags & XCODEC_HTTP1_F_UPGRADE ) { pReq->iFlags |= XHTTPD_REQ_F_UPGRADE; }
+	// 复制基本字段
 	pReq->iContentLength = pMsg->iContentLength;
 	__xhttpdCopyToken(pReq->sMethod, sizeof(pReq->sMethod), pMsg->sMethod);
 	__xhttpdCopyToken(pReq->sTarget, sizeof(pReq->sTarget), pMsg->sTarget);
 	__xhttpdCopyToken(pReq->sVersion, sizeof(pReq->sVersion), pMsg->sVersion);
+	// 解析请求目标为路径和查询字符串
 	if ( !xrtUrlParseTarget(pMsg->sTarget, &tTarget) ) { return false; }
 	if ( (tTarget.iFlags & XRT_URL_F_HAS_FRAGMENT) != 0u ) { return false; }
 	if ( tTarget.tPath.iLen == 0u ) {
@@ -579,11 +595,13 @@ static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg
 	if ( (tTarget.iFlags & XRT_URL_F_HAS_QUERY) != 0u ) {
 		if ( !xrtUrlViewCopyQueryTo(&tTarget, pReq->sQuery, sizeof(pReq->sQuery)) ) { return false; }
 	}
+	// 复制请求头部
 	pReq->iHeaderCount = pMsg->iHeaderCount < XHTTPD_MAX_HEADERS ? pMsg->iHeaderCount : XHTTPD_MAX_HEADERS;
 	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
 		__xhttpdCopyToken(pReq->arrHeaders[i].sName, sizeof(pReq->arrHeaders[i].sName), pMsg->arrHeaders[i].sName);
 		__xhttpdCopyToken(pReq->arrHeaders[i].sValue, sizeof(pReq->arrHeaders[i].sValue), pMsg->arrHeaders[i].sValue);
 	}
+	// 提取并复制请求正文
 	iBodyBytes = xrtCodecHttp1BodyBytes(pFrame);
 	if ( (pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u ) { pReq->iContentLength = (int64_t)iBodyBytes; }
 	if ( iBodyBytes > 0u ) {
@@ -608,24 +626,32 @@ static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut
 	char aLine[512];
 	const char* sReason;
 	bool bChunked;
+	// 参数校验
 	if ( !pResp || !ppOut || !pOutLen ) { return false; }
+	// 确定原因短语和传输编码模式
 	sReason = pResp->sReason[0] ? pResp->sReason : __xhttpdStatusText(pResp->iStatusCode);
 	bChunked = __xhttpdContainsTokenNoCase(xrtHttpdResponseHeader(pResp, "Transfer-Encoding"), "chunked");
+	// 构建状态行
 	snprintf(aLine, sizeof(aLine), "HTTP/1.1 %u %s\r\n", (unsigned)pResp->iStatusCode, sReason);
 	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
+	// 补充 Connection 头部
 	if ( !__xhttpdResponseHasHeader(pResp, "Connection") ) {
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "Connection: close\r\n") ) { goto fail; }
 	}
+	// 补充 Content-Length 头部
 	if ( !bChunked && !__xhttpdResponseHasHeader(pResp, "Content-Length") ) {
 		snprintf(aLine, sizeof(aLine), "Content-Length: %llu\r\n", (unsigned long long)pResp->iBodyLen);
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 	}
+	// 追加用户自定义头部
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
 		if ( bChunked && __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, "Content-Length") ) { continue; }
 		snprintf(aLine, sizeof(aLine), "%s: %s\r\n", pResp->arrHeaders[i].sName, pResp->arrHeaders[i].sValue);
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 	}
+	// 空行分隔头部和正文
 	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n") ) { goto fail; }
+	// 处理响应正文
 	if ( bChunked ) {
 		snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pResp->iBodyLen);
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
@@ -711,9 +737,11 @@ static void __xhttpdSendTaskProc(xnetworker* pWorker, ptr pArg)
 	if ( !pTask ) { return; }
 	pConn = pTask->pConn;
 	if ( pConn ) {
+		// 获取连接锁，读取服务和流信息
 		__xhttpdLock(&pConn->iConnLock);
 		pServer = pConn->pServer;
 		pStream = pConn->pStream;
+		// 流有效且未关闭时发送数据
 		if ( pStream && !pStream->bClosing && __xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0 ) {
 			iRet = xrtNetStreamSend(pStream, pTask->pBytes, pTask->iLen);
 			if ( iRet != XRT_NET_OK ) {
@@ -724,10 +752,13 @@ static void __xhttpdSendTaskProc(xnetworker* pWorker, ptr pArg)
 			}
 		}
 		__xhttpdUnlock(&pConn->iConnLock);
+		// 发送失败时触发错误回调
 		if ( iRet != XRT_NET_OK ) { __xhttpdEmitServerError(pServer, pConn, -1); }
+		// 尝试完成当前请求并复用连接
 		__xhttpdConnTryFinalizeRequest(pConn);
 		__xhttpdConnRelease(pConn);
 	}
+	// 释放任务资源
 	XNET_FREE(pTask->pBytes);
 	XNET_FREE(pTask);
 }
@@ -745,9 +776,11 @@ XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* p
 	bool bKeepAlive = false;
 	xnet_result iRet;
 
+	// 参数校验
 	if ( !pConn || !pResp ) { return XRT_NET_ERROR; }
 	memset(&tSend, 0, sizeof(tSend));
 
+	// 获取连接锁，验证连接状态
 	__xhttpdLock(&pConn->iConnLock);
 	pStream = pConn->pStream;
 	pReq = pConn->pRequest;
@@ -755,19 +788,24 @@ XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* p
 		__xhttpdUnlock(&pConn->iConnLock);
 		return XRT_NET_CLOSED;
 	}
+	// 准备响应（确定 keep-alive 策略）
 	if ( !__xhttpdPrepareResponse(pReq, pResp, &tSend, &bKeepAlive) ) {
 		__xhttpdUnlock(&pConn->iConnLock);
 		return XRT_NET_ERROR;
 	}
+	// 序列化响应为原始字节
 	if ( !__xhttpdBuildResponseBytes(&tSend, &pBytes, &iLen) ) {
 		__xhttpdUnlock(&pConn->iConnLock);
 		xrtHttpdResponseUnit(&tSend);
 		return XRT_NET_ERROR;
 	}
+	// 标记响应已提交
 	pConn->bResponseCommitted = true;
 	pConn->bResponseDrained = false;
 	pConn->bKeepAlive = bKeepAlive;
+	// 判断当前线程是否为流的工作线程
 	if ( __xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		// 直接在同一线程发送数据
 		iRet = xrtNetStreamSend(pStream, pBytes, iLen);
 		if ( iRet != XRT_NET_OK ) {
 			xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
@@ -777,6 +815,7 @@ XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* p
 		}
 	}
 	else {
+		// 跨线程投递发送任务
 		pTask = (__xhttpd_send_task*)XNET_ALLOC(sizeof(__xhttpd_send_task));
 		if ( !pTask ) {
 			iRet = XRT_NET_ERROR;
@@ -801,12 +840,14 @@ XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* p
 		}
 	}
 	__xhttpdUnlock(&pConn->iConnLock);
+	// 清理发送缓冲区
 	XNET_FREE(pBytes);
 	if ( iRet != XRT_NET_OK ) {
 		xrtHttpdResponseUnit(&tSend);
 		return iRet;
 	}
 	xrtHttpdResponseUnit(&tSend);
+	// 尝试完成当前请求并复用连接
 	__xhttpdConnTryFinalizeRequest(pConn);
 	return XRT_NET_OK;
 }
@@ -1009,10 +1050,12 @@ static void __xhttpdAsyncRequestFinally(const xfuture_result* pResult, ptr pArg)
 
 	if ( !pCtx ) { return; }
 	pConn = pCtx->pConn;
+	// 提取异步处理返回的响应
 	if ( pResult && pResult->iStatus == XRT_NET_OK ) {
 		pResp = (xhttpdresponse*)pResult->pValue;
 	}
 
+	// 更新连接状态，清除异步挂起标记
 	__xhttpdLock(&pConn->iConnLock);
 	pConn->bAsyncPending = false;
 	bHasCommitted = pConn->bResponseCommitted;
@@ -1020,19 +1063,24 @@ static void __xhttpdAsyncRequestFinally(const xfuture_result* pResult, ptr pArg)
 		(__xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0);
 	__xhttpdUnlock(&pConn->iConnLock);
 
+	// 在连接可用且响应未提交时发送结果
 	if ( bCanRespond && !bHasCommitted ) {
 		if ( pResp ) {
+			// 正常响应
 			(void)xrtHttpdConnRespond(pConn, pResp);
 		}
 		else if ( pResult && pResult->iStatus == XRT_NET_OK ) {
+			// 异步成功但未返回响应，返回 404
 			__xhttpdSendSimpleStatus(pConn, 404u, __xhttpdStatusBody(404u));
 		}
 		else {
+			// 异步处理失败，返回对应错误状态码
 			uint32 iStatusCode = __xhttpdFutureErrorStatus(pResult);
 			__xhttpdSendSimpleStatus(pConn, iStatusCode, __xhttpdStatusBody(iStatusCode));
 		}
 	}
 
+	// 释放资源和引用计数
 	if ( pResp ) { xrtHttpdResponseDestroy(pResp); }
 	__xhttpdConnTryFinalizeRequest(pConn);
 	xFutureRelease(pCtx->pFuture);
@@ -1113,21 +1161,26 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 	xfuture* pAsync = NULL;
 	bool bHandled = false;
 	bool bResponseCommitted = false;
+	// 参数校验与连接状态检查
 	if ( !pConn || !pServer || !pStream || !pChain ) { return; }
 	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) { return; }
+	// 检查是否有正在处理的响应
 	__xhttpdLock(&pConn->iConnLock);
 	if ( pConn->bResponseInFlight ) {
 		__xhttpdUnlock(&pConn->iConnLock);
 		return;
 	}
 	__xhttpdUnlock(&pConn->iConnLock);
+	// 解析 HTTP/1.1 请求
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
 	if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+	// 解析失败，返回 400 错误
 	if ( iParse == XCODEC_STATUS_ERROR ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 		__xhttpdSendSimpleStatus(pConn, 400u, "Bad Request");
 		return;
 	}
+	// 创建并构建请求对象
 	pReq = __xhttpdRequestCreate();
 	if ( !pReq ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
@@ -1140,8 +1193,10 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
+	// 消费已解析的帧数据
 	xrtCodecFrameConsume(pChain, &tFrame);
 
+	// 将请求绑定到连接，标记响应进行中
 	__xhttpdLock(&pConn->iConnLock);
 	if ( __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 || pConn->pRequest != NULL || pConn->bResponseInFlight ) {
 		__xhttpdUnlock(&pConn->iConnLock);
@@ -1156,12 +1211,14 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 	pConn->bKeepAlive = false;
 	__xhttpdUnlock(&pConn->iConnLock);
 
+	// 优先尝试异步请求处理
 	if ( pServer->tEvents.OnRequestAsync ) {
 		__xhttpdLock(&pConn->iConnLock);
 		pConn->bAsyncPending = true;
 		__xhttpdUnlock(&pConn->iConnLock);
 		pAsync = pServer->tEvents.OnRequestAsync(pServer->pUserData, pServer, pConn, pReq);
 		if ( pAsync ) {
+			// 附加异步完成回调
 			if ( !__xhttpdAttachAsyncRequest(pConn, pAsync) ) {
 				__xhttpdLock(&pConn->iConnLock);
 				pConn->bAsyncPending = false;
@@ -1171,6 +1228,7 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 			}
 			return;
 		}
+		// 异步处理器返回 NULL，回退到同步处理
 		__xhttpdLock(&pConn->iConnLock);
 		pConn->bAsyncPending = false;
 		bResponseCommitted = pConn->bResponseCommitted;
@@ -1181,14 +1239,17 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		}
 	}
 
+	// 同步请求处理
 	xrtHttpdResponseInit(&tResp);
 	if ( pServer->tEvents.OnRequest ) {
 		bHandled = pServer->tEvents.OnRequest(pServer->pUserData, pServer, pConn, pReq, &tResp);
 	}
+	// 未处理时返回 404
 	if ( !bHandled ) {
 		xrtHttpdResponseSetStatus(&tResp, 404u, NULL);
 		(void)xrtHttpdResponseSetBodyCopy(&tResp, "Not Found", 9, "text/plain");
 	}
+	// 发送响应
 	if ( xrtHttpdConnRespond(pConn, &tResp) != XRT_NET_OK ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 	}
@@ -1328,22 +1389,28 @@ XXAPI uint16 xrtHttpdBoundPort(const xhttpdserver* pServer)
 XXAPI xnet_result xrtHttpdStart(xhttpdserver* pServer)
 {
 	xnetlistenconfig tListenCfg;
+	// 参数校验与重复启动检查
 	if ( !pServer || !pServer->pEngine ) { return XRT_NET_ERROR; }
 	if ( __xhttpdAtomicLoad(&pServer->bRunning) != 0 ) { return XRT_NET_OK; }
+	// 初始化监听配置
 	xrtNetListenConfigInit(&tListenCfg);
 	tListenCfg.tBindAddr = pServer->tConfig.tBindAddr;
 	tListenCfg.iFlags = pServer->tConfig.iFlags;
 	tListenCfg.iBacklog = pServer->tConfig.iBacklog;
 	tListenCfg.iRecvLimit = pServer->tConfig.iRecvLimit;
 	tListenCfg.pTlsConfig = pServer->tConfig.pTlsConfig;
+	// 创建监听器
 	pServer->pListener = xrtNetListenerCreate(pServer->pEngine, &tListenCfg, __xhttpdListenerEvents(), __xhttpdStreamEvents(), pServer);
 	if ( !pServer->pListener ) { return XRT_NET_ERROR; }
+	// 启动监听器
 	if ( xrtNetListenerStart(pServer->pListener) != XRT_NET_OK ) {
 		xrtNetListenerDestroy(pServer->pListener);
 		pServer->pListener = NULL;
 		return XRT_NET_ERROR;
 	}
+	// 标记服务为运行状态
 	(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 1, 0);
+	// 投递接受连接任务到监听器工作线程
 	if ( xrtNetEnginePost(pServer->pEngine, pServer->pListener->pWorker->iId, __xhttpdArmAcceptTask, pServer) != XRT_NET_OK ) {
 		(void)__xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1);
 		xrtNetListenerStop(pServer->pListener);

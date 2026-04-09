@@ -282,13 +282,16 @@ static bool __xnetTaskGroupEnsureCapacity(xtaskgroup* pGroup, int iNeed)
 	xfuture** arrNew = NULL;
 	int iNewCapacity = 0;
 
+	// 参数校验
 	if ( pGroup == NULL || iNeed <= 0 ) {
 		return false;
 	}
+	// 当前容量已满足需求
 	if ( pGroup->iCapacity >= iNeed ) {
 		return true;
 	}
 
+	// 计算新容量, 按2倍增长, 避免频繁扩容
 	iNewCapacity = (pGroup->iCapacity > 0) ? pGroup->iCapacity : 4;
 	while ( iNewCapacity < iNeed ) {
 		if ( iNewCapacity > (INT_MAX / 2) ) {
@@ -298,19 +301,23 @@ static bool __xnetTaskGroupEnsureCapacity(xtaskgroup* pGroup, int iNeed)
 		iNewCapacity *= 2;
 	}
 
+	// 分配新数组并清零
 	arrNew = (xfuture**)XNET_ALLOC(sizeof(xfuture*) * (size_t)iNewCapacity);
 	if ( arrNew == NULL ) {
 		return false;
 	}
 	memset(arrNew, 0, sizeof(xfuture*) * (size_t)iNewCapacity);
 
+	// 拷贝旧数据到新数组
 	if ( pGroup->arrFuture && pGroup->iCount > 0 ) {
 		memcpy(arrNew, pGroup->arrFuture, sizeof(xfuture*) * (size_t)pGroup->iCount);
 	}
+	// 释放旧数组
 	if ( pGroup->arrFuture ) {
 		XNET_FREE(pGroup->arrFuture);
 	}
 
+	// 更新任务组的数组指针和容量
 	pGroup->arrFuture = arrNew;
 	pGroup->iCapacity = iNewCapacity;
 	return true;
@@ -324,10 +331,12 @@ static int __xnetTaskGroupReapCompletedUnlocked(xtaskgroup* pGroup)
 	int iRead = 0;
 	int iReaped = 0;
 
+	// 参数校验
 	if ( pGroup == NULL || pGroup->arrFuture == NULL || pGroup->iCount <= 0 ) {
 		return 0;
 	}
 
+	// 遍历数组, 将已完成的 Future 移除, 未完成的向前压缩
 	for ( iRead = 0; iRead < pGroup->iCount; ++iRead ) {
 		xfuture* pFuture = pGroup->arrFuture[iRead];
 		xfuture_state iState;
@@ -336,14 +345,17 @@ static int __xnetTaskGroupReapCompletedUnlocked(xtaskgroup* pGroup)
 			continue;
 		}
 
+		// 检查 Future 状态
 		iState = xFutureState(pFuture);
 		if ( iState != XFUTURE_PENDING ) {
+			// 已完成的 Future, 释放引用并移除
 			xFutureRelease(pFuture);
 			pGroup->arrFuture[iRead] = NULL;
 			iReaped++;
 			continue;
 		}
 
+		// 未完成的 Future 向前移动
 		if ( iWrite != iRead ) {
 			pGroup->arrFuture[iWrite] = pFuture;
 			pGroup->arrFuture[iRead] = NULL;
@@ -351,10 +363,12 @@ static int __xnetTaskGroupReapCompletedUnlocked(xtaskgroup* pGroup)
 		iWrite++;
 	}
 
+	// 清空尾部残留的指针
 	for ( ; iWrite < pGroup->iCount; ++iWrite ) {
 		pGroup->arrFuture[iWrite] = NULL;
 	}
 
+	// 更新计数
 	pGroup->iCount -= iReaped;
 	if ( pGroup->iCount < 0 ) {
 		pGroup->iCount = 0;
@@ -404,6 +418,7 @@ static void __xnetTaskGroupFree(xtaskgroup* pGroup)
 		return;
 	}
 
+	// 释放 join 相关的 Promise 和 Future
 	if ( pGroup->pJoinPromise ) {
 		xPromiseDestroy(pGroup->pJoinPromise);
 		pGroup->pJoinPromise = NULL;
@@ -412,6 +427,7 @@ static void __xnetTaskGroupFree(xtaskgroup* pGroup)
 		xFutureRelease(pGroup->pJoinFuture);
 		pGroup->pJoinFuture = NULL;
 	}
+	// 释放 scope 相关的 Promise 和 Future
 	if ( pGroup->pScopePromise ) {
 		xPromiseDestroy(pGroup->pScopePromise);
 		pGroup->pScopePromise = NULL;
@@ -421,10 +437,12 @@ static void __xnetTaskGroupFree(xtaskgroup* pGroup)
 		pGroup->pScopeFuture = NULL;
 	}
 
+	// 释放互斥锁
 	if ( pGroup->pLock ) {
 		xrtMutexDestroy(pGroup->pLock);
 		pGroup->pLock = NULL;
 	}
+	// 释放 Future 数组
 	if ( pGroup->arrFuture ) {
 		XNET_FREE(pGroup->arrFuture);
 		pGroup->arrFuture = NULL;
@@ -455,8 +473,10 @@ static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup)
 		return;
 	}
 
+	// 增加引用计数, 防止在锁内被释放
 	__xnetTaskGroupAddRef(pGroup);
 	xrtMutexLock(pGroup->pLock);
+	// 检查条件: 任务组已关闭 && join Promise 存在 && join Future 仍在等待 && 没有挂起的任务
 	if (
 		pGroup->bClosed &&
 		pGroup->pJoinPromise != NULL &&
@@ -468,6 +488,7 @@ static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup)
 	}
 	xrtMutexUnlock(pGroup->pLock);
 
+	// 在锁外解析 join Promise, 避免死锁
 	if ( pPromise ) {
 		(void)xPromiseResolve(pPromise, NULL);
 	}
@@ -487,6 +508,7 @@ static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup)
 		return NULL;
 	}
 
+	// 第一次加锁: 检查 scope Future 是否已存在
 	xrtMutexLock(pGroup->pLock);
 	if ( pGroup->pScopeFuture ) {
 		pOutFuture = xFutureAddRef(pGroup->pScopeFuture);
@@ -495,6 +517,7 @@ static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup)
 	}
 	xrtMutexUnlock(pGroup->pLock);
 
+	// 在锁外创建 Future 和 Promise
 	pFuture = xFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
@@ -505,6 +528,7 @@ static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup)
 		return NULL;
 	}
 
+	// 第二次加锁: 尝试将 scope Future 存入任务组 (双重检查)
 	xrtMutexLock(pGroup->pLock);
 	if ( pGroup->pScopeFuture == NULL && pGroup->pScopePromise == NULL ) {
 		pGroup->pScopeFuture = pFuture;
@@ -514,6 +538,7 @@ static xfuture* __xnetTaskGroupGetScopeFuture(xtaskgroup* pGroup)
 		return pOutFuture;
 	}
 
+	// 其他线程已创建, 使用已有的 scope Future
 	pOutFuture = pGroup->pScopeFuture ? xFutureAddRef(pGroup->pScopeFuture) : NULL;
 	xrtMutexUnlock(pGroup->pLock);
 	xPromiseDestroy(pPromise);
@@ -853,29 +878,35 @@ static void __xnetFutureReleaseAsyncHold(xnetfuture* pFuture)
 static void __xnetFutureUnit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) { return; }
+	// 释放错误字符串和调试名称
 	__xnetFutureFreeError(pFuture->sError, pFuture->iResultFlags);
 	pFuture->sError = NULL;
 	__xnetFutureFreeError(pFuture->sDebugName, XFUTURE_RESULT_F_OWN_ERROR);
 	pFuture->sDebugName = NULL;
+	// 重置所有字段
 	pFuture->iResultFlags = 0;
 	pFuture->iCreateTimeMs = 0;
 	pFuture->iCompleteTimeMs = 0;
 	pFuture->iPendingContCount = 0;
 	pFuture->iGroupSourceIndex = -1;
+	// 释放组源 Future 的引用
 	if ( pFuture->pGroupSource ) {
 		xFutureRelease(pFuture->pGroupSource);
 		pFuture->pGroupSource = NULL;
 	}
+	// 清空延续回调链表
 	#if defined(XXRTL_CORE)
 		pFuture->pContHead = NULL;
 		pFuture->pContTail = NULL;
 	#endif
+	// 销毁协程等待事件
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( pFuture->pCoEvent ) {
 			xrtCoEventDestroy(pFuture->pCoEvent);
 			pFuture->pCoEvent = NULL;
 		}
 	#endif
+	// 销毁底层同步原语
 	__xnetFuturePrimitiveUnit(pFuture);
 }
 
@@ -922,6 +953,7 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 	#if defined(XXRTL_CORE)
 		memset(&tDispatchInput, 0, sizeof(tDispatchInput));
 	#endif
+	// 如果错误字符串需要转移所有权, 则复制一份
 	if ( sError && sError[0] && (iFlags & XFUTURE_RESULT_F_OWN_ERROR) ) {
 		sOwnedError = __xnetFutureDupError(sError);
 		if ( sOwnedError == NULL ) {
@@ -930,8 +962,10 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 	} else {
 		sOwnedError = sError;
 	}
+	// 加锁, 尝试完成 Future
 	__xnetFutureLock(pFuture);
 	if ( !pFuture->bDone ) {
+		// 设置完成状态和结果
 		pFuture->bDone = true;
 		pFuture->iStatus = iStatus;
 		pFuture->pValue = pValue;
@@ -939,6 +973,7 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 		pFuture->iResultFlags = iFlags;
 		pFuture->iCompleteTimeMs = __xnetSyncNowMs();
 		bResolved = true;
+		// 提取延续回调链表, 准备在锁外分发
 		#if defined(XXRTL_CORE)
 			tDispatchInput.iStatus = iStatus;
 			tDispatchInput.pValue = pValue;
@@ -948,6 +983,7 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 			pFuture->pContHead = NULL;
 			pFuture->pContTail = NULL;
 			{
+				// 将结果复制到每个延续回调的输入中
 				xrt_future_cont* pIt = pDispatchHead;
 				while ( pIt != NULL ) {
 					(void)__xnetFutureContCopyInput(pIt, &tDispatchInput);
@@ -955,20 +991,25 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 				}
 			}
 		#endif
+		// 获取协程事件, 用于后续唤醒协程等待者
 		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 			pCoEvent = pFuture->pCoEvent;
 		#endif
+		// 唤醒所有线程等待者
 		__xnetFutureWakeAll(pFuture);
 	}
 	__xnetFutureUnlock(pFuture);
+	// 如果 Future 已完成但本次未成功解析, 释放拥有的错误字符串
 	if ( !bResolved && sOwnedError && (iFlags & XFUTURE_RESULT_F_OWN_ERROR) ) {
 		XNET_FREE((ptr)sOwnedError);
 	}
+	// 唤醒协程等待者
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( bResolved && pCoEvent ) {
 			xrtCoEventSet(pCoEvent);
 		}
 	#endif
+	// 分发延续回调链表
 	#if defined(XXRTL_CORE)
 		if ( bResolved && pDispatchHead ) {
 			__xnetFutureDispatchDetachedList(pDispatchHead);
@@ -1151,12 +1192,14 @@ static void __xnetFutureContRun(xrt_future_cont* pCont)
 		return;
 	}
 
+	// 判断该延续回调是否需要执行
 	if ( !__xnetFutureContShouldRun(pCont) ) {
 		__xnetFutureContCompletePassThrough(pCont);
 		__xnetFutureContFinalizeNode(pCont);
 		return;
 	}
 
+	// 处理 finally 类型回调
 	if ( pCont->iKind == __XNET_FCONT_FINALLY ) {
 		if ( pCont->pfnFinally ) {
 			pCont->pfnFinally(&pCont->tInput, pCont->pArg);
@@ -1166,6 +1209,7 @@ static void __xnetFutureContRun(xrt_future_cont* pCont)
 		return;
 	}
 
+	// 执行 then/catch 类型的回调
 	memset(&tOut, 0, sizeof(tOut));
 	if ( pCont->pfnCont != NULL ) {
 		iStatus = pCont->pfnCont(&pCont->tInput, pCont->pArg, &tOut);
@@ -1176,6 +1220,7 @@ static void __xnetFutureContRun(xrt_future_cont* pCont)
 		tOut.sError = (str)"future continuation callback is null.";
 		tOut.iFlags = XFUTURE_RESULT_F_NONE;
 	}
+	// 将回调结果传递到下游 Promise
 	(void)__xnetPromiseCompleteResult(pCont->pPromise, &tOut);
 	__xnetFutureContFinalizeNode(pCont);
 }
@@ -1223,15 +1268,18 @@ static bool __xnetFutureDispatchContinuation(xrt_future_cont* pCont)
 		return false;
 	}
 
+	// 内联执行模式: 直接在当前线程运行
 	if ( pCont->iExec == __XNET_FCONT_EXEC_INLINE ) {
 		__xnetFutureContRun(pCont);
 		return true;
 	}
 
+	// 当前线程队列模式: 加入当前线程的延迟执行队列
 	if ( pCont->iExec == __XNET_FCONT_EXEC_CURRENT ) {
 		return __xnetFutureEnqueueCurrent(pCont);
 	}
 
+	// 分配分发上下文
 	pCtx = (__xnet_future_cont_ctx*)XNET_ALLOC(sizeof(__xnet_future_cont_ctx));
 	if ( pCtx == NULL ) {
 		return false;
@@ -1239,6 +1287,7 @@ static bool __xnetFutureDispatchContinuation(xrt_future_cont* pCont)
 	memset(pCtx, 0, sizeof(*pCtx));
 	pCtx->pCont = pCont;
 
+	// 引擎执行模式: 投递到网络引擎的工作队列
 	if ( pCont->iExec == __XNET_FCONT_EXEC_ENGINE ) {
 		pEngine = __xnetSyncResolveEngine(pCont->pEngine);
 		if ( pEngine == NULL ) {
@@ -1253,6 +1302,7 @@ static bool __xnetFutureDispatchContinuation(xrt_future_cont* pCont)
 		return true;
 	}
 
+	// 协程执行模式: 在调度器上创建协程运行
 	#if !defined(XRT_NO_COROUTINE)
 	if ( pCont->iExec == __XNET_FCONT_EXEC_CO ) {
 		if ( pCont->pSched == NULL ) {
@@ -1349,23 +1399,28 @@ XXAPI int xFuturePumpCurrentContinuations(int iMaxCount)
 		return 0;
 	}
 
+	// 循环取出并执行当前线程的延迟延续回调队列
 	while ( pThreadData->pFutureDeferredHead ) {
 		xrt_future_cont* pCont = (xrt_future_cont*)pThreadData->pFutureDeferredHead;
 
+		// 从队列头部取出回调节点
 		pThreadData->pFutureDeferredHead = pCont->pNext;
 		if ( pThreadData->pFutureDeferredHead == NULL ) {
 			pThreadData->pFutureDeferredTail = NULL;
 		}
 
 		pCont->pNext = NULL;
+		// 执行延续回调
 		__xnetFutureContRun(pCont);
 		iPumped++;
 
+		// 检查是否达到最大执行数量
 		if ( iMaxCount > 0 && iPumped >= iMaxCount ) {
 			break;
 		}
 	}
 
+	// 队列已空, 取消注册清理回调
 	if ( pThreadData->pFutureDeferredHead == NULL && pThreadData->bFutureDeferredCleanupRegistered ) {
 		(void)xrtThreadPopCleanup(__xnetFutureCurrentCleanup, NULL);
 		pThreadData->bFutureDeferredCleanupRegistered = FALSE;
@@ -1430,12 +1485,14 @@ static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pG
 		return NULL;
 	}
 
+	// 分配结果容器
 	pAll = (xfuture_all_value*)XNET_ALLOC(sizeof(xfuture_all_value));
 	if ( pAll == NULL ) {
 		return NULL;
 	}
 	memset(pAll, 0, sizeof(*pAll));
 
+	// 分配值数组
 	arrValue = (ptr*)XNET_ALLOC(sizeof(ptr) * (size_t)pGroup->iCount);
 	if ( arrValue == NULL ) {
 		XNET_FREE(pAll);
@@ -1443,6 +1500,7 @@ static xfuture_all_value* __xnetFutureAllValueCreate(__xnet_future_group_ctx* pG
 	}
 	memset(arrValue, 0, sizeof(ptr) * (size_t)pGroup->iCount);
 
+	// 收集每个源 Future 的值
 	for ( i = 0; i < pGroup->iCount; i++ ) {
 		arrValue[i] = xFutureValue(pGroup->arrSources[i]);
 	}
@@ -1461,14 +1519,17 @@ static void __xnetFutureGroupFree(__xnet_future_group_ctx* pGroup)
 	if ( pGroup == NULL ) {
 		return;
 	}
+	// 销毁 Promise
 	if ( pGroup->pPromise ) {
 		xPromiseDestroy(pGroup->pPromise);
 		pGroup->pPromise = NULL;
 	}
+	// 销毁互斥锁
 	if ( pGroup->pLock ) {
 		xrtMutexDestroy(pGroup->pLock);
 		pGroup->pLock = NULL;
 	}
+	// 释放所有源 Future 的引用
 	if ( pGroup->arrSources ) {
 		for ( i = 0; i < pGroup->iCount; i++ ) {
 			if ( pGroup->arrSources[i] ) {
@@ -1479,10 +1540,12 @@ static void __xnetFutureGroupFree(__xnet_future_group_ctx* pGroup)
 		XNET_FREE(pGroup->arrSources);
 		pGroup->arrSources = NULL;
 	}
+	// 释放组项数组
 	if ( pGroup->arrItems ) {
 		XNET_FREE(pGroup->arrItems);
 		pGroup->arrItems = NULL;
 	}
+	// 释放首次失败记录
 	__xnetFutureResultFree(&pGroup->tFirstFailure);
 	XNET_FREE(pGroup);
 }
@@ -1510,20 +1573,24 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 	}
 	memset(&tFailure, 0, sizeof(tFailure));
 
+	// 加锁, 根据聚合模式处理源 Future 完成事件
 	xrtMutexLock(pGroup->pLock);
 	if ( !pGroup->bCompleted ) {
 		if ( pGroup->iMode == __XNET_FGROUP_ANY ) {
+			// ANY 模式: 第一个完成即标记整个组完成
 			pGroup->bCompleted = true;
 			bDoComplete = true;
 			iWinner = pItem->iIndex;
 		}
 		else if ( pGroup->iMode == __XNET_FGROUP_RACE ) {
+			// RACE 模式: 第一个完成即标记整个组完成, 并取消其余
 			pGroup->bCompleted = true;
 			bDoComplete = true;
 			bDoCancelLosers = true;
 			iWinner = pItem->iIndex;
 		}
 		else if ( pGroup->iMode == __XNET_FGROUP_ALL ) {
+			// ALL 模式: 记录首次失败
 			if ( !pGroup->bHasFailure && pIn->iStatus != XRT_NET_OK ) {
 				pGroup->bHasFailure = true;
 				__xnetFutureSetGroupSource(pGroup->pPromise->pFuture, pGroup->arrSources ? pGroup->arrSources[pItem->iIndex] : NULL, pItem->iIndex);
@@ -1532,6 +1599,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 		}
 	}
 
+	// 减少剩余计数, 检查 ALL 模式是否全部完成
 	pGroup->iRemaining--;
 	if ( pGroup->iRemaining <= 0 ) {
 		if ( pGroup->iMode == __XNET_FGROUP_ALL && !pGroup->bCompleted ) {
@@ -1547,10 +1615,12 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 	}
 	xrtMutexUnlock(pGroup->pLock);
 
+	// 在锁外执行完成和取消操作
 	if ( bDoComplete ) {
 		__xnetFutureSetGroupSource(pGroup->pPromise->pFuture, pGroup->arrSources ? pGroup->arrSources[iWinner] : NULL, iWinner);
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, pIn);
 	}
+	// RACE 模式: 取消其他未完成的源 Future
 	if ( bDoCancelLosers ) {
 		for ( i = 0; i < pGroup->iCount; i++ ) {
 			if ( i == iWinner ) { continue; }
@@ -1559,10 +1629,12 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 			}
 		}
 	}
+	// ALL 模式且有失败: 用首次失败结果完成 Promise
 	if ( bCompleteFailure ) {
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, &tFailure);
 		__xnetFutureResultFree(&tFailure);
 	}
+	// ALL 模式全部成功: 收集所有值完成 Promise
 	if ( bCompleteAllOk ) {
 		xfuture_result tOk;
 		memset(&tOk, 0, sizeof(tOk));
@@ -1573,6 +1645,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 		}
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, &tOk);
 	}
+	// 减少组引用计数, 若归零则释放
 	if ( __xnetAtomicAddFetch32(&pGroup->iRefCount, -1) == 0 ) {
 		__xnetFutureGroupFree(pGroup);
 	}
@@ -1592,6 +1665,7 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 		return NULL;
 	}
 
+	// 创建输出 Future 和关联的 Promise
 	pOut = xFutureCreate();
 	if ( pOut == NULL ) {
 		return NULL;
@@ -1603,6 +1677,7 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 		return NULL;
 	}
 
+	// 分配并初始化组上下文
 	pGroup = (__xnet_future_group_ctx*)XNET_ALLOC(sizeof(__xnet_future_group_ctx));
 	if ( pGroup == NULL ) {
 		xPromiseDestroy(pPromise);
@@ -1615,12 +1690,14 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 	pGroup->iRemaining = iCount;
 	pGroup->iRefCount = iCount;
 	pGroup->pPromise = pPromise;
+	// 创建组互斥锁
 	pGroup->pLock = xrtMutexCreate();
 	if ( pGroup->pLock == NULL ) {
 		__xnetFutureGroupFree(pGroup);
 		xFutureRelease(pOut);
 		return NULL;
 	}
+	// 分配源 Future 数组和组项数组
 	pGroup->arrSources = (xfuture**)XNET_ALLOC(sizeof(xfuture*) * (size_t)iCount);
 	pGroup->arrItems = (__xnet_future_group_item*)XNET_ALLOC(sizeof(__xnet_future_group_item) * (size_t)iCount);
 	if ( pGroup->arrSources == NULL || pGroup->arrItems == NULL ) {
@@ -1631,6 +1708,7 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 	memset(pGroup->arrSources, 0, sizeof(xfuture*) * (size_t)iCount);
 	memset(pGroup->arrItems, 0, sizeof(__xnet_future_group_item) * (size_t)iCount);
 
+	// 遍历源 Future, 增加引用并注册完成回调
 	for ( i = 0; i < iCount; i++ ) {
 		xfuture* pChild;
 		if ( arrFuture[i] == NULL ) {
@@ -1642,6 +1720,7 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 		pGroup->arrSources[i] = xFutureAddRef(arrFuture[i]);
 		pGroup->arrItems[i].pGroup = pGroup;
 		pGroup->arrItems[i].iIndex = i;
+		// 为每个源 Future 注册 finally 回调, 用于追踪完成事件
 		pChild = xFutureFinallyEngine(arrFuture[i], NULL, 0, __xnetFutureGroupOnSourceDone, &pGroup->arrItems[i]);
 		if ( pChild == NULL ) {
 			__xnetFutureGroupFree(pGroup);
@@ -1664,14 +1743,17 @@ static xcoevent __xnetFutureEnsureCoEvent(xnetfuture* pFuture)
 
 	if ( !pFuture ) { return NULL; }
 
+	// 快速路径: 检查事件是否已存在
 	__xnetFutureLock(pFuture);
 	pEvent = pFuture->pCoEvent;
 	__xnetFutureUnlock(pFuture);
 	if ( pEvent ) { return pEvent; }
 
+	// 在锁外创建新事件
 	pNewEvent = xrtCoEventCreate(TRUE, FALSE);
 	if ( !pNewEvent ) { return NULL; }
 
+	// 双重检查: 将新事件存入 Future
 	__xnetFutureLock(pFuture);
 	if ( pFuture->pCoEvent == NULL ) {
 		pFuture->pCoEvent = pNewEvent;
@@ -1682,6 +1764,7 @@ static xcoevent __xnetFutureEnsureCoEvent(xnetfuture* pFuture)
 	}
 	__xnetFutureUnlock(pFuture);
 
+	// 如果有未使用的新事件, 则销毁
 	if ( pNewEvent ) {
 		xrtCoEventDestroy(pNewEvent);
 	}
@@ -2204,6 +2287,7 @@ static xfuture* __xnetFutureAttachContinuation(
 	if ( pFuture == NULL ) {
 		return NULL;
 	}
+	// 校验回调参数: finally 类型需要 pfnFinally, 其他类型需要 pfnCont
 	if ( iKind == __XNET_FCONT_FINALLY ) {
 		if ( pfnFinally == NULL ) {
 			__xnetSyncSetError("future finally callback is null.");
@@ -2216,15 +2300,18 @@ static xfuture* __xnetFutureAttachContinuation(
 			return NULL;
 		}
 	}
+	// 内联模式只能在已完成的 Future 上使用
 	if ( iExec == __XNET_FCONT_EXEC_INLINE && xFutureState(pFuture) == XFUTURE_PENDING ) {
 		__xnetSyncSetError("inline continuation requires a completed future.");
 		return NULL;
 	}
+	// 当前线程模式需要有 xrt 线程上下文
 	if ( iExec == __XNET_FCONT_EXEC_CURRENT && xrtThreadGetCurrent() == NULL ) {
 		__xnetSyncSetError("current-thread continuation requires an attached xrt thread.");
 		return NULL;
 	}
 
+	// 创建输出 Future 和关联的 Promise
 	pOutFuture = xFutureCreate();
 	if ( pOutFuture == NULL ) {
 		return NULL;
@@ -2236,6 +2323,7 @@ static xfuture* __xnetFutureAttachContinuation(
 		return NULL;
 	}
 
+	// 分配并初始化延续回调节点
 	pCont = (xrt_future_cont*)XNET_ALLOC(sizeof(xrt_future_cont));
 	if ( pCont == NULL ) {
 		xPromiseDestroy(pPromise);
@@ -2257,12 +2345,15 @@ static xfuture* __xnetFutureAttachContinuation(
 	pCont->pSource = xFutureAddRef(pFuture);
 	(void)__xnetAtomicAddFetch32(&pFuture->iPendingContCount, 1);
 
+	// 加锁, 将回调节点挂到 Future 的延续回调链表上
 	__xnetFutureLock(pFuture);
 	if ( pFuture->bDone ) {
+		// Future 已完成, 直接捕获结果并标记需要立即分发
 		(void)__xnetFutureContCaptureInputLocked(pFuture, pCont);
 		bDispatchNow = true;
 	}
 	else {
+		// 将回调节点追加到链表尾部
 		if ( pFuture->pContTail ) {
 			pFuture->pContTail->pNext = pCont;
 		}
@@ -2273,6 +2364,7 @@ static xfuture* __xnetFutureAttachContinuation(
 	}
 	__xnetFutureUnlock(pFuture);
 
+	// 如果 Future 已完成, 立即分发回调
 	if ( bDispatchNow ) {
 		if ( !__xnetFutureDispatchContinuation(pCont) ) {
 			xfuture_result tError;
@@ -2406,6 +2498,7 @@ static bool __xnetTaskGroupWaitSnapshot(xtaskgroup* pGroup, uint32 iMode, uint32
 		return false;
 	}
 
+	// 加锁, 快照当前所有 Future
 	xrtMutexLock(pGroup->pLock);
 	iCount = pGroup->iCount;
 	if ( iCount > 0 ) {
@@ -2425,6 +2518,7 @@ static bool __xnetTaskGroupWaitSnapshot(xtaskgroup* pGroup, uint32 iMode, uint32
 	}
 	xrtMutexUnlock(pGroup->pLock);
 
+	// 快照失败, 释放已引用的 Future
 	if ( !bOk ) {
 		if ( arrSnapshot ) {
 			for ( i = 0; i < iCount; ++i ) {
@@ -2437,6 +2531,7 @@ static bool __xnetTaskGroupWaitSnapshot(xtaskgroup* pGroup, uint32 iMode, uint32
 		return false;
 	}
 
+	// 没有待处理的 Future, 直接返回成功
 	if ( iCount <= 0 ) {
 		if ( arrSnapshot ) {
 			XNET_FREE(arrSnapshot);
@@ -2444,6 +2539,7 @@ static bool __xnetTaskGroupWaitSnapshot(xtaskgroup* pGroup, uint32 iMode, uint32
 		return true;
 	}
 
+	// 创建 ALL 聚合 Future 等待所有快照 Future 完成
 	pWaitFuture = xFutureWhenAll(arrSnapshot, iCount);
 	for ( i = 0; i < iCount; ++i ) {
 		if ( arrSnapshot[i] ) {
@@ -2456,6 +2552,7 @@ static bool __xnetTaskGroupWaitSnapshot(xtaskgroup* pGroup, uint32 iMode, uint32
 		return false;
 	}
 
+	// 根据等待模式执行等待
 	if ( iMode == 0 ) {
 		bOk = xFutureWait(pWaitFuture);
 	} else if ( iMode == 1 ) {
@@ -2495,6 +2592,7 @@ static bool __xnetTaskGroupAttachChildWatcher(xtaskgroup* pGroup, xfuture* pFutu
 		return false;
 	}
 
+	// 分配子任务完成回调上下文
 	pCtx = (__xnet_task_group_future_ctx*)XNET_ALLOC(sizeof(__xnet_task_group_future_ctx));
 	if ( pCtx == NULL ) {
 		return false;
@@ -2502,6 +2600,7 @@ static bool __xnetTaskGroupAttachChildWatcher(xtaskgroup* pGroup, xfuture* pFutu
 	memset(pCtx, 0, sizeof(*pCtx));
 	pCtx->pGroup = __xnetTaskGroupAddRef(pGroup);
 
+	// 注册 finally 回调, 当子 Future 完成时通知任务组
 	pHook = xFutureFinallyEngine(pFuture, NULL, 0, __xnetTaskGroupOnChildFinally, pCtx);
 	if ( pHook == NULL ) {
 		__xnetTaskGroupRelease(pCtx->pGroup);
@@ -2525,6 +2624,7 @@ static xfuture* __xnetTaskGroupCreateJoinFuture(xtaskgroup* pGroup)
 		return NULL;
 	}
 
+	// 第一次加锁: 检查 join Future 是否已存在
 	xrtMutexLock(pGroup->pLock);
 	if ( pGroup->pJoinFuture ) {
 		pOutFuture = xFutureAddRef(pGroup->pJoinFuture);
@@ -2533,6 +2633,7 @@ static xfuture* __xnetTaskGroupCreateJoinFuture(xtaskgroup* pGroup)
 	}
 	xrtMutexUnlock(pGroup->pLock);
 
+	// 在锁外创建 Future 和 Promise
 	pWaitFuture = xFutureCreate();
 	if ( pWaitFuture == NULL ) {
 		return NULL;
@@ -2543,15 +2644,18 @@ static xfuture* __xnetTaskGroupCreateJoinFuture(xtaskgroup* pGroup)
 		return NULL;
 	}
 
+	// 第二次加锁: 尝试存入 join Future (双重检查)
 	xrtMutexLock(pGroup->pLock);
 	if ( pGroup->pJoinFuture == NULL && pGroup->pJoinPromise == NULL ) {
 		pGroup->pJoinFuture = pWaitFuture;
 		pGroup->pJoinPromise = pPromise;
 		pOutFuture = xFutureAddRef(pWaitFuture);
 		xrtMutexUnlock(pGroup->pLock);
+		// 检查是否所有任务已完成, 若是则立即解析 join Promise
 		__xnetTaskGroupMaybeResolveJoin(pGroup);
 		return pOutFuture;
 	} else {
+		// 其他线程已创建, 使用已有的 join Future
 		pOutFuture = pGroup->pJoinFuture ? xFutureAddRef(pGroup->pJoinFuture) : NULL;
 		xrtMutexUnlock(pGroup->pLock);
 		xPromiseDestroy(pPromise);
@@ -2613,17 +2717,20 @@ XXAPI xtaskgroup* xTaskGroupCreateChild(xtaskgroup* pParent)
 		return NULL;
 	}
 
+	// 创建子任务组
 	pChild = xTaskGroupCreate();
 	if ( pChild == NULL ) {
 		return NULL;
 	}
 
+	// 获取父任务组的 scope Future
 	pParentScope = __xnetTaskGroupGetScopeFuture(pParent);
 	if ( pParentScope == NULL ) {
 		xTaskGroupDestroy(pChild);
 		return NULL;
 	}
 
+	// 将子任务组绑定到父 scope, 当父 scope 关闭时子任务组也会关闭
 	if ( !xTaskGroupBindParent(pChild, pParentScope) ) {
 		xFutureRelease(pParentScope);
 		xTaskGroupDestroy(pChild);
@@ -2631,6 +2738,7 @@ XXAPI xtaskgroup* xTaskGroupCreateChild(xtaskgroup* pParent)
 	}
 	xFutureRelease(pParentScope);
 
+	// 获取子任务组的 join Future 并添加到父任务组
 	pChildJoin = xTaskGroupJoinFuture(pChild);
 	if ( pChildJoin == NULL ) {
 		xTaskGroupDestroy(pChild);
@@ -2660,8 +2768,10 @@ XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup)
 
 	if ( pGroup->pLock ) {
 		xrtMutexLock(pGroup->pLock);
+		// 标记任务组为关闭状态
 		pGroup->bClosed = true;
 		pScopePromise = pGroup->pScopePromise;
+		// 取消所有挂起的 Future 并释放引用
 		for ( i = 0; i < pGroup->iCount; ++i ) {
 			if ( pGroup->arrFuture && pGroup->arrFuture[i] ) {
 				if ( xFutureState(pGroup->arrFuture[i]) == XFUTURE_PENDING ) {
@@ -2675,12 +2785,15 @@ XXAPI void xTaskGroupDestroy(xtaskgroup* pGroup)
 		xrtMutexUnlock(pGroup->pLock);
 	}
 
+	// 取消 scope Promise, 通知所有等待者
 	if ( pScopePromise ) {
 		(void)xPromiseCancel(pScopePromise, (str)"task group destroyed");
 	}
 
+	// 尝试解析 join Future
 	__xnetTaskGroupMaybeResolveJoin(pGroup);
 
+	// 释放任务组引用
 	__xnetTaskGroupRelease(pGroup);
 }
 
@@ -2721,6 +2834,7 @@ XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent)
 		return false;
 	}
 
+	// 分配父 scope 监听上下文
 	pCtx = (__xnet_task_group_parent_ctx*)XNET_ALLOC(sizeof(__xnet_task_group_parent_ctx));
 	if ( pCtx == NULL ) {
 		return false;
@@ -2728,6 +2842,7 @@ XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent)
 	memset(pCtx, 0, sizeof(*pCtx));
 	pCtx->pGroup = __xnetTaskGroupAddRef(pGroup);
 
+	// 注册 finally 回调, 当父 scope 关闭/取消时关闭子任务组
 	pHook = xFutureFinallyEngine(pParent, NULL, 0, __xnetTaskGroupOnParentFinally, pCtx);
 	if ( pHook == NULL ) {
 		__xnetTaskGroupRelease(pCtx->pGroup);
@@ -2735,6 +2850,7 @@ XXAPI bool xTaskGroupBindParent(xtaskgroup* pGroup, xfuture* pParent)
 		return false;
 	}
 
+	// 增加父绑定计数
 	xrtMutexLock(pGroup->pLock);
 	pGroup->iParentBindCount++;
 	xrtMutexUnlock(pGroup->pLock);
@@ -2754,6 +2870,7 @@ XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture)
 		return false;
 	}
 
+	// 加锁, 将 Future 添加到任务组数组
 	xrtMutexLock(pGroup->pLock);
 	if ( !pGroup->bClosed && __xnetTaskGroupEnsureCapacity(pGroup, pGroup->iCount + 1) ) {
 		pGroup->arrFuture[pGroup->iCount] = xFutureAddRef(pFuture);
@@ -2768,8 +2885,10 @@ XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture)
 		return false;
 	}
 
+	// 为子 Future 注册完成监听器
 	bWatchOk = __xnetTaskGroupAttachChildWatcher(pGroup, pFuture);
 	if ( !bWatchOk ) {
+		// 注册失败, 回滚: 移除刚添加的 Future
 		xrtMutexLock(pGroup->pLock);
 		if ( pGroup->iCount > 0 ) {
 			int iIndex = pGroup->iCount - 1;
@@ -2783,6 +2902,7 @@ XXAPI bool xTaskGroupAddFuture(xtaskgroup* pGroup, xfuture* pFuture)
 		return false;
 	}
 
+	// 检查是否所有任务已完成, 尝试解析 join
 	__xnetTaskGroupMaybeResolveJoin(pGroup);
 	return true;
 }
@@ -3010,9 +3130,11 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 	if ( !pFuture ) { return XRT_NET_ERROR; }
 	__xnetFutureAddRefInternal(pFuture);
 
+	// 推进当前线程的延续回调队列
 	(void)__xnetFuturePumpCurrentAuto();
 	__xnetFutureLock(pFuture);
 	if ( !pFuture->bDone ) {
+		// 超时为0: 非阻塞轮询模式
 		if ( iTimeoutMs == 0 ) {
 			bool bDone;
 			__xnetFutureUnlock(pFuture);
@@ -3024,6 +3146,7 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 			__xnetFutureReleaseRefInternal(pFuture);
 			return iStatus;
 		}
+		// 无限等待模式
 		if ( iTimeoutMs == XNET_WAIT_INFINITE ) {
 			while ( !pFuture->bDone ) {
 				__xnetFutureUnlock(pFuture);
@@ -3032,9 +3155,11 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 				if ( pFuture->bDone ) {
 					break;
 				}
+				// 在条件变量上无限期等待
 				(void)__xnetFutureWaitOnce(pFuture, XNET_WAIT_INFINITE);
 			}
 		} else {
+			// 有限超时模式: 计算截止时间
 			uint64 iDeadlineMs;
 				#if defined(_WIN32) || defined(_WIN64)
 					iDeadlineMs = GetTickCount64() + (uint64)iTimeoutMs;
@@ -3058,6 +3183,7 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 				if ( pFuture->bDone ) {
 					break;
 				}
+				// 计算剩余等待时间
 				#if defined(_WIN32) || defined(_WIN64)
 					iNowMs = GetTickCount64();
 				#else
@@ -3069,11 +3195,13 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 					}
 					iNowMs = ((uint64)tNowLoop.tv_sec * 1000ULL) + ((uint64)tNowLoop.tv_nsec / 1000000ULL);
 				#endif
+				// 已超时
 				if ( iNowMs >= iDeadlineMs ) {
 					__xnetFutureUnlock(pFuture);
 					__xnetFutureReleaseRefInternal(pFuture);
 					return XRT_NET_TIMEOUT;
 				}
+				// 在条件变量上等待剩余时间
 				iWaitMs = (uint32)(iDeadlineMs - iNowMs);
 				bSignaled = __xnetFutureWaitOnce(pFuture, iWaitMs);
 				if ( !bSignaled && !pFuture->bDone ) {
@@ -3085,8 +3213,10 @@ XXAPI xnet_result xrtNetFutureWait(xnetfuture* pFuture, uint32 iTimeoutMs)
 		}
 	}
 
+	// 获取最终状态
 	iStatus = pFuture->iStatus;
 	__xnetFutureUnlock(pFuture);
+	// 最后再推进一次延续回调队列
 	(void)__xnetFuturePumpCurrentAuto();
 	__xnetFutureReleaseRefInternal(pFuture);
 	return iStatus;
@@ -3147,6 +3277,7 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 	if ( !pFuture ) { return XRT_NET_ERROR; }
 	__xnetFutureAddRefInternal(pFuture);
 
+	// 快速路径: Future 已完成
 	__xnetFutureLock(pFuture);
 	if ( pFuture->bDone ) {
 		iStatus = pFuture->iStatus;
@@ -3156,12 +3287,14 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 	}
 	__xnetFutureUnlock(pFuture);
 
+	// 确保协程事件已创建
 	pEvent = __xnetFutureEnsureCoEvent(pFuture);
 	if ( !pEvent ) {
 		__xnetFutureReleaseRefInternal(pFuture);
 		return XRT_NET_ERROR;
 	}
 
+	// 再次检查, 防止在创建事件期间 Future 已完成
 	__xnetFutureLock(pFuture);
 	if ( pFuture->bDone ) {
 		iStatus = pFuture->iStatus;
@@ -3169,9 +3302,11 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 		__xnetFutureReleaseRefInternal(pFuture);
 		return iStatus;
 	}
+	// 增加协程等待计数, 防止 Future 被提前释放
 	pFuture->iCoWaitActive++;
 	__xnetFutureUnlock(pFuture);
 
+	// 根据等待模式执行协程等待
 	if ( iWaitMode == 0 ) {
 		bWaitOk = xrtCoWaitEvent(pEvent);
 	}
@@ -3182,6 +3317,7 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 		bWaitOk = xrtCoWaitEventUntil(pEvent, iDeadlineMs);
 	}
 
+	// 减少协程等待计数并获取最终状态
 	__xnetFutureLock(pFuture);
 	if ( pFuture->iCoWaitActive > 0 ) {
 		pFuture->iCoWaitActive--;
@@ -3189,6 +3325,7 @@ static xnet_result __xnetFutureWaitCoCore(xnetfuture* pFuture, int iWaitMode, in
 	iStatus = pFuture->bDone ? pFuture->iStatus : XRT_NET_AGAIN;
 	__xnetFutureUnlock(pFuture);
 
+	// 处理等待失败的情况
 	if ( !bWaitOk && iStatus == XRT_NET_AGAIN ) {
 		if ( xrtCoIsCancelRequested() ) {
 			__xnetSyncSetError("coroutine future wait was interrupted before resolve.");
@@ -3330,12 +3467,14 @@ XXAPI xnetengine* xrtNetSyncGetHiddenEngine(void)
 
 	__xnetSyncSpinLock(&pState->iLock);
 	pEngine = pState->pEngine;
+	// 检查已有引擎是否仍在运行
 	if ( pEngine && !pEngine->bRunning ) {
 		xrtNetEngineDestroy(pEngine);
 		pEngine = NULL;
 		pState->pEngine = NULL;
 	}
 
+	// 懒创建隐藏引擎
 	if ( !pEngine ) {
 		xnetengineconfig tCfg;
 		xrtNetEngineConfigInit(&tCfg);
@@ -3463,12 +3602,14 @@ static void __xnetTaskDispatch(xnetworker* pWorker, ptr pArg)
 	if ( pCtx == NULL ) {
 		return;
 	}
+	// 从上下文中取出任务并释放上下文
 	pTask = pCtx->pTask;
 	XNET_FREE(pCtx);
 	if ( pTask == NULL ) {
 		return;
 	}
 
+	// 设置任务状态为运行中, 并执行引擎任务回调
 	pTask->iState = XTASK_RUNNING;
 	if ( pTask->pfnEngineTask != NULL ) {
 		tResult.iStatus = pTask->pfnEngineTask(pWorker, pTask->pArg, &tResult);
@@ -3477,6 +3618,7 @@ static void __xnetTaskDispatch(xnetworker* pWorker, ptr pArg)
 		tResult.sError = (str)"task callback is null.";
 		tResult.iFlags = XFUTURE_RESULT_F_NONE;
 	}
+	// 完成任务: 更新状态并将结果传递给 Promise
 	__xnetTaskFinalize(pTask, &tResult);
 }
 
@@ -3493,12 +3635,14 @@ static uint32 __xnetTaskThreadDispatch(ptr pArg)
 	if ( pCtx == NULL ) {
 		return (uint32)XRT_NET_ERROR;
 	}
+	// 从上下文中取出任务并释放上下文
 	pTask = pCtx->pTask;
 	XNET_FREE(pCtx);
 	if ( pTask == NULL ) {
 		return (uint32)XRT_NET_ERROR;
 	}
 
+	// 设置任务状态为运行中, 并执行线程任务回调
 	pTask->iState = XTASK_RUNNING;
 	if ( pTask->pfnThreadTask != NULL ) {
 		iStatus = pTask->pfnThreadTask(pTask->pArg, &tResult);
@@ -3526,12 +3670,14 @@ static void __xnetTaskCoDispatch(ptr pArg)
 	if ( pCtx == NULL ) {
 		return;
 	}
+	// 从上下文中取出任务并释放上下文
 	pTask = pCtx->pTask;
 	XNET_FREE(pCtx);
 	if ( pTask == NULL ) {
 		return;
 	}
 
+	// 设置任务状态为运行中, 并执行协程任务回调
 	pTask->iState = XTASK_RUNNING;
 	if ( pTask->pfnCoTask != NULL ) {
 		iStatus = pTask->pfnCoTask(pTask->pArg, &tResult);
@@ -3561,12 +3707,14 @@ static xfuture* __xnetCreateEngineTaskFuture(xnetengine* pEngine, uint32 iAffini
 		return NULL;
 	}
 
+	// 解析引擎, 若未指定则使用隐藏引擎
 	pResolvedEngine = __xnetSyncResolveEngine(pEngine);
 	if ( pResolvedEngine == NULL ) {
 		__xnetSyncSetError("unable to resolve task engine.");
 		return NULL;
 	}
 
+	// 创建 Future 和 Promise 对
 	pFuture = xFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
@@ -3578,6 +3726,7 @@ static xfuture* __xnetCreateEngineTaskFuture(xnetengine* pEngine, uint32 iAffini
 		return NULL;
 	}
 
+	// 分配任务结构体
 	pTask = (xtask*)XNET_ALLOC(sizeof(xtask));
 	if ( pTask == NULL ) {
 		xPromiseDestroy(pPromise);
@@ -3585,6 +3734,7 @@ static xfuture* __xnetCreateEngineTaskFuture(xnetengine* pEngine, uint32 iAffini
 		return NULL;
 	}
 
+	// 分发引擎任务上下文
 	pCtx = (__xnet_task_ctx*)XNET_ALLOC(sizeof(__xnet_task_ctx));
 	if ( pCtx == NULL ) {
 		XNET_FREE(pTask);
@@ -3593,6 +3743,7 @@ static xfuture* __xnetCreateEngineTaskFuture(xnetengine* pEngine, uint32 iAffini
 		return NULL;
 	}
 
+	// 初始化任务和上下文
 	memset(pTask, 0, sizeof(*pTask));
 	memset(pCtx, 0, sizeof(*pCtx));
 	pTask->iState = XTASK_QUEUED;
@@ -3602,12 +3753,14 @@ static xfuture* __xnetCreateEngineTaskFuture(xnetengine* pEngine, uint32 iAffini
 	pTask->pArg = pArg;
 	pCtx->pTask = pTask;
 
+	// 根据是否延迟, 选择立即投递或延迟投递
 	if ( bDelayed ) {
 		iPostResult = xrtNetEnginePostDelayed(pResolvedEngine, iAffinityKey, iDelayMs, __xnetTaskDispatch, pCtx);
 	} else {
 		iPostResult = xrtNetEnginePost(pResolvedEngine, iAffinityKey, __xnetTaskDispatch, pCtx);
 	}
 
+	// 投递失败, 清理所有资源
 	if ( iPostResult != XRT_NET_OK ) {
 		XNET_FREE(pCtx);
 		xFutureRelease(pTask->pFuture);
@@ -3635,6 +3788,7 @@ static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, 
 		return NULL;
 	}
 
+	// 创建 Future 和 Promise 对
 	pFuture = xFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
@@ -3646,6 +3800,7 @@ static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, 
 		return NULL;
 	}
 
+	// 分配任务结构体
 	pTask = (xtask*)XNET_ALLOC(sizeof(xtask));
 	if ( pTask == NULL ) {
 		xPromiseDestroy(pPromise);
@@ -3653,6 +3808,7 @@ static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, 
 		return NULL;
 	}
 
+	// 分配线程任务上下文
 	pCtx = (__xnet_task_thread_ctx*)XNET_ALLOC(sizeof(__xnet_task_thread_ctx));
 	if ( pCtx == NULL ) {
 		XNET_FREE(pTask);
@@ -3661,6 +3817,7 @@ static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, 
 		return NULL;
 	}
 
+	// 初始化任务和上下文
 	memset(pTask, 0, sizeof(*pTask));
 	memset(pCtx, 0, sizeof(*pCtx));
 	pTask->iState = XTASK_QUEUED;
@@ -3670,6 +3827,7 @@ static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, 
 	pTask->pArg = pArg;
 	pCtx->pTask = pTask;
 
+	// 创建工作线程
 	pThread = xrtThreadCreate(__xnetTaskThreadDispatch, pCtx, iStackSize);
 	if ( pThread == NULL ) {
 		XNET_FREE(pCtx);
@@ -3680,6 +3838,7 @@ static xfuture* __xnetCreateThreadTaskFuture(xtask_thread_fn pfnTask, ptr pArg, 
 		return NULL;
 	}
 
+	// 设置线程自动销毁并关联到任务
 	pThread->bAutoDestroy = TRUE;
 	pTask->pThread = pThread;
 	return pFuture;
@@ -3701,6 +3860,7 @@ static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, 
 		return NULL;
 	}
 
+	// 解析协程调度器, 若未指定则使用当前线程的调度器
 	if ( pResolvedSched == NULL ) {
 		pResolvedSched = xrtCoSchedCurrent();
 	}
@@ -3709,6 +3869,7 @@ static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, 
 		return NULL;
 	}
 
+	// 创建 Future 和 Promise 对
 	pFuture = xFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
@@ -3720,6 +3881,7 @@ static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, 
 		return NULL;
 	}
 
+	// 分配任务结构体
 	pTask = (xtask*)XNET_ALLOC(sizeof(xtask));
 	if ( pTask == NULL ) {
 		xPromiseDestroy(pPromise);
@@ -3727,6 +3889,7 @@ static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, 
 		return NULL;
 	}
 
+	// 分配协程任务上下文
 	pCtx = (__xnet_task_co_ctx*)XNET_ALLOC(sizeof(__xnet_task_co_ctx));
 	if ( pCtx == NULL ) {
 		XNET_FREE(pTask);
@@ -3735,6 +3898,7 @@ static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, 
 		return NULL;
 	}
 
+	// 初始化任务和上下文
 	memset(pTask, 0, sizeof(*pTask));
 	memset(pCtx, 0, sizeof(*pCtx));
 	pTask->iState = XTASK_QUEUED;
@@ -3744,6 +3908,7 @@ static xfuture* __xnetCreateCoTaskFuture(xcosched* pSched, xtask_co_fn pfnTask, 
 	pTask->pArg = pArg;
 	pCtx->pTask = pTask;
 
+	// 在调度器上创建协程
 	pCo = xrtCoSchedSpawn(pResolvedSched, __xnetTaskCoDispatch, pCtx, iStackSize);
 	if ( pCo == NULL ) {
 		XNET_FREE(pCtx);
@@ -3960,6 +4125,7 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 	if ( pCtx == NULL ) { return true; }
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
+	// 如果在协程上下文中, 创建取消完成事件以便协程等待
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( xrtCoGetCurrent() != NULL ) {
 			if ( __xnetSyncEnsureStreamWaitCancelEvent(pCtx) == NULL ) {
@@ -3970,6 +4136,7 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 		}
 	#endif
 
+	// 原子地将状态切换为取消请求
 	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
 			__xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		long iObservedState = __xnetAtomicLoad32(&pCtx->iState);
@@ -3980,12 +4147,14 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
+	// 向流的工作线程投递取消操作
 	iPostResult = xrtNetEnginePost(pCtx->pStream->pEngine, pCtx->pStream->pWorker->iId, __xnetSyncCancelStreamFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetSyncSetError("unable to post stream waiter cancellation.");
 		return false;
 	}
 
+	// 协程模式: 等待取消完成事件
 	if ( bUseCoroWait ) {
 		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( !xrtCoWaitEvent(pCtx->pCancelDoneEvent) ) {
@@ -3996,6 +4165,7 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 		return true;
 	}
 
+	// 线程模式: 轮询等待取消完成 (最多5秒)
 	iDeadlineMs = __xnetSyncNowMs() + 5000ULL;
 	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
@@ -4005,6 +4175,7 @@ static bool __xnetSyncCancelPendingStreamFutureWait(xnetfuture* pFuture)
 		__xnetSyncSleepMs(1);
 	}
 
+	// 等待流的等待槽位被清除
 	pSlot = __xnetStreamGetSyncWaitSlot(pCtx->pStream, pCtx->iWaitKind);
 	while ( pSlot != NULL && pSlot->pCtx == pCtx ) {
 		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
@@ -4162,6 +4333,7 @@ static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
 		return;
 	}
 
+	// CAS 循环: 等待状态从 POSTED 转换为 REGISTERED
 	for ( ;; ) {
 		iState = __xnetAtomicLoad32(&pCtx->iState);
 		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
@@ -4175,6 +4347,7 @@ static void __xnetSyncRegisterListenerFutureWait(xnetworker* pWorker, ptr pArg)
 		}
 	}
 
+	// 在监听器上注册接受等待回调
 	bRegistered = __xnetListenerRegisterSyncAcceptWait(
 		pCtx->pListener,
 		__xnetSyncOnListenerAcceptFuture,
@@ -4216,6 +4389,7 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 	if ( pCtx == NULL ) { return true; }
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
+	// 如果在协程上下文中, 创建取消完成事件
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( xrtCoGetCurrent() != NULL ) {
 			if ( __xnetSyncEnsureListenerWaitCancelEvent(pCtx) == NULL ) {
@@ -4226,6 +4400,7 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 		}
 	#endif
 
+	// 原子地将状态切换为取消请求
 	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
 			__xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		long iObservedState = __xnetAtomicLoad32(&pCtx->iState);
@@ -4235,12 +4410,14 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 	}
 
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
+	// 向监听器的工作线程投递取消操作
 	iPostResult = xrtNetEnginePost(pCtx->pListener->pEngine, pCtx->pListener->pWorker->iId, __xnetSyncCancelListenerFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetSyncSetError("unable to post listener waiter cancellation.");
 		return false;
 	}
 
+	// 协程模式: 等待取消完成事件
 	if ( bUseCoroWait ) {
 		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( !xrtCoWaitEvent(pCtx->pCancelDoneEvent) ) {
@@ -4251,6 +4428,7 @@ static bool __xnetSyncCancelPendingListenerFutureWait(xnetfuture* pFuture)
 		return true;
 	}
 
+	// 线程模式: 轮询等待取消完成 (最多5秒)
 	iDeadlineMs = __xnetSyncNowMs() + 5000ULL;
 	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
@@ -4394,6 +4572,7 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 	if ( pCtx == NULL ) { return true; }
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
+	// 如果在协程上下文中, 创建取消完成事件
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( xrtCoGetCurrent() != NULL ) {
 			if ( __xnetSyncEnsureDgramWaitCancelEvent(pCtx) == NULL ) {
@@ -4404,6 +4583,7 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 		}
 	#endif
 
+	// 原子地将状态切换为取消请求
 	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_CANCEL_REQUESTED &&
 			__xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		long iObservedState = __xnetAtomicLoad32(&pCtx->iState);
@@ -4414,12 +4594,14 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 
 	if ( __xnetAtomicLoad32(&pCtx->iState) == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return true; }
 
+	// 向数据报的工作线程投递取消操作
 	iPostResult = xrtNetEnginePost(pCtx->pSock->pEngine, pCtx->pSock->pWorker->iId, __xnetSyncCancelDgramFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetSyncSetError("unable to post datagram waiter cancellation.");
 		return false;
 	}
 
+	// 协程模式: 等待取消完成事件
 	if ( bUseCoroWait ) {
 		#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( !xrtCoWaitEvent(pCtx->pCancelDoneEvent) ) {
@@ -4430,6 +4612,7 @@ static bool __xnetSyncCancelPendingDgramFutureWait(xnetfuture* pFuture)
 		return true;
 	}
 
+	// 线程模式: 轮询等待取消完成 (最多5秒)
 	iDeadlineMs = __xnetSyncNowMs() + 5000ULL;
 	while ( __xnetAtomicLoad32(&pCtx->iState) != __XNET_SYNC_STREAM_WAIT_FINISHED ) {
 		if ( __xnetSyncNowMs() >= iDeadlineMs ) {
@@ -4456,6 +4639,7 @@ static void __xnetSyncRegisterDgramFutureWait(xnetworker* pWorker, ptr pArg)
 		return;
 	}
 
+	// CAS 循环: 等待状态从 POSTED 转换为 REGISTERED
 	for ( ;; ) {
 		iState = __xnetAtomicLoad32(&pCtx->iState);
 		if ( iState == __XNET_SYNC_STREAM_WAIT_FINISHED ) { return; }
@@ -4469,6 +4653,7 @@ static void __xnetSyncRegisterDgramFutureWait(xnetworker* pWorker, ptr pArg)
 		}
 	}
 
+	// 在数据报套接字上注册接收等待回调
 	bRegistered = __xnetDgramRegisterSyncRecvWait(pCtx->pSock, __xnetSyncOnDgramRecvFuture, pCtx);
 	if ( !bRegistered ) {
 		__xnetSyncSetError("unable to register datagram recv waiter.");
@@ -4490,29 +4675,34 @@ static xnetfuture* __xnetSyncCreatePostedFuture(xnetengine* pEngine, uint32 iAff
 		return NULL;
 	}
 
+	// 解析引擎, 若未指定则使用隐藏引擎
 	pResolvedEngine = __xnetSyncResolveEngine(pEngine);
 	if ( pResolvedEngine == NULL ) {
 		__xnetSyncSetError("unable to resolve sync engine.");
 		return NULL;
 	}
 
+	// 创建 Future
 	pFuture = xrtNetFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
 	}
 
+	// 分配任务上下文
 	pCtx = (__xnet_future_task_ctx*)XNET_ALLOC(sizeof(__xnet_future_task_ctx));
 	if ( pCtx == NULL ) {
 		xrtNetFutureDestroy(pFuture);
 		return NULL;
 	}
 
+	// 初始化上下文并增加 Future 的异步持有计数
 	memset(pCtx, 0, sizeof(__xnet_future_task_ctx));
 	pCtx->pFuture = pFuture;
 	pCtx->pfnTask = pfnTask;
 	pCtx->pArg = pArg;
 	__xnetFutureAddAsyncHold(pFuture);
 
+	// 根据是否延迟, 选择立即投递或延迟投递
 	if ( bDelayed ) {
 		iPostResult = xrtNetEnginePostDelayed(pResolvedEngine, iAffinityKey, iDelayMs, __xnetFutureTaskDispatch, pCtx);
 	}
@@ -4520,6 +4710,7 @@ static xnetfuture* __xnetSyncCreatePostedFuture(xnetengine* pEngine, uint32 iAff
 		iPostResult = xrtNetEnginePost(pResolvedEngine, iAffinityKey, __xnetFutureTaskDispatch, pCtx);
 	}
 
+	// 投递失败, 清理资源
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetFutureReleaseAsyncHold(pFuture);
 		XNET_FREE(pCtx);
@@ -4582,31 +4773,37 @@ static xnetfuture* __xnetSyncCreateStreamFutureWait(xnetstream* pStream, uint32 
 	const __xnet_stream_wait_ops* pOps = NULL;
 	xnet_result iPostResult;
 
+	// 校验流是否绑定到运行中的引擎工作线程
 	if ( pStream == NULL || pStream->pEngine == NULL || pStream->pWorker == NULL ) {
 		__xnetSyncSetError("stream is not bound to a running engine worker.");
 		return NULL;
 	}
+	// 获取等待操作集
 	pOps = __xnetSyncGetStreamWaitOps(iWaitKind);
 	if ( pOps == NULL ) {
 		__xnetSyncSetError("invalid stream wait kind.");
 		return NULL;
 	}
+	// readable 等待要求流处于暂停读取模式
 	if ( iWaitKind == __XNET_STREAM_WAIT_READABLE && !pStream->bReadPaused ) {
 		__xnetSyncSetError("stream readable future currently requires paused read mode.");
 		return NULL;
 	}
 
+	// 创建 Future
 	pFuture = xrtNetFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
 	}
 
+	// 分配等待上下文
 	pCtx = (__xnet_stream_future_wait_ctx*)XNET_ALLOC(sizeof(__xnet_stream_future_wait_ctx));
 	if ( pCtx == NULL ) {
 		xrtNetFutureDestroy(pFuture);
 		return NULL;
 	}
 
+	// 初始化上下文, 设置取消和清理回调
 	memset(pCtx, 0, sizeof(__xnet_stream_future_wait_ctx));
 	pCtx->pFuture = pFuture;
 	pCtx->pStream = pStream;
@@ -4615,9 +4812,11 @@ static xnetfuture* __xnetSyncCreateStreamFutureWait(xnetstream* pStream, uint32 
 	pFuture->pPendingCtx = pCtx;
 	pFuture->pfnPendingCancel = __xnetSyncCancelPendingStreamFutureWait;
 	pFuture->pfnPendingCleanup = __xnetSyncCleanupStreamFutureWait;
+	// 增加 Future 和流的异步持有计数, 防止提前释放
 	__xnetFutureAddAsyncHold(pFuture);
 	__xnetStreamAddAsyncHold(pStream);
 
+	// 向流的工作线程投递注册操作
 	iPostResult = xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xnetSyncRegisterStreamFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetStreamReleaseAsyncHold(pStream);
@@ -4673,22 +4872,26 @@ static xnetfuture* __xnetSyncCreateListenerFutureAccept(xnetlistener* pListener)
 	__xnet_listener_future_wait_ctx* pCtx = NULL;
 	xnet_result iPostResult;
 
+	// 校验监听器是否绑定到运行中的引擎工作线程
 	if ( pListener == NULL || pListener->pEngine == NULL || pListener->pWorker == NULL ) {
 		__xnetSyncSetError("listener is not bound to a running engine worker.");
 		return NULL;
 	}
 
+	// 创建 Future
 	pFuture = xrtNetFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
 	}
 
+	// 分配等待上下文
 	pCtx = (__xnet_listener_future_wait_ctx*)XNET_ALLOC(sizeof(__xnet_listener_future_wait_ctx));
 	if ( pCtx == NULL ) {
 		xrtNetFutureDestroy(pFuture);
 		return NULL;
 	}
 
+	// 初始化上下文, 设置取消和清理回调
 	memset(pCtx, 0, sizeof(__xnet_listener_future_wait_ctx));
 	pCtx->pFuture = pFuture;
 	pCtx->pListener = pListener;
@@ -4699,6 +4902,7 @@ static xnetfuture* __xnetSyncCreateListenerFutureAccept(xnetlistener* pListener)
 	__xnetFutureAddAsyncHold(pFuture);
 	__xnetListenerAddAsyncHold(pListener);
 
+	// 向监听器的工作线程投递注册操作
 	iPostResult = xrtNetEnginePost(pListener->pEngine, pListener->pWorker->iId, __xnetSyncRegisterListenerFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetListenerReleaseAsyncHold(pListener);
@@ -4726,30 +4930,36 @@ static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 	__xnet_dgram_future_wait_ctx* pCtx = NULL;
 	xnet_result iPostResult;
 
+	// 校验数据报套接字状态
 	if ( pSock == NULL || pSock->pEngine == NULL || pSock->pWorker == NULL ) {
 		__xnetSyncSetError("datagram socket is not bound to a running engine worker.");
 		return NULL;
 	}
+	// 不能与 OnRecv 回调同时使用
 	if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
 		__xnetSyncSetError("datagram recv future cannot be used while OnRecv callback is installed.");
 		return NULL;
 	}
+	// 套接字必须处于运行状态
 	if ( !pSock->bRunning || !__xnetDgramSocketIsValid(pSock->hSocket) ) {
 		__xnetSyncSetError("datagram socket is not running.");
 		return NULL;
 	}
 
+	// 创建 Future
 	pFuture = xrtNetFutureCreate();
 	if ( pFuture == NULL ) {
 		return NULL;
 	}
 
+	// 分配等待上下文
 	pCtx = (__xnet_dgram_future_wait_ctx*)XNET_ALLOC(sizeof(__xnet_dgram_future_wait_ctx));
 	if ( pCtx == NULL ) {
 		xrtNetFutureDestroy(pFuture);
 		return NULL;
 	}
 
+	// 初始化上下文, 设置取消和清理回调
 	memset(pCtx, 0, sizeof(__xnet_dgram_future_wait_ctx));
 	pCtx->pFuture = pFuture;
 	pCtx->pSock = pSock;
@@ -4760,6 +4970,7 @@ static xnetfuture* __xnetSyncCreateDgramFutureRecv(xdgramsock* pSock)
 	__xnetFutureAddAsyncHold(pFuture);
 	__xnetDgramAddAsyncHold(pSock);
 
+	// 向数据报的工作线程投递注册操作
 	iPostResult = xrtNetEnginePost(pSock->pEngine, pSock->pWorker->iId, __xnetSyncRegisterDgramFutureWait, pCtx);
 	if ( iPostResult != XRT_NET_OK ) {
 		__xnetDgramReleaseAsyncHold(pSock);
@@ -4788,11 +4999,13 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
+	// 创建监听器接受等待 Future
 	pFuture = __xnetSyncCreateListenerFutureAccept(pListener);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 根据等待模式执行等待
 	if ( iWaitMode == 0 ) {
 		iStatus = xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE);
 	}
@@ -4803,11 +5016,13 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
 	}
 
+	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
 		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
 		bNeedCancel = true;
 	}
 
+	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingListenerFutureWait(pFuture) ) {
 			(void)__xnetFutureDestroyCore(pFuture);
@@ -4816,10 +5031,12 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 		}
 	}
 
+	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
 	}
 
+	// 销毁 Future
 	if ( !__xnetFutureDestroyCore(pFuture) ) {
 		__xnetSyncSetError("listener accept wait could not release its internal future.");
 		return XRT_NET_ERROR;
@@ -4836,11 +5053,13 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
+	// 创建数据报接收等待 Future
 	pFuture = __xnetSyncCreateDgramFutureRecv(pSock);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 根据等待模式执行等待
 	if ( iWaitMode == 0 ) {
 		iStatus = xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE);
 	}
@@ -4851,11 +5070,13 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
 	}
 
+	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
 		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
 		bNeedCancel = true;
 	}
 
+	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingDgramFutureWait(pFuture) ) {
 			(void)__xnetFutureDestroyCore(pFuture);
@@ -4864,10 +5085,12 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 		}
 	}
 
+	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
 	}
 
+	// 销毁 Future
 	if ( !__xnetFutureDestroyCore(pFuture) ) {
 		__xnetSyncSetError("datagram wait could not release its internal future.");
 		return XRT_NET_ERROR;
@@ -4891,11 +5114,13 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
+	// 创建流等待 Future
 	pFuture = __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 根据等待模式执行等待
 	if ( iWaitMode == 0 ) {
 		iStatus = xrtNetFutureWait(pFuture, XNET_WAIT_INFINITE);
 	}
@@ -4906,11 +5131,13 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
 	}
 
+	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
 		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
 		bNeedCancel = true;
 	}
 
+	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingStreamFutureWait(pFuture) ) {
 			(void)__xnetFutureDestroyCore(pFuture);
@@ -4919,10 +5146,12 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 		}
 	}
 
+	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
 	}
 
+	// 销毁 Future
 	if ( !__xnetFutureDestroyCore(pFuture) ) {
 		__xnetSyncSetError("stream wait could not release its internal future.");
 		return XRT_NET_ERROR;
@@ -4943,6 +5172,7 @@ static xnet_result __xnetSyncWaitSourceSyncCoreEx(const xnetwaitsrc* pSrc, int i
 {
 	if ( ppValue ) { *ppValue = NULL; }
 	if ( !pSrc ) { return XRT_NET_ERROR; }
+	// 根据等待源类型分发到对应的等待实现
 	if ( pSrc->iKind == XNET_WAITSRC_FUTURE ) {
 		xnet_result iStatus = XRT_NET_ERROR;
 		if ( iWaitMode == 0 ) {
@@ -5203,16 +5433,19 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
+	// 校验协程上下文
 	if ( xrtCoGetCurrent() == NULL ) {
 		__xnetSyncSetError("stream coroutine wait requires an active coroutine context.");
 		return XRT_NET_ERROR;
 	}
 
+	// 创建流等待 Future
 	pFuture = __xnetSyncCreateStreamFutureWait(pStream, iWaitKind);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 根据等待模式执行协程等待
 	if ( iWaitMode == 0 ) {
 		iStatus = xrtNetFutureWaitCo(pFuture);
 	}
@@ -5223,11 +5456,13 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
 	}
 
+	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
 		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
 		bNeedCancel = true;
 	}
 
+	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingStreamFutureWait(pFuture) ) {
 			xrtClearError();
@@ -5237,10 +5472,12 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 		}
 	}
 
+	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
 	}
 
+	// 销毁 Future, 检查是否有错误
 	xrtClearError();
 	xrtNetFutureDestroy(pFuture);
 	sErr = xrtGetError();
@@ -5268,16 +5505,19 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
+	// 校验协程上下文
 	if ( xrtCoGetCurrent() == NULL ) {
 		__xnetSyncSetError("listener coroutine wait requires an active coroutine context.");
 		return XRT_NET_ERROR;
 	}
 
+	// 创建监听器接受等待 Future
 	pFuture = __xnetSyncCreateListenerFutureAccept(pListener);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 根据等待模式执行协程等待
 	if ( iWaitMode == 0 ) {
 		iStatus = xrtNetFutureWaitCo(pFuture);
 	}
@@ -5288,11 +5528,13 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
 	}
 
+	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
 		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
 		bNeedCancel = true;
 	}
 
+	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingListenerFutureWait(pFuture) ) {
 			xrtClearError();
@@ -5302,10 +5544,12 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 		}
 	}
 
+	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
 	}
 
+	// 销毁 Future, 检查是否有错误
 	xrtClearError();
 	xrtNetFutureDestroy(pFuture);
 	sErr = xrtGetError();
@@ -5333,16 +5577,19 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
+	// 校验协程上下文
 	if ( xrtCoGetCurrent() == NULL ) {
 		__xnetSyncSetError("datagram coroutine wait requires an active coroutine context.");
 		return XRT_NET_ERROR;
 	}
 
+	// 创建数据报接收等待 Future
 	pFuture = __xnetSyncCreateDgramFutureRecv(pSock);
 	if ( pFuture == NULL ) {
 		return XRT_NET_ERROR;
 	}
 
+	// 根据等待模式执行协程等待
 	if ( iWaitMode == 0 ) {
 		iStatus = xrtNetFutureWaitCo(pFuture);
 	}
@@ -5353,11 +5600,13 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
 	}
 
+	// 如果等待超时或失败且 Future 仍在等待, 需要取消
 	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
 		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
 		bNeedCancel = true;
 	}
 
+	// 执行取消操作
 	if ( bNeedCancel ) {
 		if ( !__xnetSyncCancelPendingDgramFutureWait(pFuture) ) {
 			xrtClearError();
@@ -5367,10 +5616,12 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 		}
 	}
 
+	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
 	}
 
+	// 销毁 Future, 检查是否有错误
 	xrtClearError();
 	xrtNetFutureDestroy(pFuture);
 	sErr = xrtGetError();
@@ -5394,6 +5645,7 @@ static xnet_result __xnetSyncWaitSourceCoCoreEx(const xnetwaitsrc* pSrc, int iWa
 {
 	if ( ppValue ) { *ppValue = NULL; }
 	if ( !pSrc ) { return XRT_NET_ERROR; }
+	// 根据等待源类型分发到对应的协程等待实现
 	if ( pSrc->iKind == XNET_WAITSRC_FUTURE ) {
 		xnet_result iStatus = XRT_NET_ERROR;
 		if ( iWaitMode == 0 ) {

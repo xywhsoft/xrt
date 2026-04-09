@@ -325,17 +325,21 @@
 		pRing->hRingFd = -1;
 		memset(&pRing->tParams, 0, sizeof(pRing->tParams));
 
+		// [R13] 通过 io_uring_setup 系统调用创建 ring 实例
 		pRing->hRingFd = __xnetPortUringSysSetup(iEntries ? iEntries : 256u, &pRing->tParams);
 		if ( pRing->hRingFd < 0 ) {
 			return false;
 		}
 
+		// 计算各环形队列区域所需映射大小
 		iSqRingLen = pRing->tParams.tSqOff.iArray + (size_t)pRing->tParams.iSqEntries * sizeof(uint32);
 		iCqRingLen = pRing->tParams.tCqOff.iCqes + (size_t)pRing->tParams.iCqEntries * sizeof(__xnet_io_uring_cqe);
 		iSqesLen = (size_t)pRing->tParams.iSqEntries * sizeof(__xnet_io_uring_sqe);
+		// 检查内核是否支持 SINGLE_MMAP 特性
 		pRing->bSingleMmap = (pRing->tParams.iFeatures & __XNET_IORING_FEAT_SINGLE_MMAP) != 0;
 
 		if ( pRing->bSingleMmap ) {
+			// [R13] SINGLE_MMAP：SQ ring 和 CQ ring 共享同一块映射区域
 			iSharedLen = (iSqRingLen > iCqRingLen) ? iSqRingLen : iCqRingLen;
 			pSharedMap = mmap(NULL, iSharedLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
 			if ( pSharedMap == MAP_FAILED ) {
@@ -347,6 +351,7 @@
 			pRing->iSqRingMapLen = iSharedLen;
 			pRing->iCqRingMapLen = iSharedLen;
 		} else {
+			// [R13] 分别映射 SQ ring 和 CQ ring 到不同的内存区域
 			pRing->pSqRingBase = mmap(NULL, iSqRingLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQ_RING);
 			if ( pRing->pSqRingBase == MAP_FAILED ) {
 				pRing->pSqRingBase = NULL;
@@ -363,6 +368,7 @@
 			pRing->iCqRingMapLen = iCqRingLen;
 		}
 
+		// [R13] 映射 SQE（提交队列条目）区域
 		pRing->pSqesBase = mmap(NULL, iSqesLen, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, pRing->hRingFd, __XNET_IORING_OFF_SQES);
 		if ( pRing->pSqesBase == MAP_FAILED ) {
 			pRing->pSqesBase = NULL;
@@ -371,6 +377,7 @@
 		}
 		pRing->iSqesMapLen = iSqesLen;
 
+		// [R13] 根据 params 中的偏移量，计算各环形队列字段的指针地址
 		pRing->pSqHead = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iHead);
 		pRing->pSqTail = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iTail);
 		pRing->pSqMask = (uint32*)((uint8*)pRing->pSqRingBase + pRing->tParams.tSqOff.iRingMask);
@@ -600,14 +607,17 @@
 		uint32 iTail = 0;
 		uint32 iSlot = 0;
 		if ( !pCtx || !pOp || !pCtx->tNativeRing.bReady ) { return XRT_NET_ERROR; }
+		// 分配 IO 操作结构体
 		pIo = __xnetPortUringAllocIO(pOp);
 		if ( !pIo ) { return XRT_NET_ERROR; }
 
+		// 根据操作类型准备不同的 IO 参数
 		switch ( pOp->iOpType ) {
 			case XNET_PORT_OP_ACCEPT:
 				break;
 
 			case XNET_PORT_OP_CONNECT:
+				// 将目标地址转换为 sockaddr 结构
 				if ( !__xnetAddrToSockAddr(&pOp->tAddr, &pIo->tAddrStorage, &pIo->iAddrLen) ) {
 					XNET_FREE(pIo);
 					return XRT_NET_ERROR;
@@ -618,6 +628,7 @@
 				break;
 
 			case XNET_PORT_OP_SEND:
+				// 构建 iovec 缓冲区数组并填充 msghdr
 				if ( !__xnetPortUringBuildBufsFromSubmit(pIo, pOp) ) {
 					XNET_FREE(pIo);
 					return XRT_NET_ERROR;
@@ -628,6 +639,7 @@
 				break;
 
 			case XNET_PORT_OP_RECVFROM:
+				// 设置接收缓冲区和源地址存储空间
 				memset(&pIo->tMsg, 0, sizeof(pIo->tMsg));
 				pIo->arrIov[0].iov_base = pIo->aRecvBuf;
 				pIo->arrIov[0].iov_len = sizeof(pIo->aRecvBuf);
@@ -639,6 +651,7 @@
 				break;
 
 			case XNET_PORT_OP_SENDTO:
+				// 转换目标地址并构建 iovec + msghdr
 				if ( !__xnetAddrToSockAddr(&pOp->tAddr, &pIo->tAddrStorage, &pIo->iAddrLen) ||
 					!__xnetPortUringBuildBufsFromSubmit(pIo, pOp) ) {
 					XNET_FREE(pIo);
@@ -656,6 +669,7 @@
 				return XRT_NET_ERROR;
 		}
 
+		// [R13] 获取 ring 锁，从 SQ ring 中取出一个空闲 SQE 槽位
 		pthread_mutex_lock(&pCtx->tRingLock);
 		pSqe = __xnetPortUringNativeGetSqe(&pCtx->tNativeRing, &iTail, &iSlot);
 		if ( !pSqe ) {
@@ -664,49 +678,60 @@
 			return XRT_NET_ERROR;
 		}
 
+		// 填充 SQE 公共字段
 		pSqe->iFd = (int)pOp->hSocket;
 		pSqe->iUserData = (uint64)(uintptr_t)pIo;
+		// 根据操作类型设置不同的 io_uring opcode 和参数
 		switch ( pOp->iOpType ) {
 			case XNET_PORT_OP_ACCEPT:
+				// [R13] io_uring ACCEPT 操作，传入地址缓冲区和长度指针
 				pSqe->iOpcode = __XNET_IORING_OP_ACCEPT;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
 				pSqe->iOff = (uint64)(uintptr_t)&pIo->iAddrLen;
 				break;
 
 			case XNET_PORT_OP_CONNECT:
+				// [R13] io_uring CONNECT 操作
 				pSqe->iOpcode = __XNET_IORING_OP_CONNECT;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tAddrStorage;
 				pSqe->iOff = (uint64)pIo->iAddrLen;
 				break;
 
 			case XNET_PORT_OP_RECV:
+				// [R13] io_uring RECV 操作，使用内嵌接收缓冲区
 				pSqe->iOpcode = __XNET_IORING_OP_RECV;
 				pSqe->iAddr = (uint64)(uintptr_t)pIo->aRecvBuf;
 				pSqe->iLen = (uint32)sizeof(pIo->aRecvBuf);
 				break;
 
 			case XNET_PORT_OP_SEND:
+				// [R13] io_uring SENDMSG 操作，通过 msghdr 发送多缓冲区
 				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
 				break;
 
 			case XNET_PORT_OP_RECVFROM:
+				// [R13] io_uring RECVMSG 操作，通过 msghdr 接收并获取源地址
 				pSqe->iOpcode = __XNET_IORING_OP_RECVMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
 				break;
 
 			case XNET_PORT_OP_SENDTO:
+				// [R13] io_uring SENDMSG 操作，通过 msghdr 发送到指定目标地址
 				pSqe->iOpcode = __XNET_IORING_OP_SENDMSG;
 				pSqe->iAddr = (uint64)(uintptr_t)&pIo->tMsg;
 				pSqe->iLen = 1u;
 				break;
 		}
 
+		// 跟踪活跃 IO 操作并提交 SQE 到 ring
 		__xnetPortUringTrackIo(pCtx, pIo);
 		__xnetPortUringNativeCommitSqe(&pCtx->tNativeRing, iTail, iSlot);
+		// [R13] 通过 io_uring_enter 系统调用通知内核处理新提交的 SQE
 		if ( __xnetPortUringNativeEnter(&pCtx->tNativeRing, 1u, 0u, 0u) != XRT_NET_OK ) {
+			// 提交失败时回滚 SQE 并取消跟踪
 			__xnetPortUringNativeRollbackSqe(&pCtx->tNativeRing, iTail, iSlot);
 			__xnetPortUringUntrackIo(pCtx, pIo);
 			pthread_mutex_unlock(&pCtx->tRingLock);
@@ -723,6 +748,7 @@
 	{
 		int iErr = (iRes < 0) ? -iRes : 0;
 		if ( !pIo || !pEvent ) { return false; }
+		// 清空事件结构并填充基础字段
 		memset(pEvent, 0, sizeof(xnetportevent));
 		pEvent->iType = __xnetPortUringEventType(pIo->iOpType);
 		pEvent->iStatus = (iRes >= 0) ? XRT_NET_OK : XRT_NET_ERROR;
@@ -732,6 +758,7 @@
 		pEvent->tAddr = pIo->tAddr;
 		pEvent->iBytes = (iRes > 0) ? (uint32)iRes : 0u;
 
+		// ACCEPT 完成：返回新接受的套接字和远端地址
 		if ( pIo->iOpType == XNET_PORT_OP_ACCEPT ) {
 			if ( iRes >= 0 ) {
 				pEvent->hSocket = (intptr_t)iRes;
@@ -740,10 +767,12 @@
 			return true;
 		}
 
+		// CONNECT 完成
 		if ( pIo->iOpType == XNET_PORT_OP_CONNECT ) {
 			return true;
 		}
 
+		// RECV 完成：将接收到的数据拷贝到事件 chain，零字节或特定错误表示连接关闭
 		if ( pIo->iOpType == XNET_PORT_OP_RECV ) {
 			if ( iRes > 0 ) {
 				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->aRecvBuf, (size_t)iRes);
@@ -758,6 +787,7 @@
 			return true;
 		}
 
+		// RECVFROM 完成：拷贝数据并从 sockaddr 还原远端地址
 		if ( pIo->iOpType == XNET_PORT_OP_RECVFROM ) {
 			if ( iRes >= 0 ) {
 				pEvent->pChain = __xnetPortUringAllocEventChain(pIo->aRecvBuf, (size_t)iRes);
@@ -918,6 +948,7 @@
 		__xnet_uring_post* pHead;
 		__xnet_uring_post* pTail;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
+		// 取出已投递事件队列的整条链表（加锁）
 		pthread_mutex_lock(&pCtx->tPostedLock);
 		pHead = pCtx->pPostedHead;
 		pTail = pCtx->pPostedTail;
@@ -926,6 +957,7 @@
 		pthread_mutex_unlock(&pCtx->tPostedLock);
 		(void)pTail;
 
+		// 从链表头部逐个取出事件填入输出数组
 		while ( pHead && iCount < iMaxEvents ) {
 			__xnet_uring_post* pNext = pHead->pNext;
 			pEvents[iCount++] = pHead->tEvent;
@@ -933,6 +965,7 @@
 			pHead = pNext;
 		}
 
+		// 超出容量的事件重新放回投递队列
 		while ( pHead ) {
 			__xnet_uring_post* pNext = pHead->pNext;
 			pthread_mutex_lock(&pCtx->tPostedLock);
@@ -981,15 +1014,18 @@
 		__xnet_uring_ctx* pCtx;
 		(void)pOwner;
 		if ( !pPort || !pCfg ) { return XRT_NET_ERROR; }
+		// 分配上下文结构体并初始化
 		pCtx = (__xnet_uring_ctx*)XNET_ALLOC(sizeof(__xnet_uring_ctx));
 		if ( !pCtx ) { return XRT_NET_ERROR; }
 		memset(pCtx, 0, sizeof(__xnet_uring_ctx));
 		pCtx->hRing = -1;
+		// 创建 eventfd 用于唤醒机制
 		pCtx->hWakeFd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 		if ( pCtx->hWakeFd < 0 ) {
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
+		// 依次初始化各互斥锁，失败时清理已初始化的资源
 		if ( pthread_mutex_init(&pCtx->tPostedLock, NULL) != 0 ) {
 			close(pCtx->hWakeFd);
 			XNET_FREE(pCtx);
@@ -1008,6 +1044,7 @@
 			XNET_FREE(pCtx);
 			return XRT_NET_ERROR;
 		}
+		// [R13] 初始化原生 io_uring ring（通过 io_uring_setup 系统调用）
 		if ( !__xnetPortUringNativeRingInit(&pCtx->tNativeRing, pCfg->iSqEntries ? pCfg->iSqEntries : 256u) ) {
 			pthread_mutex_destroy(&pCtx->tRingLock);
 			pthread_mutex_destroy(&pCtx->tIoLock);
@@ -1049,20 +1086,24 @@
 		bool bNeedWake = false;
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pOps || iCount == 0 ) { return XRT_NET_ERROR; }
+		// 遍历所有待提交的操作
 		for ( i = 0; i < iCount; ++i ) {
 			xnetportevent tEvent;
 			if ( !__xnetPortUringValidOp(pOps[i].iOpType) ) {
 				return XRT_NET_ERROR;
 			}
+			// CLOSE 操作在此不做处理（由上层直接关闭套接字）
 			if ( pOps[i].iOpType == XNET_PORT_OP_CLOSE ) {
 				continue;
 			}
+			// 判断是否可通过原生 io_uring 提交
 			if ( __xnetPortUringNativeCanUse(pCtx, &pOps[i]) ) {
 				if ( __xnetPortUringSubmitNative(pCtx, &pOps[i]) != XRT_NET_OK ) {
 					return XRT_NET_ERROR;
 				}
 				continue;
 			}
+			// 非原生路径：构建合成事件并入队到 posted 链表
 			memset(&tEvent, 0, sizeof(tEvent));
 			tEvent.iType = __xnetPortUringEventType(pOps[i].iOpType);
 			tEvent.iStatus = XRT_NET_OK;
@@ -1078,6 +1119,7 @@
 			}
 			bNeedWake = true;
 		}
+		// 有合成事件入队时需要唤醒 harvest 等待
 		if ( bNeedWake ) {
 			(void)__xnetPortUringWake(pPort);
 		}
@@ -1092,15 +1134,19 @@
 		__xnet_uring_ctx* pCtx = pPort ? (__xnet_uring_ctx*)pPort->pCtx : NULL;
 		if ( !pCtx || !pEvents || iMaxEvents == 0 ) { return 0; }
 
+		// 第一阶段：收集已到期的定时器事件
 		iCount += __xnetPortUringHarvestTimers(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 
+		// 第二阶段：排空已投递的合成事件队列
 		iCount += __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 
+		// 第三阶段：[R13] 从 io_uring CQ ring 中收割已完成的 IO 事件
 		iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);
 		if ( iCount >= iMaxEvents ) { return iCount; }
 
+		// 第四阶段：如果还没有事件，使用 poll 阻塞等待唤醒或 ring 事件
 		{
 			struct pollfd arrPoll[2];
 			nfds_t iPollCount = 0;
@@ -1109,12 +1155,14 @@
 			int iPollRet;
 
 			memset(arrPoll, 0, sizeof(arrPoll));
+			// 监听 eventfd 唤醒事件
 			if ( pCtx->hWakeFd >= 0 ) {
 				iWakeIndex = (int)iPollCount;
 				arrPoll[iPollCount].fd = pCtx->hWakeFd;
 				arrPoll[iPollCount].events = POLLIN;
 				++iPollCount;
 			}
+			// [R13] 监听 io_uring ring fd 的可读事件（表示有新 CQE 可消费）
 			iRingIndex = (int)iPollCount;
 			arrPoll[iPollCount].fd = pCtx->tNativeRing.hRingFd;
 			arrPoll[iPollCount].events = POLLIN;
@@ -1122,11 +1170,13 @@
 
 			iPollRet = poll(arrPoll, iPollCount, (iCount > 0) ? 0 : (int)iTimeoutMs);
 			if ( iPollRet > 0 ) {
+				// 处理 eventfd 唤醒：读取唤醒计数并排空 posted 队列
 				if ( iWakeIndex >= 0 && (arrPoll[iWakeIndex].revents & POLLIN) ) {
 					uint64 iWakeCount = 0;
 					if ( read(pCtx->hWakeFd, &iWakeCount, sizeof(iWakeCount)) == (ssize_t)sizeof(iWakeCount) ) {
 						uint32 iPosted = __xnetPortUringDrainPosted(pCtx, pEvents + iCount, iMaxEvents - iCount);
 						iCount += iPosted;
+						// 如果没有 posted 事件，生成一个 WAKE 事件通知上层
 						if ( iPosted == 0 && iCount < iMaxEvents ) {
 							memset(&pEvents[iCount], 0, sizeof(xnetportevent));
 							pEvents[iCount].iType = XNET_PORT_EVENT_WAKE;
@@ -1136,6 +1186,7 @@
 						}
 					}
 				}
+				// [R13] ring fd 可读，再次从 CQ ring 收割已完成的 IO 事件
 				if ( iCount < iMaxEvents && iRingIndex >= 0 &&
 					(arrPoll[iRingIndex].revents & (POLLIN | POLLERR | POLLHUP)) ) {
 					iCount += __xnetPortUringDrainNative(pCtx, pEvents + iCount, iMaxEvents - iCount);

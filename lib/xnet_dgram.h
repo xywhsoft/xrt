@@ -449,6 +449,7 @@ static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xneta
 	xnetchain* pChain;
 	xnetdgrampkt* pPacket = NULL;
 	if ( !pSock || !pFrom ) { return false; }
+	// 如果存在同步接收等待者，构造数据包并直接通知
 	if ( pSock->tRecvWait.pfnWait != NULL ) {
 		pPacket = xrtNetDgramPacketCreate(pFrom, pData, iLen);
 		if ( !pPacket ) {
@@ -461,6 +462,7 @@ static bool UNUSED_ATTR __xnetDgramDispatchPacket(xdgramsock* pSock, const xneta
 		__xnetDgramNotifySyncRecv(pSock, XRT_NET_OK, pPacket);
 		return true;
 	}
+	// 否则通过事件回调分发接收到的数据
 	pChain = __xnetDgramAllocTempChain(pSock);
 	if ( !pChain ) { return false; }
 	if ( iLen > 0 && (!pData || !xrtNetChainAppendCopy(pChain, pData, iLen)) ) {
@@ -549,11 +551,13 @@ static __xnet_dgram_async_op* __xnetDgramAllocAsyncVecCopy(xdgramsock* pSock, co
 	size_t iOffset = 0;
 	size_t iSize;
 	if ( !pSock || !pTo || !pVec || iCount == 0 ) { return NULL; }
+	// 遍历向量数组，计算总数据长度并验证有效性
 	for ( uint32 i = 0; i < iCount; ++i ) {
 		if ( !pVec[i].pData || pVec[i].iLen == 0 ) { return NULL; }
 		iTotal += pVec[i].iLen;
 		if ( iTotal > UINT32_MAX ) { return NULL; }
 	}
+	// 分配异步操作结构体（含尾部数据缓冲区）
 	iSize = sizeof(__xnet_dgram_async_op) + iTotal;
 	pOp = (__xnet_dgram_async_op*)XNET_ALLOC(iSize);
 	if ( !pOp ) { return NULL; }
@@ -562,6 +566,7 @@ static __xnet_dgram_async_op* __xnetDgramAllocAsyncVecCopy(xdgramsock* pSock, co
 	pOp->tTo = *pTo;
 	pOp->iType = __XNET_DGRAM_ASYNC_SEND_COPY;
 	pOp->iLen = (uint32)iTotal;
+	// 将分散的向量数据拷贝到连续缓冲区
 	for ( uint32 i = 0; i < iCount; ++i ) {
 		memcpy(pOp->aData + iOffset, pVec[i].pData, pVec[i].iLen);
 		iOffset += pVec[i].iLen;
@@ -593,10 +598,12 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 	xdgramsock* pSock;
 	xnetworker* pWorker;
 	if ( !pEngine ) { return NULL; }
+	// 注册数据报端口事件处理回调到引擎
 	__xnetDgramBindEngine(pEngine);
 	pSock = (xdgramsock*)XNET_ALLOC(sizeof(xdgramsock));
 	if ( !pSock ) { return NULL; }
 	memset(pSock, 0, sizeof(xdgramsock));
+	// 根据绑定端口选择工作线程（取模亲和性）
 	pWorker = __xnetDgramPickWorker(pEngine, pCfg);
 	pSock->iId = __xnetEngineAllocStreamId(pEngine);
 	pSock->pEngine = pEngine;
@@ -604,6 +611,7 @@ XXAPI xdgramsock* xrtNetDgramCreate(xnetengine* pEngine, const xnetdgramconfig* 
 	pSock->pEvents = pEvents;
 	pSock->pUserData = pUserData;
 	pSock->hSocket = XNET_SOCKET_INVALID;
+	// 从用户配置或默认值初始化套接字参数
 	if ( pCfg ) {
 		pSock->tLocalAddr = pCfg->tBindAddr;
 		pSock->iFlags = pCfg->iFlags;
@@ -642,11 +650,15 @@ XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock)
 	socklen_t iAddrLen = 0;
 	if ( !pSock || !pSock->pEngine || !pSock->pEngine->bRunning ) { return XRT_NET_ERROR; }
 	if ( pSock->bRunning ) { return XRT_NET_OK; }
+	// 将本地地址转换为系统 sockaddr 结构
 	if ( !__xnetAddrToSockAddr(&pSock->tLocalAddr, &tStorage, &iAddrLen) ) { return XRT_NET_ERROR; }
+	// 创建 UDP 套接字
 	pSock->hSocket = __xnetDgramSocketCreate(pSock->tLocalAddr.iFamily);
 	if ( !__xnetDgramSocketIsValid(pSock->hSocket) ) { return XRT_NET_ERROR; }
+	// 设置套接字选项（地址复用、端口复用等）并开启非阻塞模式用于 bind
 	__xnetDgramApplyBindFlags(pSock->hSocket, pSock->iFlags);
 	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, true);
+	// 绑定到本地地址
 	if ( bind(pSock->hSocket, (struct sockaddr*)&tStorage, iAddrLen) != 0 ) {
 		if ( pSock->pEvents && pSock->pEvents->OnError ) {
 			pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, __xnetDgramSocketLastErr());
@@ -654,11 +666,13 @@ XXAPI xnet_result xrtNetDgramStart(xdgramsock* pSock)
 		__xnetDgramFinalizeSocketClose(pSock);
 		return XRT_NET_ERROR;
 	}
+	// 检查底层是否支持原生端口操作（IOCP/io_uring）
 	if ( !__xnetDgramUseNativePortOps(pSock) ) {
 		__xnetDgramSetError("mainline datagram sockets require a native xnet backend.");
 		__xnetDgramFinalizeSocketClose(pSock);
 		return XRT_NET_ERROR;
 	}
+	// 关闭非阻塞模式，更新本地地址，标记运行状态并启动接收监听
 	(void)__xnetDgramSocketSetNonBlock(pSock->hSocket, false);
 	(void)__xnetDgramSocketUpdateLocalAddr(pSock->hSocket, &pSock->tLocalAddr);
 	pSock->bRunning = true;
@@ -706,6 +720,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 	if ( !pEvents || iCount == 0 ) { return; }
 	for ( uint32 i = 0; i < iCount; ++i ) {
 		const xnetportevent* pEvent = &pEvents[i];
+		// 处理数据报接收完成事件
 		if ( pEvent->iType == XNET_PORT_EVENT_RECVFROM ) {
 			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
 			#if defined(XNET_DEBUG_IOCP_NATIVE)
@@ -716,7 +731,9 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 			#endif
 			if ( pSock ) {
 				pSock->bRecvArmed = false;
+				// 有数据链时根据接收模式进行投递
 				if ( pEvent->pChain ) {
+					// 存在同步等待者时，构造数据包并直接通知
 					if ( pSock->tRecvWait.pfnWait != NULL ) {
 						xnetdgrampkt* pPacket = xrtNetDgramPacketCreate(&pEvent->tAddr, NULL, 0);
 						if ( pPacket ) {
@@ -726,13 +743,16 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 							__xnetDgramNotifySyncRecv(pSock, XRT_NET_ERROR, NULL);
 						}
 					} else if ( pSock->pEvents && pSock->pEvents->OnRecv ) {
+						// 通过事件回调投递
 						pSock->pEvents->OnRecv(__xnetDgramOwner(pSock), pSock, &pEvent->tAddr, pEvent->pChain);
 					}
 					__xnetDgramFreeTempChain(pEvent->pChain);
+					// 释放数据链后重新挂起接收监听
 					if ( pSock->bRunning && __xnetDgramSocketIsValid(pSock->hSocket) && !pSock->bRecvArmed ) {
 						(void)__xnetDgramArmRecvWatch(pSock);
 					}
 				} else {
+					// 无数据链表示接收出错，通知同步等待者和错误回调
 					if ( pEvent->iStatus != XRT_NET_OK && pSock->tRecvWait.pfnWait != NULL ) {
 						__xnetDgramNotifySyncRecv(pSock, pEvent->iStatus, NULL);
 					}
@@ -744,6 +764,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 					}
 				}
 			}
+		// 处理端口错误事件
 		} else if ( pEvent->iType == XNET_PORT_EVENT_ERROR ) {
 			xdgramsock* pSock = (xdgramsock*)pEvent->pUserData;
 			if ( pSock ) {
@@ -752,6 +773,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 			if ( pSock && pSock->pEvents && pSock->pEvents->OnError ) {
 				pSock->pEvents->OnError(__xnetDgramOwner(pSock), pSock, -1);
 			}
+		// 处理异步发送完成事件，释放持有计数和操作结构体
 		} else if ( pEvent->iType == XNET_PORT_EVENT_SENDTO ) {
 			__xnet_dgram_async_op* pOp = (__xnet_dgram_async_op*)pEvent->pUserData;
 			xdgramsock* pSock = pOp ? pOp->pSock : NULL;
