@@ -1,0 +1,2056 @@
+
+
+
+// 静态值 : null、true、false
+static xvalue_struct XVO_VALUE_NULL = {
+	.Header = XVO_HEADER_INIT(XVO_DT_NULL, TRUE, FALSE, 0),
+	.Size = 0,
+	.vInt = 0
+};
+static xvalue_struct XVO_VALUE_TRUE = {
+	.Header = XVO_HEADER_INIT(XVO_DT_BOOL, TRUE, FALSE, 0),
+	.Size = sizeof(bool),
+	.vBool = TRUE
+};
+static xvalue_struct XVO_VALUE_FALSE = {
+	.Header = XVO_HEADER_INIT(XVO_DT_BOOL, TRUE, FALSE, 0),
+	.Size = sizeof(bool),
+	.vBool = FALSE
+};
+
+
+
+// 引用计数操作
+XXAPI void xvoAddRef(xvalue pVal)
+{
+	xvoAddRef_Inline(pVal);
+}
+
+
+// 释放列表 clear 进程
+bool xvoListClear_FreeProc(int64 pKey, xvalue* ppVal, xlist pList)
+{
+	(void)pKey;
+	(void)pList;
+	xvoUnref(*ppVal);
+	return FALSE;
+}
+
+
+// 释放 coll 节点进程
+static void xvoCollNode_FreeProc(xavltree pColl, Coll_Key* pKey)
+{
+	(void)pColl;
+	xvoUnref(pKey->Value);
+}
+
+
+// xvoTableClear_FreeProc 相关处理
+bool xvoTableClear_FreeProc(Dict_Key* pKey, xvalue* ppVal, xdict pTbl)
+{
+	(void)pKey;
+	(void)pTbl;
+	xvoUnref(*ppVal);
+	return FALSE;
+}
+
+
+// 内部函数：销毁值
+static void __xvoDestroyValue(xvalue pVal)
+{
+	// 根据数据类型释放对应的资源
+	if ( pVal->Type == XVO_DT_TEXT ) {
+		// 释放文本字符串
+		xrtFree(pVal->vText);
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		// 释放数组中所有元素的引用
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
+			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
+			xvoUnref(pItem);
+		}
+		// 销毁数组容器
+		xrtPtrArrayDestroy(pVal->vArray);
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		// 释放列表中所有元素的引用
+		xrtListWalk(pVal->vList, (ptr)xvoListClear_FreeProc, pVal->vList);
+		// 销毁列表容器
+		(xrtListDestroy)(pVal->vList);
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		// 销毁集合容器（节点释放由 FreeProc 回调处理）
+		(xrtAVLTreeDestroy)(pVal->vColl);
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		// 释放字典中所有值的引用
+		xrtDictWalk(pVal->vTable, (ptr)xvoTableClear_FreeProc, pVal->vTable);
+		// 销毁字典容器
+		(xrtDictDestroy)(pVal->vTable);
+	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		// 释放类数据块
+		xrtFree(pVal->vStruct);
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		// 自定义类型无需额外释放
+	}
+	// 释放值结构体自身
+	xrtFree(pVal);
+	#ifdef DEBUG_TRACE
+		printf("free value : %x\n", pVal);
+	#endif
+}
+
+
+// xvoUnref 相关处理
+XXAPI void xvoUnref(xvalue pVal)
+{
+	uint32 iOldHeader;
+	uint32 iNewHeader;
+	uint32 iRefCount;
+	if ( pVal ) {
+		// 非共享对象走快速路径
+		if ( !xvoIsShared_Inline(pVal) ) {
+			if ( pVal->IsStatic == 0 ) {
+				// 减少引用计数
+				pVal->RefCount--;
+				// 引用计数归零则销毁值
+				if ( pVal->RefCount == 0 ) {
+					__xvoDestroyValue(pVal);
+				}
+			}
+			return;
+		}
+		// 共享对象使用 CAS 原子操作减少引用计数
+		while ( TRUE ) {
+			// 读取当前头部信息
+			iOldHeader = pVal->Header;
+			// 静态值不需要释放
+			if ( iOldHeader & XVO_HEADER_STATIC_MASK ) {
+				return;
+			}
+			// 提取当前引用计数
+			iRefCount = (iOldHeader & XVO_HEADER_REFCOUNT_MASK) >> XVO_HEADER_REFCOUNT_SHIFT;
+			// 引用计数为零则无需操作
+			if ( iRefCount == 0 ) {
+				return;
+			}
+			// 计算减少引用计数后的新头部值
+			iNewHeader = (iOldHeader & ~XVO_HEADER_REFCOUNT_MASK) | ((iRefCount - 1) << XVO_HEADER_REFCOUNT_SHIFT);
+			// 尝试原子交换，成功则退出循环
+			if ( __xvoAtomicCompareExchange32(&pVal->Header, iNewHeader, iOldHeader) == iOldHeader ) {
+				break;
+			}
+		}
+		// 引用计数从 1 减为 0，销毁值
+		if ( iRefCount == 1 ) {
+			__xvoDestroyValue(pVal);
+		}
+	}
+}
+
+
+
+// 创建值
+XXAPI xvalue xvoCreateNull()
+{
+	return &XVO_VALUE_NULL;
+}
+
+
+// 创建布尔值
+XXAPI xvalue xvoCreateBool(bool bVal)
+{
+	if ( bVal ) {
+		return &XVO_VALUE_TRUE;
+	} else {
+		return &XVO_VALUE_FALSE;
+	}
+}
+
+
+// 创建整数
+XXAPI xvalue xvoCreateInt(int64 iVal)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_INT, XRT_OBJMODE_LOCAL);
+		pVal->Size = sizeof(int64);
+		pVal->vInt = iVal;
+	}
+	return pVal;
+}
+
+
+// 创建浮点数
+XXAPI xvalue xvoCreateFloat(double fVal)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_FLOAT, XRT_OBJMODE_LOCAL);
+		pVal->Size = sizeof(double);
+		pVal->vFloat = fVal;
+	}
+	return pVal;
+}
+
+
+// 创建文本
+XXAPI xvalue xvoCreateText(ptr sVal, uint32 iSize, bool bColloc)
+{
+	ptr pOwnedEmpty = NULL;
+
+	// 处理空指针输入，使用共享空字符串
+	if ( sVal == NULL ) {
+		sVal = xCore.sNull;
+		iSize = 0;
+		bColloc = TRUE;
+	} else if ( iSize == 0 ) {
+		// 计算字符串长度
+		iSize = strlen(sVal);
+		// 空字符串使用共享空字符串
+		if ( iSize == 0 ) {
+			if ( bColloc && (sVal != xCore.sNull) ) {
+				// 记录需要释放的原有空字符串
+				pOwnedEmpty = sVal;
+			}
+			sVal = xCore.sNull;
+			bColloc = TRUE;
+		}
+	}
+	// 分配值结构体
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		// 初始化头部信息
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TEXT, XRT_OBJMODE_LOCAL);
+		pVal->Size = iSize;
+		// 设置文本数据指针
+		if ( bColloc ) {
+			// 直接使用传入的指针（所有权转移）
+			pVal->vText = sVal;
+		} else {
+			// 复制字符串内容
+			pVal->vText = xrtCopyStr(sVal, iSize);
+			if ( pVal->vText == xCore.sNull ) {
+				// 复制失败，释放已分配的值结构体
+				xrtFree(pVal);
+				return NULL;
+			}
+		}
+		// 释放之前记录的原有空字符串
+		if ( pOwnedEmpty != NULL ) {
+			xrtFree(pOwnedEmpty);
+		}
+	}
+	return pVal;
+}
+
+
+// xvoCreateTime 相关处理
+XXAPI xvalue xvoCreateTime(xtime tVal)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TIME, XRT_OBJMODE_LOCAL);
+		pVal->Size = sizeof(xtime);
+		pVal->vTime = tVal;
+	}
+	return pVal;
+}
+
+
+// xvoCreateTimeSerial 相关处理
+XXAPI xvalue xvoCreateTimeSerial(int64 iYear, int iMonth, int iDay, int iHour, int iMinute, int iSecond)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TIME, XRT_OBJMODE_LOCAL);
+		pVal->Size = sizeof(xtime);
+		pVal->vTime = xrtDateTimeSerial(iYear, iMonth, iDay, iHour, iMinute, iSecond);
+	}
+	return pVal;
+}
+
+
+// xvoCreatePoint 相关处理
+XXAPI xvalue xvoCreatePoint(ptr point)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_POINT, XRT_OBJMODE_LOCAL);
+		pVal->Size = sizeof(ptr);
+		pVal->vPoint = point;
+	}
+	return pVal;
+}
+
+
+// xvoCreateFunc 相关处理
+XXAPI xvalue xvoCreateFunc(xfunction pFunc)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_FUNC, XRT_OBJMODE_LOCAL);
+		pVal->Size = sizeof(ptr);
+		pVal->vFunc = pFunc;
+	}
+	return pVal;
+}
+
+
+// 创建数组
+XXAPI xvalue xvoCreateArray()
+{
+	return xvoCreateArrayEx(XRT_OBJMODE_LOCAL);
+}
+
+
+// 创建数组扩展
+XXAPI xvalue xvoCreateArrayEx(uint32 iMode)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xparray objArr = xrtPtrArrayCreate(iMode);
+		if ( objArr == NULL ) {
+			xrtFree(pVal);
+			return NULL;
+		}
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_ARRAY, iMode);
+		pVal->Size = 0;
+		pVal->vArray = objArr;
+	}
+	return pVal;
+}
+
+
+// 创建列表
+XXAPI xvalue xvoCreateList()
+{
+	return xvoCreateListEx(XRT_OBJMODE_LOCAL);
+}
+
+
+// 创建列表扩展
+XXAPI xvalue xvoCreateListEx(uint32 iMode)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xlist objList = xrtListCreate(sizeof(xvalue), iMode);
+		if ( objList == NULL ) {
+			xrtFree(pVal);
+			return NULL;
+		}
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_LIST, iMode);
+		pVal->Size = 0;
+		pVal->vList = objList;
+	}
+	return pVal;
+}
+
+
+// xvoCreateColl 相关处理
+XXAPI xvalue xvoCreateColl()
+{
+	return xvoCreateCollEx(XRT_OBJMODE_LOCAL);
+}
+
+
+// xvoCreateCollEx 相关处理
+XXAPI xvalue xvoCreateCollEx(uint32 iMode)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey);	// 比较函数定义
+		xavltree objColl = xrtAVLTreeCreate(sizeof(Coll_Key), (ptr)Coll_CompProc, iMode);
+		if ( objColl == NULL ) {
+			xrtFree(pVal);
+			return NULL;
+		}
+		objColl->FreeProc = (ptr)xvoCollNode_FreeProc;
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_COLL, iMode);
+		pVal->Size = 0;
+		pVal->vColl = objColl;
+	}
+	return pVal;
+}
+
+
+// xvoCreateTable 相关处理
+XXAPI xvalue xvoCreateTable()
+{
+	return xvoCreateTableEx(XRT_OBJMODE_LOCAL);
+}
+
+
+// xvoCreateTableEx 相关处理
+XXAPI xvalue xvoCreateTableEx(uint32 iMode)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xdict objTbl = xrtDictCreate(sizeof(xvalue), iMode);
+		if ( objTbl == NULL ) {
+			xrtFree(pVal);
+			return NULL;
+		}
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_TABLE, iMode);
+		pVal->Size = 0;
+		pVal->vTable = objTbl;
+	}
+	return pVal;
+}
+
+
+// 创建分类
+XXAPI xvalue xvoCreateClass(uint32 iSize)
+{
+	if ( iSize == 0 ) {
+		return NULL;
+	}
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		ptr pStruct = xrtMalloc(iSize);
+		if ( pStruct == NULL ) {
+			xrtFree(pVal);
+			return NULL;
+		}
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_CLASS, XRT_OBJMODE_LOCAL);
+		pVal->Size = iSize;
+		pVal->vStruct = pStruct;
+	}
+	return pVal;
+}
+
+
+// xvoCreateCustom 相关处理
+XXAPI xvalue xvoCreateCustom(ptr pObj)
+{
+	xvalue pVal = xrtMalloc(sizeof(xvalue_struct));
+	if ( pVal ) {
+		xvoInitOwnedHeader_Inline(pVal, XVO_DT_CUSTOM, XRT_OBJMODE_LOCAL);
+		pVal->Size = 0;
+		pVal->vCustom = pObj;
+	}
+	return pVal;
+}
+
+
+
+// 读取值
+XXAPI bool xvoGetBool(xvalue pVal)
+{
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
+		return FALSE;
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		return pVal->vBool;
+	} else if ( pVal->Type == XVO_DT_INT ) {
+		return pVal->vInt != 0;
+	} else if ( pVal->Type == XVO_DT_FLOAT ) {
+		return pVal->vFloat != 0.0;
+	} else {
+		return TRUE;
+	}
+}
+
+
+// 获取整数
+XXAPI int64 xvoGetInt(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return 0;
+	} else if ( pVal->Type == XVO_DT_INT ) {
+		return pVal->vInt;
+	} else if ( pVal->Type == XVO_DT_FLOAT ) {
+		return pVal->vFloat;
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		return pVal->vBool ? 1 : 0;
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return xrtStrToI64(pVal->vText);
+	} else {
+		return 0;
+	}
+}
+
+
+// 获取浮点数
+XXAPI double xvoGetFloat(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return 0.0;
+	} else if ( pVal->Type == XVO_DT_FLOAT ) {
+		return pVal->vFloat;
+	} else if ( pVal->Type == XVO_DT_INT ) {
+		return pVal->vInt;
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		return pVal->vBool ? 1.0 : 0.0;
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return xrtStrToNum(pVal->vText);
+	} else {
+		return 0.0;
+	}
+}
+
+
+// 获取文本
+XXAPI str xvoGetText(xvalue pVal)
+{
+	// 处理空值和 null 类型
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
+		return xCore.sNull;
+	// 文本类型直接返回
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return pVal->vText;
+	// 整数类型转换为字符串
+	} else if ( pVal->Type == XVO_DT_INT ) {
+		str sRet = xrtTempMemory(24);
+		xrtI64ToStr(pVal->vInt, __xrt_str(sRet));
+		return sRet;
+	// 浮点数类型转换为字符串
+	} else if ( pVal->Type == XVO_DT_FLOAT ) {
+		str sRet = xrtTempMemory(32);
+		xrtNumToStr(pVal->vFloat, __xrt_str(sRet));
+		return sRet;
+	// 布尔类型返回 true/false 字面量
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		return (str)(pVal->vBool ? "true" : "false");
+	// 时间类型格式化为日期时间字符串
+	} else if ( pVal->Type == XVO_DT_TIME ) {
+		str sRet = xrtTempMemory(32);
+		int64 iYear;
+		int iMonth, iDay, iHour, iMinute, iSecond;
+		xrtDecodeSerial(pVal->vTime, &iYear, &iMonth, &iDay, &iHour, &iMinute, &iSecond, NULL, NULL);
+		sprintf(__xrt_str(sRet), "%lld-%02d-%02d %02d:%02d:%02d", iYear, iMonth, iDay, iHour, iMinute, iSecond);
+		return sRet;
+	// 以下复合类型返回地址格式描述字符串
+	} else if ( pVal->Type == XVO_DT_POINT ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[point:%p]", pVal->vPoint);
+		return sRet;
+	} else if ( pVal->Type == XVO_DT_FUNC ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[function:%p]", pVal->vFunc);
+		return sRet;
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[array:%p]", pVal->vArray);
+		return sRet;
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[list:%p]", pVal->vList);
+		return sRet;
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[coll:%p]", pVal->vColl);
+		return sRet;
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[table:%p]", pVal->vTable);
+		return sRet;
+	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[class:%p]", pVal->vStruct);
+		return sRet;
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		str sRet = xrtTempMemory(48);
+		sprintf(__xrt_str(sRet), "[custom:%p]", pVal->vCustom);
+		return sRet;
+	// 未知类型返回空字符串
+	} else {
+		return xCore.sNull;
+	}
+}
+
+
+// xvoGetTime 相关处理
+XXAPI xtime xvoGetTime(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return 0;
+	} else if ( pVal->Type == XVO_DT_TIME ) {
+		return pVal->vTime;
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return 0;			// 未来应该支持字符串转换为 xtime
+	} else {
+		return 0;
+	}
+}
+
+
+// xvoGetPoint 相关处理
+XXAPI ptr xvoGetPoint(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_POINT ) {
+		return pVal->vPoint;
+	} else {
+		return NULL;
+	}
+}
+
+
+// xvoGetFunc 相关处理
+XXAPI xfunction xvoGetFunc(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_FUNC ) {
+		return pVal->vFunc;
+	} else {
+		return NULL;
+	}
+}
+
+
+// 获取数组
+XXAPI xparray xvoGetArray(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		return pVal->vArray;
+	} else {
+		return NULL;
+	}
+}
+
+
+// 获取列表
+XXAPI xlist xvoGetList(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		return pVal->vList;
+	} else {
+		return NULL;
+	}
+}
+
+
+// xvoGetColl 相关处理
+XXAPI xavltree xvoGetColl(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		return pVal->vColl;
+	} else {
+		return NULL;
+	}
+}
+
+
+// xvoGetTable 相关处理
+XXAPI xdict xvoGetTable(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		return pVal->vTable;
+	} else {
+		return NULL;
+	}
+}
+
+
+// 获取分类
+XXAPI ptr xvoGetClass(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		return pVal->vStruct;
+	} else {
+		return NULL;
+	}
+}
+
+
+// xvoGetCustom 相关处理
+XXAPI ptr xvoGetCustom(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		return pVal->vCustom;
+	} else {
+		return NULL;
+	}
+}
+
+
+
+// Array 读数据
+XXAPI xvalue xvoArrayGetValue(xvalue pArr, uint32 index)
+{
+	if ( pArr == NULL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return &XVO_VALUE_NULL;
+	}
+	xvalue pVal = xrtPtrArrayGet(pArr->vArray, index + 1);
+	if ( pVal ) {
+		return pVal;
+	} else {
+		return &XVO_VALUE_NULL;
+	}
+}
+
+
+
+// Array 追加数据
+XXAPI bool xvoArrayAppendValue(xvalue pArr, xvalue pVal, bool bColloc)
+{
+	if ( (pArr == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
+		return FALSE;
+	}
+	uint32 index = xrtPtrArrayAppend(pArr->vArray, pVal);
+	if ( index == 0 ) {
+		return FALSE;
+	}
+	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
+		xvoAddRef_Inline(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Array 插入操作
+XXAPI bool xvoArrayInsertValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc)
+{
+	if ( (pArr == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
+		return FALSE;
+	}
+	uint32 idx = xrtPtrArrayInsert(pArr->vArray, index, pVal);
+	if ( idx == 0 ) {
+		return FALSE;
+	}
+	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
+		xvoAddRef_Inline(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Array 修改操作
+XXAPI bool xvoArraySetValue(xvalue pArr, uint32 index, xvalue pVal, bool bColloc)
+{
+	if ( (pArr == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pArr->vArray->Owner, pVal) ) {
+		return FALSE;
+	}
+	xvalue pOldVal = xrtPtrArrayGet(pArr->vArray, index + 1);
+	if ( pOldVal == NULL ) {
+		return FALSE;
+	}
+	xvoUnref(pOldVal);
+	xrtPtrArraySet_Inline(pArr->vArray, index + 1, pVal);
+	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
+		xvoAddRef_Inline(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Array 合并
+XXAPI bool xvoArrayMerge(xvalue pArr1, xvalue pArr2)
+{
+	if ( (pArr1 == NULL) || (pArr2 == NULL) ) {
+		return FALSE;
+	}
+	if ( pArr1->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( pArr2->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	for ( uint32 i = 1; i <= pArr2->vArray->Count; i++ ) {
+		xvalue pVal = xrtPtrArrayGet_Inline(pArr2->vArray, i);
+		if ( !xvoPrepareStoreWithOwner_Inline(&pArr1->vArray->Owner, pVal) ) {
+			return FALSE;
+		}
+		xvoAddRef_Inline(pVal);
+		xrtPtrArrayAppend(pArr1->vArray, pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Array 操作
+XXAPI bool xvoArraySwap(xvalue pArr, uint32 index1, uint32 index2)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	return xrtPtrArraySwap(pArr->vArray, index1 + 1, index2 + 1);
+}
+
+
+// 删除数组
+XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	// 先释放被删除元素的引用
+	for ( uint32 i = 0; i < count; i++ ) {
+		xvalue pVal = xrtPtrArrayGet(pArr->vArray, index + 1 + i);
+		if ( pVal ) {
+			xvoUnref(pVal);
+		}
+	}
+	return xrtPtrArrayRemove(pArr->vArray, index + 1, count);
+}
+
+
+// xvoArrayItemCount 相关处理
+XXAPI uint32 xvoArrayItemCount(xvalue pArr)
+{
+	if ( pArr == NULL ) {
+		return 0;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return 0;
+	}
+	return pArr->vArray->Count;
+}
+
+
+// 清除数组
+XXAPI bool xvoArrayClear(xvalue pArr)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	for ( uint32 i = 1; i <= pArr->vArray->Count; i++ ) {
+		xvalue pVal = xrtPtrArrayGet_Inline(pArr->vArray, i);
+		xvoUnref(pVal);
+	}
+	xrtPtrArrayClear(pArr->vArray);
+	return TRUE;
+}
+
+
+// 分配数组
+XXAPI bool xvoArrayAlloc(xvalue pArr, uint32 count)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	return xrtPtrArrayMalloc(pArr->vArray, count);
+}
+
+
+// 内部函数：比较数组 sort 默认值
+static int __xvoArraySortDefaultCompareValue(xvalue pLeft, xvalue pRight)
+{
+	uintptr_t iLeftAddr;
+	uintptr_t iRightAddr;
+
+	// 相同指针视为相等
+	if ( pLeft == pRight ) {
+		return 0;
+	}
+
+	// null 值排在最前面
+	if ( pLeft == NULL || pLeft->Type == XVO_DT_NULL ) {
+		return (pRight == NULL || pRight->Type == XVO_DT_NULL) ? 0 : -1;
+	}
+	if ( pRight == NULL || pRight->Type == XVO_DT_NULL ) {
+		return 1;
+	}
+
+	// 不同类型按类型编号排序
+	if ( pLeft->Type != pRight->Type ) {
+		return (pLeft->Type < pRight->Type) ? -1 : 1;
+	}
+
+	// 相同类型按具体值比较
+	switch ( pLeft->Type ) {
+		case XVO_DT_BOOL:
+			return (pLeft->vBool > pRight->vBool) - (pLeft->vBool < pRight->vBool);
+		case XVO_DT_INT:
+			return (pLeft->vInt > pRight->vInt) ? 1 : ((pLeft->vInt < pRight->vInt) ? -1 : 0);
+		case XVO_DT_FLOAT:
+			return (pLeft->vFloat > pRight->vFloat) ? 1 : ((pLeft->vFloat < pRight->vFloat) ? -1 : 0);
+		case XVO_DT_TEXT:
+		{
+			// 文本类型先比较公共前缀，再比较长度
+			uint32 iMinSize = (pLeft->Size < pRight->Size) ? pLeft->Size : pRight->Size;
+			int iCmp = xrtStrComp(pLeft->vText, pRight->vText, iMinSize, FALSE);
+			if ( iCmp != 0 ) {
+				return (iCmp < 0) ? -1 : 1;
+			}
+			return (pLeft->Size > pRight->Size) ? 1 : ((pLeft->Size < pRight->Size) ? -1 : 0);
+		}
+		case XVO_DT_TIME:
+			return (pLeft->vTime > pRight->vTime) ? 1 : ((pLeft->vTime < pRight->vTime) ? -1 : 0);
+		case XVO_DT_POINT:
+			// 指针类型按地址值比较
+			iLeftAddr = (uintptr_t)pLeft->vPoint;
+			iRightAddr = (uintptr_t)pRight->vPoint;
+			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+		case XVO_DT_FUNC:
+			// 函数类型按地址值比较
+			iLeftAddr = (uintptr_t)pLeft->vFunc;
+			iRightAddr = (uintptr_t)pRight->vFunc;
+			return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+		case XVO_DT_ARRAY:
+			// 数组类型按元素数量比较
+			return (pLeft->vArray->Count > pRight->vArray->Count) ? 1 : ((pLeft->vArray->Count < pRight->vArray->Count) ? -1 : 0);
+		case XVO_DT_LIST:
+			// 列表类型按元素数量比较
+			return (pLeft->vList->AVLT.Count > pRight->vList->AVLT.Count) ? 1 : ((pLeft->vList->AVLT.Count < pRight->vList->AVLT.Count) ? -1 : 0);
+		case XVO_DT_COLL:
+			// 集合类型按元素数量比较
+			return (pLeft->vColl->Count > pRight->vColl->Count) ? 1 : ((pLeft->vColl->Count < pRight->vColl->Count) ? -1 : 0);
+		case XVO_DT_TABLE:
+			// 字典类型按元素数量比较
+			return (pLeft->vTable->AVLT.Count > pRight->vTable->AVLT.Count) ? 1 : ((pLeft->vTable->AVLT.Count < pRight->vTable->AVLT.Count) ? -1 : 0);
+		case XVO_DT_CLASS:
+		case XVO_DT_CUSTOM:
+			// 类和自定义类型按数据大小比较
+			if ( pLeft->Size != pRight->Size ) {
+				return (pLeft->Size > pRight->Size) ? 1 : -1;
+			}
+			break;
+		default:
+			break;
+	}
+
+	// 无法通过值比较时，按对象地址排序
+	iLeftAddr = (uintptr_t)pLeft;
+	iRightAddr = (uintptr_t)pRight;
+	return (iLeftAddr > iRightAddr) ? 1 : ((iLeftAddr < iRightAddr) ? -1 : 0);
+}
+
+
+// 内部函数：比较数组 sort 默认进程
+static int __xvoArraySortDefaultCompareProc(const void* pLeft, const void* pRight)
+{
+	xvalue pLeftValue = pLeft ? *(const xvalue*)pLeft : NULL;
+	xvalue pRightValue = pRight ? *(const xvalue*)pRight : NULL;
+	return __xvoArraySortDefaultCompareValue(pLeftValue, pRightValue);
+}
+
+
+// xvoArraySort 相关处理
+XXAPI bool xvoArraySort(xvalue pArr, ptr proc)
+{
+	if ( pArr == NULL ) {
+		return FALSE;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return FALSE;
+	}
+	if ( proc == NULL ) {
+		proc = (ptr)__xvoArraySortDefaultCompareProc;
+	}
+	return xrtPtrArraySort(pArr->vArray, proc);
+}
+
+
+
+// List 读数据
+XXAPI xvalue xvoListGetValue(xvalue pList, int64 index)
+{
+	if ( pList == NULL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return &XVO_VALUE_NULL;
+	}
+	xvalue pVal = xrtListGetPtr(pList->vList, index);
+	if ( pVal ) {
+		return pVal;
+	} else {
+		return &XVO_VALUE_NULL;
+	}
+}
+
+
+
+// List 写数据
+XXAPI bool xvoListSetValue(xvalue pList, int64 index, xvalue pVal, bool bColloc)
+{
+	if ( (pList == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	if ( !xvoPrepareStoreWithOwner_Inline(&pList->vList->Owner, pVal) ) {
+		return FALSE;
+	}
+	xvalue pOldVal = NULL;
+	bool bRet = xrtListSetPtr(pList->vList, index, pVal, (ptr*)&pOldVal);
+	if ( bRet == FALSE ) {
+		return FALSE;
+	}
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+	}
+	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
+		xvoAddRef_Inline(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// List 合并
+typedef struct {
+	xlist objList;
+	bool bFailed;
+} __xvoListMergeCtx;
+
+
+// xvoListMerge_RefProc 相关处理
+bool xvoListMerge_RefProc(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
+{
+	bool bNew = FALSE;
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objList->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtListSet(pCtx->objList, iKey, &bNew);
+	if ( ppOldVal ) {
+		// 只转移之前没有的值
+		if ( bNew ) {
+			xvoAddRef_Inline(*ppVal);
+			ppOldVal[0] = *ppVal;
+		}
+	}
+	return pCtx->bFailed;
+}
+
+
+// xvoListMerge_RefProc_ReWrite 相关处理
+bool xvoListMerge_RefProc_ReWrite(int64 iKey, xvalue* ppVal, __xvoListMergeCtx* pCtx)
+{
+	xvalue pOldVal = NULL;
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objList->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	int iRet = xrtListSetPtr(pCtx->objList, iKey, *ppVal, (ptr*)&pOldVal);
+	if ( iRet ) {
+		xvoAddRef_Inline(*ppVal);
+		// 释放旧值
+		if ( pOldVal ) {
+			xvoUnref(pOldVal);
+		}
+	}
+	return pCtx->bFailed;
+}
+
+
+// xvoListMerge 相关处理
+XXAPI bool xvoListMerge(xvalue pList1, xvalue pList2, bool bReWrite)
+{
+	__xvoListMergeCtx tCtx;
+	if ( (pList1 == NULL) || (pList2 == NULL) ) {
+		return FALSE;
+	}
+	if ( pList1->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	if ( pList2->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.objList = pList1->vList;
+	if ( bReWrite ) {
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc_ReWrite, &tCtx);
+	} else {
+		xrtListWalk(pList2->vList, (ptr)xvoListMerge_RefProc, &tCtx);
+	}
+	return tCtx.bFailed == FALSE;
+}
+
+
+
+// List 操作
+XXAPI bool xvoListExists(xvalue pList, int64 index)
+{
+	if ( pList == NULL ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	return xrtListExists(pList->vList, index);
+}
+
+
+// 删除列表
+XXAPI bool xvoListRemove(xvalue pList, int64 index)
+{
+	if ( pList == NULL ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	xvalue pOldVal = xrtListRemovePtr(pList->vList, index);
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
+
+// xvoListItemCount 相关处理
+XXAPI uint32 xvoListItemCount(xvalue pList)
+{
+	if ( pList == NULL ) {
+		return 0;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return 0;
+	}
+	return xrtListCount(pList->vList);
+}
+
+
+// 清除列表
+XXAPI bool xvoListClear(xvalue pList)
+{
+	if ( pList == NULL ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	xrtListWalk(pList->vList, (ptr)xvoListClear_FreeProc, pList);
+	xrtListClear(pList->vList);
+	return TRUE;
+}
+
+
+// xvoListSetParent 相关处理
+XXAPI bool xvoListSetParent(xvalue pList, xvalue pParentList)
+{
+	if ( (pList == NULL) || (pParentList == NULL) ) {
+		return FALSE;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	if ( pParentList->Type != XVO_DT_LIST ) {
+		return FALSE;
+	}
+	pList->vList->AVLT.Parent = &pParentList->vList->AVLT;
+	return TRUE;
+}
+
+
+
+// 集合功能实现 - 值对比函数
+int Coll_CompProc(Coll_Key* pNode, Coll_Key* pObjKey)
+{
+	if ( pNode->Hash == pObjKey->Hash ) {
+		if ( pNode->Value->Type == XVO_DT_NULL ) {
+			return 0;
+		} else if ( pNode->Value->Type == XVO_DT_BOOL ) {
+			return 0;
+		} else if ( pNode->Value->Type == XVO_DT_TEXT ) {
+			if ( pNode->Value->Size == pObjKey->Value->Size ) {
+				return strcmp(__xrt_cstr(pNode->Value->vText), __xrt_cstr(pObjKey->Value->vText));
+			} else {
+				if ( pNode->Value->Size > pObjKey->Value->Size ) {
+					return -1;
+				} else {
+					return 1;
+				}
+			}
+		} else {
+			// 其他类型比较 vInt
+			if ( pNode->Value->vInt > pObjKey->Value->vInt ) {
+				return -1;
+			} else if ( pNode->Value->vInt < pObjKey->Value->vInt ) {
+				return 1;
+			} else {
+				return 0;  // 相等时返回 0
+			}
+		}
+	} else if ( pNode->Hash > pObjKey->Hash ) {
+		return -1;
+	} else {
+		return 1;
+	}
+}
+
+
+
+// Coll 写数据
+XXAPI bool xvoCollSetValue(xvalue pColl, xvalue pVal, bool bColloc)
+{
+	if ( (pColl == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	Coll_Key objKey;
+	MAKE_COLL_KEY(objKey, pVal);
+	return xvoCollSetValueWithKey(pColl->vColl, &objKey, bColloc);
+}
+
+
+
+// Coll 获取差集 [ pSelf 集合相对 pColl 集合没有的元素 ]
+struct CollProcParam {
+	xvalue pColl;
+	xvalue pRetVal;
+};
+
+
+// xvoCollDifference_EachProc 相关处理
+bool xvoCollDifference_EachProc(Coll_Key* pKey, struct CollProcParam* param)
+{
+	Coll_Key* pNode = xrtAVLTreeSearch(param->pColl->vColl, pKey);
+	if ( pNode == NULL ) {
+		xvoCollSetValueWithKey(param->pRetVal->vColl, pKey, FALSE);
+	}
+	return FALSE;
+}
+
+
+// xvoCollDifference 相关处理
+XXAPI xvalue xvoCollDifference(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	struct CollProcParam param = { pColl, pRetVal };
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollDifference_EachProc, &param);
+	return pRetVal;
+}
+
+
+
+// Coll 获取对称差集 [ 两个集合中不重复的元素 ]
+XXAPI xvalue xvoCollSymmetricDifference(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	struct CollProcParam param = { pColl, pRetVal };
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollDifference_EachProc, &param);
+	param.pColl = pSelf;
+	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollDifference_EachProc, &param);
+	return pRetVal;
+}
+
+
+
+// Coll 获取交集 [ pSelf 集合相对 pColl 集合存在的元素 ]
+bool xvoCollIntersection_EachProc(Coll_Key* pKey, struct CollProcParam* param)
+{
+	Coll_Key* pNode = xrtAVLTreeSearch(param->pColl->vColl, pKey);
+	if ( pNode ) {
+		xvoCollSetValueWithKey(param->pRetVal->vColl, pKey, FALSE);
+	}
+	return FALSE;
+}
+
+
+// xvoCollIntersection 相关处理
+XXAPI xvalue xvoCollIntersection(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	struct CollProcParam param = { pColl, pRetVal };
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollIntersection_EachProc, &param);
+	return pRetVal;
+}
+
+
+
+// Coll 获取并集 [ 合并两个集合，返回和一个新的集合 ]
+bool xvoCollUnion_EachProc(Coll_Key* pKey, xavltree pColl)
+{
+	xvoCollSetValueWithKey(pColl, pKey, FALSE);
+	return FALSE;
+}
+
+
+// xvoCollUnion 相关处理
+XXAPI xvalue xvoCollUnion(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return &XVO_VALUE_NULL;
+	}
+	xvalue pRetVal = xvoCreateColl();
+	xrtAVLTreeWalk(pSelf->vColl, (ptr)xvoCollUnion_EachProc, pRetVal->vColl);
+	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollUnion_EachProc, pRetVal->vColl);
+	return pRetVal;
+}
+
+
+
+// Coll 合并集合 [ 将 pColl 中的元素并入 pSelf ]
+XXAPI bool xvoCollMerge(xvalue pSelf, xvalue pColl)
+{
+	if ( (pSelf == NULL) || (pColl == NULL) ) {
+		return FALSE;
+	}
+	if ( pSelf->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	xrtAVLTreeWalk(pColl->vColl, (ptr)xvoCollUnion_EachProc, pSelf->vColl);
+	return TRUE;
+}
+
+
+
+// Coll 操作
+XXAPI bool xvoCollExists(xvalue pColl, xvalue pVal)
+{
+	if ( (pColl == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	Coll_Key objKey;
+	MAKE_COLL_KEY(objKey, pVal);
+	Coll_Key* pNode = xrtAVLTreeSearch(pColl->vColl, &objKey);
+	if ( pNode ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
+// xvoCollRemove 相关处理
+XXAPI bool xvoCollRemove(xvalue pColl, xvalue pVal)
+{
+	if ( (pColl == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	Coll_Key objKey;
+	MAKE_COLL_KEY(objKey, pVal);
+	return xrtAVLTreeRemove(pColl->vColl, &objKey);
+}
+
+
+// xvoCollItemCount 相关处理
+XXAPI uint32 xvoCollItemCount(xvalue pColl)
+{
+	uint32 iCount = 0;
+	if ( pColl == NULL ) {
+		return 0;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return 0;
+	}
+	if ( !xrtAVLTreeLock(pColl->vColl) ) {
+		return 0;
+	}
+	iCount = pColl->vColl->Count;
+	xrtAVLTreeUnlock(pColl->vColl);
+	return iCount;
+}
+
+
+// xvoCollClear 相关处理
+XXAPI bool xvoCollClear(xvalue pColl)
+{
+	if ( pColl == NULL ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	xrtAVLTreeClear(pColl->vColl);
+	return TRUE;
+}
+
+
+// xvoCollSetParent 相关处理
+XXAPI bool xvoCollSetParent(xvalue pColl, xvalue pParentColl)
+{
+	if ( (pColl == NULL) || (pParentColl == NULL) ) {
+		return FALSE;
+	}
+	if ( pColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	if ( pParentColl->Type != XVO_DT_COLL ) {
+		return FALSE;
+	}
+	if ( !xrtOwnerBeginMutable(&pColl->vColl->Owner, "coll belongs to another thread.") ) {
+		return FALSE;
+	}
+	pColl->vColl->Parent = pParentColl->vColl;
+	xrtOwnerEndMutable(&pColl->vColl->Owner);
+	return TRUE;
+}
+
+
+
+// Table 读数据
+XXAPI xvalue xvoTableGetValue(xvalue pTbl, const void* key, uint32 kl)
+{
+	str sKey = (str)key;
+	if ( pTbl == NULL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( sKey == NULL ) {
+		sKey = xCore.sNull;
+		kl = 0;
+	} else if ( kl == 0 ) {
+		kl = strlen((const char*)sKey);
+	}
+	xvalue pVal = xrtDictGetPtr(pTbl->vTable, sKey, kl);
+	if ( pVal ) {
+		return pVal;
+	} else {
+		return &XVO_VALUE_NULL;
+	}
+}
+
+
+
+// Table 写数据
+XXAPI bool xvoTableSetValue(xvalue pTbl, const void* key, uint32 kl, xvalue pVal, bool bColloc)
+{
+	str sKey = (str)key;
+	// 参数有效性检查
+	if ( (pTbl == NULL) || (pVal == NULL) ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	// 处理键值参数
+	if ( sKey == NULL ) {
+		sKey = xCore.sNull;
+		kl = 0;
+	} else if ( kl == 0 ) {
+		kl = strlen((const char*)sKey);
+	}
+	// 准备写入（线程安全检查）
+	if ( !xvoPrepareStoreWithOwner_Inline(&pTbl->vTable->Owner, pVal) ) {
+		return FALSE;
+	}
+	// 写入字典并获取旧值
+	xvalue pOldVal = NULL;
+	int iRet = xrtDictSetPtr(pTbl->vTable, sKey, kl, pVal, (ptr*)&pOldVal);
+	if ( iRet == FALSE ) {
+		return FALSE;
+	}
+	// 释放旧值的引用
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+	}
+	// 增加新值的引用计数
+	if ( (bColloc == FALSE) && (pVal->IsStatic == FALSE) ) {
+		xvoAddRef_Inline(pVal);
+	}
+	return TRUE;
+}
+
+
+
+// Table 合并
+typedef struct {
+	xdict objTbl;
+	bool bFailed;
+} __xvoTableMergeCtx;
+
+
+// xvoTableMerge_RefProc 相关处理
+bool xvoTableMerge_RefProc(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
+{
+	bool bNew;
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objTbl->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtDictSetWithKey(pCtx->objTbl, pKey, &bNew);
+	if ( ppOldVal ) {
+		// 只转移之前没有的值
+		if ( bNew ) {
+			xvoAddRef_Inline(*ppVal);
+			ppOldVal[0] = *ppVal;
+		}
+	}
+	return pCtx->bFailed;
+}
+
+
+// xvoTableMerge_RefProc_ReWrite 相关处理
+bool xvoTableMerge_RefProc_ReWrite(Dict_Key* pKey, xvalue* ppVal, __xvoTableMergeCtx* pCtx)
+{
+	bool bNew = FALSE;
+	if ( !xvoPrepareStoreWithOwner_Inline(&pCtx->objTbl->Owner, *ppVal) ) {
+		pCtx->bFailed = TRUE;
+		return TRUE;
+	}
+	xvalue* ppOldVal = xrtDictSetWithKey(pCtx->objTbl, pKey, &bNew);
+	if ( ppOldVal ) {
+		// 释放旧值
+		if ( bNew == FALSE ) {
+			xvoUnref(*ppOldVal);
+		}
+		xvoAddRef_Inline(*ppVal);
+		ppOldVal[0] = *ppVal;
+	}
+	return pCtx->bFailed;
+}
+
+
+// xvoTableMerge 相关处理
+XXAPI bool xvoTableMerge(xvalue pTbl1, xvalue pTbl2, bool bReWrite)
+{
+	__xvoTableMergeCtx tCtx;
+	if ( (pTbl1 == NULL) || (pTbl2 == NULL) ) {
+		return FALSE;
+	}
+	if ( pTbl1->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	if ( pTbl2->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	memset(&tCtx, 0, sizeof(tCtx));
+	tCtx.objTbl = pTbl1->vTable;
+	if ( bReWrite ) {
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc_ReWrite, &tCtx);
+	} else {
+		xrtDictWalk(pTbl2->vTable, (ptr)xvoTableMerge_RefProc, &tCtx);
+	}
+	return tCtx.bFailed == FALSE;
+}
+
+
+
+// Table 操作
+XXAPI bool xvoTableExists(xvalue pTbl, str key, uint32 kl)
+{
+	if ( pTbl == NULL ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	if ( (key != NULL) && (kl == 0) ) {
+		kl = strlen(__xrt_cstr(key));
+	}
+	return xrtDictExists(pTbl->vTable, key, kl);
+}
+
+
+// xvoTableRemove 相关处理
+XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl)
+{
+	if ( pTbl == NULL ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	if ( (key != NULL) && (kl == 0) ) {
+		kl = strlen(__xrt_cstr(key));
+	}
+	xvalue pOldVal = xrtDictRemovePtr(pTbl->vTable, key, kl);
+	if ( pOldVal ) {
+		xvoUnref(pOldVal);
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
+
+// xvoTableItemCount 相关处理
+XXAPI uint32 xvoTableItemCount(xvalue pTbl)
+{
+	if ( pTbl == NULL ) {
+		return 0;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return 0;
+	}
+	return xrtDictCount(pTbl->vTable);
+}
+
+
+// xvoTableClear 相关处理
+XXAPI bool xvoTableClear(xvalue pTbl)
+{
+	if ( pTbl == NULL ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	xrtDictWalk(pTbl->vTable, (ptr)xvoTableClear_FreeProc, pTbl);
+	xrtDictClear(pTbl->vTable);
+	return TRUE;
+}
+
+
+// xvoTableSetParent 相关处理
+XXAPI bool xvoTableSetParent(xvalue pTbl, xvalue pParentTable)
+{
+	if ( (pTbl == NULL) || (pParentTable == NULL) ) {
+		return FALSE;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	if ( pParentTable->Type != XVO_DT_TABLE ) {
+		return FALSE;
+	}
+	pTbl->vTable->AVLT.Parent = &pParentTable->vTable->AVLT;
+	return TRUE;
+}
+
+
+
+// 类型操作
+XXAPI bool xvoIsNull(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return TRUE;
+	} else if ( pVal->Type == XVO_DT_NULL ) {
+		return TRUE;
+	} else {
+		return FALSE;
+	}
+}
+
+
+// xvoType 相关处理
+XXAPI int xvoType(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return XVO_DT_NULL;
+	} else {
+		return pVal->Type;
+	}
+}
+
+
+
+// 获取数据长度
+XXAPI uint32 xvoGetSize(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return 0;
+	} else {
+		return pVal->Size;
+	}
+}
+
+
+
+// 浅拷贝
+bool xvoCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
+{
+	if ( (ppVal[0]->Type >= XVO_DT_ARRAY) ) {
+		// 复杂数据类型 - 直接引用
+		xvoAddRef_Inline(ppVal[0]);
+		xrtListSetPtr(objList, iKey, ppVal[0], NULL);
+	} else {
+		// 基础数据类型 - 创建新值
+		xvalue pItemCopy = xvoCopy(ppVal[0]);
+		xrtListSetPtr(objList, iKey, pItemCopy, NULL);
+	}
+	return FALSE;
+}
+
+
+// xvoCopy_CollProc 相关处理
+bool xvoCopy_CollProc(Coll_Key* pKey, xavltree objColl)
+{
+	if ( (pKey->Value->Type >= XVO_DT_ARRAY) ) {
+		// 复杂数据类型 - 直接引用
+		xvoCollSetValueWithKey(objColl, pKey, FALSE);
+	} else {
+		// 基础数据类型 - 创建新值
+		xvalue pItemCopy = xvoCopy(pKey->Value);
+		Coll_Key k = { pKey->Hash, pItemCopy };
+		xvoCollSetValueWithKey(objColl, &k, TRUE);
+	}
+	return FALSE;
+}
+
+
+// xvoCopy_TableProc 相关处理
+bool xvoCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+{
+	if ( (ppVal[0]->Type >= XVO_DT_ARRAY) ) {
+		// 复杂数据类型 - 直接引用
+		xvoAddRef_Inline(ppVal[0]);
+		xvalue* ppNTV = xrtDictSetWithKey(objTbl, pKey, NULL);
+		if ( ppNTV ) {
+			ppNTV[0] = ppVal[0];
+		}
+	} else {
+		// 基础数据类型 - 创建新值
+		xvalue pItemCopy = xvoCopy(ppVal[0]);
+		xvalue* ppNTV = xrtDictSetWithKey(objTbl, pKey, NULL);
+		if ( ppNTV ) {
+			ppNTV[0] = pItemCopy;
+		}
+	}
+	return FALSE;
+}
+
+
+// 复制
+XXAPI xvalue xvoCopy(xvalue pVal)
+{
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
+		return &XVO_VALUE_NULL;
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		if ( pVal->vBool ) {
+			return &XVO_VALUE_TRUE;
+		} else {
+			return &XVO_VALUE_FALSE;
+		}
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		xvalue arrRet = xvoCreateArray();
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
+			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
+			if ( (pItem->Type >= XVO_DT_ARRAY) ) {
+				// 复杂数据类型 - 直接引用
+				xvoAddRef_Inline(pItem);
+				xrtPtrArrayAppend(arrRet->vArray, pItem);
+			} else {
+				// 基础数据类型 - 创建新值
+				xvalue pItemCopy = xvoCopy(pItem);
+				xrtPtrArrayAppend(arrRet->vArray, pItemCopy);
+			}
+		}
+		return arrRet;
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		xvalue lstRet = xvoCreateList();
+		xrtListWalk(pVal->vList, (ptr)xvoCopy_ListProc, lstRet->vList);
+		return lstRet;
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		xvalue setRet = xvoCreateColl();
+		xrtAVLTreeWalk(pVal->vColl, (ptr)xvoCopy_CollProc, setRet->vColl);
+		return setRet;
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		xvalue tblRet = xvoCreateTable();
+		xrtDictWalk(pVal->vTable, (ptr)xvoCopy_TableProc, tblRet->vTable);
+		return tblRet;
+	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		return NULL;
+	} else {
+		// 其他类型直接 Copy 64 位数据
+		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
+		xvoInitOwnedHeader_Inline(varRet, pVal->Type, XRT_OBJMODE_LOCAL);
+		varRet->Size = pVal->Size;
+		varRet->vInt = pVal->vInt;
+		return varRet;
+	}
+}
+
+
+
+// 深拷贝
+bool xvoDeepCopy_ListProc(int64 iKey, xvalue* ppVal, xlist objList)
+{
+	xvalue pItemCopy = xvoDeepCopy(ppVal[0]);
+	xrtListSetPtr(objList, iKey, pItemCopy, NULL);
+	return FALSE;
+}
+
+
+// xvoDeepCopy_CollProc 相关处理
+bool xvoDeepCopy_CollProc(Coll_Key* pKey, xavltree objColl)
+{
+	xvalue pItemCopy = xvoDeepCopy(pKey->Value);
+	Coll_Key k = { pKey->Hash, pItemCopy };
+	xvoCollSetValueWithKey(objColl, &k, TRUE);
+	return FALSE;
+}
+
+
+// xvoDeepCopy_TableProc 相关处理
+bool xvoDeepCopy_TableProc(Dict_Key* pKey, xvalue* ppVal, xdict objTbl)
+{
+	xvalue pItemCopy = xvoDeepCopy(ppVal[0]);
+	xvalue* ppNTV = xrtDictSetWithKey(objTbl, pKey, NULL);
+	if ( ppNTV ) {
+		ppNTV[0] = pItemCopy;
+	}
+	return FALSE;
+}
+
+
+// xvoDeepCopy 相关处理
+XXAPI xvalue xvoDeepCopy(xvalue pVal)
+{
+	if ( (pVal == NULL) || (pVal->Type == XVO_DT_NULL) ) {
+		return &XVO_VALUE_NULL;
+	} else if ( pVal->Type == XVO_DT_BOOL ) {
+		if ( pVal->vBool ) {
+			return &XVO_VALUE_TRUE;
+		} else {
+			return &XVO_VALUE_FALSE;
+		}
+	} else if ( pVal->Type == XVO_DT_TEXT ) {
+		return xvoCreateText(pVal->vText, pVal->Size, FALSE);
+	} else if ( pVal->Type == XVO_DT_ARRAY ) {
+		xvalue arrRet = xvoCreateArray();
+		for ( uint32 i = 1; i <= pVal->vArray->Count; i++ ) {
+			xvalue pItem = xrtPtrArrayGet_Inline(pVal->vArray, i);
+			xvalue pItemCopy = xvoDeepCopy(pItem);
+			xrtPtrArrayAppend(arrRet->vArray, pItemCopy);
+		}
+		return arrRet;
+	} else if ( pVal->Type == XVO_DT_LIST ) {
+		xvalue lstRet = xvoCreateList();
+		xrtListWalk(pVal->vList, (ptr)xvoDeepCopy_ListProc, lstRet->vList);
+		return lstRet;
+	} else if ( pVal->Type == XVO_DT_COLL ) {
+		xvalue setRet = xvoCreateColl();
+		xrtAVLTreeWalk(pVal->vColl, (ptr)xvoDeepCopy_CollProc, setRet->vColl);
+		return setRet;
+	} else if ( pVal->Type == XVO_DT_TABLE ) {
+		xvalue tblRet = xvoCreateTable();
+		xrtDictWalk(pVal->vTable, (ptr)xvoDeepCopy_TableProc, tblRet->vTable);
+		return tblRet;
+	} else if ( pVal->Type == XVO_DT_CLASS ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_CUSTOM ) {
+		return NULL;
+	} else {
+		// 其他类型直接 Copy 64 位数据
+		xvalue varRet = xrtMalloc(sizeof(xvalue_struct));
+		xvoInitOwnedHeader_Inline(varRet, pVal->Type, XRT_OBJMODE_LOCAL);
+		varRet->Size = pVal->Size;
+		varRet->vInt = pVal->vInt;
+		return varRet;
+	}
+}
+
+
+
+// 输出 value 的结构和值
+bool xvoPrintValue_TableItemProc(Dict_Key* pKey, xvalue* ppVal, int iLevel)
+{
+	xvoPrintValue(*ppVal, iLevel, 2, 0, pKey->Key);
+	return FALSE;
+}
+
+
+// 输出值列表 item 进程
+bool xvoPrintValue_ListItemProc(int64 iKey, xvalue* ppVal, int iLevel)
+{
+	xvoPrintValue(*ppVal, iLevel, 1, iKey, NULL);
+	return FALSE;
+}
+
+
+// xvoPrintValue_CollItemProc 相关处理
+bool xvoPrintValue_CollItemProc(Coll_Key* pKey, int iLevel)
+{
+	xvoPrintValue(pKey->Value, iLevel, 0, 0, NULL);
+	return FALSE;
+}
+
+
+// 输出值
+XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str sKey)
+{
+	for ( int i = 0; i < iLevel; i++ ) {
+		printf("    ");
+	}
+	if ( iMode == 1 ) {
+		// 输出数组元素
+		if ( objVal == NULL ) {
+			printf("(empty) %lld = (empty)\n", iKey);
+		} else if ( objVal->Type == XVO_DT_NULL ) {
+			printf("(null ) [%p] %lld = (null)\n", (void*)objVal, iKey);
+		} else if ( objVal->Type == XVO_DT_BOOL ) {
+			printf("(bool ) [%p] %lld = (%s)\n", (void*)objVal, iKey, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_INT ) {
+			printf("( int ) [%p] %lld = %lld\n", (void*)objVal, iKey, xvoGetInt(objVal));
+		} else if ( objVal->Type == XVO_DT_FLOAT ) {
+			printf("(float) [%p] %lld = %lf\n", (void*)objVal, iKey, xvoGetFloat(objVal));
+		} else if ( objVal->Type == XVO_DT_TEXT ) {
+			printf("(text ) [%p] %lld = \"%s\"\n", (void*)objVal, iKey, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_TIME ) {
+			printf("(time ) [%p] %lld = < %s >\n", (void*)objVal, iKey, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_POINT ) {
+			printf("(point) [%p] %lld = %p\n", (void*)objVal, iKey, xvoGetPoint(objVal));
+		} else if ( objVal->Type == XVO_DT_FUNC ) {
+			printf("(func ) [%p] %lld = address:0x%" PRIxPTR "\n", (void*)objVal, iKey, (uintptr)xvoGetFunc(objVal));
+		} else if ( objVal->Type == XVO_DT_ARRAY ) {
+			printf("(array) [%p] %lld = (array), count : %d\n", (void*)objVal, iKey, xvoArrayItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_LIST ) {
+			printf("(list ) [%p] %lld = (list), count : %d\n", (void*)objVal, iKey, xvoListItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			printf("(table) [%p] %lld = (table), count : %d\n", (void*)objVal, iKey, xvoTableItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_COLL ) {
+			printf("(coll ) [%p] %lld = (coll), count : %d\n", (void*)objVal, iKey, xvoCollItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_CLASS ) {
+			printf("(class) [%p] %lld = (class), size : %d\n", (void*)objVal, iKey, objVal->Size);
+		} else {
+			printf("Unknown data type\n");
+		}
+	} else if ( iMode == 2 ) {
+		// 输出表元素
+		if ( objVal == NULL ) {
+			printf("(empty) \"%s\" = (empty)\n", sKey);
+		} else if ( objVal->Type == XVO_DT_NULL ) {
+			printf("(null ) [%p] \"%s\" = (null)\n", (void*)objVal, sKey);
+		} else if ( objVal->Type == XVO_DT_BOOL ) {
+			printf("(bool ) [%p] \"%s\" = (%s)\n", (void*)objVal, sKey, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_INT ) {
+			printf("( int ) [%p] \"%s\" = %lld\n", (void*)objVal, sKey, xvoGetInt(objVal));
+		} else if ( objVal->Type == XVO_DT_FLOAT ) {
+			printf("(float) [%p] \"%s\" = %lf\n", (void*)objVal, sKey, xvoGetFloat(objVal));
+		} else if ( objVal->Type == XVO_DT_TEXT ) {
+			printf("(text ) [%p] \"%s\" = \"%s\"\n", (void*)objVal, sKey, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_TIME ) {
+			printf("(time ) [%p] \"%s\" = < %s >\n", (void*)objVal, sKey, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_POINT ) {
+			printf("(point) [%p] \"%s\" = %p\n", (void*)objVal, sKey, xvoGetPoint(objVal));
+		} else if ( objVal->Type == XVO_DT_FUNC ) {
+			printf("(func ) [%p] \"%s\" = address:0x%" PRIxPTR "\n", (void*)objVal, sKey, (uintptr)xvoGetFunc(objVal));
+		} else if ( objVal->Type == XVO_DT_ARRAY ) {
+			printf("(array) [%p] \"%s\" = (array), count : %d\n", (void*)objVal, sKey, xvoArrayItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_LIST ) {
+			printf("(list ) [%p] \"%s\" = (list), count : %d\n", (void*)objVal, sKey, xvoListItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			printf("(table) [%p] \"%s\" = (table), count : %d\n", (void*)objVal, sKey, xvoTableItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_COLL ) {
+			printf("(coll ) [%p] \"%s\" = (coll), count : %d\n", (void*)objVal, sKey, xvoCollItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_CLASS ) {
+			printf("(class) [%p] \"%s\" = (class), size : %d\n", (void*)objVal, sKey, objVal->Size);
+		} else {
+			printf("Unknown data type\n");
+		}
+	} else {
+		// 输出元素
+		if ( objVal == NULL ) {
+			printf("(empty)\n");
+		} else if ( objVal->Type == XVO_DT_NULL ) {
+			printf("(null ) [%p] (null)\n", (void*)objVal);
+		} else if ( objVal->Type == XVO_DT_BOOL ) {
+			printf("(bool ) [%p] (%s)\n", (void*)objVal, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_INT ) {
+			printf("( int ) [%p] %lld\n", (void*)objVal, xvoGetInt(objVal));
+		} else if ( objVal->Type == XVO_DT_FLOAT ) {
+			printf("(float) [%p] %lf\n", (void*)objVal, xvoGetFloat(objVal));
+		} else if ( objVal->Type == XVO_DT_TEXT ) {
+			printf("(text ) [%p] \"%s\"\n", (void*)objVal, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_TIME ) {
+			printf("(time ) [%p] < %s >\n", (void*)objVal, xvoGetText(objVal));
+		} else if ( objVal->Type == XVO_DT_POINT ) {
+			printf("(point) [%p] %p\n", (void*)objVal, xvoGetPoint(objVal));
+		} else if ( objVal->Type == XVO_DT_FUNC ) {
+			printf("(func ) [%p] address:0x%" PRIxPTR "\n", (void*)objVal, (uintptr)xvoGetFunc(objVal));
+		} else if ( objVal->Type == XVO_DT_ARRAY ) {
+			printf("(array) [%p] (array), count : %d\n", (void*)objVal, xvoArrayItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_LIST ) {
+			printf("(list ) [%p] (list), count : %d\n", (void*)objVal, xvoListItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			printf("(table) [%p] (table), count : %d\n", (void*)objVal, xvoTableItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_COLL ) {
+			printf("(coll ) [%p] (coll), count : %d\n", (void*)objVal, xvoCollItemCount(objVal));
+		} else if ( objVal->Type == XVO_DT_CLASS ) {
+			printf("(class) [%p] (class), size : %d\n", (void*)objVal, objVal->Size);
+		} else {
+			printf("Unknown data type : %d\n", objVal->Type);
+		}
+	}
+	if ( objVal ) {
+		if ( objVal->Type == XVO_DT_ARRAY ) {
+			for ( int64 i = 0; i < objVal->vArray->Count; i++ ) {
+				xvalue objItem = xvoArrayGetValue(objVal, i);
+				xvoPrintValue(objItem, iLevel + 1, 1, i, NULL);
+			}
+		} else if ( objVal->Type == XVO_DT_LIST ) {
+			xrtListWalk(objVal->vList, (ptr)xvoPrintValue_ListItemProc, (ptr)(intptr_t)(iLevel+1));
+		} else if ( objVal->Type == XVO_DT_TABLE ) {
+			xrtDictWalk(objVal->vTable, (ptr)xvoPrintValue_TableItemProc, (ptr)(intptr_t)(iLevel+1));
+		} else if ( objVal->Type == XVO_DT_COLL ) {
+			xrtAVLTreeWalk(objVal->vColl, (ptr)xvoPrintValue_CollItemProc, (ptr)(intptr_t)(iLevel+1));
+		}
+	}
+}
+
+

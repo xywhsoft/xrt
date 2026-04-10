@@ -1,0 +1,2152 @@
+
+
+
+// 内部函数：获取内存全局 align 大小
+static inline size_t __xrtMemGlobalAlignSize(size_t iSize)
+{
+	size_t iAlign = sizeof(ptr);
+	return (iSize + (iAlign - 1)) & ~(iAlign - 1);
+}
+
+
+// 内部函数：获取内存全局头部大小
+static inline size_t __xrtMemGlobalHeaderSize()
+{
+	return __xrtMemGlobalAlignSize(sizeof(xrtMemBlockHeader));
+}
+
+
+// 指针相关处理
+static inline ptr (*__xrtMemGlobalProcMalloc())(size_t)
+{
+	return xCore.malloc ? xCore.malloc : malloc;
+}
+
+
+// 指针相关处理
+static inline ptr (*__xrtMemGlobalProcCalloc())(size_t, size_t)
+{
+	return xCore.calloc ? xCore.calloc : calloc;
+}
+
+
+// 指针相关处理
+static inline ptr (*__xrtMemGlobalProcRealloc())(ptr, size_t)
+{
+	return xCore.realloc ? xCore.realloc : realloc;
+}
+
+
+// void 相关处理
+static inline void (*__xrtMemGlobalProcFree())(ptr)
+{
+	return xCore.free ? xCore.free : free;
+}
+
+
+// 内部函数：锁定内存全局
+static inline void __xrtMemGlobalLock(volatile long* pLock)
+{
+	uint32 iSpin = 0;
+	while ( __xrtAtomicCompareExchange32(pLock, 1, 0) != 0 ) {
+		iSpin++;
+		if ( (iSpin & 0x3FFu) == 0u ) {
+			#if defined(_WIN32) || defined(_WIN64)
+				SwitchToThread();
+			#else
+				sched_yield();
+			#endif
+		}
+	}
+}
+
+
+// 内部函数：解锁内存全局
+static inline void __xrtMemGlobalUnlock(volatile long* pLock)
+{
+	__xrtAtomicExchange32(pLock, 0);
+}
+
+
+// 内部函数：初始化内存全局计划
+static inline void __xrtMemGlobalInitPlan(xrtMemGlobalPool* pPool)
+{
+	uint32 i;
+
+	if ( pPool == NULL ) {
+		return;
+	}
+
+	memset(pPool, 0, sizeof(xrtMemGlobalPool));
+	pPool->iClassCount = XRT_MEMPOOL_CLASS_COUNT_DEFAULT;
+	pPool->iClassStep = XRT_MEMPOOL_STEP_SIZE;
+	pPool->iCutoff = XRT_MEMPOOL_CUTOFF_DEFAULT;
+
+	for ( i = 0; i < XRT_MEMPOOL_CLASS_COUNT_DEFAULT; i++ ) {
+		pPool->arrClassDesc[i].iBlockSize = (uint16)((i + 1) * XRT_MEMPOOL_STEP_SIZE);
+	}
+
+	for ( i = 0; i <= XRT_MEMPOOL_CUTOFF_DEFAULT; i++ ) {
+		if ( i == 0 ) {
+			pPool->arrSizeClassLut[i] = 0;
+		} else {
+			pPool->arrSizeClassLut[i] = (uint8)(((i + (XRT_MEMPOOL_STEP_SIZE - 1)) / XRT_MEMPOOL_STEP_SIZE) - 1);
+		}
+	}
+}
+
+
+// 内部函数：确保内存全局计划
+static inline void __xrtMemGlobalEnsurePlan()
+{
+	if ( xCore.MemGlobal.iClassCount == 0 ) {
+		__xrtMemGlobalInitPlan(&xCore.MemGlobal);
+	}
+}
+
+
+// 内部函数：获取内存全局分类 index
+static inline uint32 __xrtMemGlobalClassIndex(const xrtMemGlobalPool* pPool, size_t iSize)
+{
+	if ( pPool == NULL || iSize == 0 || iSize > pPool->iCutoff ) {
+		return (uint32)-1;
+	}
+	return pPool->arrSizeClassLut[iSize];
+}
+
+
+// 内部函数：获取内存全局分类块大小
+static inline uint32 __xrtMemGlobalClassBlockSize(const xrtMemGlobalPool* pPool, uint32 iClass)
+{
+	if ( pPool == NULL || iClass >= pPool->iClassCount ) {
+		return 0;
+	}
+	return pPool->arrClassDesc[iClass].iBlockSize;
+}
+
+
+// 内部函数：获取内存全局调试 tail 大小
+static inline size_t __xrtMemGlobalDebugTailSize()
+{
+	#ifdef XRT_MEM_DEBUG
+		return sizeof(uint32);
+	#else
+		return 0;
+	#endif
+}
+
+
+// 内部函数：分配内存全局 payload 大小
+static inline size_t __xrtMemGlobalAllocPayloadSize(size_t iRequestSize)
+{
+	size_t iPayload = iRequestSize ? iRequestSize : 1;
+	return iPayload + __xrtMemGlobalDebugTailSize();
+}
+
+
+// 内部函数：__xrtMemGlobalClassIndexForRequest
+static inline uint32 __xrtMemGlobalClassIndexForRequest(const xrtMemGlobalPool* pPool, size_t iRequestSize)
+{
+	return __xrtMemGlobalClassIndex(pPool, __xrtMemGlobalAllocPayloadSize(iRequestSize));
+}
+
+
+// 内部函数：内存调试 now 毫秒相关处理
+static inline uint64 __xrtMemDebugNowMs()
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		return (uint64)GetTickCount64();
+	#else
+		struct timespec timer;
+		clock_gettime(CLOCK_MONOTONIC, &timer);
+		return ((uint64)timer.tv_sec * 1000ULL) + (uint64)(timer.tv_nsec / 1000000ULL);
+	#endif
+}
+
+
+// 内部函数：__xrtMemGlobalHeaderFromUser
+static inline xrtMemBlockHeader* __xrtMemGlobalHeaderFromUser(ptr pUser)
+{
+	if ( pUser == NULL ) {
+		return NULL;
+	}
+	return (xrtMemBlockHeader*)((char*)pUser - __xrtMemGlobalHeaderSize());
+}
+
+
+// 内部函数：获取内存全局 user from 头部
+static inline ptr __xrtMemGlobalUserFromHeader(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return NULL;
+	}
+	return (ptr)((char*)pHeader + __xrtMemGlobalHeaderSize());
+}
+
+
+// 内部函数：判断全局内存头部是否有效
+static inline bool __xrtMemGlobalHeaderValid(const xrtMemBlockHeader* pHeader)
+{
+	return pHeader != NULL && pHeader->iMagic == XRT_MEMBLOCK_MAGIC;
+}
+
+
+// 内部函数：写入内存全局头部
+static inline void __xrtMemGlobalWriteHeader(xrtMemBlockHeader* pHeader, uint32 iClassIndex, uint16 iFlags, uint32 iRequestSize)
+{
+	pHeader->iMagic = XRT_MEMBLOCK_MAGIC;
+	pHeader->iClassIndex = (uint16)iClassIndex;
+	pHeader->iFlags = iFlags;
+	pHeader->iRequestSize = iRequestSize;
+	pHeader->iReserved = 0;
+	#ifdef XRT_MEM_DEBUG
+		pHeader->sAllocFile = NULL;
+		pHeader->iAllocLine = 0;
+		pHeader->sFreeFile = NULL;
+		pHeader->iFreeLine = 0;
+		pHeader->iAllocThreadId = 0;
+		pHeader->iAllocSeq = 0;
+		pHeader->iAllocTimeMs = 0;
+		pHeader->iFreeTimeMs = 0;
+		pHeader->pDebugPrev = NULL;
+		pHeader->pDebugNext = NULL;
+		pHeader->iFrontCanary = XRT_MEMDEBUG_CANARY_HEAD ^ (uint32)(uintptr_t)pHeader;
+		pHeader->iDebugState = 0;
+	#endif
+}
+
+#ifdef XRT_MEM_DEBUG
+
+// 内部函数：获取内存全局 tail canary 值
+static inline uint32 __xrtMemGlobalTailCanaryValue(const xrtMemBlockHeader* pHeader)
+{
+	return XRT_MEMDEBUG_CANARY_TAIL ^ (uint32)pHeader->iRequestSize ^ 0xA5A5A5A5u;
+}
+
+
+// 内部函数：__xrtMemGlobalTailCanaryPtr
+static inline uint32* __xrtMemGlobalTailCanaryPtr(xrtMemBlockHeader* pHeader)
+{
+	size_t iPayload = pHeader->iRequestSize ? pHeader->iRequestSize : 1;
+	return (uint32*)((char*)__xrtMemGlobalUserFromHeader(pHeader) + iPayload);
+}
+
+
+// 内部函数：__xrtMemGlobalWriteTailCanary
+static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return;
+	}
+	*__xrtMemGlobalTailCanaryPtr(pHeader) = __xrtMemGlobalTailCanaryValue(pHeader);
+}
+
+
+// 内部函数：__xrtMemGlobalCheckFrontCanary
+static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader == NULL ) {
+		return FALSE;
+	}
+	return pHeader->iFrontCanary == (XRT_MEMDEBUG_CANARY_HEAD ^ (uint32)(uintptr_t)pHeader);
+}
+
+
+// 内部函数：__xrtMemGlobalCheckTailCanary
+static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
+{
+	uint32* pTail;
+	if ( pHeader == NULL ) {
+		return FALSE;
+	}
+	pTail = __xrtMemGlobalTailCanaryPtr((xrtMemBlockHeader*)pHeader);
+	return *pTail == __xrtMemGlobalTailCanaryValue(pHeader);
+}
+
+
+// 内部函数：__xrtMemDebugEnabled
+static inline bool __xrtMemDebugEnabled()
+{
+	return xCore.MemDebug.bEnabled != 0;
+}
+
+static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind);
+
+
+// 内部函数：__xrtMemDebugImmediateObjectTypeName
+static inline const char* __xrtMemDebugImmediateObjectTypeName(uint32 iObjectType)
+{
+	switch ( iObjectType ) {
+		case XRT_MEMDEBUG_OBJECT_ARRAY:
+			return "array";
+		case XRT_MEMDEBUG_OBJECT_DICT:
+			return "dict";
+		case XRT_MEMDEBUG_OBJECT_LIST:
+			return "list";
+		case XRT_MEMDEBUG_OBJECT_AVLTREE:
+			return "avltree";
+		case XRT_MEMDEBUG_OBJECT_DYNSTACK:
+			return "dynstack";
+		case XRT_MEMDEBUG_OBJECT_MEMPOOL:
+			return "mempool";
+		case XRT_MEMDEBUG_OBJECT_FSMEMPOOL:
+			return "fsmempool";
+		default:
+			return "unknown";
+	}
+}
+
+
+// 内部函数：获取内存调试 immediate 事件名称
+static inline const char* __xrtMemDebugImmediateEventName(uint32 iType)
+{
+	switch ( iType ) {
+		case XRT_MEMDEBUG_EVENT_DOUBLE_FREE:
+			return "DOUBLE_FREE";
+		case XRT_MEMDEBUG_EVENT_INVALID_FREE:
+			return "INVALID_FREE";
+		case XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE:
+			return "WRONG_ALLOCATOR_FREE";
+		case XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT:
+			return "BUFFER_OVERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT:
+			return "BUFFER_UNDERFLOW_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT:
+			return "USE_AFTER_FREE_SUSPECT";
+		case XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY:
+			return "OBJECT_DOUBLE_DESTROY";
+		default:
+			return "UNKNOWN";
+	}
+}
+
+
+// 内部函数：__xrtMemDebugShouldEmitImmediate
+static inline bool __xrtMemDebugShouldEmitImmediate(uint32 iType)
+{
+	return iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE
+		|| iType == XRT_MEMDEBUG_EVENT_INVALID_FREE
+		|| iType == XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE
+		|| iType == XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT
+		|| iType == XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT
+		|| iType == XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT
+		|| iType == XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY;
+}
+
+
+// 内部函数：__xrtMemDebugEmitConsoleLine
+static inline void __xrtMemDebugEmitConsoleLine(const char* sText, size_t iLen)
+{
+	if ( sText == NULL || iLen == 0 ) {
+		return;
+	}
+
+	#if defined(_WIN32) || defined(_WIN64)
+		{
+			HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+			DWORD iWritten = 0;
+			if ( hErr && hErr != INVALID_HANDLE_VALUE ) {
+				WriteFile(hErr, sText, (DWORD)iLen, &iWritten, NULL);
+			}
+			OutputDebugStringA(sText);
+		}
+	#else
+		(void)write(2, sText, iLen);
+	#endif
+}
+
+
+// 内部函数：__xrtMemDebugEmitImmediateNoLock
+static inline void __xrtMemDebugEmitImmediateNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	char sText[640];
+	const char* sKind;
+	int iWritten;
+	
+	// 检查事件类型是否需要立即输出
+	if ( !__xrtMemDebugShouldEmitImmediate(iType) ) {
+		return;
+	}
+	
+	// 根据事件类型选择分配器名称或对象类型名称
+	if ( iType == XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY ) {
+		sKind = __xrtMemDebugImmediateObjectTypeName(iAllocatorKind);
+	} else {
+		sKind = __xrtMemDebugAllocatorName(iAllocatorKind);
+	}
+	
+	// 格式化错误信息到缓冲区
+	iWritten = snprintf(
+		sText,
+		sizeof(sText),
+		"[XRT_MEM_DEBUG][%s] time_ms=%llu ptr=%p size=%llu kind=%s site=%s:%u thread=%llu\n",
+		__xrtMemDebugImmediateEventName(iType),
+		(unsigned long long)__xrtMemDebugNowMs(),
+		pAddress,
+		(unsigned long long)iSize,
+		sKind ? sKind : "unknown",
+		sFile ? sFile : "(unknown)",
+		(unsigned int)iLine,
+		(unsigned long long)xrtThreadGetCurrentId()
+	);
+	
+	// 校验格式化结果有效性
+	if ( iWritten <= 0 ) {
+		return;
+	}
+	if ( (size_t)iWritten >= sizeof(sText) ) {
+		iWritten = (int)(sizeof(sText) - 1);
+	}
+	
+	// 输出到控制台（stderr / OutputDebugString）
+	__xrtMemDebugEmitConsoleLine(sText, (size_t)iWritten);
+}
+
+
+// 内部函数：锁定内存调试
+static inline void __xrtMemDebugLock()
+{
+	__xrtMemGlobalLock(&xCore.MemDebug.iLock);
+}
+
+
+// 内部函数：解锁内存调试
+static inline void __xrtMemDebugUnlock()
+{
+	__xrtMemGlobalUnlock(&xCore.MemDebug.iLock);
+}
+
+
+// 内部函数：获取内存调试 allocator 名称
+static inline const char* __xrtMemDebugAllocatorName(uint32 iAllocatorKind)
+{
+	switch ( iAllocatorKind ) {
+		case XRT_MEMDEBUG_ALLOCATOR_GLOBAL:
+			return "global";
+		case XRT_MEMDEBUG_ALLOCATOR_MEMPOOL:
+			return "mempool";
+		case XRT_MEMDEBUG_ALLOCATOR_FSMEMPOOL:
+			return "fsmempool";
+		default:
+			return "unknown";
+	}
+}
+
+
+// 内部函数：判断文件名是否相等
+static inline bool __xrtMemDebugFileEquals(const char* sLeft, const char* sRight)
+{
+	if ( sLeft == sRight ) {
+		return TRUE;
+	}
+	if ( sLeft == NULL || sRight == NULL ) {
+		return FALSE;
+	}
+	return strcmp(sLeft, sRight) == 0;
+}
+
+
+// 内部函数：复制文件名
+static inline const char* __xrtMemDebugDupFile(const char* sFile)
+{
+	size_t iLen;
+	char* sCopy;
+
+	if ( sFile == NULL ) {
+		return NULL;
+	}
+
+	iLen = strlen(sFile);
+	sCopy = __xrtMemGlobalProcMalloc()(iLen + 1);
+	if ( sCopy == NULL ) {
+		return NULL;
+	}
+
+	memcpy(sCopy, sFile, iLen + 1);
+	return sCopy;
+}
+
+
+// 内部函数：清理文件名指针
+static inline void __xrtMemDebugClearFile(const char** psSlot)
+{
+	if ( psSlot == NULL || *psSlot == NULL ) {
+		return;
+	}
+
+	__xrtMemGlobalProcFree()((ptr)*psSlot);
+	*psSlot = NULL;
+}
+
+
+// 内部函数：替换文件名指针
+static inline void __xrtMemDebugReplaceFile(const char** psSlot, const char* sFile)
+{
+	if ( psSlot == NULL ) {
+		return;
+	}
+
+	__xrtMemDebugClearFile(psSlot);
+	if ( sFile != NULL ) {
+		*psSlot = __xrtMemDebugDupFile(sFile);
+	}
+}
+
+
+// 内部函数：解析内存调试调用位置
+static inline void __xrtMemDebugResolveSite(const char** psFile, uint32* piLine)
+{
+	xrtThreadData* pThreadData;
+
+	if ( psFile == NULL || piLine == NULL ) {
+		return;
+	}
+	if ( *psFile != NULL || *piLine != 0 ) {
+		return;
+	}
+
+	pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL || pThreadData->sMemDebugFile == NULL || pThreadData->iMemDebugLine == 0 ) {
+		return;
+	}
+
+	*psFile = pThreadData->sMemDebugFile;
+	*piLine = pThreadData->iMemDebugLine;
+}
+
+
+static inline void __xrtMemDebugPreferSite(const char** psFile, uint32* piLine)
+{
+	xrtThreadData* pThreadData;
+
+	if ( psFile == NULL || piLine == NULL ) {
+		return;
+	}
+
+	pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL || pThreadData->sMemDebugFile == NULL || pThreadData->iMemDebugLine == 0 ) {
+		return;
+	}
+
+	*psFile = pThreadData->sMemDebugFile;
+	*piLine = pThreadData->iMemDebugLine;
+}
+
+
+// 内部函数：进入调试调用位置作用域
+static inline xrtMemDebugSiteScope __xrtMemDebugEnterSiteScope(const char* sFile, uint32 iLine)
+{
+	xrtMemDebugSiteScope tScope = {0};
+
+	if ( sFile == NULL || iLine == 0 ) {
+		return tScope;
+	}
+
+	tScope.pThreadData = xrtThreadGetCurrent();
+	if ( tScope.pThreadData == NULL ) {
+		return tScope;
+	}
+
+	tScope.sPrevFile = tScope.pThreadData->sMemDebugFile;
+	tScope.iPrevLine = tScope.pThreadData->iMemDebugLine;
+	tScope.pThreadData->sMemDebugFile = sFile;
+	tScope.pThreadData->iMemDebugLine = iLine;
+	return tScope;
+}
+
+
+// 内部函数：离开调试调用位置作用域
+static inline void __xrtMemDebugLeaveSiteScope(xrtMemDebugSiteScope* pScope)
+{
+	if ( pScope == NULL || pScope->pThreadData == NULL ) {
+		return;
+	}
+
+	pScope->pThreadData->sMemDebugFile = pScope->sPrevFile;
+	pScope->pThreadData->iMemDebugLine = pScope->iPrevLine;
+}
+
+
+// 内部函数：__xrtMemDebugFindSiteStatNoLock
+static inline xrtMemDebugSiteStat* __xrtMemDebugFindSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
+{
+	xrtMemDebugSiteStat* pNode = xCore.MemDebug.pSiteStats;
+	while ( pNode ) {
+		if ( __xrtMemDebugFileEquals(pNode->sFile, sFile) && pNode->iLine == iLine && pNode->iAllocatorKind == iAllocatorKind ) {
+			return pNode;
+		}
+		pNode = pNode->pNext;
+	}
+	return NULL;
+}
+
+
+// 内部函数：__xrtMemDebugEnsureSiteStatNoLock
+static inline xrtMemDebugSiteStat* __xrtMemDebugEnsureSiteStatNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind)
+{
+	xrtMemDebugSiteStat* pNode = __xrtMemDebugFindSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pNode ) {
+		return pNode;
+	}
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugSiteStat));
+	if ( pNode == NULL ) {
+		return NULL;
+	}
+	__xrtMemDebugReplaceFile(&pNode->sFile, sFile);
+	pNode->iLine = iLine;
+	pNode->iAllocatorKind = iAllocatorKind;
+	pNode->pNext = xCore.MemDebug.pSiteStats;
+	xCore.MemDebug.pSiteStats = pNode;
+	return pNode;
+}
+
+
+// 内部函数：__xrtMemDebugSiteOnAllocNoLock
+static inline void __xrtMemDebugSiteOnAllocNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
+{
+	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pSite == NULL ) {
+		return;
+	}
+	pSite->iAllocCount++;
+	pSite->iAllocBytes += iSize;
+	pSite->iLiveCount++;
+	pSite->iLiveBytes += iSize;
+	if ( pSite->iLiveCount > pSite->iPeakLiveCount ) {
+		pSite->iPeakLiveCount = pSite->iLiveCount;
+	}
+	if ( pSite->iLiveBytes > pSite->iPeakLiveBytes ) {
+		pSite->iPeakLiveBytes = pSite->iLiveBytes;
+	}
+}
+
+
+// 内部函数：__xrtMemDebugSiteOnFreeNoLock
+static inline void __xrtMemDebugSiteOnFreeNoLock(const char* sFile, uint32 iLine, uint32 iAllocatorKind, size_t iSize)
+{
+	xrtMemDebugSiteStat* pSite = __xrtMemDebugEnsureSiteStatNoLock(sFile, iLine, iAllocatorKind);
+	if ( pSite == NULL ) {
+		return;
+	}
+	pSite->iFreeCount++;
+	pSite->iFreeBytes += iSize;
+	if ( pSite->iLiveCount > 0 ) {
+		pSite->iLiveCount--;
+	}
+	if ( pSite->iLiveBytes >= iSize ) {
+		pSite->iLiveBytes -= iSize;
+	} else {
+		pSite->iLiveBytes = 0;
+	}
+}
+
+
+// 内部函数：锁定内存调试记录事件 no
+static inline void __xrtMemDebugRecordEventNoLock(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugEvent* pEvent = &xCore.MemDebug.arrEvents[xCore.MemDebug.iEventCursor];
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugClearFile(&pEvent->sFile);
+	memset(pEvent, 0, sizeof(xrtMemDebugEvent));
+	pEvent->iType = iType;
+	pEvent->iLine = iLine;
+	pEvent->iAllocatorKind = iAllocatorKind;
+	pEvent->iThreadId = xrtThreadGetCurrentId();
+	pEvent->iTimeMs = __xrtMemDebugNowMs();
+	pEvent->iSize = (uint64)iSize;
+	pEvent->pAddress = pAddress;
+	__xrtMemDebugReplaceFile(&pEvent->sFile, sFile);
+	xCore.MemDebug.iEventCursor = (xCore.MemDebug.iEventCursor + 1) % XRT_MEMDEBUG_EVENT_CAPACITY;
+	if ( xCore.MemDebug.iEventCount < XRT_MEMDEBUG_EVENT_CAPACITY ) {
+		xCore.MemDebug.iEventCount++;
+	}
+}
+
+
+// 内部函数：__xrtMemDebugAttachLiveNoLock
+static inline void __xrtMemDebugAttachLiveNoLock(xrtMemBlockHeader* pHeader)
+{
+	pHeader->pDebugPrev = xCore.MemDebug.pLiveTail;
+	pHeader->pDebugNext = NULL;
+	if ( xCore.MemDebug.pLiveTail ) {
+		xCore.MemDebug.pLiveTail->pDebugNext = pHeader;
+	} else {
+		xCore.MemDebug.pLiveHead = pHeader;
+	}
+	xCore.MemDebug.pLiveTail = pHeader;
+	xCore.MemDebug.iLiveAllocCount++;
+	xCore.MemDebug.iLiveAllocBytes += pHeader->iRequestSize;
+	if ( xCore.MemDebug.iLiveAllocCount > xCore.MemDebug.iPeakLiveAllocCount ) {
+		xCore.MemDebug.iPeakLiveAllocCount = xCore.MemDebug.iLiveAllocCount;
+	}
+	if ( xCore.MemDebug.iLiveAllocBytes > xCore.MemDebug.iPeakLiveAllocBytes ) {
+		xCore.MemDebug.iPeakLiveAllocBytes = xCore.MemDebug.iLiveAllocBytes;
+	}
+}
+
+
+// 内部函数：__xrtMemDebugDetachLiveNoLock
+static inline void __xrtMemDebugDetachLiveNoLock(xrtMemBlockHeader* pHeader)
+{
+	if ( pHeader->pDebugPrev ) {
+		pHeader->pDebugPrev->pDebugNext = pHeader->pDebugNext;
+	} else {
+		xCore.MemDebug.pLiveHead = pHeader->pDebugNext;
+	}
+	if ( pHeader->pDebugNext ) {
+		pHeader->pDebugNext->pDebugPrev = pHeader->pDebugPrev;
+	} else {
+		xCore.MemDebug.pLiveTail = pHeader->pDebugPrev;
+	}
+	pHeader->pDebugPrev = NULL;
+	pHeader->pDebugNext = NULL;
+	if ( xCore.MemDebug.iLiveAllocCount > 0 ) {
+		xCore.MemDebug.iLiveAllocCount--;
+	}
+	if ( xCore.MemDebug.iLiveAllocBytes >= pHeader->iRequestSize ) {
+		xCore.MemDebug.iLiveAllocBytes -= pHeader->iRequestSize;
+	} else {
+		xCore.MemDebug.iLiveAllocBytes = 0;
+	}
+}
+
+
+// 内部函数：__xrtMemDebugFindForeignNoLock
+static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode = xCore.MemDebug.pForeignAllocs;
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			if ( ppPrev ) {
+				*ppPrev = pPrev;
+			}
+			return pNode;
+		}
+		pPrev = pNode;
+		pNode = pNode->pNext;
+	}
+	if ( ppPrev ) {
+		*ppPrev = NULL;
+	}
+	return NULL;
+}
+
+
+// 内部函数：__xrtMemDebugRegisterForeignAlloc
+static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	
+	// 尝试解析调用位置
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	
+	// 检查是否已注册，避免重复注册
+	if ( __xrtMemDebugFindForeignNoLock(pAddress, NULL) != NULL ) {
+		__xrtMemDebugUnlock();
+		return;
+	}
+	
+	// 分配新的外部分配记录节点
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugForeignAlloc));
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return;
+	}
+	
+	// 填充节点信息
+	pNode->pAddress = pAddress;
+	pNode->iSize = (uint32)iSize;
+	pNode->iAllocatorKind = iAllocatorKind;
+	__xrtMemDebugReplaceFile(&pNode->sAllocFile, sFile);
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	
+	// 插入链表头部
+	pNode->pNext = xCore.MemDebug.pForeignAllocs;
+	xCore.MemDebug.pForeignAllocs = pNode;
+	
+	// 更新外部分配统计计数
+	xCore.MemDebug.iForeignLiveCount++;
+	xCore.MemDebug.iForeignLiveBytes += iSize;
+	if ( xCore.MemDebug.iForeignLiveCount > xCore.MemDebug.iPeakForeignLiveCount ) {
+		xCore.MemDebug.iPeakForeignLiveCount = xCore.MemDebug.iForeignLiveCount;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes > xCore.MemDebug.iPeakForeignLiveBytes ) {
+		xCore.MemDebug.iPeakForeignLiveBytes = xCore.MemDebug.iForeignLiveBytes;
+	}
+	
+	// 记录分配事件到站点统计和事件环形缓冲区
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, iAllocatorKind, iSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_ALLOC, pAddress, iSize, iAllocatorKind, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+
+// 内部函数：__xrtMemDebugUnregisterForeignAlloc
+static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	
+	// 尝试解析调用位置
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	
+	// 查找外部分配记录
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		// 未找到记录，报告双重释放
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pAddress, 0, iAllocatorKind, sFile, iLine);
+		xCore.MemDebug.iDoubleFreeCount++;
+		__xrtMemDebugEmitImmediateNoLock(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pAddress, 0, iAllocatorKind, sFile, iLine);
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	
+	// 从链表中移除节点
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		xCore.MemDebug.pForeignAllocs = pNode->pNext;
+	}
+	
+	// 更新外部分配统计计数
+	if ( xCore.MemDebug.iForeignLiveCount > 0 ) {
+		xCore.MemDebug.iForeignLiveCount--;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes >= pNode->iSize ) {
+		xCore.MemDebug.iForeignLiveBytes -= pNode->iSize;
+	} else {
+		xCore.MemDebug.iForeignLiveBytes = 0;
+	}
+	
+	// 记录释放事件到站点统计和事件环形缓冲区
+	__xrtMemDebugSiteOnFreeNoLock(pNode->sAllocFile, pNode->iAllocLine, pNode->iAllocatorKind, pNode->iSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, pAddress, pNode->iSize, pNode->iAllocatorKind, sFile, iLine);
+	
+	// 释放节点资源
+	__xrtMemDebugClearFile(&pNode->sAllocFile);
+	__xrtMemGlobalProcFree()(pNode);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+
+// 内部函数：静默注销 foreign alloc（用于对象整体销毁时的兜底清扫）
+static inline bool __xrtMemDebugTryUnregisterForeignAllocSilent(ptr pAddress)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	
+	// 查找外部分配记录
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	
+	// 从链表中移除节点
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		xCore.MemDebug.pForeignAllocs = pNode->pNext;
+	}
+	
+	// 更新外部分配统计计数
+	if ( xCore.MemDebug.iForeignLiveCount > 0 ) {
+		xCore.MemDebug.iForeignLiveCount--;
+	}
+	if ( xCore.MemDebug.iForeignLiveBytes >= pNode->iSize ) {
+		xCore.MemDebug.iForeignLiveBytes -= pNode->iSize;
+	} else {
+		xCore.MemDebug.iForeignLiveBytes = 0;
+	}
+	
+	// 释放节点资源（静默模式不记录事件）
+	__xrtMemDebugClearFile(&pNode->sAllocFile);
+	__xrtMemGlobalProcFree()(pNode);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+
+// 内部函数：__xrtMemDebugLookupForeignAlloc
+static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return FALSE;
+	}
+	__xrtMemDebugLock();
+	
+	// 查找外部分配记录
+	pNode = __xrtMemDebugFindForeignNoLock(pAddress, NULL);
+	if ( pNode == NULL ) {
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	
+	// 输出查找到的分配信息
+	if ( pAllocatorKind ) {
+		*pAllocatorKind = pNode->iAllocatorKind;
+	}
+	if ( pSize ) {
+		*pSize = pNode->iSize;
+	}
+	if ( psFile ) {
+		*psFile = pNode->sAllocFile;
+	}
+	if ( pLine ) {
+		*pLine = pNode->iAllocLine;
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+
+// 内部函数：__xrtMemDebugFindObjectNoLock
+static inline xrtMemDebugObject* __xrtMemDebugFindObjectNoLock(ptr pAddress)
+{
+	xrtMemDebugObject* pNode = xCore.MemDebug.pObjects;
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			return pNode;
+		}
+		pNode = pNode->pNext;
+	}
+	return NULL;
+}
+
+
+// 内部函数：注册内存调试 object
+static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	
+	// 尝试解析调用位置
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	
+	// 查找是否已存在该对象的记录
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode == NULL ) {
+		// 分配新的对象跟踪节点
+		pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugObject));
+		if ( pNode == NULL ) {
+			__xrtMemDebugUnlock();
+			return;
+		}
+		pNode->pAddress = pAddress;
+		pNode->pNext = xCore.MemDebug.pObjects;
+		xCore.MemDebug.pObjects = pNode;
+	}
+	
+	// 如果对象从非活跃状态变为活跃，更新活跃计数
+	if ( pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		xCore.MemDebug.iLiveObjectCount++;
+		if ( xCore.MemDebug.iLiveObjectCount > xCore.MemDebug.iPeakLiveObjectCount ) {
+			xCore.MemDebug.iPeakLiveObjectCount = xCore.MemDebug.iLiveObjectCount;
+		}
+	}
+	
+	// 设置对象为活跃状态并填充分配信息
+	pNode->iObjectType = iObjectType;
+	pNode->iOrigin = iOrigin;
+	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_LIVE;
+	__xrtMemDebugReplaceFile(&pNode->sAllocFile, sFile);
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	
+	// 清除之前的释放信息
+	__xrtMemDebugClearFile(&pNode->sFreeFile);
+	pNode->iFreeLine = 0;
+	pNode->iFreeThreadId = 0;
+	pNode->iFreeTimeMs = 0;
+	
+	// 记录对象创建事件
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_CREATE, pAddress, 0, iObjectType, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+
+// 内部函数：__xrtMemDebugObjectGuardDestroy
+static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return TRUE;
+	}
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode && pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
+		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugEmitImmediateNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+
+// 内部函数：注销内存调试 object
+static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugObject* pNode;
+	if ( pAddress == NULL || !__xrtMemDebugEnabled() ) {
+		return TRUE;
+	}
+	
+	// 尝试解析调用位置
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	
+	// 查找对象记录并验证状态
+	pNode = __xrtMemDebugFindObjectNoLock(pAddress);
+	if ( pNode == NULL || pNode->iState != XRT_MEMDEBUG_OBJECT_STATE_LIVE ) {
+		// 对象不存在或已销毁，报告双重销毁
+		__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, iObjectType, sFile, iLine);
+		xCore.MemDebug.iObjectDoubleDestroyCount++;
+		__xrtMemDebugEmitImmediateNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DOUBLE_DESTROY, pAddress, 0, iObjectType, sFile, iLine);
+		__xrtMemDebugUnlock();
+		return FALSE;
+	}
+	
+	// 将对象标记为已销毁并记录释放信息
+	pNode->iState = XRT_MEMDEBUG_OBJECT_STATE_DESTROYED;
+	__xrtMemDebugReplaceFile(&pNode->sFreeFile, sFile);
+	pNode->iFreeLine = iLine;
+	pNode->iFreeThreadId = xrtThreadGetCurrentId();
+	pNode->iFreeTimeMs = __xrtMemDebugNowMs();
+	
+	// 更新活跃对象计数
+	if ( xCore.MemDebug.iLiveObjectCount > 0 ) {
+		xCore.MemDebug.iLiveObjectCount--;
+	}
+	
+	// 记录对象销毁事件
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_OBJECT_DESTROY, pAddress, 0, pNode->iObjectType ? pNode->iObjectType : iObjectType, sFile, iLine);
+	__xrtMemDebugUnlock();
+	return TRUE;
+}
+
+
+// 内部函数：分配内存调试 track
+static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	__xrtMemDebugReplaceFile(&pHeader->sAllocFile, sFile);
+	pHeader->iAllocLine = iLine;
+	__xrtMemDebugClearFile(&pHeader->sFreeFile);
+	pHeader->iFreeLine = 0;
+	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
+	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
+	pHeader->iAllocSeq = ++xCore.MemDebug.iAllocSeq;
+	pHeader->iFreeTimeMs = 0;
+	pHeader->iDebugState = XRT_MEMDEBUG_STATE_LIVE;
+	__xrtMemDebugAttachLiveNoLock(pHeader);
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_ALLOC, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+
+// 内部函数：释放内存调试 track
+static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	if ( pHeader->iDebugState == XRT_MEMDEBUG_STATE_LIVE ) {
+		__xrtMemDebugDetachLiveNoLock(pHeader);
+		__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	}
+	__xrtMemDebugReplaceFile(&pHeader->sFreeFile, sFile);
+	pHeader->iFreeLine = iLine;
+	pHeader->iFreeTimeMs = __xrtMemDebugNowMs();
+	pHeader->iDebugState = XRT_MEMDEBUG_STATE_FREED;
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_FREE, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+
+// 内部函数：__xrtMemDebugTrackReallocInPlace
+static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
+{
+	if ( pHeader == NULL || !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	__xrtMemDebugSiteOnFreeNoLock(pHeader->sAllocFile, pHeader->iAllocLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, iOldSize);
+	__xrtMemDebugReplaceFile(&pHeader->sAllocFile, sFile);
+	pHeader->iAllocLine = iLine;
+	pHeader->iAllocThreadId = xrtThreadGetCurrentId();
+	pHeader->iAllocTimeMs = __xrtMemDebugNowMs();
+	__xrtMemDebugClearFile(&pHeader->sFreeFile);
+	pHeader->iFreeLine = 0;
+	pHeader->iFreeTimeMs = 0;
+	__xrtMemDebugSiteOnAllocNoLock(sFile, iLine, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, pHeader->iRequestSize);
+	__xrtMemDebugRecordEventNoLock(XRT_MEMDEBUG_EVENT_REALLOC, __xrtMemGlobalUserFromHeader(pHeader), pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+
+// 内部函数：内存调试记录 simple 事件相关处理
+static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	if ( !__xrtMemDebugEnabled() ) {
+		return;
+	}
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	__xrtMemDebugLock();
+	__xrtMemDebugRecordEventNoLock(iType, pAddress, iSize, iAllocatorKind, sFile, iLine);
+	if ( iType == XRT_MEMDEBUG_EVENT_DOUBLE_FREE ) {
+		xCore.MemDebug.iDoubleFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_INVALID_FREE ) {
+		xCore.MemDebug.iInvalidFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE ) {
+		xCore.MemDebug.iWrongAllocatorFreeCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT ) {
+		xCore.MemDebug.iOverflowCount++;
+	} else if ( iType == XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT ) {
+		xCore.MemDebug.iUnderflowCount++;
+	}
+	__xrtMemDebugEmitImmediateNoLock(iType, pAddress, iSize, iAllocatorKind, sFile, iLine);
+	__xrtMemDebugUnlock();
+}
+
+
+// 内部函数：重置内存调试状态
+static inline void __xrtMemDebugResetState(xrtMemDebugState* pState)
+{
+	xrtMemBlockHeader* pLiveHead;
+	xrtMemBlockHeader* pQuarantineHead;
+	xrtMemDebugSiteStat* pSiteHead;
+	xrtMemDebugForeignAlloc* pForeignHead;
+	xrtMemDebugObject* pObjectHead;
+	xrtMemBlockHeader* pLive;
+	xrtMemDebugSiteStat* pSite;
+	xrtMemDebugForeignAlloc* pForeign;
+	xrtMemDebugObject* pObject;
+	xrtMemBlockHeader* pQuarantine;
+	uint32 i;
+	if ( pState == NULL ) {
+		return;
+	}
+	
+	// 加锁并保存各链表头部指针
+	__xrtMemGlobalLock(&pState->iLock);
+	pLiveHead = pState->pLiveHead;
+	pQuarantineHead = pState->pQuarantineHead;
+	pSiteHead = pState->pSiteStats;
+	pForeignHead = pState->pForeignAllocs;
+	pObjectHead = pState->pObjects;
+	
+	// 清理事件缓冲区中的文件名字符串
+	for ( i = 0; i < XRT_MEMDEBUG_EVENT_CAPACITY; i++ ) {
+		__xrtMemDebugClearFile(&pState->arrEvents[i].sFile);
+	}
+	
+	// 清零状态结构体并重新初始化锁和启用标志
+	memset(pState, 0, sizeof(xrtMemDebugState));
+	pState->iLock = 1;
+	pState->bEnabled = 1;
+	__xrtMemGlobalUnlock(&pState->iLock);
+	
+	// 清理活跃块链表中的文件名引用（不释放内存块本身）
+	pLive = pLiveHead;
+	while ( pLive ) {
+		xrtMemBlockHeader* pNext = pLive->pDebugNext;
+		__xrtMemDebugClearFile(&pLive->sAllocFile);
+		__xrtMemDebugClearFile(&pLive->sFreeFile);
+		pLive = pNext;
+	}
+	
+	// 释放隔离区链表（隔离区用于延迟释放，防止 use-after-free）
+	pQuarantine = pQuarantineHead;
+	while ( pQuarantine ) {
+		xrtMemBlockHeader* pNext = pQuarantine->pDebugNext;
+		__xrtMemDebugClearFile(&pQuarantine->sAllocFile);
+		__xrtMemDebugClearFile(&pQuarantine->sFreeFile);
+		__xrtMemGlobalProcFree()(pQuarantine);
+		pQuarantine = pNext;
+	}
+	
+	// 释放站点统计链表
+	pSite = pSiteHead;
+	while ( pSite ) {
+		xrtMemDebugSiteStat* pNext = pSite->pNext;
+		__xrtMemDebugClearFile(&pSite->sFile);
+		__xrtMemGlobalProcFree()(pSite);
+		pSite = pNext;
+	}
+	
+	// 释放外部分配记录链表
+	pForeign = pForeignHead;
+	while ( pForeign ) {
+		xrtMemDebugForeignAlloc* pNext = pForeign->pNext;
+		__xrtMemDebugClearFile(&pForeign->sAllocFile);
+		__xrtMemGlobalProcFree()(pForeign);
+		pForeign = pNext;
+	}
+	
+	// 释放对象跟踪链表
+	pObject = pObjectHead;
+	while ( pObject ) {
+		xrtMemDebugObject* pNext = pObject->pNext;
+		__xrtMemDebugClearFile(&pObject->sAllocFile);
+		__xrtMemDebugClearFile(&pObject->sFreeFile);
+		__xrtMemGlobalProcFree()(pObject);
+		pObject = pNext;
+	}
+}
+
+
+// 内部函数：判断是否存在内存调试 leaks
+static inline bool __xrtMemDebugHasLeaks()
+{
+	return xCore.MemDebug.pLiveHead != NULL || xCore.MemDebug.pForeignAllocs != NULL || xCore.MemDebug.iLiveObjectCount != 0;
+}
+
+#else
+
+// 内部函数：__xrtMemGlobalWriteTailCanary
+static inline void __xrtMemGlobalWriteTailCanary(xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+}
+
+
+// 内部函数：__xrtMemGlobalCheckFrontCanary
+static inline bool __xrtMemGlobalCheckFrontCanary(const xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+	return TRUE;
+}
+
+
+// 内部函数：__xrtMemGlobalCheckTailCanary
+static inline bool __xrtMemGlobalCheckTailCanary(const xrtMemBlockHeader* pHeader)
+{
+	(void)pHeader;
+	return TRUE;
+}
+
+
+// 内部函数：__xrtMemDebugFindForeignReleaseNoLock
+static inline xrtMemDebugForeignAlloc* __xrtMemDebugFindForeignReleaseNoLock(ptr pAddress, xrtMemDebugForeignAlloc** ppPrev)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode = __xrtMemForeignAllocList;
+
+	while ( pNode ) {
+		if ( pNode->pAddress == pAddress ) {
+			if ( ppPrev ) {
+				*ppPrev = pPrev;
+			}
+			return pNode;
+		}
+		pPrev = pNode;
+		pNode = pNode->pNext;
+	}
+
+	if ( ppPrev ) {
+		*ppPrev = NULL;
+	}
+
+	return NULL;
+}
+
+
+// 内部函数：__xrtMemDebugRegisterForeignAlloc（非调试版，轻量外部分配跟踪）
+static inline void __xrtMemDebugRegisterForeignAlloc(ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+
+	if ( pAddress == NULL ) {
+		return;
+	}
+	
+	// 加锁并检查是否已注册
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	if ( __xrtMemDebugFindForeignReleaseNoLock(pAddress, NULL) != NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return;
+	}
+	
+	// 分配新的外部分配记录节点
+	pNode = __xrtMemGlobalProcCalloc()(1, sizeof(xrtMemDebugForeignAlloc));
+	if ( pNode == NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return;
+	}
+	
+	// 填充节点信息并插入链表头部
+	pNode->pAddress = pAddress;
+	pNode->iSize = (uint32)iSize;
+	pNode->iAllocatorKind = iAllocatorKind;
+	pNode->sAllocFile = sFile;
+	pNode->iAllocLine = iLine;
+	pNode->iAllocThreadId = xrtThreadGetCurrentId();
+	pNode->iAllocTimeMs = __xrtMemDebugNowMs();
+	pNode->pNext = __xrtMemForeignAllocList;
+	__xrtMemForeignAllocList = pNode;
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+}
+
+
+// 内部函数：__xrtMemDebugUnregisterForeignAlloc（非调试版，轻量外部分配注销）
+static inline bool __xrtMemDebugUnregisterForeignAlloc(ptr pAddress, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	xrtMemDebugForeignAlloc* pPrev = NULL;
+	xrtMemDebugForeignAlloc* pNode;
+	
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+	
+	if ( pAddress == NULL ) {
+		return FALSE;
+	}
+	
+	// 加锁并查找外部分配记录
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	pNode = __xrtMemDebugFindForeignReleaseNoLock(pAddress, &pPrev);
+	if ( pNode == NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return FALSE;
+	}
+	
+	// 从链表中移除节点
+	if ( pPrev ) {
+		pPrev->pNext = pNode->pNext;
+	} else {
+		__xrtMemForeignAllocList = pNode->pNext;
+	}
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+	
+	// 释放节点内存
+	__xrtMemGlobalProcFree()(pNode);
+	return TRUE;
+}
+
+
+// 内部函数：__xrtMemDebugLookupForeignAlloc（非调试版，轻量外部分配查找）
+static inline bool __xrtMemDebugLookupForeignAlloc(ptr pAddress, uint32* pAllocatorKind, size_t* pSize, const char** psFile, uint32* pLine)
+{
+	xrtMemDebugForeignAlloc* pNode;
+
+	if ( pAddress == NULL ) {
+		return FALSE;
+	}
+	
+	// 加锁并查找外部分配记录
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	pNode = __xrtMemDebugFindForeignReleaseNoLock(pAddress, NULL);
+	if ( pNode == NULL ) {
+		__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+		return FALSE;
+	}
+	
+	// 输出查找到的分配信息
+	if ( pAllocatorKind ) {
+		*pAllocatorKind = pNode->iAllocatorKind;
+	}
+	if ( pSize ) {
+		*pSize = pNode->iSize;
+	}
+	if ( psFile ) {
+		*psFile = pNode->sAllocFile;
+	}
+	if ( pLine ) {
+		*pLine = pNode->iAllocLine;
+	}
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+	return TRUE;
+}
+
+
+// 内部函数：注册内存调试 object
+static inline void __xrtMemDebugRegisterObject(ptr pAddress, uint32 iObjectType, uint32 iOrigin, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)iOrigin;
+	(void)sFile;
+	(void)iLine;
+}
+
+
+// 内部函数：__xrtMemDebugObjectGuardDestroy
+static inline bool __xrtMemDebugObjectGuardDestroy(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+
+
+// 内部函数：注销内存调试 object
+static inline bool __xrtMemDebugUnregisterObject(ptr pAddress, uint32 iObjectType, const char* sFile, uint32 iLine)
+{
+	(void)pAddress;
+	(void)iObjectType;
+	(void)sFile;
+	(void)iLine;
+	return TRUE;
+}
+
+
+// 内部函数：分配内存调试 track
+static inline void __xrtMemDebugTrackAlloc(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)sFile;
+	(void)iLine;
+}
+
+
+// 内部函数：释放内存调试 track
+static inline void __xrtMemDebugTrackFree(xrtMemBlockHeader* pHeader, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)sFile;
+	(void)iLine;
+}
+
+
+// 内部函数：__xrtMemDebugTrackReallocInPlace
+static inline void __xrtMemDebugTrackReallocInPlace(xrtMemBlockHeader* pHeader, size_t iOldSize, const char* sFile, uint32 iLine)
+{
+	(void)pHeader;
+	(void)iOldSize;
+	(void)sFile;
+	(void)iLine;
+}
+
+
+// 内部函数：内存调试记录 simple 事件相关处理
+static inline void __xrtMemDebugRecordSimpleEvent(uint32 iType, ptr pAddress, size_t iSize, uint32 iAllocatorKind, const char* sFile, uint32 iLine)
+{
+	(void)iType;
+	(void)pAddress;
+	(void)iSize;
+	(void)iAllocatorKind;
+	(void)sFile;
+	(void)iLine;
+}
+
+
+// 内部函数：重置内存调试状态
+static inline void __xrtMemDebugResetState(ptr pState)
+{
+	xrtMemDebugForeignAlloc* pHead;
+	(void)pState;
+	__xrtMemGlobalLock(&__xrtMemForeignAllocLock);
+	pHead = __xrtMemForeignAllocList;
+	__xrtMemForeignAllocList = NULL;
+	__xrtMemGlobalUnlock(&__xrtMemForeignAllocLock);
+	while ( pHead ) {
+		xrtMemDebugForeignAlloc* pNext = pHead->pNext;
+		__xrtMemGlobalProcFree()(pHead);
+		pHead = pNext;
+	}
+}
+
+
+// 内部函数：判断是否存在内存调试 leaks
+static inline bool __xrtMemDebugHasLeaks()
+{
+	return FALSE;
+}
+
+#endif
+
+// 内部函数：获取内存全局线程 cache
+static inline xrtMemThreadCache* __xrtMemGlobalGetThreadCache()
+{
+	xrtThreadData* pThreadData = xrtThreadGetCurrent();
+	if ( pThreadData == NULL ) {
+		return NULL;
+	}
+	return (xrtMemThreadCache*)pThreadData->tMem.pLocalAlloc;
+}
+
+
+// 内部函数：初始化内存全局线程 cache
+static inline bool __xrtMemGlobalInitThreadCache(xrtThreadData* pThreadData)
+{
+	ptr (*procCalloc)(size_t, size_t) = __xrtMemGlobalProcCalloc();
+	xrtMemThreadCache* pCache;
+
+	if ( pThreadData == NULL ) {
+		return FALSE;
+	}
+	if ( pThreadData->tMem.pLocalAlloc ) {
+		return TRUE;
+	}
+
+	__xrtMemGlobalEnsurePlan();
+	pCache = procCalloc(1, sizeof(xrtMemThreadCache));
+	if ( pCache == NULL ) {
+		return FALSE;
+	}
+
+	pCache->iClassCount = xCore.MemGlobal.iClassCount;
+	pCache->iCacheLimit = XRT_MEMGLOBAL_CACHE_LIMIT;
+	pThreadData->tMem.pLocalAlloc = pCache;
+	return TRUE;
+}
+
+
+// 内部函数：压入内存全局 central
+static inline void __xrtMemGlobalPushCentral(uint32 iClass, xrtMemFreeNode* pHead, xrtMemFreeNode* pTail, uint32 iCount)
+{
+	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
+
+	if ( pHead == NULL || pTail == NULL || iCount == 0 ) {
+		return;
+	}
+
+	__xrtMemGlobalLock(&pClass->iLock);
+	pTail->pNext = pClass->pFreeList;
+	pClass->pFreeList = pHead;
+	pClass->iFreeCount += iCount;
+	__xrtMemGlobalUnlock(&pClass->iLock);
+}
+
+
+// 内部函数：弹出内存全局 central（从中央空闲链表中批量取出节点）
+static inline xrtMemFreeNode* __xrtMemGlobalPopCentral(uint32 iClass, uint32 iMaxCount, uint32* pOutCount)
+{
+	xrtMemGlobalClassDesc* pClass = &xCore.MemGlobal.arrClassDesc[iClass];
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 iCount = 0;
+	
+	// 加锁并从中央空闲链表中逐个取出节点，组成新的链表
+	__xrtMemGlobalLock(&pClass->iLock);
+	while ( pClass->pFreeList && iCount < iMaxCount ) {
+		xrtMemFreeNode* pNode = pClass->pFreeList;
+		pClass->pFreeList = pNode->pNext;
+		pNode->pNext = NULL;
+		if ( pHead == NULL ) {
+			pHead = pNode;
+		} else {
+			pTail->pNext = pNode;
+		}
+		pTail = pNode;
+		iCount++;
+	}
+	
+	// 更新中央空闲计数
+	if ( pClass->iFreeCount >= iCount ) {
+		pClass->iFreeCount -= iCount;
+	} else {
+		pClass->iFreeCount = 0;
+	}
+	__xrtMemGlobalUnlock(&pClass->iLock);
+	
+	// 输出实际取出的数量
+	if ( pOutCount ) {
+		*pOutCount = iCount;
+	}
+	return pHead;
+}
+
+
+// 内部函数：分配内存全局 span（span 是内存池的基本分配单元，一次申请一大块内存切分为多个等大小块）
+static inline bool __xrtMemGlobalAllocSpan(uint32 iClass)
+{
+	ptr (*procMalloc)(size_t) = __xrtMemGlobalProcMalloc();
+	size_t iHeaderSize = __xrtMemGlobalHeaderSize();
+	size_t iPayloadSize = __xrtMemGlobalClassBlockSize(&xCore.MemGlobal, iClass);
+	size_t iStride = __xrtMemGlobalAlignSize(iHeaderSize + iPayloadSize);
+	uint32 iBlockCount;
+	size_t iBytes;
+	xrtMemGlobalSpan* pSpan;
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 i;
+
+	if ( iPayloadSize == 0 ) {
+		return FALSE;
+	}
+	
+	// 根据目标字节数计算块数量，并限制在最小/最大范围内
+	iBlockCount = (uint32)(XRT_MEMGLOBAL_SPAN_TARGET_BYTES / iStride);
+	if ( iBlockCount < XRT_MEMGLOBAL_SPAN_MIN_BLOCKS ) {
+		iBlockCount = XRT_MEMGLOBAL_SPAN_MIN_BLOCKS;
+	}
+	if ( iBlockCount > XRT_MEMGLOBAL_SPAN_MAX_BLOCKS ) {
+		iBlockCount = XRT_MEMGLOBAL_SPAN_MAX_BLOCKS;
+	}
+	
+	// 分配 span 结构体 + 所有内存块所需的总空间
+	iBytes = __xrtMemGlobalAlignSize(sizeof(xrtMemGlobalSpan)) + (iStride * iBlockCount);
+	pSpan = (xrtMemGlobalSpan*)procMalloc(iBytes);
+	if ( pSpan == NULL ) {
+		return FALSE;
+	}
+	
+	// 初始化 span 元信息
+	pSpan->pMemory = pSpan;
+	pSpan->iClassIndex = iClass;
+	pSpan->iBlockCount = iBlockCount;
+	
+	// 逐块初始化：写入块头部并链入空闲链表
+	{
+		char* pCursor = (char*)pSpan + __xrtMemGlobalAlignSize(sizeof(xrtMemGlobalSpan));
+		for ( i = 0; i < iBlockCount; i++ ) {
+			xrtMemBlockHeader* pHeader = (xrtMemBlockHeader*)pCursor;
+			xrtMemFreeNode* pNode;
+
+			__xrtMemGlobalWriteHeader(pHeader, iClass, XRT_MEMBLOCK_FLAG_POOLED, (uint32)iPayloadSize);
+			pNode = (xrtMemFreeNode*)__xrtMemGlobalUserFromHeader(pHeader);
+			pNode->pNext = NULL;
+			if ( pHead == NULL ) {
+				pHead = pNode;
+			} else {
+				pTail->pNext = pNode;
+			}
+			pTail = pNode;
+			pCursor += iStride;
+		}
+	}
+	
+	// 将 span 注册到全局 span 链表
+	__xrtMemGlobalLock(&xCore.MemGlobal.iSpanLock);
+	pSpan->pNext = xCore.MemGlobal.pSpanList;
+	xCore.MemGlobal.pSpanList = pSpan;
+	__xrtMemGlobalUnlock(&xCore.MemGlobal.iSpanLock);
+	
+	// 将所有空闲块推入中央空闲链表
+	xCore.MemGlobal.arrClassDesc[iClass].iSpanCount++;
+	__xrtMemGlobalPushCentral(iClass, pHead, pTail, iBlockCount);
+	return TRUE;
+}
+
+
+// 内部函数：__xrtMemGlobalRefillThreadCache（从中央链表补充线程本地缓存）
+static inline bool __xrtMemGlobalRefillThreadCache(xrtMemThreadCache* pCache, uint32 iClass)
+{
+	uint32 iDesired = pCache ? (uint32)(pCache->iCacheLimit / 2) : 0;
+	uint32 iCount = 0;
+	xrtMemFreeNode* pHead;
+	xrtMemFreeNode* pNode;
+
+	if ( pCache == NULL || iClass >= pCache->iClassCount ) {
+		return FALSE;
+	}
+	if ( iDesired == 0 ) {
+		iDesired = 1;
+	}
+	
+	// 尝试从中央空闲链表获取节点
+	pHead = __xrtMemGlobalPopCentral(iClass, iDesired, &iCount);
+	if ( pHead == NULL ) {
+		// 中央链表为空，分配新的 span 并重试
+		if ( !__xrtMemGlobalAllocSpan(iClass) ) {
+			return FALSE;
+		}
+		pHead = __xrtMemGlobalPopCentral(iClass, iDesired, &iCount);
+		if ( pHead == NULL ) {
+			return FALSE;
+		}
+	}
+	
+	// 将获取的节点逐个挂入线程本地缓存
+	pNode = pHead;
+	while ( pNode ) {
+		xrtMemFreeNode* pNext = pNode->pNext;
+		pNode->pNext = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode;
+		pCache->arrFreeCount[iClass]++;
+		pNode = pNext;
+	}
+
+	return pCache->arrFreeCount[iClass] > 0;
+}
+
+
+// 内部函数：__xrtMemGlobalDrainThreadCache（将线程本地缓存中多余的空闲块归还中央链表）
+static inline void __xrtMemGlobalDrainThreadCache(xrtMemThreadCache* pCache, uint32 iClass, uint32 iKeepCount)
+{
+	xrtMemFreeNode* pHead = NULL;
+	xrtMemFreeNode* pTail = NULL;
+	uint32 iCount = 0;
+	
+	if ( pCache == NULL || iClass >= pCache->iClassCount ) {
+		return;
+	}
+	
+	// 从线程缓存中取出超出保留数量的空闲块
+	while ( pCache->arrFreeCount[iClass] > iKeepCount ) {
+		xrtMemFreeNode* pNode = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode->pNext;
+		pCache->arrFreeCount[iClass]--;
+		pNode->pNext = NULL;
+		if ( pHead == NULL ) {
+			pHead = pNode;
+		} else {
+			pTail->pNext = pNode;
+		}
+		pTail = pNode;
+		iCount++;
+	}
+	
+	// 将取出的空闲块批量推入中央空闲链表
+	if ( iCount > 0 ) {
+		__xrtMemGlobalPushCentral(iClass, pHead, pTail, iCount);
+	}
+}
+
+
+// 内部函数：释放内存全局线程 cache
+static inline void __xrtMemGlobalUnitThreadCache(xrtThreadData* pThreadData)
+{
+	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
+	xrtMemThreadCache* pCache;
+	uint32 i;
+
+	if ( pThreadData == NULL || pThreadData->tMem.pLocalAlloc == NULL ) {
+		return;
+	}
+
+	pCache = (xrtMemThreadCache*)pThreadData->tMem.pLocalAlloc;
+	for ( i = 0; i < pCache->iClassCount; i++ ) {
+		__xrtMemGlobalDrainThreadCache(pCache, i, 0);
+	}
+
+	procFree(pCache);
+	pThreadData->tMem.pLocalAlloc = NULL;
+}
+
+
+// 内部函数：释放内存全局计划
+static inline void __xrtMemGlobalUnitPlan(xrtMemGlobalPool* pPool)
+{
+	void (*procFree)(ptr) = __xrtMemGlobalProcFree();
+	xrtMemGlobalSpan* pSpan;
+
+	if ( pPool == NULL ) {
+		return;
+	}
+
+	pSpan = pPool->pSpanList;
+	while ( pSpan ) {
+		xrtMemGlobalSpan* pNext = pSpan->pNext;
+		procFree(pSpan->pMemory);
+		pSpan = pNext;
+	}
+
+	memset(pPool, 0, sizeof(xrtMemGlobalPool));
+}
+
+
+// 内部函数：分配内存全局 pooled（从线程缓存或中央链表获取池化内存块）
+static inline ptr __xrtMemGlobalAllocPooled(uint32 iClass, size_t iRequestSize, bool bZero)
+{
+	xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
+	xrtMemFreeNode* pNode = NULL;
+	xrtMemBlockHeader* pHeader;
+	uint32 iBlockSize;
+	
+	// 优先从线程本地缓存获取
+	if ( pCache && iClass < pCache->iClassCount ) {
+		if ( pCache->arrFreeList[iClass] == NULL ) {
+			if ( !__xrtMemGlobalRefillThreadCache(pCache, iClass) ) {
+				return NULL;
+			}
+		}
+		pNode = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+		pCache->arrFreeList[iClass] = pNode->pNext;
+		pCache->arrFreeCount[iClass]--;
+	} else {
+		// 线程缓存不可用，直接从中央链表获取
+		uint32 iCount = 0;
+		pNode = __xrtMemGlobalPopCentral(iClass, 1, &iCount);
+		if ( pNode == NULL ) {
+			// 中央链表为空，分配新的 span 并重试
+			if ( !__xrtMemGlobalAllocSpan(iClass) ) {
+				return NULL;
+			}
+			pNode = __xrtMemGlobalPopCentral(iClass, 1, &iCount);
+			if ( pNode == NULL ) {
+				return NULL;
+			}
+		}
+	}
+	
+	// 重新写入块头部（重置请求大小等元信息）
+	pHeader = __xrtMemGlobalHeaderFromUser(pNode);
+	iBlockSize = __xrtMemGlobalClassBlockSize(&xCore.MemGlobal, iClass);
+	__xrtMemGlobalWriteHeader(pHeader, iClass, XRT_MEMBLOCK_FLAG_POOLED, (uint32)iRequestSize);
+	
+	// 根据模式填充内存内容
+	if ( bZero ) {
+		memset(pNode, 0, iBlockSize);
+	#ifdef XRT_MEM_DEBUG
+	} else {
+		// 调试模式下填充 0xCD 标记未初始化内存
+		memset(pNode, 0xCD, iBlockSize);
+	#endif
+	}
+	__xrtMemGlobalWriteTailCanary(pHeader);
+	return pNode;
+}
+
+
+// 内部函数：分配内存全局 backing（超出池化大小阈值的内存直接通过系统分配器分配）
+static inline ptr __xrtMemGlobalAllocBacking(size_t iRequestSize, bool bZero)
+{
+	ptr pRaw;
+	xrtMemBlockHeader* pHeader;
+	size_t iAllocPayload = __xrtMemGlobalAllocPayloadSize(iRequestSize);
+	size_t iAllocSize = __xrtMemGlobalHeaderSize() + iAllocPayload;
+	
+	// 根据是否需要清零选择 calloc 或 malloc
+	if ( bZero ) {
+		pRaw = __xrtMemGlobalProcCalloc()(1, iAllocSize);
+	} else {
+		pRaw = __xrtMemGlobalProcMalloc()(iAllocSize);
+	}
+	if ( pRaw == NULL ) {
+		return NULL;
+	}
+	
+	// 写入块头部，标记为 backing 类型
+	pHeader = (xrtMemBlockHeader*)pRaw;
+	__xrtMemGlobalWriteHeader(pHeader, 0xFFFFu, XRT_MEMBLOCK_FLAG_BACKING, (uint32)iRequestSize);
+	#ifdef XRT_MEM_DEBUG
+		// 调试模式下填充 0xCD 标记未初始化内存
+		if ( !bZero ) {
+			memset(__xrtMemGlobalUserFromHeader(pHeader), 0xCD, iAllocPayload);
+		}
+	#endif
+	__xrtMemGlobalWriteTailCanary(pHeader);
+	return __xrtMemGlobalUserFromHeader(pHeader);
+}
+
+
+// 内部函数：分配内存全局位置
+static inline ptr __xrtMemGlobalAllocSite(size_t iSize, bool bZero, const char* sFile, uint32 iLine)
+{
+	uint32 iClass;
+	ptr pMem;
+
+	__xrtMemGlobalEnsurePlan();
+
+	iClass = __xrtMemGlobalClassIndexForRequest(&xCore.MemGlobal, iSize);
+	if ( iClass != (uint32)-1 ) {
+		pMem = __xrtMemGlobalAllocPooled(iClass, iSize, bZero);
+	} else {
+		pMem = __xrtMemGlobalAllocBacking(iSize, bZero);
+	}
+	if ( pMem ) {
+		__xrtMemDebugTrackAlloc(__xrtMemGlobalHeaderFromUser(pMem), sFile, iLine);
+	}
+	return pMem;
+}
+
+
+// 内部函数：分配内存全局
+static inline ptr __xrtMemGlobalAlloc(size_t iSize, bool bZero)
+{
+	return __xrtMemGlobalAllocSite(iSize, bZero, NULL, 0);
+}
+
+
+// 内部函数：释放内存全局 free（根据块类型选择归还线程缓存、中央链表或系统释放）
+static inline void __xrtMemGlobalFreeRelease(ptr pMem)
+{
+	xrtMemBlockHeader* pHeader;
+	
+	if ( pMem == NULL ) {
+		return;
+	}
+	
+	// 获取块头部并验证有效性
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		__xrtMemGlobalProcFree()(pMem);
+		return;
+	}
+	
+	// 池化块：归还到线程缓存或中央链表
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_POOLED ) {
+		uint32 iClass = pHeader->iClassIndex;
+		xrtMemThreadCache* pCache = __xrtMemGlobalGetThreadCache();
+		xrtMemFreeNode* pNode = (xrtMemFreeNode*)pMem;
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugClearFile(&pHeader->sAllocFile);
+			__xrtMemDebugClearFile(&pHeader->sFreeFile);
+		#endif
+		
+		if ( pCache && iClass < pCache->iClassCount ) {
+			// 线程缓存已满时先归还一半到中央链表
+			if ( pCache->arrFreeCount[iClass] >= pCache->iCacheLimit ) {
+				__xrtMemGlobalDrainThreadCache(pCache, iClass, pCache->iCacheLimit / 2);
+			}
+			pNode->pNext = (xrtMemFreeNode*)pCache->arrFreeList[iClass];
+			pCache->arrFreeList[iClass] = pNode;
+			pCache->arrFreeCount[iClass]++;
+		} else {
+			// 线程缓存不可用，直接归还中央链表
+			pNode->pNext = NULL;
+			__xrtMemGlobalPushCentral(iClass, pNode, pNode, 1);
+		}
+		return;
+	}
+	
+	// backing 块：直接通过系统分配器释放
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+		#ifdef XRT_MEM_DEBUG
+			__xrtMemDebugClearFile(&pHeader->sAllocFile);
+			__xrtMemDebugClearFile(&pHeader->sFreeFile);
+		#endif
+		__xrtMemGlobalProcFree()(pHeader);
+		return;
+	}
+	
+	// 未知标志的块：仍通过系统分配器释放
+	#ifdef XRT_MEM_DEBUG
+		__xrtMemDebugClearFile(&pHeader->sAllocFile);
+		__xrtMemDebugClearFile(&pHeader->sFreeFile);
+	#endif
+	__xrtMemGlobalProcFree()(pHeader);
+}
+
+
+// 内部函数：释放内存全局位置（包含完整的调试检查、隔离区和错误检测流程）
+static inline void __xrtMemGlobalFreeSite(ptr pMem, const char* sFile, uint32 iLine)
+{
+	xrtMemBlockHeader* pHeader;
+	
+	if ( pMem == NULL ) {
+		return;
+	}
+	#ifdef XRT_MEM_DEBUG
+	__xrtMemDebugPreferSite(&sFile, &iLine);
+	#endif
+	
+	// 获取块头部并验证有效性
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		// 头部无效，检查是否为外部分配器的内存
+		uint32 iAllocatorKind = 0;
+		size_t iForeignSize = 0;
+		const char* sForeignFile = NULL;
+		uint32 iForeignLine = 0;
+		if ( __xrtMemDebugLookupForeignAlloc(pMem, &iAllocatorKind, &iForeignSize, &sForeignFile, &iForeignLine) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE, pMem, iForeignSize, iAllocatorKind, sFile, iLine);
+			xrtSetError("memory belongs to an explicit pool allocator.", FALSE);
+			return;
+		}
+		#ifdef XRT_MEM_DEBUG
+			// 调试模式下记录无效释放事件
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_INVALID_FREE, pMem, 0, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("invalid free detected.", FALSE);
+			return;
+		#else
+			__xrtMemGlobalProcFree()(pMem);
+			return;
+		#endif
+	}
+	
+	#ifdef XRT_MEM_DEBUG
+		// 调试检查 - 检测双重释放、缓冲区溢出/下溢
+		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_DOUBLE_FREE, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("double free detected.", FALSE);
+			return;
+		}
+		// 检查前端金丝雀（检测缓冲区下溢）
+		if ( !__xrtMemGlobalCheckFrontCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		// 检查尾部金丝雀（检测缓冲区溢出）
+		if ( !__xrtMemGlobalCheckTailCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		
+		// 跟踪释放并填充已释放内存为 0xDD 标记
+		__xrtMemDebugTrackFree(pHeader, sFile, iLine);
+		memset(pMem, 0xDD, __xrtMemGlobalAllocPayloadSize(pHeader->iRequestSize));
+		
+		// backing 块放入隔离区延迟释放，防止 use-after-free
+		if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+			__xrtMemDebugLock();
+			pHeader->iDebugState = XRT_MEMDEBUG_STATE_QUARANTINE;
+			pHeader->pDebugPrev = xCore.MemDebug.pQuarantineTail;
+			pHeader->pDebugNext = NULL;
+			if ( xCore.MemDebug.pQuarantineTail ) {
+				xCore.MemDebug.pQuarantineTail->pDebugNext = pHeader;
+			} else {
+				xCore.MemDebug.pQuarantineHead = pHeader;
+			}
+			xCore.MemDebug.pQuarantineTail = pHeader;
+			xCore.MemDebug.iQuarantineCount++;
+			xCore.MemDebug.iQuarantineBytes += pHeader->iRequestSize;
+			
+			// 隔离区超出容量限制时，释放最早进入的块
+			while ( xCore.MemDebug.iQuarantineCount > XRT_MEMDEBUG_QUARANTINE_LIMIT && xCore.MemDebug.pQuarantineHead ) {
+				xrtMemBlockHeader* pOld = xCore.MemDebug.pQuarantineHead;
+				xCore.MemDebug.pQuarantineHead = pOld->pDebugNext;
+				if ( xCore.MemDebug.pQuarantineHead ) {
+					xCore.MemDebug.pQuarantineHead->pDebugPrev = NULL;
+				} else {
+					xCore.MemDebug.pQuarantineTail = NULL;
+				}
+				pOld->pDebugPrev = NULL;
+				pOld->pDebugNext = NULL;
+				if ( xCore.MemDebug.iQuarantineCount > 0 ) {
+					xCore.MemDebug.iQuarantineCount--;
+				}
+				if ( xCore.MemDebug.iQuarantineBytes >= pOld->iRequestSize ) {
+					xCore.MemDebug.iQuarantineBytes -= pOld->iRequestSize;
+				} else {
+					xCore.MemDebug.iQuarantineBytes = 0;
+				}
+				__xrtMemDebugClearFile(&pOld->sAllocFile);
+				__xrtMemDebugClearFile(&pOld->sFreeFile);
+				__xrtMemGlobalProcFree()(pOld);
+			}
+			__xrtMemDebugUnlock();
+			return;
+		}
+	#endif
+
+	__xrtMemGlobalFreeRelease(pMem);
+}
+
+
+// 内部函数：释放内存全局
+static inline void __xrtMemGlobalFree(ptr pMem)
+{
+	__xrtMemGlobalFreeSite(pMem, NULL, 0);
+}
+
+
+// 内部函数：重新分配内存全局位置（支持原地扩展、搬迁分配和调试检查）
+static inline ptr __xrtMemGlobalReallocSite(ptr pMem, size_t iSize, const char* sFile, uint32 iLine)
+{
+	xrtMemBlockHeader* pHeader;
+	size_t iOldSize;
+	
+	// NULL 指针等价于 malloc
+	if ( pMem == NULL ) {
+		return __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
+	}
+	// 大小为 0 等价于 free
+	if ( iSize == 0 ) {
+		__xrtMemGlobalFreeSite(pMem, sFile, iLine);
+		return NULL;
+	}
+	
+	// 获取块头部并验证有效性
+	pHeader = __xrtMemGlobalHeaderFromUser(pMem);
+	if ( !__xrtMemGlobalHeaderValid(pHeader) ) {
+		// 检查是否为外部分配器的内存
+		uint32 iAllocatorKind = 0;
+		size_t iForeignSize = 0;
+		if ( __xrtMemDebugLookupForeignAlloc(pMem, &iAllocatorKind, &iForeignSize, NULL, NULL) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_WRONG_ALLOCATOR_FREE, pMem, iForeignSize, iAllocatorKind, sFile, iLine);
+			xrtSetError("memory belongs to an explicit pool allocator.", FALSE);
+			return NULL;
+		}
+		// 非本分配器管理的内存，直接调用系统 realloc
+		return __xrtMemGlobalProcRealloc()(pMem, iSize);
+	}
+	
+	#ifdef XRT_MEM_DEBUG
+		// 调试检查 - 检测 use-after-free 和缓冲区越界
+		if ( pHeader->iDebugState != XRT_MEMDEBUG_STATE_LIVE ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_USE_AFTER_FREE_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+			xrtSetError("realloc on freed memory detected.", FALSE);
+			return NULL;
+		}
+		if ( !__xrtMemGlobalCheckFrontCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_UNDERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+		if ( !__xrtMemGlobalCheckTailCanary(pHeader) ) {
+			__xrtMemDebugRecordSimpleEvent(XRT_MEMDEBUG_EVENT_BUFFER_OVERFLOW_SUSPECT, pMem, pHeader->iRequestSize, XRT_MEMDEBUG_ALLOCATOR_GLOBAL, sFile, iLine);
+		}
+	#endif
+	
+	iOldSize = pHeader->iRequestSize;
+	
+	// 池化块：检查是否可以原地扩展（同分类内直接更新大小）
+	if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_POOLED ) {
+		uint32 iOldClass = pHeader->iClassIndex;
+		uint32 iNewClass = __xrtMemGlobalClassIndexForRequest(&xCore.MemGlobal, iSize);
+
+		if ( iNewClass == iOldClass ) {
+			pHeader->iRequestSize = (uint32)iSize;
+			__xrtMemGlobalWriteTailCanary(pHeader);
+			__xrtMemDebugTrackReallocInPlace(pHeader, iOldSize, sFile, iLine);
+			return pMem;
+		}
+	} else if ( pHeader->iFlags & XRT_MEMBLOCK_FLAG_BACKING ) {
+		// backing 块且新大小仍超出池化阈值，尝试原地 realloc
+		#ifndef XRT_MEM_DEBUG
+		if ( iSize > xCore.MemGlobal.iCutoff ) {
+			size_t iAllocPayload = __xrtMemGlobalAllocPayloadSize(iSize);
+			size_t iAllocSize = __xrtMemGlobalHeaderSize() + iAllocPayload;
+			xrtMemBlockHeader* pNewHeader = __xrtMemGlobalProcRealloc()(pHeader, iAllocSize);
+			if ( pNewHeader == NULL ) {
+				return NULL;
+			}
+			__xrtMemGlobalWriteHeader(pNewHeader, 0xFFFFu, XRT_MEMBLOCK_FLAG_BACKING, (uint32)iSize);
+			__xrtMemGlobalWriteTailCanary(pNewHeader);
+			return __xrtMemGlobalUserFromHeader(pNewHeader);
+		}
+		#endif
+	}
+	
+	// 无法原地扩展，分配新块、复制数据、释放旧块
+	{
+		ptr pNewMem = __xrtMemGlobalAllocSite(iSize, FALSE, sFile, iLine);
+		if ( pNewMem == NULL ) {
+			return NULL;
+		}
+		memcpy(pNewMem, pMem, iOldSize < iSize ? iOldSize : iSize);
+		__xrtMemGlobalFreeSite(pMem, sFile, iLine);
+		return pNewMem;
+	}
+}
+
+
+// 内部函数：重新分配内存全局
+static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
+{
+	return __xrtMemGlobalReallocSite(pMem, iSize, NULL, 0);
+}

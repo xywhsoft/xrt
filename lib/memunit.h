@@ -1,0 +1,179 @@
+
+
+
+// 创建内存管理单元（iItemLength会自动增加4个字节用于确定内存位置和所属的管理器单元编号）
+XXAPI xmemunit xrtMemUnitCreate(uint32 iItemLength, uint32 iMode)
+{
+	size_t iTotalSize;
+	if ( iItemLength > (uint32)(SIZE_MAX - sizeof(MMU_Value)) ) {
+		xrtSetError("memory unit create failed.", FALSE);
+		return NULL;
+	}
+	iItemLength += sizeof(MMU_Value);
+	if ( iItemLength > (uint32)((SIZE_MAX - sizeof(xmemunit_struct)) / 256u) ) {
+		xrtSetError("memory unit create failed.", FALSE);
+		return NULL;
+	}
+	iTotalSize = sizeof(xmemunit_struct) + ((size_t)iItemLength * 256u);
+	xmemunit objUnit = xrtMalloc(iTotalSize);
+	if ( objUnit == NULL ) {
+		xrtSetError("memory unit create failed.", FALSE);
+		return NULL;
+	}
+	objUnit->ItemLength = iItemLength;
+	objUnit->Count = 0;
+	objUnit->FreeCount = 0;
+	objUnit->FreeOffset = 0;
+	objUnit->Flag = 0;
+	xrtOwnerInitMode(&objUnit->Owner, iMode);
+	if ( iMode == XRT_OBJMODE_SHARED ) {
+		xrtOwnerActivateShared(&objUnit->Owner);
+	}
+	return objUnit;
+}
+
+// 从内存管理单元中申请一个元素
+XXAPI ptr xrtMemUnitAlloc(xmemunit objUnit)
+{
+	if ( objUnit == NULL ) {
+		return NULL;
+	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return NULL;
+	}
+	if ( objUnit->Count > 255 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
+		return NULL;
+	}
+	uint8 idx = objUnit->Count;
+	// 优先复用已释放的数据
+	if ( objUnit->FreeCount > 0 ) {
+		idx = objUnit->FreeList[objUnit->FreeOffset];
+		objUnit->FreeOffset++;
+		objUnit->FreeCount--;
+	}
+	objUnit->Count++;
+	MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
+	v->ItemFlag = MMU_FLAG_USE | objUnit->Flag | idx;
+	xrtOwnerEndMutable(&objUnit->Owner);
+	return (void*)&v[1];
+}
+
+// 释放内存管理单元中某个元素
+XXAPI bool xrtMemUnitFreeIdx(xmemunit objUnit, uint8 idx)
+{
+	if ( objUnit == NULL ) {
+		return FALSE;
+	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return FALSE;
+	}
+	MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
+	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
+		return FALSE;
+	}
+	// 释放内存
+	objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
+	objUnit->Count--;
+	if ( objUnit->Count ) {
+		objUnit->FreeCount++;
+	} else {
+		objUnit->FreeCount = 0;
+		objUnit->FreeOffset = 0;
+	}
+	v->ItemFlag = 0;
+	xrtOwnerEndMutable(&objUnit->Owner);
+	return TRUE;
+}
+
+
+// xrtMemUnitFree 相关处理
+XXAPI bool xrtMemUnitFree(xmemunit objUnit, ptr obj)
+{
+	if ( objUnit == NULL ) {
+		return FALSE;
+	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return FALSE;
+	}
+	MMU_ValuePtr v = (MMU_ValuePtr)((uint8*)obj - sizeof(MMU_Value));
+	if ( (v->ItemFlag & MMU_FLAG_USE) == 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
+		return FALSE;
+	}
+	uint8 idx = v->ItemFlag & 0xFF;
+	// 释放内存
+	objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
+	objUnit->Count--;
+	if ( objUnit->Count ) {
+		objUnit->FreeCount++;
+	} else {
+		objUnit->FreeCount = 0;
+		objUnit->FreeOffset = 0;
+	}
+	v->ItemFlag = 0;
+	xrtOwnerEndMutable(&objUnit->Owner);
+	return TRUE;
+}
+
+// 进行一轮GC，将 标记 或 未标记 的内存全部回收
+XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
+{
+	if ( objUnit == NULL ) {
+		return 0;
+	}
+	if ( !xrtOwnerBeginMutable(&objUnit->Owner, "memory unit belongs to another thread.") ) {
+		return 0;
+	}
+	if ( objUnit->Count == 0 ) {
+		xrtOwnerEndMutable(&objUnit->Owner);
+		return 0;
+	}
+	int iCount = 0;
+	if ( bFreeMark ) {
+		// 被标记的内存将被回收
+		for ( int idx = 0; idx < 256; idx++ ) {
+			MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
+			if ( v->ItemFlag & MMU_FLAG_USE ) {
+				if ( v->ItemFlag & MMU_FLAG_GC ) {
+					objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
+					objUnit->Count--;
+					if ( objUnit->Count ) {
+						objUnit->FreeCount++;
+					} else {
+						objUnit->FreeCount = 0;
+						objUnit->FreeOffset = 0;
+					}
+					v->ItemFlag = 0;
+					iCount++;
+				}
+			}
+		}
+	} else {
+		// 未被标记的内存将被回收
+		for ( int idx = 0; idx < 256; idx++ ) {
+			MMU_ValuePtr v = (MMU_ValuePtr)&(objUnit->Memory[objUnit->ItemLength * idx]);
+			if ( v->ItemFlag & MMU_FLAG_USE ) {
+				if ( v->ItemFlag & MMU_FLAG_GC ) {
+					v->ItemFlag &= ~MMU_FLAG_GC;
+				} else {
+					objUnit->FreeList[(objUnit->FreeOffset + objUnit->FreeCount) & 0xFF] = idx;
+					objUnit->Count--;
+					if ( objUnit->Count ) {
+						objUnit->FreeCount++;
+					} else {
+						objUnit->FreeCount = 0;
+						objUnit->FreeOffset = 0;
+					}
+					v->ItemFlag = 0;
+					iCount++;
+				}
+			}
+		}
+	}
+	xrtOwnerEndMutable(&objUnit->Owner);
+	return iCount;
+}
+
+
