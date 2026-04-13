@@ -1,4 +1,4 @@
-#ifndef XRT_XNET_SYNC_H
+﻿#ifndef XRT_XNET_SYNC_H
 #define XRT_XNET_SYNC_H
 
 /*
@@ -1551,6 +1551,31 @@ static void __xnetFutureGroupFree(__xnet_future_group_ctx* pGroup)
 }
 
 
+// Internal: retain future group context.
+static __xnet_future_group_ctx* __xnetFutureGroupAddRef(__xnet_future_group_ctx* pGroup)
+{
+	if ( pGroup == NULL ) {
+		return NULL;
+	}
+
+	(void)__xnetAtomicAddFetch32(&pGroup->iRefCount, 1);
+	return pGroup;
+}
+
+
+// Internal: release future group context reference.
+static void __xnetFutureGroupRelease(__xnet_future_group_ctx* pGroup)
+{
+	if ( pGroup == NULL ) {
+		return;
+	}
+
+	if ( __xnetAtomicAddFetch32(&pGroup->iRefCount, -1) == 0 ) {
+		__xnetFutureGroupFree(pGroup);
+	}
+}
+
+
 // 内部函数：__xnetFutureGroupOnSourceDone
 static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 {
@@ -1646,9 +1671,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, &tOk);
 	}
 	// 减少组引用计数, 若归零则释放
-	if ( __xnetAtomicAddFetch32(&pGroup->iRefCount, -1) == 0 ) {
-		__xnetFutureGroupFree(pGroup);
-	}
+	__xnetFutureGroupRelease(pGroup);
 }
 
 
@@ -1688,7 +1711,7 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 	pGroup->iMode = iMode;
 	pGroup->iCount = iCount;
 	pGroup->iRemaining = iCount;
-	pGroup->iRefCount = iCount;
+	pGroup->iRefCount = 1;
 	pGroup->pPromise = pPromise;
 	// 创建组互斥锁
 	pGroup->pLock = xrtMutexCreate();
@@ -1713,23 +1736,26 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 		xfuture* pChild;
 		if ( arrFuture[i] == NULL ) {
 			__xnetSyncSetError("future group source is null.");
-			__xnetFutureGroupFree(pGroup);
+			__xnetFutureGroupRelease(pGroup);
 			xFutureRelease(pOut);
 			return NULL;
 		}
 		pGroup->arrSources[i] = xFutureAddRef(arrFuture[i]);
 		pGroup->arrItems[i].pGroup = pGroup;
 		pGroup->arrItems[i].iIndex = i;
+		(void)__xnetFutureGroupAddRef(pGroup);
 		// 为每个源 Future 注册 finally 回调, 用于追踪完成事件
 		pChild = xFutureFinallyEngine(arrFuture[i], NULL, 0, __xnetFutureGroupOnSourceDone, &pGroup->arrItems[i]);
 		if ( pChild == NULL ) {
-			__xnetFutureGroupFree(pGroup);
+			__xnetFutureGroupRelease(pGroup);
+			__xnetFutureGroupRelease(pGroup);
 			xFutureRelease(pOut);
 			return NULL;
 		}
 		xFutureRelease(pChild);
 	}
 
+	__xnetFutureGroupRelease(pGroup);
 	return pOut;
 }
 #endif

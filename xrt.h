@@ -7946,6 +7946,26 @@
 
 	// 获取值类型
 	XXAPI int xvoType(xvalue pVal);
+	XXAPI str xvoTypeName(int iType);
+	XXAPI bool xvoIsBool(xvalue pVal);
+	XXAPI bool xvoIsInt(xvalue pVal);
+	XXAPI bool xvoIsFloat(xvalue pVal);
+	XXAPI bool xvoIsText(xvalue pVal);
+	XXAPI bool xvoIsTime(xvalue pVal);
+	XXAPI bool xvoIsPoint(xvalue pVal);
+	XXAPI bool xvoIsFunc(xvalue pVal);
+	XXAPI bool xvoIsArray(xvalue pVal);
+	XXAPI bool xvoIsList(xvalue pVal);
+	XXAPI bool xvoIsColl(xvalue pVal);
+	XXAPI bool xvoIsTable(xvalue pVal);
+	XXAPI bool xvoIsClass(xvalue pVal);
+	XXAPI bool xvoIsCustom(xvalue pVal);
+	XXAPI bool xvoIsNumber(xvalue pVal);
+	XXAPI bool xvoIsBasic(xvalue pVal);
+	XXAPI bool xvoIsContainer(xvalue pVal);
+	XXAPI bool xvoCanCompareBasic(xvalue pLeft, xvalue pRight);
+	XXAPI int xvoBasicCompare(xvalue pLeft, xvalue pRight);
+	XXAPI bool xvoBasicEqual(xvalue pLeft, xvalue pRight);
 	#define xvoArrayItemType(pArr, index)														xvoType(xvoArrayGetValue(pArr, index))
 	#define xvoListItemType(pList, index)														xvoType(xvoListGetValue(pList, index))
 	#define xvoTableItemType(pTbl, key, kl)														xvoType(xvoTableGetValue(pTbl, key, kl))

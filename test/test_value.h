@@ -686,6 +686,34 @@ void Test_Value_Full(xrtGlobalData* xCore)
 	xvoUnref(vCustom);
 	printf("\n");
 	
+	// [8.5] Basic interop helpers
+	printf("[8.5. Basic interop helpers]\n");
+	xvalue cmpInt = xvoCreateInt(42);
+	xvalue cmpFloat = xvoCreateFloat(42.0);
+	xvalue cmpTextA = xvoCreateText("abc", 0, FALSE);
+	xvalue cmpTextB = xvoCreateText("abd", 0, FALSE);
+	xvalue cmpTime = xvoCreateTimeSerial(2025, 1, 15, 10, 30, 45);
+	xvalue cmpTimeText = xvoCreateText("2025-01-15 10:30:45", 0, FALSE);
+	if ( strcmp(xvoTypeName(XVO_DT_TABLE), "table") == 0 && strcmp(xvoTypeName(999), "unknown") == 0 ) { printf("  + xvoTypeName\n"); passed++; }
+	else { printf("  - xvoTypeName\n"); failed++; }
+	if ( xvoIsInt(cmpInt) && xvoIsNumber(cmpInt) && xvoIsFloat(cmpFloat) && xvoIsText(cmpTextA) && xvoIsTime(cmpTime) && xvoIsBasic(cmpTime) && !xvoIsContainer(cmpTime) ) { printf("  + type predicates\n"); passed++; }
+	else { printf("  - type predicates\n"); failed++; }
+	if ( xvoCanCompareBasic(cmpInt, cmpFloat) && xvoBasicEqual(cmpInt, cmpFloat) ) { printf("  + numeric basic compare\n"); passed++; }
+	else { printf("  - numeric basic compare\n"); failed++; }
+	if ( xvoCanCompareBasic(cmpTextA, cmpTextB) && xvoBasicCompare(cmpTextA, cmpTextB) < 0 ) { printf("  + text basic compare\n"); passed++; }
+	else { printf("  - text basic compare\n"); failed++; }
+	if ( xvoGetTime(cmpTimeText) == xvoGetTime(cmpTime) ) { printf("  + text to time convert\n"); passed++; }
+	else { printf("  - text to time convert\n"); failed++; }
+	if ( !xvoCanCompareBasic(cmpInt, cmpTextA) ) { printf("  + reject mixed basic compare\n"); passed++; }
+	else { printf("  - reject mixed basic compare\n"); failed++; }
+	xvoUnref(cmpInt);
+	xvoUnref(cmpFloat);
+	xvoUnref(cmpTextA);
+	xvoUnref(cmpTextB);
+	xvoUnref(cmpTime);
+	xvoUnref(cmpTimeText);
+	printf("\n");
+	
 	// ========== 第二部分: Array 完整操作 ==========
 	printf("=== 第二部分: Array 完整操作 ===\n\n");
 	

@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-09 18:26:10
+    Generated: 2026-04-13 01:54:51
 
     MIT License
 
@@ -6869,6 +6869,26 @@
 	XXAPI bool xvoIsNull(xvalue pVal);
 	// 获取值类型
 	XXAPI int xvoType(xvalue pVal);
+	XXAPI str xvoTypeName(int iType);
+	XXAPI bool xvoIsBool(xvalue pVal);
+	XXAPI bool xvoIsInt(xvalue pVal);
+	XXAPI bool xvoIsFloat(xvalue pVal);
+	XXAPI bool xvoIsText(xvalue pVal);
+	XXAPI bool xvoIsTime(xvalue pVal);
+	XXAPI bool xvoIsPoint(xvalue pVal);
+	XXAPI bool xvoIsFunc(xvalue pVal);
+	XXAPI bool xvoIsArray(xvalue pVal);
+	XXAPI bool xvoIsList(xvalue pVal);
+	XXAPI bool xvoIsColl(xvalue pVal);
+	XXAPI bool xvoIsTable(xvalue pVal);
+	XXAPI bool xvoIsClass(xvalue pVal);
+	XXAPI bool xvoIsCustom(xvalue pVal);
+	XXAPI bool xvoIsNumber(xvalue pVal);
+	XXAPI bool xvoIsBasic(xvalue pVal);
+	XXAPI bool xvoIsContainer(xvalue pVal);
+	XXAPI bool xvoCanCompareBasic(xvalue pLeft, xvalue pRight);
+	XXAPI int xvoBasicCompare(xvalue pLeft, xvalue pRight);
+	XXAPI bool xvoBasicEqual(xvalue pLeft, xvalue pRight);
 	#define xvoArrayItemType(pArr, index)														xvoType(xvoArrayGetValue(pArr, index))
 	#define xvoListItemType(pList, index)														xvoType(xvoListGetValue(pList, index))
 	#define xvoTableItemType(pTbl, key, kl)														xvoType(xvoTableGetValue(pTbl, key, kl))
@@ -50116,6 +50136,25 @@ static void __xnetFutureGroupFree(__xnet_future_group_ctx* pGroup)
 	__xnetFutureResultFree(&pGroup->tFirstFailure);
 	XNET_FREE(pGroup);
 }
+// Internal: retain future group context.
+static __xnet_future_group_ctx* __xnetFutureGroupAddRef(__xnet_future_group_ctx* pGroup)
+{
+	if ( pGroup == NULL ) {
+		return NULL;
+	}
+	(void)__xnetAtomicAddFetch32(&pGroup->iRefCount, 1);
+	return pGroup;
+}
+// Internal: release future group context reference.
+static void __xnetFutureGroupRelease(__xnet_future_group_ctx* pGroup)
+{
+	if ( pGroup == NULL ) {
+		return;
+	}
+	if ( __xnetAtomicAddFetch32(&pGroup->iRefCount, -1) == 0 ) {
+		__xnetFutureGroupFree(pGroup);
+	}
+}
 // 内部函数：__xnetFutureGroupOnSourceDone
 static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 {
@@ -50207,9 +50246,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, &tOk);
 	}
 	// 减少组引用计数, 若归零则释放
-	if ( __xnetAtomicAddFetch32(&pGroup->iRefCount, -1) == 0 ) {
-		__xnetFutureGroupFree(pGroup);
-	}
+	__xnetFutureGroupRelease(pGroup);
 }
 // 内部函数：创建 Future 组
 static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_future_group_mode iMode)
@@ -50243,7 +50280,7 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 	pGroup->iMode = iMode;
 	pGroup->iCount = iCount;
 	pGroup->iRemaining = iCount;
-	pGroup->iRefCount = iCount;
+	pGroup->iRefCount = 1;
 	pGroup->pPromise = pPromise;
 	// 创建组互斥锁
 	pGroup->pLock = xrtMutexCreate();
@@ -50267,22 +50304,25 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 		xfuture* pChild;
 		if ( arrFuture[i] == NULL ) {
 			__xnetSyncSetError("future group source is null.");
-			__xnetFutureGroupFree(pGroup);
+			__xnetFutureGroupRelease(pGroup);
 			xFutureRelease(pOut);
 			return NULL;
 		}
 		pGroup->arrSources[i] = xFutureAddRef(arrFuture[i]);
 		pGroup->arrItems[i].pGroup = pGroup;
 		pGroup->arrItems[i].iIndex = i;
+		(void)__xnetFutureGroupAddRef(pGroup);
 		// 为每个源 Future 注册 finally 回调, 用于追踪完成事件
 		pChild = xFutureFinallyEngine(arrFuture[i], NULL, 0, __xnetFutureGroupOnSourceDone, &pGroup->arrItems[i]);
 		if ( pChild == NULL ) {
-			__xnetFutureGroupFree(pGroup);
+			__xnetFutureGroupRelease(pGroup);
+			__xnetFutureGroupRelease(pGroup);
 			xFutureRelease(pOut);
 			return NULL;
 		}
 		xFutureRelease(pChild);
 	}
+	__xnetFutureGroupRelease(pGroup);
 	return pOut;
 }
 #endif
@@ -71908,7 +71948,7 @@ XXAPI xtime xvoGetTime(xvalue pVal)
 	} else if ( pVal->Type == XVO_DT_TIME ) {
 		return pVal->vTime;
 	} else if ( pVal->Type == XVO_DT_TEXT ) {
-		return 0;			// 未来应该支持字符串转换为 xtime
+		return xrtStrToTime(pVal->vText, pVal->Size);
 	} else {
 		return 0;
 	}
@@ -72898,6 +72938,169 @@ XXAPI int xvoType(xvalue pVal)
 	}
 }
 // 获取数据长度
+static bool __xvoTypeIsNumeric(int iType)
+{
+	return (iType == XVO_DT_BOOL) || (iType == XVO_DT_INT) || (iType == XVO_DT_FLOAT);
+}
+static int __xvoCompareInt64(int64 iLeft, int64 iRight)
+{
+	if ( iLeft < iRight ) {
+		return -1;
+	} else if ( iLeft > iRight ) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+static int __xvoCompareDouble(double fLeft, double fRight)
+{
+	if ( fLeft < fRight ) {
+		return -1;
+	} else if ( fLeft > fRight ) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+XXAPI str xvoTypeName(int iType)
+{
+	switch ( iType ) {
+		case XVO_DT_NULL: return (str)"null";
+		case XVO_DT_BOOL: return (str)"bool";
+		case XVO_DT_INT: return (str)"int";
+		case XVO_DT_FLOAT: return (str)"float";
+		case XVO_DT_TEXT: return (str)"text";
+		case XVO_DT_TIME: return (str)"time";
+		case XVO_DT_POINT: return (str)"point";
+		case XVO_DT_FUNC: return (str)"func";
+		case XVO_DT_ARRAY: return (str)"array";
+		case XVO_DT_LIST: return (str)"list";
+		case XVO_DT_COLL: return (str)"coll";
+		case XVO_DT_TABLE: return (str)"table";
+		case XVO_DT_CLASS: return (str)"class";
+		case XVO_DT_CUSTOM: return (str)"custom";
+		default: return (str)"unknown";
+	}
+}
+XXAPI bool xvoIsBool(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_BOOL;
+}
+XXAPI bool xvoIsInt(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_INT;
+}
+XXAPI bool xvoIsFloat(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_FLOAT;
+}
+XXAPI bool xvoIsText(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_TEXT;
+}
+XXAPI bool xvoIsTime(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_TIME;
+}
+XXAPI bool xvoIsPoint(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_POINT;
+}
+XXAPI bool xvoIsFunc(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_FUNC;
+}
+XXAPI bool xvoIsArray(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_ARRAY;
+}
+XXAPI bool xvoIsList(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_LIST;
+}
+XXAPI bool xvoIsColl(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_COLL;
+}
+XXAPI bool xvoIsTable(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_TABLE;
+}
+XXAPI bool xvoIsClass(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_CLASS;
+}
+XXAPI bool xvoIsCustom(xvalue pVal)
+{
+	return xvoType(pVal) == XVO_DT_CUSTOM;
+}
+XXAPI bool xvoIsNumber(xvalue pVal)
+{
+	return __xvoTypeIsNumeric(xvoType(pVal));
+}
+XXAPI bool xvoIsBasic(xvalue pVal)
+{
+	int iType = xvoType(pVal);
+	return (iType == XVO_DT_NULL)
+		|| (iType == XVO_DT_BOOL)
+		|| (iType == XVO_DT_INT)
+		|| (iType == XVO_DT_FLOAT)
+		|| (iType == XVO_DT_TEXT)
+		|| (iType == XVO_DT_TIME);
+}
+XXAPI bool xvoIsContainer(xvalue pVal)
+{
+	int iType = xvoType(pVal);
+	return (iType == XVO_DT_ARRAY)
+		|| (iType == XVO_DT_LIST)
+		|| (iType == XVO_DT_COLL)
+		|| (iType == XVO_DT_TABLE);
+}
+XXAPI bool xvoCanCompareBasic(xvalue pLeft, xvalue pRight)
+{
+	int iLeftType = xvoType(pLeft);
+	int iRightType = xvoType(pRight);
+	if ( iLeftType == XVO_DT_NULL || iRightType == XVO_DT_NULL ) {
+		return iLeftType == iRightType;
+	}
+	if ( __xvoTypeIsNumeric(iLeftType) && __xvoTypeIsNumeric(iRightType) ) {
+		return TRUE;
+	}
+	if ( iLeftType == XVO_DT_TEXT && iRightType == XVO_DT_TEXT ) {
+		return TRUE;
+	}
+	if ( iLeftType == XVO_DT_TIME && iRightType == XVO_DT_TIME ) {
+		return TRUE;
+	}
+	return FALSE;
+}
+XXAPI int xvoBasicCompare(xvalue pLeft, xvalue pRight)
+{
+	int iLeftType = xvoType(pLeft);
+	int iRightType = xvoType(pRight);
+	if ( !xvoCanCompareBasic(pLeft, pRight) ) {
+		return 2;
+	}
+	if ( iLeftType == XVO_DT_NULL ) {
+		return 0;
+	}
+	if ( __xvoTypeIsNumeric(iLeftType) && __xvoTypeIsNumeric(iRightType) ) {
+		if ( iLeftType == XVO_DT_FLOAT || iRightType == XVO_DT_FLOAT ) {
+			return __xvoCompareDouble(xvoGetFloat(pLeft), xvoGetFloat(pRight));
+		}
+		return __xvoCompareInt64(xvoGetInt(pLeft), xvoGetInt(pRight));
+	}
+	if ( iLeftType == XVO_DT_TEXT ) {
+		int iCmp = xrtStrComp(xvoGetText(pLeft), xvoGetText(pRight), 0, FALSE);
+		return (iCmp < 0) ? -1 : ((iCmp > 0) ? 1 : 0);
+	}
+	return __xvoCompareInt64(xvoGetTime(pLeft), xvoGetTime(pRight));
+}
+XXAPI bool xvoBasicEqual(xvalue pLeft, xvalue pRight)
+{
+	return xvoBasicCompare(pLeft, pRight) == 0;
+}
+// ??????
 XXAPI uint32 xvoGetSize(xvalue pVal)
 {
 	if ( pVal == NULL ) {
