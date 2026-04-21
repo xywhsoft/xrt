@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-13 01:54:51
+    Generated: 2026-04-21 13:03:24
 
     MIT License
 
@@ -4000,6 +4000,7 @@
 			uint32 iFlags;
 			uint32 iBacklog;
 			uint32 iRecvLimit;
+			uint32 iBodyLimit;
 			const xtlsconfig* pTlsConfig;
 		} xhttpdconfig;
 		typedef struct {
@@ -32003,7 +32004,11 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		// 去除头部名称和值的前后空白
 		__xcodecHttpTrimView(&sName, &iNameLen);
 		__xcodecHttpTrimView(&sValue, &iValueLen);
-		if ( pMsg->iHeaderCount < XCODEC_HTTP1_MAX_HEADERS ) {
+		if ( pMsg->iHeaderCount >= XCODEC_HTTP1_MAX_HEADERS ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+		{
 			xcodechttp1header* pHeader = &pMsg->arrHeaders[pMsg->iHeaderCount++];
 			__xcodecHttpCopyToken(pHeader->sName, sizeof(pHeader->sName), sName, iNameLen);
 			__xcodecHttpCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue, iValueLen);
@@ -37857,6 +37862,11 @@ struct xrt_tls_resume {
 	uint8 iSessionIdLen;
 	uint8 aSessionId[32];
 	uint8 aMasterSecret[48];
+	uint8 iIdentityType;
+	uint8 iIdentityHashLen;
+	uint8 bHasServerName;
+	uint8 aIdentityHash[32];
+	uint8 aServerNameHash[32];
 };
 typedef struct __xrt_tls_resume_cache_entry {
 	struct __xrt_tls_resume_cache_entry* pNext;
@@ -37867,6 +37877,10 @@ static volatile long __xrt_tls_resume_lock = 0;
 static __xrt_tls_resume_cache_entry* __xrt_tls_resume_cache = NULL;
 static uint32 __xrt_tls_resume_cache_count = 0;
 static uint64 __xrt_tls_resume_cache_gen = 0;
+#define __XRT_TLS_RESUME_IDENTITY_NONE     0
+#define __XRT_TLS_RESUME_IDENTITY_RSA      1
+#define __XRT_TLS_RESUME_IDENTITY_ECDSA    2
+#define __XRT_TLS_RESUME_IDENTITY_ED25519  3
 #ifndef __XRT_TLS_VERSION_1_2
 	#define __XRT_TLS_VERSION_1_2  0x0303
 #endif
@@ -37879,20 +37893,38 @@ static uint64 __xrt_tls_resume_cache_gen = 0;
 	#define __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256  0xCCA9
 #endif
 // 内部函数：__xrt_tls_resume_lock_acquire
+static void __xrt_tls_resume_lock_wait(uint32 iSpin)
+{
+	if ( iSpin < 16 ) {
+		xrtThreadYield();
+		return;
+	}
+	if ( iSpin < 32 ) {
+		xrtSleep(1);
+		return;
+	}
+	if ( iSpin < 48 ) {
+		xrtSleep(2);
+		return;
+	}
+	xrtSleep(4);
+}
+// 内部函数：__xrt_tls_resume_lock_acquire
 static void __xrt_tls_resume_lock_acquire(void)
 {
-	// 自旋锁：通过原子交换操作尝试获取锁，失败则让出 CPU 重试
+	uint32 iSpin = 0;
+	// 自旋锁：通过原子交换操作尝试获取锁，失败则逐步退避，降低高并发下的 CPU 空转
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
 		while ( __xrtAtomicExchange32(&__xrt_tls_resume_lock, 1) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#elif defined(_WIN32) || defined(_WIN64)
 		while ( InterlockedCompareExchange((volatile LONG*)&__xrt_tls_resume_lock, 1, 0) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#else
 		while ( __sync_lock_test_and_set(&__xrt_tls_resume_lock, 1) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#endif
 }
@@ -37947,7 +37979,9 @@ static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 	__xrt_tls_resume_cache_entry* pCurr = NULL;
 	// 验证参数有效性：仅支持 TLS 1.2 且会话ID长度合法
 	if ( !pResume || pResume->iVersion != __XRT_TLS_VERSION_1_2
-		|| pResume->iSessionIdLen == 0 || pResume->iSessionIdLen > 32u ) return;
+		|| pResume->iSessionIdLen == 0 || pResume->iSessionIdLen > 32u
+		|| pResume->iIdentityType == __XRT_TLS_RESUME_IDENTITY_NONE
+		|| pResume->iIdentityHashLen != 32 ) return;
 	__xrt_tls_resume_lock_acquire();
 	// 遍历链表查找是否已存在相同会话ID的条目
 	for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
@@ -39448,6 +39482,66 @@ struct xrt_tls_context {
 	size_t iRecvMsgLen;
 	uint8 iContentType;
 };
+static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t iLen);
+// 内部函数：__xrt_tls_resume_identity_type
+static uint8 __xrt_tls_resume_identity_type(const xtlsctx* pCtx)
+{
+	if ( !pCtx || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return __XRT_TLS_RESUME_IDENTITY_NONE; }
+	if ( pCtx->bIsEd25519Key ) { return __XRT_TLS_RESUME_IDENTITY_ED25519; }
+	if ( pCtx->bIsECPubKey ) { return __XRT_TLS_RESUME_IDENTITY_ECDSA; }
+	return __XRT_TLS_RESUME_IDENTITY_RSA;
+}
+// 内部函数：__xrt_tls12_suite_matches_identity
+static bool __xrt_tls12_suite_matches_identity(uint16 iCipherSuite, uint8 iIdentityType)
+{
+	switch ( iCipherSuite ) {
+		case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384:
+		case __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256:
+			return iIdentityType == __XRT_TLS_RESUME_IDENTITY_ECDSA
+				|| iIdentityType == __XRT_TLS_RESUME_IDENTITY_ED25519;
+		case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384:
+		case __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256:
+		case __XRT_TLS12_RSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_RSA_AES256_GCM_SHA384:
+			return iIdentityType == __XRT_TLS_RESUME_IDENTITY_RSA;
+		default:
+			return false;
+	}
+}
+// 内部函数：__xrt_tls_resume_fill_identity
+static bool __xrt_tls_resume_fill_identity(xtlsctx* pCtx, struct xrt_tls_resume* pOut)
+{
+	const char* sServerName;
+	if ( !pCtx || !pOut ) { return false; }
+	pOut->iIdentityType = __xrt_tls_resume_identity_type(pCtx);
+	if ( pOut->iIdentityType == __XRT_TLS_RESUME_IDENTITY_NONE || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return false; }
+	xrtSHA256((const ptr)pCtx->pCertDer, pCtx->iCertDerLen, pOut->aIdentityHash);
+	pOut->iIdentityHashLen = 32;
+	sServerName = pCtx->bIsServer ? pCtx->sClientSNI : pCtx->sHostname;
+	if ( sServerName && sServerName[0] ) {
+		xrtSHA256((const ptr)sServerName, strlen(sServerName), pOut->aServerNameHash);
+		pOut->bHasServerName = true;
+	} else {
+		pOut->bHasServerName = false;
+		memset(pOut->aServerNameHash, 0, sizeof(pOut->aServerNameHash));
+	}
+	return true;
+}
+// 内部函数：__xrt_tls_resume_matches_identity
+static bool __xrt_tls_resume_matches_identity(xtlsctx* pCtx, const struct xrt_tls_resume* pResume)
+{
+	struct xrt_tls_resume tCurrent;
+	if ( !pCtx || !pResume ) { return false; }
+	if ( !__xrt_tls_resume_fill_identity(pCtx, &tCurrent) ) { return false; }
+	if ( pResume->iIdentityType != tCurrent.iIdentityType ) { return false; }
+	if ( pResume->iIdentityHashLen != 32 || tCurrent.iIdentityHashLen != 32 ) { return false; }
+	if ( !__xrt_tls_consttime_equal(pResume->aIdentityHash, tCurrent.aIdentityHash, 32) ) { return false; }
+	if ( pResume->bHasServerName != tCurrent.bHasServerName ) { return false; }
+	if ( pResume->bHasServerName && !__xrt_tls_consttime_equal(pResume->aServerNameHash, tCurrent.aServerNameHash, 32) ) { return false; }
+	return __xrt_tls12_suite_matches_identity(pResume->iCipherSuite, tCurrent.iIdentityType);
+}
 static bool __xrt_tls_parse_alert_record(const uint8* pAlert, size_t iLen, uint8* pLevel, uint8* pDesc)
 {
 	if ( pAlert == NULL || iLen < 2 ) { return false; }
@@ -39490,6 +39584,10 @@ static bool __xrt_tls_resume_from_ctx(xtlsctx* pCtx, struct xrt_tls_resume* pOut
 	pOut->iSessionIdLen = pCtx->iSessionIdLen;
 	memcpy(pOut->aSessionId, pCtx->aSessionId, pCtx->iSessionIdLen);
 	memcpy(pOut->aMasterSecret, pCtx->aMasterSecret, sizeof(pOut->aMasterSecret));
+	if ( pCtx->bIsServer ) {
+		if ( !__xrt_tls_resume_fill_identity(pCtx, pOut) ) { return false; }
+		if ( !__xrt_tls12_suite_matches_identity(pOut->iCipherSuite, pOut->iIdentityType) ) { return false; }
+	}
 	return true;
 }
 // SHA-256("") 预计算
@@ -44078,6 +44176,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	// 尝试 TLS 1.2 会话恢复：匹配 session_id 和密码套件
 	if ( pCtx->iSessionIdLen > 0
 		&& __xrt_tls_resume_cache_lookup(pCtx->aSessionId, pCtx->iSessionIdLen, &tCachedResume)
+		&& __xrt_tls_resume_matches_identity(pCtx, &tCachedResume)
 		&& __xrt_tls12_client_offers_suite(tCachedResume.iCipherSuite,
 			bOfferTLS12EcdheEcdsaAES128,
 			bOfferTLS12EcdheEcdsaAES256,
@@ -47360,6 +47459,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 	// 创建 TCP 流套接字
 	pListener->hSocket = __xnetSocketCreateStream(pListener->tConfig.tBindAddr.iFamily);
 	if ( !__xnetSocketIsValid(pListener->hSocket) ) { return XRT_NET_ERROR; }
+	(void)__xnetSocketSetReuseAddr(pListener->hSocket);
 	(void)__xnetSocketApplyListenFlags(pListener->hSocket, pListener->tConfig.iFlags);
 	(void)__xnetSocketSetNonBlock(pListener->hSocket, true);
 	// 绑定到指定地址和端口
@@ -54951,6 +55051,7 @@ typedef struct {
 	uint32 iFlags;
 	uint32 iBacklog;
 	uint32 iRecvLimit;
+	uint32 iBodyLimit;
 	const xtlsconfig* pTlsConfig;
 } xhttpdconfig;
 typedef struct {
@@ -54974,16 +55075,29 @@ struct xrt_httpd_conn {
 	bool bResponseDrained;
 	bool bAsyncPending;
 	bool bKeepAlive;
+	bool bContinueSent;
 };
 struct xrt_httpd_server {
 	xnetengine* pEngine;
 	xnetlistener* pListener;
 	xhttpdconfig tConfig;
+	xtlsconfig tTlsConfig;
 	xhttpdevents tEvents;
 	ptr pUserData;
 	volatile long iConnLock;
 	volatile long bRunning;
 	xhttpdconn* pConnHead;
+	bool bHasTlsConfig;
+	char* sTlsCertFile;
+	char* sTlsKeyFile;
+	char* sTlsCaFile;
+	char* sTlsCrlFile;
+	char* sTlsHostName;
+	void* pTlsCertData;
+	void* pTlsKeyData;
+	void* pTlsCaData;
+	void* pTlsCrlData;
+	xtlsresume* pTlsResume;
 };
 typedef struct {
 	xhttpdconn* pConn;
@@ -55044,7 +55158,10 @@ static void __xhttpdSleep0(void)
 // 内部函数：锁定
 static void __xhttpdLock(volatile long* pLock)
 {
-	if ( !pLock ) { return; }
+	if ( !pLock ) {
+		xrtSetError("xhttpd lock pointer is null.", FALSE);
+		return;
+	}
 	while ( __xhttpdAtomicCompareExchange(pLock, 1, 0) != 0 ) {
 		__xhttpdSleep0();
 	}
@@ -55052,7 +55169,10 @@ static void __xhttpdLock(volatile long* pLock)
 // 内部函数：解锁
 static void __xhttpdUnlock(volatile long* pLock)
 {
-	if ( !pLock ) { return; }
+	if ( !pLock ) {
+		xrtSetError("xhttpd unlock pointer is null.", FALSE);
+		return;
+	}
 	(void)__xnetAtomicExchange32(pLock, 0);
 }
 // 内部函数：复制 Token
@@ -55068,6 +55188,59 @@ static void __xhttpdCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 	if ( iLen >= iDstCap ) { iLen = iDstCap - 1u; }
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
+}
+// 内部函数：复制内存
+static void* __xhttpdDupBytes(const void* pData, size_t iLen)
+{
+	void* pCopy;
+	if ( !pData || iLen == 0u ) { return NULL; }
+	pCopy = XNET_ALLOC(iLen);
+	if ( !pCopy ) { return NULL; }
+	memcpy(pCopy, pData, iLen);
+	return pCopy;
+}
+// 内部函数：复制字符串
+static char* __xhttpdDupStr(const char* sText)
+{
+	size_t iLen;
+	char* sCopy;
+	if ( !sText ) { return NULL; }
+	iLen = strlen(sText);
+	if ( iLen == SIZE_MAX ) { return NULL; }
+	sCopy = (char*)XNET_ALLOC(iLen + 1u);
+	if ( !sCopy ) { return NULL; }
+	memcpy(sCopy, sText, iLen + 1u);
+	return sCopy;
+}
+// 内部函数：检查 HTTP 头名称
+static bool __xhttpdValidHeaderName(const char* sName)
+{
+	const unsigned char* p;
+	if ( !sName || !sName[0] ) { return false; }
+	for ( p = (const unsigned char*)sName; *p; ++p ) {
+		if ( *p <= 32u || *p >= 127u || *p == ':' ) { return false; }
+	}
+	return true;
+}
+// 内部函数：检查 HTTP 头值
+static bool __xhttpdValidHeaderValue(const char* sValue)
+{
+	const unsigned char* p;
+	if ( !sValue ) { return false; }
+	for ( p = (const unsigned char*)sValue; *p; ++p ) {
+		if ( *p == '\r' || *p == '\n' ) { return false; }
+	}
+	return true;
+}
+// 内部函数：检查 HTTP reason phrase
+static bool __xhttpdValidReasonPhrase(const char* sReason)
+{
+	const unsigned char* p;
+	if ( !sReason ) { return true; }
+	for ( p = (const unsigned char*)sReason; *p; ++p ) {
+		if ( *p == '\r' || *p == '\n' ) { return false; }
+	}
+	return true;
 }
 // 内部函数：__xhttpdAppendBytes
 static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)
@@ -55118,6 +55291,9 @@ static bool __xhttpdAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const c
 }
 static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain);
 static void __xhttpdEmitServerError(xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
+typedef struct {
+	xhttpdconn* pConn;
+} __xhttpd_conn_task;
 // 内部函数：__xhttpdRequestCreate
 static xhttpdrequest* __xhttpdRequestCreate(void)
 {
@@ -55207,6 +55383,7 @@ XXAPI void xrtHttpdConfigInit(xhttpdconfig* pCfg)
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
 	pCfg->iBacklog = 128u;
 	pCfg->iRecvLimit = 1024u * 1024u;
+	pCfg->iBodyLimit = pCfg->iRecvLimit;
 }
 // xrtHttpdRequestInit 相关处理
 XXAPI void xrtHttpdRequestInit(xhttpdrequest* pReq)
@@ -55225,6 +55402,7 @@ XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq)
 	}
 	pReq->iBodyLen = 0;
 	memset(pReq, 0, sizeof(xhttpdrequest));
+	pReq->iContentLength = -1;
 }
 // xrtHttpdResponseInit 相关处理
 XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp)
@@ -55265,6 +55443,10 @@ XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, 
 {
 	if ( !pResp ) { return; }
 	pResp->iStatusCode = iStatusCode;
+	if ( !__xhttpdValidReasonPhrase(sReason) ) {
+		pResp->sReason[0] = '\0';
+		return;
+	}
 	__xhttpdCopyToken(pResp->sReason, sizeof(pResp->sReason), sReason);
 }
 // 设置 HTTP 服务端 response 头部
@@ -55272,6 +55454,7 @@ XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, c
 {
 	xhttpdheader* pHeader;
 	if ( !pResp || !sName || !sValue ) { return false; }
+	if ( !__xhttpdValidHeaderName(sName) || !__xhttpdValidHeaderValue(sValue) ) { return false; }
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
 		if ( __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, sName) ) {
 			__xhttpdCopyToken(pResp->arrHeaders[i].sValue, sizeof(pResp->arrHeaders[i].sValue), sValue);
@@ -55295,6 +55478,7 @@ XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData,
 	}
 	pResp->iBodyLen = 0;
 	if ( pData && iLen > 0 ) {
+		if ( iLen == SIZE_MAX ) { return false; }
 		pBodyCopy = (char*)XNET_ALLOC(iLen + 1u);
 		if ( !pBodyCopy ) { return false; }
 		memcpy(pBodyCopy, pData, iLen);
@@ -55303,7 +55487,12 @@ XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData,
 	pResp->pBody = pBodyCopy;
 	pResp->iBodyLen = iLen;
 	if ( sContentType && sContentType[0] ) {
-		return xrtHttpdResponseSetHeader(pResp, "Content-Type", sContentType);
+		if ( !xrtHttpdResponseSetHeader(pResp, "Content-Type", sContentType) ) {
+			if ( pResp->pBody ) { XNET_FREE(pResp->pBody); }
+			pResp->pBody = NULL;
+			pResp->iBodyLen = 0;
+			return false;
+		}
 	}
 	return true;
 }
@@ -55315,6 +55504,10 @@ static bool __xhttpdResponseCopy(xhttpdresponse* pDst, const xhttpdresponse* pSr
 	*pDst = *pSrc;
 	pDst->pBody = NULL;
 	if ( pSrc->pBody && pSrc->iBodyLen > 0u ) {
+		if ( pSrc->iBodyLen == SIZE_MAX ) {
+			memset(pDst, 0, sizeof(xhttpdresponse));
+			return false;
+		}
 		pDst->pBody = (char*)XNET_ALLOC(pSrc->iBodyLen + 1u);
 		if ( !pDst->pBody ) {
 			memset(pDst, 0, sizeof(xhttpdresponse));
@@ -55368,7 +55561,7 @@ static bool __xhttpdPrepareResponse(const xhttpdrequest* pReq, const xhttpdrespo
 	return true;
 }
 // 内部函数：__xhttpdBuildRequest
-static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain, xhttpdrequest* pReq)
+static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain, xhttpdrequest* pReq, size_t iBodyLimit)
 {
 	size_t iBodyBytes;
 	xrturlview tTarget;
@@ -55403,8 +55596,13 @@ static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg
 	}
 	// 提取并复制请求正文
 	iBodyBytes = xrtCodecHttp1BodyBytes(pFrame);
+	if ( iBodyLimit > 0u && iBodyBytes > iBodyLimit ) { return false; }
 	if ( (pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u ) { pReq->iContentLength = (int64_t)iBodyBytes; }
 	if ( iBodyBytes > 0u ) {
+		if ( iBodyBytes == SIZE_MAX ) {
+			xrtHttpdRequestUnit(pReq);
+			return false;
+		}
 		pReq->pBody = (char*)XNET_ALLOC(iBodyBytes + 1u);
 		if ( !pReq->pBody ) {
 			xrtHttpdRequestUnit(pReq);
@@ -55414,6 +55612,30 @@ static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg
 		pReq->pBody[pReq->iBodyLen] = '\0';
 	}
 	return true;
+}
+// 内部函数：格式化 HTTP Date 头
+static bool __xhttpdFormatDate(char* sOut, size_t iOutCap)
+{
+	static const char* arrWeek[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+	static const char* arrMonth[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+	time_t tNow;
+	struct tm tGmt;
+	if ( !sOut || iOutCap == 0u ) { return false; }
+	tNow = time(NULL);
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( gmtime_s(&tGmt, &tNow) != 0 ) { return false; }
+	#else
+		if ( gmtime_r(&tNow, &tGmt) == NULL ) { return false; }
+	#endif
+	if ( tGmt.tm_wday < 0 || tGmt.tm_wday > 6 || tGmt.tm_mon < 0 || tGmt.tm_mon > 11 ) { return false; }
+	return snprintf(sOut, iOutCap, "Date: %s, %02d %s %04d %02d:%02d:%02d GMT\r\n",
+		arrWeek[tGmt.tm_wday],
+		tGmt.tm_mday,
+		arrMonth[tGmt.tm_mon],
+		tGmt.tm_year + 1900,
+		tGmt.tm_hour,
+		tGmt.tm_min,
+		tGmt.tm_sec) > 0;
 }
 // 内部函数：__xhttpdBuildResponseBytes
 static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut, size_t* pOutLen)
@@ -55428,10 +55650,16 @@ static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut
 	if ( !pResp || !ppOut || !pOutLen ) { return false; }
 	// 确定原因短语和传输编码模式
 	sReason = pResp->sReason[0] ? pResp->sReason : __xhttpdStatusText(pResp->iStatusCode);
+	if ( !__xhttpdValidReasonPhrase(sReason) ) { goto fail; }
 	bChunked = __xhttpdContainsTokenNoCase(xrtHttpdResponseHeader(pResp, "Transfer-Encoding"), "chunked");
 	// 构建状态行
 	snprintf(aLine, sizeof(aLine), "HTTP/1.1 %u %s\r\n", (unsigned)pResp->iStatusCode, sReason);
 	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
+	if ( !__xhttpdResponseHasHeader(pResp, "Date") ) {
+		if ( __xhttpdFormatDate(aLine, sizeof(aLine)) ) {
+			if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
+		}
+	}
 	// 补充 Connection 头部
 	if ( !__xhttpdResponseHasHeader(pResp, "Connection") ) {
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "Connection: close\r\n") ) { goto fail; }
@@ -55444,6 +55672,10 @@ static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut
 	// 追加用户自定义头部
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
 		if ( bChunked && __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, "Content-Length") ) { continue; }
+		if ( !__xhttpdValidHeaderName(pResp->arrHeaders[i].sName)
+			|| !__xhttpdValidHeaderValue(pResp->arrHeaders[i].sValue) ) {
+			goto fail;
+		}
 		snprintf(aLine, sizeof(aLine), "%s: %s\r\n", pResp->arrHeaders[i].sName, pResp->arrHeaders[i].sValue);
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 	}
@@ -55451,12 +55683,13 @@ static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut
 	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n") ) { goto fail; }
 	// 处理响应正文
 	if ( bChunked ) {
-		snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pResp->iBodyLen);
-		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 		if ( pResp->pBody && pResp->iBodyLen > 0 ) {
+			snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pResp->iBodyLen);
+			if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 			if ( !__xhttpdAppendBytes(&pBuf, &iLen, &iCap, pResp->pBody, pResp->iBodyLen) ) { goto fail; }
+			if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n") ) { goto fail; }
 		}
-		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n0\r\n\r\n") ) { goto fail; }
+		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "0\r\n\r\n") ) { goto fail; }
 	} else if ( pResp->pBody && pResp->iBodyLen > 0 ) {
 		if ( !__xhttpdAppendBytes(&pBuf, &iLen, &iCap, pResp->pBody, pResp->iBodyLen) ) { goto fail; }
 	}
@@ -55479,7 +55712,35 @@ static xhttpdrequest* __xhttpdConnDetachRequestLocked(xhttpdconn* pConn)
 	pConn->bResponseDrained = false;
 	pConn->bAsyncPending = false;
 	pConn->bKeepAlive = false;
+	pConn->bContinueSent = false;
 	return pReq;
+}
+// 内部函数：__xhttpdRecvKickTask
+static void __xhttpdRecvKickTask(xnetworker* pWorker, ptr pArg)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pArg;
+	xnetstream* pStream = NULL;
+	(void)pWorker;
+	if ( !pConn ) { return; }
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->pStream && __xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0 ) {
+		pStream = pConn->pStream;
+		__xnetStreamAddAsyncHold(pStream);
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( pStream && xrtNetChainBytes(&pStream->tRxChain) > 0u ) {
+		__xhttpdStreamOnRecv(pConn, pStream, &pStream->tRxChain);
+	}
+	if ( pStream ) { __xnetStreamReleaseAsyncHold(pStream); }
+	__xhttpdConnRelease(pConn);
+}
+// 内部函数：__xhttpdConnPostRecvKick
+static void __xhttpdConnPostRecvKick(xhttpdconn* pConn, xnetstream* pStream)
+{
+	if ( !pConn || !pStream || !pStream->pEngine || !pStream->pWorker ) { return; }
+	if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xhttpdRecvKickTask, __xhttpdConnAddRef(pConn)) != XRT_NET_OK ) {
+		__xhttpdConnRelease(pConn);
+	}
 }
 // 内部函数：__xhttpdConnTryFinalizeRequest
 static void __xhttpdConnTryFinalizeRequest(xhttpdconn* pConn)
@@ -55496,20 +55757,54 @@ static void __xhttpdConnTryFinalizeRequest(xhttpdconn* pConn)
 		else if ( pConn->bKeepAlive && pConn->bResponseCommitted && pConn->bResponseDrained && !pConn->pStream->bClosing ) {
 			pReq = __xhttpdConnDetachRequestLocked(pConn);
 			pStream = pConn->pStream;
+			__xnetStreamAddAsyncHold(pStream);
 			bKickRecv = xrtNetChainBytes(&pStream->tRxChain) > 0u;
 		}
 	}
 	__xhttpdUnlock(&pConn->iConnLock);
 	__xhttpdRequestDestroy(pReq);
-	if ( bKickRecv ) { __xhttpdStreamOnRecv(pConn, pStream, &pStream->tRxChain); }
+	if ( bKickRecv ) { __xhttpdConnPostRecvKick(pConn, pStream); }
+	if ( pStream ) { __xnetStreamReleaseAsyncHold(pStream); }
+}
+// 内部函数：__xhttpdFinalizeTask
+static void __xhttpdFinalizeTask(xnetworker* pWorker, ptr pArg)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pArg;
+	(void)pWorker;
+	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnRelease(pConn);
+}
+// 内部函数：__xhttpdConnFinalizeMaybeAsync
+static void __xhttpdConnFinalizeMaybeAsync(xhttpdconn* pConn)
+{
+	xnetstream* pStream = NULL;
+	if ( !pConn ) { return; }
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	if ( pStream ) { __xnetStreamAddAsyncHold(pStream); }
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( pStream && pStream->pEngine && pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xhttpdFinalizeTask, __xhttpdConnAddRef(pConn)) == XRT_NET_OK ) {
+			__xnetStreamReleaseAsyncHold(pStream);
+			return;
+		}
+		__xhttpdConnRelease(pConn);
+	}
+	if ( pStream ) { __xnetStreamReleaseAsyncHold(pStream); }
+	__xhttpdConnTryFinalizeRequest(pConn);
 }
 // xrtHttpdConnIsOpen 相关处理
 XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn)
 {
-	return pConn &&
-		pConn->pStream != NULL &&
-		__xhttpdAtomicLoadConst(&pConn->iCleanupPosted) == 0 &&
-		!pConn->pStream->bClosing;
+	bool bOpen = false;
+	xhttpdconn* pMutable = (xhttpdconn*)pConn;
+	if ( !pMutable ) { return false; }
+	__xhttpdLock(&pMutable->iConnLock);
+	bOpen = pMutable->pStream != NULL &&
+		__xhttpdAtomicLoadConst(&pMutable->iCleanupPosted) == 0 &&
+		!pMutable->pStream->bClosing;
+	__xhttpdUnlock(&pMutable->iConnLock);
+	return bOpen;
 }
 // 内部函数：发送任务进程
 static void __xhttpdSendTaskProc(xnetworker* pWorker, ptr pArg)
@@ -55630,14 +55925,24 @@ XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* p
 	}
 	xrtHttpdResponseUnit(&tSend);
 	// 尝试完成当前请求并复用连接
-	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnFinalizeMaybeAsync(pConn);
 	return XRT_NET_OK;
 }
 // xrtHttpdConnClose 相关处理
 XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags)
 {
-	if ( !pConn || !pConn->pStream ) { return XRT_NET_ERROR; }
-	xrtNetStreamClose(pConn->pStream, iCloseFlags);
+	xnetstream* pStream;
+	if ( !pConn ) { return XRT_NET_ERROR; }
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	if ( !pStream || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return XRT_NET_ERROR;
+	}
+	__xnetStreamAddAsyncHold(pStream);
+	__xhttpdUnlock(&pConn->iConnLock);
+	xrtNetStreamClose(pStream, iCloseFlags);
+	__xnetStreamReleaseAsyncHold(pStream);
 	return XRT_NET_OK;
 }
 // 内部函数：__xhttpdServerAddConn
@@ -55743,16 +56048,30 @@ static bool __xhttpdSendResponseAndClose(xhttpdconn* pConn, const xhttpdresponse
 {
 	char* pBytes = NULL;
 	size_t iLen = 0u;
+	xnetstream* pStream;
 	xnet_result iRet;
-	if ( !pConn || !pConn->pStream || !pResp ) { return false; }
-	if ( !__xhttpdBuildResponseBytes(pResp, &pBytes, &iLen) ) { return false; }
-	iRet = xrtNetStreamSend(pConn->pStream, pBytes, iLen);
-	XNET_FREE(pBytes);
-	if ( iRet != XRT_NET_OK ) {
-		xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+	if ( !pConn || !pResp ) { return false; }
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	if ( !pStream || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
 		return false;
 	}
-	xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_GRACEFUL);
+	__xnetStreamAddAsyncHold(pStream);
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( !__xhttpdBuildResponseBytes(pResp, &pBytes, &iLen) ) {
+		__xnetStreamReleaseAsyncHold(pStream);
+		return false;
+	}
+	iRet = xrtNetStreamSend(pStream, pBytes, iLen);
+	XNET_FREE(pBytes);
+	if ( iRet != XRT_NET_OK ) {
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		__xnetStreamReleaseAsyncHold(pStream);
+		return false;
+	}
+	xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+	__xnetStreamReleaseAsyncHold(pStream);
 	return true;
 }
 // 内部函数：__xhttpdSendSimpleStatus
@@ -55784,6 +56103,50 @@ static uint32 __xhttpdFutureErrorStatus(const xfuture_result* pResult)
 		return 503u;
 	}
 	return 500u;
+}
+// 内部函数：提前处理 Expect: 100-continue
+static bool __xhttpdMaybeSendContinue(xhttpdconn* pConn, xnetstream* pStream, xnetchain* pChain)
+{
+	static const char aHeadEnd[] = "\r\n\r\n";
+	char* pHead;
+	char* pEnd;
+	size_t iAvail;
+	bool bShouldSend = false;
+	if ( !pConn || !pStream || !pChain ) { return false; }
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->bContinueSent || pConn->bResponseInFlight || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return false;
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	iAvail = xrtNetChainBytes(pChain);
+	if ( iAvail == 0u || iAvail == SIZE_MAX ) { return false; }
+	pHead = (char*)XNET_ALLOC(iAvail + 1u);
+	if ( !pHead ) { return false; }
+	if ( xrtNetChainPeek(pChain, pHead, iAvail) == iAvail ) {
+		pHead[iAvail] = '\0';
+		pEnd = strstr(pHead, aHeadEnd);
+		if ( pEnd ) {
+			pHead[(size_t)(pEnd - pHead) + sizeof(aHeadEnd) - 1u] = '\0';
+		}
+		bShouldSend = strstr(pHead, "\r\nExpect: 100-continue\r\n") != NULL
+			|| strstr(pHead, "\r\nExpect: 100-Continue\r\n") != NULL
+			|| strstr(pHead, "\r\nexpect: 100-continue\r\n") != NULL;
+	}
+	XNET_FREE(pHead);
+	if ( !bShouldSend ) { return false; }
+	__xhttpdLock(&pConn->iConnLock);
+	if ( !pConn->bContinueSent && !pConn->bResponseInFlight && pConn->pStream == pStream ) {
+		pConn->bContinueSent = true;
+		bShouldSend = true;
+	} else {
+		bShouldSend = false;
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( bShouldSend ) {
+		(void)xrtNetStreamSend(pStream, "HTTP/1.1 100 Continue\r\n\r\n", 25u);
+	}
+	return bShouldSend;
 }
 // 内部函数：获取状态正文
 static const char* __xhttpdStatusBody(uint32 iStatusCode)
@@ -55834,7 +56197,7 @@ static void __xhttpdAsyncRequestFinally(const xfuture_result* pResult, ptr pArg)
 	}
 	// 释放资源和引用计数
 	if ( pResp ) { xrtHttpdResponseDestroy(pResp); }
-	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnFinalizeMaybeAsync(pConn);
 	xFutureRelease(pCtx->pFuture);
 	__xhttpdConnRelease(pConn);
 	XNET_FREE(pCtx);
@@ -55916,11 +56279,19 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 	__xhttpdUnlock(&pConn->iConnLock);
 	// 解析 HTTP/1.1 请求
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
-	if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+	if ( iParse == XCODEC_STATUS_NEED_MORE ) {
+		(void)__xhttpdMaybeSendContinue(pConn, pStream, pChain);
+		return;
+	}
 	// 解析失败，返回 400 错误
 	if ( iParse == XCODEC_STATUS_ERROR ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 		__xhttpdSendSimpleStatus(pConn, 400u, "Bad Request");
+		return;
+	}
+	if ( pServer->tConfig.iBodyLimit > 0u && xrtCodecHttp1BodyBytes(&tFrame) > pServer->tConfig.iBodyLimit ) {
+		__xhttpdSendSimpleStatus(pConn, 413u, __xhttpdStatusBody(413u));
+		xrtCodecFrameConsume(pChain, &tFrame);
 		return;
 	}
 	// 创建并构建请求对象
@@ -55930,7 +56301,7 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
-	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, pReq) ) {
+	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, pReq, pServer->tConfig.iBodyLimit) ) {
 		__xhttpdRequestDestroy(pReq);
 		__xhttpdEmitServerError(pServer, pConn, -1);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
@@ -55975,7 +56346,7 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		bResponseCommitted = pConn->bResponseCommitted;
 		__xhttpdUnlock(&pConn->iConnLock);
 		if ( bResponseCommitted ) {
-			__xhttpdConnTryFinalizeRequest(pConn);
+			__xhttpdConnFinalizeMaybeAsync(pConn);
 			return;
 		}
 	}
@@ -56008,7 +56379,7 @@ static void __xhttpdStreamOnDrain(ptr pOwner, xnetstream* pStream)
 	}
 	pConn->bResponseDrained = true;
 	__xhttpdUnlock(&pConn->iConnLock);
-	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnFinalizeMaybeAsync(pConn);
 }
 // 内部函数：__xhttpdStreamOnClose
 static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
@@ -56082,6 +56453,74 @@ static const xnetstreamevents* __xhttpdStreamEvents(void)
 	};
 	return &tEvents;
 }
+// 内部函数：释放 HTTPD TLS 配置副本
+static void __xhttpdServerClearTlsConfig(xhttpdserver* pServer)
+{
+	if ( !pServer ) { return; }
+	if ( pServer->sTlsCertFile ) { XNET_FREE(pServer->sTlsCertFile); }
+	if ( pServer->sTlsKeyFile ) { XNET_FREE(pServer->sTlsKeyFile); }
+	if ( pServer->sTlsCaFile ) { XNET_FREE(pServer->sTlsCaFile); }
+	if ( pServer->sTlsCrlFile ) { XNET_FREE(pServer->sTlsCrlFile); }
+	if ( pServer->sTlsHostName ) { XNET_FREE(pServer->sTlsHostName); }
+	if ( pServer->pTlsCertData ) { XNET_FREE(pServer->pTlsCertData); }
+	if ( pServer->pTlsKeyData ) { XNET_FREE(pServer->pTlsKeyData); }
+	if ( pServer->pTlsCaData ) { XNET_FREE(pServer->pTlsCaData); }
+	if ( pServer->pTlsCrlData ) { XNET_FREE(pServer->pTlsCrlData); }
+	if ( pServer->pTlsResume ) {
+		memset(pServer->pTlsResume, 0, sizeof(*pServer->pTlsResume));
+		XNET_FREE(pServer->pTlsResume);
+	}
+	pServer->sTlsCertFile = NULL;
+	pServer->sTlsKeyFile = NULL;
+	pServer->sTlsCaFile = NULL;
+	pServer->sTlsCrlFile = NULL;
+	pServer->sTlsHostName = NULL;
+	pServer->pTlsCertData = NULL;
+	pServer->pTlsKeyData = NULL;
+	pServer->pTlsCaData = NULL;
+	pServer->pTlsCrlData = NULL;
+	pServer->pTlsResume = NULL;
+	memset(&pServer->tTlsConfig, 0, sizeof(pServer->tTlsConfig));
+	pServer->bHasTlsConfig = false;
+	if ( pServer->tConfig.pTlsConfig == &pServer->tTlsConfig ) { pServer->tConfig.pTlsConfig = NULL; }
+}
+// 内部函数：复制 HTTPD TLS 配置
+static bool __xhttpdServerCopyTlsConfig(xhttpdserver* pServer, const xtlsconfig* pSrc)
+{
+	if ( !pServer || !pSrc ) { return true; }
+	pServer->tTlsConfig = *pSrc;
+	pServer->tTlsConfig.iDataLock = 0;
+	if ( pSrc->sCertFile && !(pServer->sTlsCertFile = __xhttpdDupStr(pSrc->sCertFile)) ) { goto fail; }
+	if ( pSrc->sKeyFile && !(pServer->sTlsKeyFile = __xhttpdDupStr(pSrc->sKeyFile)) ) { goto fail; }
+	if ( pSrc->sCaFile && !(pServer->sTlsCaFile = __xhttpdDupStr(pSrc->sCaFile)) ) { goto fail; }
+	if ( pSrc->sCrlFile && !(pServer->sTlsCrlFile = __xhttpdDupStr(pSrc->sCrlFile)) ) { goto fail; }
+	if ( pSrc->sHostName && !(pServer->sTlsHostName = __xhttpdDupStr(pSrc->sHostName)) ) { goto fail; }
+	if ( pSrc->pCertData && pSrc->iCertDataLen > 0u && !(pServer->pTlsCertData = __xhttpdDupBytes(pSrc->pCertData, pSrc->iCertDataLen)) ) { goto fail; }
+	if ( pSrc->pKeyData && pSrc->iKeyDataLen > 0u && !(pServer->pTlsKeyData = __xhttpdDupBytes(pSrc->pKeyData, pSrc->iKeyDataLen)) ) { goto fail; }
+	if ( pSrc->pCaData && pSrc->iCaDataLen > 0u && !(pServer->pTlsCaData = __xhttpdDupBytes(pSrc->pCaData, pSrc->iCaDataLen)) ) { goto fail; }
+	if ( pSrc->pCrlData && pSrc->iCrlDataLen > 0u && !(pServer->pTlsCrlData = __xhttpdDupBytes(pSrc->pCrlData, pSrc->iCrlDataLen)) ) { goto fail; }
+	if ( pSrc->pResume ) {
+		pServer->pTlsResume = (xtlsresume*)XNET_ALLOC(sizeof(*pServer->pTlsResume));
+		if ( !pServer->pTlsResume ) { goto fail; }
+		memcpy(pServer->pTlsResume, pSrc->pResume, sizeof(*pServer->pTlsResume));
+	}
+	pServer->tTlsConfig.sCertFile = pServer->sTlsCertFile;
+	pServer->tTlsConfig.sKeyFile = pServer->sTlsKeyFile;
+	pServer->tTlsConfig.sCaFile = pServer->sTlsCaFile;
+	pServer->tTlsConfig.sCrlFile = pServer->sTlsCrlFile;
+	pServer->tTlsConfig.sHostName = pServer->sTlsHostName;
+	pServer->tTlsConfig.pCertData = pServer->pTlsCertData;
+	pServer->tTlsConfig.pKeyData = pServer->pTlsKeyData;
+	pServer->tTlsConfig.pCaData = pServer->pTlsCaData;
+	pServer->tTlsConfig.pCrlData = pServer->pTlsCrlData;
+	pServer->tTlsConfig.pResume = pServer->pTlsResume;
+	pServer->tConfig.pTlsConfig = &pServer->tTlsConfig;
+	pServer->bHasTlsConfig = true;
+	return true;
+fail:
+	__xhttpdServerClearTlsConfig(pServer);
+	return false;
+}
 // 创建 HTTP 服务端
 XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData)
 {
@@ -56095,6 +56534,11 @@ XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg
 		pServer->tConfig = *pCfg;
 	} else {
 		xrtHttpdConfigInit(&pServer->tConfig);
+	}
+	pServer->tConfig.pTlsConfig = NULL;
+	if ( pCfg && pCfg->pTlsConfig && !__xhttpdServerCopyTlsConfig(pServer, pCfg->pTlsConfig) ) {
+		XNET_FREE(pServer);
+		return NULL;
 	}
 	if ( pEvents ) { pServer->tEvents = *pEvents; }
 	pServer->pUserData = pUserData;
@@ -56145,9 +56589,7 @@ XXAPI void xrtHttpdStop(xhttpdserver* pServer)
 {
 	xhttpdconn* pConn;
 	if ( !pServer ) { return; }
-	if ( __xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
-		/* already stopped */
-	}
+	if ( __xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1) != 1 ) { return; }
 	if ( pServer->pListener ) {
 		xrtNetListenerStop(pServer->pListener);
 		xrtNetListenerDestroy(pServer->pListener);
@@ -56158,8 +56600,14 @@ XXAPI void xrtHttpdStop(xhttpdserver* pServer)
 		xhttpdconn* pNext = pConn->pNext;
 		pConn->pNext = NULL;
 		if ( __xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) == 0 ) {
-			if ( pConn->pStream ) {
-				xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			xnetstream* pStream;
+			__xhttpdLock(&pConn->iConnLock);
+			pStream = pConn->pStream;
+			if ( pStream ) { __xnetStreamAddAsyncHold(pStream); }
+			__xhttpdUnlock(&pConn->iConnLock);
+			if ( pStream ) {
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+				__xnetStreamReleaseAsyncHold(pStream);
 			}
 			__xhttpdConnCleanupTask(NULL, pConn);
 		}
@@ -56171,6 +56619,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 {
 	if ( !pServer ) { return; }
 	xrtHttpdStop(pServer);
+	__xhttpdServerClearTlsConfig(pServer);
 	XNET_FREE(pServer);
 }
 #endif

@@ -206,6 +206,11 @@ struct xrt_tls_resume {
 	uint8 iSessionIdLen;
 	uint8 aSessionId[32];
 	uint8 aMasterSecret[48];
+	uint8 iIdentityType;
+	uint8 iIdentityHashLen;
+	uint8 bHasServerName;
+	uint8 aIdentityHash[32];
+	uint8 aServerNameHash[32];
 };
 
 typedef struct __xrt_tls_resume_cache_entry {
@@ -218,6 +223,11 @@ static volatile long __xrt_tls_resume_lock = 0;
 static __xrt_tls_resume_cache_entry* __xrt_tls_resume_cache = NULL;
 static uint32 __xrt_tls_resume_cache_count = 0;
 static uint64 __xrt_tls_resume_cache_gen = 0;
+
+#define __XRT_TLS_RESUME_IDENTITY_NONE     0
+#define __XRT_TLS_RESUME_IDENTITY_RSA      1
+#define __XRT_TLS_RESUME_IDENTITY_ECDSA    2
+#define __XRT_TLS_RESUME_IDENTITY_ED25519  3
 
 #ifndef __XRT_TLS_VERSION_1_2
 	#define __XRT_TLS_VERSION_1_2  0x0303
@@ -232,20 +242,41 @@ static uint64 __xrt_tls_resume_cache_gen = 0;
 #endif
 
 // 内部函数：__xrt_tls_resume_lock_acquire
+static void __xrt_tls_resume_lock_wait(uint32 iSpin)
+{
+	if ( iSpin < 16 ) {
+		xrtThreadYield();
+		return;
+	}
+	if ( iSpin < 32 ) {
+		xrtSleep(1);
+		return;
+	}
+	if ( iSpin < 48 ) {
+		xrtSleep(2);
+		return;
+	}
+	xrtSleep(4);
+}
+
+
+// 内部函数：__xrt_tls_resume_lock_acquire
 static void __xrt_tls_resume_lock_acquire(void)
 {
-	// 自旋锁：通过原子交换操作尝试获取锁，失败则让出 CPU 重试
+	uint32 iSpin = 0;
+
+	// 自旋锁：通过原子交换操作尝试获取锁，失败则逐步退避，降低高并发下的 CPU 空转
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
 		while ( __xrtAtomicExchange32(&__xrt_tls_resume_lock, 1) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#elif defined(_WIN32) || defined(_WIN64)
 		while ( InterlockedCompareExchange((volatile LONG*)&__xrt_tls_resume_lock, 1, 0) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#else
 		while ( __sync_lock_test_and_set(&__xrt_tls_resume_lock, 1) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#endif
 }
@@ -310,7 +341,9 @@ static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 
 	// 验证参数有效性：仅支持 TLS 1.2 且会话ID长度合法
 	if ( !pResume || pResume->iVersion != __XRT_TLS_VERSION_1_2
-		|| pResume->iSessionIdLen == 0 || pResume->iSessionIdLen > 32u ) return;
+		|| pResume->iSessionIdLen == 0 || pResume->iSessionIdLen > 32u
+		|| pResume->iIdentityType == __XRT_TLS_RESUME_IDENTITY_NONE
+		|| pResume->iIdentityHashLen != 32 ) return;
 
 	__xrt_tls_resume_lock_acquire();
 	// 遍历链表查找是否已存在相同会话ID的条目
@@ -2036,6 +2069,80 @@ struct xrt_tls_context {
 };
 
 
+static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t iLen);
+
+
+// 内部函数：__xrt_tls_resume_identity_type
+static uint8 __xrt_tls_resume_identity_type(const xtlsctx* pCtx)
+{
+	if ( !pCtx || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return __XRT_TLS_RESUME_IDENTITY_NONE; }
+	if ( pCtx->bIsEd25519Key ) { return __XRT_TLS_RESUME_IDENTITY_ED25519; }
+	if ( pCtx->bIsECPubKey ) { return __XRT_TLS_RESUME_IDENTITY_ECDSA; }
+	return __XRT_TLS_RESUME_IDENTITY_RSA;
+}
+
+
+// 内部函数：__xrt_tls12_suite_matches_identity
+static bool __xrt_tls12_suite_matches_identity(uint16 iCipherSuite, uint8 iIdentityType)
+{
+	switch ( iCipherSuite ) {
+		case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384:
+		case __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256:
+			return iIdentityType == __XRT_TLS_RESUME_IDENTITY_ECDSA
+				|| iIdentityType == __XRT_TLS_RESUME_IDENTITY_ED25519;
+		case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384:
+		case __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256:
+		case __XRT_TLS12_RSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_RSA_AES256_GCM_SHA384:
+			return iIdentityType == __XRT_TLS_RESUME_IDENTITY_RSA;
+		default:
+			return false;
+	}
+}
+
+
+// 内部函数：__xrt_tls_resume_fill_identity
+static bool __xrt_tls_resume_fill_identity(xtlsctx* pCtx, struct xrt_tls_resume* pOut)
+{
+	const char* sServerName;
+
+	if ( !pCtx || !pOut ) { return false; }
+	pOut->iIdentityType = __xrt_tls_resume_identity_type(pCtx);
+	if ( pOut->iIdentityType == __XRT_TLS_RESUME_IDENTITY_NONE || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return false; }
+
+	xrtSHA256((const ptr)pCtx->pCertDer, pCtx->iCertDerLen, pOut->aIdentityHash);
+	pOut->iIdentityHashLen = 32;
+
+	sServerName = pCtx->bIsServer ? pCtx->sClientSNI : pCtx->sHostname;
+	if ( sServerName && sServerName[0] ) {
+		xrtSHA256((const ptr)sServerName, strlen(sServerName), pOut->aServerNameHash);
+		pOut->bHasServerName = true;
+	} else {
+		pOut->bHasServerName = false;
+		memset(pOut->aServerNameHash, 0, sizeof(pOut->aServerNameHash));
+	}
+	return true;
+}
+
+
+// 内部函数：__xrt_tls_resume_matches_identity
+static bool __xrt_tls_resume_matches_identity(xtlsctx* pCtx, const struct xrt_tls_resume* pResume)
+{
+	struct xrt_tls_resume tCurrent;
+
+	if ( !pCtx || !pResume ) { return false; }
+	if ( !__xrt_tls_resume_fill_identity(pCtx, &tCurrent) ) { return false; }
+	if ( pResume->iIdentityType != tCurrent.iIdentityType ) { return false; }
+	if ( pResume->iIdentityHashLen != 32 || tCurrent.iIdentityHashLen != 32 ) { return false; }
+	if ( !__xrt_tls_consttime_equal(pResume->aIdentityHash, tCurrent.aIdentityHash, 32) ) { return false; }
+	if ( pResume->bHasServerName != tCurrent.bHasServerName ) { return false; }
+	if ( pResume->bHasServerName && !__xrt_tls_consttime_equal(pResume->aServerNameHash, tCurrent.aServerNameHash, 32) ) { return false; }
+	return __xrt_tls12_suite_matches_identity(pResume->iCipherSuite, tCurrent.iIdentityType);
+}
+
+
 static bool __xrt_tls_parse_alert_record(const uint8* pAlert, size_t iLen, uint8* pLevel, uint8* pDesc)
 {
 	if ( pAlert == NULL || iLen < 2 ) { return false; }
@@ -2085,6 +2192,10 @@ static bool __xrt_tls_resume_from_ctx(xtlsctx* pCtx, struct xrt_tls_resume* pOut
 	pOut->iSessionIdLen = pCtx->iSessionIdLen;
 	memcpy(pOut->aSessionId, pCtx->aSessionId, pCtx->iSessionIdLen);
 	memcpy(pOut->aMasterSecret, pCtx->aMasterSecret, sizeof(pOut->aMasterSecret));
+	if ( pCtx->bIsServer ) {
+		if ( !__xrt_tls_resume_fill_identity(pCtx, pOut) ) { return false; }
+		if ( !__xrt_tls12_suite_matches_identity(pOut->iCipherSuite, pOut->iIdentityType) ) { return false; }
+	}
 	return true;
 }
 
@@ -7054,6 +7165,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	// 尝试 TLS 1.2 会话恢复：匹配 session_id 和密码套件
 	if ( pCtx->iSessionIdLen > 0
 		&& __xrt_tls_resume_cache_lookup(pCtx->aSessionId, pCtx->iSessionIdLen, &tCachedResume)
+		&& __xrt_tls_resume_matches_identity(pCtx, &tCachedResume)
 		&& __xrt_tls12_client_offers_suite(tCachedResume.iCipherSuite,
 			bOfferTLS12EcdheEcdsaAES128,
 			bOfferTLS12EcdheEcdsaAES256,
