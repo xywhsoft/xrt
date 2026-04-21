@@ -680,6 +680,33 @@ void Test_XNet_Httpd(void)
 
 		{
 			xsocket hRaw = XNET_SOCKET_INVALID;
+			char sReq[4096];
+			char aResp[2048];
+			size_t iReqLen = 0u;
+			size_t iRespLen = 0u;
+			long iReqBefore = __Test_XHttpdAtomicLoad(&tCtx.iRequestCount);
+			hRaw = pServer ? __Test_XHttpdConnectLoopback(xrtHttpdBoundPort(pServer)) : XNET_SOCKET_INVALID;
+			iReqLen = (size_t)snprintf(sReq, sizeof(sReq),
+				"GET /echo?mode=too-many-headers HTTP/1.1\r\n"
+				"Host: 127.0.0.1:%u\r\n",
+				(unsigned)xrtHttpdBoundPort(pServer));
+			for ( uint32 i = 0; i < XHTTPD_MAX_HEADERS && iReqLen + 32u < sizeof(sReq); ++i ) {
+				iReqLen += (size_t)snprintf(sReq + iReqLen, sizeof(sReq) - iReqLen, "X-H%u: v\r\n", (unsigned)i);
+			}
+			if ( iReqLen + 64u < sizeof(sReq) ) {
+				iReqLen += (size_t)snprintf(sReq + iReqLen, sizeof(sReq) - iReqLen, "Authorization: bearer-token\r\nConnection: close\r\n\r\n");
+			}
+			printf("  HTTPD header limit raw connect : %s\n", hRaw != XNET_SOCKET_INVALID ? "PASS" : "FAIL");
+			printf("  HTTPD header limit request send : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdSendAll(hRaw, sReq, iReqLen) ? "PASS" : "FAIL");
+			printf("  HTTPD header limit response recv : %s\n", hRaw != XNET_SOCKET_INVALID && __Test_XHttpdRecvResponse(hRaw, aResp, sizeof(aResp), &iRespLen, 2000u) ? "PASS" : "FAIL");
+			printf("  HTTPD header limit status : %s\n", strstr(aResp, "HTTP/1.1 400") != NULL ? "PASS" : "FAIL");
+			printf("  HTTPD header limit skips callback : %s\n",
+				__Test_XHttpdAtomicLoad(&tCtx.iRequestCount) == iReqBefore ? "PASS" : "FAIL");
+			__Test_XHttpdCloseSocket(hRaw);
+		}
+
+		{
+			xsocket hRaw = XNET_SOCKET_INVALID;
 			char sReq[512];
 			char aResp[2048];
 			size_t iRespLen = 0u;
