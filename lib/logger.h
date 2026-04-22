@@ -82,13 +82,9 @@ static void __xlogFormatNow(char* sBuff, size_t iSize)
 	#else
 		localtime_r(&tRaw, &tLocal);
 	#endif
-	snprintf(sBuff, iSize, "%04d-%02d-%02d %02d:%02d:%02d",
-		tLocal.tm_year + 1900,
-		tLocal.tm_mon + 1,
-		tLocal.tm_mday,
-		tLocal.tm_hour,
-		tLocal.tm_min,
-		tLocal.tm_sec);
+	if ( strftime(sBuff, iSize, "%Y-%m-%d %H:%M:%S", &tLocal) == 0 ) {
+		sBuff[0] = '\0';
+	}
 }
 
 
@@ -135,7 +131,7 @@ static void __xlogWriteFormatted(FILE* pFile, xlogformat iFormat, bool bColor, c
 		return;
 	}
 
-	sLevel = xlogLevelName(pEvent->iLevel);
+	sLevel = __xrt_cstr(xlogLevelName(pEvent->iLevel));
 	sColor = bColor ? __xlogLevelColor(pEvent->iLevel) : "";
 	__xlogFormatNow(sTime, sizeof(sTime));
 
@@ -626,7 +622,7 @@ XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uin
 	memset(&tEvent, 0, sizeof(tEvent));
 	tEvent.iTime = xrtNow();
 	tEvent.iLevel = iLevel;
-	tEvent.sLogger = pLogger->sName;
+	tEvent.sLogger = __xrt_cstr(pLogger->sName);
 	tEvent.sFile = sFile;
 	tEvent.iLine = iLine;
 	tEvent.sFunc = sFunc;

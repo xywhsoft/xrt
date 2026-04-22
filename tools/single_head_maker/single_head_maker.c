@@ -1,5 +1,4 @@
 
-#define XRT_NO_THREAD
 #define XRT_NO_QUEUE
 #define XRT_NO_COROUTINE
 #define XRT_NO_NETWORK
