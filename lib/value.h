@@ -90,6 +90,9 @@ static void __xvoDestroyValue(xvalue pVal)
 		// 自定义类型无需额外释放
 	}
 	// 释放值结构体自身
+	if ( (pVal->Type == XVO_DT_FUNC) && (pVal->vFuncEnv != NULL) ) {
+		xvoUnref(pVal->vFuncEnv);
+	}
 	xrtFree(pVal);
 	#ifdef DEBUG_TRACE
 		printf("free value : %x\n", pVal);
@@ -288,6 +291,7 @@ XXAPI xvalue xvoCreateFunc(xfunction pFunc)
 		xvoInitOwnedHeader_Inline(pVal, XVO_DT_FUNC, XRT_OBJMODE_LOCAL);
 		pVal->Size = sizeof(ptr);
 		pVal->vFunc = pFunc;
+		pVal->vFuncEnv = NULL;
 	}
 	return pVal;
 }
@@ -823,6 +827,50 @@ XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count)
 		}
 	}
 	return xrtPtrArrayRemove(pArr->vArray, index + 1, count);
+}
+
+
+// Take one array item without unref; ownership of the stored value reference is transferred to caller.
+XXAPI xvalue xvoArrayTakeValue(xvalue pArr, uint32 index)
+{
+	xvalue pVal;
+	if ( pArr == NULL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pArr->Type != XVO_DT_ARRAY ) {
+		return &XVO_VALUE_NULL;
+	}
+	pVal = xrtPtrArrayGet(pArr->vArray, index + 1);
+	if ( pVal == NULL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( !xrtPtrArrayRemove(pArr->vArray, index + 1, 1) ) {
+		return &XVO_VALUE_NULL;
+	}
+	return pVal;
+}
+
+
+XXAPI xvalue xvoCreateFuncEx(xfunction pFunc, xvalue pEnv)
+{
+	xvalue pVal = xvoCreateFunc(pFunc);
+	if ( pVal ) {
+		pVal->vFuncEnv = pEnv;
+		if ( (pEnv != NULL) && (pEnv->IsStatic == FALSE) ) {
+			xvoAddRef_Inline(pEnv);
+		}
+	}
+	return pVal;
+}
+
+
+// Pop the last array item without unref; ownership of the stored value reference is transferred to caller.
+XXAPI xvalue xvoArrayPopValue(xvalue pArr)
+{
+	if ( (pArr == NULL) || (pArr->Type != XVO_DT_ARRAY) || (pArr->vArray == NULL) || (pArr->vArray->Count == 0) ) {
+		return &XVO_VALUE_NULL;
+	}
+	return xvoArrayTakeValue(pArr, pArr->vArray->Count - 1);
 }
 
 
@@ -1750,6 +1798,59 @@ XXAPI str xvoTypeName(int iType)
 		default: return (str)"unknown";
 	}
 }
+
+
+XXAPI xvalue xvoGetFuncEnv(xvalue pVal)
+{
+	if ( pVal == NULL ) {
+		return NULL;
+	} else if ( pVal->Type == XVO_DT_FUNC ) {
+		return pVal->vFuncEnv;
+	} else {
+		return NULL;
+	}
+}
+
+
+// Take one table value without unref; ownership of the stored value reference is transferred to caller.
+XXAPI xvalue xvoTableTakeValue(xvalue pTbl, str key, uint32 kl)
+{
+	xvalue pOldVal;
+	if ( pTbl == NULL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pTbl->Type != XVO_DT_TABLE ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( (key != NULL) && (kl == 0) ) {
+		kl = strlen(__xrt_cstr(key));
+	}
+	pOldVal = xrtDictRemovePtr(pTbl->vTable, key, kl);
+	if ( pOldVal ) {
+		return pOldVal;
+	} else {
+		return &XVO_VALUE_NULL;
+	}
+}
+
+
+// Take one list item without unref; ownership of the stored value reference is transferred to caller.
+XXAPI xvalue xvoListTakeValue(xvalue pList, int64 index)
+{
+	xvalue pOldVal;
+	if ( pList == NULL ) {
+		return &XVO_VALUE_NULL;
+	}
+	if ( pList->Type != XVO_DT_LIST ) {
+		return &XVO_VALUE_NULL;
+	}
+	pOldVal = xrtListRemovePtr(pList->vList, index);
+	if ( pOldVal ) {
+		return pOldVal;
+	} else {
+		return &XVO_VALUE_NULL;
+	}
+}
 XXAPI bool xvoIsBool(xvalue pVal)
 {
 	return xvoType(pVal) == XVO_DT_BOOL;
@@ -1986,6 +2087,13 @@ XXAPI xvalue xvoCopy(xvalue pVal)
 		xvoInitOwnedHeader_Inline(varRet, pVal->Type, XRT_OBJMODE_LOCAL);
 		varRet->Size = pVal->Size;
 		varRet->vInt = pVal->vInt;
+		varRet->vFuncEnv = NULL;
+		if ( pVal->Type == XVO_DT_FUNC ) {
+			varRet->vFuncEnv = pVal->vFuncEnv;
+			if ( (varRet->vFuncEnv != NULL) && (varRet->vFuncEnv->IsStatic == FALSE) ) {
+				xvoAddRef_Inline(varRet->vFuncEnv);
+			}
+		}
 		return varRet;
 	}
 }

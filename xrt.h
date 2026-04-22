@@ -7407,6 +7407,7 @@
 			ptr vStruct;
 			ptr vCustom;
 		};
+		struct xvalue_struct* vFuncEnv;
 	} xvalue_struct, *xvalue;
 	
 	// 函数指针类型定义
@@ -7591,6 +7592,9 @@
 	// 创建函数值
 	XXAPI xvalue xvoCreateFunc(xfunction pFunc);
 
+	// 创建带环境的函数值
+	XXAPI xvalue xvoCreateFuncEx(xfunction pFunc, xvalue pEnv);
+
 	// 创建数组
 	XXAPI xvalue xvoCreateArray();
 
@@ -7641,6 +7645,9 @@
 
 	// 获取函数值
 	XXAPI xfunction xvoGetFunc(xvalue pVal);
+
+	// 获取函数值环境
+	XXAPI xvalue xvoGetFuncEnv(xvalue pVal);
 
 	// 获取数组
 	XXAPI xparray xvoGetArray(xvalue pVal);
@@ -7739,6 +7746,12 @@
 	// 删除数组
 	XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count);
 
+	// Take one array item without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoArrayTakeValue(xvalue pArr, uint32 index);
+
+	// Pop the last array item without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoArrayPopValue(xvalue pArr);
+
 	// 获取数组成员数量
 	XXAPI uint32 xvoArrayItemCount(xvalue pArr);
 
@@ -7793,6 +7806,9 @@
 
 	// 删除列表
 	XXAPI bool xvoListRemove(xvalue pList, int64 index);
+
+	// Take one list item without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoListTakeValue(xvalue pList, int64 index);
 
 	// 获取列表成员数量
 	XXAPI uint32 xvoListItemCount(xvalue pList);
@@ -7931,6 +7947,9 @@
 
 	// 从表中删除一个键
 	XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl);
+
+	// Take one table value without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoTableTakeValue(xvalue pTbl, str key, uint32 kl);
 
 	// 获取表成员数量
 	XXAPI uint32 xvoTableItemCount(xvalue pTbl);
