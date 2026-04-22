@@ -2307,6 +2307,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 	// 创建 TCP 流套接字
 	pListener->hSocket = __xnetSocketCreateStream(pListener->tConfig.tBindAddr.iFamily);
 	if ( !__xnetSocketIsValid(pListener->hSocket) ) { return XRT_NET_ERROR; }
+	(void)__xnetSocketSetReuseAddr(pListener->hSocket);
 	(void)__xnetSocketApplyListenFlags(pListener->hSocket, pListener->tConfig.iFlags);
 	(void)__xnetSocketSetNonBlock(pListener->hSocket, true);
 	// 绑定到指定地址和端口

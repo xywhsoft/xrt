@@ -298,6 +298,7 @@
 	#define XRT_NO_TEMPLATE
 	#define XRT_NO_REGEX		// 禁用正则表达式模块
 	#define XRT_NO_SUBPROCESS
+	#define XRT_NO_LOGGER
 #endif
 
 // 网络根模块裁剪时，同步裁剪全部网络子库
@@ -522,6 +523,15 @@
 		#warning "XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME."
 	#else
 		XRT_CUT_WARN("XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME.")
+	#endif
+	#undef XRT_NO_TIME
+#endif
+
+#if defined(XRT_NO_TIME) && !defined(XRT_NO_LOGGER)
+	#if defined(__clang__) || defined(__GNUC__) || defined(__TINYC__)
+		#warning "XRT_NO_TIME ignored because LOGGER requires TIME."
+	#else
+		XRT_CUT_WARN("XRT_NO_TIME ignored because LOGGER requires TIME.")
 	#endif
 	#undef XRT_NO_TIME
 #endif
@@ -2247,6 +2257,76 @@
 	
 	// 本地时间转UTC
 	XXAPI xtime xrtLocalToUTC(xtime local);
+
+
+
+	#ifndef XRT_NO_LOGGER
+	/* ---------- 日志系统 ---------- */
+
+	typedef enum {
+		XLOG_TRACE = 0,
+		XLOG_DEBUG = 1,
+		XLOG_INFO = 2,
+		XLOG_WARN = 3,
+		XLOG_ERROR = 4,
+		XLOG_FATAL = 5,
+		XLOG_OFF = 6
+	} xloglevel;
+
+	typedef enum {
+		XLOG_FORMAT_TEXT = 0,
+		XLOG_FORMAT_SIMPLE = 1,
+		XLOG_FORMAT_JSON = 2
+	} xlogformat;
+
+	typedef struct xlogger xlogger;
+	typedef struct xlogappender xlogappender;
+
+	typedef struct xlogevent {
+		xtime iTime;
+		xloglevel iLevel;
+		const char* sLogger;
+		const char* sFile;
+		uint32 iLine;
+		const char* sFunc;
+		uint64 iThreadId;
+		const char* sMessage;
+	} xlogevent;
+
+	typedef void (*xlogcustomproc)(const xlogevent* pEvent, ptr pUserData);
+
+	XXAPI xlogger* xlogCreate(str sName);
+	XXAPI void xlogDestroy(xlogger* pLogger);
+	XXAPI xlogger* xlogDefault();
+	XXAPI void xlogSetDefault(xlogger* pLogger);
+	XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel);
+	XXAPI xloglevel xlogGetLevel(xlogger* pLogger);
+	XXAPI xlogappender* xlogAddConsole(xlogger* pLogger, xloglevel iMinLevel, bool bColor);
+	XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData);
+	XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel);
+	XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat);
+	XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor);
+	XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...);
+	XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args);
+	XXAPI void xlogFlush(xlogger* pLogger);
+	XXAPI str xlogLevelName(xloglevel iLevel);
+
+	#define xloggerTrace(pLogger, ...)	xlogWrite((pLogger), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerDebug(pLogger, ...)	xlogWrite((pLogger), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerInfo(pLogger, ...)	xlogWrite((pLogger), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerWarn(pLogger, ...)	xlogWrite((pLogger), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerError(pLogger, ...)	xlogWrite((pLogger), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerFatal(pLogger, ...)	xlogWrite((pLogger), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+
+	#define xlogTrace(...)				xlogWrite(xlogDefault(), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogDebug(...)				xlogWrite(xlogDefault(), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogInfo(...)				xlogWrite(xlogDefault(), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogWarn(...)				xlogWrite(xlogDefault(), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogError(...)				xlogWrite(xlogDefault(), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogFatal(...)				xlogWrite(xlogDefault(), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#endif
 	
 	// 获取相对时间描述（如"3天前"、"2小时后"）（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime);
@@ -4406,6 +4486,7 @@
 			uint32 iFlags;
 			uint32 iBacklog;
 			uint32 iRecvLimit;
+			uint32 iBodyLimit;
 			const xtlsconfig* pTlsConfig;
 		} xhttpdconfig;
 

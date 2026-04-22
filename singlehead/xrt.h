@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-22 14:20:15
+    Generated: 2026-04-22 23:31:27
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/Git/xrt/xrt.h
+// File: D:/git/xrt/xrt.h
 // ========================================
 
 #pragma once
@@ -334,6 +334,7 @@
 	#define XRT_NO_TEMPLATE
 	#define XRT_NO_REGEX		// 禁用正则表达式模块
 	#define XRT_NO_SUBPROCESS
+	#define XRT_NO_LOGGER
 #endif
 // 网络根模块裁剪时，同步裁剪全部网络子库
 #if defined(XRT_NO_NETWORK)
@@ -534,6 +535,14 @@
 		#warning "XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME."
 	#else
 		XRT_CUT_WARN("XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME.")
+	#endif
+	#undef XRT_NO_TIME
+#endif
+#if defined(XRT_NO_TIME) && !defined(XRT_NO_LOGGER)
+	#if defined(__clang__) || defined(__GNUC__) || defined(__TINYC__)
+		#warning "XRT_NO_TIME ignored because LOGGER requires TIME."
+	#else
+		XRT_CUT_WARN("XRT_NO_TIME ignored because LOGGER requires TIME.")
 	#endif
 	#undef XRT_NO_TIME
 #endif
@@ -2110,6 +2119,65 @@
 	
 	// 本地时间转UTC
 	XXAPI xtime xrtLocalToUTC(xtime local);
+	#ifndef XRT_NO_LOGGER
+	/* ---------- 日志系统 ---------- */
+	typedef enum {
+		XLOG_TRACE = 0,
+		XLOG_DEBUG = 1,
+		XLOG_INFO = 2,
+		XLOG_WARN = 3,
+		XLOG_ERROR = 4,
+		XLOG_FATAL = 5,
+		XLOG_OFF = 6
+	} xloglevel;
+	typedef enum {
+		XLOG_FORMAT_TEXT = 0,
+		XLOG_FORMAT_SIMPLE = 1,
+		XLOG_FORMAT_JSON = 2
+	} xlogformat;
+	typedef struct xlogger xlogger;
+	typedef struct xlogappender xlogappender;
+	typedef struct xlogevent {
+		xtime iTime;
+		xloglevel iLevel;
+		const char* sLogger;
+		const char* sFile;
+		uint32 iLine;
+		const char* sFunc;
+		uint64 iThreadId;
+		const char* sMessage;
+	} xlogevent;
+	typedef void (*xlogcustomproc)(const xlogevent* pEvent, ptr pUserData);
+	XXAPI xlogger* xlogCreate(str sName);
+	XXAPI void xlogDestroy(xlogger* pLogger);
+	XXAPI xlogger* xlogDefault();
+	XXAPI void xlogSetDefault(xlogger* pLogger);
+	XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel);
+	XXAPI xloglevel xlogGetLevel(xlogger* pLogger);
+	XXAPI xlogappender* xlogAddConsole(xlogger* pLogger, xloglevel iMinLevel, bool bColor);
+	XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData);
+	XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel);
+	XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat);
+	XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor);
+	XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...);
+	XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args);
+	XXAPI void xlogFlush(xlogger* pLogger);
+	XXAPI str xlogLevelName(xloglevel iLevel);
+	#define xloggerTrace(pLogger, ...)	xlogWrite((pLogger), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerDebug(pLogger, ...)	xlogWrite((pLogger), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerInfo(pLogger, ...)	xlogWrite((pLogger), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerWarn(pLogger, ...)	xlogWrite((pLogger), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerError(pLogger, ...)	xlogWrite((pLogger), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerFatal(pLogger, ...)	xlogWrite((pLogger), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogTrace(...)				xlogWrite(xlogDefault(), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogDebug(...)				xlogWrite(xlogDefault(), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogInfo(...)				xlogWrite(xlogDefault(), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogWarn(...)				xlogWrite(xlogDefault(), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogError(...)				xlogWrite(xlogDefault(), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogFatal(...)				xlogWrite(xlogDefault(), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#endif
 	
 	// 获取相对时间描述（如"3天前"、"2小时后"）（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime);
@@ -4000,6 +4068,7 @@
 			uint32 iFlags;
 			uint32 iBacklog;
 			uint32 iRecvLimit;
+			uint32 iBodyLimit;
 			const xtlsconfig* pTlsConfig;
 		} xhttpdconfig;
 		typedef struct {
@@ -7588,7 +7657,7 @@
 
 
 // ========================================
-// File: D:\Git\xrt/xrt.c
+// File: D:\git\xrt/xrt.c
 // ========================================
 
 
@@ -7598,7 +7667,7 @@
 #if defined(XRT_MEM_DEBUG)
 
 // ========================================
-// File: D:/Git/xrt/lib/memdebug_site_macros_undef.h
+// File: D:/git/xrt/lib/memdebug_site_macros_undef.h
 // ========================================
 
 #ifndef XRT_MEMDEBUG_SITE_MACROS_UNDEF_H
@@ -7925,7 +7994,7 @@ static void __xrtRuntimeFinalizeLocked();
 // 引入补充依赖库
 
 // ========================================
-// File: D:/Git/xrt/lib/suplib.h
+// File: D:/git/xrt/lib/suplib.h
 // ========================================
 
 
@@ -7986,7 +8055,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
-// File: D:/Git/xrt/lib/memglobal.h
+// File: D:/git/xrt/lib/memglobal.h
 // ========================================
 
 
@@ -9902,7 +9971,7 @@ static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/base.h
+// File: D:/git/xrt/lib/base.h
 // ========================================
 
 
@@ -10437,7 +10506,7 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 #if defined(XRT_MEM_DEBUG)
 
 // ========================================
-// File: D:/Git/xrt/lib/memdebug_site_macros_base.h
+// File: D:/git/xrt/lib/memdebug_site_macros_base.h
 // ========================================
 
 #ifndef XRT_MEMDEBUG_SITE_MACROS_BASE_H
@@ -10460,7 +10529,7 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/string.h
+// File: D:/git/xrt/lib/string.h
 // ========================================
 
 
@@ -11751,7 +11820,7 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/os.h
+// File: D:/git/xrt/lib/os.h
 // ========================================
 
 
@@ -11871,7 +11940,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/hash.h
+// File: D:/git/xrt/lib/hash.h
 // ========================================
 
 
@@ -13045,7 +13114,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/charset.h
+// File: D:/git/xrt/lib/charset.h
 // ========================================
 
 
@@ -13956,7 +14025,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/math.h
+// File: D:/git/xrt/lib/math.h
 // ========================================
 
 
@@ -14117,7 +14186,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/path.h
+// File: D:/git/xrt/lib/path.h
 // ========================================
 
 
@@ -14296,7 +14365,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 #ifndef XRT_NO_TIME
 
 // ========================================
-// File: D:/Git/xrt/lib/time.h
+// File: D:/git/xrt/lib/time.h
 // ========================================
 
 
@@ -15628,7 +15697,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 #ifndef XRT_NO_FILE
 
 // ========================================
-// File: D:/Git/xrt/lib/file.h
+// File: D:/git/xrt/lib/file.h
 // ========================================
 
 
@@ -17433,7 +17502,7 @@ XXAPI int xrtDirDelete(str sPath)
 	#if !defined(XRT_NO_FILE_ASYNC)
 
 // ========================================
-// File: D:/Git/xrt/lib/file_async.h
+// File: D:/git/xrt/lib/file_async.h
 // ========================================
 
 #if !defined(XRT_NO_NETWORK)
@@ -19003,7 +19072,7 @@ XXAPI xfuture* xrtDirDeleteAsync(str sPath)
 #ifndef XRT_NO_THREAD
 
 // ========================================
-// File: D:/Git/xrt/lib/thread.h
+// File: D:/git/xrt/lib/thread.h
 // ========================================
 
 
@@ -20000,10 +20069,577 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 	return TRUE;
 }
 #endif
+#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+
+// ========================================
+// File: D:/git/xrt/lib/logger.h
+// ========================================
+
+
+/* ================================ 日志系统 ================================ */
+#define XLOG_APPENDER_CONSOLE	1
+#define XLOG_APPENDER_FILE		2
+#define XLOG_APPENDER_CUSTOM	3
+#define XLOG_COLOR_TRACE		"\033[90m"
+#define XLOG_COLOR_DEBUG		"\033[37;1m"
+#define XLOG_COLOR_INFO			"\033[39m"
+#define XLOG_COLOR_WARN			"\033[33m"
+#define XLOG_COLOR_ERROR		"\033[31m"
+#define XLOG_COLOR_FATAL		"\033[35m"
+#define XLOG_COLOR_RESET		"\033[0m"
+struct xlogappender {
+	str sName;
+	xloglevel iMinLevel;
+	xlogformat iFormat;
+	int iType;
+	bool bColor;
+	bool bOwnFile;
+	FILE* pFile;
+	str sPath;
+	uint64 iMaxSize;
+	uint32 iMaxBackup;
+	xlogcustomproc Proc;
+	ptr pUserData;
+};
+struct xlogger {
+	str sName;
+	xloglevel iLevel;
+	xmutex pLock;
+	xlogappender** arrAppender;
+	uint32 iAppenderCount;
+	uint32 iAppenderCapacity;
+};
+static xlogger* __g_pXlogDefault = NULL;
+static bool __g_bXlogDefaultOwner = FALSE;
+// 内部函数：获取级别颜色
+static const char* __xlogLevelColor(xloglevel iLevel)
+{
+	switch ( iLevel ) {
+		case XLOG_TRACE: return XLOG_COLOR_TRACE;
+		case XLOG_DEBUG: return XLOG_COLOR_DEBUG;
+		case XLOG_INFO: return XLOG_COLOR_INFO;
+		case XLOG_WARN: return XLOG_COLOR_WARN;
+		case XLOG_ERROR: return XLOG_COLOR_ERROR;
+		case XLOG_FATAL: return XLOG_COLOR_FATAL;
+		default: return "";
+	}
+}
+// 内部函数：判断是否需要释放字符串
+static bool __xlogOwnStr(str sText)
+{
+	return sText && sText != xCore.sNull;
+}
+// 内部函数：格式化当前本地时间
+static void __xlogFormatNow(char* sBuff, size_t iSize)
+{
+	time_t tRaw;
+	struct tm tLocal;
+	if ( !sBuff || iSize == 0 ) {
+		return;
+	}
+	tRaw = time(NULL);
+	memset(&tLocal, 0, sizeof(tLocal));
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&tLocal, &tRaw);
+	#else
+		localtime_r(&tRaw, &tLocal);
+	#endif
+	snprintf(sBuff, iSize, "%04d-%02d-%02d %02d:%02d:%02d",
+		tLocal.tm_year + 1900,
+		tLocal.tm_mon + 1,
+		tLocal.tm_mday,
+		tLocal.tm_hour,
+		tLocal.tm_min,
+		tLocal.tm_sec);
+}
+// 内部函数：JSON 字符串转义写入
+static void __xlogJsonWriteEscaped(FILE* pFile, const char* sText)
+{
+	const unsigned char* p;
+	if ( !pFile ) {
+		return;
+	}
+	fputc('"', pFile);
+	if ( sText ) {
+		for ( p = (const unsigned char*)sText; *p; p++ ) {
+			switch ( *p ) {
+				case '\\': fputs("\\\\", pFile); break;
+				case '"': fputs("\\\"", pFile); break;
+				case '\n': fputs("\\n", pFile); break;
+				case '\r': fputs("\\r", pFile); break;
+				case '\t': fputs("\\t", pFile); break;
+				default:
+					if ( *p < 0x20 ) {
+						fprintf(pFile, "\\u%04x", (unsigned int)*p);
+					} else {
+						fputc(*p, pFile);
+					}
+					break;
+			}
+		}
+	}
+	fputc('"', pFile);
+}
+// 内部函数：写入格式化事件
+static void __xlogWriteFormatted(FILE* pFile, xlogformat iFormat, bool bColor, const xlogevent* pEvent)
+{
+	char sTime[32];
+	const char* sLevel;
+	const char* sColor;
+	if ( !pFile || !pEvent ) {
+		return;
+	}
+	sLevel = xlogLevelName(pEvent->iLevel);
+	sColor = bColor ? __xlogLevelColor(pEvent->iLevel) : "";
+	__xlogFormatNow(sTime, sizeof(sTime));
+	if ( iFormat == XLOG_FORMAT_SIMPLE ) {
+		if ( bColor ) {
+			fprintf(pFile, "%s[%s]%s %s\n", sColor, sLevel, XLOG_COLOR_RESET, pEvent->sMessage ? pEvent->sMessage : "");
+		} else {
+			fprintf(pFile, "[%s] %s\n", sLevel, pEvent->sMessage ? pEvent->sMessage : "");
+		}
+		return;
+	}
+	if ( iFormat == XLOG_FORMAT_JSON ) {
+		fprintf(pFile, "{\"time\":");
+		__xlogJsonWriteEscaped(pFile, sTime);
+		fprintf(pFile, ",\"level\":");
+		__xlogJsonWriteEscaped(pFile, sLevel);
+		fprintf(pFile, ",\"logger\":");
+		__xlogJsonWriteEscaped(pFile, pEvent->sLogger);
+		fprintf(pFile, ",\"thread\":%llu,\"file\":", (unsigned long long)pEvent->iThreadId);
+		__xlogJsonWriteEscaped(pFile, pEvent->sFile);
+		fprintf(pFile, ",\"line\":%u,\"func\":", pEvent->iLine);
+		__xlogJsonWriteEscaped(pFile, pEvent->sFunc);
+		fprintf(pFile, ",\"msg\":");
+		__xlogJsonWriteEscaped(pFile, pEvent->sMessage);
+		fprintf(pFile, "}\n");
+		return;
+	}
+	if ( bColor ) {
+		fprintf(pFile, "%s [%s%-5s%s] [tid=%llu] [%s:%u %s] %s\n",
+			sTime,
+			sColor,
+			sLevel,
+			XLOG_COLOR_RESET,
+			(unsigned long long)pEvent->iThreadId,
+			pEvent->sFile ? pEvent->sFile : "",
+			pEvent->iLine,
+			pEvent->sFunc ? pEvent->sFunc : "",
+			pEvent->sMessage ? pEvent->sMessage : "");
+	} else {
+		fprintf(pFile, "%s [%-5s] [tid=%llu] [%s:%u %s] %s\n",
+			sTime,
+			sLevel,
+			(unsigned long long)pEvent->iThreadId,
+			pEvent->sFile ? pEvent->sFile : "",
+			pEvent->iLine,
+			pEvent->sFunc ? pEvent->sFunc : "",
+			pEvent->sMessage ? pEvent->sMessage : "");
+	}
+}
+// 内部函数：创建备份路径
+static str __xlogMakeBackupPath(str sPath, uint32 iIndex)
+{
+	if ( !sPath || iIndex == 0 ) {
+		return xCore.sNull;
+	}
+	return xrtFormat("%s.%u", sPath, iIndex);
+}
+// 内部函数：执行日志滚动
+static bool __xlogRotateFile(xlogappender* pAppender)
+{
+	str sSrc;
+	str sDst;
+	if ( !pAppender || !pAppender->sPath || pAppender->iMaxSize == 0 || pAppender->iMaxBackup == 0 ) {
+		return TRUE;
+	}
+	if ( pAppender->pFile ) {
+		fclose(pAppender->pFile);
+		pAppender->pFile = NULL;
+	}
+	sDst = __xlogMakeBackupPath(pAppender->sPath, pAppender->iMaxBackup);
+	if ( __xlogOwnStr(sDst) ) {
+		remove((const char*)sDst);
+		xrtFree(sDst);
+	}
+	for ( uint32 i = pAppender->iMaxBackup; i > 1; i-- ) {
+		sSrc = __xlogMakeBackupPath(pAppender->sPath, i - 1);
+		sDst = __xlogMakeBackupPath(pAppender->sPath, i);
+		if ( __xlogOwnStr(sSrc) && __xlogOwnStr(sDst) ) {
+			remove((const char*)sDst);
+			rename((const char*)sSrc, (const char*)sDst);
+		}
+		if ( __xlogOwnStr(sSrc) ) {
+			xrtFree(sSrc);
+		}
+		if ( __xlogOwnStr(sDst) ) {
+			xrtFree(sDst);
+		}
+	}
+	sDst = __xlogMakeBackupPath(pAppender->sPath, 1);
+	if ( __xlogOwnStr(sDst) ) {
+		remove((const char*)sDst);
+		rename((const char*)pAppender->sPath, (const char*)sDst);
+		xrtFree(sDst);
+	}
+	pAppender->pFile = fopen((const char*)pAppender->sPath, "ab");
+	if ( !pAppender->pFile ) {
+		xrtSetError("logger reopen rolling file failed.", FALSE);
+		return FALSE;
+	}
+	return TRUE;
+}
+// 内部函数：按需滚动
+static bool __xlogRotateIfNeeded(xlogappender* pAppender, size_t iMessageSize)
+{
+	long iPos;
+	if ( !pAppender || !pAppender->pFile || pAppender->iMaxSize == 0 || pAppender->iMaxBackup == 0 ) {
+		return TRUE;
+	}
+	iPos = ftell(pAppender->pFile);
+	if ( iPos < 0 ) {
+		return TRUE;
+	}
+	if ( ((uint64)iPos + (uint64)iMessageSize) < pAppender->iMaxSize ) {
+		return TRUE;
+	}
+	return __xlogRotateFile(pAppender);
+}
+// 内部函数：创建输出器
+static xlogappender* __xlogAppenderCreate(str sName, int iType, xloglevel iMinLevel)
+{
+	xlogappender* pAppender;
+	pAppender = (xlogappender*)xrtCalloc(1, sizeof(xlogappender));
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->sName = xrtCopyStr(sName ? sName : (str)"appender", 0);
+	pAppender->iMinLevel = iMinLevel;
+	pAppender->iFormat = XLOG_FORMAT_TEXT;
+	pAppender->iType = iType;
+	pAppender->bColor = FALSE;
+	return pAppender;
+}
+// 内部函数：释放输出器
+static void __xlogAppenderDestroy(xlogappender* pAppender)
+{
+	if ( !pAppender ) {
+		return;
+	}
+	if ( pAppender->bOwnFile && pAppender->pFile ) {
+		fclose(pAppender->pFile);
+		pAppender->pFile = NULL;
+	}
+	if ( __xlogOwnStr(pAppender->sName) ) {
+		xrtFree(pAppender->sName);
+	}
+	if ( __xlogOwnStr(pAppender->sPath) ) {
+		xrtFree(pAppender->sPath);
+	}
+	xrtFree(pAppender);
+}
+// 内部函数：追加输出器
+static bool __xlogAddAppender(xlogger* pLogger, xlogappender* pAppender)
+{
+	xlogappender** arrNew;
+	uint32 iCapacity;
+	if ( !pLogger || !pAppender ) {
+		return FALSE;
+	}
+	if ( pLogger->iAppenderCount >= pLogger->iAppenderCapacity ) {
+		iCapacity = pLogger->iAppenderCapacity == 0 ? 4 : pLogger->iAppenderCapacity * 2;
+		arrNew = (xlogappender**)xrtRealloc(pLogger->arrAppender, sizeof(xlogappender*) * iCapacity);
+		if ( !arrNew ) {
+			return FALSE;
+		}
+		pLogger->arrAppender = arrNew;
+		pLogger->iAppenderCapacity = iCapacity;
+	}
+	pLogger->arrAppender[pLogger->iAppenderCount++] = pAppender;
+	return TRUE;
+}
+// 创建日志器
+XXAPI xlogger* xlogCreate(str sName)
+{
+	xlogger* pLogger;
+	pLogger = (xlogger*)xrtCalloc(1, sizeof(xlogger));
+	if ( !pLogger ) {
+		return NULL;
+	}
+	pLogger->sName = xrtCopyStr(sName ? sName : (str)"default", 0);
+	pLogger->iLevel = XLOG_INFO;
+	pLogger->pLock = xrtMutexCreate();
+	if ( !pLogger->pLock ) {
+		if ( __xlogOwnStr(pLogger->sName) ) {
+			xrtFree(pLogger->sName);
+		}
+		xrtFree(pLogger);
+		return NULL;
+	}
+	return pLogger;
+}
+// 销毁日志器
+XXAPI void xlogDestroy(xlogger* pLogger)
+{
+	if ( !pLogger ) {
+		return;
+	}
+	xlogFlush(pLogger);
+	if ( pLogger == __g_pXlogDefault ) {
+		__g_pXlogDefault = NULL;
+		__g_bXlogDefaultOwner = FALSE;
+	}
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		__xlogAppenderDestroy(pLogger->arrAppender[i]);
+	}
+	if ( pLogger->arrAppender ) {
+		xrtFree(pLogger->arrAppender);
+	}
+	if ( __xlogOwnStr(pLogger->sName) ) {
+		xrtFree(pLogger->sName);
+	}
+	if ( pLogger->pLock ) {
+		xrtMutexDestroy(pLogger->pLock);
+	}
+	xrtFree(pLogger);
+}
+// 获取默认日志器
+XXAPI xlogger* xlogDefault()
+{
+	if ( __g_pXlogDefault == NULL ) {
+		__g_pXlogDefault = xlogCreate((str)"default");
+		if ( __g_pXlogDefault ) {
+			__g_bXlogDefaultOwner = TRUE;
+			xlogAddConsole(__g_pXlogDefault, XLOG_TRACE, TRUE);
+		}
+	}
+	return __g_pXlogDefault;
+}
+// 设置默认日志器
+XXAPI void xlogSetDefault(xlogger* pLogger)
+{
+	if ( __g_bXlogDefaultOwner && __g_pXlogDefault && __g_pXlogDefault != pLogger ) {
+		xlogDestroy(__g_pXlogDefault);
+	}
+	__g_pXlogDefault = pLogger;
+	__g_bXlogDefaultOwner = FALSE;
+}
+// 内部函数：释放运行时持有的默认日志器
+static void __xlogRuntimeUnit()
+{
+	if ( __g_bXlogDefaultOwner && __g_pXlogDefault ) {
+		xlogDestroy(__g_pXlogDefault);
+	}
+	__g_pXlogDefault = NULL;
+	__g_bXlogDefaultOwner = FALSE;
+}
+// 设置日志器级别
+XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel)
+{
+	if ( pLogger ) {
+		pLogger->iLevel = iLevel;
+	}
+}
+// 获取日志器级别
+XXAPI xloglevel xlogGetLevel(xlogger* pLogger)
+{
+	return pLogger ? pLogger->iLevel : XLOG_OFF;
+}
+// 添加控制台输出器
+XXAPI xlogappender* xlogAddConsole(xlogger* pLogger, xloglevel iMinLevel, bool bColor)
+{
+	xlogappender* pAppender;
+	if ( !pLogger ) {
+		return NULL;
+	}
+	pAppender = __xlogAppenderCreate((str)"console", XLOG_APPENDER_CONSOLE, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->bColor = bColor;
+	pAppender->pFile = stdout;
+	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		__xlogAppenderDestroy(pAppender);
+		return NULL;
+	}
+	return pAppender;
+}
+// 添加文件输出器
+XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel)
+{
+	xlogappender* pAppender;
+	if ( !pLogger || !sPath || sPath[0] == '\0' ) {
+		return NULL;
+	}
+	pAppender = __xlogAppenderCreate((str)"file", XLOG_APPENDER_FILE, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->sPath = xrtCopyStr(sPath, 0);
+	pAppender->pFile = fopen((const char*)sPath, "ab");
+	pAppender->bOwnFile = TRUE;
+	if ( !pAppender->pFile ) {
+		__xlogAppenderDestroy(pAppender);
+		xrtSetError("logger open file failed.", FALSE);
+		return NULL;
+	}
+	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		__xlogAppenderDestroy(pAppender);
+		return NULL;
+	}
+	return pAppender;
+}
+// 添加滚动文件输出器
+XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel)
+{
+	xlogappender* pAppender;
+	pAppender = xlogAddFile(pLogger, sPath, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->iMaxSize = iMaxSize;
+	pAppender->iMaxBackup = iMaxBackup;
+	return pAppender;
+}
+// 添加自定义输出器
+XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData)
+{
+	xlogappender* pAppender;
+	if ( !pLogger || !Proc ) {
+		return NULL;
+	}
+	pAppender = __xlogAppenderCreate(sName ? sName : (str)"custom", XLOG_APPENDER_CUSTOM, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->Proc = Proc;
+	pAppender->pUserData = pUserData;
+	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		__xlogAppenderDestroy(pAppender);
+		return NULL;
+	}
+	return pAppender;
+}
+// 设置输出器级别
+XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel)
+{
+	if ( pAppender ) {
+		pAppender->iMinLevel = iMinLevel;
+	}
+}
+// 设置输出器格式
+XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat)
+{
+	if ( pAppender ) {
+		pAppender->iFormat = iFormat;
+	}
+}
+// 设置输出器颜色
+XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor)
+{
+	if ( pAppender ) {
+		pAppender->bColor = bColor;
+	}
+}
+// 获取日志级别名称
+XXAPI str xlogLevelName(xloglevel iLevel)
+{
+	switch ( iLevel ) {
+		case XLOG_TRACE: return (str)"TRACE";
+		case XLOG_DEBUG: return (str)"DEBUG";
+		case XLOG_INFO: return (str)"INFO";
+		case XLOG_WARN: return (str)"WARN";
+		case XLOG_ERROR: return (str)"ERROR";
+		case XLOG_FATAL: return (str)"FATAL";
+		case XLOG_OFF: return (str)"OFF";
+		default: return (str)"UNKN";
+	}
+}
+// 核心日志输出
+XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...)
+{
+	va_list args;
+	va_start(args, sFmt);
+	xlogWriteV(pLogger, iLevel, sFile, iLine, sFunc, sFmt, args);
+	va_end(args);
+}
+// 核心日志输出 va_list 版本
+XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args)
+{
+	va_list argsCopy;
+	int iSize;
+	str sMessage;
+	xlogevent tEvent;
+	if ( !pLogger || !sFmt || iLevel < pLogger->iLevel || iLevel >= XLOG_OFF ) {
+		return;
+	}
+	va_copy(argsCopy, args);
+	iSize = vsnprintf(NULL, 0, sFmt, argsCopy);
+	va_end(argsCopy);
+	if ( iSize < 0 ) {
+		return;
+	}
+	sMessage = (str)xrtMalloc((size_t)iSize + 1u);
+	if ( !sMessage ) {
+		return;
+	}
+	vsnprintf((char*)sMessage, (size_t)iSize + 1u, sFmt, args);
+	memset(&tEvent, 0, sizeof(tEvent));
+	tEvent.iTime = xrtNow();
+	tEvent.iLevel = iLevel;
+	tEvent.sLogger = pLogger->sName;
+	tEvent.sFile = sFile;
+	tEvent.iLine = iLine;
+	tEvent.sFunc = sFunc;
+	tEvent.iThreadId = xrtThreadGetCurrentId();
+	tEvent.sMessage = (const char*)sMessage;
+	xrtMutexLock(pLogger->pLock);
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		xlogappender* pAppender = pLogger->arrAppender[i];
+		if ( !pAppender || iLevel < pAppender->iMinLevel ) {
+			continue;
+		}
+		if ( pAppender->iType == XLOG_APPENDER_CUSTOM ) {
+			pAppender->Proc(&tEvent, pAppender->pUserData);
+			continue;
+		}
+		if ( pAppender->iType == XLOG_APPENDER_CONSOLE ) {
+			FILE* pFile = (iLevel >= XLOG_ERROR) ? stderr : stdout;
+			__xlogWriteFormatted(pFile, pAppender->iFormat, pAppender->bColor, &tEvent);
+			fflush(pFile);
+			continue;
+		}
+		if ( pAppender->iType == XLOG_APPENDER_FILE && pAppender->pFile ) {
+			if ( __xlogRotateIfNeeded(pAppender, (size_t)iSize + 160u) ) {
+				__xlogWriteFormatted(pAppender->pFile, pAppender->iFormat, FALSE, &tEvent);
+				fflush(pAppender->pFile);
+			}
+		}
+	}
+	xrtMutexUnlock(pLogger->pLock);
+	xrtFree(sMessage);
+}
+// 刷新日志器
+XXAPI void xlogFlush(xlogger* pLogger)
+{
+	if ( !pLogger ) {
+		return;
+	}
+	xrtMutexLock(pLogger->pLock);
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		xlogappender* pAppender = pLogger->arrAppender[i];
+		if ( pAppender && pAppender->pFile ) {
+			fflush(pAppender->pFile);
+		}
+	}
+	xrtMutexUnlock(pLogger->pLock);
+}
+#endif
 #ifndef XRT_NO_QUEUE
 
 // ========================================
-// File: D:/Git/xrt/lib/queue.h
+// File: D:/git/xrt/lib/queue.h
 // ========================================
 
 #ifndef __XRT_QUEUE_MAX_CAPACITY
@@ -21201,7 +21837,7 @@ XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 #ifndef XRT_NO_COROUTINE
 
 // ========================================
-// File: D:/Git/xrt/lib/coroutine.h
+// File: D:/git/xrt/lib/coroutine.h
 // ========================================
 
 
@@ -24125,7 +24761,7 @@ XXAPI void xrtCoSleep(uint32 iMs)
 	#ifndef XRT_NO_XURL
 
 // ========================================
-// File: D:/Git/xrt/lib/xurl.h
+// File: D:/git/xrt/lib/xurl.h
 // ========================================
 
 #ifndef XRT_XURL_H
@@ -25070,7 +25706,7 @@ XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 	#ifndef XRT_NO_HTTP_UTIL
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttp_util.h
+// File: D:/git/xrt/lib/xhttp_util.h
 // ========================================
 
 #ifndef XRT_XHTTP_UTIL_H
@@ -27784,7 +28420,7 @@ XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset,
 	#endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_base.h
+// File: D:/git/xrt/lib/xnet_base.h
 // ========================================
 
 #ifndef XRT_XNET_BASE_H
@@ -28332,7 +28968,7 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_mem.h
+// File: D:/git/xrt/lib/xnet_mem.h
 // ========================================
 
 
@@ -28973,7 +29609,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port.h
+// File: D:/git/xrt/lib/xnet_port.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_H
@@ -29156,7 +29792,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port_iocp.h
+// File: D:/git/xrt/lib/xnet_port_iocp.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_IOCP_H
@@ -30154,7 +30790,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_port_uring.h
+// File: D:/git/xrt/lib/xnet_port_uring.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_URING_H
@@ -31298,7 +31934,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 	#ifndef XRT_NO_XCODEC
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec.h
+// File: D:/git/xrt/lib/xcodec.h
 // ========================================
 
 #ifndef XRT_XCODEC_H
@@ -31612,7 +32248,7 @@ XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec_http1.h
+// File: D:/git/xrt/lib/xcodec_http1.h
 // ========================================
 
 #ifndef XRT_XCODEC_HTTP1_H
@@ -32016,7 +32652,11 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		// 去除头部名称和值的前后空白
 		__xcodecHttpTrimView(&sName, &iNameLen);
 		__xcodecHttpTrimView(&sValue, &iValueLen);
-		if ( pMsg->iHeaderCount < XCODEC_HTTP1_MAX_HEADERS ) {
+		if ( pMsg->iHeaderCount >= XCODEC_HTTP1_MAX_HEADERS ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+		{
 			xcodechttp1header* pHeader = &pMsg->arrHeaders[pMsg->iHeaderCount++];
 			__xcodecHttpCopyToken(pHeader->sName, sizeof(pHeader->sName), sName, iNameLen);
 			__xcodecHttpCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue, iValueLen);
@@ -32096,7 +32736,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xcodec_ws.h
+// File: D:/git/xrt/lib/xcodec_ws.h
 // ========================================
 
 #ifndef XRT_XCODEC_WS_H
@@ -32220,7 +32860,7 @@ XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t
 	#endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_engine.h
+// File: D:/git/xrt/lib/xnet_engine.h
 // ========================================
 
 #ifndef XRT_XNET_ENGINE_H
@@ -32960,7 +33600,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 #ifndef XRT_NO_CRYPTO
 
 // ========================================
-// File: D:/Git/xrt/lib/crypto.h
+// File: D:/git/xrt/lib/crypto.h
 // ========================================
 
 
@@ -37686,7 +38326,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 #ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/Git/xrt/lib/nettls.h
+// File: D:/git/xrt/lib/nettls.h
 // ========================================
 
 /*
@@ -37870,6 +38510,11 @@ struct xrt_tls_resume {
 	uint8 iSessionIdLen;
 	uint8 aSessionId[32];
 	uint8 aMasterSecret[48];
+	uint8 iIdentityType;
+	uint8 iIdentityHashLen;
+	uint8 bHasServerName;
+	uint8 aIdentityHash[32];
+	uint8 aServerNameHash[32];
 };
 typedef struct __xrt_tls_resume_cache_entry {
 	struct __xrt_tls_resume_cache_entry* pNext;
@@ -37880,6 +38525,10 @@ static volatile long __xrt_tls_resume_lock = 0;
 static __xrt_tls_resume_cache_entry* __xrt_tls_resume_cache = NULL;
 static uint32 __xrt_tls_resume_cache_count = 0;
 static uint64 __xrt_tls_resume_cache_gen = 0;
+#define __XRT_TLS_RESUME_IDENTITY_NONE     0
+#define __XRT_TLS_RESUME_IDENTITY_RSA      1
+#define __XRT_TLS_RESUME_IDENTITY_ECDSA    2
+#define __XRT_TLS_RESUME_IDENTITY_ED25519  3
 #ifndef __XRT_TLS_VERSION_1_2
 	#define __XRT_TLS_VERSION_1_2  0x0303
 #endif
@@ -37892,20 +38541,38 @@ static uint64 __xrt_tls_resume_cache_gen = 0;
 	#define __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256  0xCCA9
 #endif
 // 内部函数：__xrt_tls_resume_lock_acquire
+static void __xrt_tls_resume_lock_wait(uint32 iSpin)
+{
+	if ( iSpin < 16 ) {
+		xrtThreadYield();
+		return;
+	}
+	if ( iSpin < 32 ) {
+		xrtSleep(1);
+		return;
+	}
+	if ( iSpin < 48 ) {
+		xrtSleep(2);
+		return;
+	}
+	xrtSleep(4);
+}
+// 内部函数：__xrt_tls_resume_lock_acquire
 static void __xrt_tls_resume_lock_acquire(void)
 {
-	// 自旋锁：通过原子交换操作尝试获取锁，失败则让出 CPU 重试
+	uint32 iSpin = 0;
+	// 自旋锁：通过原子交换操作尝试获取锁，失败则逐步退避，降低高并发下的 CPU 空转
 	#if defined(__TINYC__) && !defined(_WIN32) && !defined(_WIN64) && (defined(__x86_64__) || defined(_M_X64))
 		while ( __xrtAtomicExchange32(&__xrt_tls_resume_lock, 1) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#elif defined(_WIN32) || defined(_WIN64)
 		while ( InterlockedCompareExchange((volatile LONG*)&__xrt_tls_resume_lock, 1, 0) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#else
 		while ( __sync_lock_test_and_set(&__xrt_tls_resume_lock, 1) != 0 ) {
-			xrtThreadYield();
+			__xrt_tls_resume_lock_wait(iSpin++);
 		}
 	#endif
 }
@@ -37960,7 +38627,9 @@ static void __xrt_tls_resume_cache_store(const struct xrt_tls_resume* pResume)
 	__xrt_tls_resume_cache_entry* pCurr = NULL;
 	// 验证参数有效性：仅支持 TLS 1.2 且会话ID长度合法
 	if ( !pResume || pResume->iVersion != __XRT_TLS_VERSION_1_2
-		|| pResume->iSessionIdLen == 0 || pResume->iSessionIdLen > 32u ) return;
+		|| pResume->iSessionIdLen == 0 || pResume->iSessionIdLen > 32u
+		|| pResume->iIdentityType == __XRT_TLS_RESUME_IDENTITY_NONE
+		|| pResume->iIdentityHashLen != 32 ) return;
 	__xrt_tls_resume_lock_acquire();
 	// 遍历链表查找是否已存在相同会话ID的条目
 	for ( pCurr = __xrt_tls_resume_cache; pCurr; pCurr = pCurr->pNext ) {
@@ -39461,6 +40130,66 @@ struct xrt_tls_context {
 	size_t iRecvMsgLen;
 	uint8 iContentType;
 };
+static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t iLen);
+// 内部函数：__xrt_tls_resume_identity_type
+static uint8 __xrt_tls_resume_identity_type(const xtlsctx* pCtx)
+{
+	if ( !pCtx || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return __XRT_TLS_RESUME_IDENTITY_NONE; }
+	if ( pCtx->bIsEd25519Key ) { return __XRT_TLS_RESUME_IDENTITY_ED25519; }
+	if ( pCtx->bIsECPubKey ) { return __XRT_TLS_RESUME_IDENTITY_ECDSA; }
+	return __XRT_TLS_RESUME_IDENTITY_RSA;
+}
+// 内部函数：__xrt_tls12_suite_matches_identity
+static bool __xrt_tls12_suite_matches_identity(uint16 iCipherSuite, uint8 iIdentityType)
+{
+	switch ( iCipherSuite ) {
+		case __XRT_TLS12_ECDHE_ECDSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_ECDHE_ECDSA_AES256_GCM_SHA384:
+		case __XRT_TLS12_ECDHE_ECDSA_CHACHA20_POLY1305_SHA256:
+			return iIdentityType == __XRT_TLS_RESUME_IDENTITY_ECDSA
+				|| iIdentityType == __XRT_TLS_RESUME_IDENTITY_ED25519;
+		case __XRT_TLS12_ECDHE_RSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_ECDHE_RSA_AES256_GCM_SHA384:
+		case __XRT_TLS12_ECDHE_RSA_CHACHA20_POLY1305_SHA256:
+		case __XRT_TLS12_RSA_AES128_GCM_SHA256:
+		case __XRT_TLS12_RSA_AES256_GCM_SHA384:
+			return iIdentityType == __XRT_TLS_RESUME_IDENTITY_RSA;
+		default:
+			return false;
+	}
+}
+// 内部函数：__xrt_tls_resume_fill_identity
+static bool __xrt_tls_resume_fill_identity(xtlsctx* pCtx, struct xrt_tls_resume* pOut)
+{
+	const char* sServerName;
+	if ( !pCtx || !pOut ) { return false; }
+	pOut->iIdentityType = __xrt_tls_resume_identity_type(pCtx);
+	if ( pOut->iIdentityType == __XRT_TLS_RESUME_IDENTITY_NONE || !pCtx->pCertDer || pCtx->iCertDerLen == 0 ) { return false; }
+	xrtSHA256((const ptr)pCtx->pCertDer, pCtx->iCertDerLen, pOut->aIdentityHash);
+	pOut->iIdentityHashLen = 32;
+	sServerName = pCtx->bIsServer ? pCtx->sClientSNI : pCtx->sHostname;
+	if ( sServerName && sServerName[0] ) {
+		xrtSHA256((const ptr)sServerName, strlen(sServerName), pOut->aServerNameHash);
+		pOut->bHasServerName = true;
+	} else {
+		pOut->bHasServerName = false;
+		memset(pOut->aServerNameHash, 0, sizeof(pOut->aServerNameHash));
+	}
+	return true;
+}
+// 内部函数：__xrt_tls_resume_matches_identity
+static bool __xrt_tls_resume_matches_identity(xtlsctx* pCtx, const struct xrt_tls_resume* pResume)
+{
+	struct xrt_tls_resume tCurrent;
+	if ( !pCtx || !pResume ) { return false; }
+	if ( !__xrt_tls_resume_fill_identity(pCtx, &tCurrent) ) { return false; }
+	if ( pResume->iIdentityType != tCurrent.iIdentityType ) { return false; }
+	if ( pResume->iIdentityHashLen != 32 || tCurrent.iIdentityHashLen != 32 ) { return false; }
+	if ( !__xrt_tls_consttime_equal(pResume->aIdentityHash, tCurrent.aIdentityHash, 32) ) { return false; }
+	if ( pResume->bHasServerName != tCurrent.bHasServerName ) { return false; }
+	if ( pResume->bHasServerName && !__xrt_tls_consttime_equal(pResume->aServerNameHash, tCurrent.aServerNameHash, 32) ) { return false; }
+	return __xrt_tls12_suite_matches_identity(pResume->iCipherSuite, tCurrent.iIdentityType);
+}
 static bool __xrt_tls_parse_alert_record(const uint8* pAlert, size_t iLen, uint8* pLevel, uint8* pDesc)
 {
 	if ( pAlert == NULL || iLen < 2 ) { return false; }
@@ -39503,6 +40232,10 @@ static bool __xrt_tls_resume_from_ctx(xtlsctx* pCtx, struct xrt_tls_resume* pOut
 	pOut->iSessionIdLen = pCtx->iSessionIdLen;
 	memcpy(pOut->aSessionId, pCtx->aSessionId, pCtx->iSessionIdLen);
 	memcpy(pOut->aMasterSecret, pCtx->aMasterSecret, sizeof(pOut->aMasterSecret));
+	if ( pCtx->bIsServer ) {
+		if ( !__xrt_tls_resume_fill_identity(pCtx, pOut) ) { return false; }
+		if ( !__xrt_tls12_suite_matches_identity(pOut->iCipherSuite, pOut->iIdentityType) ) { return false; }
+	}
 	return true;
 }
 // SHA-256("") 预计算
@@ -44091,6 +44824,7 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 	// 尝试 TLS 1.2 会话恢复：匹配 session_id 和密码套件
 	if ( pCtx->iSessionIdLen > 0
 		&& __xrt_tls_resume_cache_lookup(pCtx->aSessionId, pCtx->iSessionIdLen, &tCachedResume)
+		&& __xrt_tls_resume_matches_identity(pCtx, &tCachedResume)
 		&& __xrt_tls12_client_offers_suite(tCachedResume.iCipherSuite,
 			bOfferTLS12EcdheEcdsaAES128,
 			bOfferTLS12EcdheEcdsaAES256,
@@ -45011,7 +45745,7 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #ifndef XRT_NO_NETWORK
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_proxy.h
+// File: D:/git/xrt/lib/xnet_proxy.h
 // ========================================
 
 #ifndef XRT_XNET_PROXY_H
@@ -45369,7 +46103,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_stream.h
+// File: D:/git/xrt/lib/xnet_stream.h
 // ========================================
 
 #ifndef XRT_XNET_STREAM_H
@@ -47373,6 +48107,7 @@ XXAPI xnet_result xrtNetListenerStart(xnetlistener* pListener)
 	// 创建 TCP 流套接字
 	pListener->hSocket = __xnetSocketCreateStream(pListener->tConfig.tBindAddr.iFamily);
 	if ( !__xnetSocketIsValid(pListener->hSocket) ) { return XRT_NET_ERROR; }
+	(void)__xnetSocketSetReuseAddr(pListener->hSocket);
 	(void)__xnetSocketApplyListenFlags(pListener->hSocket, pListener->tConfig.iFlags);
 	(void)__xnetSocketSetNonBlock(pListener->hSocket, true);
 	// 绑定到指定地址和端口
@@ -48116,7 +48851,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_dgram.h
+// File: D:/git/xrt/lib/xnet_dgram.h
 // ========================================
 
 #ifndef XRT_XNET_DGRAM_H
@@ -48813,7 +49548,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 #endif
 
 // ========================================
-// File: D:/Git/xrt/lib/xnet_sync.h
+// File: D:/git/xrt/lib/xnet_sync.h
 // ========================================
 
 #ifndef XRT_XNET_SYNC_H
@@ -53828,7 +54563,7 @@ XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, x
 	#ifndef XRT_NO_XHTTP
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttp.h
+// File: D:/git/xrt/lib/xhttp.h
 // ========================================
 
 #ifndef XRT_XHTTP_H
@@ -54899,7 +55634,7 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 	#ifndef XRT_NO_XHTTPD
 
 // ========================================
-// File: D:/Git/xrt/lib/xhttpd.h
+// File: D:/git/xrt/lib/xhttpd.h
 // ========================================
 
 #ifndef XRT_XHTTPD_H
@@ -54964,6 +55699,7 @@ typedef struct {
 	uint32 iFlags;
 	uint32 iBacklog;
 	uint32 iRecvLimit;
+	uint32 iBodyLimit;
 	const xtlsconfig* pTlsConfig;
 } xhttpdconfig;
 typedef struct {
@@ -54987,16 +55723,29 @@ struct xrt_httpd_conn {
 	bool bResponseDrained;
 	bool bAsyncPending;
 	bool bKeepAlive;
+	bool bContinueSent;
 };
 struct xrt_httpd_server {
 	xnetengine* pEngine;
 	xnetlistener* pListener;
 	xhttpdconfig tConfig;
+	xtlsconfig tTlsConfig;
 	xhttpdevents tEvents;
 	ptr pUserData;
 	volatile long iConnLock;
 	volatile long bRunning;
 	xhttpdconn* pConnHead;
+	bool bHasTlsConfig;
+	char* sTlsCertFile;
+	char* sTlsKeyFile;
+	char* sTlsCaFile;
+	char* sTlsCrlFile;
+	char* sTlsHostName;
+	void* pTlsCertData;
+	void* pTlsKeyData;
+	void* pTlsCaData;
+	void* pTlsCrlData;
+	xtlsresume* pTlsResume;
 };
 typedef struct {
 	xhttpdconn* pConn;
@@ -55057,7 +55806,10 @@ static void __xhttpdSleep0(void)
 // 内部函数：锁定
 static void __xhttpdLock(volatile long* pLock)
 {
-	if ( !pLock ) { return; }
+	if ( !pLock ) {
+		xrtSetError("xhttpd lock pointer is null.", FALSE);
+		return;
+	}
 	while ( __xhttpdAtomicCompareExchange(pLock, 1, 0) != 0 ) {
 		__xhttpdSleep0();
 	}
@@ -55065,7 +55817,10 @@ static void __xhttpdLock(volatile long* pLock)
 // 内部函数：解锁
 static void __xhttpdUnlock(volatile long* pLock)
 {
-	if ( !pLock ) { return; }
+	if ( !pLock ) {
+		xrtSetError("xhttpd unlock pointer is null.", FALSE);
+		return;
+	}
 	(void)__xnetAtomicExchange32(pLock, 0);
 }
 // 内部函数：复制 Token
@@ -55081,6 +55836,59 @@ static void __xhttpdCopyToken(char* sDst, size_t iDstCap, const char* sSrc)
 	if ( iLen >= iDstCap ) { iLen = iDstCap - 1u; }
 	memcpy(sDst, sSrc, iLen);
 	sDst[iLen] = '\0';
+}
+// 内部函数：复制内存
+static void* __xhttpdDupBytes(const void* pData, size_t iLen)
+{
+	void* pCopy;
+	if ( !pData || iLen == 0u ) { return NULL; }
+	pCopy = XNET_ALLOC(iLen);
+	if ( !pCopy ) { return NULL; }
+	memcpy(pCopy, pData, iLen);
+	return pCopy;
+}
+// 内部函数：复制字符串
+static char* __xhttpdDupStr(const char* sText)
+{
+	size_t iLen;
+	char* sCopy;
+	if ( !sText ) { return NULL; }
+	iLen = strlen(sText);
+	if ( iLen == SIZE_MAX ) { return NULL; }
+	sCopy = (char*)XNET_ALLOC(iLen + 1u);
+	if ( !sCopy ) { return NULL; }
+	memcpy(sCopy, sText, iLen + 1u);
+	return sCopy;
+}
+// 内部函数：检查 HTTP 头名称
+static bool __xhttpdValidHeaderName(const char* sName)
+{
+	const unsigned char* p;
+	if ( !sName || !sName[0] ) { return false; }
+	for ( p = (const unsigned char*)sName; *p; ++p ) {
+		if ( *p <= 32u || *p >= 127u || *p == ':' ) { return false; }
+	}
+	return true;
+}
+// 内部函数：检查 HTTP 头值
+static bool __xhttpdValidHeaderValue(const char* sValue)
+{
+	const unsigned char* p;
+	if ( !sValue ) { return false; }
+	for ( p = (const unsigned char*)sValue; *p; ++p ) {
+		if ( *p == '\r' || *p == '\n' ) { return false; }
+	}
+	return true;
+}
+// 内部函数：检查 HTTP reason phrase
+static bool __xhttpdValidReasonPhrase(const char* sReason)
+{
+	const unsigned char* p;
+	if ( !sReason ) { return true; }
+	for ( p = (const unsigned char*)sReason; *p; ++p ) {
+		if ( *p == '\r' || *p == '\n' ) { return false; }
+	}
+	return true;
 }
 // 内部函数：__xhttpdAppendBytes
 static bool __xhttpdAppendBytes(char** ppBuf, size_t* pLen, size_t* pCap, const void* pData, size_t iDataLen)
@@ -55131,6 +55939,9 @@ static bool __xhttpdAppendText(char** ppBuf, size_t* pLen, size_t* pCap, const c
 }
 static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pChain);
 static void __xhttpdEmitServerError(xhttpdserver* pServer, xhttpdconn* pConn, int iSysErr);
+typedef struct {
+	xhttpdconn* pConn;
+} __xhttpd_conn_task;
 // 内部函数：__xhttpdRequestCreate
 static xhttpdrequest* __xhttpdRequestCreate(void)
 {
@@ -55220,6 +56031,7 @@ XXAPI void xrtHttpdConfigInit(xhttpdconfig* pCfg)
 	xrtNetAddrInitAny(&pCfg->tBindAddr, AF_INET, 0);
 	pCfg->iBacklog = 128u;
 	pCfg->iRecvLimit = 1024u * 1024u;
+	pCfg->iBodyLimit = pCfg->iRecvLimit;
 }
 // xrtHttpdRequestInit 相关处理
 XXAPI void xrtHttpdRequestInit(xhttpdrequest* pReq)
@@ -55238,6 +56050,7 @@ XXAPI void xrtHttpdRequestUnit(xhttpdrequest* pReq)
 	}
 	pReq->iBodyLen = 0;
 	memset(pReq, 0, sizeof(xhttpdrequest));
+	pReq->iContentLength = -1;
 }
 // xrtHttpdResponseInit 相关处理
 XXAPI void xrtHttpdResponseInit(xhttpdresponse* pResp)
@@ -55278,6 +56091,10 @@ XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, 
 {
 	if ( !pResp ) { return; }
 	pResp->iStatusCode = iStatusCode;
+	if ( !__xhttpdValidReasonPhrase(sReason) ) {
+		pResp->sReason[0] = '\0';
+		return;
+	}
 	__xhttpdCopyToken(pResp->sReason, sizeof(pResp->sReason), sReason);
 }
 // 设置 HTTP 服务端 response 头部
@@ -55285,6 +56102,7 @@ XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, c
 {
 	xhttpdheader* pHeader;
 	if ( !pResp || !sName || !sValue ) { return false; }
+	if ( !__xhttpdValidHeaderName(sName) || !__xhttpdValidHeaderValue(sValue) ) { return false; }
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
 		if ( __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, sName) ) {
 			__xhttpdCopyToken(pResp->arrHeaders[i].sValue, sizeof(pResp->arrHeaders[i].sValue), sValue);
@@ -55308,6 +56126,7 @@ XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData,
 	}
 	pResp->iBodyLen = 0;
 	if ( pData && iLen > 0 ) {
+		if ( iLen == SIZE_MAX ) { return false; }
 		pBodyCopy = (char*)XNET_ALLOC(iLen + 1u);
 		if ( !pBodyCopy ) { return false; }
 		memcpy(pBodyCopy, pData, iLen);
@@ -55316,7 +56135,12 @@ XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData,
 	pResp->pBody = pBodyCopy;
 	pResp->iBodyLen = iLen;
 	if ( sContentType && sContentType[0] ) {
-		return xrtHttpdResponseSetHeader(pResp, "Content-Type", sContentType);
+		if ( !xrtHttpdResponseSetHeader(pResp, "Content-Type", sContentType) ) {
+			if ( pResp->pBody ) { XNET_FREE(pResp->pBody); }
+			pResp->pBody = NULL;
+			pResp->iBodyLen = 0;
+			return false;
+		}
 	}
 	return true;
 }
@@ -55328,6 +56152,10 @@ static bool __xhttpdResponseCopy(xhttpdresponse* pDst, const xhttpdresponse* pSr
 	*pDst = *pSrc;
 	pDst->pBody = NULL;
 	if ( pSrc->pBody && pSrc->iBodyLen > 0u ) {
+		if ( pSrc->iBodyLen == SIZE_MAX ) {
+			memset(pDst, 0, sizeof(xhttpdresponse));
+			return false;
+		}
 		pDst->pBody = (char*)XNET_ALLOC(pSrc->iBodyLen + 1u);
 		if ( !pDst->pBody ) {
 			memset(pDst, 0, sizeof(xhttpdresponse));
@@ -55381,7 +56209,7 @@ static bool __xhttpdPrepareResponse(const xhttpdrequest* pReq, const xhttpdrespo
 	return true;
 }
 // 内部函数：__xhttpdBuildRequest
-static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain, xhttpdrequest* pReq)
+static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg* pMsg, const xnetchain* pChain, xhttpdrequest* pReq, size_t iBodyLimit)
 {
 	size_t iBodyBytes;
 	xrturlview tTarget;
@@ -55409,15 +56237,21 @@ static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg
 		if ( !xrtUrlViewCopyQueryTo(&tTarget, pReq->sQuery, sizeof(pReq->sQuery)) ) { return false; }
 	}
 	// 复制请求头部
-	pReq->iHeaderCount = pMsg->iHeaderCount < XHTTPD_MAX_HEADERS ? pMsg->iHeaderCount : XHTTPD_MAX_HEADERS;
+	if ( pMsg->iHeaderCount > XHTTPD_MAX_HEADERS ) { return false; }
+	pReq->iHeaderCount = pMsg->iHeaderCount;
 	for ( uint32 i = 0; i < pReq->iHeaderCount; ++i ) {
 		__xhttpdCopyToken(pReq->arrHeaders[i].sName, sizeof(pReq->arrHeaders[i].sName), pMsg->arrHeaders[i].sName);
 		__xhttpdCopyToken(pReq->arrHeaders[i].sValue, sizeof(pReq->arrHeaders[i].sValue), pMsg->arrHeaders[i].sValue);
 	}
 	// 提取并复制请求正文
 	iBodyBytes = xrtCodecHttp1BodyBytes(pFrame);
+	if ( iBodyLimit > 0u && iBodyBytes > iBodyLimit ) { return false; }
 	if ( (pMsg->iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u ) { pReq->iContentLength = (int64_t)iBodyBytes; }
 	if ( iBodyBytes > 0u ) {
+		if ( iBodyBytes == SIZE_MAX ) {
+			xrtHttpdRequestUnit(pReq);
+			return false;
+		}
 		pReq->pBody = (char*)XNET_ALLOC(iBodyBytes + 1u);
 		if ( !pReq->pBody ) {
 			xrtHttpdRequestUnit(pReq);
@@ -55427,6 +56261,30 @@ static bool __xhttpdBuildRequest(const xcodecframe* pFrame, const xcodechttp1msg
 		pReq->pBody[pReq->iBodyLen] = '\0';
 	}
 	return true;
+}
+// 内部函数：格式化 HTTP Date 头
+static bool __xhttpdFormatDate(char* sOut, size_t iOutCap)
+{
+	static const char* arrWeek[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+	static const char* arrMonth[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+	time_t tNow;
+	struct tm tGmt;
+	if ( !sOut || iOutCap == 0u ) { return false; }
+	tNow = time(NULL);
+	#if defined(_WIN32) || defined(_WIN64)
+		if ( gmtime_s(&tGmt, &tNow) != 0 ) { return false; }
+	#else
+		if ( gmtime_r(&tNow, &tGmt) == NULL ) { return false; }
+	#endif
+	if ( tGmt.tm_wday < 0 || tGmt.tm_wday > 6 || tGmt.tm_mon < 0 || tGmt.tm_mon > 11 ) { return false; }
+	return snprintf(sOut, iOutCap, "Date: %s, %02d %s %04d %02d:%02d:%02d GMT\r\n",
+		arrWeek[tGmt.tm_wday],
+		tGmt.tm_mday,
+		arrMonth[tGmt.tm_mon],
+		tGmt.tm_year + 1900,
+		tGmt.tm_hour,
+		tGmt.tm_min,
+		tGmt.tm_sec) > 0;
 }
 // 内部函数：__xhttpdBuildResponseBytes
 static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut, size_t* pOutLen)
@@ -55441,10 +56299,16 @@ static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut
 	if ( !pResp || !ppOut || !pOutLen ) { return false; }
 	// 确定原因短语和传输编码模式
 	sReason = pResp->sReason[0] ? pResp->sReason : __xhttpdStatusText(pResp->iStatusCode);
+	if ( !__xhttpdValidReasonPhrase(sReason) ) { goto fail; }
 	bChunked = __xhttpdContainsTokenNoCase(xrtHttpdResponseHeader(pResp, "Transfer-Encoding"), "chunked");
 	// 构建状态行
 	snprintf(aLine, sizeof(aLine), "HTTP/1.1 %u %s\r\n", (unsigned)pResp->iStatusCode, sReason);
 	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
+	if ( !__xhttpdResponseHasHeader(pResp, "Date") ) {
+		if ( __xhttpdFormatDate(aLine, sizeof(aLine)) ) {
+			if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
+		}
+	}
 	// 补充 Connection 头部
 	if ( !__xhttpdResponseHasHeader(pResp, "Connection") ) {
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "Connection: close\r\n") ) { goto fail; }
@@ -55457,6 +56321,10 @@ static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut
 	// 追加用户自定义头部
 	for ( uint32 i = 0; i < pResp->iHeaderCount; ++i ) {
 		if ( bChunked && __xhttpdStrEqNoCase(pResp->arrHeaders[i].sName, "Content-Length") ) { continue; }
+		if ( !__xhttpdValidHeaderName(pResp->arrHeaders[i].sName)
+			|| !__xhttpdValidHeaderValue(pResp->arrHeaders[i].sValue) ) {
+			goto fail;
+		}
 		snprintf(aLine, sizeof(aLine), "%s: %s\r\n", pResp->arrHeaders[i].sName, pResp->arrHeaders[i].sValue);
 		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 	}
@@ -55464,12 +56332,13 @@ static bool __xhttpdBuildResponseBytes(const xhttpdresponse* pResp, char** ppOut
 	if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n") ) { goto fail; }
 	// 处理响应正文
 	if ( bChunked ) {
-		snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pResp->iBodyLen);
-		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 		if ( pResp->pBody && pResp->iBodyLen > 0 ) {
+			snprintf(aLine, sizeof(aLine), "%llX\r\n", (unsigned long long)pResp->iBodyLen);
+			if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, aLine) ) { goto fail; }
 			if ( !__xhttpdAppendBytes(&pBuf, &iLen, &iCap, pResp->pBody, pResp->iBodyLen) ) { goto fail; }
+			if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n") ) { goto fail; }
 		}
-		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "\r\n0\r\n\r\n") ) { goto fail; }
+		if ( !__xhttpdAppendText(&pBuf, &iLen, &iCap, "0\r\n\r\n") ) { goto fail; }
 	} else if ( pResp->pBody && pResp->iBodyLen > 0 ) {
 		if ( !__xhttpdAppendBytes(&pBuf, &iLen, &iCap, pResp->pBody, pResp->iBodyLen) ) { goto fail; }
 	}
@@ -55492,7 +56361,35 @@ static xhttpdrequest* __xhttpdConnDetachRequestLocked(xhttpdconn* pConn)
 	pConn->bResponseDrained = false;
 	pConn->bAsyncPending = false;
 	pConn->bKeepAlive = false;
+	pConn->bContinueSent = false;
 	return pReq;
+}
+// 内部函数：__xhttpdRecvKickTask
+static void __xhttpdRecvKickTask(xnetworker* pWorker, ptr pArg)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pArg;
+	xnetstream* pStream = NULL;
+	(void)pWorker;
+	if ( !pConn ) { return; }
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->pStream && __xhttpdAtomicLoad(&pConn->iCleanupPosted) == 0 ) {
+		pStream = pConn->pStream;
+		__xnetStreamAddAsyncHold(pStream);
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( pStream && xrtNetChainBytes(&pStream->tRxChain) > 0u ) {
+		__xhttpdStreamOnRecv(pConn, pStream, &pStream->tRxChain);
+	}
+	if ( pStream ) { __xnetStreamReleaseAsyncHold(pStream); }
+	__xhttpdConnRelease(pConn);
+}
+// 内部函数：__xhttpdConnPostRecvKick
+static void __xhttpdConnPostRecvKick(xhttpdconn* pConn, xnetstream* pStream)
+{
+	if ( !pConn || !pStream || !pStream->pEngine || !pStream->pWorker ) { return; }
+	if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xhttpdRecvKickTask, __xhttpdConnAddRef(pConn)) != XRT_NET_OK ) {
+		__xhttpdConnRelease(pConn);
+	}
 }
 // 内部函数：__xhttpdConnTryFinalizeRequest
 static void __xhttpdConnTryFinalizeRequest(xhttpdconn* pConn)
@@ -55509,20 +56406,54 @@ static void __xhttpdConnTryFinalizeRequest(xhttpdconn* pConn)
 		else if ( pConn->bKeepAlive && pConn->bResponseCommitted && pConn->bResponseDrained && !pConn->pStream->bClosing ) {
 			pReq = __xhttpdConnDetachRequestLocked(pConn);
 			pStream = pConn->pStream;
+			__xnetStreamAddAsyncHold(pStream);
 			bKickRecv = xrtNetChainBytes(&pStream->tRxChain) > 0u;
 		}
 	}
 	__xhttpdUnlock(&pConn->iConnLock);
 	__xhttpdRequestDestroy(pReq);
-	if ( bKickRecv ) { __xhttpdStreamOnRecv(pConn, pStream, &pStream->tRxChain); }
+	if ( bKickRecv ) { __xhttpdConnPostRecvKick(pConn, pStream); }
+	if ( pStream ) { __xnetStreamReleaseAsyncHold(pStream); }
+}
+// 内部函数：__xhttpdFinalizeTask
+static void __xhttpdFinalizeTask(xnetworker* pWorker, ptr pArg)
+{
+	xhttpdconn* pConn = (xhttpdconn*)pArg;
+	(void)pWorker;
+	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnRelease(pConn);
+}
+// 内部函数：__xhttpdConnFinalizeMaybeAsync
+static void __xhttpdConnFinalizeMaybeAsync(xhttpdconn* pConn)
+{
+	xnetstream* pStream = NULL;
+	if ( !pConn ) { return; }
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	if ( pStream ) { __xnetStreamAddAsyncHold(pStream); }
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( pStream && pStream->pEngine && pStream->pWorker && !__xnetEngineIsCurrentWorker(pStream->pWorker) ) {
+		if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xhttpdFinalizeTask, __xhttpdConnAddRef(pConn)) == XRT_NET_OK ) {
+			__xnetStreamReleaseAsyncHold(pStream);
+			return;
+		}
+		__xhttpdConnRelease(pConn);
+	}
+	if ( pStream ) { __xnetStreamReleaseAsyncHold(pStream); }
+	__xhttpdConnTryFinalizeRequest(pConn);
 }
 // xrtHttpdConnIsOpen 相关处理
 XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn)
 {
-	return pConn &&
-		pConn->pStream != NULL &&
-		__xhttpdAtomicLoadConst(&pConn->iCleanupPosted) == 0 &&
-		!pConn->pStream->bClosing;
+	bool bOpen = false;
+	xhttpdconn* pMutable = (xhttpdconn*)pConn;
+	if ( !pMutable ) { return false; }
+	__xhttpdLock(&pMutable->iConnLock);
+	bOpen = pMutable->pStream != NULL &&
+		__xhttpdAtomicLoadConst(&pMutable->iCleanupPosted) == 0 &&
+		!pMutable->pStream->bClosing;
+	__xhttpdUnlock(&pMutable->iConnLock);
+	return bOpen;
 }
 // 内部函数：发送任务进程
 static void __xhttpdSendTaskProc(xnetworker* pWorker, ptr pArg)
@@ -55643,14 +56574,24 @@ XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* p
 	}
 	xrtHttpdResponseUnit(&tSend);
 	// 尝试完成当前请求并复用连接
-	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnFinalizeMaybeAsync(pConn);
 	return XRT_NET_OK;
 }
 // xrtHttpdConnClose 相关处理
 XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags)
 {
-	if ( !pConn || !pConn->pStream ) { return XRT_NET_ERROR; }
-	xrtNetStreamClose(pConn->pStream, iCloseFlags);
+	xnetstream* pStream;
+	if ( !pConn ) { return XRT_NET_ERROR; }
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	if ( !pStream || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return XRT_NET_ERROR;
+	}
+	__xnetStreamAddAsyncHold(pStream);
+	__xhttpdUnlock(&pConn->iConnLock);
+	xrtNetStreamClose(pStream, iCloseFlags);
+	__xnetStreamReleaseAsyncHold(pStream);
 	return XRT_NET_OK;
 }
 // 内部函数：__xhttpdServerAddConn
@@ -55756,16 +56697,30 @@ static bool __xhttpdSendResponseAndClose(xhttpdconn* pConn, const xhttpdresponse
 {
 	char* pBytes = NULL;
 	size_t iLen = 0u;
+	xnetstream* pStream;
 	xnet_result iRet;
-	if ( !pConn || !pConn->pStream || !pResp ) { return false; }
-	if ( !__xhttpdBuildResponseBytes(pResp, &pBytes, &iLen) ) { return false; }
-	iRet = xrtNetStreamSend(pConn->pStream, pBytes, iLen);
-	XNET_FREE(pBytes);
-	if ( iRet != XRT_NET_OK ) {
-		xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+	if ( !pConn || !pResp ) { return false; }
+	__xhttpdLock(&pConn->iConnLock);
+	pStream = pConn->pStream;
+	if ( !pStream || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
 		return false;
 	}
-	xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_GRACEFUL);
+	__xnetStreamAddAsyncHold(pStream);
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( !__xhttpdBuildResponseBytes(pResp, &pBytes, &iLen) ) {
+		__xnetStreamReleaseAsyncHold(pStream);
+		return false;
+	}
+	iRet = xrtNetStreamSend(pStream, pBytes, iLen);
+	XNET_FREE(pBytes);
+	if ( iRet != XRT_NET_OK ) {
+		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+		__xnetStreamReleaseAsyncHold(pStream);
+		return false;
+	}
+	xrtNetStreamClose(pStream, XNET_CLOSE_F_GRACEFUL);
+	__xnetStreamReleaseAsyncHold(pStream);
 	return true;
 }
 // 内部函数：__xhttpdSendSimpleStatus
@@ -55797,6 +56752,50 @@ static uint32 __xhttpdFutureErrorStatus(const xfuture_result* pResult)
 		return 503u;
 	}
 	return 500u;
+}
+// 内部函数：提前处理 Expect: 100-continue
+static bool __xhttpdMaybeSendContinue(xhttpdconn* pConn, xnetstream* pStream, xnetchain* pChain)
+{
+	static const char aHeadEnd[] = "\r\n\r\n";
+	char* pHead;
+	char* pEnd;
+	size_t iAvail;
+	bool bShouldSend = false;
+	if ( !pConn || !pStream || !pChain ) { return false; }
+	__xhttpdLock(&pConn->iConnLock);
+	if ( pConn->bContinueSent || pConn->bResponseInFlight || __xhttpdAtomicLoad(&pConn->iCleanupPosted) != 0 ) {
+		__xhttpdUnlock(&pConn->iConnLock);
+		return false;
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	iAvail = xrtNetChainBytes(pChain);
+	if ( iAvail == 0u || iAvail == SIZE_MAX ) { return false; }
+	pHead = (char*)XNET_ALLOC(iAvail + 1u);
+	if ( !pHead ) { return false; }
+	if ( xrtNetChainPeek(pChain, pHead, iAvail) == iAvail ) {
+		pHead[iAvail] = '\0';
+		pEnd = strstr(pHead, aHeadEnd);
+		if ( pEnd ) {
+			pHead[(size_t)(pEnd - pHead) + sizeof(aHeadEnd) - 1u] = '\0';
+		}
+		bShouldSend = strstr(pHead, "\r\nExpect: 100-continue\r\n") != NULL
+			|| strstr(pHead, "\r\nExpect: 100-Continue\r\n") != NULL
+			|| strstr(pHead, "\r\nexpect: 100-continue\r\n") != NULL;
+	}
+	XNET_FREE(pHead);
+	if ( !bShouldSend ) { return false; }
+	__xhttpdLock(&pConn->iConnLock);
+	if ( !pConn->bContinueSent && !pConn->bResponseInFlight && pConn->pStream == pStream ) {
+		pConn->bContinueSent = true;
+		bShouldSend = true;
+	} else {
+		bShouldSend = false;
+	}
+	__xhttpdUnlock(&pConn->iConnLock);
+	if ( bShouldSend ) {
+		(void)xrtNetStreamSend(pStream, "HTTP/1.1 100 Continue\r\n\r\n", 25u);
+	}
+	return bShouldSend;
 }
 // 内部函数：获取状态正文
 static const char* __xhttpdStatusBody(uint32 iStatusCode)
@@ -55847,7 +56846,7 @@ static void __xhttpdAsyncRequestFinally(const xfuture_result* pResult, ptr pArg)
 	}
 	// 释放资源和引用计数
 	if ( pResp ) { xrtHttpdResponseDestroy(pResp); }
-	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnFinalizeMaybeAsync(pConn);
 	xFutureRelease(pCtx->pFuture);
 	__xhttpdConnRelease(pConn);
 	XNET_FREE(pCtx);
@@ -55929,11 +56928,19 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 	__xhttpdUnlock(&pConn->iConnLock);
 	// 解析 HTTP/1.1 请求
 	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
-	if ( iParse == XCODEC_STATUS_NEED_MORE ) { return; }
+	if ( iParse == XCODEC_STATUS_NEED_MORE ) {
+		(void)__xhttpdMaybeSendContinue(pConn, pStream, pChain);
+		return;
+	}
 	// 解析失败，返回 400 错误
 	if ( iParse == XCODEC_STATUS_ERROR ) {
 		__xhttpdEmitServerError(pServer, pConn, -1);
 		__xhttpdSendSimpleStatus(pConn, 400u, "Bad Request");
+		return;
+	}
+	if ( pServer->tConfig.iBodyLimit > 0u && xrtCodecHttp1BodyBytes(&tFrame) > pServer->tConfig.iBodyLimit ) {
+		__xhttpdSendSimpleStatus(pConn, 413u, __xhttpdStatusBody(413u));
+		xrtCodecFrameConsume(pChain, &tFrame);
 		return;
 	}
 	// 创建并构建请求对象
@@ -55943,7 +56950,7 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
-	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, pReq) ) {
+	if ( !__xhttpdBuildRequest(&tFrame, &tMsg, pChain, pReq, pServer->tConfig.iBodyLimit) ) {
 		__xhttpdRequestDestroy(pReq);
 		__xhttpdEmitServerError(pServer, pConn, -1);
 		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
@@ -55988,7 +56995,7 @@ static void __xhttpdStreamOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCh
 		bResponseCommitted = pConn->bResponseCommitted;
 		__xhttpdUnlock(&pConn->iConnLock);
 		if ( bResponseCommitted ) {
-			__xhttpdConnTryFinalizeRequest(pConn);
+			__xhttpdConnFinalizeMaybeAsync(pConn);
 			return;
 		}
 	}
@@ -56021,7 +57028,7 @@ static void __xhttpdStreamOnDrain(ptr pOwner, xnetstream* pStream)
 	}
 	pConn->bResponseDrained = true;
 	__xhttpdUnlock(&pConn->iConnLock);
-	__xhttpdConnTryFinalizeRequest(pConn);
+	__xhttpdConnFinalizeMaybeAsync(pConn);
 }
 // 内部函数：__xhttpdStreamOnClose
 static void __xhttpdStreamOnClose(ptr pOwner, xnetstream* pStream, xnet_result iReason)
@@ -56095,6 +57102,74 @@ static const xnetstreamevents* __xhttpdStreamEvents(void)
 	};
 	return &tEvents;
 }
+// 内部函数：释放 HTTPD TLS 配置副本
+static void __xhttpdServerClearTlsConfig(xhttpdserver* pServer)
+{
+	if ( !pServer ) { return; }
+	if ( pServer->sTlsCertFile ) { XNET_FREE(pServer->sTlsCertFile); }
+	if ( pServer->sTlsKeyFile ) { XNET_FREE(pServer->sTlsKeyFile); }
+	if ( pServer->sTlsCaFile ) { XNET_FREE(pServer->sTlsCaFile); }
+	if ( pServer->sTlsCrlFile ) { XNET_FREE(pServer->sTlsCrlFile); }
+	if ( pServer->sTlsHostName ) { XNET_FREE(pServer->sTlsHostName); }
+	if ( pServer->pTlsCertData ) { XNET_FREE(pServer->pTlsCertData); }
+	if ( pServer->pTlsKeyData ) { XNET_FREE(pServer->pTlsKeyData); }
+	if ( pServer->pTlsCaData ) { XNET_FREE(pServer->pTlsCaData); }
+	if ( pServer->pTlsCrlData ) { XNET_FREE(pServer->pTlsCrlData); }
+	if ( pServer->pTlsResume ) {
+		memset(pServer->pTlsResume, 0, sizeof(*pServer->pTlsResume));
+		XNET_FREE(pServer->pTlsResume);
+	}
+	pServer->sTlsCertFile = NULL;
+	pServer->sTlsKeyFile = NULL;
+	pServer->sTlsCaFile = NULL;
+	pServer->sTlsCrlFile = NULL;
+	pServer->sTlsHostName = NULL;
+	pServer->pTlsCertData = NULL;
+	pServer->pTlsKeyData = NULL;
+	pServer->pTlsCaData = NULL;
+	pServer->pTlsCrlData = NULL;
+	pServer->pTlsResume = NULL;
+	memset(&pServer->tTlsConfig, 0, sizeof(pServer->tTlsConfig));
+	pServer->bHasTlsConfig = false;
+	if ( pServer->tConfig.pTlsConfig == &pServer->tTlsConfig ) { pServer->tConfig.pTlsConfig = NULL; }
+}
+// 内部函数：复制 HTTPD TLS 配置
+static bool __xhttpdServerCopyTlsConfig(xhttpdserver* pServer, const xtlsconfig* pSrc)
+{
+	if ( !pServer || !pSrc ) { return true; }
+	pServer->tTlsConfig = *pSrc;
+	pServer->tTlsConfig.iDataLock = 0;
+	if ( pSrc->sCertFile && !(pServer->sTlsCertFile = __xhttpdDupStr(pSrc->sCertFile)) ) { goto fail; }
+	if ( pSrc->sKeyFile && !(pServer->sTlsKeyFile = __xhttpdDupStr(pSrc->sKeyFile)) ) { goto fail; }
+	if ( pSrc->sCaFile && !(pServer->sTlsCaFile = __xhttpdDupStr(pSrc->sCaFile)) ) { goto fail; }
+	if ( pSrc->sCrlFile && !(pServer->sTlsCrlFile = __xhttpdDupStr(pSrc->sCrlFile)) ) { goto fail; }
+	if ( pSrc->sHostName && !(pServer->sTlsHostName = __xhttpdDupStr(pSrc->sHostName)) ) { goto fail; }
+	if ( pSrc->pCertData && pSrc->iCertDataLen > 0u && !(pServer->pTlsCertData = __xhttpdDupBytes(pSrc->pCertData, pSrc->iCertDataLen)) ) { goto fail; }
+	if ( pSrc->pKeyData && pSrc->iKeyDataLen > 0u && !(pServer->pTlsKeyData = __xhttpdDupBytes(pSrc->pKeyData, pSrc->iKeyDataLen)) ) { goto fail; }
+	if ( pSrc->pCaData && pSrc->iCaDataLen > 0u && !(pServer->pTlsCaData = __xhttpdDupBytes(pSrc->pCaData, pSrc->iCaDataLen)) ) { goto fail; }
+	if ( pSrc->pCrlData && pSrc->iCrlDataLen > 0u && !(pServer->pTlsCrlData = __xhttpdDupBytes(pSrc->pCrlData, pSrc->iCrlDataLen)) ) { goto fail; }
+	if ( pSrc->pResume ) {
+		pServer->pTlsResume = (xtlsresume*)XNET_ALLOC(sizeof(*pServer->pTlsResume));
+		if ( !pServer->pTlsResume ) { goto fail; }
+		memcpy(pServer->pTlsResume, pSrc->pResume, sizeof(*pServer->pTlsResume));
+	}
+	pServer->tTlsConfig.sCertFile = pServer->sTlsCertFile;
+	pServer->tTlsConfig.sKeyFile = pServer->sTlsKeyFile;
+	pServer->tTlsConfig.sCaFile = pServer->sTlsCaFile;
+	pServer->tTlsConfig.sCrlFile = pServer->sTlsCrlFile;
+	pServer->tTlsConfig.sHostName = pServer->sTlsHostName;
+	pServer->tTlsConfig.pCertData = pServer->pTlsCertData;
+	pServer->tTlsConfig.pKeyData = pServer->pTlsKeyData;
+	pServer->tTlsConfig.pCaData = pServer->pTlsCaData;
+	pServer->tTlsConfig.pCrlData = pServer->pTlsCrlData;
+	pServer->tTlsConfig.pResume = pServer->pTlsResume;
+	pServer->tConfig.pTlsConfig = &pServer->tTlsConfig;
+	pServer->bHasTlsConfig = true;
+	return true;
+fail:
+	__xhttpdServerClearTlsConfig(pServer);
+	return false;
+}
 // 创建 HTTP 服务端
 XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg, const xhttpdevents* pEvents, ptr pUserData)
 {
@@ -56108,6 +57183,11 @@ XXAPI xhttpdserver* xrtHttpdCreate(xnetengine* pEngine, const xhttpdconfig* pCfg
 		pServer->tConfig = *pCfg;
 	} else {
 		xrtHttpdConfigInit(&pServer->tConfig);
+	}
+	pServer->tConfig.pTlsConfig = NULL;
+	if ( pCfg && pCfg->pTlsConfig && !__xhttpdServerCopyTlsConfig(pServer, pCfg->pTlsConfig) ) {
+		XNET_FREE(pServer);
+		return NULL;
 	}
 	if ( pEvents ) { pServer->tEvents = *pEvents; }
 	pServer->pUserData = pUserData;
@@ -56158,9 +57238,7 @@ XXAPI void xrtHttpdStop(xhttpdserver* pServer)
 {
 	xhttpdconn* pConn;
 	if ( !pServer ) { return; }
-	if ( __xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1) == 0 ) {
-		/* already stopped */
-	}
+	if ( __xhttpdAtomicCompareExchange(&pServer->bRunning, 0, 1) != 1 ) { return; }
 	if ( pServer->pListener ) {
 		xrtNetListenerStop(pServer->pListener);
 		xrtNetListenerDestroy(pServer->pListener);
@@ -56171,8 +57249,14 @@ XXAPI void xrtHttpdStop(xhttpdserver* pServer)
 		xhttpdconn* pNext = pConn->pNext;
 		pConn->pNext = NULL;
 		if ( __xhttpdAtomicCompareExchange(&pConn->iCleanupPosted, 1, 0) == 0 ) {
-			if ( pConn->pStream ) {
-				xrtNetStreamClose(pConn->pStream, XNET_CLOSE_F_ABORT);
+			xnetstream* pStream;
+			__xhttpdLock(&pConn->iConnLock);
+			pStream = pConn->pStream;
+			if ( pStream ) { __xnetStreamAddAsyncHold(pStream); }
+			__xhttpdUnlock(&pConn->iConnLock);
+			if ( pStream ) {
+				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+				__xnetStreamReleaseAsyncHold(pStream);
 			}
 			__xhttpdConnCleanupTask(NULL, pConn);
 		}
@@ -56184,6 +57268,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 {
 	if ( !pServer ) { return; }
 	xrtHttpdStop(pServer);
+	__xhttpdServerClearTlsConfig(pServer);
 	XNET_FREE(pServer);
 }
 #endif
@@ -56191,7 +57276,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 	#ifndef XRT_NO_XWS
 
 // ========================================
-// File: D:/Git/xrt/lib/xws.h
+// File: D:/git/xrt/lib/xws.h
 // ========================================
 
 #ifndef XRT_XWS_H
@@ -57773,7 +58858,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	#endif
 
 // ========================================
-// File: D:/Git/xrt/lib/network.h
+// File: D:/git/xrt/lib/network.h
 // ========================================
 
 
@@ -57994,7 +59079,7 @@ str xrtGetLocalName()
 #ifndef XRT_NO_SUBPROCESS
 
 // ========================================
-// File: D:/Git/xrt/lib/subprocess.h
+// File: D:/git/xrt/lib/subprocess.h
 // ========================================
 
 
@@ -61627,7 +62712,7 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 #ifndef XRT_NO_XID
 
 // ========================================
-// File: D:/Git/xrt/lib/xid.h
+// File: D:/git/xrt/lib/xid.h
 // ========================================
 
 
@@ -61695,7 +62780,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 #ifndef XRT_NO_BUFFER
 
 // ========================================
-// File: D:/Git/xrt/lib/buffer.h
+// File: D:/git/xrt/lib/buffer.h
 // ========================================
 
 
@@ -61817,7 +62902,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 #ifndef XRT_NO_ARRAY
 
 // ========================================
-// File: D:/Git/xrt/lib/array_point.h
+// File: D:/git/xrt/lib/array_point.h
 // ========================================
 
 
@@ -62133,7 +63218,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/array.h
+// File: D:/git/xrt/lib/array.h
 // ========================================
 
 
@@ -62469,7 +63554,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 #ifndef XRT_NO_BSMN
 
 // ========================================
-// File: D:/Git/xrt/lib/bsmm.h
+// File: D:/git/xrt/lib/bsmm.h
 // ========================================
 
 
@@ -62667,7 +63752,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 #ifndef XRT_NO_MEMUNIT
 
 // ========================================
-// File: D:/Git/xrt/lib/memunit.h
+// File: D:/git/xrt/lib/memunit.h
 // ========================================
 
 
@@ -62844,7 +63929,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 #ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool_fs.h
+// File: D:/git/xrt/lib/mempool_fs.h
 // ========================================
 
 
@@ -63285,7 +64370,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 #ifndef XRT_NO_STACK
 
 // ========================================
-// File: D:/Git/xrt/lib/stack.h
+// File: D:/git/xrt/lib/stack.h
 // ========================================
 
 
@@ -63430,7 +64515,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/stack_dyn.h
+// File: D:/git/xrt/lib/stack_dyn.h
 // ========================================
 
 
@@ -63661,7 +64746,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 #ifndef XRT_NO_AVLTREE
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree_base.h
+// File: D:/git/xrt/lib/avltree_base.h
 // ========================================
 
 
@@ -64071,7 +65156,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/Git/xrt/lib/avltree.h
+// File: D:/git/xrt/lib/avltree.h
 // ========================================
 
 
@@ -64412,7 +65497,7 @@ XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 #ifndef XRT_NO_MEMPOOL
 
 // ========================================
-// File: D:/Git/xrt/lib/mempool.h
+// File: D:/git/xrt/lib/mempool.h
 // ========================================
 
 
@@ -65180,7 +66265,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 #ifndef XRT_NO_DICT
 
 // ========================================
-// File: D:/Git/xrt/lib/dict.h
+// File: D:/git/xrt/lib/dict.h
 // ========================================
 
 
@@ -65549,7 +66634,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_LIST
 
 // ========================================
-// File: D:/Git/xrt/lib/list.h
+// File: D:/git/xrt/lib/list.h
 // ========================================
 
 
@@ -65900,7 +66985,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_REGEX
 
 // ========================================
-// File: D:/Git/xrt/lib/regex.h
+// File: D:/git/xrt/lib/regex.h
 // ========================================
 
 /* 
@@ -71459,7 +72544,7 @@ static int bbre_builtin_cc_perl(
 #ifndef XRT_NO_VALUE
 
 // ========================================
-// File: D:/Git/xrt/lib/value.h
+// File: D:/git/xrt/lib/value.h
 // ========================================
 
 
@@ -73533,7 +74618,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 #ifndef XRT_NO_JNUM
 
 // ========================================
-// File: D:/Git/xrt/lib/jnum.h
+// File: D:/git/xrt/lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -75059,7 +76144,7 @@ jnum_to_func(double, xrtStrToNum)
 #ifndef XRT_NO_JSON
 
 // ========================================
-// File: D:/Git/xrt/lib/json.h
+// File: D:/git/xrt/lib/json.h
 // ========================================
 
 
@@ -76742,7 +77827,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 	#if !defined(XRT_NO_XSON)
 
 // ========================================
-// File: D:/Git/xrt/lib/xson.h
+// File: D:/git/xrt/lib/xson.h
 // ========================================
 
 typedef enum
@@ -78196,7 +79281,7 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 #ifndef XRT_NO_TEMPLATE
 
 // ========================================
-// File: D:/Git/xrt/lib/template.h
+// File: D:/git/xrt/lib/template.h
 // ========================================
 
 
@@ -82819,6 +83904,9 @@ static void __xrtRuntimeFinalizeLocked()
 	#ifndef XRT_NO_TEMPLATE
 		xte_private_unit();
 	#endif
+	#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+		__xlogRuntimeUnit();
+	#endif
 	xrtFree(xCore.AppFile);
 	xCore.AppFile = xCore.sNull;
 	xrtFree(xCore.AppPath);
@@ -83593,7 +84681,7 @@ XXAPI void xrtUnit()
 	#undef XRT_BUILD_CORE
 
 // ========================================
-// File: D:/Git/xrt/lib/memdebug_site_macros_public.h
+// File: D:/git/xrt/lib/memdebug_site_macros_public.h
 // ========================================
 
 #ifndef XRT_MEMDEBUG_SITE_MACROS_PUBLIC_H

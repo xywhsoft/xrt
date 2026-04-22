@@ -287,6 +287,10 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/thread.h"
 #endif
 
+#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+	#include "lib/logger.h"
+#endif
+
 #ifndef XRT_NO_QUEUE
 	#include "lib/queue.h"
 #endif
@@ -602,6 +606,10 @@ static void __xrtRuntimeFinalizeLocked()
 
 	#ifndef XRT_NO_TEMPLATE
 		xte_private_unit();
+	#endif
+
+	#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+		__xlogRuntimeUnit();
 	#endif
 
 	xrtFree(xCore.AppFile);
