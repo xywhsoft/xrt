@@ -18,6 +18,7 @@
 | String | [api-string.md](api-string.md) | 字符串与格式化 |
 | Path | [api-path.md](api-path.md) | 路径处理 |
 | Time | [api-time.md](api-time.md) | 时间与日期 |
+| Logger | [api-logger.md](api-logger.md) | 同步日志、输出器、格式与滚动文件 |
 | File | [api-file.md](api-file.md) | 文件与目录操作 |
 | Async File | [api-file-async.md](api-file-async.md) | 异步文件句柄、整文件 helper 与目录任务 |
 | Subprocess | [api-subprocess.md](api-subprocess.md) | 子进程启动、管道、等待与 capture |

@@ -22,6 +22,7 @@
 #define XRT_NO_REGEX
 #define XRT_NO_FILE_ASYNC
 #define XRT_NO_SUBPROCESS
+#define XRT_NO_LOGGER
 
 #define XRT_IMPLEMENTATION
 #include "../../singlehead/xrt.h"

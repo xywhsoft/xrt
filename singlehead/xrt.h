@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-21 14:58:04
+    Generated: 2026-04-21 16:37:04
 
     MIT License
 
@@ -51,7 +51,7 @@
 
 
 // ========================================
-// File: D:/git/xrt/xrt.h
+// File: ./xrt.h
 // ========================================
 
 #pragma once
@@ -334,6 +334,7 @@
 	#define XRT_NO_TEMPLATE
 	#define XRT_NO_REGEX		// 禁用正则表达式模块
 	#define XRT_NO_SUBPROCESS
+	#define XRT_NO_LOGGER
 #endif
 // 网络根模块裁剪时，同步裁剪全部网络子库
 #if defined(XRT_NO_NETWORK)
@@ -534,6 +535,14 @@
 		#warning "XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME."
 	#else
 		XRT_CUT_WARN("XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME.")
+	#endif
+	#undef XRT_NO_TIME
+#endif
+#if defined(XRT_NO_TIME) && !defined(XRT_NO_LOGGER)
+	#if defined(__clang__) || defined(__GNUC__) || defined(__TINYC__)
+		#warning "XRT_NO_TIME ignored because LOGGER requires TIME."
+	#else
+		XRT_CUT_WARN("XRT_NO_TIME ignored because LOGGER requires TIME.")
 	#endif
 	#undef XRT_NO_TIME
 #endif
@@ -2110,6 +2119,65 @@
 	
 	// 本地时间转UTC
 	XXAPI xtime xrtLocalToUTC(xtime local);
+	#ifndef XRT_NO_LOGGER
+	/* ---------- 日志系统 ---------- */
+	typedef enum {
+		XLOG_TRACE = 0,
+		XLOG_DEBUG = 1,
+		XLOG_INFO = 2,
+		XLOG_WARN = 3,
+		XLOG_ERROR = 4,
+		XLOG_FATAL = 5,
+		XLOG_OFF = 6
+	} xloglevel;
+	typedef enum {
+		XLOG_FORMAT_TEXT = 0,
+		XLOG_FORMAT_SIMPLE = 1,
+		XLOG_FORMAT_JSON = 2
+	} xlogformat;
+	typedef struct xlogger xlogger;
+	typedef struct xlogappender xlogappender;
+	typedef struct xlogevent {
+		xtime iTime;
+		xloglevel iLevel;
+		const char* sLogger;
+		const char* sFile;
+		uint32 iLine;
+		const char* sFunc;
+		uint64 iThreadId;
+		const char* sMessage;
+	} xlogevent;
+	typedef void (*xlogcustomproc)(const xlogevent* pEvent, ptr pUserData);
+	XXAPI xlogger* xlogCreate(str sName);
+	XXAPI void xlogDestroy(xlogger* pLogger);
+	XXAPI xlogger* xlogDefault();
+	XXAPI void xlogSetDefault(xlogger* pLogger);
+	XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel);
+	XXAPI xloglevel xlogGetLevel(xlogger* pLogger);
+	XXAPI xlogappender* xlogAddConsole(xlogger* pLogger, xloglevel iMinLevel, bool bColor);
+	XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData);
+	XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel);
+	XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat);
+	XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor);
+	XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...);
+	XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args);
+	XXAPI void xlogFlush(xlogger* pLogger);
+	XXAPI str xlogLevelName(xloglevel iLevel);
+	#define xloggerTrace(pLogger, ...)	xlogWrite((pLogger), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerDebug(pLogger, ...)	xlogWrite((pLogger), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerInfo(pLogger, ...)	xlogWrite((pLogger), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerWarn(pLogger, ...)	xlogWrite((pLogger), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerError(pLogger, ...)	xlogWrite((pLogger), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerFatal(pLogger, ...)	xlogWrite((pLogger), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogTrace(...)				xlogWrite(xlogDefault(), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogDebug(...)				xlogWrite(xlogDefault(), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogInfo(...)				xlogWrite(xlogDefault(), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogWarn(...)				xlogWrite(xlogDefault(), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogError(...)				xlogWrite(xlogDefault(), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogFatal(...)				xlogWrite(xlogDefault(), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#endif
 	
 	// 获取相对时间描述（如"3天前"、"2小时后"）（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime);
@@ -7576,7 +7644,7 @@
 
 
 // ========================================
-// File: D:\git\xrt/xrt.c
+// File: .\xrt.c
 // ========================================
 
 
@@ -7586,7 +7654,7 @@
 #if defined(XRT_MEM_DEBUG)
 
 // ========================================
-// File: D:/git/xrt/lib/memdebug_site_macros_undef.h
+// File: ./lib/memdebug_site_macros_undef.h
 // ========================================
 
 #ifndef XRT_MEMDEBUG_SITE_MACROS_UNDEF_H
@@ -7913,7 +7981,7 @@ static void __xrtRuntimeFinalizeLocked();
 // 引入补充依赖库
 
 // ========================================
-// File: D:/git/xrt/lib/suplib.h
+// File: ./lib/suplib.h
 // ========================================
 
 
@@ -7974,7 +8042,7 @@ XXAPI size_t u32len(u32str sText)
 // 引入子库 - 按依赖关系和裁剪支持重新组织
 
 // ========================================
-// File: D:/git/xrt/lib/memglobal.h
+// File: ./lib/memglobal.h
 // ========================================
 
 
@@ -9890,7 +9958,7 @@ static inline ptr __xrtMemGlobalRealloc(ptr pMem, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/base.h
+// File: ./lib/base.h
 // ========================================
 
 
@@ -10425,7 +10493,7 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 #if defined(XRT_MEM_DEBUG)
 
 // ========================================
-// File: D:/git/xrt/lib/memdebug_site_macros_base.h
+// File: ./lib/memdebug_site_macros_base.h
 // ========================================
 
 #ifndef XRT_MEMDEBUG_SITE_MACROS_BASE_H
@@ -10448,7 +10516,7 @@ static inline void __xrtMemTelemetryRecordTemp(size_t iSize)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/string.h
+// File: ./lib/string.h
 // ========================================
 
 
@@ -11739,7 +11807,7 @@ XXAPI bool xrtStrApprox(str s1, size_t len1, str s2, size_t len2)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/os.h
+// File: ./lib/os.h
 // ========================================
 
 
@@ -11859,7 +11927,7 @@ XXAPI int xrtChain(str sPath, size_t iSize)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/hash.h
+// File: ./lib/hash.h
 // ========================================
 
 
@@ -13033,7 +13101,7 @@ XXAPI uint64 xrtHash64_Nano(ptr key, size_t len)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/charset.h
+// File: ./lib/charset.h
 // ========================================
 
 
@@ -13944,7 +14012,7 @@ XXAPI int xrtGetCharSize(int iCP)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/math.h
+// File: ./lib/math.h
 // ========================================
 
 
@@ -14105,7 +14173,7 @@ XXAPI bool xrtNumApprox(double a, double b)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/path.h
+// File: ./lib/path.h
 // ========================================
 
 
@@ -14284,7 +14352,7 @@ XXAPI str xrtPathJoin(uint iCount, ...)
 #ifndef XRT_NO_TIME
 
 // ========================================
-// File: D:/git/xrt/lib/time.h
+// File: ./lib/time.h
 // ========================================
 
 
@@ -15616,7 +15684,7 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 #ifndef XRT_NO_FILE
 
 // ========================================
-// File: D:/git/xrt/lib/file.h
+// File: ./lib/file.h
 // ========================================
 
 
@@ -17421,7 +17489,7 @@ XXAPI int xrtDirDelete(str sPath)
 	#if !defined(XRT_NO_FILE_ASYNC)
 
 // ========================================
-// File: D:/git/xrt/lib/file_async.h
+// File: ./lib/file_async.h
 // ========================================
 
 #if !defined(XRT_NO_NETWORK)
@@ -18991,7 +19059,7 @@ XXAPI xfuture* xrtDirDeleteAsync(str sPath)
 #ifndef XRT_NO_THREAD
 
 // ========================================
-// File: D:/git/xrt/lib/thread.h
+// File: ./lib/thread.h
 // ========================================
 
 
@@ -19988,10 +20056,577 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 	return TRUE;
 }
 #endif
+#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+
+// ========================================
+// File: ./lib/logger.h
+// ========================================
+
+
+/* ================================ 日志系统 ================================ */
+#define XLOG_APPENDER_CONSOLE	1
+#define XLOG_APPENDER_FILE		2
+#define XLOG_APPENDER_CUSTOM	3
+#define XLOG_COLOR_TRACE		"\033[90m"
+#define XLOG_COLOR_DEBUG		"\033[37;1m"
+#define XLOG_COLOR_INFO			"\033[39m"
+#define XLOG_COLOR_WARN			"\033[33m"
+#define XLOG_COLOR_ERROR		"\033[31m"
+#define XLOG_COLOR_FATAL		"\033[35m"
+#define XLOG_COLOR_RESET		"\033[0m"
+struct xlogappender {
+	str sName;
+	xloglevel iMinLevel;
+	xlogformat iFormat;
+	int iType;
+	bool bColor;
+	bool bOwnFile;
+	FILE* pFile;
+	str sPath;
+	uint64 iMaxSize;
+	uint32 iMaxBackup;
+	xlogcustomproc Proc;
+	ptr pUserData;
+};
+struct xlogger {
+	str sName;
+	xloglevel iLevel;
+	xmutex pLock;
+	xlogappender** arrAppender;
+	uint32 iAppenderCount;
+	uint32 iAppenderCapacity;
+};
+static xlogger* __g_pXlogDefault = NULL;
+static bool __g_bXlogDefaultOwner = FALSE;
+// 内部函数：获取级别颜色
+static const char* __xlogLevelColor(xloglevel iLevel)
+{
+	switch ( iLevel ) {
+		case XLOG_TRACE: return XLOG_COLOR_TRACE;
+		case XLOG_DEBUG: return XLOG_COLOR_DEBUG;
+		case XLOG_INFO: return XLOG_COLOR_INFO;
+		case XLOG_WARN: return XLOG_COLOR_WARN;
+		case XLOG_ERROR: return XLOG_COLOR_ERROR;
+		case XLOG_FATAL: return XLOG_COLOR_FATAL;
+		default: return "";
+	}
+}
+// 内部函数：判断是否需要释放字符串
+static bool __xlogOwnStr(str sText)
+{
+	return sText && sText != xCore.sNull;
+}
+// 内部函数：格式化当前本地时间
+static void __xlogFormatNow(char* sBuff, size_t iSize)
+{
+	time_t tRaw;
+	struct tm tLocal;
+	if ( !sBuff || iSize == 0 ) {
+		return;
+	}
+	tRaw = time(NULL);
+	memset(&tLocal, 0, sizeof(tLocal));
+	#if defined(_WIN32) || defined(_WIN64)
+		localtime_s(&tLocal, &tRaw);
+	#else
+		localtime_r(&tRaw, &tLocal);
+	#endif
+	snprintf(sBuff, iSize, "%04d-%02d-%02d %02d:%02d:%02d",
+		tLocal.tm_year + 1900,
+		tLocal.tm_mon + 1,
+		tLocal.tm_mday,
+		tLocal.tm_hour,
+		tLocal.tm_min,
+		tLocal.tm_sec);
+}
+// 内部函数：JSON 字符串转义写入
+static void __xlogJsonWriteEscaped(FILE* pFile, const char* sText)
+{
+	const unsigned char* p;
+	if ( !pFile ) {
+		return;
+	}
+	fputc('"', pFile);
+	if ( sText ) {
+		for ( p = (const unsigned char*)sText; *p; p++ ) {
+			switch ( *p ) {
+				case '\\': fputs("\\\\", pFile); break;
+				case '"': fputs("\\\"", pFile); break;
+				case '\n': fputs("\\n", pFile); break;
+				case '\r': fputs("\\r", pFile); break;
+				case '\t': fputs("\\t", pFile); break;
+				default:
+					if ( *p < 0x20 ) {
+						fprintf(pFile, "\\u%04x", (unsigned int)*p);
+					} else {
+						fputc(*p, pFile);
+					}
+					break;
+			}
+		}
+	}
+	fputc('"', pFile);
+}
+// 内部函数：写入格式化事件
+static void __xlogWriteFormatted(FILE* pFile, xlogformat iFormat, bool bColor, const xlogevent* pEvent)
+{
+	char sTime[32];
+	const char* sLevel;
+	const char* sColor;
+	if ( !pFile || !pEvent ) {
+		return;
+	}
+	sLevel = xlogLevelName(pEvent->iLevel);
+	sColor = bColor ? __xlogLevelColor(pEvent->iLevel) : "";
+	__xlogFormatNow(sTime, sizeof(sTime));
+	if ( iFormat == XLOG_FORMAT_SIMPLE ) {
+		if ( bColor ) {
+			fprintf(pFile, "%s[%s]%s %s\n", sColor, sLevel, XLOG_COLOR_RESET, pEvent->sMessage ? pEvent->sMessage : "");
+		} else {
+			fprintf(pFile, "[%s] %s\n", sLevel, pEvent->sMessage ? pEvent->sMessage : "");
+		}
+		return;
+	}
+	if ( iFormat == XLOG_FORMAT_JSON ) {
+		fprintf(pFile, "{\"time\":");
+		__xlogJsonWriteEscaped(pFile, sTime);
+		fprintf(pFile, ",\"level\":");
+		__xlogJsonWriteEscaped(pFile, sLevel);
+		fprintf(pFile, ",\"logger\":");
+		__xlogJsonWriteEscaped(pFile, pEvent->sLogger);
+		fprintf(pFile, ",\"thread\":%llu,\"file\":", (unsigned long long)pEvent->iThreadId);
+		__xlogJsonWriteEscaped(pFile, pEvent->sFile);
+		fprintf(pFile, ",\"line\":%u,\"func\":", pEvent->iLine);
+		__xlogJsonWriteEscaped(pFile, pEvent->sFunc);
+		fprintf(pFile, ",\"msg\":");
+		__xlogJsonWriteEscaped(pFile, pEvent->sMessage);
+		fprintf(pFile, "}\n");
+		return;
+	}
+	if ( bColor ) {
+		fprintf(pFile, "%s [%s%-5s%s] [tid=%llu] [%s:%u %s] %s\n",
+			sTime,
+			sColor,
+			sLevel,
+			XLOG_COLOR_RESET,
+			(unsigned long long)pEvent->iThreadId,
+			pEvent->sFile ? pEvent->sFile : "",
+			pEvent->iLine,
+			pEvent->sFunc ? pEvent->sFunc : "",
+			pEvent->sMessage ? pEvent->sMessage : "");
+	} else {
+		fprintf(pFile, "%s [%-5s] [tid=%llu] [%s:%u %s] %s\n",
+			sTime,
+			sLevel,
+			(unsigned long long)pEvent->iThreadId,
+			pEvent->sFile ? pEvent->sFile : "",
+			pEvent->iLine,
+			pEvent->sFunc ? pEvent->sFunc : "",
+			pEvent->sMessage ? pEvent->sMessage : "");
+	}
+}
+// 内部函数：创建备份路径
+static str __xlogMakeBackupPath(str sPath, uint32 iIndex)
+{
+	if ( !sPath || iIndex == 0 ) {
+		return xCore.sNull;
+	}
+	return xrtFormat("%s.%u", sPath, iIndex);
+}
+// 内部函数：执行日志滚动
+static bool __xlogRotateFile(xlogappender* pAppender)
+{
+	str sSrc;
+	str sDst;
+	if ( !pAppender || !pAppender->sPath || pAppender->iMaxSize == 0 || pAppender->iMaxBackup == 0 ) {
+		return TRUE;
+	}
+	if ( pAppender->pFile ) {
+		fclose(pAppender->pFile);
+		pAppender->pFile = NULL;
+	}
+	sDst = __xlogMakeBackupPath(pAppender->sPath, pAppender->iMaxBackup);
+	if ( __xlogOwnStr(sDst) ) {
+		remove((const char*)sDst);
+		xrtFree(sDst);
+	}
+	for ( uint32 i = pAppender->iMaxBackup; i > 1; i-- ) {
+		sSrc = __xlogMakeBackupPath(pAppender->sPath, i - 1);
+		sDst = __xlogMakeBackupPath(pAppender->sPath, i);
+		if ( __xlogOwnStr(sSrc) && __xlogOwnStr(sDst) ) {
+			remove((const char*)sDst);
+			rename((const char*)sSrc, (const char*)sDst);
+		}
+		if ( __xlogOwnStr(sSrc) ) {
+			xrtFree(sSrc);
+		}
+		if ( __xlogOwnStr(sDst) ) {
+			xrtFree(sDst);
+		}
+	}
+	sDst = __xlogMakeBackupPath(pAppender->sPath, 1);
+	if ( __xlogOwnStr(sDst) ) {
+		remove((const char*)sDst);
+		rename((const char*)pAppender->sPath, (const char*)sDst);
+		xrtFree(sDst);
+	}
+	pAppender->pFile = fopen((const char*)pAppender->sPath, "ab");
+	if ( !pAppender->pFile ) {
+		xrtSetError("logger reopen rolling file failed.", FALSE);
+		return FALSE;
+	}
+	return TRUE;
+}
+// 内部函数：按需滚动
+static bool __xlogRotateIfNeeded(xlogappender* pAppender, size_t iMessageSize)
+{
+	long iPos;
+	if ( !pAppender || !pAppender->pFile || pAppender->iMaxSize == 0 || pAppender->iMaxBackup == 0 ) {
+		return TRUE;
+	}
+	iPos = ftell(pAppender->pFile);
+	if ( iPos < 0 ) {
+		return TRUE;
+	}
+	if ( ((uint64)iPos + (uint64)iMessageSize) < pAppender->iMaxSize ) {
+		return TRUE;
+	}
+	return __xlogRotateFile(pAppender);
+}
+// 内部函数：创建输出器
+static xlogappender* __xlogAppenderCreate(str sName, int iType, xloglevel iMinLevel)
+{
+	xlogappender* pAppender;
+	pAppender = (xlogappender*)xrtCalloc(1, sizeof(xlogappender));
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->sName = xrtCopyStr(sName ? sName : (str)"appender", 0);
+	pAppender->iMinLevel = iMinLevel;
+	pAppender->iFormat = XLOG_FORMAT_TEXT;
+	pAppender->iType = iType;
+	pAppender->bColor = FALSE;
+	return pAppender;
+}
+// 内部函数：释放输出器
+static void __xlogAppenderDestroy(xlogappender* pAppender)
+{
+	if ( !pAppender ) {
+		return;
+	}
+	if ( pAppender->bOwnFile && pAppender->pFile ) {
+		fclose(pAppender->pFile);
+		pAppender->pFile = NULL;
+	}
+	if ( __xlogOwnStr(pAppender->sName) ) {
+		xrtFree(pAppender->sName);
+	}
+	if ( __xlogOwnStr(pAppender->sPath) ) {
+		xrtFree(pAppender->sPath);
+	}
+	xrtFree(pAppender);
+}
+// 内部函数：追加输出器
+static bool __xlogAddAppender(xlogger* pLogger, xlogappender* pAppender)
+{
+	xlogappender** arrNew;
+	uint32 iCapacity;
+	if ( !pLogger || !pAppender ) {
+		return FALSE;
+	}
+	if ( pLogger->iAppenderCount >= pLogger->iAppenderCapacity ) {
+		iCapacity = pLogger->iAppenderCapacity == 0 ? 4 : pLogger->iAppenderCapacity * 2;
+		arrNew = (xlogappender**)xrtRealloc(pLogger->arrAppender, sizeof(xlogappender*) * iCapacity);
+		if ( !arrNew ) {
+			return FALSE;
+		}
+		pLogger->arrAppender = arrNew;
+		pLogger->iAppenderCapacity = iCapacity;
+	}
+	pLogger->arrAppender[pLogger->iAppenderCount++] = pAppender;
+	return TRUE;
+}
+// 创建日志器
+XXAPI xlogger* xlogCreate(str sName)
+{
+	xlogger* pLogger;
+	pLogger = (xlogger*)xrtCalloc(1, sizeof(xlogger));
+	if ( !pLogger ) {
+		return NULL;
+	}
+	pLogger->sName = xrtCopyStr(sName ? sName : (str)"default", 0);
+	pLogger->iLevel = XLOG_INFO;
+	pLogger->pLock = xrtMutexCreate();
+	if ( !pLogger->pLock ) {
+		if ( __xlogOwnStr(pLogger->sName) ) {
+			xrtFree(pLogger->sName);
+		}
+		xrtFree(pLogger);
+		return NULL;
+	}
+	return pLogger;
+}
+// 销毁日志器
+XXAPI void xlogDestroy(xlogger* pLogger)
+{
+	if ( !pLogger ) {
+		return;
+	}
+	xlogFlush(pLogger);
+	if ( pLogger == __g_pXlogDefault ) {
+		__g_pXlogDefault = NULL;
+		__g_bXlogDefaultOwner = FALSE;
+	}
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		__xlogAppenderDestroy(pLogger->arrAppender[i]);
+	}
+	if ( pLogger->arrAppender ) {
+		xrtFree(pLogger->arrAppender);
+	}
+	if ( __xlogOwnStr(pLogger->sName) ) {
+		xrtFree(pLogger->sName);
+	}
+	if ( pLogger->pLock ) {
+		xrtMutexDestroy(pLogger->pLock);
+	}
+	xrtFree(pLogger);
+}
+// 获取默认日志器
+XXAPI xlogger* xlogDefault()
+{
+	if ( __g_pXlogDefault == NULL ) {
+		__g_pXlogDefault = xlogCreate((str)"default");
+		if ( __g_pXlogDefault ) {
+			__g_bXlogDefaultOwner = TRUE;
+			xlogAddConsole(__g_pXlogDefault, XLOG_TRACE, TRUE);
+		}
+	}
+	return __g_pXlogDefault;
+}
+// 设置默认日志器
+XXAPI void xlogSetDefault(xlogger* pLogger)
+{
+	if ( __g_bXlogDefaultOwner && __g_pXlogDefault && __g_pXlogDefault != pLogger ) {
+		xlogDestroy(__g_pXlogDefault);
+	}
+	__g_pXlogDefault = pLogger;
+	__g_bXlogDefaultOwner = FALSE;
+}
+// 内部函数：释放运行时持有的默认日志器
+static void __xlogRuntimeUnit()
+{
+	if ( __g_bXlogDefaultOwner && __g_pXlogDefault ) {
+		xlogDestroy(__g_pXlogDefault);
+	}
+	__g_pXlogDefault = NULL;
+	__g_bXlogDefaultOwner = FALSE;
+}
+// 设置日志器级别
+XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel)
+{
+	if ( pLogger ) {
+		pLogger->iLevel = iLevel;
+	}
+}
+// 获取日志器级别
+XXAPI xloglevel xlogGetLevel(xlogger* pLogger)
+{
+	return pLogger ? pLogger->iLevel : XLOG_OFF;
+}
+// 添加控制台输出器
+XXAPI xlogappender* xlogAddConsole(xlogger* pLogger, xloglevel iMinLevel, bool bColor)
+{
+	xlogappender* pAppender;
+	if ( !pLogger ) {
+		return NULL;
+	}
+	pAppender = __xlogAppenderCreate((str)"console", XLOG_APPENDER_CONSOLE, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->bColor = bColor;
+	pAppender->pFile = stdout;
+	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		__xlogAppenderDestroy(pAppender);
+		return NULL;
+	}
+	return pAppender;
+}
+// 添加文件输出器
+XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel)
+{
+	xlogappender* pAppender;
+	if ( !pLogger || !sPath || sPath[0] == '\0' ) {
+		return NULL;
+	}
+	pAppender = __xlogAppenderCreate((str)"file", XLOG_APPENDER_FILE, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->sPath = xrtCopyStr(sPath, 0);
+	pAppender->pFile = fopen((const char*)sPath, "ab");
+	pAppender->bOwnFile = TRUE;
+	if ( !pAppender->pFile ) {
+		__xlogAppenderDestroy(pAppender);
+		xrtSetError("logger open file failed.", FALSE);
+		return NULL;
+	}
+	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		__xlogAppenderDestroy(pAppender);
+		return NULL;
+	}
+	return pAppender;
+}
+// 添加滚动文件输出器
+XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel)
+{
+	xlogappender* pAppender;
+	pAppender = xlogAddFile(pLogger, sPath, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->iMaxSize = iMaxSize;
+	pAppender->iMaxBackup = iMaxBackup;
+	return pAppender;
+}
+// 添加自定义输出器
+XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData)
+{
+	xlogappender* pAppender;
+	if ( !pLogger || !Proc ) {
+		return NULL;
+	}
+	pAppender = __xlogAppenderCreate(sName ? sName : (str)"custom", XLOG_APPENDER_CUSTOM, iMinLevel);
+	if ( !pAppender ) {
+		return NULL;
+	}
+	pAppender->Proc = Proc;
+	pAppender->pUserData = pUserData;
+	if ( !__xlogAddAppender(pLogger, pAppender) ) {
+		__xlogAppenderDestroy(pAppender);
+		return NULL;
+	}
+	return pAppender;
+}
+// 设置输出器级别
+XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel)
+{
+	if ( pAppender ) {
+		pAppender->iMinLevel = iMinLevel;
+	}
+}
+// 设置输出器格式
+XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat)
+{
+	if ( pAppender ) {
+		pAppender->iFormat = iFormat;
+	}
+}
+// 设置输出器颜色
+XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor)
+{
+	if ( pAppender ) {
+		pAppender->bColor = bColor;
+	}
+}
+// 获取日志级别名称
+XXAPI str xlogLevelName(xloglevel iLevel)
+{
+	switch ( iLevel ) {
+		case XLOG_TRACE: return (str)"TRACE";
+		case XLOG_DEBUG: return (str)"DEBUG";
+		case XLOG_INFO: return (str)"INFO";
+		case XLOG_WARN: return (str)"WARN";
+		case XLOG_ERROR: return (str)"ERROR";
+		case XLOG_FATAL: return (str)"FATAL";
+		case XLOG_OFF: return (str)"OFF";
+		default: return (str)"UNKN";
+	}
+}
+// 核心日志输出
+XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...)
+{
+	va_list args;
+	va_start(args, sFmt);
+	xlogWriteV(pLogger, iLevel, sFile, iLine, sFunc, sFmt, args);
+	va_end(args);
+}
+// 核心日志输出 va_list 版本
+XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args)
+{
+	va_list argsCopy;
+	int iSize;
+	str sMessage;
+	xlogevent tEvent;
+	if ( !pLogger || !sFmt || iLevel < pLogger->iLevel || iLevel >= XLOG_OFF ) {
+		return;
+	}
+	va_copy(argsCopy, args);
+	iSize = vsnprintf(NULL, 0, sFmt, argsCopy);
+	va_end(argsCopy);
+	if ( iSize < 0 ) {
+		return;
+	}
+	sMessage = (str)xrtMalloc((size_t)iSize + 1u);
+	if ( !sMessage ) {
+		return;
+	}
+	vsnprintf((char*)sMessage, (size_t)iSize + 1u, sFmt, args);
+	memset(&tEvent, 0, sizeof(tEvent));
+	tEvent.iTime = xrtNow();
+	tEvent.iLevel = iLevel;
+	tEvent.sLogger = pLogger->sName;
+	tEvent.sFile = sFile;
+	tEvent.iLine = iLine;
+	tEvent.sFunc = sFunc;
+	tEvent.iThreadId = xrtThreadGetCurrentId();
+	tEvent.sMessage = (const char*)sMessage;
+	xrtMutexLock(pLogger->pLock);
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		xlogappender* pAppender = pLogger->arrAppender[i];
+		if ( !pAppender || iLevel < pAppender->iMinLevel ) {
+			continue;
+		}
+		if ( pAppender->iType == XLOG_APPENDER_CUSTOM ) {
+			pAppender->Proc(&tEvent, pAppender->pUserData);
+			continue;
+		}
+		if ( pAppender->iType == XLOG_APPENDER_CONSOLE ) {
+			FILE* pFile = (iLevel >= XLOG_ERROR) ? stderr : stdout;
+			__xlogWriteFormatted(pFile, pAppender->iFormat, pAppender->bColor, &tEvent);
+			fflush(pFile);
+			continue;
+		}
+		if ( pAppender->iType == XLOG_APPENDER_FILE && pAppender->pFile ) {
+			if ( __xlogRotateIfNeeded(pAppender, (size_t)iSize + 160u) ) {
+				__xlogWriteFormatted(pAppender->pFile, pAppender->iFormat, FALSE, &tEvent);
+				fflush(pAppender->pFile);
+			}
+		}
+	}
+	xrtMutexUnlock(pLogger->pLock);
+	xrtFree(sMessage);
+}
+// 刷新日志器
+XXAPI void xlogFlush(xlogger* pLogger)
+{
+	if ( !pLogger ) {
+		return;
+	}
+	xrtMutexLock(pLogger->pLock);
+	for ( uint32 i = 0; i < pLogger->iAppenderCount; i++ ) {
+		xlogappender* pAppender = pLogger->arrAppender[i];
+		if ( pAppender && pAppender->pFile ) {
+			fflush(pAppender->pFile);
+		}
+	}
+	xrtMutexUnlock(pLogger->pLock);
+}
+#endif
 #ifndef XRT_NO_QUEUE
 
 // ========================================
-// File: D:/git/xrt/lib/queue.h
+// File: ./lib/queue.h
 // ========================================
 
 #ifndef __XRT_QUEUE_MAX_CAPACITY
@@ -21189,7 +21824,7 @@ XXAPI void xrtMPSCQWaitClose(xmpscqwait pQueue)
 #ifndef XRT_NO_COROUTINE
 
 // ========================================
-// File: D:/git/xrt/lib/coroutine.h
+// File: ./lib/coroutine.h
 // ========================================
 
 
@@ -24113,7 +24748,7 @@ XXAPI void xrtCoSleep(uint32 iMs)
 	#ifndef XRT_NO_XURL
 
 // ========================================
-// File: D:/git/xrt/lib/xurl.h
+// File: ./lib/xurl.h
 // ========================================
 
 #ifndef XRT_XURL_H
@@ -25058,7 +25693,7 @@ XXAPI bool xrtUrlParse(const char* sURL, xurl pOut)
 	#ifndef XRT_NO_HTTP_UTIL
 
 // ========================================
-// File: D:/git/xrt/lib/xhttp_util.h
+// File: ./lib/xhttp_util.h
 // ========================================
 
 #ifndef XRT_XHTTP_UTIL_H
@@ -27772,7 +28407,7 @@ XXAPI bool xrtMultipartAppendFinish(char* sOut, size_t iOutCap, size_t* pOffset,
 	#endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_base.h
+// File: ./lib/xnet_base.h
 // ========================================
 
 #ifndef XRT_XNET_BASE_H
@@ -28320,7 +28955,7 @@ XXAPI void xrtNetDgramConfigInit(xnetdgramconfig* pCfg)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_mem.h
+// File: ./lib/xnet_mem.h
 // ========================================
 
 
@@ -28961,7 +29596,7 @@ XXAPI void xrtNetChainConsume(xnetchain* pChain, size_t iLen)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port.h
+// File: ./lib/xnet_port.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_H
@@ -29144,7 +29779,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port_iocp.h
+// File: ./lib/xnet_port_iocp.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_IOCP_H
@@ -30142,7 +30777,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_port_uring.h
+// File: ./lib/xnet_port_uring.h
 // ========================================
 
 #ifndef XRT_XNET_PORT_URING_H
@@ -31286,7 +31921,7 @@ static xnet_result xrtNetPortCancelTimer(xnetport* pPort, uint64 iTimerId)
 	#ifndef XRT_NO_XCODEC
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec.h
+// File: ./lib/xcodec.h
 // ========================================
 
 #ifndef XRT_XCODEC_H
@@ -31600,7 +32235,7 @@ XXAPI const xcodecparserops* xrtCodecLengthOps(void)
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec_http1.h
+// File: ./lib/xcodec_http1.h
 // ========================================
 
 #ifndef XRT_XCODEC_HTTP1_H
@@ -32088,7 +32723,7 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xcodec_ws.h
+// File: ./lib/xcodec_ws.h
 // ========================================
 
 #ifndef XRT_XCODEC_WS_H
@@ -32212,7 +32847,7 @@ XXAPI void xrtCodecWsUnmask(ptr pData, size_t iLen, const uint8 aMask[4], size_t
 	#endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_engine.h
+// File: ./lib/xnet_engine.h
 // ========================================
 
 #ifndef XRT_XNET_ENGINE_H
@@ -32952,7 +33587,7 @@ XXAPI xnet_result xrtNetEnginePostDelayed(xnetengine* pEngine, uint32 iAffinityK
 #ifndef XRT_NO_CRYPTO
 
 // ========================================
-// File: D:/git/xrt/lib/crypto.h
+// File: ./lib/crypto.h
 // ========================================
 
 
@@ -37678,7 +38313,7 @@ XXAPI bool xrtEd25519Verify(const uint8 *pMsg, size_t iMsgLen, const uint8 *pSig
 #ifndef XRT_NO_NETTLS
 
 // ========================================
-// File: D:/git/xrt/lib/nettls.h
+// File: ./lib/nettls.h
 // ========================================
 
 /*
@@ -45097,7 +45732,7 @@ XXAPI void xrtP256DebugTest(const uint8 *pPriv, const uint8 *pPub65, const uint8
 #ifndef XRT_NO_NETWORK
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_proxy.h
+// File: ./lib/xnet_proxy.h
 // ========================================
 
 #ifndef XRT_XNET_PROXY_H
@@ -45455,7 +46090,7 @@ static uint32 __xnetProxyStateFeed(__xnet_proxy_state* pState, const xnetproxy* 
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_stream.h
+// File: ./lib/xnet_stream.h
 // ========================================
 
 #ifndef XRT_XNET_STREAM_H
@@ -48203,7 +48838,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_dgram.h
+// File: ./lib/xnet_dgram.h
 // ========================================
 
 #ifndef XRT_XNET_DGRAM_H
@@ -48900,7 +49535,7 @@ static void __xnetDgramOnPortEvents(xnetworker* pWorker, const xnetportevent* pE
 #endif
 
 // ========================================
-// File: D:/git/xrt/lib/xnet_sync.h
+// File: ./lib/xnet_sync.h
 // ========================================
 
 #ifndef XRT_XNET_SYNC_H
@@ -53915,7 +54550,7 @@ XXAPI xnet_result xrtNetDgramRecvCoUntil(xdgramsock* pSock, int64 iDeadlineMs, x
 	#ifndef XRT_NO_XHTTP
 
 // ========================================
-// File: D:/git/xrt/lib/xhttp.h
+// File: ./lib/xhttp.h
 // ========================================
 
 #ifndef XRT_XHTTP_H
@@ -54986,7 +55621,7 @@ XXAPI xhttpresponse* xrtHttpExecuteSync(xnetengine* pEngine, const xhttprequest*
 	#ifndef XRT_NO_XHTTPD
 
 // ========================================
-// File: D:/git/xrt/lib/xhttpd.h
+// File: ./lib/xhttpd.h
 // ========================================
 
 #ifndef XRT_XHTTPD_H
@@ -56628,7 +57263,7 @@ XXAPI void xrtHttpdDestroy(xhttpdserver* pServer)
 	#ifndef XRT_NO_XWS
 
 // ========================================
-// File: D:/git/xrt/lib/xws.h
+// File: ./lib/xws.h
 // ========================================
 
 #ifndef XRT_XWS_H
@@ -58210,7 +58845,7 @@ XXAPI xnet_result xrtWsConnClose(xwsconn* pConn, uint16 iCode, const char* sReas
 	#endif
 
 // ========================================
-// File: D:/git/xrt/lib/network.h
+// File: ./lib/network.h
 // ========================================
 
 
@@ -58431,7 +59066,7 @@ str xrtGetLocalName()
 #ifndef XRT_NO_SUBPROCESS
 
 // ========================================
-// File: D:/git/xrt/lib/subprocess.h
+// File: ./lib/subprocess.h
 // ========================================
 
 
@@ -62064,7 +62699,7 @@ XXAPI xfuture* xrtProcessWaitFuture(xprocess* pProcess)
 #ifndef XRT_NO_XID
 
 // ========================================
-// File: D:/git/xrt/lib/xid.h
+// File: ./lib/xid.h
 // ========================================
 
 
@@ -62132,7 +62767,7 @@ XXAPI bool xrtCompXID(xid pXID1, xid pXID2)
 #ifndef XRT_NO_BUFFER
 
 // ========================================
-// File: D:/git/xrt/lib/buffer.h
+// File: ./lib/buffer.h
 // ========================================
 
 
@@ -62254,7 +62889,7 @@ XXAPI bool xrtBufferAppend(xbuffer pBuf, ptr pData, uint32 iSize, uint32 bStrMod
 #ifndef XRT_NO_ARRAY
 
 // ========================================
-// File: D:/git/xrt/lib/array_point.h
+// File: ./lib/array_point.h
 // ========================================
 
 
@@ -62570,7 +63205,7 @@ XXAPI bool xrtPtrArraySort(xparray pObject, ptr procCompar)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/array.h
+// File: ./lib/array.h
 // ========================================
 
 
@@ -62906,7 +63541,7 @@ XXAPI bool xrtArraySort(xarray pArr, ptr procCompar)
 #ifndef XRT_NO_BSMN
 
 // ========================================
-// File: D:/git/xrt/lib/bsmm.h
+// File: ./lib/bsmm.h
 // ========================================
 
 
@@ -63104,7 +63739,7 @@ XXAPI void xrtBsmmFree(xbsmm objBSMM, ptr p)
 #ifndef XRT_NO_MEMUNIT
 
 // ========================================
-// File: D:/git/xrt/lib/memunit.h
+// File: ./lib/memunit.h
 // ========================================
 
 
@@ -63281,7 +63916,7 @@ XXAPI int xrtMemUnitGC(xmemunit objUnit, bool bFreeMark)
 #ifndef XRT_NO_MEMPOOL_FS
 
 // ========================================
-// File: D:/git/xrt/lib/mempool_fs.h
+// File: ./lib/mempool_fs.h
 // ========================================
 
 
@@ -63722,7 +64357,7 @@ XXAPI void xrtFSMemPoolGC(xfsmempool objMM, bool bFreeMark)
 #ifndef XRT_NO_STACK
 
 // ========================================
-// File: D:/git/xrt/lib/stack.h
+// File: ./lib/stack.h
 // ========================================
 
 
@@ -63867,7 +64502,7 @@ XXAPI ptr xrtStackGetPosPtr_Unsafe(xstack objSTK, uint32 iPos)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/stack_dyn.h
+// File: ./lib/stack_dyn.h
 // ========================================
 
 
@@ -64098,7 +64733,7 @@ XXAPI ptr xrtDynStackGetPosPtr_Unsafe(xdynstack objSTK, uint32 iPos)
 #ifndef XRT_NO_AVLTREE
 
 // ========================================
-// File: D:/git/xrt/lib/avltree_base.h
+// File: ./lib/avltree_base.h
 // ========================================
 
 
@@ -64508,7 +65143,7 @@ XXAPI void xrtAVLTB_IterEnd(xavltbase objAVLT)
 }
 
 // ========================================
-// File: D:/git/xrt/lib/avltree.h
+// File: ./lib/avltree.h
 // ========================================
 
 
@@ -64849,7 +65484,7 @@ XXAPI void xrtAVLTreeIterEnd(xavltree objAVLT)
 #ifndef XRT_NO_MEMPOOL
 
 // ========================================
-// File: D:/git/xrt/lib/mempool.h
+// File: ./lib/mempool.h
 // ========================================
 
 
@@ -65617,7 +66252,7 @@ XXAPI void xrtMemPoolGC(xmempool objMP, bool bFreeMark)
 #ifndef XRT_NO_DICT
 
 // ========================================
-// File: D:/git/xrt/lib/dict.h
+// File: ./lib/dict.h
 // ========================================
 
 
@@ -65986,7 +66621,7 @@ XXAPI void xrtDictWalk(xdict objHT, Dict_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_LIST
 
 // ========================================
-// File: D:/git/xrt/lib/list.h
+// File: ./lib/list.h
 // ========================================
 
 
@@ -66337,7 +66972,7 @@ XXAPI void xrtListWalk(xlist objList, List_EachProc procEach, ptr pArg)
 #ifndef XRT_NO_REGEX
 
 // ========================================
-// File: D:/git/xrt/lib/regex.h
+// File: ./lib/regex.h
 // ========================================
 
 /* 
@@ -71896,7 +72531,7 @@ static int bbre_builtin_cc_perl(
 #ifndef XRT_NO_VALUE
 
 // ========================================
-// File: D:/git/xrt/lib/value.h
+// File: ./lib/value.h
 // ========================================
 
 
@@ -73874,7 +74509,7 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 #ifndef XRT_NO_JNUM
 
 // ========================================
-// File: D:/git/xrt/lib/jnum.h
+// File: ./lib/jnum.h
 // ========================================
 
 /*******************************************
@@ -75400,7 +76035,7 @@ jnum_to_func(double, xrtStrToNum)
 #ifndef XRT_NO_JSON
 
 // ========================================
-// File: D:/git/xrt/lib/json.h
+// File: ./lib/json.h
 // ========================================
 
 
@@ -77083,7 +77718,7 @@ XXAPI int xrtStringifyJSON_File(str sFile, xvalue varVal, int bFormat)
 	#if !defined(XRT_NO_XSON)
 
 // ========================================
-// File: D:/git/xrt/lib/xson.h
+// File: ./lib/xson.h
 // ========================================
 
 typedef enum
@@ -78537,7 +79172,7 @@ XXAPI int xrtStringifyXSON_File(str sFile, xvalue varVal, int bFormat, uint32 iF
 #ifndef XRT_NO_TEMPLATE
 
 // ========================================
-// File: D:/git/xrt/lib/template.h
+// File: ./lib/template.h
 // ========================================
 
 
@@ -83160,6 +83795,9 @@ static void __xrtRuntimeFinalizeLocked()
 	#ifndef XRT_NO_TEMPLATE
 		xte_private_unit();
 	#endif
+	#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+		__xlogRuntimeUnit();
+	#endif
 	xrtFree(xCore.AppFile);
 	xCore.AppFile = xCore.sNull;
 	xrtFree(xCore.AppPath);
@@ -83934,7 +84572,7 @@ XXAPI void xrtUnit()
 	#undef XRT_BUILD_CORE
 
 // ========================================
-// File: D:/git/xrt/lib/memdebug_site_macros_public.h
+// File: ./lib/memdebug_site_macros_public.h
 // ========================================
 
 #ifndef XRT_MEMDEBUG_SITE_MACROS_PUBLIC_H
