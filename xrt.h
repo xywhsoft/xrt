@@ -4445,12 +4445,24 @@
 		#define XHTTPD_HEADER_NAME_CAP    64u
 		#define XHTTPD_HEADER_VALUE_CAP   256u
 		#define XHTTPD_MAX_HEADERS        32u
+		#define XHTTPD_FILE_CHUNK_SIZE    65536u
 		#define XHTTPD_REQ_F_NONE         0x00000000u
 		#define XHTTPD_REQ_F_KEEPALIVE    0x00000001u
 		#define XHTTPD_REQ_F_CHUNKED      0x00000002u
 		#define XHTTPD_REQ_F_UPGRADE      0x00000004u
 		#define XHTTPD_RESP_F_NONE        0x00000000u
 		#define XHTTPD_RESP_F_CLOSE       0x00000001u
+
+		typedef enum {
+			XHTTPD_METHOD_UNKNOWN = 0,
+			XHTTPD_METHOD_GET = 1,
+			XHTTPD_METHOD_HEAD = 2,
+			XHTTPD_METHOD_POST = 3,
+			XHTTPD_METHOD_PUT = 4,
+			XHTTPD_METHOD_DELETE = 5,
+			XHTTPD_METHOD_PATCH = 6,
+			XHTTPD_METHOD_OPTIONS = 7
+		} xhttpdmethod;
 
 		typedef struct {
 			char sName[XHTTPD_HEADER_NAME_CAP];
@@ -4460,6 +4472,7 @@
 		typedef struct {
 			uint32 iFlags;
 			uint32 iHeaderCount;
+			uint32 iMethod;
 			int64_t iContentLength;
 			char sMethod[XHTTPD_METHOD_CAP];
 			char sTarget[XHTTPD_TARGET_CAP];
@@ -6116,6 +6129,9 @@
 		// XNet 内建 HTTP 服务端
 		XXAPI const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName);
 
+		// 获取 HTTP 服务端 request 方法 ID
+		XXAPI uint32 xrtHttpdRequestMethod(const xhttpdrequest* pReq);
+
 		// 获取 HTTP 服务端 response 头部
 		XXAPI const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName);
 
@@ -6149,11 +6165,25 @@
 		// 复制服务端响应正文并设置 Content-Type
 		XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
 
+		// 一次性填充 HTTP 服务端响应对象
+		XXAPI bool xrtHttpdResponseReply(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason, const char* sHeaders, const void* pBody, size_t iBodyLen);
+
 		// 判断 HTTP 服务端连接是否仍然打开
 		XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn);
 
 		// 向 HTTP 服务端连接发送响应
 		XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* pResp);
+
+		// 向 HTTP 服务端连接一次性发送轻量响应
+		XXAPI xnet_result xrtHttpdConnReply(xhttpdconn* pConn, uint32 iStatusCode, const char* sReason, const char* sHeaders, const void* pBody, size_t iBodyLen);
+		// 开始 HTTP 服务端连接流式响应
+		XXAPI xnet_result xrtHttpdConnStart(xhttpdconn* pConn, const xhttpdresponse* pResp);
+		// 向 HTTP 服务端连接流式响应发送数据
+		XXAPI xnet_result xrtHttpdConnSend(xhttpdconn* pConn, const void* pData, size_t iLen);
+		// 结束 HTTP 服务端连接流式响应
+		XXAPI xnet_result xrtHttpdConnEnd(xhttpdconn* pConn);
+		// 向 HTTP 服务端连接分块发送文件响应
+		XXAPI xnet_result xrtHttpdConnSendFile(xhttpdconn* pConn, const xhttpdresponse* pResp, const char* sFilePath, size_t iChunkSize);
 
 		// 主动关闭 HTTP 服务端连接
 		XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags);
