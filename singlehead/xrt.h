@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-24 17:26:26
+    Generated: 2026-04-24 18:27:34
 
     MIT License
 
@@ -4278,6 +4278,10 @@
 		XXAPI bool xrtQueryFindN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, xrtquerypair* pOut);
 		// 查找查询
 		XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut);
+		// 查找并解码查询值到固定缓冲区
+		XXAPI bool xrtQueryFindValueToN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+		// 查找并解码查询值到固定缓冲区
+		XXAPI bool xrtQueryFindValueTo(const char* sQuery, const char* sKey, char* sOut, size_t iOutCap, size_t* pOutLen);
 		// 解析查询
 		XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount);
 		// 解析查询
@@ -5218,6 +5222,8 @@
 		XXAPI void xrtHttpdResponseSetStatus(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason);
 		// 设置 HTTP 服务端 response 头部
 		XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
+		// 获取 HTTP 服务端默认状态文本
+		XXAPI const char* xrtHttpdStatusText(uint32 iStatusCode);
 		// 复制服务端响应正文并设置 Content-Type
 		XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
 		// 一次性填充 HTTP 服务端响应对象
@@ -25636,6 +25642,23 @@ XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut
 {
 	if ( sQuery == NULL || sKey == NULL ) { return false; }
 	return xrtQueryFindN(sQuery, strlen(sQuery), sKey, strlen(sKey), pOut);
+}
+// 查找并解码查询值到固定缓冲区
+XXAPI bool xrtQueryFindValueToN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+{
+	xrtquerypair tPair;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u ) { return false; }
+	sOut[0] = '\0';
+	if ( !xrtQueryFindN(sQuery, iLen, sKey, iKeyLen, &tPair) ) { return false; }
+	if ( (tPair.iFlags & XRT_QUERY_F_HAS_VALUE) == 0u ) { return true; }
+	return xrtPercentDecodeTo(tPair.tValue.sPtr, tPair.tValue.iLen, sOut, iOutCap, pOutLen, true);
+}
+// 查找并解码查询值到固定缓冲区
+XXAPI bool xrtQueryFindValueTo(const char* sQuery, const char* sKey, char* sOut, size_t iOutCap, size_t* pOutLen)
+{
+	if ( sQuery == NULL || sKey == NULL ) { return false; }
+	return xrtQueryFindValueToN(sQuery, strlen(sQuery), sKey, strlen(sKey), sOut, iOutCap, pOutLen);
 }
 // 解析查询
 XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
@@ -56057,6 +56080,11 @@ static const char* __xhttpdStatusText(uint32 iStatusCode)
 		case 503: return "Service Unavailable";
 		default: return "Unknown Status";
 	}
+}
+// 获取 HTTP 服务端默认状态文本
+XXAPI const char* xrtHttpdStatusText(uint32 iStatusCode)
+{
+	return __xhttpdStatusText(iStatusCode);
 }
 // 内部函数：__xhttpdResponseHasHeader
 static bool __xhttpdResponseHasHeader(const xhttpdresponse* pResp, const char* sName)

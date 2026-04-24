@@ -4768,6 +4768,12 @@
 		// 查找查询
 		XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut);
 
+		// 查找并解码查询值到固定缓冲区
+		XXAPI bool xrtQueryFindValueToN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+
+		// 查找并解码查询值到固定缓冲区
+		XXAPI bool xrtQueryFindValueTo(const char* sQuery, const char* sKey, char* sOut, size_t iOutCap, size_t* pOutLen);
+
 		// 解析查询
 		XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount);
 
@@ -6161,6 +6167,9 @@
 
 		// 设置 HTTP 服务端 response 头部
 		XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
+
+		// 获取 HTTP 服务端默认状态文本
+		XXAPI const char* xrtHttpdStatusText(uint32 iStatusCode);
 
 		// 复制服务端响应正文并设置 Content-Type
 		XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);

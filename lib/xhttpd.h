@@ -463,6 +463,13 @@ static const char* __xhttpdStatusText(uint32 iStatusCode)
 }
 
 
+// 获取 HTTP 服务端默认状态文本
+XXAPI const char* xrtHttpdStatusText(uint32 iStatusCode)
+{
+	return __xhttpdStatusText(iStatusCode);
+}
+
+
 // 内部函数：__xhttpdResponseHasHeader
 static bool __xhttpdResponseHasHeader(const xhttpdresponse* pResp, const char* sName)
 {
