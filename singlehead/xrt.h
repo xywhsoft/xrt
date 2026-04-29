@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-04-24 18:27:34
+    Generated: 2026-04-29 17:00:34
 
     MIT License
 
@@ -48502,7 +48502,7 @@ XXAPI void xrtNetStreamDestroy(xnetstream* pStream)
 {
 	if ( !pStream ) { return; }
 	if ( __xnetAtomicLoad32(&pStream->iAsyncHoldCount) != 0 ) {
-		__xnetStreamSetError("cannot destroy stream while an async waiter or task still holds it.");
+		__xnetStreamPrepareDeferredDestroy(pStream);
 		return;
 	}
 	__xnetStreamNotifyDestroyWaiters(pStream);

@@ -2696,7 +2696,7 @@ XXAPI void xrtNetStreamDestroy(xnetstream* pStream)
 {
 	if ( !pStream ) { return; }
 	if ( __xnetAtomicLoad32(&pStream->iAsyncHoldCount) != 0 ) {
-		__xnetStreamSetError("cannot destroy stream while an async waiter or task still holds it.");
+		__xnetStreamPrepareDeferredDestroy(pStream);
 		return;
 	}
 	__xnetStreamNotifyDestroyWaiters(pStream);
