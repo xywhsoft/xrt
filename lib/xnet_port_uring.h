@@ -484,9 +484,17 @@
 				    Only the listener form should reach native io_uring accept.
 				    Accepted-stream open events already carry a resolved remote
 				    address, while listener submissions leave tAddr zeroed.
+
+				    Native accept is opt-in for now.  The posted accept path is
+				    the proven path used by the synchronous listener flow, while
+				    recv/send still need native io_uring to produce data chains.
 				*/
+				#if !defined(XNET_URING_NATIVE_ACCEPT)
+					return false;
+				#else
 				return (pOp->iFlags & XNET_PORT_EVENT_F_ACCEPTED_OPEN) == 0 &&
 					pOp->iOpId != 0 && pOp->tAddr.iFamily == 0;
+				#endif
 			case XNET_PORT_OP_CONNECT:
 				return pOp->tAddr.iFamily != 0;
 			case XNET_PORT_OP_RECV:
@@ -1111,6 +1119,9 @@
 			tEvent.iBytes = __xnetPortUringSubmitBytes(&pOps[i]);
 			tEvent.iOpId = pOps[i].iOpId;
 			tEvent.hSocket = pOps[i].hSocket;
+			if ( pOps[i].iOpType == XNET_PORT_OP_ACCEPT ) {
+				tEvent.hSocket = (intptr_t)XNET_SOCKET_INVALID;
+			}
 			tEvent.pUserData = pOps[i].pUserData;
 			tEvent.pChain = pOps[i].pChain;
 			tEvent.tAddr = pOps[i].tAddr;

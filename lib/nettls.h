@@ -7040,14 +7040,16 @@ static bool __xrt_tls_parse_client_hello(xtlsctx *pCtx, const uint8 *pMsg, size_
 				}
 			}
 		}
-		
+
 		iPos += iExtDataLen;
 	}
 
 	// 根据 SNI 动态切换证书后，再选择签名算法和握手参数
 	// 触发 SNI 回调，允许应用层根据域名动态切换证书
 	if ( pCtx->sClientSNI[0] != '\0' && pCtx->OnSNI ) {
+		__xrt_tls_ctx_unlock(pCtx);
 		pCtx->OnSNI(pCtx->pSession, pCtx->sClientSNI, pCtx->pSNIUserData);
+		__xrt_tls_ctx_lock(pCtx);
 	}
 
 	// 优先协商 TLS 1.3
