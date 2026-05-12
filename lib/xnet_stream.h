@@ -69,6 +69,11 @@ typedef struct {
 	uint8 aData[1];
 } __xnet_stream_async_op;
 
+typedef struct {
+	xnetstream* pStream;
+	xnetchain* pChain;
+} __xnet_stream_recv_chain_task;
+
 typedef void (*__xnet_stream_sync_wait_fn)(xnetstream* pStream, xnet_result iStatus, ptr pCtx);
 
 typedef struct {
@@ -1936,6 +1941,7 @@ static bool __xnetStreamSubmitRecvChain(xnetstream* pStream, xnetchain* pChain)
 	if ( !pStream || !pStream->pWorker || !pChain ) { return false; }
 	memset(&tSubmit, 0, sizeof(tSubmit));
 	tSubmit.iOpType = XNET_PORT_OP_RECV;
+	tSubmit.iFlags = XNET_PORT_EVENT_F_DEFERRED_RECV;
 	tSubmit.hSocket = (intptr_t)XNET_SOCKET_INVALID;
 	tSubmit.pUserData = pStream;
 	tSubmit.pChain = pChain;
@@ -1948,6 +1954,39 @@ static bool __xnetStreamSubmitRecvChain(xnetstream* pStream, xnetchain* pChain)
 	return true;
 }
 
+
+// Deferred native recv payload dispatch runs through the engine command queue so
+// worker stop drains it before port resources are destroyed.
+static void __xnetStreamDeferredRecvChainTask(xnetworker* pWorker, ptr pArg)
+{
+	__xnet_stream_recv_chain_task* pTask = (__xnet_stream_recv_chain_task*)pArg;
+	xnetstream* pStream = pTask ? pTask->pStream : NULL;
+	xnetchain* pChain = pTask ? pTask->pChain : NULL;
+	(void)pWorker;
+	if ( !pTask ) { return; }
+	if ( pChain ) {
+		__xnetStreamHandleRecvEvent(pStream, pChain);
+	}
+	XNET_FREE(pTask);
+	__xnetStreamReleaseAsyncHold(pStream);
+}
+
+static bool __xnetStreamPostDeferredRecvChain(xnetstream* pStream, xnetchain* pChain)
+{
+	__xnet_stream_recv_chain_task* pTask;
+	if ( !pStream || !pStream->pEngine || !pStream->pWorker || !pChain ) { return false; }
+	pTask = (__xnet_stream_recv_chain_task*)XNET_ALLOC(sizeof(__xnet_stream_recv_chain_task));
+	if ( !pTask ) { return false; }
+	pTask->pStream = pStream;
+	pTask->pChain = pChain;
+	__xnetStreamAddAsyncHold(pStream);
+	if ( xrtNetEnginePost(pStream->pEngine, pStream->pWorker->iId, __xnetStreamDeferredRecvChainTask, pTask) != XRT_NET_OK ) {
+		__xnetStreamReleaseAsyncHold(pStream);
+		XNET_FREE(pTask);
+		return false;
+	}
+	return true;
+}
 
 // 内部函数：__xnetStreamFeedTlsChain
 static bool __xnetStreamFeedTlsChain(xnetstream* pStream, xnetchain* pChain)
@@ -2582,10 +2621,15 @@ static xnetstream* __xnetListenerWrapAcceptedSocket(xnetlistener* pListener, con
 		if ( __xnetStreamPostTlsHandshake(pStream) != XRT_NET_OK ) {
 			(void)__xnetStreamDriveTlsHandshake(pStream);
 		}
-	} else if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_ACCEPT) ) {
-		// 非原生 IO 模式回退：直接触发 OnOpen 并挂起接收
-		__xnetStreamEmitOpen(pStream);
-		(void)__xnetStreamArmRecvWatch(pStream);
+	} else {
+		// 将 accepted-stream open 投递回所属 worker，避免 accept 线程直接进入流回调。
+		if ( !__xnetStreamSubmitOpenEvent(pStream, XNET_PORT_OP_ACCEPT) ) {
+			__xnetStreamEmitOpen(pStream);
+			if ( __xnetStreamDrainSocketNow(pStream) && !pStream->bClosing &&
+				__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
+				(void)__xnetStreamArmRecvWatch(pStream);
+			}
+		}
 	}
 	return pStream;
 }
@@ -3162,8 +3206,12 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 					} else if ( pStream->pTls ) {
 						(void)__xnetStreamDriveTlsHandshake(pStream);
 					} else {
+						if ( !pStream->bClosing &&
+							__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
+							(void)__xnetStreamArmRecvWatch(pStream);
+						}
 						__xnetStreamEmitOpen(pStream);
-						if ( __xnetStreamDrainSocketNow(pStream) && !pStream->bClosing &&
+						if ( (__xnetStreamRecvArmed(pStream) || __xnetStreamDrainSocketNow(pStream)) && !pStream->bClosing &&
 							__xnetSocketIsValid(pStream->hSocket) && !__xnetStreamRecvArmed(pStream) ) {
 							(void)__xnetStreamArmRecvWatch(pStream);
 						}
@@ -3190,7 +3238,12 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 			#endif
 			if ( pEvent->pChain ) {
 				// 有接收数据，交给接收事件处理器
-				__xnetStreamHandleRecvEvent(pStream, pEvent->pChain);
+				if ( (pEvent->iFlags & XNET_PORT_EVENT_F_DEFERRED_RECV) == 0 &&
+					pStream && __xnetStreamPostDeferredRecvChain(pStream, pEvent->pChain) ) {
+					/* Ownership of pChain moved to the deferred recv task. */
+				} else {
+					__xnetStreamHandleRecvEvent(pStream, pEvent->pChain);
+				}
 			} else if ( pStream ) {
 				// 无接收数据，根据事件状态处理
 				#if defined(XNET_DEBUG_CLOSE_DIAG)

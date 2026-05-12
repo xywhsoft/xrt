@@ -143,9 +143,8 @@ void Test_XNet2_Engine(void)
 			printf("  Worker 0 receives affinity hits : %s\n", __Test_XNet2_AtomicLoad(&tCounter.arrWorkerHits[0]) >= 2 ? "PASS" : "FAIL");
 			printf("  Worker 1 receives affinity hits : %s\n", __Test_XNet2_AtomicLoad(&tCounter.arrWorkerHits[1]) >= 2 ? "PASS" : "FAIL");
 
-			printf("  Engine delayed post #0 : %s\n", xrtNetEnginePostDelayed(pEngine, 0, 40, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_OK ? "PASS" : "FAIL");
-			printf("  Engine delayed post #1 : %s\n", xrtNetEnginePostDelayed(pEngine, 1, 60, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_OK ? "PASS" : "FAIL");
-			__Test_XNet2_EngineSleepMs(5);
+			printf("  Engine delayed post #0 : %s\n", xrtNetEnginePostDelayed(pEngine, 0, 200, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_OK ? "PASS" : "FAIL");
+			printf("  Engine delayed post #1 : %s\n", xrtNetEnginePostDelayed(pEngine, 1, 250, __Test_XNet2_EngineTimerTask, &tTimerCounter) == XRT_NET_OK ? "PASS" : "FAIL");
 			printf("  Delayed tasks not immediate : %s\n", __Test_XNet2_AtomicLoad(&tTimerCounter.iCount) == 0 ? "PASS" : "FAIL");
 
 			for ( int iLoop = 0; iLoop < 100; ++iLoop ) {

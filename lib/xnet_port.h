@@ -67,6 +67,8 @@ static const xnetportops* xrtNetPortUringOps(void) UNUSED_ATTR;
 #define XNET_PORT_EVENT_F_MORE       0x00000004u
 /* Internal marker: synthetic accepted-stream open event, not listener accept completion. */
 #define XNET_PORT_EVENT_F_ACCEPTED_OPEN 0x8000u
+/* Internal marker: recv payload already moved through the worker queue. */
+#define XNET_PORT_EVENT_F_DEFERRED_RECV 0x4000u
 
 
 
