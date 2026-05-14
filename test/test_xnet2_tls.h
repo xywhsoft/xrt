@@ -62,6 +62,18 @@ static bool __Test_XNet2_TLSWaitMin(volatile long* pValue, long iExpectMin, uint
 }
 
 
+// 内部函数：__Test_XNet2_TLSWaitStreamQuiet
+static bool __Test_XNet2_TLSWaitStreamQuiet(xnetstream* pStream, uint32 iTimeoutMs)
+{
+	uint32 iLoops = (iTimeoutMs / 10u) + 1u;
+	for ( uint32 i = 0; i < iLoops; ++i ) {
+		if ( !pStream || __xnetAtomicLoad32(&pStream->iAsyncHoldCount) == 0 ) return true;
+		__Test_XNet2_TLSSleepMs(10);
+	}
+	return !pStream || __xnetAtomicLoad32(&pStream->iAsyncHoldCount) == 0;
+}
+
+
 // 内部函数：__Test_XNet2_TLSFileExists
 static bool __Test_XNet2_TLSFileExists(const char* sPath)
 {
@@ -218,6 +230,8 @@ void Test_XNet2_TLS(void)
 		if ( pClient ) xrtNetStreamClose(pClient, XNET_CLOSE_F_GRACEFUL);
 		(void)__Test_XNet2_TLSWaitMin(&tClientStats.iCloseCount, 1, 3000);
 		(void)__Test_XNet2_TLSWaitMin(&tServerStats.iCloseCount, 1, 3000);
+		(void)__Test_XNet2_TLSWaitStreamQuiet(pClient, 3000);
+		(void)__Test_XNet2_TLSWaitStreamQuiet(pAccepted, 3000);
 
 		if ( pAccepted ) xrtNetStreamDestroy(pAccepted);
 		if ( pClient ) xrtNetStreamDestroy(pClient);
@@ -248,6 +262,7 @@ void Test_XNet2_TLS(void)
 		xnetlistener* pListener;
 		bool bAllOpen = true;
 		bool bAllClose = true;
+		bool bAllEcho = true;
 		bool bErrorFree = true;
 		const int iRounds = 4;
 
@@ -317,24 +332,38 @@ void Test_XNet2_TLS(void)
 				|| !__Test_XNet2_TLSWaitMin(&pServerStats->iOpenCount, 1, 3000) ) {
 				bAllOpen = false;
 			}
-
-			xrtNetStreamClose(pClient, XNET_CLOSE_F_GRACEFUL);
-			if ( !__Test_XNet2_TLSWaitMin(&pClientStats->iCloseCount, 1, 3000)
-				|| !__Test_XNet2_TLSWaitMin(&pServerStats->iCloseCount, 1, 3000) ) {
-				bAllClose = false;
+			if ( bAllOpen ) {
+				char sPayload[32];
+				snprintf(sPayload, sizeof(sPayload), "native tls %d", iRound);
+				pServerStats->bEchoBack = true;
+				if ( xrtNetStreamSend(pClient, sPayload, strlen(sPayload)) != XRT_NET_OK
+					|| !__Test_XNet2_TLSWaitMin(&pServerStats->iRecvCount, 1, 3000)
+					|| !__Test_XNet2_TLSWaitMin(&pClientStats->iRecvCount, 1, 3000)
+					|| strcmp(pClientStats->aLastRecv, sPayload) != 0 ) {
+					bAllEcho = false;
+				}
 			}
 			if ( __Test_XNet2_TLSAtomicLoad(&pClientStats->iErrorCount) != 0
 				|| __Test_XNet2_TLSAtomicLoad(&pServerStats->iErrorCount) != 0 ) {
 				bErrorFree = false;
 			}
 
+			xrtNetStreamClose(pClient, XNET_CLOSE_F_GRACEFUL);
+			if ( !__Test_XNet2_TLSWaitMin(&pClientStats->iCloseCount, 1, 3000)
+				|| !__Test_XNet2_TLSWaitMin(&pServerStats->iCloseCount, 1, 3000) ) {
+				bAllClose = false;
+			}
+			(void)__Test_XNet2_TLSWaitStreamQuiet(pClient, 3000);
+			(void)__Test_XNet2_TLSWaitStreamQuiet(pAccepted, 3000);
+
 			xrtNetStreamDestroy(pAccepted);
 			xrtNetStreamDestroy(pClient);
 			__Test_XNet2_TLSSleepMs(20);
-			if ( !bAllOpen || !bAllClose || !bErrorFree ) break;
+			if ( !bAllOpen || !bAllClose || !bAllEcho || !bErrorFree ) break;
 		}
 
 		printf("  TLS repeated sequential opens : %s\n", bAllOpen ? "PASS" : "FAIL");
+		printf("  TLS native recv regression echo : %s\n", bAllEcho ? "PASS" : "FAIL");
 		printf("  TLS repeated sequential closes : %s\n", bAllClose ? "PASS" : "FAIL");
 		printf("  TLS repeated error-free path : %s\n", bErrorFree ? "PASS" : "FAIL");
 
@@ -441,6 +470,8 @@ void Test_XNet2_TLS(void)
 		if ( pClient1 ) xrtNetStreamClose(pClient1, XNET_CLOSE_F_GRACEFUL);
 		(void)__Test_XNet2_TLSWaitMin(&tClientStats1.iCloseCount, 1, 3000);
 		(void)__Test_XNet2_TLSWaitMin(&tServerStats1.iCloseCount, 1, 3000);
+		(void)__Test_XNet2_TLSWaitStreamQuiet(pClient1, 3000);
+		(void)__Test_XNet2_TLSWaitStreamQuiet(pAccepted1, 3000);
 		if ( pAccepted1 ) xrtNetStreamDestroy(pAccepted1);
 		if ( pClient1 ) xrtNetStreamDestroy(pClient1);
 		pAccepted1 = NULL;
@@ -482,6 +513,8 @@ void Test_XNet2_TLS(void)
 		if ( pClient2 ) xrtNetStreamClose(pClient2, XNET_CLOSE_F_GRACEFUL);
 		(void)__Test_XNet2_TLSWaitMin(&tClientStats2.iCloseCount, 1, 3000);
 		(void)__Test_XNet2_TLSWaitMin(&tServerStats2.iCloseCount, 1, 3000);
+		(void)__Test_XNet2_TLSWaitStreamQuiet(pClient2, 3000);
+		(void)__Test_XNet2_TLSWaitStreamQuiet(pAccepted2, 3000);
 		if ( pAccepted2 ) xrtNetStreamDestroy(pAccepted2);
 		if ( pClient2 ) xrtNetStreamDestroy(pClient2);
 		if ( pResume ) xrtNetTlsResumeDestroy(pResume);
