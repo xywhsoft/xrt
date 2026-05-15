@@ -1,7 +1,7 @@
 /*
 
     XRT Single Header File
-    Generated: 2026-05-13 02:26:32
+    Generated: 2026-05-15 18:04:57
 
     MIT License
 
@@ -39022,8 +39022,6 @@ static const uint8 __xrt_oid_ecdsa_sha512[] = {
 	0x2a, 0x86, 0x48, 0xce, 0x3d, 0x04, 0x03, 0x04
 };
 #define __XRT_TLS_MAX_CERT_CHAIN  8
-#define __XRT_TLS_MAX_DNS_NAMES   8
-#define __XRT_TLS_MAX_IP_ADDRS    8
 enum __xrt_x509_sig_alg {
 	__XRT_X509_SIGALG_UNKNOWN = 0,
 	__XRT_X509_SIGALG_RSA_PKCS1_SHA256,
@@ -39057,11 +39055,16 @@ struct __xrt_x509_cert {
 	uint16 iKeyUsage;
 	bool bHasExtendedKeyUsage;
 	bool bHasServerAuth;
+	const char *sMatchHostname;
+	bool bMatchHostIsIp;
+	uint8 aMatchHostIp[16];
+	size_t iMatchHostIpLen;
+	bool bHasDnsSan;
+	bool bDnsSanMatched;
 	size_t iDnsNameCount;
-	char aDnsNames[__XRT_TLS_MAX_DNS_NAMES][256];
+	bool bHasIpSan;
+	bool bIpSanMatched;
 	size_t iIpAddrCount;
-	uint8 aIpAddrLens[__XRT_TLS_MAX_IP_ADDRS];
-	uint8 aIpAddrs[__XRT_TLS_MAX_IP_ADDRS][16];
 	bool bHasCommonName;
 	char sCommonName[256];
 	enum __xrt_x509_sig_alg iSigAlg;
@@ -39531,27 +39534,32 @@ static bool __xrt_x509_parse_signature_algorithm_ex(const struct __xrt_der_tlv *
 	tSeq = *pAlgSeq;
 	return __xrt_der_next(&tSeq, &tOID) > 0 && tOID.iType == 0x06;
 }
-// 内部函数：__xrt_x509_add_dns_name
-static void __xrt_x509_add_dns_name(struct __xrt_x509_cert *pCert, const uint8 *pName, size_t iNameLen)
+// 内部函数：__xrt_x509_match_dns_san
+static void __xrt_x509_match_dns_san(struct __xrt_x509_cert *pCert, const uint8 *pName, size_t iNameLen)
 {
-	size_t iCopy;
+	char sName[256];
 	if ( !pCert || !pName || iNameLen == 0 ) { return; }
-	if ( pCert->iDnsNameCount >= __XRT_TLS_MAX_DNS_NAMES ) { return; }
-	iCopy = iNameLen;
-	if ( iCopy >= sizeof(pCert->aDnsNames[0]) ) { iCopy = sizeof(pCert->aDnsNames[0]) - 1; }
-	memcpy(pCert->aDnsNames[pCert->iDnsNameCount], pName, iCopy);
-	pCert->aDnsNames[pCert->iDnsNameCount][iCopy] = '\0';
+	pCert->bHasDnsSan = true;
 	pCert->iDnsNameCount++;
+	if ( !pCert->sMatchHostname || pCert->bMatchHostIsIp || pCert->bDnsSanMatched ) { return; }
+	if ( iNameLen >= sizeof(sName) ) { return; }
+	memcpy(sName, pName, iNameLen);
+	sName[iNameLen] = '\0';
+	if ( __xrt_tls_hostname_matches(sName, pCert->sMatchHostname) ) {
+		pCert->bDnsSanMatched = true;
+	}
 }
-// 内部函数：__xrt_x509_add_ip_addr
-static void __xrt_x509_add_ip_addr(struct __xrt_x509_cert *pCert, const uint8 *pAddr, size_t iAddrLen)
+// 内部函数：__xrt_x509_match_ip_san
+static void __xrt_x509_match_ip_san(struct __xrt_x509_cert *pCert, const uint8 *pAddr, size_t iAddrLen)
 {
 	if ( !pCert || !pAddr ) { return; }
 	if ( iAddrLen != 4 && iAddrLen != 16 ) { return; }
-	if ( pCert->iIpAddrCount >= __XRT_TLS_MAX_IP_ADDRS ) { return; }
-	memcpy(pCert->aIpAddrs[pCert->iIpAddrCount], pAddr, iAddrLen);
-	pCert->aIpAddrLens[pCert->iIpAddrCount] = (uint8)iAddrLen;
+	pCert->bHasIpSan = true;
 	pCert->iIpAddrCount++;
+	if ( pCert->bMatchHostIsIp && !pCert->bIpSanMatched && pCert->iMatchHostIpLen == iAddrLen
+		&& memcmp(pCert->aMatchHostIp, pAddr, iAddrLen) == 0 ) {
+		pCert->bIpSanMatched = true;
+	}
 }
 // 内部函数：解析 subjectAltName 扩展，提取 DNS 名称和 IP 地址
 static bool __xrt_x509_parse_subject_alt_name(struct __xrt_x509_cert *pCert, const struct __xrt_der_tlv *pOctet)
@@ -39561,9 +39569,9 @@ static bool __xrt_x509_parse_subject_alt_name(struct __xrt_x509_cert *pCert, con
 	if ( __xrt_der_parse(pOctet->pValue, pOctet->iLen, &tSeq) < 0 || tSeq.iType != 0x30 ) { return false; }
 	while ( __xrt_der_next(&tSeq, &tName) > 0 ) {
 		if ( tName.iType == 0x82 ) { // context [2] = dNSName（ IA5String ）
-			__xrt_x509_add_dns_name(pCert, tName.pValue, tName.iLen);
+			__xrt_x509_match_dns_san(pCert, tName.pValue, tName.iLen);
 		} else if ( tName.iType == 0x87 ) { // context [7] = iPAddress（ 二进制 ）
-			__xrt_x509_add_ip_addr(pCert, tName.pValue, tName.iLen);
+			__xrt_x509_match_ip_san(pCert, tName.pValue, tName.iLen);
 		}
 	}
 	return true;
@@ -39743,7 +39751,7 @@ static bool __xrt_x509_parse_extensions(struct __xrt_x509_cert *pCert, const str
 }
 // 内部函数：解析 X.509 证书 DER 数据，填充证书结构体（ 支持严格/宽松模式 ）
 static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert,
-	enum __xrt_x509_parse_mode iMode)
+	enum __xrt_x509_parse_mode iMode, const char *sMatchHostname)
 {
 	struct __xrt_der_tlv tRoot, tTbs, tSigAlg, tSigValue;
 	struct __xrt_der_tlv tFields, tField, tValidity, tTime;
@@ -39751,6 +39759,11 @@ static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x
 	memset(pCert, 0, sizeof(*pCert));
 	pCert->pDer = pCertDer;
 	pCert->iDerLen = iCertLen;
+	if ( sMatchHostname && sMatchHostname[0] ) {
+		pCert->sMatchHostname = sMatchHostname;
+		pCert->bMatchHostIsIp = __xrt_tls_parse_ip_literal(sMatchHostname,
+			pCert->aMatchHostIp, &pCert->iMatchHostIpLen);
+	}
 	// 证书 DER 结构：SEQUENCE { tbsCertificate, signatureAlgorithm, signatureValue }
 	if ( __xrt_der_parse(pCertDer, iCertLen, &tRoot) < 0 || tRoot.iType != 0x30 ) { return false; }
 	if ( __xrt_der_next(&tRoot, &tTbs) <= 0 || tTbs.iType != 0x30 ) { return false; }
@@ -39805,12 +39818,19 @@ static bool __xrt_x509_parse_ex(uint8 *pCertDer, size_t iCertLen, struct __xrt_x
 // 内部函数：__xrt_x509_parse
 static bool __xrt_x509_parse(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert)
 {
-	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_STRICT);
+	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_STRICT, NULL);
 }
 // 内部函数：__xrt_x509_parse_for_chain
 static bool __xrt_x509_parse_for_chain(uint8 *pCertDer, size_t iCertLen, struct __xrt_x509_cert *pCert)
 {
-	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG);
+	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert, __XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG, NULL);
+}
+// 内部函数：__xrt_x509_parse_leaf_for_chain
+static bool __xrt_x509_parse_leaf_for_chain(uint8 *pCertDer, size_t iCertLen,
+	struct __xrt_x509_cert *pCert, const char *sMatchHostname)
+{
+	return __xrt_x509_parse_ex(pCertDer, iCertLen, pCert,
+		__XRT_X509_PARSE_ALLOW_UNKNOWN_SIGALG, sMatchHostname);
 }
 // 内部函数：解析 CRL（ 证书吊销列表 ）DER 数据
 static bool __xrt_x509_parse_crl(uint8 *pCrlDer, size_t iCrlLen, struct __xrt_x509_crl *pCrl)
@@ -40440,7 +40460,6 @@ static bool __xrt_tls_consttime_equal(const uint8 *pA, const uint8 *pB, size_t i
 // 内部函数：__xrt_tls_validate_leaf_server_cert
 static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xrt_x509_cert *pLeaf)
 {
-	size_t i;
 	time_t iNow = time(NULL);
 	bool bHostMatched = false;
 	// 基本有效性检查：参数非空且证书在有效期内
@@ -40453,25 +40472,14 @@ static bool __xrt_tls_validate_leaf_server_cert(xtlsctx *pCtx, const struct __xr
 	if ( pLeaf->bHasExtendedKeyUsage && !pLeaf->bHasServerAuth ) { return false; }
 	// 主机名匹配验证
 	if ( pCtx->sHostname[0] ) {
-		uint8 aHostIp[16];
-		size_t iHostIpLen = 0;
-		// 优先按 IP 地址匹配：解析主机名为 IP 后与证书 subjectAltName 中的 iPAddress 比较
-		if ( __xrt_tls_parse_ip_literal(pCtx->sHostname, aHostIp, &iHostIpLen) ) {
-			for ( i = 0; i < pLeaf->iIpAddrCount; i++ ) {
-				if ( pLeaf->aIpAddrLens[i] == iHostIpLen
-					&& memcmp(pLeaf->aIpAddrs[i], aHostIp, iHostIpLen) == 0 ) {
-					bHostMatched = true;
-					break;
-				}
+		// IP 地址必须匹配 subjectAltName 中的 iPAddress。
+		if ( pLeaf->bMatchHostIsIp ) {
+			if ( pLeaf->bHasIpSan ) {
+				bHostMatched = pLeaf->bIpSanMatched;
 			}
-		// 其次按 DNS 名称匹配：与证书 subjectAltName 中的 dNSName 比较
-		} else if ( pLeaf->iDnsNameCount > 0 ) {
-			for ( i = 0; i < pLeaf->iDnsNameCount; i++ ) {
-				if ( __xrt_tls_hostname_matches(pLeaf->aDnsNames[i], pCtx->sHostname) ) {
-					bHostMatched = true;
-					break;
-				}
-			}
+		// DNS 名称优先匹配 subjectAltName 中的 dNSName。
+		} else if ( pLeaf->bHasDnsSan ) {
+			bHostMatched = pLeaf->bDnsSanMatched;
 		// 最后尝试与 Common Name 匹配
 		} else if ( pLeaf->bHasCommonName ) {
 			bHostMatched = __xrt_tls_hostname_matches(pLeaf->sCommonName, pCtx->sHostname);
@@ -40670,18 +40678,41 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 	size_t i;
 	size_t iCurrent;
 	time_t iNow = time(NULL);
+	bool bParsed;
 	if ( !pCtx || !apCertData || !apCertLen || iCertCount == 0 || iCertCount > __XRT_TLS_MAX_CERT_CHAIN ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: invalid input count=%d\n", (int)iCertCount);
+		#endif
 		return false;
 	}
 	// 解析证书链中的每个证书
 	for ( i = 0; i < iCertCount; i++ ) {
-		if ( !__xrt_x509_parse_for_chain(apCertData[i], apCertLen[i], &aCerts[i]) ) { return false; }
+		bParsed = (i == 0)
+			? __xrt_x509_parse_leaf_for_chain(apCertData[i], apCertLen[i], &aCerts[i], pCtx->sHostname)
+			: __xrt_x509_parse_for_chain(apCertData[i], apCertLen[i], &aCerts[i]);
+		if ( !bParsed ) {
+			#ifdef DEBUG_TRACE
+				printf("    [TLS] verify chain: parse cert[%d] failed len=%d\n", (int)i, (int)apCertLen[i]);
+			#endif
+			return false;
+		}
 		aUsed[i] = false;
 	}
 	// 验证叶子证书（ 证书链第一个证书 ）：有效性、主机名匹配
-	if ( !__xrt_tls_validate_leaf_server_cert(pCtx, &aCerts[0]) ) { return false; }
+	if ( !__xrt_tls_validate_leaf_server_cert(pCtx, &aCerts[0]) ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: leaf validation failed host=%s cn=%s dns=%d\n",
+				pCtx->sHostname, aCerts[0].sCommonName, (int)aCerts[0].iDnsNameCount);
+		#endif
+		return false;
+	}
 	// 提取叶子证书公钥保存到上下文，用于后续密钥交换验证
-	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &aCerts[0]) ) { return false; }
+	if ( !__xrt_tls_copy_pubkey_from_cert(pCtx, &aCerts[0]) ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: copy leaf public key failed\n");
+		#endif
+		return false;
+	}
 	// 自底向上构建证书链：从叶子证书开始，逐个查找颁发者
 	iCurrent = 0;
 	aUsed[0] = true;
@@ -40699,10 +40730,30 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 			if ( __xrt_x509_name_eq(aCerts[iCurrent].pIssuerRaw, aCerts[iCurrent].iIssuerRawLen,
 				aCerts[j].pSubjectRaw, aCerts[j].iSubjectRawLen) ) {
 				// 验证颁发者的 CA 属性、有效期、签名和 CRL 吊销状态
-				if ( !__xrt_x509_is_ca_usable(&aCerts[j]) ) { return false; }
-				if ( !__xrt_x509_is_time_valid(&aCerts[j], iNow) ) { return false; }
-				if ( !__xrt_x509_verify_signature(&aCerts[iCurrent], &aCerts[j]) ) { return false; }
-				if ( !__xrt_tls_check_cert_not_revoked(pCtx, &aCerts[iCurrent], &aCerts[j], iNow) ) { return false; }
+				if ( !__xrt_x509_is_ca_usable(&aCerts[j]) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: issuer cert[%d] not usable as CA\n", (int)j);
+					#endif
+					return false;
+				}
+				if ( !__xrt_x509_is_time_valid(&aCerts[j], iNow) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: issuer cert[%d] time invalid\n", (int)j);
+					#endif
+					return false;
+				}
+				if ( !__xrt_x509_verify_signature(&aCerts[iCurrent], &aCerts[j]) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: cert[%d] signature by cert[%d] failed\n", (int)iCurrent, (int)j);
+					#endif
+					return false;
+				}
+				if ( !__xrt_tls_check_cert_not_revoked(pCtx, &aCerts[iCurrent], &aCerts[j], iNow) ) {
+					#ifdef DEBUG_TRACE
+						printf("    [TLS] verify chain: cert[%d] revocation check failed\n", (int)iCurrent);
+					#endif
+					return false;
+				}
 				iCurrent = j;
 				aUsed[j] = true;
 				bFoundIssuer = true;
@@ -40730,6 +40781,9 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 			}
 		}
 		// CA 信任锚中也未找到颁发者，链验证失败
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] verify chain: issuer not found in chain or CA bundle\n");
+		#endif
 		return false;
 	}
 	// 自签名证书的信任锚查找：在 CA 库中验证当前证书是否被信任
@@ -40752,6 +40806,9 @@ static bool __xrt_tls_verify_presented_chain(xtlsctx *pCtx, uint8 **apCertData, 
 			if ( bTrusted ) { return true; }
 		}
 	}
+	#ifdef DEBUG_TRACE
+		printf("    [TLS] verify chain: self-signed anchor not trusted\n");
+	#endif
 	return false;
 }
 // 内部函数：__xrt_tls_capture_peer_cert_chain
@@ -40765,7 +40822,12 @@ static bool __xrt_tls_capture_peer_cert_chain(xtlsctx *pCtx, uint8 **apCertData,
 		return __xrt_tls_copy_pubkey_from_cert(pCtx, &tLeaf);
 	}
 	// 必须有 CA 数据才能进行完整证书链验证
-	if ( pCtx->iCaDataLen == 0 ) { return false; }
+	if ( pCtx->iCaDataLen == 0 ) {
+		#ifdef DEBUG_TRACE
+			printf("    [TLS] certificate: CA bundle empty\n");
+		#endif
+		return false;
+	}
 	return __xrt_tls_verify_presented_chain(pCtx, apCertData, apCertLen, iCertCount);
 }
 // 内部函数：复制 TLS load 文件
@@ -41713,18 +41775,18 @@ static void __xrt_tls_send_client_hello(xtlsctx *pCtx)
 	iExtPos = iPos;
 	iPos += 2;  // 预留扩展总长度
 	
+	if ( bAllowTls13 ) {
 	// Extension: supported_versions (0x002b) — TLS 1.3 preferred, TLS 1.2 fallback
 	__xrt_tls_store_be16(aBuf + iPos, 0x002b);
 	iPos += 2;
-	__xrt_tls_store_be16(aBuf + iPos, bAllowTls13 ? 5 : 3);  // ext data length
+	__xrt_tls_store_be16(aBuf + iPos, 5);  // ext data length
 	iPos += 2;
-	aBuf[iPos++] = bAllowTls13 ? 4 : 2;   // version list length
-	if ( bAllowTls13 ) {
+	aBuf[iPos++] = 4;   // version list length
 		__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_3);
 		iPos += 2;
-	}
 	__xrt_tls_store_be16(aBuf + iPos, __XRT_TLS_VERSION_1_2);
 	iPos += 2;
+	}
 	
 	// Extension: supported_groups (0x000a) - X25519 + X448 + secp256r1 + secp384r1
 	__xrt_tls_store_be16(aBuf + iPos, 0x000a);

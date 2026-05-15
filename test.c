@@ -408,10 +408,11 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 		// 内部函数：__xrtTestRun_TLSBoundaryStress
 		static int __xrtTestRun_TLSBoundaryStress(xrtGlobalData* pCore)
 		{
+			int iRet;
 			(void)pCore;
-			Test_TLSBoundaryStress();
+			iRet = Test_TLSBoundaryStress();
 			xrtUnit();
-			return 0;
+			return iRet;
 		}
 		XRT_TEST_WRAP_INT(__xrtTestRun_TLSAnchorVerify, Test_TLSAnchorVerify)
 	#endif
