@@ -11,13 +11,50 @@
 - STARTTLS（`587`）
 - `AUTH PLAIN`
 - `AUTH LOGIN`
+- `AUTH XOAUTH2`
+- `8BITMIME` / `SMTPUTF8` / `SIZE` / `DSN` 能力识别
+- `SIZE` 消息大小检查
+- DSN envelope 参数：`RET` / `ENVID` / `NOTIFY` / `ORCPT`
 - UTF-8 邮件主题与邮箱显示名编码
 - `text/plain`
 - `text/html`
 - `multipart/alternative`
+- 附件与 inline 资源
+- DATA MIME 构建复用 `../xmail_mime/xmail_mime.h`
 - 同步发送 API
 - 基于 future 的异步发送 API
 - 适合协程环境的异步等待 API
+
+## 能力矩阵
+
+| 能力 | 状态 |
+| --- | --- |
+| 纯 SMTP | 已支持 |
+| SMTPS 465 | 已支持 |
+| STARTTLS 587 | 已支持 |
+| AUTH PLAIN | 已支持 |
+| AUTH LOGIN | 已支持 |
+| AUTH XOAUTH2 | 已支持 |
+| EHLO 能力解析 | 已支持 |
+| 8BITMIME | 已支持 |
+| SMTPUTF8 | 已支持 |
+| SIZE 识别与检查 | 已支持 |
+| DSN envelope 参数 | 已支持 |
+| MAIL FROM / RCPT TO / DATA | 已支持 |
+| To/Cc/Bcc envelope | 已支持 |
+| Bcc 隐藏 MIME header | 已支持 |
+| text/plain | 已支持 |
+| text/html | 已支持 |
+| multipart/alternative | 已支持 |
+| attachment | 已支持 |
+| inline Content-ID | 已支持 |
+| DATA MIME 复用 xmail_mime | 已支持 |
+| 同步 API | 已支持 |
+| future 异步 API | 已支持 |
+| 协程等待封装 | 已支持 |
+| 本地 MIME 集成测试 | 已支持 |
+| SMTP command mock server | 已支持基础明文命令流、AUTH PLAIN/LOGIN/XOAUTH2 与 AUTH_AUTO 三分支 |
+| 真实服务商手工验证 | 部分已验证 |
 
 ## 目录结构
 
@@ -25,8 +62,10 @@
   实现文件与对外 API 定义。
 - [xsmtp_test.c](D:/Git/xrt/extlibs/xsmtp/xsmtp_test.c)
   正式示例程序，所有 SMTP 配置都集中声明在文件顶部。
+- [xsmtp_mime_test.c](D:/Git/xrt/extlibs/xsmtp/xsmtp_mime_test.c)
+  本地 DATA MIME 集成测试与 SMTP command mock server 测试，覆盖基础明文命令流、DSN envelope 参数、`AUTH PLAIN`、`AUTH LOGIN`、`AUTH XOAUTH2` 和 `AUTH_AUTO` 的 XOAUTH2/PLAIN/LOGIN 选择分支，不连接真实 SMTP 服务。
 - [build_test.bat](D:/Git/xrt/extlibs/xsmtp/build_test.bat)
-  本地编译示例程序的脚本。
+  本地编译示例程序，并运行 MIME 集成测试的脚本。
 
 ## 快速开始
 
@@ -93,7 +132,9 @@ build_test.bat
 当前编译命令：
 
 ```bat
-gcc -m64 xsmtp_test.c -I . -I ..\..\singlehead -lWs2_32 -lIPHLPAPI -lShell32 -O0 -g -DXSMTP_DEBUG -o .\bin\xsmtp_test.exe
+gcc -m64 xsmtp_test.c -I . -I ..\..\singlehead -lWs2_32 -lIPHLPAPI -lShell32 -O0 -g -DXSMTP_DEBUG -Wall -Wextra -o .\bin\xsmtp_test.exe
+gcc -m64 xsmtp_mime_test.c -I . -I ..\..\singlehead -lWs2_32 -lIPHLPAPI -lShell32 -O0 -g -DXSMTP_DEBUG -Wall -Wextra -o .\bin\xsmtp_mime_test.exe
+.\bin\xsmtp_mime_test.exe
 ```
 
 输出文件：
@@ -124,6 +165,8 @@ gcc -m64 xsmtp_test.c -I . -I ..\..\singlehead -lWs2_32 -lIPHLPAPI -lShell32 -O0
   强制使用 `AUTH PLAIN`。
 - `XSMTP_AUTH_LOGIN`
   强制使用 `AUTH LOGIN`。
+- `XSMTP_AUTH_XOAUTH2`
+  强制使用 `AUTH XOAUTH2`，需要设置 `sUser` 与 `sOAuth2Token`。
 - `XSMTP_AUTH_AUTO`
   根据服务端能力自动选择。
 
@@ -148,6 +191,7 @@ gcc -m64 xsmtp_test.c -I . -I ..\..\singlehead -lWs2_32 -lIPHLPAPI -lShell32 -O0
 - `bVerifyPeer`
 - `sUser`
 - `sPass`
+- `sOAuth2Token`
 - `sHeloName`
 - `tFrom`
 - `tReplyTo`
@@ -166,9 +210,22 @@ gcc -m64 xsmtp_test.c -I . -I ..\..\singlehead -lWs2_32 -lIPHLPAPI -lShell32 -O0
 - `sSubject`
 - `sTextBody`
 - `sHtmlBody`
+- `arrAttachments`, `iAttachmentCount`
 - `arrHeaderNames`
 - `arrHeaderValues`
 - `iHeaderCount`
+
+### `xsmtpattachment`
+
+附件与 inline 资源数据。
+
+重要字段：
+
+- `sFileName`
+- `sContentType`
+- `sContentId`
+- `pData`, `iDataLen`
+- `bInline`
 
 ### `xsmtpresult`
 
@@ -181,9 +238,15 @@ gcc -m64 xsmtp_test.c -I . -I ..\..\singlehead -lWs2_32 -lIPHLPAPI -lShell32 -O0
 - `bUsedStartTLS`
 - `iServerCode`
 - `iAuthMode`
+- `iStage`
 - `iCapabilities`
+- `iSizeLimit`
 - `sError`
 - `sLastReply`
+
+`iStage` 使用 `XSMTP_STAGE_*` 常量表达失败阶段，例如 `XSMTP_STAGE_CONNECT`、`XSMTP_STAGE_TLS`、`XSMTP_STAGE_EHLO`、`XSMTP_STAGE_AUTH`、`XSMTP_STAGE_MAIL_FROM`、`XSMTP_STAGE_RCPT`、`XSMTP_STAGE_DATA`。
+
+TLS handshake/feed/read/write 失败时，`sError` 会附带 `tls=<xnet_result>` 诊断码；stream 连接、发送、接收失败继续保留既有的 sys/reason 文本。
 
 ### `xsmtpasyncopts`
 
@@ -352,6 +415,7 @@ TLS 会在连接建立时直接附加。
 
 - 连接失败
 - TLS 校验失败
+- TLS 状态机失败，错误文本中会包含 `tls=<xnet_result>`
 - 服务端不支持 `STARTTLS`
 - 认证失败
 - 收件人被拒收
@@ -492,6 +556,7 @@ cfg.iSecureMode = smtp_secure_mode;
 cfg.bAuth = TRUE;
 cfg.iAuthMode = XSMTP_AUTH_AUTO;
 cfg.bVerifyPeer = TRUE;
+cfg.sCaFile = NULL; /* optional PEM CA bundle path */
 cfg.sUser = smtp_user;
 cfg.sPass = smtp_pass;
 cfg.tFrom.sEmail = from_email;

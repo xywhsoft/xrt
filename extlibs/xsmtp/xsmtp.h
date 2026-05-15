@@ -6,6 +6,15 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+#include "../xmail_mime/xmail_mime.h"
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>
 #include <sys/types.h>
@@ -30,17 +39,50 @@
 #define XSMTP_AUTH_NONE        1
 #define XSMTP_AUTH_PLAIN       2
 #define XSMTP_AUTH_LOGIN       3
+#define XSMTP_AUTH_XOAUTH2     4
+
+#define XSMTP_TLS_VERSION_DEFAULT 0
+#define XSMTP_TLS_VERSION_1_2     0x0303u
+#define XSMTP_TLS_VERSION_1_3     0x0304u
 
 #define XSMTP_CAP_AUTH_PLAIN   0x0001u
 #define XSMTP_CAP_AUTH_LOGIN   0x0002u
 #define XSMTP_CAP_STARTTLS     0x0004u
+#define XSMTP_CAP_8BITMIME     0x0008u
+#define XSMTP_CAP_SMTPUTF8     0x0010u
+#define XSMTP_CAP_SIZE         0x0020u
+#define XSMTP_CAP_AUTH_XOAUTH2 0x0040u
+#define XSMTP_CAP_DSN          0x0080u
+
+#define XSMTP_STAGE_NONE       0
+#define XSMTP_STAGE_CONNECT    1
+#define XSMTP_STAGE_TLS        2
+#define XSMTP_STAGE_BANNER     3
+#define XSMTP_STAGE_EHLO       4
+#define XSMTP_STAGE_STARTTLS   5
+#define XSMTP_STAGE_AUTH       6
+#define XSMTP_STAGE_MAIL_FROM  7
+#define XSMTP_STAGE_RCPT       8
+#define XSMTP_STAGE_DATA       9
+#define XSMTP_STAGE_QUIT       10
 
 typedef struct xsmtpsession_struct xsmtpsession;
 
 typedef struct {
 	const char* sEmail;
 	const char* sName;
+	const char* sDsnNotify;
+	const char* sDsnOrcpt;
 } xsmtpaddr;
+
+typedef struct {
+	const char* sFileName;
+	const char* sContentType;
+	const char* sContentId;
+	const void* pData;
+	size_t iDataLen;
+	bool bInline;
+} xsmtpattachment;
 
 typedef struct {
 	const char* sHost;
@@ -50,8 +92,11 @@ typedef struct {
 	bool bAuth;
 	int iAuthMode;
 	bool bVerifyPeer;
+	uint16 iTlsMaxVersion;
+	const char* sCaFile;
 	const char* sUser;
 	const char* sPass;
+	const char* sOAuth2Token;
 	const char* sHeloName;
 	xsmtpaddr tFrom;
 	xsmtpaddr tReplyTo;
@@ -69,9 +114,13 @@ typedef struct {
 	const char* sSubject;
 	const char* sTextBody;
 	const char* sHtmlBody;
+	const xsmtpattachment* arrAttachments;
+	size_t iAttachmentCount;
 	const char* const* arrHeaderNames;
 	const char* const* arrHeaderValues;
 	size_t iHeaderCount;
+	const char* sDsnReturn;
+	const char* sDsnEnvid;
 } xsmtpmessage;
 
 typedef struct {
@@ -80,7 +129,9 @@ typedef struct {
 	bool bUsedStartTLS;
 	int iServerCode;
 	int iAuthMode;
+	int iStage;
 	uint32 iCapabilities;
+	uint64 iSizeLimit;
 	char sError[256];
 	char sLastReply[1024];
 } xsmtpresult;
@@ -104,6 +155,7 @@ typedef struct {
 	xsmtpaddr* arrTo;
 	xsmtpaddr* arrCc;
 	xsmtpaddr* arrBcc;
+	xsmtpattachment* arrAttachments;
 	char** arrHeaderNames;
 	char** arrHeaderValues;
 } xsmtptaskctx;
@@ -142,6 +194,8 @@ typedef struct {
 	uint32 iWaitToken;
 	xsmtpasyncstate iState;
 	uint32 iCapabilities;
+	uint64 iSizeLimit;
+	uint64 iReplySizeLimit;
 	int iAuthMode;
 	size_t iRcptIndex;
 	int iRcptListKind;
@@ -172,6 +226,7 @@ static bool xsmtp_buf_reserve(xsmtpbuf* pBuf, size_t iNeed);
 static bool xsmtp_buf_append_n(xsmtpbuf* pBuf, const char* sText, size_t iLen);
 static bool xsmtp_buf_append(xsmtpbuf* pBuf, const char* sText);
 static void xsmtp_buf_unit(xsmtpbuf* pBuf);
+static void xsmtp_result_errorf(xsmtpresult* pRet, const char* sFormat, ...);
 
 static void xrtSmtpConfigInit(xsmtpconfig* pCfg)
 {
@@ -185,6 +240,7 @@ static void xrtSmtpConfigInit(xsmtpconfig* pCfg)
 	pCfg->bAuth = TRUE;
 	pCfg->iAuthMode = XSMTP_AUTH_AUTO;
 	pCfg->bVerifyPeer = TRUE;
+	pCfg->iTlsMaxVersion = XSMTP_TLS_VERSION_DEFAULT;
 }
 
 static void xrtSmtpMessageInit(xsmtpmessage* pMsg)
@@ -261,6 +317,8 @@ static char* xsmtp_dup_text(const char* sText)
 	return sCopy;
 }
 
+static void xsmtp_free_addr(xsmtpaddr* pAddr);
+
 static bool xsmtp_copy_addr(xsmtpaddr* pDst, const xsmtpaddr* pSrc)
 {
 	memset(pDst, 0, sizeof(*pDst));
@@ -281,6 +339,20 @@ static bool xsmtp_copy_addr(xsmtpaddr* pDst, const xsmtpaddr* pSrc)
 			return FALSE;
 		}
 	}
+	if ( pSrc->sDsnNotify != NULL ) {
+		pDst->sDsnNotify = xsmtp_dup_text(pSrc->sDsnNotify);
+		if ( pDst->sDsnNotify == NULL ) {
+			xsmtp_free_addr(pDst);
+			return FALSE;
+		}
+	}
+	if ( pSrc->sDsnOrcpt != NULL ) {
+		pDst->sDsnOrcpt = xsmtp_dup_text(pSrc->sDsnOrcpt);
+		if ( pDst->sDsnOrcpt == NULL ) {
+			xsmtp_free_addr(pDst);
+			return FALSE;
+		}
+	}
 	return TRUE;
 }
 
@@ -294,6 +366,12 @@ static void xsmtp_free_addr(xsmtpaddr* pAddr)
 	}
 	if ( pAddr->sName != NULL ) {
 		xrtFree((ptr)pAddr->sName);
+	}
+	if ( pAddr->sDsnNotify != NULL ) {
+		xrtFree((ptr)pAddr->sDsnNotify);
+	}
+	if ( pAddr->sDsnOrcpt != NULL ) {
+		xrtFree((ptr)pAddr->sDsnOrcpt);
 	}
 	memset(pAddr, 0, sizeof(*pAddr));
 }
@@ -333,6 +411,103 @@ static void xsmtp_free_addr_list(xsmtpaddr* arrList, size_t iCount)
 	}
 	for ( i = 0; i < iCount; ++i ) {
 		xsmtp_free_addr(&arrList[i]);
+	}
+	xrtFree(arrList);
+}
+
+static void xsmtp_free_attachment(xsmtpattachment* pAttachment)
+{
+	if ( pAttachment == NULL ) {
+		return;
+	}
+	if ( pAttachment->sFileName != NULL ) {
+		xrtFree((ptr)pAttachment->sFileName);
+	}
+	if ( pAttachment->sContentType != NULL ) {
+		xrtFree((ptr)pAttachment->sContentType);
+	}
+	if ( pAttachment->sContentId != NULL ) {
+		xrtFree((ptr)pAttachment->sContentId);
+	}
+	if ( pAttachment->pData != NULL ) {
+		xrtFree((ptr)pAttachment->pData);
+	}
+	memset(pAttachment, 0, sizeof(*pAttachment));
+}
+
+static bool xsmtp_copy_attachment(xsmtpattachment* pDst, const xsmtpattachment* pSrc)
+{
+	void* pData;
+
+	memset(pDst, 0, sizeof(*pDst));
+	if ( pSrc == NULL ) {
+		return TRUE;
+	}
+	pDst->iDataLen = pSrc->iDataLen;
+	pDst->bInline = pSrc->bInline;
+	if ( pSrc->sFileName != NULL ) {
+		pDst->sFileName = xsmtp_dup_text(pSrc->sFileName);
+		if ( pDst->sFileName == NULL ) goto fail;
+	}
+	if ( pSrc->sContentType != NULL ) {
+		pDst->sContentType = xsmtp_dup_text(pSrc->sContentType);
+		if ( pDst->sContentType == NULL ) goto fail;
+	}
+	if ( pSrc->sContentId != NULL ) {
+		pDst->sContentId = xsmtp_dup_text(pSrc->sContentId);
+		if ( pDst->sContentId == NULL ) goto fail;
+	}
+	if ( pSrc->pData != NULL && pSrc->iDataLen > 0 ) {
+		pData = xrtMalloc(pSrc->iDataLen);
+		if ( pData == NULL ) goto fail;
+		memcpy(pData, pSrc->pData, pSrc->iDataLen);
+		pDst->pData = pData;
+	} else {
+		pDst->pData = NULL;
+		pDst->iDataLen = 0;
+	}
+	return TRUE;
+
+fail:
+	xsmtp_free_attachment(pDst);
+	return FALSE;
+}
+
+static xsmtpattachment* xsmtp_dup_attachment_list(const xsmtpattachment* arrSrc, size_t iCount)
+{
+	xsmtpattachment* arrDst;
+	size_t i;
+
+	if ( arrSrc == NULL || iCount == 0 ) {
+		return NULL;
+	}
+	arrDst = (xsmtpattachment*)xrtMalloc(sizeof(xsmtpattachment) * iCount);
+	if ( arrDst == NULL ) {
+		return NULL;
+	}
+	memset(arrDst, 0, sizeof(xsmtpattachment) * iCount);
+	for ( i = 0; i < iCount; ++i ) {
+		if ( !xsmtp_copy_attachment(&arrDst[i], &arrSrc[i]) ) {
+			while ( i > 0 ) {
+				--i;
+				xsmtp_free_attachment(&arrDst[i]);
+			}
+			xrtFree(arrDst);
+			return NULL;
+		}
+	}
+	return arrDst;
+}
+
+static void xsmtp_free_attachment_list(xsmtpattachment* arrList, size_t iCount)
+{
+	size_t i;
+
+	if ( arrList == NULL ) {
+		return;
+	}
+	for ( i = 0; i < iCount; ++i ) {
+		xsmtp_free_attachment(&arrList[i]);
 	}
 	xrtFree(arrList);
 }
@@ -394,6 +569,22 @@ static void xsmtp_result_error(xsmtpresult* pRet, const char* sError)
 	snprintf(pRet->sError, sizeof(pRet->sError), "%s", xsmtp_str_or_empty(sError));
 }
 
+static void xsmtp_result_tls_error(xsmtpresult* pRet, const char* sError, xnet_result iResult)
+{
+	if ( pRet == NULL ) {
+		return;
+	}
+	pRet->bSuccess = FALSE;
+	snprintf(pRet->sError, sizeof(pRet->sError), "%s (tls=%d)", xsmtp_str_or_empty(sError), (int)iResult);
+}
+
+static void xsmtp_result_stage(xsmtpresult* pRet, int iStage)
+{
+	if ( pRet != NULL ) {
+		pRet->iStage = iStage;
+	}
+}
+
 static void xsmtp_task_ctx_free(xsmtptaskctx* pCtx)
 {
 	if ( pCtx == NULL ) {
@@ -410,6 +601,12 @@ static void xsmtp_task_ctx_free(xsmtptaskctx* pCtx)
 	if ( pCtx->tCfg.sPass != NULL ) {
 		xrtFree((ptr)pCtx->tCfg.sPass);
 	}
+	if ( pCtx->tCfg.sOAuth2Token != NULL ) {
+		xrtFree((ptr)pCtx->tCfg.sOAuth2Token);
+	}
+	if ( pCtx->tCfg.sCaFile != NULL ) {
+		xrtFree((ptr)pCtx->tCfg.sCaFile);
+	}
 	if ( pCtx->tCfg.sHeloName != NULL ) {
 		xrtFree((ptr)pCtx->tCfg.sHeloName);
 	}
@@ -418,6 +615,7 @@ static void xsmtp_task_ctx_free(xsmtptaskctx* pCtx)
 	xsmtp_free_addr_list(pCtx->arrTo, pCtx->tMsg.iToCount);
 	xsmtp_free_addr_list(pCtx->arrCc, pCtx->tMsg.iCcCount);
 	xsmtp_free_addr_list(pCtx->arrBcc, pCtx->tMsg.iBccCount);
+	xsmtp_free_attachment_list(pCtx->arrAttachments, pCtx->tMsg.iAttachmentCount);
 	xsmtp_free_text_list(pCtx->arrHeaderNames, pCtx->tMsg.iHeaderCount);
 	xsmtp_free_text_list(pCtx->arrHeaderValues, pCtx->tMsg.iHeaderCount);
 	if ( pCtx->tMsg.sSubject != NULL ) {
@@ -428,6 +626,12 @@ static void xsmtp_task_ctx_free(xsmtptaskctx* pCtx)
 	}
 	if ( pCtx->tMsg.sHtmlBody != NULL ) {
 		xrtFree((ptr)pCtx->tMsg.sHtmlBody);
+	}
+	if ( pCtx->tMsg.sDsnReturn != NULL ) {
+		xrtFree((ptr)pCtx->tMsg.sDsnReturn);
+	}
+	if ( pCtx->tMsg.sDsnEnvid != NULL ) {
+		xrtFree((ptr)pCtx->tMsg.sDsnEnvid);
 	}
 	xrtFree(pCtx);
 }
@@ -451,6 +655,8 @@ static xsmtptaskctx* xsmtp_task_ctx_create(const xsmtpconfig* pCfg, const xsmtpm
 	pCtx->tCfg.sHost = xsmtp_dup_text(pCfg->sHost);
 	pCtx->tCfg.sUser = xsmtp_dup_text(pCfg->sUser);
 	pCtx->tCfg.sPass = xsmtp_dup_text(pCfg->sPass);
+	pCtx->tCfg.sOAuth2Token = xsmtp_dup_text(pCfg->sOAuth2Token);
+	pCtx->tCfg.sCaFile = xsmtp_dup_text(pCfg->sCaFile);
 	pCtx->tCfg.sHeloName = xsmtp_dup_text(pCfg->sHeloName);
 	if ( !xsmtp_copy_addr(&pCtx->tCfg.tFrom, &pCfg->tFrom) ) {
 		xsmtp_task_ctx_free(pCtx);
@@ -469,6 +675,14 @@ static xsmtptaskctx* xsmtp_task_ctx_create(const xsmtpconfig* pCfg, const xsmtpm
 		return NULL;
 	}
 	if ( pCfg->sPass != NULL && pCtx->tCfg.sPass == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( pCfg->sOAuth2Token != NULL && pCtx->tCfg.sOAuth2Token == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	if ( pCfg->sCaFile != NULL && pCtx->tCfg.sCaFile == NULL ) {
 		xsmtp_task_ctx_free(pCtx);
 		return NULL;
 	}
@@ -502,12 +716,23 @@ static xsmtptaskctx* xsmtp_task_ctx_create(const xsmtpconfig* pCfg, const xsmtpm
 	pCtx->tMsg.arrCc = pCtx->arrCc;
 	pCtx->tMsg.arrBcc = pCtx->arrBcc;
 
+	pCtx->arrAttachments = xsmtp_dup_attachment_list(pMsg->arrAttachments, pMsg->iAttachmentCount);
+	if ( pMsg->iAttachmentCount > 0 && pCtx->arrAttachments == NULL ) {
+		xsmtp_task_ctx_free(pCtx);
+		return NULL;
+	}
+	pCtx->tMsg.arrAttachments = pCtx->arrAttachments;
+
 	pCtx->tMsg.sSubject = xsmtp_dup_text(pMsg->sSubject);
 	pCtx->tMsg.sTextBody = xsmtp_dup_text(pMsg->sTextBody);
 	pCtx->tMsg.sHtmlBody = xsmtp_dup_text(pMsg->sHtmlBody);
+	pCtx->tMsg.sDsnReturn = xsmtp_dup_text(pMsg->sDsnReturn);
+	pCtx->tMsg.sDsnEnvid = xsmtp_dup_text(pMsg->sDsnEnvid);
 	if ( (pMsg->sSubject != NULL && pCtx->tMsg.sSubject == NULL)
 		|| (pMsg->sTextBody != NULL && pCtx->tMsg.sTextBody == NULL)
-		|| (pMsg->sHtmlBody != NULL && pCtx->tMsg.sHtmlBody == NULL) ) {
+		|| (pMsg->sHtmlBody != NULL && pCtx->tMsg.sHtmlBody == NULL)
+		|| (pMsg->sDsnReturn != NULL && pCtx->tMsg.sDsnReturn == NULL)
+		|| (pMsg->sDsnEnvid != NULL && pCtx->tMsg.sDsnEnvid == NULL) ) {
 		xsmtp_task_ctx_free(pCtx);
 		return NULL;
 	}
@@ -625,6 +850,80 @@ static bool xsmtp_find_i(const char* sText, const char* sSub)
 	return FALSE;
 }
 
+static bool xsmtp_cap_name_match(const char* sCap, const char* sName)
+{
+	size_t i;
+
+	if ( sCap == NULL || sName == NULL ) {
+		return FALSE;
+	}
+	for ( i = 0; sName[i] != '\0'; i++ ) {
+		if ( sCap[i] == '\0' || tolower((unsigned char)sCap[i]) != tolower((unsigned char)sName[i]) ) {
+			return FALSE;
+		}
+	}
+	return sCap[i] == '\0' || isspace((unsigned char)sCap[i]);
+}
+
+static uint64 xsmtp_parse_uint64_decimal(const char* sText)
+{
+	uint64 iValue = 0;
+	const unsigned char* p = (const unsigned char*)sText;
+
+	if ( p == NULL ) {
+		return 0;
+	}
+	while ( *p && isspace(*p) ) {
+		p++;
+	}
+	while ( *p && isdigit(*p) ) {
+		uint64 iDigit = (uint64)(*p - '0');
+		if ( iValue > ((((uint64)-1) - iDigit) / 10u) ) {
+			return (uint64)-1;
+		}
+		iValue = iValue * 10u + iDigit;
+		p++;
+	}
+	return iValue;
+}
+
+static void xsmtp_parse_capability_line(const char* sCap, uint32* pCaps, uint64* pSizeLimit)
+{
+	if ( sCap == NULL || pCaps == NULL ) {
+		return;
+	}
+	if ( xsmtp_cap_name_match(sCap, "STARTTLS") ) {
+		*pCaps |= XSMTP_CAP_STARTTLS;
+	}
+	if ( xsmtp_cap_name_match(sCap, "8BITMIME") ) {
+		*pCaps |= XSMTP_CAP_8BITMIME;
+	}
+	if ( xsmtp_cap_name_match(sCap, "SMTPUTF8") ) {
+		*pCaps |= XSMTP_CAP_SMTPUTF8;
+	}
+	if ( xsmtp_cap_name_match(sCap, "SIZE") ) {
+		*pCaps |= XSMTP_CAP_SIZE;
+		if ( pSizeLimit != NULL ) {
+			const char* p = sCap + 4;
+			*pSizeLimit = xsmtp_parse_uint64_decimal(p);
+		}
+	}
+	if ( xsmtp_cap_name_match(sCap, "DSN") ) {
+		*pCaps |= XSMTP_CAP_DSN;
+	}
+	if ( xsmtp_starts_with_i(sCap, "AUTH ") ) {
+		if ( xsmtp_find_i(sCap, "PLAIN") ) {
+			*pCaps |= XSMTP_CAP_AUTH_PLAIN;
+		}
+		if ( xsmtp_find_i(sCap, "LOGIN") ) {
+			*pCaps |= XSMTP_CAP_AUTH_LOGIN;
+		}
+		if ( xsmtp_find_i(sCap, "XOAUTH2") ) {
+			*pCaps |= XSMTP_CAP_AUTH_XOAUTH2;
+		}
+	}
+}
+
 static bool xsmtp_buf_reserve(xsmtpbuf* pBuf, size_t iNeed)
 {
 	char* sNew;
@@ -668,41 +967,6 @@ static bool xsmtp_buf_append(xsmtpbuf* pBuf, const char* sText)
 	return xsmtp_buf_append_n(pBuf, xsmtp_str_or_empty(sText), strlen(xsmtp_str_or_empty(sText)));
 }
 
-static bool xsmtp_buf_appendf(xsmtpbuf* pBuf, const char* sFormat, ...)
-{
-	va_list ap;
-	va_list ap2;
-	int iNeed;
-	char* sText;
-	bool bOK;
-
-	if ( pBuf == NULL || sFormat == NULL ) {
-		return FALSE;
-	}
-
-	va_start(ap, sFormat);
-	va_copy(ap2, ap);
-	iNeed = vsnprintf(NULL, 0, sFormat, ap);
-	va_end(ap);
-	if ( iNeed < 0 ) {
-		va_end(ap2);
-		return FALSE;
-	}
-	sText = (char*)xrtMalloc((size_t)iNeed + 1);
-	if ( sText == NULL ) {
-		va_end(ap2);
-		return FALSE;
-	}
-	vsnprintf(sText, (size_t)iNeed + 1, sFormat, ap2);
-	va_end(ap2);
-	if ( sText == NULL ) {
-		return FALSE;
-	}
-	bOK = xsmtp_buf_append(pBuf, sText);
-	xrtFree(sText);
-	return bOK;
-}
-
 static void xsmtp_buf_unit(xsmtpbuf* pBuf)
 {
 	if ( pBuf && pBuf->sData ) {
@@ -711,175 +975,6 @@ static void xsmtp_buf_unit(xsmtpbuf* pBuf)
 		pBuf->iLen = 0;
 		pBuf->iCap = 0;
 	}
-}
-
-static bool xsmtp_has_non_ascii(const char* sText)
-{
-	const unsigned char* p = (const unsigned char*)sText;
-	if ( sText == NULL ) {
-		return FALSE;
-	}
-	while ( *p ) {
-		if ( *p >= 0x80 ) {
-			return TRUE;
-		}
-		p++;
-	}
-	return FALSE;
-}
-
-static bool xsmtp_needs_addr_quote(const char* sText)
-{
-	const unsigned char* p = (const unsigned char*)sText;
-	if ( sText == NULL || sText[0] == '\0' ) {
-		return FALSE;
-	}
-	while ( *p ) {
-		if ( *p < 0x20 || *p == '"' || *p == '\\' || *p == ',' || *p == '<' || *p == '>' || *p == '@' ) {
-			return TRUE;
-		}
-		p++;
-	}
-	return FALSE;
-}
-
-static str xsmtp_encode_header_word(const char* sText)
-{
-	str sBase64;
-	str sOut;
-	size_t iNeed;
-
-	if ( sText == NULL ) {
-		return xrtCopyStr((str)"", 0);
-	}
-	if ( !xsmtp_has_non_ascii(sText) ) {
-		return xrtCopyStr((str)sText, 0);
-	}
-	sBase64 = xrtBase64Encode((ptr)sText, strlen(sText), NULL);
-	if ( sBase64 == NULL ) {
-		return NULL;
-	}
-	iNeed = strlen((const char*)sBase64) + 13;
-	sOut = (str)xrtMalloc(iNeed);
-	if ( sOut ) {
-		snprintf((char*)sOut, iNeed, "=?UTF-8?B?%s?=", (const char*)sBase64);
-	}
-	xrtFree(sBase64);
-	return sOut;
-}
-
-static str xsmtp_format_mailbox(const xsmtpaddr* pAddr)
-{
-	str sName = NULL;
-	str sOut = NULL;
-	const char* sEmail;
-
-	if ( pAddr == NULL || pAddr->sEmail == NULL || pAddr->sEmail[0] == '\0' ) {
-		return xrtCopyStr((str)"", 0);
-	}
-
-	sEmail = pAddr->sEmail;
-	if ( pAddr->sName == NULL || pAddr->sName[0] == '\0' ) {
-		return xrtCopyStr((str)sEmail, 0);
-	}
-
-	sName = xsmtp_encode_header_word(pAddr->sName);
-	if ( sName == NULL ) {
-		return NULL;
-	}
-
-	if ( !xsmtp_has_non_ascii(pAddr->sName) && xsmtp_needs_addr_quote(pAddr->sName) ) {
-		sOut = xrtFormat("\"%s\" <%s>", pAddr->sName, sEmail);
-	} else {
-		sOut = xrtFormat("%s <%s>", sName, sEmail);
-	}
-
-	xrtFree(sName);
-	return sOut;
-}
-
-static str xsmtp_join_mailboxes(const xsmtpaddr* arrList, size_t iCount)
-{
-	xsmtpbuf tBuf;
-	size_t i;
-
-	memset(&tBuf, 0, sizeof(tBuf));
-	for ( i = 0; i < iCount; i++ ) {
-		str sItem = xsmtp_format_mailbox(&arrList[i]);
-		if ( sItem == NULL ) {
-			xsmtp_buf_unit(&tBuf);
-			return NULL;
-		}
-		if ( i > 0 ) {
-			xsmtp_buf_append(&tBuf, ", ");
-		}
-		xsmtp_buf_append(&tBuf, (const char*)sItem);
-		xrtFree(sItem);
-	}
-	if ( tBuf.sData == NULL ) {
-		return xrtCopyStr((str)"", 0);
-	}
-	return (str)tBuf.sData;
-}
-
-static str xsmtp_base64_wrap(const void* pData, size_t iLen)
-{
-	xsmtpbuf tBuf;
-	str sBase64;
-	size_t i;
-
-	memset(&tBuf, 0, sizeof(tBuf));
-	sBase64 = xrtBase64Encode((ptr)pData, iLen, NULL);
-	if ( sBase64 == NULL ) {
-		return NULL;
-	}
-	for ( i = 0; sBase64[i] != '\0'; i += 76 ) {
-		size_t iChunk = strlen((const char*)sBase64 + i);
-		if ( iChunk > 76 ) {
-			iChunk = 76;
-		}
-		if ( !xsmtp_buf_append_n(&tBuf, (const char*)sBase64 + i, iChunk) || !xsmtp_buf_append(&tBuf, "\r\n") ) {
-			xrtFree(sBase64);
-			xsmtp_buf_unit(&tBuf);
-			return NULL;
-		}
-	}
-	xrtFree(sBase64);
-	if ( tBuf.sData == NULL ) {
-		return xrtCopyStr((str)"", 0);
-	}
-	return (str)tBuf.sData;
-}
-
-static str xsmtp_normalize_crlf(const char* sText)
-{
-	xsmtpbuf tBuf;
-	const char* p;
-
-	memset(&tBuf, 0, sizeof(tBuf));
-	if ( sText == NULL ) {
-		return xrtCopyStr((str)"", 0);
-	}
-
-	for ( p = sText; *p; p++ ) {
-		if ( *p == '\r' ) {
-			if ( p[1] == '\n' ) {
-				xsmtp_buf_append(&tBuf, "\r\n");
-				p++;
-			} else {
-				xsmtp_buf_append(&tBuf, "\r\n");
-			}
-		} else if ( *p == '\n' ) {
-			xsmtp_buf_append(&tBuf, "\r\n");
-		} else {
-			xsmtp_buf_append_n(&tBuf, p, 1);
-		}
-	}
-
-	if ( tBuf.sData == NULL ) {
-		return xrtCopyStr((str)"", 0);
-	}
-	return (str)tBuf.sData;
 }
 
 static bool xsmtp_count_recipients(const xsmtpmessage* pMsg, size_t* pCount)
@@ -895,314 +990,165 @@ static bool xsmtp_count_recipients(const xsmtpmessage* pMsg, size_t* pCount)
 	return iTotal > 0;
 }
 
-static void xsmtp_random_hex(char* sOut, size_t iOutLen, size_t iByteCount)
+static xmailaddr* xsmtp_copy_xmail_addr_list(const xsmtpaddr* arrSrc, size_t iCount)
 {
-	uint8 aBuf[32];
-	static const char sHex[] = "0123456789abcdef";
+	xmailaddr* arrOut;
 	size_t i;
 
-	if ( sOut == NULL || iOutLen == 0 ) {
-		return;
-	}
-	if ( iByteCount > sizeof(aBuf) ) {
-		iByteCount = sizeof(aBuf);
-	}
-	xrtRandomBytes(aBuf, iByteCount);
-	for ( i = 0; i < iByteCount && (i * 2 + 1) < iOutLen; i++ ) {
-		sOut[i * 2] = sHex[(aBuf[i] >> 4) & 0x0F];
-		sOut[i * 2 + 1] = sHex[aBuf[i] & 0x0F];
-	}
-	sOut[(iByteCount * 2 < iOutLen) ? iByteCount * 2 : iOutLen - 1] = '\0';
-}
-
-static str xsmtp_rfc2822_date(void)
-{
-	time_t tNow;
-	struct tm tmNow;
-	struct tm tmUtc;
-	char sBuf[80];
-	long iOffsetSec;
-	char cSign = '+';
-	int iOffsetHour;
-	int iOffsetMin;
-	static const char* const arrWeekday[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-	static const char* const arrMonth[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-
-	time(&tNow);
-#if defined(_WIN32) || defined(_WIN64)
-	localtime_s(&tmNow, &tNow);
-	gmtime_s(&tmUtc, &tNow);
-#else
-	localtime_r(&tNow, &tmNow);
-	gmtime_r(&tNow, &tmUtc);
-#endif
-	iOffsetSec = (long)difftime(mktime(&tmNow), mktime(&tmUtc));
-	if ( iOffsetSec < 0 ) {
-		cSign = '-';
-		iOffsetSec = -iOffsetSec;
-	}
-	iOffsetHour = (int)(iOffsetSec / 3600);
-	iOffsetMin = (int)((iOffsetSec % 3600) / 60);
-	if ( tmNow.tm_wday < 0 || tmNow.tm_wday > 6 || tmNow.tm_mon < 0 || tmNow.tm_mon > 11 ) {
-		return xrtCopyStr((str)"", 0);
-	}
-	snprintf(sBuf, sizeof(sBuf), "%s, %02d %s %04d %02d:%02d:%02d %c%02d%02d",
-		arrWeekday[tmNow.tm_wday],
-		tmNow.tm_mday,
-		arrMonth[tmNow.tm_mon],
-		tmNow.tm_year + 1900,
-		tmNow.tm_hour,
-		tmNow.tm_min,
-		tmNow.tm_sec,
-		cSign,
-		iOffsetHour,
-		iOffsetMin);
-	return xrtCopyStr((str)sBuf, 0);
-}
-
-static str xsmtp_build_message_id(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg)
-{
-	char sRand[33];
-	const char* sHost = NULL;
-	xsmtp_random_hex(sRand, sizeof(sRand), 16);
-	if ( pMsg && pMsg->tFrom.sEmail && strchr(pMsg->tFrom.sEmail, '@') ) {
-		sHost = strchr(pMsg->tFrom.sEmail, '@') + 1;
-	} else if ( pCfg && pCfg->tFrom.sEmail && strchr(pCfg->tFrom.sEmail, '@') ) {
-		sHost = strchr(pCfg->tFrom.sEmail, '@') + 1;
-	} else if ( pCfg && pCfg->sHost ) {
-		sHost = pCfg->sHost;
-	} else {
-		sHost = "localhost";
-	}
-	return xrtFormat("<%s@%s>", sRand, sHost);
-}
-
-static str xsmtp_build_body_payload(const char* sBody)
-{
-	str sNorm;
-	str sOut;
-	sNorm = xsmtp_normalize_crlf(sBody);
-	if ( sNorm == NULL ) {
+	if ( arrSrc == NULL || iCount == 0 ) {
 		return NULL;
 	}
-	sOut = xsmtp_base64_wrap((const void*)sNorm, strlen((const char*)sNorm));
-	xrtFree(sNorm);
-	return sOut;
-}
-
-static bool xsmtp_is_7bit_safe_text(const char* sText)
-{
-	const unsigned char* p = (const unsigned char*)xsmtp_str_or_empty(sText);
-	for ( ; *p; ++p ) {
-		if ( *p == '\r' || *p == '\n' || *p == '\t' ) {
-			continue;
-		}
-		if ( *p < 32 || *p > 126 ) {
-			return FALSE;
-		}
-	}
-	return TRUE;
-}
-
-static str xsmtp_build_quoted_printable(const char* sText)
-{
-	static const char sHex[] = "0123456789ABCDEF";
-	xsmtpbuf tBuf;
-	const unsigned char* p = (const unsigned char*)xsmtp_str_or_empty(sText);
-	size_t iLineLen = 0;
-
-	memset(&tBuf, 0, sizeof(tBuf));
-	while ( *p ) {
-		unsigned char c = *p++;
-		char aEnc[3];
-		size_t iNeed = 1;
-		const char* sAppend = NULL;
-
-		if ( c == '\r' ) {
-			if ( *p == '\n' ) {
-				++p;
-			}
-			if ( !xsmtp_buf_append(&tBuf, "\r\n") ) {
-				xsmtp_buf_unit(&tBuf);
-				return NULL;
-			}
-			iLineLen = 0;
-			continue;
-		}
-		if ( c == '\n' ) {
-			if ( !xsmtp_buf_append(&tBuf, "\r\n") ) {
-				xsmtp_buf_unit(&tBuf);
-				return NULL;
-			}
-			iLineLen = 0;
-			continue;
-		}
-		if ( (c >= 33 && c <= 60) || (c >= 62 && c <= 126) ) {
-			aEnc[0] = (char)c;
-			aEnc[1] = '\0';
-			sAppend = aEnc;
-			iNeed = 1;
-		} else {
-			aEnc[0] = '=';
-			aEnc[1] = sHex[(c >> 4) & 0x0F];
-			aEnc[2] = sHex[c & 0x0F];
-			sAppend = aEnc;
-			iNeed = 3;
-		}
-		if ( iLineLen + iNeed > 72 ) {
-			if ( !xsmtp_buf_append(&tBuf, "=\r\n") ) {
-				xsmtp_buf_unit(&tBuf);
-				return NULL;
-			}
-			iLineLen = 0;
-		}
-		if ( !xsmtp_buf_append_n(&tBuf, sAppend, iNeed) ) {
-			xsmtp_buf_unit(&tBuf);
-			return NULL;
-		}
-		iLineLen += iNeed;
-	}
-
-	if ( tBuf.sData == NULL ) {
-		return xrtCopyStr((str)"", 0);
-	}
-	return (str)tBuf.sData;
-}
-
-static str xsmtp_build_body_payload_ex(const char* sBody, const char* sContentType, const char** psEncoding)
-{
-	str sNorm;
-	str sOut;
-
-	if ( psEncoding ) {
-		*psEncoding = "base64";
-	}
-	sNorm = xsmtp_normalize_crlf(sBody);
-	if ( sNorm == NULL ) {
+	arrOut = (xmailaddr*)xrtMalloc(sizeof(xmailaddr) * iCount);
+	if ( arrOut == NULL ) {
 		return NULL;
 	}
-	if ( xsmtp_is_7bit_safe_text((const char*)sNorm) ) {
-		if ( psEncoding ) {
-			*psEncoding = "7bit";
-		}
-		return sNorm;
+	for ( i = 0; i < iCount; i++ ) {
+		arrOut[i].sEmail = arrSrc[i].sEmail;
+		arrOut[i].sName = arrSrc[i].sName;
 	}
-	if ( sContentType && strcmp(sContentType, "text/plain") == 0 ) {
-		if ( psEncoding ) {
-			*psEncoding = "quoted-printable";
-		}
-		sOut = xsmtp_build_quoted_printable((const char*)sNorm);
-		xrtFree(sNorm);
-		return sOut;
-	}
-	sOut = xsmtp_base64_wrap((const void*)sNorm, strlen((const char*)sNorm));
-	xrtFree(sNorm);
-	return sOut;
+	return arrOut;
 }
 
-static bool xsmtp_append_body_headers(xsmtpbuf* pBuf, const char* sContentType, const char* sTransferEncoding, const char* sPayload)
+static xmailmimeattachment* xsmtp_copy_xmail_attachment_list(const xsmtpattachment* arrSrc, size_t iCount)
 {
-	return xsmtp_buf_appendf(pBuf,
-		"Content-Type: %s; charset=UTF-8\r\n"
-		"Content-Transfer-Encoding: %s\r\n"
-		"\r\n"
-		"%s\r\n",
-		sContentType, xsmtp_str_or_empty(sTransferEncoding), xsmtp_str_or_empty(sPayload));
+	xmailmimeattachment* arrOut;
+	size_t i;
+
+	if ( arrSrc == NULL || iCount == 0 ) {
+		return NULL;
+	}
+	arrOut = (xmailmimeattachment*)xrtMalloc(sizeof(xmailmimeattachment) * iCount);
+	if ( arrOut == NULL ) {
+		return NULL;
+	}
+	for ( i = 0; i < iCount; i++ ) {
+		arrOut[i].sFileName = arrSrc[i].sFileName;
+		arrOut[i].sContentType = arrSrc[i].sContentType;
+		arrOut[i].sContentId = arrSrc[i].sContentId;
+		arrOut[i].pData = arrSrc[i].pData;
+		arrOut[i].iDataLen = arrSrc[i].iDataLen;
+		arrOut[i].bInline = arrSrc[i].bInline;
+	}
+	return arrOut;
 }
 
 static str xsmtp_build_message_data(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg)
 {
-	xsmtpbuf tBuf;
-	str sDate = NULL;
-	str sMessageID = NULL;
-	str sSubject = NULL;
-	str sFrom = NULL;
-	str sTo = NULL;
-	str sCc = NULL;
-	str sReplyTo = NULL;
-	str sTextPayload = NULL;
-	str sHtmlPayload = NULL;
-	bool bOK = FALSE;
-	const char* sTextEncoding = "base64";
-	const char* sHtmlEncoding = "base64";
+	xmailmessage tMail;
+	xmailheader* arrHeaders = NULL;
+	xmailaddr* arrTo = NULL;
+	xmailaddr* arrCc = NULL;
+	xmailaddr* arrBcc = NULL;
+	xmailmimeattachment* arrAttachments = NULL;
+	size_t i;
+	str sOut = NULL;
 
-	memset(&tBuf, 0, sizeof(tBuf));
-
-	sDate = xsmtp_rfc2822_date();
-	sMessageID = xsmtp_build_message_id(pCfg, pMsg);
-	sSubject = xsmtp_encode_header_word(xsmtp_str_or_empty(pMsg->sSubject));
-	sFrom = xsmtp_format_mailbox((pMsg->tFrom.sEmail && pMsg->tFrom.sEmail[0]) ? &pMsg->tFrom : &pCfg->tFrom);
-	sTo = xsmtp_join_mailboxes(pMsg->arrTo, pMsg->iToCount);
-	sCc = xsmtp_join_mailboxes(pMsg->arrCc, pMsg->iCcCount);
-	if ( pMsg->tReplyTo.sEmail && pMsg->tReplyTo.sEmail[0] ) {
-		sReplyTo = xsmtp_format_mailbox(&pMsg->tReplyTo);
-	} else if ( pCfg->tReplyTo.sEmail && pCfg->tReplyTo.sEmail[0] ) {
-		sReplyTo = xsmtp_format_mailbox(&pCfg->tReplyTo);
-	}
-
-	if ( sDate == NULL || sMessageID == NULL || sSubject == NULL || sFrom == NULL || sTo == NULL ) {
-		goto cleanup;
-	}
-
-	if ( !xsmtp_buf_appendf(&tBuf, "Date: %s\r\n", sDate) ) goto cleanup;
-	if ( !xsmtp_buf_appendf(&tBuf, "Message-ID: %s\r\n", sMessageID) ) goto cleanup;
-	if ( !xsmtp_buf_appendf(&tBuf, "From: %s\r\n", sFrom) ) goto cleanup;
-	if ( !xsmtp_buf_appendf(&tBuf, "To: %s\r\n", sTo) ) goto cleanup;
-	if ( sCc && sCc[0] && !xsmtp_buf_appendf(&tBuf, "Cc: %s\r\n", sCc) ) goto cleanup;
-	if ( sReplyTo && sReplyTo[0] && !xsmtp_buf_appendf(&tBuf, "Reply-To: %s\r\n", sReplyTo) ) goto cleanup;
-	if ( !xsmtp_buf_appendf(&tBuf, "Subject: %s\r\n", sSubject) ) goto cleanup;
-	if ( !xsmtp_buf_append(&tBuf, "MIME-Version: 1.0\r\n") ) goto cleanup;
-
-	if ( pMsg->arrHeaderNames && pMsg->arrHeaderValues ) {
-		size_t i;
-		for ( i = 0; i < pMsg->iHeaderCount; i++ ) {
-			const char* sName = pMsg->arrHeaderNames[i];
-			const char* sValue = pMsg->arrHeaderValues[i];
-			if ( sName && sName[0] && sValue ) {
-				if ( !xsmtp_buf_appendf(&tBuf, "%s: %s\r\n", sName, sValue) ) goto cleanup;
-			}
-		}
-	}
-
-	if ( pMsg->sTextBody && pMsg->sTextBody[0] && pMsg->sHtmlBody && pMsg->sHtmlBody[0] ) {
-		char sBoundary[49];
-		xsmtp_random_hex(sBoundary, sizeof(sBoundary), 24);
-		sTextPayload = xsmtp_build_body_payload_ex(pMsg->sTextBody, "text/plain", &sTextEncoding);
-		sHtmlPayload = xsmtp_build_body_payload_ex(pMsg->sHtmlBody, "text/html", &sHtmlEncoding);
-		if ( sTextPayload == NULL || sHtmlPayload == NULL ) goto cleanup;
-		if ( !xsmtp_buf_appendf(&tBuf, "Content-Type: multipart/alternative; boundary=\"%s\"\r\n\r\n", sBoundary) ) goto cleanup;
-		if ( !xsmtp_buf_appendf(&tBuf, "--%s\r\n", sBoundary) ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", sTextEncoding, (const char*)sTextPayload) ) goto cleanup;
-		if ( !xsmtp_buf_appendf(&tBuf, "--%s\r\n", sBoundary) ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/html", sHtmlEncoding, (const char*)sHtmlPayload) ) goto cleanup;
-		if ( !xsmtp_buf_appendf(&tBuf, "--%s--\r\n", sBoundary) ) goto cleanup;
-	} else if ( pMsg->sHtmlBody && pMsg->sHtmlBody[0] ) {
-		sHtmlPayload = xsmtp_build_body_payload_ex(pMsg->sHtmlBody, "text/html", &sHtmlEncoding);
-		if ( sHtmlPayload == NULL ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/html", sHtmlEncoding, (const char*)sHtmlPayload) ) goto cleanup;
-	} else {
-		sTextPayload = xsmtp_build_body_payload_ex(xsmtp_str_or_empty(pMsg->sTextBody), "text/plain", &sTextEncoding);
-		if ( sTextPayload == NULL ) goto cleanup;
-		if ( !xsmtp_append_body_headers(&tBuf, "text/plain", sTextEncoding, (const char*)sTextPayload) ) goto cleanup;
-	}
-
-	bOK = TRUE;
-
-cleanup:
-	if ( sDate ) xrtFree(sDate);
-	if ( sMessageID ) xrtFree(sMessageID);
-	if ( sSubject ) xrtFree(sSubject);
-	if ( sFrom ) xrtFree(sFrom);
-	if ( sTo ) xrtFree(sTo);
-	if ( sCc ) xrtFree(sCc);
-	if ( sReplyTo ) xrtFree(sReplyTo);
-	if ( sTextPayload ) xrtFree(sTextPayload);
-	if ( sHtmlPayload ) xrtFree(sHtmlPayload);
-	if ( !bOK ) {
-		xsmtp_buf_unit(&tBuf);
+	if ( pCfg == NULL || pMsg == NULL ) {
 		return NULL;
 	}
-	return (str)tBuf.sData;
+
+	memset(&tMail, 0, sizeof(tMail));
+	tMail.tFrom.sEmail = (pMsg->tFrom.sEmail && pMsg->tFrom.sEmail[0]) ? pMsg->tFrom.sEmail : pCfg->tFrom.sEmail;
+	tMail.tFrom.sName = (pMsg->tFrom.sEmail && pMsg->tFrom.sEmail[0]) ? pMsg->tFrom.sName : pCfg->tFrom.sName;
+	tMail.tReplyTo.sEmail = (pMsg->tReplyTo.sEmail && pMsg->tReplyTo.sEmail[0]) ? pMsg->tReplyTo.sEmail : pCfg->tReplyTo.sEmail;
+	tMail.tReplyTo.sName = (pMsg->tReplyTo.sEmail && pMsg->tReplyTo.sEmail[0]) ? pMsg->tReplyTo.sName : pCfg->tReplyTo.sName;
+	tMail.sSubject = pMsg->sSubject;
+	tMail.sTextBody = pMsg->sTextBody;
+	tMail.sHtmlBody = pMsg->sHtmlBody;
+	tMail.sMessageIdDomain = pCfg->sHost;
+
+	if ( pMsg->iToCount > 0 ) {
+		arrTo = xsmtp_copy_xmail_addr_list(pMsg->arrTo, pMsg->iToCount);
+		if ( arrTo == NULL ) goto cleanup;
+		tMail.arrTo = arrTo;
+		tMail.iToCount = pMsg->iToCount;
+	}
+	if ( pMsg->iCcCount > 0 ) {
+		arrCc = xsmtp_copy_xmail_addr_list(pMsg->arrCc, pMsg->iCcCount);
+		if ( arrCc == NULL ) goto cleanup;
+		tMail.arrCc = arrCc;
+		tMail.iCcCount = pMsg->iCcCount;
+	}
+	if ( pMsg->iBccCount > 0 ) {
+		arrBcc = xsmtp_copy_xmail_addr_list(pMsg->arrBcc, pMsg->iBccCount);
+		if ( arrBcc == NULL ) goto cleanup;
+		tMail.arrBcc = arrBcc;
+		tMail.iBccCount = pMsg->iBccCount;
+	}
+	if ( pMsg->iAttachmentCount > 0 ) {
+		arrAttachments = xsmtp_copy_xmail_attachment_list(pMsg->arrAttachments, pMsg->iAttachmentCount);
+		if ( arrAttachments == NULL ) goto cleanup;
+		tMail.arrAttachments = arrAttachments;
+		tMail.iAttachmentCount = pMsg->iAttachmentCount;
+	}
+
+	if ( pMsg->arrHeaderNames && pMsg->arrHeaderValues && pMsg->iHeaderCount > 0 ) {
+		arrHeaders = (xmailheader*)xrtMalloc(sizeof(xmailheader) * pMsg->iHeaderCount);
+		if ( arrHeaders == NULL ) goto cleanup;
+		for ( i = 0; i < pMsg->iHeaderCount; i++ ) {
+			arrHeaders[i].sName = pMsg->arrHeaderNames[i];
+			arrHeaders[i].sValue = pMsg->arrHeaderValues[i];
+		}
+		tMail.arrHeaders = arrHeaders;
+		tMail.iHeaderCount = pMsg->iHeaderCount;
+	}
+
+	sOut = xmailMimeBuildMessage(&tMail);
+
+cleanup:
+	if ( arrHeaders ) xrtFree(arrHeaders);
+	if ( arrTo ) xrtFree(arrTo);
+	if ( arrCc ) xrtFree(arrCc);
+	if ( arrBcc ) xrtFree(arrBcc);
+	if ( arrAttachments ) xrtFree(arrAttachments);
+	return sOut;
+}
+
+static bool xsmtp_check_message_size(const char* sData, uint32 iCaps, uint64 iSizeLimit, xsmtpresult* pRet)
+{
+	uint64 iLen;
+
+	if ( !(iCaps & XSMTP_CAP_SIZE) || iSizeLimit == 0 ) {
+		return TRUE;
+	}
+	iLen = (uint64)strlen(xsmtp_str_or_empty(sData));
+	if ( iLen <= iSizeLimit ) {
+		return TRUE;
+	}
+	xsmtp_result_errorf(pRet, "SMTP message exceeds SIZE limit (%llu > %llu)",
+		(unsigned long long)iLen,
+		(unsigned long long)iSizeLimit);
+	return FALSE;
+}
+
+static int xsmtp_stage_from_async_state(xsmtpasyncstate iState)
+{
+	switch ( iState ) {
+	case XSMTP_AST_WAIT_BANNER:
+		return XSMTP_STAGE_BANNER;
+	case XSMTP_AST_WAIT_EHLO:
+	case XSMTP_AST_WAIT_EHLO_TLS:
+		return XSMTP_STAGE_EHLO;
+	case XSMTP_AST_WAIT_STARTTLS:
+		return XSMTP_STAGE_STARTTLS;
+	case XSMTP_AST_WAIT_STARTTLS_TLS:
+		return XSMTP_STAGE_TLS;
+	case XSMTP_AST_WAIT_AUTH:
+	case XSMTP_AST_WAIT_AUTH_LOGIN_USER:
+	case XSMTP_AST_WAIT_AUTH_LOGIN_PASS:
+		return XSMTP_STAGE_AUTH;
+	case XSMTP_AST_WAIT_MAIL_FROM:
+		return XSMTP_STAGE_MAIL_FROM;
+	case XSMTP_AST_WAIT_RCPT:
+		return XSMTP_STAGE_RCPT;
+	case XSMTP_AST_WAIT_DATA:
+	case XSMTP_AST_WAIT_BODY:
+		return XSMTP_STAGE_DATA;
+	case XSMTP_AST_WAIT_QUIT:
+		return XSMTP_STAGE_QUIT;
+	default:
+		return XSMTP_STAGE_NONE;
+	}
 }
 
 static int xsmtp_secure_mode_auto(const xsmtpconfig* pCfg)
@@ -1232,6 +1178,9 @@ static int xsmtp_auth_mode_auto(const xsmtpconfig* pCfg, uint32 iCaps)
 	}
 	if ( pCfg->iAuthMode != XSMTP_AUTH_AUTO ) {
 		return pCfg->iAuthMode;
+	}
+	if ( (iCaps & XSMTP_CAP_AUTH_XOAUTH2) && pCfg->sOAuth2Token != NULL && pCfg->sOAuth2Token[0] != '\0' ) {
+		return XSMTP_AUTH_XOAUTH2;
 	}
 	if ( iCaps & XSMTP_CAP_AUTH_PLAIN ) {
 		return XSMTP_AUTH_PLAIN;
@@ -1501,6 +1450,8 @@ static bool xsmtp_stream_connect_once(xsmtpsession* pSess, const xsmtpconfig* pC
 		memset(&tTlsCfg, 0, sizeof(tTlsCfg));
 		tTlsCfg.sHostName = pCfg->sHost;
 		tTlsCfg.bVerifyPeer = pCfg->bVerifyPeer;
+		tTlsCfg.iMaxVersion = pCfg->iTlsMaxVersion;
+		tTlsCfg.sCaFile = pCfg->sCaFile;
 		tConnCfg.pTlsConfig = &tTlsCfg;
 		pSess->bStreamTls = TRUE;
 	}
@@ -1681,6 +1632,9 @@ static bool xsmtp_stream_send_all(xsmtpsession* pSess, const void* pData, size_t
 	}
 	iWaitRet = xrtNetStreamWaitTimeoutEx(pSess->pStream, XNET_STREAM_WAIT_DRAIN, pSess->iTimeoutMs);
 	if ( iWaitRet != XRT_NET_OK ) {
+		if ( xrtNetStreamPendingSend(pSess->pStream) == 0u ) {
+			return TRUE;
+		}
 		if ( pSess->iLastSysErr != 0 ) {
 			xsmtp_result_errorf(pRet, "SMTP stream drain failed (sys=%d)", pSess->iLastSysErr);
 		} else {
@@ -1789,6 +1743,8 @@ static bool xsmtp_tls_handshake(xsmtpsession* pSess, const xsmtpconfig* pCfg, xs
 	memset(&tTLS, 0, sizeof(tTLS));
 	tTLS.sHostName = pCfg->sHost;
 	tTLS.bVerifyPeer = pCfg->bVerifyPeer;
+	tTLS.iMaxVersion = pCfg->iTlsMaxVersion;
+	tTLS.sCaFile = pCfg->sCaFile;
 	pSess->pTls = xrtNetTlsSessionCreate(&tTLS, FALSE);
 	if ( pSess->pTls == NULL ) {
 		xsmtp_result_error(pRet, "SMTP TLS session create failed");
@@ -1798,7 +1754,7 @@ static bool xsmtp_tls_handshake(xsmtpsession* pSess, const xsmtpconfig* pCfg, xs
 	while ( !xrtNetTlsSessionIsReady(pSess->pTls) ) {
 		xnet_result iResult = xrtNetTlsSessionDriveHandshake(pSess->pTls);
 		if ( iResult != XRT_NET_OK && iResult != XRT_NET_AGAIN ) {
-			xsmtp_result_error(pRet, "SMTP TLS handshake failed");
+			xsmtp_result_tls_error(pRet, "SMTP TLS handshake failed", iResult);
 			return FALSE;
 		}
 		if ( !xsmtp_tls_flush(pSess, pRet) ) {
@@ -1810,8 +1766,9 @@ static bool xsmtp_tls_handshake(xsmtpsession* pSess, const xsmtpconfig* pCfg, xs
 		if ( !xsmtp_stream_recv_some(pSess, aBuf, sizeof(aBuf), &iRead, pRet) ) {
 			return FALSE;
 		}
-		if ( xrtNetTlsSessionFeedCipher(pSess->pTls, aBuf, iRead) != XRT_NET_OK ) {
-			xsmtp_result_error(pRet, "SMTP TLS feed failed");
+		iResult = xrtNetTlsSessionFeedCipher(pSess->pTls, aBuf, iRead);
+		if ( iResult != XRT_NET_OK ) {
+			xsmtp_result_tls_error(pRet, "SMTP TLS handshake feed failed", iResult);
 			return FALSE;
 		}
 	}
@@ -1839,7 +1796,7 @@ static bool xsmtp_send_bytes(xsmtpsession* pSess, const void* pData, size_t iLen
 		size_t iWritten = 0;
 		xnet_result iResult = xrtNetTlsSessionWritePlain(pSess->pTls, p, iLen, &iWritten);
 		if ( iResult != XRT_NET_OK && iResult != XRT_NET_AGAIN ) {
-			xsmtp_result_error(pRet, "SMTP TLS write failed");
+			xsmtp_result_tls_error(pRet, "SMTP TLS write failed", iResult);
 			return FALSE;
 		}
 		if ( !xsmtp_tls_flush(pSess, pRet) ) {
@@ -1886,31 +1843,33 @@ static bool xsmtp_pump_recv(xsmtpsession* pSess, xsmtpresult* pRet)
 		return xsmtp_append_recv(pSess, aBuf, iRead, pRet);
 	}
 
-	while ( xrtNetTlsSessionPendingRecv(pSess->pTls) == 0 ) {
-		if ( !xsmtp_stream_recv_some(pSess, aBuf, sizeof(aBuf), &iRead, pRet) ) {
-			return FALSE;
-		}
-		if ( xrtNetTlsSessionFeedCipher(pSess->pTls, aBuf, iRead) != XRT_NET_OK ) {
-			xsmtp_result_error(pRet, "SMTP TLS feed failed");
-			return FALSE;
-		}
-		if ( !xsmtp_tls_flush(pSess, pRet) ) {
-			return FALSE;
-		}
-	}
-
-	while ( xrtNetTlsSessionPendingRecv(pSess->pTls) > 0 ) {
+	for (;;) {
 		size_t iPlain = 0;
 		xnet_result iRes = xrtNetTlsSessionReadPlain(pSess->pTls, aBuf, sizeof(aBuf), &iPlain);
 		if ( iRes == XRT_NET_AGAIN ) {
-			break;
+			xnet_result iFeed;
+			if ( pSess->iRecvLen > 0 ) {
+				break;
+			}
+			if ( !xsmtp_stream_recv_some(pSess, aBuf, sizeof(aBuf), &iRead, pRet) ) {
+				return FALSE;
+			}
+			iFeed = xrtNetTlsSessionFeedCipher(pSess->pTls, aBuf, iRead);
+			if ( iFeed != XRT_NET_OK ) {
+				xsmtp_result_tls_error(pRet, "SMTP TLS feed failed", iFeed);
+				return FALSE;
+			}
+			if ( !xsmtp_tls_flush(pSess, pRet) ) {
+				return FALSE;
+			}
+			continue;
 		}
 		if ( iRes == XRT_NET_CLOSED ) {
-			xsmtp_result_error(pRet, "SMTP TLS stream closed");
+			xsmtp_result_tls_error(pRet, "SMTP TLS stream closed", iRes);
 			return FALSE;
 		}
 		if ( iRes != XRT_NET_OK ) {
-			xsmtp_result_error(pRet, "SMTP TLS read plain failed");
+			xsmtp_result_tls_error(pRet, "SMTP TLS read plain failed", iRes);
 			return FALSE;
 		}
 		if ( iPlain == 0 ) {
@@ -1965,6 +1924,9 @@ static bool xsmtp_read_reply(xsmtpsession* pSess, xsmtpresult* pRet, int* pCode,
 	if ( pCaps ) {
 		*pCaps = 0;
 	}
+	if ( pCaps && pRet ) {
+		pRet->iSizeLimit = 0;
+	}
 
 	for (;;) {
 		if ( !xsmtp_read_line(pSess, sLine, sizeof(sLine), pRet) ) {
@@ -1992,18 +1954,7 @@ static bool xsmtp_read_reply(xsmtpsession* pSess, xsmtpresult* pRet, int* pCode,
 		}
 
 		if ( pCaps && strlen(sLine) > 4 && iReplyCode == 250 ) {
-			const char* sCap = sLine + 4;
-			if ( xsmtp_starts_with_i(sCap, "STARTTLS") ) {
-				*pCaps |= XSMTP_CAP_STARTTLS;
-			}
-			if ( xsmtp_starts_with_i(sCap, "AUTH ") ) {
-				if ( xsmtp_find_i(sCap, "PLAIN") ) {
-					*pCaps |= XSMTP_CAP_AUTH_PLAIN;
-				}
-				if ( xsmtp_find_i(sCap, "LOGIN") ) {
-					*pCaps |= XSMTP_CAP_AUTH_LOGIN;
-				}
-			}
+			xsmtp_parse_capability_line(sLine + 4, pCaps, pRet ? &pRet->iSizeLimit : NULL);
 		}
 
 		if ( strlen(sLine) < 4 || sLine[3] != '-' ) {
@@ -2123,6 +2074,55 @@ cleanup:
 	return bOK;
 }
 
+static str xsmtp_build_xoauth2_response(const char* sUser, const char* sToken)
+{
+	xsmtpbuf tBuf;
+	static const char chSep = 0x01;
+	str sBase64;
+
+	memset(&tBuf, 0, sizeof(tBuf));
+	if ( sUser == NULL || sUser[0] == '\0' || sToken == NULL || sToken[0] == '\0' ) {
+		return NULL;
+	}
+	if ( !xsmtp_buf_append(&tBuf, "user=")
+		|| !xsmtp_buf_append(&tBuf, sUser)
+		|| !xsmtp_buf_append_n(&tBuf, &chSep, 1)
+		|| !xsmtp_buf_append(&tBuf, "auth=Bearer ")
+		|| !xsmtp_buf_append(&tBuf, sToken)
+		|| !xsmtp_buf_append_n(&tBuf, &chSep, 1)
+		|| !xsmtp_buf_append_n(&tBuf, &chSep, 1) ) {
+		xsmtp_buf_unit(&tBuf);
+		return NULL;
+	}
+	sBase64 = xrtBase64Encode(tBuf.sData, tBuf.iLen, NULL);
+	xsmtp_buf_unit(&tBuf);
+	return sBase64;
+}
+
+static bool xsmtp_send_auth_xoauth2(xsmtpsession* pSess, const xsmtpconfig* pCfg, xsmtpresult* pRet)
+{
+	str sBase64 = NULL;
+	str sLine = NULL;
+	bool bOK = FALSE;
+
+	sBase64 = xsmtp_build_xoauth2_response(pCfg ? pCfg->sUser : NULL, pCfg ? pCfg->sOAuth2Token : NULL);
+	if ( sBase64 == NULL ) {
+		xsmtp_result_error(pRet, "SMTP AUTH XOAUTH2 token missing or base64 failed");
+		goto cleanup;
+	}
+	sLine = xrtFormat("AUTH XOAUTH2 %s", sBase64);
+	if ( sLine == NULL ) {
+		xsmtp_result_error(pRet, "SMTP AUTH XOAUTH2 alloc failed");
+		goto cleanup;
+	}
+	bOK = xsmtp_send_line(pSess, pRet, (const char*)sLine) && xsmtp_expect_reply(pSess, pRet, 235, NULL);
+
+cleanup:
+	if ( sBase64 ) xrtFree(sBase64);
+	if ( sLine ) xrtFree(sLine);
+	return bOK;
+}
+
 static bool xsmtp_send_auth(xsmtpsession* pSess, const xsmtpconfig* pCfg, uint32 iCaps, xsmtpresult* pRet)
 {
 	int iAuthMode;
@@ -2143,17 +2143,76 @@ static bool xsmtp_send_auth(xsmtpsession* pSess, const xsmtpconfig* pCfg, uint32
 	if ( iAuthMode == XSMTP_AUTH_LOGIN ) {
 		return xsmtp_send_auth_login(pSess, pCfg, pRet);
 	}
+	if ( iAuthMode == XSMTP_AUTH_XOAUTH2 ) {
+		if ( !(iCaps & XSMTP_CAP_AUTH_XOAUTH2) ) {
+			xsmtp_result_error(pRet, "SMTP server does not support AUTH XOAUTH2");
+			return FALSE;
+		}
+		return xsmtp_send_auth_xoauth2(pSess, pCfg, pRet);
+	}
 
 	xsmtp_result_error(pRet, "SMTP auth mode unsupported");
 	return FALSE;
 }
 
-static bool xsmtp_send_mail_from(xsmtpsession* pSess, const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, xsmtpresult* pRet)
+static bool xsmtp_dsn_value_is_safe(const char* sText)
+{
+	const unsigned char* p;
+
+	if ( sText == NULL || sText[0] == '\0' ) {
+		return FALSE;
+	}
+	for ( p = (const unsigned char*)sText; *p != '\0'; p++ ) {
+		if ( *p <= 0x20u || *p >= 0x7Fu || *p == '<' || *p == '>' ) {
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static bool xsmtp_ascii_equal_i(const char* a, const char* b)
+{
+	size_t i;
+
+	if ( a == NULL || b == NULL ) {
+		return FALSE;
+	}
+	for ( i = 0u; a[i] != '\0' || b[i] != '\0'; i++ ) {
+		if ( tolower((unsigned char)a[i]) != tolower((unsigned char)b[i]) ) {
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+static bool xsmtp_dsn_return_is_valid(const char* sText)
+{
+	return sText == NULL || sText[0] == '\0' || xsmtp_ascii_equal_i(sText, "FULL") || xsmtp_ascii_equal_i(sText, "HDRS");
+}
+
+static str xsmtp_build_mail_from_line(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, uint32 iCaps, xsmtpresult* pRet)
 {
 	const char* sEmail = NULL;
+	xsmtpbuf tBuf;
+	bool bHasDsn;
 	str sLine = NULL;
-	bool bOK;
 
+	memset(&tBuf, 0, sizeof(tBuf));
+	bHasDsn = pMsg != NULL && ((pMsg->sDsnReturn != NULL && pMsg->sDsnReturn[0] != '\0')
+		|| (pMsg->sDsnEnvid != NULL && pMsg->sDsnEnvid[0] != '\0'));
+
+	if ( bHasDsn && !(iCaps & XSMTP_CAP_DSN) ) {
+		xsmtp_result_error(pRet, "SMTP server does not support DSN");
+		return NULL;
+	}
+	if ( pMsg != NULL && !xsmtp_dsn_return_is_valid(pMsg->sDsnReturn) ) {
+		xsmtp_result_error(pRet, "SMTP DSN RET value invalid");
+		return NULL;
+	}
+	if ( pMsg != NULL && pMsg->sDsnEnvid != NULL && pMsg->sDsnEnvid[0] != '\0' && !xsmtp_dsn_value_is_safe(pMsg->sDsnEnvid) ) {
+		xsmtp_result_error(pRet, "SMTP DSN ENVID value invalid");
+		return NULL;
+	}
 	if ( pMsg && pMsg->tFrom.sEmail && pMsg->tFrom.sEmail[0] ) {
 		sEmail = pMsg->tFrom.sEmail;
 	} else if ( pCfg && pCfg->tFrom.sEmail && pCfg->tFrom.sEmail[0] ) {
@@ -2161,11 +2220,84 @@ static bool xsmtp_send_mail_from(xsmtpsession* pSess, const xsmtpconfig* pCfg, c
 	}
 	if ( sEmail == NULL || sEmail[0] == '\0' ) {
 		xsmtp_result_error(pRet, "SMTP from email is empty");
-		return FALSE;
+		return NULL;
 	}
-	sLine = xrtFormat("MAIL FROM:<%s>", sEmail);
-	if ( sLine == NULL ) {
+	if ( !xsmtp_buf_append(&tBuf, "MAIL FROM:<") || !xsmtp_buf_append(&tBuf, sEmail) || !xsmtp_buf_append(&tBuf, ">") ) {
+		xsmtp_buf_unit(&tBuf);
 		xsmtp_result_error(pRet, "SMTP MAIL FROM alloc failed");
+		return NULL;
+	}
+	if ( pMsg != NULL && pMsg->sDsnReturn != NULL && pMsg->sDsnReturn[0] != '\0' ) {
+		if ( !xsmtp_buf_append(&tBuf, " RET=") || !xsmtp_buf_append(&tBuf, pMsg->sDsnReturn) ) {
+			xsmtp_buf_unit(&tBuf);
+			xsmtp_result_error(pRet, "SMTP MAIL FROM alloc failed");
+			return NULL;
+		}
+	}
+	if ( pMsg != NULL && pMsg->sDsnEnvid != NULL && pMsg->sDsnEnvid[0] != '\0' ) {
+		if ( !xsmtp_buf_append(&tBuf, " ENVID=") || !xsmtp_buf_append(&tBuf, pMsg->sDsnEnvid) ) {
+			xsmtp_buf_unit(&tBuf);
+			xsmtp_result_error(pRet, "SMTP MAIL FROM alloc failed");
+			return NULL;
+		}
+	}
+	sLine = (str)tBuf.sData;
+	memset(&tBuf, 0, sizeof(tBuf));
+	return sLine;
+}
+
+static str xsmtp_build_rcpt_to_line(const xsmtpaddr* pAddr, uint32 iCaps, xsmtpresult* pRet)
+{
+	xsmtpbuf tBuf;
+	bool bHasDsn;
+
+	memset(&tBuf, 0, sizeof(tBuf));
+	if ( pAddr == NULL || pAddr->sEmail == NULL || pAddr->sEmail[0] == '\0' ) {
+		return NULL;
+	}
+	bHasDsn = (pAddr->sDsnNotify != NULL && pAddr->sDsnNotify[0] != '\0')
+		|| (pAddr->sDsnOrcpt != NULL && pAddr->sDsnOrcpt[0] != '\0');
+	if ( bHasDsn && !(iCaps & XSMTP_CAP_DSN) ) {
+		xsmtp_result_error(pRet, "SMTP server does not support DSN");
+		return NULL;
+	}
+	if ( pAddr->sDsnNotify != NULL && pAddr->sDsnNotify[0] != '\0' && !xsmtp_dsn_value_is_safe(pAddr->sDsnNotify) ) {
+		xsmtp_result_error(pRet, "SMTP DSN NOTIFY value invalid");
+		return NULL;
+	}
+	if ( pAddr->sDsnOrcpt != NULL && pAddr->sDsnOrcpt[0] != '\0' && !xsmtp_dsn_value_is_safe(pAddr->sDsnOrcpt) ) {
+		xsmtp_result_error(pRet, "SMTP DSN ORCPT value invalid");
+		return NULL;
+	}
+	if ( !xsmtp_buf_append(&tBuf, "RCPT TO:<") || !xsmtp_buf_append(&tBuf, pAddr->sEmail) || !xsmtp_buf_append(&tBuf, ">") ) {
+		xsmtp_buf_unit(&tBuf);
+		xsmtp_result_error(pRet, "SMTP RCPT TO alloc failed");
+		return NULL;
+	}
+	if ( pAddr->sDsnNotify != NULL && pAddr->sDsnNotify[0] != '\0' ) {
+		if ( !xsmtp_buf_append(&tBuf, " NOTIFY=") || !xsmtp_buf_append(&tBuf, pAddr->sDsnNotify) ) {
+			xsmtp_buf_unit(&tBuf);
+			xsmtp_result_error(pRet, "SMTP RCPT TO alloc failed");
+			return NULL;
+		}
+	}
+	if ( pAddr->sDsnOrcpt != NULL && pAddr->sDsnOrcpt[0] != '\0' ) {
+		if ( !xsmtp_buf_append(&tBuf, " ORCPT=") || !xsmtp_buf_append(&tBuf, pAddr->sDsnOrcpt) ) {
+			xsmtp_buf_unit(&tBuf);
+			xsmtp_result_error(pRet, "SMTP RCPT TO alloc failed");
+			return NULL;
+		}
+	}
+	return (str)tBuf.sData;
+}
+
+static bool xsmtp_send_mail_from(xsmtpsession* pSess, const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, uint32 iCaps, xsmtpresult* pRet)
+{
+	str sLine = NULL;
+	bool bOK;
+
+	sLine = xsmtp_build_mail_from_line(pCfg, pMsg, iCaps, pRet);
+	if ( sLine == NULL ) {
 		return FALSE;
 	}
 	bOK = xsmtp_send_line(pSess, pRet, (const char*)sLine) && xsmtp_expect_reply(pSess, pRet, 250, NULL);
@@ -2173,7 +2305,7 @@ static bool xsmtp_send_mail_from(xsmtpsession* pSess, const xsmtpconfig* pCfg, c
 	return bOK;
 }
 
-static bool xsmtp_send_rcpt_list(xsmtpsession* pSess, const xsmtpaddr* arrList, size_t iCount, xsmtpresult* pRet)
+static bool xsmtp_send_rcpt_list(xsmtpsession* pSess, const xsmtpaddr* arrList, size_t iCount, uint32 iCaps, xsmtpresult* pRet)
 {
 	size_t i;
 	for ( i = 0; i < iCount; i++ ) {
@@ -2181,9 +2313,8 @@ static bool xsmtp_send_rcpt_list(xsmtpsession* pSess, const xsmtpaddr* arrList, 
 		if ( arrList[i].sEmail == NULL || arrList[i].sEmail[0] == '\0' ) {
 			continue;
 		}
-		sLine = xrtFormat("RCPT TO:<%s>", arrList[i].sEmail);
+		sLine = xsmtp_build_rcpt_to_line(&arrList[i], iCaps, pRet);
 		if ( sLine == NULL ) {
-			xsmtp_result_error(pRet, "SMTP RCPT TO alloc failed");
 			return FALSE;
 		}
 		if ( !xsmtp_send_line(pSess, pRet, (const char*)sLine) || !xsmtp_expect_reply(pSess, pRet, 250, NULL) ) {
@@ -2256,6 +2387,7 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 		goto cleanup;
 	}
 
+	xsmtp_result_stage(pRet, XSMTP_STAGE_CONNECT);
 	iSecureMode = xsmtp_secure_mode_auto(pCfg);
 	XSMTP_TRACE("connect host=%s port=%u secure=%d", pCfg->sHost ? pCfg->sHost : "", (unsigned)pCfg->iPort, iSecureMode);
 	if ( !xsmtp_stream_connect(&tSess, pCfg, iSecureMode, pRet) ) {
@@ -2270,12 +2402,14 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 		}
 	}
 
+	xsmtp_result_stage(pRet, XSMTP_STAGE_BANNER);
 	XSMTP_TRACE("wait banner");
 	if ( !xsmtp_expect_reply(&tSess, pRet, 220, NULL) ) {
 		goto cleanup;
 	}
 	XSMTP_TRACE("banner ok");
 
+	xsmtp_result_stage(pRet, XSMTP_STAGE_EHLO);
 	XSMTP_TRACE("ehlo begin");
 	if ( !xsmtp_send_ehlo(&tSess, pCfg, pRet, &iCaps) ) {
 		goto cleanup;
@@ -2283,6 +2417,7 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 	XSMTP_TRACE("ehlo ok caps=0x%08x", (unsigned)iCaps);
 
 	if ( iSecureMode == XSMTP_SECURE_STARTTLS ) {
+		xsmtp_result_stage(pRet, XSMTP_STAGE_STARTTLS);
 		XSMTP_TRACE("starttls begin");
 		if ( !(iCaps & XSMTP_CAP_STARTTLS) ) {
 			xsmtp_result_error(pRet, "SMTP server does not support STARTTLS");
@@ -2291,6 +2426,7 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 		if ( !xsmtp_send_line(&tSess, pRet, "STARTTLS") || !xsmtp_expect_reply(&tSess, pRet, 220, NULL) ) {
 			goto cleanup;
 		}
+		xsmtp_result_stage(pRet, XSMTP_STAGE_TLS);
 		if ( !xsmtp_tls_handshake(&tSess, pCfg, pRet) ) {
 			goto cleanup;
 		}
@@ -2299,30 +2435,35 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 			pRet->bUsedStartTLS = TRUE;
 		}
 		iCaps = 0;
+		xsmtp_result_stage(pRet, XSMTP_STAGE_EHLO);
 		if ( !xsmtp_send_ehlo(&tSess, pCfg, pRet, &iCaps) ) {
 			goto cleanup;
 		}
 		XSMTP_TRACE("post-starttls ehlo ok caps=0x%08x", (unsigned)iCaps);
 	}
 
+	xsmtp_result_stage(pRet, XSMTP_STAGE_AUTH);
 	XSMTP_TRACE("auth begin");
 	if ( !xsmtp_send_auth(&tSess, pCfg, iCaps, pRet) ) {
 		goto cleanup;
 	}
 	XSMTP_TRACE("auth ok");
-	if ( !xsmtp_send_mail_from(&tSess, pCfg, pMsg, pRet) ) {
+	xsmtp_result_stage(pRet, XSMTP_STAGE_MAIL_FROM);
+	if ( !xsmtp_send_mail_from(&tSess, pCfg, pMsg, iCaps, pRet) ) {
 		goto cleanup;
 	}
 	XSMTP_TRACE("mail from ok");
-	if ( !xsmtp_send_rcpt_list(&tSess, pMsg->arrTo, pMsg->iToCount, pRet) ) {
+	xsmtp_result_stage(pRet, XSMTP_STAGE_RCPT);
+	if ( !xsmtp_send_rcpt_list(&tSess, pMsg->arrTo, pMsg->iToCount, iCaps, pRet) ) {
 		goto cleanup;
 	}
-	if ( !xsmtp_send_rcpt_list(&tSess, pMsg->arrCc, pMsg->iCcCount, pRet) ) {
+	if ( !xsmtp_send_rcpt_list(&tSess, pMsg->arrCc, pMsg->iCcCount, iCaps, pRet) ) {
 		goto cleanup;
 	}
-	if ( !xsmtp_send_rcpt_list(&tSess, pMsg->arrBcc, pMsg->iBccCount, pRet) ) {
+	if ( !xsmtp_send_rcpt_list(&tSess, pMsg->arrBcc, pMsg->iBccCount, iCaps, pRet) ) {
 		goto cleanup;
 	}
+	xsmtp_result_stage(pRet, XSMTP_STAGE_DATA);
 	if ( !xsmtp_send_line(&tSess, pRet, "DATA") || !xsmtp_expect_reply(&tSess, pRet, 354, NULL) ) {
 		goto cleanup;
 	}
@@ -2333,11 +2474,15 @@ static bool xrtSmtpSendMail(const xsmtpconfig* pCfg, const xsmtpmessage* pMsg, x
 		xsmtp_result_error(pRet, "SMTP build message failed");
 		goto cleanup;
 	}
+	if ( !xsmtp_check_message_size((const char*)sData, iCaps, pRet ? pRet->iSizeLimit : 0, pRet) ) {
+		goto cleanup;
+	}
 	if ( !xsmtp_send_data_body(&tSess, (const char*)sData, pRet) ) {
 		goto cleanup;
 	}
 	XSMTP_TRACE("data ok");
 
+	xsmtp_result_stage(pRet, XSMTP_STAGE_QUIT);
 	xsmtp_send_line(&tSess, pRet, "QUIT");
 	xsmtp_expect_reply(&tSess, pRet, 221, NULL);
 	XSMTP_TRACE("quit done");
@@ -2355,7 +2500,79 @@ cleanup:
 	return bOK;
 }
 
+static bool xrtSmtpCapability(const xsmtpconfig* pCfg, xsmtpresult* pRet)
+{
+	xsmtpsession tSess;
+	uint32 iCaps = 0;
+	int iSecureMode;
+	bool bOK = FALSE;
+
+	if ( pRet ) {
+		xrtSmtpResultInit(pRet);
+	}
+	memset(&tSess, 0, sizeof(tSess));
+	if ( pCfg == NULL ) {
+		xsmtp_result_error(pRet, "SMTP config missing");
+		goto cleanup;
+	}
+
+	xsmtp_result_stage(pRet, XSMTP_STAGE_CONNECT);
+	iSecureMode = xsmtp_secure_mode_auto(pCfg);
+	if ( !xsmtp_stream_connect(&tSess, pCfg, iSecureMode, pRet) ) {
+		goto cleanup;
+	}
+	if ( iSecureMode == XSMTP_SECURE_SSL && pRet != NULL ) {
+		pRet->bUsedTLS = TRUE;
+	}
+	xsmtp_result_stage(pRet, XSMTP_STAGE_BANNER);
+	if ( !xsmtp_expect_reply(&tSess, pRet, 220, NULL) ) {
+		goto cleanup;
+	}
+	xsmtp_result_stage(pRet, XSMTP_STAGE_EHLO);
+	if ( !xsmtp_send_ehlo(&tSess, pCfg, pRet, &iCaps) ) {
+		goto cleanup;
+	}
+	if ( iSecureMode == XSMTP_SECURE_STARTTLS ) {
+		xsmtp_result_stage(pRet, XSMTP_STAGE_STARTTLS);
+		if ( !(iCaps & XSMTP_CAP_STARTTLS) ) {
+			xsmtp_result_error(pRet, "SMTP server does not support STARTTLS");
+			goto cleanup;
+		}
+		if ( !xsmtp_send_line(&tSess, pRet, "STARTTLS") || !xsmtp_expect_reply(&tSess, pRet, 220, NULL) ) {
+			goto cleanup;
+		}
+		xsmtp_result_stage(pRet, XSMTP_STAGE_TLS);
+		if ( !xsmtp_tls_handshake(&tSess, pCfg, pRet) ) {
+			goto cleanup;
+		}
+		if ( pRet != NULL ) {
+			pRet->bUsedStartTLS = TRUE;
+		}
+		iCaps = 0;
+		xsmtp_result_stage(pRet, XSMTP_STAGE_EHLO);
+		if ( !xsmtp_send_ehlo(&tSess, pCfg, pRet, &iCaps) ) {
+			goto cleanup;
+		}
+	}
+	if ( pRet != NULL ) {
+		pRet->iCapabilities = iCaps;
+	}
+	xsmtp_result_stage(pRet, XSMTP_STAGE_QUIT);
+	(void)xsmtp_send_line(&tSess, pRet, "QUIT");
+	(void)xsmtp_expect_reply(&tSess, pRet, 221, NULL);
+	bOK = TRUE;
+	if ( pRet != NULL ) {
+		pRet->bSuccess = TRUE;
+		pRet->iCapabilities = iCaps;
+	}
+
+cleanup:
+	xsmtp_session_close(&tSess);
+	return bOK;
+}
+
 static void xsmtp_async_fail(xsmtpasyncop* pOp, const char* sError);
+static void xsmtp_async_fail_tls(xsmtpasyncop* pOp, const char* sError, xnet_result iResult);
 static void xsmtp_async_arm_timeout(xsmtpasyncop* pOp, const char* sReason);
 static void xsmtp_async_advance(xsmtpasyncop* pOp);
 static bool xsmtp_async_run_post_ehlo(xsmtpasyncop* pOp, bool bAllowStartTLS);
@@ -2406,11 +2623,11 @@ static bool xsmtp_async_tls_drain_plain(xsmtpasyncop* pOp)
 			break;
 		}
 		if ( iRes == XRT_NET_CLOSED ) {
-			xsmtp_async_fail(pOp, "SMTP TLS stream closed");
+			xsmtp_async_fail_tls(pOp, "SMTP TLS stream closed", iRes);
 			return FALSE;
 		}
 		if ( iRes != XRT_NET_OK ) {
-			xsmtp_async_fail(pOp, "SMTP TLS read plain failed");
+			xsmtp_async_fail_tls(pOp, "SMTP TLS read plain failed", iRes);
 			return FALSE;
 		}
 		if ( iPlain == 0 ) {
@@ -2439,7 +2656,7 @@ static bool xsmtp_async_tls_drive_handshake(xsmtpasyncop* pOp)
 
 		iResult = xrtNetTlsSessionDriveHandshake(pOp->pSess->pTls);
 		if ( iResult != XRT_NET_OK && iResult != XRT_NET_AGAIN ) {
-			xsmtp_async_fail(pOp, "SMTP TLS handshake failed");
+			xsmtp_async_fail_tls(pOp, "SMTP TLS handshake failed", iResult);
 			return FALSE;
 		}
 		if ( !xsmtp_async_tls_flush_manual(pOp) ) {
@@ -2484,6 +2701,8 @@ static bool xsmtp_async_starttls_begin(xsmtpasyncop* pOp)
 	memset(&tTlsCfg, 0, sizeof(tTlsCfg));
 	tTlsCfg.sHostName = pOp->pCtx->tCfg.sHost;
 	tTlsCfg.bVerifyPeer = pOp->pCtx->tCfg.bVerifyPeer;
+	tTlsCfg.iMaxVersion = pOp->pCtx->tCfg.iTlsMaxVersion;
+	tTlsCfg.sCaFile = pOp->pCtx->tCfg.sCaFile;
 	pOp->pSess->pTls = xrtNetTlsSessionCreate(&tTlsCfg, FALSE);
 	if ( pOp->pSess->pTls == NULL ) {
 		xsmtp_async_fail(pOp, "SMTP TLS session create failed");
@@ -2519,7 +2738,7 @@ static bool xsmtp_async_send_plain(xsmtpasyncop* pOp, const void* pData, size_t 
 		size_t iWritten = 0;
 		xnet_result iResult = xrtNetTlsSessionWritePlain(pOp->pSess->pTls, p, iLen, &iWritten);
 		if ( iResult != XRT_NET_OK && iResult != XRT_NET_AGAIN ) {
-			xsmtp_async_fail(pOp, "SMTP TLS write failed");
+			xsmtp_async_fail_tls(pOp, "SMTP TLS write failed", iResult);
 			return FALSE;
 		}
 		if ( !xsmtp_async_tls_flush_manual(pOp) ) {
@@ -2588,7 +2807,18 @@ static void xsmtp_async_fail(xsmtpasyncop* pOp, const char* sError)
 	if ( pOp == NULL || pOp->bDone ) {
 		return;
 	}
+	xsmtp_result_stage(pOp->pRet, xsmtp_stage_from_async_state(pOp->iState));
 	xsmtp_result_error(pOp->pRet, sError);
+	xsmtp_async_resolve(pOp);
+}
+
+static void xsmtp_async_fail_tls(xsmtpasyncop* pOp, const char* sError, xnet_result iResult)
+{
+	if ( pOp == NULL || pOp->bDone ) {
+		return;
+	}
+	xsmtp_result_stage(pOp->pRet, xsmtp_stage_from_async_state(pOp->iState));
+	xsmtp_result_tls_error(pOp->pRet, sError, iResult);
 	xsmtp_async_resolve(pOp);
 }
 
@@ -2619,6 +2849,7 @@ static void xsmtp_async_reply_reset(xsmtpasyncop* pOp)
 	}
 	pOp->iReplyCode = 0;
 	pOp->iReplyCaps = 0;
+	pOp->iReplySizeLimit = 0;
 	pOp->bReplyHasFirst = FALSE;
 	pOp->tReply.iLen = 0;
 	if ( pOp->tReply.sData != NULL ) {
@@ -2632,6 +2863,7 @@ static void xsmtp_async_set_state(xsmtpasyncop* pOp, xsmtpasyncstate iState, con
 		return;
 	}
 	pOp->iState = iState;
+	xsmtp_result_stage(pOp->pRet, xsmtp_stage_from_async_state(iState));
 	xsmtp_async_reply_reset(pOp);
 	xsmtp_async_arm_timeout(pOp, sReason);
 }
@@ -2713,6 +2945,31 @@ static bool xsmtp_async_send_auth_plain_line(xsmtpasyncop* pOp)
 	return bOK;
 }
 
+static bool xsmtp_async_send_auth_xoauth2_line(xsmtpasyncop* pOp)
+{
+	str sBase64 = NULL;
+	str sLine = NULL;
+	bool bOK = FALSE;
+
+	sBase64 = xsmtp_build_xoauth2_response(
+		pOp && pOp->pCtx ? pOp->pCtx->tCfg.sUser : NULL,
+		pOp && pOp->pCtx ? pOp->pCtx->tCfg.sOAuth2Token : NULL);
+	if ( sBase64 == NULL ) {
+		xsmtp_async_fail(pOp, "SMTP AUTH XOAUTH2 token missing or base64 failed");
+		return FALSE;
+	}
+	sLine = xrtFormat("AUTH XOAUTH2 %s", sBase64);
+	if ( sLine == NULL ) {
+		xrtFree(sBase64);
+		xsmtp_async_fail(pOp, "SMTP AUTH XOAUTH2 alloc failed");
+		return FALSE;
+	}
+	bOK = xsmtp_async_send_line(pOp, (const char*)sLine);
+	xrtFree(sBase64);
+	xrtFree(sLine);
+	return bOK;
+}
+
 static void xsmtp_async_send_next_rcpt(xsmtpasyncop* pOp)
 {
 	const xsmtpaddr* pAddr;
@@ -2730,9 +2987,9 @@ static void xsmtp_async_send_next_rcpt(xsmtpasyncop* pOp)
 		xsmtp_async_send_next_rcpt(pOp);
 		return;
 	}
-	sLine = xrtFormat("RCPT TO:<%s>", pAddr->sEmail);
+	sLine = xsmtp_build_rcpt_to_line(pAddr, pOp->iCapabilities, pOp->pRet);
 	if ( sLine == NULL ) {
-		xsmtp_async_fail(pOp, "SMTP RCPT TO alloc failed");
+		xsmtp_async_fail(pOp, pOp->pRet->sError[0] ? pOp->pRet->sError : "SMTP RCPT TO alloc failed");
 		return;
 	}
 	if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
@@ -2751,7 +3008,9 @@ static bool xsmtp_async_run_post_ehlo(xsmtpasyncop* pOp, bool bAllowStartTLS)
 	}
 
 	pOp->iCapabilities = pOp->iReplyCaps;
+	pOp->iSizeLimit = pOp->iReplySizeLimit;
 	pOp->pRet->iCapabilities = pOp->iCapabilities;
+	pOp->pRet->iSizeLimit = pOp->iSizeLimit;
 	iSecureMode = xsmtp_secure_mode_auto(&pOp->pCtx->tCfg);
 	if ( bAllowStartTLS && iSecureMode == XSMTP_SECURE_STARTTLS ) {
 		if ( !(pOp->iCapabilities & XSMTP_CAP_STARTTLS) ) {
@@ -2768,12 +3027,9 @@ static bool xsmtp_async_run_post_ehlo(xsmtpasyncop* pOp, bool bAllowStartTLS)
 	pOp->iAuthMode = xsmtp_auth_mode_auto(&pOp->pCtx->tCfg, pOp->iCapabilities);
 	pOp->pRet->iAuthMode = pOp->iAuthMode;
 	if ( pOp->iAuthMode == XSMTP_AUTH_NONE ) {
-		sLine = xrtFormat("MAIL FROM:<%s>",
-			pOp->pCtx->tMsg.tFrom.sEmail && pOp->pCtx->tMsg.tFrom.sEmail[0]
-				? pOp->pCtx->tMsg.tFrom.sEmail
-				: pOp->pCtx->tCfg.tFrom.sEmail);
+		sLine = xsmtp_build_mail_from_line(&pOp->pCtx->tCfg, &pOp->pCtx->tMsg, pOp->iCapabilities, pOp->pRet);
 		if ( sLine == NULL ) {
-			xsmtp_async_fail(pOp, "SMTP MAIL FROM alloc failed");
+			xsmtp_async_fail(pOp, pOp->pRet->sError[0] ? pOp->pRet->sError : "SMTP MAIL FROM alloc failed");
 			return FALSE;
 		}
 		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
@@ -2791,6 +3047,16 @@ static bool xsmtp_async_run_post_ehlo(xsmtpasyncop* pOp, bool bAllowStartTLS)
 	if ( pOp->iAuthMode == XSMTP_AUTH_LOGIN ) {
 		if ( xsmtp_async_send_line(pOp, "AUTH LOGIN") ) {
 			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_AUTH_LOGIN_USER, "SMTP AUTH LOGIN timeout");
+		}
+		return TRUE;
+	}
+	if ( pOp->iAuthMode == XSMTP_AUTH_XOAUTH2 ) {
+		if ( !(pOp->iCapabilities & XSMTP_CAP_AUTH_XOAUTH2) ) {
+			xsmtp_async_fail(pOp, "SMTP server does not support AUTH XOAUTH2");
+			return FALSE;
+		}
+		if ( xsmtp_async_send_auth_xoauth2_line(pOp) ) {
+			xsmtp_async_set_state(pOp, XSMTP_AST_WAIT_AUTH, "SMTP AUTH XOAUTH2 timeout");
 		}
 		return TRUE;
 	}
@@ -2851,12 +3117,9 @@ static void xsmtp_async_advance(xsmtpasyncop* pOp)
 		(void)xsmtp_async_run_post_ehlo(pOp, FALSE);
 		return;
 	case XSMTP_AST_WAIT_AUTH:
-		sLine = xrtFormat("MAIL FROM:<%s>",
-			pOp->pCtx->tMsg.tFrom.sEmail && pOp->pCtx->tMsg.tFrom.sEmail[0]
-				? pOp->pCtx->tMsg.tFrom.sEmail
-				: pOp->pCtx->tCfg.tFrom.sEmail);
+		sLine = xsmtp_build_mail_from_line(&pOp->pCtx->tCfg, &pOp->pCtx->tMsg, pOp->iCapabilities, pOp->pRet);
 		if ( sLine == NULL ) {
-			xsmtp_async_fail(pOp, "SMTP MAIL FROM alloc failed");
+			xsmtp_async_fail(pOp, pOp->pRet->sError[0] ? pOp->pRet->sError : "SMTP MAIL FROM alloc failed");
 			return;
 		}
 		if ( xsmtp_async_send_line(pOp, (const char*)sLine) ) {
@@ -2899,6 +3162,11 @@ static void xsmtp_async_advance(xsmtpasyncop* pOp)
 		sData = xsmtp_build_message_data(&pOp->pCtx->tCfg, &pOp->pCtx->tMsg);
 		if ( sData == NULL ) {
 			xsmtp_async_fail(pOp, "SMTP build message failed");
+			return;
+		}
+		if ( !xsmtp_check_message_size((const char*)sData, pOp->iCapabilities, pOp->iSizeLimit, pOp->pRet) ) {
+			xrtFree(sData);
+			xsmtp_async_resolve(pOp);
 			return;
 		}
 		sBody = xsmtp_build_data_body_bytes((const char*)sData);
@@ -3001,14 +3269,7 @@ static void xsmtp_async_process_recv(xsmtpasyncop* pOp)
 			return;
 		}
 		if ( strlen(sLine) > 4 && pOp->iReplyCode == 250 ) {
-			const char* sCap = sLine + 4;
-			if ( xsmtp_starts_with_i(sCap, "STARTTLS") ) {
-				pOp->iReplyCaps |= XSMTP_CAP_STARTTLS;
-			}
-			if ( xsmtp_starts_with_i(sCap, "AUTH ") ) {
-				if ( xsmtp_find_i(sCap, "PLAIN") ) pOp->iReplyCaps |= XSMTP_CAP_AUTH_PLAIN;
-				if ( xsmtp_find_i(sCap, "LOGIN") ) pOp->iReplyCaps |= XSMTP_CAP_AUTH_LOGIN;
-			}
+			xsmtp_parse_capability_line(sLine + 4, &pOp->iReplyCaps, &pOp->iReplySizeLimit);
 		}
 		if ( strlen(sLine) < 4 || sLine[3] != '-' ) {
 			xsmtp_async_on_reply_complete(pOp);
@@ -3051,8 +3312,9 @@ static void xsmtp_async_stream_on_recv(ptr pOwner, xnetstream* pStream, xnetchai
 			break;
 		}
 		if ( pOp->pSess != NULL && pOp->pSess->pTls != NULL && !pOp->pSess->bStreamTls ) {
-			if ( xrtNetTlsSessionFeedCipher(pOp->pSess->pTls, aBuf, iRead) != XRT_NET_OK ) {
-				xsmtp_async_fail(pOp, "SMTP TLS feed failed");
+			xnet_result iFeed = xrtNetTlsSessionFeedCipher(pOp->pSess->pTls, aBuf, iRead);
+			if ( iFeed != XRT_NET_OK ) {
+				xsmtp_async_fail_tls(pOp, "SMTP TLS feed failed", iFeed);
 				return;
 			}
 			if ( !pOp->pSess->bTlsReady ) {
@@ -3212,6 +3474,7 @@ static xfuture* xsmtp_send_mail_future_native(const xsmtpconfig* pCfg, const xsm
 		return NULL;
 	}
 	xrtSmtpResultInit(pOp->pRet);
+	xsmtp_result_stage(pOp->pRet, XSMTP_STAGE_CONNECT);
 	xrtNetConnectConfigInit(&tConnCfg);
 	tConnCfg.sHost = pCtx->tCfg.sHost;
 	tConnCfg.iPort = pCtx->tCfg.iPort;
@@ -3220,6 +3483,8 @@ static xfuture* xsmtp_send_mail_future_native(const xsmtpconfig* pCfg, const xsm
 		memset(&pOp->tTlsCfg, 0, sizeof(pOp->tTlsCfg));
 		pOp->tTlsCfg.sHostName = pCtx->tCfg.sHost;
 		pOp->tTlsCfg.bVerifyPeer = pCtx->tCfg.bVerifyPeer;
+		pOp->tTlsCfg.iMaxVersion = pCtx->tCfg.iTlsMaxVersion;
+		pOp->tTlsCfg.sCaFile = pCtx->tCfg.sCaFile;
 		tConnCfg.pTlsConfig = &pOp->tTlsCfg;
 	}
 	pOp->pStream = xrtNetStreamCreate(pEngine, xsmtp_async_stream_events(), pOp);
@@ -3233,6 +3498,7 @@ static xfuture* xsmtp_send_mail_future_native(const xsmtpconfig* pCfg, const xsm
 	pOp->pSess->pStream = pOp->pStream;
 	if ( xrtNetStreamConnect(pOp->pStream, &tConnCfg) != XRT_NET_OK ) {
 		str sErr = xrtGetError();
+		(void)sErr;
 		XSMTP_TRACE("async native: connect submit failed: %s, fallback thread", sErr ? (const char*)sErr : "");
 		pOp->bDone = TRUE;
 		xsmtp_async_cleanup(pOp);
