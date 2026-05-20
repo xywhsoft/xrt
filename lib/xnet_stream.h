@@ -781,8 +781,10 @@ static bool __xnetStreamUseNativePortIO(xnetstream* pStream)
 			__xnetSocketIsValid(pStream->hSocket);
 	#elif defined(__linux__)
 		return pStream && pStream->pWorker &&
-			pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
-			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort) &&
+			((pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort)) ||
+			(pStream->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
+			__xnetPortEpollReady(&pStream->pWorker->tPort))) &&
 			__xnetSocketIsValid(pStream->hSocket);
 	#else
 		(void)pStream;
@@ -799,8 +801,10 @@ static bool __xnetStreamUseNativePortOps(xnetstream* pStream)
 			pStream->pWorker->tPort.pOps == xrtNetPortIOCPOps();
 	#elif defined(__linux__)
 		return pStream && pStream->pWorker &&
-			pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
-			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort);
+			((pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort)) ||
+			(pStream->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
+			__xnetPortEpollReady(&pStream->pWorker->tPort)));
 	#else
 		(void)pStream;
 		return false;

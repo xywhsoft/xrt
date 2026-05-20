@@ -18,6 +18,7 @@ typedef struct xrt_net_port_ops xnetportops;
 
 static const xnetportops* xrtNetPortIOCPOps(void);
 static const xnetportops* xrtNetPortUringOps(void) UNUSED_ATTR;
+static const xnetportops* xrtNetPortEpollOps(void) UNUSED_ATTR;
 
 
 
@@ -27,6 +28,7 @@ static const xnetportops* xrtNetPortUringOps(void) UNUSED_ATTR;
 #define XNET_PORT_BACKEND_IOCP    1u
 #define XNET_PORT_BACKEND_URING   2u
 #define XNET_PORT_BACKEND_CUSTOM  3u
+#define XNET_PORT_BACKEND_EPOLL   4u
 
 #define XNET_PORT_F_NONE              0x00000000u
 #define XNET_PORT_F_BATCH_COMPLETION  0x00000001u

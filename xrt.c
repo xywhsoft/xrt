@@ -33,6 +33,7 @@
 	#include <sys/stat.h>
 	#include <net/if.h>
 	#include <sys/ioctl.h>
+	#include <sys/epoll.h>
 	#include <poll.h>
 	#include <sys/syscall.h>
 	#include <sys/eventfd.h>
@@ -311,6 +312,7 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/xnet_port.h"
 	#include "lib/xnet_port_iocp.h"
 	#include "lib/xnet_port_uring.h"
+	#include "lib/xnet_port_epoll.h"
 	#ifndef XRT_NO_XCODEC
 		#include "lib/xcodec.h"
 		#include "lib/xcodec_http1.h"

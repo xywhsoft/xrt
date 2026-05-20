@@ -114,6 +114,9 @@ static const xnetportops* __xnetEngineDefaultPortOps(void)
 	#if defined(_WIN32) || defined(_WIN64)
 		return xrtNetPortIOCPOps();
 	#elif defined(__linux__)
+		#if defined(XNET_FORCE_EPOLL)
+			return xrtNetPortEpollOps();
+		#endif
 		return xrtNetPortUringOps();
 	#else
 		return NULL;
@@ -621,6 +624,7 @@ static void __xnetEngineJoinWorkerThread(xnetworker* pWorker)
 // 内部函数：启动引擎工作线程
 static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengineconfig* pEngineCfg, const xnetportops* pOps, const xnetportconfig* pPortCfg, const xnetmemconfig* pMemCfg)
 {
+	const xnetportops* pStartOps;
 	__xnet_engine_timerwheel* pWheel;
 	if ( !pWorker || !pEngineCfg || !pOps || !pPortCfg || !pMemCfg ) { return XRT_NET_ERROR; }
 
@@ -635,13 +639,25 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 
 	// 初始化内存上下文和 I/O 端口
 	xrtNetMemCtxInit(&pWorker->tMemCtx, pMemCfg);
-	if ( xrtNetPortInit(&pWorker->tPort, pOps, pPortCfg, pWorker) != XRT_NET_OK ) {
+	pStartOps = pOps;
+	if ( xrtNetPortInit(&pWorker->tPort, pStartOps, pPortCfg, pWorker) != XRT_NET_OK ) {
+		#if defined(__linux__)
+			if ( pStartOps == xrtNetPortUringOps() && xrtNetPortEpollOps() != NULL ) {
+				pStartOps = xrtNetPortEpollOps();
+				if ( xrtNetPortInit(&pWorker->tPort, pStartOps, pPortCfg, pWorker) == XRT_NET_OK ) {
+					goto __xnet_engine_port_ready;
+				}
+			}
+		#endif
 		__xnetCmdQUnit((__xnet_engine_cmdq*)pWorker->pCmdQ);
 		XNET_FREE(pWorker->pCmdQ);
 		pWorker->pCmdQ = NULL;
 		xrtNetMemCtxUnit(&pWorker->tMemCtx);
 		return XRT_NET_ERROR;
 	}
+	#if defined(__linux__)
+		__xnet_engine_port_ready:
+	#endif
 
 	// 初始化定时器轮并挂载周期定时脉冲
 	pWheel = (__xnet_engine_timerwheel*)XNET_ALLOC(sizeof(__xnet_engine_timerwheel));
