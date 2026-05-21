@@ -448,7 +448,17 @@ XXAPI xcodecstatus xrtCodecHttp1Parse(const xnetchain* pInput, xcodecframe* pFra
 		__xcodecHttpTrimView(&sName, &iNameLen);
 		__xcodecHttpTrimView(&sValue, &iValueLen);
 
-		if ( pMsg->iHeaderCount < XCODEC_HTTP1_MAX_HEADERS ) {
+		if ( iNameLen == 0u || iNameLen >= XCODEC_HTTP1_TOKEN_CAP || iValueLen >= XCODEC_HTTP1_VALUE_CAP ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+
+		if ( pMsg->iHeaderCount >= XCODEC_HTTP1_MAX_HEADERS ) {
+			XNET_FREE(sHeadBuf);
+			return XCODEC_STATUS_ERROR;
+		}
+
+		{
 			xcodechttp1header* pHeader = &pMsg->arrHeaders[pMsg->iHeaderCount++];
 			__xcodecHttpCopyToken(pHeader->sName, sizeof(pHeader->sName), sName, iNameLen);
 			__xcodecHttpCopyToken(pHeader->sValue, sizeof(pHeader->sValue), sValue, iValueLen);

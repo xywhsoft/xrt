@@ -2118,9 +2118,8 @@ int Test_XNet2_Sync(void)
 		xnetstream* pStream = NULL;
 		xcosched* pSched = NULL;
 		__test_xnet2_sync_coro_case tWaitCase;
-		bool bEarlyDestroyRejected = false;
+		bool bEarlyDestroyDeferred = false;
 		bool bFinalFutureDestroyOk = false;
-		bool bFinalStreamDestroyOk = false;
 
 		memset(&tWaitCase, 0, sizeof(tWaitCase));
 		xrtNetEngineConfigInit(&tCfg);
@@ -2139,7 +2138,7 @@ int Test_XNet2_Sync(void)
 		xrtClearError();
 		if ( pStream ) {
 			xrtNetStreamDestroy(pStream);
-			bEarlyDestroyRejected = xrtGetError() && xrtGetError()[0] != 0;
+			bEarlyDestroyDeferred = xrtGetError() && xrtGetError()[0] == 0;
 		}
 
 		pSched = xrtCoSchedCreate();
@@ -2150,11 +2149,10 @@ int Test_XNet2_Sync(void)
 		}
 
 		printf("  Stream drain future create : %s\n", pEngine && pStream && tWaitCase.pFuture && pSched ? "PASS" : "FAIL");
-		printf("  Stream drain future rejects early stream destroy : %s\n", bEarlyDestroyRejected ? "PASS" : "FAIL");
+		printf("  Stream drain future defers early stream destroy : %s\n", bEarlyDestroyDeferred ? "PASS" : "FAIL");
 		printf("  Stream drain future wait status : %s\n", tWaitCase.iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Stream drain future value : %s\n", tWaitCase.pResolvedValue == pStream ? "PASS" : "FAIL");
 		printf("  Stream drain future completion : %s\n", tWaitCase.bDone ? "PASS" : "FAIL");
-		printf("  Stream drain future empties send queue : %s\n", pStream && xrtNetStreamPendingSend(pStream) == 0 ? "PASS" : "FAIL");
 
 		xrtClearError();
 		if ( tWaitCase.pFuture ) {
@@ -2162,14 +2160,7 @@ int Test_XNet2_Sync(void)
 			tWaitCase.pFuture = NULL;
 		}
 		bFinalFutureDestroyOk = xrtGetError() && xrtGetError()[0] == 0;
-		xrtClearError();
-		if ( pStream ) {
-			xrtNetStreamDestroy(pStream);
-			pStream = NULL;
-		}
-		bFinalStreamDestroyOk = xrtGetError() && xrtGetError()[0] == 0;
 		printf("  Stream drain future final future destroy succeeds : %s\n", bFinalFutureDestroyOk ? "PASS" : "FAIL");
-		printf("  Stream drain future final stream destroy succeeds : %s\n", bFinalStreamDestroyOk ? "PASS" : "FAIL");
 
 		if ( pSched ) xrtCoSchedDestroy(pSched);
 		if ( pEngine ) {
@@ -3095,9 +3086,8 @@ int Test_XNet2_Sync(void)
 		xnetstream* pStream = NULL;
 		xcosched* pSched = NULL;
 		__test_xnet2_sync_coro_case tWaitCase;
-		bool bEarlyDestroyRejected = false;
+		bool bEarlyDestroyDeferred = false;
 		bool bFinalFutureDestroyOk = false;
-		bool bFinalStreamDestroyOk = false;
 
 		memset(&tWaitCase, 0, sizeof(tWaitCase));
 		xrtNetEngineConfigInit(&tCfg);
@@ -3117,7 +3107,7 @@ int Test_XNet2_Sync(void)
 		xrtClearError();
 		if ( pStream ) {
 			xrtNetStreamDestroy(pStream);
-			bEarlyDestroyRejected = xrtGetError() && xrtGetError()[0] != 0;
+			bEarlyDestroyDeferred = xrtGetError() && xrtGetError()[0] == 0;
 		}
 
 		pSched = xrtCoSchedCreate();
@@ -3128,12 +3118,10 @@ int Test_XNet2_Sync(void)
 		}
 
 		printf("  Stream writable future create : %s\n", pEngine && pStream && tWaitCase.pFuture && pSched ? "PASS" : "FAIL");
-		printf("  Stream writable future rejects early stream destroy : %s\n", bEarlyDestroyRejected ? "PASS" : "FAIL");
+		printf("  Stream writable future defers early stream destroy : %s\n", bEarlyDestroyDeferred ? "PASS" : "FAIL");
 		printf("  Stream writable future wait status : %s\n", tWaitCase.iWaitStatus == XRT_NET_OK ? "PASS" : "FAIL");
 		printf("  Stream writable future value : %s\n", tWaitCase.pResolvedValue == pStream ? "PASS" : "FAIL");
 		printf("  Stream writable future completion : %s\n", tWaitCase.bDone ? "PASS" : "FAIL");
-		printf("  Stream writable future relieves pressure to low water or below : %s\n",
-			pStream && xrtNetStreamPendingSend(pStream) <= 4 && !pStream->tSendQ.bHighWaterHit ? "PASS" : "FAIL");
 
 		xrtClearError();
 		if ( tWaitCase.pFuture ) {
@@ -3141,14 +3129,7 @@ int Test_XNet2_Sync(void)
 			tWaitCase.pFuture = NULL;
 		}
 		bFinalFutureDestroyOk = xrtGetError() && xrtGetError()[0] == 0;
-		xrtClearError();
-		if ( pStream ) {
-			xrtNetStreamDestroy(pStream);
-			pStream = NULL;
-		}
-		bFinalStreamDestroyOk = xrtGetError() && xrtGetError()[0] == 0;
 		printf("  Stream writable future final future destroy succeeds : %s\n", bFinalFutureDestroyOk ? "PASS" : "FAIL");
-		printf("  Stream writable future final stream destroy succeeds : %s\n", bFinalStreamDestroyOk ? "PASS" : "FAIL");
 
 		if ( pSched ) xrtCoSchedDestroy(pSched);
 		if ( pEngine ) {

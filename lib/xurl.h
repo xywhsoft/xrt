@@ -948,6 +948,27 @@ XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut
 }
 
 
+// 查找并解码查询值到固定缓冲区
+XXAPI bool xrtQueryFindValueToN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, char* sOut, size_t iOutCap, size_t* pOutLen)
+{
+	xrtquerypair tPair;
+	if ( pOutLen ) { *pOutLen = 0u; }
+	if ( sOut == NULL || iOutCap == 0u ) { return false; }
+	sOut[0] = '\0';
+	if ( !xrtQueryFindN(sQuery, iLen, sKey, iKeyLen, &tPair) ) { return false; }
+	if ( (tPair.iFlags & XRT_QUERY_F_HAS_VALUE) == 0u ) { return true; }
+	return xrtPercentDecodeTo(tPair.tValue.sPtr, tPair.tValue.iLen, sOut, iOutCap, pOutLen, true);
+}
+
+
+// 查找并解码查询值到固定缓冲区
+XXAPI bool xrtQueryFindValueTo(const char* sQuery, const char* sKey, char* sOut, size_t iOutCap, size_t* pOutLen)
+{
+	if ( sQuery == NULL || sKey == NULL ) { return false; }
+	return xrtQueryFindValueToN(sQuery, strlen(sQuery), sKey, strlen(sKey), sOut, iOutCap, pOutLen);
+}
+
+
 // 解析查询
 XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount)
 {

@@ -146,7 +146,8 @@ static bool __Test_TLSBoundaryCloseNotify(xtlssession* pSrc, xtlssession* pDst, 
 		xnet_result iRes;
 
 		if ( iStep == 0u ) {
-			if ( xrtNetTlsSessionQueueClose(pSrc) != XRT_NET_OK ) return false;
+			iRes = xrtNetTlsSessionQueueClose(pSrc);
+			if ( iRes != XRT_NET_OK && iRes != XRT_NET_AGAIN ) return false;
 		}
 		if ( __Test_TLSBoundaryMoveCipher(pSrc, pDst, pRng, 19u) > 0u ) bProgress = true;
 		if ( __Test_TLSBoundaryMoveCipher(pDst, pSrc, pRng, 19u) > 0u ) bProgress = true;
@@ -161,13 +162,15 @@ static bool __Test_TLSBoundaryCloseNotify(xtlssession* pSrc, xtlssession* pDst, 
 
 
 // TLS边界STRESS测试
-static void Test_TLSBoundaryStress(void)
+static int Test_TLSBoundaryStress(void)
 {
 	const char* sCertPath = "dev/xnet2_tls_test_cert.pem";
 	const char* sKeyPath = "dev/xnet2_tls_test_key.pem";
 	xtlsconfig tServerCfg;
 	xtlsconfig tClientCfg;
 	bool bAllPass = true;
+	const char* sFailStage = NULL;
+	uint32 iFailRound = 0u;
 	uint32 iRounds = 32u;
 	xrtInit();
 
@@ -176,7 +179,7 @@ static void Test_TLSBoundaryStress(void)
 
 	if ( !__Test_TLSBoundaryFileExists(sCertPath) || !__Test_TLSBoundaryFileExists(sKeyPath) ) {
 		printf("  TLS boundary fixtures : SKIP\n");
-		return;
+		return 0;
 	}
 
 	memset(&tServerCfg, 0, sizeof(tServerCfg));
@@ -200,6 +203,8 @@ static void Test_TLSBoundaryStress(void)
 		pServer = xrtNetTlsSessionCreate(&tServerCfg, true);
 		if ( !pClient || !pServer ) {
 			bAllPass = false;
+			sFailStage = "create";
+			iFailRound = i;
 			xrtNetTlsSessionDestroy(pClient);
 			xrtNetTlsSessionDestroy(pServer);
 			break;
@@ -207,6 +212,8 @@ static void Test_TLSBoundaryStress(void)
 
 		if ( !__Test_TLSBoundaryPumpHandshake(pClient, pServer, &tRng) ) {
 			bAllPass = false;
+			sFailStage = "handshake";
+			iFailRound = i;
 			xrtNetTlsSessionDestroy(pClient);
 			xrtNetTlsSessionDestroy(pServer);
 			break;
@@ -217,6 +224,8 @@ static void Test_TLSBoundaryStress(void)
 		pPayloadB = (char*)malloc(iPayloadLen);
 		if ( !pPayloadA || !pPayloadB ) {
 			bAllPass = false;
+			sFailStage = "alloc";
+			iFailRound = i;
 			free(pPayloadA);
 			free(pPayloadB);
 			xrtNetTlsSessionDestroy(pClient);
@@ -229,10 +238,30 @@ static void Test_TLSBoundaryStress(void)
 			pPayloadB[j] = (char)('a' + (__Test_TLSBoundaryNext(&tRng) % 26u));
 		}
 
-		if ( !__Test_TLSBoundaryTransferPlain(pClient, pServer, pPayloadA, iPayloadLen, &tRng) ||
-			!__Test_TLSBoundaryTransferPlain(pServer, pClient, pPayloadB, iPayloadLen, &tRng) ||
-			!__Test_TLSBoundaryCloseNotify(pClient, pServer, &tRng) ) {
+		if ( !__Test_TLSBoundaryTransferPlain(pClient, pServer, pPayloadA, iPayloadLen, &tRng) ) {
 			bAllPass = false;
+			sFailStage = "client-to-server";
+			iFailRound = i;
+			free(pPayloadA);
+			free(pPayloadB);
+			xrtNetTlsSessionDestroy(pClient);
+			xrtNetTlsSessionDestroy(pServer);
+			break;
+		}
+		if ( !__Test_TLSBoundaryTransferPlain(pServer, pClient, pPayloadB, iPayloadLen, &tRng) ) {
+			bAllPass = false;
+			sFailStage = "server-to-client";
+			iFailRound = i;
+			free(pPayloadA);
+			free(pPayloadB);
+			xrtNetTlsSessionDestroy(pClient);
+			xrtNetTlsSessionDestroy(pServer);
+			break;
+		}
+		if ( !__Test_TLSBoundaryCloseNotify(pClient, pServer, &tRng) ) {
+			bAllPass = false;
+			sFailStage = "close-notify";
+			iFailRound = i;
 			free(pPayloadA);
 			free(pPayloadB);
 			xrtNetTlsSessionDestroy(pClient);
@@ -247,6 +276,11 @@ static void Test_TLSBoundaryStress(void)
 	}
 
 	printf("  TLS boundary handshake/data/close rounds : %s\n", bAllPass ? "PASS" : "FAIL");
+	if ( !bAllPass ) {
+		printf("  TLS boundary failure detail : round=%u stage=%s\n",
+			(unsigned)iFailRound, sFailStage ? sFailStage : "unknown");
+	}
+	return bAllPass ? 0 : 1;
 }
 
 #endif

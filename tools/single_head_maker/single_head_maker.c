@@ -1,5 +1,4 @@
 
-#define XRT_NO_THREAD
 #define XRT_NO_QUEUE
 #define XRT_NO_COROUTINE
 #define XRT_NO_NETWORK
@@ -22,6 +21,7 @@
 #define XRT_NO_REGEX
 #define XRT_NO_FILE_ASYNC
 #define XRT_NO_SUBPROCESS
+#define XRT_NO_LOGGER
 
 #define XRT_IMPLEMENTATION
 #include "../../singlehead/xrt.h"

@@ -33,6 +33,7 @@
 	#include <sys/stat.h>
 	#include <net/if.h>
 	#include <sys/ioctl.h>
+	#include <sys/epoll.h>
 	#include <poll.h>
 	#include <sys/syscall.h>
 	#include <sys/eventfd.h>
@@ -287,6 +288,10 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/thread.h"
 #endif
 
+#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+	#include "lib/logger.h"
+#endif
+
 #ifndef XRT_NO_QUEUE
 	#include "lib/queue.h"
 #endif
@@ -307,6 +312,7 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/xnet_port.h"
 	#include "lib/xnet_port_iocp.h"
 	#include "lib/xnet_port_uring.h"
+	#include "lib/xnet_port_epoll.h"
 	#ifndef XRT_NO_XCODEC
 		#include "lib/xcodec.h"
 		#include "lib/xcodec_http1.h"
@@ -602,6 +608,10 @@ static void __xrtRuntimeFinalizeLocked()
 
 	#ifndef XRT_NO_TEMPLATE
 		xte_private_unit();
+	#endif
+
+	#if !defined(XRT_NO_LOGGER) && !defined(XRT_NO_TIME)
+		__xlogRuntimeUnit();
 	#endif
 
 	xrtFree(xCore.AppFile);

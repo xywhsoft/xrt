@@ -1,4 +1,4 @@
-﻿#ifndef XRT_XNET_SYNC_H
+#ifndef XRT_XNET_SYNC_H
 #define XRT_XNET_SYNC_H
 
 /*

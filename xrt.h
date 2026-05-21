@@ -298,6 +298,7 @@
 	#define XRT_NO_TEMPLATE
 	#define XRT_NO_REGEX		// 禁用正则表达式模块
 	#define XRT_NO_SUBPROCESS
+	#define XRT_NO_LOGGER
 #endif
 
 // 网络根模块裁剪时，同步裁剪全部网络子库
@@ -522,6 +523,15 @@
 		#warning "XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME."
 	#else
 		XRT_CUT_WARN("XRT_NO_TIME ignored because VALUE/TEMPLATE/XID require TIME.")
+	#endif
+	#undef XRT_NO_TIME
+#endif
+
+#if defined(XRT_NO_TIME) && !defined(XRT_NO_LOGGER)
+	#if defined(__clang__) || defined(__GNUC__) || defined(__TINYC__)
+		#warning "XRT_NO_TIME ignored because LOGGER requires TIME."
+	#else
+		XRT_CUT_WARN("XRT_NO_TIME ignored because LOGGER requires TIME.")
 	#endif
 	#undef XRT_NO_TIME
 #endif
@@ -2247,6 +2257,76 @@
 	
 	// 本地时间转UTC
 	XXAPI xtime xrtLocalToUTC(xtime local);
+
+
+
+	#ifndef XRT_NO_LOGGER
+	/* ---------- 日志系统 ---------- */
+
+	typedef enum {
+		XLOG_TRACE = 0,
+		XLOG_DEBUG = 1,
+		XLOG_INFO = 2,
+		XLOG_WARN = 3,
+		XLOG_ERROR = 4,
+		XLOG_FATAL = 5,
+		XLOG_OFF = 6
+	} xloglevel;
+
+	typedef enum {
+		XLOG_FORMAT_TEXT = 0,
+		XLOG_FORMAT_SIMPLE = 1,
+		XLOG_FORMAT_JSON = 2
+	} xlogformat;
+
+	typedef struct xlogger xlogger;
+	typedef struct xlogappender xlogappender;
+
+	typedef struct xlogevent {
+		xtime iTime;
+		xloglevel iLevel;
+		const char* sLogger;
+		const char* sFile;
+		uint32 iLine;
+		const char* sFunc;
+		uint64 iThreadId;
+		const char* sMessage;
+	} xlogevent;
+
+	typedef void (*xlogcustomproc)(const xlogevent* pEvent, ptr pUserData);
+
+	XXAPI xlogger* xlogCreate(str sName);
+	XXAPI void xlogDestroy(xlogger* pLogger);
+	XXAPI xlogger* xlogDefault();
+	XXAPI void xlogSetDefault(xlogger* pLogger);
+	XXAPI void xlogSetLevel(xlogger* pLogger, xloglevel iLevel);
+	XXAPI xloglevel xlogGetLevel(xlogger* pLogger);
+	XXAPI xlogappender* xlogAddConsole(xlogger* pLogger, xloglevel iMinLevel, bool bColor);
+	XXAPI xlogappender* xlogAddFile(xlogger* pLogger, str sPath, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddRollingFile(xlogger* pLogger, str sPath, uint64 iMaxSize, uint32 iMaxBackup, xloglevel iMinLevel);
+	XXAPI xlogappender* xlogAddCustom(xlogger* pLogger, str sName, xloglevel iMinLevel, xlogcustomproc Proc, ptr pUserData);
+	XXAPI void xlogAppenderSetLevel(xlogappender* pAppender, xloglevel iMinLevel);
+	XXAPI void xlogAppenderSetFormat(xlogappender* pAppender, xlogformat iFormat);
+	XXAPI void xlogAppenderSetColor(xlogappender* pAppender, bool bColor);
+	XXAPI void xlogWrite(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, ...);
+	XXAPI void xlogWriteV(xlogger* pLogger, xloglevel iLevel, const char* sFile, uint32 iLine, const char* sFunc, const char* sFmt, va_list args);
+	XXAPI void xlogFlush(xlogger* pLogger);
+	XXAPI str xlogLevelName(xloglevel iLevel);
+
+	#define xloggerTrace(pLogger, ...)	xlogWrite((pLogger), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerDebug(pLogger, ...)	xlogWrite((pLogger), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerInfo(pLogger, ...)	xlogWrite((pLogger), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerWarn(pLogger, ...)	xlogWrite((pLogger), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerError(pLogger, ...)	xlogWrite((pLogger), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xloggerFatal(pLogger, ...)	xlogWrite((pLogger), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+
+	#define xlogTrace(...)				xlogWrite(xlogDefault(), XLOG_TRACE, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogDebug(...)				xlogWrite(xlogDefault(), XLOG_DEBUG, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogInfo(...)				xlogWrite(xlogDefault(), XLOG_INFO, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogWarn(...)				xlogWrite(xlogDefault(), XLOG_WARN, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogError(...)				xlogWrite(xlogDefault(), XLOG_ERROR, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define xlogFatal(...)				xlogWrite(xlogDefault(), XLOG_FATAL, __FILE__, __LINE__, __func__, __VA_ARGS__)
+	#endif
 	
 	// 获取相对时间描述（如"3天前"、"2小时后"）（ 需使用 xrtFree 释放内存 ）
 	XXAPI str xrtRelativeTime(xtime iTime, xtime iBaseTime);
@@ -4365,12 +4445,24 @@
 		#define XHTTPD_HEADER_NAME_CAP    64u
 		#define XHTTPD_HEADER_VALUE_CAP   256u
 		#define XHTTPD_MAX_HEADERS        32u
+		#define XHTTPD_FILE_CHUNK_SIZE    65536u
 		#define XHTTPD_REQ_F_NONE         0x00000000u
 		#define XHTTPD_REQ_F_KEEPALIVE    0x00000001u
 		#define XHTTPD_REQ_F_CHUNKED      0x00000002u
 		#define XHTTPD_REQ_F_UPGRADE      0x00000004u
 		#define XHTTPD_RESP_F_NONE        0x00000000u
 		#define XHTTPD_RESP_F_CLOSE       0x00000001u
+
+		typedef enum {
+			XHTTPD_METHOD_UNKNOWN = 0,
+			XHTTPD_METHOD_GET = 1,
+			XHTTPD_METHOD_HEAD = 2,
+			XHTTPD_METHOD_POST = 3,
+			XHTTPD_METHOD_PUT = 4,
+			XHTTPD_METHOD_DELETE = 5,
+			XHTTPD_METHOD_PATCH = 6,
+			XHTTPD_METHOD_OPTIONS = 7
+		} xhttpdmethod;
 
 		typedef struct {
 			char sName[XHTTPD_HEADER_NAME_CAP];
@@ -4380,6 +4472,7 @@
 		typedef struct {
 			uint32 iFlags;
 			uint32 iHeaderCount;
+			uint32 iMethod;
 			int64_t iContentLength;
 			char sMethod[XHTTPD_METHOD_CAP];
 			char sTarget[XHTTPD_TARGET_CAP];
@@ -4406,6 +4499,7 @@
 			uint32 iFlags;
 			uint32 iBacklog;
 			uint32 iRecvLimit;
+			uint32 iBodyLimit;
 			const xtlsconfig* pTlsConfig;
 		} xhttpdconfig;
 
@@ -4673,6 +4767,12 @@
 
 		// 查找查询
 		XXAPI bool xrtQueryFind(const char* sQuery, const char* sKey, xrtquerypair* pOut);
+
+		// 查找并解码查询值到固定缓冲区
+		XXAPI bool xrtQueryFindValueToN(const char* sQuery, size_t iLen, const char* sKey, size_t iKeyLen, char* sOut, size_t iOutCap, size_t* pOutLen);
+
+		// 查找并解码查询值到固定缓冲区
+		XXAPI bool xrtQueryFindValueTo(const char* sQuery, const char* sKey, char* sOut, size_t iOutCap, size_t* pOutLen);
 
 		// 解析查询
 		XXAPI bool xrtQueryParseToN(const char* sQuery, size_t iLen, xrtquerypair* pOut, size_t iCap, size_t* pCount);
@@ -6035,6 +6135,9 @@
 		// XNet 内建 HTTP 服务端
 		XXAPI const char* xrtHttpdRequestHeader(const xhttpdrequest* pReq, const char* sName);
 
+		// 获取 HTTP 服务端 request 方法 ID
+		XXAPI uint32 xrtHttpdRequestMethod(const xhttpdrequest* pReq);
+
 		// 获取 HTTP 服务端 response 头部
 		XXAPI const char* xrtHttpdResponseHeader(const xhttpdresponse* pResp, const char* sName);
 
@@ -6065,14 +6168,31 @@
 		// 设置 HTTP 服务端 response 头部
 		XXAPI bool xrtHttpdResponseSetHeader(xhttpdresponse* pResp, const char* sName, const char* sValue);
 
+		// 获取 HTTP 服务端默认状态文本
+		XXAPI const char* xrtHttpdStatusText(uint32 iStatusCode);
+
 		// 复制服务端响应正文并设置 Content-Type
 		XXAPI bool xrtHttpdResponseSetBodyCopy(xhttpdresponse* pResp, const void* pData, size_t iLen, const char* sContentType);
+
+		// 一次性填充 HTTP 服务端响应对象
+		XXAPI bool xrtHttpdResponseReply(xhttpdresponse* pResp, uint32 iStatusCode, const char* sReason, const char* sHeaders, const void* pBody, size_t iBodyLen);
 
 		// 判断 HTTP 服务端连接是否仍然打开
 		XXAPI bool xrtHttpdConnIsOpen(const xhttpdconn* pConn);
 
 		// 向 HTTP 服务端连接发送响应
 		XXAPI xnet_result xrtHttpdConnRespond(xhttpdconn* pConn, const xhttpdresponse* pResp);
+
+		// 向 HTTP 服务端连接一次性发送轻量响应
+		XXAPI xnet_result xrtHttpdConnReply(xhttpdconn* pConn, uint32 iStatusCode, const char* sReason, const char* sHeaders, const void* pBody, size_t iBodyLen);
+		// 开始 HTTP 服务端连接流式响应
+		XXAPI xnet_result xrtHttpdConnStart(xhttpdconn* pConn, const xhttpdresponse* pResp);
+		// 向 HTTP 服务端连接流式响应发送数据
+		XXAPI xnet_result xrtHttpdConnSend(xhttpdconn* pConn, const void* pData, size_t iLen);
+		// 结束 HTTP 服务端连接流式响应
+		XXAPI xnet_result xrtHttpdConnEnd(xhttpdconn* pConn);
+		// 向 HTTP 服务端连接分块发送文件响应
+		XXAPI xnet_result xrtHttpdConnSendFile(xhttpdconn* pConn, const xhttpdresponse* pResp, const char* sFilePath, size_t iChunkSize);
 
 		// 主动关闭 HTTP 服务端连接
 		XXAPI xnet_result xrtHttpdConnClose(xhttpdconn* pConn, uint32 iCloseFlags);
@@ -7407,6 +7527,7 @@
 			ptr vStruct;
 			ptr vCustom;
 		};
+		struct xvalue_struct* vFuncEnv;
 	} xvalue_struct, *xvalue;
 	
 	// 函数指针类型定义
@@ -7591,6 +7712,9 @@
 	// 创建函数值
 	XXAPI xvalue xvoCreateFunc(xfunction pFunc);
 
+	// 创建带环境的函数值
+	XXAPI xvalue xvoCreateFuncEx(xfunction pFunc, xvalue pEnv);
+
 	// 创建数组
 	XXAPI xvalue xvoCreateArray();
 
@@ -7641,6 +7765,9 @@
 
 	// 获取函数值
 	XXAPI xfunction xvoGetFunc(xvalue pVal);
+
+	// 获取函数值环境
+	XXAPI xvalue xvoGetFuncEnv(xvalue pVal);
 
 	// 获取数组
 	XXAPI xparray xvoGetArray(xvalue pVal);
@@ -7739,6 +7866,12 @@
 	// 删除数组
 	XXAPI bool xvoArrayRemove(xvalue pArr, uint32 index, uint32 count);
 
+	// Take one array item without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoArrayTakeValue(xvalue pArr, uint32 index);
+
+	// Pop the last array item without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoArrayPopValue(xvalue pArr);
+
 	// 获取数组成员数量
 	XXAPI uint32 xvoArrayItemCount(xvalue pArr);
 
@@ -7793,6 +7926,9 @@
 
 	// 删除列表
 	XXAPI bool xvoListRemove(xvalue pList, int64 index);
+
+	// Take one list item without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoListTakeValue(xvalue pList, int64 index);
 
 	// 获取列表成员数量
 	XXAPI uint32 xvoListItemCount(xvalue pList);
@@ -7931,6 +8067,9 @@
 
 	// 从表中删除一个键
 	XXAPI bool xvoTableRemove(xvalue pTbl, str key, uint32 kl);
+
+	// Take one table value without unref; ownership of the stored value reference is transferred to caller.
+	XXAPI xvalue xvoTableTakeValue(xvalue pTbl, str key, uint32 kl);
 
 	// 获取表成员数量
 	XXAPI uint32 xvoTableItemCount(xvalue pTbl);

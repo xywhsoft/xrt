@@ -28,6 +28,7 @@
 - [从零开始写第一个 XRT 程序](first-xrt-program.md)
 - [Charset 入门：程序里的字符串、文件编码和平台宽字符不是一回事](charset-intro.md)
 - [OS 入门：什么时候只要启动一个程序，什么时候已经该上 subprocess](os-intro.md)
+- [Logger 入门：替代临时 printf，统一控制台、文件和滚动日志](logger-intro.md)
 - [XID 入门：什么时候该直接生成唯一 ID，什么时候还不够](xid-intro.md)
 - [Math 与 Hash 入门：随机数、约等于和稳定指纹不是一回事](math-hash-intro.md)
 - [xvalue、JSON 与 XSON 入门](xvalue-json-intro.md)

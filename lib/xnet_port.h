@@ -18,6 +18,7 @@ typedef struct xrt_net_port_ops xnetportops;
 
 static const xnetportops* xrtNetPortIOCPOps(void);
 static const xnetportops* xrtNetPortUringOps(void) UNUSED_ATTR;
+static const xnetportops* xrtNetPortEpollOps(void) UNUSED_ATTR;
 
 
 
@@ -27,6 +28,7 @@ static const xnetportops* xrtNetPortUringOps(void) UNUSED_ATTR;
 #define XNET_PORT_BACKEND_IOCP    1u
 #define XNET_PORT_BACKEND_URING   2u
 #define XNET_PORT_BACKEND_CUSTOM  3u
+#define XNET_PORT_BACKEND_EPOLL   4u
 
 #define XNET_PORT_F_NONE              0x00000000u
 #define XNET_PORT_F_BATCH_COMPLETION  0x00000001u
@@ -67,6 +69,8 @@ static const xnetportops* xrtNetPortUringOps(void) UNUSED_ATTR;
 #define XNET_PORT_EVENT_F_MORE       0x00000004u
 /* Internal marker: synthetic accepted-stream open event, not listener accept completion. */
 #define XNET_PORT_EVENT_F_ACCEPTED_OPEN 0x8000u
+/* Internal marker: recv payload already moved through the worker queue. */
+#define XNET_PORT_EVENT_F_DEFERRED_RECV 0x4000u
 
 
 

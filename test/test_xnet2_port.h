@@ -129,6 +129,43 @@ void Test_XNet2_Port(void)
 		const xnetportops* pOps = xrtNetPortIOCPOps();
 		printf("  IOCP ops absent on Linux : %s\n", pOps == NULL ? "PASS" : "FAIL");
 	}
+
+	{
+		xnetport tPort;
+		xnetportconfig tCfg;
+		xnetportevent arrEvents[4];
+		const xnetportops* pOps = xrtNetPortEpollOps();
+		uint32 iCount = 0;
+
+		xrtNetPortConfigInit(&tCfg);
+		tCfg.iBackend = XNET_PORT_BACKEND_EPOLL;
+		printf("  epoll ops available : %s\n", pOps != NULL ? "PASS" : "FAIL");
+		printf("  epoll init : %s\n", pOps && xrtNetPortInit(&tPort, pOps, &tCfg, NULL) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		if ( pOps && tPort.pCtx ) {
+			printf("  epoll wake post : %s\n", xrtNetPortWake(&tPort) == XRT_NET_OK ? "PASS" : "FAIL");
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 50);
+			printf("  epoll wake harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_WAKE ? "PASS" : "FAIL");
+
+			printf("  epoll arm timer : %s\n", xrtNetPortArmTimer(&tPort, 3001, 10) == XRT_NET_OK ? "PASS" : "FAIL");
+			__Test_XNet2_SleepMs(20);
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 0);
+			printf("  epoll timer harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_TIMER && arrEvents[0].iOpId == 3001 ? "PASS" : "FAIL");
+
+			printf("  epoll cancel timer : %s\n", xrtNetPortArmTimer(&tPort, 3002, 50) == XRT_NET_OK &&
+				xrtNetPortCancelTimer(&tPort, 3002) == XRT_NET_OK ? "PASS" : "FAIL");
+			__Test_XNet2_SleepMs(60);
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 0);
+			printf("  epoll cancelled timer silent : %s\n", iCount == 0 ? "PASS" : "FAIL");
+
+			xrtNetPortUnit(&tPort);
+		}
+	}
 	#else
 	{
 		printf("  No native port smoke test on this platform : PASS\n");

@@ -112,8 +112,10 @@ static bool __xnetDgramUseNativePortIO(xdgramsock* pSock)
 			__xnetDgramSocketIsValid(pSock->hSocket);
 	#elif defined(__linux__)
 		return pSock && pSock->pWorker &&
-			pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
-			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort) &&
+			((pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort)) ||
+			(pSock->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
+			__xnetPortEpollReady(&pSock->pWorker->tPort))) &&
 			__xnetDgramSocketIsValid(pSock->hSocket);
 	#else
 		(void)pSock;
@@ -130,8 +132,10 @@ static bool __xnetDgramUseNativePortOps(xdgramsock* pSock)
 			pSock->pWorker->tPort.pOps == xrtNetPortIOCPOps();
 	#elif defined(__linux__)
 		return pSock && pSock->pWorker &&
-			pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
-			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort);
+			((pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
+			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort)) ||
+			(pSock->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
+			__xnetPortEpollReady(&pSock->pWorker->tPort)));
 	#else
 		(void)pSock;
 		return false;

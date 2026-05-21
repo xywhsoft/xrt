@@ -46,6 +46,7 @@ static const char* xsmtp_example_mode_name(void)
 /* Keep all public example entry styles referenced so header-only builds stay warning-free. */
 static void xsmtp_example_link_all_entrypoints(void)
 {
+	(void)&xrtSmtpCapability;
 	(void)&xrtSmtpSendMail;
 	(void)&xrtSmtpSendMailAsyncWait;
 	(void)&xrtSmtpSendMailCo;

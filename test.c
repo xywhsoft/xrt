@@ -98,6 +98,9 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 #endif
 #include "test/test_path.h"
 #include "test/test_time.h"
+#ifndef XRT_NO_LOGGER
+	#include "test/test_logger.h"
+#endif
 #include "test/test_file.h"
 #include "test/test_file_core.h"
 #include "test/test_file_dirscan_contract.h"
@@ -280,6 +283,9 @@ XRT_TEST_WRAP_CORE(__xrtTestRun_String, Test_String)
 #endif
 XRT_TEST_WRAP_CORE(__xrtTestRun_Path, Test_Path)
 XRT_TEST_WRAP_CORE(__xrtTestRun_Time, Test_Time)
+#ifndef XRT_NO_LOGGER
+	XRT_TEST_WRAP_INT(__xrtTestRun_Logger, Test_Logger)
+#endif
 XRT_TEST_WRAP_CORE(__xrtTestRun_File, Test_File)
 XRT_TEST_WRAP_CORE(__xrtTestRun_FileCore, Test_FileCore)
 XRT_TEST_WRAP_CORE(__xrtTestRun_DirScanContract, Test_FileDirScanContract)
@@ -402,10 +408,11 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 		// 内部函数：__xrtTestRun_TLSBoundaryStress
 		static int __xrtTestRun_TLSBoundaryStress(xrtGlobalData* pCore)
 		{
+			int iRet;
 			(void)pCore;
-			Test_TLSBoundaryStress();
+			iRet = Test_TLSBoundaryStress();
 			xrtUnit();
-			return 0;
+			return iRet;
 		}
 		XRT_TEST_WRAP_INT(__xrtTestRun_TLSAnchorVerify, Test_TLSAnchorVerify)
 	#endif
@@ -461,6 +468,9 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 	#endif
 	{ "path", "Path", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Path },
 	{ "time", "Time", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Time },
+	#ifndef XRT_NO_LOGGER
+		{ "logger", "Logger", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_Logger },
+	#endif
 	{ "file", "File", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_File },
 	{ "file_core", "File Core", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_FileCore },
 	{ "dirscan_contract", "DirScan Contract", "base", XRT_TEST_FLAG_NONE, __xrtTestRun_DirScanContract },
@@ -569,6 +579,9 @@ static const char* __g_arrPresetRuntimeSmoke[] = {
 	"base",
 	"os",
 	"time",
+	#ifndef XRT_NO_LOGGER
+		"logger",
+	#endif
 	"file",
 	"dirscan_contract",
 	#ifndef XRT_NO_NETWORK

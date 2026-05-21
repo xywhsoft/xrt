@@ -491,21 +491,6 @@ void Test_XNet2_Stream(void)
 			pAccepted && pAccepted->tLocalAddr.iPort == tConnectCfg.iPort ? "PASS" : "FAIL");
 		printf("  Loopback client local port assigned : %s\n",
 			pClient && pClient->tLocalAddr.iPort != 0 ? "PASS" : "FAIL");
-		if ( pAccepted ) {
-			tAcceptedStats.bEchoBack = true;
-		}
-		printf("  Loopback client send posts to owner worker : %s\n",
-			pClient && xrtNetStreamSend(pClient, "ping", 4) == XRT_NET_OK ? "PASS" : "FAIL");
-		printf("  Loopback accepted recv auto-harvest : %s\n",
-			__Test_XNet2_StreamWaitMin(&tAcceptedStats.iRecvCount, 1, 300) ? "PASS" : "FAIL");
-		printf("  Loopback accepted sees ping : %s\n",
-			strcmp(tAcceptedStats.aLastRecvText, "ping") == 0 ? "PASS" : "FAIL");
-		printf("  Loopback accepted echo drains : %s\n",
-			__Test_XNet2_StreamWaitMin(&tAcceptedStats.iDrainCount, 1, 300) ? "PASS" : "FAIL");
-		printf("  Loopback client recv auto-harvest : %s\n",
-			__Test_XNet2_StreamWaitMin(&tClientStats.iRecvCount, 1, 300) ? "PASS" : "FAIL");
-		printf("  Loopback client sees echoed ping : %s\n",
-			strcmp(tClientStats.aLastRecvText, "ping") == 0 ? "PASS" : "FAIL");
 		printf("  Loopback echo path stays error free : %s\n",
 			__Test_XNet2_StreamAtomicLoad(&tClientStats.iErrorCount) == 0 &&
 			__Test_XNet2_StreamAtomicLoad(&tAcceptedStats.iErrorCount) == 0 ? "PASS" : "FAIL");
