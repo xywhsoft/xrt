@@ -158,7 +158,6 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 			close(fd);
 			return NULL;
 		}
-		size_t iRetSize;
 		struct stat fileStat;
 		fstat(fd, &fileStat);
 		objFile->idx = fd;
@@ -1494,6 +1493,7 @@ XXAPI bool xrtFileDelete(str sPath)
 	// 其他平台方案
 	int __pri__DirScan_Proc(str sPath, size_t iSize, int bRecu, xrtDirScanProc pProc, ptr Param)
 	{
+		(void)iSize;
 		xrtDirScanProc pCallBack = pProc;
 		int iFileCount = 0;
 		DIR* dir = opendir(sPath);
@@ -1645,7 +1645,7 @@ XXAPI bool xrtDirCreateAll(str sPath)
 			return FALSE;
 		}
 		size_t iCurPos = 0;
-		for ( int i = 0; i < iSize; i++ ) {
+		for ( size_t i = 0; i < iSize; i++ ) {
 			if ( (sPath[i] == '/') || (sPath[i] == '\\') ) {
 				sCurPath[iCurPos] = 0;
 				mkdir(sCurPath, 0755);
@@ -1905,5 +1905,4 @@ XXAPI int xrtDirDelete(str sPath)
 	#endif
 	return 0;
 }
-
 

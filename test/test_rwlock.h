@@ -3,6 +3,14 @@
 #include <string.h>
 #include <time.h>
 
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+	#define __XRT_TEST_RWLOCK_SCREEN_STEP() do {} while (0)
+#elif defined(__ANDROID__)
+	#define __XRT_TEST_RWLOCK_SCREEN_STEP() do {} while (0)
+#else
+	#define __XRT_TEST_RWLOCK_SCREEN_STEP() do { system("pause"); system("cls"); } while (0)
+#endif
+
 // RWLock 测试数据结构
 typedef struct {
 	xrwlock Lock;
@@ -101,8 +109,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	xrtRWLockDestroy(rwlock);
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	
@@ -124,8 +131,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	xrtRWLockDestroy(rwlock);
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	
@@ -144,8 +150,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	xrtRWLockDestroy(rwlock);
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	
@@ -168,8 +173,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	xrtRWLockDestroy(rwlock);
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	
@@ -202,8 +206,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	xrtRWLockDestroy(rwlock);
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	
@@ -233,8 +236,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	xvoUnref(testData.List);
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	
@@ -305,8 +307,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	}
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	
@@ -325,8 +326,7 @@ void Test_RWLock(xrtGlobalData* xCore)
 	printf("  清理静态分配的读写锁成功\n");
 	
 	printf("\n\n");
-	system("pause");
-	system("cls");
+	__XRT_TEST_RWLOCK_SCREEN_STEP();
 	
 	
 	

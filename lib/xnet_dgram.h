@@ -115,11 +115,22 @@ static bool __xnetDgramUseNativePortIO(xdgramsock* pSock)
 			((pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
 			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort)) ||
 			(pSock->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
-			__xnetPortEpollReady(&pSock->pWorker->tPort))) &&
+			__xnetPortEpollReady(&pSock->pWorker->tPort)) ||
+			(pSock->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pSock->pWorker->tPort))) &&
+			__xnetDgramSocketIsValid(pSock->hSocket);
+	#elif defined(__APPLE__) && defined(__MACH__)
+		return pSock && pSock->pWorker &&
+			((pSock->pWorker->tPort.pOps == xrtNetPortKqueueOps() &&
+			__xnetPortKqueueReady(&pSock->pWorker->tPort)) ||
+			(pSock->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pSock->pWorker->tPort))) &&
 			__xnetDgramSocketIsValid(pSock->hSocket);
 	#else
-		(void)pSock;
-		return false;
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pSock->pWorker->tPort) &&
+			__xnetDgramSocketIsValid(pSock->hSocket);
 	#endif
 }
 
@@ -135,10 +146,19 @@ static bool __xnetDgramUseNativePortOps(xdgramsock* pSock)
 			((pSock->pWorker->tPort.pOps == xrtNetPortUringOps() &&
 			__xnetPortUringHasNativeRing(&pSock->pWorker->tPort)) ||
 			(pSock->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
-			__xnetPortEpollReady(&pSock->pWorker->tPort)));
+			__xnetPortEpollReady(&pSock->pWorker->tPort)) ||
+			(pSock->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pSock->pWorker->tPort)));
+	#elif defined(__APPLE__) && defined(__MACH__)
+		return pSock && pSock->pWorker &&
+			((pSock->pWorker->tPort.pOps == xrtNetPortKqueueOps() &&
+			__xnetPortKqueueReady(&pSock->pWorker->tPort)) ||
+			(pSock->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pSock->pWorker->tPort)));
 	#else
-		(void)pSock;
-		return false;
+		return pSock && pSock->pWorker &&
+			pSock->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pSock->pWorker->tPort);
 	#endif
 }
 

@@ -417,8 +417,9 @@ XXAPI void xrtHttpCloseIdleConnections(xnetengine* pEngine)
 		pList->pNext = NULL;
 		if ( pList->pStream ) {
 			xrtNetStreamClose(pList->pStream, XNET_CLOSE_F_ABORT);
+		} else {
+			__xhttpConnPostCleanup(pList);
 		}
-		__xhttpConnPostCleanup(pList);
 		pList = pNext;
 	}
 }
@@ -843,6 +844,38 @@ static bool __xhttpResponseReusable(const __xhttp_tx* pTx, const xcodechttp1msg*
 }
 
 
+// 内部函数：__xhttpCompleteCloseDelimitedResponse
+static bool __xhttpCompleteCloseDelimitedResponse(__xhttp_tx* pTx, xnetchain* pChain)
+{
+	xcodecframe tFrame;
+	xcodechttp1msg tMsg;
+	xcodecstatus iParse;
+	size_t iChainBytes;
+	xhttpresponse* pResp;
+	bool bNoBodyExpected;
+	if ( !pTx || !pChain ) { return false; }
+	iParse = xrtCodecHttp1Parse(pChain, &tFrame, &tMsg);
+	if ( iParse != XCODEC_STATUS_FRAME ) { return false; }
+	if ( (tMsg.iFlags & XCODEC_HTTP1_F_CHUNKED) != 0u || tMsg.iContentLength >= 0 ) { return false; }
+	bNoBodyExpected = __xhttpStatusHasNoBody(tMsg.iStatusCode) || __xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD");
+	if ( bNoBodyExpected ) { return false; }
+	iChainBytes = xrtNetChainBytes(pChain);
+	if ( iChainBytes < tFrame.iHeaderBytes ) { return false; }
+	tFrame.iPayloadBytes = iChainBytes - tFrame.iHeaderBytes;
+	tFrame.iFrameBytes = iChainBytes;
+	tFrame.iFlags &= ~XCODEC_FRAME_F_KEEPALIVE;
+	tMsg.iFlags &= ~XCODEC_HTTP1_F_KEEPALIVE;
+	pResp = __xhttpBuildResponse(&tFrame, &tMsg, pChain);
+	if ( !pResp ) {
+		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
+		return true;
+	}
+	(void)__xhttpTxComplete(pTx, XRT_NET_OK, pResp);
+	xrtCodecFrameConsume(pChain, &tFrame);
+	return true;
+}
+
+
 // 内部函数：__xhttpTxAbortStream
 static void __xhttpTxAbortStream(__xhttp_tx* pTx)
 {
@@ -983,8 +1016,6 @@ static void __xhttpClientOnRecv(ptr pOwner, xnetstream* pStream, xnetchain* pCha
 	// 检查响应正文期望情况
 	bNoBodyExpected = __xhttpStatusHasNoBody(tMsg.iStatusCode) || __xhttpStrEqNoCase(pTx->tReq.sMethod, "HEAD");
 	if ( (tMsg.iFlags & XCODEC_HTTP1_F_CHUNKED) == 0u && (tMsg.iContentLength < 0 && !bNoBodyExpected) ) {
-		(void)__xhttpTxComplete(pTx, XRT_NET_ERROR, NULL);
-		xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
 		return;
 	}
 	// 构建响应对象
@@ -1027,6 +1058,17 @@ static void __xhttpClientOnClose(ptr pOwner, xnetstream* pStream, xnet_result iR
 	pConn->pStream = NULL;
 	pConn->pTx = NULL;
 	if ( pTx ) {
+		if ( __xhttpAtomicLoad(&pTx->iComplete) == 0 &&
+			iReason == XRT_NET_CLOSED &&
+			pStream &&
+			xrtNetChainBytes(&pStream->tRxChain) > 0u &&
+			__xhttpCompleteCloseDelimitedResponse(pTx, &pStream->tRxChain) ) {
+			pTx->pConn = NULL;
+			pTx->pStream = NULL;
+			__xhttpTxPostCleanup(pTx);
+			__xhttpConnPostCleanup(pConn);
+			return;
+		}
 		pTx->pConn = NULL;
 		pTx->pStream = NULL;
 	}

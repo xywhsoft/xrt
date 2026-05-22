@@ -3719,7 +3719,6 @@ XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 		}
 	#else
 		{
-			// 使用 send 而非 write 避免 SIGPIPE 信号
 			const char* sCursor = (const char*)pData;
 			size_t iLeft = iSize;
 
@@ -3734,6 +3733,9 @@ XXAPI int64 xrtProcessWrite(xprocess* pProcess, const void* pData, size_t iSize)
 				#else
 					iWritten = send(pProcess->fdStdinWrite, sCursor, iLeft, 0);
 				#endif
+				if ( iWritten < 0 && errno == ENOTSOCK ) {
+					iWritten = write(pProcess->fdStdinWrite, sCursor, iLeft);
+				}
 				if ( iWritten < 0 && errno == EINTR ) {
 					continue;
 				}

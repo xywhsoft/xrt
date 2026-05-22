@@ -916,40 +916,42 @@ static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 
 // 协程上下文切换 - ARM64 AAPCS64 版本
 // 流程：保存当前寄存器到 pFrom → 从 pTo 恢复目标寄存器 → 跳转到目标恢复点
-static void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
+static __attribute__((noinline)) void __xrt_co_swap(__xrt_co_ctx* pFrom, __xrt_co_ctx* pTo)
 {
 	__asm__ volatile (
+		"mov x9, %0\n\t"
+		"mov x10, %1\n\t"
 		// --- 保存当前上下文到 pFrom ---
 		"adr x2, 1f\n\t"                  // 计算恢复点地址
 		"mov x3, sp\n\t"                   // 获取当前 sp
-		"stp x2,  x3,  [%0, #0x00]\n\t"   // 保存 恢复点 + sp
-		"stp x19, x20, [%0, #0x10]\n\t"   // 保存 x19, x20
-		"stp x21, x22, [%0, #0x20]\n\t"   // 保存 x21, x22
-		"stp x23, x24, [%0, #0x30]\n\t"   // 保存 x23, x24
-		"stp x25, x26, [%0, #0x40]\n\t"   // 保存 x25, x26
-		"stp x27, x28, [%0, #0x50]\n\t"   // 保存 x27, x28
-		"stp x29, x30, [%0, #0x60]\n\t"   // 保存 fp(x29) + lr(x30)
-		"stp q8,  q9,  [%0, #0x70]\n\t"   // 保存 q8, q9
-		"stp q10, q11, [%0, #0x90]\n\t"   // 保存 q10, q11
-		"stp q12, q13, [%0, #0xB0]\n\t"   // 保存 q12, q13
-		"stp q14, q15, [%0, #0xD0]\n\t"   // 保存 q14, q15
+		"stp x2,  x3,  [x9, #0x00]\n\t"   // 保存 恢复点 + sp
+		"stp x19, x20, [x9, #0x10]\n\t"   // 保存 x19, x20
+		"stp x21, x22, [x9, #0x20]\n\t"   // 保存 x21, x22
+		"stp x23, x24, [x9, #0x30]\n\t"   // 保存 x23, x24
+		"stp x25, x26, [x9, #0x40]\n\t"   // 保存 x25, x26
+		"stp x27, x28, [x9, #0x50]\n\t"   // 保存 x27, x28
+		"stp x29, x30, [x9, #0x60]\n\t"   // 保存 fp(x29) + lr(x30)
+		"stp q8,  q9,  [x9, #0x70]\n\t"   // 保存 q8, q9
+		"stp q10, q11, [x9, #0x90]\n\t"   // 保存 q10, q11
+		"stp q12, q13, [x9, #0xB0]\n\t"   // 保存 q12, q13
+		"stp q14, q15, [x9, #0xD0]\n\t"   // 保存 q14, q15
 		// --- 从 pTo 恢复目标上下文 ---
-		"ldp q14, q15, [%1, #0xD0]\n\t"   // 恢复 q14, q15
-		"ldp q12, q13, [%1, #0xB0]\n\t"   // 恢复 q12, q13
-		"ldp q10, q11, [%1, #0x90]\n\t"   // 恢复 q10, q11
-		"ldp q8,  q9,  [%1, #0x70]\n\t"   // 恢复 q8, q9
-		"ldp x29, x30, [%1, #0x60]\n\t"   // 恢复 fp(x29) + lr(x30)
-		"ldp x27, x28, [%1, #0x50]\n\t"   // 恢复 x27, x28
-		"ldp x25, x26, [%1, #0x40]\n\t"   // 恢复 x25, x26
-		"ldp x23, x24, [%1, #0x30]\n\t"   // 恢复 x23, x24
-		"ldp x21, x22, [%1, #0x20]\n\t"   // 恢复 x21, x22
-		"ldp x19, x20, [%1, #0x10]\n\t"   // 恢复 x19, x20
-		"ldp x2,  x3,  [%1, #0x00]\n\t"   // 读取 恢复点 + sp
+		"ldp q14, q15, [x10, #0xD0]\n\t"  // 恢复 q14, q15
+		"ldp q12, q13, [x10, #0xB0]\n\t"  // 恢复 q12, q13
+		"ldp q10, q11, [x10, #0x90]\n\t"  // 恢复 q10, q11
+		"ldp q8,  q9,  [x10, #0x70]\n\t"  // 恢复 q8, q9
+		"ldp x29, x30, [x10, #0x60]\n\t"  // 恢复 fp(x29) + lr(x30)
+		"ldp x27, x28, [x10, #0x50]\n\t"  // 恢复 x27, x28
+		"ldp x25, x26, [x10, #0x40]\n\t"  // 恢复 x25, x26
+		"ldp x23, x24, [x10, #0x30]\n\t"  // 恢复 x23, x24
+		"ldp x21, x22, [x10, #0x20]\n\t"  // 恢复 x21, x22
+		"ldp x19, x20, [x10, #0x10]\n\t"  // 恢复 x19, x20
+		"ldp x2,  x3,  [x10, #0x00]\n\t"  // 读取 恢复点 + sp
 		"mov sp, x3\n\t"                   // 恢复 sp
 		"br x2\n\t"                        // 跳转到恢复点
 		"1:\n\t"                           // 恢复点：被 swap 回来时从此处继续
 		: : "r"(pFrom), "r"(pTo)
-		: "memory", "x2", "x3"
+		: "memory", "x2", "x3", "x9", "x10"
 	);
 }
 
@@ -1789,7 +1791,7 @@ XXAPI bool xrtCoResume(xcoro pCo)
 	__xrt_co_swap_to_co(pRuntime, pCo);
 
 	// 从这里恢复意味着协程 yield 了或者结束了
-	__xrt_co_set_current(NULL);
+	pRuntime->pCurrent = NULL;
 	return TRUE;
 }
 

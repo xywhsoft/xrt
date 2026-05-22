@@ -296,14 +296,11 @@ XXAPI int xrtWeekday(xtime iTime)
 XXAPI int xrtDayOfYear(xtime iTime)
 {
 	xtime iTimeAbs = llabs(iTime);
-	uint64 iYear400 = iTimeAbs / XRT_TIME_400YEAR;
 	uint64 iYearMod = iTimeAbs % XRT_TIME_400YEAR;
-	uint64 iYear = iYear400 * 400;
 	for ( int i = 0; i < 400; i++ ) {
 		uint64 iSec =  xrtDaysInYear(i) * XRT_TIME_DAY;
 		if ( iYearMod >= iSec ) {
 			iYearMod -= iSec;
-			iYear++;
 		} else {
 			break;
 		}
@@ -1492,4 +1489,3 @@ XXAPI bool xrtTimeApprox(xtime a, xtime b)
 	xtime diff = (a > b) ? (a - b) : (b - a);
 	return (diff <= xCore.iApproxTimeTol);
 }
-

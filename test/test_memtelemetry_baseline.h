@@ -8,7 +8,7 @@ void Test_Coroutine(xrtGlobalData* xCore);
 void Test_XNet2_Base(void);
 void Test_XNet2_Port(void);
 void Test_XNet2_Engine(void);
-void Test_XNet2_Stream(void);
+int Test_XNet2_Stream(void);
 void Test_XNet2_Dgram(void);
 #ifndef XRT_NO_NETTLS
 	void Test_XNet2_TLS(void);

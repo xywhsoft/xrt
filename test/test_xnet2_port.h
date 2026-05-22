@@ -166,6 +166,95 @@ void Test_XNet2_Port(void)
 			xrtNetPortUnit(&tPort);
 		}
 	}
+	{
+		xnetport tPort;
+		xnetportconfig tCfg;
+		xnetportevent arrEvents[4];
+		const xnetportops* pOps = xrtNetPortSelectOps();
+		uint32 iCount = 0;
+
+		xrtNetPortConfigInit(&tCfg);
+		tCfg.iBackend = XNET_PORT_BACKEND_SELECT;
+		printf("  select ops available : %s\n", pOps != NULL ? "PASS" : "FAIL");
+		printf("  select init : %s\n", pOps && xrtNetPortInit(&tPort, pOps, &tCfg, NULL) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		if ( pOps && tPort.pCtx ) {
+			printf("  select wake post : %s\n", xrtNetPortWake(&tPort) == XRT_NET_OK ? "PASS" : "FAIL");
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 50);
+			printf("  select wake harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_WAKE ? "PASS" : "FAIL");
+
+			printf("  select arm timer : %s\n", xrtNetPortArmTimer(&tPort, 4001, 10) == XRT_NET_OK ? "PASS" : "FAIL");
+			__Test_XNet2_SleepMs(20);
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 0);
+			printf("  select timer harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_TIMER && arrEvents[0].iOpId == 4001 ? "PASS" : "FAIL");
+
+			xrtNetPortUnit(&tPort);
+		}
+	}
+	#elif defined(__APPLE__) && defined(__MACH__)
+	{
+		xnetport tPort;
+		xnetportconfig tCfg;
+		xnetportevent arrEvents[4];
+		const xnetportops* pOps = xrtNetPortKqueueOps();
+		uint32 iCount = 0;
+
+		xrtNetPortConfigInit(&tCfg);
+		tCfg.iBackend = XNET_PORT_BACKEND_KQUEUE;
+		printf("  kqueue ops available : %s\n", pOps != NULL ? "PASS" : "FAIL");
+		printf("  kqueue init : %s\n", pOps && xrtNetPortInit(&tPort, pOps, &tCfg, NULL) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		if ( pOps && tPort.pCtx ) {
+			printf("  kqueue wake post : %s\n", xrtNetPortWake(&tPort) == XRT_NET_OK ? "PASS" : "FAIL");
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 50);
+			printf("  kqueue wake harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_WAKE ? "PASS" : "FAIL");
+
+			printf("  kqueue arm timer : %s\n", xrtNetPortArmTimer(&tPort, 5001, 10) == XRT_NET_OK ? "PASS" : "FAIL");
+			__Test_XNet2_SleepMs(20);
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 0);
+			printf("  kqueue timer harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_TIMER && arrEvents[0].iOpId == 5001 ? "PASS" : "FAIL");
+
+			xrtNetPortUnit(&tPort);
+		}
+	}
+
+	{
+		xnetport tPort;
+		xnetportconfig tCfg;
+		xnetportevent arrEvents[4];
+		const xnetportops* pOps = xrtNetPortSelectOps();
+		uint32 iCount = 0;
+
+		xrtNetPortConfigInit(&tCfg);
+		tCfg.iBackend = XNET_PORT_BACKEND_SELECT;
+		printf("  select ops available : %s\n", pOps != NULL ? "PASS" : "FAIL");
+		printf("  select init : %s\n", pOps && xrtNetPortInit(&tPort, pOps, &tCfg, NULL) == XRT_NET_OK ? "PASS" : "FAIL");
+
+		if ( pOps && tPort.pCtx ) {
+			printf("  select wake post : %s\n", xrtNetPortWake(&tPort) == XRT_NET_OK ? "PASS" : "FAIL");
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 50);
+			printf("  select wake harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_WAKE ? "PASS" : "FAIL");
+
+			printf("  select arm timer : %s\n", xrtNetPortArmTimer(&tPort, 6001, 10) == XRT_NET_OK ? "PASS" : "FAIL");
+			__Test_XNet2_SleepMs(20);
+			memset(arrEvents, 0, sizeof(arrEvents));
+			iCount = xrtNetPortHarvest(&tPort, arrEvents, 4, 0);
+			printf("  select timer harvest : %s\n",
+				iCount >= 1 && arrEvents[0].iType == XNET_PORT_EVENT_TIMER && arrEvents[0].iOpId == 6001 ? "PASS" : "FAIL");
+
+			xrtNetPortUnit(&tPort);
+		}
+	}
 	#else
 	{
 		printf("  No native port smoke test on this platform : PASS\n");

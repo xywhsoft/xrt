@@ -116,10 +116,17 @@ static const xnetportops* __xnetEngineDefaultPortOps(void)
 	#elif defined(__linux__)
 		#if defined(XNET_FORCE_EPOLL)
 			return xrtNetPortEpollOps();
+		#elif defined(XNET_FORCE_SELECT)
+			return xrtNetPortSelectOps();
 		#endif
 		return xrtNetPortUringOps();
+	#elif defined(__APPLE__) && defined(__MACH__)
+		#if defined(XNET_FORCE_SELECT)
+			return xrtNetPortSelectOps();
+		#endif
+		return xrtNetPortKqueueOps();
 	#else
-		return NULL;
+		return xrtNetPortSelectOps();
 	#endif
 }
 
@@ -649,15 +656,19 @@ static xnet_result __xnetEngineStartWorker(xnetworker* pWorker, const xnetengine
 				}
 			}
 		#endif
+		if ( pStartOps != xrtNetPortSelectOps() && xrtNetPortSelectOps() != NULL ) {
+			pStartOps = xrtNetPortSelectOps();
+			if ( xrtNetPortInit(&pWorker->tPort, pStartOps, pPortCfg, pWorker) == XRT_NET_OK ) {
+				goto __xnet_engine_port_ready;
+			}
+		}
 		__xnetCmdQUnit((__xnet_engine_cmdq*)pWorker->pCmdQ);
 		XNET_FREE(pWorker->pCmdQ);
 		pWorker->pCmdQ = NULL;
 		xrtNetMemCtxUnit(&pWorker->tMemCtx);
 		return XRT_NET_ERROR;
 	}
-	#if defined(__linux__)
-		__xnet_engine_port_ready:
-	#endif
+	__xnet_engine_port_ready:
 
 	// 初始化定时器轮并挂载周期定时脉冲
 	pWheel = (__xnet_engine_timerwheel*)XNET_ALLOC(sizeof(__xnet_engine_timerwheel));
