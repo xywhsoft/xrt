@@ -475,12 +475,10 @@ XXAPI str xrtFilterStr(str sText, size_t iSize, str sSubText, size_t iSubSize, b
 	if ( bSrcRevise == FALSE ) {
 		sText = xrtCopyStr(sText, iSize);
 	}
-	size_t iCount = 0;
 	size_t iWrite = 0;
 	for ( size_t i = 0; i < iSize; ) {
 		size_t iCharLen = __xrtUtf8CharLenSafe(sText, iSize, i);
 		if ( __xrtStrHasToken(sSubText, iSubSize, &sText[i], iCharLen) ) {
-			iCount += iCharLen;
 		} else {
 			if ( iWrite != i ) {
 				memmove(&sText[iWrite], &sText[i], iCharLen);

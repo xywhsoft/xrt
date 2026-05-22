@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-latest
+          - name: macOS
+            runner: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build library
+        run: sh build.sh
+
+      - name: Run tests
+        run: sh build_test.sh
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          path-type: inherit
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Build library
+        run: sh build.sh
+
+      - name: Run tests
+        run: sh build_test.sh
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build Android test binaries
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          set -e
+          mkdir -p release/android
+          CC="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"
+          CFLAGS=(-I . -O2 -ffunction-sections -fdata-sections -Wall -Wextra)
+          LDFLAGS=(-pthread -ldl)
+          "$CC" test.c "${CFLAGS[@]}" "${LDFLAGS[@]}" -o release/android/xrt_test
+          "$CC" singlehead/test_singlehead.c -I singlehead -O2 -ffunction-sections -fdata-sections -Wall -Wextra "${LDFLAGS[@]}" -o release/android/test_singlehead_queue
+
+      - name: Run Android tests
+        timeout-minutes: 10
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            set -e
+            timeout 30s adb shell "rm -rf /data/local/tmp/xrt-ci && mkdir -p /data/local/tmp/xrt-ci/dev"
+            timeout 30s adb push release/android/xrt_test /data/local/tmp/xrt-ci/xrt_test
+            timeout 30s adb push release/android/test_singlehead_queue /data/local/tmp/xrt-ci/test_singlehead_queue
+            timeout 30s adb push dev/xnet2_tls_test_cert.pem /data/local/tmp/xrt-ci/dev/xnet2_tls_test_cert.pem
+            timeout 30s adb push dev/xnet2_tls_test_key.pem /data/local/tmp/xrt-ci/dev/xnet2_tls_test_key.pem
+            timeout 30s adb shell "chmod 755 /data/local/tmp/xrt-ci/xrt_test /data/local/tmp/xrt-ci/test_singlehead_queue"
+            echo "Running Android xrt_test base"
+            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test base"
+            echo "Running Android xrt_test xurl_core"
+            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test xurl_core"
+            echo "Running Android xrt_test xnet2_base"
+            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test xnet2_base"
+            echo "Running Android xrt_test xnet2_port"
+            timeout 90s adb shell "cd /data/local/tmp/xrt-ci && ./xrt_test xnet2_port"
+            echo "Running Android test_singlehead_queue"
+            timeout 150s adb shell "cd /data/local/tmp/xrt-ci && ./test_singlehead_queue"
+
+  ios:
+    name: iOS
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build iOS Simulator test binaries
+        run: |
+          set -e
+          mkdir -p release/ios
+          SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          ARCH="$(uname -m)"
+          TARGET="${ARCH}-apple-ios-simulator"
+          CFLAGS=(-target "$TARGET" -isysroot "$SDKROOT" -mios-simulator-version-min=13.0 -I . -O2 -ffunction-sections -fdata-sections -Wall -Wextra)
+          clang test.c "${CFLAGS[@]}" -o release/ios/xrt_test
+          clang singlehead/test_singlehead.c -target "$TARGET" -isysroot "$SDKROOT" -mios-simulator-version-min=13.0 -I singlehead -O2 -ffunction-sections -fdata-sections -Wall -Wextra -o release/ios/test_singlehead_queue
+
+      - name: Run iOS Simulator tests
+        run: |
+          set -e
+          RUNTIME="$(xcrun simctl list runtimes --json | ruby -rjson -e 'r=JSON.parse(STDIN.read)["runtimes"].select { |x| x["isAvailable"] && x["identifier"].include?("iOS") }.last; abort("No available iOS runtime") unless r; puts r["identifier"]')"
+          DEVICE_TYPE="com.apple.CoreSimulator.SimDeviceType.iPhone-13"
+          UDID="$(xcrun simctl create "XRT CI iPhone" "$DEVICE_TYPE" "$RUNTIME")"
+          cleanup() {
+            xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
+            xcrun simctl delete "$UDID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" base
+          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" xurl_core
+          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" xnet2_base
+          xcrun simctl spawn "$UDID" "$PWD/release/ios/xrt_test" xnet2_port
+          xcrun simctl spawn "$UDID" "$PWD/release/ios/test_singlehead_queue"

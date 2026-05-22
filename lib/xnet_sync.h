@@ -22,7 +22,7 @@
 #else
 	typedef pthread_mutex_t __xnet_sync_mutex;
 	typedef pthread_cond_t __xnet_sync_cond;
-#if defined(CLOCK_MONOTONIC)
+#if defined(CLOCK_MONOTONIC) && !defined(__APPLE__)
 	#define __XNET_SYNC_WAIT_CLOCK CLOCK_MONOTONIC
 #else
 	#define __XNET_SYNC_WAIT_CLOCK CLOCK_REALTIME
@@ -648,7 +648,7 @@ static bool __xnetSyncInitCond(__xnet_sync_cond* pCond)
 	pthread_condattr_t tAttr;
 	if ( !pCond ) { return false; }
 	if ( pthread_condattr_init(&tAttr) != 0 ) { return false; }
-	#if defined(CLOCK_MONOTONIC)
+	#if defined(CLOCK_MONOTONIC) && !defined(__APPLE__)
 		(void)pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC);
 	#endif
 	if ( pthread_cond_init(pCond, &tAttr) != 0 ) {
@@ -3685,7 +3685,7 @@ static uint32 __xnetTaskThreadDispatch(ptr pArg)
 
 
 // 内部函数：分发任务协程
-static void __xnetTaskCoDispatch(ptr pArg)
+static void UNUSED_ATTR __xnetTaskCoDispatch(ptr pArg)
 {
 	__xnet_task_co_ctx* pCtx = (__xnet_task_co_ctx*)pArg;
 	xtask* pTask = NULL;
@@ -5022,6 +5022,7 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
+	xnet_result iFutureStatus;
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
@@ -5041,10 +5042,13 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 	else {
 		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
 	}
+	iFutureStatus = xrtNetFutureStatus(pFuture);
+	if ( iFutureStatus != XRT_NET_AGAIN && (iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		iStatus = iFutureStatus;
+	}
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
-	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
-		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
 		bNeedCancel = true;
 	}
 
@@ -5060,6 +5064,9 @@ static xnet_result __xnetSyncWaitListenerSyncCoreEx(xnetlistener* pListener, int
 	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
+		if ( *ppValue != NULL ) {
+			iStatus = XRT_NET_OK;
+		}
 	}
 
 	// 销毁 Future
@@ -5076,6 +5083,7 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
+	xnet_result iFutureStatus;
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
@@ -5095,10 +5103,13 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 	else {
 		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
 	}
+	iFutureStatus = xrtNetFutureStatus(pFuture);
+	if ( iFutureStatus != XRT_NET_AGAIN && (iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		iStatus = iFutureStatus;
+	}
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
-	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
-		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
 		bNeedCancel = true;
 	}
 
@@ -5114,6 +5125,9 @@ static xnet_result __xnetSyncWaitDgramSyncCoreEx(xdgramsock* pSock, int iWaitMod
 	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
+		if ( *ppValue != NULL ) {
+			iStatus = XRT_NET_OK;
+		}
 	}
 
 	// 销毁 Future
@@ -5137,6 +5151,7 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
+	xnet_result iFutureStatus;
 	bool bNeedCancel = false;
 
 	if ( ppValue ) { *ppValue = NULL; }
@@ -5156,10 +5171,13 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 	else {
 		iStatus = xrtNetFutureWaitUntil(pFuture, iDeadlineMs);
 	}
+	iFutureStatus = xrtNetFutureStatus(pFuture);
+	if ( iFutureStatus != XRT_NET_AGAIN && (iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		iStatus = iFutureStatus;
+	}
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
-	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
-		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
 		bNeedCancel = true;
 	}
 
@@ -5175,6 +5193,9 @@ static xnet_result __xnetSyncWaitStreamSyncCoreEx(xnetstream* pStream, uint32 iW
 	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
+		if ( *ppValue != NULL ) {
+			iStatus = XRT_NET_OK;
+		}
 	}
 
 	// 销毁 Future
@@ -5455,6 +5476,7 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
+	xnet_result iFutureStatus;
 	str sErr = NULL;
 	bool bNeedCancel = false;
 
@@ -5481,10 +5503,13 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	else {
 		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
 	}
+	iFutureStatus = xrtNetFutureStatus(pFuture);
+	if ( iFutureStatus != XRT_NET_AGAIN && (iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		iStatus = iFutureStatus;
+	}
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
-	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
-		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
 		bNeedCancel = true;
 	}
 
@@ -5501,6 +5526,9 @@ static xnet_result __xnetSyncWaitStreamCoCoreEx(xnetstream* pStream, uint32 iWai
 	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
+		if ( *ppValue != NULL ) {
+			iStatus = XRT_NET_OK;
+		}
 	}
 
 	// 销毁 Future, 检查是否有错误
@@ -5527,6 +5555,7 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
+	xnet_result iFutureStatus;
 	str sErr = NULL;
 	bool bNeedCancel = false;
 
@@ -5553,10 +5582,13 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	else {
 		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
 	}
+	iFutureStatus = xrtNetFutureStatus(pFuture);
+	if ( iFutureStatus != XRT_NET_AGAIN && (iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		iStatus = iFutureStatus;
+	}
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
-	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
-		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
 		bNeedCancel = true;
 	}
 
@@ -5573,6 +5605,9 @@ static xnet_result __xnetSyncWaitListenerCoCoreEx(xnetlistener* pListener, int i
 	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
+		if ( *ppValue != NULL ) {
+			iStatus = XRT_NET_OK;
+		}
 	}
 
 	// 销毁 Future, 检查是否有错误
@@ -5599,6 +5634,7 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 {
 	xnetfuture* pFuture = NULL;
 	xnet_result iStatus = XRT_NET_ERROR;
+	xnet_result iFutureStatus;
 	str sErr = NULL;
 	bool bNeedCancel = false;
 
@@ -5625,10 +5661,13 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	else {
 		iStatus = xrtNetFutureWaitCoUntil(pFuture, iDeadlineMs);
 	}
+	iFutureStatus = xrtNetFutureStatus(pFuture);
+	if ( iFutureStatus != XRT_NET_AGAIN && (iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+		iStatus = iFutureStatus;
+	}
 
 	// 如果等待超时或失败且 Future 仍在等待, 需要取消
-	if ( xrtNetFutureStatus(pFuture) == XRT_NET_AGAIN &&
-		(iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR) ) {
+	if ( iStatus == XRT_NET_TIMEOUT || iStatus == XRT_NET_ERROR ) {
 		bNeedCancel = true;
 	}
 
@@ -5645,6 +5684,9 @@ static xnet_result __xnetSyncWaitDgramCoCoreEx(xdgramsock* pSock, int iWaitMode,
 	// 获取结果值
 	if ( ppValue ) {
 		*ppValue = xrtNetFutureValue(pFuture);
+		if ( *ppValue != NULL ) {
+			iStatus = XRT_NET_OK;
+		}
 	}
 
 	// 销毁 Future, 检查是否有错误

@@ -55,7 +55,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		printf("Subject 3 : 使用宏迭代（idx + val）\n");
 		
 		count = 0;
-		LIST_FOREACH(objList, idx, val) {
+		XRT_LIST_FOREACH(objList, idx, val) {
 			Employee* pEmp = val;
 			printf("\t[%d] Index: %ld\n", ++count, idx);
 			printf("\t    Value: %s, %d岁, %.2f\n", pEmp->Name, pEmp->Age, pEmp->Salary);
@@ -68,7 +68,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		printf("Subject 4 : 使用带类型的宏迭代\n");
 		
 		count = 0;
-		LIST_FOREACH_TYPE(objList, idx, val, Employee*) {
+		XRT_LIST_FOREACH_TYPE(objList, idx, val, Employee*) {
 			printf("\t[%d] Index: %ld\n", ++count, idx);
 			printf("\t    Value: %s, %d岁, %.2f\n", val->Name, val->Age, val->Salary);
 		}
@@ -82,7 +82,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		xlist emptyList = xrtListCreate(sizeof(int), XRT_OBJMODE_LOCAL);
 		if ( emptyList ) {
 			count = 0;
-			LIST_FOREACH(emptyList, idx, val) {
+			XRT_LIST_FOREACH(emptyList, idx, val) {
 				count++;
 				printf("\t不应该执行到这里！\n");
 			}
@@ -96,7 +96,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		printf("Subject 6 : 提前退出测试\n");
 		
 		count = 0;
-		LIST_FOREACH(objList, idx, val) {
+		XRT_LIST_FOREACH(objList, idx, val) {
 			count++;
 			Employee* pEmp = (Employee*)val;
 			printf("\t[%d] %ld\n", count, idx);
@@ -125,7 +125,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 			// 迭代并验证
 			count = 0;
 			int sum = 0;
-			LIST_FOREACH_TYPE(largeList, idx, pVal, int*) {
+			XRT_LIST_FOREACH_TYPE(largeList, idx, pVal, int*) {
 				count++;
 				sum += *pVal;
 			}
@@ -141,12 +141,12 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 		// subject 8 : 测试修改值
 		printf("Subject 8 : 迭代时修改值\n");
 		
-		LIST_FOREACH_TYPE(objList, idx, pEmp, Employee*) {
+		XRT_LIST_FOREACH_TYPE(objList, idx, pEmp, Employee*) {
 			pEmp->Salary *= 1.1;  // 涨薪 10%
 		}
 		
 		count = 0;
-		LIST_FOREACH_TYPE(objList, idx, pEmp, Employee*) {
+		XRT_LIST_FOREACH_TYPE(objList, idx, pEmp, Employee*) {
 			printf("\t[%d] %ld: %.2f\n", ++count, idx, pEmp->Salary);
 		}
 		printf("\t所有员工薪资已上调 10%%\n\n");
@@ -171,7 +171,7 @@ void Test_List_Iterator(xrtGlobalData* xCore)
 			
 			// 迭代并释放
 			count = 0;
-			LIST_FOREACH_TYPE(ptrList, idx, pVal, ptr*) {
+			XRT_LIST_FOREACH_TYPE(ptrList, idx, pVal, ptr*) {
 				printf("\t[%d] %ld -> %s\n", ++count, idx, (char*)*pVal);
 				xrtFree(*pVal);  // 释放指针指向的内存
 			}

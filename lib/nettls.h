@@ -2979,7 +2979,7 @@ static bool __xrt_tls_copy_der_data(const void* pData, size_t iLen, uint8** ppDe
 
 
 // 内部函数：追加 TLS pem 证书
-static bool __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, size_t iDerLen)
+static bool UNUSED_ATTR __xrt_tls_append_pem_cert(__xrt_tls_buf* pBuf, const uint8* pDer, size_t iDerLen)
 {
 	static const char sBegin[] = "-----BEGIN CERTIFICATE-----\n";
 	static const char sEnd[] = "-----END CERTIFICATE-----\n";

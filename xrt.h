@@ -7374,7 +7374,7 @@
 	#define LIST_BREAK AVLTBASE_BREAK
 	
 	// 基础遍历宏
-	#define LIST_FOREACH(tree, idx, val) \
+	#define XRT_LIST_FOREACH(tree, idx, val) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
 		bool __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1; \
 		int64* __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree); \
@@ -7382,7 +7382,7 @@
 			for ( ptr val = (ptr)(&__XRT_CONCATLINE(__xrt_iter_data_, __LINE__)[1]); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__); __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 0 )
 	
 	// 带类型转换的遍历宏
-	#define LIST_FOREACH_TYPE(tree, idx, val, type) \
+	#define XRT_LIST_FOREACH_TYPE(tree, idx, val, type) \
 		xrtAVLTB_IterBegin((xavltbase)tree); \
 		bool __XRT_CONCATLINE(__xrt_iter_break_, __LINE__) = 1; \
 		int64* __XRT_CONCATLINE(__xrt_iter_data_, __LINE__) = xrtAVLTB_IterNext((xavltbase)tree); \
@@ -8926,5 +8926,3 @@
 	#endif
 
 #endif
-
-

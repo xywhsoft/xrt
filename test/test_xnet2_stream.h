@@ -234,8 +234,9 @@ static void __Test_XNet2_StreamRelease(ptr pCtx, const void* pData, size_t iLen)
 
 
 // XNET2STREAM测试
-void Test_XNet2_Stream(void)
+int Test_XNet2_Stream(void)
 {
+	int iFailCount = 0;
 	printf("\n\n\n------------------------------------\n\n XNet2 Stream Skeleton Test:\n\n");
 
 	{
@@ -534,10 +535,14 @@ void Test_XNet2_Stream(void)
 		socklen_t iAddrLen = 0;
 		xnetaddr tPeerAddr;
 		char* pPayload = NULL;
-		#if defined(_WIN32) || defined(_WIN64)
-			size_t iPayloadLen = 1024u * 1024u;
-			uint32 iReadLoopLimit = 300u;
-			uint32 iDrainWaitMs = 1000u;
+			#if defined(__ANDROID__)
+				size_t iPayloadLen = 128u * 1024u;
+				uint32 iReadLoopLimit = 2000u;
+				uint32 iDrainWaitMs = 10000u;
+			#elif defined(_WIN32) || defined(_WIN64)
+				size_t iPayloadLen = 1024u * 1024u;
+				uint32 iReadLoopLimit = 300u;
+				uint32 iDrainWaitMs = 1000u;
 		#else
 			size_t iPayloadLen = 256u * 1024u;
 			uint32 iReadLoopLimit = 800u;
@@ -637,10 +642,19 @@ void Test_XNet2_Stream(void)
 			__Test_XNet2_StreamSleepMs(10);
 		}
 
-		printf("  Slow-peer raw client drains payload : %s\n", iReadTotal == iPayloadLen ? "PASS" : "FAIL");
-		printf("  Slow-peer drain callback fires : %s\n", __Test_XNet2_StreamWaitMin(&tServerStats.iDrainCount, 1, iDrainWaitMs) ? "PASS" : "FAIL");
-		printf("  Slow-peer pending send returns zero : %s\n", pAccepted && __Test_XNet2_StreamWaitPendingSend(pAccepted, 0, iDrainWaitMs) ? "PASS" : "FAIL");
-		printf("  Slow-peer path stays error free : %s\n", __Test_XNet2_StreamAtomicLoad(&tServerStats.iErrorCount) == 0 ? "PASS" : "FAIL");
+		{
+			bool bDrainPayload = iReadTotal == iPayloadLen;
+			bool bDrainCallback = __Test_XNet2_StreamWaitMin(&tServerStats.iDrainCount, 1, iDrainWaitMs);
+			bool bPendingZero = pAccepted && __Test_XNet2_StreamWaitPendingSend(pAccepted, 0, iDrainWaitMs);
+			bool bErrorFree = __Test_XNet2_StreamAtomicLoad(&tServerStats.iErrorCount) == 0;
+			printf("  Slow-peer raw client drains payload : %s\n", bDrainPayload ? "PASS" : "FAIL");
+			printf("  Slow-peer drain callback fires : %s\n", bDrainCallback ? "PASS" : "FAIL");
+			printf("  Slow-peer pending send returns zero : %s\n", bPendingZero ? "PASS" : "FAIL");
+			printf("  Slow-peer path stays error free : %s\n", bErrorFree ? "PASS" : "FAIL");
+			if ( !bDrainPayload || !bDrainCallback || !bPendingZero || !bErrorFree ) {
+				++iFailCount;
+			}
+		}
 
 		if ( __xnetSocketIsValid(hPeer) ) {
 			__xnetSocketCloseHandle(&hPeer);
@@ -659,4 +673,5 @@ void Test_XNet2_Stream(void)
 			xrtNetEngineDestroy(pEngine);
 		}
 	}
+	return iFailCount == 0 ? 0 : 1;
 }

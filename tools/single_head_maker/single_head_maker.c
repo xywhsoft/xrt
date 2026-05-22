@@ -24,7 +24,11 @@
 #define XRT_NO_LOGGER
 
 #define XRT_IMPLEMENTATION
-#include "../../singlehead/xrt.h"
+#if defined(XRT_SINGLE_HEAD_MAKER_USE_SOURCE)
+	#include "../../xrt.h"
+#else
+	#include "../../singlehead/xrt.h"
+#endif
 
 
 #define MAKER_MAX_PATH 4096
@@ -225,6 +229,23 @@ void ResolvePath(const char* baseFile, const char* includePath, char* result, co
 }
 
 
+const char* GetDisplayPath(const char* filePath, const char* sourceDir)
+{
+	size_t iSourceLen;
+	if ( !filePath || !sourceDir || sourceDir[0] == '\0' ) {
+		return filePath;
+	}
+	iSourceLen = strlen(sourceDir);
+	if ( strncmp(filePath, sourceDir, iSourceLen) != 0 ) {
+		return filePath;
+	}
+	if ( filePath[iSourceLen] == '/' || filePath[iSourceLen] == '\\' ) {
+		return filePath + iSourceLen + 1;
+	}
+	return filePath;
+}
+
+
 int ShouldSkipInclude(const char* includePath, const char* skipInclude)
 {
 	if ( !skipInclude || skipInclude[0] == '\0' ) {
@@ -277,7 +298,7 @@ void ProcessIncludes(FILE* out, const char* filePath, int depth, int* totalLines
 	
 	fprintf(out, "\n");
 	fprintf(out, "// ========================================\n");
-	fprintf(out, "// File: %s\n", filePath);
+	fprintf(out, "// File: %s\n", GetDisplayPath(filePath, sourceDir));
 	fprintf(out, "// ========================================\n");
 	fprintf(out, "\n");
 	

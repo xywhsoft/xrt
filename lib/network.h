@@ -121,7 +121,47 @@ str xrtGetLocalMAC()
 			xrtFree(pAdapterInfo);
 		}
 		return sRet;
-	#else
+	#elif defined(__linux__)
+		str sRet = xCore.sNull;
+
+		#if !defined(__ANDROID__) || !defined(__ANDROID_API__) || __ANDROID_API__ >= 24
+		struct ifaddrs* pIfList = NULL;
+		struct ifaddrs* pIf = NULL;
+		if ( getifaddrs(&pIfList) == 0 ) {
+			for ( pIf = pIfList; pIf != NULL; pIf = pIf->ifa_next ) {
+				const struct sockaddr_ll* pAddr;
+				const uint8* pMac;
+				bool bZero = true;
+				if ( pIf->ifa_addr == NULL || pIf->ifa_addr->sa_family != AF_PACKET ) {
+					continue;
+				}
+				if ( (pIf->ifa_flags & IFF_LOOPBACK) != 0 || (pIf->ifa_flags & IFF_UP) == 0 ) {
+					continue;
+				}
+				pAddr = (const struct sockaddr_ll*)pIf->ifa_addr;
+				if ( pAddr->sll_halen != 6 ) {
+					continue;
+				}
+				pMac = (const uint8*)pAddr->sll_addr;
+				for ( int i = 0; i < 6; ++i ) {
+					if ( pMac[i] != 0 ) {
+						bZero = false;
+						break;
+					}
+				}
+				if ( bZero ) {
+					continue;
+				}
+				sRet = xrtHexEncode((ptr)pMac, 6);
+				break;
+			}
+			freeifaddrs(pIfList);
+			if ( sRet != xCore.sNull ) {
+				return sRet;
+			}
+		}
+		#endif
+
 		struct ifreq buf[16];
 		struct ifconf ifc;
 		int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -142,21 +182,130 @@ str xrtGetLocalMAC()
 			close(fd);
 			return xCore.sNull;
 		}
-		interfaceNum--;
-		struct ifreq ifrcopy = buf[interfaceNum];
-		if ( ioctl(fd, SIOCGIFFLAGS, &ifrcopy) ) {
-			xrtSetError(xrtFormat("ioctl (SIOCGIFFLAGS) : %s [%s:%d]", strerror(errno), __FILE__, __LINE__), TRUE);
-			close(fd);
-			return xCore.sNull;
+		for ( int i = 0; i < interfaceNum; ++i ) {
+			struct ifreq ifrFlags = buf[i];
+			struct ifreq ifrHw = buf[i];
+			uint8* pMac;
+			bool bZero = true;
+			if ( ioctl(fd, SIOCGIFFLAGS, &ifrFlags) != 0 ) {
+				continue;
+			}
+			if ( (ifrFlags.ifr_flags & IFF_LOOPBACK) != 0 || (ifrFlags.ifr_flags & IFF_UP) == 0 ) {
+				continue;
+			}
+			if ( ioctl(fd, SIOCGIFHWADDR, &ifrHw) != 0 ) {
+				continue;
+			}
+			pMac = (uint8*)ifrHw.ifr_hwaddr.sa_data;
+			for ( int j = 0; j < 6; ++j ) {
+				if ( pMac[j] != 0 ) {
+					bZero = false;
+					break;
+				}
+			}
+			if ( bZero ) {
+				continue;
+			}
+			sRet = xrtHexEncode(pMac, 6);
+			break;
 		}
-		if ( ioctl(fd, SIOCGIFHWADDR, (char *)(&buf[interfaceNum])) ) {
-			xrtSetError(xrtFormat("ioctl (SIOCGIFHWADDR) : %s [%s:%d]", strerror(errno), __FILE__, __LINE__), TRUE);
-			close(fd);
-			return xCore.sNull;
-		}
-		str sRet = xrtHexEncode(buf[interfaceNum].ifr_hwaddr.sa_data, 6);
 		close(fd);
+		if ( sRet == xCore.sNull ) {
+			DIR* pDir = opendir("/sys/class/net");
+			if ( pDir ) {
+				struct dirent* pEntry;
+				while ( (pEntry = readdir(pDir)) != NULL ) {
+					char sPath[512];
+					char sLine[64];
+					unsigned int arrMac[6];
+					bool bZero = true;
+					FILE* pFile;
+					if ( strcmp(pEntry->d_name, ".") == 0 || strcmp(pEntry->d_name, "..") == 0 || strcmp(pEntry->d_name, "lo") == 0 ) {
+						continue;
+					}
+					snprintf(sPath, sizeof(sPath), "/sys/class/net/%s/address", pEntry->d_name);
+					pFile = fopen(sPath, "r");
+					if ( !pFile ) {
+						continue;
+					}
+					if ( fgets(sLine, sizeof(sLine), pFile) == NULL ) {
+						fclose(pFile);
+						continue;
+					}
+					fclose(pFile);
+					if ( sscanf(sLine, "%02x:%02x:%02x:%02x:%02x:%02x",
+						&arrMac[0], &arrMac[1], &arrMac[2], &arrMac[3], &arrMac[4], &arrMac[5]) != 6 ) {
+						continue;
+					}
+					for ( int j = 0; j < 6; ++j ) {
+						if ( arrMac[j] != 0 ) {
+							bZero = false;
+							break;
+						}
+					}
+					if ( bZero ) {
+						continue;
+					}
+					{
+						uint8 arrBytes[6];
+						for ( int j = 0; j < 6; ++j ) {
+							arrBytes[j] = (uint8)(arrMac[j] & 0xFFu);
+						}
+						sRet = xrtHexEncode(arrBytes, 6);
+					}
+					break;
+				}
+				closedir(pDir);
+			}
+		}
+		if ( sRet == xCore.sNull ) {
+			xrtSetError("Network device not found !", FALSE);
+		}
 		return sRet;
+	#elif defined(__APPLE__) && defined(__MACH__)
+		struct ifaddrs* pIfList = NULL;
+		struct ifaddrs* pIf = NULL;
+		str sRet = xCore.sNull;
+
+		if ( getifaddrs(&pIfList) != 0 ) {
+			xrtSetError(xrtFormat("getifaddrs : %s [%s:%d]", strerror(errno), __FILE__, __LINE__), TRUE);
+			return xCore.sNull;
+		}
+		for ( pIf = pIfList; pIf != NULL; pIf = pIf->ifa_next ) {
+			const struct sockaddr_dl* pAddr;
+			const uint8* pMac;
+			bool bZero = true;
+			if ( pIf->ifa_addr == NULL || pIf->ifa_addr->sa_family != AF_LINK ) {
+				continue;
+			}
+			if ( (pIf->ifa_flags & IFF_LOOPBACK) != 0 || (pIf->ifa_flags & IFF_UP) == 0 ) {
+				continue;
+			}
+			pAddr = (const struct sockaddr_dl*)pIf->ifa_addr;
+			if ( pAddr->sdl_type != IFT_ETHER || pAddr->sdl_alen != 6 ) {
+				continue;
+			}
+			pMac = (const uint8*)LLADDR(pAddr);
+			for ( int i = 0; i < 6; ++i ) {
+				if ( pMac[i] != 0 ) {
+					bZero = false;
+					break;
+				}
+			}
+			if ( bZero ) {
+				continue;
+			}
+			sRet = xrtHexEncode((ptr)pMac, 6);
+			break;
+		}
+		freeifaddrs(pIfList);
+		if ( sRet == xCore.sNull ) {
+			xrtSetError("Network device not found !", FALSE);
+		}
+		return sRet;
+	#else
+		xrtSetError("network MAC address query is not implemented on this platform", FALSE);
+		return xCore.sNull;
 	#endif
 }
 
@@ -234,5 +383,3 @@ str xrtGetLocalName()
 	}
 	return xCore.sNull;
 }
-
-

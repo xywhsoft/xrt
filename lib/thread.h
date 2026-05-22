@@ -4,7 +4,7 @@
 /* ================================ 线程管理 ================================ */
 
 #if !defined(_WIN32) && !defined(_WIN64)
-	#if defined(CLOCK_MONOTONIC)
+	#if defined(CLOCK_MONOTONIC) && !defined(__APPLE__)
 		#define __XRT_THREAD_WAIT_CLOCK CLOCK_MONOTONIC
 	#else
 		#define __XRT_THREAD_WAIT_CLOCK CLOCK_REALTIME
@@ -29,7 +29,7 @@
 		pthread_condattr_t tAttr;
 		if ( !pCond ) { return false; }
 		if ( pthread_condattr_init(&tAttr) != 0 ) { return false; }
-		#if defined(CLOCK_MONOTONIC)
+		#if defined(CLOCK_MONOTONIC) && !defined(__APPLE__)
 			(void)pthread_condattr_setclock(&tAttr, CLOCK_MONOTONIC);
 		#endif
 		if ( pthread_cond_init(pCond, &tAttr) != 0 ) {
@@ -1143,6 +1143,5 @@ XXAPI bool xrtRWLockUpgrade(xrwlock pRWLock)
 	__xrtRWLockStateUnlock(pRWLock);
 	return TRUE;
 }
-
 
 
