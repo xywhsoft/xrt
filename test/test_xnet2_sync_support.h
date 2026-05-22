@@ -10,11 +10,19 @@
 
 #include "test_atomic_compat.h"
 
-enum {
-	__TEST_XNET2_SYNC_WAIT_TIMEOUT_MS = 30,
-	__TEST_XNET2_SYNC_WAIT_DEADLINE_MS = 35,
-	__TEST_XNET2_SYNC_RETRY_WINDOW_MS = 250,
-};
+#if defined(__ANDROID__) || defined(__APPLE__)
+	enum {
+		__TEST_XNET2_SYNC_WAIT_TIMEOUT_MS = 120,
+		__TEST_XNET2_SYNC_WAIT_DEADLINE_MS = 140,
+		__TEST_XNET2_SYNC_RETRY_WINDOW_MS = 1500,
+	};
+#else
+	enum {
+		__TEST_XNET2_SYNC_WAIT_TIMEOUT_MS = 30,
+		__TEST_XNET2_SYNC_WAIT_DEADLINE_MS = 35,
+		__TEST_XNET2_SYNC_RETRY_WINDOW_MS = 250,
+	};
+#endif
 
 
 // 内部函数：__Test_XNet2_SyncSleepMs

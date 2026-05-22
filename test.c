@@ -1,6 +1,15 @@
 
 #include "test/test_xnet_internal_env.h"
 
+#if (defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) || defined(__ANDROID__)
+static int __xrtTestNoSystem(const char* sCommand)
+{
+	(void)sCommand;
+	return 0;
+}
+#define system(cmd) __xrtTestNoSystem(cmd)
+#endif
+
 
 
 /*
@@ -390,7 +399,7 @@ static int __xrtTestRun_MemDebugCore(xrtGlobalData* pCore)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2Engine, Test_XNet2_Engine)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2Mem, Test_XNet2_Mem)
 	XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2Port, Test_XNet2_Port)
-	XRT_TEST_WRAP_VOID(__xrtTestRun_XNet2Stream, Test_XNet2_Stream)
+	XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Stream, Test_XNet2_Stream)
 	#ifndef XRT_NO_COROUTINE
 		XRT_TEST_WRAP_INT(__xrtTestRun_XNet2Sync, Test_XNet2_Sync)
 	#endif

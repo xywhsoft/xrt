@@ -784,11 +784,22 @@ static bool __xnetStreamUseNativePortIO(xnetstream* pStream)
 			((pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
 			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort)) ||
 			(pStream->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
-			__xnetPortEpollReady(&pStream->pWorker->tPort))) &&
+			__xnetPortEpollReady(&pStream->pWorker->tPort)) ||
+			(pStream->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pStream->pWorker->tPort))) &&
+			__xnetSocketIsValid(pStream->hSocket);
+	#elif defined(__APPLE__) && defined(__MACH__)
+		return pStream && pStream->pWorker &&
+			((pStream->pWorker->tPort.pOps == xrtNetPortKqueueOps() &&
+			__xnetPortKqueueReady(&pStream->pWorker->tPort)) ||
+			(pStream->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pStream->pWorker->tPort))) &&
 			__xnetSocketIsValid(pStream->hSocket);
 	#else
-		(void)pStream;
-		return false;
+		return pStream && pStream->pWorker &&
+			pStream->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pStream->pWorker->tPort) &&
+			__xnetSocketIsValid(pStream->hSocket);
 	#endif
 }
 
@@ -804,10 +815,19 @@ static bool __xnetStreamUseNativePortOps(xnetstream* pStream)
 			((pStream->pWorker->tPort.pOps == xrtNetPortUringOps() &&
 			__xnetPortUringHasNativeRing(&pStream->pWorker->tPort)) ||
 			(pStream->pWorker->tPort.pOps == xrtNetPortEpollOps() &&
-			__xnetPortEpollReady(&pStream->pWorker->tPort)));
+			__xnetPortEpollReady(&pStream->pWorker->tPort)) ||
+			(pStream->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pStream->pWorker->tPort)));
+	#elif defined(__APPLE__) && defined(__MACH__)
+		return pStream && pStream->pWorker &&
+			((pStream->pWorker->tPort.pOps == xrtNetPortKqueueOps() &&
+			__xnetPortKqueueReady(&pStream->pWorker->tPort)) ||
+			(pStream->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pStream->pWorker->tPort)));
 	#else
-		(void)pStream;
-		return false;
+		return pStream && pStream->pWorker &&
+			pStream->pWorker->tPort.pOps == xrtNetPortSelectOps() &&
+			__xnetPortSelectReady(&pStream->pWorker->tPort);
 	#endif
 }
 
@@ -1108,11 +1128,25 @@ static bool __xnetStreamTlsReady(const xnetstream* pStream)
 }
 
 
+// 内部函数：__xnetStreamTryMarkCloseEmitted
+static bool __xnetStreamTryMarkCloseEmitted(xnetstream* pStream)
+{
+	long iOldState;
+	long iNewState;
+	if ( !pStream ) { return false; }
+	do {
+		iOldState = __xnetAtomicLoad32((volatile long*)&pStream->iState);
+		if ( (iOldState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) { return false; }
+		iNewState = iOldState | __XNET_STREAM_STATE_CLOSE_EMITTED;
+	} while ( __xnetAtomicCompareExchange32((volatile long*)&pStream->iState, iNewState, iOldState) != iOldState );
+	return true;
+}
+
+
 // 内部函数：__xnetStreamEmitClose
 static void __xnetStreamEmitClose(xnetstream* pStream, xnet_result iReason)
 {
-	if ( !pStream || (pStream->iState & __XNET_STREAM_STATE_CLOSE_EMITTED) != 0 ) { return; }
-	pStream->iState |= __XNET_STREAM_STATE_CLOSE_EMITTED;
+	if ( !__xnetStreamTryMarkCloseEmitted(pStream) ) { return; }
 	pStream->iCloseReason = iReason;
 	__xnetStreamNotifySyncReadable(pStream, iReason);
 	__xnetStreamNotifySyncWritable(pStream, iReason);
@@ -1521,11 +1555,10 @@ static bool __xnetStreamDrainTlsPlain(xnetstream* pStream)
 		if ( iRes == XRT_NET_AGAIN ) { break; }
 		// 对端关闭了 TLS 连接
 		if ( iRes == XRT_NET_CLOSED ) {
-			if ( pStream->bClosing && (pStream->iFlags & XNET_CLOSE_F_ABORT) == 0 ) {
-				__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
-			} else {
-				xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+			if ( bReadAny && !pStream->bReadPaused ) {
+				__xnetStreamDispatchRecv(pStream);
 			}
+			__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 			return false;
 		}
 		// TLS 解密遇到错误
@@ -1875,14 +1908,19 @@ static void __xnetStreamFinalizeSocketClose(xnetstream* pStream)
 // 内部函数：__xnetStreamFinishClose
 static void __xnetStreamFinishClose(xnetstream* pStream, xnet_result iReason)
 {
-	if ( !pStream ) { return; }
+	if ( !__xnetStreamTryMarkCloseEmitted(pStream) ) { return; }
+	pStream->iCloseReason = iReason;
 	__xnetStreamCancelOpenTimer(pStream);
 	__xnetStreamClearProxyState(pStream);
 	__xnetStreamFinalizeSocketClose(pStream);
 	__xnetStreamNotifySyncReadable(pStream, iReason);
+	__xnetStreamNotifySyncWritable(pStream, iReason);
 	__xnetStreamNotifySyncDrain(pStream, iReason);
+	__xnetStreamNotifySyncClose(pStream, iReason);
 	__xnetStreamDetachTls(pStream);
-	__xnetStreamEmitClose(pStream, iReason);
+	if ( pStream->pEvents && pStream->pEvents->OnClose ) {
+		pStream->pEvents->OnClose(__xnetStreamOwner(pStream), pStream, iReason);
+	}
 }
 
 
@@ -1928,13 +1966,26 @@ static size_t __xnetStreamCompleteWrite(xnetstream* pStream, size_t iBytes)
 {
 	bool bNeedResubmit;
 	if ( !pStream ) { return 0; }
+	__xnetStreamAddAsyncHold(pStream);
 	pStream->tSendQ.bWritePosted = false;
 	iBytes = __xnetStreamConsumeSendQueue(pStream, iBytes);
+	if ( pStream->bClosing &&
+		(pStream->iFlags & XNET_CLOSE_F_ABORT) == 0 &&
+		pStream->tSendQ.iQueuedBytes == 0 ) {
+		if ( (pStream->iFlags & XNET_CLOSE_F_WAIT_PEER) != 0 ) {
+			__xnetStreamBeginGracefulCloseWait(pStream);
+		} else {
+			__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
+		}
+		__xnetStreamReleaseAsyncHold(pStream);
+		return iBytes;
+	}
 	bNeedResubmit = pStream->tSendQ.iQueuedBytes > 0 && !pStream->tSendQ.bWritePosted &&
 		__xnetSocketIsValid(pStream->hSocket);
 	if ( bNeedResubmit ) {
 		__xnetStreamKickWrite(pStream);
 	}
+	__xnetStreamReleaseAsyncHold(pStream);
 	return iBytes;
 }
 
@@ -3263,7 +3314,7 @@ static void __xnetStreamOnPortEvents(xnetworker* pWorker, const xnetportevent* p
 				#endif
 				// 对端关闭连接或 EOF
 				if ( pEvent->iStatus == XRT_NET_CLOSED || (pEvent->iFlags & XNET_PORT_EVENT_F_EOF) != 0 ) {
-					xrtNetStreamClose(pStream, XNET_CLOSE_F_ABORT);
+					__xnetStreamFinishClose(pStream, XRT_NET_CLOSED);
 				} else if ( pEvent->iStatus != XRT_NET_OK ) {
 					// 接收错误
 					if ( pStream->pEvents && pStream->pEvents->OnError ) {

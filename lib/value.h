@@ -18,6 +18,14 @@ static xvalue_struct XVO_VALUE_FALSE = {
 	.vBool = FALSE
 };
 
+#ifndef MAKE_COLL_KEY
+	#if defined(__x86_64__) || defined(_M_X64) || UINTPTR_MAX > 0xffffffffu
+		#define MAKE_COLL_KEY(k, v) if ( (v)->Type == XVO_DT_TEXT ) { uint64 iHash = xrtHash64((v)->vText, (v)->Size); (k).Hash = ((uint64)(v)->Type << 60) | ((uint64)(v)->Size << 28) | (iHash & 0xFFFFFFF); } else if ( (v)->Type == XVO_DT_BOOL ) { (k).Hash = ((uint64)(v)->Type << 60) | (v)->vBool; } else if ( (v)->Type == XVO_DT_NULL ) { (k).Hash = (uint64)(v)->Type << 60; } else { (k).Hash = ((uint64)(v)->Type << 60) | ((v)->vInt & 0xFFFFFFFFFFFFFFF); } (k).Value = (v);
+	#else
+		#define MAKE_COLL_KEY(k, v) if ( (v)->Type == XVO_DT_TEXT ) { uint32 iHash = xrtHash32((v)->vText, (v)->Size); (k).Hash = ((uint64)(v)->Type << 60) | ((uint64)(v)->Size << 28) | (iHash & 0xFFFFFFF); } else if ( (v)->Type == XVO_DT_BOOL ) { (k).Hash = ((uint64)(v)->Type << 60) | (v)->vBool; } else if ( (v)->Type == XVO_DT_NULL ) { (k).Hash = (uint64)(v)->Type << 60; } else { (k).Hash = ((uint64)(v)->Type << 60) | ((v)->vInt & 0xFFFFFFFFFFFFFFF); } (k).Value = (v);
+	#endif
+#endif
+
 
 
 // 引用计数操作
@@ -2325,5 +2333,4 @@ XXAPI void xvoPrintValue(xvalue objVal, int iLevel, int iMode, int64 iKey, str s
 		}
 	}
 }
-
 

@@ -33,12 +33,27 @@
 	#include <sys/stat.h>
 	#include <net/if.h>
 	#include <sys/ioctl.h>
-	#include <sys/epoll.h>
+	#if defined(__linux__)
+		#if !defined(__ANDROID__) || !defined(__ANDROID_API__) || __ANDROID_API__ >= 24
+			#include <ifaddrs.h>
+		#endif
+		#include <sys/epoll.h>
+		#include <sys/syscall.h>
+		#include <sys/eventfd.h>
+		#include <sys/mman.h>
+		#include <netpacket/packet.h>
+		#include <sched.h>
+	#endif
+	#if defined(__APPLE__) && defined(__MACH__)
+		#include <ifaddrs.h>
+		#include <mach-o/dyld.h>
+		#include <net/if_dl.h>
+		#include <net/if_types.h>
+		#include <sys/event.h>
+	#endif
 	#include <poll.h>
-	#include <sys/syscall.h>
-	#include <sys/eventfd.h>
+	#include <sys/select.h>
 	#include <sys/uio.h>
-	#include <sched.h>
 	#include <errno.h>
 	#include <wchar.h>
 	#include <netdb.h>
@@ -47,10 +62,19 @@
 #endif
 
 
+#if defined(__APPLE__) && defined(__MACH__)
+	extern char** environ;
+	static int UNUSED_ATTR clearenv(void)
+	{
+		environ = NULL;
+		return 0;
+	}
+#endif
+
 
 // 全局数据
 static const unsigned char __xrt_sNullBytes[4] = "\0\0\0";
-xrtGlobalData xCore = { FALSE };
+xrtGlobalData xCore = { 0 };
 
 #if defined(_WIN32) || defined(_WIN64)
 	#if !defined(XRT_NO_NETWORK) || !defined(XRT_NO_NETTLS)
@@ -313,6 +337,8 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/xnet_port_iocp.h"
 	#include "lib/xnet_port_uring.h"
 	#include "lib/xnet_port_epoll.h"
+	#include "lib/xnet_port_kqueue.h"
+	#include "lib/xnet_port_select.h"
 	#ifndef XRT_NO_XCODEC
 		#include "lib/xcodec.h"
 		#include "lib/xcodec_http1.h"
@@ -321,7 +347,7 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/xnet_engine.h"
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 	#pragma GCC push_options
 	#pragma GCC optimize ("no-strict-aliasing")
 #endif
@@ -334,7 +360,7 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/nettls.h"
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__clang__)
 	#pragma GCC pop_options
 #endif
 
@@ -1451,17 +1477,23 @@ XXAPI xrtGlobalData* xrtInit()
 			xCore.AppPath = xrtPathGetDir(xCore.AppFile, iRetSize);
 		#else
 			str sTemp = malloc(4096);
-			ssize_t iSize = readlink("/proc/self/exe", sTemp, 4096);
-			if ( iSize == -1 ) {
-				// 无法读取程序路径
-				free(sTemp);
+			ssize_t iSize = -1;
+			#if defined(__APPLE__) && defined(__MACH__)
+				uint32_t iBufSize = 4096u;
+				if ( sTemp && _NSGetExecutablePath((char*)sTemp, &iBufSize) == 0 ) {
+					iSize = (ssize_t)strlen((const char*)sTemp);
+				}
+			#else
+				iSize = readlink("/proc/self/exe", sTemp, 4096);
+			#endif
+			if ( iSize >= 0 ) {
+				xCore.AppFile = xrtCopyStr(sTemp, (size_t)iSize);
+				xCore.AppPath = xrtPathGetDir(xCore.AppFile, (size_t)iSize);
+			} else {
 				xCore.AppFile = xCore.sNull;
 				xCore.AppPath = xCore.sNull;
-			} else {
-				xCore.AppFile = xrtCopyStr(sTemp, iSize);
-				free(sTemp);
-				xCore.AppPath = xrtPathGetDir(xCore.AppFile, iSize);
 			}
+			free(sTemp);
 		#endif
 
 		// 初始化 socket

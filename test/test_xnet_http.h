@@ -144,6 +144,14 @@ static void __Test_XHttpServerOnRecv(ptr pOwner, xnetstream* pStream, xnetchain*
 	if ( pServer->iResponseLen > 0u ) {
 		(void)xrtNetStreamSend(pStream, pServer->aResponse, pServer->iResponseLen);
 	}
+	if ( pServer->iResponseLen > 0u &&
+		pServer->iResponseFollowupLen == 0u &&
+		(strstr(pServer->aResponse, "\r\nConnection: close\r\n") != NULL ||
+			strstr(pServer->aResponse, "\r\nConnection: close\r\n\r\n") != NULL ||
+			strstr(pServer->aResponse, "\r\nconnection: close\r\n") != NULL ||
+			strstr(pServer->aResponse, "\r\nconnection: close\r\n\r\n") != NULL) ) {
+		(void)xrtNetStreamClose(pStream, 0);
+	}
 	if ( pServer->iResponseFollowupLen > 0u ) {
 		if ( pServer->iResponseFollowupDelayMs == 0u ) {
 			(void)xrtNetStreamSend(pStream, pServer->aResponseFollowup, pServer->iResponseFollowupLen);
@@ -154,12 +162,14 @@ static void __Test_XHttpServerOnRecv(ptr pOwner, xnetstream* pStream, xnetchain*
 				memset(pCtx, 0, sizeof(__test_xhttp_delayed_send_ctx));
 				pCtx->pServer = pServer;
 				pCtx->pStream = pStream;
+				__xnetStreamAddAsyncHold(pStream);
 				if ( xrtNetEnginePostDelayed(
 					pServer->pEngine,
 					(pStream && pStream->pWorker) ? pStream->pWorker->iId : 0u,
 					pServer->iResponseFollowupDelayMs,
 					__Test_XHttpServerDelayedSendTask,
 					pCtx) != XRT_NET_OK ) {
+					__xnetStreamReleaseAsyncHold(pStream);
 					XNET_FREE(pCtx);
 				}
 			}
@@ -249,6 +259,9 @@ static void __Test_XHttpServerDelayedSendTask(xnetworker* pWorker, ptr pArg)
 			pCtx->pStream,
 			pCtx->pServer->aResponseFollowup,
 			pCtx->pServer->iResponseFollowupLen);
+	}
+	if ( pCtx && pCtx->pStream ) {
+		__xnetStreamReleaseAsyncHold(pCtx->pStream);
 	}
 	if ( pCtx ) XNET_FREE(pCtx);
 }
@@ -343,6 +356,34 @@ static void __Test_XHttpServerStop(__test_xhttp_server* pServer)
 }
 
 
+// 内部函数：__Test_XHttpPrintRealHttpsResult
+static void __Test_XHttpPrintRealHttpsResult(const char* sLabel, const char* sURL, bool bConnectionClose, bool bExpectOk)
+{
+	xhttprequest tReq;
+	xhttpresponse* pResp = NULL;
+	xnet_result iStatus = XRT_NET_ERROR;
+	xrtHttpRequestInit(&tReq);
+	(void)xrtHttpRequestSetURL(&tReq, sURL);
+	xrtHttpRequestSetVerifyPeer(&tReq, false);
+	xrtHttpRequestSetTimeout(&tReq, 15000u);
+	xrtHttpRequestSetIdleTimeout(&tReq, 15000u);
+	if ( bConnectionClose ) {
+		(void)xrtHttpRequestSetHeader(&tReq, "Connection", "close");
+	}
+	pResp = xrtHttpExecuteSync(NULL, &tReq, &iStatus);
+	printf("  HTTP real HTTPS %s : %s (net=%d http=%u len=%u)\n",
+		sLabel,
+		((iStatus == XRT_NET_OK && pResp && pResp->iStatusCode >= 200u && pResp->iStatusCode < 400u) == bExpectOk) ? "PASS" : "FAIL",
+		(int)iStatus,
+		pResp ? (unsigned)pResp->iStatusCode : 0u,
+		pResp ? (unsigned)pResp->iBodyLen : 0u);
+	if ( pResp ) xrtHttpResponseDestroy(pResp);
+	xrtHttpRequestUnit(&tReq);
+	xrtHttpCloseIdleConnections(xrtNetSyncGetHiddenEngine());
+	xrtNetSyncShutdownHiddenEngine();
+}
+
+
 // XNETHTTP测试
 void Test_XNet_Http(void)
 {
@@ -418,6 +459,41 @@ void Test_XNet_Http(void)
 		if ( pFuture ) xrtNetFutureDestroy(pFuture);
 		xrtHttpRequestUnit(&tReq);
 		xrtHttpCloseIdleConnections(pClientEngine);
+		if ( pClientEngine ) {
+			xrtNetEngineStop(pClientEngine);
+			xrtNetEngineDestroy(pClientEngine);
+		}
+		__Test_XHttpServerStop(&tServer);
+	}
+
+	{
+		__test_xhttp_server tServer;
+		xnetengineconfig tCfg;
+		xnetengine* pClientEngine = NULL;
+		xhttprequest tReq;
+		xnetfuture* pFuture = NULL;
+		xhttpresponse* pResp = NULL;
+		xnet_result iStatus = XRT_NET_ERROR;
+		char sURL[256];
+		printf("  HTTP close-delimited server start : %s\n", __Test_XHttpServerStart(&tServer, "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nclose-body", NULL) ? "PASS" : "FAIL");
+		snprintf(sURL, sizeof(sURL), "http://127.0.0.1:%u/close-delimited", (unsigned)tServer.pListener->tConfig.tBindAddr.iPort);
+		xrtNetEngineConfigInit(&tCfg);
+		tCfg.iWorkerCount = 1;
+		pClientEngine = xrtNetEngineCreate(&tCfg);
+		if ( pClientEngine ) (void)xrtNetEngineStart(pClientEngine);
+		xrtHttpRequestInit(&tReq);
+		(void)xrtHttpRequestSetURL(&tReq, sURL);
+		(void)xrtHttpRequestSetHeader(&tReq, "Connection", "close");
+		pFuture = xrtHttpExecuteAsync(pClientEngine, &tReq);
+		printf("  HTTP close-delimited future create : %s\n", pFuture != NULL ? "PASS" : "FAIL");
+		printf("  HTTP close-delimited future wait : %s\n", pFuture && (iStatus = xrtNetFutureWait(pFuture, 3000)) == XRT_NET_OK ? "PASS" : "FAIL");
+		pResp = (pFuture && iStatus == XRT_NET_OK) ? (xhttpresponse*)xrtNetFutureValue(pFuture) : NULL;
+		printf("  HTTP close-delimited response code : %s\n", pResp && pResp->iStatusCode == 200 ? "PASS" : "FAIL");
+		printf("  HTTP close-delimited response body : %s\n", pResp && pResp->iBodyLen == 10 && memcmp(pResp->pBody, "close-body", 10) == 0 ? "PASS" : "FAIL");
+		printf("  HTTP close-delimited no keepalive : %s\n", pResp && (pResp->iFlags & XHTTP_RESP_F_KEEPALIVE) == 0 ? "PASS" : "FAIL");
+		if ( pResp ) xrtHttpResponseDestroy(pResp);
+		if ( pFuture ) xrtNetFutureDestroy(pFuture);
+		xrtHttpRequestUnit(&tReq);
 		if ( pClientEngine ) {
 			xrtNetEngineStop(pClientEngine);
 			xrtNetEngineDestroy(pClientEngine);
