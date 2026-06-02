@@ -87,7 +87,7 @@
 
 ### file（6）
 - `file/binary_io`：演示 `xrtPut`、`xrtGet`、`xrtFilePutAll` 与 `xrtFileGetAll`。
-- `file/dir_operations`：演示 `xrtDirCreate`、`xrtDirCreateAll`、`xrtDirScan`、`xrtDirCopy`、`xrtDirDelete` 的目录管理。
+- `file/dir_operations`：演示 `xrtDirCreate`、`xrtDirCreateAll`、`xrtDirScan`、`xrtDirScanEx`、`xrtDirCopy`、`xrtDirDelete` 的目录管理。
 - `file/file_info`：演示 `xrtFileGetSize`、`xrtFileGetAttr`、`xrtPathExists` 获取文件元数据。
 - `file/file_manage`：演示 `xrtFileCopy`、`xrtFileMove`、`xrtFileDelete` 的文件管理操作。
 - `file/file_readall`：演示 `xrtFileReadAll`、`xrtFileWriteAll`、`xrtFileAppend` 的整文件读写。

@@ -2458,6 +2458,8 @@
 	
 	// 扫描文件夹 ( 返回文件数量 )
 	typedef int (*xrtDirScanProc)(str sPath, size_t iSize, int bDir, ptr pData, ptr Param);
+	typedef int (*xrtDirScanExProc)(str sDir, size_t iDirSize, str sName, size_t iNameSize, str sPath, size_t iPathSize, int bDir, ptr pData, ptr Param);
+	XXAPI int xrtDirScanEx(str sPath, int bRecu, xrtDirScanExProc pProc, ptr Param);
 	XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param);
 	
 	// 创建文件夹

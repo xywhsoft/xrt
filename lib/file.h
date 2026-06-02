@@ -1425,6 +1425,78 @@ XXAPI bool xrtFileDelete(str sPath)
 
 
 
+// 扫描虚拟根目录 （ 返回根入口数量 ）
+#if defined(_WIN32) || defined(_WIN64)
+	// windows 方案
+	int __pri__DirScanRoot_Proc(xrtDirScanProc pProc, ptr Param)
+	{
+		DWORD iDrives = GetLogicalDrives();
+		int iCount = 0;
+		for ( int i = 0; i < 26; i++ ) {
+			if ( (iDrives & (1u << i)) != 0 ) {
+				char sRoot[4];
+				sRoot[0] = (char)('A' + i);
+				sRoot[1] = ':';
+				sRoot[2] = '\\';
+				sRoot[3] = 0;
+				iCount++;
+				if ( pProc != NULL && pProc((str)sRoot, 3, 1, NULL, Param) ) {
+					break;
+				}
+			}
+		}
+		return iCount;
+	}
+#else
+	// 其他平台方案
+	int __pri__DirScanRoot_Proc(xrtDirScanProc pProc, ptr Param)
+	{
+		static char sRoot[] = "/";
+		if ( pProc != NULL ) {
+			pProc((str)sRoot, 1, 1, NULL, Param);
+		}
+		return 1;
+	}
+#endif
+
+
+
+// 扫描虚拟根目录扩展版本 （ 返回根入口数量 ）
+#if defined(_WIN32) || defined(_WIN64)
+	// windows 方案
+	int __pri__DirScanRootEx_Proc(xrtDirScanExProc pProc, ptr Param)
+	{
+		DWORD iDrives = GetLogicalDrives();
+		int iCount = 0;
+		for ( int i = 0; i < 26; i++ ) {
+			if ( (iDrives & (1u << i)) != 0 ) {
+				char sRoot[4];
+				sRoot[0] = (char)('A' + i);
+				sRoot[1] = ':';
+				sRoot[2] = '\\';
+				sRoot[3] = 0;
+				iCount++;
+				if ( pProc != NULL && pProc((str)"", 0, (str)sRoot, 3, (str)sRoot, 3, 1, NULL, Param) ) {
+					break;
+				}
+			}
+		}
+		return iCount;
+	}
+#else
+	// 其他平台方案
+	int __pri__DirScanRootEx_Proc(xrtDirScanExProc pProc, ptr Param)
+	{
+		static char sRoot[] = "/";
+		if ( pProc != NULL ) {
+			pProc((str)"", 0, (str)sRoot, 1, (str)sRoot, 1, 1, NULL, Param);
+		}
+		return 1;
+	}
+#endif
+
+
+
 // 扫描文件夹 （ 返回文件数量 ）
 #if defined(_WIN32) || defined(_WIN64)
 	// windows 方案
@@ -1558,6 +1630,165 @@ XXAPI bool xrtFileDelete(str sPath)
 		return iFileCount;
 	}
 #endif
+
+
+
+// 扫描文件夹扩展版本 （ 返回文件数量 ）
+#if defined(_WIN32) || defined(_WIN64)
+	// windows 方案
+	int __pri__DirScanEx_Proc(str sPath, size_t iSize, int bRecu, xrtDirScanExProc pProc, ptr Param)
+	{
+		xrtDirScanExProc pCallBack = pProc;
+		int iFileCount = 0;
+		WIN32_FIND_DATAW objFindData;
+		str sFindPath = xrtPathJoin(2, sPath, "*");
+		u16str sFindPathW = xrtUTF8to16(sFindPath, 0, NULL);
+		HANDLE hFind = FindFirstFileW(sFindPathW, &objFindData);
+		xrtFree(sFindPath);
+		xrtFree(sFindPathW);
+		if ( hFind == INVALID_HANDLE_VALUE ) {
+			xrtSetError(sErrorFile_OpenDir, FALSE);
+			return 0;
+		}
+		int bNext = TRUE;
+		while ( bNext ) {
+			int bExit = FALSE;
+			if ( objFindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) {
+				// 过滤 . 和 .. 目录
+				if ( (objFindData.cFileName[0] == L'.') && ((objFindData.cFileName[1] == 0) || ((objFindData.cFileName[1] == L'.') && (objFindData.cFileName[2] == 0))) ) {
+				} else {
+					str sFileName = xrtUTF16to8(objFindData.cFileName, 0, NULL);
+					size_t iNameSize = strlen((const char*)sFileName);
+					str sDir = xrtPathJoin(2, sPath, sFileName);
+					size_t iDirSize = strlen((const char*)sDir);
+					// 处理文件夹 - 进入
+					if ( pProc ) {
+						bExit = pCallBack(sPath, iSize, sFileName, iNameSize, sDir, iDirSize, 1, &objFindData, Param);
+					}
+					// 递归子目录
+					if ( bRecu ) {
+						iFileCount += __pri__DirScanEx_Proc(sDir, iDirSize, bRecu, pProc, Param);
+					}
+					// 处理文件夹 - 离开
+					if ( pProc ) {
+						bExit = pCallBack(sPath, iSize, sFileName, iNameSize, sDir, iDirSize, 2, &objFindData, Param);
+					}
+					xrtFree(sFileName);
+					xrtFree(sDir);
+				}
+			} else {
+				// 处理文件
+				str sFileName = xrtUTF16to8(objFindData.cFileName, 0, NULL);
+				size_t iNameSize = strlen((const char*)sFileName);
+				str sFile = xrtPathJoin(2, sPath, sFileName);
+				size_t iFileSize = strlen((const char*)sFile);
+				if ( pProc ) {
+					bExit = pCallBack(sPath, iSize, sFileName, iNameSize, sFile, iFileSize, 0, &objFindData, Param);
+				}
+				xrtFree(sFileName);
+				xrtFree(sFile);
+				iFileCount++;
+			}
+			// 中途停止扫描
+			if ( bExit ) {
+				break;
+			}
+			bNext = FindNextFileW(hFind, &objFindData);
+		}
+		FindClose(hFind);
+		return iFileCount;
+	}
+#else
+	// 其他平台方案
+	int __pri__DirScanEx_Proc(str sPath, size_t iSize, int bRecu, xrtDirScanExProc pProc, ptr Param)
+	{
+		xrtDirScanExProc pCallBack = pProc;
+		int iFileCount = 0;
+		DIR* dir = opendir(sPath);
+		if ( dir == NULL ) {
+			xrtSetError(sErrorFile_OpenDir, FALSE);
+			return 0;
+		}
+		struct dirent* entry;
+		while ( (entry = readdir(dir)) != NULL ) {
+			int bExit = FALSE;
+			unsigned char iType = entry->d_type;
+			if ( iType == DT_UNKNOWN ) {
+				str sEntry = xrtPathJoin(2, sPath, entry->d_name);
+				if ( sEntry ) {
+					struct stat entryStat;
+					if ( stat(sEntry, &entryStat) == 0 ) {
+						if ( S_ISDIR(entryStat.st_mode) ) {
+							iType = DT_DIR;
+						} else if ( S_ISREG(entryStat.st_mode) ) {
+							iType = DT_REG;
+						}
+					}
+					xrtFree(sEntry);
+				}
+			}
+			if ( iType == DT_DIR ) {
+				// 过滤 . 和 .. 目录
+				if ( (entry->d_name[0] == '.') && ((entry->d_name[1] == 0) || ((entry->d_name[1] == '.') && (entry->d_name[2] == 0))) ) {
+				} else {
+					size_t iNameSize = strlen(entry->d_name);
+					str sDir = xrtPathJoin(2, sPath, entry->d_name);
+					size_t iDirSize = strlen(sDir);
+					// 处理文件夹 - 进入
+					if ( pProc ) {
+						bExit = pCallBack(sPath, iSize, entry->d_name, iNameSize, sDir, iDirSize, 1, entry, Param);
+					}
+					// 递归子目录
+					if ( bRecu ) {
+						iFileCount += __pri__DirScanEx_Proc(sDir, iDirSize, bRecu, pProc, Param);
+					}
+					// 处理文件夹 - 离开
+					if ( pProc ) {
+						bExit = pCallBack(sPath, iSize, entry->d_name, iNameSize, sDir, iDirSize, 2, entry, Param);
+					}
+					xrtFree(sDir);
+				}
+			} else if ( iType == DT_REG ) {
+				// 处理文件
+				size_t iNameSize = strlen(entry->d_name);
+				str sFile = xrtPathJoin(2, sPath, entry->d_name);
+				size_t iFileSize = strlen(sFile);
+				if ( pProc ) {
+					bExit = pCallBack(sPath, iSize, entry->d_name, iNameSize, sFile, iFileSize, 0, entry, Param);
+				}
+				xrtFree(sFile);
+				iFileCount++;
+			}
+			// 中途停止扫描
+			if ( bExit ) {
+				break;
+			}
+		}
+		closedir(dir);
+		return iFileCount;
+	}
+#endif
+
+// xrtDirScanEx 相关处理
+XXAPI int xrtDirScanEx(str sPath, int bRecu, xrtDirScanExProc pProc, ptr Param)
+{
+	#if defined(_WIN32) || defined(_WIN64)
+		// windows 方案
+		if ( sPath == NULL ) { return 0; }
+		size_t iSize = strlen((const char*)sPath);
+		if ( iSize == 0 ) { return __pri__DirScanRootEx_Proc(pProc, Param); }
+		int iFileCount = __pri__DirScanEx_Proc(sPath, iSize, bRecu, pProc, Param);
+		return iFileCount;
+	#else
+		// 其他平台方案
+		if ( sPath == NULL ) { return 0; }
+		size_t iSize = strlen((const char*)sPath);
+		if ( iSize == 0 ) { return __pri__DirScanRootEx_Proc(pProc, Param); }
+		int iFileCount = __pri__DirScanEx_Proc(sPath, iSize, bRecu, pProc, Param);
+		return iFileCount;
+	#endif
+}
+
 // xrtDirScan 相关处理
 XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param)
 {
@@ -1565,14 +1796,14 @@ XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param)
 		// windows 方案
 		if ( sPath == NULL ) { return 0; }
 		size_t iSize = strlen((const char*)sPath);
-		if ( iSize == 0 ) { return 0; }
+		if ( iSize == 0 ) { return __pri__DirScanRoot_Proc(pProc, Param); }
 		int iFileCount = __pri__DirScan_Proc(sPath, iSize, bRecu, pProc, Param);
 		return iFileCount;
 	#else
 		// 其他平台方案
 		if ( sPath == NULL ) { return 0; }
 		size_t iSize = strlen((const char*)sPath);
-		if ( iSize == 0 ) { return 0; }
+		if ( iSize == 0 ) { return __pri__DirScanRoot_Proc(pProc, Param); }
 		int iFileCount = __pri__DirScan_Proc(sPath, iSize, bRecu, pProc, Param);
 		return iFileCount;
 	#endif

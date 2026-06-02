@@ -3,10 +3,10 @@
  * XRT 范例 - 目录操作
  *
  * Description / 说明:
- *   EN: Demonstrates xrtDirCreate, xrtDirCreateAll, xrtDirScan, xrtDirCopy,
- *       xrtDirDelete for directory management.
- *   CN: 演示 xrtDirCreate、xrtDirCreateAll、xrtDirScan、xrtDirCopy、xrtDirDelete
- *       进行目录管理。
+ *   EN: Demonstrates xrtDirCreate, xrtDirCreateAll, xrtDirScan, xrtDirScanEx,
+ *       xrtDirCopy, xrtDirDelete for directory management.
+ *   CN: 演示 xrtDirCreate、xrtDirCreateAll、xrtDirScan、xrtDirScanEx、
+ *       xrtDirCopy、xrtDirDelete 进行目录管理。
  *
  * Build / 编译:
  *   tcc main.c -o ../../bin/file_dir_operations.exe          (Windows, TCC)
@@ -15,6 +15,7 @@
  * Note / 注意:
  *   - xrtDirCreateAll creates parent directories as needed
  *   - xrtDirScan can scan recursively
+ *   - xrtDirScanEx provides directory, entry name, and full path separately
  */
 
 #define XRT_IMPLEMENTATION
@@ -28,6 +29,31 @@ int PrintFileCallback(str sPath, size_t iSize, int bDir, ptr pData, ptr pParam)
 	(void)pData;
 	(void)pParam;
 	printf("  %s %s\n", bDir ? "[DIR]" : "[FILE]", sPath);
+	return 0;  // Continue scanning
+}
+
+// Extended callback for directory scanning
+// 扩展目录扫描回调
+int PrintFileExCallback(str sDir, size_t iDirSize, str sName, size_t iNameSize, str sPath, size_t iPathSize, int bDir, ptr pData, ptr pParam)
+{
+	(void)iDirSize;
+	(void)iNameSize;
+	(void)iPathSize;
+	(void)pData;
+	(void)pParam;
+
+	if ( sDir[0] == 0 ) {
+		printf("  [ROOT] name=%s path=%s\n", sName, sPath);
+		return 0;
+	}
+
+	if ( bDir == 1 ) {
+		printf("  [DIR+] dir=%s name=%s path=%s\n", sDir, sName, sPath);
+	} else if ( bDir == 2 ) {
+		printf("  [DIR-] dir=%s name=%s path=%s\n", sDir, sName, sPath);
+	} else {
+		printf("  [FILE] dir=%s name=%s path=%s\n", sDir, sName, sPath);
+	}
 	return 0;  // Continue scanning
 }
 
@@ -75,6 +101,16 @@ void TestDirScan()
 	printf("\nRecursive scan:\n");
 	printf("递归扫描:\n");
 	xrtDirScan("examples/bin/scan_test", TRUE, PrintFileCallback, NULL);
+	printf("\n");
+
+	printf("Recursive scan with xrtDirScanEx:\n");
+	printf("使用 xrtDirScanEx 递归扫描:\n");
+	xrtDirScanEx("examples/bin/scan_test", TRUE, PrintFileExCallback, NULL);
+	printf("\n");
+
+	printf("Virtual root scan with xrtDirScanEx(\"\"):\n");
+	printf("使用 xrtDirScanEx(\"\") 扫描虚拟根目录:\n");
+	xrtDirScanEx((str)"", FALSE, PrintFileExCallback, NULL);
 	printf("\n");
 }
 

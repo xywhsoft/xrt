@@ -1049,11 +1049,12 @@ Scan directory.
 
 **Function Prototype:**
 ```c
-XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);
+typedef int (*xrtDirScanProc)(str sPath, size_t iSize, int bDir, ptr pData, ptr Param);
+XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param);
 ```
 
 **Parameters:**
-- `sPath` - Directory path
+- `sPath` - Directory path; pass an empty string `""` to scan the virtual root directory; do not pass `NULL`
 - `bRecu` - Whether to recursively scan subdirectories
 - `pProc` - Callback function
 - `Param` - Callback parameter
@@ -1075,6 +1076,12 @@ int callback(str sPath, size_t iSize, int bDir, ptr pData, ptr Param);
 
 **Return Value:**
 - Number of files scanned
+
+**Notes:**
+- On Windows, `sPath[0] == 0` enumerates drive roots such as `C:\` and `D:\`.
+- On non-Windows platforms, `sPath[0] == 0` returns the filesystem root `/`.
+- Virtual-root entries are reported as directory events, and `pData == NULL`.
+- If the caller needs directory, entry name, and full path separately, prefer `xrtDirScanEx` to avoid splitting paths manually.
 
 **Example:**
 ```c
@@ -1101,6 +1108,86 @@ int main() {
     int total = xrtDirScan((str)".", TRUE, OnFile, &fileCount);
     printf("Total files scanned: %d\n", total);
     
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtDirScanEx
+
+Scan a directory and provide the current directory, entry name, and full path separately in the callback.
+
+**Function Prototype:**
+```c
+typedef int (*xrtDirScanExProc)(
+    str sDir,
+    size_t iDirSize,
+    str sName,
+    size_t iNameSize,
+    str sPath,
+    size_t iPathSize,
+    int bDir,
+    ptr pData,
+    ptr Param
+);
+XXAPI int xrtDirScanEx(str sPath, int bRecu, xrtDirScanExProc pProc, ptr Param);
+```
+
+**Parameters:**
+- `sPath` - Directory path; pass an empty string `""` to scan the virtual root directory; do not pass `NULL`
+- `bRecu` - Whether to recursively scan subdirectories
+- `pProc` - Extended callback function
+- `Param` - Callback parameter
+
+**Callback Parameter Description:**
+- `sDir` - Current directory being scanned; empty string `""` when scanning the virtual root directory
+- `iDirSize` - Current directory length; `0` when scanning the virtual root directory
+- `sName` - Current entry name without the parent directory
+- `iNameSize` - Current entry name length
+- `sPath` - Current entry full path
+- `iPathSize` - Current entry full path length
+- `bDir` - Type identifier
+  - `0` - File
+  - `1` - Directory (entering)
+  - `2` - Directory (leaving)
+- `pData` - Platform-specific data (Windows: `WIN32_FIND_DATAW*`, Linux: `struct dirent*`); `NULL` for virtual-root entries
+- `Param` - User parameter
+
+**Return Value:**
+- Number of files scanned; when scanning the virtual root directory, returns the number of root entries
+
+**Example:**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int OnEntry(str sDir, size_t iDirSize, str sName, size_t iNameSize, str sPath, size_t iPathSize, int bDir, ptr pData, ptr Param) {
+    (void)iDirSize;
+    (void)iNameSize;
+    (void)iPathSize;
+    (void)pData;
+    (void)Param;
+
+    if (sDir[0] == 0) {
+        printf("Root entry: name=%s path=%s\n", sName, sPath);
+    } else if (bDir == 0) {
+        printf("File: dir=%s name=%s path=%s\n", sDir, sName, sPath);
+    } else if (bDir == 1) {
+        printf("Entering directory: dir=%s name=%s path=%s\n", sDir, sName, sPath);
+    } else if (bDir == 2) {
+        printf("Leaving directory: dir=%s name=%s path=%s\n", sDir, sName, sPath);
+    }
+    return FALSE;
+}
+
+int main() {
+    xrtInit();
+
+    xrtDirScanEx((str)".", TRUE, OnEntry, NULL);
+    xrtDirScanEx((str)"", FALSE, OnEntry, NULL);
+
     xrtUnit();
     return 0;
 }

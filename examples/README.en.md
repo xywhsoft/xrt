@@ -87,7 +87,7 @@ This directory currently contains `166` standalone, buildable examples across `3
 
 ### file (6)
 - `file/binary_io`: Demonstrates `xrtPut`, `xrtGet`, `xrtFilePutAll`, and `xrtFileGetAll`.
-- `file/dir_operations`: Demonstrates directory management with `xrtDirCreate`, `xrtDirCreateAll`, `xrtDirScan`, `xrtDirCopy`, and `xrtDirDelete`.
+- `file/dir_operations`: Demonstrates directory management with `xrtDirCreate`, `xrtDirCreateAll`, `xrtDirScan`, `xrtDirScanEx`, `xrtDirCopy`, and `xrtDirDelete`.
 - `file/file_info`: Demonstrates retrieving file metadata with `xrtFileGetSize`, `xrtFileGetAttr`, and `xrtPathExists`.
 - `file/file_manage`: Demonstrates file management with `xrtFileCopy`, `xrtFileMove`, and `xrtFileDelete`.
 - `file/file_readall`: Demonstrates whole-file operations with `xrtFileReadAll`, `xrtFileWriteAll`, and `xrtFileAppend`.

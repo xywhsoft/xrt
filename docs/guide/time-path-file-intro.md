@@ -75,6 +75,14 @@
 - 用 `xrtPathGetDir()` 取父目录
 - 用 `xrtPathExists()` / `xrtFileExists()` / `xrtDirExists()` 判断对象是否存在
 
+目录扫描也遵循同样的原则：
+
+- 只需要完整路径时，用 `xrtDirScan()`
+- 同时需要父目录、文件名和完整路径时，用 `xrtDirScanEx()`
+- 需要列出平台根目录时，把扫描路径传空字符串 `""`
+
+`xrtDirScan((str)"", ...)` 和 `xrtDirScanEx((str)"", ...)` 会扫描“虚拟根目录”：Windows 下是盘符列表，其他平台是 `/`。这让文件选择器、目录树这类控件不用在业务层写一套平台分支。`NULL` 不是合法的目录扫描路径，不要用它表示根目录。
+
 
 ### 2.3 文本文件和二进制文件怎么分
 

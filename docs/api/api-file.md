@@ -1103,11 +1103,12 @@ int main() {
 
 **函数原型：**
 ```c
-XXAPI int xrtDirScan(str sPath, int bRecu, ptr pProc, ptr Param);
+typedef int (*xrtDirScanProc)(str sPath, size_t iSize, int bDir, ptr pData, ptr Param);
+XXAPI int xrtDirScan(str sPath, int bRecu, xrtDirScanProc pProc, ptr Param);
 ```
 
 **参数：**
-- `sPath` - 目录路径
+- `sPath` - 目录路径；传入空字符串 `""` 时扫描虚拟根目录，不能传 `NULL`
 - `bRecu` - 是否递归扫描子目录
 - `pProc` - 回调函数
 - `Param` - 回调参数
@@ -1129,6 +1130,12 @@ int callback(str sPath, size_t iSize, int bDir, ptr pData, ptr Param);
 
 **返回值：**
 - 扫描到的文件数量
+
+**说明：**
+- Windows 下 `sPath[0] == 0` 会枚举虚拟根目录中的盘符，例如 `C:\`、`D:\`。
+- 非 Windows 平台下 `sPath[0] == 0` 会返回文件系统根目录 `/`。
+- 虚拟根目录入口会以目录事件返回，且 `pData == NULL`。
+- 如果调用方需要分别取得目录、文件名和完整路径，优先使用 `xrtDirScanEx`，避免自行拆分路径。
 
 **示例：**
 ```c
@@ -1155,6 +1162,86 @@ int main() {
     int total = xrtDirScan((str)".", TRUE, OnFile, &fileCount);
     printf("总共扫描到 %d 个文件\n", total);
     
+    xrtUnit();
+    return 0;
+}
+```
+
+---
+
+### xrtDirScanEx
+
+扫描文件夹，并在回调中分别提供当前目录、入口名称和完整路径。
+
+**函数原型：**
+```c
+typedef int (*xrtDirScanExProc)(
+    str sDir,
+    size_t iDirSize,
+    str sName,
+    size_t iNameSize,
+    str sPath,
+    size_t iPathSize,
+    int bDir,
+    ptr pData,
+    ptr Param
+);
+XXAPI int xrtDirScanEx(str sPath, int bRecu, xrtDirScanExProc pProc, ptr Param);
+```
+
+**参数：**
+- `sPath` - 目录路径；传入空字符串 `""` 时扫描虚拟根目录，不能传 `NULL`
+- `bRecu` - 是否递归扫描子目录
+- `pProc` - 扩展回调函数
+- `Param` - 回调参数
+
+**回调参数说明：**
+- `sDir` - 当前被扫描目录；扫描虚拟根目录时为空字符串 `""`
+- `iDirSize` - 当前目录长度；扫描虚拟根目录时为 `0`
+- `sName` - 当前入口名称，不包含父目录
+- `iNameSize` - 当前入口名称长度
+- `sPath` - 当前入口完整路径
+- `iPathSize` - 当前入口完整路径长度
+- `bDir` - 类型标识
+  - `0` - 文件
+  - `1` - 目录（进入时）
+  - `2` - 目录（离开时）
+- `pData` - 平台相关数据（Windows: `WIN32_FIND_DATAW*`，Linux: `struct dirent*`）；虚拟根目录入口为 `NULL`
+- `Param` - 用户参数
+
+**返回值：**
+- 扫描到的文件数量；扫描虚拟根目录时返回根入口数量
+
+**示例：**
+```c
+#include "xrt.h"
+#include <stdio.h>
+
+int OnEntry(str sDir, size_t iDirSize, str sName, size_t iNameSize, str sPath, size_t iPathSize, int bDir, ptr pData, ptr Param) {
+    (void)iDirSize;
+    (void)iNameSize;
+    (void)iPathSize;
+    (void)pData;
+    (void)Param;
+
+    if (sDir[0] == 0) {
+        printf("根入口: name=%s path=%s\n", sName, sPath);
+    } else if (bDir == 0) {
+        printf("文件: dir=%s name=%s path=%s\n", sDir, sName, sPath);
+    } else if (bDir == 1) {
+        printf("进入目录: dir=%s name=%s path=%s\n", sDir, sName, sPath);
+    } else if (bDir == 2) {
+        printf("离开目录: dir=%s name=%s path=%s\n", sDir, sName, sPath);
+    }
+    return FALSE;
+}
+
+int main() {
+    xrtInit();
+
+    xrtDirScanEx((str)".", TRUE, OnEntry, NULL);
+    xrtDirScanEx((str)"", FALSE, OnEntry, NULL);
+
     xrtUnit();
     return 0;
 }
