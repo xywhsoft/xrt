@@ -62,6 +62,7 @@ typedef struct {
 	uint32 iEnvCount;
 	bool bInheritEnv;
 	bool bUseTerminal;
+	bool bNewConsole;
 	bool bMergeStderr;
 	bool bCreateProcessGroup;
 	bool bHideWindow;
@@ -864,6 +865,7 @@ static bool __xprocPlanFromConfig(const xprocessconfig* pConfig, __xproc_plan* p
 	pPlan->iEnvCount = pConfig->iEnvCount;
 	pPlan->bInheritEnv = pConfig->bInheritEnv ? true : false;
 	pPlan->bUseTerminal = pConfig->bUseTerminal ? true : false;
+	pPlan->bNewConsole = pConfig->bNewConsole ? true : false;
 	pPlan->bMergeStderr = pConfig->bMergeStderr ? true : false;
 	pPlan->bCreateProcessGroup = pConfig->bCreateProcessGroup ? true : false;
 	pPlan->bHideWindow = pConfig->bHideWindow ? true : false;
@@ -2552,6 +2554,9 @@ static bool __xprocSpawnPlatform(xprocess* pProcess, const __xproc_plan* pPlan, 
 		tSi.dwFlags |= STARTF_USESHOWWINDOW;
 		tSi.wShowWindow = SW_HIDE;
 		iCreateFlags |= CREATE_NO_WINDOW;
+	}
+	else if ( pPlan->bNewConsole ) {
+		iCreateFlags |= CREATE_NEW_CONSOLE;
 	}
 	if ( pPlan->bCreateProcessGroup ) {
 		iCreateFlags |= CREATE_NEW_PROCESS_GROUP;

@@ -1810,6 +1810,7 @@
 		uint32 iEnvCount;
 		bool bInheritEnv;
 		bool bUseTerminal;
+		bool bNewConsole;
 		bool bMergeStderr;
 		bool bCreateProcessGroup;
 		bool bHideWindow;
