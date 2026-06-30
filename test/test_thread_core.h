@@ -177,6 +177,13 @@ static int Test_ThreadCore(void)
 	iFail += __Test_ThreadCore_Check("sem waittimeout #2", xrtSemWaitTimeout(hSem, 0) == XRT_WAIT_OK);
 	iFail += __Test_ThreadCore_Check("sem timeout drained", xrtSemWaitTimeout(hSem, 0) == XRT_WAIT_TIMEOUT);
 	xrtSemDestroy(hSem);
+	hSem = xrtSemCreate(1, 2);
+	iFail += __Test_ThreadCore_Check("sem overflow create", hSem != NULL);
+	if ( !hSem ) return 2;
+	iFail += __Test_ThreadCore_Check("sem post multiple overflow false", xrtSemPostMultiple(hSem, 2) == FALSE);
+	iFail += __Test_ThreadCore_Check("sem overflow keeps original #1", xrtSemWaitTimeout(hSem, 0) == XRT_WAIT_OK);
+	iFail += __Test_ThreadCore_Check("sem overflow no partial post", xrtSemWaitTimeout(hSem, 0) == XRT_WAIT_TIMEOUT);
+	xrtSemDestroy(hSem);
 
 	memset(&tCtx, 0, sizeof(tCtx));
 	tCtx.hLock = xrtMutexCreate();

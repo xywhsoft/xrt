@@ -20,9 +20,10 @@ XXAPI xfile xrtOpen(str sPath, int bReadOnly, int iCharset)
 		// windows 方案
 		u16str sPathW = xrtUTF8to16(sPath, 0, NULL);
 		HANDLE hFile = CreateFileW(sPathW, bReadOnly ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, bReadOnly ? OPEN_EXISTING : OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		DWORD iOpenError = hFile == INVALID_HANDLE_VALUE ? GetLastError() : 0;
 		xrtFree(sPathW);
 		if ( hFile == INVALID_HANDLE_VALUE ) {
-			xrtSetError(sErrorFile_Open, FALSE);
+			xrtSetError(xrtFormat("Failed to open file (%lu): %s", (unsigned long)iOpenError, sPath), TRUE);
 			return NULL;
 		}
 		xfile objFile = xrtMalloc(sizeof(xfile_struct));

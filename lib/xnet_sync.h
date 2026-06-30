@@ -44,6 +44,7 @@ struct xrt_net_future {
 	volatile long iRefCount;
 	xnet_result iStatus;
 	ptr pValue;
+	void (*pfnFreeValue)(ptr pValue);
 	const char* sError;
 	uint32 iResultFlags;
 	uint64 iCreateTimeMs;
@@ -132,7 +133,8 @@ typedef struct {
 		__XNET_FCONT_EXEC_INLINE = 1,
 		__XNET_FCONT_EXEC_CURRENT = 2,
 		__XNET_FCONT_EXEC_ENGINE = 3,
-		__XNET_FCONT_EXEC_CO = 4
+		__XNET_FCONT_EXEC_CO = 4,
+		__XNET_FCONT_EXEC_SOURCE_INLINE = 5
 	} __xnet_future_cont_exec;
 
 	typedef struct xrt_future_cont {
@@ -175,6 +177,10 @@ typedef struct {
 		int iIndex;
 	} __xnet_future_group_item;
 
+	typedef struct {
+		xfuture* pTarget;
+	} __xnet_future_cancel_forward_ctx;
+
 	struct __xnet_future_group_ctx {
 		__xnet_future_group_mode iMode;
 		xmutex pLock;
@@ -195,6 +201,7 @@ typedef struct {
 	static void __xnetFutureDispatchDetachedList(xrt_future_cont* pHead);
 	static void __xnetFutureCurrentCleanup(xrtThreadData* pThreadData, ptr pArg);
 	static bool __xnetFutureEnqueueCurrent(xrt_future_cont* pCont);
+	static xfuture* __xnetFutureFinallySourceInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg);
 	static xtaskgroup* __xnetTaskGroupAddRef(xtaskgroup* pGroup);
 	static void __xnetTaskGroupRelease(xtaskgroup* pGroup);
 	static void __xnetTaskGroupMaybeResolveJoin(xtaskgroup* pGroup);
@@ -799,6 +806,38 @@ static void __xnetFutureFreeError(const char* sError, uint32 iFlags)
 }
 
 
+// 内部函数：释放 Future 结果中的错误字符串
+static void __xnetFutureFreeResultError(const char* sError, uint32 iFlags, void (*pfnFreeError)(ptr pError))
+{
+	if ( sError && (iFlags & XFUTURE_RESULT_F_OWN_ERROR) ) {
+		if ( pfnFreeError ) {
+			pfnFreeError((ptr)sError);
+		}
+		else {
+			XNET_FREE((ptr)sError);
+		}
+	}
+}
+
+
+// 内部函数：释放 Future 值
+static void __xnetFutureFreeValue(ptr pValue, uint32 iFlags, void (*pfnFreeValue)(ptr pValue))
+{
+	if ( pValue == NULL || !(iFlags & XFUTURE_RESULT_F_OWN_VALUE) ) {
+		return;
+	}
+	if ( iFlags & XFUTURE_RESULT_F_GROUP_ALL ) {
+		__xnetFutureAllValueFree((xfuture_all_value*)pValue);
+		return;
+	}
+	if ( pfnFreeValue != NULL ) {
+		pfnFreeValue(pValue);
+		return;
+	}
+	XNET_FREE(pValue);
+}
+
+
 // 内部函数：__xnetFutureAddRefInternal
 static void __xnetFutureAddRefInternal(xnetfuture* pFuture)
 {
@@ -878,6 +917,9 @@ static void __xnetFutureReleaseAsyncHold(xnetfuture* pFuture)
 static void __xnetFutureUnit(xnetfuture* pFuture)
 {
 	if ( !pFuture ) { return; }
+	__xnetFutureFreeValue(pFuture->pValue, pFuture->iResultFlags, pFuture->pfnFreeValue);
+	pFuture->pValue = NULL;
+	pFuture->pfnFreeValue = NULL;
 	// 释放错误字符串和调试名称
 	__xnetFutureFreeError(pFuture->sError, pFuture->iResultFlags);
 	pFuture->sError = NULL;
@@ -918,7 +960,9 @@ static void UNUSED_ATTR __xnetFutureReset(xnetfuture* pFuture)
 	__xnetFutureLock(pFuture);
 	pFuture->bDone = false;
 	pFuture->iStatus = XRT_NET_AGAIN;
+	__xnetFutureFreeValue(pFuture->pValue, pFuture->iResultFlags, pFuture->pfnFreeValue);
 	pFuture->pValue = NULL;
+	pFuture->pfnFreeValue = NULL;
 	__xnetFutureFreeError(pFuture->sError, pFuture->iResultFlags);
 	pFuture->sError = NULL;
 	pFuture->iResultFlags = 0;
@@ -938,9 +982,10 @@ static void UNUSED_ATTR __xnetFutureReset(xnetfuture* pFuture)
 
 
 // 内部函数：__xnetFutureCompleteEx
-static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr pValue, const char* sError, uint32 iFlags)
+static bool __xnetFutureCompleteExWithFree(xnetfuture* pFuture, xnet_result iStatus, ptr pValue, const char* sError, uint32 iFlags, void (*pfnFreeValue)(ptr pValue), void (*pfnFreeError)(ptr pError))
 {
 	bool bResolved = false;
+	uint32 iInputFlags = iFlags;
 	#if defined(XXRTL_CORE)
 		xrt_future_cont* pDispatchHead = NULL;
 		xfuture_result tDispatchInput;
@@ -969,6 +1014,7 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 		pFuture->bDone = true;
 		pFuture->iStatus = iStatus;
 		pFuture->pValue = pValue;
+		pFuture->pfnFreeValue = pfnFreeValue;
 		pFuture->sError = sOwnedError;
 		pFuture->iResultFlags = iFlags;
 		pFuture->iCompleteTimeMs = __xnetSyncNowMs();
@@ -979,6 +1025,7 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 			tDispatchInput.pValue = pValue;
 			tDispatchInput.sError = (str)sOwnedError;
 			tDispatchInput.iFlags = iFlags;
+			tDispatchInput.pfnFreeValue = pfnFreeValue;
 			pDispatchHead = pFuture->pContHead;
 			pFuture->pContHead = NULL;
 			pFuture->pContTail = NULL;
@@ -1003,6 +1050,12 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 	if ( !bResolved && sOwnedError && (iFlags & XFUTURE_RESULT_F_OWN_ERROR) ) {
 		XNET_FREE((ptr)sOwnedError);
 	}
+	if ( sError && (iInputFlags & XFUTURE_RESULT_F_OWN_ERROR) && pfnFreeError ) {
+		pfnFreeError((ptr)sError);
+	}
+	if ( !bResolved ) {
+		__xnetFutureFreeValue(pValue, iFlags, pfnFreeValue);
+	}
 	// 唤醒协程等待者
 	#if defined(XXRTL_CORE) && !defined(XRT_NO_COROUTINE)
 		if ( bResolved && pCoEvent ) {
@@ -1016,6 +1069,12 @@ static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr
 		}
 	#endif
 	return bResolved;
+}
+
+
+static bool __xnetFutureCompleteEx(xnetfuture* pFuture, xnet_result iStatus, ptr pValue, const char* sError, uint32 iFlags)
+{
+	return __xnetFutureCompleteExWithFree(pFuture, iStatus, pValue, sError, iFlags, NULL, NULL);
 }
 
 
@@ -1033,6 +1092,8 @@ static bool __xnetPromiseCompleteResult(xpromise* pPromise, const xfuture_result
 	ptr pValue;
 	const char* sError;
 	uint32 iFlags;
+	void (*pfnFreeValue)(ptr pValue);
+	void (*pfnFreeError)(ptr pError);
 
 	if ( !pPromise ) { return false; }
 	if ( __xnetSyncAtomicCompareExchange(&pPromise->bCompleted, 1, 0) != 0 ) {
@@ -1043,10 +1104,12 @@ static bool __xnetPromiseCompleteResult(xpromise* pPromise, const xfuture_result
 	pValue = pResult ? pResult->pValue : NULL;
 	sError = pResult ? (const char*)pResult->sError : NULL;
 	iFlags = pResult ? pResult->iFlags : XFUTURE_RESULT_F_NONE;
+	pfnFreeValue = pResult ? pResult->pfnFreeValue : NULL;
+	pfnFreeError = pResult ? pResult->pfnFreeError : NULL;
 
 	if ( iStatus == 0 ) { iStatus = XRT_NET_OK; }
 	if ( iStatus == XRT_NET_AGAIN ) { iStatus = XRT_NET_ERROR; }
-	return __xnetFutureCompleteEx(pPromise->pFuture, (xnet_result)iStatus, pValue, sError, iFlags);
+	return __xnetFutureCompleteExWithFree(pPromise->pFuture, (xnet_result)iStatus, pValue, sError, iFlags, pfnFreeValue, pfnFreeError);
 }
 
 
@@ -1056,15 +1119,13 @@ static void __xnetFutureResultFree(xfuture_result* pResult)
 	if ( pResult == NULL ) {
 		return;
 	}
-	if ( pResult->pValue && (pResult->iFlags & XFUTURE_RESULT_F_OWN_VALUE) ) {
-		if ( pResult->iFlags & XFUTURE_RESULT_F_GROUP_ALL ) {
-			__xnetFutureAllValueFree((xfuture_all_value*)pResult->pValue);
-		}
-	}
+	__xnetFutureFreeValue(pResult->pValue, pResult->iFlags, pResult->pfnFreeValue);
 	pResult->pValue = NULL;
+	pResult->pfnFreeValue = NULL;
 	pResult->iFlags &= ~XFUTURE_RESULT_F_OWN_VALUE;
-	__xnetFutureFreeError((const char*)pResult->sError, pResult->iFlags);
+	__xnetFutureFreeResultError((const char*)pResult->sError, pResult->iFlags, pResult->pfnFreeError);
 	pResult->sError = NULL;
+	pResult->pfnFreeError = NULL;
 	pResult->iFlags &= ~XFUTURE_RESULT_F_OWN_ERROR;
 }
 
@@ -1078,6 +1139,8 @@ static bool __xnetFutureResultCopy(xfuture_result* pDst, const xfuture_result* p
 	memset(pDst, 0, sizeof(*pDst));
 	pDst->iStatus = pSrc->iStatus;
 	pDst->pValue = pSrc->pValue;
+	pDst->pfnFreeValue = NULL;
+	pDst->pfnFreeError = NULL;
 	pDst->iFlags = pSrc->iFlags & ~(XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_OWN_VALUE);
 	if ( pSrc->sError && pSrc->sError[0] ) {
 		pDst->sError = (str)__xnetFutureDupError((const char*)pSrc->sError);
@@ -1269,7 +1332,7 @@ static bool __xnetFutureDispatchContinuation(xrt_future_cont* pCont)
 	}
 
 	// 内联执行模式: 直接在当前线程运行
-	if ( pCont->iExec == __XNET_FCONT_EXEC_INLINE ) {
+	if ( pCont->iExec == __XNET_FCONT_EXEC_INLINE || pCont->iExec == __XNET_FCONT_EXEC_SOURCE_INLINE ) {
 		__xnetFutureContRun(pCont);
 		return true;
 	}
@@ -1576,6 +1639,114 @@ static void __xnetFutureGroupRelease(__xnet_future_group_ctx* pGroup)
 }
 
 
+// 内部函数：解除 group future 上的 pending cancel/cleanup 钩子
+static void __xnetFutureGroupDetachPending(__xnet_future_group_ctx* pGroup)
+{
+	xfuture* pFuture;
+	bool bReleaseRef = false;
+
+	if ( pGroup == NULL || pGroup->pPromise == NULL || pGroup->pPromise->pFuture == NULL ) {
+		return;
+	}
+
+	pFuture = pGroup->pPromise->pFuture;
+	__xnetFutureLock(pFuture);
+	if ( pFuture->pPendingCtx == pGroup ) {
+		pFuture->pPendingCtx = NULL;
+		pFuture->pfnPendingCancel = NULL;
+		pFuture->pfnPendingCleanup = NULL;
+		bReleaseRef = true;
+	}
+	__xnetFutureUnlock(pFuture);
+
+	if ( bReleaseRef ) {
+		__xnetFutureGroupRelease(pGroup);
+	}
+}
+
+
+// 内部函数：future group 输出 future 释放时，释放 pending 持有的 group 引用
+static void __xnetFutureGroupPendingCleanup(xfuture* pFuture)
+{
+	__xnet_future_group_ctx* pGroup = NULL;
+
+	if ( pFuture == NULL ) {
+		return;
+	}
+
+	__xnetFutureLock(pFuture);
+	pGroup = (__xnet_future_group_ctx*)pFuture->pPendingCtx;
+	pFuture->pPendingCtx = NULL;
+	pFuture->pfnPendingCancel = NULL;
+	pFuture->pfnPendingCleanup = NULL;
+	__xnetFutureUnlock(pFuture);
+
+	if ( pGroup != NULL ) {
+		__xnetFutureGroupRelease(pGroup);
+	}
+}
+
+
+// 内部函数：取消 future group 时，向所有源 future 传播取消请求
+static void __xnetFutureGroupCancelSources(__xnet_future_group_ctx* pGroup)
+{
+	int i;
+
+	if ( pGroup == NULL || pGroup->arrSources == NULL || pGroup->iCount <= 0 ) {
+		return;
+	}
+
+	for ( i = 0; i < pGroup->iCount; ++i ) {
+		if ( pGroup->arrSources[i] != NULL ) {
+			(void)xFutureRequestCancel(pGroup->arrSources[i]);
+		}
+	}
+}
+
+
+// 内部函数：future group 的 pending cancel 回调
+static bool __xnetFutureGroupPendingCancel(xfuture* pFuture)
+{
+	__xnet_future_group_ctx* pGroup = NULL;
+	bool bDoCancel = false;
+	bool bResult;
+
+	if ( pFuture == NULL ) {
+		return false;
+	}
+
+	__xnetFutureLock(pFuture);
+	pGroup = (__xnet_future_group_ctx*)pFuture->pPendingCtx;
+	if ( pGroup != NULL ) {
+		(void)__xnetFutureGroupAddRef(pGroup);
+	}
+	__xnetFutureUnlock(pFuture);
+
+	if ( pGroup == NULL ) {
+		return __xnetFutureCompleteEx(pFuture, XRT_NET_CANCELLED, NULL, "future cancel requested.", XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
+	}
+
+	xrtMutexLock(pGroup->pLock);
+	if ( !pGroup->bCompleted ) {
+		pGroup->bCompleted = true;
+		bDoCancel = true;
+	}
+	xrtMutexUnlock(pGroup->pLock);
+
+	if ( !bDoCancel ) {
+		bResult = (xFutureStatus(pFuture) == XRT_NET_CANCELLED);
+		__xnetFutureGroupRelease(pGroup);
+		return bResult;
+	}
+
+	bResult = __xnetFutureCompleteEx(pFuture, XRT_NET_CANCELLED, NULL, "future cancel requested.", XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
+	__xnetFutureGroupCancelSources(pGroup);
+	__xnetFutureGroupDetachPending(pGroup);
+	__xnetFutureGroupRelease(pGroup);
+	return bResult;
+}
+
+
 // 内部函数：__xnetFutureGroupOnSourceDone
 static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 {
@@ -1644,6 +1815,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 	if ( bDoComplete ) {
 		__xnetFutureSetGroupSource(pGroup->pPromise->pFuture, pGroup->arrSources ? pGroup->arrSources[iWinner] : NULL, iWinner);
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, pIn);
+		__xnetFutureGroupDetachPending(pGroup);
 	}
 	// RACE 模式: 取消其他未完成的源 Future
 	if ( bDoCancelLosers ) {
@@ -1658,6 +1830,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 	if ( bCompleteFailure ) {
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, &tFailure);
 		__xnetFutureResultFree(&tFailure);
+		__xnetFutureGroupDetachPending(pGroup);
 	}
 	// ALL 模式全部成功: 收集所有值完成 Promise
 	if ( bCompleteAllOk ) {
@@ -1669,6 +1842,7 @@ static void __xnetFutureGroupOnSourceDone(const xfuture_result* pIn, ptr pArg)
 			tOk.iFlags = XFUTURE_RESULT_F_OWN_VALUE | XFUTURE_RESULT_F_GROUP_ALL;
 		}
 		(void)__xnetPromiseCompleteResult(pGroup->pPromise, &tOk);
+		__xnetFutureGroupDetachPending(pGroup);
 	}
 	// 减少组引用计数, 若归零则释放
 	__xnetFutureGroupRelease(pGroup);
@@ -1733,7 +1907,6 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 
 	// 遍历源 Future, 增加引用并注册完成回调
 	for ( i = 0; i < iCount; i++ ) {
-		xfuture* pChild;
 		if ( arrFuture[i] == NULL ) {
 			__xnetSyncSetError("future group source is null.");
 			__xnetFutureGroupRelease(pGroup);
@@ -1743,10 +1916,31 @@ static xfuture* __xnetFutureCreateGroup(xfuture** arrFuture, int iCount, __xnet_
 		pGroup->arrSources[i] = xFutureAddRef(arrFuture[i]);
 		pGroup->arrItems[i].pGroup = pGroup;
 		pGroup->arrItems[i].iIndex = i;
-		(void)__xnetFutureGroupAddRef(pGroup);
 		// 为每个源 Future 注册 finally 回调, 用于追踪完成事件
-		pChild = xFutureFinallyEngine(arrFuture[i], NULL, 0, __xnetFutureGroupOnSourceDone, &pGroup->arrItems[i]);
+	}
+
+	pOut->pPendingCtx = __xnetFutureGroupAddRef(pGroup);
+	pOut->pfnPendingCancel = __xnetFutureGroupPendingCancel;
+	pOut->pfnPendingCleanup = __xnetFutureGroupPendingCleanup;
+
+	// Register callbacks after pending hooks are visible to early completions.
+	for ( i = 0; i < iCount; i++ ) {
+		xfuture* pChild;
+		xfuture_state iState;
+		(void)__xnetFutureGroupAddRef(pGroup);
+		// 已完成的 source 直接 inline 触发，确保重复失败 source 的每个槽位都会计数一次。
+		iState = xFutureState(arrFuture[i]);
+		if ( iState == XFUTURE_PENDING && iMode == __XNET_FGROUP_RACE ) {
+			pChild = __xnetFutureFinallySourceInline(arrFuture[i], __xnetFutureGroupOnSourceDone, &pGroup->arrItems[i]);
+		}
+		else if ( iState == XFUTURE_PENDING ) {
+			pChild = xFutureFinallyEngine(arrFuture[i], NULL, 0, __xnetFutureGroupOnSourceDone, &pGroup->arrItems[i]);
+		}
+		else {
+			pChild = xFutureFinallyInline(arrFuture[i], __xnetFutureGroupOnSourceDone, &pGroup->arrItems[i]);
+		}
 		if ( pChild == NULL ) {
+			__xnetFutureGroupDetachPending(pGroup);
 			__xnetFutureGroupRelease(pGroup);
 			__xnetFutureGroupRelease(pGroup);
 			xFutureRelease(pOut);
@@ -2005,7 +2199,9 @@ XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut)
 	pOut->iStatus = pFuture->bDone ? pFuture->iStatus : XRT_NET_AGAIN;
 	pOut->pValue = pFuture->bDone ? pFuture->pValue : NULL;
 	pOut->sError = (str)(pFuture->bDone ? pFuture->sError : NULL);
-	pOut->iFlags = pFuture->bDone ? pFuture->iResultFlags : XFUTURE_RESULT_F_NONE;
+	pOut->iFlags = pFuture->bDone ? (pFuture->iResultFlags & ~(XFUTURE_RESULT_F_OWN_VALUE | XFUTURE_RESULT_F_OWN_ERROR)) : XFUTURE_RESULT_F_NONE;
+	pOut->pfnFreeValue = NULL;
+	pOut->pfnFreeError = NULL;
 	__xnetFutureUnlock(pFuture);
 	return pOut->iStatus == XRT_NET_OK;
 }
@@ -2202,6 +2398,109 @@ XXAPI bool xFutureRequestCancel(xfuture* pFuture)
 }
 
 
+// 内部函数：取消转发 cleanup
+static void __xnetFutureCancelForwardCleanup(xfuture* pFuture)
+{
+	__xnet_future_cancel_forward_ctx* pCtx = NULL;
+
+	if ( pFuture == NULL ) {
+		return;
+	}
+
+	__xnetFutureLock(pFuture);
+	pCtx = (__xnet_future_cancel_forward_ctx*)pFuture->pPendingCtx;
+	pFuture->pPendingCtx = NULL;
+	pFuture->pfnPendingCancel = NULL;
+	pFuture->pfnPendingCleanup = NULL;
+	__xnetFutureUnlock(pFuture);
+
+	if ( pCtx != NULL ) {
+		if ( pCtx->pTarget != NULL ) {
+			xFutureRelease(pCtx->pTarget);
+			pCtx->pTarget = NULL;
+		}
+		XNET_FREE(pCtx);
+	}
+}
+
+
+// 内部函数：取消转发回调
+static bool __xnetFutureCancelForwardRequest(xfuture* pFuture)
+{
+	__xnet_future_cancel_forward_ctx* pCtx = NULL;
+	xfuture* pTarget = NULL;
+	bool bResult;
+
+	if ( pFuture == NULL ) {
+		return false;
+	}
+
+	__xnetFutureLock(pFuture);
+	pCtx = (__xnet_future_cancel_forward_ctx*)pFuture->pPendingCtx;
+	if ( pCtx != NULL ) {
+		pFuture->pPendingCtx = NULL;
+		pFuture->pfnPendingCancel = NULL;
+		pFuture->pfnPendingCleanup = NULL;
+		pTarget = pCtx->pTarget;
+		pCtx->pTarget = NULL;
+	}
+	__xnetFutureUnlock(pFuture);
+
+	bResult = __xnetFutureCompleteEx(pFuture, XRT_NET_CANCELLED, NULL, "future cancel requested.", XFUTURE_RESULT_F_OWN_ERROR | XFUTURE_RESULT_F_CANCELLED);
+	if ( bResult && pTarget != NULL ) {
+		(void)xFutureRequestCancel(pTarget);
+	}
+	if ( pTarget != NULL ) {
+		xFutureRelease(pTarget);
+	}
+	if ( pCtx != NULL ) {
+		XNET_FREE(pCtx);
+	}
+	return bResult;
+}
+
+
+// 将 Future 的取消请求转发到另一个 Future
+XXAPI bool xFutureForwardCancelTo(xfuture* pFuture, xfuture* pTarget)
+{
+	__xnet_future_cancel_forward_ctx* pCtx = NULL;
+	bool bOk = false;
+
+	if ( pFuture == NULL || pTarget == NULL || pFuture == pTarget ) {
+		return false;
+	}
+
+	pCtx = (__xnet_future_cancel_forward_ctx*)XNET_ALLOC(sizeof(__xnet_future_cancel_forward_ctx));
+	if ( pCtx == NULL ) {
+		return false;
+	}
+	memset(pCtx, 0, sizeof(*pCtx));
+	pCtx->pTarget = xFutureAddRef(pTarget);
+	if ( pCtx->pTarget == NULL ) {
+		XNET_FREE(pCtx);
+		return false;
+	}
+
+	__xnetFutureLock(pFuture);
+	if ( pFuture->bDone ) {
+		bOk = true;
+	}
+	else if ( pFuture->pPendingCtx == NULL && pFuture->pfnPendingCancel == NULL && pFuture->pfnPendingCleanup == NULL ) {
+		pFuture->pPendingCtx = pCtx;
+		pFuture->pfnPendingCancel = __xnetFutureCancelForwardRequest;
+		pFuture->pfnPendingCleanup = __xnetFutureCancelForwardCleanup;
+		bOk = true;
+	}
+	__xnetFutureUnlock(pFuture);
+
+	if ( !bOk ) {
+		xFutureRelease(pCtx->pTarget);
+		XNET_FREE(pCtx);
+	}
+	return bOk;
+}
+
+
 // 创建 Promise
 XXAPI xpromise* xPromiseCreate(xfuture* pFuture)
 {
@@ -2253,6 +2552,21 @@ XXAPI bool xPromiseResolve(xpromise* pPromise, ptr pValue)
 		return false;
 	}
 	return __xnetFutureCompleteEx(pPromise->pFuture, XRT_NET_OK, pValue, NULL, XFUTURE_RESULT_F_NONE);
+}
+
+
+// 解析 Promise，并让 Future 接管 pValue 的内存所有权
+XXAPI bool xPromiseResolveOwned(xpromise* pPromise, ptr pValue)
+{
+	if ( !pPromise ) {
+		if ( pValue ) { XNET_FREE(pValue); }
+		return false;
+	}
+	if ( __xnetSyncAtomicCompareExchange(&pPromise->bCompleted, 1, 0) != 0 ) {
+		if ( pValue ) { XNET_FREE(pValue); }
+		return false;
+	}
+	return __xnetFutureCompleteExWithFree(pPromise->pFuture, XRT_NET_OK, pValue, NULL, XFUTURE_RESULT_F_OWN_VALUE, NULL, NULL);
 }
 
 
@@ -2428,6 +2742,12 @@ XXAPI xfuture* xFutureFinallyInline(xfuture* pFuture, xfuture_finally_fn pfnCont
 
 
 // xFutureThenCurrent 相关处理
+static xfuture* __xnetFutureFinallySourceInline(xfuture* pFuture, xfuture_finally_fn pfnCont, ptr pArg)
+{
+	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_FINALLY, __XNET_FCONT_EXEC_SOURCE_INLINE, NULL, pfnCont, pArg, NULL, 0, NULL, 0);
+}
+
+
 XXAPI xfuture* xFutureThenCurrent(xfuture* pFuture, xfuture_cont_fn pfnCont, ptr pArg)
 {
 	return __xnetFutureAttachContinuation(pFuture, __XNET_FCONT_THEN, __XNET_FCONT_EXEC_CURRENT, pfnCont, NULL, pArg, NULL, 0, NULL, 0);

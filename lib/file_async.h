@@ -90,6 +90,7 @@ static int32 __xafileTaskFail(xfuture_result* pOut, const char* sError)
 		pOut->sError = xrtCopyStr((str)sError, 0);
 		if ( pOut->sError && pOut->sError != xCore.sNull ) {
 			pOut->iFlags |= XFUTURE_RESULT_F_OWN_ERROR;
+			pOut->pfnFreeError = xrtFree;
 		}
 		else {
 			pOut->sError = (str)sError;

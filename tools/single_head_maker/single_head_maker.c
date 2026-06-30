@@ -26,6 +26,7 @@
 #define XRT_IMPLEMENTATION
 #if defined(XRT_SINGLE_HEAD_MAKER_USE_SOURCE)
 	#include "../../xrt.h"
+	#include "../../xrt.c"
 #else
 	#include "../../singlehead/xrt.h"
 #endif

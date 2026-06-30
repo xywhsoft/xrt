@@ -88,6 +88,18 @@ static int Test_XSON(void)
 	xrtFree(sText);
 	xvoUnref(pVal);
 
+	pVal = xvoCreateSet();
+	__TEST_XSON_REQUIRE(pVal != NULL, "new set build failed");
+	__TEST_XSON_REQUIRE(xvoCollSetText(pVal, "dev", 0, FALSE), "new set text dev failed");
+	__TEST_XSON_REQUIRE(xvoCollSetText(pVal, "rc", 0, FALSE), "new set text rc failed");
+	sText = xrtStringifyXSON(pVal, FALSE, 0, &iSize);
+	__TEST_XSON_REQUIRE(sText != NULL, "new set stringify returned null");
+	__TEST_XSON_REQUIRE(strncmp(sText, "set{", 4) == 0, "new set stringify prefix mismatch");
+	__TEST_XSON_REQUIRE(strstr(sText, "\"dev\"") != NULL, "new set stringify missing dev");
+	__TEST_XSON_REQUIRE(strstr(sText, "\"rc\"") != NULL, "new set stringify missing rc");
+	xrtFree(sText);
+	xvoUnref(pVal);
+
 	pVal = xvoCreateTimeSerial(2000, 1, 2, 3, 4, 5);
 	sText = xrtStringifyXSON(pVal, FALSE, 0, &iSize);
 	__TEST_XSON_REQUIRE(sText != NULL, "time stringify returned null");

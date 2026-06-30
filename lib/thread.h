@@ -720,17 +720,13 @@ XXAPI bool xrtSemPostMultiple(xsem pSem, uint32 iCount)
 		return ReleaseSemaphore(pSem->objSem, iCount, NULL) != 0;
 	#else
 		bool bOk = FALSE;
-		uint32 iPosted = 0;
 		// 加锁互斥体，批量增加信号量计数
 		pthread_mutex_lock(&pSem->objLock);
-		while ( iPosted < iCount && pSem->iValue < pSem->iMaxValue ) {
-			pSem->iValue++;
-			iPosted++;
-		}
-		if ( iPosted > 0 ) {
+		if ( iCount <= (pSem->iMaxValue - pSem->iValue) ) {
+			pSem->iValue += iCount;
 			// 广播唤醒所有等待线程
 			pthread_cond_broadcast(&pSem->objCond);
-			bOk = (iPosted == iCount);
+			bOk = TRUE;
 		}
 		pthread_mutex_unlock(&pSem->objLock);
 		return bOk;

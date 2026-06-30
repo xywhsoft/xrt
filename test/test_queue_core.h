@@ -477,6 +477,21 @@ static int Test_QueueCore(void)
 	iFail += __Test_QueueCore_Check("mpsc drain null queue zero", xrtMPSCQDrain(NULL, __Test_QueueCore_DrainProc, &tDrainCtx) == 0u && tDrainCtx.iCount == 0u);
 	iFail += __Test_QueueCore_Check("mpsc reset null fails", xrtMPSCQReset(NULL) == FALSE);
 
+	tCfg.iCapacity = 1;
+	hMPSC = xrtMPSCQCreate(&tCfg);
+	iFail += __Test_QueueCore_Check("mpsc capacity one create", hMPSC != NULL);
+	if ( hMPSC != NULL ) {
+		iFail += __Test_QueueCore_Check("mpsc capacity one normalized", hMPSC->iCapacity == 2u);
+		iFail += __Test_QueueCore_Check("mpsc capacity one push #1", xrtMPSCQTryPush(hMPSC, (ptr)(uintptr_t)11u) == XQUEUE_OK);
+		iFail += __Test_QueueCore_Check("mpsc capacity one push #2", xrtMPSCQTryPush(hMPSC, (ptr)(uintptr_t)12u) == XQUEUE_OK);
+		iFail += __Test_QueueCore_Check("mpsc capacity one full", xrtMPSCQTryPush(hMPSC, (ptr)(uintptr_t)13u) == XQUEUE_FULL);
+		iFail += __Test_QueueCore_Check("mpsc capacity one pop #1", xrtMPSCQTryPop(hMPSC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 11u);
+		iFail += __Test_QueueCore_Check("mpsc capacity one pop #2", xrtMPSCQTryPop(hMPSC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 12u);
+		xrtMPSCQDestroy(hMPSC);
+		hMPSC = NULL;
+	}
+	tCfg.iCapacity = 3;
+
 	hMPSC = xrtMPSCQCreate(&tCfg);
 	iFail += __Test_QueueCore_Check("mpsc create", hMPSC != NULL);
 	if ( hMPSC == NULL ) {
@@ -633,6 +648,21 @@ static int Test_QueueCore(void)
 		iFail += __Test_QueueCore_Check("mpsc wait pop timeout null queue error", xrtMPSCQWaitPopTimeout(NULL, &pItem, 1u) == XQUEUE_ERROR);
 		iFail += __Test_QueueCore_Check("mpsc wait approx null zero", xrtMPSCQWaitApproxCount(NULL) == 0u);
 
+		tCfg.iCapacity = 1;
+		hMPSCWait = xrtMPSCQWaitCreate(&tCfg);
+		iFail += __Test_QueueCore_Check("mpsc wait capacity one create", hMPSCWait != NULL);
+		if ( hMPSCWait != NULL ) {
+			iFail += __Test_QueueCore_Check("mpsc wait capacity one normalized", hMPSCWait->tQueue.iCapacity == 2u);
+			iFail += __Test_QueueCore_Check("mpsc wait capacity one push #1", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)111u) == XQUEUE_OK);
+			iFail += __Test_QueueCore_Check("mpsc wait capacity one push #2", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)112u) == XQUEUE_OK);
+			iFail += __Test_QueueCore_Check("mpsc wait capacity one full", xrtMPSCQWaitTryPush(hMPSCWait, (ptr)(uintptr_t)113u) == XQUEUE_FULL);
+			iFail += __Test_QueueCore_Check("mpsc wait capacity one pop #1", xrtMPSCQWaitTryPop(hMPSCWait, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 111u);
+			iFail += __Test_QueueCore_Check("mpsc wait capacity one pop #2", xrtMPSCQWaitTryPop(hMPSCWait, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 112u);
+			xrtMPSCQWaitDestroy(hMPSCWait);
+			hMPSCWait = NULL;
+		}
+		tCfg.iCapacity = 3;
+
 		hMPSCWait = xrtMPSCQWaitCreate(&tCfg);
 		iFail += __Test_QueueCore_Check("mpsc wait create", hMPSCWait != NULL);
 		if ( hMPSCWait == NULL ) {
@@ -784,6 +814,21 @@ static int Test_QueueCore(void)
 	memset(&tDrainCtx, 0, sizeof(tDrainCtx));
 	iFail += __Test_QueueCore_Check("mpmc drain null queue zero", xrtMPMCQDrain(NULL, __Test_QueueCore_DrainProc, &tDrainCtx) == 0u && tDrainCtx.iCount == 0u);
 	iFail += __Test_QueueCore_Check("mpmc reset null fails", xrtMPMCQReset(NULL) == FALSE);
+
+	tCfg.iCapacity = 1;
+	hMPMC = xrtMPMCQCreate(&tCfg);
+	iFail += __Test_QueueCore_Check("mpmc capacity one create", hMPMC != NULL);
+	if ( hMPMC != NULL ) {
+		iFail += __Test_QueueCore_Check("mpmc capacity one normalized", hMPMC->iCapacity == 2u);
+		iFail += __Test_QueueCore_Check("mpmc capacity one push #1", xrtMPMCQTryPush(hMPMC, (ptr)(uintptr_t)211u) == XQUEUE_OK);
+		iFail += __Test_QueueCore_Check("mpmc capacity one push #2", xrtMPMCQTryPush(hMPMC, (ptr)(uintptr_t)212u) == XQUEUE_OK);
+		iFail += __Test_QueueCore_Check("mpmc capacity one full", xrtMPMCQTryPush(hMPMC, (ptr)(uintptr_t)213u) == XQUEUE_FULL);
+		iFail += __Test_QueueCore_Check("mpmc capacity one pop #1", xrtMPMCQTryPop(hMPMC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 211u);
+		iFail += __Test_QueueCore_Check("mpmc capacity one pop #2", xrtMPMCQTryPop(hMPMC, &pItem) == XQUEUE_OK && (uintptr_t)pItem == 212u);
+		xrtMPMCQDestroy(hMPMC);
+		hMPMC = NULL;
+	}
+	tCfg.iCapacity = 3;
 
 	hMPMC = xrtMPMCQCreate(&tCfg);
 	iFail += __Test_QueueCore_Check("mpmc create", hMPMC != NULL);

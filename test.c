@@ -123,6 +123,7 @@ static uint32 __xrtTestParseUint32ExtraArg(int iIndex, uint32 iDefaultValue);
 	#include "test/test_queue_core.h"
 #endif
 #include "test/test_runtime_phase2.h"
+#include "test/test_runtime_type.h"
 #ifndef XRT_NO_COROUTINE
 	#include "test/test_coroutine.h"
 	#include "test/test_coroutine_min.h"
@@ -310,6 +311,7 @@ XRT_TEST_WRAP_INT(__xrtTestRun_ThreadCore, Test_ThreadCore)
 	XRT_TEST_WRAP_INT(__xrtTestRun_QueueCore, Test_QueueCore)
 #endif
 XRT_TEST_WRAP_CORE(__xrtTestRun_RuntimePhase2, Test_Runtime_Phase2)
+XRT_TEST_WRAP_CORE_INT(__xrtTestRun_RuntimeType, Test_RuntimeType)
 #ifndef XRT_NO_COROUTINE
 	XRT_TEST_WRAP_CORE(__xrtTestRun_Coroutine, Test_Coroutine)
 	XRT_TEST_WRAP_INT(__xrtTestRun_CoroutineMin, Test_CoroutineMin)
@@ -497,6 +499,7 @@ static const xrt_test_entry __g_arrXrtTests[] = {
 		{ "queue_core", "Queue Core", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_QueueCore },
 	#endif
 	{ "runtime_phase2", "Runtime Phase2", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_RuntimePhase2 },
+	{ "runtime_type", "Runtime Type", "runtime", XRT_TEST_FLAG_NONE, __xrtTestRun_RuntimeType },
 	#ifndef XRT_NO_COROUTINE
 		{ "coroutine", "Coroutine", "async", XRT_TEST_FLAG_NONE, __xrtTestRun_Coroutine },
 		{ "coroutine_min", "Coroutine Min", "async", XRT_TEST_FLAG_NONE, __xrtTestRun_CoroutineMin },

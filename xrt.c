@@ -11,6 +11,7 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef __TINYC__
+		#include <winapi/windows.h>
 		#include <winapi/shellapi.h>
 		#include <winapi/iphlpapi.h>
 	#else
@@ -318,6 +319,9 @@ static void __xrtRuntimeFinalizeLocked();
 
 #ifndef XRT_NO_QUEUE
 	#include "lib/queue.h"
+	#ifndef XRT_NO_QUEUE_WAIT
+		#include "lib/channel.h"
+	#endif
 #endif
 
 #ifndef XRT_NO_COROUTINE
@@ -437,8 +441,12 @@ static void __xrtRuntimeFinalizeLocked();
 	#include "lib/regex.h"
 #endif
 
+#include "lib/set.h"
+
 #ifndef XRT_NO_VALUE
+	#include "lib/typed_container.h"
 	#include "lib/value.h"
+	#include "lib/type.h"
 #endif
 
 #ifndef XRT_NO_JNUM

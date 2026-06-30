@@ -488,6 +488,7 @@ XXAPI bool xrtSPSCQReset(xspscq pQueue)
 // xrtMPSCQInit 相关处理
 XXAPI bool xrtMPSCQInit(xmpscq pQueue, const xqueue_config* pCfg)
 {
+	xqueue_config tCfg;
 	uint32 iCapacity;
 	xmpscq_slot* arrSlots;
 	uint32 i;
@@ -495,7 +496,20 @@ XXAPI bool xrtMPSCQInit(xmpscq pQueue, const xqueue_config* pCfg)
 	if ( pQueue == NULL ) {
 		return FALSE;
 	}
-	if ( !__xrtQueueResolveCapacity(pCfg, &iCapacity) ) {
+	if ( pCfg == NULL ) {
+		memset(pQueue, 0, sizeof(xmpscq_struct));
+		return FALSE;
+	}
+
+	/*
+	    MPSC/MPMC 的序列号环形队列容量不能为 1。
+	    否则同一个槽位的“已写入”和“下一轮可写入”序列号无法区分。
+	*/
+	tCfg = *pCfg;
+	if ( tCfg.iCapacity == 1u ) {
+		tCfg.iCapacity = 2u;
+	}
+	if ( !__xrtQueueResolveCapacity(&tCfg, &iCapacity) ) {
 		memset(pQueue, 0, sizeof(xmpscq_struct));
 		return FALSE;
 	}
@@ -847,6 +861,7 @@ XXAPI bool xrtMPSCQReset(xmpscq pQueue)
 // xrtMPMCQInit 相关处理
 XXAPI bool xrtMPMCQInit(xmpmcq pQueue, const xqueue_config* pCfg)
 {
+	xqueue_config tCfg;
 	uint32 iCapacity;
 	xmpmcq_slot* arrSlots;
 	uint32 i;
@@ -854,7 +869,20 @@ XXAPI bool xrtMPMCQInit(xmpmcq pQueue, const xqueue_config* pCfg)
 	if ( pQueue == NULL ) {
 		return FALSE;
 	}
-	if ( !__xrtQueueResolveCapacity(pCfg, &iCapacity) ) {
+	if ( pCfg == NULL ) {
+		memset(pQueue, 0, sizeof(xmpmcq_struct));
+		return FALSE;
+	}
+
+	/*
+	    MPSC/MPMC 的序列号环形队列容量不能为 1。
+	    否则同一个槽位的“已写入”和“下一轮可写入”序列号无法区分。
+	*/
+	tCfg = *pCfg;
+	if ( tCfg.iCapacity == 1u ) {
+		tCfg.iCapacity = 2u;
+	}
+	if ( !__xrtQueueResolveCapacity(&tCfg, &iCapacity) ) {
 		memset(pQueue, 0, sizeof(xmpmcq_struct));
 		return FALSE;
 	}

@@ -228,6 +228,68 @@ static int __Test_FutureCore_TaskRunThread(void)
 }
 
 
+static int __Test_FutureCore_TypeDesc(void)
+{
+	xfuture* pFuture = NULL;
+	xfuture* pStored = NULL;
+	xfuture* pUnboxed = NULL;
+	xtarray pArray = NULL;
+	xvalue pBox = NULL;
+	xpromise* pPromise = NULL;
+	int iValue = 20260628;
+	bool bOk = true;
+
+	pFuture = xFutureCreate();
+	pPromise = xPromiseCreate(pFuture);
+	pArray = xrtTypedArrayCreate(xrtTypeFuture(), XRT_OBJMODE_LOCAL);
+	if ( pFuture == NULL || pPromise == NULL || pArray == NULL ) {
+		if ( pBox ) xvoUnref(pBox);
+		if ( pArray ) xrtTypedArrayDestroy(pArray);
+		if ( pPromise ) xPromiseDestroy(pPromise);
+		if ( pFuture ) xFutureRelease(pFuture);
+		return 30;
+	}
+
+	if ( xrtTypeFuture()->Kind != XRT_TYPE_KIND_FUTURE || strcmp(xrtTypeName(xrtTypeFuture()), "future") != 0 ) {
+		bOk = false;
+	}
+	if ( xrtTypedArrayAppend(pArray, &pFuture) == NULL ) {
+		bOk = false;
+	}
+
+	// 验证 typed container 通过 future 类型描述持有引用。
+	xFutureRelease(pFuture);
+	pFuture = NULL;
+	pStored = (xfuture*)*(xfuture**)xrtTypedArrayGet(pArray, 1);
+	if ( pStored == NULL ) {
+		bOk = false;
+	} else {
+		(void)xPromiseResolve(pPromise, &iValue);
+		if ( !xFutureWait(pStored) || xFutureValue(pStored) != &iValue ) {
+			bOk = false;
+		}
+	}
+
+	if ( pStored != NULL ) {
+		pBox = xrtTypeBoxValue(xrtTypeFuture(), &pStored);
+		if ( pBox == NULL || !xrtTypeSame(xvoTypeDesc(pBox), xrtTypeFuture()) ) {
+			bOk = false;
+		}
+		if ( !xrtTypeUnboxValue(xrtTypeFuture(), pBox, &pUnboxed) || pUnboxed != pStored ) {
+			bOk = false;
+		}
+		if ( pUnboxed != NULL ) {
+			xFutureRelease(pUnboxed);
+		}
+	}
+
+	if ( pBox ) xvoUnref(pBox);
+	xrtTypedArrayDestroy(pArray);
+	xPromiseDestroy(pPromise);
+	return bOk ? 0 : 31;
+}
+
+
 // 内部函数：__Test_FutureCore_Continuation
 static int __Test_FutureCore_Continuation(void)
 {
@@ -824,11 +886,988 @@ static int __Test_FutureCore_Combinators(void)
 	xFutureRelease(pA);
 	xFutureRelease(pB);
 
+	pA = xFutureCreate();
+	pB = xFutureCreate();
+	pPromiseA = xPromiseCreate(pA);
+	pPromiseB = xPromiseCreate(pB);
+	if ( pA == NULL || pB == NULL || pPromiseA == NULL || pPromiseB == NULL ) {
+		if ( pPromiseA ) xPromiseDestroy(pPromiseA);
+		if ( pPromiseB ) xPromiseDestroy(pPromiseB);
+		if ( pA ) xFutureRelease(pA);
+		if ( pB ) xFutureRelease(pB);
+		return 66;
+	}
+	arrFuture[0] = pA;
+	arrFuture[1] = pB;
+	pGroup = xFutureWhenAll(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 661;
+	}
+	if ( !xFutureRequestCancel(pGroup) ) {
+		xFutureRelease(pGroup);
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 662;
+	}
+	{
+		int iSpin = 0;
+		while ( (xFutureState(pA) == XFUTURE_PENDING || xFutureState(pB) == XFUTURE_PENDING) && iSpin < 200 ) {
+			xrtThreadYield();
+			iSpin++;
+		}
+	}
+	if ( xFutureState(pGroup) != XFUTURE_CANCELLED || xFutureState(pA) != XFUTURE_CANCELLED || xFutureState(pB) != XFUTURE_CANCELLED ) {
+		xFutureRelease(pGroup);
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 663;
+	}
+	xFutureRelease(pGroup);
+	xPromiseDestroy(pPromiseA);
+	xPromiseDestroy(pPromiseB);
+	xFutureRelease(pA);
+	xFutureRelease(pB);
+
+	pA = xFutureCreate();
+	pB = xFutureCreate();
+	pPromiseA = xPromiseCreate(pA);
+	pPromiseB = xPromiseCreate(pB);
+	if ( pA == NULL || pB == NULL || pPromiseA == NULL || pPromiseB == NULL ) {
+		if ( pPromiseA ) xPromiseDestroy(pPromiseA);
+		if ( pPromiseB ) xPromiseDestroy(pPromiseB);
+		if ( pA ) xFutureRelease(pA);
+		if ( pB ) xFutureRelease(pB);
+		return 67;
+	}
+	arrFuture[0] = pA;
+	arrFuture[1] = pB;
+	pGroup = xFutureRace(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 671;
+	}
+	if ( !xFutureRequestCancel(pGroup) ) {
+		xFutureRelease(pGroup);
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 672;
+	}
+	{
+		int iSpin = 0;
+		while ( (xFutureState(pA) == XFUTURE_PENDING || xFutureState(pB) == XFUTURE_PENDING) && iSpin < 200 ) {
+			xrtThreadYield();
+			iSpin++;
+		}
+	}
+	if ( xFutureState(pGroup) != XFUTURE_CANCELLED || xFutureState(pA) != XFUTURE_CANCELLED || xFutureState(pB) != XFUTURE_CANCELLED ) {
+		xFutureRelease(pGroup);
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 673;
+	}
+	xFutureRelease(pGroup);
+	xPromiseDestroy(pPromiseA);
+	xPromiseDestroy(pPromiseB);
+	xFutureRelease(pA);
+	xFutureRelease(pB);
+
+	pA = xFutureCreate();
+	pB = xFutureCreate();
+	pPromiseA = xPromiseCreate(pA);
+	pPromiseB = xPromiseCreate(pB);
+	if ( pA == NULL || pB == NULL || pPromiseA == NULL || pPromiseB == NULL ) {
+		if ( pPromiseA ) xPromiseDestroy(pPromiseA);
+		if ( pPromiseB ) xPromiseDestroy(pPromiseB);
+		if ( pA ) xFutureRelease(pA);
+		if ( pB ) xFutureRelease(pB);
+		return 68;
+	}
+	if ( !xFutureForwardCancelTo(pA, pB) ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 681;
+	}
+	if ( !xFutureRequestCancel(pA) ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 682;
+	}
+	{
+		int iSpin = 0;
+		while ( xFutureState(pB) == XFUTURE_PENDING && iSpin < 200 ) {
+			xrtThreadYield();
+			iSpin++;
+		}
+	}
+	if ( xFutureState(pA) != XFUTURE_CANCELLED || xFutureState(pB) != XFUTURE_CANCELLED ) {
+		xPromiseDestroy(pPromiseA);
+		xPromiseDestroy(pPromiseB);
+		xFutureRelease(pA);
+		xFutureRelease(pB);
+		return 683;
+	}
+	xPromiseDestroy(pPromiseA);
+	xPromiseDestroy(pPromiseB);
+	xFutureRelease(pA);
+	xFutureRelease(pB);
+
 	return 0;
 }
 
 
 // 内部函数：__Test_FutureCore_TaskGroup
+static int __Test_FutureCore_RaceCompletedFirstMultiLoser(void)
+{
+	xfuture* pA = NULL;
+	xfuture* pB = NULL;
+	xfuture* pC = NULL;
+	xfuture* pRace = NULL;
+	xpromise* pPromiseA = NULL;
+	xpromise* pPromiseB = NULL;
+	xpromise* pPromiseC = NULL;
+	xfuture* arrFuture[3];
+	int iValueA = 6901;
+	int iValueB = 6902;
+	int iValueC = 6903;
+	int iRet = 0;
+	int iSpin = 0;
+
+	pA = xFutureCreate();
+	pB = xFutureCreate();
+	pC = xFutureCreate();
+	pPromiseA = xPromiseCreate(pA);
+	pPromiseB = xPromiseCreate(pB);
+	pPromiseC = xPromiseCreate(pC);
+	if ( pA == NULL || pB == NULL || pC == NULL || pPromiseA == NULL || pPromiseB == NULL || pPromiseC == NULL ) {
+		iRet = 690;
+		goto cleanup;
+	}
+
+	arrFuture[0] = pA;
+	arrFuture[1] = pB;
+	arrFuture[2] = pC;
+	pRace = xFutureRace(arrFuture, 3);
+	if ( pRace == NULL ) {
+		iRet = 692;
+		goto cleanup;
+	}
+	if ( !xPromiseResolve(pPromiseA, &iValueA) ) {
+		iRet = 691;
+		goto cleanup;
+	}
+	if ( xPromiseResolve(pPromiseB, &iValueB) || xPromiseResolve(pPromiseC, &iValueC) ) {
+		iRet = 696;
+		goto cleanup;
+	}
+	if ( !xFutureWaitTimeout(pRace, 1000) ) {
+		iRet = 693;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pRace) != XRT_NET_OK || xFutureValue(pRace) != &iValueA ) {
+		iRet = 694;
+		goto cleanup;
+	}
+
+	while ( (xFutureState(pB) == XFUTURE_PENDING || xFutureState(pC) == XFUTURE_PENDING) && iSpin < 200 ) {
+		xrtThreadYield();
+		iSpin++;
+	}
+	if ( xFutureState(pB) != XFUTURE_CANCELLED || xFutureState(pC) != XFUTURE_CANCELLED ) {
+		iRet = 695;
+		goto cleanup;
+	}
+
+cleanup:
+	if ( pRace ) xFutureRelease(pRace);
+	if ( pPromiseA ) xPromiseDestroy(pPromiseA);
+	if ( pPromiseB ) xPromiseDestroy(pPromiseB);
+	if ( pPromiseC ) xPromiseDestroy(pPromiseC);
+	if ( pA ) xFutureRelease(pA);
+	if ( pB ) xFutureRelease(pB);
+	if ( pC ) xFutureRelease(pC);
+	return iRet;
+}
+
+
+// 内部函数：__Test_FutureCore_RaceFailureCancelLoser
+static int __Test_FutureCore_RaceFailureCancelLoser(void)
+{
+	xfuture* pWinner = NULL;
+	xfuture* pLoser = NULL;
+	xfuture* pRace = NULL;
+	xpromise* pWinnerPromise = NULL;
+	xpromise* pLoserPromise = NULL;
+	xfuture* arrFuture[2];
+	int iWinnerValue = 8101;
+	int iLoserValue = 8102;
+	int iRet = 0;
+	int iSpin = 0;
+
+	// 已失败 source 先完成，race 必须失败并取消仍 pending 的 loser。
+	pWinner = xFutureCreate();
+	pLoser = xFutureCreate();
+	pWinnerPromise = xPromiseCreate(pWinner);
+	pLoserPromise = xPromiseCreate(pLoser);
+	if ( pWinner == NULL || pLoser == NULL || pWinnerPromise == NULL || pLoserPromise == NULL ) {
+		iRet = 810;
+		goto cleanup;
+	}
+	if ( !xPromiseReject(pWinnerPromise, XRT_NET_ERROR, (str)"race completed reject") ) {
+		iRet = 811;
+		goto cleanup;
+	}
+	arrFuture[0] = pWinner;
+	arrFuture[1] = pLoser;
+	pRace = xFutureRace(arrFuture, 2);
+	if ( pRace == NULL ) {
+		iRet = 812;
+		goto cleanup;
+	}
+	iSpin = 0;
+	while ( xFutureState(pRace) == XFUTURE_PENDING && iSpin < 200 ) {
+		xrtThreadYield();
+		iSpin++;
+	}
+	if ( xFutureState(pRace) == XFUTURE_PENDING ) {
+		iRet = 813;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pRace) != XRT_NET_ERROR ) {
+		iRet = 815;
+		goto cleanup;
+	}
+	if ( xFutureGetGroupSourceIndex(pRace) != 0 ) {
+		iRet = 816;
+		goto cleanup;
+	}
+	if ( xFuturePeekGroupSource(pRace) != pWinner ) {
+		iRet = 817;
+		goto cleanup;
+	}
+	while ( xFutureState(pLoser) == XFUTURE_PENDING && iSpin < 200 ) {
+		xrtThreadYield();
+		iSpin++;
+	}
+	if ( xFutureState(pLoser) != XFUTURE_CANCELLED || xPromiseResolve(pLoserPromise, &iLoserValue) ) {
+		iRet = 814;
+		goto cleanup;
+	}
+
+	if ( pRace ) { xFutureRelease(pRace); pRace = NULL; }
+	if ( pWinnerPromise ) { xPromiseDestroy(pWinnerPromise); pWinnerPromise = NULL; }
+	if ( pLoserPromise ) { xPromiseDestroy(pLoserPromise); pLoserPromise = NULL; }
+	if ( pWinner ) { xFutureRelease(pWinner); pWinner = NULL; }
+	if ( pLoser ) { xFutureRelease(pLoser); pLoser = NULL; }
+
+	// pending source 失败时，source-inline race 回调必须立即取消 loser。
+	pWinner = xFutureCreate();
+	pLoser = xFutureCreate();
+	pWinnerPromise = xPromiseCreate(pWinner);
+	pLoserPromise = xPromiseCreate(pLoser);
+	if ( pWinner == NULL || pLoser == NULL || pWinnerPromise == NULL || pLoserPromise == NULL ) {
+		iRet = 820;
+		goto cleanup;
+	}
+	arrFuture[0] = pWinner;
+	arrFuture[1] = pLoser;
+	pRace = xFutureRace(arrFuture, 2);
+	if ( pRace == NULL ) {
+		iRet = 821;
+		goto cleanup;
+	}
+	if ( !xPromiseReject(pWinnerPromise, XRT_NET_ERROR, (str)"race pending reject") ) {
+		iRet = 822;
+		goto cleanup;
+	}
+	if ( xPromiseResolve(pLoserPromise, &iLoserValue) ) {
+		iRet = 823;
+		goto cleanup;
+	}
+	iSpin = 0;
+	while ( xFutureState(pRace) == XFUTURE_PENDING && iSpin < 200 ) {
+		xrtThreadYield();
+		iSpin++;
+	}
+	if ( xFutureState(pRace) == XFUTURE_PENDING || xFutureStatus(pRace) != XRT_NET_ERROR || xFutureGetGroupSourceIndex(pRace) != 0 || xFuturePeekGroupSource(pRace) != pWinner ) {
+		iRet = 824;
+		goto cleanup;
+	}
+	if ( xFutureState(pLoser) != XFUTURE_CANCELLED ) {
+		iRet = 825;
+		goto cleanup;
+	}
+
+	if ( pRace ) { xFutureRelease(pRace); pRace = NULL; }
+	if ( pWinnerPromise ) { xPromiseDestroy(pWinnerPromise); pWinnerPromise = NULL; }
+	if ( pLoserPromise ) { xPromiseDestroy(pLoserPromise); pLoserPromise = NULL; }
+	if ( pWinner ) { xFutureRelease(pWinner); pWinner = NULL; }
+	if ( pLoser ) { xFutureRelease(pLoser); pLoser = NULL; }
+
+	// 已取消 source 先完成，race 必须取消并取消仍 pending 的 loser。
+	pWinner = xFutureCreate();
+	pLoser = xFutureCreate();
+	pWinnerPromise = xPromiseCreate(pWinner);
+	pLoserPromise = xPromiseCreate(pLoser);
+	if ( pWinner == NULL || pLoser == NULL || pWinnerPromise == NULL || pLoserPromise == NULL ) {
+		iRet = 830;
+		goto cleanup;
+	}
+	if ( !xPromiseCancel(pWinnerPromise, (str)"race completed cancel") ) {
+		iRet = 831;
+		goto cleanup;
+	}
+	arrFuture[0] = pWinner;
+	arrFuture[1] = pLoser;
+	pRace = xFutureRace(arrFuture, 2);
+	if ( pRace == NULL ) {
+		iRet = 832;
+		goto cleanup;
+	}
+	iSpin = 0;
+	while ( xFutureState(pLoser) == XFUTURE_PENDING && iSpin < 200 ) {
+		xrtThreadYield();
+		iSpin++;
+	}
+	if ( xFutureState(pRace) == XFUTURE_PENDING || xFutureStatus(pRace) != XRT_NET_CANCELLED || xFutureGetGroupSourceIndex(pRace) != 0 || xFuturePeekGroupSource(pRace) != pWinner ) {
+		iRet = 833;
+		goto cleanup;
+	}
+	if ( xFutureState(pLoser) != XFUTURE_CANCELLED || xPromiseResolve(pLoserPromise, &iLoserValue) ) {
+		iRet = 834;
+		goto cleanup;
+	}
+
+	if ( pRace ) { xFutureRelease(pRace); pRace = NULL; }
+	if ( pWinnerPromise ) { xPromiseDestroy(pWinnerPromise); pWinnerPromise = NULL; }
+	if ( pLoserPromise ) { xPromiseDestroy(pLoserPromise); pLoserPromise = NULL; }
+	if ( pWinner ) { xFutureRelease(pWinner); pWinner = NULL; }
+	if ( pLoser ) { xFutureRelease(pLoser); pLoser = NULL; }
+
+	// pending source 被取消时，race group 与 loser 都必须立即进入取消态。
+	pWinner = xFutureCreate();
+	pLoser = xFutureCreate();
+	pWinnerPromise = xPromiseCreate(pWinner);
+	pLoserPromise = xPromiseCreate(pLoser);
+	if ( pWinner == NULL || pLoser == NULL || pWinnerPromise == NULL || pLoserPromise == NULL ) {
+		iRet = 840;
+		goto cleanup;
+	}
+	arrFuture[0] = pWinner;
+	arrFuture[1] = pLoser;
+	pRace = xFutureRace(arrFuture, 2);
+	if ( pRace == NULL ) {
+		iRet = 841;
+		goto cleanup;
+	}
+	if ( !xPromiseCancel(pWinnerPromise, (str)"race pending cancel") ) {
+		iRet = 842;
+		goto cleanup;
+	}
+	if ( xPromiseResolve(pLoserPromise, &iLoserValue) ) {
+		iRet = 843;
+		goto cleanup;
+	}
+	iSpin = 0;
+	while ( xFutureState(pRace) == XFUTURE_PENDING && iSpin < 200 ) {
+		xrtThreadYield();
+		iSpin++;
+	}
+	if ( xFutureState(pRace) == XFUTURE_PENDING || xFutureStatus(pRace) != XRT_NET_CANCELLED || xFutureGetGroupSourceIndex(pRace) != 0 || xFuturePeekGroupSource(pRace) != pWinner ) {
+		iRet = 844;
+		goto cleanup;
+	}
+	if ( xFutureState(pLoser) != XFUTURE_CANCELLED ) {
+		iRet = 845;
+		goto cleanup;
+	}
+
+cleanup:
+	if ( pRace ) xFutureRelease(pRace);
+	if ( pWinnerPromise ) xPromiseDestroy(pWinnerPromise);
+	if ( pLoserPromise ) xPromiseDestroy(pLoserPromise);
+	if ( pWinner ) xFutureRelease(pWinner);
+	if ( pLoser ) xFutureRelease(pLoser);
+	(void)iWinnerValue;
+	return iRet;
+}
+
+
+static int __Test_FutureCore_RepeatedCancelState(void)
+{
+	xfuture* pPending = NULL;
+	xfuture* pResolved = NULL;
+	xfuture* pRejected = NULL;
+	xpromise* pPendingPromise = NULL;
+	xpromise* pResolvedPromise = NULL;
+	xpromise* pRejectedPromise = NULL;
+	int iValue = 7001;
+	int iRet = 0;
+
+	pPending = xFutureCreate();
+	pPendingPromise = xPromiseCreate(pPending);
+	if ( pPending == NULL || pPendingPromise == NULL ) {
+		iRet = 700;
+		goto cleanup;
+	}
+	if ( !xFutureRequestCancel(pPending) ) {
+		iRet = 701;
+		goto cleanup;
+	}
+	if ( !xFutureRequestCancel(pPending) ) {
+		iRet = 702;
+		goto cleanup;
+	}
+	if ( xFutureState(pPending) != XFUTURE_CANCELLED || xFutureStatus(pPending) != XRT_NET_CANCELLED ) {
+		iRet = 703;
+		goto cleanup;
+	}
+	if ( xPromiseResolve(pPendingPromise, &iValue) ) {
+		iRet = 704;
+		goto cleanup;
+	}
+
+	pResolved = xFutureCreate();
+	pResolvedPromise = xPromiseCreate(pResolved);
+	if ( pResolved == NULL || pResolvedPromise == NULL ) {
+		iRet = 710;
+		goto cleanup;
+	}
+	if ( !xPromiseResolve(pResolvedPromise, &iValue) ) {
+		iRet = 711;
+		goto cleanup;
+	}
+	if ( xFutureState(pResolved) != XFUTURE_RESOLVED || xFutureStatus(pResolved) != XRT_NET_OK ) {
+		iRet = 712;
+		goto cleanup;
+	}
+	if ( xFutureRequestCancel(pResolved) ) {
+		iRet = 713;
+		goto cleanup;
+	}
+
+	pRejected = xFutureCreate();
+	pRejectedPromise = xPromiseCreate(pRejected);
+	if ( pRejected == NULL || pRejectedPromise == NULL ) {
+		iRet = 720;
+		goto cleanup;
+	}
+	if ( !xPromiseReject(pRejectedPromise, XRT_NET_ERROR, (str)"reject") ) {
+		iRet = 721;
+		goto cleanup;
+	}
+	if ( xFutureState(pRejected) != XFUTURE_REJECTED || xFutureStatus(pRejected) != XRT_NET_ERROR ) {
+		iRet = 722;
+		goto cleanup;
+	}
+	if ( xFutureRequestCancel(pRejected) ) {
+		iRet = 723;
+		goto cleanup;
+	}
+
+cleanup:
+	if ( pPendingPromise ) xPromiseDestroy(pPendingPromise);
+	if ( pResolvedPromise ) xPromiseDestroy(pResolvedPromise);
+	if ( pRejectedPromise ) xPromiseDestroy(pRejectedPromise);
+	if ( pPending ) xFutureRelease(pPending);
+	if ( pResolved ) xFutureRelease(pResolved);
+	if ( pRejected ) xFutureRelease(pRejected);
+	return iRet;
+}
+
+
+static int __Test_FutureCore_GroupDuplicateSource(void)
+{
+	xfuture* pSource = NULL;
+	xfuture* pPendingAll = NULL;
+	xfuture* pPendingRace = NULL;
+	xfuture* pRejected = NULL;
+	xfuture* pPendingRejectAll = NULL;
+	xfuture* pPendingRejectRace = NULL;
+	xfuture* pCancelled = NULL;
+	xfuture* pPendingCancelAll = NULL;
+	xfuture* pPendingCancelRace = NULL;
+	xfuture* pGroup = NULL;
+	xpromise* pPromise = NULL;
+	xpromise* pPendingAllPromise = NULL;
+	xpromise* pPendingRacePromise = NULL;
+	xpromise* pRejectedPromise = NULL;
+	xpromise* pPendingRejectAllPromise = NULL;
+	xpromise* pPendingRejectRacePromise = NULL;
+	xpromise* pCancelledPromise = NULL;
+	xpromise* pPendingCancelAllPromise = NULL;
+	xpromise* pPendingCancelRacePromise = NULL;
+	xfuture* arrFuture[2];
+	int iValue = 7301;
+	int iPendingAllValue = 7302;
+	int iPendingRaceValue = 7303;
+	int iRet = 0;
+	xfuture* pHeldSource = NULL;
+
+	pSource = xFutureCreate();
+	pPromise = xPromiseCreate(pSource);
+	if ( pSource == NULL || pPromise == NULL ) {
+		iRet = 730;
+		goto cleanup;
+	}
+	if ( !xPromiseResolve(pPromise, &iValue) ) {
+		iRet = 731;
+		goto cleanup;
+	}
+
+	arrFuture[0] = pSource;
+	arrFuture[1] = pSource;
+	pGroup = xFutureWhenAll(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 732;
+		goto cleanup;
+	}
+	if ( !xFutureWaitTimeout(pGroup, 1000) ) {
+		iRet = 733;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_OK || xFutureGetAllValueCount(pGroup) != 2 ) {
+		iRet = 734;
+		goto cleanup;
+	}
+	if ( xFutureGetAllValueItem(pGroup, 0) != &iValue || xFutureGetAllValueItem(pGroup, 1) != &iValue ) {
+		iRet = 735;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pGroup = xFutureRace(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 736;
+		goto cleanup;
+	}
+	if ( !xFutureWaitTimeout(pGroup, 1000) ) {
+		iRet = 737;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_OK || xFutureValue(pGroup) != &iValue ) {
+		iRet = 738;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pSource || xFuturePeekGroupSource(pGroup) != pSource ) {
+		iRet = 739;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pSource) != XFUTURE_RESOLVED || xFutureRequestCancel(pSource) ) {
+		iRet = 740;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pPendingAll = xFutureCreate();
+	pPendingAllPromise = xPromiseCreate(pPendingAll);
+	if ( pPendingAll == NULL || pPendingAllPromise == NULL ) {
+		iRet = 741;
+		goto cleanup;
+	}
+	arrFuture[0] = pPendingAll;
+	arrFuture[1] = pPendingAll;
+	pGroup = xFutureWhenAll(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 742;
+		goto cleanup;
+	}
+	if ( !xPromiseResolve(pPendingAllPromise, &iPendingAllValue) ) {
+		iRet = 743;
+		goto cleanup;
+	}
+	if ( !xFutureWaitTimeout(pGroup, 1000) ) {
+		iRet = 744;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_OK || xFutureGetAllValueCount(pGroup) != 2 ) {
+		iRet = 745;
+		goto cleanup;
+	}
+	if ( xFutureGetAllValueItem(pGroup, 0) != &iPendingAllValue || xFutureGetAllValueItem(pGroup, 1) != &iPendingAllValue ) {
+		iRet = 746;
+		goto cleanup;
+	}
+	if ( xFutureState(pPendingAll) != XFUTURE_RESOLVED || xFutureRequestCancel(pPendingAll) ) {
+		iRet = 747;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pPendingRace = xFutureCreate();
+	pPendingRacePromise = xPromiseCreate(pPendingRace);
+	if ( pPendingRace == NULL || pPendingRacePromise == NULL ) {
+		iRet = 748;
+		goto cleanup;
+	}
+	arrFuture[0] = pPendingRace;
+	arrFuture[1] = pPendingRace;
+	pGroup = xFutureRace(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 749;
+		goto cleanup;
+	}
+	if ( !xPromiseResolve(pPendingRacePromise, &iPendingRaceValue) ) {
+		iRet = 750;
+		goto cleanup;
+	}
+	if ( !xFutureWaitTimeout(pGroup, 1000) ) {
+		iRet = 751;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_OK || xFutureValue(pGroup) != &iPendingRaceValue ) {
+		iRet = 752;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pPendingRace || xFuturePeekGroupSource(pGroup) != pPendingRace ) {
+		iRet = 753;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pPendingRace) != XFUTURE_RESOLVED || xFutureRequestCancel(pPendingRace) ) {
+		iRet = 754;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pRejected = xFutureCreate();
+	pRejectedPromise = xPromiseCreate(pRejected);
+	if ( pRejected == NULL || pRejectedPromise == NULL ) {
+		iRet = 755;
+		goto cleanup;
+	}
+	if ( !xPromiseReject(pRejectedPromise, XRT_NET_ERROR, (str)"duplicate reject") ) {
+		iRet = 756;
+		goto cleanup;
+	}
+	arrFuture[0] = pRejected;
+	arrFuture[1] = pRejected;
+	pGroup = xFutureWhenAll(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 757;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 758;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_ERROR || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 759;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pRejected || xFuturePeekGroupSource(pGroup) != pRejected ) {
+		iRet = 760;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pRejected) != XFUTURE_REJECTED || xFutureRequestCancel(pRejected) ) {
+		iRet = 761;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pGroup = xFutureRace(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 762;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 763;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_ERROR || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 764;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pRejected || xFuturePeekGroupSource(pGroup) != pRejected ) {
+		iRet = 765;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pRejected) != XFUTURE_REJECTED || xFutureRequestCancel(pRejected) ) {
+		iRet = 766;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pPendingRejectAll = xFutureCreate();
+	pPendingRejectAllPromise = xPromiseCreate(pPendingRejectAll);
+	if ( pPendingRejectAll == NULL || pPendingRejectAllPromise == NULL ) {
+		iRet = 767;
+		goto cleanup;
+	}
+	arrFuture[0] = pPendingRejectAll;
+	arrFuture[1] = pPendingRejectAll;
+	pGroup = xFutureWhenAll(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 768;
+		goto cleanup;
+	}
+	if ( !xPromiseReject(pPendingRejectAllPromise, XRT_NET_ERROR, (str)"pending duplicate reject all") ) {
+		iRet = 769;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 770;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_ERROR || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 771;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pPendingRejectAll || xFuturePeekGroupSource(pGroup) != pPendingRejectAll ) {
+		iRet = 772;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pPendingRejectAll) != XFUTURE_REJECTED || xFutureRequestCancel(pPendingRejectAll) ) {
+		iRet = 773;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pPendingRejectRace = xFutureCreate();
+	pPendingRejectRacePromise = xPromiseCreate(pPendingRejectRace);
+	if ( pPendingRejectRace == NULL || pPendingRejectRacePromise == NULL ) {
+		iRet = 774;
+		goto cleanup;
+	}
+	arrFuture[0] = pPendingRejectRace;
+	arrFuture[1] = pPendingRejectRace;
+	pGroup = xFutureRace(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 775;
+		goto cleanup;
+	}
+	if ( !xPromiseReject(pPendingRejectRacePromise, XRT_NET_ERROR, (str)"pending duplicate reject race") ) {
+		iRet = 776;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 777;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_ERROR || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 778;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pPendingRejectRace || xFuturePeekGroupSource(pGroup) != pPendingRejectRace ) {
+		iRet = 779;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pPendingRejectRace) != XFUTURE_REJECTED || xFutureRequestCancel(pPendingRejectRace) ) {
+		iRet = 780;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pCancelled = xFutureCreate();
+	pCancelledPromise = xPromiseCreate(pCancelled);
+	if ( pCancelled == NULL || pCancelledPromise == NULL ) {
+		iRet = 781;
+		goto cleanup;
+	}
+	if ( !xPromiseCancel(pCancelledPromise, (str)"duplicate cancel") ) {
+		iRet = 782;
+		goto cleanup;
+	}
+	arrFuture[0] = pCancelled;
+	arrFuture[1] = pCancelled;
+	pGroup = xFutureWhenAll(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 783;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 784;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_CANCELLED || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 785;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pCancelled || xFuturePeekGroupSource(pGroup) != pCancelled ) {
+		iRet = 786;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pCancelled) != XFUTURE_CANCELLED || !xFutureRequestCancel(pCancelled) ) {
+		iRet = 787;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pGroup = xFutureRace(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 788;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 789;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_CANCELLED || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 790;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pCancelled || xFuturePeekGroupSource(pGroup) != pCancelled ) {
+		iRet = 791;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pCancelled) != XFUTURE_CANCELLED || !xFutureRequestCancel(pCancelled) ) {
+		iRet = 792;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pPendingCancelAll = xFutureCreate();
+	pPendingCancelAllPromise = xPromiseCreate(pPendingCancelAll);
+	if ( pPendingCancelAll == NULL || pPendingCancelAllPromise == NULL ) {
+		iRet = 793;
+		goto cleanup;
+	}
+	arrFuture[0] = pPendingCancelAll;
+	arrFuture[1] = pPendingCancelAll;
+	pGroup = xFutureWhenAll(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 794;
+		goto cleanup;
+	}
+	if ( !xPromiseCancel(pPendingCancelAllPromise, (str)"pending duplicate cancel all") ) {
+		iRet = 795;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 796;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_CANCELLED || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 797;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pPendingCancelAll || xFuturePeekGroupSource(pGroup) != pPendingCancelAll ) {
+		iRet = 798;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pPendingCancelAll) != XFUTURE_CANCELLED || !xFutureRequestCancel(pPendingCancelAll) ) {
+		iRet = 799;
+		goto cleanup;
+	}
+	xFutureRelease(pGroup);
+	pGroup = NULL;
+
+	pPendingCancelRace = xFutureCreate();
+	pPendingCancelRacePromise = xPromiseCreate(pPendingCancelRace);
+	if ( pPendingCancelRace == NULL || pPendingCancelRacePromise == NULL ) {
+		iRet = 800;
+		goto cleanup;
+	}
+	arrFuture[0] = pPendingCancelRace;
+	arrFuture[1] = pPendingCancelRace;
+	pGroup = xFutureRace(arrFuture, 2);
+	if ( pGroup == NULL ) {
+		iRet = 801;
+		goto cleanup;
+	}
+	if ( !xPromiseCancel(pPendingCancelRacePromise, (str)"pending duplicate cancel race") ) {
+		iRet = 802;
+		goto cleanup;
+	}
+	if ( xrtNetFutureWait(pGroup, 1000) == XRT_NET_TIMEOUT || xFutureState(pGroup) == XFUTURE_PENDING ) {
+		iRet = 803;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pGroup) != XRT_NET_CANCELLED || xFutureGetGroupSourceIndex(pGroup) != 0 ) {
+		iRet = 804;
+		goto cleanup;
+	}
+	pHeldSource = xFutureGetGroupSource(pGroup);
+	if ( pHeldSource != pPendingCancelRace || xFuturePeekGroupSource(pGroup) != pPendingCancelRace ) {
+		iRet = 805;
+		goto cleanup;
+	}
+	xFutureRelease(pHeldSource);
+	pHeldSource = NULL;
+	if ( xFutureState(pPendingCancelRace) != XFUTURE_CANCELLED || !xFutureRequestCancel(pPendingCancelRace) ) {
+		iRet = 806;
+		goto cleanup;
+	}
+
+cleanup:
+	if ( pHeldSource ) xFutureRelease(pHeldSource);
+	if ( pGroup ) xFutureRelease(pGroup);
+	if ( pPromise ) xPromiseDestroy(pPromise);
+	if ( pPendingAllPromise ) xPromiseDestroy(pPendingAllPromise);
+	if ( pPendingRacePromise ) xPromiseDestroy(pPendingRacePromise);
+	if ( pRejectedPromise ) xPromiseDestroy(pRejectedPromise);
+	if ( pPendingRejectAllPromise ) xPromiseDestroy(pPendingRejectAllPromise);
+	if ( pPendingRejectRacePromise ) xPromiseDestroy(pPendingRejectRacePromise);
+	if ( pCancelledPromise ) xPromiseDestroy(pCancelledPromise);
+	if ( pPendingCancelAllPromise ) xPromiseDestroy(pPendingCancelAllPromise);
+	if ( pPendingCancelRacePromise ) xPromiseDestroy(pPendingCancelRacePromise);
+	if ( pSource ) xFutureRelease(pSource);
+	if ( pPendingAll ) xFutureRelease(pPendingAll);
+	if ( pPendingRace ) xFutureRelease(pPendingRace);
+	if ( pRejected ) xFutureRelease(pRejected);
+	if ( pPendingRejectAll ) xFutureRelease(pPendingRejectAll);
+	if ( pPendingRejectRace ) xFutureRelease(pPendingRejectRace);
+	if ( pCancelled ) xFutureRelease(pCancelled);
+	if ( pPendingCancelAll ) xFutureRelease(pPendingCancelAll);
+	if ( pPendingCancelRace ) xFutureRelease(pPendingCancelRace);
+	return iRet;
+}
+
+
 static int __Test_FutureCore_TaskGroup(void)
 {
 	xtaskgroup* pGroup = NULL;
@@ -1913,6 +2952,9 @@ static int __Test_FutureCore_RunAll(void)
 		iRet = __Test_FutureCore_TaskRunThread();
 	}
 	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_TypeDesc();
+	}
+	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_Continuation();
 	}
 	if ( iRet == 0 ) {
@@ -1920,6 +2962,18 @@ static int __Test_FutureCore_RunAll(void)
 	}
 	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_Combinators();
+	}
+	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_RaceCompletedFirstMultiLoser();
+	}
+	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_RaceFailureCancelLoser();
+	}
+	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_RepeatedCancelState();
+	}
+	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_GroupDuplicateSource();
 	}
 	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_TaskGroup();

@@ -36,7 +36,7 @@ if exist "%OUTPUT_DIR%\single_head_maker.exe" (
 
 echo Compiling single_head_maker.c...
 
-tcc single_head_maker.c -lShell32 -lWs2_32 -lIPHLPAPI -o "%OUTPUT_DIR%\single_head_maker.exe"
+tcc -DXRT_SINGLE_HEAD_MAKER_USE_SOURCE single_head_maker.c -lShell32 -lWs2_32 -lIPHLPAPI -o "%OUTPUT_DIR%\single_head_maker.exe"
 
 if errorlevel 1 (
     echo.
