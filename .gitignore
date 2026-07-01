@@ -1,4 +1,5 @@
 # Generated validation/debug artifacts
+logger_*.log*
 dev/_tmp_*
 dev/*.exe
 dev/*.log
@@ -14,11 +15,15 @@ dev/bench/**/*.o
 
 # Generated release-side validation artifacts
 release/x64/test*.exe
+release/x64/logger_*.log*
+release/x64/test/logger_*.log*
 release/x64/test/out_*.txt
 release/x64/test/test_ptr.txt
 release/x64/test/test_put.txt
 release/x64/test/test_putall.txt
 release/x64/xrt_test*
+release/x86/logger_*.log*
+release/x86/test/logger_*.log*
 release/x64/test/test_copy.txt
 release/x64/test/test_move.txt
 release/x64/test/test_size.txt

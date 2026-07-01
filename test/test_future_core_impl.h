@@ -97,6 +97,88 @@ static void __Test_FutureCore_FinallyProc(const xfuture_result* pIn, ptr pArg)
 	}
 }
 
+static int __Test_FutureCore_RaceOwnedResultBorrow(void)
+{
+	xfuture* pSource = NULL;
+	xfuture* pLoser = NULL;
+	xfuture* pRace = NULL;
+	xpromise* pSourcePromise = NULL;
+	xpromise* pLoserPromise = NULL;
+	xfuture* arrFuture[2];
+	char* sOwned = NULL;
+	char* sSourceValue = NULL;
+	int iRet = 0;
+
+	pSource = xFutureCreate();
+	pLoser = xFutureCreate();
+	pSourcePromise = xPromiseCreate(pSource);
+	pLoserPromise = xPromiseCreate(pLoser);
+	if ( pSource == NULL || pLoser == NULL || pSourcePromise == NULL || pLoserPromise == NULL ) {
+		iRet = 860;
+		goto cleanup;
+	}
+
+	sOwned = (char*)malloc(32);
+	if ( sOwned == NULL ) {
+		iRet = 861;
+		goto cleanup;
+	}
+	strcpy(sOwned, "race-owned-source");
+
+	arrFuture[0] = pSource;
+	arrFuture[1] = pLoser;
+	pRace = xFutureRace(arrFuture, 2);
+	if ( pRace == NULL ) {
+		iRet = 862;
+		goto cleanup;
+	}
+	if ( !xPromiseResolveOwned(pSourcePromise, sOwned) ) {
+		sOwned = NULL;
+		iRet = 863;
+		goto cleanup;
+	}
+	sOwned = NULL;
+	if ( !xFutureWaitTimeout(pRace, 1000) ) {
+		iRet = 864;
+		goto cleanup;
+	}
+	if ( xFutureStatus(pRace) != XRT_NET_OK || xFutureValue(pRace) != xFutureValue(pSource) ) {
+		iRet = 865;
+		goto cleanup;
+	}
+	if ( xFutureValueIsOwned(pRace) ) {
+		// 回归保护：race 结果只能借用源值。若这里失败，先清掉 owned 标记避免测试清理时重复释放。
+		pRace->iResultFlags &= ~XFUTURE_RESULT_F_OWN_VALUE;
+		pRace->pfnFreeValue = NULL;
+		iRet = 866;
+		goto cleanup;
+	}
+
+	sSourceValue = (char*)xFutureValue(pSource);
+	if ( sSourceValue == NULL || strcmp(sSourceValue, "race-owned-source") != 0 ) {
+		iRet = 867;
+		goto cleanup;
+	}
+
+	xFutureRelease(pRace);
+	pRace = NULL;
+
+	sSourceValue = (char*)xFutureValue(pSource);
+	if ( sSourceValue == NULL || strcmp(sSourceValue, "race-owned-source") != 0 ) {
+		iRet = 868;
+		goto cleanup;
+	}
+
+cleanup:
+	if ( sOwned ) { free(sOwned); }
+	if ( pRace ) { xFutureRelease(pRace); }
+	if ( pSourcePromise ) { xPromiseDestroy(pSourcePromise); }
+	if ( pLoserPromise ) { xPromiseDestroy(pLoserPromise); }
+	if ( pSource ) { xFutureRelease(pSource); }
+	if ( pLoser ) { xFutureRelease(pLoser); }
+	return iRet;
+}
+
 #if !defined(XRT_NO_COROUTINE)
 // 内部函数：__Test_FutureCore_CoTask
 static int32 __Test_FutureCore_CoTask(ptr pArg, xfuture_result* pOut)
@@ -3013,6 +3095,9 @@ static int __Test_FutureCore_RunAll(void)
 	}
 	if ( iRet == 0 ) {
 		iRet = __Test_FutureCore_OwnershipLifetime();
+	}
+	if ( iRet == 0 ) {
+		iRet = __Test_FutureCore_RaceOwnedResultBorrow();
 	}
 	#if !defined(XRT_NO_COROUTINE)
 	if ( iRet == 0 ) {

@@ -177,6 +177,17 @@ xPromiseDestroy(pPromise);
 xFutureRelease(pFuture);
 ```
 
+如果结果值需要交给 `future` 释放，使用 `xPromiseResolveOwned()`：
+
+```c
+ptr pValue = xrtMalloc(sizeof(int));
+*(int*)pValue = 123;
+
+(void)xPromiseResolveOwned(pPromise, pValue);
+```
+
+使用 owned 结果后，结果内存由完成后的 `future` 持有，调用者不要再手动释放 `pValue`。
+
 
 ### 失败、取消、关闭
 
@@ -203,6 +214,7 @@ if ( xFutureGetResult(pFuture, &tResult) ) {
 - `xFutureStatus`
 - `xFutureValue`
 - `xFutureError`
+- `xFutureValueIsOwned`
 
 ---
 
@@ -419,13 +431,17 @@ xtaskgroup* pChild = xTaskGroupCreateChild(pParent);
 
 - `xPromiseGetFuture`：返回持有引用
 - `xPromisePeekFuture`：返回借用引用
+- `xPromiseResolve`：结果值为借用指针，调用方仍负责结果值生命周期
+- `xPromiseResolveOwned`：结果值所有权转交给完成后的 `future`
 
 
 ### combinator 侧
 
 - `xFutureGetGroupSource`：返回持有引用
 - `xFuturePeekGroupSource`：返回借用引用
+- `xFutureValueIsOwned`：返回当前 `future` 是否持有结果值所有权
 
+`WhenAny` 和 `Race` 的组合结果会借用获胜 source future 的结果值；source future 仍负责 owned 结果值的释放。
 
 ### 推荐记忆方式
 
@@ -433,6 +449,7 @@ xtaskgroup* pChild = xTaskGroupCreateChild(pParent);
 
 - `Get*` => 你持有它
 - `Peek*` => 你只是看看
+- `ResolveOwned` => `future` 持有结果值
 
 ---
 

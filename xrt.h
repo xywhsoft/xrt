@@ -4767,6 +4767,8 @@
 	XXAPI str xFutureError(xfuture* pFuture);
 	// 获取 Future 结果
 	XXAPI bool xFutureGetResult(xfuture* pFuture, xfuture_result* pOut);
+	// 判断 Future 结果值是否由 Future 拥有
+	XXAPI bool xFutureValueIsOwned(xfuture* pFuture);
 	// 设置 Future 调试名称
 	XXAPI bool xFutureSetDebugName(xfuture* pFuture, str sDebugName);
 	// 获取 Future 调试名称
